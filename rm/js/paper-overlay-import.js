@@ -248,9 +248,7 @@
     let draftOk = true;
     let draftTitle = '';
     if (draftIdRaw && window.PAPER_OVERLAYS) {
-      const linked = window.PAPER_OVERLAYS.getLinkedDrafts
-        ? window.PAPER_OVERLAYS.getLinkedDrafts()
-        : (window.PAPER_OVERLAYS.getLinkedBuckets() || []);
+      const linked = window.PAPER_OVERLAYS.getLinkedDrafts() || [];
       const found = linked.find(d => d.id === draftIdRaw);
       if (found) {
         draftTitle = found.title;
@@ -352,7 +350,7 @@
               <div class="lp-oim-row-head">
                 <span class="lp-oim-page">p.${h.page || '?'}</span>
                 <span class="lp-oim-type lp-type-${_esc(h.annotation_type || 'note')}" style="font-size:10px;padding:1px 6px;border-radius:3px;background:#eef2ff;color:#3730a3;">${_esc(h.annotation_type || 'note')}</span>
-                <span class="lp-oim-status">${h.matched ? '✓ matched' : '⚠ no match in page text'}</span>
+                <span class="lp-oim-status">${h.matched ? '✓ matched' : ICON.svg('exclamation-triangle') + ' no match in page text'}</span>
                 <label class="lp-oim-include">
                   <input type="checkbox" data-oim-i="${i}" ${h.matched && !h.issues.length ? 'checked' : ''} ${!h.matched ? 'disabled' : ''}>
                   include
@@ -388,7 +386,7 @@
       btn.textContent = 'Importing…';
       try {
         await onConfirm(filtered);
-        btn.textContent = '✓ Imported';
+        ICON.label(btn, 'check', ' Imported');
         setTimeout(close, 600);
       } catch (e) {
         console.error('[paper-overlay-import] confirm failed:', e);

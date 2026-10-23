@@ -139,7 +139,7 @@
     closeBtn.type = 'button';
     closeBtn.className = 'pe-icon-btn';
     closeBtn.setAttribute('aria-label', 'Close');
-    closeBtn.textContent = '×';
+    ICON.label(closeBtn, 'x-mark');
     closeBtn.addEventListener('click', function () { overlay.remove(); });
     head.appendChild(title);
     head.appendChild(closeBtn);
@@ -265,7 +265,7 @@
     close.type = 'button';
     close.className = 'pe-icon-btn';
     close.setAttribute('aria-label', 'Close');
-    close.textContent = '×';
+    ICON.label(close, 'x-mark');
     close.addEventListener('click', function () { panel.remove(); });
     head.appendChild(title);
     head.appendChild(close);

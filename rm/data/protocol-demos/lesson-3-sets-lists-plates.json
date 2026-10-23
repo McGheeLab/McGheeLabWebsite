@@ -55,7 +55,7 @@
             },
             {
               "kind": "step",
-              "body": "Scroll to the <b>Plate planner</b> below (it fills once your <code>conditions</code> list exists). Pick experiments, add plates from the <b>＋ Add plate</b> menu (96 / 384 / 24-well presets), then <b>drag</b> experiment chips onto wells — or press <b>⚙ Arrange</b> to lay them out by fill direction, factor→axis, spread, or randomized, then hand-tweak by dragging. Drag a well off the plate to remove it."
+              "body": "Scroll to the <b>Plate planner</b> below (it fills once your <code>conditions</code> list exists). Pick experiments, add plates from the <b>＋ Add plate</b> menu (96 / 384 / 24-well presets), then <b>drag</b> experiment chips onto wells — or press <b>Arrange</b> to lay them out by fill direction, factor→axis, spread, or randomized, then hand-tweak by dragging. Drag a well off the plate to remove it."
             },
             {
               "kind": "callout",

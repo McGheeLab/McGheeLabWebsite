@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.860 / V3.863 — zoom · pan · pen · highlighter · cards: the ✎ pill's two arcs, the double tap, moving and editing cards</title>
+<!-- The V3.852 stub + an empty canvas entry; mouse, stylus and finger pointer events on the ink. -->
+<link rel="stylesheet" href="/whiteboard-board.css">
+<link rel="stylesheet" href="/rm/css/notebook-blocks.css">
+<link rel="stylesheet" href="/rm/css/canvas-widgets.css">
+<link rel="stylesheet" href="/rm/css/canvas-paper-reader.css">
+<link rel="stylesheet" href="/rm/css/notebook-canvas.css">
+<style>body{font:13px/1.5 system-ui,sans-serif;margin:0}.ok{color:#15803d}.bad{color:#b91c1c}
+#r{position:fixed;left:8px;top:8px;z-index:99999;font:12px/1.4 system-ui,sans-serif;background:#fff;border:1px solid #e5e7eb;padding:6px 8px;max-width:60vw;max-height:60vh;overflow:auto;opacity:.95}
+.page{width:100vw;max-width:none}.nbc-root{height:100vh}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;font:inherit}.btn-small{padding:4px 8px;font-size:12px}.muted-text{color:#6b7280}</style>
+<script>
+window.__popups = [];
+['prompt','alert','confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
+/* ── in-memory Firestore + Storage + firebridge + api stubs ── */
+(function () {
+  var store = new Map(), listeners = [], touched = [];
+  function snapOf(path) { return { id: path.split('/').pop(), exists: store.has(path), data: function () { return store.has(path) ? JSON.parse(JSON.stringify(store.get(path))) : undefined; }, ref: docRef(path) }; }
+  function docsIn(path) { var out = []; store.forEach(function (v, k) { if (k.slice(0, k.lastIndexOf('/')) === path) out.push(snapOf(k)); }); return out; }
+  function fire(path, type) {
+    var parent = path.slice(0, path.lastIndexOf('/'));
+    listeners.slice().forEach(function (l) {
+      if (l.kind === 'doc' && l.path === path) l.cb(snapOf(path));
+      if (l.kind === 'col' && l.path === parent) l.cb({ docChanges: function () { return [{ type: type, doc: snapOf(path) }]; }, docs: docsIn(parent), size: 1, empty: false, forEach: function (f) { docsIn(parent).forEach(f); } });
+    });
+  }
+  function applyUpdate(path, d) { var next = Object.assign({}, store.get(path) || {}); Object.keys(d).forEach(function (k) { if (d[k] === '__DEL__') delete next[k]; else if (d[k] && d[k].__arrayUnion) next[k] = (next[k] || []).concat([d[k].__arrayUnion]); else next[k] = JSON.parse(JSON.stringify(d[k])); }); store.set(path, next); fire(path, 'modified'); }
+  function docRef(path) {
+    return {
+      path: path, id: path.split('/').pop(),
+      collection: function (n) { return colRef(path + '/' + n); },
+      get: function () { touched.push('get ' + path); return Promise.resolve(snapOf(path)); },
+      set: function (d, o) { touched.push('set ' + path); var existed = store.has(path); store.set(path, (o && o.merge) ? Object.assign({}, store.get(path) || {}, JSON.parse(JSON.stringify(d))) : JSON.parse(JSON.stringify(d))); fire(path, existed ? 'modified' : 'added'); return Promise.resolve(); },
+      update: function (d) { touched.push('update ' + path); applyUpdate(path, d); return Promise.resolve(); },
+      delete: function () { touched.push('delete ' + path); store.delete(path); fire(path, 'removed'); return Promise.resolve(); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'doc', cb: cb }; listeners.push(l); setTimeout(function () { cb(snapOf(path)); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+  }
+  function colRef(path) {
+    var q = { path: path,
+      doc: function (id) { return docRef(path + '/' + (id || ('auto' + Math.random().toString(36).slice(2, 8)))); },
+      orderBy: function () { return q; }, where: function () { return q; }, limit: function () { return q; },
+      get: function () { var d = docsIn(path); return Promise.resolve({ docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'col', cb: cb }; listeners.push(l); var d = docsIn(path); setTimeout(function () { cb({ docChanges: function () { return d.map(function (s) { return { type: 'added', doc: s }; }); }, docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+    return q;
+  }
+  var db = {
+    collection: function (n) { return colRef(n); },
+    batch: function () { var ops = []; return { set: function (ref, d, o) { ops.push(function () { return ref.set(d, o); }); }, update: function (ref, d) { ops.push(function () { return ref.update(d); }); }, delete: function (ref) { ops.push(function () { return ref.delete(); }); }, commit: function () { return ops.reduce(function (p, f) { return p.then(f); }, Promise.resolve()); } }; },
+    runTransaction: function (fn) { var tx = { get: function (ref) { return ref.get(); }, set: function (ref, d, o) { ref.set(d, o); }, update: function (ref, d) { ref.update(d); } }; return Promise.resolve(fn(tx)); }
+  };
+  window.__stub = { store: store, touched: touched, db: db };
+  window.firebase = {
+    firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; }, delete: function () { return '__DEL__'; }, arrayUnion: function (x) { return { __arrayUnion: x }; } } },
+    storage: function () { return { ref: function () { return { child: function (p) { return { put: function () { touched.push('put ' + p); return Promise.resolve(); }, getDownloadURL: function () { return Promise.resolve('https://storage.example/' + p); }, delete: function () { touched.push('rm ' + p); return Promise.resolve(); } }; } }; } }; },
+    auth: function () { return { currentUser: { uid: 'u1', email: 'a@x.com' }, onAuthStateChanged: function (cb) { setTimeout(function () { cb({ uid: 'u1', email: 'a@x.com' }); }, 0); } }; }
+  };
+  window.firebridge = { requireSignIn: function () { return Promise.resolve({ allowed: true }); }, isLabMember: function () { return true; }, getUser: function () { return { uid: 'u1', email: 'a@x.com', displayName: 'Ada' }; }, isAdmin: function () { return false; }, db: function () { return db; } };
+  window.api = { load: function (p) { if (p === 'protocols/list.json') return Promise.resolve({ protocols: [{ id: 'coat', title: 'Granule coating', summary: 'coat beads', category: 'bench' }] }); if (p === 'inventory/items.json') return Promise.resolve({ items: [{ id: 'cov', name: 'Coverslips 18 mm', location: 'Drawer B', vendor: 'Fisher', catalog_number: '12-545' }] }); if (p === 'inventory/chemicals.json') return Promise.resolve({ chemicals: [{ id: 'pfa', name: 'PFA 16%', location: 'Fridge 2', cas: '30525-89-4' }] }); return Promise.resolve(null); }, save: function () { return Promise.resolve(); } };
+  window.TOAST = { info: function () {}, success: function () {}, error: function (m) { (window.__toastErr = window.__toastErr || []).push(m); } };
+  window.NOTEBOOK_FIGURES = { uploadImage: function () { return Promise.resolve({ download_url: 'https://firebasestorage.googleapis.com/x/y.webp', storage_path: 'notebook-figures/u1/y.webp', hash: 'h', mime: 'image/webp', size_bytes: 10, uploaded_at: 'now', uploaded_by: 'u1' }); } };
+  /* a V3.830 block entry to migrate: a note, a checklist and a whiteboard block whose board carries ink */
+  store.set('userData/u1/notebook/_index', { entries: [{ id: 'nb-2026-10-20-old', title: 'Old block entry', date: '2026-10-20', tags: ['tfm'], updated_at: '2026-10-20T10:00:00Z', block_types: ['note', 'checklist', 'whiteboard'] }] });
+  store.set('userData/u1/notebook/nb-2026-10-20-old', { title: 'Old block entry', date: '2026-10-20', tags: ['tfm'], schema_version: 2, updated_at: '2026-10-20T10:00:00Z',
+    blocks: [{ id: 'blk-a', type: 'note', title: 'Setup', collapsed: false, data: { html: '<p>Seeded <b>MCF10A</b> on gels.</p>' } },
+             { id: 'blk-b', type: 'checklist', title: '', collapsed: false, data: { items: [{ text: 'image at 24 h', done: false }] } },
+             { id: 'blk-c', type: 'whiteboard', title: 'Sketch', collapsed: false, data: { boardId: 'nbOLD_u1', size: 'm' } }] });
+  store.set('userData/u1/notebookBoards/nbOLD_u1', { name: 'Sketch', pages: [{ id: 'p1', background: 'blank' }], activePageId: 'p1', ownerUid: 'u1' });
+  store.set('items/pa', { type: 'paper', title: 'Collagen fibril alignment under shear flow', meta: { library: { is_library_entry: true, authors: [{ family: 'Smith' }, { family: 'Lee' }, { family: 'Wu' }], year: 2020, journal: 'Biophys J' } } });
+  store.set('items/pb', { type: 'paper', title: 'Stiffness and spreading of MCF10A', meta: { library: { is_library_entry: true, authors: [{ family: 'Jones' }], year: 2019, journal: 'Nature' } } });
+  try { sessionStorage.removeItem('nbb_papers_v1'); } catch (e) {}
+  try { localStorage.removeItem('wb_pens_v1'); localStorage.removeItem('wb_pillpos_v1'); } catch (e) {}
+  store.set('userData/u1/notebookBoards/nbOLD_u1/strokes/s1', { pageId: 'p1', seq: 1, pts: [0.1, 0.1, 0.5, 0.3, 0.3, 0.5], color: '#111827', width: 0.004 });
+  if (window.PointerEvent && !PointerEvent.prototype.getCoalescedEvents) PointerEvent.prototype.getCoalescedEvents = function () { return [this]; };
+})();
+</script>
+<script>/* production shape (V3.862): firebase-bridge.js declares `const firebridge` — a bare global, never window.firebridge.
+   Code that reads window.firebridge must fail here the way it fails on the live site. */
+const firebridge = window.firebridge; delete window.firebridge;</script>
+<script>
+/* V3.860 — an empty canvas entry: the ✎ pill's three modes, the zoom hand, and the double tap with a mouse, a stylus and a finger */
+(function () {
+  var store = window.__stub.store;
+  var idx = store.get('userData/u1/notebook/_index');
+  idx.entries.push({ id: 'nb-z', title: 'Modes entry', date: '2026-10-23', tags: [], updated_at: '2026-10-23T10:00:00Z', canvas_version: 3, notebook_id: 'default', board_id: 'nbZ_u1' });
+  store.set('userData/u1/notebook/_index', idx);
+  store.set('userData/u1/notebook/nb-z', { title: 'Modes entry', date: '2026-10-23', tags: [], schema_version: 2, canvas_version: 3, boardId: 'nbZ_u1', updated_at: '2026-10-23T10:00:00Z', blocks: [] });
+  store.set('userData/u1/notebookBoards/nbZ_u1', { name: 'Modes entry', pages: [{ id: 'p1', background: 'grid' }], activePageId: 'p1', ownerUid: 'u1', sheetMode: 'continuous' });
+  store.set('userData/u1/notebookBoards/nbZ_u1/items/n1', { type: 'widget', kind: 'note', pageId: 'p1', x: 0.6, y: 0.02, w: 0.3, z: 1, title: 'A note', data: { html: '<p>hello</p>' }, text: 'hello', createdAt: 1700000000001 });
+  history.replaceState(null, '', location.pathname + '?mobile=0&entry=nb-z');
+})();
+</script>
+<script src="/rm/js/notebook-schemas.js"></script>
+<script src="/rm/js/icons.js"></script>
+<script src="/whiteboard.js"></script>
+<script src="/whiteboard-replay.js"></script>
+<script src="/rm/js/canvas-widgets.js"></script>
+<script src="/rm/js/canvas-paper-reader.js"></script>
+<script src="/rm/js/user-actions.js"></script>
+</head>
+<body>
+<div class="page nbk-page nbc-page"><div id="nbc-content" class="nbk-loading">Loading…</div></div>
+<input type="file" id="nbk-camera-input" style="display:none"><input type="file" id="nbk-file-input" style="display:none">
+<div id="r">running…</div>
+<script src="/rm/js/notebook-canvas.js"></script>
+
+<script>
+(async function () {
+  var out = [], fails = 0, store = window.__stub.store;
+  window.__rej = []; window.addEventListener('unhandledrejection', function (e) { window.__rej.push(String((e.reason && e.reason.message) || e.reason)); });
+  function check(name, ok, detail) { out.push('<div class="' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓' : '✗') + ' ' + name + (detail !== undefined ? ' <small>' + String(detail).replace(/</g, '&lt;') + '</small>' : '') + '</div>'); if (!ok) fails++; }
+  function q(s) { return document.querySelector(s); }
+  function qa(s) { return Array.from(document.querySelectorAll(s)); }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function until(fn, ms) { var t0 = Date.now(); while (Date.now() - t0 < (ms || 8000)) { try { var v = fn(); if (v) return v; } catch (e) {} await sleep(40); } return null; }
+  function h() { return window.NOTEBOOK_CANVAS._state.inst; }
+  function click(el) { el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); }
+  var pid = 10;
+  function pe(type, x, y, o) { var ink = q('.wb-canvas-ink'); var e = new PointerEvent(type, Object.assign({ bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: pid, pointerType: 'mouse', pressure: 0.6, button: 0, buttons: type === 'pointerup' ? 0 : 1, isPrimary: true }, o || {})); ink.dispatchEvent(e); }
+  function spot(fx, fy) { var r = q('.wb-canvas-ink').getBoundingClientRect(); return { x: r.left + r.width * fx, y: r.top + r.height * fy }; }
+  async function tap(fx, fy, o) { var p = spot(fx, fy); pid++; pe('pointerdown', p.x, p.y, o); await sleep(30); pe('pointerup', p.x, p.y, o); await sleep(40); }
+  async function dbl(fx, fy, o) { await tap(fx, fy, o); await tap(fx, fy, o); await sleep(80); }
+  async function drag(fx, fy, dx, dy, o) { var p = spot(fx, fy); pid++; pe('pointerdown', p.x, p.y, o); for (var i = 1; i <= 6; i++) { await sleep(16); pe('pointermove', p.x + dx * i / 6, p.y + dy * i / 6, o); } pe('pointerup', p.x + dx, p.y + dy, o); await sleep(80); }
+  function strokes() { var n = 0; store.forEach(function (v, k) { if (k.indexOf('userData/u1/notebookBoards/nbZ_u1/strokes/') === 0 && !v.erasedAt) n++; }); return n; }
+  function mode() { return h().handMode(); }
+  function scale() { return h().getView().scale; }
+  function pill(n) { return q('.wb-pill[data-pill="' + n + '"]'); }
+  function fanActs(n) { return qa('.wb-pill[data-pill="' + n + '"] .wb-fan-item').map(function (b) { return b.dataset.wbAct; }); }
+  async function openPill(n) { click(pill(n).querySelector('.wb-pill-btn')); await until(function () { return pill(n).classList.contains('wb-open'); }, 2000); await sleep(60); }
+  async function closePills() { if (q('.wb-pill.wb-open')) { click(q('.wb-pill.wb-open .wb-pill-btn')); await sleep(80); } }
+  function cursor() { return getComputedStyle(q('.wb-canvas-ink')).cursor; }
+  function finish() { var r = document.getElementById('r'); r.innerHTML = out.join('') + '<div><b>' + (out.length - fails) + '/' + out.length + ' passed</b></div>'; r.dataset.done = '1'; r.dataset.fails = String(fails); }
+  try {
+    var ready = await until(function () { return h() && pill('pens') && q('.wb-canvas-ink'); }, 15000);
+    check('the canvas opens with its pills; the hand starts as the pen', !!ready && mode() === 'pen' && cursor() === 'crosshair', cursor());
+    await openPill('pens');
+    var acts = fanActs('pens');
+    check('the ✎ fan\'s FIRST arc is zoom · pan · pen · highlighter · cards, with Pen lit', acts.slice(0, 5).join() === 'hand-zoom,hand-pan,hand-pen,hand-hl,hand-card' && !!q('.wb-fan-item[data-wb-act="hand-pen"].wb-sel'), acts.slice(0, 6).join(' · '));
+    var penOpts = acts.slice(5);
+    check('its SECOND arc is the pen\'s options: the pens and the eraser, widths, ＋ pen, undo, clear — no highlighters', penOpts.indexOf('pen-pick') === 0 && qa('.wb-pill-pens .wb-fan-item[data-pen="hl1"]').length === 0 && !!q('.wb-pill-pens .wb-fan-item[data-pen="er1"]') && penOpts.indexOf('width') > 0 && penOpts.indexOf('pen-add') > 0 && penOpts.indexOf('undo') > 0 && penOpts.indexOf('clear-page') > 0, penOpts.join(' · '));
+    var ring1 = qa('.wb-pill-pens .wb-fan-item').slice(0, 5).map(function (b) { var x = parseFloat(b.style.getPropertyValue('--tx')), y = parseFloat(b.style.getPropertyValue('--ty')); return Math.round(Math.hypot(x, y)); });
+    var ring2 = qa('.wb-pill-pens .wb-fan-item').slice(5, 6).map(function (b) { var x = parseFloat(b.style.getPropertyValue('--tx')), y = parseFloat(b.style.getPropertyValue('--ty')); return Math.round(Math.hypot(x, y)); });
+    check('the five modes fill the inner ring; the options start on the next ring out', ring1.every(function (r) { return r === ring1[0]; }) && ring2[0] > ring1[0], ring1.join(',') + ' | ' + ring2.join(','));
+    check('the first-arc icons are monochrome (site icons, no colour emoji)', qa('.wb-pill-pens .wb-fan-modeitem svg').length >= 4 && !/[\u{1F300}-\u{1FAFF}\u{270B}]/u.test(q('.wb-pill-pens .wb-fan').innerHTML));
+    click(q('.wb-fan-item[data-wb-act="hand-hl"]')); await sleep(150);
+    var hlActs = fanActs('pens').slice(5);
+    check('Highlighter: the fan stays open, the second arc becomes the highlighters, widths, ＋ highlighter, undo', mode() === 'hl' && !!q('.wb-pill.wb-open') && !!q('.wb-pill-pens .wb-fan-item[data-pen="hl1"]') && qa('.wb-pill-pens .wb-fan-item[data-pen="pen1"]').length === 0 && hlActs.indexOf('pen-add') > 0 && hlActs.indexOf('undo') > 0 && hlActs.indexOf('clear-page') < 0, hlActs.join(' · '));
+    click(q('.wb-fan-item[data-wb-act="hand-zoom"]')); await sleep(150);
+    check('Zoom: the second arc is zoom in · out · home · fit everything · fit a region', fanActs('pens').slice(5).join() === 'zoom-in,zoom-out,zoom-home,zoom-fit,fit-region', fanActs('pens').slice(5).join(' · '));
+    click(q('.wb-fan-item[data-wb-act="hand-pan"]')); await sleep(150);
+    check('Pan: the second arc is home and fit everything; the pill shows the hand and lights up', mode() === 'pan' && fanActs('pens').slice(5).join() === 'zoom-home,zoom-fit' && !!pill('pens').querySelector('.wb-pill-ic svg') && pill('pens').classList.contains('wb-pill-on'), fanActs('pens').slice(5).join(' · '));
+    await closePills(); await openPill('zoom');
+    var za = fanActs('zoom');
+    check('the View pill keeps zoom ±, home, fit and fit-a-region, but no pan / zoom modes', za.indexOf('zoom-in') >= 0 && za.indexOf('fit-region') >= 0 && za.indexOf('pan') < 0 && za.indexOf('zoom') < 0, za.join(' · '));
+    await closePills();
+
+    /* ── pan ── */
+    check('in pan the cursor is a grab hand', cursor() === 'grab', cursor());
+    var o0 = h().getOrigin(); await drag(0.4, 0.5, -120, -80); var o1 = h().getOrigin();
+    check('a mouse drag moves around the board and draws nothing', (o1.x !== o0.x || o1.y !== o0.y) && strokes() === 0, JSON.stringify([o0, o1]));
+    await dbl(0.4, 0.5);
+    check('a mouse double-click in pan mode goes back to the last mode, and says so in words', /^(zoom|hl)$/.test(mode()) && /— double-tap to switch back/.test((q('.wb-modehint') || {}).textContent || '') && !/[\u{1F300}-\u{1FAFF}\u{270B}]/u.test(q('.wb-modehint').textContent) && strokes() === 0, mode() + ' · ' + (q('.wb-modehint') || {}).textContent);
+
+    /* ── the ✎ pill: double tap = last mode, single tap = the fan ── */
+    var before = mode();
+    click(pill('pens').querySelector('.wb-pill-btn')); await sleep(60); click(pill('pens').querySelector('.wb-pill-btn')); await sleep(320);
+    check('a double tap on the ✎ pill switches to the last mode without opening the fan', mode() === 'pan' && !q('.wb-pill.wb-open'), before + ' → ' + mode());
+    click(pill('pens').querySelector('.wb-pill-btn')); await sleep(80);
+    var notYet = !q('.wb-pill[data-pill="pens"].wb-open');
+    await until(function () { return q('.wb-pill[data-pill="pens"].wb-open'); }, 1000);
+    check('a single tap opens the fan a beat later', notYet && !!q('.wb-pill[data-pill="pens"].wb-open'));
+    click(q('.wb-fan-item[data-wb-act="hand-zoom"]')); await sleep(120); await closePills();
+
+    /* ── the zoom hand ── */
+    check('in zoom the cursor is a magnifier', mode() === 'zoom' && cursor() === 'zoom-in', cursor());
+    var s0 = scale(); await tap(0.5, 0.5);
+    check('a tap waits a beat (a double tap could still come)…', scale() === s0);
+    await until(function () { return scale() !== s0; }, 1000);
+    check('…then zooms in ×1.5 at the point', Math.abs(scale() / s0 - 1.5) < 0.01, s0 + ' → ' + scale());
+    var s1 = scale(); await tap(0.5, 0.5, { altKey: true }); await until(function () { return scale() !== s1; }, 1000);
+    check('Alt-tap zooms out', Math.abs(s1 / scale() - 1.5) < 0.01, s1 + ' → ' + scale());
+    var s2 = scale(); await drag(0.5, 0.6, 0, -120);
+    check('dragging up zooms in smoothly about the press point', scale() > s2 * 1.5, s2 + ' → ' + scale());
+    var s3 = scale(); await drag(0.5, 0.4, 0, 90); await sleep(320);
+    check('dragging down zooms out', scale() < s3, s3 + ' → ' + scale());
+    var s4 = scale(); await dbl(0.5, 0.5); await sleep(340);
+    check('a double tap in zoom mode does not zoom — it goes back to the last mode (pan)', scale() === s4 && mode() === 'pan', scale() + ' ' + mode());
+
+    /* ── the pen: double taps by mouse, stylus and finger ── */
+    h().setHandMode('pen'); await sleep(60);
+    await drag(0.2, 0.3, 80, 40); await until(function () { return strokes() === 1; }, 2000);
+    check('in pen mode a drag draws a stroke', strokes() === 1 && mode() === 'pen');
+    await dbl(0.3, 0.6); await sleep(250);
+    check('a mouse double-click in pen mode switches to the last mode and leaves no dots behind', mode() === 'pan' && strokes() === 1, mode() + ' strokes=' + strokes());
+    h().setHandMode('pen'); await sleep(60);
+    await dbl(0.35, 0.65, { pointerType: 'pen' }); await sleep(250);
+    check('a STYLUS double tap in pen mode is writing (a colon, an ellipsis): two dots stay, the mode does not change', mode() === 'pen' && strokes() === 3, mode() + ' strokes=' + strokes());
+    await dbl(0.5, 0.5, { pointerType: 'touch' }); await sleep(200);
+    check('a FINGER double tap in pen mode switches (fingers never ink)', mode() === 'pan' && strokes() === 3, mode());
+    await dbl(0.5, 0.5, { pointerType: 'pen' }); await sleep(200);
+    check('a stylus double tap in pan mode switches back to the pen', mode() === 'pen', mode());
+
+    /* ── V3.863 Cards: move and edit cards (Text is gone) ── */
+    function itemOf(id) { return h().getItems().filter(function (i) { return i.id === id; })[0]; }
+    function cardNode(id) { return q('.wb-item-widget[data-item-id="' + id + '"]'); }
+    function cpe(el, type, x, y, o) { el.dispatchEvent(new PointerEvent(type, Object.assign({ bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: pid, pointerType: 'mouse', pressure: 0.5, button: 0, buttons: type === 'pointerup' ? 0 : 1, isPrimary: true }, o || {}))); }
+    async function cardTap(el, x, y, o) { pid++; cpe(el, 'pointerdown', x, y, o); await sleep(30); cpe(el, 'pointerup', x, y, o); await sleep(80); }
+    async function cardDrag(el, x, y, dx, dy, o) { pid++; cpe(el, 'pointerdown', x, y, o); for (var i = 1; i <= 6; i++) { await sleep(16); cpe(el, 'pointermove', x + dx * i / 6, y + dy * i / 6, o); } cpe(el, 'pointerup', x + dx, y + dy, o); await sleep(150); }
+    function inCard(id) { var a = document.activeElement; return !!(a && cardNode(id) && cardNode(id).contains(a)); }
+    check('the Text mode is gone (no text tool, no text options)', !q('.wb-fan-item[data-wb-act="hand-text"]') && !q('.wb-fan-item[data-wb-act="text-size"]'));
+    await openPill('zoom'); click(q('.wb-fan-item[data-wb-act="zoom-home"]')); await sleep(120); await closePills();
+    await openPill('pens'); click(q('.wb-fan-item[data-wb-act="hand-card"]')); await sleep(150);
+    var ca = fanActs('pens').slice(5);
+    check('Cards: the fan stays open; with no card chosen its second arc is ＋ a note card · fit everything; the cursor is an arrow', mode() === 'card' && !!q('.wb-pill.wb-open') && ca.join() === 'card-note,zoom-fit' && cursor() === 'default' && pill('pens').classList.contains('wb-pill-on'), ca.join(' · ') + ' ' + cursor());
+    await closePills();
+    var cn = cardNode('n1'), body = cn.querySelector('.wb-wb');
+    check('a card\'s body is inert in Cards until it is chosen (a drag never selects text or presses a button)', getComputedStyle(body).pointerEvents === 'none' && getComputedStyle(cn).cursor === 'grab', getComputedStyle(body).pointerEvents);
+    var br = body.getBoundingClientRect(), bx = br.left + br.width / 2, by = br.top + Math.min(br.height / 2, 14);
+    var x0 = itemOf('n1').x, y0 = itemOf('n1').y;
+    await cardDrag(cn, bx, by, -90, 60);
+    var moved1 = await until(function () { var it = itemOf('n1'); return it.x !== x0 || it.y !== y0; }, 2000);
+    check('a drag from ANYWHERE on a card (its body too) moves it, and does not choose it', !!moved1 && !h().selectedCard(), JSON.stringify([x0, y0, itemOf('n1').x, itemOf('n1').y]));
+    await sleep(200);
+    cn = cardNode('n1'); var ed = cn.querySelector('.nbk-note'); var er = ed.getBoundingClientRect();
+    await cardTap(cn, er.left + 8, er.top + er.height / 2);
+    check('a mouse tap CHOOSES the card (outlined, its body alive) and puts the caret where it clicked', h().selectedCard() === 'n1' && cn.classList.contains('wb-card-sel') && getComputedStyle(cn.querySelector('.wb-wb')).pointerEvents !== 'none' && document.activeElement === ed, (document.activeElement || {}).className);
+    await openPill('pens');
+    var sa = fanActs('pens').slice(5);
+    check('with a card chosen the second arc is its options: edit · colour · collapse · front · more · remove · done', sa.join() === 'card-edit,card-color,card-collapse,card-front,card-more,card-remove,card-done', sa.join(' · '));
+    await closePills();
+    var x1 = itemOf('n1').x; pid++; cpe(ed, 'pointerdown', er.left + 10, er.top + 6); cpe(ed, 'pointermove', er.left + 60, er.top + 30); cpe(ed, 'pointerup', er.left + 60, er.top + 30); await sleep(200);
+    check('inside the chosen card a press is the card\'s own (selecting text does not drag the card)', itemOf('n1').x === x1 && h().selectedCard() === 'n1');
+    await tap(0.15, 0.85); await sleep(120);
+    check('a tap on the empty board lets the card go (and the caret leaves it)', !h().selectedCard() && !cardNode('n1').classList.contains('wb-card-sel') && !inCard('n1'), (document.activeElement || {}).tagName);
+    cn = cardNode('n1'); er = cn.querySelector('.nbk-note').getBoundingClientRect();
+    await cardTap(cn, er.left + 8, er.top + er.height / 2, { pointerType: 'touch' });
+    check('a FINGER tap only chooses the card — no caret, so no on-screen keyboard on the way to a card', h().selectedCard() === 'n1' && !inCard('n1'), (document.activeElement || {}).tagName);
+    var tt = cn.querySelector('.wb-wtitle'), tr = tt.getBoundingClientRect();
+    await cardTap(tt, tr.left + 6, tr.top + tr.height / 2, { pointerType: 'touch' });
+    check('a second tap on the chosen card\'s name edits it (the keyboard comes up because you are typing)', document.activeElement === tt && h().selectedCard() === 'n1');
+    tt.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await sleep(60);
+    check('Escape lets the chosen card go', !h().selectedCard() && !inCard('n1'));
+    function notes() { return h().getItems().filter(function (i) { return i.type === 'widget' && i.kind === 'note' && i.id !== 'n1'; }); }
+    await openPill('pens'); click(q('.wb-fan-item[data-wb-act="card-note"]'));
+    var nn = await until(function () { return notes().length === 1 && h().selectedCard() === notes()[0].id; }, 2500); await sleep(200);
+    check('＋ a note card: one appears mid-view, chosen, with the caret in it', !!nn && inCard(notes()[0].id) && document.activeElement.isContentEditable, notes().length + ' ' + h().selectedCard());
+    await openPill('pens'); var rm = q('.wb-fan-item[data-wb-act="card-remove"]'); click(rm); await sleep(60);
+    var stillThere = notes().length === 1 && !!q('.wb-pill.wb-open');
+    click(q('.wb-fan-item[data-wb-act="card-remove"]')); await until(function () { return notes().length === 0; }, 2500); await sleep(120);
+    check('🗑 Remove takes two taps (the first only arms it), then the card is gone and the arc is back to ＋ / fit', stillThere && notes().length === 0 && !h().selectedCard() && fanActs('pens').slice(5).join() === 'card-note,zoom-fit', fanActs('pens').slice(5).join(' · '));
+    await closePills();
+    cn = cardNode('n1'); er = cn.querySelector('.wb-wb').getBoundingClientRect(); await cardTap(cn, er.left + 8, er.top + 8);
+    h().setHandMode('pen'); await sleep(80);
+    check('leaving Cards lets the chosen card go; in pen mode the card\'s body is live again (editing in place still works)', !h().selectedCard() && !cardNode('n1').classList.contains('wb-card-sel') && getComputedStyle(cardNode('n1').querySelector('.wb-wb')).pointerEvents !== 'none');
+    h().setHandMode('card'); await sleep(60);
+    var o2 = h().getOrigin(); await drag(0.2, 0.8, -100, -40); var o3 = h().getOrigin();
+    check('in Cards a drag on the empty board moves around (draws nothing)', (o2.x !== o3.x || o2.y !== o3.y) && strokes() === 3, JSON.stringify([o2, o3]) + ' strokes=' + strokes());
+    await dbl(0.2, 0.8); await sleep(200);
+    check('a double tap on the empty board in Cards goes back to the last mode', mode() === 'pen', mode());
+
+    /* ── the eraser is a pen option the double tap remembers too ── */
+    h().setHandMode('eraser'); await sleep(40); h().setHandMode('pan'); await sleep(40);
+    h().toggleLastMode(); await sleep(60);
+    check('eraser → pan → double tap: back to the eraser, and the first arc lights Pen', mode() === 'eraser', mode());
+    await dbl(0.9, 0.9); await sleep(200);
+    check('a mouse double-click in eraser mode is not a switch (it would have erased)', mode() === 'eraser', mode());
+    h().setHandMode('hl'); await sleep(40); h().setHandMode('pen'); await sleep(40);
+    var pen = h().currentPen();
+    check('Highlighter → Pen: a real pen is in hand again (not the highlighter or the eraser)', mode() === 'pen' && pen && pen.id === 'pen1' && !pen.hl, JSON.stringify(pen));
+    check('the canvas never shows a browser popup; no unhandled rejections', window.__popups.length === 0 && window.__rej.length === 0, window.__rej.join(' | '));
+  } catch (e) { check('the harness itself threw: ' + (e && e.message), false, String(e && e.stack || '').split('\n').slice(0, 4).join(' | ')); }
+  finish();
+})();
+</script>
+</body>
+</html>

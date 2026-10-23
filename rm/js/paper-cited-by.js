@@ -118,9 +118,9 @@
     }
 
     const externalLink = doi
-      ? `<a class="lp-cb-doi" href="https://doi.org/${_esc(doi)}" target="_blank" rel="noopener" title="Open at doi.org">↗</a>`
+      ? `<a class="lp-cb-doi" href="https://doi.org/${_esc(doi)}" target="_blank" rel="noopener" title="Open at doi.org">${ICON.svg('arrow-top-right-on-square')}</a>`
       : (arxiv
-          ? `<a class="lp-cb-doi" href="https://arxiv.org/abs/${_esc(arxiv)}" target="_blank" rel="noopener" title="Open on arXiv">↗</a>`
+          ? `<a class="lp-cb-doi" href="https://arxiv.org/abs/${_esc(arxiv)}" target="_blank" rel="noopener" title="Open on arXiv">${ICON.svg('arrow-top-right-on-square')}</a>`
           : '');
 
     return `
@@ -136,7 +136,21 @@
     `;
   }
 
+  /* V3.647 — every repaint is a full innerHTML swap of a panel that lives
+   * in the rail's shared scroll container, so it goes through the
+   * scroll-anchored wrapper. Without it, pressing "+ Add" on a row (which
+   * routes back here via onLibraryChanged) collapsed the list to zero height
+   * for an instant and dumped the reader back at the top of the rail. */
   function _render() {
+    if (!_state.mountEl) return;
+    if (typeof rerenderPreservingScroll === 'function') {
+      rerenderPreservingScroll(_state.mountEl, _paint);
+    } else {
+      _paint();
+    }
+  }
+
+  function _paint() {
     if (!_state.mountEl) return;
 
     const lib = (_state.paperItem && _state.paperItem.meta && _state.paperItem.meta.library) || {};

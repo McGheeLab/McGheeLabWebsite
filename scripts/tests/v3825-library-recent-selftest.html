@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.825/V3.826 — Recently added shelf body + Added filter selftest</title>
+<link rel="stylesheet" href="/rm/css/library-groups.css">
+<link rel="stylesheet" href="/rm/css/library-recent.css">
+<style>body{font:13px/1.5 system-ui,sans-serif;margin:20px;max-width:900px}.ok{color:#15803d}.bad{color:#b91c1c}code{background:#f3f4f6;padding:1px 4px;border-radius:3px}</style>
+<script src="/rm/js/icons.js"></script>
+<script src="/rm/js/library-recent.js"></script>
+</head>
+<body>
+<h1>V3.825/V3.826 — Recently added (LIBRARY_RECENT) + Added filter</h1>
+<p>Serve the repo root (<code>python3 -m http.server 8778</code>) and open <code>/scripts/tests/v3825-library-recent-selftest.html</code>. Drives LIBRARY_RECENT against a fake library; the shelf around it is covered by <code>v3826-library-shelf-selftest.html</code>. Result: <code>#r[data-done=1]</code>.</p>
+<section class="lg-section" data-sec="recent"><div class="lg-sec-body" id="lib-recent"></div></section>
+<div class="lib-toolbar"><input id="library-search"><select id="library-added"><option value="">Added: any time</option><option value="today">Added today</option><option value="7d">Added: last 7 days</option><option value="30d">Added: last 30 days</option><option value="90d">Added: last 90 days</option><option value="year">Added: this year</option><option value="older">Added: more than 90 days ago</option></select></div>
+<div class="lib-table"></div>
+<div id="r">running…</div>
+<script>
+(function () {
+  var out = [], pass = 0, fail = 0;
+  function ok(c, m, got) { if (c) pass++; else fail++; out.push('<div class="' + (c ? 'ok' : 'bad') + '">' + (c ? '✓' : '✗') + ' ' + m + (got !== undefined ? '  →  <code>' + String(got).replace(/</g, '&lt;') + '</code>' : '') + '</div>'); }
+  try {
+    try { localStorage.removeItem('lib_added_filter'); } catch (e) {}
+    var D = 86400000, now = Date.now();
+    var P = function (id, lib, title) { return { id: id, title: title || id, meta: { library: Object.assign({ is_library_entry: true }, lib) } }; };
+    var papers = [
+      P('new1', { captured_at_iso: new Date(now - 3600000).toISOString(), journal: 'Neoplasia', year: '2001', authors: [{ family: 'Harrison' }, { family: 'Turley' }], captured_by: 'alex@x.edu', captured_via: 'pdf-tab', pdf: { storage_path: 'papers/new1/a.pdf' } }, 'Active Erk Regulates Microtubule Stability'),
+      P('d3', { date_added: new Date(now - 3 * D).toISOString().slice(0, 10), journal: 'IJMS', year: '2025', authors: [{ family: 'A' }, { family: 'B' }, { family: 'C' }] }, 'Three days old, no PDF'),
+      P('d20', { date_added: new Date(now - 20 * D).toISOString().slice(0, 10), pdf: { storage_path: 'x', uploaded_by: 'student@arizona.edu' } }, 'Twenty days'),
+      P('d100', { date_added: new Date(now - 100 * D).toISOString().slice(0, 10) }, 'Hundred days'),
+      P('old', { date_added: '2024-02-02' }, 'Old one'),
+      P('unknown', {}, 'No date at all')
+    ];
+    for (var i = 0; i < 10; i++) papers.push(P('fill' + i, { date_added: new Date(now - (40 + i) * D).toISOString().slice(0, 10) }, 'Filler ' + i));
+    var renders = 0;
+    LIBRARY_RECENT.init({ onChange: function () { renders++; } });
+    ok(!document.querySelector('section[data-sec="lib-recent"]'), 'init() no longer wraps a section of its own (the shelf owns it, V3.826)');
+    ok(!LIBRARY_RECENT.hasAny() && LIBRARY_RECENT.countLabel() === '', 'empty pool: hasAny false, no count label');
+    LIBRARY_RECENT.setPool(papers);
+    ok(LIBRARY_RECENT.hasAny() && LIBRARY_RECENT.countLabel() === '3 in 30 days', 'setPool: hasAny + "3 in 30 days"', LIBRARY_RECENT.countLabel());
+    LIBRARY_RECENT.render();
+    var host = document.getElementById('lib-recent');
+    var rows = host.querySelectorAll('.lrc-row');
+    ok(rows.length === 8, 'render(): eight newest papers shown', rows.length);
+    ok(rows[0].querySelector('.lrc-title').textContent === 'Active Erk Regulates Microtubule Stability' && /added today/.test(rows[0].textContent) && /alex/.test(rows[0].textContent) && /extension/.test(rows[0].textContent) && rows[0].querySelector('a.btn'), 'the newest first: title, "added today · alex · extension", Read button');
+    ok(/Three days old/.test(rows[1].textContent) && /3 days ago/.test(rows[1].textContent) && /A, B et al\./.test(rows[1].textContent) && /no PDF/.test(rows[1].textContent), 'second row: 3 days ago, "A, B et al.", no PDF marker', rows[1].textContent.replace(/\s+/g, ' ').slice(0, 120));
+    ok(!/No date at all/.test(host.textContent), 'a paper with no date is not in the strip');
+    ok(rows[0].querySelector('.lrc-title').getAttribute('href') === '/rm/pages/library-paper.html?id=new1', 'title links to the paper page');
+    var more = host.querySelector('[data-recent-more]');
+    ok(more && /Show 15/.test(more.textContent), '"Show 15 ↓" when more exist', more && more.textContent);
+    more.click();
+    ok(host.querySelectorAll('.lrc-row').length === 15 && /Show fewer/.test(host.querySelector('[data-recent-more]').textContent), 'show more → 15 rows (all dated ones), toggles to "Show fewer"', host.querySelectorAll('.lrc-row').length);
+    host.querySelector('[data-recent-more]').click();
+    ok(host.querySelectorAll('.lrc-row').length === 8, 'show fewer → back to 8');
+
+    // the filter
+    ok(!LIBRARY_RECENT.active() && renders === 0, 'no filter on load');
+    host.querySelector('[data-recent-filter="30d"]').click();
+    var sel = document.getElementById('library-added');
+    ok(LIBRARY_RECENT.active() && sel.value === '30d' && renders === 1 && localStorage.getItem('lib_added_filter') === '30d', '"See all added in the last 30 days" sets the select, re-renders, persists', sel.value);
+    ok(papers.filter(function (p) { return LIBRARY_RECENT.matches(p); }).map(function (p) { return p.id; }).join(',') === 'new1,d3,d20', 'matches(): the three within 30 days');
+    LIBRARY_RECENT.render();
+    ok(/Filter on: Added: last 30 days/.test(host.textContent) && host.querySelector('[data-recent-filter=""]'), 'the strip shows the active filter with a clear link');
+    sel.value = 'older'; sel.dispatchEvent(new Event('change'));
+    ok(renders === 2 && papers.filter(function (p) { return LIBRARY_RECENT.matches(p); }).map(function (p) { return p.id; }).join(',') === 'd100,old,unknown' && LIBRARY_RECENT.label() === 'Added: more than 90 days ago', 'the select → older: the 100-day, the 2024 and the undated one (fillers are 40–49 days old)', papers.filter(function (p) { return LIBRARY_RECENT.matches(p); }).map(function (p) { return p.id; }).join(','));
+    host.querySelector('[data-recent-filter=""]').click();
+    ok(!LIBRARY_RECENT.active() && sel.value === '' && localStorage.getItem('lib_added_filter') === null, 'clear → any time, nothing persisted');
+    localStorage.setItem('lib_added_filter', '7d');
+    LIBRARY_RECENT.init({ onChange: function () {} });
+    ok(LIBRARY_RECENT.active() && sel.value === '7d', 'a stored choice is restored on load', sel.value);
+    localStorage.removeItem('lib_added_filter');
+    LIBRARY_RECENT.render([]);
+    ok(/Nothing dated yet/.test(host.textContent) && !LIBRARY_RECENT.hasAny(), 'an empty pool renders a placeholder and hasAny() is false (the shelf then omits the section)');
+  } catch (e) { fail++; out.push('<div class="bad">✗ threw: ' + String(e && e.stack || e).replace(/</g, '&lt;') + '</div>'); }
+  var r = document.getElementById('r');
+  r.innerHTML = '<p><strong>' + pass + ' passed, ' + fail + ' failed</strong></p>' + out.join('');
+  r.setAttribute('data-pass', pass); r.setAttribute('data-fail', fail); r.setAttribute('data-done', '1');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,2127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Labware and Consumables — The Plastic Is Not Inert (Equipment Foundations 3)</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#f1f5f9;color:#1e293b;line-height:1.5;overflow-x:hidden}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,#1e3a5f 0%,#0891b2 100%);color:#fff;padding:24px 32px;text-align:center}
+header h1{font-size:1.7rem;font-weight:700;letter-spacing:-.5px}
+header .subtitle{font-size:.95rem;opacity:.85;margin-top:4px}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 16px;overflow-x:auto;position:sticky;top:0;z-index:100}
+.tab-btn{padding:12px 16px;border:none;background:none;font-size:.84rem;font-weight:600;color:#64748b;
+  cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:#2563eb}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+.tab-btn.next-tab{color:#b45309;font-weight:700}
+.tab-btn.next-tab.active{color:#b45309;border-bottom-color:#f59e0b}
+
+/* ── Constants & variables rail ── */
+.constants-bar{max-width:1400px;margin:10px auto 0;padding:0 16px}
+.constants-bar details{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.constants-bar summary{cursor:pointer;padding:10px 16px;font-size:.82rem;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:#1e3a5f}
+.constants-bar .const-body{padding:4px 20px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px 24px}
+.constants-bar .const-body h4{grid-column:1/-1;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-top:8px}
+.constants-bar .const-body p{font-size:.82rem;color:#475569;margin:1px 0}
+.constants-bar .const-body p .src{color:#94a3b8;font-size:.72rem}
+.constants-bar .eqindex p b{color:#1e3a5f;font-variant-numeric:tabular-nums}
+
+/* ── Main layout ── */
+main{max-width:1400px;margin:0 auto;padding:16px}
+.tab-content{display:none}
+.tab-content.active{display:flex;flex-direction:column}
+
+/* ── Lesson flow (stacked story → interactive pairs) ──
+   `contain:layout` keeps each block's internal reflow from reaching its
+   siblings; the reserved heights on .stats / .val-verdict below keep the
+   blocks themselves from changing size as live readouts update, so a
+   simulation never pushes the paragraph you are reading off the screen. */
+.lesson-block{margin-bottom:26px;padding-bottom:8px;border-bottom:1px dashed #cbd5e1;contain:layout}
+.lesson-block:last-of-type{border-bottom:none}
+.lesson-block .background-section{margin-bottom:12px}
+.panel.compact{grid-template-columns:260px 1fr;margin-bottom:4px;align-items:start}
+@media(max-width:900px){.panel.compact{grid-template-columns:1fr}}
+
+/* ── Cards & panels ── */
+.panel{display:grid;grid-template-columns:300px 1fr;gap:16px}
+@media(max-width:900px){.panel{grid-template-columns:1fr}}
+
+/* ── Background sections ── */
+.background-section{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  padding:24px 28px;margin-bottom:16px;border-left:4px solid #1e3a5f}
+.background-section h2{font-size:1.1rem;color:#1e3a5f;margin-bottom:12px}
+.background-section h3{font-size:.95rem;color:#334155;margin:16px 0 6px}
+.background-section p,.background-section li{font-size:.88rem;color:#475569;line-height:1.6}
+.background-section ul,.background-section ol{padding-left:20px;margin:6px 0}
+.equation-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 16px;margin:10px 0;overflow-x:auto}
+.equation-box .eqno{float:right;color:#94a3b8;font-size:.78rem;margin-left:10px;line-height:2.2}
+.equation-box mjx-container,.background-section mjx-container{max-width:100%;overflow-x:auto;overflow-y:hidden}
+.worked-example{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin:10px 0}
+.worked-example::before{content:"WORKED EXAMPLE";display:block;font-size:.65rem;font-weight:700;letter-spacing:.08em;color:#2563eb;margin-bottom:6px}
+/* ── Worked examples v2: stepped, equations shown assembling, COLLAPSED by default ── */
+details.worked{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;margin:12px 0}
+details.worked summary{cursor:pointer;padding:9px 14px;font-size:.72rem;font-weight:700;letter-spacing:.07em;color:#2563eb;text-transform:uppercase}
+details.worked summary .we-title{color:#1e40af;text-transform:none;letter-spacing:0;font-size:.86rem;font-weight:600;margin-left:6px}
+details.worked .worked-body{padding:2px 18px 14px}
+details.worked ol.steps{margin:0 0 0 18px;padding:0}
+details.worked ol.steps>li{font-size:.86rem;color:#1e3a8a;margin-bottom:9px;line-height:1.55}
+details.worked ol.steps>li .lead{font-weight:700;color:#2563eb}
+details.worked .step-eq{background:#fff;border:1px solid #dbeafe;border-radius:6px;padding:6px 12px;margin:6px 0;overflow-x:auto}
+details.worked .answer{background:#dbeafe;border-radius:6px;padding:9px 13px;margin-top:8px;font-size:.88rem;color:#1e3a8a}
+details.worked .answer::before{content:"ANSWER · ";font-size:.68rem;font-weight:800;letter-spacing:.07em;color:#2563eb}
+/* ── capstone tab button ── */
+.tab-btn.cap-tab{color:#047857;font-weight:700}
+.tab-btn.cap-tab.active{color:#047857;border-bottom-color:#10b981}
+.key-takeaways{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-top:12px}
+.key-takeaways::before{content:"KEY TAKEAWAYS";display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#15803d;margin-bottom:4px}
+.key-takeaways ul{margin:0 0 0 16px;padding:0}
+.key-takeaways li{font-size:.82rem;color:#14532d}
+.background-section table.cmp{width:100%;border-collapse:collapse;font-size:.84rem;margin:10px 0}
+.background-section table.cmp th,.background-section table.cmp td{border:1px solid #e2e8f0;padding:5px 9px;text-align:left;color:#475569}
+.background-section table.cmp th{background:#f1f5f9;color:#334155;font-weight:700}
+.background-section table.cmp td.c{text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ── Deep boxes (566 / curious-student depth) ── */
+details.deep{background:#faf5ff;border:1px solid #e9d5ff;border-radius:6px;padding:0;margin:10px 0}
+details.deep summary{cursor:pointer;padding:8px 14px;font-size:.76rem;font-weight:700;letter-spacing:.06em;color:#7c3aed}
+details.deep .deep-body{padding:2px 16px 12px}
+details.deep .deep-body p,details.deep .deep-body li{font-size:.84rem;color:#5b21b6}
+
+/* ── Check-yourself boxes ── */
+details.check{background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;margin:12px 0}
+details.check summary{cursor:pointer;padding:9px 14px;font-size:.78rem;font-weight:700;letter-spacing:.06em;color:#c2410c;text-transform:uppercase}
+details.check .check-body{padding:2px 18px 12px}
+details.check .check-body p,details.check .check-body li{font-size:.86rem;color:#7c2d12}
+details.check details{margin:4px 0 10px}
+details.check details summary{padding:2px 0;font-size:.78rem;color:#9a3412;text-transform:none;letter-spacing:0}
+details.check details p{font-size:.82rem;color:#78350f;padding:4px 0 0 6px}
+
+/* ── Student task ── */
+.student-task{border:2px solid #059669;border-radius:8px;background:#ecfdf5;padding:12px 16px;margin:12px 0;position:relative}
+.student-task::before{content:"TRY THIS";position:absolute;top:-0.6rem;left:1rem;background:#ecfdf5;padding:0 0.5rem;font-size:.65rem;font-weight:700;letter-spacing:.1em;color:#059669}
+.student-task ol{margin:.25rem 0 0 1.25rem;color:#065f46}
+.student-task li{font-size:.88rem;margin-bottom:4px}
+
+/* ── Controls ── */
+.ctrl{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px}
+.ctrl h3{font-size:.85rem;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:10px;border-bottom:1px solid #f1f5f9;padding-bottom:6px}
+.ctrl-group{margin-bottom:12px}
+.ctrl-group label{display:flex;justify-content:space-between;font-size:.82rem;font-weight:600;color:#334155;margin-bottom:3px}
+.ctrl-group label span{font-weight:400;color:#2563eb;font-variant-numeric:tabular-nums}
+.ctrl-group input[type=range]{width:100%;accent-color:#2563eb;height:6px}
+.toggle-btn{border:2px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 12px;font-size:.8rem;font-weight:700;color:#64748b;cursor:pointer;width:100%;transition:all .15s}
+.toggle-btn.on{border-color:#dc2626;color:#dc2626;background:#fef2f2}
+
+/* ── Stats ── (every widget emits exactly 4 rows; the reserved height means a
+   changing readout never resizes the box and shifts the page under the reader) */
+.stats{background:#f8fafc;border-radius:8px;padding:12px;font-size:.82rem;font-variant-numeric:tabular-nums;margin-top:8px;min-height:132px}
+.stats h4{font-size:.8rem;color:#64748b;margin-bottom:4px}
+.stat-row{display:flex;justify-content:space-between;gap:10px;align-items:baseline;min-height:27px;padding:2px 0;border-bottom:1px solid #f1f5f9}
+.stat-row .label{color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.stat-row .value{flex:0 0 auto}
+.stat-row .value{font-weight:600;color:#1e293b;text-align:right;white-space:nowrap}
+.stat-row.highlight .value{color:#2563eb}
+
+/* ── Viz area ── */
+.viz{display:flex;flex-direction:column;gap:12px}
+.canvas-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:12px}
+.canvas-wrap canvas{display:block;width:100%;height:auto;max-width:100%;border-radius:6px}
+.canvas-title{font-size:.78rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.chart-row{grid-template-columns:1fr}}
+
+/* ── Per-widget scenario bar ── */
+.scenario-bar{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.scenario-bar-label{font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700}
+.scen-btn{padding:6px 14px;border:2px solid #e2e8f0;background:#fff;border-radius:20px;font-size:.82rem;font-weight:600;color:#64748b;cursor:pointer;transition:all .15s}
+.scen-btn:hover{color:#1e293b;border-color:#cbd5e1}
+.scen-btn.on{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+
+/* ── Verdict box ── (reserved height: the narration rewrites itself as the
+   simulation crosses thresholds, and without this the box would grow/shrink
+   and move every lesson block below it) */
+.val-verdict{border-radius:8px;padding:10px 14px;margin-top:10px;font-size:.84rem;line-height:1.5;min-height:6.2em}
+/* the three longest narrations get extra reserved height — their wording (and
+   the width of the numbers inside it) changes as the sim runs, and without this
+   a rewrap nudges everything below them */
+.val-verdict.tall{min-height:8.8em}
+@media(max-width:900px){.val-verdict{min-height:8.5em}.val-verdict.tall{min-height:12em}}
+.val-verdict.good{background:#f0fdf4;border:1px solid #86efac;color:#14532d}
+.val-verdict.bad{background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d}
+.val-verdict.warn{background:#fffbeb;border:1px solid #fde68a;color:#78350f}
+/* only the leading title is a block — inline <strong> inside the narration
+   must stay inline (it was breaking mid-sentence onto its own line) */
+.val-verdict > strong:first-child{display:block;font-size:.9rem;margin-bottom:2px}
+
+/* ── Insight + handoff boxes ── */
+.insight{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#78350f}
+.insight strong{color:#b45309}
+.handoff{background:#eef2ff;border-left:4px solid #6366f1;border-radius:0 8px 8px 0;padding:10px 14px;margin:10px 0;font-size:.86rem;color:#3730a3}
+.handoff strong{color:#4338ca}
+
+/* ── Sources ── */
+.sources{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:18px 24px;margin-top:16px}
+.sources h2{font-size:1rem;color:#1e3a5f;margin-bottom:8px}
+.sources ol{margin:0 0 0 18px}
+.sources li{font-size:.8rem;color:#475569;margin-bottom:5px;line-height:1.45}
+.sources a{color:#2563eb;text-decoration:none}
+.sources a:hover{text-decoration:underline}
+
+/* ── Footer ── */
+footer{text-align:center;padding:20px;font-size:.78rem;color:#94a3b8}
+
+/* ── MathJax ── */
+mjx-container{display:inline-block !important}
+
+/* ════ RESPONSIVE ════ */
+@media (max-width: 900px){.panel{gap:12px}}
+@media (max-width: 640px){
+  header{padding:16px 14px} header h1{font-size:1.2rem} header .subtitle{font-size:.76rem}
+  .tab-bar{padding:0 8px;top:0} .tab-btn{padding:10px 9px;font-size:.74rem}
+  main{padding:10px 8px;max-width:100%}
+  .scenario-bar{padding:8px 10px;gap:6px} .scenario-bar-label{font-size:.68rem;width:100%;margin-bottom:2px}
+  .scen-btn{padding:5px 10px;font-size:.74rem;flex:1 1 calc(50% - 4px);text-align:center}
+  .background-section{padding:16px 16px} .background-section h2{font-size:1rem}
+  .worked-example,.equation-box{padding:10px 12px;font-size:.82rem}
+  .ctrl{padding:12px} .canvas-wrap{padding:8px} .stats{padding:10px;font-size:.76rem}
+  .constants-bar{padding:0 8px}
+}
+@media (max-width: 380px){ .scen-btn{flex:1 1 100%} header h1{font-size:1.05rem} .tab-btn{padding:8px 7px;font-size:.7rem} }
+
+/* ── Lab-SOP aside: content authored from McGhee Lab practice, NOT from a
+   vendor document. Visually distinct on purpose — a reader must be able to
+   tell house rules from published guidance. ── */
+.aside{background:#f0f9ff;border-left:4px solid #0891b2;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#155e75}
+.aside strong{color:#0e7490}
+.aside .lab{display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#0891b2;margin-bottom:4px;text-transform:uppercase}
+
+/* ── Rule cards: the short imperative rules a tab earns ── */
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:12px 0}
+.rule{background:#fff;border:1px solid #e2e8f0;border-left:3px solid #2563eb;border-radius:8px;padding:10px 13px}
+.rule b{display:block;font-size:.84rem;color:#1e3a5f;margin-bottom:3px}
+.rule span{font-size:.8rem;color:#64748b;line-height:1.45}
+
+/* ── Toggle rows (checkbox groups inside a .ctrl) ── */
+.chk{display:flex;align-items:center;gap:7px;font-size:.8rem;color:#334155;margin-bottom:5px;cursor:pointer}
+.chk input{accent-color:#2563eb;width:15px;height:15px;flex:0 0 auto}
+.seg{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.seg button{flex:1 1 auto;border:2px solid #e2e8f0;background:#fff;border-radius:7px;padding:5px 9px;font-size:.76rem;font-weight:700;color:#64748b;cursor:pointer}
+.seg button.on{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+</style>
+</head>
+<body>
+<header>
+  <h1>Labware &amp; Consumables — The Plastic Is Not Inert</h1>
+  <p class="subtitle">Equipment Foundations · Lesson 3 of 7 · McGhee Lab</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="work">1. How It Works</button>
+  <button class="tab-btn" data-tab="use">2. How to Use It</button>
+  <button class="tab-btn" data-tab="care">3. Precautions</button>
+  <button class="tab-btn" data-tab="maint">4. Sterility &amp; Storage</button>
+  <button class="tab-btn cap-tab" data-tab="recap">5. Recap &amp; the Real Job</button>
+</div>
+
+<div class="constants-bar">
+  <details>
+    <summary>Constants, labware numbers &amp; equation index</summary>
+    <div class="const-body">
+      <h4>Surfaces</h4>
+      <p>Untreated polystyrene contact angle ≈ <b>90°</b>; tissue-culture treated ≈ <b>35–55°</b>; ultra-low-attachment ≈ <b>115°</b></p>
+      <p>Surface tension of culture medium <b>γ</b> ≈ 55 mN/m · monolayer protein coverage <b>Γ</b><sub>max</sub> ≈ 2–4 mg/m²</p>
+      <p>Confluent monolayer ≈ <b>1 × 10<sup>5</sup> cells/cm²</b> · passage at <b>85–95% confluency</b></p>
+
+      <h4>Centrifuge tubes <span class="src">(Corning, doc 60931 pp. 7–8)</span></h4>
+      <p><b>RCF = 1.118 × 10<sup>−5</sup> · r · N²</b>, with <b>r</b> in cm measured from the <b>bottom of the tube</b> to the centre of rotation, and <b>N</b> in rpm</p>
+      <p>Working range <b>0–40 °C</b> · fill to no more than <b>90%</b> of nominal volume if freezing · single use · PP and PET outperform PS at low temperature</p>
+
+      <h4>Sterilisation and endotoxin <span class="src">(Corning, doc 60931 pp. 13–14)</span></h4>
+      <p>Depyrogenation of glassware: <b>250 °C for &gt; 30 min</b>, or <b>180 °C for 3 h</b></p>
+      <p>Autoclaving has <b>little effect on endotoxin</b> · gamma and e-beam leave endotoxin <b>largely intact</b></p>
+      <p>Premium FBS <b>&lt; 0.1 EU/mL</b> · most commercial media <b>≤ 0.25 EU/mL</b></p>
+      <p>Serological pipets: SAL <b>10<sup>−6</sup></b> per ANSI/AAMI/ISO 11137 · human-DNA-free per ISO 18385 · volumetric accuracy <b>±2%</b> at full capacity</p>
+
+      <h4>Cryopreservation <span class="src">(Corning, doc 60931 pp. 10–12)</span></h4>
+      <p>Cooling rate <b>1–3 °C/min</b> · DMSO <b>5–15% (v/v)</b>, added at 4 °C · glycerol <b>5–20% (v/v)</b>, added at room temperature or above</p>
+      <p>Long-term storage below <b>−130 °C</b>, vapour phase · thaw <b>60–90 s at 37 °C</b></p>
+
+      <h4>Equation index</h4>
+      <div class="eqindex">
+        <p><b>eq. 3.1.1</b> — Young's equation for the contact angle</p>
+        <p><b>eq. 3.1.2</b> — work of adhesion</p>
+        <p><b>eq. 3.2.1</b> — relative centrifugal force</p>
+        <p><b>eq. 3.2.2</b> — medium depth and oxygen flux</p>
+        <p><b>eq. 3.3.1</b> — evaporation from an open well</p>
+        <p><b>eq. 3.3.2</b> — sample lost to the container wall</p>
+        <p><b>eq. 3.4.1</b> — moist-heat lethality, F<sub>0</sub></p>
+        <p><b>eq. 3.4.2</b> — dry-heat depyrogenation equivalence</p>
+        <p><b>eq. 3.5.1</b> — recovery through a chain of transfers</p>
+        <p><span class="src">Nine equations, roughly two per tab. Nothing on this page is reused from an
+          earlier lesson, but eq. 3.5.1 is built to sit alongside Lesson 2's eq. 2.5.1 — one counts what
+          the pipette loses, the other what the plastic keeps.</span></p>
+      </div>
+    </div>
+  </details>
+</div>
+
+<main>
+  <!-- ══════════════════════════ TAB 1 — HOW IT WORKS ══════════════════════════ -->
+  <section id="tab-work" class="tab-content active">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="1.1" data-title="Why cells stick to one flask">1.1 · Two flasks, identical plastic, and cells only grow in one</h2>
+        <p>Take two polystyrene flasks off the shelf. Chemically they are the same polymer, moulded the same
+          way. Put cells in both and one grows a monolayer while the other keeps them in sad floating
+          clumps. Corning puts it plainly: <i>"Most flasks are made of untreated polystyrene, which isn't
+          always optimal for some cell lines"</i>, and the fix is a treatment that makes the surface
+          <i>"more hydrophilic to encourage cell attachment"</i>.</p>
+        <p>That word — hydrophilic — is the whole mechanism, and you can watch it. Drop a bead of medium on
+          the surface below and change what the surface is.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>untreated polystyrene</em>. Read the contact angle and the fraction of cells that
+            have attached after a day.</li>
+          <li>Switch to <em>tissue-culture treated</em>. The polymer underneath has not changed. Read both
+            numbers again.</li>
+          <li>Switch to <em>ultra-low attachment</em>. Attachment collapses — and that is the <em>point</em>
+            of that surface. Name an experiment you would want it for.</li>
+          <li>Go back to untreated and drag <b>serum</b> from 0% to 20%. Serum partly rescues attachment on
+            a bad surface. Using eq. 3.1.2, say what the serum is actually doing.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Surface:</span>
+        <button class="scen-btn on" data-widget="surface" data-scen="untreated">untreated polystyrene</button>
+        <button class="scen-btn" data-widget="surface" data-scen="tc">tissue-culture treated</button>
+        <button class="scen-btn" data-widget="surface" data-scen="collagen">collagen coated</button>
+        <button class="scen-btn" data-widget="surface" data-scen="ula">ultra-low attachment</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Contact angle</span> <span id="v-surface-th">90 deg</span></label>
+            <input type="range" id="s-surface-th" min="15" max="125" step="1" value="90"></div>
+          <div class="ctrl-group"><label><span>Serum in the medium</span> <span id="v-surface-serum">10%</span></label>
+            <input type="range" id="s-surface-serum" min="0" max="20" step="0.5" value="10"></div>
+          <div class="ctrl-group"><label><span>Time since seeding</span> <span id="v-surface-t">24 h</span></label>
+            <input type="range" id="s-surface-t" min="1" max="48" step="1" value="24"></div>
+          <div class="stats" id="st-surface"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">A drop of medium, and what the cells do under it</div>
+            <canvas id="cv-surface" width="660" height="310"></canvas></div>
+          <div class="val-verdict" id="vd-surface" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Wetting, in one equation</h3>
+        <p>Where a drop meets a solid, three surface tensions pull on the contact line and balance:</p>
+        <div class="equation-box"><span class="eqno">eq. 3.1.1</span>
+          $$\gamma_{sv} \;=\; \gamma_{sl} + \gamma_{lv}\cos\theta$$</div>
+        <p>with \(\gamma_{sv}\), \(\gamma_{sl}\) and \(\gamma_{lv}\) the solid–vapour, solid–liquid and
+          liquid–vapour surface tensions and \(\theta\) the contact angle. A high-energy solid (large
+          \(\gamma_{sv}\)) forces \(\cos\theta\) up, so \(\theta\) goes down and the drop spreads. Plasma
+          treatment is exactly this: it oxidises the top few nanometres of polystyrene, planting carboxyl
+          and hydroxyl groups that raise \(\gamma_{sv}\). Nothing else about the flask changes.</p>
+        <p>The reason a wettable surface grows cells is one step further on. How strongly a liquid — and the
+          proteins in it — adheres to a solid is the <b>work of adhesion</b>:</p>
+        <div class="equation-box"><span class="eqno">eq. 3.1.2</span>
+          $$W_a \;=\; \gamma_{lv}\left(1 + \cos\theta\right)$$</div>
+        <p>the energy per unit area you would have to supply to peel the liquid back off. On an untreated
+          surface at \(\theta = 90°\), \(\cos\theta = 0\) and \(W_a = \gamma_{lv}\). Treat it to 40° and
+          \(W_a\) nearly doubles. Cells do not attach to plastic directly — they attach to a layer of
+          adsorbed proteins (fibronectin and vitronectin, mostly from the serum), and that layer forms and
+          stays put in proportion to \(W_a\).</p>
+        <div class="insight"><strong>Serum is not just food.</strong> This is why adding serum partly
+          rescues attachment on a poor surface: you are supplying more of the adhesion proteins that have
+          to land before any cell can. It is also why serum-free work usually needs a coated
+          surface — Corning's BioCoat range with collagen, gelatin or fibronectin does the same job by
+          putting the protein there deliberately instead of hoping it adsorbs.</div>
+        <div class="aside"><span class="lab">Worth knowing</span>
+          <strong>Note from Dr. McGhee.</strong> Ultra-low attachment surfaces are the same physics run
+          backwards: a covalently bound hydrophilic hydrogel that proteins will not adsorb to, so nothing
+          gets a foothold. That is not a defect, it is the product — it is how you force cells into
+          spheroids and organoids instead of a monolayer. If you order the wrong one of these two you will
+          spend a week blaming your cells.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="1.2" data-title="Six plastics, six jobs">1.2 · Six plastics, and why the tube is that one</h2>
+        <p>Labware is not made of "plastic". It is made of a specific polymer chosen for a specific
+          compromise, and the compromises conflict: the ones you can see through mostly cannot be
+          autoclaved, and the ones you can autoclave are mostly cloudy. Pick a material below and a
+          condition to put it in.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>polystyrene</em> at 121 °C. Read what happens. Now ask why every flask you own is
+            made of it anyway.</li>
+          <li>Switch to <em>polypropylene</em> at the same temperature. This is why tubes and tips are PP
+            and flasks are PS.</li>
+          <li>Set the temperature to <b>−80 °C</b> and step through PS, PP and PET. Corning's own guidance
+            on which survives freezing is in the verdict — check whether the sim agrees with it.</li>
+          <li>Find the one material that survives everything, then look at what it costs you.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Material:</span>
+        <button class="scen-btn on" data-widget="plastic" data-scen="ps">polystyrene</button>
+        <button class="scen-btn" data-widget="plastic" data-scen="pp">polypropylene</button>
+        <button class="scen-btn" data-widget="plastic" data-scen="pet">PET</button>
+        <button class="scen-btn" data-widget="plastic" data-scen="pc">polycarbonate</button>
+        <button class="scen-btn" data-widget="plastic" data-scen="ptfe">PTFE</button>
+        <button class="scen-btn" data-widget="plastic" data-scen="glass">borosilicate glass</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Temperature</span> <span id="v-plastic-T">121 C</span></label>
+            <input type="range" id="s-plastic-T" min="-196" max="260" step="1" value="121"></div>
+          <div class="ctrl-group"><label><span>Solvent aggressiveness</span> <span id="v-plastic-sol">0</span></label>
+            <input type="range" id="s-plastic-sol" min="0" max="3" step="1" value="0"></div>
+          <div class="stats" id="st-plastic"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">What this material is good for</div>
+            <canvas id="cv-plastic" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-plastic" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>The four properties that decide everything</h3>
+        <div class="rules">
+          <div class="rule"><b>Optical clarity</b><span>You have to look through a flask on a microscope. PS and PET are clear; PP is translucent at best. This alone decides why flasks are PS.</span></div>
+          <div class="rule"><b>Temperature range</b><span>PS softens around 90 °C, so it cannot be autoclaved. PP takes 121 °C comfortably. Corning gives its centrifuge tubes a working range of <b>0–40 °C</b>, and notes that <b>PP and PET are more resistant to stress at low temperatures than PS</b>.</span></div>
+          <div class="rule"><b>Chemical resistance</b><span>PS is dissolved by acetone, toluene and chlorinated solvents — do not put DMSO stock or organic solvent in a PS tube. PP resists nearly everything short of hot oxidising acids. PTFE resists everything.</span></div>
+          <div class="rule"><b>Protein and nucleic-acid binding</b><span>Hydrophobic surfaces adsorb protein, which is §3.2's problem. This is why low-bind tubes exist and why they are surface-modified rather than made of something else.</span></div>
+        </div>
+        <div class="aside"><span class="lab">Where the published guidance lands</span>
+          <strong>Note from Dr. McGhee.</strong> Three things above come straight from Corning's guide and
+          are quoted: the 0–40 °C working range, the PP/PET-over-PS ranking at low temperature, and the
+          instruction to conduct a trial run before any critical application. The rest — softening points,
+          solvent resistance, clarity — is general polymer property data, not a quotation, and the sim is
+          built on it. <b>Corning's own advice applies: for anything critical, run a trial with the actual
+          tube, the actual solution and the actual conditions before you trust it.</b> No chart replaces
+          that, including this one.</div>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Treatment changes the <b>surface energy</b>, not the polymer. A treated and an untreated flask are the same plastic.</li>
+          <li>Cells attach to <b>adsorbed protein</b>, not to plastic — so wettability and serum both act on the same step.</li>
+          <li>Ultra-low attachment is the same physics inverted, and it is a product feature rather than a fault.</li>
+          <li>Clarity, temperature range, chemical resistance and protein binding <b>conflict</b>. Every piece of labware is a choice among them.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next:</strong> two numbers people habitually get wrong — the one on the
+        centrifuge dial, and the volume of medium in a well.</div>
+    </div>
+
+  </section>
+  <!-- ══════════════════════════ TAB 2 — HOW TO USE IT ══════════════════════════ -->
+  <section id="tab-use" class="tab-content">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="2.1" data-title="RPM is not a protocol">2.1 · "Spin at 3000 rpm" is not a protocol</h2>
+        <p>Corning is blunt about this, and it is worth quoting in full: <i>"Instructions for centrifuging a
+          sample at a given RPM and time are incomplete unless the rotor or radius is specified. Protocols
+          should always state the time and RCF value for centrifuging a sample."</i> And, separately:
+          <i>"Do not confuse speed or revolutions per minute (RPM) with RCF."</i></p>
+        <p>The reason is one line of algebra. Set a speed below and then change the rotor without touching
+          the dial.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Set <b>3000 rpm</b> on the <em>small benchtop rotor</em>. Read the RCF.</li>
+          <li>Now switch to the <em>large swing-out rotor</em> without changing the speed. Read it again.
+            Same dial, same protocol as written, and a different experiment.</li>
+          <li>Go back to the small rotor and find the speed that reproduces the large rotor's RCF.</li>
+          <li>Drag the speed up until you exceed the tube's rating. Note how much of the dial's range is
+            actually usable — and that a rotor which <em>can</em> reach a speed does not mean your tube can.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Rotor:</span>
+        <button class="scen-btn on" data-widget="rcf" data-scen="micro">microfuge, r = 8.5 cm</button>
+        <button class="scen-btn" data-widget="rcf" data-scen="small">small benchtop, r = 11 cm</button>
+        <button class="scen-btn" data-widget="rcf" data-scen="swing">large swing-out, r = 19 cm</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Speed</span> <span id="v-rcf-n">3000 rpm</span></label>
+            <input type="range" id="s-rcf-n" min="200" max="15000" step="100" value="3000"></div>
+          <div class="ctrl-group"><label><span>Radius to tube bottom</span> <span id="v-rcf-r">8.5 cm</span></label>
+            <input type="range" id="s-rcf-r" min="4" max="25" step="0.5" value="8.5"></div>
+          <div class="ctrl-group"><label><span>Tube rating</span> <span id="v-rcf-rate">15000 x g</span></label>
+            <input type="range" id="s-rcf-rate" min="2000" max="50000" step="500" value="15000"></div>
+          <div class="stats" id="st-rcf"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Force delivered, against speed, for each rotor</div>
+            <canvas id="cv-rcf" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-rcf" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>The formula, and the trap inside it</h3>
+        <div class="equation-box"><span class="eqno">eq. 3.2.1</span>
+          $$\mathrm{RCF} \;=\; 1.118\times10^{-5}\;r\,N^{2}$$</div>
+        <p>with \(r\) the radius in centimetres and \(N\) the speed in rpm, exactly as Corning writes it.
+          Two things are hiding in there. First, RCF goes as \(N^{2}\), so a 20% speed increase is a 44%
+          force increase — the dial is far more sensitive than it looks. Second, and the one that bites:
+          <b>\(r\) is measured to the bottom of the tube</b>, not to the middle of the rotor, not to the
+          sample. Two rotors that both say "3000 rpm" deliver forces in the ratio of their radii, and that
+          ratio is easily two to one.</p>
+        <div class="insight"><strong>Write the RCF in the notebook, never the rpm.</strong> An rpm is a
+          property of one machine on one day. An RCF is a property of the experiment, and it is the only
+          form in which a spin is reproducible by anyone else — or by you, on the other centrifuge, in six
+          months.</div>
+        <div class="aside"><span class="lab">Worth knowing</span>
+          <strong>Note from Dr. McGhee.</strong> Corning's other centrifuge rules are short and all worth
+          obeying: <b>tubes are single use</b> — hairline cracks and deformation happen even within
+          acceptable conditions; <b>balance opposing buckets</b> and distribute them about the centre of
+          rotation and the pivot axis; <b>never autoclave a centrifuge tube</b>, because it accentuates any
+          deformation and the tube then leaks or fails on the next spin; and close the cap by pressing down
+          while turning it <em>backwards</em> until the threads click, then tightening — which is what
+          stops cross-threading.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="2.2" data-title="How deep is the medium">2.2 · How deep is the medium, and can the cells breathe?</h2>
+        <p>Choosing a vessel looks like choosing a growth area. It is really choosing three things at once:
+          how many cells you will end up with, how much medium sits on top of them, and therefore how
+          easily oxygen reaches them. The third one is invisible and it is the one that goes wrong when
+          somebody "adds a bit more medium so it does not dry out".</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on the <em>T-25 flask</em> with its standard medium volume. Read the depth and the
+            oxygen delivery.</li>
+          <li>Double the medium volume. Growth area unchanged, cells unchanged. Watch the oxygen number.</li>
+          <li>Switch to a <em>96-well plate</em> and read the depth. Small vessels are shallow, which is
+            good for gas and terrible for evaporation — tab 3 is about the second half of that.</li>
+          <li>Using the confluence figure in the stats, work out how many T-25 flasks you would need to seed
+            a 6-well plate at 20% confluency.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Vessel:</span>
+        <button class="scen-btn" data-widget="vessel" data-scen="w96">96-well</button>
+        <button class="scen-btn" data-widget="vessel" data-scen="w24">24-well</button>
+        <button class="scen-btn" data-widget="vessel" data-scen="w6">6-well</button>
+        <button class="scen-btn on" data-widget="vessel" data-scen="t25">T-25 flask</button>
+        <button class="scen-btn" data-widget="vessel" data-scen="t75">T-75 flask</button>
+        <button class="scen-btn" data-widget="vessel" data-scen="t175">T-175 flask</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Medium per well or flask</span> <span id="v-vessel-vol">5.0 mL</span></label>
+            <input type="range" id="s-vessel-vol" min="0.05" max="60" step="0.05" value="5"></div>
+          <div class="ctrl-group"><label><span>Seeding density</span> <span id="v-vessel-seed">20%</span></label>
+            <input type="range" id="s-vessel-seed" min="2" max="60" step="1" value="20"></div>
+          <div class="ctrl-group"><label><span>Doubling time</span> <span id="v-vessel-dt">24 h</span></label>
+            <input type="range" id="s-vessel-dt" min="10" max="72" step="1" value="24"></div>
+          <div class="stats" id="st-vessel"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Growth to confluence, and the medium on top</div>
+            <canvas id="cv-vessel" width="660" height="310"></canvas></div>
+          <div class="val-verdict" id="vd-vessel" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Depth is volume over area, and oxygen has to cross it</h3>
+        <div class="equation-box"><span class="eqno">eq. 3.2.2</span>
+          $$h \;=\; \frac{V}{A} \qquad\qquad J_{\mathrm{O_2}} \;=\; D\,\frac{\Delta C}{h}$$</div>
+        <p>with \(h\) the medium depth, \(V\) the volume, \(A\) the growth area, \(D\) the diffusion
+          coefficient of oxygen in medium and \(\Delta C\) the concentration difference between the surface
+          and the cell layer. In a static flask nothing stirs, so oxygen arrives by diffusion alone and the
+          supply is <b>inversely proportional to depth</b>. Double the medium and you halve the oxygen
+          delivery to the cells at the bottom.</p>
+        <div class="insight"><strong>More medium is not more generous.</strong> It is more buffer and more
+          nutrient, and it is less oxygen — and for a dense culture oxygen is usually the thing that runs
+          out first. The standard volumes on a vessel's datasheet are chosen to land near 2–3 mm of depth
+          for exactly this reason. If a culture needs feeding more often, feed it more often; do not make
+          it deeper.</div>
+        <p>Corning's rule for when to passage is <b>85–95% confluency</b> — <i>"aim to passage cells at
+          moderate to less than 85-95 percent confluency when there's still space to grow"</i>, because
+          beyond that <i>"cells may be changed irreparably"</i>. The sim above tells you when you get
+          there, and it is worth noticing how short the window is: a culture at 40% on Monday morning can
+          be past 95% by Tuesday afternoon.</p>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li><b>RCF, not rpm.</b> An rpm without a radius is not a protocol, and RCF goes as the <b>square</b> of speed.</li>
+          <li>Radius is measured to the <b>bottom of the tube</b>. Two rotors at the same dial setting can differ two-fold.</li>
+          <li>Medium depth is <b>V/A</b>, and oxygen delivery goes as <b>1/h</b>. Extra medium starves cells of oxygen.</li>
+          <li>Passage at <b>85–95%</b> confluency, not after — past that, cells change irreversibly.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next:</strong> two ways your sample disappears without anybody spilling
+        anything — out through the top of the plate, and into the wall of the tube.</div>
+    </div>
+
+  </section>
+  <!-- ══════════════════════════ TAB 3 — PRECAUTIONS ══════════════════════════ -->
+  <section id="tab-care" class="tab-content">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="3.1" data-title="The edge of the plate">3.1 · The outer wells are a different experiment</h2>
+        <p>A 96-well plate looks like ninety-six identical experiments. It is not. The wells around the
+          outside lose water faster than the ones in the middle, because they have more exposed perimeter
+          and sit against the plate's cooler walls. Over a few days the outer ring concentrates — the
+          medium in them is not the medium you made.</p>
+        <p>This is the <b>edge effect</b>, and it is the single most common reason a plate shows a
+          beautiful, meaningless gradient from left to right.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start at <em>day 3</em> in a normal incubator. Read the volume lost from a corner well and
+            from a centre well.</li>
+          <li>Drag <b>days</b> out to 7. Watch the map. At what point does the outer ring stop being usable?</li>
+          <li>Drop <b>incubator humidity</b> from 95% to 70% — a door left ajar, or a dry pan. Read the
+            corner well again.</li>
+          <li>Tick <b>sacrifice the outer ring</b>. You lose 36 of 96 wells and gain a plate you can
+            believe. Decide whether that trade is worth it for a 7-day experiment.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Plate:</span>
+        <button class="scen-btn on" data-widget="edge" data-scen="p96">96-well</button>
+        <button class="scen-btn" data-widget="edge" data-scen="p24">24-well</button>
+        <button class="scen-btn" data-widget="edge" data-scen="p6">6-well</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Days in the incubator</span> <span id="v-edge-d">3</span></label>
+            <input type="range" id="s-edge-d" min="1" max="14" step="1" value="3"></div>
+          <div class="ctrl-group"><label><span>Incubator humidity</span> <span id="v-edge-rh">95%</span></label>
+            <input type="range" id="s-edge-rh" min="50" max="98" step="1" value="95"></div>
+          <div class="ctrl-group"><label><span>Medium per well</span> <span id="v-edge-vol">200 uL</span></label>
+            <input type="range" id="s-edge-vol" min="50" max="400" step="10" value="200"></div>
+          <label class="chk"><input type="checkbox" id="c-edge-sac"> Sacrifice the outer ring (fill with PBS)</label>
+          <div class="stats" id="st-edge"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Volume lost per well, seen from above</div>
+            <canvas id="cv-edge" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-edge" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Evaporation, and why the corner is worst</h3>
+        <p>Water leaves a well by diffusing through the air above it into an incubator that is not quite
+          saturated:</p>
+        <div class="equation-box"><span class="eqno">eq. 3.3.1</span>
+          $$\frac{dV}{dt} \;=\; -\,k\,A_{\mathrm{well}}\left(1 - \mathrm{RH}\right)\,f_{\mathrm{pos}}$$</div>
+        <p>with \(A_{\mathrm{well}}\) the open area of the well, RH the incubator's relative humidity as a
+          fraction, \(k\) a mass-transfer coefficient, and \(f_{\mathrm{pos}}\) a position factor greater
+          than one for wells on the perimeter, which have extra exposed plate around them. The
+          \((1-\mathrm{RH})\) is the whole reason the incubator has a water pan — and why a pan allowed to
+          run dry turns into a plate-wide artefact three days later.</p>
+        <div class="insight"><strong>The damage is concentration, not volume.</strong> Losing 30% of the
+          volume from a corner well raises the concentration of everything dissolved in it by 43%,
+          including your drug, the salt and the buffer. The cells in that well are in a different medium
+          from the cells in the middle, and the plate reader cannot tell you that.</div>
+        <div class="aside"><span class="lab">McGhee Lab practice — confirm before you rely on it</span>
+          <strong>Note from Dr. McGhee.</strong> For anything running longer than about three days, fill
+          the outer ring with sterile PBS and do not use it. You lose 36 wells of a 96 and you get 60 you
+          can compare with each other, which is the better trade almost every time. The alternative — a
+          plate sealed with a gas-permeable membrane — works too, and is what to reach for when you cannot
+          spare the wells. This is house practice; the underlying physics is standard, but the three-day
+          threshold is a rule of thumb rather than anything measured here.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="3.2" data-title="Where the microgram went">3.2 · Your protein is on the wall of the tube</h2>
+        <p>Put one microgram of a purified protein into a 15 mL conical, and a measurable fraction of it
+          never comes out again. It is not degraded and it did not leak — it adsorbed onto the polypropylene,
+          in the same monolayer-of-protein process that §1.1 relied on to make cells stick.</p>
+        <p>Whether that matters depends entirely on the ratio of wall area to sample amount, and that ratio
+          is something you choose when you pick the tube.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start with <em>1 µg in a 15 mL conical</em>. Read the fraction lost. Most people guess far
+            too low.</li>
+          <li>Switch to <em>1 µg in a 0.5 mL tube</em> — same sample, smaller container. Read it again.</li>
+          <li>Tick <b>low-bind surface</b>. Compare the two fixes: a smaller tube, and a better tube.</li>
+          <li>Drag the <b>sample amount</b> up to 1 mg in the big conical. Where does the problem go, and why?</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Container:</span>
+        <button class="scen-btn on" data-widget="bind" data-scen="c15">15 mL conical</button>
+        <button class="scen-btn" data-widget="bind" data-scen="c15w">1.5 mL microtube</button>
+        <button class="scen-btn" data-widget="bind" data-scen="c05">0.5 mL microtube</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Sample in the tube</span> <span id="v-bind-m">1.0 ug</span></label>
+            <input type="range" id="s-bind-m" min="-2" max="3" step="0.05" value="0"></div>
+          <div class="ctrl-group"><label><span>Liquid volume</span> <span id="v-bind-v">1.00 mL</span></label>
+            <input type="range" id="s-bind-v" min="0.02" max="15" step="0.02" value="1"></div>
+          <div class="ctrl-group"><label><span>Surface coverage</span> <span id="v-bind-g">2.5 mg/m2</span></label>
+            <input type="range" id="s-bind-g" min="0.2" max="5" step="0.1" value="2.5"></div>
+          <label class="chk"><input type="checkbox" id="c-bind-low"> Low-bind surface</label>
+          <div class="stats" id="st-bind"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Fraction lost to the wall, against sample amount</div>
+            <canvas id="cv-bind" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-bind" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>A monolayer is a fixed amount, so what matters is the ratio</h3>
+        <p>Once the wall is saturated it holds a fixed mass per unit area, so the fraction of your sample
+          that vanishes is</p>
+        <div class="equation-box"><span class="eqno">eq. 3.3.2</span>
+          $$f_{\mathrm{lost}} \;=\; \min\!\left(1,\;\frac{\Gamma\,A_{\mathrm{wet}}}{m}\right)$$</div>
+        <p>with \(\Gamma\) the saturated surface coverage — a couple of milligrams per square metre for a
+          typical protein on a hydrophobic surface — \(A_{\mathrm{wet}}\) the wetted wall area, and \(m\)
+          the total mass of protein present. The numerator is set by the <em>tube</em> and the denominator
+          by the <em>sample</em>. Nothing about this depends on concentration once you are above
+          saturation, which is why dilute samples suffer and concentrated ones do not.</p>
+        <div class="insight"><strong>A big tube is not a safe default.</strong> The wetted area of a 15 mL
+          conical holding 1 mL is several times that of a 1.5 mL microtube holding the same millilitre, and
+          the protein does not know it is supposed to stay in the liquid. For anything under about ten
+          micrograms, use the smallest tube that holds the volume — and for anything precious, a low-bind
+          tube, which is the same trick as §1.1's ultra-low attachment surface applied to protein.</div>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Outer wells evaporate faster. Over days this becomes a <b>concentration gradient</b> across the plate that looks like a result.</li>
+          <li>Losing 30% of the volume raises every concentration in that well by <b>43%</b>.</li>
+          <li>Wall adsorption is a <b>fixed mass per area</b>, so it hurts small samples and ignores large ones.</li>
+          <li>Two fixes, and they stack: a <b>smaller tube</b> (less area) and a <b>low-bind surface</b> (less Γ).</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next:</strong> the autoclave — what it kills, and the thing it does
+        almost nothing to.</div>
+    </div>
+
+  </section>
+  <!-- ══════════════════════════ TAB 4 — STERILITY & STORAGE ══════════════════════════ -->
+  <section id="tab-maint" class="tab-content">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="4.1" data-title="Sterile is not clean">4.1 · Sterile is not the same as clean</h2>
+        <p>An autoclave kills things. It is extremely good at it — a standard 121 °C, 15-minute cycle
+          reduces a bacterial population by more than twelve orders of magnitude. What it does <em>not</em>
+          do is remove what the bacteria left behind.</p>
+        <p>Endotoxin is lipopolysaccharide from the outer membrane of gram-negative bacteria, shed while
+          they grow and dumped wholesale when they die. Corning is unambiguous: <i>"Autoclaving glassware
+          using standard procedures has little effect on endotoxin levels due to their high heat
+          stability"</i>, and destroying it needs <i>"250 °C for more than 30 minutes or 180 °C for three
+          hours"</i>. Run both cycles below and compare the two bars.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on the <em>standard autoclave</em> cycle. Read the microbial log reduction, then read
+            the endotoxin reduction underneath it.</li>
+          <li>Switch to <em>depyrogenation, 250 °C</em>. Both bars fill. Note how long it takes.</li>
+          <li>Switch to <em>gamma irradiation</em> — the process most of your disposable plastic actually
+            goes through. Same story, different mechanism.</li>
+          <li>Set a custom cycle and find the shortest time at 180 °C that completes depyrogenation. Check
+            it against Corning's three hours.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Cycle:</span>
+        <button class="scen-btn on" data-widget="sterile" data-scen="auto">standard autoclave, 121 °C</button>
+        <button class="scen-btn" data-widget="sterile" data-scen="flash">flash, 134 °C</button>
+        <button class="scen-btn" data-widget="sterile" data-scen="depyro">depyrogenation, 250 °C</button>
+        <button class="scen-btn" data-widget="sterile" data-scen="gamma">gamma irradiation</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Temperature</span> <span id="v-sterile-T">121 C</span></label>
+            <input type="range" id="s-sterile-T" min="100" max="260" step="1" value="121"></div>
+          <div class="ctrl-group"><label><span>Hold time</span> <span id="v-sterile-t">15 min</span></label>
+            <input type="range" id="s-sterile-t" min="1" max="240" step="1" value="15"></div>
+          <div class="stats" id="st-sterile"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">What this cycle actually achieves</div>
+            <canvas id="cv-sterile" width="660" height="245"></canvas></div>
+          <div class="val-verdict" id="vd-sterile" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Two different kinds of killing</h3>
+        <p>Moist-heat sterilisation is measured in \(F_0\) — minutes of equivalent lethality at 121 °C:</p>
+        <div class="equation-box"><span class="eqno">eq. 3.4.1</span>
+          $$F_0 \;=\; \int 10^{\,(T-121)/z}\,dt \qquad z \approx 10\ ^\circ\mathrm{C}$$</div>
+        <p>with \(T\) in °C and \(z\) the temperature change that alters the kill rate ten-fold. A \(z\) of
+          10 °C is why 134 °C for three minutes matches 121 °C for a quarter of an hour: thirteen degrees
+          buys you a factor of twenty in time.</p>
+        <p>Note that \(F_0\) describes <em>moist</em> heat. Above about 140 °C there is no steam left and
+          you are doing dry-heat sterilisation, which is a different mechanism with its own kinetics — the
+          sim switches to it and stops quoting an \(F_0\), because extrapolating the moist-heat curve to
+          250 °C would claim dry heat is a trillion times more lethal than an autoclave, which is the
+          opposite of the truth.</p>
+        <p>Endotoxin destruction is a different chemistry with a much larger \(z\). Take Corning's two
+          published equivalences — 250 °C for 30 minutes, and 180 °C for 180 minutes — as the same
+          treatment and solve for \(z\):</p>
+        <div class="equation-box"><span class="eqno">eq. 3.4.2</span>
+          $$10^{\,(250-180)/z} \;=\; \frac{180}{30} \;=\; 6 \qquad\Longrightarrow\qquad z \;=\; \frac{70}{\log_{10} 6} \;\approx\; 90\ ^\circ\mathrm{C}$$</div>
+        <p>That \(z\) of about 90 °C, nine times the microbial one, <em>is</em> the whole problem. Because
+          the exponent falls off so slowly with temperature, going down from 250 °C to 121 °C costs you a
+          factor of \(10^{129/90} \approx 27\) in rate — so a 15-minute autoclave cycle delivers around
+          <b>2%</b> of a depyrogenation treatment. "Little effect", quantified.</p>
+        <div class="insight"><strong>Gamma and e-beam are worse, not better.</strong> Corning again:
+          radiation sterilisation <i>"destroys microbial contaminants and will leave the endotoxins largely
+          intact"</i>. Your disposable plastic is sterile because it was irradiated — which tells you
+          nothing at all about whether it is pyrogen-free. That is a separate certification, and if it
+          matters to your assay you have to look for it on the box.</div>
+        <div class="aside"><span class="lab">Worth knowing</span>
+          <strong>Note from Dr. McGhee.</strong> The \(z \approx 90\) °C above is derived here from
+          Corning's own two data points rather than quoted from a standard, and two points define a
+          straight line whether or not the underlying kinetics are one. Treat it as what it is: an
+          interpolation that reproduces both published cycles exactly and gives the right order of
+          magnitude in between. For a real depyrogenation validation you use the published cycle, not this
+          curve. And note it applies to <b>glassware</b> — you cannot put plastic anywhere near 250 °C,
+          which is why plasticware has to be <em>bought</em> certified low-endotoxin rather than treated.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="4.2" data-title="Freezing is a rate">4.2 · Freezing cells is a rate, not a temperature</h2>
+        <p>Getting cells to −130 °C is easy. Getting them back alive is a question of how fast you went.
+          Too slow and they sit in a concentrating brine and dehydrate to death; too fast and water freezes
+          <em>inside</em> them and the crystals tear them apart. Corning's number is
+          <b>1 °C to 3 °C per minute</b>, and there is a real optimum in between the two failure modes.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start at <em>a controlled-rate container</em>. Read the cooling rate and the survival.</li>
+          <li>Switch to <em>straight into the −80</em>. Faster is not better — read which failure mode took
+            over.</li>
+          <li>Switch to <em>straight into liquid nitrogen</em>. Then read the aside below on why this is
+            also a safety problem, not only a viability one.</li>
+          <li>Set the rate back to 1 °C/min and drag <b>DMSO</b> from 0% to 15%. Cryoprotectant moves the
+            whole curve; find where Corning's 5–15% band sits on it.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Method:</span>
+        <button class="scen-btn on" data-widget="freeze" data-scen="ctrl">controlled-rate container</button>
+        <button class="scen-btn" data-widget="freeze" data-scen="m80">straight into the −80</button>
+        <button class="scen-btn" data-widget="freeze" data-scen="ln2">straight into liquid nitrogen</button>
+        <button class="scen-btn" data-widget="freeze" data-scen="fridge">left in the fridge overnight</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Cooling rate</span> <span id="v-freeze-r">1.0 C/min</span></label>
+            <input type="range" id="s-freeze-r" min="-2" max="3" step="0.02" value="0"></div>
+          <div class="ctrl-group"><label><span>DMSO</span> <span id="v-freeze-dmso">10.0%</span></label>
+            <input type="range" id="s-freeze-dmso" min="0" max="20" step="0.5" value="10"></div>
+          <div class="ctrl-group"><label><span>Cell size</span> <span id="v-freeze-size">15 um</span></label>
+            <input type="range" id="s-freeze-size" min="6" max="40" step="1" value="15"></div>
+          <div class="stats" id="st-freeze"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Survival against cooling rate</div>
+            <canvas id="cv-freeze" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-freeze" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>The rest of the cryo rules, and why each one exists</h3>
+        <div class="rules">
+          <div class="rule"><b>1–3 °C per minute</b><span>Slow enough to let water leave the cell, fast enough that it does not sit dehydrating. Corning notes that <i>"cells that are larger or have less permeable membranes may require a slower rate"</i> — big cells take longer to dehydrate.</span></div>
+          <div class="rule"><b>DMSO 5–15%, added at 4 °C</b><span>It is toxic at room temperature with prolonged contact, so it goes in cold and comes out immediately on thawing. Glycerol, 5–20%, is gentler but causes osmotic problems on thaw and must be removed <em>slowly</em> by dilution.</span></div>
+          <div class="rule"><b>Fill to 90%, never more</b><span>Corning's rule for any tube that will be frozen. Water expands; the space is where it goes.</span></div>
+          <div class="rule"><b>Never a Styrofoam rack</b><span>Corning's exact reasoning: contents hidden under the foam freeze <em>later</em>, so the liquid freezes from the top down, <i>"the force escape area is lost and the tube is much more likely to break when the lower liquid freezes"</i>.</span></div>
+          <div class="rule"><b>−80 °C overnight, then vapour phase</b><span>Long-term storage below −130 °C. <b>Never submerge vials directly in liquid nitrogen</b> — it is a contamination route, and the trapped nitrogen makes vials explode on warming.</span></div>
+          <div class="rule"><b>Thaw fast: 60–90 s at 37 °C</b><span>The mirror image of freezing. Rapid warming gives ice no time to re-form into large crystals. Then get the DMSO out immediately.</span></div>
+        </div>
+        <div class="insight"><strong>Freezing and thawing are asymmetric on purpose.</strong> Freeze slowly
+          so water has time to leave the cell; thaw quickly so it has no time to crystallise on the way
+          back. Doing either one at the other's speed is a standard way to lose a stock, and it looks
+          exactly like "the cells were unhealthy".</div>
+
+        <details class="check">
+          <summary>Check yourself</summary>
+          <div class="check-body">
+            <p><b>1.</b> A colleague autoclaves glassware, rinses it with ultrapure water, and reports that
+              their primary cells still respond badly. What have they not ruled out?</p>
+            <details><summary>Answer</summary><p>Endotoxin. Autoclaving delivers about 2% of a
+              depyrogenation cycle (eq. 3.4.2), and endotoxin adheres strongly to glass — Corning notes it
+              is <i>"difficult to completely remove the strongly adhered endotoxins during washing"</i>.
+              The glassware is sterile and may still be pyrogenic. The fixes are 250 °C for over 30 minutes
+              or 180 °C for three hours, or certified low-endotoxin disposables. Water is also worth
+              checking: Corning calls it <i>"possibly the highest risk material for endotoxin
+              contamination"</i>, and an LAL assay settles it.</p></details>
+            <p><b>2.</b> Vials frozen in a foam rack in the −80 keep cracking. Why does the rack matter, and
+              what should be used instead?</p>
+            <details><summary>Answer</summary><p>The foam insulates the lower part of each vial, so the
+              exposed top freezes first. Once a plug of ice caps the tube, the liquid below has nowhere to
+              expand into when it freezes in turn, and the tube splits. Use a controlled-rate cooling
+              container or an uninsulated metal rack, and fill only to 90% of nominal volume — both are
+              Corning's own instructions, and the second one is the reason the fill line matters.</p></details>
+          </div>
+        </details>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Autoclaving sterilises and <b>does almost nothing to endotoxin</b> — about 2% of a depyrogenation cycle.</li>
+          <li>Gamma and e-beam are the same story: sterile plastic tells you nothing about pyrogen level.</li>
+          <li>Freeze at <b>1–3 °C/min</b> — slower dehydrates, faster forms intracellular ice.</li>
+          <li><b>Freeze slowly, thaw fast.</b> The asymmetry is deliberate, and reversing it kills stocks.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next:</strong> three real jobs from this lab's protocols, and the
+        consumables each one actually needs.</div>
+    </div>
+
+  </section>
+  <!-- ══════════════════════════ TAB 5 — RECAP & THE REAL JOB ══════════════════════════ -->
+  <section id="tab-recap" class="tab-content">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="5.1" data-title="Specify the consumables">5.1 · Three real jobs. Specify the plastic.</h2>
+        <p>Every choice in this lesson shows up on one line of a protocol that usually just says "a tube".
+          Below are three jobs taken from this lab's own protocols. Pick the container, the material and the
+          surface for each, and see which requirements your choice meets and which it quietly breaks.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>aliquot Matrigel</em>. Try the obvious answer — a 15 mL conical — and read which
+            requirement it fails.</li>
+          <li>Work the three sliders until the score is full. Note which single choice was doing most of
+            the damage.</li>
+          <li>Switch to <em>spin down granular gel</em> and repeat. The right answer here is a different
+            shape of container for a reason that has nothing to do with the previous job.</li>
+          <li>Switch to <em>a 7-day drug plate</em> — the one where the answer is partly "and do not use
+            36 of the wells".</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">The job:</span>
+        <button class="scen-btn on" data-widget="pick" data-scen="matrigel">aliquot Matrigel</button>
+        <button class="scen-btn" data-widget="pick" data-scen="spin">spin down granular gel</button>
+        <button class="scen-btn" data-widget="pick" data-scen="plate">a 7-day drug plate</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Your specification</h3>
+          <div class="ctrl-group"><label><span>Container</span> <span id="v-pick-c">15 mL conical</span></label>
+            <input type="range" id="s-pick-c" min="0" max="5" step="1" value="2"></div>
+          <div class="ctrl-group"><label><span>Material</span> <span id="v-pick-m">polystyrene</span></label>
+            <input type="range" id="s-pick-m" min="0" max="3" step="1" value="0"></div>
+          <div class="ctrl-group"><label><span>Surface</span> <span id="v-pick-s">standard</span></label>
+            <input type="range" id="s-pick-s" min="0" max="3" step="1" value="0"></div>
+          <div class="stats" id="st-pick"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Requirements met, and requirements broken</div>
+            <canvas id="cv-pick" width="660" height="320"></canvas></div>
+          <div class="val-verdict" id="vd-pick" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>What a chain of containers costs you</h3>
+        <p>Real work is never one container. A sample goes from a stock tube to a dilution tube to a plate,
+          and each step takes its cut — some to the pipette from Lesson 2, some to the wall from §3.2. Those
+          losses multiply:</p>
+        <div class="equation-box"><span class="eqno">eq. 3.5.1</span>
+          $$\text{recovery} \;=\; \prod_{i=1}^{n}\left(1 - f_i\right)$$</div>
+        <p>with \(f_i\) the fraction lost at step \(i\). Five transfers each losing 8% to the wall leaves you
+          \(0.92^5 = 66\%\) of what you started with — a third of the sample gone, with nothing spilled and
+          nothing to see. Set against Lesson 2's eq. 2.5.1, the pair covers both halves of the same problem:
+          <b>eq. 2.5.1 counts what the pipette failed to move, eq. 3.5.1 counts what the plastic kept.</b></p>
+        <div class="insight"><strong>Fewer containers is a real experimental design.</strong> Every transfer
+          is a pipetting error and an adsorption loss. If you can do a dilution series in one plate instead
+          of five tubes, or aliquot once into the vessel you will actually use, you have removed the errors
+          rather than corrected them — which is the only thing that ever works reliably.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="5.2" data-title="The whole lesson, one card">5.2 · Labware, on one card</h2>
+        <div class="rules">
+          <div class="rule"><b>Treated ≠ untreated</b><span>Same polymer, different surface energy. Cells attach to adsorbed protein, and protein sticks to wettable surfaces.</span></div>
+          <div class="rule"><b>ULA is a product, not a fault</b><span>If nothing is attaching, check the box before you blame the cells.</span></div>
+          <div class="rule"><b>PS for looking, PP for everything else</b><span>PS is clear and cannot be autoclaved. PP takes 121 °C and resists nearly every solvent. PS dissolves in acetone.</span></div>
+          <div class="rule"><b>RCF, never rpm</b><span>An rpm without a radius is not a protocol. Force goes as the square of speed, and radius is measured to the tube bottom.</span></div>
+          <div class="rule"><b>Tubes are single use</b><span>Hairline cracks form even within rated conditions. And never autoclave a centrifuge tube.</span></div>
+          <div class="rule"><b>Depth is V/A, oxygen is 1/h</b><span>Extra medium starves the cells of oxygen. Feed more often instead of deeper.</span></div>
+          <div class="rule"><b>Passage at 85–95%</b><span>Past that, cells change irreversibly — and a plate can cross the window overnight.</span></div>
+          <div class="rule"><b>Sacrifice the outer ring</b><span>For anything past about three days. 36 wells buys you 60 you can compare.</span></div>
+          <div class="rule"><b>Small tube for a small sample</b><span>Adsorption is a fixed mass per area, so what matters is area over sample. Low-bind for anything precious.</span></div>
+          <div class="rule"><b>Sterile ≠ pyrogen-free</b><span>Autoclaving is ~2% of a depyrogenation cycle; gamma leaves endotoxin intact. Buy plasticware certified if it matters.</span></div>
+          <div class="rule"><b>1–3 °C/min down, 60–90 s up</b><span>Freeze slowly, thaw fast. Fill to 90%, never a foam rack, never straight into liquid nitrogen.</span></div>
+          <div class="rule"><b>Trial run before anything critical</b><span>Corning's own advice, and it outranks every chart including the ones on this page.</span></div>
+        </div>
+
+        <details class="check">
+          <summary>Check yourself — the competency set</summary>
+          <div class="check-body">
+            <p><b>1.</b> A protocol says "spin at 4000 rpm for 5 minutes". You are running it on a different
+              centrifuge from the one it was written on. What do you need, and what do you write down?</p>
+            <details><summary>Answer</summary><p>You need the <em>radius</em> of the rotor the protocol was
+              written for, so you can convert to an RCF with eq. 3.2.1 and then back to an rpm on yours.
+              Without it the instruction is genuinely incomplete — Corning says so explicitly. What you
+              write in the notebook is the <b>RCF and the time</b>, plus the rotor you used, so the next
+              person does not face the same problem. A 4000 rpm spin at r = 8.5 cm is 1520 × g; at
+              r = 19 cm it is 3400 × g, more than twice as hard.</p></details>
+            <p><b>2.</b> You are aliquoting a 50 µg/mL protein stock into 20 µL single-use aliquots. What is
+              the container decision, and what is the failure mode if you get it wrong?</p>
+            <details><summary>Answer</summary><p>Each aliquot holds 1 µg in 20 µL. Use the <b>smallest
+              tube that holds 20 µL</b>, in a low-bind surface. In a 0.5 mL tube the wetted area for 20 µL
+              is tiny; in a 1.5 mL tube it is several times larger for no benefit, and by eq. 3.3.2 the
+              fraction adsorbed scales with it. The failure mode is silent: every aliquot is short by the
+              same amount, so the aliquots agree with each other perfectly and all of them are wrong —
+              which is the systematic-error signature from Lesson 2 all over again.</p></details>
+            <p><b>3.</b> Cells thawed from a vial attach loosely or not at all, 24 hours later. Name three
+              things from this lesson that could cause it.</p>
+            <details><summary>Answer</summary><p><b>Cooling rate:</b> frozen too fast or too slow, so the
+              cells were damaged before they ever got cold — Corning notes that cells like this <i>"will
+              either recover slowly or not at all"</i>. <b>DMSO exposure:</b> left in contact at room
+              temperature, or not removed promptly on thawing. <b>The surface:</b> an untreated or ULA
+              vessel, where §1.1 says attachment was never going to happen — and Corning notes that some
+              vessels have surfaces designed specifically to improve attachment after cryogenic storage.
+              A fourth, outside this lesson: the thaw itself, which should be 60–90 seconds at 37 °C.</p></details>
+          </div>
+        </details>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Every consumable is a compromise among <b>clarity, temperature, chemistry and binding</b>. Know which one your job cares about.</li>
+          <li>Losses <b>multiply</b> down a chain of containers: five 8% steps leave you two-thirds.</li>
+          <li>The best fix for a transfer loss is <b>one fewer transfer</b>, not a correction factor.</li>
+          <li>When it matters, run a <b>trial</b> with the real tube, the real solution and the real conditions.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Where this track goes next.</strong> Batch B takes on the two bench
+        instruments: <em>The pH Meter</em>, which measures a voltage across a piece of glass and drifts in
+        ways the manual will tell you how to read, and <em>The Homogenizer</em>, which puts 850 watts into a
+        one-millimetre gap and makes this lab's granular gels. Batch C is the two machines that hold an
+        environment — the biosafety cabinet and the CO₂ incubator — as machines rather than as technique.</div>
+    </div>
+
+  </section>
+
+  <div class="sources">
+    <h2>Sources</h2>
+    <ol>
+      <li>Corning Life Sciences. <i>Lab Life Essentials: Level Up with Top Tips for Everyday Tasks — Lab
+        Tips Resource Guide</i>, doc 60931. Pipetting and tips pp. 3–6; centrifuge and centrifuge-tube
+        safety, the RCF formula, the 0–40 °C working range, the 90% fill rule, the Styrofoam-rack warning
+        and the cap-closure procedure pp. 7–8; cell-culture vessels, surface treatments and the 85–95%
+        confluency rule pp. 9–10; cryopreservation, cooling rates, DMSO and glycerol concentrations and
+        thawing pp. 11–12; endotoxin sources, the 250 °C / 180 °C depyrogenation cycles and the note that
+        radiation sterilisation leaves endotoxin intact pp. 13–14. Every quoted passage on this page is
+        from here.</li>
+      <li>ANSI/AAMI/ISO 11137, <i>Sterilization of health care products — Radiation</i>. The basis of the
+        SAL 10<sup>−6</sup> claim quoted in the constants bar.</li>
+      <li>ISO 18385, <i>Minimizing the risk of human DNA contamination in products used to collect,
+        store and analyze biological material</i>.</li>
+      <li>United States Pharmacopeia, General Chapter <b>&lt;85&gt; Bacterial Endotoxins Test</b> — the LAL
+        assay Corning refers to, and the origin of the EU/mL units used here.</li>
+      <li>McGhee Lab. <i>Matrigel Aliquoting Protocol</i> and <i>Agarose LLS — Sieves</i>, internal
+        protocols. The three jobs in the §5.1 capstone.</li>
+    </ol>
+    <p style="font-size:.78rem;color:#94a3b8">Sections marked <b>McGhee Lab practice</b> are house procedure
+      rather than published guidance. In this lesson that is the outer-ring rule in §3.1. The polymer
+      property data behind §1.2 is general materials knowledge rather than a Corning quotation, and the
+      section says so; the <i>z</i> ≈ 90 °C in eq. 3.4.2 is interpolated here from Corning's two published
+      depyrogenation cycles rather than taken from a standard. Every simulation is a teaching model that
+      reproduces the published numbers where published numbers exist and states its own limits in an aside.
+      Corning's own instruction stands above all of it: for anything critical, run a trial with the actual
+      tube, the actual solution and the actual conditions.</p>
+  </div>
+</main>
+<footer>Equipment Foundations · Lesson 3 of 7 · McGhee Lab, University of Arizona</footer>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   CELL CULTURE FOUNDATIONS — shared house layer.
+   Helpers (COL, fmt, niceTicks, clamp, setupCanvas, Chart, drawLine,
+   arrow, setStat, setVerdict, statTick, lsqFit, mulberry32, randn)
+   follow modules/AUTHORING.md §5 and are copied from the BME466
+   week-1 module verbatim. The learning-module framework layer
+   (defWidget / registerAnim / one shared rAF loop / geometric
+   syncVis) is AUTHORING.md §9 item 3; the section rail and Present
+   mode (§9 item 2) are deliberately NOT included in this track.
+   UNITS: length m (µm where stated) · time s · velocity m/s ·
+   viscosity Pa·s, unless a widget states otherwise.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── palette ── */
+const COL = {
+  air:'#38bdf8', clean:'#2563eb', dirty:'#ef4444', warmc:'#f59e0b',
+  cell:'#7c3aed', media:'#e11d48', plastic:'#94a3b8', steel:'#64748b',
+  good:'#10b981', bad:'#ef4444', warn:'#f59e0b', neutral:'#94a3b8',
+  hepa:'#0891b2', flowline:'#60a5fa', particle:'#7c3aed',
+  grid:'#e2e8f0', axis:'#64748b', text:'#1e293b', faint:'#f1f5f9'
+};
+
+/* ── math / canvas / DOM helpers (house pattern, copied verbatim) ── */
+function randn(){ let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function gaussOf(rng){ let u=0,v=0; while(u===0)u=rng(); while(v===0)v=rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function fmt(v,d){ if(!isFinite(v))return '—'; const a=Math.abs(v);
+  if(a>=1000)return v.toLocaleString('en-US',{maximumFractionDigits:d===undefined?0:d});
+  if(a>=1)return v.toFixed(d===undefined?2:d);
+  if(a>=0.001||a===0)return v.toFixed(d===undefined?3:d);
+  return v.toExponential(d===undefined?2:d); }
+function niceTicks(lo,hi,n){ if(hi<=lo)return [lo]; const range=hi-lo, rough=range/Math.max(n,1),
+  mag=Math.pow(10,Math.floor(Math.log10(rough))); let step;
+  if(rough/mag<1.5)step=mag; else if(rough/mag<3.5)step=2*mag; else if(rough/mag<7.5)step=5*mag; else step=10*mag;
+  const t=[]; let x=Math.ceil(lo/step)*step; while(x<=hi+step*1e-3){t.push(x);x+=step;} return t; }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function setupCanvas(canvas){ if(!canvas)return null; const dpr=window.devicePixelRatio||1; const rect=canvas.getBoundingClientRect();
+  const cssW=rect.width||canvas.width;
+  const w=cssW, h=w*(canvas.height/canvas.width);
+  canvas.width=cssW*dpr; canvas.height=h*dpr; canvas.style.width=cssW+'px'; canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h); return {ctx,w,h}; }
+class Chart{
+  constructor(ctx,w,h,m){ this.ctx=ctx;this.W=w;this.H=h;this.m=m||{l:58,r:18,t:14,b:42};
+    this.pw=w-this.m.l-this.m.r; this.ph=h-this.m.t-this.m.b;
+    /* setupCanvas clears only on FIRST allocation and getCv caches the result,
+       so without this every redraw paints on top of the previous curve. */
+    ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h); }
+  setRange(a,b,c,d){ this.xMin=a;this.xMax=b;this.yMin=c;this.yMax=d; }
+  toX(v){ return this.m.l+(v-this.xMin)/(this.xMax-this.xMin)*this.pw; }
+  toY(v){ return this.m.t+this.ph-(v-this.yMin)/(this.yMax-this.yMin)*this.ph; }
+  grid(xt,yt){ const c=this.ctx; c.save();c.strokeStyle=COL.grid;c.lineWidth=1;c.setLineDash([3,3]);
+    for(const t of xt){const x=this.toX(t);c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();}
+    for(const t of yt){const y=this.toY(t);c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();}
+    c.restore(); }
+  axes(xl,yl,xt,yt,dx,dy,xfmt,yfmt){ const c=this.ctx; c.save();c.strokeStyle=COL.axis;c.lineWidth=1.5;c.setLineDash([]);
+    c.beginPath();c.moveTo(this.m.l,this.m.t);c.lineTo(this.m.l,this.m.t+this.ph);c.lineTo(this.m.l+this.pw,this.m.t+this.ph);c.stroke();
+    c.fillStyle=COL.axis;c.font='11px sans-serif';c.textAlign='center';c.textBaseline='top';
+    for(const t of xt){c.fillText(xfmt?xfmt(t):fmt(t,dx===undefined?0:dx),this.toX(t),this.m.t+this.ph+6);}
+    c.textAlign='right';c.textBaseline='middle';
+    for(const t of yt){c.fillText(yfmt?yfmt(t):fmt(t,dy===undefined?1:dy),this.m.l-6,this.toY(t));}
+    c.fillStyle=COL.text;c.font='12px sans-serif';c.textAlign='center';c.textBaseline='top';
+    c.fillText(xl,this.m.l+this.pw/2,this.m.t+this.ph+22);
+    c.save();c.translate(13,this.m.t+this.ph/2);c.rotate(-Math.PI/2);c.textBaseline='middle';c.fillText(yl,0,0);c.restore();
+    c.restore(); }
+  hLine(yv,color,dash){ const c=this.ctx,y=this.toY(yv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();c.restore(); }
+  vLine(xv,color,dash){ const c=this.ctx,x=this.toX(xv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();c.restore(); }
+  legend(items,x,y){ const c=this.ctx;c.save();c.font='11px sans-serif';let cx=x;
+    for(const it of items){c.fillStyle=it.color;c.fillRect(cx,y-5,12,10);c.fillStyle=COL.text;cx+=16;
+      c.textAlign='left';c.textBaseline='middle';c.fillText(it.label,cx,y);cx+=c.measureText(it.label).width+14;}c.restore(); }
+}
+function drawLine(ctx,pts,color,lw,dash){ if(pts.length<2)return; ctx.save();ctx.strokeStyle=color;ctx.lineWidth=lw||2;
+  if(dash)ctx.setLineDash(dash); ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]); ctx.stroke();ctx.restore(); }
+function arrow(ctx,x0,y0,x1,y1,color,lw){ ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=lw||1.6;
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+  const a=Math.atan2(y1-y0,x1-x0),hh=6.5; ctx.beginPath();ctx.moveTo(x1,y1);
+  ctx.lineTo(x1-hh*Math.cos(a-0.42),y1-hh*Math.sin(a-0.42));ctx.lineTo(x1-hh*Math.cos(a+0.42),y1-hh*Math.sin(a+0.42));
+  ctx.closePath();ctx.fill();ctx.restore(); }
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath(); }
+/* setStat / setVerdict rewrite DOM, so they are the two places that can make
+   the page flicker or jump. Both skip entirely when the rendered text is
+   unchanged, and are rate-limited by statTick(); combined with the reserved
+   heights in the CSS a running sim leaves the rest of the page still. */
+const _domCache={};
+function setStat(id,rows){ const el=document.getElementById(id); if(!el)return;
+  const html=rows.map(r=>`<div class="stat-row${r.hi?' highlight':''}"><span class="label">${r.k}</span><span class="value">${r.v}</span></div>`).join('');
+  if(_domCache[id]===html)return; _domCache[id]=html; el.innerHTML=html; }
+function setVerdict(id,cls,title,body){ const el=document.getElementById(id); if(!el)return;
+  const tall=el.dataset.tall?' tall':'';
+  const html='<strong>'+title+'</strong>'+body, key=cls+'|'+html;
+  if(_domCache['v:'+id]===key)return; _domCache['v:'+id]=key;
+  el.className='val-verdict'+tall+' '+cls; el.innerHTML=html; }
+const _statLast={};
+function statTick(key,ms){
+  /* Rate-limiting only applies to ANIMATED widgets, which redraw next frame
+     anyway. A static widget draws exactly once per input event, so gating it
+     would leave its readouts permanently stale whenever an input happened to
+     land inside the window. */
+  if(!ANIMS[key])return true;
+  const t=(typeof performance!=='undefined'?performance.now():0);
+  if(_statLast[key]&&t-_statLast[key]<(ms||160))return false; _statLast[key]=t; return true; }
+function lsqFit(xs,ys){ const n=xs.length; if(n<2)return null; let sx=0,sy=0,sxx=0,sxy=0;
+  for(let i=0;i<n;i++){sx+=xs[i];sy+=ys[i];sxx+=xs[i]*xs[i];sxy+=xs[i]*ys[i];}
+  const den=n*sxx-sx*sx; if(Math.abs(den)<1e-12)return null;
+  const m=(n*sxy-sx*sy)/den, b=(sy-m*sx)/n; return {m,b}; }
+function mulberry32(a){ return function(){ a|=0;a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+/* ════════ learning-module framework ════════
+   Widgets self-register:
+     defWidget(key, tab, drawFn, fmts, {reset, scenfn, scen0})
+     registerAnim(key, stepFn, minFrameMs)   // animated widgets only
+   Keys are globally unique and hyphen-free; slider ids are s-{key}-{param}
+   so id.split('-')[0] recovers the owning widget. TABW and the initial
+   activeTab are read from the DOM, so this whole block is identical in
+   every lesson of the track. */
+const FMT={}, DRAW={}, RESET={}, SCENFN={}, SCEN={}, WTAB={}, TABW={};
+document.querySelectorAll('.tab-content').forEach(s=>{ TABW[s.id.replace('tab-','')]=[]; });
+let activeTab=(document.querySelector('.tab-content.active')||document.querySelector('.tab-content')).id.replace('tab-','');
+function defWidget(key,tab,drawFn,fmts,opts){
+  if(!TABW[tab])TABW[tab]=[];
+  TABW[tab].push(key); DRAW[key]=drawFn; WTAB[key]=tab;
+  if(fmts)Object.assign(FMT,fmts);
+  if(opts&&opts.reset)RESET[key]=opts.reset;
+  if(opts&&opts.scenfn)SCENFN[key]=opts.scenfn;
+  if(opts&&opts.scen0)SCEN[key]=opts.scen0;
+}
+/* canvas-setup cache: setupCanvas reallocates the bitmap, so animated
+   widgets cache {ctx,w,h}; cache is cleared on resize and tab switch. */
+const CVS={};
+function getCv(id){ if(CVS[id])return CVS[id];
+  const el=document.getElementById(id); if(!el)return null;
+  const s=setupCanvas(el); if(s&&s.w>10)CVS[id]=s; return s; }
+function clearCvCache(){ for(const k in CVS) delete CVS[k]; }
+
+/* shared animation loop + viewport gating */
+const ANIMS={};
+let io=null, rafId=null;
+function registerAnim(key,stepFn,minFrame){
+  ANIMS[key]={step:stepFn,visible:false,last:0,minFrame:minFrame||33};
+  const el=document.getElementById('cv-'+key);
+  if(el){ el.dataset.anim=key; if(io)io.observe(el); else ANIMS[key].visible=true; }
+}
+if('IntersectionObserver' in window){
+  io=new IntersectionObserver(ents=>{
+    for(const en of ents){ const a=ANIMS[en.target.dataset.anim];
+      if(a){ a.visible=en.isIntersecting; if(a.visible)a.last=0; } }
+    kickAnim();
+  },{rootMargin:'120px',threshold:0.05});
+}
+function animLoop(ts){
+  let any=false;
+  for(const k in ANIMS){ const a=ANIMS[k];
+    if(WTAB[k]!==activeTab||!a.visible)continue;
+    any=true;
+    if(!a.last){a.last=ts;continue;}
+    const dt=Math.min(ts-a.last,50);
+    if(dt>=a.minFrame){ a.last=ts;
+      try{ a.step(dt/1000); DRAW[k](); }catch(e){ console.error('anim '+k,e); } }
+  }
+  rafId=any?requestAnimationFrame(animLoop):null;
+}
+function kickAnim(){ if(rafId==null)rafId=requestAnimationFrame(animLoop); }
+/* Visibility fallback: IntersectionObserver delivery is environment-dependent
+   (in some headless builds it never fires at all), so visibility is ALSO
+   recomputed straight from geometry — at boot, on tab switch, on scroll and
+   on resize. IO stays wired as a zero-cost extra wake-up where it works. */
+function syncVis(){
+  const vh=window.innerHeight||800;
+  for(const k in ANIMS){ if(WTAB[k]!==activeTab)continue;
+    const el=document.getElementById('cv-'+k); if(!el)continue;
+    const r=el.getBoundingClientRect();
+    const vis=r.width>0&&r.bottom>-120&&r.top<vh+120;
+    if(vis&&!ANIMS[k].visible)ANIMS[k].last=0;
+    ANIMS[k].visible=vis; }
+  kickAnim();
+}
+let _visPend=false;
+window.addEventListener('scroll',()=>{ if(_visPend)return; _visPend=true;
+  requestAnimationFrame(()=>{ _visPend=false; syncVis(); }); },{passive:true});
+window.__anim={ get running(){ return rafId!=null; },
+  get activeKeys(){ return Object.keys(ANIMS).filter(k=>WTAB[k]===activeTab&&ANIMS[k].visible); } };
+
+/* ════════ slider access + scenario machinery (house, adapted) ════════ */
+function val(id){ const el=document.getElementById('s-'+id); return el?el.value:''; }
+function num(id){ return parseFloat(val(id)); }
+function chk(id){ const el=document.getElementById('c-'+id); return !!(el&&el.checked); }
+function wireAll(){ Object.keys(FMT).forEach(id=>{ const s=document.getElementById('s-'+id),v=document.getElementById('v-'+id);
+  if(!s)return; const upd=()=>{ if(v)v.textContent=FMT[id](parseFloat(s.value));
+    const wk=id.split('-')[0];
+    if(RESET[wk])RESET[wk]();
+    if(DRAW[wk]){ try{DRAW[wk]();}catch(e){console.error('draw '+wk,e);} }
+    kickAnim(); };
+  s.addEventListener('input',upd); if(v)v.textContent=FMT[id](parseFloat(s.value)); });
+  document.querySelectorAll('input[type=checkbox][id^="c-"]').forEach(cb=>{
+    cb.addEventListener('change',()=>{ const wk=cb.id.slice(2).split('-')[0];
+      if(RESET[wk])RESET[wk]();
+      if(DRAW[wk]){ try{DRAW[wk]();}catch(e){console.error('draw '+wk,e);} }
+      kickAnim(); }); }); }
+function presetSlider(id,vv){ const el=document.getElementById('s-'+id); if(el){ el.value=String(vv);
+  const v=document.getElementById('v-'+id); if(v&&FMT[id])v.textContent=FMT[id](parseFloat(vv)); } }
+function presetChk(id,on){ const el=document.getElementById('c-'+id); if(el)el.checked=!!on; }
+function setScen(w,s){ SCEN[w]=s;
+  document.querySelectorAll('.scen-btn[data-widget="'+w+'"]').forEach(b=>b.classList.toggle('on',b.dataset.scen===s));
+  if(SCENFN[w])SCENFN[w](s);
+  if(RESET[w])RESET[w]();
+  if(DRAW[w]){ try{DRAW[w]();}catch(e){console.error('draw '+w,e);} }
+  kickAnim(); }
+
+/* A redraw caused by a CLICK or a DRAG must show its new readouts immediately.
+   statTick rate-limits animated widgets to ~6 Hz, so two interactions inside
+   one window would leave the second one's verdict stale — which is exactly the
+   freeze this framework already had once, in the other direction. */
+function redraw(key){ _statLast[key]=0; if(DRAW[key]){ try{ DRAW[key](); }catch(e){ console.error('draw '+key,e); } } kickAnim(); }
+/* ═══════════════════ WIDGET CODE START ═══════════════════ */
+/* Shared constants. Corning figures are marked; the rest is general materials
+   or transport data and is flagged as such in the prose. */
+const GAMMA_LV=55;            /* mN/m, culture medium against air */
+const CONF_DENSITY=1e5;       /* cells per cm2 at confluence */
+const RCF_K=1.118e-5;         /* Corning, doc 60931 p.8 */
+const Z_MICROBE=10;           /* degC, moist-heat lethality */
+const Z_ENDO=70/Math.log10(6);/* degC ~ 90, from Corning's 250/30 and 180/180 cycles */
+const D_O2=2.0e-5;            /* cm2/s, oxygen in medium */
+
+/* ════════ widget: surface — wetting and attachment (Tab 1.1) ════════
+   Contact angle drives the work of adhesion (eq. 3.1.2), which drives protein
+   adsorption, which is what cells actually attach to. Calibrated so untreated
+   polystyrene at 90 deg gives poor attachment and TC-treated at 45 deg gives
+   good attachment -- the ordering is the lesson, not the exact percentages. */
+const SURFSCEN={ untreated:{th:90}, tc:{th:45}, collagen:{th:32}, ula:{th:115} };
+function surfaceState(){
+  const th=num('surface-th'), serum=num('surface-serum'), t=num('surface-t');
+  const Wa=GAMMA_LV*(1+Math.cos(th*Math.PI/180));            /* mN/m */
+  /* adsorbed protein: rises with work of adhesion and with how much is on offer */
+  const prot=clamp((Wa/110)*(0.25+0.75*serum/10),0,1.4);
+  const kAtt=0.16*Math.pow(clamp(prot,0,1.4),2.2);           /* per hour */
+  const att=1-Math.exp(-kAtt*t);
+  return {th,serum,t,Wa,prot,att};
+}
+function drawSurface(){
+  const cv=getCv('cv-surface'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=surfaceState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  /* --- left: the drop --- */
+  const bx=40, bw=250, base=168;
+  ctx.strokeStyle='#64748b'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(bx,base); ctx.lineTo(bx+bw,base); ctx.stroke();
+  ctx.fillStyle='#e2e8f0'; ctx.fillRect(bx,base,bw,12);
+  const thR=q.th*Math.PI/180;
+  const V=52000;                                              /* fixed drop volume, px^3-ish */
+  let R=Math.cbrt(V/(Math.PI*(2-3*Math.cos(thR)+Math.pow(Math.cos(thR),3))/3));
+  R=clamp(R,18,150);
+  const cxD=bx+bw/2, cyD=base-R*Math.cos(thR);
+  ctx.save(); ctx.beginPath(); ctx.rect(bx-10,0,bw+20,base-base+base); ctx.clip();
+  ctx.beginPath(); ctx.arc(cxD,cyD,R,0,Math.PI*2);
+  ctx.fillStyle='rgba(56,189,248,.5)'; ctx.fill();
+  ctx.strokeStyle=COL.air; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(bx-12,base+3,bw+24,60);
+  ctx.strokeStyle='#64748b'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(bx,base); ctx.lineTo(bx+bw,base); ctx.stroke();
+  ctx.fillStyle=COL.text; ctx.font='12px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('contact angle '+fmt(q.th,0)+'°',cxD,base+16);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText(q.th<60?'wettable — protein sticks':(q.th<100?'borderline':'repellent — protein does not'),cxD,base+34);
+  /* --- right: the cells --- */
+  const gx=320, gw=w-gx-24, gy=34, gh=118;
+  ctx.fillStyle='#eef2f7'; roundRect(ctx,gx,gy,gw,gh,6); ctx.fill();
+  ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=1.5; ctx.stroke();
+  const rng=mulberry32(31);
+  const N=44;
+  for(let i=0;i<N;i++){
+    const x=gx+10+rng()*(gw-20), y=gy+10+rng()*(gh-20);
+    const attached=rng()<q.att;
+    if(attached){
+      ctx.fillStyle='rgba(124,58,237,.75)';
+      ctx.beginPath(); ctx.ellipse(x,y,9,4.5,rng()*3,0,7); ctx.fill();
+    } else {
+      ctx.fillStyle='rgba(148,163,184,.85)';
+      ctx.beginPath(); ctx.arc(x,y,4.2,0,7); ctx.fill();
+    }
+  }
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('after '+fmt(q.t,0)+' h  —  spread = attached, round = floating',gx,gy-5);
+  /* attachment bar */
+  const by=gy+gh+30;
+  ctx.fillStyle='#e6ebf2'; roundRect(ctx,gx,by,gw,22,5); ctx.fill();
+  const col=q.att>0.8?COL.good:(q.att>0.4?COL.warn:COL.bad);
+  ctx.fillStyle=col; roundRect(ctx,gx,by,Math.max(4,gw*q.att),22,5); ctx.fill();
+  ctx.fillStyle=COL.text; ctx.font='bold 14px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText(fmt(q.att*100,0)+'% attached',gx+8,by+11);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis; ctx.textBaseline='top';
+  ctx.fillText('work of adhesion '+fmt(q.Wa,0)+' mN/m',gx,by+30);
+  if(!statTick('surface'))return;
+  setStat('st-surface',[
+    {k:'Contact angle',v:fmt(q.th,0)+'°',hi:1},
+    {k:'Work of adhesion',v:fmt(q.Wa,0)+' mN/m'},
+    {k:'Protein layer',v:fmt(q.prot*100,0)+'% of monolayer'},
+    {k:'Attached',v:fmt(q.att*100,0)+'%',hi:1}]);
+  if(q.th>105)
+    setVerdict('vd-surface','good','Nothing is attaching, and that is what you bought.',
+      ' At '+fmt(q.th,0)+'° the surface is deliberately non-wetting: proteins cannot adsorb, so cells never get a foothold and stay in suspension. This is an <b>ultra-low attachment</b> surface, and it is how you force spheroids and organoids instead of a monolayer. If you did not mean to order this, the cells are fine and the box is wrong.');
+  else if(q.att>0.85)
+    setVerdict('vd-surface','good','A healthy monolayer, for a reason you can point at.',
+      ' Contact angle '+fmt(q.th,0)+'° gives a work of adhesion of <b>'+fmt(q.Wa,0)+' mN/m</b>, enough to hold a full protein layer, and <b>'+fmt(q.att*100,0)+'%</b> of the cells have spread by '+fmt(q.t,0)+' hours. Nothing about the polymer changed to get here — only the top few nanometres of it.');
+  else if(q.att>0.4)
+    setVerdict('vd-surface','warn','Attaching, slowly and incompletely.',
+      ' <b>'+fmt(q.att*100,0)+'%</b> at '+fmt(q.t,0)+' h. Either the surface is marginal or there is not enough protein on offer — try the serum slider before you blame the flask. A culture that takes two days to attach on a surface that should take four hours will also be behind on everything else you measure.');
+  else
+    setVerdict('vd-surface','bad','Cells cannot attach to this.',
+      ' Only <b>'+fmt(q.att*100,0)+'%</b> attached. At '+fmt(q.th,0)+'° the work of adhesion is '+fmt(q.Wa,0)+' mN/m and the adsorbed protein layer never forms, so there is nothing for an integrin to bind. This is untreated polystyrene, and it is a genuinely different product from the treated flask beside it on the shelf.');
+}
+defWidget('surface','work',drawSurface,{
+  'surface-th':v=>fmt(v,0)+' deg','surface-serum':v=>fmt(v,1)+'%','surface-t':v=>fmt(v,0)+' h'},
+  {scen0:'untreated', scenfn:s=>{ presetSlider('surface-th',SURFSCEN[s].th); }});
+
+/* ════════ widget: plastic — materials (Tab 1.2) ════════
+   A lookup, not a model. Corning-sourced entries are marked in the prose; the
+   rest is general polymer property data. */
+const MATS={
+  ps:   {n:'polystyrene',       Tmax:80,  Tmin:-20,  clear:1.0, sol:0, bind:1.0, auto:false},
+  pp:   {n:'polypropylene',     Tmax:135, Tmin:-30,  clear:0.35,sol:2, bind:0.7, auto:true},
+  pet:  {n:'PET',               Tmax:70,  Tmin:-40,  clear:0.95,sol:1, bind:0.8, auto:false},
+  pc:   {n:'polycarbonate',     Tmax:135, Tmin:-135, clear:0.9, sol:1, bind:0.9, auto:true},
+  ptfe: {n:'PTFE',              Tmax:260, Tmin:-196, clear:0.0, sol:3, bind:0.3, auto:true},
+  glass:{n:'borosilicate glass',Tmax:500, Tmin:-196, clear:1.0, sol:3, bind:0.6, auto:true}
+};
+function plasticState(){
+  const T=num('plastic-T'), sol=Math.round(num('plastic-sol'));
+  const k=SCEN.plastic||'ps', m=MATS[k];
+  const hot=T>m.Tmax, cold=T<m.Tmin, chem=sol>m.sol;
+  return {T,sol,k,m,hot,cold,chem,ok:!hot&&!cold&&!chem};
+}
+function drawPlastic(){
+  const cv=getCv('cv-plastic'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=plasticState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  /* the temperature bar */
+  const bl=120, bw=w-bl-150, by=54;
+  const TL=-200, TH=280;
+  const TX=t=>bl+(clamp(t,TL,TH)-TL)/(TH-TL)*bw;
+  ctx.fillStyle='#e6ebf2'; roundRect(ctx,bl,by,bw,26,6); ctx.fill();
+  ctx.fillStyle='rgba(16,185,129,.35)';
+  ctx.fillRect(TX(q.m.Tmin),by,Math.max(3,TX(q.m.Tmax)-TX(q.m.Tmin)),26);
+  ctx.strokeStyle=COL.good; ctx.lineWidth=2;
+  ctx.strokeRect(TX(q.m.Tmin),by,Math.max(3,TX(q.m.Tmax)-TX(q.m.Tmin)),26);
+  for(const mark of [{t:-196,l:'LN2'},{t:-80,l:'−80'},{t:4,l:'4'},{t:37,l:'37'},{t:121,l:'autoclave'},{t:250,l:'depyro'}]){
+    ctx.strokeStyle='#94a3b8'; ctx.lineWidth=1; ctx.setLineDash([2,2]);
+    ctx.beginPath();ctx.moveTo(TX(mark.t),by-8);ctx.lineTo(TX(mark.t),by+34);ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle=COL.axis; ctx.font='9.5px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText(mark.l,TX(mark.t),by+36);
+  }
+  ctx.strokeStyle=(q.hot||q.cold)?COL.bad:COL.text; ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(TX(q.T),by-14);ctx.lineTo(TX(q.T),by+40);ctx.stroke();
+  ctx.fillStyle=(q.hot||q.cold)?COL.bad:COL.text; ctx.font='bold 12px sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='bottom';
+  ctx.fillText(fmt(q.T,0)+' °C',TX(q.T),by-16);
+  ctx.fillStyle=COL.text; ctx.font='12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText(q.m.n,12,by+13);
+  ctx.font='10px sans-serif'; ctx.fillStyle=COL.good; ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText('usable '+fmt(q.m.Tmin,0)+' to '+fmt(q.m.Tmax,0)+' °C',bl+bw+10,by+13);
+  /* the four property bars */
+  const props=[{k:'optical clarity',v:q.m.clear,c:COL.hepa,note:q.m.clear>0.8?'you can see through it':(q.m.clear>0.3?'translucent':'opaque')},
+               {k:'solvent resistance',v:q.m.sol/3,c:COL.cell,note:['dissolves in acetone','moderate','resists most solvents','inert to nearly everything'][q.m.sol]},
+               {k:'protein binding',v:q.m.bind,c:COL.dirty,note:q.m.bind>0.85?'high — bad for dilute samples':(q.m.bind>0.6?'moderate':'low')},
+               {k:'autoclavable',v:q.m.auto?1:0,c:COL.good,note:q.m.auto?'yes, 121 °C':'no — softens first'}];
+  let yy=136;
+  for(const p of props){
+    ctx.fillStyle=COL.axis; ctx.font='11px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText(p.k,bl-10,yy+8);
+    ctx.fillStyle='#e6ebf2'; roundRect(ctx,bl,yy,bw*0.5,16,4); ctx.fill();
+    ctx.fillStyle=p.c; roundRect(ctx,bl,yy,Math.max(3,bw*0.5*p.v),16,4); ctx.fill();
+    ctx.fillStyle=COL.text; ctx.font='10.5px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText(p.note,bl+bw*0.5+10,yy+8);
+    yy+=32;
+  }
+  if(!statTick('plastic'))return;
+  setStat('st-plastic',[
+    {k:'Material',v:q.m.n,hi:1},
+    {k:'Usable range',v:fmt(q.m.Tmin,0)+' to '+fmt(q.m.Tmax,0)+' °C'},
+    {k:'At this T',v:q.hot?'FAILS — too hot':(q.cold?'FAILS — too cold':'holds'),hi:1},
+    {k:'In this solvent',v:q.chem?'FAILS':'holds'}]);
+  if(q.hot)
+    setVerdict('vd-plastic','bad','Too hot — this deforms.',
+      ' '+q.m.n+' is usable to about '+fmt(q.m.Tmax,0)+' °C and you are at '+fmt(q.T,0)+'. It will soften, distort and — for a tube — lose its seal. Corning\'s specific warning is worth repeating: <i>"autoclaving will accentuate any deformation of the tubes and caps causing leakage, contamination, and failure upon further centrifugation"</i>. A deformed tube does not look broken until it is spinning.');
+  else if(q.cold)
+    setVerdict('vd-plastic','bad','Too cold — this goes brittle and cracks.',
+      ' Below about '+fmt(q.m.Tmin,0)+' °C '+q.m.n+' loses its toughness and a knock or an expanding ice plug will split it. Corning ranks these directly: <b>PP and PET are more resistant to stress at low temperatures than PS</b>. And whatever the material, fill frozen tubes to no more than <b>90% of nominal volume</b>.');
+  else if(q.chem)
+    setVerdict('vd-plastic','bad','This solvent attacks it.',
+      ' '+q.m.n+' does not hold up to a solvent this aggressive — polystyrene in particular is dissolved outright by acetone and chlorinated solvents, which is why organic stocks live in polypropylene or glass. Corning\'s rule stands: <i>"always conduct a trial run to determine proper conditions before use"</i>.');
+  else
+    setVerdict('vd-plastic','good','This combination holds.',
+      ' '+q.m.n+' at '+fmt(q.T,0)+' °C, with '+['no solvent','a mild solvent','a strong solvent','an aggressive solvent'][q.sol]+'. '+(q.m.clear>0.8?'It is also optically clear, which is why culture vessels are made of it.':(q.m.bind<0.5?'Its low protein binding is what recommends it for dilute samples.':'Check the other three bars before committing — holding up is necessary, not sufficient.')));
+}
+defWidget('plastic','work',drawPlastic,{
+  'plastic-T':v=>fmt(v,0)+' C','plastic-sol':v=>['none','mild','strong','aggressive'][clamp(Math.round(v),0,3)]},
+  {scen0:'ps'});
+
+/* ════════ widget: rcf — relative centrifugal force (Tab 2.1) ════════
+   Exact: eq. 3.2.1 as Corning writes it. Nothing modelled. */
+const RCFSCEN={ micro:{r:8.5}, small:{r:11}, swing:{r:19} };
+function rcfState(){
+  const n=num('rcf-n'), r=num('rcf-r'), rate=num('rcf-rate');
+  const g=RCF_K*r*n*n;
+  const nMax=Math.sqrt(rate/(RCF_K*r));
+  return {n,r,rate,g,nMax,over:g>rate};
+}
+function drawRcf(){
+  const cv=getCv('cv-rcf'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=rcfState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:74,r:24,t:18,b:46});
+  const gmax=Math.max(q.rate*1.3, q.g*1.15);
+  ch.setRange(0,15000,0,gmax);
+  const xt=[0,3000,6000,9000,12000,15000], yt=niceTicks(0,gmax,5);
+  ch.grid(xt,yt); ch.axes('speed (rpm)','force delivered (× g)',xt,yt,0,0);
+  const rotors=[{r:8.5,c:COL.hepa,l:'r = 8.5 cm'},{r:11,c:COL.cell,l:'r = 11 cm'},{r:19,c:COL.warmc,l:'r = 19 cm'}];
+  for(const ro of rotors){
+    const pts=[];
+    for(let i=0;i<=60;i++){ const n=15000*i/60;
+      const g=RCF_K*ro.r*n*n; if(g>gmax)break;
+      pts.push([ch.toX(n),ch.toY(g)]); }
+    const on=Math.abs(ro.r-q.r)<0.6;
+    drawLine(ctx,pts,on?ro.c:'rgba(148,163,184,.45)',on?2.8:1.5);
+  }
+  ch.hLine(q.rate,COL.bad,[5,3]);
+  ctx.fillStyle=COL.bad; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('tube rating '+fmt(q.rate,0)+' × g',ch.m.l+6,ch.toY(q.rate)-3);
+  ctx.fillStyle='rgba(239,68,68,.07)';
+  ctx.fillRect(ch.m.l,ch.m.t,ch.pw,Math.max(0,ch.toY(q.rate)-ch.m.t));
+  ch.vLine(q.n,COL.text,[4,3]);
+  const py=ch.toY(clamp(q.g,0,gmax));
+  ctx.fillStyle=q.over?COL.bad:COL.good;
+  ctx.beginPath(); ctx.arc(ch.toX(q.n),py,6.5,0,7); ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.8; ctx.stroke();
+  ctx.fillStyle=COL.text; ctx.font='bold 13px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText(fmt(q.g,0)+' × g',ch.toX(q.n)+10,py-8);
+  ch.legend(rotors.map(r=>({label:r.l,color:r.c})),ch.m.l+8,ch.m.t+12);
+  if(!statTick('rcf'))return;
+  setStat('st-rcf',[
+    {k:'Force delivered',v:fmt(q.g,0)+' × g',hi:1},
+    {k:'At this radius',v:fmt(q.r,1)+' cm'},
+    {k:'Tube rated for',v:fmt(q.rate,0)+' × g'},
+    {k:'Max safe speed',v:fmt(q.nMax,0)+' rpm',hi:1}]);
+  const other=RCF_K*(q.r>13?8.5:19)*q.n*q.n;
+  if(q.over)
+    setVerdict('vd-rcf','bad','Over the tube\'s rating.',
+      ' <b>'+fmt(q.g,0)+' × g</b> against a '+fmt(q.rate,0)+' × g tube. The centrifuge will do it happily; the tube may not. Corning: failure <i>"can result from surface damage, exceeding the RCF values, using unsuitable support systems, improper temperatures, or incompatible chemicals"</i>. Your ceiling on this rotor is <b>'+fmt(q.nMax,0)+' rpm</b>.');
+  else
+    setVerdict('vd-rcf','good','Inside the tube\'s rating — on <em>this</em> rotor.',
+      ' <b>'+fmt(q.g,0)+' × g</b> at '+fmt(q.n,0)+' rpm and r = '+fmt(q.r,1)+' cm. Put the same '+fmt(q.n,0)+' rpm on a rotor of radius '+(q.r>13?'8.5':'19')+' cm and you get <b>'+fmt(other,0)+' × g</b> instead — the same dial, a '+fmt(Math.max(other,q.g)/Math.max(1,Math.min(other,q.g)),1)+'× difference in force. Write the RCF in the notebook, not the rpm.');
+}
+defWidget('rcf','use',drawRcf,{
+  'rcf-n':v=>fmt(v,0)+' rpm','rcf-r':v=>fmt(v,1)+' cm','rcf-rate':v=>fmt(v,0)+' x g'},
+  {scen0:'micro', scenfn:s=>{ presetSlider('rcf-r',RCFSCEN[s].r); }});
+
+/* ════════ widget: vessel — growth area, depth and oxygen (Tab 2.2) ════════
+   Areas and standard volumes are the catalogue figures for common vessels. */
+const VESSELS={
+  w96: {n:'96-well',    A:0.32,  Vstd:0.2,  h:10.7},
+  w24: {n:'24-well',    A:1.9,   Vstd:1.0,  h:17.4},
+  w6:  {n:'6-well',     A:9.6,   Vstd:2.5,  h:17.4},
+  t25: {n:'T-25 flask', A:25,    Vstd:5,    h:0},
+  t75: {n:'T-75 flask', A:75,    Vstd:15,   h:0},
+  t175:{n:'T-175 flask',A:175,   Vstd:35,   h:0}
+};
+function vesselState(){
+  const vol=num('vessel-vol'), seed=num('vessel-seed')/100, dt=num('vessel-dt');
+  const V=VESSELS[SCEN.vessel||'t25'];
+  const depth=vol/V.A*10;                       /* mL / cm2 -> mm */
+  const conf=V.A*CONF_DENSITY;
+  const n0=conf*seed;
+  const tConf=dt*Math.log2(1/Math.max(seed,1e-6));
+  /* oxygen delivery relative to a 2 mm reference depth */
+  const oxy=2/Math.max(depth,0.05);
+  return {vol,seed,dt,V,depth,conf,n0,tConf,oxy};
+}
+function drawVessel(){
+  const cv=getCv('cv-vessel'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=vesselState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  /* growth curve */
+  const ch=new Chart(ctx,w,h,{l:70,r:180,t:18,b:46});
+  const tmax=Math.max(q.tConf*1.4,24);
+  ch.setRange(0,tmax,0,110);
+  const xt=niceTicks(0,tmax,5), yt=[0,25,50,75,100];
+  ch.grid(xt,yt); ch.axes('hours since seeding','confluency (%)',xt,yt,0,0);
+  const pts=[];
+  for(let i=0;i<=80;i++){ const t=tmax*i/80;
+    pts.push([ch.toX(t),ch.toY(clamp(q.seed*Math.pow(2,t/q.dt)*100,0,110))]); }
+  drawLine(ctx,pts,COL.cell,2.8);
+  /* the 85-95% passage window */
+  ctx.fillStyle='rgba(16,185,129,.16)';
+  ctx.fillRect(ch.m.l,ch.toY(95),ch.pw,ch.toY(85)-ch.toY(95));
+  ch.hLine(85,COL.good,[4,3]); ch.hLine(95,COL.good,[4,3]);
+  ctx.fillStyle=COL.good; ctx.font='10px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='bottom';
+  ctx.fillText('passage window, 85–95%',ch.m.l+ch.pw-4,ch.toY(95)-3);
+  const tHit=q.dt*Math.log2(0.9/Math.max(q.seed,1e-6));
+  if(tHit>0&&tHit<tmax){ ch.vLine(tHit,COL.text,[3,3]);
+    ctx.fillStyle=COL.text; ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText(fmt(tHit,0)+' h',ch.toX(tHit),ch.m.t+ch.ph-16); }
+  /* the side-view of the medium */
+  const sx=w-166, sy=40, sw=140, sh=76;
+  ctx.fillStyle='#eef2f7'; ctx.fillRect(sx,sy,sw,sh);
+  ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=1.6; ctx.strokeRect(sx,sy,sw,sh);
+  const dpx=clamp(q.depth/12,0.06,1)*sh;
+  ctx.fillStyle='rgba(225,29,72,.30)'; ctx.fillRect(sx,sy+sh-dpx,sw,dpx);
+  ctx.fillStyle='rgba(124,58,237,.85)'; ctx.fillRect(sx,sy+sh-5,sw,5);
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('medium depth',sx,sy-4);
+  ctx.font='bold 15px sans-serif'; ctx.textBaseline='top';
+  ctx.fillStyle=q.depth>5?COL.bad:(q.depth<1?COL.warn:COL.good);
+  ctx.fillText(fmt(q.depth,1)+' mm',sx,sy+sh+8);
+  ctx.font='10px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText('oxygen '+fmt(q.oxy*100,0)+'% of a 2 mm bath',sx,sy+sh+28);
+  ctx.fillText(q.V.n+' — '+fmt(q.V.A,2)+' cm²',sx,sy+sh+44);
+  if(!statTick('vessel'))return;
+  setStat('st-vessel',[
+    {k:'Growth area',v:fmt(q.V.A,2)+' cm²'},
+    {k:'Medium depth',v:fmt(q.depth,1)+' mm',hi:1},
+    {k:'Cells at confluence',v:fmt(q.conf/1e6,2)+' M'},
+    {k:'Reaches 90% at',v:fmt(q.dt*Math.log2(0.9/Math.max(q.seed,1e-6)),0)+' h',hi:1}]);
+  if(q.depth>6)
+    setVerdict('vd-vessel','bad','Far too much medium on top of these cells.',
+      ' <b>'+fmt(q.depth,1)+' mm</b> deep, against a standard of about 2 mm for this vessel. Oxygen arrives by diffusion alone and its supply goes as 1/h, so the cells at the bottom are getting <b>'+fmt(q.oxy*100,0)+'%</b> of the delivery they would in a normal bath. Adding medium so it "does not dry out" is the usual reason, and it trades an evaporation problem you can see for an oxygen problem you cannot.');
+  else if(q.depth<1)
+    setVerdict('vd-vessel','warn','Very shallow — good for gas, bad for everything else.',
+      ' <b>'+fmt(q.depth,1)+' mm</b>. Oxygen is not the constraint here; evaporation is, and so is running out of nutrient before you next look at it. This is the regime a 96-well plate lives in, which is why tab 3 spends its first half on evaporation.');
+  else
+    setVerdict('vd-vessel','good','A sensible depth for this vessel.',
+      ' <b>'+fmt(q.depth,1)+' mm</b> over '+fmt(q.V.A,2)+' cm², giving about '+fmt(q.oxy*100,0)+'% of the reference oxygen delivery. Seeded at '+fmt(q.seed*100,0)+'% with a '+fmt(q.dt,0)+' h doubling time, this reaches the top of Corning\'s 85–95% passage window at about <b>'+fmt(q.dt*Math.log2(0.95/Math.max(q.seed,1e-6)),0)+' hours</b> — plan the split before then, not after.');
+}
+defWidget('vessel','use',drawVessel,{
+  'vessel-vol':v=>fmt(v,2)+' mL','vessel-seed':v=>fmt(v,0)+'%','vessel-dt':v=>fmt(v,0)+' h'},
+  {scen0:'t25', scenfn:s=>{ presetSlider('vessel-vol',VESSELS[s].Vstd); }});
+
+/* ════════ widget: edge — the edge effect (Tab 3.1) ════════
+   eq. 3.3.1 integrated per well, with a position factor for perimeter wells.
+   The coefficient is chosen so a 96-well plate at 95% RH loses a believable
+   few percent a day from the middle and several times that at a corner. */
+const PLATES={ p96:{n:'96-well',cols:12,rows:8,Vstd:200,d:6.4}, p24:{n:'24-well',cols:6,rows:4,Vstd:1000,d:15.6},
+               p6:{n:'6-well',cols:3,rows:2,Vstd:2500,d:34.8} };
+function posFactor(P,r,c){
+  const edgeR=(r===0||r===P.rows-1), edgeC=(c===0||c===P.cols-1);
+  if(edgeR&&edgeC)return 2.15;      /* corner */
+  if(edgeR||edgeC)return 1.62;      /* perimeter */
+  return 1.0;
+}
+function edgeState(){
+  const d=Math.round(num('edge-d')), rh=num('edge-rh')/100, vol=num('edge-vol');
+  const sac=chk('edge-sac');
+  const P=PLATES[SCEN.edge||'p96'];
+  const area=Math.PI*Math.pow(P.d/2,2);            /* mm2 */
+  /* Calibrated so a 96-well plate at 200 uL in a 95% RH incubator loses a few
+     percent a day from a centre well and about twice that from a corner -- the
+     range actually seen. An earlier value 40x smaller made the whole widget
+     read 0% at its own default settings. */
+  const k=2.6;                                      /* uL per mm2 per day at RH = 0 */
+  const cells=[];
+  let worst=0,best=1e9,usable=0,tot=0;
+  for(let r=0;r<P.rows;r++)for(let c=0;c<P.cols;c++){
+    const f=posFactor(P,r,c);
+    const lost=Math.min(vol, k*area*(1-rh)*f*d);
+    const frac=lost/vol;
+    const isEdge=(r===0||r===P.rows-1||c===0||c===P.cols-1);
+    cells.push({r,c,frac,isEdge});
+    if(!(sac&&isEdge)){ tot++; if(frac>worst)worst=frac; if(frac<best)best=frac;
+      if(frac<0.15)usable++; }
+  }
+  const conc=1/(1-Math.min(worst,0.95));
+  return {d,rh,vol,sac,P,cells,worst,best,usable,tot,conc,
+          spread:worst-best};
+}
+function drawEdge(){
+  const cv=getCv('cv-edge'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=edgeState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const gw=Math.min(400,w-250), cell=Math.min(gw/q.P.cols,(h-90)/q.P.rows);
+  const ox=40, oy=(h-cell*q.P.rows)/2;
+  for(const c of q.cells){
+    const x=ox+c.c*cell, y=oy+c.r*cell;
+    const t=clamp(c.frac/0.5,0,1);
+    if(q.sac&&c.isEdge){
+      ctx.fillStyle='#e2e8f0';
+      ctx.beginPath(); ctx.arc(x+cell/2,y+cell/2,cell*0.38,0,7); ctx.fill();
+      ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=1; ctx.stroke();
+    } else {
+      const R=Math.round(37+218*t), G=Math.round(99-31*t), B=Math.round(235-167*t);
+      ctx.fillStyle='rgb('+R+','+G+','+B+')';
+      ctx.beginPath(); ctx.arc(x+cell/2,y+cell/2,cell*0.38,0,7); ctx.fill();
+    }
+  }
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText(q.P.n+' after '+q.d+(q.d===1?' day':' days')+(q.sac?' — outer ring sacrificed':''),ox,oy-8);
+  /* the scale */
+  const sx=ox, sy=oy+cell*q.P.rows+16, sw=cell*q.P.cols;
+  for(let i=0;i<=40;i++){ const t=i/40;
+    const R=Math.round(37+218*t), G=Math.round(99-31*t), B=Math.round(235-167*t);
+    ctx.fillStyle='rgb('+R+','+G+','+B+')'; ctx.fillRect(sx+i*sw/41,sy,sw/41+1,10); }
+  ctx.fillStyle=COL.axis; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('0%',sx,sy+13); ctx.textAlign='right'; ctx.fillText('50% lost',sx+sw,sy+13);
+  /* right-hand readout */
+  const rx=ox+cell*q.P.cols+40;
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('worst well loses',rx,oy+4);
+  ctx.font='bold 24px sans-serif'; ctx.fillStyle=q.worst>0.25?COL.bad:(q.worst>0.12?COL.warn:COL.good);
+  ctx.fillText(fmt(q.worst*100,0)+'%',rx,oy+22);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText('centre well loses '+fmt(q.best*100,0)+'%',rx,oy+56);
+  ctx.fillText('spread across the plate',rx,oy+82);
+  ctx.font='bold 16px sans-serif'; ctx.fillStyle=COL.text;
+  ctx.fillText(fmt(q.spread*100,0)+' points',rx,oy+98);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText('worst well is now',rx,oy+126);
+  ctx.font='bold 16px sans-serif'; ctx.fillStyle=q.conc>1.2?COL.bad:COL.text;
+  ctx.fillText(fmt(q.conc,2)+'× concentrated',rx,oy+142);
+  if(!statTick('edge'))return;
+  setStat('st-edge',[
+    {k:'Worst well loses',v:fmt(q.worst*100,0)+'%',hi:1},
+    {k:'Centre well loses',v:fmt(q.best*100,0)+'%'},
+    {k:'Concentration factor',v:fmt(q.conc,2)+'×',hi:1},
+    {k:'Wells within 15%',v:q.usable+' of '+q.tot}]);
+  if(q.worst<0.08)
+    setVerdict('vd-edge','good','The plate is still one experiment.',
+      ' Worst well down <b>'+fmt(q.worst*100,0)+'%</b>, centre well '+fmt(q.best*100,0)+'% — a spread of '+fmt(q.spread*100,0)+' points, small enough that every well is still comparable with every other. At this humidity and this duration you do not need to do anything special.');
+  else if(q.sac)
+    setVerdict('vd-edge','good','Sacrificing the ring bought you a usable plate.',
+      ' The remaining '+q.tot+' wells lose between '+fmt(q.best*100,0)+'% and <b>'+fmt(q.worst*100,0)+'%</b>. You gave up the outer ring to PBS and what is left is comparable across the plate. On a '+q.d+'-day experiment that is almost always the right trade.');
+  else if(q.worst<0.2)
+    setVerdict('vd-edge','warn','A gradient is forming, and it will look like a result.',
+      ' Corner wells are down <b>'+fmt(q.worst*100,0)+'%</b> against '+fmt(q.best*100,0)+'% in the middle, so everything dissolved in them is <b>'+fmt(q.conc,2)+'× concentrated</b> — drug, salt and buffer alike. A dose-response read across this plate would show a trend that is entirely evaporation. Fill the outer ring with PBS, or seal the plate.');
+  else
+    setVerdict('vd-edge','bad','The outer ring is no longer the same experiment.',
+      ' <b>'+fmt(q.worst*100,0)+'%</b> of the volume gone from the corners and a <b>'+fmt(q.conc,2)+'×</b> concentration factor. Those cells are in a different medium at a different osmolarity from the ones in the middle, and no analysis recovers that. Only '+q.usable+' of '+q.tot+' wells are within 15% of their starting volume.');
+}
+defWidget('edge','care',drawEdge,{
+  'edge-d':v=>String(Math.round(v)),'edge-rh':v=>fmt(v,0)+'%','edge-vol':v=>fmt(v,0)+' uL'},
+  {scen0:'p96', scenfn:s=>{ presetSlider('edge-vol',PLATES[s].Vstd); }});
+
+/* ════════ widget: bind — adsorption to the container wall (Tab 3.2) ════════
+   eq. 3.3.2. Wetted area is computed from the tube geometry and the fill volume,
+   so a big tube holding a small volume still exposes a lot of wall. */
+const TUBES={ c15:{n:'15 mL conical',d:15,Vmax:15}, c15w:{n:'1.5 mL microtube',d:9,Vmax:1.5},
+              c05:{n:'0.5 mL microtube',d:6,Vmax:0.5} };
+function bindState(){
+  const lgm=num('bind-m'), m=Math.pow(10,lgm), v=num('bind-v');
+  const gRaw=num('bind-g'), low=chk('bind-low');
+  const G=low?gRaw*0.12:gRaw;                       /* mg/m2 */
+  const T=TUBES[SCEN.bind||'c15'];
+  const vv=Math.min(v,T.Vmax);
+  const rr=T.d/20;                                   /* radius, cm */
+  const hcm=vv/(Math.PI*rr*rr);                      /* fill height, cm */
+  const Awet=(2*Math.PI*rr*hcm+Math.PI*rr*rr)/1e4;   /* m2 */
+  const lost=Math.min(m, G*1000*Awet);               /* ug: mg/m2 * m2 * 1000 */
+  return {m,v:vv,G,low,T,Awet,lost,frac:lost/m,rr,hcm};
+}
+function drawBind(){
+  const cv=getCv('cv-bind'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=bindState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:70,r:170,t:18,b:46});
+  ch.setRange(-2,3,0,100);
+  const xt=[-2,-1,0,1,2,3], yt=[0,25,50,75,100];
+  ch.grid(xt,yt);
+  ch.axes('sample in the tube','lost to the wall (%)',xt,yt,0,0,
+    t=>({'-2':'10 ng','-1':'100 ng','0':'1 µg','1':'10 µg','2':'100 µg','3':'1 mg'})[String(t)]);
+  const pts=[];
+  for(let i=0;i<=100;i++){ const lg=-2+5*i/100, m=Math.pow(10,lg);
+    pts.push([ch.toX(lg),ch.toY(clamp(100*Math.min(1,q.G*1000*q.Awet/m),0,100))]); }
+  drawLine(ctx,pts,COL.cell,2.8);
+  ch.hLine(10,COL.warn,[4,3]);
+  ctx.fillStyle=COL.warn; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('10% lost',ch.m.l+6,ch.toY(10)-3);
+  const px=ch.toX(clamp(Math.log10(q.m),-2,3)), py=ch.toY(clamp(q.frac*100,0,100));
+  ctx.fillStyle=q.frac>0.1?COL.bad:COL.good;
+  ctx.beginPath(); ctx.arc(px,py,6.5,0,7); ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.8; ctx.stroke();
+  /* the tube, in section */
+  const tx=w-152, ty=40, tw=54, th=140;
+  ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(tx,ty+th-24);
+  ctx.lineTo(tx+tw/2,ty+th); ctx.lineTo(tx+tw,ty+th-24); ctx.lineTo(tx+tw,ty); ctx.stroke();
+  const fillFrac=clamp(q.v/q.T.Vmax,0.02,1);
+  const ly=ty+th-24-(th-24)*fillFrac;
+  ctx.save(); ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(tx,ty+th-24);
+  ctx.lineTo(tx+tw/2,ty+th); ctx.lineTo(tx+tw,ty+th-24); ctx.lineTo(tx+tw,ty); ctx.closePath(); ctx.clip();
+  ctx.fillStyle='rgba(56,189,248,.45)'; ctx.fillRect(tx-4,ly,tw+8,th);
+  ctx.strokeStyle=COL.dirty; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(tx+2,ly); ctx.lineTo(tx+2,ty+th); ctx.moveTo(tx+tw-2,ly); ctx.lineTo(tx+tw-2,ty+th); ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle=COL.dirty; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText('wetted wall',tx+tw+6,(ly+ty+th)/2);
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText(q.T.n,tx,ty+th+10);
+  ctx.fillText(fmt(q.Awet*1e4,1)+' cm² wetted',tx,ty+th+26);
+  ctx.font='bold 18px sans-serif'; ctx.fillStyle=q.frac>0.1?COL.bad:COL.good;
+  ctx.fillText(fmt(q.frac*100,q.frac<0.1?1:0)+'% lost',tx,ty+th+46);
+  if(!statTick('bind'))return;
+  setStat('st-bind',[
+    {k:'Wetted wall',v:fmt(q.Awet*1e4,1)+' cm²',hi:1},
+    {k:'Wall can hold',v:fmt(q.G*1000*q.Awet,2)+' µg'},
+    {k:'You put in',v:q.m<1?fmt(q.m*1000,0)+' ng':fmt(q.m,2)+' µg'},
+    {k:'Lost',v:fmt(q.frac*100,q.frac<0.1?1:0)+'%',hi:1}]);
+  if(q.frac>0.5)
+    setVerdict('vd-bind','bad','Most of your sample is on the wall.',
+      ' The wetted wall of this '+q.T.n+' can hold <b>'+fmt(q.G*1000*q.Awet,2)+' µg</b> and you put in '+(q.m<1?fmt(q.m*1000,0)+' ng':fmt(q.m,2)+' µg')+'. That is <b>'+fmt(q.frac*100,0)+'%</b> gone, and nothing about the experiment will tell you. Two fixes and they stack: a smaller container, and a low-bind surface.');
+  else if(q.frac>0.1)
+    setVerdict('vd-bind','warn','A tenth of it or more is not coming back.',
+      ' <b>'+fmt(q.frac*100,0)+'%</b> adsorbed. Because the wall holds a fixed mass rather than a fixed fraction, this gets worse every time you dilute and better every time you concentrate. '+(q.low?'You are already on a low-bind surface, so the remaining fix is a smaller tube.':'A low-bind surface would take about nine-tenths of this away.'));
+  else
+    setVerdict('vd-bind','good','Adsorption is not your problem here.',
+      ' <b>'+fmt(q.frac*100,1)+'%</b> lost — the wall saturates at '+fmt(q.G*1000*q.Awet,2)+' µg and you have far more than that in the tube. Note what this means: the same tube with a hundredth of the sample would lose a large fraction of it. <b>Adsorption is a problem of dilute samples, not of large ones.</b>');
+}
+defWidget('bind','care',drawBind,{
+  'bind-m':v=>{const m=Math.pow(10,v); return m<1?fmt(m*1000,0)+' ng':(m<1000?fmt(m,2)+' ug':fmt(m/1000,2)+' mg');},
+  'bind-v':v=>fmt(v,2)+' mL','bind-g':v=>fmt(v,1)+' mg/m2'},
+  {scen0:'c15', scenfn:s=>{ presetSlider('bind-v',Math.min(1,TUBES[s].Vmax)); }});
+
+/* ════════ widget: sterile — what a cycle actually achieves (Tab 4.1) ════════
+   Microbial kill uses eq. 3.4.1 with z = 10 degC. Endotoxin destruction uses
+   eq. 3.4.2 with z ~ 90 degC, derived here from Corning's own two published
+   depyrogenation cycles (250 degC/30 min and 180 degC/180 min). */
+const STERSCEN={ auto:{T:121,t:15}, flash:{T:134,t:3}, depyro:{T:250,t:30}, gamma:{T:25,t:60} };
+/* Gamma is a MODE, not a preset: it has no temperature or hold time. Moving
+   either slider therefore has to drop out of it, or the controls read as dead.
+   setScen calls SCENFN and then RESET back to back, so without this flag the
+   reset would fire during the chip click itself and gamma could never be
+   entered at all. A slider input calls RESET with no preceding SCENFN. */
+let _sterSwitching=false;
+function resetSterile(){
+  if(_sterSwitching){ _sterSwitching=false; return; }
+  if(SCEN.sterile==='gamma'){
+    SCEN.sterile='custom';
+    document.querySelectorAll('.scen-btn[data-widget="sterile"]').forEach(b=>b.classList.remove('on'));
+  }
+}
+function sterileState(){
+  const T=num('sterile-T'), t=num('sterile-t');
+  const gamma=(SCEN.sterile||'auto')==='gamma';
+  const dry=T>140;                                           /* above this it is dry heat, not moist */
+  const F0=(gamma||dry)?null:Math.pow(10,(T-121)/Z_MICROBE)*t;
+  /* Moist heat: the F0 overkill convention takes D121 = 1 min, so a routine
+     121 degC / 15 min cycle is F0 = 15 and a 15-log reduction -- sterile, which
+     it had better be. Dry heat is a different organism and a different z
+     (~20 degC), referenced to the standard 170 degC / 60 min cycle. */
+  const logKill=gamma?12:(dry? t/(1.0*Math.pow(10,(170-T)/20)) : F0/1.0);
+  /* depyrogenation: fraction of the reference 250 degC / 30 min treatment */
+  const depyEq=gamma?0:Math.pow(10,(T-250)/Z_ENDO)*t;        /* min equivalent at 250 degC */
+  const depyFrac=depyEq/30;
+  const endoLog=gamma?0:3*Math.min(depyFrac,20);             /* the reference cycle is a 3-log reduction */
+  return {T,t,gamma,dry,F0,logKill:Math.min(logKill,24),depyEq,depyFrac,endoLog:Math.min(endoLog,12)};
+}
+function drawSterile(){
+  const cv=getCv('cv-sterile'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=sterileState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const bl=180, bw=w-bl-166;
+  ctx.fillStyle=COL.text; ctx.font='12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText(q.gamma?'gamma irradiation':fmt(q.T,0)+' °C for '+fmt(q.t,0)+' minutes',bl,12);
+  const rows=[
+    {k:'microbes killed',v:q.logKill,need:12,unit:' log',c:COL.good,
+     note:q.logKill>=12?'sterile':(q.logKill>=6?'reduced, not sterile':'barely touched')},
+    {k:'endotoxin destroyed',v:q.endoLog,need:3,unit:' log',c:COL.dirty,
+     note:q.endoLog>=3?'depyrogenated':(q.endoLog>=0.5?'partial':'essentially untouched')}
+  ];
+  let yy=54;
+  for(const r of rows){
+    ctx.fillStyle=COL.axis; ctx.font='11.5px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText(r.k,bl-12,yy+16);
+    ctx.fillStyle='#e6ebf2'; roundRect(ctx,bl,yy,bw,32,6); ctx.fill();
+    const frac=clamp(r.v/(r.need*1.35),0,1);
+    ctx.fillStyle=r.v>=r.need?r.c:COL.bad;
+    roundRect(ctx,bl,yy,Math.max(4,bw*frac),32,6); ctx.fill();
+    /* the "what you need" marker */
+    const nx=bl+bw*(1/1.35);
+    ctx.strokeStyle=COL.text; ctx.lineWidth=2; ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.moveTo(nx,yy-6);ctx.lineTo(nx,yy+38);ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle='#fff'; ctx.font='bold 13px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+    if(bw*frac>92)ctx.fillText(fmt(r.v,1)+r.unit,bl+10,yy+16);
+    ctx.fillStyle=r.v>=r.need?r.c:COL.bad; ctx.font='bold 11.5px sans-serif'; ctx.textAlign='right';
+    ctx.fillText(r.note,w-14,yy+16);
+    ctx.fillStyle=COL.axis; ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText('need '+r.need+r.unit,nx,yy+40);
+    yy+=84;
+  }
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText(q.gamma?'radiation kills microbes and leaves endotoxin intact'
+    :'this cycle is '+fmt(q.depyFrac*100,1)+'% of a depyrogenation treatment',bl,yy-22);
+  if(!statTick('sterile'))return;
+  setStat('st-sterile',[
+    {k:'Lethality F₀',v:q.gamma?'n/a':(q.dry?'dry heat':fmt(q.F0,1)+' min'),hi:1},
+    {k:'Microbial kill',v:fmt(q.logKill,1)+' log'},
+    {k:'Depyro cycle',v:fmt(q.depyFrac*100,q.depyFrac<0.1?2:0)+'%',hi:1},
+    {k:'Endotoxin removed',v:fmt(q.endoLog,q.endoLog<1?2:1)+' log'}]);
+  if(q.gamma)
+    setVerdict('vd-sterile','bad','Sterile, and pyrogenic if it started that way.',
+      ' Radiation sterilisation destroys microbes without heating anything, so it does nothing at all to lipopolysaccharide. Corning: it <i>"destroys microbial contaminants and will leave the endotoxins largely intact"</i>. Nearly all your disposable plastic is sterilised this way — which is why <b>low-endotoxin is a separate certification on the box</b>, and why you cannot infer it from "sterile".');
+  else if(q.logKill>=12&&q.endoLog>=3)
+    setVerdict('vd-sterile','good','Both — sterile and depyrogenated.',
+      ' <b>'+fmt(q.logKill,0)+' log</b> of microbial kill and <b>'+fmt(q.endoLog,1)+' log</b> of endotoxin destruction. This is a dry-heat depyrogenation cycle, and it is the only thing on this page that achieves the second number. Note that it needs '+fmt(q.T,0)+' °C — which rules out every plastic in this lesson. Glassware only.');
+  else if(q.logKill>=12)
+    setVerdict('vd-sterile','warn','Sterile. Not clean.',
+      ' <b>'+fmt(q.logKill,0)+' log</b> of microbial kill — comfortably sterile — but only <b>'+fmt(q.depyFrac*100,1)+'%</b> of a depyrogenation treatment, so endotoxin comes through essentially untouched. This is Corning\'s <i>"little effect on endotoxin levels due to their high heat stability"</i>, quantified. If your cells are behaving badly on autoclaved glassware, this is the gap to look in.');
+  else
+    setVerdict('vd-sterile','bad','Not even sterile.',
+      ' F<sub>0</sub> is only <b>'+fmt(q.F0||0,2)+' min</b>, giving '+fmt(q.logKill,1)+' log of kill against the 12 you want. At '+fmt(q.T,0)+' °C every extra 10 °C multiplies the rate by ten, so small temperature shortfalls are enormous — which is why an autoclave cycle is specified by temperature <em>and</em> hold time, and why a load that never reached temperature is not a short cycle but no cycle.');
+}
+defWidget('sterile','maint',drawSterile,{
+  'sterile-T':v=>fmt(v,0)+' C','sterile-t':v=>fmt(v,0)+' min'},
+  {scen0:'auto', reset:resetSterile,
+   scenfn:s=>{ _sterSwitching=true;
+     if(STERSCEN[s]){ presetSlider('sterile-T',STERSCEN[s].T); presetSlider('sterile-t',STERSCEN[s].t); } }});
+
+/* ════════ widget: freeze — cryopreservation (Tab 4.2) ════════
+   Two competing failure modes give an inverted-U in log(rate): solution effects
+   dominate when cooling is slow, intracellular ice when it is fast. Anchored so
+   the optimum sits in Corning's 1-3 degC/min band with 10% DMSO. */
+const FREEZESCEN={ ctrl:{r:0}, m80:{r:Math.log10(8)}, ln2:{r:Math.log10(600)}, fridge:{r:Math.log10(0.02)} };
+function survivalAt(lr,dmso,size){
+  const rate=Math.pow(10,lr);
+  const prot=0.35+0.65*clamp(dmso/12,0,1.15);                /* cryoprotectant benefit */
+  const rOpt=2.0*(15/size)*(0.6+0.4*clamp(dmso/10,0,1.4));   /* big cells want it slower */
+  const slow=Math.exp(-Math.pow(Math.log10(rOpt/rate)*1.15,2));   /* dehydration branch */
+  const fast=Math.exp(-Math.pow(Math.log10(rate/rOpt)*1.05,2));   /* intracellular ice branch */
+  const base=rate<rOpt?slow:fast;
+  return {s:clamp(base*prot*0.98,0,0.97), rOpt, prot};
+}
+function freezeState(){
+  const lr=num('freeze-r'), dmso=num('freeze-dmso'), size=num('freeze-size');
+  const rate=Math.pow(10,lr);
+  const r=survivalAt(lr,dmso,size);
+  return {lr,rate,dmso,size,surv:r.s,rOpt:r.rOpt,
+          mode: rate<r.rOpt*0.6?'dehydration':(rate>r.rOpt*1.7?'intracellular ice':'balanced')};
+}
+function drawFreeze(){
+  const cv=getCv('cv-freeze'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=freezeState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:70,r:150,t:18,b:46});
+  ch.setRange(-2,3,0,100);
+  const xt=[-2,-1,0,1,2,3], yt=[0,25,50,75,100];
+  ch.grid(xt,yt);
+  ch.axes('cooling rate','viable after thaw (%)',xt,yt,0,0,
+    t=>({'-2':'0.01','-1':'0.1','0':'1','1':'10','2':'100','3':'1000'})[String(t)]+' °C/min');
+  const pts=[];
+  for(let i=0;i<=120;i++){ const lr=-2+5*i/120;
+    pts.push([ch.toX(lr),ch.toY(survivalAt(lr,q.dmso,q.size).s*100)]); }
+  drawLine(ctx,pts,COL.cell,2.8);
+  /* Corning's 1-3 degC/min band */
+  ctx.fillStyle='rgba(16,185,129,.16)';
+  ctx.fillRect(ch.toX(0),ch.m.t,ch.toX(Math.log10(3))-ch.toX(0),ch.ph);
+  ctx.fillStyle=COL.good; ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('1–3 °C/min',(ch.toX(0)+ch.toX(Math.log10(3)))/2,ch.m.t+4);
+  ch.vLine(clamp(q.lr,-2,3),COL.text,[4,3]);
+  const px=ch.toX(clamp(q.lr,-2,3)), py=ch.toY(q.surv*100);
+  ctx.fillStyle=q.surv>0.7?COL.good:(q.surv>0.4?COL.warn:COL.bad);
+  ctx.beginPath(); ctx.arc(px,py,6.5,0,7); ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.8; ctx.stroke();
+  const rx=w-142;
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('viable after thaw',rx,ch.m.t+10);
+  ctx.font='bold 26px sans-serif'; ctx.fillStyle=q.surv>0.7?COL.good:(q.surv>0.4?COL.warn:COL.bad);
+  ctx.fillText(fmt(q.surv*100,0)+'%',rx,ch.m.t+28);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText('at '+fmt(q.rate,q.rate<1?2:0)+' °C/min',rx,ch.m.t+62);
+  ctx.fillText('failing by',rx,ch.m.t+86);
+  ctx.font='bold 12px sans-serif'; ctx.fillStyle=q.mode==='balanced'?COL.good:COL.bad;
+  ctx.fillText(q.mode,rx,ch.m.t+102);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText('optimum here:',rx,ch.m.t+128);
+  ctx.fillText(fmt(q.rOpt,1)+' °C/min',rx,ch.m.t+144);
+  if(!statTick('freeze'))return;
+  setStat('st-freeze',[
+    {k:'Cooling rate',v:fmt(q.rate,q.rate<1?2:0)+' °C/min',hi:1},
+    {k:'Optimum for this cell',v:fmt(q.rOpt,1)+' °C/min'},
+    {k:'Failing by',v:q.mode},
+    {k:'Viable after thaw',v:fmt(q.surv*100,0)+'%',hi:1}]);
+  if(q.dmso<2)
+    setVerdict('vd-freeze','bad','Almost no cryoprotectant.',
+      ' At '+fmt(q.dmso,1)+'% DMSO there is nothing to stop water crystallising wherever it likes, and survival tops out near '+fmt(q.surv*100,0)+'% however carefully you cool. Corning\'s working range is <b>5–15% DMSO</b> (or 5–20% glycerol), added at 4 °C and removed immediately on thawing because prolonged contact at room temperature is toxic.');
+  else if(q.mode==='dehydration')
+    setVerdict('vd-freeze','bad','Too slow — the cells are dehydrating to death.',
+      ' At <b>'+fmt(q.rate,2)+' °C/min</b> the cells have far too long in a slowly concentrating extracellular brine. Water keeps leaving and never stops; they shrink past recovery. This is what a vial left in a fridge or a poorly insulated box does. The optimum for a '+fmt(q.size,0)+' µm cell at this DMSO concentration is <b>'+fmt(q.rOpt,1)+' °C/min</b>.');
+  else if(q.mode==='intracellular ice')
+    setVerdict('vd-freeze','bad','Too fast — ice is forming inside the cells.',
+      ' <b>'+fmt(q.rate,0)+' °C/min</b> gives water no time to leave before it freezes, so it crystallises in place and the crystals shred membranes from the inside. Dropping vials straight into liquid nitrogen does exactly this — and Corning notes it is also a contamination route and makes vials <i>"explode when warmed up"</i>. Use a controlled-rate container in a −80, overnight, then transfer to vapour phase.');
+  else
+    setVerdict('vd-freeze','good','In the window, and for a reason.',
+      ' <b>'+fmt(q.rate,1)+' °C/min</b> against an optimum of '+fmt(q.rOpt,1)+' — slow enough that water can leave the cell, fast enough that it does not sit dehydrating. '+fmt(q.surv*100,0)+'% viable. Note that the optimum moves: a '+fmt(q.size,0)+' µm cell wants '+fmt(q.rOpt,1)+' °C/min, and Corning says explicitly that <i>"cells that are larger or have less permeable membranes may require a slower rate"</i>. Now thaw it fast — 60 to 90 seconds at 37 °C.');
+}
+defWidget('freeze','maint',drawFreeze,{
+  'freeze-r':v=>{const r=Math.pow(10,v); return fmt(r,r<1?2:0)+' C/min';},
+  'freeze-dmso':v=>fmt(v,1)+'%','freeze-size':v=>fmt(v,0)+' um'},
+  {scen0:'ctrl', scenfn:s=>{ presetSlider('freeze-r',FREEZESCEN[s].r); }});
+
+/* ════════ widget: pick — specify the consumables (Tab 5.1) ════════
+   Each job carries a list of requirements; each requirement is a predicate over
+   the three choices. The score is how many it meets, and the canvas names the
+   ones it breaks -- so a wrong answer teaches which section it came from. */
+const PICK_C=[{k:'0.5 mL microtube',v:0.5,shape:'tube'},{k:'1.5 mL microtube',v:1.5,shape:'tube'},
+              {k:'15 mL conical',v:15,shape:'conical'},{k:'50 mL conical',v:50,shape:'conical'},
+              {k:'96-well plate',v:0.2,shape:'plate'},{k:'T-75 flask',v:15,shape:'flask'}];
+const PICK_M=[{k:'polystyrene',id:'ps'},{k:'polypropylene',id:'pp'},
+              {k:'polycarbonate',id:'pc'},{k:'glass',id:'glass'}];
+const PICK_S=[{k:'standard',id:'std'},{k:'tissue-culture treated',id:'tc'},
+              {k:'low-bind',id:'low'},{k:'ultra-low attachment',id:'ula'}];
+const JOBS={
+  matrigel:{n:'aliquot Matrigel into single-use portions',
+    reqs:[
+      {t:'holds 0.5–1.5 mL, no more',      why:'§3.2 — a bigger tube is more wall for the same sample', ok:(c)=>c.v<=1.5},
+      {t:'survives −20 °C without cracking',why:'§1.2 — PS goes brittle; PP and PET do not',            ok:(c,m)=>m.id==='pp'||m.id==='pc'},
+      {t:'minimises protein left on the wall',why:'§3.2 — Matrigel is protein, and the wall takes a monolayer', ok:(c,m,s)=>s.id==='low'},
+      {t:'not a cell-culture surface',      why:'§1.1 — a TC or ULA surface is for growing cells, not storing protein', ok:(c,m,s)=>s.id!=='tc'&&s.id!=='ula'}]},
+  spin:{n:'pellet granular gel at 3000 × g',
+    reqs:[
+      {t:'a conical, so the pellet collects', why:'a round-bottomed tube spreads the pellet over the base', ok:(c)=>c.shape==='conical'},
+      {t:'holds the batch volume, 10–40 mL', why:'the LLS protocol works in 15 mL conicals and up',        ok:(c)=>c.v>=15},
+      {t:'rated for the spin and the cold',   why:'§1.2 and §2.1 — PS centrifuge tubes are the fragile ones', ok:(c,m)=>m.id==='pp'||m.id==='pc'},
+      {t:'no special surface needed',         why:'a gel is not a dilute protein; low-bind buys nothing here', ok:(c,m,s)=>s.id==='std'}]},
+  plate:{n:'a 7-day drug response experiment',
+    reqs:[
+      {t:'a multiwell plate',                 why:'you need the replicates',                               ok:(c)=>c.shape==='plate'},
+      {t:'optically clear for imaging',       why:'§1.2 — PP is translucent; you cannot read through it',  ok:(c,m)=>m.id==='ps'||m.id==='pc'},
+      {t:'a surface cells will attach to',    why:'§1.1 — untreated polystyrene will not hold a monolayer',ok:(c,m,s)=>s.id==='tc'},
+      {t:'and sacrifice the outer ring',      why:'§3.1 — at 7 days the corners are a different experiment', ok:()=>true, manual:true}]}
+};
+function pickState(){
+  const c=PICK_C[clamp(Math.round(num('pick-c')),0,5)];
+  const m=PICK_M[clamp(Math.round(num('pick-m')),0,3)];
+  const s=PICK_S[clamp(Math.round(num('pick-s')),0,3)];
+  const job=JOBS[SCEN.pick||'matrigel'];
+  const res=job.reqs.map(r=>({...r,met:r.ok(c,m,s)}));
+  const score=res.filter(r=>r.met).length;
+  return {c,m,s,job,res,score,total:res.length};
+}
+function drawPick(){
+  const cv=getCv('cv-pick'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=pickState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  ctx.fillStyle=COL.text; ctx.font='13px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('Job: '+q.job.n,26,14);
+  ctx.font='11.5px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText('you specified: '+q.c.k+' · '+q.m.k+' · '+q.s.k,26,34);
+  let yy=64;
+  for(const r of q.res){
+    const ok=r.met;
+    ctx.fillStyle=ok?COL.good:COL.bad;
+    ctx.beginPath(); ctx.arc(38,yy+11,9,0,7); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(ok?'✓':'✕',38,yy+12);
+    ctx.fillStyle=ok?COL.text:COL.bad; ctx.font=(ok?'':'bold ')+'12.5px sans-serif';
+    ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText(r.t+(r.manual?'  (your call, not the sim\'s)':''),58,yy+5);
+    ctx.fillStyle=COL.axis; ctx.font='10.5px sans-serif'; ctx.textBaseline='top';
+    ctx.fillText(r.why,58,yy+16);
+    yy+=54;
+  }
+  /* the score bar */
+  const bl=26, bw=w-52, by=h-46;
+  ctx.fillStyle='#e6ebf2'; roundRect(ctx,bl,by,bw,24,6); ctx.fill();
+  const frac=q.score/q.total;
+  ctx.fillStyle=frac===1?COL.good:(frac>=0.5?COL.warn:COL.bad);
+  roundRect(ctx,bl,by,Math.max(4,bw*frac),24,6); ctx.fill();
+  ctx.fillStyle=COL.text; ctx.font='bold 13px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText(q.score+' of '+q.total+' requirements met',bl+10,by+12);
+  if(!statTick('pick'))return;
+  const broke=q.res.filter(r=>!r.met);
+  setStat('st-pick',[
+    {k:'Container',v:q.c.k},
+    {k:'Material',v:q.m.k},
+    {k:'Surface',v:q.s.k},
+    {k:'Score',v:q.score+' / '+q.total,hi:1}]);
+  if(q.score===q.total)
+    setVerdict('vd-pick','good','That is the right specification.',
+      ' A <b>'+q.c.k+'</b> in <b>'+q.m.k+'</b> with a <b>'+q.s.k+'</b> surface meets every requirement of this job. Notice that no single property decided it: volume, temperature range, protein binding and surface chemistry each ruled out a different alternative, and they came from four different sections of this lesson.');
+  else
+    setVerdict('vd-pick','bad',q.score+' of '+q.total+' — <b>'+broke[0].t+'</b> is the one to fix first.',
+      ' '+broke[0].why+'. '+(broke.length>1?'There '+(broke.length===2?'is one more problem':'are '+(broke.length-1)+' more problems')+' after that one. ':'')+'This is what a protocol line reading "aliquot into a tube" leaves you to work out on your own, every time, and it is why the specification belongs in the protocol rather than in your memory.');
+}
+defWidget('pick','recap',drawPick,{
+  'pick-c':v=>PICK_C[clamp(Math.round(v),0,5)].k,
+  'pick-m':v=>PICK_M[clamp(Math.round(v),0,3)].k,
+  'pick-s':v=>PICK_S[clamp(Math.round(v),0,3)].k},
+  {scen0:'matrigel'});
+
+/* ════════ dispatch + wiring (house pattern) ════════ */
+function refreshActiveTab(){ for(const k of (TABW[activeTab]||[])){ const f=DRAW[k];
+  if(f){ try{ f(); }catch(e){ console.error('draw '+k,e); } } } }
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active'); activeTab=btn.dataset.tab;
+    const sec=document.getElementById('tab-'+activeTab); if(sec)sec.classList.add('active');
+    window.scrollTo({top:0}); clearCvCache(); refreshActiveTab(); syncVis();
+  });
+});
+window.addEventListener('resize',()=>{ clearCvCache(); refreshActiveTab(); syncVis(); });
+document.querySelectorAll('.scen-btn[data-widget]').forEach(b=>{
+  b.addEventListener('click',()=>setScen(b.dataset.widget,b.dataset.scen)); });
+for(const w in SCEN){ if(SCENFN[w])SCENFN[w](SCEN[w]); if(RESET[w])RESET[w](); }
+wireAll();
+refreshActiveTab();
+syncVis();
+</script>
+</body>
+</html>

@@ -452,10 +452,10 @@
     v.classList.remove('is-warning', 'is-critical');
     if (samp === 0.5) {
       v.classList.add('is-warning');
-      v.innerHTML = '<strong>2× under-sampled.</strong> Fine for a survey Z-stack or a live-cell run where photon budget matters more than spatial precision. Do not use this for deconvolution or quantitative spatial analysis.';
+      v.innerHTML = '<strong>2' + ICON.svg('x-mark') + ' under-sampled.</strong> Fine for a survey Z-stack or a live-cell run where photon budget matters more than spatial precision. Do not use this for deconvolution or quantitative spatial analysis.';
     } else if (samp === 2) {
       v.classList.add('is-warning');
-      v.innerHTML = '<strong>2× over-sampled.</strong> ' + slices + ' slices, ~' + (mb / 1024).toFixed(2) + ' GB. You are acquiring more pixels than the optics support — the extra Z-steps will not improve resolvability, only file size and bleach.';
+      v.innerHTML = '<strong>2' + ICON.svg('x-mark') + ' over-sampled.</strong> ' + slices + ' slices, ~' + (mb / 1024).toFixed(2) + ' GB. You are acquiring more pixels than the optics support — the extra Z-steps will not improve resolvability, only file size and bleach.';
     } else {
       v.innerHTML = '<strong>Nyquist-sampled.</strong> ' + slices + ' slices · ' + step_nm.toFixed(0) + ' nm step. This is the default for quantitative or deconvolved confocal volumes.';
     }

@@ -8,7 +8,11 @@
   <link rel="stylesheet" href="/rm/css/style.css">
   <link rel="stylesheet" href="/rm/css/library-associations.css">
   <link rel="stylesheet" href="/rm/css/library-themes.css">
+  <!-- V3.622 — group-picker modal styles for the sidebar Groups widget -->
+  <link rel="stylesheet" href="/rm/css/library-groups.css">
+  <link rel="stylesheet" href="/rm/css/label-mode.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
   <script>
     /* V3.613 — inside the Ourlab native app the reader is the dedicated
      * mobile page; redirect (preserving ?id= and the #ann- deep link) so
@@ -42,6 +46,9 @@
           <div class="lp-citations" id="lp-citations" style="margin:14px 0;"></div>
           <div class="lp-meta" id="lp-metadata"></div>
           <div class="lp-cited-by" id="lp-cited-by" style="margin:14px 0;"></div>
+          <!-- V3.644 — Label mode lives at the BOTTOM of the left
+               column: it is a power tool, not part of reading. -->
+          <div class="plm-host" id="lp-label-mode"></div>
         </div>
       </aside>
 
@@ -57,9 +64,9 @@
              the metadata sidebar and annotations pane on ≤640px screens.
              Hidden on tablet + desktop via display: none in style.css. -->
         <div class="lp-mobile-bar">
-          <button class="rm-mobile-drawer-toggle" id="lp-mobile-left-toggle" type="button" aria-label="Open paper details">ℹ️ Info</button>
+          <button class="rm-mobile-drawer-toggle" id="lp-mobile-left-toggle" type="button" aria-label="Open paper details"><i data-hi="information-circle"></i> Info</button>
           <div class="lp-mobile-title" id="lp-mobile-title">Paper</div>
-          <button class="rm-mobile-drawer-toggle" id="lp-mobile-right-toggle" type="button" aria-label="Open annotations">📝 Notes</button>
+          <button class="rm-mobile-drawer-toggle" id="lp-mobile-right-toggle" type="button" aria-label="Open annotations"><i data-hi="pencil-square"></i> Notes</button>
         </div>
         <!-- V3.294 — Viewer host. Each open tab gets its own
              .lp-viewer-pane child (created lazily on first activation); the
@@ -130,27 +137,39 @@
   <!-- V3.371 — shared page-layout segmentation engine; must load before
        pdf-viewer so extractTextItemsFromPdf + the viewer both use it. -->
   <script src="/rm/js/page-layout.js"></script>
+  <script src="/rm/js/page-regions.js"></script>
   <script type="module" src="/rm/js/pdf-viewer.js"></script>
+  <!-- V3.620 — THE highlight palette; must load before overlay/panel/paper. -->
+  <script src="/rm/js/annotation-colors.js"></script>
   <script src="/rm/js/annotation-anchor.js"></script>
   <script src="/rm/js/annotation-overlay.js"></script>
   <script src="/rm/js/geom-selection.js"></script>
+  <!-- V3.626 — reading-activity signal seam (annotation-sync fires it) -->
+  <script src="/rm/js/activity-signals.js"></script>
   <script src="/rm/js/annotation-sync.js"></script>
-  <script src="/rm/js/annotation-groups.js"></script>
   <script src="/rm/js/annotation-panel.js"></script>
   <script src="/rm/js/claims.js"></script>
-  <script src="/rm/js/evidence-tag-dialog.js"></script>
   <script src="/rm/js/links.js"></script>
   <script src="/rm/js/library-extras.js"></script>
   <script src="/rm/js/paper-citations.js"></script>
   <script src="/rm/js/paper-cited-by.js"></script>
   <!-- V3.352 — atomic linked_drafts writer shared across surfaces. -->
   <script src="/rm/js/library-links.js"></script>
+  <!-- V3.622 — Groups widget: save the open paper to a library shelf
+       group from the reader (LIBRARY_PREFS + LIBRARY_GROUPS standalone
+       picker; the shelf itself only renders on library.html). -->
+  <script src="/rm/js/library-prefs.js"></script>
+  <script src="/rm/js/library-groups.js"></script>
   <script src="/rm/js/library-associations.js"></script>
   <script src="/rm/js/library-themes.js"></script>
   <!-- V3.601 — research-roadmap attachment ("this paper informs that
        analysis, and here is why"). Standalone pair, no research stack. -->
   <script src="/rm/js/roadmap-data.js"></script>
   <script src="/rm/js/roadmap-attach.js"></script>
+  <!-- V3.631 — a draft and its research-map card are often the same object
+       recorded twice; after a link lands, offer the other half + the why
+       note. Read by both draft pickers (paper-overlays, library-assoc). -->
+  <script src="/rm/js/draft-focus-bridge.js"></script>
   <script src="/rm/js/paper-overlays.js"></script>
   <script src="/rm/js/paper-overlay-types.js"></script>
   <!-- E3 — equation capture: MathLive lazy loader (vendored) + the
@@ -162,6 +181,7 @@
        annotation. Before library-paper.js. -->
   <script src="/rm/js/paper-figures.js"></script>
   <script src="/rm/js/figure-capture.js"></script>
+  <script src="/rm/js/paper-label-mode.js"></script>
   <script src="/rm/js/paper-overlay-import.js"></script>
   <script src="/rm/js/paper-search.js"></script>
   <script src="/rm/js/mobile-drawers.js"></script>

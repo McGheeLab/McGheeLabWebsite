@@ -1,0 +1,21 @@
+{
+  "//": "Emulator config for teacher-rules.test.mjs. The rules under test are",
+  "//2": "uploaded from ../../firestore.rules by the test itself; this placeholder",
+  "//3": "only satisfies firebase-tools' firestore config check (which refuses a",
+  "//4": "rules path outside the project directory).",
+  "firestore": {
+    "rules": "placeholder.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8199
+    },
+    "ui": {
+      "enabled": false
+    },
+    "auth": {
+      "port": 9099
+    }
+  },
+  "//5": "V3.646 \u2014 the auth emulator lets the E2E journeys act as REAL signed-in users, so the real firestore.rules evaluate request.auth for the real module code."
+}

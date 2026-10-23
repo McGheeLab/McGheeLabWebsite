@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/rm/css/style.css">
   <link rel="stylesheet" href="/rm/css/training.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
   <style>
     /* ─── Section 1: Lab Research workflow flowchart ─────────── */
     .daily-flow-grid {
@@ -273,7 +274,7 @@
           <section class="training-section" id="sec-flow">
             <h2>1. The Lab Research workflow</h2>
             <p>
-              On the home page, click the <strong>🔬 Lab Research</strong>
+              On the home page, click the <strong><i data-hi="microscope"></i> Lab Research</strong>
               card. The top nav is replaced by a workflow strip listing
               the pages of the daily flow. Those six pages are not
               interchangeable — each plays a distinct role, and each
@@ -336,7 +337,7 @@
             </p>
 
             <div class="tracker-sim" id="tracker-sim">
-              <div class="tracker-sim-head">📋 3 entries waiting on hours</div>
+              <div class="tracker-sim-head"><i data-hi="clipboard-document-list"></i> 3 entries waiting on hours</div>
               <!-- populated by JS -->
             </div>
             <div class="tracker-sim-result empty" id="tracker-sim-result">
@@ -372,7 +373,7 @@
               <li><strong>Project.</strong> Picks from your assigned
                 projects. Drives downstream filtering + the PMR
                 project-overview rollup.</li>
-              <li><strong>Phase.</strong> 📝 plan / ▶ running / ✅
+              <li><strong>Phase.</strong> <i data-hi="pencil-square"></i> plan / <i data-hi="play"></i> running / <i data-hi="check-circle"></i>
                 complete. Switch to <em>running</em> when you walk to the
                 bench; <em>complete</em> when the run is over. Running
                 mode shows the observations log + summary fields.</li>
@@ -385,9 +386,9 @@
                 "followed by" panel.</li>
             </ul>
 
-            <h3>The 📌 PMR badge — flag images for discussion</h3>
+            <h3>The <i data-hi="pin"></i> PMR badge — flag images for discussion</h3>
             <p>
-              Every image attachment has a 📌 in its top-left corner.
+              Every image attachment has a <i data-hi="pin"></i> in its top-left corner.
               Clicking it flags the image for review in your next PMR
               period. The image then appears as a card in the PMR's
               Figure Reviews block, with an editable caption, a
@@ -398,7 +399,7 @@
 
             <h3>Try it — flag a figure for PMR</h3>
             <p>
-              The mock entry below has one image. Click the 📌 badge to
+              The mock entry below has one image. Click the <i data-hi="pin"></i> badge to
               flag it; watch the preview update to show what would
               appear in your next PMR period.
             </p>
@@ -417,7 +418,7 @@
                 <div class="nb-sim-figure" id="nb-sim-figure">
                   <img alt="microscopy thumbnail placeholder"
                        src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 120'%3E%3Crect width='160' height='120' fill='%231f2937'/%3E%3Ccircle cx='52' cy='62' r='12' fill='%23fde68a' opacity='.8'/%3E%3Ccircle cx='88' cy='44' r='8' fill='%23fde68a' opacity='.7'/%3E%3Ccircle cx='118' cy='76' r='14' fill='%23fde68a' opacity='.9'/%3E%3Ccircle cx='38' cy='98' r='6' fill='%23fde68a' opacity='.6'/%3E%3Ccircle cx='128' cy='30' r='5' fill='%23fde68a' opacity='.5'/%3E%3C/svg%3E">
-                  <button class="nb-sim-flag" id="nb-sim-flag" title="Flag for next PMR">📌</button>
+                  <button class="nb-sim-flag" id="nb-sim-flag" title="Flag for next PMR"><i data-hi="pin"></i></button>
                 </div>
               </div>
 
@@ -427,9 +428,9 @@
                   <img alt="" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 120'%3E%3Crect width='160' height='120' fill='%231f2937'/%3E%3Ccircle cx='52' cy='62' r='12' fill='%23fde68a' opacity='.8'/%3E%3Ccircle cx='88' cy='44' r='8' fill='%23fde68a' opacity='.7'/%3E%3Ccircle cx='118' cy='76' r='14' fill='%23fde68a' opacity='.9'/%3E%3Ccircle cx='38' cy='98' r='6' fill='%23fde68a' opacity='.6'/%3E%3Ccircle cx='128' cy='30' r='5' fill='%23fde68a' opacity='.5'/%3E%3C/svg%3E">
                   <div class="pmr-card-text">
                     <div class="ttl" id="nb-sim-pmr-title">GELS hydrogel Day 7 — fluorescence</div>
-                    <div>📓 From: <span id="nb-sim-pmr-link">(notebook entry)</span></div>
+                    <div><i data-hi="book-open"></i> From: <span id="nb-sim-pmr-link">(notebook entry)</span></div>
                     <div style="margin-top:4px;color:#6b7280">
-                      💬 conversation · + Create follow-up task
+                      <i data-hi="chat-bubble-left-right"></i> conversation · + Create follow-up task
                     </div>
                   </div>
                 </div>
@@ -526,7 +527,7 @@
 
             <h3>"Run" mode pulls protocols into the notebook</h3>
             <p>
-              When you click 🧮 calc in the notebook's protocol picker,
+              When you click <i data-hi="variable"></i> calc in the notebook's protocol picker,
               the protocol's formula block opens as a modal — enter
               inputs, choose render format (Steps / Snippet / Table),
               and the rendered block lands in your notebook entry with
@@ -571,7 +572,7 @@
                 the paper builder. Annotations on a library paper
                 surface in the paper's "evidence" panel when you cite
                 it.</li>
-              <li><strong>Notebook image → PMR.</strong> The 📌 flag (Section 3).</li>
+              <li><strong>Notebook image → PMR.</strong> The <i data-hi="pin"></i> flag (Section 3).</li>
               <li><strong>Protocol materials → Inventory.</strong> Each
                 materials row that resolves to an inventory item
                 appears in <em>that item's</em> "used in protocols"
@@ -601,7 +602,7 @@
                 category for the period + a daily sparkline. Sourced
                 from the same tracker entries.</li>
               <li><strong>Figure reviews block</strong> — every notebook
-                image you flagged with 📌 in this period. Editable
+                image you flagged with <i data-hi="pin"></i> in this period. Editable
                 caption, comment thread, deep-link back.</li>
               <li><strong>Open tasks block</strong> — every subtask
                 where you're the assignee, across all of your task
@@ -651,31 +652,31 @@
               <li>
                 <strong>At the bench.</strong> Open Lab Notebook → "+
                 new entry". Title: "Hydrogel batch 12 — day 7
-                imaging". Date: today. Project: GELS. Phase: ▶
+                imaging". Date: today. Project: GELS. Phase: <i data-hi="play"></i>
                 running. Hit save.
               </li>
               <li>
                 <strong>Scope time.</strong> Acquire 5 confocal images
                 of your hydrogel. Drag-and-drop one of them into the
-                notebook entry's body. Hit the 📌 PMR badge on the
+                notebook entry's body. Hit the <i data-hi="pin"></i> PMR badge on the
                 image — it's the one Alex needs to see at next 1:1.
                 Type 2 sentences in the body explaining what you saw.
               </li>
               <li>
-                <strong>Reagent reference.</strong> Click 🧪 Inventory
+                <strong>Reagent reference.</strong> Click <i data-hi="beaker"></i> Inventory
                 in the notebook's toolbar. Pick "PBS, 1×". A chip lands
                 in the body. Same for "Hoechst 33342". Both show
                 hazard pictograms.
               </li>
               <li>
-                <strong>Followed a protocol.</strong> Click 📋 Protocol
+                <strong>Followed a protocol.</strong> Click <i data-hi="clipboard-document-list"></i> Protocol
                 in the toolbar. Pick "GELS staining v3". Press <kbd>Alt+
-                Enter</kbd> on the row → 🧮 calc opens. Enter sample
+                Enter</kbd> on the row → <i data-hi="variable"></i> calc opens. Enter sample
                 volume (2 mL), pick Steps format, insert. The protocol
                 lands in your entry as live-computed steps.
               </li>
               <li>
-                <strong>Phase complete.</strong> Click ⏹ End run. Type
+                <strong>Phase complete.</strong> Click <i data-hi="stop"></i> End run. Type
                 a one-line summary in the Summary field that just
                 appeared. Save.
               </li>
@@ -737,10 +738,10 @@
                 <div class="choices">
                   <button data-choice="paste">Paste it into the PMR weekly entry by hand</button>
                   <button data-choice="email">Email it to Alex with a "see this at next PMR" subject</button>
-                  <button data-choice="flag">Click 📌 on the image's thumbnail in the lab notebook</button>
+                  <button data-choice="flag">Click <i data-hi="pin"></i> on the image's thumbnail in the lab notebook</button>
                   <button data-choice="remember">Remember to bring it up verbally at the 1:1</button>
                 </div>
-                <div class="explain"><strong>📌 flag.</strong> One click creates a figure-review card in your next PMR period with editable caption + comment thread + deep-link back to the originating notebook entry. The other options all lose the notebook context.</div>
+                <div class="explain"><strong><i data-hi="pin"></i> flag.</strong> One click creates a figure-review card in your next PMR period with editable caption + comment thread + deep-link back to the originating notebook entry. The other options all lose the notebook context.</div>
               </div>
 
               <div class="rm-quiz-item" data-correct="comingup">
@@ -758,11 +759,11 @@
                 <div class="question">You're running a protocol and need 2.5 mL working solution. The protocol has a formula block. Power-user move?</div>
                 <div class="choices">
                   <button data-choice="calc">Pull up the calculator app on your phone, compute, type the result</button>
-                  <button data-choice="protocol">In the notebook, 📋 Protocol → row → 🧮 calc → enter 2.5 mL → insert as Steps</button>
+                  <button data-choice="protocol">In the notebook, <i data-hi="clipboard-document-list"></i> Protocol → row → <i data-hi="variable"></i> calc → enter 2.5 mL → insert as Steps</button>
                   <button data-choice="copy">Open the protocol in a separate tab, eyeball the numbers</button>
                   <button data-choice="memory">Try to remember the per-mL ratio from last time</button>
                 </div>
-                <div class="explain"><strong>🧮 calc.</strong> The notebook's protocol picker has a calc sub-action that opens the protocol's formula block as a modal, prefilled. Outputs render as live chips in your notebook entry. Re-clicking re-opens with the same inputs preserved.</div>
+                <div class="explain"><strong><i data-hi="variable"></i> calc.</strong> The notebook's protocol picker has a calc sub-action that opens the protocol's formula block as a modal, prefilled. Outputs render as live chips in your notebook entry. Re-clicking re-opens with the same inputs preserved.</div>
               </div>
 
               <div class="rm-quiz-item" data-correct="activity">
@@ -792,12 +793,12 @@
               <h3>Daily-rhythm toolkit</h3>
               <label><input type="checkbox"> I open the Lab Research workflow first thing in the morning instead of bookmarking individual pages.</label>
               <label><input type="checkbox"> I check the tracker's Coming-up lane at start-of-day for anything due today.</label>
-              <label><input type="checkbox"> I create a notebook entry the moment I sit at the bench, in 📝 plan phase.</label>
-              <label><input type="checkbox"> I switch the notebook entry to ▶ running before starting the actual run, so observations are time-stamped against the run start.</label>
+              <label><input type="checkbox"> I create a notebook entry the moment I sit at the bench, in <i data-hi="pencil-square"></i> plan phase.</label>
+              <label><input type="checkbox"> I switch the notebook entry to <i data-hi="play"></i> running before starting the actual run, so observations are time-stamped against the run start.</label>
               <label><input type="checkbox"> I attach images to the notebook entry rather than to chat or PMR directly.</label>
-              <label><input type="checkbox"> I click 📌 on any image that matters before leaving the notebook entry.</label>
+              <label><input type="checkbox"> I click <i data-hi="pin"></i> on any image that matters before leaving the notebook entry.</label>
               <label><input type="checkbox"> I reference inventory items + protocols via the chip pickers so the cross-page panels light up.</label>
-              <label><input type="checkbox"> I use 🧮 calc instead of computing protocol values by hand.</label>
+              <label><input type="checkbox"> I use <i data-hi="variable"></i> calc instead of computing protocol values by hand.</label>
               <label><input type="checkbox"> I confirm all pending tracker entries at end-of-day — no entry left waiting overnight.</label>
               <label><input type="checkbox"> I file a PMR weekly entry every Friday without being chased.</label>
               <label><input type="checkbox"> I check that my PMR Activity + Stats blocks reflect reality at week's end — if empty, backfill.</label>

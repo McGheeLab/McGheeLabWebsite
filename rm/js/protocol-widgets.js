@@ -154,7 +154,7 @@
         var err = sym && sym.error;
         out.innerHTML =
           '<span class="prd-calc-out-value' + (err ? ' prd-calc-out-error' : '') + '">' +
-            (err ? '⚠ ' + escapeHtml(sym.error) : symValueHtml(ctx, outName)) +
+            (err ? ICON.svg('exclamation-triangle') + ' ' + escapeHtml(sym.error) : symValueHtml(ctx, outName)) +
           '</span>' +
           '<span class="prd-calc-out-label">' + escapeHtml(a.output.label || outName) + '</span>';
       };
@@ -361,7 +361,7 @@
           }
           var valHtml;
           if (!sym) valHtml = '?';
-          else if (sym.error) valHtml = '<span class="prd-calc-out-error">⚠</span>';
+          else if (sym.error) valHtml = '<span class="prd-calc-out-error">' + ICON.svg('exclamation-triangle') + '</span>';
           else valHtml = escapeHtml(fmtNum(sym.value, dec));
           card.innerHTML =
             '<div class="prd-calc-card-value">' + valHtml +
@@ -411,7 +411,7 @@
             if (c.mono) td.className = 'prd-mono';
             var res = PF().evalExpression(c.expr, ctx.table, ctx.math, row);
             if (res.error) {
-              td.innerHTML = '<span class="prd-calc-out-error" title="' + escapeHtml(res.error) + '">⚠</span>';
+              td.innerHTML = '<span class="prd-calc-out-error" title="' + escapeHtml(res.error) + '">' + ICON.svg('exclamation-triangle') + '</span>';
             } else if (typeof res.value === 'number') {
               td.textContent = fmtNum(res.value, c.decimals);
             } else {
@@ -595,7 +595,7 @@
             var rm = document.createElement('button');
             rm.type = 'button';
             rm.className = 'prd-builder-chip-rm';
-            rm.textContent = '×';
+            ICON.label(rm, 'x-mark');
             rm.title = 'Remove option (this run)';
             rm.addEventListener('click', function () {
               options[d.field] = options[d.field].filter(function (o) { return o !== opt; });
@@ -686,7 +686,7 @@
           var rm = document.createElement('button');
           rm.type = 'button';
           rm.className = 'prd-builder-chip-rm';
-          rm.textContent = '×';
+          ICON.label(rm, 'x-mark');
           rm.title = 'Remove item';
           rm.addEventListener('click', function () { pickSets.splice(i, 1); syncAndRegister(); });
           tdRm.appendChild(rm);
@@ -739,7 +739,7 @@
     function cellText(expr, row, fallback) {
       if (!expr) return fallback;
       var res = PF().evalExpression(expr, ctx.table, ctx.math, row);
-      if (res.error) return '⚠';
+      if (res.error) return '!';
       if (typeof res.value === 'number') return fmtNum(res.value);
       return String(res.value === undefined || res.value === null ? fallback : res.value);
     }
@@ -795,8 +795,8 @@
       } else if (rows.length > gridRows * gridCols) {
         var overflow = document.createElement('div');
         overflow.className = 'prd-calc-control-hint';
-        overflow.textContent = '⚠ ' + (rows.length - gridRows * gridCols) + ' of ' + rows.length +
-          ' items don\'t fit this ' + gridRows + '×' + gridCols + ' grid and are not shown.';
+        ICON.label(overflow, 'exclamation-triangle', ' ' + (rows.length - gridRows * gridCols) + ' of ' + rows.length +
+          ' items don\'t fit this ' + gridRows + '×' + gridCols + ' grid and are not shown.');
         wrap.appendChild(overflow);
       }
     }
@@ -934,7 +934,7 @@
       if (trash) return trash;
       trash = document.createElement('div');
       trash.className = 'prd-planner-trash';
-      trash.innerHTML = '🗑 drop here to remove';
+      trash.innerHTML = ICON.svg('trash') + ' drop here to remove';
       el.appendChild(trash);
       return trash;
     }
@@ -1160,7 +1160,7 @@
           });
           var rm = document.createElement('button');
           rm.type = 'button'; rm.className = 'prd-builder-chip-rm';
-          rm.textContent = '× grid';
+          ICON.label(rm, 'x-mark', ' grid');
           rm.addEventListener('click', function () {
             opts.grids.splice(gi, 1); delete opts.assignment[g.id]; change(); render();
           });
@@ -1199,7 +1199,7 @@
               } else if (k) {
                 // assignment references an item that no longer exists
                 td.classList.add('prd-well-orphan');
-                td.innerHTML = '<div class="prd-well-label">⚠ removed</div>';
+                td.innerHTML = '<div class="prd-well-label">' + ICON.svg('exclamation-triangle') + ' removed</div>';
               } else {
                 td.classList.add('prd-well-spare');
               }
@@ -1386,7 +1386,7 @@
         if (arrange.mode === 'fill') {
           var ds = document.createElement('select');
           ds.className = 'prd-arrange-field';
-          [['row', 'row-major →'], ['col', 'column-major ↓'], ['snake', 'snake ⤵']]
+          [['row', 'row-major →'], ['col', 'column-major ↓'], ['snake', 'snake ↔']]
             .forEach(function (d) { var o = document.createElement('option'); o.value = d[0]; o.textContent = d[1]; ds.appendChild(o); });
           ds.value = arrange.direction || 'row';
           ds.addEventListener('change', function () { arrange.direction = ds.value; persistState(); });
@@ -1408,7 +1408,7 @@
           sn.type = 'number'; sn.className = 'prd-arrange-seed'; sn.value = String(arrange.seed); sn.title = 'seed (reproducible)';
           sn.addEventListener('change', function () { var n = parseInt(sn.value, 10); arrange.seed = isFinite(n) ? n : 1; persistState(); });
           var die = document.createElement('button');
-          die.type = 'button'; die.className = 'prd-builder-btn prd-arrange-die'; die.textContent = '🎲'; die.title = 'new random seed';
+          die.type = 'button'; die.className = 'prd-builder-btn prd-arrange-die'; ICON.label(die, 'dices'); die.title = 'new random seed';
           die.addEventListener('click', function () { arrange.seed = Math.floor(Math.random() * 1e9); sn.value = String(arrange.seed); persistState(); });
           optRow.appendChild(sn); optRow.appendChild(die);
         }
@@ -1416,7 +1416,7 @@
       modeSel.addEventListener('change', function () { arrange.mode = modeSel.value; persistState(); renderOpts(); });
       var apply = document.createElement('button');
       apply.type = 'button'; apply.className = 'prd-builder-btn prd-builder-btn-primary';
-      apply.textContent = '⚙ Arrange';
+      ICON.label(apply, 'cog-6-tooth', ' Arrange');
       apply.title = 'Lay every experiment across the plates using the chosen strategy';
       apply.addEventListener('click', applyArrange);
       arr.appendChild(modeSel);
@@ -1440,9 +1440,10 @@
     el.appendChild(note);
     el.appendChild(warn);
     function refreshNote() {
-      note.textContent = 'Drag experiments onto wells (or tap to place); drag a well off the plate to remove it. ' +
-        '⚙ Arrange lays each experiment ×' + repsVal() + ' (wells/condition) across the plates; ' +
-        'the master batch below scales ×' + fmtNum(factorVal()) + ' (prep excess).';
+      note.textContent = 'Drag experiments onto wells (or tap to place); drag a well off the plate to remove it. ';
+      note.appendChild(ICON.el('cog-6-tooth'));
+      note.appendChild(document.createTextNode(' Arrange lays each experiment ×' + repsVal() + ' (wells/condition) across the plates; ' +
+        'the master batch below scales ×' + fmtNum(factorVal()) + ' (prep excess).'));
     }
     refreshNote();
     ctx.refreshers.push(refreshNote);
@@ -1481,8 +1482,9 @@
       persistState();
       _refreshAll(ctx);
       var msgs = (res.warnings || []).slice();
-      if (res.overflow) msgs.unshift('⚠ ' + res.overflow + ' well(s) didn’t fit — add a plate with “+ Add plate”.');
-      warn.textContent = msgs.join(' · ');
+      if (res.overflow) msgs.unshift(res.overflow + ' well(s) didn’t fit — add a plate with “+ Add plate”.');
+      if (res.overflow) ICON.label(warn, 'exclamation-triangle', ' ' + msgs.join(' · '));
+      else warn.textContent = msgs.join(' · ');
     }
 
     return el;

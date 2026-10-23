@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" data-paper-mode="editor" data-paper-page="figure-board" class="pe-wide-tab">
+<head>
+<meta charset="utf-8">
+<title>V3.845 — the Figure board tab fills the editor's width</title>
+<!-- The paper editor's Figure board tool page, as paper-equations.js builds it
+     (#pe-toolpage-root → the pane → .pe-tab-content → #pe-figure-board-root →
+     the iframe), with the editor's real stylesheets. The check: with
+     html.pe-wide-tab the iframe is as wide as the window; the engine page
+     inside it (figure-board.html) was measured separately. -->
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<link rel="stylesheet" href="/rm/css/paper-editor.css">
+<link rel="stylesheet" href="/rm/css/paper-doc-view.css">
+<link rel="stylesheet" href="/rm/css/paper-figure-board.css">
+<style>#r{position:fixed;left:8px;bottom:8px;z-index:9999;font:12px/1.4 system-ui,sans-serif;background:#fff;border:1px solid #e5e7eb;padding:6px 8px;max-width:60vw}.ok{color:#15803d}.bad{color:#b91c1c}</style>
+</head>
+<body>
+<div class="pe-page paper-editor-mode rm-mobile-drawer-host">
+  <div class="pe-topbar"><a class="pe-back" href="#">← All papers</a><input type="text" class="pe-title-input" value="Collagen alignment under flow"><div class="pe-savestate">Saved</div></div>
+  <div class="pe-pillbar" role="tablist"><button class="pe-pill">Write</button><button class="pe-pill active">🧭 Figure board</button></div>
+  <div class="pe-global-toolbar" role="toolbar"></div>
+  <div class="pe-toolpage" id="pe-toolpage-root">
+    <aside id="pe-equations-pane" class="pe-tabbed-pane pe-equations-pane pe-toolpage-pane" style="width: 420px">
+      <div class="pe-equations-head"><span>Tools</span></div>
+      <div class="pe-tab-nav"><button class="pe-tab-btn active" data-tab="figure-board">Figure board</button></div>
+      <div class="pe-tab-content" data-tab="figure-board">
+        <div id="pe-figure-board-root">
+          <div class="pfb-canvas-wrap">
+            <div class="pfb-canvas-bar"><span class="muted-text">The board is the canvas: draw, place cards, connect them.</span><a class="btn btn-small" href="#">⤢ Open full</a></div>
+            <iframe class="pfb-canvas-frame" src="about:blank" title="Figure board"></iframe>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+<div id="r">measuring…</div>
+<script>
+(function () {
+  var out = [], fails = 0;
+  function check(name, ok, detail) { out.push('<div class="' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓' : '✗') + ' ' + name + (detail ? ' <small>' + detail + '</small>' : '') + '</div>'); if (!ok) fails++; }
+  function w(sel) { var n = document.querySelector(sel); return n ? Math.round(n.getBoundingClientRect().width) : -1; }
+  function measure() { return { win: window.innerWidth, toolpage: w('.pe-toolpage'), pane: w('.pe-toolpage-pane'), content: w('.pe-tab-content'), root: w('#pe-figure-board-root'), wrap: w('.pfb-canvas-wrap'), frame: w('.pfb-canvas-frame'), frameH: Math.round(document.querySelector('.pfb-canvas-frame').getBoundingClientRect().height) }; }
+  window.addEventListener('load', function () {
+    requestAnimationFrame(function () {
+      var wide = measure();
+      document.documentElement.classList.remove('pe-wide-tab');
+      var narrow = measure();
+      document.documentElement.classList.add('pe-wide-tab');
+      var again = measure();
+      check('wide tab: the iframe spans the window (≥ window − 40 px)', wide.frame >= wide.win - 40, wide.frame + ' of ' + wide.win);
+      check('wide tab: the tool page itself spans the window', wide.toolpage >= wide.win - 4, wide.toolpage + ' of ' + wide.win);
+      check('wide tab: the pane ignores the remembered 420 px side-pane width', wide.pane >= wide.win - 40, wide.pane + 'px');
+      check('wide tab: the iframe fills the height below the bars (≥ 420 px, and taller than the 520 px fixed frame on a 720 px window)', wide.frameH >= 420, wide.frameH + 'px');
+      check('other tool pages keep their reading column (≤ 1100 px without the class)', narrow.toolpage <= 1100, narrow.toolpage + 'px');
+      check('toggling the class back restores the full width', again.frame === wide.frame, again.frame + ' vs ' + wide.frame);
+      var r = document.getElementById('r');
+      r.innerHTML = out.join('') + '<div><b>' + (6 - fails) + '/6 passed</b> · wide=' + JSON.stringify(wide) + ' · narrow=' + JSON.stringify(narrow) + '</div>';
+      r.dataset.done = '1'; r.dataset.fails = String(fails);
+    });
+  });
+})();
+</script>
+</body>
+</html>

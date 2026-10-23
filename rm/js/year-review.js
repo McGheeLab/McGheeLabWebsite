@@ -790,7 +790,7 @@ function renderGroup(g) {
   const meta = document.createElement('span');
   meta.className = 'yr-group-totals';
   meta.innerHTML = `${g.event_count} events · ${g.email_count} emails · ${g.hours.toFixed(1)}h
-    <span style="color:#dc2626;margin-left:10px;cursor:pointer" data-action="discard-group">✖ discard group</span>`;
+    <span style="color:#dc2626;margin-left:10px;cursor:pointer" data-action="discard-group">${ICON.svg('x-mark')} discard group</span>`;
   meta.querySelector('[data-action="discard-group"]').addEventListener('click', async (ev) => {
     ev.stopPropagation();
     if (!confirm(`Discard "${g.label}" (${groupKey}) from year-review?`)) return;
@@ -818,7 +818,7 @@ function renderRow(row, g) {
   line.className = 'yr-line sub-row';
   line.innerHTML = `
     <div class="col-select"></div>
-    <div class="col-caret">${expanded ? '▾' : '▸'}</div>
+    <div class="col-caret">${ICON.svg(expanded ? 'chevron-down' : 'chevron-right')}</div>
     <div class="col-date"></div>
     <div class="col-main">
       <div class="title"><span class="indent" style="width:${indentPx}px"></span>${escapeHtml(row.title)}</div>
@@ -986,7 +986,7 @@ function renderTitleCluster(cluster, row) {
   line.style.background = '#fdf4ff';
   line.innerHTML = `
     <div class="col-select"><input type="checkbox" title="Select all ${cluster.activities.length} instances"></div>
-    <div class="col-caret">${expanded ? '▾' : '▸'}</div>
+    <div class="col-caret">${ICON.svg(expanded ? 'chevron-down' : 'chevron-right')}</div>
     <div class="col-date">${escapeHtml((earliest || '').slice(0, 10))} → ${escapeHtml((latest || '').slice(0, 10))}</div>
     <div class="col-main">
       <div class="title">${escapeHtml(cluster.title)} <span style="color:#7c3aed;font-weight:600">× ${cluster.activities.length}</span></div>
@@ -1021,7 +1021,7 @@ function renderTitleCluster(cluster, row) {
       for (const a of cluster.activities) await moveCalEvent(a.event.id, t);
       await rebuild();
     }},
-    { icon: '✖', color: '#dc2626', title: 'Discard all instances', onClick: async () => {
+    { icon: 'x-mark', color: '#dc2626', title: 'Discard all instances', onClick: async () => {
       if (!confirm(`Discard all ${cluster.activities.length} instances of "${cluster.title}"?`)) return;
       for (const a of cluster.activities) await discardItem('event', a.event.id, true);
       await rebuild();
@@ -1057,7 +1057,7 @@ function renderEventLine(ev, relatedEmails, row) {
   line.className = 'yr-line event';
   line.innerHTML = `
     <div class="col-select"><input type="checkbox"></div>
-    <div class="col-caret">${expanded ? '▾' : '▸'}</div>
+    <div class="col-caret">${ICON.svg(expanded ? 'chevron-down' : 'chevron-right')}</div>
     <div class="col-date">${escapeHtml((ev.start || '').replace('T', ' ').slice(0, 16))}</div>
     <div class="col-main">
       <div class="title">${escapeHtml(ev.title || '(untitled)')}</div>
@@ -1087,7 +1087,7 @@ function renderEventLine(ev, relatedEmails, row) {
       await moveCalEvent(ev.id, t);
       await rebuild();
     }},
-    { icon: '✖', color: '#dc2626', title: 'Discard', onClick: async () => {
+    { icon: 'x-mark', color: '#dc2626', title: 'Discard', onClick: async () => {
       if (!confirm(`Discard "${ev.title}"?`)) return;
       await discardItem('event', ev.id, true);
       await rebuild();
@@ -1140,7 +1140,7 @@ function renderEmailLine(m, row, isRelated) {
   line.className = 'yr-line email' + (isRelated ? ' related' : '');
   line.innerHTML = `
     <div class="col-select"><input type="checkbox"></div>
-    <div class="col-caret">${expanded ? '▾' : '▸'}</div>
+    <div class="col-caret">${ICON.svg(expanded ? 'chevron-down' : 'chevron-right')}</div>
     <div class="col-date">${escapeHtml((m.date || '').slice(0, 10))}</div>
     <div class="col-main">
       <div class="title">${escapeHtml(m.subject || '(no subject)')}</div>
@@ -1169,7 +1169,7 @@ function renderEmailLine(m, row, isRelated) {
       await moveEmail(m.id, t);
       await rebuild();
     }},
-    { icon: '✖', color: '#dc2626', title: 'Discard', onClick: async () => {
+    { icon: 'x-mark', color: '#dc2626', title: 'Discard', onClick: async () => {
       if (!confirm(`Discard email?`)) return;
       await discardItem('email', m.id, true);
       await rebuild();
@@ -1453,7 +1453,7 @@ function starBarYr(current, onSet, sizePx = 13) {
   for (let i = 1; i <= 5; i++) {
     const s = document.createElement('span');
     s.style.color = i <= (current || 0) ? '#f59e0b' : '#d1d5db';
-    s.textContent = '★';
+    ICON.label(s, 'star');
     s.addEventListener('click', (ev) => { ev.stopPropagation(); onSet(i === current ? 0 : i); });
     el.appendChild(s);
   }
@@ -1467,7 +1467,7 @@ function actionIcons(btns) {
     const s = document.createElement('span');
     s.style.cssText = `color:${b.color};cursor:pointer;font-size:12px`;
     s.title = b.title;
-    s.textContent = b.icon;
+    s.innerHTML = ICON.render(b.icon);
     s.addEventListener('click', async (ev) => { ev.stopPropagation(); await b.onClick(); });
     host.appendChild(s);
   }

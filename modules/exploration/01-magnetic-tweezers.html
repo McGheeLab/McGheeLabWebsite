@@ -1,0 +1,2231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Magnetic Tweezers for Granular Hydrogels — coil, force, deformation (Exploration 01, McGhee Lab)</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#f1f5f9;color:#1e293b;line-height:1.5;overflow-x:hidden}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,#1e3a5f 0%,#0891b2 100%);color:#fff;padding:24px 32px;text-align:center}
+header h1{font-size:1.7rem;font-weight:700;letter-spacing:-.5px}
+header .subtitle{font-size:.95rem;opacity:.85;margin-top:4px}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 16px;overflow-x:auto;position:sticky;top:0;z-index:100}
+.tab-btn{padding:12px 16px;border:none;background:none;font-size:.84rem;font-weight:600;color:#64748b;
+  cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:#2563eb}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+.tab-btn.next-tab{color:#b45309;font-weight:700}
+.tab-btn.next-tab.active{color:#b45309;border-bottom-color:#f59e0b}
+/* design-notebook extras */
+.ledger{width:100%;border-collapse:collapse;font-size:.84rem;margin:10px 0;font-variant-numeric:tabular-nums}
+.ledger td,.ledger th{border:1px solid #e2e8f0;padding:5px 9px;text-align:left;color:#475569}
+.ledger th{background:#f1f5f9;color:#334155}
+.ledger td.n{text-align:right;white-space:nowrap;font-weight:600;color:#1e293b}
+.ledger tr.pass td{background:#f0fdf4}.ledger tr.fail td{background:#fef2f2}
+.shop{background:#0f172a;color:#e2e8f0;border-radius:8px;padding:12px 16px;margin:12px 0;font-size:.88rem}
+.shop::before{content:"TO THE SHOP";display:block;font-size:.62rem;font-weight:800;letter-spacing:.1em;color:#7dd3fc;margin-bottom:4px}
+
+/* ── Constants & variables rail ── */
+.constants-bar{max-width:1400px;margin:10px auto 0;padding:0 16px}
+.constants-bar details{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.constants-bar summary{cursor:pointer;padding:10px 16px;font-size:.82rem;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:#1e3a5f}
+.constants-bar .const-body{padding:4px 20px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px 24px}
+.constants-bar .const-body h4{grid-column:1/-1;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-top:8px}
+.constants-bar .const-body p{font-size:.82rem;color:#475569;margin:1px 0}
+.constants-bar .const-body p .src{color:#94a3b8;font-size:.72rem}
+.constants-bar .eqindex p b{color:#1e3a5f;font-variant-numeric:tabular-nums}
+
+/* ── Main layout ── */
+main{max-width:1400px;margin:0 auto;padding:16px}
+.tab-content{display:none}
+.tab-content.active{display:flex;flex-direction:column}
+
+/* ── Lesson flow (stacked story → interactive pairs) ──
+   `contain:layout` keeps each block's internal reflow from reaching its
+   siblings; the reserved heights on .stats / .val-verdict below keep the
+   blocks themselves from changing size as live readouts update, so a
+   simulation never pushes the paragraph you are reading off the screen. */
+.lesson-block{margin-bottom:26px;padding-bottom:8px;border-bottom:1px dashed #cbd5e1;contain:layout}
+.lesson-block:last-of-type{border-bottom:none}
+.lesson-block .background-section{margin-bottom:12px}
+.panel.compact{grid-template-columns:260px 1fr;margin-bottom:4px;align-items:start}
+@media(max-width:900px){.panel.compact{grid-template-columns:1fr}}
+
+/* ── Cards & panels ── */
+.panel{display:grid;grid-template-columns:300px 1fr;gap:16px}
+@media(max-width:900px){.panel{grid-template-columns:1fr}}
+
+/* ── Background sections ── */
+.background-section{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  padding:24px 28px;margin-bottom:16px;border-left:4px solid #1e3a5f}
+.background-section h2{font-size:1.1rem;color:#1e3a5f;margin-bottom:12px}
+.background-section h3{font-size:.95rem;color:#334155;margin:16px 0 6px}
+.background-section p,.background-section li{font-size:.88rem;color:#475569;line-height:1.6}
+.background-section ul,.background-section ol{padding-left:20px;margin:6px 0}
+.equation-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 16px;margin:10px 0;overflow-x:auto}
+.equation-box .eqno{float:right;color:#94a3b8;font-size:.78rem;margin-left:10px;line-height:2.2}
+.equation-box mjx-container,.background-section mjx-container{max-width:100%;overflow-x:auto;overflow-y:hidden}
+.worked-example{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin:10px 0}
+.worked-example::before{content:"WORKED EXAMPLE";display:block;font-size:.65rem;font-weight:700;letter-spacing:.08em;color:#2563eb;margin-bottom:6px}
+/* ── Worked examples v2: stepped, equations shown assembling, COLLAPSED by default ── */
+details.worked{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;margin:12px 0}
+details.worked summary{cursor:pointer;padding:9px 14px;font-size:.72rem;font-weight:700;letter-spacing:.07em;color:#2563eb;text-transform:uppercase}
+details.worked summary .we-title{color:#1e40af;text-transform:none;letter-spacing:0;font-size:.86rem;font-weight:600;margin-left:6px}
+details.worked .worked-body{padding:2px 18px 14px}
+details.worked ol.steps{margin:0 0 0 18px;padding:0}
+details.worked ol.steps>li{font-size:.86rem;color:#1e3a8a;margin-bottom:9px;line-height:1.55}
+details.worked ol.steps>li .lead{font-weight:700;color:#2563eb}
+details.worked .step-eq{background:#fff;border:1px solid #dbeafe;border-radius:6px;padding:6px 12px;margin:6px 0;overflow-x:auto}
+details.worked .answer{background:#dbeafe;border-radius:6px;padding:9px 13px;margin-top:8px;font-size:.88rem;color:#1e3a8a}
+details.worked .answer::before{content:"ANSWER · ";font-size:.68rem;font-weight:800;letter-spacing:.07em;color:#2563eb}
+/* derive block — the notes to earn an equation yourself, before the lecture does it (collapsed) */
+details.derive{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;margin:12px 0}
+details.derive summary{cursor:pointer;padding:9px 14px;font-size:.72rem;font-weight:700;letter-spacing:.07em;color:#059669;text-transform:uppercase}
+details.derive summary .dv-title{color:#065f46;text-transform:none;letter-spacing:0;font-size:.86rem;font-weight:600;margin-left:6px}
+details.derive .derive-body{padding:2px 18px 14px}
+details.derive .derive-body>p{font-size:.86rem;color:#064e3b;line-height:1.55;margin:6px 0 10px}
+details.derive ol.steps{margin:0 0 0 18px;padding:0}
+details.derive ol.steps>li{font-size:.86rem;color:#064e3b;margin-bottom:9px;line-height:1.55}
+details.derive ol.steps>li .lead{font-weight:700;color:#059669}
+details.derive .step-eq{background:#fff;border:1px solid #a7f3d0;border-radius:6px;padding:6px 12px;margin:6px 0;overflow-x:auto}
+details.derive .result{background:#d1fae5;border-radius:6px;padding:9px 13px;margin-top:8px;font-size:.88rem;color:#064e3b}
+details.derive .result::before{content:"RESULT · ";font-size:.68rem;font-weight:800;letter-spacing:.07em;color:#059669}
+details.derive .honesty{margin-top:8px;font-size:.8rem;color:#065f46;border-top:1px dashed #a7f3d0;padding-top:8px}
+/* ── capstone tab button ── */
+.tab-btn.cap-tab{color:#047857;font-weight:700}
+.tab-btn.cap-tab.active{color:#047857;border-bottom-color:#10b981}
+.key-takeaways{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-top:12px}
+.key-takeaways::before{content:"KEY TAKEAWAYS";display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#15803d;margin-bottom:4px}
+.key-takeaways ul{margin:0 0 0 16px;padding:0}
+.key-takeaways li{font-size:.82rem;color:#14532d}
+.background-section table.cmp{width:100%;border-collapse:collapse;font-size:.84rem;margin:10px 0}
+.background-section table.cmp th,.background-section table.cmp td{border:1px solid #e2e8f0;padding:5px 9px;text-align:left;color:#475569}
+.background-section table.cmp th{background:#f1f5f9;color:#334155;font-weight:700}
+.background-section table.cmp td.c{text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ── Deep boxes (566 / curious-student depth) ── */
+details.deep{background:#faf5ff;border:1px solid #e9d5ff;border-radius:6px;padding:0;margin:10px 0}
+details.deep summary{cursor:pointer;padding:8px 14px;font-size:.76rem;font-weight:700;letter-spacing:.06em;color:#7c3aed}
+details.deep .deep-body{padding:2px 16px 12px}
+details.deep .deep-body p,details.deep .deep-body li{font-size:.84rem;color:#5b21b6}
+
+/* ── Check-yourself boxes ── */
+details.check{background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;margin:12px 0}
+details.check summary{cursor:pointer;padding:9px 14px;font-size:.78rem;font-weight:700;letter-spacing:.06em;color:#c2410c;text-transform:uppercase}
+details.check .check-body{padding:2px 18px 12px}
+details.check .check-body p,details.check .check-body li{font-size:.86rem;color:#7c2d12}
+details.check details{margin:4px 0 10px}
+details.check details summary{padding:2px 0;font-size:.78rem;color:#9a3412;text-transform:none;letter-spacing:0}
+details.check details p{font-size:.82rem;color:#78350f;padding:4px 0 0 6px}
+
+/* ── Student task ── */
+.student-task{border:2px solid #059669;border-radius:8px;background:#ecfdf5;padding:12px 16px;margin:12px 0;position:relative}
+.student-task::before{content:"TRY THIS";position:absolute;top:-0.6rem;left:1rem;background:#ecfdf5;padding:0 0.5rem;font-size:.65rem;font-weight:700;letter-spacing:.1em;color:#059669}
+.student-task ol{margin:.25rem 0 0 1.25rem;color:#065f46}
+.student-task li{font-size:.88rem;margin-bottom:4px}
+
+/* ── Controls ── */
+.ctrl{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px}
+.ctrl h3{font-size:.85rem;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:10px;border-bottom:1px solid #f1f5f9;padding-bottom:6px}
+.ctrl-group{margin-bottom:12px}
+.ctrl-group label{display:flex;justify-content:space-between;font-size:.82rem;font-weight:600;color:#334155;margin-bottom:3px}
+.ctrl-group label span{font-weight:400;color:#2563eb;font-variant-numeric:tabular-nums}
+.ctrl-group input[type=range]{width:100%;accent-color:#2563eb;height:6px}
+.toggle-btn{border:2px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 12px;font-size:.8rem;font-weight:700;color:#64748b;cursor:pointer;width:100%;transition:all .15s}
+.toggle-btn.on{border-color:#dc2626;color:#dc2626;background:#fef2f2}
+
+/* ── Stats ── (every widget emits exactly 4 rows; the reserved height means a
+   changing readout never resizes the box and shifts the page under the reader) */
+.stats{background:#f8fafc;border-radius:8px;padding:12px;font-size:.82rem;font-variant-numeric:tabular-nums;margin-top:8px;min-height:132px}
+.stats h4{font-size:.8rem;color:#64748b;margin-bottom:4px}
+.stat-row{display:flex;justify-content:space-between;gap:10px;align-items:baseline;min-height:27px;padding:2px 0;border-bottom:1px solid #f1f5f9}
+.stat-row .label{color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.stat-row .value{flex:0 0 auto}
+.stat-row .value{font-weight:600;color:#1e293b;text-align:right;white-space:nowrap}
+.stat-row.highlight .value{color:#2563eb}
+
+/* ── Viz area ── */
+.viz{display:flex;flex-direction:column;gap:12px}
+.canvas-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:12px}
+.canvas-wrap canvas{display:block;width:100%;height:auto;max-width:100%;border-radius:6px}
+.canvas-title{font-size:.78rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.chart-row{grid-template-columns:1fr}}
+
+/* ── Per-widget scenario bar ── */
+.scenario-bar{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.scenario-bar-label{font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700}
+.scen-btn{padding:6px 14px;border:2px solid #e2e8f0;background:#fff;border-radius:20px;font-size:.82rem;font-weight:600;color:#64748b;cursor:pointer;transition:all .15s}
+.scen-btn:hover{color:#1e293b;border-color:#cbd5e1}
+.scen-btn.on{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+
+/* ── Verdict box ── (reserved height: the narration rewrites itself as the
+   simulation crosses thresholds, and without this the box would grow/shrink
+   and move every lesson block below it) */
+.val-verdict{border-radius:8px;padding:10px 14px;margin-top:10px;font-size:.84rem;line-height:1.5;min-height:6.2em}
+/* the three longest narrations get extra reserved height — their wording (and
+   the width of the numbers inside it) changes as the sim runs, and without this
+   a rewrap nudges everything below them */
+#vd-wind,#vd-shot,#vd-pair,#vd-flux,#vd-embed,#vd-spec,#vd-sheet{min-height:8.8em}
+@media(max-width:900px){.val-verdict{min-height:8.5em}#vd-wind,#vd-shot,#vd-pair,#vd-flux,#vd-embed,#vd-spec,#vd-sheet{min-height:12em}}
+.val-verdict.good{background:#f0fdf4;border:1px solid #86efac;color:#14532d}
+.val-verdict.bad{background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d}
+.val-verdict.warn{background:#fffbeb;border:1px solid #fde68a;color:#78350f}
+/* only the leading title is a block — inline <strong> inside the narration
+   must stay inline (it was breaking mid-sentence onto its own line) */
+.val-verdict > strong:first-child{display:block;font-size:.9rem;margin-bottom:2px}
+
+/* ── Insight + handoff boxes ── */
+.insight{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#78350f}
+.insight strong{color:#b45309}
+.handoff{background:#eef2ff;border-left:4px solid #6366f1;border-radius:0 8px 8px 0;padding:10px 14px;margin:10px 0;font-size:.86rem;color:#3730a3}
+.handoff strong{color:#4338ca}
+
+/* ── Sources ── */
+.sources{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:18px 24px;margin-top:16px}
+.sources h2{font-size:1rem;color:#1e3a5f;margin-bottom:8px}
+.sources ol{margin:0 0 0 18px}
+.sources li{font-size:.8rem;color:#475569;margin-bottom:5px;line-height:1.45}
+.sources a{color:#2563eb;text-decoration:none}
+.sources a:hover{text-decoration:underline}
+
+/* ── Footer ── */
+footer{text-align:center;padding:20px;font-size:.78rem;color:#94a3b8}
+
+/* ── MathJax ── */
+mjx-container{display:inline-block !important}
+
+/* ════ SECTION RAIL + PRESENTER MODE ════
+   The classroom runs on TV screens, not a whiteboard: the fixed left rail is
+   the instructor's position key — click a section to hop there — and Present
+   mode widens sections to the full screen and scales all type (rem-based) and
+   every canvas (via the PZ logical-zoom in setupCanvas) together. The rail
+   only appears ≥1150px; it works identically inside the class-shell iframe
+   because that iframe is viewport-sized and scrolls internally. */
+#rail{position:fixed;left:0;top:0;bottom:0;width:212px;background:#0f172a;color:#cbd5e1;
+  z-index:200;display:none;flex-direction:column;overflow-y:auto;overflow-x:hidden;
+  font-size:12.5px;transition:width .15s ease}
+body.hasrail{padding-left:212px}
+body.hasrail #rail{display:flex}
+.rail-head{padding:10px 10px 8px;border-bottom:1px solid #1e293b;position:sticky;top:0;background:#0f172a;z-index:2}
+#rail-present{width:100%;border:1px solid #334155;background:#1e293b;color:#e2e8f0;border-radius:8px;
+  padding:7px 6px;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.03em}
+#rail-present.on{background:#b45309;border-color:#f59e0b;color:#fff}
+.rail-size{display:flex;gap:6px;margin-top:6px}
+.rail-size button{flex:1;border:1px solid #334155;background:#0f172a;color:#94a3b8;border-radius:6px;
+  padding:4px 0;font-size:11px;font-weight:700;cursor:pointer}
+.rail-size button:hover{color:#e2e8f0;border-color:#64748b}
+body:not(.present) .rail-size{display:none}
+#rail-body{padding:6px 6px 20px}
+.rl-i{display:flex;align-items:baseline;gap:8px;width:100%;border:none;background:none;color:#94a3b8;
+  text-align:left;padding:5px 8px;border-radius:6px;cursor:pointer;font-size:12.5px;line-height:1.3}
+.rl-i:hover{background:#1e293b;color:#e2e8f0}
+.rl-i.cur{background:#1d4ed8;color:#fff}
+.rl-i .rl-k{font-weight:800;font-variant-numeric:tabular-nums;min-width:24px;flex:0 0 auto}
+.rl-i .rl-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rl-tabrow{margin-top:8px;color:#e2e8f0;font-weight:700;border-top:1px solid #1e293b;border-radius:0 0 6px 6px;padding-top:8px}
+.rl-tabrow.curtab{color:#7dd3fc}
+/* the sticky tab bar is ~48px tall — hops must land below it */
+.lesson-block,.tab-content>.background-section{scroll-margin-top:56px}
+
+/* Present mode: sections fill the screen, one section per hop */
+body.present main,body.present .constants-bar{max-width:none}
+body.present main{padding:16px 30px}
+body.present .lesson-block{min-height:calc(100vh - 70px)}
+body.present .panel.compact{grid-template-columns:19rem 1fr}
+body.present header{padding:14px 32px}
+body.present header h1{font-size:1.3rem}
+/* rail slims to keys in present mode; hover expands it over the content */
+body.hasrail.present{padding-left:62px}
+body.present #rail{width:62px}
+body.present #rail:hover{width:224px;box-shadow:4px 0 18px rgba(0,0,0,.35)}
+body.present #rail .rl-t{display:none}
+body.present #rail:hover .rl-t{display:inline}
+
+/* ════ RESPONSIVE ════ */
+@media (max-width: 900px){.panel{gap:12px}}
+@media (max-width: 640px){
+  header{padding:16px 14px} header h1{font-size:1.2rem} header .subtitle{font-size:.76rem}
+  .tab-bar{padding:0 8px;top:0} .tab-btn{padding:10px 9px;font-size:.74rem}
+  main{padding:10px 8px;max-width:100%}
+  .scenario-bar{padding:8px 10px;gap:6px} .scenario-bar-label{font-size:.68rem;width:100%;margin-bottom:2px}
+  .scen-btn{padding:5px 10px;font-size:.74rem;flex:1 1 calc(50% - 4px);text-align:center}
+  .background-section{padding:16px 16px} .background-section h2{font-size:1rem}
+  .worked-example,.equation-box{padding:10px 12px;font-size:.82rem}
+  .ctrl{padding:12px} .canvas-wrap{padding:8px} .stats{padding:10px;font-size:.76rem}
+  .constants-bar{padding:0 8px}
+}
+@media (max-width: 380px){ .scen-btn{flex:1 1 100%} header h1{font-size:1.05rem} .tab-btn{padding:8px 7px;font-size:.7rem} }
+</style>
+</style>
+</head>
+<body>
+<!-- hi-icons:start (scripts/module_icons.py — generated; re-run after adding an icon) -->
+<style>.hi{width:1em;height:1em;display:inline-block;vertical-align:-0.125em;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;overflow:visible}.hi-solid{fill:currentColor;stroke:none}</style>
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><defs><symbol id="hi-exclamation-triangle" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></symbol></defs></svg>
+<script>window.HI={svg:function(n,o){o=o||{};var s=o.solid?'-solid':'';return '<svg class="hi'+(o.solid?' hi-solid':'')+(o.cls?' '+o.cls:'')+'"'+(o.tint?' style="color:'+o.tint+'"':'')+(o.label?' role="img" aria-label="'+String(o.label).replace(/"/g,'&quot;')+'"':' aria-hidden="true"')+'><use href="#hi-'+n+s+'"/></svg>';},
+draw:function(c,n,x,y,z,col,o){o=o||{};var sym=document.getElementById('hi-'+n+(o.solid?'-solid':''));if(!c||!sym||typeof Path2D==='undefined')return;var k=(z||16)/24;c.save();c.translate(x,y);c.scale(k,k);c.lineWidth=1.5;c.lineCap='round';c.lineJoin='round';c.strokeStyle=c.fillStyle=col||'#475569';
+[].forEach.call(sym.children,function(e){var a=function(q){return parseFloat(e.getAttribute(q))||0},p=new Path2D(),t=e.tagName.toLowerCase();if(t==='path')p=new Path2D(e.getAttribute('d'));else if(t==='circle')p.arc(a('cx'),a('cy'),a('r'),0,7);else if(t==='ellipse')p.ellipse(a('cx'),a('cy'),a('rx'),a('ry'),0,0,7);else if(t==='rect')p.rect(a('x'),a('y'),a('width'),a('height'));else if(t==='line'){p.moveTo(a('x1'),a('y1'));p.lineTo(a('x2'),a('y2'));}else{var v=(e.getAttribute('points')||'').trim().split(/[\s,]+/).map(parseFloat);for(var i=0;i+1<v.length;i+=2)p[i?'lineTo':'moveTo'](v[i],v[i+1]);if(t==='polygon')p.closePath();}
+if(o.solid)c.fill(p,'evenodd');else c.stroke(p);});c.restore();}};</script>
+<!-- hi-icons:end -->
+
+<nav id="rail" aria-label="Section navigator">
+  <div class="rail-head">
+    <button id="rail-present" type="button" title="Full-screen sections + larger text for the lab-meeting screen">⛶ Present</button>
+    <div class="rail-size">
+      <button id="rail-fminus" type="button" title="Smaller presentation text">A−</button>
+      <button id="rail-fplus" type="button" title="Larger presentation text">A+</button>
+    </div>
+  </div>
+  <div id="rail-body"><!-- built at boot from h2[data-nav] anchors --></div>
+</nav>
+
+<header>
+  <h1>Magnetic Tweezers for Granular Hydrogels</h1>
+  <p class="subtitle">Exploration 01 · McGhee Lab design notebook · an electromagnet, the force it puts on an iron bead, and what that bead does inside a 1–20 kPa gel</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="coil">1. The Coil</button>
+  <button class="tab-btn" data-tab="force">2. The Force</button>
+  <button class="tab-btn" data-tab="gel">3. The Gel</button>
+  <button class="tab-btn cap-tab" data-tab="design">4. The Design</button>
+</div>
+
+<div class="constants-bar">
+<details>
+  <summary>Constants &amp; materials (open from any tab)</summary>
+  <div class="const-body">
+    <h4>Constants</h4>
+    <p>\(\mu_0 = 4\pi\times10^{-7}\ \mathrm{T\,m/A}\)</p>
+    <p>Copper: \(\rho_0 = 1.68\times10^{-8}\ \Omega\,\mathrm{m}\) at 20 °C, \(\alpha = 3.93\times10^{-3}\ \mathrm{K^{-1}}\), density 8960 kg/m³, \(c_p = 385\ \mathrm{J/(kg\,K)}\), melts at 1085 °C</p>
+    <p>Magnet-wire enamel: class F rated 155 °C, class H 180 °C, class 200/220 to 220 °C <span class="src">(the real thermal limit — a slider in Tab 1)</span></p>
+    <h4>Magnetic materials</h4>
+    <p>Soft iron: \(M_s = 1.71\times10^{6}\ \mathrm{A/m}\) ⇒ \(B_{sat} = \mu_0 M_s = 2.15\ \mathrm{T}\)</p>
+    <p>Magnetite Fe₃O₄: \(M_s \approx 4.8\times10^{5}\ \mathrm{A/m}\)</p>
+    <p>Polymer microbead, ~20 % magnetite by volume: \(M_s \approx 1\times10^{5}\ \mathrm{A/m}\) <span class="src">(vendor-dependent by a decade — check the datasheet)</span></p>
+    <h4>Variables</h4>
+    <p>\(N\) turns · \(I\) current (A) · \(J\) current density (A/m²) · \(P\) power (W) · \(f\) winding fill factor (≈0.65)</p>
+    <p>\(N_d\) demagnetizing factor · \(L/D\) core aspect ratio · \(\tau_{LR}\) electrical time constant</p>
+    <p>\(R_t, L_t\) tip radius and length · \(z\) distance from the pole face · \(a\) bead radius · \(V = \tfrac43\pi a^3\)</p>
+    <p>\(E, G, \nu\) gel Young's modulus, shear modulus, Poisson ratio (\(G = E/3\) at \(\nu = \tfrac12\)) · \(u\) bead displacement · \(\tau_{ve} = \eta/G\)</p>
+    <h4>The lab's numbers</h4>
+    <p>GELS microgels: 20–200 µm granules, 1–20 kPa <span class="src">(CAREER Aim 2)</span> · bench supplies: three variable DC units · beads: 1–500 µm iron / iron-oxide</p>
+  </div>
+</details>
+</div>
+
+<div class="constants-bar">
+<details>
+  <summary>Equation index (E1.tab.order — every displayed equation, in order)</summary>
+  <div class="const-body eqindex">
+    <h4>Tab 1 · The Coil</h4>
+    <p><b>E1.1.1</b> · finite solenoid, on axis</p>
+    <p><b>E1.1.2</b> · winding: turns, wire length, resistance</p>
+    <p><b>E1.1.3</b> · <strong>ampere-turns at fixed power</strong> — gauge-independent</p>
+    <p><b>E1.1.4</b> · the iron core: saturation and demagnetization</p>
+    <p><b>E1.1.5</b> · <strong>the shot clock</strong> — adiabatic heating and the action integral</p>
+    <p><b>E1.1.6</b> · electrical time constant \(\tau_{LR}\)</p>
+    <p><b>E1.1.7</b> · a coaxial coil pair on axis (Helmholtz aiding, Maxwell opposing)</p>
+    <p><b>E1.1.8</b> · Helmholtz field and Maxwell gradient at the centre</p>
+    <h4>Tab 2 · The Force</h4>
+    <p><b>E1.2.1</b> · the magnetized tip, on axis</p>
+    <p><b>E1.2.2</b> · the gradient at the face</p>
+    <p><b>E1.2.3</b> · what a bead becomes: induced moment with saturation</p>
+    <p><b>E1.2.4</b> · <strong>the force</strong> \(F = V\,M(B)\,\nabla B\)</p>
+    <h4>Tab 3 · The Gel</h4>
+    <p><b>E1.3.1</b> · <strong>elastic Stokes</strong> — a rigid sphere in an elastic medium</p>
+    <p><b>E1.3.2</b> · the closed form \(u = 2a^2 M_s \nabla B / 9G\)</p>
+    <p><b>E1.3.3</b> · a floor underneath: the depth correction</p>
+    <p><b>E1.3.4</b> · Kelvin–Voigt creep</p>
+    <p class="src" style="grid-column:1/-1">Tab 4 introduces no new equations — it runs E1.1–E1.3 backwards from a target displacement to a coil.</p>
+  </div>
+</details>
+</div>
+
+<main>
+
+<!-- ══════════ TAB 1: THE COIL ══════════ -->
+<section id="tab-coil" class="tab-content active">
+  <div class="insight"><strong>What this notebook is for.</strong> The CAREER proposal's Aim 2 lists <em>"magnetic
+  tweezers on embedded beads"</em> as the way to put a known force on a granular hydrogel if the cells won't cooperate.
+  We do not own one. This tab designs the coil; Tab 2 computes the force it puts on an iron bead; Tab 3 says what
+  that bead does inside a 1–20 kPa gel; Tab 4 runs the whole chain backwards from the displacement you want to the
+  coil you should wind. Every panel ends in a number you can take to the shop, and every number states where its model
+  stops being honest.</div>
+
+  <div class="background-section">
+    <h2 data-nav="1.1" data-title="What a field costs">1.1 · What a field costs</h2>
+    <p>Start with the naive design: a spool of magnet wire, a bench supply, nothing in the middle. The field on the
+    axis of a finite solenoid of \(N\) turns, length \(L\), radius \(R\), carrying current \(I\) is</p>
+    <div class="equation-box"><span class="eqno">E1.1.1</span>
+    $$B(z) = \frac{\mu_0 N I}{2L}\left[\frac{z + L/2}{\sqrt{(z+L/2)^2 + R^2}} - \frac{z - L/2}{\sqrt{(z-L/2)^2 + R^2}}\right]$$</div>
+    <p>and everything about it is set by one product, the <strong>ampere-turns</strong> \(NI\). At the centre of a long
+    coil it tends to \(\mu_0 NI/L\); a 40 mm coil at 1,700 A·turns gives about 50 mT. That is a refrigerator magnet.
+    Before deciding how to get more, be precise about what \(NI\) costs — because the answer is not what most people
+    expect.</p>
+    <p>Wind a bobbin of inner radius \(r_i\), outer radius \(r_o\), length \(L\) with wire of bare cross-section
+    \(A_w\). A fill factor \(f \approx 0.65\) of the window \((r_o - r_i)L\) is copper; the rest is enamel and air:</p>
+    <div class="equation-box"><span class="eqno">E1.1.2</span>
+    $$N = \frac{f\,(r_o - r_i)\,L}{A_w}, \qquad L_{\rm wire} = 2\pi\bar r\,N, \qquad R = \frac{\rho\,L_{\rm wire}}{A_w}$$</div>
+    <p>Now drive it with power \(P = I^2 R\). Substitute \(I = \sqrt{P/R}\) and multiply by \(N\):</p>
+    <div class="equation-box"><span class="eqno">E1.1.3</span>
+    $$NI = \sqrt{\frac{P\,f\,(r_o - r_i)\,L}{\rho\,2\pi\bar r}}$$</div>
+    <div class="insight"><strong>The wire gauge has vanished.</strong> \(A_w\) cancels. For a given bobbin and a given
+    power, thin wire and thick wire deliver <em>identical</em> ampere-turns — thin wire as many turns at low current
+    and high voltage, thick wire as few turns at high current and low voltage. Gauge chooses which bench supply you
+    need. It does not choose the field. What buys field is <strong>power</strong> and <strong>winding volume</strong>,
+    and Tab 1's whole argument is about how much power the copper will tolerate for how long.</div>
+  </div>
+
+  <div class="lesson-block">
+    <div class="background-section">
+      <h2 data-nav="1.2" data-title="The iron core's ceiling">1.2 · The iron core, and its ceiling</h2>
+      <p>Iron multiplies the field — but not by the 5,000 in the handbook. A rod of finite length demagnetizes itself:
+      its own poles push back with a field \(N_d M\), where \(N_d\) is the <em>demagnetizing factor</em> set purely by
+      the aspect ratio \(L/D\). The magnetization the rod actually reaches under an applied \(H\), and the field it
+      produces, are</p>
+      <div class="equation-box"><span class="eqno">E1.1.4</span>
+      $$M = \min\!\left(\frac{H}{N_d + 1/\mu_r},\; M_s\right), \qquad B = \mu_0\,(H + M), \qquad
+      N_d = \frac{1}{m^2-1}\left[\frac{m}{\sqrt{m^2-1}}\ln\!\left(m + \sqrt{m^2-1}\right) - 1\right],\ m = \tfrac{L}{D}$$</div>
+      <p>Two consequences run the design. First, the effective permeability is \(1/N_d\), not \(\mu_r\): an \(L/D = 10\)
+      rod gives about 50, a stubby \(L/D = 2\) slug about 6. <strong>Aspect ratio beats turns.</strong> Second — and this
+      is the ceiling — iron saturates at \(M_s = 1.71\times10^6\) A/m, i.e. \(B_{sat} = \mu_0 M_s = 2.15\) T. Past the
+      ampere-turns that reach it, more current adds only the \(\mu_0 H\) of the empty coil: millitesla per thousand
+      ampere-turns. The designer below draws that knee. Everything to its right is wasted heat.</p>
+    </div>
+    <div class="student-task"><ol>
+      <li>Change the gauge from AWG 22 to AWG 30 at fixed power. Watch N·I <em>not move</em> while turns, current and
+      voltage all change by an order of magnitude. That is E1.1.3 refusing to care.</li>
+      <li>Set the core to <em>air</em> and read B. Now set L/D = 10. Then L/D = 2. The knee moves — a stubby core needs
+      almost ten times the ampere-turns to saturate.</li>
+      <li>Push the power past the knee. B stops at 2.15 T. Find the power where you <em>just</em> saturate: that is the
+      coil worth building, and the design map below tells you how long you can hold it there.</li>
+    </ol></div>
+    <div class="panel compact">
+      <div class="ctrl"><h3>The coil designer</h3>
+        <div class="ctrl-group"><label><span>Wire gauge</span> <span id="v-wind-awg">AWG 22</span></label>
+          <input type="range" id="s-wind-awg" min="18" max="34" step="2" value="22"></div>
+        <div class="ctrl-group"><label><span>Bobbin inner radius</span> <span id="v-wind-ri">6.0 mm</span></label>
+          <input type="range" id="s-wind-ri" min="3" max="12" step="0.5" value="6"></div>
+        <div class="ctrl-group"><label><span>Bobbin outer radius</span> <span id="v-wind-ro">16 mm</span></label>
+          <input type="range" id="s-wind-ro" min="8" max="30" step="1" value="16"></div>
+        <div class="ctrl-group"><label><span>Winding length</span> <span id="v-wind-len">40 mm</span></label>
+          <input type="range" id="s-wind-len" min="15" max="80" step="5" value="40"></div>
+        <div class="ctrl-group"><label><span>Core</span> <span id="v-wind-ld">iron, L/D = 10</span></label>
+          <input type="range" id="s-wind-ld" min="0" max="20" step="1" value="10"></div>
+        <div class="ctrl-group"><label><span>Drive power</span> <span id="v-wind-P">100 W</span></label>
+          <input type="range" id="s-wind-P" min="0" max="3.3" step="0.05" value="2"></div>
+        <div class="ctrl-group"><label><span>Shot length</span> <span id="v-wind-t">100 ms</span></label>
+          <input type="range" id="s-wind-t" min="-2" max="1" step="0.05" value="-1"></div>
+        <div class="ctrl-group"><label><span>Enamel rating</span> <span id="v-wind-tmax">180 °C</span></label>
+          <input type="range" id="s-wind-tmax" min="155" max="220" step="5" value="180"></div>
+        <div class="stats" id="st-wind"></div>
+      </div>
+      <div class="viz">
+        <div class="canvas-wrap"><div class="canvas-title">Field in the core versus ampere-turns: the saturation knee</div><canvas id="cv-wind" width="860" height="300"></canvas></div>
+        <div class="canvas-wrap"><div class="canvas-title">The design map: ampere-turns the copper allows, for a given shot length</div><canvas id="cv-wind2" width="860" height="300"></canvas></div>
+        <div class="val-verdict" id="vd-wind"></div>
+      </div>
+    </div>
+    <details class="worked"><summary><span class="we-title">Turns don't buy field — two gauges, one number</span></summary>
+    <div class="worked-body"><ol class="steps">
+      <li><span class="lead">Write what you know.</span> Bobbin \(r_i = 6\) mm, \(r_o = 16\) mm, \(L = 40\) mm, so the
+      window is 400 mm² and \(\bar r = 11\) mm; \(f = 0.65\); \(P = 100\) W; copper \(\rho = 1.68\times10^{-8}\ \Omega\)m.
+      <div class="step-eq">\(NI = \sqrt{\dfrac{P\,f\,(r_o-r_i)L}{\rho\,2\pi\bar r}}\)</div></li>
+      <li><span class="lead">Substitute — no gauge appears.</span>
+      <div class="step-eq">\(NI = \sqrt{\dfrac{100 \times 0.65 \times 4.0\times10^{-4}}{1.68\times10^{-8}\times 2\pi\times 0.011}} \approx 4.7\times10^{3}\ \text{A·turns}\)</div></li>
+      <li><span class="lead">Now pick a gauge and see what it decides.</span> AWG 22 (0.644 mm bare) fits \(N \approx 680\)
+      turns: \(R = 2.4\ \Omega\), so \(I = \sqrt{P/R} = 6.4\) A at 15.6 V. AWG 30 (0.255 mm) fits \(N \approx 4{,}400\):
+      \(R = 100\ \Omega\), \(I = 1.0\) A at 100 V.
+      <div class="step-eq">\(680 \times 6.4 \approx 4{,}400 \times 1.0 \approx 4.7\times10^{3}\ \text{A·turns}\)</div></li>
+    </ol>
+    <div class="answer">Both coils make 4,700 ampere-turns at 100 W. AWG 22 wants a 6 A / 16 V supply; AWG 30 wants
+    1 A / 100 V. Pick the gauge that matches the bench supply you own — the lab's variable units top out near 30 V, which
+    points at AWG 20–24. The field does not care.</div></div></details>
+    <details class="worked"><summary><span class="we-title">What it takes to saturate the rod</span></summary>
+    <div class="worked-body"><ol class="steps">
+      <li><span class="lead">Write what you know.</span> Iron \(M_s = 1.71\times10^{6}\) A/m. A 12 mm-diameter rod,
+      120 mm long, has \(m = L/D = 10\). Saturation needs the internal field to overcome the demagnetizing field, so
+      the applied \(H\) must reach about \(N_d M_s\).
+      <div class="step-eq">\(N_d(10) = \dfrac{1}{99}\left[\dfrac{10}{\sqrt{99}}\ln\!\left(10+\sqrt{99}\right) - 1\right] = 0.0203\)</div></li>
+      <li><span class="lead">The applied field, then the ampere-turns.</span> Inside a 40 mm winding, \(H \approx NI/L\):
+      <div class="step-eq">\(H_{sat} \approx N_d M_s = 0.0203 \times 1.71\times10^{6} = 3.5\times10^{4}\ \text{A/m}
+      \quad\Longrightarrow\quad NI \approx H_{sat} L = 3.5\times10^{4}\times0.040 \approx 1.4\times10^{3}\ \text{A·turns}\)</div></li>
+      <li><span class="lead">Compare a stubby core.</span> \(L/D = 2\): \(N_d = 0.174\), so
+      <div class="step-eq">\(NI \approx 0.174 \times 1.71\times10^{6} \times 0.040 \approx 1.2\times10^{4}\ \text{A·turns}\)</div></li>
+    </ol>
+    <div class="answer">A long thin rod saturates at ~1,400 A·turns — well inside what 100 W buys. A short fat slug
+    needs ~12,000, which is a kilowatt. The cheapest field you will ever buy is a longer core.</div></div></details>
+  </div>
+
+  <div class="lesson-block">
+    <div class="background-section">
+      <h2 data-nav="1.3" data-title="The shot clock">1.3 · The shot: current, heat, and how long you have</h2>
+      <p>E1.1.3 says field costs power, and power in a coil is heat in copper. Held on, the coil settles where
+      \(I^2R\) balances what its surface can shed — a few watts for a bobbin this size in still air, which is a few
+      thousand ampere-turns at most. But a <em>pulse</em> does not need to shed anything: for a fraction of a second
+      the copper simply absorbs the heat. With current density \(J = I/A_w\), and letting the resistivity climb with
+      temperature as \(\rho = \rho_0(1+\alpha\Delta T)\), the wire's temperature rise obeys</p>
+      <div class="equation-box"><span class="eqno">E1.1.5</span>
+      $$\frac{dT}{dt} = \frac{J^{2}\rho(T)}{d\,c_p} \quad\Longrightarrow\quad
+      \int_0^{t} J^{2}\,dt = \frac{d\,c_p}{\rho_0\,\alpha}\,\ln\!\big(1 + \alpha\,\Delta T\big)$$</div>
+      <p>The right-hand side is the <strong>action integral</strong> — a property of copper and of the temperature you
+      are willing to reach, nothing else. Reach 180 °C (the enamel's class rating) and it is \(2.5\times10^{16}\)
+      A²s/m⁴; reach 1085 °C (the copper melts) and it is \(8.6\times10^{16}\). <strong>The insulation gives out three
+      and a half times sooner than the metal.</strong> A coil does not die by melting; it dies when two adjacent turns
+      touch, and it does that at a temperature the metal barely notices.</p>
+      <p>One more clock. An iron-cored coil is an inductor — a large one:</p>
+      <div class="equation-box"><span class="eqno">E1.1.6</span>
+      $$L_{\rm ind} = \frac{\mu_0\,\mu_{\rm eff}\,N^{2}A_{\rm core}}{L}, \qquad \tau_{LR} = \frac{L_{\rm ind}}{R},
+      \qquad I(t) = I_\infty\left(1 - e^{-t/\tau_{LR}}\right)$$</div>
+      <p>With \(\mu_{\rm eff} \approx 50\) from the demagnetization above, \(\tau_{LR}\) is tens of milliseconds. A
+      10 ms shot never reaches its current, let alone its field. Iron makes the coil strong and slow in the same stroke.</p>
+      <p>One honest calibration before the panel. For a bobbin with a 400 mm² window driven from a 30 V / 5 A bench
+      supply, the copper never gets warm inside a one-second shot — \(J\) is a few A/mm² and the enamel clock reads
+      minutes. The thermal limit bites in two places only: <em>steady</em> drive, where 100 W into a coil that can shed
+      13 W runs away past the rating; and <em>small</em> coils, where the same ampere-turns mean far higher \(J\). For
+      this rig at this size, the limit on the field is your supply, and the design map on the previous panel is what
+      tells you whether that matters.</p>
+    </div>
+    <div class="student-task"><ol>
+      <li>Play a <strong>single shot</strong> at the defaults — a kilowatt for one second. Watch three things happen in
+      order: the current climbs through τ, the temperature climbs, and the current then <em>sags</em> — the copper's
+      resistance is rising under it. Read the wire temperature at the end: warm, not hot.</li>
+      <li>Shorten the shot to 10 ms. The current never plateaus; B never arrives. Now push the power to 10 kW and lengthen
+      the shot until the enamel line is crossed. Between those two failures is the window you can actually use — and
+      notice how far above any bench supply you had to go to find the copper's limit for a bobbin this size.</li>
+      <li>Switch to <strong>steady drive</strong>. At 100 W the temperature runs away past the rating. Cut the power
+      until it settles below it: that is the field you can leave on all afternoon — and it is small.</li>
+    </ol></div>
+    <div class="panel compact">
+      <div class="ctrl"><h3>One shot, watched</h3>
+        <div class="scenario-bar" style="margin-bottom:10px">
+          <button class="scen-btn on" data-widget="shot" data-scen="single" onclick="setScen('shot','single')">single shot</button>
+          <button class="scen-btn" data-widget="shot" data-scen="steady" onclick="setScen('shot','steady')">steady drive</button>
+          <button class="scen-btn" data-widget="shot" data-scen="repeated" onclick="setScen('shot','repeated')">repeated</button>
+        </div>
+        <div class="ctrl-group"><label><span>Drive power (CV supply)</span> <span id="v-shot-P">1,000 W</span></label>
+          <input type="range" id="s-shot-P" min="0" max="4.3" step="0.05" value="3"></div>
+        <div class="ctrl-group"><label><span>Shot length</span> <span id="v-shot-t">1.0 s</span></label>
+          <input type="range" id="s-shot-t" min="-2" max="1" step="0.05" value="0"></div>
+        <div class="ctrl-group"><label><span>Duty (repeated)</span> <span id="v-shot-duty">25 % duty</span></label>
+          <input type="range" id="s-shot-duty" min="0.05" max="1" step="0.05" value="0.25"></div>
+        <p style="font-size:.76rem;color:#64748b;margin-top:6px">Uses the coil from the designer above.</p>
+        <div class="stats" id="st-shot"></div>
+      </div>
+      <div class="viz">
+        <div class="canvas-wrap"><div class="canvas-title">Current, wire temperature and core field through one shot</div><canvas id="cv-shot" width="860" height="360"></canvas></div>
+        <div class="val-verdict" id="vd-shot"></div>
+      </div>
+    </div>
+    <details class="worked"><summary><span class="we-title">The shot clock at 300 A/mm²</span></summary>
+    <div class="worked-body"><ol class="steps">
+      <li><span class="lead">Write what you know.</span> Copper: \(d = 8960\) kg/m³, \(c_p = 385\) J/(kg K),
+      \(\rho_0 = 1.68\times10^{-8}\ \Omega\)m, \(\alpha = 3.93\times10^{-3}\) K⁻¹. Enamel class H: \(\Delta T = 155\) K
+      from a 25 °C room. Melt: \(\Delta T = 1060\) K.
+      <div class="step-eq">\(\displaystyle \int J^2 dt = \frac{d\,c_p}{\rho_0\alpha}\ln(1+\alpha\Delta T),
+      \qquad \frac{d\,c_p}{\rho_0\alpha} = \frac{8960\times385}{1.68\times10^{-8}\times3.93\times10^{-3}} = 5.2\times10^{16}\)</div></li>
+      <li><span class="lead">Two temperatures, two integrals.</span>
+      <div class="step-eq">\(\text{enamel: } 5.2\times10^{16}\ln(1.61) = 2.5\times10^{16}; \qquad
+      \text{melt: } 5.2\times10^{16}\ln(5.17) = 8.6\times10^{16}\ \text{A²s/m⁴}\)</div></li>
+      <li><span class="lead">Divide by \(J^2\) for the time.</span> At \(J = 300\) A/mm² \(= 3\times10^{8}\) A/m²:
+      <div class="step-eq">\(t_{\rm enamel} = \dfrac{2.5\times10^{16}}{9\times10^{16}} = 0.28\ \mathrm{s}, \qquad
+      t_{\rm melt} = \dfrac{8.6\times10^{16}}{9\times10^{16}} = 0.95\ \mathrm{s}\)</div></li>
+      <li><span class="lead">Check the other clock.</span> 600 turns of AWG 22 on a \(\mu_{\rm eff} = 50\) core, 6 mm
+      radius, 40 mm long: \(L_{\rm ind} = \mu_0 \cdot 50 \cdot 600^2 \cdot \pi(0.006)^2/0.04 = 64\) mH; \(R = 2.1\ \Omega\);
+      <div class="step-eq">\(\tau_{LR} = 64\ \mathrm{mH}/2.1\ \Omega \approx 30\ \mathrm{ms}\)</div></li>
+    </ol>
+    <div class="answer">At 300 A/mm² you have 0.28 s before the enamel is at its rating and 0.95 s before the copper
+    melts — and you need at least 3τ ≈ 90 ms for the current to arrive. The usable shot is roughly 0.1–0.25 s. That
+    window, not the field, is what the rest of this notebook has to live inside.</div></div></details>
+  </div>
+
+  <div class="lesson-block">
+    <div class="background-section">
+      <h2 data-nav="1.4" data-title="Helmholtz, Maxwell-wired">1.4 · The other geometry: a Helmholtz pair, wired the Maxwell way</h2>
+      <p>Everything so far pushed field out of one iron pole. There is a second classical answer, and the lab should
+      know why it is not the one we build. Two identical thin coils of radius \(R\), coaxial, a distance \(d\) apart,
+      each carrying \(NI\) ampere-turns, produce on their common axis</p>
+      <div class="equation-box"><span class="eqno">E1.1.7</span>
+      $$B(z) = \frac{\mu_0 N I R^{2}}{2\left[R^{2} + (z - d/2)^{2}\right]^{3/2}} \;\pm\;
+        \frac{\mu_0 N I R^{2}}{2\left[R^{2} + (z + d/2)^{2}\right]^{3/2}}$$</div>
+      <p>With the plus sign (currents aiding) and \(d = R\), the second derivative of \(B\) vanishes at the centre: this
+      is the <strong>Helmholtz pair</strong>, the standard way to make a <em>uniform</em> field. With the minus sign
+      (currents opposing) and \(d = \sqrt{3}\,R\), the <em>third</em> derivative vanishes instead: the field is zero
+      at the centre and its <em>gradient</em> is uniform — the <strong>Maxwell pair</strong>, the standard way to make
+      a uniform gradient (it is how MRI gradient coils began). At the centre,</p>
+      <div class="equation-box"><span class="eqno">E1.1.8</span>
+      $$B_{\rm Helmholtz} = \left(\tfrac{4}{5}\right)^{3/2}\frac{\mu_0 N I}{R} = 0.716\,\frac{\mu_0 N I}{R},
+      \qquad
+      \left.\frac{dB}{dz}\right|_{\rm Maxwell} = \frac{3\sqrt3}{2}\left(\tfrac{4}{7}\right)^{5/2}\frac{\mu_0 N I}{R^{2}} = 0.641\,\frac{\mu_0 N I}{R^{2}}$$</div>
+      <p>Now remember what a bead needs (Tab 2 will derive it): a force needs <em>both</em> a moment and a gradient,
+      \(F = V\,M(B)\,\nabla B\). The Helmholtz pair supplies \(B\) and no gradient: it magnetizes and does not pull.
+      The Maxwell pair supplies a gradient and, at its centre, <em>no field</em>: a soft bead there has no moment
+      and feels nothing. The textbook magnetic tweezer therefore nests both — a Helmholtz <em>bias</em> to set
+      \(M\), a Maxwell <em>gradient</em> to pull — and buys something the iron tip can never offer: the same force on
+      every bead in the sample, computable from the current alone. Run the three wirings below, then read the
+      comparison chart. The price of that uniformity is about two orders of magnitude of force.</p>
+    </div>
+    <div class="student-task"><ol>
+      <li>Start on <strong>Maxwell</strong>. Read the gradient: tens of T/m, flat to a fraction of a percent across the
+      whole sample. Now read the force on the bead at the centre. Zero, to the precision shown — there is no field to
+      magnetize it. A perfect gradient pulling on nothing.</li>
+      <li>Switch to <strong>Helmholtz</strong>. A clean uniform field, no gradient, no force. Drag \(d/R\) off 1 and
+      watch the flatness go.</li>
+      <li>Switch to <strong>bias + gradient</strong>. Now every bead in the ±5 mm window feels the same force — read it,
+      then read the ratio to the iron tip. That ratio is the decision this notebook makes: Tabs 2–4 use the tip.</li>
+      <li>Raise the ampere-turns to their maximum. The pair scales linearly (no iron, no ceiling), but the thermal
+      clock from §1.3 applies to both coils at once — it never closes the gap.</li>
+    </ol></div>
+    <div class="panel compact">
+      <div class="ctrl"><h3>Two coils, three wirings</h3>
+        <div class="scenario-bar" style="margin-bottom:10px">
+          <button class="scen-btn" data-widget="pair" data-scen="helmholtz" onclick="setScen('pair','helmholtz')">Helmholtz</button>
+          <button class="scen-btn on" data-widget="pair" data-scen="maxwell" onclick="setScen('pair','maxwell')">Maxwell</button>
+          <button class="scen-btn" data-widget="pair" data-scen="combo" onclick="setScen('pair','combo')">bias + gradient</button>
+        </div>
+        <div class="ctrl-group"><label><span>Coil radius R</span> <span id="v-pair-R">25 mm</span></label>
+          <input type="range" id="s-pair-R" min="10" max="60" step="1" value="25"></div>
+        <div class="ctrl-group"><label><span>Separation d / R</span> <span id="v-pair-dr">d = 1.73 R</span></label>
+          <input type="range" id="s-pair-dr" min="0.6" max="2.4" step="0.002" value="1.732"></div>
+        <div class="ctrl-group"><label><span>Ampere-turns per coil</span> <span id="v-pair-NI">3,346 A·t / coil</span></label>
+          <input type="range" id="s-pair-NI" min="2" max="4.5" step="0.02" value="3.52"></div>
+        <div class="ctrl-group"><label><span>Bias field (bias + gradient)</span> <span id="v-pair-B0">100 mT</span></label>
+          <input type="range" id="s-pair-B0" min="0" max="300" step="10" value="100"></div>
+        <div class="stats" id="st-pair"></div>
+      </div>
+      <div class="viz">
+        <div class="canvas-wrap"><div class="canvas-title">Field and gradient along the axis of the pair</div><canvas id="cv-pair" width="860" height="300"></canvas></div>
+        <div class="canvas-wrap"><div class="canvas-title">The decision: force on the same bead, this pair versus the iron tip</div><canvas id="cv-pair2" width="860" height="300"></canvas></div>
+        <div class="val-verdict" id="vd-pair"></div>
+      </div>
+    </div>
+    <details class="worked"><summary><span class="we-title">The pair versus the tip, at equal power</span></summary>
+    <div class="worked-body"><ol class="steps">
+      <li><span class="lead">Write what you know.</span> Give the pair the same total 100 W as §1.2's coil, split
+      across two identical bobbins, so each carries \(NI = 4732/\sqrt2 \approx 3350\) A·turns (E1.1.3 with half the
+      power). Take \(R = 25\) mm and the Maxwell spacing \(d = \sqrt3 R\).
+      <div class="step-eq">\(\left.\dfrac{dB}{dz}\right|_0 = 0.641\,\dfrac{\mu_0 NI}{R^2}
+      = 0.641\times\dfrac{4\pi\times10^{-7}\times3350}{(0.025)^2} \approx 4.3\ \mathrm{T/m}\)</div></li>
+      <li><span class="lead">Add the bias so the bead has a moment.</span> A Helmholtz pair at the same \(R\) needs,
+      for \(B_0 = 0.1\) T,
+      <div class="step-eq">\(NI_{\rm bias} = \dfrac{B_0 R}{0.716\,\mu_0} = \dfrac{0.1\times0.025}{0.716\times4\pi\times10^{-7}} \approx 2800\ \text{A·turns per coil}\)</div>
+      — a second pair, and another hundred watts.</li>
+      <li><span class="lead">Force on the 5 µm iron bead</span> (linear regime, \(M = 3B_0/\mu_0\)):
+      <div class="step-eq">\(F = \dfrac{3V}{\mu_0}B_0\,\nabla B = \dfrac{3\times6.5\times10^{-17}}{4\pi\times10^{-7}}\times0.1\times4.3
+      \approx 6.7\times10^{-11}\ \mathrm{N} = 0.07\ \mathrm{nN}\)</div></li>
+      <li><span class="lead">Compare the tip.</span> Tab 2's 0.5 mm iron tip at 0.5 mm puts 37 nN on the same bead with
+      the <em>first</em> 100 W and no bias coil at all.
+      <div class="step-eq">\(\dfrac{F_{\rm tip}}{F_{\rm pair}} \approx \dfrac{37}{0.07} \approx 500\)</div></li>
+    </ol>
+    <div class="answer">Two pairs, 200 W, a force uniform across a centimetre — and five hundred times weaker than one
+    iron tip at half a millimetre. The pair is the instrument you build when you need to <em>calibrate</em> a small
+    force on many beads at once; the tip is the one you build when you need to <em>move</em> a bead in a 5 kPa gel.
+    This notebook needs the second. Tabs 2–4 use the tip.</div></div></details>
+  </div>
+
+  <div class="background-section" style="border-left-color:#0f766e">
+    <div class="key-takeaways"><ul>
+      <li>Ampere-turns at fixed power are gauge-independent (E1.1.3). Gauge picks the supply; power and winding volume pick the field.</li>
+      <li>Iron's ceiling is 2.15 T and its price is the demagnetizing factor: L/D = 10 saturates at ~1,400 A·turns, L/D = 2 at ~12,000 (E1.1.4).</li>
+      <li>The shot clock is the action integral (E1.1.5). Enamel at 180 °C fails 3.5× sooner than copper melts — insulation is the limit.</li>
+      <li>An iron core makes τ<sub>LR</sub> ~ 30 ms (E1.1.6): shots shorter than ~3τ never reach their field. Pulse to buy ~10× the ampere-turns of steady drive, but not too short.</li>
+      <li>A Helmholtz pair magnetizes and does not pull; a Maxwell pair pulls only what is already magnetized (E1.1.7–8). Bias + gradient gives a uniform, calibratable force — about 500× weaker than an iron tip at 0.5 mm. This notebook builds the tip.</li>
+    </ul></div>
+    <div class="handoff"><strong>Next:</strong> the core is saturated at 2.15 T inside. What matters to a bead is the field
+    <em>outside</em> the pole face — and, more than the field, its gradient. Tab 2 draws that field exactly and puts an
+    iron bead in it.</div>
+  </div>
+</section>
+
+<!-- ══════════ TAB 2: THE FORCE ══════════ -->
+<section id="tab-force" class="tab-content">
+  <div class="insight"><strong>The field, not the cartoon.</strong> A saturated iron rod is a uniformly magnetized
+  cylinder, and its field is axisymmetric — so a single (ρ, z) section <em>is</em> the whole answer, and the canvas
+  below computes it from the equivalent current sheet rather than sketching it. What a bead feels is not the field
+  but its gradient, which is why the tip's radius, not the coil's power, is the design variable on this tab.</div>
+
+  <div class="lesson-block">
+    <div class="background-section">
+      <h2 data-nav="2.1" data-title="The field, drawn">2.1 · The field, drawn</h2>
+      <p>On the axis of a cylinder of radius \(R_t\) and length \(L_t\), magnetized to \(M\), the field a distance
+      \(z\) outside the flat pole face is</p>
+      <div class="equation-box"><span class="eqno">E1.2.1</span>
+      $$B(z) = \frac{\mu_0 M}{2}\left[\frac{z + L_t}{\sqrt{(z+L_t)^2 + R_t^2}} - \frac{z}{\sqrt{z^2 + R_t^2}}\right]$$</div>
+      <p>At the face of a long rod this is \(\mu_0 M_s/2 = 1.07\) T — exactly half the 2.15 T inside, because half
+      the flux has already leaked out the sides before it reaches the end. Differentiate once and evaluate close to
+      the face, \(z \ll R_t\):</p>
+      <div class="equation-box"><span class="eqno">E1.2.2</span>
+      $$\left|\frac{dB}{dz}\right|_{z \ll R_t} \approx \frac{\mu_0 M_s}{2\,R_t}$$</div>
+      <p>A 0.5 mm tip gives about 2,000 T/m. A 0.1 mm tip gives 10,000 — and loses it all within a quarter of a
+      millimetre. <strong>Sharper tip, more gradient, less reach.</strong> Working distance is the design decision of
+      this tab, so the lower chart puts <em>several electromagnets</em> against the same bead at once: a sharp tip, a
+      0.5 mm tip, a blunt 2 mm tip, Tab 1's rod exactly as wound with no taper at all, an under-driven core, the
+      §1.4 coil pair, and — as a dashed envelope — the best tip you could turn for each distance. The chips jump the
+      sliders to each one; the bold line is whatever the sliders say now.</p>
+    </div>
+    <div class="student-task"><ol>
+      <li>Read the colour map: the field is 1 T at the face and falls a thousandfold within a few tip radii. Trace a
+      white field line with your eye from the face round to the side of the rod — that is where the flux goes.</li>
+      <li>Step through the <strong>electromagnet</strong> chips and watch the force chart. The sharp tip wins inside
+      0.2 mm and is the worst of all beyond 1 mm; the untapered rod is a poor tweezer everywhere — <em>the taper is
+      the tweezer</em>. The dashed red envelope is the ceiling: no tip beats it at any distance.</li>
+      <li>Shrink the tip radius to 0.1 mm. The gradient at the bead jumps; the force jumps with it. Now move the bead
+      out to 2 mm and watch the force collapse to nothing. Put the tip back to 2 mm radius: weaker up close, far
+      stronger out there.</li>
+      <li>Switch the bead to <strong>magnetite</strong>, then to a <strong>polymer bead</strong>. The saturation
+      boundary on the force chart slides toward the tip. A polymer bead is saturated almost everywhere — its force is
+      set by ∇B alone.</li>
+    </ol></div>
+    <div class="panel compact">
+      <div class="ctrl"><h3>Tip and bead</h3>
+        <div class="scenario-bar" style="margin-bottom:10px">
+          <button class="scen-btn on" data-widget="flux" data-scen="iron" onclick="setScen('flux','iron')">iron bead</button>
+          <button class="scen-btn" data-widget="flux" data-scen="magnetite" onclick="setScen('flux','magnetite')">magnetite</button>
+          <button class="scen-btn" data-widget="flux" data-scen="polymer" onclick="setScen('flux','polymer')">polymer, 20 %</button>
+        </div>
+        <div class="scenario-bar" style="margin-bottom:10px">
+          <span class="scenario-bar-label">electromagnet</span>
+          <button class="scen-btn" data-widget="mag" data-scen="sharp" onclick="magPick('sharp')">sharp 0.1 mm</button>
+          <button class="scen-btn on" data-widget="mag" data-scen="medium" onclick="magPick('medium')">0.5 mm tip</button>
+          <button class="scen-btn" data-widget="mag" data-scen="blunt" onclick="magPick('blunt')">blunt 2 mm</button>
+          <button class="scen-btn" data-widget="mag" data-scen="rod" onclick="magPick('rod')">Tab-1 rod, no taper</button>
+          <button class="scen-btn" data-widget="mag" data-scen="weak" onclick="magPick('weak')">under-driven</button>
+          <button class="scen-btn" data-widget="mag" data-scen="best" onclick="magPick('best')">Tab-4 optimal</button>
+        </div>
+        <div class="ctrl-group"><label><span>Tip radius</span> <span id="v-flux-rt">0.5 mm</span></label>
+          <input type="range" id="s-flux-rt" min="-1.30103" max="0.9" step="0.02" value="-0.30103"></div>
+        <div class="ctrl-group"><label><span>Bead distance z</span> <span id="v-flux-z">0.5 mm</span></label>
+          <input type="range" id="s-flux-z" min="-2.00103" max="1" step="0.02" value="-0.30103"></div>
+        <div class="ctrl-group"><label><span>Bead diameter</span> <span id="v-flux-d">5 µm</span></label>
+          <input type="range" id="s-flux-d" min="-0.00103" max="2.7" step="0.05" value="0.69897"></div>
+        <div class="ctrl-group"><label><span>Core magnetization</span> <span id="v-flux-sat">100 % of M_s</span></label>
+          <input type="range" id="s-flux-sat" min="0.2" max="1" step="0.05" value="1"></div>
+        <div class="stats" id="st-flux"></div>
+      </div>
+      <div class="viz">
+        <div class="canvas-wrap"><div class="canvas-title">The field of the saturated tip, computed: magnitude in colour, field lines in white</div><canvas id="cv-flux" width="860" height="380"></canvas></div>
+        <div class="canvas-wrap"><div class="canvas-title">Force on this bead versus distance, for several electromagnets</div><canvas id="cv-flux2" width="860" height="300"></canvas></div>
+        <div class="val-verdict" id="vd-flux"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="background-section">
+    <h2 data-nav="2.2" data-title="What a bead becomes">2.2 · What a bead becomes in that field</h2>
+    <p>A soft-iron sphere in a field \(B\) magnetizes until its own demagnetizing field (\(N_d = 1/3\) for a sphere)
+    stops it: \(M = 3B/\mu_0\) for \(\mu_r \to \infty\). It cannot exceed the material's \(M_s\), so</p>
+    <div class="equation-box"><span class="eqno">E1.2.3</span>
+    $$M(B) = \min\!\left(\frac{3B}{\mu_0},\; M_s\right), \qquad \text{saturating at } B = \frac{\mu_0 M_s}{3}$$</div>
+    <p>Iron saturates at 0.72 T, magnetite at 0.20 T, a 20 % polymer bead at 0.04 T. Read those against the field
+    map: a 0.5 mm tip puts 0.32 T on a bead 0.5 mm away — an iron bead there is <em>not</em> saturated and a
+    magnetite bead is. <strong>The crossover sits inside the working range</strong>, so the force law has to be
+    computed with it, not assumed either way. The force on an induced dipole is the gradient of its energy:</p>
+    <div class="equation-box"><span class="eqno">E1.2.4</span>
+    $$F = V\,M(B)\,\nabla B \;=\;
+    \begin{cases} \dfrac{3V}{\mu_0}\,B\,\nabla B & \text{linear, } B < \mu_0 M_s/3 \\[6pt] V M_s\,\nabla B & \text{saturated}\end{cases}
+    \qquad V = \tfrac{4}{3}\pi a^{3}$$</div>
+    <p>In both regimes the force is <strong>proportional to the bead's volume</strong>. A 5 µm bead feels 125 times the
+    force of a 1 µm bead; a 20 µm bead, 8,000 times. That is the whole story of bead size on this tab: more iron, more
+    pull, as \(a^3\). Tab 3 will show why it is <em>not</em> the whole story once the bead is in a gel.</p>
+    <details class="worked"><summary><span class="we-title">Two beads, one tip — and which regime each is in</span></summary>
+    <div class="worked-body"><ol class="steps">
+      <li><span class="lead">Write what you know.</span> Tip \(R_t = 0.5\) mm, \(L_t = 40\) mm, saturated iron; bead at
+      \(z = 0.5\) mm. From E1.2.1 and its derivative: \(B = 0.315\) T, \(|\nabla B| = 760\) T/m. Iron bead:
+      \(M_s = 1.71\times10^{6}\) A/m, saturating at \(\mu_0 M_s/3 = 0.716\) T.
+      <div class="step-eq">\(0.315\ \mathrm{T} < 0.716\ \mathrm{T} \quad\Longrightarrow\quad \text{linear regime: } F = \dfrac{3V}{\mu_0} B\,\nabla B\)</div></li>
+      <li><span class="lead">The 5 µm bead.</span> \(a = 2.5\) µm, \(V = \tfrac43\pi a^3 = 6.5\times10^{-17}\) m³:
+      <div class="step-eq">\(F = \dfrac{3\times6.5\times10^{-17}}{4\pi\times10^{-7}}\times0.315\times760 \approx 3.7\times10^{-8}\ \mathrm{N} = 37\ \mathrm{nN}\)</div></li>
+      <li><span class="lead">The 1 µm bead — volume is 125× smaller.</span>
+      <div class="step-eq">\(F = 37\ \mathrm{nN}/125 \approx 0.30\ \mathrm{nN}\)</div></li>
+    </ol>
+    <div class="answer">37 nN on a 5 µm iron bead half a millimetre from a half-millimetre tip; 0.3 nN on a 1 µm bead
+    in the same spot. Had the bead been magnetite (saturates at 0.20 T) it would be saturated here and the force
+    would be \(V M_s \nabla B\) = 24 nN — less, despite the simpler formula, because magnetite carries a third of
+    iron's moment. Regime first, then arithmetic.</div></div></details>
+    <div class="insight"><strong>Honesty line.</strong> E1.2.4 treats the bead as a point dipole. That needs
+    \(a \ll R_t\) and \(a \ll z\): a bead that is not small compared with the tip sits in a field that varies across
+    it and magnetizes the pole back. The force chart draws those beads dashed and grey; the readout flags them. For the
+    500 µm end of the lab's bead range and a sub-millimetre tip, the honest answer is "use a bigger tip or a finite-element
+    model" — not the number.</div>
+    <div class="key-takeaways"><ul>
+      <li>The pole face of a saturated rod carries µ₀M_s/2 = 1.07 T whatever the coil did (E1.2.1); the gradient there is ~µ₀M_s/2R_t (E1.2.2) — the tip radius, not the power, sets the pull.</li>
+      <li>Three regimes with distance: gradient ~B/R_t at the face; B ∝ 1/z², ∇B ∝ 1/z³ for R_t ≪ z ≪ L_t (the face is a magnetic monopole); dipole 1/z⁴ beyond L_t.</li>
+      <li>A bead saturates at B = µ₀M_s/3 (E1.2.3): 0.72 T iron, 0.20 T magnetite. The crossover is inside the working range — compute both regimes.</li>
+      <li>F = V·M(B)·∇B (E1.2.4) is ∝ a³ either way: 5 µm iron at 0.5 mm from a 0.5 mm tip feels ~37 nN.</li>
+    </ul></div>
+    <div class="handoff"><strong>Next:</strong> 37 nN on a bead in water would fling it at the tip. In a gel it moves a
+    distance — and you would guess a bigger bead, with more area to push against, moves <em>less</em> per unit force.
+    Tab 3 asks you to predict how displacement scales with bead size, then measures it.</div>
+  </div>
+</section>
+
+<!-- ══════════ TAB 3: THE GEL ══════════ -->
+<section id="tab-gel" class="tab-content">
+  <div class="insight"><strong>Predict before you look.</strong> Tab 2 left you with a force that grows as the bead's
+  volume, \(a^3\). Now the bead is in a gel, and the gel pushes back. Ask yourself how the pushback scales with bead
+  size before scrolling: a bigger bead has more projected area to press against, so the natural guess is that
+  resistance grows as area, \(a^2\), and displacement — force over resistance — grows as \(a^3/a^2 = a\). Write that
+  down. Then sweep the diameter slider and read the slope.</div>
+
+  <div class="lesson-block">
+    <div class="background-section">
+      <h2 data-nav="3.1" data-title="Predict: what does size do?">3.1 · Predict: what does bead size do to displacement?</h2>
+      <p>The panel uses Tab 2's tip, material and distance, and puts the bead a depth \(h\) above the coverslip in a gel
+      of Young's modulus \(E\). The third chart runs the same electromagnet catalogue as §2.1 against <em>this</em> bead in
+      <em>this</em> gel: displacement against distance, over bands for "too small to track", "linear and honest" and
+      "the model is lying". The magnet to build is the one whose curve crosses the green band at the distance you can
+      hold. Every position of the diameter slider deposits a point on the log-log chart; three
+      points and the panel fits a slope. The dotted line through your current point is what the "projected area"
+      guess predicts — slope 1. If the deposited points follow it, the intuition was right.</p>
+    </div>
+    <div class="student-task"><ol>
+      <li>Leave everything at default and sweep the <strong>diameter</strong> from 1 µm to 100 µm in five or six steps.
+      Read the fitted slope. It is not 1.</li>
+      <li>Move the <strong>modulus</strong> from 5 kPa to 1 kPa. Every point drops by the same factor — the slope does
+      not change. Stiffness scales the answer; it does not bend it.</li>
+      <li>Push the diameter to 100 µm at 1 kPa and read <em>u/a</em>. The verdict turns red: the bead has moved
+      more than its own radius and the linear model has stopped being honest. Note where that boundary is — it is
+      the boundary of every number on this tab.</li>
+      <li>Step through the <strong>electromagnet</strong> chips on the third chart. For a 5 µm bead in 5 kPa the 0.5 mm
+      tip is honest from about 0.3 to 1 mm; the sharp tip only inside 0.15 mm; the untapered rod never reaches the
+      tracking floor past a millimetre. Soften the gel to 1 kPa and every curve rises into the red band — a softer
+      gel wants a blunter magnet or a longer distance, not a stronger one.</li>
+      <li>Switch to <strong>pulse</strong> and shorten the pulse below 3τ<sub>ve</sub>. The bead never reaches its
+      resting displacement. Tab 1's shot clock and this time constant have to be reconciled — Tab 4 does it.</li>
+    </ol></div>
+    <div class="panel compact">
+      <div class="ctrl"><h3>Bead in the gel</h3>
+        <div class="scenario-bar" style="margin-bottom:10px">
+          <button class="scen-btn on" data-widget="embed" data-scen="static" onclick="setScen('embed','static')">static pull</button>
+          <button class="scen-btn" data-widget="embed" data-scen="pulse" onclick="setScen('embed','pulse')">pulse</button>
+        </div>
+        <div class="scenario-bar" style="margin-bottom:10px">
+          <span class="scenario-bar-label">electromagnet</span>
+          <button class="scen-btn" data-widget="mag" data-scen="sharp" onclick="magPick('sharp')">sharp 0.1 mm</button>
+          <button class="scen-btn" data-widget="mag" data-scen="medium" onclick="magPick('medium')">0.5 mm tip</button>
+          <button class="scen-btn" data-widget="mag" data-scen="blunt" onclick="magPick('blunt')">blunt 2 mm</button>
+          <button class="scen-btn" data-widget="mag" data-scen="rod" onclick="magPick('rod')">Tab-1 rod, no taper</button>
+          <button class="scen-btn" data-widget="mag" data-scen="weak" onclick="magPick('weak')">under-driven</button>
+          <button class="scen-btn" data-widget="mag" data-scen="best" onclick="magPick('best')">Tab-4 optimal</button>
+        </div>
+        <div class="ctrl-group"><label><span>Gel modulus E</span> <span id="v-embed-E">5.0 kPa</span></label>
+          <input type="range" id="s-embed-E" min="2" max="5" step="0.05" value="3.7"></div>
+        <div class="ctrl-group"><label><span>Bead diameter</span> <span id="v-embed-d">5 µm</span></label>
+          <input type="range" id="s-embed-d" min="-0.00103" max="2.7" step="0.05" value="0.69897"></div>
+        <div class="ctrl-group"><label><span>Distance to tip z</span> <span id="v-embed-z">0.5 mm</span></label>
+          <input type="range" id="s-embed-z" min="-2.00103" max="1" step="0.02" value="-0.30103"></div>
+        <div class="ctrl-group"><label><span>Gel depth under bead</span> <span id="v-embed-h">300 µm</span></label>
+          <input type="range" id="s-embed-h" min="10" max="500" step="10" value="300"></div>
+        <div class="ctrl-group"><label><span>Gel viscosity</span> <span id="v-embed-eta">100 Pa·s</span></label>
+          <input type="range" id="s-embed-eta" min="0" max="3" step="0.1" value="2"></div>
+        <div class="ctrl-group"><label><span>Pulse length</span> <span id="v-embed-tp">316 ms</span></label>
+          <input type="range" id="s-embed-tp" min="-2" max="1" step="0.05" value="-0.5"></div>
+        <p style="font-size:.76rem;color:#64748b;margin-top:6px">Tip radius and bead material come from Tab 2.</p>
+        <div class="stats" id="st-embed"></div>
+      </div>
+      <div class="viz">
+        <div class="canvas-wrap"><div class="canvas-title">The gel deforms: dot lattice displaced by the exact rigid-sphere field</div><canvas id="cv-embed" width="860" height="340"></canvas></div>
+        <div class="canvas-wrap"><div class="canvas-title">Displacement versus bead diameter: your deposited points, the fit, and the area guess</div><canvas id="cv-embed2" width="860" height="300"></canvas></div>
+        <div class="canvas-wrap"><div class="canvas-title">Displacement of this bead versus distance, for several electromagnets</div><canvas id="cv-embed3" width="860" height="320"></canvas></div>
+        <div class="val-verdict" id="vd-embed"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="background-section">
+    <h2 data-nav="3.2" data-title="The reveal: slope two">3.2 · The reveal — the gel resists like a radius, not an area</h2>
+    <p>The slope is 2. Displacement grows as \(a^2\), not \(a\). The projected-area guess undercounted by a full
+    power of the radius, and the reason is worth owning because it recurs everywhere in soft-matter mechanics.
+    A rigid sphere of radius \(a\) pulled through an elastic medium of shear modulus \(G\) and Poisson ratio \(\nu\)
+    by a force \(F\) displaces by</p>
+    <div class="equation-box"><span class="eqno">E1.3.1</span>
+    $$u = \frac{F\,(5 - 6\nu)}{24\pi\,G\,a\,(1-\nu)} \;\xrightarrow{\;\nu = 1/2\;}\; u = \frac{F}{6\pi G a},
+    \qquad G = \frac{E}{2(1+\nu)} = \frac{E}{3}$$</div>
+    <p>This is Stokes' law with \(G\) in place of \(\eta v\) — the <strong>elastic Stokes law</strong> — and its
+    denominator carries a single power of \(a\). Why not area? Because the medium's resistance is not a contact
+    pressure on the bead's face; it is strain in a shell of gel that extends about one radius out. The strain is
+    \(u/a\), the stress is \(G\,u/a\), and it acts over an area \(\sim a^2\): force \(\sim G\,u\,a\). The area and the
+    strain trade one power of \(a\) between them. Combine with Tab 2's force and the saturated closed form is</p>
+    <div class="equation-box"><span class="eqno">E1.3.2</span>
+    $$u = \frac{V M_s \nabla B}{6\pi G a} = \frac{2\,a^{2} M_s\,\nabla B}{9\,G}$$</div>
+    <div class="insight"><strong>Bigger beads are the cheap upgrade.</strong> Double the bead and you get eight times
+    the force against twice the resistance — four times the displacement, for free. For a tracking experiment
+    fighting a 20 nm noise floor, bead diameter is worth more than any coil change on Tab 1.</div>
+    <details class="worked"><summary><span class="we-title">The slope, by hand — and what area would have said</span></summary>
+    <div class="worked-body"><ol class="steps">
+      <li><span class="lead">Write what you know.</span> Saturated bead, so E1.3.2 applies. Compare \(a_1 = 2.5\) µm
+      and \(a_2 = 25\) µm at the same \(\nabla B\) and \(G\).
+      <div class="step-eq">\(\dfrac{u_2}{u_1} = \left(\dfrac{a_2}{a_1}\right)^{2} = 10^{2} = 100
+      \qquad\Longrightarrow\qquad \text{slope} = \dfrac{\log 100}{\log 10} = 2.00\)</div></li>
+      <li><span class="lead">What the area guess predicts.</span> Force \(\propto a^3\), resistance \(\propto a^2\):
+      <div class="step-eq">\(\dfrac{u_2}{u_1} = \dfrac{a_2}{a_1} = 10 \qquad\Longrightarrow\qquad \text{slope} = 1\)</div></li>
+      <li><span class="lead">Put a real number on it.</span> 5 µm iron bead, \(E = 5\) kPa (\(G = 1667\) Pa), saturated
+      at \(\nabla B = 2000\) T/m:
+      <div class="step-eq">\(u = \dfrac{2\times(2.5\times10^{-6})^{2}\times1.71\times10^{6}\times2000}{9\times1667}
+      \approx 2.8\ \mu\mathrm{m}\)</div></li>
+    </ol>
+    <div class="answer">The deposited points read ≈1.96; the area guess said 1. (The missing 0.04 is E1.3.3 — the depth
+    correction shaves the largest beads; deepen the gel and the slope walks to 2.00.) A 50 µm bead moves a hundred times
+    further than a 5 µm one, not ten times. (And 2.8 µm on a 2.5 µm radius is u/a &gt; 1 — the model has already
+    broken for that soft a gel; see the honesty line.)</div></div></details>
+  </div>
+
+  <div class="background-section">
+    <h2 data-nav="3.3" data-title="Depth, creep, honesty">3.3 · A floor underneath, a clock inside, and where the model stops</h2>
+    <p>Two corrections matter at the lab's scales. A bead a depth \(h\) above the coverslip feels the glass through the
+    gel — a Faxén-type stiffening,</p>
+    <div class="equation-box"><span class="eqno">E1.3.3</span>
+    $$u \;\to\; \frac{u}{1 + 9a/8h}$$</div>
+    <p>a 23 % effect for a 10 µm bead 50 µm up. And a hydrogel is viscoelastic: pulled suddenly it creeps toward its
+    resting displacement with a time constant \(\tau_{ve} = \eta/G\), then recovers when the field drops —</p>
+    <div class="equation-box"><span class="eqno">E1.3.4</span>
+    $$u(t) = u_\infty\left(1 - e^{-t/\tau_{ve}}\right), \qquad \tau_{ve} = \frac{\eta}{G}$$</div>
+    <p>For a 5 kPa gel with an effective viscosity of 100 Pa·s that is 60 ms; for 1 kPa it is 300 ms. Set that
+    beside Tab 1's shot clock — 280 ms to the enamel limit at 300 A/mm² — and the design problem announces itself:
+    <strong>the pulse has to outlast the gel's clock and end before the copper's.</strong> For soft gels those two
+    windows can fail to overlap. Tab 4 checks.</p>
+    <details class="worked"><summary><span class="we-title">Outlasting the gel</span></summary>
+    <div class="worked-body"><ol class="steps">
+      <li><span class="lead">Write what you know.</span> \(\eta = 100\) Pa·s. Gel A: \(E = 5\) kPa, \(G = 1667\) Pa.
+      Gel B: \(E = 1\) kPa, \(G = 333\) Pa. The shot clock from Tab 1 at \(J = 300\) A/mm²: 0.28 s to the enamel rating.
+      <div class="step-eq">\(\tau_{ve} = \eta/G, \qquad \text{need } t_{\rm pulse} \gtrsim 3\tau_{ve} \text{ to reach } 95\% \text{ of } u_\infty\)</div></li>
+      <li><span class="lead">Gel A.</span>
+      <div class="step-eq">\(\tau_{ve} = 100/1667 = 0.06\ \mathrm{s}, \qquad 3\tau_{ve} = 0.18\ \mathrm{s} < 0.28\ \mathrm{s}\ \checkmark\)</div></li>
+      <li><span class="lead">Gel B.</span>
+      <div class="step-eq">\(\tau_{ve} = 100/333 = 0.30\ \mathrm{s}, \qquad 3\tau_{ve} = 0.90\ \mathrm{s} > 0.28\ \mathrm{s}\ \times\)</div></li>
+      <li><span class="lead">What fixes B.</span> The enamel time goes as \(1/J^2\): halve \(J\) (thicker wire at the same
+      ampere-turns, E1.1.3) and the clock quadruples to 1.1 s — enough.
+      <div class="step-eq">\(t_{\rm enamel} \propto J^{-2}: \quad 0.28\ \mathrm{s} \times 4 = 1.1\ \mathrm{s} > 0.90\ \mathrm{s}\ \checkmark\)</div></li>
+    </ol>
+    <div class="answer">A 5 kPa gel is comfortably inside the shot window; a 1 kPa gel is not, and the fix is thicker
+    wire, not more power. This is why Tab 4 carries both clocks in its ledger.</div></div></details>
+    <div class="insight"><strong>Honesty line.</strong> E1.3.1 assumes a linear, isotropic, incompressible, infinite
+    medium with small strain (\(u/a \lesssim 0.1\); tolerable to ~0.3). A granular hydrogel is none of those at the
+    granule scale — this is the continuum limit, honest when the bead is much larger than a granule and much smaller
+    than its displacement is not. The verdict flags \(u/a\) in three bands; treat red as "the number is wrong," not
+    "the number is approximate." And the 20–50 nm tracking floor is a microscope limit, not a physics one.</div>
+    <div class="key-takeaways"><ul>
+      <li>Elastic Stokes (E1.3.1): u = F/(6πGa) at ν = ½. The gel resists like a <em>radius</em> — strain u/a over area a² — not like an area.</li>
+      <li>Force ∝ a³ over resistance ∝ a gives u ∝ a² (E1.3.2): doubling the bead quadruples the displacement. Bead size is the cheapest gain in the whole rig.</li>
+      <li>Creep clock τ<sub>ve</sub> = η/G (E1.3.4) is ~0.06–0.3 s for 1–5 kPa gels — the same order as the enamel shot clock. The pulse must fit between them.</li>
+      <li>Trust the linear model only for u/a ≲ 0.1–0.3. Stiff gels and small beads are where it is honest.</li>
+    </ul></div>
+    <div class="handoff"><strong>Next:</strong> every equation in this notebook is now on the bench. Tab 4 runs them
+    backwards: name the displacement you want to see, and it tells you the coil, the current, and how long you may hold
+    the switch.</div>
+  </div>
+</section>
+
+<!-- ══════════ TAB 4: THE DESIGN ══════════ -->
+<section id="tab-design" class="tab-content">
+  <div class="insight"><strong>The chain, backwards.</strong> A displacement you want to measure sets the force you need
+  (E1.3.1); the working distance sets the best tip and the force it can deliver (E1.2.1–4); the core's aspect ratio
+  sets the ampere-turns to saturate it (E1.1.4); the bobbin turns those into volts, amps and watts (E1.1.2–2); the
+  current density sets how long the enamel lasts (E1.1.5); and two time constants — the coil's and the gel's — say how
+  long the shot must be (E1.1.6, E1.3.4). Every row of the ledger below cites the equation it reuses. Green means build it.</div>
+
+  <div class="lesson-block">
+    <div class="background-section">
+      <h2 data-nav="4.1" data-title="The design ledger">4.1 · Name the displacement, get the coil</h2>
+      <p>The calculator uses Tab 1's designer for the bobbin and core and chooses the tip radius for you — the
+      \(R_t\) that maximizes force at your working distance, which sits near \(R_t \approx z\). Set the target, the
+      gel, the bead and the distance. The ledger lights up row by row; the verdict is the sentence to take to the shop.</p>
+    </div>
+    <div class="student-task"><ol>
+      <li>Read the default ledger: 1 µm on a 10 µm iron bead in 5 kPa, half a millimetre out. It passes. Now drop the
+      bead to 5 µm. Watch which row fails first, and read the verdict's suggested fix.</li>
+      <li>Soften the gel to 1 kPa. The force required falls — and the "shot must last" row grows, because
+      τ<sub>ve</sub> grew. Find the modulus at which the two clocks cross.</li>
+      <li>Move the working distance to 2 mm. The optimal tip grows with it, the available force collapses. Distance
+      is the one thing this rig cannot buy back with power.</li>
+      <li>Go back to Tab 1 and change the gauge. Return: nothing in the ledger changed except volts and amps. E1.1.3,
+      one more time.</li>
+    </ol></div>
+    <div class="panel compact">
+      <div class="ctrl"><h3>Target and setting</h3>
+        <div class="scenario-bar" style="margin-bottom:10px">
+          <button class="scen-btn on" data-widget="spec" data-scen="iron" onclick="setScen('spec','iron')">iron bead</button>
+          <button class="scen-btn" data-widget="spec" data-scen="magnetite" onclick="setScen('spec','magnetite')">magnetite</button>
+          <button class="scen-btn" data-widget="spec" data-scen="polymer" onclick="setScen('spec','polymer')">polymer, 20 %</button>
+        </div>
+        <div class="ctrl-group"><label><span>Target displacement</span> <span id="v-spec-u">1 µm</span></label>
+          <input type="range" id="s-spec-u" min="-2" max="1.3" step="0.05" value="0"></div>
+        <div class="ctrl-group"><label><span>Gel modulus E</span> <span id="v-spec-E">5.0 kPa</span></label>
+          <input type="range" id="s-spec-E" min="2" max="5" step="0.05" value="3.7"></div>
+        <div class="ctrl-group"><label><span>Bead diameter</span> <span id="v-spec-d">10 µm</span></label>
+          <input type="range" id="s-spec-d" min="-0.00103" max="2.7" step="0.05" value="0.99897"></div>
+        <div class="ctrl-group"><label><span>Working distance z</span> <span id="v-spec-z">0.5 mm</span></label>
+          <input type="range" id="s-spec-z" min="-2.00103" max="1" step="0.02" value="-0.30103"></div>
+        <div class="ctrl-group"><label><span>Minimum pulse you want</span> <span id="v-spec-tp">300 ms</span></label>
+          <input type="range" id="s-spec-tp" min="-2" max="1" step="0.05" value="-0.52"></div>
+        <div class="ctrl-group"><label><span>Gel viscosity</span> <span id="v-spec-eta">100 Pa·s</span></label>
+          <input type="range" id="s-spec-eta" min="0" max="3" step="0.1" value="2"></div>
+        <p style="font-size:.76rem;color:#64748b;margin-top:6px">Coil and core come from Tab 1's designer.</p>
+        <div class="stats" id="st-spec"></div>
+      </div>
+      <div class="viz">
+        <div class="canvas-wrap"><div class="canvas-title">The ledger</div><div id="lg-spec"></div></div>
+        <div class="canvas-wrap"><div class="canvas-title">Feasibility: what this rig can deliver versus bead diameter, target marked</div><canvas id="cv-spec" width="860" height="300"></canvas></div>
+        <div class="val-verdict" id="vd-spec"></div>
+      </div>
+    </div>
+    <details class="worked"><summary><span class="we-title">The whole chain for one target — and the first design that fails</span></summary>
+    <div class="worked-body"><ol class="steps">
+      <li><span class="lead">Write what you want.</span> \(u = 1\) µm on a 5 µm iron bead (\(a = 2.5\) µm) in a 5 kPa
+      gel (\(G = 1667\) Pa), \(z = 0.5\) mm from the tip, 100 µm above the glass.
+      <div class="step-eq">\(F_{\rm req} = 6\pi G a\,u\,(1 + 9a/8h) = 6\pi\times1667\times2.5\times10^{-6}\times10^{-6}\times1.03 \approx 81\ \mathrm{nN}\)</div></li>
+      <li><span class="lead">What the best tip can deliver there.</span> At \(z = 0.5\) mm the force-maximizing tip is
+      \(R_t \approx 1.2\) mm (the panel scans for it): \(B = 0.66\) T, \(\nabla B = 700\) T/m, iron bead still in its
+      linear regime. The force comes out near 73 nN — and there is a second problem: \(u/a = 1/2.5 = 0.4\), outside
+      the linear gel model.
+      <div class="step-eq">\(F_{\rm avail} \approx 73\ \mathrm{nN} < 83\ \mathrm{nN}\ (\text{margin } 0.9), \qquad u/a = 0.4 > 0.3
+      \quad\Longrightarrow\quad \text{FAIL on force and on validity}\)</div></li>
+      <li><span class="lead">The fix is the bead, not the coil.</span> Double it to 10 µm: force ×8, resistance ×2, and
+      the same 1 µm is now only 0.2 of a radius.
+      <div class="step-eq">\(F_{\rm req} \to 2\times83 = 166\ \mathrm{nN}, \qquad F_{\rm avail} \to 8\times73 = 580\ \mathrm{nN}
+      \quad\Longrightarrow\quad \text{margin} \approx 3.5, \quad u/a = 0.2\ \checkmark\)</div></li>
+      <li><span class="lead">Close the coil side.</span> L/D = 10 saturates at ~1,500 A·turns; on the AWG 22 bobbin that
+      is 2.2 A at 5.4 V (12 W), \(J = 7\) A/mm², enamel time about nine minutes — and \(\tau_{LR} \approx 33\) ms,
+      \(\tau_{ve} = 60\) ms, so a 300 ms shot clears both clocks.
+      <div class="step-eq">\(t_{\rm shot} = 0.3\ \mathrm{s} > \max(3\tau_{LR},\,3\tau_{ve}) = 0.18\ \mathrm{s}\ \checkmark, \qquad t_{\rm shot} \ll t_{\rm enamel}\ \checkmark\)</div></li>
+    </ol>
+    <div class="answer">The 5 µm design fails twice — 10 % short on force and 30 % past the strain limit; the 10 µm
+    design passes with margin ×3.5 and a coil that barely warms up. Read that as the notebook's closing lesson: at half a millimetre the force side is the bottleneck,
+    and bead size — u ∝ a² — is the cheapest lever in the whole chain. (Numbers in steps 2–3 are the panel's; nudge the
+    sliders to see them exactly.)</div></div></details>
+  </div>
+
+  <div class="lesson-block">
+    <div class="background-section">
+      <h2 data-nav="4.2" data-title="The object, dimensioned">4.2 · The object, dimensioned</h2>
+      <p>A ledger is not a part. This section draws the rig the calculator converged on — Tab 1's bobbin and core,
+      Tab 4's tip radius — to scale, with the dimensions a machinist and a winder need, and lists everything you would
+      order. Change anything on Tab 1 or above and the drawing follows.</p>
+    </div>
+    <div class="student-task"><ol>
+      <li>Read the dimension lines: core length and diameter, winding length, outer diameter, tip diameter, taper
+      length, working distance. Those seven numbers are the machine-shop request.</li>
+      <li>Read the wire row of the bill of materials: layers × turns per layer. Now go to Tab 1 and change AWG 22 to
+      AWG 30 — the layer count quadruples while the field does not move. Choose the gauge for the winder's sanity and
+      the supply you own.</li>
+      <li>Read the electrical row's stored energy and the diode spec. That diode is the difference between a MOSFET
+      that lasts and one that does not.</li>
+    </ol></div>
+    <div class="panel compact">
+      <div class="ctrl"><h3>Build sheet</h3>
+        <p style="font-size:.8rem;color:#475569;margin:2px 0 8px">Geometry from Tab 1's designer; tip radius, drive and shot from the ledger above. Nothing to set here — this is the output.</p>
+        <div class="stats" id="st-sheet"></div>
+      </div>
+      <div class="viz">
+        <div class="canvas-wrap"><div class="canvas-title">Section through the axis, to scale, with dimensions</div><canvas id="cv-sheet" width="860" height="360"></canvas></div>
+        <div class="canvas-wrap"><div class="canvas-title">Bill of materials</div><div id="bom-sheet"></div></div>
+        <div class="val-verdict" id="vd-sheet"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="background-section">
+    <h2 data-nav="4.3" data-title="How to make it">4.3 · How to make it, and how to know it works</h2>
+    <p>In the order the shop would do it. Each step names the number from this notebook that it has to hit.</p>
+    <ol>
+      <li><strong>Turn the core.</strong> Soft iron or 1018 low-carbon steel rod at the diameter and length on the
+      sheet (the L/D you chose on Tab 1 is the demagnetizing factor — E1.1.4 — do not shorten it to save stock).
+      Turn one end down to the tip diameter over the 30° taper; face and polish the tip flat. If the shop can
+      anneal it afterwards (~800 °C, slow cool), do: machining work-hardens the surface and raises coercivity, which
+      leaves a remanent field after each shot.</li>
+      <li><strong>Make the bobbin.</strong> ID a sliding fit on the core, OD and flange spacing from the sheet. The
+      bobbin sits <em>inside</em> the hottest copper, so its material must outlast the enamel class (§1.3): PEEK,
+      glass-filled nylon or Delrin — not PLA, which softens near 60 °C.</li>
+      <li><strong>Wind it.</strong> Magnet wire of the sheet's gauge and enamel class, the sheet's number of turns as
+      layers × turns-per-layer, under light constant tension. A strip of Kapton or Nomex every three or four layers
+      protects the outer turns during a hot shot. Bring both leads out through one flange; strain-relieve them.
+      Measure the DC resistance and compare with the sheet's \(R\) — within 5 % means you have the turns you think
+      you have (E1.1.2).</li>
+      <li><strong>Pot or varnish.</strong> A dip in electrical varnish stops the turns moving under their own magnetic
+      forces (they do — \(J \times B\) on every turn is real at these currents).</li>
+      <li><strong>Wire the driver.</strong> Bench supply in constant-voltage mode at the sheet's voltage, a
+      logic-level MOSFET low-side switch, a flyback diode across the coil rated per the sheet, a gate signal from a
+      timer or microcontroller set to the shot length. Note the diode makes the turn-off tail as long as the turn-on
+      rise — \(\tau_{LR}\) both ways (E1.1.6). If you need a fast release, put a Zener or a resistor in series with the
+      diode and accept the higher kick.</li>
+      <li><strong>Mount and align.</strong> Core axis horizontal on an xyz micromanipulator; the pole face approaches
+      the sample from the side at the working distance \(z\). Because force falls roughly as \(z^{-3}\) here, the
+      repeatability of \(z\) <em>is</em> the repeatability of the force — fix \(z\) with a hard stop, not by eye.</li>
+      <li><strong>Calibrate before believing anything.</strong> Three checks, cheapest first. (a) Resistance, above.
+      (b) Field: a Hall probe against the face should read near \(\mu_0 M_s/2 \approx 1\) T at the saturating current
+      (E1.2.1) — most cheap probes top out at 0.3–0.5 T, so use the gaussmeter in the MSE core or read the field a
+      few millimetres out and compare with E1.2.1's fall-off. (c) Force: a bead in a gel of <em>known</em> modulus
+      (or a bead in glycerol, where Stokes drag \(6\pi\eta a v\) gives the force from the speed) — the displacement
+      or velocity should match Tab 3 within the honesty band. If (c) disagrees with (b) by more than the point-dipole
+      caveat allows, the bead's \(M_s\) is not what the datasheet says; measure it.</li>
+      <li><strong>Then the experiment.</strong> Gel on a coverslip at the depth \(h\) you used on Tab 3, beads sparse
+      (beads closer than ~10 diameters shadow each other), shots no longer than the sheet's enamel time and no shorter
+      than \(3\tau_{ve}\) — and a thermocouple under the outer layer wired to stop the driver at the enamel rating.</li>
+    </ol>
+    <div class="insight"><strong>Honesty line.</strong> The drawing models the pole as a cylinder of radius \(R_t\); the
+    real part is a 30° cone ending in that cylinder, and the field in the cone's neck runs above the shank's until the
+    neck saturates — which it does first, and which is fine, because a saturated tip is what Tab 2 assumed. The BOM's
+    thermal numbers are the adiabatic estimates of §1.3 with one convective coefficient; a potted coil sheds heat
+    faster, an enclosed one slower. Treat the enamel time as a ceiling, and the thermocouple as the truth.</div>
+  </div>
+
+  <div class="background-section" style="border-left-color:#0f766e">
+    <div class="key-takeaways"><ul>
+      <li>Design from the displacement backwards: F<sub>req</sub> = 6πG·a·u fixes the force, the working distance fixes the tip and the force available, the core fixes the ampere-turns, the copper fixes the clock.</li>
+      <li>The tip radius that maximizes force at distance z sits near R<sub>t</sub> ≈ z. Distance is the one variable power cannot buy back.</li>
+      <li>Two clocks must nest: the shot must outlast 3τ<sub>LR</sub> and 3τ<sub>ve</sub> and end before the enamel's action integral runs out.</li>
+      <li>When the ledger fails on force, change the bead before the coil: u ∝ a² is the cheapest gain on the bench.</li>
+      <li>The part: one turned rod (L/D from Tab 1, a 30° taper to Tab 4's tip radius), one bobbin that outlasts the enamel, layers × turns of magnet wire, a diode and a MOSFET — and three calibrations before you trust a number.</li>
+    </ul></div>
+    <div class="shop">Default rig: ~680 turns of AWG 22 on a 12 × 40 mm bobbin around a 12 mm × 120 mm soft-iron rod
+    (L/D = 10), tip turned to ~1 mm radius. Drive at ~5 V / 2 A for 0.3 s to saturate the core; expect ~1 µm on a 10 µm
+    iron bead in 5 kPa gel half a millimetre from the face. The enamel gives you seconds at this current — the field
+    runs out long before the wire does.</div>
+  </div>
+</section>
+
+<div class="sources">
+  <h2>Sources</h2>
+  <ol>
+    <li>Osborn JA (1945). Demagnetizing factors of the general ellipsoid. <em>Physical Review</em> 67(11–12):351–357. <a href="https://doi.org/10.1103/PhysRev.67.351">doi:10.1103/PhysRev.67.351</a> — the prolate-ellipsoid \(N_d(L/D)\) of E1.1.4 (Tab 1). <!-- CITE-PASS: verify pages/DOI --></li>
+    <li>Onderdonk's adiabatic fusing relation, as tabulated in IPC-2221 and the IEEE Std 80 conductor-heating derivation — the action-integral form of E1.1.5 (Tab 1). <!-- CITE-PASS: pin a primary citation --></li>
+    <li>Jackson JD (1999). <em>Classical Electrodynamics</em>, 3rd ed. Wiley — finite solenoid (E1.1.1), uniformly magnetized cylinder and the equivalent current sheet (E1.2.1), induced moment of a permeable sphere (E1.2.3).</li>
+    <li>Phan-Thien N (1993). Rigid spherical inclusion: the multipole expansion. <em>Journal of Elasticity</em> 32:243–252. <a href="https://doi.org/10.1007/BF00131663">doi:10.1007/BF00131663</a> — the general-ν rigid-sphere displacement of E1.3.1 (Tab 3). <!-- CITE-PASS: verify pages/DOI --></li>
+    <li>Ziemann F, Rädler J, Sackmann E (1994). Local measurements of viscoelastic moduli of entangled actin networks using an oscillating magnetic bead micro-rheometer. <em>Biophysical Journal</em> 66(6):2210–2216. <a href="https://doi.org/10.1016/S0006-3495(94)81017-3">doi:10.1016/S0006-3495(94)81017-3</a> — magnetic-bead microrheology with F = 6πGa·u in use (Tab 3). <!-- CITE-PASS: verify --></li>
+    <li>Bausch AR, Ziemann F, Boulbitch AA, Jacobson K, Sackmann E (1998). Local measurements of viscoelastic parameters of adherent cell surfaces by magnetic bead microrheometry. <em>Biophysical Journal</em> 75(4):2038–2049. <a href="https://doi.org/10.1016/S0006-3495(98)77646-5">doi:10.1016/S0006-3495(98)77646-5</a> — the geometry factor and depth effects behind E1.3.4 (Tab 3). <!-- CITE-PASS: verify --></li>
+    <li>Kollmannsberger P, Fabry B (2011). Linear and nonlinear rheology of living cells. <em>Annual Review of Materials Research</em> 41:75–97. <a href="https://doi.org/10.1146/annurev-matsci-062910-100351">doi:10.1146/annurev-matsci-062910-100351</a> — review of magnetic-tweezer force calibration and the linear-strain limit (Tabs 2–3). <!-- CITE-PASS: verify --></li>
+    <li>McGhee Lab, GELS CAREER proposal (2026), Aim 2 — granular hydrogels at 1–20 kPa, 20–200 µm granules; magnetic tweezers on embedded beads as the controlled-force fallback (the reason this notebook exists).</li>
+  </ol>
+</div>
+
+</main>
+
+<footer>
+  McGhee Lab · University of Arizona · Exploration module 01 — a design notebook, not a course assignment.<br>
+  Every number here is a model with a stated domain; the honesty lines beside each simulation say where the model stops being trustworthy. Copy freely.
+</footer>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   EXPLORATION 01 — Magnetic tweezers for granular hydrogels.
+   House helpers and the learning-module framework are copied verbatim
+   from the Week-2 module (see modules/AUTHORING.md §5, §9). Tab keys:
+   coil / force / gel / design. Widget keys: wind, shot, flux, embed, spec.
+   UNITS: SI internally (m, A, T, s, Pa) — readouts format to mm/µm/nN.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── palette ── */
+const COL = {
+  gas:'#2563eb', gasHot:'#ef4444', tracer:'#7c3aed', wallFlash:'#f59e0b',
+  walker:'#7c3aed', cloud:'#ddd6fe', theory:'#94a3b8', fitline:'#ef4444',
+  hist:'#93c5fd', histEdge:'#2563eb', overlay:'#ef4444',
+  bead:'#7c3aed', drift:'#ef4444', data:'#2563eb', curve:'#2563eb',
+  good:'#10b981', bad:'#ef4444', warn:'#f59e0b',
+  grid:'#e2e8f0', axis:'#64748b', text:'#1e293b'
+};
+
+/* ── math / canvas / DOM helpers (house pattern, copied verbatim) ── */
+function randn(){ let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function gaussOf(rng){ let u=0,v=0; while(u===0)u=rng(); while(v===0)v=rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function fmt(v,d){ if(!isFinite(v))return '—'; const a=Math.abs(v);
+  if(a>=1000)return v.toLocaleString('en-US',{maximumFractionDigits:d===undefined?0:d});
+  if(a>=1)return v.toFixed(d===undefined?2:d);
+  if(a>=0.001||a===0)return v.toFixed(d===undefined?3:d);
+  return v.toExponential(d===undefined?2:d); }
+function niceTicks(lo,hi,n){ if(hi<=lo)return [lo]; const range=hi-lo, rough=range/Math.max(n,1),
+  mag=Math.pow(10,Math.floor(Math.log10(rough))); let step;
+  if(rough/mag<1.5)step=mag; else if(rough/mag<3.5)step=2*mag; else if(rough/mag<7.5)step=5*mag; else step=10*mag;
+  const t=[]; let x=Math.ceil(lo/step)*step; while(x<=hi+step*1e-3){t.push(x);x+=step;} return t; }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+/* PZ = presenter-mode canvas zoom. setupCanvas hands widgets a LOGICAL width
+   of cssWidth/PZ while rendering at full physical resolution, so in Present
+   mode every canvas — axis labels included — scales up with the text, with
+   zero per-widget changes. PZ=1 is a byte-for-byte no-op vs the old code. */
+var PZ=1;
+function setupCanvas(canvas){ if(!canvas)return null; const dpr=window.devicePixelRatio||1; const rect=canvas.getBoundingClientRect();
+  const cssW=rect.width||canvas.width; const z=PZ>0?PZ:1;
+  const w=cssW/z; const h=w*(canvas.height/canvas.width);
+  canvas.width=cssW*dpr; canvas.height=h*z*dpr; canvas.style.width=cssW+'px'; canvas.style.height=(h*z)+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr*z,dpr*z); ctx.clearRect(0,0,w,h); return {ctx,w,h}; }
+class Chart{
+  constructor(ctx,w,h,m){ this.ctx=ctx;this.W=w;this.H=h;this.m=m||{l:58,r:18,t:14,b:42};
+    this.pw=w-this.m.l-this.m.r; this.ph=h-this.m.t-this.m.b; }
+  setRange(a,b,c,d){ this.xMin=a;this.xMax=b;this.yMin=c;this.yMax=d; }
+  toX(v){ return this.m.l+(v-this.xMin)/(this.xMax-this.xMin)*this.pw; }
+  toY(v){ return this.m.t+this.ph-(v-this.yMin)/(this.yMax-this.yMin)*this.ph; }
+  grid(xt,yt){ const c=this.ctx; c.save();c.strokeStyle=COL.grid;c.lineWidth=1;c.setLineDash([3,3]);
+    for(const t of xt){const x=this.toX(t);c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();}
+    for(const t of yt){const y=this.toY(t);c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();}
+    c.restore(); }
+  axes(xl,yl,xt,yt,dx,dy,xfmt,yfmt){ const c=this.ctx; c.save();c.strokeStyle=COL.axis;c.lineWidth=1.5;c.setLineDash([]);
+    c.beginPath();c.moveTo(this.m.l,this.m.t);c.lineTo(this.m.l,this.m.t+this.ph);c.lineTo(this.m.l+this.pw,this.m.t+this.ph);c.stroke();
+    c.fillStyle=COL.axis;c.font='11px sans-serif';c.textAlign='center';c.textBaseline='top';
+    for(const t of xt){c.fillText(xfmt?xfmt(t):fmt(t,dx===undefined?0:dx),this.toX(t),this.m.t+this.ph+6);}
+    c.textAlign='right';c.textBaseline='middle';
+    for(const t of yt){c.fillText(yfmt?yfmt(t):fmt(t,dy===undefined?1:dy),this.m.l-6,this.toY(t));}
+    c.fillStyle=COL.text;c.font='12px sans-serif';c.textAlign='center';c.textBaseline='top';
+    c.fillText(xl,this.m.l+this.pw/2,this.m.t+this.ph+22);
+    c.save();c.translate(13,this.m.t+this.ph/2);c.rotate(-Math.PI/2);c.textBaseline='middle';c.fillText(yl,0,0);c.restore();
+    c.restore(); }
+  hLine(yv,color,dash){ const c=this.ctx,y=this.toY(yv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();c.restore(); }
+  vLine(xv,color,dash){ const c=this.ctx,x=this.toX(xv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();c.restore(); }
+  legend(items,x,y){ const c=this.ctx;c.save();c.font='11px sans-serif';let cx=x;
+    for(const it of items){c.fillStyle=it.color;c.fillRect(cx,y-5,12,10);c.fillStyle=COL.text;cx+=16;
+      c.textAlign='left';c.textBaseline='middle';c.fillText(it.label,cx,y);cx+=c.measureText(it.label).width+14;}c.restore(); }
+}
+function drawLine(ctx,pts,color,lw,dash){ if(pts.length<2)return; ctx.save();ctx.strokeStyle=color;ctx.lineWidth=lw||2;
+  if(dash)ctx.setLineDash(dash); ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]); ctx.stroke();ctx.restore(); }
+function arrow(ctx,x0,y0,x1,y1,color,lw){ ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=lw||1.6;
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+  const a=Math.atan2(y1-y0,x1-x0),hh=6.5; ctx.beginPath();ctx.moveTo(x1,y1);
+  ctx.lineTo(x1-hh*Math.cos(a-0.42),y1-hh*Math.sin(a-0.42));ctx.lineTo(x1-hh*Math.cos(a+0.42),y1-hh*Math.sin(a+0.42));
+  ctx.closePath();ctx.fill();ctx.restore(); }
+/* setStat / setVerdict rewrite DOM, so they are the two places that can make
+   the page flicker or jump. Both now (a) skip entirely when the rendered text
+   is unchanged and (b) are rate-limited by statTick() below, so a 30 fps
+   simulation does not rewrite its readouts 30 times a second. Combined with
+   the reserved heights in the CSS, a running sim leaves the rest of the page
+   completely still. */
+const _domCache={};
+function setStat(id,rows){ const el=document.getElementById(id); if(!el)return;
+  const html=rows.map(r=>`<div class="stat-row${r.hi?' highlight':''}"><span class="label">${r.k}</span><span class="value">${r.v}</span></div>`).join('');
+  if(_domCache[id]===html)return; _domCache[id]=html; el.innerHTML=html; }
+function setVerdict(id,cls,title,body){ const el=document.getElementById(id); if(!el)return;
+  const html='<strong>'+title+'</strong>'+body, key=cls+'|'+html;
+  if(_domCache['v:'+id]===key)return; _domCache['v:'+id]=key;
+  el.className='val-verdict '+cls; el.innerHTML=html; }
+/* Live numeric readouts refresh at ~6 Hz; the drawing itself stays at full
+   frame rate. Returns false when a widget should skip its setStat/setVerdict
+   work this frame. */
+const _statLast={};
+function statTick(key,ms){ const t=(typeof performance!=='undefined'?performance.now():0);
+  if(_statLast[key]&&t-_statLast[key]<(ms||160))return false; _statLast[key]=t; return true; }
+function lsqFit(xs,ys){ const n=xs.length; if(n<2)return null; let sx=0,sy=0,sxx=0,sxy=0;
+  for(let i=0;i<n;i++){sx+=xs[i];sy+=ys[i];sxx+=xs[i]*xs[i];sxy+=xs[i]*ys[i];}
+  const den=n*sxx-sx*sx; if(Math.abs(den)<1e-12)return null;
+  const m=(n*sxy-sx*sy)/den, b=(sy-m*sx)/n; return {m,b}; }
+function mulberry32(a){ return function(){ a|=0;a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+/* ════════ learning-module framework ════════
+   Widgets self-register:
+     defWidget(key, tab, drawFn, fmts, {reset, scenfn, scen0})
+     registerAnim(key, stepFn, minFrameMs)   // animated widgets only
+   Keys are globally unique, hyphen-free; slider ids are s-{key}-{param}
+   so id.split('-')[0] after the s- prefix recovers the owning widget. */
+const FMT={}, DRAW={}, RESET={}, SCENFN={}, SCEN={};
+const TABW={coil:[],force:[],gel:[],design:[]};
+function defWidget(key,tab,drawFn,fmts,opts){
+  TABW[tab].push(key); DRAW[key]=drawFn; WTAB[key]=tab;
+  if(fmts)Object.assign(FMT,fmts);
+  if(opts&&opts.reset)RESET[key]=opts.reset;
+  if(opts&&opts.scenfn)SCENFN[key]=opts.scenfn;
+  if(opts&&opts.scen0)SCEN[key]=opts.scen0;
+}
+const WTAB={};
+
+/* canvas-setup cache: setupCanvas reallocates the bitmap, so animated
+   widgets cache {ctx,w,h}; cache is cleared on resize and tab switch. */
+const CVS={};
+function getCv(id){ if(CVS[id])return CVS[id];
+  const el=document.getElementById(id); if(!el)return null;
+  const s=setupCanvas(el); if(s&&s.w>10)CVS[id]=s; return s; }
+function clearCvCache(){ for(const k in CVS) delete CVS[k]; }
+
+/* shared animation loop + viewport gating */
+const ANIMS={};
+let io=null, rafId=null;
+function registerAnim(key,stepFn,minFrame){
+  ANIMS[key]={step:stepFn,visible:false,last:0,minFrame:minFrame||33};
+  const el=document.getElementById('cv-'+key);
+  if(el){ el.dataset.anim=key; if(io)io.observe(el); else ANIMS[key].visible=true; }
+}
+if('IntersectionObserver' in window){
+  io=new IntersectionObserver(ents=>{
+    for(const en of ents){ const a=ANIMS[en.target.dataset.anim];
+      if(a){ a.visible=en.isIntersecting; if(a.visible)a.last=0; } }
+    kickAnim();
+  },{rootMargin:'120px',threshold:0.05});
+}
+function animLoop(ts){
+  let any=false;
+  for(const k in ANIMS){ const a=ANIMS[k];
+    if(WTAB[k]!==activeTab||!a.visible)continue;
+    any=true;
+    if(!a.last){a.last=ts;continue;}
+    const dt=Math.min(ts-a.last,50);
+    if(dt>=a.minFrame){ a.last=ts;
+      try{ a.step(dt/1000); DRAW[k](); }catch(e){ console.error('anim '+k,e); } }
+  }
+  rafId=any?requestAnimationFrame(animLoop):null;
+}
+function kickAnim(){ if(rafId==null)rafId=requestAnimationFrame(animLoop); }
+/* Visibility fallback: IntersectionObserver delivery is environment-dependent
+   (in some headless builds it never fires at all), so visibility is ALSO
+   recomputed straight from geometry — at boot, on tab switch, on scroll and
+   on resize. IO stays wired as a zero-cost extra wake-up where it works. */
+function syncVis(){
+  const vh=window.innerHeight||800;
+  for(const k in ANIMS){ if(WTAB[k]!==activeTab)continue;
+    const el=document.getElementById('cv-'+k); if(!el)continue;
+    const r=el.getBoundingClientRect();
+    const vis=r.width>0&&r.bottom>-120&&r.top<vh+120;
+    if(vis&&!ANIMS[k].visible)ANIMS[k].last=0;
+    ANIMS[k].visible=vis; }
+  kickAnim();
+}
+let _visPend=false;
+window.addEventListener('scroll',()=>{ if(_visPend)return; _visPend=true;
+  requestAnimationFrame(()=>{ _visPend=false; syncVis(); }); },{passive:true});
+window.__anim={ get running(){ return rafId!=null; },
+  get activeKeys(){ return Object.keys(ANIMS).filter(k=>WTAB[k]===activeTab&&ANIMS[k].visible); } };
+
+/* ════════ slider access + scenario machinery (house, adapted) ════════ */
+function val(id){ const el=document.getElementById('s-'+id); return el?el.value:''; }
+function num(id){ return parseFloat(val(id)); }
+function wireAll(){ Object.keys(FMT).forEach(id=>{ const s=document.getElementById('s-'+id),v=document.getElementById('v-'+id);
+  if(!s)return; const upd=()=>{ if(v)v.textContent=FMT[id](parseFloat(s.value));
+    const wk=id.split('-')[0];
+    if(RESET[wk])RESET[wk]();
+    if(DRAW[wk]){ try{DRAW[wk]();}catch(e){console.error('draw '+wk,e);} }
+    kickAnim(); };
+  s.addEventListener('input',upd); if(v)v.textContent=FMT[id](parseFloat(s.value)); }); }
+function presetSlider(id,vv){ const el=document.getElementById('s-'+id); if(el){ el.value=String(vv);
+  const v=document.getElementById('v-'+id); if(v&&FMT[id])v.textContent=FMT[id](parseFloat(vv)); } }
+function setScen(w,s){ SCEN[w]=s;
+  document.querySelectorAll('.scen-btn[data-widget="'+w+'"]').forEach(b=>b.classList.toggle('on',b.dataset.scen===s));
+  if(SCENFN[w])SCENFN[w](s);
+  if(RESET[w])RESET[w]();
+  if(DRAW[w]){ try{DRAW[w]();}catch(e){console.error('draw '+w,e);} }
+  kickAnim(); }
+
+
+/* ═══════════════════ WIDGET CODE START ═══════════════════ */
+
+function fmtT(s){ if(!isFinite(s))return '—'; if(s<1e-6)return fmt(s*1e9,1)+' ns'; if(s<1e-3)return fmt(s*1e6,1)+' µs';
+  if(s<1)return fmt(s*1e3,0)+' ms'; if(s<120)return fmt(s,1)+' s';
+  if(s<7200)return fmt(s/60,1)+' min'; if(s<172800)return fmt(s/3600,1)+' h'; return fmt(s/86400,1)+' days'; }
+function fmtLen(m){ if(!isFinite(m))return '—';
+  if(m<1e-6)return fmt(m*1e9,0)+' nm'; if(m<1e-3)return fmt(m*1e6,m<1e-5?2:0)+' µm';
+  if(m<1)return fmt(m*1e3,1)+' mm'; return fmt(m,2)+' m'; }
+/* erfc via Abramowitz & Stegun 7.1.26 (|err|<1.5e-7). erfcPoly returns the
+   polynomial P(x) with erfc(x) = P(x)·exp(−x²) for x ≥ 0 — exposing P lets the
+   wheal widget fold exp(+r/λ) into the exponent and never overflow. */
+function erfcPoly(x){ const t=1/(1+0.3275911*x);
+  return t*(0.254829592+t*(-0.284496736+t*(1.421413741+t*(-1.453152027+t*1.061405429)))); }
+function erfc(x){ if(x<0)return 2-erfc(-x); return erfcPoly(x)*Math.exp(-x*x); }
+
+/* ════════ shared physics — one engine, four tabs ════════
+   Everything a tab reports is computed here, so the number the coil tab
+   prints for ∇B is the number the gel tab pulls with and the number the
+   design tab inverts. SI throughout. */
+const X1={
+  mu0:4e-7*Math.PI,
+  cu:{rho0:1.68e-8,alpha:3.93e-3,dens:8960,cp:385,Tmelt:1085,T0:25},
+  mat:{iron:{Ms:1.71e6,label:'soft iron'},magnetite:{Ms:4.8e5,label:'magnetite'},polymer:{Ms:1.0e5,label:'polymer bead, ~20 % Fe₃O₄'}},
+  fill:0.65, enamel:0.08,                 /* +8 % diameter for the enamel */
+  Lt:0.040,                               /* tip/core length used by tabs 2–4 (m) */
+};
+/* ── wire ── */
+function awgD(n){ return 0.127e-3*Math.pow(92,(36-n)/39); }            /* bare diameter, m */
+/* ── E1.1.2 / E1.1.3: the winding from geometry + gauge ── */
+function coilFrom(awg,ri,ro,len,fillF){
+  const f=fillF===undefined?X1.fill:fillF;
+  const d=awgD(awg), Aw=Math.PI*d*d/4, Ains=Math.PI*Math.pow(d*(1+X1.enamel),2)/4;
+  const Awin=(ro-ri)*len, rmean=(ri+ro)/2;
+  const N=Math.floor(f*Awin/Ains), Lw=N*2*Math.PI*rmean, R=X1.cu.rho0*Lw/Aw;
+  return {awg,d,Aw,Awin,rmean,N,Lw,R,f,ri,ro,len};
+}
+function ampTurnsAtPower(P,c){ return Math.sqrt(P*c.f*c.Awin/(X1.cu.rho0*2*Math.PI*c.rmean)); }  /* E1.1.3 */
+/* ── E1.1.1: finite solenoid on axis (air), z from the centre ── */
+function bSolenoid(z,N,I,L,R){ const k=X1.mu0*N*I/(2*L);
+  return k*((z+L/2)/Math.sqrt((z+L/2)**2+R*R)-(z-L/2)/Math.sqrt((z-L/2)**2+R*R)); }
+/* ── E1.1.4: demagnetizing factor of a prolate ellipsoid, m = L/D ── */
+function demagN(m){ if(m<=1.0001)return 1/3; const s=Math.sqrt(m*m-1);
+  return (m/s*Math.log(m+s)-1)/(m*m-1); }
+/* core magnetization from applied H: M = min(H/(N_d + 1/mu_r), M_s) */
+function coreM(H,Nd,Ms,mur){ return Math.min(H/(Nd+1/(mur||5000)),Ms); }
+/* ── E1.1.5: adiabatic action integral to reach ΔT above T0, ρ(T) included ── */
+function actionInt(dT){ const c=X1.cu; return c.dens*c.cp/(c.rho0*c.alpha)*Math.log(1+c.alpha*dT); }
+function tempAfter(J,t){ /* invert the action integral: ΔT after time t at density J */
+  const c=X1.cu; return (Math.exp(J*J*t*c.rho0*c.alpha/(c.dens*c.cp))-1)/c.alpha; }
+/* ── E1.1.6: inductance + time constant ── */
+function inductance(N,mueff,Acore,L){ return X1.mu0*mueff*N*N*Acore/L; }
+/* ── E1.2.1: uniformly magnetized cylinder, on axis, z from the NEAR face ── */
+function bCyl(z,Rt,Lt,M){ return X1.mu0*M/2*((z+Lt)/Math.sqrt((z+Lt)**2+Rt*Rt)-z/Math.sqrt(z*z+Rt*Rt)); }
+function gCyl(z,Rt,Lt,M){ const h=Math.max(1e-7,z*1e-3); return Math.abs(bCyl(z+h,Rt,Lt,M)-bCyl(z-h,Rt,Lt,M))/(2*h); }
+/* ── off-axis field of the same cylinder = a solenoid of surface current K = M.
+   Ring field via complete elliptic integrals (AGM); rings summed along L_t. ── */
+function ellipKE(m){ /* returns [K(m),E(m)] for parameter m = k² in [0,1) */
+  let a=1,b=Math.sqrt(1-m),c=Math.sqrt(m),sum=0.5*c*c,pow=0.5;
+  for(let i=0;i<24;i++){ const an=(a+b)/2,bn=Math.sqrt(a*b),cn=(a-b)/2; pow*=2; sum+=pow*cn*cn; a=an;b=bn;c=cn; if(c<1e-15)break; }
+  const K=Math.PI/(2*a); return [K,K*(1-sum)];
+}
+function ringB(rho,z,R,I){ /* loop of radius R at z=0, current I; returns [Brho,Bz] at (rho,z) */
+  if(rho<1e-12){ return [0,X1.mu0*I*R*R/(2*Math.pow(R*R+z*z,1.5))]; }
+  const a2=R*R+rho*rho+z*z-2*R*rho, b2=R*R+rho*rho+z*z+2*R*rho, b=Math.sqrt(b2);
+  const m=1-a2/b2, [K,E]=ellipKE(Math.min(m,1-1e-14)), C=X1.mu0*I/Math.PI;
+  const Bz=C/(2*a2*b)*((R*R-rho*rho-z*z)*E+a2*K);
+  const Br=C*z/(2*a2*b*rho)*((R*R+rho*rho+z*z)*E-a2*K);
+  return [Br,Bz];
+}
+/* Ring slabs are spaced GEOMETRICALLY, thin at the near face and thick at the
+   far end: uniform slabs under-read the field within ~R_t of the face by 10 %
+   (the end of a solenoid is where the current sheet matters most). The first
+   slab is R_t/12 thick; the growth ratio is solved so the slabs sum to L_t. */
+const _cylCache={};
+function cylSlabs(Rt,Lt,n){ const key=Rt+'|'+Lt+'|'+n; if(_cylCache[key])return _cylCache[key];
+  const dz0=Math.min(Rt/12,Lt/n); let lo=1,hi=2;               /* solve dz0*(q^n-1)/(q-1) = Lt */
+  const S=q=>Math.abs(q-1)<1e-12?dz0*n:dz0*(Math.pow(q,n)-1)/(q-1);
+  while(S(hi)<Lt)hi*=1.5;
+  for(let i=0;i<80;i++){ const m=(lo+hi)/2; if(S(m)<Lt)lo=m; else hi=m; }
+  const q=(lo+hi)/2, out=[]; let zc=0, dz=dz0;
+  for(let i=0;i<n;i++){ out.push({zc:-(zc+dz/2),dz:dz}); zc+=dz; dz*=q; }
+  return _cylCache[key]=out; }
+function cylB(rho,z,Rt,Lt,M,nr){ /* z measured from the near face, tip occupies z∈[-Lt,0] */
+  const slabs=cylSlabs(Rt,Lt,nr||48); let Br=0,Bz=0;
+  for(const s of slabs){ const [r,zz]=ringB(rho,z-s.zc,Rt,M*s.dz); Br+=r; Bz+=zz; }
+  return [Br,Bz];
+}
+/* ── E1.2.3 / E1.2.4: the bead ── */
+function beadM(B,Ms){ return Math.min(3*B/X1.mu0,Ms); }
+function beadVol(a){ return 4/3*Math.PI*a*a*a; }
+function beadF(a,B,g,Ms){ return beadVol(a)*beadM(B,Ms)*g; }
+function beadSatB(Ms){ return X1.mu0*Ms/3; }
+/* ── E1.3.1: rigid sphere in an elastic medium (Phan-Thien form) ── */
+function uSphere(F,a,G,nu){ const v=nu===undefined?0.5:nu; return F*(5-6*v)/(24*Math.PI*G*a*(1-v)); }
+function uClosed(a,Ms,g,G){ return 2*a*a*Ms*g/(9*G); }             /* E1.3.2, saturated bead */
+function depthFactor(a,h){ return 1+9*a/(8*h); }                      /* E1.3.3 */
+/* the displacement field of a translating rigid sphere (incompressible): returns [ur,ut] for unit U */
+function sphereField(r,th,a){ const s=a/r;
+  return [Math.cos(th)*(1.5*s-0.5*s*s*s), -Math.sin(th)*(0.75*s+0.25*s*s*s)]; }
+/* ── formatters shared by the tabs ── */
+function fmtB(T){ return T>=1?fmt(T,2)+' T':(T>=1e-3?fmt(T*1e3,0)+' mT':fmt(T*1e6,0)+' µT'); }
+function fmtF(N){ return N>=1e-3?fmt(N*1e3,2)+' mN':(N>=1e-6?fmt(N*1e6,2)+' µN':(N>=1e-9?fmt(N*1e9,2)+' nN':fmt(N*1e12,1)+' pN')); }
+function fmtG(v){ return v>=1000?fmt(v,0)+' T/m':fmt(v,1)+' T/m'; }
+function fmtLenT(m){ /* axis ticks: no decimals */ if(m<1e-6)return fmt(m*1e9,0)+' nm'; if(m<1e-3)return fmt(m*1e6,0)+' µm'; if(m<1)return fmt(m*1e3,m<1e-2?1:0)+' mm'; return fmt(m,1)+' m'; }
+function fmtFT(N){ /* axis ticks */ if(N>=1e-3)return fmt(N*1e3,0)+' mN'; if(N>=1e-6)return fmt(N*1e6,0)+' µN'; if(N>=1e-9)return fmt(N*1e9,0)+' nN'; return fmt(N*1e12,0)+' pN'; }
+function fmtK(v){ if(v>=1e6)return fmt(v/1e6,v<1e7?1:0)+'M'; if(v>=1e3)return fmt(v/1e3,v<1e4?1:0)+'k'; return fmt(v,0); }
+/* ── E1.1.7 / E1.1.8: coil pairs — Helmholtz (aiding) and Maxwell (opposing) ── */
+function loopB(z,R,NI){ return X1.mu0*NI*R*R/(2*Math.pow(R*R+z*z,1.5)); }          /* one thin loop, on axis */
+function pairB(z,R,d,NI,sgn){ return loopB(z-d/2,R,NI)+sgn*loopB(z+d/2,R,NI); }      /* sgn +1 aiding, −1 opposing */
+function pairG(z,R,d,NI,sgn){ const h=Math.max(1e-7,R*1e-4); return (pairB(z+h,R,d,NI,sgn)-pairB(z-h,R,d,NI,sgn))/(2*h); }
+const HELM_K=Math.pow(0.8,1.5);                       /* B0 = K·µ0·NI/R   at d = R      (0.7155) */
+const MAXW_K=1.5*Math.sqrt(3)*Math.pow(4/7,2.5);      /* G  = K·µ0·NI/R²  at d = √3·R   (0.6413) */
+function fmtPa(v){ return v>=1e6?fmt(v/1e6,2)+' MPa':(v>=1e3?fmt(v/1e3,1)+' kPa':fmt(v,0)+' Pa'); }
+
+/* ════════ TAB 1 widget: wind — the coil designer (stateless) ════════
+   Geometry + gauge + power in; turns, resistance, ampere-turns, core field
+   out. Canvas 1 is B_core vs N·I — the saturation knee is the lesson: past it,
+   current buys nothing. Canvas 2 is the design map — the ampere-turns the
+   enamel lets you drive for a given shot length, against the ampere-turns the
+   core needs to saturate. Where those cross is the coil you should build. */
+function windGeom(){ return {awg:num('wind-awg'),ri:num('wind-ri')*1e-3,ro:num('wind-ro')*1e-3,len:num('wind-len')*1e-3,ld:num('wind-ld')}; }
+function windCoil(){ const g=windGeom(); return coilFrom(g.awg,g.ri,g.ro,g.len); }
+function windCore(g){ /* core radius = bobbin inner radius; L/D from the slider (0 = air) */
+  const D=2*g.ri, ld=g.ld, air=ld<0.5; const Nd=air?1:demagN(Math.max(ld,1.0001));
+  return {air,Nd,Ms:X1.mat.iron.Ms,Acore:Math.PI*g.ri*g.ri,mueff:air?1:1/(Nd+1/5000)}; }
+function windH(NI,g){ /* applied H at the centre of the finite winding, per ampere-turn */
+  return bSolenoid(0,NI,1,g.len,(g.ri+g.ro)/2)/X1.mu0; }
+function windB(NI,g,core){ const H=windH(NI,g); if(core.air)return X1.mu0*H;
+  return X1.mu0*(H+coreM(H,core.Nd,core.Ms)); }
+function windNIsat(g,core){ /* ampere-turns at which M reaches M_s (95 %) */
+  if(core.air)return Infinity; const Hs=0.95*core.Ms*(core.Nd+1/5000); return Hs/windH(1,g); }
+function windPmaxCont(g){ /* natural convection off the outer surface, enamel ΔT */
+  const Asurf=2*Math.PI*g.ro*g.len+2*Math.PI*(g.ro*g.ro-g.ri*g.ri); return 15*Asurf*(num('wind-tmax')-X1.cu.T0); }
+function drawWind(){
+  const g=windGeom(), c=windCoil(), core=windCore(g);
+  const P=Math.pow(10,num('wind-P')), tp=Math.pow(10,num('wind-t')), dTen=num('wind-tmax')-X1.cu.T0;
+  const NI=ampTurnsAtPower(P,c), I=NI/c.N, V=I*c.R, J=I/c.Aw;
+  const NIsat=windNIsat(g,core), B=windB(NI,g,core);
+  const tEn=actionInt(dTen)/(J*J), tMelt=actionInt(X1.cu.Tmelt-X1.cu.T0)/(J*J);
+  const Lind=inductance(c.N,core.mueff,core.Acore,g.len), tau=Lind/c.R;
+  /* ── canvas 1: B_core vs N·I ── */
+  const cv=getCv('cv-wind');
+  if(cv){ const ctx=cv.ctx,w=cv.w,h=cv.h; ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+    const xmax=Math.max(NI*1.6, isFinite(NIsat)?NIsat*1.8:3000, 500);
+    const ymax=core.air? Math.max(windB(xmax,g,core)*1.1,0.01) : 2.5;
+    const ch=new Chart(ctx,w,h); ch.setRange(0,xmax,0,ymax);
+    const xt=niceTicks(0,xmax,6), yt=niceTicks(0,ymax,5); ch.grid(xt,yt);
+    ch.axes('ampere-turns N·I','B in the core (T)',xt,yt,0,ymax<0.1?3:1);
+    const air=[],fe=[]; for(let i=0;i<=120;i++){ const x=xmax*i/120;
+      air.push([ch.toX(x),ch.toY(Math.min(X1.mu0*windH(x,g),ymax))]);
+      fe.push([ch.toX(x),ch.toY(windB(x,g,core))]); }
+    drawLine(ctx,air,'#94a3b8',1.6,[5,4]);
+    if(!core.air){ drawLine(ctx,fe,COL.data,2.4); ch.hLine(X1.mu0*core.Ms,COL.overlay,[6,4]);
+      ctx.fillStyle=COL.overlay; ctx.font='600 11px system-ui'; ctx.textAlign='left';
+      ctx.fillText('B_sat = µ₀M_s = '+fmt(X1.mu0*core.Ms,2)+' T — no current gets past this',ch.toX(0)+8,ch.toY(X1.mu0*core.Ms)+14);
+      if(isFinite(NIsat)&&NIsat<xmax){ ch.vLine(NIsat,'#b45309',[4,4]); ctx.fillStyle='#b45309'; ctx.font='10px system-ui';
+        ctx.fillText('saturates at '+fmt(NIsat,0)+' A·t (L/D = '+g.ld+')',ch.toX(NIsat)+5,ch.toY(0)-8); } }
+    ctx.fillStyle='#dc2626'; ctx.beginPath(); ctx.arc(ch.toX(NI),ch.toY(Math.min(B,ymax)),5,0,7); ctx.fill();
+    ctx.fillStyle='#991b1b'; ctx.font='600 11px system-ui'; ctx.textAlign=(ch.toX(NI)>w*0.6?'right':'left');
+    ctx.fillText('● this coil at '+fmt(P,0)+' W: '+fmt(NI,0)+' A·t → '+fmtB(B),ch.toX(NI)+(ch.toX(NI)>w*0.6?-9:9),ch.toY(ymax)+12);
+    ch.legend([{color:'#94a3b8',label:'air core (E1.1.1)'},{color:COL.data,label:'iron core (E1.1.4)'}],w-290,ch.toY(0)-42);
+  }
+  /* ── canvas 2: the design map ── */
+  const cv2=getCv('cv-wind2');
+  if(cv2){ const ctx=cv2.ctx,w=cv2.w,h=cv2.h; ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+    const lo=-3,hi=2; const NIcont=ampTurnsAtPower(windPmaxCont(g),c);
+    const NIen=t=>c.N*Math.sqrt(actionInt(dTen)/t)*c.Aw, NImelt=t=>c.N*Math.sqrt(actionInt(X1.cu.Tmelt-X1.cu.T0)/t)*c.Aw;
+    const ymax=Math.log10(Math.max(NIen(1e-3),NI)*2), ymin=Math.log10(Math.min(NIcont,NI)/4);
+    const ch=new Chart(ctx,w,h); ch.setRange(lo,hi,ymin,ymax);
+    const xt=[-3,-2,-1,0,1,2], yt=[]; for(let e=Math.ceil(ymin);e<=Math.floor(ymax);e++)yt.push(e);
+    ch.grid(xt,yt); ch.axes('shot length','ampere-turns you can drive',xt,yt,0,0,v=>fmtT(Math.pow(10,v)),v=>fmtK(Math.pow(10,v)));
+    const en=[],me=[]; for(let i=0;i<=100;i++){ const lt=lo+(hi-lo)*i/100, t=Math.pow(10,lt);
+      en.push([ch.toX(lt),ch.toY(Math.log10(Math.max(NIen(t),NIcont)))]); me.push([ch.toX(lt),ch.toY(Math.log10(Math.max(NImelt(t),NIcont)))]); }
+    /* safe region shading */
+    ctx.fillStyle='rgba(16,185,129,.08)'; ctx.beginPath(); ctx.moveTo(ch.toX(lo),ch.toY(ymin));
+    for(const p of en)ctx.lineTo(p[0],p[1]); ctx.lineTo(ch.toX(hi),ch.toY(ymin)); ctx.closePath(); ctx.fill();
+    drawLine(ctx,me,'#dc2626',1.6,[5,4]); drawLine(ctx,en,'#b45309',2.2);
+    ch.hLine(Math.log10(NIcont),'#64748b',[3,3]);
+    ctx.fillStyle='#64748b'; ctx.font='10px system-ui'; ctx.textAlign='left';
+    ctx.textAlign='right'; ctx.fillText('continuous (convection only): '+fmt(NIcont,0)+' A·t',ch.toX(hi)-6,ch.toY(Math.log10(NIcont))+13);
+    if(isFinite(NIsat)){ ch.hLine(Math.log10(NIsat),COL.data,[6,4]); ctx.fillStyle=COL.data; ctx.font='600 11px system-ui'; ctx.textAlign='left';
+      ctx.fillText('core saturates: '+fmt(NIsat,0)+' A·t',ch.toX(lo)+6,ch.toY(Math.log10(NIsat))-6); }
+    ctx.fillStyle='#dc2626'; ctx.beginPath(); ctx.arc(ch.toX(Math.log10(tp)),ch.toY(Math.log10(NI)),5,0,7); ctx.fill();
+    ctx.fillStyle='#991b1b'; ctx.font='600 11px system-ui'; ctx.fillText('your shot',ch.toX(Math.log10(tp))+8,ch.toY(Math.log10(NI))-6);
+    ch.legend([{color:'#b45309',label:'enamel '+num('wind-tmax')+' °C'},{color:'#dc2626',label:'copper melts'}],w-260,18);
+  }
+  /* stateless widget: no statTick — nothing would redraw it after a gated frame */
+  setStat('st-wind',[
+    {k:'turns · wire',v:fmt(c.N,0)+' · '+fmt(c.Lw,1)+' m'},
+    {k:'R · I · V',v:fmt(c.R,2)+' Ω · '+fmt(I,2)+' A · '+fmt(V,1)+' V'},
+    {k:'ampere-turns N·I',v:fmt(NI,0)+' A·t',hi:true},
+    {k:'B in core · τ<sub>LR</sub>',v:fmtB(B)+' · '+fmtT(tau)}]);
+  const sat=!core.air&&NI>=NIsat, cooked=tp>tEn, melted=tp>tMelt, slow=tp<3*tau;
+  if(melted)setVerdict('vd-wind','bad','Copper melts.',' At J = '+fmt(J/1e6,0)+' A/mm² this shot lasts '+fmtT(tp)+' but the wire reaches 1085 °C in '+fmtT(tMelt)+'. Shorten the shot or lower the power. (The enamel went at '+fmtT(tEn)+' — long before.)');
+  else if(cooked)setVerdict('vd-wind','bad','Enamel cooked.',' J = '+fmt(J/1e6,0)+' A/mm² reaches '+num('wind-tmax')+' °C in <strong>'+fmtT(tEn)+'</strong>; this shot is '+fmtT(tp)+'. The copper is fine ('+fmtT(tMelt)+' to melt) — the insulation is the limit, and a shorted winding is a dead coil.');
+  else if(core.air)setVerdict('vd-wind','warn','Air is hopeless.',' '+fmt(NI,0)+' A·t buys '+fmtB(B)+'. Put iron in: a rod with L/D ≥ 5 multiplies that by its effective permeability until it saturates at 2.15 T.');
+  else if(sat)setVerdict('vd-wind','good','Saturated — and that is the ceiling.',' '+fmt(NI,0)+' A·t is past the '+fmt(NIsat,0)+' A·t this L/D = '+g.ld+' rod needs; B = '+fmtB(B)+' and <em>more current now buys nothing</em>. Spend the surplus on a shorter shot, a thinner wire, or a longer working distance — not on field. Enamel holds for '+fmtT(tEn)+(slow?'. Note τ<sub>LR</sub> = '+fmtT(tau)+': this shot is under 3τ, so the current never reaches its plateau.':'.'));
+  else setVerdict('vd-wind','warn','Under-driven.',' '+fmt(NI,0)+' A·t against '+fmt(NIsat,0)+' needed to saturate this rod — B = '+fmtB(B)+'. More power helps here (B rises with N·I), or a longer, thinner core (bigger L/D → smaller N_d). Enamel holds for '+fmtT(tEn)+' at this J.');
+}
+defWidget('wind','coil',drawWind,{
+  'wind-awg':v=>'AWG '+fmt(v,0),'wind-ri':v=>fmt(v,1)+' mm','wind-ro':v=>fmt(v,0)+' mm','wind-len':v=>fmt(v,0)+' mm',
+  'wind-ld':v=>v<0.5?'air':'iron, L/D = '+fmt(v,0),'wind-P':v=>fmt(Math.pow(10,v),0)+' W','wind-t':v=>fmtT(Math.pow(10,v)),
+  'wind-tmax':v=>fmt(v,0)+' °C'});
+
+/* ════════ TAB 1 widget: shot — one pulse, watched (animated) ════════
+   Reads the coil from the designer above. A constant-VOLTAGE bench supply is
+   assumed (the lab's units in CV mode): current rises through L/R and then
+   SAGS as the copper heats, because R(T) climbs. Temperature integrates
+   I²R(T)/(m c_p) minus convection. Played at a speed that makes any shot
+   take a few seconds of wall time. */
+const SHOT={t:0,T:X1.cu.T0,I:0,on:true,hist:[],done:false,mode:'single',offT:0};
+function shotReset(){ SHOT.t=0; SHOT.T=X1.cu.T0; SHOT.I=0; SHOT.on=true; SHOT.hist=[]; SHOT.done=false; SHOT.offT=0; }
+function shotParams(){ const g=windGeom(), c=windCoil(), core=windCore(g);
+  const P=Math.pow(10,num('shot-P')), tp=Math.pow(10,num('shot-t')), duty=num('shot-duty');
+  const V=Math.sqrt(P*c.R), m=X1.cu.dens*c.Lw*c.Aw, Asurf=2*Math.PI*g.ro*g.len+2*Math.PI*(g.ro*g.ro-g.ri*g.ri);
+  const Lind=inductance(c.N,core.mueff,core.Acore,g.len);
+  return {g,c,core,P,tp,duty,V,m,Asurf,Lind,tau:Lind/c.R}; }
+function stepShot(dt){
+  const p=shotParams(), mode=SCEN.shot||'single';
+  const span=mode==='steady'? 60 : (mode==='repeated'? p.tp*8 : p.tp*1.6);
+  const speed=span/4;                                  /* whole trace in ~4 s of class */
+  const h=dt*speed/8;
+  for(let k=0;k<8;k++){
+    if(SHOT.done)break;
+    const RT=p.c.R*(1+X1.cu.alpha*(SHOT.T-X1.cu.T0));
+    let onNow;
+    if(mode==='steady')onNow=true;
+    else if(mode==='single')onNow=SHOT.t<p.tp;
+    else { const per=p.tp/Math.max(p.duty,0.05); onNow=(SHOT.t%per)<p.tp; }
+    const Iinf=onNow? p.V/RT : 0;
+    SHOT.I+= (Iinf-SHOT.I)*(1-Math.exp(-h/p.tau));
+    const Pin=SHOT.I*SHOT.I*RT, Pout=15*p.Asurf*(SHOT.T-X1.cu.T0);
+    SHOT.T+= (Pin-Pout)/(p.m*X1.cu.cp)*h;
+    SHOT.t+=h;
+    if(SHOT.T>=X1.cu.Tmelt){ SHOT.T=X1.cu.Tmelt; SHOT.done=true; }
+    if(SHOT.t>span){ SHOT.done=true; }
+  }
+  if(SHOT.hist.length===0||SHOT.t-SHOT.hist[SHOT.hist.length-1].t>span/400)
+    SHOT.hist.push({t:SHOT.t,I:SHOT.I,T:SHOT.T,B:windB(SHOT.I*p.c.N,p.g,p.core)});
+  if(SHOT.done&&SHOT.offT===0)SHOT.offT=SHOT.t;
+  if(SHOT.done&&SHOT.t>SHOT.offT+span*0.6){ shotReset(); }   /* loop the shot */
+  if(SHOT.done)SHOT.t+=dt*speed;
+}
+function drawShot(){
+  const p=shotParams(), mode=SCEN.shot||'single', Ten=num('wind-tmax');
+  const span=mode==='steady'? 60 : (mode==='repeated'? p.tp*8 : p.tp*1.6);
+  const cv=getCv('cv-shot');
+  if(cv){ const ctx=cv.ctx,w=cv.w,h=cv.h; ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+    const Imax=p.V/p.c.R*1.15, Tmax=Math.max(X1.cu.Tmelt*1.05,300);
+    const ch=new Chart(ctx,w,h,{l:58,r:62,t:40,b:42}); ch.setRange(0,span,0,1);
+    const xt=niceTicks(0,span,6); ch.grid(xt,[0,0.25,0.5,0.75,1]);
+    ch.axes('time (s)','',xt,[],1,0);
+    /* left axis = current fraction, right axis = temperature */
+    ctx.fillStyle='#2563eb'; ctx.font='11px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='middle';
+    for(const f of [0,0.5,1])ctx.fillText(fmt(f*Imax,1)+' A',ch.m.l-6,ch.toY(f));
+    ctx.fillStyle='#dc2626'; ctx.textAlign='left';
+    for(const T of [25,Ten,500,X1.cu.Tmelt])if(T<=Tmax)ctx.fillText(fmt(T,0)+' °C',ch.m.l+ch.pw+6,ch.toY(T/Tmax));
+    ch.hLine(Ten/Tmax,'#b45309',[5,4]); ch.hLine(X1.cu.Tmelt/Tmax,'#dc2626',[5,4]);
+    ctx.fillStyle='#b45309'; ctx.font='600 10px system-ui'; ctx.textAlign='right'; ctx.textBaseline='alphabetic';
+    ctx.fillText('enamel '+Ten+' °C',ch.toX(span)-6,ch.toY(Ten/Tmax)-4);
+    ctx.fillStyle='#dc2626'; ctx.fillText('copper melts 1085 °C',ch.toX(span)-6,ch.toY(X1.cu.Tmelt/Tmax)+12);
+    if(mode!=='steady'){ ctx.fillStyle='rgba(37,99,235,.07)'; ctx.fillRect(ch.toX(0),ch.toY(1),ch.toX(Math.min(p.tp,span))-ch.toX(0),ch.toY(0)-ch.toY(1)); }
+    const H=SHOT.hist;
+    if(H.length>1){
+      drawLine(ctx,H.map(q=>[ch.toX(q.t),ch.toY(q.I/Imax)]),'#2563eb',2.2);
+      drawLine(ctx,H.map(q=>[ch.toX(q.t),ch.toY(q.T/Tmax)]),'#dc2626',2.2);
+      drawLine(ctx,H.map(q=>[ch.toX(q.t),ch.toY(q.B/3.0)]),'#059669',1.8,[4,3]);
+      const L=H[H.length-1]; ctx.font='600 10px system-ui'; ctx.textAlign='left';
+      ctx.fillStyle='#2563eb'; ctx.fillText('I',ch.toX(L.t)+4,ch.toY(L.I/Imax)+4);
+      ctx.fillStyle='#dc2626'; ctx.fillText('T',ch.toX(L.t)+4,ch.toY(L.T/Tmax)+4);
+      ctx.fillStyle='#059669'; ctx.fillText('B (÷3 T)',ch.toX(L.t)+4,ch.toY(L.B/3.0)+4); }
+    ctx.fillStyle='#475569'; ctx.font='600 12px system-ui'; ctx.textAlign='left';
+    ctx.fillText((SHOT.done?'shot over · ':'')+'t = '+fmtT(Math.min(SHOT.t,span))+'   T = '+fmt(SHOT.T,0)+' °C   I = '+fmt(SHOT.I,2)+' A',ch.m.l,14);
+    ctx.font='10px system-ui'; ctx.fillStyle='#64748b';
+    ctx.fillText('blue: current (rises through τ, sags as R grows) · red: wire temperature · green: B in core',ch.m.l,29);
+  }
+  if(!statTick('shot'))return;
+  const J=(p.V/p.c.R)/p.c.Aw, tEn=actionInt(Ten-X1.cu.T0)/(J*J), tMelt=actionInt(X1.cu.Tmelt-X1.cu.T0)/(J*J);
+  const Bnow=windB(SHOT.I*p.c.N,p.g,p.core), NIsat=windNIsat(p.g,p.core);
+  setStat('st-shot',[
+    {k:'wire temperature',v:fmt(SHOT.T,0)+' °C',hi:true},
+    {k:'current · plateau',v:fmt(SHOT.I,2)+' / '+fmt(p.V/p.c.R,2)+' A'},
+    {k:'B in core now',v:fmtB(Bnow)},
+    {k:'time to enamel · melt',v:fmtT(tEn)+' · '+fmtT(tMelt)}]);
+  const peakT=SHOT.hist.reduce((m,q)=>Math.max(m,q.T),X1.cu.T0);
+  if(peakT>=X1.cu.Tmelt-1)setVerdict('vd-shot','bad','Melted.',' The winding hit 1085 °C — at J = '+fmt(J/1e6,0)+' A/mm² the copper survives only '+fmtT(tMelt)+'. And the enamel was gone at '+fmtT(tEn)+', so the coil was already dead. Shorten the shot or drop the voltage.');
+  else if(peakT>=Ten)setVerdict('vd-shot','bad','Enamel cooked.',' Peak '+fmt(peakT,0)+' °C is past the '+Ten+' °C class rating. The metal is nowhere near melting — that was never the limit. A turn-to-turn short is how these coils actually die.');
+  else if(mode==='steady')setVerdict('vd-shot','warn','Steady drive: convection decides.',' Held on, the wire settles where I²R meets h·A·ΔT. At this power it '+(peakT<Ten*0.95?'stays under '+Ten+' °C — a coil you can leave on, at '+fmt(SHOT.I*p.c.N,0)+' A·t.':'is climbing toward the rating — pulsed use only.'));
+  else if(SHOT.hist.length>3&&p.tp<3*p.tau)setVerdict('vd-shot','warn','The current never got there.',' τ<sub>LR</sub> = '+fmtT(p.tau)+' and this shot is '+fmtT(p.tp)+' — under 3τ, so I plateaus at '+fmt(100*(1-Math.exp(-p.tp/p.tau)),0)+' % of V/R and the field with it. Iron makes the core strong and the coil slow; a short shot needs a lower-inductance winding or a supply that overdrives the voltage at turn-on.');
+  else setVerdict('vd-shot','good','A clean shot.',' Peak '+fmt(peakT,0)+' °C, '+fmt(100*peakT/Ten,0)+' % of the enamel rating; B reached '+fmtB(Bnow>0?Math.max(...SHOT.hist.map(q=>q.B)):0)+(SHOT.I*p.c.N>=NIsat?' — saturated, the most this rod can give.':'.')+' Watch the current sag on the way — that is R(T) rising by '+fmt(100*X1.cu.alpha*(peakT-X1.cu.T0),0)+' %.');
+}
+shotReset();
+defWidget('shot','coil',drawShot,{'shot-P':v=>fmt(Math.pow(10,v),0)+' W','shot-t':v=>fmtT(Math.pow(10,v)),'shot-duty':v=>fmt(100*v,0)+' % duty'},
+  {reset:shotReset,scen0:'single',scenfn:function(){shotReset();}});
+registerAnim('shot',stepShot,33);
+
+/* ════════ TAB 1 widget: pair — the other geometry (stateless) ════════
+   Two thin coaxial coils of radius R, separation d, NI each. Aiding = Helmholtz
+   (uniform B at d = R, zero gradient: magnetizes, does not pull). Opposing =
+   Maxwell (zero B at the centre, uniform gradient at d = √3 R: pulls only what
+   is already magnetized, so a soft bead at the centre feels ~nothing). The
+   textbook tweezer nests both: a Helmholtz bias B0 plus a Maxwell gradient G,
+   F = V·M(B0)·G — uniform and calibratable. Canvas 2 puts that beside the iron
+   tip from Tab 2 at the same bead: the ~100× gap is why Tabs 2–4 keep the tip. */
+function pairMode(){ return SCEN.pair||'maxwell'; }
+function pairR(){ return num('pair-R')*1e-3; }
+function pairD(){ return num('pair-dr')*pairR(); }
+function pairNI(){ return Math.pow(10,num('pair-NI')); }
+function pairSgn(){ return pairMode()==='helmholtz'?1:-1; }
+function pairBias(){ return pairMode()==='combo'? num('pair-B0')*1e-3 : 0; }
+function pairFieldAt(z){ const R=pairR(),d=pairD(),NI=pairNI(),s=pairSgn();
+  const B=pairB(z,R,d,NI,s)+pairBias(), G=pairG(z,R,d,NI,s); return {B,G}; }
+function drawPair(){
+  const R=pairR(), d=pairD(), NI=pairNI(), mode=pairMode(), Ms=X1.mat.iron.Ms, a=2.5e-6;
+  const c0=pairFieldAt(0), win=5e-3;
+  const cv=getCv('cv-pair');
+  if(cv){ const ctx=cv.ctx,w=cv.w,h=cv.h; ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+    const zmax=1.6*R; let Bm=0,Gm=0; const bs=[],gs=[];
+    for(let i=0;i<=120;i++){ const z=-zmax+2*zmax*i/120; const f=pairFieldAt(z); bs.push([z,f.B]); gs.push([z,f.G]); Bm=Math.max(Bm,Math.abs(f.B)); Gm=Math.max(Gm,Math.abs(f.G)); }
+    Bm=Bm||1e-3; Gm=Gm||1e-3;
+    const ch=new Chart(ctx,w,h,{l:62,r:62,t:16,b:42}); ch.setRange(-zmax*1e3,zmax*1e3,-1.08,1.08);
+    const xt=niceTicks(-zmax*1e3,zmax*1e3,6); ch.grid(xt,[-1,-0.5,0,0.5,1]); ch.axes('position along the axis (mm)','',xt,[],0,0);
+    ctx.fillStyle='rgba(245,158,11,.12)'; ctx.fillRect(ch.toX(-win*1e3),ch.toY(1.08),ch.toX(win*1e3)-ch.toX(-win*1e3),ch.toY(-1.08)-ch.toY(1.08));
+    ctx.fillStyle='#b45309'; ctx.font='10px system-ui'; ctx.textAlign='center'; ctx.fillText('sample',ch.toX(0),ch.toY(-0.80)); ctx.fillText('±5 mm',ch.toX(0),ch.toY(-0.92));
+    for(const zc of [-d/2,d/2]){ ch.vLine(zc*1e3,'#64748b',[2,3]); }
+    ctx.fillStyle='#64748b'; ctx.fillText('coil',ch.toX(-d/2*1e3),ch.toY(-1.08)-6); ctx.fillText('coil',ch.toX(d/2*1e3),ch.toY(-1.08)-6);
+    ch.hLine(0,'#cbd5e1');
+    drawLine(ctx,bs.map(p=>[ch.toX(p[0]*1e3),ch.toY(p[1]/Bm)]),'#2563eb',2.4);
+    drawLine(ctx,gs.map(p=>[ch.toX(p[0]*1e3),ch.toY(p[1]/Gm)]),'#dc2626',2.2,[6,4]);
+    ctx.fillStyle='#2563eb'; ctx.font='11px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='middle';
+    for(const f of [-1,0,1])ctx.fillText((f<0?'−':'')+fmtB(Math.abs(f)*Bm),ch.m.l-6,ch.toY(f));
+    ctx.fillStyle='#dc2626'; ctx.textAlign='left'; for(const f of [-1,0,1])ctx.fillText((f*Gm>=0?'':'−')+fmtG(Math.abs(f*Gm)),ch.m.l+ch.pw+6,ch.toY(f));
+    ctx.textBaseline='alphabetic'; ctx.font='600 11px system-ui'; ctx.textAlign='left';
+    ctx.fillStyle='#2563eb'; ctx.fillText('B(z)',ch.m.l+8,ch.m.t+14); ctx.fillStyle='#dc2626'; ctx.fillText('dB/dz (dashed)',ch.m.l+44,ch.m.t+14);
+    ctx.fillStyle='#475569'; ctx.textAlign='right';
+    ctx.fillText(mode==='helmholtz'?'aiding: '+(Math.abs(num('pair-dr')-1)<0.03?'d = R — Helmholtz, flattest B':'d = '+fmt(num('pair-dr'),2)+' R (Helmholtz is d = R)')
+      :('opposing: '+(Math.abs(num('pair-dr')-1.732)<0.03?'d = √3 R — Maxwell, flattest gradient':'d = '+fmt(num('pair-dr'),2)+' R (Maxwell is d = √3 R)'))+(mode==='combo'?' + bias '+fmtB(pairBias()):''),w-ch.m.r-6,ch.m.t+14);
+  }
+  /* ── canvas 2: force on the Tab-2 bead — the pair vs the tip ── */
+  const cv2=getCv('cv-pair2');
+  if(cv2){ const ctx=cv2.ctx,w=cv2.w,h=cv2.h; ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+    const lo=-1.3,hi=1.3; /* log10 mm: 0.05 mm .. 20 mm */
+    const tip=[],pr=[]; let fmin=Infinity,fmax=0;
+    for(let i=0;i<=80;i++){ const lz=lo+(hi-lo)*i/80, z=Math.pow(10,lz)*1e-3;
+      const Ft=beadF(a,bCyl(z,0.5e-3,X1.Lt,Ms),gCyl(z,0.5e-3,X1.Lt,Ms),Ms); tip.push([lz,Ft]);
+      const f=pairFieldAt(z), Fp=beadF(a,Math.abs(f.B),Math.abs(f.G),Ms); pr.push([lz,Fp]);
+      for(const v of [Ft,Fp])if(v>0){fmin=Math.min(fmin,v);fmax=Math.max(fmax,v);} }
+    fmin=Math.max(fmin,fmax*1e-9);
+    const ch=new Chart(ctx,w,h,{l:66,r:18,t:16,b:42}); ch.setRange(lo,hi,Math.log10(fmin)-0.2,Math.log10(fmax)+0.5);
+    const xt=[-1,0,1],yt=[]; for(let e=Math.ceil(Math.log10(fmin));e<=Math.floor(Math.log10(fmax)+0.5);e+=2)yt.push(e);
+    ch.grid(xt,yt); ch.axes('distance from the tip face · or · from the pair centre','force on a 5 µm iron bead',xt,yt,0,0,v=>fmtLenT(Math.pow(10,v)*1e-3),v=>fmtFT(Math.pow(10,v)));
+    drawLine(ctx,tip.filter(p=>p[1]>0).map(p=>[ch.toX(p[0]),ch.toY(Math.log10(p[1]))]),'#dc2626',2.4);
+    drawLine(ctx,pr.filter(p=>p[1]>0).map(p=>[ch.toX(p[0]),ch.toY(Math.log10(p[1]))]),'#2563eb',2.4,mode==='combo'?null:[6,4]);
+    ch.legend([{color:'#dc2626',label:'iron tip, R_t = 0.5 mm (Tab 2)'},{color:'#2563eb',label:'this coil pair ('+mode+')'}],w-ch.m.r-330,ch.m.t+12);
+    const F0=beadF(a,Math.abs(c0.B),Math.abs(c0.G),Ms), Ft5=beadF(a,bCyl(0.5e-3,0.5e-3,X1.Lt,Ms),gCyl(0.5e-3,0.5e-3,X1.Lt,Ms),Ms);
+    ctx.fillStyle='#475569'; ctx.font='600 11px system-ui'; ctx.textAlign='left';
+    ctx.fillText('at the sample: pair '+fmtF(F0)+' (flat across ±5 mm)  ·  tip at 0.5 mm '+fmtF(Ft5)+' (falls ~z⁻³)',ch.m.l+10,h-30);
+  }
+  /* stateless: no statTick */
+  const F0=beadF(a,Math.abs(c0.B),Math.abs(c0.G),Ms), f5=pairFieldAt(win);
+  const unif=mode==='helmholtz'? Math.abs(f5.B/c0.B-1) : (c0.G?Math.abs(f5.G/c0.G-1):NaN);
+  const Ft5=beadF(a,bCyl(0.5e-3,0.5e-3,X1.Lt,Ms),gCyl(0.5e-3,0.5e-3,X1.Lt,Ms),Ms);
+  setStat('st-pair',[
+    {k:'B at the centre',v:fmtB(Math.abs(c0.B))},
+    {k:'∇B at the centre',v:fmtG(Math.abs(c0.G)),hi:true},
+    {k:(mode==='helmholtz'?'B':'∇B')+' change over ±5 mm',v:isFinite(unif)?fmt(100*unif,2)+' %':'—'},
+    {k:'force on 5 µm bead · vs tip',v:fmtF(F0)+' · ×'+(F0>0?fmt(F0/Ft5,F0/Ft5<0.01?4:2):'0')}]);
+  if(mode==='helmholtz')setVerdict('vd-pair','warn','Helmholtz: it magnetizes, it does not pull.',' At d = R the field is '+fmtB(Math.abs(c0.B))+' and flat to '+fmt(100*unif,2)+' % across the sample — a bias field, not a tweezer: the gradient at the centre is essentially zero and so is the force ('+fmtF(F0)+'). Its job in a real instrument is to set the bead\'s magnetization; something else must supply the gradient.');
+  else if(mode==='maxwell')setVerdict('vd-pair','bad','Maxwell: a beautiful gradient pulling on nothing.',' Opposed coils at d = √3 R give '+fmtG(Math.abs(c0.G))+', uniform to '+fmt(100*unif,2)+' % over ±5 mm — but B = 0 at the centre, so a soft bead there has no moment and the force is '+fmtF(F0)+'. The pull grows only as the bead drifts off-centre and magnetizes. This is why the textbook tweezer adds a bias: switch to <em>bias + gradient</em>.');
+  else setVerdict('vd-pair','good','Bias + gradient: the calibratable tweezer.',' A Helmholtz bias of '+fmtB(pairBias())+' magnetizes every bead the same; the Maxwell gradient of '+fmtG(Math.abs(c0.G))+' pulls them all with the same '+fmtF(F0)+', uniform to '+fmt(100*unif,2)+' % across the sample. That is a force you can <em>calibrate</em>. It is also '+fmt(Ft5/Math.max(F0,1e-30),0)+'× weaker than the iron tip at 0.5 mm — the whole trade in one number, and the reason Tabs 2–4 keep the tip.');
+}
+defWidget('pair','coil',drawPair,{
+  'pair-R':v=>fmt(v,0)+' mm','pair-dr':v=>'d = '+fmt(v,2)+' R','pair-NI':v=>fmt(Math.pow(10,v),0)+' A·t / coil','pair-B0':v=>fmt(v,0)+' mT'},
+  {scen0:'maxwell',scenfn:function(s){ presetSlider('pair-dr',s==='helmholtz'?1:1.732); }});
+
+/* ════════ TAB 2 widget: flux — the field, drawn, and what a bead feels ════════
+   The tip is a uniformly magnetized cylinder (radius R_t, length L_t, at a set
+   fraction of M_s). Its field is axisymmetric, so the (ρ,z) plane IS the
+   physics — this canvas is exact, not a cartoon. B is computed on a grid from
+   the equivalent current sheet (rings + elliptic integrals), cached per
+   geometry; field lines are traced through that grid by RK4 and mirrored.
+   The bead sits on axis at z; its force is E1.2.4 with the linear→saturated
+   crossover computed, not assumed. */
+const FLX={grid:null,key:'',lines:[]};
+function fluxRt(){ return Math.pow(10,num('flux-rt'))*1e-3; }
+function fluxZ(){ return Math.pow(10,num('flux-z'))*1e-3; }
+function fluxA(){ return Math.pow(10,num('flux-d'))*1e-6/2; }
+function fluxMat(){ return X1.mat[SCEN.flux||'iron']; }
+function fluxMcore(){ return X1.mat.iron.Ms*num('flux-sat'); }
+function fluxView(){ const Rt=fluxRt(), z=fluxZ(); return Math.max(6*Rt, 2.6*z, 1.5e-3); }
+function fluxGrid(){
+  const Rt=fluxRt(), M=fluxMcore(), view=fluxView(), key=Rt+'|'+M+'|'+view;
+  if(FLX.key===key&&FLX.grid)return FLX.grid;
+  const NR=56,NZ=44, rmax=view*0.62, zmin=-view*0.28, zmax=view*0.95;
+  const Br=new Float32Array(NR*NZ), Bz=new Float32Array(NR*NZ), mag=new Float32Array(NR*NZ);
+  for(let j=0;j<NZ;j++)for(let i=0;i<NR;i++){ const r=rmax*i/(NR-1), z=zmin+(zmax-zmin)*j/(NZ-1);
+    let br=0,bz=0;
+    if(z<0&&r<Rt){ bz=X1.mu0*M; }                    /* inside the rod: B ≈ µ0 M (uniform, saturated) */
+    else { const b=cylB(Math.max(r,1e-9),z,Rt,X1.Lt,M,40); br=b[0]; bz=b[1]; }
+    const k=j*NR+i; Br[k]=br; Bz[k]=bz; mag[k]=Math.hypot(br,bz); }
+  FLX.grid={NR,NZ,rmax,zmin,zmax,Br,Bz,mag}; FLX.key=key;
+  /* field lines: seed on the pole face, trace outward and back around */
+  const samp=(r,z)=>{ const g=FLX.grid; const fi=Math.abs(r)/g.rmax*(g.NR-1), fj=(z-g.zmin)/(g.zmax-g.zmin)*(g.NZ-1);
+    if(fi<0||fi>g.NR-1.001||fj<0||fj>g.NZ-1.001)return null;
+    const i=Math.floor(fi),j=Math.floor(fj),u=fi-i,v=fj-j, k=j*g.NR+i;
+    const L=(A)=>A[k]*(1-u)*(1-v)+A[k+1]*u*(1-v)+A[k+g.NR]*(1-u)*v+A[k+g.NR+1]*u*v;
+    let br=L(g.Br), bz=L(g.Bz); if(r<0)br=-br; const m=Math.hypot(br,bz)||1e-30; return [br/m,bz/m]; };
+  FLX.lines=[];
+  for(let s=0;s<9;s++){ const r0=Rt*(0.12+0.86*s/8);
+    for(const dir of [1,-1]){ let r=r0*(dir>0?1:1), z=dir>0?1e-6:-1e-6, pts=[[r,z]]; const hstep=view/260;
+      for(let n=0;n<700;n++){ const d1=samp(r,z); if(!d1)break;
+        const d2=samp(r+0.5*hstep*dir*d1[0],z+0.5*hstep*dir*d1[1]); if(!d2)break;
+        const d3=samp(r+0.5*hstep*dir*d2[0],z+0.5*hstep*dir*d2[1]); if(!d3)break;
+        const d4=samp(r+hstep*dir*d3[0],z+hstep*dir*d3[1]); if(!d4)break;
+        r+=hstep*dir*(d1[0]+2*d2[0]+2*d3[0]+d4[0])/6; z+=hstep*dir*(d1[1]+2*d2[1]+2*d3[1]+d4[1])/6;
+        pts.push([r,z]);
+        if(z<0&&Math.abs(r)<Rt&&n>5)break;                /* re-entered the rod */
+        if(z<-X1.Lt*0.28)break; }
+      if(pts.length>4)FLX.lines.push(pts); } }
+  return FLX.grid;
+}
+function fluxHeat(t){ /* t in [0,1] → colour, cool→hot */
+  const c=[[15,23,42],[30,64,175],[8,145,178],[16,185,129],[250,204,21],[239,68,68],[255,255,255]];
+  const x=clamp(t,0,0.999)*(c.length-1), i=Math.floor(x), f=x-i, a=c[i], b=c[i+1];
+  return 'rgb('+Math.round(a[0]+(b[0]-a[0])*f)+','+Math.round(a[1]+(b[1]-a[1])*f)+','+Math.round(a[2]+(b[2]-a[2])*f)+')';
+}
+function fluxForceAt(z,a,Ms){ const Rt=fluxRt(), M=fluxMcore(); const B=bCyl(z,Rt,X1.Lt,M), g=gCyl(z,Rt,X1.Lt,M);
+  return {B,g,F:beadF(a,B,g,Ms),sat:beadM(B,Ms)>=Ms*0.999}; }
+/* ── the electromagnet catalogue — the same magnets appear in §2.1 and §3.1 so
+   "which magnet moves THIS bead, from how far" is answered on one chart ── */
+const MAGS=[
+  {key:'sharp', label:'sharp tip, R_t = 0.1 mm', col:'#7c3aed', kind:'tip', Rt:()=>0.1e-3, sat:1},
+  {key:'medium',label:'tip, R_t = 0.5 mm',        col:'#2563eb', kind:'tip', Rt:()=>0.5e-3, sat:1},
+  {key:'blunt', label:'blunt tip, R_t = 2 mm',    col:'#059669', kind:'tip', Rt:()=>2e-3,   sat:1},
+  {key:'rod',   label:'Tab-1 rod as wound, no taper', col:'#b45309', kind:'tip', Rt:()=>windGeom().ri, sat:1},
+  {key:'weak',  label:'0.5 mm tip, core at 40 % M_s (under-driven)', col:'#9ca3af', kind:'tip', Rt:()=>0.5e-3, sat:0.4},
+];
+function magForce(m,z,a,Ms){ const M=X1.mat.iron.Ms*m.sat, Rt=m.Rt(); const B=bCyl(z,Rt,X1.Lt,M), g=gCyl(z,Rt,X1.Lt,M);
+  return {F:beadF(a,B,g,Ms),B,g,valid:a<Rt/5&&a<z*0.5}; }
+function pairForce(z,a,Ms){ /* §1.4's pair, forced to bias+gradient wiring, |z| from its centre */
+  const R=pairR(), d=Math.sqrt(3)*R, NI=pairNI(), B0=num('pair-B0')*1e-3;
+  return beadF(a,Math.abs(pairB(z,R,d,NI,-1)+B0),Math.abs(pairG(z,R,d,NI,-1)),Ms); }
+function bestForce(z,a,Ms){ return specBestTip(z,a,Ms).F; }
+function magPick(k){ const m=MAGS.find(x=>x.key===k);
+  document.querySelectorAll('.scen-btn[data-widget="mag"]').forEach(b=>b.classList.toggle('on',b.dataset.scen===k));
+  if(m){ presetSlider('flux-rt',Math.log10(m.Rt()*1e3)); presetSlider('flux-sat',m.sat); }
+  else if(k==='best'){ const t=specBestTip(fluxZ(),fluxA(),fluxMat().Ms); presetSlider('flux-rt',Math.log10(t.Rt*1e3)); presetSlider('flux-sat',1); }
+  if(RESET.embed)RESET.embed(); try{drawFlux();}catch(e){console.error(e);} try{drawEmbed();}catch(e){console.error(e);} }
+function magCurrentLabel(){ const Rt=fluxRt(), sat=num('flux-sat');
+  for(const m of MAGS)if(Math.abs(Math.log(m.Rt()/Rt))<0.03&&Math.abs(m.sat-sat)<0.03)return m.label;
+  return 'custom: R_t = '+fmtLenT(Rt)+(sat<0.99?', '+fmt(100*sat,0)+' % M_s':''); }
+/* draws the catalogue onto a prepared log-log chart; y = fn(F) mapping */
+function magCurves(ctx,ch,lo,hi,a,Ms,yOf,live){
+  const N=70, zs=[]; for(let i=0;i<=N;i++)zs.push(Math.pow(10,lo+(hi-lo)*i/N)*1e-3);
+  for(const m of MAGS){ const pts=zs.map(z=>{const f=magForce(m,z,a,Ms); return [Math.log10(z*1e3),f.F,f.valid];});
+    const ok=pts.filter(p=>p[1]>0&&yOf(p[1])!==null);
+    drawLine(ctx,ok.map(p=>[ch.toX(p[0]),ch.toY(yOf(p[1]))]),m.col,1.6,pts.some(p=>!p[2])?[3,3]:null); }
+  const env=zs.map(z=>[Math.log10(z*1e3),bestForce(z,a,Ms)]).filter(p=>p[1]>0&&yOf(p[1])!==null);
+  drawLine(ctx,env.map(p=>[ch.toX(p[0]),ch.toY(yOf(p[1]))]),'#dc2626',1.4,[6,4]);
+  const pr=zs.map(z=>[Math.log10(z*1e3),pairForce(z,a,Ms)]).filter(p=>p[1]>0&&yOf(p[1])!==null);
+  drawLine(ctx,pr.map(p=>[ch.toX(p[0]),ch.toY(yOf(p[1]))]),'#64748b',1.4,[2,3]);
+  if(live){ const lv=zs.map(z=>{const B=bCyl(z,fluxRt(),X1.Lt,fluxMcore()),g=gCyl(z,fluxRt(),X1.Lt,fluxMcore()); return [Math.log10(z*1e3),beadF(a,B,g,Ms)];}).filter(p=>p[1]>0&&yOf(p[1])!==null);
+    drawLine(ctx,lv.map(p=>[ch.toX(p[0]),ch.toY(yOf(p[1]))]),'#0f172a',2.6); }
+}
+function magLegend(ctx,ch,w,extra,pos){ ctx.font='10px system-ui'; ctx.textAlign='left';
+  const items=MAGS.map(m=>[m.col,m.label]).concat([['#dc2626','best tip re-chosen at every z (Tab 4)'],['#64748b','§1.4 pair, bias + gradient'],['#0f172a','current sliders: '+magCurrentLabel()]]).concat(extra||[]);
+  const tr=(pos==='tr'); let y=tr? ch.m.t+16 : ch.m.t+ch.ph-8-(items.length-1)*13; const x=tr? ch.m.l+ch.pw-268 : ch.m.l+10;
+  ctx.fillStyle='rgba(255,255,255,.82)'; ctx.fillRect(x-6,y-12,268,items.length*13+8);
+  for(const [c,l] of items){ ctx.fillStyle=c; ctx.fillRect(x,y-6,10,8); ctx.fillStyle='#334155'; ctx.fillText(l,x+14,y); y+=13; } }
+function drawFlux(){
+  const Rt=fluxRt(), z=fluxZ(), a=fluxA(), mat=fluxMat(), M=fluxMcore(), view=fluxView();
+  const G=fluxGrid(), at=fluxForceAt(z,a,mat.Ms), valid=(a<Rt/5)&&(a<z*0.5);
+  const cv=getCv('cv-flux');
+  if(cv){ const ctx=cv.ctx,w=cv.w,h=cv.h; ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,w,h);
+    /* axis runs left→right: rod on the left, z increasing to the right; ρ vertical, mirrored */
+    const sc=Math.min(w/(G.zmax-G.zmin), h/(2*G.rmax))*0.98, ox=(w-(G.zmax-G.zmin)*sc)/2 - G.zmin*sc, oy=h/2;
+    const X=zz=>ox+zz*sc, Y=rr=>oy-rr*sc;
+    const lmax=Math.log10(X1.mu0*M), lmin=lmax-3.2;
+    const cw=(G.zmax-G.zmin)/(G.NZ-1)*sc+1, chh=G.rmax/(G.NR-1)*sc+1;
+    for(let j=0;j<G.NZ;j++)for(let i=0;i<G.NR;i++){ const k=j*G.NR+i, t=(Math.log10(G.mag[k]+1e-12)-lmin)/(lmax-lmin);
+      ctx.fillStyle=fluxHeat(t); const zz=G.zmin+(G.zmax-G.zmin)*j/(G.NZ-1), rr=G.rmax*i/(G.NR-1);
+      ctx.fillRect(X(zz)-cw/2,Y(rr)-chh/2,cw,chh); ctx.fillRect(X(zz)-cw/2,Y(-rr)-chh/2,cw,chh); }
+    ctx.globalAlpha=0.85;
+    for(const ln of FLX.lines){ drawLine(ctx,ln.map(p=>[X(p[1]),Y(p[0])]),'rgba(255,255,255,.75)',1.1);
+      drawLine(ctx,ln.map(p=>[X(p[1]),Y(-p[0])]),'rgba(255,255,255,.75)',1.1); }
+    ctx.globalAlpha=1;
+    /* the rod */
+    ctx.fillStyle='#64748b'; ctx.fillRect(X(G.zmin),Y(Rt),X(0)-X(G.zmin),Y(-Rt)-Y(Rt));
+    ctx.strokeStyle='#e2e8f0'; ctx.lineWidth=1.5; ctx.strokeRect(X(G.zmin),Y(Rt),X(0)-X(G.zmin),Y(-Rt)-Y(Rt));
+    { const rx=(X(G.zmin)+X(0))/2, above=Y(Rt)>34; ctx.fillStyle=above?'#e2e8f0':'#f8fafc'; ctx.font='600 11px system-ui'; ctx.textAlign=above?'center':'left';
+      const lx=above?rx:X(G.zmin)+6, ly=above?Y(Rt)-20:Y(0)-4;
+      ctx.fillText('iron tip · R_t = '+fmtLen(Rt),lx,ly);
+      ctx.font='10px system-ui'; ctx.fillText('M = '+fmt(100*num('flux-sat'),0)+' % of M_s',lx,ly+13); }
+    /* the bead, to scale (min 3 px) */
+    const bp=Math.max(a*sc,3), ex=a*sc<3;
+    ctx.fillStyle='#f59e0b'; ctx.beginPath(); ctx.arc(X(z),Y(0),bp,0,7); ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.stroke();
+    /* force arrow toward the face */
+    const al=clamp(Math.log10(at.F*1e9+1)*22,10,110);
+    arrow(ctx,X(z)-bp-2,Y(0),X(z)-bp-2-al,Y(0),'#fbbf24',2.4);
+    { const tx=Math.min(X(z)+bp+8,w-190); ctx.fillStyle='#fde68a'; ctx.font='600 11px system-ui'; ctx.textAlign='left';
+      ctx.fillText('bead '+fmtLen(2*a)+(ex?' (oversize)':'')+' · z = '+fmtLen(z),tx,Y(0)-22);
+      ctx.fillText('F = '+fmtF(at.F)+(at.sat?' · saturated':' · linear'),tx,Y(0)-8);
+      ctx.fillStyle='#cbd5e1'; ctx.font='10px system-ui';
+      ctx.fillText('B = '+fmtB(at.B)+' · ∇B = '+fmtG(at.g),tx,Y(0)+10); }
+    /* colour bar */
+    for(let i=0;i<60;i++){ ctx.fillStyle=fluxHeat(i/59); ctx.fillRect(w-26,h-20-i*2.2,10,2.4); }
+    ctx.fillStyle='#e2e8f0'; ctx.font='9px system-ui'; ctx.textAlign='right';
+    ctx.fillText(fmtB(Math.pow(10,lmax)),w-30,h-150); ctx.fillText(fmtB(Math.pow(10,lmin)),w-30,h-16);
+    ctx.textAlign='left'; ctx.fillText('|B|, log colour · field lines white · axisymmetric section',10,h-10);
+    if(!valid){ ctx.fillStyle='#fca5a5'; ctx.font='700 11px system-ui'; HI.draw(ctx,'exclamation-triangle',10,10,11,'#fca5a5'); ctx.fillText('point-dipole model invalid here: bead is not ≪ tip and gap',25,20); }
+  }
+  /* ── canvas 2: F vs z for THIS bead, across the electromagnet catalogue ── */
+  const cv2=getCv('cv-flux2');
+  if(cv2){ const ctx=cv2.ctx,w=cv2.w,h=cv2.h; ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+    const lo=-1.3,hi=1.3; let fmin=Infinity,fmax=0;
+    for(const m of MAGS)for(const lz of [lo,(lo+hi)/2,hi]){ const f=magForce(m,Math.pow(10,lz)*1e-3,a,mat.Ms).F; if(f>0){fmin=Math.min(fmin,f);fmax=Math.max(fmax,f);} }
+    fmax=Math.max(fmax,bestForce(Math.pow(10,lo)*1e-3,a,mat.Ms)); fmin=Math.max(Math.min(fmin,pairForce(0,a,mat.Ms)),fmax*1e-8);
+    const ymin=Math.log10(fmin)-0.3, ymax=Math.log10(fmax)+0.4;
+    const ch=new Chart(ctx,w,h,{l:66,r:18,t:14,b:58}); ch.setRange(lo,hi,ymin,ymax);
+    const xt=[-1,0,1],yt=[]; for(let e=Math.ceil(ymin);e<=Math.floor(ymax);e+=2)yt.push(e);
+    ch.grid(xt,yt); ch.axes('distance from the pole face','force on this '+fmtLenT(2*a)+' bead',xt,yt,0,0,v=>fmtLenT(Math.pow(10,v)*1e-3),v=>fmtFT(Math.pow(10,v)));
+    magCurves(ctx,ch,lo,hi,a,mat.Ms,F=>{const y=Math.log10(F); return (y<ymin||y>ymax)?null:y;},true);
+    ctx.fillStyle='#f59e0b'; ctx.beginPath(); ctx.arc(ch.toX(Math.log10(z*1e3)),ch.toY(clamp(Math.log10(Math.max(at.F,1e-30)),ymin,ymax)),5.5,0,7); ctx.fill(); ctx.strokeStyle='#92400e'; ctx.lineWidth=1.5; ctx.stroke();
+    magLegend(ctx,ch,w);
+    ctx.fillStyle='#64748b'; ctx.font='10px system-ui'; ctx.textAlign='left';
+    ctx.fillText('dashed segments: point-dipole model invalid for this bead (a > R_t/5 or a > z/2) · sharper tips win up close and lose reach',ch.toX(lo)+6,h-8);
+  }
+  /* stateless widget: no statTick */
+  setStat('st-flux',[
+    {k:'B at the bead',v:fmtB(at.B)},
+    {k:'∇B at the bead',v:fmtG(at.g)},
+    {k:'bead regime',v:at.sat?'saturated: M = M<sub>s</sub>':'linear: M = 3B/µ<sub>0</sub>'},
+    {k:'force F',v:fmtF(at.F),hi:true}]);
+  if(!valid)setVerdict('vd-flux','bad','The model has left its domain.',' A '+fmtLen(2*a)+' bead is not small next to a '+fmtLen(Rt)+' tip at '+fmtLen(z)+': the field varies across the bead, its own magnetization talks back to the pole, and E1.2.4 (a point dipole) is no longer the right physics. The number shown is an extrapolation — for beads this size, use a bigger tip or a finite-element calculation.');
+  else if(at.sat)setVerdict('vd-flux','good','Saturated: F = V·M<sub>s</sub>·∇B.',' B = '+fmtB(at.B)+' is past this material’s µ₀M<sub>s</sub>/3 = '+fmtB(beadSatB(mat.Ms))+', so the bead carries its full moment and the force tracks the <em>gradient</em> alone: '+fmtF(at.F)+'. Bigger bead, more iron, more force — ∝ a³. Sharpen the tip for more gradient, and pay for it in reach.');
+  else setVerdict('vd-flux','warn','Linear: F = (3V/µ₀)·B·∇B.',' B = '+fmtB(at.B)+' is below µ₀M<sub>s</sub>/3 = '+fmtB(beadSatB(mat.Ms))+', so the bead is only partly magnetized and the force scales with B·∇B — it falls off twice as fast with distance as the saturated case. Move the bead in (or drop to a softer material like magnetite) and watch the regime flip.');
+}
+defWidget('flux','force',drawFlux,{
+  'flux-rt':v=>fmtLen(Math.pow(10,v)*1e-3),'flux-z':v=>fmtLen(Math.pow(10,v)*1e-3),
+  'flux-d':v=>fmtLen(Math.pow(10,v)*1e-6),'flux-sat':v=>fmt(100*v,0)+' % of M_s'},{scen0:'iron'});
+
+/* ════════ TAB 3 widget: embed — the bead in the gel ════════
+   Predict-then-reveal engine. The bead's force comes from Tab 2's tip (same
+   R_t, same material, same z), the displacement from E1.3.1 with the depth
+   correction E1.3.4. Sweeping the diameter slider DEPOSITS (a,u) points; the
+   fitted log-log slope is the reveal (2.0, not the 1.0 that "projected area"
+   predicts). The gel is drawn as a dot lattice displaced by the exact field
+   of a translating rigid sphere — what the lab's particle tracking would see.
+   'pulse' plays Kelvin–Voigt creep and recovery for the chosen pulse length. */
+const EMB={pts:[],key:'',t:0,u:0,phase:0};
+function embE(){ return Math.pow(10,num('embed-E')); }
+function embA(){ return Math.pow(10,num('embed-d'))*1e-6/2; }
+function embZ(){ return Math.pow(10,num('embed-z'))*1e-3; }
+function embH(){ return num('embed-h')*1e-6; }
+function embTauVe(){ return Math.pow(10,num('embed-eta'))/(embE()/3); }
+function embForce(a){ const Rt=fluxRt(), M=fluxMcore(), mat=fluxMat(), z=embZ();
+  const B=bCyl(z,Rt,X1.Lt,M), g=gCyl(z,Rt,X1.Lt,M); return {F:beadF(a,B,g,mat.Ms),B,g,sat:beadM(B,mat.Ms)>=mat.Ms*0.999,Rt,mat}; }
+function embU(a){ const f=embForce(a), G=embE()/3; return uSphere(f.F,a,G,0.5)/depthFactor(a,embH()); }
+function embReset(){
+  const key=[num('embed-E'),num('embed-z'),num('embed-h'),fluxRt(),fluxMcore(),SCEN.flux||'iron'].join('|');
+  if(key!==EMB.key){ EMB.pts=[]; EMB.key=key; }
+  const a=embA(); if(!EMB.pts.some(p=>Math.abs(Math.log(p.a/a))<0.02))EMB.pts.push({a:a,u:embU(a)});
+  if(EMB.pts.length>40)EMB.pts.shift();
+  EMB.t=0; EMB.u=0; }
+function stepEmbed(dt){ if((SCEN.embed||'static')!=='pulse')return;
+  const tp=Math.pow(10,num('embed-tp')), tau=embTauVe(), uinf=embU(embA());
+  const span=Math.max(tp*2.5,tau*6), speed=span/4, h=dt*speed;
+  const on=EMB.t<tp; EMB.u+=((on?uinf:0)-EMB.u)*(1-Math.exp(-h/tau)); EMB.t+=h;
+  if(EMB.t>span){ EMB.t=0; EMB.u=0; } }
+function drawEmbed(){
+  const a=embA(), E=embE(), G=E/3, h=embH(), z=embZ(), f=embForce(a), uinf=embU(a), mode=SCEN.embed||'static';
+  const u=mode==='pulse'?EMB.u:uinf, strain=uinf/a, tau=embTauVe();
+  const cv=getCv('cv-embed');
+  if(cv){ const ctx=cv.ctx,w=cv.w,hh=cv.h; ctx.fillStyle='#fdf4ff'; ctx.fillRect(0,0,w,hh);
+    const view=12*a; const sc=Math.min(w*0.42/view,hh*0.46/view);      /* zoom to the bead — it is the subject */
+    const cx=w*0.5, cy=hh*0.5, X=x=>cx+x*sc, Y=y=>cy-y*sc;
+    /* substrate at depth h below the bead centre — drawn if it is in view, named if not */
+    if(Y(-h)<hh){ ctx.fillStyle='#e2e8f0'; ctx.fillRect(0,Y(-h),w,hh-Y(-h)); ctx.fillStyle='#64748b'; ctx.font='10px system-ui'; ctx.textAlign='left';
+      ctx.fillText('glass · gel depth h = '+fmtLen(h),8,Y(-h)+14); }
+    else { ctx.fillStyle='#94a3b8'; ctx.font='10px system-ui'; ctx.textAlign='left'; ctx.fillText('↓ glass '+fmtLen(h)+' below',8,hh-10); }
+    /* the tip, off to the left at distance z — drawn if in view, else an arrow */
+    if(X(-z)>0){ ctx.fillStyle='#64748b'; ctx.fillRect(0,Y(f.Rt),X(-z),Y(-f.Rt)-Y(f.Rt)); ctx.fillStyle='#f8fafc'; ctx.font='600 10px system-ui'; ctx.textAlign='left'; ctx.fillText('tip',4,Y(0)+4); }
+    else { arrow(ctx,58,Y(0),12,Y(0),'#64748b',2); ctx.fillStyle='#64748b'; ctx.font='10px system-ui'; ctx.textAlign='left'; ctx.fillText('tip '+fmtLen(z)+' →',8,Y(0)-8); }
+    /* dot lattice displaced by the rigid-sphere field; exaggerated so small strains stay visible (factor printed) */
+    const ex=clamp(0.3*a/Math.max(uinf,1e-12),1,60); const dx=view/13;
+    for(let i=-8;i<=8;i++)for(let j=-6;j<=6;j++){ const x0=i*dx, y0=j*dx; if(y0<-h)continue;
+      const r=Math.hypot(x0,y0); if(r<a*1.05)continue;
+      const th=Math.atan2(y0,-x0); /* pull is toward −x (the tip) */
+      const [ur,ut]=sphereField(r,th,a); const U=u*ex;
+      const ux=-(ur*Math.cos(th)-ut*Math.sin(th))*U, uy=(ur*Math.sin(th)+ut*Math.cos(th))*U;
+      ctx.fillStyle='rgba(124,58,237,.55)'; ctx.beginPath(); ctx.arc(X(x0+ux),Y(y0+uy),1.8,0,7); ctx.fill();
+      if(u>0){ ctx.strokeStyle='rgba(124,58,237,.25)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(X(x0),Y(y0)); ctx.lineTo(X(x0+ux),Y(y0+uy)); ctx.stroke(); } }
+    /* the bead */
+    ctx.fillStyle='rgba(245,158,11,.25)'; ctx.beginPath(); ctx.arc(X(0),Y(0),a*sc,0,7); ctx.fill();
+    ctx.strokeStyle='#b45309'; ctx.setLineDash([3,3]); ctx.lineWidth=1; ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle='#f59e0b'; ctx.beginPath(); ctx.arc(X(-u*ex),Y(0),a*sc,0,7); ctx.fill(); ctx.strokeStyle='#92400e'; ctx.lineWidth=1.5; ctx.stroke();
+    arrow(ctx,X(0),Y(a)-14,X(-u*ex),Y(a)-14,'#dc2626',2.2);
+    ctx.fillStyle='#7f1d1d'; ctx.font='600 11px system-ui'; ctx.textAlign='left';
+    ctx.fillText('u = '+fmtLen(u)+(ex>1.01?'  (drawn ×'+fmt(ex,0)+')':''),X(a)+8,Y(a)-10);
+    ctx.fillStyle='#475569'; ctx.font='600 12px system-ui'; ctx.textAlign='right';
+    ctx.fillText((mode==='pulse'?('t = '+fmtT(EMB.t)+(EMB.t<Math.pow(10,num('embed-tp'))?' · pulse ON':' · pulse off, recovering')+'   '):'')+'F = '+fmtF(f.F)+'   E = '+fmtPa(E)+'   u/a = '+fmt(strain,2),w-12,22);
+    if(strain>0.3){ ctx.fillStyle='#b91c1c'; ctx.font='700 11px system-ui'; const wt='u/a > 0.3 — linear elasticity is no longer honest here'; HI.draw(ctx,'exclamation-triangle',w-26-ctx.measureText(wt).width,30,11,'#b91c1c'); ctx.fillText(wt,w-12,40); }
+    ctx.textAlign='left';
+  }
+  const cv2=getCv('cv-embed2');
+  if(cv2){ const ctx=cv2.ctx,w=cv2.w,hh=cv2.h; ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,hh);
+    const lo=0,hi=2.7; const th=[]; let umin=Infinity,umax=0;
+    for(let i=0;i<=60;i++){ const ld=lo+(hi-lo)*i/60, aa=Math.pow(10,ld)*1e-6/2, uu=embU(aa); th.push([ld,uu]); umin=Math.min(umin,uu); umax=Math.max(umax,uu); }
+    const ymin=Math.log10(umin)-0.3, ymax=Math.log10(umax)+0.5;
+    const ch=new Chart(ctx,w,hh); ch.setRange(lo,hi,ymin,ymax);
+    const xt=[0,1,2], yt=[]; for(let e=Math.ceil(ymin);e<=Math.floor(ymax);e++)yt.push(e);
+    ch.grid(xt,yt); ch.axes('bead diameter','displacement u',xt,yt,0,0,v=>fmtLenT(Math.pow(10,v)*1e-6),v=>fmtLenT(Math.pow(10,v)));
+    /* the "projected area" guess: slope 1 through the current point */
+    const la=Math.log10(2*a*1e6), lu=Math.log10(uinf);
+    drawLine(ctx,[[ch.toX(lo),ch.toY(lu-(la-lo))],[ch.toX(hi),ch.toY(lu+(hi-la))]],'#f59e0b',1.4,[6,4]);
+    ctx.fillStyle='#b45309'; ctx.font='10px system-ui'; ctx.textAlign='left'; ctx.fillText('if the gel resisted like an AREA: slope 1',ch.toX(lo)+6,ch.toY(lu-(la-lo))-6);
+    drawLine(ctx,th.map(p=>[ch.toX(p[0]),ch.toY(Math.log10(p[1]))]),'#94a3b8',2,[5,4]);
+    for(const p of EMB.pts){ ctx.fillStyle=COL.data; ctx.beginPath(); ctx.arc(ch.toX(Math.log10(2*p.a*1e6)),ch.toY(Math.log10(p.u)),4,0,7); ctx.fill(); }
+    const fit=EMB.pts.length>=3? lsqFit(EMB.pts.map(p=>Math.log10(p.a)),EMB.pts.map(p=>Math.log10(p.u))) : null;
+    if(fit){ const y0=fit.m*Math.log10(Math.pow(10,lo)*1e-6/2)+fit.b, y1=fit.m*Math.log10(Math.pow(10,hi)*1e-6/2)+fit.b;
+      drawLine(ctx,[[ch.toX(lo),ch.toY(y0)],[ch.toX(hi),ch.toY(y1)]],COL.overlay,2);
+      ctx.fillStyle=COL.overlay; ctx.font='700 12px system-ui'; ctx.textAlign='right'; ctx.fillText('fitted slope = '+fmt(fit.m,2),w-16,32); }
+    ctx.fillStyle='#f59e0b'; ctx.beginPath(); ctx.arc(ch.toX(la),ch.toY(lu),6,0,7); ctx.fill(); ctx.strokeStyle='#92400e'; ctx.lineWidth=1.5; ctx.stroke();
+    ch.legend([{color:COL.data,label:'deposited (sweep the diameter)'},{color:'#94a3b8',label:'E1.3.1 + E1.3.3'},{color:COL.overlay,label:'fit'}],w-360,ch.m.t+ch.ph-12);
+    ctx.fillStyle='#64748b'; ctx.font='10px system-ui'; ctx.textAlign='left'; ctx.fillText(fit&&Math.abs(fit.m-2)<0.15?'slope 2: force ∝ a³, resistance ∝ a — the gel resists like a radius':'sweep the diameter slider to deposit points',ch.toX(lo)+6,ch.m.t+14);
+  }
+  /* ── canvas 3: displacement of THIS bead vs distance, across the electromagnet catalogue ── */
+  const cv3=getCv('cv-embed3');
+  if(cv3){ const ctx=cv3.ctx,w=cv3.w,hh=cv3.h; ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,hh);
+    const lo=-1.3,hi=1.3, toU=F=>uSphere(F,a,G,0.5)/depthFactor(a,h);
+    const umaxAll=Math.max(toU(bestForce(Math.pow(10,lo)*1e-3,a,f.mat.Ms)),a*3), uminAll=Math.max(toU(pairForce(0,a,f.mat.Ms))*0.3,1e-10);
+    const ymin=Math.log10(uminAll), ymax=Math.log10(umaxAll)+0.3;
+    const ch=new Chart(ctx,w,hh,{l:66,r:18,t:14,b:58}); ch.setRange(lo,hi,ymin,ymax);
+    const xt=[-1,0,1],yt=[]; for(let e=Math.ceil(ymin);e<=Math.floor(ymax);e++)yt.push(e);
+    ch.grid(xt,yt); ch.axes('distance from the pole face','displacement of this '+fmtLenT(2*a)+' bead',xt,yt,0,0,v=>fmtLenT(Math.pow(10,v)*1e-3),v=>fmtLenT(Math.pow(10,v)));
+    /* bands: too small to track · linear and trackable · nonlinear */
+    const yFloor=Math.log10(30e-9), yLin=Math.log10(0.1*a), yNL=Math.log10(0.3*a);
+    const band=(y0,y1,col)=>{ const a0=clamp(y0,ymin,ymax),a1=clamp(y1,ymin,ymax); if(a1>a0){ ctx.fillStyle=col; ctx.fillRect(ch.toX(lo),ch.toY(a1),ch.toX(hi)-ch.toX(lo),ch.toY(a0)-ch.toY(a1)); } };
+    band(ymin,yFloor,'rgba(148,163,184,.14)'); band(yFloor,yLin,'rgba(16,185,129,.12)'); band(yLin,yNL,'rgba(245,158,11,.12)'); band(yNL,ymax,'rgba(239,68,68,.10)');
+    ctx.font='10px system-ui'; ctx.textAlign='left';
+    ctx.fillStyle='#64748b'; if(yFloor>ymin)ctx.fillText('below the ~30 nm tracking floor',ch.toX(lo)+6,ch.toY(yFloor)+12);
+    ctx.fillStyle='#047857'; if(yLin>ymin)ctx.fillText('linear and trackable (u/a < 0.1)',ch.toX(lo)+6,ch.toY(yLin)+12);
+    ctx.fillStyle='#b45309'; ctx.fillText('u/a 0.1–0.3: usable with a caveat',ch.toX(lo)+6,ch.toY(Math.min(yNL,ymax))+12);
+    ctx.fillStyle='#b91c1c'; if(yNL<ymax)ctx.fillText('u/a > 0.3: the model is lying',ch.toX(lo)+6,ch.toY(ymax)+12);
+    magCurves(ctx,ch,lo,hi,a,f.mat.Ms,F=>{const y=Math.log10(toU(F)); return (y<ymin||y>ymax)?null:y;},true);
+    ctx.fillStyle='#f59e0b'; ctx.beginPath(); ctx.arc(ch.toX(Math.log10(z*1e3)),ch.toY(clamp(Math.log10(Math.max(uinf,1e-30)),ymin,ymax)),5.5,0,7); ctx.fill(); ctx.strokeStyle='#92400e'; ctx.lineWidth=1.5; ctx.stroke();
+    magLegend(ctx,ch,w,null,'tr');
+    ctx.fillStyle='#64748b'; ctx.font='10px system-ui'; ctx.textAlign='left';
+    ctx.fillText('E = '+fmtPa(E)+' · '+f.mat.label+' · the green band is where a measurement is honest: pick the magnet whose curve crosses it at your working distance',ch.toX(lo)+6,hh-8);
+  }
+  if((SCEN.embed||'static')==='pulse'&&!statTick('embed'))return;   /* gate only while animating */
+  const fit=EMB.pts.length>=3? lsqFit(EMB.pts.map(p=>Math.log10(p.a)),EMB.pts.map(p=>Math.log10(p.u))) : null;
+  setStat('st-embed',[
+    {k:'force on the bead',v:fmtF(f.F)+(f.sat?' (sat.)':' (lin.)')},
+    {k:'displacement u',v:fmtLen(uinf),hi:true},
+    {k:'strain u/a · τ<sub>ve</sub>',v:fmt(strain,3)+' · '+fmtT(tau)},
+    {k:'log-log slope u vs a',v:fit?fmt(fit.m,2):'— (deposit ≥3)'}]);
+  const tp=Math.pow(10,num('embed-tp'));
+  if(strain>0.3)setVerdict('vd-embed','bad','The model is now lying to you.',' u/a = '+fmt(strain,2)+'. Linear elasticity assumes small strain; past ~0.3 the gel around the bead is in its nonlinear regime (and a granular gel may be yielding, which is the whole CAREER question). Stiffen the gel, shrink the bead, or move the tip back — then trust the number.');
+  else if(strain>0.1)setVerdict('vd-embed','warn','Usable, with a caveat.',' u/a = '+fmt(strain,2)+' — u = '+fmtLen(uinf)+' at E = '+fmtPa(E)+'. Linear theory is ~10 % soft here. Fine for a design estimate; for a rheology measurement, aim below 0.1.'+(mode==='pulse'&&tp<3*tau?' And this pulse ('+fmtT(tp)+') is shorter than 3τ<sub>ve</sub> = '+fmtT(3*tau)+': the bead reaches only '+fmt(100*(1-Math.exp(-tp/tau)),0)+' % of u∞ before the field drops.':''));
+  else if(uinf<20e-9)setVerdict('vd-embed','warn','Below the tracking floor.',' u = '+fmtLen(uinf)+' — sub-voxel for confocal particle tracking (~20–50 nm floor). The physics is honest but the microscope will not see it. Bigger bead (u ∝ a²!), softer gel, or a closer tip.');
+  else setVerdict('vd-embed','good','Linear, trackable, and ∝ a².',' u = '+fmtLen(uinf)+' at u/a = '+fmt(strain,3)+' — small strain, well inside the model, and easily resolved by particle tracking. Note what doubling the bead does: eight times the force against only twice the resistance. '+(fit&&Math.abs(fit.m-2)<0.15?'Your deposited points read slope '+fmt(fit.m,2)+'.':'Sweep the diameter to see the slope.')+(mode==='pulse'&&tp<3*tau?' Caveat: this pulse is under 3τ<sub>ve</sub>, so the bead sees only '+fmt(100*(1-Math.exp(-tp/tau)),0)+' % of u∞.':''));
+}
+embReset();
+defWidget('embed','gel',drawEmbed,{
+  'embed-E':v=>fmtPa(Math.pow(10,v)),'embed-d':v=>fmtLen(Math.pow(10,v)*1e-6),'embed-z':v=>fmtLen(Math.pow(10,v)*1e-3),
+  'embed-h':v=>fmt(v,0)+' µm','embed-eta':v=>fmt(Math.pow(10,v),0)+' Pa·s','embed-tp':v=>fmtT(Math.pow(10,v))},
+  {reset:embReset,scen0:'static',scenfn:function(){EMB.t=0;EMB.u=0;}});
+registerAnim('embed',stepEmbed,33);
+
+/* ════════ TAB 4 widget: spec — the chain, backwards (stateless) ════════
+   Target displacement in; coil out. Every line reuses an equation from Tabs
+   1–3 and cites it. The tip radius is CHOSEN for the working distance (the
+   R_t that maximizes force at that z — it sits near R_t ≈ z), the coil is the
+   one on Tab 1's designer, and the shot must (a) saturate the core, (b) end
+   before the enamel cooks, (c) outlast both τ_LR and 3τ_ve. */
+function specBestTip(z,a,Ms){ /* scan R_t for the largest force at this z */
+  let best={F:0,Rt:z}; for(let i=0;i<=60;i++){ const Rt=Math.pow(10,-4.3+2.3*i/60);
+    const B=bCyl(z,Rt,X1.Lt,X1.mat.iron.Ms), g=gCyl(z,Rt,X1.Lt,X1.mat.iron.Ms), F=beadF(a,B,g,Ms);
+    if(F>best.F)best={F,Rt,B,g,sat:beadM(B,Ms)>=Ms*0.999}; } return best; }
+function specChain(){
+  const u=Math.pow(10,num('spec-u'))*1e-6, E=Math.pow(10,num('spec-E')), G=E/3, a=Math.pow(10,num('spec-d'))*1e-6/2;
+  const z=Math.pow(10,num('spec-z'))*1e-3, tpmin=Math.pow(10,num('spec-tp')), eta=Math.pow(10,num('spec-eta'));
+  const mat=X1.mat[SCEN.spec||'iron'], h=100e-6;
+  const Freq=u*depthFactor(a,h)*6*Math.PI*G*a;                       /* E1.3.1 + E1.3.4 */
+  const tip=specBestTip(z,a,mat.Ms);
+  const g=windGeom(), c=windCoil(), core=windCore(g);
+  const NIsat=windNIsat(g,core), Isat=NIsat/c.N, Vsat=Isat*c.R, Psat=Isat*Isat*c.R, Jsat=Isat/c.Aw;
+  const tEn=actionInt(num('wind-tmax')-X1.cu.T0)/(Jsat*Jsat), tau=inductance(c.N,core.mueff,core.Acore,g.len)/c.R, tauVe=eta/G;
+  const tNeed=Math.max(tpmin,3*tau,3*tauVe);
+  const rows=[
+    {k:'target displacement',v:fmtLenT(u)+' of a '+fmtLenT(2*a)+' '+mat.label+' bead in '+fmtPa(E)+' gel, '+fmtLenT(z)+' from the tip',eq:'',ok:null},
+    {k:'force required',v:fmtF(Freq),eq:'E1.3.1, E1.3.3  F = 6πG·a·u·(1+9a/8h)',ok:null},
+    {k:'best tip for this distance',v:'R_t = '+fmtLen(tip.Rt)+'  →  B = '+fmtB(tip.B)+', ∇B = '+fmtG(tip.g)+' ('+(tip.sat?'bead saturated':'linear')+')',eq:'E1.2.1, E1.2.2',ok:null},
+    {k:'force available',v:fmtF(tip.F)+'  (margin ×'+fmt(tip.F/Freq,tip.F/Freq<10?2:0)+')',eq:'E1.2.4  F = V·M(B)·∇B',ok:tip.F>=Freq},
+    {k:'model validity',v:'a/R_t = '+fmt(a/tip.Rt,2)+', u/a = '+fmt(u/a,3),eq:'point dipole needs a ≪ R_t; linear gel needs u/a ≲ 0.3',ok:(a<tip.Rt/5)&&(u/a<0.3)},
+    {k:'core saturation',v:(core.air?'air core — cannot saturate':fmt(NIsat,0)+' A·t for L/D = '+g.ld+' ('+fmt(c.N,0)+' turns → '+fmt(Isat,2)+' A, '+fmt(Vsat,1)+' V, '+fmt(Psat,0)+' W)'),eq:'E1.1.2, E1.1.3, E1.1.4',ok:!core.air},
+    {k:'shot clock at that current',v:'J = '+fmt(Jsat/1e6,0)+' A/mm² → enamel at '+fmtT(tEn),eq:'E1.1.5',ok:tEn>=tNeed},
+    {k:'the shot must last',v:fmtT(tNeed)+'  (max of: your minimum '+fmtT(tpmin)+', 3τ_LR = '+fmtT(3*tau)+', 3τ_ve = '+fmtT(3*tauVe)+')',eq:'E1.1.6, E1.3.4',ok:null},
+  ];
+  const pass=rows.every(r=>r.ok!==false);
+  return {u,E,G,a,z,mat,Freq,tip,c,g,core,NIsat,Isat,Vsat,Psat,Jsat,tEn,tau,tauVe,tNeed,rows,pass,tpmin};
+}
+function drawSpec(){
+  const S=specChain();
+  const lg=document.getElementById('lg-spec');
+  if(lg){ let html='<table class="ledger"><tr><th>step</th><th>value</th><th>equation</th></tr>';
+    for(const r of S.rows)html+='<tr class="'+(r.ok===true?'pass':(r.ok===false?'fail':''))+'"><td>'+r.k+'</td><td class="n">'+r.v+'</td><td>'+r.eq+'</td></tr>';
+    html+='</table>'; if(lg.innerHTML!==html)lg.innerHTML=html; }
+  const cv=getCv('cv-spec');
+  if(cv){ const ctx=cv.ctx,w=cv.w,h=cv.h; ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+    /* feasibility: achievable u vs bead diameter for THIS coil (saturated core, best tip at z), target marked */
+    const lo=0,hi=2.7; const pts=[]; let umin=Infinity,umax=0;
+    for(let i=0;i<=54;i++){ const ld=lo+(hi-lo)*i/54, aa=Math.pow(10,ld)*1e-6/2; const t=specBestTip(S.z,aa,S.mat.Ms);
+      const uu=uSphere(t.F,aa,S.G,0.5)/depthFactor(aa,100e-6); pts.push([ld,uu,aa<t.Rt/5&&uu/aa<0.3]); umin=Math.min(umin,uu); umax=Math.max(umax,uu); }
+    const ymin=Math.min(Math.log10(umin),Math.log10(S.u))-0.4, ymax=Math.max(Math.log10(umax),Math.log10(S.u))+0.5;
+    const ch=new Chart(ctx,w,h,{l:66,r:18,t:14,b:42}); ch.setRange(lo,hi,ymin,ymax);
+    const xt=[0,1,2], yt=[]; for(let e=Math.ceil(ymin);e<=Math.floor(ymax);e++)yt.push(e);
+    ch.grid(xt,yt); ch.axes('bead diameter','displacement at full drive',xt,yt,0,0,v=>fmtLenT(Math.pow(10,v)*1e-6),v=>fmtLenT(Math.pow(10,v)));
+    ctx.fillStyle='rgba(16,185,129,.09)'; ctx.fillRect(ch.toX(lo),ch.toY(ymax),ch.toX(hi)-ch.toX(lo),ch.toY(Math.log10(S.u))-ch.toY(ymax));
+    ch.hLine(Math.log10(S.u),'#dc2626',[6,4]); ctx.fillStyle='#991b1b'; ctx.font='600 11px system-ui'; ctx.textAlign='left';
+    ctx.fillText('target u = '+fmtLen(S.u),ch.toX(lo)+6,ch.toY(Math.log10(S.u))-6);
+    const okp=pts.filter(p=>p[2]), badp=pts.filter(p=>!p[2]);
+    drawLine(ctx,pts.map(p=>[ch.toX(p[0]),ch.toY(Math.log10(p[1]))]),'#cbd5e1',1.6,[3,4]);
+    if(okp.length>1)drawLine(ctx,okp.map(p=>[ch.toX(p[0]),ch.toY(Math.log10(p[1]))]),COL.data,2.4);
+    ctx.fillStyle='#f59e0b'; ctx.beginPath(); ctx.arc(ch.toX(Math.log10(2*S.a*1e6)),ch.toY(Math.log10(uSphere(S.tip.F,S.a,S.G,0.5)/depthFactor(S.a,100e-6))),6,0,7); ctx.fill();
+    ctx.strokeStyle='#92400e'; ctx.lineWidth=1.5; ctx.stroke();
+    ch.legend([{color:COL.data,label:'deliverable, model valid'},{color:'#cbd5e1',label:'model invalid (a > R_t/5 or u/a > 0.3)'}],w-370,ch.m.t+30);
+    ctx.fillStyle='#64748b'; ctx.font='10px system-ui'; ctx.textAlign='left';
+    ctx.fillText('gel '+fmtPa(S.E)+' · '+S.mat.label+' · z = '+fmtLen(S.z)+' · tip re-optimized for every bead · at the core-saturating current',ch.toX(lo)+6,ch.m.t+14);
+  }
+  /* stateless widget: no statTick */
+  setStat('st-spec',[
+    {k:'force required',v:fmtF(S.Freq)},
+    {k:'best tip R<sub>t</sub>',v:fmtLen(S.tip.Rt)},
+    {k:'force available',v:fmtF(S.tip.F),hi:true},
+    {k:'shot: need · have',v:fmtT(S.tNeed)+' · '+fmtT(S.tEn)}]);
+  const fails=S.rows.filter(r=>r.ok===false).map(r=>r.k);
+  if(S.pass)setVerdict('vd-spec','good','Build it.',' Wind '+fmt(S.c.N,0)+' turns of AWG '+S.g.awg+' on the '+fmt(S.g.ri*2e3,0)+'×'+fmt(S.g.len*1e3,0)+' mm bobbin around an L/D = '+S.g.ld+' iron rod turned to a '+fmtLen(S.tip.Rt)+'-radius tip. Drive it at <strong>'+fmt(S.Vsat,1)+' V / '+fmt(S.Isat,2)+' A</strong> ('+fmt(S.Psat,0)+' W) for <strong>'+fmtT(S.tNeed)+'</strong>; the enamel gives you '+fmtT(S.tEn)+'. Expected: '+fmtLen(uSphere(S.tip.F,S.a,S.G,0.5)/depthFactor(S.a,100e-6))+' on a '+fmtLenT(2*S.a)+' bead — margin ×'+fmt(S.tip.F/S.Freq,1)+'.');
+  else setVerdict('vd-spec','bad','Not with this rig.',' Failing: <strong>'+fails.join(', ')+'</strong>. '+(fails.includes('force available')?'Even the optimal tip at '+fmtLen(S.z)+' gives '+fmtF(S.tip.F)+' against '+fmtF(S.Freq)+' needed — move the tip closer (force falls as z⁻³ here), use a bigger or more magnetic bead (∝ a³·M_s), or a softer gel. ':'')+(fails.includes('shot clock at that current')?'The enamel cooks in '+fmtT(S.tEn)+' but the shot must last '+fmtT(S.tNeed)+' — thicker wire (lower J at the same A·t), a longer core (smaller N_d, fewer A·t), or a lower-inductance winding to cut τ_LR. ':'')+(fails.includes('model validity')?'The numbers are outside the model’s domain — see the validity row. ':'')+(fails.includes('core saturation')?'Put iron in the core. ':''));
+}
+defWidget('spec','design',drawSpec,{
+  'spec-u':v=>fmtLen(Math.pow(10,v)*1e-6),'spec-E':v=>fmtPa(Math.pow(10,v)),'spec-d':v=>fmtLen(Math.pow(10,v)*1e-6),
+  'spec-z':v=>fmtLen(Math.pow(10,v)*1e-3),'spec-tp':v=>fmtT(Math.pow(10,v)),'spec-eta':v=>fmt(Math.pow(10,v),0)+' Pa·s'},{scen0:'iron'});
+
+/* ════════ TAB 4 widget: sheet — the object, dimensioned (stateless) ════════
+   Draws the rig to scale from Tab 1's bobbin/core and Tab 4's chosen tip, with
+   dimension lines, and fills a bill of materials + the electrical facts a
+   builder needs (layers, wire mass, flyback diode, stored energy). */
+const SHEET_TAPER=30*Math.PI/180;      /* taper half-angle */
+function sheetDims(){ const g=windGeom(), c=windCoil(), core=windCore(g), S=specChain();
+  const Dcore=2*g.ri, Lcore=core.air?g.len:Math.max(g.ld*Dcore,g.len+10e-3);
+  const Rt=Math.max(S.tip.Rt,0.05e-3), taper=Math.max(0,(g.ri-Rt)/Math.tan(SHEET_TAPER));
+  const dIns=c.d*(1+X1.enamel), tpl=Math.floor(g.len/dIns), layers=Math.ceil(c.N/Math.max(tpl,1)), mass=X1.cu.dens*c.Lw*c.Aw;
+  const Lind=inductance(c.N,core.mueff,core.Acore,g.len), E=0.5*Lind*S.Isat*S.Isat;
+  const excess=Lcore-g.len, front=core.air?0:excess*0.65, back=core.air?0:excess*0.35;
+  return {g,c,core,S,Dcore,Lcore,Rt,taper,dIns,tpl,layers,mass,Lind,E,front,back}; }
+function drawSheet(){
+  const D=sheetDims(), g=D.g, S=D.S;
+  const cv=getCv('cv-sheet');
+  if(cv){ const ctx=cv.ctx,w=cv.w,h=cv.h; ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+    const total=D.Lcore+S.z+2e-3+16e-3, sc=Math.min((w-70)/total,(h-90)/(2*g.ro*1.25));
+    const x0=30, yc=h*0.46, X=x=>x0+x*sc, Y=r=>yc-r*sc;
+    /* core rod (shank) */
+    if(!D.core.air){ ctx.fillStyle='#94a3b8'; ctx.fillRect(X(0),Y(g.ri),(D.Lcore-D.taper)*sc,2*g.ri*sc);
+      /* taper to the tip */
+      ctx.beginPath(); ctx.moveTo(X(D.Lcore-D.taper),Y(g.ri)); ctx.lineTo(X(D.Lcore),Y(D.Rt)); ctx.lineTo(X(D.Lcore),Y(-D.Rt)); ctx.lineTo(X(D.Lcore-D.taper),Y(-g.ri)); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#334155'; ctx.lineWidth=1.2; ctx.strokeRect(X(0),Y(g.ri),(D.Lcore-D.taper)*sc,2*g.ri*sc); ctx.stroke(); }
+    /* winding */
+    const xw=D.back; ctx.fillStyle='#c2410c'; ctx.globalAlpha=0.85;
+    ctx.fillRect(X(xw),Y(g.ro),g.len*sc,(g.ro-g.ri)*sc); ctx.fillRect(X(xw),Y(-g.ri),g.len*sc,(g.ro-g.ri)*sc); ctx.globalAlpha=1;
+    ctx.strokeStyle='#7c2d12'; ctx.strokeRect(X(xw),Y(g.ro),g.len*sc,2*g.ro*sc);
+    /* bobbin flanges */
+    ctx.fillStyle='#e2e8f0'; for(const xf of [xw-1.5e-3,xw+g.len]){ ctx.fillRect(X(xf),Y(g.ro+1.5e-3),1.5e-3*sc,(2*g.ro+3e-3)*sc); ctx.strokeStyle='#64748b'; ctx.strokeRect(X(xf),Y(g.ro+1.5e-3),1.5e-3*sc,(2*g.ro+3e-3)*sc); }
+    /* sample: coverslip + gel + bead at z from the face */
+    const xs=D.Lcore+S.z, xg=D.Lcore+0.35*S.z; ctx.fillStyle='#ddd6fe'; ctx.fillRect(X(xg),Y(4e-3),(xs-xg+12e-3)*sc,8e-3*sc);
+    ctx.fillStyle='#94a3b8'; ctx.fillRect(X(xg),Y(-4e-3),(xs-xg+12e-3)*sc,0.17e-3*sc);
+    ctx.fillStyle='#f59e0b'; ctx.beginPath(); ctx.arc(X(xs),Y(0),Math.max(S.a*sc,3),0,7); ctx.fill();
+    /* dimension lines */
+    const dim=(xa,xb,y,label,above)=>{ ctx.strokeStyle='#1e293b'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(X(xa),y); ctx.lineTo(X(xb),y); ctx.stroke();
+      for(const xx of [xa,xb]){ ctx.beginPath(); ctx.moveTo(X(xx),y-4); ctx.lineTo(X(xx),y+4); ctx.stroke(); }
+      ctx.fillStyle='#1e293b'; ctx.font='600 10px system-ui'; ctx.textAlign='center'; ctx.fillText(label,(X(xa)+X(xb))/2,y+(above?-5:12)); };
+    const vdim=(x,ra,rb,label)=>{ ctx.strokeStyle='#1e293b'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x,Y(ra)); ctx.lineTo(x,Y(rb)); ctx.stroke();
+      for(const rr of [ra,rb]){ ctx.beginPath(); ctx.moveTo(x-4,Y(rr)); ctx.lineTo(x+4,Y(rr)); ctx.stroke(); }
+      ctx.save(); ctx.translate(x-6,(Y(ra)+Y(rb))/2); ctx.rotate(-Math.PI/2); ctx.fillStyle='#1e293b'; ctx.font='600 10px system-ui'; ctx.textAlign='center'; ctx.fillText(label,0,0); ctx.restore(); };
+    const yTop=Y(g.ro+1.5e-3)-14, yBot=Y(-(g.ro+1.5e-3))+18;
+    if(!D.core.air)dim(0,D.Lcore,yTop-14,'core '+fmt(D.Lcore*1e3,0)+' mm × Ø'+fmt(D.Dcore*1e3,0)+' mm',true);
+    dim(xw,xw+g.len,yBot,'winding '+fmt(g.len*1e3,0)+' mm',false);
+    if(!D.core.air&&D.taper>0)dim(D.Lcore-D.taper,D.Lcore,yBot+16,'taper '+fmt(D.taper*1e3,1)+' mm @ 30°',false);
+    dim(D.Lcore,xs,yTop,'z = '+fmtLenT(S.z),true);
+    vdim(X(xw)-14,-g.ro,g.ro,'OD '+fmt(2*g.ro*1e3,0)+' mm');
+    if(!D.core.air){ ctx.fillStyle='#1e293b'; ctx.font='600 10px system-ui'; ctx.textAlign='center'; ctx.fillText('tip Ø'+fmt(2*D.Rt*1e3,1)+' mm',X(D.Lcore-D.taper/2),Y(-g.ri)+14); }
+    ctx.fillStyle='#64748b'; ctx.font='10px system-ui'; ctx.textAlign='left';
+    ctx.fillText('section through the axis · to scale · '+fmt(D.layers,0)+' layers × '+fmt(D.tpl,0)+' turns of AWG '+g.awg+' · gel slab + bead at the working distance',10,h-10);
+    ctx.textAlign='right'; ctx.fillText('bead drawn oversize',w-10,h-10);
+  }
+  const bom=document.getElementById('bom-sheet');
+  if(bom){ const r=(k,v,n)=>'<tr><td>'+k+'</td><td class="n">'+v+'</td><td>'+(n||'')+'</td></tr>';
+    let html='<table class="ledger"><tr><th>part</th><th>specification</th><th>note</th></tr>';
+    html+=r('core',D.core.air?'none (air) — see Tab 1: put iron in':'soft-iron or 1018 low-carbon steel rod, Ø'+fmt(D.Dcore*1e3,0)+' mm × '+fmt(D.Lcore*1e3,0)+' mm (L/D = '+g.ld+')','anneal after machining if you can — cold work raises coercivity');
+    if(!D.core.air)html+=r('tip','turn one end to Ø'+fmt(2*D.Rt*1e3,1)+' mm over a '+fmt(D.taper*1e3,1)+' mm taper (30° half-angle); polish the face flat','R_t is Tab 4\'s force-optimal radius for z = '+fmtLenT(S.z)+'; a sharper apex gives more gradient and less reach');
+    html+=r('bobbin','ID '+fmt(2*g.ri*1e3,0)+' mm · OD '+fmt(2*g.ro*1e3,0)+' mm · '+fmt(g.len*1e3,0)+' mm between flanges; PEEK, glass-filled nylon or Delrin','a PLA/PETG print softens below the enamel rating — the bobbin must outlast the wire');
+    html+=r('wire','AWG '+g.awg+' magnet wire, class '+num('wind-tmax')+' °C enamel: '+fmt(D.c.N,0)+' turns = '+fmt(D.layers,0)+' layers × '+fmt(D.tpl,0)+' turns/layer, '+fmt(D.c.Lw,1)+' m, '+fmt(D.mass*1e3,0)+' g','wind under light tension, one layer at a time; a sheet of Nomex or Kapton between every 3–4 layers helps the outer turns survive a hot shot');
+    html+=r('electrical','R = '+fmt(D.c.R,2)+' Ω · L = '+fmt(D.Lind*1e3,1)+' mH · τ = '+fmtT(S.tau)+' · saturates at '+fmt(S.Isat,2)+' A / '+fmt(S.Vsat,1)+' V / '+fmt(S.Psat,0)+' W','stored energy ½LI² = '+fmt(D.E*1e3,1)+' mJ — fit a flyback diode across the coil (≥ '+fmt(2*S.Isat,0)+' A, ≥ '+fmt(Math.max(2*S.Vsat,50),0)+' V) or the switch takes the kick; the diode makes turn-off as slow as turn-on (τ)');
+    html+=r('driver','bench CV supply set to '+fmt(S.Vsat,1)+' V through a logic-level MOSFET; gate from a timer or microcontroller for '+fmtT(S.tNeed)+' shots','the lab\'s three variable supplies cover this; for >30 V or >5 A see the design map on Tab 1');
+    html+=r('thermal','J = '+fmt(S.Jsat/1e6,0)+' A/mm² at saturation → enamel at '+fmtT(S.tEn)+'; steady-state limit ≈ '+fmt(windPmaxCont(g),0)+' W','a thermocouple under the outer layer, and a duty-cycle limit in the driver code');
+    html+=r('positioning','xyz micromanipulator with ≥ 10 mm travel, tip axis horizontal, face '+fmtLenT(S.z)+' from the bead','work-distance repeatability sets force repeatability (F ∝ z⁻³ in this regime)');
+    html+=r('sample','gel slab on a #1.5 coverslip, ≥ '+fmt(3*S.z*1e3,0)+' mm from any glass edge; '+fmtLenT(2*S.a)+' '+S.mat.label+' beads at ≤ 1 per 100 µm','beads closer than ~10 diameters shadow each other magnetically');
+    html+='</table>';
+    if(bom.innerHTML!==html)bom.innerHTML=html; }
+  setStat('st-sheet',[
+    {k:'core',v:D.core.air?'air':'Ø'+fmt(D.Dcore*1e3,0)+' × '+fmt(D.Lcore*1e3,0)+' mm'},
+    {k:'tip diameter',v:fmt(2*D.Rt*1e3,1)+' mm',hi:true},
+    {k:'winding',v:fmt(D.c.N,0)+' t · '+fmt(D.layers,0)+' layers · '+fmt(D.mass*1e3,0)+' g'},
+    {k:'drive · shot',v:fmt(S.Vsat,1)+' V · '+fmt(S.Isat,1)+' A · '+fmtT(S.tNeed)}]);
+  if(D.core.air)setVerdict('vd-sheet','bad','Nothing to draw yet.',' The designer on Tab 1 has an air core. Set an L/D and this sheet becomes a part you can make.');
+  else if(D.layers>40)setVerdict('vd-sheet','warn','A lot of layers.',' '+fmt(D.layers,0)+' layers of AWG '+g.awg+' is a long afternoon on the winder and a thick thermal blanket over the inner turns. Consider two gauges up (fewer, fatter turns — E1.1.3 says the field does not care) or a shorter radial build.');
+  else setVerdict('vd-sheet','good','A part you can make this week.',' One rod on the lathe, one bobbin, '+fmt(D.layers,0)+' layers of wire, a diode and a MOSFET. Drive at '+fmt(S.Vsat,1)+' V / '+fmt(S.Isat,1)+' A for '+fmtT(S.tNeed)+' and expect '+fmtLenT(uSphere(S.tip.F,S.a,S.G,0.5)/depthFactor(S.a,100e-6))+' on a '+fmtLenT(2*S.a)+' bead in '+fmtPa(S.E)+' gel at '+fmtLenT(S.z)+'. Calibrate before believing it — see the build steps.');
+}
+defWidget('sheet','design',drawSheet,{});
+
+let activeTab='coil';
+function refreshActiveTab(){ for(const k of TABW[activeTab]){ const f=DRAW[k];
+  if(f){ try{ f(); }catch(e){ console.error('draw '+k,e); } } } }
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active'); activeTab=btn.dataset.tab;
+    document.getElementById('tab-'+activeTab).classList.add('active');
+    clearCvCache(); refreshActiveTab(); syncVis();
+  });
+});
+window.addEventListener('resize',()=>{ clearCvCache(); refreshActiveTab(); syncVis(); });
+
+/* ════════ section rail + presenter mode ════════
+   The classroom teaches on TV screens: the rail is the instructor's position
+   key (hop to any section), and Present widens sections to the full screen
+   and scales text + canvases together (rem sizes + the PZ canvas zoom). */
+const FSTEPS=[16,19,22,25,28];
+let presentOn=false, fsIdx=2;
+function applyPresent(){
+  document.body.classList.toggle('present',presentOn);
+  document.documentElement.style.fontSize=(presentOn?FSTEPS[fsIdx]:16)+'px';
+  PZ=presentOn?FSTEPS[fsIdx]/16:1;
+  const b=document.getElementById('rail-present');
+  if(b){ b.textContent=presentOn?'✕ Exit present':'⛶ Present'; b.classList.toggle('on',presentOn); }
+  clearCvCache(); refreshActiveTab(); syncVis();
+  try{ localStorage.setItem('x1mod-present',JSON.stringify({on:presentOn,fs:fsIdx})); }catch(e){}
+}
+function buildRail(){
+  const bodyEl=document.getElementById('rail-body'); if(!bodyEl)return;
+  let html='';
+  document.querySelectorAll('.tab-content').forEach(sec=>{
+    const tab=sec.id.replace('tab-','');
+    const btn=document.querySelector('.tab-btn[data-tab="'+tab+'"]'); if(!btn)return;
+    const m=btn.textContent.trim().match(/^([\d]+)\.\s*(.+)$/);
+    const key=m?m[1]:'·', title=(m?m[2]:btn.textContent.trim()).replace(/\s*▸\s*$/,'');
+    html+='<button type="button" class="rl-i rl-tabrow" data-rtab="'+tab+'"><span class="rl-k">'+key+'</span><span class="rl-t">'+title+'</span></button>';
+    sec.querySelectorAll('h2[data-nav]').forEach(h=>{
+      html+='<button type="button" class="rl-i" data-rtab="'+tab+'" data-rnav="'+h.dataset.nav+'"><span class="rl-k">'+h.dataset.nav+'</span><span class="rl-t">'+h.dataset.title+'</span></button>';
+    });
+  });
+  bodyEl.innerHTML=html;
+  bodyEl.addEventListener('click',e=>{
+    const it=e.target.closest('.rl-i'); if(!it)return;
+    const tab=it.dataset.rtab;
+    if(tab!==activeTab){ const tb=document.querySelector('.tab-btn[data-tab="'+tab+'"]'); if(tb)tb.click(); }
+    if(it.dataset.rnav){
+      const h=document.querySelector('h2[data-nav="'+it.dataset.rnav+'"]');
+      const target=h&&(h.closest('.lesson-block')||h.closest('.background-section'));
+      if(target)target.scrollIntoView({behavior:'smooth',block:'start'});
+    } else window.scrollTo({top:0,behavior:'smooth'});
+    railSpot(it.dataset.rnav||null);
+  });
+}
+/* highlight: the section whose block top is nearest above the reading line */
+function railSpot(forceNav){
+  let cur=forceNav;
+  if(cur===undefined||cur===null){
+    const line=90; cur=null;
+    document.querySelectorAll('#tab-'+activeTab+' h2[data-nav]').forEach(h=>{
+      const blk=h.closest('.lesson-block')||h.closest('.background-section');
+      if(blk&&blk.getBoundingClientRect().top<=line)cur=h.dataset.nav;
+    });
+  }
+  document.querySelectorAll('#rail-body .rl-i').forEach(it=>{
+    it.classList.toggle('cur',!!it.dataset.rnav&&it.dataset.rnav===cur&&it.dataset.rtab===activeTab);
+    it.classList.toggle('curtab',!it.dataset.rnav&&it.dataset.rtab===activeTab);
+  });
+}
+let _spotPend=false;
+window.addEventListener('scroll',()=>{ if(_spotPend)return; _spotPend=true;
+  requestAnimationFrame(()=>{ _spotPend=false; railSpot(); }); },{passive:true});
+document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>railSpot()));
+const railMq=window.matchMedia('(min-width:1150px)');
+function railFit(){ document.body.classList.toggle('hasrail',railMq.matches); }
+if(railMq.addEventListener)railMq.addEventListener('change',railFit); else railMq.addListener(railFit);
+document.getElementById('rail-present').addEventListener('click',()=>{ presentOn=!presentOn; applyPresent(); });
+document.getElementById('rail-fminus').addEventListener('click',()=>{ if(fsIdx>1){fsIdx--;applyPresent();} });
+document.getElementById('rail-fplus').addEventListener('click',()=>{ if(fsIdx<FSTEPS.length-1){fsIdx++;applyPresent();} });
+
+buildRail(); railFit(); railSpot();
+try{ const sv=JSON.parse(localStorage.getItem('x1mod-present')||'null');
+  if(sv&&typeof sv.fs==='number')fsIdx=clamp(sv.fs,1,FSTEPS.length-1);
+  if(new URLSearchParams(location.search).get('present')==='1'||(sv&&sv.on))presentOn=true;
+}catch(e){}
+wireAll();
+if(presentOn)applyPresent(); else refreshActiveTab();
+syncVis();
+</script>
+</body>
+</html>

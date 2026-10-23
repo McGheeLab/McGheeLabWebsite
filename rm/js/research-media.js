@@ -84,9 +84,9 @@
     m.body.innerHTML =
       '<div class="rf-field"><label>Type</label>' +
         '<div class="rf-level-tabs" data-type-tabs>' +
-          '<button type="button" class="rf-level-tab active" data-type="image">🖼 Image</button>' +
-          '<button type="button" class="rf-level-tab" data-type="video">🎬 Video</button>' +
-          '<button type="button" class="rf-level-tab" data-type="html">🕹 Interactive HTML</button>' +
+          '<button type="button" class="rf-level-tab active" data-type="image">' + ICON.svg('photo') + ' Image</button>' +
+          '<button type="button" class="rf-level-tab" data-type="video">' + ICON.svg('film') + ' Video</button>' +
+          '<button type="button" class="rf-level-tab" data-type="html">' + ICON.svg('gamepad-2') + ' Interactive HTML</button>' +
         '</div></div>' +
       '<div class="rf-field"><label data-file-label>Image file</label><input type="file" data-file accept="image/*"></div>' +
       '<div class="rf-field rf-html-extra" hidden><label>Title (shown on the run button)</label><input type="text" data-html-title placeholder="Interactive diffusion sim"></div>' +
@@ -170,7 +170,7 @@
 
   function mediaFigure(md, editable) {
     var cap = md.caption ? '<figcaption>' + esc(md.caption) + '</figcaption>' : '';
-    var rm = editable ? '<button class="rf-media-rm" data-media-remove="' + esc(md.id) + '" title="Remove">✕</button>' : '';
+    var rm = editable ? '<button class="rf-media-rm" data-media-remove="' + esc(md.id) + '" title="Remove">' + ICON.svg('x-mark') + '</button>' : '';
     if (md.kind === 'image') {
       var src = md.variants ? (md.variants.medium || md.variants.full || md.variants.thumb) : '';
       return '<figure class="rf-media rf-media-image">' + rm + '<img loading="lazy" src="' + esc(src) + '" alt="' + esc(md.caption || '') + '">' + cap + '</figure>';
@@ -188,11 +188,11 @@
     var aspect = md.aspect || '16/9';
     var poster = md.poster_url
       ? '<img class="rf-html-poster-img" src="' + esc(md.poster_url) + '" alt="">'
-      : '<span class="rf-html-poster-ph">🕹</span>';
+      : '<span class="rf-html-poster-ph">' + ICON.svg('gamepad-2') + '</span>';
     return '<figure class="rf-media rf-media-html" style="aspect-ratio:' + esc(aspect) + '">' + (rm || '') +
       '<div class="rf-html-shell" data-html-shell data-src="' + esc(md.url) + '">' +
         '<button class="rf-html-activate" type="button">' + poster +
-          '<span class="rf-html-run">▶ Run: ' + esc(md.title || 'Interactive') + '</span>' +
+          '<span class="rf-html-run">' + ICON.svg('play') + ' Run: ' + esc(md.title || 'Interactive') + '</span>' +
         '</button>' +
         '<button class="rf-html-fs" type="button" title="Fullscreen" hidden>⛶</button>' +
       '</div>' + cap +

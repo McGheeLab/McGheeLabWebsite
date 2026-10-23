@@ -1232,7 +1232,21 @@
     return _esc(_shorten(ref.raw, 72));
   }
 
+  /* V3.647 — this panel repaints on EVERY PDF page change (_onPageChange →
+   * refreshForPage, plus once more per page from onPageReady), and it sits
+   * directly above "Cited by" in the rail's single scroll container. A
+   * repaint that comes back a different height used to shove the cited-by
+   * list up or down under the reader mid-read. Anchor the scroll instead. */
   function _renderPanel() {
+    if (!_sideEl) return;
+    if (typeof rerenderPreservingScroll === 'function') {
+      rerenderPreservingScroll(_sideEl, _paintPanel);
+    } else {
+      _paintPanel();
+    }
+  }
+
+  function _paintPanel() {
     if (!_sideEl) return;
     const matches = _matchesByPage.get(_currentPage) || [];
     const byKey = new Map();
@@ -1257,7 +1271,7 @@
 
         let chip = '';
         if (inLib) {
-          chip = `<a class="lp-cite-chip lp-cite-chip-lib" href="/rm/pages/library-paper.html?id=${_esc(inLib.id)}" title="Open in library" target="_blank" rel="noopener">✓ in library</a>`;
+          chip = `<a class="lp-cite-chip lp-cite-chip-lib" href="/rm/pages/library-paper.html?id=${_esc(inLib.id)}" title="Open in library" target="_blank" rel="noopener">${ICON.svg('check')} in library</a>`;
         } else if (ref && !hasDoi && !hasArxiv) {
           chip = `<span class="lp-cite-chip lp-cite-chip-noid" title="No DOI or arXiv id parsed — can't auto-add">no id</span>`;
         }
@@ -1397,7 +1411,7 @@
         : `[${ref.n != null ? ref.n : i + 1}]`;
       const inLib = _libraryHitForRef(ref);
       const chip = inLib
-        ? `<a class="lp-cite-chip lp-cite-chip-lib" href="/rm/pages/library-paper.html?id=${_esc(inLib.id)}" title="Open in library" target="_blank" rel="noopener">✓ in library</a>`
+        ? `<a class="lp-cite-chip lp-cite-chip-lib" href="/rm/pages/library-paper.html?id=${_esc(inLib.id)}" title="Open in library" target="_blank" rel="noopener">${ICON.svg('check')} in library</a>`
         : '';
       return `
         <div class="lp-cite-row">
@@ -1425,7 +1439,7 @@
         <div style="font-weight:600;margin-bottom:2px;">No references stored for this paper</div>
         <div>Inline citation detection needs the reference list. Enrich from Semantic Scholar (works when the paper has a DOI / arXiv / PMID) or set a DOI first.</div>
         <div style="${btnRow}">
-          <button type="button" class="btn btn-sm" data-cite-diag="enrich">⚡ Enrich from Semantic Scholar</button>
+          <button type="button" class="btn btn-sm" data-cite-diag="enrich">${ICON.svg('bolt')} Enrich from Semantic Scholar</button>
           <button type="button" class="btn btn-sm" data-cite-diag="adddoi">＋ Add DOI…</button>
           <button type="button" class="btn btn-sm" data-cite-diag="redetect">↻ Re-detect</button>
         </div>
@@ -1433,11 +1447,11 @@
     }
     if (_refState === 'ready' && _refs && _refs.length && _refIndex && _refIndex.size === 0) {
       return `<div style="${cardStyle}">
-        <div style="font-weight:600;margin-bottom:2px;">⚠ References retrieved, but no inline markers located</div>
+        <div style="font-weight:600;margin-bottom:2px;">${ICON.svg('exclamation-triangle')} References retrieved, but no inline markers located</div>
         <div>${_refs.length} reference(s) are stored, yet none matched a marker in the body — likely an unrecognized citation style${_style ? ` (best guess: ${_esc(_style.family)})` : ''}.</div>
         <div style="${btnRow}">
           <button type="button" class="btn btn-sm" data-cite-diag="redetect">↻ Re-detect</button>
-          <button type="button" class="btn btn-sm" data-cite-diag="enrich">⚡ Re-enrich refs</button>
+          <button type="button" class="btn btn-sm" data-cite-diag="enrich">${ICON.svg('bolt')} Re-enrich refs</button>
         </div>
       </div>`;
     }

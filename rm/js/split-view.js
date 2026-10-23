@@ -1,18 +1,22 @@
 /* ================================================================
-   split-view.js — RM Split View shell (V3.75 redesign)
+   split-view.js — RM Split View shell (V3.75 redesign, V3.632 panes)
    ================================================================
-   Two RM pages side-by-side via iframes. The workflow strip on the
-   parent IS the navigation — pane headers are gone. The strip shows
-   pills for every workflow page; the two pills matching the open
-   panes are styled as "open"; the active pane's pill has a red
-   border.
+   Two RM pages side-by-side via iframes. The ONE bar on the parent IS
+   the navigation — panes never render chrome of their own. That bar is
+   the workflow strip inside a workflow (pills for every workflow page;
+   the two matching the open panes styled "open", the active pane's
+   pill red-bordered) and, outside a workflow, the regular top nav
+   carrying a page picker per pane (V3.632, both built by nav.js).
 
    URL state is the single source of truth:
      /rm/pages/split-view.html
        ?left=<url>&right=<url>&active=<left|right>&ratio=<0..1>
-       [&workflow=<id>]   — adopted by nav.js into sessionStorage
+       [&workflow=<id>]   — adopted into sessionStorage by THIS file
+                            (see _adoptWorkflowFromUrl — nav.js runs too
+                            late to catch it)
 
-   Events bridged from nav.js's strip pill clicks:
+   Events bridged from the parent bar's controls (strip pills or pane
+   pickers — same events either way):
      - 'rm:split:swap'     { side, href }   — replace one pane's URL
      - 'rm:split:set-active' { side }       — flip which pane is active
      - 'rm:split:close'    { keep }         — exit split; navigate to
@@ -20,8 +24,9 @@
 
    Iframes share Firebase IndexedDB persistence with the parent (same
    origin), so auth resolves automatically in each pane. Iframes are
-   loaded with `?embed=1` so their nav.js suppresses its own top nav
-   (V3.73) — only the parent strip is visible.
+   loaded with `?embed=1` AND `name="rm-embed-<side>"` so their nav.js
+   suppresses its own top nav (V3.73/V3.76) — the name is what keeps a
+   pane suppressed after an in-pane link click drops the query param.
    ================================================================ */
 
 (function () {
@@ -95,45 +100,42 @@
     return true;
   }
 
-  /* V3.73 — append `?embed=1` to the iframe src so nav.js inside the
-   * iframe suppresses its top nav / workflow strip. V3.75: only embed
-   * when a workflow is active; outside a workflow the parent shows no
-   * strip, so the iframe's regular nav is the user's only way to
-   * navigate.
+  /* Adopt `?workflow=<id>` into sessionStorage.
    *
-   * V3.618 — workflow context comes from sessionStorage (the same
-   * source nav.js's strip reads), not the URL param alone. writeState()
-   * below rewrites the URL without ?workflow= on the very first tick,
-   * so any reload / back-forward return to the split URL used to load
-   * with _HAS_WORKFLOW=false while the parent strip (sessionStorage)
-   * still rendered — each pane then adopted the workflow itself and
-   * drew a second strip inside the iframe. For the same reason the
-   * ?workflow= param must be adopted into sessionStorage HERE: this
-   * IIFE runs before nav.js's DOMContentLoaded _wfAdoptFromUrl, and by
-   * the time that runs writeState() has already stripped the param. */
+   * V3.618 — this must happen HERE, not in nav.js. This IIFE runs at
+   * parse time, before nav.js's DOMContentLoaded `_wfAdoptFromUrl`, and
+   * writeState() below rewrites the URL without `?workflow=` on the very
+   * first tick — so by the time nav.js looks, the param is gone. Without
+   * this call, entering split with a decorated URL would leave the parent
+   * showing the plain nav instead of the workflow strip. */
   const _WF_STORAGE_KEY = 'mcgheelab.activeWorkflow';   // keep in sync with nav.js / workflow-state.js
-  const _HAS_WORKFLOW = (function () {
+  (function _adoptWorkflowFromUrl() {
     try {
+      const wfId = new URLSearchParams(location.search).get('workflow');
+      if (!wfId) return;
       let existing = null;
       try { existing = JSON.parse(sessionStorage.getItem(_WF_STORAGE_KEY) || 'null'); } catch (e) {}
-      const wfId = new URLSearchParams(location.search).get('workflow');
-      if (wfId) {
-        if (!existing || existing.id !== wfId) {
-          // Mirror nav.js's _wfAdoptFromUrl fresh-state shape.
-          sessionStorage.setItem(_WF_STORAGE_KEY, JSON.stringify({
-            id: wfId, kind: 'default', addedPageIds: [], removedPageIds: [],
-            orderOverride: null, pageState: {},
-          }));
-        }
-        return true;
-      }
-      return !!(existing && existing.id);
-    } catch (e) { return false; }
+      if (existing && existing.id === wfId) return;   // preserve dirty edits
+      // Mirror nav.js's _wfAdoptFromUrl fresh-state shape.
+      sessionStorage.setItem(_WF_STORAGE_KEY, JSON.stringify({
+        id: wfId, kind: 'default', addedPageIds: [], removedPageIds: [],
+        orderOverride: null, pageState: {},
+      }));
+    } catch (e) { /* sessionStorage unavailable — strip just won't render */ }
   })();
 
+  /* V3.73 — append `?embed=1` to the iframe src so nav.js inside the
+   * iframe suppresses its top nav / workflow strip.
+   *
+   * V3.632 — panes are now ALWAYS embedded. V3.75 embedded only inside a
+   * workflow, on the reasoning that outside one the parent had no strip
+   * and so the pane's own nav was the only way to navigate that pane.
+   * The cost was three stacked navigation bars (parent + one per pane),
+   * which is what Alex actually saw. nav.js now renders per-pane page
+   * pickers into the parent nav when splitting outside a workflow, so
+   * the pane's own nav is no longer load-bearing and can go. */
   function _embedHref(href) {
     if (typeof href !== 'string') return href;
-    if (!_HAS_WORKFLOW) return href;
     const idx = href.indexOf('#');
     const hash = idx >= 0 ? href.slice(idx) : '';
     const path = idx >= 0 ? href.slice(0, idx) : href;
@@ -209,14 +211,11 @@
    * suppresses its top nav. Without this, library → paper navigation
    * inside the iframe would render a second nav inside the pane.
    *
-   * Only set the name when in workflow context (`_HAS_WORKFLOW`) — for
-   * out-of-workflow split, iframes need their full RM nav so the user
-   * can navigate within each pane (the parent strip isn't there). */
+   * V3.632 — set unconditionally (see _embedHref). */
   function paneHTML(side, href, basisRatio, isActive) {
-    const nameAttr = _HAS_WORKFLOW ? ' name="rm-embed-' + side + '"' : '';
     return (
       '<div class="split-pane split-pane--' + side + (isActive ? ' active' : '') + '" data-side="' + side + '" style="flex-basis:' + (basisRatio * 100).toFixed(2) + '%;">' +
-        '<iframe class="split-pane-frame" data-side="' + side + '"' + nameAttr + ' src="' + _esc(_embedHref(href)) + '" title="' + _esc(_labelFromHref(href)) + '"></iframe>' +
+        '<iframe class="split-pane-frame" data-side="' + side + '" name="rm-embed-' + side + '" src="' + _esc(_embedHref(href)) + '" title="' + _esc(_labelFromHref(href)) + '"></iframe>' +
       '</div>'
     );
   }

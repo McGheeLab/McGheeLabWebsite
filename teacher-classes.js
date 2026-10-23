@@ -48,6 +48,54 @@
   }
 
   /* ================================================================
+     DEMO SEAM (V3.632)
+     ----------------------------------------------------------------
+     teacher-demo.js installs ML.TC_DEMO so an admin can preview every
+     teacher/student state (#/demo) against in-memory fixtures. When it
+     is absent or inactive — the normal case for every real visitor —
+     these resolve to the real Firestore data layer and the signed-in
+     user, so production behavior is unchanged.
+     ================================================================ */
+  function demo() { const d = ML.TC_DEMO; return (d && d.active) ? d : null; }
+  function src() { return demo()?.db || TC_DB; }
+  function me() { return demo()?.uid || ML.Auth?.currentUser?.uid; }
+  function myProfile() { return demo()?.profile || ML.Auth?.currentProfile || {}; }
+
+  /* ================================================================
+     TEACHER "VIEW AS STUDENT" (V3.636)
+     ----------------------------------------------------------------
+     A teacher can preview their own class page as one of THEIR students
+     — the natural companion to the roster, and the way to confirm a
+     student really has access (or really doesn't, after a Remove).
+
+     This is a PREVIEW, not impersonation, and the distinction is the
+     whole security argument: every read it performs is one the teacher
+     already owns (their schedule, their roster), it never writes as the
+     student, and firestore.rules is untouched. The scope is deliberately
+     one class page — a teacher cannot list a student's OTHER enrollments
+     (the read rule only admits enrollments where they are the teacher),
+     so there is no "view as student's dashboard", by design.
+
+     `_viewAs` carries its scheduleId so a stale preview can't leak onto
+     another class after navigation.
+     ================================================================ */
+  let _viewAs = null;   // { scheduleId, studentUid, studentName, status } | null
+
+  function viewAsFor(scheduleId) {
+    return (_viewAs && _viewAs.scheduleId === scheduleId) ? _viewAs : null;
+  }
+  function clearViewAs() { _viewAs = null; }
+  function setViewAs(next) { _viewAs = next; }
+
+  /** May the signed-in user preview `scheduleId` as one of its students? */
+  function canViewAsStudent(schedule) {
+    const uid = me();
+    if (!uid || !schedule) return false;
+    return schedule.ownerUid === uid ||
+      (demo() ? false : ML.Auth?.currentProfile?.role === 'admin');
+  }
+
+  /* ================================================================
      DATA LAYER
      ================================================================ */
 
@@ -103,6 +151,11 @@
     },
 
     /* ---- join codes (doc id IS the code) ---- */
+    // Doc id IS the code, so this is a single get — the student enroll path.
+    async getJoinCode(code) {
+      const doc = await db().collection('joinCodes').doc(code).get();
+      return doc.exists ? { code: doc.id, ...doc.data() } : null;
+    },
     async myJoinCodes(uid) {
       const snap = await db().collection('joinCodes').where('teacherUid', '==', uid).get();
       return snap.docs.map(d => ({ code: d.id, ...d.data() }));
@@ -138,8 +191,47 @@
       const snap = await db().collection('enrollments').where('studentUid', '==', uid).get();
       return snap.docs.map(d => ({ id: d.id, ...d.data() }));
     },
-    async setEnrollmentStatus(enrollmentId, status) {
-      await db().collection('enrollments').doc(enrollmentId).update({ status, updatedAt: ts() });
+    // V3.635 — `joinCode` is written on re-activation because the rule proves
+    // a re-join against the code being redeemed NOW; the code stored when the
+    // student first joined may since have been regenerated away.
+    async setEnrollmentStatus(enrollmentId, status, joinCode) {
+      const patch = { status, updatedAt: ts() };
+      if (joinCode) patch.joinCode = joinCode;
+      await db().collection('enrollments').doc(enrollmentId).update(patch);
+    },
+    // V3.632 — the module's only enrollment write, so the demo data layer
+    // has a single method to intercept instead of a raw collection ref.
+    // V3.635 — a teacher's Remove stamps `removedBy` so the rule can keep the
+    // student from re-activating themselves with the code they already hold.
+    // `removedBy` is outside the student-writable key set, so only the teacher
+    // (or admin) can set or clear it.
+    async removeStudent(enrollmentId) {
+      await db().collection('enrollments').doc(enrollmentId)
+        .update({ status: 'removed', removedBy: 'teacher', updatedAt: ts() });
+    },
+    async createEnrollment(scheduleId, uid, data) {
+      await db().collection('enrollments').doc(TC_DB.enrollmentId(scheduleId, uid)).set(
+        Object.assign({ scheduleId, studentUid: uid, createdAt: ts(), updatedAt: ts() }, data));
+    },
+    async setUserCategory(uid, category) {
+      await ML.DB.updateUser(uid, { category });
+      if (ML.Auth) ML.Auth.currentProfile = await ML.DB.getUser(uid);
+    },
+    // V3.634 — a student invited by a teacher is classified as a student AND
+    // keeps a durable link to who invited them. `enrollments` stays the
+    // authoritative record (its create is rules-gated on a live join code);
+    // these user-doc fields are a denormalized convenience for the admin
+    // panels, and because owners may write their own non-`role` fields they
+    // are NOT a trust boundary — never gate anything on them.
+    async linkStudentToTeacher(uid, teacherUid, school) {
+      const patch = {
+        category: 'student',
+        teacherUids: firebase.firestore.FieldValue.arrayUnion(teacherUid),
+        studentSince: ts()
+      };
+      if (school) patch.studentSchool = school;
+      await ML.DB.updateUser(uid, patch);
+      if (ML.Auth) ML.Auth.currentProfile = await ML.DB.getUser(uid);
     },
 
     /* ---- reviews ---- */
@@ -179,6 +271,272 @@
     async approvedTeacherProfiles() {
       const snap = await db().collection('teacherProfiles').where('status', '==', 'approved').get();
       return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+
+    /* ---- global module catalog (V3.669) ---- */
+    // Admin curates teacherCatalog on rm/pages/admin-teachers.html?tab=catalog;
+    // teachers pick from the published subset when assigning modules on #/teach.
+    async publishedCatalog() {
+      const snap = await db().collection('teacherCatalog').where('published', '==', true).get();
+      const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      rows.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) ||
+        String(a.title || '').localeCompare(String(b.title || '')));
+      return rows;
+    },
+    // The owning teacher may update modules[] (grantedFolders stays pinned by
+    // the schedules rule) — this is the single write path for class-wide
+    // module assignment, ordering, due dates, and publish flags.
+    async saveClassModules(scheduleId, modules) {
+      await db().collection('schedules').doc(scheduleId).update({ modules, updatedAt: ts() });
+    },
+    // Per-student override on the enrollment doc. `override` of null deletes
+    // the entry. Module ids contain dashes, so the key goes through FieldPath
+    // rather than a dotted string path.
+    async setModuleOverride(enrollmentId, moduleId, override) {
+      const fp = new firebase.firestore.FieldPath('moduleOverrides', moduleId);
+      await db().collection('enrollments').doc(enrollmentId).update(
+        fp, override || firebase.firestore.FieldValue.delete(),
+        'updatedAt', ts());
+    },
+
+    /* ---- assignments + submissions (V3.671) ---- */
+    // Teacher list is keyed on teacherUid (client filters by class) because a
+    // list rule is proven against the query's filters — a bare scheduleId
+    // query can't prove ownership. Same reason the student query MUST carry
+    // the status filter: a draft candidate would deny the whole query.
+    async assignmentsForTeacher(uid) {
+      const snap = await db().collection('assignments').where('teacherUid', '==', uid).get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    async assignmentsForStudent(scheduleId) {
+      const snap = await db().collection('assignments')
+        .where('scheduleId', '==', scheduleId)
+        .where('status', 'in', ['published', 'closed']).get();
+      const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      rows.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) ||
+        String(a.dueDate || '9999').localeCompare(String(b.dueDate || '9999')));
+      return rows;
+    },
+    async saveAssignment(id, data) {
+      data.updatedAt = ts();
+      if (id) { await db().collection('assignments').doc(id).update(data); return id; }
+      data.createdAt = ts();
+      const ref = await db().collection('assignments').add(data);
+      return ref.id;
+    },
+    async deleteAssignment(id) {
+      await db().collection('assignments').doc(id).delete();
+    },
+    submissionId(assignmentId, uid) { return assignmentId + '_' + uid; },
+    async mySubmission(assignmentId, uid) {
+      const doc = await db().collection('submissions').doc(TC_DB.submissionId(assignmentId, uid)).get();
+      return doc.exists ? { id: doc.id, ...doc.data() } : null;
+    },
+    // Create-or-update split because the rules key sets differ: create writes
+    // the full doc (denormalized ids proven against the assignment), update
+    // may touch only the student-editable keys and only until graded.
+    async submitAssignment(assignment, student, patch) {
+      const id = TC_DB.submissionId(assignment.id, student.uid);
+      const ref = db().collection('submissions').doc(id);
+      const existing = await ref.get();
+      const body = Object.assign({
+        studentName: student.name || '',
+        submittedAt: ts(), updatedAt: ts(), lastEditedBy: student.uid
+      }, patch);
+      if (existing.exists) { await ref.update(body); return id; }
+      await ref.set(Object.assign({
+        assignmentId: assignment.id,
+        scheduleId: assignment.scheduleId,
+        teacherUid: assignment.teacherUid,
+        studentUid: student.uid
+      }, body));
+      return id;
+    },
+    async submissionsForTeacher(uid) {
+      const snap = await db().collection('submissions').where('teacherUid', '==', uid).get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    async gradeSubmission(submissionId, grade) {
+      await db().collection('submissions').doc(submissionId)
+        .update({ grade, updatedAt: ts() });
+    },
+
+    /* ---- module engagement (V3.672) ---- */
+    // One pre-aggregated doc per (class, student) — moduleStats/{sid}_{uid},
+    // the enrollments composite-id trick a third time. The student's own
+    // client writes FieldValue.increment patches (concurrent tabs are safe);
+    // no raw event log, no Cloud Function. Self-reported counters, not
+    // grades — the rules only stop cross-doc and identity spoofing.
+    statsId(scheduleId, uid) { return scheduleId + '_' + uid; },
+    async statsForTeacher(uid) {
+      const snap = await db().collection('moduleStats').where('teacherUid', '==', uid).get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    // patch: {moduleId, opens?, seconds?, sections?: [ids], railCount?, scrollPct?}
+    async recordEngagement(scheduleId, student, patch) {
+      const ref = db().collection('moduleStats').doc(TC_DB.statsId(scheduleId, student.uid));
+      const FP = firebase.firestore.FieldPath;
+      const inc = firebase.firestore.FieldValue.increment;
+      const m = patch.moduleId;
+      const args = [];
+      if (patch.opens) args.push(new FP('modules', m, 'opens'), inc(patch.opens));
+      if (patch.seconds) args.push(new FP('modules', m, 'seconds'), inc(patch.seconds));
+      for (const sid of (patch.sections || [])) {
+        args.push(new FP('modules', m, 'sections', sid), true);
+      }
+      if (patch.railCount != null) args.push(new FP('modules', m, 'railCount'), patch.railCount);
+      if (patch.scrollPct != null) args.push(new FP('modules', m, 'scrollPct'), patch.scrollPct);
+      if (patch.opens) args.push(new FP('modules', m, 'lastOpenAt'), ts());
+      if (!args.length) return;
+      args.push(new FP('lastActiveAt'), ts(), new FP('studentName'), student.name || '');
+      try {
+        await ref.update(args[0], args[1], ...args.slice(2));
+      } catch (e) {
+        // First write for this (class, student): create the full doc — the
+        // create rule proves the composite id against the caller's own
+        // enrollment doc (same id), so this needs no extra reads.
+        const mod = {};
+        if (patch.opens) mod.opens = patch.opens;
+        if (patch.seconds) mod.seconds = patch.seconds;
+        if (patch.sections?.length) {
+          mod.sections = {};
+          for (const sid of patch.sections) mod.sections[sid] = true;
+        }
+        if (patch.railCount != null) mod.railCount = patch.railCount;
+        if (patch.scrollPct != null) mod.scrollPct = patch.scrollPct;
+        mod.lastOpenAt = ts();
+        await ref.set({
+          scheduleId,
+          teacherUid: student.teacherUid,
+          studentUid: student.uid,
+          studentName: student.name || '',
+          lastActiveAt: ts(),
+          modules: { [m]: mod }
+        });
+      }
+    },
+
+    /* ---- engagement hub (V3.673) ---- */
+    // Listing (engageProfiles) follows the teacherProfiles approval pattern:
+    // owner saves land draft/pending, only admin approves. The street address
+    // lives in the private/contact subdoc (owner+admin only) and reaches a
+    // requester only when the teacher copies it onto a CONFIRMED request.
+    async getEngageProfile(uid) {
+      const doc = await db().collection('engageProfiles').doc(uid).get();
+      return doc.exists ? { id: doc.id, ...doc.data() } : null;
+    },
+    async saveEngageProfile(uid, data, submit) {
+      data.teacherUid = uid;
+      data.status = submit ? 'pending' : 'draft';
+      data.updatedAt = ts();
+      await db().collection('engageProfiles').doc(uid).set(data, { merge: true });
+    },
+    async approvedEngageProfiles() {
+      const snap = await db().collection('engageProfiles').where('status', '==', 'approved').get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    async getEngageContact(uid) {
+      const doc = await db().collection('engageProfiles').doc(uid)
+        .collection('private').doc('contact').get();
+      return doc.exists ? doc.data() : null;
+    },
+    async saveEngageContact(uid, data) {
+      await db().collection('engageProfiles').doc(uid)
+        .collection('private').doc('contact').set(data, { merge: true });
+    },
+    /* ---- opportunities (V3.791) ----
+       An opportunity is ONE thing a teacher would like (a guest talk on X for
+       AP Physics) with SEVERAL dates that would work for it. Presenters sign
+       up for the opportunity, ticking the dates they could do; the teacher
+       accepts one presenter (or several, if presentersWanted > 1) and picks
+       the date. `dateKeys` mirrors dates[].date as plain strings so the
+       request rule can check the presenter's picks with hasAll(). pendingCount
+       / acceptedCount are maintained server-side by functions/engage-notify.js
+       from the requests, so presenters can see "pending acceptance" without
+       reading anyone else's request. ---- */
+    async myOpportunities(uid) {
+      const snap = await db().collection('engageOpportunities').where('teacherUid', '==', uid).get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    async openOpportunities() {
+      const snap = await db().collection('engageOpportunities').where('status', '==', 'open').get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    async saveOpportunity(id, data) {
+      if (Array.isArray(data.dates)) data.dateKeys = data.dates.map(d => d.date);
+      data.updatedAt = ts();
+      if (id) { await db().collection('engageOpportunities').doc(id).update(data); return id; }
+      data.createdAt = ts();
+      const ref = await db().collection('engageOpportunities').add(data);
+      return ref.id;
+    },
+    async deleteOpportunity(id) {
+      await db().collection('engageOpportunities').doc(id).delete();
+    },
+    async createEngageRequest(data) {
+      data.status = 'pending';
+      data.createdAt = ts(); data.updatedAt = ts();
+      const ref = await db().collection('engageRequests').add(data);
+      return ref.id;
+    },
+    async engageRequestsForTeacher(uid) {
+      const snap = await db().collection('engageRequests').where('teacherUid', '==', uid).get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    async engageRequestsForRequester(uid) {
+      const snap = await db().collection('engageRequests').where('requesterUid', '==', uid).get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    // Teacher decision — the rules limit this write to
+    // status/location/teacherNote/decidedAt/updatedAt.
+    async decideEngageRequest(id, status, extras) {
+      const patch = Object.assign({ status, decidedAt: ts(), updatedAt: ts() }, extras || {});
+      await db().collection('engageRequests').doc(id).update(patch);
+    },
+    async cancelEngageRequest(id) {
+      await db().collection('engageRequests').doc(id)
+        .update({ status: 'cancelled', updatedAt: ts() });
+    },
+
+    /* ---- presenters + visit follow-through (V3.785-787) ---- */
+    // engagePresenters/{uid} — who a presenter is, filled in once on
+    // #/presenters. Owner-writable except `blocked` (admin-only), which the
+    // engageRequests create rule checks.
+    async getPresenter(uid) {
+      const doc = await db().collection('engagePresenters').doc(uid).get();
+      return doc.exists ? { id: doc.id, ...doc.data() } : null;
+    },
+    async savePresenter(uid, data) {
+      data.updatedAt = ts();
+      await db().collection('engagePresenters').doc(uid).set(data, { merge: true });
+    },
+    async markEngageEmailed(id) {
+      await db().collection('engageRequests').doc(id).update({ emailedAt: ts(), updatedAt: ts() });
+    },
+    // engageReviews/{requestId} — read ONLY by query: a get of a review that
+    // doesn't exist yet can only be answered by dereferencing the missing
+    // doc, which the rules deny (the V3.772 lesson).
+    async reviewsForRequester(uid) {
+      const snap = await db().collection('engageReviews').where('requesterUid', '==', uid).get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    async reviewsForTeacher(uid) {
+      const snap = await db().collection('engageReviews').where('teacherUid', '==', uid).get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    async saveEngageReview(reqId, data, isNew) {
+      data.updatedAt = ts();
+      if (isNew) data.createdAt = ts();
+      await db().collection('engageReviews').doc(reqId).set(data, { merge: true });
+    },
+    // Can the signed-in user browse the hub? Lab members always can; external
+    // people need the engage:browse cap. Own userPermissions doc is
+    // owner-readable, so this is one get; a missing doc means no caps.
+    async myEngageCaps(uid) {
+      try {
+        const doc = await db().collection('userPermissions').doc(uid).get();
+        return (doc.exists && doc.data().caps) || [];
+      } catch (e) { return []; }
     }
   };
 
@@ -187,47 +545,50 @@
      ================================================================ */
   async function joinClassWithCode(rawCode) {
     const Auth = ML.Auth;
-    if (!Auth?.currentUser) throw new Error('Please sign in first.');
+    if (!demo() && !Auth?.currentUser) throw new Error('Please sign in first.');
     const code = String(rawCode || '').trim().toUpperCase();
     if (!/^[A-Z0-9]{6}$/.test(code)) throw new Error('Class codes are 6 letters/numbers.');
 
-    const codeDoc = await db().collection('joinCodes').doc(code).get();
-    if (!codeDoc.exists || codeDoc.data().active !== true) {
+    const codeData = await src().getJoinCode(code);
+    if (!codeData || codeData.active !== true) {
       throw new Error('That code is not valid or is no longer active.');
     }
-    const { scheduleId, teacherUid } = codeDoc.data();
-    const sched = await TC_DB.getSchedule(scheduleId);
+    const { scheduleId, teacherUid } = codeData;
+    const sched = await src().getSchedule(scheduleId);
     if (!sched) throw new Error('Class not found.');
     if (sched.enrollmentOpen === false) throw new Error('Enrollment is currently closed for this class.');
 
-    const uid = Auth.currentUser.uid;
-    const p = Auth.currentProfile || {};
-    const existing = await TC_DB.getEnrollment(scheduleId, uid);
+    const uid = me();
+    const p = myProfile();
+    const existing = await src().getEnrollment(scheduleId, uid);
     if (existing && existing.status === 'active') return scheduleId; // already in — idempotent
     if (existing) {
-      // Re-join after leaving/removal still requires a live code (checked
-      // above); the update stays inside the student-writable key set.
-      await TC_DB.setEnrollmentStatus(existing.id, 'active');
+      // Re-join after leaving/removal still requires a live code — checked
+      // above by the client and, since V3.635, proved again by the rule
+      // against the code passed here.
+      await src().setEnrollmentStatus(existing.id, 'active', code);
     } else {
-      await db().collection('enrollments').doc(TC_DB.enrollmentId(scheduleId, uid)).set({
-        scheduleId,
-        studentUid: uid,
-        studentName: p.name || Auth.currentUser.displayName || '',
-        studentEmail: p.email || Auth.currentUser.email || '',
+      await src().createEnrollment(scheduleId, uid, {
+        studentName: p.name || Auth?.currentUser?.displayName || '',
+        studentEmail: p.email || Auth?.currentUser?.email || '',
         teacherUid,
         joinCode: code,
-        status: 'active',
-        createdAt: ts(),
-        updatedAt: ts()
+        status: 'active'
       });
     }
-    // First join self-identifies a plain guest as a student. Never
-    // reclassify teachers (a teacher can preview their own class).
-    if ((p.category || 'guest') === 'guest') {
+    // V3.634 — joining classifies the user as a student and records which
+    // teacher invited them, so the association outlives the enrollment (a
+    // removed student, or a deleted class, still shows who they came from).
+    // Teachers are never reclassified — a teacher may preview their own class.
+    // A failure here must not fail the join: the student IS enrolled (the
+    // write above succeeded), so we surface it and move on rather than
+    // telling them the code didn't work.
+    if ((p.category || 'guest') !== 'teacher') {
       try {
-        await ML.DB.updateUser(uid, { category: 'student' });
-        Auth.currentProfile = await ML.DB.getUser(uid);
-      } catch (e) { console.warn('[TC] category update failed', e); }
+        await src().linkStudentToTeacher(uid, teacherUid, sched.school || '');
+      } catch (e) {
+        console.warn('[TC] student/teacher link failed — enrollment stands', e);
+      }
     }
     return scheduleId;
   }
@@ -236,12 +597,27 @@
   // or admin. Static module HTML remains fetchable by URL — accepted
   // trade-off recorded in the V3.304 plan.
   async function tcCanViewModules(classId, schedule) {
+    // V3.636 — a teacher previewing one of their students answers as that
+    // student would, so a removed student's lockout is visible (and so the
+    // preview carries into the module viewer, not just the class page).
+    const va = viewAsFor(classId);
+    if (va && canViewAsStudent(schedule)) return va.status === 'active';
+
+    // V3.632 — in demo preview the persona decides, not the signed-in admin
+    // (who would otherwise pass every gate and hide the student experience).
+    const d = demo();
+    if (d) {
+      if (d.signedOut) return false;
+      if (schedule.ownerUid === d.uid) return true;
+      const de = await d.db.getEnrollment(classId, d.uid);
+      return !!(de && de.status === 'active');
+    }
     await waitForAuth();
     const Auth = ML.Auth;
     if (!Auth?.currentUser) return false;
     if (Auth.currentProfile?.role === 'admin') return true;
-    if (schedule.ownerUid === Auth.currentUser.uid) return true;
-    const e = await TC_DB.getEnrollment(classId, Auth.currentUser.uid).catch(() => null);
+    if (schedule.ownerUid === me()) return true;
+    const e = await src().getEnrollment(classId, me()).catch(() => null);
     return !!(e && e.status === 'active');
   }
 
@@ -334,12 +710,12 @@
         const scheduleId = document.getElementById('tc-review-class').value;
         const cls = classes.find(c => c.scheduleId === scheduleId);
         try {
-          await TC_DB.submitReview({
-            authorUid: Auth.currentUser.uid,
+          await src().submitReview({
+            authorUid: me(),
             authorName: Auth.currentProfile?.name || '',
             authorRole: form.dataset.role,
             scheduleId,
-            teacherUid: cls?.teacherUid || Auth.currentUser.uid,
+            teacherUid: cls?.teacherUid || me(),
             school: cls?.school || '',
             rating: getStars(),
             text: document.getElementById('tc-review-text').value.trim()
@@ -356,7 +732,7 @@
         const text = prompt('Update your review:', row.querySelector('p')?.textContent || '');
         if (text === null) return;
         try {
-          await TC_DB.updateReview(btn.dataset.editReview, { text: text.trim() });
+          await src().updateReview(btn.dataset.editReview, { text: text.trim() });
           refresh();
         } catch (err) { alert('Could not update: ' + err.message); }
       });
@@ -385,9 +761,10 @@
 
   async function wireTeacherDashboard() {
     const Auth = ML.Auth;
-    document.getElementById('dash-logout-btn')?.addEventListener('click', () => Auth.logout());
+    document.getElementById('dash-logout-btn')?.addEventListener('click', () =>
+      demo() ? demo().note('Sign Out is disabled in demo preview.') : Auth.logout());
     if (ML.wireGuestProfileCard) ML.wireGuestProfileCard();
-    const uid = Auth.currentUser.uid;
+    const uid = me();
 
     // Fire the independent loads together.
     await Promise.all([
@@ -404,14 +781,16 @@
     if (el) el.innerHTML += `<p class="error-text">Failed to load: ${esc(e.message || e)}</p>`;
   }
 
+  // V3.669 — the dashboard card is now a summary; class management (codes,
+  // rosters, modules, due dates) lives on its own page at #/teach
+  // (teacher-teach.js), linked from here and from the Classes page banner.
   async function loadTeacherClasses(uid) {
     const el = document.getElementById('tc-classes-card');
     if (!el) return;
-    const [classes, codes, roster, folders] = await Promise.all([
-      TC_DB.myTeacherClasses(uid),
-      TC_DB.myJoinCodes(uid),
-      TC_DB.rosterForTeacher(uid),
-      manifestFolders().catch(() => ({}))
+    const [classes, codes, roster] = await Promise.all([
+      src().myTeacherClasses(uid),
+      src().myJoinCodes(uid),
+      src().rosterForTeacher(uid)
     ]);
 
     if (!classes.length) {
@@ -420,98 +799,36 @@
       return;
     }
 
-    let html = '<h3>My Classes</h3>';
+    let html = `<h3>My Classes</h3>
+      <p><a class="btn btn-primary" href="#/teach">Open teaching dashboard &rarr;</a></p>
+      <p class="tc-muted">Manage join codes, assign modules, and see your students there.</p>`;
     for (const cls of classes) {
       const activeCode = codes.find(c => c.scheduleId === cls.id && c.active);
       const students = roster.filter(r => r.scheduleId === cls.id && r.status === 'active');
-      const folderLabels = (cls.grantedFolders || []).map(f => folders[f]?.label || f);
+      const assigned = (cls.modules || []).filter(m => m.published !== false).length;
       html += `
       <div class="tc-class-block" data-schedule="${esc(cls.id)}">
         <div class="tc-class-head">
-          <a href="#/classes/${esc(cls.id)}"><strong>${esc(cls.title || cls.id)}</strong></a>
-          <label class="tc-toggle"><input type="checkbox" data-enroll-toggle ${cls.enrollmentOpen !== false ? 'checked' : ''}> Enrollment open</label>
+          <a href="#/teach/${esc(cls.id)}"><strong>${esc(cls.title || cls.id)}</strong></a>
+          <span class="tc-muted">${cls.enrollmentOpen !== false ? 'Enrollment open' : 'Enrollment closed'}</span>
         </div>
-        ${folderLabels.length ? `<p class="tc-muted">Modules: ${folderLabels.map(esc).join(' · ')}</p>` : ''}
-        <div class="tc-code-box">
-          ${activeCode
-            ? `<span class="tc-code" id="tc-code-${esc(cls.id)}">${esc(activeCode.code)}</span>
-               <button class="btn btn-secondary btn-small" data-copy-code="${esc(activeCode.code)}">Copy</button>
-               <button class="btn btn-secondary btn-small" data-regen-code data-old="${esc(activeCode.code)}">Regenerate</button>
-               <button class="btn btn-secondary btn-small" data-disable-code="${esc(activeCode.code)}">Disable</button>`
-            : `<span class="tc-muted">No active join code.</span>
-               <button class="btn btn-primary btn-small" data-new-code>Create join code</button>`}
-        </div>
-        <p class="tc-muted tc-code-hint">Students: sign in at mcgheelab.com, open this class under Classes, and enter the code.</p>
-        <div class="tc-roster">
-          <strong>Students (${students.length})</strong>
-          ${students.length ? `<table class="tc-roster-table"><tbody>
-            ${students.map(s => `<tr>
-              <td>${esc(s.studentName || '—')}</td>
-              <td class="tc-muted">${esc(s.studentEmail || '')}</td>
-              <td class="tc-muted">${fmtDate(s.createdAt)}</td>
-              <td><button class="btn btn-secondary btn-small" data-remove-student="${esc(s.id)}">Remove</button></td>
-            </tr>`).join('')}
-          </tbody></table>` : '<p class="tc-muted">No students have joined yet.</p>'}
-        </div>
+        <p class="tc-muted">
+          ${students.length} student${students.length === 1 ? '' : 's'}
+          · ${assigned} module${assigned === 1 ? '' : 's'} assigned
+          · code: ${activeCode ? `<span class="tc-code">${esc(activeCode.code)}</span>` : '<em>none active</em>'}
+        </p>
+        <p><a class="btn btn-secondary btn-small" href="#/teach/${esc(cls.id)}">Manage class</a>
+           <a class="btn btn-secondary btn-small" href="#/classes/${esc(cls.id)}">View as page</a></p>
       </div>`;
     }
     el.innerHTML = html;
-
-    el.querySelectorAll('[data-copy-code]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        navigator.clipboard?.writeText(btn.dataset.copyCode);
-        btn.textContent = 'Copied!';
-        setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
-      });
-    });
-    el.querySelectorAll('[data-enroll-toggle]').forEach(input => {
-      input.addEventListener('change', async () => {
-        const scheduleId = input.closest('.tc-class-block').dataset.schedule;
-        try { await TC_DB.setEnrollmentOpen(scheduleId, input.checked); }
-        catch (e) { input.checked = !input.checked; alert('Could not update: ' + e.message); }
-      });
-    });
-    el.querySelectorAll('[data-new-code]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const scheduleId = btn.closest('.tc-class-block').dataset.schedule;
-        btn.disabled = true;
-        try { await TC_DB.createJoinCode(scheduleId, uid); await loadTeacherClasses(uid); }
-        catch (e) { btn.disabled = false; alert('Could not create code: ' + e.message); }
-      });
-    });
-    el.querySelectorAll('[data-regen-code]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Regenerate the join code? The old code will stop working immediately.')) return;
-        const scheduleId = btn.closest('.tc-class-block').dataset.schedule;
-        btn.disabled = true;
-        try {
-          await TC_DB.createJoinCode(scheduleId, uid);
-          await TC_DB.deactivateCode(btn.dataset.old);
-          await loadTeacherClasses(uid);
-        } catch (e) { btn.disabled = false; alert('Could not regenerate: ' + e.message); }
-      });
-    });
-    el.querySelectorAll('[data-disable-code]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Disable this join code? Students will not be able to join until you create a new one.')) return;
-        try { await TC_DB.deactivateCode(btn.dataset.disableCode); await loadTeacherClasses(uid); }
-        catch (e) { alert('Could not disable: ' + e.message); }
-      });
-    });
-    el.querySelectorAll('[data-remove-student]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Remove this student from your class?')) return;
-        try { await TC_DB.setEnrollmentStatus(btn.dataset.removeStudent, 'removed'); await loadTeacherClasses(uid); }
-        catch (e) { alert('Could not remove: ' + e.message); }
-      });
-    });
   }
 
   async function loadRequestCard(uid) {
     const el = document.getElementById('tc-request-card');
     if (!el) return;
     const [requests, folders] = await Promise.all([
-      TC_DB.myRequests(uid),
+      src().myRequests(uid),
       manifestFolders().catch(() => ({}))
     ]);
     const hasPending = requests.some(r => r.status === 'pending');
@@ -571,7 +888,7 @@
     el.querySelectorAll('[data-withdraw]').forEach(btn => {
       btn.addEventListener('click', async () => {
         if (!confirm('Withdraw this request?')) return;
-        try { await TC_DB.withdrawRequest(btn.dataset.withdraw); await loadRequestCard(uid); }
+        try { await src().withdrawRequest(btn.dataset.withdraw); await loadRequestCard(uid); }
         catch (e) { alert('Could not withdraw: ' + e.message); }
       });
     });
@@ -587,7 +904,7 @@
         }
         const Auth = ML.Auth;
         try {
-          await TC_DB.createRequest({
+          await src().createRequest({
             teacherUid: uid,
             teacherName: Auth.currentProfile?.name || Auth.currentUser.displayName || '',
             teacherEmail: Auth.currentProfile?.email || Auth.currentUser.email || '',
@@ -612,7 +929,7 @@
   async function loadPublicProfileCard(uid) {
     const el = document.getElementById('tc-public-profile-card');
     if (!el) return;
-    const prof = await TC_DB.getTeacherProfile(uid) || {};
+    const prof = await src().getTeacherProfile(uid) || {};
     const Auth = ML.Auth;
     el.innerHTML = `
       <h3>Public Teacher Profile</h3>
@@ -664,7 +981,7 @@
     async function save(submit) {
       const st = document.getElementById('tc-tprofile-status');
       try {
-        await TC_DB.saveTeacherProfile(uid, {
+        await src().saveTeacherProfile(uid, {
           name: document.getElementById('tcp-name').value.trim(),
           school: document.getElementById('tcp-school').value.trim(),
           subjectArea: document.getElementById('tcp-subject').value.trim(),
@@ -684,8 +1001,8 @@
     const slot = document.getElementById('tc-review-slot');
     if (!slot) return;
     const [classes, myReviews] = await Promise.all([
-      TC_DB.myTeacherClasses(uid),
-      TC_DB.myReviews(uid)
+      src().myTeacherClasses(uid),
+      src().myReviews(uid)
     ]);
     const classRefs = classes.map(c => ({
       scheduleId: c.id, title: c.title || c.id, teacherUid: uid, school: c.school || ''
@@ -717,6 +1034,7 @@
           <div id="tc-join-status" class="form-status" hidden></div>
         </div>
         <div class="dash-card" id="tc-myclasses-card"><h3>My Classes</h3><p class="tc-muted">Loading…</p></div>
+        <div class="dash-card" id="tc-assignments-card"><h3>Assignments</h3><p class="tc-muted">Loading…</p></div>
         <div id="tc-review-slot"></div>
       </div>
     </div>`;
@@ -724,9 +1042,10 @@
 
   async function wireStudentDashboard() {
     const Auth = ML.Auth;
-    document.getElementById('dash-logout-btn')?.addEventListener('click', () => Auth.logout());
+    document.getElementById('dash-logout-btn')?.addEventListener('click', () =>
+      demo() ? demo().note('Sign Out is disabled in demo preview.') : Auth.logout());
     if (ML.wireGuestProfileCard) ML.wireGuestProfileCard();
-    const uid = Auth.currentUser.uid;
+    const uid = me();
 
     document.getElementById('tc-join-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -747,19 +1066,125 @@
 
     await Promise.all([
       loadStudentClasses(uid).catch(e => panelError('tc-myclasses-card', e)),
+      loadStudentAssignments(uid).catch(e => panelError('tc-assignments-card', e)),
       loadStudentReviewSlot(uid).catch(e => console.warn('[TC] review slot', e))
     ]);
+  }
+
+  /* ================================================================
+     STUDENT ASSIGNMENTS CARD (V3.671)
+     ----------------------------------------------------------------
+     Published/closed assignments across every active class, each with
+     its submission state: mark-done, an inline text response (editable
+     until graded), or the grade the teacher recorded.
+     ================================================================ */
+  function fmtDueShort(d) {
+    const dt = d ? new Date(d + 'T00:00') : null;
+    return dt && !isNaN(dt) ? dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+  }
+  const GRADE_LABELS = { complete: '✓ Complete', incomplete: '✕ Incomplete', excused: '– Excused' };
+
+  async function loadStudentAssignments(uid) {
+    const el = document.getElementById('tc-assignments-card');
+    if (!el) return;
+    // V3.771 — teachers no longer set coursework here (the hub's assignment
+    // editor is gone; how they assign and grade is their own business), so
+    // this card only appears for a student who actually has assignments
+    // from before. With none, it would be a permanently empty card.
+    const enrollments = (await src().myEnrollments(uid)).filter(e => e.status === 'active');
+    if (!enrollments.length) { el.hidden = true; return; }
+    const schedules = await Promise.all(enrollments.map(e => src().getSchedule(e.scheduleId).catch(() => null)));
+    const perClass = await Promise.all(enrollments.map(async (e, i) => {
+      const assignments = await src().assignmentsForStudent(e.scheduleId).catch(() => []);
+      const subs = await Promise.all(assignments.map(a => src().mySubmission(a.id, uid).catch(() => null)));
+      return { title: schedules[i]?.title || e.scheduleId, assignments, subs };
+    }));
+
+    const today = new Date().toISOString().slice(0, 10);
+    let html = '<h3>Assignments</h3>';
+    let any = false;
+    for (const cls of perClass) {
+      if (!cls.assignments.length) continue;
+      any = true;
+      html += `<div class="tc-assign-class"><strong>${esc(cls.title)}</strong>`;
+      cls.assignments.forEach((a, i) => {
+        const sub = cls.subs[i];
+        const overdue = a.dueDate && a.dueDate < today && !sub;
+        const closed = a.status === 'closed';
+        html += `
+        <div class="tc-assign-row" data-assign="${esc(a.id)}">
+          <div class="tc-assign-head">
+            <span class="tc-assign-title">${esc(a.title || 'Assignment')}</span>
+            ${a.points != null ? `<span class="tc-muted">${esc(String(a.points))} pts</span>` : ''}
+            ${a.dueDate ? `<span class="tc-assign-due${overdue ? ' overdue' : ''}">due ${esc(fmtDueShort(a.dueDate))}</span>` : ''}
+            ${closed ? '<span class="tc-chip tc-chip-draft">Closed</span>' : ''}
+          </div>
+          ${a.description ? `<p class="tc-muted tc-assign-desc">${esc(a.description)}</p>` : ''}
+          ${sub?.grade ? `
+            <div class="tc-assign-grade">
+              <strong>${esc(GRADE_LABELS[sub.grade.outcome] || sub.grade.outcome || 'Graded')}</strong>
+              ${sub.grade.score != null ? `<span>${esc(String(sub.grade.score))}${a.points != null ? ' / ' + esc(String(a.points)) : ''}</span>` : ''}
+              ${sub.grade.feedback ? `<p class="tc-muted">${esc(sub.grade.feedback)}</p>` : ''}
+            </div>` : `
+            <div class="tc-assign-state">
+              ${sub ? `<span class="tc-chip tc-chip-approved">${sub.status === 'done' ? 'Marked done' : 'Submitted'}</span>
+                       ${sub.text ? `<p class="tc-assign-mytext tc-muted">${esc(sub.text)}</p>` : ''}` : ''}
+              ${closed ? (sub ? '' : '<span class="tc-muted">This assignment is closed.</span>') : `
+                <div class="tc-assign-actions">
+                  ${sub?.status === 'done' ? '' : `<button class="btn btn-secondary btn-small" data-mark-done>${sub ? 'Mark done instead' : 'Mark done'}</button>`}
+                  <button class="btn btn-secondary btn-small" data-write-response>${sub?.text ? 'Edit response' : 'Write response'}</button>
+                </div>
+                <form class="tc-assign-form" hidden>
+                  <textarea rows="3" placeholder="Your answer…">${esc(sub?.text || '')}</textarea>
+                  <button type="submit" class="btn btn-primary btn-small">Submit response</button>
+                </form>`}
+              <span class="form-status tc-assign-status" hidden></span>
+            </div>`}
+        </div>`;
+      });
+      html += '</div>';
+    }
+    if (!any) { el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = html;
+
+    const p = myProfile();
+    const student = { uid, name: p.name || ML.Auth?.currentUser?.displayName || '' };
+    const flat = perClass.flatMap(c => c.assignments);
+
+    el.querySelectorAll('.tc-assign-row').forEach(row => {
+      const a = flat.find(x => x.id === row.dataset.assign);
+      if (!a) return;
+      const st = row.querySelector('.tc-assign-status');
+      const fail = (e) => { if (st) { st.textContent = 'Could not save: ' + e.message; st.className = 'form-status error tc-assign-status'; st.hidden = false; } };
+      row.querySelector('[data-mark-done]')?.addEventListener('click', async (ev) => {
+        ev.target.disabled = true;
+        try { await src().submitAssignment(a, student, { status: 'done' }); await loadStudentAssignments(uid); }
+        catch (e) { ev.target.disabled = false; fail(e); }
+      });
+      row.querySelector('[data-write-response]')?.addEventListener('click', () => {
+        const form = row.querySelector('.tc-assign-form');
+        if (form) form.hidden = !form.hidden;
+      });
+      row.querySelector('.tc-assign-form')?.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const text = ev.target.querySelector('textarea').value.trim();
+        if (!text) { fail(new Error('write something first')); return; }
+        try { await src().submitAssignment(a, student, { status: 'submitted', text }); await loadStudentAssignments(uid); }
+        catch (e) { fail(e); }
+      });
+    });
   }
 
   async function loadStudentClasses(uid) {
     const el = document.getElementById('tc-myclasses-card');
     if (!el) return;
-    const enrollments = (await TC_DB.myEnrollments(uid)).filter(e => e.status === 'active');
+    const enrollments = (await src().myEnrollments(uid)).filter(e => e.status === 'active');
     if (!enrollments.length) {
       el.innerHTML = '<h3>My Classes</h3><p class="tc-muted">You haven’t joined a class yet.</p>';
       return;
     }
-    const schedules = await Promise.all(enrollments.map(e => TC_DB.getSchedule(e.scheduleId).catch(() => null)));
+    const schedules = await Promise.all(enrollments.map(e => src().getSchedule(e.scheduleId).catch(() => null)));
     el.innerHTML = '<h3>My Classes</h3>' + enrollments.map((e, i) => {
       const s = schedules[i];
       return `<div class="tc-class-block">
@@ -774,11 +1199,11 @@
     const slot = document.getElementById('tc-review-slot');
     if (!slot) return;
     const [enrollments, myReviews] = await Promise.all([
-      TC_DB.myEnrollments(uid),
-      TC_DB.myReviews(uid)
+      src().myEnrollments(uid),
+      src().myReviews(uid)
     ]);
     const active = enrollments.filter(e => e.status === 'active');
-    const schedules = await Promise.all(active.map(e => TC_DB.getSchedule(e.scheduleId).catch(() => null)));
+    const schedules = await Promise.all(active.map(e => src().getSchedule(e.scheduleId).catch(() => null)));
     const classRefs = active.map((e, i) => ({
       scheduleId: e.scheduleId,
       title: schedules[i]?.title || e.scheduleId,
@@ -804,7 +1229,9 @@
     await waitForAuth();
     const Auth = ML.Auth;
 
-    if (!Auth?.currentUser) {
+    // V3.632 — the demo persona decides which gate renders; the signed-out
+    // preview can't key off Auth.currentUser (the admin really is signed in).
+    if (demo() ? demo().signedOut : !Auth?.currentUser) {
       content.innerHTML = `
         <div class="section card"><div class="tc-gate-card">
           <h3>Sign in to view this class</h3>
@@ -814,6 +1241,7 @@
         </div></div>`;
       document.getElementById('tc-gate-signin')?.addEventListener('click', async () => {
         const st = document.getElementById('tc-gate-status');
+        if (demo()) { demo().note('Google sign-in is disabled in demo preview — switch persona instead.'); return; }
         try {
           await Auth.googleLogin();
           await wireTeacherClassPage(scheduleId, schedule);
@@ -824,9 +1252,16 @@
       return;
     }
 
+    // V3.636 — a teacher previewing one of their students keeps the switcher
+    // on screen in every state, including the locked-out one; that IS the
+    // thing being checked after a Remove.
+    const va = viewAsFor(scheduleId);
+    const mayPreview = canViewAsStudent(schedule);
+    const previewStrip = mayPreview ? await viewAsStripHTML(scheduleId, schedule) : '';
+
     const canView = await tcCanViewModules(scheduleId, schedule);
     if (!canView) {
-      content.innerHTML = `
+      content.innerHTML = previewStrip + `
         <div class="section card"><div class="tc-gate-card">
           <h3>Enter your class code</h3>
           <p class="tc-muted">Ask your teacher for the 6-character code for ${esc(schedule.title || 'this class')}.</p>
@@ -836,9 +1271,16 @@
           </form>
           <div id="tc-gate-status" class="form-status" hidden></div>
         </div></div>`;
+      wireViewAsStrip(scheduleId, schedule);
       document.getElementById('tc-gate-join')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const st = document.getElementById('tc-gate-status');
+        if (va) {
+          st.textContent = 'Preview only — ' + (va.studentName || 'this student') +
+            ' would enter their code here. Nothing was submitted.';
+          st.className = 'form-status'; st.hidden = false;
+          return;
+        }
         try {
           const joined = await joinClassWithCode(document.getElementById('tc-gate-code').value);
           if (joined !== scheduleId) {
@@ -854,35 +1296,120 @@
       return;
     }
 
-    // Enrolled student, owning teacher, or admin.
-    const isOwner = schedule.ownerUid === Auth.currentUser.uid;
-    const isAdmin = Auth.currentProfile?.role === 'admin';
+    // Enrolled student, owning teacher, or admin. While previewing as a
+    // student, the teacher's own affordances are hidden — otherwise the
+    // preview would show something no student ever sees.
+    const isOwner = !va && schedule.ownerUid === me();
+    const isAdmin = (demo() || va) ? false : Auth.currentProfile?.role === 'admin';
+
+    // V3.669 — per-student overrides (set by the teacher on #/teach) hide a
+    // module or move its due date for one student. Owners/admins see the
+    // class-wide list; the view-as preview applies the previewed student's
+    // overrides, which is exactly what the preview exists to check.
+    let overrides = {};
+    const overrideUid = va ? va.studentUid : ((isOwner || isAdmin) ? null : me());
+    if (overrideUid) {
+      const enr = await src().getEnrollment(scheduleId, overrideUid).catch(() => null);
+      overrides = (enr && enr.moduleOverrides) || {};
+    }
+    const fmtDue = (d) => {
+      const dt = d ? new Date(d + 'T00:00') : null;
+      return dt && !isNaN(dt) ? dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+    };
     const modules = (schedule.modules || [])
       .filter(m => m.published !== false)
+      .filter(m => !(overrides[m.id] && overrides[m.id].hidden))
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-    content.innerHTML = `
+    content.innerHTML = previewStrip + `
       ${(isOwner || isAdmin) ? `
       <div class="section card tc-owner-strip">
         <span>${isOwner ? 'This is your class.' : 'Viewing as admin.'}</span>
-        ${isOwner ? '<a href="#/dashboard" class="btn btn-secondary btn-small">Manage in your dashboard</a>' : ''}
+        ${isOwner ? `<a href="#/teach/${esc(scheduleId)}" class="btn btn-secondary btn-small">Manage this class</a>` : ''}
       </div>` : ''}
       ${schedule.description ? `<div class="section card"><p>${esc(schedule.description)}</p></div>` : ''}
       <div class="section card">
         <h3>Modules</h3>
         ${modules.length ? `<div class="tc-module-list">
-          ${modules.map((m, i) => `
-            <a class="tc-module-item" href="#/classes/${esc(scheduleId)}/modules/${encodeURIComponent(m.htmlFile)}">
+          ${modules.map((m, i) => {
+            const due = (overrides[m.id] && overrides[m.id].dueDate) || m.dueDate || '';
+            return `
+            <!-- V3.716 — link by module id, not filename. A teacher granted two
+                 folders gets two entries named overview.html (buildModules walks
+                 every granted folder), and the old filename route resolved by
+                 first match: the second module was unreachable and opened the
+                 first one's folder. Catalog ids ({folder}--{basename}) are
+                 already unique, and wireModuleViewer resolves ids first. -->
+            <a class="tc-module-item" href="#/classes/${esc(scheduleId)}/modules/${encodeURIComponent(m.id || m.htmlFile)}">
               <span class="tc-module-num">${i + 1}</span>
               <span class="tc-module-title">${esc(m.title || m.htmlFile)}</span>
+              ${due ? `<span class="tc-module-due">due ${esc(fmtDue(due))}</span>` : ''}
               <span class="tc-module-arrow">&rarr;</span>
-            </a>`).join('')}
+            </a>`;
+          }).join('')}
         </div>` : '<p class="tc-muted">No modules published yet.</p>'}
       </div>
       <div class="section card">
         <h3>How was it?</h3>
         <p class="tc-muted">When you’ve worked through the materials, we’d love a short review — it helps other schools find these modules. Write one from <a href="#/dashboard">your dashboard</a>.</p>
       </div>`;
+
+    wireViewAsStrip(scheduleId, schedule);
+  }
+
+  /* ---- view-as strip (teacher-only) ---- */
+  async function viewAsStripHTML(scheduleId, schedule) {
+    let roster = [];
+    try {
+      roster = (await src().rosterForTeacher(schedule.ownerUid))
+        .filter(r => r.scheduleId === scheduleId);
+    } catch (e) {
+      // A teacher can always list their own roster; an admin previewing
+      // someone else's class cannot (the read rule is teacher/student/admin
+      // per doc, but the LIST query is keyed on teacherUid). Degrade to the
+      // strip with no options rather than breaking the page.
+      console.warn('[TC] view-as roster unavailable', e);
+    }
+    roster.sort((a, b) => (a.studentName || '').localeCompare(b.studentName || ''));
+    const va = viewAsFor(scheduleId);
+    if (!roster.length && !va) return '';
+
+    return `
+      <div class="section card tc-viewas" role="toolbar" aria-label="View as student">
+        <span class="tc-viewas-label">Viewing as:</span>
+        <button type="button" class="tc-viewas-btn${va ? '' : ' tc-viewas-on'}" data-viewas-self>Myself (teacher)</button>
+        <select id="tc-viewas-select" aria-label="Pick a student">
+          <option value="">— pick a student —</option>
+          ${roster.map(r => `<option value="${esc(r.studentUid)}"${va && va.studentUid === r.studentUid ? ' selected' : ''}>${esc(r.studentName || r.studentEmail || r.studentUid)}${r.status === 'active' ? '' : ' (removed)'}</option>`).join('')}
+        </select>
+        ${va ? `<span class="tc-viewas-note">Preview — this is ${esc(va.studentName || 'the student')}’s view of your class. Nothing you click here is saved as them.</span>`
+             : '<span class="tc-viewas-note tc-muted">Check what a student sees — including a student you removed.</span>'}
+      </div>`;
+  }
+
+  function wireViewAsStrip(scheduleId, schedule) {
+    const sel = document.getElementById('tc-viewas-select');
+    if (sel) {
+      sel.addEventListener('change', async () => {
+        const studentUid = sel.value;
+        if (!studentUid) { clearViewAs(); return wireTeacherClassPage(scheduleId, schedule); }
+        // The enrollment doc is the source of truth for status, and the
+        // teacher may read it (they are its teacherUid) — so previewing
+        // needs no access the teacher doesn't already have.
+        const e = await src().getEnrollment(scheduleId, studentUid).catch(() => null);
+        if (!e) return;
+        _viewAs = {
+          scheduleId, studentUid,
+          studentName: e.studentName || e.studentEmail || studentUid,
+          status: e.status
+        };
+        await wireTeacherClassPage(scheduleId, schedule);
+      });
+    }
+    document.querySelector('[data-viewas-self]')?.addEventListener('click', async () => {
+      clearViewAs();
+      await wireTeacherClassPage(scheduleId, schedule);
+    });
   }
 
   /* ================================================================
@@ -891,7 +1418,7 @@
   async function renderClassReviewsSection(parentEl) {
     if (!parentEl || !db()) return;
     let reviews;
-    try { reviews = await TC_DB.approvedReviews(12); } catch (e) { return; }
+    try { reviews = await src().approvedReviews(12); } catch (e) { return; }
     if (!reviews.length) return;
 
     const section = document.createElement('div');
@@ -916,12 +1443,12 @@
   async function renderFeaturedTeachersSection(appEl) {
     if (!appEl || !db()) return;
     let profiles;
-    try { profiles = await TC_DB.approvedTeacherProfiles(); } catch (e) { return; }
+    try { profiles = await src().approvedTeacherProfiles(); } catch (e) { return; }
     if (!profiles.length) return;
 
     let featuredReviews = [];
     try {
-      featuredReviews = (await TC_DB.approvedReviews(50)).filter(r => r.featured);
+      featuredReviews = (await src().approvedReviews(50)).filter(r => r.featured);
     } catch (e) { /* reviews are optional garnish */ }
 
     profiles.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -953,6 +1480,10 @@
      EXPORTS
      ================================================================ */
   ML.TC_DB = TC_DB;
+  ML.tcClearViewAs = clearViewAs;   // V3.636 — drop a stale preview on logout
+  ML.tcSetViewAs = setViewAs;       // V3.669 — #/teach roster jumps into a student preview
+  ML.tcViewAsFor = viewAsFor;       // V3.672 — the engagement beacon must skip teacher previews
+  ML.tcManifestFolders = manifestFolders; // V3.669 — folder labels for the #/teach module picker
   ML.renderTeacherDashboard = renderTeacherDashboard;
   ML.wireTeacherDashboard = wireTeacherDashboard;
   ML.renderStudentDashboard = renderStudentDashboard;

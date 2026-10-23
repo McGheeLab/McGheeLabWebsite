@@ -30,9 +30,9 @@
   const BUFFER_FACTOR = 7;
 
   const PRIORITY_FLAG_STYLE = {
-    'overdue':       { bg: '#fecaca', fg: '#7f1d1d', icon: '\u26A0' },
-    'overdue-risk':  { bg: '#fee2e2', fg: '#991b1b', icon: '\u26A0' },
-    'schedule-now':  { bg: '#fef3c7', fg: '#92400e', icon: '\u23F3' },
+    'overdue':       { bg: '#fecaca', fg: '#7f1d1d', icon: 'exclamation-triangle' },
+    'overdue-risk':  { bg: '#fee2e2', fg: '#991b1b', icon: 'exclamation-triangle' },
+    'schedule-now':  { bg: '#fef3c7', fg: '#92400e', icon: 'clock' },
     'on-track':      { bg: '#dcfce7', fg: '#166534', icon: '\u2713' },
     'unscheduled':   { bg: '#e5e7eb', fg: '#374151', icon: '\u2014' },
     'completed':     { bg: '#dbeafe', fg: '#1e40af', icon: '\u2713' },
@@ -85,7 +85,7 @@
   function priorityChipHtml(task, hoursLoggedFn) {
     const d = derivePriority(task, hoursLoggedFn);
     const s = PRIORITY_FLAG_STYLE[d.flag] || PRIORITY_FLAG_STYLE['unscheduled'];
-    return `<span class="priority-chip" style="background:${s.bg};color:${s.fg}" title="${S.escapeHtml(d.label)}">${s.icon} ${d.flag.replace('-', ' ')}</span>`;
+    return `<span class="priority-chip" style="background:${s.bg};color:${s.fg}" title="${S.escapeHtml(d.label)}">${ICON.render(s.icon)} ${d.flag.replace('-', ' ')}</span>`;
   }
 
   /* ---------- section renderers ---------- */
@@ -190,7 +190,7 @@
       const btn = document.createElement('button');
       btn.className = 'btn btn-primary';
       btn.style.cssText = 'font-size:11px;padding:4px 10px;margin-left:auto';
-      btn.textContent = '\u23F0 Schedule blocks';
+      ICON.label(btn, 'clock', ' Schedule blocks');
       btn.addEventListener('click', () => openScheduleBlocksDialog(task, d, ctx));
       row.appendChild(btn);
     }
@@ -233,7 +233,7 @@
         await ctx.save();
       });
       const del = document.createElement('span');
-      del.textContent = '\u2716';
+      ICON.label(del, 'x-mark');
       del.title = 'Remove action item';
       del.style.cssText = 'color:#dc2626;cursor:pointer;font-size:12px;padding:2px 4px';
       del.addEventListener('click', async () => {

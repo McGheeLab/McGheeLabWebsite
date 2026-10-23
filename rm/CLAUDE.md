@@ -60,9 +60,12 @@ production is firestore.rules.
 
 ## Production deploy
 
-- **RM (this `/rm/` tree):** Cyberduck FTP the entire McGheeLabWebsite repo
-  to godaddy. The `/rm/` subdirectory is what users hit at
-  `mcgheelab.com/rm/`. There is no build step.
+- **RM (this `/rm/` tree):** `python3 scripts/deploy.py ftp` from the
+  parent repo (V3.817) — uploads only the files whose content hash differs
+  from `deploy/manifest.json`, then verifies them over HTTPS. Drag-and-drop
+  equivalent: `deploy.py stage` → Cyberduck → `deploy.py verify`. Never FTP
+  the whole repo: `deploy/site.json` excludes this file, `wishlist.md`,
+  `server.py`, `test-fixtures` docs and everything outside the site.
 - **Firestore rules / indexes:** edit
   [../firestore.rules](../firestore.rules) and
   [../firestore.indexes.json](../firestore.indexes.json), then from the
@@ -283,6 +286,55 @@ task lands at `userData/{studentUid}/tasks/{taskId}` with the PMR backref
 stamped, and `onCreated` back-links the task id onto the originating
 barrier card.
 
+## Lab Meetings (V3.743)
+
+[pages/meetings.html](pages/meetings.html) runs the whole weekly loop:
+rotation → round-robin slide submissions → presenter posts the combined
+deck → PI review the day before → timed meeting with live minutes → action
+items and chores that land on people's My Week. Modules:
+[js/meetings.js](js/meetings.js) (state, tabs, sheets, `window.MEETINGS`),
+[js/meetings-live.js](js/meetings-live.js) (Run-meeting view),
+[js/meetings-chores.js](js/meetings-chores.js) (weekly board),
+[js/drive-link.js](js/drive-link.js) (shared Drive-link parse/verify/card),
+`../functions/meetings.js` (reminders 09:00/16:00 Phoenix, swap execution,
+deck/review notices). Plan: `CodeLog/ClaudesPlan/V3.743_lab_meetings_remodel.md`.
+
+Things that are load-bearing and easy to break:
+
+- **`meetings/{id}.presenters` is a MAP keyed by uid, not an array.** The
+  rules diff it by key so a member may write only their own entry. Always
+  read through `presentersOf(m)` (handles map / legacy array / legacy
+  `presenterId`); never `.presenters.length`.
+- **Slot swaps are executed by the Cloud Function**, not the client — the
+  accepter cannot legally write the requester's key. Resolve parties by uid
+  at execution time, never by the slot stored on the request.
+- **Agenda start times are derived** (`agendaTimed()` = `time` + cumulative
+  `minutes`), never stored. Templates live in `meetingConfig.agendaTemplates`.
+- **Minutes are dotted-path writes** (`minutes.items.<id>.notes`) so two
+  scribes merge at the field level. `onMeetingWritten` fires on every
+  keystroke — its early-exit guard must stay two field compares.
+- **Renders are deferred while an input is focused.** After any inline form
+  submits, call `render()` explicitly or the new row waits for a blur.
+- **Roster** (V3.744): who's at meetings / who presents lives in
+  `meetingConfig.attendeeUids` / `presenterPoolUids` (Settings → Roster).
+  Pickers, the round-robin count, chore pool, Claim, and the function's
+  reminder audiences read `rosterMembers()` / `presenterPool()` — never
+  `state.members` directly (that's the full list, kept so History resolves
+  old names). Alumni are excluded by default.
+- **Coordinator role** = `meetingConfig/settings.coordinatorUids` (rules
+  helper `isMeetingCoordinator()`, WITH the `exists()` guard). Only an admin
+  edits `coordinatorUids` / `primaryCoordinatorUid` / `reviewerUids`.
+- **Action items / chores → My Week** go through `TASK_ASSIGN.writeTaskFor`
+  (never `.open()`); My Week reads them DIRECTLY, not via the 30-min-cached
+  `tasks/assigned.json` route, and plans them with `DD.importAndDistribute`
+  so the task doc stays the native copy. **A chore's task is written when it
+  is ASSIGNED, but the My Week card is held back until its week is the one on
+  screen** (V3.768, `inboxItems()` in my-week.js) — the board is filled a
+  semester ahead. Filter chores at the render seam; never defer the write.
+- Tests: `scripts/tests/meetings-rules.test.mjs`,
+  `scripts/tests/v3743-meetings-selftest.html`, `functions/test/meetings.test.js`,
+  `scripts/tests/myweek-inbox.test.mjs`.
+
 ## Training: lab-internal knowledge base (V3.162)
 
 [pages/training.html](pages/training.html) is the landing page for the
@@ -294,6 +346,20 @@ flat slugs `pages/training-<slug>.html` with renderers at
 Curriculum + per-module plans in `CodeLog/ClaudesPlan/V3.162` – `V3.170`;
 only `training-phd-triangle.html` is implemented today, the other eight
 slugs are placeholders ("Coming soon" on the landing grid).
+
+## Scientia (Gabe's notebook app) — one source, two targets (V3.866)
+
+**V3.868 — the push gate.** Every `git push` runs `scripts/merge_check.py` (installed by `python3 scripts/merge_check.py install`; the GitHub Action runs it on every PR): a new module must be in `CodeLog/features.json`, a change that looks like an existing feature must declare how it relates (`extends` / `merges_into` / `related` / `distinct_from`), the branch must merge with `origin/main`, the gates must pass. The Stop hook commits and pushes each turn (`scripts/git_autopush.py`) before it deploys; `deploy.py` only ships from an up-to-date `main` and accepts a second deployer's FTP login from `scripts/.env`. Plan: [V3.868](../CodeLog/ClaudesPlan/V3.868_git_push_hook_merge_checker.md).
+
+Scientia In Situ is developed in this repo with Gabe: the source is [`../scientia/`](../scientia/) (read
+[`../scientia/CLAUDE.md`](../scientia/CLAUDE.md) first). `python3 scripts/scientia_build.py` builds the desktop app
+(`scientia/scientia.html`, run by `serve.py`) and the web app (`rm/scientia/scientia.html`, the desktop file plus the
+`rm/scientia/cloud-sync.js` tag); both are git-ignored outputs. The web app lives INSIDE the Lab Notebook
+([pages/notebook.html](pages/notebook.html) → [js/notebook-scientia.js](js/notebook-scientia.js), V3.864) and syncs
+with the desktop through the `scientiaHub` function (V3.857). The unification program — RM's library, inventory,
+tasks and activity replacing Scientia's own, the notebook's cards ported into Scientia, the desktop pulling papers
+and highlights from RM — is planned in
+[CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md](../CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md).
 
 ## Where things are in the McGheeLabWebsite parent repo
 
@@ -319,4 +385,7 @@ slugs are placeholders ("Coming soon" on the landing grid).
 5. If it needs new Firestore paths, edit [../firestore.rules](../firestore.rules)
    and `firebase deploy --only firestore:rules` from the parent repo.
 6. Add a summary card in [js/dashboard.js](js/dashboard.js).
-7. Add a nav link in [js/nav.js](js/nav.js).
+7. Add a nav link in [js/nav.js](js/nav.js) — the NAV_ITEMS entry carries an
+   `icon` (Heroicon name, see js/icons.js) and NAV_PAGE_DESCRIPTIONS in the
+   same file carries its one-line blurb. That one entry feeds the bar's
+   chips, the Go to… palette, the home tiles and the admin matrix (V3.809).

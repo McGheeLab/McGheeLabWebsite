@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>V3811 admin workflows self-test</title>
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<link rel="stylesheet" href="/rm/css/admin-workflows.css">
+<script src="/rm/js/icons.js"></script>
+<style>
+  #results { font: 12px/1.5 ui-monospace, Menlo, monospace; white-space: pre-wrap; padding: 16px; border-top: 2px solid #e5e7eb; margin-top: 24px; }
+  #results .ok { color: #166534; } #results .bad { color: #b91c1c; font-weight: 700; }
+</style>
+<script>
+/* V3.811 — self-driving test of the default-workflows editor.
+ *   python3 -m http.server 8765   (repo root)
+ *   open http://127.0.0.1:8765/scripts/tests/v3811-admin-workflows-selftest.html
+ * Stub firebridge = signed-in admin; stub Firestore returns two workflows and
+ * RECORDS every set() in window.__writes. window.confirm/prompt/alert throw,
+ * so any browser popup fails the test. Title ends "V3811 PASS (n)"/"FAIL". */
+window.__writes = [];
+window.confirm = function () { throw new Error('window.confirm used'); };
+window.prompt  = function () { throw new Error('window.prompt used'); };
+window.alert   = function () { throw new Error('window.alert used'); };
+var __doc = { workflows: [
+  { id: 'lab-research', label: 'Lab Research', description: 'Daily research.', icon: 'microscope', landingPageId: 'library', pageIds: ['tasks', 'library'] },
+  { id: 'meetings', label: 'Meetings', description: '', icon: 'megaphone', landingPageId: '', pageIds: ['meetings', 'chat'], enabled: true },
+], updatedAt: 1 };
+function _ref(path) {
+  return {
+    get: function () { return Promise.resolve({ exists: path === 'labConfig/defaultWorkflows', data: function () { return __doc; } }); },
+    set: function (payload, opts) { window.__writes.push({ path: path, payload: JSON.parse(JSON.stringify(payload)), opts: opts }); return Promise.resolve(); },
+    collection: function (c) { return _coll(path + '/' + c); },
+  };
+}
+function _coll(path) { return { doc: function (d) { return _ref(path + '/' + d); }, get: function () { return Promise.resolve({ forEach: function () {}, docs: [] }); }, where: function () { return this; } }; }
+const firebridge = {
+  gateAdmin: function () { return Promise.resolve({ allowed: true, user: { uid: 'admin' } }); },
+  whenAuthResolved: function () { return Promise.resolve({ user: { uid: 'admin' } }); },
+  loadAccessGrant: function () { return Promise.resolve({}); },
+  getUser: function () { return { uid: 'admin' }; },
+  getProfile: function () { return { role: 'admin' }; },
+  isAdmin: function () { return true; },
+  isLabMember: function () { return true; },
+  canAccessPage: function () { return true; },
+  hasExplicitPageGrant: function () { return false; },
+  hasAnyCapabilityFor: function () { return false; },
+  onAuth: function (cb) { try { cb({ uid: 'admin' }, { role: 'admin' }); } catch (e) {} },
+  db: function () { return { collection: function (c) { return _coll(c); } }; },
+};
+</script>
+<script src="/rm/js/nav.js"></script>
+<script src="/rm/js/page-registry.js"></script>
+</head>
+<body>
+  <div class="page awf-screen">
+    <div class="page-header awf-header">
+      <div><h1 class="page-title">Default workflows (self-test)</h1></div>
+      <div class="awf-actions">
+        <span id="awf-status" class="awf-status"></span>
+        <button type="button" class="btn" id="awf-revert" disabled>Revert</button>
+        <button type="button" class="btn btn-primary" id="awf-save" disabled>Save changes</button>
+      </div>
+    </div>
+    <div id="awf-gate" class="empty-state">Loading…</div>
+    <div id="awf-root" class="awf-layout" hidden>
+      <aside class="awf-rail"><div class="awf-rail-head"><span>Workflows</span></div><ol id="awf-rail" class="awf-rail-list"></ol><div id="awf-rail-add" class="awf-rail-add"></div></aside>
+      <section class="awf-editor" id="awf-editor"></section>
+    </div>
+  </div>
+  <div id="results">running…</div>
+<script src="/rm/js/admin-workflows.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => setTimeout(run, 60));
+async function run() {
+  const out = document.getElementById('results');
+  const lines = []; let pass = 0, fail = 0;
+  const ok = (c, m) => { if (c) { pass++; lines.push('<span class="ok">✓</span> ' + m); } else { fail++; lines.push('<span class="bad">✗ ' + m + '</span>'); } };
+  const eq = (a, b, m) => ok(JSON.stringify(a) === JSON.stringify(b), m + '  →  ' + JSON.stringify(a) + (JSON.stringify(a) === JSON.stringify(b) ? '' : '  (want ' + JSON.stringify(b) + ')'));
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const $ = s => document.querySelector(s); const $$ = s => Array.from(document.querySelectorAll(s));
+  const railIds = () => $$('#awf-rail .awf-item').map(li => li.dataset.id + (li.classList.contains('is-selected') ? '*' : '') + (li.classList.contains('is-disabled') ? '(hidden)' : ''));
+  const pageIds = () => $$('#awf-pages .awf-page').map(li => li.dataset.id + (li.querySelector('.awf-landing.is-on') ? '★' : ''));
+  const previewChips = () => $$('#awf-preview .nav-chip:not(.nav-chip-add)').map(c => c.textContent.trim() + (c.classList.contains('active') ? '*' : ''));
+  const status = () => ($('#awf-status').textContent || '');
+  const typeInto = (el, v) => { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); };
+  const W = () => window.ADMIN_WORKFLOWS;
+  try {
+    for (let i = 0; i < 50 && $('#awf-root').hidden; i++) await sleep(100);
+    lines.push('<b>Load</b>');
+    ok(!$('#awf-root').hidden, 'editor shown after gateAdmin');
+    eq(railIds(), ['lab-research*', 'meetings'], 'rail lists the doc\'s workflows in order, first selected');
+    eq($('#awf-editor [data-field="label"]').value, 'Lab Research', 'editor shows the selected name');
+    eq(pageIds(), ['tasks', 'library★'], 'pages in order; landing starred');
+    eq(previewChips(), ['Tasks', 'Library*'], 'preview chips mirror the pages, landing active');
+    ok($('#awf-save').disabled && $('#awf-revert').disabled, 'Save/Revert disabled while clean');
+    ok(!$$('#awf-picker .awf-pick').some(b => b.dataset.id === 'tasks'), 'picker omits pages already in the workflow');
+    ok($$('#awf-picker .awf-pick').some(b => b.dataset.id === 'protocols'), 'picker offers Protocols');
+
+    lines.push('\n<b>Edit</b>');
+    typeInto($('#awf-editor [data-field="label"]'), 'Bench Research');
+    eq($('#awf-rail .awf-item.is-selected .awf-item-label').textContent.trim(), 'Bench Research', 'rename updates the rail live');
+    ok(/1 unsaved change/.test(status()) && !$('#awf-save').disabled, 'status counts the change; Save enabled (' + status() + ')');
+    typeInto($('#awf-picker-q'), 'proto');
+    eq($$('#awf-picker .awf-pick:not([hidden])').map(b => b.dataset.id), ['protocols'], 'picker filter narrows to Protocols');
+    $('#awf-picker .awf-pick[data-id="protocols"]').click(); await sleep(30);
+    eq(pageIds(), ['tasks', 'library★', 'protocols'], 'picked page appended');
+    eq(previewChips().length, 3, 'preview has three chips');
+    ok(!$$('#awf-picker .awf-pick').some(b => b.dataset.id === 'protocols'), 'picker no longer offers it');
+    eq($('#awf-picker-q').value, 'proto', 'picker filter text kept after adding');
+    $('#awf-pages .awf-page[data-id="protocols"] [data-move="-1"]').click(); await sleep(30);
+    eq(pageIds(), ['tasks', 'protocols', 'library★'], '▲ moves the page up');
+    $('#awf-pages .awf-page[data-id="protocols"] input[type="radio"]').click(); await sleep(30);
+    eq(pageIds(), ['tasks', 'protocols★', 'library'], 'landing radio moves the star');
+    eq(W().working()[0].landingPageId, 'protocols', 'model landing updated');
+    eq(previewChips(), ['Tasks', 'Protocols*', 'Library'], 'preview marks the landing chip');
+    $('#awf-pages .awf-page[data-id="tasks"] [data-remove]').click(); await sleep(30);
+    eq(pageIds(), ['protocols★', 'library'], '× removes a page, landing survives');
+    ok($$('#awf-picker .awf-pick').some(b => b.dataset.id === 'tasks') || $('#awf-picker-q').value === 'proto', 'removed page is offered again (filter permitting)');
+    const sw = $('#awf-editor [data-field="enabled"]'); sw.checked = false; sw.dispatchEvent(new Event('change', { bubbles: true })); await sleep(30);
+    eq(railIds(), ['lab-research*(hidden)', 'meetings'], 'switch off marks the workflow hidden in the rail');
+    ok(/Hidden/.test($('.awf-switch-label').textContent) && !!$('.awf-preview-note'), 'editor says Hidden and the preview warns');
+    $('#awf-icon-btn').click(); await sleep(30);
+    ok(!$('#awf-icon-pop').hidden && $$('#awf-icon-grid .awf-icon-cell').length >= 90, 'icon chooser opens with the Heroicon grid (' + $$('#awf-icon-grid .awf-icon-cell').length + ')');
+    typeInto($('#awf-picker-q'), 'receipt');
+    eq($$('#awf-picker .awf-pick').map(b => b.dataset.id), ['receipts'], 'name matches win: "receipt" shows Receipts & Budget only (Travel\'s blurb match is held back)');
+    typeInto($('#awf-picker-q'), 'reimburse');
+    eq($$('#awf-picker .awf-pick').map(b => b.dataset.id), ['finance'], 'no name matches → blurb matches shown');
+    typeInto($('#awf-picker-q'), '');
+    typeInto($('#awf-icon-q'), 'beak');
+    eq($$('#awf-icon-grid .awf-icon-cell:not([hidden])').map(b => b.dataset.icon), ['beaker'], 'icon filter narrows');
+    $('#awf-icon-grid [data-icon="beaker"]').click(); await sleep(30);
+    eq(W().working()[0].icon, 'beaker', 'picking an icon updates the model');
+    ok($('#awf-rail .awf-item.is-selected .awf-item-icon svg[data-icon="beaker"]') && $('#awf-icon-btn svg[data-icon="beaker"]'), 'rail + icon button show the new icon');
+    $('#awf-icon-close').click();
+
+    lines.push('\n<b>Rail</b>');
+    $('#awf-rail .awf-item[data-id="meetings"] [data-move="-1"]').click(); await sleep(30);
+    eq(railIds(), ['meetings', 'lab-research*(hidden)'], '▲ reorders the workflows; selection kept');
+    $('#awf-rail .awf-item[data-id="meetings"]').click(); await sleep(30);
+    eq($('#awf-editor [data-field="label"]').value, 'Meetings', 'selecting another workflow swaps the editor');
+    eq(pageIds(), ['meetings★', 'chat'], 'first page is the implicit landing when none is set');
+
+    lines.push('\n<b>New + delete (no popups)</b>');
+    $('#awf-add').click(); await sleep(30);
+    ok(!!$('#awf-add-name'), '+ New workflow shows an inline name field');
+    $('#awf-add-form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); await sleep(30);
+    ok(!$('#awf-add-err').hidden, 'empty name → inline error, no popup');
+    typeInto($('#awf-add-name'), 'Grant Sprint');
+    $('#awf-add-form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); await sleep(60);
+    eq(railIds(), ['meetings', 'lab-research(hidden)', 'grant-sprint*'], 'new workflow appended, slug id, selected');
+    eq(document.activeElement && document.activeElement.dataset.field, 'label', 'name field focused for editing');
+    ok(/No pages yet/.test($('#awf-pages').textContent), 'empty workflow explains itself');
+    $('#awf-del').click(); await sleep(30);
+    ok(!!$('#awf-del-yes') && /Delete .*Grant Sprint/.test($('.awf-confirm').textContent), 'delete asks inline');
+    $('#awf-del-no').click(); await sleep(30);
+    ok(!$('#awf-del-yes') && railIds().length === 3, 'Keep it cancels');
+    $('#awf-del').click(); await sleep(30); $('#awf-del-yes').click(); await sleep(30);
+    eq(railIds(), ['meetings*', 'lab-research(hidden)'], 'confirmed delete removes it and selects the first');
+
+    lines.push('\n<b>Save / revert</b>');
+    eq(window.__writes.length, 0, 'nothing written yet');
+    $('#awf-save').click(); await sleep(150);
+    eq(window.__writes.length, 1, 'one write on Save');
+    const w0 = window.__writes[0];
+    eq(w0.path, 'labConfig/defaultWorkflows', 'written to labConfig/defaultWorkflows');
+    eq(w0.opts, { merge: true }, 'merge write');
+    eq(w0.payload.workflows.map(w => w.id), ['meetings', 'lab-research'], 'payload order = rail order');
+    const lr = w0.payload.workflows[1];
+    eq([lr.label, lr.icon, lr.landingPageId, lr.pageIds, lr.enabled], ['Bench Research', 'beaker', 'protocols', ['protocols', 'library'], false], 'payload carries every edit');
+    eq(w0.payload.workflows[0].enabled, true, 'untouched workflow saved as enabled');
+    ok(!('seededAt' in w0.payload), 'existing doc → no seededAt');
+    ok($('#awf-save').disabled && /Saved/.test(status()), 'clean after save (' + status() + ')');
+    typeInto($('#awf-editor [data-field="description"]'), 'temp');
+    ok(!$('#awf-revert').disabled, 'a new edit re-enables Revert');
+    $('#awf-revert').click(); await sleep(30);
+    eq($('#awf-editor [data-field="description"]').value, '', 'Revert restores the saved copy');
+    ok($('#awf-save').disabled, 'clean after revert');
+    typeInto($('#awf-editor [data-field="description"]'), 'Weekly loop');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 's', metaKey: true, bubbles: true, cancelable: true })); await sleep(150);
+    eq(window.__writes.length, 2, '⌘S saves');
+    eq(window.__writes[1].payload.workflows[0].description, 'Weekly loop', 'second payload has the new blurb');
+  } catch (err) {
+    fail++; lines.push('<span class="bad">✗ EXCEPTION: ' + (err && err.stack || err) + '</span>');
+  }
+  document.title = 'V3811 ' + (fail ? 'FAIL' : 'PASS') + ' (' + pass + ' passed, ' + fail + ' failed)';
+  lines.push('\n<b>' + document.title + '</b>');
+  out.innerHTML = lines.join('\n');
+}
+</script>
+</body>
+</html>

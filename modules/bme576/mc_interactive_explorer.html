@@ -169,6 +169,14 @@ mjx-container{display:inline-block !important}
 </style>
 </head>
 <body>
+<!-- hi-icons:start (scripts/module_icons.py — generated; re-run after adding an icon) -->
+<style>.hi{width:1em;height:1em;display:inline-block;vertical-align:-0.125em;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;overflow:visible}.hi-solid{fill:currentColor;stroke:none}</style>
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><defs><symbol id="hi-play" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"/></symbol></defs></svg>
+<script>window.HI={svg:function(n,o){o=o||{};var s=o.solid?'-solid':'';return '<svg class="hi'+(o.solid?' hi-solid':'')+(o.cls?' '+o.cls:'')+'"'+(o.tint?' style="color:'+o.tint+'"':'')+(o.label?' role="img" aria-label="'+String(o.label).replace(/"/g,'&quot;')+'"':' aria-hidden="true"')+'><use href="#hi-'+n+s+'"/></svg>';},
+draw:function(c,n,x,y,z,col,o){o=o||{};var sym=document.getElementById('hi-'+n+(o.solid?'-solid':''));if(!c||!sym||typeof Path2D==='undefined')return;var k=(z||16)/24;c.save();c.translate(x,y);c.scale(k,k);c.lineWidth=1.5;c.lineCap='round';c.lineJoin='round';c.strokeStyle=c.fillStyle=col||'#475569';
+[].forEach.call(sym.children,function(e){var a=function(q){return parseFloat(e.getAttribute(q))||0},p=new Path2D(),t=e.tagName.toLowerCase();if(t==='path')p=new Path2D(e.getAttribute('d'));else if(t==='circle')p.arc(a('cx'),a('cy'),a('r'),0,7);else if(t==='ellipse')p.ellipse(a('cx'),a('cy'),a('rx'),a('ry'),0,0,7);else if(t==='rect')p.rect(a('x'),a('y'),a('width'),a('height'));else if(t==='line'){p.moveTo(a('x1'),a('y1'));p.lineTo(a('x2'),a('y2'));}else{var v=(e.getAttribute('points')||'').trim().split(/[\s,]+/).map(parseFloat);for(var i=0;i+1<v.length;i+=2)p[i?'lineTo':'moveTo'](v[i],v[i+1]);if(t==='polygon')p.closePath();}
+if(o.solid)c.fill(p,'evenodd');else c.stroke(p);});c.restore();}};</script>
+<!-- hi-icons:end -->
 
 <header>
   <h1>Uncertainty &amp; Error Propagation</h1>
@@ -424,7 +432,7 @@ mjx-container{display:inline-block !important}
   <div class="student-task">
     <ol>
       <li>Click <strong>Generate Data</strong>. A fresh dataset appears with error bars sized to the chosen &sigma;.</li>
-      <li>Click <strong>&#9654; Run</strong>. Faint red lines fill in the plot &mdash; each is one MC iteration's refit. The slope and intercept histograms below build up. The MC mean (colored dashed) should converge on the true value (black dashed).</li>
+      <li>Click <strong><svg class="hi" aria-hidden="true"><use href="#hi-play"/></svg> Run</strong>. Faint red lines fill in the plot &mdash; each is one MC iteration's refit. The slope and intercept histograms below build up. The MC mean (colored dashed) should converge on the true value (black dashed).</li>
       <li>Switch <strong>Error Distribution</strong> to <em>Log-normal</em>, then <em>Generate Data</em> and <em>Run</em> again. The slope histogram is now noticeably right-skewed; reporting &plusmn;&sigma; would understate the upper tail.</li>
       <li>Toggle <strong>Heteroscedastic</strong> on. Late points now have larger error bars. Re-generate and run &mdash; the slope histogram widens because late points dominate the fit.</li>
       <li>Drop <strong>Number of points</strong> to 4. Re-generate and run. The slope histogram balloons &mdash; fewer measurements means each point's noise has nowhere to average out.</li>
@@ -461,7 +469,7 @@ mjx-container{display:inline-block !important}
       <div class="ctrl-group"><label>Speed <span id="v-mc3-spd">25</span>/frame</label>
         <input type="range" id="s-mc3-spd" min="1" max="500" step="1" value="25"></div>
       <div class="btn-row">
-        <button class="btn btn-success" id="btn-mc3-run">&#9654; Run</button>
+        <button class="btn btn-success" id="btn-mc3-run"><svg class="hi" aria-hidden="true"><use href="#hi-play"/></svg> Run</button>
         <button class="btn btn-warning" id="btn-mc3-pause" disabled>&#10074;&#10074; Pause</button>
         <button class="btn btn-danger" id="btn-mc3-reset">&#8634; Reset</button>
       </div>
@@ -548,7 +556,7 @@ mjx-container{display:inline-block !important}
 
   <div class="student-task">
     <ol>
-      <li>On <strong>Spheroid Early</strong>, click <strong>&#9654; Run MC</strong>. The MC histogram and the analytical Gaussian (purple) sit on top of each other. &sigma;-ratio is near 1.00 and skewness is near zero.</li>
+      <li>On <strong>Spheroid Early</strong>, click <strong><svg class="hi" aria-hidden="true"><use href="#hi-play"/></svg> Run MC</strong>. The MC histogram and the analytical Gaussian (purple) sit on top of each other. &sigma;-ratio is near 1.00 and skewness is near zero.</li>
       <li>Switch to <strong>Hill at EC<sub>50</sub></strong> and re-run. Now the Gaussian is too narrow under the right tail and too tall in the middle. Skewness climbs to about 0.5; the Q-Q plot bows away from the 1:1 line at both ends.</li>
       <li>Inspect the &sigma;-comparison bar (right side). Each bar shows one method's &sigma;. Equal heights signal the analytical method is reliable; a large gap is a warning.</li>
       <li>Switch to <strong>Hill saturated</strong>. The output is bounded (effect &le; E<sub>max</sub>) so the MC distribution is left-skewed and bounded above. The Gaussian leaks past 1.0, which is impossible.</li>
@@ -569,7 +577,7 @@ mjx-container{display:inline-block !important}
       <div class="ctrl-group"><label>Iterations <span id="v-cmp-n">10000</span></label>
         <input type="range" id="s-cmp-n" min="500" max="100000" step="500" value="10000"></div>
       <div class="btn-row">
-        <button class="btn btn-success" id="btn-cmp-run">&#9654; Run MC</button>
+        <button class="btn btn-success" id="btn-cmp-run"><svg class="hi" aria-hidden="true"><use href="#hi-play"/></svg> Run MC</button>
         <button class="btn btn-danger" id="btn-cmp-reset">&#8634; Reset</button>
       </div>
       <div class="progress-bar"><div class="fill" id="cmp-prog" style="width:0%"></div></div>
@@ -1151,7 +1159,7 @@ function generateVerdict(tab, scen, metrics) {
         : 'Note that ' + names[sensIdx] + ' is most sensitive but does not dominate variance — its σ is small enough that ' + names[dom] + ' wins. Sensitivity ≠ error contribution.');
     kind = (dom === sensIdx) ? 'good' : 'warn';
   } else if (tab === 'mc') {
-    if (metrics.iter < 100) { body = '<strong>Run Monte Carlo</strong>Click ▶ Run to draw samples. The histogram and convergence plot will populate as iterations accumulate.'; kind = 'warn'; }
+    if (metrics.iter < 100) { body = '<strong>Run Monte Carlo</strong>Click ' + HI.svg('play') + ' Run to draw samples. The histogram and convergence plot will populate as iterations accumulate.'; kind = 'warn'; }
     else {
       body = '<strong>MC estimates after ' + metrics.iter.toLocaleString() + ' iterations</strong>' + diag + ' ' +
         'MC mean = ' + fmt(metrics.mcMean) + ', MC σ = ' + fmt(metrics.mcSig) + '. ' +
@@ -1160,7 +1168,7 @@ function generateVerdict(tab, scen, metrics) {
       kind = Math.abs(metrics.skew) > 0.3 ? 'warn' : 'good';
     }
   } else if (tab === 'compare') {
-    if (metrics.iter < 100) { body = '<strong>Run Monte Carlo</strong>Click ▶ Run MC to compare against the analytical Gaussian.'; kind = 'warn'; }
+    if (metrics.iter < 100) { body = '<strong>Run Monte Carlo</strong>Click ' + HI.svg('play') + ' Run MC to compare against the analytical Gaussian.'; kind = 'warn'; }
     else {
       const ratio = metrics.mcSig / metrics.aSig;
       const ratioOK = Math.abs(ratio - 1) < 0.10;
@@ -1528,7 +1536,7 @@ function mc3GenerateVerdict() {
   const distLabel = { normal: 'Normal', uniform: 'Uniform', lognormal: 'Log-normal' }[mcState.dist];
   const heteroNote = mcState.hetero ? ' Heteroscedastic noise — late points dominate the slope estimate.' : '';
   if (mcState.iter < 100) {
-    return { kind: 'warn', html: '<strong>Generate data, then ▶ Run</strong>The MC ensemble of refits and the slope/intercept distributions will populate as iterations accumulate. ' + distLabel + ' noise (σ = ' + fmt(mcState.baseSig) + ') is set on each of ' + mcState.xs.length + ' data points.' + heteroNote };
+    return { kind: 'warn', html: '<strong>Generate data, then ' + HI.svg('play') + ' Run</strong>The MC ensemble of refits and the slope/intercept distributions will populate as iterations accumulate. ' + distLabel + ' noise (σ = ' + fmt(mcState.baseSig) + ') is set on each of ' + mcState.xs.length + ' data points.' + heteroNote };
   }
   const sm = arrMean(mcState.slopes);
   const ss = arrStd(mcState.slopes);

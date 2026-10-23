@@ -568,7 +568,7 @@ function rowActions(task) {
 
   const iconBtn = (icon, title, color, fn) => {
     const s = document.createElement('span');
-    s.textContent = icon;
+    ICON.label(s, icon);   // icon = a Heroicon name
     s.title = title;
     s.style.cssText = `color:${color};cursor:pointer;font-size:14px;padding:2px 4px`;
     s.addEventListener('click', async (ev) => { ev.stopPropagation(); await fn(); });
@@ -597,9 +597,9 @@ function rowActions(task) {
     });
     host.appendChild(hrs);
 
-    const softBtn = (text, bg, fg, border, fn) => {
+    const softBtn = (text, bg, fg, border, fn, icon) => {
       const b = document.createElement('button');
-      b.textContent = text;
+      if (icon) ICON.label(b, icon, ' ' + text); else b.textContent = text;
       b.className = 'btn';
       b.style.cssText = `padding:5px 14px;font-size:13px;font-weight:600;background:${bg};color:${fg};border:1px solid ${border};border-radius:6px;cursor:pointer`;
       b.addEventListener('click', async (e) => { e.stopPropagation(); await fn(); });
@@ -609,16 +609,16 @@ function rowActions(task) {
     // Complete short-circuit: skip the planning step entirely. Useful for items
     // already done by the time the user triages them. Uses the inline hrs
     // input (or prompts via completeTask) and logs the usual ledger entry.
-    host.appendChild(softBtn('\u2705 Complete', '#dbeafe', '#1e40af', '#bfdbfe', () => completeTask(task)));
-    host.appendChild(softBtn('\u2716 Reject', '#fee2e2', '#991b1b', '#fecaca', () => rejectTask(task)));
+    host.appendChild(softBtn('Complete', '#dbeafe', '#1e40af', '#bfdbfe', () => completeTask(task), 'check-circle'));
+    host.appendChild(softBtn('Reject', '#fee2e2', '#991b1b', '#fecaca', () => rejectTask(task), 'x-mark'));
   } else if (['active', 'accepted', 'snoozed'].includes(task.status)) {
     const complete = document.createElement('button');
-    complete.textContent = '\u2705 Complete';
+    ICON.label(complete, 'check-circle', ' Complete');
     complete.className = 'btn';
     complete.style.cssText = 'padding:5px 14px;font-size:13px;font-weight:600;background:#dcfce7;color:#166534;border:1px solid #bbf7d0;border-radius:6px;cursor:pointer';
     complete.addEventListener('click', async (e) => { e.stopPropagation(); await completeTask(task); });
     host.appendChild(complete);
-    host.appendChild(iconBtn('\ud83d\udca4', 'Snooze', '#64748b', () => snoozeTask(task)));
+    host.appendChild(iconBtn('clock', 'Snooze', '#64748b', () => snoozeTask(task)));
   } else if (task.status === 'completed' || task._is_ledger) {
     const undo = document.createElement('button');
     undo.textContent = '\u21ba Uncomplete';
@@ -629,14 +629,14 @@ function rowActions(task) {
     host.appendChild(undo);
   }
   if (INBOX.firebridgeReady && task.status !== 'completed' && !task.tracker_entry_id) {
-    host.appendChild(iconBtn('\u2795', 'Log to daily tracker', '#2563eb', () => openDailyTrackerDialog(task)));
+    host.appendChild(iconBtn('plus', 'Log to daily tracker', '#2563eb', () => openDailyTrackerDialog(task)));
   }
   if (!task._is_ledger && task.status !== 'completed' && task.status !== 'rejected') {
     const cat = task.category || '';
     const sub = task.sub_category || '';
     const isPinned = INBOX._pinnedBucketKeys && INBOX._pinnedBucketKeys.has(`${cat}\u00A7${sub}`);
     host.appendChild(iconBtn(
-      isPinned ? '\ud83d\udccc' : '\ud83d\udccd',
+      isPinned ? 'pin' : 'map-pin',
       isPinned
         ? `Unpin bucket: ${cat}${sub ? ' / ' + sub : ''}`
         : `Pin bucket to dashboard: ${cat}${sub ? ' / ' + sub : ''}`,
@@ -709,23 +709,23 @@ function renderDetail(task) {
   const evList = document.createElement('div');
   evList.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px';
   (task.evidence?.email_ids || []).forEach(id => {
-    const chip = evidenceChip(`\u2709 ${id.slice(0, 8)}`, '#fef3c7', '#92400e');
+    const chip = evidenceChip(id.slice(0, 8), '#fef3c7', '#92400e', 'envelope');
     chip.addEventListener('click', () => openEmailModal(id));
     evList.appendChild(chip);
   });
   (task.evidence?.event_ids || []).forEach(id => {
-    const chip = evidenceChip(`\ud83d\uddd3 ${id.slice(0, 8)}`, '#dbeafe', '#1e40af');
+    const chip = evidenceChip(id.slice(0, 8), '#dbeafe', '#1e40af', 'calendar-days');
     chip.addEventListener('click', () => openEventModal(id));
     evList.appendChild(chip);
   });
   (task.evidence?.item_ids || []).forEach(id => {
     const it = INBOX.itemIndex?.[id];
     const label = it ? (it.title || id) : id;
-    const chip = evidenceChip(`\ud83d\udd17 ${label}`, '#dcfce7', '#166534');
+    const chip = evidenceChip(label, '#dcfce7', '#166534', 'link');
     evList.appendChild(chip);
   });
   (task.evidence?.file_paths || []).forEach(p => {
-    const chip = evidenceChip(`\ud83d\udcc4 ${p.split('/').pop()}`, '#e5e7eb', '#374151');
+    const chip = evidenceChip(p.split('/').pop(), '#e5e7eb', '#374151', 'document-text');
     chip.title = p;
     chip.addEventListener('click', () => window.open(`/${p.replace(/^\.\.\//, '')}`, '_blank'));
     evList.appendChild(chip);
@@ -868,7 +868,7 @@ function renderFileAttachControls(task) {
   wrap.style.cssText = 'display:flex;gap:8px;margin-top:6px;align-items:center;flex-wrap:wrap';
   const link = document.createElement('button');
   link.className = 'btn';
-  link.textContent = '\ud83d\udcce Link repo file';
+  ICON.label(link, 'paper-clip', ' Link repo file');
   link.style.cssText = 'font-size:11px;padding:3px 8px';
   link.addEventListener('click', async () => {
     const p = prompt('Repo-relative path (e.g. ../McGheeLabWebsite/courses/bme295c/syllabus.pdf):');
@@ -905,9 +905,9 @@ function flatTreePaths(tree) {
   return out;
 }
 
-function evidenceChip(text, bg, fg) {
+function evidenceChip(text, bg, fg, icon) {
   const c = document.createElement('span');
-  c.textContent = text;
+  if (icon) ICON.label(c, icon, ' ' + text); else c.textContent = text;
   c.style.cssText = `display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:${bg};color:${fg};cursor:pointer`;
   return c;
 }
@@ -1398,7 +1398,7 @@ function renderActivityTracker() {
   const startBtn = document.createElement('button');
   startBtn.className = 'btn btn-primary';
   startBtn.style.cssText = 'width:100%;font-size:12px;padding:5px';
-  startBtn.textContent = '\u25B6 Start timer';
+  ICON.label(startBtn, 'play', ' Start timer');
   startBtn.addEventListener('click', () => {
     const tid = sel.value;
     const row = { task_id: tid, started_at: new Date().toISOString(), note: '' };

@@ -1,0 +1,451 @@
+<!-- V3.743 selftest — Lab Meetings remodel. Drives the REAL meetings.js +
+     meetings-live.js + meetings-chores.js + drive-link.js against an in-page
+     Firestore stub that applies dotted-path updates and re-fires api.subscribe
+     snapshots, exactly like production. Runs as Cason (coordinator, NOT admin)
+     and then flips to Zeke (plain member) to check what each may see and do.
+
+     What only driving it catches: agenda start times derived from 11:00,
+     the round-robin count excluding presenters + reviewers, minutes typing
+     landing as `minutes.items.<id>.notes` after the debounce, the action-item
+     → TASK_ASSIGN.writeTaskFor hand-off with its source_ref, chore fill
+     skipping the presenter, the pending-swap banner, and the seed's
+     idempotency arithmetic (created + skipped == 15).
+
+     Run:
+       python3 -m http.server 8777
+       node ~/.claude/skills/browser-automation/browser.mjs \
+         "http://localhost:8777/scripts/tests/v3743-meetings-selftest.html?v=$(date +%s)" \
+         --wait "#r[data-done='1']" --eval "(()=>{const e=document.getElementById('r');return e.dataset.pass+' passed, '+e.dataset.fail+' failed'+(e.dataset.detail?' | '+e.dataset.detail:'');})()" -->
+<!doctype html><html><head><meta charset="utf-8"><title>V3.743 selftest</title>
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<link rel="stylesheet" href="/rm/css/meetings.css">
+</head><body>
+<h1>V3.743 selftest — Lab Meetings</h1>
+<pre id="r" data-pass="0" data-fail="0" data-done="0" data-detail="">running…</pre>
+<div class="page"><div id="mtg-root"></div></div>
+
+<script>
+  window.__errs = [];
+  addEventListener('error', function (e) { window.__errs.push(e.message + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno); });
+  addEventListener('unhandledrejection', function (e) { window.__errs.push('unhandled: ' + (e.reason && e.reason.message || e.reason)); });
+  ['alert', 'confirm', 'prompt'].forEach(function (k) { window[k] = function () { window.__errs.push('BLOCKED window.' + k + '()'); return false; }; });
+
+  /* ── dates relative to the real today ── */
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function ds(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function plus(n) { var d = new Date(); d.setDate(d.getDate() + n); return ds(d); }
+  var TODAY = plus(0);
+
+  /* ── in-memory Firestore ── */
+  var DELETE = { __fsDelete: true };
+  var STORE = { users: {}, meetings: {}, meetingConfig: {}, meetingTopics: {}, meetingSwaps: {}, labChores: {}, userData: {} };
+  var SUBS = {};   // path → [cb]
+  function clone(x) { return JSON.parse(JSON.stringify(x)); }
+  function setPath(o, path, val) {
+    var parts = path.split('.'); var t = o;
+    for (var i = 0; i < parts.length - 1; i++) { if (t[parts[i]] == null || typeof t[parts[i]] !== 'object') t[parts[i]] = {}; t = t[parts[i]]; }
+    if (val && val.__fsDelete) delete t[parts[parts.length - 1]]; else t[parts[parts.length - 1]] = val;
+  }
+  function stamp(v) { return (v && v.__fsTs) ? new Date().toISOString() : v; }
+  function applyPatch(doc, patch) { Object.keys(patch).forEach(function (k) { setPath(doc, k, stamp(patch[k])); }); }
+  var ROUTE = { 'meetings/list.json': ['meetings', 'meetings'], 'meetings/config.json': ['meetingConfig', null], 'meetings/topics.json': ['meetingTopics', 'topics'], 'meetings/swaps.json': ['meetingSwaps', 'swaps'], 'meetings/chores.json': ['labChores', 'chores'] };
+  function snapshotFor(path) {
+    var r = ROUTE[path]; if (!r) return {};
+    var coll = STORE[r[0]] || {};
+    if (!r[1]) return clone(coll.settings || {});
+    var w = {}; w[r[1]] = Object.keys(coll).map(function (id) { return Object.assign({ id: id }, clone(coll[id])); }); return w;
+  }
+  function notify(collName) {
+    Object.keys(ROUTE).forEach(function (path) { if (ROUTE[path][0] === collName) (SUBS[path] || []).forEach(function (cb) { cb(snapshotFor(path)); }); });
+  }
+  var autoId = 0;
+  function docRef(collName, id, sub) {
+    id = id || ('auto-' + (++autoId));
+    var key = sub ? collName + '/' + id : collName;
+    function bucket() { if (sub) { STORE.userData[sub.uid] = STORE.userData[sub.uid] || {}; STORE.userData[sub.uid][sub.coll] = STORE.userData[sub.uid][sub.coll] || {}; return STORE.userData[sub.uid][sub.coll]; } STORE[collName] = STORE[collName] || {}; return STORE[collName]; }
+    return {
+      id: id,
+      set: async function (data, opts) { var b = bucket(); if (opts && opts.merge && b[id]) applyPatch(b[id], data); else { b[id] = {}; applyPatch(b[id], data); } if (!sub) notify(collName); },
+      update: async function (patch) { var b = bucket(); if (!b[id]) throw Object.assign(new Error('not-found'), { code: 'not-found' }); applyPatch(b[id], patch); if (!sub) notify(collName); },
+      delete: async function () { delete bucket()[id]; if (!sub) notify(collName); },
+      get: async function () { var d = bucket()[id]; return { exists: !!d, id: id, data: function () { return d ? clone(d) : undefined; } }; },
+      collection: function (c) { return collRef(c, { uid: id, coll: c }); },
+    };
+  }
+  function collRef(name, sub) {
+    return {
+      doc: function (id) { return docRef(name, id, sub); },
+      where: function () { return this; }, orderBy: function () { return this; }, limit: function () { return this; },
+      get: async function () { var b = sub ? ((STORE.userData[sub.uid] || {})[sub.coll] || {}) : (STORE[name] || {}); return { docs: Object.keys(b).map(function (id) { return { id: id, data: function () { return clone(b[id]); } }; }), empty: !Object.keys(b).length }; },
+      onSnapshot: function () { return function () {}; },
+    };
+  }
+  var fsStub = {
+    collection: function (name) { return collRef(name); },
+    doc: function (path) { var p = path.split('/'); return docRef(p[0], p[1]); },
+    batch: function () {
+      var ops = [];
+      return {
+        set: function (ref, data, opts) { ops.push(function () { return ref.set(data, opts); }); },
+        update: function (ref, patch) { ops.push(function () { return ref.update(patch); }); },
+        delete: function (ref) { ops.push(function () { return ref.delete(); }); },
+        commit: async function () { for (var i = 0; i < ops.length; i++) await ops[i](); },
+      };
+    },
+  };
+  window.firebase = { firestore: function () { return fsStub; } };
+  window.firebase.firestore.FieldValue = { serverTimestamp: function () { return { __fsTs: true }; }, delete: function () { return DELETE; } };
+
+  /* ── fixtures ── */
+  var U = { pi: 'u-pi', cason: 'u-cason', gabe: 'u-gabe', zeke: 'u-zeke', ally: 'u-ally' };
+  STORE.users = {
+    'u-pi':    { name: 'Alexander McGhee', email: 'pi@x.com', role: 'admin', category: 'pi' },
+    'u-cason': { name: 'Cason Hancock', email: 'c@x.com', role: 'editor', category: 'grad' },
+    'u-gabe':  { name: 'Gabriel Declercq', email: 'g@x.com', role: 'editor', category: 'grad' },
+    'u-zeke':  { name: 'Zeke Pangelinan', email: 'z@x.com', role: 'contributor', category: 'undergrad' },
+    'u-ally':  { name: 'Allison Friedholm', email: 'a@x.com', role: 'contributor', category: 'undergrad' },
+    'u-guest': { name: 'Guest', email: 'guest@x.com', role: 'guest' },
+    'u-alum':  { name: 'Old Grad', email: 'o@x.com', role: 'contributor', category: 'alumni' },
+  };
+  STORE.meetingConfig.settings = {
+    defaultDay: new Date().getDay(), defaultTime: '11:00', defaultDuration: 60, defaultLocation: 'BSRL 100',
+    coordinatorUids: [U.cason], primaryCoordinatorUid: U.cason, reviewerUids: [U.pi], slotsPerMeeting: 2,
+  };
+  function agenda() {
+    return [['Lab business', 10, 'business'], ['Round-robin updates (1–2 slides each)', 15, 'updates'], ['Comments & concerns', 5, 'discussion'], ['Presentation', 15, 'presentation'], ['Q & A', 5, 'qa'], ['Task assignments for next week', 10, 'assignments']]
+      .map(function (r, i) { return { id: 'ag' + i, text: r[0], minutes: r[1], type: r[2], order: i, done: false }; });
+  }
+  function mtg(date, kind, presenters, extra) {
+    return Object.assign({ date: date, time: '11:00', duration: 60, location: 'BSRL 100', status: 'upcoming', kind: kind, presenters: presenters,
+      updates: { submissions: {}, deck: null, review: { status: null } }, agendaItems: kind === 'break' ? [] : agenda(), minutes: { text: '', items: {} }, actionItems: [], feedback: [] }, extra || {});
+  }
+  STORE.meetings = {
+    'm-today': mtg(TODAY,    'standard', { 'u-gabe': { slot: 0, name: 'Gabriel Declercq', title: 'TFM on soft gels', abstract: '', link: null } }),
+    'm-next':  mtg(plus(7),  'standard', { 'u-zeke': { slot: 0, name: 'Zeke Pangelinan', title: '', abstract: '', link: null } }),
+    'm-flash': mtg(plus(14), 'flash', {}),
+    'm-break': mtg(plus(21), 'break', {}, { status: 'cancelled' }),
+    'm-past':  mtg(plus(-7), 'standard', { 'u-ally': { slot: 0, name: 'Allison Friedholm', title: 'ELISA pilot', abstract: '', link: { url: 'https://drive.google.com/file/d/1234567890abcdefghijklmn/view', fileId: '1234567890abcdefghijklmn', name: 'ELISA.pptx', accessible: true, ownerOk: null } } },
+      { status: 'completed', minutes: { text: 'good meeting', items: { ag0: { notes: 'budget ok', done: true } } }, actionItems: [{ id: 'ai-old', text: 'order tips', assigneeUid: 'u-cason', assigneeName: 'Cason Hancock', status: 'open', deadline: plus(-1) }] }),
+  };
+  STORE.meetingTopics = { t1: { text: 'Confocal tips', details: '', suggestedBy: U.zeke, suggestedByName: 'Zeke Pangelinan', votes: [U.zeke], status: 'open' } };
+  // toSlot deliberately STALE (Cason sits at slot 1): executeSwap must resolve the target by uid, not trust this.
+  STORE.meetingSwaps = { s1: { fromUid: U.zeke, fromName: 'Zeke Pangelinan', fromMeetingId: 'm-next', fromDate: plus(7), fromSlot: 0, toUid: U.cason, toName: 'Cason Hancock', toMeetingId: 'm-today', toDate: TODAY, toSlot: 0, status: 'pending', message: 'conference' } };
+  // give cason a slot so the incoming swap makes sense
+  STORE.meetings['m-today'].presenters['u-cason'] = { slot: 1, name: 'Cason Hancock', title: '', abstract: '', link: null };
+
+  /* ── stubs the page expects ── */
+  var ME = { uid: U.cason, displayName: 'Cason Hancock', email: 'c@x.com' };
+  var PROFILE = { name: 'Cason Hancock', role: 'editor' };
+  var ADMIN = false;
+  window.firebridge = {
+    requireSignIn: async function () { return ME; }, getUser: function () { return ME; }, getProfile: function () { return PROFILE; },
+    isLabMember: function () { return true; }, isAdmin: function () { return ADMIN; },
+    db: function () { return fsStub; }, loadAccessGrant: async function () {}, onAuth: function () {},
+  };
+  window.LAB_USERS = { isVisible: function (u) { return u && u.role && u.role !== 'guest'; } };
+  window.api = {
+    load: async function (path) { if (path === 'lab/users.json') return { users: Object.keys(STORE.users).map(function (id) { return Object.assign({ id: id }, STORE.users[id]); }) }; return snapshotFor(path); },
+    subscribe: function (path, cb) { (SUBS[path] = SUBS[path] || []).push(cb); setTimeout(function () { cb(snapshotFor(path)); }, 0); return function () {}; },
+    invalidate: function () {},
+  };
+  window.__tasks = [];
+  window.TASK_ASSIGN = {
+    writeTaskFor: async function (uid, fields) {
+      var t = Object.assign({ id: 'task-' + (window.__tasks.length + 1), assignedToUid: uid, done: false }, fields);
+      window.__tasks.push(t);
+      await docRef('userData', uid).collection('tasks').doc(t.id).set(t);   // so markTaskDone/deleteTask find it
+      return t;
+    },
+    open: function () { window.__errs.push('TASK_ASSIGN.open() must not be used'); },
+  };
+  function taskDoc(id) { var all = []; Object.keys(STORE.userData).forEach(function (u) { var b = (STORE.userData[u].tasks || {}); if (b[id]) all.push(b[id]); }); return all[0]; }
+  window.__toasts = [];
+  window.TOAST = { success: function (m) { window.__toasts.push(['success', m]); }, error: function (m) { window.__toasts.push(['error', m]); }, warn: function (m) { window.__toasts.push(['warn', m]); }, info: function (m) { window.__toasts.push(['info', m]); } };
+</script>
+
+<script src="/rm/js/icons.js"></script>
+<script src="/rm/js/app-sheet.js"></script>
+<script src="/rm/js/drive-link.js"></script>
+<script src="/rm/js/meetings-live.js"></script>
+<script src="/rm/js/meetings-chores.js"></script>
+<script src="/rm/js/meetings.js"></script>
+
+<script>
+(async function () {
+  var out = document.getElementById('r'), pass = 0, fail = 0, detail = [];
+  function ok(name, cond, extra) { if (cond) { pass++; } else { fail++; detail.push(name + (extra ? ' (' + extra + ')' : '')); } }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  var root = document.getElementById('mtg-root');
+  function q(sel) { return root.querySelector(sel); }
+  function qa(sel) { return Array.from(root.querySelectorAll(sel)); }
+  function click(sel) { var el = typeof sel === 'string' ? q(sel) : sel; if (!el) { fail++; detail.push('missing ' + sel); return false; } el.click(); return true; }
+  function tab(id) { click('[data-act="tab"][data-id="' + id + '"]'); }
+  function text() { return root.innerText; }
+  function fmtLong(d) { return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }); }
+  function sheet() { return document.querySelector('.app-sheet-body'); }
+
+  await sleep(250);   // boot: requireSignIn → loadMembers → subscribe (setTimeout 0) → scheduleRender (120ms)
+  var M = window.MEETINGS;
+  ok('module published window.MEETINGS', !!M);
+  ok('no script errors at boot', window.__errs.length === 0, window.__errs.join('; '));
+  ok('innerText never contains raw <svg', text().indexOf('<svg') < 0);
+
+  /* ═══ header + tabs ═══ */
+  ok('header names the coordinator', /meeting coordinator/i.test(text()) && /Cason Hancock/.test(text()));   // innerText honours text-transform
+  ok('header shows Fridays/day 11:00 AM – 12:00 PM · BSRL 100', /11:00 AM – 12:00 PM/.test(text()) && /BSRL 100/.test(text()));
+  ok('7 tabs', qa('.mtg-tab').length === 7);
+  ok('coordinator role chip', !!q('.mtg-role-coord'));
+
+  /* ═══ Next meeting ═══ */
+  ok('hero shows today’s long date', text().indexOf(fmtLong(TODAY)) >= 0, fmtLong(TODAY));
+  var times = qa('.mtg-ag-time').map(function (e) { return e.textContent.trim(); });
+  ok('agenda start times derive from 11:00', times.join('|') === '11:00 AM|11:10 AM|11:25 AM|11:30 AM|11:45 AM|11:50 AM', times.join('|'));
+  ok('agenda total 60 of 60 min', /60 of 60 min/.test(text()));
+  ok('presenter card for Gabe with title', /Gabriel Declercq/.test(text()) && /TFM on soft gels/.test(text()));
+  // submitters = members − presenters(gabe, cason) − reviewers(pi) = zeke, ally → "0 / 2 in"
+  ok('round-robin count excludes presenters + PI', /0 \/ 2/.test(text().replace(/\s+/g, ' ')), (text().match(/\d+ \/ \d+/) || [''])[0]);
+  ok('Run meeting button present (today)', !!q('[data-act="run"]'));
+  ok('coordinator sees agenda tools', !!q('[data-act="ag-add"]'));
+  ok('carry-over from last week shows the open action item', /Carried over/.test(text()) && /order tips/.test(text()));
+  ok('hero: coordinator Edit button', !!q('[data-act="edit-meeting"]'));
+
+  // coordinator adds an agenda item inline
+  click('[data-act="ag-add"]');
+  var f = q('form[data-form="agenda-add"]');
+  ok('inline agenda form opens', !!f);
+  if (f) {
+    f.querySelector('[name="text"]').value = 'Freezer alarm follow-up';
+    f.querySelector('[name="minutes"]').value = '3';
+    f.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await sleep(200);
+    ok('agenda item saved to the doc', STORE.meetings['m-today'].agendaItems.some(function (a) { return a.text === 'Freezer alarm follow-up' && a.minutes === 3; }));
+    ok('agenda total now 63 → over', /63 of 60 min/.test(text()) && /over/.test(text()));
+    click('[data-act="ag-add-cancel"]');
+  }
+
+  /* ═══ Run meeting (live) ═══ */
+  click('[data-act="run"]');
+  await sleep(50);
+  ok('live view renders', !!q('.mtg-live'));
+  ok('live agenda has 7 blocks', qa('.mtg-lb').length === 7, String(qa('.mtg-lb').length));
+  ok('live view shows Start button', !!q('[data-act="live-start"]'));
+  click('[data-act="live-start"]');
+  await sleep(200);
+  ok('start stamps minutes.startedAt', !!STORE.meetings['m-today'].minutes.startedAt);
+  ok('coordinator now sees End meeting', !!q('[data-act="live-end"]'));
+  // type minutes into block ag1 → debounced dotted-path write
+  var ta = q('#live-notes-ag1');
+  ok('per-block notes textarea exists', !!ta);
+  if (ta) {
+    ta.focus(); ta.value = 'Zeke: gels arrived'; ta.dispatchEvent(new Event('input', { bubbles: true }));
+    await sleep(300);
+    ok('notes NOT written before the debounce', !(STORE.meetings['m-today'].minutes.items.ag1 && STORE.meetings['m-today'].minutes.items.ag1.notes));
+    await sleep(700);
+    var it = STORE.meetings['m-today'].minutes.items.ag1 || {};
+    ok('notes land at minutes.items.ag1.notes after 800ms', it.notes === 'Zeke: gels arrived', JSON.stringify(it));
+    ok('focused textarea survived the snapshot (deferred render)', document.activeElement === q('#live-notes-ag1') && q('#live-notes-ag1').value === 'Zeke: gels arrived');
+    ta.blur(); await sleep(150);
+  }
+  // tick block ag0 done
+  var cb = q('input[data-act="live-check"][data-item="ag0"]');
+  if (cb) { cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true })); await sleep(200); }
+  ok('checking a block writes minutes.items.ag0.done + doneBy', STORE.meetings['m-today'].minutes.items.ag0 && STORE.meetings['m-today'].minutes.items.ag0.done === true && STORE.meetings['m-today'].minutes.items.ag0.doneBy === U.cason);
+  // inline action item → task on Zeke's My Week
+  var af = q('form[data-form="live-ai"]');
+  ok('inline action-item form present', !!af);
+  if (af) {
+    af.querySelector('[name="text"]').value = 'Order 40 kPa gels';
+    af.querySelector('[name="assignee"]').value = U.zeke;
+    af.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await sleep(250);
+    var ai = (STORE.meetings['m-today'].actionItems || [])[0];
+    ok('action item on the meeting doc', !!ai && ai.text === 'Order 40 kPa gels' && ai.assigneeUid === U.zeke, JSON.stringify(ai));
+    ok('TASK_ASSIGN.writeTaskFor called for Zeke', window.__tasks.length === 1 && window.__tasks[0].assignedToUid === U.zeke);
+    ok('task carries source_ref meeting-action + createdByUid', window.__tasks[0] && window.__tasks[0].source_ref && window.__tasks[0].source_ref.kind === 'meeting-action' && window.__tasks[0].source_ref.actionItemId === ai.id && window.__tasks[0].createdByUid === U.cason);
+    ok('taskId stamped back on the action item', !!ai && ai.taskId === 'task-1');
+    ok('action item shows in the live rail', /Order 40 kPa gels/.test(text()));
+    var aiTick = q('input[data-act="ai-toggle"][data-item="' + (ai && ai.id) + '"]');
+    if (aiTick) { aiTick.checked = true; aiTick.dispatchEvent(new Event('change', { bubbles: true })); await sleep(200); }
+    var aiNow = (STORE.meetings['m-today'].actionItems || [])[0];
+    ok('ticking the action item marks it done on the meeting AND on the task', aiNow && aiNow.status === 'done' && taskDoc('task-1') && taskDoc('task-1').done === true, JSON.stringify([aiNow && aiNow.status, taskDoc('task-1') && taskDoc('task-1').done]));
+  }
+  // end the meeting via confirm sheet
+  click('[data-act="live-end"]');
+  await sleep(50);
+  ok('End meeting opens a sheet, not confirm()', !!sheet() && window.__errs.every(function (e) { return e.indexOf('BLOCKED') < 0; }));
+  if (sheet()) { sheet().querySelector('.mtg-yes').click(); await sleep(250); }
+  ok('meeting marked completed', STORE.meetings['m-today'].status === 'completed' && !!STORE.meetings['m-today'].minutes.endedAt);
+  ok('back on the Next-meeting tab', !q('.mtg-live') && !!q('.mtg-hero'));
+  ok('next meeting is now next week (Zeke)', text().indexOf(fmtLong(plus(7))) >= 0);
+
+  /* ═══ Schedule ═══ */
+  tab('schedule');
+  await sleep(50);
+  ok('board rows for upcoming meetings', qa('.mtg-brow').length >= 3, String(qa('.mtg-brow').length));
+  ok('flash row says everyone', /Everyone — flash talks/.test(text()));
+  ok('break row says no meeting', /No meeting/.test(text()));
+  ok('coordinator pool = default presenter pool (no PI, no alumni)', !!q('.mtg-pool') && qa('.mtg-pcard-pool').length === 4 && !q('.mtg-pcard-pool[data-uid="u-alum"]') && !q('.mtg-pcard-pool[data-uid="u-pi"]'), String(qa('.mtg-pcard-pool').length));
+  ok('incoming swap banner (Zeke → Cason)', !!q('.mtg-banner-swap') && /wants to swap/.test(text()));
+  click('[data-act="swap-respond"][data-status="accepted"]');
+  await sleep(200);
+  ok('accepting flips the swap doc to accepted (function executes the move)', STORE.meetingSwaps.s1.status === 'accepted');
+  ok('coordinator sees the "not applied yet" fallback', !!q('[data-act="swap-execute"]'));
+  click('[data-act="swap-execute"]');
+  await sleep(250);
+  ok('coordinator fallback moved Zeke onto m-today slot 0 and Cason onto m-next', !!STORE.meetings['m-today'].presenters['u-zeke'] && !STORE.meetings['m-today'].presenters['u-cason'] && !!STORE.meetings['m-next'].presenters['u-cason'] && !STORE.meetings['m-next'].presenters['u-zeke'], JSON.stringify([Object.keys(STORE.meetings['m-today'].presenters), Object.keys(STORE.meetings['m-next'].presenters)]));
+  ok('swap stamped executedAt', !!STORE.meetingSwaps.s1.executedAt);
+  // coordinator assigns via picker on the empty slot of m-flash? flash has no slots; use m-next slot 1
+  var pick = qa('[data-act="pick-presenter"][data-id="m-next"]')[0];
+  ok('empty slot offers Assign to coordinator', !!pick);
+  if (pick) { pick.click(); await sleep(50); var row = document.querySelector('.mtg-picker-row[data-uid="u-ally"]'); ok('member picker lists Ally', !!row); if (row) { row.click(); await sleep(200); } }
+  ok('Ally assigned to m-next slot 1', STORE.meetings['m-next'].presenters['u-ally'] && STORE.meetings['m-next'].presenters['u-ally'].slot === 1, JSON.stringify(STORE.meetings['m-next'].presenters));
+  // delete → confirm sheet (no confirm())
+  click('[data-act="delete-meeting"][data-id="m-break"]');
+  await sleep(50);
+  ok('delete opens a confirm sheet', !!sheet());
+  if (sheet()) { sheet().querySelector('.mtg-no').click(); await sleep(50); }
+  ok('cancel keeps the meeting', !!STORE.meetings['m-break']);
+
+  /* ═══ Chores ═══ */
+  tab('chores');
+  await sleep(50);
+  ok('chore board lists 8 catalogue rows', qa('.mtg-chore').length === 8, String(qa('.mtg-chore').length));
+  ok('"Present" row is derived from the rotation', /from the rotation/.test(text()));
+  var fill = q('[data-act="chore-fill"]');
+  ok('Fill the rest offered with 7 open', !!fill && /\(7\)/.test(fill.textContent));
+  if (fill) { fill.click(); await sleep(600); }
+  var wk = M.choreWeekId();
+  var board = STORE.labChores[wk];
+  ok('7 assignments written', board && Object.keys(board.assignments || {}).length === 7, board ? String(Object.keys(board.assignments || {}).length) : 'no doc');
+  var presenterThisWeek = Object.keys((M.meetingForWeek(wk) || { presenters: {} }).presenters || {});
+  ok('presenter(s) of that week get no chore', board && Object.values(board.assignments).every(function (a) { return presenterThisWeek.indexOf(a.uid) < 0; }), presenterThisWeek.join(','));
+  ok('PI (reviewer) gets no chore', board && Object.values(board.assignments).every(function (a) { return a.uid !== U.pi; }));
+  ok('7 chore tasks pushed to My Week', window.__tasks.filter(function (t) { return t.source_ref && t.source_ref.kind === 'lab-chore'; }).length === 7);
+  // the coordinator may tick anyone's chore; the write lands under the ASSIGNEE's completions key
+  var firstChore = board ? Object.keys(board.assignments)[0] : null;
+  var firstUid = firstChore ? board.assignments[firstChore].uid : null;
+  var tick = firstChore ? q('input[data-act="chore-tick"][data-chore="' + firstChore + '"]') : null;
+  ok('coordinator sees an enabled tick on an assigned chore', !!tick && !tick.disabled);
+  if (tick) { tick.checked = true; tick.dispatchEvent(new Event('change', { bubbles: true })); await sleep(200); }
+  ok('tick lands in completions.<assignee>.<chore>', !!(board && board.completions && board.completions[firstUid] && board.completions[firstUid][firstChore]), JSON.stringify(board && board.completions));
+  var choreTask = board && firstChore ? taskDoc(board.assignments[firstChore].taskId) : null;
+  ok('ticking a chore marks its My Week task done', !!choreTask && choreTask.done === true, JSON.stringify(choreTask && { id: choreTask.id, done: choreTask.done }));
+
+  /* ═══ Topics ═══ */
+  tab('topics');
+  await sleep(50);
+  var tf = q('form[data-form="topic-add"]');
+  if (tf) { tf.querySelector('[name="text"]').value = 'Archive raw microscopy data'; tf.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); await sleep(200); }
+  var newTopic = Object.values(STORE.meetingTopics).find(function (t) { return t.text === 'Archive raw microscopy data'; });
+  ok('topic suggested with my vote', !!newTopic && newTopic.suggestedBy === U.cason && newTopic.votes[0] === U.cason);
+  click('[data-act="vote"][data-id="t1"]'); await sleep(150);
+  ok('upvote appended to votes', STORE.meetingTopics.t1.votes.indexOf(U.cason) >= 0);
+  click('[data-act="topic-schedule"][data-id="t1"]'); await sleep(50);
+  ok('Schedule into… sheet opens', !!sheet());
+  if (sheet()) { sheet().querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); await sleep(250); }
+  ok('topic scheduled: status + meetingId + agenda item with topicId', STORE.meetingTopics.t1.status === 'scheduled' && !!STORE.meetingTopics.t1.meetingId && (STORE.meetings[STORE.meetingTopics.t1.meetingId].agendaItems || []).some(function (a) { return a.topicId === 't1'; }));
+
+  /* ═══ History ═══ */
+  tab('history');
+  await sleep(50);
+  ok('history lists the past meeting and the one just completed', qa('.mtg-hist').length === 2, String(qa('.mtg-hist').length));
+  click('[data-act="hist-toggle"][data-id="m-past"]'); await sleep(50);
+  ok('expanded history shows minutes + Drive card', /good meeting/.test(text()) && !!q('.dl-card'));
+  var s = q('#mtg-hist-search'); if (s) { s.focus(); s.value = 'gels'; s.dispatchEvent(new Event('input', { bubbles: true })); await sleep(30); }
+  ok('search filters history (matches minutes/action items)', qa('.mtg-hist').length === 1 && document.activeElement === q('#mtg-hist-search'), String(qa('.mtg-hist').length));
+
+  /* ═══ Settings as coordinator ═══ */
+  tab('settings');
+  await sleep(50);
+  ok('coordinator gets the schedule form', !!q('form[data-form="cfg-schedule"]'));
+  // roster (V3.744)
+  click('[data-act="settings-tab"][data-id="roster"]'); await sleep(30);
+  var rf = q('form[data-form="cfg-roster"]');
+  ok('roster tab lists every member incl. alumni, alumni unticked by default', !!rf && rf.querySelector('input[name="att"][value="u-alum"]') && !rf.querySelector('input[name="att"][value="u-alum"]').checked && rf.querySelector('input[name="att"][value="u-zeke"]').checked);
+  ok('PI is at meetings but not in the presenter pool by default', rf && rf.querySelector('input[name="att"][value="u-pi"]').checked && !rf.querySelector('input[name="pres"][value="u-pi"]').checked);
+  if (rf) {
+    rf.querySelector('input[name="pres"][value="u-ally"]').checked = false;   // Ally attends but doesn't present this semester
+    rf.querySelector('input[name="att"][value="u-alum"]').checked = true;      // an alum is back this term
+    rf.querySelector('input[name="pres"][value="u-alum"]').checked = true;
+    rf.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); await sleep(250);
+  }
+  var rc = STORE.meetingConfig.settings;
+  ok('roster saved: attendees + presenter pool (pool ⊆ attendees)', rc.attendeeUids && rc.attendeeUids.indexOf('u-alum') >= 0 && rc.presenterPoolUids.indexOf('u-ally') < 0 && rc.presenterPoolUids.indexOf('u-alum') >= 0 && rc.presenterPoolUids.every(function (u) { return rc.attendeeUids.indexOf(u) >= 0; }), JSON.stringify([rc.attendeeUids, rc.presenterPoolUids]));
+  tab('schedule'); await sleep(30);
+  ok('board pool follows the saved roster (Ally out, alum in)', !q('.mtg-pcard-pool[data-uid="u-ally"]') && !!q('.mtg-pcard-pool[data-uid="u-alum"]'));
+  tab('chores'); await sleep(30);
+  var cpick = q('[data-act="chore-assign"]');
+  if (cpick) { cpick.click(); await sleep(50); }
+  ok('chore picker offers the roster (Ally still attends; guest never)', !!document.querySelector('.mtg-picker-row[data-uid="u-ally"]') && !document.querySelector('.mtg-picker-row[data-uid="u-guest"]'));
+  if (window.APP_SHEET) APP_SHEET.close();
+  tab('settings'); await sleep(30);
+  click('[data-act="settings-tab"][data-id="agenda"]'); await sleep(30);
+  ok('template editor totals 60 min for standard', /Standard meeting\s*60 min/.test(text().replace(/\n/g, ' ')));
+  click('[data-act="settings-tab"][data-id="people"]'); await sleep(30);
+  ok('coordinator cannot edit roles', !q('form[data-form="cfg-people"]') && /Only an admin/.test(text()));
+  // seed
+  click('[data-act="settings-tab"][data-id="schedule"]'); await sleep(30);
+  var before = Object.keys(STORE.meetings).length;
+  click('[data-act="seed-fall-2026"]'); await sleep(50);
+  if (sheet()) { sheet().querySelector('.mtg-yes').click(); await sleep(400); }
+  var seeded = Object.values(STORE.meetings).filter(function (m) { return m.seed === 'fall-2026'; });
+  var seedToast = window.__toasts.map(function (t) { return t[1]; }).find(function (t) { return /Seeded Fall 2026/.test(t); }) || '';
+  var mm = seedToast.match(/(\d+) meetings created, (\d+) already existed/);
+  ok('seed ran (toast)', !!mm, seedToast);
+  ok('seed arithmetic: created + skipped == 15', mm && (+mm[1] + +mm[2]) === 15, seedToast);
+  ok('seeded rows carry kind + presenters map', seeded.every(function (m) { return m.kind && m.presenters && !Array.isArray(m.presenters); }));
+  ok('break week is cancelled, flash weeks have no presenters', seeded.filter(function (m) { return m.kind === 'break'; }).every(function (m) { return m.status === 'cancelled'; }) && seeded.filter(function (m) { return m.kind === 'flash'; }).every(function (m) { return !Object.keys(m.presenters).length; }));
+  var cfgNow = STORE.meetingConfig.settings;
+  ok('seed wrote config: Fri 11:00 BSRL 100, semester, skip week, Cason coordinator', cfgNow.defaultDay === 5 && cfgNow.defaultTime === '11:00' && cfgNow.defaultLocation === 'BSRL 100' && cfgNow.semesterStart === '2026-09-11' && cfgNow.skipWeeks[0] === '2026-11-23' && cfgNow.coordinatorUids.indexOf('hfcpFSLKLta6gOF8C3xq6tl7ZsP2') >= 0 && cfgNow.primaryCoordinatorUid === U.cason);
+  ok('seed did not clobber existing coordinators', cfgNow.coordinatorUids.indexOf(U.cason) >= 0);
+  ok('seed did not clobber the saved roster', cfgNow.presenterPoolUids.indexOf('u-ally') < 0 && cfgNow.attendeeUids.indexOf('u-alum') >= 0);
+
+  /* ═══ flip to Zeke — plain member ═══ */
+  ME = { uid: U.zeke, displayName: 'Zeke Pangelinan', email: 'z@x.com' }; PROFILE = { name: 'Zeke Pangelinan', role: 'contributor' };
+  M.state.user = ME; M.state.profile = PROFILE;
+  M.state.section = 'schedule'; M.render();
+  await sleep(30);
+  ok('member: no pool, no Assign buttons', !q('.mtg-pool') && !q('[data-act="pick-presenter"]'));
+  ok('member in the presenter pool: Claim on an empty slot', !!q('[data-act="claim"]'));
+  M.state.user = { uid: U.ally, displayName: 'Allison Friedholm' }; M.render(); await sleep(20);
+  ok('member NOT in the presenter pool (Ally): no Claim button', !q('[data-act="claim"]'));
+  M.state.user = ME; M.render(); await sleep(20);
+  ok('member: Swap on someone else’s slot', !!q('[data-act="request-swap"]'));
+  ok('member: Release on own slot', !!q('[data-act="release"][data-uid="u-zeke"]'));
+  ok('member: no delete/edit tools', !q('[data-act="delete-meeting"]') && !q('[data-act="edit-meeting"]'));
+  var claim = q('[data-act="claim"]');
+  if (claim) { var mid = claim.dataset.id; claim.click(); await sleep(200); ok('claim writes presenters.<me>', !!STORE.meetings[mid].presenters['u-zeke']); }
+  click('[data-act="request-swap"]'); await sleep(50);
+  ok('swap sheet opens for a member with a slot to offer', !!sheet() && /Which of your slots/.test(sheet().innerText));
+  if (sheet()) { sheet().querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); await sleep(200); }
+  ok('swap request created pending by Zeke', Object.values(STORE.meetingSwaps).some(function (s) { return s.fromUid === U.zeke && s.status === 'pending' && s.toUid; }));
+  M.state.section = 'settings'; M.render(); await sleep(20);
+  ok('member: read-only settings summary', !q('form') && /How lab meetings run/.test(text()));
+  M.state.section = 'next'; M.render(); await sleep(20);
+  ok('member: no agenda tools, but sees Add my slides link (owes round-robin)', !q('[data-act="ag-add"]') && !!q('[data-act="submit-slides"]'));
+  click('[data-act="submit-slides"]'); await sleep(50);
+  ok('submit-slides sheet with Drive field', !!sheet() && !!sheet().querySelector('.mtg-lf-input'));
+  if (sheet()) {
+    var inp = sheet().querySelector('.mtg-lf-input'); inp.value = 'not a drive link'; inp.dispatchEvent(new Event('blur'));
+    await sleep(50);
+    ok('non-Drive URL flagged inline', /isn’t a Google Drive/.test(sheet().innerText));
+    inp.value = 'https://docs.google.com/presentation/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456/edit?usp=sharing';
+    sheet().querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await sleep(250);
+  }
+  var nm = M.nextMeeting();
+  ok('submission stored under updates.submissions.<me> with parsed fileId', nm && STORE.meetings[nm.id].updates.submissions['u-zeke'] && STORE.meetings[nm.id].updates.submissions['u-zeke'].link.fileId === '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456', nm ? JSON.stringify(STORE.meetings[nm.id].updates.submissions) : 'no next');
+  ok('member: Run meeting hidden before the day', !q('[data-act="run"]') || M.daysUntil(nm.date) <= 0);
+  ok('Drive parse: file/d, open?id, folders', DRIVE_LINK.parse('https://drive.google.com/file/d/1abcdefghijklmnopqrstuv/view').fileId === '1abcdefghijklmnopqrstuv' && DRIVE_LINK.parse('https://drive.google.com/open?id=1abcdefghijklmnopqrstuv').kind === 'file' && DRIVE_LINK.parse('https://drive.google.com/drive/u/0/folders/1abcdefghijklmnopqrstuv').kind === 'folder' && DRIVE_LINK.parse('https://example.com/x') === null);
+
+  ok('no window.confirm/alert/prompt anywhere', window.__errs.every(function (e) { return e.indexOf('BLOCKED') < 0; }));
+  ok('no runtime errors overall', window.__errs.length === 0, window.__errs.join('; '));
+  ok('innerText never contains raw <svg (end)', text().indexOf('<svg') < 0);
+
+  out.dataset.pass = pass; out.dataset.fail = fail; out.dataset.detail = detail.join(' · ');
+  out.textContent = pass + ' passed, ' + fail + ' failed' + (detail.length ? '\n' + detail.join('\n') : '');
+  out.dataset.done = '1';
+})();
+</script>
+</body></html>

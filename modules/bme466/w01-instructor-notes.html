@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>W01 Live Lecture Notes — Diffusion (BME/AME 466/566, Instructor)</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#f1f5f9;color:#1e293b;line-height:1.6;overflow-x:hidden}
+
+/* ── Instructor banner: this page is deliberately NOT student-facing ── */
+.instr-bar{background:#7f1d1d;color:#fecaca;padding:7px 18px;font-size:.78rem;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;display:flex;gap:12px;align-items:center;
+  flex-wrap:wrap;position:sticky;top:0;z-index:200}
+.instr-bar .dot{width:8px;height:8px;border-radius:50%;background:#fca5a5;flex:none}
+.instr-bar span.note{font-weight:400;letter-spacing:0;text-transform:none;color:#fee2e2;font-size:.8rem}
+
+header{background:linear-gradient(135deg,#1e3a5f 0%,#0891b2 100%);color:#fff;padding:26px 32px}
+header h1{font-size:1.65rem;font-weight:700;letter-spacing:-.5px}
+header .sub{font-size:.95rem;opacity:.9;margin-top:5px}
+header .meta{font-size:.82rem;opacity:.8;margin-top:8px}
+header a{color:#bae6fd}
+
+nav.jump{background:#fff;border-bottom:2px solid #e2e8f0;padding:9px 18px;display:flex;gap:8px;
+  flex-wrap:wrap;position:sticky;top:31px;z-index:150}
+nav.jump a{font-size:.8rem;font-weight:600;color:#475569;text-decoration:none;padding:5px 11px;
+  border-radius:16px;border:1.5px solid #e2e8f0}
+nav.jump a:hover{color:#0e7490;border-color:#67e8f9;background:#ecfeff}
+nav.jump a.s2{border-color:#ddd6fe;color:#6d28d9}
+
+main{max-width:900px;margin:0 auto;padding:20px 16px 60px}
+
+.howto{background:#fff;border-left:4px solid #0891b2;border-radius:0 10px 10px 0;
+  box-shadow:0 1px 3px rgba(0,0,0,.08);padding:18px 22px;margin-bottom:22px}
+.howto h2{font-size:1rem;color:#0e7490;margin-bottom:8px}
+.howto p{font-size:.88rem;color:#475569;margin-bottom:8px}
+.howto ul{margin:6px 0 8px 20px}
+.howto li{font-size:.88rem;color:#475569;margin-bottom:3px}
+
+.session{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.1);
+  padding:0 0 22px;margin-bottom:30px;overflow:hidden}
+.session > .shead{padding:18px 24px;color:#fff}
+.s1 > .shead{background:linear-gradient(135deg,#155e75,#0891b2)}
+.s2 > .shead{background:linear-gradient(135deg,#4c1d95,#7c3aed)}
+.shead h2{font-size:1.3rem}
+.shead .when{font-size:.82rem;opacity:.9;margin-top:3px}
+.shead .one{font-size:.92rem;margin-top:9px;background:rgba(255,255,255,.15);
+  border-radius:7px;padding:8px 12px;line-height:1.5}
+.sbody{padding:6px 24px 0}
+
+.step{border-top:1px dashed #cbd5e1;padding:18px 0 4px}
+.step:first-of-type{border-top:none}
+.step h3{font-size:1.05rem;color:#1e3a5f;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.step h3 .clock{font-size:.7rem;font-weight:700;letter-spacing:.05em;color:#0e7490;
+  background:#ecfeff;border:1px solid #a5f3fc;border-radius:12px;padding:2px 9px;white-space:nowrap}
+.s2 .step h3 .clock{color:#6d28d9;background:#f5f3ff;border-color:#ddd6fe}
+.step p{font-size:.92rem;color:#334155;margin:9px 0}
+.step ul,.step ol{margin:8px 0 8px 22px}
+.step li{font-size:.92rem;color:#334155;margin-bottom:5px}
+
+/* ── the four live-teaching block types ── */
+.board,.ask,.live,.mod{border-radius:8px;padding:11px 15px 11px 44px;margin:10px 0;
+  position:relative;font-size:.92rem;line-height:1.55}
+.board::before,.ask::before,.live::before,.mod::before{position:absolute;left:13px;top:10px;
+  font-size:1.05rem;line-height:1.4}
+.board{background:#f8fafc;border:1.5px solid #cbd5e1;color:#0f172a}
+.board::before{content:"▢";color:#475569}
+.board .big{display:block;text-align:center;margin:6px 0;font-size:1.05rem}
+.board .boxed{border:2px solid #1e3a5f;border-radius:8px;padding:8px 12px;display:inline-block;margin:4px 0}
+.ask{background:#fffbeb;border:1.5px solid #fde68a;color:#78350f}
+.ask .exp{display:block;margin-top:6px;font-size:.86rem;color:#92400e;border-top:1px dotted #fcd34d;padding-top:5px}
+.live{background:#eff6ff;border:1.5px solid #bfdbfe;color:#1e3a8a}
+.mod{background:#f5f3ff;border:1.5px solid #ddd6fe;color:#5b21b6;font-size:.88rem}
+.ask>.mk,.live>.mk,.mod>.mk{position:absolute;left:13px;top:13px;font-size:1.05rem}
+.mod>.mk{color:#7c3aed}
+.beat{background:#ecfdf5;border-left:4px solid #059669;border-radius:0 8px 8px 0;
+  padding:10px 14px;margin:10px 0;font-size:.9rem;color:#065f46}
+.beat strong{color:#047857}
+
+/* ── Board sketches: what the drawing should end up looking like ── */
+.fig{margin:12px 0 6px;background:#fff;border:1.5px solid #cbd5e1;border-radius:9px;overflow:hidden}
+.fig svg{display:block;width:100%;height:auto}
+.fig .cap{background:#f8fafc;border-top:1px solid #e2e8f0;padding:6px 12px;font-size:.76rem;
+  color:#64748b;letter-spacing:.02em}
+.fig .cap b{color:#334155}
+.fig-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:640px){.fig-pair{grid-template-columns:1fr}}
+svg .ink{fill:#1e293b}
+svg .mut{fill:#64748b}
+svg .lbl{font:500 13px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
+svg .lbls{font:500 11px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
+svg .box{fill:none;stroke:#334155;stroke-width:2.5}
+svg .mol{fill:#2563eb}
+svg .hot{fill:#7c3aed}
+svg .arw{stroke:#64748b;stroke-width:1.8;fill:none}
+svg .acc{stroke:#dc2626;stroke-width:2.4;fill:none}
+
+blockquote{background:#f8fafc;border-left:4px solid #94a3b8;border-radius:0 8px 8px 0;
+  padding:11px 16px;margin:11px 0;font-size:.92rem;color:#475569;font-style:italic}
+
+table.lad{width:100%;border-collapse:collapse;font-size:.9rem;margin:10px 0}
+table.lad th,table.lad td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left;color:#334155}
+table.lad th{background:#f1f5f9;font-weight:700;color:#1e3a5f}
+table.lad td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.lad tr.punch td{background:#fef2f2;font-weight:700;color:#7f1d1d}
+
+.card{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.1);
+  padding:20px 24px;margin-bottom:22px}
+.card h2{font-size:1.1rem;color:#1e3a5f;margin-bottom:10px}
+.card p,.card li{font-size:.9rem;color:#475569}
+.card ul{margin:6px 0 0 20px}
+.card li{margin-bottom:8px}
+.card li b{color:#334155}
+
+.xref{width:100%;border-collapse:collapse;font-size:.86rem}
+.xref th,.xref td{border:1px solid #e2e8f0;padding:6px 9px;text-align:left;color:#475569}
+.xref th{background:#f1f5f9;color:#334155;font-weight:700}
+.xref td.yes{color:#047857;font-weight:600}
+.xref td.no{color:#b45309;font-weight:600}
+
+.warn{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:12px 16px;
+  margin:10px 0;font-size:.88rem;color:#7f1d1d}
+.warn strong{color:#991b1b}
+
+footer{text-align:center;padding:22px;font-size:.78rem;color:#94a3b8}
+mjx-container{display:inline-block !important}
+
+@media (max-width:640px){
+  header{padding:18px 14px} header h1{font-size:1.25rem}
+  main{padding:14px 8px 40px} .sbody{padding:4px 13px 0}
+  .board,.ask,.live,.mod{padding-left:38px}
+  nav.jump{top:44px}
+}
+/* ── printable: he may teach from paper ── */
+@media print{
+  body{background:#fff}
+  .instr-bar{position:static;background:#fff;color:#7f1d1d;border-bottom:2px solid #7f1d1d}
+  nav.jump{display:none}
+  header{background:#fff !important;color:#1e3a5f;border-bottom:3px solid #0891b2}
+  header a{color:#1e3a5f}
+  .session,.card,.howto{box-shadow:none;border:1px solid #cbd5e1;break-inside:auto}
+  .session > .shead{background:#f1f5f9 !important;color:#1e3a5f}
+  .step{break-inside:avoid}
+  .s2{break-before:page}
+}
+</style>
+</head>
+<body>
+<!-- hi-icons:start (scripts/module_icons.py — generated; re-run after adding an icon) -->
+<style>.hi{width:1em;height:1em;display:inline-block;vertical-align:-0.125em;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;overflow:visible}.hi-solid{fill:currentColor;stroke:none}</style>
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><defs><symbol id="hi-beer" viewBox="0 0 24 24"><path d="M17 11h1a3 3 0 0 1 0 6h-1" /><path d="M9 12v6" /><path d="M13 12v6" /><path d="M14 7.5c-1 0-1.44.5-3 .5s-2-.5-3-.5-1.72.5-2.5.5a2.5 2.5 0 0 1 0-5c.78 0 1.57.5 2.5.5S9.44 2 11 2s2 1.5 3 1.5 1.72-.5 2.5-.5a2.5 2.5 0 0 1 0 5c-.78 0-1.5-.5-2.5-.5Z" /><path d="M5 8v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8" /></symbol><symbol id="hi-bolt" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"/></symbol><symbol id="hi-home" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></symbol><symbol id="hi-play" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"/></symbol><symbol id="hi-question-mark-circle" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z"/></symbol></defs></svg>
+<script>window.HI={svg:function(n,o){o=o||{};var s=o.solid?'-solid':'';return '<svg class="hi'+(o.solid?' hi-solid':'')+(o.cls?' '+o.cls:'')+'"'+(o.tint?' style="color:'+o.tint+'"':'')+(o.label?' role="img" aria-label="'+String(o.label).replace(/"/g,'&quot;')+'"':' aria-hidden="true"')+'><use href="#hi-'+n+s+'"/></svg>';},
+draw:function(c,n,x,y,z,col,o){o=o||{};var sym=document.getElementById('hi-'+n+(o.solid?'-solid':''));if(!c||!sym||typeof Path2D==='undefined')return;var k=(z||16)/24;c.save();c.translate(x,y);c.scale(k,k);c.lineWidth=1.5;c.lineCap='round';c.lineJoin='round';c.strokeStyle=c.fillStyle=col||'#475569';
+[].forEach.call(sym.children,function(e){var a=function(q){return parseFloat(e.getAttribute(q))||0},p=new Path2D(),t=e.tagName.toLowerCase();if(t==='path')p=new Path2D(e.getAttribute('d'));else if(t==='circle')p.arc(a('cx'),a('cy'),a('r'),0,7);else if(t==='ellipse')p.ellipse(a('cx'),a('cy'),a('rx'),a('ry'),0,0,7);else if(t==='rect')p.rect(a('x'),a('y'),a('width'),a('height'));else if(t==='line'){p.moveTo(a('x1'),a('y1'));p.lineTo(a('x2'),a('y2'));}else{var v=(e.getAttribute('points')||'').trim().split(/[\s,]+/).map(parseFloat);for(var i=0;i+1<v.length;i+=2)p[i?'lineTo':'moveTo'](v[i],v[i+1]);if(t==='polygon')p.closePath();}
+if(o.solid)c.fill(p,'evenodd');else c.stroke(p);});c.restore();}};</script>
+<!-- hi-icons:end -->
+
+<div class="instr-bar">
+  <span class="dot"></span>
+  Instructor notes — not for distribution
+  <span class="note">Board plan for the person teaching. Contains the answers to the questions asked in class.</span>
+</div>
+
+<header>
+  <h1>W01 · Live Lecture Notes — “Diffusion: why anything moves at all”</h1>
+  <p class="sub">BME/AME 466/566 Biomechanics · Week 1 · Tue Aug 25 + Thu Aug 27, 2026 · 9:30–10:45</p>
+  <p class="meta">Pairs with the Week 1 student module:
+    <a href="01-diffusion-why-anything-moves.html">Diffusion — Why Anything Moves at All</a>
+    · Source: F25 Lecture 1, pp. 3–8</p>
+</header>
+
+<nav class="jump">
+  <a href="#howto">How to use</a>
+  <a href="#s1">Session 1 · The bouncing world</a>
+  <a href="#s2" class="s2">Session 2 · The drunkard’s walk</a>
+  <a href="#miscon">Misconceptions</a>
+  <a href="#short">If running short</a>
+  <a href="#xref">Module cross-ref</a>
+</nav>
+
+<main>
+
+<div class="howto" id="howto">
+  <h2>How to use this</h2>
+  <p>These are <strong>board notes</strong>, not a handout — what goes on the board and what comes
+  out of your mouth, in order, with the numbers worked live. They are deliberately
+  <em>conceptual</em>: the job of the two lectures is to make students want the equations and
+  believe the picture. The module does the quantitative work.</p>
+  <ul>
+    <li><b>Board</b> = the story, the physical picture, one honest derivation per session, and the order-of-magnitude numbers that make it real.</li>
+    <li><b>Module</b> = the same content with the algebra written out, plus simulations they turn the knobs on.</li>
+    <li><b>HW1</b> (out Week 2) = they measure it themselves.</li>
+  </ul>
+  <p>Don’t reproduce the module at the board. If you’re writing a third line of algebra, stop and
+  point at the module instead.</p>
+  <p style="margin-bottom:0"><b>Markers:</b> ▢ write/draw this · <svg class="hi" aria-hidden="true"><use href="#hi-question-mark-circle"/></svg> ask the room, wait · <svg class="hi" aria-hidden="true"><use href="#hi-bolt"/></svg> work
+  this number live · <svg class="hi" aria-hidden="true"><use href="#hi-play"/></svg> point at the module.</p>
+</div>
+
+<!-- ══════════════ SESSION 1 ══════════════ -->
+<section class="session s1" id="s1">
+  <div class="shead">
+    <h2>Session 1 — The bouncing world</h2>
+    <div class="when">Tuesday 25 August · 75 min</div>
+    <div class="one"><strong>One sentence:</strong> temperature <em>is</em> motion, and everything
+    else in this course is bookkeeping on that fact.<br>
+    <strong>They should leave believing:</strong> the air in this room is violent; pressure is
+    molecular drumming averaged over time; \(k_BT\) is the currency for every process we study.</div>
+  </div>
+  <div class="sbody">
+
+    <div class="step">
+      <h3>0 · Cold open — the bite <span class="clock">5 min</span></h3>
+      <p>Don’t start with a definition. Start with the semester’s recurring scenario.</p>
+      <blockquote>Tuesday evening, a mosquito bites your ankle. Twenty minutes later it itches and
+      there’s a small raised bump. In that time, mosquito saliva proteins have spread through your
+      skin, your mast cells have dumped histamine into the tissue, and that histamine has reached
+      capillaries a millimetre away and told them to leak.</blockquote>
+      <div class="ask">What carried the histamine that millimetre?
+        <span class="exp">Expect “the bloodstream,” “diffusion,” “it spreads.” Push back on each:
+        there is no pump in that tissue, no motor attached to a histamine molecule, and no one
+        aiming it.</span></div>
+      <div class="board">Write in the corner of the board and leave it up all week:
+        <span class="big"><span class="boxed"><strong>How fast can a molecule get where it needs to be?</strong></span></span></div>
+      <p>Say the plan out loud: <em>today we work out how molecules move at all; Thursday we find
+      out why that motion is so much slower than it sounds.</em></p>
+    </div>
+
+    <div class="step">
+      <h3>1 · The mosh pit <span class="clock">10 min</span></h3>
+      <div class="board">Draw a box. ~15 dots, arrows in random directions, different lengths.</div>
+      <div class="fig">
+        <svg viewBox="0 0 620 250" role="img" aria-label="A box of gas molecules with velocity arrows of differing lengths and directions">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/></marker>
+            <marker id="ahp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/></marker>
+          </defs>
+          <rect class="box" x="24" y="24" width="380" height="200" rx="3"/>
+          <!-- molecules: cx,cy then a velocity arrow -->
+          <g>
+            <circle class="mol" cx="70"  cy="60"  r="5"/><line class="arw" x1="70"  y1="60"  x2="118" y2="44"  marker-end="url(#ah)"/>
+            <circle class="mol" cx="150" cy="46"  r="5"/><line class="arw" x1="150" y1="46"  x2="128" y2="86"  marker-end="url(#ah)"/>
+            <circle class="mol" cx="238" cy="58"  r="5"/><line class="arw" x1="238" y1="58"  x2="292" y2="72"  marker-end="url(#ah)"/>
+            <circle class="mol" cx="330" cy="48"  r="5"/><line class="arw" x1="330" y1="48"  x2="308" y2="94"  marker-end="url(#ah)"/>
+            <circle class="mol" cx="378" cy="96"  r="5"/><line class="arw" x1="378" y1="96"  x2="336" y2="118" marker-end="url(#ah)"/>
+            <circle class="mol" cx="60"  cy="132" r="5"/><line class="arw" x1="60"  y1="132" x2="96"  y2="156" marker-end="url(#ah)"/>
+            <circle class="mol" cx="128" cy="176" r="5"/><line class="arw" x1="128" y1="176" x2="180" y2="164" marker-end="url(#ah)"/>
+            <circle class="mol" cx="206" cy="132" r="5"/><line class="arw" x1="206" y1="132" x2="196" y2="88"  marker-end="url(#ah)"/>
+            <circle class="mol" cx="276" cy="152" r="5"/><line class="arw" x1="276" y1="152" x2="330" y2="176" marker-end="url(#ah)"/>
+            <circle class="mol" cx="350" cy="196" r="5"/><line class="arw" x1="350" y1="196" x2="306" y2="206" marker-end="url(#ah)"/>
+            <circle class="mol" cx="92"  cy="204" r="5"/><line class="arw" x1="92"  y1="204" x2="118" y2="180" marker-end="url(#ah)"/>
+            <circle class="mol" cx="176" cy="106" r="5"/><line class="arw" x1="176" y1="106" x2="230" y2="98"  marker-end="url(#ah)"/>
+            <circle class="mol" cx="300" cy="118" r="5"/><line class="arw" x1="300" y1="118" x2="268" y2="140" marker-end="url(#ah)"/>
+            <circle class="mol" cx="240" cy="200" r="5"/><line class="arw" x1="240" y1="200" x2="214" y2="164" marker-end="url(#ah)"/>
+          </g>
+          <!-- the one you follow -->
+          <circle class="hot" cx="140" cy="128" r="7"/>
+          <line stroke="#7c3aed" stroke-width="2.4" fill="none" x1="140" y1="128" x2="204" y2="112" marker-end="url(#ahp)"/>
+          <text class="lbls hot" x="118" y="150">follow this one</text>
+          <!-- annotations -->
+          <text class="lbl ink" x="424" y="58">~500 m/s each</text>
+          <text class="lbls mut" x="424" y="80">(Mach 1.4 for O₂ at 310 K)</text>
+          <text class="lbl ink" x="424" y="116">~70 nm between</text>
+          <text class="lbl ink" x="424" y="134">collisions</text>
+          <text class="lbl ink" x="424" y="172">2.5×10²⁵ per m³</text>
+          <text class="lbls mut" x="424" y="194">net flow: zero</text>
+          <text class="lbls mut" x="424" y="212">“still air” = an average</text>
+        </svg>
+        <div class="cap"><b>Board sketch —</b> arrows deliberately different lengths and directions. The point of the picture is that it is violent <em>and</em> going nowhere.</div>
+      </div>
+      <div class="board">~\(2.5\times10^{25}\) molecules per m³ · typical speed ~500 m/s ·
+        ~70 nm between collisions · a protein in water is struck ~\(10^{13}\) times per second.</div>
+      <div class="ask">Is the air in this room moving?
+        <span class="exp">Violently — roughly rifle-bullet speed, in every direction at once, with
+        essentially zero <em>net</em> flow. “Still air” is a statement about the average, not the
+        molecules. Flag this average-vs-individual distinction now; it is the most reused idea in
+        the course.</span></div>
+      <p>Thirty-second historical beat: <strong>Bernoulli, 1738</strong> proposed that gas pressure
+      is just molecular bombardment — about 120 years before most physicists accepted that
+      molecules exist.</p>
+      <div class="mod">Module Tab 1 §1.1 is this box, running, with a wall meter attached.</div>
+    </div>
+
+    <div class="step">
+      <h3>2 · Pressure is drumming <span class="clock">15 min</span></h3>
+      <p>This is the one derivation to do on the board today. Do it for a <em>single</em> molecule
+      and stop.</p>
+      <div class="board">Draw a cube, side \(L\). One molecule, velocity \(v_x\), heading at the
+        right wall. Then write only these three lines:
+        <span class="big">Each bounce reverses it: momentum change \(=2mv_x\)</span>
+        <span class="big">Round trip: \(\Delta t = 2L/v_x\)</span>
+        <span class="big">\(\langle F\rangle = \dfrac{2mv_x}{2L/v_x} = \dfrac{mv_x^2}{L}\)</span></div>
+      <div class="fig">
+        <svg viewBox="0 0 620 260" role="img" aria-label="A single molecule bouncing between the walls of a box of side L, reversing momentum at the right wall">
+          <defs>
+            <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker>
+            <marker id="ah2r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+            <marker id="ah2g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/></marker>
+          </defs>
+          <rect class="box" x="40" y="40" width="330" height="170" rx="3"/>
+          <!-- the wall we care about -->
+          <line x1="370" y1="40" x2="370" y2="210" stroke="#dc2626" stroke-width="6"/>
+          <text class="lbls" fill="#dc2626" x="378" y="36">this wall</text>
+          <!-- L dimension -->
+          <line x1="40" y1="228" x2="370" y2="228" stroke="#64748b" stroke-width="1.4" marker-start="url(#ah2g)" marker-end="url(#ah2g)"/>
+          <text class="lbl mut" x="196" y="246" text-anchor="middle">L</text>
+          <!-- incoming -->
+          <circle class="mol" cx="150" cy="106" r="7"/>
+          <line stroke="#2563eb" stroke-width="2.6" x1="160" y1="106" x2="248" y2="106" marker-end="url(#ah2)"/>
+          <text class="lbl" fill="#2563eb" x="196" y="96" text-anchor="middle">+v<tspan baseline-shift="sub" font-size="9">x</tspan></text>
+          <!-- outgoing -->
+          <circle cx="150" cy="152" r="7" fill="#93c5fd"/>
+          <line stroke="#dc2626" stroke-width="2.6" x1="248" y1="152" x2="160" y2="152" marker-end="url(#ah2r)"/>
+          <text class="lbl" fill="#dc2626" x="204" y="172" text-anchor="middle">−v<tspan baseline-shift="sub" font-size="9">x</tspan></text>
+          <!-- the bounce path -->
+          <path d="M262,106 L360,106 L360,152 L262,152" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="5 4"/>
+          <!-- momentum callout -->
+          <rect x="392" y="58" width="204" height="52" rx="7" fill="#fef2f2" stroke="#fca5a5"/>
+          <text class="lbls" fill="#7f1d1d" x="404" y="78">momentum change per hit</text>
+          <text class="lbl" fill="#991b1b" x="404" y="98">Δp = mv − (−mv) = 2mv</text>
+          <rect x="392" y="124" width="204" height="52" rx="7" fill="#eff6ff" stroke="#bfdbfe"/>
+          <text class="lbls" fill="#1e3a8a" x="404" y="144">time between hits on it</text>
+          <text class="lbl" fill="#1e40af" x="404" y="164">Δt = 2L / v</text>
+          <rect x="392" y="190" width="204" height="48" rx="7" fill="#f0fdf4" stroke="#86efac"/>
+          <text class="lbls" fill="#14532d" x="404" y="210">so the average force is</text>
+          <text class="lbl" fill="#166534" x="404" y="230">⟨F⟩ = 2mv / (2L/v) = mv²/L</text>
+        </svg>
+        <div class="cap"><b>Board sketch —</b> draw the incoming and outgoing molecule on two levels so the reversal is visible. The dashed path is the round trip that sets Δt.</div>
+      </div>
+      <div class="ask">This one molecule hits the wall a few times a second. Why does a pressure
+        gauge read a steady number instead of a series of thumps?
+        <span class="exp">Because there are \(10^{25}\) of them and the gauge averages. Say it
+        explicitly: <em>pressure is not a property of a molecule, it is a property of a crowd.</em></span></div>
+      <div class="fig">
+        <svg viewBox="0 0 620 200" role="img" aria-label="Force on the wall versus time: isolated spikes for one molecule, a nearly flat line for many">
+          <!-- panel 1: N = 1 -->
+          <text class="lbls ink" x="20" y="18">N = 1 molecule</text>
+          <line x1="20" y1="86" x2="290" y2="86" stroke="#94a3b8" stroke-width="1.6"/>
+          <g stroke="#2563eb" stroke-width="2.6">
+            <line x1="58"  y1="86" x2="58"  y2="32"/>
+            <line x1="126" y1="86" x2="126" y2="32"/>
+            <line x1="194" y1="86" x2="194" y2="32"/>
+            <line x1="262" y1="86" x2="262" y2="32"/>
+          </g>
+          <line x1="20" y1="72" x2="290" y2="72" stroke="#dc2626" stroke-width="2" stroke-dasharray="6 4"/>
+          <text class="lbls" fill="#dc2626" x="20" y="66">average</text>
+          <text class="lbls mut" x="155" y="104" text-anchor="middle">thumps — a gauge would twitch</text>
+          <!-- panel 2: N large -->
+          <text class="lbls ink" x="330" y="18">N = 10²⁵ molecules</text>
+          <line x1="330" y1="86" x2="600" y2="86" stroke="#94a3b8" stroke-width="1.6"/>
+          <path d="M330,46 L340,44 L350,48 L360,45 L370,47 L380,44 L390,46 L400,45 L410,47 L420,44
+                   L430,46 L440,45 L450,47 L460,45 L470,44 L480,46 L490,45 L500,47 L510,45 L520,46
+                   L530,44 L540,46 L550,45 L560,47 L570,45 L580,46 L590,45 L600,46"
+                fill="none" stroke="#2563eb" stroke-width="2.4"/>
+          <line x1="330" y1="46" x2="600" y2="46" stroke="#dc2626" stroke-width="2" stroke-dasharray="6 4"/>
+          <text class="lbls mut" x="465" y="104" text-anchor="middle">steady — this is “pressure”</text>
+          <!-- shared axis label -->
+          <text class="lbls mut" x="310" y="128" text-anchor="middle">force on the wall vs time</text>
+          <!-- the moral -->
+          <rect x="20" y="144" width="580" height="42" rx="8" fill="#f0fdf4" stroke="#86efac"/>
+          <text class="lbl" fill="#14532d" x="310" y="170" text-anchor="middle">Same physics, same molecules. The only thing that changed is how many you average over.</text>
+        </svg>
+        <div class="cap"><b>Board sketch —</b> two quick axes side by side. The spikes don’t get smaller as N grows; there are just so many that the sum stops wobbling (the wobble falls as 1/√N).</div>
+      </div>
+      <p>Then assert — do not derive — the two steps that finish it:</p>
+      <div class="board">
+        <span class="big">\(\langle v_x^2\rangle = \tfrac{1}{3}\langle v^2\rangle\)</span>
+        <span class="big">\(PV = \tfrac{1}{3}Nm\langle v^2\rangle\)</span></div>
+      <p>Tell them plainly: the algebra between those lines is three more steps and it is all in
+      the module (eq. 2–8). What matters is that <strong>nothing went into this except “hard things
+      bouncing.”</strong></p>
+      <div class="mod">Module Tab 1 §1.4 animates exactly this — one molecule, impacts drawn as a
+        spike train, and a slider that adds molecules until the spikes fuse into a flat line. The
+        readout \(\langle F\rangle L/mv_x^2\) converges to 1.00: they watch the derivation be true.</div>
+    </div>
+
+    <div class="step">
+      <h3>3 · The 1600s already knew the answer <span class="clock">8 min</span></h3>
+      <div class="board"><span class="big"><span class="boxed">\(PV = nRT = Nk_BT\)</span></span></div>
+      <p>Three names, one line each: <strong>Boyle (1662)</strong> \(P\propto 1/V\);
+      <strong>Charles (1787)</strong> \(V\propto T\); <strong>Avogadro (1811)</strong> equal volumes
+      hold equal numbers. All empirical. Nobody knew why.</p>
+      <div class="board">Set the two results side by side:
+        <span class="big">From bouncing: \(PV = \tfrac{1}{3}Nm\langle v^2\rangle\)</span>
+        <span class="big">From experiment: \(PV = Nk_BT\)</span></div>
+      <div class="ask">What must therefore be true?
+        <span class="exp">Let them land it: the two right-hand sides are equal.</span></div>
+      <div class="beat"><strong>This is the moment of the lecture.</strong> A law measured with
+      mercury columns and glass tubes, by people who did not believe in atoms, is reproduced
+      <em>exactly</em> by assuming matter is tiny hard things bouncing around. Say that out loud —
+      this is why kinetic theory won.</div>
+    </div>
+
+    <div class="step">
+      <h3>4 · \(k_BT\), the currency <span class="clock">15 min</span></h3>
+      <p>Set the two expressions equal and rearrange to the only two equations they must memorise
+      this week:</p>
+      <div class="board">
+        <span class="big">\(\tfrac{3}{2}k_BT = \tfrac{1}{2}m\langle v^2\rangle\) — temperature <em>is</em> kinetic energy</span>
+        <span class="big">\(v_{rms} = \sqrt{3k_BT/m}\)</span></div>
+      <div class="live">Work \(k_BT\) live at body temperature. \(k_B = 1.38\times10^{-23}\) J/K,
+        \(T = 310\) K → <strong>\(k_BT = 4.3\times10^{-21}\) J \(= 4.3\) pN·nm</strong>
+        &nbsp;← box it, circle it.</div>
+      <p>Dwell here. Convert it aloud: piconewtons of force over nanometres of distance. Then say
+      what lives at that scale — motors pull with a few pN, protein domains are a few nm across,
+      receptor bonds break under a few pN. <strong>The cell’s entire mechanical world is denominated
+      in \(k_BT\).</strong> Every remaining week is a story about something either paying that toll
+      or being randomised by it.</p>
+      <div class="fig">
+        <svg viewBox="0 0 620 210" role="img" aria-label="Energy scale in units of kBT showing hydrogen bonds, ATP hydrolysis and covalent bonds relative to thermal noise">
+          <!-- log-ish axis -->
+          <line x1="60" y1="150" x2="596" y2="150" stroke="#334155" stroke-width="2.5"/>
+          <g stroke="#334155" stroke-width="2">
+            <line x1="92"  y1="150" x2="92"  y2="158"/>
+            <line x1="196" y1="150" x2="196" y2="158"/>
+            <line x1="330" y1="150" x2="330" y2="158"/>
+            <line x1="470" y1="150" x2="470" y2="158"/>
+            <line x1="570" y1="150" x2="570" y2="158"/>
+          </g>
+          <text class="lbls mut" x="92"  y="174" text-anchor="middle">1</text>
+          <text class="lbls mut" x="196" y="174" text-anchor="middle">5</text>
+          <text class="lbls mut" x="330" y="174" text-anchor="middle">25</text>
+          <text class="lbls mut" x="470" y="174" text-anchor="middle">100</text>
+          <text class="lbls mut" x="570" y="174" text-anchor="middle">200</text>
+          <text class="lbl ink" x="328" y="196" text-anchor="middle">energy, in units of k<tspan baseline-shift="sub" font-size="10">B</tspan>T</text>
+          <!-- thermal noise zone -->
+          <rect x="60" y="40" width="150" height="110" fill="#fee2e2" opacity=".55"/>
+          <line x1="92" y1="40" x2="92" y2="150" stroke="#dc2626" stroke-width="2.5"/>
+          <text class="lbls" fill="#991b1b" x="98" y="54">k<tspan baseline-shift="sub" font-size="9">B</tspan>T = 4.3 pN·nm</text>
+          <text class="lbls" fill="#991b1b" x="98" y="70">thermal noise lives here</text>
+          <!-- markers -->
+          <g>
+            <circle cx="150" cy="112" r="7" fill="#dc2626"/>
+            <text class="lbl ink" x="150" y="102" text-anchor="middle">H-bond</text>
+            <text class="lbls mut" x="150" y="132" text-anchor="middle">2–5 — breaks constantly</text>
+          </g>
+          <g>
+            <circle cx="320" cy="112" r="7" fill="#d97706"/>
+            <text class="lbl ink" x="320" y="102" text-anchor="middle">ATP hydrolysis</text>
+            <text class="lbls mut" x="320" y="132" text-anchor="middle">20–25 — safely above noise</text>
+          </g>
+          <g>
+            <circle cx="520" cy="112" r="7" fill="#047857"/>
+            <text class="lbl ink" x="520" y="102" text-anchor="middle">covalent C–C</text>
+            <text class="lbls mut" x="520" y="132" text-anchor="middle">~150 — never breaks thermally</text>
+          </g>
+          <text class="lbls mut" x="60" y="24">Why biology fastens things with hydrogen bonds: they are <tspan font-style="italic">meant</tspan> to come undone.</text>
+        </svg>
+        <div class="cap"><b>Board sketch —</b> one axis, three dots, and the noise zone shaded. This single picture explains reversible binding, why ATP is the currency, and why molecules don’t fall apart.</div>
+      </div>
+      <div class="ask">Rank these in \(k_BT\): a hydrogen bond, ATP hydrolysis, a covalent C–C bond.
+        Then: which can thermal noise break on its own?
+        <span class="exp">~2–5, ~20–25, ~150. Hydrogen bonds break constantly — which is
+        <em>why</em> biology fastens things with them: they’re meant to come undone. ATP at ~20
+        \(k_BT\) sits far enough above the noise to be a reliable fuel packet. Covalent bonds never
+        break thermally, which is what makes a molecule a molecule.</span></div>
+      <div class="live">How fast is an oxygen molecule? \(m = 0.032/6.022\times10^{23} =
+        5.3\times10^{-26}\) kg →
+        \(v_{rms} = \sqrt{3(1.38\times10^{-23})(310)/5.3\times10^{-26}} \approx\)
+        <strong>490 m/s</strong>. Mach 1.4 — every breath is a swarm of supersonic projectiles, and
+        you feel nothing, because they arrive from every side at once.</div>
+      <p><em>Spare minute?</em> Note that \(v_{rms}\) is not the average speed — the distribution
+      (Maxwell 1860, Boltzmann 1868–72) is skewed and \(\bar v = 0.92\,v_{rms}\). Flag it as a real
+      distinction, not pedantry, and move on.</p>
+      <div class="live">How many O₂ in one breath? \(N = PV/k_BT\) with \(V = 0.5\) L,
+        \(P = 101\) kPa → \(1.2\times10^{22}\) molecules, ~21% O₂ →
+        <strong>\(2.5\times10^{21}\) oxygen molecules.</strong> More molecules in one breath than
+        there are grains of sand on Earth.</div>
+      <div class="mod">Module Tab 1 §1.2–1.3: a box where collisions alone build the
+        Maxwell–Boltzmann curve, and a piston whose measured points land on Boyle’s hyperbola.</div>
+    </div>
+
+    <div class="step">
+      <h3>5 · The pivot — set up Thursday <span class="clock">7 min</span></h3>
+      <p>Now break the lecture on purpose.</p>
+      <div class="ask">Molecules move at 500 m/s. This room is 10 m across. If I open a bottle of
+        perfume at the front, when do you smell it?
+        <span class="exp">Let them divide out loud: 10 m ÷ 500 m/s = <strong>0.02 seconds.</strong></span></div>
+      <div class="ask">Is that what happens?
+        <span class="exp">No — it takes minutes, and mostly it arrives because the air is moving,
+        not because the perfume diffused. And the bite took twenty minutes to itch, not twenty
+        microseconds.</span></div>
+      <div class="board">Write, and leave up for Thursday:
+        <span class="big"><span class="boxed">Molecules are fast. <strong>Transport is slow.</strong> Why?</span></span></div>
+      <p>Give the one-word answer — <em>collisions</em> — and stop. Thursday is the whole answer.</p>
+      <div class="beat"><strong>Assign:</strong> open the module, Tab 1, play with the pressure box
+      and the piston before Thursday. Ten minutes, no writeup.</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════ SESSION 2 ══════════════ -->
+<section class="session s2" id="s2">
+  <div class="shead">
+    <h2>Session 2 — The drunkard’s walk</h2>
+    <div class="when">Thursday 27 August · 75 min</div>
+    <div class="one"><strong>One sentence:</strong> a molecule with no memory spreads as
+    \(\sqrt{t}\), and that single square root dictates the size of cells, the spacing of
+    capillaries, and why you have a bloodstream.</div>
+  </div>
+  <div class="sbody">
+
+    <div class="step">
+      <h3>0 · Answer Tuesday’s cliffhanger <span class="clock">5 min</span></h3>
+      <div class="board">A molecule in water is struck ~\(10^{13}\) times per second. It travels
+        ~0.3 nm between hits.</div>
+      <p>So it <em>is</em> moving at hundreds of metres per second — but it never gets to go
+      anywhere, because every fraction of a nanosecond something knocks it off course. It has speed
+      and no direction.</p>
+      <div class="ask">If each kick is random, where does it end up on average?
+        <span class="exp">Right where it started — which sounds like nothing happens, and yet the
+        perfume does eventually arrive. Resolving that apparent contradiction is today’s lecture.</span></div>
+    </div>
+
+    <div class="step">
+      <h3>1 · Brown, 1827 — and the trap he avoided <span class="clock">8 min</span></h3>
+      <p>Tell the story properly, because the <em>method</em> is the lesson. Robert Brown,
+      botanist, puts pollen grains in water under his microscope and sees them jittering without
+      pause. The tempting 1827 conclusion — pollen comes from a living plant — is that this is some
+      vital force, the spark of life.</p>
+      <div class="ask">What is the control experiment?
+        <span class="exp">Push until someone gets it: repeat with something definitively dead. Brown
+        ground up rock dust, window glass, and — reportedly — a fragment of the Sphinx. Everything
+        jittered. Not life.</span></div>
+      <div class="beat">Make the epistemological point, because it recurs all semester: he had a
+      <strong>phenomenon</strong> and no <strong>mechanism</strong>, and was careful to publish the
+      first without inventing the second. It took Einstein until 1905 to supply the mechanism.</div>
+      <div class="ask">Why couldn’t Brown see what was hitting the pollen?
+        <span class="exp">Water molecules are ~0.3 nm; light microscopy bottoms out near 200 nm. He
+        was watching an object visibly shoved by things that are permanently invisible. A resolution
+        problem, not a physics problem.</span></div>
+      <div class="fig">
+        <svg viewBox="0 0 620 250" role="img" aria-label="Two panels: the mote's wandering path alone, and the same path with the bombarding molecules and impact arrows shown">
+          <defs>
+            <marker id="ahk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#f59e0b"/></marker>
+          </defs>
+          <!-- LEFT: Brown's view -->
+          <rect x="14" y="30" width="286" height="180" rx="4" fill="#0f172a" stroke="#334155" stroke-width="2"/>
+          <text class="lbls" fill="#e2e8f0" x="14" y="22">What Brown saw (1827)</text>
+          <path d="M70,180 L96,150 L84,120 L118,104 L104,74 L142,66 L168,88 L156,120 L196,132 L214,104"
+                fill="none" stroke="#a78bfa" stroke-width="2.2"/>
+          <circle cx="214" cy="104" r="9" fill="#ddd6fe" stroke="#c4b5fd" stroke-width="2"/>
+          <text class="lbls" fill="#94a3b8" x="34" y="198">nothing is touching it</text>
+          <!-- RIGHT: with the mechanism -->
+          <rect x="320" y="30" width="286" height="180" rx="4" fill="#f8fafc" stroke="#334155" stroke-width="2"/>
+          <text class="lbls ink" x="320" y="22">What is actually happening</text>
+          <g fill="#93c5fd">
+            <circle cx="352" cy="60" r="3"/><circle cx="396" cy="46" r="3"/><circle cx="444" cy="66" r="3"/>
+            <circle cx="500" cy="52" r="3"/><circle cx="556" cy="72" r="3"/><circle cx="340" cy="112" r="3"/>
+            <circle cx="384" cy="140" r="3"/><circle cx="470" cy="122" r="3"/><circle cx="536" cy="140" r="3"/>
+            <circle cx="356" cy="182" r="3"/><circle cx="424" cy="190" r="3"/><circle cx="492" cy="176" r="3"/>
+            <circle cx="574" cy="112" r="3"/><circle cx="410" cy="88" r="3"/><circle cx="586" cy="176" r="3"/>
+          </g>
+          <path d="M376,180 L402,150 L390,120 L424,104 L410,74 L448,66 L474,88 L462,120 L502,132 L520,104"
+                fill="none" stroke="#7c3aed" stroke-width="2.2" opacity=".55"/>
+          <circle cx="520" cy="104" r="9" fill="#7c3aed" stroke="#4c1d95" stroke-width="2"/>
+          <g stroke="#f59e0b" stroke-width="2">
+            <line x1="546" y1="82"  x2="530" y2="96"  marker-end="url(#ahk)"/>
+            <line x1="494" y1="86"  x2="510" y2="97"  marker-end="url(#ahk)"/>
+            <line x1="540" y1="130" x2="527" y2="114" marker-end="url(#ahk)"/>
+            <line x1="500" y1="128" x2="512" y2="114" marker-end="url(#ahk)"/>
+          </g>
+          <text class="lbls mut" x="340" y="198">~10¹³ impacts per second, from every side</text>
+          <!-- moral -->
+          <text class="lbls mut" x="310" y="238" text-anchor="middle">Same motion. The difference is only whether you can see the cause — water molecules are ~0.3 nm; light microscopy stops near 200 nm.</text>
+        </svg>
+        <div class="cap"><b>Board sketch —</b> draw the path first, ask what could possibly be moving it, <em>then</em> add the molecules. The reveal is the lesson.</div>
+      </div>
+      <div class="mod">Module Tab 2 §2.1 is exactly this, with a cheat Brown never had: a
+        <strong>show/hide molecules</strong> button. Hidden, it is his 1827 view — a speck wandering
+        with nothing touching it. Shown, every impact is drawn as an arrow.</div>
+    </div>
+
+    <div class="step">
+      <h3>2 · The drunkard — the one derivation today <span class="clock">15 min</span></h3>
+      <div class="board">Draw a horizontal line, a dot on it, steps of size \(\delta\) left and right.</div>
+      <div class="fig">
+        <svg viewBox="0 0 620 280" role="img" aria-label="A one-dimensional random walk: equal steps left or right, several trajectories fanning out, and the spreading distribution">
+          <defs>
+            <marker id="ahs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+          </defs>
+          <!-- the step rule -->
+          <line x1="150" y1="46" x2="470" y2="46" stroke="#94a3b8" stroke-width="2"/>
+          <circle cx="310" cy="46" r="8" class="hot"/>
+          <line x1="302" y1="46" x2="236" y2="46" stroke="#334155" stroke-width="2.2" marker-end="url(#ahs)"/>
+          <line x1="318" y1="46" x2="384" y2="46" stroke="#334155" stroke-width="2.2" marker-end="url(#ahs)"/>
+          <text class="lbl ink" x="266" y="34" text-anchor="middle">−δ</text>
+          <text class="lbl ink" x="356" y="34" text-anchor="middle">+δ</text>
+          <text class="lbls mut" x="310" y="70" text-anchor="middle">each step: 50 / 50, and it forgets the last one</text>
+          <!-- trajectories -->
+          <line x1="60" y1="170" x2="60" y2="100" stroke="#cbd5e1" stroke-width="1.5"/>
+          <line x1="60" y1="170" x2="60" y2="240" stroke="#cbd5e1" stroke-width="1.5"/>
+          <line x1="60" y1="170" x2="430" y2="170" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5 4"/>
+          <text class="lbls mut" x="46" y="174" text-anchor="end">start</text>
+          <path d="M60,170 L92,158 L124,170 L156,158 L188,146 L220,158 L252,146 L284,134 L316,146 L348,134 L380,122 L412,134"
+                fill="none" stroke="#2563eb" stroke-width="1.9"/>
+          <path d="M60,170 L92,182 L124,170 L156,182 L188,194 L220,182 L252,194 L284,206 L316,194 L348,206 L380,218 L412,206"
+                fill="none" stroke="#059669" stroke-width="1.9"/>
+          <path d="M60,170 L92,158 L124,146 L156,158 L188,170 L220,182 L252,170 L284,158 L316,170 L348,158 L380,170 L412,182"
+                fill="none" stroke="#d97706" stroke-width="1.9"/>
+          <!-- envelope -->
+          <path d="M60,170 Q236,120 412,104" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-dasharray="7 5"/>
+          <path d="M60,170 Q236,220 412,236" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-dasharray="7 5"/>
+          <text class="lbl" fill="#dc2626" x="420" y="102">+√(2Dt)</text>
+          <text class="lbl" fill="#dc2626" x="420" y="242">−√(2Dt)</text>
+          <text class="lbls mut" x="240" y="262" text-anchor="middle">time →</text>
+          <!-- the two statements -->
+          <rect x="452" y="128" width="156" height="44" rx="7" fill="#f8fafc" stroke="#cbd5e1"/>
+          <text class="lbl ink" x="530" y="146" text-anchor="middle">⟨x⟩ = 0</text>
+          <text class="lbls mut" x="530" y="164" text-anchor="middle">goes nowhere on average</text>
+          <rect x="452" y="182" width="156" height="44" rx="7" fill="#f0fdf4" stroke="#86efac"/>
+          <text class="lbl" fill="#14532d" x="530" y="200" text-anchor="middle">⟨x²⟩ = 2Dt</text>
+          <text class="lbls" fill="#166534" x="530" y="218" text-anchor="middle">but spreads, exactly</text>
+        </svg>
+        <div class="cap"><b>Board sketch —</b> draw three trajectories, not one: the fan is what makes “⟨x⟩ = 0 but they clearly spread” obvious. Add the dashed √t envelope last.</div>
+      </div>
+      <p>Summer 1905: Karl Pearson writes to <em>Nature</em> asking for help with “the problem of
+      the random walk” — a man takes \(N\) steps in random directions, where is he? Rayleigh answers
+      within weeks. It enters folklore as the <strong>drunkard’s walk</strong>.</p>
+      <div class="board"><span class="big">\(x_N = x_{N-1} \pm \delta\), each sign equally likely</span></div>
+      <div class="ask">What is \(\langle x_N\rangle\)?
+        <span class="exp">Zero — the + and − cancel. So by that measure he never goes anywhere. But
+        he clearly does spread out. <strong>The average position is the wrong question.</strong></span></div>
+      <div class="board">Square it instead:
+        <span class="big">\(x_N^2 = x_{N-1}^2 \pm 2\delta x_{N-1} + \delta^2\)</span>
+        <span class="big">Average — the cross-term dies → \(\langle x_N^2\rangle = \langle x_{N-1}^2\rangle + \delta^2\)</span>
+        <span class="big"><span class="boxed">\(\langle x^2\rangle = N\delta^2 = 2Dt\), &nbsp; \(D \equiv \delta^2/2\tau\)</span></span></div>
+      <div class="board">Then say the punchline slowly, and write it:
+        <span class="big"><strong>Distance grows like \(\sqrt{t}\), not \(t\).</strong></span></div>
+      <div class="ask">What does that do to travel time?
+        <span class="exp">Twice as far takes <em>four</em> times as long; ten times as far, a hundred
+        times as long. There is no speed you can quote for diffusion — the effective speed falls as
+        it goes.</span></div>
+      <p>Two warnings worth thirty seconds each, because they cost points later:</p>
+      <ul>
+        <li><b>Keep the brackets.</b> \(\langle x^2\rangle\) is an ensemble average. A <em>single</em>
+        trajectory’s \(x^2/2t\) scatters wildly and never settles. D lives in the average, not the
+        individual. <em>(The module lets them set walkers to 1 and watch the law fail to appear.)</em></li>
+        <li><b>Mind the dimension.</b> \(\langle r^2\rangle = 2Dt\) (1D), \(4Dt\) (2D), \(6Dt\) (3D)
+        — each axis is an independent walk. A microscope track is 2D; a molecule crossing a cell is
+        3D. <strong>HW1 grades this.</strong></li>
+      </ul>
+    </div>
+
+    <div class="step">
+      <h3>3 · The tyranny of \(L^2\) <span class="clock">18 min</span></h3>
+      <p>This is the heart of the course. Give it real time.</p>
+      <div class="board"><span class="big"><span class="boxed">\(t \approx L^2/6D\) &nbsp;(3D)</span></span></div>
+      <div class="fig">
+        <svg viewBox="0 0 620 230" role="img" aria-label="Concentric diffusion fronts showing that quadrupling the time only doubles the distance">
+          <g fill="none" stroke-width="2.4">
+            <circle cx="150" cy="118" r="34" stroke="#2563eb"/>
+            <circle cx="150" cy="118" r="68" stroke="#7c3aed"/>
+            <circle cx="150" cy="118" r="102" stroke="#dc2626"/>
+          </g>
+          <circle cx="150" cy="118" r="5" fill="#1e293b"/>
+          <text class="lbls" fill="#2563eb" x="150" y="90"  text-anchor="middle">t</text>
+          <text class="lbls" fill="#7c3aed" x="150" y="56"  text-anchor="middle">4t</text>
+          <text class="lbls" fill="#dc2626" x="150" y="22"  text-anchor="middle">9t</text>
+          <text class="lbls mut" x="150" y="214" text-anchor="middle">release point</text>
+          <!-- radii labels -->
+          <line x1="150" y1="118" x2="252" y2="118" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="4 3"/>
+          <text class="lbls mut" x="200" y="134" text-anchor="middle">3×</text>
+          <!-- the point -->
+          <rect x="292" y="34" width="312" height="60" rx="8" fill="#fffbeb" stroke="#fde68a"/>
+          <text class="lbl" fill="#78350f" x="306" y="56">Nine times the wait buys three times the distance.</text>
+          <text class="lbls" fill="#92400e" x="306" y="76">Diffusion decelerates: it has no speed, only a schedule.</text>
+          <!-- ladder -->
+          <text class="lbls ink" x="306" y="120">10 µm (a cell)</text>
+          <text class="lbls mut" x="596" y="120" text-anchor="end">~17 ms</text>
+          <line x1="306" y1="128" x2="596" y2="128" stroke="#e2e8f0" stroke-width="1.4"/>
+          <text class="lbls ink" x="306" y="148">1 mm (the wheal)</text>
+          <text class="lbls mut" x="596" y="148" text-anchor="end">~3 min</text>
+          <line x1="306" y1="156" x2="596" y2="156" stroke="#e2e8f0" stroke-width="1.4"/>
+          <text class="lbls" fill="#991b1b" x="306" y="176">1 m (ankle → brain)</text>
+          <text class="lbls" fill="#991b1b" x="596" y="176" text-anchor="end">~5 years</text>
+          <text class="lbls mut" x="306" y="200">100× the distance → 10 000× the time. This is why you have a bloodstream.</text>
+        </svg>
+        <div class="cap"><b>Board sketch —</b> three circles, radii in the ratio 1 : 2 : 3, labelled t, 4t, 9t. Drawing it beats saying it — the crowding of the rings <em>is</em> the √t law.</div>
+      </div>
+      <p>Take a small molecule, \(D \approx 10^{-9}\) m²/s in water, and build the ladder live —
+      each one is quick and the effect is cumulative:</p>
+      <table class="lad">
+        <tr><th>across a…</th><th>distance</th><th>time</th></tr>
+        <tr><td>synaptic cleft</td><td class="n">20 nm</td><td class="n">~70 ns</td></tr>
+        <tr><td>bacterium</td><td class="n">1 µm</td><td class="n">~0.2 ms</td></tr>
+        <tr><td>your cell</td><td class="n">10 µm</td><td class="n">~17 ms</td></tr>
+        <tr><td>the mosquito wheal</td><td class="n">1 mm</td><td class="n">~3 min</td></tr>
+        <tr class="punch"><td>ankle → brain</td><td class="n">1 m</td><td class="n">~5 years</td></tr>
+      </table>
+      <p>Let the last one sit.</p>
+      <div class="ask">What does that number tell you about your own body?
+        <span class="exp">That diffusion alone could not possibly run you. You have a circulatory
+        system <em>because</em> of the bottom row — and we do that properly in Weeks 9–10.</span></div>
+      <div class="ask">And why is a typical cell about 10 µm?
+        <span class="exp">Not a coincidence: roughly the largest package diffusion can service on a
+        useful timescale. Cells that must be bigger cheat — neurons use motors on cytoskeletal
+        tracks (Week 5), muscle fibres go multinucleate, large eggs stir themselves.</span></div>
+      <div class="beat">Bring it back to the bite: the wheal is about a millimetre, the table says
+      minutes, and the itch takes — minutes. <strong>You just predicted a physiological timescale
+      from a random walk.</strong> Name that explicitly; it’s the first time this course does
+      something predictive.</div>
+      <div class="mod">Module Tab 2 §2.4 has this as a map: a diffusion front expanding from the
+        bite past the cell, the wheal, the knee, with the “equivalent speed” visibly collapsing.</div>
+    </div>
+
+    <div class="step">
+      <h3>4 · Spreading vs finding <span class="clock">12 min</span></h3>
+      <p>One more turn of the screw, and it sets up everything in Part I. Everything so far answers
+      <em>how far does it get</em>. Biology usually needs the harder question:</p>
+      <div class="board"><span class="big"><span class="boxed"><strong>How long until it finds one particular place?</strong></span></span></div>
+      <p>Concrete cases: a transcription factor must find one ~10 bp site in a genome of \(10^9\)
+      bases; a neurotransmitter must find a receptor. None of them can steer.</p>
+      <div class="ask">Our drunkard leaves the bar and his house is four blocks away. He is not lost
+        — he just has no sense of direction. Roughly how many steps to get home?
+        <span class="exp">Take guesses; they will lowball badly. For a modest city it is
+        <em>hundreds to thousands</em> of steps for a four-block walk.</span></div>
+      <div class="board">Sketch a scribbled path re-crossing itself. <strong>He keeps re-walking
+        streets he has already walked.</strong> In 2D the mean search time grows roughly like
+        \(N\ln N\) in the number of corners — the logarithm is precisely the cost of revisiting.</div>
+      <div class="fig">
+        <svg viewBox="0 0 620 250" role="img" aria-label="A drunkard's meandering path across a city grid from the bar to his house, re-crossing itself many times, next to the short direct route">
+          <!-- grid -->
+          <g stroke="#e2e8f0" stroke-width="1.4">
+            <line x1="30" y1="30" x2="30" y2="190"/><line x1="70" y1="30" x2="70" y2="190"/>
+            <line x1="110" y1="30" x2="110" y2="190"/><line x1="150" y1="30" x2="150" y2="190"/>
+            <line x1="190" y1="30" x2="190" y2="190"/><line x1="230" y1="30" x2="230" y2="190"/>
+            <line x1="270" y1="30" x2="270" y2="190"/><line x1="310" y1="30" x2="310" y2="190"/>
+            <line x1="30" y1="30" x2="310" y2="30"/><line x1="30" y1="70" x2="310" y2="70"/>
+            <line x1="30" y1="110" x2="310" y2="110"/><line x1="30" y1="150" x2="310" y2="150"/>
+            <line x1="30" y1="190" x2="310" y2="190"/>
+          </g>
+          <!-- the direct route -->
+          <path d="M70,190 L70,110 L190,110" fill="none" stroke="#059669" stroke-width="3.5" opacity=".9"/>
+          <text class="lbls" fill="#047857" x="150" y="212">green = sober route, 5 blocks</text>
+          <!-- the drunkard's path, re-crossing -->
+          <path d="M70.0,190.0 L108.4,186.9 L111.4,146.2 L70.3,148.8 L66.0,190.1 L25.8,189.4 L26.1,146.3 L29.3,192.9 L26.6,147.5 L31.1,194.0 L30.7,149.1 L74.3,145.9 L113.2,148.1 L146.8,146.6 L188.3,152.8 L227.1,150.7 L231.3,108.9 L230.4,146.1 L226.0,107.4 L271.6,109.3 L228.3,110.8 L229.6,68.2 L272.6,71.8 L227.7,70.7 L270.2,73.4 L272.1,108.1 L314.3,106.6 L309.3,72.3 L306.9,29.9 L305.9,71.5 L312.4,30.7 L273.4,28.3 L311.8,30.8 L310.7,69.6 L313.1,34.0 L269.8,31.5 L306.0,31.8 L311.3,74.4 L272.9,68.1 L309.0,71.5 L305.7,109.7 L307.0,66.6 L306.0,32.4 L266.7,27.7 L309.0,33.3 L266.2,29.5 L310.4,33.5 L272.9,33.3 L268.0,69.2 L268.7,113.5 L234.1,106.9 L227.1,147.6 L227.6,109.9 L270.8,107.9 L225.5,109.3 L190.0,110.0"
+                fill="none" stroke="#7c3aed" stroke-width="1.9" opacity=".72"
+                stroke-linejoin="round" stroke-linecap="round"/>
+          <!-- endpoints -->
+          <circle cx="70" cy="190" r="7" fill="#d97706"/>
+          <svg class="hi" x="54" y="199" style="font-size:11px;color:#92400e"><use href="#hi-beer"/></svg><text class="lbls" fill="#92400e" x="67" y="208">bar</text>
+          <circle cx="190" cy="110" r="8" fill="#dc2626"/>
+          <svg class="hi" x="196" y="93" style="font-size:11px;color:#991b1b"><use href="#hi-home"/></svg><text class="lbls" fill="#991b1b" x="210" y="102">home</text>
+          <!-- commentary -->
+          <text class="lbl ink" x="346" y="52">He is not lost.</text>
+          <text class="lbls mut" x="346" y="74">Home is four blocks away and he</text>
+          <text class="lbls mut" x="346" y="92">is usually near it the whole time.</text>
+          <text class="lbls mut" x="346" y="110">He simply cannot <tspan font-style="italic">aim</tspan>.</text>
+          <rect x="346" y="128" width="250" height="46" rx="7" fill="#f5f3ff" stroke="#ddd6fe"/>
+          <text class="lbls" fill="#5b21b6" x="358" y="148">measured in the module (15×15):</text>
+          <text class="lbl" fill="#4c1d95" x="358" y="166">471 steps for ~11 blocks</text>
+          <text class="lbls mut" x="346" y="196">55 steps here; 38 of them re-tread a corner —</text>
+          <text class="lbls mut" x="346" y="214">that waste <tspan font-style="italic">is</tspan> the search cost.</text>
+        </svg>
+        <div class="cap"><b>Board sketch —</b> draw the green direct route first, then scribble the purple one over it until the class laughs. The visual contrast does the whole argument.</div>
+      </div>
+      <div class="mod">Module Tab 2 §2.5 runs this, with a live histogram of steps-to-home. Measured:
+        <strong>103 / 471 / 1033 steps</strong> on 7×7, 15×15, 27×27 grids — doubling the city costs
+        ~4.6×, not 2×. A nudge toward home of 0.2 collapses 471 steps to 59.</div>
+      <div class="beat">The biological moral: <strong>a faint sense of direction beats blind search
+      enormously.</strong> That is why chemotaxis exists, and it is where Weeks 3–5 go.</div>
+    </div>
+
+    <div class="step">
+      <h3>5 · What we still cannot do — the bridge <span class="clock">7 min</span></h3>
+      <p>Close by being honest about the hole in the week.</p>
+      <div class="ask">Every number today came from \(D\). Where did I get \(D\)?
+        <span class="exp">From a table. We have not derived it once.</span></div>
+      <div class="board">Leave these two up:
+        <span class="big">1. What sets \(D\)? — Einstein, 1905: \(D = k_BT/6\pi\eta a\)</span>
+        <span class="big">2. What about gradients and encounters? — Fick &amp; Smoluchowski · <strong>Week 2</strong></span></div>
+      <p>Preview #1 in words only, because it is beautiful and takes ten seconds: the same
+      collisions that <em>push</em> a particle around also <em>resist</em> it when it tries to move.
+      Diffusion and drag are the same phenomenon seen from two sides, so they cannot be independent
+      — and forcing them to agree gives you \(D\) from nothing but temperature, viscosity and size.
+      Note \(k_BT\) on top (everything diffuses, for free) and size and stickiness underneath (that
+      is the price).</p>
+      <div class="beat">The practical consequence: once you have \(D\), today’s step-counting
+      becomes a stopwatch. The drunkard’s 471 steps become 471 × (seconds per step), and the
+      transcription factor’s search becomes a number you can compare against how fast genes actually
+      switch on.</div>
+      <div class="beat"><strong>Assign:</strong> module Tabs 2 and 3 before Tuesday.
+      <strong>HW1 goes out next week</strong> — warn them now that it works differently from any
+      homework they’ve had: nobody gives them \(D\); they measure it, four different ways, from data
+      seeded to their own course ID.</div>
+    </div>
+
+  </div>
+</section>
+
+<div class="card" id="miscon">
+  <h2>Misconceptions to hunt (both sessions)</h2>
+  <ul>
+    <li><b>“Heavier molecules are colder.”</b> No — at the same temperature every species carries
+    the same average energy. Heavy means <em>slow</em>, not cold. Module §1.2 makes this visible:
+    bath and tracer read the same \(\langle KE\rangle/k_BT\) while their speeds differ by an order
+    of magnitude.</li>
+    <li><b>“Diffusion has a speed.”</b> It does not. Quote D, or a time to cross a stated distance.
+    Any µm/s figure is meaningless without the distance it was measured over.</li>
+    <li><b>“Brownian motion is caused by currents / vibration / the pump down the hall.”</b> Brown’s
+    rock-dust control is the answer, and it is why the story is worth telling.</li>
+    <li><b>“⟨x⟩ = 0 means nothing happens.”</b> The mean is zero; the <em>spread</em> is not. Average
+    of the square, not square of the average — the same move that made pressure work on Tuesday.</li>
+    <li><b>“Molecules aim at their target.”</b> Nothing in Part I steers. Everything is found by
+    accident, and biology’s job is to make the accident likely enough.</li>
+  </ul>
+</div>
+
+<div class="card" id="short">
+  <h2>If you are running short</h2>
+  <ul>
+    <li><b>Session 1:</b> cut the Maxwell–Boltzmann aside and the breath calculation. <strong>Do not
+    cut</strong> \(k_BT = 4.3\) pN·nm — the rest of the semester leans on it.</li>
+    <li><b>Session 2:</b> cut the search/drunkard section (§4) and fold one sentence of it into the
+    Week 2 opener. <strong>Do not cut</strong> the \(L^2\) ladder; it is the payoff of the week.</li>
+  </ul>
+  <h2 style="margin-top:16px">Board state to leave up</h2>
+  <p>End Session 2 with these still written, if the room allows:</p>
+  <div class="board"><span class="big">\(k_BT \approx 4.3\ \mathrm{pN\cdot nm}\) &nbsp;·&nbsp;
+    \(\langle r^2\rangle = 2dDt\) &nbsp;·&nbsp; \(t \approx L^2/6D\) &nbsp;·&nbsp;
+    the two open questions from §5</span></div>
+  <p>Week 2 opens by erasing the second one.</p>
+</div>
+
+<div class="card" id="xref">
+  <h2>Board ↔ module cross-reference</h2>
+  <table class="xref">
+    <tr><th>Board section</th><th>Module</th><th>Simulation?</th></tr>
+    <tr><td>S1 §1 mosh pit</td><td>Tab 1 §1.1</td><td class="yes">yes — gas box + wall pressure meter</td></tr>
+    <tr><td>S1 §2 pressure derivation</td><td>Tab 1 §1.4</td><td class="yes">yes — one-molecule gauge, eq. 2–8</td></tr>
+    <tr><td>S1 §3–4 gas law, \(k_BT\)</td><td>Tab 1 §1.2–1.3</td><td class="yes">yes — tracer in a bath, piston/isotherm</td></tr>
+    <tr><td>S2 §1 Brown 1827</td><td>Tab 2 §2.1</td><td class="yes">yes — dust mote, show/hide molecules</td></tr>
+    <tr><td>S2 §2 the walk</td><td>Tab 2 §2.3</td><td class="yes">yes — 1D walkers, ⟨x⟩ vs ⟨x²⟩</td></tr>
+    <tr><td>S2 §3 the \(L^2\) ladder</td><td>Tab 2 §2.4</td><td class="yes">yes — diffusion front on a body map</td></tr>
+    <tr><td>S2 §4 search</td><td>Tab 2 §2.5</td><td class="yes">yes — drunkard’s homecoming</td></tr>
+    <tr><td>S2 §5 Stokes–Einstein</td><td>Tab 3</td><td class="no">not yet — written preview only</td></tr>
+  </table>
+
+  <h2 style="margin-top:18px">Provenance &amp; two corrections</h2>
+  <p>Board content follows F25 Lecture 1 pp. 3–8 and keeps its equation numbering where the module
+  uses it. Parameter values are cited in the module’s Sources panel (Einstein 1905, Kestin 1978,
+  Luby-Phelps 2000, Milo &amp; Phillips 2015).</p>
+  <div class="warn"><strong>Two corrections to the F25 notes — already applied in the module. Do not
+  re-teach the old versions.</strong>
+    <ol style="margin:8px 0 0 20px">
+      <li>The F25 constants box lists “\(D_{gas} = 10^{-9}\) m²/s.” That is <em>dissolved</em> gas in
+      water. A gas molecule diffusing in <strong>air</strong> is ~10⁴× faster (~\(2\times10^{-5}\)
+      m²/s). If you use the perfume-across-the-room example, use the air value or the estimate comes
+      out wrong.</li>
+      <li>F25 eq. 13 writes drag as \(F = \zeta v_{rms}\). Drag opposes whatever velocity the
+      particle actually has: \(F = \zeta v\). \(v_{rms}\) belongs to Tuesday’s energy accounting, not
+      to the drag law. This matters when you reach Stokes–Einstein.</li>
+    </ol>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  BME/AME 466/566 Biomechanics · University of Arizona · McGhee Lab · instructor board notes, Week 1.<br>
+  Markdown source of truth: <code>F26Course/part1-molecular/L01-mass-transport/W01-NOTES.md</code>
+</footer>
+
+<script>/* marker icons for the ask / live / module blocks (were ::before emoji) */
+document.querySelectorAll('.ask').forEach(function(el){el.insertAdjacentHTML('afterbegin',HI.svg('question-mark-circle',{cls:'mk'}));});
+document.querySelectorAll('.live').forEach(function(el){el.insertAdjacentHTML('afterbegin',HI.svg('bolt',{cls:'mk'}));});
+document.querySelectorAll('.mod').forEach(function(el){el.insertAdjacentHTML('afterbegin',HI.svg('play',{cls:'mk'}));});
+</script>
+</body>
+</html>

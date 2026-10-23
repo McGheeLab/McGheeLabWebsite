@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
   <style>
     .api-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px}
     .api-status{font-size:12px;color:var(--text-muted);flex:1 1 auto;min-width:200px}
@@ -108,7 +109,7 @@
       <div class="tr-actions">
         <span class="muted" style="font-size:12px">Every email you hand-categorize on the Email page is added here and (re)trains the in-browser model that guesses categories.</span>
         <span style="flex:1"></span>
-        <a class="btn" href="/rm/pages/classifier-settings.html">⚙ Tune weights &amp; transparency</a>
+        <a class="btn" href="/rm/pages/classifier-settings.html"><i data-hi="cog-6-tooth"></i> Tune weights &amp; transparency</a>
         <button class="btn" id="btn-clf-reload">Reload</button>
       </div>
       <div id="clf-body"><div class="muted">Loading…</div></div>

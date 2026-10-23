@@ -7,6 +7,9 @@
   <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
+  <!-- V3.645 — inventory picker popover, reused by the Values page. -->
+  <link rel="stylesheet" href="/rm/css/inventory-picker.css">
   <link rel="stylesheet" href="/rm/css/paper-editor.css">
   <link rel="stylesheet" href="/rm/css/paper-doc-view.css">
   <!-- V3.609 — 🧭 Figure board planning canvas (editor-mode pill page). -->
@@ -32,13 +35,14 @@
       /* Pill PAGES — the former side-panel tabs are full editor pages:
        * ?paper=<id>&page=guide|equations|figures|tables|references.
        * Absent/unknown = 'write' (the doc editor). */
-      var PAGES = ['guide', 'equations', 'symbols', 'figures', 'figure-board', 'tables', 'references', 'grant-docs'];
+      var PAGES = ['guide', 'equations', 'symbols', 'values', 'figures', 'figure-board', 'tables', 'references', 'grant-docs'];
       var page = qp.get('page');
       if (PAGES.indexOf(page) < 0) page = 'write';
       window.__PAPER_PAGE = page;
       var PAGE_TITLES = {
         write: 'Paper Editor', guide: 'Writing Guide — Paper Editor',
         equations: 'Equations — Paper Editor', symbols: 'Math Symbols — Paper Editor',
+        values: 'Value Keys — Paper Editor',
         figures: 'Figure Editor',
         'figure-board': 'Figure Board — Paper Editor',
         tables: 'Tables — Paper Editor', references: 'References — Paper Editor',
@@ -69,8 +73,12 @@
     <div class="page-header">
       <h1 class="page-title">Papers</h1>
       <div>
-        <!-- V3.47x — import a portable paper bundle (.paperbundle.zip). -->
-        <button class="btn" id="pb-import-btn" title="Import a paper bundle (.paperbundle.zip) exported from the paper editor">📥 Import paper</button>
+        <!-- V3.741 — check a paper out as a .paperbundle.zip (locks it until the
+             bundle is imported back). Label + icon filled by paper-builder.js. -->
+        <button class="btn" id="pb-checkout-btn" title="Export a paper for updates — downloads its .paperbundle.zip and locks the paper until the bundle is imported back">Export for updates</button>
+        <!-- V3.47x — import a portable paper bundle (.paperbundle.zip).
+             V3.742 — a bundle carrying a `checkout` block updates its paper in place. -->
+        <button class="btn" id="pb-import-btn" title="Import a paper bundle (.paperbundle.zip) — a checked-out bundle updates its paper in place"><i data-hi="arrow-down-tray"></i> Import paper</button>
         <input type="file" id="pb-import-file" accept=".zip,application/zip" hidden>
         <button class="btn btn-primary" id="pb-new-paper-btn">+ New paper</button>
       </div>
@@ -151,7 +159,7 @@
            association pill for this draft inactive (LIBRARY_ASSOC). -->
       <select class="pe-status-select" id="pe-status" title="Paper status" disabled></select>
       <div class="pe-savestate" id="pe-savestate"></div>
-      <button class="rm-mobile-drawer-toggle pe-mobile-toggle" id="pe-mobile-right-toggle" type="button" aria-label="Open comments pane">💬 Comments<span class="rm-mobile-drawer-toggle-badge" id="pe-mobile-right-toggle-badge" hidden>0</span></button>
+      <button class="rm-mobile-drawer-toggle pe-mobile-toggle" id="pe-mobile-right-toggle" type="button" aria-label="Open comments pane"><i data-hi="chat-bubble-left-right"></i> Comments<span class="rm-mobile-drawer-toggle-badge" id="pe-mobile-right-toggle-badge" hidden>0</span></button>
     </div>
     <!-- V3.120 — pill-tab bar + global toolbar live persistently between
          the topbar and the editor layout. paper-equations.js populates
@@ -317,6 +325,15 @@
         // contract as the guide: loaded before paper-equations so
         // window.PaperSymbols exists when _refreshPanel mounts it.
         '/rm/js/paper-symbols.js',
+        // V3.645 — inventory index + searchable picker, reused by
+        // paper-values.js for [@item:KEY] rather than adding a fourth
+        // copy of the same popover (see protocol-inventory.js's header).
+        '/rm/js/protocol-inventory.js',
+        // V3.645 — 🔑 Values page: per-paper value keys ([!val:KEY]) and
+        // inventory refs ([@item:KEY]). Same lazy-scaffold contract as
+        // the guide; before paper-equations so window.PaperValues exists
+        // when _refreshPanel mounts it.
+        '/rm/js/paper-values.js',
         // V3.468 — grant submission checklist (mounted by paper-grant-docs
         // into the Grant Docs page). Loaded before it so the mount hook
         // finds window.PaperGrantChecklist.

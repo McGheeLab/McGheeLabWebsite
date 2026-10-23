@@ -932,7 +932,7 @@
         title="${esc(p.name)}${state === 'failed' ? ' (connection failed)' : ''}">
         <span class="vc-avatar">${esc(initial)}</span>
         <span class="vc-tile-name">${esc(p.uid === _uid ? 'You' : p.name)}</span>
-        ${p.muted ? '<span class="vc-muted-icon" title="Muted">🔇</span>' : ''}
+        ${p.muted ? '<span class="vc-muted-icon" title="Muted">' + ICON.svg('speaker-x-mark') + '</span>' : ''}
       </div>`;
     }).join('');
 
@@ -945,9 +945,9 @@
       <div class="vc-tiles">${tiles}</div>
       <div class="vc-controls">
         <button class="vc-btn${_muted ? ' vc-btn--active' : ''}" data-vc-action="mute">
-          ${_muted ? '🔇 Unmute' : '🎙 Mute'}
+          ${_muted ? ICON.svg('speaker-x-mark') + ' Unmute' : ICON.svg('microphone') + ' Mute'}
         </button>
-        <button class="vc-btn vc-btn--danger" data-vc-action="leave">📞 Leave</button>
+        <button class="vc-btn vc-btn--danger" data-vc-action="leave">${ICON.svg('phone')} Leave</button>
       </div>`;
   }
 

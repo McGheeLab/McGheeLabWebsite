@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V3.847 camera-first scanner selftest</title>
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<script src="/rm/js/icons.js"></script>
+<script src="/rm/js/app-sheet.js"></script>
+<script src="/rm/js/label-id.js"></script>
+<script src="/rm/js/scan.js"></script>
+<style> #r { font-family: ui-monospace, Menlo, monospace; font-size: 12px; white-space: pre-wrap; padding: 12px; } </style>
+</head>
+<body>
+<p>Serve the repo root (<code>python3 -m http.server 8778</code>) and open <code>/scripts/tests/v3847-camera-first-selftest.html</code>. The real scan.js sheet: default = the typed field first; <code>cameraFirst</code> = the camera starts and the field hides. Headless Chromium has no camera, so the start fails into the status line — the shape is what is asserted. Result: <code>#r[data-done=1]</code>.</p>
+<div id="r"></div>
+<script>
+(async function () {
+  var r = document.getElementById('r'); var pass = 0, fail = 0;
+  function ok(name) { pass++; r.textContent += 'ok    ' + name + '\n'; }
+  function bad(name, d) { fail++; r.textContent += 'FAIL  ' + name + (d ? '  → ' + d : '') + '\n'; }
+  function eq(got, want, name) { var g = JSON.stringify(got), w = JSON.stringify(want); if (g === w) ok(name); else bad(name, 'got ' + g + ' want ' + w); }
+  function tick(ms) { return new Promise(function (res) { setTimeout(res, ms || 30); }); }
+  function $(q) { return document.querySelector(q); }
+  try {
+    var cam = SCAN.cameraAvailable();
+    eq(cam.ok, true, 'this origin can ask for a camera (secure context + mediaDevices)');
+
+    // 1 — the default sheet (desktop, USB wedge): field first, camera behind a button
+    SCAN.open({ prompt: 'Scan', onResult: function () {} }); await tick();
+    eq(!!$('.scn-field') && !$('.scn-field').hidden, true, 'default: the typed field shows');
+    eq(!!$('.scn-cam') && !$('.scn-type'), true, 'default: "Use the camera" button, no "Type the code instead"');
+    eq($('.scn-wrap').textContent.indexOf('A USB barcode scanner works here too') >= 0, true, 'default: the wedge hint');
+    SCAN.close(); await tick();
+    eq(!$('.scn-wrap'), true, 'closed');
+
+    // 2 — cameraFirst: the camera is the sheet; no field, no wedge hint, a "Type the code instead" link
+    SCAN.open({ prompt: 'Scan', cameraFirst: true, onResult: function () {} }); await tick();
+    eq(!!$('.scn-wrap.scn-camfirst'), true, 'cameraFirst sheet');
+    eq($('.scn-field').hidden, true, 'the typed field is hidden');
+    eq(!$('.scn-cam') && !!$('.scn-type'), true, 'no "Use the camera" button; "Type the code instead" instead');
+    eq($('.scn-wrap').textContent.indexOf('A USB barcode scanner works here too') < 0, true, 'no wedge hint');
+    eq(document.activeElement !== $('.scn-in'), true, 'the field is not focused (no keyboard pops up)');
+    await tick(1500);   // the start attempt: headless has no camera → the status says so
+    var st = ($('.scn-status') || {}).textContent || '';
+    eq(st.length > 0, true, 'the camera start reported into the status line: ' + st.slice(0, 60));
+    $('.scn-type').click(); await tick();
+    eq($('.scn-field').hidden === false && !$('.scn-type'), true, '"Type the code instead" reveals the field');
+    eq(document.activeElement === $('.scn-in'), true, '… and focuses it');
+    SCAN.close(); await tick();
+    eq(!$('.scn-wrap'), true, 'closed again, camera torn down');
+    eq(SCAN._tracksStopped() >= 0, true, 'teardown counter readable');
+
+    // 3 — cameraFirst without a camera falls back to the default shape
+    localStorage.setItem('rm.scan.forceCamera', '0');
+    var realMD = navigator.mediaDevices;
+    Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true });
+    SCAN.open({ prompt: 'Scan', cameraFirst: true, onResult: function () {} }); await tick();
+    eq(!$('.scn-field').hidden && !$('.scn-type') && !$('.scn-cam'), true, 'no camera at all → the field, no camera buttons');
+    SCAN.close(); Object.defineProperty(navigator, 'mediaDevices', { value: realMD, configurable: true });
+  } catch (e) { bad('threw', e && (e.stack || e.message)); }
+  r.setAttribute('data-pass', pass); r.setAttribute('data-fail', fail); r.setAttribute('data-done', '1');
+  r.textContent += '\n' + pass + ' passed, ' + fail + ' failed';
+})();
+</script>
+</body>
+</html>

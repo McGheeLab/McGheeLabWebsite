@@ -34,8 +34,9 @@
 
   /* V3.583 — is the signed-in user actually allowed to touch the capture
    * queue? firestore.rules gates pending_captures on isExtensionMember():
-   * admin, or an email listed in labConfig/extensionMembers. That list is
-   * currently EMPTY, so every student's library page opened with
+   * admin, (V3.858) any lab member — role != 'guest' — or an email listed
+   * in labConfig/extensionMembers. That list was EMPTY for the first six
+   * months, so every student's library page opened with
    * "pending_captures read failed: Missing or insufficient permissions" —
    * once on load and again on every window refocus. The read was always
    * going to be denied, and the error had nothing to do with whatever the
@@ -61,6 +62,12 @@
       if (!user) return false;
       try {
         if (typeof firebridge !== 'undefined' && firebridge.isAdmin && firebridge.isAdmin()) {
+          return true;
+        }
+        // V3.858 — every lab member may capture; without this the sync
+        // would never run for them and their captures would sit in
+        // pending_captures forever, never reaching the library.
+        if (typeof firebridge !== 'undefined' && firebridge.isLabMember && firebridge.isLabMember()) {
           return true;
         }
       } catch (e) { /* fall through to the allowlist read */ }

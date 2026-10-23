@@ -190,7 +190,7 @@
       if (!u || !u.uid) return;
 
       var bucketCat = bucket && bucket.category ? String(bucket.category) : '';
-      if (!bucketCat) return;
+      if (!bucketCat) { recordPlainDoneSignal(bucket, st); return; }
       var subPath = bucket && bucket.sub_category
         ? String(bucket.sub_category).split(':').filter(function (p) { return !!p; })
         : [];
@@ -198,7 +198,11 @@
 
       // Resolve hours + dates — explicit opts beat schema fields beat defaults.
       var hours = (opts && opts.hours != null) ? Number(opts.hours) : Number(st.hours_estimate) || 0;
-      if (!isFinite(hours) || hours <= 0) return;
+      // V3.626 — a completion with no hours estimate used to vanish from the
+      // activity record entirely; now it still lands as a plain work event
+      // (the PMR ledger/presence view needs "did something" even when the
+      // student never fills in hours).
+      if (!isFinite(hours) || hours <= 0) { recordPlainDoneSignal(bucket, st); return; }
 
       var dates = (opts && Array.isArray(opts.dates) && opts.dates.length) ? opts.dates.slice()
                 : (Array.isArray(st.worked_on_dates) && st.worked_on_dates.length) ? st.worked_on_dates.slice()
@@ -294,6 +298,28 @@
     } catch (err) { console.warn('[tasks-buckets] pingScheduleForSubtask failed:', err); }
   }
 
+  /* V3.626 — the no-hours fallback: a lightweight ActivitySignals work
+     event so completing a task always leaves a trace (PMR activity /
+     presence strips). Deterministic id (auto-subtask-done-<id>-<date>)
+     keeps re-fires idempotent; never fires when the hours flow already
+     wrote a real entry (callers guard). Fire-and-forget. */
+  function recordPlainDoneSignal(bucket, st) {
+    try {
+      if (!window.ActivitySignals || !st || !st.id) return;
+      var cat = bucket && bucket.category ? String(bucket.category) : '';
+      var subPath = bucket && bucket.sub_category
+        ? String(bucket.sub_category).split(':').filter(function (p) { return !!p; })
+        : [];
+      window.ActivitySignals.recordWork({
+        source: 'rm-task',
+        sourceRef: { kind: 'subtask-done', id: st.id, path: 'tasks/buckets/' + ((bucket && bucket.id) || '') + '/' + st.id },
+        date: (st.done_at || '').slice(0, 10) || undefined,
+        text: 'Completed: ' + (st.text || '(subtask)'),
+        categoryPath: cat ? [cat].concat(subPath) : [],
+      }).catch(function () {});
+    } catch (err) { /* never let a signal break completion */ }
+  }
+
   /* Dispatch a just-completed subtask through the tracker pipeline.
      Caller is responsible for having ALREADY mutated st.done = true and
      called scheduleSave/render — this is a follow-up that may either
@@ -315,8 +341,11 @@
         st.done_at = null;
         if (typeof scheduleSave === 'function') scheduleSave();
         render();
+      } else if (result.action === 'skip') {
+        // V3.626 — declining to log hours still leaves the plain
+        // "completed" event, so the work stays visible on the PMR.
+        recordPlainDoneSignal(bucket, st);
       }
-      // 'skip' → leave as done, no tracker entry written.
     } catch (err) {
       console.warn('[tasks-buckets] completion modal failed:', err);
     }
@@ -355,7 +384,7 @@
       card.innerHTML =
         '<div class="tlog-head">' +
           '<h3>Log time to activity tracker</h3>' +
-          '<button class="tlog-x" type="button" title="Cancel">×</button>' +
+          '<button class="tlog-x" type="button" title="Cancel">' + ICON.svg('x-mark') + '</button>' +
         '</div>' +
         '<p class="tlog-subtitle">' + escapeHtml(title) + '</p>' +
         '<div class="tlog-row">' +
@@ -690,7 +719,9 @@
   const root = () => document.getElementById('dash-content');
 
   // V3.534 — retirement flag: the add workspace grows a "compose in My
-  // Day" banner when labConfig/featureFlags.myday_retire_task_add flips.
+  // Week" banner when labConfig/featureFlags.myday_retire_task_add flips.
+  // NB: the flag key keeps its myday_ spelling — it is a stored
+  // labConfig/featureFlags field and was not migrated (V3.638).
   let _mydayFlags = null;
   function ensureMydayFlags() {
     if (_mydayFlags !== null || !window.DAY_DISTRIBUTE) return;
@@ -725,9 +756,9 @@
     wrap.className = 'buk-layout' + (state.selectedNode ? ' has-detail' : '');
     if (window.__TASKS_TAB === 'add' && _mydayFlags && _mydayFlags.myday_retire_task_add) {
       const banner = document.createElement('a');
-      banner.href = '/rm/pages/my-day.html?compose=1&type=task';
+      banner.href = '/rm/pages/my-week.html?compose=1&type=task';
       banner.style.cssText = 'display:block;flex-basis:100%;text-decoration:none;border:1px dashed #d1d5db;border-radius:10px;padding:.6rem 1rem;margin-bottom:8px;text-align:center;color:inherit';
-      banner.innerHTML = '☀️ New tasks are composed in <strong>My Day</strong> → <span style="opacity:.65">(this workspace stays for organizing what exists)</span>';
+      banner.innerHTML = ICON.svg('sun') + ' New tasks are composed in <strong>My Week</strong> → <span style="opacity:.65">(this workspace stays for organizing what exists)</span>';
       wrap.appendChild(banner);
     }
     wrap.appendChild(renderTaskBuildersCol());
@@ -875,7 +906,7 @@
     row.appendChild(when);
     const restore = document.createElement('button');
     restore.type = 'button';
-    restore.textContent = '↶ restore';
+    ICON.label(restore, 'arrow-uturn-left', ' restore');
     restore.title = 'Move this bucket back to the active list';
     restore.style.cssText = 'font-size:10px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;background:#fff;cursor:pointer;color:#374151';
     restore.addEventListener('click', () => {
@@ -1097,7 +1128,7 @@
 
     const head = document.createElement('div');
     head.className = 'buk-accordion-head tb-suggested-head';
-    head.innerHTML = `<span class="buk-caret">${collapsed ? '▸' : '▾'}</span>`;
+    head.innerHTML = `<span class="buk-caret">${ICON.svg(collapsed ? 'chevron-right' : 'chevron-down')}</span>`;
     const title = document.createElement('span');
     title.className = 'buk-accordion-title';
     const catList = [...cats].map(c => CAT_LABEL[c] || c).join(', ');
@@ -1270,7 +1301,7 @@
     };
     const offerOpt = document.createElement('div');
     offerOpt.className = 'pin-opt';
-    offerOpt.textContent = '📋 Offer to market…';
+    ICON.label(offerOpt, 'clipboard-document-list', ' Offer to market…');
     offerOpt.addEventListener('click', () => {
       closePinMenu();
       TASK_MARKET.openComposer(Object.assign({ kind: 'offer', heading: 'Offer this task to the lab' }, prefillBase));
@@ -1279,7 +1310,7 @@
 
     const helpOpt = document.createElement('div');
     helpOpt.className = 'pin-opt';
-    helpOpt.textContent = '🤝 Ask a teammate for help…';
+    ICON.label(helpOpt, 'user-group', ' Ask a teammate for help…');
     helpOpt.addEventListener('click', () => {
       closePinMenu();
       TASK_MARKET.openComposer(Object.assign({
@@ -1300,7 +1331,7 @@
     acc.className = 'buk-accordion' + (expanded ? '' : ' collapsed');
     const head = document.createElement('div');
     head.className = 'buk-accordion-head';
-    head.innerHTML = `<span class="buk-caret">${expanded ? '▾' : '▸'}</span>`;
+    head.innerHTML = `<span class="buk-caret">${ICON.svg(expanded ? 'chevron-down' : 'chevron-right')}</span>`;
     if (bucket.category) {
       const chip = document.createElement('span');
       chip.className = 'buk-cat-chip';
@@ -1334,7 +1365,7 @@
     if (r.open === 0 && r.done > 0 && !bucket.archived) {
       const mark = document.createElement('button');
       mark.type = 'button';
-      mark.textContent = '✓ Mark complete';
+      ICON.label(mark, 'check', ' Mark complete');
       mark.title = 'Archive this bucket — every subtask is done.';
       mark.style.cssText = 'font-size:11px;padding:3px 8px;border:1px solid #16a34a;color:#fff;background:#16a34a;border-radius:4px;cursor:pointer;font-weight:600;margin-left:6px';
       mark.addEventListener('click', (ev) => {
@@ -1460,7 +1491,7 @@
     if (!st.done) {
       const complete = document.createElement('button');
       complete.className = 'btn btn-primary btn-sm';
-      complete.textContent = '✓ Mark complete';
+      ICON.label(complete, 'check', ' Mark complete');
       complete.addEventListener('click', () => {
         st.done = true;
         st.done_at = isoNow();
@@ -1476,7 +1507,7 @@
     } else {
       const undo = document.createElement('button');
       undo.className = 'btn btn-primary btn-sm';
-      undo.textContent = '↶ Undo completion';
+      ICON.label(undo, 'arrow-uturn-left', ' Undo completion');
       undo.addEventListener('click', () => {
         st.done = false; st.done_at = null;
         scheduleSave(); render();
@@ -1673,7 +1704,7 @@
     pmrBtn.style.background = '#f5f3ff';
     pmrBtn.style.borderColor = '#c4b5fd';
     pmrBtn.style.color = '#5b21b6';
-    pmrBtn.textContent = '＋ PMR';
+    ICON.label(pmrBtn, 'plus', ' PMR');
     pmrBtn.title = 'Add this task to the current week of your PMR';
     pmrBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -1841,7 +1872,7 @@
     pane.className = 'buk-detail';
     const close = document.createElement('button');
     close.className = 'buk-detail-close';
-    close.textContent = '×';
+    ICON.label(close, 'x-mark');
     close.addEventListener('click', () => { state.selectedNode = null; render(); });
     pane.appendChild(close);
 
@@ -2035,10 +2066,10 @@
   function evidenceChip(kind, id, onRemove) {
     const c = document.createElement('span');
     c.className = 'ev-item';
-    const label = kind === 'email_ids' ? '📧' : kind === 'event_ids' ? '📅' : '📦';
+    const label = ICON.svg(kind === 'email_ids' ? 'envelope' : kind === 'event_ids' ? 'calendar-days' : 'cube');
     c.innerHTML = `${label} <code style="font-family:inherit">${escapeHtml(id.slice(0, 12))}</code>`;
     const x = document.createElement('button');
-    x.textContent = '×';
+    ICON.label(x, 'x-mark');
     x.title = 'Unlink';
     x.addEventListener('click', onRemove);
     c.appendChild(x);

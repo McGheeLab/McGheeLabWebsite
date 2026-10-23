@@ -74,26 +74,26 @@ window.McgheeLab = window.McgheeLab || {};
   // must go server-side).
   const IMPORT_FN_URL = 'https://us-central1-mcgheelab-f56cc.cloudfunctions.net/chatImportSlackHistory';
   const EMOJI_SET = [
-    { key: 'thumbsup', label: '👍' },
-    { key: 'thumbsdown', label: '👎' },
-    { key: 'heart', label: '❤️' },
-    { key: 'laugh', label: '😂' },
-    { key: 'surprise', label: '😮' },
-    { key: 'sad', label: '😢' },
-    { key: 'fire', label: '🔥' },
-    { key: 'check', label: '✅' },
-    { key: 'eyes', label: '👀' },
-    { key: 'rocket', label: '🚀' },
-    { key: 'clap', label: '👏' },
-    { key: 'think', label: '🤔' },
-    { key: 'hundred', label: '💯' },
-    { key: 'pray', label: '🙏' },
-    { key: 'tada', label: '🎉' },
-    { key: 'plus1', label: '➕' },
-    { key: 'minus1', label: '➖' },
-    { key: 'wave', label: '👋' },
-    { key: 'bulb', label: '💡' },
-    { key: 'pin', label: '📌' }
+    { key: 'thumbsup', label: '👍' },  // emoji-ok
+    { key: 'thumbsdown', label: '👎' },  // emoji-ok
+    { key: 'heart', label: '❤️' },  // emoji-ok
+    { key: 'laugh', label: '😂' },  // emoji-ok
+    { key: 'surprise', label: '😮' },  // emoji-ok
+    { key: 'sad', label: '😢' },  // emoji-ok
+    { key: 'fire', label: '🔥' },  // emoji-ok
+    { key: 'check', label: '✅' },  // emoji-ok
+    { key: 'eyes', label: '👀' },  // emoji-ok
+    { key: 'rocket', label: '🚀' },  // emoji-ok
+    { key: 'clap', label: '👏' },  // emoji-ok
+    { key: 'think', label: '🤔' },  // emoji-ok
+    { key: 'hundred', label: '💯' },  // emoji-ok
+    { key: 'pray', label: '🙏' },  // emoji-ok
+    { key: 'tada', label: '🎉' },  // emoji-ok
+    { key: 'plus1', label: '➕' },  // emoji-ok
+    { key: 'minus1', label: '➖' },  // emoji-ok
+    { key: 'wave', label: '👋' },  // emoji-ok
+    { key: 'bulb', label: '💡' },  // emoji-ok
+    { key: 'pin', label: '📌' }  // emoji-ok
   ];
   const DEFAULT_CATEGORIES = ['General', 'Projects', 'Courses', 'Lab Operations', 'Social'];
   const DEFAULT_CHANNELS = [
@@ -155,6 +155,12 @@ window.McgheeLab = window.McgheeLab || {};
   // UI state
   let _showChannelDirectory = false;
   let _showCreateChannel = false;
+  /* V3.836 — groups. _showNewGroup = { uids:Set, name, editId|null, error }
+   * drives the group form (create or edit). _peopleSelect turns the People
+   * rows into checkboxes; _pickedUids is that selection. */
+  let _showNewGroup = null;
+  let _peopleSelect = false;
+  const _pickedUids = new Set();
   let _showSettings = false;
   let _showPinned = false;
   let _showSearch = false;
@@ -213,6 +219,24 @@ window.McgheeLab = window.McgheeLab || {};
     return false;
   })();
   const _LAST_CHANNEL_LS_KEY = 'mcgheelab.chat.lastChannelId';
+
+  /* V3.836 — PANEL mode. Chat inside a shell popout (shell-popouts.js names
+   * its iframes rm-shell-popout-left/right). A third shell mode that does NOT
+   * depend on width: the channel header + view tabs are a frozen band, the
+   * feed scrolls underneath, and the conversation list (channels, groups,
+   * people) is a column the HOST reveals when its "open further" side tab
+   * is pressed (postMessage bridge, see wireHostBridge). Split-view panes and
+   * the workflow shell's main frames are NOT popouts and keep their layouts. */
+  const _IS_POPOUT = (function () {
+    try { return typeof window.name === 'string' && /^rm-shell-popout-/.test(window.name); }
+    catch (e) { return false; }
+  })();
+  if (_IS_POPOUT) {
+    document.documentElement.classList.add('chat-panel-mode');
+    document.body.classList.add('chat-panel-mode');
+  }
+  let _panelWide = false;        // host has made room for the list column
+  let _onHostMessage = null;
 
   /* V3.581 — restore the last conversation in ONE paint (Alex: opening the
    * chat tab rendered Overview, then the V3.86 auto-select swapped to the
@@ -369,6 +393,7 @@ window.McgheeLab = window.McgheeLab || {};
     wireDelegatedClicks();
     wireLayoutResize();
     wirePageScroll();
+    wireHostBridge();      // V3.836 — popout panel ↔ host
     // V3.581 — pre-seed the remembered channel BEFORE the first content
     // render and subscribe its messages right after it (in PARALLEL with
     // the channel list) so the page comes back exactly as it was left, in
@@ -689,6 +714,14 @@ window.McgheeLab = window.McgheeLab || {};
         healDmMemberships();
         processChannelAlerts();
         renderSidebar();
+        // V3.836 — the header reads the channel doc (a group's member count
+        // and name live there), so a changed doc must refresh it too; the
+        // sidebar alone was re-rendered before. No-op on the phone shell.
+        updateHeader();
+        // Nothing to show in the panel? Ask the host to open the list column
+        // so the first thing you see is who to talk to.
+        if (_IS_POPOUT && !_activeChannelId) requestPanelWide(true);
+        if (_shellMode === 'panel') updatePanelList();   // badges/previews
       });
     subscribeUserMeta();
   }
@@ -730,7 +763,7 @@ window.McgheeLab = window.McgheeLab || {};
       if (lm.authorUid === _user.uid) continue;
       if ((_userMeta?.mutedChannels || []).includes(ch.id)) continue;
       // Only channels I'm in: subscriptions, or DMs I'm a member of
-      const isMine = ch.type === 'dm'
+      const isMine = (ch.type === 'dm' || ch.type === 'group')
         ? (ch.members || []).includes(_user.uid)
         : (_userMeta?.subscribedChannels || []).includes(ch.id);
       if (!isMine) continue;
@@ -809,14 +842,20 @@ window.McgheeLab = window.McgheeLab || {};
     const missing = _channels.filter(c =>
       c.type === 'dm' && Array.isArray(c.members)
       && c.members.includes(_user.uid) && !known.has(c.id));
-    if (!missing.length) return;
+    // V3.836 — groups I'm in (someone else may have added me) join my
+    // subscriptions the same way, so they appear without any action.
+    const subs = new Set(_userMeta.subscribedChannels || []);
+    const missingGroups = _channels.filter(c =>
+      c.type === 'group' && Array.isArray(c.members)
+      && c.members.includes(_user.uid) && !subs.has(c.id));
+    if (!missing.length && !missingGroups.length) return;
     const ids = missing.map(c => c.id);
+    const gids = missingGroups.map(c => c.id);
     _userMeta.dmChannelIds = [...(_userMeta.dmChannelIds || []), ...ids];
-    _userMeta.subscribedChannels = [...new Set([...(_userMeta.subscribedChannels || []), ...ids])];
-    db().collection('chatUserMeta').doc(_user.uid).update({
-      dmChannelIds: ARR_UNION(...ids),
-      subscribedChannels: ARR_UNION(...ids)
-    }).catch(() => {});
+    _userMeta.subscribedChannels = [...new Set([...(_userMeta.subscribedChannels || []), ...ids, ...gids])];
+    const patch = { subscribedChannels: ARR_UNION(...ids, ...gids) };
+    if (ids.length) patch.dmChannelIds = ARR_UNION(...ids);
+    db().collection('chatUserMeta').doc(_user.uid).update(patch).catch(() => {});
   }
 
   function subscribeReadState() {
@@ -1158,7 +1197,11 @@ window.McgheeLab = window.McgheeLab || {};
      FIRESTORE — CRUD Operations
      ═══════════════════════════════════════════════════════════ */
   function isMobile() {
+    if (_IS_POPOUT) return false;   // V3.836 — panel mode is width-independent
     return window.innerWidth <= 700;
+  }
+  function shellModeNow() {
+    return _IS_POPOUT ? 'panel' : (isMobile() ? 'mobile' : 'desktop');
   }
 
   function saveDraft() {
@@ -1379,6 +1422,109 @@ window.McgheeLab = window.McgheeLab || {};
 
     _showNewDM = false;
     selectChannel(ref.id);
+  }
+
+  /* ── V3.836 groups: type 'group' channels with members[] ──
+   * Anyone (non-readonly) may create one; any member may edit it. The
+   * creator writes subscriberUids = members so the Cloud Function's
+   * non-DM audience path delivers pushes unchanged; other members adopt
+   * the group into their own subscriptions in healDmMemberships(). */
+  async function createGroup(name, otherUids) {
+    const members = [...new Set([_user.uid, ...otherUids])].sort();
+    const slug = name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'group';
+    const ref = await db().collection('chatChannels').add({
+      name: `group-${slug}-${Date.now().toString(36)}`,
+      displayName: name,
+      description: '',
+      category: '',
+      type: 'group',
+      createdBy: _user.uid,
+      members: members,
+      subscriberUids: members,
+      isDefault: false,
+      isAnnouncement: false,
+      pinnedMessageIds: [],
+      lastMessage: null,
+      lastActivityAt: TS(),
+      memberCount: members.length,
+      messageCount: 0,
+      createdAt: TS()
+    });
+    // Self only — chatUserMeta is owner-only in rules.
+    await db().collection('chatUserMeta').doc(_user.uid)
+      .update({ subscribedChannels: ARR_UNION(ref.id) }).catch(() => {});
+    if (!_userMeta.subscribedChannels.includes(ref.id)) _userMeta.subscribedChannels.push(ref.id);
+    _showNewGroup = null;
+    selectChannel(ref.id);
+    if (_IS_POPOUT) requestPanelWide(false);
+    showToast(`Group "${name}" created`);
+  }
+
+  async function updateGroup(channelId, name, otherUids) {
+    const members = [...new Set([_user.uid, ...otherUids])].sort();
+    await db().collection('chatChannels').doc(channelId).update({
+      displayName: name,
+      members: members,
+      subscriberUids: members,
+      memberCount: members.length
+    });
+    _showNewGroup = null;
+    showToast('Group updated');
+    render();
+  }
+
+  async function leaveGroup() {
+    const g = _showNewGroup;
+    const ch = g && _channels.find(c => c.id === g.editId);
+    if (!ch) return;
+    const members = (ch.members || []).filter(u => u !== _user.uid);
+    try {
+      await db().collection('chatChannels').doc(ch.id).update({
+        members: members, subscriberUids: members, memberCount: members.length
+      });
+    } catch (e) {
+      g.error = 'Could not leave the group — ' + ((e && e.message) || 'try again');
+      updateModals();
+      return;
+    }
+    await db().collection('chatUserMeta').doc(_user.uid)
+      .update({ subscribedChannels: ARR_REMOVE(ch.id) }).catch(() => {});
+    _userMeta.subscribedChannels = (_userMeta.subscribedChannels || []).filter(id => id !== ch.id);
+    _showNewGroup = null;
+    if (_activeChannelId === ch.id) {
+      _activeChannelId = null;
+      if (_unsubMessages) { _unsubMessages(); _unsubMessages = null; }
+      _messages = [];
+      const next = _channels.find(c => c.id !== ch.id && c.type !== 'group');
+      if (next) selectChannel(next.id); else render();
+    } else {
+      render();
+    }
+    showToast('You left the group');
+  }
+
+  async function submitGroupForm() {
+    const g = _showNewGroup;
+    if (!g) return;
+    const nameEl = document.getElementById('chat-group-name');
+    const name = (nameEl ? nameEl.value : (g.name || '')).trim();
+    g.name = name;
+    const errEl = document.getElementById('chat-group-error');
+    const fail = (msg) => {
+      g.error = msg;
+      if (errEl) errEl.textContent = msg;
+      if (nameEl && !name) nameEl.focus();
+    };
+    if (!name) return fail('Give the group a name.');
+    if (!g.uids.size) return fail('Pick at least one person.');
+    if (isChatReadOnly()) return fail('You have read-only access to chat.');
+    try {
+      if (g.editId) await updateGroup(g.editId, name, [...g.uids]);
+      else await createGroup(name, [...g.uids]);
+    } catch (e) {
+      console.warn('[Chat] group save failed', e);
+      fail('Could not save the group — ' + ((e && e.message) || 'try again'));
+    }
   }
 
   async function subscribeToChannel(channelId) {
@@ -1699,9 +1845,27 @@ window.McgheeLab = window.McgheeLab || {};
    * `display: contents` (.chat-slot) so the CSS layout tree is
    * unchanged from the pre-shell markup. */
   function renderShell() {
-    _shellMode = isMobile() ? 'mobile' : 'desktop';
+    _shellMode = shellModeNow();
     _mainContentKey = null;
-    if (_shellMode === 'mobile') {
+    if (_shellMode === 'panel') {
+      // V3.836 — popout panel: list column (host-controlled) + a main column
+      // whose top band is frozen and whose feed is its own scroller.
+      appEl.innerHTML = `
+        <div class="chat-panel" id="chat-panel">
+          <aside class="chat-panel-list" id="chat-panel-list" hidden></aside>
+          <section class="chat-main chat-panel-main">
+            <div class="chat-sticky-top chat-panel-top">
+              <div id="chat-callring-slot" class="chat-slot"></div>
+              <div id="chat-header-slot" class="chat-slot"></div>
+              <div id="chat-view-tabs-slot" class="chat-slot"></div>
+            </div>
+            <div id="chat-content-slot" class="chat-slot"></div>
+          </section>
+          <div id="chat-thread-slot" class="chat-slot"></div>
+        </div>
+        <div id="chat-modal-root" class="chat-slot"></div>
+      `;
+    } else if (_shellMode === 'mobile') {
       // V3.86 — in embed mode (rendering inside a shell popout), skip
       // the page-title top bar and the cross-app bottom bar; they're
       // designed for full-screen mobile and just steal vertical space.
@@ -1744,7 +1908,7 @@ window.McgheeLab = window.McgheeLab || {};
     if (typeof McgheeLab !== 'undefined' && McgheeLab.MobileShell?.getHandPreference) {
       document.body.dataset.hand = McgheeLab.MobileShell.getHandPreference();
     }
-    const mode = isMobile() ? 'mobile' : 'desktop';
+    const mode = shellModeNow();
     if (mode !== _shellMode) renderShell();
     const channel = _channels.find(c => c.id === _activeChannelId);
 
@@ -1754,6 +1918,14 @@ window.McgheeLab = window.McgheeLab || {};
       updateMobileContent(channel);
       updateMobileBottomBar();
       updateHamburger();
+    } else if (mode === 'panel') {
+      // V3.836 — same region updaters as desktop; the list column replaces
+      // the sidebar and only renders while the host has opened it wide.
+      updatePanelList();
+      updateHeader(channel);
+      updateViewTabs();
+      updateMainContent();
+      updateThread();
     } else {
       const layoutEl = document.getElementById('chat-layout');
       if (layoutEl) layoutEl.classList.toggle('chat-sidebar-open', _mobileSidebarOpen);
@@ -1785,6 +1957,13 @@ window.McgheeLab = window.McgheeLab || {};
    * --chat-chrome-b = bottom edge of all pinned chrome, used by the
    * date separators + history banner so they stack beneath it. */
   function updateStickyOffsets() {
+    if (_shellMode === 'panel') {
+      // V3.836 — nothing is sticky in the panel: the band is a flex row and
+      // the feed scrolls inside, so every pinned offset is zero.
+      ['--chat-nav-h', '--chat-nav-tab-h', '--chat-chrome-b']
+        .forEach(v => document.documentElement.style.setProperty(v, '0px'));
+      return;
+    }
     const navH = document.querySelector('.top-nav')?.offsetHeight || 0;
     const tabH = document.getElementById('chat-tab-bar')?.offsetHeight || 0;
     const style = document.documentElement.style;
@@ -1794,6 +1973,74 @@ window.McgheeLab = window.McgheeLab || {};
       ? navH + tabH + (appEl.querySelector('.chat-main .chat-header')?.offsetHeight || 0)
       : navH + (appEl.querySelector('.chat-sticky-top')?.offsetHeight || 0);
     style.setProperty('--chat-chrome-b', chromeBottom + 'px');
+  }
+
+  /* ── V3.836 panel list column + host bridge ──
+   * The host (shell-popouts.js) owns the panel's width and its side tabs; chat
+   * owns what fills the extra room. Protocol (same origin only):
+   *   host → chat  {type:'rm-popout-state', wide}   on load, on each toggle, on request
+   *   chat → host  {type:'rm-popout-caps', wideLabel, wideIcon}   names the tab
+   *                {type:'rm-popout-request', wide|state}         ask to widen/collapse */
+  function updatePanelList() {
+    const el = document.getElementById('chat-panel-list');
+    if (!el) return;
+    el.hidden = !_panelWide;
+    if (!_panelWide) { el.innerHTML = ''; return; }
+    el.innerHTML = `<div class="chat-mobile-overview chat-panel-overview" id="chat-mobile-overview">${renderMobileOverviewHTML()}</div>`;
+    updatePresenceUI();
+  }
+  function postToHost(msg) {
+    if (!_IS_POPOUT) return;
+    try { window.parent.postMessage(Object.assign({ source: 'rm-chat' }, msg), location.origin); }
+    catch (e) { /* host gone */ }
+  }
+  function requestPanelWide(wide) {
+    postToHost({ type: 'rm-popout-request', wide: !!wide });
+  }
+  function wireHostBridge() {
+    if (!_IS_POPOUT) return;
+    _onHostMessage = (e) => {
+      if (e.origin !== location.origin) return;
+      const d = e.data;
+      if (!d || d.type !== 'rm-popout-state') return;
+      const wide = !!d.wide;
+      if (wide === _panelWide) return;
+      _panelWide = wide;
+      document.body.classList.toggle('chat-panel-wide', wide);
+      updatePanelList();
+      updateHeader();   // the ☰ button mirrors the state
+    };
+    window.addEventListener('message', _onHostMessage);
+    postToHost({ type: 'rm-popout-caps', wideLabel: 'People & groups', wideIcon: 'user-group' });
+    postToHost({ type: 'rm-popout-request', state: true });
+  }
+  /* Re-render whichever conversation list is mounted, keeping its scroll
+   * position (select mode toggles one row at a time). */
+  function rerenderList() {
+    const pick = () => document.getElementById('chat-panel-list')
+      || document.getElementById('chat-sidebar')
+      || document.getElementById('chat-mobile-overview');
+    const before = pick();
+    const top = before ? before.scrollTop : 0;
+    if (_shellMode === 'panel') updatePanelList();
+    else if (_shellMode === 'mobile') updateMobileContent();
+    else renderSidebar();
+    const after = pick();
+    if (after) after.scrollTop = top;
+  }
+  function togglePick(uid) {
+    if (_pickedUids.has(uid)) _pickedUids.delete(uid); else _pickedUids.add(uid);
+    rerenderList();
+  }
+  function findDmWith(uid) {
+    // 1:1 only — a group is a different type, and a multi-member DM must
+    // never masquerade as "the DM with this person".
+    return _channels.find(c => c.type === 'dm' && Array.isArray(c.members)
+      && c.members.length === 2 && c.members.includes(uid) && c.members.includes(_user.uid));
+  }
+  function myGroups() {
+    if (!_user) return [];
+    return _channels.filter(c => c.type === 'group' && Array.isArray(c.members) && c.members.includes(_user.uid));
   }
 
   /* ── Desktop region updaters ── */
@@ -1822,7 +2069,7 @@ window.McgheeLab = window.McgheeLab || {};
      firestore.rules uses to scope the active-call watcher query. */
   function callMemberUids(ch) {
     if (!ch) return [];
-    if (ch.type === 'dm') return (ch.members || []).slice();
+    if (ch.type === 'dm' || ch.type === 'group') return (ch.members || []).slice();
     if (Array.isArray(ch.subscriberUids)) return ch.subscriberUids.slice();
     return (_userMeta?.subscribedChannels || []).includes(ch.id) && _user
       ? [_user.uid] : [];
@@ -1831,14 +2078,15 @@ window.McgheeLab = window.McgheeLab || {};
   function amRecipientOfCall(call) {
     const ch = _channels.find(c => c.id === call.id);
     if (!ch || !_user) return false;
-    if (ch.type === 'dm') return (ch.members || []).includes(_user.uid);
+    if (ch.type === 'dm' || ch.type === 'group') return (ch.members || []).includes(_user.uid);
     if (Array.isArray(ch.subscriberUids)) return ch.subscriberUids.includes(_user.uid);
     return (_userMeta?.subscribedChannels || []).includes(ch.id);
   }
 
   function channelLabelFor(channelId, call) {
     const ch = _channels.find(c => c.id === channelId);
-    if (ch) return ch.type === 'dm' ? getDMDisplayName(ch) : `#${ch.displayName || ch.name}`;
+    if (ch) return ch.type === 'dm' ? getDMDisplayName(ch)
+      : ch.type === 'group' ? (ch.displayName || ch.name) : `#${ch.displayName || ch.name}`;
     return (call && call.channelName) || channelId;
   }
 
@@ -1850,7 +2098,7 @@ window.McgheeLab = window.McgheeLab || {};
       const ringing = Date.now() - startMs < CALL_RING_MS;
       const label = channelLabelFor(call.id, call);
       return `<div class="chat-callring${ringing ? ' chat-callring--ringing' : ''}">
-        <span class="chat-callring-icon">📞</span>
+        <span class="chat-callring-icon">${ICON.svg('phone')}</span>
         <span class="chat-callring-text"><strong>${escHTML(call.startedByName || 'Someone')}</strong>
           ${ringing ? 'is calling' : 'started a call'} · <strong>${escHTML(label)}</strong></span>
         <span class="chat-callring-actions">
@@ -2005,6 +2253,7 @@ window.McgheeLab = window.McgheeLab || {};
       ${_showSettings ? renderSettingsHTML() : ''}
       ${(_showSearch && !isMobile()) ? renderSearchHTML() : ''}
       ${_showNewDM ? renderNewDMHTML() : ''}
+      ${_showNewGroup ? renderGroupFormHTML() : ''}
       ${_showManageContacts ? renderManageContactsHTML() : ''}
       ${_showSeenBy ? renderSeenByHTML() : ''}
       ${_showImport ? renderImportHTML() : ''}`;
@@ -2126,7 +2375,7 @@ window.McgheeLab = window.McgheeLab || {};
         </div>`;
       for (const chId of group.channelIds) {
         const ch = _channels.find(c => c.id === chId);
-        if (!ch || ch.type === 'dm') continue;
+        if (!ch || ch.type === 'dm' || ch.type === 'group') continue;
         const active = chId === _activeChannelId ? ' chat-sidebar-item--active' : '';
         const unread = getUnreadCount(chId);
         const mentionCount = _readStates[chId]?.mentionCount || 0;
@@ -2146,12 +2395,32 @@ window.McgheeLab = window.McgheeLab || {};
       ${svgGrid()} Browse All Channels
     </button>`;
 
+    // V3.836 — Groups: type 'group' channels I'm a member of
+    const sidebarGroups = myGroups();
+    html += `<div class="chat-sidebar-section-header">
+      <span>Groups</span>
+      <button class="chat-icon-btn chat-icon-btn--sm" id="chat-new-group-btn" title="New group">${svgPlus()}</button>
+    </div>`;
+    for (const ch of sidebarGroups) {
+      const active = ch.id === _activeChannelId ? ' chat-sidebar-item--active' : '';
+      const unread = getUnreadCount(ch.id);
+      const mentionCount = _readStates[ch.id]?.mentionCount || 0;
+      html += `<div class="chat-sidebar-item${active}" data-channel="${ch.id}">
+        <span class="chat-sidebar-group-glyph">${ICON.svg('user-group')}</span>
+        <span class="chat-sidebar-item-name">${escHTML(ch.displayName || ch.name)}</span>
+        ${mentionCount > 0 ? `<span class="chat-sidebar-badge chat-sidebar-badge--mention">${mentionCount}</span>` : ''}
+        ${unread > 0 && mentionCount === 0 ? `<span class="chat-sidebar-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
+      </div>`;
+    }
+    if (!sidebarGroups.length) html += `<div class="chat-sidebar-empty">Select people below to make one</div>`;
+
     // DMs section — user-managed contact groups (alumni auto-sorted
     // out into their own collapsed section at render time)
     const { groups: contactGroups, alumni: alumniUids } = splitContactsForRender();
     const hasAnyContacts = contactGroups.some(g => g.uids.length > 0) || alumniUids.length > 0;
     html += `<div class="chat-sidebar-section-header">
       <span>People</span>
+      <button class="chat-pick-toggle${_peopleSelect ? ' is-on' : ''}" id="chat-people-select" title="Select several people to make a group">${_peopleSelect ? 'Done' : 'Select'}</button>
       <button class="chat-icon-btn chat-icon-btn--sm" id="chat-manage-contacts-btn" title="Manage contacts">${svgEdit()}</button>
     </div>`;
 
@@ -2160,11 +2429,13 @@ window.McgheeLab = window.McgheeLab || {};
       if (!u) return '';
       const name = u.name || u.displayName || u.email;
       // Find existing DM channel for unread badge
-      const dmCh = _channels.find(c => c.type === 'dm' && c.members && c.members.includes(uid) && c.members.includes(_user.uid));
+      const dmCh = findDmWith(uid);
       const active = dmCh && dmCh.id === _activeChannelId ? ' chat-sidebar-item--active' : '';
       const unread = dmCh ? getUnreadCount(dmCh.id) : 0;
       const photo = u.photo?.thumb;
-      return `<div class="chat-sidebar-item${active}" data-dm-contact="${uid}">
+      const picked = _peopleSelect && _pickedUids.has(uid);
+      return `<div class="chat-sidebar-item${active}${picked ? ' chat-sidebar-item--picked' : ''}" data-dm-contact="${uid}">
+        ${_peopleSelect ? `<span class="chat-pick-box${picked ? ' is-on' : ''}" aria-hidden="true">${ICON.svg('check')}</span>` : ''}
         <span class="chat-avatar-wrap">${photo ? `<img class="chat-dm-avatar" src="${escHTML(photo)}" alt="" />` : `<span class="chat-dm-avatar">${getInitials(name)}</span>`}${renderPresenceDotHTML(uid)}</span>
         <span class="chat-sidebar-item-name">${escHTML(name)}</span>
         ${unread > 0 ? `<span class="chat-sidebar-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
@@ -2186,6 +2457,7 @@ window.McgheeLab = window.McgheeLab || {};
     } else {
       html += `<div class="chat-sidebar-empty">Click ${svgEdit()} to add people</div>`;
     }
+    if (_peopleSelect) html += renderPickBarHTML();
 
     // Search button at bottom
     html += `<button class="chat-sidebar-action" id="chat-search-btn">${svgSearch()} Search Messages</button>`;
@@ -2205,18 +2477,33 @@ window.McgheeLab = window.McgheeLab || {};
      RENDERING — Channel Header
      ═══════════════════════════════════════════════════════════ */
   function renderHeaderHTML(channel) {
-    if (!channel) return '<div class="chat-header"></div>';
+    // V3.836 — in the popout panel the ☰ button asks the host to reveal the
+    // people & groups column (same as the side tab); elsewhere it is unused.
+    const listBtn = _IS_POPOUT
+      ? `<button class="chat-hamburger chat-panel-list-btn${_panelWide ? ' is-on' : ''}" id="chat-hamburger" title="${_panelWide ? 'Hide' : 'Show'} people &amp; groups" aria-pressed="${_panelWide ? 'true' : 'false'}">${svgMenu()}</button>`
+      : `<button class="chat-hamburger" id="chat-hamburger">${svgMenu()}</button>`;
+    if (!channel) {
+      if (!_IS_POPOUT) return '<div class="chat-header"></div>';
+      return `<div class="chat-header chat-header--empty">${listBtn}
+        <div class="chat-header-info"><h2 class="chat-header-name">Lab Chat</h2>
+        <span class="chat-header-desc">Pick a conversation from the list</span></div></div>`;
+    }
     const isDM = channel.type === 'dm';
-    const name = isDM ? getDMDisplayName(channel) : `#${channel.displayName || channel.name}`;
-    const desc = isDM ? '' : (channel.description || '');
+    const isGroup = channel.type === 'group';
+    const name = isDM ? getDMDisplayName(channel)
+      : isGroup ? (channel.displayName || channel.name)
+      : `#${channel.displayName || channel.name}`;
+    const desc = isDM ? ''
+      : isGroup ? `${(channel.members || []).length} members`
+      : (channel.description || '');
     const subscribed = _userMeta?.subscribedChannels?.includes(channel.id);
     const pinnedCount = _messages.filter(m => m.pinned).length;
 
     const dmOther = isDM ? getDMOtherUser(channel) : null;
-    return `<div class="chat-header">
-      <button class="chat-hamburger" id="chat-hamburger">${svgMenu()}</button>
+    return `<div class="chat-header${isGroup ? ' chat-header--group' : ''}">
+      ${listBtn}
       <div class="chat-header-info">
-        <h2 class="chat-header-name">${dmOther ? renderPresenceDotHTML(dmOther.uid, true) : ''}${escHTML(name)}</h2>
+        <h2 class="chat-header-name">${dmOther ? renderPresenceDotHTML(dmOther.uid, true) : ''}${isGroup ? `<span class="chat-group-glyph">${ICON.svg('user-group')}</span>` : ''}${escHTML(name)}</h2>
         ${desc ? `<span class="chat-header-desc">${escHTML(desc)}</span>` : ''}
       </div>
       <div class="chat-header-actions">
@@ -2225,11 +2512,13 @@ window.McgheeLab = window.McgheeLab || {};
           const live = !!window.VOICE_CALL?.getActiveCall?.(channel.id);
           const inIt = window.VOICE_CALL?.currentChannelId?.() === channel.id;
           const title = inIt ? 'You\'re in this call' : live ? 'Join the call in progress' : 'Start a voice call';
-          return `<button class="chat-icon-btn${live ? ' chat-call-btn--live' : ''}" id="chat-call-btn" title="${title}">📞</button>`;
+          return `<button class="chat-icon-btn${live ? ' chat-call-btn--live' : ''}" id="chat-call-btn" title="${title}">${ICON.svg('phone')}</button>`;
         })()}
-        ${canImportHistory(channel) ? `<button class="chat-icon-btn" id="chat-import-btn" title="Import Slack history">📥</button>` : ''}
+        ${isGroup ? `<button class="chat-icon-btn" id="chat-group-members" title="Members — add or remove people, rename, leave">${ICON.svg('users')}</button>` : ''}
+        ${isDM && dmOther ? `<button class="chat-icon-btn" id="chat-dm-to-group" title="Make a group with ${escHTML(dmOther.name || dmOther.displayName || dmOther.email || 'them')} and others">${ICON.svg('user-group')}</button>` : ''}
+        ${canImportHistory(channel) ? `<button class="chat-icon-btn" id="chat-import-btn" title="Import Slack history">${ICON.svg('arrow-down-tray')}</button>` : ''}
         <button class="chat-icon-btn" id="chat-header-search" title="Search">${svgSearch()}</button>
-        ${!isDM ? `<button class="chat-sub-toggle${subscribed ? ' chat-sub-toggle--active' : ''}" id="chat-sub-toggle" title="${subscribed ? 'Unsubscribe from notifications' : 'Subscribe for notifications'}">
+        ${(!isDM && !isGroup) ? `<button class="chat-sub-toggle${subscribed ? ' chat-sub-toggle--active' : ''}" id="chat-sub-toggle" title="${subscribed ? 'Unsubscribe from notifications' : 'Subscribe for notifications'}">
           ${subscribed ? svgBellOn() : svgBellOff()}
           <span>${subscribed ? 'Subscribed' : 'Subscribe'}</span>
         </button>` : ''}
@@ -2387,6 +2676,10 @@ window.McgheeLab = window.McgheeLab || {};
     const feed = document.getElementById('chat-feed');
     if (!feed) return;
     const wasAtBottom = feedAtBottom(); // document-scroll aware (V3.522)
+    // V3.836 — when the feed is its own scroller (panel mode) keep the
+    // reader's place while older messages are prepended above.
+    const internal = feed.scrollHeight > feed.clientHeight + 1;
+    const fromBottom = internal ? (feed.scrollHeight - feed.scrollTop) : 0;
 
     _isRendering = true;
     feed.innerHTML = `
@@ -2398,6 +2691,7 @@ window.McgheeLab = window.McgheeLab || {};
       ${_loadingNewer ? '<div class="chat-loading">Loading...</div>' : ''}
     `;
     if (_feedMode === 'live' && (wasAtBottom || _autoScroll)) scrollToBottom();
+    else if (internal) feed.scrollTop = feed.scrollHeight - fromBottom;
     _isRendering = false;
     // Show new messages button if scrolled up
     if (_feedMode === 'live' && !wasAtBottom && !_autoScroll) showNewMessagesButton();
@@ -2594,7 +2888,7 @@ window.McgheeLab = window.McgheeLab || {};
     const channelsByCategory = {};
     for (const cat of categories) channelsByCategory[cat] = [];
     for (const ch of _channels) {
-      if (ch.type === 'dm') continue;
+      if (ch.type === 'dm' || ch.type === 'group') continue;   // groups are membership, not browsable
       const cat = ch.category || 'General';
       if (!channelsByCategory[cat]) channelsByCategory[cat] = [];
       channelsByCategory[cat].push(ch);
@@ -2750,7 +3044,7 @@ window.McgheeLab = window.McgheeLab || {};
       map: renderImportMapHTML,
       preview: renderImportPreviewHTML,
       progress: () => `<div class="chat-import-progress"><div class="chat-loading">Importing ${CHAT_SLACK_IMPORT.applyMapping(st.parsed, st.mapping).length} messages…</div><p class="chat-muted">Keep this tab open — large histories take a few seconds.</p></div>`,
-      done: () => `<div class="chat-import-done">✅ Imported ${st.result?.count ?? 0} messages.<p class="chat-muted">They sit above the existing history — use "Load older messages" to scroll up to them. Each one carries a "from Slack" badge.</p></div>`
+      done: () => `<div class="chat-import-done">${ICON.svg('check-circle')} Imported ${st.result?.count ?? 0} messages.<p class="chat-muted">They sit above the existing history — use "Load older messages" to scroll up to them. Each one carries a "from Slack" badge.</p></div>`
     };
     const footByStep = {
       input: `<button class="app-btn app-btn--secondary" data-close-modal="import">Cancel</button>
@@ -2787,7 +3081,7 @@ window.McgheeLab = window.McgheeLab || {};
         dropped; the imported block is inserted <b>before</b> this conversation's
         existing messages and marked as imported.</p>
       <input type="file" id="chat-import-file" accept=".md,.txt,text/plain,text/markdown" class="app-input" />
-      ${st.fileName && st.parsed?.ok ? `<p class="chat-import-parsed">✅ ${escHTML(st.fileName)} — ${st.parsed.messages.length} messages, ${st.parsed.participants.length} participants${st.parsed.warnings.length ? ` <span class="chat-muted">(${escHTML(st.parsed.warnings.join(' '))})</span>` : ''}</p>` : ''}
+      ${st.fileName && st.parsed?.ok ? `<p class="chat-import-parsed">${ICON.svg('check-circle')} ${escHTML(st.fileName)} — ${st.parsed.messages.length} messages, ${st.parsed.participants.length} participants${st.parsed.warnings.length ? ` <span class="chat-muted">(${escHTML(st.parsed.warnings.join(' '))})</span>` : ''}</p>` : ''}
       <details ${st.fileName ? '' : 'open'} style="margin-top:.6rem">
         <summary class="chat-muted">…or paste the copied chat here</summary>
         <textarea id="chat-import-paste" class="app-input chat-import-paste" rows="6" placeholder="Gabriel Leonard Galahad Declercq  [2:59 PM]&#10;Hello Dr. McGhee, …"></textarea>
@@ -3285,7 +3579,7 @@ window.McgheeLab = window.McgheeLab || {};
       const collapsed = _collapsedSections.has(sectionKey);
       const channelsInGroup = (group.channelIds || [])
         .map(id => _channels.find(c => c.id === id))
-        .filter(ch => ch && ch.type !== 'dm');
+        .filter(ch => ch && ch.type !== 'dm' && ch.type !== 'group');
 
       html += `<div class="chat-overview-section">
         <button class="chat-overview-section-header" data-toggle-section="${sectionKey}">
@@ -3332,18 +3626,27 @@ window.McgheeLab = window.McgheeLab || {};
       ${svgGrid()} Browse All Channels
     </button>`;
 
+    // --- Groups (V3.836) ---
+    html += renderOverviewGroupsHTML(chevronRight, chevronDown);
+
     // --- People / DMs section (alumni auto-sorted into their own
     // collapsed group at render time) ---
     const { groups: contacts, alumni: alumniUids } = splitContactsForRender();
     const sectionKeyDM = 'people';
     const collapsedDM = _collapsedSections.has(sectionKeyDM);
 
+    // V3.836 — a row DIV with the toggle as its own button: a <button> inside
+    // a <button> is parsed as a sibling, so the old action button never sat
+    // in the header row at all. Select turns the rows below into checkboxes.
     html += `<div class="chat-overview-section">
-      <button class="chat-overview-section-header" data-toggle-section="${sectionKeyDM}">
-        <span class="chat-overview-chevron">${collapsedDM ? chevronRight : chevronDown}</span>
-        <span class="chat-overview-section-title">People</span>
-        <button class="chat-icon-btn chat-icon-btn--sm chat-overview-action" id="chat-overview-manage-contacts" title="Manage contacts">${svgEdit()}</button>
-      </button>`;
+      <div class="chat-overview-section-header chat-overview-section-header--row">
+        <button class="chat-overview-section-toggle" data-toggle-section="${sectionKeyDM}">
+          <span class="chat-overview-chevron">${collapsedDM ? chevronRight : chevronDown}</span>
+          <span class="chat-overview-section-title">People</span>
+        </button>
+        <button class="chat-pick-toggle${_peopleSelect ? ' is-on' : ''}" id="chat-people-select" title="Select several people to make a group">${_peopleSelect ? 'Done' : 'Select'}</button>
+        <button class="chat-icon-btn chat-icon-btn--sm" id="chat-overview-manage-contacts" title="Manage contacts">${svgEdit()}</button>
+      </div>`;
 
     if (!collapsedDM) {
       html += `<div class="chat-overview-section-body">`;
@@ -3351,13 +3654,15 @@ window.McgheeLab = window.McgheeLab || {};
         const u = _allUsers.find(a => a.uid === uid);
         if (!u) return '';
         const name = u.name || u.displayName || u.email;
-        const dmCh = _channels.find(c => c.type === 'dm' && c.members && c.members.includes(uid) && c.members.includes(_user.uid));
+        const dmCh = findDmWith(uid);
         const active = dmCh && dmCh.id === _activeChannelId ? ' chat-overview-item--active' : '';
         const unread = dmCh ? getUnreadCount(dmCh.id) : 0;
         const photo = u.photo?.thumb;
         const preview = dmCh?.lastMessage ? dmCh.lastMessage.text : 'No messages yet';
         const time = dmCh?.lastMessage?.timestamp ? formatTimestamp(dmCh.lastMessage.timestamp) : '';
-        return `<div class="chat-overview-item${active}" data-overview-dm="${uid}">
+        const picked = _peopleSelect && _pickedUids.has(uid);
+        return `<div class="chat-overview-item${active}${picked ? ' chat-overview-item--picked' : ''}" data-overview-dm="${uid}">
+          ${_peopleSelect ? `<span class="chat-pick-box${picked ? ' is-on' : ''}" aria-hidden="true">${ICON.svg('check')}</span>` : ''}
           <span class="chat-avatar-wrap">${photo ? `<div class="chat-conv-icon"><img src="${escHTML(photo)}" alt="" /></div>` : `<div class="chat-conv-icon">${getInitials(name)}</div>`}${renderPresenceDotHTML(uid)}</span>
           <div class="chat-conv-body">
             <div class="chat-conv-top">
@@ -3400,6 +3705,7 @@ window.McgheeLab = window.McgheeLab || {};
       html += `<button class="chat-overview-browse chat-overview-browse--sm" id="chat-overview-new-dm">
         ${svgPlus()} New Direct Message
       </button>`;
+      if (_peopleSelect) html += renderPickBarHTML();
       html += `</div>`;
     }
     html += `</div>`;
@@ -3410,6 +3716,116 @@ window.McgheeLab = window.McgheeLab || {};
     </button>`;
 
     return html;
+  }
+
+  /* V3.836 — Groups section of the conversation list (panel column + phone
+   * Overview): every type 'group' channel I'm a member of, newest first. */
+  function renderOverviewGroupsHTML(chevronRight, chevronDown) {
+    const groups = myGroups();
+    const key = 'groups';
+    const collapsed = _collapsedSections.has(key);
+    let html = `<div class="chat-overview-section chat-overview-section--groups">
+      <div class="chat-overview-section-header chat-overview-section-header--row">
+        <button class="chat-overview-section-toggle" data-toggle-section="${key}">
+          <span class="chat-overview-chevron">${collapsed ? chevronRight : chevronDown}</span>
+          <span class="chat-overview-section-title">Groups</span>
+          <span class="chat-overview-section-count">${groups.length}</span>
+        </button>
+        <button class="chat-icon-btn chat-icon-btn--sm" id="chat-overview-new-group" title="New group">${svgPlus()}</button>
+      </div>`;
+    if (!collapsed) {
+      html += `<div class="chat-overview-section-body">`;
+      for (const ch of groups) {
+        const unread = getUnreadCount(ch.id);
+        const mentionCount = _readStates[ch.id]?.mentionCount || 0;
+        const active = ch.id === _activeChannelId ? ' chat-overview-item--active' : '';
+        const preview = ch.lastMessage ? `${ch.lastMessage.authorName}: ${ch.lastMessage.text}` : `${(ch.members || []).length} members`;
+        const time = ch.lastMessage?.timestamp ? formatTimestamp(ch.lastMessage.timestamp) : '';
+        let badgeHTML = '';
+        if (mentionCount > 0) badgeHTML = `<span class="chat-conv-badge chat-conv-badge--mention">${mentionCount}</span>`;
+        else if (unread > 0) badgeHTML = `<span class="chat-conv-badge">${unread > 99 ? '99+' : unread}</span>`;
+        html += `<div class="chat-overview-item${active}" data-overview-channel="${ch.id}">
+          <div class="chat-conv-icon chat-conv-icon--group">${ICON.svg('user-group')}</div>
+          <div class="chat-conv-body">
+            <div class="chat-conv-top">
+              <span class="chat-conv-name">${escHTML(ch.displayName || ch.name)}</span>
+              <span class="chat-conv-time">${time}</span>
+            </div>
+            <div class="chat-conv-preview">${escHTML(preview)}</div>
+          </div>
+          ${badgeHTML}
+        </div>`;
+      }
+      if (!groups.length) html += `<div class="chat-overview-empty">No groups yet — tap Select under People, or ${svgPlus()} here.</div>`;
+      html += `</div>`;
+    }
+    html += `</div>`;
+    return html;
+  }
+
+  /* V3.836 — the bar under a People list while Select is on. */
+  function renderPickBarHTML() {
+    const n = _pickedUids.size;
+    return `<div class="chat-pick-bar" id="chat-pick-bar">
+      <span class="chat-pick-count">${n} selected</span>
+      <button class="app-btn app-btn--primary app-btn--sm" id="chat-pick-create"${n ? '' : ' disabled'}>${ICON.svg('user-group')} Create group</button>
+      <button class="app-btn app-btn--secondary app-btn--sm" id="chat-pick-cancel">Cancel</button>
+    </div>`;
+  }
+
+  /* V3.836 — group form (create, or edit members/name/leave). Everything is
+   * inline: the error sits under the field, no browser prompts. */
+  function groupCountLabel() {
+    const n = _showNewGroup ? _showNewGroup.uids.size : 0;
+    return n === 1 ? '1 person + you' : `${n} people + you`;
+  }
+  function renderGroupFormHTML() {
+    const g = _showNewGroup;
+    const editing = !!g.editId;
+    const ch = editing ? _channels.find(c => c.id === g.editId) : null;
+    const eligible = _allUsers.filter(u => u.uid !== _user.uid && canAccessChat(u));
+    const byCategory = {};
+    for (const u of eligible) {
+      const cat = getCategoryLabel(u.category);
+      (byCategory[cat] = byCategory[cat] || []).push(u);
+    }
+    const catOrder = ['PI', 'Postdoc', 'Grad', 'Undergrad', 'High School', 'Alumni', 'Guest', 'Other'];
+    const rows = catOrder.map(cat => {
+      const users = byCategory[cat];
+      if (!users || !users.length) return '';
+      return `<div class="chat-dm-category-label">${escHTML(cat)}</div>` + users.map(u => {
+        const name = u.name || u.displayName || u.email;
+        const on = g.uids.has(u.uid);
+        return `<button type="button" class="chat-dm-user-item chat-group-pick${on ? ' is-on' : ''}" data-group-pick="${u.uid}" aria-pressed="${on ? 'true' : 'false'}">
+          <span class="chat-pick-box${on ? ' is-on' : ''}" aria-hidden="true">${ICON.svg('check')}</span>
+          <span class="chat-avatar-wrap"><span class="chat-dm-avatar">${getInitials(name)}</span>${renderPresenceDotHTML(u.uid)}</span>
+          <span class="chat-dm-user-name">${escHTML(name)}</span>
+        </button>`;
+      }).join('');
+    }).join('');
+    return `<div class="chat-modal-overlay" data-close-modal="group">
+      <div class="chat-modal chat-modal--group">
+        <div class="chat-modal-header">
+          <h3>${editing ? 'Group members' : 'New group'}</h3>
+          <button class="chat-icon-btn" data-close-modal="group">${svgX()}</button>
+        </div>
+        <div class="chat-modal-body">
+          <label class="app-label" for="chat-group-name">Group name</label>
+          <input class="app-input" id="chat-group-name" placeholder="e.g. TFM crew" value="${escHTML(g.name || '')}" maxlength="60" />
+          <div class="chat-field-error" id="chat-group-error">${escHTML(g.error || '')}</div>
+          <label class="app-label">People <span class="chat-muted" id="chat-group-count">${groupCountLabel()}</span></label>
+          <input class="app-input" id="chat-group-search" placeholder="Search people..." style="margin-bottom:.5rem" />
+          <div class="chat-dm-user-list chat-group-pick-list" id="chat-group-pick-list">
+            ${rows || '<p class="chat-muted">No one else has chat access yet.</p>'}
+          </div>
+        </div>
+        <div class="chat-modal-footer">
+          ${editing && ch && (ch.members || []).includes(_user.uid) ? `<button class="app-btn app-btn--secondary chat-btn--danger" id="chat-group-leave" style="margin-right:auto">Leave group</button>` : ''}
+          <button class="app-btn app-btn--secondary" data-close-modal="group">Cancel</button>
+          <button class="app-btn app-btn--primary" id="chat-do-create-group">${editing ? 'Save' : 'Create group'}</button>
+        </div>
+      </div>
+    </div>`;
   }
 
   function renderMobileTopBarHTML() {
@@ -3538,6 +3954,7 @@ window.McgheeLab = window.McgheeLab || {};
       </div>
       <div class="mobile-hamburger-menu-item" id="mobile-menu-browse">${svgGrid()} Browse All Channels</div>
       <div class="mobile-hamburger-menu-item" id="mobile-menu-new-dm">${svgPlus()} New Direct Message</div>
+      <div class="mobile-hamburger-menu-item" id="mobile-menu-new-group">${ICON.svg('user-group')} New Group</div>
       <div class="mobile-hamburger-menu-item" id="mobile-menu-contacts">${svgEdit()} Manage Contacts</div>
       <div class="mobile-hamburger-menu-item" id="mobile-menu-search">${svgSearch()} Search Messages</div>
       ${isAdmin() ? `<div class="mobile-hamburger-menu-item" id="mobile-menu-settings">${svgSettings()} Settings</div>` : ''}
@@ -3762,7 +4179,10 @@ window.McgheeLab = window.McgheeLab || {};
     ['#chat-new-dm-btn', () => { _showNewDM = true; render(); }],
     ['#chat-search-btn', () => { _showSearch = true; _searchQuery = ''; render(); }],
     ['#chat-settings-btn', () => { _showSettings = true; render(); }],
-    ['[data-dm-contact]', el => { _mobileSidebarOpen = false; createDM([el.dataset.dmContact]); }],
+    ['[data-dm-contact]', el => {
+      if (_peopleSelect) { togglePick(el.dataset.dmContact); return; }   // V3.836
+      _mobileSidebarOpen = false; createDM([el.dataset.dmContact]);
+    }],
     ['[data-channel]', el => { _mobileSidebarOpen = false; selectChannel(el.dataset.channel); }],
 
     /* ── mobile chrome ── */
@@ -3787,13 +4207,58 @@ window.McgheeLab = window.McgheeLab || {};
     ['#chat-overview-browse', () => { _showChannelDirectory = true; render(); }],
     ['#chat-overview-new-dm', () => { _showNewDM = true; render(); }],
     ['#chat-overview-search', () => { _searchQuery = ''; if (isMobile()) _mobileTab = 'search'; else _showSearch = true; render(); }],
-    ['[data-overview-channel]', el => selectChannel(el.dataset.overviewChannel)],
+    ['[data-overview-channel]', el => {
+      selectChannel(el.dataset.overviewChannel);
+      if (_IS_POPOUT) requestPanelWide(false);   // V3.836 — the list is a picker
+    }],
     ['[data-overview-dm]', el => {
       const uid = el.dataset.overviewDm;
-      const dmCh = _channels.find(c => c.type === 'dm' && c.members && c.members.includes(uid) && c.members.includes(_user.uid));
+      if (_peopleSelect) { togglePick(uid); return; }   // V3.836
+      const dmCh = findDmWith(uid);
       if (dmCh) selectChannel(dmCh.id);
       else createDM([uid]);
+      if (_IS_POPOUT) requestPanelWide(false);
     }],
+    /* ── V3.836 groups + select mode ── */
+    ['#chat-hamburger', () => { if (_IS_POPOUT) requestPanelWide(!_panelWide); }],
+    ['#chat-people-select', () => { _peopleSelect = !_peopleSelect; if (!_peopleSelect) _pickedUids.clear(); rerenderList(); }],
+    ['#chat-pick-cancel', () => { _peopleSelect = false; _pickedUids.clear(); rerenderList(); }],
+    ['#chat-pick-create', () => {
+      if (!_pickedUids.size) return;
+      _showNewGroup = { uids: new Set(_pickedUids), name: '', editId: null, error: '' };
+      _peopleSelect = false;
+      _pickedUids.clear();
+      render();
+    }],
+    ['#chat-overview-new-group', () => { _showNewGroup = { uids: new Set(), name: '', editId: null, error: '' }; render(); }],
+    ['#chat-new-group-btn', () => { _showNewGroup = { uids: new Set(), name: '', editId: null, error: '' }; render(); }],
+    ['#mobile-menu-new-group', () => { _mobileHamburgerOpen = false; _showNewGroup = { uids: new Set(), name: '', editId: null, error: '' }; render(); }],
+    ['#chat-group-members', () => {
+      const ch = _channels.find(c => c.id === _activeChannelId);
+      if (!ch || ch.type !== 'group') return;
+      _showNewGroup = { uids: new Set((ch.members || []).filter(u => u !== _user.uid)), name: ch.displayName || ch.name || '', editId: ch.id, error: '' };
+      render();
+    }],
+    ['#chat-dm-to-group', () => {
+      const ch = _channels.find(c => c.id === _activeChannelId);
+      if (!ch || ch.type !== 'dm') return;
+      _showNewGroup = { uids: new Set((ch.members || []).filter(u => u !== _user.uid)), name: '', editId: null, error: '' };
+      render();
+    }],
+    ['[data-group-pick]', el => {
+      if (!_showNewGroup) return;
+      const uid = el.dataset.groupPick;
+      if (_showNewGroup.uids.has(uid)) _showNewGroup.uids.delete(uid); else _showNewGroup.uids.add(uid);
+      const on = _showNewGroup.uids.has(uid);
+      el.classList.toggle('is-on', on);
+      el.setAttribute('aria-pressed', on ? 'true' : 'false');
+      const box = el.querySelector('.chat-pick-box');
+      if (box) box.classList.toggle('is-on', on);
+      const c = document.getElementById('chat-group-count');
+      if (c) c.textContent = groupCountLabel();
+    }],
+    ['#chat-do-create-group', () => submitGroupForm()],
+    ['#chat-group-leave', () => leaveGroup()],
     ['[data-toggle-section]', el => {
       const key = el.dataset.toggleSection;
       if (_collapsedSections.has(key)) _collapsedSections.delete(key);
@@ -3933,6 +4398,7 @@ window.McgheeLab = window.McgheeLab || {};
       if (which === 'pinned') _showPinned = false;
       if (which === 'search') _showSearch = false;
       if (which === 'newdm') _showNewDM = false;
+      if (which === 'group') _showNewGroup = null;
       if (which === 'contacts') _showManageContacts = false;
       if (which === 'seenby') _showSeenBy = null;
       if (which === 'import') {
@@ -3982,7 +4448,7 @@ window.McgheeLab = window.McgheeLab || {};
     _onWindowResize = () => {
       clearTimeout(_resizeTimer);
       _resizeTimer = setTimeout(() => {
-        const mode = isMobile() ? 'mobile' : 'desktop';
+        const mode = shellModeNow();
         if (mode !== _shellMode) render(); // crossing 700px rebuilds the shell
         else updateStickyOffsets();        // nav/header heights shift with width
       }, 150);
@@ -4082,6 +4548,7 @@ window.McgheeLab = window.McgheeLab || {};
     if (_onSwipeEnd) document.removeEventListener('touchend', _onSwipeEnd);
     if (_onWindowResize) window.removeEventListener('resize', _onWindowResize);
     if (_onPageScroll) window.removeEventListener('scroll', _onPageScroll);
+    if (_onHostMessage) window.removeEventListener('message', _onHostMessage);
     if (_onVisibilityChange) document.removeEventListener('visibilitychange', _onVisibilityChange);
     clearInterval(_heartbeatTimer);
     clearTimeout(_typingClearTimer);
@@ -4282,6 +4749,27 @@ window.McgheeLab = window.McgheeLab || {};
   // Modal non-click wiring: search filters, role selects, group-name
   // inputs, contact drag-drop. Button clicks are delegated (CLICK_ROUTES).
   function wireModalsNonClick() {
+    // ── V3.836 group form: the name survives re-renders; people filter ──
+    const gName = document.getElementById('chat-group-name');
+    if (gName && _showNewGroup) {
+      gName.addEventListener('input', () => {
+        if (!_showNewGroup) return;
+        _showNewGroup.name = gName.value;
+        _showNewGroup.error = '';
+        const er = document.getElementById('chat-group-error');
+        if (er) er.textContent = '';
+      });
+      if (!_showNewGroup.editId && !gName.value) gName.focus();
+    }
+    const gSearch = document.getElementById('chat-group-search');
+    if (gSearch) {
+      gSearch.addEventListener('input', () => {
+        const q = gSearch.value.toLowerCase();
+        document.querySelectorAll('#chat-group-pick-list .chat-group-pick').forEach(item => {
+          item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+      });
+    }
     // ── V3.582 Slack-history import modal ──
     // File pick → parse immediately (re-render shows the summary line).
     const importFile = document.getElementById('chat-import-file');

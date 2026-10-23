@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.839 / V3.841 — canvas controls on the plane: pen set + eraser + highlighter, movable pills, card colour + grip + header moves, ports → wires, drops, HTML frames, infinite pan</title>
+<link rel="stylesheet" href="/whiteboard-board.css">
+<style>body{font:13px/1.5 system-ui,sans-serif;margin:20px}.ok{color:#15803d}.bad{color:#b91c1c}code{background:#f3f4f6;padding:1px 4px;border-radius:3px}#r{margin:14px 0;padding:10px;border:1px solid #e5e7eb}
+#host{width:1100px;height:620px;border:1px solid #ccc;display:flex;flex-direction:column}#host .wb-page{height:100%;min-height:0;flex:1;max-width:none;margin:0;width:100%;box-sizing:border-box}</style>
+<script>
+window.__popups = [];
+['prompt','alert','confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
+try { localStorage.removeItem('wb_pens_v1'); localStorage.removeItem('wb_pillpos_v1'); localStorage.removeItem('wb_view_u1_nb9_u1'); localStorage.removeItem('wb_rail'); } catch (e) {}
+/* ── in-memory Firestore + Storage stub (the V3.830 harness's) ── */
+(function () {
+  var store = new Map(), listeners = [], touched = [];
+  function snapOf(path) { return { id: path.split('/').pop(), exists: store.has(path), data: function () { return store.has(path) ? JSON.parse(JSON.stringify(store.get(path))) : undefined; }, ref: docRef(path) }; }
+  function docsIn(path) { var out = []; store.forEach(function (v, k) { if (k.slice(0, k.lastIndexOf('/')) === path) out.push(snapOf(k)); }); return out; }
+  function fire(path, type) {
+    var parent = path.slice(0, path.lastIndexOf('/'));
+    listeners.slice().forEach(function (l) {
+      if (l.kind === 'doc' && l.path === path) l.cb(snapOf(path));
+      if (l.kind === 'col' && l.path === parent) l.cb({ docChanges: function () { return [{ type: type, doc: snapOf(path) }]; }, docs: docsIn(parent), size: 1, empty: false });
+    });
+  }
+  function applyUpdate(path, d) { var next = Object.assign({}, store.get(path) || {}); Object.keys(d).forEach(function (k) { if (d[k] === '__DEL__') delete next[k]; else if (d[k] && d[k].__arrayUnion) next[k] = (next[k] || []).concat([d[k].__arrayUnion]); else next[k] = JSON.parse(JSON.stringify(d[k])); }); store.set(path, next); fire(path, 'modified'); }
+  function docRef(path) {
+    return {
+      path: path, id: path.split('/').pop(),
+      collection: function (n) { return colRef(path + '/' + n); },
+      get: function () { touched.push('get ' + path); return Promise.resolve(snapOf(path)); },
+      set: function (d, o) { touched.push('set ' + path); var existed = store.has(path); store.set(path, (o && o.merge) ? Object.assign({}, store.get(path) || {}, JSON.parse(JSON.stringify(d))) : JSON.parse(JSON.stringify(d))); fire(path, existed ? 'modified' : 'added'); return Promise.resolve(); },
+      update: function (d) { touched.push('update ' + path); applyUpdate(path, d); return Promise.resolve(); },
+      delete: function () { touched.push('delete ' + path); store.delete(path); fire(path, 'removed'); return Promise.resolve(); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'doc', cb: cb }; listeners.push(l); setTimeout(function () { cb(snapOf(path)); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+  }
+  function colRef(path) {
+    var q = { path: path,
+      doc: function (id) { return docRef(path + '/' + (id || ('auto' + Math.random().toString(36).slice(2, 8)))); },
+      orderBy: function () { return q; }, where: function () { return q; }, limit: function () { return q; },
+      get: function () { var d = docsIn(path); return Promise.resolve({ docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'col', cb: cb }; listeners.push(l); var d = docsIn(path); setTimeout(function () { cb({ docChanges: function () { return d.map(function (s) { return { type: 'added', doc: s }; }); }, docs: d, size: d.length, empty: !d.length }); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+    return q;
+  }
+  var db = {
+    collection: function (n) { return colRef(n); },
+    batch: function () { var ops = []; return { set: function (ref, d, o) { ops.push(function () { return ref.set(d, o); }); }, update: function (ref, d) { ops.push(function () { return ref.update(d); }); }, delete: function (ref) { ops.push(function () { return ref.delete(); }); }, commit: function () { return ops.reduce(function (p, f) { return p.then(f); }, Promise.resolve()); } }; }
+  };
+  window.__stub = { store: store, touched: touched, db: db };
+  window.firebase = {
+    firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; }, delete: function () { return '__DEL__'; }, arrayUnion: function (x) { return { __arrayUnion: x }; } } },
+    storage: function () { return { ref: function () { return { child: function (p) { return { put: function () { touched.push('put ' + p); return Promise.resolve(); }, getDownloadURL: function () { return Promise.resolve('https://storage.example/' + p); }, delete: function () { touched.push('rm ' + p); return Promise.resolve(); } }; } }; } }; }
+  };
+  window.McgheeLab = { db: db, Auth: { currentUser: { uid: 'u1', email: 'a@x.com' }, currentProfile: { role: 'member' }, onChange: function () {}, offChange: function () {} } };
+  window.TOAST = { info: function () {}, success: function () {}, error: function (m) { (window.__toastErr = window.__toastErr || []).push(m); } };
+  store.set('userData/u1/notebookBoards/nb9_u1', { name: 'Controls', pages: [{ id: 'p1', background: 'grid' }, { id: 'p2', background: 'grid' }], activePageId: 'p1', ownerUid: 'u1', sheetMode: 'continuous' });
+  /* a legacy card on page 2 (V3.839 auto-grow left boards like this): the plane folds it to absolute y */
+  store.set('userData/u1/notebookBoards/nb9_u1/items/legacy', { pageId: 'p2', type: 'widget', kind: 'note', title: 'Old', text: 'from page two', x: 0.2, y: 0.1, w: 0.3, ar: 1.6, z: 1, data: {} });
+  if (window.PointerEvent && !PointerEvent.prototype.getCoalescedEvents) PointerEvent.prototype.getCoalescedEvents = function () { return [this]; };
+})();
+</script>
+<script src="/rm/js/icons.js"></script>   <!-- the site icon set, as every production page loads it -->
+<script src="/whiteboard.js"></script>
+<script src="/rm/js/canvas-widgets.js"></script>
+<script src="/rm/js/canvas-paper-reader.js"></script>   <!-- V3.859 — collections (quote · lit review · claim) live in the shared module -->
+</head>
+<body>
+<h1>V3.839 — canvas controls on a host board</h1>
+<p>Serve the repo root and open <code>/scripts/tests/v3839-canvas-controls-harness.html</code>. Real <code>whiteboard.js</code> on a notebook board with pills, against a stub Firestore. Result: <code>#r[data-done=1]</code>.</p>
+<div id="r">running…</div>
+<div id="host"></div>
+<script>
+(function () {
+  var out = [], pass = 0, fail = 0;
+  function ok(c, m, got) { if (c) pass++; else fail++; out.push('<div class="' + (c ? 'ok' : 'bad') + '">' + (c ? '✓' : '✗') + ' ' + m + (got !== undefined ? '  →  <code>' + String(got).replace(/</g, '&lt;') + '</code>' : '') + '</div>'); }
+  function done() { var r = document.getElementById('r'); r.innerHTML = '<b>' + pass + ' passed, ' + fail + ' failed</b>' + out.join(''); r.dataset.done = '1'; r.dataset.pass = pass; r.dataset.fail = fail; }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function until(fn, ms) { ms = ms || 4000; var t0 = Date.now(); return new Promise(function (res, rej) { (function poll() { var v; try { v = fn(); } catch (e) {} if (v) return res(v); if (Date.now() - t0 > ms) return rej(new Error('timeout: ' + fn.toString().slice(0, 90))); setTimeout(poll, 40); })(); }); }
+  var q = function (s) { return document.querySelector(s); }, qa = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  var store = window.__stub.store;
+  var BOARD = 'userData/u1/notebookBoards/nb9_u1';
+  var strokes = function () { var o = []; store.forEach(function (v, k) { if (k.indexOf(BOARD + '/strokes/') === 0) o.push(v); }); return o; };
+  var items = function () { var o = []; store.forEach(function (v, k) { if (k.indexOf(BOARD + '/items/') === 0) o.push(Object.assign({ id: k.split('/').pop() }, v)); }); return o; };
+  var wires = function () { var o = []; store.forEach(function (v, k) { if (k.indexOf(BOARD + '/wires/') === 0) o.push(Object.assign({ id: k.split('/').pop() }, v)); }); return o; };
+  var pe = function (type, target, x, y, extra) { var e = new PointerEvent(type, Object.assign({ bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 5, pointerType: 'pen', pressure: 0.7, button: 0, isPrimary: true }, extra || {})); target.dispatchEvent(e); };
+  async function drawStroke(x0, y0, x1, y1) {
+    var ink = q('.wb-canvas-ink'), r = ink.getBoundingClientRect();
+    pe('pointerdown', ink, r.left + x0, r.top + y0);
+    var n = 8; for (var i = 1; i <= n; i++) pe('pointermove', ink, r.left + x0 + (x1 - x0) * i / n, r.top + y0 + (y1 - y0) * i / n);
+    pe('pointerup', ink, r.left + x1, r.top + y1);
+    await wait(120);
+  }
+  function inkAlphaAt(x, y) { var ink = q('.wb-canvas-ink'); var dpr = ink.width / Math.max(1, ink.clientWidth); var r = ink.getBoundingClientRect(); var d = ink.getContext('2d').getImageData(Math.round(x * dpr), Math.round(y * dpr), 1, 1).data; return d[3]; }
+
+  (async function () {
+    try {
+      var drops = [], connected = [], pastes = [];
+      CANVAS_WIDGETS.basic.registerHtmlFrame({ upload: async function (f) { return { download_url: 'about:blank', storage_path: 'canvas-files/u1/x/' + f.name, name: f.name, size_bytes: f.size }; }, toast: function () {} });
+      var host = document.getElementById('host');
+      host.innerHTML = Whiteboard.boardShellHTML({ classId: 'u1', ids: false, back: false, zoomControls: false, maximize: false, topbar: false });
+      var h = await Whiteboard.mountBoardView(host.querySelector('.wb-page'), {
+        classId: 'u1', boardId: 'nb9_u1', collection: 'notebookBoards', ownerUid: 'u1', boardName: 'Controls',
+        chrome: 'full', view: { enabled: true }, items: { enabled: true }, pills: true, fitWidth: true,
+        wires: { enabled: true },
+        onDrop: function (files, at) { drops.push({ n: files.length, names: files.map(function (f) { return f.name; }), at: at }); },
+        onPaste: function (p) { pastes.push(p); },
+        onConnectDone: function (id) { connected.push(id); },
+        widgets: { render: function (it, body, api) { var def = CANVAS_WIDGETS.get(it.kind); if (def && def.render) { def.render(it, body, api); return; } body.textContent = it.text || ''; }, meta: function (k) { var m = CANVAS_WIDGETS.meta(k); return m || { label: k, glyph: '' }; }, summary: function (it) { return CANVAS_WIDGETS.summary(it) || it.text || ''; } }
+      });
+      ok(!!h, 'mounts a notebook board with pills');
+      await until(function () { return h.getBoard() && q('.wb-pill[data-pill="pens"] .wb-pill-btn'); });
+      ok(h.isAdmin(), 'the owner draws');
+
+      /* ── 1. the pen set: 4 pens + 1 highlighter by default, ＋ pen / ＋ highlighter ── */
+      var cp = h.currentPen();
+      ok(cp && cp.id === 'pen1' && cp.hl === false && cp.color === '#111827', 'the first pen of the set is in hand at mount', JSON.stringify(cp));
+      q('.wb-pill[data-pill="pens"] .wb-pill-btn').click();
+      await until(function () { return q('.wb-pill-pens.wb-open .wb-fan-item'); });
+      ok(qa('.wb-pill-pens .wb-fan-item[data-wb-act="pen-pick"]').length === 5 && qa('.wb-pill-pens .wb-fan-item[data-wb-act="pen-pick"] .wb-fan-dot-hl').length === 0 && q('.wb-pill-pens .wb-fan-item[data-pen="er1"] .wb-fan-eraser'), 'V3.860 — Pen\'s second arc: 4 pens + the eraser of the set (highlighters live under Highlighter)', qa('.wb-pill-pens .wb-fan-item[data-wb-act="pen-pick"]').length);
+      ok(qa('.wb-pill-pens .wb-fan-item[data-wb-act="pen-add"]').length === 1 && q('.wb-pill-pens .wb-fan-item[data-wb-act="width"]') && !q('.wb-pill-pens .wb-fan-item[data-wb-act="eraser"]'), '＋ pen and widths are there; no second eraser button');
+      var pos = qa('.wb-pill-pens .wb-fan-item').map(function (b) { return b.style.getPropertyValue('--tx') + '/' + b.style.getPropertyValue('--ty'); });
+      ok(new Set(pos).size === pos.length && pos.length === 16, 'sixteen fan items — V3.860: the five modes, then Pen\'s options — each with its own arc position (three rings)', pos.length);
+      ok(pos.every(function (v) { var m = v.match(/(-?\d+)px\/(-?\d+)px/); return m && +m[1] >= 0 && +m[2] <= 0; }), 'bottom-left pill: the arc opens up and to the right');
+
+      /* add a highlighter → in hand, editor open, saved on the device (V3.860: from Highlighter's second arc) */
+      q('.wb-pill-pens .wb-fan-item[data-wb-act="hand-hl"]').click(); await until(function () { return q('.wb-pill-pens.wb-open .wb-fan-item[data-wb-act="pen-add"][data-kind="hl"]'); });
+      q('.wb-pill-pens .wb-fan-item[data-wb-act="pen-add"][data-kind="hl"]').click();
+      await until(function () { return q('.wb-pen-edit'); });
+      cp = h.currentPen();
+      ok(h.getPens().length === 7 && cp.hl === true && cp.w === 0.014, '＋ highlighter: seven in the set, the new one in hand (hl, 0.014 wide)', JSON.stringify(cp));
+      ok(JSON.parse(localStorage.getItem('wb_pens_v1')).length === 7, 'the pen set is saved on the device (wb_pens_v1)');
+      ok(q('.wb-pill-pens.wb-open') && q('.wb-pen-edit .wb-pe-kind.wb-sel').textContent === 'Highlighter' && qa('.wb-pen-edit .wb-pe-swatch').length === 20 && q('.wb-pen-edit input[type=color]') && q('.wb-pen-edit input[type=range]'), 'the pen editor opens beside the fan: Highlighter selected, 20 swatches, a custom colour input, a width slider');
+      /* swatch, custom colour, width slider */
+      q('.wb-pen-edit .wb-pe-swatch[data-v="#86efac"]').click(); await wait(20);
+      ok(h.currentPen().color === '#86efac' && q('.wb-pill-pens .wb-pill-dot').style.background.indexOf('134, 239, 172') >= 0, 'a swatch recolours the pen in hand (status dot follows)', h.currentPen().color);
+      var ci = q('.wb-pen-edit input[type=color]'); ci.value = '#ff0000'; ci.dispatchEvent(new Event('input', { bubbles: true })); await wait(20);
+      ok(h.currentPen().color === '#ff0000' && q('.wb-pen-edit .wb-pe-line').style.background.indexOf('255, 0, 0') >= 0, 'the custom colour input sets ANY colour (live preview, no re-render)', h.currentPen().color);
+      var rg = q('.wb-pen-edit input[type=range]'); rg.value = '100'; rg.dispatchEvent(new Event('input', { bubbles: true })); await wait(20);
+      ok(Math.abs(h.currentPen().w - 0.04) < 1e-9 && q('.wb-pen-edit'), 'the width slider sets the pen width (highlighter range up to 0.04)', h.currentPen().w);
+      rg.dispatchEvent(new Event('change', { bubbles: true })); await wait(20);
+      ok(q('.wb-pen-edit') && +q('.wb-pen-edit input[type=range]').value === 100, 'releasing the slider re-renders the editor with the new value');
+      ok(JSON.parse(localStorage.getItem('wb_pens_v1')).some(function (p) { return p.color === '#ff0000' && p.kind === 'hl' && Math.abs(p.w - 0.04) < 1e-9; }), 'the edited highlighter is saved');
+
+      /* ── 2. a highlighter stroke: hl:true, uniform pressure, translucent multiplied band ── */
+      q('.wb-pen-edit [data-wb-pe="done"]').click(); await wait(20);
+      ok(!q('.wb-pen-edit') && !q('.wb-pill-pens.wb-open'), 'Done closes the editor and folds the fan');
+      await drawStroke(100, 120, 420, 120);
+      await until(function () { return strokes().length === 1; });
+      var hs = strokes()[0];
+      ok(hs.hl === true && hs.color === '#ff0000' && Math.abs(hs.w - 0.04) < 1e-9, 'the stroke doc carries hl:true, the highlighter colour and width', JSON.stringify({ hl: hs.hl, color: hs.color, w: hs.w }));
+      var press = []; for (var i = 2; i < hs.pts.length; i += 3) press.push(hs.pts[i]);
+      ok(press.length && press.every(function (p) { return p === 0.5; }), 'highlighter pressure is uniform (0.5 at every point)', press.join(','));
+      await wait(150);
+      var inkC = q('.wb-canvas-ink'), idata = inkC.getContext('2d').getImageData(0, 0, inkC.width, inkC.height).data, cnt = 0, bx = [1e9, 1e9, -1, -1];
+      for (var yy = 0; yy < inkC.height; yy += 3) for (var xx = 0; xx < inkC.width; xx += 3) { if (idata[(yy * inkC.width + xx) * 4 + 3] > 0) { cnt++; bx[0] = Math.min(bx[0], xx); bx[1] = Math.min(bx[1], yy); bx[2] = Math.max(bx[2], xx); bx[3] = Math.max(bx[3], yy); } }
+      var liveC = q('.wb-canvas-live'), ldata = liveC.getContext('2d').getImageData(0, 0, liveC.width, liveC.height).data, lcnt = 0; for (var k = 3; k < ldata.length; k += 4 * 7) if (ldata[k] > 0) lcnt++;
+      ok(true, 'ink canvas ' + inkC.width + 'x' + inkC.height + ': painted samples=' + cnt + ' bbox=' + bx.join(',') + ' · live samples=' + lcnt + ' · stroke pts=' + JSON.stringify(hs.pts.slice(0, 6)) + ' view=' + JSON.stringify(h.getView()));
+      var a1 = inkAlphaAt(260, 120);
+      ok(a1 > 60 && a1 < 170, 'the committed band is translucent on the ink canvas (alpha ≈ 0.42)', a1);
+
+      /* ── 3. back to a pen: opaque, no hl field; widths edit the pen in hand ── */
+      q('.wb-pill[data-pill="pens"] .wb-pill-btn').click(); await until(function () { return q('.wb-pill-pens.wb-open .wb-fan-item[data-wb-act="hand-pen"]'); });
+      q('.wb-pill-pens .wb-fan-item[data-wb-act="hand-pen"]').click(); await until(function () { return q('.wb-pill-pens.wb-open .wb-fan-item[data-pen="pen1"].wb-sel'); });   /* V3.860 — ✎ Pen puts the last pen back in hand; its second arc holds the pens */
+      q('.wb-pill-pens .wb-fan-item[data-pen="pen2"]').click(); await wait(20);
+      ok(h.currentPen().id === 'pen2' && h.currentPen().hl === false && !q('.wb-pill-pens.wb-open'), 'V3.860: ✎ Pen brings the last pen back; picking another pen folds the fan and puts it in hand');
+      q('.wb-pill[data-pill="pens"] .wb-pill-btn').click(); await until(function () { return q('.wb-pill-pens.wb-open .wb-fan-item[data-pen="pen1"]'); });
+      q('.wb-pill-pens .wb-fan-item[data-pen="pen1"]').click(); await wait(20);
+      ok(h.currentPen().id === 'pen1' && !q('.wb-pill-pens.wb-open'), 'and back to pen1');
+      await drawStroke(100, 240, 420, 240);
+      await until(function () { return strokes().length === 2; });
+      var ps = strokes().filter(function (s) { return !s.hl; })[0];
+      ok(ps && !('hl' in ps) && ps.color === '#111827', 'a pen stroke has no hl field (never an undefined field in Firestore)', JSON.stringify(Object.keys(ps)));
+      await wait(150);
+      ok(inkAlphaAt(260, 240) === 255, 'pen ink is opaque', inkAlphaAt(260, 240));
+      q('.wb-pill[data-pill="pens"] .wb-pill-btn').click(); await until(function () { return q('.wb-pill-pens.wb-open'); });
+      q('.wb-pill-pens .wb-fan-item[data-wb-act="width"][data-w="0.008"]').click(); await wait(20);
+      ok(Math.abs(h.currentPen().w - 0.008) < 1e-9 && JSON.parse(localStorage.getItem('wb_pens_v1')).find(function (p) { return p.id === 'pen1'; }).w === 0.008, 'a width from the fan is kept on the pen in hand');
+      /* tap the pen in hand again → its editor; Remove takes two taps */
+      q('.wb-pill[data-pill="pens"] .wb-pill-btn').click(); await until(function () { return q('.wb-pill-pens.wb-open'); });
+      q('.wb-pill-pens .wb-fan-item[data-pen="pen1"]').click(); await until(function () { return q('.wb-pen-edit'); });
+      ok(q('.wb-pen-edit .wb-pe-kind.wb-sel').textContent === 'Pen' && q('.wb-pill-pens.wb-open'), 'tapping the pen in hand again opens its editor (fan stays open)');
+      var rm = q('.wb-pen-edit [data-wb-pe="remove"]'); rm.click(); await wait(20);
+      ok(h.getPens().length === 7 && q('.wb-pen-edit'), 'first tap on Remove only arms it');
+      q('.wb-pen-edit [data-wb-pe="remove"]').click(); await wait(30);
+      ok(h.getPens().length === 6 && !h.getPens().some(function (p) { return p.id === 'pen1'; }) && h.currentPen().id === 'pen2' && !q('.wb-pen-edit'), 'second tap removes the pen; the next pen is in hand', h.currentPen().id);
+      if (q('.wb-pill-pens.wb-open')) { q('.wb-pill[data-pill="pens"] .wb-pill-btn').click(); await wait(20); }
+
+      /* ── 4. a card: colour dot + palette, corner grip scales it ── */
+      var wid = await h.addWidget({ kind: 'note', title: 'Reading', text: 'ERK waves', w: 0.42, pageId: 'p1', x: 0.1, y: 0.05 });
+      await until(function () { return q('.wb-item-widget[data-item-id="' + wid + '"] .wb-wtint'); });
+      var node = q('.wb-item-widget[data-item-id="' + wid + '"]');
+      ok(!!node.querySelector('.wb-wtint') && !!node.querySelector('.wb-wgrip'), 'the card has a colour dot in its header and a corner grip');
+      node.querySelector('.wb-wtint').click(); await wait(20);
+      ok(node.querySelector('.wb-tint-pop') && node.querySelectorAll('.wb-tint-sw').length === 10 && node.querySelector('.wb-tint-sw.wb-tint-none.wb-sel'), 'the colour dot opens a palette of 10 (none selected)');
+      node.querySelector('.wb-tint-sw[data-color="#dbeafe"]').click();
+      await until(function () { var it = items().find(function (i) { return i.id === wid; }); return it && it.color === '#dbeafe'; });
+      ok(node.classList.contains('wb-tinted') && node.style.getPropertyValue('--wb-card') === '#dbeafe' && !node.querySelector('.wb-tint-pop'), 'the card takes the colour (--wb-card, .wb-tinted) and the palette closes');
+      ok(getComputedStyle(node.querySelector('.wb-wh')).backgroundColor === 'rgb(219, 234, 254)', 'the header is filled with the colour', getComputedStyle(node.querySelector('.wb-wh')).backgroundColor);
+      /* grip: +220 px → wider card, bigger text */
+      var fs0 = parseFloat(node.style.fontSize), w0 = items().find(function (i) { return i.id === wid; }).w;
+      var grip = node.querySelector('.wb-wgrip'), gr = grip.getBoundingClientRect(), layer = q('.wb-widgets');
+      var mev = function (type, x, y, target) { var e = new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 9, pointerType: 'mouse', button: 0 }); (target || layer).dispatchEvent(e); };
+      mev('pointerdown', gr.left + 4, gr.top + 4, grip);
+      mev('pointermove', gr.left + 110, gr.top + 4);
+      mev('pointermove', gr.left + 224, gr.top + 4);
+      mev('pointerup', gr.left + 224, gr.top + 4);
+      await until(function () { var it = items().find(function (i) { return i.id === wid; }); return it && it.w > w0 + 0.1; });
+      var w1 = items().find(function (i) { return i.id === wid; }).w, fs1 = parseFloat(node.style.fontSize);
+      ok(w1 > w0 + 0.1 && fs1 > fs0 * 1.05, 'dragging the grip (outside Arrange) widens the card and its text grows with it', w0 + '→' + w1 + ' · ' + fs0.toFixed(1) + 'px→' + fs1.toFixed(1) + 'px');
+      ok(!q('.wb-page').classList.contains('wb-arrange'), 'no Arrange mode was needed');
+      var pngs = await h.exportPNGs({ width: 800 });
+      ok(pngs.length >= 1, 'export still renders (coloured card drawn)');
+
+      /* ── 5. pills move: drag the pens pill across the sheet ── */
+      var pb = q('.wb-pill[data-pill="pens"] .wb-pill-btn'), pr = pb.getBoundingClientRect(), pill = pb.closest('.wb-pill');
+      var p0 = { l: pill.offsetLeft, t: pill.offsetTop };
+      pe('pointerdown', pb, pr.left + 20, pr.top + 20, { pointerId: 11, pointerType: 'touch' });
+      pe('pointermove', pb, pr.left + 60, pr.top + 10, { pointerId: 11, pointerType: 'touch' });
+      pe('pointermove', pb, pr.left + 560, pr.top - 180, { pointerId: 11, pointerType: 'touch' });
+      pe('pointerup', pb, pr.left + 560, pr.top - 180, { pointerId: 11, pointerType: 'touch' });
+      q('.wb-pill[data-pill="pens"] .wb-pill-btn').dispatchEvent(new MouseEvent('click', { bubbles: true }));   // the click a browser sends after the pointer
+      await wait(30);
+      pill = q('.wb-pill[data-pill="pens"]');
+      ok(pill.dataset.moved === '1' && pill.offsetLeft > p0.l + 400 && pill.offsetTop < p0.t - 100, 'the pens pill sits where it was dropped', pill.offsetLeft + ',' + pill.offsetTop);
+      ok(!q('.wb-pill-pens.wb-open'), 'the click that follows a drag does not open the fan');
+      var saved = JSON.parse(localStorage.getItem('wb_pillpos_v1'));
+      ok(saved && saved.pens && saved.pens.fx > 0.5 && saved.pens.fy > 0 && saved.pens.fy < 1, 'the position is saved as fractions of the board (wb_pillpos_v1)', JSON.stringify(saved));
+      ok(pill.dataset.side === 'right', 'on the right half the fan opens to the left', pill.dataset.side + '/' + pill.dataset.vert);
+      q('.wb-pill[data-pill="pens"] .wb-pill-btn').click(); await until(function () { return q('.wb-pill-pens.wb-open .wb-fan-item'); });
+      var fp = qa('.wb-pill-pens .wb-fan-item').map(function (b) { return parseInt(b.style.getPropertyValue('--tx'), 10); });
+      ok(fp.every(function (x) { return x <= 0; }), 'fan items of a right-side pill all lie to the left', fp.slice(0, 4).join(','));
+      q('.wb-pill[data-pill="pens"] .wb-pill-btn').click(); await wait(320);
+      /* V3.860 — the ✎ pill's double tap switches the hand's mode (and leaves the pill where it is); Tools puts pills back */
+      var __lastMode = h.lastHandMode();
+      q('.wb-pill[data-pill="pens"] .wb-pill-btn').click(); await wait(40); q('.wb-pill[data-pill="pens"] .wb-pill-btn').click(); await wait(320);
+      ok(h.handMode() === (__lastMode || 'pan') && q('.wb-pill[data-pill="pens"]').dataset.moved === '1' && !q('.wb-pill-pens.wb-open'), 'V3.860: a double tap on the ✎ pill switches to the last mode, the pill stays put, the fan stays shut', __lastMode + ' → ' + h.handMode());
+      h.setHandMode('pen'); await wait(20);
+      q('.wb-pill[data-pill="tools"] .wb-pill-btn').click(); await until(function () { return q('.wb-pill-tools.wb-open .wb-fan-item[data-wb-act="pills-reset"]'); });
+      q('.wb-pill-tools .wb-fan-item[data-wb-act="pills-reset"]').click(); await wait(40);
+      pill = q('.wb-pill[data-pill="pens"]');
+      ok(!pill.dataset.moved && pill.offsetLeft === p0.l && !JSON.parse(localStorage.getItem('wb_pillpos_v1')).pens, 'Tools → Put the pills back puts the pill in its default place');
+
+      /* ── 6. V3.841 the plane: no pages, zoom folds into the origin, ⌂ and ⊡ ── */
+      ok(h.isInfinite() && !q('.wb-page-dot') && q('.wb-pagesbar').hidden && q('.wb-rail').hidden, 'a host board is one infinite plane: no page dots, no pages bar, no rail');
+      var legacy = h.getItems().find(function (i) { return i.id === 'legacy'; });
+      ok(legacy && legacy.pageId === 'p1' && Math.abs(legacy.y - 0.725) < 1e-3, 'a legacy card from page 2 is folded onto the plane (y = 0.625 + 0.1, page p1)', legacy && (legacy.pageId + ' ' + legacy.y));
+      q('.wb-pill[data-pill="zoom"] .wb-pill-btn').click(); await until(function () { return q('.wb-pill-zoom.wb-open .wb-fan-item[data-wb-act="zoom-out"]'); });
+      ok(!!q('.wb-pill-zoom .wb-fan-item[data-wb-act="zoom-fit"]'), 'the View pill has ⊡ Fit everything');
+      var o0 = h.getOrigin();
+      q('.wb-pill-zoom .wb-fan-item[data-wb-act="zoom-out"]').click(); await wait(60);
+      var v = h.getView(), o1 = h.getOrigin();
+      ok(Math.abs(v.scale - 0.8) < 1e-6 && v.tx === 0 && v.ty === 0 && o1.x < o0.x && o1.y < o0.y, 'zoom out to 80 %: the lens offset is folded into the origin (tx = ty = 0, origin moves up-left)', JSON.stringify({ v: v, o: o1 }));
+      ok(/scale\(0\.8/.test(q('.wb-widgets').style.transform) && !/translate\([^0]/.test(q('.wb-widgets').style.transform.replace(/translate\(0px, 0px\)/, '')), 'the cards layer carries only the scale', q('.wb-widgets').style.transform);
+      ok(q('.wb-pill-zoom .wb-pill-pct').textContent === '80%', 'the pill shows 80%');
+      q('.wb-pill-zoom .wb-fan-item[data-wb-act="zoom-home"]').click();
+      await until(function () { return h.getView().scale === 1; }, 2000);
+      ok(h.getView().scale === 1 && h.getOrigin().y < 0.05, '⌂ home: 100 % with the content\'s top-left in view', JSON.stringify(h.getOrigin()));
+      if (q('.wb-pill-zoom.wb-open')) { q('.wb-pill[data-pill="zoom"] .wb-pill-btn').click(); await wait(20); }
+      /* no growth: a card far below the old page foot just sits there */
+      var pagesBefore = h.getBoard().pages.length;
+      var lowId = await h.addWidget({ kind: 'note', title: 'Low', text: 'far down', w: 0.3, pageId: 'p1', x: 0.05, y: 0.9 });
+      await wait(700);
+      var low = items().find(function (i) { return i.id === lowId; });
+      ok(h.getBoard().pages.length === pagesBefore && low && Math.abs(low.y - 0.9) < 1e-6, 'a card below the old page foot keeps y = 0.9 and no page is added (the plane has no end)', pagesBefore + ' pages · y ' + (low && low.y));
+      /* wheel scroll pans in BOTH axes, unclamped, and the cards follow */
+      var stage = q('.wb-stage'), cardNode = q('.wb-item-widget[data-item-id="' + wid + '"]'), left0 = cardNode.offsetLeft, top0 = cardNode.offsetTop;
+      stage.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: 150, deltaY: 100, clientX: 400, clientY: 400 })); await wait(80);
+      var o2 = h.getOrigin();
+      ok(o2.x > 0.1 && o2.y > 0.05 && cardNode.offsetLeft < left0 - 100 && cardNode.offsetTop < top0 - 60, 'a wheel with deltaX / deltaY scrolls the plane in both axes and the cards move with it', JSON.stringify(o2));
+      stage.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: -150, deltaY: -700, clientX: 400, clientY: 400 })); await wait(80);
+      ok(h.getOrigin().y < -0.3, 'scrolling up past the top goes on: the plane has no edge', JSON.stringify(h.getOrigin()));
+      await drawStroke(150, 60, 400, 60);
+      await until(function () { return strokes().length === 3; });
+      var up = strokes().sort(function (a, b) { return b.seq - a.seq; })[0];
+      ok(up.pageId === 'p1' && up.pts[1] < 0, 'ink above the old top edge is stored with a negative y on the plane', up.pts[1]);
+      /* the ✋ pan tool drags the plane */
+      q('.wb-pill[data-pill="pens"] .wb-pill-btn').click(); await until(function () { return q('.wb-pill-pens.wb-open .wb-fan-item[data-wb-act="hand-pan"]'); });   /* V3.860 — ✋ is a mode of the ✎ pill */
+      q('.wb-pill-pens .wb-fan-item[data-wb-act="hand-pan"]').click(); await wait(20);
+      var inkEl = q('.wb-canvas-ink'), ir = inkEl.getBoundingClientRect(), o3 = h.getOrigin();
+      pe('pointerdown', inkEl, ir.left + 300, ir.top + 300); pe('pointermove', inkEl, ir.left + 200, ir.top + 240); pe('pointerup', inkEl, ir.left + 200, ir.top + 240); await wait(40);
+      ok(h.getTool() === 'pan' && h.getOrigin().x > o3.x + 0.05 && h.getOrigin().y > o3.y + 0.03, '✋ pans the plane under the pen', JSON.stringify(h.getOrigin()));
+      q('.wb-pill[data-pill="pens"] .wb-pill-btn').click(); await until(function () { return q('.wb-pill-pens.wb-open .wb-fan-item[data-wb-act="hand-pen"]'); }); q('.wb-pill-pens .wb-fan-item[data-wb-act="hand-pen"]').click(); await wait(20);
+      ok(h.getTool() === 'pen', 'and ✎ Pen goes back to drawing');
+      h.fitAll(); await wait(550);
+      ok(h.getView().scale <= 1 && h.getView().scale >= 0.3 && h.getOrigin().x < 0.05, '⊡ frames the whole content (origin at the content\'s top-left, scale ≤ 100 %)', JSON.stringify({ s: h.getView().scale, o: h.getOrigin() }));
+      await wait(100);
+
+      /* ── 7. V3.841 cards move by the header, connect by their ports, take drops ── */
+      var card = q('.wb-item-widget[data-item-id="' + wid + '"]'), head = card.querySelector('.wb-wh'), hr = head.getBoundingClientRect();
+      var x0 = items().find(function (i) { return i.id === wid; }).x;
+      var mv = function (type, x, y, target) { var e = new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 13, pointerType: 'mouse', button: 0 }); (target || layer).dispatchEvent(e); };
+      mv('pointerdown', hr.left + 6, hr.top + hr.height / 2, head);
+      mv('pointermove', hr.left + 80, hr.top + hr.height / 2);
+      mv('pointermove', hr.left + 160, hr.top + hr.height / 2);
+      mv('pointerup', hr.left + 160, hr.top + hr.height / 2);
+      await until(function () { var i = items().find(function (x) { return x.id === wid; }); return i && i.x > x0 + 0.08; }, 3000);
+      ok(!q('.wb-page').classList.contains('wb-arrange') && items().find(function (i) { return i.id === wid; }).x > x0 + 0.08, 'dragging a card by its header moves it — no Arrange mode', x0 + ' → ' + items().find(function (i) { return i.id === wid; }).x);
+      ok(card.querySelectorAll('.wb-wport').length === 4 && card.querySelector('.wb-wport-e') && card.querySelector('.wb-wgrab'), 'the card has four connection dots (N E S W) and a grab glyph');
+      var bid = await h.addWidget({ kind: 'note', title: 'Analysis', text: 'then analyse', w: 0.3, pageId: 'p1', x: 0.6, y: 0.1 });
+      await until(function () { return q('.wb-item-widget[data-item-id="' + bid + '"]'); });
+      var B = q('.wb-item-widget[data-item-id="' + bid + '"]'), br2 = B.getBoundingClientRect();
+      var portE = card.querySelector('.wb-wport-e'), prE = portE.getBoundingClientRect();
+      var wv = function (type, x, y) { var e = new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 17, pointerType: 'pen', button: 0 }); portE.dispatchEvent(e); };
+      wv('pointerdown', prE.left + prE.width / 2, prE.top + prE.height / 2);
+      wv('pointermove', (prE.left + br2.left) / 2, br2.top + 30);
+      ok(!!q('.wb-wires .wb-wire-draft') && q('.wb-page').classList.contains('wb-wiring'), 'dragging from a dot draws a dashed draft line');
+      wv('pointermove', br2.left + br2.width / 2, br2.top + br2.height / 2);
+      ok(B.classList.contains('wb-port-target'), 'the card under the pointer lights up as the target');
+      wv('pointerup', br2.left + br2.width / 2, br2.top + br2.height / 2);
+      await until(function () { return wires().length === 1; }, 3000);
+      var wd = wires()[0];
+      ok(wd.from === wid && wd.to === bid && wd.fromSide === 'e' && /^[nesw]$/.test(wd.toSide), 'dropping on the other card writes a wire with the sides it leaves and arrives at', JSON.stringify({ from: wd.from === wid, to: wd.to === bid, fromSide: wd.fromSide, toSide: wd.toSide }));
+      await until(function () { return q('.wb-wires .wb-wire .wb-wire-line'); });
+      ok(/ C/.test(q('.wb-wires .wb-wire .wb-wire-line').getAttribute('d')) && !q('.wb-wire-draft') && connected.length === 1, 'the wire is drawn as a curve between the dots; the draft is gone; onConnectDone fired', q('.wb-wires .wb-wire .wb-wire-line').getAttribute('d').slice(0, 40));
+      /* drops: on the sheet → the host; on a card → the card's own business */
+      var dt = new DataTransfer(); dt.items.add(new File([new Uint8Array(16)], 'bead.png', { type: 'image/png' })); dt.items.add(new File(['<html></html>'], 'sim.html', { type: 'text/html' }));
+      inkEl.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, clientX: ir.left + 500, clientY: ir.top + 300, dataTransfer: dt }));
+      await wait(30);
+      ok(drops.length === 1 && drops[0].n === 2 && drops[0].names.join(',') === 'bead.png,sim.html' && drops[0].at.pageId === 'p1' && typeof drops[0].at.x === 'number' && typeof drops[0].at.y === 'number', 'files dropped on the sheet reach the host with the plane position', JSON.stringify(drops[0] && drops[0].at));
+      B.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, clientX: br2.left + 10, clientY: br2.top + 40, dataTransfer: dt }));
+      await wait(30);
+      ok(drops.length === 1, 'a drop on a card is left to the card');
+      /* paste from the clipboard: text → the host (a note card); a paste INTO a field is left alone */
+      var dtp = new DataTransfer(); dtp.setData('text/plain', 'Pasted protocol step\nwash twice');
+      document.body.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dtp }));
+      await wait(30);
+      ok(pastes.length === 1 && /wash twice/.test(pastes[0].text) && pastes[0].at && pastes[0].at.pageId === 'p1' && typeof pastes[0].at.x === 'number', 'a paste on the page reaches the host with a place on the plane', JSON.stringify(pastes[0] && pastes[0].at));
+      var ti = card.querySelector('.wb-wtitle'); ti.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dtp }));
+      await wait(30);
+      ok(pastes.length === 1, 'a paste into a card\'s field is the field\'s');
+
+      /* ── 8. V3.841 an HTML frame card ── */
+      var fid = await h.addWidget({ kind: 'html', title: 'Sim', w: 0.5, pageId: 'p1', x: 0.05, y: 0.3, data: { url: 'about:blank', storagePath: 'canvas-files/u1/x/sim.html', name: 'sim.html', size: 2048, ar: 1.6 }, text: 'HTML frame: sim.html' });
+      await until(function () { return q('.wb-item-widget[data-item-id="' + fid + '"] iframe.cw-frame'); });
+      var fr = q('.wb-item-widget[data-item-id="' + fid + '"] iframe.cw-frame');
+      ok(/allow-scripts/.test(fr.getAttribute('sandbox')) && /allow-same-origin/.test(fr.getAttribute('sandbox')) && fr.getAttribute('src') === 'about:blank', 'the frame is a sandboxed iframe of the file');
+      ok(!!q('.wb-item-widget[data-item-id="' + fid + '"] .cw-frame-hgrip') && /sim\.html/.test(q('.wb-item-widget[data-item-id="' + fid + '"] .cw-frame-name').textContent), 'with a height handle and the file name');
+      var tooBig = new File([new Uint8Array(26 * 1024 * 1024)], 'big.html', { type: 'text/html' });
+      var rejected = ''; try { await CANVAS_WIDGETS.basic.uploadCanvasFile(tooBig, 'u1'); } catch (e2) { rejected = e2.message; }
+      ok(/25 MB/.test(rejected), 'a 26 MB file is refused before any upload', rejected);
+      var exp = await h.exportPNGs({ width: 800 });
+      ok(exp.length === 1 && exp[0].pageId === 'p1' && exp[0].width > 0, 'export: one image of the plane\'s content', exp.length + ' · ' + (exp[0] && exp[0].width + 'x' + exp[0].height));
+
+      /* ── 9. V3.841 the eraser of the set; the two-tap clear keeps its glyph ── */
+      q('.wb-pill[data-pill="pens"] .wb-pill-btn').click(); await until(function () { return q('.wb-pill-pens.wb-open .wb-fan-item[data-pen="er1"]'); });
+      q('.wb-pill-pens .wb-fan-item[data-pen="er1"]').click(); await wait(20);
+      ok(h.getTool() === 'eraser' && h.currentPen().id === 'er1' && q('.wb-pill-pens .wb-pill-dot-eraser'), 'picking the eraser of the set: tool eraser, status dot dashed');
+      h.fitAll(); await wait(450); if (h.getView().scale !== 1) { q('.wb-pill[data-pill="zoom"] .wb-pill-btn').click(); await until(function () { return q('.wb-pill-zoom.wb-open'); }); q('.wb-pill-zoom .wb-fan-item[data-wb-act="zoom-home"]').click(); await until(function () { return h.getView().scale === 1; }, 2000); }
+      var nBefore = strokes().length;
+      var target = strokes().find(function (st) { return !st.hl && st.pts[1] > 0; });
+      var o4 = h.getOrigin(), pw = inkEl.clientWidth;   /* plane → screen at 100 %: (u − ox) · pw */
+      var ex = (target.pts[0] + target.pts[3]) / 2, ey = target.pts[1];
+      var sx = (ex - o4.x) * pw, sy = (ey - o4.y) * pw;
+      pe('pointerdown', inkEl, ir.left + sx, ir.top + sy); pe('pointermove', inkEl, ir.left + sx + 3, ir.top + sy); pe('pointerup', inkEl, ir.left + sx + 3, ir.top + sy);
+      await until(function () { return strokes().length === nBefore - 1; }, 3000);
+      ok(strokes().length === nBefore - 1, 'the eraser rubs out the stroke under it', nBefore + ' → ' + strokes().length);
+      q('.wb-pill[data-pill="pens"] .wb-pill-btn').click(); await until(function () { return q('.wb-pill-pens.wb-open .wb-fan-item[data-wb-act="clear-page"]'); });
+      var clr = q('.wb-pill-pens .wb-fan-item[data-wb-act="clear-page"]');
+      clr.click(); await wait(20);
+      ok(clr.classList.contains('wb-armed') && clr.textContent.trim() === '⌧' && /again/.test(q('.wb-pill-pens [data-wb-caption]').textContent) && strokes().length === nBefore - 1, 'first tap on ⌧ arms it: red ring + caption, the glyph stays, nothing cleared', q('.wb-pill-pens [data-wb-caption]').textContent);
+      clr.click();
+      await until(function () { return strokes().length === 0; }, 3000);
+      ok(strokes().length === 0 && q('.wb-pill-pens.wb-open'), 'second tap clears all the ink on the plane (the fan stays open)');
+      if (q('.wb-pill-pens.wb-open')) { q('.wb-pill[data-pill="pens"] .wb-pill-btn').click(); await wait(20); }
+      ok(window.__popups.length === 0, 'no browser popups');
+      ok(!(window.__toastErr || []).length, 'no error toasts', (window.__toastErr || []).join(' | '));
+      h.destroy(); ok(true, 'destroy ok');
+    } catch (e) { ok(false, 'exception: ' + (e && e.message)); console.error(e); }
+    done();
+  })();
+})();
+</script>
+</body>
+</html>

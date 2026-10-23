@@ -202,7 +202,7 @@
       var counts = CATS.filter(function (c) { return m.counts[c]; })
         .map(function (c) { return esc(c) + ':' + m.counts[c]; }).join(' · ') || '<span class="muted">unseen</span>';
       return '<tr><td><code class="tok">' + esc(prettyTok(tok)) + '</code></td>' +
-        '<td>' + esc(m.group) + '</td><td>' + m.weight.toFixed(1) + '×</td>' +
+        '<td>' + esc(m.group) + '</td><td>' + m.weight.toFixed(1) + ICON.svg('x-mark') + '</td>' +
         '<td>' + (fav ? catChip(fav) : '<span class="muted">—</span>') + '</td>' +
         '<td class="muted">' + counts + '</td></tr>';
     }).join('');

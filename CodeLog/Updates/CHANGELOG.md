@@ -4,6 +4,12595 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.868] — 2026-10-23 — git keeps up with the site: the push hook, the merge checker, the feature registry, two deployers
+
+Alex: *"ensure there is a hook for pushing git as well, and part of this hook is a merge checker, and part of this merge
+checker is that we dont want overlap in capability … if gabe makes a feature that is close to something that already exists
+it needs to be flagged to combination"*; then Gabe's FTP + Firebase access. Plan:
+[V3.868_git_push_hook_merge_checker.md](../ClaudesPlan/V3.868_git_push_hook_merge_checker.md).
+
+### Added
+- `CodeLog/features.json` — the **feature registry**: 64 features (RM, the parent site, Scientia, the shared layer) with
+  `id`, `name`, `side`, `summary`, `keywords`, anchored `paths`, and the relations `extends` / `merges_into` (`status:
+  retiring`) / `related` / `distinct_from {id: reason}`; `status: decision`, `desktop_only`; `feature_dirs` says where a
+  new file counts as a new module. The V3.866 Scientia → RM mappings are encoded as `merges_into`.
+- `scripts/merge_check.py` — the **push gate**: (1) registry lint (schema, dangling relations, every look-alike pair must
+  declare a relation); (2) **overlap** — new files, Scientia `TABS` / `STORES` entries, RM nav items, widget
+  registrations, function exports, `window.X` globals, `api/…` routes, UI labels and (in new scripts) top-level
+  functions are tokenised and scored against every other feature's name + keywords + file stems (IDF-weighted; owner
+  = the file's feature or a same-side feature that fits better; hit at ≥ 1.5 with a distinctive token, labels 2.0, or
+  distinctive name tokens covering > ½ of an entry signal) and HELD with the fix spelled out — that is "flagged to
+  combination"; lines added to a retiring feature warn; (3) **merge** — `git merge-tree --write-tree origin/main HEAD`,
+  conflicts hold with the file list; (4) **gates** — `node --check`, the Scientia build, the hub tests, the icon/emoji
+  gate, each when its files changed. Commands `range` / `worktree` / `pre-push` (git protocol on stdin) / `ci` / `lint` /
+  `queue` / `install`; `--target --no-fetch --no-merge --no-gates --json --quiet`; `MERGE_CHECK_DONE=1` skips a repeat.
+- `.githooks/pre-push` — the tracked git hook (`python3 scripts/merge_check.py install` sets `core.hooksPath`).
+- `.github/workflows/merge-check.yml` — the same gate on every pull request and push to `main` (so `--no-verify` and
+  un-installed hooks are still checked), plus the Scientia build, hub tests and the checker's fixtures.
+- `scripts/git_autopush.py` — the **git step of the Stop hook**, run BEFORE autodeploy: commit the turn (subject from the
+  CHANGELOG head, `(cont.)` when the version continues, `Co-Authored-By` trailer under Claude) → fetch → rebase onto
+  `origin/<branch>` (abort + HELD on conflict, commit kept local) → the push gate (its report lands in the turn's
+  message) → push → rebuild Scientia when the rebase touched it. Guards: secrets/credentials/`.env`/payroll/ledgers/
+  grant documents/rosters/bundles never staged (path patterns + content scan: private keys, service-account JSON, API
+  tokens, `sck_` keys); > 50 MB; a batch above `autoPushMaxFiles` waits for `--batch`; `--dry-run`, `--status`;
+  `autoPushAllow`; pause with `"autoPush": false` / `MCGHEELAB_AUTOPUSH=0`. One JSON `systemMessage` line.
+- `scripts/deploy.py merge-manifest <base> <ours> <theirs>` — git merge driver for `deploy/manifest.json`
+  (`.gitattributes`): union, newer `deployedAt` wins, a dropped file stays dropped.
+- `scripts/tests/merge_check_test.py` — 31 fixtures in throwaway repos (registration, overlap, lint, merge conflict,
+  pre-push protocol, install, autopush commit/guard/batch/gate/rebase/pause).
+
+### Changed
+- `scripts/deploy.py`: `load_dotenv()` reads `MCGHEELAB_FTP_USER` / `_PASSWORD` / `_HOST` from `scripts/.env` (a second
+  deployer's own login); `git_guard()` — `ftp` and `autodeploy` are HELD when not on `deployBranch` (`main`) or behind
+  `origin/main` (`--any-branch` overrides `ftp`; offline it steps aside); `scientia_build_if_stale()` rebuilds the web
+  Scientia before hashing when a source is newer.
+- `deploy/site.json`: `autoPush`, `autoPushMaxFiles` (80), `autoPushAllow`, `deployBranch`.
+- `.claude/settings.json`: the Stop hook runs `git_autopush.py` then `deploy.py autodeploy`.
+- `.gitignore`: `Data/payroll*`, `Data/transactions*`, `Data/*.csv`, `Data/*.xlsx`, `Data/Grants/`, vendor manual PDFs,
+  `**/*.paperbundle.zip`. **`Data/payroll_all.csv`, `Data/transactions_all.csv`, `Data/Alex_McGhee_StartUp.xlsx` were
+  tracked in the PUBLIC GitHub repo** — removed from the index (files stay on disk); the history purge is Alex's call.
+- `scientia/CLAUDE.md`: the git workflow is now the hook-based one (install, branch, the gate, the registry, the
+  batch push) and an **Access** section for Gabe (GitHub, Firebase Editor — done, FTP via `scripts/.env`).
+  `rm/CLAUDE.md` + root `CLAUDE.md` point at it.
+
+- `autoPushSkip` (deploy/site.json): paths the hook leaves for a hand push. The batch push was refused by GitHub for
+  `.github/workflows/merge-check.yml` — the Keychain credential is an OAuth token without the `workflow` scope — so
+  the workflow file is skipped until Alex runs `gh auth refresh -h github.com -s workflow && gh auth setup-git` and
+  pushes it; the message names skipped files each turn.
+
+### Not in this version
+- Branch protection on `main` (needs the Action's first run); making the repo private; purging the payroll history;
+  Gabe's FTP account itself (cPanel); the workflow file's push (token scope) — all Alex's.
+
+## [V3.867] — 2026-10-23 — When the app won't open, it still gets the crash report out (native share, no page needed)
+
+Alex: *"on gabes phone, the app doesnt even open"*. Build 17 broke the app for Gabe; it changed no native code and TestFlight
+counts 0 crashes for him, so the likeliest failure is the first page (My Week) dying or hanging every time on his phone —
+which V3.865 records on the phone but can only deliver THROUGH the page (upload, Share banner).
+
+### Added — native (OurlabMobile, build 20)
+- `OurlabDiagnostics.swift`:
+  - `startupCheck()` — 25 s after the app first becomes active, if no page has called `claim()` (a working page does ~2 s
+    after its HTML is parsed), write a `no-start` report (the marker, web deaths per tab) and prompt.
+  - `webContentDied` keeps deaths PER TAB (`webDeaths: [String: [Date]]`); the same tab dying 3 times in 90 s = a crash
+    loop → prompt. (iOS can take every page down at once and they recover — that is not a loop.)
+  - `promptToShare(reason:)` — ONE native `UIAlertController` per run ("Ourlab isn't starting properly … Send it to the
+    lab?" — **Not now** / **Send report**), only while active and only with pending reports; Send report opens
+    `UIActivityViewController` with every pending report file. Files stay pending, so a page that recovers still uploads.
+    `topViewController()` walks the key window's presented stack.
+  - A previous run that ended while `launching` (same build) is reported too: "Ourlab closed while starting". A launch in the
+    background (push / fetch) starts as `background`, so it never reads as a start-up crash.
+
+### Changed — web
+- `rm/js/app-diagnostics.js` boots on `DOMContentLoaded` (was window `load`, which waits for remote images and fonts) — the
+  native watchdog reads a claim as "this page is alive", and a slow network must not look like a page that never started.
+
+### Bug Fixes
+- `rm/js/my-week.js` `monthGridDays(dateStr)`: a malformed date made the day loop endless (`'NaN-NaN-NaN' <=
+  'NaN-NaN-NaN'` is always true), growing an array until the page's process died. Falls back to `localToday()` and stops at
+  42 days. Latent — My Week validates its date today, so this is NOT shown to be Gabe's cause.
+
+### Tests
+- v3865 harness 22/22. Simulator: a working page with an old report waiting → its own banner, NO native alert at 32 s; the
+  page processes killed three times 8 s apart → the native alert (screenshot); a hand-seeded `launching` marker → "Ourlab
+  closed while starting". `monthGridDays` with `TBD` / `''` / `undefined` → 35 days in ~1 ms.
+
+Plan: [V3.867_app_wont_open_reports.md](../ClaudesPlan/V3.867_app_wont_open_reports.md). sw 850 → 851.
+
+## [V3.866] — 2026-10-23 — Scientia + RM become one (Phase 0): Gabe's source lives in this repo, one build for desktop and web, the git contract
+
+Alex: *"i want to combine scientia with RM … tasks, activity and others … deleted in favor of the rm site, materials
+should be from inventory … features we just made for the lab notebook … ported into scientia … a unified git which lives
+here in this repo. Gabe has been invited … good version controlling … the desktop version … should pull from the RM
+site … compatible with the highlights used."* Program plan: `CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md`
+(Phases 0–4 with the library / highlight / materials / tasks / activity mappings worked out from both code bases).
+This version ships **Phase 0**.
+
+### Added
+- `scientia/` — Gabe's source tree verbatim (his zip of 2026-10-22: `src/` numbered load order + `shell.html` + CSS,
+  `vendor/`, `fonts.css`, `icons/`, `build.py`, `serve.py`, `sisync.py`, `winink.py`, `sttread.py`, `slides.py`,
+  `hwread.py`, `launch.bat`, `diagnose-pairing.*`, `docs/`, `README.md`, `MANUAL.md`). Verified first: his `build.py`
+  on this tree reproduces the file that was live byte for byte. Outside `rm/`, so `deploy/site.json` never ships it;
+  the desktop app runs from it unchanged (`python3 scientia/serve.py`).
+- `scripts/scientia_build.py` — one build, two targets: Gabe's `build.py` → `scientia/scientia.html` (desktop), then
+  the lab layer — `<script src="cloud-sync.js?v=<sha1[:10] of the shim>">` inserted before `01-util.js` →
+  `rm/scientia/scientia.html` (web), plus `icons/` and `MANUAL.md` copied over. `--check` rebuilds in memory and exits
+  1 when a file on disk is stale (a release gate). The web output differs from the previously live file in that one
+  cache-key line only. Supersedes `scripts/scientia_patch.py` (deleted).
+- `scientia/CLAUDE.md` — the contract for Gabe and the lab: the two targets and their data, what lives where and who
+  owns it (`src/` + python = Gabe; `cloud-sync.js`, `scientia-cloud.py`, the hub function, `notebook-scientia.js` =
+  the lab), the git workflow (`scientia/<topic>` / `rm/<topic>` branches → PR to `main`, a reviewer from the other
+  side, the gates: `scientia_build.py --check`, `node --check` via the build, the hub fixtures, the V3.864 harness, the
+  icon gate), version lines (his `BUILD` string, our `V3.x`), what never enters git, local dev, the rules that are
+  easy to break (globals collide → iframe; `is_local()` routes need a stub in `route()`; no colour emoji; no popups).
+
+### Changed
+- `.gitignore` — the two build outputs (`scientia/scientia.html`, `rm/scientia/scientia.html`) and a notebook folder's
+  `images/`, `recordings/`, `backup/`, `pairing-report.txt` under `scientia/`.
+- `rm/CLAUDE.md` — a "Scientia — one source, two targets" section pointing at `scientia/CLAUDE.md` and the plan.
+- `rm/scientia/scientia.html` — rebuilt by the new script (cache key `?v=fac78b1a65`); V3.864 harness 31/31 + 6/6 on it.
+- `sw.js` CACHE_VERSION bumped.
+
+### Owed to Alex (not done here — his call)
+`main` carries ~630 uncommitted changes (308 untracked files) since the "RM" commit: the V3.3xx–V3.865 run. Gabe cannot
+pull a tree that builds until that is committed (one batch commit, or `scripts/version_push.py`). Decisions 1–5 in the
+plan's §7 (Review tab, purple highlight colour, where the web Library tab points, phase order).
+
+## [V3.865] — 2026-10-23 — The phone app writes its own crash report, sends it to the lab, and shares it in one tap
+
+Alex: *"gabe has an iphone 16+ — can we make it so if the app crashes it can log a detailed report, so he can share the
+crash data without having to type anything"* (build 17 "crashes on Gabe's phone" with no TestFlight report to go on).
+
+### Added — native (OurlabMobile m-v0.5.0, build 19)
+- `ios/App/App/OurlabDiagnostics.swift` (new, in the App target): `OurlabDiagnostics.shared.start()` from
+  `AppDelegate.didFinishLaunching`.
+  - **MetricKit** (`MXMetricManagerSubscriber` + `pastDiagnosticPayloads`): payloads with crash / hang / CPU-exception
+    diagnostics become `native-crash` / `hang` / `cpu` reports carrying Apple's `jsonRepresentation()` and a one-line cause
+    (`EXC_BAD_ACCESS · SIGSEGV · <ObjC exception> · <termination reason>`); deduped in `seen-metrickit.json`.
+  - **Unclean-exit marker** `state.json`: `phase` foreground / inactive / background (`didBecomeActive`, `willResignActive`,
+    `didEnterBackground`; removed on `willTerminate`), active tab, each tab's last page (`note`), memory warnings. A launch
+    that finds `foreground` from the SAME build writes an `app-exit` report with the previous run's marker.
+  - **`DiagnosticsNavigationTap`**: a forwarding `WKNavigationDelegate` in front of Capacitor's `WebViewDelegationHandler`
+    (installed in `TabBridgeViewController.capacitorDidLoad`, retained there); `webViewWebContentProcessDidTerminate` writes a
+    `webcontent` report (tab, URL) — or only counts it when the app is in the background — then Capacitor reloads as before.
+  - Device facts on every report: model identifier, iOS, physical / available memory (`os_proc_available_memory`), thermal
+    state, Low Power Mode, free disk, memory warnings and background web deaths this run.
+  - Plugin `OurlabDiagnostics` (per bridge): `claim()` (each report to ONE webview per launch), `done`, `release`, `info`,
+    `note({page, active})`, `share({filename, text})` (UIActivityViewController with the report file).
+- `scripts/sync-rm.mjs` injects `<script src="/rm/js/app-diagnostics.js">` near the top of every app page's `<head>`.
+
+### Added — web
+- `rm/js/app-diagnostics.js` (app only; inert on the website and in builds without the plugin): breadcrumbs in
+  `localStorage` `ourlab.crumbs.v1` (80; page loads, tab shown / hidden, `error`, `unhandledrejection`, `console.error`, taps by
+  action name / id / label — never typed text; a repeating error is one crumb with a count); on the VISIBLE tab
+  (`__OURLAB_TAB_VISIBLE`) it claims the reports, attaches the breadcrumbs from before each event, uploads them to
+  `crashReports/{id}` (MetricKit + event as JSON strings — Firestore cannot hold nested arrays), then `done` / `release`
+  (signed out: released at once — `firebridge.getUser() === null`). Banner for crashes / stopped pages: "Ourlab closed
+  unexpectedly last time." / "A page stopped and reloaded." with **Share report** (the share sheet) and ×.
+- `rm/pages/app-reports.html` (admin): newest first — kind, cause, when, who, phone model name, iOS, build, free memory;
+  open one for the breadcrumb timeline, the event and Apple's report; **Copy for Claude**; two-tap Delete.
+- `firestore.rules` `crashReports/{reportId}`: create by the signed-in owner (`uid == auth.uid`, `id == reportId`, fixed
+  field list, `kind` ≤ 40 chars), never updated, read / delete by admins. **Deployed** from a scratch copy = the LIVE
+  ruleset + this block only (the repo file's V3.806 users guard and V3.835 inventory `use_mode` hunks were NOT shipped);
+  `:test` API 9/9 (owner create; other uid / id mismatch / extra field / signed out / update denied; admin read + delete;
+  reporter read denied); live re-read == the deployed copy.
+
+### Tests
+- `scripts/tests/v3865-app-diagnostics-harness.html` (new) 22/22 — breadcrumbs, no typed text, error de-dup, claim → upload →
+  done, the rule's field list, MetricKit as a string, banner + Share, a failed upload released and retried, a hidden tab
+  waits, signed out hands back at once, inert outside the app.
+- Simulator (Debug build of this tree): killing the page processes → four `webcontent` reports (one per tab) + the banner;
+  `simctl terminate` and `kill -SEGV` in the foreground → `app-exit` with the tabs' last pages; a kill after going to Settings
+  (background) → no report. MetricKit itself only delivers on a device.
+
+Plan: [V3.865_app_crash_reports.md](../ClaudesPlan/V3.865_app_crash_reports.md). sw 848 → 849.
+
+## [V3.864] — 2026-10-23 — Scientia is a notebook of the Lab Notebook: Gabe's app, synced with his desktop, inside the notebook (no separate page)
+
+Alex: *"this needs to be embedded in the lab notebook, not a separate page it should be unified so that lab notebook is
+gabes desktop app working in tandem."* Plan: `CodeLog/ClaudesPlan/V3.864_scientia_in_lab_notebook.md`. Builds on V3.857
+(the cloud hub + desktop bridge); the canvas notebook's data and behaviour are unchanged.
+
+### Added
+- `rm/js/notebook-scientia.js` (`window.NOTEBOOK_SCIENTIA`) — `init({uid, renderTabs, renderHeader, park})` starts three
+  owner listeners: `userData/{uid}/scientia/hub` (records, conflictsN, updated), `hub/rows where store == 'documents'`
+  (notes: `recJson` parsed, `review` notes skipped, sorted by `modified`, re-rendered only when the id/title list
+  changes) and `hub/keys` (computer name, `lastSeen`). `tabsHtml({q})` — the "Scientia" group in the notebook's tab row:
+  Today (`#/home`), the 20 most recently changed notes (`#/doc/<id>`), "All N" (`#/portfolio`) and ＋ (a new Scientia
+  note); the search box filters it too. `onTab(b)`, `show(hash)` — parks the canvas entry through the host's `park`,
+  creates the same-origin iframe once (`/rm/scientia/scientia.html#…`, kept alive in the background afterwards so sync
+  keeps running), navigates it by postMessage, sets `?notebook=scientia&note=<id>`, remembers `nbc_view`; `hide()`;
+  `active()`; `renderHeader(h, {full, searchOpen})` — title Scientia, a sync dot (green = a computer synced in the last
+  3 min, amber = connected but quiet, red = conflicts, grey = none) and "N records · changed … · Office PC synced …",
+  Desktop sync, ⌕, ⋯ (Connect your computer… · Upload from desktop… · Download (JSON) · Open on its own), ⛶;
+  `togglePanel()` — the sync panel inside the Scientia area: status, Connect your computer (the three steps, the
+  `scientia-cloud.py` link, Make a key with the key shown once + Copy, the computers with last sync and a two-tap
+  Remove), Move a whole notebook (Upload with an inline confirm naming the file and record count — `blobs` / `journal`
+  / `datasets` stripped, POST `api/snapshot`, the frame reloads — and Download). `shouldOpen()` — the last view, else
+  yes when the hub has records and a computer key exists. No browser popups.
+- `rm/css/notebook-scientia.css` — `.nbc-root.nbc-sis-on` swaps the stage between the canvas board and Scientia
+  (`.nbc-sis`, iframe full bleed); the dot, the panel, the key and confirm boxes; ≤760 px the panel covers the area
+  (`max-height: none` over the canvas sheet's 55% cap).
+- `scripts/tests/v3864-notebook-scientia-harness.html` — the V3.852 stub + a hub (two notes, a block row and a review
+  that must not become tabs, a computer key) with the REAL notebook-canvas.js / notebook-scientia.js and Gabe's REAL
+  build in the frame; hub calls answered in-page. 31/31 (canvas link stays canvas; group in the same row; tab order and
+  count; a tab opens his app in the sheet area at that note; the canvas entry is put away; URL + remembered view; header
+  status and green dot; his build loads; a second tab navigates the SAME frame; a note opened inside Scientia lights its
+  notebook tab and the URL; a note written to the hub appears as a tab at once; panel, key make with the ID token,
+  two-tap remove; upload confirm + POST without journal/blobs + reload; back to the canvas restores the entry header and
+  keeps Scientia loaded; no popups / rejections / error toasts / raw `<svg`) and `?start=scientia` 6/6 (boots straight
+  into the note).
+
+### Changed
+- `rm/js/notebook-canvas.js` — boot calls `NOTEBOOK_SCIENTIA.init`, the stage gains `#nbc-sis`, and the first view is
+  Scientia on `?notebook=scientia[&note=]` or `shouldOpen()` unless the link names a canvas entry / board / item /
+  action; new `parkCanvas()` (save, detach, unmount, empty hint); `openEntry()` first calls `NOTEBOOK_SCIENTIA.hide()`;
+  `renderHeader()` hands over to Scientia's header while it is open; `renderTabs()` appends the Scientia group, routes
+  `sis-*` clicks to it, and lights no canvas group while Scientia is open.
+- `rm/pages/notebook.html` loads `notebook-scientia.css` and `notebook-scientia.js` (before notebook-canvas.js).
+- `rm/scientia/cloud-sync.js` — a postMessage bridge with the notebook (same origin, `e.source === parent`):
+  `{sisCmd:'go', hash}` sets the note, `{sisCmd:'new'}` runs `App.newDoc()`, and `ready` / every `hashchange` posts
+  `{sis:true, type:'route', hash}`; the signed-out card links to the Lab Notebook (`target=_top`). The build's script
+  tag and `scripts/scientia_patch.py` move to `cloud-sync.js?v=864`.
+- `rm/pages/scientia.html` is now only a redirect to `/rm/pages/notebook.html?notebook=scientia`.
+- `sw.js` CACHE_VERSION 847 → 848.
+
+### Deploy
+Site files only (end-of-turn auto-deploy). The `scientiaHub` function from V3.857 is unchanged; no rules change.
+
+## [V3.863] — 2026-10-23 — Cards mode replaces Text (move and edit cards); on a phone, a Pan · Select · Pen · Highlight bar, and no keyboard until you edit text
+
+Alex: *"instead of a text tool, it should be a card moving and editing tool"* and *"on the lab notebook mobile, the keyboard is
+in the way most of the time. the keyboard should only pop up if we are modifying text. we need to have the pan, select, pen,
+highlight tools as separate clickable modes so users can navigate the canvas without the keyboard showing up."*
+
+### Changed
+- `whiteboard.js` — the ✎ pill's first arc is zoom · pan · pen · highlighter · **cards** (`hand-card`, icon `cursor-arrow-rays`);
+  `HAND_MODES` / `HAND_NAMES` gain `card`, lose `text`. Text mode is removed: `placeTextAt`, `isEmptyNote`, `TEXT_SIZES`,
+  `TEXT_TINTS`, the `text-size` / `text-tint` actions, `S._textTapT` (new notes come from ＋ and from the Cards arc).
+- **Cards mode** (`S.tool === 'card'`, root `.wb-hand-card`): `bindItemHandlers` makes the whole card the handle (`.wb-items >
+  .wb-item` media items too, lifted above the ink); a drag arms after 8 px; a tap calls `cardSelect(id)` (`S.cardSel`, class
+  `wb-card-sel`, body live). With a mouse the caret goes where you clicked (`cardFocusAt(id, x, y)` via `elementFromPoint` +
+  `caretRangeFromPoint`); a touch / stylus only chooses — unless the card was already chosen (then the tap edits). A press inside
+  the chosen card's body is the card's own. The empty board pans (`onPointerDown` → `S.panDrag`); a tap on it, Escape (capture
+  listener on the card), leaving the mode (`trackMode`) or removing the card lets it go.
+- Cards' second arc (`pillItems('pens')`, group `card`): chosen → `card-edit` (`cardEdit`), `card-color` (`toggleTintPop`,
+  notebook), `card-collapse` (regions: `toggleRegion`), `card-front`, `card-more` (host `onMenu`; phone → sheet settings),
+  `card-remove` (two taps; `cardRemove` runs the host's own Remove from `widgets.menuItems` so its clean-up runs, else
+  `deleteItem`), `card-done`; nothing chosen → `card-note` (`cardAddNote`: a note mid-view, chosen, caret in it) and `zoom-fit`.
+- Handle: `selectCard(id)`, `selectedCard()`; `handMode()` returns `'card'`.
+
+### Added — the phone (`.wb-m`)
+- **Mode bar** (`modeBarHTML()`, `MODE_BAR`, rendered by `renderPills` when `mobile()`): Pan · Select · Pen · Highlight, words +
+  monochrome icons, the lit one `wb-sel`; a tap on the lit one opens the ✎ fan (its options); `Undo` joins while pen /
+  highlighter is in hand. A phone STARTS in Pan (`S._phoneMode`).
+- **Pan goes through the cards:** `.wb-m.wb-hand-pan|zoom|pen|hl|eraser .wb-widgets *{pointer-events:none}` (and
+  `@media (pointer: coarse)` in Pan on any touch screen); `bindItemHandlers` returns early on a phone outside Select, and for a
+  touch in Pan on wider screens. `bindLensHandlers`: one finger scrolls / pans for the drawer too in Pan and Cards (`handPans`).
+- **A finger draws on a phone:** `inksHere(e)` accepts `touch` when `mobile()` and the tool is pen / eraser; `S.active.ptr` —
+  only that pointer adds points or ends the stroke; a second finger calls `cancelTouchInk()` (finishes + `removeStrokes` the
+  first finger's stroke, stops erasing) and the stage's pinch / pan takes over.
+- Select on a phone keeps V3.852's behaviour (a tap opens the card's sheet, a drag moves it); the sheet never focuses a field.
+
+### Bug Fixes — the keyboard only when you are typing
+- `CANVAS_WIDGETS.autoFocus(el, {select})` (new, `rm/js/canvas-widgets.js`): focuses only when `(pointer: coarse)` does not
+  match. Every open-with-the-caret site goes through it: the ＋ Insert menu's search (`insertMenu`), a new card's `focusAfter`
+  (`notebook-canvas.js` `insertKind` + the drop path, `figure-board-canvas.js`), a new entry's title (`quickNewEntry`), the
+  inventory / actions / protocol / highlight pickers (`notebook-canvas.js`, `figure-board-canvas.js`), the Paper card's library
+  search and the reader's snip-name field (`canvas-paper-reader.js`). On a touch screen these used to raise the keyboard over the
+  list or over an inert card.
+
+### Tests
+- `scripts/tests/v3863-phone-modes-harness.html` (new, run at 390 × 844): 18 checks — the bar, Pan see-through + one-finger pan,
+  Select opens the sheet with nothing focused, a finger draws, a second finger takes the stroke back, Highlight + Undo, the lit
+  mode opens its options, no keyboard on insert under a coarse pointer, `autoFocus` coarse / fine.
+- `v3860` harness: the Text section became 16 Cards checks (46/46); `v3852` gains "a phone starts in Pan" and picks Select
+  before its card taps (65/65); `v3856`'s phone section picks Select (44/44). v3859 42 · v3833 65 · v3837 35 · v3854 33 ·
+  v3839 77 · v3842 43 · v3830 26 green. `gen-icons --check --scan --emoji` passes.
+
+Plan: [V3.863_cards_mode.md](../ClaudesPlan/V3.863_cards_mode.md). sw 846 → 847.
+
+## [V3.862] — 2026-10-23 — Fix: the 📖 Paper card "cannot connect to the library" (`Cannot read properties of undefined (reading 'db')`)
+
+### Bug Fixes
+- `rm/js/canvas-paper-reader.js`: `db()` / `me()` / the profile read used `window.firebridge`, which is ALWAYS undefined in
+  production — `firebase-bridge.js` declares `const firebridge`, a bare global, not a window property. Every library read on the
+  Paper card (search, annotation watch, PDF re-check) threw `Cannot read properties of undefined (reading 'db')`, and `uid()` was
+  empty. New `fb()` = `(typeof firebridge !== 'undefined' && firebridge) || window.firebridge || null`; `db()` throws "the sign-in
+  bridge did not load" when it is missing. (V3.856 bug, carried through V3.859; harnesses missed it — see Changed.)
+
+### Changed
+- Canvas harnesses `v3833`, `v3837`, `v3852`, `v3854`, `v3856`, `v3859`, `v3860` are production-shaped: after the stub,
+  `const firebridge = window.firebridge; delete window.firebridge;`. Serving the pre-fix module through request interception makes
+  v3856 stop at 0/4; with the fix: 44 · 42 · 36 · 65 · 35 · 64 · 33, plus v3839 77 · v3842 43 · v3830 26 green.
+
+Plan: [V3.862_paper_card_firebridge_fix.md](../ClaudesPlan/V3.862_paper_card_firebridge_fix.md). sw 844 → 845.
+
+## [V3.861] — 2026-10-23 — Monochrome icons everywhere: no colour-emoji pictures left in the UI
+
+Alex: *"go through the entire site, and ensure the icons we use are the solid color type not the colored images i
+really dont like that. look everywhere and replace with a standard library"*. Plan:
+`CodeLog/ClaudesPlan/V3.861_monochrome_icons_everywhere.md`. V3.642 converted the chrome and stopped by design; ~200
+versions later a scan of every shipped file found ~1,450 colour emoji outside comments in 192 files, because nothing
+failed when one was added. They are all gone, and now something fails.
+
+### Added
+- **Lucide gap icons** — `vendor/lucide/24/` (Lucide 0.469.0, ISC, repo root like `vendor/heroicons/`): 60 icons
+  Heroicons has no shape for (atom, droplet, brain, rat, fish, keyboard, flask-conical, test-tube, pipette, thermometer,
+  dices, bomb, cylinder, git-fork, highlighter, save, bot, square-parking…). `gen-icons.mjs` reads `lucide: true`
+  entries; the root `stroke-width` is dropped like Heroicons', so `.hi` draws both at one weight.
+- `scripts/icons.manifest.json` 100 → **207 icons**, 136 → **263 glyphs** mapped for `ICON.render()` / the kill
+  switch; new Heroicons (calculator, cloud, pause, stop, x-circle, microphone, printer, puzzle-piece, map, phone,
+  bug-ant, scissors, fire, heart, film, arrow-up-tray, arrow-uturn-right…); custom `dot` (solid disc); `tint{}` maps
+  colour-shape glyphs (🔴🟠🟡🟢🔵🟣🟤⚫🔶🔷🔺) to a tinted solid `dot` / `diamond` / `triangle`. Remapped: 🧮 → calculator
+  (was variable), 🧪 → test-tube (was beaker); 🅿 left `keep{}` for `square-parking`.
+- `rm/js/icons.js` (generated): `ICON.svg(name, {tint, attrs})`; `ICON.render()` draws tint glyphs and strips U+FE0F;
+  `ICON.hydrate(root)` swaps static `<i data-hi="name" data-hi-variant/-size/-label/-tint>` (runs at DOMContentLoaded);
+  `ICON.draw(ctx, name, x, y, size, color, {variant})` paints an icon on a canvas with Path2D (synchronous); a
+  `#hi-base` style with the `.hi` rules is injected first in `<head>` so a page without the site stylesheet never paints
+  an SVG at 300×150.
+- `scripts/module_icons.py <file…> | --all [--check]` — course modules stay self-contained (AUTHORING.md §0): an inline
+  `<symbol>` sprite of exactly the icons a module references + `HI.svg()` / `HI.draw()`, between `hi-icons` markers
+  after `<body>`; refuses a module that declares its own `HI`. AUTHORING.md §7.7 documents it.
+- `gen-icons.mjs --emoji` — fails on any colour emoji (Extended_Pictographic except ↔↕↖↗↘↙©®™, including ones written
+  as `\u{…}` / surrogate-pair / `&#…;` escapes) outside comments in every shipped JS/HTML/CSS/JSON file
+  (`deploy/site.json`'s include list, minus `rm/vendor/`, `rm/scientia/` and icons.js). `emoji-ok` marks a deliberate
+  exception. `--scan` now also covers the public root and modules, and reads `ICON.label` / `ICON.draw` / `data-hi`
+  names. `release_push.py` preflight runs `--check --scan --emoji` and `module_icons.py --check --all`.
+
+### Changed
+- **Every remaining emoji in the site converted by context** (six parallel batches + escapes): markup →
+  `ICON.svg` / `<i data-hi>` / module `<use href="#hi-…">`; text sinks → `ICON.label`; text-only channels (`title`,
+  `placeholder`, `<option>`, toasts, `alert`, canvas text, exports, clipboard) keep the words and lose the emoji;
+  persisted strings (notebook mirror HTML, calculator results, `retry.last_error`, protocol demo lessons) drop the
+  emoji and never store SVG; canvas `fillText('🍺')` → `ICON.draw` / `HI.draw`.
+- Config maps now hold icon names, every consumer on `ICON.render`: `RESEARCH_DATA.LEVELS` (+`UNKNOWN_LEVEL`),
+  `ROADMAP_DATA.FIGURE_KINDS`, `DD.ITEM_OUTCOME_META` / `SURFACE_LABELS`, `FOCUS_AREAS.OUTCOME_META`, my-week
+  `TYPE_ICONS` / `NOTIF_ICONS` / `INGREDIENTS` / `SIMPLE_TYPES`, `USER_ACTIONS` KINDS, task-market `KIND_META`,
+  `PRIORITY_FLAG_STYLE`, the canvas-widgets registry, `NOTEBOOK_PHASE_GLYPHS`, notebook `BLOCK_TYPES`, protocol graph
+  `NODE_ICONS` / `RECIPES` / tours, `ProtocolDocRender.CALLOUT_META`, training `MODULES` / `FLOW_NODES` / `NAV_MAP`,
+  nav `_WF_DEFAULT_SEEDS`, shell-popouts page icons, library collapse / readings / groups section icons.
+  `library-collapse.js` `headHtml` now renders through `ICON.render`.
+- `rm/js/icon-picker.js` — the palette is ~110 searchable icon NAMES in four groups plus a Markers group (tinted
+  dots); `ICON_PICKER.html()` renders every value via `ICON.render` (names, legacy emoji picks, URLs). The upload
+  label no longer deletes its own `<input>` when it says "Uploading…".
+- GHS pictograms (`chemicals.js` `GHS_PICTOGRAMS`, `lab-notebook.js` `LN_GHS_MAP`): one icon per pictogram — bomb,
+  fire, fire, cylinder, droplet, skull, exclamation-triangle, heart-pulse, fish (Flammable used to draw ☢ and
+  Corrosive ☠).
+- Public site story reactions (`user-system.js` `REACTION_EMOJIS`) — hand-thumb-up / heart / sparkles / light-bulb /
+  fire icons with labels; the stored `key` is unchanged.
+- Module pages that load `../../whiteboard.js` load `../../rm/js/icons.js` before it (whiteboard-panel instructions
+  and AUTHORING.md updated). `inventory-labels.html` loads icons.js.
+- Test harnesses that load site JS now load icons.js too; v3724 / v3830 / v3647 expectations follow the new labels.
+- `sw.js` `CACHE_VERSION` 845 → 846 (V3.862 took 845).
+
+### Bug Fixes
+- task-market's Importance select showed five blank options (SVG inside `<option>` renders as nothing) — ★ text now;
+  Kind options and my-week / team-focus option lists are words only.
+- research-progress.js escaped a joined HTML string, printing raw `<span>` markup in the weekly trail.
+- protocol-graph-editor node drag: the title now holds an icon, so the drag test is `ttl.contains(e.target)`.
+
+### Left as emoji, on purpose
+- The chat reaction set (20 faces/gestures people react with — content, not icons; `// emoji-ok`), user-typed text,
+  Gabe's vendored Scientia build (`rm/scientia/`), the icon-audit fixtures, and ▪ in paper-editor's list-bullet cycle.
+- Stored values are not migrated: a legacy emoji in Firestore renders as its icon through `ICON.render`.
+
+### Deploy
+- FTP (auto-deploy, re-enabled after the sweep verified) + the next TestFlight batch (rm/ is bundled into the app).
+  No `firebase deploy`. Kill switch unchanged: `ICON.setMode('emoji')`.
+
+## [V3.860] — 2026-10-23 — The ✎ pill: a first arc of modes (zoom · pan · pen · highlighter · text), a second arc of the selected one's options; a double tap goes back to the last mode
+
+### Revised (same day, before release) — the two arcs
+Alex: *"the first arc should be zoom, pan, pen, highlighter, text — the second arc should be the options for the thing selected
+in the first arc."*
+- `whiteboard.js` `pillItems('pens')`: the inner ring (exactly five places) is `hand-zoom` · `hand-pan` · `hand-pen` · `hand-hl` ·
+  `hand-text` (`keep: true`, so choosing one re-draws the fan with its options); the second ring onward is `handGroup()`'s
+  options — **zoom**: in · out · home · fit everything · fit a region; **pan**: home · fit everything; **pen**: the pens of kind
+  `pen` + the eraser of the set, widths, ＋ pen, undo, clear; **highlighter**: the `hl` pens, widths, ＋ highlighter, undo;
+  **text**: `TEXT_SIZES` S / M / L (card width .22 / .32 / .46 — a note's type scales with its width) and `TEXT_TINTS` (plain +
+  three card colours), `text-size` / `text-tint` actions (`keep`).
+- Modes are `handOf()` = `zoom` · `pan` · `pen` · `hl` · `eraser` · `text` (a pen in hand is `pen` or `hl` by its kind);
+  `HAND_MODES`, `trackMode`, the root classes and the double tap use it. `setHandMode('pen')` always puts a real pen
+  (`S.lastPenId`, kind `pen`) in hand, `'hl'` the last highlighter (`S.lastHlId`, created if the set has none); `usePen` records
+  both. `HAND_NAMES` words for the caption.
+- **Text mode**: a tap — finger, mouse or stylus — places a typed-note card (`placeTextAt`: `addWidgetItem({ kind: 'note' })`
+  at the tap, sized and tinted from the options) with the caret in it (on a phone, its sheet) once `DOUBLE_MS` has passed; a tap
+  away from one you just placed and left empty removes it instead (`isEmptyNote`); a double tap places nothing and switches.
+  `onPointerDown` returns early in text mode; `tapUp` now returns `'double'` · `'tap'` · `false`. Cursor `text`.
+- Icons: the first arc, the pill's mode icon and the option glyphs use the site's monochrome set through `wbIcon(name,
+  fallback)` (`ICON.svg` — magnifying-glass, hand, pencil, highlighter, plus, minus, home, arrow-uturn-left; a serif "T" for
+  text); the mode caption is words. `node scripts/gen-icons.mjs --emoji` → 0 colour emoji.
+- `whiteboard-board.css` — `.wb-hand-hl` / `.wb-hand-text` cursors, `.wb-fan-T` (+ `-s/-m/-l`), `.wb-fan-dot-none`, icon size in
+  the fan and pill.
+- Tests: `v3860-pen-pan-zoom-harness.html` 36 checks (arcs, rings, each mode's options, highlighter, text placement / take-back
+  / double tap, the eraser and pen hand-back); V3.839 (77) and V3.833 (65) updated for the pen arc; V3.854's row check reads the
+  words the icon sweep left; every canvas harness page now loads `rm/js/icons.js` as production pages do (the sweep made the
+  card renderers call `ICON.svg`). All green: 77 · 65 · 43 · 35 · 64 · 33 · 44 · 42 · 26 · 36. `sw.js` → 844.
+
+### First version (shipped earlier the same day)
+
+Alex: *"the pan button and zoom should be in the pen as a mode, the mouse is either a pan hand, zoom hand, or pen. double tap
+changes modes to last mode used"*. Plan: `CodeLog/ClaudesPlan/V3.860_pen_pan_zoom_modes.md`. Host boards only (the lab notebook
+and a paper's figure board); the lecture whiteboard's toolbar is untouched.
+
+### Changed
+- `whiteboard.js` — **the hand's modes** live in the ✎ pill (`PILL_DEFS.pens` "Pen · pan · zoom"): its fan starts with
+  `hand-pen` · `hand-pan` · `hand-zoom` (`.wb-fan-modeitem`, the current one selected), then the pens; the View pill (⊕) keeps
+  zoom ± / home / fit / fit a region and no longer carries ✋ / 🔍. The pill's icon is the mode (✎ + ink dot, ✋, 🔍) and it lights
+  (`wb-pill-on`) in pan / zoom / eraser. `trackMode()` (every pill render) remembers the previous hand mode in `S.lastTool`
+  across `pen` · `eraser` · `pan` · `zoom` (region tools don't count) and sets `.wb-hand-{pen|eraser|pan|zoom}` on the root;
+  `setHandMode(t)` (back to the last real pen — `S.lastPenId` — when an eraser from the set was in hand; an eraser from the set
+  when going to the eraser); `toggleLastMode()` (default pen ↔ pan) + `showModeHint` (a caption at the bottom of the board,
+  "✋ Pan — double-tap to switch back").
+- **The zoom hand**: `onPointerDown` in zoom mode starts `S.zoomDrag` instead of zooming at once; a drag up / down zooms smoothly
+  about the press point (`exp(-dy/180)`); a tap zooms ×1.5 (Alt / Shift / right button: out) after `DOUBLE_MS` (300 ms) so a
+  double tap can cancel it, and then clears the last tap so tap · tap · tap zooms three times.
+- **Double tap → the last mode**: `tapDown` / `tapUp` (any pointer type, called from `onPointerDown` before the ink filter and
+  from `onPointerUp` after the stroke is committed): two taps within 300 ms and 24 px (each < 300 ms, < 8 px). A finger: any mode.
+  A mouse: pan, zoom and pen — in pen mode the two dot strokes those taps made are removed (`removeStrokes`). A stylus: pan and
+  zoom only (two quick pen taps are a colon or an ellipsis). Never a mouse / stylus in eraser mode. On the ✎ pill a double tap
+  switches too: a single tap opens the fan 230 ms later unless a second arrives, so the fan never flashes; the ✎ pill's
+  double tap no longer resets its position — **Tools → ⌖ Put the pills back in their places** (`pills-reset`, shown once a pill
+  has moved) does, for every pill.
+- Handle: `setHandMode(t)`, `toggleLastMode()`, `handMode()`, `lastHandMode()`.
+- `whiteboard-board.css` — cursors (pen crosshair, pan grab / grabbing, zoom zoom-in, ns-resize while dragging), the mode ring,
+  `.wb-modehint`.
+
+### Tests
+- `scripts/tests/v3860-pen-pan-zoom-harness.html` — 24 checks: the fan order and the View pill; pan (cursor, icon, drag pans,
+  no ink); a mouse double-click back to the pen with the hint; the ✎ pill's double tap vs a single tap; the zoom hand (tap waits,
+  ×1.5, Alt-tap out, drag up / down, a double tap does not zoom); pen mode: a mouse double-click switches and leaves no dots, a
+  stylus double tap stays as ink, a finger double tap switches; eraser remembered; back to a real pen.
+- V3.839 (fan count 13 → 16; the pill-reset check moves to Tools; ✋ from the ✎ pill) and V3.833 (zoom pill items; ✋ via the ✎
+  pill) updated. All canvas harnesses green (76 · 65 · 43 · 35 · 64 · 33 · 44 · 42 · 26 · 24).
+- `sw.js` → 843. No rules / functions change.
+
+## [V3.859] — 2026-10-23 — One 📑 Collection: quotes, lit reviews and collections become one card; a paper without a PDF is no longer a dead end
+
+Alex: *"quote, lit review, and collection cards can probably be combined … a single system."* — *"1) yes, lit reviews must be
+linked to the paper we are writing, and we can connect multiple papers we are writing to any collection. 2) one per section yes
+so the user can split up claims an ideas 3) no these can be separate things."* — and, live: *"when i try to search for a paper
+to add, it says its not connected to the library"*. Plan: `CodeLog/ClaudesPlan/V3.859_collections_unified.md`.
+
+### Changed
+- `rm/js/canvas-paper-reader.js` — **one card for everything that comes from a paper.** `kind: 'collection'` data gains
+  `keyPoints[]`, `notes_html`, `query`, `drafts[{id,title}]`, `linkedPairs['paperId|draftId']`, `shape: 'quote'`; entries gain
+  types **`paper`** (`paperEntry(pid, p)`: title, cite, year, journal, `why`) and **`quote`** (a typed passage + citation). Two
+  shapes from one renderer: **quote** (`isQuoteShape`: one `quote` / `highlight` entry and nothing else → `renderQuoteShape`, the
+  editable `textarea.nbc-quote-in.cpr-qcard-in` + citation, or a read-only blockquote with a reader link) and **list** (split
+  banner · claim head · *Linked to* chips · Papers (`.cpr-prow[data-pid]` with a "why it matters" input) · typed groups (a `quote`
+  entry is editable in place) · Key points (`[data-kp]`, Enter opens the next) · Notes · the inline library search
+  (`.cpr-search-in`, results `.cpr-results [data-add]` under it) · ＋ Key point · ＋ Note · ❝ Quote · ✎ Link to a paper you're
+  writing… · ◆ Make this a claim…). Every write goes through `patchData(id, patch | fn(currentData), { refresh, title })`, so a
+  wire landing while you type is never overwritten, and listeners hang on the card's own root (V3.856's body listener
+  accumulated one handler per render). `entryFor` turns a wire from a 📖 Paper card's own side port into a `paper` entry, and
+  no longer stores large inline thumbnails (> 6 kB) in the card.
+- **The old kinds are adopted, never on render.** `paperquote`, `quote` (figure board) and `litreview` stay registered (hidden
+  from ＋ Insert) and render through `asCollection(it)`; the first edit runs `adopt(it)` — a lit review's first section stays in
+  the card (titled "<review> — <section>"), sections 2…N become new collection cards **below** it with deterministic ids
+  `<id>_s2…` (two tabs adopting the same review write the same docs), then the card is rewritten to `kind: 'collection'`.
+  `committer(it)` restores focus and caret after the rebuild. A multi-section review shows "Split into N collections".
+- **Collections link to the papers you are writing** (decision 1). `openDraftPicker` (my drafts: `papers where authorUids ∋ me`;
+  on a figure board the board's paper too) → `linkDraft`; a figure-board collection is linked to its paper from birth
+  (`hostDrafts()`); making a claim links the claim's draft. `syncDraftLinks(id)` (queued, busy-guarded) calls
+  `LIBRARY_LINKS.toggleDraftLink(paperId, draftId, true)` once per pair for every library paper the collection touches and
+  records `linkedPairs`; `unlinkDraft` removes the pairs this collection made unless another collection / `litref` on the
+  board holds them. Removing a card keeps its links (you may still cite those papers).
+- **Mirror** `userData/{uid}/litReviews/{itemId}` (the V3.838 path) is written for every notebook collection by `mirrorNow`
+  (`kind, itemId, title, boardId, entryId, query, paperIds, keyPoints, papers, entries (≤ 60, light), counts, claim, drafts,
+  draftIds`), on change (`onItemsChanged` keeps a per-card signature, first sight only seeds it) and after adoption /
+  `addQuoteCard` / `addLitReview`; `onRemoveItem` deletes it. `linkSourceToDraft(mirror, draftId, title)` records a figure-board
+  placement on the mirror (`draftIds` arrayUnion) and the notebook card (`data.drafts`). `mirrorSubline(r)` is the picker line.
+  `toHtml(it)` feeds the block mirrors (PMR).
+- `rm/js/notebook-canvas.js` — the `paperquote` / `litreview` registrations, `renderPaperQuote`, `renderLitReview`, `litMirror`
+  and `litMirrorDelete` are gone (the module owns them); the picker's highlight and "Add as text" → `addQuoteCard`; 📚 on a
+  note's words → `addLitReview` (searches at once); `widgetToBlock` `case 'collection'`; Remove → `onRemoveItem`;
+  `onItemsChanged` → the module's; ctx `mirror: () => ({ uid, boardId, entryId })`.
+- `rm/js/figure-board-canvas.js` — the `quote` registration and `renderQuote` are gone; the picker's quotes → `addQuoteCard`; the
+  📚 tool is "Add a collection from your notebook": the ones linked to this paper first (✎), ◆ for claims, `mirrorSubline` counts;
+  placing one calls `linkSourceToDraft`; the placed card shows a claim badge and the counts line; `onChange` → the module's.
+- `rm/pages/notebook.html` loads `library-links.js`; both canvas pages load `library-upload.js`.
+- `rm/css/canvas-paper-reader.css` — quote shape, papers, typed passages, key points, notes, the inline search, the quiet foot,
+  linked-draft chips, the split banner, `.fbc-lit-claim`, the no-PDF box.
+
+### Bug Fixes
+- **"Not connected to the library" (Alex, live):** the library search itself was healthy (read-only check of production: all
+  242 library papers come back), but **98 of them have no stored PDF**, and choosing one left the 📖 Paper card at "No PDF in the
+  library" with no way forward; the card also froze the PDF state at pick time. Now `noPdfBoxHTML` / `wireNoPdf`: the card
+  re-checks the library item (`livePdf`, 30 s cache) and adopts a PDF found there since; **⤓ Find an open-access PDF** runs the
+  reader's own `LIBRARY_UPLOAD.serverFetchPdf(item)` (Unpaywall / arXiv / Europe PMC / Semantic Scholar / publisher, server-side)
+  and **⬆ Upload the PDF** `LIBRARY_UPLOAD.uploadPdf`; both write `meta.library.pdf` on the library item (`setLibraryPdf`,
+  allowed by the V3.309 library-entry rule) so the reader and every other card see it. The library search names what was
+  searched when nothing matches, says a PDF-less paper "can get one on the card", and a failed load offers **Try again**.
+
+### Tests
+- `scripts/tests/v3859-collections-unified-harness.html` — 42 checks: old kinds render without writes; typing adopts a quote and
+  keeps the caret; Split → two collections + mirrors, idempotent; library load failure → Try again; a no-hit search names the
+  term; no-PDF card offers Find / Upload, a lost PDF is picked up, Find writes the library item; draft linking (picker, chips,
+  link calls once per pair, a wired highlight and a wired Paper card, unlink takes back its links); key points / notes / a typed
+  quote; a claim preselects the linked draft and gets the evidence; menu, summaries, `toHtml`, mirror fields, `linkSourceToDraft`.
+- Harness pages V3.833 / V3.837 / V3.839 / V3.842 / V3.852 / V3.854 now load the shared module; V3.833's lit review steps drive a
+  collection. All green (65 · 35 · 75 · 43 · 64 · 33; V3.856 44; V3.830 28).
+- No rules, indexes or functions change. `sw.js` → 842.
+
+## [V3.858] — 2026-10-23 — The Capture extension for every lab member, and a download that works
+
+Gabe (via Alex): *"Can you add me to the McGhee Lab Capture Chrome extension? It doesn't allow me to download it since
+I don't have permissions."* Alex: *"all my students should be able to use this extension."* Plan:
+`CodeLog/ClaudesPlan/V3.858_extension_for_lab_members.md`. Two defects, neither specific to Gabe: the Library page's
+download button pointed at the dev server's `/api/extension/download.zip`, which the static host answers with 403
+(the "no permission"); and `labConfig/extensionMembers` has been empty since 2026-04-29, so no non-admin was ever
+allowed to capture.
+
+### Added
+- `scripts/build_extension_zip.py` — deterministic zip of `../ResearchManagement/extension` (sorted entries, fixed
+  timestamps, `extension/` root; excludes `key.pem`/`*.pem`/`.DS_Store`/`__pycache__`/`.git`/`test/`) →
+  `rm/downloads/mcgheelab-capture-extension.zip` (18 files, ~100 KB, extension 0.4.2). `--check` exits 1 when the
+  shipped zip is behind the source. `rm/**` is already in `deploy/site.json`, so the normal deploy ships it.
+
+### Changed
+- `firestore.rules` `isExtensionMember()` = `isLabMember() || email ∈ labConfig/extensionMembers.emails` (was
+  `isAdmin() || email ∈ …`). Every lab member (role ≠ guest) may now read/write `pending_captures` and `paper_index`;
+  the allowlist is only for accounts without a lab role. `isAdmin()` left the OR because admins are lab members and
+  because it raises for a caller with no `users` doc (an allowlisted collaborator who never signed in on the site),
+  which denied the whole expression. Comments at the helper, the `pending_captures` block and the allowlist doc updated.
+- `rm/pages/library.html` — the button downloads `/rm/downloads/mcgheelab-capture-extension.zip`; "Access is by
+  invitation" → "Who can use it: every lab member…" (same Google account as the site); admin list retitled
+  "Extension members — accounts without a lab role".
+- `rm/js/library.js` — `_isLabMemberAny()` (own-profile mirror or `firebridge.isLabMember()`);
+  `_updateExtensionMemberStatus()` shows "✓ has access (lab member)" before consulting the allowlist, "(allowlist)" for
+  role-less listed accounts, and a clearer ✗ otherwise; the `?paper=` deep-link toast says what access needs now.
+- `rm/js/library-sync.js` `_isCaptureMember()` — true for `firebridge.isLabMember()` too; without it the V3.583 guard
+  skipped the `pending_captures` sync for every member and their captures would never have reached the library.
+- Firestore data: `labConfig/extensionMembers.emails` += `gabrieldeclercq@arizona.edu` (his `editor` account; REST as
+  project owner, 2026-10-23 15:54 UTC). Redundant with the rule, immediate, and harmless.
+- `sw.js` `CACHE_VERSION` 839 → 840.
+- Follow-up (Alex: *"add another one of the links to the procurement page at the top"*): `rm/pages/procurement.html`
+  `.page-header` gains the same **↓ Download extension (.zip)** link (top right; wraps under the title on a phone), with
+  a tooltip naming "+ Item" and the install steps. `sw.js` 840 → 841.
+
+### Deploy
+- **Rules deployed 2026-10-23 from a scratch copy** (`--config`): LIVE ruleset + only this hunk. The repo file still
+  carries three hunks that are NOT live — V3.806 (`users/{userId}` self-role guard, handed to Alex), V3.835
+  (`use_mode` on items) and V3.836 comment renames — and they stay undeployed. Proven first with the firebaserules
+  `:test` API (10 cases). Storage rules unchanged (`/papers/**` already lets any signed-in user upload a PDF).
+- Site files (zip, library.html, library.js, library-sync.js, sw.js) ship by the end-of-turn auto-deploy (V3.818).
+- Left alone: the extension's own 403 message still says "ask the PI to add your email" — correct advice for a guest,
+  and an extension edit means a version bump + the V3.821 stale-load handling.
+
+## [V3.857] — 2026-10-23 — Scientia online: upload from the desktop, sync both ways
+
+Alex: *"i want gabe to be able to upload files from scientia into the online version, and i want him to be able to
+sync it to his desktop version."* Plan: `CodeLog/ClaudesPlan/V3.857_scientia_cloud_sync.md` (closes decision 8 of
+V3.832). The "online version" is Gabe's own build at `rm/scientia/` (the V3.832 sandbox); nothing in it is rewritten —
+his sync client already talks to "the computer that holds the record" over a small HTTP protocol (`serve.py` /
+`sisync.py`), so the lab gives it a second computer in the cloud and his desktop a bridge to it.
+
+### Added
+- `functions/scientia-hub-core.js` — a DOM-free port of Gabe's `sisync.py`: `merge3(prev, mine, cur)` (fields one
+  side touched merge, `AUTO_MAX` stamps take the max, scalar lists union, the rest is a conflict), `planPush`
+  (the `others`-changed-it test on `base`/`prev`, the three conflict kinds, echo of the merged record, `minSeq` =
+  seq − 50 000), `pullResult` (reset on a foreign `sid` or `since < minSeq`, own-`conn` ops excluded, 3 000 a page),
+  `planResolve` (mine / theirs / already decided), `planReplace` (new `sid`, NOSYNC stripped, `profiles` keyed by
+  `type`, verified counts), `exportState`, `helloResult`; `route(req, ctx)` = every `api/…` path the build calls
+  (`sync/hello|state|pull|push|conflicts|resolve`, `snapshot` GET/POST/`?keep=`, `media` + `media/list`, `rec`,
+  `ping`, `notebook`, `cloud/key*`, and stubs for the desktop-only ones so the build never sees a 404 where it
+  expects JSON); `MemoryHub` for fixtures and the dev hub. `functions/test/scientia-hub.test.js` — 32 node fixtures
+  (run-all.sh layer 1).
+- `functions/scientia-hub.js` — `scientiaHub` HTTPS function (v2, 512 MiB, 300 s). `FirestoreHub(uid)`: meta doc
+  `userData/{uid}/scientia/hub` (`sid, seq, minSeq, records, savedAt, conflictsJson, conflictsN, meta, counts`),
+  `rows/{store}__{id}` (`recJson`, or `deleted:true` tombstones that keep the version `seq`/`dev`), `ops/{seq}`,
+  `keys/{id}` (sha-256 of the secret, `lastSeen`), `media/{path}` (download-token URLs for Storage
+  `scientia/{uid}/images|recordings|kept`). Pushes run in transactions of ≤150 ops (meta + touched rows read, plan,
+  rows + ops + meta written); ops are trimmed below `minSeq` every 200 commits; `replace` keeps a `kept/before-replace`
+  copy first. Auth: `Authorization: Bearer <ID token>` (the browser, `kind:'browser'`) or `X-Scientia-Key:
+  sck_<uid>_<secret>` (the desktop bridge, `kind:'key'`); both need `users/{uid}.role != 'guest'`. Everything sits
+  under the `userData/{userId}/{document=**}` owner catch-all — **no rules deploy**; CORS `*` (header auth, no cookies).
+- `rm/scientia/cloud-sync.js` — the shim loaded by the hosted build before Gabe's script: loads the Firebase compat
+  SDK, reads the site's persisted sign-in, overrides `window.fetch` for the relative `api/…` / `images/…` /
+  `recordings/…` URLs → the function with the ID token (`hello` answers `local:false`, so Gabe's device rules apply);
+  `api/sync/pull?wait=25` waits on a Firestore listener of the hub doc (`seq`, `conflictsN`) and calls `pull` once —
+  no long poll, idle costs nothing; an empty hub + notes already in this browser (the sandbox era) → the browser's
+  record becomes the hub's first (`uploadBrowser`); media resolve through the `media/list` map (`MEDIA.url` patched
+  after load, fetches redirected, a MutationObserver on `src`/`href`/`poster`/`data`); `SYNC.registerSW` is stubbed;
+  signed out, the pairing card becomes "Sign in to open your notebook".
+- `rm/scientia/scientia.html` — ONE inserted line (`<script src="cloud-sync.js?v=857">` before his `01 · Utilities`
+  block). `scripts/scientia_patch.py` re-applies it to a new build (idempotent, exits 1 if the anchor moved).
+- `rm/scientia/scientia-cloud.py` — the desktop bridge (stdlib Python, Mac/Windows), a *device of both hubs*: it keeps
+  the record both sides last agreed on (`shadow.json` next to Gabe's config) and each pass pulls both sides, pushes the
+  cloud's changes to the desktop hub three-way against that ancestor with `base` = the desktop seq before the pass
+  (so a row both changed is merged THERE, and a field both changed waits under the desktop's ⚠ as "Online copy" vs
+  the desktop browser), then pushes the desktop's changes and merged rows to the cloud on top of what the cloud
+  holds (`prev` = its known value), with one bounded round trip back for anything merged differently meanwhile.
+  Resets: a side whose `sid` changed (an upload online, another notebook folder chosen) becomes the source and the
+  other is replaced (`before-replace` copies on both sides); a first run with records on both sides needs
+  `--prefer local|cloud`. Media: files under the notebook's `images/` and `recordings/` are uploaded when missing
+  online and downloaded when missing locally (≤30 MiB through the function). `--key` (saved to `cloud.json`),
+  `--once`, `--interval`, `--forget`. A removed key stops it with the message to make a new one.
+- `scripts/scientia_hub_dev.js` — the same routes + merge rules in memory on `127.0.0.1:8767` (`GET /files/…` serves
+  uploads) so the bridge can be driven end to end against Gabe's real `serve.py`. Done this session (30 checks): seed
+  → first pass replaces the cloud → online edit + create reach the desktop and its browser → different fields on both
+  sides merge everywhere with no conflict → the same field on both sides raises ONE conflict (desktop), decided, both
+  converge → an upload online replaces the desktop (kept copy taken) and the desktop browser reloads → a desktop
+  replace reaches the cloud → an image goes up and an image + a recording come down → a removed key stops the bridge.
+
+### Changed
+- `rm/pages/scientia.html` — "Scientia" (was "Scientia sandbox"); the banner is a sync bar: live status from the hub
+  doc (records · last change · ⚠ to decide), **⇪ Upload from desktop** (a Scientia export or `.scientia/record.json`;
+  `blobs`/`journal`/`datasets` stripped; an inline confirm with the count, no browser prompt; POST `/api/snapshot`;
+  the frame reloads; a >31 MB export is refused with the way round), **⇩ Download (JSON)**, **Desktop sync…** (the
+  three steps, the script to download, make / list / two-tap remove keys inline, the key shown once with Copy), ⤢ Full
+  screen, Manual.
+- `functions/index.js` exports `scientiaHub`. `sw.js` CACHE_VERSION bumped.
+
+### Deploy
+`firebase deploy --only functions:scientiaHub` — done this turn, before the client. No rules / indexes / storage changes.
+
+## [V3.856] — 2026-10-23 — 📖 Paper cards with a reader, coloured nodes, typed connections, 📑 Collections / Claims
+
+Alex: *"in the lab notebook, i want a paper reader directly in the notebook … highlighting and figure snipping options should be
+useable and we should make those options available as a side window that is expandable and collapsable. highlights and figures each
+get a colored node to link to something … that highlight or figure gets added as a list to the collection."* — *"this works for any
+canvas labnotebook and figureboard."* — *"i like the ability to switch the connection type … these types inherit from the set of types
+from the paper reader … it can support or refute something, or the connection can be information only … collections can be a claims
+node."* Plan: `CodeLog/ClaudesPlan/V3.856_canvas_paper_reader_collections.md`.
+
+### Added
+- `rm/js/canvas-paper-reader.js` (`window.CANVAS_PAPER_READER = { registerKinds, openReader, closeReader, wireMenu, onWireAdded,
+  onWireUpdated, onWireRemoved, NODE_RELS, defaultRel, pickTarget }`) — one module for both canvas hosts; `registerKinds({ hostKind,
+  group, getInst, toast, draftId, draftTitle })` registers two kinds on `CANVAS_WIDGETS`:
+  - **📖 `paperreader`** — `data { paperId, title, cite, journal, pdf, year, first, second, nAuthors }`. Empty: an inline library
+    search (`items where type == 'paper'`, library entries, session cache `cpr.library.v1`). With a paper: title · citation · reader
+    link, **📖 Read**, counts, and the **node list** — every highlight (reader colour bar + quote) and snipped figure (teal bar +
+    thumbnail + name) from two merged `onSnapshot`s on `papers/{id}/annotations` (lab + my private; `watch(paperId, fn)` keeps one
+    listener per paper for the session; equations skipped). Each row: `.cpr-port[data-wb-port="e"][data-wb-node=<annId>]
+    [data-wb-color][data-wb-rel]` (the engine drags a wire from it), **⤳** → `pickTarget` (an anchored "Connect to…" menu: the board's
+    collections and claims, ＋ New collection, ＋ New claim), a click opens the reader at that annotation. Menu: Read the paper · Open in
+    the paper reader ↗ · Change the paper… (`then: 'content'`). `duplicate: false`.
+  - **The reader** (`openReader(item, api, { focus })`): `div.cpr-reader` fixed over the page (z 2540 < the `.cw-pop` 2600), top bar
+    (title · cite · page n / N · − + Fit · ⬚ Snip = `GEOM_SELECTION.setMarquee` · ☰ side window toggle · Open in the reader ↗ · ✕,
+    Escape unless a popover is open), `PDF_VIEWER.create(pages, url, { fitToContainer, disableRange, disableStream, onPageReady →
+    ANNOTATION_OVERLAY.redrawPage + refreshHotspots })`, `ANNOTATION_OVERLAY.init({ viewer, container, getColors, onCreate,
+    onAnnotationClick, onCaptureFigure })` and `GEOM_SELECTION.init({ viewer, viewerEl, onCommit })` exactly as `library-paper.js`
+    wires them; a marquee commit (Snip mode, Alt-drag, a hotspot click, or 🖼 on the popover) opens the **snip form** in the side
+    window (preview · name · note · Save → `PAPER_FIGURES.uploadImage(paperId, blob)` + a `kind: 'figure'` annotation with
+    `snip_data_uri`); `createAnn(paperId, payload)` writes the same doc shape as `ANNOTATION_SYNC.create` through `firebridge.db()` and
+    records the reading `ActivitySignals` event. The **side window** (`aside.cpr-side`, 340 px; collapses to a vertical tab; an overlay
+    under 700 px): the tools strip + colour legend, the snip form, **Highlights (n)** / **Figures (n)** rows with colour bar, text,
+    page · comment · author, the row's connection **chips** (`type → target`, click = type menu), ⤳ and × (own, two taps;
+    `CLAIMS.removeEvidenceForAnnotation` first). `closeReader` destroys `GEOM_SELECTION`, `ANNOTATION_OVERLAY`, the viewer and the
+    listeners. `snipFromAnchors` is `FIGURE_CAPTURE`'s routine without its `alert()`s (and honours `saved_scale`).
+  - **📑 `collection`** — `data { items: [entry…], claim: null | { draftId, draftTitle, claimId, statement }, claimSetup }`. An
+    entry is materialised when a wire lands (`onWireAdded` → `entryFor(from, w, wireId)`: `{ id, wireId, fromId, rel, type:
+    highlight | figure | card, paperId, annId, quote, name, url, thumb, page, cite, hex, colorId, paperTitle | cardId, kind, glyph }`),
+    kept in step by `onWireUpdated` (type) and `onWireRemoved`, saved with `inst.updateItem` **+ `inst.refreshWidget`** (the engine
+    treats a `data` save as the body's own). Rows group by type (`groupEntries`), each with a **type chip** (→ `relMenu` →
+    `updateWire`) and × (removes the entry and its wire). **◆ Make this a claim…** (`renderClaimSetup`): choose the draft (figure
+    board: the board's paper preselected via `draftId()`; notebook: `papers where authorUids ∋ me`, not library entries), use one of
+    its existing claims (`drafts/{id}/claims`) or type a statement → `CLAIMS.create(draftId, { statement })`; the card's title becomes
+    the statement, the head shows ◆ Claim · draft · *n for · n against*, and every entry with a stance is pushed with
+    `CLAIMS.addEvidence(draftId, claimId, paperId, annId, 'for' | 'against')`. `syncClaim(col, entry, op, before)` on add / type
+    change / remove (a type without a stance → `removeEvidence`). Menu: Open the claim's draft ↗ / Detach from the claim, or Make this
+    a claim…; Copy as text; Clear the list (two-tap; removes the wires). `text(it)` lists quotes + citations + types for mirrors/search.
+  - **Connection types** `NODE_RELS`: `supports` (stance for, #16a34a) · `refutes` (against, #dc2626) · `informs` (information
+    only) · `method` · `question` · `quote`; `defaultRel(row)` from the highlight's `annotation_type` (evidence → supports, limitation
+    → refutes, method, question, quote, note / figure → informs). Hosts hand node wires to `CANVAS_PAPER_READER.wireMenu(id, w, e)`.
+- `rm/css/canvas-paper-reader.css` — cards, nodes (`.cpr-port` right of each row), the reader overlay, the side window, the
+  claim form, the collection rows; `.wb-item .cpr-thumb` is scoped because the engine's `.wb-item img { width: 100% }` outranks a lone
+  class; `.wb-m .cpr-port` hides with the side ports on a phone.
+- `scripts/tests/v3856-canvas-paper-reader-harness.html` (44 checks; the V3.852 stub + `rm/test-fixtures/layout/04-fig-onecol.pdf`,
+  a stubbed `CLAIMS` that records calls and a stubbed `PAPER_FIGURES`).
+
+### Changed
+- `whiteboard.js` — **wires from nodes**: `startPortDrag` reads `data-wb-node` / `data-wb-color` / `data-wb-rel` from the port and
+  passes `{ fromNode, color }` (+ the rel) to `addWire`; `addWire(from, to, rel, extra)` stores `fromNode`, `color`, and its duplicate
+  check includes the node (one node → many cards; several node wires card → card); `nodePoint(w, a)` = the node element's right-middle
+  in layer units (through the card's rect and the lens scale; a collapsed card falls back to the side port); `wirePath(a, b, fromSide,
+  toSide, fromPt)`; `renderWires` draws node wires from the node in the node's colour with a per-colour arrow marker (`.wb-wire-node`),
+  `renderWireDraft` likewise. New mount options **`onWireAdded(id, w)`**, **`onWireUpdated(id, w, before)`**, **`onWireRemoved(id,
+  w)`** fire for LOCAL changes after the Firestore write. Handle: `addWire(from, to, rel, extra)`, `redrawWires()`.
+- `rm/js/notebook-canvas.js`, `rm/js/figure-board-canvas.js` — `registerKinds()` calls `CANVAS_PAPER_READER.registerKinds(…)`
+  (notebook group Reading, figure board group Figures with `draftId: () => state.paperId`); mount options pass the three wire hooks;
+  `wireMenu` delegates wires with `fromNode`.
+- `rm/pages/notebook.html`, `rm/pages/figure-board.html` — load `annotation-colors.js`, `annotation-anchor.js`, `annotation-overlay.js`,
+  `geom-selection.js`, `paper-figures.js` (notebook), `claims.js`, `canvas-paper-reader.js`, `canvas-paper-reader.css`.
+- `whiteboard-board.css` — `.wb-m .cpr-port`, `.wb-wire-node:hover`.
+- **Design pass** (Alex: *"a great robust and easy to use style that looks very clean"*): `canvas-paper-reader.css` rebuilt on one
+  scale (radius 10 / 8 / 6, gaps 4–12, type 13 / 12 / 11, hit targets ≥ 32 px and 36–44 px on the sheet, page tokens with light
+  fallbacks, `:focus-visible` rings on every control, `prefers-reduced-motion`); the module's own `.cpr-btn` / `.cpr-btn-primary`
+  (📖 Read, Save the snip, Create the claim) instead of the host's `.btn`; the paper card no longer repeats its own title in the
+  body (`showTitle` only when the card was renamed); the reader's top bar is `.cpr-topbar` (it had shared `.cpr-bar` with the row
+  colour bars and inherited their 4 px width) with a zoom button group and labels that drop to icons under 700 px; the side
+  window's tools are one legend row + one hint; type chips are tinted pills (`color-mix`, outline fallback); collection group
+  headers carry a rule; wires from pastel highlights use a darker shade (`wireHex` = `shade(hex, .32)`) while the node dot and the
+  bars keep the reader colour. Reviewed in screenshots at 1280 × 800 and 390 × 844 (canvas, reader, side window, sheet).
+- `sw.js` CACHE_VERSION → 838, then 839 with the design pass. No rules / indexes / functions change: annotations, wires and claims
+  already carry the rules they need.
+
+## [V3.855] — 2026-10-23 — The phone sheet after the Opus review: calc form, stale panes, Escape, sticky Done, 16 px fields, ⋯
+
+The Opus agent's card-by-card review of V3.852 (every kind in ✎ Edit and ⚙ Settings on a 390 × 844 phone and on a desktop) found eight
+defects; all fixed, with eight new harness checks (`v3852-notebook-mobile-harness.html` 56 → 64).
+
+### Bug Fixes
+- `rm/js/notebook-canvas.js` — **the calculator's formula form threw in the sheet** (`mountCalc(it, form.closest('.wb-wb'))` → null
+  in the sheet, an unhandled `TypeError`, the result stuck): `renderCalcForm(it, form, api, host)` takes the body it lives in and
+  `mountCalc` gets `host` (card body or sheet body). `rm/css/notebook-canvas.css` — in the sheet the form stacks label-over-field and
+  nothing is wider than the sheet (`.wb-sheet .nbk-calc-form …`, `.nbk-calc-var` two columns).
+- `whiteboard.js` `setSheetMode` — **the pane you switch TO is redrawn from the card as it is now**: ⚙ Settings refreshes the name,
+  the width highlight, the connections and the actions (an item picked, a protocol loaded or an image uploaded in ✎ Edit changes
+  them); ✎ Edit is rebuilt only when `dataSig` changed since it was drawn (`body.dataset.ds` set in `renderSheetBody`), so an open
+  form or a caret is never thrown away for nothing. Handle `refreshWidget(id)` also repaints an open sheet's Edit pane (the figure
+  upload now shows in the sheet at once).
+- `whiteboard.js` — **Escape closes the sheet from anywhere** (a document-level capture listener bound on open, removed on close;
+  the dialog gets `tabindex="-1"` and focus on open).
+- Sheet actions may hand over to ✎ Edit: `then: 'content'` on an action (the engine's after-handler calls `setSheetMode`); the host
+  sets it on Change the item…, Pick a different action…, Replace the image…, Unload the protocol.
+- `whiteboard-board.css` — `.wb-sheet-head` (Done) is `position: sticky`; `.wb-sheet-back.wb-sheet-m` (set when `mobile()`) makes
+  every field in the sheet 16 px so iOS never zooms; on a phone the card header is ✓ · ▾ · title · ⋯ only (`.wb-m .wb-wkind /
+  .wb-wstamp / .wb-wtint { display: none }`, the title `min-width: 0`), and ⋯ is always visible (`opacity: 1 !important`; the
+  notebook's hover-only rule gets `.nbc-page .wb-m .wb-wmore { opacity: 1 }`) and never clipped past a narrow card's edge.
+- `sw.js` CACHE_VERSION → 837 (then 838 with V3.856).
+
+## [V3.854] — 2026-10-23 — ✓ on every card: report a result to My Week from the canvas
+
+Alex: *"when a user places something into the canvas or figureboard there should be a little check mark on the top left of
+an item or region that allows the user to quick report results to a myweek item. this way we have the ability to report
+from both surfaces."* Plan: `CodeLog/ClaudesPlan/V3.854_canvas_report_to_myweek.md`.
+
+### Added
+- `whiteboard.js` — `mountBoardView(..., { report: { onReport(item, btn, api) } })`: `reportBtnHTML` renders
+  `button.wb-report[data-wb-report]` as the FIRST child of every widget header (`.wb-wh`, class `wb-wreport`) and region
+  header (`.wb-rh`, `wb-rreport`); instances get none. Filled (`.wb-report-on`, `aria-pressed`) when `item.myweek[]`
+  has entries, with a tooltip naming the steps. `wireReportBtn` stops `pointerdown` propagation (a tap is never a drag
+  and never the phone sheet) and calls the host's `onReport` on click. ★ The incremental renderer KEEPS a widget node
+  whose signature changed (so its editor survives) — it only rebuilds regions — so `syncReportBtn(node, it)` runs from
+  `updateWidgetChrome` / `updateRegionChrome` on every render and fills the ✓ in place; `reportSig` in `itemSig` is
+  what makes a region rebuild. `whiteboard-board.css` `.wb-report`, `.wb-report-on`, `.wb-m .wb-report`.
+- `rm/js/myweek-report.js` (`window.MYWEEK_REPORT = { open, close, describeCard, loadSteps }`) — the picker, an
+  anchored `.cw-pop`: the card's name + thumbnail, then the user's steps from four weeks back through this week
+  (`DAY_DISTRIBUTE.listRange`), newest first, "Needs a result" then "Already has an outcome — add this card"; a "Find a
+  step…" box past six rows; rows already linked to this card are disabled; a footer link to My Week. Picking one calls
+  `DAY_DISTRIBUTE.saveOutcome(step, { kind: 'result', …existing, links: existing − this card + this card }, { closeAs:
+  'done' })` — the V3.853 writer, so the step is marked done, cascades and signals exactly as from My Week — then
+  `onReported(step, link)` and a toast ("— marked done ✓" / "— added to its result ✓"). `describeCard(item)` →
+  title · thumb · kind from the engine item (title / caption / note text / `CANVAS_WIDGETS.summary` / kind).
+  `rm/css/canvas-widgets.css` `.mwr-*`.
+- `rm/js/notebook-canvas.js`, `rm/js/figure-board-canvas.js` — `reportToMyWeek(it, btn)` builds the card
+  (`notebook_item` + entryId / `figure_board_item` + paperId, url with `&item=<id>` so the link lands on the card via
+  V3.853 `focusItem`), passes `report` to the engine, and `markReported` writes `myweek: [{itemId, title, date}]` on
+  the card through `inst.updateItem`. The ⋯ menu (and so the phone's card sheet) gains "Report as a My Week result…".
+- `rm/pages/notebook.html`, `rm/pages/figure-board.html` load `day-distribute.js` + `myweek-report.js` (figure-board
+  also `activity-signals.js`); day-distribute's other helpers are guarded, nothing runs at load.
+- `scripts/tests/v3854-canvas-report-harness.html` — the V3.852 stub Firestore + seed with a stub `DAY_DISTRIBUTE`,
+  the real engine + notebook host; desktop and `?mobile=1`.
+
+### Notes
+- FTP only — the card patch rides the board's existing write rule, `dayPlans` is owner-written. `sw.js` bumped.
+
+## [V3.851] — 2026-10-23 — Grad students propose a research focus; the PI or their advisor approves
+
+Alex: *"grad students should be able to add a focus by themselves, the PI or direct advisor should approve."*
+Plan: `CodeLog/ClaudesPlan/V3.851_student_focus_proposals.md`.
+
+### Added
+- `firestore.rules` `researchFoci/{fociId}` — create by any lab member as a PROPOSAL (`created_by` and
+  `approval.proposed_by` == caller, `approval.status == 'proposed'`, `published == false`); update while the card is
+  `proposed`/`declined` by the proposer (re-asserting `proposed` in their own name — never a decision) or by a
+  mentor of the proposer (`isMentorOf(created_by)`; a decision must carry `decided_by == request.auth.uid` and
+  leave `proposed_by` alone); delete by proposer or mentor while undecided. Admin unchanged. A card with no
+  `approval` key reads as approved via `resource.data.get('approval', {}).get('status', 'approved')`, so a
+  non-admin write to a legacy card is false before `isMentorOf()` is reached.
+- `functions/research-foci-notify.js` `onResearchFocusWritten` (`researchFoci/{fociId}` onWritten) — the
+  transition into `proposed` notifies the proposer's `mentor_uids` ∪ every admin (minus the proposer); into
+  `approved`/`declined` notifies the proposer with the note. `proposalTransition(before, after)` is pure;
+  `approval.notified_status` stamps a send so a retried trigger is a no-op. `functions/index.js` exports it.
+- `rm/js/research-data.js` — `approvalStatus / isProposed / isDeclined / isApproved / proposerOf`,
+  `loadMentees()` (one `users where mentor_uids array-contains me`, memoised; admins skip), `canPropose()`,
+  `mayEdit(card)`, `mayDecide(card)`, `approve(card)`, `decline(card, note)`, `repropose(card)`. `create()`
+  for a non-admin stamps the proposal shape itself and attaches the proposer as `lead`; `update()`/`remove()`
+  for a non-admin read the card, check `mayEdit`, and strip `published`/`published_at`. An absent approval is
+  never written as `null`. `hydrate()` keeps `approval` as-is (absent = approved).
+- `rm/js/research.js` — `state.all` (every card) vs `state.foci` (declined proposals hidden from everyone but
+  their proposer and admins); `statusPill()` says **Proposed** / **Declined** while undecided; `mineRing()` adds
+  `rf-card-proposed`; hub toolbar **＋ Propose a focus** and per-band **＋ Propose** for non-admin members;
+  `approvalsStrip()` (deciders: Approve, Decline with an inline textarea — `onSubmit` on `[data-decline-form]`,
+  no browser prompt), `myProposalsStrip()`, `approvalBanner(f)` on the detail and grant-review pages, Withdraw
+  wording for a proposer's own card, `doApprove / doDecline / doRepropose`, `hydrateNames()` for every
+  `[data-uname]`. `canEdit = RD.mayEdit(f)`; publish controls need admin AND approved. `init()` loads the mentee
+  set before the first render. `state.canEditCard` is handed to the grant review as `pageState`.
+- `rm/js/research-composer.js` `openCreate(level, onDone, seed, allFoci)` — "Propose a new … card", a one-line
+  hint, button **Propose**, and `parentPicker(lvl)`: a "Builds on" checkbox strip over the most specific parent
+  level that has cards (seeded links pre-checked; declined cards excluded) — its boxes are the truth for that
+  link key on save.
+- `rm/css/research.css` — `.rf-status-proposed/-declined`, `.rf-card-proposed`, `.rf-approvals*`,
+  `.rf-decline-form`, `.rf-approval*`, `.rf-parent-opts`.
+- Tests: `scripts/tests/research-foci-rules.test.mjs` (45 emulator cases, `RULES=` env to point at another
+  file), `scripts/tests/research-approval.test.mjs` (44, vm-loaded data layer with a stub store),
+  `functions/test/research-foci-notify.test.js` (18), `scripts/tests/v3851-proposals-harness.html` (self-driving
+  hub/detail as student, mentor, admin, outsider).
+
+### Changed
+- `rm/js/research-publish.js` `publish()` refuses an unapproved card.
+- `rm/js/research-roadmap.js` `openEditor` and `rm/js/roadmap-data.js` `saveRoadmap` gate on `mayEdit`
+  (`assertMayWrite`) instead of admin-only; the roadmap editor's `window.alert` is a toast.
+- `rm/js/research-grant-review.js` — New aim / New output / Edit people follow `pageState.canEditCard(grant)`.
+
+### Notes
+- Deploy: rules went out from a scratch copy = LIVE ruleset + only this block (the repo file also carries the
+  undeployed V3.806 `users` self-role guard and V3.835 inventory `use_mode` hunks, which are not mine), then
+  `firebase deploy --only functions:onResearchFocusWritten`. Client files by the end-of-turn auto-deploy.
+  `sw.js` → 833 (831/832 were taken by the parallel V3.852/853 session).
+- Not done: an approved card stays admin-write; proposed cards appear unmarked in the My Week / Team Focus /
+  PMR alignment pickers; any lab member may propose, not only grad students.
+
+## [V3.852] — 2026-10-23 — The notebook on a phone: inert cards, tap-to-edit sheet
+
+Alex: *"all of the items in the notebook need to be made to work well with a mobile version. clicking on one of the items
+should pull up a edit field from the bottom. do not edit fields directly on the item in the mobile version. i still want
+to be able to move the item around the canvas. check for all the options in the item works on mobile"*.
+Plan: `CodeLog/ClaudesPlan/V3.852_notebook_mobile_sheet.md`. (Numbered V3.852: V3.851 is the My Week session's.)
+
+### Added
+- **Two modes per card** (same turn, after Alex: *"every card needs two modes, 1 change a cards settings, 2 change the actual
+  thing the card does"*): the sheet is `✎ Edit` (the card's editor) or `⚙ Settings` (name, colour, width, connections,
+  actions). A tap opens Edit, ⋯ opens Settings (`openItemSheet(id, mode)`, `setSheetMode`, panes `[data-wb-sheet-pane]`,
+  tabs `[data-wb-sheet-tab]`, root `data-wb-sheet-mode`); regions and instances are settings-only. `widgetApi` gains
+  `openSettings()` / `openEditor()`; both hosts' `widgetMenuItems` start with **Card settings…** on the desktop ⋯ popover
+  (never inside the sheet — `api.inSheet`). On screens ≥ 700 px the sheet is a centred panel. Handle: `openItem(id, mode)`,
+  `sheetMode()`, `setSheetMode(m)`. Tested kind by kind by an Opus QA agent on `scripts/tests/v3852-notebook-mobile-sandbox.html`
+  (the harness's seeds without the checks; `?mobile=0` for the desktop). `sw.js` → 834.
+- `whiteboard.js` — **mobile mode**: `opts.mobile` `true | false | 'auto'` (auto = a host board with a coarse pointer and the
+  viewport's short side under 700 px — phones in either orientation, not an iPad; `detectMobile`, re-evaluated on `resize`
+  while `S.mobileAuto`); `S.mobile` → class `wb-m` on the board root (`renderBoardChrome`). On a phone the whole card is
+  the drag handle (`bindItemHandlers.onDown` accepts a pointer anywhere on a `.wb-item-widget` / `.wb-regionref`, buttons
+  excepted), the drag arms after 8 px (`d.armed`), a motionless pointer-up opens the sheet (`d.tap`), and a tap never
+  snaps the card to the grid (snapping only after a real drag — an off-grid card used to count as "moved" on the first tap).
+  The ⋯ button opens the sheet too.
+- `whiteboard.js` — **the card sheet** (`openItemSheet` / `closeItemSheet` / `renderSheetBody` / `renderSheetLinks` /
+  `sheetActionList` / `renderSheetActions` / `sheetApiFor`, `SHEET_SIZES`): a bottom sheet on `document.body` (z 2550,
+  under the `cw-pop` popovers) with the kind label and **Done**, the **title**, the **body** rendered by the host's
+  `widgets.renderSheet(item, body, api)` (else `widgets.render`) — the same editor the card shows on a desktop, with an
+  `api` whose `remove` closes the sheet and whose `refresh` re-renders sheet and card; the **colours** (`ITEM_TINTS`, or
+  `REGION_COLORS` for a region); the **width** S / M / L / XL (0.30 / 0.46 / 0.62 / 0.85); the **connections** (each with ×
+  → `removeWire`, and a "Connect →" picker over the other cards → `addWire`); the **actions**: Collapse / Expand, Bring to
+  front, then the host's `widgets.menuItems(item, api)` — the exact list the desktop ⋯ popover shows — with the same two-tap
+  confirm (`armTwoTap`) for dangerous ones. A region's sheet: name, six colours, Collapse / Open, Fit around its cards,
+  Remove (cards stay). An instance's sheet: the source link, Remove. Events stop at the backdrop; backdrop tap, Done or
+  Escape close it; a card deleted elsewhere closes it (`renderItems`); closing re-renders the card body, so a protocol's
+  or calculator's live widgets return to the card after the sheet borrowed them. Handle: `openItem(id)`, `closeItem()`,
+  `isMobile()`, `setMobile(on)`.
+- `whiteboard-board.css` — `.wb-m` (inert body + title, hidden grip / ports, 2 em header buttons, `touch-action: none`) and
+  `.wb-sheet-*` (16 px inputs so iOS never zooms on focus).
+- `rm/js/notebook-canvas.js`, `rm/js/figure-board-canvas.js` — `widgetMenuItems(item, api)` (one list for the ⋯ popover and
+  the sheet), `renderWidgetSheet` (a kind's `sheet()` when it has one, else its editor), `MOBILE_OPT` read once at load
+  (`?mobile=1|0`; the page rewrites its query string to `?entry=…` later), passed as `mobile` / `menuItems` / `renderSheet`.
+- `rm/js/canvas-widgets.js` — the HTML frame's `sheet()`: file name + size (the frame keeps running on the card; Replace /
+  Open are actions).
+- `scripts/tests/v3852-notebook-mobile-harness.html` (56) — the V3.833 stub with a canvas entry of EVERY card kind (11), a region
+  and an instance, opened with `?mobile=1`: tap → Edit, ⋯ → Settings, the tabs, every kind in both modes, inert body / title, hidden grip + ports, `touch-action`, a finger lands on the card, the FIRST tap opens
+  the sheet for an off-grid card without nudging it, the sheet's kind / title / live note editor / 10 colours / 4 widths /
+  connections / actions; typing saves and the card repaints on Done (not while the sheet is open); rename, colour, width
+  S→L, Collapse ↔ Expand, Connect → / ×, Duplicate, Done, ⋯ → sheet (no `.cw-pop`), the checklist editor, Escape, drag
+  moves without a sheet, a 4 px jitter is a tap, the figure's Choose / Camera, the frame's file-only sheet with Replace /
+  Open, the quote's fields, Remove in two taps, a region's sheet (name / 6 colours / collapse / fit / remove, rename,
+  recolour), no popups, no `<svg`. Screenshots at 390×844 reviewed.
+
+### Changed
+- `whiteboard.js` `bindItemHandlers.onUp` — snapping to `WIDGET_GRID` happens only when the drag armed (desktop unchanged:
+  `armed` is immediate there).
+
+### Notes
+- Regressions: `v3833` 65, `v3839` 75, `v3842` 43, `v3837` 35, `v3830` 26 — all green. FTP only; `sw.js` → 832.
+- `scripts/release_push.py` — refuses to start when stdin is not a terminal unless `--verified` / `--dry-run` / `--web-only`:
+  the device-gate `input()` used to raise EOFError only after step 2 had bumped the build and written the mobile changelog
+  (today's first push from Claude did exactly that; the half-written m-v0.4.4 was undone by hand before the `--verified`
+  re-run that shipped TestFlight build 17 / m-v0.4.4).
+
+## [V3.853] — 2026-10-23 — My Week: every step ends in a result
+
+Alex: *"for all the items a user has added to myday, they need to add a result."*, *"results in myday can be links to
+figureboards, or links to notebooks. both of these hold the plots or images that would be the result."* and *"it should
+point to something specific in the figureboard or notebook. we will do this by item edit time. for example if i have a
+myweek input on monday, and wednesday i put a result into the canvas, when i select results on the myweek task, it shows
+up as a thing to point to. The whole point of this is to keep track of progress. as always barriers or not done is also
+an option."* Plan: `CodeLog/ClaudesPlan/V3.853_myweek_results_required.md`.
+
+### Changed
+- `rm/js/my-week.js` — ✓ (day timeline, week row) and "Did it" / "Skipped" on a Waiting-on-you card now open the outcome
+  dialog FIRST (`openOutcomeDialog(item, presetKind, onDone, { closeAs: 'done'|'skipped' })`); the step stays `planned`
+  until Save, and Cancel leaves it planned (info toast). `confirmDone` / `confirmSkipped` are no longer called from the
+  page — `DD.saveOutcome(item, payload, { closeAs })` writes status + outcome in one update, then `maybeCompleteFocusTask`
+  / `maybeCompleteMeetingWork` run when the item became done. The pending card's separate "◇ Outcome" button is gone.
+- Outcome dialog: "Where is the result?" lists the SPECIFIC CARDS the step can point at — widgets on the figure boards of
+  the papers I'm an author on (`papers/{pid}/boards/main/items`) and in my notebook entries that have a board
+  (`notebook/_index` rows with `board_id` → `userData/{me}/notebookBoards/{bid}/items`) — chosen by **edit time**: one
+  query per board, `where('updatedAt', '>=', step.created_at).orderBy('updatedAt', 'desc').limit(40)` (single-field
+  index, no deploy), newest first, regions / instances / ink text excluded (`loadResultSources(item, {all})`,
+  `canvasCardRow`, `sinceFor`, `CANVAS_KIND_LABELS`). Layout (Alex: *"that looks terrible and confusing do a better design
+  job"* on the first cut's checkbox rows): a small eyebrow ("Done ✓ · planned Fri, Oct 23") over the step's title; one
+  segmented Result · Barrier · No result choice (`.md-oc-kinds`); for a Result the cards come first as picture TILES
+  (`.md-oc-tile`: 16:10 thumbnail or a 📊/📓 glyph, two-line title, "kind · weekday", a check badge when chosen) grouped
+  under the board or entry they live on (`.md-oc-group` / `.md-oc-ghead`, newest group first), a "Find a card…" box past
+  six cards, a quiet "Show older cards" link that re-lists without the time filter (choices kept; "Only cards since
+  <date>" takes it back), then "A photo or a sentence (optional)". For a Barrier or No result the text leads ("What
+  blocked you? required" / "What happened? optional") and the cards fold into a `<details>` "＋ Attach a card that shows
+  it (optional)". Switching the kind re-lays the body and keeps what was typed (`renderBody` / `rememberInputs`). When
+  nothing was added since the step was planned the list says so and links the notebook and the Paper builder.
+  A tick saves
+  `outcome.links[] = {kind:'figure_board_item'|'notebook_item', boardId, itemId, paperId|entryId, boardTitle,
+  item_kind, title, thumb, url}` with `url` = `figure-board.html?paper=…&item=<id>` / `notebook.html?entry=…&item=<id>`.
+  Cards linked earlier that the filter no longer lists still show, ticked; other link kinds and a V3.623 outcome's
+  `notebook_entry_ids` ride along untouched. Required, checked inline (`showError` / `clearError`, no browser popups):
+  a Result needs ≥ 1 of {card, image, sentence}; a Barrier needs its reason. Save reads "Save & mark done" / "Save & mark skipped" / "Save outcome".
+  The error message lives IN the pinned Save row (`.md-oc-dialog .md-report-actions` sticky) so a phone never hides it.
+- `whiteboard.js` — `inst.focusItem(id)` → `focusItemById`: centres the view on one card (plane: `animateView` to the
+  card's centre at the current zoom, never below `minScale`; paged: `scrollSheetTo`) and pulses it (`.wb-item-flash`,
+  `whiteboard-board.css`); retries for ≈5 s while the items snapshot is still arriving.
+- `rm/js/figure-board-canvas.js` (after `mountLive()`) and `rm/js/notebook-canvas.js` (after the entry opens) read
+  `?item=<id>` and call `state.inst.focusItem(id)` — the My Week result link lands ON the card.
+- `needsResult(it, today)` (pure) replaces the inline queue filter: done/skipped without a result count the SAME DAY
+  (`date <= today`), planned once `date < today`, never cancelled; `loadOutcomeQueue` scans four weeks back through today
+  (was last Monday → yesterday). Nudge copy: "N steps need a result — link the figure board or notebook entry that
+  holds it." The ◇ chip on a closed step reads "◇ Needs a result" (`.md-oc-need`); a recorded result with a linked
+  board shows 📊.
+- `rm/js/day-distribute.js` — `closedStatusFor(status, kind, closeAs)` (pure, exported as `DD.closedStatusFor`): a
+  result always → done; a planned item otherwise closes to the caller's intent (`closeAs:'done'` keeps "did it, no
+  result" as done) or skipped when there is none; result on a skipped item → done; done stays done. `cleanLink` bounds
+  `links[]` entries (`kind`, `id`, `title`, `url` + the card fields `boardId`, `itemId`, `paperId`, `entryId`,
+  `boardTitle`, `item_kind`, `thumb`).
+- `rm/js/pmr.js` — `isUnaccounted` counts done/skipped-without-result on the same day (matches `needsResult`);
+  the ledger's `outcomeLine` renders `outcome.links[]` as deep links to the cards ("figure board · <paper>: <card>" with
+  `chart-bar`, "notebook · <entry>: <card>" with `book-open`, a `.pmr-lg-thumb` thumbnail when the card has one) beside
+  the image and notebook-entry links; "no outcome recorded" → "no result recorded".
+- `rm/css/my-week.css` — `.md-oc-need`, `.md-oc-sources / -srcgroup / -srclist / -srcnone / -filter / -showall /
+  -cthumb / -cmain / -ctitle / -csub`, `.md-oc-err`, `.md-oc-invalid`, the sticky Save row.
+
+### Bug Fixes
+- The outcome dialog's "Follow up next week" date and title inputs were always visible: `.md-oc-fu-fields { display:
+  flex }` beat the `hidden` attribute since V3.623. `.md-oc-fu-fields[hidden] { display: none }`.
+
+### Added
+- `scripts/tests/myweek-needs-result.test.mjs` — lifts `needsResult` (my-week.js) and `closedStatusFor`
+  (day-distribute.js) out of the page sources; 23 cases.
+- `scripts/tests/v3853-myweek-result-dialog-harness.html` — lifts the dialog itself onto stub DD / firebridge /
+  toast recorders and drives it in a real browser (56 checks: ✓ opens the dialog first, empty Result refused inline,
+  cards by edit time → `links[]` with deep-link urls, the `>=` query carries the step's `created_at`, Show everything,
+  ✗ needs a reason, Cancel keeps planned, old links survive an edit, ✓ + No result stays done, follow-up, no browser
+  popups). The error message lives in the pinned Save row so a phone never hides it.
+
+### Notes
+- Numbered V3.853: two concurrent sessions hold V3.851 (student focus proposals) and V3.852 (notebook mobile sheet).
+- FTP only — no rules / indexes / functions change (`dayPlans` rides the owner wildcard; `papers/{pid}/boards/**` is
+  author-readable and `notebookBoards/**` owner-readable; the `updatedAt` inequality is a single-field index; the
+  ledger's cross-user read is V3.624's). `sw.js` bumped (833 by this change; concurrent sessions have bumped it since).
+
+## [V3.850] — 2026-10-23 — The Huddle's title moves into the menu box
+
+Alex: *"The huddle title on the top left of the page should be removed it takes too much head room, move it into the
+menu box at the top of the menu as the title of the page."* Plan: appendix in `CodeLog/ClaudesPlan/V3.849_huddle_frozen_top.md`.
+
+### Changed
+- `rm/pages/huddle.html` — the `.page-header` / `h1.page-title` above the app is gone.
+- `rm/js/huddle.js` `render()` — `<h1 class="hud-sidebar-title">The Huddle</h1>` is the first child of `nav.hud-sidebar`
+  (the mobile shell's `centerActiveTab` / `saveTabScroll` still target `#hud-tabs`).
+- `rm/css/huddle.css` — `.hud-sidebar-title` (1.05 rem, 700, padded like the menu buttons); on a phone it sits inline at
+  the start of the tab strip (`.9rem`, nowrap). `.page` top padding 10 px.
+- `scripts/tests/v3849-huddle-frozen-top-harness.html` — shell matches; two checks: the title is the sidebar's first
+  element and no `.page-header` exists; the app starts ≤ 72 px from the top with the 52 px stand-in nav (33).
+
+### Notes
+- FTP only; `sw.js` → 830.
+
+## [V3.849] — 2026-10-23 — The Huddle: frozen top, flowing calendar
+
+Alex: *"the top part of the huddle page should be frozen, and only the calendar times should flow. the top part includes
+the date and the user pills. the options for week, day, month view should be moved so that the frozen section doesnt take
+up too much room, we want it to be mostly calaner"*. Plan: `CodeLog/ClaudesPlan/V3.849_huddle_frozen_top.md`.
+
+### Bug Fixes
+- The freeze-pane CSS that `huddle.css` has carried since the calendar grid (`.hud-layout { height: 100% }`,
+  `.hud-cal-body { flex: 1 }`, `.hud-grid-wrap { overflow-y: auto }`) never engaged: `#huddle-root` had no height, so
+  `height: 100%` resolved to `auto`, the grid grew to ~1000 px and the **document** scrolled (main column 1812 px at a
+  720 px window). `rm/pages/huddle.html` now carries `html.hud-html` / `body.hud-body`, and `huddle.css` makes the page a
+  viewport-high column (`html, body { height: 100% }`, body a flex column, `.page { flex: 1; min-height: 0; width: 100% }`,
+  `#huddle-root { flex: 1; min-height: 0 }`), so the sidebar and main get the viewport remainder and the grid wrap is the
+  only scroller. The Help / Team / Settings tabs' `.hud-main { overflow-y: auto }` works for the same reason.
+
+### Changed
+- `rm/js/huddle.js` `renderThisWeek` — `.hud-week-top` (frozen) = `.hud-week-bar` (the view's nav — `weekNavHTML()`,
+  new `dayNavHTML()`, new `monthNavHTML()` — then the Day/Week/Month toggle, then `zoomControlsHTML()` for Day/Week) +
+  `.hud-week-filters` (member pills with the composer's collapsed one-liner on the same row); the open composer form
+  renders below. `.hud-week-body` holds the popup (overlay) and the calendar. `renderMyWeekly(myPlans, below)` /
+  `renderMyDaily(myPlans, below)` drop their three-row `.hud-cal-header` and return `calBodyHTML(gridHTML, below)`;
+  `renderMyMonthly(myPlans, below)` lifts its nav out and wraps the grid in `.hud-month-scroll`. "Anytime this week" and
+  the open-help strip are passed as `below` and rendered in `.hud-below-grid` inside the scroller, after the grid.
+- `wireTimeSlider` — the slider's extent is the grid's own height (`.hud-time-grid.offsetHeight`), clamped, so the thumb
+  reaches the bottom at midnight and rests there while the content below the grid scrolls by.
+- `rm/css/huddle.css` — the V3.849 block: `.hud-main:has(.hud-week-body)` flex column / `overflow: hidden` / small padding;
+  compact bar (nav buttons `.22rem .55rem`, toggle `.26rem .7rem`, zoom 26 px, toggle pushed right); pills row with the
+  composer one-liner as a pill; `.hud-week-body { position: relative; min-height: 240px }` with `> .hud-popup` absolute,
+  centred, `min(560px, 94%)`, shadowed; `.hud-month-scroll`; `.hud-below-grid`. Phone: smaller padding, toggle wraps.
+
+### Tests
+- `scripts/tests/v3849-huddle-frozen-top-harness.html` (31) — real renderer, stub Firestore, real page shell with a 52 px
+  stand-in nav at 1280×720: the document never scrolls (Week, Day, Month, popup open, composer open, Settings); the grid
+  wrap is the only scroller and opens at 8 AM; bar = nav + toggle + zoom on one row; pills + one-liner on row two; frozen
+  part 83 px of a 622 px column; the date and pills stay put and the day headers stick while the grid scrolls; Anytime +
+  help strip are inside the scroller; the slider thumb bottoms out at midnight; the popup is absolute and the grid does not
+  move; Day/Month share the bar; Settings scrolls in main; popups + `<svg` canary. `v3848` accordion harness still 26/26.
+
+### Notes
+- FTP only; `sw.js` → 829.
+
+## [V3.848] — 2026-10-23 — The Huddle's week view is an accordion
+
+Alex: *"the week view should only have one day open at a time, all other days are just slivers of color with no text,
+when viewing i will open day by day and the day expands to show the text for that day like an accordian menu."*
+Plan: `CodeLog/ClaudesPlan/V3.848_huddle_week_accordion.md`. (Numbered V3.848: V3.847 is the ☰ fan session's.)
+
+### Added
+- `rm/js/huddle.js` — `_openDay` + `resolveOpenDay(days)` (today when on screen, else the Monday; survives the per-snapshot
+  re-renders), `accordionColumns(days, openDate)` (inline track list `var(--hud-tcol) minmax(0, var(--hud-open|--hud-closed)) × 7`),
+  `setOpenDay(date)` (edits the live grid: tracks, `hud-col-open/closed` classes and `aria-expanded` on every `[data-day]`
+  element — no re-render, the scroll and composer stay), `wireAccordion()` (header click / Enter / Space; a capture-phase
+  grid click opens the day for anything inside a closed column and stops the event, so a sliver block never opens the
+  popup). `buildTimeGrid(..., openDate)` stamps `data-day` + the column class on headers, cells and blocks, `hud-accordion`
+  + `data-days` on the grid, headers as `role="button"` with `hud-grid-dayshort`/`hud-grid-daynum` spans; blocks carry
+  `--hud-bc` (owner colour). `planBlockHTML(p, slot, draggable, extraCls)`.
+- `rm/css/huddle.css` — the accordion block: `--hud-tcol: 60px; --hud-open: 16fr; --hud-closed: 1fr;
+  transition: grid-template-columns .28s` (fr ↔ fr interpolates); closed headers shrink, closed timed blocks hide their
+  children and paint `var(--hud-bc)` solid (lanes still split overlapping plans into separate bars), closed all-day blocks
+  are 6 px bars. Phone: the accordion keeps its tracks with `--hud-tcol: 36px; --hud-open: 12fr` and closed headers show the
+  day number only; the old `36px repeat(7, 1fr) !important` rule now applies to `.hud-time-grid:not(.hud-accordion)`.
+- `scripts/tests/v3848-huddle-week-accordion-harness.html` (26) — boots the real renderer on the stub Firestore
+  (+ `collection.add`) with four plans; header / sliver-block / closed-cell taps, no drag from a closed day, drag on the
+  open day, week navigation, the Day view, keyboard, popups, `<svg` canary. Screenshot checked with Thursday open.
+
+### Changed
+- `rm/js/huddle.js` — `renderMyWeekly` passes the open day; `wireThisWeek` wires the accordion before the grid clicks; the
+  drag-to-create `pointerdown` returns early on a `hud-col-closed` cell. The Day view (`renderMyDaily`) is unchanged.
+
+### Notes
+- FTP only; `sw.js` → 828.
+
+## [V3.847] — 2026-10-23 — One ☰ at the bottom fans out the quick links; Scan opens the camera at once
+
+Plan: `CodeLog/ClaudesPlan/V3.847_menu_fan_camera_first.md`. Alex: *"the bottom of the page tool button should replace
+all of the quick page links. it should not be a blue plus sign it should be a hamburger icon. all of the pages the
+user has selected as quick links should fan out. the scan qr button should be a single click to open the camera to
+scan a qr code. no one wants to ever add the code by text and the text isnt even on the printout of the label."*
+Corrects V3.844. (Numbered V3.847: V3.846 was taken by another session while this was built.)
+
+### Changed
+- `rm/js/mobile-shell.js` — the bottom bar is ONE round neutral **☰** (`.ourlab-menu`, inline SVG bars → × while open; icons.js has no hamburger). Tap → the fan: `fanItems(keys)` = `SCAN_TOOL` (fixed, fresh) · the chosen pages in order · `MORE_TOOL` (fixed); `ringLayout(n)` (pure): ≤ 4 on one arc 160° → 20°, 5–10 on two (the first four inner R ≈ 96, the rest outer R ≈ 182, 150° → 30°), radii scaled to the viewport. The row of page tabs, the ＋ and `TOOLS` are gone; nothing is highlighted. `MAX_TABS` 5 → **8**, `DEFAULT_KEYS` back to the V3.835 six; `normalizeKeys` never keeps `scan` (it is always in the fan); More lists the catalog pages that are not quick links (never Scan); the sheet is "Customize quick links" ("Scan a label and More are always there"). The fan re-reads the shared localStorage list when it opens. `OURLAB_SHELL` = `{ CATALOG, DEFAULT_KEYS, MAX_TABS, tabs, keys, setTabs, fanItems, moreLinks, activeKey, openMore, openCustomize, openFan, closeFan, getLabGroup }`; `TABS_CORE` += `SCAN_TOOL, MORE_TOOL, fanItems, ringLayout`. Body bottom padding 72 px.
+- `rm/js/scan.js` — `open({ cameraFirst: true })`: with a camera available the sheet starts it immediately, the typed field is `hidden` and the USB hint is gone; a **Type the code instead** link reveals the field (a desktop without a camera, a denied permission — the start error lands in the status line). Without a camera the sheet is the V3.646 one. `rm/pages/scan.html` always passes it; `inventory.js` `invOpenScanner` passes it in the app (`invIsApp()`), so the desktop toolbar's 📷 Scan keeps the wedge-first field.
+- Tests — `scripts/tests/mobile-tabs.test.mjs` (fanItems, ringLayout, the cap, Scan never a quick link), `v3840-mobile-tabs-selftest.html` rewritten for the ☰ (one button, the fan of 8/9/4/10, two arcs, nothing clips, More from the fan, Customize 6 of 8), NEW `v3847-camera-first-selftest.html` (the real sheet: default shape vs cameraFirst shape, the reveal link, no-camera fallback).
+
+### Notes
+- No rules deploy, no Swift change → bundle refresh m-v0.4.3 / TestFlight build 16. `sw.js` CACHE_VERSION → 827.
+
+## [V3.846] — 2026-10-23 — The Huddle uses the whole window
+
+Alex: *"the huddle page also needs the wide-tab rule."* Plan: appendix in
+`CodeLog/ClaudesPlan/V3.845_figure_board_tab_full_width.md`.
+
+### Added
+- `rm/css/style.css` — `.page.page-wide { max-width: none }`, a modifier on the RM page shell for pages that should use
+  the whole window (the shell's `--page-max-w` is 1200 px; padding is unchanged). Any page can take it.
+
+### Changed
+- `rm/pages/huddle.html` — the page shell is `page page-wide`, so the feed, the composer and the Lab Schedule Gantt
+  (`min-width: 500px`) span the window instead of a centred 1200 px column.
+
+### Notes
+- FTP only; `sw.js` → 826.
+
+## [V3.845] — 2026-10-22 — The Figure board tab fills the editor
+
+Alex: *"the figureboard is not filling the width of the screen"* — after V3.841 had "stretched" the Figures tab.
+Plan: `CodeLog/ClaudesPlan/V3.845_figure_board_tab_full_width.md`.
+
+### Bug Fixes
+- `rm/css/paper-figure-board.css` — the `html.pe-wide-tab` block. The tool page (`#pe-toolpage-root`) is a flex item in
+  the editor's column (`.pe-page`), and `margin: 0 auto` on a column-flex item sizes it to fit its content instead of
+  stretching it; an iframe at `width: 100%` of a shrink-to-fit parent contributes its intrinsic 300 px, so the frame
+  measured **470 px in a 1280 px window** with the class set. The 1100 px `max-width` V3.841 removed was never the limit.
+  Now `.pe-toolpage{ width: 100%; margin: 0; flex: 1 1 auto; display: flex; flex-direction: column }`, the pane / the
+  figure-board `.pe-tab-content` / `#pe-figure-board-root` / `.pfb-canvas-wrap` are `width: 100%` flex columns with
+  `min-height: 0`, and `.pfb-canvas-frame` is `flex: 1 1 auto; height: auto; min-height: 420px` (fills the height below
+  the pill bar instead of `calc(100vh − 150px)`).
+- `rm/css/paper-editor.css` — `.pe-toolpage` gets `width: 100%` (box-sizing is border-box globally): every tool page is a
+  definite-width centred column; a near-empty References or Tables page had been shrink-to-fit for the same reason.
+
+### Tests
+- `scripts/tests/v3845-figure-board-width-harness.html` (6) — the tool-page DOM as `paper-equations.js` builds it, with
+  the editor's stylesheets: the frame spans the window with the class (1264 of 1280 px), the remembered 420 px
+  side-pane width is ignored, the frame fills the remaining height, the other tool pages keep ≤ 1100 px without the
+  class, toggling the class back restores the width. The standalone `figure-board.html` layout was measured at 1600 px
+  (sheet 1584) before the fix — it was never the narrow one; live CSS/JS were byte-identical to local and RM assets are
+  network-first, so this was not a cache report.
+
+### Notes
+- FTP only; `sw.js` → 825. (Numbered V3.845: V3.844 is the ＋ fan session's.)
+
+## [V3.844] — 2026-10-22 — The ＋ fan (Scan a label first), actions attributed to the user, and "Something I did" in the notebook
+
+Plan: `CodeLog/ClaudesPlan/V3.844_plus_fan_scan_actions_notebook.md`. Alex: *"there should be a quick link to scan qr
+codes somewhere i think from the plus button when clicked should fan out to make a selection from tools … actions like
+using an item should be saved as an action attributed to the user that the user can add to their lab notebook easily
+… on the notebook, there is an item that can be added that says they did an action. other actions are things like
+they used equipment etc. users can choose to ignore the items use instead of placing it in the notebook."*
+(Numbered V3.844: V3.843 was taken by the canvas-regions session while this was built.)
+
+### Added
+- `rm/js/mobile-shell.js` — a raised **＋** in the middle of the bottom bar (`data-plus`, its own slot) that fans out `TOOLS` on an arc (`openFan/closeFan`; `.ourlab-fan-back/-tool/-lbl`, R ≈ 90–124 px, 165° → 15°): 📷 Scan a label (`scan.html`, `fresh: true` → `?t=<now>` so the scanner comes up every time), ⚡ My actions, ✎ Notebook, ✓ Task, 🧪 Equipment. `goToTool` = `OurlabTabs.switchTo` for a native page, `OurlabTabs.open` otherwise, plain navigation without the plugin. The bar is now **5 chosen pages + ＋ + More** (`MAX_TABS` 6 → 5; `DEFAULT_KEYS` = My Week · Chat · Tasks · Library · Inventory; a saved six keeps its first five). `CATALOG` += `scan`, `actions`. `OURLAB_SHELL` += `TOOLS, openFan, closeFan`; `TABS_CORE.TOOLS`.
+- `rm/pages/scan.html` — the Scan tool: the scanner opens on arrival (`SCAN.open`; `?auto=0` to wait), a hit resolves and goes straight to `INV_USE.take` (the dial), the result line shows, **Scan a label** again; under it today's actions (＋ Notebook / Ignore) and a link to all. `window.scanHandle(code)` for a wedge or a test.
+- `rm/js/user-actions.js` — `userData/{uid}/actions/{id}` (`inv_<usageId>` / `eq_<bookingId>`; merge-set, so a retry never doubles): `{ kind: 'inventory_use' | 'equipment_booking', at, status: 'new' | 'ignored' | 'noted', notedIn[], … }`. Written by `INV_QTY.onLocalWrite` (every ledger `use`, any surface), `INV_USE.run`'s log/legacy routes, and `equipment.js` after `EDB.createBooking`. `USER_ACTIONS = { record, list({ limit, includeIgnored }), get, ignore, restore, markNoted(id, { entryId, cardId }), onChange, describe, … }`. `USER_ACTIONS_CORE` (node): `fromInventory(out)`, `fromBooking(id, b)`, `describe(a, now)` ("Used 2.5 µL of Anti-tubulin" · "Took 2 packs of Tips" · "Logged a use of …" · "Booked the Confocal · Fri 23 Oct 10:00–12:00", "Used the …" once the slot has passed), `dayKey/dayLabel/groupByDay/pending/timeOf/shortDate`.
+- `rm/pages/actions.html` — My actions by day (Today, Yesterday, dates): the line, the time, the note, open ↗; **＋ Notebook** (`notebook.html?action=<id>`), **Ignore**; "Show ignored" (Restore) and "Show ones already in the notebook" filters. `window.__actionsPage` test seam.
+- `rm/js/notebook-canvas.js` — kind `action` ("Something I did", group Lab, ⚡): with no action picked the card is an inline picker of the pending actions (search, today first); a pick fills `{ actionId, kind, text, at, note, itemId, equipmentId, labelCode }`, saves `text: 'Did: …'` and `markNoted`s the action with the entry + card ids; ⋯ "Pick a different action…". `?action=<id>` → `insertActionById` drops the card into the entry that opened (waits for the board, then clears the query). `rm/css/notebook-canvas.css` `.nbc-act-text`.
+- `rm/js/nav.js` — "My actions" under Activity (`bolt`), "Scan a label" beside Inventory (`camera`).
+- Tests — `scripts/tests/user-actions.test.mjs`, `mobile-tabs.test.mjs` (tools, five, scan/actions), `v3840-mobile-tabs-selftest.html` (the ＋ slot, the fan's five tools on an arc, toggle, More lists Focus/Scan/Actions…, Customize "5 of 5", a bar carrying Scan), `v3844-actions-selftest.html` (the real module on an in-memory Firestore: onLocalWrite records a use not a recount, the log route records, bookings, list/ignore/restore/markNoted/get/onChange).
+
+### Changed
+- `rm/js/inventory-qty.js` — `write()`'s result (and `onLocalWrite`) carries `event, note, labelCode, context, useMode`.
+- `rm/js/inventory-use.js` / `user-actions.js` — count units pluralise in the one-line descriptions (`2 packs`, `3 vials`, `1 pack`).
+- `rm/js/inventory.js` — the V3.840 floating camera button is gone (the bar's ＋ → Scan a label is on every page); the app-only scan hero stays. `inventory.html`, `equipment.html`, `notebook.html` load `user-actions.js`.
+
+### Notes
+- Actions are materialised per user (one place to list, ignore and link; no composite index); an equipment "use" is the booking, described as Booked until the slot ends.
+- No rules deploy (`userData/{uid}/**` owner-write) and no Swift change (misc webview for the new pages) → bundle refresh m-v0.4.2 / TestFlight build 15. `sw.js` CACHE_VERSION → 824.
+
+## [V3.843] — 2026-10-22 — Regions fit their cards; membership is explicit; drag by the name field; Organise lays out everything
+
+Alex: *"regions should resize to fit the items within it"*, then *"the auto reorganize is not working correctly. when
+items are added to regions, we should be able to move the regions around and all the items inside it should move
+with it."* Engine (`whiteboard.js`, `whiteboard-board.css`).
+
+### Added
+- **Regions hug their cards.** `fittedRect` / `fitRegionToMembers(rid, { shrink })` = the members' bounding box plus
+  padding (`REGION_PAD`: 0.02 sides, 0.05 above for the header, 0.02 below). A drawn ▭ box snaps to the cards inside
+  it (an empty box stays as drawn); a member that moves or grows pushes the box out (`scheduleRegionFit`, grow-only,
+  450 ms after any render); a card dropped into or out of a region refits it (grow and shrink); ⤢ in the header
+  refits on demand. Region boxes animate with the cards (`.wb-displacing .wb-region`).
+- **A card's name field drags it.** Headers are mostly the title input, so a drag that starts on `.wb-rtitle` /
+  `.wb-wtitle` (not focused) moves the region / card; a plain tap still focuses it (`d.focusTarget`, focused on a
+  motionless pointer-up). That is the live "region does not carry its cards" report: the drag was being refused.
+- Handle: `fitRegion(id, shrink)`, `setRegionMembers(id, ids)`, `addRegionRef(src, at)`.
+
+### Changed
+- **Membership is explicit** (`members` on the region doc) instead of "whose centre is inside": a card belongs to a
+  region when it was drawn around (`cardsInside` at creation), dropped into it (`regionUnder` on pointer-up; a card
+  dropped outside the regions that held it leaves them), created inside it (`adoptIntoRegion` from `addWidgetItem` /
+  `addRegionRefItem`), or organised into it. The box fits those cards and nothing else, so a growing region never
+  swallows its neighbours (the geometric rule chained: grow → cover a neighbour's centre → grow again). Regions
+  made before V3.843 have no list and fall back to the geometric rule until their first write. Instances follow the
+  source region's `members` when present.
+- `itemHeightU` remembers each card's last measured height (`S.itemH`): a hidden card measures 0, which moved its
+  centre and made collapse flip-flop every render.
+- **⇶ Organise lays out everything** from the content's top-left (not the view's): the flows in their regions,
+  then every other region as a block with its cards, then loose cards — images and text under the ink included — in
+  a column to the right. Nothing lands on anything; flow regions carry `members`; a region holding exactly a flow is
+  reused.
+- `v3842-regions-harness.html` → 43 checks (membership stored; a card created inside joins and the box grows; a drag
+  by the name field moves it out and it leaves; a tap focuses; collapsed cards stay hidden across renders; the drawn
+  box snaps to its cards; a hand-enlarged box is kept until ⤢; G dragged out of a flow leaves it and the flow
+  shrinks).
+
+## [V3.842] — 2026-10-22 — Regions around cards (named, coloured, collapsible, displacing), region instances mirrored from other boards, organise the board by its connections
+
+Plan: `CodeLog/ClaudesPlan/V3.842_regions_instances_organise.md`. Alex: *"draw regions around multiple items… named
+and have their own color… collapsable… items in its way are smoothly displaced without overlap"*, *"regions from any
+figureboard or notebook can be added to any other figureboard as an instance that inherits and syncs"*,
+*"connections made between items are used to auto group and reorganize the board"*. Engine (`whiteboard.js`,
+`whiteboard-board.css`, `whiteboard-replay.js`); both hosts get the tools through the Tools pill.
+
+### Added
+- **Regions** — `type: 'region'` items `{ x, y, w, h, title, color, collapsed }` drawn in the cards layer BELOW the cards
+  (`.wb-region`, z 1): a tinted, bordered box with a header (colour swatch → a palette of six, the name, the member
+  count, ▾, × two-tap) and a corner grip. **Membership is geometric** (`regionMembers`: the cards whose centre lies
+  inside the box): drawing a box around cards groups them, dragging a card out leaves it. Tools → **▭ Region**
+  (engine tool `group`; `finishRegion` → `addRegionItem`: "Region N", the next colour). Dragging the header moves
+  the region **and its members** (one batch); the grip resizes w and h. **Collapse** folds the box to its header and
+  hides the members and their wires (`renderItems` marks `node.hidden`; `wireRect` skips hidden nodes); **open**
+  brings them back and `displaceAround` pushes every other overlapping card the shortest way out (down or right,
+  cascading), written in one batch and animated by `.wb-displacing` (300 ms). Export draws the box + name
+  (`drawRegionItem`); recordings carry regions (`itemEventPayload` kind `region`) and replays rebuild them. Tidy,
+  avoid-overlap and the notebook's mirrors ignore regions.
+- **Instances** — `type: 'regionref'` items `{ src: { coll, classId, boardId, regionId, boardName }, title, color }`.
+  `ensureRefSub` subscribes to the source board (the doc, its items, its strokes); `updateRegionRefChrome` renders
+  the source region's cards as compact summary cards scaled into the instance (the full renderers belong to the
+  other host) and paints its ink into a canvas (`paintRefInk`), live; the header shows the region's name, "from
+  <board>", ↗ to the source (`sourceUrl`), × two-tap. Tools → **⧉ Region from another board** opens an engine picker
+  (`openRefPicker`): the user's notebook boards + the figure boards of papers they author → that board's regions →
+  `addRegionRefItem`. Source → instance only; the source's rules decide who can read it ("No access to the source
+  board." otherwise). Subscriptions are dropped with the item and on teardown.
+- **Organise by connections** — Tools → **⇶**: `organiseByConnections()` takes the wires among cards as a graph; each
+  connected component (≥ 2) is layered left → right (longest path from its sources; rows by their parents'
+  barycentre), placed one below another from the view's top-left and wrapped in a region "Flow k" — a region that
+  already holds exactly that flow is reused and resized; loose cards stack in a column to the right; the flow's
+  wires are set to leave east / arrive west. One batched write (chunks of 400), animated.
+- Handle: `addRegion(rect, extra)`, `regionMembers(id)`, `toggleRegion(id)`, `addRegionRef(src)`, `organise()`.
+- `scripts/tests/v3842-regions-harness.html` — 33 checks: ▭ draws a region doc with name / colour / rect and the pen
+  returns; the region renders behind the cards with "2 cards", lets the pen through except its header; header drag
+  moves region + members and not the card outside; a card overlapping but centred below is not a member; collapse
+  hides members + wire and folds the box; open restores them and pushes the neighbour below the box; palette of six
+  recolours; grip resizes w and h; organise lays E → F → G on one row inside a new "Flow 1", reuses "Region 1" for
+  A–B, sets the wires' sides, stacks loose cards to the right; an instance renders the source region's card (not the
+  one outside), the board name, the colour, the source link and the source ink, and follows an edit at the source;
+  the ⧉ picker lists boards → regions → adds an instance; export; no popups.
+
+## [V3.841] — 2026-10-22 — The canvas is an infinite plane; cards move, connect by their dots, take drops and pastes; HTML frames; an eraser in the pen set; reader links; "Selected for a paper"
+
+Plan: `CodeLog/ClaudesPlan/V3.841_infinite_canvas_frames_connections.md`. Alex's asks, in order: *"a canvas should be
+infinite in all directions, and should not have pages"*, *"an eraser in the pen buildout, the clear really clear click
+doesnt look good"*, *"move tools around after they are placed"*, *"drag and drop images"*, *"add html files… independent
+frames… less than 25 Mb"*, *"a dot at mid points for us to make connections… these connections show the workflow"*,
+*"the canvas of the figureboard should be stretched to the width"*, *"the from library tool should be able to load in
+highlights and figures that have been selected for any paper"*, *"a link to open the paper in the paper viewer"*,
+*"paste images and text from the clipboard… added as a note… that is draggable"*. Engine first (`whiteboard.js`,
+`whiteboard-board.css`), gated on `isNotebook()`; class whiteboards keep their pages.
+
+### Added
+- **The plane** (`infinite()` = every host board). One continuous canvas: no page edges, divider, pages bar or rail;
+  graph paper covers the stage aligned to the plane (`paintPlaneGrid`, thins out below ~5 px); pan in every
+  direction (`S.sheet.originX` joins `originY` in `sheetToPx` / `normPoint`; `scrollPlaneBy(dx, dy)` serves the
+  wheel, two fingers, a viewer's finger, the ✋ pan tool and the lens spill; the arrow keys scroll half a view).
+  Zoom anchors under the pointer, then `clampView` folds the lens offset into the origin (`origin −= t / s`) so
+  `tx = ty = 0` always. Strokes and items stay page-local docs on `pages[0]`; legacy docs on later pages are
+  **folded on read** (`foldToPlane`, idempotent, in the strokes / items / board listeners and in replay) and a card's
+  next move persists the fold. `sheetViewH/W` = the visible plane at the scale; `clampOriginY` is the identity;
+  ⌂ home = the content's top-left at 100 % (`resetView`), ⊡ = the content's bounding box (`fitAll`), ⤢ frames the
+  box (`zoomToRect`); the last origin is kept per board on the device (`wb_origin_*`); `exportBoardPNGs` → one image
+  of the content (`exportPlanePNG`); recordings log `x` with the scroll and replays restore it (`viewX`).
+- **Cards move by their header** at any time (grab glyph ⋮⋮, kind label, stamp, blank header; never a button or the
+  title field); the corner grip resizes (V3.839). Arrange stays for images and text cards under the ink.
+- **Connection dots → wires** (`.wb-wport` N E S W on every card, owner, wires on): drag from a dot, drop on another
+  card → `addWire(from, to, '', { fromSide, toSide })`; a dashed draft follows the pointer (`renderWireDraft`); wires
+  between dots are cubics square to their sides (`wirePath`, `portPoint`), labelled at the curve's midpoint. The
+  notebook now has wires (`wires: { enabled: true }`, `wireMenu`: then / feeds / uses / result / compare / related,
+  Reverse, Remove); the figure board keeps its relations.
+- **Drop files on the sheet** — engine `opts.onDrop(files, { pageId, x, y, clientX, clientY })` (a drop on a card is
+  the card's own); **paste from the clipboard** — `opts.onPaste({ files, text, html, at })` from a document `paste`
+  that is not into a field or a card. Notebook: images → Figure cards (`NOTEBOOK_FIGURES`), `.html` → HTML frames,
+  text / rich text → a note card (`pasteContent`, `textToHtml`, sanitised). Figure board: images → Planned-figure
+  cards with the image (`PAPER_FIGURES`), `.html` → frames, text → a note.
+- **HTML frames** (`CANVAS_WIDGETS.basic.registerHtmlFrame({ upload, toast })` + `basic.uploadCanvasFile(file, uid)` →
+  Storage `canvas-files/{uid}/{id}/{name}`, text/html or image, **< 25 MB** — refused client-side and by the rule):
+  a sandboxed iframe (`allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-downloads allow-modals`)
+  at the card's width with a stored aspect (`data.ar`, ↕ handle), ⟳ reload, ⤢ open, Replace. Registered by both hosts
+  (＋ pill → HTML frame; drop or paste an .html file). `storage.rules` `canvas-files/{userId}` (deployed first).
+- **Pen set**: `kind: 'eraser'` with its own size (`S.eraserW`, screen-relative like `ERASE_TOL`); the default set
+  has one; the editor's kind row is Pen / Highlighter / Eraser (no swatches for an eraser, a size preview). The
+  two-tap ⌧ keeps its glyph: red ring + caption "Tap ⌧ again to clear all the ink", then "Cleared."
+- **Reader links**: every card that came from a paper links to it in the reader — `readerUrl(d)` =
+  `library-paper.html?id=<paperId>#ann-<annId>` when the annotation is known (quote / paperquote / snip / Figure
+  cards; `annId` now stored by the pickers).
+- **"Selected for a paper"** in the From-library picker: the figure board offers *📌 Highlights & figures selected
+  for this paper*; the notebook a chooser of the user's drafts (`papers` where `authorUids` contains me). Both load,
+  across the library, the papers linked to / cited in the draft (`items` where `meta.library.cited_in_drafts` or
+  `linked_drafts` array-contains it) and each one's annotations with `cite_in_drafts` array-contains the draft (the
+  existing per-collection indexes `[visibility, cite_in_drafts]` and `[creator.uid, visibility, cite_in_drafts]`),
+  listed with the source paper's citation; adding works as before. Figures added from the notebook's picker become
+  **Figure cards** (above the ink: movable, resizable, connectable) with the citation as caption.
+- **The Figures tab stretches** to the editor's full width (`html.pe-wide-tab` toggled in `_setActiveTab`; the other
+  tool pages keep the 820 px reading column).
+- Handle: `api(id)`, `getOrigin()`, `scrollPlaneBy(dx, dy)`, `isInfinite()`.
+
+### Changed
+- `scheduleGrow` / `growSheetIfNeeded` (V3.839) are skipped on the plane; `tidyItems` stacks from the view's top-left;
+  `avoidOverlap` no longer clamps y; `newItemPlacement` places near the top-left of what is on the screen.
+- `addWire(from, to, rel, extra)` accepts the sides; `renderWires` keeps the draft path across re-renders.
+- `v3839-canvas-controls-harness.html` now asserts the plane (75 checks): legacy page-2 card folded to y = 0.725, no
+  page UI, zoom-out folds into the origin, no growth, wheel pans both axes and past the top, ink with negative y, ✋
+  pan, ⊡ frames the content, header drag moves a card, four dots, dot-to-card wire with sides + cubic + draft, drops
+  on the sheet reach the host (not on a card), paste reaches the host (not into a field), an HTML frame card, a 26 MB
+  file refused, plane export, the eraser of the set rubs out a stroke, the two-tap ⌧. `v3833` / `v3830` adjusted
+  (eraser in the set, home animates, tidy column from the view, no page dots on a notebook board).
+
+### Bug Fixes
+- `edgePoint` had been dropped with the wire rewrite in this version's first pass (wires did not draw); restored.
+
+## [V3.840] — 2026-10-22 — Phone app: scan a label → "how much are you taking?" on the Woodchuck dial; the bottom tabs are the user's choice
+
+Plan: `CodeLog/ClaudesPlan/V3.840_phone_scan_take_dial_and_chosen_tabs.md`. Alex: *"the purpose of the phone app is
+to be able to use items easily. we need a button to scan a qr code, then it asks how much you are taking from
+inventory. each item has a different selector unit. use the same radial selector for this that wodcuck uses. the
+user should be able to choose the pages that are quick links at the bottom of the app."* Woodchuck is the gym app
+(`MS/apps/gym/js/picker.js`: a snapping drum wheel + a radial jog dial); that picker is ported here.
+
+### Added
+- `rm/js/qty-picker.js` — `QTY_PICKER.open({ title, unit, value, max, min, step, fine, remaining, integer, hint, presets, extraHtml, doneLabel, memo, allowZero }) → Promise<{ value, unit, extra } | null>`: the Woodchuck picker on RM tokens — drum (`.qp-drum`, 44 px rows, scroll-snap), dial (`.qp-dial svg`, 15° per row / 6° per fine step, the knob rotates), ± buttons, preset chips, an `extraHtml` block whose `[name]` inputs come back as `extra` (checkbox → boolean), a per-`memo` remembered value (`localStorage rm.qtyPicker.v1`), a haptic tick per step. `QTY_PICKER_CORE` (node): `niceStep(max, rows = 400)` (1/2/5 ladder), `specFor(unit, opts)` (counts: integer 1…max, the dial steps rows; measures: the ladder across the range, `fine = step / 10`, the top always reachable), `defaultValue` (memo → count 1 → a tenth of the range), `range`, `nearest`, `fmt`, `displayUnit` (`uL` → µL, `ug` → µg).
+- `INV_USE.pickerFor(item, mode)` — the dial's unit and range per item: package · tracked count → that unit, 1…remaining; package · tracked measure → that unit, fractional; package · untracked → `package`, 1…Qty (50 with no Qty); per-use · tracked measure → that unit, fractional, with a "Finished this one" tick; per-use · anything else → `use`, 1…20, with the tick.
+- `INV_USE.take(item, { labelCode, context, onDone })` — mode known → the dial → `plan` → `run` → toast via `describe(res)` ("Used 2.5 µL of X. 95.5 µL left." / "Took 2 packs of …" / "Finished — took it off the shelf." + "Running low." / "That was the last one."; a low/last toast carries a *Request a reorder* action that opens `procurement.html?reorder=<id>`, through `OurlabTabs.open` in the app); mode unknown → `askMode` (the V3.835 two-way question; a manager's pick is written, a member's is for this time) and then the dial. The amount and a ticked "finished" are two ledger writes (the second takes what is left). `INV_USE.sheet` is now an alias of `take`; the V3.835 number-box form survives as `_formSheet` only on a page without `qty-picker.js`.
+- `rm/pages/inventory.html` / `rm/js/inventory.js` — app-only (`body.ourlab-app`) scan hero `#inv-scan-hero` ("Scan a label · then say how much you are taking") and a camera FAB `#inv-scan-fab` above the tab bar (the toolbar's 📷 Scan / 🏷 Print labels hide in the app); `invOpenScanner()`, `invIsApp()`. In the app `invHandleScan` goes straight to `INV_USE.take` (no table row to expand); the desktop still opens the row. `qty-picker.js` loads before `inventory-use.js`.
+- `rm/js/mobile-shell.js` — `CATALOG` (15 app pages; `native: true` on the six `TabKey` webviews — keep in lockstep with `TabRoute.swift`), `DEFAULT_KEYS` (the V3.835 six), `MAX_TABS = 6`, `normalizeKeys(keys)`; prefs `localStorage['ourlab-tabs.v1'] = { keys, dirty, at }` (read synchronously at mount) mirrored to `userData/{uid}/prefs/mobileTabs` (`syncCloud` on `onAuth`: a dirty local copy is pushed, otherwise a differing cloud copy is adopted and the bar re-renders); `openCustomizeSheet()` (More → Customize tabs: tick up to six, ▲ ▼ order, Reset, Save — disabled when nothing is ticked); the More sheet lists the catalog pages NOT on the bar; `goTo(t)` = `OurlabTabs.switchTo` for a native page, `OurlabTabs.open({ href })` (misc webview) otherwise, plain navigation without the plugin; the bar rebuilds on `ourlab:tab-visible` when another webview saved a different list (webviews share localStorage). `window.OURLAB_SHELL = { CATALOG, DEFAULT_KEYS, MAX_TABS, tabs(), keys(), setTabs(keys), moreLinks(), openMore, openCustomize, getLabGroup }` with `TABS` / `MORE_LINKS` as live getters. `TABS_CORE` is `module.exports` before the app gate (node-testable).
+- Tests — `scripts/tests/qty-picker.test.mjs`, `inventory-use-plan.test.mjs`, `mobile-tabs.test.mjs` (node); `scripts/tests/v3840-scan-take-selftest.html` (the real dial + use flow on stubbed Firestore/INV_QTY: µL antibody, packs, legacy packages, mode question, finished, memo, cancel) and `v3840-mobile-tabs-selftest.html` (the real `mobile-shell.js` in `?mobileShell=1` mode: default bar, More, Customize tick/order/save, cross-webview rebuild, normalisation, cap).
+
+### Changed
+- `INV_USE.plan` — `use` on an item tracked in a MEASURE with an amount `n > 0` → `via: 'qty'`, `delta: -n`, `itemPatch.use_count + 1` (no amount, or a count unit → the V3.835 log row, unchanged); `take` keeps decimals on a measure (counts and legacy round, never below 1); `finish` on a measure takes everything left (`qty = remaining`, `use_count: 0`; an already-empty measure → a log row with the reset). `run()` returns `after` and keeps a finish's `use_count: 0` through the transaction's re-plan. `describe(res)` is the one status line for the toast and the fallback form.
+- The app's tab bar is no longer the fixed `TABS` array: it is the person's list (default = the same six), and "More" is computed from what is left.
+
+### Notes
+- No Swift change: the native webviews are still `myday|focus|chat|tasks|library|inventory`; a chosen page outside them rides the misc webview, and the landing tab stays My Week. App build = bundle refresh → m-v0.4.1 / TestFlight build 14.
+- `sw.js` CACHE_VERSION → 820.
+
+## [V3.839] — 2026-10-22 — Canvas controls: the sheet grows and zooms out, coloured + scalable cards, movable pills, custom pens and highlighters
+
+Plan: `CodeLog/ClaudesPlan/V3.839_canvas_scale_colour_pens.md`. Alex: *"the canvas is not scaling with the items
+placed in it. we should be able to color the items. the items can be scaled up or down by the user. the tool radial
+selection buttons can be moved around on the page wherever the user wants them. the color pen selection should get
+custom colors. there should be a highlighter option as well. the user can add custom amount of pens and highlighters."*
+All in the engine (`whiteboard.js`, `whiteboard-board.css`), so the lab notebook and the paper figure board share it.
+
+### Added
+- **The sheet grows with its items** (`scheduleGrow` → `growSheetIfNeeded`, debounced from `renderItems` and
+  `finishStroke`): when a card's foot or a stroke on the LAST page reaches its lower 8 %, `appendPageNoMove()` adds a
+  page — continuous mode, so the canvas just gets longer. Owner, host boards only, never in replay, ≤ 60 pages.
+- **Zoom out below 100 %** on host boards: `minScale()` = 0.3 (class boards stay at 1, their followers mirror a
+  100 % stage); `clampView` centres the sheet across the stage below 100 %; `sheetViewH()` is the visible sheet
+  height AT the scale when zoomed out, so scroll clamps and page tracking see what is on screen. **⊡ Fit everything**
+  on the View pill (`fitAll`, `contentExtent`, handle `fitAll()`): frames all cards + ink at ≤ 100 %.
+- **Card colour**: `item.color` ('' or hex). A colour dot in the card header (owner, host boards) opens a palette of
+  ten soft tints + none (`toggleTintPop` → `handleBoardAction('item-color')` → `updateItem(id, { color })`). Rendered as
+  `--wb-card` / `.wb-tinted` (header fill, body wash, border), in the export (`drawWidgetItem` header band) and in
+  replays (`itemEventPayload` carries `color`; `whiteboard-replay.js` copies it back).
+- **Cards scale**: a corner grip (`.wb-wgrip`) on every widget card, live at any time for the owner (Arrange keeps
+  its own handle): `bindItemHandlers.onDown` accepts the grip outside Arrange; the width changes and the card's text
+  follows `widgetScale(it) = clamp(√(w / 0.42), .75, 1.6)` in `placeItemNode` and the export. Widget min width 0.12.
+- **Movable pills**: drag a pill button more than 8 px to move it anywhere on the sheet; the drop is stored per pill
+  as fractions of the board (`localStorage wb_pillpos_v1`, `S.pillPos`) and re-applied at every size; the fan opens
+  into the quadrant with room (`fanPos(i, n, side, vert)`, rings of 5 / 7 / 9 at 88 / 148 / 208 px) and the caption
+  flips with it (`data-side` / `data-vert`). The click that follows a drag is swallowed (`S.pillSuppressClick`);
+  double-tap → default place; handle `resetPillPositions()`.
+- **The pen set** (`S.pens`, `localStorage wb_pens_v1`, shared by every board on the device; defaults = the four pens
+  + one yellow highlighter): `{ id, kind:'pen'|'hl', color, w }`. Pens fan = the pens (`pen-pick`), eraser, three
+  widths (applied to the pen in hand — a highlighter takes ×3.4 — and kept on it), **＋ pen / ＋ highlighter**
+  (`pen-add`), undo, clear. Tap the pen in hand again → the **pen editor** (`penEditorHTML`, in the pill box beside the
+  pens pill, never a browser popup): Pen / Highlighter, 20 swatches, a native colour input for any colour, a width
+  slider with live preview (patched in place while dragging — `patchPenPreview` — re-rendered on release), Remove
+  (two taps), Done. Handle: `getPens() / setPens(list) / usePen(id) / currentPen()`.
+- **Highlighter ink**: a stroke drawn with a highlighter is stored with `hl: true` (only when set — never an undefined
+  field) and uniform pressure 0.5; `paintStroke` paints it with `globalAlpha` 0.42 + `multiply` as ONE fill, so the ink
+  under it stays legible and the band never darkens itself. The live layer now goes through `paintStroke` too, so the
+  band looks the same while drawing, committed, in thumbnails, exports and replays.
+- `scripts/tests/v3839-canvas-controls-harness.html` — 51 checks: default pen set and fan rings, ＋ highlighter →
+  editor (swatch, custom colour, slider, saved), highlighter stroke doc + translucent band on the ink canvas,
+  pen stroke opaque with no `hl` field, widths kept on the pen, two-tap Remove, card colour dot → palette → doc +
+  header fill, grip drag widens the card and grows its text, pill drag + saved fractions + fan direction + swallowed
+  click + double-tap reset, zoom out to 80 % with the cards layer scaled, ⊡ exists, a card at the page foot grows the
+  sheet by exactly one page, Fit everything below 100 %, no popups.
+
+### Changed
+- `clampOriginY` → `clampOriginYAt(y, vh)`: a page TALLER than the view (fit-width on a landscape screen) scrolls from
+  its top edge to its bottom edge instead of around its centre — the top strip of page 1 was unreachable since V3.837.
+  `sheetScrollBy`'s overscroll bounds follow it.
+- Class-board toolbar colour / width buttons clear `S.penId` / `S.hl` (the toolbar never highlights).
+- `onPointerMove`: an EMPTY `getCoalescedEvents()` list (synthetic events, some pen drivers) falls back to the event
+  itself — a stroke could otherwise stay a single dot.
+- Harnesses `v3833` / `v3837`: stroke seeds now use the FLAT `[x, y, p, …]` point array production writes (they
+  seeded triplets, which hid the bug below); `v3833` asserts five `pen-pick` items instead of four colours and clears
+  the device pen set / pill positions before mounting.
+
+### Bug Fixes
+- `strokesInRect` iterated the point array as triplets, but strokes store a flat `[x, y, p, …]` array → a ⬚ region
+  never found its strokes in production (the panel image was empty and no ink was folded). Handles both shapes now.
+
+## [V3.838] — 2026-10-22 — Lit review mode: a term → papers in sections → key points → the paper's figure board
+
+Plan: `CodeLog/ClaudesPlan/V3.832_scientia_integration_plan.md` §5 (Phase 2). Alex: *"a widget in the notebook which
+chooses to search papers for a term… these lit reviews can be added to the figureboard of a paper… only the key
+points are shown… all the journal papers in the lit review are now automatically associated with the paper."*
+(Numbered V3.838: V3.834/V3.835 were taken by the inventory QR-label session while this was built.)
+
+### Added
+- **`litreview` widget** (notebook canvas, `rm/js/notebook-canvas.js` `renderLitReview`): a library search box
+  (the From-paper loader, cached), papers land in **sections** with a "why it matters" line and a reader link,
+  each section has notes and distils into **key points** (＋ key point, Enter adds the next), ＋ Section. Collapsed:
+  "N papers · M key points". A **mirror doc** `userData/{uid}/litReviews/{itemId}` `{ title, boardId, entryId,
+  query, paperIds, keyPoints (flat), papers, sections }` is written on every save (`litMirror`) and deleted with
+  the card. `widgetToBlock` renders the review as a note block, so the entry's `body_html` / `body_text` mirrors
+  (PMR, search) include it.
+- **📚 on a typed note** — select a word or phrase, press 📚: a lit review titled by the selection, placed below
+  the note (terms v1: a word becomes a reading list).
+- **`litref` widget** (figure board, `rm/js/figure-board-canvas.js`): Tools → 📚 lists the author's lit reviews;
+  placing one renders **only its key points**, live from the mirror doc, and **links every paper of the review to
+  the paper** through `LIBRARY_LINKS.toggleDraftLink(itemId, paperId, true)` — the single writer of
+  `items/{id}.meta.library.linked_drafts`, so the References tab and the reader's pills see them at once. Papers
+  added to the review later are linked on the next snapshot (`syncLitLinks`); **Remove unlinks** the papers the
+  card brought (papers another review on the board also brought stay linked).
+- **Rules** `userData/{userId}/litReviews/{reviewId}`: read any lab member (a board's authors render it), write
+  owner. Deployed from a scratch copy (live + block).
+
+## [V3.837] — 2026-10-22 — Figure board on the canvas engine; the notebook in Scientia's frame (tabs, pills, full screen, fit-width, no classic)
+
+Plan: `CodeLog/ClaudesPlan/V3.832_scientia_integration_plan.md` (Phase 2 + Alex's redesign notes). Rules and
+storage deployed first. `sw.js` 816 → **818** (with V3.838).
+
+### Changed — the lab notebook looks and feels like Scientia
+- **No classic version.** `lab-notebook.html` and `notebook-blocks.html` are redirects to `notebook.html` (the
+  `?entry=` rides along); their links and nav blurbs are retired. The canvas is the notebook.
+- **Scientia's frame** (`rm/js/notebook-canvas.js`, `rm/css/notebook-canvas.css`): warm paper palette
+  (`--paper #E6E1D7`, `--surface #F1EDE5`, Archivo · Source Serif 4 · IBM Plex Mono from Google Fonts), a title
+  line (brand square · editable serif title · mono date / tags / summary · ⌕ · ⋯ · ⛶), and **the entries as tabs
+  grouped by notebook** (`renderTabs`: a group per notebook with a colour dot and count, folds to its name,
+  ＋ on a group makes a dated entry at once with the title focused, ＋ Notebook inline, the active tab underlined
+  in the notebook's colour, typing the title renames its tab). The sheet fills everything below; **⛶ full screen**
+  (`setFull`: `body.nbc-full` hides the site bar, title line and tabs; browser fullscreen when allowed; Esc or the
+  Tools pill's ⛶ returns). ⋯ on the entry: move to another notebook, tidy every page, delete.
+- **Radial pills replace the toolbar on host boards** (`whiteboard.js` `renderPills` / `pillItems` / `bindPills`,
+  `opts.pills`): four round buttons on the sheet — **＋ widgets**, **✦ tools**, **✎ pens** stacked bottom-left,
+  **⊕ zoom** bottom-right. A tap fans the pill's items along a quarter arc (≤ 5 on an inner ring, the rest on an
+  outer ring, staggered); a caption names the hovered item; tap outside folds it. Pens: colours · widths · eraser
+  · undo · clear (two-tap). Tools: 🎙 record (elapsed shown on the pill) · ⤧ arrange · ⇣ tidy · the host's tools ·
+  ⛶. Widgets: the host's insert kinds (`opts.inserts`, `opts.onInsert`). Zoom: **+ · ⌂ home · − · ⤢ fit a region
+  (drag a box → `zoomToRect`) · ✋ pan · 🔍 zoom (tap in, Alt-tap out)**; pan and zoom are pen tools
+  (`panByPointer`, `sheetScrollBy`). `boardShellHTML({ topbar: false })` drops the topbar; host boards start with
+  the thumbnail rail folded; `opts.theme` colours the desk / page / grid; **`opts.fitWidth` (default on host
+  boards) makes the page span the full stage width** — the writing area is the whole screen on an iPad.
+- `canvas-widgets.js` gains `CANVAS_WIDGETS.basic` — shared `sanitizeHtml`, `plainText`, `registerNote(opts)`,
+  `registerChecklist(opts)` for any host.
+
+### Added — the paper's figure board on the engine
+- **`rm/pages/figure-board.html?paper=<id>` + `rm/js/figure-board-canvas.js` + `rm/css/figure-board-canvas.css`**
+  — the same system as the notebook (pills, cards, ⛶, fit-width, recording + replay, ＋ From paper) with the
+  figure board's own inputs: **figcard** (planned figure, status planned → expected → collected by tapping the
+  chip, optional image), **experiment** (planned → running → done), **snip** (reference figure from a paper:
+  From paper → Add as figure / a snipped figure / a hotspot), **quote**, shared **note** / **checklist**,
+  **panel**, **litref**. Edit gate = paper author ∨ mentor ∨ admin (`opts.canEdit`, enforced by the rules).
+- **⬚ Region → panel.** Tools → ⬚, drag a box with the pen: the engine's region tool (`S.tool === 'region'`,
+  `finishRegion` → `opts.onRegion(rect, strokeIds)`; strokes count when ≥ ½ their points are inside) → a bar
+  offers **Make panel · keep the ink / hide the ink / delete the ink** (Alex: hide or delete as an option) and
+  Zoom to it. `rasterizeRegion` paints the strokes with the board's own renderer into a transparent canvas at
+  2400 px per page width; medium / full webp upload to `paper-boards/{paperId}/main/panels/{id}/`; the panel card
+  sits exactly over the region with the next letter (A, B, …) as its title and a caption; **hide** writes
+  `hiddenBy` on the strokes (`hideStrokes` / `unhideStrokes`; every painter skips hidden ink outside replay) so
+  **⋯ Reopen the ink** brings them back; **delete** uses the soft erase. ⋯ also offers Clean up later, Replace the
+  image, Zoom to it.
+- **Wires.** `wires` subcollection on the board, drawn as arrows in the widgets layer (`renderWires`, edge-to-edge,
+  relation label); Tools → ⟶ Connect, tap two cards; tap an arrow for leads to / supports / contradicts / feeds /
+  compares with / related, Reverse, Remove. Export draws them.
+- **Migration.** On first open `ensureBoard` creates `papers/{paperId}/boards/main` (graph paper, as many pages as
+  the old layout needs) and copies the V3.609 `boardItems` cards → widgets **with the same ids** (figure → figcard,
+  experiment → experiment, snip → snip, note → note; world px → page units at 1400 px per page width) and arrows →
+  wires; `boardComments` keep their `item_id`, so ⋯ → **Discussion** opens the old thread (SECTION_COMMENTS in a
+  slide-over, with the open-comment count).
+- The paper builder's **Figures tab** (`paper-figure-board.js` `buildTabContent`) now shows the canvas in an
+  iframe with ⤢ Open full; the V3.609 board code below it is unreachable and kept for reference.
+- **Rules** `papers/{paperId}/boards/{boardId}/{document=**}` read + write author ∨ mentor ∨ admin; **Storage**
+  `paper-boards/{paperId}/**` signed-in read, image / audio ≤ 100 MB write. Both deployed before the client.
+- `OurlabMobile/scripts/sync-rm.mjs` skips shell injection for `figure-board.html` too.
+- Harnesses: `scripts/tests/v3837-figure-board-harness.html` (migration, pills, fit-width, region → panel with
+  hidden ink and Reopen, connect + relation, lit review placement / growth / removal with link calls, discussion,
+  export, full screen — 35 checks); `v3833-canvas-notebook-harness.html` extended (tabs, groups, pills, pan/zoom
+  tools, full screen, recordings slide-over, lit review — 65 checks); `v3830-…` mounts with `pills: false` to keep
+  the toolbar path.
+
+## [V3.836] — 2026-10-22 — Chat side panel: open further / close tabs, a frozen header, and groups anyone can make
+
+Plan: `CodeLog/ClaudesPlan/V3.836_chat_side_panel_groups.md`. Alex: *"i need a side tab for open further to reveal
+people, groups etc. another button to close the chat pannel. the top of the chat should have the top buttons as a
+frozen pannel the chat text goes behind. anyone should be able to make groups of people … an easy way to combine
+multiple people from the chat into a group."* Rules deployed FIRST from a scratch copy (= live ruleset + this hunk;
+the repo file's V3.806 self-role hunk is still NOT live), 11/11 `:test` cases green. Site files auto-upload at turn
+end; `sw.js` 815 → **816**.
+
+- **Added** `rm/js/shell-popouts.js` — a popout's OPEN state is now a vertical **side-tab cluster** at the same edge
+  anchor as the closed pill: **open further** (`setWide(side, bool)`: the panel grows by `WIDE_EXTRA_PX` = 300 and
+  the stored width stays the BASE; dragging while wide re-derives it) and **Close**. `<side>Wide` persists next to
+  `<side>Open`. **Iframe bridge** (same origin, sender matched by `e.source === iframe.contentWindow`): host →
+  frame `{type:'rm-popout-state', side, open, wide, label}` on iframe load / every toggle / on request; frame →
+  host `{type:'rm-popout-caps', wideLabel, wideIcon}` (names the tab) and `{type:'rm-popout-request',
+  wide|close|state}`. The wide toggle never rebuilds the iframe. `rm/css/workflow-shell.css` styles the cluster.
+- **Added** `rm/js/chat.js` **panel mode** — `_IS_POPOUT` (window.name `rm-shell-popout-*`) is a third shell mode
+  independent of width (`shellModeNow()`, `isMobile()` false in a popout; split-view panes and the shells' main frames
+  are untouched). Skeleton: `.chat-panel` = `aside.chat-panel-list` (hidden unless the host is wide) + `.chat-main
+  .chat-panel-main` whose `.chat-sticky-top` band (call banner, header, Messages/Pinned/Files tabs) is a frozen flex
+  row and whose `.chat-feed` is its own scroller; composer static; page title hidden (`html/body.chat-panel-mode`).
+  `wireHostBridge()` posts the caps (`People & groups` / `user-group`), asks for state, and toggles
+  `_panelWide` → `updatePanelList()` (renders the shared overview list into the column). The header's ☰
+  (`#chat-hamburger`, dead until now) asks the host to open/close the list; picking a conversation from the list
+  asks the host to collapse it; an empty panel asks it to open. `renderMessages` keeps the distance-from-bottom when
+  older messages are prepended into an internal scroller. `updateStickyOffsets` zeroes the pinned vars in panel mode.
+- **Added** chat **groups** — `chatChannels` `type: 'group'` with `members[]` (+ `subscriberUids` = members so the
+  Cloud Function's non-DM audience path and mention fan-out work unchanged, functions untouched). `createGroup(name,
+  otherUids)`, `updateGroup(id, name, otherUids)`, `leaveGroup()`, `submitGroupForm()` (inline errors under the name
+  field, no browser prompts); `renderGroupFormHTML()` (create/edit: name + search + checklist, Leave in edit);
+  `renderOverviewGroupsHTML()` (Groups section in the panel list + phone Overview, ＋ New group) and a Groups section
+  in the desktop sidebar (`#chat-new-group-btn`); hamburger `#mobile-menu-new-group`. Header: `👥 Name · N members`,
+  **Members** button (`#chat-group-members`), no Subscribe toggle; DM header gains **Make a group**
+  (`#chat-dm-to-group`, the other person pre-checked). `healDmMemberships()` adopts groups I'm in into
+  `subscribedChannels`; alerts/calls treat `group` like `dm` (members); Browse Channels and `sidebarLayout` loops skip
+  groups; `channelLabelFor` knows groups.
+- **Added** **Select mode** (`_peopleSelect`, `_pickedUids`): the People header's **Select** turns every person row
+  into a checkbox (panel list, phone Overview, desktop sidebar — `renderPickBarHTML()` "N selected · Create group ·
+  Cancel" pinned at the bottom); Create opens the group form with those people pre-checked. `rerenderList()` re-renders
+  only the mounted list, keeping its scroll. The overview section headers are now a row `div` with the toggle as its
+  own `<button>` (a `<button>` inside a `<button>` was being parsed as a *sibling*, so the old action button never sat
+  in the header row).
+- **Changed** `firestore.rules` `chatChannels` — create: a `group`'s creator must be in `members`; update: a member of
+  a `group` may change `members / subscriberUids / memberCount / displayName / description` (hasOnly freezes
+  type/createdBy). Deployed via `--config` from the scratch copy; repo file carries the same hunk.
+- **Bug fix** `findDmWith(uid)` — the three "DM with this person" lookups required only that both uids be in
+  `members`, so any multi-member DM would have hijacked the 1:1 row; now `members.length === 2`.
+- **Added** `scripts/tests/v3836-chat-panel-selftest.html` + `v3836-chat-panel-frame.html` — host page mounts the
+  real `shell-popouts.js` with a popout whose iframe runs the real `chat.js` against an in-page Firestore stub; drives
+  open → wide → Select two people → Create group → Members/Save → validation → Leave → Close.
+
+## [V3.835] — 2026-10-22 — Inventory: a QR label on every item, printed at the lab's label printer, scanned in the app to use it (per use, or per package)
+
+Plan: `CodeLog/ClaudesPlan/V3.835_inventory_qr_labels_scan_to_use.md`. Alex: *"for each item in the inventory, i want to
+add a qr code … linked to the label printer … the phone app should get the ability to read the qr code to use the item.
+some items need to be scanned per use like antibodies, matrigel … Other items should be replaced as a package like
+conical tubes, pipette tips"*. Finishes V3.646's unbuilt blocks 5–6. Rules: one clause, **deployed** from a scratch copy
+over the live ruleset (local file carries other sessions' undeployed hunks). `sw.js` 814 → **815**. (V3.834 is another
+session's in-flight chat-group work.)
+
+- **Added** `rm/vendor/qrcode/qrcode.js` — the printer's encoder ported (ESM→IIFE) + `toSvg`; matrices identical to
+  `LabelPrinter/web/core/qrcode.js` (tested). `rm/js/inventory-labels.js` — `INV_LABELS_CORE` (`payloadFor` =
+  `MCGHEELAB.COM/L/<code>`, `linkFor`, `cellFor(item, code)` in the printer's `emptyCell()` shape with `qr.payload` +
+  `qr.force`, `jobsFor` ≤ 200 cells, `storageFor`) and `INV_LABELS` (`ensureCode` → `SCAN_RESOLVE.mintAndBind` +
+  `label_code`, `qrSvg`, `queue` → `labelQueue`, `sheetUrl`). `rm/pages/inventory-labels.html` — browser print sheet
+  (Avery 5160 / DYMO 30252 / 2×2 / Zebra strip / custom, `?ids=`, `?fixture=1`). `l/.htaccess` + `l/index.html`
+  (`/l/<code>` → `inventory.html?code=`), `deploy/site.json` include `l/**`.
+- **Added** `rm/js/inventory-use.js` — `INV_USE_CORE` (`MODES`, `modeOf`, `plan(item, { kind: use|take|finish, n })`
+  → `via log|qty|legacy`, `lowAt`) and `INV_USE` (`run` — `INV_QTY.consume` or one transaction + ledger row; `setMode`;
+  `sheet`). Inventory page (`rm/js/inventory.js`, `rm/pages/inventory.html`): QR-label block per detail (QR, code, copy
+  link, ✓ Use / take, 🏷 Print label, 🖨 Sheet, Make code), "Scan to use" designation (manager select), toolbar
+  📷 Scan + 🏷 Print labels, `?code=` → `invHandleScan`; loads `label-id.js`, `scan.js`, `scan-resolve.js` at last.
+- **Changed** `firestore.rules` `inventory` `qtyControlsUnchanged()` += `use_mode` (manager-only designation).
+- **LabelPrinter** (sibling repo): `web/core/queue.js`, `web/ui/queue.js`, Queue tab in `index.html`, `app.js`
+  routing, `design.js` `loadCells` / `onPrinted`, styles, README; Firebase Auth authorised domains += `127.0.0.1`.
+- **OurlabMobile**: `NSCameraUsageDescription`, `__OURLAB_CAPS.camera` user script in `TabBridgeViewController`,
+  Android `CAMERA` permission; **Inventory is a tab of the app** — `TabRoute.swift` `TabKey.inventory` (start path
+  `rm/pages/inventory.html`, the `inventory*.html` family), `rm/js/mobile-shell.js` TABS (`archive-box` icon, before
+  More), `rm/js/tab-lifecycle.js` selfCheck; m-v0.4.0 build 13 cut by `release_push.py --minor` (simulator: compiles,
+  launches to the sign-in gate; a signed-in device check is Alex's).
+- **Tests** — `scripts/tests/inventory-labels.test.mjs` (18), `inventory-rules.test.mjs` 59 (was 49),
+  `LabelPrinter/tests/check_queue.mjs`; headless renders of the print sheet and the inventory page.
+
+## [V3.833] — 2026-10-22 — Lab Notebook: the canvas IS the notebook (Scientia plan, Phase 1)
+
+Plan: `CodeLog/ClaudesPlan/V3.832_scientia_integration_plan.md` (Path B, Phase 1). Alex: *"the canvas is the
+whiteboard, and we add things to it."* An entry is a board; everything else is a collapsible **widget card** placed
+on it from **＋ Insert**. Rules deployed first (`userData/{uid}/notebooks`), `sw.js` 813 → **814**.
+
+### Added
+- **`whiteboard.js` — widget items.** `type:'widget'` items `{ kind, title, collapsed, data, text, stampAt }` render on a
+  new `.wb-widgets` layer ABOVE the ink (`boardShellHTML` + `EL_SELECTORS.widgetsLayer`); the engine owns the card
+  chrome (kind label · title input · stamp · ▾ collapse · ⋯), the host renders the body through
+  `opts.widgets = { render(item, bodyEl, api), meta(kind), summary(item), onMenu(item, btn, api), onChange() }`.
+  `renderItems()` is now **incremental** (`S.itemNodes`, `itemSig` / `dataSig`): a card's editor survives every
+  scroll / zoom redraw, and a local save marks the body current so the server echo never rebuilds it.
+  `addWidgetItem(meta)`, `updateItem(id, patch)` (optimistic, `update()` + `updatedAt`), `tidyItems(pageId)`,
+  `avoidOverlap`, `snapU` (`WIDGET_GRID` 1/80 page width — Gabe's 14 px grid), `drawWidgetItem` in the export,
+  `itemEventPayload` carries `kind:'widget'` + summary for the recorder, a right-click on the sheet calls
+  `opts.onSheetContext({ pageId, x, y, clientX, clientY })`. Handle: `addWidget`, `updateItem`, `removeItem`,
+  `getItems`, `refreshWidget`, `tidy`, `pageIdUnderView`. Arrange drags snap to the grid on drop and the layer
+  only takes the pointer while arranging, so a card's own controls work with the pen on.
+- **`rm/js/canvas-widgets.js`** — the shared registry (`register / get / list / meta / summary / text`) and the
+  Scientia-style **＋ Insert** picker (`insertMenu`: search, grouped rows, anchored to a button or a point) plus the
+  ⋯ `actionMenu` (dangerous rows are two-tap). `rm/css/canvas-widgets.css`.
+- **`rm/js/notebook-canvas.js` + `rm/pages/notebook.html` + `rm/css/notebook-canvas.css`** — the canvas notebook
+  (nav target). Rail of entries grouped by month inside a **notebook** (`userData/{uid}/notebooks/{id}`, default
+  "My notebook", ＋ Notebook inline form, `?notebook=`), entry head (title · date · tags · one-line **summary**),
+  one mounted board with 🎙 Record / ▶ Recordings / replay and **＋ From paper** (the V3.830 picker, now on the
+  page: hotspots, marquee → Add as figure / Add as text, snipped figures, highlights → `paperquote` cards).
+  Widget kinds: **note** (rich text, photo paste), **checklist**, **calc** (formula calculator, copy from a
+  protocol), **protocol** (the V3.506 live run document, Finalize / Reopen, one live per board), **inventory**
+  (pick from `inventory/items.json` + `chemicals.json`, log use), **figure** (upload / camera / drop + caption),
+  **paperquote**, **boardlink** (legacy). `migrateIfNeeded`: a V3.830 block entry or a classic body becomes cards
+  on first open — a whiteboard block's board is ADOPTED as the entry's board (`boardId`), so its ink and
+  recordings carry over; `canvas_version: 3` then marks the entry. Mirrors (`computeMirrors` from the items:
+  `blocks[]`, `body_html`, `body_text`, `protocol_run`, `protocol_refs`) are recomputed on every items change and
+  written only when they differ, so PMR, the rail and the blocks page keep reading the entry doc.
+- **`rm/pages/notebook-blocks.html`** — the V3.830 block page, kept as the "blocks view"; `notebook-blocks.js` renders
+  an entry with `canvas_version ≥ 3` read-only with a link to the canvas (`state.canvasRO`).
+- **`firestore.rules`** `userData/{userId}/notebooks/{notebookId}` — read owner ∨ mentor ∨ admin, write owner.
+  Deployed from a scratch copy = LIVE + this block (the repo file still carries the undeployed V3.806 hunk).
+- `whiteboard-replay.js` replays widget cards (`kind:'widget'` → `type:'widget'` with title / summary / collapsed).
+- `OurlabMobile/scripts/sync-rm.mjs` copies the root `whiteboard.js`, `whiteboard-replay.js`,
+  `whiteboard-board.css`, `firebase-config.js` into the bundle and skips the shell injection for
+  `notebook-board.html` and `rm/scientia/`.
+- Harness `scripts/tests/v3833-canvas-notebook-harness.html` — real engine + registry + host against stub
+  Firestore / firebridge / api: migration, chrome, collapse, incremental render, picker, inventory card, context
+  menu placement, ⋯ menu two-tap, Arrange snap, Tidy, export, notebooks, new entry, quote card, mirrors.
+
+### Known limits (Phase 1)
+- A finger touching a card is the card's (taps work); scrolling by hand starts beside the cards or with two
+  fingers. A resting palm on a card can tap it — keep the palm on the margin.
+- `blocks[]` on a canvas entry is a mirror: the blocks page is read-only for it.
+
+## [V3.832] — 2026-10-22 — Scientia sandbox: Gabe's notebook served unchanged for evaluation
+
+Plan: `CodeLog/ClaudesPlan/V3.832_scientia_integration_plan.md` (Phase 0). `rm/scientia/scientia.html` (+ `icons/`,
+`MANUAL.md`) is Gabe's single-file build, untouched; `rm/pages/scientia.html` wraps it in the RM shell behind the
+lab-member gate with an *evaluation only — data stays in this browser* banner and links from the Lab Notebook
+header. Its service worker only registers after `/api/sync/hello`, which never answers here, so it cannot touch
+ours. `sw.js` 812 → 813.
+
+## [V3.831] — 2026-10-22 — Reader: figure snipping scored against Alex's fresh labels — 99 % found, 99 % right
+
+Plan: `CodeLog/ClaudesPlan/V3.831_figure_snipping_round2.md`. Alex labelled 10 harness papers exhaustively (79
+figure/table truths, 59 rejects): V3.643 70/79 → V3.828 74/79 → **78/79 recall, 78/79 precision, IoU 0.94**; the
+archive set + Mendoza holds at 47/48 / 96 % / 0.95. Site files auto-upload at turn end; `sw.js` 811 → **812**.
+
+- **Changed** `rm/js/page-layout.js` figure detector — `_frGraphicsBlobs` keeps tiny primitives and chains every
+  speck to its neighbours within 1.6·bodyH before the decoration test (scatter dots, sampled curves);
+  `_frFromGraphics` seeds a caption on blobs BESIDE it (y-overlap ≥ 50 %, clear horizontal bridge) when nothing
+  sits above or below, widens the growth gap to 8 % of the page on prose-free pages, and the orphan filter drops
+  boxes holding ≥ 2 width-spanning text lines unless images fill ≥ 15 % of them (`strongImg`) plus page-1 footers
+  (`y > 0.8H`); `_frCore` emits a lone multi-line figure caption at the head of an artwork-free page as the
+  region of the plate on the previous page. Verified in the shipping viewer headlessly (bennett, arxiv-2602,
+  mendoza: 0 console errors, regions identical to offline).
+
+## [V3.830] — 2026-10-22 — Lab Notebook v2: entries built from collapsible blocks, with a personal whiteboard block (voice recording, figures and text from papers)
+
+Plan: `CodeLog/ClaudesPlan/V3.830_notebook_blocks_whiteboard.md`. Alex: *"on the lab notebook, i want a fully new version
+which uses widget add blocks … each one of these blocks can be collapsed. A new block called whiteboard should be added
+… no leader and follower, there is only continuous scroll mode, there is the ability to record voice as you go …
+imput figures and text from papers (instead of simulations)"*. Backend deployed FIRST: `storage.rules`
+(`firebase deploy --only storage`) and `firestore.rules` (from a scratch copy = live + the new block, because the repo
+file still carries V3.806's undeployed self-role hunk — that hunk is NOT live). Site files auto-upload at turn end;
+`sw.js` 810 → **811**.
+
+- **Added** `rm/pages/notebook.html` + `rm/js/notebook-blocks.js` + `rm/css/notebook-blocks.css` — the new Lab
+  Notebook (nav target; the classic editor stays at `lab-notebook.html`, linked from the header and per entry).
+  Same documents: `userData/{uid}/notebook/{entryId}` gains `blocks[]` + `schema_version: 2`
+  (`{id, type, title, collapsed, created_at, data}`; types `note {html}`, `calc {spec, inputs, context, result}`,
+  `protocol {run}`, `whiteboard {boardId, size}`, `figure {url, storage_path, hash, caption}`, `checklist {items}`).
+  Every save rewrites the mirrors readers without blocks depend on — `body_html` / `body_text` (PMR week view, rail
+  excerpt, classic editor) and `protocol_run` / `protocol_refs` (first protocol block) — and the `_index` row through
+  a `runTransaction` (`upsertIndexRow` / `removeIndexRow`; the classic page's whole-array rewrite raced My Week's
+  transactional rows). An entry without `blocks` is migrated **in memory** on open (`ensureBlocks`: plan → note, body
+  → note, protocol_run → protocol block, observations → table note, summary → note) and written only on the first
+  edit. Delete really deletes (classic's `save({})` merge left the doc behind). Rail grouped by month with search;
+  inline new-entry form; title/date/tags header; ⇅ Fold all; per block ▲ ▼ × (two-tap) and ⛶ (whiteboard) ; ＋ Add
+  block inline menu; pasted / dropped photos upload through `NOTEBOOK_FIGURES.uploadImage`; the sanitizer is the
+  classic allowlist (Storage-only `<img>`). Calculator = a protocol `formula` block authored inline (label,
+  expression, inputs, output) or copied from a protocol's formula/calculator blocks (with the protocol's other
+  formula blocks as `context`), rendered by the real `ProtocolWidgets` via `ProtocolDocRender.renderBlock`; protocol
+  block = the V3.506 run document on the plain `protocols/{id}.tree` (document / cheat views, Finalize → immutable
+  `snapshot`, Reopen, Unload, recorded-values table), ONE live protocol block per entry (the widgets' dataset registry
+  and event bus are page-global — the others offer ▶ Make this one live). `window.LAB_NOTEBOOK_STATE.docId` +
+  `[data-entry-id]` kept for stock-take.js. No browser popups anywhere.
+- **Added** `rm/pages/notebook-board.html` + `rm/js/notebook-board.js` + `rm/css/notebook-board.css` — the whiteboard
+  block's host, one iframe per block (`whiteboard.js` is a one-board-per-document singleton; same origin ⇒ the
+  Firebase session is shared, `/firebase-config.js` gives `McgheeLab.db`, `installAuthShim()` the `McgheeLab.Auth`
+  the engine reads — the module-panel precedent). Mounts with `collection: 'notebookBoards'`; a bar with
+  **🎙 Record / ■ Stop** (the engine's lecture recorder, no "Go live"), a timer, and **▶ Recordings (n)** listing
+  `…/recordings` (▶ Play = teardown, remount in replay mode, `WhiteboardReplay.mount({coll, isAdmin, noHash,
+  onExit, onDeleted})`, "← Back to board" restores the live mount); recordings left `recording` by a reload are
+  finalized on mount (`finalizeInterrupted`). **＋ From paper** (replaces ＋ Simulation): a picker column —
+  search the library (`items` where `type=='paper'` ∧ `is_library_entry`, cached per tab 15 min) → 📄 Pages (the
+  reader's `PDF_VIEWER.create`; detected figure regions become click-to-add hotspots; a drag marquee offers **Add
+  as figure** / **Add as text** — the text-layer items inside the rectangle in reading order) · 🖼 Figures (the
+  paper's `kind=='figure'` annotations, one click) · 🖍 Highlights (annotations with `textQuote.exact`, one click).
+  Figure snips are re-rendered from the PDF at up to 4× (`getPdfDocument()`), cropped, encoded webp medium/full
+  and uploaded to `notebook-boards/{uid}/{boardId}/items/{itemId}/`; items carry `src:'paper'`, `paperId`, `page`
+  and a citation (`Smith et al., 2020, p. 4`). `postMessage` `nbb-state` tells the notebook page when recording
+  (🎙 dot on the block header).
+- **Changed** `whiteboard.js` — a fourth board family: `BOARD_COLLECTIONS` += `notebookBoards`, `boardsCol()` routes
+  it to `userData/{classId}/notebookBoards` (the classId slot carries the owner uid, so strokes / items /
+  recordings / events / replay route unchanged); `isNotebook()`. Notebook mode skips the schedule get + listener,
+  renders no live column / Go live / Leader–Follower / Sync / follow chip, no Continuous–Pages toggle (continuous
+  only) and no ＋ Simulation (host `tools` + `onTool` render instead), never restores `wb_max`. Recording:
+  `REC.coll`, `recCol()` / chunk list / finalize on the board's own collection, chunks at
+  `notebook-boards/{uid}/{boardId}/recordings/{recId}/chunk-NNN`, `arming:false` (no flag), idle stop without a
+  schedule write, `recordingActive()` = this tab records this board (soft erases), `finalizeInterrupted(classId,
+  boardId, recId, coll)`; the drawer's own scroll is logged (`recScroll` in `publishView` / `setActivePage`,
+  `startViewY` from `viewCentre()`, page events carry `y`) since a notebook board never writes `viewY`. **Text
+  items**: `type:'text'` `{text, cite}` rendered as a note card under the ink (`.wb-item-text`, font 1.7 % of the
+  page width, `_ar` measured for export), `addTextItem(meta)`, `drawTextItem()` in `exportBoardPNGs`,
+  `itemEventPayload()` carries `kind:'text'` through events / `itemsAtStart`. **⤧ Arrange** (every board, owner /
+  class admin): `S.arrange` → `.wb-arrange` lifts `.wb-items` above the ink; `bindItemHandlers()` drags (deltas →
+  page-width units through the lens scale; an item dragged onto the next page re-homes), resizes (corner handle)
+  and removes (two-tap ×, `deleteItem` also deletes the notebook's own medium/full bytes); `S.draggingItemId`
+  finally has a writer. `newItemPlacement()`: class boards keep the V3.684 live-page placement, notebook boards
+  place under the view centre. Handle: `addTextItem`, `setArrange` / `isArrange`, `startRecording` /
+  `stopRecording` / `isRecording` / `recElapsed`, `finalizeInterrupted`, `getCollection`, `refreshChrome`.
+- **Changed** `whiteboard-replay.js` — `mount({…, coll, isAdmin, noHash, onExit, onDeleted})`: recordings and
+  strokes read from `boardsCol(classId, coll)`, the host may state admin-ness (no schedule read), no hashchange
+  teardown for a host without a route, "← Back to board" (`exit`), delete calls `onDeleted` instead of navigating;
+  `item-add` / `item-move` events and `itemsAtStart` re-create text cards.
+- **Changed** `whiteboard-board.css` — `.wb-item-text` / `.wb-item-quote` / `.wb-item-cite`, `.wb-arrange` layer +
+  `.wb-item-del` / `.wb-item-resize` handles. `rm/js/pdf-viewer.js` — `getPdfDocument()` on the viewer handle.
+- **Changed** navigation: `nav.js` Lab Notebook → `/rm/pages/notebook.html` (+ `notebook` description, classic
+  blurb), workflow seeds in `nav.js` + `page-registry.js` name `notebook`, `page-collections.js` `notebook`,
+  `page-time-tracker.js` label, `surface-guide.js` guide, `mobile-shell.js` MORE_LINKS, `firebase-bridge.js`
+  `PAGE_ALIASES` (`notebook` ← a grant on `lab-notebook`); `?entry=` links in `pmr.js`, `day-distribute.js`,
+  `pmr-week-assemble.js`, `my-week.js`, `research-progress.js`, `team-focus.js` point at the new page.
+- **Rules** `firestore.rules` — `userData/{userId}/notebookBoards/{boardId}/{document=**}`: read owner ∨
+  `isMentorOf` ∨ `isAdmin`, write owner (owner access already came from the userData catch-all; this adds the V3.517
+  reviewer read). `storage.rules` — `notebook-boards/{userId}/**`: signed-in read, owner write ≤ 100 MB,
+  `image/*` ∨ `audio/*`. Emulator test: 14/14 (scratch `nb-boards.test.mjs`, not committed).
+- **Tests** `scripts/tests/v3830-notebook-selftest.html` (28 checks: render, collapse, add/move/delete, classic
+  migration + mirrors, transactional index, delete, popup canary) and `scripts/tests/v3830-whiteboard-notebook-
+  harness.html` (26 checks in notebook mode + `?class=1` 9-check class-board regression), both green headless.
+- **Owed**: a real iPad/Chrome mic → record → replay inside the iframe (headless cannot open a mic); the Ourlab
+  mobile bundle must copy `whiteboard.js`, `whiteboard-replay.js`, `whiteboard-board.css` and `firebase-config.js`
+  (root files) and skip the shell injection for `notebook-board.html` before the block works in the app.
+
+## [V3.829] — 2026-10-22 — Library: the 📚 Shelves block starts folded; its header summarises what is inside
+
+Plan: `CodeLog/ClaudesPlan/V3.829_library_shelves_block_folded.md`. Alex: *"the shelves block should be collapsed by
+default"*. Site files auto-upload at turn end; `sw.js` 809 → **810** (V3.828 is another session's reader change).
+
+- **Changed** `rm/js/library-collapse.js`: `register(el, { defaultCollapsed })` + `_defaults`; `isCollapsed(id)` =
+  stored choice, else the default; the toggle stores an explicit `true/false` instead of deleting the key.
+  `rm/js/library.js` registers `#lib-groups-shelf` with `defaultCollapsed: true`. `rm/js/library-groups.js` `render()`
+  sets the `lib-shelf` header count to "n to read · m new in 30 days" (`LIBRARY_READINGS.shelves().toRead`,
+  `LIBRARY_RECENT.count30()` — new).
+- **Tests** — `scripts/tests/v3826-library-shelf-selftest.html` 27 (was 22).
+
+## [V3.828] — 2026-10-22 — Reader: figure snipping reads the page's own artwork (98 % of figures found, from 82 %)
+
+Plan: `CodeLog/ClaudesPlan/V3.828_figure_snipping_graphics_layer.md`. Alex: *"we need to make a more robust figure
+snipping tool for the paper reader. For example this paper doesnt auto snip Figure 2, and Figure 3 is half snipped…
+Lets do a much better job at searching for and snipping figures from papers"* (Mendoza 2015, `mendoza-2015-erk`).
+Site files auto-upload at turn end; `sw.js` 808 → **809**. No Firebase deploy.
+
+- **Added** `rm/js/page-layout.js` `PAGE_LAYOUT.collectGraphics(opList, OPS, transform, W, H)` → `[{x,y,w,h,k}]`:
+  every painted image / vector path on the page as a device-space box, from the pdf.js operator list (CTM + clip
+  stack over save/restore/transform/form XObjects; `constructPath` minMax transformed; white fills and `ca`/`CA` = 0
+  paint nothing; image repeats; shading = clip box). Pure, shared by the viewer and the node harness.
+- **Changed** `PAGE_LAYOUT.figureRegions(items, {pageWidth, pageHeight, inkProbe, graphics, pageNum})` — with
+  `graphics`: furniture filtered → primitives clustered into panels (`_frGraphicsBlobs`) → non-prose text attached →
+  captions seed on adjacent panels → simultaneous ring growth across captions (`_frFromGraphics`; never across prose,
+  another caption, or a prose-bearing column; table rules chained by x-extent; filled gaps bridged) → unclaimed
+  panels ≥ 3.5 % of the page become unlabelled `figure` regions (page-1 top-third excluded) → a figure caption with
+  no artwork yields nothing, a table caption falls back to text growth only if the box reads as rows. One image
+  ≥ 85 % of the page (a scan) → `graphics` treated as unknown and the V3.643 path runs unchanged. Text side:
+  `_frBodyH` (ink-width mode), `_frColumnEdges` (item-edge columns before line grouping; `_frGroupLines` splits at
+  them), `_frDetectColumns` ignores spanning lines, `_frMarkProse` → `_frMarkProseBasic` + `_frMarkTabular` (per
+  column, body-width lines and one-glyph fragments exempt) + `_frMarkProseByColumn`, `_frFindCaptions` stops at a
+  tabular line, `_frIsXref` replaces `_frReXref` (number followed by a lowercase word), margin vertical text runs
+  dropped, lone primitives with prose inside dropped, `_frGrowByInkGap` unchanged. `_frTrace` hook for the harness.
+- **Changed** `rm/js/pdf-viewer.js` — imports `OPS`; `_collectPageGraphics(page)` (natural coords, once per page on
+  `node.graphics`, null when unreadable) → `_detectFigureRegions(canvas, cssW, cssH, items, zoom, graphics,
+  pageNum)` scales the boxes to the items' basis; viewer API `getPageGraphics(p)`.
+- **Changed** `rm/js/paper-label-mode.js` — `PAGE_REGIONS.detect` receives `graphics` from `getPageGraphics`.
+- **Harness (local, `ResearchManagement/data/figure-training/`)** — `extract-feat.mjs` (offline features: pdf.js in
+  node + pdftoppm ink + graphics), `score-figs.mjs`, `dump-figs.mjs`, `debug-page.mjs` (trace + overlay PNG),
+  `viewer-smoke.html` (shipping viewer end to end), `labels-mendoza.json`; `propose.mjs` / `score-regions.mjs` prefer
+  `feat-offline/`. Scores on the archived v2 labels + Mendoza: 36/44 → **47/48 recall, 80 % → 96 % precision, IoU
+  0.92 → 0.95**; Mendoza 1/4 + 3 false → 4/4 + 0.
+
+## [V3.827] — 2026-10-22 — Library: readings as counted shelves, a PDF download button in All papers, popovers kept fully on screen
+
+Plan: `CodeLog/ClaudesPlan/V3.827_library_readings_shelves_pdf_download_popover.md`. Alex: *"the assigned to me
+suggested for me and read should be in a collapsed block in the shelves as well and there should be a number of papers
+in this to read for each group. within the all papers section, users should be able to download the pdf to their
+computer. when the user selects the organize button, the full popup should be shown, and none of it should be off
+screen"*. Site files auto-upload at turn end; `sw.js` 807 → **808**.
+
+- **Added** `rm/js/library-readings.js` `shelves()` → `{ any, toRead, groups: [{ id, icon, label, count, hint,
+  bodyHtml }] }` (📥 Assigned to me always once anything was sent, 💡 Suggested for me and ✓ Read when non-empty);
+  `_setRowsForTesting`; the mark-as-done handler is document-delegated; `render()` in shelf mode hides `#lib-readings`
+  and calls `LIBRARY_GROUPS.render()`. `rm/js/library-groups.js` renders them first (before 🆕 Recently added),
+  folded by default, header count = papers in the group; `widgets_enabled.shelf_readings` (prefs default true,
+  Customize label "Shelf: papers sent to me"). `rm/css/library-readings.css` `.lr-shelf-body` (+ fold override).
+- **Added** `rm/js/library.js` `_downloadPdf(it)` / `_pdfFilename(it)` and a ⤓ row button (`data-act="download-pdf"`,
+  `arrow-down-tray`): Storage URL → fetch → blob → `<a download="<id>.pdf">`; fallback opens the URL in a new tab.
+- **Added** `rm/js/popover-place.js` `POPOVER_PLACE.compute` (pure) / `fit(pop, anchorRect, { preferLeft })`:
+  below → above → clamped, never past an edge, `maxHeight` = window − 16, `box-sizing: border-box`; both `la-popover`
+  sites in `library.js` call it after `appendChild`. `rm/css/library-associations.css` `.la-popover` max-height
+  `calc(100vh − 16px)`, max-width `calc(100vw − 16px)`. `rm/pages/library.html` loads it before `library.js`.
+- **Tests** — new `scripts/tests/popover-place.test.mjs` (8); `v3826-library-shelf-selftest.html` 22 (was 13);
+  `v3825-library-recent-selftest.html` 19; `library-recent.test.mjs` 19.
+
+## [V3.826] — 2026-10-22 — Library: "Recently added" is a shelf inside the Shelves block, and every shelf starts folded
+
+Plan: `CodeLog/ClaudesPlan/V3.826_library_recent_shelf_folded.md`. Alex: *"the recently added block should be in the
+shelves and all shelves should be collapsed by default."* Site files auto-upload at turn end; `sw.js` 806 → **807**.
+
+- **Changed** `rm/js/library-groups.js`: new first shelf `data-sec="recent"` (🆕 Recently added · `LIBRARY_RECENT.
+  countLabel()` · "newest first" hint; body `#lib-recent` filled by `LIBRARY_RECENT.render()` after the shelf is in
+  the DOM; omitted when `!LIBRARY_RECENT.hasAny()` or `widgets_enabled.shelf_recent === false`); `_isSecCollapsed(id)`
+  — no stored choice → **folded** (reader, pinned, recent, groups); the toggle stores an explicit `true/false`;
+  "reveal Groups" sets `false`. `rm/js/library-recent.js`: `setPool(papers)`, `hasAny()`, `countLabel()`, `render()`
+  fills `#lib-recent` only (no section of its own, no `LIBRARY_COLLAPSE` registration; empty → "Nothing dated yet.").
+  `rm/js/library.js` `_render` → `LIBRARY_RECENT.setPool(visiblePool)` before the shelf renders; Customize label
+  `shelf_recent`; `rm/js/library-prefs.js` default `shelf_recent: true`; `rm/pages/library.html` drops the static
+  `#lib-recent`; `rm/css/library-recent.css` `#lib-recent.lg-sec-body { display:block }` + the fold override.
+- **Tests** — new `scripts/tests/v3826-library-shelf-selftest.html` (13, real `library-groups.js` with stubbed
+  prefs/auth); `v3825-library-recent-selftest.html` rewritten (19); `library-recent.test.mjs` 19.
+
+## [V3.825] — 2026-10-22 — Library: filter papers by how recently they were added; a persistent "Recently added" section
+
+Plan: `CodeLog/ClaudesPlan/V3.825_library_recently_added.md`. Alex: *"in the library, i want to be able to filter
+papers by how recent we added them. also keep a persistent section that says recently downloaded papers"*. Site
+files auto-upload at turn end; `sw.js` 805 → **806**. No rules, no functions.
+
+- **Added** `rm/js/library-recent.js` — `LIBRARY_RECENT_CORE` (DOM-free, `module.exports`): `addedMs(item)`
+  (`captured_at_iso` → `date_added` → `pdf.uploaded_at`, else 0), `parseWindow(token)` (`today`, `7d`, `2w`, `3m`,
+  `year`, `2026`, `2026-10`, `older[-30d]`), `withinWindow(item, spec, now)` (unknown dates: never recent, always
+  older), `recentList(items, {limit})`, `countWithin`, `relTime`, `WINDOW_LABEL`; `LIBRARY_RECENT` (page):
+  `init({ onChange })` wires `#library-added` (persisted in `localStorage lib_added_filter`) and registers
+  `#lib-recent` with `LIBRARY_COLLAPSE` (`lib-recent`, mirrorHidden), `render(papers)` (eight newest first, Show 24,
+  "See all added in the last 30 days (n)" → `setFilter('30d')`, header count "n in 30 days", active-filter note),
+  `active()` / `matches()` / `label()` / `setFilter()`. `rm/css/library-recent.css` (`.lib-added-select`, `.lrc-*`).
+- **Changed** `rm/js/library.js`: `_parseQuery` field `added:` → `_matches` via `withinWindow`; `_render` applies the
+  select (`LIBRARY_RECENT.matches`), sorts newest first while it is on, appends "· added: …, newest first" to the
+  count, counts the select as an active filter for the groups shelf, and calls `LIBRARY_RECENT.render(visiblePool)`
+  before the table; `init()` calls `LIBRARY_RECENT.init({ onChange: _render })`. `rm/pages/library.html`: the
+  select in `.lib-toolbar`, `#lib-recent` above it, the stylesheet, `library-recent.js` before `library.js`.
+- **Tests** — `scripts/tests/library-recent.test.mjs` (19), `scripts/tests/v3825-library-recent-selftest.html` (20).
+
+## [V3.824] — 2026-10-22 — A capture's outcome outlives the popup: last capture per tab, a red ! badge on failure, a capture log for forensics
+
+Plan: `CodeLog/ClaudesPlan/V3.824_extension_capture_outcome_persists.md`. Alex: *"i just injested this paper … it
+downloaded the pdf to the computer. i went to check for it in the library but it is not there"*. Forensics: no
+`pending_captures` doc, no `paper_index` entry, no Storage object today, and Chrome's own download log shows no
+ScienceDirect download — the capture failed while getting the PDF and the popup's message was lost when it closed.
+Extension 0.4.1 → **0.4.2**. No site files, no rules (the log lives under the owner-only `userData/{uid}/**` rule).
+
+- **Added** `extension/background.js` `_setCaptureState` / `_getCaptureState` / `_clearCaptureState`
+  (`chrome.storage.session`, `capture:<tabId>` → `{ status, stage, outcome, url, at }`), `capture-stage` /
+  `capture-done` messages to the popup, badge **!** (`#dc2626`, title = first error line) on failure, `last-capture`
+  message, `_logCapture` → `userData/{uid}/captureLog` (ok/error, `tried[]`, `pdf_source`, `paper_id`, version).
+- **Added** `extension/popup.js` `_showLastCapture(d)` ("Capture in progress (hh:mm): stage" / "Last capture on this
+  tab, hh:mm:" + the success or failure rendering), live `onMessage` follow-up; `window.__mcgheePopup` seam
+  `_showLastCapture`, `setActiveTab`.
+- **Tests** — `extension-e2e.mjs` 37 (was 32).
+
+## [V3.823] — 2026-10-22 — A paper page is not a shop; the PDF viewer tab is the paper; a DOI found anywhere is the link
+
+Plan: `CodeLog/ClaudesPlan/V3.823_extension_pdf_tab_and_doi_anywhere.md`. Alex (ScienceDirect, *Active Erk Regulates
+Microtubule Stability…*): *"it shows the paper as an 'item to buy'"*; *"when i click the view pdf it takes me to
+[pdf.sciencedirectassets.com/…/main.pdf?X-Amz-…] — from here we should be able to take the paper and place it into our
+site data base"*; *"look for a view pdf, download pdf button… the user can manually click on it and go through the
+human checks… take a paper that is in a pdf viewer by using a download pdf tool that is on the page"*; *"use the DOI as
+a link if we can find it on any page as well"*. Extension 0.4.0 → **0.4.1**. No site files, no rules.
+
+- **Bug fix** `extension/scrape-items.js` `isPaperPage()` (scholarly meta or a DOI/arXiv/PubMed/bioRxiv URL): the title
+  is no longer offered as an item and `fromText()` is skipped there ("Purchase PDF $35.95" is not a price); the result
+  carries `paper` + `titleItem`; the popup says "Nothing to buy here — this tab is a paper"; **add by hand** on a real
+  shop page starts from the title.
+- **Added** the PDF viewer tab as a paper: `background.js` `_pdfTabDetection(tabId, scriptDet)` / `_resolveDetection`
+  / `_isPdfDocument` / `tabs.onUpdated`; `pdf-fetch.js` `looksLikePdfUrl`, `minePdfUrl` (DOI, arXiv id, Elsevier PII),
+  `piiToDoi` (CrossRef-confirmed only — the guess 404s for this paper; real DOI 10.1038/sj.neo.7900180), `sameWork(prev,
+  url)` (DOI/arXiv in the PDF URL, PII in the article URL, PDF under the article path, a known candidate),
+  `sniffPdfDoi` (ranged head + tail), `doiFromPdfBytes` / `doiFromPdfBlob` (XMP `prism:doi`/`pdfx:doi`/`dc:identifier`,
+  Info `doi:`; labelled beats bare; `)Tj` trimmed), `publicUrl` (no pre-signed keys in records). The article this tab
+  or its opener showed lends DOI + title (`from_page`), kept as `_prev` across looks; `paper-detected` builds the
+  pdf-tab record instead of overwriting the article; `content.js` reports `is_pdf` (`document.contentType`).
+  `capture.js`: `source_url` = article page, else `https://doi.org/<doi>`; a PDF without a DOI is searched after
+  download (`doi_found: 'pdf'`); `get-items` answers `pdfTab`.
+- **Added** the page's own route for the human: `get-detection` reports `pdf_candidates` for every paper page
+  (`pdf-links.js` scores "View/Get/Open … PDF" text); the popup's **PDF route** row has **open ↗** (`chrome.tabs.create`
+  with `openerTabId`), the failure hint says to click it, pass any check and capture on the PDF tab; an expired PDF
+  link is told to re-open View PDF.
+- **Added** a DOI anywhere: `content.js` `a[href*="doi.org/10."]` inside `article/main` (then anywhere) or a "DOI:"
+  line (`source: doi-link | doi-text`); the popup's DOI row is a `doi.org` link, labelled "(read from the PDF)",
+  "(from the Elsevier id, CrossRef-confirmed)" or "(found on the page)".
+- **Tests** — `capture-ladder.test.mjs` 32 (was 17), `items-selftest.html` 20 (was 17), `extension-e2e.mjs` 32 (was
+  23: article → pre-signed PDF in the same tab, opener tab, cold PDF tab, link-only page); `pdf-links-selftest` 17,
+  `price-watch-core` 27 unchanged. ScienceDirect itself unverifiable from this machine.
+
+## [V3.822] — 2026-10-22 — Papers behind a wall: the extension captures through the journal's own Download PDF route, as the page or via Chrome's download
+
+Plan: `CodeLog/ClaudesPlan/V3.822_extension_pdf_via_journal_button.md`. Alex: *"many papers are now difficult to capture
+the pdf. somewhere on the journal page is a download pdf button. we can use that button to save the file to the pc,
+then injest the downloaded file to the site. for example this page https://www.mdpi.com/1422-0067/26/12/5476"*.
+Extension (`ResearchManagement/extension/`) 0.3.1 → **0.4.0** (new `downloads` permission). No site files, no rules.
+
+- **Added** `extension/pdf-links.js` (content script, also injected on demand): `__mcgheePdfLinks()` ranks the page's
+  PDF routes (`citation_pdf_url` 100, `<link type=application/pdf>` 90, embedded viewer 80, anchors by href/text/
+  `download` attr; supplements, permissions, citation exports sunk; six at most); `__mcgheeFetchPdf(url)` fetches AS
+  THE PAGE (same origin, cookies, Referer — what the button sends; the worker's fetch arrives `Sec-Fetch-Site: none`
+  and is 403'd by the bot wall), checks `%PDF-`, returns base64.
+- **Added** `extension/pdf-fetch.js` (worker): `pdfLinksOnTab`, `pageFetcher(tabId)`, `browserDownloader()`
+  (`chrome.downloads.download` → poll to `complete` → refuse non-PDF → read back via `file://` → `{ blob }` or
+  `{ needsFileAccess, filename, path }`), `probePdfRoutes`, `looksLikePdf`, `toFileUrl`, `base64ToBytes`.
+- **Changed** `extension/capture.js`: new exported `obtainPdf({ pdfUrl, candidates, doi, email, onStage, strategies })`
+  — direct on ≤3 routes → as the page on ≤2 → Chrome download on the best → Unpaywall; a download on disk the worker
+  could not read is thrown last as `error.code 'needs-file-access'` (+ `filename`, `path`, `tried[]`);
+  `captureFromDetection` uses it (`opts.candidates`, `opts.strategies`; a pasted URL skips links + Unpaywall);
+  `pdf_source` gains `auto-link` / `page-fetch` / `browser-download`.
+- **Changed** `extension/background.js` `capture` (candidates + real strategies; maps `needs-file-access`),
+  `get-detection` (`pdf_candidates` when a DOI page lacks `citation_pdf_url`), new `pdf-probe` and
+  `open-extension-details`; `popup.js` `_renderCaptureFailure` (needs-file-access: Open extension settings · Upload
+  file…, Manual options unfolded; otherwise "What was tried"), `_sourceLine`, "PDF link" row, `hasPdf` with
+  candidates; `manifest.json` 0.4.0 + `downloads` + `pdf-links.js`.
+- **Tests** — new `capture-ladder.test.mjs` (17), `pdf-links-selftest.html` (17); `extension-e2e.mjs` 23 (was 14):
+  a local journal whose PDF is 403 unless same-origin — worker walled, page route gets the bytes, download route lands
+  the file and reads it back. MDPI itself unverifiable from this machine (403 to every automated client).
+- **Docs** — extension README "Papers behind a wall" section + troubleshooting; ARCHITECTURE.
+
+## [V3.821] — 2026-10-22 — "Can't read this tab" was a stale load: the popup notices an old worker and reloads the extension itself
+
+Plan: `CodeLog/ClaudesPlan/V3.821_extension_stale_load.md`. Alex: *"i try to goto the vwr or sigma page and both say
+this: Can't read this tab… maybe we can take a screenshot of the webpage, then ocr it and scrape the price data."*
+Extension (`ResearchManagement/extension/`) 0.3.0 → **0.3.1**. No site files deployed, no rules.
+
+- **Bug fix** (root cause) Chrome reads the popup's files from disk on every open but keeps the manifest, service worker
+  and content scripts from the last **reload**: Chrome's record of the unpacked extension still said worker `0.1.0`,
+  granted permissions without `alarms`, last update 2026-04-29. An old worker answers `{ ok:false, error:'unknown type'
+  }` to `get-items`, which the popup showed as "Can't read this tab" with no reason. The scraper itself read the live
+  VWR page fine (three priced pack rows, headless). OCR of a screenshot would re-read the same text `fromText()`
+  already reads; not built.
+- **Added** `extension/popup.js` `checkStale(reason)` / `isStaleReply(r)` / `showStale()`: on open, the manifest on
+  disk (`fetch(chrome.runtime.getURL('manifest.json'))`) is compared with `chrome.runtime.getManifest().version`; a
+  mismatch or a stale-shaped reply renders the **Reload needed** bar (`#pop-stale`, above the sections) with **Reload
+  now** → `chrome.runtime.reload()`. `send()` keeps `chrome.runtime.lastError.message`; the items message shows
+  `r.error` as well as `r.why`; `d.errors` (per-source failures) is appended. `window.__mcgheePopup` test seam.
+- **Changed** `extension/background.js` `get-items`: the injected function returns `{ ok, data, error }` from its own
+  try/catch — an uncaught throw inside `executeScript(func)` resolves with `result: null` and NO error (proven in the
+  E2E), so it could never be reported before; a content-script `{ error }` becomes `why`; new `ping` →
+  `{ ok, version, handlers }`. `content.js` `_itemsNow()` returns `{ error }` on a throw. `scrape-items.js`
+  `scrapeItems()` runs each source under `safe(name, fn)` and returns `errors: []`.
+- **Tests** — new `extension/test/extension-e2e.mjs` (14): the UNPACKED extension in a real Chromium (patchright new
+  headless + `--load-extension`), `popup.html` as a tab driven through a CDP `Runtime.evaluate` (patchright's
+  `page.evaluate` is an isolated world without `chrome.*`): ping = disk version; `get-items` via content script, via
+  injection, with a throwing hook; the stale bar. `items-selftest` 17, `price-watch-core` 27 unchanged.
+- **Docs** — extension README (Updating paragraph, troubleshooting entry); manual test slip 20 (reload bar).
+
+## [V3.820] — 2026-10-22 — Price watch: a price keeps the page it came from and is re-checked every three months; the extension reads hard vendor pages as printed text
+
+Plan: `CodeLog/ClaudesPlan/V3.820_price_watch.md`. Alex: *"it says it can't read this page"* (VWR, then Sigma); *"when we
+get an item price, also save the web page it came from then every 3 months rescrape the price and save the price
+history"*; *"if it's hard to scrape, you could make a print of the page then scrape the resulting pdf"*. Rules
+**deployed** (scratch copy, V3.806 users hunk still excluded) before the client landed; the RM files upload at turn end.
+Extension (`ResearchManagement/extension/`) 0.2.0 → **0.3.0**.
+
+- **Bug fix** "Can't read this tab": both tabs predated the 0.2.0 content script. `get-items` now falls back to
+  `chrome.scripting.executeScript` (inject `scrape-items.js`, call it in the same isolated world); the popup names what
+  really cannot be read and says to reload a normal page once.
+- **Changed** `extension/scrape-items.js`: `variantRows(catRe, rowOk, priceSel)` — one item per pack row on app-rendered
+  vendor pages (VWR: `.display-price` rows with `76520-944`-style numbers and "Carton of 1,000", verified on the live
+  page; Sigma: the SKU table, plus the product number from the URL `/product/<brand>/<number>` when the page shows
+  none — Sigma itself was unreachable from this machine, so unverified); `fromText()` — the page as printed: when no
+  source yields a price, every `innerText` line with a price, with the catalogue number and pack size from the same
+  or the four lines above (Alex's print-then-scrape, without a PDF); the scrape result carries `text` (≤ 40 KB).
+- **Added** `extension/price-watch-core.js` (pure): `normalizeProductUrl` (host without www, path, Amazon → `/dp/ASIN`,
+  only product-identifying query keys, sorted), `watchIdFor` (host slug + two FNV-1a hashes — **identical** to the
+  copy in `rm/js/procurement-core.js`, pinned by a test that loads both), `nextCheckAfter` (+90 days; a miss → 7 ×
+  failures days ≤ 30), `isClaimed` (2-hour lease), `pickItemForWatch` (catalogue number, then name words, then the
+  first priced), `cleanObservation`, `mergeWatch` (the whole doc after an observation — REST PATCH replaces; a
+  `request` price appends but never reschedules a live watch; a `rescrape` resets failures and the lease),
+  `failedCheckPatch`. `extension/price-watch.js`: `recordObservation()` (get → merge → PATCH, then a snapshot doc with
+  the page text), `runDueChecks({max})` (runQuery `nextCheckAt ≤ now`, single-field range — no index; skip leased;
+  lease; `checkWatch()` opens the URL in a background tab, waits for load + 7 s, injects the scraper, records or
+  fails; closes the tab), `watchStatus()`. `firebase-rest.js`: `firestoreUpdateFields` (updateMask PATCH),
+  `firestoreRunQuery`. `background.js`: `chrome.alarms` every 6 h (+ `alarms` permission), `price-watch-status`,
+  `price-check-now`; `add-item` records a `capture` observation with the page text cached from `get-items`.
+  `popup`: "Price watch: N due" + **Check now**. `test/price-watch-core.test.mjs` (node, 27).
+- **Added** `firestore.rules` `priceWatch/{watchId}` (+ `snapshots`): any lab member creates (`createdBy` and
+  `lastActorUid` = caller) or updates (`lastActorUid` = caller, `createdBy` frozen, `history` `hasAll` the old one);
+  snapshots write-once by their author; delete admin. Rules suite 135 ok / 0 HOLE / 0 BREAK.
+- **Added** `rm/js/procurement-core.js` `normalizeProductUrl` / `watchIdFor` (the site's copy), `priceObservationsFrom
+  (values, ticketId)` (the link + unit cost and every linked, priced comparison row, deduped by watch id),
+  `newWatchDoc`, `watchFor`, `watchSummary`; `catalogue(items, tickets, watches)` adds `watchPrice / watchAt /
+  watchChecks / watchId`. `rm/js/procurement.js`: loads `priceWatch` with the page, `recordObservations()` after a
+  submit (create, or `arrayUnion` the history entry and the ticket id), a **Price watch** row on the card (list
+  price, when, how many checks, next check or "page could not be read lately", the last four prices), "list $X
+  (checked …)" beside "last paid" in the Reorder existing rows and the reorder summary.
+- **Tests** — core 265 (was 252), rules 135 (was 117), RM browser 202 (was 199), scraper fixtures 17 (was 13),
+  price-watch node 27 (new). Manual script slip 20 extended.
+- `sw.js` `CACHE_VERSION` 804 → 805.
+
+## [V3.819] — 2026-10-21 — "+ Item" in the Chrome extension: scrape the vendor page, add it to a purchase request; the item reaches the catalogue only on approval
+
+Plan: `CodeLog/ClaudesPlan/V3.819_extension_item_capture.md`. Alex: *"I want to add a +item via the chrome extension. this
+should scrape the page we are on for items to buy. then the user can add that item to the procurement request. only
+when the procurement is approved does the item get added to the database."* RM side FTP-only; no rules or function
+change (the queue is the owner-only `userData/{uid}` subtree). Extension side in `ResearchManagement/extension/`
+(McGhee Lab Capture 0.1.0 → **0.2.0**; the dev server's `/api/extension/download.zip` re-zips the folder on each
+download).
+
+- **Added** `extension/scrape-items.js` (classic content script, no network): `window.__mcgheeScrapeItems()` → `{ url,
+  host, title, selection, confident, items[] }`. Sources in order of trust: JSON-LD `Product` / `IndividualProduct` /
+  `ItemList` / `@graph` with `Offer` / `AggregateOffer` prices (malformed blocks skipped); schema.org microdata; vendor
+  selectors for Fisher / Thermo, Sigma / MilliporeSigma, VWR / Avantor, Amazon (product page + cart rows, ASIN),
+  McMaster-Carr, Cole-Parmer, Digi-Key, Grainger, BuyWays / Jaggaer (product + cart lines); Open Graph `product:*`;
+  the `h1` / title as a low-confidence fallback; the current text selection as its own candidate. Items are
+  `{name, vendor, catalogueNumber, price, priceText, currency, packSize, url, image, description, source}`,
+  deduped by catalogue # or name (a weaker source fills blanks), capped at 20; prices are currency-anchored
+  ("100/pk $45.00" → 45, "Request a quote" → null). `extension/test/items-selftest.html` (file://) runs the fixtures.
+- **Changed** `extension/content.js` (answers `request-items`; sends the confident item count with `paper-detected`),
+  `background.js` (`get-items`, `add-item` → `firestoreCollectionAdd('userData/{uid}/procurementCaptures', …)`
+  with the capture normalised and stamped `status: 'captured'`, `capturedAtIso`, `capturedByUid`, `extensionVersion`;
+  returns the RM link `procurement.html?capture=<id>`; a **+** badge on vendor pages when no paper was detected; a
+  403 is explained as "sign in with the same Google account as the lab site"), `popup.html` / `popup.js` (section
+  *Items to buy on this tab*: rows with source tag, **+ Add** opens an inline form — item, vendor, catalogue #, unit
+  price, quantity, pack size, link, note — **Add to request** writes the capture and opens RM in a new tab;
+  **re-scan**, **add by hand**), `manifest.json` (0.2.0, `scrape-items.js` before `content.js`), `README.md`.
+- **Added** `rm/js/procurement-core.js` `prefillFromCapture(capture)` → composer values (item, vendor, cat #, link,
+  unit cost from `price` or parsed `priceText`, quantity, the note as "why", the capture as the first **chosen**
+  price-comparison row with "captured from *host* on *date*"; purchase type and project left empty), `buildCreate()`
+  stores `captureId`.
+- **Changed** `rm/js/procurement.js`: loads `userData/{uid}/procurementCaptures` with the page (quietly; nothing for a
+  guest), a **Captured in your browser (N)** strip above the composer with **Add to request** / **Discard**;
+  `?capture=<id>` opens the full New-item form prefilled (`startFromCapture`), or the ticket it already became, or
+  explains that it was used / is not in this account's queue; submitting writes the ticket with `source: 'extension'`
+  + `captureId` and marks the capture `used` (`ticketId`, `usedAtIso`). Nothing else is written: the item enters the
+  *Reorder existing* catalogue only when the ticket is approved (V3.816 `catalogue()`), and Inventory only when put
+  away. `rm/css/procurement.css`: `.pt-captures*`.
+- **Added** quick-open links in the popup (Alex, mid-build: *"when we load in a paper or an item i want to have a link
+  that the user can click on to quick open that item"*): the "Already in library" banner links to
+  `library-paper.html?id=<paperId>`; a fresh paper capture, a manual-URL / file capture and a search-result "+ Add" end
+  with **Open it in the library ↗** → `library.html?paper=<paperId>`; an item's **Added** state links to the prefilled
+  request, and an item row whose product link is not the current page gets **open ↗**. One document-level
+  `[data-open-rm]` handler opens them with `chrome.tabs.create`. `rm/js/library.js` gains `_openDeepLinkedPaper()`:
+  `?paper=<id>` waits for the pending-captures sync, then `location.replace`s to the paper page; if the capture has
+  not merged (or the account is not on the capture allowlist) it says so once instead of a dead page.
+- **Tests** — core 252 (was 246), browser 199 (was 187: the strip, Add to request → the full form prefilled with the
+  comparison row chosen and project focused, project still required, the ticket's provenance, the capture marked used,
+  not in the catalogue until approved then in it, Discard), extension scraper fixtures 13 (new), manual script slip 20
+  (optional, needs the installed extension). Rules / E2E / function suites unchanged.
+- `sw.js` `CACHE_VERSION` 803 → 804. FTP (batched): `rm/js/procurement-core.js`, `rm/js/procurement.js`,
+  `rm/css/procurement.css`, `sw.js`. Known gap, pre-existing: the Library page's "Download extension" link points at
+  the dev server route, which the static host does not serve — lab members get the zip from the dev server or from Alex.
+
+## [V3.818] — 2026-10-21 — The site uploads itself at the end of every Claude turn
+
+Plan: `CodeLog/ClaudesPlan/V3.818_auto_deploy_on_stop.md`. Alex: *"every time we make changes to the site, please ftp
+automatically"*, then *"test it"*. Tooling only — no `sw.js` bump, no PENDING_RELEASE line.
+
+- **Added** `scripts/deploy.py autodeploy` — the Claude Code `Stop` hook entry point (`.claude/settings.json`
+  `hooks.Stop`, timeout 900 s). Runs when a turn ends, never per edit, so a feature's files go up together. Silent
+  exit when nothing in the site changed (~0.3 s), when `MCGHEELAB_AUTODEPLOY=0`, or when `deploy/site.json`
+  `"autoDeploy": false` (the pause switch for a live lecture, V3.775). Otherwise: `gate()` — `node --check` every
+  changed `.js`/`.mjs` (an ES module saved as `.js` is re-checked as `.mjs`) and `json.loads` every `.json`; one
+  failure HOLDS the whole upload and names the file with the real error line (retries at the next stop) — then
+  `cmd_ftp(yes=True)` → `verify`, and one JSON line on stdout `{"systemMessage": "Deployed N file(s) to mcgheelab.com
+  via …"}` (everything else to stderr). `sw_warning()` appends a warning when a precached `SHELL_URLS` file changed
+  without `sw.js`. Always exits 0 — a failure is reported, never blocks the stop, never loops.
+- **Changed** `get_password()` raises instead of prompting when there is no TTY (a `getpass` inside a hook would hang
+  to the timeout); `cmd_ftp` reports a connection failure in `LAST_RESULT` instead of raising and skips the verify
+  when nothing was sent; `cmd_verify` records `ok / bad / still_there` in `LAST_RESULT`.
+- **Changed** the release ritual in `CLAUDE.md`: the upload is no longer a batched manual step — only the
+  announcement (ledger → `release_push.py` → 📣 Send) and the phone build wait for a batch. Consequence:
+  rules/indexes/functions must be deployed BEFORE the client edit is made, and `sw.js` bumped in the SAME turn,
+  because the client edit is live when the turn ends.
+- **Bug fix** `sitemap.xml` and `robots.txt` pointed search engines at `mcgheelab.github.io`; now `mcgheelab.com`,
+  `lastmod` 2026-10-21. (Chosen as the visible live test of the hook — a real fix, not a dummy change.)
+- **Tests** — `gate()`: broken `.js`/`.json` flagged with the real error line, an ES-module `.js` passes, real site
+  files clean; `sw_warning()` fires only for a precached root file without `sw.js`; hook simulation with nothing
+  changed prints nothing. First automatic run: the 5 images the V3.817 baseline found missing went up at the end of
+  the turn in which Alex added the hook (manifest `via: verify` 17:18:16, live `Content-Length` matched). Second
+  automatic run: the sitemap fix at the end of the "test it" turn.
+
+## [V3.817] — 2026-10-21 — Deploy only what changed: an allowlist of what the site is, a manifest of what is live, and an FTP that needs no Cyberduck
+
+Plan: `CodeLog/ClaudesPlan/V3.817_deploy_only_what_changed.md`. Alex: *"when i ftp i often need to upload an entire
+folder, and since the RM folder is getting rather large it takes a long time. we need to reorganize everything so it is
+easier to make updates. Also when files are updated, the folder is often not showing that there were updates to it so
+we need to ensure the folders also show as recently modified in the finder"* and *"is there any solutions to ftp via
+cyberduck straight from vscode so that i dont have to do it manually"*. Tooling only — nothing served changes, so no
+`sw.js` bump and no PENDING_RELEASE line.
+
+- **Added** `deploy/site.json` — the allowlist of what IS the website (30 root files + `icons/ Images/ Videos/
+  modules/ rm/ poster/ DataIllustrations/`, minus docs, `rm/server.py`, rosters and `.xlsx` under modules). 777 files /
+  51 MB, against a 66,000-file repo. Root `vendor/` is deliberately NOT included (Heroicons source for
+  `scripts/gen-icons.mjs`; `rm/vendor/` is the served one). Also holds the FTP host/user (never the password) and the
+  `touchDirs` list.
+- **Added** `deploy/manifest.json` — `path → {sha256, size, deployedAt, via}` for every file known to be live. Tracked
+  in git because the server is updated from the working tree, not from commits, so git history cannot say what is
+  deployed. Built once by `baseline` (772 of 777 files matched the server by size on 2026-10-21), kept current by
+  `verify`.
+- **Added** `scripts/deploy.py` (stdlib only; `DEPLOY_STATE_DIR` / `DEPLOY_SITE_JSON` env overrides for tests):
+  `status` (hash the site, diff the manifest, no network), `stage` (copy ONLY the changed files into `deploy/upload/`
+  as a mirrored tree + `pending.json`, open Finder — drag onto `/` in Cyberduck), `ftp` (upload the changed or pending
+  files with `ftplib`; explicit-TLS `FTPS` subclass that re-uses the control TLS session on data sockets, plain-FTP
+  fallback; password from the macOS Keychain entry Cyberduck saved → `MCGHEELAB_FTP_PASSWORD` → prompt; `--delete`
+  removes files that no longer exist locally; `--dry-run`, `--yes`, `--only PREFIX`, `--force-all`), `verify` (HTTP
+  HEAD each pending file, same `Content-Length` ⇒ recorded; a recorded file found missing or a different size is
+  **un-recorded** so `status` lists it again), `baseline`, `audit` (HEAD every non-site repo file; reports the ones
+  that are PUBLIC, sensitive-looking paths first; `ftp --purge-audit` deletes them), `touch-folders`. TLS trust falls
+  back default store → `certifi` → the macOS system root keychain (python.org builds ship with no roots).
+- **Added** `scripts/touch_folders.py` — macOS only bumps a folder's date when an entry is created/renamed/deleted
+  DIRECTLY in it; in-place saves bump nothing and nothing propagates upward. `bubble_tree()` raises each folder to its
+  newest descendant (never lowers; skips `.DS_Store`, `.git`, `node_modules`). `--hook` reads the Claude Code tool JSON
+  on stdin. Wired as a `PostToolUse` hook on `Edit|Write|MultiEdit|NotebookEdit|Bash` in `.claude/settings.json`
+  (proven in-session: a folder back-dated to 2026-01-01 read its newest file's date one tool call later). Optional
+  `scripts/launchd/com.mcgheelab.touch-folders.plist` (every 5 min) covers edits made outside Claude Code.
+- **Added** `.vscode/tasks.json` — ⇧⌘B runs `deploy.py ftp`; tasks for status / stage / verify / audit / folder dates.
+- **Added** `deploy/README.md` — the routine in plain words.
+- **Changed** `scripts/release_push.py` "remaining manual steps" now names `deploy.py ftp` (or `stage` + Cyberduck +
+  `verify`) instead of "FTP the repo". `CLAUDE.md` / `rm/CLAUDE.md` deploy sections updated. `.gitignore`:
+  `deploy/upload/`, `deploy/pending.json`, `deploy/audit-*.txt`.
+- **Found by the audit (handed to Alex, nothing deleted by Claude):** 205 non-site paths are publicly reachable on
+  mcgheelab.com — the whole repo had been going up — including `scripts/service-account.json` (Firebase admin key →
+  rotate), every file under `Data/LOR requests/`, `modules/bme295c/students.md` and the admissions `.xlsx`, plus
+  `functions/`, `firestore.rules`, `CLAUDE.md`, CodeLog. `deploy/audit-2026-10-21.txt` lists them.
+- **Tests** — E2E in the session scratchpad against a local pyftpdlib FTP server with a local HTTP server rooted at
+  the FTP tree: baseline → `ftp --force-all` (63 files) → verify → status clean → server-side deletion caught by
+  `verify --all` → stage → ftp → `--delete` → audit flags the service-account key. All assertions pass. Not run:
+  `ftp` against the real server (Keychain approval + an outward change — Alex's first run uploads the 5 images the
+  baseline found missing, one of which `DataIllustrations/manifest.json` references).
+
+## [V3.816] — 2026-10-21 — Procurement: "Reorder existing" (a searchable catalogue of what the lab already buys) and "New item" as two doors
+
+Plan: `CodeLog/ClaudesPlan/V3.816_procurement_reorder_catalogue.md`. Alex: *"separate the +new request button to two type
+1) reorder existing, 2) new item. reorder existing allows the user to search through existing item database that is
+already approved. users should have a full featured set of tools to find existing items. filtering, search, grouped by
+type etc. new item needs all the new input and price compare information filled out."* FTP-only; no rules or function
+change.
+
+- **Added** the catalogue to `rm/js/procurement-core.js` (DOM-free): `catalogue(items, tickets)` = every inventory
+  `item` ∪ every procurement ticket that reached `approved` / `ordered` / `received` / `placed`. A ticket linked by
+  `inventoryItemId`, or matching an item by vendor + name, folds into that item (times bought, last bought, last price
+  from actual cost ÷ received, `recurring`); unlinked tickets dedupe by vendor + name + catalogue # into one
+  `kind: 'ticket'` row whose latest ticket decides status, price and project. Entries carry `stock` (`stockOf()`: a
+  tracked count against `qty_min`, else `stock_status`), locations, `alternatives` count, project and account.
+  `filterCatalogue(entries, {q, category, vendor, stock, kind, sort})` (every search word must match name, vendor,
+  cat #, category, location, project or account; sorts `name` / `recent` / `often` / `stock`), `groupCatalogue(entries,
+  by)` (`category` in inventory order, `vendor`, `location` — an item in two places appears under both — or `none`),
+  `catalogueFacets()` (category and vendor options with counts, low/out and source counts), `INV_CATEGORY_LABEL`.
+- **Changed** `rm/js/procurement.js`: the tools bar's one "New request" button is now **Reorder existing** (`#pt-reorder`)
+  and **New item** (`#pt-new`). `renderPicker()` draws the catalogue card in its own slot above the composer: search
+  (results re-render on each keystroke without losing focus), Category / Vendor / Stock / Source selects with counts,
+  Group by, Sort, a count line with **Clear filters**, grouped rows with badges (*recurring*, *low*, *out of stock*,
+  *not in inventory · on order*), capped at 200 rows, and one **Reorder** button per row (`pickEntry()`: an inventory
+  row → `prefillReorder()`; a ticket row → `startRepeat()`, the V3.814 Request-again path, now shared). The composer
+  has two modes: **reorder** (`cm.item` or `cm.againOf`; `data-mode="reorder"`): title "Reorder: *item*", a
+  `.pt-reorder-item` summary (vendor · cat # · last price · count and location · low/out), and `requestFields(v, p,
+  {compact: true})` folds the vendor / catalogue / link row and the price comparison under a `<details class="pt-more">`
+  — `showFieldError()` unfolds it when an error points inside; **new** (`#pt-new`, `?new=1`): the full V3.814 form.
+  Pressing New item over an open reorder form starts a blank one. `?pick=1` opens the picker; Escape closes it. Empty
+  states name the two buttons. `rm/css/procurement.css`: `.pt-picker*`, `.pt-pk-*`, `.pt-reorder-item`, `.pt-more`,
+  phone layout.
+- **Tests** — core 246 (was 219: the catalogue suite — merge rules, stock, facets, every filter and sort, every
+  grouping, the Uncategorised facet), browser 187 (was 162: both buttons, the picker's rows / badges / search focus / group / stock filter /
+  clear / source filter, Reorder → compact form prefilled with quantity focused, an error inside the folded details
+  unfolds them, the reorder ticket restocks the item, a ticket-only row, New item over a reorder form, Escape). Rules,
+  E2E and function suites unchanged (no backend change). Manual script `scripts/tests/procurement-manual-test.html`
+  slips S1, S4, 1, 2, 12 and 17 updated for the two buttons and the picker.
+- `sw.js` `CACHE_VERSION` 802 → 803. FTP (batched): `rm/js/procurement-core.js`, `rm/js/procurement.js`,
+  `rm/css/procurement.css`, `sw.js`.
+
+## [V3.815] — 2026-10-20 — BME 466 HW2 and HW3 worked solutions (student keys) staged for FTP
+
+Plan: `CodeLog/ClaudesPlan/V3.815_bme466_hw2_hw3_student_keys.md`. Alex: *"ensure these are ready to push to the website"*.
+Course repo CHANGELOG V3.61 (the pages: V3.60). HW1's V3.799 route.
+
+### Added
+- `modules/bme466/HW2-student-key.html` (87,508 bytes) and `modules/bme466/HW3-student-key.html` (69,830 bytes) — HW2 "Reading and
+  Building" and HW3 "Grip and Ground" worked solutions for students, byte-identical to the course builds: the chain at a glance
+  per problem, every part and the Challenge worked on the demo dataset, "A complete write-up also shows" and a Common mistakes
+  box under each part, a summary of the costliest mistakes opening the page (HW2 from the F26 batch; HW3 from the design — it is
+  due today); no grading material. MathJax from jsdelivr; both carry the no-copy guard (checked on the site copies).
+
+### Changed
+- `modules/manifest.json` regenerated (12 folders, 83 files; the pages list as "HW2 — Worked solutions" and "HW3 — Worked
+  solutions"); `sw.js` CACHE_VERSION 800 → 802 (one bump per deploy run). The bme466 simulation set is unchanged (82 pages).
+- Nothing in `class-builder.js`: since V3.803 its `guessModuleType` reads "key" + HW2/HW3 in the file name, so the **+ Add Module**
+  picker pre-selects *Homework key* for both; the row lands on the Homeworks tab under the due-date table and starts hidden.
+
+### Verified
+- From this site root on port 8826, each page at 1100 px and 390 px: 0 console errors, 0 failed requests; 506 (HW2) and 339 (HW3)
+  typeset expressions, 0 MathJax errors, 0 raw delimiters; `user-select: none` on the body (guard active); no horizontal scroll;
+  the phone view screenshotted and read.
+
+### FTP (Cyberduck), relative to the site root
+`modules/bme466/HW2-student-key.html`, `modules/bme466/HW3-student-key.html`, `modules/manifest.json`, `sw.js`. Nothing to delete.
+Then, as admin on `#/classes/bme466`: **+ Add Module** → pick each file (type pre-selects Homework key) → order beside its homework
+→ tick **Visible** (HW3's after the 2026-10-20 deadline).
+
+## [V3.814] — 2026-10-19 — Procurement: change the funding string at any stage (requester told), and a request form an AI can fill in
+
+Plan: `CodeLog/ClaudesPlan/V3.814_procurement_reassign_funding_and_ai_price_comparison.md`. Alex, after V3.813's project →
+funding-string change: *"I as admin need to be able to reassign the funding string, if I need to reassign it then the
+requestor should be notified that I made that change as a follow up. Also we need a way to make the repeat procurement
+easy… a form that asks if it's a one time purchase or possibly recurring, why it is needed, and a price comparison
+between a few sources. This can be downloaded as a prompt to AI to find and fill out and then an import results
+button… this way the user doesn't need a crazy amount of work for a simple item."*
+
+- **Added** `reassign` ("Change funding") to the transition table in `rm/js/procurement-core.js` — role **approver**
+  (admin, or cap `procurement:approve`: the role that assigns the string at approval), from every live stage
+  (`requested`, `needs_info`, `approved`, `ordered`, `received`, `placed`), same-status. `buildPatch('reassign', t,
+  values)` takes the project picker's values (`applyProject` output or "Other" + a name), refuses the same project,
+  refuses "Other" (no funding string) past approval, and writes `projectId / project / fundingAccount / fundingLabel`
+  + `fundingChangedBy / ByName / At / From`, a `reassign` history entry ("Now charged to X (was Y) — note") and a
+  `funding` note. `FUNDING_KEYS` lists what it may touch (mirrored in the rules).
+- **Added** `firestore.rules` `fundingKeys()` + `fundingOnly()`: an approver may make a same-status write on an
+  `ordered` / `received` / `placed` ticket that touches **only** the note keys + the eight funding fields.
+  `requesterKeys()` gains `purchaseType`, `recurrence`, `comparisons`. Purchasers, requesters and members still cannot
+  touch the funding string; a PO / item / status change smuggled in with a funding change is refused (rules suite:
+  117 ok, 0 HOLE, 0 BREAK). **Deployed** from a scratch copy with the undeployed V3.806 users self-role hunk reverted
+  (`feedback_rules_deploy_foreign_hunks`); the repo file still carries that hunk for Alex.
+- **Changed** `functions/procurement-notify.js` `plan()`: a fresh `reassign` history entry → **requester** ("Funding
+  changed: *item*" / "*who* moved it to X (was Y) — note"), plus **purchasers** while `approved` or `ordered` ("Charge
+  to a different string" — already ordered: move the charge). Checked before the notes branch, since the action also
+  appends a `funding` note that the "non-note kinds tell nobody" rule would otherwise swallow. Also: an **edit by
+  someone other than the requester** on a `requested` / `needs_info` ticket now tells the requester too ("Your request
+  was changed"); the created push says "· recurring" when the request is. Function test 61 (was 48). **Deployed**
+  `onProcurementTicketWritten` + `procurementDailySweep`.
+- **Added** request fields `purchaseType` (`one_time` | `recurring`, **required** — `validateRequest` refuses a new
+  request without it; a pre-V3.814 ticket may still be edited without one via `_legacyPurchaseType`), `recurrence`
+  (`monthly` | `quarterly` | `semester` | `yearly` | `unsure`, only with recurring), `comparisons[]` (≤ 6 rows
+  `{vendor, catalogueNumber, url, unitPrice, packSize, leadTime, notes, chosen}` — `cleanComparisons()` drops empty
+  rows, parses "$12.50", marks the row matching the main vendor; `validateComparisons()` names the bad row), and
+  `repeatOf`. All in `EDITABLE` (an edit that changes the comparison is a change; `[]` vs missing is not), `FIELD_LABEL`,
+  the CSV (`purchase_type`, `recurrence`, `sources_compared`, `funding_changed_from/by`) and search.
+- **Added** the AI assist, DOM-free in the core: `aiPrompt(values, {lab, today})` builds the prompt (item, known
+  source, link, quantity, category, why; 2–4 sources from suppliers a US university buys from; a recommendation;
+  once vs repeatedly; **JSON only**, fixed schema, 0-based `recommended`); `parseAiResults(text)` strips code fences
+  and prose, repairs trailing commas / smart quotes, tolerates synonym keys (`options`, `supplier`, `price`, `link`,
+  `sku`), "$" prices and non-http links (moved into notes), drops vendor-less rows, clamps the recommendation (default:
+  cheapest priced row) → `{results}` or `{error}`; `applyAiResults(values, results)` fills `comparisons`, takes the
+  recommended row into the main fields only when vendor or unit cost is still empty, and the one-time/recurring guess
+  only when unset; `applyComparison(values, idx)` ("Use this one") works on the rows as typed. Nothing leaves the
+  page — the AI is the person's own tool.
+- **Added** `prefillFromTicket(t)` ("Request again": item, vendor, cat #, link, qty, unit cost, category, project +
+  funding string, purchase type, recurrence, comparison, reason; needed-by and urgency reset; `inventoryItemId` and
+  `repeatOf` kept) and inventory memory: `newInventoryItem()` / `restockPlan()` write `reorder.recurring` and
+  `reorder.alternatives` (the comparison rows); `prefillFromInventory()` brings them back as `comparisons` +
+  `purchaseType: 'recurring'`, so the second "Request reorder" starts with the comparison done.
+- **Changed** `rm/js/procurement.js`: the composer's third row gains **One-time or recurring? \*** (+ a how-often select
+  that appears for recurring); a **Price comparison** block (`comparisonBlockHTML` / `wireComparison`) with
+  **Download AI prompt** (a `.txt` named after the item, also copied to the clipboard; needs an item first — inline
+  error) and **Import AI results** (an inline paste box, `[data-ai-paste]`, errors beside it, never a popup); rows with
+  **Use** / remove / **+ Add a source**; `syncMainFields()` pushes the chosen row into the main inputs and recomputes
+  the estimate. **Request again** (`data-act="again"`) on ordered / received / placed / denied / withdrawn tickets opens
+  the composer prefilled with an "Again:" banner (restocks the same inventory item). **Change funding** form
+  (`formHTML` `reassign`): current string, the project picker, "Will be charged to", an optional why; the card gets
+  **Purchase type**, **Funding changed** (who, when, was) and the comparison table (`comparisonTableHTML`, chosen row
+  marked); approvers see "No price comparison was given." on a request that skipped it. `showFieldError()` points at a
+  comparison row (`row` from the core). `rm/css/procurement.css`: `.pt-cmp*`, `.pt-ai`, `.pt-note--funding`, phone
+  layout for the rows.
+- **Tests** — core 219 (was 154), function 61 (was 48), rules 117 ok / 0 HOLE / 0 BREAK (was 100), E2E 96 (was 80:
+  reassign on an ordered ticket by purchaser / student / bystander-raw refused, by approver allowed with the function's
+  plan asserted on the real write, admin moves it back; recurring request with a "$85.00" comparison stored; the
+  restocked item learns the alternatives; Request again from the placed ticket restocks the same item), browser 162
+  (was 121: required purchase type inline, prompt download + content, paste-box errors, import fills rows + main fields
+  + purchase type, Use moves the choice, junk price refused beside the row, remove / add rows, the PI's comparison
+  table and "No price comparison", Change funding on a placed ticket with the exact rules-allowed key set, the
+  Funding-changed row and funding note, Request again prefill + provenance), production smoke 9 ok after the deploy.
+- **Added** `scripts/tests/procurement-manual-test.html` (2026-10-21) — the two-person manual test script for V3.813–V3.814: 5 setup checks, 19 slips in run order (two `[TEST]` tickets carried from request to shelf, each slip naming who acts, what to press, and the exact push each person should get), 3 cleanup steps. Standalone file, no server: Pass / Fail / Blocked marks and notes save in the browser (`localStorage` key `procurement-manual-test:v1`), a "Marking as" switch stamps who marked, and **Download results** / **Copy results** export a plain-text report to hand back to Claude. No browser popups; Clear all is a two-press control.
+- `sw.js` `CACHE_VERSION` 799 → 800. FTP (batched): `rm/js/procurement-core.js`, `rm/js/procurement.js`,
+  `rm/css/procurement.css`, `sw.js`.
+
+## [V3.813] — 2026-10-19 — Procurement v2: the purchase pipeline rebuilt so a request actually makes it round the loop
+
+Plan: `CodeLog/ClaudesPlan/V3.813_procurement_v2_rebuild.md`. Alex: *"we need to make the procurement workflow work, redo the
+entire system then run opus agents to test it fully end to end"*. Driving the V3.44 page found six reasons it never did:
+every decision went through `window.prompt`/`confirm` (the V3.648 rule, and the headless harness hangs on them); **nobody
+was ever told anything** (no function, no feed, no push — the PI learned of a request by opening the page); the Project
+dropdown read `labConfig/projects`, a doc nothing has ever written, so it was always empty; `userName()` matched `u.uid`
+on `users` rows that only carry `id`, so stamps rendered as six hex chars; the rule was `allow update: if isLabMember()`,
+so a requester could approve their own ticket; and `loadAccessGrant()` was never awaited, so no one but an admin could
+ever be given "place orders". Same collection, every field additive, legacy tickets keep working.
+
+- **Added** `rm/js/procurement-core.js` — the state machine with no DOM and no Firebase (`window.PROC_CORE` /
+  `module.exports`), so the page, the emulator E2E suite and the node fixtures run the same bytes. Statuses
+  `requested ⇄ needs_info → approved → ordered → received → placed`, terminal `denied` / `cancelled`. `actorFrom()`
+  (requester / approver = admin or cap `procurement:approve` / purchaser = admin or cap `procurement:order` / member),
+  `can()`, `availableActions()`, `buildCreate()`, `buildPatch(action, ticket, values, actor, now, stamp)` → `{patch,
+  appends:{history,notes,watcherUids}, to}` or `{error, field}` (ask/answer/deny/flag require a note; order requires a
+  purchase method; place requires a location and an inventory id; an edit lists the changed fields and, by the requester
+  after approval, goes back to `requested` with the approval cleared), `batchCandidates()`, `newInventoryItem()`,
+  `restockPlan()` (a member appends a location and bumps `quantity`; `qty_remaining` on a tracked item is raised only when
+  the actor holds `inventory:manage`, with an `inventoryUsage` 'add' row), `prefillFromInventory()`, `inboxFor()`,
+  `filterTickets()` / `sortTickets()` / `counts()`, `timelineOf()` (synthesized from the stamp fields for V3.44 tickets),
+  `summarize()` (committed vs spent by account and category, UA fiscal year from July 1), `toCSV()`, `fundingOptions()`
+  (active awards ∪ accounts ∪ `labConfig/fundingSources` ∪ prior values), `projectOptions()`, `locationOptions()`, and the
+  sweep predicates. Every write stamps `lastActorUid`, `lastActivityAt`, `updatedAt`, appends a `history[]` entry
+  `{id, at (ISO), by, byName, action, from, to, note}` and adds the actor to `watcherUids[]`.
+- **Rewritten** `rm/js/procurement.js` + `rm/css/procurement.css` (+ `rm/pages/procurement.html` loads the core first).
+  Views **Inbox** (what needs *you*: questions to answer, approvals if you approve, orders if you purchase, flagged
+  problems, arrivals to put away, your open requests), **Active**, **Mine**, **Archive**, **Report** (approver/purchaser:
+  committed vs spent by account + category over a period, CSV export). Search, status and sort live outside the body so
+  they keep focus. Compact rows expand in place: banner (open question / flagged problem / denial reason), details,
+  timeline, notes thread, actions, and the inline form for the chosen action — approve note, question, answer, deny
+  reason, PO details (purchase method, PO #, order date, ETA, file, **batch checklist of other approved tickets from the
+  same vendor → one Firestore batch, shared `orderGroupId`**), receipt (qty received, actual cost, file), put-away
+  (location with a datalist of boxes + prior locations; **New inventory item** or **Restock an existing item** with a
+  search by name/vendor/cat#, preselected when the request came from Reorder), edit, withdraw / reopen / undo / delete as
+  inline confirm strips. Errors render beside the field and focus it. **No `window.prompt` / `confirm` / `alert`.**
+  Composer at the top (`+ New request`, `?new=1`, `?reorder=<inventoryId>` prefilled; funding select with *Other…*
+  reveal; project datalist; unit × qty → estimate). `?ticket=<id>` opens one (every notification links here); `Copy link`.
+  Renders defer while an input inside the page is focused (meetings pattern). Writes: `createTicket()` / `writeTicket()`
+  wrap the core's appends in `arrayUnion`, `api.invalidate('procurement/tickets.json')`, `suppressUntil` the echo, mirror
+  locally (server-stamp sentinels become `new Date()`). PO + receipt uploads unchanged at `procurement/{id}/{po|receipt}-…`.
+- **Changed** `firestore.rules` `procurementTickets/{ticketId}` — the transition table enforced: `requestedBy` +
+  `createdAt` frozen (`keepsIdentity()`); requester `requested|needs_info|approved → requested|cancelled` and
+  `cancelled → requested`; approver `requested|needs_info|approved|denied|cancelled → requested|needs_info|approved|denied`;
+  purchaser `approved|ordered → approved|ordered` and `received → ordered`; any member `ordered → received` and
+  `received → received|placed`; `noteOnly()` = same status touching only `notes, history, updatedAt, issue, issueBy,
+  issueByName, issueAt, watcherUids, lastActorUid, lastActivityAt` (= `NOTE_ONLY_KEYS` in the core — keep equal); admin
+  anything; delete admin. Create: own `requestedBy`, `status == 'requested'`, non-empty item. Read `isLabMember()`.
+  `isRequester()` reads `resource.data` only in `update`, so the missing-doc trap does not apply.
+- **Added** `functions/procurement-notify.js` — `onProcurementTicketWritten` (`procurementTickets/{id}`): pure
+  `_internal.plan(before, after)` decides audience + text per transition (created → approvers; needs_info → requester;
+  answered / reopened / edited-while-requested / withdrawn → approvers; approved → requester + purchasers; denied → requester;
+  ordered / received → watchers; placed → requester; note → watchers; flag → purchasers, urgent); audiences resolved
+  server-side (admins ∪ cap holders via `userPermissions.where('caps','array-contains',…)`), the actor (`lastActorUid`)
+  excluded, `notifyUsers` (push + My Week feed), appKey `procurement`, tag `proc:{id}` so an unread older state collapses.
+  `procurementDailySweep` 08:00 America/Phoenix: requests > 5 days → approvers, orders past ETA + 2 days → purchasers,
+  arrivals unplaced > 3 days → receiver + requester (one entry per person — the receiver is often the requester).
+  Exported from `functions/index.js`.
+- **Changed** `rm/js/capability-registry.js` — page `procurement` with `procurement:approve` ("Approve requests") and
+  `procurement:order` ("Place orders"); grant from the Permissions page per-user drill-in, no new UI.
+- **Changed** `rm/js/settings.js` — Notifications → **Purchasing** toggle (`apps.procurement.push`, default ON via the
+  `!(x && x.push === false)` idiom); `rm/js/inventory.js` — item detail gains **Request reorder →**
+  (`procurement.html?reorder=<id>`) and the page honours `?item=<id>` (search + open the row; the old `#id` link did
+  nothing); `rm/js/dashboard.js` — Procurement card (awaiting approval / to order / on order / to put away);
+  `rm/js/nav.js` — blurb. `sw.js` CACHE_VERSION 798 → 799.
+- **Verified** — `scripts/tests/procurement-core.test.mjs` **116** checks; `functions/test/procurement-notify.test.js`
+  **39** (caught the sweep double-counting a receiver who is also the requester); `scripts/tests/procurement-rules.test.mjs`
+  on the emulator **65 ok, 0 HOLE, 0 BREAK** (also against the scratch deploy copy); `scripts/tests/procurement-e2e.test.mjs`
+  (real core, real rules, real Auth-emulator users; `firebase.proc.json` puts Auth on 9299 because another repo's emulator
+  holds 9099 on this machine) **72 ok** — caught the estimate going stale when an edit changed the quantity (`cleanRequest`
+  now follows unit × qty whenever a unit cost is known); `scripts/tests/v3813-procurement-selftest.html` (real page + CSS
+  against a recording Firestore stub; four personas in one load; `window.confirm/prompt/alert` throw) **the whole journey
+  green, 0 console errors**; the harness takes `?noauto=1&seed=1&persona=pi|oth|buy|app` for hand/agent exploration. All
+  four layers wired into `scripts/tests/run-all.sh`. **Production smoke** `scripts/tests/procurement-prod-smoke.test.mjs`
+  (throwaway password user + IAM REST, no browser; `GCLOUD_TOKEN=$(gcloud auth print-access-token)`): against the DEPLOYED
+  rules a member submits (ok), approves their own (denied), changes `requestedBy` (denied), adds a note (ok), and the LIVE
+  `onProcurementTicketWritten` wrote the admin's feed item within seconds — **9 ok**; everything it created is deleted in
+  `finally` (Alex gets one push titled "New purchase request … [TEST] … ignore" from it).
+- **Then three Opus agents tested it end to end in parallel** — a rules/core adversary (334 cases on the emulator + node),
+  a UI explorer (five personas, every seeded state, 390 px), and an integration reviewer — and found ~30 real issues.
+  All fixed and pinned in the suites:
+  - **XSS (integration review):** `esc()` escaped `<>&` but not quotes, and its output lands in `value="…"` / `href="…"`,
+    so a product link or item name could break out of its attribute and run in the PI's session. `esc()` now escapes
+    `"` and `'`; product links may not contain quotes or spaces; the browser journey carries an attribute-breakout canary.
+  - **Rules (adversary):** moves are now exact per-role `from>to` pairs (an approver could go approved→needs_info,
+    denied→approved, cancelled→denied; a purchaser could rewrite item / quantity / account under cover of the order);
+    receive and put-away may touch only their own fields and must be signed `receivedBy` / `placedBy` = caller (a
+    bystander could rewrite cost, account and approver "on the way"); every non-admin update is **append-only** on
+    `history` / `notes` / `watcherUids` and `lastActorUid` must be the caller (it is what the notify function uses to
+    exclude the actor — it was spoofable); a requester may only *clear* decisions (could stamp `approvedBy` on their own
+    ticket); create must be born now (`createdAt == request.time`), un-decided, with ≤1 history entry and no notes
+    (back-dated / pre-approved / "PI-authored" tickets); flags only while ordered/received and cleared only by a
+    purchaser; `tTo()` defaults to `requested` so a V3.44 ticket with no `status` field can still be noted or edited.
+  - **Core (adversary + explorer):** a requester's edit while a question is open IS the answer (→ requested; the rules
+    refused needs_info→needs_info for requesters, so Edit was offered and then denied); validation refuses 0 / negative
+    quantities, `$12.50`, `12abc`, `1e309`, Feb 30, and *Other…* with nothing typed; receiving **0** can no longer put the
+    ordered quantity away and unit price divides by the quantity *received*; legacy categories are kept on edit instead
+    of being re-filed as consumable; `price_history` writes `unit_price` (the key inventory.js reads — it showed $0.00);
+    report periods run midnight to midnight (were noon to noon) and tickets without `createdAt` fall in no period; CSV
+    cells starting `= + - @` are neutralised; stale requests are measured by last activity; award status compares
+    case-insensitively; an approver's own request is listed once in the inbox.
+  - **Page (explorer + review):** a notification link to a deleted ticket no longer takes the page down; `submitForm`
+    acts on the *current* ticket object after a live refresh (the captured one went stale and a second Approve wrote a
+    duplicate); a batch order mirrors locally only after `commit()`; **put-away is one batch** (inventory item or
+    restock + usage row + ticket move) so two people unpacking the same box, or a retry after a refused move, cannot
+    double the stock; tab and status counts refresh after every action; typed text survives switching forms or
+    collapsing a row (Cancel / Escape discard); "+ New request" focuses an open composer instead of closing it and
+    Escape closes it; number inputs holding junk (`badInput`) are refused inline; the edit form warns when saving sends
+    the ticket back; *Edit order* can apply the PO to the other items on it; stale Approved / Ordered / Received rows
+    hide after an undo or a denial; search and the status filter look across every tab (with a note); the Report table
+    scrolls on phones and an inverted period says so; put-away prefills the reorder item's location; a tracked item
+    that was never counted routes to a manager; edit history and toasts use plain words; `<label>` wrappers name every
+    field; inventory `?item=` also opens a variant inside a product family.
+  - **Function (adversary):** undoing an approval or reopening tells the requester; denying or withdrawing after
+    approval tells purchasers to stand down; an approver changing an approved request, or a new ETA / PO, notifies;
+    the sweep uses last activity and never addresses `guest_` uids.
+  - **After the round:** core **141**, function **47**, rules **100 ok / 0 HOLE / 0 BREAK**, E2E **76**, browser **112**,
+    production smoke **9**. Rules and both functions redeployed (same scratch-copy discipline).
+- **The project decides the funding string** (Alex, after the round: *"users should specify which project this purchase is
+  for, this way the correct funding string is used"*). The request form's free-text Project and separate "Pay from"
+  select are gone; a required **Project** select lists the lab's funded projects and fills a read-only **Charged to**
+  with that project's funding string (`funding_string` if set, else `account_number`), stored on the ticket as
+  `projectId` / `project` / `fundingAccount` / `fundingLabel`. *Other / not listed…* takes a typed name and no funding
+  string; **approving such a ticket (or a V3.44 one with only a tag) requires picking the project** — the approve form
+  shows the same picker, `buildPatch('approve')` refuses without a funding string, and the card, the order form and the
+  purchasers' "Ready to order" push all say what to charge. The source is **`labConfig/fundedProjects`** (auth-read,
+  admin-write — no rules change): the Grant Accounts page (`rm/js/projects-grants.js`, per-user `financeProjects`)
+  gains a `funding_string` field and **publishes its active projects there on every save** (and once on first admin
+  load); until an admin has published, the legacy `labConfig/fundingSources` entries stand in. Core:
+  `fundedProjectOptions()`, `applyProject()`, `projectForAccount()` (reorder prefill matches the item's account),
+  `summarize().byProject`, `newInventoryItem` writes `project_tag`; `EDITABLE` + rules `requesterKeys` gain `projectId`.
+  Report gains a *By project* table. Seeded in production now: the admin's four Grant Accounts projects
+  (Cancer Engineering - Prostate `1101917-MCMI`, Cancer Engineering - TF-ELISA `1101917-MCPO`, McGhee Startup `1101935`,
+  McGhee-Triff `5406011-AMSTP`) published to `labConfig/fundedProjects`, so the form is live on FTP day. The ten
+  tickets students already filed keep their tags; the ones with an account (`1101935` / `3062920`) approve as-is, the
+  two without get a project at approval. Tests updated: core, rules, E2E, browser, prod smoke.
+- **Deployed** — `firestore:rules` from a scratch copy = live + only this block (the undeployed V3.806 self-role hunk stays
+  Alex's call, per `feedback_rules_deploy_foreign_hunks`), then `functions:onProcurementTicketWritten,procurementDailySweep`.
+- **FTP (Cyberduck), relative to the site root:** `rm/js/procurement-core.js` (new), `rm/js/procurement.js`,
+  `rm/css/procurement.css`, `rm/pages/procurement.html`, `rm/js/projects-grants.js`, `rm/js/capability-registry.js`,
+  `rm/js/settings.js`, `rm/js/inventory.js`, `rm/js/dashboard.js`, `rm/js/nav.js`, `sw.js`. Batched with the ledger.
+  Final counts after the project change: core **154**, function **48**, rules **100 ok / 0 HOLE / 0 BREAK**, E2E **80**,
+  browser **121**, production smoke **9** (third run, after the final rules + function redeploy).
+
+## [V3.812] — 2026-10-19 — Pins that stick, and your own version of a default workflow (no custom copy needed)
+
+Plan: `CodeLog/ClaudesPlan/V3.812_pin_race_and_personal_workflow_overlay.md`. Alex: *"the star doesnt work for me when i
+try to pin it. also i want to be able to customize my workflow pages without haveing to make a custom type."*
+
+- **Bug fix** (pins, `rm/js/nav.js` `NavPins`): `loadCloud()` ran once per page after sign-in resolved and overwrote the
+  local mirror with the cloud doc — so a ★ pressed in the first second or two of a page (exactly when you arrive and
+  press it) was reverted when the stale read landed; a toggle before sign-in resolved was never written at all. The
+  mirror now carries a `dirty` flag (set by a user toggle, cleared when the cloud write lands, clean on a cloud pull);
+  `loadCloud()` PUSHES the local list when dirty — checked before the read and again after it resolves — instead of
+  pulling, and a pre-sign-in toggle is pushed once the user is known. A toggle made while the read is in flight also
+  outranks the read result even when its own write already landed and cleared `dirty` (the mirror's `t` vs the read's
+  start time) — the harness caught exactly that hole on the first run. Every toggle now toasts ("★ Pinned Tasks to your
+  bar" / "Unpinned Tasks", with "you'll see it once you leave this workflow" while a workflow is active, since the chip
+  row shows workflow pages then). The active chip's ★ is always visible (not hover-only — on an iPad it never appeared);
+  ★/× hit targets grow under `(hover: none)`; the palette's current-page star says "Pin this page to the bar".
+- **Added** per-user customization of a default workflow — `userData/{uid}/workflowPrefs/{workflowId} = { workflowId,
+  addedPageIds, removedPageIds, orderOverride, updatedAt }`. The session overlay the strip had since V3.65/V3.66 is now
+  written 400 ms after every × / + / drag (`_navQueueWorkflowPrefsSave` → `_navSaveWorkflowPrefs`; deleted when the
+  overlay is empty again) and read into a fresh session state the first time the bar renders that workflow
+  (`_navHydrateWorkflowPrefs`, before the chip list is computed so there is no flash of the lab default;
+  `state.prefsLoaded`; edits already made in the tab win). Effective pages stay `lab pageIds ∪ added − removed` in the
+  override order with the admin's new pages appended (`_wfEffectivePageIds` unchanged), so admin changes still reach
+  everyone. For a **custom** workflow the same queue folds edits into the user's own `customWorkflows/{id}.pageIds` (what
+  the Save button did) and clears the session overlay. Blanket `userData` owner rule — **no rules deploy**.
+- **Changed** the bar in workflow mode: the **Save as mine / Save chip is gone**. The Workflows ▾ trigger shows an amber
+  dot (`.nav-dropdown-wf--customized`) when the active default is customized; the menu header reads "· customized for
+  you" and offers **Reset to lab default** (`_navResetWorkflowPrefs`: clears the overlay, deletes the doc, toasts).
+  **Save as my workflow…** is now always offered for a default workflow, as the way to get a separate copy. The menu
+  re-fills after hydration so these reflect the loaded overlay. `sw.js` CACHE_VERSION 797 → 798.
+- Verified: `scripts/tests/v3809-nav-selftest.html` now runs on an in-memory Firestore stub that records writes and can
+  delay one read, plus a toast recorder — **121 checks**: scenario C asserts the debounced overlay write and the
+  customized mark instead of the Save chip; **H** reproduces the race (cloud read delayed 350 ms, ★ pressed at once):
+  the unpin survives the stale read, the cloud doc is pushed not pulled, the mirror ends clean, the active chip's ★ is
+  visible without hover and pins with a toast; **I** loads a saved overlay into a fresh tab (override order first,
+  removed gone, added at the end, nothing written on hydrate), then Reset restores the lab default and deletes the doc.
+  `nav-recents.test.mjs` 48 checks incl. the dirty flag.
+- **Owed:** your real account — pin a page right after a load and on the iPad; customize a default workflow, open it in
+  another tab/device, then Reset.
+- **FTP (Cyberduck), relative to the site root:** `rm/js/nav.js`, `rm/js/nav-palette.js`, `rm/css/style.css`, `sw.js`.
+  No `firebase deploy`.
+
+## [V3.811] — 2026-10-19 — Default workflows get an editor: the main workflows, their order, and the pages in each
+
+Plan: `CodeLog/ClaudesPlan/V3.811_default_workflows_admin_editor.md`. Alex: *"I want a cleaner way to set the default
+workflows as the admin, so what are the main workflows, and what pages should show up"*. Until now this was the V3.63/V3.77
+"Default Workflows × Pages" tab on admin-permissions.html: one row per workflow, 57 checkbox columns, and the name, icon,
+blurb, landing `<select>` and delete button squeezed into each row header. The order of a workflow's pages — the chip
+order in the bar since V3.809 — was not editable at all.
+
+- **Added** `rm/pages/admin-workflows.html` + `rm/js/admin-workflows.js` + `rm/css/admin-workflows.css` (admin-gated via
+  `firebridge.gateAdmin`). **Left rail**: the main workflows in the order everyone sees them (Workflows ▾, Home, the
+  palette) — icon, name, page count, a *hidden* badge; drag or ▲▼ to reorder; click to edit; **+ New workflow** is an
+  inline name field (slug id, de-duplicated). **Editor**: an icon button opening a grid of the 100 Heroicons with a filter
+  (or type an emoji), name, one-line blurb, a **Visible to the lab / Hidden** switch, the id; **Preview** renders real
+  `.nav-chip` markup in a `top-nav--workflow` bar; **Pages in this workflow** is an ordered list (drag or ▲▼ = chip order,
+  ★ *landing* radio, × remove, a page the nav no longer knows is flagged); **Add pages** is a filterable grouped list of
+  the pages not yet in the workflow — name matches first, blurb matches only when no name matches, Enter adds the first.
+  **Delete** is an inline confirm strip. One **Save changes** (⌘S) writes the whole `labConfig/defaultWorkflows` doc with
+  `{ merge: true }`; the header counts unsaved changes; **Revert** restores the saved copy; `beforeunload` guards unsaved
+  edits. First run (no doc) shows the built-in set (registry seeds + nav seeds) and Save writes it, with `seededAt`.
+  No `window.prompt` / `confirm` / `alert` anywhere.
+- **Added** `workflows[].enabled` (optional, default true) to the doc shape. `false` keeps a workflow saved but hides it
+  from the Workflows ▾ menu (`_navFillWorkflowsMenu`), the palette (`_navPaletteContext.loadWorkflows`) and Home
+  (`workflow-chooser.js`), so an admin can draft a workflow before launching it. Order of the array and of `pageIds`
+  are unchanged in meaning and now first-class in the UI. `labConfig` is already admin-write — **no rules deploy**.
+- **Added** discoverability: NAV_ITEMS Settings → **Default Workflows** (admin, `rectangle-stack`) + blurb; Workflows ▾
+  footer **Edit default workflows** for admins; Home → Workflows heading **Edit defaults →** for admins (`.wf-admin-link`).
+- **Changed** `rm/pages/admin-permissions.html`: the "Default Workflows × Pages" tab is a **Default workflows ↗** link to
+  the editor (the hub tab loop now honours `t.href`), its tab body is a pointer card, the first-run seed box is gone.
+  `rm/js/admin-permissions.js`: `renderWorkflowGrid` returns when its table is absent, the two seed-box references are
+  null-guarded, header comment marks the grid retired; the grid/save code stays inert rather than being excised from a
+  2,000-line file. `sw.js` CACHE_VERSION 796 → 797.
+- Verified: `scripts/tests/v3811-admin-workflows-selftest.html` (stub admin firebridge + a recording Firestore stub with
+  two workflows; `window.confirm/prompt/alert` stubbed to THROW) — **54 checks**: load order + selection, rename updates
+  the rail live and the unsaved count, picker filter/name-first/blurb fallback, add appends and leaves the picker, ▲ moves
+  a page, landing radio moves the star + model + preview, × keeps the landing, the Hidden switch marks rail + preview,
+  icon chooser grid/filter/pick, rail ▲ reorders with selection kept, selecting swaps the editor, first page is the
+  implicit landing, inline new-workflow (empty-name error inline, slug id, focus on name), inline delete (Keep it / Delete),
+  one merge write to `labConfig/defaultWorkflows` whose array order = rail order and whose row carries every edit
+  (`label`, `icon`, `landingPageId`, `pageIds`, `enabled:false`), untouched row `enabled:true`, no `seededAt` on an
+  existing doc, Revert, ⌘S. Screenshot of the editor read. `scripts/tests/v3809-nav-selftest.html` still 97/97 and
+  `nav-recents.test.mjs` 45/45 after the NAV_ITEMS addition. The real page signed-out shows the admin gate with 0 script
+  errors; the permissions hub tab bar shows the new link.
+- **Owed:** a signed-in admin pass on the real doc (your five workflows), and a look at what each student sees after a
+  save.
+- **FTP (Cyberduck), relative to the site root:** `rm/pages/admin-workflows.html` (new), `rm/js/admin-workflows.js` (new),
+  `rm/css/admin-workflows.css` (new), `rm/js/nav.js`, `rm/js/workflow-chooser.js`, `rm/css/workflow.css`,
+  `rm/pages/admin-permissions.html`, `rm/js/admin-permissions.js`, `sw.js`. No `firebase deploy`.
+
+## [V3.810] — 2026-10-19 — Quick contexts: Chat (left) and Tasks (right) slide out on every page
+
+Plan: `CodeLog/ClaudesPlan/V3.810_quick_contexts_chat_tasks_popouts_everywhere.md`. Alex, after V3.809: *"i still want chat
+and tasks to be on the sides of the page as quick contexts"*. The shared ShellPopouts overlays (V3.85 / V3.89 / V3.90) had
+only ever been mounted by the workflow shell and the split shell.
+
+- **Added** page mode to `rm/js/shell-popouts.js`: `init({ pageMode, urlState:false, stateKey, hideFor })`. Page mode toggles
+  `body.rm-page-popouts`, defaults both sides **closed** (the shells keep default-open), keeps state in localStorage only
+  under its own key `mcgheelab.pagePopout.state` (page urls stay clean; a bookmark's `?leftOpen=1` can't pop a panel on an
+  unrelated page), falls back to nav.js's `_wfBuildPageMap()` when `PAGE_REGISTRY` isn't loaded (ordinary pages don't load
+  page-registry.js), draws the page's NAV_ITEMS Heroicon on the pill/header instead of the emoji map, and hides the side
+  whose page is the one you are on (`hideFor`: no Chat inside Chat).
+- **Added** `_navInitPagePopouts(wfState)` in `rm/js/nav.js`, called at the end of `_navBuildBar`: loads
+  `/rm/js/shell-popouts.js` + `/rm/css/workflow-shell.css` on demand and mounts Chat left / Tasks right on every ordinary
+  page for signed-in lab members on viewports wider than 1024px. Skipped: embeds (renderNav returned already — a popout's
+  own iframe is one, which is what stops recursion), the two shells + app-shell + library-mobile pages
+  (`NAV_POPOUT_SKIP_PATHS`), the phone app runtime (`_navIsAppRuntime`: Capacitor, `?mobileShell=1` preview, inside
+  app-shell, `body.ourlab-app`), guests, signed-out. The header picker's "This workflow" group is the bar's chips.
+- **Changed** `rm/css/workflow-shell.css`: `body.rm-page-popouts .shell-popout` is `position:fixed; top:56px; bottom:0;
+  z-index:90` (above page content, under the bar, its menus and the palette). `sw.js` CACHE_VERSION 795 → 796.
+- Verified: harness scenario G (`scripts/tests/v3809-nav-selftest.html`, now **97 checks**, 0 failed): both roots mount on
+  tasks.html closed, fixed at 56px, Tasks side hidden there, url untouched before and after opening; the Chat pill opens an
+  iframe `chat.html?embed=1` named `rm-shell-popout-left`; state lands under the page key and the shells' key stays
+  untouched; the picker lists pages from the nav map; × closes; on chat.html the Chat side is hidden and the Tasks pill
+  shown; nothing is mounted by nav.js on the workflow shell host. Screenshot of library.html with Chat open read.
+  `node scripts/tests/nav-recents.test.mjs` still 45/45.
+- **Owed:** a real signed-in look — the panels load the real Chat and Tasks pages, which the stub can't exercise.
+- **FTP (Cyberduck), relative to the site root:** `rm/js/nav.js`, `rm/js/shell-popouts.js`, `rm/css/workflow-shell.css`,
+  `sw.js` (on top of the V3.809 list). No `firebase deploy`.
+
+## [V3.809] — 2026-10-19 — Navigation redesign: one bar everywhere, pinned + recent page chips, "Go to…" palette, workflows as a switcher
+
+Plan: `CodeLog/ClaudesPlan/V3.809_navigation_redesign_one_bar.md`. Alex: *"we need to update how users navigate the pages …
+one idea may be to add a most commonly used and last used pages as a top bar"* → *"ok lets do a full redesign of the
+navigation and workflows system to make this as user friendly as possible"*. Since V3.74 the bar on every page carried only
+Workflows / All Pages / Split, so any page was two hops away through the home grid; a workflow was a *mode* whose blue strip
+replaced the whole bar (and dropped the profile + sync chips, which inject into `.top-nav`).
+
+- **Added** the one bar. `rm/js/nav.js` `renderNav()` → `_navBuildBar(wfState)` draws the same `nav.top-nav` on every page:
+  brand · **⌕ Go to…** (`.nav-goto`, ⌘K / Ctrl+K / `/`) · **chips** (`.nav-chips`) · **+** · **Workflows ▾**
+  (`.nav-dropdown-wf`) · **⊟** (`.nav-split-link`; the V3.632 pane pickers on the split shell). Chips are the user's
+  **pinned** pages then **recent** pages by frecency, the current page always seated and `.active`; a ResizeObserver
+  (`_navFitChips`) hides what doesn't fit (never the active chip) and numbers the visible ones for **⌥1–⌥9**. Hover a chip →
+  ★ pin/unpin (`.nav-chip-pin`). Height stays 56px.
+- **Added** `NavRecents` (nav.js): `localStorage['rm.nav.recent.v1'] = {pages:{id:{s,t,n}}, seeded}`, visit
+  `s = s·0.5^(Δdays/7) + 1`, read `s·0.5^(Δdays/7)`, 40-page cap, per device on purpose. `_navRecordVisit()` records only in
+  the top frame of a registry page (not embeds, not the shell/split hosts); a chip switch inside the shell counts too.
+  First run with an empty store seeds from `trackerEntries/{uid}/entries` (`date >= today−30d`, client-filtered
+  `source == 'rm-page-time'`, one weight per day-doc) — `_navMaybeSeedRecents()`.
+- **Added** `NavPins` (nav.js): `userData/{uid}/navPrefs/pins {pageIds, updatedAt}` with a `localStorage['rm.nav.pins.v1']`
+  mirror for the first paint; defaults `my-week`, `tasks`, `chat` until the user pins/unpins once. Covered by the blanket
+  `userData/{userId}/{document=**}` owner rule — **no rules deploy**. `rm:nav:pins-change` re-renders the chips, the home
+  tiles and the palette stars.
+- **Added** `rm/js/nav-palette.js` — the Go to… command palette, lazy-loaded on first use (prefetched on idle, never in the
+  app). Empty query: Pinned · Recent · This workflow · Workflows · every group in NAV order. Typing scores label (prefix 100 >
+  word-start 80 > substring 60 > subsequence ≤30) and blurb/group (substring only — subsequence on a blurb surfaced
+  *Teaching* for "note"), workflows too ("Switch to"). ↑↓ ↵, ⌘↵ new tab, Esc, ★ per row. Mode-aware via the `ctx` nav.js
+  hands it: in the shell a chosen page is added to the workflow if missing and shown (`rm:shell:set-active`); on the split
+  host it swaps the active pane (`rm:split:swap`); `mode:'add'` is the strip's "+ Add page" (falls back to the V3.65
+  modal if the script fails to load).
+- **Added** Workflows ▾ (`_navBuildWorkflowsMenu` / `_navFillWorkflowsMenu`): default workflows the user can open (seeds
+  merged with `labConfig/defaultWorkflows`), My workflows, "New workflow…" (`/rm/index.html#new-workflow`), "All workflows
+  on Home". While a workflow is active the trigger shows its icon + name and the menu adds **Leave workflow**, **Add a
+  page…**, **Save as my workflow / Save changes** (when dirty / custom), **Open in split view**. Picking one writes the
+  session state (kind included) and opens the shell; inside the shell it dispatches `rm:shell:switch-workflow` (in place,
+  V3.89). **Leave in the shell now goes to the active page's real URL** (remembered `pageState` or canonical href) instead
+  of reloading the shell; elsewhere it redraws the bar in place.
+- **Changed** workflow mode: the same chip row shows the workflow's effective pages (`_navRenderWorkflowChips` — the strip's
+  pill logic ported: remembered URLs, `?workflow=` decoration, split open/active markers, shell `set-active` clicks, drag
+  reorder via the V3.66 handlers now reading `.top-nav .nav-chip[data-page-id]`, × remove, + add, Save). The bar gets
+  `top-nav--workflow` (indigo tint). `renderWorkflowStrip`, `_wfPopulateBrandDropdown` and `_wfPinCustomWorkflows` are
+  deleted; `_wfRefreshStrip()` keeps its name (workflow-shell.js calls it) and now re-renders the bar, carrying the injected
+  `#fb-profile-wrap` / `#sync-status-chip` across. `renderNav()` called twice redraws instead of stacking a second bar.
+- **Changed** `NAV_ITEMS`: every entry carries an `icon` (Heroicon name); `NAV_PAGE_DESCRIPTIONS` moved from all-pages.js
+  into nav.js (the one script every page loads) with blurbs added for research, outputs, library topics, what's new;
+  "Dashboard" is labelled **Home** (id stays `dashboard`); "🚀 What's New" drops the emoji for `icon: 'rocket-launch'`.
+  `_wfBuildPageMap` and `page-registry.js` entries now carry `icon` (+ `desc` in the registry).
+- **Changed** RM Home (`rm/index.html`): one scrolling page — My Lab Today (home-feed.js) → **Jump back in** (new
+  `rm/js/home.js`: pinned + recent tiles from the same stores) → **Workflows** (`workflow-chooser.js` renders into
+  `#home-workflows`, opens the builder on `#new-workflow`) → **All pages** (`all-pages.js` renders into `#home-pages-grid`
+  with a filter box, Enter opens the first match, ★ on every tile). The V3.74 Workflows | All Pages tab toggle and
+  `__RM_HOME_VIEW` are gone; `?view=all-pages` / `#all-pages` scroll to the section and focus the filter; `#workflows`
+  scrolls to the cards. Header button **Find a page…** opens the palette.
+- **Changed** CSS: `rm/css/style.css` gains the chip/menu/palette/home rules (`.nav-goto`, `.nav-chip*`,
+  `.nav-dropdown-wf`, `.nav-palette*`, `.home-*`); phones collapse chip labels to icons via the existing `.nav-label` rule.
+  `rm/css/workflow.css` retires the strip rules (chooser cards, modals, home feed stay); `rm/css/workflow-shell.css` lays
+  out `body.has-workflow-shell > .top-nav`. `sw.js` CACHE_VERSION 794 → 795.
+- **Changed** `rm/CLAUDE.md` step 7 (a nav entry needs an icon + blurb).
+- Not changed: `firestore.rules`, the shells (`workflow-shell.js`, `split-view.js`, `shell-popouts.js`), `workflow-state.js`,
+  the admin matrix, the phone app (every new element carries `nav-app-hide`; the tab bar + More sheet are untouched).
+- Verified: `node scripts/tests/nav-recents.test.mjs` — 45 checks (frecency maths, prune, seed, pins mirror/defaults, chip
+  selection incl. ?tab and the cap keeping the current page, every nav page has an icon that exists in icons.js and a
+  blurb, palette scorer). `scripts/tests/v3809-nav-selftest.html` (stub firebridge, self-driving, headless on :8765) —
+  **79 checks**: personal bar, pin toggle, gated chip hidden/shown by role, overflow never hides the active chip, workflow
+  mode (chips = seed pages, × → Save appears, remembered URL, menu contents, + → palette add-mode excludes workflow pages,
+  Enter adds Protocols, Leave in place), shell host (adopts `?workflow`, chip click → `rm:shell:set-active`, palette →
+  set-active for a page outside the workflow, menu → `rm:shell:switch-workflow`), split host (pickers, Go to → swap active
+  pane, open/active markers, chip → swap), keyboard (⌘K, Esc, "/" ignored in inputs), exactly one bar. Signed-out headless
+  drive of the real pages: home renders the bar at 56px, palette opens/filters/closes/reopens on ⌘K, Enter navigates to
+  Tasks and records the visit, chip ★ unpins and the store + chips follow, split shell shows two pickers, no `<svg` text
+  leak, 0 console errors beyond the known `/api/data/_probe.json` 404.
+- **Not verified (owed):** a real signed-in session — admin and a student — for chips after real visits, pin sync across
+  two devices, the trackerEntries seed on a fresh device, Leave in the shell landing on the real URL, and the phone app
+  unchanged.
+- **FTP (Cyberduck), relative to the site root:** `rm/index.html`, `rm/js/nav.js`, `rm/js/nav-palette.js` (new),
+  `rm/js/home.js` (new), `rm/js/all-pages.js`, `rm/js/workflow-chooser.js`, `rm/js/page-registry.js`, `rm/css/style.css`,
+  `rm/css/workflow.css`, `rm/css/workflow-shell.css`, `sw.js`. No `firebase deploy`.
+
+## [V3.808] — 2026-10-19 — Teachers post a classroom visit with no account (`#/invite-a-scientist`)
+
+Plan: `CodeLog/ClaudesPlan/V3.808_engage_no_account_visit_posts.md`. Alex: *"I need to be able to have teachers add
+engagement opportunities as a guest, so they do not need to sign in. I believe there is a hurdle right now for teachers
+to spark an engagement opportunity based on the fact that they would need to make a sign in."*
+
+- **Added** `engage-guest.js` (route `#/invite-a-scientist`, not AUTH_GATED).
+  - **The form** is one page of five numbered cards: you and your school; your class; the visit (title, kinds with
+    hints, where, topic, one presenter or several together, 1–12 date rows with from/to times, a new row copying the
+    last row's times); where visitors go (shown only for "at the school", marked private); and a note to the lab.
+  - Every error shows beside its field at once. A summary under the button says how many things to fix.
+  - An unsent draft survives a reload (`localStorage mcgheelab.engageGuest.draft`). A hidden honeypot field catches
+    bots.
+  - Posting shows the **private link** with Copy, Email it to myself (a mailto to their own address) and Open my page.
+    The browser remembers posts made from it (`mcgheelab.engageGuest.posts`).
+- **The private page** is `#/invite-a-scientist/{token}`.
+  - A status card: waiting for review / live / booked / dates passed / not published, with the lab's note /
+    withdrawn. It also counts sign-ups waiting and owed emails.
+  - The keep-this-link box.
+  - Sign-ups, in groups:
+    - *waiting for your answer*: Accept… (date radios from the presenter's ticks ∩ the post's dates, or the set date
+      for a panel; students prefilled from the class size; an optional note) or Decline…;
+    - *coming up*: the confirmation email draft with Copy / Open in your email app / Yes, I sent it, and Cancel this
+      visit;
+    - *past*: with the presenter's review;
+    - *declined or cancelled*: collapsed.
+  - The post's details, then Edit (while pending), That's enough presenters (a panel with ≥1 accepted) and Withdraw.
+    Withdraw and Cancel are armed confirms.
+  - The page never touches Firestore. Every call is a POST to `engageGuest`.
+- **Added** `functions/engage-guest.js` → **`engageGuest`** (onRequest, `cors: true`, GET = health probe).
+  - `handle(db, body, ctx)` holds the whole behaviour. Actions: `submit` / `get` / `update` (pending only) /
+    `decide` (confirmed | declined) / `emailed` / `cancel` / `enough` / `withdraw`.
+  - Storage: `engageGuestPosts/{id}` `{ teacher{name,email,phone}, listing{school,schoolType,city,state,subject,grade,
+    classSize}, opportunity{title,activityTypes,formats,topic,presentersWanted,dates[]}, location{address,room,
+    arrivalNotes}, noteToLab, status: pending|published|declined|withdrawn, manageToken, teacherUid:'guest_{id}',
+    opportunityId?, labNote?, createdAt, updatedAt, publishedAt?, lastViewedAt? }`. The token is 24 random bytes,
+    base64url, and the post is found by `where manageToken ==`.
+  - Validation mirrors the form. Dates are today…+400 days in America/Phoenix, with HH:MM times, end after start and
+    no duplicates. Presenters 1–6, class size 1–500, and an address is required when "at the school" is ticked.
+  - Abuse limits: the honeypot, **5 posts per IP per hour** (`engageGuestRate/{sha256}` in a transaction), and at
+    most **200 posts pending** (a `count()` aggregate). A new post pushes admins.
+  - Accept is a **transaction** over the request and the opportunity. It mirrors step 7: the date must be in the
+    presenter's ticks and the opportunity's `dateKeys`, and must equal `bookedDate` once set. It copies the private
+    address (and the teacher's phone) as `location` and books when full. Other waiting sign-ups get the panel's own
+    auto-decline note.
+  - `cancel` un-books, and reopens when dates remain. `get` shows a presenter's email only once they are accepted.
+- **Changed** `functions/engage-notify.js` — `isGuestTeacher` / `realUsers`: never notify a `guest_…` uid. Without
+  this, `notifyUsers` would create a `userData/guest_…/notifications` feed for nobody. A sign-up on a guest post
+  pushes **admins**, pointing at the admin tab: "…posted without an account, so email them from the admin
+  Engagement tab".
+- **Changed** `engage-hub.js` — the confirmation email moved out of the teacher panel's closure into module-level
+  `buildVisitEmail(c)` + `kitMailtoOf`, exported on `ML.EngageKit` as `buildVisitEmail` / `mailtoOf`. The panel's
+  `visitEmailParts(r)` now only gathers context. A before/after capture of every draft the demo teachers render
+  (to, subject, body, mailto href) is **byte-identical**.
+- **Added** `rm/js/admin-teachers.js` `?tab=engage` → **Visit posts without an account**.
+  - The shareable teacher link, then one row per post. Each row shows teacher, class, kinds, dates (past ones struck,
+    "every date has passed"), the private address, the note to the lab, posted / published / last-opened, and the
+    private link.
+  - **Publish** is one batch: `engageProfiles/guest_{id}` (approved, `guest: true`) + `private/contact` + a new open
+    `engageOpportunities` doc for `guest_{id}` + the post → `published`.
+  - **Decline…** opens an inline note field (no prompt).
+  - **Email the teacher** is a mailto worded for where the post stands. It becomes **Tell the teacher (N sign-ups)**
+    when presenters are waiting.
+  - Also **Copy their link** and **Open their page**. Guest listings carry a "no account" chip.
+- **Fixed in the same pass:** the Publish/Decline confirmations were written before `loadAndRender()`, which ends by
+  writing its own status line, so the admin never saw them. Caught by the admin-tab harness.
+- **Changed** `teacher-teach.js` `#/teachers` — a **"Just want a scientist to visit your class?"** card (no account,
+  link to `#/invite-a-scientist`) for everyone but a set-up teacher.
+- **Changed** `firestore.rules`:
+  - `engageGuestPosts/{id}`: read and write `isAdmin()` only.
+  - `engageGuestRate/{key}`: `false`.
+  - `engageOpportunities` create gains `|| isAdmin()`, placed LAST so a teacher's own create never depends on
+    `isAdmin()`'s users/ read.
+- `app.js` (route + `isClassEnv`), `index.html` (script), `sw.js` (`SHELL_URLS` + CACHE_VERSION 793 → 794),
+  `styles.css` (`.eg-*`), `rm/pages/admin-teachers.html` (`.tcadm-guest-*`).
+- **Tests:**
+  - `functions/test/engage-guest.test.js`: 50/50 against the **Firestore emulator** with the real Admin SDK.
+  - Rules `:test`: 24/24, calibrated by flipping 2 expectations, which produced 2 failures.
+  - Browser, end to end (the page's calls routed into the real `handle()` on the emulator): 34/34.
+  - Admin tab on the real page with a stub bridge: 17/17.
+- **Deployed 2026-10-19:**
+  - `firestore:rules` — live + ONLY these three changes. The repo file also carries V3.806's `users` self-role guard,
+    whose deploy is Alex's (after `functions:aliasSignIn`), so this deploy was built from a scratch copy without that
+    hunk.
+  - `functions:engageGuest,onEngageRequestWrite,onEngageReviewWrite`.
+  - Prod smoke: GET ok, unknown token 404, invalid submit 400, honeypot 400, CORS preflight from mcgheelab.com 204,
+    and no posts written.
+  - FTP with the batch.
+
+## [V3.807] — 2026-10-13 — BME 466: the equation compendium (N1) with the midterm practice as its last tab, staged
+
+Plan: `CodeLog/ClaudesPlan/V3.807_bme466_n1_compendium_practice_staged.md`. Alex: *"I want to combine the notes compendium
+with the practice-midterm then push this to the website."* Course repo CHANGELOG V3.54 (the fold), V3.49/V3.50 (the
+compendium), V3.53 (the practice).
+
+- **Added** `modules/bme466/N1-equation-compendium.html` — the course build, byte-identical (1,252,225 bytes, `cmp` clean).
+  A FRESH module: six week tabs of every numbered equation in the Weeks 1–6 modules (156 entries + 20 reuse cards; letters,
+  use, a biological example, a mechanical analogy; search, compact view, HW-only filter, light/dark, print) and a seventh
+  tab, **Midterm Practice**: five scenarios in new biology covering every relation on the midterm list, typed answers checked
+  to a band, a three-rung hint ladder, show-this-part, a plot per part, a 466/566 toggle, written parts with a model answer,
+  certified answers and the relations used behind reveals; each relation link jumps to the compendium entry in-page. MathJax
+  from the CDN as the compendium has always had; the practice needs no network. Carries `<meta name="ml-module-viewport">`,
+  so the module viewer gives it the viewport-height iframe its sticky bars, ↑ Top button and chatbot modal need. **Not
+  guarded**: the no-copy guard disables Print, and the course's V3.49 plan left the guard as Alex's call.
+- **Changed** `modules/manifest.json` (regenerated, 12 folders, 81 files; the new row's title is *Equation Compendium &
+  Midterm Practice — Weeks 1–6 (N1, BME/AME 466/566)*) and `sw.js` CACHE_VERSION 792 → 793.
+- No simulation pages: an N-prefixed notes page carries no module number, so `gen_simulations.py bme466` left the set at 82
+  (`--check` ok). Nothing to delete on the server.
+- Verified from this site root on port 8871: page load 0 console errors, 0 failed requests; the course's combined DOM QA
+  (`build/mtp-src/qa_n1.mjs`) over HTTP: all 34 practice parts driven at 566 (wrong → three hints → right; written →
+  compare), both reveals per scenario, chatbot prompt 12,804 chars, 6 rows folded at 466 and one unfolded, 24 canvases
+  painted; a relation link lands on Week 1's entry 1.1.1 in view under the bar; progress survives a tab switch and a reload
+  with the practice tab remembered; search from the practice tab lands on 4.2.5 in Week 4; 0 px overflow at 390. Ten
+  screenshots read (desktop, dark theme, phone). Course-side gates: lint, 7 week checks (2,073 numbers), the practice's 29
+  targets to 0.2 %, list coverage 39/39, `node --check` on both inline scripts.
+- **FTP (Cyberduck), relative to the site root:** `modules/bme466/N1-equation-compendium.html`, `modules/manifest.json`,
+  `sw.js`. **Then, as admin at `#/classes/bme466`: + Add Module → `modules/bme466/N1-equation-compendium.html` → order →
+  Visible.**
+
+## [V3.806] — 2026-10-13 — One person, two Google logins + nobody changes their own role
+
+Plan: `CodeLog/ClaudesPlan/V3.806_alias_login_and_self_role_guard.md`. Alex: *"make the backup account
+mcgheealex@arizona.edu … make both accounts mirror each other"*. He chose "same account, either login" over a separate
+backup admin.
+
+### Added
+- **`functions/auth-alias.js` → `aliasSignIn`** (HTTPS POST, `Authorization: Bearer <ID token>`; GET = health probe).
+  `verifyIdToken(token, true)` → `resolveAlias(decoded, ALIASES)` (mapped email, case-insensitive; provider
+  `google.com`; `email_verified === true`; caller ≠ target) → `getUser(target)` not disabled →
+  `createCustomToken(targetUid)` → `{ token }`. The map is the code constant `ALIASES` =
+  `{ 'mcgheealex@arizona.edu': 'uAicelwQ5gNQdH1Qc8wqZcJDRZQ2' }`. Logs each swap.
+- **`_aliasSwap(user)`** in `rm/js/firebase-bridge.js` (module scope) and `user-system.js` (`Auth._aliasSwap`), called
+  first in each `onAuthStateChanged`. For a `_ALIAS_EMAILS` hit it POSTs to `aliasSignIn`, then
+  `signInWithCustomToken`, then returns true so the alias pass skips profile load/bootstrap/overlay. Failure → warn and
+  continue as the alias (old behavior).
+- `functions/test/auth-alias.test.js` (10 ok).
+
+### Changed
+- **`firestore.rules` `users/{userId}` update:** `isAdmin() || (owner && role unchanged)` → `(isAdmin() &&
+  request.auth.uid != userId) || (owner && role unchanged)`. Nobody changes their own role, admins included; the
+  V3.805 incident write is now denied. `scripts/tests/profile-bootstrap-rules.test.mjs` asserts it (15 ok:
+  self-demote/promote denied; other users' roles and own non-role fields allowed). `teacher-rules.test.mjs` 84/84.
+
+### Deploy
+`firebase deploy --only functions:aliasSignIn` → `firebase deploy --only firestore:rules` (local == live checked
+before the edit) → FTP `rm/js/firebase-bridge.js`, `user-system.js`, `sw.js` (CACHE_VERSION 791 → 792), together with
+V3.805. The client is inert until FTP; the function is inert without the client.
+
+## [V3.805] — 2026-10-13 — Profile bootstrap is create-only (it demoted the PI to guest)
+
+Plan: `CodeLog/ClaudesPlan/V3.805_profile_bootstrap_create_only.md`. Alex: *"I have been denied access to RM when signed in
+as mcgheealex@gmail.com … it says i need to send an email to mcgheealex@gmail.com to request access"*.
+
+### Bug Fixes
+- **`rm/js/profile-bootstrap.js`** merge-wrote `{role:'guest', category:'guest', name, photo, createdAt, updatedAt}` whenever
+  `firebridge.onAuth` delivered `profile === null`. That includes a FAILED `_loadProfile()` read and a cache-only
+  `exists:false` snapshot, not just a missing doc. On 2026-10-13 19:56:59Z it overwrote `users/uAicelwQ…` (admin/pi →
+  guest/guest, team photo → Google avatar, name → Google displayName). The `users` update rule lets an admin rewrite their
+  own role, so the only admin locked himself out. Now `firestore().runTransaction(t => t.get(ref) → if (!snap.exists)
+  t.set(ref, payload))`: a server read, never queued offline, so it writes only when the doc really doesn't exist. The
+  V3.338 retry loop is kept.
+- **`user-system.js` `Auth._ensureGuestDoc(user)`** had the same shape (`DB.getUser().catch(() => null)` → `updateUser`
+  merge incl. `bio: ''`). Now the same create-only transaction. A failure is logged (`[auth] guest-doc bootstrap
+  skipped`) instead of failing the Google sign-in.
+
+### Added
+- `scripts/tests/profile-bootstrap-rules.test.mjs`: emulator test against the real rules. 10/10 ok: the old merge write
+  is allowed for an admin owner and demotes the doc (reproduces the incident) and is denied for a member; the transaction
+  leaves admin + member docs untouched, creates a first-sign-in guest doc, and can't create someone else's doc.
+
+### Deploy
+FTP only: `rm/js/profile-bootstrap.js`, `user-system.js`, `sw.js` (CACHE_VERSION 790 → 791). Not during a live lecture
+(V3.775). Data repair of `users/uAicelwQ…` is a separate, Alex-approved REST PATCH (see plan).
+
+## [V3.804] — 2026-10-07 — Whiteboard view dock: zoom + / − / home and "Page + ¼"
+
+Plan: `CodeLog/ClaudesPlan/V3.804_whiteboard_view_dock.md` (V3.803 was claimed by a parallel session). Alex: *"when I do
+lectures, I often zoom into the white board. I need a quick settings for zoom for +, -, home. I also want a quick setting
+for show full new page + 1/4 of the previous page."*
+
+### Added
+- **View dock** (`.wb-viewdock` inside `.wb-board`, `EL_SELECTORS.viewdock`, `renderViewDock()` from
+  `renderBoardChrome()`): a floating column in the board's top-left corner — **+**, **%** read-out, **−**, **⌂** (100%) for
+  everyone with the lens on the page route (never the projector; the module panel keeps its topbar zoom), plus
+  **Page + ¼** (`data-wb-act="view-quarter"`) for whoever can draw. Pointer/wheel events stop at the dock so a finger on a
+  button is never a scroll or pinch; `touch-action: manipulation` blocks iOS double-tap zoom.
+- `pagePlusQuarter()` / `frameQuarter(k)`: sheet `originY = pageTop(k) − ¼·BOARD_H` + lens scale
+  `min(stageH / 1¼ page heights, stageW / page width)` (1.2× on landscape screens), centred across, the previous page's last
+  quarter at the top. Page = the one under the middle of the VISIBLE view (`visiblePageIndex()`, lens included); tapping
+  again while the view is still exactly that frame (`S.quarterFrame`, `sameFrame()`) advances to the next page, appending
+  one (`appendPageNoMove()`) past the last. Publishes like any scroll (continuous: `viewY` = page k's centre, so followers
+  see ¼ above + the page + ¼ below; pages mode: `activePageId`); a follower device using it pauses following.
+- `animateView(t, ms, done)`: one tween for sheet scroll + lens together, registered as `S.sheetAnim` (a scroll gesture
+  cancels it, a resize retargets the scroll part; the lens keeps its own clock).
+- `appendPageNoMove()` — shared by continuous ＋ page and "Page + ¼".
+
+### Changed
+- `bindLensHandlers()`: `panBy(dx, dy, spill)` — in continuous mode a zoomed pan that runs past the lens edge carries on as
+  a sheet scroll (two-finger drag, wheel, a viewer's one-finger pan; NEVER the drawer's single finger, which is a resting
+  palm). A spilled gesture settles/publishes on release like a scroll.
+- `updateZoomLabel()` updates every `[data-wb-zoom-pct]` in the mount.
+- `.wb-sheetmode .wb-role-btn{ white-space: nowrap }` (the V3.801 toggle wrapped its icon onto its own line).
+
+### Verified
+Harness (stub Firestore, real `whiteboard.js`, dashed-separator pixels), DPR 1 + 2, new `dock` scenario 8/8: dock shows the
+4 actions to a drawer and 3 to a viewer; + − + + ⌂ → 125/100/156/100%; first tap frames p1 at 120%; second tap advances to p2
+with the p1/p2 boundary exactly ¼ page (×1.2) from the top and the room's `viewY` = 0.9375; a zoomed 300-px drag lets the lens
+absorb its range and scrolls the sheet by the rest (`viewY` exact to 4 dp); the next tap re-frames p2 rather than advancing;
+two more taps reach p3 and then append + frame p4; ⌂ returns to 100% keeping the scroll. Earlier leader/follower/pages/replay
+scenarios re-run green (50/50 total). `node --check` clean. **Not verified:** on the iPad with the Pencil (palm vs dock).
+
+### Deploy
+FTP only: `whiteboard.js`, `whiteboard-board.css`, `sw.js` (CACHE_VERSION 789 → 790). Not during a live lecture (V3.775).
+
+## [V3.803] — 2026-10-07 — Learning Modules carry a type; homework/keys and reports/tests get their own tabs
+
+Plan: `CodeLog/ClaudesPlan/V3.803_module_types_homework_reports_tabs.md`. Alex: *"when i add a new learning module to the
+learning module stack, i want to set a type. Homework, Homework key, report, test, module, pretest. Homeworks and keys
+should automatically be added to the homework tab. Make another tab for reports and tests."*
+
+### Added
+- **`class-builder.js`** — one optional field on `schedules/{id}.modules[]` entries: `type` ∈ `module` (default; every
+  pre-V3.803 entry), `pretest`, `homework`, `homework_key`, `report`, `test`. Notes (`kind:'notes'`) never carry a listing
+  type. No rules / index change — a new field in an array admins already write.
+  - `MODULE_TYPES`, `MODULE_TYPE_HOME` (type → the section key that lists it), `MODULE_TYPE_HIDDEN_DEFAULT`
+    (`homework_key`, `test` start **hidden** — a key visible the moment it is added is the one mistake this must not make
+    easy), `MODULE_TYPE_SHORT`; `moduleType(mod)`, `moduleTypeLabel(type)`, `moduleHomeKey(mod)` (null = stays in its
+    Learning Modules section), `defaultPublishedFor(kind, type)`.
+  - **Two registry entries, `component: 'typedModules'`:** `homeworkModules` ("Homework & Keys", types homework +
+    homework_key, `tabName: 'Homeworks'`) and `reportTestModules` ("Reports & Tests", report + test). They are DERIVED
+    lists — `renderTypedModulesBody(editing, section)` reads `modulesForTypedSection(key)` (every entry in the class whose
+    home is that key, in stack order: section tab order, then `order`). Nothing is copied. Public: published entries as
+    `cb-module-link`s to `#/classes/{id}/modules/{mod.id}` with a type badge. Editing: the same rows with a Visible box
+    and a "From *section* — reorder, retype or remove it there" note; no add/delete/reorder, the stack owns those.
+  - **`ensureTypedModuleTabs()`** — the "automatically". Same mould as V3.716's `ensureModulePlacements()`: called right
+    after it at load (so the public/student render gets the tab too) and in `refreshCanvas()`; mutates `_tabs` in memory,
+    never `markDirty()`s, bails when the class has no modules section (teacher-classes untouched). For each typed key
+    with ≥1 entry and no section yet: Homework & Keys is **appended to an existing Homeworks tab** (`findHomeworkTab()`:
+    the tab holding `hwList466`, else any tab named like one — so on BME 466 it sits under the Assignments & Due Dates
+    table) or gets a new public "Homeworks" tab; Reports & Tests gets a new public tab after the Homeworks tab, else
+    before the first `studentOnly`/`staffOnly`/`adminOnly` tab, else last. Returns what it made (words) for a toast.
+    Runs on every refresh, so deleting the tab while typed entries exist brings it back — retype or delete the entries.
+  - **Type guessing** (Alex, mid-build: *"any module i upload should have a type attached to it to autosort them upon
+    load"*): `guessModuleType(htmlFile, title)` — keyword-only, most specific first: solutions / answer key / `key`+hw →
+    `homework_key`; pretest / diagnostic → `pretest`; hw / homework / assignment / problem set / `hw-01` → `homework`;
+    report → `report`; test / exam / midterm / final / quiz (word-bounded, so "Pretest" is not a test) → `test`; else
+    `module`. `moduleType(mod)` returns the explicit type when valid and the guess otherwise, so an untyped entry reads
+    the same everywhere (class page, viewer, module header). `ensureModuleTypes()` stamps the guess onto untyped
+    non-notes entries at load + every refresh (in memory, never `markDirty()`, bails with no modules section) so the
+    editor's select shows it and it persists on the next save. The Add Module picker prefills Type from the picked
+    file until the user changes it. Scanned over the whole manifest (80 files): only the BME 466 hw-*/HW1-key/report-01
+    files and the pretest leave `module`.
+  - `typedListLocation(key)`, `moduleNumBadge(mod, lessonNum, variant)` (number / ✎ / short type glyph in the circle),
+    `moduleTypeTag(mod)` (the HOMEWORK KEY / REPORT… pill), `moduleProgressLabel(current, siblings, idx)`.
+  - `cbToast(html)` — the site's `.pwa-toast` markup for editor notices (a tab was created), not `alert()`.
+- **`user-styles.css`** — `.cb-mod-type-tag`, `.cb-mod-type-circle` (+`-lg`) per-type colours (pretest slate, homework
+  blue, key amber, report green, test red), `.cb-mod-card-listed` (dashed border on a stack card listed elsewhere),
+  `.cb-mod-type` select, `.cb-mod-listed-note`, `.cb-addmod-error`.
+- **`scripts/tests/module-placements.test.mjs`** — section 7 (79 new assertions, 133 total; 7e = the guesser over the
+  real BME 466 catalog, stamping, explicit-wins, teacher-class bail, viewer on an unsaved doc): vocabulary + defaults; the
+  BME 466 shape (joins the hwList466 tab, new Reports & Tests tab before the gated tabs, idempotent); public stack drops
+  typed entries and leaves the pretest unnumbered; hidden key not leaked until Visible; editor still manages all entries
+  with a selected type; no-Homeworks-tab and tab-named-Homework cases; teacher-class bail; viewer prev/next by list;
+  progress labels. New `grabConst()` pulls `SECTION_REG` + the type constants out of the source like `grabFn`.
+
+### Changed
+- **`class-builder.js`**
+  - Add Module modal: a **Type** select (not for notes) with the listing rule under it; the new entry stores `type` and
+    `published: defaultPublishedFor(...)`; after the push `ensureTypedModuleTabs()` runs and a created tab is announced
+    by toast. The "Please select a module file" **`alert()` is now an inline error** beside the picker (`#cb-addmod-error`,
+    cleared on selection) — no browser popups.
+  - Stack cards (`renderModulesBody` editing): a Type select per non-notes card (`.cb-mod-type`, wired in
+    `wireModuleEditors` → set `type`, `ensureTypedModuleTabs()`, refresh, toast; also read by `gatherContentFromDOM`),
+    the type pill after the title, dashed border + "Listed on the **X** tab, not here" for listed entries. The number
+    circle counts only plain modules, so the editor's numbers match the public page.
+  - Public stack: `published && !moduleHomeKey(m)` — homework, keys, reports and tests are left out (their tab shows
+    them); the pretest gets a PRETEST badge and consumes no lesson number.
+  - `renderSectionBody`: `case 'typedModules'`.
+  - `wireModuleViewer`: siblings follow the LIST the student came from — a listed entry's prev/next are the other
+    entries of its list in tab order, and the lesson stack's prev/next skip listed entries (Next from Week 1 never lands
+    on a key). Progress: "Lesson N of M" counts only plain modules; "Pretest" / "Instructor notes"; "Homework key · 2 of 5".
+- **`modules/shared/module-header.js`** — the same sibling rule, guess and progress label inside the module page
+  (`TYPE_HOME`, `guessType`, `typeOf`, `homeOf`, `progressLabel`; `buildFullHeader` takes `progressText`). Keep in step
+  with `guessModuleType()` / `moduleHomeKey()`.
+- `sw.js` CACHE_VERSION 788 → 789.
+
+### Not changed, on purpose
+- The BME 466 `assignments` subcollection (due dates, audiences, kinds) and its table are untouched; the Homeworks tab now
+  shows both. `prompt()`/`confirm()` in `addTab`/`addSection`/module-delete remain (only the modal's own alert was in
+  scope). Teacher-classes have no type UI; the field is additive and ignored there.
+
+**FTP (Cyberduck):** `class-builder.js`, `modules/shared/module-header.js`, `user-styles.css`, `sw.js`. No
+`firebase deploy`. **The moment it lands, the live BME 466 page re-sorts itself** (pretest badged, HW1/HW2/HW3 rows on
+the Homeworks tab under the due-date table, Report 1 on a new Reports & Tests tab) — no editor visit needed; the next
+editor save persists the stamped types. Then add `HW1-student-key.html` (it picks Homework key by itself; tick Visible
+when it is time) and glance at each row's Type select for a wrong guess.
+
+## [V3.802] — 2026-10-06 — BME 466 Week 6 re-staged: every Tab 2 simulation starts at rest and ends by letting go
+
+Plan: `CodeLog/ClaudesPlan/V3.802_bme466_week6_rest_release_restage.md`. Alex: *"set this up for distribution via FTP on the
+class site"*. Course repo CHANGELOG V3.37 (the revision) and V3.38 (this staging); Week 6 ledger entry 25.
+
+- **Changed** `modules/bme466/06-the-ground-gives.html` — replaced by the course build, byte-identical (663,785 bytes, `cmp`
+  clean). Every time simulation in Tab 2 (§2.2 spring, §2.3 damper, §2.4 Maxwell, §2.5 Kelvin–Voigt, §2.6 builder, §2.7
+  k_eff, §2.8 readback) now runs **at rest → load on → let go**: the element sits unloaded before t = 0, the load is held to
+  t_off, then released (F = 0) and the recovery is shown — spring back at once, damper keeps everything, Maxwell keeps a
+  set, Kelvin–Voigt and the SLS creep home. A protocol strip over each chart; new prose, Derive steps, table columns and
+  student tasks for the release; §2.8 ties it to TFM's released-cell reference picture.
+- **Changed** `modules/bme466/simulations/` — regenerated; **the set is unchanged**, 20 pages for module 6 (6.1.1–6.1.5,
+  6.2.1–6.2.8, 6.3.1–6.3.5, 6.4.1, 6.5.1); the 6.2.x pages carry the new benches. No moved refs; nothing to delete.
+- **Changed** `modules/manifest.json` (regenerated, 12 folders, 80 files) and `sw.js` CACHE_VERSION 787 → 788.
+- Verified from this site root on port 8811: page load 0 console errors, 0 failed requests; the module's DOM QA clean;
+  `qa_deployed_sims.mjs` on all 20 module-6 pages clean (one section each, every canvas inked, no NaN/undefined readouts);
+  6.2.4, 6.2.7 and 6.2.8 screenshotted after 6 s and read. Course-side: harness 397/397, syntax, parity (92 functions),
+  call sites 27/27, equations clean.
+- **FTP (Cyberduck), relative to the site root:** `modules/bme466/06-the-ground-gives.html`, the whole
+  `modules/bme466/simulations/` folder, `modules/manifest.json`, `sw.js`. Nothing to delete on the server.
+
+## [V3.801] — 2026-10-05 — Whiteboard: continuous sheet (the new default) + followers track the exact scroll
+
+Plan: `CodeLog/ClaudesPlan/V3.801_whiteboard_continuous_sheet.md`. Alex: *"I want a mode for continuous vertical sections
+… the default mode … snap-to section should be off … a light grey dashed line separating page sections … the follower
+should still follow exactly where the scroll is. … when I click on a new page they cannot finish writing that equation."*
+
+### Added
+- **Board layout `sheetMode`** on the board doc (absent / `'continuous'` = continuous, `'pages'` = the V3.730 snap-sheet).
+  `continuous()`, `pageGap()` in `whiteboard.js`; `pageTop(i) = i·(BOARD_H + pageGap())`. Absent = continuous, so every
+  existing board switches; stroke coordinates are page-local, so nothing is migrated.
+- **Toolbar toggle `⇵ Continuous | ▤ Pages`** (`data-wb-act="mode-continuous|mode-pages"`, anyone who can draw). Writes
+  `{ sheetMode, viewY: delete }` (+ `activePageId` when this device leads), so nobody jumps to a stale scroll position.
+- **Dashed page separators**: `drawBackground()` second pass, `#d1d5db`, width `max(1, pw/900)`, dash `[pw/90, pw/140]`
+  (proportional, so the projector matches the tablet); pages touch, no desk gap.
+- **Scroll sync** — `viewY` on the board doc = sheet y (page-width units) at the middle of the leader's stage.
+  `publishView(final)`: throttled to `SCROLL_SYNC_MS` 250 while scrolling, always on release, together with
+  `activePageId` = the page under the centre. Student notes boards only record their page on release (no `viewY`).
+- `scrollSheetTo(centre, ms)` — the one view tween (`centreOn(i)` is now a wrapper); the tween keeps its `centre` so
+  `sizeCanvases()` retargets it in the new geometry. `viewCentre()`, `trackPageUnderCentre()` (rail selection, Bg picker,
+  Clear page follow the scroll), `settleScroll()` (no snap; overscroll eases back), `pauseFollowByHand()`.
+- Recorder: `page` events carry `y`; `recScroll(y)` logs coalesced `scroll {y}` events (≤ 1 per `REC_SCROLL_MS` 400,
+  trailing timer closes over its own recorder per V3.735); recording docs get `startViewY`.
+  `whiteboard-replay.js` folds `scroll`/`page.y`/`startViewY` into `viewY` and passes it to `replayApply`.
+
+### Changed
+- Board listener: in continuous mode a following device (and the leader on first load) goes to `viewY`
+  (`FOLLOW_TWEEN_MS` 240 ease, instant on first load / layout change / page-list change); without a `viewY` yet, the
+  page logic applies. A layout switch re-places every view (`modeChanged`) and re-renders the toolbar.
+- Gestures (`bindLensHandlers`): continuous mode never snaps; the leader publishes as it scrolls; a follower's hand
+  scroll pauses following until the leader's next PAGE change (V3.740 rule at page granularity), ⟳ Sync, or the
+  pages-bar chip (now "Back to live" and shown for any pause). Pages mode unchanged.
+- `setActivePage()` (rail / arrow keys): publishes ONE target (`activePageId` + `viewY`) — tween frames never publish;
+  a follower choosing the live page returns to the leader's exact `viewY`. `resyncFollow()` likewise.
+- **＋ page in continuous mode** extends the sheet and moves nobody's view (no `activePageId`/`viewY` write).
+- `sizeCanvases()` keeps the view centre through a resize in continuous mode.
+- `applyReplayState()` scrolls to `viewY` in continuous mode; the replay-mode board listener now merges `sheetMode`.
+- Sync status line: "Paused — you scrolled away." in continuous mode.
+
+### Verified
+Headless harness (in-page stub Firestore, real `whiteboard.js`, synthetic two-finger / one-finger touch scrolls, the
+dashed separator located in the bg canvas pixels), DPR 1 and 2, 33/33: default continuous + no gaps; a 300-px drag
+writes 4 throttled updates (min gap 250 ms) ending at the exact `viewY`, no snap; ＋ page moves nothing and writes only
+`pages`; rail click publishes one target; Pages ↔ Continuous toggles gaps/dashes and deletes `viewY`; follower lands on
+`viewY`, eases to updates, pauses on a hand scroll, stays put while the leader scrolls within the page, resumes on the
+leader's page change, "Back to live" returns; pages mode ignores a stale `viewY`; replay honours `viewY` and falls back
+to page centring. `node --check` clean on both files. **Not verified:** a real iPad leading a real laptop/projector.
+
+### Deploy
+FTP only — no rules/indexes/functions (class admins and notes owners already write the whole board doc).
+`whiteboard.js`, `whiteboard-replay.js`, `sw.js` (CACHE_VERSION 786 → 787). Not during a live lecture (V3.775).
+
+## [V3.800] — 2026-10-05 — BME 466 HW3: the module only — the "read first" prompt page taken off the site
+
+Plan: `CodeLog/ClaudesPlan/V3.800_bme466_hw3_module_only.md`. Alex: *"for some reason the website has two homework 3 html
+modules. I just want this one on there"* (the module). Course repo CHANGELOG V3.36.
+
+### Removed
+- `modules/bme466/hw3-grip-and-ground.html` — the HW3 prompt page staged in V3.798. Nothing on the site linked to it.
+
+### Changed
+- `class-builder.js` — the `mod_466_hw03_brief` catalog row removed; `mod_466_hw03_bench` is order 7; the V3.798 migration's
+  module list is the module alone. The `hw3` assignment row already pointed at the module. `node --check` clean.
+- `modules/manifest.json` regenerated (12 folders, 80 files); `sw.js` CACHE_VERSION 785 → 786.
+- Verified: the remaining `hw-03-grip-and-ground.html` is byte-identical to the course build; `gen_simulations.py --check` clean.
+
+### FTP (Cyberduck), relative to the site root — supersedes V3.798's list
+`modules/bme466/hw-03-grip-and-ground.html`, `modules/manifest.json`, `sw.js`, `class-builder.js` (and V3.799's
+`modules/bme466/HW1-student-key.html`). **If V3.798 was already uploaded:** delete `modules/bme466/hw3-grip-and-ground.html`
+on the server, and delete the "Homework 3 — Assignment (read first)" row on the class page if it appeared.
+
+## [V3.799] — 2026-10-05 — BME 466 HW1 worked solutions (student key) staged for FTP
+
+Plan: `CodeLog/ClaudesPlan/V3.799_bme466_hw1_student_key.md`. Alex: *"we need to also setup the HW1 key student version to the
+website as well"*. Course repo CHANGELOG V3.35.
+
+### Added
+- `modules/bme466/HW1-student-key.html` — HW1 "Transport Problems" worked solutions for students, byte-identical to the course
+  build (53,720 bytes): a quick key per problem, every part and the Challenge worked on the demo dataset, a Common mistakes box
+  under each part and a summary of the costliest mistakes; no grading material. MathJax from jsdelivr; carries the no-copy
+  guard (checked on the site copy).
+
+### Changed
+- `modules/manifest.json` regenerated (12 folders, 81 files; the page lists as "HW1 — Worked solutions"); `sw.js` CACHE_VERSION
+  784 → 785.
+
+### Verified
+- From this site root on port 8824: 0 console errors, 0 failed requests; 75 typeset expressions, 0 MathJax errors, 0 raw
+  delimiters; `user-select: none` on the body (guard active); no horizontal scroll at 1100 px or at 390 px; the phone view
+  screenshotted and read.
+
+### FTP (Cyberduck), relative to the site root
+`modules/bme466/HW1-student-key.html`, `modules/manifest.json`, `sw.js`. Nothing to delete. Then, as admin on `#/classes/bme466`:
+**+ Add Module** → pick `modules/bme466/HW1-student-key.html` → title and order (beside the Homework 1 rows) → tick **Visible**.
+
+## [V3.798] — 2026-10-05 — BME 466 HW3 "Grip and Ground" staged: module, prompt page, class-page rows and the assignment link
+
+Plan: `CodeLog/ClaudesPlan/V3.798_bme466_hw3_staged.md`. Alex: *"setup HW3 for distribution on the class webpage"*. Course
+repo CHANGELOG V3.33.
+
+### Added
+- `modules/bme466/hw-03-grip-and-ground.html` — HW3 (Weeks 5–6), the course build byte-identical (267,004 bytes, `cmp`
+  clean), no-copy guard checked on the site copy. No data tab: every given printed per NetID; three problems × three
+  parts, each joining two relations; the 566 challenge by hand; autosaves under `bme466-hw3`.
+- `modules/bme466/hw3-grip-and-ground.html` — the prompt page ("read first"), byte-identical to the course repo's copy.
+
+### Changed
+- `class-builder.js` — two `DEFAULT_SCHEDULES.bme466` module rows (`mod_466_hw03_brief` order 7, `mod_466_hw03_bench`
+  order 8) seeded **hidden** (`published: false`); the `hw3` seed assignment gains its title, `moduleUrl` and notes; a
+  **V3.798 migration** on an admin visit copies the two rows onto the live schedule and fills in the existing `hw3`
+  draft (moduleUrl, progressKey, notes, opens 2026-10-06, due 2026-10-20 23:59 — each only where absent; the title only
+  while it is the placeholder `HW3`). It never writes `published`. No rules deploy: `bme466-hw3` is in the legacy list.
+- `modules/manifest.json` regenerated (12 folders, 80 files); `sw.js` CACHE_VERSION 783 → 784.
+
+### Verified
+- Course side first: keygen selftest (7 parity vectors, 540 lattice corners), audit, `hw3_parity.mjs` (13,690 checks,
+  0 mismatches), grader selfcheck, `node --check`; a rebuild reproduced the build byte for byte.
+- From this site root on port 8823: both pages 0 console errors, 0 failed requests; the HW3 DOM QA on the deployed copy
+  0 failures (practice driven to completion, 13 cards with sequential unlocking, Notes 19 sections / 47 typeset, challenge
+  typeset, export ladder and cross-checks); practice, problems and prompt screenshots read. `node --check
+  class-builder.js` clean. The migration itself runs only behind a real admin sign-in and is unexercised until then.
+
+### FTP (Cyberduck), relative to the site root
+`modules/bme466/hw-03-grip-and-ground.html`, `modules/bme466/hw3-grip-and-ground.html`, `modules/manifest.json`, `sw.js`,
+and `class-builder.js`. Nothing to delete on the server. Then, signed in as admin: open `#/classes/bme466` once (the
+migration runs), tick **Visible** on the two Homework 3 rows, and press **Publish** on HW3 in Assignments & Requests.
+
+## [V3.797] — 2026-10-01 — BME 466 Week 6 re-staged: a new Tab 2 §2.7, a k_eff(t) for every element and the problems with plugging it in
+
+Plan: `CodeLog/ClaudesPlan/V3.797_bme466_week6_keff_restage.md`. Alex: *"Make one more section between 2.6 and 2.7 for making
+a k_eff(t) out of each element type so we can plug it directly into the tab 1 equations … also talk about the problems with
+doing this"*. Course repo CHANGELOG V3.27, Week 6 ledger entry 24.
+
+- **Changed** `modules/bme466/06-the-ground-gives.html` — replaced by the course build, byte-identical (630,736 bytes, `cmp`
+  clean). Tab 2 gains **§2.7, One number for the ground?**: the plug-in κ_s → k_eff(t) written into Tab 1's chain; all
+  twenty surrogates (five elements × four loadings) in a table, each derived in a Derive box from the element's closed form;
+  a bench reading k_eff(t) off the solver on four gels, putting it into Tab 1's loading rate and odds, and drawing the true
+  force against the plug-in's product and against eq. 6.2.7's sum; five problems named, with **eq. 6.2.7** (Boltzmann's
+  superposition) minted and derived. *From the beads back to the force* is now **§2.8**.
+- **Changed** `modules/bme466/simulations/` — **20 pages for module 6 (was 19): `6.2.8.html` added; `6.2.7.html` now holds
+  the k_eff bench** (it held the beads-back-to-force bench until today). The set: 6.1.1–6.1.5, 6.2.1–6.2.8, 6.3.1–6.3.5,
+  6.4.1, 6.5.1. `index.json` regenerated. **Moved ref:** a whiteboard pinned to 6.2.7 now opens the new section.
+- **Changed** `modules/manifest.json` (regenerated, 12 folders, 78 files) and `sw.js` CACHE_VERSION 782 → 783.
+- Verified from this site root on port 8811: page load 0 console errors, 0 failed requests; the module's DOM QA clean
+  (51 canvases, six animated canvases stepping including the new §2.7 chart); `qa_deployed_sims.mjs` on all 20 pages;
+  6.2.7 and 6.2.8 screenshotted and read. Course-side: harness 322/322, syntax, parity (90 functions), call sites 27/27,
+  equations (28 boxes, 25 numbers).
+- **FTP (Cyberduck), relative to the site root:** `modules/bme466/06-the-ground-gives.html`, the whole
+  `modules/bme466/simulations/` folder, `modules/manifest.json`, `sw.js`. Nothing to delete on the server.
+
+## [V3.796] — 2026-10-01 — BME 295C waitlist: students join with their own Google account; the admin writes to the list from the dashboard
+
+Plan: `CodeLog/ClaudesPlan/V3.793_bme295c_summer_lectures_page.md` (§ V3.796 addendum). Alex: *"for a student to sign
+up for the BME 295C waitlist, they need their own email in the form. Then we should collect all students interested
+into our website's database, and later when the opportunity is available that list will be able to be pushed out."*
+
+- **Changed** `modules/bme295c/lesson-01.html` — the Summer 2027 card is now a **waitlist that requires Google
+  sign-in**. States: checking → *Sign in with Google to join the waitlist* (popup; falls back to redirect when the
+  popup is blocked; `prompt: 'select_account'`) → the form with **email read-only from the account** (+ *Switch
+  account*), name pre-filled from the profile, grad year, campus, note → *You're on the waitlist* with **Update my
+  details** and a two-click **Leave the waitlist**, plus *Sign out*. The entry doc is the truth for "are you on it?"
+  (read by id on every auth change); the V3.793 `localStorage` memory is gone. Auth persistence is shared with the
+  class page on this origin, so a signed-in student lands straight on the form or their entry.
+- **Changed** data model — **`courseWaitlist/{course}_{uid}`** replaces V3.793's anonymous `courseInterest` (which
+  never held a real row): `{ course, uid, name, email, gradYear, campus, note?, source, createdAt, updatedAt }`, one
+  entry per student per course. `firestore.rules`: create requires a signed-in caller whose uid is in the id and
+  whose **`email == request.auth.token.email.lower()`**; owner `get`/`update` (only `name/gradYear/campus/note/
+  source/updatedAt` may change)/`delete` are provable from the path or `resource.data.uid`, and are ordered **before**
+  `isAdmin()` so a student with no `users/` doc can't make the `||` raise; admins and the course's `classAdminEmails`
+  list (query must filter `course ==`) and remove. The `courseInterest` block is removed.
+- **Added** **`courseAnnouncements/{autoId}`** `{ course, subject, body, recipientCount, recipientUids, sentBy, sentAt }`
+  — the record of each time the list was written to. Create: admin or class admin, shape-checked, `sentBy ==
+  auth.uid`, `sentAt == request.time`; read: the same; update/delete: admin. **Rules deployed 2026-10-01.**
+- **Changed** `class-builder.js` — the dashboard card is now **"BME 295C waitlist — Summer 2027"**
+  (`renderBmeWaitlistPanel` / `loadBmeWaitlist` / `repaintBmeWaitlistPanel` / `bmeWaitlistCSV` /
+  `wireBmeWaitlistPanel`; state in `_bmeWl`). Table (joined, name, email, grad year, campus, note, Remove), *Copy
+  emails*, *Download CSV* (`bme295c-summer-2027-waitlist.csv`, now with `uid`), and **Write to the waitlist**: a
+  compose box (subject + message, pre-filled with an applications-are-open template; the draft lives in
+  `_bmeWl.compose` so repaints never eat it) → *Open email to everyone (N)* is a `mailto:` with every address in
+  **BCC**, batched at 50 → *Record as sent* writes the `courseAnnouncements` doc and the card shows "Written to N
+  times · last {date}" with the history. Nothing is sent by the site itself — the project has no mail server, and the
+  only Gmail OAuth scope on file is `gmail.readonly`.
+- **Added** `styles.css` `.cb295-wl-compose/-label/-batches/-history`.
+- `sw.js` CACHE_VERSION 781 → 782. Rules deployed; the rest FTPs with the batch.
+
+## [V3.795] — 2026-10-01 — BME 466 Week 6 re-staged: Tab 2 derives every element under the four loadings the same way
+
+Plan: `CodeLog/ClaudesPlan/V3.795_bme466_week6_four_moves_restage.md`. Alex: *"in each tab 2 section, i want to blindly
+follow the same mathematics and get the necessary equation for each loading condition step force, force ramp, step disp,
+disp ramp. For a step displacment with a dashpot the result should point to an infinitely high force with an argument
+about the delta being done within a dt."* Course-repo record: its CHANGELOG V3.26.
+
+- **Changed** `modules/bme466/06-the-ground-gives.html` — replaced by the course repo's current build, byte-identical
+  (585,367 bytes after the third re-stage, `cmp` clean; was 558,752). §2.1 states a four-move recipe (law · loading in time · substitute and solve ·
+  read start, end, clock); §2.2–§2.6 each gain a Derive box running it through all four loadings; the damper's step done
+  within dt gives ηx₀/dt → ∞ with impulse ηx₀. Re-staged a second time the same day after Alex asked that the
+  Maxwell step-displacement solve not skip steps: every ODE solve in the boxes now separates, integrates with the constant
+  of integration, undoes the logarithm, applies the boundary condition and checks (the inhomogeneous cases as homogeneous
+  + particular + boundary condition). A third same-day re-stage after *"similar derivations should be this rigorous"*: §1.2's
+  eq. 6.1.2 box names its constant and boundary condition; §1.3 gains a Derive box solving Bell's rate equation under the
+  ramp (eq. 6.1.3's exponent derived); eq. 6.2.3 and eq. 6.2.5 derived one move per line; Tab 5's eq. 6.5.1 gains a Derive
+  box solving the creep for the transit time. Text only: no canvas or section changed.
+- **Simulation pages:** the same 19; none added or removed, nothing to delete on the server. `index.json` and
+  `modules/manifest.json` regenerated; `sw.js` CACHE_VERSION 779 → 780, then 781 and 782 on the second and third re-stages.
+- **Verified** from this site root: the page loads with 0 console errors and 0 failed requests; the module's DOM QA passes
+  (0 failures, 49 canvases inked, 5 animated canvases stepping); all 19 simulation pages pass `qa_deployed_sims.mjs`;
+  the five new Derive boxes opened and read in the browser.
+- **FTP:** `modules/bme466/06-the-ground-gives.html`, `modules/bme466/simulations/` (whole folder), `modules/manifest.json`,
+  `sw.js`.
+
+## [V3.794] — 2026-10-01 — BME 466 Week 6 re-staged: Tab 2 in the cell's terms, a new §2.7, §1.3 in ḟ
+
+Plan: `CodeLog/ClaudesPlan/V3.794_bme466_week6_tab2_restage.md`. Alex: *"in tab 2, all of the solid element models are
+too small. Also we need to connect the concept that the solid element is the gel … how can we back out the force …
+keep the biological lens here"*; *"in 1.3 dont use r for the df/dt just use dot{F}"*. Course-repo record: its CHANGELOG V3.25.
+
+- **Changed** `modules/bme466/06-the-ground-gives.html` — replaced by the course repo's current build, byte-identical
+  (558,752 bytes, `cmp` clean; was 539,901). §1.3's loading rate is written ḟ. Tab 2: element drawings up to twice as
+  large; §2.1 states that every element is the gel under the adhesion and tabulates the four loadings as what the cell
+  does (stall 200 pN held, the clutches' ramp 107 pN/s, the actin's drag 120 nm/s, a 100 nm push), loadable from a pill
+  on each bench; the force-ramp rate is Ḟ; "In the cell" paragraphs in §2.2–§2.5; a new **§2.7, From the beads back to
+  the force**, one bead track on four gels. Tabs 3–5 unchanged.
+- **Simulation pages:** 19 — **added 6.2.7**; none removed, nothing to delete on the server. `index.json` and
+  `modules/manifest.json` regenerated; `sw.js` CACHE_VERSION 778 → 779.
+- **Verified** from this site root: the page loads with 0 console errors and 0 failed requests; the module's DOM QA
+  passes (0 failures, 49 canvases inked, 5 animated canvases stepping, no NaN readouts); all 19 simulation pages pass
+  `qa_deployed_sims.mjs`; a screenshot of 6.2.7 read.
+- **FTP:** `modules/bme466/06-the-ground-gives.html`, `modules/bme466/simulations/` (whole folder), `modules/manifest.json`,
+  `sw.js`. If Week 6 is not yet on the class page: as admin, `#/classes/bme466` → + Add Module → Visible.
+
+## [V3.793] — 2026-09-30 — BME 295C: the Summer 2026 lectures page, and "count me in for next summer"
+
+Plan: `CodeLog/ClaudesPlan/V3.793_bme295c_summer_lectures_page.md`. Alex: *"Fix
+https://mcgheelab.com/modules/bme295c/lesson-01.html — it should be a lesson that gives the student access to all of
+the videos and an overview of the lectures in this summer's session of BME 295C. At the top, it should also allow
+the student to show interest in signing up for next summer's BME 295C offering."*
+
+- **Changed** `modules/bme295c/lesson-01.html` — rewritten from the April module-header placeholder into the course's
+  lectures page. Reads `content.json` beside it (course, instructors, locations, schedule, 10 speakers with abstracts,
+  discussion prompts) and the world-readable class doc `schedules/bme295c.speakerVideos` (the unlisted YouTube links
+  the admin pastes on the *Talk videos* dashboard card, V3.272; 9 of 10 set on 2026-09-30). Top to bottom: the shared
+  module header; the **interest form**; *The week at a glance* (five day cards, talks link to their cards, lab tours
+  per day); *The lectures* — one card per talk in schedule order with Day pill, date/time/campus, speaker thumbnail,
+  talk title, the recording as a poster (`i.ytimg.com/vi/{id}/hqdefault.jpg`) that becomes a `youtube-nocookie`
+  embed on tap, "Open on YouTube", collapsible *About this talk* and *Discussion questions* (prompts + follow-ups),
+  "Recording not available" when unset and a "9 of 10 recordings are available" notice; *About the course*; the
+  syllabus recordings policy as fine print. `<meta name="robots" content="noindex">`. Firebase includes now carry
+  auth + storage compat (firebase-config.js calls `firebase.auth()` / `firebase.storage()` unguarded, so app +
+  firestore alone leaves `McgheeLab.db` unset — the old placeholder never got the full header for that reason).
+- **Added** the **"Want to take BME 295C next summer?"** form (top of the page): name, email, high-school graduation
+  year (2027–2030 / other), closer campus (Tucson / Phoenix / Either), optional note; inline errors under the fields;
+  writes `courseInterest/{autoId}` `{ course:'bme295c', name, email, gradYear, campus, note, source:'lesson-01',
+  uid?, createdAt: serverTimestamp }`; success swaps in a thank-you remembered in `localStorage`
+  (`mcgheelab.bme295c.interest`) with *Fill it in again*; a signed-in visitor's name/email pre-fill via
+  `onAuthStateChanged`.
+- **Added** `firestore.rules` `match /courseInterest/{interestId}` — **create open to anyone** (the page has no
+  sign-in UI) but only for a tightly-shaped doc: `hasOnly`/`hasAll` on the key set, `course in ['bme295c']`, name
+  2–120, email ≤ 200 matching `^[^@\s]+@[^@\s]+\.[^@\s]+$`, enum gradYear/campus, note ≤ 1000, source ≤ 40, `uid`
+  only when it equals `request.auth.uid`, `createdAt == request.time`. Read: `isAdmin()` or a signed-in email in that
+  course's `schedules/{course}.classAdminEmails` (guarded by a non-empty string `course`). Update/delete: admin.
+  **Deployed 2026-09-30.**
+- **Added** `class-builder.js` `renderBmeInterestPanel()` / `loadBmeInterest()` / `repaintBmeInterestPanel()` /
+  `bmeInterestCSV()` / `wireBmeInterestPanel()` — the admin-only **"Interested in Summer 2027"** dashboard card after
+  *Talk videos*: count, table (when, name, email, grad year, campus, note), *Copy emails*, *Download CSV*
+  (`bme295c-summer-2027-interest.csv`), per-row two-click *Remove* (no `confirm()`). Queried once per page visit
+  (`where course == 'bme295c'`), cached in `_bmeInterestRows`, sorted newest first on the client, repainted in place.
+- **Changed** `modules/shared/module-header.js` — `getClassId()` falls back to `<header id="module-header"
+  data-class="…">` when there is no `?class=` query (a direct link now gets the full header with the class back-link);
+  a page the class doc's `modules[]` doesn't list titles the header from `document.title` (up to " — ") instead of
+  `lesson-01.html`. Query string and listed modules behave exactly as before.
+- **Added** `modules/bme295c/speaker-photos/thumbs/*.webp` — ten 320-px thumbnails (7–20 KB; the originals run to
+  850 KB) with an `onerror` fallback to the original.
+- **Changed** `modules/manifest.json` — the entry is titled "Summer 2026 Lectures & Recordings — BME 295C".
+- **Added** `styles.css` `.cb295-interest-table/-note/-actions/-remove.is-armed` (+ 720 px stack).
+- `sw.js` CACHE_VERSION 777 → 778. Rules deployed; the rest FTPs with the batch.
+
+## [V3.792] — 2026-09-30 — "Request a class" lists only the module sets the lab has published
+
+Plan: `CodeLog/ClaudesPlan/V3.792_request_form_published_module_sets.md`. Alex: *"When I click on the for teachers
+button in the classes page, it takes me to a page to request access, and on this page are all the 'Module sets you're
+interested in'. The problem is that this is showing all of the modules even the ones that I have not marked as
+available."*
+
+- **Bug fix** `teacher-teach.js` `loadTeachersRequestCard` — the "Module sets you're interested in" checkboxes were
+  built from `ML.tcManifestFolders()` (every folder in `modules/manifest.json`, counting every file on disk), while the
+  Modules tab an approved teacher sees is built from `publishedCatalog()` (`teacherCatalog where published == true`).
+  On the live site that was 12 folders offered against 4 published (Cell Culture Foundations, Heat Transfer, Solid
+  Mechanics Foundations, TFM). The card now fetches `src().publishedCatalog()` alongside the manifest and renders
+  only folders with at least one published module, counting published modules.
+- **Added** pure helper `requestFolderOptions(folders, catalog) → [{ key, label, count }]` (sorted by label; drops
+  folders the manifest no longer knows unless the manifest failed to load, in which case the catalog key is the
+  label). Exposed as `ML.tcRequestFolderOptions` so the filter is testable in node — the demo world publishes every
+  module, so a headless run alone cannot prove it. A catalog read failure hides the block rather than falling back to
+  the manifest, so a failure can never re-show unpublished courses; the form still submits.
+- No rules change: `teacherCatalog` read is already `request.auth != null`, and the card only renders signed in.
+- `sw.js` CACHE_VERSION 776 → 777. FTP-only, ships with the batch.
+
+## [V3.791] — 2026-09-29 — Engagement is opportunity-centred: teachers post an opportunity with several dates; presenters sign up for it
+
+Plan: `CodeLog/ClaudesPlan/V3.785_presenter_signup_calendar_reviews.md` (§ V3.791 addendum). Alex, after running the loop
+end to end: *"Teachers should make an opportunity, and that opportunity has multiple dates associated with it, and once a
+presenter signs up for the opportunity and the teacher accepts, that opportunity is taken off the list for signups. if a
+presenter has signed up for an opportunity we need to flag it to show that this is pending acceptance. This also
+changes how the list view works etc as opportunity centered instead of date centered."* Decisions: presenters tick every
+date that works and the teacher picks; a pending sign-up flags the opportunity without blocking others; **"several
+presenters together"** is a teacher preference on the opportunity (how many they'd welcome); the old test data is
+deleted.
+
+- **Data model.** New collection **`engageOpportunities/{id}`**: `teacherUid`, `title`, `activityTypes[]`, `formats[]`,
+  `topic`, `classContext`, `presentersWanted` (1, or up to N together), `dates: [{date, startTime, endTime}]`,
+  `dateKeys[]` (the dates as plain strings, for the rules), `status` `open | paused | booked | closed`, `bookedDate`,
+  `acceptedRequestIds[]`, and the function-maintained `pendingCount` / `acceptedCount`. **`engageRequests`** gain
+  `opportunityId`, `opportunityTitle`, `dates[]` (the presenter's ticks), `okWithOthers`; `date/startTime/endTime` are
+  now set by the **teacher on accept**. `engageSlots` is retired: its 9 test docs and the 1 test request on the live
+  site were deleted (Alex's call); the client no longer reads it.
+- **Changed** `engage-hub.js` step 6 → **Your opportunities.** A month calendar (every opportunity's dates: open,
+  amber when a sign-up is pending, blue when booked) doubles as the date picker: tap a day to start an opportunity on
+  it, tap more days to add them. The form: title, kinds of visit and where (pre-ticked from the listing), topic, class
+  details, **How many presenters** (one / several together, up to N), and a per-date From/To list (the first date's
+  time fills the ones added after). Cards: title, status chip, dates (the booked one highlighted), and flags — *N
+  sign-ups waiting on you →*, *M of K presenters accepted · still open for more*, *Booked: X on date*. Actions: Edit,
+  Pause/Resume, *That's enough presenters*, Reopen, Delete (declines waiting sign-ups with a note). The draft lives in
+  module-level `oppForm`, so a calendar tap (a repaint) never eats typing.
+- **Changed** step 7: a sign-up shows the opportunity it's for, the dates the presenter **could do**, and *happy to
+  share the session*. **Accept…** now asks **Which date?** (radios over their ticks; only the set date once a panel has
+  one) plus expected students. Accepting writes the date to the request, adds the presenter to
+  `acceptedRequestIds`, fixes `bookedDate`, and when the count reaches `presentersWanted` sets the opportunity
+  **booked** and auto-declines the other waiting sign-ups with a note. *Cancel this visit* un-books and reopens.
+  Coming-up rows name the opportunity and any co-presenters; the email names it too and, for a panel, who else is
+  presenting.
+- **Changed** `engage-presenters.js`: **opportunity cards** replace date rows. A card: title, school + type, class,
+  activities/formats/topic, its dates, flags (*Pending acceptance · someone has signed up — the teacher will choose;
+  you can still sign up*, *Up to K presenters together · M accepted · date set: X*, *You signed up*, *You're
+  accepted*) and **Sign up**, which asks *Which of these dates could you do? Tick all that work* (a set date is the
+  only option, pre-ticked), your part, where, topic, note, and *Happy to share the session with another presenter*
+  (pre-ticked for a panel). Filters on day/time/range pass if **any** date matches. The calendar counts opportunities
+  per day and tapping a day lists the cards with that date pre-ticked. *Your visits* shows the dates offered while
+  pending and the chosen date once accepted.
+- **Rules (DEPLOYED):** new `engageOpportunities` (read: open to any signed-in user, own always, admin; create: the
+  approved owner, status open, no counts; update: owner minus the two counts; delete: owner/admin). `engageRequests`
+  create: `dates` is a non-empty list ⊆ the opportunity's `dateKeys` (`hasAll`), the opportunity is `open` and the
+  teacher's, only the set date once `bookedDate` exists, no `date/startTime/endTime/location/expectedStudents/
+  emailedAt`. Teacher update may set `date/startTime/endTime`, and the date must be one the presenter ticked. A
+  read-only `engageSlots` stub stays so the last shipped client doesn't error before FTP.
+- **Functions (DEPLOYED):** `onEngageRequestWrite` **recounts** the request's opportunity on every write
+  (`pendingCount` / `acceptedCount`, via `update` so a deleted opportunity isn't resurrected), and its pushes name
+  the opportunity and the dates offered.
+- **Changed** `teacher-classes.js` `TC_DB`: `myOpportunities`, `openOpportunities`, `saveOpportunity` (writes
+  `dateKeys`), `deleteOpportunity`; the slot methods are gone. `teacher-demo.js`: opportunity fixtures (a talk with
+  three Tuesdays and a pending sign-up, a three-presenter panel with one accepted and its date set, two past booked
+  ones, a community-college talk), requests carrying `opportunityId`/`dates`, a `_recount` that mirrors the function.
+  `rm/js/admin-teachers.js`: opportunities per listing; admin confirm picks the date and books like a teacher accept.
+- **Kit:** `expandRange`/`expandSlots` removed; `reqWhen`, `oppDates`, `oppNextDate`, `oppLastDate`, `oppDatesLine`
+  added. `styles.css`: `.eh-opp*`, `.eh-flag*`, `.eh-opp-form`, `.eh-opp-daterow`, `.ep-opp*`.
+- `sw.js` CACHE_VERSION 775 → 776.
+- **Verified:** rules `:test` 51/51 (incl. a date not on the opportunity, a booked one, a panel's fixed date, the
+  teacher accepting on an unticked date, presenters writing the counts); node fixture 15/15 (recount, deleted
+  opportunity, wording); headless presenter 31/31 (calendar chips, filters, flags, tick-two-dates sign-up, the panel's
+  fixed date, a teacher's own opportunities left out), teacher 31/31 (calendar → form → post → edit → pause → delete;
+  accept picks a date → booked → email names it → cancel reopens), step cards 36/36, standalone 4/4; 0 console
+  errors. Live: rules + function deployed, old test docs gone.
+- **FTP:** `engage-hub.js`, `engage-presenters.js`, `teacher-classes.js`, `teacher-demo.js`, `styles.css`, `sw.js`,
+  `rm/js/admin-teachers.js`. Until then the live site shows no openings (the old ones are deleted) and can't take a
+  sign-up.
+
+## [V3.790] — 2026-09-29 — Accepting a visit shows the full presenter email as a draft to copy and send
+
+Plan: `CodeLog/ClaudesPlan/V3.785_presenter_signup_calendar_reviews.md` (§ V3.790 addendum). Alex, after testing the
+whole loop end to end: *"As the teacher approves the visit they get a standard draft email to the presenter to copy and
+paste. This email should include all instructions for the presenter."*
+
+- **Changed** `engage-hub.js` step 7: `visitEmail(r)` (a mailto URL) is replaced by `visitEmailParts(r)` →
+  `{ to, subject, body }`, plus `mailtoOf()`.
+  - The body is the whole briefing, in plain text that pastes into any mail client:
+    - **The visit:** date with the year, time and a finish-by, the activity and topic, the class and how many
+      students.
+    - **Where to go:** school, address, room, the teacher's arrival notes, and a day-of phone. It becomes **How to
+      join** for virtual visits (link to follow, join 10 minutes early) and **Where we meet** for class-visits-UofA.
+    - **Before the visit:** reply to confirm, say what equipment you need (per format), and warn if plans change.
+    - **On the day:** arrive about 15 minutes early with a photo ID, leave time for questions, no photos of students
+      (no recording for virtual visits).
+    - **After the visit:** how to leave the review, including the link, signing in with the same Google account, and
+      where it waits.
+    - The teacher's note, then a sign-off with the teacher's name, school and phone.
+- **New** `emailBlockHTML()`. An accepted visit with no email yet shows the draft straight away:
+  - To and Subject, each with **Copy**;
+  - an **editable** body with **Copy the email**, *Open in your email app* (now a secondary button), and **Undo my
+    edits**;
+  - **Yes, I sent it**, promoted to the primary button once the email has been copied or opened.
+  - Edits live in the module-level `emailEdits` map, so they survive a repaint.
+  - Copy uses `navigator.clipboard` and falls back to select + `execCommand('copy')`, with a message if both fail.
+  - Nothing in the block repaints, so the caret and the edits stay put.
+- After *Accept* the page scrolls to the draft. A visit already marked sent keeps the email under **Show the email
+  again**.
+- The old mailto-only link didn't help anyone who reads mail in a browser tab, and it carried only the basics.
+- `styles.css`: `.eh-email*`, `.eh-mail-sent`. `sw.js` CACHE_VERSION 774 → 775.
+- **Verified** headless: teacher suite 36/36. It checks:
+  - the draft appears on accept, with To and Subject;
+  - 20 required lines are in the body (every section, the address, the room, the arrival notes, the phone, the
+    photo ID, the review link and sign-in);
+  - Copy puts the exact body on the clipboard (read back), and says where to paste it;
+  - an edit updates the mail-app link, survives a repaint, and Undo restores it;
+  - Yes, I sent it → sent ✓, with the email kept for resending.
+
+  The presenter (31), step-card (36) and standalone (4) suites were re-run with no regressions, and 0 console errors.
+- **FTP:** `engage-hub.js`, `styles.css`, `sw.js`. No backend change.
+
+## [V3.789] — 2026-09-29 — Opening #/presenters, #/teachers, #/engage or #/teach directly no longer spins forever
+
+Alex: *"i go to the page and its just a loading spinner."*
+
+- **Bug Fixes** `app.js`: `render()` shows the V3.332 auth spinner for every route in `AUTH_GATED` until Firebase
+  restores the session. It relies on the `Auth.onChange` handler to redraw the page once auth resolves, but that
+  handler only redrew `dashboard` / `admin` / `login` / `cv`.
+  - The gate had since grown to `demo`, `teach`, `engage`, `teachers` and `presenters`, so a **cold load** of those
+    routes (a shared link, a refresh, a bookmark, a teacher's `#/teachers?invite=` link) never left the spinner.
+  - Arriving from another page worked, because by then auth had already resolved. Every QA harness in the teacher
+    program warmed up on `#/classes` first, which is why it was never caught; the program memory even recorded it
+    as "sits on the spinner until Firebase resolves".
+  - `AUTH_GATED` is now one IIFE-level constant used by both the gate and the redraw.
+- **Reproduced** on production before the fix: a cold load of `#/presenters`, `#/teachers`, `#/engage` and `#/teach`
+  all stayed on "Loading…", while `#/dashboard` did not. **Verified** locally after it: all five render.
+- Re-ran the presenter (31), teacher (28), step-card (36) and standalone (4) suites: all pass, 0 console errors.
+- Production check before the fix: all nine V3.785–788 files on mcgheelab.com were byte-identical to the local
+  tree (FTP'd 2026-09-29 23:58 GMT).
+- `sw.js` CACHE_VERSION 773 → 774. **FTP:** `app.js`, `sw.js`.
+
+## [V3.788] — 2026-09-29 — Presenter page: a calendar overview first, and nobody is turned away
+
+Plan: `CodeLog/ClaudesPlan/V3.785_presenter_signup_calendar_reviews.md` (§ V3.788 addendum). Alex, testing with three
+real accounts: *"presenters get a page that says open your teaching dashboard. What they need to have here is a
+calendar overview of all the opportunities to visit a class"*; *"the arizona.edu account should not be a teacher."*
+
+- **Bug Fixes**
+  - `engage-presenters.js`: `wirePresentersPage` showed any `category:'teacher'` profile a "This page is for
+    presenters → Open your teaching dashboard" card and nothing else. The test presenter account had been marked
+    teacher, so it never saw the page. The gate is removed: a teacher gets the full page with a one-line pointer to
+    `#/teach`, and `load()` leaves their own listing out of the openings. `renderTeacherNote` is deleted.
+  - **Data:** `users/b36DC5tl4GQomLIcdGZ8xQfNcVZ2` (mcgheealex@arizona.edu) `category` `teacher` → `guest`. It was a
+    one-field PATCH with `updateMask=category`, applied after checking the account owns no schedule, class request,
+    enrolment, listing, slot or request.
+    - Last changed 2026-08-27, the day before V3.680 removed the guest dashboard's one-click "Are you a teacher?"
+      self-flip, which is the likely cause.
+- **Changed** `engage-presenters.js`: **the calendar is the page.**
+  - `view.mode` defaults to `calendar`, and *Find a classroom* now comes before *Your visits*.
+  - `renderCalendar(root, out, sum)` shows the month on screen across the whole 120-day horizon (the From/To inputs
+    apply to List only, and are hidden in Calendar via `#ep-bar.is-cal`).
+  - Each day lists its openings as `HH:MM {school}` chips (`shortSchool()` drops "High School" / "Community
+    College"), with a count.
+  - The summary reads "N openings at M schools in {month}".
+  - It opens on this month, or on the next month with openings when fewer than 10 days are left or nothing remains.
+  - Tapping a day lists its openings with Request; tapping it again closes the list.
+  - The About-you form is now a one-line prompt (`.ep-about-prompt`) until *Add your details* or an opening's "Add
+    your details to request" opens it. Saving scrolls back to the calendar, and the tapped day stays open.
+  - A review due shows as a one-line note at the top that jumps to *Your visits*.
+  - The filter chips start folded behind *Filters* everywhere (open when a chip filter is on), so the calendar sits
+    under the search box.
+- `styles.css`: `.ep-intro`, `.ep-bar.is-cal .ep-date`, `.ep-about-prompt`, `.ep-due-note`, `.ep-teacher-note`;
+  taller presenter calendar cells. `sw.js` CACHE_VERSION 772 → 773.
+- **Verified** headless: presenter suite 31/31, covering:
+  - it opens on the calendar with time + school chips for both schools;
+  - month paging;
+  - the filters start folded and narrow the calendar;
+  - the search box keeps focus;
+  - day → openings → "add your details" → form → saved with the day still open → request;
+  - List view still works;
+  - 375px;
+  - a teacher gets the full page without their own class.
+
+  The teacher (28), V3.784 step-card (36) and standalone (4) suites were re-run with no regressions; 0 console errors.
+- **FTP:** `engage-presenters.js`, `styles.css`, `sw.js` (on top of the V3.785–787 list).
+
+## [V3.787] — 2026-09-29 — Engagement: accept → the teacher emails the presenter; booked dates; presenter reviews
+
+Plan: `CodeLog/ClaudesPlan/V3.785_presenter_signup_calendar_reviews.md` (covers V3.785–787). Alex: *"the teacher
+accepts and must send an email to the presenter to let them know when, where, and how many students to expect. After
+the presentation the presenters should fill out a review of the engagement."*
+
+- **Changed** `engage-hub.js` step 7:
+  - **Accept…** (was Confirm…) asks for expected students, pre-filled from the slot's class size, then the listing's.
+    `decideEngageRequest` extras now include `expectedStudents`.
+  - Accepting then calls `TC_DB.setSlotBooked(slotId, date, true)` (`arrayUnion` into `engageSlots.bookedDates`).
+    **Cancel this visit** does `arrayRemove`.
+- **Added** `visitEmail(r)`: a `mailto:` to `requesterEmail`.
+  - Subject: "Your visit to {school} on {date}".
+  - Body: when (with the year), where (address + room; virtual and class-visits-UofA get their own wording), phone
+    and arrival notes, expected students + class, the visit and topic, the teacher's note, and the
+    `#/presenters` review link.
+  - Opening it adds the request to the module-level `composed` set and asks **"Sent it?"**. Only **Yes, I sent it**
+    calls `TC_DB.markEngageEmailed(id)` → `emailedAt`. The repaint after the click waits 400 ms so it can't remove
+    the link before the browser follows it.
+- **"Must send" is visible everywhere:**
+  - the coming-up row is amber with *email not sent yet*;
+  - `stepStates` makes step 7 an `action` tagged **email owed**, which `autoStep` opens;
+  - the panel callout names it;
+  - `teacher-teach.js` `loadHub` counts `hub.owedEmails`, and the Engagement tab badge is
+    `pendingVisits + owedEmails`;
+  - the Dashboard gets a *Needs your attention* line.
+- **Added** reviews, `engageReviews/{requestId}`:
+  - Written from the presenter page's *Your visits* (overall 1–5, student engagement 1–5, students reached, would
+    return, went well, next time).
+  - Shown under each past visit in step 7 ("No review from the presenter yet" otherwise) and in the admin list.
+  - Read only by query: `TC_DB.reviewsForRequester` / `reviewsForTeacher`. Written by `TC_DB.saveEngageReview`.
+- **Added** `functions/engage-notify.js` `onEngageReviewWrite`: created → teacher + admins; edits are silent. Exported
+  from `functions/index.js`.
+- **Bug Fixes**
+  - `onEngageRequestWrite` returned silently on every `→ cancelled`, because it assumed a presenter's self-cancel.
+    A teacher calling off an accepted visit would never have reached the presenter. Now `confirmed → cancelled`
+    notifies the presenter and admins, while `pending → cancelled` stays silent. Requester pushes link to
+    `/#/presenters`.
+  - `teacher-teach.js` `todayISO()` was UTC (it rolled to tomorrow at 5pm in Arizona) and is now local.
+- **Rules (DEPLOYED):**
+  - the `engageRequests` teacher update key set gains `expectedStudents` and `emailedAt`;
+  - a request create may not carry them;
+  - new `engageReviews`: read by the requester, the teacher, or admin; created by the requester of a `confirmed`
+    request with the teacher matching; `hasOnly` the fields; ratings are int 1–5.
+- **Functions (DEPLOYED):** `onEngageRequestWrite` updated, `onEngageReviewWrite` created.
+- `sw.js` CACHE_VERSION 771 → 772.
+- **Verified:**
+  - rules `:test` 36/36 (calibrated), covering this release and V3.785's;
+  - node fixture 11/11;
+  - headless 28 checks on the teacher side, re-run of the V3.784 suites (36 + 4) with the expectations this release
+    changed (after accepting, the badge shows the owed email, and step 7 stays an action until it's sent);
+  - 0 console errors.
+- **FTP:** with V3.785–786 (see V3.785).
+
+## [V3.786] — 2026-09-29 — Engagement step 6: a month calendar for the teacher's availability
+
+Plan: `CodeLog/ClaudesPlan/V3.785_presenter_signup_calendar_reviews.md`. Alex: *"a calendar with the ability to overview
+the days, and add days to the calendar would also be helpful."*
+
+- **Added** `engage-hub.js` `calendarBlockHTML(approved)` / `calPanelHTML(approved)` at the top of step 6, built on
+  the shared `monthGridHTML`, with prev/next up to 12 months ahead.
+  - Each day shows opening times, visits, requests and skipped days. A day's own tone ranks
+    `busy > pending > open > skipped`, because on a phone the chips are hidden and only a coloured dot shows.
+  - Tapping days multi-selects them (`calSel`). "Add an opening on these N days" makes one dated `saveSlot` per day
+    from `calTimes` + `slotCtxDefaults()`.
+  - A single selected day lists its openings. A weekly occurrence offers **Skip this day** (a `blocked` dated
+    slot); a skipped day offers **Un-skip**; a dated opening offers **Remove** (armed). Visits and requests link
+    to step 7.
+  - The day stays selected after Skip, so Un-skip is right there as the undo.
+- **Changed:** the slot class-context defaults are factored into `slotCtxDefaults()`, shared by the form and the
+  calendar. Enter in the calendar's time fields no longer triggers the step's Next.
+- `styles.css`: `.eh-cal*`, `.eh-calpanel*`, `.eh-calday`; tone dots at ≤ 640px.
+- `sw.js` CACHE_VERSION 770 → 771.
+- **Verified** headless: 3-day add, end-before-start rejected, skip → un-skip, no horizontal scroll at 375px,
+  screenshots read.
+
+## [V3.785] — 2026-09-29 — Link-only presenter page (#/presenters): anyone with the link can find a class and request a visit
+
+Plan: `CodeLog/ClaudesPlan/V3.785_presenter_signup_calendar_reviews.md`. Alex: *"a page that is public but not in the
+site navigation so people must have a link to view … they can see all of the availability for all the schools, and
+filter schools and times then sign up for a presentation."* Alex chose: anyone with the link (the link is the gate),
+the lab + teacher see reviews, and listings get a school type.
+
+- **Added** `engage-presenters.js` (`ML.renderPresentersPage` / `wirePresentersPage`), the route `#/presenters`
+  (`app.js`: render + wire cases, `AUTH_GATED`, `isClassEnv`), `index.html` script tag, and `sw.js` `SHELL_URLS`.
+  - **Signed out:** a pitch plus Google sign-in, which sets `mcghee_login_redirect='#/presenters'` first.
+  - **About you:** `engagePresenters/{uid}` via the new `TC_DB.getPresenter` / `savePresenter`, required before
+    requesting.
+  - **Your visits:** review due / waiting on the teacher / coming up / past.
+  - **Find a classroom:**
+    - A **static filter bar** wired once; only `#ep-results` re-renders.
+    - Filters: search, school, date range (default 8 weeks, max 120 days), and chip rows for school type,
+      activity, format, day and time of day, inside a *Filters* `<details>` that is folded on a phone.
+    - **List | Calendar** views and the inline request form. The request denormalises `requesterTitle` /
+      `requesterBio`.
+- **Changed** `engage-hub.js`:
+  - The cap-gated `renderBrowse` / `renderExplainer` are removed; `wireEngageHub` sends every non-teacher to
+    `#/presenters`.
+  - It exports `ML.EngageKit` (labels incl. `SCHOOL_TYPES`, `isoLocal`, `fromISO`, `addDays`, `todayISO`, `fmtDay`,
+    `expandRange`, `expandSlots`, `listingHeadHTML`, `ctxLine`, `monthGridHTML`, `armConfirm`).
+  - **`expandRange(slots, from, to)`** replaces the 28-day loop (`expandSlots` wraps it) and skips `bookedDates`.
+  - Step 1 gains *Kind of school* → `engageProfiles.schoolType`, in `listingOf`, the summary and
+    `listingHeadHTML`.
+- **Changed** `rm/js/admin-teachers.js` `?tab=engage`:
+  - a presenter-link bar (Copy / Open);
+  - a **Presenters** list with Block / Unblock (`engagePresenters.blocked`);
+  - a **Visit reviews** list;
+  - request rows show expected students and whether the teacher emailed;
+  - admin confirm/cancel keeps `bookedDates` in step.
+  `rm/pages/admin-teachers.html`: `.tcadm-chip.blocked`. `rm/js/capability-registry.js`: the engage caps are
+  relabelled "No longer needed" (kept for old grants); `href` → `/#/presenters`.
+- **Changed** `teacher-demo.js`:
+  - a community-college listing + evening slot, presenter profiles, and a reviewed and an unreviewed past visit;
+  - the matching `TC_DB` methods;
+  - personas `presenter-new`, `presenter-active` and `teacher-accepted`;
+  - empty-world personas clear `engagePresenters` / `engageReviews`.
+- **Bug Fixes:** `engage-hub.js` `todayISO()` and slot expansion used `toISOString()` (UTC). In Arizona that is
+  tomorrow after 5pm, so every expanded date was a day ahead in the evening. Now `isoLocal()`.
+- **Rules (DEPLOYED 2026-09-29):**
+  - `engageProfiles` read: any signed-in user may read an `approved` listing (the clause comes before `isAdmin()`);
+  - `engageSlots` read: any signed-in user may read an `open` slot;
+  - `engageRequests` create: no cap; it refuses a `bookedDates` date, an unapproved listing and a blocked presenter
+    (new `presenterBlocked()`, which checks `exists()` before `get()`);
+  - new `engagePresenters/{uid}`: the owner writes, but not `blocked*`.
+  The local file was diffed against the live ruleset before deploying; the only differences were these changes.
+- `styles.css`: `.ep-*`; `.ep-page [hidden]{display:none !important}` is load-bearing. `sw.js` CACHE_VERSION 769 → 770.
+- **Verified:** headless 25 checks on `#/presenters` (the gate, filters, the search box keeping focus, request, the
+  calendar, review due → saved, the redirects, 375px); rules `:test` 36/36; 0 console errors.
+- **FTP (V3.785–787 together):**
+  - root: `engage-presenters.js`, `engage-hub.js`, `teacher-classes.js`, `teacher-teach.js`, `teacher-demo.js`,
+    `app.js`, `index.html`, `styles.css`, `sw.js`;
+  - RM: `rm/js/admin-teachers.js`, `rm/pages/admin-teachers.html`, `rm/js/capability-registry.js`.
+
+  Rules and functions are already deployed and are backward compatible with the live client.
+
+## [V3.784] — 2026-09-29 — Teaching hub Engagement tab: seven step cards, one open at a time
+
+Plan: `CodeLog/ClaudesPlan/V3.784_engagement_tab_step_cards.md`. Alex: *"make the engagement tab easier to walk
+through, make multiple cards for each section, so teachers can walk through it without losing their minds."*
+
+- **Changed** `engage-hub.js` teacher view (`renderTeacherHub`, mounted by the hub as `ML.mountEngageTeacherPanel`):
+  the one long page becomes seven numbered cards in two groups, *List your class — once* (1 You and your school ·
+  2 Your class · 3 Kinds of visit you want · 4 Where visitors go · 5 Send it to the lab) and *Run your visits*
+  (6 When your class is free · 7 Visit requests). One card is open at a time and each ends in Back / Save & continue.
+  A collapsed card shows its number (✓ when done), a one-line summary and a state chip (To do / Waiting / Optional /
+  Later / *N new*), and the set-up header shows *N of 5 done*. `autoStep()` opens a card with pending requests first,
+  then the first unfinished set-up step. A callout points to step 7 when requests are waiting elsewhere.
+  - New: `STEPS`, `stepStates(S)`, `autoStep(st)`, `listingHeadHTML(t)` (shared with the browse view, so step 5's
+    preview is what researchers see), `ctxLine(cc)`; `renderTeacherHub` split into `reload()` / `paint()` / `wire()`.
+  - Save rule: while the listing is not yet sent (none/draft), cards 1–3 save a draft on Continue. While it is
+    pending or approved they do **not** write (an owner write can only land draft/pending, so a per-card save would
+    unlist a live class). Edits wait in `listingDraft`, and step 5 offers *Send changes for review* (with the
+    unlisting spelled out) or *Discard changes*.
+  - Every keystroke goes into `listingDraft` / `contactDraft`, so a repaint never loses typing. `openStep` /
+    `keepPlace` live outside the render, and a request decision's host refresh keeps step 7 open.
+  - Card 3: activity and format choices are now labelled cards with a one-line hint each; Continue needs ≥1 of each
+    (Send enforces the same). Card 4: required only when "In person at the school" is ticked, otherwise Optional.
+    Card 6: times grouped Every week / Particular dates / Skipped dates, a *What researchers see* preview of the next
+    4 weeks, and a segmented Every week / One date / Skip a date control with the class details folded away. It
+    rejects end ≤ start and past dates, and no longer lists past dated slots. Card 7: Waiting on you / Coming up /
+    Past and declined (collapsed).
+  - Only a request decision refreshes the host (it moves the tab badge). Listing, contact and slot writes repaint
+    just the panel, so there is no full-hub rebuild on every Continue.
+- **Bug Fixes**
+  - Status messages were invisible in the embedded tab: `setStatus()` ran before `onChange()` → `ctx.refresh()`,
+    which rebuilt `#eh-status` (the V3.771 trap). Messages now go to the open card's `[data-step-status]`, after the
+    refresh.
+  - A new time's *Subject* was pre-filled with the school name: `teacher-teach.js` passed `classHint.subject =
+    schedule.subtitle`, and the approve modal and `redeemTeacherInvite` both store the school there. `classHint` no
+    longer carries `subject`, and the slot form prefers the listing's subject and class size over the host hint.
+- **Changed** `teacher-teach.js` `renderEngagementTab`: shorter intro that names the 1–5 / ongoing split. The
+  *See the public hub* link is removed (for a teacher `#/engage` is this same panel).
+- **Changed** `styles.css`: `.eh-step*`, `.eh-group*`, `.eh-progress*`, `.eh-callout`, `.eh-fields`,
+  `.eh-choices`/`.eh-choice`, `.eh-seg`, `.eh-openings`, `.eh-sublist`, `.eh-req-what`, and a 640px block.
+  `.eh-teacher [hidden]{display:none !important}` is load-bearing (`.form-group` is flex).
+- No rules, index, function or data-model change. `sw.js` CACHE_VERSION 768 → 769.
+- **Verified** headless on the demo fixtures: 36 checks on `#/teach/…/engagement` (a fresh teacher walks steps 1→5;
+  an approved teacher with a pending request covers auto-open, the callout, no-write edits, discard, slot
+  validation, add and skip-a-date, and confirm → badge cleared with the status visible; no horizontal scroll at
+  375px) and 8 on standalone `#/engage` (browse card through the shared head, un-embedded panel, decline). 0 console
+  errors; screenshots read.
+- **FTP:** `engage-hub.js`, `teacher-teach.js`, `styles.css`, `sw.js`.
+
+## [V3.783] — 2026-09-29 — Heat Transfer Foundations published for teachers; Solid Mechanics confirmed live
+
+Plan: `CodeLog/ClaudesPlan/V3.783_outreach_heat_transfer_deploy.md`. Alex: *"the heat transfer and solid mechanics
+modules are ready to go. We want to publish these to the website for use by the teachers."* Source-repo record:
+Interactive-Modules CHANGELOG V3.20.
+
+- **Changed** `modules/heat_transfer/01…06-*.html`: replaced by the cleaned-up set, byte-identical to the source
+  (`cmp` clean). Lesson 6 (*Radiation & Color*) was a 12.6 KB stub and is now a full four-tab lesson. Every tab's prose
+  now eases into the math (plain words → one equation → its letters named → numbered worked steps). Lesson 2's blank
+  Tab 4 canvas and its four never-drawn "before" ghosts (one per tab) were fixed, along with layout collisions in Lessons 1, 3
+  and 4.
+- **Added** `modules/heat_transfer/worksheet-01…06-*.html`: the six printable worksheets the overview's "Worksheet
+  (print)" buttons have linked to since July (they 404'd).
+- **Fixed at the source before copying:** "∝" now renders at full size. It is aliased to a math font through a
+  one-glyph `@font-face 'PropSign'` with `unicode-range: U+221D`; macOS system fonts lack the glyph and fell back to a
+  near-invisible one. Six canvas captions now say it in words. Lesson 3 Tab 3's "halve L → double q" label no longer
+  clips at the chart ceiling. Worksheet 6's record row E gains its missing cell.
+- **Solid Mechanics Foundations:** no change. All 22 files match the live site checksum for checksum.
+- `modules/manifest.json` regenerated: exactly six additions (the worksheets). `sw.js` CACHE_VERSION 767 → 768.
+- **Verified** from this site root: 6 lessons, 49 canvases painted, 0 console errors, 0 failed requests, no raw TeX;
+  overview + 6 worksheets 0 errors / 0 failed requests; overview links 12/12 (heat transfer) and 10/10 (solid
+  mechanics); changed canvases, Lesson 5's takeaways and worksheet 6's table screenshot-read.
+- **FTP:** `modules/heat_transfer/` (whole folder), `modules/manifest.json`, `sw.js`. **Then, as admin:** RM →
+  Teachers → Module Catalog → **Select all** on *Heat Transfer* (13 rows; worksheets must be ticked too, or they don't
+  appear under their lessons), and on *Solid Mechanics Foundations* unless it already reads 11 of 11.
+
+## [V3.782] — 2026-09-29 — BME 466 Week 6 re-staged: Tab 3 rewritten for students with no mechanics background
+
+Plan: `CodeLog/ClaudesPlan/V3.782_bme466_week6_tab3_restage.md`. Alex: *"Tab 3 is great, but we need to move through
+these topics assuming the student has no mechanics background. we want to take the force displacement concepts and
+translate them into stress strain."* Course-repo record: its CHANGELOG V3.19.
+
+- **Changed** `modules/bme466/06-the-ground-gives.html` — replaced by the course repo's current build, byte-identical
+  (539,901 bytes, `cmp` clean; was 505,532). Tab 3 opens with a new bench, a bar built from cubes of gel, so stress,
+  strain and the modulus are measured before they are derived; strain, the traction on a cut, Poisson's ratio, the shear
+  modulus and the thin-film reading are each built from a force-and-displacement idea the earlier tabs taught; two new
+  Derive boxes and a closing translation card. Tabs 1, 2, 4 and 5 unchanged.
+- **Simulation pages:** the same 18 (6.1.1–6.1.5, 6.2.1–6.2.6, 6.3.1–6.3.5, 6.4.1, 6.5.1), regenerated; 6.3.1 now shows
+  two benches. None added, none removed, nothing to delete on the server.
+- `modules/manifest.json` regenerated; `sw.js` CACHE_VERSION 766 → 767.
+- **Verified** from this site root: the page loads with 0 console errors and 0 failed requests; the module's DOM QA
+  passes (0 failures, 47 canvases inked, no NaN readouts, no raw TeX); all 18 simulation pages pass
+  `qa_deployed_sims.mjs`; a screenshot of 6.3.1 read.
+- **FTP:** `modules/bme466/06-the-ground-gives.html`, `modules/bme466/simulations/` (whole folder), `modules/manifest.json`,
+  `sw.js`. If Week 6 is not yet on the class page: as admin, `#/classes/bme466` → + Add Module → Visible.
+
+## [V3.781] — 2026-09-29 — BME 466 Week 6 staged: "The Ground Gives", 18 whiteboard simulation pages
+
+Plan: `CodeLog/ClaudesPlan/V3.781_bme466_week6_deploy.md`. Alex: *"get this module ready for FTP to the site"*.
+Course-repo record: its CHANGELOG V3.18.
+
+- **Added** `modules/bme466/06-the-ground-gives.html` — Week 6, first time on the site: the ground under an adhesion as a
+  spring, motors → flow → integrin force → gel displacement, the one-bond race against talin's threshold, the best
+  ground (durotaxis), traction force microscopy; springs and dampers (series/parallel, Hooke, the Newtonian damper,
+  Maxwell, Kelvin–Voigt, build-your-own, the clutch on a relaxing ground); stress, strain and traction; the capstone
+  neutrophil on gel; the nucleus-through-a-pore teaser. No-copy guard on.
+- **Simulation pages added (18):** 6.1.1–6.1.5, 6.2.1–6.2.6, 6.3.1–6.3.5, 6.4.1, 6.5.1. None removed.
+- `modules/manifest.json` regenerated (the Add Module picker lists it); `sw.js` CACHE_VERSION 764 → 765, then 766 after a
+  same-day re-stage (§1.2's derivation box, §1.2's bench tidied, §1.3's bench shows five racing bonds; simulation set unchanged).
+- **Verified** from this site root: the page loads with 0 console errors and 0 failed requests; the module's DOM QA
+  passes (0 failures, 44 canvases inked, no NaN readouts, no raw TeX); simulation pages checked by
+  `qa_deployed_sims.mjs` and a screenshot of 6.1.2 read.
+- **FTP:** `modules/bme466/06-the-ground-gives.html`, `modules/bme466/simulations/` (whole folder), `modules/manifest.json`,
+  `sw.js`. Then, as admin, add it on `#/classes/bme466` (+ Add Module → Visible).
+
+## [V3.780] — 2026-09-24 — Week 5 redeployed: rebuilt Tabs 2–4, 19 whiteboard simulation pages
+
+Plan: `CodeLog/ClaudesPlan/V3.780_bme466_week5_redeploy.md`. Alex: *"push the new learning module 05 to
+the website for FTP along with all the new simulations … there is already week 5 in the site already, so
+we will be replacing everything."* Course-repo record: its CHANGELOG V3.14.
+
+### Changed
+
+- `modules/bme466/05-integrins-and-the-motor-clutch.html` — replaced by the course repo's current build,
+  byte-identical (609,048 bytes, `cmp` clean; was 499,238). Since V3.779 the course side rebuilt §2.1–2.4
+  (the workbench, Bell's law and the slip/catch "both" panel, the crawling strip, steering), merged §3.2
+  and §3.3 and added stretch to failure (a new eq. 5.3.3; 5.3.3–5.3.5 are now 5.3.4–5.3.6), wired §3.3's
+  loop, and added a §4.1 recap scene (old §4.1–4.3 are §4.2–4.4). Whiteboard head block unchanged.
+- `modules/bme466/simulations/` — regenerated by `gen_simulations.py bme466`: **19 Week-5 pages**,
+  `5.4.2` new, `5.3.5` removed as an orphan; `index.json` now 62 simulations across modules 3–5. The
+  V3.779 set of 21 had already lost `5.2.5` and `5.2.6` locally in a course-side Tab 2 rebuild.
+- `modules/manifest.json` — regenerated by `scan_modules.py`; Week 5's title unchanged.
+- `sw.js` — CACHE_VERSION 763 → 764.
+
+### Whiteboard refs that now mean a different section
+
+| Ref | Before (2026-09-22 copy) | Now |
+|---|---|---|
+| `5.3.2` | the motor bench (force clamp) | §3.2 — motors, linkage, failure: the one-clutch stretch panel and the new chain bench |
+| `5.3.3` | one clutch stretching | §3.3 — the loop: the motor–clutch bench |
+| `5.3.4` | the motor–clutch bench | §3.4 — three states, swept |
+| `5.3.5` | three states, swept | **removed** (no §3.5 any more) |
+| `5.4.1` | the capstone scenes | §4.1 — the recap scene, new |
+| `5.4.2` | — | §4.2 — the capstone scenes, **new** |
+
+`5.1.x`, `5.2.1`–`5.2.4`, `5.3.1` and `5.5.x` keep their sections.
+
+### Verification
+
+Served from this repo's root. Module page: HTTP 200, **0 console errors, 0 failed requests** (all
+whiteboard and Firebase head assets resolve). The course repo's Week 5 DOM QA run against the deployed
+path: 0 failures. **All 19 simulation pages** through the course repo's new `qa_deployed_sims.mjs`: every
+iframe an embed URL, exactly one section visible, every canvas inked (`5.3.3`'s autocorrelation panel
+re-measured after 14 s at 6.5 %; `5.5.3`'s at 0.5 %, reported as weak, still collecting), no NaN,
+undefined or Infinity in any readout — 0 failures. `5.3.2` and `5.4.2` screenshotted after settling and
+read: body `wb-embed wb-embed-sim`, one section each (§3.2's two panels; §4.2's six scenes). A shot taken
+the instant the iframe appears shows the whole lesson for a moment before the embed script hides it —
+not a defect, but now written into the skill so it is not mistaken for one. `gen_simulations.py --check`
+clean; the course repo's `sync_nocopy.py --check` clean including this copy.
+
+### Not done — manual
+
+- **FTP**: the module, `modules/bme466/simulations/` (whole folder), `modules/manifest.json`, `sw.js`.
+- **Delete on the server**: `modules/bme466/simulations/5.2.5.html`, `5.2.6.html`, `5.3.5.html` — FTP
+  uploads, it does not delete, and all three are gone from the local set.
+- No class-page step: Week 5's existing row points at the same file.
+
+## [V3.779] — 2026-09-22 — Week 5 (integrins & the motor–clutch) joins the BME466 shelf, with 21 whiteboard simulation pages
+
+Plan: `CodeLog/ClaudesPlan/V3.779_bme466_week5_module_and_simulations.md`. Alex: *"push the current
+state of the week 5 lecture to get ready for FTP to the website, and for me to add it to the learning
+modules list, and be able to add simulations to the whiteboard"*.
+
+### Added
+
+- `modules/bme466/05-integrins-and-the-motor-clutch.html` — the Week 5 learning module, byte-identical
+  to the course repo's canonical build (484,911 bytes; `cmp` clean). It now carries the V3.737
+  whiteboard head block, inserted **verbatim** from `04c-the-cytoskeleton.html` on the course side —
+  the build had none, so `whiteboard.js` would have refused it ("cannot be embedded yet") and
+  `gen_simulations.py` would have skipped it without a word, exactly the V3.774 failure in a different
+  costume.
+- `modules/bme466/simulations/5.1.1 … 5.5.4.html` — **21 pages**, one per section with a canvas, plus a
+  rewritten `index.json` (64 simulations across modules 3, 4 and 5). Each is the 34-px title bar over an
+  iframe of `05-…html?embed=T.S&sim=1`; nothing is copied, the module stays the one source.
+
+### Changed
+
+- `modules/manifest.json` — regenerated by `scan_modules.py`; Week 5 appears under BME466/566 by its
+  `<title>`, folder labels preserved. The instructor adds it to the class page from the picker.
+- `sw.js` — CACHE_VERSION 761 → 762.
+
+### Verification
+
+Served from the **website root** so `../../whiteboard.js`, `../../firebase-config.js` and
+`../shared/whiteboard-panel.*` resolve as they will on mcgheelab.com. Module page: all five head assets
+200, `whiteboard-panel.js` present, zero console errors. `?embed=1.3&sim=1`: body `wb-embed wb-embed-sim`,
+exactly one `.lesson-block` visible (§1.3), header and story hidden, three canvases painted (41 %, 6.4 %,
+29.7 % ink). **All 21 generated pages**, headless: iframe loads, exactly one section shown, every visible
+canvas carries ink, zero console errors. The two lowest readings — `5.3.4` (0.6 %) and `5.5.3` (0.5 %) —
+are the autocorrelation panels, which legitimately render "collecting a time series…" for their first
+~10 s; they reach ~8.5 % once running (course-repo QA README). `5.1.5` (the reinforcement cascade) and
+`5.3.1` (the clutch bench) screenshotted and read. `gen_simulations.py bme466 --check` clean; the course
+repo's `sync_nocopy.py --check` clean across all 15 targets including this deployed copy.
+
+### Found and fixed on the way — by reading a screenshot
+
+The `5.3.1` page (the clutch bench, "The same balance, live") passed every automated check — iframe
+loaded, one section visible, canvas painted, zero console errors — and its readouts said **"— pN", "— nm/s"
+and "NaN"**. On the lesson too, not just here. A page-level field the panel derives its numbers from
+(`W5.fPerClutch`) was read in five places and never assigned. The course repo fixed it at the source
+(derived at boot from the bench's own Monte Carlo, 5.55 pN, pinned in its harness), re-copied, and the
+page now reads 5.5 pN per clutch / 22 pN / 107 nm/s / 37 to stall. A text sweep of **all 21 pages** for
+`NaN`, `undefined` and placeholder dashes in stats and verdicts found that one page and no other; the
+course repo's DOM QA now runs the same scan on every tab. The lesson for this repo's own pipeline: the ink
+test proves a canvas painted, not that the numbers beside it exist.
+
+### Note
+
+- A parallel course-repo session was editing Week 5 throughout (its engine grew 60 → 69 functions
+  mid-task). The deployed copy is the state that passed the course's full chain at copy time — 207
+  harness assertions, engine parity, 24/24 call sites, equation bookkeeping. **Before FTP, `cmp` the
+  deployed copy against the canonical build**; if that session has written since, re-copy and re-run
+  `gen_simulations.py bme466 --check`.
+- `release_push.py` was not run — the ask was FTP-readiness, and that script also cuts a TestFlight
+  build. This entry is in `PENDING_RELEASE.md` with the rest of the batch.
+
+## [V3.778] — 2026-09-18 — Report 1 joins the BME466 class page (as a draft, on purpose)
+
+The course repo finished Report 1 ("Read & Rebuild" — one of three short papers, re-derived and
+re-measured on two seeded benches). Registering it took the V3.777 shape with one difference that
+would have made a copy of V3.777 a silent no-op.
+
+### The assignment row already existed, empty
+
+V3.777 created the `hw2` document because it was absent. `report-1` is **not** absent: the V3.681
+inventory seed wrote it months ago as a bare draft — `{slug, title, kind, audience, order}` and
+nothing else. So `if (!existing.exists)` would have skipped it and the row would have stayed in the
+list with no module to open and no `progressKey` for the student dashboard to read against. The
+V3.778 migration therefore **fills in** `moduleUrl`, `progressKey` and `notes` on the existing
+draft, each only when absent, and keeps the create branch for a fresh class.
+
+It deliberately does not write `title` or `dueAt`: an instructor may already have set those by hand.
+
+### Still created/left as a DRAFT, for V3.777's reason
+
+`functions/bme466-notify.js` fans out to every student profile on the transition into
+`published: true`. `published` is simply absent from the merge, so this migration cannot fire that
+notification however many times it runs. The instructor FTPs, then flips Publish in Assignments &
+Requests, which carries its own confirmation.
+
+### Rules path, read rather than assumed
+
+`schedules/bme466/assignments/{slug}` allows `create, update: bme466Staff() && aShapeOk()`. A merge
+write is validated as the MERGED document, so `hasAll(['slug','title','kind','audience','published',
+'updatedAt'])` is satisfied by the fields already on the doc; `moduleUrl`, `progressKey` and `notes`
+are all on the `hasOnly` whitelist; `updatedAt` is a server timestamp so `== request.time` holds and
+`updatedBy` is the token email. `hw466SyncProgressKeys()` then puts `bme466-report1` into
+`schedules/bme466.hwProgressKeys` — no rules redeploy.
+
+### Also
+
+- `modules/bme466/report-01-journal-review.html` — the module, **byte-identical** to the course
+  repo's build (verified by `cmp`). One catalog row in `DEFAULT_SCHEDULES['bme466'].modules`
+  (`mod_466_report01`, order 6, published) so it is pickable for the class.
+- `modules/manifest.json` regenerated by `scripts/scan_modules.py` — diff is the one new entry plus
+  the timestamp. `scripts/gen_simulations.py --check` clean (43 files; the report has no numeric
+  prefix so it is skipped by design, as homework is).
+- `sw.js` CACHE_VERSION 760 → 761 so the new file is fetched rather than served from a stale shell.
+
+### Verification
+
+`node --check class-builder.js` clean. Served the website tree and loaded the module at its deployed
+path: **0 console errors and 0 failed requests** — the five whiteboard/firebase 404s seen from the
+course repo's own folder are a path artifact of that layout and resolve here, and all five
+dependencies were confirmed present. Headless browser QA driven end-to-end through the real DOM on
+all three papers from the deployed path: six gates lit, 24/24 canvases painted, no TeX in live
+readouts, no NaN on screen, no stat-box drift, 0 problems. The migration itself runs only behind a
+real admin sign-in, which headless cannot do — it is unexercised until the instructor's next visit
+to `#/classes/bme466`, and logs to the console when it fires.
+
+## [V3.777] — 2026-09-17 — HW2 joins the BME466 assignment list (as a draft, on purpose)
+
+The course repo finished HW2 ("Reading and Building", Weeks 3–4) and asked for it on the website's
+homework assignment list. Two registrations were needed, and neither could come from a seed.
+
+### Why a migration, not the seed
+
+`hw466SeedAssignments()` bails if the assignments collection holds any document, so the `hw2` row added
+to `HW466_SEED_ASSIGNMENTS` would never have been written — HW0 and HW1 were seeded weeks ago. The same
+is true of `schedule.modules`: `DEFAULT_SCHEDULES` seeds a NEW doc, not an existing one. So V3.777 adds
+the V3.674 pretest-module pattern for HW2: on an admin's next visit to `#/classes/bme466` it appends the
+two module rows (the assignment page and the Microscope) if absent, creates the `hw2` assignment document
+if absent, and calls `hw466SyncProgressKeys()` so `bme466-hw2` lands in `schedules/bme466.hwProgressKeys`
+— no rules deploy, which is what `progressKey` was introduced for.
+
+### The assignment is created UNPUBLISHED, deliberately
+
+`functions/bme466-notify.js` fans out to every student profile on the transition into `published: true`,
+and **creating a document already published IS that transition** (its `before` is undefined). Publishing
+from a migration would therefore notify the whole class — and, since the FTP is a separate manual step,
+hand them a 404. The migration fills the row in and stops; the instructor FTPs, then flips Publish in
+Assignments & Requests, which carries its own confirmation. The due date (2026-09-30) is set either way.
+
+### Also
+
+`modules/bme466/hw-02-reading-and-building.html` (the module, byte-identical to the course repo's
+`local-test/` copy) and `hw2-reading-and-building.html` (the assignment page, pandoc-built with the
+no-copy guard) are in the tree; `modules/manifest.json` already lists both. `sw.js` CACHE_VERSION
+759 → 760 so the new files are fetched rather than served from a stale shell cache.
+
+### Verification
+
+`node --check class-builder.js` clean. The rule path was read rather than assumed: the fields written are
+exactly the `assignments/{slug}` whitelist, the `hasAll` set is satisfied, `updatedAt` is a server
+timestamp (so `== request.time` holds) and `updatedBy` is the token email; `bme466Staff()` includes
+`bme466IsGlobalAdmin()`, so an admin's create is permitted. The migration itself runs only behind a real
+admin sign-in, which headless cannot do — it is unexercised until the instructor's next visit, and it
+logs to the console when it fires.
+
+## [V3.776] — 2026-09-15 — ＋ Simulation is three dropdowns: module, tab, section — each with its name
+
+Plan: `CodeLog/ClaudesPlan/V3.776_simulation_picker_dropdowns.md`. Alex: *"a series of three
+dropdown boxes that have all the available simulations in it."*
+
+### Changed
+
+- **`whiteboard.js` ＋ Simulation form.** The typed `module.tab.section` input is replaced by
+  `Module` / `Tab` / `Section` selects (`[data-wb-sim-pick]`) rendered by `renderSimForm()` into
+  `[data-wb-sim-picks]`, wired by `wireSimForm(bar)`. State `S.simSel = {module, tab, sec}`; changing
+  Module clears Tab and Section, changing Tab clears Section; the form re-renders in place. The Add
+  button (`[data-wb-sim-add]`) is disabled until a section is chosen. Submit builds the ref and still
+  calls `resolveSimRef()` — the page's `sim.ref` is unchanged.
+- **New `parseModuleCatalog(html, lesson)` (pure) + `moduleCatalog(lesson)` (cached per module file
+  in `SIM_CATALOGS`).** Tabs are numbered from the sections' `data-nav` and labelled from the module's
+  `.tab-btn` text (module 01's tabs start at 1, 04c's at 0); sections carry `data-title` and a
+  `hasCanvas` flag; *Simulation only* lists canvas sections, *Whole section* all of them. A module
+  without `whiteboard-panel.js` shows its error inline.
+- `simLessons()` numbers the class's lessons exactly as `resolveSimRef` does (prefix, else ordinal
+  only for unnumbered classes) and labels them `4 — The Cytoskeleton: From Reading to Moving`.
+- `whiteboard-board.css`: `.wb-sim-picks` / `.wb-sim-select` replace `.wb-sim-ref`.
+
+### Removed
+
+- `S.simRefDraft`, `S.simResolved` and the 250 ms resolve-as-you-type handler.
+
+### Verification
+
+Real `parseModuleCatalog` over every bme466 module: 03 → 6 tabs / 28 sections / 20 canvas, 04c →
+6 / 24 / 23, canvas refs identical to `simulations/index.json`, titles identical. `node --check`;
+headless board load clean. Signed-in picker check owed. `sw.js` → 754. FTP: `whiteboard.js`,
+`whiteboard-board.css`, `sw.js`.
+
+## [V3.775] — 2026-09-15 — A lecture recording survives a site update; 4.0.1 can no longer mean 3.0.1
+
+Plan: `CodeLog/ClaudesPlan/V3.775_lecture_recording_lost_to_sw_reload.md`. Alex: *"there is only a
+minute or so of lecture recorded … the simulation that came in was 3.0.1."* Server-side forensics
+(Firestore `createTime`/`updateTime`, Storage listing, prod `Last-Modified`) reconstructed the
+lecture minute by minute — see the plan.
+
+### Fixed
+
+- **A service-worker update reloaded the recorder tab mid-lecture and destroyed the recording.**
+  `index.html` called `reg.update()` every 30 min and on every return to the tab, and reloaded on
+  `controllerchange` (`sw.js` does `skipWaiting` + `clients.claim`). `sw.js` 752 was FTP'd at 10:01:18;
+  at 10:01:47 a simulation page was added — an in-scope iframe navigation, which makes the browser
+  check for a new worker on its own — and the tab reloaded. The in-memory `REC` (MediaRecorder buffer
+  + event queue) was gone; on this device the recorder delivers audio only at stop, so 17 minutes of
+  audio were never uploaded, and the remaining 42 minutes were never recorded. Nothing on screen
+  said so: the board came straight back and the list read "Recording now".
+  `index.html` now gates the two `update()` calls AND the `controllerchange` reload on
+  `window.Whiteboard.isRecording()`; a held-back reload sets `__swReloadDeferred` and
+  `stopRecording()` toasts that a site update is waiting.
+- **The recorder tab now knows when it lost a recording.** `recorderClientId` is per-tab
+  (`sessionStorage`), so it survives the reload. `detectLostRecording(recId)` runs once per live
+  `recId` when `REC` is null; a match puts a red **🎙 Recording lost — record again** button in the
+  Live column (`data-wb-act="rec-restart"`): finalizes the orphan, `startRecording()` from this tap,
+  and writes `liveWhiteboard.recId`.
+- **`finalizeInterrupted()` stamped `durationMs: 0` → "1 min".** It now takes the LAST of audio
+  chunks / recorder events / stroke `t1` (+3 s) and rebuilds the page events the recorder missed
+  (`add-page` 2 s before a page's first ink; `page` flips wherever consecutive strokes change page;
+  marked `synth: 'ink'`), so an interrupted lecture replays its ink end to end.
+- **`resolveSimRef` fell back to `lessons[n-1]` and returned the wrong module.** With the class
+  listing `hw-00-pretest, 01, 02, 03` (04c not yet added), `4.0.1` resolved to module 03 §0.1 — the
+  page said 4.0.1, the iframe showed "A cell in a gradient". The ordinal fallback now applies only
+  when no listed lesson filename carries a number; otherwise the error names what is listed.
+- **Latent race:** a schedule snapshot between `startRecording()` and the flag write read as
+  "live ended elsewhere" and would `stopRecording('remote-end')` a brand-new recording. `REC.arming`
+  covers that window.
+
+### Recovery
+
+The 2026-09-15 audio is unrecoverable (never left the tab). The ink is intact: 2,645 strokes,
+17 pages, 09:45–10:44. A 21-event repair plan (scratchpad `repair_recording_analyze.py`, read-only)
+is ready; `repair_recording_commit.py` writes it — awaiting Alex.
+
+### Verification
+
+7/7 resolver checks against the real function and the real class list (during-lecture and now);
+`node --check`; headless board load with zero console errors. Device test owed (see plan).
+`sw.js` → 753. FTP: `index.html`, `whiteboard.js`, `sw.js`.
+
+## [V3.774] — 2026-09-15 — Week 4's 23 simulations get their whiteboard pages (and a letter in a filename stops hiding a module)
+
+Plan: `CodeLog/ClaudesPlan/V3.774_bme466_week4_simulation_pages.md`. Alex: *"push all
+simulations from the learning module into the website repo for me to FTP"*.
+
+### Fixed
+
+- **`scripts/gen_simulations.py` could not see `04c-the-cytoskeleton.html`.**
+  `MODULE_FILE_RE` was `^(\d+)-.*\.html$` — a digit run followed *immediately* by a
+  hyphen. `04c-` has a letter in between, so the whole module was skipped in silence and
+  **none of its 23 simulations had ever been generated**. The regex now allows an optional
+  letter suffix (`^(\d+)[a-z]?-`): `04c-…` is still module 4. Because a suffix means two
+  files can now claim one module number, `generate()` refuses that case outright instead of
+  letting them overwrite each other's `N.T.S` refs.
+- **The 16 `modules/bme466/simulations/4.*.html` pages were pointing at a deleted module.**
+  They were generated from `04-the-membrane-that-senses.html`, which was unpublished when
+  Week 4 was reworked from the membrane to the cytoskeleton. Their iframes fetched a file
+  that is not there. Regenerating replaced 15 of them, added 8, and removed `4.5.2.html`.
+- **`whiteboard.js:resolveSimRef` had the same blind spot.** It locates module *n* by
+  `^0*n[-_.]` against the lesson filename, which `04c-` also fails, so `4.T.S` resolved only
+  through the ordinal fallback (`lessons[n-1]`) — right by luck, wrong the moment a class
+  lists its modules in another order. Now `^0*n[a-z]?[-_.]`.
+
+### Added
+
+- `modules/bme466/simulations/` — **23 pages for Week 4**, `4.0.1` … `4.5.1`, plus a rewritten
+  `index.json` (43 simulations across modules 3 and 4). Nothing is copied: each page is a
+  34-px title bar over an iframe of `04c-the-cytoskeleton.html?embed=T.S&sim=1`, so the module
+  stays the one source and a fix to a lesson fixes its simulation page too.
+
+### Verification
+
+`gen_simulations.py bme466 --check` and the all-classes `--check` both clean. Headless
+patchright over **all 23 pages**: zero console errors, zero page errors, every page's visible
+canvases measured for ink after scrolling each one into view (6–100 % coverage, none blank),
+stat rows present on every one. The eight `ERR_ABORTED` requests in the report are deferred
+head scripts cancelled at teardown — all five assets return 200 on their own. `4.2.4` (Tug of
+war) and `4.3.3` (Search and capture) screenshotted and read: title bar, tab strip, scenario
+chips, controls, both canvases live, stats and verdict all correct.
+
+### Note
+
+A parallel session is editing Week 4 as this ships (the module grew 711,798 → 718,533 bytes
+mid-task). The wrappers bake in only the section number and its `data-title`, so content edits
+need no regeneration — adding, renumbering or retitling a section does, and `--check` is the
+detector. Safe to re-run immediately before the FTP push.
+
+### FTP (manual, instructor)
+
+`modules/bme466/simulations/` (whole folder — 15 of the 23 filenames already exist on the
+server carrying the *membrane* module's titles, so the overwrite matters), **delete
+`modules/bme466/simulations/4.5.2.html`** on the server, `whiteboard.js`, `sw.js`
+(CACHE_VERSION 751 → 752).
+
+## [V3.773] — 2026-09-14 — A class starts empty, and the library is the top card
+
+Plan: `CodeLog/ClaudesPlan/V3.773_empty_class_library_first.md`. Alex: *"I want
+the Available to your students section to be empty until the teacher fills it
+out, switch the order so the cards go up top and the selected modules are
+below it."*
+
+### Changed
+- **Modules tab order swapped** — *Module library* is the first card, *Available
+  to your students* sits under it, matching the workflow (choose → it appears).
+  Copy turned round; the empty state now explains that the class starts empty
+  and what to do about it.
+- **Provisioning no longer pre-fills `schedules.modules[]`.** A new class
+  arrived carrying lessons its teacher never chose — `tc-tuc-gnr8` had 36
+  across 7 courses on its students' class page before the teacher had opened
+  the dashboard once. The admin approve modal now writes `modules: []` (folder
+  checkboxes replaced by a note; folders the teacher *asked about* still shown
+  as context), and the invite form no longer collects `prefillFolders`.
+- **`redeemTeacherInvite` provisions an empty class** — the `prefillFolders`
+  expansion is gone. **Deployed.**
+- **The legacy "edit granted folders" modal no longer rewrites `modules[]`** —
+  it used to overwrite whatever the teacher had curated on `#/teach` with a
+  folder expansion, silently replacing their class. It writes `grantedFolders`
+  only.
+- `approveBlockedReason()` narrowed: an unavailable `modules/manifest.json` no
+  longer blocks approving a class or issuing an invite (nothing is built from
+  it at provisioning any more) — only the legacy folder-grant modal needs it.
+
+### Data
+- `schedules/tc-tuc-gnr8` cleared of its 36 pre-filled modules (backed up to
+  the session scratchpad first; zero students enrolled; every lesson is one
+  click away in the library).
+
+### Verification
+The 53-assertion headless harness re-run after the swap — all pass, with the
+order assertion rewritten to require *Module library* first. sw.js → 745.
+
+## [V3.772] — 2026-09-14 — Fixed: joining a class was impossible for everyone
+
+Plan: `CodeLog/ClaudesPlan/V3.772_missing_doc_read_denies.md`. Alex: *"I just
+logged in as mcgheelabadmin@gmail.com to be added as a student … and it denied
+me."* **Rules-only change; deployed immediately, does not wait for the FTP
+batch.**
+
+### Bug Fixes
+- **A `get` of a document that does not exist cannot be authorised by a rule
+  that reads that document.** `joinClassWithCode()` reads the student's own
+  `enrollments/{scheduleId}_{uid}` first to decide join-versus-rejoin, and on a
+  first join it isn't there. With no readable `resource`, every clause of the
+  read rule either raised (`resource.data.studentUid…`) or was false
+  (`isAdmin()` for a guest); rules are three-valued, so an `||` of errors and
+  falses is an **error, and an error denies**. The SDK reported "Missing or
+  insufficient permissions", the class page printed it, and the join write —
+  which the rules would have allowed — was never attempted. **No student had
+  ever successfully joined a class: the collection was empty project-wide.**
+- **The fix is a clause that proves the caller without touching `resource`.**
+  There is no working null-test — probing the rules engine showed that
+  `resource == null`, `resource != null`, `resource is map` and
+  `resource.data == null` all raise on a missing document, while
+  `error || true` allows. A composite id ends in its owner's uid, so
+  `enrollmentId.matches('.*_' + request.auth.uid)` is true for the legitimate
+  caller, resource-free, and tighter than a null-test would have been (no
+  existence oracle for other people's ids).
+- Applied to the whole composite-id family: **`enrollments`** (the reported
+  bug), **`submissions`** (`mySubmission()` — a student's first look at an
+  assignment), **`moduleStats`** (same shape, no get today). **`teacherProfiles`**
+  fixed differently: `isAdmin() || isOwner(uid)` moved **before** the
+  `resource.data.status` check and that check guarded with `resource != null`,
+  so a teacher opening the profile editor for the first time is no longer
+  denied.
+
+### Verification
+19 cases against the **real rules engine** (`firebaserules…:test`) with the
+real ids — every fixed read ALLOW, every guard still DENY (stranger reading
+another's enrollment existing *or* missing, signed-out read, stranger creating
+for someone else, forged join code, stranger reading a submission /
+moduleStats / pending profile), and both list queries unaffected. Then
+**end-to-end against live production** as a real signed-in user (throwaway
+account, Firestore REST): own missing doc 403 → **404**, another user's id
+still **403**, the join write **200 — enrolled**, read back **active**. Test
+row and account deleted afterwards; no function triggers on enrollment writes.
+
+sw.js → 744. Rules deployed and the live ruleset re-fetched and diffed
+byte-for-byte against the repo.
+
+## [V3.771] — 2026-09-14 — Teacher Modules tab: a chosen list and a shelf of courses
+
+Plan: `CodeLog/ClaudesPlan/V3.771_modules_by_course_card.md`. Alex: *"lets have
+cards that cluster the modules by group… No due date, No visibility, keep
+preview. make a button for 'make available'. At the top of the page is a
+selected list… how teachers assign the learning modules and assign grades etc
+is up to them… Worksheets should go along with learning modules not be separate
+items."* Presentation rebuild — **no data-model change, no firebase deploy**.
+
+### Added
+- **"Available to your students (N)"** at the top of `#/teach/{id}/modules` —
+  the class page in order: position, title, course, ▲▼, Preview, Remove.
+- **Module library as one card per course** (`.teach-lib-grid`), each showing
+  `N of M available`. A card opens **in place, spanning the grid** (one at a
+  time, `openLibFolder` survives re-render) and lists that course's lessons
+  with **Preview** and **Make available** — or ✓ Available + Remove.
+- **Worksheets ride with their lesson** — `withWorksheets()` attaches
+  `worksheet-03-…` / `hw-03-…` / `hw3-…` to the lesson numbered `03-` in the
+  same folder, matched on the NUMBER not the slug (`worksheet-01-surface-energy`
+  ↔ `01-surface-energy-and-adsorbed-water`). Making a lesson available brings
+  its worksheets; removing takes them away; they stay adjacent in `modules[]`.
+  A worksheet with no matching lesson stays an item of its own.
+
+### Changed
+- **Removed from the teacher hub: module due dates, per-module visibility, the
+  assignment editor, the gradebook, and per-student module overrides.** The
+  site makes lessons available to a class and shows who is working through
+  them; setting and marking work is the teacher's own business. `assignments` /
+  `submissions` / `setModuleOverride`, their rules and
+  `functions/class-notify.js` are untouched and still deployed — only the
+  surfaces are gone.
+- **Every save rebuilds `modules[]` from scratch** (`entryOf`), so `dueDate`
+  and `published:false` drain out of the data on the next save instead of
+  lingering behind removed controls; `order` is always contiguous.
+- `loadHub()` no longer fetches `assignments` or `submissions` — four reads per
+  view instead of six. Dashboard is three tiles (students / modules available /
+  engagement visits); "Coming up" is confirmed visits only; the Students tab
+  badge is gone.
+- The student dashboard's **Assignments card hides itself when empty** instead
+  of showing "No assignments yet." forever.
+- **Hero hidden on `#/teach`, `#/teachers` and `#/engage`**, as it already was
+  on `#/classes` (one `isClassEnv` flag in app.js).
+- **Footer links are three columns**, not one seven-deep run; the middle footer
+  column widened to `2fr` to hold them (two columns below 420px).
+
+### Bug Fixes
+- **Every course card rendered open**: `.teach-lib-body` is `display:flex`,
+  which beats the `hidden` attribute. Explicit `.teach-lib-body[hidden]
+  { display:none }` guard added, with a comment saying it is load-bearing.
+- **Confirmation messages were never seen** (since V3.769): mutations called
+  `setStatus(msg)` and then `await ctx.refresh()`, which rebuilds the shell
+  including `#teach-status`. The three sites now set the status after the
+  refresh.
+- Dead CSS removed with its features: `.teach-module-*`, `.teach-cat-*`,
+  `.teach-override-*`, `.teach-assign-*`, `.teach-af-edit`, `.teach-gb-*`,
+  `.teach-new-assign`. `.teach-af-row` stays — engage-hub.js and the
+  `#/teachers` request form share it.
+
+### Verification
+Self-driving headless harness (the real SPA in a same-origin iframe, demo
+persona seeded in `sessionStorage`): **53 assertions, all passing** — 12 cards
+closed with 0 of 56 rows visible, open card spans 918px, worksheets folded in
+with 0 strays, preview still lazy (0 → exactly 1 iframe at the real URL) and
+the card stays open behind it, make-available/reorder/remove round trips
+including what lands in `modules[]`, three dashboard tiles, no gradebook or
+per-student settings, old `/assignments` deep link still resolves, hero absent
+on all four class routes and present on `#/mission`, footer three columns ×
+three rows, no console errors, no `prompt/alert/confirm`.
+⚠ Harness trap for next time: `index.html` reloads on the service worker's
+`controllerchange`, replacing the iframe document — held nodes report
+`isConnected === true` while `document.contains(node)` is false.
+
+FTP only. sw.js → 743.
+
+## [V3.770] — 2026-09-14 — Module Catalog: picking is the primary action, and every module opens
+
+Plan: `CodeLog/ClaudesPlan/V3.770_module_catalog_pick_and_preview.md`. Alex:
+*"I want to be able to: 1) select the modules that are available for teachers
+to select 2) I want a link for myself to click on and open each module to
+ensure it looks how i want it to."* `?tab=catalog` on
+`rm/pages/admin-teachers.html`. No data-model change, no rules change, **no
+firebase deploy** — the field stays `teacherCatalog/{id}.published`, which is
+what `TC_DB.publishedCatalog()` queries to fill the teacher's picker.
+
+### Added
+- **↗ Open on every catalog row** — `/modules/<folder>/<file>` in a new tab
+  (`rel="noopener"`), built from the same manifest entry as the row, so the
+  link can never point at a different file than the row publishes. All 69
+  resolve (verified by fetching each one).
+- **Catalog toolbar** (`.tcadm-cat-bar`, static markup wired once in
+  `wireCatalogBar()`): live count *N of 69 modules available to teachers*,
+  filter chips **All / Available / Not available**, **Collapse all**, and a
+  150 ms-debounced search over folder, file name, title, subjects, grade
+  levels and description. Wired once because re-rendering the input would drop
+  focus and the half-typed query on every keystroke.
+- **Collapsible folders** — per-folder caret plus Collapse/Expand all; state in
+  `catShut` survives re-render.
+- **✎ Details** per row — subjects / grade levels / description move to a
+  second line (`.tcadm-cat-details`, full-width flex child) that opens on
+  demand; a row with metadata shows it as a muted tag line when closed.
+
+### Changed
+- **The tick is the row's primary control** — 16 px checkbox labelled
+  **Available**, a tinted row with a green left edge when on, title + file name
+  beside it. Previously an 11 px checkbox wedged between three text inputs.
+- **Ticking repaints in place** — row class, folder header count and the
+  summary update from `updateCatCounts()` (always recomputed from `catalog`,
+  never incremented) instead of `saveRow(...).then(renderCatalog)` rebuilding
+  all 69 rows under the cursor. The filter is applied at render time only, so a
+  row that stops matching stays put until the next render — deliberate.
+- **Status line names the module** — *"Lesson 1: Welcome — BME 295C" is now in
+  every teacher's picker* / *no longer offered to teachers*.
+- Folder bulk buttons renamed **Select all / Clear all**; they keep the single
+  batched commit but patch the local `catalog` array instead of calling
+  `loadAll()` (which re-read all fourteen collections for one folder's change).
+- Counts everywhere read "available" rather than "published", including
+  `catalogCountForFolder()` in the approve-class modal.
+- Stale `admin-teachers.js` header comment ("Four tabs") corrected to the six
+  that exist.
+
+### Bug Fixes
+- **A failed catalog save no longer leaves the tick showing a state Firestore
+  rejected** — `saveRow()` now reports success, and the checkbox and row tint
+  revert when it fails, with the error on the status line.
+- `.tcadm-cat-details[hidden] { display:none }` — the `hidden` attribute alone
+  is beaten by the element's own `display:flex`.
+- **13 module titles printed a literal `&amp;`** everywhere they appear (admin
+  catalog, teacher picker, student class page). `scripts/scan_modules.py`'s
+  `extract_title()` carried the comment "Clean whitespace and HTML entities"
+  but never unescaped: `<title>Gradients &amp; Encounters</title>` was stored
+  verbatim in `modules/manifest.json`, then escaped again at render.
+  `html.unescape()` added and the manifest regenerated — 13 titles changed,
+  nothing else (byte-identical otherwise, so the scan is idempotent against the
+  current tree). `manifest.json` holds text; escaping is the renderer's job.
+  Titles already copied into `teacherCatalog` / `schedules.modules[]` keep the
+  old spelling until their next save — cosmetic, self-healing, no migration.
+
+### Verification
+Self-driving headless harness (scratchpad; real markup + real
+`admin-teachers.js` with `firebridge`/`firebase` stubbed, `/modules/` served
+from the repo): **40 assertions, all passing** — structure and all 69 Open
+links fetched 200; ticking writes `published:true` and repaints without
+rebuilding; a forced save failure reverts; filters 2/67/69; search narrows,
+drops empty folders, survives re-render, explains an empty result; collapse and
+per-folder toggle; details open (computed `display:flex`) and save subjects as
+an array; folder Select all = 6 writes for a 6-module folder; no
+`prompt`/`alert`/`confirm`, no console errors.
+
+FTP only. sw.js → 742.
+
+## [V3.770] — 2026-09-15 — Week 4 §1.3 names α-actinin; §1.4's conveyor belt actually runs
+
+`modules/bme466/04c-the-cytoskeleton.html` (718,533 bytes), `sw.js` CACHE_VERSION 750 → 751.
+
+- **§1.3 crosslinking** — the simulation's chip, slider, canvas title, legend and stat row said only "crosslinker".
+  The molecule is **α-actinin** and is now named throughout (and in §1.5's cell widget, which releases the same
+  thing). Naming it makes the sim's 35-nm reach a measurement rather than a parameter: that is the dimer's own
+  length, 35 nm free and 36 nm bound (Meyer & Aebi 1990). Three new paragraphs and a comparison table set out what
+  Arp2/3 does that α-actinin does not — Arp2/3 changes the *number* of filaments and where they point, building a
+  polar tree that pushes; α-actinin changes the *free length between pins*, building an isotropic mesh that holds
+  shape — plus a student task that checks the contrast on the two chips. Three sources added.
+- **§1.4 degradation** — the widget showed a rear patch dissolving and a comb of barbed ends at the front with
+  nothing travelling between them. Rebuilt as one running loop: branched growth at the leading edge, retrograde
+  flow carrying the network back toward the nucleus (new 20–100 nm/s slider), cofilin taking it down behind the
+  lamellipodium, and the freed monomer diffusing forward to be used at the edge. Actin is conserved — 1,400
+  subunits, checked exactly by the harness on every chip — so the four chips now fail the belt in four different
+  places instead of by decree. Second chart replaced with the free-monomer profile across the cell, which is the
+  gradient the section is about.
+- **§3.4 says what the vesicles carry.** Membrane, receptors, endosomes, organelles, RNA granules — anything above
+  Luby-Phelps's ≈ 26-nm radius that cannot diffuse in cytoplasm — and not G-actin, for which a new worked example
+  finds Pe ≈ 1 over a cell length: the road buys nothing for the monomer, so the cell ships the mRNA instead
+  (Singer's β-actin zipcode, 16-fold at the leading edge). Four sources added. `sw.js` → 759.
+- **§3.1 opens with why.** Before measuring a microtubule's stiffness the section now asks what the cell needs
+  it for, given that keratocyte fragments with no microtubules crawl fast and straight (Euteneuer & Schliwa 1984):
+  to remember a heading, to carry, and to be re-aimed — each wired to the actin engine's controls through sources
+  the module already cites — and why every one of those jobs calls for a tube. `sw.js` → 758.
+- **§2.2 rebuilt as a two-footed walker; §2.3 derives its forces.** The walk is now myosin V drawn as two feet on
+  one hip — one planted, the other visibly random-walking on a tether the planted foot's stroke has parked 11 nm
+  short of the next zone, then the swap (Veigel 2002's 25 + 11 nm, measured in the sim as 25 + 11). A two-speed
+  clock lets a millisecond search and a 70-ms wait both be watched; 15 new harness checks. §2.3 draws the head as
+  a spring with a magnified ruler of each stroke (lever swung 11 · load took back 4.7 · gained 6.3) and introduces
+  every equation by its derivation — an energy-balance stall (10 pN) set against the force-balance stall (3.5 pN),
+  and what F actually is in a cell (drag, set by the network). Four myosin V sources added.
+- **§1.3 gains capping protein.** Arp2/3 branching had nothing to stop it — every filament it made was another
+  side to branch off, so the count ran away exponentially into the display cap. A capping-protein slider and an
+  *Arp2/3 + capping* chip now close barbed ends, and since a closed end neither grows nor branches, the two rates
+  subtract (new eq. 4.1.6). The point of the slider is that no setting holds the network steady: at exact balance
+  a branching process is critical, and a critical process dies rather than hovering — which is the argument for
+  the way §1.4's brush is held open at the membrane instead. Tab 1's later equations renumber by one as a result
+  (old 4.1.6–4.1.9 → 4.1.7–4.1.10, 38 references, all verified to still resolve).
+- **§1.4 gains an actin-pool slider.** The belt ran on a fixed budget of subunits, which drew a sketch of a
+  lamellipodium rather than one. *Total actin in this window* (1,000–9,000 subunits) now sets how much actin the
+  cell has, and what grows with it is the number of barbed ends the membrane can keep open — so a bigger pool buys
+  **more filaments, not longer ones**, and at the top of the slider the network fills the cell: 28 filaments at the
+  bottom, around 200 at the top, with filament length unchanged. The verdict says what a full screen still is not
+  — 0.66 µM against the ~100 µM of actin a real cell carries.
+- Engine tests 142/142; browser QA across every tab clean (0 page errors, 0 blank canvases, 0 empty or truncated
+  readouts, 0 raw TeX, no horizontal overflow at phone width); all 16 corners of the slider box conserve actin
+  exactly at under 0.5 ms/frame.
+
+`sw.js` CACHE_VERSION is **756** (another session in this repo bumped it 751 → 754 in between).
+
+**FTP is the instructor's manual step:** upload `modules/bme466/04c-the-cytoskeleton.html`, `modules/manifest.json`
+and `sw.js`.
+
+## [V3.769] — 2026-09-14 — Teaching hub split into four tabs
+
+Plan: `CodeLog/ClaudesPlan/V3.769_teaching_hub_four_tabs.md`. Alex: *"the
+current teacher hub is hard to navigate, lets split everything up we can do
+here into tabs."* Navigation rebuild only — no data-model change and **no
+firebase deploy**.
+
+### Added
+- **Dashboard tab** (`renderDashboardTab`, `#/teach/{id}/dashboard`, now the
+  default) — strictly read-only, every figure a link to the tab that manages
+  it: four stat tiles (students enrolled / modules assigned / assignments
+  open / engagement visits); a **Needs your attention** list (ungraded
+  submissions, waiting visit requests, quiet students, no active join code,
+  closed enrolment, no modules assigned) with the fixing button on each row;
+  a **Coming up** chronology merging module due dates, assignment due dates
+  and confirmed visits; read-only **Class access**; **Your other classes**.
+- **Class switcher** in the header, replacing the `#/teach` class-list page —
+  a bare `#/teach` now opens the most recent class.
+- **Tab badges** — ungraded-submission count on Students, pending visit
+  requests on Engagement.
+- **Invite students block** (Students tab): class link + join code with copy
+  buttons, "Copy joining instructions", and an email composer that builds a
+  `mailto:` with addresses in **BCC** and the three joining steps pre-written.
+  No mail server is involved — the teacher's own client sends it.
+- **Inline module preview** (Modules tab) — the real lesson in an iframe,
+  built **on first open** (the library runs to ~70 modules; dormant iframes
+  cost DOM and two console warnings each). Previewing writes nothing: it is
+  not the class module-viewer route, so the V3.672 beacon never fires.
+- `ML.mountEngageTeacherPanel(container, opts)` in `engage-hub.js` —
+  `renderTeacherHub(root, opts)` gained `embedded` (skip its own page
+  header), `classHint` (pre-fill a new slot's class context) and `onChange`
+  (refresh the host after a mutation); `rerenderTeacher()` routes all five
+  post-mutation re-renders through it.
+
+### Changed
+- **Five tabs → four.** Modules/Assignments/Gradebook/Engagement/Students
+  became **Dashboard · Students · Modules · Engagement**. Assignments folded
+  into Modules (create form behind a `<details>`); Gradebook and the old
+  student-engagement stats folded into Students, where each roster row now
+  shows last-active, modules touched, minutes and assignments handed in, and
+  expands to per-module progress bars **and** per-student overrides.
+- **Engagement tab is now the outreach hub**, mounted from `engage-hub.js`
+  rather than rebuilt, so `#/engage` and the tab cannot drift. Slot fields
+  relabelled **Student level** / **Expected students** and pre-filled from
+  the listing.
+- **One load per view**: `loadHub(schedule)` fetches the teacher's
+  teacherUid-keyed collections once and every tab renders from that snapshot
+  (fewer reads than the old per-tab fetches, and badges can't disagree with
+  their tab). Mutations call `ctx.refresh()`, which re-reads the schedule too.
+- The persistent join-code/enrolment head card moved into the Students tab.
+- Old tab names still resolve via `TAB_ALIASES` (`gradebook`→students,
+  `assignments`→modules, `overview`→dashboard, …), so V3.671's submission
+  notification deep link keeps working.
+- `teacher-demo.js` — the "2 classes, 15 students" persona opens `#/teach`.
+- `sw.js` — CACHE_VERSION 740 → 741.
+
+### Deploy
+FTP only, in the batch.
+
+## [V3.768] — 2026-09-14 — My Week shows this week's lab chore, not the whole semester's
+
+### Bug Fixes
+
+- **`rm/js/my-week.js` — the "Assigned to you" inbox no longer shows chores for weeks that haven't started.**
+  `assignChore()` (meetings.js) writes the assignee's `bucket:'assigned'` task the moment the coordinator fills a
+  slot — which is what makes a chore plannable at all — so filling the chore board a semester ahead put one card per
+  chore per week at the top of every lab member's My Week. New `inboxItems(weekMonday)` filters the render, not the
+  load: a `source_ref.kind === 'lab-chore'` card is held back until the **visible** week reaches it, compared by
+  `mondayOf(t.due_date)` and falling back to `source_ref.weekId` vs `FOCUS_AREAS.weekIdFor(weekMonday)` when the task
+  has no real due date. Paging the week nav forward reveals next week's chore with that week's day chips; an
+  unfinished chore from a past week keeps showing. `renderAssignedInbox()` now renders and counts `items`, not
+  `state.assigned`, and returns `''` when the filter empties the list.
+  **Nothing else in the inbox is week-filtered** — a meeting action item due in three weeks is a real deadline.
+  Fixed at the render seam on purpose: the task doc is what carries the chore to the Tasks page and what
+  `maybeCompleteMeetingWork()` flips when it is ticked done, so deferring the write would need a scheduler and would
+  break both.
+
+### Added
+
+- `scripts/tests/myweek-inbox.test.mjs` — 8 checks, registered in layer 1 of `scripts/tests/run-all.sh`. It lifts
+  `shiftDate` / `mondayOf` / `inboxItems` out of `rm/js/my-week.js`'s own source (and `weekIdFor` out of
+  `focus-areas.js`) and runs them, so the fixture cannot drift from what the page does. Pins both halves: future-week
+  chores hidden, action items never hidden — plus the FOCUS_AREAS-not-yet-loaded path, where a dated chore is still
+  filtered and an undated one falls open rather than vanishing.
+
+### Known, not changed
+
+- `functions/tasks.js onTaskAssigned` still pushes once per assigned task, so filling the chore board a semester
+  ahead also sends one push per chore per week. Suppressing the early push would leave those chores with no
+  notification at all unless `meetingReminders` grows a Monday "your chores this week" pass — Alex's call, not a
+  silent change.
+
+`sw.js` CACHE_VERSION 739 → 740.
+
+## [V3.768] — 2026-09-15 — One Week 4 on the shelf; the Tab 0 close-up no longer spins
+
+- **Unpublished two modules.** `modules/bme466/04-the-membrane-that-senses.html` and
+  `04b-from-reading-to-pushing.html` removed — they did not align with this year's plan and students were seeing three
+  Week 4 entries, one of them titled "(Week 4, alternative module)". Byte-identical archives were confirmed in the
+  course repo's `local-test/unusedLMs/` before removal, so nothing is lost. Manifest 69 → **67 files**.
+  **FTP note: these two must also be deleted on the live server** — removing the local copy does not remove the
+  uploaded one. Eight now-orphaned `modules/bme466/simulations/4.*.html` pages belong to the membrane module; they are
+  unlinked from every page and were left in place rather than deleted.
+- **`04c-the-cytoskeleton.html` redeployed** (682,525 bytes). Every reference to an earlier design is gone from the
+  student-facing text and from the file's own HTML comment; the module now reads as the only Week 4 there has been.
+- **Fixed: the Tab 0 close-up rotated its entire membrane.** The panel was drawn in the cell's own frame, so the
+  bilayer, lipid heads, receptors and organelles counter-rotated whenever the cell turned. It is now drawn in the lab
+  frame and circular — the membrane holds still (verified: best angular lag between frames 14 s apart is 0°, and it was
+  tracking the heading before), while the frontness/backness activity travels around the ring, the nucleus glides to
+  the rear, and the corner compass to the colony turns.
+
+- **Tab 1 reworked on four instructor notes.** §1.1's animation had every arriving monomer stick, directly under a
+  worked example saying one in 150 is correctly posed; the bath now shows arrivals bouncing off, with both the true
+  and the drawn ratio printed. §1.2 gained sliders for all four rate constants (+ and − ends, on and off) so a student
+  can close the treadmilling window and watch the belt stop — or invert the ends and watch it run backwards — with the
+  three regimes now shaded and labelled from the live values. And eq. 4.1.2's "length diffusion" went from one
+  sentence to three paragraphs and a derivation, because a student who thinks diffusion means a particle jiggling
+  through space has no way to read it.
+- **Fixed: §1.1 used the actin subunit rise as the monomer's radius.** δ = 2.7 nm is how much longer the filament
+  gets per subunit — a lattice spacing — and it was being fed into Stokes–Einstein as the size of the molecule doing
+  the swimming. The monomer is now sized from its own 42 kDa mass (≈2.8 nm), the two constants are kept apart in
+  code, and the example carries an honest error bar. The headline — about one arrival in 150 sticks — is unchanged,
+  which the example now points out as the lesson. Two 1990 Nature structure papers added to Sources, closing a
+  citation the cast table had been crediting to a paper that was not listed.
+- **Fixed: the nucleus could cross the cell in a second.** It was pinned to the heading, which `ce3Step` recomputes
+  from the instantaneous velocity each step, so direction jitter threw it across the cytoplasm. It now has its own
+  overdamped coordinate relaxing toward the rear with a 120 s time constant — longer than the cell's own crossing
+  time, so it visibly lags the body, which is what the largest object in a cell should do. Measured: ~0.02°/s in
+  ordinary running; 71 s of cell time to recover halfway from a worst-case 180° displacement.
+
+`sw.js` CACHE_VERSION 739 → **750**. `gen_simulations.py --check`: 36 files up to date, 8 orphans reported (above).
+**FTP is the instructor's manual step.**
+
+## [V3.767] — 2026-09-13 — Week 4 module redeployed after an adversarial review and a 23-simulation fix pass
+
+`modules/bme466/04c-the-cytoskeleton.html` replaced (byte-identical to `local-test/`, 680,451 bytes, 5,999 lines —
+was 4,700). Course-side detail in the BME466 repo's CHANGELOG [V2.75]; the short version:
+
+- Every one of the 23 simulations was reviewed against the instructor's own written description by its own agent, then
+  fixed. Two bugs were in shared code and affected every widget: **every chart was silently dropping its y-axis title**
+  (the text-clamping guard measures room from an untransformed x, which is meaningless after `ctx.rotate`), and
+  **88 of 102 stat values were being truncated** because a long label could squeeze the value column below its own cap.
+  Both fixed and verified in pixels; 0 of 129 values truncated after.
+- Five real model bugs fixed: efficiency at stall printed 36 % where it is zero; the front/back reading was measured on
+  the wrong axis so the signalling section's U-turn could not appear and its SNR invariant wobbled with a slider; the
+  persistence-time fit produced impossible MSD slopes; an ADP chip drew a bigger ATP cap than the ATP chip; and a
+  microtubule array's role branch was a no-op so its slider did nothing.
+- One panel the plan asked for and the previous build never had — the microtubule lattice built dimer by dimer — now
+  exists, and the Tab 0 opener gained the membrane cross-section, nucleus and washed-out organelles the instructor
+  described (undrawable before: the cell is 12 px wide at arena scale).
+- Content: 26 equations (was 25 — a kinesin load line read from Visscher 1999 the same day), 42 worked examples
+  (was 34), 64 chips, a new gelsolin chip that draws capping without quoting a rate the module has not read.
+
+`sw.js` CACHE_VERSION 738 → 739. `scripts/scan_modules.py`: 12 folders / 69 files. `gen_simulations.py --check`: ok,
+36 simulation files up to date. **FTP is the instructor's manual step.**
+
+## [V3.766] — 2026-09-13 — Week 4 learning module (third design) deployed: "The Cytoskeleton: From Reading to Moving"
+
+- `modules/bme466/04c-the-cytoskeleton.html` — the Week-4 module, 6 tabs, **23 simulations**, 24 sections, 25 minted equations,
+  34 worked examples, 78 sources. Actin (a filament end as Week 3's door with an ATP clock in it, two ends and treadmilling,
+  crosslinking, cofilin and the monomer's trip back, the actin system alone moving a cell) · the motors (the Lymn–Taylor cycle as a
+  thermal search with an ATP-paid bias, one head's power against a load, a team whose force adds while its speed saturates,
+  self-organizing actomyosin asters) · microtubules (stiffness from thermal shapes, dynamic instability, search and capture,
+  kinesin and dynein and the Péclet number, the compass) · the capstone (the cited cast, the second messengers with Week 3's
+  ceiling paid, the front and back wired, a live timescale dashboard, the neutrophil's hunt) · next week's Brownian ratchet.
+- `modules/manifest.json` regenerated (12 folders, 69 files); `sw.js` CACHE_VERSION 737 → 738.
+- `gen_simulations.py --check`: 36 simulation files unchanged. The `04c-` prefix is skipped by the numeric-prefix rule, so this
+  module has no whiteboard simulation pages until it is promoted to a plain `04-` name — the same as the two parked versions.
+- Source of record: `Biomechanics BME466/local-test/04c-the-cytoskeleton.html` (V2.74). FTP is the instructor's manual step.
+
+## [V3.765] - 2026-09-12 — BME 466 Week 4 ALTERNATIVE module: "From Reading to Pushing" (course V2.72)
+
+Course-repo change (`Biomechanics BME466/CodeLog/Updates/CHANGELOG.md` V2.72), mirrored here because a new deploy copy lands on the
+Modules shelf. The instructor asked for a second version of Week 4 that leaves membrane mechanics and bridges Week 3's kinetics into the
+limit of sensing and actin polymerization; both Week-4 files are kept until the instructor picks.
+
+### Added — `modules/bme466/04b-from-reading-to-pushing.html` (byte-identical to the course canonical)
+- 6 tabs / 18 simulations / 19 numbered equation boxes (18 minted 4.x.y); whiteboard head block present. `scan_modules.py` re-run: the
+  manifest now lists it (68 files). **No standalone simulation pages**: `gen_simulations.py` keys pages on a purely numeric filename prefix
+  (`^\d+-`) and skips `04b-` by design, so this version cannot collide with the membrane module's `4.T.S` pages; `--check` still ok (36 pages).
+  If the alternative is promoted, rename it `04-…`, demote the membrane file (e.g. `M1-…`), and regenerate.
+- `sw.js` 736 → 737.
+
+### FTP (manual, instructor)
+- `modules/bme466/04b-from-reading-to-pushing.html`, `modules/manifest.json`, `sw.js`.
+
+## [V3.764] - 2026-09-11 — BME 466 Week 4 module: "The Membrane That Senses" (course V2.71); Week 3 §5.2 swelling corrected
+
+### Added — `modules/bme466/04-the-membrane-that-senses.html` (byte-identical to the course canonical)
+- Week 4 learning module, 6 tabs / 16 simulations / 28 numbered equations; whiteboard head block present; standalone simulation pages
+  `modules/bme466/simulations/4.T.S.html` generated (`gen_simulations.py bme466`, `--check` ok).
+### Changed — `modules/bme466/03-binding-how-cells-read-concentration.html`
+- §5.2 `swell` teaser corrected (interior dilution; chips 6 / 16 mOsm). `sw.js` 735 → 736.
+### FTP (manual, instructor)
+- `modules/bme466/04-the-membrane-that-senses.html`, `modules/bme466/03-binding-how-cells-read-concentration.html`,
+  `modules/bme466/simulations/` (whole folder + `index.json`), `modules/manifest.json`, `sw.js`.
+
+## [V3.763] - 2026-09-08 — BME 466 Week 3 module V2.70: Berg–Purcell counting limit joins Tab 3 (§3.7); Tab 5 previews the membrane
+
+Course-repo change (`Biomechanics BME466/CodeLog/Updates/CHANGELOG.md` V2.70), mirrored here because the deploy copy and the
+whiteboard's simulation pages change. Instructor moved the sensing-limit lecture half from Week 4 into Week 3 so Week 4 can be
+membrane-only.
+
+### Changed — `modules/bme466/03-binding-how-cells-read-concentration.html` (byte-identical to the course canonical)
+- New §3.7 "The counting limit" (eq. 3.3.12–3.3.15) with the `noise` sim moved in from Tab 5 and given an absorber chip; Tab 5
+  rebuilt around the membrane (`flick` promoted, eq. 3.5.1 previewed; new `swell` vesicle-bursting teaser). 41 minted equations.
+- `scripts/gen_simulations.py bme466` regenerated: 20 pages (new **3.3.7**, **3.5.1**, **3.5.2**; the old 3.5.1 page now holds the
+  membrane strip). `--check` ok. `sw.js` 734 → 735.
+
+### Gotcha
+- `gen_simulations.py` has no `--help`; an unrecognised argument is taken as a class folder and the run **deletes** every page it then
+  considers an orphan (15 Module 1–2 pages went, regenerated by the proper `bme466` run). Only `bme466` or `--check` are safe arguments.
+
+### FTP (manual, instructor)
+- `modules/bme466/03-binding-how-cells-read-concentration.html`, `modules/bme466/simulations/` (whole folder + `index.json`), `sw.js`.
+
+## [V3.762] - 2026-09-08 — Whiteboard: ⛶ Maximize — the board fills the screen
+
+Alex: *"the follower whiteboard should be able to be full screened — currently it takes up a small part
+of the middle of the screen, we need a button that maximizes the whiteboard view."*
+
+The page route lays the board out in a 1500 px column under the site header (height `100dvh − 150px`),
+so on a big follower screen the sheet sat small in the middle. Projector mode already pinned the page to
+the viewport but strips every control; Maximize keeps the chrome and still fills the screen.
+
+### Added — `whiteboard.js`, `whiteboard-board.css`
+- **⛶ Maximize / Exit** button in the topbar (`data-wb-act="max-toggle"`, `.wb-max-btn`, `aria-pressed`).
+  `setMaximized(on, fromGesture)` toggles `body.wb-max`: `.wb-page` becomes `position:fixed; inset:0`
+  with the site header, footer and tab bar hidden — topbar, toolbar, thumbnail rail and Live column stay
+  usable. From the click itself it also requests browser fullscreen (`documentElement.requestFullscreen`,
+  failures swallowed — iPad Safari has none for non-video elements); un-maximizing exits fullscreen, and
+  the browser leaving fullscreen on its own (`fullscreenchange`, `S.fsHandler`) un-maximizes.
+  **Esc** exits (in `bindKeyHandler`). Remembered per device in localStorage `wb_max` and restored on
+  mount for `chrome:'full'` only (`restoreMaximized()`), so a follower who reloads mid-class comes back
+  maximized. `boardShellHTML({ maximize:false })` omits the button — the module panel passes it (its
+  iframe has its own popout). Teardown removes the class and the listener. Not shown to the projector.
+- `sizeCanvases()`/chrome re-render run synchronously on toggle so rail/side visibility and the sheet
+  scale follow the new width before the ResizeObserver tick.
+
+### Verification
+- Harness `?max=1` at 1366×1024: mounted 1000×874 host → click → `body.wb-max`, `.wb-page` = viewport,
+  ink canvas 730×789 → 1100×947, label Exit, `wb_max=1`, rail + Live column still visible; Esc restores;
+  two toggles idempotent; `?max=restore` mounts maximized from storage. A trusted click also enters
+  browser fullscreen. FTP-only (`whiteboard.js`, `whiteboard-board.css`, `modules/shared/whiteboard-panel.js`,
+  `sw.js`); sw 733 → 734.
+
+## [V3.761] - 2026-09-08 — Whiteboard: "Sync to leader" button; paused followers re-engage on the leader's next flip; pen-only auto-claim
+
+Alex: *"I need a button to resync follower. There were multiple edge cases today where the follower
+disconnected from the leader and the displayed whiteboard was not on the same page."*
+
+### Drift paths this closes
+1. **Manual navigation paused follow permanently** — a thumbnail tap, ↑/↓, or a stray two-finger
+   trackpad scroll on the laptop set `S.follow=false`, and only the small "Jump to live page" chip
+   (hidden behind the rail on wide screens) could resume it.
+2. **Mouse auto-claim** — with no leader yet, a *mouse* click on the laptop's board counted as pen-down
+   and silently made the laptop the leader, so the tablet's page changes stopped publishing.
+3. **A dropped Firestore listener** left a stale `activePageId` until the next change.
+
+### Changed — `whiteboard.js`
+- `resyncFollow(animate)`: sets follow, **re-reads the board doc** (`get()`), adopts `activePageId`, snaps,
+  re-renders rail/side/projector control. Wired to `follow-resync` and to the existing `follow-live` chip.
+- **⟳ Sync to leader** button + status line (`syncBlock()` in `renderTopbarRight`) for every follower —
+  admins in the Live column under Leader | Follower, viewers under the LIVE tag while live; amber when
+  paused or behind ("Paused — you moved to another page." / "Catching up…" / "In sync with the leader.").
+  The projector's corner control gains **⟳ Sync**.
+- Board listener: the leader's **next** `activePageId` change re-engages a paused follower (`leaderMoved`);
+  the projector never pauses (`setActivePage` keeps `follow` true there). `followsLeader()` is the one
+  predicate (class boards: not the leader; personal boards: not the owner).
+- Auto-claim of an unclaimed lead now requires `pointerType === 'pen'`.
+- `whiteboard-board.css`: `.wb-sync-btn(-off)`.
+
+### Verification
+- Harness (`?follow=1`, another device leads): follower shows Sync + "In sync"; thumb tap → "Paused",
+  button amber, page p1; leader flips to p3 → follower on p3, "In sync"; pause again → Sync → p3;
+  leader cleared → mouse click claims nothing, pen claims. Sheet/roles and page-management suites
+  unchanged. FTP-only (`whiteboard.js`, `whiteboard-board.css`, `sw.js`); sw 732 → 733.
+
+## [V3.760] - 2026-09-08 — Modules: Week 3 Tab 3 rebuilt as "From Reading to Fate"
+
+Course-repo build V2.69 (instructor: *"this tab should be setting up the rules for how the environmental concentration of factors
+determine fate"*). `modules/bme466/03-binding-how-cells-read-concentration.html` re-synced byte-identical: Tab 3 now goes occupancy →
+response → fate — a cell's decision concentration from its receptor's K_D, the decision band from its receptor count, switches, and
+positional information (the French flag, with Bicoid) — with two new simulations; the Damköhler material is compressed to a fine-print
+section and the film-relay simulation is gone.
+
+### Changed
+- `modules/bme466/03-binding-how-cells-read-concentration.html`: Tab 3 rebuilt and then simplified to six one-idea sections (sims `read1`, `read2`, `read3`, `flag`, `referee`; `relay` removed; eq. 3.3.1–3.3.11).
+- `sw.js`: CACHE_VERSION 731 → 732.
+
+## [V3.759] - 2026-09-08 — Modules: one notation across BME466 Weeks 1–3; Week 3 gains a common kinetic setup
+
+Course-repo build V2.68. All three Week modules re-synced byte-identical. Concentration is C everywhere (C_∞, C_s); a is a particle or
+cell radius and a_s a site radius; k_s is the encounter rate constant; species are s, p, sp (and q for a product); the capture probability
+of Week 2 is P_∞, P(t); Week 3's sticking probability per arrival is P with k_on ≡ P·k_s. Week 3 §1.6 is now "One setup for every model":
+the master rate equation (eq. 3.1.9) and a switchboard from which one-way, Langmuir, Michaelis–Menten, Hill, BET and Damköhler are derived.
+
+### Changed
+- `modules/bme466/01-diffusion-why-anything-moves.html`, `02-gradients-and-encounters.html`, `03-binding-how-cells-read-concentration.html`.
+- `sw.js`: CACHE_VERSION 730 → 731.
+
+## [V3.758] - 2026-09-08 — Modules: Week 3 joins the whiteboard — head block added, 16 simulation pages generated
+
+Alex: *"push this learning module to the website, and make sure you break up the simulations from each page into single
+sections for us to reference in the whiteboard."* Week 3 lacked the V3.737 whiteboard head block, so `gen_simulations.py`
+skipped it and `+ Simulation` on the board could not embed it.
+
+### Changed
+- `modules/bme466/03-binding-how-cells-read-concentration.html` (byte-identical to the course repo's source, which also
+  carries V2.64–V2.66 — §2.7 Michaelis–Menten, Tab 0 "Why This Week", §1.1–1.2 on diffusing proteins): the canonical whiteboard
+  head block from module 02 (viewport meta, board + panel CSS, Firebase compat scripts, `firebase-config.js`, `whiteboard.js`,
+  `whiteboard-panel.js`) pasted verbatim after the MathJax script. `?embed=T.S[&sim=1]` now works for every section.
+- `modules/bme466/simulations/`: regenerated — **47 files** (module 1: 17, module 2: 14, **module 3: 16** — 3.0.1, 3.1.1–3.1.5,
+  3.2.1, 3.2.5–3.2.7, 3.3.1, 3.3.4, 3.4.2–3.4.3, 3.5.1–3.5.2) + `index.json`. `--check` passes.
+- `sw.js`: CACHE_VERSION 729 → 730.
+
+### Verification
+- Served locally, `simulations/3.2.7.html`, `3.1.1`, `3.0.1`, `3.5.1`: title bar "N.T.S · title · module", inner document has
+  `wb-embed wb-embed-sim`, only the target block visible (story/task hidden, panel + 2 canvases live, stats changing between
+  reads, no other block or header visible, document height 686 at 1280×800), 0 console errors. Full module still loads
+  (6 tabs, 30 canvases).
+- Not embeddable yet (no head block): `P1-egfr-beyond-the-membrane.html`, `modules/exploration/01-magnetic-tweezers.html`.
+
+## [V3.757] - 2026-09-07 — Modules: Week 3 §1.1–1.2 rebuilt on diffusing proteins, with a k_off dial
+
+Course-repo build V2.66 (instructor: *"we should not be talking about ballistic molecules, we should be showing diffusing
+proteins"*; *"give me a slider for the unbinding probability"*). `modules/bme466/03-binding-how-cells-read-concentration.html`
+re-synced byte-identical: §1.1 now measures the diffusive arrival flux of Brownian proteins at a sticky wall (Fick I across the
+depletion layer, eq. 3.1.1 = Dc/δ); §1.2 gives the wall sites and a sticking probability and measures bindings against the
+diffusive ceiling and the partially-absorbing-wall prediction (Collins–Kimball in the main line), plus an unbinding-probability
+slider that lets the surface settle instead of going deaf.
+
+### Changed
+- `modules/bme466/03-binding-how-cells-read-concentration.html`: §1.1 Arrival and §1.2 Which arrivals count rebuilt; k_off slider. §1.2's derivation rewritten with consistent symbols and a step-by-step Collins–Kimball derive block (2026-09-08, same course build).
+- `sw.js`: CACHE_VERSION 728 → 729.
+
+## [V3.756] - 2026-09-07 — Modules: Week 3 Tab 2 ends with Michaelis–Menten (§2.7, `enz` sim)
+
+Course-repo build V2.64 (instructor: *"on tab 2 i also want to briefly introduce michaelis menten kinetics as well at the very end,
+we will use it in week 4"*). `modules/bme466/03-binding-how-cells-read-concentration.html` re-synced byte-identical: new §2.7
+"The door that eats — Michaelis–Menten" closes Tab 2 — a 200-site KMC enzyme (E + S ⇌ ES → E + P) with S held constant, three
+chips (k_cat ≪ / = / ≫ k_off), θ and v/V_max traced against Langmuir and eq. 3.2.15, deposits of v/V_max vs S; eq. 3.2.13–3.2.15
+minted, Briggs–Haldane vs Michaelis–Menten assumptions in the honesty note, one worked example. Module now 15 sims / 36 equation
+boxes / 18 worked examples.
+
+### Changed
+- `modules/bme466/03-binding-how-cells-read-concentration.html`: §2.7 + `enz` widget; §2.5 model table gains a Michaelis–Menten
+  row; equation index 3.2.13–3.2.15; two sources (Michaelis & Menten 1913 via Johnson & Goody 2011; Briggs & Haldane 1925).
+- `sw.js`: CACHE_VERSION 727 → 728.
+
+## [V3.755] - 2026-09-07 — Modules: Week 3 §1.4 shows the water jostling the ligand
+
+Course-repo build V2.63 follow-up (instructor: *"show the water molecules hitting the ligand to jostle it around"*).
+`modules/bme466/03-binding-how-cells-read-concentration.html` re-synced byte-identical: the `fit` sim's profile view now draws
+§1.3's water bath as a packed liquid — ~130 hard-disc molecules about half a patch across, colliding with each other and
+with the ligand's lumpy top (lobes and overhangs), body and bumps, each hit flashing and shoving or prying the drawn ligand —
+over the same Langevin tracer that sets its position in the well.
+
+### Changed
+- `modules/bme466/03-binding-how-cells-read-concentration.html`: visible water bath in the §1.4 profile canvas; canvas title
+  and intro prose name it.
+- `sw.js`: CACHE_VERSION 726 → 727.
+
+## [V3.754] - 2026-09-07 — Modules: Week 3 Tab 1 gains §1.4 "What sets the depth: shape and charge"
+
+Course-repo build V2.63. `modules/bme466/03-binding-how-cells-read-concentration.html` re-synced byte-identical: a new
+section between the water-bombardment sim and the energy well explains what makes a well deep — the shape complementarity of
+epitope and paratope (or ligand and binding site) and the ionic makeup of the two surfaces — with a `fit` sim that docks an
+8-patch ligand in an 8-dip site, builds the well's shape from the fit, and measures the mean stay of 150 copies. New eq. 3.1.7
+(the depth ledger); survival law renumbered 3.1.8; nine sources added. 14 sims, 33 numbered equations, 17 worked examples.
+
+### Changed
+- `modules/bme466/03-binding-how-cells-read-concentration.html`: §1.4 Shape and charge (sim `fit`, four preset fits, worked
+  example "An antibody's ledger — and what one wrong residue costs", 566 box on the debit side of the ledger); well → §1.5,
+  two dials → §1.6.
+- `sw.js`: CACHE_VERSION 725 → 726. `modules/manifest.json` unchanged (title and filename unchanged).
+
+## [V3.753] - 2026-09-05 — Modules: P1 gains a Background tab (the review's vocabulary, 9 sims)
+
+### Changed
+- `modules/bme466/P1-egfr-beyond-the-membrane.html`: new Tab 0 · Background — receptor anatomy and the ectodomain tether,
+  trans-phosphorylation in the asymmetric dimer, phosphotyrosine readers, the ErbB family and seven-ligand table, cooperativity
+  vs its impostors, the ubiquitin cycle and DUBs, CME vs NCE at a tripartite contact site, the ESCRT race, and a synthesis
+  Markov-chain biography with a matrix mean-first-passage time; 27-term glossary; 28 new sources. 34 sims, 51 equations.
+- `sw.js`: CACHE_VERSION 724 → 725. `modules/manifest.json` regenerated.
+
+## [V3.752] - 2026-09-05 — Modules: P1 gains a synthesis section on every tab
+
+Course-repo build V2.61. `modules/bme466/P1-egfr-beyond-the-membrane.html` re-synced byte-identical: each of the seven tabs
+now ends with a summary of that section of the review (in our words) and one simulation that chains the tab's engines —
+25 simulations, 42 numbered equations.
+
+### Changed
+- `sw.js` `CACHE_VERSION` 723 → 724.
+
+## [V3.751] - 2026-09-05 — Modules: paper module P1 "Beyond the Membrane — EGFR Signaling, Read Closely"
+
+Course-repo build V2.60. New file `modules/bme466/P1-egfr-beyond-the-membrane.html` (byte-identical to
+`local-test/`): the first **paper module** — one review paper (Jendrisek et al., Cell Mol Life Sci 2026), one tab per
+paper section, 18 simulations, 35 numbered equations, 17 worked examples; verbatim page-stamped quote cards and
+"commit now" prompts per section, the review's answer in a collapsed reveal. `modules/manifest.json` regenerated
+(also picks up Week 3 and the R1 case review, which had been deployed without a manifest entry).
+
+### Added
+- `modules/bme466/P1-egfr-beyond-the-membrane.html`.
+
+### Changed
+- `modules/manifest.json` regenerated by `scripts/scan_modules.py`.
+- `sw.js` `CACHE_VERSION` 722 → 723.
+
+## [V3.750] - 2026-09-05 — Modules: Week 3 gains §1.3 "Bombarded" (water kicks and the Boltzmann tail)
+
+Course-repo build V2.59. `modules/bme466/03-binding-how-cells-read-concentration.html` re-synced byte-identical: a new
+section between the sites sim and the well — a bound ligand under water bombardment, kick energies vs Boltzmann, the kick
+law k_off = νe^(−ΔU/kBT); 13 simulations.
+
+### Changed
+- `sw.js` `CACHE_VERSION` 721 → 722.
+
+## [V3.749] - 2026-09-05 — Modules: Week 3 Tab 1 reopened from impingement
+
+Course-repo build V2.58. `modules/bme466/03-binding-how-cells-read-concentration.html` re-synced byte-identical: Tab 1
+now opens with a gas-box impingement counter (Z = ¼cv̄) and a wall-with-sites sim (hits × P(site) × P(stick) × P(open)),
+retiring the one-way-doors absorber; 12 simulations, 30 numbered equations.
+
+### Changed
+- `sw.js` `CACHE_VERSION` 720 → 721.
+
+## [V3.748] - 2026-09-05 — Modules: Week 3 learning module, "Binding — How a Cell Reads a Concentration"
+
+Course-repo build V2.57 (plan `Biomechanics BME466/CodeLog/ClaudesPlan/V2.57_w3_module_binding.md`).
+
+### Added
+- `modules/bme466/03-binding-how-cells-read-concentration.html` — byte-identical copy of the course repo's canonical
+  Week-3 module (5 tabs, 11 simulations, 28 numbered equations, 14 worked examples): k_on/k_off and the bond as a
+  thermal well; the adsorption-model ladder (one-way → Langmuir → BET → Hill); the surface Damköhler number as
+  referee; the neutrophil-vs-bacterium capstone; a Berg–Purcell preview for Week 4. Presenter mode + section rail
+  as in Weeks 1–2 (`#rail` → viewport-sized iframe in the class shell).
+
+### Changed
+- `sw.js` `CACHE_VERSION` 719 → 720.
+
+## [V3.747] - 2026-09-04 — Modules: Exploration 01 compares several electromagnets in §2.1 and §3.1
+
+Course-repo build V2.56. `modules/exploration/01-magnetic-tweezers.html` re-synced byte-identical (electromagnet
+catalogue + chip bar in tabs 2 and 3, new displacement-vs-distance chart with validity bands).
+
+### Changed
+- `sw.js` `CACHE_VERSION` 718 → 719.
+
+ — Modules: Exploration 01 gains the coil-pair section and the build sheet
+
+Course-repo build V2.55. `modules/exploration/01-magnetic-tweezers.html` re-synced byte-identical: new §1.4
+(Helmholtz / Maxwell / bias+gradient coil pair vs the iron tip), §4.2 (dimensioned build drawing + bill of
+materials), §4.3 (build and calibration steps); a pre-existing unclosed `<div>` in §1.1 fixed.
+
+### Changed
+- `sw.js` `CACHE_VERSION` 717 → 718.
+
+## [V3.745] - 2026-09-04 — Modules: new `exploration/` folder — Exploration 01, Magnetic Tweezers for Granular Hydrogels
+
+Course-repo build V2.54 (plan `Biomechanics BME466/CodeLog/ClaudesPlan/V2.54_exploration_01_magnetic_tweezers.md`).
+A new module series: lab *design notebooks* rather than course lessons.
+
+### Added
+- `modules/exploration/01-magnetic-tweezers.html` — byte-identical copy of the course repo's canonical file
+  (`local-test/exploration/`). Four tabs (coil · force · gel · inverse design), five simulations, seven worked
+  examples, equation prefix `E1` (separate namespace from course numbers). Self-contained; MathJax CDN only; no
+  Firebase header; no no-copy guard (lab members copy numbers).
+- `modules/manifest.json`: new folder `exploration` (label *Exploration — lab design studies*) with the one file;
+  `generated` bumped.
+
+### Changed
+- `sw.js` `CACHE_VERSION` 716 → 717 so the new folder is picked up.
+
+## [V3.744] - 2026-09-04 — Lab Meetings: a roster — who is at meetings, who presents
+
+Follow-up to V3.743, same plan doc. Alex: alumni must not be selectable anywhere; some current
+students may not present this semester.
+
+### Added
+- **Settings → Roster** (coordinator-editable): one row per visible member with two checkboxes,
+  **At meetings** and **Presents**. Saved as `meetingConfig.attendeeUids[]` and
+  `presenterPoolUids[]` (pool ⊆ attendees, enforced on save). Until saved, defaults apply:
+  attendees = every visible member whose `category !== 'alumni'`; presenters = attendees minus
+  the PI/reviewers. `meetings.js` gains `rosterMembers()`, `presenterPool()`, `canPresent(uid)`,
+  `assignees()` (attendees + reviewers) and `attends(uid)`; `state.members` stays the full visible
+  list so past presenters' names still resolve in History.
+- Everything that used to read `state.members` now reads the roster: `submittersFor()` (the
+  round-robin "N / M in" count), the coordinator's drag pool and **Assign** picker on the Schedule
+  board (presenter pool), **Claim** on an empty slot (only for members in the presenter pool),
+  chore **Fill the rest** pool + the chore assign picker + the fairness summary (attendees), the
+  action-item assignee selects in the sheet and the Run-meeting rail (attendees + reviewers).
+  `openMemberPicker` accepts `only: [uid]` + `emptyText`.
+- **Seed Fall 2026** also writes the roster when unset: `attendeeUids` = current non-alumni members,
+  `presenterPoolUids` = the six people in the rotation.
+- `functions/meetings.js` `applyRoster(members, cfg)` / `attendees(members)`: the reminder and
+  flash-week audiences honour `attendeeUids` when saved, otherwise exclude alumni by default (they
+  were only excluding guests/hidden/collaborators). 4 new fixtures (56).
+- `rm/css/meetings.css` `.mtg-roster-*`. Self-test +7 checks (105): alumni unticked by default, PI
+  attends but doesn't present, pool ⊆ attendees on save, board pool + chore picker follow the saved
+  roster, a member outside the pool sees no Claim button, seed doesn't clobber a saved roster.
+
+## [V3.743] - 2026-09-04 — Lab Meetings: full remodel (rotation → slides pipeline → PI review → timed meeting → minutes → My Week)
+
+Plan [V3.743_lab_meetings_remodel.md](../ClaudesPlan/V3.743_lab_meetings_remodel.md).
+Deploy order: `firebase deploy --only firestore:rules` → `firebase deploy --only functions` → FTP (batched).
+
+### Added
+- **`rm/js/meetings.js` rewritten** (2,190 lines; V3.41 lift retired). Seven tabs — Next meeting ·
+  Schedule · Chores · Topics · History · My items · Settings — plus a **Run meeting** view. State is
+  hydrated from `api.subscribe` snapshots on five routes (`meetings/list|config|topics|swaps|chores`),
+  every direct write `api.invalidate()`s its route; `scheduleRender()` is debounced 120 ms and
+  **deferred while an input/textarea inside the page is focused** (flushes on `focusout`).
+  Publishes `window.MEETINGS` for the companion modules.
+- **Presenters are a map keyed by uid** — `presenters: { <uid>: { slot, name, title, abstract,
+  link: DriveRef|null, updatedAt } }`. `presentersOf(m)` normalizes map / legacy array / legacy
+  `presenterId`; Settings → **Migrate old presenter format** rewrites old docs in place.
+- **Agenda templates** (`meetingConfig.agendaTemplates.standard|flash`) — Alex's 60-min structure
+  (10 business · 15 round-robin · 5 comments · 15 presentation · 5 Q&A · 10 assignments). Block start
+  times are DERIVED (`agendaTimed()` = `meeting.time` + cumulative `minutes`), never stored.
+  `kind: 'standard'|'flash'|'break'` on each meeting; break = `status:'cancelled'`.
+- **Round-robin slide pipeline** — `updates: { submissions{uid}, deck, deckBy, review{status} }`.
+  Everyone submits a Drive link → the week's presenter posts the concatenated deck → a reviewer
+  (`reviewerUids`, default `category:'pi'`) approves / requests changes.
+- **`rm/js/drive-link.js`** — `DRIVE_LINK.parse(url)` (7 Drive/Docs URL shapes → `{fileId, kind}`),
+  `verify(fileIdOrUrl, {apiKey, labEmail})` (Drive API v3 `files.get` with a referrer-restricted key
+  when `meetingConfig.driveApiKey` is set, else an `<img>` thumbnail probe), `card(ref)` /
+  `chips(ref)`. `ownerOk` is tri-state: Google withholds owner email from anonymous callers, so
+  `null` renders as "owner unconfirmed", never as a pass and never as a hard block.
+- **`rm/js/meetings-live.js`** — Run-meeting view: timed agenda checklist (planned start, wall-clock
+  "now" / "N min over" per block, 15 s tick without re-render), per-block minutes textareas saved as
+  dotted-path `minutes.items.<id>.notes` (800 ms debounce, flush on blur), general notes, inline
+  action-item quick-add, deck/slides quick-open. `Start` stamps `minutes.startedAt`; coordinator
+  `End meeting` → `status:'completed'` + `minutes.endedAt`.
+- **`rm/js/meetings-chores.js`** — weekly board on `labChores/{weekId}`:
+  `assignments{choreId}` (coordinator) + `completions{uid}{choreId}` (own key). Catalogue in
+  `meetingConfig.chores` (seeded with Alex's 8; `present` is derived from the rotation and never in
+  the pool). **⟳ Fill the rest** = only unassigned chores; pool = members − that week's presenters −
+  reviewers − already-assigned, ordered by fewest chores in the last 8 weeks then least recently.
+- **Action items + chores → My Week.** `addActionItem` / `assignChore` call
+  `TASK_ASSIGN.writeTaskFor(assignee, {bucket:'assigned', createdByUid, source_ref:{kind:
+  'meeting-action'|'lab-chore', …}})` and stamp `taskId` back. Never `TASK_ASSIGN.open()`.
+- **`rm/js/my-week.js` "Assigned to you" strip** — `loadAssigned()` reads
+  `userData/{me}/tasks where bucket=='assigned'` DIRECTLY (the route is 30-min cached and a
+  cross-user write can't invalidate the recipient's cache), filters `!done && !planned_item_id &&
+  !dismissed_at`; `renderAssignedInbox()` rides under the nudge on all three horizons with seven
+  day-chips + "other…"; `planAssigned()` → `DD.importAndDistribute({source:'tasks', type:'task',
+  nativeDocPath, draft})` then stamps `planned_item_id`; `finishAssigned()`;
+  `maybeCompleteMeetingWork(item)` flips the meeting's `actionItems[]` entry / the chore
+  `completions` on `i-done`/`c-did`. CSS `.md-inbox-*` in `my-week.css`.
+- **Peer-accept slot swaps** — `meetingSwaps/{id}`; `requestSwap` / `respondSwap` client-side; the
+  move itself is executed by the Cloud Function once `status:'accepted'` (a member may only write
+  their OWN presenters key). Coordinator fallback **Apply** on the Schedule tab (`executeSwap`).
+- **Topics** — `meetingTopics/{id}` with votes; coordinator **Schedule into…** creates the agenda
+  item (`topicId`) and sets `status:'scheduled'`.
+- **Seed Fall 2026** (Settings) — idempotent: 15 Fridays 11:00–12:00 BSRL 100 with Alex's rotation
+  pre-assigned by uid, 11/27 break, two flash weeks; config `semesterStart/End`, `skipWeeks`,
+  `coordinatorUids` = existing `meetingAdmins` ∪ Cason, `primaryCoordinatorUid` = Cason; archives
+  spring rows still marked upcoming.
+- **`functions/meetings.js`** — `meetingReminders` (onSchedule `'0 9,16 * * *'` Phoenix; Mon
+  presenter → Wed submitters → Thu deck call → reviewer call → Thu-pm chase; dedupe via
+  `reminded.<flag>`), `onMeetingSwapWritten` (notify on create; **execute the swap in a
+  transaction** resolving both parties by uid; notify on accepted/declined/cancelled),
+  `onMeetingWritten` (early-exit guard; deck posted → reviewers, review decided → presenters +
+  coordinators, new presenter → them; brand-new docs >30 days out don't push). All via
+  `notifyUsers(…, 'meetings', kind)` — first consumer of the `notifications.apps.meetings.push`
+  toggle. Pure logic in `_internal`.
+- **Rules** — `isMeetingCoordinator()` (with the `exists()` guard `isChatAdmin()` lacks);
+  `meetings` read `isLabMember()`, create/delete coordinator, member update limited to
+  `presenters|updates|minutes|actionItems|feedback|updatedAt` AND `presenters.diff().affectedKeys()
+  .hasOnly([uid])`; `meetingConfig` coordinator-writable except `coordinatorUids|primaryCoordinatorUid|
+  reviewerUids`; `meetingTopics` (votes-only for non-authors), `meetingSwaps` (target accepts/declines,
+  requester cancels), `labChores` (coordinator board; members `completions.<own uid>` only).
+- Routes `meetings/topics.json`, `meetings/swaps.json`, `meetings/chores.json` (SHORT);
+  `page-collections.js` meetings entry lists the three new collections.
+- Tests: `scripts/tests/meetings-rules.test.mjs` (85), `scripts/tests/v3743-meetings-selftest.html`
+  (98, in-page Firestore stub), `functions/test/meetings.test.js` (52); all in `run-all.sh`.
+
+### Changed
+- `rm/pages/meetings.html` — loads `app-sheet.js`, `task-assign.js`, `drive-link.js`,
+  `meetings-live.js`, `meetings-chores.js`; drops `firebase-storage-compat` and `live-sync-helper.js`.
+- `rm/css/meetings.css` rewritten on `tokens.css`/`style.css` variables; the local
+  `.app-card/.app-btn/.app-input` redefinitions are gone.
+- `dashboard.js` Lab Meetings card: forward-looking query, real schema (`actionItems[].status`,
+  presenter names from the map), links to the page. `home-feed.js` tile names the presenter, skips
+  cancelled/break rows. `all-pages.js` blurb.
+- `my-week.js` `init()` now loads notifications + assigned tasks on first paint (see fix below).
+
+### Bug Fixes
+- **Any signed-in guest could rewrite every meeting** — `meetings` rules were `request.auth != null`
+  for read/create/update; the client's `isMeetingAdmin()` gate was decoration. Closed.
+- **Slide upload never worked** — `storage.rules` has no `meetings/` block; every upload failed.
+  Removed in favour of Drive links.
+- **Live sync served 30-minute-old data** — LIVE_SYNC's refresh re-read the IndexedDB route cache;
+  other viewers never actually updated. Snapshot-hydrated state fixes it.
+- **My Week 🔔 feed was empty on every cold open** — `loadNotifications()` ran only in `refresh()`,
+  never in `init()`.
+- Dashboard "next meeting" read the LAST five meetings of the semester (`orderBy desc limit 5`), so
+  "next" would have shown December in September.
+- Two `window.confirm()` calls (house rule) and three hand-rolled overlays → `APP_SHEET`.
+  `toast()` fallback that checked `window.toast` (never existed) → `TOAST`.
+
+## [V3.742] - 2026-09-04 — Papers: a checked-out bundle imports back into the SAME paper and unlocks it
+
+Plan [V3.740_papers_list_sort_checkout_roundtrip.md](../ClaudesPlan/V3.740_papers_list_sort_checkout_roundtrip.md) (V3.740–742).
+
+### Added
+- `paper-builder.js` `importBundleFile` reads `paper.json` first; when `manifest.checkout.paper_id`
+  names an existing row, `askUpdateOrCopy()` offers **Update "<title>"** / **Import as new copy**.
+  A token that doesn't match the paper's current `checkout_token`, or a paper that is no longer
+  locked, requires an explicit "I understand — update anyway" tick; non-authors get copy only.
+  `_runImport(zip, manifest, {mode, target})` replaces the old inline body: in `update` mode it
+  makes the caller the checkout holder (claims an empty lock; takes over another holder's and
+  `_waitForMirror`s `papers/{id}.checkedOutByUid` — the doc the rule reads — up to 25 s), runs
+  the engine, then clears the four `checked_out_*` fields (+ `updatedAt`, + `title` if it changed,
+  best-effort). A failed import leaves the paper locked.
+- `paper-import-engine.js` `run({mode:'update'})`: `buildInto(..., {replace:true})`; the comment
+  restore is skipped (comments never left Firestore — restoring would duplicate them).
+- `paper-tree-build.js` `buildInto` `opts.replace`: empties `sections`, `equation_library`,
+  `figure_unplaced`, `table_unplaced`, `value_library` and the title INSIDE the same transact
+  (one atomic Y update), then builds. Ordinary Y edits — no admin snapshot surgery, unlike
+  `resetAndReimport`. New `writeSkeletonItems()` / `appendValueEntry()`.
+- `paper-export-bundle.js` emits `references[]` (importer shape, from the same bibliography).
+- `scripts/tests/paper-bundle-roundtrip.test.mjs` — 19 fixtures: serialize → buildInto →
+  serialize byte-identical; replace = one update, no duplication, reproduces the edited bundle.
+
+### Bug Fixes
+- **Round trip silently deleted data.** The exporter wrote `skeleton_items`, `style_overrides`
+  and `value_library` but `PaperTreeBuild` dropped all three (and read `references[]` while the
+  exporter only wrote `bibliography`). With replace-in-place this would have erased paragraph
+  outlines and every value key on each export→import cycle. All rebuild now, in
+  `paper-tree-build.js` AND the mirrored `paper-editor.js` builders (`appendBlockFromTree`,
+  `appendSectionFromTree`, `hydrateSectionFromTree`, `sectionMapToTree`).
+- **Moving a section dropped every paragraph's outline.** `blockMapToTree` (the snapshot
+  `moveSection` rehydrates from) never captured `skeleton_items`; it now does, and
+  `appendBlockFromTree` accepts both the plain-array bundle shape and a `{__ytype:'array'}`
+  snapshot.
+
+### Verification
+- Round-trip fixtures 19/19 (table cells Y.Map<Y.Text> + caption, subfigures, skeleton_items,
+  style_overrides, value snapshot map; gen-2 fixed point; replace exactness). Headless list
+  harness: update import → engine `mode:'update'` on the same slug, unlock + title write, row
+  count unchanged; ack gate on an unlocked paper; coauthor take-over → holder write → mirror →
+  update → unlock. FTP-only for this slice (rules/functions shipped with V3.741); sw 713 → 714.
+
+## [V3.741] - 2026-09-04 — Papers: "Export for updates" checks a paper out as a .paperbundle.zip and locks it
+
+Plan [V3.740_papers_list_sort_checkout_roundtrip.md](../ClaudesPlan/V3.740_papers_list_sort_checkout_roundtrip.md).
+
+Alex: *"Papers should get a zip for updates button on the top right … When we export a paper in this
+way it must be locked for editing until we come back with the new paperbundle.zip"*
+
+### Added
+- **Lock state** on `projects/{id}`: `checked_out_by_uid`, `checked_out_by`, `checked_out_at`,
+  `checkout_token`. `functions/paper-author-sync.js` mirrors `checkedOutByUid` / `checkedOutAt`
+  onto `papers/{id}` (Admin-SDK, like `authorUids`).
+- **Rules** (`firestore.rules`): `isPaperCheckedOut(paperId)` + `isPaperCheckoutHolder(paperId)`
+  read the SAME `papers/{id}` doc `isPaperAuthor` fetches (deduped get → zero extra reads).
+  `papers/{id}/yjs_updates` create now requires `(!isPaperCheckedOut || isPaperCheckoutHolder)` —
+  every manuscript mutation funnels through this one create, and admins are gated too (they unlock,
+  they don't bypass); only the holder writes through it (that is the re-import). `/projects`
+  update gains a coauthor clause: `request.auth.uid in coauthor_uids` AND
+  `diff().affectedKeys().hasOnly(['updatedAt','checked_out_by_uid','checked_out_by',
+  'checked_out_at','checkout_token'])`.
+- `firebase-bridge.js`: `canEditPaper()` returns false for a checked-out paper BEFORE the admin
+  short-circuit; new `isPaperCheckedOut(meta)` and `canCheckOutPaper(meta)` (admin / lead /
+  coauthor — the pre-lock author test).
+- `paper-yjs.js` `connect(paperId, opts)`: `opts.locked` drops local updates in `onLocalUpdate`
+  (belt-and-braces for write paths that never consult `state.editable`); connection gains
+  `setLocked(bool)` / `isLocked()`.
+- `paper-export-bundle.js`: `buildForPaper(paperId, {meta, checkout}, statusCb)` — headless
+  sibling of `buildAndDownload`: own `PaperYjs.connect` (`touchActivity:false`), raw
+  `paperExports/{id}` minus `grantDocs`, citation map from `items.json`, always disconnects.
+  `buildAndDownload` stamps `manifest.checkout` + `paper.paper_id` when given, adds a `README.md`
+  (what to edit, keep ids, how to bring it back) and no longer `alert()`s — rejects instead.
+  `_collectKeysFallback()` keeps `bibliography`/`references` populated if `paper-export-tex.js`
+  fails to lazy-load.
+- `paper-builder.js`: `confirmCheckOut(p)` → `runCheckOut(p)` (lazy `_ensureExportDeps()` →
+  `buildForPaper` → **lock write only after the zip is on disk**, then `api.invalidate` +
+  reload); `confirmUnlock(p)` → `unlockPaper(p)` (`FieldValue.delete()` on the four fields);
+  `openCheckoutPicker()` (toolbar `#pb-checkout-btn`, radio list of papers you can check out,
+  primary disabled until a pick); helpers `isCheckedOut` / `canCheckOut` / `canUnlock`,
+  `_openDialog()` + `_openBusyModal()` on the `.pi-*` chrome (in-page — never `confirm()`),
+  `_loadScript()`, `_waitForMirror()`. Card: hover ⇩ `.pb-card-export` (`right:34px`, beside the
+  trash) when `canCheckOut && !isCheckedOut`; locked cards get `.pb-locked` + a `.pb-card-lockrow`
+  ("Checked out by X · 4h ago", "Import update" for authors/admin, "Unlock" for admin/holder/lead).
+  `applyCreateGate` hides the toolbar button for guests without the cap.
+- `paper-editor.js`: `connectAndRender` passes `{locked: checkedOut}` to `connect` and calls
+  `showCheckoutBanner()` (lock icon, who/when, "Import updated bundle" link, two-tap "Unlock
+  without importing" for admin/holder/lead → clears fields → reload). `showReadonlyBanner` resets
+  the class so the checkout variant never lingers.
+- `paper-equations.js`: the four hardcoded `readOnly: false` bindings (figure captions ×2, table
+  cells, table caption) now read `!_toolEditable()` → `PaperEditor.isEditable()`, so a locked (or
+  viewer-role) paper LOOKS read-only on the tool pages instead of swallowing keystrokes.
+- `paper-editor.css`: `.pb-card-export`, `.pb-card.pb-locked`, `.pb-card-lockrow`, `.pb-lock-btn`,
+  `.pi-dialog/.pi-body/.pi-actions/.pi-warn/.pi-ok/.pi-ack/.pi-picklist/.pi-pick*`,
+  `.pi-bar-indet`, `.pe-checkout-banner`. `.pb-card-row` padding-right 24 → 52px.
+- `scripts/tests/paper-checkout-rules.test.mjs` — 25 emulator cases.
+- `.claude/skills/paper-bundle/SKILL.md`: "Two kinds of bundle", the `checkout` block, editing
+  rules for a checked-out bundle.
+
+### Verification
+- Emulator: 25 ok / 0 holes / 0 breaks — holder writes through the lock, coauthor/lead/ADMIN
+  denied, unlock re-admits, coauthor may write only the five carve-out fields (title/status/lead
+  denied, even mixed into one write), stranger denied everything. `paper-create-rules` still 19/19.
+- Headless harness (stub firebridge + in-memory Firestore, real `paper-builder.js`): per-persona
+  buttons (admin/lead/coau/other/guest); failed export → status "was not locked" and **0 writes**;
+  success → one merge write with exactly the five carve-out fields, card re-renders locked;
+  unlock → delete-fields write; picker excludes locked papers, disabled until a pick. No console
+  errors; `innerText` free of `<svg`. Real page boots clean.
+- Deploy: `firebase deploy --only firestore:rules` then `--only functions:onPaperAuthorSync`
+  BEFORE the FTP. sw 712 → 713.
+
+## [V3.740] - 2026-09-04 — Papers list: grouped by type, most recently worked on first
+
+Plan [V3.740_papers_list_sort_checkout_roundtrip.md](../ClaudesPlan/V3.740_papers_list_sort_checkout_roundtrip.md).
+
+Alex: *"sort the papers on the page by type status and put the most recent worked on papers (by
+anyone) at the top."*
+
+### Changed — `paper-builder.js`, `paper-editor.css`
+- `render()` had no sort at all — Firestore's document-id order (slug-alphabetical) interleaved
+  grants with papers. New `sortAndGroup(rows)`: group by `paper_type || 'journal'` in
+  `TYPE_GROUPS` order (Papers, Grants, Editorials, Book chapters, Presentations, Patents, Other);
+  within a group `updatedAt` descending, then title. Headers only when more than one group.
+- `toMillis(v)` handles every shape `updatedAt` arrives in: a Firestore `Timestamp` (cold read),
+  the `{seconds, nanoseconds}` object left after the IndexedDB structured clone (no `.toMillis()`),
+  an ISO string, or nothing (→ 0, sorts last). `relativeTime(ms)` → "edited 2h ago" in the card
+  meta (`.pb-card-ago`).
+- DOM: `#pb-list.pb-grouped` > `.pb-group` > `h2.pb-group-title` + `.pb-grid`. The grid rules
+  moved to `.pb-grid`; the stack is scoped to `.pb-list.pb-grouped` because `protocols.html` and
+  `grant-builder.html` reuse `.pb-list` as a flat grid.
+- Bundle import (`_runImport`, create path) now stamps `updatedAt: serverTimestamp()` on the new row
+  — it never had one, so imported papers sorted last.
+
+### Changed — `paper-yjs.js` (why the sort key means anything)
+- `updatedAt` was never touched by content edits (Yjs writes live under `papers/{id}/…`) and was
+  re-stamped on EVERY row by the whole-collection `api.save`. New throttled activity touch: after a
+  successful `yjs_updates` write, at most once per `ACTIVITY_TOUCH_MS` (5 min) per session,
+  `projects/{id}.set({updatedAt: serverTimestamp()}, {merge:true})` + `api.invalidate`. Single-doc
+  merge — never the array save (the V3.729 permission trap). `connect(id, {touchActivity:false})`
+  opts out (the headless exporter uses it). Coauthors pass via the V3.741 rules carve-out.
+
+### Verification
+- Headless harness with seven rows across three timestamp shapes + one with none: groups
+  `Papers` then `Grants`; order 2h → 5h → 2d → 30d → unstamped; grants 1 min → 3d; "edited …" text
+  on every stamped card; `.pb-grouped` set. FTP-only; sw 711 → 712.
+
+## [V3.739] - 2026-09-04 — Whiteboard: move and delete pages from the selected thumbnail
+
+Alex: *"I need to be able to delete or rearrange pages from the whiteboard — easiest UI is selecting a
+page on the thumbnail and then a few buttons appear on selection."*
+
+### Changed — `whiteboard.js`
+- `renderRail()` places a `.wb-thumb-acts` strip under the **selected** thumbnail (class admins):
+  **▲ ▼** (`movePage(pid, ±1)`, disabled at the ends) and **×** (`deletePage(pid)`, two-tap via
+  `armTwoTap`, disabled on the last page). A sibling of the thumb, since buttons cannot nest.
+- `movePage`: swaps with the neighbour, optimistic `S.board`, snaps the view to the moved page, writes
+  `pages`, logs `move-page { order }`.
+- `deletePage`: removes the page, soft/hard-deletes its strokes via `removeStrokes` (soft while recording,
+  so a replay still shows the page until it vanished), deletes its items, moves the current/active page
+  to the neighbour (leader publishes `activePageId`), logs `remove-page` (+ `page`).
+- Recorder diff (`recObserveBoard`) also detects remote removals and reorders (same id set, different
+  sequence → `move-page`). Board listener: a page deleted or reordered remotely keeps this device on the
+  page it was viewing (re-centres on its new index; falls to the neighbour if it was deleted).
+- `whiteboard-replay.js` applies `remove-page` / `move-page` events when rebuilding pages at time t.
+- `whiteboard-board.css`: `.wb-thumb-acts`, `.wb-thumb-act(-del)`.
+
+### Verification
+- Harness: actions attach to the selected thumb; page 3 selected → ▲ enabled, ▼ disabled; ▲ → order
+  `p1,p3,p2`, view on p3; × arms then deletes → `p1,p2`, thumbs 2, strokes untouched; deleting p2 (with
+  ink) → `p1`, its stroke doc removed, × disabled on the last page, `activePageId` moved. Sheet, roles,
+  record/replay suites unchanged. FTP-only (`whiteboard.js`, `whiteboard-replay.js`,
+  `whiteboard-board.css`, `sw.js`); sw 710 → 711.
+
+## [V3.738] - 2026-09-04 — Service worker: modules and whiteboard files are network-first (stale iframe scripts showed whole modules)
+
+Alex: *"when I use the simulation only button, it still imports the full learning module, not just the
+simulation."*
+
+### Diagnosis
+- The board doc was right (`src … ?embed=2.2&sim=1`), production had the new `whiteboard-panel.js`, and a
+  fresh headless load of that exact URL rendered the simulation cut. The module page inside the iframe
+  had run the **previous** `whiteboard-panel.js` from the service worker's stale-while-revalidate cache —
+  a hard reload of the board bypasses the SW for the page's own scripts but not for an iframe's, so the new
+  board code met the old module code and the iframe showed the whole module. Any FTP would reproduce it
+  once per browser.
+
+### Changed — `sw.js`
+- `/modules/**` and `/whiteboard*.js|css` are now **network-first** (cache fallback offline) — the same
+  strategy `/rm/` adopted for the same reason. `CACHE_VERSION` 709 → 710.
+
+### Verification
+- Route regex checked against `/whiteboard.js`, `/whiteboard-replay.js`, `/whiteboard-board.css`
+  (network-first), `/app.js`, `/whiteboard-x.png` (unchanged). FTP `sw.js`.
+
+## [V3.737] - 2026-09-03 — Simulation-only pages; one standalone file per simulation in `modules/<class>/simulations/`
+
+Alex: *"what we are currently doing is bringing in the entire learning module which is also pretty cool,
+let's keep this capability. What I want is just the simulation part. Every learning module should have an
+html file for each simulation in modules/<class>/simulations, numbered by the whiteboard convention."*
+
+### Added — sim-only embed (`modules/shared/whiteboard-panel.js`)
+- `?embed=T.S&sim=1` → `body.wb-embed-sim`: the target block keeps its scenario bar, control panel and
+  canvases and hides the story, task and insight text; the module's `.sources` and everything in `main`
+  outside the tab contents are hidden in every embed mode (they leaked below the block).
+
+### Added — `scripts/gen_simulations.py` + `modules/<class>/simulations/`
+- For each class in `manifest.json`, each weekly module `NN-….html` that loads the panel script, and each
+  `h2[data-nav="T.S"]` whose block contains a `<canvas>`, writes `N.T.S.html` — a standalone page (title
+  bar with the ref, section, module, and an "Open in the module →" link) whose iframe opens
+  `../<module>?embed=T.S&sim=1` — plus `index.json` (ref, file, module, titles). The module stays the only
+  source; regenerating is the whole update. `--check` exits 1 when files are stale or orphaned.
+  **Generated now: bme466 — 31 simulations** (module 1: 17, module 2: 14). Homework/notes are skipped.
+- `modules/bme466/02-gradients-and-encounters.html` gains the whiteboard head block (panel CSS/JS,
+  Firebase, `ml-module-viewport`) that module 01 has had since V3.684 — it was never added, so module 2
+  had no board panel and could not be embedded.
+- `modules/AUTHORING.md` §7.6 documents the address scheme, both embed modes, and the generator.
+
+### Changed — `whiteboard.js`
+- The ＋ Simulation form gains **Simulation only | Whole section** (`S.simMode`, default `sim`;
+  `sim-mode-sim` / `sim-mode-section`, re-resolving the draft on switch). `resolveSimRef(ref, mode)` adds
+  `&sim=1` for sim mode and requires a `<canvas>` in the section ("Section 4.1 has no simulation — add it
+  as a whole section instead."); returns `standalone` (the generated file path). `page.sim` stores
+  `mode` and `standalone`; the page caption marks whole-section pages.
+
+### Verification
+- Harness: `1.4.1` in sim mode → the no-simulation error; switching to Whole section resolves it; `1.2.1`
+  → "Simulation · Module 1 — … · 2.1 · What Brown saw", page `src` carries `&sim=1`, inner document has
+  `wb-embed-sim`, story hidden, 4 controls, canvas 1720 px live. Standalone
+  `modules/bme466/simulations/1.2.1.html`: bar "1.2.1", sim-only iframe, canvas live. Embed at 1280×800:
+  sources/footer hidden, document height 800 (no scroll). `gen_simulations.py --check` passes.
+- FTP: `whiteboard.js`, `whiteboard-board.css`, `modules/shared/whiteboard-panel.js`,
+  `modules/bme466/02-gradients-and-encounters.html`, the new `modules/bme466/simulations/` folder, `sw.js`
+  (708 → 709). No Firebase deploy.
+
+## [V3.736] - 2026-09-03 — Whiteboard: "+ Simulation" adds a live learning-module section as a page (1.2.1)
+
+Alex: *"I want to be able to add a simulation from the learning modules into the whiteboard with all
+controls … a button on the top that says +add simulation, then I type in module.tab.section, i.e. 1.2.1
+would be learning module 1, tab 2, section 1 (What Brown saw) … the simulation will come into the
+whiteboard as a full page with all the controls just like we would see in the learning module."*
+
+### How `1.2.1` resolves
+- **Module** = the Nth lesson in the class's Learning Modules list (`schedule.modules`, kind `module`,
+  ordered by section then `order`); a file named `0N-…` wins the tie, so week numbers match filenames.
+- **tab.section** is the module's own numbering: every block heading is `h2[data-nav="T.S"]`
+  (AUTHORING §"Lesson-flow layout"), so `2.1` is *What Brown saw* by the module's own label.
+- `resolveSimRef()` verifies against the module HTML (same-origin fetch): the file exists, loads
+  `whiteboard-panel.js` (embeddable), and has the heading; it returns `data-title` and the module
+  `<title>` for the confirmation line. Errors are inline ("There is no module 9 (the class lists 2).",
+  "Module 1 has no section 9.9.").
+
+### Added — module embed mode (`modules/shared/whiteboard-panel.js`)
+- `?embed=T.S` on any module that loads the panel script: `body.wb-embed`, only the target
+  `.lesson-block` visible (header, tab bar, rail, other blocks and the panel hidden; the module's own tab
+  is activated through its button so `syncVis`/canvas cache see it), block centred at ≤1200 px, page
+  scrolls if taller. **No scaling inside the module**: a zoom/transform on an ancestor changes what
+  `getBoundingClientRect()` returns and the module's `setupCanvas` writes it back as the canvas's inline
+  width — measured as a feedback loop that shrank canvases to 0. The host scales the iframe instead.
+  Posts `embed-ready` / `embed-size` to the parent. `module-header.js` skips its class header in embed.
+
+### Changed — `whiteboard.js`
+- **Sim pages**: `pages[i] = { id, kind:'sim', sim:{ ref, src, title, moduleTitle } }`. New
+  `.wb-sims` layer (`EL_SELECTORS.sims`) above the ink (z 5): `renderSims()` keeps one `<iframe>` per sim
+  page within ±1 of the centred page (created/removed as you scroll; positions updated **in place**, so
+  zooming or scrolling never reloads a running sim), each laid out at `SIM_W×SIM_H` = 1280×800 and
+  scaled to the page rect with a CSS transform (pointer events map through transforms). Lens transform
+  applied to the layer like items.
+- **Interact / Annotate**: sim pages default to Interact (controls take the pointer). The toolbar shows
+  `🖱 Interact | ✎ Annotate` when the current page is a sim; Annotate (`S.annotate`, `.wb-annotate`)
+  drops the layer below the ink canvas so the pen draws over the running simulation.
+- Toolbar **＋ Simulation** opens an inline form (`sim-form`): the ref resolves as you type (debounced
+  250 ms) to "Module 1 — Diffusion — Why Anything Moves at All · 2.1 · What Brown saw"; *Add page*
+  (`addSimPage`) appends the page, snaps to it, publishes `activePageId` when leading, and logs
+  `add-page` (with `kind`/`sim`) + `page` for the recording.
+- `drawBackground` paints sim pages white with a loading label; rail thumbnails show `▶ SIM` + ref;
+  exports skip the template on sim pages (ink only). `startRecording` snapshots `kind`/`sim` on pages;
+  `recObserveBoard` add-page events carry them; `whiteboard-replay.js` rebuilds sim pages from events so
+  a replay shows the simulation (live, not state-replayed).
+- **Bug fixed along the way**: `sizeCanvases()` from the ResizeObserver used to cancel an in-flight snap
+  tween and re-centre on whatever page was nearest (a toolbar height change mid-snap left the sheet on
+  the wrong page). It now retargets the tween instead.
+
+### Verification
+- Module embed headless (1280×800): one visible block, `What Brown saw`, tab `brown` active, rail/tab
+  bar hidden, 4 controls, canvas 1736×767 live, panel button absent.
+- Board harness (stub class with two lessons): bad refs give the inline errors above; `1.2.1` resolves to
+  the confirmation line; Add → page 4 `kind:'sim'`, `activePageId` = new page; iframe present at
+  `scale(0.65)`, 833 px = page width, centred (offset 0), inner document embedded on the right tab with
+  the canvas animating; Annotate → layer z 2, `pointer-events:none`; scrolling two pages away removes the
+  iframe, returning recreates it. Sheet/roles/record/replay suites unchanged (19 chunks, ready).
+- FTP-only: `whiteboard.js`, `whiteboard-replay.js`, `whiteboard-board.css`,
+  `modules/shared/whiteboard-panel.js`, `modules/shared/module-header.js`, `sw.js` (707 → 708). No Firebase
+  deploy (pages ride the board-doc rule).
+
+## [V3.735] - 2026-09-03 — Lecture recording: the final audio chunk was always dropped (tail cut, short lectures silent)
+
+Alex: *"I tried to record a lecture, over 1 minute but not by much, and it didn't work. A 10-minute version
+did work — but the last 45 seconds were cut off: the recording was 10:45 and playback shows 10:00."*
+
+### Root cause — `whiteboard.js`
+`stopRecording()` set `REC = null` **before** calling `recorder.stop()`, and the `dataavailable` handler
+began `if (!REC) return;` — so the final chunk MediaRecorder emits on stop (everything since the last
+60-s boundary) was discarded on every lecture. A 10:45 lecture kept ten 60-s chunks and lost 45 s; a
+~1:05 lecture whose first boundary had not yet fired on the recorder's clock kept nothing.
+
+### Changed
+- `recorder.ondataavailable` closes over its own recording object and calls `recUploadChunk(rec, blob)`
+  (now takes the recording explicitly instead of reading the global), so the post-stop chunk uploads
+  and lands on the doc before `status:'ready'` is written (the upload chain is awaited after `onstop`).
+  Chunk `tStart` is now the real start of each chunk (`rec.lastChunkAt`). A recording that ends with
+  zero chunks logs a warning.
+- `whiteboard-replay.js`: the timeline is the **longer** of the doc's `durationMs` and the audio's
+  duration (it used to be replaced by the audio's, which also truncated the ink to 10:00). When the audio
+  ends before the timeline (`R.audioMs`, `R.audioTail`), the wall clock takes over so the ink plays to
+  the end; seeking past the audio pauses it and drives by wall clock; seeking back resumes audio. The
+  status line says "Audio ends at m:ss; the ink continues to m:ss" when they differ.
+
+### Verification
+- Harness record→replay: **19** chunks (18 interval + the final one; was 18), order intact, `ready`,
+  events unchanged, all replay checks unchanged. FTP-only (`whiteboard.js`, `whiteboard-replay.js`,
+  `sw.js`); sw 706 → 707. Alex's existing 10:45 recording keeps its 10:00 of audio; its ink now replays
+  to 10:45.
+
+## [V3.734] - 2026-09-03 — Class page: Admin | Student | Public toggle that works without a roster; tab bar wraps on desktop
+
+Alex: *"on the classes view, I want a toggle at the top to view as admin or student. Currently the page
+navigation on the desktop hides the whiteboard tab when I am in admin view. On the tablet I can scroll
+with my fingers but on the desktop I can't scroll them."*
+
+### Diagnosis
+- The V3.248 "View as" strip existed, but its **Student** mode impersonated a roster entry and BME 466
+  has no roster — it dead-ended in an `alert()` (a banned browser popup), so there was no student view.
+- `.cb-tab-bar` was a single `overflow-x:auto` row with `scrollbar-width:none`: swipeable, not
+  mouse-scrollable, and with no hint that tabs were off-screen. Admin view adds tabs, pushing
+  **Whiteboard** past the edge.
+
+### Changed — `class-builder.js`
+- `buildViewAsToolbar()`: a compact segmented **Admin | Student | Public** toggle (`.cb295-viewas-seg`).
+  Student with nothing picked = **yourself as a plain signed-in student** (`studentId: null` → admin and
+  staff flags off, your own email kept, so `studentOnly` tabs still show); the roster `<select>` appears
+  only in Student mode when a roster exists, with "myself (a signed-in student)" as its first option.
+- `wireViewAsToolbar()`: no roster lookup, no `alert`; `setAdminViewOverride({ type:'student',
+  studentId: sel?.value || null })`. Role resolution keeps `realEmail` when no student is impersonated.
+
+### Changed — `user-styles.css`, `styles.css`
+- `.cb-tab-bar` **wraps** (`flex-wrap: wrap`, no overflow) with slightly tighter tab padding
+  (`.55rem .8rem`); under 700 px it stays a nowrap swipe row with a right-edge fade mask so off-screen
+  tabs are hinted. `.cb295-viewas-seg` styles.
+
+### Verification
+- Local class page (public): 1366 px → `flex-wrap: wrap`, all 5 tabs inside the bar; 420 px → nowrap
+  swipe row with overflow. No console errors. Admin toggle paths exercised by code review (no admin
+  session headless). FTP-only; sw 705 → 706.
+
+## [V3.733] - 2026-09-03 — Whiteboard: leader/follower devices, replay that can never be inert, dark board rows
+
+Alex: *"after the live view is stopped, the playback isn't working … I hit play and nothing happens. Also,
+the desktop live view is not auto following the tablet's view … I need a button that says leader/follower
+which defaults to follower … the board name link background is white and should be dark grey, and the
+recording link is overlaying the link."*
+
+### Replay — `whiteboard-replay.js`
+- Forensics: no recording docs remained (deleted after the failed test) and no BME466 stroke carries `t0`,
+  so the file could not be inspected; bucket CORS already allows `https://mcgheelab.com` GET. Two code
+  paths could produce a silent no-op on ▶: a recording whose `durationMs` was 0 (`startRecording` used to
+  write a `ready` doc with `durationMs:0` when the recorder failed to start — the first `tick` then ended
+  playback at once), and an audio blob the browser refused (`play()` rejected into a small status line).
+- **Position is a first-class value** (`R.pos`) driven by one of two clocks: the audio element when it is
+  playable (`R.audioOk`), otherwise a **wall clock** (`R.wall`, honours speed) — so ▶ always replays the
+  ink, with the status line saying why audio is absent ("Could not download…", "cannot play… — replaying
+  the ink only"). `play()` rejection falls through to the wall clock instead of stopping.
+- `deriveDuration()`: a missing/zero `durationMs` is replaced by the last event/stroke time + 2 s (min 5 s);
+  `applyTrim()` clamps trims into range; a finite audio duration, once loaded, becomes the truth and
+  re-scales the scrubber. `probeAudio()` accepts `loadedmetadata` *or* `canplay`, 10 s ceiling, then MSE.
+
+### Leader / follower — `whiteboard.js`
+- New board-doc field `leaderDeviceId` (per-device id in `localStorage['wb_device']`, `deviceId()`).
+  `isLeader()` = class admin **and** this device holds the field. Page changes (`setActivePage`,
+  `add-page`) publish `activePageId` **only from the leader**; every other device — students, the
+  projector, *and admin devices such as the laptop* — follows (`follows = coll === 'whiteboards' ?
+  !isLeader() : !S.isAdmin`) with the existing pause-on-manual-flip + "Jump to live page" chip. Student
+  boards (notes/homework) are unaffected: their owner always leads.
+- Live column gets a **Leader | Follower** switch (`role-leader` / `role-follower` → `setLeader()`), class
+  admins only, default follower; the note reads "Others follow this device" / "Following another device" /
+  "No leader yet — the device that draws first leads". Taking the lead on one device demotes the others
+  (they see the field change and resume following). **Auto-claim**: when nobody leads, the first pen-down
+  by a class admin claims the lead — the drawing device is the natural leader, and it never steals one.
+- `startRecording`: a recorder that fails to start now **deletes** the recording doc (toast names the
+  error) instead of leaving a `ready`, zero-length lecture in the list.
+
+### Styles
+- `styles.css`: `.wb-board-row` is dark grey (`#1f2937`, `#374151` border, light text), `flex-wrap: wrap`
+  so the recordings list sits under the link; live rows tinted dark red; ghost buttons readable.
+- `whiteboard-board.css`: `.wb-rec-list` full-width with a top rule, light colours; `.wb-role` switch.
+
+### Verification
+- Harness: as leader (seeded `leaderDeviceId`), two-finger snap and ↑ still publish `activePageId`; after
+  clicking Follower the field clears, a page click publishes nothing, and another device taking the lead
+  and flipping to `p3` snaps this device to `p3` ("Following another device."). Replay with 404 audio:
+  status "Could not download the audio — replaying the ink only.", ▶ runs (⏸ shown), ink appears
+  mid-stroke (1529 px), pause returns ▶. All earlier record/replay and sheet checks unchanged.
+- FTP-only (`whiteboard.js`, `whiteboard-replay.js`, `whiteboard-board.css`, `styles.css`, `sw.js`); the
+  `leaderDeviceId` field rides the existing board-doc write rule. sw 704 → 705.
+
+## [V3.732] - 2026-09-03 — Whiteboard sheet layout: hideable rail, live/recording column on the right, stale-CSS hardening
+
+Alex, after V3.730 landed: *"the whiteboard view is just showing the thumbnail view … the thumbnail view
+should be a side context menu to the left, the whiteboard centered, to the right the live controls and
+recording controls … we should be able to hide the thumbnail view."*
+
+### Diagnosis
+- A fresh headless load of the live board rendered the sheet correctly (rail 96 px, sheet 1239 px, canvas
+  2478×1634). The rail-only view is what a browser shows when it still holds the **pre-V3.730 cached
+  `whiteboard-board.css`** (whose `.wb-board` had no width) alongside the new engine — a service-worker
+  stale-while-revalidate window that a second load clears. Hardened anyway (below).
+- Every thumbnail showed a red live dot: `.wb-live-dot{display:…}` in `styles.css` is an author rule and
+  beats the UA's `[hidden]{display:none}`.
+
+### Changed — `whiteboard.js`
+- **Layout hardening**: `sizeCanvases` sets the critical flex layout inline on `.wb-stage`/`.wb-board`
+  and falls back to the stage's size if the board measures 0, so a stale stylesheet can no longer
+  collapse the sheet. The `ResizeObserver` now watches the **sheet area** (`.wb-board`), not the stage,
+  so the rail collapsing or the side column appearing re-lays the sheet out.
+- **Hideable rail**: `◂ Pages` at the top of the rail collapses it to a 26-px strip with `▸` and the page
+  count; `rail-toggle` action, `railCollapsed()` / `setRailCollapsed()` persist in
+  `localStorage['wb_rail']`.
+- **Right-hand live column** (`.wb-side`, `EL_SELECTORS.side`, in the shell after the sheet):
+  `renderTopbarRight` now renders Go live / End live + the `🎙` recording badge (or the LIVE tag for
+  viewers) into the side column when the mount is ≥ `RAIL_MIN_ROOT_W` and not the projector/replay,
+  leaving the topbar with zoom only; narrow mounts fall back to the topbar. Rail and side are the same
+  width (112 px; 84 px under 900 px), so the sheet is centred on the screen (measured offset −2 px).
+
+### Changed — `whiteboard-board.css`
+- `.wb-rail` 112 px, `.wb-rail-collapsed`, `.wb-rail-toggle`, `.wb-rail-count`; `.wb-side` column and its
+  badge/tag layout; `.wb-thumb-btn .wb-live-dot-mini[hidden]{display:none}`; projector and replay hide
+  the side column too.
+
+### Verification
+- Harness: rail toggle collapses (`collapsed:true`, sheet area 1030 → 1124 → 1030 px), side column shown
+  with Go live, topbar empty, sheet centre offset −2 px from the stage centre, thumb dots hidden; all
+  earlier sheet checks unchanged. FTP-only; sw 703 → 704.
+
+## [V3.731] - 2026-09-03 — Whiteboard R2: Go live records your voice; students replay the lecture with the ink in sync
+
+Alex: *"when I press go live, I want to be able to record my voice to the whiteboard for playback later
+that is synced to the pen strokes."* Plan (R2 of two):
+[V3.730_whiteboard_sheet_and_replay.md](../ClaudesPlan/V3.730_whiteboard_sheet_and_replay.md).
+**Firestore rules DEPLOYED 2026-09-03** (`recordings` + `events` blocks under `whiteboards/{boardId}`).
+
+### Added — `whiteboard-replay.js` (new root file)
+- `WhiteboardReplay.mount({ classId, boardId, recId, handle })` — loads the recording doc, its `events`
+  (ordered by `t`), every stroke of the board (soft-erased included, `erasedAt` stripped so the replay
+  decides visibility) and the audio chunks; computes the **board state at wall time** `render(tw)` and
+  pushes it through `handle.replayApply({ strokes, items, pages, pageId, animate })`. Strokes appear at
+  `t0` and **grow** to `t1` by point-prefix (`pts.slice(0, k·3)`); `erase` events / `erasedAt` hide them;
+  `page` / `add-page` / `page-bg` / `item-*` events rebuild pages and figures from `rec.pages` +
+  `rec.itemsAtStart`. Skew-corrected once (`prepStroke`, `clockSkewMs`); `gap` events map audio time ↔
+  wall time (`audioToWall` / `wallToAudio`).
+- Audio: chunks fetched in order and concatenated into one Blob; if the browser rejects it, the
+  fragments go through MediaSource (`loadViaMSE`, `audio/mp4; codecs="mp4a.40.2"` or WebM/Opus).
+- Controls bar (`.wb-replay-bar`): ▶/⏸, scrubber (`range`, ms within trim) with page markers
+  (`renderMarkers`), speed 1×/1.5×/2× (`playbackRate`; ink follows `currentTime`), time; keys space /
+  ←→ 5 s. Admin (class admin via `Whiteboard.computeIsClassAdmin`): inline rename, **non-destructive
+  trim** (`trimStartMs`/`trimEndMs`, reset), two-tap delete (events → chunks → doc, then back to the class).
+- Route: `#/classes/{classId}/whiteboard/{boardId}?replay={recId}` (`app.js` parses `replay`);
+  `wireWhiteboardPage` mounts the engine with `replay` and hands off.
+
+### Changed — `whiteboard.js`
+- **Go live = record.** `live-toggle` calls `startRecording()` inside the click (the mic permission
+  gesture): `getUserMedia` → `recordings/{recId}` doc `{ status:'recording', startedAtMs, startPageId,
+  pages, itemsAtStart, mime, chunks:[], recorderClientId }` → `MediaRecorder.start(REC_CHUNK_MS=60 s)`
+  in the first supported of `audio/mp4`, `audio/mp4;codecs=mp4a.40.2`, `audio/webm;codecs=opus`,
+  `audio/webm` → `liveWhiteboard.recId`. No mic → live without recording (toast). End live →
+  `stopRecording('end-live')` (final chunk, pending events, `status:'ready'`, `durationMs`,
+  `clockSkewMs`) then the flag clears. `REC` is **module-level**, so leaving the board page does not end
+  a lecture; the flag vanishing from another device does (`remote-end`), and so does **20 idle minutes**
+  (`recTouch` / `REC_IDLE_END_MS`). Chunks upload in order (`recUploadChunk` → Storage
+  `classes/{classId}/whiteboards/{boardId}/recordings/{recId}/chunk-NNN.{m4a|webm}` → `arrayUnion` with
+  `url`). Wake lock while recording; `visibilitychange` resumes a paused recorder and logs a `gap`;
+  `pagehide` requests the last data.
+- **Event log** — `recEvent(type, payload)` batched every 2 s to `recordings/{recId}/events`: `page`,
+  `add-page`, `page-bg` (`recObserveBoard` snapshot diff for remote changes; the local `add-page` action
+  logs directly), `erase` (local `removeStrokes` logs directly; the strokes listener logs remote
+  `erasedAt` transitions and hard removals), `item-add/move/remove` (items listener, payload carries the
+  image so a later-deleted item still replays), `gap`. Clock skew sampled from final flushes only
+  (`recSampleSkew`: `done`, not erased, |Δ| < 5 s).
+- Strokes now carry `t0` (= `seq`) and, on the final flush, `t1`. `finishStroke` releases
+  `activeLocalId` before the final flush so the wire copy can replace the local one.
+- `removeStrokes` **soft-deletes** (`erasedAt`) while `recordingActive()`; hard-deletes otherwise.
+- `S.canGoLive` (class admin on any mount, incl. projector) is separate from `S.isAdmin` (may draw);
+  `renderProjectorCtl()` adds a faint corner **● Go live / ■ End live** control to the projector view with
+  the `🎙` badge (`recBadgeHTML`: elapsed timer here / "recording on another device" / "not recording").
+- Replay mount mode (`opts.replay`): no strokes/items listeners, board listener takes only the name,
+  `wb-replay` class hides rail/toolbar/pagesbar; `applyReplayState(st)` swaps `S.strokes`/`S.items`/pages
+  and snaps to `pageId`; handle gains `replayApply`, `getRoot`.
+- Class page: `hydrateRecordings()` lists each board's recordings under its row (▶ name · date · min;
+  "Recording now"; admins see **Finalize** for interrupted ones → `finalizeInterrupted()`).
+  `deleteBoardDeep` removes recordings + events. Exports for the replay module:
+  `computeIsClassAdmin`, `paintStroke`, `paintBackgroundInto`, `boardsCol`, `toast`, `armTwoTap`, `esc`.
+
+### Changed — data, rules, shell
+- `firestore.rules`: `match /recordings/{recId}` + `/events/{eventId}` — read all, `wbClassAdmin` write;
+  no such path under `notesBoards`/`hwBoards`. Storage unchanged (existing `classes/{classId}/**`).
+- `whiteboard-board.css`: recording badge, projector control, replay bar/scrubber/markers, recordings
+  list. `index.html` loads `whiteboard-replay.js`; `sw.js` precaches it, `CACHE_VERSION` 702 → 703.
+
+### Verification
+- Harness (stub Firestore with `batch`/`arrayUnion`, stub `getUserMedia`/`MediaRecorder`/Storage):
+  Go live → doc + `liveWhiteboard.recId`, badge `🎙 0:0x`; a 430 ms stroke gets `t0`/`t1`; erase during
+  recording → `erasedAt` (doc kept, ink gone); End live → `ready`, 18 chunks in order, live cleared,
+  events `[page, page, erase, add-page, page]`. Replay of that recording: bar + 4 markers, rail/toolbar
+  hidden; seek mid-stroke → 581 ink px, after pen-up → 2718; after erase → 0; scrub back → 2718;
+  page events snap to `p3` then the added page; `pages` 4. No console errors.
+- Owed on real hardware: Safari + Chrome recording of a real lecture and playback on an iPhone (the
+  fragmented-MP4 concatenation is the one assumption headless Chromium could not exercise — MSE
+  fallback is in place).
+
+## [V3.730] - 2026-09-03 — Whiteboard R1: one continuous snap-sheet of pages, thumbnail rail, pinch-zoom while drawing
+
+Alex: *"I want each whiteboard page to add to the bottom of a continuously scrolling whiteboard, not
+separate pages … they should snap to the most centered one, and the ones above and below it should be
+about 1/4 visible … to the left of this is a clickable thumbnail of all the whiteboard pages … also,
+pinch to zoom does not work when I am drawing on my tablet."* Plan (R1 of two):
+[V3.730_whiteboard_sheet_and_replay.md](../ClaudesPlan/V3.730_whiteboard_sheet_and_replay.md).
+
+### Changed — `whiteboard.js`
+- **Sheet geometry.** Pages are stacked vertically on one surface: `pageTop(i) = i·(BOARD_H + PAGE_GAP)`
+  in page-width units; a stroke on page *i* paints at `(x, pageTop(i) + y)`. New `S.sheet =
+  { pageW, offX, originY }` is the single mapping every layer uses (`sheetToPx`). **Stored data is
+  unchanged** (strokes keep `pageId` + per-page coordinates), so existing boards render as sheets.
+- **Layout rule** (`sizeCanvases`): the three canvases now cover the whole sheet area (stage minus rail);
+  the page is scaled so `SHEET_VISIBLE_PAGES` = 1.5 pages fill the height — the centred page plus a
+  quarter of each neighbour. `drawBackground` paints a grey desk, each page as a white sheet with a soft
+  bottom edge, and its template clipped to the page; off-canvas pages are culled.
+- **Snap, not scroll.** `centreOn(i, animate)` tweens `originY` (`SNAP_MS` 260, ease-out) and redraws
+  every layer synchronously per frame (`redrawNow`; `scheduleRedraw` coalesces pointer-rate callers;
+  `redrawAll` now delegates to it). `setActivePage(pid)` centres and — for the admin — publishes
+  `activePageId`, so the projector and following students snap along; a viewer picking another page
+  pauses follow (the existing chip resumes it). **Shared state is still `activePageId`**; intermediate
+  scroll is viewer-local.
+- **Gestures** (`bindLensHandlers`, rewritten): two-finger PINCH zooms the viewer-local lens; a two-finger
+  DRAG at 100 % scrolls the sheet and snaps to the nearest page on release; while zoomed it pans. The
+  mode is decided once per gesture (8 % distance change vs 10 px travel) and kept through the tail so
+  lifting fingers one at a time still snaps. One finger: ignored for the drawer (palm), scrolls for
+  viewers, pans when zoomed. Wheel scrolls + snaps after 150 ms quiet (⌘/ctrl-wheel zooms).
+  `bindKeyHandler`: ↑/↓/PageUp/PageDown snap between pages (ignored while typing).
+- **Pinch-zoom on the page route.** `wireWhiteboardPage` mounts with `view: { enabled: !projector }`
+  (was `false` since V3.684 — the reason pinch never worked on the iPad's class-page board). The
+  projector still never zooms. Lens math is now canvas-relative in page-width units (`zoomAtCenter`,
+  `clampView` bound the whole canvas).
+- **Ink may overhang.** `normPoint` returns sheet coords `{u, v}`; `startStroke(pt, pid)` assigns the
+  pen-down page (`pageAtSheetY`), `toLocal()` keeps later points relative to that page even past its
+  edge. `paintStroke(ctx, s, W, ox, oy)` / `fillStrokeOutline` / `flattenStroke` take an offset;
+  `exportBoardPNGs` clips to the page and skips soft-erased strokes.
+- **Thumbnail rail** (`renderRail` / `markThumb` / `scheduleThumbs` / `renderThumbs`): one canvas per
+  page painted with the same background + stroke painters (400 ms debounce, dirty-set keyed by
+  `pageId`, marked from the strokes listener, erases and page changes), active ring, live dot when not
+  following, ＋ for admins (`add-page` now lays the page out optimistically and snaps to it). Hidden on
+  the projector and when the mount is narrower than `RAIL_MIN_ROOT_W` (560 px) — the page dots
+  remain; with the rail showing the dots hide (`.wb-has-rail`).
+- **Erase path unified** in `removeStrokes(ids)` (eraser, undo, clear-page). It hard-deletes today;
+  when R2's `liveWhiteboard.recId` is present it soft-deletes (`erasedAt`) — `repaint`, `eraseAt`,
+  undo, thumbs and export already filter `erasedAt`. `recordingActive()` is the seam.
+- `redrawAll` calls in the board listener, actions and resize path replaced by `scheduleRedraw` /
+  `centreOn`; teardown clears the key handler, thumb/snap timers and any snap tween.
+
+### Changed — `whiteboard-board.css`
+- `.wb-stage` is a row (rail | sheet) on a `#e5e7eb` desk; `.wb-board` fills; `.wb-rail`, `.wb-thumb-btn`,
+  `.wb-thumb-num`, `.wb-thumb-add`; `.wb-has-rail .wb-pages` hidden; rail 72 px under 900 px; projector
+  hides the rail.
+
+### Verification
+- Harness (real engine + stub Firestore, 3-page board, DPR 2): page 2 centred → white at centre, desk
+  in the gap, pages 1 and 3 visible above/below (quarter = 115 CSS px of a 526 px page); two-finger drag
+  of 0.6 page → one `activePageId: p3` write; 0.1 page → snaps back, no write; pinch on the page route
+  100 % → 260 %; ↑ key → `p2`; pen-down on page 3's visible quarter → stroke `pageId: p3` with y < 0
+  rendered continuously; rail: 3 thumbs, click → `p1`, ＋ → 4 pages centred on the new one, dots hidden.
+  No console errors.
+- FTP-only; no Firebase deploy. sw.js `CACHE_VERSION` 701 → 702.
+
+## [V3.729] - 2026-09-03 — Permissions: category pills + a "Create papers" grant (and "+ New paper" finally works for non-admins)
+
+Alex: *"in workflow permissions / users x pages and per-user, i need quick pills at the top of the page
+to filter by grad student, undergrad, highschool, guest. … in per user / papers section I want to be
+able to add user permissions to create a paper."* Plan
+[V3.729_permissions_category_pills_create_paper_cap.md](../ClaudesPlan/V3.729_permissions_category_pills_create_paper_cap.md).
+
+### Added
+- **Category pills** — [rm/pages/admin-permissions.html](../../rm/pages/admin-permissions.html) toolbar
+  gains `#perm-category-pills` (All · Grad students · Undergrads · High school · Guests, each with a live
+  count), shown on the Users × Pages and Per-user tabs only. [rm/js/admin-permissions.js](../../rm/js/admin-permissions.js):
+  `CATEGORY_PILLS`, `_categoryFilter`, `_userMatchesCategory(u, cat)` (keys on `users/{uid}.category`,
+  NOT role — `grad` folds in `masters`; `guest` also matches anyone still on the guest ROLE),
+  `renderCategoryPills()`. Composes with the text search in both `applySearchFilter` (matrix, via the
+  row's `data-uid`) and `filterUserRail`. Clicking the active pill clears it.
+- **`paper-builder:create` capability** — new `paper-builder` page entry in
+  [rm/js/capability-registry.js](../../rm/js/capability-registry.js) with `section: 'papers'`, so the
+  admin per-user panel renders it at the top of the **Papers** section (`_createPaperCapRow(uid)`,
+  `onCreatePaperCapToggle`) rather than in the generic Capabilities cards (which now skip
+  `section === 'papers'` pages). Rides the existing `_setCapEdit` / `pendingEdits` / `saveAll` pipeline —
+  no new save path. Lab members see it labelled "(lab member — implicit)".
+- [firestore.rules](../../firestore.rules) `/projects`: `read` also allows
+  `resource.data.type == 'paper' && hasCap('paper-builder:create')` (provable from the Paper Builder's
+  `where type=='paper'` list query; courses/infrastructure stay hidden); `create` accepts
+  `(isLabMember() || hasCap('paper-builder:create'))` for a self-owned `type=='paper'` row. Update/delete
+  unchanged (owner-by-uid). A cap on the `paper-builder` slug already opens the page for a guest via
+  `canAccessPage` → `hasAnyCapabilityFor`.
+- [scripts/tests/paper-create-rules.test.mjs](../../scripts/tests/paper-create-rules.test.mjs) — 19
+  emulator assertions: cap-holder guest lists/creates/edits/deletes ONLY own papers, never courses or
+  other people's rows; plain guest denied; and the old bug reproduced (below).
+- Derived actions: "Can create papers & grants in the Paper Builder (lead author)" for members; guests
+  now get an honest "No implicit baseline" line instead of "Can open baseline pages (21…)" (mirrors
+  `canAccessPage`, which returns false for guests).
+
+### Bug Fixes
+- **"+ New paper" never worked for anyone but an admin.** [rm/js/paper-builder.js](../../rm/js/paper-builder.js)
+  `createPaper()` did a whole-collection `api.save('projects/papers.json')`; the adapter re-`set`s every
+  existing row with a fresh `updatedAt`, the `/projects` update rule denies rows the caller doesn't own,
+  and a batch is atomic — so the commit failed with permission-denied for every non-admin. Now writes ONE
+  `projects/{id}` doc (`type:'paper'` stamped, as the bundle-import path already did) then
+  `api.invalidate`. Proven by the test's `mustDeny('member batch re-sets all paper rows…')`.
+- New `applyCreateGate()` in paper-builder.js hides "+ New paper" / "Import paper" unless
+  `isLabMember() || hasCapability('paper-builder:create')` (via `style.display` — `.btn`'s
+  `display:inline-flex` outranks the UA `[hidden]` rule).
+- Users × Pages built **duplicate role group headers** ("editor" twice): `sortUsers()`'s `ROLE_ORDER`
+  listed stale roles (`phd`, `masters`…) but not the ones users actually carry (`editor`,
+  `contributor`), so same-role users interleaved by name. Added both to the order.
+
+### Changed
+- `sw.js` — `CACHE_VERSION` 700 → **701**.
+
+### Deploy
+`firebase deploy --only firestore:rules` BEFORE FTP (a granted guest otherwise gets permission-denied on
+the list read). No indexes/functions. FTP batched (ledger).
+
+### Flagged, not fixed
+`paper-editor.js` title/status sync, `research-create.js`, `outputs-manager.js` still use the
+whole-collection `api.save` on `projects/papers.json` — the same failure for non-admins whenever any other
+person's paper exists. Fix belongs in the adapter (skip unchanged rows) or per call site (single-doc merge).
+
+### QA
+Rules: 19 ok / 0 HOLE / 0 BREAK on the emulator. Admin page driven headlessly against a stubbed
+firebridge with one seeded user per category: pills render on both tabs (hidden on the other three),
+each pill shows exactly its users (Holly — guest-role high-schooler — under both High school and
+Guests), composes with search, click-again clears; create-row tick → "1 pending edit" → untick → clear;
+saved cap renders checked and lists in Derived; 0 console errors.
+
+## [V3.728] - 2026-09-03 — R1 board notes: a 30-minute instructor run with drawable figures
+
+Instructor: *"give me lecture notes version of this with images that i can draw on a separate one tab module …
+I should be able to run through this lecture notes for this problem in 30 minutes."*
+
+### Added — `modules/bme466/R1-board-notes-cf-mucus.html` (new file, 966 lines, 9 figures)
+- One page, no tabs. Nine timed blocks (4 · 3 · 3 · 4 · 4 · 4 · 3 · 3 · 2 min = 30) each carrying one thing
+  to say, one figure to draw on, one equation, one number worked live, and the point.
+- **Figures ship unfinished** — axes and geometry present, answer curve absent — each with a **Reveal**
+  button that draws the real answer for checking.
+- **Ink layer**: pen tray (colours, highlighter, eraser, width, undo, clear, Save PNG). Strokes stored in
+  normalized coordinates so they stay registered through presenter mode and resizes; persisted per figure
+  in localStorage.
+- **30-minute clock**: elapsed vs 30:00, progress bar, the block you should be on, ahead/behind badge.
+- Presenter mode + rail as in the student modules; print stylesheet gives a fill-in handout.
+
+### Changed
+- `sw.js` — `CACHE_VERSION` 699 → **700**. (Concurrency note: a parallel session's whiteboard entry,
+  also filed as V3.727 that day, records a 698 → 699 bump it believed it made. The file is at **700**,
+  which is above both claims, so every client revalidates and no third bump is needed.)
+
+### QA
+0 console errors, 0 failed requests, all 9 figures painting in both states, timer live, presenter rescale
+verified, and a synthetic pen stroke verified to persist through a rescale and a resize. Screenshot pass
+caught that superscript-minus can vanish in fallback fonts — log decades are now drawn as "10" plus a raised
+exponent.
+
+## [V3.727] - 2026-09-03 — Whiteboard ink is drawn as one filled outline per stroke (the real "pixelated" fix)
+
+Alex: *"the resolution of what I can draw on the whiteboard is still way below what my tablet is
+capable of … still fairly pixelated … we tried already."* Pixelated at 100 %, on the iPad while
+drawing and on the laptop/projector. Plan
+[V3.727_whiteboard_outline_ink.md](../ClaudesPlan/V3.727_whiteboard_outline_ink.md).
+
+### Diagnosis (measured)
+- Canvas resolution was never the fault: a harness mounting the real engine at `deviceScaleFactor`
+  2 and 1 shows every canvas bitmap is exactly `dpr ×` its CSS size in both the panel and page mounts.
+- Isolated canvas experiment (11-device-px sine, alpha histogram through a scratch canvas): one
+  `stroke()` → 12.2 % of edge pixels partially covered; the V3.683 renderer's per-segment
+  round-capped strokes drawn once → 11.3 %; the same with the live tail redrawn 4× per sample (what
+  `paintActiveSegment` did) → **4.9 %**. Overlapping antialiased strokes compound (`1−(1−α)^k`), so
+  the stroke under the pen went near-binary — "pixelated while drawing".
+- Committed strokes set `ctx.lineWidth` per Bézier segment from that segment's pressure; after RDP
+  thins points to ~8 px the width steps at every join — a staircase edge on every viewer.
+- Production forensics (`Last-Modified`): root `whiteboard.js`/`styles.css`/`index.html` on the server
+  are the **Aug 28** V3.683 build and `whiteboard-board.css` is a **404**, while `class-builder.js`,
+  `app.js`, `sw.js` and the modules are from **Sep 2** — the in-module panel cannot mount on the
+  live site (`mountBoardView` missing). Documented in PENDING_RELEASE so the next FTP carries the root.
+
+### Changed — `whiteboard.js`
+- `paintStrokeRange()` / `paintActiveSegment()` **removed**. New pipeline:
+  `flattenStroke(pts, W, base)` (walks the existing Catmull-Rom segments with the V3.683
+  phantom-endpoint tangents, subdivides each cubic to ≤ `FLATTEN_STEP_PX` = 2.5 device px, carries a
+  per-sample half-width from linearly interpolated pressure) → `smoothHalfWidths(f)` (arc-length box
+  filter, ± `WIDTH_SMOOTH_PX` = 6 device px, so Pencil pressure noise cannot ripple the edge) →
+  `traceOutline(ctx, f, hw)` (left/right offsets, round caps, round **joins** as an outer-side fan
+  wherever the turn exceeds `JOIN_ANGLE` ≈ 20°) → `fillStrokeOutline()` = one `ctx.fill('nonzero')`.
+  `paintStroke(ctx, s, W)` keeps its signature, so `repaint()`, the lens, and `exportBoardPNGs()`
+  all use it — exported homework pages match the screen by construction.
+- **Live layer:** the shell gains a third canvas `.wb-canvas-live` (`EL_SELECTORS.live`,
+  sized alongside bg/ink in `sizeCanvases()`, `pointer-events:none`, z-index 4 in
+  `whiteboard-board.css`). `paintActiveStroke()` clears it and refills the *whole* active stroke on a
+  rAF (`S.livePaintQueued`); `startStroke`, `addPointToActive`, `finishStroke` (clears it) and
+  `redrawAll` (lens) call it. `repaint()` now skips `S.active` so the pen-down stroke is never
+  painted twice.
+- Header comment gains a "Rendering (V3.727)" paragraph.
+
+### Verification
+- Harness (scratchpad `wb-harness/`, real `whiteboard.js` + stub Firestore, DPR 2): realistic Pencil
+  input (0.6 CSS px spacing, ±0.1 pressure noise). Live-stroke AA share 11.9 % = committed 11.9 % =
+  single-path baseline; zigzag with 80 px reversals shows round joins, no notches; panel mount with
+  lens on: live layer 1008×630 like ink, no console errors.
+- FTP-only. sw.js `CACHE_VERSION` 698 → 699. `scripts/tests/whiteboard-rules.test.mjs` needs the
+  rules emulator (:8199) and is unaffected (no rules change).
+
+## [V3.726] - 2026-09-03 — BME466 review module R1: "Why the Antibiotic Never Arrives" (CF case)
+
+Instructor: *"make a single worked example that combine[s] … 1D diffusion … sedimentation length …
+change the surrounding medium's viscosity for the pathology … Fick's first law … Fick's second law …
+Smoluchowski encounter rate … Peclet number … We can setup the pathology first so students can make
+educated guesses for what equations would be most appropriate. make this worked example into a single
+review module with some simulations of the situation. hide each section."*
+
+### Added — `modules/bme466/R1-case-review-cf-mucus.html` (new file, 2,715 lines, 9 sims)
+- A **third module type**: the *case review*. Not week-numbered; it reviews Modules 1–2 through one
+  pathology (inhaled tobramycin vs *P. aeruginosa* in CF airway mucus) in four tabs — The Case ·
+  The Transport Chain · Encounters & Flow · The Verdict.
+- **Predict-then-reveal grammar** (`details.rvl` + `.predict`): each step ships a visible framing card
+  with the situation and a "commit to an equation now" prompt, and a collapsed reveal holding the
+  equation, the justification, the arithmetic, the sim and the worked example. Per-tab **Open all /
+  Close all** (`revealAll()`); opening a reveal invalidates the canvas cache and re-runs `syncVis()`,
+  because a canvas inside a closed `<details>` has zero size.
+- Sims: `scene` (airway cross-section carrying the case's length scales) · `oned` (first-passage
+  histogram in a slab; mean = L²/2D exactly) · `settle` (biased walk, ℓg vs the Boltzmann column,
+  three cargoes) · `visco` (log–log D vs radius: bulk-viscosity trap, mesh hindrance, binding) ·
+  `oxy` (steady O₂ profile with consumption, δ = √(2DC/Q) = 28 µm) · `dose` (implicit backward-Euler
+  Fick II over a 12-h dosing interval, free-drug clocks against two thresholds) · `hits` (3D absorber
+  measuring k_s, scaled to clinical concentrations) · `sweep` (analytic advection–diffusion of a bolus
+  along 1 cm of airway) · `ledger` (eq. R.4.1 chain + three gates, intervention toggles).
+- Equation policy for a review module: **first-appearance numbers are reused unchanged** (1.2.1, 1.2.2,
+  1.2.7, 1.2.8, 1.3.3, 1.3.5, 1.3.9, 2.1.2, 2.2.1, 1.5.1, 2.3.8) and only four new ones are minted,
+  under an `R.` prefix — R.2.1 (the 1D reduction criterion), R.2.2 (mesh hindrance + binding),
+  R.2.3 (oxygen penetration depth), R.4.1 (the delivery chain as a product). Collapsed equation index
+  ships beside the constants bar as usual.
+
+### Changed
+- `sw.js` — `CACHE_VERSION` 698 → **699**.
+
+### Fixed (framework, affects future modules)
+- `statTick()` now rate-limits **only animated widgets**. A static widget draws once per interaction,
+  and if that draw landed inside the 160 ms window its readouts were never written — the scene widget
+  kept showing the previous scenario's numbers after a chip click.
+
+### Sources
+- Fourteen references resolved through the PubMed MCP server (PMIDs + DOIs in the module's own
+  sources block), covering the dehydration model, mucus solids and mesh hindrance, the oxygen
+  gradients in CF mucus, the energy-dependence of aminoglycoside uptake, sputum binding of
+  tobramycin, the inhaled-tobramycin regimen, MBEC-vs-MIC, and mucociliary velocities. The two
+  parameters that stay *modelled* (binding ratio K, per-cell O₂ consumption) are flagged as such
+  on the page.
+
+### QA
+- Headless patchright: 0 console errors, 0 failed requests, 333 MathJax containers, all 11 canvases
+  painting, every scenario chip exercised, reveal open/close + rail-opens-reveal + presenter mode
+  verified, screenshots read for all nine sims.
+- Numeric checks against the prose: crossing time 2.3 s = L²/2D · ℓg 1107 m (molecule) vs 30 nm
+  (droplet) · D₀ 546 µm²/s, bulk-trap 0.38, binding-corrected 55 · δ = 28 µm, 43 % of a 50-µm layer
+  anoxic · 12.6 min above the biofilm threshold per 12 h · k_s 312–333 measured vs 4πDa = 346 ·
+  Pe 9,120 (escalator), 9.1×10⁸ (cough) · Θ = 0.50 untreated.
+
+## [V3.725] - 2026-09-02 — "How the lab moves forward" collapses, and its first column is grants
+
+Alex: *"the first section 'How the lab moves forward' should start collapsed … 'What we're
+driving forward' this has multiple cards for each grant when I click on one of these grant
+cards information related to it populates in the next two columns … currently all of these
+are attributed to the CAREER grant Aim 1 and that should be a grant card in the first
+column."* Plan in `CodeLog/ClaudesPlan/V3.725_hub_band_by_grant.md`.
+
+### Changed
+- **The band starts collapsed.** It is an orientation panel, not the page, and it sat above
+  the whole map. Wrapped in a `<details>` whose summary carries a show/hide affordance. The
+  open flag is **module state, not markup**, so claiming an analysis — which re-renders the
+  entire hub — no longer slams the panel shut mid-action. "Starts collapsed" means per page
+  load, which is what was asked; it does not fight you within a session.
+- **Column 1 is grants now, and it is the selector.** It used to list every *output* card
+  that happened to own a roadmap, so the lab's top-level view was a list of papers while
+  columns 2 and 3 mixed every grant's work together. A grant is the unit work is spent
+  against, so it is the unit here: one card per grant that has roadmap work beneath it,
+  showing aggregate progress (`n of m analyses done · k open · j being worked`) across all
+  its aims and outputs. Clicking one scopes the other two columns to it; columns 2 and 3
+  now carry an explicit "in &lt;grant&gt;" line so the scoping is never ambiguous.
+- **Roadmap work that reaches no grant gets its own "Not under a grant" bucket** rather than
+  disappearing from the top-level view because nobody has linked it yet — the same rule the
+  aims band follows.
+- **Aims are eligible for the band.** The filter was still `level === 'output'` from before
+  V3.719 widened roadmaps to aims, so an aim's roadmap could never appear here. Now
+  `aim || output`, matching `sectionRoadmap` and `listRoadmapCards`.
+
+### Note on the debugging
+The band rendered empty for several passes while I chased the new grouping code. The cause
+was entirely in the test harness — its `FOCUS_AREAS` stub had `weekIdForOffset` but not
+`weekIdFor`, which `renderHubBand` calls, so the function threw inside an `async` and the
+rejection surfaced as neither a console error nor a visible failure. The production code was
+correct throughout. Second time this session a stub, not the subject, produced the symptom:
+**when a headless render comes back empty, verify the harness's own contract before reading
+the code.**
+
+## [V3.724] - 2026-09-02 — A card created from a parent is actually attached to it
+
+Alex: *"when i am within a grants/grant and i add a new aim via the + New aim button, that
+aim does not automatically get attributed to the grant we are editing. It does get placed
+in the aims section as unattributed. Look for other things that can be added to any of
+these surfaces and dont get attributed automatically to the parent."* Plan in
+`CodeLog/ClaudesPlan/V3.724_create_from_parent_attribution.md`.
+
+### Bug Fixes
+- **Every card created from a parent surface was born unattached.** `openCreate` has
+  advertised a `seed.links` parameter since V3.554 — its own export comment says *"so a
+  '＋ New output' from a concept auto-links back"* — and `research.js` has always passed
+  one. But the composer's `save()` built `payload` from **form fields only**, so the seed
+  was read to prefill the form and then dropped on the floor. `RD.create` wrote
+  `links: {}` and the new card landed in the map's unattributed bucket. Nothing threw;
+  the card looked created because it was. This hit **every** "＋ New &lt;child&gt;" button
+  on every level — a grant's aims and outputs, a concept's grants and outputs, a
+  specialty's concepts — and had been latent for roughly thirty versions, becoming
+  visible only when V3.719 started grouping aims under their grant and the orphans piled
+  up under "No grant yet".
+  `payload.links` is now the seeded links, filtered through `PARENTS[level]`.
+- **Switching the level tab could smuggle an invalid link through.** The seed is computed
+  before the form opens, so choosing a different level afterwards could have written e.g.
+  `grant_ids` onto a concept, which no renderer reads. Two guards: the payload filter
+  above, and the level tabs now offer **only levels that can actually hang off the seeded
+  parent** (all of them when created from the hub, where there is no parent).
+- A card created from a parent also inherits that parent's `member_uids` / `member_roles`,
+  so a new aim starts with the grant's people rather than empty.
+
+### Added
+- **`scripts/tests/v3724-selftest.html`** (16 assertions, registered in `run-all.sh`'s
+  browser layer) — drives the real composer for all five parent → child pairs and asserts
+  what `create()` was called with. This bug was invisible to every other kind of test:
+  the data layer was correct, the handler was correct, and the seed contract was
+  documented — only clicking the button and reading the write catches it. Verified to
+  fail against the pre-fix behaviour (`links: {}`) and pass after.
+
+### Audited, not changed
+- The other three `RD.create` call sites (`openGrantIdea`, `openOutputLinker`'s
+  `ensureCard`, the V3.717 grant migration) all pass `links` straight to `RD.create` and
+  were never affected. Roadmap experiments/analyses, media, and roadmap reference papers
+  are stored on or under the card doc itself, so they are attributed by construction. The
+  hub's "⤵ Add existing paper" deliberately creates unparented output cards — there is no
+  parent at hub level — and V3.719's amber "no grant yet" chip is what surfaces them.
+
+## [V3.723] - 2026-09-02 — The ONR proposal becomes an RM grant, and the awarded card gets its associations
+
+Alex: *"I want to add this grant to papers as a grant … all references used should be
+added to the library … all figures, equations, references, etc should be added to the
+paper as written … In the Research page, we have the grant as awarded. We want to add all
+associations needed from this grant to that."* Plan in
+`CodeLog/ClaudesPlan/V3.723_onr_grant_import.md`.
+
+`Data/Grants/ONR Technical Proposal.docx` is the submitted technical volume for ONR BAA
+N00014-25-S-B001, now awarded (3062920). The research map carried the award as an
+**orphan** — `level: grant`, `status: awarded`, real `grant_meta`, and `links` empty in
+every field: no concept parent, no aims, no bibliography, no pointer to the document it
+was won with.
+
+### Added
+- **`scripts/onr_bundle/` (NEW, 3 scripts + README)** — a re-runnable docx →
+  `.paperbundle.zip` pipeline producing
+  `Data/Grants/onr-technical-proposal.paperbundle.zip` (1.9 MB): 16 sections, 5 figures,
+  9 numbered equations, 97 maths expressions, 2 tables, 33 references.
+  - `extract_onr.py` reads `word/document.xml` directly, because pandoc loses the three
+    things that matter: the references (base64+zlib Paperpile payloads inside each
+    citation field's `w:instrText`, split across 89 runs), the Gantt bars
+    (`w:shd/@w:fill=FFC000` on empty cells), and Figure 4 (an anchored `w:drawing`
+    *inside* a body paragraph). Maths is delegated to pandoc and aligned 1:1 by document
+    order — 97 `m:oMath` elements to 97 AST `Math` nodes. `normalize_math()` fixes Word's
+    Greek confusables and pandoc's trailing `\` before a closing `$`.
+  - `resolve_dois.py` **looks up** the six identifier-less references on CrossRef,
+    accepting only an exact normalized-title match, cached to `doi_overrides.json`. All
+    six resolved. Nothing is invented.
+  - `build_onr_bundle.py` emits the manifest behind a **census gate**: 5 figures, 9
+    equations, 2 tables, 33 references, 16 sections, every marker 1..33 used (ranges
+    expanded as `rewriteNumericMarkers` expands them). Every failure mode here is a
+    silent drop, so the build refuses rather than shipping a lossy bundle.
+- **`scripts/seed_onr_associations.js` (NEW)** — `--commit`-gated, idempotent. Creates
+  the `thermomechanics` specialty and the `tissue-thermomechanics` concept (over
+  `thermomechanics` + the existing `tfm`), three `planning` aim cards under the grant,
+  and patches the grant with `concept_ids`, `draft_refs` and V3.721's `ref_source`. It
+  also stamps `meta.library.cited_in_drafts` directly — see **Fixed** below.
+
+### Changed
+- **One heading level is promoted rather than flattened.** The docx nests H1→H5; an RM
+  `subheading` is level 2 or 3 only. Every H2 under "Technical Approach" and every Aim
+  opens its own section, after which H4→2 and H5→3 fits exactly.
+- **`sectionNumbering: 'off'`** for this bundle — the proposal numbers its own headings
+  ("2.1", "3.1.1", "Subtask 1.1)"), so auto numbering would render "3.1 3.1.1 Preliminary
+  Work". Float numbering is unaffected: captions drop their literal `Fig. N.` / `Table N.`
+  prefix and the prose becomes `[!fig:collab]` / `[!tab:ecm]` / `[!tab:schedule]` /
+  `[!eqr:eq3]`, which also fixes the document's own bug of labelling **both** tables
+  "Table 1".
+
+### Fixed
+- **A grant's References section would have rendered zero rows after a fully successful
+  import.** The paper importer stamps `meta.library.linked_drafts`;
+  `research-references.js` filters on `meta.library.cited_in_drafts`, a different field
+  written only by `CITED_SYNC`'s debounced loop ~16 s after someone opens the draft in
+  the editor. V3.718's plan recorded it as "stamped when the paper bundle was imported" —
+  it never was. The seed script stamps it directly (safe: `CITED_SYNC` re-scans before
+  removing, and the body cites all 33).
+
+### Known lossy edges (named, not hidden)
+- RM tables have no per-cell shading and no cell merging, so a Gantt bar becomes `●` and
+  a `gridSpan=7` aim row becomes a label in column 0.
+- Bibliography entries 26 and 29 are the same paper entered twice in Paperpile. Both
+  markers are kept so the document's numbering is untouched; CrossRef gave 29 the same
+  DOI as 26, so `dedupeAndKey` collapses them to one library item by DOI.
+
+### Verified
+- `build_bundle.py --strict` → 0 errors, 0 warnings.
+- All 97 maths expressions render under **KaTeX 0.16** — the exact build
+  `paper-editor.js` loads — with `throwOnError`. Zero failures. (`pdflatex` is not
+  installed here, and KaTeX is the renderer that actually matters.)
+- All 6 seed cards compile **byte-identically** to the live
+  `research-composer.js compileDescription()`, with no unanswered prompt.
+
+### Note
+The ONR grant card was read live at the start of this session and **had been deleted from
+Firestore by the end of it** — not renamed, gone. The seed script carries a restore path
+built from the recorded content, warns loudly when it fires, and only ever *patches* the
+card when it is present: its `grant_meta` holds the real award period (2026-04-01 →
+2029-04-02), which is not the proposal's stated period of performance.
+
+No `rm/` source changed — no `sw.js` bump, no FTP, no `firebase deploy`.
+
+## [V3.722] - 2026-09-02 — Who is on a grant, and the Team Focus → My Week loop recorded under it
+
+Alex: *"there is a section for 'work under this grant' and this currently lists all the
+people in the lab. Do not put any students on this list that do not have associations for
+this grant. I want to be able to edit the primary people associated with this project, and
+add some people as secondary … The semester focus for each person will be assigned through
+the team focus page, and students will add their own sections via the my week to add to the
+semester focus. All of this should be recorded here."* Plan in
+`CodeLog/ClaudesPlan/V3.722_grant_people_and_the_focus_loop.md`.
+
+### Bug Fixes
+- **"Work under this grant" listed the entire lab.** For an admin, `roster()` added every
+  uid from `FOCUS_AREAS.listMentees()` — which for an admin is every non-guest user — so
+  the section printed nine people, seven of them saying "No focus aligned to this grant
+  yet". That buried the two who were actually on it and told the PI nothing. Scanning the
+  mentee roster is still how an unassigned contributor is *found*, but **scanning is no
+  longer the same as listing**: a scanned person with no work under this grant is never
+  rendered. Verified against the real 9-member lab: 5 rows, not 9.
+
+### Added
+- **Primary and secondary people, editable from the grant.** `member_roles[uid] ===
+  'secondary'` marks a tangential role; anyone else in `member_uids` is primary. Only the
+  exact string `'secondary'` demotes, so the pre-existing free-text roles ('lead',
+  'contributor') keep their meaning rather than silently changing. New
+  `GRANT_REVIEW.openPeopleEditor` — one modal, the whole lab roster, three radios each
+  (Not on it / Primary / Secondary), writing `member_uids` + `member_roles` on the grant.
+- **Three groups in the section**: **Primary** ("Driving this grant"), **Secondary** ("A
+  tangential role pushing this forward"), and **Also contributing** ("Not assigned to the
+  grant, but has aligned work to it"). Assigned people are always listed even with no work
+  yet — that is what assigning them means, and the empty state points at Team Focus.
+- **The Team Focus → My Week loop is now recorded per person.** Each person expands to
+  their semester foci (assigned on Team Focus) with the weekly foci they added in My Week
+  **nested underneath the semester focus each one serves** — that nesting IS the loop;
+  showing the weeks flat would lose which commitment they were against. Each week line
+  carries its outcome icon, week id, title, the aim/output card it hit, task progress and
+  the report summary. Weeks aligned to the grant but under no semester focus collect in a
+  "Not under a semester focus" bucket rather than disappearing.
+
+### Changed
+- **The grant review's sidebar "Aligned people" section is gone.** The roster now lives in
+  "Work under this grant" with roles and its own editor; a second list with a second
+  editor over the same `member_uids` is how two surfaces drift (the same reasoning that
+  moved `grant_meta` to one renderer in V3.717).
+
+## [V3.721] - 2026-09-02 — The bibliography moves inside the grant
+
+Alex: *"The references for each grant should be within the grant card. for example the
+CAREER grant if i click on it i see all the aims, outputs people etc, and I want a new
+section in this with the references cited."* Plan in
+`CodeLog/ClaudesPlan/V3.721_references_inside_the_grant.md`.
+
+V3.718 gave references their own card and their own `reference` level. That was one
+indirection too many: the page you actually open is the grant's, and being sent to a
+second card to read its bibliography is a click that buys nothing. It also created the
+doc that a pre-V3.718 build kept misfiling into the Concepts band.
+
+### Changed
+- **`ref_source` moved from a reference card onto the GRANT card.** Same shape
+  (`{kind:'draft_citations', draft_id}`), same live read from the lab library — the 103
+  entries are still stored once, in the library, and citing something new in the builder
+  still appears with no re-sync. One fewer doc to keep in step.
+- **The grant review renders the bibliography INLINE, last, and collapsed** — a
+  `<details>` whose summary carries the live count. Last because a bibliography is
+  material to look something up in, not a status anyone scans the page for; collapsed
+  because 103 entries expanded would bury the aims and the people the page exists to
+  show. Opening it reveals the full grouped-by-year list in place, with no navigation.
+- **The `reference` level is retired** — removed from `LEVELS`, `LEVEL_ORDER` and
+  `PARENTS`, along with `research.js`'s reference-card detail branch.
+  `research-references.js` survives unchanged in substance: same renderer, new host.
+- **`scripts/seed_gels_career_references.js`** rewritten to migrate rather than create —
+  stamps `ref_source` on `gels-career`, then deletes the redundant
+  `gels-career-references` card **only after** the grant carries the pointer, so a
+  failure cannot leave the bibliography unreachable. The library is untouched.
+
+### Fixed as a consequence
+- **"References Cited" no longer appears under Concepts.** The V3.718 fix (an unknown
+  level renders nowhere instead of being coerced to `concept`) was correct but could only
+  take effect once that code was the code being served. Deleting the card removes the
+  symptom outright, on every build, deployed or not. The `levelMeta` hardening and its
+  guards stay — the lesson is worth keeping even though this particular card is gone.
+
+## [V3.720] - 2026-09-02 — Equipment Foundations 4: the plasma cleaner, and a stale overview fixed
+
+Alex: *"Using the cell culture learning modules as a reference, make an equipment
+learning module for the harrick plasma cleaner we have"* — the High Power Expanded
+Plasma Cleaner (PDC-001-HP) with the PlasmaFlo gas mixer (PDC-FMG). Plan:
+`CodeLog/ClaudesPlan/V3.720_plasma_cleaner.md`.
+
+The eighth instrument in the track, and the one the lab's microfluidics depends
+on. `modules/surface_functionalization/02-plasma-treatment.html` already teaches
+the plasma physics and surface chemistry well and contains zero mentions of
+watts, flowmeters, pumps or argon — so this lesson takes the instrument-first
+line the track already uses for the biosafety cabinet against `cell_culture/01`:
+**it owns the machine and cross-links the chemistry.** Alex chose that over a
+self-contained lesson, and asked that every operating number come from Harrick.
+
+### Added
+- **`modules/equipment/04-the-plasma-cleaner.html` (NEW)** — 2,392 lines, **10
+  simulations, 9 numbered equations**, five tabs, self-contained with MathJax CDN
+  as the only external request.
+  - **Tab 1** — the pressure window (below 1500 mTorr to strike, 200–800 mTorr
+    recommended) with mean free path as the reason for both edges; the RF ladder
+    across all three Harrick cleaners; Harrick's five mechanisms selected by gas.
+  - **Tab 2** — pump-down as an exponential with a floor, and the derivation that
+    **the flowmeter, not the pump, sets chamber pressure**.
+  - **Tab 3** — over-treatment, hydrophobic recovery, and the hard safety rules.
+  - **Tab 4** — Harrick's two-branch fault tree and the vacuum-floor equation.
+  - **Tab 5** — capstone: bond a PDMS chip to glass on Harrick's own recipe.
+- **The signature fact:** Harrick's FAQ publishes 7/11/18 W for the Basic,
+  7/11/30 W for the Expanded and **30/38/45 W for the High Power Expanded**. This
+  lab's **LOW is the standard model's HIGH**, so a published recipe followed
+  literally delivers 1.5× the intended dose. The `power` widget makes the
+  conversion concrete and gives the lesson its title.
+- **Two derivations that make the instrument legible.** `p = Q/S` shows the
+  PlasmaFlo's full-scale 50 mL/min landing at 0.76 Torr — the top of Harrick's
+  recommended band, so the flowmeter's full scale *is* the operating window. And
+  the 3.0 L chamber against a 50 L/min pump gives `V/S = 3.6 s`.
+- **Two non-obvious lessons the sims exist to deliver.** The contact angle
+  **cannot see over-treatment** (2 min → 6.8°, 30 min → 13.7°, and the second is
+  cracked); and **wettability and bondability do not decay together** — an hour
+  after treatment a surface still wets beautifully and will not weld.
+- **`Data/equipment/`** — the three Harrick PDFs saved locally (PDC-001-HP
+  datasheet, PDC-FMG datasheet, PDC32G-M-03 user manual) so this lesson's sources
+  are as stable as every other lesson's.
+
+### Changed
+- **`modules/equipment/overview.html`** — lesson 4 inserted; the four unbuilt
+  lessons renumbered to 05–08; "seven instruments" → "eight"; closing prose
+  updated and cross-linked to `surface_functionalization/02`.
+- **`modules/foundations/overview.html`** — plasma card added to the track list,
+  "all seven instruments" → "all eight", stale `V3.688` comment corrected.
+- **`modules/manifest.json`** — regenerated, label re-curated to "Equipment
+  Foundations". Diffed: no other label clobbered.
+- **`sw.js`** — `CACHE_VERSION` 693 → 694.
+
+### Bug Fixes
+- **`modules/equipment/overview.html` marked lessons 2 and 3 "coming soon" when
+  both had shipped.** They went out on 2026-08-29 (V3.690); the overview was
+  written before they were finished and never revisited, so it was wrong in
+  production for four days. Both now render live with Open-lesson buttons.
+- Four defects in this release's own new code, all found during QA:
+  - **The `window` widget had an RF slider that no stat depended on** — a control
+    feeding nothing. Fixed by making power genuinely set the lower edge of the
+    pressure window, which Harrick's "lowest level that will light" instruction
+    implies anyway.
+  - **The mean-free-path chart was clipped flat along its axis floor.** Its
+    y-range was 0.01–100 cm when the entire operating band is tens of
+    *micrometres*, so the whole interesting region sat on the bottom edge. Every
+    numeric check passed; caught only by reading the screenshot.
+  - **Two widgets opened in a state where their own controls were no-ops** —
+    `recovery` at zero delay (all three storage scenarios identical) and
+    `pumpdown` at 60 s (already fully pumped down, so both ends of the time
+    slider read the floor). Both defaults moved onto the interesting part of the
+    curve.
+  - **The capstone left 40% of its canvas empty at wide viewports.** The drawing
+    surface is `w × w·(attrH/attrW)` CSS pixels and grows with the viewport while
+    absolute y-offsets do not; the row pitch is now derived from the height
+    actually available.
+
+### Notes
+- **No Firebase deploy.** No rules, indexes, functions or storage rules change.
+  FTP only.
+- **Sourcing discipline.** Harrick publish no per-gas glow-colour chart (only
+  purple/pink for air), no RF frequency for the HP unit (the 8–12 MHz figure is
+  the *Basic* model's), and nothing at all on ozone venting, UV, RF emissions,
+  prohibited materials, chamber cleaning or maintenance intervals. Every one of
+  those is marked "not stated by the manufacturer" rather than filled in.
+- **The house framework has advanced since batch A.** The layer copied from
+  `cell_culture/02-the-incubator.html` now carries a `{keep:1}` Chart option, a
+  y-label fix for offset charts, the `RESEED`/`keepField()` guard from AUTHORING
+  §9.4, and two QA probes — `dataset.cvw/cvh` and `dataset.frames`/`animerr`. The
+  last is load-bearing: a throw inside the animation loop's `try` leaves the page
+  reporting itself clean, and the harness now reads the error off the canvas
+  element. Lessons 01–03 are one revision behind; not backported, as they are
+  shipped and QA'd and the divergence is additive.
+- Worth a look, kept out of the lesson because Alex asked it to follow Harrick:
+  the lab's fabrication protocol runs at ≈1 Torr against Harrick's 200–800 mTorr,
+  treats 60 s at HIGH (45 W on this machine, the top of the 15–60 s window), and
+  states no bonding time limit where Harrick ask for 15–60 min.
+
+## [V3.719] - 2026-09-02 — Aims group under their grant; outputs name the grants they serve
+
+Alex: *"in the aims & outputs section, I want the aims to be grouped in a grant. the
+outputs should get associations with one or more grants."* Plan in
+`CodeLog/ClaudesPlan/V3.719_aims_grouped_outputs_multigrant.md`.
+
+### Changed
+- **Aims in the hub band now group under their grant** (`research.js` `groupedByGrant`).
+  An aim answers "what does THIS grant have to deliver", so one undifferentiated rail of
+  every aim in the lab answered nobody's question. Each grant that has aims gets a
+  heading (icon, abbreviation, live status pill, count) linking to its review; aims with
+  no grant collect under "No grant yet" **last, still visible** rather than quietly
+  dropping out. A grant with no aims renders no heading — an empty bucket per grant is
+  noise. The helper is generic over the card renderer, so outputs can be grouped the same
+  way later without new code.
+- **Aim cards drop their grant pill** — the grant is now the heading directly above them,
+  and repeating it on every card is noise. `deliveryCard` takes its foot content from the
+  caller instead of always calling `parentPillsFor`.
+- **Output cards show the grant(s) they serve** (`grantChipsFor`). Outputs are NOT
+  grouped — one output can serve several grants, so it carries its own associations.
+  Resolved through `grantIdsForCard`, so an output linked only to an *aim* shows that
+  aim's grant without needing a redundant direct link, and an output linked directly to
+  two grants shows both. Indirect (concept-level) hits are excluded: they are not an
+  association anyone chose, and showing them would imply one. An output with no grant
+  shows an amber **"no grant yet"** chip **to admins only** — it is a gap for the PI to
+  close, and a student can do nothing about it.
+- Associating an output with one or more grants already worked through the links modal
+  (`crossOptions` builds its pools from `PARENTS.output`, which includes `grant`, as
+  checkboxes); V3.719 makes the result visible on the map. 6 new assertions in
+  `research-graph.test.mjs` pin multi-grant resolution, direct-plus-via-aim dedup, and
+  the aim bucketing (43 total).
+
+## [V3.718] - 2026-09-02 — A grant's bibliography becomes a card of its own
+
+Alex: *"under the grants, i want one more card and that is all of the references used in
+the proposal."* The 103 CAREER references were already in the lab library, each stamped
+`meta.library.cited_in_drafts` at bundle import — what was missing was a way to see them
+from the research map. Plan in `CodeLog/ClaudesPlan/V3.718_reference_level.md`.
+
+### Added
+- **A sixth level, `reference`** (`rm/js/research-data.js`) — the literature a grant was
+  written on. Deliberately NOT an `aim` (a target result) or an `output` (something the
+  lab produced): a bibliography is a third kind of thing, and filing it as either would
+  blur the one distinction the "Aims & outputs" band exists to keep. `PARENTS.reference`
+  is `['grant']`, and it belongs to **no `BANDS` entry**, which is how it stays off the
+  hub — one bibliography per grant would be noise in a lab-wide band. It surfaces on its
+  grant's review page and on its own detail page.
+- **`ref_source: { kind:'draft_citations', draft_id }`** — a reference card stores WHERE
+  its list comes from, never the list. There is exactly one copy of every reference in
+  the lab, and citing something new in the builder shows up on the card with no re-sync.
+- **`rm/js/research-references.js`** (NEW) — `window.RESEARCH_REFS.render/load/count`.
+  Reads the library through the registered `library/papers.json` route, filters
+  `meta.library.cited_in_drafts`, and renders grouped by year newest-first (how a
+  bibliography actually gets scanned), each row linking to the library reader and to
+  `doi.org`. Entries with no DOI / PMID / arXiv id are **flagged, not hidden** — a
+  bibliography that quietly drops its weakest rows is worse than one that points at
+  them. `load()` returns `[]` on any failure, so the card degrades to an empty state.
+- **`scripts/seed_gels_career_references.js`** (one-shot, `--commit`-gated) — creates
+  `gels-career-references` under the CAREER grant. Verified live: 103 references across
+  24 year-groups, 100 DOI links, and exactly the two entries the import notes predicted
+  would be thin (FDA Modernization Act 2.0; the GELLS-DEM software).
+- **The References section renders LAST on the grant review** — after Aims, Outputs,
+  Drafts and the per-person roll-up. Alex: *"this should go in the grant as a card at the
+  end."* Right: the bibliography is reference material to look something up in, not a
+  status anyone scans the page for, so it belongs below the work rather than above it.
+
+### Bug Fixes
+- **An unknown level no longer becomes a Concept.** `hydrate()` had done
+  `d.level = LEVELS[d.level] ? d.level : 'concept'` since V3.544, so a card written by a
+  NEWER build than the one running landed in the Concepts band. That is exactly what
+  happened the moment the References card was created: the doc says `level:'reference'`
+  and links only to the grant, but a browser still on V3.717 JS had never heard of the
+  level and filed it under Concepts — data reaching the browser ahead of the code that
+  understands it. An unrecognized level now KEEPS its own name, and because `BANDS`
+  drives the hub by exact level, such a card renders **nowhere** rather than in the wrong
+  place — the safe failure. Only a genuinely absent level still defaults to `concept`.
+  New `RD.levelMeta(level)` never returns undefined (bland `◻️ Card` placeholder, so an
+  unknown level looks unfinished rather than like a concept); `iconFor`, `renderDetail`,
+  the composer's modal title and the grant review's touched-card pills all route through
+  it instead of indexing `LEVELS` directly and throwing. 5 new guards in
+  `research-graph.test.mjs` (37 assertions).
+
+### Changed
+- `research.js` — a `reference` card renders its bibliography as its main-column body;
+  `research-grant-review.js` gains a References section per attached card, its count
+  filled after paint (one library read) so the review never blocks on it.
+- `RESEARCH_DATA.grantIdsForCard` — the aim branch generalized to *any* level whose only
+  parent is `grant`, so `reference` resolves without a new branch and the next such
+  level needs none either. `cardsUnderGrant` still excludes references: they are what
+  the grant was built on, not work being done under it.
+- `scripts/tests/research-graph.test.mjs` — 7 new cases pinning the level's shape
+  (resolves to its grant, is not a member of it, belongs to no band, nothing hangs off
+  it, `ref_source` defaults to null). 32 assertions, still green.
+
+## [V3.717] - 2026-09-02 — Grants become a level: Specialties → Concepts → Grants → Aims & outputs
+
+Alex: *"change this to Specialties, Concepts, Grants, and then Aims … grants can have a
+status of in preparation, submitted, awarded, completed. All work a student performs
+under that grant from semester focus, papers, and my week should be associated and
+indexed to this. When I click on a grant it should open into a review of everything
+about that grant."* Since V3.558 a grant had been a *facet of a concept* (`grant_meta`
++ `kind:'grant'` draft refs), which meant it had no status of its own, no page, and
+nothing rolled up to it. Plan in `CodeLog/ClaudesPlan/V3.717_grants_as_a_level.md`.
+
+### Added
+- **`rm/js/research-data.js`** — two new levels, `grant` (📑) and `aim` (🎯), making
+  `LEVEL_ORDER` `specialty → concept → grant → aim → output`. New **`BANDS`**
+  decouples the hub's FOUR sections from the five levels: aims and outputs are peers
+  under a grant, so they share one band ("Aims & outputs") sub-grouped by level rather
+  than stacking as two more rows. New **`PARENTS`** (which levels a card may link up
+  to) + **`LINK_KEY`** (level → `links` array) replace the
+  `level === 'specialty' ? 'specialty_ids' : 'concept_ids'` ternary that had been
+  copy-pasted across four files. New `links.grant_ids[]` / `links.aim_ids[]`.
+- **`RESEARCH_DATA.grantIdsForCard(card, allFoci)`** — THE attribution resolver.
+  `grant` → itself; `aim` → its `grant_ids`; `output` → `grant_ids` ∪ the grants of
+  its `aim_ids`; `concept` → the grants built on it, flagged `indirect:true`;
+  `specialty` → nothing (a capability underpins every grant at once, which is noise).
+  Plus `cardsUnderGrant`, `childrenOf(card, allFoci, levels)`, `parentRefsOf`.
+  Attribution is **derived, never stored** — nothing is denormalized onto a
+  `focusArea`, so re-parenting an aim retroactively re-attributes every past week.
+- **Grant lifecycle** — `GRANT_STATUSES = ['in_preparation','submitted','awarded',
+  'completed']` with matching `STATUS_META` pills; `DEFAULT_STATUS.grant`
+  `'in_preparation'`. `research.js`'s `effStatus()` short-circuits on grants so a
+  linked builder draft can **never** flip a grant's status — the card is the lab's one
+  source of truth. The draft's own status shows as a muted secondary pill. Set inline
+  from a `<select>` where every other card shows its status pill.
+- **`rm/js/research-grant-review.js`** (NEW) — `window.GRANT_REVIEW.render(host, grant,
+  pageState)`. A grant's page is a *review*, not a card detail: its aims (each with
+  roadmap `n/m analyses done` and the outputs synthesizing it), its outputs, every
+  linked draft/patent across the grant and its descendants deduped, and **who is
+  spending time on it**, from each member's own semester + weekly foci. Modeled on
+  `research-progress.js`: per-uid fan-out with each read in its own `try`, so
+  visibility stays the existing `focusAreas` rules (owner ∥ mentor ∥ admin) — the PI
+  sees the roster, a student sees their own slice, a denied read degrades to "Not
+  visible to you." **No `collectionGroup` query, no rules change, no index.**
+- **`rm/js/focus-areas.js`** — `listAllSemesterFoci(uid)` (equality on `horizon`, which
+  only semester docs carry — single-field, no composite index), `listGrantsForPicker()`,
+  `listGrantChildrenForPicker(grantId)`, `rowsByGrant(rows)` and `grantOfRow(rf)`. All
+  share the existing `_fociCache`, so the new grouping costs no extra read.
+- **`scripts/seed_gels_career_grant.js`** (NEW, one-shot, `--commit`-gated like
+  `migrate_user_permissions_add_collections.js`) — authors the first real grant on the
+  new level: `gels-career` (NSF · CAREER, solicitation NSF 22-586, CBET/EBBS,
+  **submitted**) linked to the `gels-energy-landscape` concept and to the existing
+  builder draft via `source_draft_id`, plus its three aim cards, every guided-template
+  prompt answered from the submitted package (Project Summary, cover letter, §5.1-5.3).
+  `compile()` is a byte-for-byte copy of the composer's `compileDescription`, so
+  re-compiling in the browser yields identical HTML. The concept is stripped of its
+  legacy `grant_meta`/`kind:'grant'` ref only AFTER the grant card is confirmed present,
+  so a partial failure cannot lose the reference; re-running skips what exists.
+- **`scripts/tests/research-graph.test.mjs`** (25 cases) + **`research-pickers.test.mjs`**
+  (17 cases), both registered in `run-all.sh` layer 1. A wrong graph walk files work
+  under the wrong grant and *nothing throws*, so these are the only guard.
+
+### Changed
+- **Team Focus semester alignment is GRANTS ONLY** (`team-focus.js:193`, `:284`,
+  `:722`) — a semester of a student's work is spent under one grant, which is the
+  whole reason grants became a level. Backed by `listGrantsForPicker()`.
+- **My Week's composer is now two dropdowns** (`my-week.js` `renderFocusField`).
+  Dropdown 1 gains a `📑 Grants` optgroup (`grant:<id>`) alongside the existing
+  weeklies and `🎓` semester foci, and every choice resolves to exactly one grant —
+  a semester focus through its now-grant-level `focus_ref`, a grant pick directly, an
+  existing weekly through the graph. Dropdown 2 is repopulated from *that* grant: its
+  aims and outputs, each card's open analyses indented beneath (preserving V3.602's
+  analysis-level `focus_ref` and the `roadmapClaims` mirror). Available on **every**
+  pick, not just freeform. Left empty, the week counts against the grant itself.
+  Changing dropdown 1 clears dropdown 2 rather than carrying an aim across grants.
+  New shared `alignRefFor(key)` + `stampClaim(ref, weekId)` replace three copies of
+  the same ref-building and claim-mirroring logic. Team Focus's weekly card gets the
+  same information architecture as `<optgroup>`s per grant.
+- **`research.js`** — `renderHub` loops `RD.BANDS`; new `grantCard()` (status, agency ·
+  mechanism, aim/output counts, deadline) and `aimCard()`; `sectionCombine` ("Builds
+  on") and the new `sectionChildren` drive off `PARENTS`/`LINK_KEY`, so the chain is
+  described once and rendered once; `sectionRoadmap` widens from `output` to
+  `aim || output` (an aim is exactly the thing with experiments to run); `sectionGrant`
+  and `sectionChildOutputs` are gone; `grant_meta` rendering extracted to
+  `grantMetaBlock`.
+- **`project-health.js:140`** — an owned project is now `aim`/`output`/`grant`, not
+  `output` alone; otherwise a grant could never be an owned project and never accrue
+  a silence penalty. **`roadmap-data.js:382`** — `listRoadmapCards` keeps `aim` too.
+- **`research-links.js`** — `crossOptions()` builds its pools from `PARENTS`;
+  `openOutputLinker` takes its key from `LINK_KEY` so it serves every level;
+  `openGrantLinker` repurposed to attach a builder grant draft to a **grant card**
+  (setting `source_draft_id`), never touching its status.
+- **`research-composer.js`** — guided templates for `grant` (aims sketch /
+  significance / innovation / fit) and `aim` (target result / how we'll know / what it
+  feeds / risks); the grant form carries the 4-step status plus `grant_meta` inline,
+  now including `award_number`, `period_start`, `period_end`.
+- **`research-create.js`** — `openGrantIdea` creates a **grant card** and hands an
+  existing one straight to the composer (two editors for one shape is how they drift);
+  `promoteGrantIdea` stamps `source_draft_id` but leaves a grant's status alone.
+- Public site: `app.js` `FOCI_LEVELS` + `buildFociSections` and `user-system.js`
+  `levelRank` gain grant/aim ("Grants we hold", "What each grant must deliver").
+  `library-themes.js` / `draft-focus-bridge.js` print the level **label**, not the slug.
+- **Admin migration** — `⤴ Move grants out of concepts` appears on the hub only while
+  a concept still holds `grant_meta` or a `kind:'grant'` ref. Each becomes its own
+  grant card linked back to its concept at `in_preparation`; the concept is patched
+  only *after* the card is created, so a failure loses nothing. Idempotent.
+
+### Bug Fixes
+- **Nested anchors were splitting every card on the research map.** Grant/aim/output
+  cards are one big `<a>`, and the card-face "builds on" pills were `<a>` too. An `<a>`
+  inside an `<a>` is invalid HTML: the parser closes the card early and re-opens empty
+  clones of it, which painted as stray 26×28px bordered boxes beside every card.
+  Pre-existing on output cards since V3.544 and propagated to two more levels here.
+  `parentPillsFor(f, linked)` now renders spans inside anchor-wrapped cards; the
+  concept card is a `<div role=button>`, so its pills stay real links.
+- **Roadmap analysis rows in the focus picker carried no `links`**, so the grant walk
+  saw an empty graph and dropped every analysis into the "not under a grant" bucket
+  while its own card sat in the correct one — silent, nothing thrown. Found by the new
+  picker tests.
+- **`sectionOutputs` still rendered `grant_meta`** on aim/output cards, where it no
+  longer lives.
+- Five legacy `confirm()` popups in `research.js` (detach reference, remove from map,
+  seed specialties, delete card, and the two dropped grant warnings) replaced with an
+  inline `confirmDialog()` on the existing `RD.modal` shell — the lab rule is that a
+  decision is made in the surface already open, and a stubbed `window.confirm` hangs
+  headless runs.
+
+## [V3.716] - 2026-09-02 — Learning Modules sections become independent instances
+
+Alex: *"in the classes, I make new tabs or sections for various learning modules, but the
+learning modules i put in inherit from a common one and just replicates. I need each section
+that I put into any class to have its own instance of whatever type of section I add."*
+Exactly what the code did: `renderSectionBody` passed its `section` object to every
+component except `case 'modules'`, which called `renderModulesBody(editing)` with no
+`section` and read the one class-wide `_classData.modules`. One array, N sections, N
+identical renders — and `+ Add Module` in any of them pushed onto the same array. Plan in
+`CodeLog/ClaudesPlan/V3.716_module_section_instances.md`.
+
+### Added
+- **`class-builder.js`** — module *placements*. `schedules/{id}.modules[]` entries now carry
+  `sectionId`; the array stays flat and class-wide and is partitioned by it.
+  - `modulesSections()` — every section of key `modules`, in tab order.
+  - `ensureModulePlacements()` — the migration and the repair. An entry with no `sectionId`
+    (everything authored before V3.716) or one pointing at a deleted section is adopted by
+    the **first** modules section, so deleting a section re-homes its lessons instead of
+    orphaning them. Deliberately does **not** `markDirty()`: it mutates in memory and rides
+    along on the next real save, which is the whole migration — no script, no admin button.
+    Bails when the class has no modules section, which is how teacher-classes (`tabs: []`,
+    rendered off `schedule.modules` by `teacher-classes.js`) stay untouched.
+  - `modulesForSection(sectionId)` — that section's modules, in display order.
+  - Called from `refreshCanvas()` (so a just-deleted section's lessons appear rather than
+    vanish) and once after `_tabs = migrateLegacy(schedule)` (so the public/student render,
+    which never calls `refreshCanvas`, is correct too).
+- **`modules/shared/module-header.js`** — `getModuleRef()` reads `?mod=`, the placement id
+  the viewer opened.
+- **`scripts/tests/module-placements.test.mjs`** (NEW, 54 assertions, layer 1) — registered
+  in `scripts/tests/run-all.sh`. **Extracts the functions under test out of
+  `class-builder.js` at run time** rather than reimplementing them, so it runs the changed
+  source and cannot drift into testing a copy. Covers migration of a pre-V3.716 class, a
+  later-added section starting empty, non-`modules` sections never being placement homes,
+  orphan adoption on delete, teacher-class byte-identity, per-section numbering / publish
+  filtering / reorder-arrow disabling, id-first routing with the correct folder for two
+  `overview.html` placements, the filename fallback, the un-resaved-doc adoption path, the
+  teacher-class two-granted-folders collision, and unpublished direct opens — plus an
+  explicit guard that two modules sections render different HTML.
+
+### Changed
+- **`class-builder.js`** — `case 'modules'` now passes `section`;
+  `renderModulesBody(editing, section)` reads `modulesForSection(section?.id)`. Lesson
+  numbering, the published filter and the ↑/↓ disabled states all follow the section's own
+  list, so each section numbers from 1.
+- **`class-builder.js`** — `+ Add Module` / `+ Add Notes` carry `data-section-id`;
+  `openAddModuleModal(kind, sectionId)` stamps `sectionId` on the new entry and computes
+  `maxOrder` from `modulesForSection(sectionId)` so `order` is per-section.
+- **`class-builder.js`** — `.cb-mod-move` now finds the moved entry, derives its siblings
+  from its own `sectionId`, and swaps within that list. It previously sorted the whole
+  class-wide array, so a move at a section boundary swapped `order` with a lesson in a
+  different section.
+- **`class-builder.js`** — the module route carries a **placement id**:
+  `#/classes/{classId}/modules/{mod.id}`. `wireModuleViewer(classId, modRef)` resolves
+  `modules.find(m => m.id === modRef) || modules.find(m => m.htmlFile === modRef)` — id
+  first, filename second — and takes the file *and folder* from the resolved placement.
+  `app.js` needed no change; it passes the segment through opaquely.
+- **`class-builder.js` / `modules/shared/module-header.js`** — prev/next and "Lesson N of M"
+  walk the placement's own section. Both apply the same adoption rule the normalizer does
+  (an entry with no `sectionId` belongs to the first modules section) rather than trusting
+  the field to be present, so a class whose doc has not been re-saved since V3.716 still
+  navigates by section instead of class-wide. A teacher-class has no modules section, so
+  this degrades to the full published list — the pre-V3.716 behaviour.
+- **`modules/shared/module-header.js`** — `moduleLink(mod, classId)` takes the module rather
+  than its filename, and appends `&mod=` so stepping through a section's lessons stays in
+  that section.
+- **`class-builder.js`** — the module iframe src gains `&mod={placementId}` alongside
+  `?class=`. Additive: student state is deliberately **not** re-keyed (see Notes).
+
+### Bug Fixes
+- **A second "Learning Modules" section rendered a copy of the first.** The reported bug.
+  Adding, deleting, reordering or publishing in one section changed all of them, because
+  they were all views onto one array.
+- **Two placements of the same filename were one page, served from the wrong folder.**
+  `modules/manifest.json` holds **seven** files named `overview.html` (`cell_culture`,
+  `equipment`, `foundations`, `heat_transfer`, `optics`, `solid_mechanics`,
+  `surface_functionalization`). The old route resolved by first filename match and then took
+  `folder` from *that* row, so the second lesson silently served the first lesson's content.
+- **`teacher-classes.js`** — the same collision, live in the teacher program and independent
+  of sections. `buildModules(grantedFolders)` (`rm/js/admin-teachers.js`) walks every granted
+  folder, so a teacher granted `optics` **and** `equipment` gets two `overview.html` rows;
+  the module list linked by `htmlFile`, making the second unreachable. Now links
+  `m.id || m.htmlFile` — catalog ids (`{folder}--{basename}`) are already unique.
+
+### Notes
+- **No `firebase deploy`.** `sectionId` is a new field inside an existing array on
+  `schedules/{id}`; `firestore.rules:425` already permits the write and the schedule doc
+  carries no `hasOnly` whitelist. No rules, indexes, functions or storage-rules change.
+- **Student state stays keyed on the lesson, not the placement** — confirmed with Alex
+  before implementing. A student's notes board
+  (`schedules/{classId}/notesBoards/{moduleKey}_{uid}`) and homework progress
+  (`hwProgress/{assignment}_{uid}`) follow the *lesson*, so filing the same lesson under two
+  sections does not split or hide a student's work, and no existing board or `hwProgress`
+  doc is orphaned. `&mod=` exists for navigation only; nothing keys storage on it.
+- **Scope was held to Learning Modules.** `whiteboard` sections still share one class-wide
+  board set, legacy same-key `files` sections still share uploads via
+  `storagePath = reg.path`, and `speakers` is still class-wide. Each is a real instance of
+  the same class of defect with its own migration story; recorded in the plan doc so they
+  are not mistaken for oversights.
+
+## [V3.715] - 2026-09-02 — Semester Focus layer: Team Focus goes semester-first
+
+Alex: *"redesign team focus to be more of a semester focus which connects to a research
+focus"* — students hold multiple semester foci per admin-set semester, each linkable to a
+researchFoci card, using the same proposed → mentee_edited → confirmed → reported loop;
+My Week's 🎯 dropdown attributes weekly foci under them, and Team Focus shows the running
+list. Plan in `CodeLog/ClaudesPlan/V3.715_semester_focus_layer.md`.
+
+### Added
+- **`rm/js/semesters.js`** (NEW) — `window.SEMESTERS`: the admin-set semester calendar at
+  `labConfig/semesters` via new route `settings/semesters.json` (`api-routes.js`; existing
+  labConfig rule — no rules deploy). `load/list/save`, `semesterFor(date)`,
+  `currentOrFallback(date)` (computed UA-term fallback, `computed:true`),
+  `neighbor(sem, dir)` (configured neighbors win, degrades to computed terms past the list
+  ends and re-enters), `weekRange(sem)` → `{fromWeekId, toWeekId}`.
+- **`rm/js/focus-areas.js`** — semester foci live in the SAME `focusAreas` collection,
+  discriminated by having **no `weekId` field** (structurally invisible to `listForWeek`'s
+  equality and `listForRange`'s range, so every weekly consumer needs zero guards). New
+  `createSemesterFocus(studentUid, {semesterId, title, description, focus_ref})` (id `sf-`,
+  `horizon:'semester'`, analysis keys stripped — card-level only, so roadmapClaims is never
+  involved), `listSemesterFoci(studentUid, semesterId)`,
+  `setSemesterRef(studentUid, weeklyFocus, semesterFocus|null)` (stamps
+  `semester_focus_id`; one-shot inheritance of the semester's card `focus_ref` when the
+  weekly has none — never overwrites, never claims), `listFociCardsForPicker()`. Weekly
+  docs gain `semester_focus_id: null|'sf-…'` (hydrate + `create()`).
+- **`rm/js/team-focus.js`** — **Semester tab (new default)**: semester nav (‹ › walks
+  `SEMESTERS.neighbor`, "Current", admin **⚙ Semesters** date editor, computed-fallback
+  banner), per-focus `tf-sem-card` (same data-field/sign-off plumbing — `findFocus`
+  searches both arrays — card-level align select, **📄 Report outcome** end-of-semester
+  sheet), the running list of attributed weeklies (week-span label, status/outcome chips,
+  task progress, "open ›" deep-link via new `weekIdMonday/weekIdToOffset/weekIdSpanLabel`),
+  and an "Unattributed weekly foci" group with a nest-under select. Week-view cards get a
+  🎓 attribution row (chip → Semester tab; select → `setSemesterRef`). New sheets:
+  `openAssignSemesterFocus`, `openSemesterReport`, `openSemesterAdmin`, `openConfirmSheet`.
+- **`rm/js/my-week.js`** — 🎯 dropdown gains an **"🎓 Semester foci"** optgroup
+  (`sem:<id>`): picking one reuses this week's weekly focus already nested under it, else
+  creates one (title copied, `semester_focus_id` stamped, card `focus_ref` inherited);
+  freeform proposals get an optional "under semester focus…" select
+  (`comp.semesterFocusId`); ghost title handles `sem:` picks; focus-panel cards show the
+  🎓 chip.
+- **`rm/css/team-focus.css`** — `tf-sem-*` family + sheet styles; also a local copy of the
+  `.tf-align(-chip)` styles (originals live in research.css, which team-focus.html never
+  loaded — the V3.550 chips had been shipping unstyled on this page).
+
+### Changed
+- `rm/pages/team-focus.html` + `rm/pages/my-week.html` load `semesters.js` after
+  `focus-areas.js`.
+- Team Focus shared handlers refresh through a view-aware `reload()` (was hard-coded
+  `loadFocuses()`).
+
+### Bug Fixes
+- `team-focus.js` focus deletion used `window.confirm` (house rule: no browser popups) —
+  replaced with an APP_SHEET confirm; the semester variant explains that nested weeklies
+  fall back to the unattributed group.
+
+Verified: 25 offline assertions (stubbed firestore) + headless harness drives of both
+pages (attach/deep-link/delete/assign/report/admin sheets on Team Focus; dropdown
+create-reuse-freeform on My Week) — zero console errors. No firebase deploy needed.
+sw.js CACHE_VERSION 688 → 689.
+
+## [V3.714] - 2026-09-01 — Lesson 3, tab 3: the two rules get sims that *are* the concept
+
+Alex: *"tab 3. rethink how we present these two topics to the student. currently they do
+not show the core concept at play. it should be an animation of the fundamental concept
+please"*. All of `modules/cell_culture/03-the-hands.html`; plan in
+`CodeLog/ClaudesPlan/V3.714_lesson3_tab3_core_concept_sims.md`.
+
+### Added — one concept under both rules: a count of founders
+- New **eq. 3.3.1** `N(t) = N₀·2^(t/t_d)` opens the tab, because it is what makes a count
+  the only currency worth using: one bacterium reaches a visibly cloudy 10 mL flask in
+  **13.3 h**, ten thousand of them in **6.6 h**. A 10⁴× dose difference buys 6.6 hours, so
+  *"did anything get in"* is the question and *"how much"* very nearly is not.
+- The tab now states why the two rules have different **grammar**, and it is not their
+  size: open time has a **floor you cannot remove** (you have to open the vessel to work),
+  so the rule is *minimise* and the lever is the clock; a contact has a **floor of zero**,
+  so the rule is *never*.
+- **eq. 3.3.2** numbers the near-field hemisphere share, previously shown unnumbered.
+  **eq. 3.3.3** `P(≥1) = 1 − e^(−N)` turns a fractional count into a decision, and both of
+  its limits are drawn out: linear in the clock below one, saturated above it.
+
+### Changed — `fall` (§3.1) rebuilt: the sim now *is* eq. 1.1.4
+The old version rained dots that recycled at the top, never landed and computed nothing,
+beside a bar chart that carried all the content.
+- eq. 1.1.4 is re-grouped as `C · (A v_s t)` — **a column of air standing on the opening**,
+  growing upward at v_s. A 60 mm dish sweeps 60 cm in 3.3 min and drains 2.55 L in five,
+  and the column is drawn, dimensioned and reported in litres.
+- The drawn box is **0.40 × 0.50 × 0.40 m = 80 L**, to scale, and it contains the organisms
+  that concentration actually implies: **3.2** on the bench, **0.008** in a cabinet. So the
+  cabinet's box is *visibly empty* — same column, same v_s, different contents.
+- Each drawn organism falls at v_s and is captured if it crosses the mouth, **tested in 3-D**
+  so the 2-D projection cannot over-count: expected captures are
+  `C·V_box × (v_s t/h_box) × (A/A_floor)` = **C v_s A t exactly**.
+- **Two acts at two time scales**: the open period time-lapsed (×50 at the default), then
+  the reach-over at **real time**. Three seconds visibly outweighing five minutes is a
+  picture rather than a ratio in 23-px type.
+- The odds are drawn as **40 sessions**, filling as the play runs, because a probability of
+  2.5 × 10⁻⁴ is not legible as a bar. Act 3 **closes the lid** and the accrual stops.
+
+### Changed — `carry` (§3.2) replaced by `seed`: the contact, then the exponential
+`carry` was a consequence ledger (a grid of vessels at risk) that asserted "p ≈ 1" as a
+premise. What a contact hands over was never on screen — and "p ≈ 1" is not even true for
+a light brush against a freshly wiped deck.
+- **eq. 3.3.4** `N₀ = f σ A_c` is drawn as an **area relationship**: a plan view of the
+  surface speckled at σ, and a contact patch of area A_c landing on it. What the circle
+  covers is what goes in, and the caught dots are counted by the same expression.
+- **σ is a band, and the band is the argument** — wiped deck 1 (0.03–30), bottle neck 10
+  (1–100), working glove 50 (5–500), sleeve or bench 700 (100–5000) CFU/cm². One
+  millimetre-square brush therefore runs from **12×** §3.1's five open minutes to **8,200×**,
+  across surfaces that look identical. That unmeasurability, not the size, is why the rule
+  is flat: *the tip touches nothing but the medium*.
+- The axis plots **founders, not probability**, with the threshold at **one** marked and
+  §3.1's air route marked for scale — a probability axis saturates and hides the whole
+  dangerous end.
+- **eq. 3.3.5** `t_vis = t_d log₂(c_vis V/N₀)` runs on a second canvas as a log-N growth
+  chart with a flask filling beside it, the **one-founder curve drawn alongside**, and the
+  visibility line at 10⁷ cells/mL. Below one founder the two curves coincide exactly and
+  the chart says so. **Mycoplasma** keeps its teaching, now derived: no visibility line at
+  all, so the only marker left is the testing interval.
+
+### Bug Fixes
+- `fmt()` falls through to `toExponential` below 0.001, so the arrival bars read
+  "1.5780e-5 organisms". New `fallN()` spells the zeros out — which is the point being made.
+- **Every animated readout now shares one time base.** The session-final headline (98 %)
+  used to sit beside bars that were still empty.
+- Act 3 no longer draws a hand hovering over a vessel its own caption calls CLOSED.
+- The mycoplasma flask went **dark red while labelled "clear"**; it now stays clear, which
+  is the entire teaching, and says "still clear · and full of it".
+- Growth-chart y ticks used `Math.ceil(yTop)`, so the top decade was drawn outside the plot
+  and clipped at the canvas edge.
+- The two growth curves coincide below one founder; the chart drew one line under the other
+  and captioned it with a two-item legend claiming a comparison it could not show.
+- `seed`'s legend and the chart's x-axis title shared the bottom margin; the coincident-curve
+  note sat directly under the rising curve.
+- Row labels on the founders axis were drawn inside the plot and overprinted the §3.1
+  reference line and its annotation — a chart with row labels needs a reserved label column.
+- Shed-particle counts were linear in the shedding rate, so a fresh glove and a street cuff
+  (60× apart) both drew "a couple of dots"; now logarithmic.
+- `min=14 step=7 value=90` on the testing-interval slider is an **invalid value**, and every
+  readout said "91 d". Now a fortnightly grid that contains its own default (84 d).
+- Eight `.stat-row .label` values were rendering with an ellipsis at 1280 px — including
+  three outside tab 3 (`If you halved U`, `Residual: bead + creep`, `Short by`,
+  `Biggest term`, `Asked / in hand`). A nowrap value never shrinks, so the label loses.
+- Two stale section references in the sources: a liquid-bridge quote attributed to a §3.2
+  that no longer exists, and shedding rates attributed to §3.2 rather than §3.1.
+- Both new canvases have **compact layouts under ~300 px of height**, where `setupCanvas`'s
+  width-derived height otherwise turns a 20-row readout into overlapping text.
+
+### Known issue (pre-existing, not introduced here)
+Every other canvas in the cell-culture track is illegible at 390 px for the same reason —
+`cv-tou` at 358×168 is already a pile of overprinted text. Fixing the other 15 canvases
+across the four lessons is a separate job.
+
+## [V3.713] - 2026-08-31 — Lesson 3: the round trip and its hysteresis, and the sterile tab corrected again
+
+Four more calls from Alex, one of which **supersedes part of V3.712** (recorded here rather
+than by rewriting that entry). All of `modules/cell_culture/03-the-hands.html`.
+
+### Changed — §1.1 plots the round trip, and the lag becomes a loop
+Alex: *"the amount taken should be plotted over time … a time delay slider for the wait
+time … the pipette should then be pushed in to replace the media so the plot sees the round
+trip so we can see the hysteresis … For viscous media, the hysteresis should be higher
+unless the delay is high enough."*
+- The stroke is now a **round trip** — aspirate, wait, withdraw, dispense, wait — with a
+  **wait-before-withdrawing slider** (0–3 s), plotted on a second canvas two ways: the
+  volume against **time** (commanded dashed, actual solid, dwell windows shaded) and the
+  same trip against **commanded volume**, which turns the lag into a **hysteresis loop**.
+- **One physical point does the work: the moment the tip leaves the liquid the shortfall is
+  locked in.** The cushion can still pull, but there is nothing left to pull from. That is
+  what makes the dwell the only window that matters, and it is modelled explicitly rather
+  than asserted.
+- The whole cycle is integrated numerically on every draw rather than recorded from the
+  animation, so the plot responds the instant a slider moves.
+- The numbers land exactly where the physics says: **Matrigel with no wait takes 51 µL of
+  100 — 49% short. 0.25 s → 76 µL, 0.5 s → 89, 1 s → 97.4, 2 s → 99.9.** Serum medium is
+  2.1% short with no wait and PBS 0.4%. τ is eq. 3.2.3, the same expression §2.5 derives.
+- **The loop's area and the loop's corner are different things**, and the verdict now says
+  so: a long dwell does *not* flatten the strokes — they stay bowed, and viscosity puts
+  them there. What it closes is the **corner**, and only the corner ends up in the
+  notebook. (The first draft of this verdict claimed the loop had "no area", which the
+  picture visibly contradicted.)
+
+### Changed — the sterile tab, corrected again
+Alex: *"3.3 tip spray doesnt seem like a sterile culture issue"* — correct, and it exposed
+a structural error in V3.712. The tab is organised around routes **in**; a spray you
+generate is a route **out** (it is your own sample). Worse, filing it as route 3 concealed
+the route that actually loses flasks.
+- **Four routes became three**: what falls in, **what is carried in**, what wicks in.
+  §3.0 now also names the thing that is *not* a route in, and separates **sterility** from
+  **cross-contamination** — they fail differently, and only one of them goes cloudy.
+- **New §3.2 "What is carried in" (widget `carry`)** — the dominant real route, and the one
+  the lesson kept asserting ("the step that loses a shelf") without ever computing.
+  Contact transfer is probability ≈ 1, so the widget does not compute *whether*, it
+  computes **how far**: what you touched × how long the organism stays invisible. A flask
+  and bacteria is 1 vessel; a shared stock bottle and **mycoplasma — which changes nothing
+  you can see** — is ~150. Severity is set by the target and the organism, not by how
+  careless it looked. A **pipettor shaft** is unbounded: it cannot be autoclaved.
+- The aerosol material stays, correctly filed under §3.2 as *how a pipettor becomes a
+  carrier* — which is a route in, for every future user, and is the whole argument for
+  barrier tips.
+
+### Changed — §3.1 and §3.2 merged into one animation
+Alex: *"3.1 and 3.2 should be combined, and we should cover both concepts in the same
+animation."* Right, and separately neither could state the punchline.
+- One panel, two sources: the room raining down (`C·v_s·A·t`) and a source overhead
+  (`s·t·A/2πH²`), with the hemisphere the model assumes drawn in.
+- **The two terms swap places.** In the cabinet a 3-second gloved reach-over at 10 cm is
+  **79×** the entire five minutes of room fallout; on the open bench the same reach-over is
+  **0.2×**. *The cabinet does not make you safe — it removes your competition and promotes
+  you to the main source.* Every rule about how you move your hands exists because of that.
+
+### Changed — §3.3's picture is threads now, not a tube
+Alex: *"the animation doesnt look like threads it looks like the entire tube."* It was two
+plain walls with a slot. A screw thread is a **helical groove**, and the capillary is the
+clearance between the neck's thread form and the cap's — so both forms are now drawn
+interleaved as sawtooth profiles with the clearance filled and dimensioned between their
+flanks, against 14 mm of thread engagement.
+
+### Bug Fixes — §2.3
+Alex: *"the animation of the film does not come with the tip as it leaves … when its at an
+angle it goes through the side of the aliquot."* Both real:
+- The film's drawn length tracked the **current** immersion depth, so it shrank back into
+  the liquid as the tip rose — the exact opposite of the section's point. It now holds the
+  **maximum** wetted length once withdrawal starts, and the tip lifts clear of the surface
+  so you can watch the film leave with it.
+- The tip pivoted about its own end at the tube centre, so the body swung **through the
+  tube wall**. It now pivots about where the tip axis crosses the liquid surface, so the
+  body leaves through the mouth. And the vessel was the real problem: a 15 mL tube (14 mm
+  ID) physically cannot take a tip 15 mm deep at 30° — that needs 8.7 mm of sideways room
+  against a 7 mm radius. Changed to a 50 mL conical (28 mm ID, A = 616 mm²) and the tilt is
+  **clamped to what the vessel allows**, in the model as well as the picture, with a verdict
+  explaining that a narrow vessel enforces the vertical rule for you and a wide one does not.
+
+### Bug Fixes — found by driving it
+- `pisCycle` captured "actually taken" by testing whether a **sample landed inside the wait
+  segment**. At wait = 0 that segment is 1 ms — shorter than one 7.7 ms step — so no sample
+  ever landed in it and the fallback reported the liquid at the *end of the round trip*
+  (≈0). PBS read "0.6 µL taken, 99.4% short". Captured by time now.
+- On the dispense leg the command still sat at the top of the stroke while the tip held
+  less, so the relaxation pulled the level **up** — the model was drawing liquid in from a
+  vessel it is not in. Out of the source the cushion re-fills with air: liquid can only leave.
+
+### Removed — tab 4, the media-change capstone
+Alex: *"tab 4 can be removed."* The whole `<section id="tab-change">` and the `change`
+widget (twelve scored decisions) are gone, and the last tab renumbers 5 → 4 (§5.1 → §4.1,
+§5.2 → §4.2). **This completes "physics only, no choreography" for the whole lesson** — the
+capstone was the last place a hand order survived, so the sources note now says outright
+that there is no hand order anywhere in the lesson and the sequence is taught at the bench
+and nowhere else. Four citations that pointed into it, the equation index's "Tab 4 spends
+2.5.1, 3.3.1 and 3.3.2 on one bench task" note, §3.3's handoff and §4.1's "the last four
+tabs" all follow. 13 widgets, 17 equations, 13 sections across 4 tabs.
+
+### Changed — §1.1 playback and presets
+Alex: *"the animation is too fast. the preset pills should have different scenarios for the
+animation."*
+- **Playback slowed to 0.45×**, applied to the clock *and* the relaxation by one factor, so
+  what you watch is the same physics the plot integrates rather than a different one. The
+  canvas states the rate and that every number is still in real seconds.
+- **The pills are whole strokes now**, not just the aspiration stop: *medium, done properly*
+  (100.0 µL taken) · *a gel, rushed* (Matrigel, no wait — **51.0 µL of 100**) · *the same gel,
+  waited out* (2 s — 99.9 µL) · *aspirated from the second stop* (asks for 135). The middle
+  two differ by nothing but the wait slider, which is the comparison the section is for.
+
+### Changed — tab 3 cut to its two rules
+Alex: *"tab 3 the sterile path needs to be shorter … we just need to talk about how the tip
+shouldnt touch anything, and the media should not be left open very long."*
+- Four sections became **two**: **§3.1 "Don't leave it open"** and **§3.2 "Don't let the tip
+  touch anything"**, and §3.1 now opens by naming both and saying that everything else
+  people say about sterile technique is one of the two wearing a costume.
+- Removed: **§3.0** (the routes taxonomy — with two topics it no longer earns its keep),
+  **§3.3 "What wicks in"** and the `bridge` widget (Jurin on a thread clearance), and the
+  aerosol sub-part of §3.2 with the `aero` widget. The pipettor-shaft point survives as
+  prose and as `carry`'s fourth scenario, which is where it was doing the work anyway.
+- **eq. 3.3.1 and eq. 3.3.2 retired** from the equation index with their sections. Jurin
+  dropped from the sources; Hinds rewritten to cover only what is still used.
+- 4 tabs, 11 sections, 11 widgets, 15 equations, 3622 lines — down from 4158.
+
+### Changed — §2.3's vessel and film, again
+Alex: *"the aliquot tube needs to be wider so the angeled pipette is more correct. Also the
+way the film looks on the pipette tip is not great."* Both right:
+- **The vessel is now 45 mm across** (a reagent reservoir, 25 mm of liquid, A = 1590 mm²).
+  At 28 mm a 45° tilt at full depth still needed clamping — the drawing was correct only
+  because the model was being bent to fit it. At 45 mm the whole slider range fits and the
+  clamp branch became unreachable, so it was deleted and folded into the tilt verdict.
+- **The film reads as a coating now**, not a slab: a gradient with a crisp outer edge and a
+  meniscus where it meets the bulk, capped at a fraction of the *local* half-width so it
+  can never look like a sheath. The widening of the vessel had a side effect worth naming —
+  it halved the px/mm scale and left the film **2 px wide**, invisible. Fixed by drawing
+  the tip **×2.2 wider than scale** (its angle, depth and position stay true, and the
+  canvas says so) with the coating ×120 on top of that, plus a **to-scale inset** in the
+  readout showing the true thickness against a 70 µm hair. Two exaggerations, both stated,
+  neither touching the geometry the section is about.
+- The "off scale" flag was judged against the *currently submerged* length, so it flickered
+  on and off during the descent. Judged against the full wetted run now.
+
+### Content integrity
+Harness clean throughout: no console errors, no blank canvases, no frozen animations, every
+widget's stats and verdict populated, every named equation displayed, every indexed one
+shown and vice versa, every `§x.y` reference resolving, no unrendered TeX, no horizontal
+overflow at 390 px.
+
+## [V3.712] - 2026-08-31 — Lesson 3: §1.1 animated, §2.3 shows the film, and the sterile tab rebuilt
+
+Three rounds from Alex. All of `modules/cell_culture/03-the-hands.html`.
+
+### Bug Fixes — the touch-off error, and it had spread
+- **The module was teaching "touch off against the vessel wall".** That is the
+  general-purpose pipetting instruction (Corning, cited here for five other habits) and
+  **it is wrong for cell culture**: the wall of an open vessel has been in room air, and a
+  tip that touches it goes on to touch a stock. *The tip contacts nothing but the medium.*
+  Corrected in §2.4 (entirely), §2.1's closing insight, §3.1's aerosol verdict, two
+  capstone steps and two scored choices, the tab-5 budget's checkbox label, and the
+  sources note — which now records the conflict and states the override explicitly.
+- **The corrected physics is stronger than what it replaced.** A drop meets the bulk
+  medium at θ = 0, so eq. 3.4.2 returns the work of *cohesion*, `W = 2γ` — **the ceiling of
+  eq. 3.4.2**, which no solid reaches. Medium 116 mJ/m² against a treated wall's 103 and a
+  fresh tip's 61. And the mechanisms differ in kind: a solid transfers by renewing contact
+  *area* and needs a drag; the bulk liquid **coalesces** and needs only a touch. 0.5 mm of
+  contact recovers 93% into the medium against 34% on a wall. The aseptic rule and the
+  accuracy rule turn out to be the same rule.
+- **A second contradiction this exposed:** §3.3's submerged scenario warned about foam
+  while the prose called submerging correct. Both are true of *different actions*, so the
+  section now separates them — touching off is the first stop and a coalescence; blowing
+  out is the second stop and a jet, and under the surface a jet makes foam.
+
+### Changed — tab 3 rebuilt as one sequence
+- Was four disconnected physics vignettes; is now **four routes in, in the order
+  contamination travels**, with §3.0 naming them: §3.1 **what falls in** (gravity,
+  eq. 1.1.1 → 1.1.4) · §3.2 **what is shed in** (`A/2πH²`) · §3.3 **what is sprayed in**
+  (eq. 3.3.2 against the gap) · §3.4 **what wicks in** (eq. 3.3.1, on a *closed* bottle).
+- **The choreography is gone** (~60 lines): the tip-box, wrapper and caps sequences.
+  Replaced by one aside saying they are taught at the bench, once, and that what is written
+  down is the physics that makes each move right — because that transfers to a cabinet
+  nobody has written a rule for. Tab 4 keeps its hand order; its citations into the deleted
+  text now read *"bench practice"*.
+
+### Changed — three sims that asserted what they did not compute
+- **`aero` had a magic damping constant** (`×0.10` against a wall, `×0.02` submerged) on
+  the stopping distance. A surface does not *shorten* a stopping distance, it
+  **intercepts** it. Replaced by a gap: one comparison, `s_stop ≥ gap`, decides everything,
+  and `gap = 0` means the jet enters bulk liquid and no droplet forms at all. The
+  horizontal scale now follows the gap (a fixed 30 cm axis put a 1 mm gap in the first 1%
+  of the panel), and the **outcome** moved into the stats — the stopping distance is a
+  property of the droplet and did not change with the scenario, so the panel looked inert
+  when the thing that decides had moved.
+- **`bridge` hard-coded `COSTH = 0.7`** for every surface, so glass and polypropylene
+  threads behaved identically. §2.1 now computes θ from surface energy, so Jurin uses it: a
+  glass neck lifts **112 mm** where a polypropylene cap lifts **9 mm**. Constant deleted.
+  Its stat also reported `2r` under the label the slider uses for `r`.
+- **`path` split.** Its settling half was honest physics and becomes §3.1's `fall`; its
+  crossed-tip corridor was choreography and its shed-particle figure was a number the prose
+  then argued against. Both removed.
+
+### Added — widget `fall` (§3.1)
+- eq. 1.1.1 into eq. 1.1.4 and nothing else: no fitted constants, no scenario multipliers.
+  A 60 mm dish open 5 minutes is **1 in 3,920** in the cabinet and **1 in 10** on the
+  bench; a 96-tip rack open 45 minutes is 1 in 454 against 1 in 1. `C` spans a factor of
+  **400** and is the largest term in the tab. `v_s` goes as `d²` and the panel lets you
+  check it: 10 → 20 µm takes 3.01 → 12.03 mm/s.
+
+### Added — §1.1 is animated, and viscosity is visible in it
+- The stroke plays itself (rest · push · dip · release · dwell · withdraw) and the liquid
+  is drawn **twice**: where the air says it should be (dashed) and where it actually is
+  (filled). The gap between them is the section's whole claim made visible.
+- The lag is `τ = R·C` — the same eq. 3.2.3 §2.5 derives, so the numbers here come back
+  later with a name. New liquid slider: **PBS τ = 3.4 ms** and the liquid is welded to the
+  piston; **Matrigel τ = 339 ms and it trails by up to 45 µL of a 100 µL draw**, then
+  catches up during the dwell. The slider is display during play and authority when
+  dragged, resuming after 3.5 s.
+
+### Changed — §2.3 shows the film, and loses an unmodelled option
+- The wetted region was a fixed 3.5 px stroke: it said *where* the film was and nothing
+  about how thick. Now a band of magnified thickness (×150, stated, capped, dashed when off
+  scale) following the cone's taper, with the µm figure on a leader. The cap is keyed to the
+  half-width at the *middle* of the wetted length — keyed to the tip's very end, the
+  narrowest point the cone has, it clipped every case including ones well inside range.
+- **"Down on the bottom" removed** — scenario, verdict branch and reachable depth. The
+  widget computes film area; that verdict talked about throttled inflow, which nothing
+  there models. The rule stays in the prose, pointing at §2.5 where the 1/r⁴ mechanism is.
+
+### Bug Fixes — found by driving it
+- The animated stroke reset `xp` on wrap with no dispense phase, so every cycle opened
+  "at rest" with the previous cycle's liquid draining out and a **negative** lag printed as
+  "still to arrive". A new stroke now starts with an empty tip.
+- The device geometry put the tip bottom at 0.71h with the source surface at 0.80h, so
+  "dip the tip in" dipped into nothing.
+- `depState()` object-spread put `depOutside()`'s `V` (the film) over the set volume of the
+  same name; renamed to `Vset`.
+- `fmt()` drops to `toExponential` below 0.001, so a near-perfect touch-off read
+  "6.057e-4 µL". Added `fmtUL()`.
+
+### Content integrity
+- Harness now asserts **every `§x.y` reference resolves to a section that exists** — this
+  restructure moved four sections and would otherwise have left thirteen dangling citations.
+  Clean, along with: no console errors, no blank canvases, no frozen animations, every
+  widget's stats and verdict populated, every named equation displayed, every indexed one
+  shown and vice versa, no unrendered TeX.
+
+## [V3.711] - 2026-08-31 — Cell Culture Lesson 4 drops its fifth tab
+
+Alex: *"get rid of the 'now go and do it' tab"*. It held two things doing different
+jobs, and only one of them was lesson 4's.
+
+### Removed
+- **Tab 5 "Now Go and Do It" and its `recap` widget.** §5.1 dialled through five
+  carried numbers from *each of the four lessons in the track* — a whole-track recap
+  living inside one lesson. Gone with it: the `.tab-btn` and `<section id="tab-done">`,
+  the `.tab-btn.next-tab` CSS pair (which styled nothing else), and the `RECAP` table,
+  `recapState`, `drawRecap`, `defWidget('recap','done',…)` and `wrapText` — the last of
+  which only `drawRecap` used.
+
+### Changed
+- **"What to do next" survives on §4.2.** Take the bench sign-off, work the case files,
+  walk it once with someone, then teach it — plus the closing note that every number
+  came with its domain stated. That is the end of the *track*, and dropping it would
+  leave the last lesson with no pointer to the sign-off at all. It went in as a third
+  `background-section` inside §4.2's `lesson-block` rather than as a new block, because
+  **the section rail is built from `h2[data-nav]` anchors** and a standalone block with
+  only an `<h3>` would be on the page but absent from the rail. §4.2 already carries the
+  label rules the same way.
+- Lesson 4 is now four tabs and ends where the capstone ends.
+
+### Bug Fixes
+- **The first cut left one `</div>` too many.** `closing.rindex('  </div>')` matched
+  inside a four-space `    </div>`, so it trimmed the background-section's closer instead
+  of the lesson-block's. Caught by counting tags across `<main>` (4/4 sections,
+  171/171 divs) rather than by reading the result.
+- **Deleted the browser-side advice script left in the session scratchpad.** It was still
+  pinning the autoclave reasoning V3.710 had just cut, and reported two failures against
+  a correct page. `scripts/tests/module-advice.test.mjs` is the one register — a second
+  copy of a guard is worse than no copy, because it fails on things that are now right.
+
+## [V3.710] - 2026-08-31 — "we don't autoclave media": an advice audit of Cell Culture Lesson 4
+
+Alex on §4.2: *"Turbidity means stop and autoclave the batch"* — **"this is bad advice,
+we dont autoclave media. Ensure we dont have any other bad advice in this module."*
+Seven findings, in three families.
+
+### Bug Fixes
+- **The sterility check told you to autoclave a contaminated batch.** Medium is
+  *filter*-sterilised precisely because it does not survive 121 °C — glutamine, vitamins
+  and serum proteins are the whole reason nobody autoclaves it. So the sentence
+  prescribed something that destroys the material. The real gap underneath it: **the
+  section had no failure branch at all** — it taught how to run the check and nothing
+  about what a positive means. It now has one, and only one: the batch is contaminated,
+  *every tube of it* is, it goes through the lab's biohazardous liquid-waste route, and
+  whatever it stood in is decontaminated. The word "autoclave" no longer appears anywhere
+  in the module.
+- **The check was being incubated in the cell-culture incubator** — "two weeks of shelf
+  space in an incubator you are opening anyway", and "write the date on the incubator
+  log". That deliberately grows a suspected contaminant in the CO₂ box next to your
+  cultures, and **Lesson 2 of this same track spends a section establishing that a CO₂
+  incubator is a warm, humid box with a fan that distributes whatever grows in it.** The
+  module was contradicting its own physics. A capped broth needs no CO₂; it goes in a
+  plain 30 °C and 37 °C incubator or oven.
+- **"Split further, or store colder, or buy smaller."** Colder is not free advice in a
+  section whose other half is about freeze–thaw loss, and complete medium and
+  serum-containing solutions are damaged by freezing. Now one qualifying clause: colder
+  if the certificate of analysis for that stock says it takes freezing.
+- **"how much goes down the sink" (×3)** — two about unused sterile leftover, one about a
+  contamination event, and contaminated medium is not sink waste. The module should not
+  teach a disposal route in passing; the language is now neutral and the one place that
+  specifies a route is the new aside, marked as house practice.
+- **Matrigel "gels irreversibly above about 10 °C" (×2).** The handling instruction was
+  right, the mechanism overstated: Corning's figure is 22–35 °C, so **10 °C is the working
+  margin, not the transition.** Restated with the instruction unchanged.
+- **"You cannot really get it wrong" survived in two places** — the §3.2 insight and the
+  `opt` verdict. V3.705 softened the takeaway and the handoff and missed these; with §4.1
+  in the module they are flatly false (120 aliquots of a $70 bottle is $42 of plastic for
+  under a dollar of contamination saving). Both now say the minimum is flat *as far as
+  this equation can see*. Same for the `plan` verdict's "costs you nothing but a few more
+  tubes".
+- **A stale "§3.4" reference in the `fit` verdict for the on-a-tooth, m ≥ 2 state.**
+  V3.709's canary read `document.body.innerText`, so it only saw the verdicts for
+  whatever state the page was in — **a string that renders in one widget state only is
+  invisible to a DOM scan.** Found by grepping the source.
+
+### Changed
+- **Say what to do, not why the wrong thing is wrong.** The first version of this fix
+  answered the autoclave line with three sentences on filter-sterilisation, 121 °C and
+  endotoxin. Alex: *"its not needed. You are putting ideas students never had into their
+  minds."* He is right — that paragraph argued with a mistake the reader had not made,
+  and named it twice more in the process. It is gone, along with the same pattern
+  everywhere I had just introduced it: §3.2's insight no longer quotes "you cannot get
+  this wrong" in order to deny it, the decay verdict drops the lecture and keeps one
+  qualifying clause, and the incubator note is one line of why for one instruction.
+- Two new key-takeaways on §4.2: the check goes in a plain incubator and **never the
+  cell-culture box**, and a turbid batch is **discarded, every tube of it**.
+- The house caveats were moved **out of the bullet list introduced as "the published
+  method"** and into an aside marked *McGhee Lab practice*. Where to incubate and what to
+  do with a failed batch are not in the Corning bulletin, and attributing them to it is
+  its own kind of bad advice.
+- New `.aside p` CSS rule: `.background-section p` and `.aside p` have equal specificity,
+  so a `<p>` added to an aside without it silently loses the cyan.
+
+## [V3.709] - 2026-08-31 — The aliquot bill moves to the capstone tab; §3.3 gets picture-beside-plot
+
+Two calls from Alex on V3.705: "§3.3 is oddly laid out and could be much better" and
+"§3.4 should really be on the final tab."
+
+### Changed
+- **§3.4 is now §4.1, opening the capstone tab.** Tab 3 is "The Other Clock" — decay,
+  and what pushes back against splitting. The money section is not a push-back, it is
+  **the decision**, and the capstone is where the decision belongs. Tab 4 now runs
+  **decide → execute → label**: §4.1 the whole bill in one currency, §4.2 (was §4.1) the
+  plan and the label. `defWidget('bill','clock',…)` → `'plan'` is the whole behavioural
+  change; the framework's `TABW` map does the rest.
+  - Equation numbers do **not** move with the section — eq. 4.4.3 and 4.4.4 keep their
+    numbers on tab 4, eq. 4.4.2 keeps its number on tab 3.
+  - Nine cross-references chased: §4.1 → §4.2 in the sources (×2) and the tab-5 recap
+    card; §3.4 → §4.1 in §3.2's verdict string, §3.2's takeaway and §3.3's
+    check-yourself; §4.2's Try-This now says "the bill you just read". §3.3's handoff
+    became a **"Next tab:"** handoff, and both tab-4 openings were re-cut so the tab
+    reads as one piece rather than setting the same scene twice.
+  - Tab 3 renamed **"The Other Clock, and What Pushes Back"** — the bottom is now found
+    on tab 4.
+- **§3.3 rebuilt as picture-beside-plot.** It was two full-width canvases stacked, the
+  upper a 660×200 banner holding one tube on the far left with most of its area empty —
+  neither the house ideal (AUTHORING §4: "a physical-picture canvas *beside* a plot
+  canvas") nor a good use of the width. Now a `.chart-row` with **both canvases authored
+  at the same 460×320 aspect**, so the row cannot resolve to two different heights.
+  - The picture is vertically stacked on one left margin: the **tube rank** (capped at
+    55% of the canvas so the column beside it always exists), the **arithmetic** in that
+    column (on the bench / used / reaches a cell, the last coloured by verdict), a **key**
+    replacing the annotation that used to float beside a single tube, and — new — **the
+    consequence as a bar**: sessions the stock still gives you, one tick per session
+    where they are ≥ 5 px apart. "26 of 50 sessions — 24 lost to what stays in the tube"
+    was a stat row; it is now a picture.
+  - Chart margins tightened for half width; the m-band labels **measure themselves and
+    fall back to the bare number** when their band is narrower than the text.
+  - Stats reworked to complement the picture rather than repeat it: "Reaches a cell" is
+    in the picture in colour, so its row became **"Exact fit — 10.0 mL · 1/session"**,
+    the actionable answer, which previously appeared only inside a verdict paragraph.
+
+### Bug Fixes
+- **Two stat labels shipped truncated in V3.705** — "Your aliquot" and "Plastic bill"
+  rendered as "Your…" and "Plasti…" because their values were too wide for the 260 px
+  control column. Labels shortened and the tube name moved out of the §3.3 stat row into
+  the picture, under the rank where it belongs. A new harness canary fails the run on any
+  `.stat-row .label` whose `scrollWidth` exceeds its `clientWidth` — a layout bug class
+  that reads as perfectly fine in a text dump of the DOM.
+- **The tube-name line was drawn on top of the key's first row.** Both were positioned
+  from the same anchor with hand-picked offsets 9 px apart; individually plausible,
+  nothing errored, no numeric assertion could see it.
+- **Per-tube volume labels collided once a session needed six or seven tubes** — absolute
+  size text under a rank whose pitch shrinks with `m`. The rank now falls back to a single
+  label ("7 × 1.50 mL") below a 46 px pitch.
+
+## [V3.708] - 2026-08-31 — Lesson 3 tab 2 becomes the wetting tab; the error budget becomes a recap
+
+Alex: *"section 2.1 does not setup all the ways the pipetting has error fundamentally, we
+need to ensure the users understand the fundamentals of each type of error before we
+describe them. Section 2.1 should really go to the last tab as a recap. tab 2 should go
+over the wetting, and surface energy etc that shows the fundamentals of why we should
+touch off, avoid tip submerge, etc"* All of `modules/cell_culture/03-the-hands.html`.
+
+§2.1 was a **synthesis widget presented as an introduction**: seven checkboxes for seven
+terms of eq. 2.5.1, of which only two (thermal, device choice) had any physics behind
+them at that point in the lesson. Film arrived in §2.2, *after*; immersion depth,
+touch-off, angle and timing were asserted and never explained at all. Tab 2 now teaches
+all seven, in the order of the actual stroke, and the budget moves to the last tab where
+every bar has a section behind it. 3755 lines, 16 equations, 14 widgets (5 animated).
+
+### Changed — structure
+- **The `err` budget moves to tab 5 as §5.1, "Add it up: every term, now that you have
+  earned it."** It gains a table mapping each bar to the section that earns it, and the
+  old §5.1 (next lesson) becomes §5.2. Tab 5 is renamed "The Budget, and What's Next".
+- **Tab 2 is renamed "Wetting — Where the Volume Goes"** and runs
+  §2.1 wetting → §2.2 the film → §2.3 going in → §2.4 coming out → §2.5 when it fails.
+  Old §2.3 (reverse pipetting) becomes §2.5; five stale cross-references repointed.
+
+### Added — §2.1 "Why liquid sticks to plastic at all" (widget `wet`)
+- **eq. 3.4.1** Young, **eq. 3.4.2** Young–Dupré. The work of adhesion
+  `W = γ(1+cos θ)` is the quantity every later section compares two of.
+- θ is derived from the solid's surface energy by Good–Girifalco,
+  `cos θ = 2Φ√(γ_s/γ_l) − 1`, with **Φ as an empirical fit** `0.66 + 0.006(γ_s − 18)`
+  rather than a constant — a single Φ cannot span PTFE to glass, because high-energy
+  solids bind water through polar interactions a dispersive theory has no term for. The
+  fit reproduces published water angles across the range: PTFE 110° (108–112),
+  polypropylene 93° (95–102), polystyrene 88° (87–91), TC-treated 54° (55–60), glass 25°
+  (25–40). §2.1 says explicitly which parts are exact and which is a fit.
+- **The lab-specific payoff:** serum proteins raise polypropylene's effective energy
+  ~30 → ~45 mN/m, taking θ from 93° to 73°. A used tip is a different surface.
+- `cos θ > 1` is reported as **complete wetting** — a real regime where the spreading
+  coefficient is positive and Young has no solution — not silently clamped.
+
+### Added — §2.3 "Going in: how deep, and at what angle" (widget `dep`)
+- The same eq. 3.2.1/3.2.2 on the **outside** of the tip. A tip is a cone, so
+  `A = π(d₀s + ks²)`: 2 mm of immersion wets 5.97 mm² and carries 0.027 µL; 15 mm wets
+  90.7 mm² and carries 0.84 µL. **7.5× the depth, 31× the liquid** — and the fatter part
+  of the cone also carries a thicker film, because the local radius *is* the ℓ in
+  eq. 3.2.1 (fibre-coating limit: outer radius 0.4–1.6 mm is below ℓ_c = 2.4 mm).
+- Too shallow and the falling level uncovers the tip mid-aspiration; on the bottom and
+  the floor throttles the orifice.
+- **eq. 3.1.4 — and the section's real finding.** The obvious mechanism for the angle
+  rule is the pressure half of eq. 3.1.2: tilt shortens the liquid column's vertical
+  height, the hydrostatic head on the cushion moves. Evaluated, it gives **0.03 µL at
+  30°** against the ~0.5–0.7% manufacturers measure — twenty times too small. The real
+  mechanism is `s = h/cos φ` feeding the `s²` above. **"Hold it vertical" is an
+  immersion-depth rule in disguise**, which is why the fix is watching the tip rather
+  than the pipettor.
+
+### Added — §2.4 "Coming out: the drop that stays" (widget `tou`)
+- **eq. 3.4.3** Tate, promoted from the inline mention in §1.2.
+- The residual is a bead pinned at the rim **plus** a meniscus creeping up the outside,
+  and the two respond to wettability in **opposite directions**. In medium on a 200 µL
+  tip: fresh PP 0.124 + 0.014 = **0.14 µL**; after serum 0.070 + 1.050 = **1.12 µL**;
+  fully wetting 0.003 + 9.39 = **9.4 µL**. The bead falls 40×, the total rises 67×. The
+  half that behaves the way intuition says is not the half that matters.
+- **Touch-off is eq. 3.4.2 doing arithmetic**: `W_wall/W_tip ≈ 1.7`, and dragging keeps
+  offering fresh area. `η = 1 − exp(−(W_wall/W_tip)(drag/2 mm))` — a dab (1 mm) recovers
+  57%, touch-and-draw (4 mm) recovers 97%. The instruction is not "make contact", it is
+  "make contact **and move**".
+
+### Added — §2.5 gains the last unexplained rule
+- **eq. 3.2.3** — the bore and the cushion are an RC pair,
+  `τ = (8μL/πr⁴)(V_cushion/P₀)`. τ = 3.4 ms for PBS, 14 ms for serum medium, **339 ms
+  for Matrigel on ice — so 3τ = 1.02 s.** "Wait one second" is three time constants of
+  the most viscous thing in the lab, and τ goes as 1/r⁴, which is why "never rest the tip
+  on the floor" and "wait one second" are the same instruction from two directions.
+
+### Bug Fixes
+- **`depState()` spread `depOutside()`'s `V` (the film) over the set volume of the same
+  name**, so every readout meaning "the volume you are taking" printed the film instead.
+  Renamed to `Vset`.
+- `dep`'s "buried" verdict keyed on a percentage of the set volume, so a 15 mm immersion
+  read as good simply by taking more liquid. Keyed on depth now, and the tilt verdict is
+  checked first so the section's headline finding is not shadowed.
+- `2 − 3cos θ + cos³θ` evaluated directly loses all its significant digits near θ = 0
+  (catastrophic cancellation). Replaced with the algebraically identical
+  `(1 − cos θ)²(2 + cos θ)` in both `wet` and `tou`.
+
+### Found by looking, not by the assertions
+- `wet`'s drop was drawn at a base radius of 28 px on a 456 px canvas, with the three
+  Young vectors too short to read as a balance — rebuilt at scale, with the two
+  solid-side pulls on their own row so the drop fill cannot hide them.
+- `dep`'s tilted tip leaned across the readout column, and its depth label sat where the
+  tip crossed. Tip shortened; label moved to the foot of the dimension.
+- `tou` drew the tip hovering *above* the vessel rim, with the residual too small to see
+  — the tip now works inside the vessel and the bead and creep are drawn in proportion
+  to each other and labelled, with the panel stating that they are schematic.
+
+### Content integrity
+- Sources gain Young (1805), Dupré (1869), Girifalco–Good (1957), the surface-energy
+  tabulations, and an explicit note that **the §2.4 residual model and the touch-off
+  transfer fraction are teaching constructions**, not published correlations — the
+  physics inside them is standard, the way they are combined is not.
+- Constants bar gains a wetting block and the τ figures; equation index gains 3.1.4,
+  3.2.3, 3.4.1–3.4.3. Harness asserts every named equation is displayed, every indexed
+  one shown, every shown one indexed, and **every `§x.y` reference resolves to a section
+  that exists** — all four clean.
+
+## [V3.707] - 2026-08-31 — Cell Culture §5.1 rebuilt: state the problem, then rank five solutions
+
+Alex specified the design properly — an **aluminium box that stays in the incubator**
+and a thin **plastic drawer** that slides out of it carrying the dish, which goes onto a
+**37 °C heat plate** in the cabinet and back the same way, with no lids or filter counts
+to manage — and asked for the section to start from the problem, pose several solutions,
+give pros and cons, and say when each one wins.
+
+### Changed
+
+- **§5.1 now opens on the problem, not the hardware.** Three problems, kept apart because
+  different fixes solve different ones: the dish is off 37 °C for minutes; it is off 5%
+  CO₂ for the same minutes; and the chamber is disturbed by everyone's openings. With the
+  scale stated before anything is ranked — somebody else's door opening moves a 35 mm dish
+  by **0.1 °C**, five minutes on a cold surface moves it by **eight**.
+- **Five candidate solutions**, each with what it fixes, what it costs and when it wins: be
+  quicker · a 37 °C heat plate · a plastic carrier · a resident aluminium box · a warmed,
+  gassed stage on the microscope. Plus one non-solution (more medium) with §2.3's reason. A
+  closing rules block gives the conditions for each, keyed to out-time and to whether the
+  incubator is shared.
+- **Four scenarios, the 2×2 of (box, heat plate)**: `full` / `nobox` / `noplate` /
+  `neither`. Alex listed three; the fourth cell is the one that separates the two
+  interventions. Same five-minute trip:
+
+  | | worst T | worst CO₂ | door alone | chamber re-warm τ |
+  |---|---|---|---|---|
+  | box + heat plate | **0.86 °C** | 1.28% | 0.04 °C | **5.3 s** |
+  | heat plate only | 0.86 | 1.28% | 0.11 | 5.9 |
+  | box only | 8.07 | 1.28% | 0.04 | 5.3 |
+  | neither | 8.07 | 1.28% | 0.11 | 5.9 |
+
+  The heat plate is worth ~7 °C; the plastic carrier is worth the walk (2 mm of
+  polycarbonate is a 4.8-minute lag against the dish's own 5.7); the aluminium box is
+  worth **nothing measurable** to your dish and 0.07 °C against somebody else's door; and
+  **nothing on the list fixes the CO₂ except being quicker**.
+- **The aluminium's real job is the chamber, and the widget now reports it** (Alex's
+  request). One 5 mm box adds 0.21 m² of 37 °C surface and 2.6 kJ/K of mass and takes 6 L
+  of air out of circulation: re-warm τ **5.3 s against 5.9**, chamber swing **2.68 °C
+  against 2.82** — for everything in the incubator, including cultures belonging to people
+  who never built a box. §5.2 then scales it.
+- **Model rewritten to the stated sequence.** `boxRun` now walks in-incubator → transit in
+  the plastic drawer → work on the heat plate or the bench → transit back, with the
+  aluminium box never leaving. Removed: `s-box-filt`, `c-box-lid`, and all lid/filter
+  discussion. Kept: `s-box-wall`, `s-box-out`, the traffic sliders and `c-box-warm`.
+- The illustration is now the **three places the dish spends its time** — incubator,
+  transit, cabinet — rather than a single box; the chart legends moved off the traces they
+  were sitting on.
+- §5.2's opening paragraph rewritten to pick up where §5.1 now ends.
+
+### Added
+
+- **eq. 2.5.2** — `τ_air = ρcV_free/(hA_warm)`, how fast the chamber re-warms. New, and
+  first written in tab 5, so it takes a 2.5.x number. Registered in the equation index,
+  and the index's "tabs 4 and 5 add no new equations" note becomes "tab 4 adds none and
+  tab 5 adds exactly one".
+
+### Bug Fixes
+
+- **eq. 2.3.5 was nearly recycled.** The rewrite removed its only use (gas through the
+  drawer's filters), and the obvious move — reusing the number for the new τ_air — would
+  have broken the permanent-numbering rule, since the index registers numbers for good.
+  It **moves to §5.2** instead, where the drawers genuinely are behind membrane filters and
+  the model genuinely calls `tauGas`.
+- **"No lids or filters" is an instruction about the lesson, not the physics.** Modelling
+  the box as open-fronted would have made §5.2's free-volume argument false — eight open
+  boxes displace their own metal, not 5.9 L each. The drawer front still closes the box in
+  the model; it is simply not a control and not a topic. With the drawer out the front is
+  open, so the box fills with **chamber** air rather than cabinet air, which also deletes
+  V3.704's "70-minute climb back through the filters" — an artefact of a sealed box this
+  design does not have.
+- **The box's worth was measured against itself** in the `nobox` scenario, where the
+  no-box control *is* the current run, so it reported 0.00 °C. `boxState` now measures
+  between a forced-on and a forced-off run and reports "nothing measurable" below 0.005 °C.
+- The two recovery stat rows said "…after it goes back" when there was no trip.
+
+
+### Changed (second pass, same version)
+
+- **Tab 5 cut from 3,966 words to 2,823** — 29% — with every number and every claim the
+  sims support kept. The cuts are restatement and rhetorical repetition, not substance.
+- **Dropped the sixth candidate solution** (a benchtop incubator beside the cabinet) and
+  its matching condition rule, on Alex's instruction.
+- **Removed the purchase framing throughout tab 5** — "worth knowing before buying
+  anything", "if you buy one thing on this page", "spend the money on", "a scope-side
+  purchase", "worth costing if this ever becomes a purchase", "this is what a busy
+  incubator costs, in money", "had to be bought back", "Buy the heat plate", and the rule
+  title "A fuller box is a cheaper box" (now "uses less gas"). The lesson states what each
+  option does and when it applies; the spending decision is not its business.
+- Both long §5.1 verdicts trimmed.
+
+### Bug Fixes (third pass, same version)
+
+Alex: *"5.2 bottom plot is not plotting correctly."* Two defects, both created by the
+zoomed panel and both invisible on a four-hour axis.
+
+- **`Chart` clamps Y but not X, and nothing was clipped.** On §5.2's lower panel — a
+  40-second window out of a four-hour run — every sample outside that window maps to an x
+  thousands of pixels away, so the connecting segments painted horizontal lines straight
+  across the whole canvas, over the left stats panel, and the burst-shading `fillRect`
+  covered the full canvas width. New shared `clipPlot(ctx, ch, fn)` clips to the plot rect;
+  applied to both widgets' panels.
+- **Every history record was stamped with the time at the *start* of its step while holding
+  the state at the *end*.** A one-step shift: 15 s on a coarse step, which is nothing on a
+  four-hour axis and everything on a 40-second zoom — it drew the chamber beginning to cool
+  fifteen seconds *before* the door opened, and put a false discontinuity at the end of the
+  opening. `H.push` now stamps `t + dt` in both `boxRun` and `sysRun`, and each seeds an
+  initial record at t = 0. The trace now leaves 37 °C exactly at 0 s, bottoms at 34.72 °C
+  exactly at 8 s, and recovers smoothly on τ = 4.0 s.
+- §5.2's zoom window widened so the last x tick falls inside it, and its caption moved off
+  the traces it was sitting on.
+
+### Bug Fixes (fourth pass, same version)
+
+Alex: *"5.2 the plot is not scaled properly on the x and y axis. it should show the
+temperature variation and it going back to equilibrium."*
+
+- **The zoom window was fixed at 45 s while the event it shows is not.** Half the panel was
+  flat line after the chamber had recovered. It is now sized to the event —
+  `dwell + 5·max(τ_air, τ_bare)`, clamped to 22–80 s — so the dip and the return to
+  equilibrium fill the panel at any dwell from 2 s to 60.
+- **The y-axis had no headroom**, so the two culture traces sat on the top edge under the
+  37 °C gridline and could not be read as flat. Top is now `37 + 10%` of the span. The
+  floor still comes from the *bare-shelf* dip rather than the current one, deliberately, so
+  converting shelves visibly shrinks the excursion instead of rescaling it away.
+- **A fixed 0.5 tick step broke every auto-scaled range.** At a 2-second dwell §5.2's CO₂
+  span is 0.57%, and stepping by 0.5 left the axis with a single label on it. Both widgets
+  now take their y ticks from the framework's `niceTicks()` and their label precision from
+  a new `tickDecimals()`.
+- **A dashed bare-shelf reference trace** was added to §5.2's zoom, so what the metal does —
+  a shallower dip and a faster recovery — is drawn rather than only reported in a stat row.
+  The chamber trace is now weighted differently in the two panels: it is the subject of the
+  temperature one and only context on the CO₂ one.
+- The zoom caption claimed "neither culture trace moves" while, at a 30-second dwell, the
+  amber trace visibly dips. It now states what they actually felt whenever that exceeds
+  0.1 °C.
+- **`niceTicks` already existed and a second definition shadowed it.** Function
+  declarations in the same scope silently replace each other, so `drawTherm` and `drawBuff`
+  — in tabs 1 and 2, untouched by this work — received an object where they expected an
+  array, drew nothing, and reported **zero console errors**. Caught by the blank-canvas
+  check in the regression harness, not by anything on the page. The duplicate is gone.
+
+## [V3.706] - 2026-08-31 — Cell Culture Lesson 3 rebuilt: the concept now comes before the simulation
+
+Alex, reading the lesson: *"03-the-hands is very incomplete. it talks about equations
+in the setup but doesnt show them. concepts are not very well laid out, for example we
+should explain film thickness on a perpendicular surface coming out of the fluid first
+before we show a simulation of it."* All of `modules/cell_culture/03-the-hands.html`.
+
+Lesson 3 was the thin one in its own track — 1840 lines against L1's 4556, 7 equations
+against 18, one worked example against three, and **zero animated widgets**. It now
+carries 2814 lines, 13 equations, 11 widgets (3 animated) and 3 worked examples.
+
+### Added
+- **§2.2 "Everything comes out wet" — a new section that runs concept → equation → sim,**
+  deliberately inverting the track's usual sim-first arc. The film was previously
+  simulated inside a pipette tip *before* anything explained what an entrained film is,
+  with a "withdrawal speed" slider whose meaning arrived two screens later. The section
+  now opens on the everyday picture (a spoon out of water, out of honey, out of water
+  fast), builds the tug-of-war at the waterline (viscous drag `μU` against surface
+  tension `γ`), defines `Ca = μU/γ` as the ratio that decides, gives eq. 3.2.1 its
+  missing symbol (`ℓ` = capillary length `√(γ/ρg)` ≈ 2.4 mm for a plate, bore radius for
+  a tube — the substitution that makes a plate result a pipetting result), and only then
+  hands the student the simulation.
+- **Widget `film`** — a flat plate withdrawn vertically from a bath, the geometry
+  Landau–Levich was derived in, animated, beside a log–log `t` vs `U` chart carrying all
+  four liquids as parallel lines and a ⅔ slope key. Scenario buttons move `ℓ` from the
+  capillary length to a 200 µL tip bore to a 25 mL serological pipette without changing
+  a line of physics. Reproduces the new worked example exactly (137.3 µm / 495.96 µL).
+- **eq. 3.2.2** — `V_film = πdLt`, thickness → volume. New number; nothing renumbered.
+- **§1.2 "The cushion moves when you are not touching it"** — tab 1 had a single
+  section, and eq. 3.1.2 was asserted in §1.1 then spent in §2.1's error budget without
+  ever being made measurable. Plus **eq. 3.1.3**, the thermal approach
+  `ΔV(t) = φ V_cushion (ΔT/T₀)(1 − e^(−t/τ))`, which derives the `0.25` that
+  `errState()` had been using unexplained: only the part of the column your fingers wrap
+  gets warmed.
+- **Widget `cush`** — animated, clock-driven (the clock is the animation, not a stepped
+  slider). Left half is anatomy — where the sealed column is, which part the hand
+  encloses. Right half is the measurement as two volume bars. Tate's law is evaluated to
+  show the expansion **never** reaches drop-detachment: nothing drips, which is why the
+  error survives.
+- **§3.3 gained the simulation it never had.** "Opening things" was three ordered lists
+  and no widget, in a track whose contract is a live simulation for every concept.
+- **Widget `path`** — a 96-tip rack from above, animated. Computes two contributions and
+  keeps them apart: settling into the 96 mouths (eq. 1.1.1 into eq. 1.1.4, honest
+  expectation value, `0.1 CFU/m³` in the cabinet against `40` on the bench), and the
+  corridor the pipettor shaft sweeps (exact geometry, drawn). A 13 mm shaft on a 9 mm
+  pitch sweeps **three rows deep**, so reaching 8 cm across crosses 29 tips.
+- **Two worked examples**: the serological pipette film fast vs slow (0.5 mL against
+  0.1 mL, ratio 4.6 = 10^(2/3)), and the same 100 µL taken with a 100 µL vs a 1000 µL
+  pipettor and held 30 s (0.07% against 4.2%).
+
+### Changed
+- **eq. 1.1.1 and eq. 1.1.4 are now displayed**, in §3.1 and §3.3, marked as borrowed
+  from Lesson 1 (the pattern L2 §1.1 already uses for eq. 1.5.1). Both had been named in
+  prose and in the equation index while appearing nowhere in the file; eq. 1.1.4 was not
+  even in the index.
+- **Old §2.2 → §2.3.** It is now the *application* of a concept the student already has:
+  its trailing prose spends eq. 3.2.1 and 3.2.2 instead of introducing Landau–Levich for
+  the first time. Four stale `§2.2` cross-references repointed (§1.1's reverse-pipetting
+  aside, the `piston` verdict, and two capstone rows).
+- **Honest limits, stated and enforced.** §2.2 names both of Landau–Levich's assumptions
+  and the `film` widget refuses to report a thickness above `Ca ≈ 0.03` (`t/ℓ =
+  0.94 Ca^(2/3)`, so thinness dies there). Matrigel on ice at 20 cm/s returns a 380 µm
+  film in a 750 µm bore — half the bore — and the sim says so instead of printing it.
+- **§3.3 says what its own number is worth.** The shed-particle count over crossed tips
+  is small and the section says so: a crossed tip is not a particle count, it is a tip
+  you can no longer vouch for, and contact transfer from a shaft that has touched the
+  bench is not a probability. The rule is geometric because the risk is not computable.
+- Constants bar gains `ℓ_c`, the `Ca ≈ 0.03` limit, an "air cushion" block (`φ`, `τ`,
+  `T₀`), the 9 mm/13 mm pitch-vs-shaft pair, and the cabinet-vs-bench CFU figures.
+  Sources gain Tate (1864) and an explicit Lesson 1 re-use note.
+
+### House layer (03 was running an older copy)
+- **`RESEED` / `keepField()` added** (AUTHORING.md §9.4). 03 had no animated widget so it
+  had never needed them; all three new widgets do. `setScen` and the boot loop now raise
+  `RESEED` around their resets.
+- **QA probes synced from Lesson 2**: `animLoop` publishes `canvas.dataset.frames` and
+  `dataset.animerr`, `getCv` publishes `dataset.cvw`/`cvh`. A harness runs in an isolated
+  world and cannot read page globals; without these a throw inside the loop's own
+  try/catch leaves the page reporting itself clean.
+- `.chart-row` CSS for the two-canvas widgets.
+
+### Bug Fixes
+- **`fmt()` falls through to `toExponential` below 0.001**, so the settling readout was
+  rendering as `1.469e-4 organisms`. `fmtRare()` reports a rare count as odds instead —
+  "1 per 6,806 racks".
+
+### Found by looking at the screenshots, not by the assertions
+Every one of these passed a numeric check and was wrong on screen:
+- the `film` sim's **`U = … cm/s` label was drawn off the top of the canvas** — the sim's
+  single most important label was invisible;
+- its meniscus fillet used an **outboard control point**, so the curve bulged the wrong
+  way and read as a skirt of spilt liquid rather than a concave meniscus;
+- the film band was clamped to 2.6× the plate width, turning a *film on a plate* into a
+  slab of liquid with a wire in it — a stretched cross-section is a lie, so it is now
+  capped at the plate's own width, outlined when it clips, and the honest number lives
+  in the to-scale box beside it;
+- to-scale bar captions were drawn *after* the bar, so a full-width bar rendered
+  "70 µm — a h"; they are above the bars now;
+- the chart's ⅔ slope key was pinned to **data** coordinates and landed on top of
+  whichever liquid's line passed through it;
+- `path` was **frozen in its default state**: with reach 0 there was nothing to sweep, so
+  a phase schedule with flat stretches left the picture static for 2 s of every cycle.
+  The descent is now animated too, and the good case — straight down — is the one the
+  student watches.
+
+## [V3.705] - 2026-08-31 — Aliquoting §3.2 gains the two costs that are not made of reagent
+
+Alex on §3.2: it is missing how much you actually use ("don't split into so many
+aliquots that you need three tubes for one media change") and what the extra tubes
+cost. Both are invisible to eq. 4.4.1 for the same structural reason — **that
+equation is priced entirely in reagent**, so it cannot see anything denominated in
+another currency. Tab 3 gains two sections; §3.2's model is untouched.
+
+### Added
+- **§3.3 "The tube has to fit the job"** (`fit` widget, **eq. 4.4.2**). Introduces
+  `u`, the volume of one session, and the ceiling that follows: `m = ⌈u/a⌉` tubes
+  per session, `η = u/(m·a)` the fraction of what you took out that reaches a cell.
+  Plotted against `a/u` this is a **comb** touching 100% only at `a = u, u/2, u/3, …`,
+  and the teeth are violently asymmetric — an aliquot at 0.95 u forces a second tube
+  you barely touch and η collapses to **53%**, while 1.1 u costs **9%**. Hence the
+  rule the section earns: **round up, never down.** Alex's three-tubes case is the
+  `m ≥ 3` verdict, which says explicitly that eq. 4.4.2 charges only the volume while
+  the bench also charges 3× the film, 3× the plastic and three chances to slip inside
+  one sitting.
+  - Checkbox **"strict single use: bin what is left"**. Unticking sends η to 100% *on
+    paper* by moving the cost into three terms that are not on the chart — a second
+    entry (eq. 4.1.1), another session of decay (eq. 4.3.2) and a freeze–thaw cycle.
+    The only free η = 100% is a tooth.
+  - Two canvases: a picture of one session (the m tubes, used volume blue, leftover
+    red if binned / amber if it goes back in the fridge) above the comb chart, whose
+    shaded bands make the ceiling visible as territory.
+- **§3.4 "The tubes cost money, and so does the experiment"** (`bill` widget,
+  **eq. 4.4.3**, **eq. 4.4.4**). Everything in dollars.
+  - A tube ladder that is deliberately **not monotonic**: microtube $0.09, 2 mL
+    cryovial $0.45, 15 mL conical $0.35, 50 mL conical $0.55, bottle $3.00. A
+    cryovial costs more than a conical because you pay for a freezer-rated cap, so
+    splitting finer can buy *more expensive* plastic as well as more of it.
+  - **eq. 4.4.3**, `ρ = c_tube/(a·P/V)` — the tube against its own contents, in one
+    number. Medium at the sensible split ρ = 0.25; a 20 µL antibody aliquot
+    ρ = 0.013. Twenty-fold apart, and ρ says which regime you are in.
+  - **`C_event`, what a contamination costs *you*** — cells, plates, the fortnight,
+    the stripped incubator. It moves the answer more than the other three sliders
+    together and it is the only one not on a catalogue page.
+  - The payoff: at `C_event` = $2,000 the money answer for 500 mL of medium is
+    **50 × 10 mL, one tube per media change** — exactly where §3.2 landed. The money
+    did not change the answer, it changed the reason, and it showed the cheap-looking
+    answer (ten 50 mL conicals, $9) is only cheap if a contamination is free.
+  - New worked example (tab 3 had none), check-yourself block, four rule cards, and a
+    prices aside marking every figure as order-of-magnitude and adjustable.
+- The unifying line the tab now earns: **film limits small precious stocks, plastic
+  limits big cheap ones, and your session volume limits both.**
+
+### Changed
+- **§3.2 no longer over-claims.** Its verdict said of a 500 mL bottle "the film term
+  is negligible … so split it aggressively and stop thinking about it" — but 120
+  aliquots of a $70 bottle is **$42 of plastic against $70 of medium** to buy under a
+  dollar of contamination saving. The verdict now says the film is not what stops you
+  here and points at §3.4; the fourth takeaway and the handoff follow.
+- **`N` stops being a free parameter.** In the new `USTOCK`, `N = V/u`: the number of
+  entries over the stock's life *is* the number of sessions. §3.2 keeps its own
+  asserted `N`, so its curve is unchanged.
+- **The capstone consumes the new model.** `planState` now computes `m` and the
+  plastic bill; the printed plan gains "Tubes per session" and "Plastic bill" rows and
+  the Container stat carries the cost. §4.1's cross-reference and tab 3's label
+  updated; §5.1's fourth L4 recap card now names all three floors.
+
+### Bug Fixes
+- **`Math.ceil(1/r)` mis-rounds an exactly-fitting aliquot.** `1/0.2` is
+  `5.000000000000001`, so a bare ceiling calls a 5-tube job a 6-tube job and puts a
+  perfect divisor off the comb. `tubesPer()` subtracts 1e-9. Same class as the V3.690
+  `1000^(-1/3)` finding.
+- **§3.4's Try-This step 1 was wrong as first written** — "drag the contamination cost
+  to zero and watch the answer collapse" does not happen with strict single use
+  ticked, because the waste term simply takes over from the risk term and the answer
+  stays at k = 50. The collapse needs *both* switches; the step now says so, and a new
+  step puts strict single use back and asks which term caught you.
+- **The "too few tubes" verdict named the wrong mechanism.** It always blamed the
+  entry count, but under strict single use every tube is entered exactly once — with
+  plastic set free it printed "0% of every tube goes in the sink". Three mechanisms
+  can put you left of the bottom (waste, entries, decay) and it now picks the one
+  actually costing you.
+- **The §3.3-legal splits were drawn as a 9 px hairline on the axis** and were
+  effectively invisible, while a Try-This step sends the reader to find them. Now a
+  translucent full-height stripe plus a labelled triangle ("1/session", "2/session").
+- **The session summary said "drawn"** for volume that never leaves the tube when the
+  leftover is saved. Now "on the bench".
+
+## [V3.704] - 2026-08-31 — Cell Culture Lesson 2: the drawer model corrected against how the drawer is actually used
+
+Alex drove tab 5 and reported that the sim made an **empty shelf** the most
+stable place to be, and that it predicted a CO₂ cylinder lasting two months
+when the lab's lasts many. Both were model defects. He then described the
+sequence the model was supposed to represent and asked how many of its factors
+were in it: the answer was two of four, with one of the missing two modelled
+backwards.
+
+### Bug Fixes
+
+- **An 8-second door opening was integrated as 15 seconds.** `dt = 0.25 min`
+  with the `dooring` predicate true for one whole step. Every dip and the whole
+  CO₂ bill were inflated ~40%. New shared `stepsOf(CY)` sub-steps the opening at
+  `dur/16` and adds a fine settling window (`SETTLE = 0.6 min`) after each door
+  shuts, so the seconds-long thermal recovery is integrated and drawn as the
+  exponential it is rather than a straight line.
+- **The chamber lost heat with no way to get it back.** While the door was open
+  the air relaxed toward 22 °C and nothing else, so *more* metal made the dip
+  *deeper* — the direct cause of "an empty shelf is the most stable place to
+  be". New shared `chamberOf(Vfree, area)` returns
+  `T_mix = (22·τ_air + 37·τ_x)/(τ_x+τ_air)` and `τ_mix = τ_x·τ_air/(τ_x+τ_air)`,
+  so the incoming air is re-warmed by every warm surface as it arrives.
+- **`Q_door` was held constant as the chamber filled with metal**, i.e. a box
+  packed solid with sealed drawers still admitted 66 L of room air through the
+  same doorway. `Q ∝ V_free` — right in both limits — so `τ_x` stays 20 s and
+  the *volume* admitted falls with loading.
+- **The drawers were a one-way sink** (`Cbx += (Cch-Cbx)*…` with no return term)
+  while holding up to 37 L of 5% CO₂. The chamber↔drawer coupling is now
+  conserving in both directions.
+- **The CO₂ bill charged the cylinder for gas it never bought**, counting every
+  rise in chamber concentration including drawer feedback. `sysRun` now models
+  the controller explicitly: it injects only what it commands, and only while
+  the door is shut.
+- **`PER_SHELF = 4` was geometrically impossible** — two 300 × 220 mm drawers is
+  what fits a 423 × 465 mm insert (manual, §11). Now 2.
+- **"…from someone else's door alone" was polluted by the post-trip recovery
+  tail**, because it was taken from the not-away window of the same run. Now
+  from a separate `boxRun(0)`.
+- **The warm-plate verdict scored the treatment against itself** — its control
+  was the no-drawer run, which inherits the warm-plate checkbox. Now compares
+  against the same trip with `boxRun(tout, 0)`.
+- **Both temperature panels were flat lines.** An 8-second excursion on a
+  four-hour axis is sub-pixel. §5.2's lower panel now zooms one opening with a
+  seconds x-axis (`mk()` takes `x0/x1/xtk/xlab`; `axes()`'s 7th argument is a
+  *formatter*, so ticks stay in minutes and are relabelled); §5.1's says on the
+  chart when the culture really is flat.
+- **A phantom drawer population** was drawn at a flat 5.0% with 0 shelves
+  converted. Trace and legend suppressed when `nb === 0`; likewise the open-shelf
+  trace at 4 shelves.
+- **`s-box-wall` was a dead slider** in the default scenario. `st-box` gained a
+  drawer metal/gas lag row, which the wall always moves.
+- **"air back to 37 in 5.9 s" was τ, not the recovery.** Relabelled in the stat
+  rows, the canvas readout and the prose.
+- Chart y-ranges in both tab-5 widgets are derived from the traces rather than
+  hard-coded, so a small excursion is visible and a large one is not clipped.
+
+### Changed
+
+- **§5.1 is now about your own trip to the cabinet, not the door.** The old
+  model opened the drawer *in place* while the incubator door was open, filling
+  it with the chamber's worst air — a scenario that does not occur, and the sole
+  source of the "the better it damps, the worse it gets" verdict. The slider
+  `box-draw` is replaced by **`box-out`** (minutes out of the incubator) with
+  checkboxes **`c-box-warm`** (37 °C warm plate) and **`c-box-lid`** (work
+  through the lid); scenarios are now `ours / lid / bench / bare / shut`.
+  Measured: somebody else's opening moves a T-25 by **0.12 °C**; five minutes on
+  a 22 °C surface moves it by **9.8**. The warm plate takes that to 0.04, the
+  lid takes the CO₂ dip from 1.91% to 1.14%, and the drawer's one real cost is
+  that it goes back full of cabinet air (70 min to climb back within 0.2% of 5%,
+  against 60 for a bare plate). 5 mm of aluminium turns out to be over-built for
+  damping and about right for handling.
+- **§5.2's numbers now all move the same way.** 0 → 2 → 4 converted shelves:
+  free air 165 → 141 → 117 L, warm surface 3.4 → 4.2 → 5.1 m², re-warm τ
+  5.9 → 4.0 → 2.8 s, chamber swing 2.82 → 2.28 → 1.76 °C, open-shelf CO₂ dip
+  0.88 → 0.87 → 0.84%, CO₂ 58 → 50 → 42 L/day, 50 lb cylinder 7.0 → 8.1 → 9.8
+  months. The stale V3.702 rules are gone, including **"Convert the whole room
+  or none of it"**, which contradicted Alex's own plan.
+- **A dwell slider (`s-sys-dwell`, 2–60 s)** carries the section's real lesson:
+  thirty seconds instead of eight takes the same cylinder from eight months to
+  under four.
+- **The cylinder is a 50 lb (22.7 kg) one by default**, which is what labs put
+  on an incubator; the stats give kg/month and both cylinder sizes. The old
+  model reported a 9 kg cylinder without saying so.
+- §5.1's illustration redrawn: wall thickness as a caliper, the lid on or
+  lifted with its filters, the plate where the controls say it is, and the
+  surface in red at 37 °C or grey at 22.
+- Removed the leftover comparisons to the earlier carried-box concept, per Alex.
+- Tab 4's key takeaway no longer argues the deleted "a filter removes ripple,
+  not offset" line.
+- Lesson-2 blurb in `modules/cell_culture/overview.html`.
+
+### Added
+
+- **The manufacturer's version, from the manual.** The 160i's options list
+  carries a **6-fold gas-tight screen** and **six Cell Lockers** — 5.4 L
+  polycarbonate, two membrane filters, autoclavable at 121 °C for 12 cycles.
+  Thermo sells this drawer. Their version gives each locker its own glass door:
+  *"due to the significantly smaller cross-section of the openings for accessing
+  the samples… a considerably lower contamination hazard and the recovery times
+  … are shorter."* That aperture is what boxes on a normal shelf do not get.
+- The honesty aside now names the section's one real modelling choice
+  (`Q ∝ V_free`), the opposite limit, and what it would change.
+
+## [V3.703] - 2026-08-31 — Cell Culture Lesson 2 restructured: the weekend flask becomes §2.3, the drawer becomes the capstone
+
+Four calls from Alex, all structural.
+
+### Changed
+- **§5.1 (the weekend flask) replaces §2.3.** The `gas` widget is deleted: since V3.696
+  the weekend flask has carried eq. 2.2.5 and eq. 2.2.6 itself, so §2.3 now *is* the
+  medium-depth lesson rather than a prequel to it. Both equations are re-introduced in
+  the new §2.3 and keep their numbers; so do **eq. 2.4.1–2.4.3**, which now live in tab
+  2 — a number carries the tab it was first written in and keeps it when material moves.
+- **§3.3 moves to tab 5 as §5.1**, "The drawer, and what it is really for". Tab 3's
+  closing takeaways and handoff move onto §3.2.
+- **Tab 5 is now "The Whole Box, Solved"** — §5.1 the drawer, §5.2 the whole chamber.
+- **A visit cycle replaces uniform openings.** A visit is X openings Z minutes apart;
+  then Y hours of quiet. Both tab-5 sims run **one full cycle, equilibrium to
+  equilibrium**, so the recovery is visible and the fact that a burst never lets the
+  chamber return is visible with it. Openings are 8 s (§4.1's good practice).
+- **§5.2 models the shelf split.** Top two shelves in drawers for long-term maintenance,
+  bottom two open for experiments — two populations, both reported. No drawers → 89 L
+  CO₂/day and a 1.8-month cylinder; two shelves → 76 L and 2.1 months; all four → 56 L
+  and 2.9. Air back to 37 °C in 5.9 s / 2.8 s / 1.2 s. The dip on an **open** shelf goes
+  1.38% → 1.65% as the drawers displace free volume.
+- The section now says why that split is defensible: **the cultures that lose a little
+  are the ones you were going to open the box for anyway, and the ones that gain a
+  filter are the long-term stocks.** Split by need it is fair; split by who got round to
+  building a drawer it is the same arithmetic with none of the justification.
+
+### Bug Fixes
+- **V3.702's thermal model was wrong.** It drained the chamber's mass like a battery and
+  reported a 9 °C swing for bare shelves. The chamber's air has almost no heat capacity;
+  what matters is the metal as **warm surface**, so the recovery time is
+  `τ_air = C_air/(h·A_total)` — 5.9 s bare, 2.8 s at two converted shelves, 1.2 s at
+  four.
+- **Openings were 30 s each**, not the 8 s §4.1 recommends, inflating the CO₂ bill by
+  about 40%.
+- The "drawers charge everyone else" verdict fired at four converted shelves, where
+  there is nobody left to charge.
+- Cross-references to the retired §3.3 swept from §1.2, §3.1 and §5.2; the equation-index
+  note and the sources' "Tab 4" references updated for the new home of eq. 2.4.x.
+
+## [V3.702] - 2026-08-31 — Cell Culture §5.2 (new): what a shelf full of metal does to the whole box
+
+Alex: the lesson had never costed the **CO₂ used to replenish the chamber after every
+opening**, nor asked how much air can get in when the box is **full of sealed drawers**,
+nor what all that metal does to the **stability of the whole system** — and it is a
+synthesis, so it belongs on the capstone tab. Tab 5 gains **§5.2**; nothing renumbers.
+
+### Added
+- **§5.2 and the `sys` widget.** The chamber drawn with N drawers, five headline
+  numbers, and two curves: cylinder life against dwell, and chamber swing against drawer
+  count. Controls: drawers (0–16), openings/day (2–40), dwell (2–60 s), wall thickness.
+  Scenarios: as it is now / an empty incubator / every project in a drawer / good door
+  discipline / a bad day.
+- **The CO₂ bill.** Each drawer displaces ~5.9 L, so six take the free volume from 165 L
+  to 129. Replacing what left costs `V_free × ΔC`: **2.56 L per opening** at 8 s,
+  26 L/day, ~6,400 L/year — a 9 kg cylinder every **6.3 months**.
+- **`τ_x = V_free/Q_door`** as an unnumbered `step-eq`: the doorway flow is a property of
+  the doorway, so eq. 1.5.1's clock runs *faster* in a full box. Less absolute air comes
+  in but a larger share turns over, and **the chamber's CO₂ dips further** — 3.36% empty,
+  3.02% with six drawers, 2.25% with fourteen.
+
+### The findings
+- **The gas bill is a door-discipline meter.** 4 openings/day at 2 s → **52 months** of
+  cylinder; 40 openings at 45 s → **0.7 months**. A 75× range, entirely behavioural.
+- **The metal is a twentyfold thermal win for the whole chamber.** Bare shelves are
+  0.8 kJ/K and move **1.31 °C** per opening; six 5 mm drawers are 16.4 kJ/K and move
+  **0.06 °C** (eq. 2.1.1).
+- **Which reverses §3.3 at a different scale.** A drawer is a poor damper for the plate
+  inside it (the medium got there first) and an excellent one for the chamber — and the
+  benefit is **collective**: the metal does not know whose culture it is protecting.
+- **The gas effect is collective too, and points the other way.** A full incubator dips
+  further on every opening and only filtered cultures are shielded, so **a half-converted
+  room is the worst of both** — deeper dips for everyone, protection only for the
+  converted. Same shape as §1.2's traffic map.
+
+### Bug Fixes
+- The recorded **`\'`-in-a-heredoc hazard** broke the entire script block; `node --check`
+  on the extracted JS located it in one step. Reworded rather than re-escaped.
+- The chamber-swing chart was formatted to **0 decimals on a 0–1.5 axis**, so it labelled
+  its own gridlines "0, 1, 2" — a chart lying about the numbers it was drawn from.
+
+## [V3.701] - 2026-08-31 — Cell Culture §3.3: the design settles as a resident drawer, and the damping case does not survive it
+
+Alex settled the design: the box **stays in the incubator**, the plate **slides in and
+out like a drawer**, and feedings happen on a **37 °C warm plate** in the cabinet. That
+removes the carrier job entirely — and with it the whole V3.697 condensation finding,
+because the box never leaves 37 °C. It also leaves the box exactly one job, which makes
+it fair to ask how good at it the box is.
+
+### Changed
+- **§3.3 rebuilt as a four-lag chain** with the same vessel, no box, running alongside
+  as the control: chamber recovery (~6 min) → box metal (eq. 2.3.4, 20 min) → box gas
+  (eq. 2.3.5, 6 min) → **the medium itself** (eq. 2.2.6, **18 min** for a T-25 and
+  **171 min** for a 200 µL well).
+- Controls are now wall thickness, filters, **door openings per hour**, and **when the
+  drawer is opened relative to a door opening**. Scenarios: our box / no box / tightly
+  sealed / a busy incubator / drawer opened with the door.
+
+### What the model says
+- **The medium got there first.** A door opening is over in 30 s and the culture is
+  already behind a filter thirty times longer than that. The box removes about **5%**
+  of the CO₂ dip and about **28%** of the temperature dip (T-25, 4 openings/hour).
+  The asymmetry is the finding: 20 minutes of metal against a half-minute disturbance
+  is genuinely useful; on the gas side there was nothing left to win, at any filter
+  count (1 filter → 7%, 8 → 4%).
+- **A filter cannot fix an average.** At 12 openings/hour the chamber stops recovering
+  between them and the culture sits at a standing depression of ~1.6% CO₂; the box
+  removes ~1% of it. The fix is fewer openings — §1.2's rack argument — not a better box.
+- **The better it damps, the more the drawer timing matters.** One filter damps best,
+  and opening the drawer while the door is still open fills it with the chamber at its
+  worst and holds that for its own 23-minute τ: **1.02% against 0.78% with no box at
+  all.** The damping becomes a liability when the disturbance is injected downstream of
+  the filter.
+- **So the conclusion moves.** Keep the box for the two things it is excellent at,
+  neither of which is damping: it is a **lid** (§3.2's unfiltered route, taken to zero
+  for the plate inside) and it is a **drawer** (§1.2's traffic map, the one intervention
+  that reaches zero). The damping is a bonus on top of a good containment decision.
+
+### Bug Fixes
+- **The drawer was opening on every door opening** — twelve times an hour in the busy
+  case, which made the box read as actively harmful (−29% CO₂, −50% temperature). Your
+  drawer opens once in three hours; the rest are other people's openings.
+- **The chart kept marking every opening as a drawer access** after the model was fixed
+  to one, so the picture disagreed with the numbers it was drawn from.
+- The "good" verdict was unreachable and the honest one was labelled "doing very
+  little", which undersold a real 28% thermal win. Split into a thin-wall verdict and an
+  asymmetry verdict that says what is actually happening.
+- Three stray `.mjs` test scripts had been written into `modules/cell_culture/` when the
+  shell cwd reset mid-session; removed.
+
+## [V3.700] - 2026-08-31 — Cell Culture §4.1: the swing is also a dwell, so there is a best door speed
+
+Alex: *"while the door is being opened, there should also be some air exchange … This
+concept may be why people may favor opening too quick because the too slow has penalty
+as well."* Both halves right, and the second overturns the section's advice.
+
+### Changed
+- **The aperture now exchanges while it is opening.** The model had a piston slug
+  during the swing and a buoyancy exchange only once the door was open. The aperture is
+  open the whole time it is opening: with the open fraction taken as sin θ swept over
+  `W/v` seconds, the swing is worth **`t_eff = (2/π)·W/v`** seconds of a fully open
+  door. At 5 cm/s that is **11.5 s** before anyone has reached in; at 130 cm/s, 0.4 s.
+- **Which means there is a best door speed, not a limit.** Two penalties with opposite
+  slopes. With an 8 s dwell: 5 cm/s replaces **62%** of the chamber, 30 cm/s replaces
+  **39%**, 130 cm/s replaces **51%**. **Creeping is worse than flinging** — and the
+  minimum sits at **Π = 1**, i.e. move the door at about the speed the air can get out
+  of its way. For this door, ~30 cm/s, or three seconds for the panel.
+- The rule **"open it like a book, not like a fridge" is retired** and replaced with
+  **"move the door at the speed of the air"**. The closing insight now separates
+  *match the swing* from *minimise the dwell* — only the second one is "quick".
+- The animation fills from the first crack, at a rate ∝ sin θ, with `INLETF.tEff`
+  accumulating effective open-seconds across the swing (real time) and the dwell
+  (compressed, scaled back up).
+
+### Added
+- Ledger row **"drawn in WHILE it was opening"**, and its volume reported separately.
+- A **swing-cost-vs-door-speed** mini-chart with the Π > 1 region shaded, the minimum
+  marked, and the current speed as a dot on the curve.
+- Stats: the swing duration, its effective open-seconds, and the best speed with a
+  "← you are there" marker.
+- A **too slow** verdict — the failure mode the section previously recommended.
+- `t_eff` is a derived relation, so it goes in an unnumbered `step-eq`; the equation
+  index does not change.
+
+### Bug Fixes
+- **The "matched" verdict was outranked by the Π > 1 one**, so 35 cm/s was called
+  "you opened it like a fridge" while the stat beside it said "best speed 32 cm/s ←
+  you are there". Reordered; the fridge branch now needs Π > 1.3.
+- Π displayed as "(< 1)" at exactly 1.00 — the one value the section is about.
+- One unclosed `<div>` in the new insight block (caught by `check.py`).
+
+## [V3.699] - 2026-08-31 — Cell Culture §3.3: five ways out of the stability/recovery trade
+
+Alex: *"Ok so we have a trade off here with stability and recovery. Suggest some
+options for how we get around this. Better box design, heat plate in the BSC to keep
+the box warm? or should we do a plastic box and accept worse damping."*
+
+The trade only exists because **the box gets cold**, so every option is an attack on
+that one quantity. All of them are now scenarios in the sim, and the section carries
+the comparison table.
+
+### Added
+- **Warming-plate control** (`box-heat`, 0–60 W) and a **double-walled** box option
+  (a sealed air gap: it changes the loss coefficient, not the mass).
+- Scenario chips: our box / no box / **+ warming plate** / **double-walled** /
+  **both, and be quick** / filters soaked.
+- A "So how do you get out of the trade?" section with the full comparison table and
+  the reasoning for each option.
+
+### The numbers (10-minute media change)
+| change | plate at end | water after | CO₂ back |
+|---|---|---|---|
+| nothing — the box today | 30.4 °C | 0.54 g | 17 min |
+| no box at all | 25.7 °C | — | — |
+| **be quick — 4 min** | **33.8 °C** | 0.28 g | 17 min |
+| **warming plate, 45 W** | 31.5 °C | **0.13 g** | 17 min |
+| **double-walled** | **34.1 °C** | 0.34 g | 17 min |
+| 2 filters instead of 4 | 30.4 °C | 0.21 g | 34 min |
+| polycarbonate instead of aluminium | 28.8 °C | 0.42 g | 17 min |
+| anodised black | 29.2 °C | 0.44 g | 17 min |
+| **double-walled + matched 20 W plate** | **34.8 °C** | **0.02 g** | 17 min |
+
+- **A warming plate is the cleanest fix for the water, and it has a size**: the box
+  loses `hAΔT` = 14 × 0.215 × 15 ≈ **45 W** in the downflow, so 45 W under it is
+  break-even.
+- **A double-wall is the best fix for the culture** and only halves the water, because
+  insulation also slows the *re-warming*. The two together are complementary.
+- **Polycarbonate answers the question the wrong way**: it gives up 1.6 °C of the only
+  thing the box is for and removes barely a fifth of the water.
+- **Anodising is a wash** — the radiation that helps it re-warm also helps it cool.
+- **The free lever is still the biggest one for the culture.** With the lid off, the
+  plate's own exposed top loses ~**1.5 W** to the downflow while the box can feed it
+  only ~**0.1 W** back — fifteen times less. Most of the five degrees the box buys are
+  bought while the lid is *shut*. So how long the lid is off, and whether the plate's
+  own lid is on between steps, beat any hardware.
+
+### Bug Fixes
+- **The control group was inheriting the treatment.** The bare-plate comparison line
+  used the box's own heat-transfer coefficient, so insulating the box silently
+  insulated the control and flattered every jacketed run (`insul` read +2.4 °C when it
+  is really **+8.5**). The comparison now always uses rack conditions.
+- **A soaked-filter box was being congratulated.** The new "both ends fixed" verdict
+  fired on zero condensation without checking that the CO₂ ever came back, so the
+  failure case read as the ideal.
+- **An over-powered warming plate now gets caught, and it is caught on the box.** A
+  jacketed box loses 13 W, not 45; at 60 W the *metal* runs to 45–50 °C while the
+  culture still reads 36, because the plate's open top is holding it down — and then
+  the culture is shut inside that metal. The guard watches both temperatures and the
+  chart draws the ceiling.
+
+## [V3.698] - 2026-08-31 — Cell Culture §4.1: the door animates, on the real cycle
+
+Alex: *"4.1 should have the same style animation as 3.2."*
+
+### Added
+- **§4.1 now plays one full door cycle on a loop** — shut → swinging open → open →
+  closing → held — with §3.2-style tracers on both panels. `INLETF` field,
+  `stepInlet`, `inletOpenFrac`, `inletPhaseLabel`, and
+  `registerAnim('inlet', stepInlet, 40)`.
+  - **PLAN**: red slug particles released *as the panel sweeps*, only above Π = 1,
+    count proportional to the swept volume; they disperse into the chamber and die.
+  - **SECTION**: amber leaving the top of the opening, cyan entering along the bottom
+    and drifting up, at a rate that decays with the exchange.
+- A phase label with the **real clock** on it ("open — 25 s of 75"), because the dwell
+  is time-compressed.
+
+### Changed
+- The red room-air wash in the plan and the blue fill in the section now track the
+  **live cycle state** rather than the end state, so the two panels agree with each
+  other and with the phase label.
+- The swing phase runs at its **real** duration (0.9 m of travel at the door's own
+  speed, clamped 0.5–3.5 s), so flinging it is visibly quicker. The dwell is
+  compressed onto 1.5–7 s, but the chamber fills on `1 − e^(−t_real/τₓ)` in real time
+  inside that phase and the tracer release rate goes as `e^(−t_real/τₓ)` — the flux,
+  not the total. **A long dwell now visibly stops exchanging while the door is still
+  open**, which is §4.1's central claim and was previously only asserted.
+- `inletReset` is guarded with V3.691's `keepField`, or dragging the dwell slider
+  restarts the cycle on every tick.
+
+### Then Alex again: *"the door still opens weird. thats why we need the side view from 3.2."*
+- **The plan view is gone.** §4.1 is now a **single side view** — the same projection as
+  §3.2 and §3.3 — because that is the one in which a door opening is honest. A door
+  hinged on a vertical edge is seen **edge-on** from the side, so as it opens it
+  projects as a rectangle growing out of the front face, of depth `W·sin θ`. **That
+  rectangle is exactly the volume the panel has swept**, so the picture no longer has
+  to assert that the door is a piston: the rate the rectangle grows *is* the speed of
+  the panel face, which is eq. 1.3.2's numerator.
+- **A side view is also the projection that does not care which edge the hinge is on** —
+  the swept depth is identical either way, which retires the whole "is the door on the
+  wrong side" question rather than answering it.
+- **The two doors are now separate events in the cycle**: the outer door swings and
+  *nothing happens* (the glass one is still holding the chamber), and only then does
+  the glass door swing and throw the slug. That is §1.1's point, finally drawn.
+
+### Why not a steady stream
+§3.2's animation is a steady circuit. §4.1's two mechanisms are not steady and are not
+the same kind of event — the swing is a one-off slug, the dwell is a saturating flow.
+Drawing both as one continuous stream would have made them look identical, which is
+precisely the confusion the section exists to remove.
+
+### Bug Fixes
+- **The behaviour harness was silently vacuous on animated widgets.** It asserted that
+  a slider changed the canvas checksum — which an animated canvas does on its own,
+  every frame. `pan`'s controls had been passing that way since V3.696. Controls on
+  animated widgets are now checked against the **stats DOM**, which is model-derived;
+  all four `inlet` sliders and all three `pan` sliders plus both checkboxes verified.
+
+## [V3.697] - 2026-08-31 — Cell Culture §3.3: the box is a carrier, and its lid already has membranes
+
+Alex corrected two things about §3.3 within hours of V3.696 shipping: **the lab's
+aluminium box already has 0.2 µm filters in the lid**, and the way it is used is as a
+**carrier** — plate inside, box out of the incubator, spray the outside, open the lid
+*in the cabinet*, do the media change, spray, back in. V3.696 had modelled a plain-lid
+box resident in the incubator soaking up door openings, and had walked the student to
+a membrane-vented design as the resolution of a trade-off. The lab's box already is
+that design, and its job happens outside the incubator.
+
+### Changed
+- **§3.3 rebuilt around the real cycle.** The `box` widget now simulates one media
+  change end to end — out, sprayed, lid off in the cabinet, sprayed, home — as two
+  lumped masses and two interior gas species, with a **bare plate on a rack running
+  alongside as the comparison**. Controls: wall thickness, number of Ø10 mm filter
+  discs, minutes with the lid open, ethanol per spray. Scenarios: our box / no box /
+  a fast media change / a slow one / **filters soaked with ethanol**.
+- **eq. 2.3.5 restated in general form** — `τ_gas = V L /(D_eff A)` with
+  `D_eff = D·φ/ϑ` — so one equation covers a lid gap and a filter disc. No new
+  equation numbers; the section spends 2.3.3, 2.3.4 and 2.3.5, all of which it
+  already had.
+- Takeaways and the overview blurb follow the new §3.3.
+
+### The findings
+- **A cabinet is not still air.** 0.32 m/s of downflow roughly doubles what a plate
+  loses, so `h_BSC ≈ 14 W/m²K` against 8 on a bench. A bare plate finishes a 10-minute
+  media change at **25.6 °C**; the same plate in the box finishes at **30.4 °C**.
+  Four minutes: **33.8 °C**. Twenty-five minutes: 25.4 °C, and the box has stopped
+  helping.
+- **The box comes home cold, and it rains on the plate.** The chamber is at 93% RH
+  with a dew point of 35.7 °C; vapour crosses four filter discs with τ ≈ 4 min while
+  2.5 kg of aluminium re-warms with τ ≈ 20 min, so **the humidity arrives first**.
+  With the lab's current box that is ~64 minutes and about **0.54 g of water** on the
+  plate lid, which then drips into wells that are not the ones it came from (§3.1).
+- **The filters are not a containment-vs-exchange compromise** — a 0.2 µm membrane
+  already gives both. They trade **CO₂ recovery against condensation**: 1 filter →
+  0.05 g but CO₂ back in 68 min; 8 filters → 1.15 g but CO₂ back in 9 min. The referee
+  is how much heat left the box, which makes **minutes with the lid open the only
+  control that improves both ends at once**.
+- **Wall thickness helps in one direction and hurts in the other**: 10 mm gives
+  +5.5 °C during the work and 82 minutes of rain afterwards; 1 mm gives +2.7 °C and
+  41 minutes.
+- **The box reshapes the excursion rather than removing it** — the bare plate recovers
+  faster on the way back, having a tenth of the mass. A deep short chill becomes a
+  shallow long one. Stated explicitly rather than left for a student to notice.
+- **"Spray the box, not the vents" now has a magnitude.** A wet hydrophobic membrane
+  passes no gas, which turns the box into the sealed case: no condensation, and the
+  CO₂ **never returns**. Same failure as a wet vented flask cap in §3.1, and now a
+  scenario chip.
+
+## [V3.696] - 2026-08-31 — Cell Culture Lesson 2 reworked from driving it, against the lab's own incubator manual
+
+Alex drove [modules/cell_culture/02-the-incubator.html](modules/cell_culture/02-the-incubator.html)
+and reported five things: §3.1 needed uneven plate dehydration and an explanation of
+why >95% RH is hard; §3.2's illustration "does not do a good job of explaining
+anything — redesign fully"; §3.3's vibration/rings concept should be replaced with
+what a 5 mm aluminium box with a lid does to temperature, CO₂ and contamination;
+§4.1's door looked wrong and "the whole illustration doesn't really land"; and §5.1
+should not be advocating 10 mL without showing the trade-off.
+
+Per the V3.689 lesson, the lab's own incubator manual came out of `Data/equipment/`
+before any drawing was touched. It is a **Heracell VIOS 160i**, and it contradicted
+three things the lesson shipped. Findings recorded in
+[CodeLog/References/Incubator_VIOS160i_verified_facts.md](CodeLog/References/Incubator_VIOS160i_verified_facts.md).
+
+### Added
+- **§3.1 · `plate` widget (new).** A 96-well plate as 96 vessels on a gradient.
+  eq. 2.3.1's δ written out as a **series resistance** — `h_head/(D·A_well) +
+  d_edge/(D·g·p)` — vertical out of the well, then sideways under the lid to the
+  rim. At 93% RH over 3 days: corner **352 mOsm**, centre **328**, a 3.6× rate
+  ratio, nothing dry and nothing visibly wrong. At 80% the corner is at **432** and
+  the centre at 345 — two experiments on one plate. Plate map, a ring profile
+  labelled with each ring's population (36/28/20/12), and a two-sided humidity
+  window. Scenarios: plain / PBS moat / secondary box / breathable membrane, the
+  last of which is the only one that flattens the *gradient* rather than the rate.
+- **eq. 2.3.3** — Magnus dew point, and the margin a surface may be cool by: 1.9 °C
+  at 90%, 1.3 at 93%, 0.9 at 95%, 0.4 at 98%. The box heats its own walls, ceiling,
+  door frame and outer door above that margin; **it cannot heat your plate**, which
+  is why the manufacturer ships a Low Humidity setting and says so.
+- **§3.3 · `box` widget (new)**, replacing `ring`. Three hours of an ordinary
+  morning — door opened every 20 min, one bench trip of settable length — with
+  chamber and box-interior CO₂ and temperature. **eq. 2.3.4** `τ = ρct/h` (the area
+  cancels: buffering depends on wall thickness alone) and **eq. 2.3.5**
+  `τ_gas = VL/(DPg)`. Scenarios: no box / snug / propped / gasket-sealed / Cell Locker.
+- **eq. 2.4.3** — buffer duration goes as depth/density; **the growth area cancels
+  exactly**, so a bigger flask is not a lever.
+- **§4.1** now draws **two panels in two projections** — a plan view for the swing
+  (where a hinged door genuinely swings) and a section for the dwell (where
+  buoyancy exists) — plus **both doors**, the 30-second door alarm marked on the
+  saturating dwell curve, and the note that the hinge is field-reversible.
+- `Chart` accepts `{keep:1}` for charts drawn beside existing artwork; `getCv`
+  publishes `dataset.cvw`/`cvh` and the rAF loop publishes `dataset.frames` /
+  `dataset.animerr`, so a harness in an isolated world can check liveness and layout.
+
+### Changed
+- **The humidity setpoint is 93%, not 95%**, throughout — that is this box's own
+  spec ("approx 93 %rH"), with 90% in Low Humidity mode.
+- **§3.2 redesigned onto the real air circuit**: reservoir → airbox → **HEPA
+  (99.998% at 0.3 µm)** → rear-wall duct → ceiling → down over the cultures, animated,
+  with the legs labelled. The textbook route the section used to draw — the fan
+  lifting spores off the tray onto your flasks — **is filtered on this machine**.
+  The model now carries two routes, and only one meets a filter. Water scenarios
+  corrected to the manual: in-band distilled / a disinfectant additive / ultrapure
+  DI / tap — chlorinated tap water **and** Type 1 DI both void the warranty, and a
+  constant disinfectant in the reservoir is explicitly not recommended.
+- **§5.1 now costs the volume it used to recommend.** `weekRun` carries eq. 2.2.5's
+  oxygen-at-the-monolayer and eq. 2.2.6's h² CO₂ lag through the integration, plus
+  a hypoxic-glycolysis feedback. 10 mL in a T-25 is 4 mm: pH fixed, oxygen at the
+  cells **84% → 68%**, CO₂ lag **18 → 70 min**, and neither shows in the colour.
+  Sweeping both sliders, ~370 combinations pass on pH and confluence; only ~50 also
+  pass on oxygen, and **all of them sit between 2.6 and 3.4 mm**. New "a little of
+  both levers" scenario (32k/cm² in 7.5 mL) lands inside it.
+- §1.2's rule pointing at the deleted vibration section now points at §3.3's box.
+- The framework gained V3.691's `keepField`/`RESEED` guard — Lesson 2 had no
+  animated widgets before and now has one.
+
+### Bug Fixes
+- **`Chart`'s constructor was erasing artwork drawn beside it.** The V3.687
+  clear-fix made it wash the whole canvas, so any widget that painted a panel
+  *before* building its chart lost it. Lesson 2's `ring` dish and **Lesson 4's
+  200-bottle `coin` grid** had both been invisible since V3.687, on pages
+  reporting zero console errors. Fixed with `{keep:1}`; `coin` restored.
+- **`Chart`'s y-axis label was pinned to x=13**, so an offset chart drew its label
+  on top of the left-hand panel. Now derived from the left margin. Fixed in all
+  four lessons.
+- **The `box` chart helper took a plot floor where `Chart` wants a bottom margin**,
+  giving a negative plot height and drawing an inverted temperature chart on top of
+  the CO₂ one — with no error anywhere.
+- **Fixed pixel y-offsets in three new widgets.** `setupCanvas` gives
+  `h = w × attrH/attrW`, so a canvas authored at 660×330 is 948×474 on a wide
+  screen; every vertical position is now a fraction of `h`.
+- **`phOf` could return pH 2.06.** Once the bicarbonate is fully titrated the
+  expression ran away; medium has protein, phosphate and amino-acid buffering under
+  it and parks near 6.2–6.5. The phenol red scale already stopped at 6.2; the number
+  now does too.
+- `fmt()` falls through to `toExponential` below 0.001 — it was putting
+  "3.48e-5 %" and "2.96e-6 %" in stat rows. Both replaced with stated ratios.
+- §3.1's edge:middle ratio was measured against well A1, which with a PBS moat is
+  not an experiment — it now runs over the wells you would actually use.
+- §4.1's door swung *into* the chamber. The plan view now reserves a room strip and
+  the panel sweeps out into it.
+- One unclosed `<div>` in the new §3.3 (caught by `check.py`).
+
+## [V3.695] - 2026-08-29 — Cell Culture Lesson 1: the capstone's stage 1 moves onto the section engine
+
+Alex: *"the cabinet solved 5.2 should use the same side view simulaiton as tab 2
+and 3."* Plan: `CodeLog/ClaudesPlan/V3.695_capstone_on_the_engine.md`.
+
+### Changed
+- **§5.2 stage 1 is now the shared cabinet-section engine** — the last hand-drawn
+  side view in the lesson. It had its own frame, its own sash and three
+  decorative downflow arrows and no circuit at all; it now draws the same cabinet
+  as §2.1 and all of tab 3, with the real split, the drain-pan and back-duct
+  circuit, live tracers, the sash gauge on the frame with its mark and tolerance
+  band, and the work-zone limit. `cv-check` 640×392 → 980×500.
+- The sash drag is unchanged: `secGeom`'s `yOf` inverts to exactly the mapping
+  the pointer handler already used, so publishing `CHK._surfY = g.surfY` and
+  `CHK._inner = g.yOf(20)` was the whole adaptation.
+- `stepCheck` was an empty function on a 90 ms timer; it now advances the tracer
+  field at 33 ms, in stage 1 only. `CHK.c` holds the field.
+- Stage 1's second criterion is now a **drawn clearance** — an 8 cm forearm in an
+  opening `2.54·sash` cm tall — rather than a bare `sash >= 6` threshold.
+
+### Bug Fixes
+- **The capstone was grading against physics the lesson had already corrected.**
+  Stage 1's first criterion was still `vIn(sash) >= CAB.vinMin && sash >= 6`,
+  which is the pre-V3.689 fixed-blower model. On this cabinet the inflow is
+  0.53 m/s at every opening from ~1 in to 13 in, so that test is satisfied almost
+  everywhere and **passed the student at 10, 11 and 12 inches** — exactly the
+  heights V3.689 established are not certified. Now
+  `sashOK(sash) && sash*2.54 >= 12`, i.e. on the marked work position and wide
+  enough to work through.
+- The stage-1 panel now shows the airflow bar explicitly **as a non-criterion**,
+  with the line that only makes sense after §2.1: *"Green — and the sash is off
+  the mark … the instrument you would naturally check is the one that cannot fail
+  you."* The three stage-1 verdicts are rewritten to match.
+
+### Verified
+- `check.py` PASS: 6 tabs / 13 widgets / 34 sliders / 13 equations / 11 animated.
+- Behaviour QA over all six tabs: zero dead sliders, zero dead chips, zero blank
+  canvases, zero page errors.
+- Stage-1 verdicts at 8 / 12 / 4 / 18 in are correct and distinct; the sash drag
+  drives the real handle (14 in → 8 in); stages 2 and 3 still render at the new
+  canvas size. Responsive 1400→380 px with no overflow; MathJax 21.
+
+FTP-only — no Firebase deploy. `sw.js` CACHE_VERSION 667 → 668.
+
+## [V3.694] - 2026-08-29 — Cell Culture Lesson 1: a sixth tab, Getting Things In — plus the armrests
+
+Alex: *"As a remedy to the forearm over the front grill there are forarm rest
+blocks to fit to the front of the BSC … We need one more tab, how to bring new
+items into the BSC. 70% ethanol spray, then waith for the effect. why 70%
+(prevent dehydration long enough to kill). What is the best practice for how to
+put items in."* Plan: `CodeLog/ClaudesPlan/V3.694_getting_things_in.md`.
+
+### Added
+- **NEW tab 4, "Getting Things In"** (`tab-bringin`), inserted before the
+  capstone, so `solved` becomes tab 5 and `next` tab 6. Six tabs; the spec's
+  binding rules — capstone-last-content, teaser-last — both still hold, and
+  Lesson 2 already runs six.
+- **§4.1 `etoh` — why 70%, and why the wait is the whole thing.** Ethanol kills
+  by denaturing proteins and disrupting membranes and **both need water**;
+  absolute alcohol has none, and it dehydrates the outer layer fast enough to
+  coagulate a **fixed shell** the alcohol cannot then penetrate — which is
+  specimen fixation, a thing we do on purpose with alcohol. Two requirements
+  pulling opposite ways is a product of two powers, which peaks at
+  `C = p/(p+q)`; putting the peak at 0.70 with `p = 3` fixes `q = 9/7`:
+  **eq. 1.4.2** `1/D(C) ∝ (C/0.70)³((1−C)/0.30)^(9/7)`, floored at 4% so absolute
+  ethanol is 25× slower rather than inert. Then **eq. 1.4.1**
+  `log₁₀(N₀/N) = t_wet/D(C)` — time on top, and *wet* time, so the contact you
+  get is `min(waited, stayed wet)`. `D70 = 2.5 s` on steel. Chart of log
+  reduction against concentration with the ceiling curve, the starting load, and
+  a marker where the **rate** peaks; right panel is the clock and a
+  before/after count. Chips: spray-and-wipe **1,000 survivors**; wait 30 s
+  **< 1**; 100% at 30 s **61,015**; a light mist 2,512.
+- **§4.2 `bring` — bringing one item in.** The §2.1 section with a bottle carried
+  through the opening and set down. **Introduces nothing new**: decontamination
+  is §4.1's model at 70%, the curtain is §3.3's Π at one crossing instead of
+  twelve, placement is §3.1's grilles and the work-zone limit. Survivors ride
+  visibly on the bottle, a fast carry drags a visible slug through the opening,
+  and a dashed ghost marks the resting place so the placement slider reads even
+  mid-flight. **The placement is judged only once the bottle has been placed** —
+  Alex: *"the red outline should not become red until after it was positioned
+  incorrectly."* Flagging it in transit made the red mean "this slider is wrong"
+  instead of "you just put it there", which is a different sentence.
+  Right panel is a four-step checklist, each step labelled with the
+  section that measured it. Closing prose is the **loading routine in the order
+  it happens**, eight rules, from "run it until the airflow indicator goes green"
+  (the manual's own criterion) to "let it settle before you open the first
+  vessel".
+- Asides that keep §4.1 from over-claiming: ethanol is **not sporicidal** at any
+  concentration; it is inactivated by soil (clean, then disinfect). Plus
+  flammability and no open flame in a recirculating cabinet.
+- **Corrected before shipping, on Alex's challenge:** the first draft of loading
+  rule 5 said "unwrap outside — porous packaging cannot be surface-disinfected",
+  which is wrong for the commonest consumable in the room and **contradicted
+  Lesson 3 §3.3**, where the peel technique is already taught *in* the cabinet.
+  A paper-backed peel pouch is a **sterile barrier**, porous *by design* because
+  that is how the sterilant got in; you do not spray it (spraying can wick
+  through and defeat it), you **peel** it, at the cabinet, so the contents are
+  presented into filtered air. Opening it at the bench exposes the pipette to
+  room air on the way in. Corrugate is the opposite case — a shipping container,
+  not a barrier — so it is broken down outside. Rule 5 is now
+  *"Bring the barrier in; leave the shipping out"*, with a new insight box: the
+  question is never whether a thing is wrapped, it is **where the sterile barrier
+  gets broken and what is exposed at that moment**. Same rule, opposite answers.
+- **§3.1 `rest` scenario — "forearms on the armrests".** V3.693 added the forearm
+  problem without its remedy. The manual is specific: two optional armrests into
+  the *first perforated track* of the work tray, **8 in (20 cm) apart**, forearm
+  nearly horizontal, and *"Work safety is assured only if the armrests are used
+  correctly!"* Same arms, same person: coverage 30% → 4%, escape 19.8% → ~1.6%.
+  `secForearms()` lifts the forearm onto a drawn block; `planForearms()` moves the
+  pair **off** the grille band at 20 cm rather than shrinking it on the band.
+
+### Changed
+- Equation index gains 1.4.1 and 1.4.2 and now states explicitly that `eq. 1.5.1`
+  keeps its number in what is now tab 6 — a number carries the tab an equation was
+  first written in (same call as V3.688).
+- Section headings renumbered 4.1→5.1, 4.2→5.2, 4.3→5.3, 5.1→6.1.
+- `modules/cell_culture/overview.html`: Lesson 1's arc line and blurb.
+
+### Verified
+- `check.py` PASS: **6 tabs / 13 widgets / 34 sliders / 13 equations / 11 animated.**
+  All four lessons still PASS.
+- Behaviour QA over all six tabs: zero dead sliders, zero dead scenario chips,
+  zero blank canvases, zero page errors.
+- §2.1 unaffected: vin 0.53 to 13 in then 0.492/0.345; glass invariant 0.
+- Responsive 1400→380 px with no horizontal overflow; MathJax 21 containers for
+  13 equation boxes.
+
+FTP-only — no Firebase deploy. `sw.js` CACHE_VERSION 666 → 667.
+
+## [V3.693] - 2026-08-29 — Cell Culture Lesson 1: three things about tab 3 that were not true of a real cabinet
+
+Alex, after driving the rebuilt tab 3: *"3.1 the forearms are often covering the
+front grill and we should tell users this / 3.2 the petri dish needs to be able
+to be moved back and fourth as well, and should stay behind the front section
+cutoff / 3.4 the hand is shown all the way in the back of the cabinet, this is
+usually not the case."* Plan:
+`CodeLog/ClaudesPlan/V3.693_tab3_realism_notes.md`.
+
+### Bug Fixes
+- **§3.4 had the hand behind the dish.** The offset slider has always meant
+  lateral distance; when the section became the primary view in V3.692 that was
+  mapped onto depth with the wrong sign, putting the cuff at 48 cm — against the
+  back wall — for the default case. Hands come in from the *front*:
+  `handCm = clamp(DISHCM - d, 6, CABD-6)`.
+- **A sign error that predates the section.** `drift` carries the plume toward
+  the front grille as it falls; the old `|d − drift|` assumed that always closes
+  the gap to the dish. With the hand in front of the dish it opens it. The
+  separation is now measured from where the plume actually lands
+  (`plumeCm = handCm - drift`), so the model is no longer right by accident.
+- **§3.2's dish could not be positioned.** The object slider was an *offset*, so
+  it dragged the dish with it and the separation never changed. Both are now
+  absolute depths from the front edge and fully independent.
+- A vanishing fraction printed as `2.69e-9 %` (`fmt` falls through to
+  `toExponential` below 0.001) — now `< 0.01 %`, `effectively none`, `≈ 0`.
+- The §3.4 cuff label overflowed into the room when the hand was near the front.
+
+### Added
+- **§3.1 `arms` scenario — "your forearms on the front edge".** A forearm drawn
+  resting on the front grille in the section (one: a side cut meets one arm; the
+  pair is a *width*, so `planForearms()` puts both in the plan panel), its own
+  verdict, an insight box and a rewritten grille rule. Two forearms cover ~30% of
+  the intake: 0.76 m/s through what is left, split forward to 24%, 19.8% of room
+  air reaching the surface — numbers indistinguishable from the absorbent-pad
+  case, which is the point. The manual supplies the argument: armrests exist to
+  *"minimize blockage of airflow at the front grille."*
+- **`WORKLIMIT = 18 cm` and `secWorkLimit()` in the engine.** The front grille is
+  ~8 cm of the tray and the standard rule adds 4 in behind it, so nothing open
+  goes in front of ~18 cm. Drawn as a faint band on the tray rather than a third
+  dashed vertical — there are two already and a third reads as air. §3.2's dish
+  slider is clamped to it; §3.1 and §3.4 draw it.
+- **`wake-dish` slider** (18–46 cm) and `objOnGrille`. The object is deliberately
+  *not* clamped — being able to stand it on a grille and be told so is worth more
+  than being prevented — and that state gets its own verdict.
+- §3.4: pulling the hand to 24 cm puts the cuff on the front grille and says so,
+  making the point that the right answer is a ~10 cm band between two failures
+  rather than a direction to push in.
+
+### Changed
+- §3.4 scenario chips renamed for the corrected geometry: "beside the dish" →
+  **"in front of the dish, where hands actually go"**; "in and out fast, but
+  beside it" → "…but not over it". "Approach from the side" → "approach from
+  beside or in front, never from above". New stat row "Where the plume lands".
+- §3.2 stat rows now name which side of the dish the object is on, and whether
+  it is standing on a grille. §3.1/§3.2/§3.4 student tasks extended.
+
+### Verified
+- `check.py` PASS (5 tabs / 11 widgets / 27 sliders / 11 equations / 10 animated).
+- Behaviour QA over all five tabs: zero dead sliders, zero dead chips, zero blank
+  canvases, zero page errors. Responsive 1400→380 px with no overflow; MathJax 19.
+- §3.2's dish slider now changes the model — dish at 20 cm gives 15 cm separation
+  and 100% shadowed, dish at 44 cm gives 39 cm and 49%. Before the fix both read
+  5 cm / 100%, which is how the bug was found.
+- §3.4: `beside` lands the plume at 15 cm with effectively nothing in the medium;
+  `over` at 31 cm with 243/min; `d = 24` reports the cuff on the grille.
+
+FTP-only — no Firebase deploy. `sw.js` CACHE_VERSION 665 → 666.
+
+## [V3.692] - 2026-08-29 — Cell Culture Lesson 1: §2.1's cabinet becomes the engine, and all of tab 3 runs on it
+
+Alex: *"all the simulations on tab 3 should use the simulation from 2.1 since it
+is the best and gives the most information for how the entire system is
+working."* Plan: `CodeLog/ClaudesPlan/V3.692_section_engine_tab3.md`.
+
+### Changed
+- **§2.1's cross-section is now a shared engine.** Everything above the flow
+  widget is common code: `CAB`, `vIn`, `qExhaust`, `sashOK`, `pCross`,
+  `splitRaw`/`splitFrac`, **`cabAir()`**, `secField`, `legOf`, `stepField`,
+  `plLen`/`plAt`, `secGeom`, `sweepPath`, `underTray`, `deflect`, `secPath`,
+  `warpU`, `secBox`, `secGauge`, `secTracers`, `secSplit`, `secSplitLabel`,
+  `secLabels`, `secWake`, `secObstacle`, `planGeom`, `streak`. `cabAir(o)` takes
+  `{sash, down, blockF, blockR, fixedQ, off, vrms, sc}` and returns the one
+  airflow state every section uses, so they cannot drift apart. §2.1 itself is
+  behaviourally unchanged.
+- **`env` — what a section puts IN the cabinet.** `secPath` consults
+  `{obstacles[], blockF, blockR, spill}`: a streamline that would run into
+  something goes around it (`deflect`), and inflow the front grille cannot catch
+  continues over the tray instead of vanishing.
+- **Tab 3 goes from 7 canvases to 4.** Each section is now laid out exactly like
+  §2.1 — the cabinet in section on the left, and on the right the one thing a
+  side section cannot show:
+  - **§3.1 `crowd`** — grille coverage and a tall item, with the tray from above
+    showing which span is covered. **New `crowd-rear` slider.**
+  - **§3.2 `wake`** — one object and the region around its base, with the two
+    footprints in plan. Recirculating air is drawn in dark amber, distinct from
+    the room-air amber, because they are different things.
+  - **§3.3 `sweep`** — a forearm through the opening and the slug it drags,
+    carried by the actual downflow over the actual tray. The plan panel keeps
+    the crossing test. Parallel work is an arm moving *into the page*, so in the
+    section it simply sits there — which is why it drags nothing through.
+  - **§3.4 `shed`** — a shedding cuff with a drawn plume envelope; what lands on
+    the steel is swept to a grille and gone, what lands in medium is not. The
+    plan panel carries the two-route comparison.
+- **§3.1 now derives its failure instead of asserting it.** Covering a grille
+  shrinks that grille's open area in the same equation §2.1 uses to place the
+  split, `(qEx + f·qDown)/A_front = ((1-f)·qDown)/A_rear` with
+  `A_front = 1.5·(1-blockF)`. Covering the **front** runs the split forward
+  until it jams; covering the **rear** runs it backward, so downflow that used
+  to drop straight out at the back crosses the whole work surface to reach the
+  front — the failure nobody looks for, because the front of the cabinet looks
+  perfect. §2.1's prose already claimed this; it is now visible.
+- Models, stats and verdicts are the ones that were there — eq. 1.3.1 and the
+  slot Reynolds number, the circle–circle wake overlap, Π and counted crossings,
+  the Gaussian `shedFrac`. **No equation numbers change and no new equations are
+  added.** §3.1 gains one slider and one stat row; §3.2 and §3.4 gain one row.
+- §3.1/§3.2/§3.3/§3.4 prose and student tasks updated for the new views.
+
+### Bug Fixes
+- **`streak()` was lost in the first splice** (it had been defined inside the old
+  crowd block) and every tab-3 sim drew its furniture and then silently stopped.
+  **The rAF loop's `console.error` never reached the harness and no page error
+  was raised** — a widget can fail completely and leave a page that reports
+  itself clean. Found with a `dataset` probe, which the isolated world can read.
+- **The disturbed-zone rectangle was drawn unclipped**, covering the room and the
+  right-hand panel. A 34 cm object's zone really is ~54 cm — that is the lesson —
+  but it must be clipped to the chamber.
+- **Landed plume dots were drawn under the dish**, hiding the ones that went in.
+- **§3.4's plume was invisible at true scale** (10 cm of fall is ~60 px) while
+  being technically correct — added the plume envelope, which carries the
+  mechanism at any size.
+- A `\'` from a shell heredoc became a literal backslash in the JS and broke the
+  whole script block; same class as the recorded `→` hazard.
+
+### Verified
+- `check.py` PASS on all four lessons. L1: 5 tabs / 11 widgets / 26 sliders /
+  11 equations / 10 animated.
+- Behaviour QA over all five tabs: zero dead sliders, zero dead scenario chips,
+  zero blank canvases, zero page errors.
+- §2.1 unchanged by the refactor: sash 4→20 holds 0.53 m/s to 13 in then
+  0.492/0.345, qEx 234→760, split 0.487→0.233, density 0.552→0.825, glass
+  invariant 0 at every sash height.
+- Tab-3 models unchanged: wake 100% at 24 cm/5 cm (clear at 43); sweep Π 2.40 and
+  567 particles/job at 120 cm/s; shed 243/min into the medium on `over`.
+- §3.4's plume asserted by pixel count (441) and particle count (48) rather than
+  by eye. Responsive 1400→380 px with no horizontal overflow; MathJax 19.
+
+FTP-only — no Firebase deploy. `sw.js` CACHE_VERSION 664 → 665.
+
+## [V3.691] - 2026-08-29 — Cell Culture Lesson 1 §2.1: one picture, and a sim that answers its controls
+
+Alex: *"2.1 does not show the correct simulation for the various changes we ask
+the user to make. and the two plot simulations in this section should be
+combined into one."* Plan: `CodeLog/ClaudesPlan/V3.691_flow_sim_merge.md`.
+
+### Bug Fixes
+- **The house framework re-seeded every animated field on every slider tick.**
+  `wireAll()` calls `RESET[widget]()` on each `input` event; four widgets in this
+  lesson (`fall`, `flow`, `crowd`, `wake`) use `reset` to seed a continuous
+  tracer field, so dragging a slider restarted the animation from cold on every
+  tick and left a nearly empty field once the drag ended. **This is why the
+  controls looked dead.** Added `RESEED` + `keepField(arr)` to the framework
+  block: a reset is a no-op unless the field is genuinely new (boot, or
+  `setScen()`). Event-driven resets — `resetSweep`, which clears a crossing
+  counter that *should* restart — do not call it. Applies to any module built on
+  `modules/AUTHORING.md` §9.
+- **`resetFlow` now seeds in steady state** (x spread across the room *and* the
+  chamber, v part-way down), so the first frame is already correct instead of
+  taking ~6 s to fill. This is what makes *blower off* show particles landing on
+  the tray, which is the section's first student task.
+- **`EXHAUST HEPA` was drawn in the label box's own fill colour** — an invisible
+  label since V3.689.
+- **The §2.1 cross-section was stretched ~2.1× horizontally.** The chamber is now
+  drawn to true scale (0.55 m deep × 0.62 m tall) with a dimension line, and the
+  plenum/drain-pan/room remain schematic behind the shell lines.
+- **Every tracer converged on a single grille pixel**, piling into a knot that
+  read as turbulence. A grille is a band; landings spread across `fgW`/`rgW`.
+- **The wrong smoke test was cited.** The old face view captioned the front
+  streamlines with *"no smoke shall billow over the solid work surface or
+  penetrate onto it"*, which is the **work-opening-edge** test (smoke released
+  1.5 in in front of the cabinet) — a statement about room air, not about where
+  the downflow goes. The claim survives on the inflow table row, where it is
+  correct. The downflow's own criterion is "smooth downward flow with no dead
+  spots or upward flow."
+- Also fixed: the `starved` split label ran off the left edge of the chamber; the
+  scale bar sat on the supply-HEPA band; the inflow fan was seeded across the
+  whole canvas height and read as noise; streamlines barely bent, hiding the
+  sweep along the tray that §3.4 depends on; and on a phone the ledger's note
+  lines collided at the 7 px font floor.
+
+### Changed
+- **`cv-flow-face` removed; §2.1 is now ONE canvas** (`cv-flow`, 980×500) holding
+  the sash gauge on the front frame, the cross-section, and the volume ledger as
+  a right-hand column. Everything the close-up existed for — the gauge band, the
+  dimple, the LED colour, the front streamlines turning into the grille — is in
+  the main view at a legible size.
+- **The tracers are now driven by the model.** `NTRACE=300`; a tracer is lit when
+  `t.a < dens` where `dens=(qEx+qDown)/CAB.qRef`, its leg is re-decided each frame
+  from the live leg volumes (`legOf`), and its rate is that leg's entry velocity.
+  **Spacing carries volume, speed carries velocity** — which is exactly the
+  1300-Series lesson: raise the sash and the inflow gets *denser*, not faster,
+  while the `old` fixed-blower cabinet keeps the same count and slows down.
+  `warpU()` spends 58% of the cycle in the chamber so the ducts do not crowd.
+- **The split is computed, not placed.** New `splitRaw`/`splitFrac` with
+  `AGF=1.5, AGR=1.0`: both grilles open into the same plenum, so the descending
+  air divides where each reaches the same face velocity through its own open
+  area, `(qEx + f·qDown)/AGF = ((1-f)·qDown)/AGR`. That puts the split **37% of
+  the way in** at the certified point and makes it travel — 26% at a 12 in sash,
+  12% at 0.15 m/s downflow, 44% at 0.45 — with a dedicated verdict when it jams
+  against the front edge, which is why NSF sets a minimum *downflow* as well as a
+  minimum inflow. New stat row "Split, from the front edge".
+- **New verdict for a sash below the band.** Under 7.25 in the old copy talked
+  about *raising* the window. The band is lopsided on purpose (+0.25 / −0.75);
+  below it the inflow is still 0.53 m/s because the cabinet drops the volume,
+  nothing was certified there either, and forearms block a far larger fraction of
+  a smaller opening — the manual's sensors call it an *unsafe intermediate
+  position*.
+- §2.1 prose: a new paragraph deriving the split and saying which way it travels;
+  the insight box names the **stagnation line** where it lands on the tray; "the
+  rear grille takes roughly half the downflow" → **about two-thirds** (everything
+  behind the split). The student task drops the close-up step and gains two —
+  *watch the tracers, not the numbers* on the sash sweep, and a downflow sweep
+  that walks the split.
+- `flowGeom()` is expressed in design pixels × `K = H/500`, and `fnt(g,px,bold)`
+  scales type with it, so the picture is identical at every rendered size; a
+  `narrow` mode (H < 340) drops the ledger notes and shortens the sash badge.
+
+### Verified
+- `check.py` PASS (5 tabs / 11 widgets / 25 sliders / 11 equations / 9 animated).
+- Behaviour QA across all five tabs *after* the framework change: zero dead
+  sliders, zero dead scenario chips, zero blank canvases, zero page errors.
+- Glass invariant: zero particles rendered above the sash line on the cabinet
+  side, at every sash height 4→20 in, at eight viewport widths.
+- Chart-clear ink ratio 1.000 (`hepa`, `check`); responsive 1400→380 px with no
+  horizontal overflow; MathJax 19 containers for 11 equation boxes.
+
+FTP-only — no Firebase deploy. `sw.js` CACHE_VERSION 663 → 664.
+
+## [V3.690] - 2026-08-29 — Equipment Foundations: a new track, one instrument at a time (batch A of 3)
+
+Alex: *"Make a learning module for each piece of equipment in this folder
+`Data/equipment/` … we need to talk about 1) what the equipment does and how it
+fundamentally operates 2) how to use the equipment 3) equipment precautions
+4) equipment maintenance 5) equipment recap and overview."* Plan:
+`CodeLog/ClaudesPlan/V3.690_equipment_foundations.md`.
+
+`Data/equipment/` holds seven vendor manuals and nothing in the repo taught those
+instruments. Cell Culture Foundations (V3.686) teaches *technique* and uses the
+cabinet, incubator and pipette as the setting for sterile practice; this track
+teaches the *machines*. Built to the same BME466 spec — every tab opens from a
+fundamental lens as a sim and then moves into synthesis — on the
+`modules/AUTHORING.md` §9 house implementation.
+
+Alex's five sections map one-for-one onto the five tabs. One documented deviation
+from `LEARNING-MODULE-SPEC.md` §2: the **capstone moves to tab 5** and carries
+`cap-tab`, because *recap* is last in the brief; `next-tab` is unused and the
+bridge to the next instrument is a `.handoff`.
+
+Batch A is three of seven lessons. Batches B (pH meter, homogenizer) and C
+(biosafety cabinet, CO₂ incubator) follow.
+
+### Added
+- **`modules/equipment/` (NEW folder, 4 files)** — `overview.html` plus
+  `01-the-balance.html`, `02-the-pipette.html`,
+  `03-labware-and-consumables.html`. 15 tabs, **27 simulations, 32 numbered
+  equations**, each lesson self-contained with MathJax CDN as the only external
+  request. Equation numbering is `lesson.tab.order`; Lesson 1's `eq. 1.1.4`
+  (sample standard deviation) and `eq. 1.3.4` (minimum weight) are reused in
+  Lesson 2 and keep their original numbers, re-displayed with a reuse tag.
+  - **L1 The Balance** (Mettler Toledo XSR Precision, 10 sims) — force
+    restoration and why the reading is a coil current; local gravity and what an
+    internal adjustment actually measures; readability against repeatability;
+    tilt and eccentricity; electrostatics, air buoyancy and minimum weight;
+    sensitivity drift and which of the three routine tests catches which fault.
+    Capstone: the lab's own agarose weigh-out with a live error budget.
+  - **L2 The Pipette** (Fisherbrand Elite, 8 sims) — the air cushion and why
+    pre-wetting works; the two stops and the two techniques; the ISO 8655 table
+    drawn, showing tolerance is constant in microlitres per model; leaks, thermal
+    error, gravimetric calibration. Capstone: how many steps for a 1000-fold
+    dilution.
+  - **L3 Labware & Consumables** (Corning doc 60931, 9 sims) — surface energy and
+    why cells attach; six materials against four conflicting properties; RCF
+    against rpm; medium depth and oxygen; the edge effect; adsorption to the tube
+    wall; sterilisation against depyrogenation; cryopreservation rates. Capstone:
+    specify the consumables for three real jobs.
+- **Every simulation reproduces its manual's published numbers where the manual
+  gives one.** `m_min = 2s/RE` reproduces the XSR303S's published 1 g and 100 mg
+  minimum weights exactly; the eccentricity model hits the published 3 mg at the
+  standard test position; the derived `z ≈ 90 °C` in eq. 3.4.2 reproduces both of
+  Corning's published depyrogenation cycles at 100% and puts a standard autoclave
+  at 1.84% of one.
+
+### Changed
+- **`modules/manifest.json`** — regenerated by `scripts/scan_modules.py`; the new
+  folder's label hand-curated from `Equipment` to **Equipment Foundations**.
+  Diffed against the prior file: no other label was clobbered.
+- **`modules/foundations/overview.html`** — new `.track.is-available` section for
+  Equipment Foundations with the four shipped files and a `track-soon-note` for
+  the four still in development.
+- **`sw.js`** — `CACHE_VERSION` 662 → 663.
+
+### Bug Fixes
+Found during the build's own QA, all in this release's new code:
+- **`bestPipette()` picked the wrong pipette on computed volumes.**
+  `1000^(-1/3)` returns `0.10000000000000002`, so a nominal 100 µL transfer
+  evaluated to `100.00000000000003` and fell outside the 10–100 µL model's stated
+  range, silently recommending a worse instrument and inverting the lesson. Range
+  containment now carries an epsilon.
+- **A standard 121 °C / 15 min autoclave cycle was reported as "not even
+  sterile".** `D₁₂₁` had been set to 1.5 min rather than the F₀ overkill
+  convention's 1 min, giving 10 log against a 12 log bar. Caught only by reading
+  the screenshot.
+- **Moist-heat F₀ was being extrapolated to dry-heat temperatures**, claiming
+  2.4 × 10¹⁴ min of lethality at 250 °C — implying dry heat is ~10¹³× more lethal
+  than an autoclave, when it is in fact less lethal per unit time. Above 140 °C
+  the model now switches to dry-heat kinetics and stops quoting an F₀.
+- **The gamma-irradiation scenario could not be entered.** It is a mode rather
+  than a preset, so moving a slider has to exit it — but `setScen` calls `SCENFN`
+  then `RESET` back to back, so the exit fired during the chip's own click. Fixed
+  with a one-shot flag set in `scenfn` and consumed by `reset`.
+- **Three physical models were quantitatively wrong and were retuned against
+  bench reality:** a linear τ(µ) gave glycerol an 89% pipetting error and water
+  8%; the plate-evaporation coefficient was 40× too small, so the edge-effect
+  widget read 0% at its own default settings; and the capstone's static-charge
+  term used a deliberately-charged 5 nC, claiming a 56% error on a routine
+  weigh-out.
+- **A `1.82 × 10⁻²⁴ mg` residue readout** in the electrostatics widget now reads
+  "gone"; **eight clipped stat labels** shortened; **a display axis printing
+  kilograms as grams** (`0.10 g` for a 100 g load) corrected; **two chart legends**
+  moved off the curves they were drawn through.
+- **Mettler Toledo's limit and typical value columns were transposed** throughout
+  the first draft of Lesson 1. The two differ by about 2×, and the tell was that
+  the minimum-weight arithmetic only reproduced the published numbers with the
+  typical repeatability.
+
+### Notes
+- **No Firebase deploy.** No rules, indexes, functions or storage rules change.
+  FTP only.
+- Lesson 3's `<title>` reads "Labware **and** Consumables" rather than using
+  `&amp;`: manifest titles are rendered with `textContent`
+  (`class-builder.js:4127`), so an entity displays literally — the bug currently
+  visible in `bme466`'s Week 2 title.
+- Four items are flagged in-page as **McGhee Lab practice** or as needing Alex's
+  confirmation: whether the XSR Precision is the protocol's "analytical balance",
+  which Elite pipettes the lab owns, the lab's pipette servicing schedule, and
+  the outer-ring rule's three-day threshold.
+
+## [V3.689] - 2026-08-29 — Cell Culture Lesson 1: the airflow, checked against the actual manual
+
+Plan: `CodeLog/ClaudesPlan/V3.689_bsc_airflow_accuracy.md`. Alex read the BSC
+lesson against the operating manual for the cabinet in our room (Thermo 1300
+Series A2, 7021355-EN Rev 20). Three of the four items were accuracy problems in
+the physics rather than presentation. FTP-only; no Firebase deploy.
+
+### Bug Fixes
+
+- **The lesson taught the wrong sash model for our cabinet.** It assumed a fixed
+  blower, so raising the sash divided the inflow velocity — including a worked
+  example computing "0.35 m/s, 69% of the minimum". The manual's own
+  specification table says otherwise: a 4 ft 1300 Series moves **468 m³/h at the
+  8 in work position and 585 m³/h at 10 in**, and quotes **0.53 m/s at both**.
+  Inflow volume must equal exhaust volume (two openings to the room), so solving
+  eq. 1.2.2 for the width at 8 in gives w = 1.207 m, and that width *predicts*
+  0.530 m/s at 10 in. 585/468 = 1.2500 against 10/8 = 1.2500; the 6 ft models
+  give 878/702 = 1.2507. **The exhaust volume tracks the opening, so the velocity
+  is held by design.** `vIn()` now compensates until the blower reserve runs out
+  near 13 in; a new scenario chip *an older, fixed-blower cabinet* keeps the old
+  behaviour, because it is right for many cabinets and students should know which
+  kind they are at.
+- **The downflow was drawn descending uniformly to the work surface.** It has to
+  leave through one of two grilles, so there is a dividing streamline. The split
+  is now drawn and named, and the close-up shows the front streamlines bending
+  **forward into the front grille** — the manual's own smoke acceptance criterion
+  is *"no smoke shall billow over the solid work surface or penetrate onto it."*
+- **§3.3's parallel-motion verdict read as though it were a complete account.**
+  It counts room air through the curtain only. Downgraded from `good` to `warn`,
+  rewritten to say so, and §3.3's prose gained a scoping paragraph pointing at the
+  new §3.4.
+- **`s-flow-down` became a dead control** when the stats block was rewritten. It
+  now drives the downflow volume through a filter-face area calibrated to the
+  manual's own pair (829 m³/h at 0.32 m/s).
+
+### Added
+
+- **§2.1 now has two canvases.** `cv-flow` draws **the whole circuit**, including
+  the half the lesson previously ignored: both grilles feed the **drain-pan air
+  duct under the work tray**, which runs rearward and turns up the **duct between
+  the inner and outer back wall** (with the **paper catch grids** at its foot) to
+  the top plenum, where two blowers and two HEPA filters split it back into supply
+  and exhaust. Tracers walk real polylines round the loop. A ledger column carries
+  the manual's volumes and the in = out identity; **64%** of what the grilles
+  swallow is recirculated at the 8 in position (the usual "70%" is a rule of
+  thumb). `cv-flow-face` zooms to ~20 cm of depth and draws the **sash gauge as a
+  real scale** with the mark and the asymmetric **+0.25 / −0.75 in** tolerance band.
+- **New §2.1 prose, "The half of the journey you cannot see"** — the path, the
+  volume table, and three consequences: the rear grille is not decoration (block
+  it and that air turns forward across your work), the air under the tray is
+  moving backwards (which is why the drain pan is on the cleaning list), and the
+  cabinet breathes its own air (829 of the 1,297 comes straight back).
+- **Rewritten sash section** around the mark rather than the arithmetic, with a
+  new worked example that **proves the compensation from the data label**, and the
+  real answer to why the alarm is so strict: what you lose off the mark is not
+  velocity, it is **certification** — every NSF/ANSI 49 test was performed at the
+  marked opening, and the certification procedure requires the alarm to sound when
+  the window is raised **one inch**. Two new check-yourself questions.
+- **New §3.4, "The route that moving parallel does not fix"**, with a `shed`
+  widget. Gloves and cuffs shed continuously and the 0.32 m/s downflow carries it
+  straight down, so the question is not which way your hand travelled but what it
+  was over. Plume spread grows with fall height and hand speed; the fraction into
+  a dish is a numerical integration of a 2D Gaussian. The two mirror scenarios at
+  the same hand speed: *parallel, fast, over the dish* → §3.3 route **0**,
+  shedding route **344 particles/min into the medium**; *in and out fast, beside
+  it* → §3.3 route **567 per job**, shedding route 59/min. Supported by the
+  manual's *"do not cause air turbulence by quick hand, arm or body movements
+  **in the sample chamber** or in front of the work opening"* — two places, not
+  one. Also: raising your hand lowers the fraction into one vessel and that is not
+  good news, because dispersion is not removal.
+
+## [V3.688] - 2026-08-29 — Cell Culture Lesson 2: our incubator, the competing lesson, and a tab on keeping it clean
+
+Plan: `CodeLog/ClaudesPlan/V3.688_incubator_lesson_upgrade.md`. Alex read the
+V3.686 incubator lesson against the box the lab actually owns. FTP-only; no
+Firebase deploy of any kind. **Six tabs now** — see *Changed*.
+
+### Added
+
+- **§1.1 models the inner glass door, and the lab's own incubator is the default
+  preset.** New scenario chip *our Heracell VIOS 160i* alongside the three
+  generic designs, and a second slider `s-therm-glass`. An inner glass door does
+  not stop heat leaving, it stops the *air* leaving, so an opening has two phases
+  with two time constants; eq. 1.5.1 runs through both in series and the
+  exponents add — **new eq. 2.1.2**, ΔT = ΔT_max(1 − e^−(t₁/τ_outer + t₂/τ_glass))
+  with τ_outer ≈ 9 τ_glass. Measured: 40 s outer / 6 s glass → −6.0 °C; the same
+  40 s with the glass open throughout → −13.2 °C; two minutes of hunting with the
+  glass shut → −9.4 °C. New worked example derives the factor of nine; the chart
+  shades the two phases separately and ghosts the glass-left-open curve.
+- **§1.2 carries a second map: how often a sleeve crosses each position.** Fill
+  is temperature, border is traffic. New slider `s-stack-reach` (reaches to the
+  back per day) and checkbox `c-stack-racks` (each project has its own pull-out
+  rack). Every trip to a back position takes an arm over whatever is in front of
+  it, so the thermally-best position charges its cost to whoever has the worst
+  one — and racks are the only intervention that takes the number to *zero*
+  rather than making it smaller.
+- **New §2.3 "The fix that is not a fix"** with a `gas` widget. Medium is also
+  the thing oxygen has to diffuse through, and nothing stirs a flask.
+  **New eq. 2.2.5** (C_cells = C_surface − qh/D, rearranging to
+  h_crit = D·C_surface/q) and **eq. 2.2.6** (t_eq ≈ h²/2D). 5 mL in a T-25 is
+  2.0 mm and leaves the monolayer at 76% of surface oxygen; 10 mL doubles the pH
+  headroom, drops oxygen to 52% and quadruples the CO₂ lag; 25 mL puts a hypoxic
+  layer at the bottom of the flask while the phenol red stays pink. Worked
+  example: every recommended volume in every catalogue is ≈ 2 mm of depth — a
+  diffusion length with a safety factor, not a packaging convention.
+- **New tab 4, "Keeping It Clean"**, with two widgets and no new equations.
+  - `inlet` (§4.1) — an incubator door has no filter. Two mechanisms: the
+    **swing** is a piston (eq. 1.3.2 from Lesson 1, with the incubator's exchange
+    velocity in the denominator instead of the cabinet's curtain) and the
+    **dwell** is buoyancy (eq. 1.5.1, and it saturates). Smooth open, 8 s → 33%
+    of the chamber replaced; propped 75 s → 98%; flinging it as well adds almost
+    nothing, because the dwell had already replaced everything.
+  - `steri` (§4.2) — a year a day at a time over three rungs: water change +
+    wipe, full clean, and Steri-Run. Nobody's job → 95% average bioburden;
+    Steri-Run only → 83% despite two sterilizations; our schedule → 15%; belt and
+    braces → 10%. **Steri-Run is a reset, not a schedule** — it reaches the
+    sensor, plenum and ducting nothing else does, and is useless as the only
+    control.
+
+### Changed
+
+- **Six tabs.** `LEARNING-MODULE-SPEC.md` §2 gives five, but its hard rules are
+  about roles and order — capstone last content tab, teaser last tab — and both
+  hold; tab 4 is a second synthesis tab. Tab bar, section `data-nav` numbers and
+  section comments renumbered (capstone 4.1 → 5.1, teaser 5.1 → 6.1).
+- **Equation numbers deliberately did NOT renumber.** `eq. 2.5.1` is referenced
+  from Lesson 3 in five places and the spec says reuse keeps a number forever, so
+  numbers carry the tab an equation was *first written in*: the capstone keeps
+  2.4.x and the teaser keeps 2.5.1. Tab 4 adds no new equations, so nothing
+  collides. A note in the equation index explains it.
+- §1.2's rules rewritten: **nobody reaches over anybody** now precedes
+  "mission-critical goes at the back", which is true only once the reach is gone.
+- Tab 3's handoff repointed at the new tab; `overview.html` blurb and arc line
+  updated for the new tab and section.
+- Tab 2's `key-takeaways` moved to the end of the tab (spec: last block of the
+  tab only) and gained the trade-off bullet.
+
+### Bug Fixes
+
+- **The inlet model let a 75 s opening put 202 L of room air into a 165 L
+  chamber.** The swing and the dwell were being added; they compose
+  multiplicatively on what is left, the same way the two doors do in eq. 2.1.2.
+- **A water change was charged as downtime**, contradicting the rung table on the
+  same page. Split into "time it costs you" and "of which out of service".
+- **§2.3's `dbl` scenario — the exact trap the section exists to name — reached
+  the reassuring verdict.** Depth threshold lowered from 4.5 mm to 3 mm, and the
+  sparse-density branch moved ahead of the depth branch so a sparse-but-deep
+  flask is not warned about nothing.
+- **§1.1's time axis printed "1 1 2 2 3 3"** — 0-dp tick labels on a range of a
+  few minutes. Pre-existing; exposed because the two-door model shortens the axis.
+- Nine label/layering fixes found by reading screenshots: the sleeve caption over
+  the cell labels in §1.2, the Steri-Run marker under the axis label, the inlet
+  captions under the swinging door, clipped flask captions in §2.3, and a seam in
+  the §2.3 oxygen ramp where two colour formulas met.
+
+## [V3.687] - 2026-08-29 — Cell Culture Lesson 1: honest views, real animation, a cabinet you lay out yourself
+
+Plan: `CodeLog/ClaudesPlan/V3.687_lesson1_sim_rebuild.md`. Alex drove the V3.686
+lesson as a student would and found several sims unreadable or wrong *as
+pictures* — the one thing an automated harness cannot check. FTP-only; no
+Firebase deploy of any kind.
+
+### Bug Fixes
+
+- **`class Chart` never cleared its canvas — 9 chart widgets across all four
+  lessons painted every redraw on top of the last.** `setupCanvas()` clears only
+  on first allocation and `getCv()` caches the result, so sweeping a slider
+  stacked curves into a mesh. Affected `hepa`, `door` (L1), `therm`, `buff`,
+  `week` (L2), `entry` (L3), `blast`, `decay`, `opt` (L4); `ring` and `coin`
+  happened to clear by hand. Fixed with one `fillRect(0,0,w,h)` in the `Chart`
+  constructor in all four lessons. Regression-tested by ink count: all nine
+  return ratio **1.00** after six slider moves and back.
+- **§2.1 `flow` drew room particles entering through the glass.** Entry height
+  was a fixed normalized `p.y` unrelated to the sash geometry, so roughly half
+  the particles were seeded above `sashY`. Particles now carry `p.s`, a
+  fractional height *within the opening*, mapped between `sashY` and the work
+  surface at draw time, and are steered down into that band while still in the
+  room. Asserted: **zero** particles past the glass plane above the sash, at
+  every sash height 4–20 in.
+- **§2.1 the sash was inverted** — a *higher* setting drew a *smaller* opening.
+  `sashY` is now measured up from the work surface, so opening height rises
+  monotonically (66 → 330 px over 4 → 20 in) while inflow falls per eq. 1.2.2.
+- **§3.3 `sweep` contradicted itself.** It was a side view, in which "parallel to
+  the sash" *is* the through-the-curtain direction; the two scenarios were the
+  same animation separated by a bare `×0.08` multiplier. Rebuilt as a top view
+  (primary) plus a side view, with particles released by **counted crossings**
+  of the sash line. Same Π = 2.20 now gives 12 crossings → 3,240 particles for a
+  reach in and out, and **0 → 0** for parallel work.
+- **§4.1 dead controls:** `s-layout-v` and `s-layout-ops` changed no readout;
+  both now report into `st-layout` (Π, sleeve shedding, operator count).
+- **`redraw(key)` added to the framework.** `statTick` throttles animated widgets
+  to ~6 Hz, which is right for frames and wrong for clicks — two interactions
+  inside one window left the second one's verdict stale. Interaction-driven
+  redraws now reset the limiter first.
+
+### Added
+
+- **§4.1 is now a drag-and-drop layout builder with a simulated run**
+  (`modules/cell_culture/01-the-cabinet.html`). A 12-item `CATALOG` over a
+  120 × 55 cm surface, `.pal-btn` palette, tap-to-place / drag-to-move /
+  drag-off-to-remove, reusing the pointer pattern from
+  `modules/tfm/02-hydrogel-network-formation.html`. `taskLegs()` builds a
+  16-step media change from *what is actually placed*; `stepLayout()` walks a
+  hand and a wider **sleeve** along it via `runSample()`, accumulating a
+  persistent debris grid (`DGX × DGY`, 2 cm cells) and counting reach-overs,
+  grille contacts and curtain crossings. A 1-or-2-operator control adds a second
+  lane (`OPB0`–`OPB1`) with its own arm. Presets kept as loadable starting
+  points; the verdict names the step that forced each bad reach.
+- **§4.2 "The whole thing, from an empty cabinet"** — a new three-stage graded
+  concept check (`check` widget): drag the sash to a height both in
+  specification and workable, lay the surface out, then **drag the hand** through
+  the task list while `chkMedianV()` measures real pointer speed against the
+  0.50 m/s curtain. Six criteria in `chkGrade()`, each a number measured earlier
+  in the lesson. Verified by real pointer drags: PASS at 47 cm/s, REVISE on speed
+  at 118 cm/s, REVISE on sash at 16 in.
+- **§3.1 and §3.2 gained a second labelled, animated view each** —
+  `cv-crowd`/`cv-crowd-side` (front + side) and `cv-wake`/`cv-wake-top`
+  (side + top), in the previously unused `.chart-row` grid so they stack
+  full-width below 700 px. Tracers are directional **streaks**, so a still
+  screenshot shows which way the air is going.
+
+### Changed
+
+- The old §4.2 (the McGarrity mycoplasma account) is now **§4.3**, unchanged.
+- §3.2's `.rules` now state the distance the sim actually computes (a bottle of
+  height *h* disturbs ≈ 3 + 1.5*h* cm around its base) instead of the "tall
+  things at the back" proxy; §4.1's gain **open vessels sit deepest** and
+  **nothing behind an open vessel**.
+- `CATALOG` footprints corrected (flask rack 26 × 9 cm, pipette sleeve 26 × 8 cm)
+  and all four presets re-derived against a Python port of the finished model:
+  Textbook 100/100 with zero reach-overs, Friday afternoon 34, two cell lines 48,
+  cabinet-as-a-shelf 23 — each failing for its intended reason.
+- Canvas sizes: `cv-layout` and `cv-check` are 640 × 392, which makes the top
+  view very nearly isotropic (5.17 px/cm across, 5.24 down).
+- New CSS block in the lesson: `.palette`, `.pal-btn` (+ `.k-open/.k-stock/
+  .k-dirty/.k-clutter` swatches), `.run-bar`, `.run-btn`, `.stg-btn`.
+
+### Model corrections in §4 (each one contradicted the lesson it teaches)
+
+- The reach-over test treated a 24 × 14 cm rack as a 12 cm-radius **disc**; it
+  now samples the sleeve band against the real rectangle.
+- **Transiting** the front edge counted as **resting** on it. A forearm always
+  spans the front edge while the hand is inside; the error is routing the *hand*
+  along the front lip between two things that are both inside.
+- **The sleeve trailed backwards along the path** rather than towards the
+  operator. An arm runs from the hand back out through the opening, so the rule
+  is really *never put an open vessel between yourself and something you fetch*.
+- **The shoulder was fixed in place**, which punished every traverse and made no
+  arrangement passable; `shoulderX()` now tracks the hand.
+- **The task list let the hand teleport.** As independent (from, to) pairs the
+  automatic run scored a layout clean that the same layout failed under a real
+  drag; `taskLegs()` is now a waypoint list, so leg N+1 starts where leg N ended.
+
+## [V3.686] - 2026-08-28 — Cell Culture Foundations: a 4-lesson track and a bench sign-off
+
+Alex: *"create a learning module for how to do proper cell culture for everything
+from BSC, Incubators, Pipetting, How to open tips, how to alliquot and why, how to
+move around in the BSC"* — with two questions named directly: how a biosafety
+cabinet works and what overcrowding does to it, and how an incubator works
+including the water bath and cells left in too long. Plan:
+`CodeLog/ClaudesPlan/V3.686_cell_culture_foundations.md`.
+
+Built to the BME466 learning-module spec (5-tab arc, *every tab opens from a
+fundamental lens as a sim, then moves into synthesis*) on the `modules/`
+house implementation from `modules/AUTHORING.md` §9 — the two already compose,
+because §9 defers the arc to that spec by name.
+
+### Added
+- **`modules/cell_culture/` (NEW folder, 5 files)** — a Lab Foundations track:
+  `overview.html` plus `01-the-cabinet.html`, `02-the-incubator.html`,
+  `03-the-hands.html`, `04-aliquoting-and-stewardship.html`. 20 tabs, **32
+  simulations, 35 numbered equations**, every one self-contained (MathJax CDN is
+  the only external request). Equation numbering is `module.tab.order` and reuse
+  keeps the original number, so `eq. 1.1.1` (Stokes settling) comes back in
+  Lesson 3 for the reach-over and `eq. 2.5.1` is previewed in Lesson 2 and earned
+  in Lesson 3.
+  - **L1 The Cabinet** — settling (the reader *finds* that 13 µm settles at
+    1 ft/min, which is Corning's quoted figure derived rather than quoted),
+    the two air streams and why inflow ∝ 1/sash height, HEPA's most-penetrating
+    size (0.18 µm at the rated face velocity — the spec is written at the filter's
+    *hardest* case), grille occlusion, wakes, hand speed vs the 0.5 m/s curtain,
+    a scored layout builder, and the McGarrity mycoplasma-spread account.
+  - **L2 The Incubator** — thermal mass as the τ = mc/hA trade-off, a live
+    phenol-red swatch driven by Henderson–Hasselbalch, buffer capacity falling as
+    the buffer is spent (the answer to "it looked fine yesterday"), evaporation →
+    osmolality and what the water pan is really for, the tray as a contamination
+    system, vibration rings, and a scrubbable Friday-to-Monday timeline.
+  - **L3 The Hands** — the two plunger stops, the six-term error budget, the
+    Landau–Levich film and reverse pipetting, droplet fate after a blow-out,
+    Jurin's law and the liquid bridge, a measured reach-over, and the
+    step-by-step of opening tip boxes, pipette wrappers and caps.
+  - **L4 Aliquoting** — a Monte Carlo of 200 bottles that the closed form
+    1−(1−p)^N is then drawn over, blast radius, the master-transfer floor,
+    decay and freeze–thaw, and the aliquot-count optimum.
+- **`rm/pages/training-cell-culture.html` + `rm/js/training-cell-culture.js` (NEW)**
+  — the lab-internal competency gate, 6 tabs: the four topics at gate depth, a
+  **ten-case diagnostic gallery** (four of which are deliberately *not*
+  contamination — over-confluence, CO₂ failure, vibration, the plate edge effect),
+  and a **scored bench sign-off** whose printable sheet only passes when all five
+  critical decisions are right, all six branch points are correct and ≥8 case
+  files are right. Name/date/cell-line are inline `<input>`s; the page never calls
+  `prompt`/`alert`/`confirm`.
+- **New "Wet lab" category in `rm/js/training.js`**, with the `cell-culture` card
+  marked `required: true`.
+
+### Changed
+- **`modules/foundations/overview.html`** — the "Cell Culture & Sample Prep —
+  Coming soon" placeholder (there since V3.287) is now an Available track listing
+  all five files. The existing class-aware link script picks them up unchanged.
+- **`modules/manifest.json`** — regenerated via `scripts/scan_modules.py`; new
+  `cell_culture` folder curated to label "Cell Culture Foundations". The scan also
+  re-derived `bme466`'s label from a curated value, which was restored by hand.
+- **`rm/js/page-collections.js`** — `'training-cell-culture': ['labConfig']`.
+  Without it the page silently has no data access under a collaborator grant.
+- **`rm/js/training.js`** — the `required` pill's tooltip was confocal-specific
+  ("prerequisite for confocal access") and is now generic, since a second module
+  uses it.
+- **`rm/css/training.css`** — appended block for the habit checkboxes, the
+  sign-off critique panel, `<select>` styling inside `.ctrl-group` (the house CSS
+  covered range inputs only) and a `@media print` rule so the sheet prints clean.
+- **`sw.js`** — `CACHE_VERSION` 658 → 659.
+
+### Bug Fixes
+- **`statTick` was silently freezing static widgets** (found by the QA harness,
+  invisible to a console check). Rate-limiting readouts to ~6 Hz is safe for an
+  animated widget because the next frame repaints, but a static widget draws once
+  per input — so an input landing inside the window left its readouts stale
+  permanently. `statTick` now returns true immediately for any widget with no
+  `registerAnim` entry. Applies to the whole `modules/cell_culture/` framework
+  layer; the BME466 modules are unaffected because every widget there is animated.
+- **The overcrowding model contradicted the lesson it was teaching** — the first
+  version put the slot Reynolds number at 1757 for a *correctly certified*
+  cabinet, so a clear grille scored "transitional". Re now uses the hydraulic
+  diameter of one grille slot (≈ 840 = laminar, as it must be), and the verdict
+  keys on the dominant real failure: a covered span of the face has **no inward
+  velocity at all**, so room air crosses there unopposed. The prose claim moved
+  with the model, from "a quarter of the grille is enough" to "about a third".
+- **Two dead controls removed/repaired** — a "right pipettor" checkbox whose two
+  branches were identical (the range slider is that decision; the checkbox is
+  gone), and a "stacked" toggle that redrew a canvas without changing any readout.
+
+### Notes
+- **No Firebase deploy** — no rules, indexes or functions. FTP-only, so it
+  batches normally.
+- **Three sections are lab SOP, not published guidance** (opening tip boxes /
+  wrappers / caps, the BSC spatial workflow, and the aliquoting choreography),
+  because no vendor document specifies them. They are marked *McGhee Lab practice*
+  in a visually distinct callout, and **Alex should confirm the specifics against
+  the lab's own cabinet before the sign-off is used for real** — clean-to-dirty
+  direction is a handedness decision.
+- **The V3.684 module whiteboard panel is not adopted here.** It mounts into
+  `.rail-head`, and this track has no rail (presenter mode was declined); it is
+  opt-in, so nothing breaks.
+
+## [V3.685] - 2026-08-28 — Student whiteboards, homework export, note sharing (program complete)
+
+Releases 2 and 3 of the module-whiteboard program, shipped together. Every
+student now gets their own board in a module; homework boards can never be
+shared; lecture notes can be shared with named classmates. Plan:
+`CodeLog/ClaudesPlan/V3.684_module_whiteboard_panel.md`.
+
+### Added
+- **Per-student boards.** `whiteboard.js`'s `mountBoardView` takes a
+  `collection` — `whiteboards` (the instructor's live class board),
+  `notesBoards` (a student's own notes for a learning module) or `hwBoards`
+  (their homework working-out). Board ids are `{key}_{uid}`, so ownership is
+  proven from the id itself: no document read, and it works **before the board
+  exists**, which matters because a student's first visit reads a board nobody
+  has created yet. `computeCanDraw()` replaces the class-admin-only gate — on a
+  personal board the gate is simply "is this yours", checked exactly the way the
+  rules check it. Boards are created lazily on first use.
+- **Homework boards are structurally unshareable.** `hwBoards` rules contain no
+  sharing clause anywhere, so "a student can never share homework with a
+  classmate" is a property of the rules file rather than a flag a client could
+  flip. The test suite proves it the hard way: a classmate **named in
+  `sharedWithUids`** on a homework board still cannot read the board, its
+  strokes, or its items. (Same structural-privacy reasoning as
+  `engageProfiles/{uid}/private`.)
+- **Note sharing** — `notesBoards` are owner-write, and readable by the owner,
+  by staff, and by anyone on `sharedWithUids` (read-only: a shared classmate
+  cannot draw on your notes). The owner path costs no document read at any
+  level, including subcollections, because it is the same id split; only a
+  shared reader pays a `get()` of the parent board.
+- **Opt-in classmate directory** — the class roster is instructor-only (FERPA)
+  and students cannot query `users`, so there was no way to name a classmate. A
+  student ticks "let classmates find me", and a new **Publish class directory**
+  action on the BME466 dashboard materialises the opt-ins into one names-only
+  doc that signed-in students may read. Nobody who has not opted in ever
+  appears, and the roster is never exposed.
+- **Homework export** — `exportBoardPNGs()` flattens each page off-screen (same
+  background painter and stroke renderer as the live board, so the export is
+  what the student drew) and the homework modules fold it into the results file
+  they already download. Deliberately **not** a second download: the single
+  blob → `a.download` → `a.click()` path is the only one that survives the
+  viewer's iframe sandbox (V3.682's `allow-downloads`). Schemas bumped
+  (`bme466-hw0-v2`, `bme466-hw1-v3`); both importers accept old and new. Omitted
+  entirely when nothing was drawn, and the checksum salt is untouched so
+  existing files still validate.
+- **`scripts/tests/whiteboard-rules.test.mjs`** — 39 emulator checks over all
+  three board families plus the directory, wired into `run-all.sh`.
+
+### Fixed
+- **A delegated class admin could be locked out of their own board.** The
+  whiteboards rules led with `isAdmin()`, which dereferences `users/{uid}`
+  **unguarded** and therefore *raises* for a signed-in user with no users doc —
+  and a raising rule denies the whole expression, so the `classAdminEmails`
+  branch never got a chance. bme466's `ownerUid: null` raised on the next branch
+  for the same reason (`.get(f, default)` returns a stored null rather than the
+  default). Alex never hit it because he is a global admin with a users doc and
+  short-circuited on the first branch. Now: cheap non-raising checks first, the
+  admin lookup last and guarded by `exists()`, and the ownerUid comparison
+  guarded by `is string`. Three regression checks cover it.
+- **The homework modules' floating panels no longer scroll away inside the class
+  module viewer.** `hw-00`/`hw-01` now declare `<meta name="ml-module-viewport">`,
+  which was the pre-existing bug flagged in V3.684: without it the iframe is as
+  tall as the whole document, so `position:fixed` pins to that instead of the
+  screen. This fixes the **calculator** panel too, which has been broken in the
+  viewer since it shipped.
+
+### Changed
+- Both homework modules gain the whiteboard panel (`ml-module-board=homework`),
+  the storage SDK, and an async `exportResults()`.
+- `sw.js` CACHE_VERSION 658. **Rules deployed 2026-08-28.**
+
+### Verification
+39/39 whiteboard rules checks; the existing 136-check hw-progress suite stays at
+136/136, so the rules edits regressed nothing. Browser: both module types open,
+tab correctly to "My notes" / "My work", show the right signed-out message, and
+keep the lesson intact (32 and 19 canvases) with 0 console errors;
+`ML_WHITEBOARD_EXPORT` returns null cleanly with no board rather than throwing;
+`ownerBoardId` strips underscores, which the rules' `split('_')[1]` depends on.
+Page route: all ids resolve, zero zoom controls (projector parity), Go-live
+present only on the class board.
+
+## [V3.684] - 2026-08-28 — Whiteboard popout in learning modules (teaching-workflow release)
+
+Release 1 of the module-whiteboard program (plan:
+`CodeLog/ClaudesPlan/V3.684_module_whiteboard_panel.md`). Alex teaches from two
+devices at once — a laptop driving the learning module onto the projector, an
+iPad he writes on — and showing the board meant navigating the laptop away from
+the lesson. The board now opens *inside* the module page.
+
+### Added
+- **`whiteboard-core` mount API in `whiteboard.js`** — `Whiteboard.mountBoardView(rootEl, opts)`
+  and `Whiteboard.boardShellHTML(opts)`. The board was a document-level singleton
+  (one module-level `S`, 20 hardcoded `getElementById('wb-*')` lookups across 11
+  ids), so it could exist exactly once, in one fixed DOM shape. Element resolution
+  now goes through `S.els` / `el(key)` scoped to a root element, and
+  `wireWhiteboardPage` is a thin adapter that owns the two things a mounted board
+  must never do for itself: restyling `document.body` and tearing down on
+  hashchange. One shell builder serves both mounts so they cannot drift.
+- **`modules/shared/whiteboard-panel.js` + `.css` (NEW)** — an opt-in floating
+  whiteboard beside the lesson: drag by the header, CSS-resize from the corner,
+  collapse to the title bar, close; geometry persisted per module in
+  localStorage; bottom sheet under 700px. Second shared module component after
+  `module-header`. Mounts in `.rail-head` for learning modules and `.tool-dock`
+  for homework modules, so R2 can adopt it unchanged.
+- **Viewer-local zoom lens** — pinch + two-finger pan + manual `− ⌂ +`. Applied
+  only at paint time (`applyViewTransform`), so strokes stay in the fixed 16:10
+  board space and **the lens is never synced**: the projector keeps the whole
+  board while Alex zooms in to write. Mounts with `view.enabled:false` (the page
+  route and `?projector=1`) never call `setTransform` at all — guarded, not
+  relying on identity math. `ERASE_TOL` and `MIN_SEG` are now divided by the
+  scale so the eraser stays a constant *screen* size and zooming captures finer
+  detail; both no-op at scale 1.
+- **Image items** — `schedules/{classId}/whiteboards/{boardId}/items/{itemId}`,
+  a sibling of `strokes` (images mutate on every drag commit; strokes are the one
+  feed that must stay low-latency). Rendered as absolutely-positioned DOM under
+  the ink canvas, so annotation always composites on top. New `match /items`
+  rules block restating the class-admin gate — **rules do not cascade into
+  subcollections**. `firebase deploy --only firestore:rules` DONE 2026-08-28.
+- **`→ Whiteboard` on every simulation canvas** — `canvas.toDataURL` → webp
+  medium/full → Storage → item doc, landing on the board's **live** page (not the
+  panel's viewed page) with a "Sent to page N" toast. Capture runs inside
+  `requestAnimationFrame` because the sims animate and a bare synchronous grab
+  can land between clear and draw. Verified beforehand that all 32 canvases in the
+  Week-1 module are pure 2D draws with no external images and no WebGL, so
+  `toDataURL` can neither taint nor return blank.
+
+### Changed
+- **`class-builder.js`** — the module iframe src now carries `?class={classId}`,
+  and so do the two "Open module" direct links. Nothing set it before
+  (`module-header.js` only built it for its own nav links), so an embedded module
+  had **no class context at all**. Also: `<meta name="ml-module-viewport">` now
+  opts a module into the viewport-height iframe regime alongside `#rail`, so a
+  module with a floating panel isn't pinned to a document-tall iframe. Detected
+  via `<meta>` rather than by sniffing for the panel, which a deferred script
+  builds *after* the load handler runs. No existing module declares it, so all 47
+  fall through to exactly today's behaviour.
+- **`whiteboard-board.css` (NEW)** — board-view styles extracted out of
+  `styles.css` so the SPA and the module panel (which never loads `styles.css`)
+  render an identical board from one stylesheet instead of two that drift.
+- Both bme466 weekly learning modules gain the panel includes; `index.html` and
+  `sw.js` load/precache the new files. `sw.js` CACHE_VERSION 657.
+
+### Verification
+The refactor was gated before anything else was built: a harness mounting the
+**real** `whiteboard.js` against a stubbed Firestore, hashing the ink and
+background rasters. The page route stayed **byte-identical** (`5664a4e0` /
+`8eab5fa8`, 0 missing ids) through every step. Lens harness proves zoom changes
+the render, home returns the view to exact identity and is idempotent, items
+render, zoom controls exist only when the lens is on, and — the load-bearing one
+— **a lens-off mount is bit-identical to an unzoomed lens-on mount**, so the
+projector provably cannot drift. Module test: panel opens/drags/persists/survives
+Present mode, lesson intact (32 canvases, 24 rail entries), 0 console errors.
+
+**A ~2.4% edge-pixel difference between renders was chased down and proved to be
+an artifact of the test, not the code.** Calling
+`getImageData(…, {willReadFrequently: true})` on the *live* canvas flips Chrome
+to a software rasterizer whose antialiasing differs slightly from the accelerated
+path, so every repaint taken *after* the first readback disagreed with the ones
+before it — at provably identical view state, which is what made it look like a
+render bug. Reading through a scratch canvas (`drawImage` into a throwaway, then
+`getImageData` on that) makes mount, post-zoom-home and post-resize renders
+byte-identical. **Any future canvas regression test in this repo must read
+through a scratch canvas**, or the act of measuring changes what is measured.
+
+## [V3.683] - 2026-08-28 — Whiteboard ink resolution: curves instead of facets, at lower bandwidth
+
+Alex: *"the output of the whiteboard is kind of low resolution … maybe we could
+fake it with some processing."* The raster was never the problem — the renderer
+joined sampled pen points with straight `lineTo` calls, so every stroke was a
+polygon and the facets are what read as low resolution (worst on the tight
+curves of handwriting). Fixed render-side at zero bandwidth cost, plus denser
+capture that RDP simplification more than pays for.
+
+### Changed
+- **`whiteboard.js` — strokes now render as Catmull-Rom cubic Béziers**
+  (`crControls` + `paintStrokeRange`, replacing the per-segment `lineTo`
+  loop). The curve passes through every sampled point, so smoothing never
+  moves ink off where the pen went. Measured against a true arc: **curve
+  error down 97.6–100%** (e.g. at 9° sampling, 2.59px → 0.016px on a
+  1400px board @dpr2).
+- **End-segment tangents extrapolate a phantom neighbour** (`P0 = 3·P1 −
+  3·P2 + P3`, mirrored for the tail) instead of duplicating the endpoint.
+  Duplication gave end segments a chord-direction tangent and was measured
+  as the *dominant* error — with it, the spline was only 49% better than
+  chords; with the fix, 97.6%+. This matters most for handwriting, where
+  short strokes make end segments a large share of all segments.
+- **Denser capture:** `MIN_SEG` 0.0012 → 0.0004 (~3× more samples; the old
+  ~1.7px cull was discarding real pen detail). Position precision
+  `round4` → `round5` (quantization now ~0.015px, so it can no longer
+  stair-step a gentle curve); pressure `round4` → `round2` (it only scales
+  a line width), leaving bytes-per-point unchanged.
+- **`simplifyPts` (new, Ramer-Douglas-Peucker) applied at flush time** to a
+  *copy* of the live point array — curvature decides what survives, so
+  dense handwriting stays dense while a straight sweep collapses to its
+  endpoints. `simplifyToBudget` + `WIRE_MAX_PTS = 900` coarsens the
+  tolerance until the payload fits, which bounds the worst case: measured
+  across pen-tremor levels 0–3px, per-stroke bytes are **−20% to −82%
+  vs V3.677 at every level** (without the budget, a very noisy digitizer
+  regressed to +61%). `MAX_PTS` 1200 → 3000 (bounds the local array; the
+  stored copy is the simplified one).
+- **`desynchronized: true` reverted** to opt-in (`LOW_LATENCY_CANVAS =
+  false`). V3.678 added it speculatively — Alex had called the pen "very
+  nice" and only reported the selection bug — and some implementations back
+  a desynchronized canvas with a lower-fidelity surface, making it a
+  candidate for the fuzziness reported right after that release.
+- `sw.js` CACHE_VERSION 655 → 656.
+
+### Verification
+Ran the real extracted functions (no copies) rather than reimplementations:
+9 Node assertions on `simplifyPts` + 3 on the budget pass; browser-side
+geometric measurement of the instrumented renderer's emitted Béziers vs a
+true arc (4 sampling densities, interior vs end segments separately) and a
+pixel check that the real canvas still inks. Board page re-renders with 0
+console errors; viewers still get no draw-mode class.
+
+## [V3.682] - 2026-08-28 — Module exports were silently blocked inside the module viewer
+
+### Fixed
+- **`allow-downloads` added to the module-viewer iframe sandbox**
+  (`renderModuleViewer`, class-builder.js). Every assessment module turns in by
+  exporting a JSON file (`blob` → `a.download` → `a.click()`), and Chrome
+  **silently blocks that in a sandboxed iframe** without this token — no file, no
+  console error, no exception. The module's own success message fires regardless,
+  so a student who opened the pretest from the class page's **Learning Modules**
+  tab clicked *Export results (JSON)*, read *"Exported PRETEST_… — upload it to
+  the D2L pretest dropbox"*, and had **nothing in their Downloads folder**. The
+  direct link (`/modules/bme466/hw-00-pretest.html`) and the new Homeworks tab's
+  "Open module" button were never affected — both open the file outside the
+  iframe — which is exactly why this could have gone unnoticed until the first
+  student reported a missing submission.
+- Verified three ways in a real browser, watching for actual `download` events
+  rather than trusting the page: no-sandbox control downloads ✓, the shipped
+  sandbox does **not** ✗, the shipped sandbox plus `allow-downloads` does ✓.
+- Found while writing the student walkthrough for the pretest — the turn-in step
+  was the thing being documented.
+
+## [V3.681] - 2026-08-28 — BME466 course platform: Homeworks page, assignment management, student dashboard, sections
+
+Plan: `CodeLog/ClaudesPlan/V3.681_bme466_course_platform.md`.
+
+### Added
+- **Public Homeworks page** (`hwList466`) on `#/classes/bme466` — published
+  assignment records from the new `schedules/bme466/assignments/{slug}`
+  subcollection (world-readable once `published`), with type, due date, and
+  module/D2L links. No sign-in needed; `466 ONLY` / `566 ONLY` badges.
+- **Student dashboard** (`hwMine466`, new `studentOnly` tab flag — any signed-in
+  `@arizona.edu` account): Pending / Completed split, per-assignment **self-mark
+  "I uploaded it to D2L"** (`hw466Status/{slug}_{uid}`), their own module progress
+  read by id from `hwProgress`, extensions granted to them, a basic profile
+  (name/pronouns/major/year/interests) with a **section claim**, and **private
+  request threads** with the instructor + TA.
+- **Staff surface** (`hwAssign466`, new `staffOnly` tab flag): assignment manager
+  + editor (kind, audience, dates, module key, publish toggle), **status matrix**
+  per assignment (section, module progress, self-report, per-student extension,
+  acknowledge), **requests inbox** (reply, mark answered, assign, close), and a
+  **sections card** with a CSV export that feeds
+  `scripts/hw1_grade.py --sections` in the course repo.
+- **Narrow TA role** — `schedules/bme466.courseStaffEmails` +
+  `bme466CourseStaff()`/`bme466Staff()` in rules. Grants ONLY the surfaces above.
+  The dashboard's **"Make TA" now writes this list instead of
+  `classAdminEmails`**, which is what makes V3.679 (that list deliberately empty,
+  because an `@arizona.edu` address there hands out the whole instructor view)
+  compatible with actually having a TA. `bme466CourseStaff()` is deliberately
+  absent from the roster block, the `schedules/{id}` update rule and `hwProgress`
+  delete; the rules suite asserts each denial.
+- **`functions/bme466-notify.js`** — `onBme466MessageCreated` (denormalize the
+  thread + unread flag for the other side, notify them) and
+  `onBme466AssignmentWrite` (publish fan-out filtered by level, idempotent via
+  `notifiedFor`). Reuses `notifyUsers()`, so both push and the
+  `userData/{uid}/notifications` feed are covered. Registered in `index.js`.
+- **`scripts/tests/bme466-audience.test.mjs`** (17 checks) — pins the fail-open
+  audience rule and keeps the function's section logic from drifting from the
+  client's. Added to `run-all.sh` layer 1.
+
+### Changed
+- **`hwProgress` assignment enum is now data**: `hwAssignmentAllowed()` checks the
+  nine legacy keys inline FIRST (so `||` short-circuits and they survive a failed
+  schedule-doc read), then `schedules/bme466.hwProgressKeys`, which the dashboard
+  derives from the assignments' `progressKey` fields. Adding a homework module no
+  longer needs a rules deploy.
+- **`hwProgress` read widened to `bme466Staff()`** so a TA can see the status
+  matrix; **delete stays classAdmin-only** — destroying a student's saved work is
+  not a TA affordance.
+- `bme466RosterEnforced()` / `bme466Rostered()` hoisted to file scope so the new
+  blocks share them; `tabIsVisible()` replaces the inline `adminOnly` tab filter.
+- Assignment slugs pinned to `^[a-z0-9][a-z0-9-]{0,59}$` (**no underscore**):
+  `hwProgress` and `hw466Status` both recover the uid from `docId.split('_')[1]`.
+
+### Fixed (found by the new rules tests, before deploy)
+- **Thread creation would have failed for everyone**: `authorRole` was required by
+  the create rule but missing from its own `keys().hasOnly()` whitelist.
+- **`bme466Staff()` was not total.** `isAdmin()` dereferences `users/{uid}`
+  unguarded, so it errors — and therefore denies — for a signed-in user with no
+  users doc. Harmless elsewhere (it sits at the end of an `||` chain a real user
+  already satisfied) but here it is evaluated eagerly inside
+  `authorRole == (bme466Staff() ? 'staff' : 'student')`, so an un-bootstrapped
+  student could not open a request thread at all. Now `bme466IsGlobalAdmin()`:
+  email lists first, admin lookup guarded by `exists()`.
+
+### Notes
+- **No grades, ever**: key whitelists reject `grade`/`score`/`points`, and the
+  world-readable-when-published assignment doc also rejects `dueOverrides` and any
+  per-student field. D2L remains the gradebook and the deadline authority.
+- **No roster rules change and no new indexes.** A student's section reaches them
+  via their own `profiles` doc and their extension via their own `hw466Status`
+  doc, so the FERPA-sealed roster stays staff-only; all queries sort client-side,
+  so `firestore.indexes.json` (which carries other sessions' uncommitted work) is
+  untouched.
+- Sections are the cross-listed catalog lines (BME/AME × 466/566), **not** D2L
+  001–004 — D2L merges all four into one shell, so the classlist export has no
+  section column and cannot supply them. Students declare, staff correct, staff
+  wins; only the **level** targets work, the department is reporting only.
+- Tests: `hw-progress-rules` 39 → **136/136**, teacher 84/84, inventory 49/49,
+  audience 17/17, DOM harness **42/42** with 0 console errors and screenshots at
+  production CSS for all four personas.
+
+## [V3.680] - 2026-08-28 — Teacher onboarding front door + admin invites + classes grid
+
+Plan: `CodeLog/ClaudesPlan/V3.680_teacher_onboarding_invites.md`.
+
+### Added
+- **`#/teachers` landing** (teacher-teach.js `renderTeachersLanding`/
+  `wireTeachersLanding`, app.js route + AUTH_GATED) — the single teacher
+  onboarding front door: program pitch, Google sign-in, class-request form
+  (school/city/state/grade/size/subject/module-set interest via
+  `TC_DB.createRequest`) + request history with armed-confirm withdraw and
+  deny reasons. Existing teachers get dashboard links and can request
+  another class. Zero student surfaces.
+- **Admin teacher invites** — `teacherInvites/{token}` (doc id IS the
+  token; admin-only in rules) + NEW `functions/teacher-invite.js`
+  `redeemTeacherInvite` (onRequest + Bearer, releaseAnnounce pattern).
+  Admin panel at the top of admin-teachers `?tab=requests`: create invite
+  (teacher name, optional email lock, school, class title, catalog-backed
+  module pre-fill), copyable `#/teachers?invite=TOKEN` link, mailto
+  compose, revoke, status list (pending/redeemed/expired). Redemption:
+  the signed-in teacher clicks "Set up my class" → one server TRANSACTION
+  provisions `schedules/{tc-…}` (owner = caller), `joinCodes/{code}`,
+  `users/{uid}.category:'teacher'`, invite → redeemed; the page then shows
+  the class title, join code, and class link. Email-locked invites refuse
+  other accounts; expired/redeemed/revoked links get specific errors.
+  Module pre-fill reads the PUBLISHED teacherCatalog (the Admin SDK can't
+  read modules/manifest.json). Server-side because a guest must never
+  create a teacher-class doc client-side (the V3.635 lesson).
+
+### Changed
+- **Guest dashboard stripped to the profile card** (user-system.js): the
+  V3.304 "Are you a teacher?" (category self-flip) and "Have a class
+  code?" cards are REMOVED at Alex's direction — no teacher/student
+  self-identification on login surfaces. Students join via the class LINK
+  their teacher shares (the class page's code gate is unchanged and still
+  flips category on success); the #/teach code-hint copy now says to share
+  the class link + code.
+- **Classes page layout** (app.js + `.classes-grid` in styles.css): 2
+  cards wide on desktop, 1 wide ≤768px; the teacher card is now a compact
+  full-width card at the TOP of the grid (dashboard links for teachers,
+  "For teachers →" `#/teachers` pitch otherwise — no more `#/login` dump);
+  class cards sort by `classDates.startDate` descending (undated classes
+  sink). The banner no longer renders at the bottom.
+- Demo `guest-new` persona note updated (profile card only).
+- `sw.js` — CACHE_VERSION 654 → 655.
+
+### Deploy
+`firebase deploy --only firestore:rules` →
+`--only functions:redeemTeacherInvite`, BEFORE the FTP batch.
+
+## [V3.679] - 2026-08-27 — BME 466 instructor view narrowed to one account
+
+### Security
+- **The BME 466 instructor view was reachable from a second account.**
+  Reported as "anyone who logs in gets the admin view of the class".
+  Audit result: the gate in `class-builder.js` `wireClassPage()` is
+  correct and unchanged — admin is `users/{uid}.role === 'admin'` OR the
+  signed-in email being in `schedule.classAdminEmails`, and every admin
+  surface (the `adminOnly` tab filter, the `hwDash466` section guard at
+  `buildSectionBlockHTML`, the edit chrome, `#cb-header-actions`,
+  `whiteboard.js` `computeIsClassAdmin()`) hangs off that one flag.
+  Deployed `class-builder.js` / `index.html` on mcgheelab.com verified
+  byte-identical to the repo, and the signed-out live page verified in a
+  headless browser: 4 tabs, 0 admin tabs, 0 section chrome, empty header
+  actions. The exposure was **data, not code** — three identities passed
+  the gate:
+  - `mcgheealex@gmail.com` — `role:'admin'` (intended).
+  - `mcgheealex@arizona.edu` — listed in `schedules/bme466.classAdminEmails`.
+    This is the likely source of the report: the homework modules require an
+    `@arizona.edu` sign-in, so testing the student path with the UA NetID
+    returned the instructor view.
+  - `mcgheelabadmin@gmail.com` — `role:'admin'` since 2026-05-04
+    (category `guest`); a **site-wide** admin, not just this class.
+- Fixes applied to live Firestore (REST PATCH as project owner, field-scoped
+  `updateMask`): `schedules/bme466.classAdminEmails` → `[]`, and
+  `users/hSI5EYcXqeZrZYbcoZb7rbhjD3Z2.role` `admin` → `guest`. Verified after
+  the write: `role == 'admin'` now returns exactly one user
+  (`mcgheealex@gmail.com`), and the class-admin list is empty.
+
+### Changed
+- `class-builder.js` — `DEFAULT_SCHEDULES['bme466'].classAdminEmails` seeded
+  as `[]` (was `['mcgheealex@arizona.edu']`) so a re-seed or a new tenant
+  can't reintroduce the grant, with a comment noting the list feeds both the
+  client gate and `firestore.rules`' `bme466ClassAdmin()`.
+- `sw.js` CACHE_VERSION 653 → 654.
+
+### Notes
+- The instructor Dashboard tab and the `hwProgress` list/delete rules are now
+  reachable **only** from `mcgheealex@gmail.com` — teaching from the UA NetID
+  no longer shows it. Firestore rules already enforced the same two paths
+  server-side, so no rules deploy is needed.
+
+## [V3.678] - 2026-08-27 — Whiteboard: the pen is now a seamless drawing surface on iPad
+
+### Bug Fixes
+- **Pen strokes between strokes no longer trigger iPadOS text selection**
+  (the stroke landed as a page highlight and the copy/look-up callout
+  opened, breaking the drawing flow). Root cause: iPadOS Safari runs the
+  legacy touch/selection pipeline alongside pointer events, and
+  `preventDefault` on `pointerdown` never reaches it. Fix in
+  `whiteboard.js` + `styles.css`, admin/draw mode only (viewers keep all
+  browser defaults): a `wb-draw-mode` class on the board page applies
+  `user-select:none` + `-webkit-touch-callout:none` to the whole page and
+  `touch-action:none` + `overscroll-behavior:contain` over the stage, and
+  the ink canvas gets `touchstart/touchmove/touchend` (passive:false) +
+  `selectstart` + `contextmenu` preventDefault guards.
+- `sizeCanvases()` now claims the ink context with `desynchronized:true`
+  (first-`getContext` attribute) — lower pen latency where supported,
+  harmlessly ignored elsewhere.
+- `sw.js` CACHE_VERSION 652 → 653.
+
+## [V3.677] - 2026-08-27 — Live whiteboard: lecture drawing streamed to the class page
+
+Plan: `CodeLog/ClaudesPlan/V3.677_live_whiteboard.md`.
+
+### Added
+- **`whiteboard.js` (NEW root module)** — live lecture whiteboard, a generic
+  class-builder capability (BME466 first). Named persistent boards under
+  `schedules/{classId}/whiteboards/{boardId}`, each with multiple pages and
+  per-page background templates (blank/grid/ruled/axes). Strokes stream as
+  docs in a `strokes` subcollection — the drawer flushes the in-progress
+  stroke every 300 ms (`{pageId, seq, color, w, pts:[x,y,p,...], done}`,
+  full-doc rewrite; strokes split past 1200 points); viewers hold one
+  `onSnapshot` `orderBy('seq')` (single-field, no composite index) and
+  repaint via rAF. Coordinates normalized to a fixed 16:10 board space.
+  Drawing is class-admin gated (global admin / `ownerUid` /
+  `classAdminEmails`, re-evaluated on `Auth.onChange`); input accepts
+  `pointerType` pen + mouse only (true palm rejection on iPad; pressure →
+  line width via `getCoalescedEvents()`), touch never inks. Tools: 4 colors ×
+  3 widths, stroke eraser (polyline hit-test → doc delete), undo (own-stroke
+  stack), two-tap clear page (no `confirm()` popups), page add/flip with
+  viewer auto-follow (`activePageId` on the board doc; manual flip pauses
+  follow, a "Jump to live page" chip re-engages), Go live / End live
+  (merges/deletes `liveWhiteboard:{boardId,boardName,since}` on the schedule
+  doc under existing rules).
+- **Board page route** `#/classes/{classId}/whiteboard/{boardId}` (app.js
+  render + wire switches; `McgheeLab.renderWhiteboardPage` /
+  `wireWhiteboardPage`); `?projector=1` renders chrome-free (body class
+  `wb-projector` hides site header/footer/bottom-tabs/toolbar/pages bar) for
+  the classroom screen, auto-following the live page.
+- **`whiteboard` section component** in class-builder's `SECTION_REG` —
+  renders the board list (create with inline name form — no `window.prompt` —
+  rename inline, two-tap delete with chunked stroke cleanup, live badge);
+  body + hydration delegated to `window.Whiteboard.renderSectionBody`.
+- **Live banner** — `Whiteboard.attachLiveBanner(scheduleId)` called from
+  `wireClassPage` (own narrow schedule-doc listener, deliberately NOT folded
+  into the V3.285 bme295c splice listener), detached in `cleanupListeners()`.
+  Students on any tab see "🔴 Whiteboard is live — tap to watch".
+- **`firestore.rules`** — new `match /whiteboards/{boardId}` (+ nested
+  `strokes`) inside the schedules block: world-read (same contract as the
+  schedule doc — nothing student-identifying is drawn), class-admin write via
+  the existing get()-the-parent pattern. **Deploy rules BEFORE FTP.**
+
+### Changed
+- `class-builder.js` — V3.677 migration in `wireClassPage`: appends the
+  Whiteboard tab to an already-persisted `schedules/bme466` doc on the next
+  admin visit (mirrors the V3.674 dashboard-tab migration); bme466 seed def
+  gains `tab_466_whiteboard`.
+- `index.html` — `<script defer src="whiteboard.js">`; `sw.js` — added
+  `/whiteboard.js` to SHELL_URLS, CACHE_VERSION 651 → 652.
+- `styles.css` — `wb-*` styles (board list, board page, toolbar, pages bar,
+  live banner, toast, projector mode, mobile).
+
+## [V3.676] - 2026-08-27 — BME466 Week 1: Boltzmann moves to §2.4; notes numbers removed
+
+### Changed
+- `modules/bme466/01-diffusion-why-anything-moves.html` — the Boltzmann distribution moves out
+  of §2.2 (where it preceded any treatment of probability distributions) into a new §2.4
+  sub-block introducing it as the probability cloud tilted by an energy landscape; Tab-2
+  equations renumbered accordingly (Boltzmann is now eq. 1.2.7).
+- Both weekly modules — F25 lecture-notes equation numbers, and the prose that deferred to the
+  notes as a separate document, are removed; the modules are the source of record.
+- `sw.js` CACHE_VERSION 650 → 651.
+
+## [V3.675] - 2026-08-27 — BME466 modules: equation numbers become module.tab.order
+
+### Changed
+- `modules/bme466/01-diffusion-why-anything-moves.html` and `02-gradients-and-encounters.html`
+  — every displayed equation renumbered `eq. module.tab.order` (in reading order, nothing
+  unnumbered), reused equations keeping their first-appearance number across modules, the F25
+  lecture number retained as a grey sub-tag, and a new collapsed **Equation index** beside the
+  constants bar in each module. Byte-identical to the course repo's canonical files.
+- `sw.js` CACHE_VERSION 649 → 650.
+
+## [V3.674] - 2026-08-27 — BME466 Week-2 learning module: "Gradients & Encounters"
+
+### Added
+- `modules/bme466/02-gradients-and-encounters.html` — Week-2 weekly learning module
+  (byte-identical copy of the course repo's `local-test/` canonical file): Fick's laws,
+  the Smoluchowski encounter rate, λ = √(Dτ) and Péclet, the mosquito-bite capstone
+  computed from the exact C(r,t), and a Langmuir/binding teaser for Week 3. 5 tabs ·
+  12 sims · presenter mode with the `#rail` section navigator (already handled by the
+  class-builder iframe rule from V3.667).
+
+### Changed
+- `sw.js` CACHE_VERSION 648 → 649.
+
+## [V3.673] - 2026-08-27 — Teacher program R4: classroom engagement hub (#/engage)
+
+Fourth and final release of the teacher program (plan:
+`CodeLog/ClaudesPlan/V3.669_teacher_dashboard_engagement_hub.md`).
+
+### Added
+- **`engage-hub.js` + `#/engage` route** — the public engagement hub, three
+  views by identity: TEACHERS manage a hub listing (school/grades/subjects/
+  class size/topics/activity types/formats — teacherProfiles approval
+  pattern: owner saves land draft/pending, only admin approves, editing an
+  approved listing pulls it), availability (weekly recurring + dated
+  one-offs + dated "blocked" exceptions that cancel a weekly occurrence;
+  pause/resume/delete), and incoming visit requests (confirm shares the
+  private location; decline with a note; clash-with-confirmed warning).
+  APPROVED VISITORS (lab members automatically; external people via
+  `engage:browse` / `engage:request` caps) browse approved listings with
+  upcoming openings (weekly patterns expanded client-side over 28 days) and
+  request a concrete date via an inline form; "My requests" shows status,
+  self-cancel for pending, and the revealed location once confirmed.
+  SIGNED-OUT/UNCAPPED visitors get an explainer + access CTA. Inline armed
+  confirms + status line throughout, no browser popups.
+- **Collections + rules**: `engageProfiles/{teacherUid}` (+
+  `private/contact` subdoc — owner+admin ONLY; the street address is
+  structural: it reaches a requester only when the teacher/admin copies it
+  onto a CONFIRMED request), `engageSlots/{auto}` (create requires an
+  approved profile), `engageRequests/{auto}` (create requires
+  `isLabMember() || hasCap('engage:request')` + slot-open/teacherUid
+  anti-spoof gets + `!('location' in ...)`; teacher decision write
+  `hasOnly(['status','location','teacherNote','decidedAt','updatedAt'])`;
+  requester may only self-cancel). No transactional booking lock by design —
+  request→confirm tolerates competing requests, teacher/admin is the
+  tiebreaker (equipment-booking precedent).
+- **Capabilities**: `engage:browse` (base) + `engage:request` registered in
+  `rm/js/capability-registry.js` — grantable per-user from the admin
+  permissions page; enforced by the existing `hasCap()` rules helper.
+- **`functions/engage-notify.js`** (+ index.js export
+  `onEngageRequestWrite`): new request → teacher + all admins; decision →
+  requester (+ admins on confirm); requester self-cancel is silent.
+- **Admin `?tab=engage`** on `rm/pages/admin-teachers.html`: approve/pull
+  listings; see every slot; confirm/decline/cancel ANY request (admin
+  confirm copies the teacher's private contact onto the request, same as a
+  teacher confirm).
+- **TC_DB methods** (13): engage profile/contact/slots/requests CRUD +
+  `myEngageCaps(uid)` (own `userPermissions` doc is owner-readable — one
+  get decides the view; a denied read degrades to the explainer). DEMO_DB
+  mirrors all of them; new demo persona **"Engagement hub — visits &
+  requests"** (approved listing, weekly + dated + blocked slots, one
+  pending and one confirmed request with location).
+- **Links**: `#/teach` home gains an Engagement-hub card with a
+  pending-requests badge; the Classes-page teacher banner links the hub;
+  the Opportunities page gains a "Visit a classroom" outreach card.
+
+### Changed
+- `sw.js` — CACHE_VERSION 647 → 648; `/engage-hub.js` precached.
+
+### Deploy
+`firebase deploy --only firestore:rules` →
+`--only functions:onEngageRequestWrite`, BEFORE the FTP batch.
+
+## [V3.672] - 2026-08-26 — Teacher program R3: engagement tracking + teacher visualization
+
+Third release of the teacher program (plan:
+`CodeLog/ClaudesPlan/V3.669_teacher_dashboard_engagement_hub.md`).
+
+### Added
+- **`moduleStats/{scheduleId}_{studentUid}`** — one pre-aggregated engagement
+  doc per (class, student); the composite id deliberately equals the
+  student's enrollment id, which is what makes the create rule cheap (one
+  `get` of the caller's own enrollment proves activity + teacherUid).
+  Shape: `{scheduleId, teacherUid, studentUid, studentName, lastActiveAt,
+  modules: { [moduleId]: { opens, seconds, sections{id:true}, railCount,
+  scrollPct?, lastOpenAt } }}`. Client-written `FieldValue.increment`s (no
+  Cloud Function, no raw event log); update rule pins identity via
+  `hasOnly(['modules','lastActiveAt','studentName'])`. Self-reported
+  counters, not grades — the rules only stop cross-doc/identity spoofing.
+- **Engagement beacon** (`class-builder.js` `setupModuleEngagement`, called
+  from `wireModuleViewer`): records opens, visibility-aware time (15 s
+  heartbeat that accrues only while `visibilityState === 'visible'`, flushed
+  every 60 s and on hidden/hashchange/pagehide), rail-section progress (an
+  `IntersectionObserver` constructed from the IFRAME's own window over the
+  `#rail` anchor targets — zero edits to the 47 module files), and max
+  scroll-depth % for non-rail modules (the parent scrolls; depth is the
+  viewport bottom against the iframe box). Fires ONLY for an actively
+  enrolled teacher-class student: teachers, admins, view-as previews
+  (new `ML.tcViewAsFor` export), signed-out, and non-enrolled visitors
+  produce zero writes; demo personas route into the demo world. Teardown
+  self-removes every listener and each new viewer visit tears down the
+  previous beacon, so rapid route changes cannot leak intervals.
+- **`ml-module` message protocol** — the viewer also accepts origin-checked
+  `{source:'ml-module', type:'section', id}` postMessages, deduped against
+  the observer stream; `modules/shared/module-header.js` now emits it on
+  in-iframe hashchange (guarded `parent !== window`, no-op standalone).
+- **`#/teach/{id}/engagement` tab** (teacher-teach.js): per-student rows —
+  last-active (quiet >7 days flagged red), modules touched, visible minutes,
+  assignment completion (joins R2 data) — with an expandable per-module
+  detail of progress bars (sections/railCount or scroll %), opens, minutes.
+  Plain DOM/CSS bars, no chart library.
+- **TC_DB**: `statsId`, `statsForTeacher(uid)` (teacherUid-keyed so the list
+  rule is provable), `recordEngagement(scheduleId, student, patch)` —
+  FieldPath-built increment update with a create fallback on first write.
+  DEMO_DB mirrors both; fixtures add a keen student, a moderate one, and one
+  quiet for 12 days (cleared in the emptied personas).
+
+### Changed
+- `sw.js` — CACHE_VERSION 646 → 647.
+
+### Deploy
+`firebase deploy --only firestore:rules` BEFORE the FTP batch. No indexes,
+no functions.
+
+## [V3.671] - 2026-08-26 — Teacher program R2: assignments, submissions, gradebook
+
+Second release of the teacher program (plan:
+`CodeLog/ClaudesPlan/V3.669_teacher_dashboard_engagement_hub.md`).
+
+### Added
+- **`assignments/{autoId}`** — `{scheduleId, teacherUid, title, description,
+  dueDate?('YYYY-MM-DD'), points?, moduleKey?(= modules[].id), status:
+  'draft'|'published'|'closed', order, createdAt, updatedAt}`. Rules: student
+  read only when non-draft AND enrolled (the student list query MUST carry
+  `where('status','in',['published','closed'])` — list rules are proven
+  against query filters); teacher create gated by `isClassTeacher()`;
+  scheduleId/teacherUid pinned on update.
+- **`submissions/{assignmentId}_{studentUid}`** — composite id (the
+  enrollments trick: "my submission" is one get, students never `list`).
+  `{assignmentId, scheduleId, teacherUid, studentUid, studentName,
+  status:'done'|'submitted', text?, submittedAt, updatedAt, lastEditedBy,
+  grade?:{outcome, score?, feedback?, gradedAt, gradedBy}}`. Create requires
+  a PUBLISHED assignment + ACTIVE enrollment + anti-spoof gets on the
+  denormalized ids + `!('grade' in ...)`; student edits allowed until graded
+  (`hasOnly` key set excludes `grade`); teacher writes `hasOnly(['grade','updatedAt'])`.
+- **`#/teach` tabs** (teacher-teach.js): **Assignments** (create/edit inline
+  forms, save-draft vs publish-now, close/reopen, armed-confirm delete) and
+  **Gradebook** (students × assignments matrix; a cell opens the submission
+  text + outcome/score/feedback editor; grading is impossible until the
+  student has a submission doc — by design, create is student-only).
+- **Student dashboard "Assignments" card** (teacher-classes.js): all
+  published/closed assignments across active classes with due chips (overdue
+  highlighted), Mark done, inline text response (editable until graded), and
+  the recorded grade + feedback.
+- **TC_DB methods**: `assignmentsForTeacher(uid)` / `assignmentsForStudent(scheduleId)`
+  (query shapes chosen so list rules are provable), `saveAssignment`,
+  `deleteAssignment`, `submissionId`, `mySubmission`, `submitAssignment`
+  (create-or-update split matching the two rule key-sets),
+  `submissionsForTeacher`, `gradeSubmission`. DEMO_DB mirrors all of them;
+  fixtures add 2 published + 1 draft assignment and done/submitted/graded
+  submissions (persona setups that empty the world clear these too).
+- **`functions/class-notify.js`** (+ index.js exports `onAssignmentWrite`,
+  `onSubmissionWrite`): publish transition fans out to active enrollees
+  (needs the new composite index), submission create/edit notifies the
+  teacher (deep link `/#/teach/{id}/gradebook`, skipped when the editor IS
+  the teacher), grade appearing/changing notifies the student. appKey
+  `'classes'`, via `notifyUsers` (push + feed).
+- **Composite index**: `enrollments(scheduleId ASC, status ASC)` in
+  `firestore.indexes.json` — the Admin SDK bypasses rules but not index
+  requirements.
+- **Admin read-only summary** (rm/js/admin-teachers.js): each class block on
+  ?tab=teachers now shows "N assignments · M submissions (K graded)".
+
+### Changed
+- `sw.js` — CACHE_VERSION 645 → 646.
+
+### Deploy
+`firebase deploy --only firestore:rules` → `--only firestore:indexes` →
+`--only functions:onAssignmentWrite,functions:onSubmissionWrite`, all BEFORE
+the FTP batch.
+
+## [V3.670] - 2026-08-26 — BME466 HW1: collapsible Notes sections + calculator keypad & Desmos-style graph face
+
+### Changed
+- **`modules/bme466/hw-01-diffusion-mass-transport.html`** (byte copy of the course
+  repo's canonical, V2.41 there): the 📓 Notes panel's sections now collapse to their
+  headings (scannable index, open pattern persists); the 🧮 calculator got a full UI
+  rebuild — dark display with live result preview, 5×7 keypad with a 2nd layer, and a
+  **📈 Desmos-style graph face** (live-plotted expression rows, `a = 2` parameter
+  sliders sharing the REPL's variable namespace, pan/zoom canvas with adaptive grid,
+  asymptote-safe polylines). Engine refactored to parse-once → compiled closures; the
+  17-case calculator battery, seeding parity (6/6), the graded flow (`6WQXMC` smoke),
+  and the no-copy guard were all re-verified headlessly with zero console errors.
+- **`modules/bme466/hw1-diffusion.html`** (+ docx): prompt page rebuilt — Notes-section
+  collapsing and keypad/live-preview/graph-face paragraphs.
+
+## [V3.669] - 2026-08-26 — Teacher program R1: global module catalog + #/teach dashboard
+
+First of four releases in the Teacher Dashboard v2 + Engagement Hub program
+(plan: `CodeLog/ClaudesPlan/V3.669_teacher_dashboard_engagement_hub.md`).
+
+### Added
+- **`teacherCatalog/{folder--basename}` Firestore collection** — the global,
+  admin-curated catalog of modules teachers may distribute. Doc shape
+  `{folder, file, title, description?, subjects[], gradeLevels[], published,
+  order, updatedAt, updatedBy}`; doc id matches `schedules.modules[].id`.
+  Rules: read any signed-in user, write admin. Also added the shared
+  `isClassTeacher(scheduleId)` rules helper (used by R2's assignments).
+- **`teacher-teach.js` + `#/teach` route** — the teacher class-management
+  dashboard, split out of `#/dashboard`. `#/teach` lists classes;
+  `#/teach/{scheduleId}/{modules|students}` manages one class: module
+  assignment from the published catalog (order arrows, per-module
+  `dueDate: 'YYYY-MM-DD'`, visible toggle, remove), join-code
+  create/regenerate/disable, enrollment toggle, roster with view-as and
+  per-student `moduleOverrides` (`{hidden?, dueDate?}` per module id, stored
+  on the enrollment doc via `TC_DB.setModuleOverride` FieldPath update).
+  All destructive actions use inline armed confirms — no
+  prompt/alert/confirm anywhere in the new page.
+- **TC_DB methods** (`teacher-classes.js`): `publishedCatalog()`,
+  `saveClassModules(scheduleId, modules)`,
+  `setModuleOverride(enrollmentId, moduleId, override|null)`. Exported
+  `ML.tcSetViewAs` + `ML.tcManifestFolders` for the new page.
+- **Admin `?tab=catalog`** on `rm/pages/admin-teachers.html` — every
+  manifest module with a publish toggle, subjects/grades/description
+  inline fields, and per-folder Publish-all/Unpublish-all batch buttons.
+- **Demo fixtures** (`teacher-demo.js`): `world.catalog` (rebuilt from the
+  live manifest when it resolves), DEMO_DB mirrors of the three new TC_DB
+  methods, a due-dated module and a per-student hidden-module override.
+
+### Changed
+- **Teacher `#/dashboard` card slimmed** to a per-class summary
+  (students/modules/code) linking to `#/teach`; the full management UI
+  (and its `confirm()`/`alert()` sites) moved to the new page as inline
+  confirms + a status line.
+- **Student class page** (`wireTeacherClassPage`) applies per-student
+  `moduleOverrides` (hidden modules disappear; a student-specific due date
+  outranks the class-wide one) and shows "due Mon D" chips. The view-as
+  preview applies the previewed student's overrides. Owner strip now links
+  "Manage this class" → `#/teach/{id}`.
+- **Approve modal** (`rm/js/admin-teachers.js`): the mandatory
+  granted-folders step became an optional "pre-fill modules" pick —
+  pre-fill draws from published catalog entries (manifest fallback while
+  the catalog is empty), new classes write `grantedFolders: []` (legacy
+  field, deprecated in place), and an unavailable manifest no longer
+  blocks approval (it only disables pre-fill). Validation errors now land
+  in the status line instead of `alert()`.
+- **Classes page banner** (`app.js`): a signed-in teacher (or demo teacher
+  persona) sees "Open teaching dashboard →" instead of the outreach pitch.
+- `app.js`: `teach` added to `AUTH_GATED` + render/wire switches.
+- `sw.js` — CACHE_VERSION 644 → 645; `/teacher-teach.js` precached.
+
+### Deploy
+`firebase deploy --only firestore:rules` BEFORE the FTP batch.
+
+## [V3.668] - 2026-08-26 — BME466 HW-01: floating Notes panel + scientific calculator
+
+Course-side V2.39 redeployed. `modules/bme466/hw-01-diffusion-mass-transport.html`: the
+📓 Notes tab is now a **floating context panel** (module back to 7 tabs) launched from the
+course-ID rail and usable beside any tab — drag, resize, collapse; it **reopens at exactly
+the size and position it last had** (persisted per browser, clamped to the viewport;
+bottom sheets on phones). A second panel adds a **🧮 scientific calculator** built for the
+homework: a real expression parser (no eval) with **variable declaration** (`D = 3.43` →
+clickable chips), `ans`, DEG/RAD trig, 21 functions, preloaded constants (pi, e, k_B, N_A,
+R, g, h, c), scientific notation, persistent history, and ⧉ result-copy via the async
+clipboard API (coexists with the no-copy guard by design). Also fixed an unclosed div in
+the Notes intro that browsers had been silently recovering. `modules/bme466/hw1-diffusion.html`
+rebuilt to match (tab list, panel + calculator instructions, AI-policy line).
+
+QA on the canonical build (deployed copies byte-identical): geometry persistence proven
+drag→resize→reload→exact-rect; 17-case calculator battery all exact (incl.
+kB*300/(6·pi·η·D) = 15 nm in one line); guard intact; graded flow re-scored 12/12 with
+zero flags; zero console errors. FTP of `modules/bme466/` remains the manual step.
+
+## [V3.667] - 2026-08-26 — Week-1 module: changes.md batch (rail fix, stable stats, Boltzmann thread)
+
+### Fixed
+- `class-builder.js` — **the section rail scrolled away with the page when a module was
+  viewed on the website.** wireModuleViewer sizes the viewer iframe to the module's full
+  scrollHeight, so the PARENT page scrolls and position:fixed inside the iframe scrolls
+  with it. Modules that have a section rail (`#rail` — the weekly learning modules) now
+  get a viewport-height iframe (calc(100vh − 120px)) and scroll internally, keeping the
+  rail (and Present mode) pinned; every other module keeps content-height sizing.
+- `modules/bme466/01-diffusion-why-anything-moves.html`:
+  - **Stats boxes no longer change height** — labels ellipsize instead of re-wrapping,
+    the scene/bargain/speed keys and scene-name values were shortened to one line, and
+    the chatty verdicts (barg/flux/scene/speedo/ring) joined the reserved-height list.
+  - 2.1 now **opens in Brown's 1827 view** (molecules hidden), matching its task.
+  - 2.2 introduces **U(h) and the Boltzmann distribution as eq. 14 (first meeting)**,
+    deriving ℓ_g from U(ℓ_g) = kBT — the backstory 3.3 now leans on.
+  - 3.3's sim is a **vertical settling column — force points down** (2.2's experiment
+    revisited), with a sideways C(h) histogram; a new **"what breaking Einstein would
+    mean" primer** precedes the toggle; and the eq. 14 + 15–16 → 17 cancellation is now
+    **written out line by line** (chain rule → substituted current → the vanishing bracket).
+  - 3.1 gained "**The kicks ARE the resistance**" insight box (one hail of collisions,
+    two ledgers; valid because Re ~ 10⁻⁹).
+- `sw.js` — CACHE_VERSION 643 → 644.
+
+**FTP list**: `modules/bme466/01-diffusion-why-anything-moves.html`, `class-builder.js`, `sw.js` (+ pending batch).
+
+## [V3.666] - 2026-08-26 — BME466 HW-01: practice tab rebuilt as a worked-example builder
+
+Course-side V2.35 redeployed (same-day redesign of the V3.663 practice bench, instructor
+directive: "a series of questions that form into worked examples — each question gets a
+little interactive plot"). `modules/bme466/hw-01-diffusion-mass-transport.html`: the
+★ Practice tab is now **one long page of seven worked examples** (Escape · MSD · Crowded α
+· Drag · FRAP · Counting · Finite receptors), **27 question-steps, each with its own small
+interactive plot** — steps unlock in sequence with immediate ✓/✗ (legitimate on the known
+calibration standard), wrong options answer with their specific why-not, a "show this
+step" hatch opens after three misses, and each example ends in a summary card that chains
+the student's own numbers with the certified value behind a Reveal. The free-play sandbox
+and concept picker are gone; the per-example 🤖 chatbot-prompt buttons and the 📓 Notes tab
+carry forward. `modules/bme466/hw1-diffusion.html` rebuilt to match.
+
+QA on the canonical build (deployed copies byte-identical): full 27-step drive-through,
+persistence across reload, per-section reset, bot prompts with embedded runs, graded flow
+re-scored 12/12 with zero flags, no-copy guard intact, zero console errors.
+
+Deployment: FTP of `modules/bme466/` remains the manual step (see `PENDING_RELEASE.md`).
+
+## [V3.666] - 2026-08-26 — Week-1 module: math notation renders everywhere
+
+### Fixed
+- `modules/bme466/01-diffusion-why-anything-moves.html` — a full-page sweep for
+  unresolved math. Dynamic stats/verdicts are rewritten ~6×/s so they can never use
+  MathJax; several used raw pseudo-TeX (k_BT, v_rms, D_eff, ℓ_g, NkT, c_rim). All 40
+  occurrences converted to real markup: HTML `<sub>` in DOM-written strings
+  (setStat/setVerdict render innerHTML), Unicode subscripts (vₚ, vᵣₘₛ, cᵣᵢₘ) or collapsed
+  forms (ℓg) in canvas-drawn labels, and five static-prose stragglers (sink task/title,
+  bead worked answer, bite case-file step, scoreboard task). Verified by a DOM text-node
+  scan across all five tabs with every sim's stats populated: zero unresolved sites.
+- `sw.js` — CACHE_VERSION 642 → 643.
+
+## [V3.665] - 2026-08-26 — Week-1 module: capstone is now Tab 4, Next Week is Tab 5
+
+### Changed
+- `modules/bme466/01-diffusion-why-anything-moves.html` — "The Bite, Solved" moved to
+  tab 4 and "Next Week ▸" back to last position (tab 5), restoring the convention that
+  the final tab previews the coming week. Sections renumbered (bite 4.1–4.3, teaser
+  5.1–5.2), rail/present order follows automatically, all cross-references updated
+  (intro, 3.4/1.x expiration-date mentions, sources).
+- `sw.js` — CACHE_VERSION 641 → 642.
+
+## [V3.664] - 2026-08-26 — Week-1 module: 2.3 defines the diffusion coefficient honestly
+
+### Changed
+- `modules/bme466/01-diffusion-why-anything-moves.html` — section 2.3 no longer smuggles
+  D in via "≡ 2Dt": the derivation stops at ⟨x²⟩ = (δ²/τ)t, the prose motivates why that
+  one combination deserves a name (two walkers with matching δ²/τ spread identically —
+  microscopic details are unrecoverable), then a labeled definition box D ≡ δ²/2τ [m²/s]
+  with two honest remarks (area-per-time, not a speed; the factor of 2 is bookkeeping so
+  D matches Fick's-law D next week). The old inline "2Dt (1D) 4Dt (2D) 6Dt (3D)" — which
+  read like math — is replaced by the master equation ⟨r²⟩ = 2d·Dt (d = dimensions) plus
+  a three-row table (line / microscope projection / inside a cell).
+- Same-day follow-up: the drunk widget's histogram canvas gained a top strip showing the
+  **literal 1D line of walkers** — all walkers as translucent grey dots (overlap = density),
+  the tracked one in red — sharing the histogram's x-mapping so the grey pile sits exactly
+  over the bars it produces. At walkers = 1 the strip shows only the red walker.
+- `sw.js` — CACHE_VERSION 639 → 640 → 641.
+
+## [V3.663] - 2026-08-26 — BME466 HW-01: Notes tab, chatbot tutor prompts, expanded practice bench
+
+Course-side V2.34 redeployed. `modules/bme466/hw-01-diffusion-mass-transport.html` is now
+**8 tabs**: a new **📓 Notes** tab (position 2 — the full equation sheet with
+applicability, traps, a statistics toolbox, and five worked examples on the calibration
+standard) and a much bigger ★ Practice bench — two new scenarios (**2b Crowded α** via
+true fBm, certified α = 0.75; **5b Finite receptors**, Berg–Purcell saturation with
+N½ = πa/s ≈ 9425), ~11 new concept questions with per-distractor feedback (correct answers
+no longer always "A"), 7 numeric skill drills with immediate ✓/✗, practice-state
+persistence, and — the headline — a per-concept **🤖 "Copy this for my chatbot"** button.
+It copies a curated tutor prompt (the task restated for a bot, the standard equation
+sheet, the module's *deliberate simplifications* with a do-not-"correct"-the-model
+guardrail, the student's collected runs, and the certified answer **held back** until the
+student commits to an estimate). Clipboard write is the async API, so the V3.662 no-copy
+guard is untouched; a fallback modal with a guard-exempt textarea covers contexts without
+clipboard access. Everything in every prompt is the shared calibration standard — nothing
+student-specific. `modules/bme466/hw1-diffusion.html` rebuilt to match (tab list + AI-use
+policy now leads with the sanctioned path).
+
+QA on the deployed copies: 8 tabs, zero console errors, MathJax typesets the Notes sheet
+with no raw LaTeX, crowded fits 0.76 vs 0.75, finite crossing 9,336 vs 9,425, full graded
+run still scores 12/12 with zero flags, dataset code unchanged, no-copy guard verified
+intact (`sync_nocopy.py --check`).
+
+Deployment: FTP of `modules/bme466/` remains the manual step (see `PENDING_RELEASE.md`).
+
+## [V3.663] - 2026-08-26 — Week-1 module: capstone bite tab, diffusion derby, stepped worked examples
+
+### Changed
+- `modules/bme466/01-diffusion-why-anything-moves.html` (3,773 lines, byte-identical to the
+  course repo's canonical build):
+  - **NEW Tab 5 "The Bite, Solved"** — the module's capstone worked problem: the mosquito
+    bite's full timeline computed from the week's tools. 5.1 the case file (cast table,
+    every D built from radii via μ→D, collapsed step-by-step derivations); 5.2 the `scene`
+    sim — the whole cast on 2.5's log-radius map with a scrub/play log-time clock, fronts
+    firing events (detected ~3 s → histamine out → capillary flares → ITCH ~1 min → BUMP
+    ~33 min), plus a scoreboard plotting computed events against shaded "how bites actually
+    feel" bands; 5.3 the ledger — every event hand-computed in collapsed steps, the honest
+    gaps (clearance √(Dτ), Péclet/scratching) as Week-2 hooks, new check-yourself.
+  - **Tab 3.4 interactive rebuilt as THE DIFFUSION DERBY** (the old two log-bar charts
+    taught nothing): six cargos race their probability fronts √(6Dt) to a chosen distance
+    in log-time playback, finish flags post t = L²/6D, and the second panel replots the
+    race log–log — parallel slope-½ lines whose offsets are the D's (HW1's plot, pre-taught).
+  - **3.1 restructured mobility-first**: mobility introduced as its own concept (shopping
+    cart/sofa, tweezer measurement, v = μF) BEFORE the bargain claim; explicit "Meet the
+    teams" (purple = free → D, orange = pulled → μ) and "How to read the check stat"
+    (what D/(μkBT) = 1 is doing) sections.
+  - **3.3 grounded**: who actually tilts a world — gravity/Perrin (2.2's column), a
+    centrifuge, electrophoresis, an optical tweezer (HW1) — before the derivation.
+  - **All 8 worked examples converted to stepped, COLLAPSED `details.worked` blocks**
+    (given → tools → symbolic assembly → plug-in → boxed answer, equations shown at each
+    step) + 4 new ones in Tab 5; "From the lecture notes, verbatim" → "Note from Dr. McGhee".
+- `sw.js` — CACHE_VERSION 638 → 639.
+
+### Fixed
+- Range inputs SNAP assigned values to their step grid: the scene tab's log-time autoplay
+  wrote increments smaller than half a step back into its own slider and silently froze.
+  The playing clock now lives in a variable; the slider is display-only during play and
+  takes over when scrubbed (which auto-pauses).
+
+### QA
+Zero console errors; rail 24 items (2.1–2.6, 3.1–3.4, 5.1–5.3); 12 worked details all
+collapsed, MathJax verified rendering inside; derby race verified mid-race and finished
+(ribosome ×108 later than O₂ on the flags); scene verified in all five scenes + present
+mode; regressions: barg 1.19, flux 0.99, ring 62.2%, recep 0.84. Screenshots reviewed.
+
+**FTP list**: `modules/bme466/01-diffusion-why-anything-moves.html`, `sw.js` (+ pending batch).
+
+## [V3.662] - 2026-08-26 — BME466 student pages are no longer copyable
+
+*(duplicate number — concurrent sessions; this is the no-copy entry. Numbering resumes at
+V3.663 above.)*
+
+Course-side directive (BME466 repo V2.33): sweeping a graded question into a chatbot should
+take a decision, not a gesture. All three **student-facing** `modules/bme466/` pages now
+carry a no-copy guard in `<head>`.
+
+### Changed
+- `modules/bme466/hw-01-diffusion-mass-transport.html`,
+  `modules/bme466/01-diffusion-why-anything-moves.html`,
+  `modules/bme466/hw1-diffusion.html` — redeployed from the course repo with the guard:
+  `user-select:none` on `html,body` (re-enabled with `!important` on inputs/textareas so
+  typing and **paste** still work — students paste their course ID in), transparent
+  `::selection`, `-webkit-touch-callout:none`, capture-phase cancellation of
+  `contextmenu`/`selectstart`/`dragstart`/`copy`/`cut`, Ctrl-Cmd+C/X/A/P/S swallowed outside
+  fields, a `selectionchange` backstop, and an `@media print` block (print-to-PDF is a copy
+  path). Capture phase also suppresses the **MathJax context menu**, whose "Show Math As →
+  TeX Commands" would otherwise hand out equation source.
+- `modules/bme466/hw1-diffusion.html` also picks up a new paragraph in the AI-use policy
+  telling students the behaviour is deliberate, plus footer lines on both modules — fewer
+  "the page is broken" emails.
+- `modules/bme466/w01-instructor-notes.html` deliberately **unchanged** (instructor material),
+  as are the `modules/tfm/` hydrogel + TFM modules (outreach, not assessment).
+
+### QA (headless patchright against a local serve of this repo)
+- Deployed copies: `user-select` computed `none`, programmatic select-all → **0 chars**, guard
+  script present, MathJax 53 / 239 / 141 nodes, **0 console errors / 0 failed requests**.
+  Instructor-notes page still selects 20,339 chars, confirming the check discriminates.
+- Real input devices on the canonical builds: mouse-drag across prose → 0 chars; real
+  Ctrl+A→Ctrl+C → 0 chars; real right-click on `mjx-container` → no menu node; ID field typing,
+  in-field Ctrl+A and paste all still work; a full graded module run still scores 12/12.
+
+Honest limit, stated in the course docs and to students: friction, not encryption — View
+Source, devtools, "Save page as", a screen reader or a phone camera still reach the text.
+Accessibility is untouched (`user-select` does not affect the accessibility tree).
+
+Deployment: FTP of `modules/bme466/` remains the manual step (see `PENDING_RELEASE.md`).
+
+## [V3.662] - 2026-08-26 — Week-1 module: Tab 3 rebuilt lens-first + the probability-ring section
+
+*(duplicate number — concurrent sessions; this is the Week-1-module entry)*
+
+### Changed
+- `modules/bme466/01-diffusion-why-anything-moves.html` (3,258 lines, byte-identical to
+  the course repo's canonical build) — two instructor-driven changes:
+  - **Tab 3 "Einstein's Bargain" restructured** (old structure was hard to follow —
+    it opened with a macroscopic law and a four-equation wall). New arc, per the
+    instructor's governing principle *fundamental lens → synthesis*:
+    3.1 **The bargain, watched** (NEW `barg` sim — one hard-disk bath, a free tracer
+    team → D and a pulled team → mobility μ = v/F, star readout D/(μ·kBT) measured ≈ 1
+    before any derivation) → 3.2 **Mobility has a law** (existing drag race, reframed
+    μ = 1/6πηa) → 3.3 **Why it's forced** (existing flux standoff; derivation re-cast in
+    mobility language, D = μkBT, prose halved) → 3.4 the speedometer (renumbered).
+  - **New Tab-2 section 2.4 "What √(2Dt) actually tells you"** (NEW `ring` sim): x_rms
+    is a probability radius, not a position. Three modes converge on 1−1/e ≈ 63.2%
+    three different ways — one particle's time-average, a 1000-walker census, and one
+    particle restarted (endpoints rebuild the ensemble). Old 2.4/2.5 → 2.5/2.6.
+- `sw.js` — CACHE_VERSION 637 → 638.
+
+### Physics notes (for future maintainers)
+- `barg` runs a fully periodic box: the bath is de-drifted every substep (a pulled
+  team otherwise builds a box-wide wind), the pull is split half +x / half −x so no
+  net momentum is injected (collective wake entrainment inflated μ ~40% before this),
+  and D comes from a two-lag time-averaged MSD (single-lag reads ~20% low because the
+  tracer's τ_p = m/ζ ≈ 0.3 s makes MSD(τ) = 4D(τ − τ_p)). QA: D/(μ·kBT) = 0.84–0.97
+  after ~15–30 s; towing verdict fires when drift > 40% of thermal speed.
+- `ring` histogram lives in the self-similar variable u = r/√(4Dt) (Rayleigh 2u·e^(−u²)
+  is then time-independent); census mode measured 63.9–65.9% vs 63.2% theory.
+
+**FTP list for this release**: `modules/bme466/01-diffusion-why-anything-moves.html`,
+`sw.js` (plus everything still pending in PENDING_RELEASE.md).
+
+## [V3.661] - 2026-08-25 — Week-1 module complete: Tabs 3–4 sims + classroom presenter mode
+
+### Added
+- `modules/bme466/01-diffusion-why-anything-moves.html` — module finished (2,780 lines,
+  byte-identical copy of the local-test canonical build):
+  - **Tab 3 "Einstein's Bargain"** now fully simulated: `drag` (same-force race across
+    four radii, v = F/ζ, log-log 1/a check, Re readout), `flux` (tilted-potential flux
+    standoff: C(x) vs Boltzmann overlay, "break Einstein" toggle with effective-temperature
+    verdict — QA'd at Dζ/kBT = 1.02 intact, 0.32 broken vs 0.30 expected), `speedo`
+    (six-cargo biomolecule speedometer, D-ladder ticks, crossing-time zones, ghost compare).
+  - **Tab 4 "Next Week"** now simulated: `recep` (true-3D hungry-receptor halo; measured
+    capture rate vs 4πDa·c — students measure eq. 25's fixed-target limit before it is
+    derived) and `crowd` (walkers in an obstacle mesh; D_eff/D₀ = 0.95 at φ=0, 0.54–0.64
+    at φ=30% vs (1−φ)/(1+φ) = 0.54).
+  - **Presenter mode for TV classrooms**: fixed left section rail (click any numbered
+    section to hop, scroll-spy highlight), ⛶ Present toggle — sections widen to the full
+    screen, one section per viewport, root font steps 19/22/25/28 px via A−/A+, and every
+    canvas re-renders crisply at matching zoom (PZ logical-width trick in setupCanvas).
+    Works standalone and inside the class-shell iframe (viewport-sized). `?present=1`
+    enters it on load; state persists in localStorage.
+  - **Robustness**: animation visibility no longer depends on IntersectionObserver
+    delivery (absent in some headless builds) — geometry-based `syncVis()` fallback runs
+    at boot / tab switch / scroll / resize.
+- `sw.js` — CACHE_VERSION 636 → 637.
+
+### QA
+- Headless (patchright): zero console errors / failed requests across all 4 tabs; MathJax
+  239 nodes; page drift 0 px over 6 s beside a running sim; rail hop switches tab +
+  scrolls + highlights; present toggle verified 16→22→16 px with canvas re-setup.
+  Physics: flux Boltzmann ratio 1.02 (broken 0.32 ≈ D_free/D_Einstein), recep capture
+  ratio 0.81 (discrete-step under-capture, verdict explains), crowd φ=0 baseline 0.95,
+  speedo ribosome D = 19 µm²/s. Screenshots of all five new widgets reviewed by eye.
+- NOTE for future headless QA: patchright `page.evaluate` runs in an ISOLATED world
+  (main-page globals invisible; DOM shared) while `waitForFunction` evaluates in the
+  MAIN world — drive pages via real DOM clicks/events, read state from stats DOM.
+
+**FTP list for this release**: `modules/bme466/01-diffusion-why-anything-moves.html`, `sw.js`
+(plus everything still pending in PENDING_RELEASE.md).
+
+## [V3.660] - 2026-08-25 — "Notes" as a first-class kind of learning-module entry
+
+Instructor notes get their own kind alongside lessons, instead of being a lesson you remember not
+to publish. Same `modules[]` array, same `manifest.json` file list — only the presentation and the
+default visibility differ. `sw.js` CACHE_VERSION 635 → 636.
+
+### Added
+- `class-builder.js` — a module entry may now carry **`kind: 'notes'`**. In the Learning Modules
+  editor those rows get an amber card, a ✎ marker and a **NOTES** tag, and drop the "Homework:"
+  control (notes don't take a homework attachment).
+- **"+ Add Notes"** button beside "+ Add Module". It opens the same file picker — `openAddModuleModal(kind)`
+  is now parameterised — retitled "Add Instructor Notes", and the entry it creates is
+  **`published: false`**, so notes are hidden from students the moment they are added. The modal
+  states plainly that this hides the row and not the file, since the page stays reachable by
+  direct URL.
+- Public view: a note that is deliberately published renders with the ✎ marker and a NOTES label,
+  and **does not consume a lesson number** — a class with lesson 1, a note, and lesson 2 numbers
+  them 1, ✎, 2 rather than 1, 2, 3.
+- `user-styles.css` — `.cb-mod-card-notes`, `.cb-mod-card-num-notes`, `.cb-mod-notes-tag`.
+
+### Changed
+- The seeded BME466 Week-1 notes entry is now `kind:'notes'` (`notes_466_w01`), retitled simply
+  "Week 1 — board notes" — the old title carried a "(keep unpublished)" warning that the kind now
+  enforces on its own.
+
+### Verified
+- 16 assertions against the real `renderModulesBody` source, extracted and run against fixtures:
+  admin view flags exactly the notes rows and renders both add buttons; an unpublished note is
+  unchecked and a published one checked; the public view hides unpublished notes, labels a
+  published one, and skips it in the lesson numbering.
+- **Back-compatibility covered explicitly:** a fixture with no `kind` field anywhere (pre-V3.660
+  data, which is what every existing class doc contains) renders exactly as before — all rows
+  present, none flagged as notes, none labelled. `kind` is purely additive.
+
+## [V3.659] - 2026-08-25 — BME466 instructor lecture notes (unpublished module + board figures)
+
+Week 1 board notes published as a styled, print-friendly page and surfaced through a new
+**admin-only tab** on the BME466 class page. `sw.js` CACHE_VERSION 632 → 635.
+
+### Added
+- `modules/bme466/w01-instructor-notes.html` — instructor board notes for Week 1 (two session
+  plans, the numbers worked live, questions with expected answers, misconceptions, running-short
+  triage, board↔module cross-reference). Carries a red "not for distribution" banner and a print
+  stylesheet. Source of truth is the Markdown in the course repo
+  (`F26Course/part1-molecular/L01-mass-transport/W01-NOTES.md`).
+- `class-builder.js` — the notes are listed in the BME466 **Learning Modules** section as
+  `mod_466_w01_notes` with **`published: false`**, exactly like the HW-01 entries. Admins see the
+  row with the "Visible" box unticked; the public renderer filters on `published`, so students
+  never see it. (An earlier draft used an `adminOnly` tab — dropped in favour of the native
+  visibility flag, at the instructor's request.)
+- `scripts/scan_modules.py` — files whose name starts with `_` are now skipped, so a genuinely
+  private asset can be kept out of `manifest.json`. `_template.html` was already skipped by name;
+  this generalises it. **The notes file deliberately does not use that prefix** — it must appear
+  in the manifest to be selectable in the "+ Add Module" dropdown, and its filename is public in
+  `class-builder.js` regardless, so excluding it bought nothing.
+
+- The notes page carries **8 inline-SVG board figures** rather than prose descriptions of what to
+  draw: the mosh-pit box, the single-molecule wall bounce (Δp = 2mv, Δt = 2L/v, ⟨F⟩ = mv²/L),
+  one-molecule spikes vs many-molecule steady pressure, the k_BT energy ladder (H-bond / ATP /
+  covalent against the thermal-noise zone), Brown's two views (mote alone vs mote plus the
+  molecules hitting it), the 1D random walk with three trajectories and the ±√(2Dt) envelope, the
+  t / 4t / 9t diffusion fronts, and the drunkard's city walk. The city path is a genuine 55-step
+  lattice random walk (18 distinct corners, 38 revisits) drawn with per-pass jitter so the
+  re-treading is actually visible. Self-contained SVG — no image files, scales and prints.
+
+### Verified (anonymous visitor, no login)
+- The Learning Modules list shows only published rows to a logged-out visitor; the notes entry is
+  `published: false` and so is filtered out.
+- `manifest.json` lists the notes as `bme466/w01-instructor-notes.html`, so it is selectable in
+  the class builder's "+ Add Module" dropdown (verified through the same flattenManifest data
+  path the picker uses — 47 options, notes present, labelled
+  "BME466/566 Biomechanics (F26) — W01 Live Lecture Notes … (Instructor)").
+
+### Known limitation — this is unlisting, not access control
+- The notes file is an **unauthenticated static asset**: fetched directly it returns **200** to
+  anyone who knows the URL (measured). There is currently no truly-private store for this on the
+  site — `/modules/` is served without auth, `class-builder.js` is a public file, and
+  `schedules/{id}` is world-readable by rule (`allow read: if true`). Hard privacy would need a
+  new admin-gated Firestore collection plus rendering code, which is a feature, not a config
+  change. **Keep exam keys, grades and anything student-identifying out of these pages.** This
+  caveat is stated in the tab body itself and in a code comment beside the tab.
+
+## [V3.658] - 2026-08-25 — BME466 Week 1 module: instructor revisions redeployed
+
+Redeploy of `modules/bme466/01-diffusion-why-anything-moves.html` after four instructor-requested
+changes (course-repo entry V2.30). `sw.js` CACHE_VERSION 631 → 632; `modules/manifest.json`
+regenerated (title unchanged).
+
+### Changed
+- §1.2 rebuilt as a **bath + one selectable tracer** at true relative size (radius ∝ m^⅓) with a
+  show/hide-bath toggle; the histogram is now the tracer's own speed against the 2D
+  Maxwell–Boltzmann curve for its mass.
+- Simulation engine gained per-particle mass and radius with correct unequal-mass elastic
+  collisions, and now normalises each run to exactly kT.
+- **Live readouts no longer reflow the page.** Stat/verdict DOM writes are skipped when unchanged
+  and rate-limited to ~6 Hz, and the boxes carry reserved heights — measured 0 px layout drift
+  under running simulations (was up to 20 px), so open disclosure boxes stay open.
+
+### Added
+- §2.1 a dust mote in air with a **show/hide molecules** toggle (Brown's literal 1827 view).
+- §2.5 a drunkard's-homecoming first-passage search on a city grid, handing off to Tab 3.
+
+### Fixed
+- Corrected an inaccurate claim in the opening scenario (a mosquito bite does not make the ankle
+  swell and stiffen).
+- Inline `<strong>` inside a verdict no longer breaks onto its own line.
+
+## [V3.657] - 2026-08-25 — BME466 Week 1 learning module published
+
+First **weekly learning module** for BME/AME 466/566 goes live. Distinct from the HW-01
+homework bench already in `modules/bme466/`: teaching content, ungraded, no course-ID rail and
+no export. Canonical build lives in the course repo
+(`Biomechanics BME466/local-test/01-diffusion-why-anything-moves.html`, plan V2.28); the copy
+here is byte-identical.
+
+### Added
+- `modules/bme466/01-diffusion-why-anything-moves.html` — "Diffusion — Why Anything Moves at
+  All" (Week 1, pairs with Lecture 1). Four tabs; **Tabs 1–2 carry full simulations**, Tabs 3–4
+  are written teasers pending their sims. Self-contained, MathJax CDN only.
+  - Tab 1 "The Bouncing World": hard-disk gas whose wall impulses *are* the pressure meter ·
+    monospeed box thermalizing onto the Maxwell–Boltzmann curve · piston + Boyle isotherm ·
+    the kinetic-theory pressure derivation animated one molecule at a time.
+  - Tab 2 "The Drunkard's Walk": sedimentation length (Brownian vs sinking) · 1D walkers
+    showing ⟨x⟩ = 0 while ⟨x²⟩ = 2Dt · the diffusion front spreading from the course's
+    recurring mosquito-bite scenario across a log-distance body map.
+  - Weekly modules are numbered by **week** (`01-`…`15-`), unlike the `hw-NN-` benches.
+- `class-builder.js` — `DEFAULT_SCHEDULES['bme466'].modules`: new entry
+  `mod_466_w01_diffusion` at `order: 0` with **`published: true`** (the two HW-01 entries stay
+  `published: false` until HW1 goes out in Week 2).
+
+### Changed
+- `modules/manifest.json` — regenerated via `python3 scripts/scan_modules.py`. Verified
+  additive: no curated folder label changed, no folder or file removed.
+- `sw.js` — `CACHE_VERSION` 630 → 631 so the new module and the class-page edit ship past the
+  service-worker shell cache.
+
+### Verified
+- Deployed copy is byte-identical to the course-repo canonical build (`diff`), and passes the
+  same headless QA there: all four tabs paint, **zero console errors, zero failed requests**,
+  148 MathJax nodes, no horizontal overflow at 640 px, and the animation loop parks when its
+  canvases scroll off-screen.
+- Module viewer route renders: `#/classes/bme466/modules/01-diffusion-why-anything-moves.html`
+  loads the file in the class shell. The iframe-height risk did **not** bite — the shell sizes
+  the frame to the first tab's `scrollHeight` (6599 px) and every later tab is shorter
+  (brown 4739, stokes 1486, next 1718), so nothing clips.
+- `node --check` on both edited JS files.
+
+### Not verified — needs a production check after FTP
+- **The class page's Learning Modules list still rendered "No modules available yet" in local
+  offline testing**, despite the seed entry being present and `published: true` in the file the
+  browser fetched. Could not diagnose locally: Firestore is unreachable offline (so
+  `resolveSchedule()` cannot take its normal path) and the page's CSP blocks injected probe
+  scripts, so the live `_classData` could not be inspected. Two candidates, in likelihood order:
+  1. A `classes/bme466` Firestore doc already exists (created by any prior in-UI save), and
+     `resolveSchedule()` **prefers Firestore over the code seed** — documented in V3.656. If so
+     the seed edit is inert and the module must be added through the class-builder admin UI
+     (**+ Add Module**, then tick **Visible**). This is the expected behaviour, not a bug.
+  2. An artifact of the offline harness only.
+  **The direct URL is unaffected and is the reliable path:**
+  `https://mcgheelab.com/modules/bme466/01-diffusion-why-anything-moves.html` — the same way
+  `HW1-diffusion.md` already links its bench.
+- FTP upload to mcgheelab.com remains the manual instructor step.
+
+## [V3.656] - 2026-08-25 — BME/AME 466/566 course pages: syllabus, schedule, learning modules
+
+F26 classes started today and BME466 had no page. It turned out to need almost no new
+machinery: `SECTION_REG` already carried generic `syllabus` / `schedule` / `modules` section
+types, and `modules[].published` was already the release flag the public renderer filters on.
+What was missing was the class document. Plan:
+`CodeLog/ClaudesPlan/V3.656_bme466_course_pages.md`.
+
+### Added
+- `class-builder.js` — `DEFAULT_SCHEDULES['bme466']`: BME/AME 466/566 Biomechanics (Fall 2026),
+  three tabs built from the **generic** section types (not a BME295C-style bespoke surface):
+  - **Syllabus** — course description, logistics, prerequisites, texts, the four course Parts,
+    grading, expected learning outcomes + ABET 1/3/6/7, 466-vs-566 differentiation, and
+    policies (take-home exams, collaboration disclosure, AI-use rules, teamwork, attendance).
+    Corrects the "Spring 2025" header carried over in the F25 syllabus.
+  - **Schedule** — the verified 16-week / 30-session F26 calendar. Only Thu Nov 26 is lost
+    (Thanksgiving); Labor Day and Veterans Day fall outside Tue/Thu. Nov 24 and Dec 8 meet once.
+  - **Learning Modules** — renders `modules[]`; ships with both HW-01 entries `published: false`.
+  Seeded in code rather than hand-written into Firestore so the page is live on FTP with no
+  manual step; `resolveSchedule()` prefers Firestore, so the first in-UI save takes over.
+  Carries **no** `studentRoster` / `dailyAttendance` / `grades` — see Notes.
+- `class-builder.js` — `renderRichText(raw)`: markdown-lite renderer for the generic text
+  sections. Supports `## heading`, `**bold**`, `` `code` ``, `- bullet`, `1. numbered`,
+  `| tables |` with a `|---|` separator row, `---` rule, blank-line paragraphs, URL
+  auto-linking. Escapes with `esc()` **before** applying any marker, so it is no more
+  permissive than `renderText()`, which is left untouched.
+- `user-styles.css` — `.cb-richtext` styling for the above (`.cb-rt-h`, `.cb-rt-list`,
+  `.cb-rt-hr`, `.cb-rt-table` + `.cb-rt-tablewrap`). Tables scroll inside their own
+  `overflow-x` container with a sticky header, so a wide schedule never forces horizontal page
+  scroll; ≤640px reflow included.
+- `app.js` — BME466 guarantee card in the `#/classes` listing (`order: -2`, so it sorts ahead of
+  BME295C), mirroring the existing V3.244 BME295C guard. Self-retires once a `classes/bme466`
+  doc exists.
+
+### Changed
+- `class-builder.js` — `SECTION_REG`: `overview`, `syllabus`, `schedule` and `simulations` moved
+  from `component:'text'` to a new `component:'richtext'`. Editing is the same plain textarea
+  (rows 6 → 14, with a syntax hint); only the read-only render changed. BME 295C uses its own
+  `syllabus295c` / `schedule295c` / `modules295c` components and is unaffected — verified the
+  generic `syllabus` key appeared *only* in `SECTION_REG`. `migrateLegacy()` and
+  `renderSectionBody()` accept both components.
+- `scripts/scan_modules.py` — **preserves hand-curated folder labels**; only new folders get an
+  auto-derived label, and each new folder is printed by name so its label can be curated. It
+  previously re-derived every label from the directory name, which clobbered six curated values
+  ("Lab Foundations" → "Foundations", "TFM (Biomechanics 466/566)" → "TFM", …). That is why the
+  manifest was being hand-edited instead of regenerated.
+- `modules/manifest.json` — regenerated. Registers **`modules/heat_transfer/` (7 lessons)**,
+  which had silently never been in the manifest and so was invisible to the Add Module picker,
+  the teacher grant form, and the admin approve modal.
+- `sw.js` — `CACHE_VERSION` 629 → 630.
+
+### Bug Fixes
+- `class-builder.js` `wireModuleViewer()` — **module links opened a blank viewer for any class
+  seeded in `DEFAULT_SCHEDULES`.** It read Firestore directly (`.doc(classId).get()`, then
+  `if (!doc.exists) return;`) with no seed fallback, unlike `renderClassPage`/`wireClassPage`.
+  The class page rendered but every module link produced a silently empty iframe until the doc
+  existed in Firestore — a production issue, not a localhost artifact. Now resolves through
+  `resolveSchedule()`, which handles demo classes, Firestore, and the seed fallback in one
+  place, so the two code paths agree. Also removes the now-redundant `db`/`demoSched` preamble.
+- `class-builder.js` `renderRichText()` — **fixed an infinite loop that would hang the class
+  page.** The paragraph branch advanced `i` only inside a condition-guarded loop, so a line
+  matching none of the block branches never advanced it. The trigger was real and present in
+  our own content: an empty table header row (`| | |`) satisfies `isTableSep()`, so the table
+  branch skips it and every other branch declines it. The paragraph branch now consumes
+  `lines[i]` before looking further, making progress structural; added an `isBlockStart()`
+  predicate used only to decide where a paragraph *ends*, never whether to advance.
+
+### Notes
+- **`schedules/{id}` is world-readable** (`firestore.rules:424`, `allow read: if true`). So
+  `published:false` hides a *link*, not content — an unreleased module's title and filename are
+  in the public document, and module HTML under `modules/` is a public static asset (accepted
+  trade-off, V3.304 plan). Release controls pacing, not secrecy. BME466 therefore stores nothing
+  student-identifying. **Pre-existing exposure, not fixed here:** BME 295C keeps
+  `studentRoster[]` (names, emails, high schools, pronouns), `dailyAttendance` and `grades` on
+  that same public document. The fix model is the `assessments/{uid}` rule
+  (`firestore.rules:493-506`). Flagged in the V3.656 plan doc.
+- Canonical course content lives in the `Biomechanics BME466` repo
+  (`F26Course/00-admin/WEEK-SCHEDULE.md`, `F25Archive/syllabus/`); this is the published view.
+- Verified in headless Chrome: 3 tabs; syllabus 21 headings / 2 tables / 9 lists / 0 `<br>`
+  soup; schedule 4 tables / 16 rows; release gate empty→2 links on flip and the viewer sets the
+  right iframe src; module 200 in 911 ms with 7 tabs, 10 canvases, 0 console errors; BME 295C's
+  5 non-admin tabs still render; BME466 is card 0 of 5 on `#/classes`; 13-case renderer harness
+  green. FTP only. sw.js -> 630.
+
+## [V3.655] - 2026-08-24 — BME466 F26 course folder: HW-01 diffusion module + homework page
+
+### Added
+- `modules/bme466/` — new course folder for BME/AME 466/566 Biomechanics (F26):
+  - `hw-01-diffusion-mass-transport.html` — the HW1 virtual bench (7 tabs, house module
+    pattern). Course-ID rail seeds a per-student dataset (salted FNV-1a → mulberry32 →
+    frozen-order lattice draws, parity-locked to the course repo's `scripts/hw1_keygen.py`);
+    practice mode gives accept-band checks with hints, homework mode exports a checksummed
+    `HW1_<ID>_<code>.json` for the D2L dropbox; localStorage autosave + progress-file
+    import. Student IDs are processed entirely client-side (no Firebase/analytics —
+    standalone per AUTHORING §7).
+  - `hw1-diffusion.html` — the pandoc-built HW1 prompt page (source of truth:
+    `Biomechanics BME466/F26Course/assessments/homework/HW1/HW1-diffusion.md`).
+- `modules/manifest.json` — added the `bme466` folder entry (label "BME466/566
+  Biomechanics (F26)"), bumped `generated`.
+
+### Notes
+- Canonical build lives in the course repo (`Biomechanics BME466/local-test/`); re-sync
+  from there, not by editing here. FTP deploy to mcgheelab.com remains the manual step.
+
+## [V3.654] - 2026-08-20 — the horizontal lines get a grip too
+
+Alex: *"the horizontal lines are not getting the grip right now."* Correct, and
+deliberate at the time — wrongly. V3.652 gave the `|||` only to column lines
+because row height in LaTeX is `\arraystretch`, a whole-table property, so a
+per-row drag looked like a handle for something with nowhere to be stored. Half
+right: `\arraystretch` cannot make *one* row taller, but `\\[dim]` can, and that
+is exactly what dragging a horizontal border should mean.
+Plan: `CodeLog/ClaudesPlan/V3.654_row_height_grip.md`.
+Self-test: `scripts/tests/v3650-selftest.html` — 170 assertions to 191, green.
+FTP only. sw.js -> 629.
+
+### Added
+- **Drag a horizontal line to add height to the row above it.** `i > 0` now
+  earns a grip on **both** axes — every line with a band before it to resize.
+  A column line sizes the column on its left, a row line adds space under the
+  row above; opening edges still get none, having nothing before them. The grip
+  keeps its place between the `＋` and the `−` and carries `cursor: row-resize`
+  on a horizontal line. Drag maths mirrors the column drag: pixels → points at
+  the CSS 96dpi reference (the same conversion the mm column widths use),
+  clamped, previewed live, committed on mouse-up only if the pointer moved.
+- **`row_heights_json`** — `{"<r>": <extra points>}`, a scalar attr separate from
+  `style_json` because it is per-row data rather than a table-wide style, the
+  same split as `cell_styles_json`. Shared helpers `parseTableRowExtras` /
+  `shiftTableRowExtras` / `TABLE_ROW_EXTRA_MAX_PT` in
+  `rm/js/paper-layout-rules.js`, so all four table surfaces read one parse.
+  Zero and negatives are **dropped** rather than stored as no-ops, so a row
+  dragged back to its natural height leaves no residue and the attr disappears
+  when the last one goes; clamped to **60pt**, past which the writer wants
+  another row, not a taller one, and an unbounded drag could otherwise push a
+  table off the page with no way back except editing JSON.
+- The extra is re-keyed by `_tblStructOp` alongside cells, merges, align,
+  widths, cell styles and `rule_after` — in the same transact, or the height
+  stays on the row index that used to be there.
+
+### Changed
+- Rendered as `padding-bottom` on the row's cells in the editor grid, the
+  doc-side preview and Document view, driven by a `--pe-row-extra` custom
+  property so a drag can preview it without touching every cell. Padding
+  *under* the row, because that is what `\\[dim]` does in the PDF: space after
+  the row, not a taller cell box.
+- **`rowEnd(r)`** (`rm/js/paper-export-tex.js`) composes the extra into the
+  terminator the row already ends in — ` \\[6pt]` rather than ` \\` — in both
+  the float and longtable emitters. It has to be *composed*, not appended:
+  ` \\ \\[6pt]` would emit an empty extra row. No extras means the plain ` \\`,
+  byte-identical to before; asserted.
+- A row entirely covered by a rowspan has no `td[data-r]` of its own, so there
+  is nothing to resize and the drag bails rather than guessing at a target.
+
+## [V3.653] - 2026-08-20 — the line cluster rides the middle of its line, both axes
+
+Alex on V3.652: *"the grip and +- should be in the middle of the line. this
+should be in the horizontal and vertical lines."*
+Plan: `CodeLog/ClaudesPlan/V3.653_line_cluster_centred.md`.
+Self-test: `scripts/tests/v3650-selftest.html` — 159 assertions to 170, green.
+FTP only. sw.js -> 628.
+
+### Changed
+- **The `＋ ||| −` cluster is centred on its line, on both axes**
+  (`rm/css/paper-editor.css`). V3.652 parked it at one *end* — above the table
+  for a column line, out in the left gutter for a row line — which reads as a
+  label hanging off the line rather than as part of it. It now sits at the
+  line's midpoint and runs **along** it: stacked on a vertical column border,
+  in a row on a horizontal row border, with the grip still between the `＋` and
+  the `−`.
+- **Reveal moved from CSS `:hover` to nearest-line arbitration**
+  (`rm/js/paper-equations.js`). One `mousemove` on the grid measures the pointer
+  against every border, activates the single closest line within 7px, and clears
+  the rest; the band-peek preview rides the same switch, so it cannot be left
+  behind by a `mouseleave` that never fired. A pointer inside the active
+  cluster's rect holds that line active (the buttons stick out past the 11px
+  strip), and arbitration is suspended while a column drag is in flight, or the
+  cluster would vanish out from under the grip being dragged.
+
+### Bug Fixes
+- **Two clusters appeared at every crossing.** Row strips cross column strips at
+  every intersection, and with the cluster centred, a column line's midpoint
+  often lands right on a row line — so `:hover` lit up both lines and peeked two
+  bands. Arbitration now picks exactly one; a tie at a crossing goes to the
+  column, arbitrarily but consistently. Asserted directly.
+- **A 5px dead band ran down every cell edge.** The hit strips were
+  `pointer-events: auto`, so a click within 5px of any border landed on the
+  strip instead of the cell — you could not put the caret at the start of a
+  cell. Present since V3.652. The strips are now inert: they are geometry, not
+  hit targets, and arbitration does not need them to receive events.
+- **The cluster's card swallowed clicks in the middle of every line.** Now only
+  its three buttons take them; the card behind them is click-through, or its
+  padding and gaps would be a fresh dead patch exactly where the cluster floats
+  over a cell. Probed with `elementFromPoint` across a cell edge: 3px in hits
+  the grip (correct — that is the resize handle, right on the border), 8px in
+  reaches the cell.
+
+## [V3.652] - 2026-08-20 — table builder: controls on the lines, drag-to-resize, wrap by default
+
+Alex on V3.650/651: *"i need to be able to drag the boarders of the cells to
+custom widths. the +- should only pop up when i mouse over the line. the +-
+should be per line not per cell. in the middle of the +- shuld be a ||| drag
+indicator."* and *"the text should be wrapped by default."*
+Plan: `CodeLog/ClaudesPlan/V3.652_line_handles_column_drag_wrap.md`.
+Self-test: `scripts/tests/v3650-selftest.html` — 123 assertions to 155, green.
+FTP only. sw.js -> 627.
+
+### Added
+- **One control cluster per grid LINE, revealed only on that line**
+  (`rm/js/paper-equations.js`, `rm/css/paper-editor.css`). Every column border
+  and every row border — both outer edges included — gets an invisible 11px hit
+  strip running its full length, in a new `.pe-tbl-lines` overlay. Hovering
+  anywhere along it highlights the line and raises `＋ ||| −`: insert a
+  row/column **at** that line, drag to resize, remove the band the line sits
+  against (the one *after* it, except on the closing edge, whose only neighbour
+  is the one before). Hovering a line also **previews** which band its `−` would
+  take, via a new `peek` state on `markBand` — a peek never downgrades an armed
+  band.
+- **Drag a column border to a custom width.** The `|||` grip sizes the column to
+  its left as a fraction of the table's content width — the same `widths_json`
+  the width dropdown writes and the export already turns into
+  `p{…\linewidth}`. Clamped to 5–90% so a drag past the edge cannot collapse a
+  column, live-previewed on the colgroup, and committed on mouse-up only if the
+  pointer actually moved, so a click on the grip is not a silent resize.
+- **`PaperLayout.tableColShares(widths, cols)`** — how wide each column should be
+  when the table wraps. Wrapping in LaTeX means `p{width}` and `p{}` needs a
+  *number*; `tabular` has no "auto but wrapping" column type. So unsized columns
+  share whatever fraction of the line is left over, from the same helper that
+  fills the editor's colgroup — **what you drag is what compiles**.
+- **`wrap text` in the style bar**, on by default.
+
+### Changed
+- **Tables wrap by default** (`rm/js/paper-layout-rules.js` and all four table
+  surfaces). A cell of prose in an `l` column runs off the page in LaTeX and
+  blows the column out in the browser, which is never what the writer meant. In
+  the browser this is `table-layout: fixed` — that, not `white-space`, is what
+  makes a long cell wrap rather than widen its column.
+- **The editor grid now always emits a colgroup** (leading `<col>` for the
+  gutter), and so do the doc-side preview and Document view. Fixed layout takes
+  its widths from the first row when there is no colgroup, and the first row is
+  exactly where a merge can hide a column.
+- Line geometry is measured off the **gutter heads** and re-read on mount, on the
+  next frame, and from a `ResizeObserver` on the table — a wrapped cell changes
+  row heights as you type. The heads earn their keep three times over now: band
+  selection (V3.651), the reserved margin, and being the only cells that are
+  never merged, so their edges are reliably the grid's lines.
+- Only **column** lines carry the `|||`. Row height in LaTeX is `\arraystretch`,
+  a property of the whole table (the "rows:" control), so a per-row drag would be
+  a handle for something with nowhere to be stored.
+
+### Removed
+- The V3.650 gutter-pinned buttons and `_mkGutBtn`, plus their CSS. The controls
+  live on the lines now.
+
+### Bug Fixes
+- **`p{}` columns overran the line.** N columns of `1/N\linewidth` overshoot by
+  `2N\tabcolsep`, so LaTeX reports an overfull hbox on a table that looked right
+  on screen. The colspec now emits
+  `p{\dimexpr <share>\linewidth-2\tabcolsep\relax}`.
+- **A left-aligned `p{}` column is justified**, which in a narrow column gives
+  the rivers of whitespace that make a wrapped table look broken. Wrapping
+  columns get `>{\raggedright\arraybackslash}p{…}` — `\arraybackslash` because
+  `\raggedright` otherwise redefines `\\` away from "end of row".
+- **The armed-delete and hover-preview tints lost to the zebra stripe.**
+  `.pe-grid-table tr.pe-tbl-zebrarow td[data-r]` is a three-class selector, so
+  the two-class highlights were being overridden on every other row and the
+  preview blinked. Both now outrank it.
+
+### Compatibility
+`wrap` defaulting to on **deliberately changes the compiled output of existing
+tables** — `l` columns become `p{}`. It is a visible toggle in the style bar and
+`wrap text` off restores the old `.tex` exactly; the self-test asserts that
+(`wrap:false` must match no `p{`). The rest of V3.651's byte-identical property
+still holds: `wrap: true` counts as default, so `style_json` is still deleted
+from a table nobody has styled.
+
+## [V3.651] - 2026-08-20 — table builder: room to work in, and real styling
+
+Alex on V3.650: *"the table is now srunched up in the table area it needs some
+buffer area to feel better when we are making it"* and *"also we should be able
+to style it"*.
+Plan: `CodeLog/ClaudesPlan/V3.651_table_styling_and_breathing_room.md`.
+Self-test: `scripts/tests/v3650-selftest.html` — 64 assertions to 123, green.
+FTP only. sw.js -> 626.
+
+### Added
+- **A shared table-style model** (`rm/js/paper-layout-rules.js`). Four surfaces
+  draw a table — the panel grid editor, the doc-side block preview, Document
+  view and the compiled `.tex` — so the model is parsed in exactly one place,
+  next to `parseTableMerges`, and all four read it. Two new scalar attrs:
+  `style_json` `{rules, size, density, zebra, rule_after:[r,…]}` and
+  `cell_styles_json` `{"<r>-<c>": {b, i, al, bg}}`. Scalars for the same reason
+  `merges_json` is one: a table block gets moved between sections and
+  placed/unplaced, and a scalar survives every one of those paths. New
+  `parseTableStyle` / `tableStyleIsDefault` / `parseTableCellStyles` /
+  `shiftTableCellStyles` / `shiftTableRuleAfter`, plus `TABLE_FILLS`,
+  `TABLE_DENSITIES` and `TABLE_SIZES` — each fill carries **both** a CSS colour
+  and a TeX colour expression, so the swatch you click is the colour that
+  compiles.
+- **Table-level styling** (`rm/js/paper-equations.js`). `booktabs` as a lone
+  checkbox was a strange way to ask "what should the lines look like"; the three
+  real answers are **booktabs / grid / none**. Alongside it: **text** (normal /
+  small / footnotesize / scriptsize → `\small` etc.), **rows** (compact /
+  normal / roomy / airy → `\renewcommand{\arraystretch}`), and **striped**
+  (→ `\rowcolors`).
+- **Cell-level styling on the floating bar.** V3.650 built a cell selection for
+  merge; formatting is the other thing you want a block of cells for, so it
+  rides the same gesture rather than growing a second surface: **B**, *I*, three
+  alignment overrides, five fill swatches, a clear-shading button, and — for a
+  whole-row selection — the extra rule that goes under it. Every button reflects
+  the selection's current state and toggles.
+- **Clicking a row or column gutter head selects that whole band** — what makes
+  "bold this row" one gesture instead of a drag the width of the table.
+- **`_usedColortbl`** (`rm/js/paper-export-tex.js`) — shading pulls in
+  `\usepackage[table]{xcolor}` on demand. Plain `xcolor` would compile the
+  preamble and then fail on the first `\cellcolor`; the `table` option is what
+  brings in colortbl.
+
+### Changed
+- **The grid gets a padded canvas** (`rm/css/paper-editor.css`). V3.650's border
+  buttons poke 8px *outside* their gutter cells into 2px of padding, and the
+  cells still carried metrics inherited from the read-only preview
+  (`min-height:22px`, `padding:6px 8px`) — the surface you build a table in was
+  tighter than the one that only shows you one. Now: `18px 20px 16px` inside a
+  hairline card, and editor cells get typing metrics (`min-height:30px`,
+  `padding:8px 10px`) scoped to `.pe-tab-editor-body` so the compact doc-side
+  preview is untouched.
+- **The editor draws the table as the PDF will read it** — rules, striping, row
+  height, font size, bold/italic and shading all render in the grid. A table
+  whose formatting you cannot see is a table you style twice. In non-grid modes
+  the cell boundaries stay as a faint dashed hint, so `rules: none` is still
+  something you can type into.
+- **`_tblStructOp` carries the styling.** It already re-keyed cells, merges,
+  align and widths; it now shifts `cell_styles_json` and `rule_after` in the
+  **same transact**, or inserting a column leaves the table bold in the column
+  that used to be there.
+- **The action bar repaints synchronously** as well as on the next frame. It was
+  positioned only from a `requestAnimationFrame` (needed because the first build
+  runs before `_buildTableRow` appends the body), which dropped the bar for a
+  frame after every format click.
+- The doc-side preview (`rm/js/paper-blocks.js`) and Document view
+  (`rm/js/paper-doc-view.js`, `rm/css/paper-doc-view.css`) mirror all of it from
+  the same parse.
+
+### Bug Fixes
+- **`\cellcolor` before `\multicolumn` does not compile.** `\multicolumn` must
+  be the *entire* cell, so a shaded cell that also overrides its alignment has
+  to be `\multicolumn{1}{c}{\cellcolor{…}x}` — the other order is a "Misplaced
+  \multicolumn" error, not a cosmetic difference. The alignment override now
+  wraps last, with the shading inside; asserted both ways round.
+- **A rule under the last row doubled the `\bottomrule`.** `ruleAfterTex` drops
+  it when a closing rule is already coming, and the UI does not offer the button
+  there — so it never promises something the export discards.
+- **Striping was off by one with a header row.** `\rowcolors` counts from the
+  first *body* row, so the start index is 2 when `header_row` is on, or the
+  header takes the tint and every stripe below it is wrong.
+- **`longtable` styling leaked into the body text.** longtable is not a float,
+  so `\small` / `\arraystretch` / `\rowcolors` had nothing to scope them; they
+  are now wrapped in `\begingroup…\endgroup`.
+
+### Compatibility
+`parseTableStyle` falls back to the pre-V3.651 `booktabs` boolean when there is
+no `style_json`, and every default is a no-op, so **an untouched table's `.tex`
+is byte-identical to V3.650's** — asserted directly (`/arraystretch|rowcolors|
+cellcolor|textbf|hline|footnotesize/` must not match). Writers route through
+`_tblStoreStyle`, which deletes `style_json` when nothing is off-default and
+keeps the legacy flag in step (`booktabs === (rules === 'booktabs')`) for any
+consumer that predates this release.
+
+## [V3.650] - 2026-08-20 — table builder: border ＋/− controls, live re-render, drag-to-merge
+
+Three asks about the paper writer's table builder: *"there is no way to delete
+rows or columns after they are made — instead of the +row, +col there should
+be a +- that comes up at the edge of any border"*, *"the table does not update
+responsively, i have to click off of it to see any updates"*, and *"i cant
+click drag multiple cells to do merge — once multiple cells are selected the
+merge option should arise, if a merged cell is clicked on the unmerge should
+arise"*.
+Plan: `CodeLog/ClaudesPlan/V3.650_table_builder_edges_and_merge.md`.
+Self-test: `scripts/tests/v3650-selftest.html` (64 assertions, green).
+FTP only. sw.js -> 625.
+
+### Added
+- **Insert / delete a row or column, on any border**
+  (`rm/js/paper-equations.js`, `rm/css/paper-editor.css`). The grid is now
+  rendered with a **gutter row and gutter column** — real table cells, not an
+  overlay — so a `＋` pinned to a head cell's left edge sits exactly ON the
+  border between two columns with no measurement code, and stays there when a
+  merge or a width change reflows the table (verified headless: the button
+  centre lands within 1 px of the cell's border). Every internal border and
+  both outer edges carry a `＋` that inserts there; each band carries a `−`
+  that removes it. They fade in on hover. The last remaining row/column has no
+  `−` at all rather than a button that fails.
+- **`_tblShiftMerges(merges, axis, op, at)`** — the piece whose absence is why
+  insert/delete were never built. Inserting through a merge grows its span;
+  inserting above/left of an anchor moves the anchor; deleting the anchor's own
+  line keeps the anchor one line shorter; a merge that decays to 1×1 stops
+  being a merge. 11 assertions cover the matrix on both axes.
+- **`_tblStructOp` / `_tblReadGrid` / `_tblWriteGrid`** — the re-keying the old
+  buttons avoided. `cells` is a Y.Map with `"<r>-<c>"` string keys, so an
+  insert or delete anywhere but the end has to move every key after it —
+  **by cloning the string**, because a `Y.Text` can only be integrated once and
+  cannot be moved to another key. `merges_json`, `align` and `widths_json` are
+  spliced in the same transact, so a table never lands in a state where the
+  alignment belongs to the column that used to be there.
+- **Drag across cells to select them.** `mousedown` anchors without
+  `preventDefault` (so the caret still lands where you clicked); the drag only
+  becomes a *cell* drag once the pointer reaches a different cell, at which
+  point the DOM text selection is cleared and `user-select` is suppressed so
+  the browser does not paint a cross-cell text drag underneath. Shift-click
+  still extends. Escape, or a mousedown outside any grid, clears.
+- **Merge / Unmerge arise over the selection.** A floating `.pe-tbl-actbar`
+  carries only what applies: `⧉ Merge R×C` when the rect is bigger than one
+  cell, `⤫ Unmerge` when it contains a merge anchor — and, when the rect *is*
+  exactly one existing merge (which is what clicking a merged cell produces),
+  only Unmerge, since merging a merge with itself is not an action. The
+  selection rect is expanded until it fully contains every merge it touches, so
+  a drag that clips half a merged cell is still a legal target.
+
+### Changed
+- **The table editor re-renders itself instead of waiting for blur**
+  (`rm/js/paper-equations.js`). New `_watchTableAttrs()` registers a **shallow**
+  `attrs.observe` per table — registry keyed by blockId, previous handler
+  unobserved, self-unregistering once its root leaves the DOM — that rebuilds
+  the body when a key in the new `TBL_STRUCT_KEYS` set changed (`rows`, `cols`,
+  `cells`, `merges_json`, `align`, `widths_json`, `header_row`, `booktabs`).
+  Typing in a cell mutates a `Y.Text` *inside* `attrs.cells`, which a shallow
+  observe never sees, so **V3.647's caret fix is untouched** — asserted
+  directly: a keystroke leaves both the grid element and the focused cell
+  element identical, a shape change replaces them.
+- The header row now actually renders bold in the editor grid, and the grid
+  gets its own horizontal scroller so a wide table stops stretching the panel.
+- `PaperEquations.__tblTest` — narrow test seam for the self-test. The grid is
+  DOM-and-CRDT all the way down with no pure function to assert against, so the
+  self-test drives the real editor: builds a `Y.Doc`, mounts the body, clicks
+  the gutter buttons and drags across cells.
+
+### Removed
+- **`+ Row` / `+ Col`** everywhere. On the Tables page they are replaced by the
+  border controls. On the **doc-side table block** (`rm/js/paper-blocks.js`)
+  they are simply gone: that preview has bound its cells `readOnly:true` since
+  V3.127, so offering to grow a grid whose content cannot be typed there was
+  the wrong half of the job — the toolbar keeps `Edit on Tables page ↗`.
+- **Three `alert()` calls** from the merge path (`'Select cells first…'`,
+  `'Select more than one cell to merge.'`, `'The selection overlaps an existing
+  merge — unmerge it first.'`). Two of those states can no longer be reached
+  (the button is not rendered / the rect self-expands), and deleting a band
+  that has text **arms in place** — the `−` turns into a `✓` and the doomed
+  cells go red for 4 s — instead of raising a `confirm()`. The self-test traps
+  `alert`/`confirm`/`prompt` and fails if any fires.
+
+### Bug Fixes
+- **Merging across an existing merge no longer refuses.** It absorbs the merges
+  inside the selection instead of telling the writer to undo them first.
+- **Per-column alignment and width no longer follow the wrong column** after a
+  structural edit — before this release there was no structural edit that could
+  desynchronise them, because there was no insert or delete.
+
+## [V3.649] - 2026-08-19 — section cross-references + lists inside a paragraph
+
+Two asks about the paragraph you are writing: *"I want to be able to add
+references to various sections in the paper"* and *"I need the ability to add
+lists to the write version of the paragraph, either bullet or numbers."*
+Plan: `CodeLog/ClaudesPlan/V3.649_section_refs_and_body_lists.md`.
+FTP only. sw.js -> 624.
+
+### Added
+- **Section cross-references get a picker** (`rm/js/paper-editor.js`,
+  `rm/js/paper-equations.js`). `[!sec:label]` has worked end-to-end since
+  V3.432 — chip, Document-view "Section N", `\label{}`/`\ref{}` on export —
+  but there was no way to *make* one: `getSectionRefTargets()` lists only
+  anchors that already carry a hand-typed `ref_label`, so a picker had nothing
+  to show until the writer had visited each section header, invented a label,
+  and typed the raw token. New `PaperEditor.getSectionRefChoices()` returns
+  every anchor a `[!sec:]` could point at in document order — sections plus
+  their nested subheadings — labelled or not; new
+  `PaperEditor.ensureSectionRefLabel(id)` mints a label from the title when
+  absent (mirroring `_autoAssignFloatLabel`), **enforcing uniqueness against
+  every label in the document** because slugs collide (two subheadings called
+  "Statistics") and a collision would silently repoint an existing reference at
+  the wrong heading. Surfaced as `+ Section` in the toolbar's REFERENCE group
+  and `§ Insert section reference` on the paragraph right-click menu; the
+  picker indents subheadings under their section and sorts the section the
+  caret is in LAST, marked "you are here".
+- **Bullet / numbered lists inside a paragraph body** (`rm/js/paper-schemas.js`,
+  `rm/js/paper-editor.js`, `rm/js/paper-blocks.js`, `rm/js/paper-doc-view.js`,
+  `rm/js/paper-export-tex.js`, `rm/js/paper-equations.js`,
+  `rm/css/paper-editor.css`). The list BLOCK existed but is a sibling of the
+  paragraph — you had to leave the prose you were writing. Syntax matches the
+  block's own convention so the two cannot drift: `- `/`* ` bullet, `1. `/`1) `
+  number, two leading spaces per nesting level; consecutive item lines are one
+  list, switching marker starts a new one, a blank line ends it.
+  **ONE parser — `PaperSchemas.parseBodyRuns()` — with four consumers**, since
+  a second implementation anywhere guarantees the PDF and the screen eventually
+  disagree: the editor's new `renderParagraphBodyHtml`, the Document view, the
+  exporter's new `paragraphBodyToTex`, and the toolbar's new `• List` /
+  `1. List` buttons in the FORMAT group. Those buttons are LINE toggles, not
+  selection wraps (`PaperEditor.toggleListAtSelection`): they grow the
+  selection to whole lines, apply `PaperSchemas.toggleListLines`, and write
+  back through `replaceParagraphRange`, so a line containing a citation
+  survives becoming an item; pressing again strips the markers.
+  **`renderParagraphBodyHtml` is a block-level WRAPPER, deliberately not a
+  change to `renderParagraphHtml`** — that is the inline contract, reused for
+  captions, table cells, subheadings and list-block items, so parsing markers
+  there would make a list item re-parse its own marker. Prose bodies fall
+  straight through and render byte-identically to before (asserted). The
+  emitted list carries both `pe-body-list` and `pdv-list` because the latter is
+  what the Document view styles AND names in `SPLIT_GUARD_SEL` — without it the
+  column packer could break a page mid-list. `listItemsToTex` is now shared by
+  the list block and by body lists so the two can never nest differently.
+
+### Bug Fixes
+- **Newlines typed into a paragraph body have ALWAYS been silently dropped**
+  (`rm/js/paper-editor.js`). Alex, on first use of the new lists: *"the list
+  does not display correctly, the list need to be per line not a bunch of - in
+  line."* `serializeChipDom` turned `- a<div>- b</div>` into `- a- b` — pressing
+  Enter in a contenteditable does not produce a `<br>` in Chrome or Safari, it
+  wraps the new line in a `<div>`, and the serializer only knew about `<br>`,
+  recursing into every other element with NO separator. Multi-line prose has
+  been collapsing to one line since the chip-mode binding landed; a list just
+  made it legible. Second, quieter consequence: `readCaretCharOffset` /
+  `_rangeFromCharOffset` count a `<br>` as one source character but a `<div>`
+  boundary as zero, so every caret offset past the first line was short by one
+  per line — silently misplacing inserted citations and values in any
+  multi-line paragraph. Fixed both ends: `serializeChipDom` is now block-aware
+  (`DIV`/`P`/`LI`/`UL`/`H1`-`H6`/… start a line, suppressed at the start and
+  after an existing newline so `text<br><div>x</div>` yields no blank line),
+  **and** Enter now inserts a real `<br>` via `insertLineBreak` (Range
+  fallback), keeping the live DOM identical to what the chip renderer produces
+  for the same source. The serializer fix is needed independently — for
+  content typed before this landed, and for paste.
+- **The Write view shows REAL bullets, and the standard list keys work**
+  (`rm/js/paper-editor.js`, `rm/js/paper-schemas.js`, `rm/css/paper-editor.css`).
+  Alex: *"it still looks bad it needs to display as bullet points. if i press
+  enter at the end the next bullet point shows up. All the standard rules
+  apply, this is standard stuff."* **The marker is now a CHIP** —
+  `contenteditable="false"` with `data-src` holding its exact source prefix
+  (`"  - "`, `"2. "`). That is the editor's existing atomic-token contract, and
+  every source-mapping walker already speaks it (`serializeChipDom` contributes
+  `data-src`, `readCaretCharOffset` counts `data-src.length`,
+  `setCaretCharOffset` / `_rangeFromCharOffset` treat it as indivisible,
+  `replaceParagraphRange` aligns to it) — so the marker looks like a bullet,
+  cannot be typed into, and still round-trips byte-for-byte **with zero changes
+  to the caret machinery**. Glyphs per depth (`•`, `◦`, `▪`); ordered items show
+  their number. New `handleListKey` implements the standard rules, applied in
+  SOURCE space and repainted through the same renderer so the DOM the walkers
+  see is always the DOM the renderer would produce: **Enter** at the end of an
+  item starts the next one, mid-item splits it, on an empty item leaves the
+  list; **Tab / Shift+Tab** indent / outdent (capped at the parser's 3 levels);
+  **Backspace** at the start of an item outdents, then strips the marker;
+  **Shift+Enter** stays a plain line break. New
+  `PaperSchemas.renumberOrderedRuns` rewrites the SOURCE after every structural
+  edit (restarting per run and per depth) — displaying a number that differed
+  from the stored one would serialize back wrong. The caret is carried across
+  that pass as `(line, column)` rather than an absolute offset, because
+  renumbering changes marker widths (`9. ` -> `10. `).
+- **(superseded, kept for the record) The Write view laid lists out** (`rm/js/paper-editor.js`,
+  `rm/js/paper-blocks.js`, `rm/js/paper-schemas.js`, `rm/css/paper-editor.css`).
+  New `renderChipsOnlyBodyHtml` wraps each list line in an inline-block span
+  with a hanging indent, so a wrapped item aligns under its own text instead of
+  falling back to the left margin; the marker stays visible and editable
+  (source, like `**bold**`). Reached via a new `opts.renderChipsHtml` on
+  `bindYTextToContentEditable` so ONLY paragraph bodies get it — captions,
+  table cells and labels keep the plain chip renderer. New
+  `PaperSchemas.listLineMatch(line)` so the Write view and the block renderer
+  agree on what a list line is. **`text-indent` inherits**, and the citation
+  chip is inline-block, so it applied the negative indent to its own text and
+  `smith2024` rendered as `mith2024` — slid out of its own background box;
+  `.pe-src-li * { text-indent: 0 }` resets it below the line. Found by
+  screenshot, not by assertion.
+- **`replaceParagraphRange` dropped everything after the first node of a
+  multi-line replacement** (`rm/js/paper-editor.js`). It inserted
+  `tpl.content.firstChild` only — invisible for its whole life because every
+  caller replaced a single token (a footnote or citation group renders to
+  exactly one chip node). A multi-line replacement renders to
+  text/`<br>`/text/`<br>`/text, so three list lines collapsed into one. Now
+  inserts the whole fragment, capturing `lastChild` before `insertNode` empties
+  it. Found by the first harness run of the list toggle.
+
+### Added (tests)
+- `scripts/tests/v3649-selftest.html` — **50 assertions**, in `run-all.sh`:
+  the parser (splitting, both numeric markers, nesting depth, marker switching,
+  blank-line termination, plus the false-positive guards `well-plate` and
+  `-notalist`), the toggle, editor rendering, the LaTeX export (balanced
+  begin/end at depth, `\item` count, raw markers absent, list BLOCK still
+  correct, prose paragraphs gaining no list markup), the toolbar buttons
+  rendering, and the toggle driven against a REAL bound contenteditable.
+  Grown to **66** with the newline round-trip (`<div>` boundaries, `<br>`,
+  no double newline after `br`+`div`, no leading newline, blank lines, chips
+  inside blocks), Enter producing a `<br>` and not a `<div>`, and — the
+  important one for the Write-view layout — that the hanging-indent wrapper
+  round-trips to BYTE-IDENTICAL source and that a caret on the last list line
+  reads back its exact source offset. Grown to **85** for V3.650: renumbering
+  (mid-list insert, per-depth restart, restart after prose, bullets untouched),
+  markers rendering as chips with real glyphs and no raw `- ` in the visible
+  text, and every standard list key driven through the real binding and
+  asserted against the resulting SOURCE string — including that Enter in
+  ordinary prose is untouched by the list handler.
+  V3.647-caret passing is what proves the
+  `replaceParagraphRange` fix did not break its original single-token callers.
+
+### Repo note
+- `rm/js/paper-export-tex.js` contains 4 deliberate NUL bytes (`\x00CODE<n>\x00`
+  placeholder sentinels in the LaTeX conversion). Valid UTF-8, but `file(1)`
+  reports it as binary and **grep silently skips it** — searches for
+  `ref{`/`!sec:` in that file return nothing and look like "the feature is not
+  implemented". Use `LC_ALL=C grep -a`, or read it in Python.
+
+## [V3.648] - 2026-08-19 — no browser input popups in the paper writer
+
+Alex on V3.647's inline value flow: *"i dont want the options to be popups from
+the browser, i want all the options to be in the 'insert a value' menu that
+drops down. **Never have an input popup anywhere i hate it**."* V3.647 made
+defining a value inline possible but implemented it as a chain of five
+`window.prompt()` boxes. Plan: `CodeLog/ClaudesPlan/V3.648_no_browser_input_popups.md`.
+FTP only. sw 620 -> 621.
+
+### Changed
+- **`_openPicker` gained form mode** (`rm/js/paper-equations.js`,
+  `rm/css/paper-editor.css`). The existing dropdown — which already owned
+  positioning, search, keyboard nav, Esc and outside-click dismissal — can now
+  swap its list for a declarative multi-field form rather than a second popover
+  implementation existing anywhere:
+  `{ title, fields:[{key,label,value,placeholder,hint}], note, submitLabel,
+  backLabel, danger, validate(vals) -> null|{field,message}, onSubmit(vals,
+  handle) }`. Three seams: **`entry.keepOpen`** stops `pickIdx` closing the
+  popover and hands `handle` to `onPick` (so a "＋ New …" row opens the form IN
+  the dropdown the writer already had open); **`opts.form`** opens straight into
+  form mode with no list behind it (page-level add/edit buttons); and validation
+  errors render beside the offending field and focus it, instead of an
+  `alert()`. Keyboard: while the form is up Enter saves, Esc steps BACK to the
+  list rather than discarding typed input, arrows stop moving an invisible list;
+  a second Esc closes. `_openPicker` now returns the handle. Layout: only the
+  fields scroll — the error line and buttons are pinned, because a five-field
+  form is taller than the popover and the first cut hid Save below the fold of
+  an inner scroll pane.
+- **Every browser dialog in `rm/js/paper-values.js` is gone.** The prompt chain
+  became `formSpec(kind, existing, seedKey)` / `validateForm` / `applyForm` —
+  describe split from apply so the picker (create-and-insert) and the Values
+  page (add / edit in place) share one definition and cannot drift. New
+  `openValueForm(anchorEl, kind, existing, opts)` anchors that form under the
+  button that opened it. Validation gained a **duplicate-key check** the prompts
+  never had (two entries on one token silently shadow each other at render
+  time). The inventory flows, which used to prompt for a key after you picked a
+  row, now open the same form seeded from the item name with the print-format
+  field beside it. `alert()` → `TOAST.warn` / `TOAST.error`. Delete's
+  `window.confirm` → a `danger` panel built from the same primitive; **the guard
+  itself stays** (a key in use is load-bearing and the usage count is what you
+  need to read before agreeing), it is just not a browser box.
+- **The rest of the writing surface** — `+ Note` footnote insert
+  (`paper-equations.js`), clicking a footnote chip to edit it
+  (`paper-editor.js`; clearing the field and saving still removes it), and table
+  column-width-in-mm (`paper-equations.js`, which now restores the select to its
+  previous value before opening, so cancelling cannot leave the dropdown
+  claiming a width the column does not have).
+
+### Known remaining (NOT in this release)
+- **51 `window.prompt()` call sites across 27 files** remain in `rm/js`. This
+  release cleared the paper writer's *writing* surface. Still prompting in the
+  builder: `paper-editor.js` 4180/4186/4188/4217/4290 (versions & snapshots —
+  prompt-as-menu, needs a real menu rather than a text field),
+  `paper-doc-view.js` (3), `grant-editor.js` (4), `paper-grant-docs.js` (1),
+  `paper-citations.js` (1, already prefers `RM_DIALOG`). Elsewhere:
+  `tasks-inbox.js` (6), `year-review.js` (4), `tasks-buckets.js` (4),
+  `tasks-dashboard-buckets.js` (3), and one or two each across 15 more.
+  `rm-dialog.js` (`RM_DIALOG.prompt`, V3.302) already covers the single-field
+  cases without new UI.
+
+### Added
+- Test coverage: `scripts/tests/v3647-selftest.html` 30 → **51 assertions**,
+  `v3647-caret.html` 10 → **18**. Both stub `window.prompt` / `alert` /
+  `confirm` to record-and-refuse and assert the recorder stayed empty, so a
+  regression to a browser dialog fails hard instead of hanging the headless
+  run. Driven against the REAL picker: the form replaces the list in the same
+  popover, list + search hide, the title changes, every former prompt is a
+  labelled field, the key pre-fills from the search text, a bad number reports
+  in-form and writes nothing, saving writes every field and inserts the token,
+  Esc returns to the list and a second Esc closes. The footnote case clicks a
+  real rendered chip on a real `bindYTextToContentEditable` paragraph and
+  asserts the resulting source text.
+
+## [V3.647] - 2026-08-19 — bug fixes from BugFixes_081923.md
+
+Five reported bugs. Four were the same shape: something rebuilt a DOM subtree,
+or served a cache, without knowing it was holding what the user was in the
+middle of. Plan: `CodeLog/ClaudesPlan/V3.647_bugfixes_081923.md`.
+FTP only — no rules / indexes / functions. sw 619 -> 620.
+
+### Bug Fixes
+- **Table cells accepted one character at a time** (`rm/js/paper-equations.js`).
+  Table cells are live `bindYTextToContentEditable` editors, so every keystroke
+  transacts on a `Y.Text` under `sections`, fires the `observeDeep` from
+  `_installSubscriptions`, and reaches `_refreshTablesSection` →
+  `listEl.innerHTML = ''` — destroying the contenteditable holding the caret.
+  New `_deferWhileEditing(listIds, refreshFn)` parks the rebuild on the list
+  element while focus is inside it and runs it on `focusout` (settled a tick
+  later so cell→cell tabbing doesn't rebuild in the gap). Applied to the Tables
+  and Figures pages; figure captions had the identical defect.
+- **"Insert citation" landed in the wrong place, or nowhere** — two causes.
+  (a) `rm/js/paper-editor.js`: the `paper-citations-loaded` handler called
+  `render()`, a full rebuild of every section, detaching the paragraph the user
+  was aiming at (`lastFocusedEditable` / paper-equations `_state.savedEl` fail
+  their `document.body.contains()` guard). It now broadcasts
+  `paper-equations-changed` + `paper-panel-changed`, the in-place chip repaint
+  the bindings already implement and already skip focused elements for. This is
+  why the bug tracked "the citation is still in key form" exactly: key form
+  *means* the index hasn't loaded, and the load was the thing rebuilding the
+  document. (b) The `focus` handler's chip-mode `innerHTML` swap (V3.159)
+  discards the caret the browser placed from the click, leaving offset 0 — or,
+  when the selection is dropped outright, the END of the paragraph via
+  `_saveCaretFromCurrentFocus`'s fallback. `mousedown` now stashes the click
+  point, the focus handler re-derives the caret from it with new
+  `setCaretFromPoint(el, x, y)`, and `mouseup` re-applies it after the browser's
+  own selection handling. Points inside an atomic chip resolve to just after it
+  (chips are `contenteditable=false` and `readCaretCharOffset` counts them as
+  `data-src.length` without walking in). The focus handler also calls
+  `rememberFocus`, so a Tab into a paragraph now registers.
+- **Bulk DOI/BibTeX import reported "N added" and showed none of them**
+  (`rm/js/reference-import.js`). Three layers in `commitToLibrary`: the
+  `if (window.api && …)` guard is a **dead check** (util.js declares `api` with a
+  top-level `const`, so `window.api` is always undefined — the V3.493 cache-bust
+  had never executed); it targeted `items.json` when the library list reads
+  `library/papers.json`; and the writes carried no `updatedAt`, which the
+  adapter's `orderBy('updatedAt','desc').limit(1)` freshness probe requires —
+  Firestore ORDER BY excludes docs missing the field, so the probe kept
+  re-leasing the stale cache and the rows stayed invisible past the LONG TTL,
+  indefinitely. Now `typeof api`, both routes busted, server timestamp stamped
+  (mirroring `library.js _saveOne`).
+- **The same dead check, fixed at 13 sites**, each read in context rather than
+  search-replaced: `library.js` (a deleted paper could return from cache),
+  `library-paper.js` (the reader's bust-and-retry for a freshly-imported paper
+  had never run, so it reported "not found"), `paper-import-engine.js` x2,
+  `paper-export.js`, `paper-builder.js` x2, `outputs-manager.js` x2,
+  `research.js`, `my-week.js` (the protocol picker's list had never loaded on
+  that page), and `explorer-detail.js` x2 — where it was not a guard but a bare
+  `window.api.load(...)` / `.save(...)` that **threw a TypeError**.
+- **"Cited by" jumped while reading** (`rm/js/util.js`, `rm/js/paper-cited-by.js`,
+  `rm/js/paper-citations.js`). `.lp-side-inner` is one scroll container with
+  `#lp-citations` above `#lp-cited-by`; the citations panel repaints on every PDF
+  page change at a different height, and cited-by's own repaint is a full
+  `innerHTML` swap that goes zero-height and clamps `scrollTop` (worse on
+  "+ Add", which repaints both). New `rerenderPreservingScroll(el, renderFn)`
+  holds the panel's bottom edge once it is above the fold — so what is below it
+  cannot move — and its top edge while it is on screen, re-measuring after the
+  render so a mid-render clamp is corrected rather than compounded.
+
+### Added
+- **Inline value references** (`rm/js/paper-values.js`, `rm/js/paper-equations.js`).
+  Defining a value and referencing it are now one action. The `+ Value` picker
+  gained `＋ New text value…` / `＋ New number & unit…` rows which seed the key
+  prompt from the search text and insert the new key's token at the caret;
+  `editEntry(id, kind, seedKey)` returns the key it settled on. The picker's
+  escape rows (`always: true`) survive filtering, so they are present exactly
+  when the query matches nothing, and their labels echo what was typed
+  (`name` may be a function of the query; `onPick(row, query)` receives it).
+  A `🔑 Insert value or inventory item` entry on the paragraph right-click menu
+  opens the picker at the click point.
+- **`rerenderPreservingScroll(el, renderFn)` + `scrollParentOf(el)`**
+  (`rm/js/util.js`) — scroll-anchored re-render for any panel sharing a scroll
+  container with other independently-repainting panels.
+- **`scripts/tests/v3647-selftest.html` (30 assertions) and
+  `scripts/tests/v3647-caret.html` (10 assertions)**, wired into
+  `scripts/tests/run-all.sh`'s browser layer. The caret page loads the real
+  `bindYTextToContentEditable` (Y.Text faked to its five-method surface) and
+  drives the true first-click sequence. Verified as a **negative control**: with
+  only the caret restore neutered, 4 assertions fail and the caret reads exactly
+  0 — the predicted pre-fix failure mode. `v3647-selftest` also pins
+  `typeof window.api === 'undefined'` so the dead-check trap cannot come back
+  silently.
+
+## [V3.646] - 2026-08-19 — IN PROGRESS (blocks 0-1 of 6)
+
+**Scannable inventory: quantity that means something, and the rules that make it
+safe.** Alex: *"make the QR codes made on these labels readable into the website
+for use anywhere"*, *"RM is the surface for label printing any stock items… we
+will essentially send a label making queue to the label maker"*, and **"all of it
+in one release"**. Plan: `CodeLog/ClaudesPlan/V3.646_scannable_inventory.md`.
+
+The lab's printed QR codes resolve to **nothing outside one Windows PC** —
+LabelPrinter appends tube records to `data/tubes.ndjson` on that machine, and
+`grep -rln firebase web/` in that repo returns nothing. Meanwhile RM's inventory
+carried **three unreconciled numbers** with nothing summing or validating them: a
+scalar `quantity` edited through a *text* input (so it sometimes stored a
+string), a `locations[]` array **0 of 777 items populated**, and a hand-set
+`stock_status` whose `low`/`out_of_stock` values appeared on **zero** of 777 rows
+— so the Low/Out tab, the amber dashboard card and the protocol stock chips were
+all live code paths that had never rendered a non-empty result.
+
+**This release is being built as six gated blocks. Blocks 0-1 have landed; 2-6
+(scanner, shared-picker extraction, boxes, print queue, iOS camera) are still to
+come, so the `PENDING_RELEASE.md` line and the FTP wait for the whole set.**
+`firebase deploy` order when it ships: **indexes → rules → functions → FTP**.
+sw 618 -> **620** (a concurrent session claimed 619 while this was in flight; any value above my change busts the cache, so 620 covers it).
+
+### Added
+- **`rm/js/inventory-qty.js`** (`window.INV_QTY`) — the one place quantity
+  arithmetic happens. Six new fields sit **alongside** the legacy `quantity`,
+  never replacing it (`quantity` is read as a display scalar in 6+ places,
+  written by 4 paths, has no unit anywhere, and means a batch size for stock but
+  a purchase count for an item): `qty_tracked` (absent/false ⇒ nothing applies —
+  **the opt-in**), `qty_unit`, `qty_made`, `qty_remaining`, `qty_min`,
+  `qty_recounted_at`. Verified no existing consumer reads any new name, so there
+  is **no migration**.
+  - **The write is a transaction, not `FieldValue.increment`.** increment is
+    atomic but never tells the client the server value, so it cannot write
+    `before`/`after` — and before/after IS the audit guarantee. Inside a
+    transaction we already know `before`, so we write the explicit number, which
+    also lets rules evaluate a plain number instead of reasoning about how a
+    sentinel transform resolves mid-rule.
+  - `deriveStatus()` returns **null** for an untracked item, meaning "leave
+    `stock_status` alone" — that is what stops ~740 legacy items acquiring a
+    status nobody set. For tracked items it maps onto the **existing** enum, so
+    all four legacy consumers (`inventory.js:34`, `dashboard.js:299`,
+    `protocol-inventory.js:227` and `:142`) work with **zero edits** and simply
+    start returning non-empty results for the first time.
+  - Threshold: explicit `qty_min` wins; `null` falls back to **20% of
+    `qty_made`**. "Down to the last fifth" is meaningful for something you *made*;
+    an absolute reorder point is meaningful for something you *buy*.
+  - `presets()` returns **`[]` when the unit is unknown** — guessing produces
+    "took 5 boxes of a liquid".
+- **`inventoryUsage/{eventId}`** — append-only ledger, **top-level not a
+  subcollection**. The item-scoped read costs the same either way, but the
+  queries that justify the feature are cross-item, and this repo has **zero**
+  COLLECTION_GROUP composite indexes; a top-level doc carrying `itemId` also
+  needs no parent `get()` in rules. `before`/`after` on **every** row makes the
+  ledger self-checking: row N's `before` must equal row N−1's `after`.
+- **`rm/js/stock-take.js`** (`window.STOCK_TAKE`) — the take-from-stock sheet.
+  Preset chips are the **primary** input (tapping the same chip again *adds*, so
+  the common case never opens a keypad); the button label restates the amount
+  (`Took 50 mL`) so the label **is** the confirmation; a negative result is
+  allowed behind one confirm, because someone who finds the bottle already empty
+  must be able to say so — blocking them means they record nothing; the notebook
+  link is auto-detected, never asked. `mode:'set'` is the manager override, with
+  a **required** reason and Undo disabled (an adjustment *is* the correction).
+  Undo writes a **compensating ledger row**, never a delete — a delete would race
+  the counter.
+- **`functions/inventory-alerts.js`** — `onInventoryQtyWrite` (the urgency path)
+  + `inventoryLowDigest` (07:30 America/Phoenix, the floor). **Both**, because the
+  crossing trigger is lossy by design and a manager back from a week away needs a
+  floor. Anti-noise, in order of how much each suppresses: crossing-only (ten
+  aliquots off one low batch = one push), a 72 h cooldown covering low→out→low
+  churn, the unread gate copied from `figure-board-notify.js:68-80`, and
+  **re-arming on recovery** (without which an item that recovers is muted for
+  good). `appKey: 'rm'` so every member's existing preference already governs it —
+  no settings migration.
+- **`inventory:manage` capability** (`rm/js/capability-registry.js`) — the first
+  non-`library-paper` page in the registry. It is **both** the authorization and
+  the addressing primitive: the function finds recipients with
+  `userPermissions.where('caps','array-contains','inventory:manage')`, so there is
+  no `managers[]` array to curate.
+- **`functions/helpers/inventory-thresholds.js`** — the server's copy of the
+  derivation. The client *writes* `stock_status` but the trigger **recomputes from
+  the numbers**, so a client that lies cannot forge or suppress an alert. The
+  duplication is deliberate (`functions/` is CommonJS, `rm/js/` is browser globals
+  with no build step) and `functions/test/inventory-thresholds.test.js` fuzzes
+  **990 input combinations** to keep the two honest.
+- **New rules blocks** — `inventoryUsage`, `inventoryLocations`, `labels`,
+  `labelQueue`, `labInitials`, plus `isInvMgr()`. **`labels`/`labInitials` use
+  create-only reservation**: Firestore `create` fires only when the doc does not
+  exist, so a racing second binder's `set()` is judged an `update` and refused;
+  clients wrap it in a transaction so the loser gets a clean retryable error.
+  A code can **never** be deleted, only retired — a deleted code can be re-minted
+  onto a different tube, the one failure the registry exists to prevent.
+- **`scripts/tests/inventory-rules.test.mjs`** — **49 emulator cases**, 0 HOLE,
+  0 BREAK. **`scripts/tests/v3646-selftest.html`** — 18 in-browser assertions
+  (lives outside `rm/` because `sync-rm.mjs` bundles that tree into the app);
+  assertions publish to `data-*` because `browser.mjs --eval` runs in an
+  **isolated world** and cannot see page globals at all.
+- **Five composite indexes.** `inventory: kind ASC, updatedAt DESC` is a **fix to
+  current production**, not a new feature: `api-firestore-adapter.js:440-441` runs
+  that exact query as a cheap-freshness probe on every inventory page load, and
+  with no index it threw into `catch → fall through` (`:401-403`) and refetched
+  all 777 docs. Keyed on the field not the value, so one index serves all routes.
+
+### Changed
+- **The quantity invariant** (`firestore.rules`, replacing `:1783-1787`) — any
+  lab member may **DECREASE** `qty_remaining`; only `isInvMgr()` may raise it or
+  set an absolute value. `.get(field, <resource's own value>)` on the request side
+  is load-bearing three ways: a missing field otherwise **errors** and denies
+  (~740 items have none), an omitted field must compare EQUAL so existing inline
+  editors keep saving, and defaulting the request side high would let a member
+  **delete** the field to escape the rule. `is number` on both sides is mandatory
+  because `'10' <= '5'` is **TRUE** lexicographically. A fourth clause,
+  `qtyPresentIfTracked()`, closes a hole `qtyNotRaised()` alone cannot see: a
+  non-merge `set()` that drops `qty_remaining` while keeping the controls made
+  `qtyAfter()` fall back to the resource's own value and compare equal.
+- `stock_status` becomes **read-only** once tracking is on — a hand-set value
+  would be overwritten by the next transaction anyway. `inlineSave`'s
+  `is_consumable` auto-fix (`:185-187`) now skips tracked items for the same
+  reason.
+- Location CRUD moved off the full-collection `api.save` onto the surgical path.
+  It was rewriting **all 777 docs** to change one item's array, and locations are
+  the single most-touched thing in this feature. `_commitLocations()` also
+  maintains `locIds`, the flat mirror that makes "what's in box 4" an
+  `array-contains` query needing no composite index.
+- `inventory.js` boot now `await`s `firebridge.loadAccessGrant()` —
+  `hasCapability()` is **sync**, so without it every manager-only affordance
+  silently renders as absent.
+
+### Bug Fixes
+- **`grant-facilities.js:42` read `inventory` unfiltered**, so all 158 chemicals
+  were **already** leaking into the Facilities & Equipment grant boilerplate.
+  Added `.where('kind','==','item')`.
+- **`procurement.js:782` wrote `locations:[{qty}]`** but `inventory.js:91,329`
+  read `loc.quantity` — every procurement-placed item showed a blank location
+  quantity.
+- **Surgical saves never invalidated the route cache**, so `api.load` served
+  pre-edit data for up to 30 minutes after an edit (`inventory.js`,
+  `receipts.js`, `chemicals.js` ×2). Precedent: `library-links.js:99-112`.
+- **Quantity was edited via `inlineText`**, so `inlineSave`'s else-branch stored
+  the raw string; one seed row already is one, and the group-header sum was
+  concatenating. Now a number input (`inlineNumber`).
+- **Non-admin Delete was worse than a no-op.** `api-firestore-adapter.js:260-262`
+  emits `batch.delete()` for every doc absent from the payload and batches are
+  **atomic**, so the whole 777-doc write rejected, `api.save` threw, and
+  `loadAndRender()` never ran — the row stayed visibly gone until reload. Delete
+  is now hidden unless `firebridge.isAdmin()`.
+
+### Test suite — `bash scripts/tests/run-all.sh`
+
+Six layers, cheapest first, **403 assertions, all green**. One command runs the
+lot; a failure in an early layer explains every later one.
+
+| layer | what it proves | count |
+|---|---|---|
+| 1. node fixtures | pure logic, no emulator, no browser | 163 |
+| 2. cross-repo parity | RM's `label-id.js` port vs LabelPrinter's `ids.js`, 4,000 mints both ways | 35 |
+| 3. LabelPrinter | its own six checks, now including the QR decode round-trip | 6 scripts |
+| 4. rules | real `firestore.rules` on the emulator | 49 (0 HOLE, 0 BREAK) |
+| 5. **E2E journeys** | real modules + real rules + real signed-in users | 96 |
+| 6. browser journeys | the actual DOM a person's fingers touch | 60 |
+
+**Layer 5 is the one that earns its keep** (`scripts/tests/inventory-e2e.test.mjs`).
+Nothing is mocked but the browser shell: `label-id.js`, `inventory-qty.js` and
+`scan-resolve.js` are executed verbatim — the same bytes the site ships — against
+the Firestore emulator with the real rules uploaded, as genuine Auth-emulator
+users, so `request.auth.uid` is real and `isInvMgr()` does its actual `get()`.
+Unit tests said the derivation was right and the rules test said the invariant
+held; only this says the MODULE drives the RULES correctly — that the transaction
+writes what the rules expect, in the order they expect it.
+
+Eleven journeys follow one batch of Alex's own example ("inert LLS 100 µm +
+rhodamine + FITC traction beads") from creation to empty: mint and reserve a code
+→ scan it (lowercase, wedge-with-trailing-CR, and box-URL forms all resolve; a
+one-character typo is caught by the check digit; a stray barcode is rejected on
+shape with **no read**) → take 5 mL → take 500 µL against a mL batch → cross 20%
+→ empty it → watch a second student fail to forge the count six different ways →
+a manager recount → an undo → bind a blank label and lose the race cleanly → a box
+with 10 slots and 3 packs → queue 7 labels and print them → and a legacy item
+proving the other 740 still work untouched.
+
+Two properties are asserted as properties rather than examples: **the ledger chain
+is unbroken** (row N's `before` equals row N−1's `after`, and the final `after`
+equals the live counter), and **queue cells match LabelPrinter's `emptyCell()`
+key-for-key** — if those key sets ever drift, the printer silently drops fields.
+
+**Layer 6's highest-value test is the camera teardown, and it needs no camera.**
+`canvas.captureStream()` yields real `MediaStream`/`MediaStreamTrack` objects, so
+`srcObject` assignment and playback behave exactly as in the app; only `stop()` is
+wrapped, to count it. It then asserts the light goes out on `ourlab:tab-hidden` —
+**the signal `visibilitychange` cannot catch**, because the native shell keeps
+hidden tabs alive and only toggles `view.isHidden` — plus `pagehide`, sheet close,
+and that `_stopCamera()` is idempotent.
+
+Assertions live IN the pages and publish to `data-*`, because `browser.mjs` runs
+`--eval` in an **isolated world** and cannot see `window.SCAN` at all: a global
+that never loaded and one the harness merely cannot reach look identical from
+outside.
+
+Also added: `scripts/tests/firebase.json` gains the Auth emulator on 9099, and the
+harness's `node_modules` symlink — which pointed at a **dead scratchpad from an
+earlier session** — was relinked.
+
+> Writing these caught four bugs in the tests themselves, each of which would have
+> made a passing suite meaningless: one `firebase` app carries one auth session
+> (so all four "different users" were silently the last one signed in); a reset
+> that RAISED a count was denied for the right reason and looked like a code
+> failure; `hasOnly()` over an empty `affectedKeys()` is vacuously true, so
+> "re-parenting" a box to the parent it already had proved nothing; and
+> `registerTarget()` unshifts, so clicking a chooser by index encoded an
+> assumption about ordering instead of intent.
+
+### Fixed in the LabelPrinter repo — every printed QR was unreadable
+
+**`web/core/qrcode.js` `placeFormat()` was transposed, so no label the lab has
+ever printed can be scanned by anything.** `m` is indexed `m[row][col]`, and the
+format field's first six bits belong *down column 8*, not *along row 8*; both
+copies had the axes swapped.
+
+Everything else about that encoder is correct — data codewords, Reed-Solomon
+parity, interleave, module placement and mask selection are all bit-identical to
+a reference encoder once you unmask them. But the format field is where a symbol
+**declares which mask it used**, so a transposed field told every scanner to
+unmask with the wrong pattern, and a QR unmasked with the wrong pattern is noise.
+The symbol looked flawless: correct finders, correct timing, correct size,
+plausible module density.
+
+**Nothing in that repo's suite could see it, and that is the lesson.**
+`check_qr.mjs` checked data + ECC codewords against the published HELLO WORLD
+vector and asserted the finder rings were present — both genuinely correct — but
+it never decoded a whole symbol, so the one broken thing was the one thing
+nothing checked. `check_reagent.mjs` asserted every label keeps a QR *or* a
+printed id, which was also true; it never asked whether the QR worked.
+
+How it surfaced: vendoring jsQR for RM's scanner, the first thing worth checking
+was "does this decoder read OUR labels". It read a third-party symbol of the same
+payload instantly and returned `null` for 200/200 of ours. Isolating showed our
+data region unmasked to *exactly* the reference matrix — which localised the bug
+to the 15 format bits.
+
+- `web/core/qrcode.js` — `placeFormat()` un-transposed. 200/200 minted codes now
+  round-trip through jsQR at the real print magnification, as does the box-label
+  URL payload at v2.
+- `tests/check_qr.mjs` — **+99 lines of dependency-free symbol round-trip**: read
+  both format copies back and assert they name the mask actually applied, then
+  unmask with that declared mask and assert the codewords return. Restoring the
+  transposition fails this immediately while the other six checks still pass —
+  verified both directions.
+- `README.md` — a new section documenting the bug, why the suite was blind, and
+  the consequence.
+- `scripts/tests/label-id-parity.test.mjs` (this repo) — 35 assertions that the
+  RM port (`rm/js/label-id.js`) and LabelPrinter's `ids.js` agree on every input,
+  cross-validating 4,000 real mints in both directions. A divergence here would
+  not throw; it would resolve a scan to the wrong tube.
+
+**Consequence for the lab: none, by decision.** Labels printed before
+2026-08-19 carry a QR that will never scan, but Alex's call on the day it was
+found was that nothing already printed matters and the lab starts fresh from
+today — so there is no reprint sweep, no migration, and nothing to announce about
+old tubes. Anything still on a shelf from before is identified by the printed code
+underneath, which is exactly why `layout.js` ranks that row above the date and
+never drops it.
+
+### Notes for the rest of this release
+- **Do not widen the label code body.** `LabelPrinter/web/core/layout.js:572-578`
+  prints the human-readable code in a `blockW = qrPix` 63-dot block with no
+  `fitHeight` and no clip warning; exhaustively, **31% of all 32⁴ possible codes
+  already overflow it** (worst `MG-MMMMM` = 75 dots). Widening the block to
+  `qrPix + QR_QUIET` (77) gives 0% overflow at every length — that is the fix.
+  Central minting makes keyspace a retry-*rate* question, not a correctness one.
+- **A URL payload costs the 2-column QR.** 29+ chars → v2 → 89 dots → 147 left →
+  under the app's own `QR_MIN_TEXT = 150` floor. `tests/check_qr.mjs:40` blesses
+  that URL but only asserts `version ≤ 2`, never the floor — which is why it
+  looked free. Bare code on tubes; URL only on 1-column box labels.
+- **`normalize()` degrades a URL by `split('/').pop()`**, so the box URL must be
+  path-style at the site root (`MCGHEELAB.COM/L/MG-A7K2X`) and `labels/` doc ids
+  must be `normalize(code)`, never the raw mint.
+- **iOS WKWebView has no `BarcodeDetector`** (WebKit never shipped Shape
+  Detection), so a vendored decoder is mandatory — and `NSCameraUsageDescription`
+  is **missing** from `Info.plist`, where the contract is process *termination*,
+  not a denied prompt. Verify `window.isSecureContext` + `navigator.mediaDevices`
+  inside the app **before** writing any camera code.
+
+## [V3.645] - 2026-08-19
+
+**Value keys: write `[!val:N2TError]`, define it once, and the draft resolves
+it.** Alex asked to reference numbers and named materials by key instead of
+retyping them — a needle-to-target error that appears in the abstract, results
+and discussion should change in one place, and a plate's catalogue number
+shouldn't be typed differently in Methods than in a table. Two token families,
+one per-paper table. Clicking any key folds out every sentence it appears in.
+Plan: `CodeLog/ClaudesPlan/V3.645_value_keys.md`. **FTP-only — no
+`firebase deploy`** (the table lives in the paper's existing Y.Doc; inventory is
+read through an existing lab route). sw 617 -> 618.
+
+### Added
+- **`[!val:KEY]` and `[@item:KEY]`** (`rm/js/paper-editor.js`) — two new inline
+  tokens. The namespace split follows the rule the builder already used: `[@…]`
+  points OUT at a shared lab record (`[@smith2024]` → library,
+  `[@item:24WP]` → inventory), `[!…]` points at something inside this paper
+  (`[!fig:]`, `[!sec:]`, `[!eqr:]`, and now `[!val:]`). Chips render the
+  RESOLVED text, not the key. Scanner branches added to **both**
+  `renderParagraphHtml` and `renderChipsOnlyHtml`; `renderValChip` /
+  `renderItemChip` stamp `data-src` with the exact source token so
+  `serializeChipDom` round-trips unchanged.
+- **`value_library`** (`rm/js/paper-editor.js`) — a fourth root Y.Array beside
+  `equation_library`, created idempotently on first connect (no migration).
+  Entry shape in `PaperSchemas.newValueEntry`:
+  `{id, key, kind:'text'|'number'|'inventory', note, value, num, unit, sigfigs,
+  inv_id, inv_kind, snapshot:{name,vendor,catalogue_number}, format,
+  refreshed_at}`. `kind` is a discriminator rather than a text field with
+  optional numeric companions, so a typed string and a num/unit pair can never
+  silently disagree. Mutators `addValueEntry` / `updateValueEntry` /
+  `deleteValueEntry` all broadcast `paper-values-changed`.
+- **`PaperSchemas.formatValueEntry`** (`rm/js/paper-schemas.js`) — THE resolver.
+  Editor chips, Document view, `.tex` export and `paper.md` all print through
+  it; a second implementation is how the editor and the PDF start disagreeing.
+- **🔑 Values page** (`rm/js/paper-values.js`, new) — pill page listing every
+  key with its token, kind, resolved text, note and usage count. Add text /
+  number+unit / inventory entries, edit, delete, `↻ Refresh from inventory`,
+  and `Insert` at the caret. Duplicate keys are flagged rather than silently
+  resolved (a CRDT cannot prevent two offline authors adding the same key).
+- **Usage fold-out** — `getKeyUsages()` returns every place each key is used
+  with the enclosing sentence, extracted from SOURCE text (a resolved value like
+  "0.5 µm" would otherwise create a false sentence break). Reached by clicking a
+  chip in prose (capture-phase `mousedown`, before the contenteditable focus
+  destroys the chip attrs) or the usage count on the Values page; each row jumps
+  to its block.
+- **`+ Value` toolbar button** (`rm/js/paper-equations.js`) — one picker listing
+  defined keys plus a live lab-inventory search. Picking an inventory hit that
+  has no key yet prompts for one, creates the entry and inserts the token in one
+  action; an item already keyed in this paper reuses its key.
+- **`rm/css/inventory-picker.css`** (new) — the `.proto-inv*` chip + picker
+  rules, moved verbatim out of `protocol-editor.css` and now linked by both
+  `protocols.html` and `paper-builder.html`.
+
+### Changed
+- **`getCitedKeysInPaper` now shares one traversal with `getKeyUsages`**
+  (`walkProseTexts`, `rm/js/paper-editor.js`) — previously inlined. A second
+  hand-synced walk is how a key used in a table caption ends up visible to the
+  bibliography but invisible to the usage panel.
+- **`[@item:` excluded at every citation consumer** — `getCitedKeysInPaper`
+  (References page), `collectCitationKeys` (`refs.bib`), `paper-cite-style.js`
+  (citation numbering), and `paragraphTextToTex`, where the two new substitution
+  passes run BEFORE the citation pass. The citation key validator already
+  permitted colons, so without this `[@item:24WP]` parsed as a citation with key
+  `item:24WP` and compiled to an undefined `\cite{}`.
+- **Document view** renders value chips as ordinary prose via CSS
+  (`.pdv-scale .pe-val-chip`), so the page reads as the final manuscript. An
+  unresolved key keeps its warning colour there deliberately.
+- **`paper.md` expands value tokens; `paper.json` keeps them raw** plus the
+  serialized `value_library` — the `.md` is a rendering, the `.json` is the
+  source, which is what lets a `.paperbundle` round-trip.
+- **Inventory refs store a snapshot, not a live lookup** — the inventory is
+  ~3,481 docs / 1+ MB, a submitted manuscript must not change because someone
+  edited a row two years later, and `inventory` is `isLabMember()`-read-only so
+  a live resolve would 403 for an outside reader of a shared paper. The full
+  list loads only when the picker opens, via `PROTOCOL_INVENTORY.ensureList()`
+  (memoized, in-flight-deduped, merges items + chemicals — a plate and an FBS
+  bottle live in different routes). Reused rather than adding a fourth copy of
+  that picker.
+- **Repaint guard** (`rm/js/paper-editor.js`) gained `[!val:` and a
+  `paper-values-changed` listener; without it, editing a value leaves stale
+  chips on screen and looks exactly like the save failed.
+
+### Bug Fixes
+- **`paper-writing-guide.js`'s `no-citations` check** tested
+  `body.indexOf('[@') === -1`, so a Methods paragraph whose only bracket token
+  was a reagent reference read as "cited" and the check stopped firing on it.
+  Item tokens are now stripped before the test.
+- **An unknown key exports as a visible `[?KEY]`, not a `%` comment.** The first
+  implementation followed the `[!eqi:]` precedent of emitting
+  `% [missing …]` — but `%` runs to end of line in LaTeX, so mid-paragraph that
+  silently deletes the rest of the sentence from the compiled PDF. (`[!eqi:]`
+  still has this hazard; left unchanged as a separate call.)
+
+## [V3.644] - 2026-08-15
+
+**Label mode in the reader, and a page classifier behind it.** Alex asked
+for new classification algorithms ("treat the paper as an image… a textured
+landscape") and, separately, for a reader mode that shows every label on a
+paper and lets him correct them "to fix the current paper" and "get better
+and better over time". The second is the answer to the first: 9 labelled
+papers cannot train anything, and a correction loop inside the reader is how
+the training set grows. Plan:
+`CodeLog/ClaudesPlan/V3.644_reader_label_mode.md`.
+**Deploy: `firebase deploy --only firestore:rules` BEFORE FTP.** sw 616 -> 617.
+
+### Added
+- **Label mode** (`rm/js/paper-label-mode.js`, `rm/css/label-mode.css`, new) —
+  a toggle at the **bottom of the reader's left column**. On, it paints every
+  detected region on every page across 13 types (figure, table, equation,
+  citation, body text, title, authors, affiliation, abstract, keywords, note,
+  header/footer, other) and makes each one correctable: click the chip to
+  retype, 8 drag handles to resize, `x` to delete, arm a type from the palette
+  and drag to draw a new one. Per-type counts and show/hide. Autosaves ~0.9s
+  after a change. `Re-detect page`, `Clear page`, `Export labels`.
+- **`papers/{paperId}/pageLabels/{page}`** (`firestore.rules`) —
+  `{page, nw, nh, boxes:[{id,x,y,w,h,t,src,by,label}], updatedAt, updatedBy}`,
+  boxes in NATURAL coordinates so they survive zoom and re-render. `src` is
+  `auto` | `edited` | `human`, which is what lets the export be scored.
+  Read/write on the same footing as annotating (`isLabMember()` or the
+  `library-paper:annotate` capability) — structural metadata about a
+  published PDF, where one reader's correction should fix the paper for
+  everyone.
+- **`rm/js/page-regions.js`** (new) — `PAGE_REGIONS.detect(items, opts)`
+  classifies a whole page, reusing `PAGE_LAYOUT.figureRegions` for
+  figure/table. Per type vs Alex's labels: figure 84%/84% (IoU 0.92),
+  table 75%/75%, affiliation 80%/80%, title 71%/63%, text 43%/18%,
+  equation 26%/17%, reference 25%/5%.
+- **Training lab** (`ResearchManagement/data/figure-training/lab/`, LOCAL
+  ONLY) — `render.py` (PDF -> 150-DPI PNG + exact per-page scale),
+  `featbank.py` (**103 candidate feature detectors**: 49 image/texture —
+  row-profile autocorrelation, connected-component statistics, stroke-width
+  distance transform, edge-orientation histogram, an 8-filter Gabor bank,
+  colour saturation, entropy, run lengths; 54 text-layer), `dataset.py`,
+  `retag.py`, `bakeoff.py`, `perclass.py`, plus `score-regions.mjs` and
+  `labelmode-test.html`.
+
+### Changed
+- **Corrected labels outrank the detector** (`rm/js/figure-capture.js`) —
+  `refreshHotspots` prefers `PAPER_LABEL_MODE.regionsFor(page)`, which
+  returns **null** unless a human has actually touched that page, so every
+  untouched paper still runs on live detection.
+- `rm/js/library-paper.js` — `PAPER_LABEL_MODE.init` beside the other
+  per-paper modules, `.destroy()` in `_detachActive`, and an `onPageReady`
+  hook that repaints when the mode is on and otherwise `prime()`s stored
+  labels so the hotspots follow them invisibly.
+- `rm/pages/library-paper.html` — `label-mode.css`, `page-regions.js`,
+  `paper-label-mode.js`, and the `.plm-host` mount at the bottom of
+  `.lp-side-inner`.
+
+### Bug Fixes
+- **A tiny label box under a big one was unclickable.** An inline-citation box
+  sits inside a body-text run; painted in store order it could be seen but
+  never grabbed. Boxes now paint **largest-area first**.
+- **You could not draw a box over an existing one.** Arming a type puts the
+  layer in `plm-drawing` mode, where existing boxes drop `pointer-events`.
+- **`_flush()` read module state after its first `await`.** `destroy()` calls
+  it and then immediately clears `_paperId`/`_pages`, so page 2+ of a
+  multi-page save would have written the outgoing paper's labels into the
+  incoming paper (the V3.621 figure-capture bug). All state is snapshotted
+  synchronously; `_load`/`refreshPage` bail if the paper changed mid-await.
+
+### Notes
+- What the measurement actually said: dumping all 49 image features in
+  **lowers** leave-one-paper-out macro-F1 (TEXT 0.739, IMAGE 0.397,
+  BOTH 0.678) — dilution, not a verdict. Curated per class, BOTH wins 6 of
+  10 classes and the two biggest lifts are image-driven (abstract
+  0.446 -> 0.806, affiliation 0.725 -> 0.943). The single best separator for
+  **figure** is `cc_h_cv`, the connected-component height CV: text is uniform
+  glyph heights, artwork is not.
+- **`reference` = the INLINE citation marker**, not the bibliography;
+  separated by size alone at AUC 1.000. **`text` = a COLUMN RUN**, not a
+  paragraph.
+- Alex's 36 `custom` labels were split into title / authors / affiliation /
+  abstract / keywords / note (`lab/retag.py`, 33 of 36 correct by hand check).
+
+## [V3.643] - 2026-08-15
+
+**Figure detection rebuilt against a labelled training set.** Alex twice
+reported the auto-detected hotspots did "a terrible job", so this release
+built the measuring stick first — a local labeling harness over 20 real
+library papers — and iterated the detector against Alex's ground truth.
+**Recall 10% → 80%, precision 43% → 80%, mean IoU 0.91**; verified
+end-to-end in the live reader (7/7 at IoU 0.96–0.99 on one paper). Plan:
+`CodeLog/ClaudesPlan/V3.643_figure_detection_trained.md`.
+**Deploy: FTP-only.** sw 615 -> 616.
+
+### Changed
+- **`PAGE_LAYOUT.figureRegions` replaced wholesale** (`rm/js/page-layout.js`,
+  ~250 lines, helpers prefixed `_fr*`; signature unchanged so `pdf-viewer.js`
+  and `figure-capture.js` needed no edits). What the labelled data proved
+  wrong about every earlier attempt:
+  - **Figures contain text** — truth boxes hold 34–3500 items (axis labels,
+    panel letters). Growth obstacles are now **prose lines only**; stopping
+    at "the nearest text item" is what made V3.640 find nothing.
+  - **Real captions aren't typed `caption`** by `classifyBlocks` (its
+    `nItems < 12` test fails on real captions) — anchoring moved to a regex
+    over **line-joined** text.
+  - **Lines must split at column gutters**, or a 2-column page joins
+    left+right text into one line starting with the wrong column's words —
+    which hid every caption in the 2-column papers. Two line groupings are
+    kept (loose for caption text so `"FIGURE|1|Formation"` stays whole
+    across 16px; tight for prose obstacles so columns stay apart), plus a
+    re-split at any mid-line caption opener.
+  - **Band chaining fixed** — bands now compare items to a fixed centre;
+    comparing to growing bounds let a band walk down the page.
+  - **Tables end at whitespace**, not at prose (their wrapped cells read as
+    prose), so table captions grow to the first white band wider than the
+    table's own row spacing.
+  - **Neighbouring captions are obstacles**, absorption can't cross a
+    locally-detected gutter, and growth is clamped to the caption's column —
+    side-by-side single-column figures no longer merge.
+  - Cross-reference filter narrowed: `"FIG. 2 (a) The Bingham model…"` is a
+    caption, not a "Fig. N … the" prose reference.
+- Known-weak (documented, not overfitted): 1970s scans with interleaved
+  text extraction, and two single-column figures sharing a caption band.
+  Marquee / Alt-drag still covers anything the detector misses.
+
+## [V3.642] - 2026-08-15
+
+**Heroicons phases 1-7 — the glyph swap.** Alex: *"finish all phases."* V3.641
+shipped the machinery with zero visual change; this replaces the emoji.
+**675 ICON call sites** now render Heroicons: 496 `ICON.svg()`, 156
+`ICON.label()`, 21 `ICON.render()`, 2 `ICON.el()`. Manifest 81 -> 100 icons
+(51.9 KB), 136 glyphs mapped. Plan:
+`CodeLog/ClaudesPlan/V3.642_heroicons_phases_1_7.md`.
+**Deploy: FTP + TestFlight, no `firebase deploy`.** sw 614 -> 615.
+
+### Changed
+- **The phone tab bar, nav and All Pages grid are Heroicons**
+  (`rm/js/mobile-shell.js`, `rm/js/nav.js`, `rm/js/all-pages.js`,
+  `rm/js/page-registry.js`, `rm/js/firebase-bridge.js`). The active tab now
+  renders **solid** rather than outline, which also fixes an existing WCAG
+  SC 1.4.1 failure — active state was signalled by colour alone —
+  and gained `aria-current="page"`.
+- **~675 call sites across 266 RM modules and the public site**, via two
+  committed codemods (`scripts/icon_codemod.py`,
+  `scripts/icon_codemod_ternary.py`) plus hand work on the chrome. They only
+  touch shapes where the transform is unambiguous: markup strings, template
+  literals, text sinks, and ternaries whose branches are all bare glyphs.
+  Comments, text-only channels (`.title=`, `aria-label`, `alt`,
+  `placeholder`, `TOAST.*`, `console.*`), comparisons, `case` labels and the
+  icon picker are refused on sight.
+- **Config maps keep their emoji; their consumers changed instead.**
+  `NOTIF_ICONS`, `ITEM_OUTCOME_META`, `MYDAY_TYPE_ICONS` and friends still
+  hold glyphs; their 21 consumers now call `ICON.render()`, which resolves a
+  known glyph to its Heroicon through the reverse map. Strictly safer than
+  rewriting the maps: a map and its consumer cannot drift apart, and there is
+  no migration.
+- **The public site loads the same generated file** (`index.html` ->
+  `/rm/js/icons.js`, same origin), so there is no second icon system.
+  `styles.css` carries its own copy of the `.hi` block because the public
+  site and RM have entirely separate stylesheets.
+
+### Bug Fixes
+- **`nav.js`'s label regex is gone.** `makeTopLink` split the icon off the
+  front of a label with `/^(\S+)\s+(.+)$/` — a rule that existed only to
+  separate an emoji, and which would have shredded an SVG string (full of
+  spaces) into `<svg` plus the remainder. The signature is now
+  `makeTopLink(icon, label, href, isActive)`.
+- **`'⊟ Split'` was a group KEY, not decoration** (`rm/js/all-pages.js:193`
+  `order[]` compared against `p.group`, which derives from the `nav.js`
+  NAV_ITEMS label). Both moved to `'Split'` in the same commit; changing
+  either alone silently breaks the All Pages grouping.
+- **`escHtml(icon)` removed** from the one `all-pages.js` interpolation that
+  now carries markup — it would have printed the SVG source as text.
+- **An icon had been concatenated into a `title="…"` tooltip**
+  (`rm/js/paper-figure-board.js`) — a tooltip is a text channel, so it would
+  have shown raw `<svg …>` on hover. Reverted to the glyph, and the release
+  gate now fails on `(title|alt|aria-label|placeholder)="…ICON.` so the whole
+  class cannot recur.
+
+### ★ Three codemod bugs, caught before they shipped
+1. **Nested strings inside `${…}`** — the first pass rewrote
+   `${pinned ? ' 📌' : ''}` into `'${ICON.svg('pin')}'`: broken quoting, and a
+   `${}` inside single quotes is not interpolated anyway. Caught by
+   `node --check`; fixed by never touching template *expression* spans.
+2. **Orphaned variation selectors** — `'☀️'` is `'☀'` + U+FE0F, so matching
+   the glyph alone stranded the selector beside the new `<svg>`.
+3. **★ Ternary output landing in a text sink** — the ternary pass produced
+   `btn.textContent = (ICON.svg(open ? … )) + ' barriers (…)'`, exactly the
+   trap V3.641's gate was built for. **The gate caught it, twice**, at
+   `rm/js/pmr.js:2948` and `rm/js/activity-overview.js:1435`. Both fixed, and
+   the pass now refuses any line that writes to a text sink.
+
+### Not converted (deliberate)
+880 glyphs remain and the breakdown is the point: **440** are prose (*"Click
+"✓ discussed" on any item above"* is copy, not an icon); **120** are text
+channels and comparisons, correctly excluded; **102** are config-map values
+that already render as icons through `ICON.render()`; **98** are markup the
+codemod judged ambiguous; **75** sit inside `${…}` code expressions; **45**
+are `icon-picker.js`'s palette, which is the data itself. 268 distinct glyphs
+are in use but 105 appear exactly once — past the top ~60, an outline SVG is
+usually worse than the emoji it replaces. The 149 inline glyphs in
+`rm/pages/*.html` are page copy, and the 11 CSS `content:` glyphs remain a
+documented won't-fix.
+
+## [V3.641] - 2026-08-15
+
+**Heroicons v2, phase 0: the machinery, with nothing yet changed on screen.**
+Alex: *"Throughout the entire website and mobile app lets use Heroicons v2
+icons."* This is a multi-phase program; phase 0 ships the icon system, the
+generator, the release gate and the kill switch, and deliberately replaces
+**zero** glyphs — so if it breaks, it breaks with emoji still rendering. Plan:
+`CodeLog/ClaudesPlan/V3.641_heroicons_phase0.md`.
+**Deploy: FTP + TestFlight, no `firebase deploy`.** The app must ship in the
+batch — `sync-rm` bundles `rm/`, so an FTP-only push would leave phone users
+whose cached HTML asks for `icons.js` without the file. sw 613 -> 614.
+
+### Added
+- **`rm/js/icons.js`** (generated, 42 KB) — `window.ICON` with `svg(name,opts)`
+  returning a markup string for the dominant `innerHTML` call site, `el()`
+  returning an `SVGElement` for `.textContent`/`appendChild` sites, and
+  `render(value)` for stored icon values. 81 icons covering the top ~64 glyphs
+  in use, 11 of them with a solid weight for active/selected states.
+  Two contracts make a partial migration safe: an unknown name **never throws
+  and never renders blank** (falls back to `question-mark-circle`, warns once,
+  and marks the element `data-icon-missing="1"` so QA can assert in the DOM);
+  and `label` drives aria **mutually exclusively** — absent gives
+  `aria-hidden="true" focusable="false"`, present gives `role="img"
+  aria-label` with no `aria-hidden`, since emitting both is a WCAG failure.
+- **`vendor/heroicons/`** — Heroicons v2.2.0 (MIT), 24px outline + solid,
+  vendored per the `rm/vendor/{firebase,mathlive,pdfjs}` precedent. At the
+  **repo root, not under `rm/`**, because `OurlabMobile/scripts/sync-rm.mjs`
+  rsyncs all of `rm/` into the phone bundle and ~650 unused source SVGs have no
+  business travelling with it. Only the generated `icons.js` ships.
+- **7 custom gap icons** (`vendor/heroicons/custom/`, generated by
+  `make_custom_icons.py`) — Heroicons ships no microscope, target, thumbtack,
+  compass, stacked-books, barricade or helix, and those are 🔬 Research, 🎯 the
+  Focus tab, 📚 the Library tab and 📌 (29 uses). Drawn to the upstream spec
+  (24x24, 1.5 stroke, round caps, `currentColor`) and **each one rendered at
+  16/20/24/56px and visually checked**. Four designs were rejected on sight and
+  the reasons recorded in the script: books-as-bars read as a bar chart,
+  books-as-a-stack as a list, microscope-as-tube as a pen. **A handshake was
+  attempted twice, read as a squiggle at every size, and was dropped** — 🤝 maps
+  to upstream `user-group` instead, because a near-miss that reads beats a
+  custom icon that doesn't.
+- **`scripts/gen-icons.mjs` + `scripts/icons.manifest.json`** — the manifest is
+  the source of truth for what ships and records the emoji each icon replaces.
+  The generator strips `xmlns`/`aria-hidden`/`data-slot`/`stroke-width` from the
+  wrapper but **keeps `fill-rule`/`clip-rule`/`stroke-linecap`/`stroke-linejoin`
+  on the paths** — dropping `fill-rule="evenodd"` visibly corrupts solid icons.
+  It hard-fails on a name with no source file, a source without `currentColor`,
+  and on one glyph claimed by two icons (which caught 📑 mapped to both
+  `bookmark-square` and `table-cells` on the first run).
+- **`rm/pages/icon-audit.html`** — searchable catalog of every shipped icon at
+  16/20/24px in both weights, plus an 18-check self-test that runs in the page
+  and exposes `data-failures` for headless QA. Custom icons are marked ★.
+- **A kill switch.** `ICON.setMode('emoji')` (or `window.RM_ICON_MODE`, or
+  `localStorage.rm_icon_mode`) renders the glyph each icon replaced, at render
+  time. **This is the only rollback that reaches phones already running a
+  shipped TestFlight build** — reverting the web tree does not.
+- **`.hi` CSS + `--hi-*` tokens** (`rm/css/style.css`, `rm/css/tokens.css`).
+  Three details are load-bearing: `width:1em` resolves against the element's own
+  font-size, so `.ws-icon` (18px), `.ap-card-icon` (20px) and `.ourlab-tab
+  .ot-icon` (22px) reproduce their old emoji dimensions with no CSS change;
+  `vertical-align:-0.125em` stops an inline SVG hanging ~6px low next to text
+  (an emoji is placed by font metrics, an SVG's bottom edge sits on the
+  baseline); and `flex:none` stops an icon collapsing to zero width beside a
+  long label in a flex row.
+
+### Changed
+- **78 pages load `icons.js`** — inserted immediately after `runtime-mode.js`,
+  which has the widest coverage (78 vs 75 for `nav.js`/`util.js`), is already
+  first in `<head>`, is parser-blocking and has no dependencies. Ordering was
+  verified on all 79 files: after `runtime-mode.js`, before `nav.js`.
+  `sw.js` `SHELL_URLS` is deliberately **untouched** — it holds no `/rm/` paths
+  and `install` uses the atomic `cache.addAll`, so one 404 in the window between
+  the git commit and the FTP would break service-worker install for the whole
+  site.
+- **`scripts/release_push.py`** runs `gen-icons --check --scan` in preflight, so
+  a stale `icons.js`, a typo'd icon name, or icon markup routed into a text
+  channel blocks the release instead of shipping. Skips with a warning if node
+  or the generator is absent, so it can never be the thing that blocks a push.
+
+### Bug Fixes
+- **An admin could not have typed a Heroicon name** (`rm/js/admin-permissions.js`
+  `:520` and `:551`, `rm/pages/admin-permissions.html`) — the workflow icon was
+  edited through `<input maxlength="2">`, 32px wide, which physically cannot
+  hold `beaker`. Both inputs are now `maxlength="40"` and 92px, titled to point
+  at the icon audit page. Saved emoji are untouched and keep rendering.
+
+### ★ Correction found while implementing
+Planning estimated ~9 `.textContent = '<glyph>'` sinks in 6 files. A precise
+scan against the manifest's glyphs found **203 across 54 files** — assigning
+markup to any of them paints a literal `<svg viewBox=...>` on the page, and
+nothing throws. Hand-converting them is not a phase-0 task, and doing so would
+itself be the visual change phase 0 exists to avoid. So `--scan` now fails the
+release on the whole class instead: markup into `.textContent`/`.innerText`,
+markup passed through `esc()`/`escHtml()`, and markup put in a `title`/
+`aria-label`/`alt`/`placeholder` attribute. All three were proven to fire
+against a planted trap file, and a commented-out example correctly does not
+trip them.
+
+### Not migrated (deliberate)
+Stored icon values are **not** rewritten. `ICON.render()` accepts all three
+shapes because they are provably disjoint — emoji are never ASCII, URLs always
+carry a scheme, names are always lowercase-ASCII-with-hyphens — so `research`
+foci `.icon`, `labConfig/defaultWorkflows[].icon` and every `labIcons` upload
+are byte-identical before and after, and a full revert leaves zero orphaned
+data. Same seam V3.638 documented rather than migrated.
+
+## [V3.640] - 2026-08-15
+
+**Caption-anchored figure detection in the reader** — the V3.616 ink-blob
+hotspots fragmented multi-panel figures into per-panel targets and missed
+real extents; detection now anchors on the invariant Alex named: every
+figure/table caption starts with its number. One numbered caption = one
+hotspot covering the whole figure up to the surrounding text. Plan:
+`CodeLog/ClaudesPlan/V3.640_caption_anchored_figures.md`.
+**Deploy: FTP-only.** sw 612 -> 613.
+
+### Changed
+- **NEW `PAGE_LAYOUT.figureRegions(items, {pageWidth, pageHeight, inkProbe})`**
+  (`rm/js/page-layout.js`) — pure geometry in the shared engine: anchors on
+  clusters `classifyBlocks` typed `caption` whose text matches
+  `RE_NUMBERED_CAPTION` (Fig/Figure/Table/Scheme/Extended Data/Supp + a
+  number — body prose "Figure 3 shows…" and unnumbered "Figure legends"
+  can't anchor); grows the region from the caption's x-range up to the
+  nearest overlapping text, then widens to the gutter/margins (other
+  captions count as obstacles, so stacked figures separate; two passes);
+  the optional ink probe only decides above-vs-below (tables with content
+  under the caption grow down). Output includes the caption band + a
+  `label` from the caption text. Verified headless with a synthetic
+  two-column page (1 region, gutter-bounded, prose/unnumbered negatives).
+- **`rm/js/pdf-viewer.js`** — the V3.616 grid/connected-components/merge
+  detector (~125 lines) is deleted; `_detectFigureRegions` is now a thin
+  call into the engine with `_makePixelProbe`; `getFigureRegions()` passes
+  `label` through.
+- **`rm/js/figure-capture.js`** — hotspot tooltip shows the caption
+  ("Click to snip — Figure 3. …"); the capture dialog's name pre-fills the
+  caption opener ("Figure 3" / "Table 1") via a new optional `name` on
+  `open()`.
+
+## [V3.639] - 2026-08-15
+
+**Shared readings get a home — and start actually arriving.** Alex: *"my
+mentee has shared papers with me to read, and these readings do not show up …
+I want the assigned or suggested readings at the top of the library page, and
+users can mark as done … tagged with the user that assigned it. these sections
+and all sections on the library page can be collapsed."* Plan:
+`CodeLog/ClaudesPlan/V3.639_library_assigned_readings.md`.
+**Deploy: FTP only — no `firebase deploy`.** No rules, index, or function
+changes; the queries added are equality-only (no composite index) and
+`taskMarket` read is already `isLabMember()`. sw 611 -> 612.
+
+### Bug Fixes
+- **A paper shared by a non-admin was never delivered** (`rm/js/task-assign.js`
+  `_submit`) — the reported "readings don't show up" was not a rendering bug:
+  **the task document was never written.** V3.317 routed every cross-user send
+  through the task marketplace and materialized the task in the same flow only
+  when the *sender* was an admin. A non-admin sender — i.e. any student or
+  mentee — produced a `taskMarket/{postId}` doc with `status:'open'` and no
+  task doc at all, leaving the reading parked behind an accept/decline on
+  `rm/pages/task-market.html`, a board the recipient never opens. The sender
+  saw a success toast, so neither side had any signal it hadn't landed.
+  Paper sends (`paperRef` present) now bypass the marketplace entirely and
+  `writeTaskFor` straight into the recipient's queue for **every** sender.
+  This was always rules-legal: `firestore.rules` `userData/{userId}/tasks`
+  create requires only `isLabMember()` + `createdByUid == request.auth.uid` +
+  an existing `users/{uid}` doc — the admin gate was JS policy, never a
+  security boundary. Bypassing (rather than "post + materialize") is also the
+  only self-consistent option, since the same rules file forbids a non-admin
+  from creating a post already `status:'accepted'`. Non-paper sends keep the
+  V3.317 marketplace routing untouched.
+- **Send failures now report identically on both paths**
+  (`rm/js/task-assign.js` `_sendFailed`) — the V3.199 in-modal diagnostic +
+  retry was inline in the marketplace `.catch`; extracted so the new
+  direct-write path reports the same way instead of failing quietly.
+
+### Added
+- **"Papers people sent me" at the top of the library** (new
+  `rm/js/library-readings.js`, `rm/css/library-readings.css`, mount
+  `#lib-readings` in `rm/pages/library.html`) — three collapsible sections,
+  **📥 Assigned to me** / **💡 Suggested for me** / **✓ Read**, rendered above
+  the extension card. Each row carries the paper title (linked to
+  `library-paper.html?id=`), authors, the sender's note, a relative date, a
+  red `assigned` / blue `suggested` chip matching PMR's convention, and — the
+  point of the list — a **`👤 from <name>` chip naming the assigner**. One
+  click marks a reading done (with `↩ Undo`); done readings drop into the
+  Read pile rather than vanishing. The whole block hides itself when the user
+  has no readings, so members who are never sent papers see no new clutter.
+- **Stranded pre-V3.639 sends are recovered, not lost** (same file) — the
+  block unions two sources: `userData/{me}/tasks` where `bucket=='assigned'`
+  and `paper_ref.paperId` exists (the materialized path), **plus**
+  `taskMarket` where `targetUid=={me}` and `status=='open'` and
+  `task_payload.paper_ref.paperId` exists (every send stranded by the bug
+  above). Without the second source the fix would have left the entire
+  existing backlog invisible. Those rows render identically apart from a
+  `⏳ never delivered` explainer chip. Marking one done claims the post
+  (`open`→`accepted`, the only transition `firestore.rules` grants the
+  target, touching solely status/claim/`marketTaskId` so
+  `marketContentUnchanged()` holds) and then materializes the task
+  already-done, preserving the **original sender** as `createdByUid` (legal
+  via the `userData` owner wildcard, which the stricter cross-user create rule
+  would have refused). Materializing on the *click* rather than on load keeps
+  opening the library free of side effects — a page visit must never silently
+  accept handoffs on someone's behalf. Rows are de-duplicated by
+  `marketPostId` so a post already accepted on the old board can't appear
+  twice.
+- **Every top-level library section collapses** (new
+  `rm/js/library-collapse.js`) — `⬆ Add papers`, `📚 Shelves`, and
+  `📄 All papers` gain clickable headers, joining the readings sections and
+  the extension card (already a native `<details>`). State persists per-device
+  in `localStorage` under `rm_lib_sections_collapsed`. Rather than adding a
+  seventh collapse implementation to the codebase, this reuses the groups
+  shelf's chrome verbatim (`.lg-section` / `.lg-sec-head` / `.lg-caret` /
+  `.lg-collapsed` from `css/library-groups.css`), so the new headers read as
+  the same system. `register()` wraps existing blocks at runtime, so
+  `library.html` keeps its plain structure. Two details worth naming: the
+  delegated handler requires the clicked element's *nearest* `.lg-sec-head` to
+  be the one carrying the toggle attribute, without which a click on an inner
+  shelf sub-section would fold the entire shelf; and `mirrorHidden` observes
+  the groups shelf's `style` attribute so its header disappears along with the
+  shelf instead of floating above an empty body.
+
+### Changed
+- `rm/js/library.js` `init()` starts both new modules and registers the three
+  collapsible blocks before the first `_render()`; `_render()` mirrors the
+  filtered paper count onto the `📄 All papers` header so it still reads while
+  that section is folded.
+
+### Verified
+- Driven headless (`browser-automation`) against the real page: collapse
+  toggles class + caret + visibility and round-trips through `localStorage`;
+  the shelf header correctly stays hidden while the shelf is empty; the
+  readings block renders all three sections with correct counts, assigner
+  chips, and reader links, and correctly ignores non-paper assigned tasks;
+  marking an ordinary reading done writes
+  `{done, status:'completed', done_at}` and `↩ Undo` reverses it; marking a
+  **stranded** reading done emits exactly the two expected writes — the
+  content-preserving market claim, then the materialized task carrying the
+  original sender's `createdByUid`.
+
+### Known gaps (unchanged by this release)
+- `rm/js/pmr.js:4293` sends a paper-*draft* id as `paper_ref.paperId`, but
+  every renderer links it into the library-item id space — those rows link
+  nowhere. Pre-existing.
+- With paper sends no longer creating marketplace posts, they now fire **no
+  push notification at all** (`functions/task-market.js` was the only trigger,
+  and it never said "paper" anyway). A dedicated reading-assigned
+  notification is the natural follow-up.
+- Readings still also appear on the tasks dashboard as bare text rows
+  (`tasks-dashboard-buckets.js` `renderAssignedByOthers` has no `paper_ref`
+  branch). Left in place deliberately — removing them risks PMR/market
+  regressions — but whether to hide or relabel them there is Alex's call.
+
+## [V3.638] - 2026-08-15
+
+**"My Day" is now "My Week".** Alex: *"rebrand my day to my week everywhere."*
+The V3.526 entry surface is renamed and its default horizon flipped from Day to
+Week — the week is the horizon everything around it already runs on (PMR
+periods, Team Focus, `focusAreas`, `⤓ Assemble my week`), so the old name was
+the odd one out. Plan:
+`CodeLog/ClaudesPlan/V3.638_my_day_to_my_week_rebrand.md`.
+**Deploy: FTP + a TestFlight build — no `firebase deploy`.** The
+`firestore.rules` edits are comment text only. The app is **not** optional this
+batch: the native shell routes tabs by literal filename, so an FTP-only push
+would leave phone users on a build that can't match the renamed page. sw 610 ->
+611.
+
+### Changed
+- **The surface is renamed** (`rm/pages/my-day.html` → `my-week.html`,
+  `rm/js/my-day.js` → `my-week.js`, `rm/css/my-day.css` → `my-week.css`) —
+  along with every label a lab member reads: the nav entry (`☀️ My Week`), the
+  page `<title>`/`<h1>`, the phone app's bottom tab (`🌞 My Week`), the PMR
+  `My Week ledger` block heading and its comment thread label, the home-feed
+  tile, the surface-guide blurbs on huddle/tracker/tasks/notebook/PMR, and the
+  retirement banners on the tracker and tasks workspaces. Code comments were
+  renamed with the prose; version citations (`V3.526`, `V3.532`) are left as
+  the durable pointer to the plan docs, whose filenames and shipped CHANGELOG
+  entries are history and are **not** rewritten.
+- **My Week opens on the week** (`rm/js/my-week.js` `state.view`) — seeds
+  `'week'` instead of `'day'`. A seed change only: `init()` already loaded the
+  whole viewed week unconditionally and the day view renders out of that same
+  `state.items`, so there is no extra fetch. The `[Day][Week][Month]` tabs are
+  untouched and `?view=day` still overrides.
+- **Page ids follow the URL** (`rm/js/all-pages.js`) — `page-registry.js`'s
+  `pageIdFromHref()` derives the id from the URL slug, so the
+  `PAGE_DESCRIPTIONS` / `PAGE_ICONS` keys move `'my-day'` → `'my-week'`.
+  Without this the All Pages tile would have silently lost its ☀️ icon and its
+  blurb.
+- **The iOS shell routes to the new path** (OurlabMobile
+  `ios/App/App/TabRoute.swift` `startPaths`, `TabShellViewController.swift`
+  fallback, `scripts/sync-rm.mjs`'s generated `www/index.html`) — the app's
+  entry point lands directly on this page (V3.574), so all three had to move.
+
+### Added
+- **A redirect stub at the retired path** (`rm/pages/my-day.html`) — a
+  script-first `location.replace()` that **preserves `search` + `hash`**, with
+  a `<noscript>` meta-refresh fallback. It is load-bearing, not politeness:
+  `day-distribute.js` stamps `/rm/pages/my-day.html?date=…` as the
+  `reference_links` url on **every notebook stub it has ever created**, past
+  notification/feed docs carry the same path, lab members have it bookmarked,
+  and installed iOS builds use it as the My Week tab's start path until the new
+  build lands. A bare `<meta http-equiv="refresh">` would have dropped the
+  `?date=` / `?view=` query string, so the script runs first.
+
+### Bug Fixes
+- **The renamed page can't strand the phone app's primary tab**
+  (`rm/js/mobile-shell.js` `TABS[0].match`, `rm/js/tab-lifecycle.js`
+  `selfCheck()`, OurlabMobile `ios/App/App/TabRoute.swift` `key(forPath:)`) —
+  all three filename matchers now accept **both** names (`my-(day|week).html`).
+  These three are already documented as "KEEP IN LOCKSTEP", and the native
+  shell routes by literal filename: a path it can't match falls through to
+  `.misc`, which would have cost the tab its highlight *and* its pinned
+  push-notification bridge (`TabBridgeViewController.isPrimary`) for anyone
+  arriving via the redirect stub or an old deep link.
+
+### Not migrated (deliberate)
+Stored identifiers keep their `myday`/`day` spelling — renaming them costs an
+admin-migrate sweep and buys nothing a user can see, so prose now says
+"My Week" while identifiers still say `myday`:
+`userData/{uid}/dayPlans`; `source:'my-day'` (which `pmr-week-assemble.js`
+filters on); the `myday_ledger` PMR block key; `labConfig/featureFlags`'
+`myday_retire_huddle_composer` / `_tracker_manual` / `_task_add`; the
+`paper-figures/myday-<itemId>` pseudo-id (V3.623); the `myday` native tab key
+and presence surface key compared server-side in `functions/helpers/notify.js`;
+`#myday-root`; and the `md-*` CSS class prefix.
+
+## [V3.637] - 2026-08-13
+
+**The rest of the teacher-platform findings closed — the suite is now clean.**
+V3.635 took issues 1-3; this takes 4-7 from
+`CodeLog/ClaudesPlan/V3.632_teacher_rules_findings.md`. `scripts/tests/teacher-rules.test.mjs`
+is at **84 checks, 84 as intended, 0 deviations**. Plan:
+`CodeLog/ClaudesPlan/V3.637_teacher_findings_remainder.md`.
+**Deploy: FTP FIRST, then `firebase deploy --only firestore:rules`** — the
+reverse of V3.635's note, and the batch follows this order. New rules with the
+old client would deny the public team page's unconstrained user list, breaking
+that page for every signed-out visitor until the FTP lands; the other direction
+is harmless. sw 609 -> 610.
+
+### Bug Fixes
+- **"Enrollment closed" now closes enrollment** (`firestore.rules`
+  `/enrollments` create + the student re-join clause) — the teacher's toggle
+  was enforced only by `joinClassWithCode`, so a student holding the code
+  enrolled anyway. Both paths now require
+  `get(schedules/$(scheduleId)).data.get('enrollmentOpen', true) == true`.
+  Defaults to `true`, so classes predating the flag are unaffected; enrolling
+  into a *deleted* class now fails here too, which is correct.
+- **`users` is no longer a public directory** (`firestore.rules`
+  `/users/{userId}` read) — `allow read: if true` let any visitor list every
+  user document (names, emails, roles, bios). Production at the time of the
+  fix: **45 docs, 31 of them guests**, because V3.304 invites outside teachers
+  and their students into this same collection. Read is now
+  `role != 'guest' || isOwner || isLabMember || isAdmin`.
+- **A deleted class no longer blocks its participants' reviews**
+  (`firestore.rules` `/reviews` create) — the rule dereferenced
+  `get(schedules/…)` before checking enrollment, so after "Delete class" it
+  errored and denied even for a student whose enrollment was intact. Enrollment
+  is checked first; the schedule read is guarded by `exists()`.
+- **Approving a class request from the Ourlab app was impossible**
+  (`OurlabMobile/scripts/sync-rm.mjs`, `rm/js/admin-teachers.js`) —
+  `admin-teachers.js` fetches `/modules/manifest.json`, which the app bundle
+  didn't contain, and the caught failure left an empty catalog that renders an
+  approve modal with zero module checkboxes and then refuses to submit. The
+  sync script now bundles the manifest, **and** the page records
+  `manifestFailed` instead of swallowing it: a standing toolbar error plus a
+  hard block on Approve / Edit-granted-modules naming the workaround. Approving
+  without a catalog would have silently provisioned a class with no modules.
+
+### Added
+- **`DB.getPublicProfiles()`** (`user-system.js`) — `users` where
+  `role != 'guest'`, the public team page's new source (`app.js`). A `list` is
+  denied outright if any doc it would return fails the rule, so the query has
+  to carry the constraint the rule enforces. Signed-in callers
+  (`setupTeamPicker`, the admin user table) keep `getAllUsers()`.
+- **7 emulator checks** for the paths this could have broken — a lab-member
+  persona listing all users, the signed-out team query, a first-time signer-in
+  reading *and* creating their not-yet-existent profile doc (bootstrap reads a
+  missing doc; the `||` survives because an errored operand doesn't poison a
+  true one), plus the closed-enrollment and deleted-class cases.
+
+### Verified
+- Against production data: **0** user docs are missing `role`, and the narrowed
+  query returns exactly the same 14 profiles as the old client-side filter,
+  **0 dropped**. The rendered team page keeps all five category sections and 16
+  cards with no console errors.
+
+### Known limit (asserted as intended)
+- The **owning teacher** still cannot review a class after it is deleted — with
+  the schedule doc gone there is no server-side proof of ownership, and
+  accepting a self-asserted `teacherUid` would open the moderation queue to
+  spam. Soft-delete (`deletedAt` instead of `delete`) is the fix if that
+  matters; deferred because it touches the admin panel, the class page, and
+  both dashboards for one edge case.
+
+## [V3.636] - 2026-08-13
+
+**A teacher can now view their class as one of their own students.** The roster
+shows a name and a status chip; it never showed what that student's browser
+shows — so "I can't see anything" was unanswerable, and a Remove was
+unverifiable. Also the prerequisite for R3 (teacher reorders/hides modules):
+the moment a teacher can hide something, "what does my class see now?" needs an
+answer. Plan: `CodeLog/ClaudesPlan/V3.636_teacher_view_as_student.md`.
+**Deploy: FTP-only.** sw 608 -> 609.
+
+### Added
+- **View-as strip on the teacher-class page** (`teacher-classes.js`
+  `viewAsStripHTML` / `wireViewAsStrip`) — "Myself (teacher)" plus a select of
+  the whole roster, active and removed (removed students are marked). Renders
+  in **every** state including the locked-out one, since that is exactly what
+  gets checked after a Remove.
+- **`👁 View as` on each roster row** in the teacher dashboard — jumps straight
+  into that student's view of the class. Status comes from the row already
+  loaded, so it costs no extra read.
+- **`_viewAs` state + `viewAsFor` / `setViewAs` / `clearViewAs` /
+  `canViewAsStudent`** (`teacher-classes.js`), mirroring class-builder's
+  `_adminViewOverride` (V3.248). `_viewAs` carries its `scheduleId` so a stale
+  preview can't leak onto another class after navigation, and
+  `canViewAsStudent` re-checks ownership on every render, so a sign-out or
+  account switch drops it automatically.
+- **A teacher-removed student in the demo fixtures** (`teacher-demo.js`,
+  Jordan Blake with `removedBy:'teacher'`) so the locked-out preview is
+  reachable from demo mode.
+- **`.tc-viewas*` styles** (`styles.css`) — deliberately the same treatment as
+  the V3.632 demo banner: a preview is a preview, whoever is running it.
+
+### Changed
+- **`tcCanViewModules`** — consults the preview first and answers as that
+  student (`status === 'active'`), so the preview carries into the **module
+  viewer**, not just the class page.
+- **`wireTeacherClassPage`** — `isOwner`/`isAdmin` are forced false while
+  previewing, hiding the owner strip and "Manage in your dashboard"; the join
+  form is short-circuited with "Preview only — <name> would enter their code
+  here. Nothing was submitted."
+
+### Notes
+- **Preview, not impersonation, and no rules change:** every read is one the
+  teacher already owns (their roster via `rosterForTeacher`, a single
+  `getEnrollment` whose `teacherUid` is the caller), nothing is written as the
+  student, and forging `_viewAs` from the console gains nothing — an enrollment
+  the teacher may not read returns null and the handler bails.
+- **Scoped to one class page by design.** There is no "view as this student's
+  dashboard": a teacher cannot list a student's other enrollments, and
+  shouldn't — that would expose which other schools' classes the student is in.
+- Verified headless through the `teacher-busy` demo persona: owner strip hidden
+  under preview, removed student gets the code gate with 0 modules, the join
+  form logs **zero** writes, and "Myself (teacher)" restores the owner view.
+
+## [V3.635] - 2026-08-13
+
+**Three teacher-platform permission holes closed, each proved shut by the
+emulator suite.** Found by the V3.632 stress test and fixed on Alex's call
+("fix all three now"). Findings + rationale:
+`CodeLog/ClaudesPlan/V3.632_teacher_rules_findings.md` (issues 1-3).
+Suite: 74 checks, 70 as intended — the 4 remaining deviations are the two
+issues deliberately deferred (issue 5, the world-readable `users` collection,
+which needs its own version; issue 6, reviews for a deleted class).
+**Deploy: see V3.637 — it ships in the same batch and its order wins: FTP
+FIRST, then `firebase deploy --only firestore:rules`.** (Read alone this
+version preferred rules-first; V3.637's `users` narrowing reverses that,
+because new rules with the old client break the public team page. This
+version's client-side additions — passing `joinCode` on re-activation,
+stamping `removedBy` — are inert under the old rules, so FTP-first costs
+nothing here.) sw 607 -> 608.
+
+### Bug Fixes
+- **The class-approval gate was client-side only** (`firestore.rules`
+  `/schedules` create) — `allow create: if request.auth != null` let any
+  signed-in user write a schedules doc carrying `kind:'teacher-class'`,
+  themselves as `ownerUid`, and every module set in `grantedFolders`, then mint
+  their own join code for it. Creating a doc with that marker is now
+  admin-only; docs without `kind` (the lab's own classes) are untouched, and
+  the emulator suite asserts both.
+- **A teacher could repoint their own join code at another teacher's class**
+  (`firestore.rules` `/joinCodes` update) — ownership was checked on the
+  existing doc, so every field was rewritable, including `scheduleId` and
+  `teacherUid`; students redeeming that code landed in the other teacher's
+  roster with access to their modules. The writable key set is now exactly
+  `['active']` (the only update the client performs); regeneration already
+  creates a new doc.
+- **A removed student could re-add themselves** (`firestore.rules`
+  `/enrollments` update) — the student carve-out allowed `status: 'removed' →
+  'active'` with no code check, silently undoing a teacher's Remove. Re-joining
+  now costs what joining costs, and a teacher's removal is final until the
+  teacher undoes it. Note that checking the code alone was **not** sufficient:
+  `request.resource.data` is the merged document, so an untouched `joinCode`
+  field still reads live for the student who joined with it — hence the
+  `removedBy` stamp below.
+
+### Changed
+- **`TC_DB.removeStudent(enrollmentId)`** (`teacher-classes.js`, mirrored in
+  `teacher-demo.js`) and the RM roster Remove (`rm/js/admin-teachers.js`) now
+  write `removedBy: 'teacher'` alongside `status:'removed'`. `removedBy` sits
+  outside the student-writable key set, so a student can neither set nor clear
+  it; the teacher (or admin) clause can, which is how a teacher re-activates
+  someone they removed.
+- **`TC_DB.setEnrollmentStatus(enrollmentId, status, joinCode)`** — takes the
+  code being redeemed and writes it on re-activation, so the rule can prove a
+  re-join against a **currently** live code rather than the one stored when the
+  student first joined (which may since have been regenerated away).
+  `joinClassWithCode` passes the redeemed code.
+
+### Added
+- **9 new emulator checks** (`scripts/tests/teacher-rules.test.mjs`, now 74)
+  covering the fixes from both sides: admin can still provision, anyone can
+  still create a normal lab class, a teacher can still deactivate their own
+  code but can't smuggle a `scheduleId` alongside `active`, a student can still
+  leave and re-join with a live code, and a teacher-removed student cannot
+  re-join even while holding one.
+
+## [V3.634] - 2026-08-13
+
+**A student invited by a teacher is a student, and stays tied to that teacher.**
+Joining a class already flipped `category:'student'`, but only when the category
+was exactly `'guest'` and inside a `catch` that swallowed failures — so a
+student could stay an unclassified guest forever. Joining now also records
+*who* invited them, durably enough to outlive the enrollment. Plan:
+`CodeLog/ClaudesPlan/V3.634_student_teacher_association.md`, which also carries
+the decision note on why `role:'student'` cannot simply be assigned (38 call
+sites read `role != 'guest'` as "lab member", including 9 Cloud Functions and
+the public People-page filter) and the scoping for teacher-authored material.
+**Deploy: FTP-only** — the fields are already owner-writable, nothing queries
+them server-side. sw 606 -> 607.
+
+### Added
+- **`TC_DB.linkStudentToTeacher(uid, teacherUid, school)`**
+  (`teacher-classes.js`) — writes `category:'student'`,
+  `teacherUids: arrayUnion(teacherUid)` (an array, so a second teacher never
+  erases the first), `studentSchool`, and `studentSince` on the joining user's
+  doc. Mirrored by `DEMO_DB.linkStudentToTeacher` in `teacher-demo.js`.
+- **`teachersOf(u)`** (`rm/js/admin-guests.js`) — resolves a student's inviting
+  teachers from **every** enrollment regardless of status, falling back to
+  `users/{uid}.teacherUids`, and renders "invited by …" under the class list.
+  The association therefore survives a Remove and a class deletion.
+
+### Changed
+- **`joinClassWithCode`** (`teacher-classes.js`) — classification now runs for
+  every joiner whose category isn't `'teacher'` (was: only exactly `'guest'`),
+  and a failure no longer looks like a failed join: the enrollment write has
+  already succeeded at that point, so the link error is logged and the join
+  returns normally.
+
+### Notes
+- `users/{uid}` owner-writes permit every field except `role`, so
+  `teacherUids` is **student-writable and not a trust boundary** — it is a
+  denormalized convenience for the admin panels. `enrollments` (rules-gated on
+  a live join code) remains the authoritative association, and is what every
+  access check reads. The code says so at both write and read sites.
+
+## [V3.633] - 2026-08-13
+
+**Split view gets ONE header** — splitting outside a workflow rendered three
+navigation bars (the parent's plus one inside each pane). Panes are now always
+embedded, and the parent's single bar carries a page picker per pane. Plan:
+`CodeLog/ClaudesPlan/V3.633_split_single_header.md`.
+**Deploy: FTP-only.** sw 604 -> 605.
+
+### Bug Fixes
+- **Panes always embed** (`rm/js/split-view.js`) — `_embedHref` and the iframe
+  `name="rm-embed-<side>"` attribute were gated on `_HAS_WORKFLOW`, so
+  out-of-workflow panes got neither embed signal and each rendered a full
+  `.top-nav`. Both are unconditional now. The old IIFE survives as
+  `_adoptWorkflowFromUrl()` purely for its side effect — adopting `?workflow=`
+  into sessionStorage before `writeState()` strips it from the URL (V3.618);
+  dropping that would have regressed the in-workflow strip.
+- **Async fill ran against a detached nav** (`rm/js/nav.js`) — caught in
+  headless verification: `_splitFillPaneControls` hits its
+  `document.body.contains(navEl)` liveness check with no intervening `await`
+  when `firebridge` is absent, so calling it from `_splitBuildPaneControls`
+  (which runs before `document.body.prepend(nav)`) left both menus stuck on
+  "Loading pages…". `renderNav` now invokes the fill after the prepend.
+
+### Added
+- **Split-view pane pickers** (`rm/js/nav.js`, `rm/css/split-view.css`) — on
+  `/rm/pages/split-view.html` outside a workflow, `⊟ Split` is replaced by
+  `◧ Left ▾` / `◨ Right ▾` dropdowns plus `× Close split`. They dispatch the
+  existing `rm:split:swap` / `rm:split:set-active` / `rm:split:close` events, so
+  `split-view.js` gained no new listeners. Labels seed from
+  `window.__SPLIT_STATE` (split-view.js's IIFE runs at parse time, before
+  nav.js's DOMContentLoaded) and refresh on `rm:split:state-change`;
+  `_splitRefreshPickers` relabels without rebuilding, so an open menu survives a
+  pane navigating underneath it. Entries are grouped in NAV_ITEMS order, mark
+  the page open in this pane (`.active`) and in the other
+  (`.split-picker-open-other`), and exclude split-view itself.
+- **`_splitPageAllowed`** (`rm/js/nav.js`) — gate check *in addition to*
+  `firebridge.canAccessPage`: a non-admin with an incidental `allowedPageIds`
+  entry for an admin page must not see Permissions in the picker, and
+  `canAccessPage` is permissive before the page registry loads. Reproduces
+  `applyNavGates`'s V3.605 explicit-grant escape hatch for collaborators.
+  Verified: 56 options for an admin, 50 for a lab member with Permissions /
+  Guests / API Usage / Teachers absent.
+
+### Changed
+- **`_wfBuildPageMap`** (`rm/js/nav.js`) — entries now carry `gate`, with
+  children inheriting the group's gate when they declare none (every Operations
+  / Lab Admin child relies on this). Additive; existing consumers ignore it.
+- **`_splitMatch`** (`rm/js/nav.js`) — hoisted out of `renderWorkflowStrip` to
+  module scope (it closed over nothing) so the strip and the pickers share one
+  URL matcher.
+
+## [V3.632] - 2026-08-13
+
+**Demo mode: an admin can finally see what a teacher and a student see.** The
+V3.304 teacher/student platform renders only for `role:'guest'` users, so the
+admin account could never reach those dashboards, and states like "request
+denied" or "removed student" took a multi-account round trip to manufacture.
+`#/demo` now runs the real render/wire functions against in-memory fixtures,
+one click per state. Shipped alongside a firestore.rules stress test of the same
+subsystem (62 emulator checks, 7 real findings) — plans:
+`CodeLog/ClaudesPlan/V3.632_teacher_demo_mode.md` and
+`CodeLog/ClaudesPlan/V3.632_teacher_rules_findings.md`.
+**Deploy: FTP-only** — demo mode writes nothing to Firestore and adds no rules,
+indexes, or functions. sw 605 -> 606.
+
+### Added
+- **`teacher-demo.js`** (NEW, root; loaded after `teacher-classes.js`, added to
+  `sw.js` SHELL_URLS) — the whole harness on `McgheeLab.TC_DEMO`:
+  `start(personaId)` / `stop()` / `reset()`, `mountBanner(viewEl)`,
+  `renderPanel()` / `wirePanel()`, `schedule(id)`, `note(msg)`,
+  `interceptProfileWrite(what)`, and getters `active`, `uid`, `profile`,
+  `signedOut`, `db`, `log`. Persona id persists in `sessionStorage`
+  (`mcgheelab.tcDemo.persona`) so it survives in-tab navigation; the fixture
+  world is memory-only and resets on reload.
+- **11 personas** across three groups — signed-out visitor; brand-new guest;
+  teacher with nothing requested / request pending / request denied / approved
+  with 0 students / approved with 2 classes and 15 students; student not
+  enrolled / enrolled / with a pending review / removed. Each declares the
+  route it wants opened (`open`) and a `setup(world)` that trims the shared
+  fixture cast down to that state.
+- **`DEMO_DB`** — implements the same ~23-method interface as `TC_DB` against
+  the in-memory world. Reads answer from fixtures; **writes mutate the world
+  and append to an action log** rather than hitting Firestore, so
+  Regenerate/Disable/Remove/join/submit-review all visibly do the right thing
+  and the log records what each *would* have written.
+- **`#/demo` route** (`app.js`) — added to `AUTH_GATED`, dispatches
+  `renderDemoPanel()` / `wireDemoPanel()`; `TC_DEMO.mountBanner(view)` runs
+  after every render so the demo strip follows the persona across routes
+  (no-op when demo mode is off).
+- **`🎭 Demo mode` link** in the RM Teachers toolbar
+  (`rm/pages/admin-teachers.html`) — opens `/#/demo` in a new tab.
+- **`.tcd-*` styles** (`styles.css`) — banner strip, persona switcher, action
+  log, toast, and the `#/demo` persona cards.
+- **`scripts/tests/teacher-rules.test.mjs`** (NEW) — 62-check
+  `@firebase/rules-unit-testing` suite over the V3.304 collections with six
+  personas (admin / two teachers / enrolled + removed student / unrelated guest
+  / signed-out). Each case declares its intended verdict, so output separates
+  "hole" (wrongly allowed) from "break" (wrongly denied). Ships with
+  `firebase.json` + `placeholder.rules` (firebase-tools refuses a rules path
+  outside the project dir; the suite uploads `../../firestore.rules` itself).
+
+### Changed
+- **`teacher-classes.js`** — four demo resolvers (`demo()`, `src()`, `me()`,
+  `myProfile()`) near the top; every call site outside the `TC_DB` literal now
+  goes through `src()` / `me()` instead of `TC_DB.` / `Auth.currentUser.uid`.
+  With `TC_DEMO` absent or inactive these return the real Firestore layer and
+  the signed-in uid, so production behavior is unchanged.
+- **`TC_DB.getJoinCode(code)`, `TC_DB.createEnrollment(scheduleId, uid, data)`,
+  `TC_DB.setUserCategory(uid, category)`** (`teacher-classes.js`) — new
+  methods folding `joinClassWithCode`'s three raw Firestore/DB writes into the
+  data layer, so the module has exactly one write surface for the demo db (and
+  one place to audit).
+- **`tcCanViewModules`** — asks the persona in demo mode (the previewing admin
+  would otherwise pass every gate and hide the student experience);
+  **`wireTeacherClassPage`** keys its signed-out gate on `demo().signedOut`,
+  forces `isAdmin` false under demo, and neutralizes Google sign-in; both
+  dashboards' Sign Out is neutralized.
+- **`renderDashboard` / `wireDashboard`** (`user-system.js`) — dispatch on the
+  demo persona's `category` *before* the `Auth.isGuest()` branch, since the
+  previewing account is `role:'admin'` (exactly why these panels were
+  unreachable). `wireGuestProfileCard`'s photo upload + profile save and the
+  guest "I'm a teacher" button route through the demo log instead of writing to
+  the admin's own `users/{uid}` doc and storage path.
+- **`resolveSchedule` / `wireModuleViewer`** (`class-builder.js`) — resolve
+  `tc-demo-*` fixture classes before touching Firestore, so the real class page
+  and the module iframe both work in a demo.
+
+## [V3.631] - 2026-08-13
+
+**"Used in" becomes one act, and the ABOUT<->FOR bridge goes both ways.** R3 of
+the library-categorization program. Alex's call from the R2 question set: *"Yes
+-- one act, both records, prompt for the why note."* Plan:
+`CodeLog/ClaudesPlan/V3.631_used_in_one_act_and_two_way_bridge.md`.
+**Deploy: FTP-only** -- `researchFoci/{id}/refs` has been lab-member-writable
+since V3.600, so no rules change. sw 603 -> 604.
+
+### Added
+- **Linking a library paper to a draft now offers to add it to that draft's
+  card on the research map, with the "why" note.** An `output` focus card and a
+  draft are frequently the same object recorded twice (`source_draft_id` and/or
+  `links.draft_refs[]`), so `linked_drafts` (105 papers in prod) and
+  `researchFoci/{id}/refs` (0) were two storages for one intent with nothing on
+  screen suggesting the second existed -- and the refs doc is the only one of
+  the two that can hold a reason, which `roadmap-attach.js` calls "the entire
+  reason this feature exists". NEW `rm/js/draft-focus-bridge.js`
+  (`DRAFT_FOCUS_BRIDGE.offerForDrafts`) + NEW
+  `ROADMAP_DATA.cardsForDraft(draftId)` (one cached whole-collection get,
+  `source_draft_id` matches ranked above `links.draft_refs` ones).
+  **Deliberately not filtered to `level:'output'`** -- the card pointing at the
+  real CAREER draft (`gels-energy-landscape`) is a `concept`, so an output-only
+  filter would have found nothing. The offer is wired to the two INTERACTIVE
+  pickers only (`library-associations.openAddPicker`,
+  `paper-overlays._openLinkPicker`), after `close()` + the caller's re-render;
+  explicitly **not** to `PAPER_OVERLAYS.linkDraft`, which is what V3.629's
+  `_ensureDraftLinked` calls while the user is filing a highlight -- a modal
+  must not ambush that. Bulk import paths never prompt. Attaches to the roadmap
+  ROOT target since a draft link says nothing about which experiment; writes the
+  same snapshot shape `ROADMAP_ATTACH` writes so the two are indistinguishable;
+  patches `meta.library.roadmaps` in memory so it can't offer twice. The link
+  has already landed when the offer opens -- "Not now"/Escape are always free.
+  Verified against a stubbed backend in headless Chrome across 5 cases
+  (no ids / no card / save / repeat / Escape).
+- **A topic now shows which lab work rests on it.** The topic detail view gains
+  a "This topic underpins" strip of focus-card chips deep-linking to
+  `research.html?id=<fociId>`. `links.theme_id` was the only structural
+  connection between the two axes and pointed one way only (V3.630 fixed the
+  forward half, which printed a raw slug and omitted the `&theme=` deep link).
+  One cached whole-collection get + client filter, per this module's
+  no-composite-index convention. The empty state is deliberate rather than
+  hidden -- 8 of 9 real focus cards carry no `theme_id`, so a topic reading
+  "Not yet linked from the research map" is the only place the relationship is
+  discoverable.
+
+### Bug Fixes
+- **★ The Comments page resolved drafts from the wrong collection, breaking
+  three things silently.** Every other surface resolves paper drafts from
+  `projects/papers.json`; this page alone scanned `items.json` for
+  `type:'paper'` rows lacking `is_library_entry` -- legacy items-collection
+  paper rows, of which there are none in the current data. So on the page V3.622
+  made the home of the categorization workflow: (1) `_loadPapers` produced an
+  empty `_drafts`, and the per-card Drafts pill row plus the evidence form's
+  draft select both read "No drafts available."; (2) `_renderPaperPicker`
+  derived its list from `_papersById` filtered by `_isDraft`, but `_papersById`
+  holds the annotations' *parent* papers -- library entries by definition -- so
+  `_isDraft` returned false for every one and the filter dropdown always
+  rendered its "No draft papers yet" disabled row; (3) `_loadEvClaims` used the
+  same derivation, so the claim->draft bridge queried nothing, `_claimToDraft`
+  stayed empty, and **no highlight could ever count as "categorized by claim
+  evidence"** -- which is exactly what V3.622's "📥 To categorize" queue keys
+  on. `_loadPapers` now reads `projects/papers.json` (skipping `published`,
+  matching `LIBRARY_ASSOC`'s active test) plus proposal-status grants from
+  `items.json`, title-sorted; `items.json` is still read for `_papersById`,
+  which genuinely needs library items. `_isDraft` deleted -- it could not
+  return true. Measured against production: the draft picker goes from **0
+  drafts to 4**.
+
+### Changed
+- **One definition of which grant statuses count as a draft.**
+  `GRANT_DRAFT_STATUSES` was copy-pasted into four files -- `paper-overlays.js`
+  (Set), `library-associations.js` (object map, whose own comment admitted it
+  was "a mirror of paper-overlays.js"), `library-paper.js` and
+  `library-mobile-paper.js` (inline Sets in their draft loaders) -- so the
+  pickers could disagree about what a draft *is*. Now `LIBRARY_LINKS.GRANT_DRAFT_STATUSES`
+  + `LIBRARY_LINKS.isGrantDraftStatus(status)`, chosen because that module is
+  the single writer for the association arrays **and** the only one of these
+  loaded on all six pages that need it (including `library-mobile-paper.html`,
+  which doesn't load `library-associations.js`). Each consumer keeps the literal
+  list as a load-order fallback.
+
+## [V3.630] - 2026-08-13
+
+**"Topics", and one Organize surface instead of five.** R2 of the
+library-categorization program. **No storage changes** -- every field, id,
+collection, URL and search token is untouched and every picker is reused
+verbatim; this release is entirely about what the user sees and what it's
+called. Plan (with the full forensics):
+`CodeLog/ClaudesPlan/V3.630_topics_rename_and_organize_block.md`.
+**Deploy: FTP-only.** sw 602 -> 603.
+
+### Changed
+- **"Lab Themes" is now "Topics"** everywhere a user can see it. The old name
+  sat one box away from the reader's "🧭 Lab focus" -- two phrases nobody can
+  tell apart, backed by two collections with two permission models
+  (`labThemes`: any lab member creates; `researchFoci`: PI-only), expressing
+  the paper's two genuinely different questions. The distinction was stated in
+  exactly one place in the codebase, a comment above `_renderRoadmapEditor`:
+  *"themes are what a paper is ABOUT, roadmaps are what it's FOR."* Renaming
+  one of them is what makes that survivable. **Wording only:**
+  `?tab=themes`, the `labThemes` collection, every theme id and the `theme:`
+  search token all keep working, so no link, bookmark or saved smart group
+  breaks. `topic:` added as a search synonym collapsing onto the same
+  `fields.theme`. 30 display strings in `library-themes.js` were replaced
+  one-by-one with each match asserted unique rather than swept.
+- **The reader sidebar's five categorization widgets are now one "Organize"
+  block** with four labeled rows -- Topics / Used in (with 🧭 Lab focus as a
+  sub-row) / My shelf / ▸ Tags -- each carrying a **🌐 lab** or **🔒 only you**
+  badge and a `?` explaining the axis in a sentence. Before, the five were
+  titled "Categories" (3 papers use tags), "Used in paper drafts" (105),
+  "Lab themes" (52), "🧭 Lab focus" (0) and "📁 My groups" (1 group, 1 user):
+  the least-used axis owned the most generic name, two indistinguishable names
+  sat adjacent, and nothing said who could see any of it. New
+  `_ensureOrganizeBlock()` / `_orgHost(hostId, slotId)` /
+  `_orgRowTitle(label, scope, hint)` in `library-paper.js`; **each widget keeps
+  its logic and its host id verbatim** -- only the parent changes (a fixed slot
+  instead of five `getElementById(a) || getElementById(b) || ...`
+  insertion-order fallback chains, now deleted) and the title comes from one
+  helper so the rows can't drift. `_orgHost` is idempotent so widgets that
+  rewrite their own innerHTML on repaint keep working. Visual order comes from
+  slot order, not call order. "My shelf" flips its badge to 🌐 when a
+  lab-shared group is present -- a shared group is not private and can't sit
+  silently under a 🔒 heading. CSS: `#lp-organize` in `style.css`, where rows
+  own the divider *above* them and the header owns none, so the first
+  *rendered* row draws the header's underline (which slot renders first varies,
+  so any `:first-child` rule would be wrong half the time).
+- **The library row's `📌 📁 🗺` cluster is now one "Organize" button** with a
+  count of where the paper is filed, opening a popover with the same four rows
+  and badges. Not a reimplementation: "Used in" renders inline via the existing
+  `LIBRARY_ASSOC.renderPills`, and the rest hand off to the modals that already
+  exist (`ROADMAP_ATTACH.open`, `LIBRARY_GROUPS.openGroupPicker`, `togglePin`,
+  the Topics tab), closing the popover first so two layers never fight. `★`
+  stays in its own column -- it's a lab-wide flag on the paper, not a place you
+  file it (and note 📌 pin vs ★ star were near-duplicates on different scopes:
+  pin per-user with 0 users, star lab-wide). `widgets_enabled` prefs still gate
+  the rows, and the `pin-toggle` / `add-to-group` handlers stay because the
+  groups shelf renders its own chips using them. CSS: `.lib-org-*` in
+  `library-associations.css`.
+- **Topics finally has a nav entry** (`Research > Topics`). The tab has had
+  none since V3.367 -- it was reachable only from the library's in-page tab bar.
+
+### Bug Fixes
+- **The one bridge between a focus card and a library topic printed a raw
+  slug and didn't deep-link.** `links.theme_id` is the only connection between
+  the ABOUT and FOR axes, and `research.js` `sectionTheme` rendered
+  `esc(f.links.theme_id)` -- e.g. `granule-based-in-vitro-models` -- linking to
+  the Topics tab *without* the `&theme=` param that tab has supported since
+  V3.367. Now resolves the topic's name (one 6-doc `labThemes` get cached in
+  `init()`, slug as fallback so it can never render empty) and deep-links to
+  the topic. Heading "Literature theme" -> "Topic". The reverse direction (a
+  topic listing the focus cards that point at it) is V3.631.
+
+## [V3.629] - 2026-08-13
+
+**Three silent-loss paths in the library<->draft link.** First release of the
+library-categorization program (Alex: *"there are multiple ways to categorize a
+library journal paper... make it less confusing"*). These three are data-loss
+bugs rather than confusion, so they ship first and alone -- **no UI changes.**
+Root cause of all three: the two levels of draft linkage
+(`items/{id}.meta.library.linked_drafts` = *this paper feeds draft X* vs
+`annotations/{id}.cite_in_drafts` = *this highlight is evidence for draft X*)
+drifted apart while three consumers assume they agree. Plan:
+`CodeLog/ClaudesPlan/V3.629_draft_link_silent_loss_fixes.md`.
+**Deploy: FTP-only.** sw 601 -> 602.
+
+### Bug Fixes
+- **The reader toolbar draft picker silently unlinked drafts it never
+  showed.** `paper-overlays.js` `_openLinkPicker` Save built `desired` from
+  only the checkboxes it rendered, then unlinked every id in `current` not in
+  `desired` -- so "the picker never offered this draft" was indistinguishable
+  from "the user unticked it", and pressing Save while changing *nothing*
+  deleted links. `_loadAllDrafts()` omits `items.json` grants that moved to
+  awarded/active/completed (status-filtered at `:191`), deleted drafts, and --
+  for non-lab-members -- every `grantDrafts` id (that block is
+  `isLabMember()`-gated). Fixed with the `listed.has(id)` guard
+  `library-associations.js:351` has carried since V3.365: only drafts the
+  picker actually rendered are removable from it. Verified as pure logic --
+  the awarded-grant + no-change-Save case went from `["UNLINK
+  awarded-grant-r01"]` to `[]`, while genuine tick/untick still emit their
+  LINK/UNLINK ops.
+- **Evidence filed to an unlinked draft never reached the builder.**
+  `paper-evidence-inbox.js` `_fanOutItemIds` fans out over papers where
+  `linked_drafts array-contains draftId`, but the annotation panel's draft
+  dropdown offers *every active draft in the lab* (`_draftShortlist` floats
+  linked ones to the top and keeps the rest -- since V3.475). So filing a
+  highlight into an unlinked draft made that evidence invisible in the
+  Evidence Inbox forever, with no warning -- the same failure V3.619 fixed,
+  reachable by a different route.
+- **V3.628's "highlights stay put" fix had a residual hole.**
+  `PAPER_OVERLAYS.activateDraft` requires the draft to be in `_linkedDrafts`,
+  so for an unlinked draft it no-opped and an engaged lens still hid the
+  just-filed highlight. The normal (linked) path was fixed in V3.628; this
+  edge was not.
+- Both of the above are cured by one change: **filing a highlight to a draft
+  now links the paper to that draft.** New `_ensureDraftLinked(draftId)` in
+  `library-paper.js` -- no-op when already linked, else
+  `PAPER_OVERLAYS.linkDraft()` (atomic `arrayUnion` via `LIBRARY_LINKS` +
+  `api.invalidate` + `_refreshLinkedDrafts`) -- called from `onCiteToggle`'s
+  add branch and from `onCreate` for each popover-filed draft, **before**
+  `activateDraft`, which reads the refreshed linked set. Sequential in the
+  create loop since each `linkDraft()` re-reads and re-renders. Mirrored in
+  `library-mobile-paper.js` against `LIBRARY_LINKS` directly (`PAPER_OVERLAYS`
+  is desktop-only) -- this finally gives `library-links.js` a consumer on that
+  page, loaded since V3.613 with none. Both best-effort: a failed link warns
+  to console and never costs the user the highlight they just made.
+
+### Changed
+- `paper-overlays.js` link-modal copy claimed linking *"unlocks it in the
+  per-annotation 'Tag as evidence' picker"* -- untrue since V3.475, and the
+  evidence flow moved to the Comments page in V3.622. Now states what linking
+  actually buys: the draft's highlight lens in the reader, the "File to:"
+  chips on new highlights, the draft's Evidence Inbox, and the default scope
+  of the builder's Cmd+K citation search (`paper-editor.js:5028` -- the
+  biggest payoff and the one users never hear about).
+- `annotation-panel.js` comment claimed `_getDrafts()` *"returns ONLY drafts
+  linked to this paper"* -- false since V3.475, and that false belief is what
+  kept the two bugs above invisible. Corrected, and the empty state "no drafts
+  linked yet" -> "no drafts in the lab yet" (it only ever appears when the lab
+  has zero drafts).
+
+## [V3.628] - 2026-08-12
+
+**Highlights stay put, are clickable, and the drafts control is one
+control.** Three items from Alex's test pass. Plan:
+`CodeLog/ClaudesPlan/V3.628_highlights_stay_and_are_clickable.md`.
+**Deploy: FTP-only.** sw 600 -> 601.
+
+### Bug Fixes
+- **Filing a highlight to a draft made it vanish from the page**
+  (regression from V3.619, `rm/js/paper-overlays.js`). `cite_in_drafts` is
+  both the evidence link AND the draft-lens filter key, so `getFilterFn`'s
+  `!ids.length → always show` / `else require its overlay active` logic
+  meant the moment a highlight was filed it had to earn its visibility.
+  Dormant pre-V3.619 only because the create path wrote the dead
+  `bucket_ids` field (empty `cite_in_drafts` ⇒ always shown); making filing
+  work switched the hiding on. New `_isNarrowed()` — true only when a
+  **linked** draft has been deliberately switched off — makes the lens
+  opt-in: the default all-active state shows everything. New
+  `activateDraft(draftId)` export is called from `onCiteToggle` and
+  `onCreate`, so filing mid-lens brings that draft into view instead of
+  hiding the work. Verified in-page: with no lens,
+  `getFilterFn()({cite_in_drafts:['x']})` now returns true (was false).
+
+### Changed
+- **One drafts control on the highlight card** (`rm/js/annotation-panel.js`)
+  — the `+ add draft…` select (files THIS highlight) and the visually
+  identical `+ Link draft…` button (links a draft to the PAPER so it
+  becomes offerable) sat side by side with no way to tell them apart. The
+  link action is now the dropdown's last option ("＋ Link another draft to
+  this paper…", `__link__`); the button and its handler are deleted, and
+  the dropdown always renders for writers so the affordance survives when
+  every draft is already filed.
+
+### Added
+- **Click a highlight on the page to see/edit its comment.** `.ann-rect`
+  stays `pointer-events:none` (clickable rects are what caused the original
+  "blinky selection" bug), so `rm/js/annotation-overlay.js` resolves the
+  click geometrically with the existing `annotationAt()` hit-test the touch
+  reader has used since V3.613: `_onContainerClick` (bails while the create
+  popover is open or a selection is live, so a click ending a drag is
+  ignored) fires a new `onAnnotationClick` callback, and an rAF-throttled
+  `_onContainerMove` sets `cursor:pointer` over highlights so the surface
+  reads as clickable — both listeners plus the pending rAF torn down in
+  `destroy()`. New `ANNOTATION_PANEL.openComment(annId)` opens the editor
+  for the owner (seeding `_commentForm` so the text survives re-renders) or
+  scrolls to + flashes the card for everyone else.
+
+## [V3.627] - 2026-08-12
+
+**Fix: linking a paper to a draft appeared to do nothing.** Alex's test
+report during the V3.619-622 program — both link pickers, modal closes,
+no error, no change. Plan:
+`CodeLog/ClaudesPlan/V3.627_link_draft_cache_invalidation.md`.
+**Deploy: FTP-only.** sw 599 -> 600.
+
+### Bug Fixes
+- **`rm/js/library-links.js` never invalidated the route cache.** Every
+  writer here updates `items/{id}` through the Firestore SDK **outside
+  `api.save`**, so the adapter's stale-while-revalidate cache for
+  `items.json` (cache: MEDIUM, 30 min) kept serving the PRE-WRITE
+  `linked_drafts` array. Consumers that refresh through `api.load` —
+  `paper-overlays._fetchLinkedDrafts`, `library-associations.loadDraftInfo`
+  (sidebar pills), and library-paper's `PAPER_OVERLAYS.onChange` handler —
+  re-derived from that stale row and painted the new link straight back
+  off, which is why BOTH pickers failed identically and silently. Firestore
+  forensics confirmed the writes were landing all along
+  (`items/kim-2026-aspiration-assistedbi.meta.library.linked_drafts`
+  carried the test link). The MEDIUM route's
+  `orderBy('updatedAt','desc').limit(1)` staleness probe does not cover
+  this: `_toggleArrayField` bumps `updatedAt`, but a *query* only sees it
+  once the value materializes in that index, so a probe fired right after
+  the write ack can still read the previous top doc and conclude "nothing
+  changed" (the symptom self-cleared after ~30 min or the next unrelated
+  item write — hence the 105 items whose links do display).
+  Added `_bustItemCaches()` — awaited so a caller refreshing immediately
+  after can't race the clear — invalidating `items.json` +
+  `library/papers.json` after the `ref.update()` in `_toggleArrayField`
+  (backs `toggleDraftLink` / `setCitedInDraft` / `toggleRoadmap`),
+  `toggleTheme`, and `setThemeRelevance`. `api.invalidate` (V3.485) exists
+  for exactly this and the other three direct writers
+  (`library-upload.js`, `library-fetch-pdfs.js`, `library-mobile.js`)
+  already called it. Same latent staleness in Lab Themes membership, theme
+  relevance weights, 🧭 Lab focus attachment and the builder's cited-sync
+  is fixed by the same change.
+
+## [V3.626] - 2026-08-12
+
+**Activity signals for annotations, comments, and task completion + presence
+strips — release 4 of 4 in the My Day outcomes → PMR health program.**
+Program plan: `CodeLog/ClaudesPlan/V3.623_myday_outcomes_pmr_health_program.md`;
+release plan: `V3.626_activity_signals_presence.md`. **Deploy: FTP only.**
+sw 597 -> 598.
+
+### Added
+- **Reading signal** (`rm/js/annotation-sync.js` `_recordAnnotationSignal`) —
+  creating an annotation fires an `ActivitySignals.recordWork` event
+  (`source:'rm-library'`, `sourceRef {kind:'annotation', id: paperId}`,
+  categoryPath `['research','reading']`), one per paper per day via the
+  deterministic id. Paper title fetched once per session per paper;
+  failures never touch the annotation write. `activity-signals.js` added
+  to `library-paper.html`, `library-mobile-paper.html`, and `library.html`'s
+  comments-script list (guarded no-op where absent).
+- **Discussion signal** (`rm/js/section-comments.js` `_post` success path) —
+  posting in any SECTION_COMMENTS thread records
+  `source:'rm-comments'`, `sourceRef {kind:'comment', id: collectionPath}`,
+  text `Discussed: <label>`, categoryPath `['research','discussion']` —
+  one per thread per day.
+- **Task-completion signal** (`rm/js/tasks-buckets.js`
+  `recordPlainDoneSignal`) — completions that previously vanished (no
+  bucket category, no hours estimate, or "skip" in the hours modal) now
+  record a plain work event `Completed: <subtask text>`
+  (`sourceRef {kind:'subtask-done', id: st.id}`, date from `done_at`).
+  Fires ONLY on the paths where `logTaskCompletionToTracker` wrote
+  nothing, so hours-logged completions aren't double-counted.
+- **Presence dots on the PMR ledger** (`rm/js/pmr.js`) — each My Day
+  ledger week header gets 7 Mon→Sun dots (green = ≥1 real work event that
+  day; future days dashed), answering "when were they active" at a
+  glance. Backed by `ensureActivityForPeriod()`, a one-flight
+  period-activity fetch shared with the Activity/Stats blocks (whoever
+  asks first fetches; `loadActivityForBlock` now consumes it), plus
+  `activeDaySet()` (schedule markers and legacy pending docs don't count
+  as presence). CSS `.pmr-lg-presence` / `.pmr-lg-pd` in `pmr.html`.
+
+## [V3.625] - 2026-08-12
+
+**"My projects" health header + mentor barrier-accept — release 3 of 4.**
+Release plan: `V3.625_project_health_header.md`. **Deploy:
+`firebase deploy --only firestore:rules` BEFORE FTP** (healthReviews
+block — deployed together with V3.624's read relaxations). sw 596 -> 597.
+
+### Added
+- **NEW `rm/js/project-health.js`** (`window.PROJECT_HEALTH`) — pure
+  health engine, no DOM. `listProjectsForStudent(uid, focusAreas)` =
+  non-archived researchFoci OUTPUT cards where `member_uids` ∋ uid or a
+  roadmap analysis/experiment `owner_uids` ∋ uid (`owned`), ∪ any card the
+  windowed focusAreas `focus_ref` to. `compute({projects, items,
+  focusAreas, reviews, weekIdFor})` scores an 8-week window per project:
+  unaccepted-barrier chains escalate (−1×chain length/week), no-result
+  streaks −0.5×streak, past weeks with outcome-less items −0.5 (cap −2),
+  silence on owned projects −1/week after 1 quiet week (cap −3), results
+  +1 (cap +2). Health = Σ last 4 weeks → `healthy ≥ −1 > attention ≥ −3 >
+  stuck`; trend = last-2-weeks vs the 2 prior; human `why` line picks the
+  dominant factor (live chain read off the window tail, so accepted
+  barriers stop claiming "unaccepted"). All tunables in
+  `PROJECT_HEALTH.CONFIG`. Item→project attribution:
+  `details.focusId → focusAreas.focus_ref.id` — unattributed items never
+  touch health.
+- **PMR "My projects" header** (`rm/js/pmr.js` `renderProjectHealthBlock`,
+  new section key `project_health` at the TOP of
+  `DEFAULT_SECTION_ORDER`) — per project: status dot + title link +
+  trend arrow + why line + 8-week icon strip + open-barrier count chip;
+  expandable barrier history; student-editable one-line description
+  stored at `doc.project_health[] {foci_id, description}` (hydrateDoc /
+  emptyDoc additive backfill). Health data loader
+  (`loadProjectHealth`) pulls the window's dayPlans + all healthReviews +
+  ranged focusAreas in parallel, cached per uid+day.
+- **✔ Accept reason** — mentors/admins viewing a mentee's PMR
+  (`canAcceptBarriers()` = `isReadOnlyView()` ∧ (admin ∨ mentee's
+  mentor)) accept a barrier with a note → doc at
+  `userData/{uid}/healthReviews/{hr-…}` `{item_id, foci_id, note,
+  reviewer_uid, reviewer_name, week_monday, created_at}`; health
+  recomputes on the spot and the row shows `✔ accepted by <name> — note`.
+- **firestore.rules** — `userData/{userId}/healthReviews/{reviewId}`:
+  read owner ∥ mentor ∥ admin; create mentor ∥ admin with
+  `reviewer_uid == request.auth.uid` pinned; update/delete author-mentor
+  ∥ admin. (Students cannot accept their own barriers.)
+
+### Changed
+- **`project_overview` left the default section order** — the health
+  header supersedes its hand-set good/behind/delayed/paused pill. Old
+  docs that pinned it in `section_order` still render it (new
+  `LEGACY_SECTIONS` allowlist in `effectiveSectionOrder`), labeled
+  "Project overview (legacy)". Data untouched.
+- `pmr.html` loads `research-data.js` + `project-health.js` before
+  `pmr.js`.
+
+## [V3.624] - 2026-08-12
+
+**Mentor visibility + the PMR My Day ledger — release 2 of 4.**
+Release plan: `V3.624_pmr_myday_ledger.md`. **Deploy:
+`firebase deploy --only firestore:rules` BEFORE FTP** — without it the
+new block 403s for mentors. sw 595 -> 596.
+
+### Added
+- **firestore.rules — mentor read on the raw work surfaces** (the V3.517
+  notebook precedent, same reviewer set as the PMR itself):
+  - NEW `userData/{userId}/dayPlans/{itemId}` block — read owner ∥
+    `isShared` ∥ `isMentorOf` ∥ admin; write stays owner-only.
+  - `trackerEntries/{userId}/entries/{entryId}` read clause gains
+    `|| isMentorOf(userId)` — the PMR Activity/Stats blocks now populate
+    for non-admin mentors too (`ActivitySignals.listEvents` already
+    takes a target uid with direct refs; no client change needed).
+- **PMR "My Day ledger" section** (`rm/js/pmr.js`
+  `renderMyDayLedgerBlock`, key `myday_ledger` after `focus_review`) —
+  derived + read-only, the focus_review pattern: period-ranged
+  cross-user query via new `dayPlansCollRef(uid)` (`_prefs` filtered,
+  cancelled dropped), cached per uid+period (`loadDayPlansForPeriod`,
+  ↻ reload button), grouped by Monday weeks desc (12 shown, "Show all N
+  weeks"). Per week: count chips (✅🚧◌ + ◇ unaccounted + 📅 upcoming),
+  owner deep-link to My Day; per item: type icon, title, day, 🎯 focus
+  chip, ↻ follow-up marker, and the outcome line (icon + summary +
+  🖼 image link + 📓 notebook links) or `◇ unaccounted — <why>`
+  (`isUnaccounted` mirrors My Day's nudge filter). Section comment
+  thread via `buildCommentToggle`. `⤓ Assemble` and weekly_entries
+  untouched — curation stays human. Week helpers `mondayStr` /
+  `shiftDateStr` / `weekRangeLabel`; ledger CSS in `pmr.html`.
+
+### Bug Fixes
+- **`escHTML` was never defined on pmr.html** — `renderFocusReviewBlock`
+  has referenced it since V3.541, so the async body threw
+  `ReferenceError` and the whole Weekly focus review block silently
+  degraded to "Focus areas unavailable." Aliased to `escapeHtml`; the
+  focus review renders again.
+
+## [V3.623] - 2026-08-12
+
+**My Day item outcomes + chained follow-ups — release 1 of 4 in the My
+Day outcomes → PMR health program** (every plan takes a verdict: a
+result, the barrier that blocked it, or a no-result — the raw material
+for the PMR ledger and project health).
+Program + release plan: `V3.623_myday_outcomes_pmr_health_program.md`.
+**Deploy: FTP only** (outcome images reuse the `paper-figures/` Storage
+prefix under a `myday-<itemId>` pseudo-id — the PMR-barriers precedent —
+so no storage.rules change). sw 594 -> 595.
+
+### Added
+- **Outcome layer** (`rm/js/day-distribute.js`) — item doc gains
+  `outcome: null | { kind:'result'|'barrier'|'no_result', summary,
+  image:{storage_path,download_url}|null, notebook_entry_ids[], links[],
+  follow_up_item_id, recorded_at, recorded_by }` and
+  `follow_up_of: null | {item_id, date}`. New `ITEM_OUTCOME_META`
+  (✅ Result / 🚧 Barrier / ◌ No result — deliberately NOT the
+  focus-week success/partial/failure vocabulary). `saveOutcome(item,
+  outcome)` patches the hub doc only (outcomes never cascade) and closes
+  a still-planned item (result→done + work event, barrier/no_result→
+  skipped, result-on-skipped→done); `createFollowUp(item, {date,
+  title})` spawns a NEW planned item next Monday (`nextMondayStr`)
+  copying `details` (focus/project attribution survives the chain) with
+  a `follow_up_of` backref and stamps `outcome.follow_up_item_id` — the
+  original is never re-dated. `confirmSkipped(item)` added.
+- **Outcome UI** (`rm/js/my-day.js`) — `openOutcomeDialog(item, preset,
+  onDone)` (report-dialog pattern): kind radios, kind-aware summary
+  placeholder, optional image (→ `PAPER_FIGURES.uploadImage`, Storage
+  SDK + `paper-figures.js` added to `my-day.html`), notebook-entry
+  checkboxes from the item's week, "↻ Follow up next week" block (date
+  defaults next Monday, editable title). `◇ Add outcome` chip on
+  done/skipped cards; recorded outcomes render icon + summary (+🖼/📓
+  marks) on timeline cards, icon dots on week mini-rows and month pills;
+  `↻ follow-up` tag on chained items. Standing nudge banner
+  ("🧾 N steps need an outcome — Record") on all three horizons, backed
+  by `loadOutcomeQueue()` (last week's Monday → yesterday; today's items
+  deliberately excluded) and `runOutcomeQueue()` walking one dialog at a
+  time. CSS `.md-nudge` / `.md-oc-*` in `my-day.css`.
+
+### Bug Fixes
+- **Skips now cascade** — `✗ Skipped` wrote `status:'skipped'` on the hub
+  doc only, so the huddle post / booking copies kept saying "planned"
+  forever. The pending-card skip goes through `confirmSkipped` (cascade)
+  and opens the outcome dialog with barrier preselected — a skip almost
+  always has a reason worth recording.
+
+## [V3.622] - 2026-08-12
+
+**Comments page becomes the categorization workspace + reader Groups
+widget.** Release 4 of 4 in the paper-reader highlight→comment overhaul.
+Plan: `CodeLog/ClaudesPlan/V3.622_comments_workspace_groups_widget.md`.
+**Deploy: FTP-only.** sw 598 -> 599.
+
+### Added
+- **Triage workspace** (`rm/js/library-comments.js`) — the Comments tab
+  groups rows into collapsible per-paper sections (open/closed remembered
+  across live re-renders via `_groupToggles`), with a "📥 To categorize"
+  queue (no `cite_in_drafts`, no claim evidence) rendered above
+  "🗂 Categorized". Every row shows a category badge (the color's name in
+  the color's hue, from ANNOTATION_COLORS).
+- **Evidence flow on the Comments tab** — `⚖ Evidence for a claim…` per
+  row: draft → claim (pick or `+ new`) → stance → tag via
+  `CLAIMS.addEvidence`, auto-linking the draft to the source paper
+  (`LIBRARY_LINKS.toggleDraftLink`). claims.js + library-links.js join
+  the comments-tab loader. Inline textarea comment editor replaces the
+  `window.prompt()`.
+- **Reader "📁 My groups" widget** (`rm/js/library-paper.js`
+  `_renderGroupsWidget`) — save the paper you're READING to a library
+  shelf group without leaving the reader; `＋ Add to a group…` opens the
+  LIBRARY_GROUPS picker (standalone mode: admin check falls back to
+  firebridge when library.js callbacks aren't injected). New
+  library-groups.js exports `groupsForPaper(paperId)` + `onChanged(cb)`;
+  library-prefs.js/library-groups.js/library-groups.css now load on
+  library-paper.html. The "On these roadmaps" widget is retitled
+  **🧭 Lab focus** (same ROADMAP_ATTACH mechanism).
+
+### Changed
+- **Reader panel = quick capture only** (`rm/js/annotation-panel.js`) —
+  the evidence form is deleted (state, renderers, handlers,
+  `onEnsureDraftLinked` option and both host wirings); cards carrying
+  evidence show an "⚖ evidence — manage in Comments" pointer in `⋯`.
+  Stance badges + filter chips stay. Applies to the mobile drawer too
+  (shared module).
+- **"Move to Information" unlinks both sides** — it now calls
+  `CLAIMS.removeEvidenceForAnnotation` before clearing the annotation's
+  stance/claim ids; the claim docs no longer keep dangling evidence
+  pointers (the previously self-documented drift).
+
+## [V3.621] - 2026-08-12
+
+**Annotation lifecycle hardening + delete cascade + dead-code purge.**
+Release 3 of 4 in the paper-reader highlight→comment overhaul. Plan:
+`CodeLog/ClaudesPlan/V3.621_annotation_lifecycle_hardening.md`.
+**Deploy: `firebase deploy --only functions` (deletePaper) immediately;
+client JS joins the FTP batch.** sw 592 -> 593.
+
+### Bug Fixes
+- **Tab-switch race** (`rm/js/library-paper.js`) — `_attachGen` generation
+  counter bumped in `_detachActive`, re-checked after every await in the
+  attach path; `_mountAnnotations(item, gen)` takes the item as a
+  parameter instead of reading the module-global `_item` after awaits. A
+  fast A→B switch used to overwrite B's `_unsubscribeSync` (leaked
+  listeners, duplicate onChange renders, A's sync mounted onto B).
+- **Wrong-paper captures** (`rm/js/figure-capture.js`,
+  `rm/js/equation-capture.js`) — save handlers bind `paperId` at
+  dialog-OPEN time; both modules gain `destroy()` (close dialog, remove
+  hotspot layers, null state) called from `_detachActive`. The hotspot
+  click guard's `down` origin is consumed per click (a stale origin let a
+  text drag ending over a figure open the capture dialog on top of the
+  create popover).
+- **Overlay painted into the old tab** (`rm/js/annotation-overlay.js`) —
+  `destroy()` nulls `_viewer`/callbacks/filter so between-detach redraws
+  no-op; the setZoom wrapper only redraws when its viewer is still the
+  active one.
+- **Permanently mis-scaled highlights** (`rm/js/geom-selection.js`) —
+  `saved_scale` now stamps `node.itemsZoom` (the zoom the rects were
+  measured at) instead of `viewer.zoom`, which setZoom flips BEFORE pages
+  re-render (`_scaleForPage`, text + marquee paths).
+- **Sync error nuked the panel** (`rm/js/library-paper.js` onError) — a
+  listener error used to set innerHTML on `#lp-annotations`, detaching
+  the live panel root + toolbar for the whole session. Now a
+  non-destructive banner (cleared on detach); `ANNOTATION_SYNC.onError`
+  carries `which` ('lab'|'private') so a dead private listener says
+  "your private highlights aren't syncing" (write-only `state.ready`
+  removed).
+- **Offline create bricked the popover** (`rm/js/annotation-overlay.js`)
+  — the create promise races a 4s timer; unsettled ⇒ queued (close up,
+  highlight already painted via persistence), late rejections alert.
+- **Dangling claim evidence** — new
+  `CLAIMS.removeEvidenceForAnnotation(ann)` queries each cited draft's
+  claims by `array-contains {paperId, annId}` and unlinks before the
+  annotation delete (wired into both readers' onDelete;
+  `removeEvidence` finally has a caller).
+- **Orphaned figure blobs** (`functions/library.js` deletePaper) — also
+  deletes the `paper-figures/{itemId}/` Storage prefix.
+- **Comments-feed links never focused** (`rm/js/library-comments.js`) —
+  emitted `#ann=` but the reader parses `#ann-`. Async listener failures
+  now update the visible status line (the failures array was write-only).
+- **claims-panel.js reader URL 404'd in prod** — missing `/rm` prefix.
+- **Evidence Inbox silent emptiness** (`rm/js/paper-evidence-inbox.js`)
+  — failed per-paper queries are counted and surfaced inline.
+- **Capped guests silently read-only after a blip**
+  (`rm/js/firebase-bridge.js` loadAccessGrant) — non-permission-denied
+  read failures no longer memoize the null grant for the session.
+
+### Removed
+- `rm/js/evidence-tag-dialog.js` (264 lines, zero callers) and
+  `rm/js/annotation-groups.js` (no loaders left; the Firestore data
+  stays). PAPER_OVERLAYS bucket-named aliases (`getActiveBucketIds` /
+  `getLinkedBuckets` / `getColorForBucket`) + their last fallback call
+  sites; annotation-panel's `!parent_id` render filter (threading never
+  shipped — a non-null parent_id rendered on the page but was invisible
+  in the panel); the dead overlay `onSelect` option (both readers).
+  KEPT deliberately: the overlay's data-level `ann.bucket_ids` stripe
+  fallback, until the V3.619 sweep is confirmed run.
+
+## [V3.620] - 2026-08-12
+
+**One-popover highlight create + panel diet + consistent colors.**
+Release 2 of 4 in the paper-reader highlight→comment overhaul. Plan:
+`CodeLog/ClaudesPlan/V3.620_create_popover_panel_diet.md`.
+**Deploy: FTP-only.** sw 591 -> 592.
+
+### Added
+- **Create popover** (`rm/js/annotation-overlay.js`, replaces
+  `_showToolbar`) — drag → one popover anchored INSIDE the page wrap
+  (absolute positioning: scrolls with the selection, clamped, flips above
+  when short): 6 labeled category swatches, autofocused optional comment,
+  "File to:" draft chips pre-checked from active overlays with a
+  `+ draft…` link-picker hook (`refreshPopoverDrafts()`), ƒ/🖼/× footer.
+  **Swatch click = save**; failure keeps popover + selection + text with
+  an inline error. Escape or any outside mousedown cancels cleanly; the
+  old fixed-position bubble's kill-on-outside-click and
+  stale-toolbar-on-viewer-click bugs are gone by construction. Zoom/refit
+  dismisses via a stored `_popoverZoom` check in `redraw()` — same-zoom
+  snapshot redraws leave an open popover (and its half-typed comment)
+  alone.
+- **`rm/js/annotation-colors.js`** — THE palette:
+  `window.ANNOTATION_COLORS = {DEFAULT, COLOR_TO_TYPE, byId, typeFor,
+  hexFor}`. Replaces 3 byte-identical DEFAULT_COLORS copies + 2 hardcoded
+  fallbacks; the dead per-user `library/highlight_colors.json` loads
+  (no writer existed — V3.608's root cause) are deleted from
+  library-paper.js, library-mobile-paper.js, library-comments.js.
+- **Category badge on panel cards** (`.ann-cat`) — the color's NAME in
+  the color's hue beside the author, so page rects and panel cards can
+  never disagree on what a color means.
+- **`GEOM_SELECTION.clearCommitted()`** — clears only a committed
+  selection; safe from document-mousedown handlers (`_beginGesture`
+  resets `_hasCommitted` first, so a mousedown starting a new drag
+  no-ops). `_pageOfNode` also ignores nodes inside `.ann-popover` so
+  textarea drags can't start a page selection.
+
+### Changed
+- **Panel diet** (`rm/js/annotation-panel.js`) — card is now head →
+  quote → comment → **inline Drafts row** (was buried in "Tag as
+  information") → footer (`Jump to →` · `Comment` · `⋯`). "Tag as
+  evidence" demoted into `⋯` as "⚖ Evidence for a claim…" (moves to the
+  comments page in V3.622). New `canWrite` init option (host passes
+  `_canAnnotate`) — mutating controls only render when firestore.rules
+  will accept the write.
+- **Comment durability** — in-progress text lives in a `_commentForm`
+  Map that survives snapshot re-renders; Save disables + awaits + closes
+  on success only; failures show inline with the text intact (was:
+  close-then-write, failure lost the only copy). Other panel mutations go
+  through `_updateOrAlert`; library-paper/mobile `onUpdate` now rethrows.
+- **After create, the panel scrolls to and flashes the new card**
+  (`focusCard` — desktop finally calls it).
+- **Mobile create sheet parity** (`rm/js/library-mobile-paper.js`) —
+  stamps `annotation_type` from color and `cite_in_drafts: []`; group
+  select removed; consumes ANNOTATION_COLORS; passes `canWrite`.
+
+### Removed
+- **Annotation-level `group` UI everywhere** (reader panel, comments
+  feed, mobile sheet) + ANNOTATION_GROUPS wiring (ensureSeed/subscribe/
+  create hooks, `_allowNewGroup`, `_emailOnContributorAllowlists` in both
+  readers, and library-comments' leaked per-auth-event subscription). The
+  field was write-only — nothing anywhere read, filtered, or displayed by
+  it — and "+ New group…" had been failing for everyone
+  (serverTimestamp-inside-arrayUnion). Alex: the intended concept is
+  PAPER-level library groups — arriving in the reader sidebar in V3.622.
+  Legacy `group` values stay on old docs. Script tags: annotation-groups.js
+  dropped from library-paper.html / library-mobile-paper.html / the
+  library.html comments loader; evidence-tag-dialog.js (zero callers)
+  dropped from library-paper.html.
+- Panel's orphan bucket-chip wiring (`getBuckets`/`onBucketToggle`/
+  `getBucketColor`, `.ann-bucket-chip` handler — the chips were never
+  rendered) and the dead `onReply` option.
+
+## [V3.619] - 2026-08-12
+
+**Annotation data loop fix — highlights actually reach the paper builder.**
+Release 1 of 4 in the paper-reader highlight→comment overhaul. Plan:
+`CodeLog/ClaudesPlan/V3.619_annotation_data_loop_fix.md`.
+**Deploy: `firebase deploy --only firestore:rules` then
+`--only firestore:indexes` BEFORE FTP; run the admin-migrate sweep after.**
+sw 590 -> 591.
+
+### Bug Fixes
+- **Split-brain draft filing** (`rm/js/library-paper.js` onCreate) — new
+  highlights stamped the active draft overlays into the retired
+  `bucket_ids` field while every consumer (overlay filter, panel draft
+  chips, builder Evidence Inbox) reads `cite_in_drafts`; highlights made
+  with a draft overlay active never reached the builder. onCreate now
+  writes `cite_in_drafts` via `PAPER_OVERLAYS.getActiveDraftIds()` and
+  returns the new annotation id; accepts optional `{comment, draftIds}`
+  for the V3.620 create popover.
+- **Missing annotation indexes** (`firestore.indexes.json`) — the
+  collection had ZERO composites; `paper-evidence-inbox.js`'s
+  `(visibility==, cite_in_drafts array-contains)` queries and the
+  3-clause private variant failed and were swallowed by `.catch(()=>null)`
+  (silently empty Evidence Inbox). Added both composites plus
+  fieldOverrides giving `cite_in_drafts` / `evidence_for_claim_ids`
+  CONTAINS at COLLECTION **and** COLLECTION_GROUP scope (also fixes
+  `deleteBuilderPaper`'s swallowed collection-group unlink queries).
+- **Rules rejected the panel's own controls** (`firestore.rules`) —
+  non-owner annotation updates now allow `cite_in_drafts` in the
+  carve-out (`hasOnly([evidence_for_claim_ids, evidence_stance,
+  cite_in_drafts, modified])`), and `drafts/{id}/claims` update gains the
+  cross-author evidence carve-out (`hasOnly([supporting_evidence_ids,
+  counter_evidence_ids, modified])` for lab members) so
+  `CLAIMS.addEvidence`'s transaction no longer rolls back on someone
+  else's claim.
+- **Per-paper overlay selection clobbered every load**
+  (`rm/js/paper-overlays.js`) — `init()` called `_refreshLinkedDrafts()`
+  (force-activate all + `_saveActive()`) BEFORE `_loadActive()`, so
+  `rm_lp_drafts_<paperId>` never survived a reload. Split into
+  `_fetchLinkedDrafts()` (fetch only) + `_refreshLinkedDrafts()` (prunes,
+  auto-activates only NEWLY linked ids, persists); `_saveActive()` skips
+  persisting during `?draft=`/`?grant=` URL-focused sessions.
+- **New-card jump** (`rm/js/annotation-sync.js`) — snapshot reads use
+  `{serverTimestamps:'estimate'}` so a just-created annotation keeps a
+  stable sort position instead of jumping top→bottom on server ack.
+
+### Changed
+- **`annotation_type` stamped from color** (`rm/js/library-paper.js`
+  `COLOR_TO_TYPE`) — color IS the category: create stamps yellow→note,
+  green→evidence, red→limitation, blue→method, purple→question,
+  orange→quote; owner recolors re-stamp (captures with `kind` keep their
+  type). New `quote` type in `paper-overlay-types.js` (#fb923c) +
+  `paper-overlay-import.js` VALID_TYPES; saved type-filters versioned
+  (`{v:2, types}`) with legacy arrays unioning `quote` once so old saved
+  filters don't hide quote highlights.
+- **Create defaults slimmed** (`rm/js/annotation-sync.js`) — dropped
+  `group` (write-only), `bucket_ids` (retired), `parent_id` (threading
+  never shipped); added `annotation_type:'note'` default.
+- **Evidence implies citing** (`rm/js/claims.js` addEvidence) — the
+  transaction also unions the draftId into the annotation's
+  `cite_in_drafts`.
+
+### Added
+- **Annotation consolidation sweep** (`rm/js/admin-annotation-sweep.js` +
+  card on `rm/pages/admin-migrate.html`) — dry-run + live, idempotent,
+  batched at 400 ops: folds `bucket_ids` ∪ claim-resolved drafts into
+  `cite_in_drafts`, deletes `bucket_ids` / null `parent_id`, backfills
+  `annotation_type` from color. Iterates library items (collectionGroup
+  queries aren't authorized by the concrete-path rules).
+
 ## [V3.618] - 2026-08-12
 
 **Fix: second header inside split-view panes.** In a workflow, reloading

@@ -1,8 +1,16 @@
 /* library-themes.js — V3.367 (foundation) + V3.368 (notes & voting)
  *                      + V3.496 (research groups, relevance, related themes)
  *
- * Lab Themes: shared literature-review clusters around the lab's core
- * concepts. Data model:
+ * Topics (called "Lab Themes" until V3.630 — the rename is user-facing only;
+ * ids, the `labThemes` collection, the `?tab=themes` URL and the `theme:`
+ * search token are all unchanged, so every existing link and saved query
+ * still works). Shared literature-review clusters around the lab's core
+ * concepts: **what a paper is ABOUT**. The sibling axis is the research map's
+ * "Lab focus" — what a paper is FOR. Those two boxes sat adjacent in the
+ * reader named "Lab themes" and "Lab focus" and were indistinguishable; see
+ * V3.630's plan doc.
+ *
+ * Data model:
  *
  *   labThemes/{themeId}                — {name, description, created_by,
  *                                        creator_name, created_at,
@@ -194,7 +202,7 @@
     var me = _me();
     if (!me.uid) { _setStatus('Sign in first.'); return; }
     _openMetaModal({
-      title: 'New lab theme',
+      title: 'New topic',
       name: '',
       description: '',
       onSave: async function (name, description) {
@@ -278,7 +286,7 @@
     var archived = _allThemes.filter(function (t) { return t.archived; });
     var html = '';
     if (!themes.length) {
-      html += '<div class="lt-empty">No themes yet. Create the first one — e.g. a core concept every new student needs (TFM, bioprinting rheology, microfluidic droplet physics…).</div>';
+      html += '<div class="lt-empty">No topics yet. Create the first one — e.g. a core concept every new student needs (TFM, bioprinting rheology, microfluidic droplet physics…).</div>';
     } else {
       html += themes.map(function (t) {
         var n = _paperCountFor(t.id);
@@ -291,10 +299,10 @@
       }).join('');
     }
     if (archived.length) {
-      html += '<details class="lt-archived"><summary>🗃 ' + archived.length + ' archived theme' + (archived.length === 1 ? '' : 's') + '</summary>' +
+      html += '<details class="lt-archived"><summary>' + ICON.svg('archive-box') + ' ' + archived.length + ' archived topic' + (archived.length === 1 ? '' : 's') + '</summary>' +
         archived.map(function (t) {
           return '<div class="lt-archived-row"><span>' + _esc(t.name || t.id) + '</span>' +
-            (_canEditTheme(t) ? '<button class="btn btn-sm" data-lt-restore="' + _esc(t.id) + '">↶ restore</button>' : '') +
+            (_canEditTheme(t) ? '<button class="btn btn-sm" data-lt-restore="' + _esc(t.id) + '">' + ICON.svg('arrow-uturn-left') + ' restore</button>' : '') +
             '</div>';
         }).join('') + '</details>';
     }
@@ -354,36 +362,41 @@
     detail.style.display = '';
     detail.innerHTML =
       '<div class="lt-detail-head">' +
-      '<button class="btn btn-sm" id="lt-back">← All themes</button>' +
+      '<button class="btn btn-sm" id="lt-back">← All topics</button>' +
       '<h2 class="lt-detail-name">' + _esc(t.name || t.id) + '</h2>' +
       (_canEditTheme(t)
-        ? '<button class="btn btn-sm" id="lt-edit-meta" title="Edit name / description">✎</button>' +
-          '<button class="btn btn-sm" id="lt-archive" title="Archive this theme (hidden from the grid, restorable)">🗃</button>'
+        ? '<button class="btn btn-sm" id="lt-edit-meta" title="Edit name / description">' + ICON.svg('pencil') + '</button>' +
+          '<button class="btn btn-sm" id="lt-archive" title="Archive this topic (hidden from the grid, restorable)">' + ICON.svg('archive-box') + '</button>'
         : '') +
       '</div>' +
       (t.description ? '<div class="lt-detail-desc">' + _esc(t.description) + '</div>' : '') +
+      /* V3.631 — the reverse half of the ABOUT↔FOR bridge. `links.theme_id`
+       * pointed one way only: a focus card named its topic, but a topic had
+       * no idea which of the lab's work rested on it. Filled async by
+       * _renderThemeFoci so the rest of the detail view paints immediately. */
+      '<div id="lt-foci" class="lt-foci"></div>' +
       '<div class="lt-section">' +
       '<div class="lt-section-head"><span class="lt-section-title">Research groups</span>' +
-      '<span class="lt-section-hint">key labs by last-author PI · click a lab to filter the papers · ✎ to curate</span></div>' +
+      '<span class="lt-section-hint">key labs by last-author PI · click a lab to filter the papers · ' + ICON.svg('pencil') + ' to curate</span></div>' +
       '<div id="lt-groups" class="lt-groups"><div class="lt-empty">Loading…</div></div>' +
       '</div>' +
       '<div class="lt-section">' +
       '<div class="lt-section-head"><span class="lt-section-title">Papers</span>' +
-      '<span class="lt-section-hint">👍 = helped me understand this theme · top 3 with ≥2 votes get <b>Start here</b></span>' +
-      '<button class="btn btn-sm" id="lt-import-papers" title="Bulk-import a list of DOIs / PMIDs / arXiv IDs or BibTeX into this theme — already-in-library papers are just tagged">＋ Import list</button>' +
-      '<button class="btn btn-sm" id="lt-add-papers">＋ Add papers</button></div>' +
+      '<span class="lt-section-hint">' + ICON.svg('hand-thumb-up') + ' = helped me understand this topic · top 3 with ≥2 votes get <b>Start here</b></span>' +
+      '<button class="btn btn-sm" id="lt-import-papers" title="Bulk-import a list of DOIs / PMIDs / arXiv IDs or BibTeX into this topic — already-in-library papers are just tagged">' + ICON.svg('plus') + ' Import list</button>' +
+      '<button class="btn btn-sm" id="lt-add-papers">' + ICON.svg('plus') + ' Add papers</button></div>' +
       '<div id="lt-paper-list" class="lt-paper-list"><div class="lt-empty">Loading…</div></div>' +
       '</div>' +
       '<div class="lt-section">' +
       '<div class="lt-section-head"><span class="lt-section-title">Synthesis notes</span>' +
       '<span class="lt-section-hint">shared with the whole lab — everyone can edit; each note saves on its own</span>' +
-      '<button class="btn btn-sm" id="lt-add-note">＋ Add note</button></div>' +
+      '<button class="btn btn-sm" id="lt-add-note">' + ICON.svg('plus') + ' Add note</button></div>' +
       '<div id="lt-notes" class="lt-notes"></div>' +
       '</div>' +
       '<div class="lt-section">' +
-      '<div class="lt-section-head"><span class="lt-section-title">Related themes</span>' +
+      '<div class="lt-section-head"><span class="lt-section-title">Related topics</span>' +
       '<span class="lt-section-hint">explore next — concepts that enrich this one</span>' +
-      '<button class="btn btn-sm" id="lt-add-related">＋ Add / suggest</button></div>' +
+      '<button class="btn btn-sm" id="lt-add-related">' + ICON.svg('plus') + ' Add / suggest</button></div>' +
       '<div id="lt-related" class="lt-related"><div class="lt-empty">Loading…</div></div>' +
       '</div>' +
       '<div class="lt-section"><div id="lt-discussion"></div></div>';
@@ -393,7 +406,7 @@
     if (editBtn) {
       editBtn.addEventListener('click', function () {
         _openMetaModal({
-          title: 'Edit theme',
+          title: 'Edit topic',
           name: t.name || '',
           description: t.description || '',
           onSave: async function (name, description) {
@@ -434,6 +447,7 @@
     _groupsShown = 5;
     _relatedShown = 5;
     _suggExpanded = {};
+    _renderThemeFoci(themeId);   // V3.631 — reverse ABOUT↔FOR bridge (async, non-blocking)
     await Promise.all([_loadVotes(themeId), _loadGroups(themeId), _loadRelated(themeId)]);
     _renderGroups(themeId);
     _renderPaperList(themeId);
@@ -444,7 +458,7 @@
         container: document.getElementById('lt-discussion'),
         collectionPath: 'labThemes/' + themeId + '/comments',
         scope: { theme_id: themeId },
-        label: 'Theme discussion',
+        label: 'Topic discussion',
       });
     }
   }
@@ -456,6 +470,82 @@
       var th = p.meta && p.meta.library && p.meta.library.themes;
       return Array.isArray(th) && th.indexOf(themeId) >= 0;
     });
+  }
+
+  /* ── V3.631: which lab work rests on this topic ──────────────
+   *
+   * `researchFoci/{id}.links.theme_id` was the ONE bridge between a paper's
+   * ABOUT axis (topics) and its FOR axis (the research map), and it pointed
+   * one way only: a focus card could name its topic, but opening a topic told
+   * you nothing about which of the lab's work it underpins. V3.630 fixed the
+   * forward half (the card printed a raw slug and didn't deep-link); this is
+   * the reverse.
+   *
+   * One whole-collection get, filtered client-side — `researchFoci` is single
+   * digits of docs and this is exactly the "whole-collection get + client
+   * sort, no composite index" convention the rest of this module and
+   * roadmap-data.js follow. Cached per page load.
+   *
+   * The empty state is deliberate rather than hidden: 8 of 9 real focus cards
+   * have no `theme_id`, so a topic reading "not yet linked from the research
+   * map" is the only place anyone would learn the relationship exists. */
+  var _fociByTheme = null;   // themeId → [{id,title,icon,level}], or null
+
+  async function _loadFociByTheme() {
+    if (_fociByTheme) return _fociByTheme;
+    var map = {};
+    try {
+      var snap = await firebridge.db().collection('researchFoci').get();
+      snap.docs.forEach(function (d) {
+        var v = d.data() || {};
+        var tid = (v.links || {}).theme_id;
+        if (!tid) return;
+        (map[tid] = map[tid] || []).push({
+          id: d.id,
+          title: v.title || d.id,
+          icon: v.icon || 'document-text',
+          level: v.level || 'concept',
+        });
+      });
+      Object.keys(map).forEach(function (k) {
+        map[k].sort(function (a, b) { return (a.title || '').localeCompare(b.title || ''); });
+      });
+    } catch (e) {
+      console.warn('[library-themes] foci-by-topic load failed:', e.message || e);
+    }
+    _fociByTheme = map;
+    return _fociByTheme;
+  }
+
+  async function _renderThemeFoci(themeId) {
+    var host = document.getElementById('lt-foci');
+    if (!host) return;
+    var map = await _loadFociByTheme();
+    // The user may have navigated away during the get.
+    host = document.getElementById('lt-foci');
+    if (!host) return;
+    var cards = map[themeId] || [];
+    if (!cards.length) {
+      host.innerHTML = '<div class="lt-foci-empty">Not yet linked from the research map. ' +
+        'A focus card names the topic its literature sits on — the PI sets that on ' +
+        '<a href="/rm/pages/research.html">the research map</a>.</div>';
+      return;
+    }
+    host.innerHTML = '<div class="lt-foci-label">This topic underpins</div>' +
+      cards.map(function (c) {
+        return '<a class="lt-foci-chip" href="/rm/pages/research.html?id=' +
+          encodeURIComponent(c.id) + '" title="Open this focus card on the research map">' +
+          ICON.render(c.icon) + ' ' + _esc(c.title) +
+          '<span class="lt-foci-level">' + _esc(_levelLabel(c.level)) + '</span></a>';
+      }).join('');
+  }
+
+  /* V3.717 — five levels now, and a raw slug ("aim") reads worse than the
+   * label ("Aim"). RESEARCH_DATA owns the vocabulary; this page does not
+   * always load it, so fall back to the slug. */
+  function _levelLabel(level) {
+    var L = window.RESEARCH_DATA && RESEARCH_DATA.LEVELS[level];
+    return L ? L.label : (level || '');
   }
 
   async function _loadVotes(themeId) {
@@ -501,7 +591,7 @@
     if (!host || _openId !== themeId) return;
     var all = _themePapers(themeId);
     if (!all.length) {
-      host.innerHTML = '<div class="lt-empty">No papers tagged yet — use ＋ Add papers, or tag from the reader’s "Lab themes" chips.</div>';
+      host.innerHTML = '<div class="lt-empty">No papers tagged yet — use ' + ICON.svg('plus') + ' Add papers, or tag from the reader’s Topics row.</div>';
       return;
     }
     // V3.496 — group filter: restrict to one lab's last-authored papers.
@@ -527,7 +617,7 @@
     var banner = _groupFilter
       ? '<div class="lt-filter-banner">Filtered to <b>' + _esc(filterLabel) + '</b> · ' + rows.length +
         ' paper' + (rows.length === 1 ? '' : 's') +
-        ' <button class="lt-filter-clear" data-lt-clear-filter="1">× clear</button></div>'
+        ' <button class="lt-filter-clear" data-lt-clear-filter="1">' + ICON.svg('x-mark') + ' clear</button></div>'
       : '';
     var listHtml = rows.map(function (p) {
       var lib = (p.meta && p.meta.library) || {};
@@ -539,16 +629,16 @@
       var mine = _myVotes.has(p.id);
       var rel = _relevanceOf(p, themeId);
       return '<div class="lt-paper-row">' +
-        (startHere.has(p.id) ? '<span class="lt-start-badge" title="Top-voted — a good first read for this theme">Start here</span>' : '') +
+        (startHere.has(p.id) ? '<span class="lt-start-badge" title="Top-voted — a good first read for this topic">Start here</span>' : '') +
         '<a class="lt-paper-title" href="/rm/pages/library-paper.html?id=' + encodeURIComponent(p.id) + '">' + _esc(p.title || p.id) + '</a>' +
         '<span class="lt-paper-meta">' + _esc(authorYear) + (lib.journal ? ' · ' + _esc(lib.journal) : '') + '</span>' +
         '<span class="lt-paper-spacer"></span>' +
-        '<select class="lt-rel-select" data-lt-rel="' + _esc(p.id) + '" title="How central is this paper to the theme? Feeds the lab ranking.">' + _relOptionsHtml(rel) + '</select>' +
-        '<button class="lt-vote-btn' + (mine ? ' on' : '') + '" data-lt-vote="' + _esc(p.id) + '" title="' + (mine ? 'Remove your vote' : 'This paper helped me understand this theme') + '">👍 ' + n + '</button>' +
-        '<button class="lt-remove-btn" data-lt-remove-paper="' + _esc(p.id) + '" title="Remove this paper from the theme">×</button>' +
+        '<select class="lt-rel-select" data-lt-rel="' + _esc(p.id) + '" title="How central is this paper to the topic? Feeds the lab ranking.">' + _relOptionsHtml(rel) + '</select>' +
+        '<button class="lt-vote-btn' + (mine ? ' on' : '') + '" data-lt-vote="' + _esc(p.id) + '" title="' + (mine ? 'Remove your vote' : 'This paper helped me understand this topic') + '">' + ICON.svg('hand-thumb-up') + ' ' + n + '</button>' +
+        '<button class="lt-remove-btn" data-lt-remove-paper="' + _esc(p.id) + '" title="Remove this paper from the topic">' + ICON.svg('x-mark') + '</button>' +
         '</div>';
     }).join('');
-    host.innerHTML = banner + (rows.length ? listHtml : '<div class="lt-empty">No papers from this lab in the theme.</div>');
+    host.innerHTML = banner + (rows.length ? listHtml : '<div class="lt-empty">No papers from this lab in the topic.</div>');
     host.onchange = function (ev) {
       var sel = ev.target.closest('[data-lt-rel]');
       if (!sel) return;
@@ -764,22 +854,22 @@
       return '<div class="lt-group-card' + (active ? ' active' : '') + (g.starred ? ' starred' : '') + (g.unattributed ? ' unattributed' : '') +
           '" data-lt-group-filter="' + _esc(g.key) + '" role="button" tabindex="0" title="Show only this lab’s papers below">' +
         '<div class="lt-group-top">' +
-          (g.starred ? '<span class="lt-group-star" title="Key lab">★</span>' : '') +
+          (g.starred ? '<span class="lt-group-star" title="Key lab">' + ICON.svg('star') + '</span>' : '') +
           '<span class="lt-group-name">' + _esc(g.label) + '</span>' +
           '<span class="lt-group-score" title="Relevance-weighted score — Core 3 · Supporting 2 · Tangential 1">' + g.score + '</span>' +
-          (g.unattributed ? '' : '<button class="lt-group-edit" data-lt-group-edit="' + _esc(g.key) + '" title="Curate this lab (name, institution, note, merge, star)">✎</button>') +
+          (g.unattributed ? '' : '<button class="lt-group-edit" data-lt-group-edit="' + _esc(g.key) + '" title="Curate this lab (name, institution, note, merge, star)">' + ICON.svg('pencil') + '</button>') +
         '</div>' +
         '<div class="lt-group-sub">' + sub.join(' · ') + '</div>' +
         (g.note ? '<div class="lt-group-note">' + _esc(g.note) + '</div>' : '') +
         (!g.unattributed || (g.suggested && g.suggested.length)
           ? '<div class="lt-group-actions">' +
               (g.suggested && g.suggested.length
-                ? '<button class="lt-group-sugg-toggle" data-lt-sugg-toggle="1" title="Library papers by this lab not yet in this theme">🔎 ' +
+                ? '<button class="lt-group-sugg-toggle" data-lt-sugg-toggle="1" title="Library papers by this lab not yet in this topic">' + ICON.svg('magnifying-glass') + ' ' +
                     g.suggested.length + ' suggested</button>'
                 : '') +
               (g.unattributed
                 ? ''
-                : '<button class="lt-group-recent" data-lt-recent="' + _esc(g.key) + '" title="Fetch recent publications by this lab (ORCID / CrossRef) and import the relevant ones">🛰 recent</button>') +
+                : '<button class="lt-group-recent" data-lt-recent="' + _esc(g.key) + '" title="Fetch recent publications by this lab (ORCID / CrossRef) and import the relevant ones">' + ICON.svg('satellite') + ' recent</button>') +
             '</div>'
           : '') +
         (g.suggested && g.suggested.length
@@ -788,7 +878,7 @@
                 var lib = (s.paper.meta && s.paper.meta.library) || {};
                 var yr = lib.year ? ' (' + _esc(lib.year) + ')' : '';
                 return '<div class="lt-sugg-row">' +
-                  '<button class="lt-sugg-add" data-lt-sugg-add="' + _esc(s.paper.id) + '" title="Add this paper to the theme">＋</button>' +
+                  '<button class="lt-sugg-add" data-lt-sugg-add="' + _esc(s.paper.id) + '" title="Add this paper to the topic">' + ICON.svg('plus') + '</button>' +
                   '<a class="lt-sugg-title" href="/rm/pages/library-paper.html?id=' + encodeURIComponent(s.paper.id) + '" title="Open paper">' + _esc(s.paper.title || s.paper.id) + yr + '</a>' +
                   (s.last ? '' : '<span class="lt-sugg-tag" title="PI is a coauthor, not the last author">coauthor</span>') +
                   '</div>';
@@ -1096,8 +1186,8 @@
       var bucket = (maxRel > 0 && w.rel >= 0.66 * maxRel) ? 'high' : ((maxRel > 0 && w.rel >= 0.33 * maxRel) ? 'med' : 'low');
       var pre = w.match.ok && (maxRel === 0 || w.rel >= 0.33 * maxRel);
       var sig = w.match.ok
-        ? '<span class="lt-match-sig" title="Attribution signals — why this is the right PI">✓ ' + _esc(w.match.signals.join(' · ')) + '</span>'
-        : '<span class="lt-match-warn" title="Only the family name matched — confirm this is the right ' + _esc(group.label) + ' before importing">⚠ unverified — only family name</span>';
+        ? '<span class="lt-match-sig" title="Attribution signals — why this is the right PI">' + ICON.svg('check') + ' ' + _esc(w.match.signals.join(' · ')) + '</span>'
+        : '<span class="lt-match-warn" title="Only the family name matched — confirm this is the right ' + _esc(group.label) + ' before importing">' + ICON.svg('exclamation-triangle') + ' unverified — only family name</span>';
       return '<label class="lp-linkpick-row">' +
         '<input type="checkbox" data-recent-doi="' + _esc(w.doi) + '"' + (pre ? ' checked' : '') + '>' +
         '<span class="lp-linkpick-titlewrap">' +
@@ -1105,7 +1195,7 @@
         '<span class="lp-linkpick-hint">' + [_esc(w.year), _esc(w.journal)].filter(Boolean).join(' · ') + '</span>' +
         sig +
         '</span>' +
-        '<span class="lt-rel-badge lt-rel-' + bucket + '" title="Heuristic relevance to this theme">' + pct + '%</span>' +
+        '<span class="lt-rel-badge lt-rel-' + bucket + '" title="Heuristic relevance to this topic">' + pct + '%</span>' +
         '</label>';
     }).join('');
     importBtn.disabled = false;
@@ -1159,7 +1249,7 @@
     modal.innerHTML =
       '<div class="lp-oim-backdrop"></div>' +
       '<div class="lp-oim-card">' +
-      '<div class="lp-oim-head">Import papers into this theme</div>' +
+      '<div class="lp-oim-head">Import papers into this topic</div>' +
       '<div class="lp-oim-summary">Paste DOIs, PMIDs, or arXiv IDs (one per line) — or a BibTeX export. Papers already in the library are just tagged; new ones are imported first.</div>' +
       '<textarea id="lt-imp-text" class="lt-imp-text" rows="7" placeholder="10.1038/s41586-020-2612-2&#10;32901234&#10;2103.00020&#10;&#10;…or paste BibTeX (@article{ ... })"></textarea>' +
       '<div class="lt-imp-relrow">Relevance for imported papers: <select id="lt-imp-rel">' + _relOptionsHtml(2) + '</select></div>' +
@@ -1264,7 +1354,7 @@
             ok++;
           } catch (e) { console.warn('[library-themes] import-tag failed', ids[i], e.message || e); }
         }
-        statusEl.textContent = 'Added ' + ok + ' paper' + (ok === 1 ? '' : 's') + ' to the theme' +
+        statusEl.textContent = 'Added ' + ok + ' paper' + (ok === 1 ? '' : 's') + ' to the topic' +
           (toCommit.length ? ' (' + toCommit.length + ' newly imported)' : '') + '.';
         _renderGroups(themeId);
         _renderPaperList(themeId);
@@ -1299,7 +1389,7 @@
       '<label>PI name<input type="text" id="lt-grp-name" maxlength="120" value="' + _esc((cur && cur.canonical_name) || derived.label) + '"></label>' +
       '<label>Institution<input type="text" id="lt-grp-inst" maxlength="160" placeholder="e.g. UPenn" value="' + _esc((cur && cur.institution) || derived.institution) + '"></label>' +
       '<label>Note<textarea id="lt-grp-note" rows="3" placeholder="Why this lab matters here — e.g. pioneered granular hydrogels; start with their 2015 Nat Mater paper.">' + _esc((cur && cur.note) || '') + '</textarea></label>' +
-      '<label class="lt-grp-check"><input type="checkbox" id="lt-grp-star"' + ((cur && cur.starred) ? ' checked' : '') + '> ⭐ Key lab (pin to the top)</label>' +
+      '<label class="lt-grp-check"><input type="checkbox" id="lt-grp-star"' + ((cur && cur.starred) ? ' checked' : '') + '> ' + ICON.svg('star') + ' Key lab (pin to the top)</label>' +
       (mergeCandidates.length
         ? '<div class="lt-grp-merge"><div class="lt-grp-merge-head">Merge other labs into this one</div>' +
           '<div class="lt-grp-merge-hint">Fold name variants of the same PI together. (Two different PIs sharing initials only split apart once ORCID is captured — run library re-check.)</div>' +
@@ -1397,7 +1487,7 @@
     _renderPaperList(themeId);
   }
 
-  /* ── Related themes: manual rank + suggest (V3.496) ─────── */
+  /* ── Related topics: manual rank + suggest (V3.496) ─────── */
 
   async function _loadRelated(themeId) {
     _related = [];
@@ -1437,23 +1527,23 @@
     var host = document.getElementById('lt-related');
     if (!host || _openId !== themeId) return;
     if (!_related.length) {
-      host.innerHTML = '<div class="lt-empty">No related themes yet — add the concepts a student should explore next (＋ Add / suggest).</div>';
+      host.innerHTML = '<div class="lt-empty">No related topics yet — add the concepts a student should explore next (' + ICON.svg('plus') + ' Add / suggest).</div>';
       return;
     }
     var visible = _related.slice(0, _relatedShown);
     var hidden = _related.length - visible.length;
     var cards = visible.map(function (r, idx) {
       return '<div class="lt-related-card" data-rel-id="' + _esc(r.id) + '">' +
-        '<a class="lt-related-name" href="/rm/pages/library.html?tab=themes&theme=' + encodeURIComponent(r.id) + '" title="Open this theme">' + _esc(getThemeNameById(r.id)) + '</a>' +
+        '<a class="lt-related-name" href="/rm/pages/library.html?tab=themes&theme=' + encodeURIComponent(r.id) + '" title="Open this topic">' + _esc(getThemeNameById(r.id)) + '</a>' +
         '<span class="lt-related-controls">' +
           '<button class="lt-related-btn" data-rel-up="' + _esc(r.id) + '"' + (idx === 0 ? ' disabled' : '') + ' title="Move up">▲</button>' +
           '<button class="lt-related-btn" data-rel-down="' + _esc(r.id) + '"' + (idx === visible.length - 1 && !hidden ? ' disabled' : '') + ' title="Move down">▼</button>' +
-          '<button class="lt-related-btn" data-rel-remove="' + _esc(r.id) + '" title="Remove">×</button>' +
+          '<button class="lt-related-btn" data-rel-remove="' + _esc(r.id) + '" title="Remove">' + ICON.svg('x-mark') + '</button>' +
         '</span>' +
       '</div>';
     }).join('');
     var more = '';
-    if (hidden > 0) more = '<button class="btn btn-sm lt-group-more" data-rel-more="all">＋ Show all ' + _related.length + '</button>';
+    if (hidden > 0) more = '<button class="btn btn-sm lt-group-more" data-rel-more="all">' + ICON.svg('plus') + ' Show all ' + _related.length + '</button>';
     else if (_relatedShown > 5 && _related.length > 5) more = '<button class="btn btn-sm lt-group-more" data-rel-more="5">Show fewer</button>';
     host.innerHTML = '<div class="lt-related-list">' + cards + '</div>' + (more ? '<div class="lt-group-more-wrap">' + more + '</div>' : '');
     host.onclick = function (ev) {
@@ -1514,15 +1604,15 @@
         '<input type="checkbox" data-rel-add="' + _esc(t.id) + '">' +
         '<span class="lp-linkpick-titlewrap">' +
         '<span class="lp-linkpick-title">' + _esc(t.name || t.id) + '</span>' +
-        (n ? '<span class="lp-linkpick-hint">✨ shares ' + n + ' paper' + (n === 1 ? '' : 's') + '</span>' : '') +
+        (n ? '<span class="lp-linkpick-hint">' + ICON.svg('sparkles') + ' shares ' + n + ' paper' + (n === 1 ? '' : 's') + '</span>' : '') +
         '</span></label>';
     }).join('');
     modal.innerHTML =
       '<div class="lp-oim-backdrop"></div>' +
       '<div class="lp-oim-card">' +
-      '<div class="lp-oim-head">Add related themes</div>' +
-      '<div class="lp-oim-summary">Concepts a student should explore next. Themes are ranked by ✨ shared papers — top suggestions first. You order them after adding.</div>' +
-      '<div class="lp-linkpick-list">' + (rowsHtml || '<div class="lp-linkpick-empty">No other themes to link.</div>') + '</div>' +
+      '<div class="lp-oim-head">Add related topics</div>' +
+      '<div class="lp-oim-summary">Concepts a student should explore next. Topics are ranked by ' + ICON.svg('sparkles') + ' shared papers — top suggestions first. You order them after adding.</div>' +
+      '<div class="lp-linkpick-list">' + (rowsHtml || '<div class="lp-linkpick-empty">No other topics to link.</div>') + '</div>' +
       '<div class="lp-oim-foot">' +
       '<button class="btn btn-sm" id="lt-rel-cancel">Cancel</button>' +
       '<button class="btn btn-sm lp-oim-primary" id="lt-rel-save">Add selected</button>' +
@@ -1580,14 +1670,14 @@
         '<span class="lp-linkpick-title">' + _esc(p.title || p.id) + '</span>' +
         (authorYear ? '<span class="lp-linkpick-hint">' + _esc(authorYear) + '</span>' : '') +
         '</span>' +
-        '<select class="lt-rel-select" data-rel-for="' + _esc(p.id) + '" title="Relevance to this theme (feeds the lab ranking)">' + _relOptionsHtml(_relevanceOf(p, themeId)) + '</select>' +
+        '<select class="lt-rel-select" data-rel-for="' + _esc(p.id) + '" title="Relevance to this topic (feeds the lab ranking)">' + _relOptionsHtml(_relevanceOf(p, themeId)) + '</select>' +
         '</label>';
     }).join('');
     modal.innerHTML =
       '<div class="lp-oim-backdrop"></div>' +
       '<div class="lp-oim-card">' +
-      '<div class="lp-oim-head">Add papers to this theme</div>' +
-      '<div class="lp-oim-summary">Tick every library paper that belongs to this concept. A paper can carry several themes.</div>' +
+      '<div class="lp-oim-head">Add papers to this topic</div>' +
+      '<div class="lp-oim-summary">Tick every library paper that belongs to this concept. A paper can carry several topics.</div>' +
       '<div class="lp-linkpick-search-wrap"><input id="lt-pick-search" type="text" placeholder="Search title / author / year / key…" autocomplete="off"></div>' +
       '<div class="lp-linkpick-list">' + (rowsHtml || '<div class="lp-linkpick-empty">Library is empty.</div>') + '</div>' +
       '<div class="lp-oim-foot">' +
@@ -1704,7 +1794,7 @@
           '<div class="lt-note-head">' +
           '<span class="lt-note-byline"></span>' +
           '<span class="lt-note-notice" hidden></span>' +
-          '<button class="lt-remove-btn" data-lt-del-note="' + _esc(note.id) + '" title="Delete this note">×</button>' +
+          '<button class="lt-remove-btn" data-lt-del-note="' + _esc(note.id) + '" title="Delete this note">' + ICON.svg('x-mark') + '</button>' +
           '</div>' +
           '<div class="lt-note-body" contenteditable="true" data-mtime=""></div>';
         host.appendChild(card);
@@ -1725,7 +1815,7 @@
       } else if (body.getAttribute('data-mtime') !== String(note.modified_at || '')) {
         /* Remote edit landed while this note is focused/dirty locally:
          * DON'T clobber the caret — flag it. Applied on blur. */
-        notice.textContent = '✏ ' + (note.last_editor || 'someone') + ' edited this note — your version saves over theirs on blur';
+        ICON.label(notice, 'pencil', ' ' + (note.last_editor || 'someone') + ' edited this note — your version saves over theirs on blur');
         notice.hidden = false;
         card._pendingRemote = note;
       }

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Worksheet 3: Crossing the Boundary — Heat Transfer Foundations</title>
+<style>
+  /* ===== worksheet house style (print-first, self-contained) ===== */
+  *{margin:0;padding:0;box-sizing:border-box}
+  /* One-glyph alias: most system fonts lack U+221D (∝) and fall back to a near-invisible glyph. */
+  @font-face{font-family:'PropSign';src:local('STIX Two Math Regular'),local('STIXTwoMath-Regular'),local('STIXGeneral-Regular'),local('Cambria Math'),local('CambriaMath'),local('Noto Sans Math Regular'),local('NotoSansMath-Regular'),local('Segoe UI Symbol'),local('SegoeUISymbol'),local('DejaVu Sans'),local('Menlo Regular'),local('Menlo-Regular');unicode-range:U+221D}
+  body{font-family:PropSign,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    color:#1e293b;background:#fff;line-height:1.5;max-width:820px;margin:0 auto;
+    padding:28px 22px;font-size:14px}
+  .ws-head{border-bottom:3px solid #2563eb;padding-bottom:10px;margin-bottom:14px}
+  .ws-head .course{color:#2563eb;font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}
+  .ws-head h1{color:#1e3a5f;font-size:1.45rem;margin:2px 0}
+  .id-row{display:flex;gap:18px;margin-top:10px;font-size:.95em}
+  .id-row span{flex:1;border-bottom:1px solid #94a3b8;padding:0 4px;white-space:nowrap}
+  .howto{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;padding:10px 14px;margin:14px 0;font-size:.95em}
+  .exp{border:1px solid #cbd5e1;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .exp h2{color:#1e3a5f;font-size:1.05rem}
+  .tabpill{display:inline-block;background:#2563eb;color:#fff;border-radius:999px;font-size:.72rem;
+    font-weight:700;padding:2px 10px;margin-right:8px;vertical-align:2px}
+  .goal{color:#475569;font-style:italic;margin:2px 0 8px}
+  h3.part{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
+  h3.predict{color:#7c3aed} h3.do{color:#b45309} h3.record{color:#0d9488} h3.explain{color:#16a34a}
+  ol.steps{margin-left:20px} ol.steps li{margin:3px 0}
+  table.data{border-collapse:collapse;width:100%;margin:6px 0}
+  table.data th{background:#f1f5f9;color:#1e3a5f}
+  table.data th,table.data td{border:1px solid #94a3b8;padding:5px 8px;font-size:.92em;text-align:center}
+  table.data td.fill{height:26px;min-width:64px}
+  table.data td.lab,table.data th.lab{text-align:left;background:#f8fafc}
+  .blank{display:inline-block;min-width:90px;border-bottom:1px solid #64748b}
+  .blank.w{min-width:160px}
+  .writeline{border-bottom:1px solid #94a3b8;height:24px}
+  .writeline+.writeline{margin-top:2px}
+  .hint{color:#64748b;font-size:.85em}
+  .circle{color:#334155}
+  .synth{background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .synth h2{color:#15803d;font-size:1.05rem;margin-bottom:6px}
+  footer{margin-top:18px;color:#64748b;font-size:.8em;text-align:center}
+  @media print{
+    body{padding:0;font-size:12px;max-width:100%}
+    a{color:inherit;text-decoration:none}
+    @page{margin:14mm}
+  }
+</style>
+</head>
+<body>
+
+<div class="ws-head">
+  <div class="course">Heat Transfer Foundations · Lesson 3 Worksheet</div>
+  <h1>Crossing the Boundary — How Heat Gets Through Walls</h1>
+  <div class="id-row"><span>Name:</span><span>Date:</span><span>Period:</span></div>
+</div>
+
+<div class="howto">
+  <b>How this works:</b> open the interactive lesson
+  <a href="03-crossing-boundaries.html"><b>03-crossing-boundaries.html</b></a> and keep it next
+  to this worksheet. Each experiment below uses one tab of the lesson. <b>Predict first</b>
+  (before you touch the sliders!), then run the experiment, record your data, and explain what
+  you saw. The <b>stats panel</b> (left side, under the sliders) and the <b>verdict box</b>
+  (below the plots) give you the numbers to record. Grey dashed shapes show where things were
+  <em>before</em> your last slider move.
+</div>
+
+<!-- ================= Experiment 1 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 1</span>A wall between hot and cold</h2>
+  <p class="goal">Goal: see that the temperature difference ΔT drives the flow, and that a steady wall has a straight temperature ramp.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">If you make the temperature difference across the wall six times bigger, the
+  heat flow will be… &nbsp;☐ the same &nbsp; ☐ 6× bigger &nbsp; ☐ 36× bigger</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Winter wall</b> (21 °C inside, −9 °C outside). Fill in row A.</li>
+    <li>Click <b>Oven door</b>, then <b>No difference</b>. Fill in rows B and C.</li>
+    <li>Go back to <b>Winter wall</b> and drag <b>Cold-side temperature</b> up to 50 °C — hotter
+    than the "hot" side. Fill in row D. Which way do the carriers move now?</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>T hot face (°C)</th><th>T cold face (°C)</th><th>ΔT (K)</th><th>Heat flow q (W)</th><th>Midpoint temperature (°C)</th><th>Gradient (K/m)</th></tr>
+    <tr><td class="lab">A Winter wall</td><td>21</td><td>−9</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">B Oven door</td><td>200</td><td>25</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">C No difference</td><td>20</td><td>20</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">D Backwards</td><td>21</td><td>50</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Row B's q ÷ row A's q = <span class="blank"></span>; row B's ΔT ÷ row A's ΔT =
+  <span class="blank"></span>. Is the midpoint always the average of the two faces?
+  &nbsp;☐ yes &nbsp; ☐ no</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. "In steady state the temperatures stop changing, but heat keeps flowing." Explain how both
+  halves of that sentence can be true at once:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. What does the minus sign on q in row D mean physically?</p>
+  <div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 2 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 2</span>Material matters: conductivity k</h2>
+  <p class="goal">Goal: measure how enormously k varies between everyday materials — and how gently ΔT changes things by comparison.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">Compared with glass, a copper wall of the same size passes… &nbsp;☐ 4× &nbsp;
+  ☐ 40× &nbsp; ☐ 400× &nbsp; as much heat.</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Glass</b>, <b>Copper</b>, <b>Wood</b> and <b>Still air</b> in turn (ΔT stays at
+    20 K). Fill in rows A–D from the stats.</li>
+    <li>Back on <b>Glass</b>, drag <b>Temperature difference ΔT</b> to 40 K. Fill in row E.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>k (W/m·K)</th><th>ΔT (K)</th><th>Heat flow q (W)</th><th>vs. glass</th><th>Energy lost per day (kWh)</th></tr>
+    <tr><td class="lab">A Glass</td><td>1.0</td><td>20</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">B Copper</td><td>401</td><td>20</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">C Wood</td><td>0.15</td><td>20</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">D Still air</td><td>0.026</td><td>20</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">E Glass</td><td>1.0</td><td>40</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Copper ÷ still air = <span class="blank"></span>×. Doubling ΔT (row A → E) multiplied q by
+  <span class="blank"></span>×.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. The k slider is logarithmic (each step multiplies). Why did the lesson need a
+  logarithmic slider here but not for ΔT?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. Still air is the best insulator in the table, yet nobody builds walls out of open air.
+  Guess why (Lesson 4 answers this):</p>
+  <div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 3 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 3</span>Thickness and area</h2>
+  <p class="goal">Goal: confirm q ∝ A and q ∝ 1/L, and meet a number that should bother you.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">Doubling the thickness of a wall will… &nbsp;☐ halve &nbsp; ☐ double &nbsp;
+  ☐ quarter &nbsp; the heat flow.</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Window pane</b> (4 mm thick, 2 m²). Fill in row A. Write the q down — Tab 4 needs it.</li>
+    <li>Drag <b>Thickness L</b> to 8 mm (area still 2 m²). Fill in row B.</li>
+    <li>Click <b>House wall</b>, then <b>Pot bottom</b>. Fill in rows C and D.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>L (mm)</th><th>A (m²)</th><th>Heat flow q (W)</th><th>Flux q″ = q/A (W/m²)</th></tr>
+    <tr><td class="lab">A Window pane</td><td>4</td><td>2</td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">B Thicker pane</td><td>8</td><td>2</td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">C House wall</td><td>250</td><td>4</td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">D Pot bottom</td><td>3</td><td>0.1</td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Which passes more total watts, C or D? <span class="blank"></span>. Which passes more watts
+  <em>per square metre</em>? <span class="blank"></span>. Starting from the house wall, name two
+  different single-slider moves that each cut q in half:
+  <span class="blank w"></span> and <span class="blank w"></span>.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. Row A says a single window loses 10 000 W — nearly seven space heaters. Real windows do
+  not. Something must be missing from the model. What do you think it is?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 4 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 4</span>Thermal resistance and the honest window</h2>
+  <p class="goal">Goal: use the resistance picture (q = ΔT/R) to find out where a window's insulation really lives.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">Adding the thin still-air films that cling to both faces of a bare pane will
+  cut its heat loss by roughly… &nbsp;☐ 2× &nbsp; ☐ 10× &nbsp; ☐ 40×</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Bare glass</b>. Fill in row A. Look at the circuit: one lonely resistor.</li>
+    <li>Click <b>Real window (with films)</b>. Fill in row B. Count the resistors now.</li>
+    <li>Click <b>Insulated wall</b> (9 cm of fiberglass, films on). Fill in row C. Then drag
+    <b>Surface air films</b> to 0 (row D) and to 0.34 (row E).</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>k</th><th>L (mm)</th><th>Films R″ (m²·K/W)</th><th>R wall (K/W)</th><th>R total (K/W)</th><th>q (W)</th><th>Wall's share of ΔT (%)</th></tr>
+    <tr><td class="lab">A Bare glass</td><td>1.0</td><td>4</td><td>0</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">B Real window</td><td>1.0</td><td>4</td><td>0.17</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">C Insulated wall</td><td>0.04</td><td>90</td><td>0.17</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">D Insulated, no films</td><td>0.04</td><td>90</td><td>0</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">E Insulated, thick films</td><td>0.04</td><td>90</td><td>0.34</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Row A ÷ row B = <span class="blank"></span>×. In row B, the glass carries only
+  <span class="blank"></span>% of the 20 K drop.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. "The air, not the glass, is the insulation." Use rows A and B to defend that sentence:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. For the insulated wall (rows C–E) the films barely mattered. Using the idea of resistors
+  in <b>series</b>, explain why the same films that dominated the window are a rounding error here:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Synthesis ================= -->
+<div class="synth">
+  <h2>Big picture — put it together</h2>
+  <p>1. Fourier's law is often written q = kAΔT/L, and engineers rewrite it as q = ΔT/R. In three
+  sentences, explain what each of k, A, L and R does to the heat flow, using the words
+  <b>hand-off</b>, <b>doorway</b>, <b>journey</b> and <b>resistance</b>.</p>
+  <div class="writeline"></div><div class="writeline"></div><div class="writeline"></div><div class="writeline"></div>
+  <p>2. <b>Challenge (optional):</b> a cast-iron skillet bottom is 5 mm thick, 0.05 m² in area,
+  k ≈ 80 W/m·K, with 50 K between the burner side and the food side. q = kAΔT/L =
+  <span class="blank"></span> W. Thermal resistance R = L/(kA) = <span class="blank"></span> K/W.
+  Compare with the window in row B of Tab 4 — which is the bigger resistor, the skillet or one
+  air film?</p>
+  <div class="writeline"></div>
+  <p>3. Next lesson preview: real walls are several layers stacked together. If a brick layer and
+  a foam layer are in series, which one do you think "owns" most of the temperature drop?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<footer>McGhee Lab · Heat Transfer Foundations · Worksheet 3 of 6</footer>
+</body>
+</html>

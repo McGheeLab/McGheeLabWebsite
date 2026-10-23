@@ -143,6 +143,10 @@
     }
     var snaps = await Promise.all(queries.map(function (q) {
       return q.catch(function (e) {
+        // V3.621 — counted and surfaced in the render instead of only a
+        // console.warn (a missing composite index used to look exactly
+        // like "no evidence"; V3.619 deployed the indexes).
+        _state.queryFailures = (_state.queryFailures || 0) + 1;
         console.warn('[evidence-inbox] query failed for', itemId, ':', e.message);
         return null;
       });
@@ -225,6 +229,14 @@
     if (_state.loading && !_state.rows.length) {
       root.appendChild(_el('div', 'pe-equations-empty', 'Loading reading evidence…'));
       return;
+    }
+    // V3.621 — failed queries are no longer silent: an empty inbox caused
+    // by rejections/missing indexes must not read as "no evidence".
+    if (_state.queryFailures) {
+      var failNote = _el('div', 'pe-equations-empty');
+      ICON.label(failNote, 'exclamation-triangle',
+        ' ' + _state.queryFailures + ' paper(s) could not be queried — the list below may be incomplete.');
+      root.appendChild(failNote);
     }
     if (!_state.rows.length) {
       root.appendChild(_el('div', 'pe-equations-empty',
@@ -320,6 +332,7 @@
     if (fresh && !force) { _renderRows(); return; }
     _state.draftId = draftId;
     _state.loading = true;
+    _state.queryFailures = 0;
     _renderRows();
     try {
       _state.rows = await _load(draftId);

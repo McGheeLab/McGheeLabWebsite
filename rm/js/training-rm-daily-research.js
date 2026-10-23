@@ -20,7 +20,7 @@
   const FLOW_NODES = [
     {
       slug: 'tracker',
-      icon: '📈',
+      icon: 'arrow-trending-up',
       name: 'Activity Tracker',
       role: 'Daily ledger',
       what: 'The single ledger of research time. Most entries arrive here automatically as pending — your job is to confirm hours, not to dictate the whole entry.',
@@ -28,7 +28,7 @@
     },
     {
       slug: 'library',
-      icon: '📚',
+      icon: 'books',
       name: 'Library',
       role: 'Read + annotate papers',
       what: 'Ingest PDFs (extension grab, drop, or auto-download). Highlight, comment, scope annotations to a review task. Citations here are the source for Cmd+K in the paper builder.',
@@ -36,7 +36,7 @@
     },
     {
       slug: 'projects',
-      icon: '📂',
+      icon: 'folder-open',
       name: 'Projects',
       role: 'Where you sit on the lab map',
       what: 'The lab\'s research projects with status pills + leads. Your project assignment drives which projects the notebook entry picker shows.',
@@ -44,7 +44,7 @@
     },
     {
       slug: 'tasks',
-      icon: '✅',
+      icon: 'check-circle',
       name: 'Tasks',
       role: 'Bucket + subtask checklist',
       what: 'Bucket + subtask hierarchy. The Inbox tab shows tasks others assigned you (red badge for unseen). Subtask due_dates surface in the tracker Coming-up lane.',
@@ -52,19 +52,19 @@
     },
     {
       slug: 'notebook',
-      icon: '📓',
+      icon: 'book-open',
       name: 'Lab Notebook',
       role: 'The bench record',
       what: 'Per-experiment entries with body text, attachments, reagent + protocol references, observations. Phase pill (plan / running / complete) controls run-mode UI.',
-      feeds: '<strong>Tracker pending entry</strong> on save (category research › experiments). <strong>PMR Figure Reviews</strong> for any image you click 📌 on.',
+      feeds: '<strong>Tracker pending entry</strong> on save (category research › experiments). <strong>PMR Figure Reviews</strong> for any image you click ' + ICON.svg('pin') + ' on.',
     },
     {
       slug: 'protocols',
-      icon: '📋',
+      icon: 'clipboard-document-list',
       name: 'Protocols',
       role: 'Reusable procedures + live calculators',
-      what: 'Y.Doc collaborative protocols with sections, steps, materials, figures, and formula blocks. Formula variables render as live chips in step text — and propagate into notebook entries via 🧮 calc.',
-      feeds: '<strong>Tracker pending entry</strong> on save (category research › writing › protocols). <strong>Notebook 🧮 calc</strong> for live computed inserts.',
+      what: 'Y.Doc collaborative protocols with sections, steps, materials, figures, and formula blocks. Formula variables render as live chips in step text — and propagate into notebook entries via calc.',
+      feeds: '<strong>Tracker pending entry</strong> on save (category research › writing › protocols). <strong>Notebook ' + ICON.svg('variable') + ' calc</strong> for live computed inserts.',
     },
   ];
 
@@ -79,7 +79,7 @@
       card.className = 'daily-flow-node' + (n.slug === activeFlowSlug ? ' is-active' : '');
       card.dataset.slug = n.slug;
       card.innerHTML =
-        '<div class="icon">' + escapeHtml(n.icon) + '</div>' +
+        '<div class="icon">' + ICON.render(n.icon) + '</div>' +
         '<div class="name">' + escapeHtml(n.name) + '</div>' +
         '<div class="role">' + escapeHtml(n.role) + '</div>';
       card.addEventListener('click', () => {
@@ -96,7 +96,7 @@
     if (!detail) return;
     const n = FLOW_NODES.find(x => x.slug === activeFlowSlug) || FLOW_NODES[0];
     detail.innerHTML =
-      '<h4>' + escapeHtml(n.icon) + '&nbsp; ' + escapeHtml(n.name) + ' — ' + escapeHtml(n.role) + '</h4>' +
+      '<h4>' + ICON.render(n.icon) + '&nbsp; ' + escapeHtml(n.name) + ' — ' + escapeHtml(n.role) + '</h4>' +
       '<p>' + escapeHtml(n.what) + '</p>' +
       '<div class="feeds"><strong>Feeds →</strong> ' + n.feeds + '</div>';
   }
@@ -173,7 +173,7 @@
       const ok = document.createElement('button');
       ok.type = 'button';
       ok.className = 'tracker-sim-btn ok';
-      ok.textContent = '✓';
+      ICON.label(ok, 'check');
       ok.title = 'Confirm';
       ok.disabled = st.status !== 'pending';
       ok.addEventListener('click', () => {
@@ -189,7 +189,7 @@
       const skip = document.createElement('button');
       skip.type = 'button';
       skip.className = 'tracker-sim-btn skip';
-      skip.textContent = '✗';
+      ICON.label(skip, 'x-mark');
       skip.title = 'Dismiss';
       skip.disabled = st.status !== 'pending';
       skip.addEventListener('click', () => {
@@ -233,7 +233,7 @@
       '</div>'
     ).join('');
     out.innerHTML =
-      '<strong>📊 Mock PMR Activity (this week so far):</strong>' +
+      '<strong>' + ICON.svg('chart-bar') + ' Mock PMR Activity (this week so far):</strong>' +
       '<div style="margin-top:6px">' + catLines + '</div>' +
       '<div style="margin-top:8px;padding-top:6px;border-top:1px solid #a7f3d0;display:flex;justify-content:space-between;font-weight:600">' +
       '<span>Confirmed total</span><span>' + totalHours.toFixed(1) + 'h</span></div>' +
@@ -357,9 +357,8 @@
       const done = (checked === total);
       bar.classList.toggle('is-done', done);
       progress.classList.toggle('is-done', done);
-      progress.textContent = done
-        ? '✅ Daily-rhythm adopted — start V3.179 (Tasks & PMR) next.'
-        : checked + ' of ' + total + ' adopted';
+      if (done) ICON.label(progress, 'check-circle', ' Daily-rhythm adopted — start V3.179 (Tasks & PMR) next.');
+      else progress.textContent = checked + ' of ' + total + ' adopted';
     }
     checkboxes.forEach(box => box.addEventListener('change', refresh));
     refresh();

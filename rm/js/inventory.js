@@ -93,6 +93,153 @@ function locationsChips(locations) {
   }).join(' ');
 }
 
+/* ---- V3.646 — tracked quantity ----------------------------------------
+ *
+ * The block that finally makes `stock_status` mean something. Everything here
+ * is additive: an item without qty_tracked renders exactly what it did before,
+ * plus one manager-only "Track quantity" affordance.
+ *
+ * All arithmetic and every write goes through INV_QTY so the ledger's
+ * before/after chain is the single source of truth — this file only paints. */
+
+function _invTracked(item) {
+  return typeof INV_QTY !== 'undefined' && INV_QTY.isTracked(item);
+}
+
+function _invCanManage() {
+  if (typeof firebridge === 'undefined') return false;
+  if (firebridge.isAdmin && firebridge.isAdmin()) return true;
+  return !!(firebridge.hasCapability && firebridge.hasCapability('inventory:manage'));
+}
+
+function _invQtyBlockHtml(item, realIdx) {
+  if (typeof INV_QTY === 'undefined') return '';
+  var mgr = _invCanManage();
+  var d = '<div style="margin-bottom:12px;border-top:1px solid var(--border);padding-top:10px;">';
+  d += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">';
+  d += '<strong style="font-size:12px;text-transform:uppercase;color:var(--text-muted);">Quantity</strong>';
+
+  if (!_invTracked(item)) {
+    d += '</div>';
+    d += '<div style="font-size:13px;color:var(--text-muted);">Not tracked' +
+         (item.quantity ? ' — the Qty column shows ' + escAttr(String(item.quantity)) + ', which nothing checks or decrements.' : '.') +
+         '</div>';
+    if (mgr) {
+      d += '<button class="btn btn-sm btn-primary" style="margin-top:6px;" ' +
+           'onclick="event.stopPropagation(); invTrackQty(' + realIdx + ')">Track quantity</button>';
+    }
+    d += '</div>';
+    return d;
+  }
+
+  var sev = INV_QTY.severity(item);
+  var frac = INV_QTY.fractionLeft(item);
+  d += '<span>';
+  d += '<button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); invTakeQty(' + realIdx + ')">I took some</button>';
+  if (mgr) {
+    d += ' <button class="btn btn-sm" onclick="event.stopPropagation(); invRecountQty(' + realIdx + ')">Correct</button>';
+  }
+  d += '</span></div>';
+
+  d += '<div style="font-size:18px;font-weight:650;">' + escAttr(INV_QTY.summary(item)) + '</div>';
+  if (frac != null) {
+    var col = sev === 'out' ? 'var(--red)' : sev === 'low' ? 'var(--amber)' : 'var(--green)';
+    d += '<div style="height:6px;border-radius:3px;background:var(--border);overflow:hidden;margin-top:5px;max-width:320px;">' +
+         '<i style="display:block;height:100%;width:' + Math.round(frac * 100) + '%;background:' + col + ';"></i></div>';
+  }
+  var bits = [];
+  if (item.qty_min != null && item.qty_min !== '') bits.push('reorder at ' + escAttr(String(item.qty_min)) + (item.qty_unit ? ' ' + escAttr(item.qty_unit) : ''));
+  else if (INV_QTY.num(item.qty_made) > 0) bits.push('flags low under ' + Math.round(INV_QTY.LOW_PCT * 100) + '% of the batch');
+  if (bits.length) d += '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">' + bits.join(' · ') + '</div>';
+
+  d += '<details style="margin-top:8px;" ontoggle="event.stopPropagation(); invLoadUsage(this, ' + realIdx + ')">' +
+       '<summary style="font-size:13px;cursor:pointer;color:var(--primary);">Recent usage</summary>' +
+       '<div class="inv-usage" style="font-size:13px;margin-top:6px;color:var(--text-muted);">Loading…</div>' +
+       '</details>';
+  d += '</div>';
+  return d;
+}
+
+function escAttr(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+window.invTakeQty = function (realIdx) {
+  var item = _data.items[realIdx];
+  STOCK_TAKE.open({ item: item, mode: 'take' });
+};
+
+window.invRecountQty = function (realIdx) {
+  var item = _data.items[realIdx];
+  STOCK_TAKE.open({ item: item, mode: 'set' });
+};
+
+/* Turning tracking on is manager-only per firestore.rules (qty_tracked is in
+ * qtyControlsUnchanged) and deliberately so — it is a curation decision, not
+ * something a student should trip into. Seeds from the legacy `quantity`,
+ * coercing the one string row through Number(). */
+window.invTrackQty = function (realIdx) {
+  var item = _data.items[realIdx];
+  openForm({
+    title: 'Track quantity — ' + (item.name || 'item'),
+    fields: [
+      { key: 'unit', label: 'Unit — "ea" for countable things', type: 'select',
+        required: true, options: INV_QTY.ALL_UNITS },
+      { key: 'made', label: 'How much is there right now', type: 'number', required: true },
+      { key: 'min', label: 'Warn a manager below this (blank = ' +
+          Math.round(INV_QTY.LOW_PCT * 100) + '% of the amount above)', type: 'number' },
+    ],
+    values: { unit: item.qty_unit || 'ea', made: INV_QTY.num(item.quantity, 0) || '', min: '' },
+    onSave: async function (vals) {
+      try {
+        await INV_QTY.enableTracking({
+          itemId: item.id, unit: vals.unit,
+          made: vals.made, min: vals.min,
+        });
+        if (typeof TOAST !== 'undefined') TOAST.success('Now tracking ' + (item.name || 'this item'));
+      } catch (e) {
+        if (typeof TOAST !== 'undefined') {
+          TOAST.error(/permission-denied/i.test(e.message || '')
+            ? 'Only an inventory manager can switch tracking on.'
+            : (e.message || 'Could not switch tracking on.'));
+        }
+      }
+    },
+  });
+};
+
+/* The ledger is deliberately unrouted and uncached — an unbounded append-only
+ * collection is the one shape the full-collection api.save model is actively
+ * wrong for. So this is a live read on expand: ~20 docs, on demand, always
+ * truthful. */
+window.invLoadUsage = async function (details, realIdx) {
+  if (!details.open) return;
+  var host = details.querySelector('.inv-usage');
+  if (!host || host.dataset.loaded) return;
+  host.dataset.loaded = '1';
+  try {
+    var rows = await INV_QTY.recent(_data.items[realIdx].id, 20);
+    if (!rows.length) { host.textContent = 'Nothing recorded yet.'; return; }
+    host.innerHTML = '<table style="width:100%;font-size:12px;"><tbody>' + rows.map(function (r) {
+      var when = r.createdAt && r.createdAt.toDate ? r.createdAt.toDate().toISOString().slice(0, 10) : '';
+      var sign = r.delta > 0 ? '+' : '';
+      var who = r.userInitials || r.userName || '';
+      return '<tr><td style="color:var(--text-muted);">' + escAttr(when) + '</td>' +
+             '<td>' + escAttr(r.event || '') + '</td>' +
+             '<td style="text-align:right;font-variant-numeric:tabular-nums;">' + sign + escAttr(String(r.delta)) + ' ' + escAttr(r.unit || '') + '</td>' +
+             '<td style="text-align:right;color:var(--text-muted);">→ ' + escAttr(String(r.after)) + '</td>' +
+             '<td>' + escAttr(who) + '</td>' +
+             '<td style="color:var(--text-muted);">' + escAttr(r.reason || r.note || '') + '</td></tr>';
+    }).join('') + '</tbody></table>';
+  } catch (e) {
+    host.textContent = /index/i.test(e.message || '')
+      ? 'Usage history needs its Firestore index — deploy firestore:indexes.'
+      : 'Could not load usage history.';
+  }
+};
+
 /* ---- Star/preferred toggle ---- */
 
 function starHtml(realIdx, preferred) {
@@ -115,6 +262,22 @@ function inlineSelect(realIdx, field, currentVal, options) {
 function inlineText(realIdx, field, currentVal, placeholder) {
   var val = currentVal || '';
   return '<input type="text" data-idx="' + realIdx + '" data-field="' + field + '" value="' + val.replace(/"/g, '&quot;') + '" placeholder="' + (placeholder || '') + '" onblur="inlineSave(this)" onkeydown="if(event.key===\'Enter\'){this.blur();}" style="font-size:13px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;width:100%;max-width:300px;background:var(--surface);">';
+}
+
+/* V3.646 — quantity used inlineText, so inlineSave's else-branch stored the
+ * raw string. One of the 777 seed rows is already a string, and the
+ * group-header sum was silently concatenating instead of adding. `type=number`
+ * routes through inlineSave's Number() branch instead. */
+function inlineNumber(realIdx, field, currentVal, opts) {
+  opts = opts || {};
+  var val = (currentVal === 0 || currentVal) ? currentVal : '';
+  return '<input type="number" data-idx="' + realIdx + '" data-field="' + field + '"' +
+    ' value="' + String(val).replace(/"/g, '&quot;') + '"' +
+    (opts.min != null ? ' min="' + opts.min + '"' : '') +
+    (opts.step != null ? ' step="' + opts.step + '"' : ' step="any"') +
+    ' placeholder="' + (opts.placeholder || '') + '"' +
+    ' onblur="inlineSave(this)" onkeydown="if(event.key===\'Enter\'){this.blur();}"' +
+    ' style="font-size:13px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;width:100%;max-width:140px;background:var(--surface);">';
 }
 
 function inlineTextarea(realIdx, field, currentVal, placeholder) {
@@ -153,6 +316,15 @@ async function _saveInvItemsSurgical(items) {
       batch.set(db.collection('inventory').doc(it.id), clean, { merge: true });
     });
     await batch.commit();
+    // V3.646 — a surgical write bypasses api.save, which is what normally
+    // clears the route cache. Without this the MEDIUM (30 min) IndexedDB cache
+    // keeps serving pre-edit data on the next page load: api.load returns
+    // cached.data and only kicks a background refresh once STALE. Same fix as
+    // library-links.js:99-112 ("api.invalidate (V3.485) exists for exactly
+    // this"). Non-fatal — the doc is already written.
+    try {
+      if (typeof api !== 'undefined' && api.invalidate) await api.invalidate(DATA_PATH);
+    } catch (e) { /* cache hygiene must never fail a completed write */ }
   } catch (err) {
     console.warn('[inventory] surgical save failed, falling back to full save:', err.message);
     await api.save(DATA_PATH, _data);
@@ -181,8 +353,10 @@ window.inlineSave = async function (el) {
   _data.items[idx][field] = val;
   _data.items[idx].manual_edit = true;
 
-  // Auto-fix related fields
-  if (field === 'is_consumable') {
+  // Auto-fix related fields. V3.646 — skip tracked items: their stock_status is
+  // DERIVED from qty_remaining inside the usage transaction, and a hand-set
+  // value here would be overwritten by the next consumption event anyway.
+  if (field === 'is_consumable' && !(typeof INV_QTY !== 'undefined' && INV_QTY.isTracked(_data.items[idx]))) {
     _data.items[idx].stock_status = val ? 'full' : 'n/a';
   }
   // Sync account ↔ project
@@ -294,6 +468,164 @@ async function loadAndRender() {
   render();
 }
 
+/* ---- V3.834: QR label + scan-to-use ----------------------------------
+ * Alex: "for each item in the inventory, i want to add a qr code … linked to
+ * the label printer … the phone app should get the ability to read the qr
+ * code to use the item. some items need to be scanned per use like
+ * antibodies, matrigel … Other items should be replaced as a package".
+ * The label registry (labels/{CODE}), the scanner and the resolver are the
+ * V3.646 blocks that never reached a page; inventory-labels.js and
+ * inventory-use.js are the two new halves. */
+var USE_MODE_LABEL = { '': 'Not set — asks on scan', per_use: 'Scan per use', package: 'Replace as a package' };
+
+function invUseModeHtml(item, realIdx) {
+  var mode = item.use_mode === 'per_use' || item.use_mode === 'package' ? item.use_mode : '';
+  var eff = (typeof INV_USE !== 'undefined') ? INV_USE.modeOf(item) : mode;
+  if (!_invCanManage()) {
+    return '<span style="font-size:13px;">' + escAttr(USE_MODE_LABEL[eff] || USE_MODE_LABEL['']) + (eff && !mode ? ' <span class="detail-meta-label">(default for a consumable)</span>' : '') + '</span>';
+  }
+  return '<select class="btn" style="font-size:13px;" onchange="event.stopPropagation(); invSetUseMode(' + realIdx + ', this.value)" onclick="event.stopPropagation()">' +
+    Object.keys(USE_MODE_LABEL).map(function (k) { return '<option value="' + k + '"' + (k === mode ? ' selected' : '') + '>' + escAttr(USE_MODE_LABEL[k]) + '</option>'; }).join('') +
+    '</select>';
+}
+
+function invLabelHtml(item, realIdx) {
+  var code = (item.label_code || '').toUpperCase();
+  var mgr = _invCanManage();
+  var d = '<div class="inv-label-block" data-item-id="' + escAttr(item.id || '') + '" style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card,#fff);">';
+  d += '<div class="inv-qr" data-code="' + escAttr(code) + '" style="width:96px;height:96px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1px dashed var(--border);border-radius:8px;font-size:11px;color:var(--text-muted);">' + (code ? '…' : 'no label yet') + '</div>';
+  d += '<div style="flex:1;min-width:200px;">';
+  d += '<strong style="font-size:12px;text-transform:uppercase;color:var(--text-muted);">QR label</strong>';
+  if (code) {
+    d += '<div style="font-family:ui-monospace,Menlo,monospace;font-size:15px;margin:2px 0;">' + escAttr(code) + '</div>';
+    d += '<div style="font-size:12px;color:var(--text-muted);">Scan it to use this item · <a href="/l/' + escAttr(code) + '" onclick="event.stopPropagation(); return invCopyLink(' + realIdx + ', event)" title="Copy the link a phone camera opens">copy link</a></div>';
+  } else {
+    d += '<div style="font-size:13px;color:var(--text-muted);margin:2px 0;">No code yet — printing a label mints one and links it to this item for good.</div>';
+  }
+  d += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">';
+  d += '<button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); invUse(' + realIdx + ')" title="What one scan does for this item">' + ((typeof INV_USE !== 'undefined' && INV_USE.modeOf(item) === 'per_use') ? '✓ I used it' : '✓ Use / take') + '</button>';
+  d += '<button class="btn btn-sm" onclick="event.stopPropagation(); invQueueLabel(' + realIdx + ')" title="Queue this label at the lab\'s label printer (Queue tab on the printer PC)">' + ICON.svg('tag') + ' Print label</button>';
+  d += '<button class="btn btn-sm" onclick="event.stopPropagation(); invPrintSheet([' + realIdx + '])" title="A browser print page for sticker sheets or any other printer">' + ICON.svg('printer') + ' Sheet</button>';
+  if (!code && mgr) d += '<button class="btn btn-sm" onclick="event.stopPropagation(); invMakeLabel(' + realIdx + ')" title="Mint the code without printing yet">Make code</button>';
+  d += '</div></div></div>';
+  if (code) invScheduleQr();
+  return d;
+}
+
+var _qrScheduled = false;
+function invScheduleQr() {
+  if (_qrScheduled) return; _qrScheduled = true;
+  setTimeout(invRenderQrBlocks, 0);
+}
+async function invRenderQrBlocks() {
+  _qrScheduled = false;
+  if (typeof INV_LABELS === 'undefined') return;
+  var boxes = document.querySelectorAll('.inv-qr[data-code]:not([data-done])');
+  if (!boxes.length) return;
+  try { await INV_LABELS.loadQr(); } catch (e) { return; }
+  boxes.forEach(function (box) {
+    var code = box.getAttribute('data-code'); if (!code) return;
+    INV_LABELS.qrSvg(INV_LABELS.core.payloadFor(code), 96).then(function (svg) { box.innerHTML = svg; box.style.border = 'none'; box.setAttribute('data-done', '1'); });
+  });
+}
+
+window.invSetUseMode = async function (realIdx, mode) {
+  var item = _data.items[realIdx];
+  try { await INV_USE.setMode(item, mode); if (typeof TOAST !== 'undefined') TOAST.success(mode ? 'Scan to use: ' + USE_MODE_LABEL[mode] : 'Scan to use: asks each time'); render(); }
+  catch (e) { if (typeof TOAST !== 'undefined') TOAST.error(/permission-denied/i.test(e.message || '') ? 'Only an inventory manager can set this.' : (e.message || 'Could not save.')); }
+};
+window.invUse = function (realIdx, labelCode) {
+  var item = _data.items[realIdx];
+  INV_USE.sheet(item, { labelCode: labelCode || item.label_code || null, context: labelCode ? 'scan' : 'inventory-page', onDone: function (res) { Object.assign(item, res.item); render(); } });
+};
+window.invMakeLabel = async function (realIdx) {
+  var item = _data.items[realIdx];
+  try { var code = await INV_LABELS.ensureCode(item); if (typeof TOAST !== 'undefined') TOAST.success('Code ' + code + ' is now this item’s label'); render(); }
+  catch (e) { if (typeof TOAST !== 'undefined') TOAST.error(e.message || 'Could not mint a code.'); }
+};
+window.invQueueLabel = async function (realIdx) {
+  var item = _data.items[realIdx];
+  try {
+    var r = await INV_LABELS.queue([item], { note: 'Inventory label — ' + (item.name || item.id) });
+    if (typeof TOAST !== 'undefined') TOAST.success('Queued at the label printer (open its Queue tab to print)');
+    render();
+    void r;
+  } catch (e) { if (typeof TOAST !== 'undefined') TOAST.error(e.message || 'Could not queue the label.'); }
+};
+window.invPrintSheet = function (realIdxs) {
+  var items = realIdxs.map(function (i) { return _data.items[i]; }).filter(Boolean);
+  window.open(INV_LABELS.sheetUrl(items), '_blank', 'noopener');
+};
+window.invCopyLink = function (realIdx, ev) {
+  var item = _data.items[realIdx]; var link = INV_LABELS.core.linkFor(item.label_code || '');
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(link).then(function () { if (typeof TOAST !== 'undefined') TOAST.success('Link copied'); }); if (ev) ev.preventDefault(); return false; }
+  return true;   // no clipboard: let the link open
+};
+
+/* A scanned string (camera, typed, USB gun, or ?code= from a phone camera's
+ * visit to /l/CODE) → the item's row opens and the use sheet asks what one
+ * scan means for it. */
+async function invHandleScan(raw) {
+  if (typeof SCAN_RESOLVE === 'undefined') return;
+  var res = await SCAN_RESOLVE.resolve(raw);
+  if (!res.ok || !res.item) { if (typeof TOAST !== 'undefined') TOAST.error(SCAN_RESOLVE.explain(res) || 'Unknown code'); return; }
+  var id = res.item.id;
+  var idx = _data.items.findIndex(function (i) { return i.id === id; });
+  if (idx < 0) { if (typeof TOAST !== 'undefined') TOAST.error('That label points at something not in this list (' + (res.label.target_kind || 'unknown') + ').'); return; }
+  // V3.840 — in the app the scan IS the action: straight to the dial ("how
+  // much are you taking?"), no table row to find first. The desktop still
+  // opens the row so the ledger and label block are in view.
+  if (!invIsApp()) {
+    var si = document.getElementById('search-input'); if (si) si.value = _data.items[idx].name || '';
+    activeTab = 'all'; activeSubtab = 'all'; updateTabActive(); render();
+    var tr = document.querySelector('tr.expandable-row[data-item-id="' + id + '"]');
+    if (tr) { toggleRow(tr.dataset.rid); if (tr.scrollIntoView) tr.scrollIntoView({ block: 'center' }); }
+  }
+  invUse(idx, res.code);
+}
+function invIsApp() {
+  try {
+    if (document.body.classList.contains('ourlab-app')) return true;
+    if (window.Capacitor && typeof Capacitor.isNativePlatform === 'function' && Capacitor.isNativePlatform()) return true;
+    if (/[?&]mobileShell=1/.test(location.search) || sessionStorage.getItem('ourlab-shell-preview') === '1') return true;
+  } catch (e) {}
+  return false;
+}
+function invOpenScanner() {
+  if (typeof SCAN === 'undefined') return;
+  // V3.847 — in the app the camera opens at once; the desktop toolbar keeps the wedge-first field.
+  SCAN.open({ prompt: 'Scan an item label', cameraFirst: invIsApp(), onResult: function (res) { if (res && res.ok) { try { SCAN.close(); } catch (e) {} invHandleScan(res.code); } } });
+}
+window.invOpenScanner = invOpenScanner;
+window.invHandleScan = invHandleScan;
+
+function invWireScanAndLabels() {
+  var scanBtn = document.getElementById('inv-scan');
+  if (scanBtn && typeof SCAN !== 'undefined') scanBtn.addEventListener('click', invOpenScanner);
+  // V3.840 — in the app the tab's purpose is "scan a label, say how much": a
+  // hero button at the top and a camera FAB that stays above the tab bar
+  // while the list scrolls. Both are app-only (body.ourlab-app); the hero is
+  // in the markup so it paints before any script, the FAB is made here.
+  var hero = document.getElementById('inv-scan-hero');
+  if (hero && typeof SCAN !== 'undefined') hero.addEventListener('click', invOpenScanner);
+  // (V3.844: the floating camera button went — the bar's ＋ fans out to Scan a label on every page; the hero stays.)
+  var printBtn = document.getElementById('inv-print-labels');
+  if (printBtn) {
+    printBtn.addEventListener('click', async function () {
+      var rows = document.querySelectorAll('tr.expandable-row[data-item-id], .variant-row[data-item-id]');
+      var ids = Array.prototype.map.call(rows, function (r) { return r.getAttribute('data-item-id'); }).filter(Boolean);
+      var items = ids.map(function (id) { return _data.items.find(function (i) { return i.id === id; }); }).filter(Boolean);
+      if (!items.length) { if (typeof TOAST !== 'undefined') TOAST.error('Nothing in the list to print.'); return; }
+      if (items.length > 60 && !confirm('Queue ' + items.length + ' labels at the printer?')) return;
+      try {
+        var r = await INV_LABELS.queue(items, { note: 'Inventory labels — ' + items.length + ' item' + (items.length === 1 ? '' : 's') });
+        if (typeof TOAST !== 'undefined') TOAST.success('Queued ' + r.cells + ' label' + (r.cells === 1 ? '' : 's') + ' at the label printer');
+        render();
+      } catch (e) { if (typeof TOAST !== 'undefined') TOAST.error(e.message || 'Could not queue labels.'); }
+    });
+  }
+}
+
 /* ---- Build detail panel HTML for a single item ---- */
 
 function itemDetailHtml(item, realIdx) {
@@ -301,15 +633,25 @@ function itemDetailHtml(item, realIdx) {
   d += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:12px;">';
   d += '<div><label class="detail-meta-label">Category</label>' + inlineSelect(realIdx, 'category', item.category, CATEGORY_OPTIONS) + '</div>';
   d += '<div><label class="detail-meta-label">Subcategory</label>' + inlineText(realIdx, 'subcategory', item.subcategory, 'e.g. electronics, ppe') + '</div>';
-  d += '<div><label class="detail-meta-label">Stock Status</label>' + inlineSelect(realIdx, 'stock_status', item.stock_status, STOCK_OPTIONS) + '</div>';
+  // V3.646 — once tracking is on, stock_status is derived, so offering a
+  // <select> would let a hand-set value fight the next transaction.
+  d += '<div><label class="detail-meta-label">Stock Status</label>' +
+       (_invTracked(item)
+         ? stockChip(item.stock_status) + '<span class="detail-meta-label" style="display:block;margin-top:2px;">derived from quantity</span>'
+         : inlineSelect(realIdx, 'stock_status', item.stock_status, STOCK_OPTIONS)) + '</div>';
   d += '<div><label class="detail-meta-label">Condition</label>' + inlineSelect(realIdx, 'condition', item.condition, CONDITION_OPTIONS) + '</div>';
   var acctOptions = _projects.map(function (p) { return p.account_number; });
   var projOptions = _projects.map(function (p) { return p.id; });
   d += '<div><label class="detail-meta-label">Account #</label>' + inlineSelect(realIdx, 'account_number', item.account_number, acctOptions) + '</div>';
   d += '<div><label class="detail-meta-label">Project</label>' + inlineSelect(realIdx, 'project_tag', item.project_tag, projOptions) + '</div>';
   d += '<div><label class="detail-meta-label">Consumable?</label>' + inlineCheckbox(realIdx, 'is_consumable', item.is_consumable) + '</div>';
-  d += '<div><label class="detail-meta-label">Quantity</label>' + inlineText(realIdx, 'quantity', String(item.quantity || ''), '') + '</div>';
+  d += '<div><label class="detail-meta-label">Scan to use</label>' + invUseModeHtml(item, realIdx) + '</div>';   // V3.834
+  d += '<div><label class="detail-meta-label">Quantity</label>' +
+       (_invTracked(item)
+         ? '<span style="font-size:13px;color:var(--text-muted);">tracked below</span>'
+         : inlineNumber(realIdx, 'quantity', item.quantity, { min: 0 })) + '</div>';
   d += '</div>';
+  d += invLabelHtml(item, realIdx);   // V3.834 — QR label + use
   d += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">';
   d += '<div><label class="detail-meta-label">Name</label>' + inlineText(realIdx, 'name', item.name, '') + '</div>';
   d += '<div><label class="detail-meta-label">Vendor</label>' + inlineText(realIdx, 'vendor', item.vendor, '') + '</div>';
@@ -320,6 +662,7 @@ function itemDetailHtml(item, realIdx) {
   if (item.catalogue_number) d += '<div class="detail-meta-item"><span class="detail-meta-label">Catalogue #</span><span class="detail-meta-value">' + item.catalogue_number + '</span></div>';
   if (item.funding_source) d += '<div class="detail-meta-item"><span class="detail-meta-label">Funding</span><span class="detail-meta-value">' + item.funding_source + '</span></div>';
   d += '</div>';
+  d += _invQtyBlockHtml(item, realIdx);
   d += '<div style="margin-bottom:12px;border-top:1px solid var(--border);padding-top:10px;">';
   d += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;"><strong style="font-size:12px;text-transform:uppercase;color:var(--text-muted);">Locations</strong>';
   d += '<button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); addLocation(' + realIdx + ')">+ Add</button></div>';
@@ -351,11 +694,23 @@ function itemDetailHtml(item, realIdx) {
     d += '</div></div>';
   }
   d += '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:10px;">';
+  // V3.813 — a reorder starts from the item itself: the procurement composer
+  // opens prefilled (name, vendor, cat#, link, last price) and, when the box
+  // arrives, putting it away restocks THIS item instead of creating a twin.
+  if (item.id) d += '<a class="btn btn-sm" href="/rm/pages/procurement.html?reorder=' + encodeURIComponent(item.id) + '" onclick="event.stopPropagation();" style="margin-right:8px;">Request reorder \u2192</a>';
   d += '<button class="btn btn-sm" onclick="event.stopPropagation(); addToGroup(' + realIdx + ')" style="margin-right:8px;">Add to Group</button>';
   if (item.product_group) {
     d += '<button class="btn btn-sm" onclick="event.stopPropagation(); removeFromGroup(' + realIdx + ')" style="margin-right:8px;">Remove from Group</button>';
   }
-  d += '<button class="btn" style="color:var(--red);border-color:var(--red);" onclick="event.stopPropagation(); deleteItem(' + realIdx + ')">Delete Item</button>';
+  // V3.646 — Delete was offered to every lab member, but firestore.rules
+  // requires isAdmin() for delete on inventory/{itemId}. The failure was worse
+  // than a no-op: api.save's delete-diff (api-firestore-adapter.js:260-262)
+  // emits batch.delete() for every doc absent from the payload, and batches are
+  // ATOMIC — so the whole 777-doc write rejected, api.save threw, and
+  // loadAndRender() never ran. The row stayed visibly gone until reload.
+  if (typeof firebridge !== 'undefined' && firebridge.isAdmin && firebridge.isAdmin()) {
+    d += '<button class="btn" style="color:var(--red);border-color:var(--red);" onclick="event.stopPropagation(); deleteItem(' + realIdx + ')">Delete Item</button>';
+  }
   d += '</div>';
   return d;
 }
@@ -443,7 +798,7 @@ function render() {
       cells += '<td>' + locationsChips(item.locations) + '</td>';
       cells += '<td>' + stockChip(item.stock_status) + '</td>';
 
-      html += '<tr class="expandable-row" onclick="toggleRow(\'' + rid + '\')" data-rid="' + rid + '">' + cells + '</tr>';
+      html += '<tr class="expandable-row" onclick="toggleRow(\'' + rid + '\')" data-rid="' + rid + '" data-item-id="' + (item.id || '') + '">' + cells + '</tr>';
       html += '<tr class="detail-row" id="detail-' + rid + '"><td colspan="8"><div class="detail-panel" onclick="event.stopPropagation();">' + itemDetailHtml(item, realIdx) + '</div></td></tr>';
       rowIdx++;
 
@@ -496,7 +851,7 @@ function render() {
       entry.items.forEach(function (item, vi) {
         var realIdx = _items.indexOf(item);
         var vid = gid + 'v' + vi;
-        gDetail += '<div class="variant-row" onclick="event.stopPropagation(); toggleVariant(\'' + vid + '\')" style="cursor:pointer;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;background:var(--surface);">';
+        gDetail += '<div class="variant-row" data-item-id="' + (item.id || '') + '" data-gid="' + gid + '" data-vid="' + vid + '" onclick="event.stopPropagation(); toggleVariant(\'' + vid + '\')" style="cursor:pointer;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;background:var(--surface);">';
         gDetail += '<div style="display:flex;justify-content:space-between;align-items:center;">';
         gDetail += '<div><strong>' + (item.name || '') + '</strong>';
         if (item.catalogue_number) gDetail += ' <span style="color:var(--text-muted);font-size:12px;">Cat# ' + item.catalogue_number + '</span>';
@@ -773,7 +1128,28 @@ window.setSubtab = function (key) {
   render();
 };
 
-/* ---- Location CRUD ---- */
+/* ---- Location CRUD ----
+ *
+ * V3.646 — all three of these used the full-collection api.save, rewriting all
+ * ~777 inventory docs to change one item's locations array. Locations are the
+ * single most-touched thing in the box/stock feature, so they now take the same
+ * surgical path as every other inline edit: mutate in memory, render, write one
+ * doc. _commitLocations() also keeps `locIds` in sync — the flat mirror that
+ * makes "what's in box 4" an array-contains query needing no composite index. */
+
+function _commitLocations(itemIdx) {
+  var item = _data.items[itemIdx];
+  item.locations = item.locations || [];
+  item.locIds = item.locations.map(function (l) { return l.locId || null; })
+    .filter(Boolean);
+  item.manual_edit = true;
+  _items = _data.items;
+  render();
+  _saveInvItemSurgical(item).catch(function (err) {
+    console.error('[inventory] location save failed:', err);
+    if (typeof TOAST !== 'undefined' && TOAST.error) TOAST.error('Location did not save — reload and retry.');
+  });
+}
 
 window.addLocation = function (itemIdx) {
   openForm({
@@ -782,9 +1158,7 @@ window.addLocation = function (itemIdx) {
     onSave: async function (vals) {
       if (!_data.items[itemIdx].locations) _data.items[itemIdx].locations = [];
       _data.items[itemIdx].locations.push(vals);
-      _data.items[itemIdx].manual_edit = true;
-      await api.save(DATA_PATH, _data);
-      loadAndRender();
+      _commitLocations(itemIdx);
     },
   });
 };
@@ -797,9 +1171,7 @@ window.editLocation = function (itemIdx, locIdx) {
     values: loc,
     onSave: async function (vals) {
       Object.assign(_data.items[itemIdx].locations[locIdx], vals);
-      _data.items[itemIdx].manual_edit = true;
-      await api.save(DATA_PATH, _data);
-      loadAndRender();
+      _commitLocations(itemIdx);
     },
   });
 };
@@ -807,9 +1179,7 @@ window.editLocation = function (itemIdx, locIdx) {
 window.removeLocation = async function (itemIdx, locIdx) {
   if (!confirmAction('Remove this location?')) return;
   _data.items[itemIdx].locations.splice(locIdx, 1);
-  _data.items[itemIdx].manual_edit = true;
-  await api.save(DATA_PATH, _data);
-  loadAndRender();
+  _commitLocations(itemIdx);
 };
 
 /* ---- Sort ---- */
@@ -893,11 +1263,73 @@ function _invAttachLiveSync() {
   }
 }
 
+/* V3.646 — a usage transaction writes the item doc directly (it needs `before`
+ * for the ledger row, which FieldValue.increment cannot give us), so it bypasses
+ * both api.save and this page's save wrapper. Without this listener the page
+ * would show the pre-write number until the live subscriber echoed back — and
+ * the echo is exactly what suppressUntil is there to swallow.
+ *
+ * INV_QTY owns the write; the page owns the repaint. */
+function _invAttachQtyListener() {
+  if (typeof INV_QTY === 'undefined' || !INV_QTY.onLocalWrite) return;
+  INV_QTY.onLocalWrite(function (res) {
+    _invLive.suppressUntil = Date.now() + 2500;
+    if (!_data || !Array.isArray(_data.items) || !res || !res.itemId) return;
+    var idx = -1;
+    for (var i = 0; i < _data.items.length; i++) {
+      if (_data.items[i] && _data.items[i].id === res.itemId) { idx = i; break; }
+    }
+    if (idx < 0) return;   // a stock batch or chemical — not on this route
+    // Merge only the fields the transaction actually settled; serverTimestamp
+    // sentinels in res.item would otherwise land in the render as objects.
+    var it = _data.items[idx];
+    it.qty_remaining = res.after;
+    it.qty_tracked = true;
+    if (res.status) it.stock_status = res.status;
+    if (res.item && res.item.qty_unit != null) it.qty_unit = res.item.qty_unit;
+    if (res.item && res.item.qty_made != null) it.qty_made = res.item.qty_made;
+    if (res.item && res.item.qty_min !== undefined) it.qty_min = res.item.qty_min;
+    _items = _data.items;
+    render();
+  });
+}
+
 /* ---- Init ---- */
 
 (async function () {
   if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) await firebridge.requireSignIn('Sign in to view the lab inventory.');
+  // hasCapability() is SYNC, so the grant must be loaded before the first
+  // render or every manager-only affordance silently renders as absent.
+  if (typeof firebridge !== 'undefined' && firebridge.loadAccessGrant) {
+    try { await firebridge.loadAccessGrant(); } catch (e) { /* non-members have no grant */ }
+  }
   _invWrapSaves();
+  _invAttachQtyListener();
   await loadAndRender();
   _invAttachLiveSync();
+  // V3.813 — ?item=<id> (a procurement ticket's "open in inventory" link)
+  // narrows the search to that item and opens its detail panel. The old
+  // link used #<id>, which nothing here ever read.
+  try {
+    var wantId = new URLSearchParams(location.search).get('item');
+    var want = wantId && _items.find(function (i) { return i.id === wantId; });
+    if (want) {
+      var si = document.getElementById('search-input');
+      if (si) si.value = want.name || '';
+      activeTab = 'all'; activeSubtab = 'all'; updateTabActive(); render();
+      var tr = document.querySelector('tr.expandable-row[data-item-id="' + wantId + '"]');
+      if (tr) { toggleRow(tr.dataset.rid); if (tr.scrollIntoView) tr.scrollIntoView({ block: 'center' }); }
+      else {   // a variant inside a product family: open the family, then the variant
+        var vr = document.querySelector('.variant-row[data-item-id="' + wantId + '"]');
+        if (vr) { toggleRow(vr.dataset.gid); toggleVariant(vr.dataset.vid); if (vr.scrollIntoView) vr.scrollIntoView({ block: 'center' }); }
+      }
+    }
+  } catch (e) { console.warn('[inventory] ?item= open failed:', e); }
+  // V3.834 — a phone camera's visit to /l/CODE lands here with ?code=; the
+  // toolbar's Scan / Print labels buttons.
+  try {
+    invWireScanAndLabels();
+    var code = new URLSearchParams(location.search).get('code');
+    if (code) invHandleScan(code);
+  } catch (e) { console.warn('[inventory] scan wiring failed:', e); }
 })();

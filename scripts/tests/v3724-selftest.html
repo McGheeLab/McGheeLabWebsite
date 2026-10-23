@@ -1,0 +1,178 @@
+<!-- V3.724 selftest — card attribution: a card created from a parent surface
+     MUST come out linked to that parent. Drives the REAL research.js +
+     research-composer.js against fixture data, clicks each "＋ New <child>"
+     button, fills the title, saves, and asserts what create() would write.
+
+     This exists because the bug it guards was invisible: openCreate() has
+     advertised a `seed.links` parameter since V3.554, research.js has passed
+     one since, and the composer built its payload from form fields only — so
+     every card made from a parent was born unattached and nothing threw.
+     Only driving the button catches it.
+
+     Run:
+       python3 -m http.server 8777
+       node ~/.claude/skills/browser-automation/browser.mjs \
+         http://localhost:8777/scripts/tests/v3724-selftest.html \
+         --wait "#r[data-done='1']" --eval "document.getElementById('r').dataset.fail" -->
+<!doctype html><html><head><meta charset="utf-8"><title>V3.724 selftest</title>
+<link rel="stylesheet" href="/rm/css/research.css">
+</head><body>
+<h1>V3.724 selftest — card attribution</h1>
+<pre id="r" data-pass="0" data-fail="0" data-done="0" data-detail="">running…</pre>
+<div id="research-root"></div>
+
+<script>
+  window.__errs = [];
+  addEventListener('error', function (e) {
+    window.__errs.push(e.message + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno);
+  });
+  /* A browser popup would HANG this headless run. Trip the test if one fires. */
+  ['alert', 'confirm', 'prompt'].forEach(function (k) {
+    window[k] = function () { window.__errs.push('BLOCKED window.' + k + '()'); return false; };
+  });
+
+  var ME = { uid: 'u-pi', email: 'pi@x.com' };
+  window.firebridge = {
+    requireSignIn: async function () { return ME; },
+    getUser: function () { return ME; },
+    isLabMember: function () { return true; },
+    isAdmin: function () { return true; },
+    db: function () {
+      return { collection: function () { return {
+        get: async function () { return { docs: [] }; },
+        doc: function () { return { get: async function () { return { exists: false, data: function () { return {}; } }; } }; },
+      }; } };
+    },
+  };
+  window.TOAST = { success: function () {}, error: function () {}, info: function () {} };
+  window.ICON_PICKER = { html: function (v) { return String(v || ''); }, open: function () {} };
+  window.ICON = window.ICON || { svg: function () { return ''; }, render: function (s) { return s; } };
+  window.api = { load: async function () { return { papers: [] }; }, invalidate: async function () {} };
+</script>
+
+<script src="/rm/js/icons.js"></script>
+<script src="/rm/js/research-data.js"></script>
+<script>
+  /* One card per level, so every parent surface has something to create from. */
+  (function () {
+    var H = RESEARCH_DATA.hydrate;
+    var FIXTURE = [
+      H({ id: 'sp',    level: 'specialty', title: 'A specialty' }),
+      H({ id: 'con',   level: 'concept',   title: 'A concept', links: { specialty_ids: ['sp'] } }),
+      H({ id: 'gr',    level: 'grant',     title: 'A grant',   links: { concept_ids: ['con'] } }),
+      H({ id: 'aim',   level: 'aim',       title: 'An aim',    links: { grant_ids: ['gr'] } }),
+      H({ id: 'out',   level: 'output',    title: 'An output', links: { aim_ids: ['aim'] } }),
+    ];
+    RESEARCH_DATA.listAll = async function () { return FIXTURE.map(function (x) { return H(JSON.parse(JSON.stringify(x))); }); };
+    RESEARCH_DATA.get = async function (id) { return FIXTURE.filter(function (f) { return f.id === id; })[0] || null; };
+    window.__created = [];
+    RESEARCH_DATA.create = async function (fields) {
+      window.__created.push(JSON.parse(JSON.stringify(fields)));
+      return Object.assign({ id: fields.id || 'new' }, fields);
+    };
+    RESEARCH_DATA.update = async function () {};
+  })();
+</script>
+<script src="/rm/js/research-composer.js"></script>
+
+<script>
+(async function () {
+  var out = document.getElementById('r');
+  var pass = 0, fail = 0, detail = [];
+  function eq(name, got, want) {
+    var g = JSON.stringify(got), w = JSON.stringify(want);
+    if (g === w) { pass++; detail.push('ok   ' + name); }
+    else { fail++; detail.push('FAIL ' + name + '\n       got  ' + g + '\n       want ' + w); }
+  }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function waitFor(sel, ms) {
+    var t = 0;
+    while (t < (ms || 4000)) { var el = document.querySelector(sel); if (el) return el; await sleep(30); t += 30; }
+    return null;
+  }
+
+  /* Drive the composer exactly the way research.js's "＋ New <child>" handler
+   * does: seed the links from the parent's own LINK_KEY, then fill + save.
+   * Returns what create() was actually called with. */
+  async function createFrom(parentLevel, parentId, childLevel, title) {
+    var RD = window.RESEARCH_DATA;
+    var key = RD.LINK_KEY[parentLevel];
+    var seed = { links: {} };
+    if (key) seed.links[key] = [parentId];
+    window.__created = [];
+    RESEARCH_COMPOSER.openCreate(childLevel, function () {}, seed);
+    var input = await waitFor('.rf-modal [data-field="title"]');
+    if (!input) return { error: 'composer did not open' };
+    input.value = title;
+    var tabs = [].map.call(document.querySelectorAll('.rf-level-tab'), function (b) { return b.textContent.trim(); });
+    document.querySelector('.rf-modal [data-act="save"]').click();
+    var t = 0;
+    while (!window.__created.length && t < 4000) { await sleep(30); t += 30; }
+    var made = window.__created[0];
+    var back = document.querySelector('.rf-modal-backdrop');
+    if (back) back.remove();
+    return { links: made ? (made.links || {}) : null, level: made ? made.level : null, tabs: tabs };
+  }
+
+  /* Every parent → child pair the map offers, and the link each MUST write.
+   * Pre-V3.724 every one of these came back {} — the card was created and
+   * silently orphaned. */
+  var CASES = [
+    ['grant',     'gr',  'aim',     'grant_ids'],
+    ['grant',     'gr',  'output',  'grant_ids'],
+    ['concept',   'con', 'grant',   'concept_ids'],
+    ['specialty', 'sp',  'concept', 'specialty_ids'],
+    ['aim',       'aim', 'output',  'aim_ids'],
+  ];
+  for (var i = 0; i < CASES.length; i++) {
+    var c = CASES[i];
+    var res = await createFrom(c[0], c[1], c[2], 'test ' + c[2]);
+    if (res.error) { fail++; detail.push('FAIL ' + c[0] + ' → ' + c[2] + ': ' + res.error); continue; }
+    var want = {}; want[c[3]] = [c[1]];
+    eq('a new ' + c[2] + ' created from a ' + c[0] + ' links back via ' + c[3], res.links, want);
+    eq('  …created at level ' + c[2], res.level, c[2]);
+  }
+
+  /* The level tabs must not offer a level that cannot hang off the seeded
+   * parent — otherwise switching tab silently drops the attribution. */
+  var g = await createFrom('grant', 'gr', 'aim', 'tab check');
+  eq('a grant seed offers only a grant\u2019s child levels', g.tabs, ['Aim', 'Output']);
+  /* The general invariant, rather than a hardcoded list: every level offered
+   * must genuinely be able to hang off the seeded parent. (A specialty
+   * legitimately offers Concept, Grant AND Output — PARENTS.grant includes
+   * 'specialty' for a direct build, and PARENTS.output keeps it as a legacy
+   * parent — so asserting a single-item list here would be wrong.) */
+  var h = await createFrom('specialty', 'sp', 'concept', 'tab check 2');
+  var labelToKey = {};
+  RESEARCH_DATA.LEVEL_ORDER.forEach(function (l) {
+    labelToKey[RESEARCH_DATA.LEVELS[l].label] = l;   // V3.861: the icon is an SVG now, so a tab's text is its label
+  });
+  eq('every level a specialty seed offers can actually hang off a specialty',
+     h.tabs.filter(function (t) {
+       var lvl = labelToKey[t];
+       return !lvl || (RESEARCH_DATA.PARENTS[lvl] || []).indexOf('specialty') === -1;
+     }), []);
+  eq('a specialty seed does not offer Specialty itself', h.tabs.indexOf('Specialty'), -1);
+
+  /* No seed = created from the hub, where there is no parent: every level is
+   * on offer and nothing is linked. */
+  window.__created = [];
+  RESEARCH_COMPOSER.openCreate('concept', function () {}, undefined);
+  var inp = await waitFor('.rf-modal [data-field="title"]');
+  inp.value = 'hub card';
+  var hubTabs = [].map.call(document.querySelectorAll('.rf-level-tab'), function (b) { return b.textContent.trim(); });
+  document.querySelector('.rf-modal [data-act="save"]').click();
+  var tt = 0; while (!window.__created.length && tt < 4000) { await sleep(30); tt += 30; }
+  eq('created from the hub, nothing is linked', window.__created[0] && window.__created[0].links, {});
+  eq('created from the hub, every level is on offer', hubTabs.length, RESEARCH_DATA.LEVEL_ORDER.length);
+  var b2 = document.querySelector('.rf-modal-backdrop'); if (b2) b2.remove();
+
+  eq('no uncaught page errors', window.__errs, []);
+
+  out.dataset.pass = pass; out.dataset.fail = fail;
+  out.dataset.detail = detail.filter(function (d) { return d.indexOf('FAIL') === 0; }).join(' | ');
+  out.textContent = 'card attribution: ' + pass + ' passed, ' + fail + ' failed\n\n' + detail.join('\n');
+  out.dataset.done = '1';
+})();
+</script>
+</body></html>

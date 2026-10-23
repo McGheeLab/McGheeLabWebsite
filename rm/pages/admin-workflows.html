@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Default workflows — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/admin-workflows.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
+</head>
+<body class="rm-desktop-only">
+  <!-- V3.811 — the admin editor for labConfig/defaultWorkflows. Replaces the
+       "Default Workflows × Pages" checkbox matrix on admin-permissions.html.
+       Left: the main workflows in the order everyone sees them (drag or ▲▼,
+       enable/disable, add, delete). Right: the selected workflow — icon,
+       name, blurb, landing page, its pages in bar order, a page picker, and
+       a preview of the chips. One Save writes the whole doc. -->
+  <div class="page awf-screen">
+    <div class="page-header awf-header">
+      <div>
+        <h1 class="page-title">Default workflows</h1>
+        <p class="awf-sub">What the lab sees under <strong>Workflows ▾</strong> in the top bar and on Home. A workflow is a named set of pages; opening one turns the bar's chips into those pages, in this order. Everyone sees a workflow if they can open at least one of its pages; pages a member can't open are hidden for them.</p>
+      </div>
+      <div class="awf-actions">
+        <span id="awf-status" class="awf-status" aria-live="polite"></span>
+        <button type="button" class="btn" id="awf-revert" disabled>Revert</button>
+        <button type="button" class="btn btn-primary" id="awf-save" disabled title="⌘S">Save changes</button>
+      </div>
+    </div>
+
+    <div id="awf-gate" class="empty-state">Loading…</div>
+
+    <div id="awf-root" class="awf-layout" hidden>
+      <aside class="awf-rail" aria-label="Default workflows">
+        <div class="awf-rail-head">
+          <span>Workflows</span>
+          <span class="awf-rail-hint">drag to reorder</span>
+        </div>
+        <ol id="awf-rail" class="awf-rail-list"></ol>
+        <div id="awf-rail-add" class="awf-rail-add"></div>
+      </aside>
+      <section class="awf-editor" id="awf-editor" aria-live="polite"></section>
+    </div>
+  </div>
+
+  <!-- RM contract header -->
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="/rm/js/desktop-only-guard.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/chat-alert-watch.js" defer></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script src="/rm/js/sync-status.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/page-registry.js"></script>
+  <script src="/rm/js/admin-workflows.js"></script>
+</body>
+</html>

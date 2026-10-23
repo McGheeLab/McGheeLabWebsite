@@ -401,7 +401,8 @@ def print_announcement(web_version, mv, build, entries, web_only):
     print("\n" + "=" * 66)
     print("REMAINING MANUAL STEPS")
     print("=" * 66)
-    print("  1. FTP the McGheeLabWebsite repo to godaddy (Cyberduck).")
+    print("  1. python3 scripts/deploy.py ftp      (uploads ONLY the changed site files, then verifies)")
+    print("     — or: python3 scripts/deploy.py stage → drag deploy/upload/* onto / in Cyberduck → deploy.py verify")
     print("  2. Open rm/pages/whats-new.html as admin, paste the block above,")
     print("     press 📣 Send to all lab members.")
     if not web_only:
@@ -410,6 +411,56 @@ def print_announcement(web_version, mv, build, entries, web_only):
 
 
 # ─────────────────────── main ───────────────────────
+
+def check_icons(dry_run):
+    """Gate the release on the icon set being coherent (V3.641).
+
+    `rm/js/icons.js` is GENERATED from scripts/icons.manifest.json. Nothing at
+    runtime depends on the generator — the committed file is what ships — so
+    this is a release gate, not a build step. It catches three things that
+    otherwise reach the lab silently:
+
+      * a stale icons.js (manifest edited, generator never re-run)
+      * a call site naming an icon the manifest doesn't ship (renders a
+        question-mark placeholder instead of the intended glyph)
+      * icon markup routed into .textContent / esc() / a text-only attribute,
+        which paints a literal "<svg viewBox=…>" on the page
+      * (V3.861) a colour emoji anywhere in shipped UI (`--emoji`) — Alex wants
+        monochrome icons only; V3.642 converted the chrome and ~2,000 emoji
+        crept back in over 200 versions because nothing failed. Plus a stale
+        or unknown-icon sprite in a course module (scripts/module_icons.py)
+
+    Skipped, with a warning, if node or the generator isn't present — this
+    must never be the thing that blocks a release on a machine without node.
+    """
+    gen = WEB_REPO / "scripts" / "gen-icons.mjs"
+    if not gen.exists():
+        print("  ! scripts/gen-icons.mjs missing — skipping the icon check")
+        return
+    if not shutil.which("node"):
+        print("  ! node not on PATH — skipping the icon check")
+        return
+    if dry_run:
+        print("  [DRY RUN] node scripts/gen-icons.mjs --check --scan --emoji")
+        print("  [DRY RUN] python3 scripts/module_icons.py --check --all")
+        return
+    # subprocess directly, not run(): this needs the exit code, and run()
+    # returns stdout.
+    r = subprocess.run(["node", str(gen), "--check", "--scan", "--emoji"],
+                       cwd=WEB_REPO, text=True, capture_output=True)
+    if r.returncode != 0:
+        print(((r.stdout or "") + (r.stderr or "")).strip()[:4000])
+        die("icon check failed — fix the above, or run "
+            "`node scripts/gen-icons.mjs` if icons.js is merely stale.")
+    mod = WEB_REPO / "scripts" / "module_icons.py"
+    if mod.exists():
+        r = subprocess.run([sys.executable, str(mod), "--check", "--all"],
+                           cwd=WEB_REPO, text=True, capture_output=True)
+        if r.returncode != 0:
+            print(((r.stdout or "") + (r.stderr or "")).strip()[:4000])
+            die("module icon sprites are stale — run `python3 scripts/module_icons.py --all`.")
+    print("  icons:           manifest, generated file, call sites and module sprites agree; no colour emoji")
+
 
 def main():
     ap = argparse.ArgumentParser(description="Ship a batched web + mobile release.")
@@ -443,6 +494,16 @@ def main():
         die(f"only {len(entries)} pending entr"
             f"{'y' if len(entries) == 1 else 'ies'} (floor is {PENDING_FLOOR}). "
             "Alex saying \"push\" overrides it — re-run with --force.")
+
+    check_icons(args.dry_run)
+
+    # V3.852 — the device gate (step 4) is an input() prompt. Run from Claude or
+    # any non-TTY, that prompt raises EOFError AFTER step 2 has already bumped the
+    # build and written the mobile changelog, leaving a half-written release that a
+    # re-run would bump again. Fail here, before anything is written.
+    if not args.dry_run and not args.web_only and not args.verified and not sys.stdin.isatty():
+        die("no terminal for the device-verification prompt. Run from a real terminal, "
+            "or verify on a device/sim first and pass --verified.")
 
     web_only = args.web_only
     if not web_only:

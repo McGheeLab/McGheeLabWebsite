@@ -202,6 +202,43 @@
     });
   }
 
+  /* V3.621 — unlink every claim that cites an annotation, BEFORE the
+   * annotation is deleted. Called from the readers' onDelete; best-effort
+   * (a straggler leaves a dangling {paperId,annId} entry, which the
+   * Evidence Inbox already tolerates). Claims are found by querying each
+   * draft in the annotation's cite_in_drafts for evidence entries — the
+   * array-contains works because entries are exactly {paperId, annId},
+   * and addEvidence has unioned the draft into cite_in_drafts since
+   * V3.619 (the sweep backfilled older links). */
+  async function removeEvidenceForAnnotation(ann) {
+    if (!ann || !ann.id) return;
+    const claimIds = Array.isArray(ann.evidence_for_claim_ids) ? ann.evidence_for_claim_ids : [];
+    if (!claimIds.length) return;
+    _ensureFirebase();
+    const db = firebase.firestore();
+    const paperId = ann.paperId;
+    const annId = ann.id;
+    const draftIds = Array.isArray(ann.cite_in_drafts) ? ann.cite_in_drafts : [];
+    const entry = { paperId, annId };
+    for (const draftId of draftIds) {
+      for (const field of ['supporting_evidence_ids', 'counter_evidence_ids']) {
+        try {
+          const snap = await db.collection('drafts').doc(draftId).collection('claims')
+            .where(field, 'array-contains', entry).get();
+          for (const doc of snap.docs) {
+            try {
+              await removeEvidence(draftId, doc.id, paperId, annId);
+            } catch (e) {
+              console.warn(`[claims] unlink ${draftId}/${doc.id} failed:`, e.message || e);
+            }
+          }
+        } catch (e) {
+          console.warn(`[claims] evidence query on ${draftId} failed:`, e.message || e);
+        }
+      }
+    }
+  }
+
   window.CLAIMS = {
     subscribe,
     create,
@@ -209,5 +246,6 @@
     remove,
     addEvidence,
     removeEvidence,
+    removeEvidenceForAnnotation,
   };
 })();

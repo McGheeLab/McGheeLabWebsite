@@ -1,0 +1,176 @@
+/* library-readings.css — V3.639
+ *
+ * Two things live here:
+ *   1. .lr-*  — the "papers people sent me" rows at the top of the library
+ *   2. .lib-sec / .lib-sec-body — overrides for the page-level collapsible
+ *      sections added by js/library-collapse.js
+ *
+ * The section chrome itself (.lg-section / .lg-sec-head / .lg-caret /
+ * .lg-sec-count / .lg-collapsed) is reused verbatim from
+ * css/library-groups.css so the new headers read as the same system as the
+ * groups shelf. Only the body layout differs: the shelf's body is a flex
+ * chip-wrap, whereas these sections hold full-width block content (a table,
+ * the dropzone, reading rows), so .lib-sec-body resets it to block flow.
+ */
+
+/* ── page-level collapsible sections ───────────────────────────────── */
+
+.lib-sec {
+  margin-bottom: 12px;
+}
+
+/* Reset the shelf's flex chip-wrap for block content. */
+.lib-sec-body {
+  display: block;
+  padding: 4px 12px 12px;
+}
+
+/* Blocks wrapped by library-collapse already carry their own margin /
+   border; drop the doubled outer gap. */
+.lib-sec-body > .lib-dropzone,
+.lib-sec-body > .lib-table {
+  margin-bottom: 0;
+}
+
+/* ── readings block ────────────────────────────────────────────────── */
+
+/* V3.827 — the readings as shelves inside the Shelves block: rows, not chips;
+   a folded shelf still hides them (the fold rule must outrank this one). */
+.lr-shelf-body { display: block; padding: 2px 12px 10px 32px; }
+.lg-collapsed > .lr-shelf-body { display: none; }
+.lr-shelf-body .lr-row { margin-bottom: 6px; }
+
+#lib-readings {
+  margin-bottom: 16px;
+}
+
+/* Assigned readings are the one thing on this page someone else is waiting
+   on, so the block gets a warm tint to separate it from the library's own
+   neutral chrome without shouting. */
+#lib-readings .lib-sec {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+#lib-readings .lg-sec-head:hover {
+  background: #fef3c7;
+}
+#lib-readings .lg-sec-count {
+  background: #fde68a;
+  color: #92400e;
+}
+
+/* Read pile is de-emphasised — it's an archive, not a to-do. */
+#lib-readings .lib-sec[data-sec="readings-done"] {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+}
+#lib-readings .lib-sec[data-sec="readings-done"] .lg-sec-head:hover { background: #f3f4f6; }
+#lib-readings .lib-sec[data-sec="readings-done"] .lg-sec-count { background: #e5e7eb; color: #6b7280; }
+
+.lr-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 9px 10px;
+  background: #fff;
+  border: 1px solid #f1e7c4;
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+.lr-row:last-child { margin-bottom: 0; }
+
+.lr-main { flex: 1; min-width: 0; }
+
+.lr-line1 {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.lr-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1f2937;
+  text-decoration: none;
+  line-height: 1.35;
+}
+.lr-title:hover { text-decoration: underline; color: #1d4ed8; }
+
+.lr-authors {
+  font-size: 11.5px;
+  color: #6b7280;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lr-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: #6b7280;
+}
+
+/* The assigner is the point of this list — "who wants me to read this" is
+   what turns a stray paper into an obligation. Give it real weight. */
+.lr-from {
+  font-weight: 600;
+  color: #4338ca;
+  background: #eef2ff;
+  border: 1px solid #e0e7ff;
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.lr-when { font-style: italic; }
+
+.lr-note {
+  font-size: 12px;
+  color: #4b5563;
+  margin-top: 5px;
+  padding-left: 9px;
+  border-left: 2px solid #e5e7eb;
+  line-height: 1.45;
+}
+
+.lr-chip {
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+/* Matches PMR's convention (pmr.js renderPaperAssignmentRow): red = expected
+   to read, blue = FYI. Same colours in both places on purpose. */
+.lr-chip-asg { background: #fee2e2; color: #991b1b; }
+.lr-chip-sug { background: #dbeafe; color: #1e40af; }
+.lr-chip-pending { background: #fef3c7; color: #92400e; cursor: help; }
+
+.lr-actions { flex-shrink: 0; }
+
+.lr-done-btn { white-space: nowrap; }
+
+.lr-row.lr-done { opacity: .62; background: #fafafa; border-color: #eceff3; }
+.lr-row.lr-done .lr-title { font-weight: 500; text-decoration: line-through; }
+
+.lr-empty {
+  font-size: 12px;
+  color: #9ca3af;
+  font-style: italic;
+  padding: 2px 0 4px;
+}
+
+/* ── mobile ────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .lib-sec-body { padding: 4px 8px 10px; }
+  .lr-row { flex-direction: column; gap: 8px; padding: 9px; }
+  .lr-actions { width: 100%; }
+  .lr-actions .btn { width: 100%; }
+  .lr-authors { white-space: normal; }
+}

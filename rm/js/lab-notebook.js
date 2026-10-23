@@ -72,7 +72,7 @@
    * sharable as .notebook-template.json files. */
   var NOTEBOOK_BUILTIN_TEMPLATES = [
     {
-      id: 'tpl-cell-culture', name: 'Cell culture day', glyph: '🧫',
+      id: 'tpl-cell-culture', name: 'Cell culture day', glyph: 'beaker',
       seed: {
         tags: ['cell-culture', 'prep'],
         plan: { hypothesis: '', independent_vars: [], dependent_vars: ['confluence', 'viability'], controls: '', success_criteria: '' },
@@ -80,7 +80,7 @@
       },
     },
     {
-      id: 'tpl-imaging', name: 'Imaging session', glyph: '🔬',
+      id: 'tpl-imaging', name: 'Imaging session', glyph: 'microscope',
       seed: {
         tags: ['microscopy', 'imaging'],
         plan: { hypothesis: '', independent_vars: [], dependent_vars: [], controls: '', success_criteria: 'Usable images of all conditions' },
@@ -88,15 +88,15 @@
       },
     },
     {
-      id: 'tpl-synthesis', name: 'Synthesis / prep', glyph: '⚗️',
+      id: 'tpl-synthesis', name: 'Synthesis / prep', glyph: 'flask-conical',
       seed: {
         tags: ['prep'],
         plan: { hypothesis: '', independent_vars: ['concentration'], dependent_vars: ['yield'], controls: '', success_criteria: '' },
-        body_html: '<h2>Target</h2><p></p><h2>Reagents</h2><p>Insert inventory chips with 🧪 so hazards + locations attach.</p><h2>Procedure</h2><ul><li></li></ul>',
+        body_html: '<h2>Target</h2><p></p><h2>Reagents</h2><p>Insert inventory chips with the Inventory button so hazards + locations attach.</p><h2>Procedure</h2><ul><li></li></ul>',
       },
     },
     {
-      id: 'tpl-analysis', name: 'Analysis day', glyph: '📊',
+      id: 'tpl-analysis', name: 'Analysis day', glyph: 'chart-bar',
       seed: {
         tags: ['analysis'],
         plan: { hypothesis: '', independent_vars: [], dependent_vars: [], controls: '', success_criteria: '' },
@@ -104,7 +104,7 @@
       },
     },
     {
-      id: 'tpl-meeting', name: 'Meeting notes', glyph: '🗣',
+      id: 'tpl-meeting', name: 'Meeting notes', glyph: 'chat-bubble-left-right',
       seed: {
         tags: ['meeting'],
         phase: 'complete',
@@ -811,7 +811,7 @@
         '<button id="ln-new" class="primary">+ New</button>' +
         '<button id="ln-new-menu-btn" class="primary ln-new-caret" title="New from template, clone, import…" aria-label="New entry options">▾</button>' +
       '</span>' +
-      '<button id="ln-today" title="Jump to (or create) today\'s entry">＋ Today</button>' +
+      '<button id="ln-today" title="Jump to (or create) today\'s entry">' + ICON.svg('plus') + ' Today</button>' +
       '<input id="ln-f-q" type="search" placeholder="Search title, tag, project, content…" value="' + escapeHtml(state.filters.q) + '" autocomplete="off">' +
       '<span class="grow"></span>' +
       pulseHtml +
@@ -865,11 +865,11 @@
     closeNewEntryMenu();
     var menu = document.createElement('div');
     menu.className = 'ln-new-menu';
-    var html = '<button type="button" class="ln-new-item" data-act="blank">📄 Blank entry</button>';
+    var html = '<button type="button" class="ln-new-item" data-act="blank">' + ICON.svg('document-text') + ' Blank entry</button>';
     html += '<div class="ln-new-sep">Templates</div>';
     NOTEBOOK_BUILTIN_TEMPLATES.forEach(function (t) {
       html += '<button type="button" class="ln-new-item" data-act="tpl" data-tpl="' + escapeHtml(t.id) + '">' +
-        escapeHtml(t.glyph + ' ' + t.name) + '</button>';
+        ICON.render(t.glyph) + ' ' + escapeHtml(t.name) + '</button>';
     });
     var mine = (state.templatesDoc && state.templatesDoc.templates) || [];
     if (mine.length) {
@@ -877,18 +877,18 @@
       mine.forEach(function (t) {
         html += '<div class="ln-new-item-row">' +
           '<button type="button" class="ln-new-item" data-act="tpl" data-tpl="' + escapeHtml(t.id) + '">' +
-            escapeHtml((t.glyph || '📄') + ' ' + t.name) + '</button>' +
-          '<button type="button" class="ln-new-mini" data-act="export" data-tpl="' + escapeHtml(t.id) + '" title="Export as shareable file">⬇</button>' +
-          '<button type="button" class="ln-new-mini" data-act="del" data-tpl="' + escapeHtml(t.id) + '" title="Delete template">×</button>' +
+            ICON.render(t.glyph || 'document-text') + ' ' + escapeHtml(t.name) + '</button>' +
+          '<button type="button" class="ln-new-mini" data-act="export" data-tpl="' + escapeHtml(t.id) + '" title="Export as shareable file">' + ICON.svg('arrow-down-tray') + '</button>' +
+          '<button type="button" class="ln-new-mini" data-act="del" data-tpl="' + escapeHtml(t.id) + '" title="Delete template">' + ICON.svg('x-mark') + '</button>' +
         '</div>';
       });
     }
     html += '<div class="ln-new-sep"></div>';
-    html += '<button type="button" class="ln-new-item" data-act="clone">🧬 Clone last entry</button>';
+    html += '<button type="button" class="ln-new-item" data-act="clone">' + ICON.svg('dna') + ' Clone last entry</button>';
     if (state.doc) {
-      html += '<button type="button" class="ln-new-item" data-act="save-tpl">💾 Save current as template</button>';
+      html += '<button type="button" class="ln-new-item" data-act="save-tpl">' + ICON.svg('save') + ' Save current as template</button>';
     }
-    html += '<button type="button" class="ln-new-item" data-act="import">📥 Import template…</button>';
+    html += '<button type="button" class="ln-new-item" data-act="import">' + ICON.svg('arrow-down-tray') + ' Import template…</button>';
     menu.innerHTML = html;
     document.body.appendChild(menu);
     _newMenuEl = menu;
@@ -984,7 +984,7 @@
     var tpl = {
       id: 'utpl-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
       name: name,
-      glyph: '📄',
+      glyph: 'document-text',
       seed: {
         tags: (state.doc.tags || []).slice(),
         phase: 'plan',
@@ -1012,7 +1012,7 @@
   function exportTemplate(id) {
     var t = findTemplate(id);
     if (!t) return;
-    var payload = { kind: 'notebook-template', version: 1, template: { name: t.name, glyph: t.glyph || '📄', seed: t.seed } };
+    var payload = { kind: 'notebook-template', version: 1, template: { name: t.name, glyph: t.glyph || 'document-text', seed: t.seed } };
     var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
@@ -1041,7 +1041,7 @@
         state.templatesDoc.templates.push({
           id: 'utpl-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
           name: String(t.name).slice(0, 80),
-          glyph: (typeof t.glyph === 'string' && t.glyph) ? t.glyph.slice(0, 4) : '📄',
+          glyph: (typeof t.glyph === 'string' && t.glyph) ? (/^[a-z][a-z0-9-]{1,40}$/.test(t.glyph) ? t.glyph : t.glyph.slice(0, 4)) : 'document-text',   // an icon name, or a legacy emoji (ICON.render draws both)
           // Seed body is sanitized at APPLY time (applySeedToDoc), so a
           // hostile import can't inject markup even if it sits stored.
           seed: t.seed,
@@ -1071,10 +1071,10 @@
     // is empty so an active chip can always be un-clicked.
     var chips = '<div class="ln-rail-chips">' +
       [{ v: '', label: 'All' }].concat(NOTEBOOK_PHASES.map(function (p) {
-        return { v: p, label: NOTEBOOK_PHASE_GLYPHS[p] + ' ' + NOTEBOOK_PHASE_LABELS[p] };
+        return { v: p, icon: NOTEBOOK_PHASE_GLYPHS[p], label: NOTEBOOK_PHASE_LABELS[p] };
       })).map(function (c) {
         return '<button type="button" class="ln-rail-chip' + (state.filters.phase === c.v ? ' active' : '') +
-          '" data-phase="' + escapeHtml(c.v) + '">' + escapeHtml(c.label) + '</button>';
+          '" data-phase="' + escapeHtml(c.v) + '">' + (c.icon ? ICON.svg(c.icon) + ' ' : '') + escapeHtml(c.label) + '</button>';
       }).join('') +
       '</div>';
     if (!rows.length) {
@@ -1094,10 +1094,10 @@
         lastDate = r.date;
       }
       var active = r.id === state.currentId ? ' active' : '';
-      var atts = r.attachment_count ? '<span class="att">📎 ' + r.attachment_count + '</span>' : '';
-      var inv  = r.inventory_count ? '<span class="att" title="materials used">🧪 ' + r.inventory_count + '</span>' : '';
-      var prot = r.protocol_count ? '<span class="att" title="protocols followed">📋 ' + r.protocol_count + '</span>' : '';
-      var obs  = r.obs_count ? '<span class="att" title="observations">📌 ' + r.obs_count + '</span>' : '';
+      var atts = r.attachment_count ? '<span class="att">' + ICON.svg('paper-clip') + ' ' + r.attachment_count + '</span>' : '';
+      var inv  = r.inventory_count ? '<span class="att" title="materials used">' + ICON.svg('beaker') + ' ' + r.inventory_count + '</span>' : '';
+      var prot = r.protocol_count ? '<span class="att" title="protocols followed">' + ICON.svg('clipboard-document-list') + ' ' + r.protocol_count + '</span>' : '';
+      var obs  = r.obs_count ? '<span class="att" title="observations">' + ICON.svg('pin') + ' ' + r.obs_count + '</span>' : '';
       var proj = r.project_id ? '<span>' + escapeHtml(projectLabel(r.project_id)) + '</span>' : '';
       // V3.138 — phase glyph on every rail row. Running entries get a
       // pulsing amber accent class so a half-finished run is visually
@@ -1105,7 +1105,7 @@
       var phase = (r.phase && NOTEBOOK_PHASE_GLYPHS[r.phase]) ? r.phase : 'complete';
       var phaseGlyph = '<span class="ln-rail-phase ln-rail-phase-' + phase + '" title="' +
         escapeHtml(NOTEBOOK_PHASE_LABELS[phase] || phase) + '">' +
-        NOTEBOOK_PHASE_GLYPHS[phase] + '</span>';
+        ICON.svg(NOTEBOOK_PHASE_GLYPHS[phase]) + '</span>';
       var tags = (r.tags || []).slice(0, 2).map(function (t) {
         return '<span class="tag-dot" title="' + escapeHtml(t) + '"></span>';
       }).join('');
@@ -1147,9 +1147,9 @@
       // create today's entry and open the camera in a single gesture.
       pane.innerHTML =
         '<div class="ln-empty-pane">' +
-          '<div class="big">📓</div>' +
+          '<div class="big">' + ICON.svg('book-open') + '</div>' +
           'Select an entry from the rail, or click <strong>+ New</strong> to start.' +
-          '<button type="button" id="ln-empty-capture" class="ln-empty-capture">📷 Capture into today\'s entry</button>' +
+          '<button type="button" id="ln-empty-capture" class="ln-empty-capture">' + ICON.svg('camera') + ' Capture into today\'s entry</button>' +
         '</div>';
       var cap = document.getElementById('ln-empty-capture');
       if (cap) cap.addEventListener('click', async function () {
@@ -1209,12 +1209,12 @@
         '<button data-cmd="formatBlock:BLOCKQUOTE" title="Quote">❝</button>' +
         '<button data-cmd="formatBlock:PRE" title="Code block">{ }</button>' +
         '<span class="sep"></span>' +
-        '<button id="ln-add-link" title="Insert link">🔗 Link</button>' +
-        '<button id="ln-add-inventory" title="Insert reagent or equipment from lab inventory">🧪 Inventory</button>' +
-        '<button id="ln-add-protocol" title="Reference a lab protocol">📋 Protocol</button>' +
-        '<button id="ln-add-doe" title="Plan a structured run matrix (LHS / Factorial / CCD)">🧮 DOE</button>' +
-        '<button id="ln-add-camera" title="Capture photo (rear camera on phones)">📷 Capture</button>' +
-        '<button id="ln-add-file" title="Attach image or PDF">📎 Attach</button>' +
+        '<button id="ln-add-link" title="Insert link">' + ICON.svg('link') + ' Link</button>' +
+        '<button id="ln-add-inventory" title="Insert reagent or equipment from lab inventory">' + ICON.svg('beaker') + ' Inventory</button>' +
+        '<button id="ln-add-protocol" title="Reference a lab protocol">' + ICON.svg('clipboard-document-list') + ' Protocol</button>' +
+        '<button id="ln-add-doe" title="Plan a structured run matrix (LHS / Factorial / CCD)">' + ICON.svg('variable') + ' DOE</button>' +
+        '<button id="ln-add-camera" title="Capture photo (rear camera on phones)">' + ICON.svg('camera') + ' Capture</button>' +
+        '<button id="ln-add-file" title="Attach image or PDF">' + ICON.svg('paper-clip') + ' Attach</button>' +
       '</div>' +
       '<div class="ln-body" id="ln-body" contenteditable="true" data-placeholder="Type your entry. Drag, paste, or capture a photo to attach an image."></div>' +
       renderDesignHtml(d.design || null) +
@@ -1255,7 +1255,7 @@
   function renderTagsHtml(tags) {
     var chips = (tags || []).map(function (t) {
       return '<span class="ln-tag-chip" data-tag="' + escapeHtml(t) + '">' +
-        escapeHtml(t) + '<span class="x" data-tag="' + escapeHtml(t) + '">×</span></span>';
+        escapeHtml(t) + '<span class="x" data-tag="' + escapeHtml(t) + '">' + ICON.svg('x-mark') + '</span></span>';
     }).join('');
     var options = knownTags().map(function (t) {
       return '<option value="' + escapeHtml(t) + '"></option>';
@@ -1283,7 +1283,7 @@
     if (p.controls) summaryBits.push('controls');
     if (p.success_criteria) summaryBits.push('success criteria');
     return '<details class="ln-plan' + (d.phase === 'plan' ? ' ln-plan-active' : '') + '" id="ln-plan"' + (open ? ' open' : '') + '>' +
-      '<summary>🧭 Plan' +
+      '<summary>' + ICON.svg('compass') + ' Plan' +
         '<span class="ln-plan-summary">' +
           (filled ? escapeHtml(summaryBits.join(' · ')) : (d.phase === 'plan' ? 'sketch the experiment before you start' : 'not filled in')) +
         '</span>' +
@@ -1343,7 +1343,7 @@
     if (!rows.length) return '';
     var items = rows.map(function (r) {
       return '<button type="button" class="ln-backlink" data-id="' + escapeHtml(r.id) + '">' +
-        '↩ ' + escapeHtml(r.title || '(untitled)') + ' <span class="ln-backlink-date">' + escapeHtml(r.date || '') + '</span>' +
+        ICON.svg('arrow-uturn-left') + ' ' + escapeHtml(r.title || '(untitled)') + ' <span class="ln-backlink-date">' + escapeHtml(r.date || '') + '</span>' +
         '</button>';
     }).join('');
     return '<div class="ln-backlinks" id="ln-backlinks">' +
@@ -1375,14 +1375,14 @@
         head = '<button type="button" class="ln-protocol-row ln-protocol-row-live"' +
             ' data-protocol-jump="' + escapeHtml(r.id) + '"' +
             ' title="Jump to the live protocol document in this entry">' +
-            '<span class="ln-protocol-icon">📋</span>' +
+            '<span class="ln-protocol-icon">' + ICON.svg('clipboard-document-list') + '</span>' +
             '<span class="ln-protocol-name">' + escapeHtml(r.title || r.id) + '</span>' +
             '<span class="ln-protocol-live-badge">used in this entry ↓</span>' +
           '</button>';
       } else {
         var url = '/rm/pages/protocols.html?protocol=' + encodeURIComponent(r.id);
         head = '<a class="ln-protocol-row" href="' + escapeHtml(url) + '" target="_blank" rel="noopener" title="Open protocol">' +
-            '<span class="ln-protocol-icon">📋</span>' +
+            '<span class="ln-protocol-icon">' + ICON.svg('clipboard-document-list') + '</span>' +
             '<span class="ln-protocol-name">' + escapeHtml(r.title || r.id) + '</span>' +
           '</a>';
       }
@@ -1393,12 +1393,12 @@
           // and routes to openProtocolCalculator.
           '<button type="button" class="ln-protocol-calc-btn"' +
             ' data-protocol-id="' + escapeHtml(r.id) + '"' +
-            ' title="Use as calculator">🧮 calc</button>' +
+            ' title="Use as calculator">' + ICON.svg('variable') + ' calc</button>' +
         '</div>';
     }).join('');
     var emptyHint = (refs && refs.length)
       ? ''
-      : '<span class="ln-material-empty">— click <strong>📋 Protocol</strong> to use a lab protocol in this entry.</span>';
+      : '<span class="ln-material-empty">— click <strong>' + ICON.svg('clipboard-document-list') + ' Protocol</strong> to use a lab protocol in this entry.</span>';
     return '<div class="ln-protocols" id="ln-protocols">' +
       '<h4>Protocols followed</h4>' +
       '<div class="ln-protocol-list">' + rows + emptyHint + '</div>' +
@@ -1435,11 +1435,11 @@
       // that jumps to the inventory page focused on this item id.
       var locLine = '';
       if (Array.isArray(r.locations) && r.locations.length) {
-        locLine = '<span class="ln-material-loc">📍 ' +
+        locLine = '<span class="ln-material-loc">' + ICON.svg('map-pin') + ' ' +
           r.locations.map(function (l) { return escapeHtml(l.name || ''); }).filter(Boolean).join(' · ') +
           '</span>';
       } else {
-        locLine = '<span class="ln-material-loc ln-loc-empty">📍 location not set' +
+        locLine = '<span class="ln-material-loc ln-loc-empty">' + ICON.svg('map-pin') + ' location not set' +
           (state.isAdmin
             ? ' <a class="ln-loc-set-link" href="/rm/pages/inventory.html?focus=' + escapeHtml(r.id) + '" target="_blank" rel="noopener">(set)</a>'
             : '') +
@@ -1448,7 +1448,7 @@
 
       // V3.119 — storage line for chemicals when populated.
       var storageLine = (r.kind === 'chemical' && r.storage_conditions)
-        ? '<span class="ln-material-storage">🌡 ' + escapeHtml(r.storage_conditions) + '</span>'
+        ? '<span class="ln-material-storage">' + ICON.svg('thermometer') + ' ' + escapeHtml(r.storage_conditions) + '</span>'
         : '';
 
       return '<div class="ln-material-row">' +
@@ -1468,7 +1468,7 @@
     }).join('');
     var emptyHint = (refs && refs.length)
       ? ''
-      : '<span class="ln-material-empty">— click <strong>🧪 Inventory</strong> to mention reagents/equipment from the lab inventory.</span>';
+      : '<span class="ln-material-empty">— click <strong>' + ICON.svg('beaker') + ' Inventory</strong> to mention reagents/equipment from the lab inventory.</span>';
     return '<div class="ln-materials" id="ln-materials">' +
       '<h4>Materials used</h4>' +
       '<div class="ln-material-list">' + rows + emptyHint + '</div>' +
@@ -1495,25 +1495,25 @@
         var flagBtn = '<button type="button" class="pmr-flag-badge' + (isFlagged ? ' on' : '') +
           '" data-i="' + i + '" title="' +
           (isFlagged ? 'Flagged for next PMR — click to unflag' : 'Flag this image for review at the next PMR') +
-          '">📌</button>';
+          '">' + ICON.svg('pin') + '</button>';
         return '<div class="ln-att-thumb' + (isFlagged ? ' is-pmr-flagged' : '') +
           '" data-i="' + i + '" data-path="' + path + '">' +
           '<img alt="" data-storage-path="' + path + '">' +
           flagBtn +
-          '<span class="del" data-i="' + i + '" title="Remove attachment">×</span>' +
+          '<span class="del" data-i="' + i + '" title="Remove attachment">' + ICON.svg('x-mark') + '</span>' +
           '</div>';
       }
       return '<div class="ln-att-thumb" data-i="' + i + '" data-path="' + path + '">' +
-        '<span class="pdf-icon">📄</span>' +
+        '<span class="pdf-icon">' + ICON.svg('document-text') + '</span>' +
         '<span class="pdf-label">' + escapeHtml((a.caption || a.storage_path || '').split('/').pop()) + '</span>' +
-        '<span class="del" data-i="' + i + '" title="Remove attachment">×</span>' +
+        '<span class="del" data-i="' + i + '" title="Remove attachment">' + ICON.svg('x-mark') + '</span>' +
         '</div>';
     }).join('');
     return '<div class="ln-attachments">' +
       '<h4>Attachments</h4>' +
       '<div class="ln-att-strip" id="ln-att-strip">' + thumbs +
         '<button class="ln-att-add" id="ln-att-add" title="Add image or PDF">' +
-          '<span class="icon">＋</span><span>drop / paste / 📷</span>' +
+          '<span class="icon">' + ICON.svg('plus') + '</span><span>drop / paste / ' + ICON.svg('camera') + '</span>' +
         '</button>' +
       '</div>' +
       '</div>';
@@ -1528,7 +1528,7 @@
         '<select class="ref-kind">' + kindOpts + '</select>' +
         '<input class="ref-label" type="text" placeholder="Label" value="' + escapeHtml(r.label || '') + '">' +
         '<input class="ref-url" type="text" placeholder="URL or entry id" value="' + escapeHtml(r.url || '') + '">' +
-        '<span class="del" data-i="' + i + '">×</span>' +
+        '<span class="del" data-i="' + i + '">' + ICON.svg('x-mark') + '</span>' +
         '</div>';
     }).join('');
     return '<div class="ln-refs" id="ln-refs">' +
@@ -1537,7 +1537,7 @@
       '<button class="ln-add-btn" id="ln-add-ref">+ add reference</button>' +
       // V3.362 — the Phase-2 entry picker finally lands: link a sibling
       // notebook entry (writes reciprocal reference_links both ways).
-      '<button class="ln-add-btn" id="ln-link-entry">🔗 link another entry</button>' +
+      '<button class="ln-add-btn" id="ln-link-entry">' + ICON.svg('link') + ' link another entry</button>' +
       '</div>';
   }
 
@@ -1640,10 +1640,10 @@
         row.type = 'button';
         row.className = 'ln-inv-pop-row';
         if (i === activeIdx) row.classList.add('active');
-        var glyph = NOTEBOOK_PHASE_GLYPHS[r.phase] || '📓';
+        var glyph = NOTEBOOK_PHASE_GLYPHS[r.phase] || 'book-open';
         row.innerHTML =
           '<div class="ln-inv-pop-key">' +
-            '<span class="ln-inv-pop-name">' + escapeHtml(glyph + ' ' + (r.title || '(untitled)')) + '</span>' +
+            '<span class="ln-inv-pop-name">' + ICON.svg(glyph) + ' ' + escapeHtml(r.title || '(untitled)') + '</span>' +
           '</div>' +
           '<div class="ln-inv-pop-meta">' + escapeHtml((r.date || '') + ((r.tags || []).length ? ' · ' + r.tags.slice(0, 3).join(' · ') : '')) + '</div>';
         row.addEventListener('mouseenter', function () {
@@ -1750,7 +1750,7 @@
     var glyph = NOTEBOOK_PHASE_GLYPHS[p];
     var label = NOTEBOOK_PHASE_LABELS[p];
     return '<span class="ln-phase-pill ln-phase-' + p + '" title="Entry phase: ' + escapeHtml(label) + '">' +
-      escapeHtml(glyph) + ' ' + escapeHtml(label) +
+      ICON.svg(glyph) + ' ' + escapeHtml(label) +
       '</span>';
   }
 
@@ -1765,18 +1765,18 @@
     var endBtn = '';
     var phaseInfo = '';
     if (d.phase === 'plan') {
-      startBtn = '<button class="ln-start-run primary" id="ln-start-run" title="Start the run — freeze the plan and begin recording observations at the bench">▶ Start run</button>';
+      startBtn = '<button class="ln-start-run primary" id="ln-start-run" title="Start the run — freeze the plan and begin recording observations at the bench">' + ICON.svg('play') + ' Start run</button>';
     } else if (d.phase === 'running') {
-      endBtn = '<button class="ln-end-run primary" id="ln-end-run" title="End the run — locks the entry and surfaces the post-run summary">⏹ End run</button>';
+      endBtn = '<button class="ln-end-run primary" id="ln-end-run" title="End the run — locks the entry and surfaces the post-run summary">' + ICON.svg('stop') + ' End run</button>';
       var started = d.run_started_at ? d.run_started_at.slice(0, 16).replace('T', ' ') : '?';
-      phaseInfo = '<span class="ln-phase-info">▶ run started ' + escapeHtml(started) + '</span>';
+      phaseInfo = '<span class="ln-phase-info">' + ICON.svg('play') + ' run started ' + escapeHtml(started) + '</span>';
     } else if (d.phase === 'complete') {
       var ended = d.run_ended_at ? d.run_ended_at.slice(0, 16).replace('T', ' ') : (d.run_started_at ? d.run_started_at.slice(0, 16).replace('T', ' ') : '');
-      phaseInfo = '<span class="ln-phase-info">✅ run completed' + (ended ? ' ' + escapeHtml(ended) : '') + '</span>';
+      phaseInfo = '<span class="ln-phase-info">' + ICON.svg('check-circle') + ' run completed' + (ended ? ' ' + escapeHtml(ended) : '') + '</span>';
     }
     // V3.361 — spawn the follow-up experiment from a finished entry.
     var nextBtn = (d.phase === 'complete')
-      ? '<button id="ln-next-iteration" title="Start the next iteration — carries the plan, tags, project, and design factors forward and links both entries">↻ Next iteration</button>'
+      ? '<button id="ln-next-iteration" title="Start the next iteration — carries the plan, tags, project, and design factors forward and links both entries">' + ICON.svg('arrow-path') + ' Next iteration</button>'
       : '';
     return '<div class="ln-footer">' +
       phaseInfo +
@@ -1831,7 +1831,7 @@
         '<div class="ln-obs-form" id="ln-obs-form" hidden>' +
           '<div class="ln-obs-form-text-row">' +
             '<textarea id="ln-obs-text" rows="2" placeholder="What did you see?" enterkeyhint="done"></textarea>' +
-            (hasMic ? '<button type="button" id="ln-obs-mic" class="ln-mic-btn" title="Dictate">🎙</button>' : '') +
+            (hasMic ? '<button type="button" id="ln-obs-mic" class="ln-mic-btn" title="Dictate">' + ICON.svg('microphone') + '</button>' : '') +
           '</div>' +
           '<div class="ln-obs-form-metric-row">' +
             '<input id="ln-obs-metric" type="text" placeholder="metric (OD600, pH…)" autocomplete="off">' +
@@ -2005,7 +2005,7 @@
 
   function openObservationForm() {
     if (!state.doc || state.doc.phase !== 'running') {
-      lnNotify('info', 'Observations log during a run — click ▶ Start run first');
+      lnNotify('info', 'Observations log during a run — click Start run first');
       return;
     }
     var form = document.getElementById('ln-obs-form');
@@ -2123,7 +2123,7 @@
     // V3.361 — gentle nudge, never a gate: an empty hypothesis gets one
     // hint toast on the way into the run.
     if (!(state.doc.plan && state.doc.plan.hypothesis)) {
-      lnNotify('info', 'Tip: jot a hypothesis in 🧭 Plan — future-you will thank you');
+      lnNotify('info', 'Tip: jot a hypothesis in Plan — future-you will thank you');
     }
     state.doc.phase = 'running';
     state.doc.run_started_at = isoNow();
@@ -2132,7 +2132,7 @@
     upsertIndexRow(state.doc);
     renderEditor();
     renderRail();
-    setSavingHint('▶ run started');
+    setSavingHint('run started');
   }
 
   async function onEndRun() {
@@ -2148,7 +2148,7 @@
     upsertIndexRow(state.doc);
     renderEditor();
     renderRail();
-    setSavingHint('✅ run completed');
+    setSavingHint('run completed');
   }
 
   /* V3.360 — the V3.138 prompt()-chain observation flow is gone; adding
@@ -2516,12 +2516,12 @@
    * faster path to them.
    */
   var SLASH_ITEMS = [
-    { key: 'observation', label: '📌 Observation',   run: function () { openObservationForm(); } },
-    { key: 'inventory',   label: '🧪 Inventory chip', run: function () { var b = document.getElementById('ln-add-inventory'); if (b) b.click(); } },
-    { key: 'protocol',    label: '📋 Protocol',       run: function () { var b = document.getElementById('ln-add-protocol'); if (b) b.click(); } },
-    { key: 'photo',       label: '📷 Photo / camera', run: function () { var i = document.getElementById('ln-camera-input'); if (i) { i.value = ''; i.click(); } } },
-    { key: 'attach',      label: '📎 Attach file',    run: function () { var i = document.getElementById('ln-file-input'); if (i) { i.value = ''; i.click(); } } },
-    { key: 'doe',         label: '🧮 DOE matrix',     run: function () { openDoeModal(); } },
+    { key: 'observation', icon: 'pin',                     label: 'Observation',    run: function () { openObservationForm(); } },
+    { key: 'inventory',   icon: 'test-tube',               label: 'Inventory chip', run: function () { var b = document.getElementById('ln-add-inventory'); if (b) b.click(); } },
+    { key: 'protocol',    icon: 'clipboard-document-list', label: 'Protocol',       run: function () { var b = document.getElementById('ln-add-protocol'); if (b) b.click(); } },
+    { key: 'photo',       icon: 'camera',                  label: 'Photo / camera', run: function () { var i = document.getElementById('ln-camera-input'); if (i) { i.value = ''; i.click(); } } },
+    { key: 'attach',      icon: 'paper-clip',              label: 'Attach file',    run: function () { var i = document.getElementById('ln-file-input'); if (i) { i.value = ''; i.click(); } } },
+    { key: 'doe',         icon: 'calculator',              label: 'DOE matrix',     run: function () { openDoeModal(); } },
     { key: 'heading',     label: 'H2 Heading',        run: function () { document.execCommand('formatBlock', false, 'H2'); } },
     { key: 'quote',       label: '❝ Quote',           run: function () { document.execCommand('formatBlock', false, 'BLOCKQUOTE'); } },
     { key: 'code',        label: '{ } Code block',    run: function () { document.execCommand('formatBlock', false, 'PRE'); } },
@@ -2569,7 +2569,7 @@
     }
     _slash.menuEl.innerHTML = matches.map(function (it, i) {
       return '<button type="button" class="ln-slash-item' + (i === _slash.activeIdx ? ' active' : '') +
-        '" data-key="' + escapeHtml(it.key) + '">' + it.label + '</button>';
+        '" data-key="' + escapeHtml(it.key) + '">' + (it.icon ? ICON.svg(it.icon) + ' ' : '') + it.label + '</button>';
     }).join('');
     Array.prototype.forEach.call(_slash.menuEl.querySelectorAll('.ln-slash-item'), function (btn) {
       btn.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
@@ -2665,10 +2665,10 @@
     bar.id = 'ln-action-bar';
     bar.className = 'ln-action-bar';
     bar.innerHTML =
-      '<button type="button" id="ln-ab-camera" title="Capture photo">📷<span>Capture</span></button>' +
-      '<button type="button" id="ln-ab-voice" title="Dictate an observation">🎙<span>Voice</span></button>' +
-      '<button type="button" id="ln-ab-obs" title="Log an observation">➕<span>Observe</span></button>' +
-      '<button type="button" id="ln-ab-tag" title="Add a tag">🏷<span>Tag</span></button>';
+      '<button type="button" id="ln-ab-camera" title="Capture photo">' + ICON.svg('camera') + '<span>Capture</span></button>' +
+      '<button type="button" id="ln-ab-voice" title="Dictate an observation">' + ICON.svg('microphone') + '<span>Voice</span></button>' +
+      '<button type="button" id="ln-ab-obs" title="Log an observation">' + ICON.svg('plus') + '<span>Observe</span></button>' +
+      '<button type="button" id="ln-ab-tag" title="Add a tag">' + ICON.svg('tag') + '<span>Tag</span></button>';
     document.body.appendChild(bar);
 
     async function ensureEntryThen(fn) {
@@ -2821,24 +2821,27 @@
    * with the chemicals page. We keep a local copy so the lab-notebook
    * page doesn't need to load chemicals.js for a 9-entry table. */
   var LN_GHS_MAP = {
-    'GHS01': { symbol: '☠', label: 'Explosive' },
-    'GHS02': { symbol: '☢', label: 'Flammable' },
-    'GHS03': { symbol: '⚠', label: 'Oxidizer' },
-    'GHS04': { symbol: '⛅', label: 'Compressed Gas' },
-    'GHS05': { symbol: '☠', label: 'Corrosive' },
-    'GHS06': { symbol: '☠', label: 'Acute Toxicity' },
-    'GHS07': { symbol: '!',      label: 'Irritant' },
-    'GHS08': { symbol: '♥', label: 'Health Hazard' },
-    'GHS09': { symbol: '☀', label: 'Environmental' },
+    'GHS01': { symbol: 'bomb',                 label: 'Explosive' },
+    'GHS02': { symbol: 'fire',                 label: 'Flammable' },
+    'GHS03': { symbol: 'fire',                 label: 'Oxidizer' },
+    'GHS04': { symbol: 'cylinder',             label: 'Compressed Gas' },
+    'GHS05': { symbol: 'droplet',              label: 'Corrosive' },
+    'GHS06': { symbol: 'skull',                label: 'Acute Toxicity' },
+    'GHS07': { symbol: 'exclamation-triangle', label: 'Irritant' },
+    'GHS08': { symbol: 'heart-pulse',          label: 'Health Hazard' },
+    'GHS09': { symbol: 'fish',                 label: 'Environmental' },
   };
 
-  function renderGhsPictograms(codes) {
+  /* V3.861 — symbols are icon names (ICON.render). forBody: the badge goes INTO
+   * the saved entry body (the chip's hazard sibling), where SVG must never be
+   * stored, so it carries a plain '!' and the title names the hazard. */
+  function renderGhsPictograms(codes, forBody) {
     if (!Array.isArray(codes) || !codes.length) return '';
     return codes.map(function (code) {
       var p = LN_GHS_MAP[code] || { symbol: '?', label: code };
       var cls = 'ln-ghs ln-ghs-' + escapeHtml(code.toLowerCase());
       return '<span class="' + cls + '" title="' + escapeHtml(code + ' — ' + p.label) + '">' +
-        escapeHtml(p.symbol) + '</span>';
+        (forBody || p.symbol === '?' ? '!' : ICON.render(p.symbol)) + '</span>';
     }).join('');
   }
 
@@ -2860,7 +2863,7 @@
     if (!hasSignal && !hasPictos) return '';
     return '<span class="ln-inv-hazard" data-inv-id="' + escapeHtml(invRef.id) + '">' +
       renderSignalWordPill(invRef.hazard_signal) +
-      renderGhsPictograms(invRef.hazard_pictos || []) +
+      renderGhsPictograms(invRef.hazard_pictos || [], true) +
       '</span>';
   }
 
@@ -3001,7 +3004,7 @@
         if (e.formula) metaParts.push(escapeHtml(e.formula));
         if (e.category) metaParts.push(escapeHtml(e.category) + (e.subcategory ? ' / ' + escapeHtml(e.subcategory) : ''));
         if (Array.isArray(e.locations) && e.locations.length) {
-          metaParts.push('📍 ' + escapeHtml(e.locations.length + ' location' + (e.locations.length === 1 ? '' : 's')));
+          metaParts.push(ICON.svg('map-pin') + ' ' + escapeHtml(e.locations.length + ' location' + (e.locations.length === 1 ? '' : 's')));
         }
         row.innerHTML =
           '<div class="ln-inv-pop-key">' +
@@ -3405,7 +3408,7 @@
       headStrip += '<div class="ln-safety-pict-row">' + (rec.hazard_pictos || []).map(function (code) {
         var p = LN_GHS_MAP[code] || { symbol: '?', label: code };
         return '<span class="ln-safety-pict">' +
-          '<span class="ln-ghs ln-ghs-' + escapeHtml(code.toLowerCase()) + '">' + escapeHtml(p.symbol) + '</span>' +
+          '<span class="ln-ghs ln-ghs-' + escapeHtml(code.toLowerCase()) + '">' + ICON.render(p.symbol) + '</span>' +
           '<span class="ln-safety-pict-label">' + escapeHtml(p.label) + '</span>' +
           '</span>';
       }).join('') + '</div>';
@@ -3452,16 +3455,16 @@
       html += '</dd></dl>';
     }
     if (rec.storage_conditions) {
-      html += '<dl><dt>Storage</dt><dd>🌡 ' + escapeHtml(rec.storage_conditions) + '</dd></dl>';
+      html += '<dl><dt>Storage</dt><dd>' + ICON.svg('thermometer') + ' ' + escapeHtml(rec.storage_conditions) + '</dd></dl>';
     }
     if (rec.locations && rec.locations.length) {
       html += '<dl><dt>Where to find it</dt><dd>' + rec.locations.map(function (l) {
         var qty = (l.quantity != null && l.quantity !== '') ? ' (' + escapeHtml(String(l.quantity)) + ')' : '';
         var notes = l.notes ? ' — ' + escapeHtml(l.notes) : '';
-        return '<div>📍 ' + escapeHtml(l.name || '') + qty + notes + '</div>';
+        return '<div>' + ICON.svg('map-pin') + ' ' + escapeHtml(l.name || '') + qty + notes + '</div>';
       }).join('') + '</dd></dl>';
     } else {
-      html += '<dl><dt>Where to find it</dt><dd><em class="ln-loc-empty-mini">📍 location not set — admins can populate via ' +
+      html += '<dl><dt>Where to find it</dt><dd><em class="ln-loc-empty-mini">' + ICON.svg('map-pin') + ' location not set — admins can populate via ' +
         '<a href="/rm/pages/inventory.html" target="_blank" rel="noopener">Inventory</a>.</em></dd></dl>';
     }
     if (rec.msds_url) {
@@ -3539,12 +3542,12 @@
     pop.className = 'ln-inv-popover ln-protocol-popover';
     pop.hidden = true;
     pop.innerHTML =
-      '<div class="ln-inv-pop-title">Insert a protocol <span class="ln-pop-subtitle">— click for full · "ref only" for chip · "🧮 calc" for calculator</span></div>' +
+      '<div class="ln-inv-pop-title">Insert a protocol <span class="ln-pop-subtitle">— click for full · "ref only" for chip · "' + ICON.svg('variable') + ' calc" for calculator</span></div>' +
       '<input type="text" class="ln-inv-pop-search" placeholder="Search by title, summary, category, tag…" autocomplete="off">' +
       '<div class="ln-inv-pop-list" role="listbox"></div>' +
       '<div class="ln-inv-pop-hint">' +
         '<kbd>↑</kbd>/<kbd>↓</kbd> navigate · <kbd>Enter</kbd> full · <kbd>Shift</kbd>+<kbd>Enter</kbd> ref · <kbd>Alt</kbd>+<kbd>Enter</kbd> calc · <kbd>Esc</kbd> close · ' +
-        '<a href="/rm/pages/protocols.html" target="_blank" rel="noopener">open protocols ↗</a>' +
+        '<a href="/rm/pages/protocols.html" target="_blank" rel="noopener">open protocols ' + ICON.svg('arrow-top-right-on-square') + '</a>' +
       '</div>';
     document.body.appendChild(pop);
     protocolState.popover = pop;
@@ -3593,7 +3596,7 @@
             statusBadge +
             '<span class="ln-inv-pop-name">' + escapeHtml(e.title) + '</span>' +
             '<span class="ln-protocol-row-actions">' +
-              '<span class="ln-protocol-row-calc" title="Open calculator for this protocol (Alt+Enter)">🧮 calc</span>' +
+              '<span class="ln-protocol-row-calc" title="Open calculator for this protocol (Alt+Enter)">' + ICON.svg('variable') + ' calc</span>' +
               '<span class="ln-protocol-row-ref" title="Insert reference chip only (Shift+Enter)">ref only</span>' +
             '</span>' +
           '</div>' +
@@ -3688,7 +3691,7 @@
         ' data-protocol-id="' + escapeHtml(p.id) + '"' +
         ' data-protocol-title="' + escapeHtml(p.title || '') + '"' +
         ' title="Open protocol in a new tab">' +
-        '📋 ' + escapeHtml(p.title || p.id) +
+        escapeHtml(p.title || p.id) +
       '</a>&nbsp;';
     // V3.143 — direct append; see comment in insertInventoryChip.
     var ok = _appendHtmlToBody(bodyEl, chipHtml);
@@ -4130,11 +4133,11 @@
     var refs = (state.doc && state.doc.protocol_refs) || [];
     if (!refs.length) {
       return '<h4>Protocol run</h4>' +
-        '<div class="ln-material-empty">Reference a protocol above (📋 Protocol), then load it here to run it live — inputs, computed item lists, grid assignment, and prep totals.</div>';
+        '<div class="ln-material-empty">Reference a protocol above (' + ICON.svg('clipboard-document-list') + ' Protocol), then load it here to run it live — inputs, computed item lists, grid assignment, and prep totals.</div>';
     }
     var btns = refs.map(function (r) {
       return '<button type="button" class="ln-run-load-btn" data-run-load="' + escapeHtml(r.id) +
-        '" data-run-title="' + escapeHtml(r.title || r.id) + '">▶ Run “' + escapeHtml(r.title || r.id) + '”</button>';
+        '" data-run-title="' + escapeHtml(r.title || r.id) + '">' + ICON.svg('play') + ' Run “' + escapeHtml(r.title || r.id) + '”</button>';
     }).join('');
     return '<h4>Protocol run</h4>' +
       '<div>Load a referenced protocol to run it live in this entry:</div>' +
@@ -4188,7 +4191,7 @@
     if (!run) { host.innerHTML = renderRunLoadAffordance(); wireRunLoadButtons(host); return; }
 
     host.innerHTML = '<h4>Protocol run · ' + escapeHtml(run.protocol_title || run.protocol_id) +
-      (run.frozen ? '<span class="ln-run-frozen-badge">🔒 frozen record</span>' : '') +
+      (run.frozen ? '<span class="ln-run-frozen-badge">' + ICON.svg('lock-closed') + ' frozen record</span>' : '') +
       '</h4><div class="ln-material-empty">Loading…</div>';
     try {
       await _ensureProtocolRunDeps();
@@ -4261,13 +4264,13 @@
     el.appendChild(h1);
     var row = document.createElement('div');
     row.className = 'prd-chips';
-    function chip(txt) {
+    function chip(txt, icon) {
       var c = document.createElement('span');
       c.className = 'prd-chip prd-chip-meta';
-      c.textContent = txt;
+      if (icon) ICON.label(c, icon, ' ' + txt); else c.textContent = txt;
       row.appendChild(c);
     }
-    if (run.frozen && run.frozen_at) chip('🔒 finalized ' + String(run.frozen_at).slice(0, 10));
+    if (run.frozen && run.frozen_at) chip('finalized ' + String(run.frozen_at).slice(0, 10), 'lock-closed');
     else chip('live — values editable');
     if (run.loaded_at) chip('loaded ' + String(run.loaded_at).slice(0, 10));
     el.appendChild(row);
@@ -4292,9 +4295,10 @@
       head.appendChild(h1);
       var meta = document.createElement('div');
       meta.className = 'prc-meta';
-      meta.textContent = (run.frozen && run.frozen_at
-        ? '🔒 finalized ' + String(run.frozen_at).slice(0, 10)
+      var metaText = (run.frozen && run.frozen_at
+        ? 'finalized ' + String(run.frozen_at).slice(0, 10)
         : 'live · values editable') + ' · cheat sheet';
+      if (run.frozen && run.frozen_at) ICON.label(meta, 'lock-closed', ' ' + metaText); else meta.textContent = metaText;
       head.appendChild(meta);
       card.appendChild(head);
 
@@ -4374,8 +4378,8 @@
     bar.className = 'ln-run-toolbar';
     var title = document.createElement('div');
     title.className = 'ln-run-toolbar-title';
-    title.textContent = '📋 ' + (run.protocol_title || run.protocol_id) +
-      (run.frozen ? ' · finalized' : ' · live');
+    ICON.label(title, 'clipboard-document-list', ' ' + (run.protocol_title || run.protocol_id) +
+      (run.frozen ? ' · finalized' : ' · live'));
     bar.appendChild(title);
     var actions = document.createElement('div');
     actions.className = 'ln-run-toolbar-actions';
@@ -4383,11 +4387,11 @@
     if (hasCheat) {
       var toggle = document.createElement('div');
       toggle.className = 'ln-run-view-toggle';
-      [['doc', '📄 Document'], ['cheat', '📋 Cheat sheet']].forEach(function (p) {
+      [['doc', ' Document', 'document-text'], ['cheat', ' Cheat sheet', 'clipboard-document-list']].forEach(function (p) {
         var b = document.createElement('button');
         b.type = 'button';
         b.className = 'ln-run-view-btn' + ((run.view || 'doc') === p[0] ? ' active' : '');
-        b.textContent = p[1];
+        ICON.label(b, p[2], p[1]);
         b.addEventListener('click', function () {
           if ((run.view || 'doc') === p[0]) return;
           run.view = p[0];
@@ -4403,7 +4407,7 @@
       var fin = document.createElement('button');
       fin.type = 'button';
       fin.className = 'ln-run-finalize-btn';
-      fin.textContent = '✅ Finalize';
+      ICON.label(fin, 'check-circle', ' Finalize');
       fin.title = 'Lock the input values you used into this entry as an immutable record';
       fin.addEventListener('click', function () {
         if (!confirm('Finalize this protocol? The values you used will be locked into this entry ' +
@@ -4411,14 +4415,14 @@
         freezeProtocolRun();
         scheduleSave(); upsertIndexRow(state.doc); renderRail();
         mountProtocolRunPanel();
-        setSavingHint('🔒 protocol finalized');
+        setSavingHint('protocol finalized');
       });
       actions.appendChild(fin);
     } else {
       var reopen = document.createElement('button');
       reopen.type = 'button';
       reopen.className = 'ln-run-reopen-btn';
-      reopen.textContent = '✎ Reopen';
+      ICON.label(reopen, 'pencil', ' Reopen');
       reopen.title = 'Unlock this protocol to edit the values again';
       reopen.addEventListener('click', function () {
         if (!confirm('Reopen this finalized protocol for editing? It becomes live again — the ' +
@@ -4433,7 +4437,7 @@
     var unload = document.createElement('button');
     unload.type = 'button';
     unload.className = 'ln-run-load-btn ln-run-unload-btn';
-    unload.textContent = '✕ Unload';
+    ICON.label(unload, 'x-mark', ' Unload');
     unload.title = 'Remove this protocol and its run state from the entry';
     unload.addEventListener('click', function () {
       if (!confirm('Remove the loaded protocol and its run state from this entry?')) return;
@@ -4484,13 +4488,13 @@
       prep.className = 'ln-run-prep';
       var prepHead = document.createElement('div');
       prepHead.className = 'ln-run-section-label ln-run-prep-head';
-      prepHead.textContent = '🧮 Run: assign items & prep totals';
+      ICON.label(prepHead, 'variable', ' Run: assign items & prep totals');
       prep.appendChild(prepHead);
 
       // factor multiplier
       var factorWrap = document.createElement('label');
       factorWrap.className = 'ln-run-factor';
-      factorWrap.innerHTML = '<span>Prep excess / multiplier ×</span>';
+      factorWrap.innerHTML = '<span>Prep excess / multiplier ' + ICON.svg('x-mark') + '</span>';
       var fInp = document.createElement('input');
       fInp.type = 'number'; fInp.step = '0.05'; fInp.min = '0';
       fInp.value = String(run.factor || 1);
@@ -4669,7 +4673,7 @@
     var wrap = document.createElement('details');
     wrap.className = 'ln-run-record';
     var sum = document.createElement('summary');
-    sum.textContent = '🔒 Recorded values (finalized ' + String(run.frozen_at || '').slice(0, 10) + ')';
+    ICON.label(sum, 'lock-closed', ' Recorded values (finalized ' + String(run.frozen_at || '').slice(0, 10) + ')');
     wrap.appendChild(sum);
     var box = document.createElement('div');
     box.className = 'ln-run-record-body';
@@ -4705,7 +4709,7 @@
     // totals
     var totals = snap.computed && snap.computed.totals;
     if (totals && totals.quantityFields && totals.quantityFields.length) {
-      html += '<div class="ln-run-section-label">Totals prepared (× ' + escapeHtml(String(snap.factor || 1)) + ')</div>' +
+      html += '<div class="ln-run-section-label">Totals prepared (' + ICON.svg('x-mark') + ' ' + escapeHtml(String(snap.factor || 1)) + ')</div>' +
         '<table class="prd-table"><thead><tr><th>Pool</th>' +
         totals.quantityFields.map(function (q) { return '<th>' + escapeHtml(q) + '</th>'; }).join('') + '</tr></thead><tbody>';
       (totals.pools || []).forEach(function (p) {
@@ -4866,7 +4870,7 @@
             '<div id="ln-calc-inputs"></div>' +
           '</div>' +
           '<div class="ln-calc-compute-row">' +
-            '<button class="ln-calc-compute" type="button">▶ Compute</button>' +
+            '<button class="ln-calc-compute" type="button">' + ICON.svg('play') + ' Compute</button>' +
             '<span class="ln-calc-status" id="ln-calc-status"></span>' +
           '</div>' +
           '<div class="ln-calc-section">' +
@@ -4970,7 +4974,7 @@
         var sym = lastTable[f.output.name];
         var valHtml, valClass = 'ln-calc-output-value';
         if (!sym) { valHtml = '?'; valClass += ' placeholder'; }
-        else if (sym.error) { valHtml = '⚠ ' + escapeHtml(sym.error); valClass += ' error'; }
+        else if (sym.error) { valHtml = ICON.svg('exclamation-triangle') + ' ' + escapeHtml(sym.error); valClass += ' error'; }
         else if (sym.value === null || sym.value === undefined) { valHtml = '?'; valClass += ' placeholder'; }
         else { valHtml = escapeHtml(String(sym.value)); }
         return '<div class="ln-calc-output-row">' +
@@ -5134,12 +5138,12 @@
     }).join(', ');
     var outputsStr = Object.keys(outputs).map(function (k) {
       var v = outputs[k];
-      if (v.error) return escapeHtml(v.label || k) + ' ⚠';
+      if (v.error) return escapeHtml(v.label || k) + ' (error)';
       var raw = (v.value === null || v.value === undefined || v.value === '') ? '?' : String(v.value);
       return escapeHtml(v.label || k) + ' ' + escapeHtml(raw) + (v.unit ? ' ' + escapeHtml(v.unit) : '');
     }).join(' · ');
     return '<div class="ln-calc-snippet-line">' +
-      '<strong>🧮 ' + escapeHtml(title) + '</strong>' +
+      '<strong>' + escapeHtml(title) + '</strong>' +
       ' · <span class="ln-calc-snip-inputs">' + (inputsStr || '<em>no inputs</em>') + '</span>' +
       ' → <span class="ln-calc-snip-outputs">' + (outputsStr || '<em>no outputs</em>') + '</span>' +
       '</div>';
@@ -5157,7 +5161,7 @@
     var outRows = Object.keys(outputs).map(function (k) {
       var v = outputs[k];
       var raw, cls = '';
-      if (v.error) { raw = '⚠ ' + v.error; cls = ' class="error"'; }
+      if (v.error) { raw = 'Error: ' + v.error; cls = ' class="error"'; }
       else if (v.value === null || v.value === undefined || v.value === '') { raw = '—'; }
       else raw = String(v.value);
       return '<tr' + cls + '><td>' + escapeHtml(v.label || k) + '</td>' +
@@ -5165,7 +5169,7 @@
         '<td>' + escapeHtml(v.unit || '') + '</td>' +
         '<td class="ln-calc-cell-output">output</td></tr>';
     }).join('');
-    return '<div class="ln-calc-table-title"><strong>🧮 ' + escapeHtml(title) + '</strong></div>' +
+    return '<div class="ln-calc-table-title"><strong>' + escapeHtml(title) + '</strong></div>' +
       '<table class="ln-calc-table-tbl"><thead><tr><th>Variable</th><th>Value</th><th>Unit</th><th></th></tr></thead>' +
       '<tbody>' + inputRows + outRows + '</tbody></table>';
   }
@@ -5180,7 +5184,7 @@
       if (!PF || !PF.renderTextWithTokens) return escapeHtml(text || '');
       return PF.renderTextWithTokens(text || '', symbolTable || {});
     }
-    var html = '<div class="ln-calc-steps-title"><strong>🧮 ' + escapeHtml(plainTree.meta && plainTree.meta.title || 'Protocol') + ' — calculator</strong></div>';
+    var html = '<div class="ln-calc-steps-title"><strong>' + escapeHtml(plainTree.meta && plainTree.meta.title || 'Protocol') + ' — calculator</strong></div>';
     (plainTree.sections || []).forEach(function (sec) {
       if (sec.label) html += '<h4>' + escapeHtml(sec.label) + '</h4>';
       (sec.children || []).forEach(function (block) {
@@ -5189,10 +5193,10 @@
             html += '<p>' + sub(block.body) + '</p>';
             break;
           case 'note':
-            html += '<blockquote>📝 <strong>Note.</strong> ' + sub(block.body) + '</blockquote>';
+            html += '<blockquote><strong>Note.</strong> ' + sub(block.body) + '</blockquote>';
             break;
           case 'safety':
-            html += '<blockquote>⚠ <strong>Safety.</strong> ' + sub(block.body) + '</blockquote>';
+            html += '<blockquote><strong>Safety.</strong> ' + sub(block.body) + '</blockquote>';
             break;
           case 'figure': {
             var lbl = (block.attrs && (block.attrs.label || block.attrs.alt)) || 'Figure';
@@ -5490,7 +5494,7 @@
           (working.type === 'factorial'
             ? '<input class="ln-doe-flevels" type="number" placeholder="levels" value="' + escapeHtml(String(f.levels || 2)) + '" min="2" max="8" step="1">'
             : '<span class="ln-doe-flevels-spacer"></span>') +
-          '<span class="ln-doe-frm" data-i="' + i + '" title="remove factor">×</span>';
+          '<span class="ln-doe-frm" data-i="' + i + '" title="remove factor">' + ICON.svg('x-mark') + '</span>';
         factorsEl.appendChild(row);
         row.querySelector('.ln-doe-fname').addEventListener('input',  function (e) { f.name = e.target.value; preview = null; refreshSaveBtn(); });
         row.querySelector('.ln-doe-flow').addEventListener('input',   function (e) { f.low  = e.target.value; preview = null; refreshSaveBtn(); });
@@ -5620,7 +5624,7 @@
       return '<div class="ln-design" id="ln-design">' +
         '<h4>Design of experiments</h4>' +
         '<div class="ln-design-empty">' +
-          '— click <strong>🧮 DOE</strong> in the toolbar to plan a structured run matrix (Latin Hypercube, Full Factorial, or Central Composite).' +
+          '— click <strong>' + ICON.svg('variable') + ' DOE</strong> in the toolbar to plan a structured run matrix (Latin Hypercube, Full Factorial, or Central Composite).' +
         '</div>' +
       '</div>';
     }
@@ -5647,8 +5651,8 @@
         resultChip +
       '</h4>' +
       '<div class="ln-design-actions">' +
-        '<button class="ln-design-edit" type="button">✏️ Edit / Regenerate</button>' +
-        '<button class="ln-design-csv" type="button">⬇ Download CSV</button>' +
+        '<button class="ln-design-edit" type="button">' + ICON.svg('pencil') + ' Edit / Regenerate</button>' +
+        '<button class="ln-design-csv" type="button">' + ICON.svg('arrow-down-tray') + ' Download CSV</button>' +
         '<button class="ln-design-clear danger" type="button">Clear</button>' +
       '</div>' +
       renderDesignRunsTable(design) +

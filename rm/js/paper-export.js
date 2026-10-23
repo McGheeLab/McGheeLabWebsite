@@ -143,7 +143,7 @@
         crWrap.className = 'px-credit-generate';
         var crGen = document.createElement('button');
         crGen.type = 'button'; crGen.className = 'btn btn-sm';
-        crGen.textContent = '✎ Generate CRediT statement';
+        ICON.label(crGen, 'pencil', ' Generate CRediT statement');
         crGen.title = 'Writes "A.B.: Conceptualization, …" into the Author contributions section from the roles set above';
         crGen.addEventListener('click', function () {
           var text = PaperExportConfig.creditStatement(state.config.authors || []);
@@ -223,7 +223,7 @@
       row.appendChild(info);
       var zipBtn = document.createElement('button');
       zipBtn.type = 'button'; zipBtn.className = 'btn btn-sm';
-      zipBtn.textContent = '⬇ .zip';
+      ICON.label(zipBtn, 'arrow-down-tray', ' .zip');
       zipBtn.title = 'Download the LaTeX bundle (compile locally with latexmk)';
       zipBtn.disabled = !status.hasContent;
       zipBtn.addEventListener('click', function () { _downloadSubdocZip(doc); });
@@ -243,7 +243,7 @@
       if (last && last.pdfStoragePath) {
         var lastLink = document.createElement('button');
         lastLink.type = 'button'; lastLink.className = 'btn btn-sm';
-        lastLink.textContent = '↗ last PDF';
+        ICON.label(lastLink, 'arrow-top-right-on-square', ' last PDF');
         lastLink.title = 'Open the most recent ' + doc.label + ' compile';
         lastLink.addEventListener('click', function () { _openCompilePdf(last); });
         row.appendChild(lastLink);
@@ -485,7 +485,7 @@
       if (ga) {
         var rm = document.createElement('button');
         rm.type = 'button'; rm.className = 'btn btn-sm';
-        rm.textContent = '✕ Remove';
+        ICON.label(rm, 'x-mark', ' Remove');
         rm.addEventListener('click', function () {
           state.config.graphicalAbstract = null;
           _scheduleSave();
@@ -643,7 +643,7 @@
       var when = _formatWhen(c.triggeredAt);
       var active = (c.id === state.activeCompileId) ? ' is-active' : '';
       var deleteBtn = state.canEdit
-        ? '<button class="btn btn-sm" data-compile-delete="' + _esc(c.id) + '" title="Delete this PDF">✕</button>'
+        ? '<button class="btn btn-sm" data-compile-delete="' + _esc(c.id) + '" title="Delete this PDF">' + ICON.svg('x-mark') + '</button>'
         : '';
       return (
         '<li class="' + active.trim() + '">' +
@@ -777,10 +777,10 @@
                            '. Re-compile to enable change-detection.';
       } else if (state.localBundleHash === latestHash) {
         banner.className = 'px-staleness is-fresh';
-        banner.textContent = '✓ Latest PDF matches the current draft.';
+        ICON.label(banner, 'check', ' Latest PDF matches the current draft.');
       } else {
         banner.className = 'px-staleness is-stale';
-        banner.innerHTML = '<strong>⚠ Draft has changed since the latest compile.</strong>' +
+        banner.innerHTML = '<strong>' + ICON.svg('exclamation-triangle') + ' Draft has changed since the latest compile.</strong>' +
                            'Click to re-compile.';
         banner.onclick = function () { _compileAction(); };
       }
@@ -1099,7 +1099,7 @@
       return;
     }
     els['px-lints'].innerHTML = results.map(function (r) {
-      var dot = r.level === 'err' ? '✕' : (r.level === 'warn' ? '⚠' : '✓');
+      var dot = r.level === 'err' ? '✕' : (r.level === 'warn' ? ICON.svg('exclamation-triangle') : '✓');
       return '<li class="' + r.level + '">' + dot + ' ' + _esc(r.message) + '</li>';
     }).join('');
   }
@@ -1150,7 +1150,8 @@
       // band (imported via direct single-doc writes, or added by another
       // device) aren't falsely reported "missing from items.json". Memoized in
       // state.fullCitationByKey, so this fresh read happens once per session.
-      try { if (window.api && api.invalidate) await api.invalidate('items.json'); } catch (e) { /* non-fatal */ }
+      // V3.647 — `typeof api`; `window.api` is always undefined (lexical const).
+      try { if (typeof api !== 'undefined' && api.invalidate) await api.invalidate('items.json'); } catch (e) { /* non-fatal */ }
       var data = await api.load('items.json');
       var byKey = {};
       ((data && data.items) || []).forEach(function (it) {
@@ -1224,7 +1225,7 @@
       state.lastCompile = result;
       /* V3.347 — surface figure-fetch warnings above the log. */
       var warnHead = (result.warnings && result.warnings.length)
-        ? '⚠ ' + result.warnings.join('\n⚠ ') + '\n\n'
+        ? 'Warning: ' + result.warnings.join('\nWarning: ') + '\n\n'
         : '';
       els['px-log'].textContent = warnHead + (result.log || '(no log returned)');
       if (result.pdfUrl) {

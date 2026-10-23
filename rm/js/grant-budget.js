@@ -248,7 +248,7 @@
       var rmTd = document.createElement('td');
       var rm = document.createElement('button');
       rm.className = 'btn pe-block-action';
-      rm.textContent = '×';
+      ICON.label(rm, 'x-mark');
       rm.addEventListener('click', function (e) {
         e.preventDefault();
         year.personnel.splice(idx, 1);
@@ -427,7 +427,7 @@
       var rmTd = document.createElement('td');
       var rm = document.createElement('button');
       rm.className = 'btn pe-block-action';
-      rm.textContent = '×';
+      ICON.label(rm, 'x-mark');
       rm.addEventListener('click', function (e) {
         e.preventDefault();
         rows.splice(idx, 1);

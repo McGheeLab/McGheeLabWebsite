@@ -321,7 +321,7 @@
           <label><input type="checkbox" id="lrc-enrich" checked> Fetch references + abstract via Semantic Scholar where missing (slower — rate-limited)</label>
         </div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <button type="button" class="btn btn-primary" id="lrc-start">▶ Start</button>
+          <button type="button" class="btn btn-primary" id="lrc-start">${ICON.svg('play')} Start</button>
           <span id="lrc-status" style="font-size:12px;color:#6b7280;"></span>
         </div>
         <div id="lrc-counters" style="font-size:12px;margin-bottom:6px;"></div>
@@ -368,7 +368,7 @@
         ui.status('Failed: ' + (e.message || e));
       } finally {
         _running = false;
-        startBtn.textContent = '▶ Start';
+        ICON.label(startBtn, 'play', ' Start');
       }
     });
   }

@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.837 — the figure board on the canvas engine</title>
+<link rel="stylesheet" href="/whiteboard-board.css">
+<link rel="stylesheet" href="/rm/css/notebook-blocks.css">
+<link rel="stylesheet" href="/rm/css/canvas-widgets.css">
+<link rel="stylesheet" href="/rm/css/canvas-paper-reader.css">
+<link rel="stylesheet" href="/rm/css/notebook-canvas.css">
+<link rel="stylesheet" href="/rm/css/figure-board-canvas.css">
+<style>body{font:13px/1.5 system-ui,sans-serif;margin:20px}.ok{color:#15803d}.bad{color:#b91c1c}code{background:#f3f4f6;padding:1px 4px;border-radius:3px}#r{margin:14px 0;padding:10px;border:1px solid #e5e7eb}
+.page{width:1100px}.fbc-root{height:620px}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;font:inherit}.btn-small{padding:4px 8px;font-size:12px}.muted-text{color:#6b7280}</style>
+<script>
+window.__popups = [];
+['prompt','alert','confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
+history.replaceState(null, '', location.pathname + '?paper=p1');
+(function () {
+  var store = new Map(), listeners = [], touched = [];
+  function snapOf(path) { return { id: path.split('/').pop(), exists: store.has(path), data: function () { return store.has(path) ? JSON.parse(JSON.stringify(store.get(path))) : undefined; }, ref: docRef(path) }; }
+  function docsIn(path) { var out = []; store.forEach(function (v, k) { if (k.slice(0, k.lastIndexOf('/')) === path) out.push(snapOf(k)); }); return out; }
+  function fire(path, type) { var parent = path.slice(0, path.lastIndexOf('/')); listeners.slice().forEach(function (l) { if (l.kind === 'doc' && l.path === path) l.cb(snapOf(path)); if (l.kind === 'col' && l.path === parent) l.cb({ docChanges: function () { return [{ type: type, doc: snapOf(path) }]; }, docs: docsIn(parent), size: 1, empty: false, forEach: function (f) { docsIn(parent).forEach(f); } }); }); }
+  function applyUpdate(path, d) { var next = Object.assign({}, store.get(path) || {}); Object.keys(d).forEach(function (k) { if (d[k] === '__DEL__') delete next[k]; else if (d[k] && d[k].__arrayUnion) next[k] = (next[k] || []).concat([d[k].__arrayUnion]); else next[k] = JSON.parse(JSON.stringify(d[k])); }); store.set(path, next); fire(path, 'modified'); }
+  function docRef(path) { return { path: path, id: path.split('/').pop(), collection: function (n) { return colRef(path + '/' + n); },
+      get: function () { touched.push('get ' + path); return Promise.resolve(snapOf(path)); },
+      set: function (d, o) { touched.push('set ' + path); var existed = store.has(path); store.set(path, (o && o.merge) ? Object.assign({}, store.get(path) || {}, JSON.parse(JSON.stringify(d))) : JSON.parse(JSON.stringify(d))); fire(path, existed ? 'modified' : 'added'); return Promise.resolve(); },
+      update: function (d) { touched.push('update ' + path); applyUpdate(path, d); return Promise.resolve(); },
+      delete: function () { touched.push('delete ' + path); store.delete(path); fire(path, 'removed'); return Promise.resolve(); },
+      onSnapshot: function (cb) { var l = { path: path, kind: 'doc', cb: cb }; listeners.push(l); setTimeout(function () { cb(snapOf(path)); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; } }; }
+  function colRef(path) { var q = { path: path, doc: function (id) { return docRef(path + '/' + (id || ('auto' + Math.random().toString(36).slice(2, 8)))); }, orderBy: function () { return q; }, where: function () { return q; }, limit: function () { return q; },
+      get: function () { var d = docsIn(path); return Promise.resolve({ docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); },
+      onSnapshot: function (cb) { var l = { path: path, kind: 'col', cb: cb }; listeners.push(l); var d = docsIn(path); setTimeout(function () { cb({ docChanges: function () { return d.map(function (s) { return { type: 'added', doc: s }; }); }, docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; } }; return q; }
+  var db = { collection: function (n) { return colRef(n); },
+    batch: function () { var ops = []; return { set: function (ref, d, o) { ops.push(function () { return ref.set(d, o); }); }, update: function (ref, d) { ops.push(function () { return ref.update(d); }); }, delete: function (ref) { ops.push(function () { return ref.delete(); }); }, commit: function () { return ops.reduce(function (p, f) { return p.then(f); }, Promise.resolve()); } }; },
+    runTransaction: function (fn) { var tx = { get: function (ref) { return ref.get(); }, set: function (ref, d, o) { ref.set(d, o); }, update: function (ref, d) { ref.update(d); } }; return Promise.resolve(fn(tx)); } };
+  window.__stub = { store: store, touched: touched, db: db, links: [], threads: [], listeners: listeners };
+  window.firebase = { firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; }, delete: function () { return '__DEL__'; }, arrayUnion: function (x) { return { __arrayUnion: x }; } } },
+    storage: function () { return { ref: function () { return { child: function (p) { return { put: function () { touched.push('put ' + p); return Promise.resolve(); }, getDownloadURL: function () { return Promise.resolve('https://storage.example/' + p); }, delete: function () { return Promise.resolve(); } }; } }; } }; },
+    auth: function () { return { currentUser: { uid: 'u1', email: 'a@x.com' }, onAuthStateChanged: function (cb) { setTimeout(function () { cb({ uid: 'u1', email: 'a@x.com' }); }, 0); } }; } };
+  window.firebridge = { requireSignIn: function () { return Promise.resolve({ allowed: true }); }, isLabMember: function () { return true; }, getUser: function () { return { uid: 'u1', email: 'a@x.com', displayName: 'Ada' }; }, isAdmin: function () { return false; }, db: function () { return db; } };
+  window.TOAST = { info: function () {}, success: function () {}, error: function (m) { (window.__toastErr = window.__toastErr || []).push(m); } };
+  window.PAPER_FIGURES = { uploadImage: function () { return Promise.resolve({ download_url: 'https://storage.example/fig.webp', storage_path: 'paper-figures/p1/x.webp', hash: 'h' }); } };
+  window.LIBRARY_LINKS = { toggleDraftLink: function (itemId, draftId, on) { window.__stub.links.push([itemId, draftId, on]); return Promise.resolve([]); } };
+  window.SECTION_COMMENTS = { mount: function (o) { window.__stub.threads.push(o.scope); o.container.textContent = 'thread for ' + o.scope.item_id; return { unmount: function () {} }; } };
+  /* the paper, its old V3.609 board (two cards + an arrow), a lit review in the author's notebook */
+  store.set('papers/p1', { title: 'Collagen alignment under flow', authorUids: ['u1'], mentorUids: [] });
+  store.set('papers/p1/boardItems/c1', { type: 'figure', x: 100, y: 80, w: 280, title: 'Fig 1 — alignment vs shear', body_html: '<p>Polar histograms.</p>', status: 'planned', created_by: 'u1', createdAt: 1700000000000 });
+  store.set('papers/p1/boardItems/c2', { type: 'experiment', x: 520, y: 80, w: 250, title: 'Shear sweep', body: 'n = 3 per rate', status: 'running', created_by: 'u1', createdAt: 1700000001000 });
+  store.set('papers/p1/boardItems/a1', { type: 'arrow', from_id: 'c2', to_id: 'c1', created_by: 'u1' });
+  store.set('papers/p1/boardComments/k1', { item_id: 'c1', body: 'Show the control too', authorUid: 'u2', resolved: false });
+  store.set('userData/u1/litReviews/r1', { title: 'Lit review: collagen', paperIds: ['pa', 'pb'], keyPoints: ['Fibrils align above 2 Pa', 'Alignment persists 24 h'], entryId: 'nb-x', boardId: 'nbX_u1', updated_at: '2026-10-22' });
+  if (window.PointerEvent && !PointerEvent.prototype.getCoalescedEvents) PointerEvent.prototype.getCoalescedEvents = function () { return [this]; };
+})();
+</script>
+<script>/* production shape (V3.862): firebase-bridge.js declares `const firebridge` — a bare global, never window.firebridge.
+   Code that reads window.firebridge must fail here the way it fails on the live site. */
+const firebridge = window.firebridge; delete window.firebridge;</script>
+<script src="/rm/js/icons.js"></script>   <!-- the site icon set, as every production page loads it -->
+<script src="/whiteboard.js"></script>
+<script src="/whiteboard-replay.js"></script>
+<script src="/rm/js/canvas-widgets.js"></script>
+<script src="/rm/js/canvas-paper-reader.js"></script>   <!-- V3.859 — collections (quote · lit review · claim) live in the shared module -->
+</head>
+<body class="fbc-body">
+<h1>V3.837 — a paper's figure board on the canvas engine</h1>
+<div id="r">running…</div>
+<div class="page nbk-page nbc-page fbc-page"><div id="fbc-content" class="nbk-loading">Loading…</div></div>
+<input type="file" id="nbk-file-input" style="display:none">
+<script src="/rm/js/figure-board-canvas.js"></script>
+<script>
+(function () {
+  var out = [], pass = 0, fail = 0;
+  function ok(c, m, got) { if (c) pass++; else fail++; out.push('<div class="' + (c ? 'ok' : 'bad') + '">' + (c ? '✓' : '✗') + ' ' + m + (got !== undefined ? '  →  <code>' + String(got).replace(/</g, '&lt;') + '</code>' : '') + '</div>'); }
+  function done() { var r = document.getElementById('r'); r.innerHTML = '<b>' + pass + ' passed, ' + fail + ' failed</b>' + out.join(''); r.dataset.done = '1'; r.dataset.pass = pass; r.dataset.fail = fail; }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function until(fn, ms) { ms = ms || 5000; var t0 = Date.now(); return new Promise(function (res, rej) { (function poll() { var v; try { v = fn(); } catch (e) {} if (v) return res(v); if (Date.now() - t0 > ms) return rej(new Error('timeout: ' + fn.toString().slice(0, 90))); setTimeout(poll, 40); })(); }); }
+  var q = function (s) { return document.querySelector(s); }, qa = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  var store = window.__stub.store, touched = window.__stub.touched;
+  var S = function () { return window.FIGURE_BOARD_CANVAS._state; };
+  var items = function () { var o = []; store.forEach(function (v, k) { if (k.indexOf('papers/p1/boards/main/items/') === 0) o.push(Object.assign({ id: k.split('/').pop() }, v)); }); return o; };
+  var wires = function () { var o = []; store.forEach(function (v, k) { if (k.indexOf('papers/p1/boards/main/wires/') === 0) o.push(Object.assign({ id: k.split('/').pop() }, v)); }); return o; };
+  var pen = function (type, el, x, y) { el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 3, pointerType: 'pen', button: 0, pressure: 0.5, isPrimary: true })); };
+
+  (async function () {
+    try {
+      await until(function () { return S().inst && store.has('papers/p1/boards/main'); }, 8000);
+      var bd = store.get('papers/p1/boards/main');
+      ok(bd.migratedFrom === 'boardItems' && bd.pages[0].background === 'grid', 'the board doc is created on graph paper, marked as migrated from boardItems');
+      ok(S().canEdit === true && S().inst.isAdmin() === true, 'an author may edit (host gate → engine canEdit)');
+      ok(/Collagen alignment/.test(q('#fbc-header').textContent), 'header shows the paper title');
+      ok(['widgets', 'tools', 'pens', 'zoom'].every(function (n) { return q('.wb-pill[data-pill="' + n + '"]'); }) && !q('.wb-toolbar:not([hidden])'), 'four pills, no toolbar');
+      var inkEl = q('.wb-canvas-ink'), boardEl = q('.wb-board');
+      ok(Math.abs(inkEl.clientWidth - boardEl.clientWidth) <= 1, 'the sheet spans the full width of the stage', inkEl.clientWidth + ' vs ' + boardEl.clientWidth);
+      await until(function () { return items().length === 2 && wires().length === 1; });
+      var c1 = items().find(function (i) { return i.id === 'c1'; }), c2 = items().find(function (i) { return i.id === 'c2'; });
+      ok(c1 && c1.kind === 'figcard' && c1.data.status === 'planned' && /Polar/.test(c1.data.html) && c1.title === 'Fig 1 — alignment vs shear', 'old figure card → figcard widget with the SAME id (its comment thread stays attached)');
+      ok(c2 && c2.kind === 'experiment' && c2.data.status === 'running' && /n = 3/.test(c2.data.html), 'old experiment card → experiment widget (plain body → html)');
+      ok(c1.pageId === 'p1' && c2.x > c1.x && Math.abs(c1.y - c2.y) < 1e-6, 'world px positions became page units (same row, c2 to the right)', c1.x + ',' + c1.y + ' / ' + c2.x + ',' + c2.y);
+      var w = wires()[0];
+      ok(w && w.from === 'c2' && w.to === 'c1', 'the arrow became a wire c2 → c1');
+      await until(function () { return qa('.wb-item-widget').length === 2 && q('.wb-wires .wb-wire'); });
+      ok(!!q('.wb-wires .wb-wire[data-wire-id="' + w.id + '"] .wb-wire-line'), 'the wire is drawn between the two cards');
+      ok(q('.wb-item-widget[data-item-id="c1"] .fbc-status').textContent === 'planned' && q('.wb-item-widget[data-item-id="c2"] .fbc-status').textContent === 'running', 'status chips render');
+      q('.wb-item-widget[data-item-id="c1"] .fbc-status').click();
+      await until(function () { var i = items().find(function (x) { return x.id === 'c1'; }); return i && i.data.status === 'expected'; });
+      ok(true, 'clicking the chip advances planned → expected');
+
+      /* ── Tools pill: region · connect · from paper · lit review · recordings · full screen ── */
+      q('.wb-pill[data-pill="tools"] .wb-pill-btn').click();
+      await until(function () { return q('.wb-pill-tools.wb-open .wb-fan-item'); });
+      ok(['region', 'connect', 'paper', 'litref', 'recs', 'max'].every(function (t) { return q('.wb-pill-tools .wb-fan-item[data-tool="' + t + '"]'); }), 'tools pill: ⬚ Region · ⟶ Connect · From paper · Lit review · Recordings · ⛶');
+
+      /* ── a drawn region becomes a panel: seed a stroke, box it with the pen ── */
+      await window.__stub.db.collection('papers').doc('p1').collection('boards').doc('main').collection('strokes').doc('s1').set({ pageId: 'p1', seq: 1, pts: [0.3, 0.2, 0.5, 0.4, 0.22, 0.5, 0.5, 0.3, 0.5], color: '#111827', w: 0.004 });
+      await until(function () { return S().inst.strokeCount() === 1; });
+      q('.wb-pill-tools .wb-fan-item[data-tool="region"]').click();
+      await until(function () { return S().inst.getTool() === 'region'; });
+      ok(true, '⬚ Region sets the engine tool');
+      var ink = q('.wb-canvas-ink'); var r = ink.getBoundingClientRect();
+      pen('pointerdown', ink, r.left + r.width * 0.08, r.top + r.height * 0.08);
+      pen('pointermove', ink, r.left + r.width * 0.5, r.top + r.height * 0.5);
+      pen('pointermove', ink, r.left + r.width * 0.95, r.top + r.height * 0.95);
+      pen('pointerup', ink, r.left + r.width * 0.95, r.top + r.height * 0.95);
+      await until(function () { return q('.fbc-region-acts'); });
+      ok(/1 stroke in the box/.test(q('.fbc-region-acts').textContent), 'the region bar counts the ink inside the box', q('.fbc-region-n').textContent);
+      q('.fbc-region-acts [data-r="hide"]').click();
+      await until(function () { return items().some(function (i) { return i.kind === 'panel'; }); }, 8000);
+      var panel = items().find(function (i) { return i.kind === 'panel'; });
+      ok(panel.title === 'A' && panel.data.letter === 'A' && panel.data.cleanup === 'hide' && panel.data.sourceStrokeIds.length === 1 && /^https:\/\/storage\.example\/paper-boards\/p1\/main\/panels\//.test(panel.data.url), 'Make panel · hide: panel A with the rasterised ink uploaded under paper-boards/', panel.data.url);
+      await until(function () { var s = store.get('papers/p1/boards/main/strokes/s1'); return s && s.hiddenBy === panel.id; });
+      ok(true, 'the source stroke is folded under the panel (hiddenBy)');
+      ok(S().inst.getTool() === 'pen' && !q('.fbc-region-acts'), 'back to the pen, bar gone');
+      await until(function () { return q('.wb-item-widget[data-kind="panel"] .fbc-letter'); });
+      ok(q('.wb-item-widget[data-kind="panel"] .fbc-letter').textContent === 'A' && q('.wb-item-widget[data-kind="panel"] img'), 'the panel card shows its letter and image');
+      /* ⋯ → Reopen the ink */
+      q('.wb-item-widget[data-kind="panel"] [data-wb-wmenu]').click();
+      await until(function () { return q('.cw-pop.cw-actions'); });
+      var reopen = qa('.cw-pop .cw-act').find(function (b) { return /Reopen the ink/.test(b.textContent); });
+      ok(!!reopen && qa('.cw-pop .cw-act').some(function (b) { return /Discussion/.test(b.textContent); }), '⋯ offers Reopen the ink and Discussion', qa('.cw-pop .cw-act b').map(function (b) { return b.textContent; }).join(' · '));
+      reopen.click();
+      await until(function () { var s = store.get('papers/p1/boards/main/strokes/s1'); return s && !s.hiddenBy; });
+      ok(true, 'Reopen the ink clears hiddenBy on the stroke');
+
+      /* ── connect two cards ── */
+      q('.wb-pill[data-pill="tools"] .wb-pill-btn').click(); await until(function () { return q('.wb-pill-tools.wb-open'); });
+      q('.wb-pill-tools .wb-fan-item[data-tool="connect"]').click();
+      await until(function () { return S().inst.isConnecting(); });
+      var pA = q('.wb-item-widget[data-item-id="c1"]'), pB = q('.wb-item-widget[data-kind="panel"]');
+      pA.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 5, pointerType: 'mouse', button: 0 }));
+      await wait(20);
+      ok(pA.classList.contains('wb-connect-from'), 'first card picked (highlighted)');
+      pB.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 5, pointerType: 'mouse', button: 0 }));
+      await until(function () { return wires().length === 2; });
+      var w2 = wires().find(function (x) { return x.id !== w.id; });
+      ok(w2.from === 'c1' && w2.to === panel.id && !S().inst.isConnecting(), 'second card picked → wire c1 → panel, connect mode off');
+      /* name the relation through the wire menu */
+      await until(function () { return q('.wb-wire[data-wire-id="' + w2.id + '"] .wb-wire-hit'); });
+      q('.wb-wire[data-wire-id="' + w2.id + '"] .wb-wire-hit').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 6, pointerType: 'mouse', button: 0, clientX: 300, clientY: 300 }));
+      await until(function () { return q('.cw-pop.cw-actions'); });
+      qa('.cw-pop .cw-act').find(function (b) { return /^supports/.test(b.textContent); }).click();
+      await until(function () { var x = store.get('papers/p1/boards/main/wires/' + w2.id); return x && x.rel === 'supports'; });
+      ok(true, 'tapping a wire names its relation (supports)');
+
+      /* ── a lit review from the notebook: key points only, papers linked ── */
+      q('.wb-pill[data-pill="tools"] .wb-pill-btn').click(); await until(function () { return q('.wb-pill-tools.wb-open'); });
+      q('.wb-pill-tools .wb-fan-item[data-tool="litref"]').click();
+      await until(function () { return q('.cw-pop.cw-actions'); });
+      ok(/Lit review: collagen/.test(q('.cw-pop').textContent) && /2 papers · 2 key points/.test(q('.cw-pop').textContent), 'the lit review picker lists the author\'s reviews');
+      q('.cw-pop .cw-act').click();
+      await until(function () { return items().some(function (i) { return i.kind === 'litref'; }); });
+      await until(function () { return window.__stub.links.length === 2; }, 6000);
+      var L = window.__stub.links;
+      ok(L.some(function (x) { return x[0] === 'pa' && x[1] === 'p1' && x[2] === true; }) && L.some(function (x) { return x[0] === 'pb' && x[2] === true; }), 'placing the review links both papers to this paper (linked_drafts)');
+      await until(function () { var lr = items().find(function (i) { return i.kind === 'litref'; }); return lr && (lr.data.linked || []).length === 2; });
+      await until(function () { return qa('.wb-item-widget[data-kind="litref"] .fbc-lit-points li').length === 2; });
+      ok(/Fibrils align/.test(q('.wb-item-widget[data-kind="litref"]').textContent) && !/pa|pb/.test(q('.wb-item-widget[data-kind="litref"] .fbc-lit-points').textContent), 'the board card shows ONLY the key points');
+      /* the review grows in the notebook → the board follows and links the new paper */
+      await window.__stub.db.collection('userData').doc('u1').collection('litReviews').doc('r1').set(Object.assign({}, store.get('userData/u1/litReviews/r1'), { paperIds: ['pa', 'pb', 'pc'], keyPoints: ['Fibrils align above 2 Pa', 'Alignment persists 24 h', 'Stiffness matters less than flow'] }));
+      await until(function () { return window.__stub.links.some(function (x) { return x[0] === 'pc' && x[2] === true; }); }, 6000);
+      await until(function () { return qa('.wb-item-widget[data-kind="litref"] .fbc-lit-points li').length === 3; });
+      ok(true, 'a paper added to the review later is linked too, and the third key point appears');
+      /* remove → unlink */
+      q('.wb-item-widget[data-kind="litref"] [data-wb-wmenu]').click();
+      await until(function () { return q('.cw-pop.cw-actions'); });
+      var rm = qa('.cw-pop .cw-act').find(function (b) { return /Remove/.test(b.textContent); });
+      rm.click(); await wait(10); rm.click();
+      await until(function () { return !items().some(function (i) { return i.kind === 'litref'; }); });
+      var offs = window.__stub.links.filter(function (x) { return x[2] === false; }).map(function (x) { return x[0]; }).sort().join(',');
+      ok(offs === 'pa,pb,pc', 'removing the review unlinks its papers', offs);
+
+      /* ── discussion thread on a migrated card ── */
+      q('.wb-item-widget[data-item-id="c1"] [data-wb-wmenu]').click();
+      await until(function () { return q('.cw-pop.cw-actions'); });
+      var disc = qa('.cw-pop .cw-act').find(function (b) { return /Discussion/.test(b.textContent); });
+      ok(/Discussion \(1\)/.test(disc.textContent), 'the ⋯ menu counts the card\'s open comments', disc.textContent);
+      disc.click();
+      await until(function () { return !q('#nbc-side').hidden && /thread for c1/.test(q('#nbc-side').textContent); });
+      ok(window.__stub.threads[0] && window.__stub.threads[0].item_id === 'c1', 'Discussion mounts SECTION_COMMENTS scoped to the card id');
+      q('#nbc-side [data-side="close"]').click(); await wait(10);
+
+      /* ── export draws cards + wires; full screen; nothing else ── */
+      var pngs = await S().inst.exportPNGs({ width: 800 });
+      ok(pngs.length >= 1 && /^data:image\/webp/.test(pngs[0].dataUrl), 'export flattens the board');
+      q('[data-h="full"]').click(); await wait(30);
+      ok(document.body.classList.contains('nbc-full'), '⛶ full screen class on body');
+      document.body.classList.remove('nbc-full'); S().full = false;
+      ok(window.__popups.length === 0, 'no browser popups');
+      ok(!(window.__toastErr || []).length, 'no error toasts', (window.__toastErr || []).join(' | '));
+    } catch (e) {
+      var st = (function () { try { var s = S(); return JSON.stringify({ inst: !!s.inst, canEdit: s.canEdit, items: items().length, wires: wires().length, strokes: s.inst && s.inst.strokeCount(), listeners: window.__stub.listeners.map(function (l) { return l.kind[0] + ':' + l.path; }), hasStroke: store.has('papers/p1/boards/main/strokes/s1'), tail: touched.slice(-4) }); } catch (x) { return String(x); } })();
+      ok(false, 'exception: ' + (e && e.message), st); console.error(e);
+    }
+    done();
+  })();
+})();
+</script>
+</body>
+</html>

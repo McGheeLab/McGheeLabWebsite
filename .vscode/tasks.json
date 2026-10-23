@@ -1,0 +1,54 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Deploy: upload changed files (FTP)",
+      "detail": "Uploads only the files that differ from what is live, then verifies them. ⇧⌘B",
+      "type": "shell",
+      "command": "python3 scripts/deploy.py ftp",
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": true, "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy: what changed?",
+      "detail": "Lists the site files that differ from the live site (no network, no changes).",
+      "type": "shell",
+      "command": "python3 scripts/deploy.py status",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy: stage for Cyberduck",
+      "detail": "Copies only the changed files into deploy/upload/ and opens it in Finder.",
+      "type": "shell",
+      "command": "python3 scripts/deploy.py stage",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy: verify live",
+      "detail": "After a Cyberduck drag: confirms each staged file is live and records it.",
+      "type": "shell",
+      "command": "python3 scripts/deploy.py verify",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy: audit server for non-site files",
+      "detail": "Finds repo files that are NOT part of the site but ARE reachable on mcgheelab.com.",
+      "type": "shell",
+      "command": "python3 scripts/deploy.py audit",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Folders: refresh Finder dates",
+      "detail": "Raises every folder's Date Modified to its newest file.",
+      "type": "shell",
+      "command": "python3 scripts/touch_folders.py",
+      "presentation": { "reveal": "silent", "panel": "shared" },
+      "problemMatcher": []
+    }
+  ]
+}

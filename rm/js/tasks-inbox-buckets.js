@@ -320,7 +320,7 @@
 
     const caret = document.createElement('button');
     caret.className = 'inbox-caret';
-    caret.textContent = state.expanded.has(st.id) ? '▾' : '▸';
+    ICON.label(caret, state.expanded.has(st.id) ? 'chevron-down' : 'chevron-right');
     caret.addEventListener('click', (ev) => { ev.stopPropagation(); toggleExpand(st.id); });
     r.appendChild(caret);
 
@@ -461,7 +461,7 @@
     actions.className = 'completed-actions';
     const complete = document.createElement('button');
     complete.className = 'btn btn-primary btn-sm';
-    complete.textContent = '✓ Mark complete';
+    ICON.label(complete, 'check', ' Mark complete');
     complete.addEventListener('click', () => {
       st.done = true;
       st.done_at = isoNow();

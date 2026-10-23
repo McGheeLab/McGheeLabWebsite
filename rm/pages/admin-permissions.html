@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
   <script>
     /* V3.63 — workflow-permissions admin page. Tabs:
      *   ?tab=users (default) → Users × Pages matrix
@@ -383,9 +384,13 @@
     /* V3.77 — inline workflow meta editor in the row label cell. */
     .perm-wf-meta { display: flex; flex-direction: column; gap: 3px; min-width: 200px; }
     .perm-wf-row1 { display: flex; gap: 4px; align-items: center; }
+    /* V3.641 — was width:32px/maxlength:2, which physically could not
+       hold a Heroicon name like "beaker". Widened so an admin can type
+       either; ICON.render() accepts an emoji, a name, or an image URL,
+       so already-saved emoji keep working untouched. */
     .perm-wf-icon {
-      width: 32px; text-align: center;
-      font-size: 14px; padding: 3px 4px;
+      width: 92px; text-align: center;
+      font-size: 13px; padding: 3px 4px;
       border: 1px solid #d1d5db; border-radius: 4px;
       background: #fff;
     }
@@ -466,6 +471,29 @@
     .perm-role-collaborator { background: #f5d0fe; color: #6b21a8; border-color: #f0abfc; }
     .perm-role-guest    { background: #f3f4f6; color: #6b7280; border-color: #e5e7eb; }
 
+    /* V3.729 — category quick-filter pills (users/{uid}.category). Shown on
+       the Users × Pages and Per-user tabs only; compose with the text search. */
+    .perm-category-pills { display: none; align-items: center; gap: 6px; flex-wrap: wrap; }
+    html[data-perm-tab="users"] .perm-category-pills,
+    html[data-perm-tab="user"]  .perm-category-pills { display: flex; }
+    .perm-cat-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 500; line-height: 1;
+      padding: 6px 10px; border-radius: 999px; cursor: pointer;
+      background: #fff; color: #374151;
+      border: 1px solid var(--border, #d1d5db);
+    }
+    .perm-cat-pill:hover { border-color: #9ca3af; }
+    .perm-cat-pill.active {
+      background: var(--primary, #2563eb); color: #fff;
+      border-color: var(--primary, #2563eb);
+    }
+    .perm-cat-pill-count {
+      font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 999px;
+      background: #f3f4f6; color: #4b5563;
+    }
+    .perm-cat-pill.active .perm-cat-pill-count { background: rgba(255,255,255,.22); color: #fff; }
+
     .perm-bulk-bar {
       padding: 12px 14px; margin-bottom: 12px;
       background: color-mix(in srgb, var(--primary, #2563eb) 6%, #fff);
@@ -523,7 +551,8 @@
           const HUB = [
             { tab: 'users',     label: 'Users × Pages' },
             { tab: 'user',      label: 'Per-user' },
-            { tab: 'workflows', label: 'Default Workflows × Pages' },
+            // V3.811 — default workflows have their own editor page now.
+            { href: '/rm/pages/admin-workflows.html', label: 'Default workflows ↗' },
             { tab: 'tracking',  label: 'Page Tracking' },
             { tab: 'mentors',   label: 'Mentors' },
           ];
@@ -531,8 +560,8 @@
           const current = window.__PERM_TAB;
           HUB.forEach(t => {
             const a = document.createElement('a');
-            a.href = '/rm/pages/admin-permissions.html?tab=' + t.tab;
-            a.className = 'tab-btn' + (t.tab === current ? ' active' : '');
+            a.href = t.href || ('/rm/pages/admin-permissions.html?tab=' + t.tab);
+            a.className = 'tab-btn' + (t.tab && t.tab === current ? ' active' : '');
             a.textContent = t.label;
             a.style.textDecoration = 'none';
             bar.appendChild(a);
@@ -542,6 +571,8 @@
 
       <div class="perm-toolbar">
         <input type="text" id="perm-search" class="perm-search" placeholder="Filter rows…">
+        <!-- V3.729 — category quick filters; rendered by admin-permissions.js renderCategoryPills() -->
+        <div id="perm-category-pills" class="perm-category-pills" role="group" aria-label="Filter by category"></div>
         <button class="btn" id="perm-revert">Revert changes</button>
         <button class="btn btn-primary" id="perm-save">Save changes</button>
         <button class="btn" id="perm-recompute-collections" title="Walk every userPermissions doc and re-derive allowedCollections from allowedPageIds via page-collections.js. Use after editing the pageId→collection map.">Recompute all collaborator grants</button>
@@ -549,10 +580,7 @@
         <span id="perm-status" class="perm-status"></span>
       </div>
 
-      <div id="perm-seed-box" class="perm-seed-box" style="display:none;">
-        <span><strong>First-run setup:</strong> the <code>labConfig/defaultWorkflows</code> doc doesn't exist yet. Click <strong>Seed defaults</strong> to write the five baseline workflows from <code>page-registry.js</code>.</span>
-        <button class="btn btn-primary" id="perm-seed-defaults" style="margin-left:auto;">Seed defaults</button>
-      </div>
+      <!-- V3.811 — the first-run "Seed defaults" box moved to admin-workflows.html (Save there writes the doc). -->
 
       <!-- Users × Pages tab -->
       <div class="perm-tab tab-users">
@@ -669,18 +697,12 @@
         </div>
       </div>
 
-      <!-- Default Workflows × Pages tab -->
+      <!-- Default Workflows tab — V3.811: the matrix moved to its own editor page -->
       <div class="perm-tab tab-workflows">
-        <div class="perm-grid-wrap">
-          <table class="perm-grid" id="perm-grid-workflows">
-            <thead><tr><th>Default workflow</th></tr></thead>
-            <tbody><tr><td class="perm-empty">Loading default workflows…</td></tr></tbody>
-          </table>
-        </div>
-        <div style="margin-top:12px;font-size:12px;color:var(--text-muted,#6b7280);line-height:1.55;">
-          Each row is one of the 5 default workflows. Checkboxes edit each workflow's <code>pageIds</code> list,
-          stored in <code>labConfig/defaultWorkflows</code>. Changes here apply to every user immediately.
-          Use the seed button above if this is the first run and the doc doesn't exist yet.
+        <div class="card" style="max-width:640px;">
+          <div class="card-title">Default workflows have their own editor</div>
+          <p class="card-body" style="margin:6px 0 12px;">Which workflows exist, their order, icon, blurb, landing page and the pages in each — with a preview of the bar — now live on one page instead of this checkbox matrix.</p>
+          <a class="btn btn-primary" href="/rm/pages/admin-workflows.html">Open Default workflows →</a>
         </div>
       </div>
     </div>

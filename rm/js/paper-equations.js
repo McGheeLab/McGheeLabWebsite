@@ -21,6 +21,15 @@
  */
 
 (function () {
+
+  /* V3.741 — the tool pages (Tables / Figures / …) bind cells and captions
+   * with their own readOnly flags, which used to be hardcoded false — so a
+   * paper that paper-editor considered read-only (viewer role, or checked out
+   * as a .paperbundle.zip) still LOOKED editable here, and typing simply
+   * vanished at the provider. Ask the editor instead. */
+  function _toolEditable() {
+    return !!(window.PaperEditor && window.PaperEditor.isEditable && window.PaperEditor.isEditable());
+  }
   var _state = {
     attached: false,
     panel: null,
@@ -291,6 +300,28 @@
       });
       fmtGroup.row.appendChild(btn);
     });
+    /* V3.649 — bullet / numbered lists inside the paragraph you are
+     * writing. These are LINE toggles, not selection wraps: they mark
+     * every line the selection touches, and pressing the same button
+     * again strips the markers. Export emits itemize / enumerate. */
+    [
+      { label: '• List', title: 'Bullet list — marks every line the selection touches (press again to remove)', type: 'bullet', cls: 'pe-gt-ul', id: 'pe-gt-ul' },
+      { label: '1. List', title: 'Numbered list — marks every line the selection touches (press again to remove)', type: 'number', cls: 'pe-gt-ol', id: 'pe-gt-ol' },
+    ].forEach(function (b) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pe-gt-btn ' + b.cls;
+      btn.title = b.title;
+      btn.id = b.id;
+      btn.textContent = b.label;
+      btn.addEventListener('mousedown', function (e) {
+        e.preventDefault();
+        if (window.PaperEditor && window.PaperEditor.toggleListAtSelection) {
+          window.PaperEditor.toggleListAtSelection(b.type);
+        }
+      });
+      fmtGroup.row.appendChild(btn);
+    });
     bar.appendChild(fmtGroup.el);
 
     bar.appendChild(_makeDivider());
@@ -307,8 +338,12 @@
       /* V3.345 — footnote token; renders as a superscript † chip and
        * exports as \footnote{}. */
       { label: '+ Note',      title: 'Insert footnote',                              action: _toolbarInsertFootnote,       id: 'pe-gt-footnote' },
+      /* V3.645 — value keys / inventory refs. One button for both
+       * namespaces: the picker lists defined keys and offers a live
+       * inventory search, so defining and inserting are one action. */
+      { label: '+ Value',     title: 'Insert a value key or inventory item',         action: _toolbarInsertValue,          id: 'pe-gt-value' },
       /* V3.346 — discoverability: a static shortcuts & tips card. */
-      { label: '⌨',           title: 'Keyboard shortcuts & tips',                    action: _toolbarShowShortcuts,        id: 'pe-gt-shortcuts' },
+      { label: '', icon: 'keyboard', title: 'Keyboard shortcuts & tips',                    action: _toolbarShowShortcuts,        id: 'pe-gt-shortcuts' },
     ].forEach(function (b) {
       var btn = _makeRefBtn(b);
       inlineGroup.row.appendChild(btn);
@@ -323,6 +358,12 @@
       { label: '+ Eq',    title: 'Insert equation reference (Eq. N)',   action: _toolbarInsertEquation },
       { label: '+ Fig',   title: 'Insert figure reference (Fig. N)',    action: _toolbarInsertFigure   },
       { label: '+ Table', title: 'Insert table reference (Tab. N)',     action: _toolbarInsertTable    },
+      /* V3.649 — section / subheading cross-references. The [!sec:] token,
+       * its chip, the Document view's "Section N" numbering and the
+       * exporter's \\label{}/\\ref{} pair all shipped in V3.432, but the only
+       * way to make one was to hand-type a ref_label into a section header
+       * and then hand-type the token. This is the missing picker. */
+      { label: '+ Section', title: 'Insert a cross-reference to a section or subheading', action: _toolbarInsertSectionRef, id: 'pe-gt-secref' },
     ].forEach(function (b) {
       var btn = _makeRefBtn(b);
       refGroup.row.appendChild(btn);
@@ -353,7 +394,8 @@
     btn.type = 'button';
     btn.className = 'pe-gt-btn pe-gt-ref';
     btn.title = b.title;
-    btn.textContent = b.label;
+    if (b.icon) ICON.label(btn, b.icon, b.label);
+    else btn.textContent = b.label;
     if (b.id) btn.id = b.id;
     btn.addEventListener('mousedown', function (e) {
       _saveCaretFromCurrentFocus();
@@ -571,23 +613,53 @@
     _openCitationPopoverFallback();
   }
 
-  /* V3.345 — footnote insert: prompt for the note text, insert the
-   * [^text] token at the saved caret (renders immediately as a † chip
-   * via the bracket-token chip path in _insertAtSavedCaret). */
-  function _toolbarInsertFootnote(anchorBtn) {
-    if (!_ensureCaretOrAlert()) return;
-    var txt = window.prompt('Footnote text:', '');
-    if (txt === null) return;
+  /* V3.345 — footnote insert: the [^text] token goes in at the saved caret
+   * and renders immediately as a † chip via the bracket-token chip path in
+   * _insertAtSavedCaret.
+   * V3.648 — the text is typed in the picker's inline form, not a
+   * window.prompt box. */
+  function _sanitizeFootnote(txt) {
     /* Newlines always break the token; unbalanced brackets would too. */
-    txt = txt.replace(/\n/g, ' ').trim();
+    txt = String(txt || '').replace(/\n/g, ' ').trim();
     var d = 0, bal = true;
     for (var ci = 0; ci < txt.length; ci++) {
       if (txt[ci] === '[') d++;
       else if (txt[ci] === ']') { d--; if (d < 0) { bal = false; break; } }
     }
     if (!bal || d !== 0) txt = txt.replace(/[\[\]]/g, ' ').replace(/\s+/g, ' ').trim();
-    if (!txt) return;
-    _insertAtSavedCaret('[^' + txt + ']');
+    return txt;
+  }
+  function _toolbarInsertFootnote(anchorBtn) {
+    if (!_ensureCaretOrAlert()) return;
+    var r = anchorBtn && anchorBtn.getBoundingClientRect
+      ? anchorBtn.getBoundingClientRect() : null;
+    _openPicker(
+      r ? r.left : (window.innerWidth / 2 - 160),
+      r ? (r.bottom + 4) : (window.innerHeight / 2 - 100),
+      {
+        title: 'Footnote', emptyMsg: '', renderRowMode: 'plain', rows: [],
+        form: {
+          title: 'Footnote',
+          fields: [{
+            key: 'text', label: 'Note text', value: '',
+            placeholder: 'Measured on the 2026-04 calibration.',
+            hint: 'Prints as a numbered footnote; exports as \\footnote{}.',
+          }],
+          submitLabel: 'Insert',
+          backLabel: 'Cancel',
+          validate: function (vals) {
+            if (!_sanitizeFootnote(vals.text)) {
+              return { field: 'text', message: 'Type the note text first.' };
+            }
+            return null;
+          },
+          onSubmit: function (vals, handle) {
+            handle.close();
+            _insertAtSavedCaret('[^' + _sanitizeFootnote(vals.text) + ']');
+          },
+        },
+      }
+    );
   }
 
   /* V3.346 — static shortcuts / tips card. Singleton; dismissed on
@@ -607,8 +679,9 @@
           '<tr><td>Click a chip</td><td>Edit that citation or footnote in place</td></tr>' +
           '<tr><td><code>**b**</code> <code>*i*</code> <code>~sub~</code> <code>^sup^</code> <code>$math$</code></td><td>Inline formatting in any paragraph</td></tr>' +
           '<tr><td><code>[^text]</code></td><td>Footnote (or use + Note)</td></tr>' +
+          '<tr><td><code>- item</code> / <code>1. item</code></td><td>Bullet / numbered list in a paragraph (2 spaces to nest)</td></tr>' +
           '<tr><td>View selector</td><td>Mixed / all-skeleton / all-body reading modes</td></tr>' +
-          '<tr><td>✍️ Guide pill</td><td>Section-aware writing guidance + live checks</td></tr>' +
+          '<tr><td>' + ICON.svg('pencil') + ' Guide pill</td><td>Section-aware writing guidance + live checks</td></tr>' +
         '</table>';
       document.body.appendChild(_shortcutsEl);
       document.addEventListener('mousedown', function (e) {
@@ -818,26 +891,28 @@
   var _activeTab = null;
   var TABS = [
     /* V3.120 — plainLabel is the icon-less label used by the pill bar.
-     * label is the legacy V3.115 emoji-prefixed label for the in-pane
-     * tab nav (kept for back-compat; slide-out pane no longer renders
-     * its own tab nav, so label is unused but harmless). */
+     * icon (+ plainLabel) builds the legacy in-pane tab nav; a tab with
+     * no icon name keeps a text `label` (∑ Symbols). The slide-out pane
+     * no longer shows its own tab nav, so this is unused but harmless. */
     /* V3.334 — leftmost "Guide" tab: section-aware curated writing
      * guidance + live self-checks (rendered by paper-writing-guide.js). */
-    { id: 'guide',      label: '✍️ Guide',      plainLabel: 'Guide' },
-    { id: 'equations',  label: '📐 Equations',  plainLabel: 'Equations' },
+    { id: 'guide',      icon: 'pencil',         plainLabel: 'Guide' },
+    { id: 'equations',  icon: 'variable',       plainLabel: 'Equations' },
     /* V3.459 — math symbol palette (rendered by paper-symbols.js;
      * copy-to-clipboard tiles, user-reorderable sections). */
     { id: 'symbols',    label: '∑ Symbols',     plainLabel: 'Symbols' },
-    { id: 'figures',    label: '🖼 Figures',    plainLabel: 'Figures' },
+    /* V3.645 — per-paper value keys + inventory refs (paper-values.js). */
+    { id: 'values',     icon: 'key',            plainLabel: 'Values' },
+    { id: 'figures',    icon: 'photo',          plainLabel: 'Figures' },
     /* V3.609 — freeform planning canvas: figure/experiment/reference/note
      * cards + arrows (rendered by paper-figure-board.js). */
-    { id: 'figure-board', label: '🧭 Figure board', plainLabel: 'Figure board' },
-    { id: 'tables',     label: '📋 Tables',     plainLabel: 'Tables' },
-    { id: 'references', label: '📚 References', plainLabel: 'References' },
+    { id: 'figure-board', icon: 'compass',      plainLabel: 'Figure board' },
+    { id: 'tables',     icon: 'table-cells',    plainLabel: 'Tables' },
+    { id: 'references', icon: 'books',          plainLabel: 'References' },
     /* V3.466 — grant submission documents + checklist. `visibleFor`
      * limits the pill to grant papers; other tabs (no visibleFor) show
      * for every paper_type. */
-    { id: 'grant-docs', label: '📎 Grant Docs', plainLabel: 'Grant Docs', visibleFor: ['grant'] },
+    { id: 'grant-docs', icon: 'paper-clip',     plainLabel: 'Grant Docs', visibleFor: ['grant'] },
   ];
 
   /* V3.466 — current paper's document type (journal | grant | …), read
@@ -879,12 +954,12 @@
     var title = document.createElement('span');
     title.className = 'pe-equations-title';
     title.id = 'pe-pane-title';
-    title.textContent = '📐 Panel';
+    ICON.label(title, 'variable', ' Panel');
     var close = document.createElement('button');
     close.type = 'button';
     close.className = 'pe-icon-btn';
     close.setAttribute('aria-label', 'Close');
-    close.textContent = '×';
+    ICON.label(close, 'x-mark');
     close.addEventListener('click', hidePanel);
     head.appendChild(title);
     head.appendChild(close);
@@ -898,7 +973,8 @@
       btn.type = 'button';
       btn.className = 'pe-tab-btn';
       btn.dataset.tab = t.id;
-      btn.textContent = t.label;
+      if (t.icon) ICON.label(btn, t.icon, ' ' + t.plainLabel);
+      else btn.textContent = t.label;
       btn.addEventListener('click', function () { _setActiveTab(t.id); });
       nav.appendChild(btn);
     });
@@ -924,6 +1000,16 @@
     symRoot.id = 'pe-symbols-root';
     symTab.appendChild(symRoot);
     panel.appendChild(symTab);
+
+    /* V3.645 — Values tab content (same lazy-scaffold contract;
+     * paper-values.js fills #pe-values-root). */
+    var valTab = document.createElement('div');
+    valTab.className = 'pe-tab-content';
+    valTab.dataset.tab = 'values';
+    var valRoot = document.createElement('div');
+    valRoot.id = 'pe-values-root';
+    valTab.appendChild(valRoot);
+    panel.appendChild(valTab);
 
     /* V3.466 — Grant Docs tab content (grant papers only; the pill is
      * hidden otherwise). paper-grant-docs.js fills #pe-grant-docs-root
@@ -1068,9 +1154,9 @@
      * COMPOSER below each figure's Panels row is live today). */
     var fbCard = document.createElement('div');
     fbCard.className = 'pe-figbuilder-card';
-    fbCard.innerHTML = '<b>🏗 Figure builder</b> — a guided workspace for assembling ' +
+    fbCard.innerHTML = '<b>' + ICON.svg('construction') + ' Figure builder</b> — a guided workspace for assembling ' +
       'publication figures (plots, schematics, annotations) is planned here. For now, use ' +
-      '<i>🧩 Compose panels…</i> on any figure to arrange panel images into one labeled composite.';
+      '<i>' + ICON.svg('puzzle-piece') + ' Compose panels…</i> on any figure to arrange panel images into one labeled composite.';
     figTab.appendChild(fbCard);
 
     var figUnplacedSec = document.createElement('section');
@@ -1204,7 +1290,7 @@
     var refEvidenceRefresh = document.createElement('button');
     refEvidenceRefresh.type = 'button';
     refEvidenceRefresh.className = 'pe-icon-btn pe-evidence-refresh';
-    refEvidenceRefresh.textContent = '↻';
+    ICON.label(refEvidenceRefresh, 'arrow-path');
     refEvidenceRefresh.title = 'Re-check the reader for new flagged highlights';
     refEvidenceRefresh.addEventListener('click', function (e) {
       e.preventDefault();   // don't toggle the <details>
@@ -1327,6 +1413,8 @@
     if (!panelEl) return;
     _activeTab = tabId;
     try { localStorage.setItem('rm_paper_active_tab', tabId); } catch (e) {}
+    /* V3.841 — the figure board is a canvas: give it the whole width */
+    try { document.documentElement.classList.toggle('pe-wide-tab', tabId === 'figure-board'); } catch (e) {}
     /* Toggle btn + content visibility. */
     var btns = panelEl.querySelectorAll('.pe-tab-btn');
     btns.forEach(function (b) {
@@ -1338,6 +1426,50 @@
     });
     /* Refresh the now-visible tab. */
     if (!panelEl.hidden) _refreshPanel();
+  }
+
+  /* V3.647 — never rebuild a list out from under a live editor.
+   *
+   * The Figures and Tables pages mount REAL collaborative editors — table
+   * cells and captions bound through `bindYTextToContentEditable` — inside
+   * lists that the refreshers below replace wholesale with
+   * `listEl.innerHTML = ''`. Every keystroke in one of those mutates a
+   * Y.Text under `sections`, which fires the `observeDeep` registered in
+   * _installSubscriptions, which calls _refreshPanel, which destroys the
+   * contenteditable the caret is sitting in. That is the "I can only type
+   * one letter at a time in a table cell" bug: one character in, DOM
+   * rebuilt, focus gone, click back in, repeat.
+   *
+   * So when focus is inside a list this refresh would replace, park the
+   * refresh on the list element and run it once focus leaves. Remote edits
+   * still land — at the next natural pause instead of mid-word. */
+  function _holdsFocus(el) {
+    var a = document.activeElement;
+    return !!(el && a && a !== document.body && el.contains(a));
+  }
+  function _deferWhileEditing(listIds, refreshFn) {
+    for (var i = 0; i < listIds.length; i++) {
+      var host = document.getElementById(listIds[i]);
+      if (!host || !_holdsFocus(host)) continue;
+      host.__peDeferredRefresh = refreshFn;
+      if (!host.__peDeferWired) {
+        host.__peDeferWired = true;
+        host.addEventListener('focusout', function () {
+          var self = this;
+          /* focusout fires BEFORE the next element takes focus, so settle on
+           * the next tick — otherwise tabbing from one table cell to the
+           * next rebuilds the grid in the gap between them. */
+          setTimeout(function () {
+            if (_holdsFocus(self)) return;
+            var fn = self.__peDeferredRefresh;
+            self.__peDeferredRefresh = null;
+            if (fn) fn();
+          }, 0);
+        });
+      }
+      return true;
+    }
+    return false;
   }
 
   function _refreshPanel() {
@@ -1361,6 +1493,13 @@
       /* V3.459 — rendered by paper-symbols.js (idempotent, like Guide). */
       if (window.PaperSymbols) {
         window.PaperSymbols.buildTabContent(document.getElementById('pe-symbols-root'));
+      }
+      return;
+    }
+    if (_activeTab === 'values') {
+      /* V3.645 — rendered by paper-values.js (idempotent, like Guide). */
+      if (window.PaperValues) {
+        window.PaperValues.buildTabContent(document.getElementById('pe-values-root'));
       }
       return;
     }
@@ -1483,7 +1622,7 @@
     delBtn.type = 'button';
     delBtn.className = 'pe-icon-btn';
     delBtn.title = 'Delete';
-    delBtn.textContent = '🗑';
+    ICON.label(delBtn, 'trash');
     delBtn.addEventListener('click', function () {
       if (!confirm('Delete this main equation? Already-placed blocks in the document are not removed.')) return;
       _deleteLibraryEntry(entry.id);
@@ -1589,7 +1728,7 @@
     var closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'pe-icon-btn';
-    closeBtn.textContent = '×';
+    ICON.label(closeBtn, 'x-mark');
     closeBtn.addEventListener('click', function () { overlay.remove(); });
     head.appendChild(title);
     head.appendChild(closeBtn);
@@ -1761,7 +1900,7 @@
     delBtn.type = 'button';
     delBtn.className = 'pe-icon-btn';
     delBtn.title = 'Delete';
-    delBtn.textContent = '🗑';
+    ICON.label(delBtn, 'trash');
     delBtn.addEventListener('click', function () {
       if (!confirm('Delete this inline equation? Existing references in the paper will show "[?eq]" until updated.')) return;
       _deleteLibraryEntry(entry.id);
@@ -1853,6 +1992,11 @@
     /* V3.132 — two lists: unplaced (library) + placed-in-doc. The full
      * row editor (V3.131) is the same for both; the placement controls
      * differ via _buildFigureRow's `placement` parameter. */
+    /* V3.647 — figure captions are live Y.Text editors in these lists, so
+     * they lose the caret to a rebuild exactly like table cells do. */
+    if (_deferWhileEditing(
+      ['pe-equations-fig-unplaced-list', 'pe-equations-fig-list'],
+      _refreshFiguresSection)) return;
     _refreshFiguresUnplacedList();
     _refreshFiguresPlacedList();
   }
@@ -2104,7 +2248,7 @@
     capEl.className = 'pe-block-content pe-figure-caption pe-fig-caption-editor';
     capEl.dataset.placeholder = 'Figure caption — supports $math$, [@cite], **bold**, etc.';
     window.PaperEditor.bindYTextToContentEditable(bodyY, capEl, {
-      readOnly: false,
+      readOnly: !_toolEditable(),   // V3.741 — was hardcoded false; honours the checkout lock
       renderHtml: window.PaperEditor.renderParagraphHtml,
     });
     if (window.PaperEquations && window.PaperEquations.bindContextMenu) {
@@ -2359,7 +2503,7 @@
       bodyY = blk.get('body');
     }
     window.PaperEditor.bindYTextToContentEditable(bodyY, capEl, {
-      readOnly: false,
+      readOnly: !_toolEditable(),   // V3.741 — was hardcoded false; honours the checkout lock
       renderHtml: window.PaperEditor.renderParagraphHtml,
     });
     if (window.PaperEquations && window.PaperEquations.bindContextMenu) {
@@ -2453,7 +2597,7 @@
       var composeBtn = document.createElement('button');
       composeBtn.type = 'button';
       composeBtn.className = 'pe-section-kind pe-tbl-small-btn';
-      composeBtn.textContent = '🧩 Compose panels…';
+      ICON.label(composeBtn, 'puzzle-piece', ' Compose panels…');
       composeBtn.title = 'Arrange panel images into a grid with auto A/B/C labels and bake one figure image';
       composeBtn.addEventListener('click', function () {
         var blk = _findFigureBlock(fig.blockId);
@@ -2477,7 +2621,7 @@
       var x = document.createElement('button');
       x.type = 'button';
       x.className = 'pe-fig-subfig-chip-x';
-      x.textContent = '×';
+      ICON.label(x, 'x-mark');
       x.title = 'Remove panel ' + (sf.label || '');
       x.addEventListener('click', function () {
         _removeSubfigure(fig.blockId, sf.id);
@@ -2711,7 +2855,8 @@
       var pdfIcon = document.createElement('span');
       pdfIcon.className = 'pe-cite-pdf';
       pdfIcon.title = 'PDF in the library';
-      pdfIcon.textContent = ' 📄';
+      pdfIcon.textContent = ' ';
+      pdfIcon.appendChild(ICON.el('document-text'));
       meta.appendChild(pdfIcon);
     }
     (entry.tags || []).forEach(function (t) {
@@ -2841,7 +2986,7 @@
     var closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'pe-icon-btn';
-    closeBtn.textContent = '×';
+    ICON.label(closeBtn, 'x-mark');
     closeBtn.addEventListener('click', function () { overlay.remove(); });
     head.appendChild(title);
     head.appendChild(closeBtn);
@@ -2886,7 +3031,7 @@
       var lookupBtn = document.createElement('button');
       lookupBtn.type = 'button';
       lookupBtn.className = 'btn btn-sm';
-      lookupBtn.textContent = '🔍 Look up metadata';
+      ICON.label(lookupBtn, 'magnifying-glass', ' Look up metadata');
       lookupBtn.title = 'Fetch title/authors/year/journal from the DOI (or the title)';
       lookupBtn.style.margin = '4px 0 8px';
       lookupBtn.addEventListener('click', async function () {
@@ -2916,7 +3061,7 @@
           errEl.style.display = '';
         } finally {
           lookupBtn.disabled = false;
-          lookupBtn.textContent = '🔍 Look up metadata';
+          ICON.label(lookupBtn, 'magnifying-glass', ' Look up metadata');
         }
       });
       body.appendChild(lookupBtn);
@@ -3098,6 +3243,12 @@
    * placed-in-doc lists. + Table button creates an unplaced row; the
    * doc-side + Add → Table picker is the placement mechanism. */
   function _refreshTablesSection() {
+    /* V3.647 — the table grid's per-cell contenteditables live in these two
+     * lists. Rebuilding while one has the caret is the one-letter-at-a-time
+     * bug; see _deferWhileEditing. */
+    if (_deferWhileEditing(
+      ['pe-equations-tab-unplaced-list', 'pe-equations-tab-list'],
+      _refreshTablesSection)) return;
     _refreshTablesUnplacedList();
     _refreshTablesPlacedList();
   }
@@ -3319,12 +3470,1129 @@
     return row;
   }
 
-  /* V3.127 — full panel-side table editor body. Mirrors the doc-side
-   * table block's V3.120 inline editor (now retired there in favor of
-   * read-only preview). Includes the styling toolbar (booktabs /
-   * header_row / per-column align), +Row / +Col buttons, the grid
-   * itself (per-cell Y.Text contenteditables), and the caption Y.Text
-   * editor. */
+  /* ── Panel-side table editor (V3.127, rewritten V3.650) ───────────
+   *
+   * The Tables page owns table editing: the doc-side block has been a
+   * read-only preview since V3.127. Three things were wrong with the
+   * original panel editor and all three are fixed here.
+   *
+   * 1. STRUCTURE WAS APPEND-ONLY. `+ Row` / `+ Col` wrote cells[rows-c]
+   *    and bumped the counter. Deleting — or inserting in the middle —
+   *    means RE-KEYING the `cells` Y.Map ("<r>-<c>" string keys) and
+   *    shifting `merges_json` / `align` / `widths_json` in step, which
+   *    nothing did. `_tblStructOp` below does. The controls now live on
+   *    the grid's borders (gutter row + gutter column) instead of in the
+   *    style bar.
+   *
+   * 2. NOTHING RE-RENDERED UNTIL BLUR. A structural write fires the
+   *    observeDeep in _installSubscriptions -> _refreshPanel ->
+   *    _refreshTablesSection -> _deferWhileEditing, which PARKS the
+   *    whole-list rebuild while focus is in the list — and clicking
+   *    `+ Row` puts focus on a button inside that list. V3.647 is right
+   *    to park a whole-list rebuild (that is the one-letter-at-a-time
+   *    fix); what was missing is a cheap path for structure. So this
+   *    editor watches its own block with a SHALLOW attrs.observe: typing
+   *    mutates a Y.Text *inside* attrs.cells, which a shallow observe
+   *    never sees, so the caret still survives, while rows/cols/merges
+   *    repaint on the spot.
+   *
+   * 3. MERGE NEEDED SHIFT-CLICK AND ALERTED WHEN WRONG. Now: drag across
+   *    cells, and the only actions that apply float over the selection.
+   */
+
+  /* attrs keys that change the SHAPE of the table. A change to any of
+   * these re-renders the editor body; everything else (caption, notes,
+   * label, numbered) is left alone so its field keeps focus. */
+  var TBL_STRUCT_KEYS = {
+    rows: 1, cols: 1, cells: 1, merges_json: 1,
+    align: 1, widths_json: 1, header_row: 1, booktabs: 1,
+    style_json: 1, cell_styles_json: 1, row_heights_json: 1,
+  };
+
+  var _tblObs = Object.create(null);   // blockId -> {attrs, handler, rootEl}
+  var _tblRebuilding = false;          // re-entrancy guard for the observer
+  var _tblDrag = null;                 // {blockId} while a cell drag is live
+  var _tblColDrag = false;             // true while a column border is being dragged
+  var _tblDocWired = false;
+
+  /* Read every cell as a plain STRING. Cell source is plain text
+   * (renderParagraphHtml parses the markdown-ish syntax at paint time),
+   * and a Y.Text can only be integrated once — it cannot be moved to a
+   * different key — so re-keying clones by string. */
+  function _tblReadGrid(attrs, rows, cols) {
+    var cells = attrs.get('cells');
+    var grid = [];
+    for (var r = 0; r < rows; r++) {
+      var row = [];
+      for (var c = 0; c < cols; c++) {
+        var t = (cells && cells.get) ? cells.get(r + '-' + c) : null;
+        row.push((t && t.toString) ? t.toString() : '');
+      }
+      grid.push(row);
+    }
+    return grid;
+  }
+
+  /* Rewrite the whole shape in one transact. The cells map is replaced
+   * wholesale: a structural edit is an explicit click, the grid repaints
+   * straight after, and targeted re-keying would have to walk the same
+   * cells anyway at these sizes. */
+  function _tblWriteGrid(blk, attrs, grid, merges, alignArr, widthsArr, origin, extras) {
+    var Y = window.PaperEditor.getY();
+    var rows = grid.length;
+    var cols = rows ? grid[0].length : 0;
+    blk.doc.transact(function () {
+      attrs.set('rows', rows);
+      attrs.set('cols', cols);
+      var cells = new Y.Map();
+      attrs.set('cells', cells);                 // integrate before filling
+      for (var r = 0; r < rows; r++) {
+        for (var c = 0; c < cols; c++) {
+          var t = new Y.Text();
+          cells.set(r + '-' + c, t);
+          if (grid[r][c]) t.insert(0, grid[r][c]);
+        }
+      }
+      if (merges && Object.keys(merges).length) {
+        attrs.set('merges_json', JSON.stringify(merges));
+      } else {
+        attrs.delete('merges_json');
+      }
+      var al = (alignArr || []).join('');
+      if (al) attrs.set('align', al); else attrs.delete('align');
+      var anyW = (widthsArr || []).some(function (w) { return w && w.mode !== 'auto'; });
+      if (anyW) attrs.set('widths_json', JSON.stringify(widthsArr));
+      else attrs.delete('widths_json');
+      /* V3.651 — cell styles and extra rules are separate scalars; they
+       * have to be re-keyed in the SAME transact or the table repaints
+       * with the formatting on the column that used to be there. */
+      if (typeof extras === 'function') extras(attrs);
+    }, origin || 'tab-struct');
+  }
+
+  /* Move merge anchors/spans across a row/column insert or delete.
+   * axis 'r' | 'c'; op 'ins' | 'del'; `at` is the index the line is
+   * inserted BEFORE / the index being deleted. This is the piece that
+   * never existed, and it is why insert/delete were never built. */
+  function _tblShiftMerges(merges, axis, op, at) {
+    var out = {};
+    Object.keys(merges || {}).forEach(function (k) {
+      var p = k.split('-');
+      var r = +p[0], c = +p[1];
+      var m = merges[k];
+      var rs = m.rs, cs = m.cs;
+      var idx = (axis === 'r') ? r : c;
+      var span = (axis === 'r') ? rs : cs;
+      if (op === 'ins') {
+        if (idx >= at) idx += 1;                  // pushed down / right
+        else if (idx + span > at) span += 1;      // the merge straddles the new line
+      } else {
+        if (idx > at) idx -= 1;
+        else if (idx === at) {
+          if (span <= 1) return;                  // the anchor's own line is gone
+          span -= 1;                              // anchor stays put, one line shorter
+        } else if (idx + span > at) {
+          span -= 1;                              // straddling merge loses a line
+        }
+      }
+      if (axis === 'r') { r = idx; rs = span; } else { c = idx; cs = span; }
+      if (rs <= 1 && cs <= 1) return;             // decayed to a normal cell
+      out[r + '-' + c] = { rs: rs, cs: cs };
+    });
+    return out;
+  }
+
+  /* Insert or delete one row / column, keeping cells, merges, per-column
+   * alignment and per-column widths in step. */
+  function _tblStructOp(blk, attrs, axis, op, at) {
+    var rows = attrs.get('rows') || 0;
+    var cols = attrs.get('cols') || 0;
+    if (op === 'del') {
+      if (axis === 'r' && rows <= 1) return;
+      if (axis === 'c' && cols <= 1) return;
+      if (at < 0 || (axis === 'r' ? at >= rows : at >= cols)) return;
+    } else {
+      /* Degenerate imported table — seed a 1x1 so there is something to
+       * splice into. _tblReadGrid fills missing keys with ''. */
+      if (rows < 1) rows = 1;
+      if (cols < 1) cols = 1;
+    }
+    var grid = _tblReadGrid(attrs, rows, cols);
+    var PL = window.PaperLayout || {};
+    var merges = PL.parseTableMerges ? PL.parseTableMerges(attrs.get('merges_json')) : {};
+    var alignStr = String(attrs.get('align') || '').slice(0, cols);
+    while (alignStr.length < cols) alignStr += 'l';
+    var alignArr = alignStr.split('');
+    var widths = PL.parseTableWidths ? PL.parseTableWidths(attrs.get('widths_json'), cols) : [];
+
+    if (axis === 'r') {
+      if (op === 'ins') {
+        var blank = [];
+        for (var c = 0; c < cols; c++) blank.push('');
+        grid.splice(at, 0, blank);
+      } else {
+        grid.splice(at, 1);
+      }
+    } else {
+      for (var r = 0; r < grid.length; r++) {
+        if (op === 'ins') grid[r].splice(at, 0, '');
+        else grid[r].splice(at, 1);
+      }
+      if (op === 'ins') {
+        alignArr.splice(at, 0, 'l');
+        widths.splice(at, 0, { mode: 'auto' });
+      } else {
+        alignArr.splice(at, 1);
+        widths.splice(at, 1);
+      }
+    }
+    /* V3.651 — the same splice applied to the styling scalars. */
+    var cellStyles = PL.parseTableCellStyles
+      ? PL.shiftTableCellStyles(PL.parseTableCellStyles(attrs.get('cell_styles_json')), axis, op, at)
+      : {};
+    var style = PL.parseTableStyle
+      ? PL.parseTableStyle(attrs.get('style_json'), attrs.get('booktabs'))
+      : null;
+    if (style) style.rule_after = PL.shiftTableRuleAfter(style.rule_after, axis, op, at);
+    var rowExtras = PL.parseTableRowExtras
+      ? PL.shiftTableRowExtras(PL.parseTableRowExtras(attrs.get('row_heights_json')), axis, op, at)
+      : {};
+
+    _tblSel = null;
+    _tblWriteGrid(blk, attrs, grid, _tblShiftMerges(merges, axis, op, at),
+      alignArr, widths, 'tab-' + axis + '-' + op, function (a) {
+        if (Object.keys(cellStyles).length) a.set('cell_styles_json', JSON.stringify(cellStyles));
+        else a.delete('cell_styles_json');
+        if (Object.keys(rowExtras).length) a.set('row_heights_json', JSON.stringify(rowExtras));
+        else a.delete('row_heights_json');
+        if (style) _tblStoreStyle(a, style);
+      });
+  }
+
+  /* Write a normalized style back, deleting the attr when nothing is
+   * off-default so an untouched table stays byte-identical on export.
+   * `booktabs` is kept in sync because the export and Document view fall
+   * back to it for tables authored before V3.651. */
+  function _tblStoreStyle(attrs, st) {
+    var PL = window.PaperLayout || {};
+    if (PL.tableStyleIsDefault && PL.tableStyleIsDefault(st)) {
+      attrs.delete('style_json');
+    } else {
+      attrs.set('style_json', JSON.stringify({
+        rules: st.rules, size: st.size, density: st.density,
+        zebra: !!st.zebra, wrap: st.wrap !== false, rule_after: st.rule_after,
+      }));
+    }
+    /* The legacy flag means "emit booktabs rules", so grid and none both
+     * clear it — a consumer that predates style_json then draws a full
+     * grid, which is right for grid and the closest thing available for
+     * none. Everything in this release reads style_json first. */
+    attrs.set('booktabs', st.rules === 'booktabs');
+  }
+
+  function _tblReadStyle(attrs) {
+    var PL = window.PaperLayout || {};
+    return PL.parseTableStyle
+      ? PL.parseTableStyle(attrs.get('style_json'), attrs.get('booktabs'))
+      : { rules: 'booktabs', size: 'normal', density: 'normal', zebra: false,
+          rule_after: [], stretch: 1, sizeTex: null, sizeCss: 1 };
+  }
+  function _tblReadCellStyles(attrs) {
+    var PL = window.PaperLayout || {};
+    return PL.parseTableCellStyles ? PL.parseTableCellStyles(attrs.get('cell_styles_json')) : {};
+  }
+  function _tblWriteCellStyles(blk, attrs, map) {
+    blk.doc.transact(function () {
+      if (Object.keys(map).length) attrs.set('cell_styles_json', JSON.stringify(map));
+      else attrs.delete('cell_styles_json');
+    }, 'tab-cell-styles');
+  }
+
+  /* Normalized selection rectangle. */
+  function _tblRect(sel) {
+    return {
+      r0: Math.min(sel.r0, sel.r1), r1: Math.max(sel.r0, sel.r1),
+      c0: Math.min(sel.c0, sel.c1), c1: Math.max(sel.c0, sel.c1),
+    };
+  }
+
+  /* Grow the rect until it fully contains every merge it touches, so a
+   * drag that clips half a merged cell is still a legal merge target
+   * instead of the old "unmerge it first" dead end. */
+  function _tblExpandRect(rect, cover) {
+    var changed = true, guard = 0;
+    while (changed && guard++ < 32) {
+      changed = false;
+      Object.keys(cover.anchors).forEach(function (k) {
+        var p = k.split('-');
+        var ar = +p[0], ac = +p[1];
+        var a = cover.anchors[k];
+        var br = ar + a.rs - 1, bc = ac + a.cs - 1;
+        if (br < rect.r0 || ar > rect.r1 || bc < rect.c0 || ac > rect.c1) return;
+        if (ar < rect.r0) { rect.r0 = ar; changed = true; }
+        if (br > rect.r1) { rect.r1 = br; changed = true; }
+        if (ac < rect.c0) { rect.c0 = ac; changed = true; }
+        if (bc > rect.c1) { rect.c1 = bc; changed = true; }
+      });
+    }
+    return rect;
+  }
+
+  /* Document-level drag/clear handlers, wired once. */
+  function _tblEnsureDocHandlers() {
+    if (_tblDocWired) return;
+    _tblDocWired = true;
+    document.addEventListener('mouseup', function () {
+      if (!_tblDrag) return;
+      _tblDrag = null;
+      var tables = document.querySelectorAll('table.pe-tbl-dragging');
+      for (var i = 0; i < tables.length; i++) tables[i].classList.remove('pe-tbl-dragging');
+      _tblRepaintAll();
+    });
+    document.addEventListener('mousedown', function (e) {
+      if (!_tblSel) return;
+      if (e.target && e.target.closest && e.target.closest('.pe-tblgrid')) return;
+      _tblSel = null;
+      _tblRepaintAll();
+    }, true);
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape' || !_tblSel) return;
+      _tblSel = null;
+      _tblRepaintAll();
+    });
+  }
+
+  function _tblRepaintAll() {
+    var grids = document.querySelectorAll('.pe-tblgrid');
+    for (var i = 0; i < grids.length; i++) {
+      if (typeof grids[i].__peRepaint === 'function') grids[i].__peRepaint();
+    }
+  }
+
+  /* Delete buttons over a band that HAS content arm first rather than
+   * raising a confirm() — Alex ruled browser popups out of this editor
+   * (V3.647). Armed state auto-disarms after 4s or on any other click. */
+  function _tblArmDelete(btn, doDelete, markFn) {
+    if (btn.dataset.armed === '1') {
+      clearTimeout(btn.__peArmTimer);
+      doDelete();
+      return;
+    }
+    var host = btn.closest('.pe-tblgrid');
+    if (host) {
+      var armed = host.querySelectorAll('.pe-tbl-linebtn[data-armed="1"]');
+      for (var i = 0; i < armed.length; i++) _tblDisarm(armed[i]);
+    }
+    btn.dataset.armed = '1';
+    btn.__peLabel = btn.textContent;
+    btn.textContent = '✓';
+    btn.title = 'Click again to delete — this ' + (btn.dataset.axis === 'r' ? 'row' : 'column') +
+      ' has text in it';
+    markFn(true);
+    btn.__peArmTimer = setTimeout(function () { _tblDisarm(btn); markFn(false); }, 4000);
+  }
+  function _tblDisarm(btn) {
+    clearTimeout(btn.__peArmTimer);
+    if (btn.dataset.armed !== '1') return;
+    btn.dataset.armed = '0';
+    if (btn.__peLabel) btn.textContent = btn.__peLabel;
+    btn.title = btn.dataset.baseTitle || '';
+    var host = btn.closest('.pe-tblgrid');
+    if (!host) return;
+    var doomed = host.querySelectorAll('.pe-band-doomed');
+    for (var i = 0; i < doomed.length; i++) doomed[i].classList.remove('pe-band-doomed');
+  }
+
+  /* Build the editable grid: a gutter row + gutter column carry the
+   * +/- controls. They are real table cells, so they inherit the
+   * browser's own column geometry — a `+` pinned to a head cell's left
+   * edge sits exactly ON the border, with no measurement code and no
+   * drift when a merge changes the column widths. */
+  function _mountTableGrid(host, blk, attrs, tab) {
+    var Y = window.PaperEditor.getY();
+    var cells = attrs.get('cells');
+    if (!(cells instanceof Y.Map)) return null;
+    var rows = attrs.get('rows') || 0;
+    var cols = attrs.get('cols') || 0;
+    var PL = window.PaperLayout || {};
+    var merges = PL.parseTableMerges ? PL.parseTableMerges(attrs.get('merges_json')) : {};
+    var cover = PL.tableCoverMap
+      ? PL.tableCoverMap(merges, rows, cols)
+      : { anchors: {}, skip: {}, cont: {} };
+    var headerRow = attrs.get('header_row') !== false;
+    var style = _tblReadStyle(attrs);
+    var cellStyles = _tblReadCellStyles(attrs);
+    var rowExtras = PL.parseTableRowExtras
+      ? PL.parseTableRowExtras(attrs.get('row_heights_json')) : {};
+    var FILLS = PL.TABLE_FILLS || {};
+    /* pt -> px at the CSS 96dpi reference, which is the same conversion the
+     * mm column widths already use. Extra space goes on as padding under
+     * the row, mirroring what \\[dim] does in the PDF: space after the row,
+     * not a taller cell box. */
+    var PT_PX = 96 / 72;
+
+    _tblEnsureDocHandlers();
+
+    var wrap = document.createElement('div');
+    wrap.className = 'pe-tblgrid';
+    var scroller = document.createElement('div');
+    scroller.className = 'pe-tblgrid-scroll';
+    var table = document.createElement('table');
+    table.className = 'pe-grid-table pe-grid-table-edit pe-tbl-rules-' + style.rules +
+      ' pe-tbl-dens-' + style.density + (style.zebra ? ' pe-tbl-zebra' : '') +
+      (style.wrap ? ' pe-tbl-wrap' : '');
+    /* The editor shows the styling as the PDF will read it — a table you
+     * cannot see the formatting of is a table you style twice. */
+    table.style.fontSize = (style.sizeCss * 12).toFixed(1) + 'px';
+
+    /* V3.652 — a colgroup, always. `table-layout: fixed` (which is what
+     * makes text WRAP instead of blowing the column out) reads its widths
+     * from the first row or the colgroup, and the first row is exactly
+     * where a merge can hide a column. The leading <col> is the gutter.
+     * The shares come from the same helper the .tex export uses, so what
+     * you drag here is what compiles. */
+    var dragWidths = PL.parseTableWidths
+      ? PL.parseTableWidths(attrs.get('widths_json'), cols) : null;
+    var shares = (style.wrap && PL.tableColShares)
+      ? PL.tableColShares(dragWidths, cols)
+      : (dragWidths || []);
+    var cgroup = document.createElement('colgroup');
+    var gcol = document.createElement('col');
+    gcol.className = 'pe-tbl-gutcol';
+    cgroup.appendChild(gcol);
+    for (var cw = 0; cw < cols; cw++) {
+      var colEl = document.createElement('col');
+      var wspec = shares[cw];
+      if (wspec && wspec.mode === 'frac') colEl.style.width = (wspec.v * 100).toFixed(2) + '%';
+      else if (wspec && wspec.mode === 'mm') colEl.style.width = (wspec.v * 96 / 25.4).toFixed(0) + 'px';
+      cgroup.appendChild(colEl);
+    }
+    table.appendChild(cgroup);
+
+    function bandHasText(axis, idx) {
+      for (var i = 0; i < (axis === 'r' ? cols : rows); i++) {
+        var k = (axis === 'r') ? (idx + '-' + i) : (i + '-' + idx);
+        var t = cells.get(k);
+        if (t && t.toString && t.toString().trim()) return true;
+      }
+      return false;
+    }
+    /* on: true = armed (this band is about to go), 'peek' = merely hovered
+     * (so you can see WHICH band the − belongs to before pressing it),
+     * false = clear. An armed band must not be downgraded by a stray
+     * mouseleave, so 'peek' never clears an armed one. */
+    function markBand(axis, idx, on) {
+      var sel = (axis === 'r') ? 'td[data-r="' + idx + '"]' : 'td[data-c="' + idx + '"]';
+      var nodes = [];
+      var tds = table.querySelectorAll(sel);
+      for (var i = 0; i < tds.length; i++) nodes.push(tds[i]);
+      var head = table.querySelector(axis === 'r'
+        ? 'td.pe-tbl-rowhead[data-rh="' + idx + '"]'
+        : 'td.pe-tbl-colhead[data-ch="' + idx + '"]');
+      if (head) nodes.push(head);
+      nodes.forEach(function (n) {
+        if (on === 'peek') { n.classList.add('pe-band-peek'); return; }
+        n.classList.remove('pe-band-peek');
+        n.classList.toggle('pe-band-doomed', !!on);
+      });
+    }
+
+    /* ── Gutter row: one head per column ─────────────────────────── */
+    var gutTr = document.createElement('tr');
+    gutTr.className = 'pe-tbl-gutrow';
+    var corner = document.createElement('td');
+    corner.className = 'pe-tbl-corner';
+    gutTr.appendChild(corner);
+    for (var gc = 0; gc < cols; gc++) {
+      (function (ci) {
+        var th = document.createElement('td');
+        th.className = 'pe-tbl-colhead';
+        th.dataset.ch = String(ci);
+        th.addEventListener('mousedown', function (ev) {
+          if (ev.target !== th) return;                 // a gutter button was hit
+          ev.preventDefault();
+          _tblSel = { blockId: tab.blockId, r0: 0, c0: ci, r1: Math.max(0, rows - 1), c1: ci };
+          repaint();
+        });
+        gutTr.appendChild(th);
+      })(gc);
+    }
+    table.appendChild(gutTr);
+
+    /* ── Body rows, each prefixed by its row head ────────────────── */
+    for (var r = 0; r < rows; r++) {
+      var tr = document.createElement('tr');
+      if (headerRow && r === 0) tr.classList.add('pe-tbl-headerrow');
+      /* First/last BODY row — the gutter row is tr:first-child, so CSS
+       * cannot find them on its own. booktabs needs both. */
+      if (r === 0) tr.classList.add('pe-tbl-r-first');
+      if (r === rows - 1) tr.classList.add('pe-tbl-r-last');
+      if (style.rule_after.indexOf(r) !== -1) tr.classList.add('pe-tbl-ruled');
+      if (style.zebra && r % 2 === 1) tr.classList.add('pe-tbl-zebrarow');
+      if (rowExtras[r] > 0) {
+        tr.classList.add('pe-tbl-rowext');
+        tr.dataset.extraPt = String(rowExtras[r]);
+        tr.style.setProperty('--pe-row-extra', (rowExtras[r] * PT_PX).toFixed(1) + 'px');
+      }
+      (function (ri) {
+        var rh = document.createElement('td');
+        rh.className = 'pe-tbl-rowhead';
+        rh.dataset.rh = String(ri);
+        /* Clicking the head selects the whole band — which is what makes
+         * "bold this row" / "rule under here" one gesture instead of a
+         * drag the width of the table. */
+        rh.addEventListener('mousedown', function (ev) {
+          if (ev.target !== rh) return;                 // a gutter button was hit
+          ev.preventDefault();
+          _tblSel = { blockId: tab.blockId, r0: ri, c0: 0, r1: ri, c1: Math.max(0, cols - 1) };
+          repaint();
+        });
+        tr.appendChild(rh);
+      })(r);
+
+      for (var c2 = 0; c2 < cols; c2++) {
+        var key = r + '-' + c2;
+        if (cover.skip[key] || cover.cont[key] != null) continue;   // merged away
+        var td = document.createElement('td');
+        td.dataset.r = String(r);
+        td.dataset.c = String(c2);
+        var anch = cover.anchors[key];
+        if (anch) {
+          if (anch.cs > 1) td.colSpan = anch.cs;
+          if (anch.rs > 1) td.rowSpan = anch.rs;
+          td.classList.add('pe-cell-merged');
+        }
+        /* V3.651 — per-cell styling. Column alignment is the default; a
+         * per-cell `al` overrides it (that is exactly what it compiles to:
+         * a \multicolumn{1}{c}{…} over one column). */
+        var cst = cellStyles[key] || {};
+        var colAlign = (attrs.get('align') || '').charAt(c2);
+        var eff = cst.al || (colAlign === 'c' || colAlign === 'r' ? colAlign : 'l');
+        td.style.textAlign = eff === 'c' ? 'center' : eff === 'r' ? 'right' : 'left';
+        if (cst.b) td.classList.add('pe-cell-b');
+        if (cst.i) td.classList.add('pe-cell-i');
+        if (cst.bg && FILLS[cst.bg]) {
+          td.classList.add('pe-cell-filled');
+          td.style.background = FILLS[cst.bg].css;
+        }
+        (function (rr, cc) {
+          /* Anchor on mousedown but do NOT preventDefault — the caret
+           * still lands where you clicked. The drag only becomes a CELL
+           * drag once the pointer reaches a different cell. */
+          td.addEventListener('mousedown', function (ev) {
+            if (ev.button !== 0) return;
+            if (ev.shiftKey && _tblSel && _tblSel.blockId === tab.blockId) {
+              ev.preventDefault();
+              _tblSel.r1 = rr; _tblSel.c1 = cc;
+            } else {
+              _tblSel = { blockId: tab.blockId, r0: rr, c0: cc, r1: rr, c1: cc };
+              _tblDrag = { blockId: tab.blockId };
+            }
+            repaint();
+          });
+          td.addEventListener('mouseenter', function () {
+            if (!_tblDrag || _tblDrag.blockId !== tab.blockId) return;
+            if (!_tblSel) return;
+            if (_tblSel.r1 === rr && _tblSel.c1 === cc) return;
+            _tblSel.r1 = rr; _tblSel.c1 = cc;
+            /* Stop the browser painting a cross-cell TEXT selection on
+             * top of the cell selection. */
+            table.classList.add('pe-tbl-dragging');
+            var s = window.getSelection && window.getSelection();
+            if (s && s.removeAllRanges) s.removeAllRanges();
+            repaint();
+          });
+        })(r, c2);
+
+        var cellY = cells.get(key);
+        if (!(cellY instanceof Y.Text)) {
+          cellY = new Y.Text('');
+          (function (k, v) {
+            blk.doc.transact(function () { cells.set(k, v); }, 'init-cell');
+          })(key, cellY);
+        }
+        var cellEl = document.createElement('div');
+        cellEl.className = 'pe-grid-cell';
+        window.PaperEditor.bindYTextToContentEditable(cellY, cellEl, {
+          readOnly: !_toolEditable(),   // V3.741 — was hardcoded false; honours the checkout lock
+          renderHtml: window.PaperEditor.renderParagraphHtml,
+        });
+        td.appendChild(cellEl);
+        tr.appendChild(td);
+      }
+      table.appendChild(tr);
+    }
+
+    scroller.appendChild(table);
+    wrap.appendChild(scroller);
+
+    /* ── V3.652 — controls that belong to the LINE, not to a cell ─────
+     *
+     * Alex: *"the +- should only pop up when i mouse over the line. the +-
+     * should be per line not per cell. in the middle of the +- shuld be a
+     * ||| drag indicator."*
+     *
+     * So each grid line — every column border and every row border,
+     * including the two outer edges — gets one invisible hit strip running
+     * its full length, and hovering ANYWHERE along it reveals a single
+     * cluster: ＋ insert a line here · ||| drag to resize · − delete the
+     * band this line sits against.
+     *
+     * The strips are positioned from measured geometry rather than pinned
+     * to a cell (V3.650's approach), because a hit zone has to span the
+     * whole line, and because dragging a width is pixel maths anyway. The
+     * measurements come off the GUTTER heads: there is exactly one per row
+     * and one per column and they are never merged, so they are the only
+     * cells whose edges are reliably the grid's lines.
+     *
+     * Only COLUMN lines carry the ||| grip. Row height in LaTeX is
+     * \arraystretch — a property of the whole table, not of one row (it is
+     * the "rows:" control in the style bar) — so a per-row drag would be a
+     * handle for something that cannot be stored. */
+    var lines = document.createElement('div');
+    lines.className = 'pe-tbl-lines';
+    wrap.appendChild(lines);
+
+    function headRect(sel) {
+      var el = table.querySelector(sel);
+      return el ? el.getBoundingClientRect() : null;
+    }
+    /* x of column border i (0…cols), y of row border r (0…rows), relative
+     * to the overlay. Returns null before the grid is laid out. */
+    function colBorderX(i, base) {
+      var r = headRect('td.pe-tbl-colhead[data-ch="' + Math.min(i, cols - 1) + '"]');
+      if (!r) return null;
+      return (i < cols ? r.left : r.right) - base.left;
+    }
+    function rowBorderY(i, base) {
+      var r = headRect('td.pe-tbl-rowhead[data-rh="' + Math.min(i, rows - 1) + '"]');
+      if (!r) return null;
+      return (i < rows ? r.top : r.bottom) - base.top;
+    }
+
+    function mkLineBtn(cls, label, title, onClick) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pe-tbl-linebtn ' + cls;
+      b.textContent = label;
+      b.title = title;
+      b.dataset.baseTitle = title;
+      b.tabIndex = -1;
+      b.addEventListener('mousedown', function (ev) { ev.stopPropagation(); });
+      b.addEventListener('click', function (ev) { ev.stopPropagation(); onClick(b); });
+      return b;
+    }
+
+    /* The band a line's − would remove: the one after it, except on the
+     * closing edge, where the only neighbour is the one before. */
+    function bandFor(axis, i) {
+      var n = axis === 'c' ? cols : rows;
+      return i < n ? i : n - 1;
+    }
+
+    function buildLine(axis, i) {
+      var n = axis === 'c' ? cols : rows;
+      var strip = document.createElement('div');
+      strip.className = 'pe-tbl-line pe-tbl-line-' + axis;
+      strip.dataset.axis = axis;
+      strip.dataset.i = String(i);
+      var cluster = document.createElement('div');
+      cluster.className = 'pe-tbl-lineclu pe-tbl-lineclu-' + axis;
+
+      cluster.appendChild(mkLineBtn('pe-tbl-ins', '＋',
+        i < n ? (axis === 'c' ? 'Insert a column here' : 'Insert a row here')
+              : (axis === 'c' ? 'Add a column at the end' : 'Add a row at the end'),
+        function () { _tblStructOp(blk, attrs, axis, 'ins', i); }));
+
+      /* ||| — sits BETWEEN ＋ and −, on both axes, wherever there is a
+       * band before the line to resize. A column line sizes the column on
+       * its left; a row line adds height to the row above it. Line 0 has
+       * nothing before it, so it gets no grip. */
+      if (i > 0) {
+        var grip = document.createElement('span');
+        grip.className = 'pe-tbl-grip';
+        grip.textContent = '|||';
+        grip.title = axis === 'c'
+          ? 'Drag to set the width of the column on the left'
+          : 'Drag to add height to the row above';
+        grip.addEventListener('mousedown', function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          if (axis === 'c') startColDrag(i - 1, ev.clientX);
+          else startRowDrag(i - 1, ev.clientY);
+        });
+        cluster.appendChild(grip);
+      }
+
+      var band = bandFor(axis, i);
+      if (n > 1) {
+        var del = mkLineBtn('pe-tbl-del', '−',
+          (axis === 'c' ? 'Delete column ' : 'Delete row ') + (band + 1),
+          function (btn) {
+            var run = function () { _tblStructOp(blk, attrs, axis, 'del', band); };
+            if (!bandHasText(axis, band)) { run(); return; }
+            _tblArmDelete(btn, run, function (on) { markBand(axis, band, on); });
+          });
+        del.dataset.axis = axis;
+        cluster.appendChild(del);
+      }
+      strip.appendChild(cluster);
+      strip.dataset.band = String(band);
+      lines.appendChild(strip);
+      return strip;
+    }
+
+    var colLines = [], rowLines = [];
+    for (var li = 0; li <= cols; li++) colLines.push(buildLine('c', li));
+    for (var lj = 0; lj <= rows; lj++) rowLines.push(buildLine('r', lj));
+
+    /* ── Which line is the pointer on? ────────────────────────────────
+     *
+     * NOT CSS :hover. Row strips and column strips cross at every
+     * intersection, so a plain hover lights up two lines at once — and
+     * with the cluster now centred on its line (V3.653), a column line's
+     * midpoint often lands right on a row line, which is exactly where
+     * two clusters would both appear. Worse, strips that take pointer
+     * events swallow clicks: every cell edge had a 5px dead band where a
+     * click hit the strip instead of the cell.
+     *
+     * So the strips are inert, and one mousemove on the grid picks the
+     * NEAREST line and activates only that one. A tie at an intersection
+     * goes to the column, arbitrarily but consistently. */
+    var activeLine = null;
+    function setActiveLine(strip) {
+      if (strip === activeLine) return;
+      if (activeLine) {
+        activeLine.classList.remove('is-active');
+        markBand(activeLine.dataset.axis, +activeLine.dataset.band, false);
+      }
+      activeLine = strip;
+      if (strip) {
+        strip.classList.add('is-active');
+        markBand(strip.dataset.axis, +strip.dataset.band, 'peek');
+      }
+    }
+    var LINE_GRAB = 7;                    // px from a line that counts as "on" it
+    function pickLine(ev) {
+      if (_tblColDrag) return;             // never re-arbitrate mid-drag
+      /* Once a cluster is up, the pointer moving ONTO it must not count as
+       * leaving the line — the buttons stick out past the 11px strip. */
+      if (activeLine) {
+        var cb = activeLine.querySelector('.pe-tbl-lineclu').getBoundingClientRect();
+        if (ev.clientX >= cb.left - 2 && ev.clientX <= cb.right + 2 &&
+            ev.clientY >= cb.top - 2 && ev.clientY <= cb.bottom + 2) return;
+      }
+      var base = lines.getBoundingClientRect();
+      if (!base.width) return;
+      var px = ev.clientX - base.left, py = ev.clientY - base.top;
+      var x0 = colBorderX(0, base), x1 = colBorderX(cols, base);
+      var y0 = rowBorderY(0, base), y1 = rowBorderY(rows, base);
+      if (x0 == null || y0 == null) return;
+      var best = null, bestD = LINE_GRAB;
+      if (py >= y0 - 2 && py <= y1 + 2) {
+        colLines.forEach(function (strip, i) {
+          var d = Math.abs(px - colBorderX(i, base));
+          if (d < bestD) { bestD = d; best = strip; }
+        });
+      }
+      if (px >= x0 - 2 && px <= x1 + 2) {
+        rowLines.forEach(function (strip, i) {
+          var d = Math.abs(py - rowBorderY(i, base));
+          if (d < bestD) { bestD = d; best = strip; }
+        });
+      }
+      setActiveLine(best);
+    }
+    wrap.addEventListener('mousemove', pickLine);
+    wrap.addEventListener('mouseleave', function () {
+      if (_tblColDrag) return;
+      setActiveLine(null);
+    });
+    wrap.__peActiveLine = function () { return activeLine; };
+    wrap.__pePickLine = pickLine;
+
+    /* Geometry is re-read rather than cached: a wrapped cell changes row
+     * heights as you type, and the panel itself resizes. */
+    function layoutLines() {
+      var base = lines.getBoundingClientRect();
+      if (!base.width) return;
+      var x0 = colBorderX(0, base), x1 = colBorderX(cols, base);
+      var y0 = rowBorderY(0, base), y1 = rowBorderY(rows, base);
+      if (x0 == null || y0 == null) return;
+      colLines.forEach(function (strip, i) {
+        var x = colBorderX(i, base);
+        strip.style.left = (x - 5) + 'px';
+        strip.style.top = y0 + 'px';
+        strip.style.height = Math.max(8, y1 - y0) + 'px';
+      });
+      rowLines.forEach(function (strip, i) {
+        var y = rowBorderY(i, base);
+        strip.style.top = (y - 5) + 'px';
+        strip.style.left = x0 + 'px';
+        strip.style.width = Math.max(8, x1 - x0) + 'px';
+      });
+    }
+    wrap.__peLayoutLines = layoutLines;
+    if (typeof ResizeObserver === 'function') {
+      var ro = new ResizeObserver(function () { layoutLines(); });
+      ro.observe(table);
+      wrap.__peRO = ro;
+    }
+
+    /* Drag a column border → a fraction of the table's width, which is the
+     * same `widths_json` the width dropdown writes and the same thing the
+     * export turns into p{…\linewidth}. Live-previewed on the colgroup so
+     * the drag is visible before it is committed. */
+    function startColDrag(col, startX) {
+      var tRect = table.getBoundingClientRect();
+      var gut = (headRect('td.pe-tbl-rowhead[data-rh="0"]') || { width: 0 }).width;
+      var contentW = Math.max(1, tRect.width - gut);
+      var cellRect = headRect('td.pe-tbl-colhead[data-ch="' + col + '"]');
+      if (!cellRect) return;
+      var startW = cellRect.width;
+      var moved = false;
+      _tblColDrag = true;
+      table.classList.add('pe-tbl-colsizing');
+      function onMove(ev) {
+        moved = true;
+        var frac = (startW + (ev.clientX - startX)) / contentW;
+        frac = Math.max(0.05, Math.min(0.9, frac));
+        applyPreviewWidth(col, frac);
+      }
+      function onUp(ev) {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        _tblColDrag = false;
+        table.classList.remove('pe-tbl-colsizing');
+        if (!moved) return;
+        var frac = (startW + (ev.clientX - startX)) / contentW;
+        frac = Math.max(0.05, Math.min(0.9, frac));
+        writeWidthFrac(col, Math.round(frac * 1000) / 1000);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    }
+    /* Row height. `\arraystretch` is per-TABLE, so what a row line can
+     * actually store is \\[dim] — extra space after that one row. Points,
+     * because that is what the .tex needs. */
+    function startRowDrag(row, startY) {
+      /* A row that is entirely covered by a rowspan has no td[data-r] of
+       * its own, so there is nothing to resize — bail rather than guess. */
+      var firstCell = table.querySelector('td[data-r="' + row + '"]');
+      var target = firstCell && firstCell.parentElement;
+      if (!target) return;
+      var startPt = rowExtras[row] > 0 ? rowExtras[row] : 0;
+      var maxPt = PL.TABLE_ROW_EXTRA_MAX_PT || 60;
+      var moved = false;
+      _tblColDrag = true;                        // same "don't re-arbitrate" latch
+      table.classList.add('pe-tbl-rowsizing');
+      function ptAt(ev) {
+        var pt = startPt + (ev.clientY - startY) / PT_PX;
+        return Math.max(0, Math.min(maxPt, Math.round(pt * 10) / 10));
+      }
+      function onMove(ev) {
+        moved = true;
+        var pt = ptAt(ev);
+        target.classList.toggle('pe-tbl-rowext', pt > 0);
+        target.style.setProperty('--pe-row-extra', (pt * PT_PX).toFixed(1) + 'px');
+        layoutLines();
+      }
+      function onUp(ev) {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        _tblColDrag = false;
+        table.classList.remove('pe-tbl-rowsizing');
+        if (!moved) return;
+        writeRowExtra(row, ptAt(ev));
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    }
+    function writeRowExtra(row, pt) {
+      var next = {};
+      Object.keys(rowExtras).forEach(function (k) { next[k] = rowExtras[k]; });
+      if (pt > 0) next[row] = pt; else delete next[row];
+      blk.doc.transact(function () {
+        if (Object.keys(next).length) attrs.set('row_heights_json', JSON.stringify(next));
+        else attrs.delete('row_heights_json');
+      }, 'tab-row-drag');
+    }
+
+    function applyPreviewWidth(col, frac) {
+      var cg = table.querySelector('colgroup');
+      if (!cg) return;
+      var el = cg.children[col + 1];              // +1 for the gutter column
+      if (el) el.style.width = (frac * 100).toFixed(2) + '%';
+      layoutLines();
+    }
+    function writeWidthFrac(col, frac) {
+      var arr = (PL.parseTableWidths ? PL.parseTableWidths(attrs.get('widths_json'), cols) : []);
+      arr[col] = { mode: 'frac', v: frac };
+      var any = arr.some(function (x) { return x && x.mode !== 'auto'; });
+      blk.doc.transact(function () {
+        if (any) attrs.set('widths_json', JSON.stringify(arr));
+        else attrs.delete('widths_json');
+      }, 'tab-col-drag');
+    }
+
+    /* ── Floating action bar: only what applies, only when it does ── */
+    var actbar = document.createElement('div');
+    actbar.className = 'pe-tbl-actbar';
+    actbar.hidden = true;
+    wrap.appendChild(actbar);
+
+    function currentRect() {
+      var sel = (_tblSel && _tblSel.blockId === tab.blockId) ? _tblSel : null;
+      if (!sel) return null;
+      return _tblExpandRect(_tblRect(sel), cover);
+    }
+    function anchorsIn(rect) {
+      return Object.keys(cover.anchors).filter(function (k) {
+        var p = k.split('-');
+        var ar = +p[0], ac = +p[1];
+        return ar >= rect.r0 && ar <= rect.r1 && ac >= rect.c0 && ac <= rect.c1;
+      });
+    }
+    function writeMerges(next) {
+      blk.doc.transact(function () {
+        if (Object.keys(next).length) attrs.set('merges_json', JSON.stringify(next));
+        else attrs.delete('merges_json');
+      }, 'tab-merges');
+    }
+
+    function repaint() {
+      var tds = table.querySelectorAll('td.pe-cell-selected');
+      for (var i = 0; i < tds.length; i++) tds[i].classList.remove('pe-cell-selected');
+      actbar.hidden = true;
+      actbar.innerHTML = '';
+      var rect = currentRect();
+      if (!rect) return;
+      var picked = [];
+      var body = table.querySelectorAll('td[data-r]');
+      for (var j = 0; j < body.length; j++) {
+        var tr2 = +body[j].dataset.r, tc = +body[j].dataset.c;
+        if (tr2 >= rect.r0 && tr2 <= rect.r1 && tc >= rect.c0 && tc <= rect.c1) {
+          body[j].classList.add('pe-cell-selected');
+          picked.push(body[j]);
+        }
+      }
+      if (!picked.length) return;
+
+      var multi = (rect.r1 - rect.r0 > 0) || (rect.c1 - rect.c0 > 0);
+      var inside = anchorsIn(rect);
+      /* Clicking a merged cell expands the rect to the whole merge, which
+       * would otherwise offer to "merge" it with itself. When the rect IS
+       * exactly one existing merge, the only sane action is Unmerge. */
+      var exact = inside.length === 1 && (function () {
+        var p = inside[0].split('-');
+        var ar = +p[0], ac = +p[1];
+        var a = cover.anchors[inside[0]];
+        return ar === rect.r0 && ac === rect.c0 &&
+               ar + a.rs - 1 === rect.r1 && ac + a.cs - 1 === rect.c1;
+      })();
+      if (multi && !exact) {
+        var mBtn = document.createElement('button');
+        mBtn.type = 'button';
+        mBtn.className = 'pe-tbl-actbtn';
+        mBtn.textContent = '⧉ Merge ' + (rect.r1 - rect.r0 + 1) + '×' + (rect.c1 - rect.c0 + 1);
+        mBtn.title = 'Merge the selected cells into one';
+        mBtn.addEventListener('click', function () {
+          var next = {};
+          Object.keys(merges).forEach(function (k) {
+            if (inside.indexOf(k) === -1) next[k] = merges[k];   // absorb the ones inside
+          });
+          next[rect.r0 + '-' + rect.c0] = {
+            rs: rect.r1 - rect.r0 + 1, cs: rect.c1 - rect.c0 + 1,
+          };
+          _tblSel = null;
+          writeMerges(next);
+        });
+        actbar.appendChild(mBtn);
+      }
+      if (inside.length) {
+        var uBtn = document.createElement('button');
+        uBtn.type = 'button';
+        uBtn.className = 'pe-tbl-actbtn';
+        uBtn.textContent = inside.length > 1 ? ('⤫ Unmerge ' + inside.length) : '⤫ Unmerge';
+        uBtn.title = 'Split the merged cell back into its cells (their text is kept)';
+        uBtn.addEventListener('click', function () {
+          var next = {};
+          Object.keys(merges).forEach(function (k) {
+            if (inside.indexOf(k) === -1) next[k] = merges[k];
+          });
+          _tblSel = null;
+          writeMerges(next);
+        });
+        actbar.appendChild(uBtn);
+      }
+      /* ── V3.651 — styling for the selected cells ──────────────────
+       * The selection was built for merge; formatting is the other thing
+       * you want a block of cells for, so it rides the same gesture
+       * rather than growing a second surface. */
+      var keysIn = [];
+      for (var kr = rect.r0; kr <= rect.r1; kr++) {
+        for (var kc = rect.c0; kc <= rect.c1; kc++) {
+          var kk = kr + '-' + kc;
+          if (cover.skip[kk] || cover.cont[kk] != null) continue;
+          keysIn.push(kk);
+        }
+      }
+      function allHave(fn) {
+        return keysIn.length > 0 && keysIn.every(function (k) { return fn(cellStyles[k] || {}); });
+      }
+      function patchCells(mutate) {
+        var next = {};
+        Object.keys(cellStyles).forEach(function (k) { next[k] = Object.assign({}, cellStyles[k]); });
+        keysIn.forEach(function (k) {
+          var st = next[k] || {};
+          mutate(st);
+          if (Object.keys(st).length) next[k] = st; else delete next[k];
+        });
+        _tblWriteCellStyles(blk, attrs, next);
+      }
+      function styleBtn(label, title, active, onClick) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'pe-tbl-actbtn pe-tbl-actbtn-style' + (active ? ' active' : '');
+        b.textContent = label;
+        b.title = title;
+        b.addEventListener('mousedown', function (ev) { ev.preventDefault(); });  // keep the selection
+        b.addEventListener('click', onClick);
+        actbar.appendChild(b);
+      }
+
+      var allBold = allHave(function (st) { return !!st.b; });
+      styleBtn('B', allBold ? 'Remove bold' : 'Bold these cells', allBold, function () {
+        patchCells(function (st) { if (allBold) delete st.b; else st.b = 1; });
+      });
+      var allIt = allHave(function (st) { return !!st.i; });
+      styleBtn('I', allIt ? 'Remove italic' : 'Italicise these cells', allIt, function () {
+        patchCells(function (st) { if (allIt) delete st.i; else st.i = 1; });
+      });
+      ['l', 'c', 'r'].forEach(function (a) {
+        var on = allHave(function (st) { return st.al === a; });
+        styleBtn(a === 'l' ? '⇤' : a === 'c' ? '↔' : '⇥',
+          'Align ' + (a === 'l' ? 'left' : a === 'c' ? 'centre' : 'right') +
+          ' (overrides the column)', on, function () {
+            patchCells(function (st) { if (on) delete st.al; else st.al = a; });
+          });
+      });
+      Object.keys(FILLS).forEach(function (name) {
+        var on = allHave(function (st) { return st.bg === name; });
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'pe-tbl-actbtn pe-tbl-fillbtn' + (on ? ' active' : '');
+        b.style.background = FILLS[name].css;
+        b.title = (on ? 'Clear the ' : 'Shade these cells ') + FILLS[name].label.toLowerCase();
+        b.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+        b.addEventListener('click', function () {
+          patchCells(function (st) { if (on) delete st.bg; else st.bg = name; });
+        });
+        actbar.appendChild(b);
+      });
+      var anyFill = keysIn.some(function (k) { return (cellStyles[k] || {}).bg; });
+      if (anyFill) {
+        styleBtn('⌫', 'Clear the shading', false, function () {
+          patchCells(function (st) { delete st.bg; });
+        });
+      }
+      /* A whole-row selection also gets the rule that goes under it —
+       * the one piece of table formatting that belongs to a row, not a
+       * cell, and the reason `rule_after` lives on the table style. */
+      /* …except on the last row when a closing rule is already coming —
+       * the export drops it there (it would double the \bottomrule), so
+       * offering the button would promise something that never appears. */
+      var lastRowClosed = rect.r1 === rows - 1 &&
+        (style.rules === 'booktabs' || style.rules === 'grid');
+      if (rect.c0 === 0 && rect.c1 === cols - 1 && !lastRowClosed) {
+        var hasRule = style.rule_after.indexOf(rect.r1) !== -1;
+        styleBtn(hasRule ? '⌦ rule' : '─ rule',
+          hasRule ? 'Remove the line under this row' : 'Draw a line under this row',
+          hasRule, function () {
+            var next = style.rule_after.filter(function (x) { return x !== rect.r1; });
+            if (!hasRule) next.push(rect.r1);
+            next.sort(function (a, b) { return a - b; });
+            blk.doc.transact(function () {
+              _tblStoreStyle(attrs, Object.assign({}, style, { rule_after: next }));
+            }, 'tab-rule-after');
+          });
+      }
+
+      if (!actbar.children.length) return;
+
+      /* Park the bar just above the selection's top-left, clamped into
+       * the grid so it never hangs off the panel. */
+      actbar.hidden = false;
+      var wrapBox = wrap.getBoundingClientRect();
+      var firstBox = picked[0].getBoundingClientRect();
+      if (!wrapBox.width) return;                 // not laid out yet
+      var top = firstBox.top - wrapBox.top - 26;
+      var left = firstBox.left - wrapBox.left;
+      if (top < 0) top = firstBox.bottom - wrapBox.top + 4;
+      if (left < 0) left = 0;
+      /* The bar carries the styling buttons now, so it is wide enough to
+       * run off the panel from a right-hand column. */
+      var maxLeft = wrapBox.width - actbar.offsetWidth - 2;
+      if (maxLeft < 0) maxLeft = 0;
+      if (left > maxLeft) left = maxLeft;
+      actbar.style.top = Math.round(top) + 'px';
+      actbar.style.left = Math.round(left) + 'px';
+    }
+
+    wrap.__peRepaint = repaint;
+    host.appendChild(wrap);
+
+    var hint = document.createElement('div');
+    hint.className = 'pe-tblgrid-hint';
+    hint.textContent = 'Hover any grid line for ＋ add · ||| drag to resize · − remove · ' +
+      'drag across cells to merge or format them';
+    host.appendChild(hint);
+
+    /* Paint now so a rebuild (a format click restyles and re-renders)
+     * never drops the action bar for a frame, AND again next frame:
+     * geometry is only real once the grid is in the document, and the
+     * FIRST build runs before _buildTableRow appends it. */
+    repaint();
+    layoutLines();
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(function () { repaint(); layoutLines(); });
+    }
+    return wrap;
+  }
+
+  /* Re-render this editor body when the table's SHAPE changes, without
+   * going through the parked whole-list refresh. Shallow observe: a
+   * keystroke mutates a Y.Text inside attrs.cells and never reaches
+   * here, so the caret is safe (V3.647). */
+  function _watchTableAttrs(rootEl, blk, attrs, tab) {
+    var prev = _tblObs[tab.blockId];
+    if (prev) { try { prev.attrs.unobserve(prev.handler); } catch (e) { /* gone */ } }
+    var handler = function (ev) {
+      if (_tblRebuilding) return;
+      if (!document.contains(rootEl)) {
+        try { attrs.unobserve(handler); } catch (e) { /* gone */ }
+        if (_tblObs[tab.blockId] && _tblObs[tab.blockId].handler === handler) {
+          delete _tblObs[tab.blockId];
+        }
+        return;
+      }
+      var structural = true;
+      var keys = ev && ev.keysChanged;
+      if (keys && typeof keys.forEach === 'function') {
+        structural = false;
+        keys.forEach(function (k) { if (TBL_STRUCT_KEYS[k]) structural = true; });
+      }
+      if (!structural) return;
+      _tblRebuilding = true;
+      try { _buildTableEditorBody(rootEl, tab); } finally { _tblRebuilding = false; }
+    };
+    attrs.observe(handler);
+    _tblObs[tab.blockId] = { attrs: attrs, handler: handler, rootEl: rootEl };
+  }
+
+  /* Full panel-side table editor body: styling toolbar (booktabs /
+   * header_row / longtable), per-column align + width, the grid itself
+   * (per-cell Y.Text contenteditables), caption and notes. */
   function _buildTableEditorBody(rootEl, tab) {
     var blk = _findTableBlock(tab.blockId);
     if (!blk) {
@@ -3334,6 +4602,7 @@
     var Y = window.PaperEditor.getY();
     var attrs = blk.get('attrs');
     if (!attrs) return;
+    rootEl.innerHTML = '';
 
     /* Styling toolbar. */
     var styleBar = document.createElement('div');
@@ -3353,7 +4622,94 @@
       w.appendChild(sp);
       return w;
     }
-    styleBar.appendChild(checkboxField('booktabs', 'booktabs', true));
+    /* ── V3.651 — table-level styling ────────────────────────────────
+     * `booktabs` used to be a lone checkbox, which is a strange way to
+     * ask "what should the lines look like" — the three real answers are
+     * journal rules, a full grid, or nothing. The checkbox is still
+     * written underneath (see _tblStoreStyle) so everything downstream
+     * that predates this release keeps working. */
+    var tstyle = _tblReadStyle(attrs);
+    function styleGroup(labelText, title) {
+      var g = document.createElement('span');
+      g.className = 'pe-tbl-stylegrp';
+      g.title = title || '';
+      var l = document.createElement('span');
+      l.className = 'pe-table-style-label';
+      l.textContent = labelText;
+      g.appendChild(l);
+      styleBar.appendChild(g);
+      return g;
+    }
+    function setStyle(patch) {
+      blk.doc.transact(function () {
+        _tblStoreStyle(attrs, Object.assign({}, tstyle, patch));
+      }, 'tab-style');
+    }
+    var rulesGrp = styleGroup('lines:',
+      'booktabs = the horizontal-rules-only look most journals require; ' +
+      'grid = every cell boxed; none = no lines at all.');
+    [['booktabs', 'booktabs'], ['grid', 'grid'], ['none', 'none']].forEach(function (pair) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pe-table-align-btn' + (tstyle.rules === pair[0] ? ' active' : '');
+      b.textContent = pair[1];
+      b.addEventListener('click', function () { setStyle({ rules: pair[0] }); });
+      rulesGrp.appendChild(b);
+    });
+
+    var textGrp = styleGroup('text:', 'Font size of the whole table.');
+    var sizeSel = document.createElement('select');
+    sizeSel.className = 'pe-table-width-sel pe-tbl-style-sel';
+    [['normal', 'normal'], ['small', 'small'], ['footnote', 'footnotesize'],
+     ['script', 'scriptsize']].forEach(function (o) {
+      var opt = document.createElement('option');
+      opt.value = o[0]; opt.textContent = o[1];
+      if (tstyle.size === o[0]) opt.selected = true;
+      sizeSel.appendChild(opt);
+    });
+    sizeSel.addEventListener('change', function () { setStyle({ size: sizeSel.value }); });
+    textGrp.appendChild(sizeSel);
+
+    var rowGrp = styleGroup('rows:', 'Row height (LaTeX \\arraystretch).');
+    var densSel = document.createElement('select');
+    densSel.className = 'pe-table-width-sel pe-tbl-style-sel';
+    [['compact', 'compact'], ['normal', 'normal'], ['roomy', 'roomy'],
+     ['airy', 'airy']].forEach(function (o) {
+      var opt = document.createElement('option');
+      opt.value = o[0]; opt.textContent = o[1];
+      if (tstyle.density === o[0]) opt.selected = true;
+      densSel.appendChild(opt);
+    });
+    densSel.addEventListener('change', function () { setStyle({ density: densSel.value }); });
+    rowGrp.appendChild(densSel);
+
+    var zebWrap = document.createElement('label');
+    zebWrap.className = 'pe-table-style-cb';
+    zebWrap.title = 'Shade alternate rows.';
+    var zebCb = document.createElement('input');
+    zebCb.type = 'checkbox';
+    zebCb.checked = !!tstyle.zebra;
+    zebCb.addEventListener('change', function () { setStyle({ zebra: !!zebCb.checked }); });
+    zebWrap.appendChild(zebCb);
+    var zebLbl = document.createElement('span');
+    zebLbl.textContent = 'striped';
+    zebWrap.appendChild(zebLbl);
+    styleBar.appendChild(zebWrap);
+
+    var wrapWrap = document.createElement('label');
+    wrapWrap.className = 'pe-table-style-cb';
+    wrapWrap.title = 'Wrap long cell text onto more lines instead of widening the column. ' +
+      'On by default; turn it off for a narrow table of short values, which then sizes to its content.';
+    var wrapCb = document.createElement('input');
+    wrapCb.type = 'checkbox';
+    wrapCb.checked = tstyle.wrap !== false;
+    wrapCb.addEventListener('change', function () { setStyle({ wrap: !!wrapCb.checked }); });
+    wrapWrap.appendChild(wrapCb);
+    var wrapLbl = document.createElement('span');
+    wrapLbl.textContent = 'wrap text';
+    wrapWrap.appendChild(wrapLbl);
+    styleBar.appendChild(wrapWrap);
+
     styleBar.appendChild(checkboxField('header row', 'header_row', true));
     /* Tables II — multi-page table (\begin{longtable}: caption inside,
      * header repeats per page; NOT a float, so anchor/span/lock don't
@@ -3362,106 +4718,10 @@
     var ltField = checkboxField('multi-page (longtable)', 'longtable', false);
     ltField.title = 'Long tables break across pages with the header repeated. Not available in two-column journals (IEEE, PNAS) — those compile it as a regular table with a warning.';
     styleBar.appendChild(ltField);
-
-    /* +Row / +Col buttons. */
-    var addRowBtn = document.createElement('button');
-    addRowBtn.type = 'button';
-    addRowBtn.className = 'pe-section-kind pe-tbl-small-btn';
-    addRowBtn.textContent = '+ Row';
-    addRowBtn.addEventListener('click', function () {
-      blk.doc.transact(function () {
-        var r = (attrs.get('rows') || 0);
-        var cells = attrs.get('cells');
-        var cols = attrs.get('cols') || 0;
-        for (var c = 0; c < cols; c++) cells.set(r + '-' + c, new Y.Text(''));
-        attrs.set('rows', r + 1);
-      }, 'table-add-row');
-    });
-    styleBar.appendChild(addRowBtn);
-
-    var addColBtn = document.createElement('button');
-    addColBtn.type = 'button';
-    addColBtn.className = 'pe-section-kind pe-tbl-small-btn';
-    addColBtn.textContent = '+ Col';
-    addColBtn.addEventListener('click', function () {
-      blk.doc.transact(function () {
-        var c = (attrs.get('cols') || 0);
-        var cells = attrs.get('cells');
-        var rows = attrs.get('rows') || 0;
-        for (var r = 0; r < rows; r++) cells.set(r + '-' + c, new Y.Text(''));
-        attrs.set('cols', c + 1);
-      }, 'table-add-col');
-    });
-    styleBar.appendChild(addColBtn);
-
-    /* Tables II — merge / unmerge over the click(+shift-click) cell
-     * selection. Merges live in the SCALAR attr `merges_json` (survives
-     * every move path); covered cells keep their Y.Texts so unmerge
-     * restores content. */
-    function readMerges() {
-      return (window.PaperLayout && window.PaperLayout.parseTableMerges)
-        ? window.PaperLayout.parseTableMerges(attrs.get('merges_json'))
-        : {};
-    }
-    function writeMerges(m) {
-      var keys = Object.keys(m);
-      blk.doc.transact(function () {
-        if (keys.length) attrs.set('merges_json', JSON.stringify(m));
-        else attrs.delete('merges_json');
-      }, 'tab-merges');
-    }
-    var mergeBtn = document.createElement('button');
-    mergeBtn.type = 'button';
-    mergeBtn.className = 'pe-section-kind pe-tbl-small-btn';
-    mergeBtn.textContent = '⧉ Merge';
-    mergeBtn.title = 'Merge the selected cells (click a cell, shift-click another to select a block)';
-    mergeBtn.addEventListener('click', function () {
-      var sel = _tblSel && _tblSel.blockId === tab.blockId ? _tblSel : null;
-      if (!sel) { alert('Select cells first: click a cell, then shift-click another corner.'); return; }
-      var r0 = Math.min(sel.r0, sel.r1), r1 = Math.max(sel.r0, sel.r1);
-      var c0 = Math.min(sel.c0, sel.c1), c1 = Math.max(sel.c0, sel.c1);
-      var rs = r1 - r0 + 1, cs = c1 - c0 + 1;
-      if (rs === 1 && cs === 1) { alert('Select more than one cell to merge.'); return; }
-      var merges = readMerges();
-      var cover = window.PaperLayout.tableCoverMap(merges, attrs.get('rows') || 0, attrs.get('cols') || 0);
-      for (var r = r0; r <= r1; r++) {
-        for (var c = c0; c <= c1; c++) {
-          var k = r + '-' + c;
-          if (cover.anchors[k] || cover.skip[k] || cover.cont[k] != null) {
-            alert('The selection overlaps an existing merge — unmerge it first.');
-            return;
-          }
-        }
-      }
-      merges[r0 + '-' + c0] = { rs: rs, cs: cs };
-      _tblSel = null;
-      writeMerges(merges);
-    });
-    styleBar.appendChild(mergeBtn);
-
-    var unmergeBtn = document.createElement('button');
-    unmergeBtn.type = 'button';
-    unmergeBtn.className = 'pe-section-kind pe-tbl-small-btn';
-    unmergeBtn.textContent = '⧉ Unmerge';
-    unmergeBtn.title = 'Split the merged cell under the selection back into its cells';
-    unmergeBtn.addEventListener('click', function () {
-      var sel = _tblSel && _tblSel.blockId === tab.blockId ? _tblSel : null;
-      if (!sel) { alert('Click a merged cell first.'); return; }
-      var merges = readMerges();
-      var cover = window.PaperLayout.tableCoverMap(merges, attrs.get('rows') || 0, attrs.get('cols') || 0);
-      var hit = null;
-      Object.keys(cover.anchors).forEach(function (k) {
-        var parts = k.split('-');
-        var ar = +parts[0], ac = +parts[1];
-        var a = cover.anchors[k];
-        if (sel.r0 >= ar && sel.r0 < ar + a.rs && sel.c0 >= ac && sel.c0 < ac + a.cs) hit = k;
-      });
-      if (!hit) { alert('The selected cell is not part of a merge.'); return; }
-      delete merges[hit];
-      _tblSel = null;
-      writeMerges(merges);
-    });
-    styleBar.appendChild(unmergeBtn);
+    var sizeTag = document.createElement('span');
+    sizeTag.className = 'pe-table-style-label';
+    sizeTag.textContent = (attrs.get('rows') || 0) + ' × ' + (attrs.get('cols') || 0);
+    styleBar.appendChild(sizeTag);
     rootEl.appendChild(styleBar);
 
     /* Per-column alignment. */
@@ -3537,9 +4797,35 @@
           var v = wSel.value;
           if (v === 'auto') { writeWidth(colIdx, { mode: 'auto' }); return; }
           if (v === 'mm') {
-            var mm = parseFloat(window.prompt('Column width in mm:', '30'));
-            if (!(mm > 0)) { wSel.value = curVal; return; }
-            writeWidth(colIdx, { mode: 'mm', v: mm });
+            /* V3.648 — inline form, not a prompt box. The select is put back
+             * to its previous value until the width is actually accepted, so
+             * cancelling never leaves the dropdown lying about the column. */
+            var wr = wSel.getBoundingClientRect();
+            var curMm = (cur.mode === 'mm' && cur.v > 0) ? String(cur.v) : '30';
+            wSel.value = curVal;
+            _openPicker(wr.left, wr.bottom + 4, {
+              title: 'Column width', emptyMsg: '', renderRowMode: 'plain', rows: [],
+              form: {
+                title: 'Column width',
+                fields: [{
+                  key: 'mm', label: 'Width in mm', value: curMm, placeholder: '30',
+                  hint: 'A fixed width for this column.',
+                }],
+                submitLabel: 'Set width',
+                backLabel: 'Cancel',
+                validate: function (vals) {
+                  var n = parseFloat(String(vals.mm).trim());
+                  if (!(n > 0)) {
+                    return { field: 'mm', message: 'Enter a width greater than 0.' };
+                  }
+                  return null;
+                },
+                onSubmit: function (vals, handle) {
+                  handle.close();
+                  writeWidth(colIdx, { mode: 'mm', v: parseFloat(String(vals.mm).trim()) });
+                },
+              },
+            });
             return;
           }
           writeWidth(colIdx, { mode: 'frac', v: parseFloat(v.split(':')[1]) });
@@ -3550,79 +4836,23 @@
     }
     rootEl.appendChild(alignWrap);
 
-    /* Grid editor — merge-aware: covered cells are not rendered (their
-     * Y.Texts persist for unmerge); anchors carry row/colSpan. Click a
-     * cell to select (outline), shift-click to extend the selection. */
-    var hasCells = attrs.get('cells') instanceof Y.Map;
-    if (hasCells) {
-      var grid = document.createElement('div');
-      grid.className = 'pe-table-body';
-      var rowsN = attrs.get('rows') || 0;
-      var colsN = attrs.get('cols') || 0;
-      var cells = attrs.get('cells');
-      var gMerges = readMerges();
-      var gCover = (window.PaperLayout && window.PaperLayout.tableCoverMap)
-        ? window.PaperLayout.tableCoverMap(gMerges, rowsN, colsN)
-        : { anchors: {}, skip: {}, cont: {} };
-      var table = document.createElement('table');
-      table.className = 'pe-grid-table';
-      function paintSelection() {
-        var sel = _tblSel && _tblSel.blockId === tab.blockId ? _tblSel : null;
-        table.querySelectorAll('td.pe-cell-selected').forEach(function (t) {
-          t.classList.remove('pe-cell-selected');
-        });
-        if (!sel) return;
-        var r0 = Math.min(sel.r0, sel.r1), r1 = Math.max(sel.r0, sel.r1);
-        var c0 = Math.min(sel.c0, sel.c1), c1 = Math.max(sel.c0, sel.c1);
-        table.querySelectorAll('td[data-r]').forEach(function (t) {
-          var tr2 = +t.dataset.r, tc = +t.dataset.c;
-          if (tr2 >= r0 && tr2 <= r1 && tc >= c0 && tc <= c1) t.classList.add('pe-cell-selected');
-        });
-      }
-      for (var r = 0; r < rowsN; r++) {
-        var tr = document.createElement('tr');
-        for (var c2 = 0; c2 < colsN; c2++) {
-          var key = r + '-' + c2;
-          if (gCover.skip[key] || gCover.cont[key] != null) continue;   // merged away
-          var td = document.createElement('td');
-          td.dataset.r = String(r);
-          td.dataset.c = String(c2);
-          var anch = gCover.anchors[key];
-          if (anch) {
-            if (anch.cs > 1) td.colSpan = anch.cs;
-            if (anch.rs > 1) td.rowSpan = anch.rs;
-            td.classList.add('pe-cell-merged');
-          }
-          (function (rr, cc) {
-            td.addEventListener('mousedown', function (ev) {
-              if (ev.shiftKey && _tblSel && _tblSel.blockId === tab.blockId) {
-                ev.preventDefault();   // keep the anchor cell's focus
-                _tblSel.r1 = rr; _tblSel.c1 = cc;
-              } else {
-                _tblSel = { blockId: tab.blockId, r0: rr, c0: cc, r1: rr, c1: cc };
-              }
-              paintSelection();
-            });
-          })(r, c2);
-          var cellY = cells.get(key);
-          if (!(cellY instanceof Y.Text)) {
-            cellY = new Y.Text('');
-            blk.doc.transact(function () { cells.set(key, cellY); }, 'init-cell');
-          }
-          var cellEl = document.createElement('div');
-          cellEl.className = 'pe-grid-cell';
-          window.PaperEditor.bindYTextToContentEditable(cellY, cellEl, {
-            readOnly: false,
-            renderHtml: window.PaperEditor.renderParagraphHtml,
-          });
-          td.appendChild(cellEl);
-          tr.appendChild(td);
-        }
-        table.appendChild(tr);
-      }
-      grid.appendChild(table);
-      rootEl.appendChild(grid);
-      paintSelection();
+    /* Grid editor — merge-aware, with the +/- gutter on its borders. */
+    if (attrs.get('cells') instanceof Y.Map) {
+      _mountTableGrid(rootEl, blk, attrs, tab);
+    } else {
+      var seed = document.createElement('div');
+      seed.className = 'pe-equations-empty';
+      seed.textContent = 'This table has no grid yet.';
+      rootEl.appendChild(seed);
+      var seedBtn = document.createElement('button');
+      seedBtn.type = 'button';
+      seedBtn.className = 'pe-eq-library-insert-btn';
+      seedBtn.textContent = 'Start a 2 × 2 grid';
+      seedBtn.addEventListener('click', function () {
+        _tblWriteGrid(blk, attrs, [['', ''], ['', '']], {}, ['l', 'l'],
+          [{ mode: 'auto' }, { mode: 'auto' }], 'table-seed');
+      });
+      rootEl.appendChild(seedBtn);
     }
 
     /* Caption editor. */
@@ -3639,7 +4869,7 @@
     capEl.className = 'pe-block-content pe-table-caption';
     capEl.dataset.placeholder = 'Table caption — supports $math$, [@cite], **bold**, etc.';
     window.PaperEditor.bindYTextToContentEditable(captionY, capEl, {
-      readOnly: false,
+      readOnly: !_toolEditable(),   // V3.741 — was hardcoded false; honours the checkout lock
       renderHtml: window.PaperEditor.renderParagraphHtml,
     });
     if (window.PaperEquations && window.PaperEquations.bindContextMenu) {
@@ -3666,6 +4896,10 @@
       }, 'tab-notes');
     });
     rootEl.appendChild(notesEl);
+
+    /* Registered LAST so the defensive caption/cell migrations above
+     * cannot fire it during the build itself. */
+    _watchTableAttrs(rootEl, blk, attrs, tab);
   }
 
   /* ── E4 — equation importers ─────────────────────────────────────
@@ -4327,7 +5561,7 @@
         var capRow = document.createElement('button');
         capRow.type = 'button';
         capRow.className = 'pe-doc-picker-row pe-doc-picker-row-new';
-        capRow.innerHTML = '<span class="pe-doc-picker-row-title">📚 From reading library…</span>' +
+        capRow.innerHTML = '<span class="pe-doc-picker-row-title">' + ICON.svg('books') + ' From reading library…</span>' +
           '<span class="pe-doc-picker-row-subtitle">Equations captured while reading papers</span>';
         capRow.addEventListener('click', function () {
           pop.remove();
@@ -4615,33 +5849,50 @@
     menu.style.left = x + 'px';
     menu.style.top = y + 'px';
 
-    var item1 = _ctxMenuItem('📐 Insert inline equation', function () {
+    var item1 = _ctxMenuItem('Insert inline equation', function () {
       _hideContextMenu();
       _openInlinePicker(x, y);
-    });
+    }, 'variable');
     var item2 = _ctxMenuItem('Eq. # — Insert equation reference', function () {
       _hideContextMenu();
       _openRefPicker(x, y);
     });
     /* V3.115 — figure references + citation insert. */
-    var item3 = _ctxMenuItem('🖼 Insert figure reference', function () {
+    var item3 = _ctxMenuItem('Insert figure reference', function () {
       _hideContextMenu();
       _openFigRefPicker(x, y);
-    });
+    }, 'photo');
     /* V3.120 — table references. */
-    var item4 = _ctxMenuItem('📋 Insert table reference', function () {
+    var item4 = _ctxMenuItem('Insert table reference', function () {
       _hideContextMenu();
       _openTabRefPicker(x, y);
-    });
-    var item5 = _ctxMenuItem('📚 Insert citation (Cmd+K)', function () {
+    }, 'table-cells');
+    var item5 = _ctxMenuItem('Insert citation (Cmd+K)', function () {
       _hideContextMenu();
       _openCitationPopoverFallback();
+    }, 'books');
+    /* V3.649 — section cross-reference, in the same family as the figure
+     * and table reference items above it. */
+    var itemSec = _ctxMenuItem('§ Insert section reference', function () {
+      _hideContextMenu();
+      _openSectionRefPicker(x, y);
     });
+    /* V3.647 — values / inventory items, reachable from the paragraph you
+     * are writing in. The picker's "＋ New …" rows define the key and
+     * insert its token in one action, so a value can be introduced mid-
+     * sentence without leaving for the Values page and losing the caret. */
+    var item6 = _ctxMenuItem('Insert value or inventory item', function () {
+      _hideContextMenu();
+      if (!window.PaperValues) return;
+      window.PaperValues.openInsertPicker(null, { x: x, y: y });
+    }, 'key');
     menu.appendChild(item1);
     menu.appendChild(item2);
     menu.appendChild(item3);
     menu.appendChild(item4);
+    menu.appendChild(itemSec);
     menu.appendChild(item5);
+    menu.appendChild(item6);
 
     document.body.appendChild(menu);
     _state.contextMenu = menu;
@@ -4668,11 +5919,12 @@
     }, 0);
   }
 
-  function _ctxMenuItem(label, onClick) {
+  function _ctxMenuItem(label, onClick, icon) {
     var item = document.createElement('button');
     item.type = 'button';
     item.className = 'pe-eq-context-menu-item';
-    item.textContent = label;
+    if (icon) ICON.label(item, icon, ' ' + label);
+    else item.textContent = label;
     item.addEventListener('click', onClick);
     return item;
   }
@@ -4943,6 +6195,74 @@
     _openSubfigurePicker(x, y, fig);
   }
 
+  /* ── V3.649 — section / subheading cross-references ───────────────
+   *
+   * Lists every anchor a [!sec:] token could point at, not just the ones
+   * that already carry a ref_label, and mints the label on the way past —
+   * so referencing a section is one click rather than "go invent a label
+   * first". Subheadings render indented under their section.
+   */
+  function _toolbarInsertSectionRef(anchorBtn) {
+    if (!_ensureCaretOrAlert()) return;
+    var r = anchorBtn && anchorBtn.getBoundingClientRect
+      ? anchorBtn.getBoundingClientRect() : null;
+    _openSectionRefPicker(
+      r ? r.left : (window.innerWidth / 2 - 160),
+      r ? (r.bottom + 4) : (window.innerHeight / 2 - 100)
+    );
+  }
+
+  function _openSectionRefPicker(x, y) {
+    var PE = window.PaperEditor;
+    if (!PE || !PE.getSectionRefChoices) return;
+    var choices = PE.getSectionRefChoices();
+    /* The section the caret is in is the one you are least likely to want
+     * to point at, and "see Section 2" inside Section 2 is a mistake worth
+     * making hard — so it is listed last, marked. */
+    var hereId = _resolveSectionIdForInsert();
+
+    var rows = choices.map(function (c) {
+      var title = (c.title || '').trim() || '(untitled)';
+      var isHere = (c.kind === 'section' && c.id === hereId);
+      var prefix = c.kind === 'subheading' ? '    ↳ ' : '';
+      var suffix = '';
+      if (c.appendixBoundary) suffix += '  · appendix';
+      if (isHere) suffix += '  · you are here';
+      return {
+        name: prefix + title + suffix,
+        searchKey: (title + ' ' + (c.refLabel || '') + ' ' + c.kind).toLowerCase(),
+        _anchorId: c.id,
+        _here: isHere,
+      };
+    });
+    /* Stable sort: everything in document order, the current section last. */
+    rows.sort(function (a, b) { return (a._here ? 1 : 0) - (b._here ? 1 : 0); });
+
+    _openPicker(x, y, {
+      title: 'Reference a section',
+      emptyMsg: 'This paper has no sections yet.',
+      renderRowMode: 'plain',
+      rows: rows,
+      onPick: function (row) {
+        if (!row || !row._anchorId) return;
+        var label = PE.ensureSectionRefLabel(row._anchorId);
+        if (!label) {
+          if (window.TOAST) TOAST.error('Could not label that section — is the paper read-only?');
+          return;
+        }
+        _insertAtSavedCaret('[!sec:' + label + ']');
+      },
+    });
+  }
+
+  /* V3.645 — hand off to paper-values.js, anchored under the button so
+   * the picker appears where the user clicked. */
+  function _toolbarInsertValue() {
+    if (!window.PaperValues) return;
+    var btn = document.getElementById('pe-gt-value');
+    window.PaperValues.openInsertPicker(btn);
+  }
+
   function _openPicker(x, y, opts) {
     var pop = document.createElement('div');
     pop.className = 'pe-eq-picker';
@@ -4955,10 +6275,24 @@
       '<div class="pe-eq-picker-hint">Esc to close</div>';
     document.body.appendChild(pop);
 
+    var titleEl = pop.querySelector('.pe-eq-picker-title');
+    var hintEl = pop.querySelector('.pe-eq-picker-hint');
     var input = pop.querySelector('.pe-eq-picker-search');
     var listEl = pop.querySelector('.pe-eq-picker-list');
+    /* V3.648 — the picker can swap its list for an inline multi-field form,
+     * so "create the thing you were looking for" happens INSIDE the dropdown
+     * instead of in a chain of window.prompt() boxes. Alex: "i dont want the
+     * options to be popups from the browser… never have an input popup". */
+    var formEl = null;
+    var formSpec = null;
+    var formInputs = null;
     var current = opts.rows.slice();
     var activeIdx = current.length ? 0 : -1;
+    /* V3.647 — the raw (un-lowercased) search text. Rows can render their
+     * label from it (`name` as a function) and onPick receives it, so a
+     * picker can offer "create what you just typed" instead of dead-ending
+     * on "no match". */
+    var lastQuery = '';
 
     function renderList() {
       listEl.innerHTML = '';
@@ -4991,8 +6325,9 @@
             ? window.PaperEditor.renderEquationHtml(r.latex, !!r.renderDisplay)
             : '<span class="pe-eq-picker-empty-tex">(empty)</span>';
         }
+        var rowName = (typeof r.name === 'function') ? r.name(lastQuery) : r.name;
         row.innerHTML =
-          '<div class="pe-eq-picker-row-name">' + _escHtml(r.name) + '</div>' +
+          '<div class="pe-eq-picker-row-name">' + (r.icon ? ICON.svg(r.icon) + ' ' : '') + _escHtml(rowName) + '</div>' +
           (preview ? '<div class="pe-eq-picker-row-preview">' + preview + '</div>' : '');
         // V3.149 — same fix as V3.148: do NOT renderList() on mouseenter.
         // The destroy-and-rebuild was racing the click event so the
@@ -5011,11 +6346,17 @@
     }
 
     function refresh() {
-      var q = (input.value || '').trim().toLowerCase();
+      lastQuery = (input.value || '').trim();
+      var q = lastQuery.toLowerCase();
       if (!q) {
         current = opts.rows.slice();
       } else {
-        current = opts.rows.filter(function (r) { return r.searchKey.indexOf(q) >= 0; });
+        /* V3.647 — `always` rows survive filtering. They are the escapes
+         * ("create what you typed", "search somewhere else"), and they
+         * matter MOST at the moment the query matches nothing. */
+        current = opts.rows.filter(function (r) {
+          return r.always || r.searchKey.indexOf(q) >= 0;
+        });
       }
       activeIdx = current.length ? 0 : -1;
       renderList();
@@ -5024,16 +6365,160 @@
     function pickIdx(i) {
       var entry = current[i];
       if (!entry) return;
-      _closePicker();
+      /* V3.648 — a `keepOpen` row hands the popover to onPick instead of
+       * dismissing it, so the handler can call handle.showForm(...) and the
+       * user never leaves the dropdown they were already looking at. */
+      if (!entry.keepOpen) _closePicker();
       /* V3.115 — opts.onPick override (used by figure picker so it can
        * branch into a subfigure picker rather than insert immediately).
        * Default behavior: insert the row's `insert` token at saved caret. */
       if (typeof opts.onPick === 'function') {
-        opts.onPick(entry);
+        opts.onPick(entry, lastQuery, handle);   // V3.647 query, V3.648 handle
       } else if (entry.insert) {
         _insertAtSavedCaret(entry.insert);
       }
     }
+
+    /* ── V3.648 — inline form mode ───────────────────────────────────
+     *
+     * `spec` is declarative so the picker owns the chrome, the keyboard
+     * (Enter saves, Esc goes back to the list) and the validation seam:
+     *
+     *   { title, fields: [{ key, label, value, placeholder, hint }],
+     *     submitLabel, backLabel,
+     *     validate(vals) -> null | { field, message },
+     *     onSubmit(vals, handle) }
+     */
+    function showForm(spec) {
+      formSpec = spec || {};
+      formInputs = {};
+      if (formEl) { formEl.remove(); formEl = null; }
+      input.hidden = true;
+      listEl.hidden = true;
+      titleEl.textContent = formSpec.title || opts.title;
+      hintEl.textContent = 'Enter to save · Esc to go back';
+
+      formEl = document.createElement('div');
+      formEl.className = 'pe-eq-picker-form';
+      /* Only the FIELDS scroll. The error line and the buttons are pinned
+       * below them — a five-field form is taller than the popover, and a
+       * Save button you have to scroll an inner pane to find is a Save
+       * button nobody presses. */
+      var fieldsEl = document.createElement('div');
+      fieldsEl.className = 'pe-eq-picker-form-fields';
+      formEl.appendChild(fieldsEl);
+      /* An explanatory line above the fields. With `fields: []` this is the
+       * whole body — which is how a confirm-before-you-delete panel is built
+       * out of the same primitive instead of window.confirm(). */
+      if (formSpec.note) {
+        var noteEl = document.createElement('div');
+        noteEl.className = 'pe-eq-picker-form-note';
+        noteEl.textContent = formSpec.note;
+        fieldsEl.appendChild(noteEl);
+      }
+      (formSpec.fields || []).forEach(function (f) {
+        var row = document.createElement('label');
+        row.className = 'pe-eq-picker-field';
+        var lab = document.createElement('span');
+        lab.className = 'pe-eq-picker-field-label';
+        lab.textContent = f.label;
+        row.appendChild(lab);
+        var inp = document.createElement('input');
+        inp.type = 'text';   // text even for numbers: units, blanks, "as typed"
+        inp.className = 'pe-eq-picker-field-input';
+        inp.value = (f.value == null) ? '' : String(f.value);
+        if (f.placeholder) inp.placeholder = f.placeholder;
+        row.appendChild(inp);
+        if (f.hint) {
+          var h = document.createElement('span');
+          h.className = 'pe-eq-picker-field-hint';
+          h.textContent = f.hint;
+          row.appendChild(h);
+        }
+        formInputs[f.key] = inp;
+        fieldsEl.appendChild(row);
+      });
+
+      var err = document.createElement('div');
+      err.className = 'pe-eq-picker-form-err';
+      err.hidden = true;
+      formEl.appendChild(err);
+      formEl._err = err;
+
+      var actions = document.createElement('div');
+      actions.className = 'pe-eq-picker-form-actions';
+      var back = document.createElement('button');
+      back.type = 'button';
+      back.className = 'pe-eq-picker-form-btn';
+      back.textContent = formSpec.backLabel || 'Back';
+      back.addEventListener('click', function () { showList(); });
+      var save = document.createElement('button');
+      save.type = 'button';
+      save.className = 'pe-eq-picker-form-btn pe-eq-picker-form-btn-primary' +
+        (formSpec.danger ? ' pe-eq-picker-form-btn-danger' : '');
+      save.textContent = formSpec.submitLabel || 'Save';
+      save.addEventListener('click', submitForm);
+      actions.appendChild(back);
+      actions.appendChild(save);
+      formEl.appendChild(actions);
+
+      pop.insertBefore(formEl, hintEl);
+      var first = (formSpec.fields || [])[0];
+      var firstEl = first && formInputs[first.key];
+      if (firstEl) { firstEl.focus(); firstEl.select(); }
+      else save.focus();   // fieldless panels (confirm) still take the keyboard
+      hintEl.textContent = firstEl
+        ? 'Enter to save · Esc to go back'
+        : 'Enter to confirm · Esc to cancel';
+    }
+
+    function formValues() {
+      var out = {};
+      Object.keys(formInputs || {}).forEach(function (k) {
+        out[k] = formInputs[k].value;
+      });
+      return out;
+    }
+
+    function submitForm() {
+      if (!formSpec) return;
+      var vals = formValues();
+      var bad = formSpec.validate ? formSpec.validate(vals) : null;
+      if (bad) {
+        /* Errors land IN the form, next to the field that caused them —
+         * the whole point of not being a browser alert. */
+        formEl._err.textContent = bad.message || String(bad);
+        formEl._err.hidden = false;
+        var target = bad.field && formInputs[bad.field];
+        if (target) { target.focus(); target.select(); }
+        return;
+      }
+      formEl._err.hidden = true;
+      if (formSpec.onSubmit) formSpec.onSubmit(vals, handle);
+    }
+
+    function showList() {
+      formSpec = null;
+      formInputs = null;
+      if (formEl) { formEl.remove(); formEl = null; }
+      input.hidden = false;
+      listEl.hidden = false;
+      titleEl.textContent = opts.title;
+      hintEl.textContent = 'Esc to close';
+      refresh();
+      input.focus();
+    }
+
+    var handle = {
+      close: function () { _closePicker(); },
+      showForm: showForm,
+      showList: showList,
+      setError: function (msg) {
+        if (!formEl) return;
+        formEl._err.textContent = msg;
+        formEl._err.hidden = !msg;
+      },
+    };
 
     function _closePicker() {
       if (pop.parentElement) pop.parentElement.removeChild(pop);
@@ -5045,6 +6530,15 @@
       if (!pop.contains(ev.target)) _closePicker();
     }
     function keyHandler(ev) {
+      /* V3.648 — while the inline form is up it owns the keyboard: Esc steps
+       * BACK to the list rather than throwing away half-typed input, Enter
+       * saves, and the arrow keys must not move a list the user can't see. */
+      if (formSpec) {
+        if (ev.key === 'Escape') { showList(); ev.preventDefault(); ev.stopPropagation(); return; }
+        if (ev.key === 'Enter')  { submitForm(); ev.preventDefault(); ev.stopPropagation(); return; }
+        if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') return;
+        return;
+      }
       if (ev.key === 'Escape') { _closePicker(); ev.preventDefault(); return; }
       if (ev.key === 'Enter') {
         if (activeIdx >= 0 && activeIdx < current.length) {
@@ -5068,6 +6562,10 @@
 
     // Clamp + render
     refresh();
+    /* V3.648 — `opts.form` opens the popover straight into form mode with no
+     * list behind it. That is how page-level "add" buttons (the Values page)
+     * get the same inline editor without a browser prompt. */
+    if (opts.form) showForm(opts.form);
     requestAnimationFrame(function () {
       var rect = pop.getBoundingClientRect();
       if (rect.right > window.innerWidth - 8) {
@@ -5077,8 +6575,9 @@
         pop.style.top = Math.max(8, window.innerHeight - rect.height - 8) + 'px';
       }
     });
-    setTimeout(function () { input.focus(); }, 30);
+    if (!opts.form) setTimeout(function () { input.focus(); }, 30);
     _state.pickerOpen = true;
+    return handle;
   }
 
   /* ── Insertion at saved caret position ─────────────────────────────
@@ -5306,5 +6805,20 @@
     openFigurePickerAt: _openFigurePickerAt,
     openTablePickerAt: _openTablePickerAt,
     openEquationPickerAt: _openEquationPickerAt,
+    /* V3.645 — primitives paper-values.js builds its picker on, rather
+     * than adding yet another popover implementation. */
+    openPicker: _openPicker,
+    insertAtCaret: _insertAtSavedCaret,
+    /* V3.650 — test seam for scripts/tests/v3650-selftest.html. The table
+     * grid is DOM-and-CRDT all the way down (there is no pure function to
+     * assert against), so the selftest drives the real editor: it builds a
+     * Y.Doc, mounts the body, and clicks the buttons. Not used in prod. */
+    __tblTest: {
+      buildTableEditorBody: function (rootEl, tab) { return _buildTableEditorBody(rootEl, tab); },
+      shiftMerges: _tblShiftMerges,
+      structOp: _tblStructOp,
+      clearSelection: function () { _tblSel = null; },
+      getSelection: function () { return _tblSel; },
+    },
   };
 })();

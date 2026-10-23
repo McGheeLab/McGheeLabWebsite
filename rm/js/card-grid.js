@@ -89,14 +89,14 @@
     }
     const days = Math.max(1, rawDays);
     const load = hours / days;
-    let level, prefix;
+    let level, prefix, icon = '';
     if (load >= 5)      { level = 'red';    prefix = '↯ '; }
-    else if (load >= 3) { level = 'orange'; prefix = '⚠ '; }
+    else if (load >= 3) { level = 'orange'; prefix = ''; icon = 'exclamation-triangle'; }
     else if (load >= 1) { level = 'yellow'; prefix = '· '; }
     else                { level = 'green';  prefix = '· '; }
     const dayWord = days === 1 ? 'day' : 'days';
     return {
-      hours, days, load, level,
+      hours, days, load, level, icon,
       label: `${prefix}${load.toFixed(1)}h/d`,
       tooltip:
         `${hours.toFixed(1)}h estimated · ${days} ${dayWord} until due (${due})\n` +
@@ -147,7 +147,8 @@
       };
       const [bg, fg] = palette[pace.level];
       c.style.cssText = `font-size:11px;padding:1px 7px;border-radius:10px;background:${bg};color:${fg};font-weight:700;flex-shrink:0`;
-      c.textContent = pace.label;
+      if (pace.icon) ICON.label(c, pace.icon, ' ' + pace.label);
+      else c.textContent = pace.label;
       c.title = pace.tooltip;
       container.appendChild(c);
     }

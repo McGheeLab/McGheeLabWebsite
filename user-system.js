@@ -299,6 +299,15 @@ const DB = {
     data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     await McgheeLab.db.collection('users').doc(uid).set(data, { merge: true });
   },
+  /* V3.637 — the PUBLIC team page's user source. `users` is no longer
+     world-readable: only docs with a non-guest role are, so the query has to
+     carry that constraint (a list is denied outright if any doc it would
+     return fails the rule). Signed-in lab members and admins still use
+     getAllUsers() for the pickers and the admin table. */
+  async getPublicProfiles() {
+    const snap = await McgheeLab.db.collection('users').where('role', '!=', 'guest').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
   async getAllUsers() {
     const snap = await McgheeLab.db.collection('users').get();
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -408,10 +417,11 @@ const DB = {
   /* V3.553 — published Research Foci snapshots (publicFoci: public read,
    * admin write). Authored + published from RM's research page; renders on
    * #/projects. Whole-collection get — the map is tens of docs; sorted
-   * client-side by level (specialty → concept → output) then order. */
+   * client-side by level (specialty → concept → grant → aim → output —
+   * V3.717) then order. */
   async getPublicFoci() {
     const snap = await McgheeLab.db.collection('publicFoci').get();
-    const levelRank = { specialty: 0, concept: 1, output: 2 };
+    const levelRank = { specialty: 0, concept: 1, grant: 2, aim: 3, output: 4 };
     return snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) =>
         (levelRank[a.level] ?? 9) - (levelRank[b.level] ?? 9) ||
@@ -769,6 +779,9 @@ const Auth = {
     }
 
     McgheeLab.auth.onAuthStateChanged(async (user) => {
+      // V3.806 — an alias login is swapped for its primary account; this
+      // listener re-fires with that account, so skip the alias entirely.
+      if (user && await Auth._aliasSwap(user)) return;
       Auth.currentUser = user;
       Auth._authStateResolved = true;
       if (user) {
@@ -792,6 +805,35 @@ const Auth = {
       Auth.updateNavigation();
       Auth._listeners.forEach(fn => fn(user, Auth.currentProfile));
     });
+  },
+
+  /* V3.806 — one person, two Google logins. An alias email's session is
+     swapped for the account it belongs to (functions/auth-alias.js holds the
+     authoritative map; this list only spares other sign-ins the round-trip —
+     keep in sync with rm/js/firebase-bridge.js). On failure we stay signed in
+     as the alias, as before. */
+  _ALIAS_EMAILS: ['mcgheealex@arizona.edu'],
+  _aliasSwapping: false,
+  async _aliasSwap(user) {
+    const email = String(user.email || '').toLowerCase();
+    if (!Auth._ALIAS_EMAILS.includes(email) || Auth._aliasSwapping) return false;
+    Auth._aliasSwapping = true;
+    try {
+      const r = await fetch('https://us-central1-mcgheelab-f56cc.cloudfunctions.net/aliasSignIn', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + (await user.getIdToken()), 'Content-Type': 'application/json' },
+        body: '{}'
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok || !body.token) throw new Error(body.error || ('HTTP ' + r.status));
+      await McgheeLab.auth.signInWithCustomToken(body.token);
+      return true;
+    } catch (err) {
+      console.warn('[auth] alias sign-in failed; staying signed in as ' + email + ':', err.message);
+      return false;
+    } finally {
+      Auth._aliasSwapping = false;
+    }
   },
 
   // V3.332 — background retry when the initial profile read fails.
@@ -963,20 +1005,28 @@ const Auth = {
     return cred.user;
   },
 
-  // Check if user doc exists; if not, create a guest profile
+  // Check if user doc exists; if not, create a guest profile.
+  // V3.805 — create-only inside a transaction (server read, never queued
+  // offline). The old `getUser().catch(() => null)` treated a FAILED read as
+  // "no doc" and merge-wrote role/category 'guest' + empty bio over a real
+  // profile; rules allow that for an admin's own doc.
   async _ensureGuestDoc(user) {
-    const existing = await DB.getUser(user.uid).catch(() => null);
-    if (!existing) {
-      await DB.updateUser(user.uid, {
+    const ref = McgheeLab.db.collection('users').doc(user.uid);
+    const now = firebase.firestore.FieldValue.serverTimestamp();
+    await McgheeLab.db.runTransaction(async (t) => {
+      const snap = await t.get(ref);
+      if (snap.exists) return;
+      t.set(ref, {
         name: user.displayName || '',
         email: user.email || '',
         photo: user.photoURL ? { thumb: user.photoURL, medium: user.photoURL, full: user.photoURL } : null,
         bio: '',
         category: 'guest',
         role: 'guest',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: now,
+        updatedAt: now
       });
-    }
+    }).catch(err => console.warn('[auth] guest-doc bootstrap skipped:', err.message));
   },
 
   async googleLogin() {
@@ -1278,12 +1328,18 @@ function renderGuestProfileCard(p) {
 }
 
 function wireGuestProfileCard() {
+  /* V3.632 — in a demo preview these two writes would land on the
+     previewing admin's own profile doc and storage path, so they are
+     intercepted into the demo action log instead. */
+  const demo = () => (McgheeLab.TC_DEMO?.active ? McgheeLab.TC_DEMO : null);
+
   // Photo upload with crop
   document.getElementById('profile-photo-input')?.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     e.target.value = '';
     const st = document.getElementById('profile-status');
+    if (demo()) { demo().interceptProfileWrite('profile photo upload'); return; }
     try {
       const cropped = await openCropModal(file);
       st.textContent = 'Uploading photo\u2026'; st.className = 'form-status'; st.hidden = false;
@@ -1308,6 +1364,7 @@ function wireGuestProfileCard() {
       const st = document.getElementById('profile-status');
       const btn = form.querySelector('button[type="submit"]');
       btn.disabled = true; st.hidden = true;
+      if (demo()) { demo().interceptProfileWrite('profile save'); btn.disabled = false; return; }
       try {
         await DB.updateUser(Auth.currentUser.uid, {
           name: document.getElementById('guest-name').value.trim(),
@@ -1340,62 +1397,37 @@ function renderGuestDashboard(p) {
 
       <div class="dashboard-grid">
         ${renderGuestProfileCard(p)}
-        <div class="dash-card">
-          <h3>Are you a teacher?</h3>
-          <p>Bring our interactive class modules \u2014 bioprinting, optics, biomechanics, and more \u2014 into your own classroom. Request a class and we'll set you up with materials and a join code for your students.</p>
-          <button class="btn btn-primary" id="guest-become-teacher">I'm a teacher \u2014 get started</button>
-          <div id="guest-teacher-status" class="form-status" hidden></div>
-        </div>
-        <div class="dash-card">
-          <h3>Have a class code?</h3>
-          <p>If your teacher gave you a 6-character code, enter it here to join their class.</p>
-          <form id="guest-join-form" class="tc-join-form">
-            <input type="text" id="guest-join-code" maxlength="6" autocomplete="off" placeholder="ABC123" aria-label="Class code">
-            <button type="submit" class="btn btn-primary">Join Class</button>
-          </form>
-          <div id="guest-join-status" class="form-status" hidden></div>
-        </div>
       </div>
     </div>`;
 }
 
+/* V3.680 — the "Are you a teacher?" / "Have a class code?" cards are gone
+   from the guest dashboard at Alex's direction: no teacher/student
+   self-identification on login surfaces. Teacher onboarding now lives on the
+   teacher-focused #/teachers page (linked from Classes) plus admin-issued
+   invites; students join through the class LINK their teacher shares (the
+   class page's code gate still flips category on success). */
 function wireGuestDashboard() {
   document.getElementById('dash-logout-btn')?.addEventListener('click', () => Auth.logout());
   wireGuestProfileCard();
-
-  // V3.304 \u2014 self-identify as an external teacher. Grants nothing by
-  // itself (role stays 'guest'); it just switches the dashboard to the
-  // teacher panel where they can request a class.
-  document.getElementById('guest-become-teacher')?.addEventListener('click', async () => {
-    const st = document.getElementById('guest-teacher-status');
-    try {
-      await DB.updateUser(Auth.currentUser.uid, { category: 'teacher' });
-      Auth.currentProfile = await DB.getUser(Auth.currentUser.uid);
-      window.dispatchEvent(new Event('hashchange')); // re-render the dashboard route
-    } catch (err) {
-      st.textContent = 'Could not update: ' + err.message; st.className = 'form-status error'; st.hidden = false;
-    }
-  });
-
-  // V3.304 \u2014 student join-by-code (delegates to teacher-classes.js,
-  // which also flips category guest \u2192 student on success).
-  document.getElementById('guest-join-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const st = document.getElementById('guest-join-status');
-    try {
-      if (!McgheeLab.joinClassWithCode) throw new Error('Class system not loaded \u2014 refresh the page.');
-      await McgheeLab.joinClassWithCode(document.getElementById('guest-join-code').value);
-      window.dispatchEvent(new Event('hashchange')); // re-render as the student dashboard
-    } catch (err) {
-      st.textContent = err.message; st.className = 'form-status error'; st.hidden = false;
-    }
-  });
 }
 
 /* ================================================================
    RENDER: DASHBOARD
    ================================================================ */
 function renderDashboard() {
+  /* V3.632 \u2014 demo mode: an admin previewing a teacher/student persona
+     gets that persona's dashboard, not their own. Checked before the
+     isGuest() branch because the previewing account is role:'admin',
+     which is exactly why these panels were unreachable before. */
+  const demo = McgheeLab.TC_DEMO;
+  if (demo?.active && !demo.signedOut) {
+    const dp = demo.profile;
+    if (dp.category === 'teacher' && McgheeLab.renderTeacherDashboard) return McgheeLab.renderTeacherDashboard(dp);
+    if (dp.category === 'student' && McgheeLab.renderStudentDashboard) return McgheeLab.renderStudentDashboard(dp);
+    return renderGuestDashboard(dp);
+  }
+
   if (!Auth.currentUser) { window.location.hash = '#/login'; return authLoadingHTML('Redirecting\u2026'); }
   const p = Auth.currentProfile || {};
 
@@ -1691,6 +1723,15 @@ function renderDashboard() {
 }
 
 async function wireDashboard() {
+  /* V3.632 — mirrors the demo dispatch in renderDashboard. */
+  const demo = McgheeLab.TC_DEMO;
+  if (demo?.active && !demo.signedOut) {
+    const cat = demo.profile.category;
+    if (cat === 'teacher' && McgheeLab.wireTeacherDashboard) { await McgheeLab.wireTeacherDashboard(); return; }
+    if (cat === 'student' && McgheeLab.wireStudentDashboard) { await McgheeLab.wireStudentDashboard(); return; }
+    wireGuestDashboard(); return;
+  }
+
   if (!Auth.currentUser) return;
 
   /* Guest gets a simpler wiring path (V3.304: teacher/student panels
@@ -2136,16 +2177,16 @@ async function renderDashStatusStrip() {
       const title = escapeHTML(it.title || 'Untitled');
       if (it.status === 'pending') {
         banners.push(`<div class="status-banner status-banner-pending">
-          ⏳ <a href="${it._route}">${title}</a> is awaiting review.</div>`);
+          ${ICON.svg('clock')} <a href="${it._route}">${title}</a> is awaiting review.</div>`);
       } else if (it.status === 'changes-requested') {
         banners.push(`<div class="status-banner status-banner-changes">
-          ✏️ <a href="${it._route}">${title}</a> needs changes${it.reviewNote ? ': <em>' + escapeHTML(it.reviewNote) + '</em>' : '.'}</div>`);
+          ${ICON.svg('pencil')} <a href="${it._route}">${title}</a> needs changes${it.reviewNote ? ': <em>' + escapeHTML(it.reviewNote) + '</em>' : '.'}</div>`);
       } else if (it.status === 'published' && !seen(it.id, 'published')) {
         const pub = it.publishedAt?.toDate?.();
         if (pub && (Date.now() - pub.getTime()) < 14 * 86400000) {
           const publicRoute = it._kind === 'story' ? '#/research' : '#/news';
           banners.push(`<div class="status-banner status-banner-published" data-dismiss-id="${escapeHTML(it.id)}">
-            🎉 <strong>${title}</strong> is live on the <a href="${publicRoute}">${it._kind === 'story' ? 'Research' : 'News'} page</a>!
+            ${ICON.svg('sparkles')} <strong>${title}</strong> is live on the <a href="${publicRoute}">${it._kind === 'story' ? 'Research' : 'News'} page</a>!
             <button type="button" class="status-banner-dismiss" title="Dismiss">&times;</button></div>`);
         }
       }
@@ -2180,7 +2221,7 @@ async function refreshStoryList() {
           <strong>${escapeHTML(s.title || 'Untitled')}</strong>
           <span class="status-badge status-${s.status || 'draft'}">${(s.status || 'draft').replace('-', ' ')}</span>
           ${s.status === 'changes-requested' && s.reviewNote
-            ? `<p class="review-note">✏️ ${escapeHTML(s.reviewNote)}</p>` : ''}
+            ? `<p class="review-note">${ICON.svg('pencil')} ${escapeHTML(s.reviewNote)}</p>` : ''}
         </div>
         <div class="story-item-actions">
           <button class="btn btn-secondary btn-small" data-edit-story="${s.id}">Edit</button>
@@ -3150,7 +3191,7 @@ function createEditorAutosave({ canAutosave, doSave, intervalMs = 30000 }) {
 
 /* Banner shown in the editor when an admin requested changes */
 function reviewNoteBannerHTML(note) {
-  return `<div class="review-note-banner"><strong>✏️ Changes requested:</strong> ${escapeHTML(note)}</div>`;
+  return `<div class="review-note-banner"><strong>${ICON.svg('pencil')} Changes requested:</strong> ${escapeHTML(note)}</div>`;
 }
 
 /* Preview using the SAME card builder the public feed uses (exported
@@ -3519,7 +3560,7 @@ function renderStoryEditor(storyId) {
 function vizZonePreviewHTML(viz) {
   const poster = viz?.poster?.medium || viz?.poster?.thumb || viz?.poster?.full || '';
   return `${poster ? `<img src="${escapeHTML(poster)}" alt="3D view poster" class="section-img-preview">` : ''}
-    <span class="badge viz-section-badge">\ud83e\uddca 3D view: ${escapeHTML(viz?.name || 'Untitled')}</span>`;
+    <span class="badge viz-section-badge">${ICON.svg('cube-transparent')} 3D view: ${escapeHTML(viz?.name || 'Untitled')}</span>`;
 }
 
 function sectionBlockHTML(data) {
@@ -3553,7 +3594,7 @@ function sectionBlockHTML(data) {
           ${mediaPreview}
         </div>
         <input type="file" class="section-media-input" accept="image/*,video/mp4,video/webm" hidden data-zone="${id}">
-        <button type="button" class="btn btn-secondary btn-small section-viz-btn" data-zone="${id}">\ud83e\uddca Embed 3D visualization</button>
+        <button type="button" class="btn btn-secondary btn-small section-viz-btn" data-zone="${id}">${ICON.svg('cube-transparent')} Embed 3D visualization</button>
         <input type="text" class="section-image-alt" placeholder="Image/video description (alt text)"
           value="${escapeHTML(data?.imageAlt || '')}">
         <div class="media-progress" hidden>Uploading\u2026</div>
@@ -3587,7 +3628,7 @@ async function openVizPicker(cb) {
             <button type="button" class="viz-picker-tile" data-view-id="${escapeHTML(v.id)}">
               ${v.poster?.thumb || v.poster?.medium
                 ? `<img src="${escapeHTML(v.poster.thumb || v.poster.medium)}" alt="${escapeHTML(v.name || '')}">`
-                : '<span class="viz-picker-tile-placeholder">\ud83e\uddca</span>'}
+                : '<span class="viz-picker-tile-placeholder">' + ICON.svg('cube-transparent') + '</span>'}
               <span class="viz-picker-tile-name">${escapeHTML(v.name || 'Untitled')}</span>
             </button>`).join('')}
         </div>
@@ -4218,7 +4259,7 @@ async function refreshNewsList() {
           <span class="badge news-cat-badge">${escapeHTML(NEWS_CATEGORIES.find(c => c.value === p.category)?.label || p.category || '')}</span>
           <span class="status-badge status-${p.status || 'draft'}">${(p.status || 'draft').replace('-', ' ')}</span>
           ${p.status === 'changes-requested' && p.reviewNote
-            ? `<p class="review-note">✏️ ${escapeHTML(p.reviewNote)}</p>` : ''}
+            ? `<p class="review-note">${ICON.svg('pencil')} ${escapeHTML(p.reviewNote)}</p>` : ''}
         </div>
         <div class="story-item-actions">
           <button class="btn btn-secondary btn-small" data-edit-news="${p.id}">Edit</button>
@@ -4469,6 +4510,16 @@ function renderOpportunities() {
       <p class="page-subtitle">Open positions and opportunities in the McGhee Lab.</p>
       <div id="opportunities-list" class="opportunities-grid">
         <p class="loading-text">Loading opportunities\u2026</p>
+      </div>
+      <!-- V3.673 \u2014 engagement hub cross-link: researchers and outreach-minded
+           folks land here looking for ways to get involved. -->
+      <div class="opportunity-card">
+        <div class="opp-type-badge">Outreach</div>
+        <h3>Visit a classroom</h3>
+        <p>High-school teachers using our modules open their classrooms for guest talks,
+           demos, lab tours, and career chats. Researchers can browse availability and
+           request a visit on the engagement hub.</p>
+        <p><a class="btn" href="#/engage">Open the engagement hub &rarr;</a></p>
       </div>
     </div>`;
 }
@@ -5283,7 +5334,7 @@ async function loadPending() {
           <strong>${escapeHTML(s.title || 'Untitled')}</strong>
           <span class="pending-author">by ${escapeHTML(s.authorName || 'Unknown')}</span>
           ${s.proposedProjectTitle && !s.projectId
-            ? `<span class="badge proposed-project-badge">\ud83d\udca1 Proposed project: ${escapeHTML(s.proposedProjectTitle)}</span>` : ''}
+            ? `<span class="badge proposed-project-badge">${ICON.svg('light-bulb')} Proposed project: ${escapeHTML(s.proposedProjectTitle)}</span>` : ''}
           ${s.description ? `<p>${escapeHTML(s.description)}</p>` : ''}
         </div>
         <div class="pending-sections">
@@ -5568,13 +5619,17 @@ McgheeLab.renderRichText   = renderRichText;   // V3.302 — markdown-lite
 /* ================================================================
    SOCIAL: Reactions & Comments (called from app.js feed)
    ================================================================ */
+/* V3.861 — a fixed set of five buttons, so they draw as monochrome icons like
+ * the rest of the site. `key` is what Firestore stores (reactions.emoji) and is
+ * unchanged; only the picture moved from a colour emoji to an icon. */
 const REACTION_EMOJIS = [
-  { key: 'thumbsup', display: '\uD83D\uDC4D' },
-  { key: 'heart', display: '\u2764\uFE0F' },
-  { key: 'celebrate', display: '\uD83C\uDF89' },
-  { key: 'insightful', display: '\uD83D\uDCA1' },
-  { key: 'fire', display: '\uD83D\uDD25' }
+  { key: 'thumbsup', icon: 'hand-thumb-up', label: 'Like' },
+  { key: 'heart', icon: 'heart', label: 'Love' },
+  { key: 'celebrate', icon: 'sparkles', label: 'Celebrate' },
+  { key: 'insightful', icon: 'light-bulb', label: 'Insightful' },
+  { key: 'fire', icon: 'fire', label: 'Fire' }
 ];
+const reactionIcon = (e) => (window.ICON ? ICON.svg(e.icon) : escapeHTML(e.label));
 
 McgheeLab.loadReactions = async function(storyId, barEl) {
   let reactions = [];
@@ -5588,7 +5643,7 @@ McgheeLab.loadReactions = async function(storyId, barEl) {
   });
 
   const emojiMap = {};
-  REACTION_EMOJIS.forEach(e => { emojiMap[e.key] = e.display; });
+  REACTION_EMOJIS.forEach(e => { emojiMap[e.key] = e.label; });
 
   // Only show emojis that have at least 1 reaction
   const activeEmojis = REACTION_EMOJIS.filter(e => counts[e.key] > 0);
@@ -5596,8 +5651,8 @@ McgheeLab.loadReactions = async function(storyId, barEl) {
   let html = activeEmojis.map(e => `
     <button type="button" class="reaction-btn ${userReacted[e.key] ? 'reacted' : ''}"
       data-emoji="${e.key}" data-story-id="${escapeHTML(storyId)}"
-      ${!Auth.currentUser ? 'disabled title="Sign in to react"' : ''}>
-      ${e.display} <span class="reaction-count">${counts[e.key]}</span>
+      ${!Auth.currentUser ? 'disabled title="Sign in to react"' : `title="${e.label}"`} aria-label="${e.label}">
+      ${reactionIcon(e)} <span class="reaction-count">${counts[e.key]}</span>
     </button>
   `).join('');
 
@@ -5610,8 +5665,8 @@ McgheeLab.loadReactions = async function(storyId, barEl) {
       <div class="reaction-picker" hidden>
         ${REACTION_EMOJIS.map(e => `
           <button type="button" class="reaction-picker-item ${userReacted[e.key] ? 'reacted' : ''}"
-            data-emoji="${e.key}" data-story-id="${escapeHTML(storyId)}">
-            ${e.display}
+            data-emoji="${e.key}" data-story-id="${escapeHTML(storyId)}" title="${e.label}" aria-label="${e.label}">
+            ${reactionIcon(e)}
           </button>
         `).join('')}
       </div>

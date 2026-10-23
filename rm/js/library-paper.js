@@ -29,12 +29,18 @@
   let _allItems = [];          // full items list, kept in memory for save + tag index
   let _tagIndex = null;        // rebuilt from _allItems when needed
   let _annotations = [];
-  let _colors = [];
-  let _colorsLoaded = false;
+  // V3.620 — the palette is annotation-colors.js, full stop. The per-user
+  // palette load that used to fill this was dead code with no writer (and
+  // the cause of V3.608's "students can't highlight").
+  let _colors = (window.ANNOTATION_COLORS && window.ANNOTATION_COLORS.DEFAULT) || [];
   let _unsubscribeSync = null;
+  /* V3.621 — attach generation counter. _detachActive bumps it; the async
+   * attach path checks it after every await so a fast A→B tab switch can't
+   * let A's continuation overwrite B's listeners (the old race leaked
+   * Firestore listeners and could mount A's sync onto B). */
+  let _attachGen = 0;
   /* V3.350 — one-shot #ann- deep-link target. */
   let _pendingHashAnn = null;
-  let _unsubGroups = null;     // V3.294 — annotation-groups subscription, freed on detach
   let _fitMode = true;  // when true, layout changes re-fit to viewer width
 
   // ---- V3.294 multi-tab state -------------------------------------------
@@ -55,15 +61,11 @@
    * granted 'library-paper:*' capabilities (admin permissions page) get the
    * matching UI. firestore.rules hasCap() is the enforcement layer. */
   let _canAnnotate = true;             // member OR 'library-paper:annotate'
-  let _allowNewGroup = false;          // admin OR allowlist OR 'library-paper:groups'
 
   async function _computeAccess() {
     try { await firebridge.loadAccessGrant(); } catch (_) { /* fall through to role-only */ }
     const isMember = firebridge.isAdmin() || firebridge.isLabMember();
     _canAnnotate = isMember || firebridge.hasCapability('library-paper:annotate');
-    _allowNewGroup = firebridge.isAdmin()
-      || firebridge.hasCapability('library-paper:groups')
-      || await _emailOnContributorAllowlists();
     // Live-profile follow-up: the users/{uid} snapshot can settle to a
     // better role after boot (fresh promotion, or a transiently-cached
     // guest doc for a real member). The selection-commit guard reads
@@ -80,27 +82,6 @@
     });
   }
 
-  /* Client mirror of firestore.rules isLabContributor() (minus admin, checked
-   * above): email membership in labConfig/extensionMembers or guestEditors.
-   * Both docs are any-authenticated-read, so this preflight is allowed; it
-   * only decides whether "+ New group…" renders — rules still gate the write. */
-  async function _emailOnContributorAllowlists() {
-    const user = firebase.auth().currentUser;
-    const email = user && user.email && user.email.toLowerCase();
-    if (!email) return false;
-    try {
-      const [ext, guest] = await Promise.all([
-        firebridge.db().collection('labConfig').doc('extensionMembers').get(),
-        firebridge.db().collection('labConfig').doc('guestEditors').get(),
-      ]);
-      const inList = (snap) => {
-        const emails = (snap.exists && snap.data().emails) || [];
-        return Array.isArray(emails) && emails.indexOf(email) >= 0;
-      };
-      return inList(ext) || inList(guest);
-    } catch (_) { return false; }
-  }
-
   /* V3.605 — items loader that works for cap-granted non-members. The rules
    * scope their read to library entries only, so the api adapter's whole-
    * collection items.json query is unprovable for them; query with the
@@ -114,14 +95,13 @@
     return { items };
   }
 
-  /* V3.475 — the annotation panel's evidence + cite pickers show ALL active
-   * paper/grant drafts (linked ones first), not just the drafts already linked
-   * to this journal paper via meta.library.linked_drafts. Previously the list
-   * was filtered to linked-only, so on a paper that had never been linked the
-   * "Tag as evidence" dropdown was empty ("(no drafts)") — a dead end. Each
-   * returned entry carries a `linked` flag so the panel can group "Linked to
-   * this paper" above "Other drafts"; tagging evidence on an unlinked draft
-   * auto-links it (see onEnsureDraftLinked wired into ANNOTATION_PANEL.init). */
+  /* V3.475 — the annotation panel's cite picker shows ALL active
+   * paper/grant drafts (linked ones first), not just the drafts already
+   * linked to this journal paper via meta.library.linked_drafts (a paper
+   * that had never been linked used to dead-end with "(no drafts)"). Each
+   * returned entry carries a `linked` flag so linked drafts float first.
+   * (V3.622 — the evidence flow that also consumed this moved to
+   * Library → Comments.) */
   function _draftShortlist(linkedIds) {
     const flagged = _allDrafts.map(d => Object.assign({}, d, { linked: linkedIds.has(d.id) }));
     // Stable sort keeps original (paper-then-grant, load) order within each
@@ -193,8 +173,8 @@
       const editRow = document.createElement('div');
       editRow.style.cssText = 'margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;';
       editRow.innerHTML =
-        (window.LIBRARY_EDIT ? '<button class="btn btn-sm" id="lp-edit-meta" title="Edit metadata / fetch from DOI">✎ Edit metadata</button>' : '') +
-        (window.LIBRARY_REFRESH ? '<button class="btn btn-sm" id="lp-refresh-doi" title="Re-pull metadata, try an OA PDF, and re-enrich references (V3.310)">↻ Refresh from DOI</button>' : '');
+        (window.LIBRARY_EDIT ? '<button class="btn btn-sm" id="lp-edit-meta" title="Edit metadata / fetch from DOI">' + ICON.svg('pencil') + ' Edit metadata</button>' : '') +
+        (window.LIBRARY_REFRESH ? '<button class="btn btn-sm" id="lp-refresh-doi" title="Re-pull metadata, try an OA PDF, and re-enrich references (V3.310)">' + ICON.svg('arrow-path') + ' Refresh from DOI</button>' : '');
       metaEl.appendChild(editRow);
       const editBtn = editRow.querySelector('#lp-edit-meta');
       if (editBtn) editBtn.addEventListener('click', () => {
@@ -208,7 +188,7 @@
       const refreshBtn = editRow.querySelector('#lp-refresh-doi');
       if (refreshBtn) refreshBtn.addEventListener('click', async () => {
         refreshBtn.disabled = true;
-        refreshBtn.textContent = '↻ Refreshing…';
+        ICON.label(refreshBtn, 'arrow-path', ' Refreshing…');
         try {
           await LIBRARY_REFRESH.fullRefresh(item, {
             interactive: true,
@@ -221,7 +201,7 @@
           if (window.TOAST) TOAST.error('Refresh failed: ' + (e.message || e));
         } finally {
           refreshBtn.disabled = false;
-          refreshBtn.textContent = '↻ Refresh from DOI';
+          ICON.label(refreshBtn, 'arrow-path', ' Refresh from DOI');
         }
       });
     }
@@ -255,17 +235,17 @@
     pane.dataset.paperId = item.id;
     pane.innerHTML = `
       <div style="max-width:460px;margin:60px auto;text-align:center;color:#6b7280;font-size:13px;">
-        <div style="font-size:34px;margin-bottom:8px;">📄</div>
+        <div style="font-size:34px;margin-bottom:8px;">${ICON.svg('document-text')}</div>
         <div style="font-weight:600;color:#374151;margin-bottom:4px;">No PDF attached</div>
         <div style="margin-bottom:12px;">${unob
           ? 'This paper is marked unobtainable — no accessible PDF exists.'
           : 'The metadata is here, but the PDF never landed. Try the open-access fetch, or upload the file manually.'}</div>
-        ${lib.pdf_candidate_url ? `<div style="font-size:11px;margin-bottom:10px;">Known OA copy (auto-fetch was CORS-blocked): <a href="${lib.pdf_candidate_url}" target="_blank" rel="noopener">open in a new tab</a>, download it, then ⬆ upload here.</div>` : ''}
+        ${lib.pdf_candidate_url ? `<div style="font-size:11px;margin-bottom:10px;">Known OA copy (auto-fetch was CORS-blocked): <a href="${lib.pdf_candidate_url}" target="_blank" rel="noopener">open in a new tab</a>, download it, then ${ICON.svg('arrow-up')} upload here.</div>` : ''}
         ${lib.pdf_retry && lib.pdf_retry.last_error ? `<div style="font-size:11px;color:#92400e;margin-bottom:10px;">Last retry: ${_esc(lib.pdf_retry.last_error)}</div>` : ''}
         <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-          ${(lib.doi || lib.pmid || lib.arxiv_id || lib.url) && !unob ? '<button class="btn btn-sm" id="lp-nopdf-retry" title="Auto-fetch the open-access PDF — server-side (Unpaywall + arXiv + PMC + Semantic Scholar + the publisher\'s PDF link)">↻ Auto-fetch PDF</button>' : ''}
-          <button class="btn btn-sm" id="lp-nopdf-upload">⬆ Upload PDF</button>
-          <button class="btn btn-sm" id="lp-nopdf-unob">${unob ? '↩ Clear unobtainable' : '🚫 Mark unobtainable'}</button>
+          ${(lib.doi || lib.pmid || lib.arxiv_id || lib.url) && !unob ? '<button class="btn btn-sm" id="lp-nopdf-retry" title="Auto-fetch the open-access PDF — server-side (Unpaywall + arXiv + PMC + Semantic Scholar + the publisher\'s PDF link)">' + ICON.svg('arrow-path') + ' Auto-fetch PDF</button>' : ''}
+          <button class="btn btn-sm" id="lp-nopdf-upload">${ICON.svg('arrow-up')} Upload PDF</button>
+          <button class="btn btn-sm" id="lp-nopdf-unob">${unob ? ICON.svg('arrow-uturn-left') + ' Clear unobtainable' : ICON.svg('no-symbol') + ' Mark unobtainable'}</button>
         </div>
       </div>`;
     host.appendChild(pane);
@@ -307,7 +287,7 @@
     const retryBtn = pane.querySelector('#lp-nopdf-retry');
     if (retryBtn) retryBtn.addEventListener('click', async () => {
       retryBtn.disabled = true;
-      retryBtn.textContent = '↻ Fetching…';
+      ICON.label(retryBtn, 'arrow-path', ' Fetching…');
       const retry = Object.assign({ attempts: 0 }, lib.pdf_retry || {});
       retry.attempts = (retry.attempts || 0) + 1;
       retry.last_at = new Date().toISOString();
@@ -347,7 +327,7 @@
             if (oa && oa.bestPdfUrl) {
               const blob = await LIBRARY_UPLOAD.fetchPdfBlob(oa.bestPdfUrl);
               if (blob) { lib.pdf_retry = retry; await attach(blob); return; }
-              retry.last_error = 'OA PDF found but auto-fetch was blocked — open it manually, then ⬆ upload.';
+              retry.last_error = 'OA PDF found but auto-fetch was blocked — open it manually, then upload.';
               lib.pdf_candidate_url = oa.bestPdfUrl;
               lib.pdf_candidate_source = oa.source || '';
             } else {
@@ -388,24 +368,91 @@
     });
   }
 
-  // Render the multi-category tag editor inside the side panel. Inserts
-  // a new container after #lp-tags if not present yet.
-  function _renderTagEditor(item) {
+  /* ── V3.630: ONE "Organize" block ──────────────────────────────────────
+   *
+   * The sidebar used to stack FIVE independent widgets, each appended with
+   * its own `getElementById(a) || getElementById(b) || …` insertion-order
+   * fallback chain, each titled differently, none saying who could see it:
+   *
+   *   "Categories"            (tags)                 →   3 papers use it
+   *   "Used in paper drafts"  (linked_drafts)        → 105 papers
+   *   "Lab themes"            (labThemes)            →  52 papers
+   *   "🧭 Lab focus"          (researchFoci refs)    →   0 papers
+   *   "📁 My groups"          (paper_groups)         →   1 group, 1 user
+   *
+   * Read as a student: the least-used axis owns the most generic name, and
+   * "Lab themes" sits directly above "Lab focus" — two phrases nobody can
+   * tell apart, backed by two collections with two permission models. They
+   * are in fact the paper's two real questions, a distinction stated only in
+   * a code comment (see _renderRoadmapEditor): **themes are what a paper is
+   * ABOUT, roadmaps are what it's FOR.**
+   *
+   * So: one bordered block, four labeled rows, each carrying a 🌐/🔒 badge so
+   * ownership is never a guess. Every widget keeps its own logic and its own
+   * host id verbatim — only the PARENT changes (a fixed slot instead of the
+   * fallback chain) and the title comes from `_orgRowTitle` so the four rows
+   * can't drift. "Used in" holds both the draft pills and the Lab-focus chips,
+   * since an output focus card IS a draft; V3.631 merges them into one act.
+   *
+   * `_orgHost` is idempotent and repaint-safe: widgets that rewrite their own
+   * innerHTML (themes, groups) keep working untouched. */
+  function _orgRowTitle(label, scope, hint) {
+    const badge = (scope === 'private')
+      ? '<span class="lp-org-badge lp-org-badge-priv" title="Private — nobody else sees this">' + ICON.svg('lock-closed') + ' only you</span>'
+      : '<span class="lp-org-badge" title="Shared — everyone in the lab sees this">' + ICON.svg('globe-alt') + ' lab</span>';
+    const h = hint ? `<span class="lp-org-hint" title="${_esc(hint)}">?</span>` : '';
+    return `<div class="lp-section-title lp-org-rowtitle">${label}${h}${badge}</div>`;
+  }
+
+  function _ensureOrganizeBlock() {
     const sideInner = document.querySelector('.lp-side-inner');
-    if (!sideInner) return;
-    let host = document.getElementById('lp-tag-editor');
+    if (!sideInner) return null;
+    let block = document.getElementById('lp-organize');
+    if (block) return block;
+    block = document.createElement('div');
+    block.id = 'lp-organize';
+    block.innerHTML = `
+      <div class="lp-org-head">Organize</div>
+      <div class="lp-org-slot" id="lp-org-topics"></div>
+      <div class="lp-org-slot" id="lp-org-usedin"></div>
+      <div class="lp-org-slot" id="lp-org-shelf"></div>
+      <details class="lp-org-adv" id="lp-org-tagswrap">
+        <summary>Tags <span class="lp-org-adv-note">power search</span></summary>
+        <div class="lp-org-slot" id="lp-org-tags"></div>
+      </details>
+    `;
+    const after = document.getElementById('lp-tags') || sideInner.firstElementChild;
+    if (after) after.insertAdjacentElement('afterend', block);
+    else sideInner.appendChild(block);
+    return block;
+  }
+
+  // Resolve (creating once) a widget's host inside its Organize slot. Host
+  // ids are unchanged from pre-V3.630 so every existing querySelector,
+  // repaint and insertion-order reference keeps resolving.
+  function _orgHost(hostId, slotId) {
+    const block = _ensureOrganizeBlock();
+    if (!block) return null;
+    let host = document.getElementById(hostId);
     if (!host) {
       host = document.createElement('div');
-      host.id = 'lp-tag-editor';
-      host.style.margin = '10px 0';
-      // Insert after #lp-tags (legacy chips) or near the top.
-      const after = document.getElementById('lp-tags') || sideInner.firstElementChild;
-      after.insertAdjacentElement('afterend', host);
+      host.id = hostId;
+      host.className = 'lp-org-row';
+      const slot = document.getElementById(slotId);
+      (slot || block).appendChild(host);
     }
+    return host;
+  }
+
+  // Render the multi-category tag editor. V3.630 — now the collapsed "Tags"
+  // row at the bottom of the Organize block: 3 of 173 papers carry a tag, so
+  // it no longer deserves the top slot or the name "Categories".
+  function _renderTagEditor(item) {
+    const host = _orgHost('lp-tag-editor', 'lp-org-tags');
+    if (!host) return;
     const lib = (item.meta && item.meta.library) || {};
     const tags = (window.LIBRARY_TAGS ? LIBRARY_TAGS.getTags(item) : (lib.tags || []));
     host.innerHTML = `
-      <div class="lp-section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:4px;">Categories</div>
       <div id="lp-tag-list" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;"></div>
       <div style="display:flex;gap:4px;align-items:center;position:relative;">
         <input type="text" id="lp-tag-input" placeholder="Add tag (e.g. research:papers:2026:GELS)" style="flex:1;padding:4px 8px;font-size:11px;border:1px solid #d1d5db;border-radius:6px;font-family:ui-monospace,monospace;">
@@ -514,21 +561,15 @@
   // PAPER_OVERLAYS.refreshLinks(), and the overlays onChange handler
   // (registered in _attachActive) re-renders this block.
   function _renderAssocEditor(item) {
-    const sideInner = document.querySelector('.lp-side-inner');
-    if (!sideInner || !window.LIBRARY_ASSOC || !window.LIBRARY_LINKS) return;
-    let host = document.getElementById('lp-assoc-editor');
-    if (!host) {
-      host = document.createElement('div');
-      host.id = 'lp-assoc-editor';
-      host.style.margin = '10px 0';
-      const after = document.getElementById('lp-tag-editor') || document.getElementById('lp-tags');
-      if (after) after.insertAdjacentElement('afterend', host);
-      else sideInner.appendChild(host);
-    }
+    if (!window.LIBRARY_ASSOC || !window.LIBRARY_LINKS) return;
+    const host = _orgHost('lp-assoc-editor', 'lp-org-usedin');
+    if (!host) return;
     host.innerHTML = `
-      <div class="lp-section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:4px;">Used in paper drafts</div>
+      ${_orgRowTitle('Used in', 'lab',
+        'What this paper is FOR — the manuscripts and proposals it feeds. ' +
+        'Ends when that work ships. Contrast Topics, which is what it is ABOUT.')}
       <div id="lp-assoc-pills"></div>
-      <div style="font-size:10px;color:#9ca3af;margin-top:4px;">Which papers we're writing this journal paper feeds. Published drafts show as inactive; <span style="display:inline-block;width:7px;height:7px;border-radius:50%;border:1.5px solid #fbbf24;vertical-align:baseline;"></span> = linked but not yet cited in that draft.</div>
+      <div style="font-size:10px;color:#9ca3af;margin-top:4px;">Papers we're writing that this one feeds. Published drafts show as inactive; <span style="display:inline-block;width:7px;height:7px;border-radius:50%;border:1.5px solid #fbbf24;vertical-align:baseline;"></span> = linked but not yet cited in that draft.</div>
     `;
     LIBRARY_ASSOC.renderPills(document.getElementById('lp-assoc-pills'), item, {
       showCited: true,
@@ -550,19 +591,9 @@
   // Chips link to the theme's detail view on the library's Lab Themes tab;
   // the select adds this paper to another (non-archived) theme.
   function _renderThemeEditor(item) {
-    const sideInner = document.querySelector('.lp-side-inner');
-    if (!sideInner || !window.LIBRARY_THEMES || !window.LIBRARY_LINKS) return;
-    let host = document.getElementById('lp-theme-editor');
-    if (!host) {
-      host = document.createElement('div');
-      host.id = 'lp-theme-editor';
-      host.style.margin = '10px 0';
-      const after = document.getElementById('lp-assoc-editor')
-                 || document.getElementById('lp-tag-editor')
-                 || document.getElementById('lp-tags');
-      if (after) after.insertAdjacentElement('afterend', host);
-      else sideInner.appendChild(host);
-    }
+    if (!window.LIBRARY_THEMES || !window.LIBRARY_LINKS) return;
+    const host = _orgHost('lp-theme-editor', 'lp-org-topics');
+    if (!host) return;
 
     // V3.496 — per-theme relevance weight (Core 3 / Supporting 2 /
     // Tangential 1); unset reads as Supporting. Feeds the Lab Themes
@@ -591,27 +622,30 @@
       const mine = Array.isArray(lib.themes) ? lib.themes : [];
       const chips = mine.map((id) => {
         const name = LIBRARY_THEMES.getThemeNameById(id);
-        return `<span class="lp-theme-chip" title="Open this theme's notes & ranked papers">` +
+        return `<span class="lp-theme-chip" title="Open this topic's notes &amp; ranked papers">` +
           `<a class="lp-theme-chip-link" href="/rm/pages/library.html?tab=themes&theme=${encodeURIComponent(id)}" style="color:inherit;text-decoration:none;overflow:hidden;text-overflow:ellipsis;">${_esc(name)}</a>` +
-          `<select class="lp-theme-rel" data-theme-rel="${_esc(id)}" title="How central is this paper to this theme? (feeds the lab ranking)">${relOpts(relOf(id))}</select>` +
-          `<button class="lp-theme-x" data-theme-remove="${_esc(id)}" title="Remove this theme">×</button></span>`;
+          `<select class="lp-theme-rel" data-theme-rel="${_esc(id)}" title="How central is this paper to this topic? (feeds the lab ranking)">${relOpts(relOf(id))}</select>` +
+          `<button class="lp-theme-x" data-theme-remove="${_esc(id)}" title="Remove this topic">${ICON.svg('x-mark')}</button></span>`;
       }).join('');
       const options = (themes || [])
         .filter((t) => mine.indexOf(t.id) < 0)
         .map((t) => `<option value="${_esc(t.id)}">${_esc(t.name || t.id)}</option>`)
         .join('');
       host.innerHTML = `
-        <div class="lp-section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:4px;">Lab themes</div>
+        ${_orgRowTitle('Topics', 'lab',
+          'What this paper is ABOUT — a shared reading cluster around one of ' +
+          'the lab\'s concepts. Durable: a topic outlives any one manuscript. ' +
+          'Anyone can create one.')}
         <div id="lp-theme-list" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
-          ${chips || '<span style="font-size:11px;color:#9ca3af;font-style:italic;">No themes yet.</span>'}
+          ${chips || '<span style="font-size:11px;color:#9ca3af;font-style:italic;">No topics yet.</span>'}
         </div>
         ${options
           ? `<div style="display:flex;gap:4px;align-items:center;">
-              <select id="lp-theme-add-select" style="flex:1;font-size:11px;padding:3px 6px;border:1px solid #d1d5db;border-radius:6px;"><option value="">Add to theme…</option>${options}</select>
-              <select id="lp-theme-add-rel" title="Relevance to the theme" style="font-size:11px;padding:3px 6px;border:1px solid #d1d5db;border-radius:6px;">${relOpts(2)}</select>
+              <select id="lp-theme-add-select" style="flex:1;font-size:11px;padding:3px 6px;border:1px solid #d1d5db;border-radius:6px;"><option value="">Add to topic…</option>${options}</select>
+              <select id="lp-theme-add-rel" title="How central is this paper to the topic?" style="font-size:11px;padding:3px 6px;border:1px solid #d1d5db;border-radius:6px;">${relOpts(2)}</select>
               <button class="btn btn-sm" id="lp-theme-add-btn" style="padding:3px 10px;font-size:11px;">Add</button>
             </div>`
-          : `<div style="font-size:10px;color:#9ca3af;">${(themes && themes.length) ? 'This paper is in every theme.' : 'No themes exist yet — create one on the <a href="/rm/pages/library.html?tab=themes" style="color:#5b21b6;">Lab Themes tab</a>.'}</div>`}
+          : `<div style="font-size:10px;color:#9ca3af;">${(themes && themes.length) ? 'This paper is in every topic.' : 'No topics exist yet — create one on the <a href="/rm/pages/library.html?tab=themes" style="color:#5b21b6;">Topics tab</a>.'}</div>`}
       `;
 
       host.onclick = async (ev) => {
@@ -629,7 +663,7 @@
             paint(themes);
           } catch (e) {
             rm.disabled = false;
-            alert('Failed to remove theme: ' + (e.message || e));
+            alert('Failed to remove topic: ' + (e.message || e));
           }
           return;
         }
@@ -650,7 +684,7 @@
             paint(themes);
           } catch (e) {
             ev.target.disabled = false;
-            alert('Failed to add theme: ' + (e.message || e));
+            alert('Failed to add topic: ' + (e.message || e));
           }
         }
       };
@@ -669,9 +703,9 @@
     const cached = LIBRARY_THEMES.getThemes();
     if (cached) paint(cached);
     else {
-      host.innerHTML = '<div style="font-size:11px;color:#9ca3af;font-style:italic;">Loading themes…</div>';
+      host.innerHTML = '<div style="font-size:11px;color:#9ca3af;font-style:italic;">Loading topics…</div>';
       LIBRARY_THEMES.loadThemes().then(paint).catch(() => {
-        host.innerHTML = '<div style="font-size:11px;color:#9ca3af;font-style:italic;">Themes unavailable.</div>';
+        host.innerHTML = '<div style="font-size:11px;color:#9ca3af;font-style:italic;">Topics unavailable.</div>';
       });
     }
   }
@@ -681,27 +715,23 @@
   // Each chip deep-links to the exact experiment or analysis it was
   // attached to and carries the "why" note as its tooltip.
   function _renderRoadmapEditor(item) {
-    const sideInner = document.querySelector('.lp-side-inner');
-    if (!sideInner || !window.ROADMAP_ATTACH) return;
-    let host = document.getElementById('lp-roadmap-editor');
-    if (!host) {
-      host = document.createElement('div');
-      host.id = 'lp-roadmap-editor';
-      host.style.margin = '10px 0';
-      const after = document.getElementById('lp-theme-editor')
-                 || document.getElementById('lp-assoc-editor')
-                 || document.getElementById('lp-tag-editor')
-                 || document.getElementById('lp-tags');
-      if (after) after.insertAdjacentElement('afterend', host);
-      else sideInner.appendChild(host);
-    }
+    if (!window.ROADMAP_ATTACH) return;
+    /* V3.630 — this now renders as a SUB-ROW of "Used in", not as its own
+     * top-level box. Both answer the same question at different resolutions:
+     * a draft link says "this paper feeds that manuscript", a roadmap ref says
+     * "this paper feeds that experiment/analysis inside it". Sitting under a
+     * separate heading called "Lab focus" — one box below a heading called
+     * "Lab themes" — is what made the two indistinguishable. V3.631 merges
+     * them into a single act (an output focus card IS a draft). */
+    const host = _orgHost('lp-roadmap-editor', 'lp-org-usedin');
+    if (!host) return;
     host.innerHTML = `
-      <div class="lp-section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:4px;">On these roadmaps</div>
+      <div class="lp-org-subtitle">${ICON.svg('compass')} Lab focus <span class="lp-org-subhint">experiment / analysis</span></div>
       <div id="lp-roadmap-chips" class="rmap-chips"><span class="rmap-chip-empty">Loading…</span></div>
       <div style="display:flex;gap:4px;align-items:center;margin-top:6px;">
-        <button class="btn btn-sm" id="lp-roadmap-add" style="padding:3px 10px;font-size:11px;">🗺 Add to a roadmap…</button>
+        <button class="btn btn-sm" id="lp-roadmap-add" style="padding:3px 10px;font-size:11px;">${ICON.svg('map')} Add to a lab focus…</button>
       </div>
-      <div style="font-size:10px;color:#9ca3af;margin-top:4px;">Which experiment or analysis this paper informs — and why.</div>
+      <div style="font-size:10px;color:#9ca3af;margin-top:4px;">Which research-roadmap experiment or analysis this paper informs — and why.</div>
     `;
 
     const paint = () => {
@@ -717,6 +747,54 @@
     };
   }
 
+  /* V3.622 — Groups widget: save the paper you're READING to a library
+   * group without leaving the reader (this affordance previously existed
+   * only as the 📁 row action on the library list — the annotation-level
+   * "group" field never did this and was retired in V3.620). Uses
+   * LIBRARY_GROUPS' standalone picker; manual groups only. */
+  let _groupsWidgetWired = false;
+  function _renderGroupsWidget(item) {
+    if (!window.LIBRARY_GROUPS || !window.LIBRARY_PREFS) return;
+    const host = _orgHost('lp-groups-widget', 'lp-org-shelf');
+    if (!host) return;
+
+    const paint = () => {
+      if (!_item || _item.id !== item.id) return;
+      const groups = LIBRARY_GROUPS.groupsForPaper(item.id);
+      // V3.630 — a lab-shared group is NOT private, so it can't sit silently
+      // under a 🔒 heading. Shared chips carry their own 🌐 marker.
+      const anyShared = groups.some(g => g.shared);
+      const chips = groups.map(g =>
+        `<span class="lp-group-chip" title="${_esc(g.shared ? 'Lab-shared group — everyone sees this one' : 'Your private group')}">${ICON.svg(g.shared ? 'globe-alt' : 'folder')} ${_esc(g.name)}${g.shared ? ' <span style="opacity:.65;">· lab</span>' : ''}</span>`
+      ).join(' ') || '<span style="font-size:11px;color:#9ca3af;font-style:italic;">Not on your shelf yet.</span>';
+      host.innerHTML = `
+        ${_orgRowTitle('My shelf', anyShared ? 'lab' : 'private',
+          'A pile you keep for yourself — no lab-wide meaning. Use it to ' +
+          'collect papers as you read; promote it to a Topic later if it ' +
+          'turns out to be one.')}
+        <div class="lp-group-chips" style="display:flex;flex-wrap:wrap;gap:4px;">${chips}</div>
+        <div style="display:flex;gap:4px;align-items:center;margin-top:6px;">
+          <button class="btn btn-sm" id="lp-groups-add" style="padding:3px 10px;font-size:11px;">＋ Add to a group…</button>
+        </div>
+      `;
+      const btn = document.getElementById('lp-groups-add');
+      if (btn) btn.onclick = () => LIBRARY_GROUPS.openGroupPicker(item.id);
+    };
+
+    // Prefs + shared groups load once per session; picker mutations
+    // re-paint via the V3.622 onChanged hook.
+    if (!_groupsWidgetWired) {
+      _groupsWidgetWired = true;
+      LIBRARY_GROUPS.onChanged(() => _renderGroupsWidget(_item || item));
+      Promise.all([
+        LIBRARY_PREFS.load().catch(() => null),
+        LIBRARY_GROUPS.loadShared().catch(() => null),
+      ]).then(paint);
+      return;
+    }
+    paint();
+  }
+
   // Render the public-share widget below the tag editor. Hidden when the
   // paper has no PDF (nothing to share) or when LIBRARY_SHARE didn't load.
   function _renderShareWidget(item) {
@@ -727,11 +805,14 @@
       host = document.createElement('div');
       host.id = 'lp-share-widget';
       host.style.margin = '10px 0';
-      /* V3.365 — prefer the newest sidebar block so the stack reads
-       * tags → categories → themes → associations → share → assign. */
-      const after = document.getElementById('lp-assoc-editor')
-                 || document.getElementById('lp-theme-editor')
-                 || document.getElementById('lp-tag-editor')
+      /* V3.630 — anchor on the Organize BLOCK, not on one of the widgets
+       * inside it. This used to chain
+       * `#lp-assoc-editor || #lp-theme-editor || #lp-tag-editor || #lp-tags`,
+       * and all three of those are now children of #lp-organize — so
+       * insertAdjacentElement would have dropped the share widget INSIDE the
+       * Organize card, between two of its rows. Sharing isn't a way to
+       * categorize a paper, so it stays its own block, below Organize. */
+      const after = document.getElementById('lp-organize')
                  || document.getElementById('lp-tags');
       if (after) after.insertAdjacentElement('afterend', host);
       else sideInner.appendChild(host);
@@ -751,7 +832,7 @@
       <div class="lp-section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:4px;">Public sharing</div>
       <div style="display:flex;align-items:center;gap:6px;">
         <button id="lp-share-toggle" class="btn btn-sm" style="font-size:11px;${isPublic ? 'background:#dcfce7;color:#166534;border-color:#86efac;' : ''}">
-          ${isPublic ? '✓ Public — click to revoke' : '🔗 Share publicly'}
+          ${isPublic ? '✓ Public — click to revoke' : ICON.svg('link') + ' Share publicly'}
         </button>
         <span id="lp-share-status" style="font-size:10px;color:#6b7280;flex:1;"></span>
       </div>
@@ -817,8 +898,10 @@
       host = document.createElement('div');
       host.id = 'lp-assign-widget';
       host.style.margin = '10px 0';
+      // V3.630 — same correction as the share widget: #lp-tag-editor now
+      // lives inside #lp-organize, so fall back to the block, never into it.
       const after = document.getElementById('lp-share-widget')
-                 || document.getElementById('lp-tag-editor')
+                 || document.getElementById('lp-organize')
                  || document.getElementById('lp-tags');
       if (after) after.insertAdjacentElement('afterend', host);
       else sideInner.appendChild(host);
@@ -1111,6 +1194,15 @@
         if (_canAnnotate && window.FIGURE_CAPTURE && window.FIGURE_CAPTURE.refreshHotspots) {
           try { window.FIGURE_CAPTURE.refreshHotspots(pageNum); } catch (_) { /* detection optional */ }
         }
+        // V3.644 — repaint the structure overlay (no-op while Label mode
+        // is off); prime() still loads stored corrections so the snip
+        // hotspots follow them without the overlay being visible.
+        if (window.PAPER_LABEL_MODE) {
+          try {
+            if (window.PAPER_LABEL_MODE.isOn()) window.PAPER_LABEL_MODE.refreshPage(pageNum);
+            else window.PAPER_LABEL_MODE.prime(pageNum);
+          } catch (_) { /* labels optional */ }
+        }
       },
     });
     return viewer;
@@ -1138,43 +1230,54 @@
    * palette doc got a toolbar with ONLY the ƒ equation button and could
    * never create a highlight. This was the real cause of "students can't
    * highlight" — not permissions. */
-  const DEFAULT_COLORS = [
-    { id: 'yellow', name: 'Note', hex: '#facc15', meaning: 'Interesting / general note', auto_flags: [] },
-    { id: 'green', name: 'Evidence', hex: '#4ade80', meaning: 'Evidence supporting a claim (use evidence_stance="for" when linked to a claim)', auto_flags: [] },
-    { id: 'red', name: 'Critique', hex: '#f87171', meaning: 'Counter-evidence / critique / disagree', auto_flags: [] },
-    { id: 'blue', name: 'Method', hex: '#60a5fa', meaning: 'Method or technique to remember', auto_flags: [] },
-    { id: 'purple', name: 'Investigate', hex: '#a78bfa', meaning: 'Come back to this — needs further investigation', auto_flags: ['marked_for_investigation'] },
-    { id: 'orange', name: 'Quote', hex: '#fb923c', meaning: 'Quote-worthy for direct citation in a draft', auto_flags: [] },
-  ];
+  /* V3.620 — palette + color→type map single-sourced in annotation-colors.js
+   * (window.ANNOTATION_COLORS). The V3.608 note above explains why there is
+   * deliberately no per-user palette load here. */
+  const COLOR_TO_TYPE = (window.ANNOTATION_COLORS && window.ANNOTATION_COLORS.COLOR_TO_TYPE) || {};
 
-  /* V3.619 — color IS the category. Every new highlight stamps an
-   * annotation_type derived from its color so the type-pill filter
-   * (paper-overlay-types.js) actually works for hand-made highlights —
-   * before this, no UI could set annotation_type at all and every plain
-   * highlight was implicitly 'note'. Keep in step with DEFAULT_COLORS. */
-  const COLOR_TO_TYPE = {
-    yellow: 'note',
-    green: 'evidence',
-    red: 'limitation',
-    blue: 'method',
-    purple: 'question',
-    orange: 'quote',
-  };
-
-  async function _loadColors() {
+  /* V3.629 — filing a highlight to a draft LINKS THE PAPER to that draft.
+   *
+   * The two levels drifted apart: `annotations/{id}.cite_in_drafts` (this
+   * highlight is evidence for draft X) and
+   * `items/{id}.meta.library.linked_drafts` (this paper feeds draft X). The
+   * panel's draft dropdown offers every active draft in the lab, not just the
+   * linked ones (_draftShortlist floats linked ones to the top but keeps the
+   * rest), so it was trivially easy to file a highlight to a draft the paper
+   * wasn't linked to. Two things then went silently wrong:
+   *
+   *   1. The builder's Evidence Inbox fans out over papers where
+   *      `linked_drafts ∋ draftId` (paper-evidence-inbox.js _fanOutItemIds),
+   *      so that evidence was invisible in the builder FOREVER — the exact
+   *      failure V3.619 set out to fix, reachable by a different route.
+   *   2. PAPER_OVERLAYS.activateDraft() no-ops for a draft that isn't in
+   *      _linkedDrafts, so V3.628's "the highlight you just filed can't
+   *      disappear" guarantee didn't hold here — with a lens engaged the
+   *      highlight still vanished.
+   *
+   * Linking the paper cures both at once, and it's what the user meant
+   * anyway: filing evidence from a paper into a draft IS saying the paper
+   * feeds that draft. linkDraft() already writes via LIBRARY_LINKS (atomic
+   * arrayUnion + cache invalidation) and refreshes _linkedDrafts, so
+   * activateDraft works on the next line. Best-effort: a failed link must
+   * never lose the highlight the user just made. */
+  async function _ensureDraftLinked(draftId) {
+    const O = window.PAPER_OVERLAYS;
+    if (!O || !draftId || !O.linkDraft) return;
     try {
-      const data = await api.load('library/highlight_colors.json');
-      const saved = (data && Array.isArray(data.colors)) ? data.colors : [];
-      _colors = saved.length ? saved : DEFAULT_COLORS;
+      const linked = (O.getLinkedDrafts && O.getLinkedDrafts()) || [];
+      if (linked.some(d => d.id === draftId)) return;   // already linked
+      await O.linkDraft(draftId);
     } catch (e) {
-      console.warn('[library-paper] could not load highlight_colors.json', e);
-      _colors = DEFAULT_COLORS;
+      console.warn('[library-paper] auto-link to draft failed:', e.message || e);
     }
   }
 
-  async function _mountAnnotations() {
-    if (!_item || !_viewer) return;
-    const paperId = _item.id;
+  async function _mountAnnotations(item, gen) {
+    // V3.621 — item comes in as a PARAMETER: the old code read the
+    // module-global _item after its awaits, which a fast tab switch had
+    // already reassigned — A's continuation then mounted listeners on B.
+    if (!item || !_viewer) return;
+    const paperId = item.id;
     const user = firebase.auth().currentUser;
     // Render the annotation list into the inner scroll container. Toolbar
     // and collapse buttons are siblings of #lp-annotations-inner inside
@@ -1219,23 +1322,48 @@
           : ((window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.getActiveDraftIds)
               ? window.PAPER_OVERLAYS.getActiveDraftIds()
               : []);
-        try {
-          return await window.ANNOTATION_SYNC.create(paperId, {
-            color_id: colorId,
-            annotation_type: COLOR_TO_TYPE[colorId] || 'note',
-            visibility,
-            comment: (typeof comment === 'string') ? comment.trim() : '',
-            target: { pages: anchors },
-            cite_in_drafts: citeDrafts,
-            marked_for_investigation: autoFlags.includes('marked_for_investigation'),
-          });
-        } catch (e) {
-          alert(`Could not save highlight: ${e.message}`);
-          return null;
+        // V3.620 — no catch: the create popover handles failure inline
+        // (keeps the selection, comment, and chips for a retry) instead of
+        // the old alert-after-everything-was-discarded.
+        const newId = await window.ANNOTATION_SYNC.create(paperId, {
+          color_id: colorId,
+          annotation_type: COLOR_TO_TYPE[colorId] || 'note',
+          visibility,
+          comment: (typeof comment === 'string') ? comment.trim() : '',
+          target: { pages: anchors },
+          cite_in_drafts: citeDrafts,
+          marked_for_investigation: autoFlags.includes('marked_for_investigation'),
+        });
+        // V3.628 — same guard as onCiteToggle: a highlight filed straight
+        // from the create popover must not be hidden by an engaged lens.
+        // V3.629 — and link the paper to each draft first, for the same two
+        // reasons as onCiteToggle (Evidence Inbox visibility + activateDraft
+        // only accepting linked drafts). Sequential, not Promise.all: each
+        // linkDraft() re-reads and re-renders the linked set.
+        for (const id of citeDrafts) {
+          await _ensureDraftLinked(id);
+          if (window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.activateDraft) {
+            window.PAPER_OVERLAYS.activateDraft(id);
+          }
         }
+        // Land the user on the card they just made (it used to appear
+        // unannounced at the bottom of the panel list).
+        setTimeout(() => {
+          if (window.ANNOTATION_PANEL && window.ANNOTATION_PANEL.focusCard) {
+            window.ANNOTATION_PANEL.focusCard(newId);
+          }
+        }, 150);
+        return newId;
       },
-      onSelect: (annId) => {
+      /* V3.628 — clicking a highlight on the page opens its comment in the
+       * panel (owners get the editor; everyone else sees the card). The
+       * rects stay pointer-events:none — the overlay resolves the click
+       * geometrically so text selection is unaffected. */
+      onAnnotationClick: (annId) => {
         window.ANNOTATION_OVERLAY.focus(annId);
+        if (window.ANNOTATION_PANEL && window.ANNOTATION_PANEL.openComment) {
+          window.ANNOTATION_PANEL.openComment(annId);
+        }
       },
       /* E3 — "ƒ" toolbar action: snip the selected region + transcribe
        * it as a captured equation (a kind:'equation' annotation). */
@@ -1258,6 +1386,17 @@
     }
     if (window.FIGURE_CAPTURE) {
       window.FIGURE_CAPTURE.init({ paperId, viewer: _viewer });
+    }
+    // V3.644 — Label mode: the structure overlay + correction tools, hosted
+    // at the bottom of the left column. Corrections are stored per paper and
+    // outrank the detector, so fixing a paper here fixes it for everyone.
+    if (window.PAPER_LABEL_MODE) {
+      window.PAPER_LABEL_MODE.init({
+        paperId,
+        viewer: _viewer,
+        hostEl: document.getElementById('lp-label-mode'),
+        canEdit: _canAnnotate,
+      });
     }
 
     // Geometric selection — replaces browser-native Range walking. Drives
@@ -1306,7 +1445,11 @@
     // handler registered in attachActive() can refresh the shortlist.
     _drafts = [];
     _allDrafts = [];
-    const GRANT_DRAFT_STATUSES = new Set(['drafting', 'submitted', 'under_review', 'revising', 'rejected']);
+    // V3.631 — one definition, in library-links.js (local list = load-order fallback).
+    const GRANT_DRAFT_STATUSES = new Set(
+      (window.LIBRARY_LINKS && window.LIBRARY_LINKS.GRANT_DRAFT_STATUSES) ||
+      ['drafting', 'submitted', 'under_review', 'revising', 'rejected']
+    );
     try {
       const [itemsData, papersData] = await Promise.all([
         _loadLibraryItems(),   // V3.605 — cap-guest-safe items read
@@ -1324,72 +1467,59 @@
         .map(it => ({ id: it.id, title: it.title || it.id, kind: 'grant' }));
       _allDrafts = paperDrafts.concat(grantDrafts);
       // V3.475 — picker shows all active drafts, linked ones first.
-      const linkedIds = new Set(((_item.meta && _item.meta.library && _item.meta.library.linked_drafts) || []));
+      const linkedIds = new Set(((item.meta && item.meta.library && item.meta.library.linked_drafts) || []));
       _drafts = _draftShortlist(linkedIds);
     } catch (e) {
       console.warn('[library-paper] could not load drafts:', e.message);
     }
+    // V3.621 — a tab switch during the drafts load supersedes this mount.
+    if (gen !== undefined && gen !== _attachGen) return;
 
-    let _groups = [{ id: 'general', name: 'General' }];
-    if (window.ANNOTATION_GROUPS) {
-      try {
-        await window.ANNOTATION_GROUPS.ensureSeed();
-      } catch (e) {
-        console.warn('[library-paper] annotation-groups seed failed:', e.message);
-      }
-      // V3.294 — capture the unsubscribe so a tab switch frees it (the
-      // groups onSnapshot is refcounted in annotation-groups.js).
-      try { _unsubGroups && _unsubGroups(); } catch (_) { /* ignore */ }
-      _unsubGroups = window.ANNOTATION_GROUPS.subscribe((g) => {
-        _groups = g.slice();
-        // Re-render the panel so new groups appear in dropdowns immediately.
-        window.ANNOTATION_PANEL.setAnnotations(_annotations);
-        _applyFilter();
-      });
-    }
+    // V3.620 — annotation-level groups retired from the reader: the field
+    // was write-only (nothing anywhere read it), and the actual intent —
+    // "save this PAPER to a library group" — is a paper-level feature
+    // (left sidebar, V3.622). ANNOTATION_GROUPS wiring removed with it.
 
     window.ANNOTATION_PANEL.init({
       rootEl: panelEl,
       viewer: _viewer,
       getColors: () => _colors,
       getDrafts: () => _drafts,
-      getGroups: () => _groups,
       currentUserUid: (user && user.uid) || '',
+      // V3.620 — mutating controls only render for users the rules will
+      // actually let write.
+      canWrite: _canAnnotate,
       defaultVisibility: 'lab',
-      // V3.605 — hide "+ New group…" unless allowlisted or cap-granted
-      // (labConfig/annotation_groups write is isLabContributor OR
-      // hasCap('library-paper:groups') in rules).
-      allowNewGroup: _allowNewGroup,
       onFocus: (annId) => window.ANNOTATION_OVERLAY.focus(annId),
+      // V3.620 — rethrows: the panel decides how to surface failures (the
+      // comment editor shows them inline and keeps the text; other controls
+      // alert). Color changes re-stamp annotation_type — color IS the
+      // category (V3.619); captures (kind: equation/figure) keep their own.
       onUpdate: async (annId, patch) => {
-        try {
-          // V3.619 — color IS the category: an owner recoloring a highlight
-          // also moves it to the matching annotation_type so the type-pill
-          // filter stays truthful. Captures (kind: equation/figure) keep
-          // their own type.
-          if (patch && patch.color_id) {
-            const ann = _annotations.find(a => a.id === annId);
-            if (!ann || !ann.kind) {
-              patch = Object.assign({}, patch, {
-                annotation_type: COLOR_TO_TYPE[patch.color_id] || 'note',
-              });
-            }
+        if (patch && patch.color_id) {
+          const ann = _annotations.find(a => a.id === annId);
+          if (!ann || !ann.kind) {
+            patch = Object.assign({}, patch, {
+              annotation_type: COLOR_TO_TYPE[patch.color_id] || 'note',
+            });
           }
-          await window.ANNOTATION_SYNC.update(paperId, annId, patch);
-        } catch (e) {
-          alert(`Update failed: ${e.message}`);
         }
+        return window.ANNOTATION_SYNC.update(paperId, annId, patch);
       },
       onDelete: async (annId) => {
         try {
+          // V3.621 — unlink claim evidence FIRST (best-effort): deleting a
+          // highlight used to leave dangling {paperId,annId} entries on
+          // claims forever (CLAIMS.removeEvidence had zero callers).
+          const ann = _annotations.find(a => a.id === annId);
+          if (ann && window.CLAIMS && window.CLAIMS.removeEvidenceForAnnotation) {
+            try { await window.CLAIMS.removeEvidenceForAnnotation(ann); }
+            catch (e) { console.warn('[library-paper] evidence unlink failed:', e.message || e); }
+          }
           await window.ANNOTATION_SYNC.remove(paperId, annId);
         } catch (e) {
           alert(`Delete failed: ${e.message}`);
         }
-      },
-      onCreateGroup: async (name) => {
-        if (!window.ANNOTATION_GROUPS) throw new Error('annotation-groups module missing');
-        return await window.ANNOTATION_GROUPS.create(name);
       },
       onCiteToggle: async (annId, draftId, on) => {
         try {
@@ -1397,50 +1527,24 @@
           // from two users don't clobber each other.
           const op = on ? 'add' : 'remove';
           await window.ANNOTATION_SYNC.toggleCiteInDraft(paperId, annId, draftId, op);
+          // V3.628 — filing a highlight must never make it disappear from
+          // the page: if a draft lens is engaged, bring the draft we just
+          // filed into it.
+          // V3.629 — link the PAPER first, or activateDraft no-ops for an
+          // unlinked draft (and the builder never sees this evidence).
+          if (on) {
+            await _ensureDraftLinked(draftId);
+            if (window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.activateDraft) {
+              window.PAPER_OVERLAYS.activateDraft(draftId);
+            }
+          }
         } catch (e) {
           alert(`Could not ${on ? 'tag' : 'untag'} draft: ${e.message}`);
         }
       },
-      // V3.475 — when a member tags a highlight as evidence for a draft that
-      // isn't yet linked to this journal paper, auto-link it so the "Used in
-      // paper drafts" association accrues (reuses the same LIBRARY_LINKS path
-      // as the association pills). No-op if already linked or the module is
-      // absent. Failures are non-fatal — the evidence itself already saved.
-      onEnsureDraftLinked: async (draftId) => {
-        if (!draftId || !_item || !window.LIBRARY_LINKS) return;
-        const lib = (_item.meta && _item.meta.library) || {};
-        const already = Array.isArray(lib.linked_drafts) && lib.linked_drafts.indexOf(draftId) >= 0;
-        if (already) return;
-        try {
-          const fresh = await window.LIBRARY_LINKS.toggleDraftLink(_item.id, draftId, true);
-          _item.meta = _item.meta || {};
-          _item.meta.library = _item.meta.library || {};
-          _item.meta.library.linked_drafts = fresh;
-          _drafts = _draftShortlist(new Set(fresh));
-          _renderAssocEditor(_item);   // keep the "Used in paper drafts" pills in sync
-          if (window.ANNOTATION_PANEL && window.ANNOTATION_PANEL.setAnnotations) {
-            window.ANNOTATION_PANEL.setAnnotations(_annotations);
-          }
-        } catch (e) {
-          console.warn('[library-paper] auto-link draft failed:', e.message);
-        }
-      },
-      getBuckets: () => (window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.getLinkedBuckets)
-        ? window.PAPER_OVERLAYS.getLinkedBuckets() : [],
-      getBucketColor: (id) => (window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.getColorForBucket)
-        ? window.PAPER_OVERLAYS.getColorForBucket(id) : '#a78bfa',
-      onBucketToggle: async (annId, bucketId, on) => {
-        const ann = _annotations.find(a => a.id === annId);
-        if (!ann) return;
-        const cur = Array.isArray(ann.bucket_ids) ? ann.bucket_ids.slice() : [];
-        const next = on ? Array.from(new Set(cur.concat([bucketId])))
-                        : cur.filter(x => x !== bucketId);
-        try {
-          await window.ANNOTATION_SYNC.update(paperId, annId, { bucket_ids: next });
-        } catch (e) {
-          alert(`Could not update overlays: ${e.message}`);
-        }
-      },
+      // (V3.622 — onEnsureDraftLinked removed with the panel's evidence
+      // flow; the Comments-page evidence form auto-links via LIBRARY_LINKS
+      // itself.)
     });
     window.ANNOTATION_PANEL.onFilterChange(_applyFilter);
 
@@ -1466,25 +1570,47 @@
           }, 250);
         }
       },
-      onError: (err) => {
-        console.error('[library-paper] annotation sync error:', err);
-        const panel = document.getElementById('lp-annotations');
-        if (panel) {
-          panel.innerHTML = `<div class="lp-annotations-empty">Annotation sync error: ${(err.message || err).toString().replace(/[<>]/g, '')}<br><small>Check Firestore security rules — see plan §B.</small></div>`;
+      /* V3.621 — non-destructive error banner. The old handler set
+       * innerHTML on #lp-annotations, which DETACHED the live panel root
+       * (#lp-annotations-inner is its child) plus the toolbar — the panel
+       * was then dead for the rest of the session even though the OTHER
+       * listener usually kept working. Now: a dismissable banner prepended
+       * inside #lp-annotations; the panel keeps rendering whatever the
+       * healthy listener delivers. `which` distinguishes a failed private
+       * listener (your own private highlights silently missing) from the
+       * lab one. */
+      onError: (err, which) => {
+        console.error(`[library-paper] annotation sync error (${which || 'unknown'}):`, err);
+        const host = document.getElementById('lp-annotations');
+        if (!host) return;
+        let note = host.querySelector('.lp-sync-error');
+        if (!note) {
+          note = document.createElement('div');
+          note.className = 'lp-sync-error';
+          note.style.cssText = 'font-size:11.5px;color:#991b1b;background:#fef2f2;' +
+            'border:1px solid #fecaca;border-radius:6px;padding:6px 8px;margin:6px;';
+          host.insertBefore(note, host.firstChild);
         }
+        note.textContent = which === 'private'
+          ? 'Your private highlights aren’t syncing — lab highlights still update. Reload to retry.'
+          : 'Annotations aren’t syncing — reload to retry.';
       },
     });
 
     // Re-render overlays after each pdf.js render (zoom changes redraw text
     // layer which invalidates rect positions). V3.294 — guard so re-attaching
     // to an already-warm viewer (switching back to a tab) doesn't double-wrap
-    // setZoom. The wrap reads window.ANNOTATION_OVERLAY live, so it stays
-    // correct across attach/detach of the (singleton) overlay.
+    // setZoom. V3.621 — the wrapper only redraws when ITS viewer is still
+    // the active one: ANNOTATION_OVERLAY is a singleton pointed at the
+    // active tab, so a background pane's zoom path must not repaint it.
     if (!_viewer.__overlayZoomWrapped) {
+      const wrappedViewer = _viewer;
       const origSetZoom = _viewer.setZoom;
       _viewer.setZoom = async function (z) {
-        const r = await origSetZoom.call(_viewer, z);
-        if (window.ANNOTATION_OVERLAY) window.ANNOTATION_OVERLAY.redraw();
+        const r = await origSetZoom.call(wrappedViewer, z);
+        if (window.ANNOTATION_OVERLAY && wrappedViewer === _viewer) {
+          window.ANNOTATION_OVERLAY.redraw();
+        }
         return r;
       };
       _viewer.__overlayZoomWrapped = true;
@@ -1767,10 +1893,20 @@
   // Tear down the singleton stack from whatever paper is currently active.
   // The viewer itself is NOT destroyed (it stays warm in its hidden pane).
   function _detachActive() {
+    _attachGen++;   // V3.621 — cancel any in-flight _attachActive continuation
     try { _unsubscribeSync && _unsubscribeSync(); } catch (_) { /* ignore */ }
     _unsubscribeSync = null;
-    try { _unsubGroups && _unsubGroups(); } catch (_) { /* ignore */ }
-    _unsubGroups = null;
+    // A stale sync-error banner belongs to the outgoing paper.
+    try {
+      const n = document.querySelector('#lp-annotations .lp-sync-error');
+      if (n) n.remove();
+    } catch (_) { /* ignore */ }
+    try { window.EQUATION_CAPTURE && window.EQUATION_CAPTURE.destroy && window.EQUATION_CAPTURE.destroy(); } catch (_) { /* ignore */ }
+    try { window.FIGURE_CAPTURE && window.FIGURE_CAPTURE.destroy && window.FIGURE_CAPTURE.destroy(); } catch (_) { /* ignore */ }
+    // V3.644 — same tab-detach contract as every other per-paper module:
+    // flush pending label saves and drop the overlay before the pane goes
+    // warm, or paper A's corrections land on paper B.
+    try { window.PAPER_LABEL_MODE && window.PAPER_LABEL_MODE.destroy(); } catch (_) { /* ignore */ }
     try { window.ANNOTATION_OVERLAY && window.ANNOTATION_OVERLAY.destroy(); } catch (_) { /* ignore */ }
     try { window.GEOM_SELECTION && window.GEOM_SELECTION.destroy(); } catch (_) { /* ignore */ }
     try { window.PAPER_CITATIONS && window.PAPER_CITATIONS.destroy(); } catch (_) { /* ignore */ }
@@ -1787,15 +1923,27 @@
   async function _attachActive(id) {
     const item = _allItems.find(x => x.id === id);
     if (!item) return;
+    // V3.621 — capture the attach generation; every await below re-checks
+    // it so a superseding tab switch (which bumps the counter in
+    // _detachActive) cancels this continuation instead of racing it.
+    const gen = _attachGen;
+    const stale = () => gen !== _attachGen;
     _item = item;
     _tagIndex = window.LIBRARY_TAGS
       ? LIBRARY_TAGS.buildIndex(_allItems.filter(it => it.type === 'paper' && it.meta && it.meta.library && it.meta.library.is_library_entry))
       : null;
     _renderMetadata(_item);
-    _renderTagEditor(_item);
-    _renderAssocEditor(_item);   // V3.365 — association pills
-    _renderThemeEditor(_item);   // V3.367 — lab theme chips
-    _renderRoadmapEditor(_item); // V3.601 — research roadmap chips
+    /* V3.630 — these five all render INSIDE the one #lp-organize block now
+     * (Topics / Used in / My shelf / ▸ Tags). Visual order comes from the
+     * slot order in _ensureOrganizeBlock, NOT from this call order — the old
+     * insertion-order fallback chains are gone. The one ordering that still
+     * matters: assoc before roadmap, since both append into #lp-org-usedin
+     * and the draft pills belong above the Lab-focus sub-row. */
+    _renderAssocEditor(_item);   // V3.365 — draft pills        → "Used in"
+    _renderRoadmapEditor(_item); // V3.601 — roadmap chips       → "Used in" sub-row
+    _renderThemeEditor(_item);   // V3.367 — topic chips         → "Topics"
+    _renderGroupsWidget(_item);  // V3.622 — library groups      → "My shelf"
+    _renderTagEditor(_item);     // tags                         → "▸ Tags" (collapsed)
     _renderShareWidget(_item);
     _renderAssignWidget(_item);
 
@@ -1887,22 +2035,24 @@
     if (window.PAPER_OVERLAYS) {
       try {
         await window.PAPER_OVERLAYS.init({
-          paperItem: _item,
+          paperItem: item,
           mountEl: document.getElementById('lp-overlays-anchor'),
         });
       } catch (e) { console.warn('[library-paper] paper-overlays init failed:', e); }
     }
+    if (stale()) return;
     if (window.PAPER_OVERLAY_TYPES) {
       try {
         window.PAPER_OVERLAY_TYPES.init({
-          paperId: _item.id,
+          paperId: item.id,
           mountEl: document.getElementById('lp-types-anchor'),
           getAnnotations: () => _annotations,
         });
       } catch (e) { console.warn('[library-paper] paper-overlay-types init failed:', e); }
     }
     _setStatus('Loading annotations…');
-    await _mountAnnotations();
+    await _mountAnnotations(item, gen);
+    if (stale()) return;
     if (window.PAPER_OVERLAY_TYPES && window.PAPER_OVERLAY_TYPES.refresh) {
       try { window.PAPER_OVERLAY_TYPES.refresh(); } catch (_) { /* ignore */ }
     }
@@ -1959,6 +2109,11 @@
             ? window.PAPER_OVERLAY_TYPES.getFilterFn() : (() => true);
           window.ANNOTATION_OVERLAY.setFilter((ann) => panelFn(ann) && overlayFn(ann) && typeFn(ann));
           window.ANNOTATION_PANEL.setAnnotations(_annotations.filter(a => overlayFn(a) && typeFn(a)));
+        }
+        // V3.620 — if the create popover is open (its "+ draft…" chip
+        // opens the link picker), refresh its chips with the new links.
+        if (window.ANNOTATION_OVERLAY && window.ANNOTATION_OVERLAY.refreshPopoverDrafts) {
+          window.ANNOTATION_OVERLAY.refreshPopoverDrafts();
         }
       });
     }
@@ -2056,7 +2211,10 @@
       // (direct single-doc set, which bypasses api.save's cache-clear). Bust
       // the cache and reload ONCE before treating it as missing.
       const wantId = _qs('id');
-      if (wantId && !_allItems.some(it => it.id === wantId) && window.api && api.invalidate) {
+      // V3.647 — `typeof api`: `window.api` is always undefined (lexical const),
+      // so this bust-and-retry recovery had never run and a freshly-imported
+      // paper opened from the library read as "not found".
+      if (wantId && !_allItems.some(it => it.id === wantId) && typeof api !== 'undefined' && api.invalidate) {
         try {
           await api.invalidate('items.json');
           const fresh = await _loadLibraryItems();
@@ -2085,8 +2243,6 @@
       _ensureTab(initial, _titleFor(initial));
       _mru = [initial].concat(_tabs.map(t => t.id).filter(x => x !== initial));
     }
-
-    if (!_colorsLoaded) { await _loadColors(); _colorsLoaded = true; }
 
     // Capture the one-shot deep-link params BEFORE activateTab's _updateUrl
     // strips them.

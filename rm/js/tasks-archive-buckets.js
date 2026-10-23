@@ -333,7 +333,7 @@
 
     const caret = document.createElement('button');
     caret.className = 'inbox-caret';
-    caret.textContent = state.expanded.has(st.id) ? '▾' : '▸';
+    ICON.label(caret, state.expanded.has(st.id) ? 'chevron-down' : 'chevron-right');
     caret.addEventListener('click', (ev) => { ev.stopPropagation(); toggleExpand(st.id); });
     r.appendChild(caret);
 
@@ -341,7 +341,7 @@
     const mark = document.createElement('span');
     mark.className = 'inbox-done-mark';
     mark.title = st.done_at ? `Completed ${st.done_at.slice(0, 10)}` : 'Completed';
-    mark.textContent = '✓';
+    ICON.label(mark, 'check');
     r.appendChild(mark);
 
     const dot = document.createElement('span');
@@ -490,7 +490,7 @@
     actions.className = 'completed-actions';
     const undo = document.createElement('button');
     undo.className = 'btn btn-primary btn-sm';
-    undo.textContent = '↶ Undo completion';
+    ICON.label(undo, 'arrow-uturn-left', ' Undo completion');
     undo.title = 'Restore this task to the active list';
     undo.addEventListener('click', () => {
       st.done = false;

@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>BME/AME 466/566 — Homework 1</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: 1.5em;}
+    div.column{flex: auto;}
+    @media screen {
+    div.columns{gap: min(4vw, 1.5em);}
+    div.column{overflow-x: auto;}
+    }
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    max-width:820px;margin:0 auto;padding:24px 18px;color:#1e293b;line-height:1.6;background:#f8fafc}
+  h1,h2,h3{color:#1e3a5f} h1{font-size:1.6rem;border-bottom:3px solid #2563eb;padding-bottom:8px}
+  h2{font-size:1.15rem;margin-top:1.6em;border-bottom:1px solid #e2e8f0;padding-bottom:4px}
+  h3{font-size:1rem;margin-top:1.2em}
+  .subtitle{color:#64748b;font-size:1.05rem;margin-top:-8px}
+  blockquote{background:#eff6ff;border-left:4px solid #2563eb;margin:14px 0;padding:10px 16px;border-radius:0 8px 8px 0}
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.92rem}
+  th,td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left}
+  th{background:#f1f5f9}
+  code{background:#f1f5f9;border-radius:4px;padding:1px 5px;font-size:.9em}
+  a{color:#2563eb}
+  strong{color:#0f172a}
+  hr{border:none;border-top:1px solid #e2e8f0;margin:22px 0}
+  @media(max-width:640px){body{padding:14px 10px}}
+  </style>
+  <!-- ══ no-copy guard ══════════════════════════════════════════════════════════
+       Canonical source. Paste this block verbatim into the <head> of every
+       student-facing course page, and pass it to pandoc-built pages with
+       `--include-in-header scripts/nocopy-header.html`. Edit it HERE, then
+       re-sync the copies (`python3 scripts/sync_nocopy.py --check`).
+
+       What it does: course text cannot be selected, copied, cut, dragged out,
+       right-click-saved, or printed. Fields the student types into stay fully
+       editable and pasteable — students still paste numbers and notes.
+
+       Why: bulk-pasting a gated question into a chatbot should be a decision,
+       not a reflex. Honest limit — this is friction, not encryption. View
+       Source, devtools, "Save page as", a screen reader, or a phone camera all
+       still reach the text; per-student data is what actually makes the answer
+       unshareable. Screen readers are unaffected: `user-select` does not touch
+       the accessibility tree, and no ARIA is hidden here.
+  -->
+  <style id="nocopy-css">
+  html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+    -webkit-touch-callout:none}
+  input,textarea,select,option,[contenteditable="true"]{
+    -webkit-user-select:text !important;-moz-user-select:text !important;
+    -ms-user-select:text !important;user-select:text !important}
+  ::selection{background:transparent}
+  input::selection,textarea::selection{background:#bfdbfe}
+  @media print{
+    html,body{visibility:hidden !important}
+    body::after{visibility:visible !important;display:block;position:fixed;top:38%;left:0;right:0;
+      padding:0 12%;text-align:center;color:#111;
+      font:600 13pt/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      content:"This page is not printable. Work through it in the browser — your dataset is generated live."}
+  }
+  </style>
+  <script id="nocopy-js">
+  (function(){
+    'use strict';
+    /* Anything you type into stays live; everything else is inert. */
+    function editable(el){
+      return !!el && (el.tagName==='INPUT'||el.tagName==='TEXTAREA'||el.isContentEditable===true);
+    }
+    function inEditable(node){
+      var n = (node && node.nodeType===1) ? node : (node && node.parentElement);
+      while(n){ if(editable(n)) return true; n = n.parentElement; }
+      return false;
+    }
+    /* Capture phase: the event is stopped before it reaches element-level
+       handlers, which is also what kills the MathJax right-click menu (it
+       offers "Show Math As → TeX Commands", i.e. copyable source). */
+    ['contextmenu','selectstart','dragstart','copy','cut'].forEach(function(ev){
+      document.addEventListener(ev, function(e){
+        if(editable(e.target)) return;
+        if(e.clipboardData){ try{ e.clipboardData.setData('text/plain',''); }catch(_){} }
+        e.preventDefault(); e.stopPropagation();
+      }, true);
+    });
+    document.addEventListener('keydown', function(e){
+      if(editable(e.target)) return;          /* Ctrl+A / Ctrl+C inside a field is fine */
+      var k = (e.key||'').toLowerCase();
+      if((e.ctrlKey||e.metaKey) && (k==='c'||k==='x'||k==='a'||k==='p'||k==='s')){
+        e.preventDefault(); e.stopPropagation();
+      }
+    }, true);
+    /* Backstop for selections that arrive without a selectstart (caret
+       browsing, programmatic select-all, some Firefox paths). */
+    document.addEventListener('selectionchange', function(){
+      var s = document.getSelection();
+      if(!s || s.isCollapsed || s.rangeCount===0) return;
+      if(inEditable(s.anchorNode)) return;
+      s.removeAllRanges();
+    });
+  })();
+  </script>
+  <!-- ══ end no-copy guard ══════════════════════════════════════════════════ -->
+</head>
+<body>
+<!-- hi-icons:start (scripts/module_icons.py — generated; re-run after adding an icon) -->
+<style>.hi{width:1em;height:1em;display:inline-block;vertical-align:-0.125em;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;overflow:visible}.hi-solid{fill:currentColor;stroke:none}</style>
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><defs><symbol id="hi-book-open" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"/></symbol><symbol id="hi-calculator" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm2.498-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5v2.25h-7.5V6ZM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0 0 12 2.25Z"/></symbol><symbol id="hi-light-bulb" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"/></symbol></defs></svg>
+<script>window.HI={svg:function(n,o){o=o||{};var s=o.solid?'-solid':'';return '<svg class="hi'+(o.solid?' hi-solid':'')+(o.cls?' '+o.cls:'')+'"'+(o.tint?' style="color:'+o.tint+'"':'')+(o.label?' role="img" aria-label="'+String(o.label).replace(/"/g,'&quot;')+'"':' aria-hidden="true"')+'><use href="#hi-'+n+s+'"/></svg>';},
+draw:function(c,n,x,y,z,col,o){o=o||{};var sym=document.getElementById('hi-'+n+(o.solid?'-solid':''));if(!c||!sym||typeof Path2D==='undefined')return;var k=(z||16)/24;c.save();c.translate(x,y);c.scale(k,k);c.lineWidth=1.5;c.lineCap='round';c.lineJoin='round';c.strokeStyle=c.fillStyle=col||'#475569';
+[].forEach.call(sym.children,function(e){var a=function(q){return parseFloat(e.getAttribute(q))||0},p=new Path2D(),t=e.tagName.toLowerCase();if(t==='path')p=new Path2D(e.getAttribute('d'));else if(t==='circle')p.arc(a('cx'),a('cy'),a('r'),0,7);else if(t==='ellipse')p.ellipse(a('cx'),a('cy'),a('rx'),a('ry'),0,0,7);else if(t==='rect')p.rect(a('x'),a('y'),a('width'),a('height'));else if(t==='line'){p.moveTo(a('x1'),a('y1'));p.lineTo(a('x2'),a('y2'));}else{var v=(e.getAttribute('points')||'').trim().split(/[\s,]+/).map(parseFloat);for(var i=0;i+1<v.length;i+=2)p[i?'lineTo':'moveTo'](v[i],v[i+1]);if(t==='polygon')p.closePath();}
+if(o.solid)c.fill(p,'evenodd');else c.stroke(p);});c.restore();}};</script>
+<!-- hi-icons:end -->
+<header id="title-block-header">
+<h1 class="title">BME/AME 466/566 — Homework 1</h1>
+<p class="subtitle">Transport Problems — <em>measure once, then
+reason</em></p>
+</header>
+<h2 id="instructions">Instructions</h2>
+<p>This homework <em>is</em> the interactive module at
+<code>https://mcgheelab.com/modules/bme466/hw-01-transport-problems.html</code>
+(also linked from the class page). It has a <strong>★ Practice tab, two
+measurement benches, a Problems tab, a Challenge tab, and a final Map
+&amp; Export tab</strong> — plus two floating tools you can open beside
+any tab: the <strong><svg class="hi" aria-hidden="true"><use href="#hi-book-open"/></svg> Notes panel</strong> (every law in this unit,
+and when each applies) and a <strong><svg class="hi" aria-hidden="true"><use href="#hi-calculator"/></svg> calculator</strong>.</p>
+<p><strong>One rule shapes everything here: no question names its
+equation.</strong> Each problem describes a biological situation and
+asks for a quantity; <em>finding the most reasonable relation</em> — and
+defending that choice in your PDF — is the skill being graded. The <svg class="hi" aria-hidden="true"><use href="#hi-book-open"/></svg>
+Notes panel is the sanctioned search space. The ★ Practice tab is where
+you train that skill with hints and revealed solutions; the graded tabs
+have neither.</p>
+<p><strong>Total: 100 %</strong> (weights in brackets). The
+<strong>Challenge</strong> is shown to everyone and graded <strong>only
+for 566 students</strong>; for 466 students its weight redistributes
+across the other problems.</p>
+<p><strong>Expected time: 4–6 hours</strong>, set for a <strong>two-week
+window</strong>. The module <strong>autosaves your progress to your UA
+account</strong>, so you can stop on one computer and continue on
+another. Plan on several sittings.</p>
+<h3 id="before-you-touch-anything-sign-in">Before you touch anything:
+sign in</h3>
+<ol type="1">
+<li><strong>Sign in with your UA NetID</strong> in the module’s top bar
+(your <code>@arizona.edu</code> Google account). That is the whole
+setup: your personal dataset is assigned from your NetID automatically —
+the printed givens below are <em>yours</em> and nobody else’s. Signed
+out you get demo numbers and export is blocked.</li>
+<li>Put your <strong>name and NetID on page 1</strong> of your written
+PDF.</li>
+<li><strong>Practice first.</strong> The ★ tab needs no sign-in: eight
+worked examples, each a cousin of one from the weekly learning modules,
+re-posed in new biology with a different unknown. Steps check themselves
+(the one place in this homework that ever says right or wrong), a <svg class="hi" aria-hidden="true"><use href="#hi-light-bulb"/></svg>
+hint ladder nudges when you want it, and each finishes by revealing
+<strong>the module’s original worked example</strong> — two examples of
+every concept, one of them built by you.</li>
+<li><strong>The benches hand you raw readouts only.</strong> The tracker
+reports a window’s log–log slope and its fitted MSD at τ = 1 s; the
+bleacher reports a half-recovery stopwatch per spot size. Neither
+converts anything into a diffusion coefficient — that conversion,
+including <em>which relation justifies it</em>, is yours.</li>
+<li><strong>Transcribe honestly.</strong> Each bench row you add is
+validated against the run the instrument actually logged; the runs ride
+along inside your results file, and the grader re-checks every row
+against them.</li>
+<li><strong>Answers are recorded, never judged.</strong> The graded tabs
+give no correctness feedback — real measurements don’t come with an
+answer key. Your confidence comes from the <strong>cross-checks</strong>
+(Map tab): the same quantity computed two independent ways must
+agree.</li>
+<li><strong>Export at the end of every session.</strong> The same file
+is your resumable save (Load progress), on any computer, alongside the
+cloud autosave.</li>
+</ol>
+<h3 id="what-you-submit-two-files-one-d2l-dropbox">What you submit (two
+files, one D2L dropbox)</h3>
+<ul>
+<li><strong>The module’s exported results file</strong>
+<code>HW1_&lt;NETID&gt;_&lt;code&gt;.json</code> — your answers, bench
+tables, and run log. Auto-graded.</li>
+<li><strong>A written solutions PDF</strong>: for <em>every</em> problem
+— which relation you chose and <strong>why it applies to this
+situation</strong> (assumptions named), the symbolic form before any
+numbers, the unit track, the number, and a citation for every looked-up
+value. Numbers in your PDF <strong>must match your JSON</strong> — a
+mismatch is a fabricated measurement (an integrity violation).</li>
+</ul>
+<hr />
+<h3 id="the-scenario">The scenario</h3>
+<p>A vendor sells your lab a fluorescently tagged antibody, suspended in
+a crowding medium. The datasheet gives the parts — bare antibody
+<strong>150 kDa</strong>, hydrodynamic radius <strong>5.6 nm</strong>
+(by DLS); <strong>30 kDa per tag</strong> — and the medium’s viscosity
+(printed as η_rel × water at your T). It does <strong>not</strong> give
+the number of tags per antibody: that is proprietary, and it sets the
+conjugate’s size.</p>
+<p>You own two instruments — a tracking microscope and a photobleaching
+rig. Characterize the conjugate <strong>once</strong>, with both, then
+spend that measurement on five biological questions and one challenge.
+Every number you use is one you measured or one printed in your dataset;
+every constant you look up, you cite.</p>
+<blockquote>
+<p><strong>Constants live in <svg class="hi" aria-hidden="true"><use href="#hi-book-open"/></svg> Notes</strong> (k_B, the nM bridge,
+documented geometric constants). Citing them from Notes is fine; citing
+the primary source is better.</p>
+</blockquote>
+<hr />
+<h2 id="bench-1-track-it-with-bench-2-20">Bench 1 — Track it
+<strong>[with Bench 2: 20 %]</strong></h2>
+<p>Run tracking sessions on your particle. Record <strong>≥ 4 fit
+windows you trust (≥ 3 dilute)</strong> and <strong>≥ 2 crowded-scenario
+windows</strong> into the table. In-module answers: your best
+<strong>D</strong> (from your dilute windows — the conversion is yours
+to find, and remember what a camera actually records) and the crowded
+<strong>exponent α</strong>.</p>
+<p>In the PDF <strong>(a)</strong> justify your fit-window choices
+against the noise floor and the long-lag scatter (a sketch of the MSD
+with your window marked is ideal); <strong>(b)</strong> name the
+relation you used to convert the raw fit into D and say why its
+dimensionality is right; <strong>(c)</strong> state your uncertainty on
+D from the spread across your windows.</p>
+<h2 id="bench-2-bleach-it">Bench 2 — Bleach it</h2>
+<p>Bleach <strong>≥ 4 spot sizes, ≥ 5 rows</strong>. In-module answer: a
+second, independent <strong>D</strong> from your stopwatch readings —
+the relation is a citable classic of the photobleaching literature; find
+it, cite it. In the PDF: <strong>(a)</strong> show the exponent your own
+τ½-vs-w data claims <em>before</em> you convert anything;
+<strong>(b)</strong> the conversion, symbolically first.</p>
+<h2
+id="problem-1-size-it-count-its-tags-get-it-through-a-film-15">Problem 1
+— Size it, count its tags, get it through a film <strong>[15
+%]</strong></h2>
+<p>Your datasheet viscosity, your measured D, your temperature, and the
+QC numbers above. <strong>(a)</strong> the conjugate’s hydrodynamic
+radius, in nm — set it beside the unlabeled antibody in the PDF;
+<strong>(b)</strong> <strong>how many fluorescent tags each antibody
+carries, on average</strong> — for compact proteins, molecular weight
+and hydrodynamic radius convert into each other; find the conversion,
+anchor it to the QC pair (150 kDa ↔︎ 5.6 nm), and defend it.
+Mass-to-count is then simple accounting: N = (conjugate mass − 150 kDa)
+÷ 30 kDa per tag; <strong>(c)</strong> the steady flux (per µm², per
+second) of conjugates across the porous film in your dataset (thickness
+L, held difference ΔC). Defend every relation and its assumptions (what
+must be steady? what must be dilute?).</p>
+<h2 id="problem-2-the-crowding-tax-10">Problem 2 — The crowding tax
+<strong>[10 %]</strong></h2>
+<p>Two dishes, identical at t = 0 — one dilute, one crowded (your α).
+After <strong>t★ seconds</strong> (printed): how many times larger is
+the mean-squared displacement in the dilute dish? Use your own window
+fits from <em>both</em> scenarios — nothing else is needed. PDF: derive
+the ratio symbolically and show why its time-dependence survives even
+though the crowded prefactor’s units are strange.</p>
+<h2 id="problem-3-one-address-in-the-whole-nucleus-15">Problem 3 — One
+address in the whole nucleus <strong>[15 %]</strong></h2>
+<p>A thought experiment: a transcription factor that diffuses exactly
+like your conjugate, in a nucleus of radius R (printed), hunting a
+single 10-bp site. To the searcher the site is a tiny absorbing target —
+touch it and the search ends. Model it as a sphere of effective
+<strong>target radius a_site</strong>: the length of 10 base pairs of
+DNA, a documented number you find and cite. <strong>(a)</strong> the
+mean search time, with your bleaching D; <strong>(b)</strong> that
+search time divided by the simple wall-to-wall crossing time. PDF: show
+that everything you measured cancels out of (b) — and say what that
+ratio physically is.</p>
+<h2 id="problem-4-delivery-or-chemistry-10">Problem 4 — Delivery or
+chemistry? <strong>[10 %]</strong></h2>
+<p>Your molecule rains onto an absorbing cell of radius a in a bath at
+c★ (both printed). <strong>(a)</strong> if the cell were a perfect
+absorber, the capture-rate slope in s⁻¹ per nM (the unit conversion is
+part of the problem — show it); <strong>(b)</strong> the recorded
+verdict: with ~1 committed event/s needed downstream, is delivery or
+chemistry the bottleneck for YOUR numbers? Defend it in the PDF.</p>
+<h2 id="problem-5-two-instruments-one-conjugate-10">Problem 5 — Two
+instruments, one conjugate <strong>[10 %]</strong></h2>
+<p><strong>(a)</strong> your tracking D divided by your bleaching D;
+<strong>(b)</strong> the recorded choice: the LEAST plausible
+contributor to the gap. PDF: one paragraph on why agreement between
+instruments that share nothing is the strongest evidence a measurement
+can have.</p>
+<h2
+id="challenge-one-cell-sealed-in-a-droplet-20-graded-for-566-attempted-by-all">Challenge
+— one cell, sealed in a droplet <strong>[20 %; graded for 566, attempted
+by all]</strong></h2>
+<p>Droplet microfluidics seals a single cell (radius a) inside a droplet
+of radius R_drop holding one nutrient at C₀; the cell’s surface consumes
+the nutrient <strong>on contact</strong> (every molecule that reaches it
+is gone). Your dataset prints a, R_drop, and the nutrient’s molecular
+radius r_nut — a far smaller molecule than your conjugate, in the same
+medium.</p>
+<p><strong>How long until 90 % of the nutrient is gone — and was your
+model even legitimate?</strong></p>
+<p>That is the entire prompt — choosing the physics and carrying it to
+numbers is what makes this the challenge. It is solved <strong>entirely
+by hand and graded from your PDF</strong>; the module records nothing
+for it. In the PDF: <strong>set up and solve the governing differential
+equation</strong> — define every symbol, state every assumption — and
+answer the question; get the depletion time constant <strong>two
+independent ways</strong> (one route built on a D you measured, one that
+never touches your measurements) and reconcile them; and <strong>rule on
+your own well-mixed assumption</strong> with a symbolic ratio of
+timescales.</p>
+<hr />
+<h2 id="your-results-file">Your results file</h2>
+<p>The module assembles it in the background; export from the
+<strong>Map &amp; Export</strong> tab. 13 fields: 10 graded numerics
+(<code>p1_D1, p1_rp, p1_nf, p1_J, p2_alpha, p2_shortfall, p3_D2, p3_tsearch, p3_ratio, p4_kslope</code>)
+and 3 recorded checkpoints (<code>p4_verdict, p5_ratio, p5_why</code>).
+The challenge exports nothing — it is hand-graded from your PDF.
+Practice-tab work is never exported.</p>
+<h2 id="grading">Grading</h2>
+<ul>
+<li>The 10 graded numerics are scored <strong>against your own dataset’s
+accept bands</strong> — and the earned ones
+(<code>p1_D1, p2_alpha, p3_D2</code>) must additionally agree with
+<strong>your own bench tables</strong>, while every downstream answer
+must agree with <strong>the chain your own earned numbers
+imply</strong>. A value that matches the expected result while
+contradicting your own measurements earns no credit.</li>
+<li><strong>Exact match is never the standard</strong> — bands are wide
+enough for honest work. They are <em>not</em> wide enough for the wrong
+equation: each band was audited to exclude its neighboring-law error
+(the 2-D/3-D slip, a dropped 4π, the nM bridge crossed backwards,
+half-life-for-τ thinking).</li>
+<li>Choice fields are recorded, not banded; your PDF defends them.</li>
+<li>The written PDF is graded by the course rubric:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Criterion</th>
+<th>Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reasoning &amp; method (incl. <em>which relation and why</em>)</td>
+<td>35</td>
+</tr>
+<tr>
+<td>Framing &amp; assumptions</td>
+<td>20</td>
+</tr>
+<tr>
+<td>Numerical execution &amp; units</td>
+<td>15</td>
+</tr>
+<tr>
+<td>Uncertainty &amp; sanity checks</td>
+<td>15</td>
+</tr>
+<tr>
+<td>Sources, name/NetID identification &amp; LLM-use notes</td>
+<td>15</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ai-use-policy">AI-use policy</h2>
+<p>You may use AI tools to <em>learn</em>, not to <em>answer</em>.</p>
+<p><strong>The sanctioned path.</strong> When you finish a practice
+example (or get honestly stuck in one), a quiet <strong>“Need more
+support?”</strong> link under its solution copies a tutor prompt for
+your chatbot: the practice problem, the full equation sheet
+<em>unmarked</em> (choosing the relation stays your job), the module’s
+deliberate simplifications, and the certified answer embargoed until you
+commit. That is the sanctioned way to get AI help here — practice runs
+on known numbers shared by the whole class, so nothing leaks.</p>
+<p><strong>Allowed:</strong> the sanctioned prompt; clarifying concepts
+and definitions; checking algebra <em>you already did</em> (the <svg class="hi" aria-hidden="true"><use href="#hi-calculator"/></svg>
+calculator exists so arithmetic is never the hard part); debugging
+analysis code <em>you wrote</em>.</p>
+<p><strong>Not allowed:</strong> AI-generated solution prose, figures,
+or numbers; pasting a graded problem into a chatbot. Figures must be
+hand-drawn or self-made.</p>
+<p>End <strong>every problem</strong> with a note — ≤2 sentences, or
+simply “LLM use: none”:</p>
+<blockquote>
+<p>“LLM use: I asked <em>(tool)</em> to explain <em>(concept)</em>; key
+takeaway: <em>(how it helped)</em>.”</p>
+</blockquote>
+<p>Your graded numbers exist only in <em>your</em> dataset and your own
+bench tables; by submitting, you affirm every measurement is your own.
+Answers inconsistent with the dataset your NetID was assigned are
+treated as fabricated measurements and handled as an integrity
+violation.</p>
+<p><strong>On this page and in the module, text is not selectable and
+pages do not print.</strong> That is deliberate, not a bug —
+bulk-pasting a question into a chatbot should be a decision, not a
+reflex. The boxes you type into work normally.</p>
+</body>
+</html>

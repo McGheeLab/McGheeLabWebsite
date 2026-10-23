@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.826–V3.829 — shelves: recently added, readings with counts, everything folded by default; popovers on screen</title>
+<link rel="stylesheet" href="/rm/css/library-groups.css">
+<link rel="stylesheet" href="/rm/css/library-recent.css">
+<style>body{font:13px/1.5 system-ui,sans-serif;margin:20px;max-width:900px}.ok{color:#15803d}.bad{color:#b91c1c}code{background:#f3f4f6;padding:1px 4px;border-radius:3px}</style>
+<script src="/rm/js/icons.js"></script>
+<script>
+  // Stubs for what library-groups.js reads: prefs (widgets, pins, groups) and a signed-in user.
+  window.__prefs = { widgets_enabled: {}, pinned_papers: [], paper_groups: [] };
+  window.LIBRARY_PREFS = { get: function () { return window.__prefs; }, save: function (p) { window.__prefs = p; } };
+  window.firebase = { auth: function () { return { currentUser: { uid: 'u1' } }; } };
+  try { localStorage.removeItem('rm_lib_shelf_collapsed'); localStorage.removeItem('rm_lib_sections_collapsed'); localStorage.removeItem('rm_lp_open_papers'); localStorage.removeItem('lib_added_filter'); } catch (e) {}
+</script>
+<link rel="stylesheet" href="/rm/css/library-readings.css">
+<link rel="stylesheet" href="/rm/css/library-associations.css">
+<script src="/rm/js/library-collapse.js"></script>
+<script src="/rm/js/library-recent.js"></script>
+<script src="/rm/js/library-readings.js"></script>
+<script src="/rm/js/popover-place.js"></script>
+<script src="/rm/js/library-groups.js"></script>
+</head>
+<body>
+<h1>V3.826 — the 🆕 Recently added shelf, folded by default like every shelf</h1>
+<p>Serve the repo root (<code>python3 -m http.server 8778</code>) and open <code>/scripts/tests/v3826-library-shelf-selftest.html</code>. Loads the real <code>library-groups.js</code> with stubbed prefs/auth. Result: <code>#r[data-done=1]</code>.</p>
+<div id="lib-readings" style="display:none;"></div>
+<div id="lib-groups-shelf" style="display:none;"></div>
+<div class="lib-toolbar"><input id="library-search"><select id="library-added"><option value="">Added: any time</option><option value="30d">Added: last 30 days</option></select></div>
+<div class="lib-table"></div>
+<div id="r">running…</div>
+<script>
+(function () {
+  var out = [], pass = 0, fail = 0;
+  function ok(c, m, got) { if (c) pass++; else fail++; out.push('<div class="' + (c ? 'ok' : 'bad') + '">' + (c ? '✓' : '✗') + ' ' + m + (got !== undefined ? '  →  <code>' + String(got).replace(/</g, '&lt;') + '</code>' : '') + '</div>'); }
+  function stored() { try { return JSON.parse(localStorage.getItem('rm_lib_shelf_collapsed') || '{}'); } catch (e) { return {}; } }
+  try {
+    var D = 86400000, now = Date.now();
+    var P = function (id, days, extra) { return { id: id, title: 'Paper ' + id, meta: { library: Object.assign({ is_library_entry: true, date_added: new Date(now - days * D).toISOString().slice(0, 10) }, extra || {}) } }; };
+    var papers = [P('a', 0), P('b', 2), P('c', 10), P('d', 40), P('e', 50), P('f', 60), P('g', 70), P('h', 80), P('i', 90), P('j', 120)];
+    var renders = 0;
+    LIBRARY_RECENT.init({ onChange: function () { renders++; } });
+    LIBRARY_GROUPS.init({ getPapers: function () { return papers; }, isAdmin: function () { return false; }, onChanged: function () {}, toast: function () {} });
+    var host = document.getElementById('lib-groups-shelf');
+    // V3.829 — the outer 📚 Shelves block, folded by default
+    var outer = LIBRARY_COLLAPSE.register('#lib-groups-shelf', { id: 'lib-shelf', icon: '📚', label: 'Shelves', mirrorHidden: true, defaultCollapsed: true });
+    ok(outer && outer.classList.contains('lg-collapsed') && LIBRARY_COLLAPSE.isCollapsed('lib-shelf') && localStorage.getItem('rm_lib_sections_collapsed') === null, 'the 📚 Shelves block itself starts folded with nothing stored');
+
+    LIBRARY_RECENT.setPool(papers);
+    LIBRARY_GROUPS.render({ filterActive: false });
+    ok(outer.querySelector('[data-lib-sec-count="lib-shelf"]').textContent === '3 new in 30 days', 'its folded header says what is inside: "3 new in 30 days"', outer.querySelector('[data-lib-sec-count="lib-shelf"]').textContent);
+    var secs = Array.prototype.map.call(host.querySelectorAll('section.lg-section'), function (s) { return s.getAttribute('data-sec'); });
+    ok(host.style.display !== 'none' && secs[0] === 'recent' && secs.indexOf('groups') > 0, 'the shelf renders with 🆕 Recently added FIRST, Groups after it', secs.join(','));
+    var rec = host.querySelector('section[data-sec="recent"]'), grp = host.querySelector('section[data-sec="groups"]');
+    ok(rec.classList.contains('lg-collapsed') && grp.classList.contains('lg-collapsed') && Object.keys(stored()).length === 0, 'every shelf starts FOLDED with nothing stored (the default changed, not the store)');
+    ok(/Recently added/.test(rec.querySelector('.lg-sec-title').textContent) && rec.querySelector('.lg-sec-count').textContent === '3 in 30 days' && /newest first/.test(rec.textContent), 'header: 🆕 Recently added · "3 in 30 days" · newest first hint');
+    var body = rec.querySelector('#lib-recent');
+    ok(body && body.classList.contains('lg-sec-body') && body.querySelectorAll('.lrc-row').length === 8, 'the shelf body is #lib-recent, filled with the eight newest', body && body.querySelectorAll('.lrc-row').length);
+    ok(getComputedStyle(body).display === 'none', 'folded → the body is not displayed (CSS specificity check)');
+
+    rec.querySelector('.lg-sec-head').click();
+    rec = host.querySelector('section[data-sec="recent"]'); body = rec.querySelector('#lib-recent');
+    ok(!rec.classList.contains('lg-collapsed') && stored().recent === false && getComputedStyle(body).display === 'block' && body.querySelectorAll('.lrc-row').length === 8, 'click the header → open, stored as recent:false, body visible with its rows');
+    body.querySelector('[data-recent-more]').click();
+    ok(host.querySelector('#lib-recent').querySelectorAll('.lrc-row').length === 10 && !host.querySelector('section[data-sec="recent"]').classList.contains('lg-collapsed'), '"Show more" inside the shelf re-fills the same body (10 dated papers) and keeps it open');
+    host.querySelector('section[data-sec="recent"] .lg-sec-head').click();
+    ok(host.querySelector('section[data-sec="recent"]').classList.contains('lg-collapsed') && stored().recent === true, 'click again → folded, stored as recent:true');
+
+    // Groups keeps its own default: folded; opening it is stored as false; a legacy "reveal" sets false too.
+    grp = host.querySelector('section[data-sec="groups"]'); grp.querySelector('.lg-sec-head').click();
+    ok(!host.querySelector('section[data-sec="groups"]').classList.contains('lg-collapsed') && stored().groups === false, 'Groups opens on click and stores groups:false');
+
+    // See all → the Added filter → the whole shelf hides (results are the focus), the select shows 30d.
+    host.querySelector('section[data-sec="recent"] .lg-sec-head').click();
+    host.querySelector('[data-recent-filter="30d"]').click();
+    LIBRARY_GROUPS.render({ filterActive: true });
+    ok(LIBRARY_RECENT.active() && document.getElementById('library-added').value === '30d' && renders === 1 && host.style.display === 'none', '"See all added in the last 30 days" sets the filter; a filter hides the shelf as always');
+    LIBRARY_RECENT.setFilter('', { silent: true });
+
+    // Widget off → no Recently added section; an undated pool → none either.
+    window.__prefs.widgets_enabled = { shelf_recent: false };
+    LIBRARY_GROUPS.render({ filterActive: false });
+    ok(!host.querySelector('section[data-sec="recent"]') && host.querySelector('section[data-sec="groups"]'), 'Customize → "Shelf: recently added" off removes just that shelf');
+    window.__prefs.widgets_enabled = {};
+    LIBRARY_RECENT.setPool([{ id: 'x', title: 'x', meta: { library: { is_library_entry: true } } }]);
+    LIBRARY_GROUPS.render({ filterActive: false });
+    ok(!host.querySelector('section[data-sec="recent"]'), 'no dated papers → no Recently added shelf');
+    // The store is read once at load; in-memory choices made since (recent:true, groups:false) win over a later localStorage edit.
+    localStorage.setItem('rm_lib_shelf_collapsed', JSON.stringify({ reader: false, groups: true }));
+    LIBRARY_RECENT.setPool(papers);
+    LIBRARY_GROUPS.render({ filterActive: false });
+    ok(!host.querySelector('section[data-sec="recent"]').classList.contains('lg-collapsed') && !host.querySelector('section[data-sec="groups"]').classList.contains('lg-collapsed'), 'the module keeps its own choices (both opened by clicks above: recent open→fold→open, groups open); the store is read once at load');
+
+    // ── V3.827: the readings (assigned / suggested / read) as shelves with counts ──
+    ok(!host.querySelector('section[data-sec="readings-assigned"]'), 'no readings shelves while nothing was ever sent');
+    var R = function (key, kind, done, title) { return { key: key, paperId: key, title: title || ('Reading ' + key), kind: kind, done: done, at: new Date(now - 3 * D).toISOString(), fromName: 'Mentor' }; };
+    LIBRARY_READINGS._setRowsForTesting([R('r1', 'assigned', false), R('r2', 'assigned', false), R('r3', 'suggested', false), R('r4', 'assigned', true)]);
+    LIBRARY_GROUPS.render({ filterActive: false });
+    secs = Array.prototype.map.call(host.querySelectorAll('section.lg-section'), function (s) { return s.getAttribute('data-sec'); });
+    ok(secs.slice(0, 3).join(',') === 'readings-assigned,readings-suggested,readings-done' && secs[3] === 'recent', 'readings shelves come first (assigned, suggested, read), then Recently added', secs.join(','));
+    var cnt = function (id) { return host.querySelector('section[data-sec="' + id + '"] .lg-sec-count').textContent; };
+    ok(cnt('readings-assigned') === '2' && cnt('readings-suggested') === '1' && cnt('readings-done') === '1', 'each readings shelf counts its papers (2 assigned, 1 suggested, 1 read)', [cnt('readings-assigned'), cnt('readings-suggested'), cnt('readings-done')].join('/'));
+    ok(outer.querySelector('[data-lib-sec-count="lib-shelf"]').textContent === '3 to read · 3 new in 30 days', 'the folded Shelves header now reads "3 to read · 3 new in 30 days"', outer.querySelector('[data-lib-sec-count="lib-shelf"]').textContent);
+    outer.querySelector('[data-lib-sec-toggle="lib-shelf"]').click();
+    ok(!outer.classList.contains('lg-collapsed') && JSON.parse(localStorage.getItem('rm_lib_sections_collapsed'))['lib-shelf'] === false && !LIBRARY_COLLAPSE.isCollapsed('lib-shelf'), 'click the Shelves header → open, stored as an explicit false (stays open on the next visit)');
+    outer.querySelector('[data-lib-sec-toggle="lib-shelf"]').click();
+    ok(outer.classList.contains('lg-collapsed') && JSON.parse(localStorage.getItem('rm_lib_sections_collapsed'))['lib-shelf'] === true, 'click again → folded, stored true');
+    var ra = host.querySelector('section[data-sec="readings-assigned"]');
+    ok(ra.classList.contains('lg-collapsed') && getComputedStyle(ra.querySelector('.lr-shelf-body')).display === 'none' && ra.querySelectorAll('.lr-row').length === 2, 'folded by default with its two rows hidden');
+    ra.querySelector('.lg-sec-head').click();
+    ra = host.querySelector('section[data-sec="readings-assigned"]');
+    ok(!ra.classList.contains('lg-collapsed') && getComputedStyle(ra.querySelector('.lr-shelf-body')).display === 'block' && ra.querySelector('.lr-done-btn'), 'opened → the rows show with their "Mark as done" buttons');
+    LIBRARY_READINGS._setRowsForTesting([R('r1', 'assigned', true)]);
+    LIBRARY_GROUPS.render({ filterActive: false });
+    ok(cnt('readings-assigned') === '0' && /Nothing assigned right now/.test(host.querySelector('section[data-sec="readings-assigned"]').textContent) && !host.querySelector('section[data-sec="readings-suggested"]') && cnt('readings-done') === '1', 'everything read → Assigned shows 0 with its empty note, Suggested disappears, Read counts 1');
+    window.__prefs.widgets_enabled = { shelf_readings: false };
+    LIBRARY_GROUPS.render({ filterActive: false });
+    ok(!host.querySelector('section[data-sec="readings-assigned"]') && host.querySelector('section[data-sec="recent"]'), 'Customize → "Shelf: papers sent to me" off removes the readings shelves only');
+    window.__prefs.widgets_enabled = {};
+    LIBRARY_READINGS._setRowsForTesting([]);
+
+    // ── V3.827: a popover is kept fully on screen ──
+    var anchor = document.createElement('button'); anchor.textContent = 'Organize'; anchor.style.cssText = 'position:fixed;left:' + (window.innerWidth - 70) + 'px;top:' + (window.innerHeight - 40) + 'px;'; document.body.appendChild(anchor);
+    var pop = document.createElement('div'); pop.className = 'la-popover lib-org-pop'; pop.innerHTML = '<div style="height:900px">tall</div>'; document.body.appendChild(pop);
+    var fitR = POPOVER_PLACE.fit(pop, anchor.getBoundingClientRect(), { preferLeft: window.innerWidth - 70 - 120 });
+    var pr = pop.getBoundingClientRect();
+    ok(pr.left >= 8 && pr.top >= 8 && pr.right <= window.innerWidth - 8 + 0.5 && pr.bottom <= window.innerHeight - 8 + 0.5, 'a tall popover opened at the bottom-right corner sits fully inside the window: ' + JSON.stringify({ l: Math.round(pr.left), t: Math.round(pr.top), r: Math.round(pr.right), b: Math.round(pr.bottom), vw: window.innerWidth, vh: window.innerHeight, placement: fitR.placement }));
+    ok(pop.scrollHeight > pop.clientHeight && pop.style.overflow === 'auto', 'it scrolls inside instead of overflowing');
+    pop.remove(); anchor.remove();
+  } catch (e) { fail++; out.push('<div class="bad">✗ threw: ' + String(e && e.stack || e).replace(/</g, '&lt;') + '</div>'); }
+  var r = document.getElementById('r');
+  r.innerHTML = '<p><strong>' + pass + ' passed, ' + fail + ' failed</strong></p>' + out.join('');
+  r.setAttribute('data-pass', pass); r.setAttribute('data-fail', fail); r.setAttribute('data-done', '1');
+})();
+</script>
+</body>
+</html>

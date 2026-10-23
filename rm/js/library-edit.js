@@ -393,7 +393,7 @@
         ${_fieldRow('Abstract', 'le-abstract', extrasAbstract, { textarea: true, rows: 5, hint: 'stored in the details subdoc' })}
         <div style="display:flex;align-items:center;gap:8px;margin:2px 0 12px;">
           <button type="button" class="btn btn-sm" id="le-fetch" title="Look up the DOI / PMID / arXiv id above and diff the result against these fields">⇣ Fetch from identifier</button>
-          ${(lib.pdf && lib.pdf.storage_path) ? '<button type="button" class="btn btn-sm" id="le-rescan" title="Pull the stored PDF and re-read its first page — DOI/arXiv sniff + title guess — then diff the result (V3.328)">📄 Re-scan PDF</button>' : ''}
+          ${(lib.pdf && lib.pdf.storage_path) ? '<button type="button" class="btn btn-sm" id="le-rescan" title="Pull the stored PDF and re-read its first page — DOI/arXiv sniff + title guess — then diff the result (V3.328)">' + ICON.svg('document-text') + ' Re-scan PDF</button>' : ''}
           <label style="font-size:12px;color:#374151;display:flex;align-items:center;gap:5px;margin-left:auto;">
             <input type="checkbox" id="le-regen-key">
             Regenerate citation key <code style="color:#9ca3af;">${_esc(lib.citation_key || '')}</code>

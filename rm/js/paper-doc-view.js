@@ -519,7 +519,7 @@
     overlay.className = 'pdv-overlay';
     overlay.innerHTML =
       '<div class="pdv-toolbar">' +
-      '<span class="pdv-toolbar-title">📄 Document view</span>' +
+      '<span class="pdv-toolbar-title">' + ICON.svg('document-text') + ' Document view</span>' +
       '<label class="pdv-toolbar-field">Journal ' +
       '<select id="pdv-template"' + (editable ? '' : ' disabled title="Read-only — only paper authors can change the journal"') + '></select>' +
       '</label>' +
@@ -537,7 +537,7 @@
       /* V3.416 — section styles: insert the current journal's special
        * sections (PNAS Significance…), any other journal's, or a custom
        * style. Editable-gated in open(). */
-      '<button class="btn btn-sm" id="pdv-insert" title="Insert a section — journal special sections or custom styles" hidden>＋ Insert ▾</button>' +
+      '<button class="btn btn-sm" id="pdv-insert" title="Insert a section — journal special sections or custom styles" hidden>' + ICON.svg('plus') + ' Insert ' + ICON.svg('chevron-down') + '</button>' +
       '<span class="pdv-pages-label" id="pdv-pages"></span>' +
       '<span class="pdv-status" id="pdv-status"></span>' +
       '<span class="pdv-toolbar-spacer"></span>' +
@@ -593,7 +593,7 @@
       '</label>' +
       '<a class="btn btn-sm" id="pdv-compile-link" href="/rm/pages/paper-export.html?paper=' +
         encodeURIComponent(state.paperId) + '" title="Open the Export workspace to compile the real PDF">Compile PDF →</a>' +
-      '<button class="btn btn-sm" id="pdv-close" title="Close (Esc)">✕</button>' +
+      '<button class="btn btn-sm" id="pdv-close" title="Close (Esc)">' + ICON.svg('x-mark') + '</button>' +
       '</div>' +
       '<div class="pdv-desk"><div class="pdv-scale-outer"><div class="pdv-scale"></div></div></div>' +
       /* V3.406 — Layout-mode color key. Content washes out while the
@@ -934,7 +934,8 @@
     var textIn = g ? g.bodyH / 96 : null;
     var parts = ['≈' + d.fontPt + 'pt', d.lpi + '/in'];
     if (textIn) parts.push('≈' + Math.round(d.lpi * textIn) + '/pg');
-    out.textContent = (d.clamped ? '⚠ ' : '') + parts.join(' · ');
+    if (d.clamped) ICON.label(out, 'exclamation-triangle', ' ' + parts.join(' · '));
+    else out.textContent = parts.join(' · ');
     if (d.warning) out.title = d.warning; else out.removeAttribute('title');
   }
   /* Commit a density change. bodyLpi is the canonical stored metric: 'lpi'
@@ -1529,7 +1530,11 @@
        * resolve "insert before this paragraph". */
       p.dataset.blockId = blk.id || '';
       p.dataset.blockKind = 'paragraph';
-      p.innerHTML = pe.renderParagraphHtml(body);
+      /* V3.649 — body lists render here too, or the journal preview would
+       * print the raw "- item" lines the editor shows as a list. */
+      p.innerHTML = pe.renderParagraphBodyHtml
+        ? pe.renderParagraphBodyHtml(body)
+        : pe.renderParagraphHtml(body);
       return { el: p, type: 'col' };
     }
 
@@ -1702,12 +1707,32 @@
       var tMerges = PLt.parseTableMerges ? PLt.parseTableMerges(ta.merges_json) : {};
       var tCover = PLt.tableCoverMap ? PLt.tableCoverMap(tMerges, rows, cols) : { anchors: {}, skip: {}, cont: {} };
       var tWidths = PLt.parseTableWidths ? PLt.parseTableWidths(ta.widths_json, cols) : null;
-      var html = '<table class="pdv-table' + (booktabs ? ' pdv-booktabs' : ' pdv-grid') + '">';
-      var anyWidth = tWidths && tWidths.some(function (w) { return w.mode !== 'auto'; });
+      /* V3.651 — table styling, from the same shared parse the editor and
+       * the .tex export read, so the journal-page preview shows the rules,
+       * striping, row height, font size and per-cell formatting that will
+       * actually compile. */
+      var tSt = PLt.parseTableStyle ? PLt.parseTableStyle(ta.style_json, ta.booktabs) : null;
+      var tCellSt = PLt.parseTableCellStyles ? PLt.parseTableCellStyles(ta.cell_styles_json) : {};
+      var tFills = PLt.TABLE_FILLS || {};
+      var tRowExt = PLt.parseTableRowExtras
+        ? PLt.parseTableRowExtras(ta.row_heights_json) : {};
+      var tCls = 'pdv-table' + (booktabs ? ' pdv-booktabs' : ' pdv-grid');
+      var tStyleAttr = '';
+      if (tSt) {
+        tCls += ' pdv-tbl-rules-' + tSt.rules + ' pdv-tbl-dens-' + tSt.density +
+          (tSt.zebra ? ' pdv-tbl-zebra' : '') + (tSt.wrap ? ' pdv-tbl-wrap' : '');
+        if (tSt.sizeCss !== 1) tStyleAttr = ' style="font-size:' + (tSt.sizeCss * 100).toFixed(0) + '%"';
+      }
+      var html = '<table class="' + tCls + '"' + tStyleAttr + '>';
+      /* V3.652 — a wrapping table is table-layout:fixed, which needs a
+       * width on every column; the shares match the .tex exactly. */
+      var tShares = (tSt && tSt.wrap && PLt.tableColShares)
+        ? PLt.tableColShares(tWidths, cols) : tWidths;
+      var anyWidth = tShares && tShares.some(function (w) { return w.mode !== 'auto'; });
       if (anyWidth) {
         html += '<colgroup>';
         for (var wc = 0; wc < cols; wc++) {
-          var w = tWidths[wc];
+          var w = tShares[wc];
           if (w.mode === 'frac') html += '<col style="width:' + (w.v * 100).toFixed(1) + '%">';
           else if (w.mode === 'mm') html += '<col style="width:' + (w.v * 96 / 25.4).toFixed(0) + 'px">';
           else html += '<col>';
@@ -1715,18 +1740,40 @@
         html += '</colgroup>';
       }
       for (var r = 0; r < rows; r++) {
-        html += '<tr' + (headerRow && r === 0 ? ' class="pdv-thead"' : '') + '>';
+        var trCls = [];
+        if (headerRow && r === 0) trCls.push('pdv-thead');
+        if (r === 0) trCls.push('pdv-tbl-r-first');
+        if (r === rows - 1) trCls.push('pdv-tbl-r-last');
+        if (tSt && tSt.rule_after.indexOf(r) !== -1) trCls.push('pdv-tbl-ruled');
+        if (tSt && tSt.zebra && r % 2 === 1) trCls.push('pdv-tbl-zebrarow');
+        var trStyle = '';
+        if (tRowExt[r] > 0) {
+          trCls.push('pdv-tbl-rowext');
+          trStyle = ' style="--pdv-row-extra:' + (tRowExt[r] * 96 / 72).toFixed(1) + 'px"';
+        }
+        html += '<tr' + (trCls.length ? ' class="' + trCls.join(' ') + '"' : '') + trStyle + '>';
         for (var c = 0; c < cols; c++) {
           var key = r + '-' + c;
           if (tCover.skip[key] || tCover.cont[key] != null) continue;   // merged away
           var v = cells[key];
-          var a = align.charAt(c) === 'c' ? 'center' : align.charAt(c) === 'r' ? 'right' : 'left';
+          var cSt = tCellSt[key] || {};
+          var aCh = cSt.al || align.charAt(c);
+          var a = aCh === 'c' ? 'center' : aCh === 'r' ? 'right' : 'left';
           var anchor = tCover.anchors[key];
           var spanAttrs = anchor
             ? (anchor.cs > 1 ? ' colspan="' + anchor.cs + '"' : '') +
               (anchor.rs > 1 ? ' rowspan="' + anchor.rs + '"' : '')
             : '';
-          html += '<td' + spanAttrs + ' style="text-align:' + a + '">' + _esc(v == null ? '' : String(v)) + '</td>';
+          var tdCss = 'text-align:' + a;
+          if (cSt.b) tdCss += ';font-weight:700';
+          if (cSt.i) tdCss += ';font-style:italic';
+          var tdCls = '';
+          if (cSt.bg && tFills[cSt.bg]) {
+            tdCss += ';background:' + tFills[cSt.bg].css;
+            tdCls = ' class="pdv-cell-filled"';
+          }
+          html += '<td' + spanAttrs + tdCls + ' style="' + tdCss + '">' +
+            _esc(v == null ? '' : String(v)) + '</td>';
         }
         html += '</tr>';
       }
@@ -3805,7 +3852,7 @@
     }
 
     /* Other journals — loaded lazily on expand (static template JSONs). */
-    var otherBtn = _menuItem('🌐 Other journals’ sections…', function () {
+    var otherBtn = _menuItem(ICON.svg('globe-alt') + ' Other journals’ sections…', function () {
       otherBtn.disabled = true;
       otherBtn.innerHTML = 'Loading catalogs…';
       var known = (window.PaperExportConfig && window.PaperExportConfig.KNOWN_TEMPLATES) || [];
@@ -3876,17 +3923,17 @@
     pop.innerHTML =
       '<div class="pdv-fig-pop-title">Section</div>' +
       '<div class="pdv-fig-pop-actions pdv-sec-actions">' +
-      '<button type="button" data-sec-rename>✎ Rename…</button>' +
+      '<button type="button" data-sec-rename>' + ICON.svg('pencil') + ' Rename…</button>' +
       '<button type="button" data-sec-up>↑ Up</button>' +
       '<button type="button" data-sec-down>↓ Down</button>' +
       '</div>' +
       '<div class="pdv-fig-pop-actions pdv-sec-actions">' +
       '<button type="button" data-sec-start>⤒ To start</button>' +
-      '<button type="button" data-sec-end>⤓ To end</button>' +
-      '<button type="button" data-sec-del>🗑 Delete</button>' +
+      '<button type="button" data-sec-end>' + ICON.svg('arrow-down-tray') + ' To end</button>' +
+      '<button type="button" data-sec-del>' + ICON.svg('trash') + ' Delete</button>' +
       '</div>' +
       '<div class="pdv-fig-pop-hint">Moves reorder the whole section (and its .tex file). Rename edits the section label.</div>' +
-      '<button class="pdv-fig-pop-close" title="Close">✕</button>';
+      '<button class="pdv-fig-pop-close" title="Close">' + ICON.svg('x-mark') + '</button>';
     state.overlayEl.appendChild(pop);
     state.popEl = pop;
     var r = el.getBoundingClientRect();
@@ -3968,7 +4015,7 @@
       '<option value="page"' + (curSpan === 'page' ? ' selected' : '') + '>Both columns</option>' +
       '</select></label>' +
       '<div class="pdv-fig-pop-hint">In two-column journals a spanning equation breaks the column run (LaTeX: cuted\'s strip environment — it lands where the column ends). One-column layouts ignore span.</div>' +
-      '<button class="pdv-fig-pop-close" title="Close">✕</button>';
+      '<button class="pdv-fig-pop-close" title="Close">' + ICON.svg('x-mark') + '</button>';
     state.overlayEl.appendChild(pop);
     state.popEl = pop;
     var er = eqEl.getBoundingClientRect();
@@ -4072,18 +4119,18 @@
       '<button type="button" data-pdv-sp-plus title="Looser (+1 mm)">+</button>' +
       '<button type="button" data-pdv-sp-reset title="Back to the document default"' + (curSpacing === 0 ? ' hidden' : '') + '>reset</button>' +
       '</span></label>' +
-      '<label class="pdv-fig-pop-check"><input type="checkbox" data-pdv-lock' + (curLock ? ' checked' : '') + '> 🔒 Lock exact position <span class="pdv-fig-pop-sub">(preprint builds)</span></label>' +
+      '<label class="pdv-fig-pop-check"><input type="checkbox" data-pdv-lock' + (curLock ? ' checked' : '') + '> ' + ICON.svg('lock-closed') + ' Lock exact position <span class="pdv-fig-pop-sub">(preprint builds)</span></label>' +
       (isTable ? '' :
       '<label class="pdv-fig-pop-check"><input type="checkbox" data-pdv-center' + (curCenter ? ' checked' : '') + '> Centered</label>' +
       /* V3.402 — replace the image (upload or unplaced-figures library). */
       '<div class="pdv-fig-pop-actions">' +
-      '<button type="button" data-pdv-upload>🖼 Upload image…</button>' +
-      '<button type="button" data-pdv-library>📚 From library…</button>' +
+      '<button type="button" data-pdv-upload>' + ICON.svg('photo') + ' Upload image…</button>' +
+      '<button type="button" data-pdv-library>' + ICON.svg('books') + ' From library…</button>' +
       '</div>' +
       '<input type="file" data-pdv-file accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,application/pdf" style="display:none">' +
       '<div class="pdv-fig-pop-lib" data-pdv-lib hidden></div>') +
       '<div class="pdv-fig-pop-hint">Anchor + span + lock drive the LaTeX float (' + (isTable ? 'table' : 'figure') + '* spans both columns in two-column journals). Spacing nudges the gap on the text side (mm, on top of the document preset) — the preview shows it for top/bottom-anchored floats; in-flow blocks carry it to the PDF only. Changes save to the block — the panels and export see them too.</div>' +
-      '<button class="pdv-fig-pop-close" title="Close">✕</button>';
+      '<button class="pdv-fig-pop-close" title="Close">' + ICON.svg('x-mark') + '</button>';
     state.overlayEl.appendChild(pop);
     state.popEl = pop;
 
@@ -4221,7 +4268,7 @@
         }).catch(function (e) {
           _status('Upload failed: ' + ((e && e.message) || e));
           upBtn.disabled = false;
-          upBtn.textContent = '🖼 Upload image…';
+          ICON.label(upBtn, 'photo', ' Upload image…');
         });
       });
     }
@@ -4365,7 +4412,7 @@
       '<span>Citation' + (keys.length > 1 ? 's' : '') + ' &amp; evidence' +
       (opts.preview ? ' <i class="pdv-cite-preview-tag">hover preview — click to set</i>' : '') +
       '</span>' +
-      '<button class="pdv-cite-panel-close" title="Close (Esc)">✕</button></div>' +
+      '<button class="pdv-cite-panel-close" title="Close (Esc)">' + ICON.svg('x-mark') + '</button></div>' +
       '<div class="pdv-cite-panel-body">';
     keys.forEach(function (key) {
       var hit = byKey[key];

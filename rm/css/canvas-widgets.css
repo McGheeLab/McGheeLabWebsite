@@ -1,0 +1,52 @@
+/* ================================================================
+   canvas-widgets.css — V3.833 — the + Insert picker and ⋯ menus shared
+   by the canvas hosts (rm/js/canvas-widgets.js).
+   ================================================================ */
+.cw-pop{
+  position: fixed; z-index: 2600; min-width: 260px; max-width: min(92vw, 360px); max-height: min(70vh, 520px);
+  display: flex; flex-direction: column; background: #fff; border: 1px solid #d1d5db; border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(15,23,42,.18); overflow: hidden; font-size: .88rem; color: #111827;
+}
+.cw-pop-head{ padding: 8px 12px 4px; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: #6b7280; }
+.cw-pop-q{ margin: 4px 10px 6px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; }
+.cw-pop-list{ overflow: auto; min-height: 0; padding-bottom: 6px; }
+.cw-group{ padding: 8px 12px 2px; font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: #9ca3af; }
+.cw-row{
+  display: flex; align-items: flex-start; gap: 10px; width: 100%; text-align: left; padding: 7px 12px; border: 0;
+  background: transparent; cursor: pointer; font: inherit; color: inherit;
+}
+.cw-row:hover, .cw-row:focus{ background: #f3f4f6; outline: none; }
+.cw-ic{ flex: none; width: 1.5em; text-align: center; font-size: 1.05em; }
+.cw-txt{ display: flex; flex-direction: column; min-width: 0; }
+.cw-txt b{ font-weight: 600; }
+.cw-txt small{ color: #6b7280; font-size: .78em; line-height: 1.3; }
+.cw-empty{ padding: 14px 12px; color: #6b7280; }
+.cw-actions{ min-width: 200px; padding: 4px 0; }
+.cw-danger b{ color: #dc2626; }
+.cw-act[data-armed="1"]{ background: #fef2f2; }
+
+/* ─── V3.841 HTML frame card ─── */
+.cw-frame-wrap{ position: relative; width: 100%; background: #fff; border: 1px solid var(--rule, #d1d5db); border-radius: 6px; overflow: hidden; }
+.cw-frame{ position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+.cw-frame-bar{ display: flex; align-items: center; gap: .5em; margin-top: .35em; font-size: .78em; color: var(--ink-3, #6b7280); }
+.cw-frame-name{ flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--f-m, ui-monospace, monospace); }
+.cw-frame-size{ flex: none; font-variant-numeric: tabular-nums; }
+.cw-frame-btn{ flex: none; border: 0; background: transparent; color: var(--ink-3, #6b7280); cursor: pointer; font: inherit; font-size: 1.1em; line-height: 1; padding: 0 .2em; text-decoration: none; border-radius: 4px; }
+.cw-frame-btn:hover{ background: var(--surface-2, #f3f4f6); color: var(--ink, #111827); }
+.cw-frame-hgrip{ flex: none; cursor: ns-resize; touch-action: none; padding: 0 .3em; border: 1px dashed var(--rule-2, #b8b1a3); border-radius: 4px; user-select: none; }
+.cw-frame-drop{ padding: 1em; text-align: center; border: 1.5px dashed var(--rule-2, #b8b1a3); border-radius: 6px; color: var(--ink-3, #6b7280); font-size: .9em; }
+.cw-frame-drop.cw-over{ border-color: var(--teal, #0D675E); background: var(--teal-soft, rgba(13,103,94,.08)); }
+.cw-frame-hint{ margin-top: .4em; font-size: .85em; color: var(--ink-4, #9ca3af); }
+.cw-frame-empty{ color: var(--ink-4, #9ca3af); font-style: italic; }
+
+/* ─── V3.854 ✓ Report to My Week — the picker on a card's ✓ ─── */
+.mwr-pop{ min-width: 300px; }
+.mwr-card{ display: flex; align-items: center; gap: 8px; margin: 0 12px 6px; padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f8fafc; font-size: .82em; color: #374151; }
+.mwr-card img{ width: 36px; height: 26px; object-fit: cover; border-radius: 4px; flex: none; }
+.mwr-glyph{ flex: none; }
+.mwr-ctitle{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.mwr-row[disabled]{ opacity: .55; cursor: default; }
+.mwr-row[disabled]:hover{ background: transparent; }
+.mwr-link{ color: #16a34a; font-weight: 600; }
+.mwr-foot{ padding: 6px 12px 8px; font-size: .78em; color: #6b7280; border-top: 1px solid #f3f4f6; }
+.mwr-foot a{ color: #2563eb; }

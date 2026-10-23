@@ -1,0 +1,20 @@
+/* library-recent.css — V3.825 "Recently added" strip + the Added filter */
+.lib-added-select { padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; background: #fff; color: #374151; max-width: 220px; }
+.lib-added-select.lib-added-on { border-color: #6366f1; color: #3730a3; background: #eef2ff; }
+/* the shelf body is a column of rows, not chips — but a folded shelf still hides it */
+#lib-recent.lg-sec-body { display: block; }
+.lg-collapsed > #lib-recent.lg-sec-body { display: none; }
+.lrc-list { display: flex; flex-direction: column; gap: 6px; }
+.lrc-row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; }
+.lrc-main { flex: 1; min-width: 0; }
+.lrc-title { font-weight: 600; color: #111827; text-decoration: none; font-size: 13px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lrc-title:hover { text-decoration: underline; color: #1d4ed8; }
+.lrc-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: #6b7280; margin-top: 2px; }
+.lrc-when { color: #4f46e5; }
+.lrc-actions { flex-shrink: 0; }
+.lrc-nopdf { font-size: 11px; color: #9ca3af; }
+.lrc-foot { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; margin-top: 8px; font-size: 12px; }
+.lrc-foot a { color: #4f46e5; text-decoration: none; }
+.lrc-foot a:hover { text-decoration: underline; }
+.lrc-active { color: #3730a3; background: #eef2ff; padding: 2px 8px; border-radius: 999px; }
+@media (max-width: 640px) { .lrc-row { flex-wrap: wrap; } .lrc-title { white-space: normal; } .lib-added-select { max-width: 100%; } }

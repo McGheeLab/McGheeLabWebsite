@@ -5,10 +5,13 @@
  *   openPaper(foci, onDone)       — spawn a real paper-builder draft with
  *                                   students assigned, linked into the
  *                                   card's draft_refs.
- *   openGrantIdea(foci, onDone)   — capture a grant idea as an output card
- *                                   with grant_meta (agency, mechanism,
- *                                   where to submit, deadline, scope).
- *   promoteGrantIdea(foci, onDone)— turn a grant-idea card into a real
+ *   openGrantIdea(foci, onDone)   — V3.717: grants are their own LEVEL, and
+ *                                   grant_meta is edited inline on the grant
+ *                                   card's own form, so this now delegates to
+ *                                   the composer. Kept as a stable entry
+ *                                   point; the standalone-idea path creates a
+ *                                   grant card pre-linked to its concept.
+ *   promoteGrantIdea(foci, onDone)— turn a grant card into a real
  *                                   paper_type:'grant' draft in the builder,
  *                                   stamping grant_meta.promoted_draft_id.
  *
@@ -159,16 +162,24 @@
   /* ── 💡 New grant idea ──────────────────────────────────────── */
 
   function openGrantIdea(f, onDone, parentConcept) {
-    // V3.558 — grants live WITHIN concepts: pass the CONCEPT as `f` and its
-    // grant_meta is captured/edited on the concept doc itself (no separate
-    // card, no title to type). f null → legacy standalone idea card
-    // (kept for the rare unanchored case); parentConcept pre-links it.
+    /* V3.717 — a grant is a card in its own right, and its agency /
+     * mechanism / deadline / scope live on that card's own edit form
+     * (research-composer.js). Editing an existing grant therefore hands
+     * straight over rather than keeping a second editor for the same
+     * fields — two editors for one shape is how they drift.
+     *
+     * The modal below survives only for the CREATE path: capturing a grant
+     * from a concept before there is a card to edit. */
+    if (f && f.level === 'grant' && window.RESEARCH_COMPOSER) {
+      RESEARCH_COMPOSER.openEdit(f, onDone);
+      return;
+    }
     var isNew = !f;
     var gm = (f && f.grant_meta) || {};
     var m = RD.modal({
       title: isNew
-        ? '💡 New grant idea' + (parentConcept ? ' — ' + parentConcept.title : '')
-        : '💡 Grant idea — ' + f.title,
+        ? 'New grant idea' + (parentConcept ? ' — ' + parentConcept.title : '')
+        : 'Grant idea — ' + f.title,
       wide: true,
     });
 
@@ -217,19 +228,18 @@
           var title = gv('[data-gi-title]');
           if (!title) { showErr('Title is required.'); act.disabled = false; return; }
           await RD.create({
-            level: 'output', title: title, one_liner: gv('[data-gi-liner]'),
-            status: 'planning', grant_meta: grantMeta,
-            // Pre-link back to the originating concept (grant ideas come
-            // from concepts; the concept's Outputs section picks this up).
+            // V3.717 — a GRANT card, starting at the front of its own
+            // lifecycle. Pre-linked to the concept it came from, which is
+            // what the concept's Grants section reads back.
+            level: 'grant', title: title, one_liner: gv('[data-gi-liner]'),
+            status: 'in_preparation', status_source: 'manual', grant_meta: grantMeta,
             links: parentConcept ? { concept_ids: [parentConcept.id] } : {},
           });
         } else {
-          // Concepts keep their own status untouched; the grant idea is a
-          // facet of the concept, not its lifecycle.
           await RD.update(f.id, { grant_meta: grantMeta });
         }
         m.close();
-        toast('success', 'Grant idea saved.');
+        toast('success', 'Grant saved.');
         if (onDone) onDone();
       } catch (err) {
         showErr(err && err.message || 'Save failed.');
@@ -255,9 +265,11 @@
         notes: gm.submit_to ? ('Submit to: ' + gm.submit_to + (gm.target_deadline && gm.target_deadline !== 'TBD' ? ' by ' + gm.target_deadline : '')) : '',
       });
       await linkDraftToFocus(f, row, 'grant', f.member_uids || []);
-      // Only output cards take their lifecycle from the draft; a CONCEPT's
-      // status is its own (V3.558 — the grant is a facet of the concept).
+      // Only output cards take their lifecycle from the draft. A GRANT's
+      // status is manual, always (V3.717) — promoting it to a builder draft
+      // is not the same event as submitting it, so nothing moves here.
       if (f.level === 'output') await RD.update(f.id, { status: 'drafting', status_source: 'derived' });
+      if (f.level === 'grant') await RD.update(f.id, { source_draft_id: row.id });
       toast('success', 'Grant draft created.');
       if (onDone) await onDone();
       if (confirm('Open the grant in the builder?')) {

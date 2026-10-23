@@ -1,0 +1,27 @@
+/* ================================================================
+   figure-board-canvas.css — V3.837 — the paper's figure board on the canvas
+   engine. Shares the notebook canvas frame (.nbc-page in notebook-canvas.css);
+   this adds the figure-board cards and the region → panel bar.
+   ================================================================ */
+body.fbc-body{ margin: 0; background: #E6E1D7; }
+.fbc-page{ padding: 0 8px 4px; }
+.fbc-root{ height: 100dvh; min-height: 420px; }
+.fbc-header .nbc-title{ max-width: 48vw; }
+.fbc-card-top{ display: flex; align-items: center; gap: .4em; margin-bottom: .3em; }
+.fbc-status{ border: 1px solid var(--rule-2, #BCB4A4); border-radius: 999px; padding: .05em .6em; font: 600 .68em/1.6 var(--f-m, ui-monospace, monospace); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; background: var(--surface-2, #E0DACF); color: var(--ink-2, #4D483F); }
+.fbc-status-expected, .fbc-status-running{ background: #EEE1C8; color: #85590A; border-color: #d9c38f; }
+.fbc-status-collected, .fbc-status-done{ background: #DAE6D6; color: #22693D; border-color: #a9c7a4; }
+.fbc-card-img{ width: 100%; height: auto; display: block; border-radius: 5px; margin-bottom: .3em; }
+.fbc-panel{ position: relative; background: #fff; border-radius: 5px; overflow: hidden; border: 1px solid var(--rule, #D0C9BB); }
+.fbc-panel img{ width: 100%; height: auto; display: block; }
+.fbc-panel-clean{ border-color: var(--teal, #0D675E); }
+.fbc-letter{ position: absolute; left: .35em; top: .3em; font: 700 1.05em/1 var(--f-d, sans-serif); color: var(--ink, #24211C); background: rgba(255,255,255,.85); border-radius: 4px; padding: .1em .3em; }
+.fbc-panel-note{ font: .72em/1.4 var(--f-m, ui-monospace, monospace); color: var(--ink-3, #766F63); margin-top: .3em; }
+.wb-item-widget.wb-collapsed .fbc-letter{ display: none; }
+.fbc-lit-meta{ font: .78em/1.4 var(--f-m, ui-monospace, monospace); color: var(--ink-3, #766F63); margin-bottom: .3em; }
+.fbc-lit-points{ margin: 0; padding-left: 1.2em; font-family: var(--f-b, serif); font-size: 1em; line-height: 1.5; }
+.fbc-lit-points li{ margin: .15em 0; }
+.fbc-region-acts{ position: absolute; left: 50%; bottom: 70px; transform: translateX(-50%); z-index: 20; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; max-width: 92%; padding: 8px 10px; border-radius: 12px; background: var(--surface, #F1EDE5); border: 1px solid var(--rule-2, #BCB4A4); box-shadow: 0 8px 24px -12px rgba(36,33,28,.5); font-size: .85rem; }
+.fbc-region-n{ font: 500 .78rem/1 var(--f-m, ui-monospace, monospace); color: var(--ink-3, #766F63); margin-right: 4px; }
+.fbc-thread{ padding: 8px; }
+.nbc-mount{ position: relative; }

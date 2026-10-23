@@ -42,20 +42,20 @@
     code: 'Code', cards: 'Cards', refs: 'References',
   };
   var NODE_ICONS = {
-    input: '🎚', constant: '📌', choices: '🔀',
-    ordered: '📶', equation: '🧮', list: '📋',
-    code: '📜', cards: '📊', refs: '🔗',
+    input: 'adjustments-horizontal', constant: 'pin', choices: 'arrows-right-left',
+    ordered: 'signal', equation: 'variable', list: 'clipboard-document-list',
+    code: 'document', cards: 'chart-bar', refs: 'link',
   };
   var NODE_HINTS = {
     input: 'A value the protocol user sets at run time (slider or number).',
-    constant: 'A fixed value the lab owns — pick common scientific constants from its ⚛ Preset.',
+    constant: 'A fixed value the lab owns — pick common scientific constants from its Preset.',
     choices: 'A set of options; makes downstream calculations per-item.',
     ordered: 'Ordered values where each member stays below the next.',
     equation: 'Compute a new variable from the variables bound into it.',
     list: 'The generated item list — wire choices / ordered sets / per-item equations in.',
     code: 'A JavaScript snippet: wired variables become named arguments; return { output: value }.',
     cards: 'GATE: which variables show as result cards on the document.',
-    refs: 'GATE: which values the editor’s 🔗 picker offers inline (card variables are included automatically).',
+    refs: 'GATE: which values the editor’s Reference picker offers inline (card variables are included automatically).',
   };
 
   function mount(hostEl, opts) {
@@ -82,7 +82,7 @@
         var b = document.createElement('button');
         b.type = 'button';
         b.className = 'pge-pal-btn pge-pal-' + t;
-        b.textContent = NODE_ICONS[t] + ' ' + NODE_LABELS[t];
+        ICON.label(b, NODE_ICONS[t], ' ' + NODE_LABELS[t]);
         b.title = NODE_HINTS[t];
         b.addEventListener('click', function () { addNode(t); });
         palette.appendChild(b);
@@ -95,7 +95,7 @@
       var recBtn = document.createElement('button');
       recBtn.type = 'button';
       recBtn.className = 'pge-pal-btn pge-recipes-btn';
-      recBtn.textContent = '✨ Recipes ▾';
+      ICON.label(recBtn, 'sparkles', ' Recipes ▾');
       recBtn.title = 'Insert a common pre-wired node pattern';
       var recMenu = document.createElement('div');
       recMenu.className = 'pge-recipes-menu';
@@ -112,7 +112,7 @@
         var it = document.createElement('button');
         it.type = 'button';
         it.className = 'pge-recipes-item';
-        it.innerHTML = '<span class="pge-recipes-label">' + esc((r.icon ? r.icon + ' ' : '') + r.label) + '</span>' +
+        it.innerHTML = '<span class="pge-recipes-label">' + (r.icon ? ICON.render(r.icon) + ' ' : '') + esc(r.label) + '</span>' +
           '<span class="pge-recipes-hint">' + esc(r.hint || '') + '</span>';
         it.addEventListener('click', function (e) {
           e.stopPropagation();
@@ -174,7 +174,7 @@
       var tourBtn = document.createElement('button');
       tourBtn.type = 'button';
       tourBtn.className = 'pge-pal-btn pge-tours-btn';
-      tourBtn.textContent = '🎓 Tours ▾';
+      ICON.label(tourBtn, 'academic-cap', ' Tours ▾');
       tourBtn.title = 'Guided walkthroughs — learn each node and the common patterns';
       var tourMenu = document.createElement('div');
       tourMenu.className = 'pge-recipes-menu pge-tours-menu';
@@ -205,7 +205,7 @@
           var it = document.createElement('button');
           it.type = 'button';
           it.className = 'pge-recipes-item';
-          it.innerHTML = '<span class="pge-recipes-label">' + esc(t.icon + ' ' + t.title) + '</span>' +
+          it.innerHTML = '<span class="pge-recipes-label">' + (t.icon ? ICON.render(t.icon) + ' ' : '') + esc(t.title) + '</span>' +
             '<span class="pge-recipes-hint">' + esc(t.blurb || '') + '</span>';
           it.addEventListener('click', function (e) {
             e.stopPropagation();
@@ -432,7 +432,7 @@
       strip.innerHTML = '';
       if (res.errors.length) {
         strip.className = 'pge-strip pge-strip-error';
-        strip.textContent = '⚠ ' + res.errors.join(' · ');
+        ICON.label(strip, 'exclamation-triangle', ' ' + res.errors.join(' · '));
       } else if (res.warnings.length) {
         strip.className = 'pge-strip pge-strip-warn';
         strip.textContent = res.warnings.join(' · ');
@@ -577,7 +577,7 @@
       var colBtn = document.createElement('button');
       colBtn.type = 'button';
       colBtn.className = 'pge-collapse';
-      colBtn.textContent = n.collapsed ? '▸' : '▾';
+      ICON.label(colBtn, n.collapsed ? 'chevron-right' : 'chevron-down');
       colBtn.title = n.collapsed ? 'Expand node' : 'Collapse node';
       colBtn.addEventListener('click', function (e) {
         e.stopPropagation(); n.collapsed = !n.collapsed; if (canEdit) persist(); render();
@@ -595,8 +595,9 @@
       head.appendChild(zoomToBtn);
       var ttl = document.createElement('span');
       ttl.className = 'pge-node-title';
-      ttl.textContent = (NODE_ICONS[n.type] || '') + ' ' + NODE_LABELS[n.type] +
-        (nodeName(n) !== n.type ? (' · ' + nodeName(n)) : '');
+      var ttlText = ' ' + NODE_LABELS[n.type] + (nodeName(n) !== n.type ? (' · ' + nodeName(n)) : '');
+      if (NODE_ICONS[n.type]) ICON.label(ttl, NODE_ICONS[n.type], ttlText);
+      else ttl.textContent = ttlText;
       head.appendChild(ttl);
       if (n.type === 'input' || n.type === 'constant' || n.type === 'equation') {
         var badge = document.createElement('span');
@@ -632,7 +633,7 @@
             renderedEdges[vd.id] = true;
           } else {
             row.appendChild(makeInDot(n.id, { disabled: true,
-              title: 'a fixed value — to display a variable on the document, use 📊 Cards / 🔗 References' }));
+              title: 'a fixed value — to display a variable on the document, use a Cards / References node' }));
           }
         } else {
           row.appendChild(makeInDot(n.id, { disabled: true,
@@ -774,7 +775,7 @@
         });
         card.appendChild(del);
         head.addEventListener('pointerdown', function (e) {
-          if (e.target !== head && e.target !== ttl) return;
+          if (e.target !== head && !ttl.contains(e.target)) return;  // ttl holds an icon <svg> now
           e.preventDefault();
           var startX = e.clientX, startY = e.clientY, origX = n.x, origY = n.y;
           function move(ev) {
@@ -902,7 +903,7 @@
         dtag.textContent = (n.type === 'cards') ? 'card' : 'inline';
         dtag.title = (n.type === 'cards')
           ? 'Shows as a result card on the document (and is referencable inline)'
-          : 'Offered by the editor’s 🔗 reference picker';
+          : 'Offered by the editor’s reference picker';
         main.appendChild(dtag);
       } else if (role !== 'param') {
         var tag = document.createElement('span');
@@ -1089,7 +1090,7 @@
         var sel = document.createElement('select');
         sel.className = 'pge-field-select';
         var ph = document.createElement('option');
-        ph.value = ''; ph.textContent = '⚛ common constants…';
+        ph.value = ''; ph.textContent = 'Common constants…';
         sel.appendChild(ph);
         cat.forEach(function (c, i) {
           var o = document.createElement('option');
@@ -1470,7 +1471,7 @@
       numIn.placeholder = '123';
       numIn.className = 'pge-fpad-num';
       numIn.disabled = !toks || !allowed.operand;
-      numIn.title = 'Unitless number. A constant WITH a unit belongs in a 📌 Constant node, wired in.';
+      numIn.title = 'Unitless number. A constant WITH a unit belongs in a Constant node, wired in.';
       var numBtn = document.createElement('button');
       numBtn.type = 'button';
       numBtn.className = 'pge-fpad-opbtn pge-fpad-numgo';
@@ -1551,7 +1552,7 @@
           if (msgs.length) {
             var warn = document.createElement('div');
             warn.className = 'pge-fpad-unitwarn';
-            warn.textContent = '⚠ ' + msgs.join(' · ');
+            ICON.label(warn, 'exclamation-triangle', ' ' + msgs.join(' · '));
             wrap.appendChild(warn);
           } else {
             var infoNm = PG().dimName(chk.dim);
@@ -2003,7 +2004,7 @@
 
     function flashStrip(msg, kind) {
       strip.className = 'pge-strip pge-strip-' + (kind === 'warn' ? 'warn' : 'error');
-      strip.textContent = '⚠ ' + msg;
+      ICON.label(strip, 'exclamation-triangle', ' ' + msg);
       setTimeout(recompileFeedback, 2600);
     }
 
@@ -2055,7 +2056,7 @@
           graph.edges = graph.edges.filter(function (x) { return !hitSet[x.id]; });
           persist(); render();
           strip.className = 'pge-strip pge-strip-ok';
-          strip.textContent = '✂ Cut ' + hitCount + ' wire' + (hitCount === 1 ? '' : 's') + '.';
+          ICON.label(strip, 'scissors', ' Cut ' + hitCount + ' wire' + (hitCount === 1 ? '' : 's') + '.');
           setTimeout(recompileFeedback, 2000);
         } else {
           drawWires(); // clear any stray highlight
@@ -2077,7 +2078,7 @@
       cheatEl.className = 'pge-cheat';
       cheatEl.innerHTML =
         '<div class="pge-cheat-head"><span>Canvas how-to</span>' +
-        '<button type="button" class="pge-mini pge-cheat-close" title="Close">×</button></div>' +
+        '<button type="button" class="pge-mini pge-cheat-close" title="Close">' + ICON.svg('x-mark') + '</button></div>' +
         '<ul>' +
         '<li><b>Pan</b> — drag the empty canvas</li>' +
         '<li><b>Zoom</b> — scroll wheel (or ⊕ / ⊖)</li>' +
@@ -2088,7 +2089,7 @@
         '<li><b>Chain onward</b> — a bound variable re-exports as a ring dot on the node’s right: wire downstream from there</li>' +
         '<li><b>Delete a wire</b> — click it</li>' +
         '<li><b>Cut wires</b> — hold <b>Shift</b> and drag a line through them</li>' +
-        '<li><b>Recipes</b> — insert common pre-wired patterns (✨ Recipes)</li>' +
+        '<li><b>Recipes</b> — insert common pre-wired patterns (' + ICON.svg('sparkles') + ' Recipes)</li>' +
         '<li><b>Expand</b> — the ⤢ button</li>' +
         '</ul>';
       cheatEl.querySelector('.pge-cheat-close').addEventListener('click', toggleCheat);
@@ -2149,7 +2150,7 @@
       graph.edges = graph.edges.concat(made.edges);
       persist(); render();
       strip.className = 'pge-strip pge-strip-ok';
-      strip.textContent = '✨ Added “' + recipe.label + '” — ' + made.nodes.length + ' nodes, ' + made.edges.length + ' wires.';
+      ICON.label(strip, 'sparkles', ' Added “' + recipe.label + '” — ' + made.nodes.length + ' nodes, ' + made.edges.length + ' wires.');
       setTimeout(recompileFeedback, 2600);
     }
 
@@ -2272,13 +2273,13 @@
           var starter = document.createElement('button');
           starter.type = 'button';
           starter.className = 'pge-pal-btn pge-starter';
-          starter.textContent = '⚡ Build a starter workflow';
+          ICON.label(starter, 'bolt', ' Build a starter workflow');
           starter.title = 'Two inputs and a constant feeding an equation, plus a choices set feeding an item list';
           starter.addEventListener('click', seedStarter);
           empty.appendChild(starter);
           var demoHint = document.createElement('div');
           demoHint.className = 'pge-empty-demo';
-          demoHint.textContent = 'New to nodes? Load a 🎓 demo lesson from the protocols list, or try ✨ Recipes above.';
+          demoHint.innerHTML = 'New to nodes? Load a ' + ICON.svg('academic-cap') + ' demo lesson from the protocols list, or try ' + ICON.svg('sparkles') + ' Recipes above.';
           empty.appendChild(demoHint);
         }
         viewport.appendChild(empty);

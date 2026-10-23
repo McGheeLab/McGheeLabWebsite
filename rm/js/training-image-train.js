@@ -486,7 +486,7 @@
     } else if (pxSampleUm < nyquistUm * 0.4) {
       status = 'over-sampled';
       kind = 'is-warning';
-      text = '<strong>Over-sampled.</strong> You\'re acquiring more pixels than the optics support — bigger files, slower reads, no new information. Enable 2×2 binning to cut file size in half.';
+      text = '<strong>Over-sampled.</strong> You\'re acquiring more pixels than the optics support — bigger files, slower reads, no new information. Enable 2' + ICON.svg('x-mark') + '2 binning to cut file size in half.';
     } else {
       status = 'at Nyquist';
       kind = '';

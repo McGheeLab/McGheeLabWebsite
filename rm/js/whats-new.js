@@ -62,14 +62,14 @@
             '<span class="wn-version">v' + esc(r.version || '?') + '</span>' +
             '<span class="wn-title">' + esc(r.title || 'App update') + '</span>' +
             '<span class="wn-date">' + esc(fmtDate(r.sentAt)) +
-              (admin ? ' <button class="wn-del" title="Delete this announcement">✕</button>' : '') +
+              (admin ? ' <button class="wn-del" title="Delete this announcement">' + ICON.svg('x-mark') + '</button>' : '') +
             '</span>' +
           '</div>' +
           (r.summary ? '<div class="wn-summary">' + esc(r.summary) + '</div>' : '') +
           /* The phone app bundles the web tree at build time, so app users
              only have these changes once they install the named build. */
           (r.appBuild
-            ? '<div class="wn-appnote">📱 In the phone app from <strong>build ' +
+            ? '<div class="wn-appnote">' + ICON.svg('device-phone-mobile') + ' In the phone app from <strong>build ' +
               esc(r.appBuild) + '</strong>' +
               (r.appVersion ? ' (' + esc(r.appVersion) + ')' : '') +
               ' — update from TestFlight if you don\'t see it.</div>'

@@ -9,13 +9,10 @@
  *      - Save: batch-update userPermissions docs (set/merge if non-empty,
  *              delete if user clears every box).
  *
- *   2. Default Workflows × Pages
- *      - Rows: five default workflows (from labConfig/defaultWorkflows or
- *              the seed in PAGE_REGISTRY.DEFAULT_WORKFLOWS).
- *      - Cols: every PAGE_REGISTRY page.
- *      - Cells: checkbox reflecting whether page is in workflow.pageIds.
- *      - Save: write the whole `{ workflows: [...] }` doc to
- *              labConfig/defaultWorkflows.
+ *   2. Default Workflows × Pages — RETIRED V3.811. The tab is a pointer to
+ *      rm/pages/admin-workflows.html (rm/js/admin-workflows.js), which edits
+ *      the same labConfig/defaultWorkflows doc. The grid code below is kept
+ *      inert (renderWorkflowGrid returns when its table is absent).
  *
  * The page is admin-gated via firebridge.gateAdmin(). Non-admin users see
  * the standard pending-access overlay. */
@@ -78,6 +75,46 @@
   function _currentSearch() {
     return (document.getElementById('perm-search') || {}).value || '';
   }
+  // V3.729 — category quick-filter pills (Users × Pages + Per-user tabs).
+  // Keyed on users/{uid}.category (user-system.js CATEGORIES), NOT role —
+  // role is the RM access gate (editor/contributor/guest) and says nothing
+  // about whether someone is an undergrad or a high-schooler. 'grad' folds
+  // in masters; 'guest' also matches anyone still on the guest ROLE, so a
+  // high-school student who hasn't been promoted yet shows under both.
+  var CATEGORY_PILLS = [
+    { id: '',           label: 'All' },
+    { id: 'grad',       label: 'Grad students' },
+    { id: 'undergrad',  label: 'Undergrads' },
+    { id: 'highschool', label: 'High school' },
+    { id: 'guest',      label: 'Guests' },
+  ];
+  var _categoryFilter = '';
+  function _userMatchesCategory(u, cat) {
+    if (!cat) return true;
+    if (!u) return false;
+    var c = (u.category || '').toLowerCase();
+    if (cat === 'grad') return c === 'grad' || c === 'masters';
+    if (cat === 'guest') return c === 'guest' || (u.role || '') === 'guest';
+    return c === cat;
+  }
+  function renderCategoryPills() {
+    var host = document.getElementById('perm-category-pills');
+    if (!host) return;
+    host.innerHTML = CATEGORY_PILLS.map(function (p) {
+      var n = p.id ? users.filter(function (u) { return _userMatchesCategory(u, p.id); }).length : users.length;
+      return '<button type="button" class="perm-cat-pill' + (p.id === _categoryFilter ? ' active' : '') + '" data-cat="' + escHtml(p.id) + '">' +
+        escHtml(p.label) + '<span class="perm-cat-pill-count">' + n + '</span></button>';
+    }).join('');
+    host.querySelectorAll('.perm-cat-pill').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        // Clicking the active pill clears it (back to All).
+        _categoryFilter = (btn.dataset.cat === _categoryFilter) ? '' : btn.dataset.cat;
+        host.querySelectorAll('.perm-cat-pill').forEach(function (b) { b.classList.toggle('active', b.dataset.cat === _categoryFilter); });
+        applySearchFilter(_currentSearch());
+        filterUserRail((document.getElementById('perm-user-rail-search') || {}).value || '');
+      });
+    });
+  }
   // V3.477 — Per-user tab state. selectedPanelUid = the user shown in the
   // right panel; allPapers = lazy-loaded projects(type=paper) cache; palette
   // copied from pmr.js ASSIGNEE_COLORS (which is private to that module).
@@ -109,9 +146,8 @@
       return;
     }
 
-    if (!workflowDocExists) {
-      document.getElementById('perm-seed-box').style.display = '';
-    }
+    // V3.811 — first-run seeding lives on admin-workflows.html now (its Save writes the doc).
+    renderCategoryPills();   // V3.729 — before the grid so its first filter pass sees the pill state
     renderUserGrid();
     renderWorkflowGrid();
     renderTrackingList();
@@ -154,7 +190,11 @@
    * (role grouping is the permanent structure in the redesigned matrix), so
    * the dropdown only picks the WITHIN-role secondary key (name | email). */
   function sortUsers() {
-    var ROLE_ORDER = ['admin', 'pi', 'postdoc', 'phd', 'masters', 'undergrad', 'staff', 'collaborator', 'member', 'guest'];
+    // V3.729 — 'editor' / 'contributor' are the roles users ACTUALLY carry
+    // (user-system.js ROLES); without them here every unranked role tied and
+    // the name sort interleaved roles, so the matrix built a fresh group
+    // header at every role change (duplicate "editor" sections).
+    var ROLE_ORDER = ['admin', 'pi', 'postdoc', 'editor', 'phd', 'masters', 'undergrad', 'contributor', 'staff', 'collaborator', 'member', 'guest'];
     var rank = function (role) {
       var idx = ROLE_ORDER.indexOf((role || '').toLowerCase());
       return idx >= 0 ? idx : ROLE_ORDER.length;
@@ -317,7 +357,7 @@
     var roleTag = '<span class="perm-role-tag perm-role-' + escHtml(role) + '">' + escHtml(role || 'unranked') + '</span>';
     th.innerHTML =
       '<span class="perm-group-head-inner">' +
-      '<span class="perm-group-toggle" aria-hidden="true">▾</span>' +
+      '<span class="perm-group-toggle" aria-hidden="true">' + ICON.svg('chevron-down') + '</span>' +
       roleTag +
       '<span class="perm-group-count">' + count + ' user' + (count === 1 ? '' : 's') + '</span>' +
       '</span>';
@@ -489,6 +529,7 @@
 
   function renderWorkflowGrid() {
     var table = document.getElementById('perm-grid-workflows');
+    if (!table) return;        // V3.811 — the matrix moved to admin-workflows.html; the tab is a pointer now
     renderHeaderRow(table, 'Default workflow');
     var tbody = table.tBodies[0] || table.createTBody();
     tbody.innerHTML = '';
@@ -517,7 +558,7 @@
       '<div style="display:flex;flex-direction:column;gap:4px;">' +
       '  <div style="font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:#9ca3af;font-weight:600;">Add a workflow</div>' +
       '  <div style="display:flex;gap:4px;align-items:center;">' +
-      '    <input type="text" class="perm-add-icon"  placeholder="📁" maxlength="2" style="width:32px;text-align:center;font-size:14px;padding:3px 4px;border:1px solid #d1d5db;border-radius:4px;">' +
+      '    <input type="text" class="perm-add-icon"  placeholder="folder" maxlength="40" title="Icon — type an icon name (see /rm/pages/icon-audit.html)." style="width:92px;text-align:center;font-size:13px;padding:3px 4px;border:1px solid #d1d5db;border-radius:4px;">' +
       '    <input type="text" class="perm-add-name"  placeholder="Workflow name" style="flex:1;min-width:0;font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;">' +
       '  </div>' +
       '  <input type="text" class="perm-add-desc" placeholder="Short description (optional)" style="font-size:11px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;">' +
@@ -548,9 +589,9 @@
     th.innerHTML =
       '<div class="perm-wf-meta">' +
       '  <div class="perm-wf-row1">' +
-      '    <input type="text" class="perm-wf-icon" data-workflow-id="' + escHtml(wf.id) + '" data-field="icon" maxlength="2" value="' + escHtml(wf.icon || '') + '" placeholder="🗂" title="Icon (single emoji/character)">' +
+      '    <input type="text" class="perm-wf-icon" data-workflow-id="' + escHtml(wf.id) + '" data-field="icon" maxlength="40" value="' + escHtml(wf.icon || '') + '" placeholder="folder" title="Icon — type an icon name (see /rm/pages/icon-audit.html). Saved values are never rewritten.">' +
       '    <input type="text" class="perm-wf-name" data-workflow-id="' + escHtml(wf.id) + '" data-field="label" value="' + escHtml(wf.label || '') + '" placeholder="Workflow name" title="Workflow display name">' +
-      '    <button type="button" class="perm-wf-del" data-workflow-id="' + escHtml(wf.id) + '" title="Delete this workflow">×</button>' +
+      '    <button type="button" class="perm-wf-del" data-workflow-id="' + escHtml(wf.id) + '" title="Delete this workflow">' + ICON.svg('x-mark') + '</button>' +
       '  </div>' +
       '  <input type="text" class="perm-wf-desc" data-workflow-id="' + escHtml(wf.id) + '" data-field="description" value="' + escHtml(wf.description || '') + '" placeholder="Short description (shown on the chooser card)" title="Description shown on the workflow chooser card">' +
       '  <div class="row-label-sub" style="font-family:ui-monospace,Menlo,monospace;">' + escHtml(wf.id) + '</div>' +
@@ -790,7 +831,7 @@
             ' <button type="button" class="perm-mentor-chip-x" ' +
               'data-mentee-uid="' + escHtml(mentee.uid) + '" ' +
               'data-mentor-uid="' + escHtml(m.uid) + '" ' +
-              'title="Remove mentor">×</button>';
+              'title="Remove mentor">' + ICON.svg('x-mark') + '</button>';
           chips.appendChild(chip);
         });
       }
@@ -964,7 +1005,7 @@
     var newWf = {
       id: slug,
       label: name,
-      icon: (iconEl.value || '').trim() || '📁',
+      icon: (iconEl.value || '').trim() || 'folder',
       description: (descEl.value || '').trim(),
       landingPageId: '',
       pageIds: [],
@@ -1229,7 +1270,8 @@
       document.querySelectorAll('.perm-cell-changed')
         .forEach(function (el) { el.classList.remove('perm-cell-changed'); });
       setStatus('Saved.', 'ok');
-      document.getElementById('perm-seed-box').style.display = workflowDocExists ? 'none' : '';
+      var seedBox = document.getElementById('perm-seed-box');
+      if (seedBox) seedBox.style.display = workflowDocExists ? 'none' : '';
     } catch (err) {
       console.error('[admin-permissions] save failed:', err);
       setStatus('Save failed: ' + err.message, 'err');
@@ -1281,7 +1323,8 @@
         initialState.workflow.set(wf.id, new Set(wf.pageIds || []));
       });
       pendingEdits.clear();
-      document.getElementById('perm-seed-box').style.display = 'none';
+      var seedBox2 = document.getElementById('perm-seed-box');
+      if (seedBox2) seedBox2.style.display = 'none';
       renderWorkflowGrid();
       setStatus('Defaults seeded.', 'ok');
     } catch (err) {
@@ -1499,7 +1542,9 @@
   function filterUserRail(q) {
     q = (q || '').trim().toLowerCase();
     document.querySelectorAll('#perm-user-rail-list .perm-user-person').forEach(function (el) {
-      el.style.display = (!q || el.textContent.toLowerCase().indexOf(q) >= 0) ? '' : 'none';
+      // V3.729 — category pill composes with the text search.
+      var catOk = _userMatchesCategory(_userById(el.dataset.uid), _categoryFilter);
+      el.style.display = (catOk && (!q || el.textContent.toLowerCase().indexOf(q) >= 0)) ? '' : 'none';
     });
   }
 
@@ -1537,7 +1582,9 @@
     if (!CAPS || !CAPS.pages || !CAPS.pages.length) { el.innerHTML = ''; return; }
     var effective = _effectiveCaps(uid);
     var effectivePages = _effectivePages(uid);
-    var body = CAPS.pages.map(function (pg) {
+    var body = CAPS.pages.filter(function (pg) {
+      return pg.section !== 'papers';   // V3.729 — rendered in the Papers section instead
+    }).map(function (pg) {
       var rows = pg.capabilities.map(function (c) {
         var checked = effective.has(c.id);
         var changed = pendingEdits.has('cap:' + uid + ':' + c.id) ? ' perm-cell-changed' : '';
@@ -1679,11 +1726,43 @@
     var addOpts = '<option value="">+ Add to a paper…</option>' +
       offPapers.map(function (p) { return '<option value="' + escHtml(p.id) + '">' + escHtml(p.title || p.id) + '</option>'; }).join('');
     el.innerHTML = '<h2>Papers <span class="perm-user-section-hint">— role writes projects/papers.json; the sync function grants real edit access</span></h2>' +
+      _createPaperCapRow(uid) +
       rows +
       '<div style="margin-top:10px;"><select class="perm-user-add-paper" data-uid="' + escHtml(uid) + '">' + addOpts + '</select></div>';
     el.querySelectorAll('.perm-user-paper-role').forEach(function (sel) { sel.addEventListener('change', onPaperRoleChange); });
     var addSel = el.querySelector('.perm-user-add-paper');
     if (addSel) addSel.addEventListener('change', onAddPaper);
+    var createCb = el.querySelector('.perm-user-create-paper input[type="checkbox"]');
+    if (createCb) createCb.addEventListener('change', onCreatePaperCapToggle);
+  }
+
+  /* V3.729 — "Can create papers" row at the top of the Papers section.
+   * It is the `paper-builder:create` capability (capability-registry.js,
+   * section:'papers') riding the same cap pending-edit + saveAll pipeline as
+   * the Capabilities cards — only its home in the panel differs. The rules
+   * already let every lab member (role != guest) create, so for them the box
+   * is informational; for a guest/collaborator it is the actual grant, and
+   * it also opens the Paper Builder page for them (cap ⇒ page access). */
+  var CREATE_PAPER_CAP = 'paper-builder:create';
+  function _createPaperCapRow(uid) {
+    var u = _userById(uid);
+    var isMember = !!(u && u.role && u.role !== 'guest');
+    var checked = _effectiveCaps(uid).has(CREATE_PAPER_CAP);
+    var changed = pendingEdits.has('cap:' + uid + ':' + CREATE_PAPER_CAP) ? ' perm-cell-changed' : '';
+    var desc = isMember
+      ? 'Already allowed — lab members can start papers and grants in the Paper Builder. Ticking this keeps the power if the role is ever set back to guest.'
+      : 'Lets this guest start new papers and grants as lead author, and opens the Paper Builder page for them. Coauthor access to other people’s papers still comes from the roles below.';
+    return '<label class="perm-user-cap-row perm-user-create-paper' + changed + '" title="' + CREATE_PAPER_CAP + '">' +
+      '<input type="checkbox" data-uid="' + escHtml(uid) + '" data-cap-id="' + CREATE_PAPER_CAP + '"' + (checked ? ' checked' : '') + '>' +
+      '<span class="perm-user-cap-row-main">' +
+        '<span class="perm-user-cap-row-label">Can create papers' + (isMember && !checked ? ' <em>(lab member — implicit)</em>' : '') + '</span>' +
+        '<span class="perm-user-cap-row-desc">' + escHtml(desc) + '</span>' +
+      '</span></label>';
+  }
+  function onCreatePaperCapToggle(e) {
+    _setCapEdit(e.target.dataset.uid, CREATE_PAPER_CAP, e.target.checked);
+    updatePendingStatus();
+    _rerenderPaperSections();
   }
 
   function _setPaperRoleEdit(paperId, uid, role) {
@@ -1732,11 +1811,15 @@
     var saved = initialState.user.get(uid) || new Set();
     if (saved.size) out.push({ source: 'grant', text: 'Can open ' + saved.size + ' explicitly-granted page' + (saved.size === 1 ? '' : 's') });
     else if (u && u.category === 'collaborator') out.push({ source: 'collaborator', text: 'No implicit baseline — only explicitly granted pages/collections' });
+    else if (role === 'guest') out.push({ source: 'role', text: 'No implicit baseline — guests open only explicitly granted pages or pages a capability covers' });   // V3.729 (mirrors canAccessPage)
     else {
       var baseCount = (REG && REG.defaultPageIdSet) ? REG.defaultPageIdSet.size : 0;
       out.push({ source: 'baseline', text: 'Can open baseline pages (' + baseCount + ' via default workflows)' });
     }
     if (role !== 'guest') out.push({ source: 'role', text: 'Can highlight & annotate library papers and create claims' });
+    // V3.729 — members create papers by role; guests only via the cap
+    // (which the capability loop below lists as "Paper Builder: Create papers").
+    if (role !== 'guest') out.push({ source: 'role', text: 'Can create papers & grants in the Paper Builder (lead author)' });
     // V3.605 — capability grants (registry labels; reflects saved state).
     var CAPS = window.CAPABILITY_REGISTRY;
     if (CAPS && savedCaps.size) {
@@ -1846,7 +1929,8 @@
       uRows.forEach(function (tr) {
         if (tr.classList.contains('perm-group-row') || !tr.dataset.uid) return;
         var role = tr.dataset.role;
-        var matches = (!q || tr.textContent.toLowerCase().indexOf(q) >= 0);
+        var matches = (!q || tr.textContent.toLowerCase().indexOf(q) >= 0)
+          && _userMatchesCategory(_userById(tr.dataset.uid), _categoryFilter);   // V3.729 pills
         if (matches) roleHasMatch[role] = true;
         tr.style.display = (matches && !collapsedRoles.has(role)) ? '' : 'none';
       });

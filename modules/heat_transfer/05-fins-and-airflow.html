@@ -6,9 +6,11 @@
   <title>Fins &amp; Flowing Air — Heat Transfer Foundations</title>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
   <style>
-    /* ===== house CSS — Heat Transfer Foundations (verbatim from solid_mechanics reference) ===== */
+    /* ===== house CSS — Heat Transfer Foundations (outreach house style) ===== */
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    /* One-glyph alias: most system fonts lack U+221D (∝) and fall back to a near-invisible glyph. */
+    @font-face{font-family:'PropSign';src:local('STIX Two Math Regular'),local('STIXTwoMath-Regular'),local('STIXGeneral-Regular'),local('Cambria Math'),local('CambriaMath'),local('Noto Sans Math Regular'),local('NotoSansMath-Regular'),local('Segoe UI Symbol'),local('SegoeUISymbol'),local('DejaVu Sans'),local('Menlo Regular'),local('Menlo-Regular');unicode-range:U+221D}
+    body{font-family:PropSign,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
       background:#f4f6fa;color:#1e293b;line-height:1.6}
     header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
     header h1{font-size:1.6rem;letter-spacing:.01em}
@@ -37,6 +39,17 @@
     .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
       font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
     .key-takeaways ul{margin-left:20px}
+    .plain{background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #0d9488;border-radius:6px;
+      padding:10px 14px;margin:12px 0}
+    .plain::before{content:"In plain words";display:block;font-weight:700;color:#0f766e;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+    ul.letters{margin:6px 0 12px 22px;font-size:.92rem;color:#334155}
+    ul.letters li{margin:3px 0}
+    ul.letters b{color:#1e3a5f}
+    .later{font-size:.88rem;color:#64748b;border-left:3px solid #cbd5e1;padding:2px 0 2px 10px;margin:10px 0}
+    .worked-example ol{margin:6px 0 4px 22px}
+    .worked-example li{margin:4px 0}
+    .worked-example p{margin:4px 0}
     .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
       padding:12px 16px;margin:14px 0}
     .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
@@ -116,42 +129,39 @@
     moves only sluggishly. This slow-moving film hugging the surface is called the
     <b>boundary layer</b>, and it is the bottleneck of the whole operation: heat must first
     <em>conduct</em> across this nearly-still air blanket (and Lesson&nbsp;3 taught you how bad
-    still air is at conducting) before the moving air beyond it can carry the heat off. Watch it
-    in the sim below: particles inside the layer crawl, while particles that escape it drift
-    happily away with their stolen jiggle.</p>
-    <p>Engineers wrap all of this messy fluid physics into one honest bookkeeping number, and
-    write <b>Newton's law of cooling</b>:</p>
+    still air is at conducting) before the moving air beyond it can carry the heat off.</p>
+    <div class="plain">
+      Engineers wrap all of that messy fluid physics into one honest number, h, and write
+      <b>Newton's law of cooling</b>: heat stolen by the air = h × surface area × (how much hotter
+      the surface is than the room). Double the difference, double the theft. Bigger h, thinner blanket.
+    </div>
     <div class="equation-box">
       $$ q \;=\; h\,A\,(T_s - T_\infty) $$
     </div>
-    <p>Here \(q\) is the heat flow in watts, \(A\) is the surface area in m², \(T_s\) is the
-    surface temperature, and \(T_\infty\) ("T-infinity") is the temperature of the air far from
-    the surface — the room. Everything hard hides inside \(h\), the <b>convection
-    coefficient</b> (W/m²K): how good the air is at hauling heat away from each square metre per
-    degree of temperature difference. Still room air manages only \(h \approx 5\)–25; a fan can
-    push it toward 100. A useful way to picture \(h\): it behaves like a still-air film of
-    effective thickness \(\delta \approx k_{\text{air}}/h\) (with \(k_{\text{air}} \approx
-    0.026\) W/m·K from Lesson&nbsp;3) — crank \(h\) up and the blanket thins.</p>
+    <ul class="letters">
+      <li><b>q</b> — heat flow, W. <b>A</b> — surface area, m².</li>
+      <li><b>T<sub>s</sub></b> — the surface temperature.</li>
+      <li><b>T<sub>∞</sub></b> — "T-infinity": the air temperature far from the surface — the room.</li>
+      <li><b>h</b> — the convection coefficient, W/m²K: how good the air is at hauling heat away from each square metre per degree of difference. Still room air manages only about 5–25; a fan can push it toward 100.</li>
+    </ul>
+    <p>A useful way to picture h: it behaves like a still-air film of effective thickness
+    δ ≈ k<sub>air</sub>/h (with k<sub>air</sub> ≈ 0.026&nbsp;W/m·K from Lesson&nbsp;3) — crank
+    h up and the blanket thins. The stats show that thickness.</p>
     <div class="worked-example">
-      <p>A mug of coffee: outer surface \(A \approx 0.03\ \text{m}^2\), coffee at
-      \(T_s = 60\ ^\circ\text{C}\) in a \(T_\infty = 20\ ^\circ\text{C}\) room, still air
-      \(h \approx 10\ \text{W/m}^2\text{K}\). Newton's law:
-      \(q = 10 \times 0.03 \times 40 = 12\ \text{W}\) — a dim night-light of heat leaking out.
-      Cooling 300&nbsp;g of coffee by 10&nbsp;°C releases \(0.3 \times 4186 \times 10 \approx
-      12.6\ \text{kJ}\) (Lesson&nbsp;2!), so at 12&nbsp;W that first 10-degree drop takes about
-      \(12{,}600/12 \approx 1050\ \text{s} \approx 17\) minutes. That's why coffee goes lukewarm
-      on exactly the timescale of a meeting.</p>
+      <p>A mug of coffee: outer surface 0.03&nbsp;m², coffee at 60&nbsp;°C in a 20&nbsp;°C room, still air h ≈ 10.</p>
+      <ol>
+        <li><b>The difference:</b> 60 − 20 = 40&nbsp;K.</li>
+        <li><b>Newton's law:</b> q = 10 × 0.03 × 40 = <b>12&nbsp;W</b> — a dim night-light of heat leaking out.</li>
+        <li><b>How long to cool 10 degrees?</b> Lesson 2: 0.3&nbsp;kg × 4186 × 10 ≈ 12,600&nbsp;J must leave. At 12&nbsp;W that takes 12,600 ÷ 12 ≈ 1050&nbsp;s ≈ <b>17&nbsp;minutes</b>.</li>
+        <li><b>Sanity check:</b> coffee goes lukewarm on exactly the timescale of a meeting.</li>
+      </ol>
     </div>
     <div class="key-takeaways">
       <ul>
-        <li>Moving air steals heat from surfaces: \(q = hA(T_s - T_\infty)\) — Newton's law of
-        cooling.</li>
-        <li>The bottleneck is the boundary layer: a thin film of nearly-still air hugging the
-        surface that heat must conduct across first.</li>
-        <li>\(h\) bundles all the fluid physics into one number: bigger \(h\) = thinner blanket
-        = faster theft. \(\delta \approx k_{\text{air}}/h\).</li>
-        <li>Double the temperature difference and you double the heat flow — the line through
-        the origin has slope \(hA\).</li>
+        <li>Moving air steals heat from surfaces: q = hA(T<sub>s</sub> − T<sub>∞</sub>) — Newton's law of cooling.</li>
+        <li>The bottleneck is the boundary layer: a thin film of nearly-still air hugging the surface that heat must conduct across first.</li>
+        <li>h bundles all the fluid physics into one number: bigger h = thinner blanket = faster theft.</li>
+        <li>Double the temperature difference and you double the heat flow — the line through the origin has slope hA.</li>
       </ul>
     </div>
   </div>
@@ -180,11 +190,11 @@
     <div class="ctrl">
       <h3>Controls</h3>
       <div class="ctrl-group">
-        <label>Surface temperature T_s <span id="v-film-ts">55</span></label>
+        <label>Surface temperature T_s <span id="v-film-ts">55 °C</span></label>
         <input type="range" id="s-film-ts" min="25" max="150" step="1" value="55">
       </div>
       <div class="ctrl-group">
-        <label>Convection h <span id="v-film-h">8</span></label>
+        <label>Convection h <span id="v-film-h">8 W/m²K</span></label>
         <input type="range" id="s-film-h" min="2" max="100" step="1" value="8">
       </div>
       <div class="stats" id="st-film"></div>
@@ -210,55 +220,52 @@
     <p>Your soup instinct is real engineering. When you blow across a hot spoonful, you rip the
     warmed air blanket off the surface and replace it with fresh cool air before it has time to
     heat up. In the language of Tab&nbsp;1: blowing <b>thins the boundary layer</b>, which
-    <b>raises \(h\)</b>. Convection you have to pay for with a fan, wind, or your own lungs is
+    <b>raises h</b>. Convection you have to pay for with a fan, wind, or your own lungs is
     called <b>forced convection</b>; the free version driven by warm air floating upward is
     <b>natural convection</b>.</p>
-    <p>How much does wind help? A famous old rule of thumb — an <em>empirical</em> fit to
-    wind-over-flat-surface measurements collected in W. H. McAdams' 1954 textbook
-    <i>Heat Transmission</i> — says:</p>
-    <div class="equation-box">
-      $$ h \;\approx\; 5.7 \;+\; 3.8\,v \qquad
-      \left[\,h \text{ in W/m}^2\text{K},\; v = \text{wind speed in m/s}\,\right] $$
+    <div class="plain">
+      How much does wind help? A famous old rule of thumb, measured on flat surfaces: h starts near
+      6 even in still air, and <b>every extra metre-per-second of wind adds about 4</b>.
     </div>
-    <p>Be honest about what this is: a decades-old measured correlation, good to order of
-    magnitude for air blowing along a flat surface — not a law of nature, and real values depend
-    on geometry. But the trend is exactly right: even at \(v=0\) you get a baseline
-    \(h \approx 5.7\) from natural convection, and every extra metre-per-second of wind adds
-    about 3.8 more.</p>
-    <p>Now the payoff question: how long does a hot object take to cool? For a small object
-    that stays close to one uniform temperature throughout (Tab&nbsp;4 makes this "small enough"
-    idea precise with the Biot number), the energy balance gives an exponential slide toward
-    room temperature:</p>
     <div class="equation-box">
-      $$ T(t) \;=\; T_\infty + (T_0 - T_\infty)\,e^{-t/\tau}, \qquad
-         \tau \;=\; \frac{m\,c}{h\,A} $$
+      $$ h \;\approx\; 5.7 \;+\; 3.8\,v $$
     </div>
-    <p>Here \(T_0\) is the starting temperature, \(m\) is the object's mass, \(c\) its specific
-    heat (Lesson&nbsp;2), \(A\) its surface area, and \(\tau\) (tau) is the <b>time constant</b> —
-    the time to close 63% of the gap to room temperature. Notice \(h\) sits in the denominator:
-    triple \(h\) and the whole cooling movie plays three times faster. That is, precisely, why
-    you blow on soup.</p>
+    <ul class="letters">
+      <li><b>v</b> — wind speed in m/s. <b>h</b> comes out in W/m²K.</li>
+      <li>Be honest about what this is: an <em>empirical</em> fit from W. H. McAdams' 1954 textbook, good to order of magnitude for air blowing along a flat surface — not a law of nature. The trend is exactly right.</li>
+    </ul>
+    <div class="plain">
+      Now the payoff: how long does a hot object take to cool? A small object that stays close to one
+      temperature throughout slides toward room temperature in a curve that keeps flattening. The curve has
+      one characteristic time, the <b>time constant</b>: the time to close 63% of the remaining gap. And the
+      time constant is simply <b>thermal mass ÷ (h × area)</b> — so triple h and the whole cooling movie plays
+      three times faster. That is, precisely, why you blow on soup.
+    </div>
+    <div class="equation-box">
+      $$ \tau \;=\; \frac{m\,c}{h\,A} $$
+    </div>
+    <ul class="letters">
+      <li><b>τ</b> — "tau", the time constant, in seconds. After one τ the object has closed 63% of the gap to room temperature; after 3τ, 95%.</li>
+      <li><b>m, c</b> — mass and specific heat (Lesson 2): together the thermal mass mc.</li>
+      <li><b>h, A</b> — the convection coefficient and the surface area (Tab 1).</li>
+    </ul>
+    <p class="later">The curve's exact shape is an exponential, T(t) = T<sub>∞</sub> + (T<sub>0</sub> − T<sub>∞</sub>)e<sup>−t/τ</sup>;
+    the sim draws it for you. Tab 4 says when "small enough to be one temperature" is a safe assumption (the Biot number).</p>
     <div class="worked-example">
-      <p>Our sim object is a small hot copper ball: \(m = 20\ \text{g}\),
-      \(c = 385\ \text{J/kg·K}\), surface \(A \approx 8.2\ \text{cm}^2 = 8.2\times10^{-4}\
-      \text{m}^2\), starting at \(T_0 = 90\ ^\circ\text{C}\) in a 20&nbsp;°C room.
-      <b>Still air</b> (\(v = 0\)): \(h \approx 5.7\), so
-      \(\tau = 0.02 \times 385 / (5.7 \times 8.2\times10^{-4}) \approx 1650\ \text{s} \approx
-      27\ \text{min}\). <b>A breeze</b> (\(v = 4\ \text{m/s}\)):
-      \(h \approx 5.7 + 3.8\times4 = 20.9 \approx 21\), so
-      \(\tau \approx 7.7/0.0171 \approx 450\ \text{s} \approx 7.5\ \text{min}\). Blowing made the
-      cooling <b>3.7× faster</b> — same ball, same room, thinner blanket.</p>
+      <p>The sim's object is a small hot copper ball: 20&nbsp;g, c = 385, surface 8.2&nbsp;cm² (0.00082&nbsp;m²), starting at 90&nbsp;°C in a 20&nbsp;°C room.</p>
+      <ol>
+        <li><b>Thermal mass:</b> mc = 0.02 × 385 = 7.7&nbsp;J/K.</li>
+        <li><b>Still air</b> (v = 0): h ≈ 5.7, so τ = 7.7 ÷ (5.7 × 0.00082) ≈ 1650&nbsp;s ≈ <b>27&nbsp;min</b>.</li>
+        <li><b>A breeze</b> (v = 4&nbsp;m/s): h ≈ 5.7 + 3.8 × 4 ≈ 21, so τ ≈ 7.7 ÷ (21 × 0.00082) ≈ 450&nbsp;s ≈ <b>7.5&nbsp;min</b>.</li>
+        <li><b>The payoff:</b> blowing made the cooling 27 ÷ 7.5 ≈ 3.7× faster — same ball, same room, thinner blanket.</li>
+      </ol>
     </div>
     <div class="key-takeaways">
       <ul>
-        <li>Wind thins the boundary layer, so \(h\) climbs — roughly \(h \approx 5.7 + 3.8v\)
-        (an old empirical wind formula; order of magnitude only).</li>
-        <li>Small objects cool exponentially: \(T(t) = T_\infty + (T_0 - T_\infty)e^{-t/\tau}\)
-        with \(\tau = mc/(hA)\).</li>
-        <li>\(\tau \propto 1/h\): triple the convection, triple the cooling speed. Blowing on
-        soup is legitimate thermal engineering.</li>
-        <li>Even "still" air gives \(h \approx 5\) for free — natural convection never fully
-        switches off.</li>
+        <li>Wind thins the boundary layer, so h climbs — roughly h ≈ 5.7 + 3.8v (an old empirical wind formula; order of magnitude only).</li>
+        <li>Small objects cool along a flattening curve with time constant τ = mc/(hA).</li>
+        <li>τ ∝ 1/h: triple the convection, triple the cooling speed. Blowing on soup is legitimate thermal engineering.</li>
+        <li>Even "still" air gives h ≈ 5 for free — natural convection never fully switches off.</li>
       </ul>
     </div>
   </div>
@@ -288,7 +295,7 @@
     <div class="ctrl">
       <h3>Controls</h3>
       <div class="ctrl-group">
-        <label>Wind speed v <span id="v-blow-v">0</span></label>
+        <label>Wind speed v <span id="v-blow-v">0 m/s</span></label>
         <input type="range" id="s-blow-v" min="0" max="15" step="0.1" value="0">
       </div>
       <div class="stats" id="st-blow"></div>
@@ -316,56 +323,52 @@
   <div class="background-section">
     <h2>Background: can't move the air harder? Grow more surface</h2>
     <p>Look inside a computer, at a motorcycle engine, at the back of an old refrigerator — all
-    spiky, ridged, bladed. Why? Newton's law \(q = hA(T_s - T_\infty)\) gives an engineer three
-    knobs. The temperature difference is usually fixed by the job (your CPU must stay below
-    ~90&nbsp;°C in a 25&nbsp;°C case). Raising \(h\) costs a bigger, louder fan. But
-    <b>area is nearly free</b> — it's just shaped metal. So we bolt on <b>fins</b>: thin blades
-    sticking out into the air, each one adding two whole faces of extra surface for the air to
-    steal heat from.</p>
-    <div class="equation-box">
-      $$ q \;=\; h\,A_{\text{total}}\,(T_s - T_\infty), \qquad
-         A_{\text{total}} \;=\; A_{\text{base}} \;+\; N \cdot 2\,L\,D $$
+    spiky, ridged, bladed. Why? Newton's law gives an engineer three knobs. The temperature
+    difference is usually fixed by the job (your CPU must stay below ~90&nbsp;°C in a 25&nbsp;°C
+    case). Raising h costs a bigger, louder fan. But <b>area is nearly free</b> — it's just
+    shaped metal. So we bolt on <b>fins</b>: thin blades sticking out into the air, each one
+    adding two whole faces of extra surface for the air to steal heat from.</p>
+    <div class="plain">
+      Total area = base area + (number of fins) × (two faces each) × (fin length × fin depth).
+      Then Newton's law as before: heat flow = h × total area × temperature difference.
     </div>
-    <p>Here \(N\) is the number of fins, \(L\) is how far each fin sticks out, and \(D\) is the
-    fin's depth (into the screen). Each fin contributes both of its faces, \(2LD\). In this sim
-    the base plate is 10&nbsp;cm × 10&nbsp;cm, fins are 2&nbsp;mm thick, the surface runs
-    40&nbsp;K above the room, and \(h = 15\ \text{W/m}^2\text{K}\) is held fixed — only the
-    geometry changes. (We also assume the fins are perfectly conductive, uniformly hot metal —
-    Tab&nbsp;4 confesses and repairs that lie.)</p>
+    <div class="equation-box">
+      $$ A_{\text{total}} \;=\; A_{\text{base}} \;+\; N \cdot 2\,L\,D \qquad\qquad
+         q \;=\; h\,A_{\text{total}}\,(T_s - T_\infty) $$
+    </div>
+    <ul class="letters">
+      <li><b>N</b> — the number of fins. <b>L</b> — how far each fin sticks out. <b>D</b> — the fin's depth (into the screen). Each fin contributes both of its faces, 2LD.</li>
+      <li>In this sim the base plate is 10&nbsp;cm × 10&nbsp;cm, fins are 2&nbsp;mm thick, the surface runs 40&nbsp;K above the room, and h = 15 is held fixed — only the geometry changes. (We also assume the fins are perfectly conductive, uniformly hot metal — Tab&nbsp;4 confesses and repairs that lie.)</li>
+    </ul>
     <p>One catch, and you can find it with the sliders: <b>crowding</b>. Pack fins too close and
     the channels between them choke — fresh air can no longer flow through, each fin sits in
-    its neighbor's warmed exhaust, and extra fins stop paying rent. Our sim applies a gentle
+    its neighbour's warmed exhaust, and extra fins stop paying rent. Our sim applies a gentle
     spacing-based derating to capture this, and we say plainly: <b>the derating is qualitative</b>
     — real heatsink design uses measured flow correlations. But the lesson it teaches is real:
     there is an optimum fin spacing (a few millimetres, in gently moving air), and "more fins" is
     not always "more cooling".</p>
     <div class="worked-example">
-      <p>Bare plate: \(A_{\text{base}} = 0.1 \times 0.1 = 0.01\ \text{m}^2\), so
-      \(q = 15 \times 0.01 \times 40 = 6\ \text{W}\). Now add \(N = 10\) fins,
-      \(L = 30\ \text{mm}\) long, \(D = 0.1\ \text{m}\) deep:
-      \(A_{\text{fins}} = 10 \times 2 \times 0.03 \times 0.1 = 0.06\ \text{m}^2\), giving
-      \(A_{\text{total}} \approx 0.07\ \text{m}^2\) and
-      \(q = 15 \times 0.07 \times 40 = 42\ \text{W}\) — <b>seven times</b> the bare plate, from
-      the same footprint. (At this spacing — about 7&nbsp;mm — the sim's crowding factor is 0.93,
-      trimming the answer to ≈ 40&nbsp;W.)</p>
+      <p>Add fins to a bare 10&nbsp;cm × 10&nbsp;cm plate (h = 15, 40&nbsp;K above the room).</p>
+      <ol>
+        <li><b>Bare plate:</b> A = 0.1 × 0.1 = 0.01&nbsp;m², so q = 15 × 0.01 × 40 = <b>6&nbsp;W</b>.</li>
+        <li><b>Add 10 fins</b>, 30&nbsp;mm long, 0.1&nbsp;m deep: fin area = 10 × 2 × 0.03 × 0.1 = 0.06&nbsp;m². Total = 0.07&nbsp;m².</li>
+        <li><b>New flow:</b> q = 15 × 0.07 × 40 = <b>42&nbsp;W</b> — seven times the bare plate, from the same footprint.</li>
+        <li><b>Crowding:</b> at this spacing (about 7&nbsp;mm) the sim's crowding factor is 0.93, trimming the answer to ≈ 40&nbsp;W.</li>
+      </ol>
     </div>
     <div class="key-takeaways">
       <ul>
-        <li>Fins attack the \(A\) in \(q = hA\Delta T\): surface area is the cheapest knob an
-        engineer has.</li>
-        <li>Each fin adds two faces: \(A_{\text{total}} = A_{\text{base}} + N\cdot 2LD\) — that's
-        why heatsinks look like combs.</li>
-        <li>Crowding is real: fins packed too tightly choke the airflow between them, and the
-        gain rolls off (our derating is qualitative, the effect is not).</li>
-        <li>There is a sweet spot in fin count — after it, more metal buys almost no more
-        cooling.</li>
+        <li>Fins attack the A in q = hAΔT: surface area is the cheapest knob an engineer has.</li>
+        <li>Each fin adds two faces: A<sub>total</sub> = A<sub>base</sub> + N × 2LD — that's why heatsinks look like combs.</li>
+        <li>Crowding is real: fins packed too tightly choke the airflow between them, and the gain rolls off (our derating is qualitative, the effect is not).</li>
+        <li>There is a sweet spot in fin count — after it, more metal buys almost no more cooling.</li>
       </ul>
     </div>
   </div>
 
   <div class="student-task">
     <ol>
-      <li>Set <b>Fin length</b> to 30 mm and sweep <b>Fin count</b> from 1 to 30. Watch the blue
+      <li>Set <b>Fin length</b> to 30 mm and sweep <b>Fin count</b> from 0 to 30. Watch the blue
       curve peel away from the dashed ideal line as the channels narrow.</li>
       <li>Hold N = 10 and stretch the fins from 5 to 60 mm. Longer fins add area with no
       crowding penalty — watch q climb.</li>
@@ -387,11 +390,11 @@
     <div class="ctrl">
       <h3>Controls</h3>
       <div class="ctrl-group">
-        <label>Fin count N <span id="v-fins-n">12</span></label>
-        <input type="range" id="s-fins-n" min="1" max="30" step="1" value="12">
+        <label>Fin count N <span id="v-fins-n">12 fins</span></label>
+        <input type="range" id="s-fins-n" min="0" max="30" step="1" value="12">
       </div>
       <div class="ctrl-group">
-        <label>Fin length L <span id="v-fins-len">35</span></label>
+        <label>Fin length L <span id="v-fins-len">35 mm</span></label>
         <input type="range" id="s-fins-len" min="5" max="60" step="1" value="35">
       </div>
       <div class="stats" id="st-fins"></div>
@@ -414,58 +417,55 @@
 <section id="tab-levelup" class="tab-content">
   <div class="background-section">
     <h2>Level up: fin efficiency and the Biot number</h2>
-    <p>Tab 3 quietly assumed every fin is uniformly hot from root to tip. A real fin can't be:
-    the heat must <em>conduct along the metal</em> while it continuously <em>leaks out the
-    sides</em> into the air, so the temperature sags toward the tip — and the cool tip area
-    steals less heat than we paid for. The 1-D fin equation (energy balance on a slice of fin,
-    solved with an insulated-tip boundary condition) gives the classic result. Define the
-    <b>excess temperature</b> \(\theta = T - T_\infty\), with \(\theta_b\) its value at the fin
-    base, \(P\) the fin's perimeter (the exposed edge length of its cross-section), \(A_c\) the
-    cross-sectional area the heat conducts through, and \(k\) the metal's conductivity:</p>
+    <p><b>Everything in Tabs 1–3 stands on its own.</b> This tab repairs Tab 3's one white lie.</p>
+    <div class="plain">
+      Tab 3 assumed every fin is uniformly hot from root to tip. A real fin can't be: heat must
+      <em>conduct along the metal</em> while it continuously <em>leaks out the sides</em> into the air, so
+      the temperature sags toward the tip — and the cool tip steals less heat than we paid for. One
+      number captures the competition: <b>m</b>, which measures how quickly the fin's temperature sags per
+      metre of length. Small m × length → the whole fin stays hot. Big → the outer end is dead metal.
+    </div>
     <div class="equation-box">
       $$ m \;=\; \sqrt{\frac{h\,P}{k\,A_c}} \qquad\quad
-         \frac{\theta(x)}{\theta_b} \;=\; \frac{\cosh m(L-x)}{\cosh mL} \qquad\quad
          \eta \;=\; \frac{\tanh(mL)}{mL} $$
     </div>
-    <p>Careful with the symbols: this \(m\) is the <b>fin parameter</b> (units m⁻¹), <em>not</em>
-    mass. It measures the competition between sideways leakage (\(hP\)) and axial conduction
-    (\(kA_c\)); the length \(1/m\) is roughly how far heat can penetrate along the fin before the
-    air has bled it away. The dimensionless product \(mL\) then tells you everything:
-    \(mL \ll 1\) → the whole fin stays near \(\theta_b\); \(mL \gg 1\) → the outer end is dead
-    metal. The <b>fin efficiency</b> \(\eta\) (eta) is the fraction of the ideal, uniformly-hot
-    heat flow the fin actually delivers: \(q_{\text{fin}} = \eta\,h\,(PL)\,\theta_b\), and
-    \(\eta = \tanh(mL)/mL\) falls from 1 as \(mL\) grows.</p>
-    <p>The same physics gives the general "is it all one temperature?" test used everywhere in
-    heat transfer: the <b>Biot number</b> \( \mathrm{Bi} = h L_c / k \), the ratio of conduction
-    resistance <em>inside</em> a body to convection resistance at its surface, with \(L_c\) a
-    characteristic length (for our fin's cross-section, the half-thickness \(t/2\)). When
-    \(\mathrm{Bi} < 0.1\), the inside equalizes much faster than the surface can leak, and the
-    body is effectively "all one temperature" — which is exactly the lumped assumption Tab&nbsp;2's
-    exponential cooling curve relied on. Metals in air almost always qualify; that's why fin
-    theory only worries about the sag <em>along</em> the fin, not across it.</p>
+    <ul class="letters">
+      <li><b>m</b> — the <b>fin parameter</b>, in 1/m — careful, <em>not</em> mass. Sideways leakage (h × perimeter P) on top, along-the-fin conduction (k × cross-section A<sub>c</sub>) on the bottom. Roughly, 1/m is how far heat penetrates along the fin before the air has bled it away.</li>
+      <li><b>P</b> — the fin's perimeter (the exposed edge length of its cross-section); <b>A<sub>c</sub></b> — the cross-sectional area the heat conducts through; <b>k</b> — the metal's conductivity.</li>
+      <li><b>mL</b> — the dimensionless product that tells you everything: mL ≪ 1 → the whole fin stays hot; mL ≫ 1 → the outer end is dead metal.</li>
+      <li><b>η</b> — "eta", the <b>fin efficiency</b>: the fraction of the ideal, uniformly-hot heat flow the fin actually delivers. It falls from 1 as mL grows; tanh is just the curve shape a calculator gives you (the sim computes it).</li>
+    </ul>
+    <p class="later">The full temperature profile along the fin, from an energy balance on a slice with an
+    insulated tip, is θ(x)/θ<sub>b</sub> = cosh m(L−x) / cosh mL, where θ = T − T<sub>∞</sub> is the "excess
+    temperature" and θ<sub>b</sub> its value at the base. The second canvas draws it.</p>
+    <div class="plain">
+      The same physics gives the general "is it all one temperature?" test used everywhere in heat transfer:
+      the <b>Biot number</b>, the ratio of the conduction resistance <em>inside</em> a body to the convection
+      resistance at its surface. Below about 0.1 the inside equalises much faster than the surface can leak,
+      and the body is effectively one temperature — exactly what Tab 2's cooling curve assumed.
+    </div>
+    <div class="equation-box">
+      $$ \mathrm{Bi} \;=\; \frac{h\,L_c}{k} \qquad (\mathrm{Bi} < 0.1 \Rightarrow \text{"all one temperature"}) $$
+    </div>
+    <ul class="letters">
+      <li><b>L<sub>c</sub></b> — a characteristic length: for our fin's cross-section, the half-thickness t/2. Metals in air almost always pass; that's why fin theory only worries about the sag <em>along</em> the fin, not across it.</li>
+    </ul>
     <div class="worked-example">
-      <p>An aluminum plate fin, per metre of width: \(k = 205\ \text{W/m·K}\), thickness
-      \(t = 2\ \text{mm}\), length \(L = 30\ \text{mm}\), \(h = 25\ \text{W/m}^2\text{K}\).
-      Per metre of width, \(P \approx 2\ \text{m}\) (two faces) and
-      \(A_c = t \times 1 = 0.002\ \text{m}^2\). Then
-      \(m = \sqrt{25 \times 2/(205 \times 0.002)} = \sqrt{122} \approx 11.0\ \text{m}^{-1}\),
-      \(mL \approx 11.0 \times 0.03 = 0.33\), and
-      \(\eta = \tanh(0.33)/0.33 \approx 0.97\) — a short, fat aluminum fin is 97% of perfect.
-      Swap in <b>steel</b> (\(k = 45\)): \(m = \sqrt{50/0.09} \approx 23.6\ \text{m}^{-1}\),
-      \(mL \approx 0.71\), \(\eta = \tanh(0.71)/0.71 \approx 0.86\) — and falling fast if you
-      make it any longer. And the Biot check: \(\mathrm{Bi} = 25 \times 0.001/205 \approx
-      1.2\times10^{-4} \ll 0.1\) — across its thickness the fin really is one temperature.</p>
+      <p>An aluminum plate fin, per metre of width: k = 205&nbsp;W/m·K, thickness 2&nbsp;mm, length 30&nbsp;mm, h = 25.</p>
+      <ol>
+        <li><b>Perimeter and cross-section</b> per metre of width: P ≈ 2&nbsp;m (two faces), A<sub>c</sub> = 0.002&nbsp;m².</li>
+        <li><b>The fin parameter:</b> m = √(25 × 2 ÷ (205 × 0.002)) = √122 ≈ 11&nbsp;per metre.</li>
+        <li><b>mL:</b> 11 × 0.03 = 0.33 — small. Efficiency η = tanh(0.33) ÷ 0.33 ≈ <b>0.97</b>: a short, fat aluminum fin is 97% of perfect.</li>
+        <li><b>Swap in steel</b> (k = 45): m = √(50 ÷ 0.09) ≈ 23.6, mL ≈ 0.71, η = tanh(0.71) ÷ 0.71 ≈ <b>0.86</b> — and falling fast if you make it any longer.</li>
+        <li><b>Biot check:</b> Bi = 25 × 0.001 ÷ 205 ≈ 0.00012 ≪ 0.1 — across its thickness the fin really is one temperature.</li>
+      </ol>
     </div>
     <div class="key-takeaways">
       <ul>
-        <li>Real fins sag toward the tip: \(\theta/\theta_b = \cosh m(L-x)/\cosh mL\), with fin
-        parameter \(m = \sqrt{hP/(kA_c)}\) (not mass!).</li>
-        <li>Fin efficiency \(\eta = \tanh(mL)/mL\): keep \(mL\) small — short, thick,
-        high-\(k\) fins stay hot and earn their area.</li>
-        <li>If \(\eta\) drops below ~0.75, the outer fin is dead metal: make it shorter, fatter,
-        or more conductive.</li>
-        <li>Biot number \(\mathrm{Bi} = hL_c/k < 0.1\) means "all one temperature" — the license
-        behind lumped cooling (Tab 2) and 1-D fin theory itself.</li>
+        <li>Real fins sag toward the tip; the fin parameter m = √(hP/(kA<sub>c</sub>)) (not mass!) sets how fast.</li>
+        <li>Fin efficiency η = tanh(mL)/mL: keep mL small — short, thick, high-k fins stay hot and earn their area.</li>
+        <li>If η drops below ~0.75, the outer fin is dead metal: make it shorter, fatter, or more conductive.</li>
+        <li>Biot number Bi = hL<sub>c</sub>/k &lt; 0.1 means "all one temperature" — the license behind lumped cooling (Tab 2) and 1-D fin theory itself.</li>
       </ul>
     </div>
   </div>
@@ -495,19 +495,19 @@
     <div class="ctrl">
       <h3>Controls</h3>
       <div class="ctrl-group">
-        <label>Convection h <span id="v-levelup-h">25</span></label>
+        <label>Convection h <span id="v-levelup-h">25 W/m²K</span></label>
         <input type="range" id="s-levelup-h" min="5" max="100" step="1" value="25">
       </div>
       <div class="ctrl-group">
-        <label>Fin length L <span id="v-levelup-len">30</span></label>
+        <label>Fin length L <span id="v-levelup-len">30 mm</span></label>
         <input type="range" id="s-levelup-len" min="5" max="100" step="1" value="30">
       </div>
       <div class="ctrl-group">
-        <label>Thickness t <span id="v-levelup-t">2</span></label>
+        <label>Thickness t <span id="v-levelup-t">2 mm</span></label>
         <input type="range" id="s-levelup-t" min="1" max="10" step="0.5" value="2">
       </div>
       <div class="ctrl-group">
-        <label>Conductivity k <span id="v-levelup-k">205</span></label>
+        <label>Conductivity k <span id="v-levelup-k">205 W/m·K</span></label>
         <input type="range" id="s-levelup-k" min="10" max="420" step="1" value="205">
       </div>
       <div class="stats" id="st-levelup"></div>
@@ -731,7 +731,7 @@ const FMT = {
   'film-ts':     v => fmt(v, 0) + ' °C',
   'film-h':      v => fmt(v, 0) + ' W/m²K',
   'blow-v':      v => fmt(v, 1) + ' m/s',
-  'fins-n':      v => fmt(v, 0) + (v > 1 ? ' fins' : ' fin'),
+  'fins-n':      v => v === 0 ? 'none (bare plate)' : fmt(v, 0) + (v > 1 ? ' fins' : ' fin'),
   'fins-len':    v => fmt(v, 0) + ' mm',
   'levelup-h':   v => fmt(v, 0) + ' W/m²K',
   'levelup-len': v => fmt(v, 0) + ' mm',
@@ -751,7 +751,7 @@ const SCEN = {
     blower: { 's-blow-v': 15 }
   },
   fins: {
-    bare: { 's-fins-n': 1,  's-fins-len': 5 },
+    bare: { 's-fins-n': 0,  's-fins-len': 35 },
     cpu:  { 's-fins-n': 12, 's-fins-len': 35 },
     cram: { 's-fins-n': 30, 's-fins-len': 40 }
   },
@@ -1046,10 +1046,11 @@ function drawFins(){
   caption(ctx, w / 2, baseTop + baseH + 18,
     'base 10 cm × 10 cm · ΔT = 40 K · h = 15 W/m²K · spacing ' + fmt(smm, 1) + ' mm', COL.muted);
   caption(ctx, w / 2, 16,
-    f > 0.85 ? 'air rises freely between the fins'
+    N === 0 ? 'bare plate — only the base for the air to touch'
+      : f > 0.85 ? 'air rises freely between the fins'
       : f > 0.6 ? 'channels narrowing — the airflow is slowing'
       : 'channels choked — fresh air can barely get through',
-    f > 0.85 ? COL.teal : f > 0.6 ? COL.warn : COL.bad, true);
+    N === 0 ? COL.axis : f > 0.85 ? COL.teal : f > 0.6 ? COL.warn : COL.bad, true);
 
   // plot: q vs N, ideal vs crowded
   const c2 = setupCanvas(document.getElementById('cv-fins2'));
@@ -1081,7 +1082,10 @@ function drawFins(){
     { label: 'Bare plate would give', value: fmt(qBare, 0) + ' W' }
   ]);
 
-  if (f > 0.85)
+  if (N === 0)
+    setVerdict('vd-fins', 'warn', 'Bare plate: ' + fmt(qBare, 0) + ' W is all you get.',
+      'With no fins the air can only steal from the 0.01 m² of base: q = hAΔT = 15 × 0.01 × 40 = ' + fmt(qBare, 0) + ' W. Every fin you add bolts on two new faces of area — slide N up and watch q climb before crowding sets in.');
+  else if (f > 0.85)
     setVerdict('vd-fins', 'good', 'Every fin is earning its keep.',
       'With ' + fmt(smm, 1) + ' mm between fins the channels breathe freely, so nearly all of the ' + fmt((Abase + Afins) / Abase, 1) + '× area gain converts to heat flow: q = ' + fmt(q, 0) + ' W vs ' + fmt(qBare, 0) + ' W for the bare plate. This is the whole reason heatsinks are spiky.');
   else if (f > 0.6)

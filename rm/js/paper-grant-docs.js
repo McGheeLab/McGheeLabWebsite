@@ -436,11 +436,12 @@
     var actions = document.createElement('div');
     actions.className = 'pgd-doc-actions';
 
-    function btn(text, title, fn) {
+    function btn(text, title, fn, icon) {
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'pgd-doc-btn';
-      b.textContent = text;
+      if (icon) ICON.label(b, icon, ' ' + text);
+      else b.textContent = text;
       if (title) b.title = title;
       b.disabled = !editable;
       b.addEventListener('click', fn);
@@ -449,10 +450,11 @@
     /* V3.469 — bridge link to the existing full-featured tool page
      * (opens in a new tab; not gated on editable — reading/managing the
      * source library is always allowed). */
-    function linkBtn(text, title, href) {
+    function linkBtn(text, title, href, icon) {
       var a = document.createElement('a');
       a.className = 'pgd-doc-btn pgd-doc-link';
-      a.textContent = text;
+      if (icon) ICON.label(a, icon, ' ' + text);
+      else a.textContent = text;
       a.title = title;
       a.href = href;
       a.target = '_blank';
@@ -461,17 +463,17 @@
     }
 
     if (s.kind === 'biosketch') {
-      btn('📥 Insert biosketch prose', 'Insert a saved biosketch variant’s Personal Statement', function () { _insertBiosketch(s.id); });
-      linkBtn('🧬 Manage variants ↗', 'Open the Biosketch tool (mechanism-aware editor, live CV pull) in a new tab',
-        '/rm/pages/grant-biosketch.html');
+      btn('Insert biosketch prose', 'Insert a saved biosketch variant’s Personal Statement', function () { _insertBiosketch(s.id); }, 'arrow-down-tray');
+      linkBtn('Manage variants ↗', 'Open the Biosketch tool (mechanism-aware editor, live CV pull) in a new tab',
+        '/rm/pages/grant-biosketch.html', 'dna');
     }
     if (s.kind === 'facilities') {
-      btn('📥 Insert facilities boilerplate', 'Insert a saved facilities document', function () { _insertFacilities(s.id); });
-      linkBtn('🏢 Manage / regenerate ↗', 'Open the Facilities tool (auto-generate from inventory / equipment / people) in a new tab',
-        '/rm/pages/grant-facilities.html');
+      btn('Insert facilities boilerplate', 'Insert a saved facilities document', function () { _insertFacilities(s.id); }, 'arrow-down-tray');
+      linkBtn('Manage / regenerate ↗', 'Open the Facilities tool (auto-generate from inventory / equipment / people) in a new tab',
+        '/rm/pages/grant-facilities.html', 'building-office');
     }
-    btn('📥 Insert saved template', 'Insert a saved template for this document type', function () { _insertTemplate(s.id, s.kind); });
-    btn('💾 Save as template', 'Save this section’s current text as a reusable template', function () { _saveAsTemplate(s.id, s.kind, s.label); });
+    btn('Insert saved template', 'Insert a saved template for this document type', function () { _insertTemplate(s.id, s.kind); }, 'arrow-down-tray');
+    btn('Save as template', 'Save this section’s current text as a reusable template', function () { _saveAsTemplate(s.id, s.kind, s.label); }, 'save');
 
     card.appendChild(actions);
     return card;
@@ -552,7 +554,7 @@
       '<span class="pgd-pdf-file">' + (d.download_url
         ? '<a href="' + _esc(d.download_url) + '" target="_blank" rel="noopener">' + _esc(d.filename || 'document.pdf') + '</a>'
         : _esc(d.filename || 'document.pdf')) + mb + '</span></div>';
-    row.innerHTML = '<span class="pgd-pdf-icon">📎</span>' + meta;
+    row.innerHTML = '<span class="pgd-pdf-icon">' + ICON.svg('paper-clip') + '</span>' + meta;
     var actions = document.createElement('span');
     actions.className = 'pgd-pdf-actions';
     if (editable) {

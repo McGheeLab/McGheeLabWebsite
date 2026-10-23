@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>App Crash Reports — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
+  <style>
+    /* V3.865 — the phone app's crash reports (rm/js/app-diagnostics.js uploads them; admins only) */
+    .ar-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;box-shadow:var(--shadow)}
+    .ar-hint{font-size:13px;color:var(--text-muted);margin:0 0 12px 0;line-height:1.5}
+    .ar-row{border-bottom:1px solid var(--border)}
+    .ar-row:last-child{border-bottom:none}
+    .ar-head{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:baseline;width:100%;padding:12px 2px;background:none;border:0;text-align:left;cursor:pointer;color:var(--text);font:inherit}
+    .ar-head:hover .ar-sum{color:var(--primary)}
+    .ar-head:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px}
+    .ar-kind{font-size:11px;font-weight:700;letter-spacing:.3px;padding:2px 8px;border-radius:10px;white-space:nowrap;background:var(--bg);border:1px solid var(--border);color:var(--text-muted)}
+    .ar-kind.k-native-crash,.ar-kind.k-app-exit{background:#fee2e2;border-color:#fecaca;color:#991b1b}
+    .ar-kind.k-webcontent{background:#fef3c7;border-color:#fde68a;color:#92400e}
+    .ar-sum{font-size:14px;font-weight:600;min-width:0;overflow-wrap:anywhere}
+    .ar-when{font-size:12px;color:var(--text-muted);white-space:nowrap}
+    .ar-meta{grid-column:2 / 4;font-size:12px;color:var(--text-muted)}
+    .ar-body{padding:4px 2px 16px}
+    .ar-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+    .ar-status{font-size:12px;color:var(--text-muted)}
+    .ar-sec{margin-top:12px}
+    .ar-sec h3{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin:0 0 6px}
+    .ar-crumbs{list-style:none;margin:0;padding:0;font-size:12px;font-family:ui-monospace,Menlo,monospace}
+    .ar-crumbs li{display:grid;grid-template-columns:70px 78px 1fr;gap:8px;padding:3px 0;border-bottom:1px dashed var(--border)}
+    .ar-crumbs li.c-error,.ar-crumbs li.c-rejection,.ar-crumbs li.c-console{color:#b91c1c}
+    .ar-crumbs .ar-cp{color:var(--text-muted);grid-column:3}
+    .ar-pre{margin:0;max-height:420px;overflow:auto;font-size:11.5px;line-height:1.45;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;white-space:pre-wrap;overflow-wrap:anywhere}
+    .ar-armed{background:#dc2626 !important;border-color:#dc2626 !important;color:#fff !important}
+    @media (max-width:640px){.ar-head{grid-template-columns:1fr auto}.ar-kind{grid-column:1}.ar-sum{grid-column:1 / 3}.ar-meta{grid-column:1 / 3}.ar-crumbs li{grid-template-columns:62px 1fr}.ar-crumbs .ar-ck{display:none}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1 class="page-title"><i data-hi="bug-ant"></i> App crash reports</h1>
+    </div>
+    <div class="ar-card">
+      <p class="ar-hint">When the Ourlab phone app closes while someone is using it, or one of its pages stops, the app writes a report and sends it here the next time it opens (build 19 and later). Each one carries the phone model, iOS, the app build, the last things that happened in the app, and — for a real crash — Apple's own crash report. <b>Copy</b> puts the whole report on the clipboard, ready to paste to Claude.</p>
+      <div id="ar-list"><div class="empty-state">Loading&hellip;</div></div>
+    </div>
+  </div>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var MODELS = { 'iPhone15,4': 'iPhone 15', 'iPhone15,5': 'iPhone 15 Plus', 'iPhone16,1': 'iPhone 15 Pro', 'iPhone16,2': 'iPhone 15 Pro Max',
+      'iPhone17,1': 'iPhone 16 Pro', 'iPhone17,2': 'iPhone 16 Pro Max', 'iPhone17,3': 'iPhone 16', 'iPhone17,4': 'iPhone 16 Plus', 'iPhone17,5': 'iPhone 16e',
+      'iPhone18,1': 'iPhone 17 Pro', 'iPhone18,2': 'iPhone 17 Pro Max', 'iPhone18,3': 'iPhone 17', 'iPhone18,4': 'iPhone Air' };
+    var KIND_LABEL = { 'native-crash': 'Crash', 'app-exit': 'Closed in use', 'webcontent': 'Page stopped', 'hang': 'Froze', 'cpu': 'CPU' };
+    var list = document.getElementById('ar-list');
+    var rows = [];
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    function parse(s) { try { return s ? JSON.parse(s) : null; } catch (e) { return s; } }
+    function when(r) { var d = new Date(r.createdAt || (r.uploadedAt && r.uploadedAt.toDate ? r.uploadedAt.toDate() : 0)); return isNaN(d) ? '' : d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+    function model(d) { d = d || {}; return (MODELS[d.model] || d.model || 'unknown device') + (d.os ? ' · iOS ' + d.os : ''); }
+    function full(r) { return Object.assign({}, r, { event: parse(r.eventJson), metrickit: parse(r.metrickitJson), eventJson: undefined, metrickitJson: undefined, uploadedAt: r.uploadedAt && r.uploadedAt.toDate ? r.uploadedAt.toDate().toISOString() : r.uploadedAt }); }
+    function crumbsHTML(list) {
+      if (!list || !list.length) return '<div class="ar-status">No breadcrumbs.</div>';
+      return '<ul class="ar-crumbs">' + list.map(function (c) {
+        var t = new Date(c.t); var tt = isNaN(t) ? '' : t.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+        return '<li class="c-' + esc(c.k) + '"><span>' + esc(tt) + '</span><span class="ar-ck">' + esc(c.k) + (c.n > 1 ? ' ×' + c.n : '') + '</span><span>' + esc(c.m) + '</span><span class="ar-cp">' + esc(c.p) + '</span></li>';
+      }).join('') + '</ul>';
+    }
+    function render() {
+      if (!rows.length) { list.innerHTML = '<div class="empty-state">No crash reports. Reports start arriving from app build 19.</div>'; return; }
+      list.innerHTML = rows.map(function (r, i) {
+        var d = r.device || {}, a = r.app || {};
+        return '<div class="ar-row" data-i="' + i + '"><button type="button" class="ar-head" aria-expanded="false">' +
+          '<span class="ar-kind k-' + esc(r.kind) + '">' + esc(KIND_LABEL[r.kind] || r.kind) + '</span>' +
+          '<span class="ar-sum">' + esc(r.summary || '(no summary)') + '</span><span class="ar-when">' + esc(when(r)) + '</span>' +
+          '<span class="ar-meta">' + esc(r.name || r.email || r.uid) + ' · ' + esc(model(d)) + ' · build ' + esc(a.build || '?') +
+          (d.availableMemoryMB != null ? ' · ' + esc(d.availableMemoryMB) + ' MB free' : '') + (d.memoryWarningsThisRun ? ' · ' + esc(d.memoryWarningsThisRun) + ' memory warning(s)' : '') + '</span>' +
+          '</button><div class="ar-body" hidden></div></div>';
+      }).join('');
+    }
+    function openRow(row) {
+      var r = rows[+row.dataset.i]; var body = row.querySelector('.ar-body'); var head = row.querySelector('.ar-head');
+      var open = body.hidden; body.hidden = !open; head.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (!open || body.dataset.built) return;
+      body.dataset.built = '1';
+      var ev = parse(r.eventJson), mk = parse(r.metrickitJson);
+      body.innerHTML = '<div class="ar-acts"><button type="button" class="btn btn-primary btn-small" data-ar="copy">Copy for Claude</button>' +
+        '<button type="button" class="btn btn-small" data-ar="del">Delete</button><span class="ar-status" data-ar-status></span></div>' +
+        '<div class="ar-sec"><h3>The last things that happened</h3>' + crumbsHTML(r.breadcrumbs) + '</div>' +
+        '<div class="ar-sec"><h3>Phone</h3><pre class="ar-pre">' + esc(JSON.stringify({ device: r.device, app: r.app, page: r.page }, null, 2)) + '</pre></div>' +
+        '<div class="ar-sec"><h3>Event</h3><pre class="ar-pre">' + esc(JSON.stringify(ev, null, 2)) + '</pre></div>' +
+        (mk ? '<div class="ar-sec"><h3>Apple\'s crash report (MetricKit)</h3><pre class="ar-pre">' + esc(JSON.stringify(mk, null, 2)) + '</pre></div>' : '');
+    }
+    list.addEventListener('click', async function (e) {
+      var head = e.target.closest('.ar-head'); if (head) { openRow(head.closest('.ar-row')); return; }
+      var b = e.target.closest('[data-ar]'); if (!b) return;
+      var row = b.closest('.ar-row'); var r = rows[+row.dataset.i]; var st = row.querySelector('[data-ar-status]');
+      if (b.dataset.ar === 'copy') {
+        try { await navigator.clipboard.writeText(JSON.stringify(full(r), null, 2)); st.textContent = 'Copied.'; }
+        catch (err) { st.textContent = 'Could not copy: ' + (err && err.message); }
+        return;
+      }
+      if (b.dataset.ar === 'del') {
+        if (!b.classList.contains('ar-armed')) { b.classList.add('ar-armed'); b.textContent = 'Really delete?'; setTimeout(function () { if (b.isConnected) { b.classList.remove('ar-armed'); b.textContent = 'Delete'; } }, 3000); return; }
+        try { await firebridge.db().collection('crashReports').doc(r.id).delete(); rows.splice(+row.dataset.i, 1); render(); }
+        catch (err) { st.textContent = 'Could not delete: ' + (err && err.message); }
+      }
+    });
+    firebridge.onAuth(async function (user) {
+      if (!user) { list.innerHTML = '<div class="empty-state">Sign in to see the app\'s crash reports.</div>'; return; }
+      if (!(firebridge.isAdmin && firebridge.isAdmin())) { list.innerHTML = '<div class="empty-state">Crash reports are for lab admins.</div>'; return; }
+      try {
+        var snap = await firebridge.db().collection('crashReports').orderBy('uploadedAt', 'desc').limit(100).get();
+        rows = []; snap.forEach(function (d) { rows.push(Object.assign({ id: d.id }, d.data())); });
+        render();
+      } catch (err) { list.innerHTML = '<div class="empty-state">Could not load the reports: ' + esc(err && err.message) + '</div>'; }
+    });
+  })();
+  </script>
+</body>
+</html>

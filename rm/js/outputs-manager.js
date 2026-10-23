@@ -73,7 +73,8 @@
     // still contains the deleted paper. Invalidating first guarantees the
     // next load reflects real Firestore state.
     var papers = [];
-    try { if (window.api && api.invalidate) await api.invalidate('projects/papers.json'); } catch (e) {}
+    // V3.647 — `typeof api`; `window.api` is always undefined (lexical const).
+    try { if (typeof api !== 'undefined' && api.invalidate) await api.invalidate('projects/papers.json'); } catch (e) {}
     try { if (window.LIBRARY_ASSOC && LIBRARY_ASSOC.invalidate) LIBRARY_ASSOC.invalidate(); } catch (e) {}
     try { var data = await api.load('projects/papers.json'); papers = (data && data.papers) || []; } catch (e) {}
 
@@ -133,7 +134,7 @@
     if (r.updated_at) bits.push('updated ' + fmtDate(r.updated_at));
     if (r.authorCount) bits.push(r.authorCount + ' author' + (r.authorCount === 1 ? '' : 's'));
     var foci = (r.foci || []).map(function (f) {
-      return '<a class="rf-combine-pill" href="/rm/pages/research.html?id=' + encodeURIComponent(f.id) + '">🎯 ' + esc(f.title) + '</a>';
+      return '<a class="rf-combine-pill" href="/rm/pages/research.html?id=' + encodeURIComponent(f.id) + '">' + ICON.svg('target') + ' ' + esc(f.title) + '</a>';
     }).join('');
     return pill + (bits.length ? ' <span class="om-sub">' + esc(bits.join(' · ')) + '</span>' : '') +
       (foci ? '<div class="om-foci">' + foci + '</div>' : '');
@@ -153,9 +154,9 @@
       var delBtn = '';
       if (canDel) {
         if (r._patent) {
-          delBtn = '<button class="rf-btn rf-btn-danger rf-btn-sm" data-del-patent="' + esc(r.id) + '" data-foci="' + esc(r._fociId) + '">🗑</button>';
+          delBtn = '<button class="rf-btn rf-btn-danger rf-btn-sm" data-del-patent="' + esc(r.id) + '" data-foci="' + esc(r._fociId) + '">' + ICON.svg('trash') + '</button>';
         } else if (state.deleteReady) {
-          delBtn = '<button class="rf-btn rf-btn-danger rf-btn-sm" data-del="' + esc(r.id) + '" data-title="' + esc(r.title) + '">🗑</button>';
+          delBtn = '<button class="rf-btn rf-btn-danger rf-btn-sm" data-del="' + esc(r.id) + '" data-title="' + esc(r.title) + '">' + ICON.svg('trash') + '</button>';
         } else {
           delBtn = '<span class="om-sub" title="deleteBuilderPaper function not deployed">—</span>';
         }
@@ -183,7 +184,7 @@
     root.innerHTML =
       '<div class="om-wrap">' +
         '<p class="rf-hub-intro">Every paper, grant, and patent the lab is building — with its type, when it was created, and a quick activity report. ' +
-          (canDel ? 'The 🗑 deletes a paper or grant <strong>everywhere in RM</strong> (its content, figures, comments, reader highlights, and library links) — this cannot be undone.' : '') +
+          (canDel ? 'The ' + ICON.svg('trash') + ' deletes a paper or grant <strong>everywhere in RM</strong> (its content, figures, comments, reader highlights, and library links) — this cannot be undone.' : '') +
         '</p>' +
         '<div class="om-scroll"><table class="om-table"><thead><tr>' +
           '<th>Title</th><th>Type</th><th>Created</th><th>Activity</th>' + (canDel ? '<th></th>' : '') +
@@ -243,7 +244,8 @@
       });
       var j = await r.json().catch(function () { return {}; });
       if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
-      try { if (window.api && api.invalidate) await api.invalidate('projects/papers.json'); } catch (e) {}
+      // V3.647 — `typeof api`; `window.api` is always undefined (lexical const).
+      try { if (typeof api !== 'undefined' && api.invalidate) await api.invalidate('projects/papers.json'); } catch (e) {}
       // Also scrub the id from any research-foci draft_refs so no dangling pill.
       await scrubFociRefs(id);
       toast('success', 'Deleted "' + title + '" site-wide.');

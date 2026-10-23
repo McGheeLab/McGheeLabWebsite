@@ -1,0 +1,4 @@
+# deploy/manifest.json is the record of what is live on mcgheelab.com. With two deployers (V3.868) both sides
+# edit it; the union driver (scripts/deploy.py merge-manifest, registered by `python3 scripts/merge_check.py install`)
+# keeps the newer record of each file instead of raising a conflict.
+deploy/manifest.json merge=deploy-manifest

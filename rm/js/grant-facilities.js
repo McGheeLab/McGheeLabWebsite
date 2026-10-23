@@ -39,7 +39,12 @@
 
   async function loadInventory() {
     try {
-      var snap = await firebridge.db().collection('inventory').get();
+      // V3.646 — `inventory` is ONE collection with a `kind` discriminator
+      // (item | chemical | stock). This read was unfiltered, so all 158
+      // chemicals were already leaking into the Facilities & Equipment
+      // boilerplate, and V3.646's lab-made stock batches would have followed.
+      var snap = await firebridge.db().collection('inventory')
+        .where('kind', '==', 'item').get();
       return snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
     } catch (e) {
       console.warn('[grant-facilities] inventory load failed:', e);

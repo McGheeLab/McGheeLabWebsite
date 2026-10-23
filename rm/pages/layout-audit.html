@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Layout audit — RM</title>
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
   <link rel="stylesheet" href="/rm/css/style.css">
 </head>
 <body>
@@ -19,8 +20,8 @@
       sign-in needed for the fixture run.
     </p>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
-      <button class="btn" id="la-run">▶ Run fixtures</button>
-      <button class="btn" id="la-export" title="Download this run as JSON">⬇ Export JSON</button>
+      <button class="btn" id="la-run"><i data-hi="play"></i> Run fixtures</button>
+      <button class="btn" id="la-export" title="Download this run as JSON"><i data-hi="arrow-down-tray"></i> Export JSON</button>
       <label class="btn" style="cursor:pointer;" title="Load a previous export for a Δ comparison">
         Load baseline<input type="file" id="la-baseline" accept="application/json" hidden>
       </label>

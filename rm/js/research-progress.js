@@ -57,9 +57,9 @@
   function outcomeIcon(fa) {
     if (fa.report) {
       var om = FOCUS_AREAS.OUTCOME_META[fa.report.outcome] || {};
-      return om.icon || '·';
+      return om.icon ? ICON.render(om.icon) : '·';
     }
-    if (fa.status === 'confirmed') return '⏳';
+    if (fa.status === 'confirmed') return ICON.svg('clock');
     return '◌'; // proposed / edited — not yet confirmed
   }
 
@@ -98,7 +98,7 @@
     var links = [];
     trail.forEach(function (fa) {
       ((fa.report && fa.report.notebook_entry_ids) || []).forEach(function (id) {
-        links.push('<a class="rf-prog-nb" href="/rm/pages/lab-notebook.html?entry=' + encodeURIComponent(id) + '">📓</a>');
+        links.push('<a class="rf-prog-nb" href="/rm/pages/notebook.html?entry=' + encodeURIComponent(id) + '">' + ICON.svg('book-open') + '</a>');
       });
     });
     return '<div class="rf-prog-row">' +
@@ -143,7 +143,7 @@
       }
     }
 
-    var legend = '<div class="rf-prog-legend">✅ success · ➗ partial · ❌ did not work · ⏳ confirmed, in progress · ◌ proposed · last ' + WEEKS_BACK + ' weeks</div>';
+    var legend = '<div class="rf-prog-legend">' + ICON.svg('check-circle') + ' success · ' + ICON.svg('divide') + ' partial · ' + ICON.svg('x-circle') + ' did not work · ' + ICON.svg('clock') + ' confirmed, in progress · ◌ proposed · last ' + WEEKS_BACK + ' weeks</div>';
     sec.innerHTML = '<h2>Progress on this thrust</h2>' + legend + rows.join('') +
       (hidden === uids.length && uids.length
         ? '<p class="rf-empty-sm">Weekly-focus detail is visible to the student, their mentors, and the PI.</p>' : '');

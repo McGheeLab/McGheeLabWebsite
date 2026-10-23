@@ -393,6 +393,150 @@
     };
   }
 
+  /* ── V3.649 — lists inside a paragraph body ──────────────────────
+   *
+   * Alex: "I need the ability to add lists to the write version of the
+   * paragraph, either bullet or numbers." The list BLOCK below already
+   * existed, but it is a sibling of the paragraph — you had to leave the
+   * prose you were writing, add a block, and come back. This lets a list
+   * live inside the body Y.Text of the paragraph itself.
+   *
+   * Syntax, matching the list block's own convention so the two cannot
+   * drift: a line beginning `- ` or `* ` is a bullet item; `1. ` / `1) `
+   * (any digits) is a numbered item; two leading spaces per nesting level.
+   * A run of consecutive item lines is one list. Anything else is prose.
+   *
+   * ONE parser, shared by all four consumers — the editor's rendered view,
+   * the Document view, the LaTeX exporter, and the toolbar buttons that
+   * write the syntax. A second implementation anywhere is a guarantee that
+   * the PDF and the screen eventually disagree.
+   *
+   * Returns runs: [{ type:'prose', text }
+   *              | { type:'list', listType:'bullet'|'number',
+   *                  items:[{depth, text}] }]
+   */
+  var BULLET_RE = /^(\s*)[-*]\s+(.*)$/;
+  var NUMBER_RE = /^(\s*)\d+[.)]\s+(.*)$/;
+
+  function parseBodyRuns(text) {
+    var runs = [];
+    var src = String(text == null ? '' : text);
+    if (!src) return runs;
+    var prose = [];
+    var list = null;
+
+    function flushProse() {
+      if (!prose.length) return;
+      /* Keep the blank lines the writer typed; only drop a run that is
+       * nothing but whitespace, which would render as an empty paragraph. */
+      var joined = prose.join('\n');
+      if (joined.trim()) runs.push({ type: 'prose', text: joined });
+      prose = [];
+    }
+    function flushList() {
+      if (list && list.items.length) runs.push(list);
+      list = null;
+    }
+
+    src.split('\n').forEach(function (line) {
+      var mB = BULLET_RE.exec(line);
+      var mN = mB ? null : NUMBER_RE.exec(line);
+      var m = mB || mN;
+      if (!m) {
+        /* A blank line inside a list ends it; a blank line elsewhere is
+         * ordinary prose whitespace. */
+        flushList();
+        prose.push(line);
+        return;
+      }
+      var kind = mB ? 'bullet' : 'number';
+      var depth = Math.min(3, Math.floor(m[1].replace(/\t/g, '  ').length / 2));
+      var itemText = m[2].replace(/\s+$/, '');
+      flushProse();
+      /* A bullet run and a numbered run are different lists even when
+       * adjacent — switching marker starts a new one. */
+      if (list && list.listType !== kind) flushList();
+      if (!list) list = { type: 'list', listType: kind, items: [] };
+      list.items.push({ depth: depth, text: itemText });
+    });
+    flushList();
+    flushProse();
+    return runs;
+  }
+
+  /* V3.649 — is this ONE line a list item? Returns {listType, depth,
+   * markerLength} or null. Used by the Write view to lay each item out with
+   * a hanging indent, so the source you edit reads like the list it is. */
+  function listLineMatch(line) {
+    var mB = BULLET_RE.exec(line);
+    var mN = mB ? null : NUMBER_RE.exec(line);
+    var m = mB || mN;
+    if (!m) return null;
+    return {
+      listType: mB ? 'bullet' : 'number',
+      indent: m[1],
+      depth: Math.min(3, Math.floor(m[1].replace(/\t/g, '  ').length / 2)),
+      /* Length of the marker itself ("- " / "12. "), excluding the indent. */
+      markerLength: String(line).length - m[2].length - m[1].length,
+      /* The item's own text, marker and indent stripped. */
+      content: m[2],
+    };
+  }
+
+  /* True when the body contains at least one list item — lets consumers
+   * skip the run machinery entirely for ordinary prose. */
+  function bodyHasList(text) {
+    var src = String(text == null ? '' : text);
+    if (src.indexOf('\n') === -1 && !BULLET_RE.test(src) && !NUMBER_RE.test(src)) return false;
+    return src.split('\n').some(function (l) { return BULLET_RE.test(l) || NUMBER_RE.test(l); });
+  }
+
+  /* V3.650 — canonical numbering for every ordered run in the body.
+   *
+   * Structural edits (Enter mid-list, indent, outdent, delete) leave the
+   * typed numbers wrong — insert between "1." and "2." and the source says
+   * 1, 2, 2. Rather than display a number that differs from the source
+   * (which would then serialize back wrong), renumber the SOURCE after any
+   * structural edit, so what you see and what is stored stay the same
+   * string. Numbering restarts per run and per depth, which is what
+   * enumerate does. */
+  function renumberOrderedRuns(text) {
+    var lines = String(text == null ? '' : text).split('\n');
+    var counters = [];      // per depth
+    var inRun = false;
+    var out = lines.map(function (line) {
+      var m = listLineMatch(line);
+      if (!m) { inRun = false; counters = []; return line; }
+      if (!inRun) { inRun = true; counters = []; }
+      if (m.listType !== 'number') return line;
+      var d = m.depth;
+      counters.length = d + 1;
+      counters[d] = (counters[d] || 0) + 1;
+      var body = line.slice(m.markerLength + m.indent.length);
+      return m.indent + counters[d] + '. ' + body;
+    });
+    return out.join('\n');
+  }
+
+  /* Toggle list markers across the given source lines. `type` is
+   * 'bullet' | 'number'; re-applying the same type strips them, so the
+   * toolbar buttons behave like every other formatting toggle. */
+  function toggleListLines(lines, type) {
+    var re = type === 'number' ? NUMBER_RE : BULLET_RE;
+    var allMarked = lines.every(function (l) { return !l.trim() || re.test(l); });
+    var n = 0;
+    return lines.map(function (line) {
+      if (!line.trim()) return line;
+      var mB = BULLET_RE.exec(line), mN = NUMBER_RE.exec(line);
+      var m = mB || mN;
+      var indent = m ? m[1] : (/^(\s*)/.exec(line)[1] || '');
+      var body = m ? m[2] : line.replace(/^\s+/, '');
+      if (allMarked) return indent + body;                 // strip
+      n++;
+      return indent + (type === 'number' ? (n + '. ') : '- ') + body;
+    });
+  }
+
   /* List block factory. `body` holds the items — one per line; leading
    * spaces (2 per level) nest. attrs.list_type 'bullet' → itemize,
    * 'number' → enumerate. */
@@ -428,6 +572,122 @@
       latex: opts.latex || '',
       type: opts.type === 'main' ? 'main' : 'inline',
     };
+  }
+
+  /* ── V3.645 — value keys ──────────────────────────────────────────
+   * A per-paper table of named values the writer references from prose
+   * instead of retyping. Two token families read from this ONE table:
+   *
+   *   [!val:KEY]    paper-local value  (kind 'text' | 'number')
+   *   [@item:KEY]   lab inventory item (kind 'inventory')
+   *
+   * The namespace split is the rule the builder already follows:
+   * `[@…]` refers OUT to a shared lab record (library, inventory),
+   * `[!…]` refers to something inside this paper (fig/sec/eq/val).
+   *
+   * kind 'text' vs 'number' is deliberately a discriminator, not a
+   * text field with optional numeric companions: a typed string and a
+   * num/unit pair that can silently disagree is a data-integrity bug
+   * waiting to print the wrong number in a manuscript.
+   *
+   * kind 'inventory' carries a SNAPSHOT of the inventory row rather
+   * than resolving live. Three reasons, all load-bearing: the
+   * inventory is ~3,481 docs / 1+ MB (never on the render path); a
+   * submitted manuscript must not change because someone edited an
+   * inventory row two years later; and `inventory` is isLabMember()-
+   * read-only, so a live resolve would 403 for any outside reader of a
+   * shared paper. `↻ Refresh from inventory` re-pulls deliberately. */
+
+  var MAX_VALUE_KEY_LENGTH = 48;
+
+  /* Leading digits are allowed on purpose — real keys look like `24WP`. */
+  var VALUE_KEY_RE = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+
+  var DEFAULT_ITEM_FORMAT = '({vendor} {catalogue_number})';
+
+  var VALUE_KINDS = ['text', 'number', 'inventory'];
+
+  function normalizeValueKind(k) {
+    return VALUE_KINDS.indexOf(k) >= 0 ? k : 'text';
+  }
+
+  function isValidValueKey(key) {
+    key = String(key == null ? '' : key);
+    return !!key && key.length <= MAX_VALUE_KEY_LENGTH && VALUE_KEY_RE.test(key);
+  }
+
+  function newValueEntry(opts) {
+    opts = opts || {};
+    var kind = normalizeValueKind(opts.kind);
+    return {
+      id: shortId('val-'),
+      key: String(opts.key || ''),
+      kind: kind,
+      note: String(opts.note || ''),
+      /* kind 'text' */
+      value: String(opts.value || ''),
+      /* kind 'number' — `num` stays a Number so rounding is a render
+       * concern, not a storage one; sigfigs null = print as authored. */
+      num: (typeof opts.num === 'number' && isFinite(opts.num)) ? opts.num : null,
+      unit: String(opts.unit || ''),
+      sigfigs: (typeof opts.sigfigs === 'number' && opts.sigfigs > 0)
+        ? Math.min(15, Math.round(opts.sigfigs)) : null,
+      /* kind 'inventory' */
+      inv_id: String(opts.inv_id || ''),
+      inv_kind: opts.inv_kind === 'chemical' ? 'chemical' : 'item',
+      snapshot: {
+        name: String((opts.snapshot && opts.snapshot.name) || ''),
+        vendor: String((opts.snapshot && opts.snapshot.vendor) || ''),
+        catalogue_number: String((opts.snapshot && opts.snapshot.catalogue_number) || ''),
+      },
+      format: String(opts.format || DEFAULT_ITEM_FORMAT),
+      refreshed_at: opts.refreshed_at || null,
+    };
+  }
+
+  /* Render a number for printing. `sigfigs` uses toPrecision, whose
+   * trailing zeros are the POINT (0.5 at 2 s.f. is "0.50") — don't
+   * strip them. Exponential output is left alone; it only appears when
+   * the author explicitly asked for a precision that needs it. */
+  function formatValueNumber(num, sigfigs) {
+    if (typeof num !== 'number' || !isFinite(num)) return '';
+    if (sigfigs) {
+      try { return num.toPrecision(sigfigs); } catch (e) { /* range */ }
+    }
+    return String(num);
+  }
+
+  function formatInventorySnapshot(snap, format) {
+    snap = snap || {};
+    var out = String(format || DEFAULT_ITEM_FORMAT)
+      .replace(/\{name\}/g, snap.name || '')
+      .replace(/\{vendor\}/g, snap.vendor || '')
+      .replace(/\{catalogue_number\}/g, snap.catalogue_number || '')
+      .replace(/\{cat\}/g, snap.catalogue_number || '');
+    /* Collapse the holes a missing field leaves behind so a row with no
+     * catalogue number prints "(Nest)" rather than "(Nest )". */
+    out = out.replace(/\s+/g, ' ').replace(/\(\s+/g, '(').replace(/\s+\)/g, ')');
+    out = out.replace(/\(\s*\)/g, '').replace(/\[\s*\]/g, '');
+    return out.trim();
+  }
+
+  /* THE resolver. Editor chips, Document view, .tex export and the
+   * bundle's paper.md all print through this one function — a second
+   * implementation anywhere is how the editor and the PDF start
+   * disagreeing about what the paper says. */
+  function formatValueEntry(entry) {
+    if (!entry) return '';
+    var kind = normalizeValueKind(entry.kind);
+    if (kind === 'inventory') {
+      return formatInventorySnapshot(entry.snapshot, entry.format);
+    }
+    if (kind === 'number') {
+      var n = formatValueNumber(entry.num, entry.sigfigs);
+      var u = String(entry.unit || '').trim();
+      if (!n) return u;
+      return u ? (n + ' ' + u) : n;
+    }
+    return String(entry.value || '');
   }
 
   /* V3.102 — figure block factory. `body` holds the caption (Y.Text once
@@ -556,6 +816,21 @@
     newSubfigure: newSubfigure,
     newSkeletonItem: newSkeletonItem,
     newEquationLibraryEntry: newEquationLibraryEntry,
+    MAX_VALUE_KEY_LENGTH: MAX_VALUE_KEY_LENGTH,
+    VALUE_KINDS: VALUE_KINDS,
+    DEFAULT_ITEM_FORMAT: DEFAULT_ITEM_FORMAT,
+    isValidValueKey: isValidValueKey,
+    normalizeValueKind: normalizeValueKind,
+    newValueEntry: newValueEntry,
+    formatValueEntry: formatValueEntry,
+    formatValueNumber: formatValueNumber,
+    formatInventorySnapshot: formatInventorySnapshot,
+    /* V3.649 — paragraph-body lists (see parseBodyRuns). */
+    parseBodyRuns: parseBodyRuns,
+    listLineMatch: listLineMatch,
+    renumberOrderedRuns: renumberOrderedRuns,
+    bodyHasList: bodyHasList,
+    toggleListLines: toggleListLines,
     newTree: newTree,
     normalizeTree: normalizeTree,
     styleFor: styleFor,

@@ -1,7 +1,7 @@
-/* workflow.css — V3.64 styles for the workflow chooser + workflow-aware
- * top-nav strip. Loaded on rm/index.html and globally by every RM page
- * (since nav.js renders the strip in place of the six-group nav whenever
- * a workflow is active in sessionStorage). */
+/* workflow.css — V3.64 styles for the workflow chooser (home page cards),
+ * the add/save modals and the home feed. nav.js injects it on every page
+ * for the modals. The workflow STRIP rules it used to carry were retired in
+ * V3.809 — the bar is .top-nav everywhere now (rm/css/style.css). */
 
 /* ── Workflow chooser (rm/index.html) ── */
 .wf-page .page-header { align-items: center; }
@@ -12,6 +12,8 @@
   color: var(--text, #111827);
   margin: 0 0 6px 0;
 }
+.wf-admin-link { font-size: 12px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--primary, #2563eb); text-decoration: none; margin-left: 10px; }
+.wf-admin-link:hover { text-decoration: underline; }
 .wf-section-sub {
   font-size: 13px; color: var(--text-muted, #6b7280);
   line-height: 1.55; margin: 0 0 14px 0; max-width: 720px;
@@ -84,166 +86,12 @@
   background: var(--primary, #2563eb); color: #fff;
 }
 
-/* ── Workflow strip (replaces top-nav while a workflow is active) ── */
-.workflow-strip {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 16px;
-  background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
-  color: #fff;
-  border-bottom: 1px solid #1e3a8a;
-  position: sticky; top: 0; z-index: 50;
-  flex-wrap: wrap;
-}
-.workflow-strip .ws-brand {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-weight: 700; color: #fff; text-decoration: none;
-  font-size: 14px; padding-right: 12px;
-  border-right: 1px solid rgba(255,255,255,.18);
-  margin-right: 4px;
-}
-.workflow-strip .ws-brand:hover { color: #dbeafe; }
-.workflow-strip .ws-icon { font-size: 18px; line-height: 1; }
-.workflow-strip .ws-pages {
-  display: flex; align-items: center; gap: 4px;
-  flex-wrap: wrap; flex: 1; min-width: 200px;
-}
-.workflow-strip .ws-page {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px 10px;
-  font-size: 12.5px; color: #dbeafe;
-  background: rgba(255,255,255,.08); border-radius: 999px;
-  text-decoration: none; transition: background .1s, color .1s;
-}
-.workflow-strip .ws-page:hover {
-  background: rgba(255,255,255,.18); color: #fff;
-}
-.workflow-strip .ws-page.active {
-  background: #fff; color: #1e3a8a; font-weight: 600;
-}
-/* V3.75 — split-mode pill states. Open pills (= showing in left or
- * right pane) get a colored badge prefix; the active pane's pill gets
- * a red border so the user knows which pane will be replaced when
- * they click a closed pill. */
-.workflow-strip .ws-page-open {
-  background: rgba(255,255,255,.22);
-  color: #fff;
-  font-weight: 500;
-}
-.workflow-strip .ws-page-open::before {
-  content: '';
-  display: inline-block;
-  width: 6px; height: 6px; border-radius: 50%;
-  background: #fbbf24;
-  margin-right: 6px;
-  vertical-align: middle;
-}
-.workflow-strip .ws-page-open--left::before  { background: #34d399; }   /* green dot */
-.workflow-strip .ws-page-open--right::before { background: #60a5fa; }   /* blue dot */
-.workflow-strip .ws-page-active-split {
-  outline: 2px solid #ef4444;
-  outline-offset: 1px;
-  box-shadow: 0 0 0 2px rgba(239,68,68,.25);
-}
+/* ── Workflow strip — RETIRED in V3.809 ──
+ * The strip (a blue bar that replaced .top-nav while a workflow was active)
+ * is gone: nav.js draws one .top-nav everywhere and the workflow's pages
+ * are ordinary chips in it (`.top-nav--workflow`, styles in style.css). */
 
-/* V3.66 — drag-to-reorder visual states */
-.workflow-strip .ws-page[draggable="true"] { cursor: grab; }
-.workflow-strip .ws-page[draggable="true"]:active { cursor: grabbing; }
-.workflow-strip .ws-page-dragging { opacity: .4; }
-.workflow-strip .ws-page-drop-before {
-  box-shadow: -3px 0 0 0 #fbbf24 inset;
-}
-.workflow-strip .ws-page-drop-after {
-  box-shadow: 3px 0 0 0 #fbbf24 inset;
-}
-
-/* V3.89 — in-shell brand dropdown (workflow switcher). Hover the
- * brand on the workflow strip to open a list of all workflows; click
- * one to switch in-place (popouts stay mounted). */
-.workflow-strip .ws-brand-dropdown {
-  position: relative;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  padding-right: 12px;
-  border-right: 1px solid rgba(255,255,255,.18);
-  margin-right: 4px;
-  user-select: none;
-}
-.workflow-strip .ws-brand-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 700;
-  color: #fff;
-  text-decoration: none;
-  font-size: 14px;
-}
-.workflow-strip .ws-brand-link:hover { color: #dbeafe; }
-.workflow-strip .ws-brand-caret {
-  font-size: 10px;
-  opacity: .7;
-  margin-left: 4px;
-}
-.workflow-strip .ws-brand-menu {
-  display: none;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  min-width: 240px;
-  background: #fff;
-  border: 1px solid var(--border, #e5e7eb);
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(15,23,42,.14);
-  padding: 6px 0;
-  z-index: 60;
-  color: var(--text, #111827);
-  margin-top: 4px;
-  max-height: 70vh;
-  overflow-y: auto;
-}
-.workflow-strip .ws-brand-dropdown.open .ws-brand-menu { display: block; }
-.workflow-strip .ws-brand-menu-header {
-  padding: 6px 12px 4px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .4px;
-  color: var(--text-muted, #6b7280);
-}
-.workflow-strip .ws-brand-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 12px;
-  font-size: 13px;
-  color: var(--text, #111827);
-  text-decoration: none;
-  cursor: pointer;
-  white-space: nowrap;
-  font-weight: 400;
-}
-.workflow-strip .ws-brand-menu-item:hover { background: var(--bg, #f3f4f6); }
-.workflow-strip .ws-brand-menu-item--active {
-  background: color-mix(in srgb, var(--primary, #2563eb) 8%, white);
-  font-weight: 600;
-}
-.workflow-strip .ws-brand-menu-icon {
-  font-size: 16px;
-  line-height: 1;
-}
-.workflow-strip .ws-brand-menu-divider {
-  height: 1px;
-  background: var(--border, #e5e7eb);
-  margin: 4px 8px;
-}
-.workflow-strip .ws-brand-menu-loading {
-  padding: 10px 12px;
-  font-size: 12px;
-  color: var(--text-muted, #6b7280);
-  font-style: italic;
-}
-
-/* V3.66 — pinned "My Workflows" dropdown in the regular nav */
+/* V3.66 pinned dropdown — retired V3.809 (Workflows ▾ replaced it); the divider rule is still used */
 .nav-dropdown-pinned > .nav-dropdown-trigger {
   font-weight: 500;
 }
@@ -329,35 +177,6 @@
   background: #fef3c7; color: #92400e;
   border: 1px solid #fde68a;
 }
-.workflow-strip .ws-page-remove {
-  margin-left: 2px; padding: 0 4px;
-  background: none; border: none;
-  color: inherit; opacity: .5; cursor: pointer; font-size: 14px;
-  line-height: 1; border-radius: 50%;
-}
-.workflow-strip .ws-page-remove:hover { opacity: 1; }
-.workflow-strip .ws-actions {
-  display: flex; align-items: center; gap: 6px;
-  margin-left: auto; flex-wrap: wrap;
-}
-.workflow-strip .ws-btn {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px 10px; font-size: 12px; font-weight: 500;
-  background: rgba(255,255,255,.1); color: #fff;
-  border: 1px solid rgba(255,255,255,.2); border-radius: 6px;
-  text-decoration: none; cursor: pointer;
-  transition: background .1s, border-color .1s;
-}
-.workflow-strip .ws-btn:hover {
-  background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.4);
-}
-.workflow-strip .ws-btn.ws-btn-primary {
-  background: #fbbf24; color: #1e3a8a; border-color: #fbbf24;
-}
-.workflow-strip .ws-btn.ws-btn-primary:hover {
-  background: #f59e0b; border-color: #f59e0b;
-}
-
 /* ── Add-page picker modal (workflow strip's "+ Add page") ── */
 .ws-modal-back {
   position: fixed; inset: 0; z-index: 200;

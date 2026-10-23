@@ -851,7 +851,7 @@ function drawAxial(){
     ctx.beginPath(); ctx.moveTo(xL, cy);
     ctx.quadraticCurveTo(w / 2, cy - hPx / 2 - 34, xR, cy); ctx.stroke(); ctx.restore();
     caption(ctx, w / 2, cy + hPx / 2 + 24,
-      '⚠ buckling risk — slender (L/d = ' + fmt(slender, 0) + '): it bows out before the material fails',
+      'buckling risk — slender (L/d = ' + fmt(slender, 0) + '): it bows out before the material fails',
       COL.warn, true);
   } else {
     caption(ctx, w / 2, cy + hPx / 2 + 24,

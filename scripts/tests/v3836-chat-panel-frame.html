@@ -1,0 +1,186 @@
+<!-- V3.836 — the IFRAME half of the chat-panel selftest. Loaded by
+     v3836-chat-panel-selftest.html inside a real shell popout (so window.name
+     is rm-shell-popout-left and chat.js enters PANEL mode). Runs the REAL
+     chat.js against an in-page Firestore stub + firebridge stub. Not a page
+     anyone opens by hand. -->
+<!doctype html><html><head><meta charset="utf-8"><title>chat panel frame</title>
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<link rel="stylesheet" href="/rm/css/chat.css">
+<script src="/rm/js/icons.js"></script>
+</head><body>
+<div class="page">
+  <div class="page-header"><h1 class="page-title">Lab Chat</h1></div>
+  <div id="chat-root"></div>
+</div>
+<script>
+  window.__errs = [];
+  addEventListener('error', function (e) { window.__errs.push(e.message + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno); });
+  addEventListener('unhandledrejection', function (e) { window.__errs.push('unhandled: ' + (e.reason && e.reason.message || e.reason)); });
+  ['alert', 'confirm', 'prompt'].forEach(function (k) { window[k] = function () { window.__errs.push('BLOCKED window.' + k + '()'); return false; }; });
+  try { localStorage.removeItem('mcgheelab.chat.lastChannelId'); localStorage.removeItem('chat-drafts'); } catch (e) {}
+
+  /* ── in-memory Firestore ── */
+  function Ts(d) { this._d = d; this.seconds = Math.floor(d.getTime() / 1000); this.nanoseconds = 0; }
+  Ts.prototype.toDate = function () { return this._d; };
+  Ts.prototype.toMillis = function () { return this._d.getTime(); };
+  function ago(min) { return new Ts(new Date(Date.now() - min * 60000)); }
+  function clone(x) {
+    if (x instanceof Ts) return x;
+    if (Array.isArray(x)) return x.map(clone);
+    if (x && typeof x === 'object') { var o = {}; for (var k in x) o[k] = clone(x[k]); return o; }
+    return x;
+  }
+  var STORE = {};            // col -> { id -> data }
+  var LISTENERS = [];        // { col, fire }
+  var AUTO = 0;
+  function col(name) { return STORE[name] || (STORE[name] = {}); }
+  function notify(name) {
+    LISTENERS.filter(function (l) { return l.col === name; }).forEach(function (l) { setTimeout(l.fire, 0); });
+  }
+  function setPath(o, path, val) {
+    var parts = path.split('.'); var t = o;
+    for (var i = 0; i < parts.length - 1; i++) { if (t[parts[i]] == null || typeof t[parts[i]] !== 'object') t[parts[i]] = {}; t = t[parts[i]]; }
+    t[parts[parts.length - 1]] = val;
+  }
+  function applyFields(target, patch) {
+    Object.keys(patch).forEach(function (k) {
+      var v = patch[k];
+      if (v && v.__ts) target[k] = new Ts(new Date());
+      else if (v && v.__union) target[k] = Array.from(new Set((target[k] || []).concat(v.__union)));
+      else if (v && v.__remove) target[k] = (target[k] || []).filter(function (x) { return v.__remove.indexOf(x) < 0; });
+      else if (v && v.__inc != null) target[k] = (target[k] || 0) + v.__inc;
+      else if (k.indexOf('.') >= 0) setPath(target, k, clone(v));
+      else target[k] = clone(v);
+    });
+  }
+  function docSnap(name, id) {
+    var d = col(name)[id];
+    return { id: id, exists: !!d, data: function () { return d ? clone(d) : undefined; }, get: function (f) { return d ? d[f] : undefined; } };
+  }
+  function cmp(a, b) {
+    var av = a instanceof Ts ? a.toMillis() : a, bv = b instanceof Ts ? b.toMillis() : b;
+    if (av == null && bv == null) return 0; if (av == null) return -1; if (bv == null) return 1;
+    return av < bv ? -1 : av > bv ? 1 : 0;
+  }
+  function Query(name, filters, orders, lim, after) {
+    this.name = name; this.filters = filters || []; this.orders = orders || []; this.lim = lim || 0; this.after = after;
+  }
+  Query.prototype.where = function (f, op, v) { return new Query(this.name, this.filters.concat([[f, op, v]]), this.orders, this.lim, this.after); };
+  Query.prototype.orderBy = function (f, dir) { return new Query(this.name, this.filters, this.orders.concat([[f, dir || 'asc']]), this.lim, this.after); };
+  Query.prototype.limit = function (n) { return new Query(this.name, this.filters, this.orders, n, this.after); };
+  Query.prototype.startAfter = function (v) { return new Query(this.name, this.filters, this.orders, this.lim, v); };
+  Query.prototype.eval = function () {
+    var self = this;
+    var docs = Object.keys(col(this.name)).map(function (id) { return { id: id, d: col(self.name)[id] }; });
+    this.filters.forEach(function (fl) {
+      var f = fl[0], op = fl[1], v = fl[2];
+      docs = docs.filter(function (x) {
+        var dv = x.d[f];
+        if (op === '==') return dv === v;
+        if (op === '!=') return dv !== v;
+        if (op === 'in') return v.indexOf(dv) >= 0;
+        if (op === 'array-contains') return Array.isArray(dv) && dv.indexOf(v) >= 0;
+        if (op === '>=') return cmp(dv, v) >= 0;
+        if (op === '<=') return cmp(dv, v) <= 0;
+        if (op === '>') return cmp(dv, v) > 0;
+        if (op === '<') return cmp(dv, v) < 0;
+        return true;
+      });
+    });
+    if (this.orders.length) {
+      docs.sort(function (a, b) {
+        for (var i = 0; i < self.orders.length; i++) {
+          var c = cmp(a.d[self.orders[i][0]], b.d[self.orders[i][0]]);
+          if (c) return self.orders[i][1] === 'desc' ? -c : c;
+        }
+        return 0;
+      });
+    }
+    if (this.after !== undefined && this.orders.length) {
+      var f0 = this.orders[0][0], desc = this.orders[0][1] === 'desc';
+      docs = docs.filter(function (x) { var c = cmp(x.d[f0], self.after); return desc ? c < 0 : c > 0; });
+    }
+    if (this.lim) docs = docs.slice(0, this.lim);
+    return { docs: docs.map(function (x) { return docSnap(self.name, x.id); }), size: docs.length, empty: !docs.length,
+             forEach: function (fn) { this.docs.forEach(fn); } };
+  };
+  Query.prototype.get = function () { var r = this.eval(); return Promise.resolve(r); };
+  Query.prototype.onSnapshot = function (cb) {
+    var self = this; var l = { col: this.name, fire: function () { cb(self.eval()); } };
+    LISTENERS.push(l); setTimeout(l.fire, 0);
+    return function () { var i = LISTENERS.indexOf(l); if (i >= 0) LISTENERS.splice(i, 1); };
+  };
+  function DocRef(name, id) { this.name = name; this.id = id; }
+  DocRef.prototype.get = function () { return Promise.resolve(docSnap(this.name, this.id)); };
+  DocRef.prototype.set = function (data, opts) {
+    var c = col(this.name);
+    if (opts && opts.merge && c[this.id]) applyFields(c[this.id], data);
+    else { c[this.id] = {}; applyFields(c[this.id], data); }
+    notify(this.name); return Promise.resolve();
+  };
+  DocRef.prototype.update = function (data) {
+    var c = col(this.name);
+    if (!c[this.id]) return Promise.reject(new Error('not-found ' + this.name + '/' + this.id));
+    applyFields(c[this.id], data); notify(this.name); return Promise.resolve();
+  };
+  DocRef.prototype.delete = function () { delete col(this.name)[this.id]; notify(this.name); return Promise.resolve(); };
+  DocRef.prototype.onSnapshot = function (cb) {
+    var self = this; var l = { col: this.name, fire: function () { cb(docSnap(self.name, self.id)); } };
+    LISTENERS.push(l); setTimeout(l.fire, 0);
+    return function () { var i = LISTENERS.indexOf(l); if (i >= 0) LISTENERS.splice(i, 1); };
+  };
+  function CollectionRef(name) { Query.call(this, name); }
+  CollectionRef.prototype = Object.create(Query.prototype);
+  CollectionRef.prototype.doc = function (id) { return new DocRef(this.name, id || ('auto_' + (++AUTO))); };
+  CollectionRef.prototype.add = function (data) {
+    var id = 'auto_' + (++AUTO); col(this.name)[id] = {}; applyFields(col(this.name)[id], data);
+    notify(this.name); return Promise.resolve(new DocRef(this.name, id));
+  };
+  var DB = { collection: function (name) { return new CollectionRef(name); } };
+  window.firebase = { firestore: Object.assign(function () { return DB; }, {
+    FieldValue: {
+      serverTimestamp: function () { return { __ts: true }; },
+      arrayUnion: function () { return { __union: Array.prototype.slice.call(arguments) }; },
+      arrayRemove: function () { return { __remove: Array.prototype.slice.call(arguments) }; },
+      increment: function (n) { return { __inc: n }; }
+    },
+    Timestamp: { now: function () { return new Ts(new Date()); }, fromDate: function (d) { return new Ts(d); } }
+  }) };
+  window.__STORE = STORE;
+
+  /* ── seed ── */
+  STORE.users = {
+    me: { name: 'Alex McGhee', email: 'alex@example.edu', role: 'member', category: 'pi' },
+    uA: { name: 'Ana Rivera', email: 'ana@example.edu', role: 'member', category: 'grad' },
+    uB: { name: 'Ben Ortiz', email: 'ben@example.edu', role: 'member', category: 'postdoc' },
+    uC: { name: 'Cason Lee', email: 'cason@example.edu', role: 'member', category: 'undergrad' }
+  };
+  STORE.chatConfig = { settings: { categories: ['General', 'Projects'], defaultChannels: ['general'], chatAdmins: [], userRoles: {}, initialized: true, gdriveScriptUrl: '' } };
+  STORE.chatChannels = {
+    general: { name: 'general', displayName: 'General', description: 'Lab-wide', category: 'General', type: 'channel',
+      createdBy: 'uA', isDefault: true, isAnnouncement: false, pinnedMessageIds: [], subscriberUids: ['me', 'uA', 'uB', 'uC'],
+      lastMessage: { authorUid: 'uA', authorName: 'Ana Rivera', text: 'Gel is curing', timestamp: ago(5) },
+      lastActivityAt: ago(5), memberCount: 4, messageCount: 2, createdAt: ago(600) }
+  };
+  STORE.chatMessages = {
+    m1: { channelId: 'general', authorUid: 'uA', authorName: 'Ana Rivera', text: 'Morning all', type: 'text', reactions: {}, mentions: [], createdAt: ago(30) },
+    m2: { channelId: 'general', authorUid: 'uB', authorName: 'Ben Ortiz', text: 'Gel is curing', type: 'text', reactions: {}, mentions: [], createdAt: ago(5) }
+  };
+  STORE.chatUserMeta = { me: { subscribedChannels: ['general'], mutedChannels: [], sidebarLayout: [{ groupName: 'Channels', channelIds: ['general'] }],
+    dmChannelIds: [], dmContacts: [{ groupName: 'Lab', uids: ['uA', 'uB', 'uC'] }], notificationPrefs: { browser: false, mentionsOnly: false }, gdriveConnected: false } };
+  STORE.chatReadState = {}; STORE.chatPresence = {};
+
+  var USER = { uid: 'me', email: 'alex@example.edu', displayName: 'Alex McGhee', getIdToken: function () { return Promise.resolve('t'); } };
+  var PROFILE = { name: 'Alex McGhee', role: 'member', category: 'pi', email: 'alex@example.edu' };
+  window.firebridge = {
+    requireSignIn: function () { return Promise.resolve({ user: USER }); },
+    whenAuthResolved: function () { return Promise.resolve(); },
+    getUser: function () { return USER; }, getProfile: function () { return PROFILE; },
+    isAdmin: function () { return false; }, isLabMember: function () { return true; },
+    db: function () { return DB; }
+  };
+  window.LAB_USERS = { isVisible: function () { return true; } };
+</script>
+<script src="/rm/js/chat.js"></script>
+</body></html>

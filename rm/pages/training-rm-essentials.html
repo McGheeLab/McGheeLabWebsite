@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/rm/css/style.css">
   <link rel="stylesheet" href="/rm/css/training.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
 </head>
 <body>
   <div class="page">
@@ -86,11 +87,11 @@
               by design.
             </p>
             <ul>
-              <li><strong>Lab Research 🔬</strong> — activity tracker, library, projects, tasks, lab notebook, protocols. Your default daily workflow. Open this in the morning.</li>
-              <li><strong>Paper Writing 📝</strong> — paper builder, library, library comments, tasks, PMR, chat, lab notebook. Switch in when you sit down to draft a section.</li>
-              <li><strong>Certification &amp; Training 🎓</strong> — compliance, chemicals, career, tasks. Onboarding, recerts, training tracking.</li>
-              <li><strong>Task Scheduling &amp; Activity Reports 📊</strong> — tasks, activity-overview, tracker, year, email, scheduler, sharing, PMR. Used for weekly planning + retrospectives.</li>
-              <li><strong>Meetings 🗣️</strong> — meetings, huddle, chat, tasks, calendar. During lab meeting + 1:1s — keeps notes, chat, and follow-up tasks in one strip.</li>
+              <li><strong>Lab Research <i data-hi="microscope"></i></strong> — activity tracker, library, projects, tasks, lab notebook, protocols. Your default daily workflow. Open this in the morning.</li>
+              <li><strong>Paper Writing <i data-hi="pencil-square"></i></strong> — paper builder, library, library comments, tasks, PMR, chat, lab notebook. Switch in when you sit down to draft a section.</li>
+              <li><strong>Certification &amp; Training <i data-hi="academic-cap"></i></strong> — compliance, chemicals, career, tasks. Onboarding, recerts, training tracking.</li>
+              <li><strong>Task Scheduling &amp; Activity Reports <i data-hi="chart-bar"></i></strong> — tasks, activity-overview, tracker, year, email, scheduler, sharing, PMR. Used for weekly planning + retrospectives.</li>
+              <li><strong>Meetings <i data-hi="megaphone"></i></strong> — meetings, huddle, chat, tasks, calendar. During lab meeting + 1:1s — keeps notes, chat, and follow-up tasks in one strip.</li>
             </ul>
             <p>
               The decision isn't "what page do I need?" — it's "what am I
@@ -164,7 +165,7 @@
             <ul>
               <li><strong>Write in the paper builder →</strong> a pending tracker entry auto-creates. Confirm hours in the tracker; the entry rolls up to the PMR Activity block at week's end.</li>
               <li><strong>Save a lab notebook entry →</strong> a pending tracker entry auto-creates. Same flow.</li>
-              <li><strong>Click 📌 PMR on an image in the lab notebook →</strong> the image becomes a figure-review card in your next PMR period, with editable caption + comment thread + an auto-link back to the notebook entry.</li>
+              <li><strong>Click <i data-hi="pin"></i> PMR on an image in the lab notebook →</strong> the image becomes a figure-review card in your next PMR period, with editable caption + comment thread + an auto-link back to the notebook entry.</li>
               <li><strong>Admin assigns a task to you in PMR →</strong> red badge appears on your Tasks Inbox tab. Tracker entry materializes when you next open the tasks dashboard. PMR provenance chip on the task deep-links back.</li>
               <li><strong>Set a due date on a subtask →</strong> a future-dated tracker entry materializes; the Coming-up lane on the daily tracker surfaces it on its due date.</li>
               <li><strong>Action items captured in a meetings page →</strong> auto-create scheduled tracker entries for the assignee.</li>
@@ -274,7 +275,7 @@
               <li><strong>Click a citation chip</strong> in any paper-builder paragraph to open the edit popover pre-filled with that group's keys.</li>
               <li><strong>Brand-dropdown switch</strong> (Section 3) — fastest workflow switching.</li>
               <li><strong>⊟ Split with workflow context</strong> — the split-view link in the workflow strip auto-pre-fills the right pane with the <em>next</em> workflow page. One click = two panes.</li>
-              <li><strong>📌 PMR badge</strong> on every notebook image — instant figure-review flagging, instead of pasting the image into PMR by hand.</li>
+              <li><strong><i data-hi="pin"></i> PMR badge</strong> on every notebook image — instant figure-review flagging, instead of pasting the image into PMR by hand.</li>
               <li><strong>"Pin to bucket"</strong> menu on every Proposed subtask in the Inbox — moves the AI-suggested or email-derived subtask into a real project bucket and clears the proposed flag.</li>
               <li><strong>Comment threads on every block in PMR</strong> — you don't have to wait for the 1:1 to raise an item. Comment now; Alex sees it next time PMR is open.</li>
               <li><strong>Tracker "Use raw data" toggle</strong> if you're in image analysis — the auto-pending tracker entries you'd normally confirm have an "Edit" affordance to back-fill hours after a long session.</li>
@@ -351,10 +352,10 @@
                 <div class="choices">
                   <button data-choice="paste-pmr">Paste it into a PMR weekly entry by hand</button>
                   <button data-choice="dm-alex">DM Alex on chat with the image attached</button>
-                  <button data-choice="flag-badge">In the lab notebook, click the 📌 PMR badge on the image's thumbnail</button>
+                  <button data-choice="flag-badge">In the lab notebook, click the <i data-hi="pin"></i> PMR badge on the image's thumbnail</button>
                   <button data-choice="email">Email it to Alex</button>
                 </div>
-                <div class="explain"><strong>📌 PMR badge.</strong> Flagging the image from the notebook auto-materializes a figure-review card in your next PMR period with caption + comment thread + deep-link back to the originating notebook entry. The other options all require manual re-capture.</div>
+                <div class="explain"><strong><i data-hi="pin"></i> PMR badge.</strong> Flagging the image from the notebook auto-materializes a figure-review card in your next PMR period with caption + comment thread + deep-link back to the originating notebook entry. The other options all require manual re-capture.</div>
               </div>
 
               <div class="rm-quiz-item" data-correct="split">
@@ -402,7 +403,7 @@
               <label><input type="checkbox"> I drag-reorder the strip chips so my most-used pages sit on the left.</label>
               <label><input type="checkbox"> I have at least one custom workflow saved that fits my actual workday.</label>
               <label><input type="checkbox"> I use Cmd+K multi-pick to drop citation groups in the paper builder, never typing keys by hand.</label>
-              <label><input type="checkbox"> I click 📌 PMR on notebook images instead of pasting into PMR weekly entries.</label>
+              <label><input type="checkbox"> I click <i data-hi="pin"></i> PMR on notebook images instead of pasting into PMR weekly entries.</label>
               <label><input type="checkbox"> I file PMR weekly entries Fridays without being chased.</label>
               <label><input type="checkbox"> When something blocks me, I write it in the PMR Barriers block the same day — not "later."</label>
               <label><input type="checkbox"> I pin Proposed Inbox subtasks to real buckets at least weekly so the inbox never piles up.</label>

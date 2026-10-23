@@ -1,0 +1,196 @@
+<!-- V3.836 selftest — chat side panel + groups. HOST half: mounts the REAL
+     shell-popouts.js (page mode, like nav.js does on every RM page) with a
+     Chat popout whose iframe is v3836-chat-panel-frame.html — the REAL chat.js
+     over an in-page Firestore stub. Drives: closed pill → open (side-tab
+     cluster: open further + close) → iframe boots in PANEL mode (frozen band,
+     feed scrolls inside, no page title) → caps name the tab "People & groups"
+     → open further widens by 300 and reveals the list → Select two people →
+     Create group (inline validation first) → group header / Members → Save
+     adds a third → Leave → Close tab.
+
+     Run:
+       python3 -m http.server 8777
+       node ~/.claude/skills/browser-automation/browser.mjs \
+         "http://127.0.0.1:8777/scripts/tests/v3836-chat-panel-selftest.html?v=$(date +%s)" \
+         --wait "#r[data-done='1']" --eval "(()=>{const e=document.getElementById('r');return e.dataset.pass+' passed, '+e.dataset.fail+' failed'+(e.dataset.detail?' — '+e.dataset.detail:'')})()"
+-->
+<!doctype html><html><head><meta charset="utf-8"><title>V3.836 selftest</title>
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<link rel="stylesheet" href="/rm/css/workflow-shell.css">
+<script src="/rm/js/icons.js"></script>
+<style>body{min-height:100vh} #r{white-space:pre-wrap;font:12px/1.4 monospace;margin:70px 0 0 60px}</style>
+</head><body>
+<h1 style="margin:70px 0 0 60px">V3.836 selftest — chat side panel + groups</h1>
+<pre id="r" data-pass="0" data-fail="0" data-done="0" data-detail="">running…</pre>
+<script>
+  window.__errs = [];
+  addEventListener('error', function (e) { window.__errs.push(e.message + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno); });
+  ['alert', 'confirm', 'prompt'].forEach(function (k) { window[k] = function () { window.__errs.push('BLOCKED window.' + k + '()'); return false; }; });
+  try { localStorage.removeItem('test.v3836.popout'); localStorage.removeItem('mcgheelab.shellPopout.leftWidth'); } catch (e) {}
+  var PAGES = [
+    { id: 'chat',  label: 'Chat',  href: '/scripts/tests/v3836-chat-panel-frame.html', icon: 'chat-bubble-left-right', group: 'Lab' },
+    { id: 'tasks', label: 'Tasks', href: 'about:blank', icon: 'check', group: 'Lab' }
+  ];
+  window.PAGE_REGISTRY = { byId: new Map(PAGES.map(function (p) { return [p.id, p]; })), list: PAGES };
+</script>
+<script src="/rm/js/shell-popouts.js"></script>
+<script>
+  var R = document.getElementById('r'), PASS = 0, FAIL = 0, LOG = [];
+  function t(name, ok, detail) { if (ok) PASS++; else FAIL++; LOG.push((ok ? 'PASS ' : 'FAIL ') + name + (ok ? '' : '  ← ' + (detail || ''))); }
+  function until(fn, ms) {
+    ms = ms || 6000; var t0 = Date.now();
+    return new Promise(function (res) { (function tick() { var v; try { v = fn(); } catch (e) { v = null; } if (v) return res(v); if (Date.now() - t0 > ms) return res(null); setTimeout(tick, 40); })(); });
+  }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function done() {
+    R.dataset.pass = PASS; R.dataset.fail = FAIL; R.dataset.done = '1';
+    R.dataset.detail = LOG.filter(function (l) { return l.indexOf('FAIL') === 0; }).join(' | ').slice(0, 1500);
+    R.textContent = LOG.join('\n');
+  }
+  function root() { return document.getElementById('shell-popout-left'); }
+  function frameDoc() { var f = root() && root().querySelector('iframe'); try { return f && f.contentDocument; } catch (e) { return null; } }
+  function frameWin() { var f = root() && root().querySelector('iframe'); try { return f && f.contentWindow; } catch (e) { return null; } }
+  function widthPx() { return Math.round(root().getBoundingClientRect().width); }
+
+  (async function run() {
+    ShellPopouts.init({ container: document.body, pageMode: true, urlState: false, stateKey: 'test.v3836.popout',
+      defaults: { left: 'chat', right: 'tasks' }, workflowPageIds: [], canAccessPage: function () { return true; } });
+    // ?manual=1 — just open the panel wide and stop, for a screenshot / a look.
+    if (/manual=1/.test(location.search)) { ShellPopouts.togglePopout('left', true); setTimeout(function () { ShellPopouts.setWide('left', true); }, 400); R.textContent = 'manual mode'; return; }
+
+    // 1. closed: one pill button labelled Chat
+    var pill = root().querySelector('.shell-popout-pill');
+    t('closed pill is a single button labelled Chat', pill && pill.tagName === 'BUTTON' && /Chat/.test(pill.textContent), pill && pill.outerHTML.slice(0, 120));
+    t('right popout (tasks) stays closed in page mode', !document.getElementById('shell-popout-right').classList.contains('open'));
+
+    // 2. open → side-tab cluster + iframe
+    pill.click();
+    await sleep(50);
+    t('left popout open', root().classList.contains('open'));
+    var cluster = root().querySelector('.shell-popout-pill--open');
+    t('open state is a cluster DIV, not a button', cluster && cluster.tagName === 'DIV');
+    var wideBtn = root().querySelector('.shell-popout-tab--wide'), closeBtn = root().querySelector('.shell-popout-tab--close');
+    t('cluster has an open-further tab and a close tab', !!wideBtn && !!closeBtn);
+    t('close tab says Close', closeBtn && /Close/.test(closeBtn.textContent));
+    t('header ✕ still present', !!root().querySelector('.shell-popout-close'));
+    var iframe = root().querySelector('iframe');
+    t('iframe named rm-shell-popout-left', iframe && iframe.name === 'rm-shell-popout-left');
+    t('base width 460', widthPx() === 460, widthPx());
+
+    // 3. frame boots in PANEL mode
+    var fd = await until(function () { var d = frameDoc(); return d && d.querySelector('.chat-panel') && d.querySelector('.chat-msg') ? d : null; }, 8000);
+    t('frame mounted .chat-panel with messages', !!fd, 'no .chat-panel / .chat-msg in frame');
+    if (!fd) { done(); return; }
+    var fw = frameWin();
+    t('frame html+body carry chat-panel-mode', fd.documentElement.classList.contains('chat-panel-mode') && fd.body.classList.contains('chat-panel-mode'));
+    t('page title hidden in panel mode', fw.getComputedStyle(fd.querySelector('.page-header')).display === 'none');
+    t('no phone tab bar in panel mode', !fd.getElementById('chat-tab-bar'));
+    t('desktop view tabs (Messages/Pinned/Files) present', !!fd.querySelector('.chat-view-tabs'));
+    t('header shows #General', /#General/.test(fd.querySelector('.chat-header-name').textContent));
+    var feed = fd.getElementById('chat-feed');
+    t('feed is its own scroller', fw.getComputedStyle(feed).overflowY === 'auto');
+    t('frame document does not scroll', fw.getComputedStyle(fd.documentElement).overflow === 'hidden');
+    t('top band is static (frozen band, not sticky)', fw.getComputedStyle(fd.querySelector('.chat-sticky-top')).position === 'static');
+    t('composer is static (not fixed)', fw.getComputedStyle(fd.querySelector('.chat-input-area')).position === 'static');
+    t('two messages rendered', fd.querySelectorAll('.chat-msg').length === 2, fd.querySelectorAll('.chat-msg').length);
+    t('list column hidden while not wide', fd.getElementById('chat-panel-list').hidden === true);
+    t('☰ list button visible in header', fw.getComputedStyle(fd.getElementById('chat-hamburger')).display !== 'none');
+
+    // 4. caps named the tab
+    var named = await until(function () { return /People & groups/.test(wideBtn.textContent); }, 4000);
+    t('open-further tab renamed to "People & groups" by the frame', !!named, wideBtn.textContent);
+
+    // 5. open further → wide
+    wideBtn.click();
+    var wideOk = await until(function () { return !fd.getElementById('chat-panel-list').hidden; }, 4000);
+    t('frame list column revealed after open further', !!wideOk);
+    t('panel width 460 + 300', widthPx() === 760, widthPx());
+    t('wide tab marked on', wideBtn.classList.contains('is-on') && wideBtn.getAttribute('aria-pressed') === 'true');
+    t('list has Groups section + People rows', !!fd.querySelector('.chat-overview-section--groups') && fd.querySelectorAll('[data-overview-dm]').length === 3, fd.querySelectorAll('[data-overview-dm]').length);
+    t('Groups section empty hint', /No groups yet/.test(fd.querySelector('.chat-overview-section--groups').textContent));
+    t('☰ button mirrors wide state', fd.getElementById('chat-hamburger').classList.contains('is-on'));
+    t('People header is a row div with its own toggle button', !!fd.querySelector('.chat-overview-section-header--row .chat-overview-section-toggle[data-toggle-section="people"]'));
+
+    // 6. select two people
+    fd.getElementById('chat-people-select').click();
+    await sleep(30);
+    t('Select mode shows a checkbox per person', fd.querySelectorAll('[data-overview-dm] .chat-pick-box').length === 3);
+    fd.querySelector('[data-overview-dm="uA"]').click(); await sleep(30);
+    fd.querySelector('[data-overview-dm="uB"]').click(); await sleep(30);
+    t('still on the same conversation (select did not open a DM)', /#General/.test(fd.querySelector('.chat-header-name').textContent));
+    t('pick bar says 2 selected', /2 selected/.test((fd.querySelector('.chat-pick-count') || {}).textContent || ''));
+    t('create button enabled', fd.getElementById('chat-pick-create') && !fd.getElementById('chat-pick-create').disabled);
+
+    // 7. create group — validation first, then for real
+    fd.getElementById('chat-pick-create').click(); await sleep(50);
+    var modal = fd.querySelector('.chat-modal--group');
+    t('group form opened', !!modal);
+    t('two people pre-checked', fd.querySelectorAll('.chat-group-pick.is-on').length === 2);
+    t('count label "2 people + you"', /2 people \+ you/.test(fd.getElementById('chat-group-count').textContent));
+    fd.getElementById('chat-do-create-group').click(); await sleep(50);
+    t('empty name → inline error, form stays open', /Give the group a name/.test(fd.getElementById('chat-group-error').textContent) && !!fd.querySelector('.chat-modal--group'));
+    var nameEl = fd.getElementById('chat-group-name');
+    nameEl.value = 'TFM crew'; nameEl.dispatchEvent(new fw.Event('input', { bubbles: true }));
+    fd.getElementById('chat-do-create-group').click();
+    var gid = await until(function () { var c = fw.__STORE.chatChannels; return Object.keys(c).find(function (k) { return c[k].type === 'group'; }); }, 4000);
+    t('group doc written', !!gid);
+    var g = gid && fw.__STORE.chatChannels[gid];
+    t('members sorted = [me,uA,uB], subscriberUids identical, memberCount 3', !!g && JSON.stringify(g.members) === '["me","uA","uB"]' && JSON.stringify(g.subscriberUids) === '["me","uA","uB"]' && g.memberCount === 3, g && JSON.stringify([g.members, g.subscriberUids, g.memberCount]));
+    t('createdBy me, displayName, name slug', !!g && g.createdBy === 'me' && g.displayName === 'TFM crew' && /^group-tfm-crew-/.test(g.name));
+    t('my chatUserMeta subscribes to it', (fw.__STORE.chatUserMeta.me.subscribedChannels || []).indexOf(gid) >= 0);
+    var hdr = await until(function () { return /TFM crew/.test(fd.querySelector('.chat-header-name').textContent) ? fd.querySelector('.chat-header') : null; }, 4000);
+    t('header switched to the group', !!hdr);
+    t('group header: glyph, "3 members", Members button, no Subscribe toggle', !!hdr && !!hdr.querySelector('.chat-group-glyph') && /3 members/.test(hdr.textContent) && !!hdr.querySelector('#chat-group-members') && !hdr.querySelector('.chat-sub-toggle'));
+    t('form closed', !fd.querySelector('.chat-modal--group'));
+    var collapsed = await until(function () { return fd.getElementById('chat-panel-list').hidden && widthPx() === 460; }, 4000);
+    t('list collapsed + panel back to 460 after creating', !!collapsed, widthPx());
+    t('no browser popups, no frame errors', fw.__errs.length === 0, fw.__errs.join('; '));
+
+    // 8. Groups section lists it
+    wideBtn.click();
+    var row = await until(function () { return fd.querySelector('.chat-overview-section--groups [data-overview-channel="' + gid + '"]'); }, 4000);
+    t('Groups section lists the new group with a group icon', !!row && !!row.querySelector('.chat-conv-icon--group') && /TFM crew/.test(row.textContent));
+    t('group is NOT in Browse Channels', (function () { fd.getElementById('chat-overview-browse').click(); var dir = fd.getElementById('chat-dir-list'); var ok = dir && !dir.querySelector('[data-dir-channel="' + gid + '"]') && !!dir.querySelector('[data-dir-channel="general"]'); var x = fd.querySelector('[data-close-modal="directory"].chat-icon-btn'); if (x) x.click(); return ok; })());
+    await sleep(30);
+
+    // 9. Members → add Cason → Save
+    fd.getElementById('chat-group-members').click(); await sleep(50);
+    var em = fd.querySelector('.chat-modal--group');
+    t('Members form opens in edit mode with name + 2 picked + Leave', !!em && fd.getElementById('chat-group-name').value === 'TFM crew' && fd.querySelectorAll('.chat-group-pick.is-on').length === 2 && !!fd.getElementById('chat-group-leave') && /Save/.test(fd.getElementById('chat-do-create-group').textContent));
+    fd.querySelector('[data-group-pick="uC"]').click(); await sleep(20);
+    t('toggling updates count in place', /3 people \+ you/.test(fd.getElementById('chat-group-count').textContent));
+    fd.getElementById('chat-do-create-group').click();
+    var four = await until(function () { return fw.__STORE.chatChannels[gid].memberCount === 4; }, 4000);
+    t('Save → 4 members in the doc', !!four && JSON.stringify(fw.__STORE.chatChannels[gid].members) === '["me","uA","uB","uC"]');
+    var desc4 = await until(function () { return /4 members/.test(fd.querySelector('.chat-header').textContent); }, 4000);
+    t('header says 4 members', !!desc4);
+
+    // 10. Leave
+    fd.getElementById('chat-group-members').click(); await sleep(50);
+    fd.getElementById('chat-group-leave').click();
+    var left = await until(function () { return (fw.__STORE.chatChannels[gid].members || []).indexOf('me') < 0; }, 4000);
+    t('Leave removes me from members + subscriberUids', !!left && JSON.stringify(fw.__STORE.chatChannels[gid].subscriberUids) === '["uA","uB","uC"]');
+    t('my subscriptions drop the group', (fw.__STORE.chatUserMeta.me.subscribedChannels || []).indexOf(gid) < 0);
+    var back = await until(function () { return /#General/.test(fd.querySelector('.chat-header-name').textContent); }, 4000);
+    t('active conversation falls back to #General', !!back);
+    await sleep(100);
+    t('left group no longer in my Groups section', !fd.querySelector('.chat-overview-section--groups [data-overview-channel="' + gid + '"]'));
+
+    // 11. DM header → Make a group pre-checks the other person
+    fd.querySelector('[data-overview-dm="uC"]').click();
+    var dmHdr = await until(function () { return fd.getElementById('chat-dm-to-group'); }, 4000);
+    t('DM header has "Make a group"', !!dmHdr);
+    if (dmHdr) { dmHdr.click(); await sleep(50); t('Make a group pre-checks Cason', fd.querySelectorAll('.chat-group-pick.is-on').length === 1 && !!fd.querySelector('.chat-group-pick.is-on[data-group-pick="uC"]')); var cx = fd.querySelector('.chat-modal--group [data-close-modal="group"].chat-icon-btn'); if (cx) cx.click(); }
+    t('1:1 DM lookup ignores the 3+ member group (members.length === 2)', (function () { var c = fw.__STORE.chatChannels; return Object.keys(c).filter(function (k) { return c[k].type === 'dm'; }).every(function (k) { return c[k].members.length === 2; }); })());
+
+    // 12. close tab
+    closeBtn.click(); await sleep(50);
+    t('close tab closes the panel (no iframe)', !root().classList.contains('open') && !root().querySelector('iframe'));
+    t('closed pill back', !!root().querySelector('button.shell-popout-pill'));
+    t('picking a DM collapsed the list, and that state is what was remembered', JSON.parse(localStorage.getItem('test.v3836.popout')).leftWide === false);
+    t('host had no errors', window.__errs.length === 0, window.__errs.join('; '));
+    done();
+  })().catch(function (e) { t('driver threw', false, e && (e.stack || e.message)); done(); });
+</script>
+</body></html>

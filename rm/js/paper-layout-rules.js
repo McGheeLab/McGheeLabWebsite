@@ -391,6 +391,212 @@
     };
   }
 
+  /* ── V3.651 — table styling ────────────────────────────────────────
+   *
+   * Two scalar attrs, parsed HERE so the four surfaces that draw a table
+   * cannot drift: the panel grid editor, the doc-side preview, Document
+   * view and the LaTeX export. Scalars (not Y types) because a table
+   * block gets moved between sections and placed/unplaced, and a scalar
+   * survives every one of those paths — the same reason merges_json and
+   * widths_json are scalars.
+   *
+   *   style_json        {rules, size, density, zebra, rule_after:[r,…]}
+   *   cell_styles_json  {"<r>-<c>": {b:1, i:1, al:'l'|'c'|'r', bg:<fill>}}
+   */
+  var TABLE_FILLS = {
+    grey:   { css: '#f1f2f4', tex: 'black!7',  label: 'Grey' },
+    blue:   { css: '#e8f1fe', tex: 'blue!8',   label: 'Blue' },
+    green:  { css: '#e9f9ef', tex: 'green!9',  label: 'Green' },
+    yellow: { css: '#fdf6d8', tex: 'yellow!22', label: 'Yellow' },
+    red:    { css: '#fdeaea', tex: 'red!8',    label: 'Red' },
+  };
+  /* \arraystretch — the row-height multiplier. 1.0 is LaTeX's default. */
+  var TABLE_DENSITIES = { compact: 0.9, normal: 1, roomy: 1.25, airy: 1.5 };
+  var TABLE_SIZES = {
+    normal: { tex: null,             css: 1 },
+    small: { tex: '\\small',        css: 0.92 },
+    footnote: { tex: '\\footnotesize', css: 0.84 },
+    script: { tex: '\\scriptsize',   css: 0.76 },
+  };
+
+  /* `booktabsAttr` is the pre-V3.651 boolean. It stays the fallback so
+   * every table authored before this release keeps its exact look, and
+   * writers keep it in sync so nothing downstream reads a stale value. */
+  function parseTableStyle(json, booktabsAttr) {
+    var raw = null;
+    if (json) {
+      try { raw = typeof json === 'string' ? JSON.parse(json) : json; } catch (e) { raw = null; }
+    }
+    if (!raw || typeof raw !== 'object') raw = {};
+    var rules = raw.rules;
+    if (rules !== 'booktabs' && rules !== 'grid' && rules !== 'none') {
+      rules = (booktabsAttr === false) ? 'none' : 'booktabs';
+    }
+    var size = TABLE_SIZES[raw.size] ? raw.size : 'normal';
+    var density = TABLE_DENSITIES[raw.density] ? raw.density : 'normal';
+    var ruleAfter = [];
+    if (Array.isArray(raw.rule_after)) {
+      raw.rule_after.forEach(function (n) {
+        var i = Math.floor(Number(n));
+        if (i >= 0 && ruleAfter.indexOf(i) === -1) ruleAfter.push(i);
+      });
+      ruleAfter.sort(function (a, b) { return a - b; });
+    }
+    return {
+      rules: rules,
+      size: size,
+      density: density,
+      zebra: raw.zebra === true,
+      /* V3.652 — wrapping is ON unless the table says otherwise. A cell
+       * of prose in an `l` column runs off the page in LaTeX and blows the
+       * column out in the browser, which is never what the writer meant;
+       * the ones who want a narrow numeric table turn it off. */
+      wrap: raw.wrap !== false,
+      rule_after: ruleAfter,
+      /* Derived, so no consumer re-implements the lookup. */
+      stretch: TABLE_DENSITIES[density],
+      sizeTex: TABLE_SIZES[size].tex,
+      sizeCss: TABLE_SIZES[size].css,
+    };
+  }
+
+  /* V3.652 — how wide each column should be when the table wraps.
+   *
+   * Wrapping in LaTeX means a `p{width}` column, and `p{}` needs a NUMBER —
+   * there is no "auto but wrapping". So the columns the writer has not
+   * sized share whatever fraction of the line is left over, which is also
+   * exactly what `table-layout: fixed` does in the browser: one rule, both
+   * surfaces. Returns a per-column {mode:'frac'|'mm', v} array.
+   *
+   * mm columns are excluded from the fraction budget rather than converted
+   * — \linewidth is not known here — so mixing fixed-mm and auto columns
+   * can overrun the line; a warning belongs to the caller, not the maths. */
+  function tableColShares(widths, cols) {
+    var out = [];
+    var spoken = 0, autoCount = 0;
+    for (var c = 0; c < cols; c++) {
+      var w = (widths && widths[c]) || { mode: 'auto' };
+      if (w.mode === 'frac') spoken += w.v;
+      else if (w.mode !== 'mm') autoCount++;
+    }
+    var left = Math.max(0, 1 - spoken);
+    var share = autoCount > 0 ? Math.max(0.05, left / autoCount) : 0;
+    for (var c2 = 0; c2 < cols; c2++) {
+      var w2 = (widths && widths[c2]) || { mode: 'auto' };
+      if (w2.mode === 'frac' || w2.mode === 'mm') out.push(w2);
+      else out.push({ mode: 'frac', v: share });
+    }
+    return out;
+  }
+
+  /* True when the style is the default in every respect — writers delete
+   * the attr instead of storing a no-op, so an untouched table exports
+   * byte-identically to how it did before V3.651. */
+  function tableStyleIsDefault(st) {
+    return !!st && st.rules === 'booktabs' && st.size === 'normal' &&
+      st.density === 'normal' && !st.zebra && st.wrap === true &&
+      st.rule_after.length === 0;
+  }
+
+  function parseTableCellStyles(json) {
+    var out = {};
+    var raw = null;
+    if (json) {
+      try { raw = typeof json === 'string' ? JSON.parse(json) : json; } catch (e) { raw = null; }
+    }
+    if (!raw || typeof raw !== 'object') return out;
+    Object.keys(raw).forEach(function (key) {
+      if (!/^\d+-\d+$/.test(key)) return;
+      var v = raw[key] || {};
+      var st = {};
+      if (v.b) st.b = 1;
+      if (v.i) st.i = 1;
+      if (v.al === 'l' || v.al === 'c' || v.al === 'r') st.al = v.al;
+      if (TABLE_FILLS[v.bg]) st.bg = v.bg;
+      if (Object.keys(st).length) out[key] = st;   // drop empty entries
+    });
+    return out;
+  }
+
+  /* Re-key cell styles across a row/column insert or delete. Cell TEXT is
+   * re-keyed by the editor when it rewrites the cells map; the styles are
+   * a separate scalar and have to move in the same transact or a table
+   * ends up bold in the column that used to be there. */
+  function shiftTableCellStyles(styles, axis, op, at) {
+    var out = {};
+    Object.keys(styles || {}).forEach(function (k) {
+      var p = k.split('-');
+      var r = +p[0], c = +p[1];
+      var idx = (axis === 'r') ? r : c;
+      if (op === 'ins') {
+        if (idx >= at) idx += 1;
+      } else {
+        if (idx === at) return;              // the styled cell is gone
+        if (idx > at) idx -= 1;
+      }
+      if (axis === 'r') r = idx; else c = idx;
+      out[r + '-' + c] = styles[k];
+    });
+    return out;
+  }
+
+  /* V3.654 — per-row extra height, in POINTS, keyed by row index.
+   *
+   * `\arraystretch` (the style bar's "rows:") multiplies EVERY row, so it
+   * cannot answer "make this one row taller". What LaTeX does have is
+   * `\\[dim]` — extra vertical space after a single row — which is exactly
+   * what dragging a horizontal border should mean, and it is why this is a
+   * separate attr from `style_json` rather than a style key.
+   *
+   * Points, not pixels: the export needs pt and the browser can divide.
+   * Clamped to 60pt because past that the writer wants a new row, not a
+   * taller one, and an unbounded drag can otherwise push a table off the
+   * page with no way back other than editing JSON. */
+  var TABLE_ROW_EXTRA_MAX_PT = 60;
+  function parseTableRowExtras(json) {
+    var out = {};
+    var raw = null;
+    if (json) {
+      try { raw = typeof json === 'string' ? JSON.parse(json) : json; } catch (e) { raw = null; }
+    }
+    if (!raw || typeof raw !== 'object') return out;
+    Object.keys(raw).forEach(function (key) {
+      if (!/^\d+$/.test(key)) return;
+      var pt = Number(raw[key]);
+      if (!(pt > 0) || !isFinite(pt)) return;          // 0 is "no extra" — drop it
+      out[key] = Math.min(TABLE_ROW_EXTRA_MAX_PT, Math.round(pt * 10) / 10);
+    });
+    return out;
+  }
+
+  function shiftTableRowExtras(extras, axis, op, at) {
+    if (axis !== 'r') return Object.assign({}, extras || {});
+    var out = {};
+    Object.keys(extras || {}).forEach(function (k) {
+      var i = +k;
+      if (op === 'ins') { if (i >= at) i += 1; }
+      else { if (i === at) return; if (i > at) i -= 1; }
+      out[i] = extras[k];
+    });
+    return out;
+  }
+
+  /* Same, for the extra-rule row indices. A rule sits AFTER row r, so an
+   * insert at exactly r+1 lands on the rule's own line and the rule stays
+   * where it is; deleting row r takes its rule with it. */
+  function shiftTableRuleAfter(ruleAfter, axis, op, at) {
+    if (axis !== 'r') return (ruleAfter || []).slice();
+    var out = [];
+    (ruleAfter || []).forEach(function (r) {
+      var i = r;
+      if (op === 'ins') { if (i >= at) i += 1; }
+      else { if (i === at) return; if (i > at) i -= 1; }
+      if (out.indexOf(i) === -1) out.push(i);
+    });
+    out.sort(function (a, b) { return a - b; });
+    return out;
+  }
+
   var api = {
     resolveFloat: resolveFloat,
     resolveWidth: resolveWidth,
@@ -401,6 +607,19 @@
     parseTableMerges: parseTableMerges,
     tableCoverMap: tableCoverMap,
     parseTableWidths: parseTableWidths,
+    /* V3.651 — table styling, shared by all four table surfaces. */
+    TABLE_FILLS: TABLE_FILLS,
+    TABLE_DENSITIES: TABLE_DENSITIES,
+    TABLE_SIZES: TABLE_SIZES,
+    parseTableStyle: parseTableStyle,
+    tableColShares: tableColShares,
+    TABLE_ROW_EXTRA_MAX_PT: TABLE_ROW_EXTRA_MAX_PT,
+    parseTableRowExtras: parseTableRowExtras,
+    shiftTableRowExtras: shiftTableRowExtras,
+    tableStyleIsDefault: tableStyleIsDefault,
+    parseTableCellStyles: parseTableCellStyles,
+    shiftTableCellStyles: shiftTableCellStyles,
+    shiftTableRuleAfter: shiftTableRuleAfter,
   };
   if (typeof window !== 'undefined') window.PaperLayout = api;
   /* V3.405 — Node guard so the fit/rules harnesses can require() this

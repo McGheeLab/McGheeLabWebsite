@@ -16,6 +16,14 @@
   const menuBtn   = document.getElementById('menuBtn');
   const navDrawer = document.getElementById('site-nav');
 
+  // V3.332 — routes that must not render until Firebase has restored the
+  // session: render() shows a spinner for them, and the Auth.onChange handler
+  // re-renders them once auth resolves. V3.789 — ONE list for both jobs. The
+  // gate had grown to teach/engage/teachers/presenters/demo while the
+  // re-render list stayed at dashboard/admin/login/cv, so a cold load (a
+  // link, a refresh, a teacher invite) of those routes spun forever.
+  const AUTH_GATED = ['dashboard', 'admin', 'cv', 'login', 'demo', 'teach', 'engage', 'teachers', 'presenters'];
+
   // ---- State
   const state = {
     data: null,              // normalized content
@@ -85,7 +93,7 @@
         }
         if (uid === lastAuthUid) return; // same user, skip
         lastAuthUid = uid;
-        if (page === 'dashboard' || page === 'admin' || page === 'login' || page === 'cv') onRouteChange();
+        if (AUTH_GATED.includes(page)) onRouteChange();
 
         // Refresh push token on every login so stale tokens don't silently kill notifications
         if (user && window.McgheePush) McgheePush.refreshToken(user.uid);
@@ -249,7 +257,6 @@
     // Firebase has restored the session. The Auth.onChange handler above
     // re-renders once the first onAuthStateChanged fires. 'apps' is excluded
     // (lab-apps.js self-handles); 'logout' is excluded (must stay reachable).
-    const AUTH_GATED = ['dashboard', 'admin', 'cv', 'login'];
     const authApi = window.McgheeLab?.Auth;
     if (AUTH_GATED.includes(page) && authApi && !authApi._authStateResolved) {
       const v = sectionEl();
@@ -272,6 +279,11 @@
             // Module viewer: #/classes/{classId}/modules/{filename}
             const moduleFile = decodeURIComponent(subParts[2].split('?')[0]);
             const html = window.McgheeLab?.renderModuleViewer?.(classSlug, moduleFile);
+            if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          } else if (classSlug && subParts[1] === 'whiteboard' && subParts[2]) {
+            // Live whiteboard (V3.677): #/classes/{classId}/whiteboard/{boardId}[?projector=1]
+            const boardId = decodeURIComponent(subParts[2].split('?')[0]);
+            const html = window.McgheeLab?.renderWhiteboardPage?.(classSlug, boardId);
             if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
           } else if (classSlug && subParts[1] === 'enroll') {
             // Student enrollment / login page: #/classes/{classId}/enroll
@@ -333,6 +345,46 @@
           if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
           break;
         }
+        // V3.669 — teacher class-management dashboard (teacher-teach.js).
+        case 'teach': {
+          const html = window.McgheeLab?.renderTeachPage?.(subParts);
+          if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          break;
+        }
+        // V3.680 — teacher-focused onboarding landing (pitch, request form,
+        // admin-invite redemption). No student surfaces.
+        case 'teachers': {
+          const html = window.McgheeLab?.renderTeachersLanding?.();
+          if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          break;
+        }
+        // V3.673 — classroom engagement hub (engage-hub.js).
+        case 'engage': {
+          const html = window.McgheeLab?.renderEngageHub?.();
+          if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          break;
+        }
+        // V3.785 — link-only presenter sign-up (engage-presenters.js). Not
+        // linked from any nav: admin shares the URL.
+        case 'presenters': {
+          const html = window.McgheeLab?.renderPresentersPage?.();
+          if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          break;
+        }
+        // V3.808 — teachers post a classroom visit WITHOUT an account
+        // (engage-guest.js). Deliberately not AUTH_GATED: nobody signs in.
+        // #/invite-a-scientist/{token} is the teacher's private page.
+        case 'invite-a-scientist': {
+          const html = window.McgheeLab?.renderGuestPage?.(subParts);
+          if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          break;
+        }
+        // V3.632 — admin preview of the external teacher/student views.
+        case 'demo': {
+          const html = window.McgheeLab?.renderDemoPanel?.();
+          if (html) { view = sectionEl(); view.innerHTML = html; } else view = renderNotFound();
+          break;
+        }
         case 'apps': {
           let html;
           const appSlug = (subParts[0] || '').split('?')[0];
@@ -371,6 +423,10 @@
     appEl.appendChild(view);
     appEl.focus({ preventScroll: true });
 
+    // V3.632 — while an admin demo persona is active, prepend the demo strip
+    // to whatever just rendered (no-op when demo mode is off).
+    window.McgheeLab?.TC_DEMO?.mountBanner?.(view);
+
     // CV builder, module viewer, and lab apps use their own full layout — hide hero
     const heroEl = document.querySelector('.hero');
     const footerEl = document.querySelector('.site-footer');
@@ -378,7 +434,13 @@
     const isAppsEnv = page === 'apps';
     const isAppEmbedded = isAppsEnv && !!(subParts[0] || '').split('?')[0];
     const isDataViewer = page === 'data' && !!(subParts[0] || '').split('?')[0];
-    const hideHero = page === 'cv' || page === 'classes' || isModuleViewer || isAppsEnv || isDataViewer;
+    // V3.771 — the whole class/teacher platform is a workspace, not a
+    // landing page: #/teach, #/teachers and #/engage hide the hero for the
+    // same reason #/classes already did.
+    const isClassEnv = page === 'classes' || page === 'teach' ||
+                       page === 'teachers' || page === 'engage' || page === 'presenters' ||
+                       page === 'invite-a-scientist';
+    const hideHero = page === 'cv' || isClassEnv || isModuleViewer || isAppsEnv || isDataViewer;
     const hideFooter = isAppsEnv;
     if (heroEl) heroEl.style.display = hideHero ? 'none' : '';
     if (footerEl) footerEl.style.display = hideFooter ? 'none' : '';
@@ -423,6 +485,12 @@
         case 'opportunities': await window.McgheeLab?.wireOpportunities?.(); break;
         case 'cv':        await window.McgheeLab?.wireCV?.(); break;
         case 'admin':     await window.McgheeLab?.wireAdmin?.(); break;
+        case 'demo':      window.McgheeLab?.wireDemoPanel?.(); break;
+        case 'teach':     await window.McgheeLab?.wireTeachPage?.(subParts); break;
+        case 'engage':    await window.McgheeLab?.wireEngageHub?.(); break;
+        case 'presenters': await window.McgheeLab?.wirePresentersPage?.(); break;
+        case 'invite-a-scientist': await window.McgheeLab?.wireGuestPage?.(subParts); break;
+        case 'teachers':  await window.McgheeLab?.wireTeachersLanding?.(); break;
         case 'apps': {
           const wireAppSlug = (subParts[0] || '').split('?')[0];
           if (wireAppSlug) await window.McgheeLab?.wireLabApp?.(wireAppSlug);
@@ -435,6 +503,13 @@
           if (wireSlug && subParts[1] === 'modules' && subParts[2]) {
             const wireModFile = decodeURIComponent(subParts[2].split('?')[0]);
             await window.McgheeLab?.wireModuleViewer?.(wireSlug, wireModFile);
+          } else if (wireSlug && subParts[1] === 'whiteboard' && subParts[2]) {
+            // V3.677 — live whiteboard; ?projector=1 = chrome-free classroom view
+            const [wireBoardId, wbQuery] = subParts[2].split('?');
+            const projector = /(?:^|&)projector=1(?:&|$)/.test(wbQuery || '');
+            // V3.731 — ?replay={recId} opens a recorded lecture
+            const replay = (wbQuery || '').match(/(?:^|&)replay=([^&]+)/)?.[1] || null;
+            await window.McgheeLab?.wireWhiteboardPage?.(wireSlug, decodeURIComponent(wireBoardId), { projector, replay: replay && decodeURIComponent(replay) });
           } else if (wireSlug && subParts[1] === 'enroll') {
             await window.McgheeLab?.wireClassEnrollPage?.(wireSlug);
           } else if (wireSlug) {
@@ -584,10 +659,64 @@
               order: -1
             });
           }
+          // V3.656 — same guarantee for BME/AME 466/566 (F26). Self-retires the
+          // moment an admin adds a classes/bme466 doc through the admin UI.
+          if (!courses.some(c => c.detailPage === 'bme466' || c.id === 'bme466')) {
+            courses.unshift({
+              id: 'bme466',
+              detailPage: 'bme466',
+              title: 'BME/AME 466/566 — Biomechanics',
+              description: 'How mechanical forces interact with living systems across scales — molecular diffusion and binding, cellular traction and migration, blood flow and tissue transport, and muscle and gait.',
+              level: 'Undergraduate / Graduate',
+              when: 'Fall 2026',
+              classDates: {
+                startDate: '2026-08-24',
+                endDate: '2026-12-09',
+                daysOfWeek: [2,4],
+                startTime: '9:30 AM',
+                endTime: '10:45 AM'
+              },
+              order: -2
+            });
+          }
+          // V3.680 — most recent class on top: order by start date, newest
+          // first; classes with no dates sink to the bottom.
+          courses.sort((a, b) =>
+            String(b.classDates?.startDate || '').localeCompare(String(a.classDates?.startDate || '')));
+
+          gridEl.innerHTML = '';
+
+          // V3.680 — the teacher pitch is a compact card SPANNING the top of
+          // the grid (Alex: teacher request up top, classes below), linking
+          // the teacher-focused #/teachers page. A signed-in teacher (or the
+          // demo teacher persona) gets their dashboard links instead.
+          const tcProf = (window.McgheeLab?.TC_DEMO?.active && !McgheeLab.TC_DEMO.signedOut)
+            ? McgheeLab.TC_DEMO.profile
+            : (window.McgheeLab?.Auth?.currentProfile || {});
+          const teacherCard = div('card class-item reveal tc-teacher-banner');
+          teacherCard.innerHTML = tcProf.category === 'teacher' ? `
+            <div class="tc-banner-text">
+              <h3>Your teaching dashboard</h3>
+              <p>Manage your classes: assign modules, share join codes, and see your students.</p>
+            </div>
+            <div class="tc-banner-actions">
+              <a href="#/teach" class="btn">Open teaching dashboard &rarr;</a>
+              <a href="#/engage" class="btn">Engagement hub &rarr;</a>
+            </div>` : `
+            <div class="tc-banner-text">
+              <h3>Teachers: bring these modules to your classroom</h3>
+              <p>Free interactive modules for schools — your own class page, teaching dashboard, and a join code for your students.</p>
+            </div>
+            <div class="tc-banner-actions">
+              <a href="#/teachers" class="btn">For teachers &rarr;</a>
+            </div>`;
+          gridEl.appendChild(teacherCard);
+
           if (!courses.length) {
-            gridEl.innerHTML = '<div class="empty-state-card"><p>No classes listed yet.</p></div>';
+            const emptyCard = div('empty-state-card');
+            emptyCard.innerHTML = '<p>No classes listed yet.</p>';
+            gridEl.appendChild(emptyCard);
           } else {
-            gridEl.innerHTML = '';
             for (const course of courses) {
               const card = div('card class-item reveal');
               const cd = course.classDates || {};
@@ -615,13 +744,9 @@
             enableReveal();
           }
 
-          // V3.304 — teacher outreach banner + approved-review strip
-          const teacherCard = div('card class-item reveal tc-teacher-banner');
-          teacherCard.innerHTML = `
-            <h3>Teachers: bring these modules to your classroom</h3>
-            <p>Our interactive modules — bioprinting, optics, biomechanics, and more — are free for schools. Sign in, request a class, and get a join code for your students.</p>
-            <p><a href="#/login" class="btn">Get started &rarr;</a></p>`;
-          gridEl.appendChild(teacherCard);
+          // V3.680 — the teacher banner moved to the TOP of the grid (built
+          // above, before the class cards); only the approved-review strip
+          // still lands after the grid.
           if (window.McgheeLab?.renderClassReviewsSection) {
             McgheeLab.renderClassReviewsSection(gridEl.parentElement).catch(() => {});
           }
@@ -637,7 +762,9 @@
     if (page === 'team' && window.McgheeLab?.DB) {
       Promise.all([
         McgheeLab.DB.getClaimedProfiles(),
-        McgheeLab.DB.getAllUsers(),
+        // V3.637 — public page: guests (external teachers/students) are no
+        // longer readable here, and the team page never showed them anyway.
+        McgheeLab.DB.getPublicProfiles(),
         McgheeLab.DB.getPublishedStories().catch(() => [])
       ]).then(([claimed, users, allStories]) => {
         // Remove loading placeholder
@@ -1251,7 +1378,7 @@
       </div>
       <div class="max-w">
         <a class="card viz-gateway-card reveal" href="#/data">
-          <span class="viz-gateway-icon" aria-hidden="true">\ud83e\uddca</span>
+          <span class="viz-gateway-icon" aria-hidden="true">${ICON.svg('cube-transparent')}</span>
           <span class="viz-gateway-text">
             <strong>Data Visualizations</strong>
             <span>Explore interactive 3D datasets from our experiments \u2192</span>
@@ -1280,26 +1407,31 @@
   }
 
   /* \u2500\u2500 Research Foci sections (V3.553 \u2014 publicFoci snapshots) \u2500\u2500
-     Published from RM's research page. Three bands: specialty chips,
-     concept cards, output cards; a card with overview blocks expands to
-     its designed overview (text / images / video / YouTube autoplay /
-     sandboxed interactive HTML). */
+     Published from RM's research page. Five bands (V3.717): specialty
+     chips, concept cards, grants, aims, outputs; a card with overview
+     blocks expands to its designed overview (text / images / video /
+     YouTube autoplay / sandboxed interactive HTML).
+
+     The public wording is deliberately NOT RM's internal vocabulary —
+     visitors do not know what "output" means to us. */
   const FOCI_LEVELS = {
     specialty: { title: 'Core capabilities', blurb: 'The techniques that make our lab unique.' },
     concept:   { title: 'Concepts we explore', blurb: 'Big ideas that combine our capabilities.' },
-    output:    { title: 'What we\u2019re building', blurb: 'Grants, papers, and patents in motion.' },
+    grant:     { title: 'Grants we hold', blurb: 'The programs funding this work.' },
+    aim:       { title: 'What each grant must deliver', blurb: 'The results we are working toward.' },
+    output:    { title: 'What we\u2019re building', blurb: 'Papers and patents in motion.' },
   };
 
-  // Render a focus icon value — emoji as text, custom-upload URL as an
-  // <img> — on the public overview (mirrors RM's ICON_PICKER.html).
+  // Render a focus icon value — icon name or legacy emoji via ICON.render,
+  // custom-upload URL as an <img> — on the public overview (mirrors RM's ICON_PICKER.html).
   function fociIconHtml(icon){
     return /^(https?:|data:)/i.test(String(icon||''))
       ? `<img class="foci-icon-img" src="${esc(icon)}" alt="" style="width:1.1em;height:1.1em;object-fit:contain;vertical-align:middle;">`
-      : esc(icon);
+      : ICON.render(icon);
   }
 
   function buildFociSections(foci) {
-    return ['specialty', 'concept', 'output'].map(level => {
+    return ['specialty', 'concept', 'grant', 'aim', 'output'].map(level => {
       const rows = foci.filter(f => f.level === level);
       if (!rows.length) return '';
       const meta = FOCI_LEVELS[level];
@@ -1353,10 +1485,10 @@
     if (md.kind === 'html') {
       const poster = md.poster_url
         ? `<img class="foci-html-poster" src="${esc(md.poster_url)}" alt="">`
-        : '<span class="foci-html-ph">\ud83d\udd79</span>';
+        : '<span class="foci-html-ph">' + ICON.svg('gamepad-2') + '</span>';
       return `<figure class="foci-ov-html" style="aspect-ratio:${esc(md.aspect || '16/9')}">
         <div class="foci-html-shell" data-embed-src="${esc(md.url)}">
-          <button type="button" class="foci-html-run">${poster}<span>\u25b6 Run: ${esc(md.title || 'Interactive')}</span></button>
+          <button type="button" class="foci-html-run">${poster}<span>${ICON.svg('play')} Run: ${esc(md.title || 'Interactive')}</span></button>
         </div>${md.caption ? `<figcaption>${esc(md.caption)}</figcaption>` : ''}</figure>`;
     }
     return '';
@@ -1492,7 +1624,7 @@
       <div class="story-feed-actions">
         <div class="reaction-bar" data-story-id="${esc(s.id)}"></div>
         <button type="button" class="comment-toggle" data-story-id="${esc(s.id)}" title="Comments">
-          <span class="comment-icon">\uD83D\uDCAC</span>
+          <span class="comment-icon">${ICON.svg('chat-bubble-left-right')}</span>
           <span class="comment-count" data-comment-count="${esc(s.id)}">0</span>
         </button>
       </div>
@@ -1741,7 +1873,7 @@
         <div class="story-feed-actions">
           <div class="reaction-bar" data-story-id="${esc(p.id)}"></div>
           <button type="button" class="comment-toggle" data-story-id="${esc(p.id)}" title="Comments">
-            <span class="comment-icon">\uD83D\uDCAC</span>
+            <span class="comment-icon">${ICON.svg('chat-bubble-left-right')}</span>
             <span class="comment-count" data-comment-count="${esc(p.id)}">${esc(p._commentCount ?? 0)}</span>
           </button>
         </div>
@@ -1753,7 +1885,7 @@
         <div class="story-feed-actions">
           <div class="reaction-bar" data-story-id="${esc(p.id)}"></div>
           <button type="button" class="comment-toggle" data-story-id="${esc(p.id)}" title="Comments">
-            <span class="comment-icon">\uD83D\uDCAC</span>
+            <span class="comment-icon">${ICON.svg('chat-bubble-left-right')}</span>
             <span class="comment-count" data-comment-count="${esc(p.id)}">${esc(p._commentCount ?? 0)}</span>
           </button>
         </div>
@@ -1892,7 +2024,7 @@
             <div class="viz-gallery-thumb">
               ${posterSrc
                 ? `<img src="${esc(posterSrc)}" alt="${esc(viz.title || viz.id)}" loading="lazy">`
-                : `<div class="viz-gallery-thumb-placeholder" aria-hidden="true">🧊</div>`}
+                : `<div class="viz-gallery-thumb-placeholder" aria-hidden="true">${ICON.svg('cube-transparent')}</div>`}
               <span class="viz-embed-badge">Interactive 3D</span>
               <div class="viz-gallery-caption"><h3>${esc(viz.title || viz.id)}</h3></div>
             </div>
@@ -1953,9 +2085,9 @@
                title="${esc(v.name || '')}${v.createdByName ? ' — ' + esc(v.createdByName) : ''}">
             ${thumb
               ? `<img src="${esc(thumb)}" alt="${esc(v.name || 'Saved view')}">`
-              : '<div class="viz-gallery-thumb-placeholder" aria-hidden="true">🧊</div>'}
+              : '<div class="viz-gallery-thumb-placeholder" aria-hidden="true">' + ICON.svg('cube-transparent') + '</div>'}
             <span class="viz-view-name">${esc(v.name || 'Untitled')}</span>
-            ${canDelete ? `<button type="button" class="viz-view-delete" data-delete-view="${esc(v.id)}" title="Delete view">×</button>` : ''}
+            ${canDelete ? `<button type="button" class="viz-view-delete" data-delete-view="${esc(v.id)}" title="Delete view">${ICON.svg('x-mark')}</button>` : ''}
           </div>`;
       }).join('');
 
@@ -2251,7 +2383,9 @@
       wrap.appendChild(intro);
     }
 
-    const grid = div('max-w grid grid-fit-250');
+    // V3.680 — dedicated 2-up layout (1-up on phones); the teacher card
+    // spans the full width at the top (see .classes-grid in styles.css).
+    const grid = div('max-w classes-grid');
     grid.id = 'classes-grid';
     grid.innerHTML = '<p class="hint" style="text-align:center;padding:2rem;">Loading classes\u2026</p>';
     wrap.appendChild(grid);
@@ -2456,16 +2590,16 @@
   function buildStoryRefsHTML(refs) {
     if (!refs) return '';
     const categories = [
-      { key: 'publications',   icon: '📄', label: 'Publications' },
-      { key: 'patents',        icon: '⚙',  label: 'Patents' },
-      { key: 'presentations',  icon: '🎤', label: 'Presentations' },
-      { key: 'posters',        icon: '📋', label: 'Posters' }
+      { key: 'publications',   icon: 'document-text',           label: 'Publications' },
+      { key: 'patents',        icon: 'cog-6-tooth',             label: 'Patents' },
+      { key: 'presentations',  icon: 'microphone',              label: 'Presentations' },
+      { key: 'posters',        icon: 'clipboard-document-list', label: 'Posters' }
     ];
     const sections = categories
       .filter(cat => isNonEmptyArray(refs[cat.key]))
       .map(cat => `
         <div class="story-refs-category">
-          <h5>${cat.icon} ${cat.label}</h5>
+          <h5>${ICON.render(cat.icon)} ${cat.label}</h5>
           <ul>
             ${refs[cat.key].map(r => `
               <li>

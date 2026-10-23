@@ -20,7 +20,11 @@
   let _claimToDraft = new Map();  // claimId → draftPaperId (lit-review bridge)
   let _annotationsLoadError = '';
   let _drafts = [];               // [{id, title}, ...] — papers we are writing
-  let _groups = [{ id: 'general', name: 'General' }];
+  // V3.622 — per-paper section open/closed memory (survives live re-renders),
+  // inline comment editors, and the evidence (claims) form state.
+  const _groupToggles = new Map();  // 'section|paperId' → bool
+  const _commentForm = new Map();   // annId → { text, busy, err }
+  const _evForm = new Map();        // annId → { open, draftId, claims, claimId, stance, busy, err, newStmt }
   let _currentUid = '';
   let _expandedRows = new Set();  // ann __id of rows whose edit panel is open
   let _annUnsubs = [];            // per-paper onSnapshot unsub fns (Phase C live sync)
@@ -53,37 +57,63 @@
 
   // ---- Loading ----
 
+  /* V3.631 — this page resolved drafts from the WRONG collection.
+   *
+   * Every other surface (the reader toolbar picker, the sidebar pills, the
+   * library row popover, the builder References tab) resolves paper drafts
+   * from `projects/papers.json` — the paper builder's source of truth. This
+   * page alone scanned `items.json` for `type:'paper'` rows without
+   * `is_library_entry`, i.e. LEGACY items-collection paper rows. There are
+   * none in the current data, so `_drafts` came back empty and the per-card
+   * Drafts pill row plus the whole evidence form's draft select silently
+   * degraded to "No drafts available." — on the page that V3.622 made the
+   * home of the categorization workflow.
+   *
+   * `items.json` is still loaded, because `_papersById` needs it: it maps an
+   * annotation's parent paper id to its title, and those parents ARE library
+   * items. Only the draft list moves. Grant drafts come along too, filtered by
+   * the one shared status vocabulary (LIBRARY_LINKS.GRANT_DRAFT_STATUSES), so
+   * this page finally offers the same set as every other picker. */
   async function _loadPapers() {
+    _papersById = new Map();
+    _drafts = [];
     try {
       const data = await api.load('items.json');
       const items = (data && data.items) || [];
-      _papersById = new Map();
-      _drafts = [];
-      // Include every paper item (library entries AND lab drafts) — both
-      // can host annotations, so both are valid picks for the feed.
+      const isGrantDraft = (window.LIBRARY_LINKS && LIBRARY_LINKS.isGrantDraftStatus)
+        ? LIBRARY_LINKS.isGrantDraftStatus
+        : (s) => ['drafting', 'submitted', 'under_review', 'revising', 'rejected'].indexOf(s) !== -1;
       for (const it of items) {
-        if (it.type !== 'paper') continue;
-        _papersById.set(it.id, it);
-        // Drafts are papers we're writing (not library entries) — used in
-        // the per-card Drafts pill row so users can re-tag from this page.
-        const lib = (it.meta || {}).library || {};
-        if (!lib.is_library_entry) {
+        // Annotation parents: every paper item, library entry or not.
+        if (it.type === 'paper') _papersById.set(it.id, it);
+        // Grant proposals we'd still cite toward are valid draft targets.
+        if (it.type === 'grant' && isGrantDraft(it.status)) {
           _drafts.push({ id: it.id, title: it.title || it.id });
         }
       }
     } catch (e) {
       console.warn('[library-comments] could not load items.json:', e.message);
     }
+    try {
+      const pdata = await api.load('projects/papers.json');
+      const papers = (pdata && pdata.papers) || [];
+      for (const p of papers) {
+        if (p.status === 'published') continue;   // matches LIBRARY_ASSOC's active test
+        _drafts.push({ id: p.id, title: p.title || p.id });
+      }
+    } catch (e) {
+      console.warn('[library-comments] could not load projects/papers.json:', e.message);
+    }
+    _drafts.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
   }
 
-  // A paper is a draft (paper "we are writing") iff it does NOT carry the
-  // is_library_entry flag. Library entries (papers we're reading) get
-  // hidden from the draft picker.
-  function _isDraft(paper) {
-    if (!paper || paper.type !== 'paper') return false;
-    const lib = (paper.meta || {}).library || {};
-    return !lib.is_library_entry;
-  }
+  /* V3.631 — `_isDraft(paper)` deleted. It tested "a paper item without
+   * is_library_entry" against `_papersById`, which holds the annotations'
+   * PARENT papers — all library entries by definition — so it returned false
+   * for every input and left both of its callers with an empty draft list.
+   * The draft list now comes from `_drafts` (built in _loadPapers from
+   * projects/papers.json + proposal-status grants, the same source every
+   * other picker uses). */
 
   // Build the claim → draft bridge by querying each draft's claims
   // subcollection directly. Avoids Firestore collectionGroup queries,
@@ -102,7 +132,12 @@
       _claimsLoadError = 'not signed in';
       return;
     }
-    const drafts = Array.from(_papersById.values()).filter(_isDraft);
+    // V3.631 — `_drafts` for the same reason as _renderPaperPicker: the
+    // claim→draft bridge queries drafts/{draftId}/claims, and deriving the
+    // draft list from the annotations' library-entry parents found none, so
+    // _claimToDraft stayed empty and no highlight ever counted as
+    // "categorized by claim evidence".
+    const drafts = _drafts;
     if (!drafts.length) return;
     const db = firebase.firestore();
     _claimToDraft = new Map();
@@ -133,28 +168,11 @@
     );
   }
 
-  /* V3.608 — same default palette as library-paper.js DEFAULT_COLORS (keep
-   * in sync). The palette route is per-user and most members have no saved
-   * doc; an empty list here blanked the legend, the color filter, and the
-   * color-change dropdown on comment cards. */
-  const DEFAULT_COLORS = [
-    { id: 'yellow', name: 'Note', hex: '#facc15', meaning: 'Interesting / general note', auto_flags: [] },
-    { id: 'green', name: 'Evidence', hex: '#4ade80', meaning: 'Evidence supporting a claim (use evidence_stance="for" when linked to a claim)', auto_flags: [] },
-    { id: 'red', name: 'Critique', hex: '#f87171', meaning: 'Counter-evidence / critique / disagree', auto_flags: [] },
-    { id: 'blue', name: 'Method', hex: '#60a5fa', meaning: 'Method or technique to remember', auto_flags: [] },
-    { id: 'purple', name: 'Investigate', hex: '#a78bfa', meaning: 'Come back to this — needs further investigation', auto_flags: ['marked_for_investigation'] },
-    { id: 'orange', name: 'Quote', hex: '#fb923c', meaning: 'Quote-worthy for direct citation in a draft', auto_flags: [] },
-  ];
-
+  /* V3.620 — palette single-sourced in annotation-colors.js (this file used
+   * to carry a "keep in sync" duplicate; the per-user palette route it
+   * consulted was dead code with no writer — V3.608's root cause). */
   async function _loadColors() {
-    try {
-      const data = await api.load('library/highlight_colors.json');
-      const saved = (data && Array.isArray(data.colors)) ? data.colors : [];
-      _colors = saved.length ? saved : DEFAULT_COLORS;
-    } catch (e) {
-      console.warn('[library-comments] could not load highlight_colors.json:', e.message);
-      _colors = DEFAULT_COLORS;
-    }
+    _colors = (window.ANNOTATION_COLORS && window.ANNOTATION_COLORS.DEFAULT) || [];
   }
 
   // Per-paper subcollection queries instead of collectionGroup, for the
@@ -228,30 +246,37 @@
       _renderDebounced();
     }
 
+    // V3.621 — listener errors arrive ASYNC (a rules rejection fires the
+    // error callback long after this function returned), so the old
+    // synchronous check below never saw them: the failures array was
+    // write-only and the feed silently omitted those papers. _noteFailure
+    // updates the visible status line whenever one lands.
+    function _noteFailure(msg) {
+      failures.push(msg);
+      _annotationsLoadError = `${failures.length} subqueries failed: ${failures[0]}`;
+      console.warn('[library-comments] annotation listener failure:', msg);
+      _renderDebounced();
+    }
+
     for (const p of papers) {
       const col = db.collection('papers').doc(p.id).collection('annotations');
       try {
         const u1 = col.where('visibility', '==', 'lab').onSnapshot(
           (snap) => _absorbSnap(snap, p.id),
-          (err) => failures.push(`${p.id} lab: ${err.message || err}`)
+          (err) => _noteFailure(`${p.id} lab: ${err.message || err}`)
         );
         _annUnsubs.push(u1);
-      } catch (e) { failures.push(`${p.id} lab: ${e.message || e}`); }
+      } catch (e) { _noteFailure(`${p.id} lab: ${e.message || e}`); }
       try {
         const u2 = col.where('creator.uid', '==', user.uid).onSnapshot(
           (snap) => _absorbSnap(snap, p.id),
-          (err) => failures.push(`${p.id} mine: ${err.message || err}`)
+          (err) => _noteFailure(`${p.id} mine: ${err.message || err}`)
         );
         _annUnsubs.push(u2);
-      } catch (e) { failures.push(`${p.id} mine: ${e.message || e}`); }
+      } catch (e) { _noteFailure(`${p.id} mine: ${e.message || e}`); }
     }
 
-    if (failures.length) {
-      _annotationsLoadError = `${failures.length} subqueries failed: ${failures[0]}`;
-      console.warn('[library-comments] annotation listener attach failures:', failures);
-    } else {
-      _annotationsLoadError = '';
-    }
+    if (!failures.length) _annotationsLoadError = '';
     console.log(
       `[library-comments] live listeners attached: ${_annUnsubs.length} ` +
       `(${papers.length} papers × 2 queries), signed-in uid=${user.uid}`
@@ -359,8 +384,13 @@
       }
     }
 
-    const drafts = Array.from(_papersById.values())
-      .filter(_isDraft)
+    /* V3.631 — from `_drafts` (projects/papers.json + proposal-status grants),
+     * not from `_papersById` filtered by _isDraft. `_papersById` holds the
+     * annotations' PARENT papers, which are library entries, so `_isDraft`
+     * rejected every one and this dropdown always rendered its "No draft
+     * papers yet" disabled row. Same wrong-collection root cause as
+     * _loadPapers. */
+    const drafts = _drafts
       .map(p => ({ paperId: p.id, title: p.title || p.id, n: counts.get(p.id) || 0 }));
     drafts.sort((a, b) => {
       if (a.n !== b.n) return b.n - a.n;        // most-evidenced first
@@ -417,6 +447,50 @@
     return Array.isArray(r.evidence_for_claim_ids) && r.evidence_for_claim_ids.length > 0;
   }
 
+  /* V3.622 — "categorized" means the highlight has reached a paper we're
+   * writing: filed into a draft (cite_in_drafts) or tagged as claim
+   * evidence. Everything else is the triage queue — the reader's quick
+   * note happens while reading; the deep categorization happens HERE. */
+  function _isCategorized(r) {
+    if (Array.isArray(r.cite_in_drafts) && r.cite_in_drafts.length) return true;
+    return _isEvidence(r);
+  }
+
+  function _latestMs(list) {
+    let ms = 0;
+    for (const r of list) {
+      const t = r.created && r.created.toMillis ? r.created.toMillis() : 0;
+      if (t > ms) ms = t;
+    }
+    return ms;
+  }
+
+  /* V3.622 — rows grouped into collapsible per-paper sections (the flat
+   * cross-paper stream made triage impossible). Open/closed choices are
+   * remembered across the live re-renders in _groupToggles. */
+  function _renderPaperGroups(rows, sectionKey, openByDefault) {
+    const by = new Map();
+    for (const r of rows) {
+      if (!by.has(r.paperId)) by.set(r.paperId, []);
+      by.get(r.paperId).push(r);
+    }
+    const groups = Array.from(by.entries())
+      .sort((a, b) => _latestMs(b[1]) - _latestMs(a[1]));
+    return groups.map(([pid, list]) => {
+      const paper = _papersById.get(pid) || {};
+      const title = paper.title || pid || 'Unknown paper';
+      const key = `${sectionKey}|${pid}`;
+      const open = _groupToggles.has(key) ? _groupToggles.get(key) : openByDefault;
+      return `
+        <details class="lc-paper-group" data-group-key="${_esc(key)}"${open ? ' open' : ''}>
+          <summary class="lc-paper-summary">${ICON.svg('document-text')} ${_esc(title.slice(0, 110))}
+            <span class="lc-section-count">${list.length} highlight${list.length === 1 ? '' : 's'}</span>
+          </summary>
+          ${list.map(_renderRow).join('')}
+        </details>`;
+    }).join('');
+  }
+
   function _renderRows(rows) {
     const host = _$('lc-rows');
     if (!host) return;
@@ -424,16 +498,16 @@
       host.innerHTML = '<div class="lc-empty">No annotations match the current filters.</div>';
       return;
     }
-    const evidence = rows.filter(_isEvidence);
-    const info = rows.filter(r => !_isEvidence(r));
+    const triage = rows.filter(r => !_isCategorized(r));
+    const done = rows.filter(_isCategorized);
     let html = '';
-    if (evidence.length) {
-      html += `<div class="lc-section-head"><span class="lc-section-tag lc-section-evidence">Evidence</span> <span class="lc-section-count">${evidence.length} annotation${evidence.length === 1 ? '' : 's'}</span></div>`;
-      html += evidence.map(_renderRow).join('');
+    if (triage.length) {
+      html += `<div class="lc-section-head"><span class="lc-section-tag lc-section-triage">${ICON.svg('arrow-down-tray')} To categorize</span> <span class="lc-section-count">${triage.length} highlight${triage.length === 1 ? '' : 's'} not yet filed to a draft or claim</span></div>`;
+      html += _renderPaperGroups(triage, 'triage', true);
     }
-    if (info.length) {
-      html += `<div class="lc-section-head"><span class="lc-section-tag lc-section-info">Information</span> <span class="lc-section-count">${info.length} annotation${info.length === 1 ? '' : 's'}</span></div>`;
-      html += info.map(_renderRow).join('');
+    if (done.length) {
+      html += `<div class="lc-section-head"><span class="lc-section-tag lc-section-evidence">${ICON.svg('rectangle-stack')} Categorized</span> <span class="lc-section-count">${done.length} highlight${done.length === 1 ? '' : 's'}</span></div>`;
+      html += _renderPaperGroups(done, 'done', !triage.length);
     }
     host.innerHTML = html;
   }
@@ -482,58 +556,114 @@
           </select>` : ''}
       </div>` : '';
 
-    // Group dropdown.
-    const groupCur = r.group || 'general';
-    const hasCur = _groups.some(g => g.id === groupCur);
-    const groupRow = `
-      <div class="lc-edit-line">
-        <span class="lc-edit-label">Group</span>
-        <select class="lc-edit-group" data-paper="${_esc(r.paperId)}" data-ann="${_esc(r.__id || '')}">
-          ${_groups.map(g => `<option value="${_esc(g.id)}"${g.id === groupCur ? ' selected' : ''}>${_esc(g.name || g.id)}</option>`).join('')}
-          ${hasCur ? '' : `<option value="${_esc(groupCur)}" selected>${_esc(groupCur)} (legacy)</option>`}
-          <option value="__new__">+ New group…</option>
-        </select>
-      </div>`;
+    // V3.620 — group dropdown retired: the annotation `group` field was
+    // write-only (nothing read it anywhere). Legacy values stay on old docs.
+
+    const annId = r.__id || '';
+
+    // V3.622 — the claims/evidence flow lives HERE now (demoted out of the
+    // reader panel): draft → claim (pick or create) → stance → tag.
+    const ev = _evForm.get(annId);
+    let evidenceBlock = '';
+    if (ev && ev.open) {
+      const draftOpts = _drafts.map(d =>
+        `<option value="${_esc(d.id)}"${d.id === ev.draftId ? ' selected' : ''}>${_esc((d.title || d.id).slice(0, 60))}</option>`).join('');
+      let claimsList;
+      if (!ev.draftId) claimsList = '<div class="lc-empty-mini">No drafts available.</div>';
+      else if (ev.claims === null) claimsList = '<div class="lc-empty-mini">Loading claims…</div>';
+      else if (!ev.claims.length) claimsList = '<div class="lc-empty-mini">No claims yet on this draft — create one below.</div>';
+      else {
+        claimsList = ev.claims.map(c => `
+          <label class="lc-claim-pick">
+            <input type="radio" name="lc-claim-${_esc(annId)}" value="${_esc(c.id)}"
+              data-paper="${_esc(r.paperId)}" data-ann="${_esc(annId)}"${c.id === ev.claimId ? ' checked' : ''}>
+            <span>${_esc((c.statement || '(no statement)').slice(0, 120))}${(c.statement || '').length > 120 ? '…' : ''}</span>
+          </label>`).join('');
+      }
+      evidenceBlock = `
+        <div class="lc-ev-form" data-ann="${_esc(annId)}">
+          <div class="lc-edit-line"><span class="lc-edit-label">Draft</span>
+            <select class="lc-ev-draft" data-paper="${_esc(r.paperId)}" data-ann="${_esc(annId)}">${draftOpts || '<option value="">(no drafts)</option>'}</select>
+          </div>
+          <div class="lc-edit-line"><span class="lc-edit-label">Claim</span>
+            <div class="lc-claims-list">${claimsList}</div>
+          </div>
+          <div class="lc-edit-line"><span class="lc-edit-label">+ new</span>
+            <input type="text" class="lc-ev-newclaim" data-paper="${_esc(r.paperId)}" data-ann="${_esc(annId)}" placeholder="Or create a new claim on this draft" value="${_esc(ev.newStmt || '')}">
+            <button class="btn btn-sm lc-ev-newclaim-btn" data-paper="${_esc(r.paperId)}" data-ann="${_esc(annId)}">Add</button>
+          </div>
+          <div class="lc-edit-line"><span class="lc-edit-label">Stance</span>
+            <label><input type="radio" name="lc-stance-${_esc(annId)}" value="for" data-ann="${_esc(annId)}"${ev.stance === 'for' ? ' checked' : ''}> Supports</label>
+            <label><input type="radio" name="lc-stance-${_esc(annId)}" value="against" data-ann="${_esc(annId)}"${ev.stance === 'against' ? ' checked' : ''}> Against</label>
+          </div>
+          ${ev.err ? `<div class="lc-ev-err">${_esc(ev.err)}</div>` : ''}
+          <div class="lc-edit-line">
+            <button class="btn btn-sm lc-ev-cancel" data-ann="${_esc(annId)}"${ev.busy ? ' disabled' : ''}>Cancel</button>
+            <button class="btn btn-sm btn-primary lc-ev-save" data-paper="${_esc(r.paperId)}" data-ann="${_esc(annId)}"${(ev.busy || !ev.claimId) ? ' disabled' : ''}>${ev.busy ? 'Linking…' : ICON.svg('scale') + ' Tag as evidence'}</button>
+          </div>
+        </div>`;
+    }
+
+    // V3.622 — inline comment editor (replaces the window.prompt). Text
+    // survives the live re-renders via _commentForm.
+    const cf = _commentForm.get(annId);
+    const commentEditor = cf ? `
+      <div class="lc-comment-form" data-ann="${_esc(annId)}">
+        <textarea class="lc-comment-input" data-paper="${_esc(r.paperId)}" data-ann="${_esc(annId)}" rows="2"${cf.busy ? ' disabled' : ''}>${_esc(cf.text || '')}</textarea>
+        ${cf.err ? `<div class="lc-ev-err">${_esc(cf.err)}</div>` : ''}
+        <div class="lc-edit-line">
+          <button class="btn btn-sm lc-comment-cancel" data-ann="${_esc(annId)}"${cf.busy ? ' disabled' : ''}>Cancel</button>
+          <button class="btn btn-sm btn-primary lc-comment-save" data-paper="${_esc(r.paperId)}" data-ann="${_esc(annId)}"${cf.busy ? ' disabled' : ''}>${cf.busy ? 'Saving…' : 'Save'}</button>
+        </div>
+      </div>` : '';
 
     // Owner-only controls: color, visibility, stance clear, comment-edit, delete.
     const ownerControls = isMine ? `
       <div class="lc-owner-row">
-        <select class="lc-edit-color" data-paper="${_esc(r.paperId)}" data-ann="${_esc(r.__id || '')}">
+        <select class="lc-edit-color" data-paper="${_esc(r.paperId)}" data-ann="${_esc(annId)}">
           ${_colors.map(cc => `<option value="${_esc(cc.id)}"${cc.id === r.color_id ? ' selected' : ''}>${_esc(cc.name)}</option>`).join('')}
         </select>
-        <select class="lc-edit-vis" data-paper="${_esc(r.paperId)}" data-ann="${_esc(r.__id || '')}">
+        <select class="lc-edit-vis" data-paper="${_esc(r.paperId)}" data-ann="${_esc(annId)}">
           <option value="lab"${r.visibility === 'lab' ? ' selected' : ''}>Lab</option>
           <option value="private"${r.visibility === 'private' ? ' selected' : ''}>Private</option>
         </select>
-        ${r.evidence_stance ? `<button class="lc-clear-stance" data-paper="${_esc(r.paperId)}" data-ann="${_esc(r.__id || '')}" title="Move to Information (clear stance + claim links)">Move to Information</button>` : ''}
-        <button class="lc-edit-comment" data-paper="${_esc(r.paperId)}" data-ann="${_esc(r.__id || '')}">${r.comment ? 'Edit comment' : '+ Comment'}</button>
-        <button class="lc-edit-delete" data-paper="${_esc(r.paperId)}" data-ann="${_esc(r.__id || '')}" title="Delete">🗑</button>
+        ${r.evidence_stance ? `<button class="lc-clear-stance" data-paper="${_esc(r.paperId)}" data-ann="${_esc(annId)}" title="Move back to the triage queue (unlink claims + clear stance)">Move to Information</button>` : ''}
+        <button class="lc-edit-delete" data-paper="${_esc(r.paperId)}" data-ann="${_esc(annId)}" title="Delete">${ICON.svg('trash')}</button>
       </div>` : '';
 
-    const annId = r.__id || '';
     const expanded = _expandedRows.has(annId);
     const editToggleLabel = expanded ? '▾ less' : '▸ edit';
     const editPanel = expanded ? `
       <div class="lc-edit-panel">
         ${draftsRow}
-        ${groupRow}
+        <div class="lc-edit-line">
+          <button class="btn btn-sm lc-ev-open" data-paper="${_esc(r.paperId)}" data-ann="${_esc(annId)}">${ICON.svg('scale')} Evidence for a claim…</button>
+          ${isMine ? `<button class="btn btn-sm lc-edit-comment" data-paper="${_esc(r.paperId)}" data-ann="${_esc(annId)}">${r.comment ? '✎ Edit comment' : '+ Comment'}</button>` : ''}
+        </div>
+        ${evidenceBlock}
         ${ownerControls}
       </div>` : '';
+
+    // V3.622 — category badge: the color's NAME in the color's hue (same
+    // single-source palette as the reader).
+    const catBadge = `<span class="lc-cat" style="background:${color.hex}33;border:1px solid ${color.hex};">${_esc(color.name)}</span>`;
 
     return `
       <div class="lc-row" data-ann="${_esc(annId)}">
         <div class="lc-color-bar" style="background:${color.hex};"></div>
         <div class="lc-body">
           <div class="lc-row-head">
-            <a class="lc-paper-link" href="/rm/pages/library-paper.html?id=${encodeURIComponent(r.paperId)}#ann=${encodeURIComponent(annId)}">${_esc(paperTitle.slice(0, 100))}</a>
+            <a class="lc-paper-link" href="/rm/pages/library-paper.html?id=${encodeURIComponent(r.paperId)}#ann-${encodeURIComponent(annId)}">${_esc(paperTitle.slice(0, 100))}</a>
+            ${catBadge}
             <span class="lc-author-chip">${_esc(author)}</span>
-            ${isPrivate ? '<span class="lc-private">🔒 private</span>' : ''}
+            ${isPrivate ? '<span class="lc-private">' + ICON.svg('lock-closed') + ' private</span>' : ''}
             ${stanceBadge}
             <span class="lc-row-meta">${pageNum ? 'p.' + pageNum + ' · ' : ''}${_esc(dateStr)}</span>
-            <button class="lc-edit-toggle" data-paper="${_esc(r.paperId)}" data-ann="${_esc(annId)}" title="Show drafts / group / edit controls">${editToggleLabel}</button>
+            <button class="lc-edit-toggle" data-paper="${_esc(r.paperId)}" data-ann="${_esc(annId)}" title="Categorize: drafts / evidence / edit">${editToggleLabel}</button>
           </div>
           ${truncQ ? `<div class="lc-quote">${_esc(truncQ)}</div>` : ''}
-          ${r.comment ? `<div class="lc-comment">${_esc(r.comment)}</div>` : ''}
+          ${r.comment && !cf ? `<div class="lc-comment">${_esc(r.comment)}</div>` : ''}
+          ${commentEditor}
           ${tagChips ? `<div class="lc-paper-tags">${tagChips}</div>` : ''}
           ${editPanel}
         </div>
@@ -631,6 +761,14 @@
     const host = _$('lc-rows');
     if (!host) return;
 
+    // V3.622 — remember per-paper section open/closed across live
+    // re-renders (a snapshot landing used to reset every <details>).
+    host.querySelectorAll('.lc-paper-group').forEach(det => {
+      det.addEventListener('toggle', () => {
+        _groupToggles.set(det.dataset.groupKey, det.open);
+      });
+    });
+
     // Edit-panel expand toggle.
     host.querySelectorAll('.lc-edit-toggle').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -677,31 +815,6 @@
       });
     });
 
-    // Group dropdown (anyone, includes "+ New group…" option).
-    host.querySelectorAll('.lc-edit-group').forEach(sel => {
-      sel.addEventListener('change', async () => {
-        const { paper, ann } = sel.dataset;
-        if (sel.value === '__new__') {
-          const row = _findRow(paper, ann);
-          sel.value = (row && row.group) || 'general';
-          const name = window.prompt('New group name (e.g. "method", "open question"):');
-          if (!name || !name.trim()) return;
-          if (!window.ANNOTATION_GROUPS) {
-            alert('annotation-groups module missing');
-            return;
-          }
-          try {
-            const id = await window.ANNOTATION_GROUPS.create(name.trim());
-            _onUpdateField(paper, ann, { group: id });
-          } catch (e) {
-            alert(`Could not create group: ${e.message}`);
-          }
-          return;
-        }
-        _onUpdateField(paper, ann, { group: sel.value });
-      });
-    });
-
     // Owner-only.
     host.querySelectorAll('.lc-edit-color').forEach(sel => {
       sel.addEventListener('change', () => {
@@ -713,32 +826,215 @@
         _onUpdateField(sel.dataset.paper, sel.dataset.ann, { visibility: sel.value });
       });
     });
+    // V3.622 — inline comment editor (was a window.prompt). Text survives
+    // live re-renders via _commentForm; save closes only on success.
     host.querySelectorAll('.lc-edit-comment').forEach(btn => {
       btn.addEventListener('click', () => {
         const { paper, ann } = btn.dataset;
         const row = _findRow(paper, ann);
-        const cur = (row && row.comment) || '';
-        const next = window.prompt('Comment (leave blank to clear):', cur);
-        if (next === null) return;
-        _onUpdateField(paper, ann, { comment: next });
+        _commentForm.set(ann, { text: (row && row.comment) || '', busy: false, err: '' });
+        _render();
       });
     });
+    host.querySelectorAll('.lc-comment-input').forEach(ta => {
+      ta.addEventListener('input', () => {
+        const state = _commentForm.get(ta.dataset.ann);
+        if (state) state.text = ta.value;
+      });
+    });
+    host.querySelectorAll('.lc-comment-cancel').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _commentForm.delete(btn.dataset.ann);
+        _render();
+      });
+    });
+    host.querySelectorAll('.lc-comment-save').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const { paper, ann } = btn.dataset;
+        const state = _commentForm.get(ann);
+        if (!state) return;
+        state.busy = true; state.err = '';
+        _render();
+        try {
+          await window.ANNOTATION_SYNC.update(paper, ann, { comment: state.text });
+          _commentForm.delete(ann);
+          _replaceRow(paper, ann, { comment: state.text });
+        } catch (e) {
+          state.busy = false;
+          state.err = `Save failed: ${e.message || e}`;
+          _render();
+        }
+      });
+    });
+
     host.querySelectorAll('.lc-edit-delete').forEach(btn => {
       btn.addEventListener('click', () => {
         _onDeleteRow(btn.dataset.paper, btn.dataset.ann);
       });
     });
     host.querySelectorAll('.lc-clear-stance').forEach(btn => {
-      btn.addEventListener('click', () => {
-        // "Move to Information" — clears stance and removes all claim links
-        // (the claim docs keep their evidence pointers; that drift is a
-        // known limitation; cleaning both sides requires a transaction).
-        _onUpdateField(btn.dataset.paper, btn.dataset.ann, {
+      btn.addEventListener('click', async () => {
+        // V3.622 — "Move to Information" now unlinks BOTH sides: the claim
+        // docs' evidence arrays via CLAIMS.removeEvidenceForAnnotation
+        // (previously only the annotation was cleared and the claims kept
+        // dangling pointers), then any leftover annotation-side state.
+        const { paper, ann } = btn.dataset;
+        const row = _findRow(paper, ann);
+        if (row && window.CLAIMS && window.CLAIMS.removeEvidenceForAnnotation) {
+          try {
+            await window.CLAIMS.removeEvidenceForAnnotation(
+              Object.assign({ id: ann, paperId: paper }, row));
+          } catch (e) {
+            console.warn('[library-comments] claim unlink failed:', e.message || e);
+          }
+        }
+        _onUpdateField(paper, ann, {
           evidence_stance: null,
           evidence_for_claim_ids: [],
         });
       });
     });
+
+    // ---- V3.622 evidence (claims) flow ----
+    host.querySelectorAll('.lc-ev-open').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const { ann } = btn.dataset;
+        const cur = _evForm.get(ann);
+        if (cur && cur.open) { _evForm.delete(ann); _render(); return; }
+        const state = { open: true, draftId: (_drafts[0] && _drafts[0].id) || '', claims: null, claimId: '', stance: 'for', busy: false, err: '', newStmt: '' };
+        _evForm.set(ann, state);
+        _loadEvClaims(ann);
+        _render();
+      });
+    });
+    host.querySelectorAll('.lc-ev-cancel').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _evForm.delete(btn.dataset.ann);
+        _render();
+      });
+    });
+    host.querySelectorAll('.lc-ev-draft').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const state = _evForm.get(sel.dataset.ann);
+        if (!state) return;
+        state.draftId = sel.value;
+        state.claims = null;
+        state.claimId = '';
+        state.err = '';
+        _loadEvClaims(sel.dataset.ann);
+        _render();
+      });
+    });
+    host.querySelectorAll('input[name^="lc-claim-"]').forEach(input => {
+      input.addEventListener('change', () => {
+        const state = _evForm.get(input.dataset.ann);
+        if (!state) return;
+        state.claimId = input.value;
+        state.err = '';
+        _render();
+      });
+    });
+    host.querySelectorAll('input[name^="lc-stance-"]').forEach(input => {
+      input.addEventListener('change', () => {
+        const state = _evForm.get(input.dataset.ann);
+        if (state) state.stance = input.value;
+      });
+    });
+    host.querySelectorAll('.lc-ev-newclaim').forEach(input => {
+      input.addEventListener('input', () => {
+        const state = _evForm.get(input.dataset.ann);
+        if (state) state.newStmt = input.value;
+      });
+    });
+    host.querySelectorAll('.lc-ev-newclaim-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const { ann } = btn.dataset;
+        const state = _evForm.get(ann);
+        if (!state) return;
+        const stmt = (state.newStmt || '').trim();
+        if (!stmt) { state.err = 'Type a claim statement first.'; _render(); return; }
+        if (!window.CLAIMS) { state.err = 'CLAIMS module missing.'; _render(); return; }
+        state.busy = true; state.err = '';
+        _render();
+        try {
+          const newId = await window.CLAIMS.create(state.draftId, { statement: stmt });
+          state.claims = await _loadClaimsForDraft(state.draftId);
+          state.claimId = newId;
+          state.newStmt = '';
+        } catch (e) {
+          state.err = `Create failed: ${e.message || e}`;
+        }
+        state.busy = false;
+        _render();
+      });
+    });
+    host.querySelectorAll('.lc-ev-save').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const { paper, ann } = btn.dataset;
+        const state = _evForm.get(ann);
+        if (!state || !state.draftId || !state.claimId || !state.stance) return;
+        if (!window.CLAIMS) { alert('CLAIMS module missing.'); return; }
+        state.busy = true; state.err = '';
+        _render();
+        try {
+          await window.CLAIMS.addEvidence(state.draftId, state.claimId, paper, ann, state.stance);
+          // Auto-link the draft to the source paper so the reader's
+          // "Used in paper drafts" pills accrue (V3.475 behavior).
+          if (window.LIBRARY_LINKS && window.LIBRARY_LINKS.toggleDraftLink) {
+            try { await window.LIBRARY_LINKS.toggleDraftLink(paper, state.draftId, true); }
+            catch (_) { /* non-fatal */ }
+          }
+          _evForm.delete(ann);
+          const row = _findRow(paper, ann);
+          const claimIds = Array.isArray(row && row.evidence_for_claim_ids) ? row.evidence_for_claim_ids.slice() : [];
+          if (!claimIds.includes(state.claimId)) claimIds.push(state.claimId);
+          const cited = Array.isArray(row && row.cite_in_drafts) ? row.cite_in_drafts.slice() : [];
+          if (!cited.includes(state.draftId)) cited.push(state.draftId);
+          _replaceRow(paper, ann, {
+            evidence_for_claim_ids: claimIds,
+            evidence_stance: state.stance,
+            cite_in_drafts: cited,
+          });
+        } catch (e) {
+          state.busy = false;
+          state.err = `Tag failed: ${e.message || e}`;
+          _render();
+        }
+      });
+    });
+  }
+
+  /* V3.622 — lazy claims loader for the evidence form. */
+  function _loadClaimsForDraft(draftId) {
+    if (!draftId || typeof firebase === 'undefined' || !firebase.firestore) return Promise.resolve([]);
+    return firebase.firestore()
+      .collection('drafts').doc(draftId).collection('claims').get()
+      .then(snap => {
+        const out = [];
+        snap.forEach(doc => out.push(Object.assign({ id: doc.id }, doc.data())));
+        out.sort((a, b) => {
+          const ta = a.created && a.created.toMillis ? a.created.toMillis() : 0;
+          const tb = b.created && b.created.toMillis ? b.created.toMillis() : 0;
+          return ta - tb;
+        });
+        return out;
+      });
+  }
+
+  async function _loadEvClaims(annId) {
+    const state = _evForm.get(annId);
+    if (!state || !state.draftId) return;
+    const forDraft = state.draftId;
+    try {
+      const claims = await _loadClaimsForDraft(forDraft);
+      const cur = _evForm.get(annId);
+      if (!cur || cur.draftId !== forDraft) return;
+      cur.claims = claims;
+    } catch (e) {
+      const cur = _evForm.get(annId);
+      if (cur) { cur.claims = []; cur.err = `Could not load claims: ${e.message || e}`; }
+    }
+    _render();
   }
 
   function _wireFilters() {
@@ -840,16 +1136,9 @@
       }
       _currentUid = user.uid;
 
-      // Subscribe to lab-shared groups so the per-card dropdowns update
-      // live when anyone adds a new group.
-      if (window.ANNOTATION_GROUPS) {
-        try { await window.ANNOTATION_GROUPS.ensureSeed(); }
-        catch (e) { console.warn('[library-comments] ensureSeed failed:', e.message); }
-        window.ANNOTATION_GROUPS.subscribe((g) => {
-          _groups = g.slice();
-          _render();
-        });
-      }
+      // V3.620 — ANNOTATION_GROUPS subscription removed with the group
+      // dropdown (the field was write-only; this subscription also leaked a
+      // callback per auth event since the unsubscribe was discarded).
 
       if (_busy) return;
       _busy = true;

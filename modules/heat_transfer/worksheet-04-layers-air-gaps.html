@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Worksheet 4: Layers, Air Gaps &amp; Insulation — Heat Transfer Foundations</title>
+<style>
+  /* ===== worksheet house style (print-first, self-contained) ===== */
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    color:#1e293b;background:#fff;line-height:1.5;max-width:820px;margin:0 auto;
+    padding:28px 22px;font-size:14px}
+  .ws-head{border-bottom:3px solid #2563eb;padding-bottom:10px;margin-bottom:14px}
+  .ws-head .course{color:#2563eb;font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}
+  .ws-head h1{color:#1e3a5f;font-size:1.45rem;margin:2px 0}
+  .id-row{display:flex;gap:18px;margin-top:10px;font-size:.95em}
+  .id-row span{flex:1;border-bottom:1px solid #94a3b8;padding:0 4px;white-space:nowrap}
+  .howto{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;padding:10px 14px;margin:14px 0;font-size:.95em}
+  .exp{border:1px solid #cbd5e1;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .exp h2{color:#1e3a5f;font-size:1.05rem}
+  .tabpill{display:inline-block;background:#2563eb;color:#fff;border-radius:999px;font-size:.72rem;
+    font-weight:700;padding:2px 10px;margin-right:8px;vertical-align:2px}
+  .goal{color:#475569;font-style:italic;margin:2px 0 8px}
+  h3.part{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
+  h3.predict{color:#7c3aed} h3.do{color:#b45309} h3.record{color:#0d9488} h3.explain{color:#16a34a}
+  ol.steps{margin-left:20px} ol.steps li{margin:3px 0}
+  table.data{border-collapse:collapse;width:100%;margin:6px 0}
+  table.data th{background:#f1f5f9;color:#1e3a5f}
+  table.data th,table.data td{border:1px solid #94a3b8;padding:5px 8px;font-size:.92em;text-align:center}
+  table.data td.fill{height:26px;min-width:64px}
+  table.data td.lab,table.data th.lab{text-align:left;background:#f8fafc}
+  .blank{display:inline-block;min-width:90px;border-bottom:1px solid #64748b}
+  .blank.w{min-width:160px}
+  .writeline{border-bottom:1px solid #94a3b8;height:24px}
+  .writeline+.writeline{margin-top:2px}
+  .hint{color:#64748b;font-size:.85em}
+  .circle{color:#334155}
+  .synth{background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .synth h2{color:#15803d;font-size:1.05rem;margin-bottom:6px}
+  footer{margin-top:18px;color:#64748b;font-size:.8em;text-align:center}
+  @media print{
+    body{padding:0;font-size:12px;max-width:100%}
+    a{color:inherit;text-decoration:none}
+    @page{margin:14mm}
+  }
+</style>
+</head>
+<body>
+
+<div class="ws-head">
+  <div class="course">Heat Transfer Foundations · Lesson 4 Worksheet</div>
+  <h1>Layers, Air Gaps &amp; Insulation — Boundaries Inside Boundaries</h1>
+  <div class="id-row"><span>Name:</span><span>Date:</span><span>Period:</span></div>
+</div>
+
+<div class="howto">
+  <b>How this works:</b> open the interactive lesson
+  <a href="04-layers-air-gaps.html"><b>04-layers-air-gaps.html</b></a> and keep it next to this
+  worksheet. Each experiment below uses one tab of the lesson. <b>Predict first</b> (before you
+  touch the sliders!), then run the experiment, record your data, and explain what you saw. The
+  <b>stats panel</b> (left side, under the sliders) and the <b>verdict box</b> (below the plots)
+  give you the numbers to record. All walls in this lesson are 1 m² of area, so q is in watts per
+  square metre.
+</div>
+
+<!-- ================= Experiment 1 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 1</span>Two layers, one wall</h2>
+  <p class="goal">Goal: show that resistances in series add, and that the worst conductor eats almost the whole temperature drop.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">In a brick + foam wall, the foam layer (half as thick as the brick) holds…
+  &nbsp;☐ about half &nbsp; ☐ about 10% &nbsp; ☐ about 90% &nbsp; of the temperature drop.</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Brick + foam</b>. Fill in row A. Look at the staircase: which layer is steep?</li>
+    <li>Click <b>Copper + steel</b>. Fill in row B.</li>
+    <li>Click <b>Glass + glass</b> (4 mm each). Fill in row C. Then drag <b>Layer 2 thickness L₂</b>
+    to 8 mm. Predict the new q <em>before</em> you read it, then fill in row D.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>R₁ = L₁/k₁</th><th>R₂ = L₂/k₂</th><th>R total (m²K/W)</th><th>q (W)</th><th>Interface temp (°C)</th><th>ΔT held by layer 2 (%)</th></tr>
+    <tr><td class="lab">A Brick + foam</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">B Copper + steel</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">C Glass 4 + glass 4</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">D Glass 4 + glass 8</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>My prediction for row D's q was <span class="blank"></span> W. Doubling one layer's
+  thickness (C → D) changed q by a factor of <span class="blank"></span>, not ½ — because only
+  <span class="blank w"></span> doubled.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. In row A the brick–foam interface sits at almost 18 °C on a −5 °C day. Explain, using
+  ΔTᵢ = qRᵢ, why the brick "barely notices winter":</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. Why do metal sheds need insulation, in one sentence about row B?</p>
+  <div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 2 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 2</span>The air gap — great insulator, if it stands still</h2>
+  <p class="goal">Goal: find the gap width where an air layer's resistance peaks, and see convection steal it back.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">Widening an air gap from 15 mm to 40 mm will make its resistance…
+  &nbsp;☐ almost triple &nbsp; ☐ stay the same &nbsp; ☐ fall</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Thin trapped gap</b> (6 mm). Fill in row A. Then drag <b>Gap width d</b> to 10, 15,
+    20 and 40 mm, filling in a row each time. Watch for the circulation loop to appear.</li>
+    <li>Click <b>Foam-filled</b> (40 mm). Fill in the last row.</li>
+    <li>Find the gap width where <b>R of gap</b> is largest (use the curve). d ≈ <span class="blank"></span> mm.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th>Gap</th><th>d (mm)</th><th>Convection multiplier Nu</th><th>Effective k (W/m·K)</th><th>R of gap (m²K/W)</th><th>q through gap (W)</th></tr>
+    <tr><td class="lab">still air</td><td>6</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">still air</td><td>10</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">air</td><td>15</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">air</td><td>20</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">air</td><td>40</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">foam</td><td>40</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>At 40 mm, foam resists <span class="blank"></span>× more than open air of the same width.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. "More air, less insulation." Explain what physically happens in the 40 mm open gap that
+  does not happen at 10 mm:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. Foam's own k (0.035) is slightly <em>worse</em> than still air's (0.026), yet foam wins at
+  40 mm. What is the foam skeleton actually for?</p>
+  <div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 3 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 3</span>Foams and fluff — millions of tiny boundaries</h2>
+  <p class="goal">Goal: see how porosity, pore size and the skeleton material set the conductivity of an insulation.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">Swapping a fiberglass skeleton (k = 1) for a copper skeleton (k = 401) at the
+  same 95% porosity will make the insulation… &nbsp;☐ 400× worse &nbsp; ☐ about 16× worse
+  &nbsp; ☐ barely different</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Fiberglass batt</b> (95% porosity, 100 µm pores, glass skeleton). Fill in row A.</li>
+    <li>Drag <b>Porosity</b> down to 50%. Fill in row B. Watch the cross-section fill with solid.</li>
+    <li>Back at 95%, drag <b>Skeleton conductivity</b> up to copper (401). Fill in row C.</li>
+    <li>Click <b>Aerogel</b>. Fill in row D — note the pocket-air conductivity.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>Porosity φ</th><th>Pore size</th><th>Skeleton k</th><th>Pocket-air k</th><th>k∥ (best case)</th><th>k⊥ (worst case)</th><th>k_eff estimate</th><th>R of 100 mm blanket</th></tr>
+    <tr><td class="lab">A Fiberglass</td><td>95%</td><td>100 µm</td><td>1.0</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">B Half solid</td><td>50%</td><td>100 µm</td><td>1.0</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">C Copper skeleton</td><td>95%</td><td>100 µm</td><td>401</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">D Aerogel</td><td>95%</td><td class="fill"></td><td>1.0</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Row C ÷ row A (k_eff) = <span class="blank"></span>×. Which of the two bounds moved the most
+  when the skeleton became copper? &nbsp;☐ k∥ (parallel) &nbsp; ☐ k⊥ (series)</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. Being "95% nothing" made the fiberglass blanket about 22× better than solid glass. Explain
+  why the air pockets insulate at all, given Tab 2:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. In aerogel the pocket air conducts <em>worse</em> than free air. What is different about
+  pores only ~200 nm wide? <span class="hint">(Hint: how far does an air molecule fly between collisions?)</span></p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 4 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 4</span>Resistance networks and the R-value on the package</h2>
+  <p class="goal">Goal: build real walls as series circuits and read their U-value and R-value.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">Going from a single pane to a double pane (12 mm air between) cuts the heat
+  loss by about… &nbsp;☐ 20% &nbsp; ☐ half &nbsp; ☐ 4×</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Single pane</b>, then <b>Double pane</b>. Fill in rows A and B.</li>
+    <li>Click <b>Insulated stud wall</b>. Fill in row C. Read the brick–insulation interface
+    temperature off the staircase (the small label at that node).</li>
+    <li>Click <b>Steel box</b>. Fill in row D. Then change Layer 2's material to aerogel and its
+    thickness to 20 mm: q = <span class="blank"></span> W.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>ΔT (K)</th><th>R″ total (m²K/W)</th><th>U-value (W/m²K)</th><th>US R-value</th><th>q (W)</th><th>Biggest resistor in the chain</th></tr>
+    <tr><td class="lab">A Single pane</td><td>20</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">B Double pane</td><td>20</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">C Stud wall</td><td>25</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">D Steel box</td><td>20</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Row A ÷ row B (q) = <span class="blank"></span>×. Stud wall: brick–insulation interface ≈
+  <span class="blank"></span> °C.</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. The glass in a double-pane window contributes about 1% of its resistance. What are you
+  actually paying for when you buy double glazing?</p>
+  <div class="writeline"></div>
+  <p>2. Why does the steel box (row D) lose only ~118 W and not thousands, even though steel
+  conducts 45 W/m·K?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Synthesis ================= -->
+<div class="synth">
+  <h2>Big picture — put it together</h2>
+  <p>1. A down jacket, a foam cooler, a double-glazed window and a fiberglass batt are all the
+  same trick. In three sentences, say what the trick is. Use <b>still air</b>, <b>convection</b>
+  and <b>resistances in series</b>.</p>
+  <div class="writeline"></div><div class="writeline"></div><div class="writeline"></div><div class="writeline"></div>
+  <p>2. <b>Challenge (optional):</b> insulation sold as "R-30" in US units has
+  R_SI = 30 ÷ 5.678 ≈ <span class="blank"></span> m²K/W. With 20 K across it, one square metre
+  leaks q = ΔT/R ≈ <span class="blank"></span> W. Build it in Tab 4 (fiberglass, k = 0.04): what
+  thickness gets you there? <span class="hint">R = L/k → L = R × k.</span> L ≈ <span class="blank"></span> mm.</p>
+  <p>3. Next lesson preview: so far the air has been the insulation. Next we <em>move</em> the air on
+  purpose. What do you expect blowing on a hot surface to do to the heat loss, and why?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<footer>McGhee Lab · Heat Transfer Foundations · Worksheet 4 of 6</footer>
+</body>
+</html>

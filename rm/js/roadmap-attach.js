@@ -151,7 +151,7 @@
       var targets = RM.attachTargets(c.roadmap);
       var mine = targets.filter(function (t) { return have[c.id + '::' + targetKey(t)]; }).length;
       return '<div class="lp-linkpick-group rmap-at-group" data-foci="' + esc(c.id) + '">' +
-        '<div class="lp-linkpick-group-head">' + esc(c.icon) + ' ' + esc(c.title) +
+        '<div class="lp-linkpick-group-head">' + ICON.render(c.icon) + ' ' + esc(c.title) +
           (mine ? '<span class="lp-linkpick-group-count">' + mine + '</span>' : '') +
         '</div>' +
         targets.map(function (t, i) { return rowHtml(c.id, t, i); }).join('') +
@@ -477,7 +477,7 @@
       }
       return '<a class="rmap-chip" href="/rm/pages/research.html?id=' + encodeURIComponent(r.foci_id) + anchor + '" ' +
         'title="' + esc(r.note || 'No note') + '">' +
-        '<span class="rmap-chip-card">🗺 ' + esc(c ? c.title : r.foci_id) + '</span>' +
+        '<span class="rmap-chip-card">' + ICON.svg('map') + ' ' + esc(c ? c.title : r.foci_id) + '</span>' +
         (where ? '<span class="rmap-chip-where">' + esc(where) + '</span>' : '') +
       '</a>';
     }).join('');

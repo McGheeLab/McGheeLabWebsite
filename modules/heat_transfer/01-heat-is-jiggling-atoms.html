@@ -6,9 +6,11 @@
   <title>Heat Is Jiggling Atoms — Heat Transfer Foundations</title>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
   <style>
-    /* ===== house CSS — Heat Transfer Foundations ===== */
+    /* ===== house CSS — Heat Transfer Foundations (outreach house style) ===== */
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    /* One-glyph alias: most system fonts lack U+221D (∝) and fall back to a near-invisible glyph. */
+    @font-face{font-family:'PropSign';src:local('STIX Two Math Regular'),local('STIXTwoMath-Regular'),local('STIXGeneral-Regular'),local('Cambria Math'),local('CambriaMath'),local('Noto Sans Math Regular'),local('NotoSansMath-Regular'),local('Segoe UI Symbol'),local('SegoeUISymbol'),local('DejaVu Sans'),local('Menlo Regular'),local('Menlo-Regular');unicode-range:U+221D}
+    body{font-family:PropSign,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
       background:#f4f6fa;color:#1e293b;line-height:1.6}
     header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
     header h1{font-size:1.6rem;letter-spacing:.01em}
@@ -37,6 +39,17 @@
     .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
       font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
     .key-takeaways ul{margin-left:20px}
+    .plain{background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #0d9488;border-radius:6px;
+      padding:10px 14px;margin:12px 0}
+    .plain::before{content:"In plain words";display:block;font-weight:700;color:#0f766e;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+    ul.letters{margin:6px 0 12px 22px;font-size:.92rem;color:#334155}
+    ul.letters li{margin:3px 0}
+    ul.letters b{color:#1e3a5f}
+    .later{font-size:.88rem;color:#64748b;border-left:3px solid #cbd5e1;padding:2px 0 2px 10px;margin:10px 0}
+    .worked-example ol{margin:6px 0 4px 22px}
+    .worked-example li{margin:4px 0}
+    .worked-example p{margin:4px 0}
     .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
       padding:12px 16px;margin:14px 0}
     .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
@@ -112,41 +125,43 @@
     one is <b>how violently those atoms are rattling around their home positions</b>.</p>
     <p><b>Temperature is a scoreboard for the jiggle.</b> Hot = big, fast rattling. Cold = gentle
     trembling. Absolute zero (0&nbsp;K, −273.15&nbsp;°C) is the temperature where the classical
-    jiggle would stop entirely — the atoms just sit at their lattice sites. The bridge between the
-    temperature you read on a thermometer and the energy of one atom's rattle is a single
-    conversion factor, <b>Boltzmann's constant</b> \(k_B = 1.38\times10^{-23}\ \text{J/K}\)
-    (joules of jiggle energy per kelvin):</p>
-    <div class="equation-box">
-      $$ \text{temperature } T \;\;\Longleftrightarrow\;\; \text{average jiggle energy per atom}
-      \;\sim\; k_B T \qquad\qquad
-      x_{\text{typ}} \;\approx\; \sqrt{\frac{3\,k_B\,T}{k_{\text{bond}}}} $$
+    jiggle would stop entirely — the atoms just sit at their lattice sites. That is why physicists
+    count temperature in <b>kelvin</b>: it starts at the true zero of jiggle, and a room at
+    20&nbsp;°C is 293&nbsp;K.</p>
+    <div class="plain">
+      Hotter → each atom wobbles <b>farther</b>. Stiffer bonds → each atom wobbles <b>less far,
+      but faster</b>. And the wobble grows more slowly than the temperature: four times the
+      temperature only doubles the wobble (it grows with the <em>square root</em>).
     </div>
-    <p>The second formula tells you <em>how far</em> an atom typically strays. Each atom sits in
-    a spring cage of stiffness \(k_{\text{bond}}\) (newtons per meter — the same bond stiffness
-    from the Solid Mechanics course). A spring displaced by \(x\) stores energy
-    \(\tfrac12 k_{\text{bond}} x^2\); give the atom its thermal budget of roughly \(3k_BT\)
-    (formal version in Tab 4) and the typical excursion is
-    \(x_{\text{typ}} \approx \sqrt{3k_BT/k_{\text{bond}}}\). Read the trend: hotter → bigger
-    jiggle, but only as \(\sqrt{T}\); <b>stiffer bonds → smaller, faster jiggle</b> (the rattle
-    rate grows as \(\sqrt{k_{\text{bond}}}\), just like a stiffer guitar string rings at a higher
-    pitch).</p>
+    <div class="equation-box">
+      $$ \text{typical wobble } x \;\propto\; \sqrt{\frac{T}{k_{\text{bond}}}} $$
+    </div>
+    <ul class="letters">
+      <li><b>x</b> — how far an atom typically strays from its home spot, in picometers (pm; 1 pm is a trillionth of a meter).</li>
+      <li><b>T</b> — temperature in kelvin. Bigger T, bigger wobble.</li>
+      <li><b>k<sub>bond</sub></b> — the stiffness of the bond-springs, in newtons per meter (the same k from Solid Mechanics). Stiffer, smaller wobble.</li>
+      <li><b>∝</b> — "is proportional to": the shape of the rule, without the constant in front.</li>
+    </ul>
+    <p class="later">Coming in Tab 4: the exact version, x = √(3k<sub>B</sub>T/k<sub>bond</sub>), where
+    k<sub>B</sub> is the constant that converts kelvins into joules of jiggle. It is what the plot
+    below uses — you do not need it yet.</p>
     <div class="worked-example">
-      <p>How big is the jiggle in a metal at room temperature? Take
-      \(k_{\text{bond}} = 20\ \text{N/m}\) (the metallic-bond stiffness we measured in Solid
-      Mechanics Lesson 1) and \(T = 300\ \text{K}\):
-      \(x_{\text{typ}} = \sqrt{3 \times 1.38\times10^{-23} \times 300 / 20}
-      = \sqrt{6.2\times10^{-22}} \approx 2.5\times10^{-11}\ \text{m} \approx 0.025\ \text{nm}\).
-      Atoms sit about 0.25&nbsp;nm apart, so the room-temperature rattle is roughly
-      <b>10% of the atomic spacing</b> — a big, restless wobble. And it is fast: the rattle
-      frequency \(\tfrac{1}{2\pi}\sqrt{k_{\text{bond}}/m}\) for a copper-mass atom is about
-      2&nbsp;THz — two trillion round trips per second.</p>
+      <p>How big is the jiggle in a metal at room temperature?</p>
+      <ol>
+        <li><b>Read the sim.</b> At 300&nbsp;K with k = 20&nbsp;N/m the stats say the wobble is about 25&nbsp;pm.</li>
+        <li><b>Compare with the spacing.</b> Atoms sit about 250&nbsp;pm apart, so 25 ÷ 250 = 0.10 — the atom
+        wanders about <b>10% of the way to its neighbour</b>. A big, restless wobble.</li>
+        <li><b>Now triple the temperature.</b> √3 ≈ 1.7, so at 900&nbsp;K the wobble is about 1.7 × 25 ≈ 43&nbsp;pm
+        (17% of the spacing). Check it on the slider.</li>
+        <li><b>How fast?</b> The stats also give the rattle rate: about 2 trillion round trips per second (2&nbsp;THz).</li>
+      </ol>
     </div>
     <div class="key-takeaways">
       <ul>
-        <li>Heat is not a substance. Temperature measures the average violence of atomic jiggle.</li>
-        <li>\(k_B = 1.38\times10^{-23}\ \text{J/K}\) converts kelvins into joules of jiggle per atom.</li>
-        <li>Jiggle amplitude grows as \(\sqrt{T}\) and shrinks as bonds stiffen: \(x_{\text{typ}} \approx \sqrt{3k_BT/k_{\text{bond}}}\).</li>
-        <li>At room temperature a metal atom wobbles ~10% of the way to its neighbor, trillions of times per second.</li>
+        <li>Heat is not a substance. Temperature measures how violently the atoms jiggle.</li>
+        <li>Hotter → bigger wobble, but only as the square root: 4× the temperature, 2× the wobble.</li>
+        <li>Stiffer bonds → smaller, faster wobble.</li>
+        <li>At room temperature a metal atom wobbles ~10% of the way to its neighbour, trillions of times per second.</li>
       </ul>
     </div>
   </div>
@@ -203,39 +218,46 @@
   <div class="background-section">
     <h2>Background: Heat travels by pass-the-parcel — and it takes time</h2>
     <p>Leave a metal spoon in hot soup. The handle end — far from the soup — eventually gets hot
-    too. How did the jiggle get up there? <b>Neighbor to neighbor.</b> An atom at the hot end
-    rattles hard, shakes the bond-springs connecting it to its neighbors, and hands some of its
-    energy over. Those neighbors shake <em>their</em> neighbors. The jiggle works its way along
+    too. How did the jiggle get up there? <b>Neighbour to neighbour.</b> An atom at the hot end
+    rattles hard, shakes the bond-springs connecting it to its neighbours, and hands some of its
+    energy over. Those neighbours shake <em>their</em> neighbours. The jiggle works its way along
     the spoon like a bucket brigade with very clumsy hands.</p>
     <p>The sim below plays that game with a bar of 40 atom columns whose left end is held hot.
-    Each animation step, every column shares energy with its neighbors according to one rule,
-    where \(e_i\) is the energy (shown as temperature) of column \(i\) and \(D\) is the
-    <b>handoff speed</b> — the fraction of the gap to its neighbors' average that a column closes
-    per step:</p>
-    <div class="equation-box">
-      $$ e_i \;\leftarrow\; e_i \;+\; D\left(\frac{e_{i-1}+e_{i+1}}{2} \;-\; e_i\right)
-      \qquad\qquad x_{\text{front}} \;\propto\; \sqrt{t} $$
+    Every step, each column looks at its two neighbours and moves part of the way toward their
+    average.</p>
+    <div class="plain">
+      Each step: <b>new energy = old energy + (handoff speed) × (neighbours' average − old energy)</b>.
+      The handoff speed D is the fraction of the gap a column closes per step — 45% for a
+      copper-like bar, 4% for a wood-like one.
     </div>
-    <p>\(D\) is the whole personality of the material, and it <em>is</em> thermal conductivity at
-    the atomic scale. Copper atoms hand energy off eagerly (big \(D\)) — that is why the metal
-    spoon stole heat from your hand in the lesson opener. Wood's atoms hoard their energy (tiny
-    \(D\)). And notice the second formula: because each handoff is aimless — energy dribbles both
-    directions — the warm front creeps forward like a <b>random walk</b>, advancing only as the
-    <em>square root</em> of time. Heat is not a wave racing down the bar; it is a drunken shuffle.</p>
+    <div class="equation-box">
+      $$ e_i \;\leftarrow\; e_i \;+\; D\left(\frac{e_{i-1}+e_{i+1}}{2} \;-\; e_i\right) $$
+    </div>
+    <ul class="letters">
+      <li><b>e<sub>i</sub></b> — the energy (shown as temperature) of column number i.</li>
+      <li><b>e<sub>i−1</sub>, e<sub>i+1</sub></b> — its left and right neighbours; the fraction is their average.</li>
+      <li><b>D</b> — the handoff speed, between 0 and 0.5. It is the whole personality of the material: copper hands off eagerly (big D), wood hoards (tiny D).</li>
+      <li><b>←</b> — "becomes": the new value replaces the old one, then the next step begins.</li>
+    </ul>
+    <p>Because each handoff is aimless — energy dribbles both directions — the warm front creeps
+    forward like a <b>random walk</b>. It advances only as the <em>square root</em> of time
+    (distance ∝ √t): four times the time buys only twice the distance. Heat is not a wave racing
+    down the bar; it is a drunken shuffle.</p>
     <div class="worked-example">
-      <p>Run one step by hand. A column sits at \(e_i = 300\ \text{K}\) between neighbors at
-      800&nbsp;K and 300&nbsp;K, with \(D = 0.4\). The neighbor average is
-      \((800+300)/2 = 550\ \text{K}\), so the update is
-      \(e_i \leftarrow 300 + 0.4\,(550 - 300) = 300 + 100 = 400\ \text{K}\). One step, and the
-      column has closed 40% of its gap to the local average. Now the √t rule: if the warm front
-      needs 4&nbsp;s to cross the first 10 columns, it needs \(4\times\) that — 16&nbsp;s — to
-      reach column 20. Double the distance costs quadruple the time.</p>
+      <p>Run one step by hand, then use the √t rule.</p>
+      <ol>
+        <li><b>Set up.</b> A column sits at 300&nbsp;K between neighbours at 800&nbsp;K and 300&nbsp;K, with D = 0.4.</li>
+        <li><b>Neighbours' average:</b> (800 + 300) ÷ 2 = 550&nbsp;K. The gap to close is 550 − 300 = 250&nbsp;K.</li>
+        <li><b>Close 40% of it:</b> 0.4 × 250 = 100&nbsp;K, so the column becomes 300 + 100 = <b>400&nbsp;K</b>.</li>
+        <li><b>The √t rule:</b> if the warm front needs 4&nbsp;s to reach column 10, reaching column 20 (twice as far)
+        needs 2 × 2 = 4 times as long: 16&nbsp;s. Double the distance costs quadruple the time.</li>
+      </ol>
     </div>
     <div class="key-takeaways">
       <ul>
-        <li>Conduction is jiggle passed neighbor-to-neighbor through the bonds — nothing physically flows.</li>
-        <li>The handoff speed \(D\) is conductivity at atom scale: copper hands off eagerly, wood hoards.</li>
-        <li>The warm front creeps as \(\sqrt{t}\) — a random walk, not a wave. Doubling the distance quadruples the wait.</li>
+        <li>Conduction is jiggle passed neighbour-to-neighbour through the bonds — nothing physically flows.</li>
+        <li>The handoff speed D is conductivity at atom scale: copper hands off eagerly, wood hoards.</li>
+        <li>The warm front creeps as √t — a random walk, not a wave. Doubling the distance quadruples the wait.</li>
         <li>That √t creep is why the near end of the spoon burns you long before the handle warms.</li>
       </ul>
     </div>
@@ -259,7 +281,7 @@
     <span class="scenario-bar-label">Scenario:</span>
     <button class="scen-btn on" data-tab="spread" data-scen="copper" onclick="setScen('spread','copper')">Copper-like (D high)</button>
     <button class="scen-btn" data-tab="spread" data-scen="wood" onclick="setScen('spread','wood')">Wood-like (D low)</button>
-    <button class="scen-btn" data-tab="spread" data-scen="restart" onclick="spreadReset();setScen('spread','restart')">Restart pulse</button>
+    <button class="scen-btn" onclick="spreadReset();refreshActiveTab()" title="Put the bar back to 300 K and start the pulse again">↻ Restart pulse</button>
   </div>
 
   <div class="panel">
@@ -293,7 +315,7 @@
 <section id="tab-threeways" class="tab-content">
   <div class="background-section">
     <h2>Background: Three delivery services for the jiggle</h2>
-    <p>So far the jiggle has traveled one way: passed along fixed atoms. But put a hot wall and a
+    <p>So far the jiggle has travelled one way: passed along fixed atoms. But put a hot wall and a
     cold wall face to face and heat has <b>three</b> delivery services to choose from.
     <b>Conduction</b> is the relay race from Tab 2 — atoms stay put and hand the jiggle down the
     line. <b>Convection</b> is a courier service: in a liquid or gas, the atoms are free to move,
@@ -302,38 +324,44 @@
     charge, and shaking charges emit light (mostly invisible infrared). That light crosses the gap
     at light speed — <em>with no atoms needed at all</em> — and becomes jiggle again wherever it
     is absorbed.</p>
-    <p>Each mechanism has its own rate law. Here \(q\) is the heat flow in watts, \(A\) the wall
-    area in m², \(\Delta T = T_{\text{hot}} - T_{\text{cold}}\), \(k\) the material's thermal
-    conductivity (W/m·K), \(L\) the gap width, \(h\) the convection coefficient (W/m²·K — how good
-    the moving fluid is at hauling heat), \(\varepsilon\) the surface emissivity (0 to 1), and
-    \(\sigma = 5.67\times10^{-8}\ \text{W/m}^2\text{K}^4\) the Stefan–Boltzmann constant:</p>
-    <div class="equation-box">
-      $$ q_{\text{cond}} = \frac{k\,A\,\Delta T}{L} \qquad\quad
-         q_{\text{conv}} = h\,A\,\Delta T \qquad\quad
-         q_{\text{rad}} = \varepsilon\,\sigma\,A\left(T_{\text{hot}}^{4} - T_{\text{cold}}^{4}\right) $$
+    <div class="plain">
+      All three follow the same shape: <b>heat flow = (how good the route is) × (wall area) ×
+      (temperature difference)</b>. Bigger wall, more flow. Bigger difference, more flow. The
+      three services differ only in "how good the route is" — and radiation is the odd one out,
+      because its route gets dramatically better as things get hotter.
     </div>
+    <div class="equation-box">
+      $$ q \;=\; (\text{route quality}) \times A \times \Delta T $$
+    </div>
+    <ul class="letters">
+      <li><b>q</b> — heat flow, in watts (joules per second). The sim reports it per square meter of wall, W/m².</li>
+      <li><b>A</b> — the wall area, m².</li>
+      <li><b>ΔT</b> — "delta T", the temperature difference, hot side minus cold side, in kelvin.</li>
+      <li><b>route quality</b> — for conduction it is the material's conductivity divided by the gap width; for convection it is a single number engineers call <b>h</b>; for radiation it grows with the <em>fourth power</em> of temperature.</li>
+    </ul>
+    <p class="later">The three exact recipes (Fourier's, Newton's and the Stefan–Boltzmann law) are
+    written out in Tab 4, and each gets its own lesson later: conduction in Lesson 3, convection in
+    Lesson 5, radiation in Lesson 6.</p>
     <p>Now you can explain a thermos bottle. It is two nested flasks with the air pumped out of
     the gap. No atoms in the gap → no conduction relay, no convection courier. Only radiation
-    survives — and the walls are silvered (low \(\varepsilon\)) to choke that too. Three assassins,
-    three separate alibis: that is why coffee stays hot all morning.</p>
+    survives — and the walls are silvered to choke that too. Three assassins, three separate
+    alibis: that is why coffee stays hot all morning.</p>
     <div class="worked-example">
-      <p>A 600&nbsp;K hot wall faces a 300&nbsp;K cold wall across a 1&nbsp;cm gap
-      (\(\Delta T = 300\) K, per m² of wall). <b>Solid glass between</b> (\(k = 1.0\)):
-      \(q_{\text{cond}} = 1.0 \times 300 / 0.01 = 30{,}000\ \text{W/m}^2\). <b>Air between</b>:
-      conduction \(0.026 \times 300/0.01 = 780\), convection with \(h = 5\):
-      \(5 \times 300 = 1500\), radiation with \(\varepsilon = 0.9\):
-      \(0.9 \times 5.67\times10^{-8} \times (600^4 - 300^4) \approx 6200\ \text{W/m}^2\) — total
-      ≈ 8500. <b>Vacuum between</b>: only the 6200 of radiation survives; silver the walls
-      (\(\varepsilon \approx 0.05\)) and it collapses to
-      \(0.05 \times 5.67\times10^{-8} \times (600^4-300^4) \approx 340\ \text{W/m}^2\) —
-      nearly 100× less than the solid.</p>
+      <p>A 600&nbsp;K hot wall faces a 300&nbsp;K cold wall across a 1&nbsp;cm gap (ΔT = 300&nbsp;K, per square meter of wall).</p>
+      <ol>
+        <li><b>Solid glass in the gap.</b> Route quality = conductivity ÷ gap = 1.0 ÷ 0.01 = 100. Flow = 100 × 300 = <b>30,000&nbsp;W/m²</b>.</li>
+        <li><b>Air in the gap.</b> Conduction: 0.026 ÷ 0.01 × 300 = 780. Convection with h = 5: 5 × 300 = 1500. Radiation from the
+        fourth-power rule (Tab 4 shows the arithmetic): about 6200. Total ≈ <b>8500&nbsp;W/m²</b> — less than a third of the solid.</li>
+        <li><b>Vacuum in the gap.</b> Only radiation survives: ≈ 6200&nbsp;W/m². Silver the walls and even that drops about 18×, to ≈ 340 —
+        nearly 100× less than the solid. That is a thermos.</li>
+      </ol>
     </div>
     <div class="key-takeaways">
       <ul>
         <li>Conduction = atoms stay put and relay the jiggle; convection = moving fluid carries it; radiation = the jiggle travels as light.</li>
+        <li>Every service follows heat flow = route quality × area × temperature difference.</li>
         <li>Conduction and convection need atoms in the gap; radiation crosses a perfect vacuum.</li>
-        <li>Radiation grows as \(T^4\) — quietly small at room temperature, dominant when things glow.</li>
-        <li>A thermos kills conduction and convection with vacuum and starves radiation with silvered (low-ε) walls.</li>
+        <li>A thermos kills conduction and convection with vacuum and starves radiation with silvered walls.</li>
       </ul>
     </div>
   </div>
@@ -385,48 +413,65 @@
 <!-- ============================================================ TAB 4: levelup -->
 <section id="tab-levelup" class="tab-content">
   <div class="background-section">
-    <h2>Level up: equipartition and the diffusion clock</h2>
-    <p>Time for the real machinery. First, the energy budget we borrowed in Tab 1. The
-    <b>equipartition theorem</b> of classical statistical mechanics assigns each quadratic degree
-    of freedom an average energy \(\tfrac12 k_B T\). An atom bound in a 3-D lattice has six:
-    kinetic energy in \(x, y, z\) plus spring potential energy in \(x, y, z\). Its average thermal
-    energy is therefore</p>
-    <div class="equation-box">
-      $$ \bar{E}_{\text{atom}} \;=\; 6 \times \tfrac12 k_B T \;=\; 3\,k_B T
-      \qquad\qquad \alpha \;=\; \frac{k}{\rho\,c} \qquad\qquad \tau \;\approx\; \frac{L^2}{\alpha} $$
+    <h2>Level up: the exact rules — equipartition, the three recipes, and the diffusion clock</h2>
+    <p><b>Everything in Tabs 1–3 stands on its own.</b> This tab is where the real machinery lives,
+    written the way a first-year physics or engineering course writes it. Take it one box at a time.</p>
+    <div class="plain">
+      <b>Box 1 — the jiggle budget.</b> Nature hands each atom a fixed amount of jiggle energy per kelvin.
+      The exchange rate is Boltzmann's constant, and a bound atom gets three of them.
     </div>
-    <p>(Multiply \(3k_B\) by Avogadro's number and you get the Dulong–Petit molar heat capacity
-    \(3R\) — the punchline of Lesson 2.) Second, the transport machinery. How fast heat soaks
-    through a material depends on a competition: the conductivity \(k\) (W/m·K) moves energy, but
-    the volumetric heat capacity \(\rho c\) (density × specific heat, J/m³·K) must be
-    <em>filled</em> along the way. Their ratio is the <b>thermal diffusivity</b>
-    \(\alpha = k/\rho c\), with units of m²/s — an area per time, exactly what a random walk needs.
-    Representative values: copper \(1.16\times10^{-4}\), still air \(2.2\times10^{-5}\), glass
-    \(3.4\times10^{-7}\), wood \(1.9\times10^{-7}\ \text{m}^2/\text{s}\).</p>
-    <p>Third, the clock. Tab 2 showed the front creeping as \(\sqrt{t}\); here is why. A random
-    walker taking \(N\) steps of size \(a\) wanders a net distance \(x_{\text{rms}} = a\sqrt{N}\),
-    so covering a distance \(L\) needs \(N \approx (L/a)^2\) steps — the price of aimlessness is
-    <em>squared</em>. In continuum language the walker's "area per time" is \(\alpha\), so the
-    time to soak through a thickness \(L\) is \(\tau \approx L^2/\alpha\). This resolves a real
-    paradox: each atomic handoff takes about a picosecond, yet your coffee takes an hour to cool.
-    Atoms are fast; the <em>path</em> is a squared-up random shuffle. On the log-log plot below,
-    \(\tau = L^2/\alpha\) is a straight line of slope 2 — every 10× in size costs 100× in time.</p>
+    <div class="equation-box">
+      $$ \bar{E}_{\text{atom}} \;=\; 3\,k_B T \qquad\qquad x_{\text{typ}} \;=\; \sqrt{\frac{3\,k_B\,T}{k_{\text{bond}}}} $$
+    </div>
+    <ul class="letters">
+      <li><b>k<sub>B</sub></b> — Boltzmann's constant, 1.38 × 10⁻²³ joules per kelvin: the conversion factor from temperature to energy per atom.</li>
+      <li><b>Ē<sub>atom</sub></b> — the average jiggle energy of one atom. The <b>equipartition theorem</b> gives ½k<sub>B</sub>T to each of six "directions" (moving in x, y, z and stretching springs in x, y, z), so 3k<sub>B</sub>T in all.</li>
+      <li><b>x<sub>typ</sub></b> — Tab 1's wobble, now exact: a spring holding energy ½k<sub>bond</sub>x² with the budget 3k<sub>B</sub>T stretches to x = √(3k<sub>B</sub>T/k<sub>bond</sub>). Multiply 3k<sub>B</sub> by Avogadro's number and you get the Dulong–Petit heat capacity, 3R — Lesson 2's punchline.</li>
+    </ul>
+    <div class="plain">
+      <b>Box 2 — the three delivery recipes.</b> Tab 3's "route quality", spelled out for each service.
+    </div>
+    <div class="equation-box">
+      $$ q_{\text{cond}} = \frac{k\,A\,\Delta T}{L} \qquad\quad
+         q_{\text{conv}} = h\,A\,\Delta T \qquad\quad
+         q_{\text{rad}} = \varepsilon\,\sigma\,A\left(T_{\text{hot}}^{4} - T_{\text{cold}}^{4}\right) $$
+    </div>
+    <ul class="letters">
+      <li><b>k</b> — thermal conductivity (W/m·K), <b>L</b> — gap width (m): conduction's route quality is k/L (Lesson 3).</li>
+      <li><b>h</b> — the convection coefficient (W/m²K): how good the moving fluid is at hauling heat (Lesson 5).</li>
+      <li><b>ε</b> — emissivity, 0 to 1, how well the surface glows; <b>σ</b> — the Stefan–Boltzmann constant, 5.67 × 10⁻⁸ W/m²K⁴. Radiation uses the <em>absolute</em> temperatures to the fourth power (Lesson 6).</li>
+    </ul>
+    <div class="plain">
+      <b>Box 3 — the diffusion clock.</b> How fast heat soaks through a material is a competition: conductivity moves
+      energy, but the material's heat capacity must be filled along the way. Their ratio is the diffusivity α, an
+      "area per second" — exactly what a random walk needs. Soak time = thickness squared ÷ α.
+    </div>
+    <div class="equation-box">
+      $$ \alpha \;=\; \frac{k}{\rho\,c} \qquad\qquad \tau \;\approx\; \frac{L^2}{\alpha} $$
+    </div>
+    <ul class="letters">
+      <li><b>ρc</b> — density × specific heat (J/m³·K): the joules it takes to warm a cubic meter by one kelvin (Lesson 2 meets c).</li>
+      <li><b>α</b> — thermal diffusivity, m²/s. Copper 1.16 × 10⁻⁴, still air 2.2 × 10⁻⁵, glass 3.4 × 10⁻⁷, wood 1.9 × 10⁻⁷.</li>
+      <li><b>τ</b> — "tau", the soak time through a thickness <b>L</b>. Distance is <em>squared</em> because heat wanders instead of marching: a walker taking N steps of size a gets only a√N away, so covering L needs (L/a)² steps.</li>
+    </ul>
+    <p>This resolves a real paradox: each atomic handoff takes about a picosecond, yet your coffee
+    takes an hour to cool. Atoms are fast; the <em>path</em> is a squared-up random shuffle. On the
+    log-log plot below, τ = L²/α is a straight line of slope 2 — every 10× in size costs 100× in time.</p>
     <div class="worked-example">
-      <p>How long does heat take to soak through 1&nbsp;cm? Copper
-      (\(\alpha = 1.16\times10^{-4}\ \text{m}^2/\text{s}\)):
-      \(\tau = (0.01)^2 / 1.16\times10^{-4} \approx 0.9\ \text{s}\). Wood
-      (\(\alpha = 1.9\times10^{-7}\)): \(\tau = (0.01)^2 / 1.9\times10^{-7}
-      \approx 530\ \text{s} \approx 9\ \text{minutes}\). Same geometry, same \(\Delta T\) — the
-      copper is ~600× faster (\(1.16\times10^{-4}/1.9\times10^{-7} \approx 610\)). Now the spoon
-      riddle from the header is solved twice over: metal both <em>conducts</em> your hand's heat
-      away faster and <em>feels</em> it deeper, sooner.</p>
+      <p>How long does heat take to soak through 1&nbsp;cm?</p>
+      <ol>
+        <li><b>Copper</b> (α = 1.16 × 10⁻⁴ m²/s): τ = (0.01)² ÷ 1.16 × 10⁻⁴ = 0.0001 ÷ 0.000116 ≈ <b>0.9&nbsp;s</b>.</li>
+        <li><b>Wood</b> (α = 1.9 × 10⁻⁷): τ = 0.0001 ÷ 0.00000019 ≈ 530&nbsp;s ≈ <b>9&nbsp;minutes</b>.</li>
+        <li><b>Compare.</b> Same slab, same ΔT — copper is about 600× faster (1.16 × 10⁻⁴ ÷ 1.9 × 10⁻⁷ ≈ 610). The spoon riddle from
+        the header is solved twice over: metal both conducts your hand's heat away faster and feels it deeper, sooner.</li>
+      </ol>
     </div>
     <div class="key-takeaways">
       <ul>
-        <li>Equipartition: \(\tfrac12 k_BT\) per quadratic degree of freedom → \(3k_BT\) per atom in a solid.</li>
-        <li>Thermal diffusivity \(\alpha = k/\rho c\) (m²/s) is the material's random-walk "area per second".</li>
-        <li>The diffusion clock \(\tau \approx L^2/\alpha\): distance is squared because heat wanders, it doesn't march.</li>
-        <li>Picosecond atomic handoffs still give minutes-to-days soak times at human scales — blame \(L^2\).</li>
+        <li>Equipartition: ½k<sub>B</sub>T per quadratic degree of freedom → 3k<sub>B</sub>T per atom in a solid.</li>
+        <li>The three recipes: q = kAΔT/L, q = hAΔT, q = εσA(T<sub>hot</sub>⁴ − T<sub>cold</sub>⁴).</li>
+        <li>Thermal diffusivity α = k/ρc (m²/s) is the material's random-walk "area per second".</li>
+        <li>The diffusion clock τ ≈ L²/α: distance is squared because heat wanders, it doesn't march.</li>
       </ul>
     </div>
   </div>
@@ -688,8 +733,7 @@ const SCEN = {
   },
   spread: {
     copper:  { 's-spread-D': 0.45 },
-    wood:    { 's-spread-D': 0.04 },
-    restart: {}
+    wood:    { 's-spread-D': 0.04 }
   },
   threeways: {
     solid:  {},
@@ -832,7 +876,7 @@ function drawJiggle(){
     const ay = ry + A * Math.sin(wv * animT * g.f2 + g.p2);
     drawAtom(ctx, ax, ay, 9, colr);
   }
-  caption(ctx, w / 2, h - 10, 'each atom rattles around its lattice site — amplitude ∝ √(T/k), rate ∝ √k', COL.muted);
+  caption(ctx, w / 2, h - 10, 'each atom rattles around its lattice site — amplitude grows with √(T/k), rate with √k', COL.muted);
 
   // amplitude vs T plot
   const c2 = setupCanvas(document.getElementById('cv-jiggle2'));
@@ -943,7 +987,7 @@ function drawSpread(){
 
   if (D >= 0.25)
     setVerdict('vd-spread', 'good', 'Conductor: the jiggle spreads eagerly.',
-      'With D = ' + fmt(D * 100, 0) + '% per step, every column hands its energy on almost as fast as it arrives — copper behavior. But watch the half-way front (column ' + front + ' at t = ' + fmt(spreadState.t, 0) + ' s): it keeps slowing down. After 4× the time it is only 2× farther — the √t random walk.');
+      'With D = ' + fmt(D * 100, 0) + '% per step, every column hands its energy on almost as fast as it arrives — copper behavior. But watch the half-way front (column ' + front + ' at t = ' + fmt(spreadState.t, 1) + ' s): it keeps slowing down. After 4× the time it is only 2× farther — the √t random walk.');
   else if (D <= 0.10)
     setVerdict('vd-spread', 'warn', 'Insulator: the atoms hoard their energy.',
       'With D = ' + fmt(D * 100, 0) + '% per step, each column clings to its jiggle — wood behavior. The left end glows while the far end stays cold for ages (front only at column ' + front + '). Same physics, same rule — just a stingy handoff.');
@@ -975,7 +1019,7 @@ function drawThreeways(){
   // three lanes
   const { ctx, w, h } = setupCanvas(document.getElementById('cv-threeways'));
   const LANE = h / 3, gapL = 46, gapR = w - 46;
-  const hotCol = energyColor(Math.min(1, (T - 300) / 900));
+  const hotCol = energyColor(0.62 + 0.38 * Math.min(1, (T - 300) / 900));   // always warmer than the cold wall
   for (let ln = 0; ln < 3; ln++) {
     const yTop = ln * LANE, yc = yTop + LANE / 2 + 8;
     if (ln > 0) drawLine(ctx, 8, yTop, w - 8, yTop, COL.grid, 1);
@@ -1038,7 +1082,7 @@ function drawThreeways(){
         RAD_PH.forEach((g, i) => {
           const u = (g.ph + tl / cyc) % 1;
           const xh = gapL + 40 + u * (gapR - gapL - 80);
-          const yy = yTop + 34 + i * ((LANE - 46) / 3);
+          const yy = yTop + 32 + i * ((LANE - 64) / 3);           // four rows, all above the caption
           ctx.save(); ctx.strokeStyle = COL.orange; ctx.lineWidth = 2; ctx.beginPath();
           for (let q = 0; q <= 20; q++) {
             const xx = xh - 50 + q * 2.5;
@@ -1148,7 +1192,7 @@ function drawLevelup(){
     c2.ctx.textAlign = 'left';
     c2.ctx.fillText(fmtTime(taus[i]), 110 + bl + 8, y + 10);
   });
-  caption(c2.ctx, c2.w / 2, c2.h - 8, 'τ = L²/α for L = ' + fmtLen(logL) + '  (bar length ∝ log τ)', COL.muted);
+  caption(c2.ctx, c2.w / 2, c2.h - 8, 'τ = L²/α for L = ' + fmtLen(logL) + '  (bar length follows log τ)', COL.muted);
 
   setStat('st-levelup', [
     { label: 'Length scale L', value: fmtLen(logL) },

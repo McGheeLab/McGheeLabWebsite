@@ -47,7 +47,7 @@
   function _renderEvidence(ev, allItems) {
     const paper = (allItems || []).find(it => it.id === ev.paperId);
     const title = (paper && paper.title) || ev.paperId;
-    const href = `/pages/library-paper.html?id=${encodeURIComponent(ev.paperId)}#ann-${encodeURIComponent(ev.annId)}`;
+    const href = `/rm/pages/library-paper.html?id=${encodeURIComponent(ev.paperId)}#ann-${encodeURIComponent(ev.annId)}`;
     return `<a class="cp-evidence-pill" href="${_esc(href)}" title="${_esc(title)}">${_esc(title.slice(0, 40))}${title.length > 40 ? '…' : ''}</a>`;
   }
 

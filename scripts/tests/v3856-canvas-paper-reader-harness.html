@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.856 — 📖 Paper cards: reader, nodes, typed connections, 📑 collections and claims</title>
+<!-- The V3.852 stub + a 📖 Paper card on the fixture PDF, two 📑 collections, seeded annotations, a draft for the claim flow. -->
+<link rel="stylesheet" href="/whiteboard-board.css">
+<link rel="stylesheet" href="/rm/css/notebook-blocks.css">
+<link rel="stylesheet" href="/rm/css/canvas-widgets.css">
+<link rel="stylesheet" href="/rm/css/notebook-canvas.css">
+<link rel="stylesheet" href="/rm/vendor/pdfjs/pdf_viewer.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<link rel="stylesheet" href="/rm/css/canvas-paper-reader.css">
+<style>body{font:13px/1.5 system-ui,sans-serif;margin:0}.ok{color:#15803d}.bad{color:#b91c1c}
+#r{position:fixed;left:8px;top:8px;z-index:99999;font:12px/1.4 system-ui,sans-serif;background:#fff;border:1px solid #e5e7eb;padding:6px 8px;max-width:60vw;max-height:60vh;overflow:auto;opacity:.95}
+.page{width:100vw;max-width:none}.nbc-root{height:100vh}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;font:inherit}.btn-small{padding:4px 8px;font-size:12px}.muted-text{color:#6b7280}</style>
+<script>
+window.__popups = [];
+['prompt','alert','confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
+/* ── in-memory Firestore + Storage + firebridge + api stubs ── */
+(function () {
+  var store = new Map(), listeners = [], touched = [];
+  function snapOf(path) { return { id: path.split('/').pop(), exists: store.has(path), data: function () { return store.has(path) ? JSON.parse(JSON.stringify(store.get(path))) : undefined; }, ref: docRef(path) }; }
+  function docsIn(path) { var out = []; store.forEach(function (v, k) { if (k.slice(0, k.lastIndexOf('/')) === path) out.push(snapOf(k)); }); return out; }
+  function fire(path, type) {
+    var parent = path.slice(0, path.lastIndexOf('/'));
+    listeners.slice().forEach(function (l) {
+      if (l.kind === 'doc' && l.path === path) l.cb(snapOf(path));
+      if (l.kind === 'col' && l.path === parent) l.cb({ docChanges: function () { return [{ type: type, doc: snapOf(path) }]; }, docs: docsIn(parent), size: 1, empty: false, forEach: function (f) { docsIn(parent).forEach(f); } });
+    });
+  }
+  function applyUpdate(path, d) { var next = Object.assign({}, store.get(path) || {}); Object.keys(d).forEach(function (k) { if (d[k] === '__DEL__') delete next[k]; else if (d[k] && d[k].__arrayUnion) next[k] = (next[k] || []).concat([d[k].__arrayUnion]); else next[k] = JSON.parse(JSON.stringify(d[k])); }); store.set(path, next); fire(path, 'modified'); }
+  function docRef(path) {
+    return {
+      path: path, id: path.split('/').pop(),
+      collection: function (n) { return colRef(path + '/' + n); },
+      get: function () { touched.push('get ' + path); return Promise.resolve(snapOf(path)); },
+      set: function (d, o) { touched.push('set ' + path); var existed = store.has(path); store.set(path, (o && o.merge) ? Object.assign({}, store.get(path) || {}, JSON.parse(JSON.stringify(d))) : JSON.parse(JSON.stringify(d))); fire(path, existed ? 'modified' : 'added'); return Promise.resolve(); },
+      update: function (d) { touched.push('update ' + path); applyUpdate(path, d); return Promise.resolve(); },
+      delete: function () { touched.push('delete ' + path); store.delete(path); fire(path, 'removed'); return Promise.resolve(); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'doc', cb: cb }; listeners.push(l); setTimeout(function () { cb(snapOf(path)); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+  }
+  function colRef(path) {
+    var q = { path: path,
+      doc: function (id) { return docRef(path + '/' + (id || ('auto' + Math.random().toString(36).slice(2, 8)))); },
+      orderBy: function () { return q; }, where: function () { return q; }, limit: function () { return q; },
+      get: function () { var d = docsIn(path); return Promise.resolve({ docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'col', cb: cb }; listeners.push(l); var d = docsIn(path); setTimeout(function () { cb({ docChanges: function () { return d.map(function (s) { return { type: 'added', doc: s }; }); }, docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+    return q;
+  }
+  var db = {
+    collection: function (n) { return colRef(n); },
+    batch: function () { var ops = []; return { set: function (ref, d, o) { ops.push(function () { return ref.set(d, o); }); }, update: function (ref, d) { ops.push(function () { return ref.update(d); }); }, delete: function (ref) { ops.push(function () { return ref.delete(); }); }, commit: function () { return ops.reduce(function (p, f) { return p.then(f); }, Promise.resolve()); } }; },
+    runTransaction: function (fn) { var tx = { get: function (ref) { return ref.get(); }, set: function (ref, d, o) { ref.set(d, o); }, update: function (ref, d) { ref.update(d); } }; return Promise.resolve(fn(tx)); }
+  };
+  window.__stub = { store: store, touched: touched, db: db };
+  window.firebase = {
+    firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; }, delete: function () { return '__DEL__'; }, arrayUnion: function (x) { return { __arrayUnion: x }; } } },
+    storage: function () { return { ref: function () { return { child: function (p) { return { put: function () { touched.push('put ' + p); return Promise.resolve(); }, getDownloadURL: function () { return Promise.resolve('https://storage.example/' + p); }, delete: function () { touched.push('rm ' + p); return Promise.resolve(); } }; } }; } }; },
+    auth: function () { return { currentUser: { uid: 'u1', email: 'a@x.com' }, onAuthStateChanged: function (cb) { setTimeout(function () { cb({ uid: 'u1', email: 'a@x.com' }); }, 0); } }; }
+  };
+  window.firebridge = { requireSignIn: function () { return Promise.resolve({ allowed: true }); }, isLabMember: function () { return true; }, getUser: function () { return { uid: 'u1', email: 'a@x.com', displayName: 'Ada' }; }, isAdmin: function () { return false; }, db: function () { return db; } };
+  window.api = { load: function (p) { if (p === 'protocols/list.json') return Promise.resolve({ protocols: [{ id: 'coat', title: 'Granule coating', summary: 'coat beads', category: 'bench' }] }); if (p === 'inventory/items.json') return Promise.resolve({ items: [{ id: 'cov', name: 'Coverslips 18 mm', location: 'Drawer B', vendor: 'Fisher', catalog_number: '12-545' }] }); if (p === 'inventory/chemicals.json') return Promise.resolve({ chemicals: [{ id: 'pfa', name: 'PFA 16%', location: 'Fridge 2', cas: '30525-89-4' }] }); return Promise.resolve(null); }, save: function () { return Promise.resolve(); } };
+  window.TOAST = { info: function () {}, success: function () {}, error: function (m) { (window.__toastErr = window.__toastErr || []).push(m); } };
+  window.NOTEBOOK_FIGURES = { uploadImage: function () { return Promise.resolve({ download_url: 'https://firebasestorage.googleapis.com/x/y.webp', storage_path: 'notebook-figures/u1/y.webp', hash: 'h', mime: 'image/webp', size_bytes: 10, uploaded_at: 'now', uploaded_by: 'u1' }); } };
+  /* a V3.830 block entry to migrate: a note, a checklist and a whiteboard block whose board carries ink */
+  store.set('userData/u1/notebook/_index', { entries: [{ id: 'nb-2026-10-20-old', title: 'Old block entry', date: '2026-10-20', tags: ['tfm'], updated_at: '2026-10-20T10:00:00Z', block_types: ['note', 'checklist', 'whiteboard'] }] });
+  store.set('userData/u1/notebook/nb-2026-10-20-old', { title: 'Old block entry', date: '2026-10-20', tags: ['tfm'], schema_version: 2, updated_at: '2026-10-20T10:00:00Z',
+    blocks: [{ id: 'blk-a', type: 'note', title: 'Setup', collapsed: false, data: { html: '<p>Seeded <b>MCF10A</b> on gels.</p>' } },
+             { id: 'blk-b', type: 'checklist', title: '', collapsed: false, data: { items: [{ text: 'image at 24 h', done: false }] } },
+             { id: 'blk-c', type: 'whiteboard', title: 'Sketch', collapsed: false, data: { boardId: 'nbOLD_u1', size: 'm' } }] });
+  store.set('userData/u1/notebookBoards/nbOLD_u1', { name: 'Sketch', pages: [{ id: 'p1', background: 'blank' }], activePageId: 'p1', ownerUid: 'u1' });
+  store.set('items/pa', { type: 'paper', title: 'Collagen fibril alignment under shear flow', meta: { library: { is_library_entry: true, authors: [{ family: 'Smith' }, { family: 'Lee' }, { family: 'Wu' }], year: 2020, journal: 'Biophys J' } } });
+  store.set('items/pb', { type: 'paper', title: 'Stiffness and spreading of MCF10A', meta: { library: { is_library_entry: true, authors: [{ family: 'Jones' }], year: 2019, journal: 'Nature' } } });
+  try { sessionStorage.removeItem('nbb_papers_v1'); } catch (e) {}
+  try { localStorage.removeItem('wb_pens_v1'); localStorage.removeItem('wb_pillpos_v1'); } catch (e) {}
+  store.set('userData/u1/notebookBoards/nbOLD_u1/strokes/s1', { pageId: 'p1', seq: 1, pts: [0.1, 0.1, 0.5, 0.3, 0.3, 0.5], color: '#111827', width: 0.004 });
+  if (window.PointerEvent && !PointerEvent.prototype.getCoalescedEvents) PointerEvent.prototype.getCoalescedEvents = function () { return [this]; };
+})();
+</script>
+<script>/* production shape (V3.862): firebase-bridge.js declares `const firebridge` — a bare global, never window.firebridge.
+   Code that reads window.firebridge must fail here the way it fails on the live site. */
+const firebridge = window.firebridge; delete window.firebridge;</script>
+<script>
+/* V3.856 — a canvas entry with a 📖 Paper card (the fixture PDF), two 📑 collections and a note; seeded annotations on the paper;
+   a draft paper of mine for the claim flow; CLAIMS and PAPER_FIGURES stubbed (they talk to firebase.* directly). */
+(function () {
+  var store = window.__stub.store;
+  var idx = store.get('userData/u1/notebook/_index');
+  idx.entries.push({ id: 'nb-r', title: 'Reading entry', date: '2026-10-23', tags: [], updated_at: '2026-10-23T10:00:00Z', canvas_version: 3, notebook_id: 'default', board_id: 'nbR_u1' });
+  store.set('userData/u1/notebook/_index', idx);
+  store.set('userData/u1/notebook/nb-r', { title: 'Reading entry', date: '2026-10-23', tags: [], schema_version: 2, canvas_version: 3, boardId: 'nbR_u1', updated_at: '2026-10-23T10:00:00Z', blocks: [] });
+  store.set('userData/u1/notebookBoards/nbR_u1', { name: 'Reading entry', pages: [{ id: 'p1', background: 'grid' }], activePageId: 'p1', ownerUid: 'u1', sheetMode: 'continuous' });
+  var base = 'userData/u1/notebookBoards/nbR_u1/items/';
+  store.set(base + 'pr1', { type: 'widget', kind: 'paperreader', pageId: 'p1', x: 0.02, y: 0.02, w: 0.3, z: 1, title: 'Collagen fibril alignment under shear flow',
+    data: { paperId: 'pa', title: 'Collagen fibril alignment under shear flow', cite: 'Smith et al., 2020', journal: 'Biophys J', pdf: '/rm/test-fixtures/layout/04-fig-onecol.pdf', year: 2020, first: 'Smith', second: 'Lee', nAuthors: 3 }, text: 'Paper: Collagen fibril alignment under shear flow', createdAt: 1700000000001 });
+  store.set(base + 'c1', { type: 'widget', kind: 'collection', pageId: 'p1', x: 0.42, y: 0.02, w: 0.24, z: 2, title: 'Collection', data: { items: [], claim: null }, text: '', createdAt: 1700000000002 });
+  store.set(base + 'c2', { type: 'widget', kind: 'collection', pageId: 'p1', x: 0.72, y: 0.02, w: 0.24, z: 3, title: 'Methods to try', data: { items: [], claim: null }, text: '', createdAt: 1700000000003 });
+  store.set(base + 'w1', { type: 'widget', kind: 'note', pageId: 'p1', x: 0.42, y: 0.4, w: 0.24, z: 4, title: 'Setup', data: { html: '<p>Seeded gels.</p>' }, text: 'Seeded gels.', createdAt: 1700000000004 });
+  var tiny = 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
+  store.set('papers/pa/annotations/a1', { paperId: 'pa', kind: 'highlight', color_id: 'green', annotation_type: 'evidence', visibility: 'lab', comment: 'key result', target: { pages: [{ page: 1, rects: [{ x: 60, y: 120, width: 300, height: 14 }], selectors: { textQuote: { exact: 'Fibrils align above 2 Pa of wall shear stress' } } }] }, creator: { uid: 'u1', displayName: 'Ada' }, evidence_for_claim_ids: [], evidence_stance: null, cite_in_drafts: [] });
+  store.set('papers/pa/annotations/a2', { paperId: 'pa', kind: 'highlight', color_id: 'yellow', annotation_type: 'note', visibility: 'lab', comment: '', target: { pages: [{ page: 1, rects: [{ x: 60, y: 160, width: 280, height: 14 }], selectors: { textQuote: { exact: 'Collagen gels were polymerised at 37 °C for 30 min' } } }] }, creator: { uid: 'u2', displayName: 'Grace' }, evidence_for_claim_ids: [], evidence_stance: null, cite_in_drafts: [] });
+  store.set('papers/pa/annotations/a3', { paperId: 'pa', kind: 'figure', annotation_type: 'figure', color_id: 'yellow', visibility: 'lab', name: 'Figure 2', comment: '', image: { storage_path: 'paper-figures/pa/f2.jpg', download_url: 'https://storage.example/f2.jpg' }, snip_data_uri: tiny, target: { pages: [{ page: 1, rects: [{ x: 60, y: 300, width: 300, height: 200 }], marquee: true }] }, creator: { uid: 'u1', displayName: 'Ada' }, evidence_for_claim_ids: [], evidence_stance: null, cite_in_drafts: [] });
+  store.set('papers/pa/annotations/a4', { paperId: 'pa', kind: 'equation', annotation_type: 'equation', color_id: 'yellow', visibility: 'lab', target: { pages: [{ page: 1, rects: [{ x: 60, y: 500, width: 100, height: 30 }], marquee: true }] }, creator: { uid: 'u1' } });
+  store.set('papers/draft1', { title: 'My MEBP draft', authorUids: ['u1'], is_library_entry: false, updated_at: '2026-10-22' });
+  window.CLAIMS = { calls: [],
+    create: function (d, p) { window.CLAIMS.calls.push(['create', d, p.statement]); return Promise.resolve('cl1'); },
+    addEvidence: function (d, c, p, a, s) { window.CLAIMS.calls.push(['add', d, c, p, a, s]); return Promise.resolve(); },
+    removeEvidence: function (d, c, p, a) { window.CLAIMS.calls.push(['remove', d, c, p, a]); return Promise.resolve(); },
+    removeEvidenceForAnnotation: function () { return Promise.resolve(); } };
+  window.PAPER_FIGURES = { uploads: [], uploadImage: function (pid, blob) { window.PAPER_FIGURES.uploads.push({ pid: pid, size: blob && blob.size, type: blob && blob.type }); return Promise.resolve({ storage_path: 'paper-figures/pa/snip1.jpg', download_url: 'https://storage.example/snip1.jpg' }); } };
+  try { sessionStorage.removeItem('cpr.library.v1'); } catch (e) {}
+  var want = new URLSearchParams(location.search).get('mobile') || '0';
+  history.replaceState(null, '', location.pathname + '?mobile=' + want + '&entry=nb-r');
+})();
+</script>
+<script src="/rm/js/notebook-schemas.js"></script>
+<script type="module" src="/rm/js/pdf-viewer.js"></script>
+<script src="/rm/js/icons.js"></script>   <!-- the site icon set, as every production page loads it -->
+<script src="/whiteboard.js"></script>
+<script src="/whiteboard-replay.js"></script>
+<script src="/rm/js/canvas-widgets.js"></script>
+<script src="/rm/js/annotation-colors.js"></script>
+<script src="/rm/js/annotation-anchor.js"></script>
+<script src="/rm/js/annotation-overlay.js"></script>
+<script src="/rm/js/geom-selection.js"></script>
+<script src="/rm/js/canvas-paper-reader.js"></script>
+<script src="/rm/js/user-actions.js"></script>
+</head>
+<body>
+<div class="page nbk-page nbc-page"><div id="nbc-content" class="nbk-loading">Loading…</div></div>
+<input type="file" id="nbk-camera-input" style="display:none"><input type="file" id="nbk-file-input" style="display:none">
+<div id="r">running…</div>
+<script src="/rm/js/notebook-canvas.js"></script>
+
+<script>
+(async function () {
+  var out = [], fails = 0, store = window.__stub.store;
+  window.__rej = []; window.addEventListener('unhandledrejection', function (e) { window.__rej.push(String((e.reason && e.reason.message) || e.reason)); });
+  function check(name, ok, detail) { out.push('<div class="' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓' : '✗') + ' ' + name + (detail !== undefined ? ' <small>' + String(detail).replace(/</g, '&lt;') + '</small>' : '') + '</div>'); if (!ok) fails++; }
+  function q(s) { return document.querySelector(s); }
+  function qa(s) { return Array.from(document.querySelectorAll(s)); }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function until(fn, ms) { var t0 = Date.now(); while (Date.now() - t0 < (ms || 8000)) { try { var v = fn(); if (v) return v; } catch (e) {} await sleep(50); } return null; }
+  function card(id) { return q('.wb-item[data-item-id="' + id + '"]'); }
+  function item(id) { return store.get('userData/u1/notebookBoards/nbR_u1/items/' + id); }
+  function inst() { return window.NOTEBOOK_CANVAS && window.NOTEBOOK_CANVAS._state && window.NOTEBOOK_CANVAS._state.inst; }
+  function wires() { return inst() ? inst().getWires() : []; }
+  function pe(el, type, x, y, pt) { el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 1, pointerType: pt || 'mouse', isPrimary: true, clientX: x, clientY: y, button: 0, buttons: type === 'pointerup' ? 0 : 1 })); }
+  function click(el) { el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); }
+  function centre(el) { var r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + Math.min(40, r.height / 2) }; }
+  /* a wire drag from a node port onto another card: the engine listens on the PORT after pointerdown */
+  async function dragPort(port, targetEl) {
+    var pr = port.getBoundingClientRect(); var x0 = pr.left + pr.width / 2, y0 = pr.top + pr.height / 2; var t = centre(targetEl);
+    pe(port, 'pointerdown', x0, y0); await sleep(30);
+    pe(port, 'pointermove', (x0 + t.x) / 2, (y0 + t.y) / 2); await sleep(30);
+    pe(port, 'pointermove', t.x, t.y); await sleep(30);
+    pe(port, 'pointerup', t.x, t.y); await sleep(250);
+  }
+  function wireStart(wid) { var g = q('.wb-wire[data-wire-id="' + wid + '"] .wb-wire-line'); if (!g) return null; var m = /^M([\d.\-]+),([\d.\-]+)/.exec(g.getAttribute('d') || ''); if (!m) return null; var lr = q('.wb-widgets').getBoundingClientRect(); return { x: lr.left + parseFloat(m[1]), y: lr.top + parseFloat(m[2]) }; }
+  function entries(id) { return ((item(id) || {}).data || {}).items || []; }
+  function popRows() { return qa('.cw-pop .cw-row'); }
+  function popRow(re) { return popRows().find(function (b) { return re.test(b.textContent); }); }
+  function sheet() { return q('.wb-sheet-back .wb-sheet'); }
+  function finish() { var r = document.getElementById('r'); r.innerHTML = out.join('') + '<div><b>' + (out.length - fails) + '/' + out.length + ' passed</b></div>'; r.dataset.done = '1'; r.dataset.fails = String(fails); }
+  try {
+    var ready = await until(function () { return card('pr1') && card('c1') && card('c2') && card('w1') && qa('.wb-item[data-item-id="pr1"] .cpr-node').length >= 3; }, 15000);
+    check('the entry opens on a computer with a 📖 Paper card, two 📑 collections and a note; the paper card lists its nodes', !!ready && !q('.wb-page.wb-m'), qa('.wb-item-widget').length + ' cards, nodes=' + qa('.wb-item[data-item-id="pr1"] .cpr-node').length);
+    await sleep(300);
+    var pr = card('pr1');
+    var nodes = qa('.wb-item[data-item-id="pr1"] .cpr-node');
+    var ids = nodes.map(function (n) { return n.dataset.cprAnn; });
+    check('three nodes: two highlights and a figure, in page order; the equation is skipped', ids.join(',') === 'a1,a2,a3', ids.join(','));
+    var portOf = function (ann) { return q('.wb-item[data-item-id="pr1"] .cpr-port[data-wb-node="' + ann + '"]'); };
+    check('each node ends in a port the engine can drag: the reader colour on the dot, a darker shade for the wire, the default type from the colour', !!portOf('a1') && portOf('a1').dataset.wbPort === 'e' && portOf('a1').style.background === 'rgb(74, 222, 128)' && portOf('a1').dataset.wbColor === '#3a9f5f' && portOf('a1').dataset.wbRel === 'supports' && portOf('a2').dataset.wbRel === 'informs' && portOf('a3').style.background === 'rgb(13, 103, 94)', [portOf('a1') && portOf('a1').dataset.wbColor, portOf('a1') && portOf('a1').dataset.wbRel].join(' '));
+    check('the card is named after the paper (not repeated in the body) and shows the citation, 📖 Read and the counts', pr.querySelector('.wb-wtitle').value === 'Collagen fibril alignment under shear flow' && !pr.querySelector('.cpr-ptitle') && /Smith et al., 2020/.test(pr.textContent) && !!pr.querySelector('[data-cpr-read]') && /2 highlights · 1 figure/.test(pr.querySelector('[data-cpr-counts]').textContent), pr.querySelector('[data-cpr-counts]').textContent);
+    check('an empty collection explains itself and offers ◆ Make this a claim…', /drag a coloured node/i.test(card('c1').textContent) && !!card('c1').querySelector('[data-cpr-makeclaim]'));
+    check('the ⋯ menu of the paper card offers Read, the reader page and Change the paper (no Duplicate)', (function () { var def = CANVAS_WIDGETS.get('paperreader'); var it = Object.assign({ id: 'pr1' }, item('pr1')); var labels = def.menu(it, { canEdit: function () { return true; } }).map(function (a) { return a.label; }); return /Read the paper/.test(labels[0]) && /paper reader/.test(labels[1]) && /Change the paper/.test(labels[2]) && def.duplicate === false; })());
+
+    /* ── drag a node onto a collection ── */
+    var n0 = wires().length;
+    await dragPort(portOf('a1'), card('c1'));
+    var w1 = await until(function () { return wires().find(function (w) { return w.from === 'pr1' && w.to === 'c1' && w.fromNode === 'a1'; }); }, 4000);
+    check('dragging the green node onto a collection makes a wire that carries the node, its colour and the type "supports"', !!w1 && w1.color === '#3a9f5f' && w1.rel === 'supports' && wires().length === n0 + 1, JSON.stringify(w1 && { rel: w1.rel, color: w1.color, fromNode: w1.fromNode }));
+    await until(function () { return entries('c1').length === 1; }, 4000); await sleep(150);
+    var e1 = entries('c1')[0];
+    check('the collection gets the highlight as an entry: quote, citation, page, colour, type, the wire id', !!e1 && e1.type === 'highlight' && e1.annId === 'a1' && /Fibrils align/.test(e1.quote) && e1.rel === 'supports' && e1.wireId === w1.id && /Smith et al., 2020, p. 1/.test(e1.cite) && e1.hex === '#4ade80', JSON.stringify(e1 && { rel: e1.rel, cite: e1.cite }));
+    await until(function () { return card('c1').querySelector('.cpr-crow'); }, 3000);
+    check('…and renders it under a "supports" group with a type chip and ×', !!card('c1').querySelector('.cpr-crow') && /supports/.test(card('c1').querySelector('.cpr-cgroup-name').textContent) && card('c1').querySelector('.cpr-chip-rel').textContent === 'supports' && !!card('c1').querySelector('[data-cpr-unlink]'), card('c1').textContent.trim().slice(0, 80));
+    await sleep(400);
+    var st = wireStart(w1.id); var rowR = nodes[0].getBoundingClientRect();
+    check('the wire is drawn from the NODE (the row\'s right edge), not the card\'s side, in the node\'s colour, labelled with its type', !!st && Math.abs(st.y - (rowR.top + rowR.height / 2)) < 8 && Math.abs(st.x - rowR.right) < 14 && (q('.wb-wire[data-wire-id="' + w1.id + '"] .wb-wire-line').style.stroke === 'rgb(58, 159, 95)') && /supports/.test(q('.wb-wire[data-wire-id="' + w1.id + '"] text').textContent), st && ('start=' + Math.round(st.x) + ',' + Math.round(st.y) + ' row=' + Math.round(rowR.right) + ',' + Math.round(rowR.top + rowR.height / 2)));
+
+    /* ── the same node, a second connection of another kind ── */
+    await dragPort(portOf('a1'), card('c2'));
+    var w2 = await until(function () { return wires().find(function (w) { return w.from === 'pr1' && w.to === 'c2' && w.fromNode === 'a1'; }); }, 4000);
+    await until(function () { return entries('c2').length === 1; }, 4000);
+    check('the same node connects to a second collection too (one node, several connections)', !!w2 && w2.id !== w1.id && wires().some(function (w) { return w.id === w1.id; }) && entries('c2').length === 1 && entries('c2')[0].annId === 'a1');
+    var chip = card('c2').querySelector('.cpr-chip-rel'); click(chip); await sleep(120);
+    var relRows = popRows();
+    check('the type chip opens the reader\'s six connection types', relRows.length === 6 && /supports/.test(relRows[0].textContent) && /refutes/.test(relRows[1].textContent) && /informs/.test(relRows[2].textContent) && /method/.test(relRows[3].textContent), relRows.map(function (b) { return b.textContent.trim().split('\n')[0]; }).join(' · '));
+    click(popRow(/^✓?\s*method/)); await until(function () { return (wires().find(function (w) { return w.id === w2.id; }) || {}).rel === 'method'; }, 3000);
+    await until(function () { return entries('c2')[0] && entries('c2')[0].rel === 'method'; }, 3000); await sleep(150);
+    check('switching the type updates the wire, its label, and the collection\'s entry + group', (wires().find(function (w) { return w.id === w2.id; }) || {}).rel === 'method' && entries('c2')[0].rel === 'method' && /method/.test(card('c2').querySelector('.cpr-cgroup-name').textContent) && /method/.test((q('.wb-wire[data-wire-id="' + w2.id + '"] text') || {}).textContent || ''), entries('c2')[0].rel);
+    check('the first connection kept its own type', (wires().find(function (w) { return w.id === w1.id; }) || {}).rel === 'supports' && entries('c1')[0].rel === 'supports');
+
+    /* ── make the collection a claim ── */
+    click(card('c1').querySelector('[data-cpr-makeclaim]')); await until(function () { return card('c1').querySelector('[data-cl-draft] option[value="draft1"]'); }, 4000);
+    var sel = card('c1').querySelector('[data-cl-draft]');
+    check('◆ Make this a claim shows my drafts and a statement box', !!sel && !!sel.querySelector('option[value="draft1"]') && !!card('c1').querySelector('[data-cl-stmt]'), sel && sel.textContent.trim().slice(0, 60));
+    sel.value = 'draft1'; sel.dispatchEvent(new Event('change', { bubbles: true }));
+    card('c1').querySelector('[data-cl-stmt]').value = 'Shear flow aligns collagen fibrils';
+    click(card('c1').querySelector('[data-cl="create"]'));
+    await until(function () { return ((item('c1') || {}).data || {}).claim && (item('c1').data.claim.claimId === 'cl1'); }, 4000); await sleep(200);
+    var cl = (item('c1').data || {}).claim;
+    check('Create the claim calls CLAIMS.create for that draft and binds the card: title = statement, claim head with the draft', !!cl && cl.draftId === 'draft1' && cl.claimId === 'cl1' && item('c1').title === 'Shear flow aligns collagen fibrils' && window.CLAIMS.calls.some(function (c) { return c[0] === 'create' && c[1] === 'draft1' && /Shear flow/.test(c[2]); }) && !!card('c1').querySelector('.cpr-claimhead') && /My MEBP draft/.test(card('c1').textContent), JSON.stringify(window.CLAIMS.calls));
+    check('…and its existing "supports" entry becomes evidence FOR the claim', window.CLAIMS.calls.some(function (c) { return c[0] === 'add' && c[2] === 'cl1' && c[3] === 'pa' && c[4] === 'a1' && c[5] === 'for'; }) && /1 for\s+0 against/.test(card('c1').querySelector('.cpr-claimcounts').textContent), card('c1').querySelector('.cpr-claimcounts').textContent);
+    var nCalls = window.CLAIMS.calls.length;
+    click(card('c1').querySelector('.cpr-chip-rel')); await sleep(120); click(popRow(/refutes/)); await until(function () { return entries('c1')[0] && entries('c1')[0].rel === 'refutes'; }, 3000); await sleep(150);
+    check('switching that entry to "refutes" moves the evidence to AGAINST (CLAIMS.addEvidence …, "against")', entries('c1')[0].rel === 'refutes' && window.CLAIMS.calls.length > nCalls && window.CLAIMS.calls[window.CLAIMS.calls.length - 1].join('|') === 'add|draft1|cl1|pa|a1|against' && /0 for\s+1 against/.test(card('c1').querySelector('.cpr-claimcounts').textContent), window.CLAIMS.calls[window.CLAIMS.calls.length - 1].join('|'));
+    click(card('c1').querySelector('.cpr-chip-rel')); await sleep(120); click(popRow(/informs/)); await until(function () { return entries('c1')[0] && entries('c1')[0].rel === 'informs'; }, 3000); await sleep(150);
+    check('switching to "informs" (no stance) removes the evidence from the claim', window.CLAIMS.calls[window.CLAIMS.calls.length - 1].join('|') === 'remove|draft1|cl1|pa|a1' && /0 for\s+0 against/.test(card('c1').querySelector('.cpr-claimcounts').textContent), window.CLAIMS.calls[window.CLAIMS.calls.length - 1].join('|'));
+    click(card('c1').querySelector('[data-cpr-unlink]')); await until(function () { return !wires().some(function (w) { return w.id === w1.id; }) && entries('c1').length === 0; }, 4000); await sleep(100);
+    check('× on the row unlinks: the entry and its wire are gone; the other connection of that node stays', !wires().some(function (w) { return w.id === w1.id; }) && entries('c1').length === 0 && wires().some(function (w) { return w.id === w2.id; }));
+
+    /* ── a figure node, and the ⤳ picker ── */
+    await dragPort(portOf('a3'), card('c2'));
+    await until(function () { return entries('c2').length === 2; }, 4000); await sleep(150);
+    var ef = entries('c2').find(function (e) { return e.annId === 'a3'; });
+    check('dragging the figure node adds a figure entry with its thumbnail, teal colour and the type "informs"', !!ef && ef.type === 'figure' && ef.name === 'Figure 2' && ef.hex === '#0d675e' && ef.rel === 'informs' && !!card('c2').querySelector('.cpr-crow-figure img'), JSON.stringify(ef && { type: ef.type, name: ef.name, hex: ef.hex, rel: ef.rel }));
+    var linkBtn = q('.wb-item[data-item-id="pr1"] [data-cpr-link="a2"]'); click(linkBtn); await sleep(150);
+    var rows2 = popRows();
+    check('⤳ on a node lists the board\'s collections and the claim, plus ＋ New collection and ＋ New claim', rows2.length === 4 && /◆ Shear flow/.test(rows2[0].textContent) && /Methods to try/.test(rows2[1].textContent) && /New collection/.test(rows2[2].textContent) && /New claim/.test(rows2[3].textContent), rows2.map(function (b) { return b.textContent.trim().split('\n')[0].slice(0, 30); }).join(' · '));
+    var before = window.CLAIMS.calls.length;
+    click(rows2[0]); await until(function () { return entries('c1').length === 1 && entries('c1')[0].annId === 'a2'; }, 4000); await sleep(150);
+    check('picking the claim connects the yellow highlight as "informs" — listed on the claim, but not evidence (no CLAIMS call)', entries('c1').length === 1 && entries('c1')[0].rel === 'informs' && window.CLAIMS.calls.length === before && wires().some(function (w) { return w.fromNode === 'a2' && w.to === 'c1'; }));
+    click(rows2[0] && q('.cw-pop') ? q('.cw-pop') : document.body); await sleep(50);
+    var noteN = wires().length; await dragPort(card('w1').querySelector('.wb-wport-e'), card('c2'));
+    await until(function () { return entries('c2').length === 3; }, 4000); await sleep(100);
+    var ec = entries('c2').find(function (e) { return e.type === 'card'; });
+    check('any card\'s own side port works too: the note becomes a "card" entry on the collection', wires().length === noteN + 1 && !!ec && ec.cardId === 'w1' && /Setup/.test(ec.name), JSON.stringify(ec && { name: ec.name, kind: ec.kind }));
+
+    /* ── the reader ── */
+    click(pr.querySelector('[data-cpr-read]'));
+    var rd = await until(function () { return q('.cpr-reader'); }, 3000);
+    check('📖 Read opens the reader over the canvas with the side window open', !!rd && !rd.classList.contains('cpr-side-closed') && !!q('.cpr-reader [data-cpr-side]') && /Collagen fibril/.test(q('.cpr-bar-title').textContent));
+    var canvasOk = await until(function () { var c = q('.cpr-reader .pv-page-wrap canvas'); return c && c.width > 50 && /\/ \d+/.test(q('[data-cpr-page]').textContent) ? c : null; }, 25000);
+    check('the PDF renders in the reader (page 1 / N)', !!canvasOk, q('[data-cpr-page]') && q('[data-cpr-page]').textContent);
+    await sleep(600);
+    var sideRows = qa('.cpr-side-list .cpr-srow');
+    check('the side window lists Highlights (2) and Figures (1) with their connection chips (a1: method → Methods to try)', sideRows.length === 3 && /Highlights \(2\)/.test(q('.cpr-side-list').textContent) && /Figures \(1\)/.test(q('.cpr-side-list').textContent) && /method → Methods to try/.test(q('.cpr-srow[data-cpr-ann="a1"]').textContent), sideRows.length + ' rows');
+    check('the seeded highlights are painted on the page as rects', qa('.cpr-reader .ann-rect').length >= 2, qa('.cpr-reader .ann-rect').length);
+    check('× to delete shows only on my own annotations', !!q('.cpr-srow[data-cpr-ann="a1"] [data-cpr-del]') && !q('.cpr-srow[data-cpr-ann="a2"] [data-cpr-del]'));
+    /* a text selection → the colour popover → a highlight */
+    window.ANNOTATION_OVERLAY.onSelectionCommit([{ page: 1, rects: [{ x: 50, y: 60, width: 220, height: 14 }], selectors: { textQuote: { exact: 'A synthetic selection of text', prefix: '', suffix: '' } } }]);
+    var pop = await until(function () { return q('.cpr-reader .ann-popover'); }, 3000);
+    check('committing a text selection shows the reader\'s colour popover (six named swatches + 🖼)', !!pop && qa('.ann-popover .ann-pop-swatch').length === 6 && !!pop.querySelector('[title^="Capture figure"]'), pop && qa('.ann-popover .ann-pop-swatch').length);
+    var annN = Array.from(store.keys()).filter(function (k) { return k.indexOf('papers/pa/annotations/') === 0; }).length;
+    click(q('.ann-popover .ann-pop-swatch[aria-label="Method"]'));
+    var newKey = await until(function () { var ks = Array.from(store.keys()).filter(function (k) { return k.indexOf('papers/pa/annotations/') === 0; }); return ks.length === annN + 1 ? ks.find(function (k) { return !/\/a[1-4]$/.test(k); }) : null; }, 4000);
+    var newDoc = newKey && store.get(newKey);
+    check('a swatch click writes the annotation doc exactly as the reader does (colour, type, creator, quote, lab)', !!newDoc && newDoc.color_id === 'blue' && newDoc.annotation_type === 'method' && newDoc.visibility === 'lab' && newDoc.creator.uid === 'u1' && newDoc.target.pages[0].selectors.textQuote.exact === 'A synthetic selection of text' && newDoc.motivation === 'highlighting', JSON.stringify(newDoc && { c: newDoc.color_id, t: newDoc.annotation_type }));
+    await until(function () { return qa('.cpr-side-list .cpr-srow').length === 4 && qa('.wb-item[data-item-id="pr1"] .cpr-node').length === 4; }, 4000); await sleep(100);
+    check('…and it appears in the side list and on the paper card as a blue node', qa('.cpr-side-list .cpr-srow').length === 4 && qa('.wb-item[data-item-id="pr1"] .cpr-node').length === 4 && qa('.wb-item[data-item-id="pr1"] .cpr-port').some(function (p) { return p.style.background === 'rgb(96, 165, 250)'; }) && !q('.ann-popover'));
+    /* a marquee → the snip form → a figure annotation */
+    window.ANNOTATION_OVERLAY.onSelectionCommit([{ page: 1, rects: [{ x: 60, y: 120, width: 240, height: 160 }], marquee: true }]);
+    var pop2 = await until(function () { return q('.cpr-reader .ann-popover [title^="Capture figure"]'); }, 3000);
+    if (pop2) click(pop2);
+    var sf = await until(function () { var f = q('[data-cpr-snipform]'); return f && !f.hidden && f.querySelector('.cpr-sf-prev') ? f : null; }, 5000);
+    check('🖼 on a marquee opens the snip form in the side window with a preview of the region', !!sf && /^data:image\/jpeg/.test(sf.querySelector('.cpr-sf-prev').getAttribute('src')));
+    if (sf) { sf.querySelector('[data-sf-name]').value = 'Figure 3'; sf.querySelector('[data-sf-note]').value = 'the alignment panel'; click(sf.querySelector('[data-sf="save"]')); }
+    var figKey = await until(function () { return Array.from(store.keys()).find(function (k) { var d = store.get(k); return k.indexOf('papers/pa/annotations/') === 0 && d && d.kind === 'figure' && d.name === 'Figure 3'; }); }, 6000);
+    var figDoc = figKey && store.get(figKey);
+    check('Save uploads the snip and writes a kind:"figure" annotation (name, note, image, inline thumb)', !!figDoc && window.PAPER_FIGURES.uploads.length === 1 && window.PAPER_FIGURES.uploads[0].pid === 'pa' && figDoc.image.download_url === 'https://storage.example/snip1.jpg' && /^data:image\/jpeg/.test(figDoc.snip_data_uri) && figDoc.comment === 'the alignment panel' && figDoc.target.pages[0].marquee === true, figDoc && figDoc.name);
+    await until(function () { return /Figures \(2\)/.test(q('.cpr-side-list').textContent) && qa('.wb-item[data-item-id="pr1"] .cpr-node').length === 5; }, 4000); await sleep(100);
+    check('the new figure is in the side list (Figures (2)) and on the card with a thumbnail node', /Figures \(2\)/.test(q('.cpr-side-list').textContent) && qa('.wb-item[data-item-id="pr1"] .cpr-node').length === 5 && !!q('.wb-item[data-item-id="pr1"] .cpr-node-figure img') && q('[data-cpr-snipform]').hidden);
+    /* collapse / expand the side window */
+    click(q('[data-cpr="side-close"]')); await sleep(300);
+    check('› collapses the side window to a tab', q('.cpr-reader').classList.contains('cpr-side-closed') && getComputedStyle(q('.cpr-side-tab')).display !== 'none');
+    click(q('.cpr-side-tab')); await sleep(300);
+    check('the tab reopens it', !q('.cpr-reader').classList.contains('cpr-side-closed'));
+    click(q('.cpr-reader [data-cpr="snip"]')); await sleep(50);
+    check('⬚ Snip arms marquee mode', q('.cpr-reader [data-cpr="snip"]').getAttribute('aria-pressed') === 'true' && window.GEOM_SELECTION.isMarquee() === true);
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await sleep(150);
+    check('Escape closes the reader and tears it down (no overlay left; the paper card is untouched)', !q('.cpr-reader') && !q('.ann-popover') && !!card('pr1') && qa('.wb-item[data-item-id="pr1"] .cpr-node').length === 5);
+
+    /* ── phone ── */
+    inst().setMobile(true); await until(function () { return q('.wb-page.wb-m'); }, 3000); await sleep(300);
+    inst().setHandMode('card'); await sleep(120);   /* V3.863 — on a phone the cards are Select's; Pan goes through them */
+    check('on a phone the node ports hide with the other ports (the body is inert)', qa('.wb-item[data-item-id="pr1"] .cpr-port').every(function (p) { return getComputedStyle(p).display === 'none'; }) && getComputedStyle(card('pr1').querySelector('.wb-wb')).pointerEvents === 'none');
+    var body = card('pr1').querySelector('.wb-wb'); var c = centre(body); var hitEl = document.elementFromPoint(c.x, c.y) || card('pr1');
+    pe(hitEl, 'pointerdown', c.x, c.y, 'touch'); await sleep(30); pe(hitEl, 'pointerup', c.x, c.y, 'touch'); await sleep(250);
+    var shRows = await until(function () { return sheet() && qa('.wb-sheet-back .cpr-node').length >= 5 ? qa('.wb-sheet-back .cpr-node') : null; }, 4000);
+    check('a tap opens the sheet in ✎ Edit with the node list, ⤳ on every row, 📖 Read, and the connection chips', !!shRows && shRows.length === 5 && qa('.wb-sheet-back [data-cpr-link]').length === 5 && !!q('.wb-sheet-back [data-cpr-read]') && /method → Methods to try/.test(q('.wb-sheet-back .cpr-node[data-cpr-ann="a1"]').textContent), shRows && shRows.length);
+    var c2n = entries('c2').length;
+    click(q('.wb-sheet-back [data-cpr-link="a2"]')); await sleep(150);
+    var r3 = popRow(/Methods to try/); if (r3) click(r3);
+    await until(function () { return entries('c2').length === c2n + 1; }, 4000); await sleep(100);
+    check('⤳ in the sheet → Connect to… → the entry lands on the collection (phones never drag ports)', entries('c2').length === c2n + 1 && entries('c2').some(function (e) { return e.annId === 'a2'; }));
+    click(q('.wb-sheet-back [data-wb-sheet-close]')); await sleep(100);
+    check('no browser popups, no unhandled rejections', window.__popups.length === 0 && window.__rej.length === 0, window.__rej.join(' | '));
+    check('no raw SVG markup leaked into text', document.body.innerText.indexOf('<svg') < 0);
+  } catch (e) { check('the harness itself threw: ' + (e && e.message), false, String(e && e.stack || '').split('\n').slice(0, 4).join(' | ')); }
+  finish();
+})();
+</script>
+</body>
+</html>

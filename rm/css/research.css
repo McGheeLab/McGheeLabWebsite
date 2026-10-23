@@ -415,7 +415,7 @@
 
 .rf-upload-note { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 12px; font-size: var(--fs-sm); margin-bottom: var(--sp-2); }
 
-/* team-focus + my-day inherited-focus chips (V3.550) */
+/* team-focus + my-week inherited-focus chips (V3.550) */
 .tf-align, .md-focus-align { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
 .tf-align-chip, .md-focus-align {
   display: inline-flex; align-items: center; gap: 4px; text-decoration: none;
@@ -607,3 +607,291 @@
   .rmap-band-cols { grid-template-columns: 1fr; }
   .rmap-band-col:last-child { grid-column: auto; }
 }
+
+/* ── V3.717 — grants as a level ──────────────────────────────── */
+
+/* Aims and outputs share one band, sub-grouped. The sub-heading is quieter
+   than a band title on purpose: they are peers under the grant, not two
+   more rungs of the ladder. */
+.rf-subband + .rf-subband { margin-top: var(--sp-4); }
+.rf-subband-title {
+  margin: 0 0 var(--sp-2); font-size: var(--fs-sm); font-weight: 700;
+  letter-spacing: .02em; color: var(--text-muted);
+  display: flex; align-items: center; gap: 6px;
+}
+.rf-band-actions { display: flex; gap: 6px; flex: none; }
+
+/* An aim reuses the output card entirely and differs only in accent, so
+   the two read as siblings. */
+.rf-aim-card {
+  --rf-accent: #0d9488;
+  display: flex; flex-direction: column; gap: var(--sp-2); text-decoration: none; color: var(--text);
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--card, #fff); padding: var(--sp-3);
+  border-left: 3px solid color-mix(in srgb, var(--rf-accent) 60%, var(--border));
+  transition: border-color .12s, box-shadow .12s, transform .12s;
+}
+.rf-aim-card:hover {
+  border-color: color-mix(in srgb, var(--rf-accent) 45%, var(--border));
+  box-shadow: 0 6px 20px rgba(15, 23, 42, .08); transform: translateY(-2px);
+}
+.rf-aim-card h3 { margin: 0; font-size: var(--fs-base); line-height: 1.3; }
+
+/* Grants lead with status, funder and deadline — the three facts a
+   decision turns on — so the card is wider and taller than a delivery card. */
+.rf-grant-rail { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--sp-3); }
+.rf-grant-card {
+  --rf-accent: #4f46e5;
+  display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: var(--text);
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--card, #fff); padding: var(--sp-3);
+  border-top: 3px solid color-mix(in srgb, var(--rf-accent) 70%, var(--border));
+  transition: border-color .12s, box-shadow .12s, transform .12s;
+}
+.rf-grant-card:hover {
+  border-color: color-mix(in srgb, var(--rf-accent) 45%, var(--border));
+  box-shadow: 0 6px 20px rgba(15, 23, 42, .08); transform: translateY(-2px);
+}
+.rf-grant-card h3 { margin: 0; font-size: var(--fs-base); line-height: 1.3; }
+.rf-grant-agency { margin: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--rf-accent, var(--primary)); }
+.rf-grant-counts {
+  display: flex; flex-wrap: wrap; gap: var(--sp-2);
+  font-size: var(--fs-xs); color: var(--text-muted);
+}
+.rf-grant-due { font-weight: 600; }
+.rf-grant-chip-legacy { color: #92400e; background: #fef3c7; border-color: #fcd34d; }
+
+/* The grant's status <select> sits where the status pill sits on every
+   other card — it IS the status, not an editor for it. */
+.rf-grant-status-set select {
+  font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--bg); color: var(--text);
+}
+.rf-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.rf-grant-draft { margin-top: 6px; }
+
+/* Grant review: structure above, people below. */
+.rf-grant-review .rf-gr { margin: var(--sp-3) 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.rf-gr-sec { margin: 0; }
+.rf-gr-aim {
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-2);
+  border-left: 3px solid #0d9488;
+}
+.rf-gr-aim:last-child { margin-bottom: 0; }
+.rf-gr-aim-head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); }
+.rf-gr-aim-title { font-weight: 600; text-decoration: none; color: var(--text); }
+.rf-gr-aim-title:hover { color: var(--primary); }
+.rf-gr-aim .rf-card-liner { margin: 4px 0 6px; font-size: var(--fs-sm); color: var(--text-muted); }
+.rf-gr-person .rf-gr-sem,
+.rf-gr-person .rf-gr-weeks { font-size: var(--fs-xs); color: var(--text-muted); white-space: nowrap; }
+.rf-gr-touched { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* Inline confirm — the lab rule is that a decision is made in the surface
+   already open, never in a browser popup. */
+.rf-confirm-body { font-size: var(--fs-sm); line-height: 1.5; }
+.rf-confirm-body p { margin: 0 0 var(--sp-2); }
+.rf-confirm-list {
+  margin: 0 0 var(--sp-2); padding-left: 1.1em;
+  max-height: 240px; overflow-y: auto; font-size: var(--fs-sm);
+}
+.rf-confirm-list li { margin-bottom: 3px; }
+/* A pill inside an anchor-wrapped card is a span, not a link — it must not
+   invite a click it cannot take. */
+.rf-combine-pill-flat { cursor: inherit; }
+.rf-combine-pill-flat:hover { border-color: var(--border); color: var(--text-muted); }
+
+/* ── V3.718 — the reference level ────────────────────────────── */
+.rr-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); flex-wrap: wrap; }
+.rr-head h2 { margin: 0; }
+.rr-note { margin: 4px 0 var(--sp-3); font-size: var(--fs-xs); color: var(--text-muted); }
+.rr-year { margin-bottom: var(--sp-3); }
+.rr-year > h3 {
+  margin: 0 0 6px; font-size: var(--fs-sm); font-weight: 700; color: var(--text-muted);
+  border-bottom: 1px solid var(--border); padding-bottom: 4px;
+}
+.rr-count { font-weight: 400; opacity: .7; }
+.rr-list { list-style: none; margin: 0; padding: 0; }
+.rr-row { padding: 6px 0; border-bottom: 1px solid var(--border); }
+.rr-row:last-child { border-bottom: none; }
+.rr-title { text-decoration: none; color: var(--text); font-size: var(--fs-sm); line-height: 1.35; }
+.rr-title:hover { color: var(--primary); }
+.rr-meta { display: flex; flex-wrap: wrap; gap: var(--sp-2); font-size: var(--fs-xs); color: var(--text-muted); margin-top: 2px; }
+.rr-venue { font-style: italic; }
+.rr-doi { text-decoration: none; color: var(--primary); }
+/* An entry with no identifier is flagged, never hidden — a bibliography
+   that quietly drops its weakest rows is worse than one that points at them. */
+.rr-thin { background: color-mix(in srgb, #fef3c7 45%, transparent); }
+.rr-flag { color: #92400e; font-weight: 600; }
+
+/* ── V3.719 — aims grouped under their grant ─────────────────── */
+.rf-gbg + .rf-gbg { margin-top: var(--sp-3); }
+.rf-gbg-head {
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin-bottom: 6px; padding-bottom: 4px;
+  border-bottom: 1px dashed var(--border);
+}
+.rf-gbg-title {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-sm); font-weight: 600; text-decoration: none; color: var(--text);
+}
+a.rf-gbg-title:hover { color: var(--primary); }
+.rf-gbg-loose { color: var(--text-muted); font-weight: 500; font-style: italic; }
+.rf-gbg-count {
+  margin-left: auto; font-size: var(--fs-xs); color: var(--text-muted);
+  background: var(--bg); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px;
+}
+/* An output with no grant is flagged to the PI only — it is a gap to close,
+   not an error, and a student can do nothing about it. */
+.rf-pill-warn { color: #92400e; background: #fef3c7; border-color: #fcd34d; }
+
+/* ── V3.720 — the bibliography inside the grant ──────────────── */
+.rr-details > summary {
+  display: flex; align-items: center; gap: var(--sp-2);
+  cursor: pointer; list-style: none;
+}
+.rr-details > summary::-webkit-details-marker { display: none; }
+.rr-details > summary h2 { margin: 0; }
+.rr-summary-hint {
+  font-size: var(--fs-xs); color: var(--text-muted);
+  border: 1px solid var(--border); border-radius: 999px; padding: 1px 9px;
+}
+.rr-details[open] > summary .rr-summary-hint::after { content: ''; }
+.rr-details[open] > summary .rr-summary-hint { visibility: hidden; }
+.rr-details > div[data-refs] { margin-top: var(--sp-2); }
+
+/* ── V3.722 — who is on a grant, and what they did ───────────── */
+.rr-group + .rr-group { margin-top: var(--sp-3); }
+.rr-group-title {
+  margin: 0 0 2px; font-size: var(--fs-sm); font-weight: 700;
+  color: var(--text-muted); display: flex; align-items: center; gap: 6px;
+}
+.rr-group-hint { margin: 0 0 var(--sp-2); }
+.rr-person { border-bottom: 1px solid var(--border); padding: var(--sp-2) 0; }
+.rr-person:last-child { border-bottom: none; }
+.rr-person-head {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2);
+  cursor: pointer; list-style: none;
+}
+.rr-person-head::-webkit-details-marker { display: none; }
+details.rr-person > summary::before {
+  content: '▸'; color: var(--text-muted); font-size: 11px; flex: none;
+}
+details.rr-person[open] > summary::before { content: '▾'; }
+.rr-role {
+  font-size: 10px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+  border-radius: 999px; padding: 1px 8px; flex: none;
+}
+.rr-role-primary   { color: #166534; background: #dcfce7; }
+.rr-role-secondary { color: #3730a3; background: #eef2ff; }
+.rr-person-body { padding: var(--sp-2) 0 0 var(--sp-3); }
+.rr-sem { margin-bottom: var(--sp-2); }
+.rr-sem-head {
+  display: flex; align-items: center; gap: var(--sp-2);
+  font-size: var(--fs-sm); padding-bottom: 3px; border-bottom: 1px dashed var(--border);
+}
+.rr-sem-loose .rr-sem-head { color: var(--text-muted); font-style: italic; }
+.rr-sem-status, .rr-sem-count { font-size: var(--fs-xs); color: var(--text-muted); }
+.rr-sem-count { margin-left: auto; }
+.rr-weeks { list-style: none; margin: 4px 0 0; padding: 0; }
+.rr-week {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-2);
+  font-size: var(--fs-xs); padding: 3px 0;
+}
+.rr-week-id { color: var(--text-muted); font-variant-numeric: tabular-nums; flex: none; }
+.rr-week-title { color: var(--text); }
+.rr-week-tasks, .rr-week-sum { color: var(--text-muted); }
+.rr-week-sum { font-style: italic; }
+.rr-week-card { font-size: 10px; }
+
+/* the primary / secondary picker */
+.rr-people-edit { max-height: 50vh; overflow-y: auto; }
+.rr-pe-row {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: 5px 0; border-bottom: 1px solid var(--border);
+}
+.rr-pe-name { flex: 1; font-size: var(--fs-sm); min-width: 140px; }
+.rr-pe-opt { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); white-space: nowrap; }
+
+/* ── V3.725 — the hub band collapses, and column 1 selects a grant ── */
+.rmap-band-details > summary {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--sp-2); cursor: pointer; list-style: none;
+}
+.rmap-band-details > summary::-webkit-details-marker { display: none; }
+.rmap-band-toggle::after {
+  content: 'show'; font-size: var(--fs-xs); color: var(--text-muted);
+  border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; white-space: nowrap;
+}
+.rmap-band-details[open] > summary .rmap-band-toggle::after { content: 'hide'; }
+.rmap-band-details > .rmap-band-cols { margin-top: var(--sp-3); }
+
+/* Column 1's cards are buttons now — they pick which grant the other two
+   columns describe, rather than navigating away. */
+button.rmap-goal-pick {
+  width: 100%; text-align: left; font: inherit; cursor: pointer;
+  background: var(--card, #fff);
+}
+.rmap-goal-on {
+  border-color: var(--primary);
+  box-shadow: inset 3px 0 0 var(--primary);
+  background: color-mix(in srgb, var(--primary) 5%, var(--card, #fff));
+}
+.rmap-band-scope {
+  margin: -4px 0 2px; font-size: var(--fs-xs); color: var(--text-muted); font-style: italic;
+}
+
+/* ── V3.851 — student proposals ─────────────────────────────── */
+/* An undecided card's pill says where it stands; the lifecycle pill waits. */
+.rf-status-proposed { color: #92400e; background: #fef3c7; }
+.rf-status-declined { color: #991b1b; background: #fee2e2; }
+.rf-card-proposed { outline: 2px dashed #f59e0b; outline-offset: 2px; }
+.rf-card-mine.rf-card-proposed { outline-style: dashed; }
+.rf-chip .rf-status, .rf-concept-card .rf-status { margin-left: 4px; }
+
+/* the decider's strip at the top of the hub */
+.rf-approvals {
+  border: 1px solid #fcd34d; border-radius: 10px; background: #fffbeb;
+  padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-2); font-size: var(--fs-sm);
+}
+.rf-approvals-title {
+  color: #92400e; font-size: var(--fs-xs); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px;
+}
+.rf-approval-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2);
+  padding: 6px 0; border-top: 1px solid #fde68a;
+}
+.rf-approval-row:first-of-type { border-top: 0; }
+.rf-approval-row .rf-sec-actions { margin-left: auto; }
+.rf-approval-by { color: var(--text-muted); font-size: var(--fs-xs); }
+.rf-approval-by [data-uname] { color: var(--text); font-weight: 600; }
+.rf-mine-proposals .rf-approval-by { width: 100%; }
+
+/* the inline decline note — in the row or the banner, never a popup */
+.rf-decline-form { display: flex; gap: var(--sp-2); flex-wrap: wrap; width: 100%; align-items: flex-start; }
+.rf-decline-form textarea {
+  flex: 1; min-width: 220px; min-height: 52px; font: inherit; font-size: var(--fs-sm);
+  border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; background: var(--card, #fff); color: var(--text);
+}
+
+/* the banner on a card's own page */
+.rf-approval {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2);
+  border-radius: 10px; padding: var(--sp-2) var(--sp-3); margin: var(--sp-2) 0 var(--sp-3);
+  font-size: var(--fs-sm);
+}
+.rf-approval-proposed { border: 1px solid #fcd34d; background: #fffbeb; }
+.rf-approval-declined { border: 1px solid #fca5a5; background: #fef2f2; }
+.rf-approval-text { flex: 1; min-width: 240px; }
+.rf-approval-note { margin-top: 4px; font-style: italic; color: var(--text); }
+.rf-approval-hint { margin-top: 4px; color: var(--text-muted); font-size: var(--fs-xs); }
+.rf-approval .rf-sec-actions { margin-left: auto; }
+
+/* composer: the hint and the "Builds on" boxes */
+.rf-propose-hint { margin: 0 0 var(--sp-2); }
+.rf-parent-opts { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.rf-parent-opts .rf-inline-check { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-sm); }

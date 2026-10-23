@@ -360,7 +360,7 @@ function renderDispositionChips(e) {
   const sug = document.createElement('button');
   sug.type = 'button';
   sug.className = 'disp-refine';
-  sug.textContent = '\u2728';
+  ICON.label(sug, 'sparkles');
   sug.title = 'Suggest a disposition (rule-based)';
   sug.addEventListener('click', (ev) => {
     ev.stopPropagation();
@@ -702,7 +702,7 @@ function _renderConnectGmailEmptyState() {
   const offline = (typeof navigator !== 'undefined' && navigator.onLine === false);
   host.innerHTML = `
     <div class="card" style="padding:28px;max-width:520px;margin:24px auto;text-align:center">
-      <div style="font-size:40px;line-height:1">\u{1F4E8}</div>
+      <div style="font-size:40px;line-height:1">${ICON.svg('inbox-arrow-down')}</div>
       <h3 style="margin:12px 0 6px">Connect your Gmail</h3>
       <p style="color:#6b7280;font-size:14px;margin:0 0 18px">
         Sync your inbox here to triage, rate, and turn emails into tasks.
@@ -1711,7 +1711,7 @@ function renderEmailEntry(e) {
     metaBits.push('<span style="color:#166534">task</span>');
   }
   if (e.attachment_hashes?.length) {
-    metaBits.push(`${e.attachment_hashes.length}\u{1F4CE}`);
+    metaBits.push(`${e.attachment_hashes.length}${ICON.svg('paper-clip')}`);
   }
 
   const row = document.createElement('div');
@@ -1755,7 +1755,7 @@ function renderEmailEntry(e) {
   del.className = 'ch-del-btn';
   del.type = 'button';
   del.title = 'Move to Trash';
-  del.innerHTML = '\u{1F5D1}';
+  del.innerHTML = ICON.svg('trash');
   del.addEventListener('click', async (ev) => {
     ev.stopPropagation();
     await deleteEmail(e);
@@ -2204,14 +2204,14 @@ function renderBucketPinButton(task) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;color:#9ca3af';
-  btn.textContent = '\ud83d\udccd'; // neutral 📍 until we know the state
+  ICON.label(btn, 'map-pin'); // neutral until we know the state
   btn.title = 'Pin bucket to dashboard';
 
   const applyState = (pinned) => {
     const cat = task.category || '';
     const sub = task.sub_category || '';
     const path = `${cat}${sub ? ' / ' + sub : ''}`;
-    btn.textContent = pinned ? '\ud83d\udccc' : '\ud83d\udccd';
+    ICON.label(btn, pinned ? 'pin' : 'map-pin', '', pinned ? { variant: 'solid' } : undefined);
     btn.style.color = pinned ? '#dc2626' : '#9ca3af';
     btn.title = pinned
       ? `Unpin bucket: ${path}`

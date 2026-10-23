@@ -96,7 +96,7 @@ var CV_LIBRARY_PULL = (function () {
     panel.className = 'cve-dialog-panel';
     panel.style.cssText = 'background:#fff;border-radius:10px;max-width:820px;width:100%;padding:18px 20px;box-shadow:0 20px 40px rgba(0,0,0,.25)';
     panel.innerHTML =
-      '<h3 style="margin:0 0 12px 0;font-size:15px">📚 Pull publications from the lab library</h3>' +
+      '<h3 style="margin:0 0 12px 0;font-size:15px">' + ICON.svg('books') + ' Pull publications from the lab library</h3>' +
       '<p style="margin:0 0 10px 0;font-size:13px;color:#374151">Papers in the lab library that list <strong>' + escHtml(ctx.profileName || 'you') + '</strong> as an author are pre-checked (matched by name — review before importing). Duplicates already on your CV are skipped by default.</p>' +
       '<div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">' +
         '<span id="cvlp-status" style="font-size:12px;color:#6b7280;flex:1">Loading library…</span>' +

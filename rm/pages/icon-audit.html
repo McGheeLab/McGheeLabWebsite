@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Icon audit — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
+  <style>
+    .ia-wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    .ia-note { color: var(--text-muted); font-size: 13px; line-height: 1.55; margin-bottom: 14px; }
+    .ia-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 14px 0; }
+    .ia-bar input { padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius); }
+    .ia-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; }
+    .ia-cell { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+               padding: 12px 6px 8px; text-align: center; }
+    .ia-cell .row { display: flex; gap: 10px; align-items: center; justify-content: center;
+                    height: 34px; color: var(--text); }
+    .ia-name { font-size: 11px; color: var(--text-muted); margin-top: 6px; word-break: break-all; }
+    .ia-cell.custom { border-color: var(--primary); }
+    .ia-cell.custom .ia-name::after { content: ' ★'; color: var(--primary); }
+    .ia-sizes { display: flex; gap: 14px; align-items: center; padding: 10px 0; }
+    #ia-results { font: 12px/1.5 ui-monospace, Menlo, monospace; white-space: pre-wrap;
+                  background: var(--surface); border: 1px solid var(--border);
+                  border-radius: var(--radius); padding: 12px; }
+    .ok { color: var(--green); } .bad { color: var(--red); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="ia-wrap">
+    <h1 class="page-title">Icon audit</h1>
+    <p class="ia-note">
+      Every icon <code>rm/js/icons.js</code> ships, at 16 / 20 / 24px in outline
+      and solid. Most are Heroicons; the gaps Heroicons has no equivalent for
+      come from Lucide (manifest <code>lucide: true</code>), and ★ marks the
+      few we drew ourselves (<code>custom: true</code>). Add an icon by editing <code>scripts/icons.manifest.json</code>
+      and running <code>node scripts/gen-icons.mjs</code> — never edit
+      <code>icons.js</code> by hand.
+    </p>
+
+    <div class="ia-bar">
+      <input id="ia-q" type="search" placeholder="filter by name or emoji…" autocomplete="off">
+      <button class="btn" id="ia-toggle" type="button">Toggle emoji fallback</button>
+      <span class="ia-note" id="ia-mode" style="margin:0"></span>
+    </div>
+
+    <h2 style="font-size:15px;margin:18px 0 6px">Self-test</h2>
+    <div id="ia-results">running…</div>
+
+    <h2 style="font-size:15px;margin:22px 0 6px">Catalog <span id="ia-count" class="ia-note"></span></h2>
+    <div class="ia-grid" id="ia-grid"></div>
+  </div>
+
+<script>
+/* Runs in the page on purpose: headless harnesses evaluate in an isolated
+ * world where window.ICON is invisible, so results are written into the DOM. */
+(function () {
+  'use strict';
+  var grid = document.getElementById('ia-grid');
+  var out = document.getElementById('ia-results');
+
+  function paint(filter) {
+    var names = ICON.names().filter(function (n) {
+      if (!filter) return true;
+      var g = ICON.svg(n), e = ICON.forGlyph ? '' : '';
+      return n.indexOf(filter) >= 0;
+    });
+    grid.innerHTML = names.map(function (n) {
+      var custom = ['microscope', 'target', 'pin', 'books', 'compass', 'construction', 'dna', 'dot']
+        .indexOf(n) >= 0;
+      return '<div class="ia-cell' + (custom ? ' custom' : '') + '">'
+        + '<div class="row">'
+        +   ICON.svg(n, { size: 'sm' }) + ICON.svg(n, { size: 'lg' }) + ICON.svg(n, { size: 'xl' })
+        +   ICON.svg(n, { size: 'xl', variant: 'solid' })
+        + '</div><div class="ia-name">' + n + '</div></div>';
+    }).join('');
+    document.getElementById('ia-count').textContent = '— ' + names.length + ' icons';
+  }
+
+  document.getElementById('ia-q').addEventListener('input', function (e) {
+    paint(e.target.value.trim().toLowerCase());
+  });
+
+  var modeEl = document.getElementById('ia-mode');
+  function showMode() { modeEl.textContent = 'mode: ' + ICON.getMode(); }
+  document.getElementById('ia-toggle').addEventListener('click', function () {
+    ICON.setMode(ICON.getMode() === 'emoji' ? 'icons' : 'emoji');
+    showMode(); paint(document.getElementById('ia-q').value.trim().toLowerCase());
+  });
+
+  /* ── assertions ─────────────────────────────────────────────────── */
+  var r = {}, has = function (s, x) { return typeof s === 'string' && s.indexOf(x) >= 0; };
+  try {
+    var plain = ICON.svg('sun');
+    /* NB: no check name may contain the literal string below — QA asserts
+       that document.body.innerText never contains it, which is how a
+       markup-in-a-text-sink bug is caught on every page. */
+    r['svg() returns svg markup']       = plain.indexOf('<' + 'svg') === 0;
+    r['carries .hi + viewBox']          = has(plain, 'class="hi"') && has(plain, 'viewBox="0 0 24 24"');
+    r['decorative by default']          = has(plain, 'aria-hidden="true"') && has(plain, 'focusable="false"');
+    r['CSS owns stroke-width']          = !has(plain, 'stroke-width');
+    var lab = ICON.svg('trash', { label: 'Delete' });
+    r['label => role=img, not hidden']  = has(lab, 'role="img"') && !has(lab, 'aria-hidden');
+    r['solid variant']                  = has(ICON.svg('sun', { variant: 'solid' }), 'hi-solid');
+    r['solid falls back to outline']    = ICON.svg('beaker', { variant: 'solid' }).indexOf('<svg') === 0;
+    r['unknown name never blanks']      = has(ICON.svg('nope-not-real'), 'data-icon-missing="1"');
+    r['known name unmarked']            = !has(plain, 'data-icon-missing');
+    r['el() returns a node']            = ICON.el('sun').tagName.toLowerCase() === 'svg';
+    r['render(): url => img']           = has(ICON.render('https://x.test/a.webp'), '<img');
+    r['render(): name => icon']         = has(ICON.render('beaker'), 'data-icon="beaker"');
+    r['render(): legacy emoji']         = has(ICON.render('🔬'), 'data-icon="microscope"');   // emoji-ok (tests the legacy mapping)
+    r['render(): unknown emoji as-is']  = has(ICON.render('😂'), '😂');   // emoji-ok (deliberately unmapped: tests the fallback)
+    r['render(): tinted glyph => solid dot'] = has(ICON.render('🔴'), 'data-icon="dot"') && has(ICON.render('🔴'), 'color:#ef4444');   // emoji-ok
+    var hyd = document.createElement('div');
+    hyd.innerHTML = '<i data-hi="sun"></i>';
+    ICON.hydrate(hyd);
+    r['hydrate() swaps data-hi']        = !!hyd.querySelector('svg[data-icon="sun"]');
+    r['draw() is a function']           = typeof ICON.draw === 'function';
+    r['render(): escapes a hostile url']= !has(ICON.render('https://x/"onerror=x'), '"onerror');
+    ICON.setMode('emoji');
+    r['kill switch renders emoji']      = ICON.svg('sun').indexOf('<svg') !== 0;
+    ICON.setMode('icons');
+    r['kill switch restores']           = ICON.svg('sun').indexOf('<svg') === 0;
+
+    var bad = [];
+    ICON.names().forEach(function (n) {
+      var d = document.createElement('div');
+      d.innerHTML = ICON.svg(n) + ICON.svg(n, { variant: 'solid' });
+      if (d.querySelectorAll('svg').length !== 2) bad.push(n);
+    });
+    r['every icon paints, both weights'] = bad.length === 0;
+    if (bad.length) r['__broken'] = bad.join(', ');
+  } catch (e) {
+    r['EXCEPTION'] = String(e && e.message || e);
+  }
+
+  var fails = Object.keys(r).filter(function (k) { return r[k] === false; });
+  /* Check NAMES are text, not markup. An unescaped name containing a tag
+   * would be parsed into a real element and silently swallowed — the exact
+   * mistake this migration has to avoid everywhere else, so the audit page
+   * had better not make it. */
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  out.innerHTML = Object.keys(r).map(function (k) {
+    var v = r[k];
+    return (v === true ? '<span class="ok">PASS</span>  ' : '<span class="bad">FAIL</span>  ') + esc(k)
+         + (typeof v === 'string' ? '  ' + esc(v) : '');
+  }).join('\n') + '\n\n' + (fails.length
+      ? '<span class="bad">' + fails.length + ' FAILED</span>'
+      : '<span class="ok">all ' + Object.keys(r).length + ' checks passed</span>');
+  /* stable hook for headless QA */
+  out.setAttribute('data-failures', String(fails.length));
+
+  showMode();
+  paint('');
+})();
+</script>
+</body>
+</html>

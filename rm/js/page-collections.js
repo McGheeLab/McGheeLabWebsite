@@ -43,7 +43,8 @@
     /* ── Lab operations ─────────────────────────────────────── */
     'chat':                     ['chatChannels', 'chatConfig', 'chatMessages', 'chatReadState', 'chatUserMeta', 'labConfig'],
     'lab-notebook':             ['inventory', 'labConfig', 'projects', 'protocols'],
-    'meetings':                 ['labConfig', 'meetingConfig', 'meetings'],
+    'notebook':                 ['inventory', 'labConfig', 'projects', 'protocols', 'items', 'papers'],   // V3.830 block notebook (+ library for the whiteboard's From paper)
+    'meetings':                 ['labChores', 'labConfig', 'meetingConfig', 'meetingSwaps', 'meetingTopics', 'meetings'],
     'pmr':                      ['labConfig', 'papers', 'projects', 'protocols'],
     'protocols':                ['labConfig', 'protocols'],
     'tasks':                    ['labConfig'],  // tasks live in userData/{uid}/tasks (owner-locked)
@@ -91,6 +92,7 @@
     'training-paper-writing':                ['labConfig'],
     'training-phd-triangle':                 ['labConfig'],
     'training-scientific-communication':     ['labConfig'],
+    'training-cell-culture':      ['labConfig'],
     'training-microscope-basics':            ['labConfig'],
     'training-image-analysis-basic':         ['labConfig'],
     'training-image-analysis-intermediate':  ['labConfig'],

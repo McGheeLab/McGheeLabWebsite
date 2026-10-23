@@ -42,6 +42,12 @@ const { onTaskAssigned } = require('./tasks');
 // Task marketplace notifications (V3.314, FuturePlan 04)
 const { onMarketPostCreated, onMarketPostUpdated } = require('./task-market');
 
+// Lab Meetings (V3.743) — presenter/slide-pipeline reminders (09:00 + 16:00
+// Phoenix), peer-accept slot swaps executed server-side, deck-posted /
+// review-decided / presenter-added notices. First consumer of the
+// `notifications.apps.meetings.push` user toggle.
+const { meetingReminders, onMeetingSwapWritten, onMeetingWritten } = require('./meetings');
+
 // Per-user Gmail / Calendar OAuth + scrape (Phase 7)
 const { exchangeOAuthCode } = require('./oauth');
 const { scrapeGmailForAllUsers } = require('./gmail-scraper');
@@ -71,6 +77,7 @@ const { onPaperAuthorSync, onMentorRosterSync } = require('./paper-author-sync')
 // Figure board change signal (V3.612) — one live "board updated"
 // notification per board (unread-gated + tag-collapsed).
 const { onBoardItemWrite, onBoardCommentCreate } = require('./figure-board-notify');
+const { onInventoryQtyWrite, inventoryLowDigest } = require('./inventory-alerts');
 
 // Faithful comment restore on paper import (import/export E3) — Admin SDK
 // preserves each comment's true authorUid + timestamps (V3.481).
@@ -114,6 +121,43 @@ const { paperPdfFetchProxy } = require('./paper-pdf-fetch-proxy');
 // release; one push + feed item to every lab member, history in `releases`.
 const { releaseAnnounce } = require('./release-announce');
 
+// Teacher-class assignment/submission notifications (V3.671, teacher
+// program R2) — publish fan-out to enrollees, submission → teacher,
+// grade → student.
+const { onAssignmentWrite, onSubmissionWrite } = require('./class-notify');
+
+// Engagement-hub request notifications (V3.673, teacher program R4) —
+// new request → teacher + admins; decision → requester.
+const { onEngageRequestWrite, onEngageReviewWrite } = require('./engage-notify');
+
+// Admin-issued teacher setup links (V3.680) — a signed-in teacher redeems
+// teacherInvites/{token} and this provisions class + code + category.
+const { redeemTeacherInvite } = require('./teacher-invite');
+
+// No-account visit posts (V3.808) — a teacher posts a classroom-visit
+// opportunity from #/invite-a-scientist and manages it by private link.
+const { engageGuest } = require('./engage-guest');
+
+// BME466 course platform (V3.681) — request-thread replies (denormalize +
+// notify the other side) and assignment publish fan-out by section level.
+const { onBme466MessageCreated, onBme466AssignmentWrite } = require('./bme466-notify');
+
+// Research-map proposals (V3.851) — a member proposes a card; the
+// proposer's advisors + admins are told, and the proposer hears the decision.
+const { onResearchFocusWritten } = require('./research-foci-notify');
+
+// One person, two Google logins (V3.806) — an alias login (map in
+// auth-alias.js) is swapped for a custom-token session on the primary uid.
+const { aliasSignIn } = require('./auth-alias');
+
+// Procurement v2 (V3.813) — ticket lifecycle pushes + daily sweep.
+const { onProcurementTicketWritten, procurementDailySweep } = require('./procurement-notify');
+
+// Scientia cloud hub (V3.857) — Gabe's notebook sync protocol (serve.py /
+// sisync.py) on Firestore: one record per lab member, the online build and
+// the desktop bridge (rm/scientia/scientia-cloud.py) are both its devices.
+const { scientiaHub } = require('./scientia-hub');
+
 // Export all functions
 module.exports = {
   onChatMessageCreate,
@@ -132,6 +176,9 @@ module.exports = {
   onTaskAssigned,
   onMarketPostCreated,
   onMarketPostUpdated,
+  meetingReminders,
+  onMeetingSwapWritten,
+  onMeetingWritten,
   exchangeOAuthCode,
   scrapeGmailForAllUsers,
   scrapeCalendarForAllUsers,
@@ -152,10 +199,25 @@ module.exports = {
   onPaperAuthorSync,
   onMentorRosterSync,
   onBoardItemWrite,
+  onInventoryQtyWrite,
+  inventoryLowDigest,
   onBoardCommentCreate,
   restorePaperComments,
   fetchPaperPdf,
   uploadPaperPdf,
   paperPdfFetchProxy,
   releaseAnnounce,
+  onAssignmentWrite,
+  onSubmissionWrite,
+  onEngageRequestWrite,
+  onEngageReviewWrite,
+  redeemTeacherInvite,
+  engageGuest,
+  onBme466MessageCreated,
+  onBme466AssignmentWrite,
+  onResearchFocusWritten,
+  aliasSignIn,
+  scientiaHub,
+  onProcurementTicketWritten,
+  procurementDailySweep,
 };

@@ -101,6 +101,12 @@ const onPaperAuthorSync = onDocumentWritten('projects/{projectId}', async (event
     title: after.title || '',
     status: after.status || 'drafting',
     is_library_entry: false,
+    // V3.741 — checkout lock mirror. The papers list writes checked_out_*
+    // onto projects/{id} (lead author / coauthor / admin can); rules read
+    // papers/{id}.checkedOutByUid from the SAME doc isPaperAuthor already
+    // fetches, so gating yjs_updates on it is free. null = unlocked.
+    checkedOutByUid: after.checked_out_by_uid || null,
+    checkedOutAt: after.checked_out_at || null,
     updatedAt: new Date(),
   }, { merge: true });
 });

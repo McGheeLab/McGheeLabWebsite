@@ -8,7 +8,7 @@
    - Firebase API calls: network-only (never cached)
    ================================================================ */
 
-const CACHE_VERSION = 590;
+const CACHE_VERSION = 851;
 const SHELL_CACHE  = `mcgheelab-shell-v${CACHE_VERSION}`;
 const IMAGE_CACHE  = `mcgheelab-images-v${CACHE_VERSION}`;
 const CDN_CACHE    = `mcgheelab-cdn-v${CACHE_VERSION}`;
@@ -22,6 +22,7 @@ const SHELL_URLS = [
   '/index.html',
   '/app.js',
   '/styles.css',
+  '/whiteboard-board.css',
   '/user-styles.css',
   '/cv-styles.css',
   '/firebase-config.js',
@@ -29,7 +30,15 @@ const SHELL_URLS = [
   '/cv-builder.js',
   '/scheduler.js',
   '/class-builder.js',
+  '/whiteboard.js',
+  '/whiteboard-replay.js',
+  '/modules/shared/whiteboard-panel.js',
+  '/modules/shared/whiteboard-panel.css',
   '/teacher-classes.js',
+  '/teacher-teach.js',
+  '/engage-hub.js',
+  '/engage-presenters.js',
+  '/engage-guest.js',
   '/push-notifications.js',
   '/content.json',
   '/manifest.json',
@@ -115,6 +124,19 @@ self.addEventListener('fetch', (event) => {
   // ~100 KB of HTML/JS/CSS that loads RM. Per-user data caching lives in
   // IndexedDB (js/local-cache.js) and is independent of this SW.
   if (url.pathname.startsWith('/rm/')) {
+    event.respondWith(networkFirst(event.request, SHELL_CACHE));
+    return;
+  }
+
+  // V3.738 — learning modules and the whiteboard files that host them:
+  // network-first for the same reason as RM. Module pages run inside
+  // iframes (class viewer, whiteboard simulation pages), where a user
+  // cannot hard-reload them — a hard reload of the OUTER page bypasses the
+  // SW for its own scripts but not for the iframe's, so after every FTP the
+  // board ran the new whiteboard.js against the previous whiteboard-panel.js
+  // and showed a whole module where a simulation cut was asked for.
+  if (url.pathname.startsWith('/modules/') ||
+      /^\/whiteboard[-a-z]*\.(js|css)$/.test(url.pathname)) {
     event.respondWith(networkFirst(event.request, SHELL_CACHE));
     return;
   }

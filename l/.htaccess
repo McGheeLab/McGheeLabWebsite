@@ -1,0 +1,6 @@
+# V3.834 — QR labels on inventory items encode MCGHEELAB.COM/L/MG-XXXXX.
+# A phone camera opens that URL; send it to the inventory page, which
+# resolves the code (rm/js/scan-resolve.js) and opens the item.
+RewriteEngine On
+RewriteBase /l/
+RewriteRule ^([A-Za-z0-9-]{3,24})/?$ /rm/pages/inventory.html?code=$1 [NC,L]

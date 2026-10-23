@@ -399,3 +399,20 @@
   .pfb-toolbar .btn { padding: 4px 8px; font-size: 12px; }
   .pfb-status { display: none; }
 }
+
+/* V3.837 — the Figures tab hosts the canvas figure board in an iframe */
+.pfb-canvas-wrap{ display: flex; flex-direction: column; gap: 6px; }
+.pfb-canvas-bar{ display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: .82rem; }
+.pfb-canvas-frame{ width: 100%; height: calc(100vh - 230px); min-height: 520px; border: 1px solid #d1d5db; border-radius: 10px; background: #E6E1D7; }
+
+/* V3.841 / V3.845 — the Figure board tab fills the editor. The tool page is
+   a flex item in the editor's column (.pe-page), and its auto side margins
+   made it shrink to fit its content — an iframe at 100% of a shrink-to-fit
+   parent collapses to its intrinsic 300 px (470 px measured at a 1280 px
+   window; the 1100 px cap V3.841 removed was never the limit). A definite
+   width with no auto margins, and the frame takes the rest of the height
+   (the other tool pages keep their centred reading column). */
+html.pe-wide-tab .pe-toolpage{ width: 100%; max-width: none; margin: 0; padding: 6px 8px 8px; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+html.pe-wide-tab .pe-toolpage-pane.pe-equations-pane{ width: 100% !important; max-width: none; flex: 1 1 auto; min-height: 0; }
+html.pe-wide-tab .pe-toolpage-pane .pe-tab-content[data-tab="figure-board"], html.pe-wide-tab #pe-figure-board-root, html.pe-wide-tab .pfb-canvas-wrap{ width: 100%; max-width: none; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+html.pe-wide-tab .pfb-canvas-frame{ width: 100%; flex: 1 1 auto; height: auto; min-height: 420px; border-radius: 8px; }

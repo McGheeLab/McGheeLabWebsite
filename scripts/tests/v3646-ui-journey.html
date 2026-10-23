@@ -1,0 +1,286 @@
+<!-- V3.646 UI journey harness — what a person's FINGERS actually do.
+     Outside rm/ on purpose (sync-rm.mjs bundles that tree into the phone app);
+     absolute /rm/... paths still resolve from anywhere on the origin.
+
+     Run:
+       python3 -m http.server 8777
+       node ~/.claude/skills/browser-automation/browser.mjs \
+         http://localhost:8777/scripts/tests/v3646-ui-journey.html \
+         --wait "#r[data-done='1']" \
+         --eval "document.getElementById('r').dataset.fail"
+
+     Assertions live IN the page and publish to data-* attributes: browser.mjs
+     runs --eval in an ISOLATED world and cannot see window.SCAN at all, so a
+     global that never loaded and one the harness merely cannot reach look
+     identical from outside. -->
+<!doctype html><html><head><meta charset="utf-8"><title>V3.646 UI journeys</title>
+<link rel="stylesheet" href="/rm/css/tokens.css"><link rel="stylesheet" href="/rm/css/style.css">
+</head><body>
+<h1>V3.646 UI journeys</h1>
+<pre id="r" data-pass="0" data-fail="0" data-done="0" data-detail="">running…</pre>
+<div id="ln-body" hidden></div>
+<script src="/rm/js/icons.js"></script>
+<script src="/rm/js/toast.js"></script>
+<script src="/rm/js/app-sheet.js"></script>
+<script src="/rm/js/label-id.js"></script>
+<script src="/rm/js/inventory-qty.js"></script>
+<script src="/rm/js/scan-resolve.js"></script>
+<script src="/rm/js/scan.js"></script>
+<script src="/rm/js/stock-take.js"></script>
+<script>
+(async function () {
+  var pass = 0, fail = 0, detail = [];
+  function ck(name, got, want) {
+    var ok = JSON.stringify(got) === JSON.stringify(want);
+    if (ok) pass++;
+    else { fail++; detail.push(name + ': got ' + JSON.stringify(got) + ' want ' + JSON.stringify(want)); }
+  }
+  function t(name, cond, why) { cond ? pass++ : (fail++, detail.push(name + (why ? ': ' + why : ''))); }
+  var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+  var $ = function (s) { return document.querySelector(s); };
+  var txt = function (s) { var e = $(s); return e ? e.textContent.trim() : null; };
+
+  var CODE = window.LABEL_ID.mintId();
+  var ITEM = { id: 'itm-1', name: 'Inert LLS 100 µm, rhodamine + FITC beads',
+               description: 'The long description that does not fit on a label.',
+               kind: 'stock', qty_tracked: true, qty_unit: 'mL',
+               qty_made: 500, qty_remaining: 412, qty_min: null };
+
+  // ── globals actually present ─────────────────────────────────────────
+  ck('LABEL_ID loaded', typeof window.LABEL_ID, 'object');
+  ck('SCAN loaded', typeof window.SCAN, 'object');
+  ck('SCAN_RESOLVE loaded', typeof window.SCAN_RESOLVE, 'object');
+  ck('STOCK_TAKE loaded', typeof window.STOCK_TAKE, 'object');
+  ck('INV_QTY loaded', typeof window.INV_QTY, 'object');
+
+  // Resolve offline, but still exercise normalize → shape → check-char for real.
+  window.SCAN_RESOLVE._setFixture((function (m) {
+    m[CODE] = { label: { code: CODE, target_kind: 'stock', target_id: 'itm-1',
+                         title: ITEM.name }, item: ITEM };
+    return m;
+  })({}));
+
+  /* ═══ JOURNEY A: scan a code, a surface takes it ═══════════════════════ */
+  var landed = null;
+  var offA = window.SCAN_RESOLVE.registerTarget({
+    id: 'notebook', label: 'Insert into this entry', icon: 'book-open',
+    accepts: function () { return true; },
+    handle: function (res) { landed = res; return true; },
+  });
+
+  window.SCAN.open({ prompt: 'Scan a label' });
+  await wait(120);
+  t('A1 the scan sheet opens', !!$('.app-sheet-back'));
+  t('A2 it opens focused on the typed field (the wedge path)',
+    document.activeElement === $('.scn-in'), 'focus was ' + (document.activeElement && document.activeElement.className));
+  t('A3 and says a USB scanner works here', /USB barcode/i.test($('.scn-wrap').textContent));
+
+  // A wedge types the code then presses Enter. Include the trailing CR it emits.
+  $('.scn-in').value = CODE.toLowerCase() + '\r';
+  $('.scn-field').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+  await wait(160);
+  t('A4 a wedge-typed lowercase code with a trailing CR resolves', !!landed, 'nothing landed');
+  ck('A5 the surface receives the normalized code', landed && landed.code, CODE);
+  ck('A6 …with the item hydrated', landed && landed.item && landed.item.name, ITEM.name);
+  t('A7 the status echoes the code back so you can check the tube',
+    /MG-/.test(txt('.scn-status') || ''), txt('.scn-status'));
+  await wait(800);
+  t('A8 the sheet closes itself after a hit', !$('.app-sheet-back'));
+  offA();
+
+  /* ═══ JOURNEY B: a mistyped code, and a stray barcode ══════════════════ */
+  var A = window.LABEL_ID.ALPHABET;
+  var lastIdx = A.indexOf(CODE[CODE.length - 1]);
+  var typo = CODE.slice(0, -1) + A[(lastIdx + 1) % A.length];
+
+  window.SCAN.open({});
+  await wait(80);
+  $('.scn-in').value = typo;
+  $('.scn-field').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+  await wait(140);
+  t('B1 one wrong character is caught, not looked up',
+    /check character/i.test(txt('.scn-status') || ''), txt('.scn-status'));
+  t('B2 …and the offending code is shown', /MG-/.test(txt('.scn-status') || ''));
+
+  $('.scn-in').value = '4Q7-HELLO-WORLD';
+  $('.scn-field').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+  await wait(140);
+  t('B3 a stray non-lab barcode says it is not one of ours',
+    /doesn.t look like/i.test(txt('.scn-status') || ''), txt('.scn-status'));
+
+  var unknown = window.LABEL_ID.mintId();
+  $('.scn-in').value = unknown;
+  $('.scn-field').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+  await wait(140);
+  t('B4 a valid but unbound code offers the next step',
+    /isn.t linked/i.test(txt('.scn-status') || ''), txt('.scn-status'));
+  window.SCAN.close();
+  await wait(60);
+
+  /* ═══ JOURNEY C: two live surfaces ⇒ a choice, never a silent pick ═════ */
+  var pickedBy = null;
+  var off1 = window.SCAN_RESOLVE.registerTarget({
+    id: 'notebook', label: 'Insert into this entry',
+    accepts: function () { return true; }, handle: function () { pickedBy = 'notebook'; return true; } });
+  var off2 = window.SCAN_RESOLVE.registerTarget({
+    id: 'inventory', label: 'Open in inventory',
+    accepts: function () { return true; }, handle: function () { pickedBy = 'inventory'; return true; } });
+
+  window.SCAN.open({});
+  await wait(80);
+  $('.scn-in').value = CODE;
+  $('.scn-field').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+  await wait(160);
+  t('C1 with two surfaces live, nothing is claimed silently', pickedBy === null, 'claimed by ' + pickedBy);
+  var choices = document.querySelectorAll('.scn-choices button');
+  ck('C2 a chooser is rendered instead', choices.length, 2);
+  t('C3 …labelled in words, not ids', /Insert into this entry/.test($('.scn-choices').textContent));
+  // Pick by id, not by index: registerTarget() unshifts (most-recent-first), so
+  // an index encodes an assumption about ordering rather than the intent.
+  t('C3b the chooser is ordered most-recently-registered first',
+    choices[0].dataset.id === 'inventory', 'first was ' + choices[0].dataset.id);
+  $('.scn-choices button[data-id="inventory"]').click();
+  await wait(80);
+  ck('C4 picking one routes to exactly that surface', pickedBy, 'inventory');
+  off1(); off2();
+  window.SCAN.close();
+  await wait(60);
+
+  /* ═══ JOURNEY D: the camera light must go out ══════════════════════════
+     THE bug this guards: the native shell keeps hidden tabs ALIVE and only
+     toggles view.isHidden, so document.visibilityState is unreliable in a
+     hidden WKWebView and the visibilitychange handler never fires. A real
+     canvas.captureStream() gives real MediaStream + real MediaStreamTrack
+     objects, so srcObject assignment and playback behave exactly as in the
+     app — we only wrap stop() to count it. */
+  var stopped = 0;
+  var realGUM = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+  function fakeCamera() {
+    var c = document.createElement('canvas');
+    c.width = 320; c.height = 240;
+    c.getContext('2d').fillRect(0, 0, 10, 10);
+    var stream = c.captureStream(10);
+    stream.getTracks().forEach(function (tr) {
+      var orig = tr.stop.bind(tr);
+      tr.stop = function () { stopped++; return orig(); };
+    });
+    return stream;
+  }
+  if (navigator.mediaDevices) {
+    navigator.mediaDevices.getUserMedia = function () { return Promise.resolve(fakeCamera()); };
+  }
+
+  async function cameraRun(fireWhat) {
+    stopped = 0;
+    window.SCAN.open({});
+    await wait(80);
+    var btn = $('.scn-cam');
+    if (!btn) return 'no-camera-button';
+    btn.click();
+    await wait(300);
+    if (!$('.scn-stage.is-on')) return 'stage-never-started';
+    fireWhat();
+    await wait(120);
+    var s = stopped;
+    window.SCAN.close();
+    await wait(60);
+    return s;
+  }
+
+  if (!navigator.mediaDevices || !window.isSecureContext) {
+    detail.push('D skipped — no mediaDevices / insecure context in this harness');
+  } else {
+    ck('D1 ourlab:tab-hidden stops the camera (visibilitychange CANNOT catch this)',
+      await cameraRun(function () { document.dispatchEvent(new Event('ourlab:tab-hidden')); }) >= 1, true);
+    ck('D2 pagehide stops it (iOS never fires unload)',
+      await cameraRun(function () { window.dispatchEvent(new Event('pagehide')); }) >= 1, true);
+    ck('D3 closing the sheet stops it',
+      await cameraRun(function () { window.SCAN.close(); }) >= 1, true);
+    // Idempotent: five callers means stop() must be safe to call repeatedly.
+    stopped = 0;
+    window.SCAN._stopCamera(); window.SCAN._stopCamera();
+    ck('D4 _stopCamera is idempotent with no stream', stopped, 0);
+  }
+  if (realGUM) navigator.mediaDevices.getUserMedia = realGUM;
+
+  /* ═══ JOURNEY E: "how much did you take" ══════════════════════════════ */
+  var recorded = null;
+  window.INV_QTY.consume = function (o) {       // the write itself is covered by the E2E suite
+    recorded = o;
+    return Promise.resolve({ itemId: o.itemId, usageId: 'u1', before: 412,
+                             after: 412 - o.qty, delta: -o.qty, qty: o.qty, unit: 'mL',
+                             status: 'full', item: ITEM });
+  };
+
+  window.STOCK_TAKE.open({ item: ITEM, labelCode: CODE, context: null });
+  await wait(120);
+  t('E1 the take sheet opens', !!$('.app-sheet-back'));
+  ck('E2 the headline is the number you read through goggles', txt('.stk-big'), '412 mL remaining of 500 mL');
+  ck('E3 four quick amounts, derived from what is left', document.querySelectorAll('.stk-chip').length, 4);
+  ck('E4 the button starts as a prompt, not a claim', txt('.stk-go'), 'Choose an amount');
+
+  $('.stk-chip[data-v="25"]').click();
+  await wait(30);
+  ck('E5 one tap → Took 25 mL', txt('.stk-go'), 'Took 25 mL');
+  $('.stk-chip[data-v="25"]').click();
+  await wait(30);
+  ck('E6 tapping the SAME chip again ADDS (the one-handed win)', txt('.stk-go'), 'Took 50 mL');
+  ck('E7 the after-line does the arithmetic live', txt('.stk-after'), '412 mL → 362 mL');
+  t('E8 …and is not flagged low yet', !/is-low|is-out/.test($('.stk-after').className));
+
+  // Crossing the 20%-of-made line must colour the after-line amber.
+  $('.stk-n').value = '350';
+  $('.stk-n').dispatchEvent(new Event('input'));
+  await wait(30);
+  t('E9 taking enough to cross 20% turns the after-line amber',
+    /is-low/.test($('.stk-after').className), $('.stk-after').className);
+
+  // Overdrawing is allowed but must be visibly the red path.
+  $('.stk-n').value = '500';
+  $('.stk-n').dispatchEvent(new Event('input'));
+  await wait(30);
+  t('E10 overdrawing shows red and warns on the button',
+    /is-out/.test($('.stk-after').className) && /is-warn/.test($('.stk-go').className));
+
+  $('.stk-n').value = '50';
+  $('.stk-n').dispatchEvent(new Event('input'));
+  await wait(20);
+  $('.stk-go').click();
+  await wait(140);
+  ck('E11 submitting records the amount', recorded && recorded.qty, 50);
+  ck('E12 …tagged with the label it came from', recorded && recorded.labelCode, CODE);
+  t('E13 …and Undo is offered for six seconds', !!$('.stk-undo') || /Recorded/.test($('.app-sheet-body').textContent));
+  window.SCAN.close();
+  if (typeof APP_SHEET !== 'undefined') APP_SHEET.close();
+  await wait(60);
+
+  /* ═══ JOURNEY F: a manager correcting the count ════════════════════════ */
+  window.STOCK_TAKE.open({ item: ITEM, mode: 'set', context: null });
+  await wait(100);
+  // canManage() is false in this harness (no firebridge), so 'set' must
+  // DOWNGRADE to 'take' rather than silently offering an override.
+  // .app-sheet-title is uppercased by CSS text-transform, so compare the text.
+  ck('F1 without the manage cap, the override downgrades to a normal take',
+    (txt('.app-sheet-title') || '').toLowerCase(), 'record what you took');
+  t('F2 …and no reason picker is shown', !$('.stk-reason'));
+  if (typeof APP_SHEET !== 'undefined') APP_SHEET.close();
+  await wait(40);
+
+  /* ═══ canary from the icon program ════════════════════════════════════ */
+  t('G1 no raw <svg string leaked into visible text', document.body.innerText.indexOf('<svg') === -1);
+
+  var el = document.getElementById('r');
+  el.dataset.pass = String(pass);
+  el.dataset.fail = String(fail);
+  el.dataset.detail = detail.join(' | ');
+  el.dataset.done = '1';
+  el.textContent = pass + ' passed, ' + fail + ' failed\n' + detail.join('\n');
+})().catch(function (e) {
+  var el = document.getElementById('r');
+  el.dataset.fail = String(Number(el.dataset.fail || 0) + 1);
+  el.dataset.detail = 'THREW: ' + (e && e.message);
+  el.dataset.done = '1';
+  el.textContent = 'THREW: ' + (e && e.stack);
+});
+</script>
+</body></html>

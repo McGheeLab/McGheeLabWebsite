@@ -267,7 +267,7 @@
       else delete _prefs.collapsed[section.id];
       _savePrefs();
       card.classList.toggle('pe-symcard-collapsed', collapsed);
-      chev.textContent = collapsed ? '▸' : '▾';
+      ICON.label(chev, collapsed ? 'chevron-right' : 'chevron-down');
       chev.title = collapsed ? 'Expand' : 'Collapse';
     }
     head.addEventListener('click', function (ev) {

@@ -13,6 +13,8 @@
  *   href   — full URL (path + ?tab if any), used as link target
  *   group  — top-level NAV_ITEMS section ("Activity", "Research", etc.)
  *   gate   — optional 'admin' or 'lab-member' carried over from NAV_ITEMS
+ *   icon   — Heroicon name from the NAV_ITEMS entry (V3.809)
+ *   desc   — one-line blurb from nav.js's NAV_PAGE_DESCRIPTIONS (V3.809)
  *
  * Two helpers are exported on `window.PAGE_REGISTRY`:
  *   PAGE_REGISTRY.list   — array of all pages
@@ -55,27 +57,32 @@
   function flattenNav() {
     var pages = [];
     var seen = new Set();
-    function add(label, href, group, gate) {
+    // V3.809 — entries carry the Heroicon name declared on the NAV_ITEMS
+    // entry and the blurb from NAV_PAGE_DESCRIPTIONS (both live in nav.js),
+    // so the home tiles, the palette and the chips agree on one icon.
+    var DESC = (typeof NAV_PAGE_DESCRIPTIONS !== 'undefined') ? NAV_PAGE_DESCRIPTIONS : {};
+    function add(label, href, group, gate, icon) {
       if (!href) return;
       var id = pageIdFromHref(href);
       if (seen.has(id)) return;  // first occurrence wins
       seen.add(id);
-      pages.push({ id: id, label: label, href: href, group: group, gate: gate || null });
+      pages.push({ id: id, label: label, href: href, group: group, gate: gate || null,
+                   icon: icon || 'document-text', desc: DESC[id] || '' });
     }
     NAV_ITEMS.forEach(function (item) {
       // V3.542 — a top-level nav item may declare `pageGroup` so the
       // All Pages grid files it under an existing section instead of
-      // minting a one-tile group (e.g. My Day → Activity).
+      // minting a one-tile group (e.g. My Week → Activity).
       var groupLabel = item.pageGroup || item.label;
       if (item.children && item.children.length) {
         // Group entry — also add the group's own href if it points somewhere.
-        if (item.href) add(item.label, item.href, groupLabel, item.gate);
+        if (item.href) add(item.label, item.href, groupLabel, item.gate, item.icon);
         item.children.forEach(function (child) {
-          add(child.label, child.href, groupLabel, child.gate || item.gate);
+          add(child.label, child.href, groupLabel, child.gate || item.gate, child.icon || item.icon);
         });
       } else if (item.href) {
-        // Top-level direct link (Dashboard, Split View).
-        add(item.label, item.href, groupLabel, item.gate);
+        // Top-level direct link (Home, Split View).
+        add(item.label, item.href, groupLabel, item.gate, item.icon);
       }
     });
     return pages;
@@ -103,16 +110,15 @@
       id: 'lab-research',
       label: 'Lab Research',
       description: 'Daily research workflow — track activity, browse the library, manage projects, and capture tasks.',
-      icon: '🔬',
+      icon: 'microscope',
       landingPageId: 'activity-overview__tab__tracker',
       pageIds: [
         'activity-overview__tab__tracker',
         'library',
         'projects',
         'tasks',
-        // Future placeholders — referenced now so the workflow surfaces them
-        // when the pages ship; absent ids render as nothing.
-        'lab-notebook',
+        // V3.830 — the block notebook (notebook.html) replaced lab-notebook here
+        'notebook',
         'protocols',
       ],
     },
@@ -120,7 +126,7 @@
       id: 'paper-writing',
       label: 'Paper Writing',
       description: 'Compose papers with the editor, pull annotations from the library, track tasks and PMRs, coordinate via chat.',
-      icon: '📝',
+      icon: 'pencil-square',
       landingPageId: 'paper-builder',
       pageIds: [
         'paper-builder',
@@ -129,14 +135,14 @@
         'tasks',
         'pmr',
         'chat',
-        'lab-notebook',
+        'notebook',
       ],
     },
     {
       id: 'certification-training',
       label: 'Certification & Training',
       description: 'Compliance protocols, chemical safety, training records, and tenure-track milestones.',
-      icon: '🎓',
+      icon: 'academic-cap',
       landingPageId: 'compliance',
       pageIds: [
         'compliance',
@@ -149,7 +155,7 @@
       id: 'task-scheduling',
       label: 'Task Scheduling & Activity Reports',
       description: 'Plan tasks, track activity (tracker / year / email), schedule meetings, share assignments, file PMRs.',
-      icon: '📊',
+      icon: 'chart-bar',
       landingPageId: 'tasks',
       pageIds: [
         'tasks',
@@ -168,7 +174,7 @@
       id: 'meetings',
       label: 'Meetings',
       description: 'Run lab meetings, huddles, and 1:1s with chat, calendar, and task capture wired up.',
-      icon: '🗣️',
+      icon: 'megaphone',
       landingPageId: 'meetings',
       pageIds: [
         'meetings',

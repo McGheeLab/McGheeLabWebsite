@@ -21,7 +21,7 @@
   }
   function todayStr() { return new Date().toISOString().slice(0, 10); }
 
-  /* ── ☀️ My Day (V3.531) ────────────────────────────────────── */
+  /* ── ☀️ My Week (V3.531) ────────────────────────────────────── */
   async function tileMyDay() {
     var u = firebridge.getUser();
     var today = todayStr();
@@ -41,9 +41,9 @@
     if (todayCount) bits.push(todayCount + ' planned today');
     if (unconfirmed) bits.push(unconfirmed + ' awaiting confirmation');
     return {
-      href: '/rm/pages/my-day.html',
-      icon: '☀️',
-      label: 'My Day: ' + bits.join(', '),
+      href: '/rm/pages/my-week.html',
+      icon: 'sun',
+      label: 'My Week: ' + bits.join(', '),
       detail: unconfirmed ? 'Did yesterday’s plans happen? Tap to confirm' : 'Your plan for today',
       urgent: unconfirmed > 0
     };
@@ -70,8 +70,8 @@
     // tile responsible for its own content (same as tileTasks/tileMeeting).
     var title = esc(newest.title || '');
     return {
-      href: '/rm/pages/my-day.html',
-      icon: '🔔',
+      href: '/rm/pages/my-week.html',
+      icon: 'bell',
       label: n === 1 ? (title || '1 new notification') : n + ' new notifications',
       detail: n === 1 ? 'Tap to read' : (title || 'Tap to read'),
       urgent: true
@@ -115,7 +115,7 @@
     var overdue = soon.filter(function (s) { return s.overdue; }).length;
     return {
       href: '/rm/pages/tasks.html',
-      icon: '✅',
+      icon: 'check-circle',
       label: soon.length + ' task' + (soon.length === 1 ? '' : 's') + ' due this week'
         + (overdue ? ' — ' + overdue + ' overdue' : ''),
       detail: esc(soon[0].text) + ' · due ' + esc(soon[0].due),
@@ -133,7 +133,7 @@
     if (!mentions) return null;
     return {
       href: '/rm/pages/chat.html',
-      icon: '💬',
+      icon: 'chat-bubble-left-right',
       label: mentions + ' unread mention' + (mentions === 1 ? '' : 's'),
       detail: 'Someone needs you in chat',
       urgent: false
@@ -143,15 +143,28 @@
   /* ── 📅 next lab meeting ───────────────────────────────────── */
   async function tileMeeting() {
     var today = todayStr();
+    // V3.743 — skip cancelled rows / break weeks; name the presenter(s)
+    // from the uid-keyed map (legacy array tolerated). `m.title`/`m.type`
+    // were never written by any version of the meetings page.
     var snap = await firebridge.db().collection('meetings')
-      .where('date', '>=', today).orderBy('date').limit(1).get();
-    if (snap.empty) return null;
-    var m = snap.docs[0].data();
+      .where('date', '>=', today).orderBy('date').limit(4).get();
+    var m = null;
+    snap.docs.forEach(function (d) {
+      var x = d.data();
+      if (!m && x.status !== 'cancelled' && x.kind !== 'break') m = x;
+    });
+    if (!m) return null;
+    var p = m.presenters;
+    var names = Array.isArray(p) ? p.map(function (x) { return x.name; })
+      : (p && typeof p === 'object') ? Object.keys(p).map(function (uid) { return p[uid].name; }) : [];
+    names = names.filter(Boolean).map(function (n) { return n.split(/\s+/)[0]; });
+    var detail = m.kind === 'flash' ? 'Flash talks — everyone'
+      : names.length ? names.join(' & ') + ' presenting' : 'Lab meeting';
     return {
       href: '/rm/pages/meetings.html',
-      icon: '📅',
+      icon: 'calendar-days',
       label: m.date === today ? 'Lab meeting today' : 'Next meeting ' + esc(m.date),
-      detail: esc(m.title || m.type || 'Lab meeting'),
+      detail: esc(detail + (m.location ? ' · ' + m.location : '')),
       urgent: m.date === today
     };
   }
@@ -180,7 +193,7 @@
     if (pending) bits.push(pending + ' awaiting review');
     return {
       href: '/#/dashboard',
-      icon: '📰',
+      icon: 'newspaper',
       label: 'My stories & news: ' + bits.join(', '),
       detail: changes
         ? 'An admin left you a note — open the site dashboard'
@@ -217,7 +230,7 @@
 
     strip.innerHTML = '<div class="home-feed-strip">' + tiles.map(function (t) {
       return '<a class="home-feed-tile' + (t.urgent ? ' home-feed-urgent' : '') + '" href="' + t.href + '">'
-        + '<span class="home-feed-icon">' + t.icon + '</span>'
+        + '<span class="home-feed-icon">' + ICON.render(t.icon) + '</span>'
         + '<span class="home-feed-main">'
         + '<span class="home-feed-label">' + t.label + '</span>'
         + '<span class="home-feed-detail">' + t.detail + '</span>'

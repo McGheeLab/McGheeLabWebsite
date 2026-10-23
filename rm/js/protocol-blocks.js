@@ -144,7 +144,7 @@
       var invBtn = document.createElement('button');
       invBtn.type = 'button';
       invBtn.className = 'pre-block-btn pre-block-inv';
-      invBtn.textContent = '🧪';
+      ICON.label(invBtn, 'beaker');
       invBtn.title = 'Insert reference to a lab-inventory item';
       invBtn.addEventListener('click', function () {
         window.PROTOCOL_INVENTORY.openPicker({
@@ -237,7 +237,7 @@
     var cheatInp = document.createElement('input');
     cheatInp.type = 'text';
     cheatInp.className = 'pre-step-cheat-input';
-    cheatInp.placeholder = '📋 Cheat-sheet line (optional) — blank auto-uses the first line';
+    cheatInp.placeholder = 'Cheat-sheet line (optional) — blank auto-uses the first line';
     cheatInp.title = 'The bare-minimum, one-line version of this step shown on the printable cheat sheet (?view=cheat).';
     cheatInp.value = attrs.get('cheat') || '';
     cheatInp.disabled = !ctx.canEdit;
@@ -263,10 +263,10 @@
    * are untouched until the user changes the type select, which
    * rewrites the block to kind:'callout'). */
   var CALLOUT_LABELS = [
-    ['critical', '⚠ Critical'],
-    ['note', 'ℹ Note'],
-    ['assume', '⚙ Assumption'],
-    ['timing', '⏱ Timing'],
+    ['critical', 'Critical'],
+    ['note', 'Note'],
+    ['assume', 'Assumption'],
+    ['timing', 'Timing'],
   ];
 
   function calloutTypeOf(yBlock) {
@@ -465,7 +465,7 @@
           var del = document.createElement('button');
           del.type = 'button';
           del.className = 'pre-block-btn';
-          del.textContent = '×';
+          ICON.label(del, 'x-mark');
           del.title = 'Remove chip';
           del.addEventListener('click', function () {
             var c = getChips(); c.splice(i, 1); setChips(c); renderChips();
@@ -560,14 +560,14 @@
             var label = entry
               ? window.PROTOCOL_INVENTORY.formatLabel(entry)
               : (yRow.get('free_text') || itemRef);
-            chip.innerHTML = '🧪 ' + escapeHtml(label) +
+            chip.innerHTML = ICON.svg('test-tube') + ' ' + escapeHtml(label) +
               (entry ? ' ' + window.PROTOCOL_INVENTORY.formatStockChipHtml(entry) : '');
             tdItem.appendChild(chip);
             if (ctx.canEdit) {
               var clearBtn = document.createElement('button');
               clearBtn.type = 'button';
               clearBtn.className = 'pre-block-btn pre-mat-chip-clear';
-              clearBtn.textContent = '×';
+              ICON.label(clearBtn, 'x-mark');
               clearBtn.title = 'Unlink from inventory (free-text mode)';
               clearBtn.addEventListener('click', function () {
                 yRow.set('item_ref', null);
@@ -591,7 +591,7 @@
               var pickBtn = document.createElement('button');
               pickBtn.type = 'button';
               pickBtn.className = 'pre-block-btn pre-mat-pick';
-              pickBtn.textContent = '🧪';
+              ICON.label(pickBtn, 'beaker');
               pickBtn.title = 'Pick from lab inventory';
               pickBtn.addEventListener('click', function () {
                 window.PROTOCOL_INVENTORY.openPicker({
@@ -628,7 +628,7 @@
           var del = document.createElement('button');
           del.type = 'button';
           del.className = 'pre-block-btn';
-          del.textContent = '×';
+          ICON.label(del, 'x-mark');
           del.title = 'Remove row';
           del.addEventListener('click', function () {
             yRows.delete(idx, 1);
@@ -906,7 +906,7 @@
           var del = document.createElement('button');
           del.type = 'button';
           del.className = 'pre-block-btn';
-          del.textContent = '×';
+          ICON.label(del, 'x-mark');
           del.title = 'Remove variable';
           del.addEventListener('click', function () {
             yVars.delete(idx, 1);
@@ -1028,7 +1028,7 @@
       } else if (!sym) {
         preview.innerHTML = '<span class="pre-formula-preview-hint">Output <code>' + escapeHtml(outName) + '</code> not yet computed</span>';
       } else if (sym.error) {
-        preview.innerHTML = '<span class="pre-formula-preview-error">⚠ ' + escapeHtml(sym.error) + '</span>';
+        preview.innerHTML = '<span class="pre-formula-preview-error">' + ICON.svg('exclamation-triangle') + ' ' + escapeHtml(sym.error) + '</span>';
       } else {
         var label = sym.label || outName;
         preview.innerHTML = '→ <strong>' + escapeHtml(label) + '</strong> = <span class="proto-var proto-var-computed">' +
@@ -1136,7 +1136,7 @@
           var delBtn = document.createElement('button');
           delBtn.type = 'button';
           delBtn.className = 'pre-block-btn';
-          delBtn.textContent = '×';
+          ICON.label(delBtn, 'x-mark');
           delBtn.title = 'Remove column';
           delBtn.addEventListener('click', function () {
             if (!confirm('Remove this column (and its cell data)?')) return;
@@ -1192,7 +1192,7 @@
           var del = document.createElement('button');
           del.type = 'button';
           del.className = 'pre-block-btn';
-          del.textContent = '×';
+          ICON.label(del, 'x-mark');
           del.title = 'Remove row';
           del.addEventListener('click', function () {
             var rr = rows(); rr.splice(ri, 1); save(null, rr); renderGrid();
@@ -1283,7 +1283,7 @@
           var del = document.createElement('button');
           del.type = 'button';
           del.className = 'pre-block-btn';
-          del.textContent = '×';
+          ICON.label(del, 'x-mark');
           del.addEventListener('click', function () {
             var it = items(); it.splice(i, 1); save(it); renderItems();
           });
@@ -1377,7 +1377,7 @@
           var del = document.createElement('button');
           del.type = 'button';
           del.className = 'pre-block-btn';
-          del.textContent = '×';
+          ICON.label(del, 'x-mark');
           del.addEventListener('click', function () {
             var m = marks(); m.splice(i, 1); save(m); renderMarks();
           });
@@ -1501,7 +1501,7 @@
           var del = document.createElement('button');
           del.type = 'button';
           del.className = 'pre-block-btn';
-          del.textContent = '×';
+          ICON.label(del, 'x-mark');
           del.addEventListener('click', function () {
             var it = items(); it.splice(i, 1); save(it); renderRows();
           });
@@ -1562,7 +1562,7 @@
 
     var tag = document.createElement('div');
     tag.className = 'pre-docheader-tag';
-    tag.textContent = '🧮 Calculator';
+    ICON.label(tag, 'variable', ' Calculator');
     root.appendChild(tag);
     root.appendChild(textAttr('label', 'Label', 'Condition calculator'));
     root.appendChild(textAttr('description', 'Description', 'What this computes'));
@@ -1692,7 +1692,7 @@
           var del = document.createElement('button');
           del.type = 'button';
           del.className = 'pre-block-btn';
-          del.textContent = '×';
+          ICON.label(del, 'x-mark');
           del.addEventListener('click', function () {
             var tt = getTable(); tt.columns.splice(i, 1); saveTable(tt); renderTableCols();
           });
@@ -1733,13 +1733,13 @@
       var st = (window.ProtocolFormulas && window.ProtocolFormulas.getSymbolTable()) || {};
       var outs = _plainArray(attrs, 'outputs').filter(function (o) { return o && o.name; });
       if (!outs.length) {
-        preview.innerHTML = '<span class="pre-formula-preview-hint">Add outputs to see computed values (sliders render in 📄 Doc view)</span>';
+        preview.innerHTML = '<span class="pre-formula-preview-hint">Add outputs to see computed values (sliders render in ' + ICON.svg('document-text') + ' Doc view)</span>';
         return;
       }
       preview.innerHTML = outs.map(function (o) {
         var sym = st[o.name];
         var val = sym
-          ? (sym.error ? '⚠ ' + escapeHtml(sym.error)
+          ? (sym.error ? ICON.svg('exclamation-triangle') + ' ' + escapeHtml(sym.error)
                        : escapeHtml(window.ProtocolFormulas.formatSymbolValue(sym)))
           : '?';
         return '→ <strong>' + escapeHtml(o.label || o.name) + '</strong> = ' +
@@ -1804,7 +1804,7 @@
 
     var tag = document.createElement('div');
     tag.className = 'pre-docheader-tag';
-    tag.textContent = '🧩 Builder → dataset';
+    ICON.label(tag, 'puzzle-piece', ' Builder → dataset');
     root.appendChild(tag);
 
     root.appendChild(_attrTextField(attrs, ctx, 'label', 'Label', 'Condition builder'));
@@ -1888,7 +1888,7 @@
 
     var hint = document.createElement('div');
     hint.className = 'pre-formula-hint';
-    hint.innerHTML = 'Users assemble combinations in the <strong>📄 Doc view</strong>; assembled rows register as the named dataset for calculator tables and layout maps.';
+    hint.innerHTML = 'Users assemble combinations in the <strong>' + ICON.svg('document-text') + ' Doc view</strong>; assembled rows register as the named dataset for calculator tables and layout maps.';
     root.appendChild(hint);
 
     root.appendChild(renderControls(yBlock, ctx));
@@ -1905,7 +1905,7 @@
 
     var tag = document.createElement('div');
     tag.className = 'pre-docheader-tag';
-    tag.textContent = '🗺 Layout map';
+    ICON.label(tag, 'map', ' Layout map');
     root.appendChild(tag);
 
     root.appendChild(_attrTextField(attrs, ctx, 'label', 'Label', 'Plate map'));
@@ -1919,7 +1919,7 @@
 
     var hint = document.createElement('div');
     hint.className = 'pre-formula-hint';
-    hint.innerHTML = 'Renders the dataset as a grid in the <strong>📄 Doc view</strong> — one cell per row, spare wells auto-filled.';
+    hint.innerHTML = 'Renders the dataset as a grid in the <strong>' + ICON.svg('document-text') + ' Doc view</strong> — one cell per row, spare wells auto-filled.';
     root.appendChild(hint);
 
     root.appendChild(renderControls(yBlock, ctx));
@@ -1939,7 +1939,7 @@
 
     var tag = document.createElement('div');
     tag.className = 'pre-docheader-tag';
-    tag.textContent = '🕸 Design (node graph)';
+    ICON.label(tag, 'waypoints', ' Design (node graph)');
     root.appendChild(tag);
 
     var labelWrap = _attrTextField(attrs, ctx, 'label', 'Label', 'Design');

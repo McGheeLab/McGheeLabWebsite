@@ -26,7 +26,7 @@
 
   const NAV_MAP = {
     activity: {
-      label: 'Activity', icon: '📈',
+      label: 'Activity', icon: 'arrow-trending-up',
       desc: 'Where you log and review your day-to-day research output.',
       pages: [
         { href: '/rm/pages/activity-overview.html', name: 'Overview', desc: 'Roll-up of recent activity across the lab.' },
@@ -41,13 +41,13 @@
       ],
     },
     research: {
-      label: 'Research', icon: '🔬',
+      label: 'Research', icon: 'microscope',
       desc: 'The pages you use while doing science — papers, projects, notebook, protocols.',
       pages: [
         { href: '/rm/pages/projects.html', name: 'Projects', desc: 'The lab\'s research projects, status pills, leads.' },
         { href: '/rm/pages/library.html', name: 'Library', desc: 'Paper reading + annotation + threaded comments.' },
         { href: '/rm/pages/library.html?tab=comments', name: 'Library Comments', desc: 'All comments across all papers.' },
-        { href: '/rm/pages/lab-notebook.html', name: 'Lab Notebook', desc: 'Daily entries with image attachments + PMR figure-flagging.' },
+        { href: '/rm/pages/notebook.html', name: 'Lab Notebook', desc: 'A canvas per entry: pen, voice, and cards — notes, calculators, protocols, inventory, figures, paper quotes.' },
         { href: '/rm/pages/protocols.html', name: 'Protocols', desc: 'Live protocols with formula-block calculators.' },
         { href: '/rm/pages/paper-builder.html', name: 'Papers', desc: 'Real-time collaborative paper editor with citation drop.' },
         { href: '/rm/pages/teaching.html', name: 'Teaching', desc: 'Courses + lab classes you\'re leading.' },
@@ -55,7 +55,7 @@
       ],
     },
     training: {
-      label: 'Training', icon: '🎓',
+      label: 'Training', icon: 'academic-cap',
       desc: 'This library. Lab-internal learning material — the page you\'re reading right now lives here.',
       pages: [
         { href: '/rm/pages/training.html', name: 'Overview', desc: 'The training landing grid you came from.' },
@@ -67,7 +67,7 @@
       ],
     },
     operations: {
-      label: 'Operations', icon: '🗓️',
+      label: 'Operations', icon: 'calendar-days',
       desc: 'Coordination surfaces — meetings, chat, scheduling, equipment.',
       pages: [
         { href: '/rm/pages/chat.html', name: 'Chat', desc: 'Async lab-internal messaging.' },
@@ -78,7 +78,7 @@
       ],
     },
     admin: {
-      label: 'Lab Admin', icon: '📋',
+      label: 'Lab Admin', icon: 'clipboard-document-list',
       desc: 'Admin-gated surfaces — mostly Alex + senior members. Visible only if your role allows.',
       pages: [
         { href: '/rm/pages/compliance.html', name: 'Compliance', desc: 'IRB / IACUC / student-training submissions.' },
@@ -94,7 +94,7 @@
       ],
     },
     settings: {
-      label: 'Settings', icon: '⚙️',
+      label: 'Settings', icon: 'cog-6-tooth',
       desc: 'Your profile, your preferences, and your CV.',
       pages: [
         { href: '/rm/pages/profile.html', name: 'Profile', desc: 'Display name, photo, pronouns, shareActivity flag.' },
@@ -117,7 +117,7 @@
       card.className = 'nav-map-card' + (key === activeNavGroup ? ' is-active' : '');
       card.dataset.group = key;
       card.innerHTML =
-        '<div class="icon">' + g.icon + '</div>' +
+        '<div class="icon">' + ICON.render(g.icon) + '</div>' +
         '<div class="name">' + escapeHtml(g.label) + '</div>' +
         '<div class="count">' + g.pages.length + ' page' + (g.pages.length === 1 ? '' : 's') + '</div>';
       card.addEventListener('click', () => {
@@ -134,7 +134,7 @@
     if (!detail) return;
     const g = NAV_MAP[activeNavGroup];
     if (!g) { detail.innerHTML = '<h3>Loading…</h3>'; return; }
-    let html = '<h3>' + g.icon + '&nbsp; ' + escapeHtml(g.label) + '</h3>';
+    let html = '<h3>' + ICON.render(g.icon) + '&nbsp; ' + escapeHtml(g.label) + '</h3>';
     html += '<p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">' + escapeHtml(g.desc) + '</p>';
     html += '<ul>';
     g.pages.forEach(p => {
@@ -214,9 +214,8 @@
       const done = (checked === total);
       bar.classList.toggle('is-done', done);
       progress.classList.toggle('is-done', done);
-      progress.textContent = done
-        ? '✅ Power-user toolkit adopted — start V3.178 (daily research workflow) next.'
-        : checked + ' of ' + total + ' adopted';
+      if (done) ICON.label(progress, 'check-circle', ' Power-user toolkit adopted — start V3.178 (daily research workflow) next.');
+      else progress.textContent = checked + ' of ' + total + ' adopted';
     }
     checkboxes.forEach(box => box.addEventListener('change', refresh));
     refresh();

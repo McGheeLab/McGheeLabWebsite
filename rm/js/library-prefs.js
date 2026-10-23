@@ -29,6 +29,8 @@
       search: true,        // hides #library-search via body.lib-hide-search
       stars: true,         // hides .lib-col-star via body.lib-hide-stars
       tags: true,          // hides #library-tag-strip via _renderTagStrip
+      shelf_readings: true, // V3.827 — 📥 assigned / 💡 suggested / ✓ read shelves
+      shelf_recent: true,  // V3.826 — 🆕 recently-added shelf section
       shelf_reader: true,  // V3.363 — 📖 open-in-reader shelf section
       shelf_pinned: true,  // V3.363 — 📌 pinned-papers shelf section
       shelf_groups: true,  // V3.363 — 📁 groups shelf section

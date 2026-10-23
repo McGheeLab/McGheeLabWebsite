@@ -1191,7 +1191,7 @@ function cxBuildGhost(spec) {
   }
   const modeHint = spec.kind === 'tree-node' ? '<span class="cx-drag-ghost-mode"></span>' : '';
   g.innerHTML =
-    `<span class="cx-drag-ghost-icon">${count > 1 ? '📦' : '•'}</span>` +
+    `<span class="cx-drag-ghost-icon">${count > 1 ? ICON.svg('cube') : '•'}</span>` +
     `<span class="cx-drag-ghost-count"><strong>${count}</strong> ${escapeHtml(label)}</span>` +
     modeHint;
   return g;
@@ -1432,7 +1432,10 @@ function renderCxTreeNode(node) {
   chev.type = 'button';
   chev.className = 'cx-tree-chev';
   const hasAny = hasChildren || hasOwnItems;
-  chev.textContent = hasAny ? (expanded ? '▾' : '▸') : '·';
+  /* '·' is a deliberate non-icon (see icons.manifest keep{}), so this is a
+     mixed icon/text node, not a plain label. */
+  if (hasAny) ICON.label(chev, expanded ? 'chevron-down' : 'chevron-right');
+  else chev.textContent = '·';
   chev.disabled = !hasAny;
   chev.addEventListener('click', (ev) => {
     ev.stopPropagation();
@@ -1507,7 +1510,7 @@ function renderCxTreeNode(node) {
     pinBtn.type = 'button';
     const isPinned = CX.split.pinnedBucketKey === key;
     pinBtn.className = 'cx-tree-pin' + (isPinned ? ' pinned' : '');
-    pinBtn.textContent = isPinned ? '📌' : '📍';
+    ICON.label(pinBtn, isPinned ? 'pin' : 'map-pin');
     pinBtn.title = isPinned
       ? 'Unpin (remove as drop target)'
       : 'Pin this bucket as the drop target — drag items from anywhere to land here';
@@ -2357,7 +2360,7 @@ function renderCxBulkbar() {
   const hint = document.createElement('span');
   hint.style.cssText = 'font-size:11.5px;color:#1e3a8a;opacity:.85;margin-left:10px';
   if (pinned) hint.textContent = `— pinned target: ${pinned.category}:${pinned.sub_category || '(none)'}`;
-  else if (itemN > 0) hint.textContent = '— drag onto a bucket or L1 pill, or pin a target 📍';
+  else if (itemN > 0) { hint.textContent = '— drag onto a bucket or L1 pill, or pin a target '; hint.appendChild(ICON.el('map-pin')); }
   else if (bucketN > 0) hint.textContent = '— drag any selected row onto an L1 pill to reparent';
   host.appendChild(hint);
 
@@ -3486,7 +3489,7 @@ function renderCxItemRow(it, srcBucket) {
   const chev = document.createElement('button');
   chev.type = 'button';
   chev.className = 'cx-item-chev';
-  chev.textContent = isExpanded ? '▾' : '▸';
+  ICON.label(chev, isExpanded ? 'chevron-down' : 'chevron-right');
   chev.title = isExpanded ? 'Collapse details' : 'Show details';
   chev.addEventListener('click', (ev) => {
     ev.stopPropagation();

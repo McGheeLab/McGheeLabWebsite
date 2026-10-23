@@ -3,55 +3,708 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Lesson 1: Welcome — BME 295C</title>
+  <meta name="robots" content="noindex" />
+  <title>Summer 2026 Lectures &amp; Recordings — BME 295C</title>
 
   <link rel="stylesheet" href="../shared/module-header.css" />
 
   <style>
+    /* V3.793/V3.796 — BME 295C Summer 2026: every lecture, its recording, and
+       the Summer 2027 WAITLIST at the top. Data comes from two places:
+       content.json beside this file (speakers, abstracts, schedule, discussion
+       prompts) and the class doc schedules/bme295c in Firestore (speakerVideos
+       — the unlisted YouTube links the admin pastes on the class dashboard).
+       The waitlist is courseWaitlist/{course}_{uid}: a student signs in with
+       Google so the email on the list is their own; one entry per student.
+       Palette + variables come from module-header.css. */
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      font-size: 15px;
+      font-size: 16px;
       line-height: 1.6;
-      color: #eef2f7;
-      background: #0b0e14;
+      color: var(--text);
+      background: var(--bg);
       -webkit-font-smoothing: antialiased;
     }
-    .lesson-content {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem;
+    a { color: var(--accent); }
+    .lesson { max-width: 960px; margin: 0 auto; padding: 1.5rem 16px 4rem; }
+    .hero { padding: 1rem 0 1.5rem; }
+    .kicker { margin: 0 0 .4rem; color: var(--muted); font-size: .85rem; letter-spacing: .04em; text-transform: uppercase; }
+    .hero h1 { margin: 0 0 .6rem; font-size: clamp(1.6rem, 4vw, 2.3rem); line-height: 1.2; }
+    .lede { margin: 0; color: #c9d2e0; font-size: 1.05rem; max-width: 62ch; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin: 0 0 1.25rem;
     }
-    .lesson-content h2 { color: #5baed1; margin-top: 2rem; }
-    .lesson-content h2:first-child { margin-top: 0; }
-    .lesson-content p { margin: 1rem 0; }
-    .lesson-content img { max-width: 100%; border-radius: 8px; }
-    .lesson-content a { color: #5baed1; }
-    .lesson-content ul, .lesson-content ol { padding-left: 1.5rem; }
-    .lesson-content li { margin: .5rem 0; }
+    h2 { margin: 0 0 .5rem; font-size: 1.35rem; color: var(--text); }
+    h3 { margin: 0; font-size: 1.1rem; line-height: 1.35; }
+    .muted { color: var(--muted); }
+    .small { font-size: .9rem; }
+    .pill {
+      display: inline-block; padding: .15rem .6rem; border-radius: 999px;
+      font-size: .75rem; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+      background: rgba(91,174,209,.15); color: var(--accent); border: 1px solid rgba(91,174,209,.35);
+    }
+    [hidden] { display: none !important; }
+
+    /* ── Waitlist card ─────────────────────────────────────── */
+    .interest { border-color: rgba(91,174,209,.45); background: linear-gradient(180deg, rgba(91,174,209,.10), rgba(91,174,209,.02)), var(--surface); }
+    .interest h2 { margin-top: .5rem; }
+    .interest .interest-lede { margin: .25rem 0 1rem; color: #c9d2e0; }
+    .interest-form label { display: block; font-size: .9rem; color: #c9d2e0; }
+    .interest-form input[type=text], .interest-form input[type=email], .interest-form select, .interest-form textarea {
+      display: block; width: 100%; margin-top: .3rem; padding: .6rem .7rem;
+      font: inherit; font-size: 1rem; color: var(--text);
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    }
+    .interest-form input[readonly] { color: var(--muted); background: rgba(255,255,255,.03); cursor: default; }
+    .interest-form input:focus, .interest-form select:focus, .interest-form textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+    .interest-form .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; margin-bottom: .9rem; }
+    .interest-form .row1 { margin-bottom: .9rem; }
+    .interest-form fieldset { border: 0; padding: 0; margin: 0; }
+    .interest-form legend { padding: 0; font-size: .9rem; color: #c9d2e0; margin-bottom: .45rem; }
+    .campus-opts { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .campus-opts label {
+      display: inline-flex; align-items: center; gap: .4rem; padding: .5rem .75rem;
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+    }
+    .campus-opts label:has(input:checked) { border-color: var(--accent); color: var(--accent); }
+    .campus-opts input { margin: 0; }
+    .err { display: none; margin-top: .3rem; font-size: .85rem; color: #f2a5a5; }
+    .err.show { display: block; }
+    .is-invalid { border-color: #e06c6c !important; }
+    .actions { display: flex; align-items: center; gap: .9rem; flex-wrap: wrap; margin-top: .25rem; }
+    .btn-primary {
+      font: inherit; font-weight: 600; padding: .65rem 1.2rem; border-radius: 8px; cursor: pointer;
+      background: var(--accent); color: #0b0e14; border: 0;
+    }
+    .btn-primary:hover { background: var(--accent2); }
+    .btn-primary[disabled], .btn-ghost[disabled] { opacity: .6; cursor: default; }
+    .btn-ghost {
+      font: inherit; padding: .45rem .8rem; border-radius: 8px; cursor: pointer;
+      background: transparent; color: var(--accent); border: 1px solid rgba(91,174,209,.45);
+    }
+    .btn-ghost.is-armed { color: #f2a5a5; border-color: #f2a5a5; }
+    .linkish { font: inherit; font-size: inherit; padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer; text-decoration: underline; }
+    .status { font-size: .9rem; color: var(--muted); }
+    .status.error { color: #f2a5a5; }
+    .fine { margin: .9rem 0 0; font-size: .8rem; color: var(--muted); }
+    .fine.tight { margin-top: .3rem; }
+    .wl-done h3 { font-size: 1.15rem; margin-bottom: .25rem; }
+    .wl-done p { margin: .25rem 0 .75rem; color: #c9d2e0; }
+    .wl-signin-icon { width: 18px; height: 18px; vertical-align: -3px; margin-right: .4rem; }
+
+    /* ── Week at a glance ───────────────────────────────────── */
+    .week-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .75rem; margin-top: .75rem; }
+    .day { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: .75rem; min-width: 0; }
+    .day-name { font-weight: 700; }
+    .day-date { color: var(--muted); font-size: .85rem; margin-bottom: .5rem; }
+    .day ul { list-style: none; margin: 0; padding: 0; }
+    .day li { margin: 0 0 .5rem; font-size: .88rem; line-height: 1.4; }
+    .day .t { display: block; color: var(--muted); font-size: .78rem; }
+    .day .tour { color: var(--muted); font-size: .8rem; border-top: 1px dashed var(--border); padding-top: .4rem; margin-top: .4rem; }
+    .day a { text-decoration: none; }
+    .day a:hover { text-decoration: underline; }
+
+    /* ── Lecture cards ──────────────────────────────────────── */
+    .lectures-intro { margin: 0 0 1rem; color: #c9d2e0; }
+    .talk { scroll-margin-top: 80px; }
+    .talk-when { color: var(--muted); font-size: .85rem; margin-bottom: .6rem; display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+    .talk-when .pill { text-transform: none; letter-spacing: 0; }
+    .talk-head { display: grid; grid-template-columns: 72px 1fr; gap: .9rem; align-items: start; margin-bottom: .9rem; }
+    .talk-head img { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: var(--surface2); border: 1px solid var(--border); }
+    .who { margin: .25rem 0 0; color: var(--muted); font-size: .9rem; }
+    .video { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000; }
+    .video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    .yt-poster { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; padding: 0; cursor: pointer; background: #000; }
+    .yt-poster img { width: 100%; height: 100%; object-fit: cover; opacity: .85; transition: opacity .2s; display: block; }
+    .yt-poster:hover img { opacity: 1; }
+    .yt-play {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      width: 68px; height: 48px; border-radius: 12px; background: rgba(0,0,0,.7);
+      display: flex; align-items: center; justify-content: center; pointer-events: none;
+    }
+    .yt-poster:hover .yt-play { background: var(--accent); }
+    .yt-play svg { width: 26px; height: 26px; fill: #fff; margin-left: 3px; }
+    .yt-label { position: absolute; left: 0; right: 0; bottom: 0; padding: .5rem .75rem; background: linear-gradient(transparent, rgba(0,0,0,.75)); color: #fff; font-size: .85rem; text-align: left; }
+    .video-missing {
+      display: flex; align-items: center; justify-content: center; text-align: center; padding: 1rem;
+      color: var(--muted); font-size: .9rem; background: var(--surface2); border: 1px dashed var(--border); border-radius: 10px;
+      aspect-ratio: auto; min-height: 72px;
+    }
+    .video-links { margin: .5rem 0 0; font-size: .85rem; color: var(--muted); }
+    .video-links a { margin-right: 1rem; }
+    details { margin-top: .75rem; border-top: 1px solid var(--border); padding-top: .6rem; }
+    summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: .95rem; }
+    summary::-webkit-details-marker { color: var(--accent); }
+    details p { margin: .6rem 0 0; color: #c9d2e0; }
+    .prompts { margin: .6rem 0 0; padding-left: 1.2rem; }
+    .prompts > li { margin: 0 0 .7rem; color: #c9d2e0; }
+    .prompts ul { margin: .3rem 0 0; padding-left: 1.1rem; color: var(--muted); font-size: .9rem; }
+    .prompts ul li { margin: .2rem 0; }
+
+    /* ── Course info ────────────────────────────────────────── */
+    .course-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: .75rem; }
+    .course-grid h3 { font-size: .95rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .4rem; }
+    .course-grid ul { margin: 0; padding-left: 1.1rem; }
+    .course-grid li { margin: .25rem 0; }
+    .people { list-style: none; padding: 0 !important; }
+    .people li { margin: 0 0 .55rem !important; }
+    .people .role { display: block; color: var(--muted); font-size: .85rem; }
+    footer.fine-print { color: var(--muted); font-size: .85rem; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+    .loading { color: var(--muted); padding: 1rem 0; }
+    .notice { color: #f2c98a; font-size: .9rem; margin: 0 0 1rem; }
+
+    @media (max-width: 760px) {
+      .week-grid { grid-template-columns: 1fr; }
+      .interest-form .row2, .course-grid { grid-template-columns: 1fr; }
+      .card { padding: 1rem; }
+    }
   </style>
 
   <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
   <script defer src="../../firebase-config.js"></script>
   <script defer src="../shared/module-header.js"></script>
 </head>
 <body>
-  <header id="module-header"></header>
+  <header id="module-header" data-class="bme295c"></header>
 
-  <main class="lesson-content">
-    <h2>Welcome to BME 295C</h2>
-    <p>This is a sample learning module for the BME 295C Research Seminar Series. It demonstrates the module header with automatic navigation.</p>
+  <main class="lesson">
+    <section class="hero">
+      <p class="kicker">BME 295C · Challenges in Biomedical Engineering · Summer 2026</p>
+      <h1>Every lecture from this summer, in one place</h1>
+      <p class="lede">Ten talks by University of Arizona faculty, June 8–12, 2026, on the Tucson and Phoenix
+        campuses. Watch the recordings, read what each talk was about, and revisit the discussion questions.</p>
+    </section>
 
-    <h2>What You'll Learn</h2>
-    <ul>
-      <li>How to navigate between learning modules</li>
-      <li>How the module header connects to the class page</li>
-      <li>How homework links are integrated into the navigation</li>
-    </ul>
+    <!-- Summer 2027 waitlist — kept at the top on purpose -->
+    <section class="card interest" id="interest" aria-labelledby="interest-title">
+      <span class="pill">Summer 2027</span>
+      <h2 id="interest-title">Want to take BME 295C next summer?</h2>
+      <p class="interest-lede">Join the waitlist and we'll email you when applications for Summer 2027 open. It isn't an
+        application and it doesn't commit you to anything.</p>
 
-    <h2>Getting Started</h2>
-    <p>Use the header above to navigate between lessons, return to the class page, or access homework assignments.</p>
+      <div id="wl-loading" class="status" aria-live="polite">Checking whether you're signed in…</div>
+
+      <div id="wl-signedout" hidden>
+        <p class="muted small" style="margin:0 0 .75rem">You'll sign in with your own Google account, so the email on the
+          list is really yours — that's the address we'll write to.</p>
+        <div class="actions">
+          <button type="button" class="btn-primary" id="wl-signin">
+            <svg class="wl-signin-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z"/><path fill="currentColor" d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z"/><path fill="currentColor" d="M6.4 13.9A6 6 0 0 1 6.1 12c0-.7.1-1.3.3-1.9V7.5H3.1a10 10 0 0 0 0 9z"/><path fill="currentColor" d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.5l3.3 2.6C7.2 7.8 9.4 6 12 6z"/></svg>
+            Sign in with Google to join the waitlist</button>
+          <span class="status" id="wl-signin-status" role="status"></span>
+        </div>
+        <p class="fine">We'll use your email only to tell you about BME 295C.
+          Questions? <a id="interest-contact" href="mailto:dwilson@arizona.edu">dwilson@arizona.edu</a></p>
+      </div>
+
+      <form id="wl-form" class="interest-form" hidden novalidate>
+        <div class="row2">
+          <label>Your name
+            <input type="text" name="name" autocomplete="name" maxlength="120" required />
+            <span class="err" data-err="name"></span>
+          </label>
+          <label>Email <span class="muted">(from your Google account)</span>
+            <input type="email" name="email" readonly tabindex="-1" />
+            <span class="fine tight">Not you? <button type="button" class="linkish" id="wl-switch">Switch account</button></span>
+          </label>
+        </div>
+        <div class="row2">
+          <label>High-school graduation year
+            <select name="gradYear" required>
+              <option value="">Choose…</option>
+              <option value="2027">2027</option>
+              <option value="2028">2028</option>
+              <option value="2029">2029</option>
+              <option value="2030">2030</option>
+              <option value="other">Other / not in high school</option>
+            </select>
+            <span class="err" data-err="gradYear"></span>
+          </label>
+          <fieldset>
+            <legend>Which campus is closer to you?</legend>
+            <div class="campus-opts">
+              <label><input type="radio" name="campus" value="tucson" /> Tucson</label>
+              <label><input type="radio" name="campus" value="phoenix" /> Phoenix</label>
+              <label><input type="radio" name="campus" value="either" checked /> Either</label>
+            </div>
+          </fieldset>
+        </div>
+        <div class="row1">
+          <label>Anything you'd like us to know? <span class="muted">(optional)</span>
+            <textarea name="note" rows="2" maxlength="1000"
+              placeholder="A topic you'd love to see, a question, or how you heard about the course"></textarea>
+          </label>
+        </div>
+        <div class="actions">
+          <button type="submit" class="btn-primary" id="wl-submit">Join the waitlist</button>
+          <button type="button" class="btn-ghost" id="wl-cancel" hidden>Cancel</button>
+          <span class="status" id="wl-status" role="status"></span>
+        </div>
+        <p class="fine">We'll use your email only to tell you about BME 295C.
+          Questions? <a class="wl-contact" href="mailto:dwilson@arizona.edu">dwilson@arizona.edu</a></p>
+      </form>
+
+      <div class="wl-done" id="wl-done" hidden>
+        <h3>You're on the waitlist</h3>
+        <p id="wl-done-text"></p>
+        <div class="actions">
+          <button type="button" class="btn-ghost" id="wl-edit">Update my details</button>
+          <button type="button" class="btn-ghost" id="wl-leave">Leave the waitlist</button>
+          <span class="status" id="wl-done-status" role="status"></span>
+        </div>
+        <p class="fine">Signed in as <span id="wl-done-email"></span> · <button type="button" class="linkish" id="wl-signout">Sign out</button></p>
+      </div>
+    </section>
+
+    <section class="card" id="week">
+      <h2>The week at a glance</h2>
+      <p class="muted" style="margin:0">Two talks each morning with a review and discussion after each, then an optional
+        lab tour at 11:30. Tap a talk to jump to its recording.</p>
+      <div class="week-grid" id="week-grid"><p class="loading">Loading the schedule…</p></div>
+    </section>
+
+    <section id="lectures">
+      <h2>The lectures</h2>
+      <p class="lectures-intro">In the order they happened. Each card has the recording, a short summary of the talk,
+        and the questions we discussed afterwards.</p>
+      <p class="notice" id="video-notice" hidden></p>
+      <div id="talks"><p class="loading">Loading the lectures…</p></div>
+    </section>
+
+    <section class="card" id="course">
+      <h2>About the course</h2>
+      <p id="course-desc" class="muted" style="margin:0"></p>
+      <div class="course-grid" id="course-grid"></div>
+    </section>
+
+    <footer class="fine-print" id="fine-print"></footer>
   </main>
+
+  <script>
+  (function () {
+    'use strict';
+    const CLASS_ID = 'bme295c';
+    const WAITLIST_COURSE = 'bme295c';
+    const $ = (sel, root) => (root || document).querySelector(sel);
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    /* Same parser the class dashboard uses (class-builder.js bmeYoutubeIdFrom):
+       youtu.be/ID, watch?v=ID, /embed/ID, /v/ID, /shorts/ID, or a bare id. */
+    function ytId(input) {
+      if (!input) return null;
+      const s = String(input).trim();
+      const m = s.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([\w-]{11})/) || s.match(/^([\w-]{11})$/);
+      return m ? m[1] : null;
+    }
+
+    /* firebase-config.js runs as a deferred script before DOMContentLoaded, but
+       be patient in case it is slow: poll for McgheeLab.db for up to 3 s. */
+    function waitForDb(ms) {
+      return new Promise(resolve => {
+        const t0 = Date.now();
+        (function tick() {
+          const db = window.McgheeLab && window.McgheeLab.db;
+          if (db) return resolve(db);
+          if (Date.now() - t0 > ms) return resolve(null);
+          setTimeout(tick, 100);
+        })();
+      });
+    }
+
+    async function loadContent() {
+      const res = await fetch('content.json', { cache: 'no-cache' });
+      if (!res.ok) throw new Error('content.json ' + res.status);
+      return res.json();
+    }
+
+    async function loadVideos() {
+      const db = await waitForDb(3000);
+      if (!db) return { videos: {}, error: 'no-db' };
+      try {
+        const doc = await db.collection('schedules').doc(CLASS_ID).get();
+        return { videos: (doc.exists && doc.data().speakerVideos) || {}, error: null };
+      } catch (e) {
+        console.warn('[BME295C lectures] speakerVideos read failed', e);
+        return { videos: {}, error: e.message || String(e) };
+      }
+    }
+
+    /* Talks in the order they happened: walk the schedule's sessions. */
+    function talksInOrder(content) {
+      const bySlug = new Map((content.speakers || []).map(s => [s.slug, s]));
+      const out = [];
+      (content.schedule || []).forEach((day, di) => {
+        (day.sessions || []).forEach(s => {
+          if (s.type === 'talk' && bySlug.has(s.speakerSlug)) out.push({ dayIndex: di, day, session: s, speaker: bySlug.get(s.speakerSlug) });
+        });
+      });
+      return out;
+    }
+
+    function thumbOf(speaker) {
+      const photo = speaker.photo || '';
+      const base = photo.split('/').pop().replace(/\.[a-z0-9]+$/i, '');
+      return base ? 'speaker-photos/thumbs/' + base + '.webp' : '';
+    }
+
+    function shortName(name) { return String(name || '').split(',')[0].trim(); }
+
+    /* ── Week at a glance ── */
+    function renderWeek(content) {
+      const grid = $('#week-grid');
+      const bySlug = new Map((content.speakers || []).map(s => [s.slug, s]));
+      grid.innerHTML = (content.schedule || []).map((day, di) => {
+        const talks = (day.sessions || []).filter(s => s.type === 'talk');
+        const tours = (day.sessions || []).filter(s => s.type === 'tour');
+        return `
+          <div class="day">
+            <div class="day-name">Day ${di + 1} · ${esc(day.day)}</div>
+            <div class="day-date">${esc(day.date)}</div>
+            <ul>
+              ${talks.map(s => {
+                const sp = bySlug.get(s.speakerSlug);
+                const who = sp ? shortName(sp.name) : '';
+                return `<li><a href="#talk-${esc(s.speakerSlug)}">${esc(s.topic)}</a><span class="t">${esc(s.time)} · ${esc(who)}${s.campus ? ' · ' + esc(s.campus) : ''}</span></li>`;
+              }).join('')}
+            </ul>
+            ${tours.length ? `<div class="tour">Lab tours: ${tours.map(t => esc(t.topic) + (t.campus ? ' (' + esc(t.campus.replace('UA ', '')) + ')' : '')).join(' · ')}</div>` : ''}
+          </div>`;
+      }).join('');
+    }
+
+    /* ── Lecture cards ── */
+    function videoBlockHTML(id, title) {
+      if (!id) {
+        return `<div class="video video-missing" data-missing>Recording not available for this talk.</div>`;
+      }
+      return `
+        <div class="video" data-video="${esc(id)}">
+          <button type="button" class="yt-poster" data-yt="${esc(id)}" aria-label="Play the recording: ${esc(title)}">
+            <img src="https://i.ytimg.com/vi/${esc(id)}/hqdefault.jpg" alt="" loading="lazy" />
+            <span class="yt-play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span>
+            <span class="yt-label">Play the recording</span>
+          </button>
+        </div>
+        <p class="video-links"><a href="https://www.youtube.com/watch?v=${esc(id)}" target="_blank" rel="noopener">Open on YouTube ↗</a></p>`;
+    }
+
+    function promptsHTML(prompts) {
+      if (!Array.isArray(prompts) || !prompts.length) return '';
+      return `
+        <details>
+          <summary>Discussion questions</summary>
+          <ol class="prompts">
+            ${prompts.map(p => `
+              <li>${esc(p.prompt)}
+                ${Array.isArray(p.followups) && p.followups.length ? `<ul>${p.followups.map(f => `<li>${esc(f)}</li>`).join('')}</ul>` : ''}
+              </li>`).join('')}
+          </ol>
+        </details>`;
+    }
+
+    function talkCardHTML(t, videos, discussion) {
+      const sp = t.speaker;
+      const id = ytId(videos[sp.slug]);
+      const talkTitle = sp.talkTitle && sp.talkTitle !== 'TBD' ? sp.talkTitle : t.session.topic;
+      const abstract = sp.abstract && sp.abstract.trim() && sp.abstract.trim() !== 'TBD' ? sp.abstract : '';
+      const thumb = thumbOf(sp);
+      return `
+        <article class="card talk" id="talk-${esc(sp.slug)}" data-slug="${esc(sp.slug)}">
+          <div class="talk-when">
+            <span class="pill">Day ${t.dayIndex + 1}</span>
+            <span>${esc(t.day.day)}, ${esc(t.day.date)} · ${esc(t.session.time)}${t.session.campus ? ' · ' + esc(t.session.campus) : ''}</span>
+          </div>
+          <div class="talk-head">
+            ${thumb ? `<img src="${esc(thumb)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${esc(sp.photo)}'" />` : '<span></span>'}
+            <div>
+              <h3>${esc(talkTitle)}</h3>
+              <p class="who">${esc(sp.name)}${sp.title ? ' · ' + esc(sp.title) : ''}</p>
+            </div>
+          </div>
+          ${videoBlockHTML(id, talkTitle)}
+          ${abstract ? `<details><summary>About this talk</summary><p>${esc(abstract)}</p></details>` : ''}
+          ${promptsHTML(discussion && discussion[sp.slug])}
+        </article>`;
+    }
+
+    function renderTalks(content, videos, videoError) {
+      const talks = talksInOrder(content);
+      $('#talks').innerHTML = talks.map(t => talkCardHTML(t, videos, content.discussion)).join('')
+        || '<p class="muted">No talks are listed yet.</p>';
+      const have = talks.filter(t => ytId(videos[t.speaker.slug])).length;
+      const notice = $('#video-notice');
+      if (videoError && !have) {
+        notice.textContent = 'The recordings could not be loaded right now — refresh the page to try again.';
+        notice.hidden = false;
+      } else if (have && have < talks.length) {
+        notice.textContent = `${have} of ${talks.length} recordings are available. The rest will appear here if they are added.`;
+        notice.hidden = false;
+      }
+    }
+
+    /* Poster → embed on tap, so ten players don't load at once. */
+    function wirePlayers() {
+      $('#talks').addEventListener('click', (ev) => {
+        const btn = ev.target.closest('.yt-poster');
+        if (!btn) return;
+        const id = btn.dataset.yt;
+        const box = btn.closest('.video');
+        const iframe = document.createElement('iframe');
+        iframe.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?autoplay=1&rel=0';
+        iframe.title = 'Lecture recording';
+        iframe.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+        iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+        box.innerHTML = '';
+        box.appendChild(iframe);
+      });
+    }
+
+    /* ── Course info + footer ── */
+    function renderCourse(content) {
+      const c = content.course || {};
+      $('#course-desc').textContent = c.description || '';
+      const instructors = content.instructors || [];
+      const locations = content.locations || [];
+      $('#course-grid').innerHTML = `
+        <div>
+          <h3>This summer</h3>
+          <ul>
+            ${c.dates ? `<li>${esc(c.dates)}</li>` : ''}
+            ${c.times ? `<li>${esc(c.times)}</li>` : ''}
+            ${locations.map(l => `<li>${esc(l.campus)}: ${esc(l.building)}${l.room ? ', room ' + esc(l.room) : ''}</li>`).join('')}
+            ${c.prerequisites ? `<li>${esc(c.prerequisites)}</li>` : ''}
+          </ul>
+        </div>
+        <div>
+          <h3>Instructors</h3>
+          <ul class="people">
+            ${instructors.map(p => `<li>${esc(p.name)}${p.email ? ` · <a href="mailto:${esc(p.email)}">${esc(p.email)}</a>` : ''}<span class="role">${esc(p.role || '')}${p.department ? ' · ' + esc(p.department) : ''}</span></li>`).join('')}
+          </ul>
+        </div>`;
+      const advisor = instructors.find(p => /advisor/i.test(p.role || '')) || instructors[0];
+      if (advisor && advisor.email) {
+        document.querySelectorAll('#interest-contact, .wl-contact').forEach(a => {
+          a.href = 'mailto:' + advisor.email;
+          a.textContent = advisor.email;
+        });
+      }
+      const pol = (content.policies || {}).recordings;
+      $('#fine-print').innerHTML = `
+        <p><strong>About the recordings.</strong> ${esc(pol || 'Recordings are for your own study. Please do not download, edit, or re-share them.')}</p>
+        <p>BME 295C is offered by the Department of Biomedical Engineering, University of Arizona.</p>`;
+    }
+
+    /* ── Waitlist ──────────────────────────────────────────────
+       courseWaitlist/{course}_{uid}. The student signs in with Google; the
+       email written is the account's (lower-cased) and the rules insist on
+       it, so nobody can put someone else's address on the list. The doc is
+       the truth for "are you on it?" — no localStorage. */
+    const WL = { user: null, entry: null, editing: false, db: null, auth: null };
+    const wlRef = () => WL.db.collection('courseWaitlist').doc(WAITLIST_COURSE + '_' + WL.user.uid);
+
+    function wlShow(which) {
+      ['wl-loading', 'wl-signedout', 'wl-form', 'wl-done'].forEach(id => { $('#' + id).hidden = id !== which; });
+    }
+    function setErr(form, name, msg) {
+      const el = form.querySelector(`[data-err="${name}"]`);
+      const input = form.elements[name];
+      if (el) { el.textContent = msg || ''; el.classList.toggle('show', !!msg); }
+      if (input && input.classList) input.classList.toggle('is-invalid', !!msg);
+    }
+    function say(id, msg, isErr) {
+      const el = $('#' + id);
+      if (!el) return;
+      el.textContent = msg || '';
+      el.classList.toggle('error', !!isErr);
+    }
+    function firstName(name) { return String(name || '').trim().split(/\s+/)[0] || 'there'; }
+
+    function wlFillForm(from) {
+      const form = $('#wl-form');
+      form.elements.name.value = (from && from.name) || (WL.user && WL.user.displayName) || '';
+      form.elements.email.value = (WL.user && WL.user.email) || '';
+      form.elements.gradYear.value = (from && from.gradYear) || '';
+      const campus = (from && from.campus) || 'either';
+      const radio = form.querySelector(`input[name=campus][value="${campus}"]`);
+      if (radio) radio.checked = true;
+      form.elements.note.value = (from && from.note) || '';
+      ['name', 'gradYear'].forEach(n => setErr(form, n, ''));
+      say('wl-status', '');
+      $('#wl-submit').textContent = from ? 'Save changes' : 'Join the waitlist';
+      $('#wl-cancel').hidden = !from;
+    }
+
+    function wlShowDone() {
+      const e = WL.entry;
+      $('#wl-done-text').textContent = `Thanks, ${firstName(e.name)}. We'll email ${e.email} when applications for Summer 2027 open.`;
+      $('#wl-done-email').textContent = WL.user.email || '';
+      const leave = $('#wl-leave');
+      leave.classList.remove('is-armed');
+      leave.textContent = 'Leave the waitlist';
+      leave.disabled = false;
+      say('wl-done-status', '');
+      wlShow('wl-done');
+    }
+
+    async function wlRefresh() {
+      if (!WL.user) { WL.entry = null; WL.editing = false; wlShow('wl-signedout'); return; }
+      wlShow('wl-loading');
+      $('#wl-loading').textContent = 'Checking the list…';
+      try {
+        const snap = await wlRef().get();
+        WL.entry = snap.exists ? snap.data() : null;
+      } catch (e) {
+        console.warn('[BME295C waitlist] read failed', e);
+        WL.entry = null;
+      }
+      if (WL.entry && !WL.editing) wlShowDone();
+      else { wlFillForm(WL.editing ? WL.entry : null); wlShow('wl-form'); }
+    }
+
+    async function wlSignIn() {
+      const auth = WL.auth;
+      if (!auth || !window.firebase || !firebase.auth) { say('wl-signin-status', 'Sign-in isn’t available right now. Please refresh and try again.', true); return; }
+      const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      say('wl-signin-status', 'Opening Google sign-in…');
+      try {
+        await auth.signInWithPopup(provider);
+        say('wl-signin-status', '');
+      } catch (e) {
+        const code = e && e.code || '';
+        if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+          try { await auth.signInWithRedirect(provider); return; } catch (e2) { e = e2; }
+        }
+        if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') { say('wl-signin-status', ''); return; }
+        console.warn('[BME295C waitlist] sign-in failed', e);
+        say('wl-signin-status', 'Sign-in didn’t finish. Please try again.', true);
+      }
+    }
+
+    function wireWaitlist() {
+      const form = $('#wl-form');
+      $('#wl-signin').addEventListener('click', wlSignIn);
+      const signOut = async () => { try { await WL.auth.signOut(); } catch (e) {} };
+      $('#wl-switch').addEventListener('click', async () => { await signOut(); wlSignIn(); });
+      $('#wl-signout').addEventListener('click', signOut);
+      $('#wl-edit').addEventListener('click', () => { WL.editing = true; wlFillForm(WL.entry); wlShow('wl-form'); form.elements.name.focus(); });
+      $('#wl-cancel').addEventListener('click', () => { WL.editing = false; if (WL.entry) wlShowDone(); });
+      ['name', 'gradYear'].forEach(n => form.elements[n].addEventListener('input', () => setErr(form, n, '')));
+
+      form.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        if (!WL.user) { wlShow('wl-signedout'); return; }
+        const name = form.elements.name.value.trim();
+        const gradYear = form.elements.gradYear.value;
+        const campus = (form.querySelector('input[name=campus]:checked') || {}).value || 'either';
+        const note = form.elements.note.value.trim().slice(0, 1000);
+        let bad = false;
+        if (name.length < 2) { setErr(form, 'name', 'Please tell us your name.'); bad = true; }
+        if (!gradYear) { setErr(form, 'gradYear', 'Pick the year you graduate (or "Other").'); bad = true; }
+        if (bad) { say('wl-status', ''); return; }
+        if (!WL.user.email) { say('wl-status', 'Your Google account has no email address we can write to.', true); return; }
+        const btn = $('#wl-submit');
+        btn.disabled = true;
+        say('wl-status', 'Saving…');
+        const now = firebase.firestore.FieldValue.serverTimestamp();
+        try {
+          if (WL.entry) {
+            await wlRef().update({ name, gradYear, campus, note, source: 'lesson-01', updatedAt: now });
+            WL.entry = Object.assign({}, WL.entry, { name, gradYear, campus, note });
+          } else {
+            const doc = {
+              course: WAITLIST_COURSE, uid: WL.user.uid, name,
+              email: String(WL.user.email).toLowerCase(),
+              gradYear, campus, note, source: 'lesson-01',
+              createdAt: now, updatedAt: now
+            };
+            await wlRef().set(doc);
+            WL.entry = Object.assign({}, doc);
+          }
+          WL.editing = false;
+          say('wl-status', '');
+          wlShowDone();
+        } catch (e) {
+          console.warn('[BME295C waitlist] write failed', e);
+          say('wl-status', 'Sorry, that didn’t save. Please try again, or email us instead.', true);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      // Leave: a two-click arm, no popup.
+      const leave = $('#wl-leave');
+      leave.addEventListener('click', async () => {
+        if (!leave.classList.contains('is-armed')) {
+          leave.classList.add('is-armed');
+          leave.textContent = 'Sure? Leave the waitlist';
+          setTimeout(() => { if (leave.isConnected && leave.classList.contains('is-armed')) { leave.classList.remove('is-armed'); leave.textContent = 'Leave the waitlist'; } }, 5000);
+          return;
+        }
+        leave.disabled = true;
+        say('wl-done-status', 'Removing…');
+        try {
+          await wlRef().delete();
+          WL.entry = null;
+          WL.editing = false;
+          say('wl-done-status', '');
+          wlFillForm(null);
+          wlShow('wl-form');
+          say('wl-status', 'You’ve left the waitlist. Rejoin any time.');
+        } catch (e) {
+          console.warn('[BME295C waitlist] delete failed', e);
+          leave.disabled = false;
+          say('wl-done-status', 'Sorry, that didn’t work. Please try again.', true);
+        }
+      });
+
+      // Auth: shared with the class page on this origin, so a student who is
+      // already signed in lands straight on the form (or on their entry).
+      waitForDb(3000).then(db => {
+        WL.db = db;
+        WL.auth = window.McgheeLab && window.McgheeLab.auth;
+        if (!db || !WL.auth) {
+          $('#wl-loading').textContent = 'The waitlist isn’t available right now — refresh the page to try again.';
+          return;
+        }
+        try { WL.auth.getRedirectResult().catch(e => { if (e && e.code !== 'auth/popup-closed-by-user') console.warn('[BME295C waitlist] redirect sign-in', e); }); } catch (e) {}
+        WL.auth.onAuthStateChanged(u => { WL.user = u || null; wlRefresh(); });
+      });
+    }
+
+    async function init() {
+      wireWaitlist();
+      wirePlayers();
+      let content;
+      try { content = await loadContent(); }
+      catch (e) {
+        $('#talks').innerHTML = '<p class="notice">The course content could not be loaded. Refresh the page to try again.</p>';
+        $('#week-grid').innerHTML = '';
+        return;
+      }
+      renderWeek(content);
+      renderCourse(content);
+      const { videos, error } = await loadVideos();
+      renderTalks(content, videos, error);
+      if (location.hash && location.hash.startsWith('#talk-')) {
+        const el = document.getElementById(location.hash.slice(1));
+        if (el) el.scrollIntoView({ block: 'start' });
+      }
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(init, 50));
+    else setTimeout(init, 50);
+  })();
+  </script>
 </body>
 </html>

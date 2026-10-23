@@ -40,6 +40,8 @@
 
   async function publish(f) {
     if (!RD.isAdmin()) throw new Error('Only the PI can publish.');
+    // V3.851 — a proposal is not the lab's position yet.
+    if (RD.isApproved && !RD.isApproved(f)) throw new Error('Approve this card before publishing it.');
     if (!(f.overview_blocks || []).length) throw new Error('Build an overview first — there is nothing to publish.');
     var snap = snapshot(f);
     await firebridge.db().collection('publicFoci').doc(f.id).set(snap);

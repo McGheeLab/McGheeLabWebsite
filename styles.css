@@ -1151,7 +1151,9 @@ a.btn:hover{
 .footer-grid{
   display: grid; gap: 18px;
   padding-block: clamp(20px, 4vw, 36px);
-  grid-template-columns: 2fr 1fr 2fr;  /* Left/Center/Right */
+  /* V3.771 — the middle column carries the link list three-across now, so
+     it gets the same width as mission and contact instead of half. */
+  grid-template-columns: 2fr 2fr 2fr;  /* Left/Center/Right */
 }
 
 .footer-heading{
@@ -1162,10 +1164,16 @@ a.btn:hover{
   letter-spacing: .12em;
 }
 
+/* V3.771 — three columns instead of one long vertical run of links. */
 .footer-links{
   list-style: none;
   padding: 0; margin: 0;
-  display: grid; gap: 8px;
+  display: grid; gap: 8px 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.footer-links a{ white-space: nowrap; }
+@media (max-width: 420px){
+  .footer-links{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* Legal strip at the very bottom */
@@ -5048,6 +5056,15 @@ img.cb295-chat-msg-icon-photo {
   color: #ffd54f;
   margin-right: .25rem;
 }
+/* V3.734 — segmented Admin | Student | Public toggle */
+.cb295-viewas-seg {
+  display: inline-flex;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.cb295-viewas-seg .cb295-viewas-btn { border: 0; border-radius: 0; }
+.cb295-viewas-seg .cb295-viewas-btn + .cb295-viewas-btn { border-left: 1px solid rgba(255,255,255,.15); }
 .cb295-viewas-btn {
   background: rgba(255,255,255,.06);
   border: 1px solid rgba(255,255,255,.15);
@@ -5633,3 +5650,996 @@ img.cb295-chat-msg-icon-photo {
 .foci-html-ph{ font-size: 42px; }
 .foci-html-run span{ position: relative; z-index: 1; background: rgba(255,255,255,.85); border-radius: 999px; padding: 4px 16px; font-weight: 600; }
 .foci-html-frame{ position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+/* =========================================
+   V3.632) DEMO MODE (admin preview of teacher/student views)
+   - tcd- prefix. The strip is prepended into the rendered view on
+     every route change (not fixed), so it never fights the sticky
+     site header. Precedent: the class-builder View-as toolbar.
+   ========================================= */
+.tcd-banner{
+  border: 1px solid rgba(240,190,70,.45); border-radius: 10px;
+  background: linear-gradient(180deg, rgba(240,190,70,.14), rgba(240,190,70,.06));
+  padding: .6rem .85rem; margin-bottom: 1rem; position: relative;
+}
+.tcd-banner-row{ display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.tcd-badge{
+  background: #f0be46; color: #1b1b1b; font-weight: 800; font-size: .68rem;
+  letter-spacing: .12em; padding: 3px 8px; border-radius: 4px;
+}
+.tcd-viewing{ font-size: .9rem; }
+.tcd-banner select{
+  background: rgba(0,0,0,.25); color: inherit; border: 1px solid rgba(255,255,255,.18);
+  border-radius: 6px; padding: 4px 8px; font-size: .82rem; max-width: 22rem;
+}
+.tcd-btn{
+  background: rgba(0,0,0,.22); color: inherit; border: 1px solid rgba(255,255,255,.18);
+  border-radius: 6px; padding: 4px 10px; font-size: .8rem; cursor: pointer;
+}
+.tcd-btn:hover{ background: rgba(0,0,0,.35); }
+.tcd-btn-exit{ border-color: rgba(235,105,105,.5); color: #eb6969; }
+.tcd-link{ font-size: .8rem; text-decoration: underline; }
+.tcd-caveat{ margin: .45rem 0 0; font-size: .78rem; color: var(--muted); }
+.tcd-log{
+  margin-top: .6rem; max-height: 14rem; overflow-y: auto;
+  border-top: 1px solid rgba(255,255,255,.12); padding-top: .5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .74rem;
+}
+.tcd-log-row{ display: flex; gap: .6rem; padding: 2px 0; }
+.tcd-log-time{ color: var(--muted); flex: none; }
+.tcd-log-write{ color: #5ac882; }
+.tcd-log-blocked{ color: #f0be46; }
+.tcd-toast{
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: 1.5rem; z-index: 9999;
+  background: #1b1b1b; color: #fff; border: 1px solid rgba(240,190,70,.6);
+  border-radius: 8px; padding: .6rem 1rem; font-size: .85rem; max-width: 90vw;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
+
+/* #/demo control panel */
+.tcd-panel .tcd-intro{ max-width: 62ch; }
+.tcd-warn{
+  border-left: 3px solid #f0be46; background: rgba(240,190,70,.08);
+  padding: .6rem .85rem; border-radius: 0 8px 8px 0; font-size: .85rem;
+  margin: 1rem 0 1.5rem; max-width: 70ch;
+}
+.tcd-group{ margin: 1.6rem 0 .6rem; font-size: 1rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.tcd-cards{ display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: .85rem; }
+.tcd-card{
+  border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: .85rem;
+  background: rgba(255,255,255,.03); display: flex; flex-direction: column; gap: .5rem;
+}
+.tcd-card-on{ border-color: rgba(240,190,70,.6); background: rgba(240,190,70,.07); }
+.tcd-card h4{ margin: 0; font-size: .95rem; }
+.tcd-card p{ margin: 0; font-size: .82rem; color: var(--muted); flex: 1; }
+.tcd-card .btn{ align-self: flex-start; }
+.tcd-running{ margin-top: 1.5rem; font-size: .88rem; }
+
+/* View-as-student strip (V3.636) — teacher previewing their own class.
+   Deliberately styled like the demo banner: a preview is a preview,
+   whoever is running it. */
+.tc-viewas{
+  display: flex; gap: .6rem; align-items: center; flex-wrap: wrap;
+  border: 1px solid rgba(240,190,70,.45);
+  background: linear-gradient(180deg, rgba(240,190,70,.14), rgba(240,190,70,.06));
+}
+.tc-viewas-label{ font-weight: 600; font-size: .9rem; }
+.tc-viewas-btn{
+  background: rgba(0,0,0,.22); color: inherit; border: 1px solid rgba(255,255,255,.18);
+  border-radius: 6px; padding: 4px 10px; font-size: .82rem; cursor: pointer;
+}
+.tc-viewas-btn:hover{ background: rgba(0,0,0,.35); }
+.tc-viewas-on{ border-color: rgba(240,190,70,.65); background: rgba(240,190,70,.18); }
+.tc-viewas select{
+  background: rgba(0,0,0,.25); color: inherit; border: 1px solid rgba(255,255,255,.18);
+  border-radius: 6px; padding: 4px 8px; font-size: .82rem; max-width: 18rem;
+}
+.tc-viewas-note{ font-size: .8rem; flex: 1 1 16rem; }
+
+/* ---- Heroicons v2 (V3.642) --------------------------------------------
+   Mirror of the .hi rules in rm/css/style.css. The public site and RM have
+   completely separate stylesheets, so this cannot be shared — but the two
+   blocks must stay identical or an icon looks different depending on which
+   half of the site you are on. Markup comes from ICON.svg() in
+   /rm/js/icons.js.
+
+   width:1em tracks the surrounding font-size; vertical-align stops an inline
+   SVG (a replaced element, bottom edge on the baseline) hanging low next to
+   text; flex:none stops it collapsing to zero width in a flex row.        */
+.hi {
+  width: 1em; height: 1em;
+  display: inline-block;
+  vertical-align: -0.125em;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  overflow: visible;
+}
+.hi-solid { fill: currentColor; stroke: none; }
+.hi-xs  { font-size: 14px; stroke-width: 1.75; }
+.hi-sm  { font-size: 16px; stroke-width: 1.75; }
+.hi-md  { font-size: 18px; }
+.hi-lg  { font-size: 20px; }
+.hi-xl  { font-size: 24px; }
+.hi-2xl { font-size: 28px; }
+.hi-emoji { width: 1em; height: 1em; display: inline-block; line-height: 1;
+            text-align: center; font-style: normal; flex: none; }
+.hi-img   { width: 1em; height: 1em; display: inline-block;
+            vertical-align: -0.125em; object-fit: contain; flex: none; }
+
+/* ================================================================
+   V3.669 — Teaching dashboard (#/teach, teacher-teach.js)
+   ================================================================ */
+.teach-page .teach-status{
+  margin: 0 0 .8rem; padding: .45rem .8rem; border-radius: 8px;
+  font-size: .85rem; background: rgba(80,200,120,.12);
+  border: 1px solid rgba(80,200,120,.35);
+}
+.teach-page .teach-status.error-text{
+  background: rgba(220,80,80,.12); border-color: rgba(220,80,80,.4);
+}
+.teach-class-grid{
+  display: grid; gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.teach-head-row{
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+}
+.teach-code-box{ display: inline-flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.teach-tabs{
+  display: flex; gap: .4rem; margin: 1rem 0 .8rem; flex-wrap: wrap;
+}
+.teach-tab{
+  padding: .4rem .95rem; border-radius: 999px; font-size: .9rem;
+  border: 1px solid rgba(255,255,255,.18); text-decoration: none;
+  color: inherit; background: rgba(0,0,0,.18);
+}
+.teach-tab.on{
+  border-color: var(--accent, #f0be46);
+  background: rgba(240,190,70,.16); font-weight: 600;
+}
+.teach-arrow{
+  border: 1px solid rgba(255,255,255,.2); background: rgba(0,0,0,.25);
+  color: inherit; border-radius: 4px; font-size: .6rem; line-height: 1;
+  padding: 2px 6px; cursor: pointer;
+}
+.teach-arrow:disabled{ opacity: .3; cursor: default; }
+
+/* ---- V3.771 — what students get (top) ---- */
+.teach-pick-list{ display: flex; flex-direction: column; gap: .4rem; }
+.teach-pick-row{
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  padding: .5rem .65rem; border: 1px solid rgba(255,255,255,.12);
+  border-radius: 8px; background: rgba(0,0,0,.14);
+}
+.teach-pick-n{
+  flex: 0 0 auto; width: 1.6rem; height: 1.6rem; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: .78rem; font-weight: 700;
+  background: rgba(240,190,70,.16); color: var(--accent, #f0be46);
+}
+.teach-pick-main{ flex: 1 1 14rem; min-width: 0; display: flex; flex-direction: column; gap: .1rem; }
+.teach-pick-title{ font-size: .92rem; }
+.teach-pick-main .tc-muted{ font-size: .76rem; }
+.teach-pick-actions{ display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
+
+/* worksheets ride along with their lesson, in both lists */
+.teach-sheets{
+  width: 100%; margin-top: .35rem; padding-left: 2.2rem;
+  display: flex; flex-direction: column; gap: .25rem;
+}
+.teach-sheet-row{
+  display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+  font-size: .82rem; padding: .25rem .5rem; border-radius: 6px;
+  background: rgba(255,255,255,.04); border: 1px dashed rgba(255,255,255,.14);
+}
+.teach-sheet-title{ flex: 1 1 10rem; min-width: 0; }
+
+/* ---- V3.771 — the library: one card per course ---- */
+.teach-lib-grid{
+  display: grid; gap: .6rem; margin-top: .6rem;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+}
+.teach-lib-card{
+  border: 1px solid rgba(255,255,255,.12); border-radius: 10px;
+  background: rgba(0,0,0,.14); overflow: hidden;
+}
+.teach-lib-card.open{
+  grid-column: 1 / -1;
+  border-color: var(--accent, #f0be46); background: rgba(240,190,70,.06);
+}
+.teach-lib-head{
+  width: 100%; display: flex; align-items: center; gap: .5rem; text-align: left;
+  padding: .7rem .8rem; border: 0; background: transparent; color: inherit; cursor: pointer;
+}
+.teach-lib-head:hover{ background: rgba(255,255,255,.05); }
+.teach-lib-caret{ flex: 0 0 auto; color: var(--accent, #f0be46); font-size: .8rem; }
+.teach-lib-name{ flex: 1 1 auto; font-weight: 600; font-size: .92rem; }
+.teach-lib-count{ flex: 0 0 auto; font-size: .76rem; color: var(--muted, #a8b3c7); }
+.teach-lib-body{
+  padding: 0 .8rem .7rem; display: flex; flex-direction: column; gap: .35rem;
+}
+/* REQUIRED: display:flex above beats the `hidden` attribute, which is how
+   a closed card stays closed. Without this the whole library renders open. */
+.teach-lib-body[hidden]{ display: none; }
+.teach-lib-row{
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  padding: .45rem .55rem; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.2);
+}
+.teach-lib-row.on{ border-color: rgba(80,200,120,.4); background: rgba(80,200,120,.08); }
+.teach-lib-row-main{ flex: 1 1 14rem; min-width: 0; display: flex; flex-direction: column; gap: .1rem; }
+.teach-lib-title{ font-size: .9rem; }
+.teach-lib-row-main .tc-muted{ font-size: .76rem; }
+.teach-lib-actions{ display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
+.teach-roster{ display: flex; flex-direction: column; gap: .5rem; }
+.teach-student-row{
+  padding: .5rem .65rem; border: 1px solid rgba(255,255,255,.12);
+  border-radius: 8px; background: rgba(0,0,0,.14);
+}
+.teach-student-main{
+  display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap;
+  font-size: .92rem;
+}
+.teach-student-main .tc-muted{ font-size: .8rem; }
+.teach-student-actions{ margin-top: .4rem; display: flex; gap: .4rem; flex-wrap: wrap; }
+.tc-module-due{
+  font-size: .78rem; color: var(--accent, #f0be46);
+  margin-left: auto; padding-right: .5rem; white-space: nowrap;
+}
+@media (max-width: 640px){
+  .teach-head-row{ align-items: flex-start; flex-direction: column; gap: .5rem; }
+  .teach-pick-row, .teach-lib-row{ gap: .4rem; }
+  .teach-lib-grid{ grid-template-columns: 1fr; }
+  .teach-sheets{ padding-left: 1rem; }
+}
+
+/* ================================================================
+   V3.671 — Teacher program R2: assignments (student side only)
+   ----------------------------------------------------------------
+   V3.771 removed the teacher's assignment editor and gradebook, so the
+   .teach-assign-* / .teach-gb-* rules went with them. The .tc-assign-*
+   rules below stay: a student who was set work before still sees it.
+   ================================================================ */
+.tc-assign-class{ margin-top: .8rem; }
+.tc-assign-row{
+  margin: .5rem 0; padding: .55rem .7rem; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.14);
+}
+.tc-assign-head{ display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+.tc-assign-title{ font-weight: 600; }
+.tc-assign-due{ font-size: .8rem; color: var(--accent, #f0be46); }
+.tc-assign-due.overdue{ color: #f28b8b; font-weight: 600; }
+.tc-assign-desc{ margin: .25rem 0 .4rem; font-size: .85rem; }
+.tc-assign-grade{
+  margin-top: .35rem; padding: .4rem .6rem; border-radius: 6px;
+  background: rgba(80,200,120,.1); border: 1px solid rgba(80,200,120,.3);
+  font-size: .88rem;
+}
+.tc-assign-grade p{ margin: .25rem 0 0; }
+.tc-assign-state{ margin-top: .35rem; }
+.tc-assign-mytext{ margin: .3rem 0; font-size: .85rem; font-style: italic; }
+.tc-assign-actions{ display: flex; gap: .4rem; flex-wrap: wrap; margin: .3rem 0; }
+.tc-assign-form{ display: flex; flex-direction: column; gap: .4rem; margin-top: .4rem; }
+.tc-assign-form textarea{
+  width: 100%; border-radius: 8px; padding: .5rem .6rem;
+  border: 1px solid rgba(255,255,255,.2); background: rgba(0,0,0,.25); color: inherit;
+}
+.tc-assign-form button{ align-self: flex-start; }
+.tc-assign-status{ display: block; margin-top: .3rem; font-size: .8rem; }
+
+/* .teach-af-row is shared with #/teachers' request form and the whole of
+   engage-hub.js — the teacher-side assignment editor it was written for
+   was removed in V3.771, the row layout was not. */
+.teach-af-row{ display: flex; gap: 1rem; flex-wrap: wrap; margin: .4rem 0; }
+.teach-af-row label{
+  display: inline-flex; align-items: center; gap: .35rem; font-size: .85rem;
+}
+.teach-af-row input, .teach-af-row select{
+  font-size: .85rem; padding: .25rem .4rem; border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.2); background: rgba(0,0,0,.25); color: inherit;
+  max-width: 12rem;
+}
+
+/* ================================================================
+   V3.672 — Teacher program R3: engagement tab
+   ================================================================ */
+.teach-eng-list{ display: flex; flex-direction: column; gap: .5rem; }
+.teach-eng-row{
+  padding: .55rem .7rem; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.14);
+}
+.teach-eng-head{ display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
+.teach-eng-head .tc-muted{ font-size: .8rem; }
+.teach-eng-last{ font-size: .8rem; color: var(--accent, #f0be46); }
+.teach-eng-last.quiet{ color: #f28b8b; font-weight: 600; }
+.teach-eng-detail{
+  margin-top: .5rem; padding-top: .5rem;
+  border-top: 1px dashed rgba(255,255,255,.15);
+  display: flex; flex-direction: column; gap: .3rem;
+}
+.teach-eng-mod{ display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; font-size: .82rem; }
+.teach-eng-mod-title{ flex: 0 1 16rem; min-width: 10rem; }
+.teach-eng-bar{
+  flex: 1 1 8rem; height: 8px; border-radius: 999px;
+  background: rgba(255,255,255,.1); overflow: hidden; min-width: 6rem;
+}
+.teach-eng-fill{
+  display: block; height: 100%; border-radius: 999px;
+  background: var(--accent, #f0be46);
+}
+
+/* ================================================================
+   V3.673 — Teacher program R4: engagement hub (#/engage)
+   ================================================================ */
+.eh-teacher-card{
+  margin: .7rem 0; padding: .7rem .8rem; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.14);
+}
+.eh-teacher-head{ display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
+.eh-teacher-head .tc-muted{ font-size: .82rem; }
+.eh-occ-list{ display: flex; flex-direction: column; gap: .35rem; margin-top: .5rem; }
+.eh-occ{
+  display: flex; align-items: center; gap: .7rem; flex-wrap: wrap;
+  padding: .4rem .6rem; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.16);
+  font-size: .88rem;
+}
+.eh-occ-date{ font-weight: 600; min-width: 8rem; }
+.eh-occ .tc-muted{ font-size: .78rem; }
+.eh-req-form, .eh-decide-form{
+  flex-basis: 100%; margin-top: .4rem; padding-top: .4rem;
+  border-top: 1px dashed rgba(255,255,255,.15);
+}
+.eh-req-row{
+  margin: .5rem 0; padding: .5rem .65rem; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.14);
+  font-size: .9rem;
+}
+.eh-req-row p{ margin: .3rem 0 0; }
+.eh-location{
+  margin-top: .4rem; padding: .45rem .65rem; border-radius: 6px;
+  background: rgba(80,200,120,.1); border: 1px solid rgba(80,200,120,.3);
+  font-size: .86rem;
+}
+.eh-slot-row{
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  margin: .4rem 0; padding: .45rem .6rem; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.14);
+  font-size: .88rem;
+}
+.eh-slot-row .teach-assign-actions{ margin: 0 0 0 auto; }
+.eh-slot-form{ margin-top: .8rem; padding-top: .6rem; border-top: 1px dashed rgba(255,255,255,.15); }
+.eh-slot-form h4{ margin: 0 0 .3rem; }
+.eh-checks{ align-items: center; }
+.eh-checks span{ font-size: .85rem; color: var(--muted, #a8b3c7); }
+.eh-checks label{ font-size: .84rem; }
+.eh-contact{ margin-top: .7rem; }
+.eh-contact summary{ cursor: pointer; font-weight: 600; font-size: .9rem; }
+.eh-decide-preview p{ margin: .3rem 0; }
+.teach-engage-card{ border-left: 3px solid var(--accent, #f0be46); margin-bottom: 1rem; }
+
+/* ---- V3.784 — the teacher side as seven step cards, one open at a time ---- */
+/* REQUIRED: .form-group and the flex rows below set display, which beats the
+   `hidden` attribute — the closed cards and the slot form's swapped fields
+   rely on [hidden] actually hiding. */
+.eh-teacher [hidden]{ display: none !important; }
+.eh-teacher{ margin-top: 1.2rem; }
+.eh-sr{
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.eh-callout{
+  display: flex; align-items: center; gap: .7rem; flex-wrap: wrap;
+  margin: 0 0 1rem; padding: .65rem .85rem; border-radius: 10px;
+  background: rgba(240,190,70,.12); border: 1px solid rgba(240,190,70,.45);
+  font-size: .92rem;
+}
+.eh-callout span{ flex: 1 1 14rem; }
+.eh-group{ margin: 0 0 1.4rem; }
+.eh-group-head{
+  display: flex; align-items: center; gap: .8rem; flex-wrap: wrap;
+  margin: 0 0 .5rem;
+}
+.eh-group-head h4{ margin: 0; font-size: 1rem; }
+.eh-group-head h4 .tc-muted{ font-weight: 400; font-size: .85rem; }
+.eh-progress{
+  margin-left: auto; display: inline-flex; align-items: center; gap: .5rem;
+  font-size: .8rem; color: var(--muted, #a8b3c7);
+}
+.eh-progress-bar{
+  width: 6rem; height: 6px; border-radius: 999px; overflow: hidden;
+  background: rgba(255,255,255,.1);
+}
+.eh-progress-bar span{ display: block; height: 100%; background: #5ac882; border-radius: 999px; }
+
+.eh-step{
+  margin: 0 0 .5rem; border-radius: 12px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.16);
+  scroll-margin-top: calc(var(--banner-height, 64px) + 12px);
+}
+.eh-step.open{
+  border-color: var(--accent, #5baed1);
+  background: rgba(91,174,209,.06);
+  box-shadow: 0 6px 20px rgba(0,0,0,.25);
+}
+.eh-step-head{
+  width: 100%; display: flex; align-items: center; gap: .75rem; text-align: left;
+  padding: .75rem .9rem; border: 0; background: transparent; color: inherit;
+  font: inherit; cursor: pointer;
+}
+.eh-step-head:hover{ background: rgba(255,255,255,.04); }
+.eh-step-head:focus-visible{ outline: 2px solid var(--accent, #5baed1); outline-offset: -2px; }
+.eh-step-n{
+  flex: 0 0 auto; width: 1.9rem; height: 1.9rem; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: .85rem; font-weight: 700;
+  border: 1px solid rgba(255,255,255,.25); color: var(--muted, #a8b3c7);
+}
+.eh-step.open .eh-step-n{ border-color: var(--accent, #5baed1); color: var(--accent, #5baed1); }
+.eh-step.is-done .eh-step-n{ background: rgba(90,200,130,.18); border-color: rgba(90,200,130,.5); color: #5ac882; }
+.eh-step.is-action .eh-step-n{ background: rgba(240,190,70,.18); border-color: rgba(240,190,70,.55); color: #f0be46; }
+.eh-step.is-locked .eh-step-head{ opacity: .7; }
+.eh-step-titles{ flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: .1rem; }
+.eh-step-title{ font-weight: 600; font-size: .96rem; }
+.eh-step-sum{
+  font-size: .8rem; color: var(--muted, #a8b3c7);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.eh-step.open .eh-step-sum{ white-space: normal; }
+.eh-step-caret{ flex: 0 0 auto; width: 1rem; text-align: center; font-size: 1rem; line-height: 1; color: var(--muted, #a8b3c7); }
+.eh-step-head:hover .eh-step-caret{ color: var(--accent, #5baed1); }
+.eh-req-what{ display: block; margin-top: .15rem; font-size: .84rem; }
+.eh-step-head .tc-chip{ flex: 0 0 auto; }
+.eh-step-body{ padding: .2rem 1rem 1rem 3.55rem; }
+.eh-step-lead{ margin: 0 0 .8rem; font-size: .9rem; }
+.eh-step-nav{
+  display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+  margin-top: 1rem; padding-top: .8rem; border-top: 1px solid rgba(255,255,255,.08);
+}
+.eh-step-nav .eh-next{ margin-left: auto; }
+
+.eh-fields{
+  display: grid; gap: .8rem;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+.eh-fields .eh-wide{ grid-column: 1 / -1; }
+.eh-choices{ border: 0; margin: 0 0 .9rem; padding: 0; display: grid; gap: .45rem;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+.eh-choices legend{ font-weight: 600; font-size: .875rem; margin-bottom: .4rem; padding: 0; }
+.eh-choice{
+  display: flex; align-items: flex-start; gap: .55rem; cursor: pointer;
+  padding: .55rem .7rem; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.14);
+}
+.eh-choice:has(input:checked){ border-color: rgba(90,200,130,.5); background: rgba(90,200,130,.08); }
+.eh-choice input{ margin-top: .2rem; flex: 0 0 auto; }
+.eh-choice > span{ display: flex; flex-direction: column; gap: .1rem; font-size: .88rem; }
+.eh-choice .tc-muted{ font-size: .78rem; }
+.eh-preview{ margin: 0 0 .8rem; }
+.eh-missing{ list-style: none; margin: 0 0 .6rem; padding: 0; }
+.eh-missing li{
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  padding: .35rem 0; font-size: .88rem; color: #f0be46;
+}
+
+.eh-sublist{ margin: 0 0 1rem; }
+.eh-sublist h5{ margin: 0 0 .35rem; font-size: .85rem; text-transform: none; }
+.eh-sublist h5 .tc-muted{ font-weight: 400; }
+.eh-past summary{ cursor: pointer; font-weight: 600; font-size: .85rem; }
+.eh-openings{ display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+.eh-opening{
+  font-size: .8rem; padding: .2rem .55rem; border-radius: 999px;
+  background: rgba(90,200,130,.1); border: 1px solid rgba(90,200,130,.3);
+}
+.eh-teacher .eh-slot-form{ margin-top: 1rem; padding: .8rem .9rem; border-radius: 10px;
+  border: 1px dashed rgba(255,255,255,.18); background: rgba(0,0,0,.12); }
+.eh-slot-form h5{ margin: 0 0 .5rem; font-size: .9rem; }
+.eh-seg{ display: inline-flex; flex-wrap: wrap; width: fit-content; max-width: 100%; border-radius: 8px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,.18); }
+.eh-seg label{
+  display: inline-flex; align-items: center; gap: .35rem; cursor: pointer;
+  padding: .4rem .8rem; font-size: .85rem; border-right: 1px solid rgba(255,255,255,.12);
+}
+.eh-seg label:last-child{ border-right: 0; }
+.eh-seg label:has(input:checked){ background: rgba(91,174,209,.2); font-weight: 600; }
+.eh-seg-hint{ margin: .4rem 0 .6rem; font-size: .8rem; }
+.eh-sl-ctx{ margin: .8rem 0 .4rem; }
+.eh-sl-ctx summary{ cursor: pointer; font-size: .85rem; font-weight: 600; }
+.eh-sl-ctx .eh-fields{ margin-top: .6rem; }
+
+@media (max-width: 640px){
+  .eh-step-body{ padding: .2rem .85rem .9rem; }
+  .eh-step-head{ gap: .55rem; padding: .7rem .75rem; }
+  .eh-progress{ margin-left: 0; }
+  .eh-step-nav .eh-next{ margin-left: 0; flex: 1 1 auto; }
+}
+
+/* ---- V3.785 — month calendar, shared by the teacher's step 6 and the
+   presenter page (engage-hub.js monthGridHTML) ---- */
+.eh-cal{ margin: .2rem 0 .8rem; }
+.eh-cal-bar{ display: flex; align-items: center; gap: .6rem; margin-bottom: .5rem; }
+.eh-cal-title{ flex: 1 1 auto; text-align: center; font-size: .95rem; }
+.eh-cal-grid{ display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.eh-cal-dow{ font-size: .7rem; text-align: center; color: var(--muted, #a8b3c7); padding: .15rem 0; }
+.eh-cal-cell{
+  position: relative; min-height: 4.4rem; padding: .25rem .3rem; border-radius: 6px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 2px; text-align: left;
+  border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.18); color: inherit;
+  font: inherit; cursor: pointer; overflow: hidden;
+}
+.eh-cal-cell:hover:not(:disabled){ border-color: var(--accent, #5baed1); }
+.eh-cal-cell.is-pad{ border: 0; background: transparent; cursor: default; }
+.eh-cal-cell.is-past{ opacity: .38; cursor: default; }
+.eh-cal-cell.is-today .eh-cal-n{ color: var(--accent, #5baed1); font-weight: 700; }
+.eh-cal-cell.is-selected{ border-color: var(--accent, #5baed1); background: rgba(91,174,209,.18); box-shadow: inset 0 0 0 1px var(--accent, #5baed1); }
+.eh-cal-cell.tone-open{ background: rgba(90,200,130,.08); }
+.eh-cal-cell.tone-busy{ background: rgba(91,174,209,.1); }
+.eh-cal-cell.tone-pending{ background: rgba(240,190,70,.08); }
+.eh-cal-cell.tone-skipped{ background: repeating-linear-gradient(135deg, rgba(0,0,0,.18) 0 6px, rgba(255,255,255,.04) 6px 12px); }
+.eh-cal-n{ font-size: .78rem; line-height: 1.1; }
+.eh-cal-count{
+  position: absolute; top: .25rem; right: .3rem; min-width: 1.2rem; height: 1.2rem; padding: 0 .3rem;
+  border-radius: 999px; font-size: .7rem; font-weight: 700; line-height: 1.2rem; text-align: center;
+  background: rgba(90,200,130,.25); color: #8fe0ad;
+}
+.eh-cal-chip{
+  display: block; font-size: .64rem; line-height: 1.25; padding: 1px 4px; border-radius: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-style: normal;
+}
+.eh-cal-chip.tone-open{ background: rgba(90,200,130,.2); color: #8fe0ad; }
+.eh-cal-chip.tone-pending{ background: rgba(240,190,70,.22); color: #f0be46; }
+.eh-cal-chip.tone-booked{ background: rgba(91,174,209,.25); color: #8ccfee; }
+.eh-cal-chip.tone-skipped{ background: rgba(255,255,255,.08); color: var(--muted, #a8b3c7); text-decoration: line-through; }
+.eh-cal-chip.tone-paused{ background: rgba(255,255,255,.06); color: var(--muted, #a8b3c7); }
+.eh-cal-more{ font-size: .62rem; color: var(--muted, #a8b3c7); }
+.eh-cal-legend{ display: flex; flex-wrap: wrap; gap: .8rem; margin-top: .45rem; font-size: .75rem; color: var(--muted, #a8b3c7); }
+.eh-cal-legend span{ display: inline-flex; align-items: center; gap: .35rem; }
+.eh-cal-legend i{ display: inline-block; width: .8rem; height: .8rem; padding: 0; }
+.eh-calpanel{
+  margin: .2rem 0 1rem; padding: .75rem .85rem; border-radius: 10px;
+  border: 1px solid rgba(91,174,209,.35); background: rgba(91,174,209,.06);
+}
+.eh-calpanel h5{ margin: 0 0 .4rem; font-size: .9rem; }
+.eh-calpanel .eh-fields{ margin: .4rem 0; }
+.eh-calpanel-actions{ display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin-top: .5rem; }
+.eh-calday{ list-style: none; margin: 0 0 .5rem; padding: 0; }
+.eh-calday li{ display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; padding: .3rem 0; font-size: .88rem;
+  border-top: 1px solid rgba(255,255,255,.07); }
+.eh-calday li:first-child{ border-top: 0; }
+.eh-choices-inline{ grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); margin-top: .9rem; }
+
+/* ---- V3.785 — the presenter page (#/presenters, engage-presenters.js) ---- */
+.ep-page [hidden]{ display: none !important; }
+.ep-pitch p{ max-width: 46rem; }
+.ep-how{ margin: .6rem 0 1rem 1.2rem; padding: 0; line-height: 1.7; }
+.ep-me{
+  display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; margin: 0 0 1rem;
+  padding: .55rem .8rem; border-radius: 10px; font-size: .9rem;
+  border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.14);
+}
+.ep-me > span{ flex: 1 1 18rem; }
+.ep-me .tc-muted{ font-size: .82rem; margin-left: .3rem; }
+.ep-about{ border-left: 3px solid var(--accent, #5baed1); }
+.ep-bar{
+  display: flex; flex-direction: column; gap: .45rem; margin: .4rem 0 .8rem;
+  padding: .7rem .8rem; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.14);
+}
+.ep-bar-row{ display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
+.ep-bar-label{ width: 4.6rem; flex: 0 0 auto; font-size: .78rem; color: var(--muted, #a8b3c7); }
+.ep-bar input, .ep-bar select{
+  font-size: .85rem; padding: .35rem .5rem; border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.2); background: rgba(0,0,0,.25); color: inherit;
+}
+.ep-q{ flex: 1 1 14rem; min-width: 0; }
+.ep-bar select{ max-width: 16rem; }
+.ep-date{ display: inline-flex; align-items: center; gap: .3rem; font-size: .8rem; color: var(--muted, #a8b3c7); }
+.ep-chip{
+  font: inherit; font-size: .8rem; padding: .22rem .65rem; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.18); background: rgba(0,0,0,.2); color: inherit;
+}
+.ep-chip:hover{ border-color: var(--accent, #5baed1); }
+.ep-chip[aria-pressed="true"]{ background: rgba(91,174,209,.25); border-color: var(--accent, #5baed1); font-weight: 600; }
+.ep-clear{ margin-left: auto; }
+/* A <details> is not a dependable flex container in older Safari, so the
+   rows are spaced with margins rather than gap. */
+.ep-more > summary{ cursor: pointer; font-size: .85rem; font-weight: 600; }
+.ep-more > .ep-bar-row{ margin-top: .45rem; }
+.ep-viewrow{ margin-top: .15rem; }
+.ep-summary{ font-size: .85rem; color: var(--muted, #a8b3c7); margin: 0 0 .5rem; min-height: 1.2em; }
+.ep-day{ margin: 0 0 .9rem; }
+.ep-day h5{ margin: 0 0 .35rem; font-size: .88rem; }
+.ep-open{
+  display: flex; align-items: flex-start; gap: .8rem; flex-wrap: wrap;
+  margin: 0 0 .4rem; padding: .55rem .7rem; border-radius: 9px;
+  border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.16);
+}
+.ep-open.is-open{ border-color: var(--accent, #5baed1); background: rgba(91,174,209,.06); }
+.ep-open-time{ flex: 0 0 6.4rem; font-weight: 600; font-size: .88rem; }
+.ep-open-main{ flex: 1 1 16rem; min-width: 0; display: flex; flex-direction: column; gap: .1rem; font-size: .88rem; }
+.ep-open-main .tc-muted{ font-size: .8rem; }
+.ep-open-act{ flex: 0 0 auto; }
+.ep-req-form{ flex-basis: 100%; margin-top: .3rem; padding-top: .6rem; border-top: 1px dashed rgba(255,255,255,.15); }
+.ep-calday{ margin-top: .3rem; }
+.ep-review{ margin-top: .5rem; padding-top: .6rem; border-top: 1px dashed rgba(255,255,255,.15); display: flex; flex-direction: column; gap: .7rem; }
+.ep-scale label{ padding: .3rem .75rem; }
+.ep-scale-ends{ font-size: .75rem; }
+.ep-due{ border-color: rgba(240,190,70,.45); }
+/* V3.788 — calendar-first presenter page */
+.ep-intro{ margin: -.4rem 0 1rem; font-size: .9rem; }
+.ep-bar.is-cal .ep-date{ display: none; }
+.ep-about-prompt{ border-left: 3px solid var(--accent, #5baed1); }
+.ep-due-note{ border-color: rgba(240,190,70,.45); background: rgba(240,190,70,.08); }
+.ep-teacher-note{ font-size: .86rem; }
+.ep-find .eh-cal-cell{ min-height: 5.2rem; }
+.ep-find .eh-cal-chip{ font-size: .66rem; }
+.eh-owed{ border-color: rgba(240,190,70,.45); }
+.eh-mail-step{ display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.eh-mail-step > span:not(.tc-chip){ flex: 1 1 14rem; font-size: .86rem; }
+.eh-mail-again{ font-size: .82rem; margin-left: .4rem; }
+/* V3.790 — the copy-and-send draft email */
+.eh-email{
+  margin: .5rem 0 .3rem; padding: .7rem .8rem; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.14); background: rgba(0,0,0,.2);
+  display: flex; flex-direction: column; gap: .45rem;
+}
+.eh-email-row{ display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; font-size: .88rem; }
+.eh-email-label{ flex: 0 0 4rem; font-size: .76rem; color: var(--muted, #a8b3c7); text-transform: uppercase; letter-spacing: .04em; }
+.eh-email-val{ flex: 1 1 14rem; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+.eh-email-body{
+  width: 100%; min-height: 18rem; resize: vertical; padding: .6rem .7rem; border-radius: 8px;
+  font: .86rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  border: 1px solid rgba(255,255,255,.2); background: rgba(0,0,0,.3); color: inherit;
+}
+.eh-email-actions{ display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.eh-email-copied{ font-size: .82rem; color: #8fe0ad; }
+.eh-email-again{ margin-top: .3rem; }
+.eh-email-again > summary{ cursor: pointer; font-size: .85rem; }
+.eh-mail-sent{ margin: .2rem 0 0; padding-top: .45rem; border-top: 1px dashed rgba(255,255,255,.15); }
+
+/* ---- V3.791 — opportunities: teacher cards + form, presenter cards ---- */
+.eh-opp{
+  display: flex; flex-direction: column; gap: .2rem;
+  margin: 0 0 .5rem; padding: .6rem .75rem; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.16); font-size: .9rem;
+}
+.eh-opp > .tc-muted{ font-size: .82rem; }
+.eh-opp.is-paused, .eh-opp.is-closed{ opacity: .75; }
+.eh-opp.is-past{ opacity: .6; }
+.eh-opp.is-open.ep-opp.is-open{ opacity: 1; }
+.eh-opp-head{ display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.eh-opp-head strong{ font-size: .98rem; }
+.eh-opp-dates{ display: flex; flex-wrap: wrap; gap: .3rem; margin: .3rem 0 .1rem; }
+.eh-opening.is-booked{ background: rgba(91,174,209,.2); border-color: rgba(91,174,209,.55); font-weight: 600; }
+.eh-opening.is-past{ opacity: .5; text-decoration: line-through; }
+.eh-opening.is-day{ outline: 2px solid var(--accent, #5baed1); outline-offset: 1px; }
+.eh-opp-flags{ display: flex; flex-wrap: wrap; gap: .35rem; margin: .2rem 0; }
+.eh-flag{
+  display: inline-block; font: inherit; font-size: .8rem; padding: .22rem .6rem; border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.05); color: inherit;
+}
+.eh-flag-pending{ background: rgba(240,190,70,.14); border-color: rgba(240,190,70,.5); color: #f0be46; }
+.eh-flag-open{ background: rgba(90,200,130,.1); border-color: rgba(90,200,130,.4); color: #8fe0ad; }
+.eh-flag-booked{ background: rgba(91,174,209,.14); border-color: rgba(91,174,209,.5); color: #8ccfee; }
+button.eh-flag{ cursor: pointer; }
+button.eh-flag:hover{ filter: brightness(1.15); }
+.eh-opp .teach-assign-actions{ margin-top: .35rem; }
+.eh-req-dates{ display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; font-size: .82rem; margin-top: .25rem; }
+.eh-opp-form{
+  margin: .2rem 0 1rem; padding: .8rem .9rem; border-radius: 10px;
+  border: 1px solid rgba(91,174,209,.4); background: rgba(91,174,209,.06);
+  display: flex; flex-direction: column; gap: .6rem;
+}
+.eh-opp-form h5{ margin: 0; font-size: .95rem; }
+.eh-opp-form .eh-choices{ margin: 0; }
+.eh-wanted input[type=number]{ width: 3.2rem; padding: .15rem .3rem; margin: 0 .2rem; font-size: .85rem;
+  border-radius: 6px; border: 1px solid rgba(255,255,255,.2); background: rgba(0,0,0,.25); color: inherit; }
+.eh-opp-datelist{ display: flex; flex-direction: column; gap: .3rem; }
+.eh-opp-daterow{
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  padding: .4rem .6rem; border-radius: 8px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.14);
+  font-size: .88rem;
+}
+.eh-opp-daterow strong{ flex: 0 0 7.5rem; }
+.eh-opp-daterow label{ display: inline-flex; align-items: center; gap: .3rem; font-size: .82rem; color: var(--muted, #a8b3c7); }
+.eh-opp-daterow input[type=time]{ font-size: .85rem; padding: .25rem .4rem; border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.2); background: rgba(0,0,0,.25); color: inherit; }
+.eh-opp-daterow [data-of-remove]{ margin-left: auto; }
+.eh-opp-nodates{ margin: 0; font-size: .86rem; }
+/* presenter side */
+.ep-opp{ margin-bottom: .6rem; }
+.ep-opp.is-open{ border-color: var(--accent, #5baed1); background: rgba(91,174,209,.06); }
+.ep-opp-act{ display: flex; justify-content: flex-end; margin-top: .2rem; }
+.ep-okothers{ margin-top: .2rem; }
+.ep-req-form .eh-choices{ margin-bottom: .6rem; }
+@media (max-width: 640px){
+  .eh-opp-daterow strong{ flex-basis: 100%; }
+  .eh-opp-daterow [data-of-remove]{ margin-left: 0; }
+  .ep-opp-act{ justify-content: flex-start; }
+}
+.eh-review{ display: flex; flex-direction: column; gap: .15rem; margin-top: .4rem; padding: .45rem .6rem;
+  border-radius: 6px; font-size: .85rem; background: rgba(91,174,209,.08); border: 1px solid rgba(91,174,209,.25); }
+
+@media (max-width: 640px){
+  .eh-cal-cell{ min-height: 3.2rem; padding: .2rem; }
+  .eh-cal-chip{ display: none; }
+  .eh-cal-cell.tone-open::after, .eh-cal-cell.tone-busy::after, .eh-cal-cell.tone-pending::after{
+    content: ''; position: absolute; left: 50%; bottom: .3rem; width: .4rem; height: .4rem;
+    margin-left: -.2rem; border-radius: 50%; background: #5ac882;
+  }
+  .eh-cal-cell.tone-busy::after{ background: #5baed1; }
+  .eh-cal-cell.tone-pending::after{ background: #f0be46; }
+  .eh-cal-count{ top: auto; bottom: .2rem; right: .2rem; }
+  .ep-bar-label{ width: 100%; }
+  .ep-clear{ margin-left: 0; }
+  .ep-open-time{ flex-basis: 100%; }
+  .ep-find .eh-cal-cell{ min-height: 3.2rem; }
+}
+
+/* ================================================================
+   Whiteboard (V3.677) — live lecture drawing
+   ================================================================ */
+
+/* ── Section board list ── */
+.wb-section{ min-height: 40px; }
+.wb-new-row{ margin-bottom: .8rem; }
+.wb-new-form{ display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: .6rem; }
+.wb-input{
+  padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+  font-size: .9rem; min-width: 240px; flex: 1;
+}
+.wb-field-err{ color: #dc2626; font-size: .8rem; flex-basis: 100%; }
+.wb-board-list{ display: flex; flex-direction: column; gap: 6px; }
+/* V3.733 — dark rows on the (dark) class page; wrap so the recorded
+   lectures list sits under the board link instead of overlaying it */
+.wb-board-row{
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  border: 1px solid #374151; border-radius: 8px; padding: 8px 12px;
+  background: #1f2937; color: #e5e7eb;
+}
+.wb-board-row .muted-text{ color: #9ca3af; }
+.wb-board-row-live{ border-color: #dc2626; background: #2a1a1f; }
+.wb-board-open{
+  display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;
+  text-decoration: none; color: inherit;
+}
+.wb-board-open:hover .wb-board-name{ text-decoration: underline; }
+.wb-board-name{ font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-board-meta{ font-size: .78rem; white-space: nowrap; }
+.wb-board-actions{ display: flex; gap: 4px; }
+.wb-board-row .btn-ghost{ color: #e5e7eb; border-color: #4b5563; }
+.wb-rename-input{ min-width: 160px; }
+.wb-armed{ background: #dc2626 !important; color: #fff !important; }
+
+/* ── Live banner (class page) ── */
+.wb-live-banner{
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  z-index: 1200; animation: wb-banner-in .25s ease-out;
+}
+.wb-live-banner a{
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #111827; color: #fff; text-decoration: none;
+  padding: 10px 18px; border-radius: 999px; font-size: .9rem; font-weight: 600;
+  box-shadow: 0 6px 20px rgba(0,0,0,.35);
+}
+@keyframes wb-banner-in{ from{ opacity: 0; transform: translate(-50%, 8px);} to{ opacity: 1; transform: translate(-50%, 0);} }
+.wb-live-dot{
+  width: 9px; height: 9px; border-radius: 50%; background: #dc2626;
+  display: inline-block; flex: none; animation: wb-pulse 1.4s ease-in-out infinite;
+}
+.wb-live-dot-mini{ width: 6px; height: 6px; position: absolute; top: 2px; right: 2px; }
+@keyframes wb-pulse{ 0%,100%{ opacity: 1; } 50%{ opacity: .35; } }
+
+/* ── Board page ── */
+
+/* ================================================================
+   V3.680 — Classes page: 2-up grid + spanning teacher card;
+   #/teachers landing bits
+   ================================================================ */
+.classes-grid{
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+@media (max-width: 768px){
+  .classes-grid{ grid-template-columns: 1fr; }
+}
+.classes-grid .tc-teacher-banner{
+  grid-column: 1 / -1;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+  padding: .85rem 1.1rem;
+  border-left: 3px solid var(--accent, #f0be46);
+}
+.classes-grid .tc-teacher-banner h3{ margin: 0 0 .15rem; font-size: 1.02rem; }
+.classes-grid .tc-teacher-banner p{ margin: 0; font-size: .88rem; }
+.tc-banner-text{ flex: 1 1 22rem; min-width: 16rem; }
+.tc-banner-actions{ display: flex; gap: .5rem; flex-wrap: wrap; }
+.classes-grid .empty-state-card{ grid-column: 1 / -1; }
+
+.teachers-pitch-list{ margin: .5rem 0 .6rem 1.2rem; padding: 0; }
+.teachers-pitch-list li{ margin: .3rem 0; font-size: .92rem; }
+.teach-invite-card{ border-left: 3px solid var(--accent, #f0be46); }
+
+/* ================================================================
+   V3.769 — Teaching hub: four-tab shell, dashboard, invites, preview
+   ================================================================ */
+.teach-header{ align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+.teach-header-main{ flex: 1 1 18rem; }
+.teach-header-main h2{ margin: 0 0 .15rem; }
+.teach-header-main p{ margin: 0; font-size: .88rem; }
+.teach-header-actions{ display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.teach-class-switch{
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: .82rem; color: var(--muted, #a8b3c7);
+}
+.teach-class-switch select{
+  font-size: .85rem; padding: .25rem .4rem; border-radius: 6px; max-width: 14rem;
+  border: 1px solid rgba(255,255,255,.2); background: rgba(0,0,0,.25); color: inherit;
+}
+.teach-tab{ display: inline-flex; align-items: center; gap: .4rem; }
+.teach-tab-badge{
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.15rem; height: 1.15rem; padding: 0 .3rem;
+  border-radius: 999px; font-size: .68rem; font-weight: 700; line-height: 1;
+  background: var(--accent, #f0be46); color: #10131a;
+}
+
+/* Dashboard */
+.teach-tiles{
+  display: grid; gap: .7rem; margin-bottom: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+}
+.teach-tile{
+  display: flex; flex-direction: column; gap: .15rem;
+  padding: .8rem .9rem; border-radius: 10px; text-decoration: none; color: inherit;
+  border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.16);
+  transition: border-color .15s ease, transform .15s ease;
+}
+.teach-tile:hover{ border-color: var(--accent, #f0be46); transform: translateY(-1px); }
+.teach-tile-n{ font-size: 1.7rem; font-weight: 700; line-height: 1; }
+.teach-tile-label{ font-size: .8rem; color: var(--muted, #a8b3c7); }
+.teach-todo, .teach-soon, .teach-other-classes{ list-style: none; margin: .4rem 0 0; padding: 0; }
+.teach-todo li, .teach-soon li, .teach-other-classes li{
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  padding: .45rem 0; border-top: 1px solid rgba(255,255,255,.08); font-size: .9rem;
+}
+.teach-todo li:first-child, .teach-soon li:first-child,
+.teach-other-classes li:first-child{ border-top: none; }
+.teach-todo li > span{ flex: 1 1 16rem; }
+.teach-todo li > a{ margin-left: auto; }
+.teach-soon-date{ font-weight: 600; min-width: 5.5rem; }
+.teach-soon-what{ flex: 1 1 12rem; }
+.teach-soon-link{ margin-left: auto; font-size: .82rem; }
+.teach-other-classes .tc-muted{ font-size: .82rem; }
+
+/* Students — invites */
+.teach-invite-grid{
+  display: grid; gap: .8rem; margin: .6rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+.teach-invite-field label{ display: block; font-size: .8rem; color: var(--muted, #a8b3c7); margin-bottom: .2rem; }
+.teach-invite-row{ display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.teach-invite-url{
+  font-size: .8rem; padding: .25rem .5rem; border-radius: 6px;
+  background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.12);
+  overflow-wrap: anywhere;
+}
+.teach-invite-mail{ margin-top: .9rem; padding-top: .7rem; border-top: 1px dashed rgba(255,255,255,.15); }
+.teach-invite-mail label{ display: block; font-weight: 600; font-size: .9rem; }
+.teach-invite-mail textarea{
+  width: 100%; border-radius: 8px; padding: .5rem .6rem; margin-top: .3rem;
+  border: 1px solid rgba(255,255,255,.2); background: rgba(0,0,0,.25); color: inherit;
+}
+.teach-student-stats{
+  display: flex; gap: .7rem; flex-wrap: wrap; margin-top: .2rem; font-size: .82rem;
+}
+.teach-student-panel{
+  margin-top: .55rem; padding: .5rem .6rem; border-radius: 8px;
+  background: rgba(0,0,0,.18); border: 1px dashed rgba(255,255,255,.18);
+  display: flex; flex-direction: column; gap: .35rem;
+}
+
+/* Modules — inline preview */
+.teach-cat-row{ display: flex; align-items: flex-start; gap: .5rem; flex-wrap: wrap; }
+.teach-cat-row .teach-cat-option{ flex: 1 1 18rem; }
+.teach-cat-name{ font-weight: 600; }
+.teach-preview{
+  flex-basis: 100%; width: 100%; margin-top: .5rem;
+  border: 1px solid rgba(240,190,70,.4); border-radius: 10px; overflow: hidden;
+  background: rgba(0,0,0,.25);
+}
+.teach-preview-bar{
+  display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+  padding: .4rem .6rem; border-bottom: 1px solid rgba(255,255,255,.12);
+  font-size: .8rem;
+}
+.teach-preview-bar .tc-muted{ flex: 1 1 12rem; }
+.teach-preview-frame{
+  display: block; width: 100%; height: 70vh; min-height: 22rem; border: 0; background: #fff;
+}
+.teach-engage-intro{ border-left: 3px solid var(--accent, #f0be46); }
+
+@media (max-width: 640px){
+  .teach-header-actions{ width: 100%; }
+  .teach-class-switch select{ max-width: 100%; }
+  .teach-tabs{ overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .teach-tab{ white-space: nowrap; }
+  .teach-preview-frame{ height: 60vh; }
+  .teach-todo li > a, .teach-soon-link{ margin-left: 0; }
+}
+
+/* ── V3.793 — "Interested in Summer 2027" list on the BME 295C admin dashboard ── */
+.cb295-interest-table { width: 100%; border-collapse: collapse; font-size: .85rem; margin-top: .5rem; }
+.cb295-interest-table th, .cb295-interest-table td {
+  text-align: left; padding: .4rem .5rem; vertical-align: top;
+  border-bottom: 1px solid var(--border, rgba(255,255,255,.08));
+}
+.cb295-interest-table th { color: var(--muted, #8a94a6); font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; }
+.cb295-interest-note { color: var(--muted, #8a94a6); white-space: pre-wrap; }
+.cb295-interest-actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-top: .6rem; }
+.cb295-interest-remove.is-armed { color: #f2a5a5; border-color: #f2a5a5; }
+@media (max-width: 720px) {
+  .cb295-interest-table thead { display: none; }
+  .cb295-interest-table tr { display: block; padding: .4rem 0; border-bottom: 1px solid var(--border, rgba(255,255,255,.08)); }
+  .cb295-interest-table td { display: block; border: 0; padding: .15rem 0; }
+}
+
+/* ── V3.796 — "Write to the waitlist" compose box + history on the BME 295C admin dashboard ── */
+.cb295-wl-compose { margin-top: .75rem; padding: .75rem; border: 1px solid var(--border, rgba(255,255,255,.08)); border-radius: 8px; }
+.cb295-wl-label { display: block; font-size: .8rem; color: var(--muted, #8a94a6); margin-bottom: .6rem; }
+.cb295-wl-label input, .cb295-wl-label textarea {
+  display: block; width: 100%; margin-top: .25rem; padding: .5rem .6rem; font: inherit; font-size: .9rem;
+  border: 1px solid var(--border, rgba(255,255,255,.08)); border-radius: 6px; background: transparent; color: inherit;
+}
+.cb295-wl-label textarea { resize: vertical; min-height: 9rem; }
+.cb295-wl-batches { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.cb295-wl-history { margin-top: .75rem; font-size: .85rem; }
+.cb295-wl-history summary { cursor: pointer; color: var(--muted, #8a94a6); }
+.cb295-wl-history ul { margin: .4rem 0 0; padding-left: 1.1rem; }
+.cb295-wl-history li { margin: .2rem 0; }
+
+/* ── V3.808 — #/invite-a-scientist: teachers post a visit with no account (engage-guest.js) ── */
+.eg-page .eg-card h3 { display: flex; align-items: center; gap: .5rem; }
+.eg-num {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  width: 1.6rem; height: 1.6rem; border-radius: 50%; font-size: .85rem; font-weight: 700;
+  background: rgba(91,174,209,.18); color: var(--accent, #5baed1); border: 1px solid rgba(91,174,209,.4);
+}
+.eg-how { margin: .6rem 0 .9rem; padding-left: 1.25rem; }
+.eg-how li { margin: .3rem 0; }
+.eg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0 1rem; }
+.eg-field input, .eg-field select, .eg-field textarea { width: 100%; box-sizing: border-box; }
+.eg-label { font-weight: 600; font-size: .875rem; margin: .6rem 0 .4rem; }
+.eg-help { margin: .25rem 0 0; font-size: .78rem; color: var(--muted, #a8b3c7); }
+.eg-err { margin: .3rem 0 0; font-size: .82rem; color: #f2a5a5; }
+.eg-page .is-invalid input, .eg-page .is-invalid textarea, .eg-page .is-invalid select { border-color: #e06c6c; }
+.eg-page fieldset.is-invalid .eh-choice { border-color: rgba(224,108,108,.6); }
+.eg-daterow { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; margin: 0 0 .5rem; }
+.eg-daterow label { display: inline-flex; align-items: center; gap: .35rem; font-size: .82rem; color: var(--muted, #a8b3c7); }
+.eg-daterow input[type=date], .eg-daterow input[type=time] { font-size: .9rem; padding: .35rem .5rem; border-radius: 6px; }
+.eg-daterow [data-d-remove] { margin-left: auto; }
+.eg-submit { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; margin-top: .75rem; }
+.eg-status { font-size: .9rem; }
+.eg-fine { margin: .75rem 0 0; font-size: .8rem; color: var(--muted, #a8b3c7); }
+.eg-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.eg-linkbox { margin: .6rem 0 .9rem; padding: .75rem; border-radius: 8px; border: 1px dashed rgba(91,174,209,.5); background: rgba(91,174,209,.06); }
+.eg-link { display: block; word-break: break-all; font-size: .85rem; margin-bottom: .6rem; }
+.eg-link-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.eg-copied { font-size: .82rem; color: var(--muted, #a8b3c7); }
+.eg-keep > summary { cursor: pointer; }
+.eg-keep[open] > summary { margin-bottom: .4rem; }
+.eg-state-line { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; }
+.eg-action-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+.eg-mine-list { margin: .3rem 0 0; padding-left: 1.1rem; }
+.eg-mine-list li { margin: .25rem 0; }
+.eg-closed > summary { cursor: pointer; color: var(--muted, #a8b3c7); font-size: .9rem; }
+@media (max-width: 640px) {
+  .eg-daterow [data-d-remove] { margin-left: 0; }
+}

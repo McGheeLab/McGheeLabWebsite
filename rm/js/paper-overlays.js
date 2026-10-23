@@ -18,10 +18,8 @@
  *   onChange(cb)               → register a listener
  *   destroy()
  *
- * Backward-compat aliases retained for one release cycle so external
- * call sites (annotation-overlay.js stripes, annotation-panel.js
- * "Overlays" chips) keep working while they migrate:
- *   getActiveBucketIds, getLinkedBuckets, getColorForBucket
+ * (V3.621 — the bucket-named back-compat aliases are gone; every call
+ * site uses the draft-named API.)
  *
  * Active set is persisted in localStorage at `rm_lp_drafts_<paperId>`.
  * Default when no entry: all linked drafts active.
@@ -97,12 +95,41 @@
   }
 
   /* ─── Filter ──────────────────────────────────────────── */
+  /* V3.628 — has the user DELIBERATELY narrowed the view? True only when at
+   * least one linked draft has been switched off. The default state (every
+   * linked draft active) is "no lens", so nothing is hidden.
+   *
+   * Why this exists: filing a highlight to a draft used to make it vanish
+   * from the page. `cite_in_drafts` is both "which draft is this evidence
+   * for" AND the overlay filter's key, so the moment you filed a highlight
+   * it stopped matching `!ids.length → always show` and started requiring
+   * its draft's overlay to be on. Pre-V3.619 the create path wrote the dead
+   * `bucket_ids` field instead, so this branch never fired for hand-made
+   * highlights and the hiding stayed dormant. Alex, V3.628: "when i
+   * highlight something on the paper it should stay there." */
+  function _isNarrowed() {
+    return _linkedDrafts.some(d => !_active.has(d.id));
+  }
+
   function getFilterFn() {
     return (ann) => {
       const ids = Array.isArray(ann.cite_in_drafts) ? ann.cite_in_drafts : [];
       if (!ids.length) return true;        // general highlight, always show
+      if (!_isNarrowed()) return true;     // no lens engaged — show everything
       return ids.some(id => _active.has(id));
     };
+  }
+
+  /* V3.628 — make a draft's overlay active (used when the user files a
+   * highlight to it, so the thing they just filed cannot disappear even
+   * while a lens is engaged). No-op when already active or unknown. */
+  function activateDraft(draftId) {
+    if (!draftId || _active.has(draftId)) return;
+    if (!_linkedDrafts.some(d => d.id === draftId)) return;
+    _active.add(draftId);
+    _saveActive();
+    _emitChange();
+    _render();
   }
   function getActiveDraftIds() { return Array.from(_active); }
   function getLinkedDrafts()   { return _linkedDrafts.slice(); }
@@ -123,12 +150,14 @@
     );
   }
 
-  // Status set used to filter "drafts we're writing" from items.json
-  // grants. Awarded / active / completed grants aren't drafts; they're
-  // post-award work. Proposals = anything we'd still cite to.
-  const GRANT_DRAFT_STATUSES = new Set([
-    'drafting', 'submitted', 'under_review', 'revising', 'rejected',
-  ]);
+  // Which grant statuses count as "a draft we're writing". V3.631 — one
+  // definition, in library-links.js; the local list is only a fallback for a
+  // load order that hasn't defined it yet. Awarded / active / completed
+  // grants aren't drafts, they're post-award work.
+  const GRANT_DRAFT_STATUSES = new Set(
+    (window.LIBRARY_LINKS && window.LIBRARY_LINKS.GRANT_DRAFT_STATUSES) ||
+    ['drafting', 'submitted', 'under_review', 'revising', 'rejected']
+  );
 
   // Returns drafts available to associate with this paper:
   //   paper drafts: every entry in projects/papers.json (the paper-
@@ -541,10 +570,17 @@
       <div class="lp-oim-backdrop"></div>
       <div class="lp-oim-card">
         <div class="lp-oim-head">Link this paper to a draft</div>
+        <!-- V3.629 — copy corrected. Linking has never gated the evidence
+             picker since V3.475, and the evidence flow itself moved to the
+             Comments page in V3.622. What linking actually buys you: the
+             draft's overlay lens in this reader, the "File to:" chips on new
+             highlights, this paper's rows in the builder's Evidence Inbox,
+             and the default scope of the builder's Cmd+K citation search. -->
         <div class="lp-oim-summary">
-          Pick the paper drafts and grant proposals this library paper is
-          evidence for. Linking unlocks it in the per-annotation "Tag as
-          evidence" picker on the right side of the reader.
+          Pick the paper drafts and grant proposals this library paper feeds.
+          Linking turns on that draft's highlight lens here, offers it when you
+          file a highlight, and puts this paper in the draft's Evidence Inbox
+          and citation search in the builder.
         </div>
         <div class="lp-linkpick-search-wrap">
           <input id="lp-linkpick-search" type="text" placeholder="Search drafts…" autocomplete="off" />
@@ -595,18 +631,56 @@
           (_paperItem.meta && _paperItem.meta.library &&
            Array.isArray(_paperItem.meta.library.linked_drafts))
             ? _paperItem.meta.library.linked_drafts : []);
+        /* V3.629 — only unlink drafts this picker actually RENDERED.
+         *
+         * `desired` can only ever contain ids that got a checkbox, so a
+         * bare `!desired.has(id)` treats "the picker never offered this
+         * draft" as "the user unticked it" and silently deletes the link on
+         * Save — even when the user changed nothing. _loadAllDrafts() omits
+         * several classes of legitimately-linked draft: items.json grants
+         * that moved to awarded/active/completed (status-filtered), drafts
+         * that have since been deleted, and — for non-lab-members — every
+         * grantDrafts id (that whole block is isLabMember()-gated). So a
+         * student opening this modal and pressing Save wiped the paper's
+         * grant associations with no warning and no way to notice.
+         *
+         * library-associations.js:351 has had this guard since V3.365; this
+         * picker never got it. Unlisted ids are left exactly as they are —
+         * they're only removable from a surface that can show them. */
+        const listed = new Set(allDrafts.map(d => d.id));
         let fresh = Array.from(current);
+        const added = [];   // V3.631 — newly-linked ids, for the focus-card offer
         for (const id of desired) {
-          if (!current.has(id)) fresh = await window.LIBRARY_LINKS.toggleDraftLink(_paperItem.id, id, true);
+          if (!current.has(id)) {
+            fresh = await window.LIBRARY_LINKS.toggleDraftLink(_paperItem.id, id, true);
+            added.push(id);
+          }
         }
         for (const id of current) {
-          if (!desired.has(id)) fresh = await window.LIBRARY_LINKS.toggleDraftLink(_paperItem.id, id, false);
+          if (listed.has(id) && !desired.has(id)) {
+            fresh = await window.LIBRARY_LINKS.toggleDraftLink(_paperItem.id, id, false);
+          }
         }
         _paperItem.meta = _paperItem.meta || {};
         _paperItem.meta.library = _paperItem.meta.library || {};
         _paperItem.meta.library.linked_drafts = fresh;
         close();
         await _refreshLinkedDrafts();
+        /* V3.631 — offer the other half of the same act: an output focus card
+         * IS frequently this draft (source_draft_id / links.draft_refs), and
+         * the roadmap ref is where the "why" note lives. Deliberately hung
+         * off the PICKER, not off linkDraft() — linkDraft is what
+         * _ensureDraftLinked calls while the user is filing a highlight
+         * (V3.629), and a modal must not ambush that. */
+        if (added.length && window.DRAFT_FOCUS_BRIDGE) {
+          try {
+            await window.DRAFT_FOCUS_BRIDGE.offerForDrafts({
+              item: _paperItem,
+              draftIds: added,
+              onDone: () => { _emitChange(); },
+            });
+          } catch (e) { console.warn('[paper-overlays] focus offer failed:', e && e.message); }
+        }
       } catch (e) {
         console.error('[paper-overlays] link save failed:', e);
         btn.disabled = false; btn.textContent = 'Save';
@@ -656,16 +730,14 @@
     init,
     // V3.103 draft API
     getActiveDraftIds, getLinkedDrafts, getColorForDraft, getFilterFn,
+    activateDraft,   // V3.628 — keep a just-filed highlight visible
     linkDraft, unlinkDraft,
     openLinkPicker: _openLinkPicker,   // exposed so the inline evidence
                                         // form can offer "+ Add draft".
     refreshLinks: _refreshLinkedDrafts, // V3.365 — sidebar association
                                         // pills call this after a toggle.
     onChange, destroy,
-    // Backward-compat aliases (operate on drafts now). One-cycle bridge
-    // for annotation-overlay.js stripes + annotation-panel.js chips.
-    getActiveBucketIds: getActiveDraftIds,
-    getLinkedBuckets:   getLinkedDrafts,
-    getColorForBucket:  getColorForDraft,
+    // V3.621 — the bucket-named back-compat aliases are gone; every call
+    // site uses the draft-named API.
   };
 })();

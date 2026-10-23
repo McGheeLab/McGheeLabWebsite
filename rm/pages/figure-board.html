@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Figure board — McGhee Lab</title>
+  <!-- V3.837 — a paper's figure board on the canvas engine (the same system
+       as the lab notebook: the sheet is the board, radial pills carry the
+       tools, cards are widgets). ?paper=<id>; &embed=1 when the paper
+       builder's Figures tab shows it in an iframe. Drawn regions become
+       panels (⬚ Region → Make panel), cards connect with arrows, a lit
+       review from a notebook brings its papers along. Data:
+       papers/{paperId}/boards/main. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/whiteboard-board.css">
+  <link rel="stylesheet" href="/rm/vendor/pdfjs/pdf_viewer.css">
+  <link rel="stylesheet" href="/rm/css/notebook-blocks.css">
+  <link rel="stylesheet" href="/rm/css/canvas-widgets.css">
+  <link rel="stylesheet" href="/rm/css/canvas-paper-reader.css">
+  <link rel="stylesheet" href="/rm/css/notebook-canvas.css">
+  <link rel="stylesheet" href="/rm/css/figure-board-canvas.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
+</head>
+<body class="fbc-body">
+  <div class="page nbk-page nbc-page fbc-page">
+    <div id="fbc-content" class="nbk-loading">Loading…</div>
+  </div>
+  <input type="file" id="nbk-file-input" accept="image/*" style="display:none">
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/paper-figures.js"></script>
+  <script src="/rm/js/library-links.js"></script>
+  <script src="/rm/js/section-comments.js"></script>
+  <script src="/rm/js/page-layout.js"></script>
+  <script type="module" src="/rm/js/pdf-viewer.js"></script>
+  <script src="/whiteboard.js"></script>
+  <script src="/whiteboard-replay.js"></script>
+  <script src="/rm/js/canvas-widgets.js"></script>
+  <!-- V3.856 — 📖 Paper cards: the reader stack + claims + the shared card module -->
+  <script src="/rm/js/annotation-colors.js"></script>
+  <script src="/rm/js/annotation-anchor.js"></script>
+  <script src="/rm/js/annotation-overlay.js"></script>
+  <script src="/rm/js/geom-selection.js"></script>
+  <script src="/rm/js/claims.js"></script>
+  <script src="/rm/js/library-upload.js"></script>   <!-- V3.859 — a paper card without a PDF can find or upload one -->
+  <script src="/rm/js/canvas-paper-reader.js"></script>
+  <script src="/rm/js/activity-signals.js"></script>
+  <script src="/rm/js/day-distribute.js"></script>
+  <script src="/rm/js/myweek-report.js"></script>
+  <script src="/rm/js/figure-board-canvas.js"></script>
+</body>
+</html>

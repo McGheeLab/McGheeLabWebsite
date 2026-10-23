@@ -1,0 +1,91 @@
+<!-- V3.646 in-page selftest for the quantity module + take-from-stock sheet.
+
+     Lives OUTSIDE rm/ on purpose: OurlabMobile/scripts/sync-rm.mjs rsyncs the
+     whole rm/ tree into the phone app, so a test page there would ship. The
+     absolute /rm/js/... paths below still resolve from anywhere on the origin.
+
+     Run:
+       python3 -m http.server 8777
+       node ~/.claude/skills/browser-automation/browser.mjs \
+         http://localhost:8777/scripts/tests/v3646-selftest.html \
+         --eval "document.getElementById('r').dataset.fail"
+
+     Assertions live IN the page and publish to data-* attributes because
+     browser.mjs runs --eval in an ISOLATED world and cannot see window.INV_QTY
+     at all — a global that never loaded and one the harness simply cannot reach
+     look identical from outside. -->
+<!doctype html><html><head><meta charset="utf-8"><title>V3.646 selftest</title>
+<link rel="stylesheet" href="/rm/css/tokens.css"><link rel="stylesheet" href="/rm/css/style.css">
+</head><body>
+<h1>V3.646 selftest</h1>
+<pre id="r" data-pass="0" data-fail="0" data-detail="">running…</pre>
+<div id="ln-body" hidden></div>
+<script src="/rm/js/icons.js"></script>
+<script src="/rm/js/toast.js"></script>
+<script src="/rm/js/app-sheet.js"></script>
+<script src="/rm/js/inventory-qty.js"></script>
+<script src="/rm/js/stock-take.js"></script>
+<script>
+/* Assertions live IN the page and publish to the DOM: browser.mjs runs --eval in
+   an ISOLATED world and cannot see window.INV_QTY at all. Reading data-* off an
+   element is the only channel that crosses. */
+(function () {
+  var pass = 0, fail = 0, detail = [];
+  function ck(name, got, want) {
+    var ok = JSON.stringify(got) === JSON.stringify(want);
+    if (ok) pass++; else { fail++; detail.push(name + ': got ' + JSON.stringify(got) + ' want ' + JSON.stringify(want)); }
+  }
+  ck('INV_QTY global exists', typeof window.INV_QTY, 'object');
+  ck('STOCK_TAKE global exists', typeof window.STOCK_TAKE, 'object');
+  ck('APP_SHEET global exists', typeof window.APP_SHEET, 'object');
+  var Q = window.INV_QTY || {};
+  var T = function (o) { var b = { qty_tracked: true, qty_unit: 'mL' }; for (var k in o) b[k] = o[k]; return b; };
+  ck('deriveStatus untracked → null', Q.deriveStatus && Q.deriveStatus({ quantity: 3 }), null);
+  ck('deriveStatus 20% → low', Q.deriveStatus(T({ qty_made: 500, qty_remaining: 100, qty_min: null })), 'low');
+  ck('deriveStatus 0 → out', Q.deriveStatus(T({ qty_made: 500, qty_remaining: 0 })), 'out_of_stock');
+  ck('presets 500 mL', Q.presets(T({ qty_made: 500, qty_remaining: 500 })), [10, 25, 50, 100]);
+  ck('presets no unit → none', Q.presets({ qty_tracked: true, qty_remaining: 5 }), []);
+  ck('summary line', Q.summary(T({ qty_made: 500, qty_remaining: 412 })), '412 mL remaining of 500 mL');
+  ck('float clean', Q.clean(0.3 - 0.2), 0.1);
+  ck('cross-family convert refused', Q.convert(5, 'mL', 'g'), null);
+
+  /* The sheet must actually MOUNT and render its chips — a template typo here
+     is invisible to node --check and to any pure-function test. */
+  var mounted = false, chips = 0, btnLabel = '', bigLine = '';
+  try {
+    window.STOCK_TAKE.open({
+      item: { id: 'x', name: 'Test buffer', qty_tracked: true, qty_unit: 'mL',
+              qty_made: 500, qty_remaining: 412, qty_min: null },
+      context: null,
+    });
+    mounted = !!document.querySelector('.app-sheet-back');
+    chips = document.querySelectorAll('.stk-chip').length;
+    var go = document.querySelector('.stk-go');
+    btnLabel = go ? go.textContent : '';
+    var big = document.querySelector('.stk-big');
+    bigLine = big ? big.textContent : '';
+    // Tapping a chip twice must ADD — the one-handed behaviour.
+    var c = document.querySelector('.stk-chip[data-v="25"]');
+    if (c) { c.click(); c.click(); }
+    var go2 = document.querySelector('.stk-go');
+    ck('chip tapped twice adds (25+25)', go2 ? go2.textContent : '', 'Took 50 mL');
+    var after = document.querySelector('.stk-after');
+    ck('remaining-after line', after ? after.textContent : '', '412 mL → 362 mL');
+  } catch (e) { detail.push('sheet threw: ' + e.message); fail++; }
+  ck('sheet mounted', mounted, true);
+  ck('sheet rendered 4 preset chips', chips, 4);
+  ck('button starts as a prompt', btnLabel, 'Choose an amount');
+  ck('headline reads through goggles', bigLine, '412 mL remaining of 500 mL');
+
+  /* The canary from the icon program: a raw <svg string leaking into innerText
+     means an ICON call site was concatenated instead of rendered. */
+  ck('no raw <svg in text', document.body.innerText.indexOf('<svg') === -1, true);
+
+  var el = document.getElementById('r');
+  el.dataset.pass = String(pass);
+  el.dataset.fail = String(fail);
+  el.dataset.detail = detail.join(' | ');
+  el.textContent = pass + ' passed, ' + fail + ' failed\n' + detail.join('\n');
+})();
+</script>
+</body></html>

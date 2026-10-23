@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cell Culture Foundations: Start Here — Course Overview</title>
+
+  <!-- Module header styles (dark theme nav bar) -->
+  <link rel="stylesheet" href="../shared/module-header.css" />
+
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --panel: #141925;
+      --panel-2: #1a1f2e;
+      --ink: #eef2f7;
+      --muted: #a8b3c7;
+      --accent: #5baed1;
+      --accent-2: #7fd1b9;
+      --line: rgba(255,255,255,.09);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--ink);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      background:
+        radial-gradient(120% 140% at 0% 0%, rgba(91,174,209,.18), transparent 55%),
+        radial-gradient(120% 140% at 100% 0%, rgba(127,209,185,.14), transparent 55%),
+        var(--panel);
+      overflow: hidden;
+    }
+    .hero .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      font-size: .72rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin: 0 0 .6rem;
+    }
+    .hero h1 {
+      margin: 0 0 .6rem;
+      font-size: clamp(1.9rem, 4.5vw, 2.7rem);
+      line-height: 1.1;
+      letter-spacing: -.01em;
+    }
+    .hero .lede {
+      margin: 0;
+      max-width: 60ch;
+      font-size: 1.06rem;
+      color: var(--muted);
+    }
+    .hero .lede strong { color: var(--ink); font-weight: 600; }
+
+    /* ── Section heading ── */
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      gap: .75rem;
+      margin: 3rem 0 1.2rem;
+    }
+    .section-head h2 { margin: 0; font-size: 1.35rem; color: var(--ink); }
+    .section-head .sub { color: var(--muted); font-size: .92rem; }
+
+    /* ── How it works ── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1.25rem 1.25rem 1.4rem;
+      background: var(--panel);
+    }
+    .step .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: rgba(91,174,209,.16);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: .95rem;
+      margin-bottom: .7rem;
+    }
+    .step h3 { margin: 0 0 .35rem; font-size: 1.02rem; }
+    .step p { margin: 0; color: var(--muted); font-size: .92rem; }
+
+    /* ── Lesson cards ── */
+    .lessons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.1rem;
+    }
+    .lesson {
+      border: 1px solid rgba(127,209,185,.32);
+      border-radius: 14px;
+      background: var(--panel);
+      padding: 1.35rem 1.4rem 1.4rem;
+      display: flex;
+      flex-direction: column;
+    }
+    .lesson-top {
+      display: flex;
+      align-items: flex-start;
+      gap: .8rem;
+      margin-bottom: .45rem;
+    }
+    .lesson-top .no {
+      flex: none;
+      width: 34px; height: 34px;
+      border-radius: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--panel-2);
+      color: var(--accent);
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .lesson-top h3 { margin: .1rem 0 0; font-size: 1.14rem; line-height: 1.3; }
+    .lesson-desc { margin: 0 0 .9rem; color: var(--muted); font-size: .93rem; }
+    .lesson-desc strong { color: var(--ink); font-weight: 600; }
+    .arc {
+      margin: 0 0 1rem;
+      padding: .55rem .8rem;
+      border-left: 3px solid rgba(91,174,209,.45);
+      background: rgba(91,174,209,.07);
+      border-radius: 0 8px 8px 0;
+      color: var(--muted);
+      font-size: .84rem;
+    }
+    .lesson-actions {
+      margin-top: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .6rem;
+    }
+    a.btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      padding: .55rem .95rem;
+      border-radius: 9px;
+      font-weight: 600;
+      font-size: .9rem;
+      text-decoration: none;
+      transition: transform .12s ease, background .12s ease;
+    }
+    a.btn:hover { transform: translateY(-1px); }
+    a.btn-lesson { background: rgba(91,174,209,.16); color: var(--accent); }
+    a.btn-lesson:hover { background: rgba(91,174,209,.26); }
+    a.btn-ws {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--line);
+    }
+    a.btn-ws:hover { color: var(--accent-2); border-color: rgba(127,209,185,.4); }
+
+    /* ── Teacher note / closing ── */
+    .closing {
+      margin-top: 2.5rem;
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 1.25rem 1.4rem;
+      color: var(--muted);
+      font-size: .92rem;
+    }
+    .closing strong { color: var(--ink); }
+
+    @media (max-width: 600px) {
+      .wrap { padding: 1.25rem 1rem 3rem; }
+      .hero { padding: 1.8rem 1.3rem; }
+    }
+    /* Sign-off call-out — this track ends in a competency check, unlike the
+       other Lab Foundations tracks, so the overview has to say so up front. */
+    .gate {
+      margin-top: 2rem;
+      border: 1px solid rgba(127,209,185,.35);
+      border-left: 4px solid var(--accent-2);
+      border-radius: 12px;
+      padding: 1.2rem 1.4rem;
+      background: var(--panel);
+      color: var(--muted);
+      font-size: .94rem;
+    }
+    .gate strong { color: var(--ink); }
+    .gate a { color: var(--accent-2); }
+</style>
+
+  <!-- Firebase SDK (needed for header navigation when opened with ?class=) -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script defer src="../../firebase-config.js"></script>
+  <script defer src="../shared/module-header.js"></script>
+</head>
+<body>
+  <!-- Module header (auto-populated from Firestore when ?class= is present) -->
+  <header id="module-header"></header>
+
+  <main class="wrap">
+
+    <!-- ═══ Hero ═══ -->
+    <section class="hero">
+      <p class="eyebrow">Cell Culture Foundations</p>
+      <h1>Everything that goes wrong is a physical process</h1>
+      <p class="lede">
+        Cell culture is taught as a list of rules, and the rules are correct &mdash; but a rule
+        you cannot derive is a rule you will break the first time it is inconvenient.
+        This series takes the four things that actually kill cultures &mdash; <strong>the cabinet,
+        the incubator, your hands, and the bottle everyone shares</strong> &mdash; and works out
+        what is physically happening in each, so the rules stop being arbitrary.
+        Every claim is measured in a simulation on the page <em>before</em> it is explained.
+      </p>
+    </section>
+
+    <!-- ═══ How it works ═══ -->
+    <div class="section-head">
+      <h2>How to use this series</h2>
+      <span class="sub">four lessons, in order</span>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <span class="num">1</span>
+        <h3>Drive the sim first</h3>
+        <p>Each section opens with something to measure. Move the sliders and read the number before you read the prose &mdash; the derivation is there to explain a result you already have.</p>
+      </div>
+      <div class="step">
+        <span class="num">2</span>
+        <h3>Do the "Try this" steps</h3>
+        <p>Every simulation has two to five numbered things to do with it. They are the difference between watching a picture move and finding out what it means.</p>
+      </div>
+      <div class="step">
+        <span class="num">3</span>
+        <h3>Then take it to the bench</h3>
+        <p>Work through all four, then take the lab's <em>Cell culture &amp; sterile technique</em> training on the RM hub, which ends in a bench sign-off.</p>
+      </div>
+    </div>
+
+    <!-- ═══ Lessons ═══ -->
+    <div class="section-head">
+      <h2>The four lessons</h2>
+      <span class="sub">each builds on the one before</span>
+    </div>
+    <div class="lessons">
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">1</span>
+          <h3>The Cabinet: Why the Air Above Your Bench Is Different</h3>
+        </div>
+        <p class="lesson-desc">
+          What is actually floating in a room, why a biosafety cabinet is a <strong>shape made of moving air</strong> rather than a box, what a HEPA filter is really good and bad at, exactly what <strong>overcrowding</strong> does to the protection — measured, not asserted — and why <strong>70% ethanol and thirty seconds of patience</strong> is the cheapest thing on the bench.
+        </p>
+        <p class="arc">Settling Particles → The Air Curtain → Overcrowding &amp; Wakes → Getting Things In → Capstone: Lay Out a Media Change</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="01-the-cabinet.html">Open lesson &rarr;</a>
+        </div>
+      </section>
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">2</span>
+          <h3>The Incubator: Three Knobs and a Puddle</h3>
+        </div>
+        <p class="lesson-desc">
+          Why opening the door costs more than you think and <strong>which of its two doors</strong> is the expensive one, why 5% CO<sub>2</sub> is not a magic number but a <strong>ratio</strong> your medium chose, why "just add more medium" is a trade and not a fix, what the <strong>water pan</strong> is really for, why a 96-well plate is <strong>96 experiments on a gradient</strong>, what happens to the flask you left in over the weekend and why "just add more medium" is not the answer, how contamination actually gets in on a machine whose reservoir air is HEPA-filtered, and — as the capstone — why <strong>your own trip to the cabinet</strong>, not the door, is what a culture actually feels, and what a shelf full of aluminium drawers does to the whole incubator, including its CO<sub>2</sub> bill.
+        </p>
+        <p class="arc">Two Doors &amp; Thermal Mass → Bicarbonate, pH and the Weekend Flask → The Water Pan &amp; Plate Gradients → Keeping It Clean → Capstone: The Whole Box, Solved</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="02-the-incubator.html">Open lesson &rarr;</a>
+        </div>
+      </section>
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">3</span>
+          <h3>The Hands: Pipetting, Opening Things, and the Sterile Path</h3>
+        </div>
+        <p class="lesson-desc">
+          A pipettor moves <strong>air</strong>, not liquid. The full error budget and the six habits that close it; the aerosol you cannot see; the liquid bridge; and the step-by-step of opening a tip box, a pipette wrapper and a bottle cap.
+        </p>
+        <p class="arc">The Air Cushion → The Error Budget → Aerosols, Bridges &amp; Opening Things → Capstone: A Media Change</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="03-the-hands.html">Open lesson &rarr;</a>
+        </div>
+      </section>
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">4</span>
+          <h3>Aliquoting &amp; Stewardship: Why One Bottle Is a Bad Idea</h3>
+        </div>
+        <p class="lesson-desc">
+          Forty entries into one bottle loses it about one time in five — with technique you would call good. Why aliquoting works <strong>without changing your technique at all</strong>, where the improvement floors, what the right aliquot size is, and what goes on the label.
+        </p>
+        <p class="arc">Every Entry Is a Coin Flip → Blast Radius → Decay &amp; Freeze-Thaw → Capstone: Aliquoting a Bottle</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="04-aliquoting-and-stewardship.html">Open lesson &rarr;</a>
+        </div>
+      </section>
+    </div>
+
+    <!-- ═══ The gate ═══ -->
+    <p class="gate">
+      <strong>This track ends in a competency check.</strong> Working through these four
+      lessons is the preparation; the sign-off itself lives in the lab's
+      <em>Cell culture &amp; sterile technique</em> training on the RM hub, which adds a
+      diagnostic case-file gallery and a printable sheet for your mentor to initial before
+      you culture cells unsupervised. Everything here is the <em>why</em> &mdash; the
+      choreography you learn standing next to someone who already does it.
+    </p>
+
+    <!-- ═══ Closing ═══ -->
+    <p class="closing">
+      <strong>A note on honesty.</strong> Every model in this series states where it stops
+      being true. Toy simulations are labelled as such, vendor rules of thumb are checked
+      against the physics rather than repeated, and sections written from this lab's own
+      practice &mdash; rather than from a published source &mdash; are marked
+      <em>McGhee Lab practice</em>. When your bench disagrees with a number here, your bench
+      is right; go and find out why.
+    </p>
+
+  </main>
+
+  <script>
+    /* Make each lesson link class-aware so a student stays inside their class
+       flow (prev/next nav, progress) when this overview is opened as the first
+       lesson of a class. Same behaviour as the other Lab Foundations overviews:
+       inside the SPA module viewer top-navigation is sandboxed off, so links
+       open in a new tab carrying ?class=; standalone, they navigate in place. */
+    (function () {
+      function getClassId() {
+        try {
+          const fromParam = new URLSearchParams(location.search).get('class');
+          if (fromParam) return fromParam;
+          if (window.top !== window) {
+            const m = (window.top.location.hash || '').match(/#\/classes\/([^\/?]+)/);
+            if (m) return decodeURIComponent(m[1]);
+          }
+        } catch (e) { /* cross-origin or blocked — fall back to standalone links */ }
+        return null;
+      }
+      const inIframe = window.parent !== window;
+      const classId = getClassId();
+      document.querySelectorAll('a.btn[data-file]').forEach(function (a) {
+        let href = a.getAttribute('data-file');
+        if (classId) href += '?class=' + encodeURIComponent(classId);
+        a.setAttribute('href', href);
+        if (inIframe) { a.target = '_blank'; a.rel = 'noopener'; }
+      });
+    })();
+  </script>
+</body>
+</html>

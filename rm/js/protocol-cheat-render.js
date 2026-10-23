@@ -268,7 +268,7 @@
       var pill = document.createElement('button');
       pill.type = 'button';
       pill.className = 'prc-pill' + (on ? ' on' : '');
-      pill.textContent = (on ? '✓ ' : '＋ ') + CATEGORY_LABELS[c];
+      ICON.label(pill, (on ? 'check' : 'plus') + CATEGORY_LABELS[c]);
       pill.setAttribute('aria-pressed', on ? 'true' : 'false');
       pill.addEventListener('click', function () {
         if (handlers.onToggleCategory) handlers.onToggleCategory(c, !on);
@@ -283,7 +283,8 @@
     var custom = document.createElement('button');
     custom.type = 'button';
     custom.className = 'prc-customize-btn' + (handlers.customizing ? ' on' : '');
-    custom.textContent = handlers.customizing ? '✓ Done' : '✏️ Customize lines';
+    if (handlers.customizing) custom.textContent = '✓ Done';
+    else ICON.label(custom, 'pencil', ' Customize lines');
     custom.title = 'Include or exclude individual lines, overriding the category pills';
     custom.addEventListener('click', function () {
       if (handlers.onToggleCustomize) handlers.onToggleCustomize(!handlers.customizing);
@@ -298,7 +299,7 @@
       var reset = document.createElement('button');
       reset.type = 'button';
       reset.className = 'prc-reset';
-      reset.textContent = '↺ Reset';
+      ICON.label(reset, 'arrow-uturn-left', ' Reset');
       reset.title = 'Restore default categories and clear per-line choices';
       reset.addEventListener('click', function () { if (handlers.onReset) handlers.onReset(); });
       actions.appendChild(reset);

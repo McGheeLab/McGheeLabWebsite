@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en" class="hud-html">
+<head>
+<meta charset="utf-8">
+<title>V3.849 — the Huddle's top is frozen, only the calendar flows</title>
+<!-- Boots rm/js/huddle.js on the in-page stub Firestore (the V3.848 harness's stub) in the
+     real page shell (html.hud-html / body.hud-body / .page.page-wide) and checks that the
+     document never scrolls, that the bar + pills stay put while the grid scrolls, that the
+     view toggle shares the bar's row, that "Anytime this week" rides inside the scroller,
+     and that the popup overlays. Run at the runner's 1280×720. -->
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<link rel="stylesheet" href="/rm/css/huddle.css">
+<style>
+#r{position:fixed;left:8px;bottom:8px;z-index:9999;font:12px/1.4 system-ui,sans-serif;background:#fff;border:1px solid #e5e7eb;padding:6px 8px;max-width:70vw;max-height:45vh;overflow:auto}
+.ok{color:#15803d}.bad{color:#b91c1c}
+/* a stand-in for the RM top nav that nav.js prepends in production */
+.fake-nav{height:52px;background:#f3f4f6;border-bottom:1px solid #e5e7eb}
+</style>
+<script>
+window.__popups = [];
+['prompt','alert','confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
+(function () {
+  var store = new Map(), listeners = [], touched = [];
+  function snapOf(path) { return { id: path.split('/').pop(), exists: store.has(path), data: function () { return store.has(path) ? JSON.parse(JSON.stringify(store.get(path))) : undefined; }, ref: docRef(path) }; }
+  function docsIn(path) { var out = []; store.forEach(function (v, k) { if (k.slice(0, k.lastIndexOf('/')) === path) out.push(snapOf(k)); }); return out; }
+  function fire(path, type) { var parent = path.slice(0, path.lastIndexOf('/')); listeners.slice().forEach(function (l) { if (l.kind === 'doc' && l.path === path) l.cb(snapOf(path)); if (l.kind === 'col' && l.path === parent) { var d = docsIn(parent); l.cb({ docChanges: function () { return [{ type: type, doc: snapOf(path) }]; }, docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); } }); }
+  function applyUpdate(path, d) { var next = Object.assign({}, store.get(path) || {}); Object.keys(d).forEach(function (k) { if (d[k] === '__DEL__') delete next[k]; else if (d[k] && d[k].__arrayUnion) next[k] = (next[k] || []).concat([d[k].__arrayUnion]); else next[k] = JSON.parse(JSON.stringify(d[k])); }); store.set(path, next); fire(path, 'modified'); }
+  function docRef(path) { return { path: path, id: path.split('/').pop(), collection: function (n) { return colRef(path + '/' + n); },
+      get: function () { touched.push('get ' + path); return Promise.resolve(snapOf(path)); },
+      set: function (d, o) { touched.push('set ' + path); var existed = store.has(path); store.set(path, (o && o.merge) ? Object.assign({}, store.get(path) || {}, JSON.parse(JSON.stringify(d))) : JSON.parse(JSON.stringify(d))); fire(path, existed ? 'modified' : 'added'); return Promise.resolve(); },
+      update: function (d) { touched.push('update ' + path); applyUpdate(path, d); return Promise.resolve(); },
+      delete: function () { touched.push('delete ' + path); store.delete(path); fire(path, 'removed'); return Promise.resolve(); },
+      onSnapshot: function (cb) { var l = { path: path, kind: 'doc', cb: cb }; listeners.push(l); setTimeout(function () { cb(snapOf(path)); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; } }; }
+  function colRef(path) { var q = { path: path, doc: function (id) { return docRef(path + '/' + (id || ('auto' + Math.random().toString(36).slice(2, 8)))); }, orderBy: function () { return q; }, where: function () { return q; }, limit: function () { return q; },
+      add: function (d) { var r = q.doc(); return r.set(d).then(function () { return r; }); },
+      get: function () { var d = docsIn(path); return Promise.resolve({ docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); },
+      onSnapshot: function (cb) { var l = { path: path, kind: 'col', cb: cb }; listeners.push(l); var d = docsIn(path); setTimeout(function () { cb({ docChanges: function () { return d.map(function (s) { return { type: 'added', doc: s }; }); }, docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; } }; return q; }
+  var db = { collection: function (n) { return colRef(n); },
+    batch: function () { var ops = []; return { set: function (ref, d, o) { ops.push(function () { return ref.set(d, o); }); }, update: function (ref, d) { ops.push(function () { return ref.update(d); }); }, delete: function (ref) { ops.push(function () { return ref.delete(); }); }, commit: function () { return ops.reduce(function (p, f) { return p.then(f); }, Promise.resolve()); } }; } };
+  window.__stub = { store: store, touched: touched, db: db };
+  window.firebase = { firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; }, delete: function () { return '__DEL__'; }, arrayUnion: function (x) { return { __arrayUnion: x }; } }, Timestamp: { now: function () { return { toMillis: function () { return Date.now(); } }; } } } };
+  window.firebridge = { requireSignIn: function () { return Promise.resolve({ allowed: true }); }, gateSignedIn: function () {}, isLabMember: function () { return true; }, isAdmin: function () { return false; },
+    getUser: function () { return { uid: 'u1', email: 'ada@x.com', displayName: 'Ada Lovelace' }; }, getProfile: function () { return { name: 'Ada Lovelace', role: 'member', category: 'grad' }; }, onAuth: function () {}, db: function () { return db; } };
+  window.TOAST = { info: function () {}, success: function () {}, error: function () {} };
+  function localDateStr(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function getMonday(offset) { var d = new Date(); d.setHours(12, 0, 0, 0); var day = d.getDay(); d.setDate(d.getDate() - day + 1 + (offset * 7)); return d; }
+  function getWeekId(offset) { var mon = getMonday(offset); var tmp = new Date(mon.getTime()); tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay() + 6) % 7)); var jan4 = new Date(tmp.getFullYear(), 0, 4); var weekNum = 1 + Math.round(((tmp - jan4) / 86400000 - 3 + ((jan4.getDay() + 6) % 7)) / 7); return tmp.getFullYear() + '-W' + String(weekNum).padStart(2, '0'); }
+  var today = localDateStr(new Date()), wk = getWeekId(0);
+  store.set('huddlePlans/p1', { ownerUid: 'u1', ownerName: 'Ada Lovelace', weekId: wk, plannedDay: today, startTime: '09:00', endTime: '10:30', text: 'Western blot', status: 'planned', watchers: [], joiners: [], joinRequests: [] });
+  store.set('huddlePlans/p2', { ownerUid: 'u2', ownerName: 'Grace Hopper', weekId: wk, plannedDay: today, startTime: '14:00', endTime: '15:00', text: 'Image cells', status: 'planned', watchers: [], joiners: [], joinRequests: [] });
+  store.set('huddlePlans/p5', { ownerUid: 'u1', ownerName: 'Ada Lovelace', weekId: wk, plannedDay: null, startTime: null, endTime: null, text: 'Read the two papers', status: 'planned', watchers: [], joiners: [], joinRequests: [] });
+  store.set('huddleHelpRequests/h1', { ownerUid: 'u2', ownerName: 'Grace Hopper', status: 'open', title: 'Who has a spare 10× objective?', responses: [] });
+})();
+</script>
+<script src="/rm/js/icons.js"></script>
+<script src="/rm/js/schedule-utils.js"></script>
+</head>
+<body class="hud-body">
+<div class="fake-nav"></div>
+<div class="page page-wide">
+  <div id="huddle-root"></div>
+</div>
+<div id="r">running…</div>
+<script src="/rm/js/huddle.js"></script>
+<script>
+(async function () {
+  var out = [], fails = 0;
+  function check(name, ok, detail) { out.push('<div class="' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓' : '✗') + ' ' + name + (detail !== undefined ? ' <small>' + String(detail).replace(/</g, '&lt;') + '</small>' : '') + '</div>'); if (!ok) fails++; }
+  function q(s) { return document.querySelector(s); }
+  function qa(s) { return Array.from(document.querySelectorAll(s)); }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function until(fn, ms) { var t0 = Date.now(); while (Date.now() - t0 < (ms || 8000)) { try { var v = fn(); if (v) return v; } catch (e) {} await sleep(60); } return null; }
+  function top(el) { return el ? Math.round(el.getBoundingClientRect().top) : -1; }
+  function h(el) { return el ? Math.round(el.getBoundingClientRect().height) : -1; }
+  function docScrolls() { return document.scrollingElement.scrollHeight > document.scrollingElement.clientHeight + 2; }
+  function click(el) { el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); }
+  function finish() { var r = document.getElementById('r'); r.innerHTML = out.join('') + '<div><b>' + (out.length - fails) + '/' + out.length + ' passed</b></div>'; r.dataset.done = '1'; r.dataset.fails = String(fails); }
+
+  var ok = await until(function () { return q('.hud-time-grid.hud-accordion .hud-grid-block') && q('.hud-week-top'); });
+  check('This Week renders with a frozen top and the week\'s plans', !!ok);
+  if (!ok) { finish(); return; }
+  await sleep(200);
+
+  var main = q('.hud-main'), topPart = q('.hud-week-top'), bar = q('.hud-week-bar'), filters = q('.hud-week-filters'), wrap = q('.hud-grid-wrap'), grid = q('.hud-time-grid');
+  check('the document itself does not scroll (' + innerWidth + '×' + innerHeight + ')', !docScrolls(), document.scrollingElement.scrollHeight + ' vs ' + document.scrollingElement.clientHeight);
+  check('the calendar scroller is the only thing that scrolls', wrap.scrollHeight > wrap.clientHeight + 100 && getComputedStyle(wrap).overflowY === 'auto', wrap.scrollHeight + ' in ' + wrap.clientHeight);
+  check('it opens scrolled to about 8 AM (16 slots)', Math.abs(wrap.scrollTop - 16 * parseFloat(wrap.dataset.slotH)) < 2, wrap.scrollTop);
+  var nav = bar && bar.querySelector('.hud-week-nav'), toggle = bar && bar.querySelector('.hud-view-toggle'), zoom = bar && bar.querySelector('.hud-zoom-controls');
+  check('the bar holds the date nav, the Day/Week/Month toggle and the zoom', !!(nav && toggle && zoom));
+  check('…all on one row', nav && toggle && zoom && Math.abs(top(nav) - top(toggle)) < 8 && Math.abs(top(toggle) - top(zoom)) < 8, [top(nav), top(toggle), top(zoom)].join('/'));
+  var chips = filters && filters.querySelector('.hud-chips-row'), composer = filters && filters.querySelector('.hud-composer--collapsed');
+  check('the member pills and the composer\'s one-liner share the second row', !!(chips && composer) && Math.abs(top(chips) - top(composer)) < 10, chips && composer ? top(chips) + '/' + top(composer) : 'missing');
+  check('the frozen part is compact: under 110 px and under 30 % of the column', h(topPart) < 110 && h(topPart) < 0.3 * h(main), h(topPart) + ' of ' + h(main));
+  check('the calendar takes the rest of the column (≥ 60 %)', h(q('.hud-week-body')) >= 0.6 * h(main), h(q('.hud-week-body')) + ' of ' + h(main));
+  check('no old three-row calendar header remains', !q('.hud-cal-header'));
+  var sbTitle = q('.hud-sidebar > .hud-sidebar-title');
+  check('V3.850: the page title is the first thing in the menu box, and there is no page header above the app', !!sbTitle && sbTitle.textContent.trim() === 'The Huddle' && sbTitle === q('.hud-sidebar').firstElementChild && !q('.page-header'));
+  check('V3.850: the app starts right under the nav (≤ 72 px from the top at a 52 px nav)', top(q('.hud-layout')) <= 72, top(q('.hud-layout')));
+
+  /* scroll the calendar: the top stays, the day headers stick */
+  var labelTopBefore = top(q('.hud-week-label')), chipsTopBefore = top(chips), hdr = q('.hud-grid-day-header');
+  wrap.scrollTop += 400; wrap.dispatchEvent(new Event('scroll')); await sleep(60);
+  check('scrolling the calendar leaves the date and the pills where they were', top(q('.hud-week-label')) === labelTopBefore && top(chips) === chipsTopBefore);
+  check('the day headers stay pinned at the top of the scroller', Math.abs(top(hdr) - top(wrap)) <= 2, top(hdr) + ' vs ' + top(wrap));
+  check('the document still does not scroll', !docScrolls());
+
+  /* Anytime + help strip ride at the bottom of the scroller */
+  var anytime = q('.hud-anytime-section'), strip = q('.hud-help-strip');
+  check('"Anytime this week" is inside the scroller, below the grid', !!anytime && wrap.contains(anytime) && anytime.offsetTop >= grid.offsetTop + grid.offsetHeight - 2);
+  check('the untimed plan is listed there', !!anytime && /Read the two papers/.test(anytime.textContent));
+  check('the open-help strip is inside the scroller too', !!strip && wrap.contains(strip) && /spare 10/.test(strip.textContent));
+
+  /* the time slider maps the grid, not the extra content */
+  var slider = q('#hud-time-slider'), thumb = q('#hud-time-slider-thumb');
+  wrap.scrollTop = grid.offsetHeight - wrap.clientHeight; wrap.dispatchEvent(new Event('scroll')); await sleep(60);
+  var thumbEnd = parseFloat(thumb.style.top) + thumb.offsetHeight;
+  check('at the end of the grid (midnight) the slider thumb is at the bottom of its track', Math.abs(thumbEnd - slider.clientHeight) <= 3, thumbEnd + ' vs ' + slider.clientHeight);
+  wrap.scrollTop = wrap.scrollHeight; wrap.dispatchEvent(new Event('scroll')); await sleep(60);
+  check('scrolling on into "Anytime" keeps the thumb at the bottom (never past it)', Math.abs(parseFloat(thumb.style.top) + thumb.offsetHeight - slider.clientHeight) <= 3);
+
+  /* the popup overlays the calendar instead of pushing it */
+  var wrapTopBefore = top(wrap);
+  click(q('.hud-grid-block.hud-col-open'));
+  await sleep(150);
+  var popup = q('.hud-week-body > .hud-popup');
+  check('tapping a plan opens its popup inside the calendar area', !!popup);
+  check('…as an overlay (absolute), so the calendar does not move', !!popup && getComputedStyle(popup).position === 'absolute' && top(q('.hud-grid-wrap')) === wrapTopBefore, popup ? getComputedStyle(popup).position + ' / ' + top(q('.hud-grid-wrap')) + ' vs ' + wrapTopBefore : '');
+  check('the document still does not scroll with the popup open', !docScrolls());
+  var close = popup && popup.querySelector('.hud-popup-close'); if (close) { click(close); await sleep(100); }
+
+  /* the composer form opens below the pills and the calendar shrinks, never the page */
+  click(q('#hud-composer-open')); await sleep(120);
+  check('the open composer sits in the frozen top below the pills', !!q('.hud-week-top #hud-composer.hud-composer--open') && top(q('#hud-composer')) > top(q('.hud-week-filters')));
+  check('…and the page still does not scroll', !docScrolls());
+  var cancel = qa('#hud-composer button').find(function (b) { return /cancel/i.test(b.textContent); }); if (cancel) { click(cancel); await sleep(120); }
+
+  /* Day and Month views use the same frozen bar */
+  click(q('.hud-view-btn[data-view="daily"]')); await sleep(150);
+  check('Day view: the bar holds the day nav + toggle + zoom and the grid scrolls', !!q('.hud-week-bar #hud-day-prev') && !!q('.hud-week-bar .hud-view-toggle') && !!q('.hud-week-bar .hud-zoom-controls') && q('.hud-grid-wrap').scrollHeight > q('.hud-grid-wrap').clientHeight && !docScrolls());
+  check('Day view: "Anytime this week" is inside its scroller', !!q('.hud-grid-wrap .hud-anytime-section'));
+  click(q('.hud-view-btn[data-view="monthly"]')); await sleep(150);
+  check('Month view: the bar holds the month nav + toggle (no zoom) and the month grid is in a scroller', !!q('.hud-week-bar #hud-month-prev') && !!q('.hud-week-bar .hud-view-toggle') && !q('.hud-week-bar .hud-zoom-controls') && !!q('.hud-month-scroll .hud-month-grid') && !docScrolls());
+  check('Month view: "Anytime this week" is inside its scroller', !!q('.hud-month-scroll .hud-anytime-section'));
+  click(q('.hud-view-btn[data-view="weekly"]')); await sleep(150);
+  check('back to Week: the accordion grid, today open, pills in place', !!q('.hud-time-grid.hud-accordion') && qa('.hud-grid-day-header.hud-col-open').length === 1 && !!q('.hud-week-filters .hud-chips-row'));
+
+  /* the other tabs scroll inside the main column */
+  var settingsBtn = qa('.hud-sidebar-btn').find(function (b) { return /settings/i.test(b.textContent); });
+  if (settingsBtn) { click(settingsBtn); await sleep(150); }
+  check('Settings tab: the main column is the scroller (overflow auto) and the document does not scroll', !!settingsBtn && getComputedStyle(q('.hud-main')).overflowY === 'auto' && !docScrolls(), q('.hud-main') ? getComputedStyle(q('.hud-main')).overflowY : '');
+
+  check('no browser popups', window.__popups.length === 0);
+  check('no raw SVG markup leaked into text', document.body.innerText.indexOf('<svg') < 0);
+  finish();
+})();
+</script>
+</body>
+</html>

@@ -227,7 +227,7 @@
     head.className = 'assigned-to-me-head';
     const title = document.createElement('span');
     title.className = 'assigned-to-me-title';
-    title.textContent = '📥 Assigned to me';
+    ICON.label(title, 'arrow-down-tray', ' Assigned to me');
     head.appendChild(title);
     const count = document.createElement('span');
     count.className = 'assigned-to-me-count';
@@ -480,7 +480,7 @@
     let totalH = 0;
     for (const r of rows) totalH += sumHours(r.subtask);
     head.innerHTML =
-      `<span style="background:#fee2e2;padding:2px 10px;border-radius:10px">📌 Today I Must (${rows.length})</span>` +
+      `<span style="background:#fee2e2;padding:2px 10px;border-radius:10px">${ICON.svg('pin')} Today I Must (${rows.length})</span>` +
       `<span style="font-weight:400;text-transform:none;color:#6b7280">${totalH ? '— Σ ' + totalH.toFixed(1) + 'h' : ''}</span>`;
     wrap.appendChild(head);
 
@@ -543,7 +543,7 @@
     const unpin = document.createElement('button');
     unpin.className = 'pin-today-btn active';
     unpin.title = 'Unpin from Today';
-    unpin.textContent = '📌';
+    ICON.label(unpin, 'pin');
     unpin.addEventListener('click', (ev) => {
       ev.stopPropagation();
       state.pinnedToday.delete(st.id);
@@ -866,7 +866,7 @@
     menu.className = 'pin-expand';
     menu.title = 'Hide from dashboard';
     menu.style.fontSize = '14px';
-    menu.textContent = '×';
+    ICON.label(menu, 'x-mark');
     menu.addEventListener('click', () => {
       state.hidden.add(project.id);
       persistHidden();
@@ -975,7 +975,7 @@
     const head = document.createElement('div');
     head.className = 'pin-completed-head';
     const expanded = state.expandedCompleted.has(project.id);
-    head.innerHTML = `<span class="pin-completed-caret">${expanded ? '▾' : '▸'}</span> Completed (${doneRows.length})`;
+    head.innerHTML = `<span class="pin-completed-caret">${ICON.svg(expanded ? 'chevron-down' : 'chevron-right')}</span> Completed (${doneRows.length})`;
     head.addEventListener('click', () => {
       if (expanded) state.expandedCompleted.delete(project.id);
       else state.expandedCompleted.add(project.id);
@@ -1041,7 +1041,7 @@
 
     const exp = document.createElement('button');
     exp.className = 'pin-expand';
-    exp.textContent = state.expandedCards.has(st.id) ? '▾' : '▸';
+    ICON.label(exp, state.expandedCards.has(st.id) ? 'chevron-down' : 'chevron-right');
     exp.addEventListener('click', (ev) => {
       ev.stopPropagation();
       if (state.expandedCards.has(st.id)) state.expandedCards.delete(st.id);
@@ -1084,7 +1084,7 @@
     const pinned = state.pinnedToday.has(st.id);
     pin.className = 'pin-today-btn' + (pinned ? ' active' : '');
     pin.title = pinned ? 'Unpin from Today' : 'Pin to Today I Must';
-    pin.textContent = '📌';
+    ICON.label(pin, 'pin');
     pin.addEventListener('click', (ev) => {
       ev.stopPropagation();
       togglePinnedToday(st.id);

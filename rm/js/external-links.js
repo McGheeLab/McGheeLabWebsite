@@ -71,7 +71,8 @@
     var getLinks = opts.getLinks || function () { return []; };
     var setLinks = opts.setLinks || function () {};
     var readOnly = !!opts.readOnly;
-    var title    = opts.title || '🔗 Linked files';
+    var title    = opts.title || 'Linked files';
+    var titleIcon = opts.title ? '' : ICON.svg('link') + ' ';
 
     // Persisted-per-mount collapsed state. Default: collapsed iff empty.
     var initialLinks = getLinks() || [];
@@ -86,8 +87,8 @@
       header.className = 'ext-links-header';
       header.innerHTML =
         '<button type="button" class="ext-links-toggle" aria-expanded="' + (!collapsed) + '">' +
-          '<span class="ext-links-caret">' + (collapsed ? '▸' : '▾') + '</span>' +
-          '<span class="ext-links-title">' + escapeHtml(title) + '</span>' +
+          '<span class="ext-links-caret">' + (ICON.svg(collapsed ? 'chevron-right' : 'chevron-down')) + '</span>' +
+          '<span class="ext-links-title">' + titleIcon + escapeHtml(title) + '</span>' +
           '<span class="ext-links-count">' + (links.length ? '(' + links.length + ')' : '') + '</span>' +
         '</button>';
       header.querySelector('.ext-links-toggle').onclick = function () {
@@ -115,11 +116,11 @@
           var labelText = lnk.label || hostOf(lnk.url) || '(no label)';
           var safeUrl = escapeHtml(lnk.url || '');
           var vpnBadge = lnk.private
-            ? '<span class="ext-links-vpn" title="Requires UA VPN to access">🔌 VPN</span>'
+            ? '<span class="ext-links-vpn" title="Requires UA VPN to access">' + ICON.svg('plug') + ' VPN</span>'
             : '';
           var delBtn = readOnly
             ? ''
-            : '<button type="button" class="ext-links-del" title="Remove link">🗑</button>';
+            : '<button type="button" class="ext-links-del" title="Remove link">' + ICON.svg('trash') + '</button>';
           li.innerHTML =
             '<a class="ext-links-link" href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">' +
               '<span class="ext-links-label">' + escapeHtml(labelText) + '</span>' +
@@ -150,7 +151,7 @@
           '<input type="url" class="ext-links-input-url" placeholder="https://… (Synology share, Drive, …)" />' +
           '<input type="text" class="ext-links-input-label" placeholder="Label (optional)" />' +
           '<label class="ext-links-private">' +
-            '<input type="checkbox" class="ext-links-input-private" /> 🔌 Private (UA VPN)' +
+            '<input type="checkbox" class="ext-links-input-private" /> ' + ICON.svg('plug') + ' Private (UA VPN)' +
           '</label>' +
           '<button type="button" class="ext-links-add">+ Add</button>';
         body.appendChild(form);

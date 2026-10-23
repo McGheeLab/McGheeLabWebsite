@@ -1,4 +1,4 @@
-/* pmr-week-assemble.js — V3.532 (My Day program R7): "⤓ Assemble my week".
+/* pmr-week-assemble.js — V3.532 (My Week program R7): "⤓ Assemble my week".
  *
  * The notebook is canonical for "what I did" (program decision 6); the PMR
  * week becomes assembled + curated instead of retyped. This module gathers
@@ -7,7 +7,7 @@
  *   1. lab-notebook `_index` rows        (userData/{uid}/notebook/_index)
  *   2. tracker events                    (ActivitySignals.listEvents)
  *   3. completed subtasks                (userData/{uid}/buckets walk)
- *   4. My Day plans                      (userData/{uid}/dayPlans)
+ *   4. My Week plans                      (userData/{uid}/dayPlans)
  *
  * …dedupes against what's already in the week (source_notebook_id /
  * source_subtask_id / source_day_item_id backrefs + the deterministic
@@ -76,12 +76,12 @@
           var phase = r.phase && r.phase !== 'complete' ? ' (' + r.phase + ')' : '';
           return {
             key: 'nb:' + r.id,
-            source: '📓 notebook',
+            source: ICON.svg('book-open') + ' notebook',
             text: (r.title || '(untitled)') + phase,
             status: r.phase === 'plan' ? 'in_progress' : 'done',
             subsection: guessSubsection(r.title),
             backref: { source_notebook_id: r.id },
-            links: [{ kind: 'notebook', label: r.title || 'Notebook entry', url: '/rm/pages/lab-notebook.html?entry=' + encodeURIComponent(r.id) }],
+            links: [{ kind: 'notebook', label: r.title || 'Notebook entry', url: '/rm/pages/notebook.html?entry=' + encodeURIComponent(r.id) }],
           };
         });
     } catch (err) {
@@ -113,7 +113,7 @@
       }).map(function (e) {
         return {
           key: 'tr:' + e.id,
-          source: '⏱ tracker',
+          source: ICON.svg('clock') + ' tracker',
           text: e.text,
           status: 'done',
           subsection: guessSubsection(e.text),
@@ -138,7 +138,7 @@
           if (doneDay && doneDay >= start && doneDay <= end && !refs.subtask[st.id]) {
             out.push({
               key: 'st:' + st.id,
-              source: '✅ task',
+              source: ICON.svg('check-circle') + ' task',
               text: st.text || '',
               status: 'done',
               subsection: guessSubsection(st.text),
@@ -178,7 +178,7 @@
         .map(function (it) {
           return {
             key: 'dp:' + it.id,
-            source: '☀️ my day',
+            source: ICON.svg('sun') + ' my day',
             text: it.title || '',
             status: it.status === 'done' ? 'done' : 'in_progress',
             subsection: guessSubsection(it.title),
@@ -242,11 +242,11 @@
               '<span>' + esc(c.text) + '</span><span class="pwa-src">' + c.source + '</span></label>';
           }).join('');
         }).join('')
-      : '<div class="pwa-empty">Nothing new found for ' + esc(start) + ' → ' + esc(end) + ' — everything from your notebook, tracker, tasks and My Day is already in this PMR.</div>';
+      : '<div class="pwa-empty">Nothing new found for ' + esc(start) + ' → ' + esc(end) + ' — everything from your notebook, tracker, tasks and My Week is already in this PMR.</div>';
 
     overlay.innerHTML =
       '<div class="pwa-dialog">' +
-        '<div class="pwa-head">⤓ Assemble week ' + esc(start) + ' → ' + esc(end) + '</div>' +
+        '<div class="pwa-head">' + ICON.svg('arrow-down-tray') + ' Assemble week ' + esc(start) + ' → ' + esc(end) + '</div>' +
         '<div class="pwa-body">' + bodyHtml + '</div>' +
         '<div class="pwa-foot">' +
           '<button type="button" class="pwa-cancel">Cancel</button>' +

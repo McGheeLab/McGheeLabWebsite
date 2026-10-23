@@ -11,16 +11,28 @@ window.McgheeLab = window.McgheeLab || {};
 
 /* ─── Registries ─────────────────────────────────────────────── */
 const SECTION_REG = {
-  overview:    { label: 'Overview',       component: 'text',    field: 'overviewContent' },
-  syllabus:    { label: 'Syllabus',       component: 'text',    field: 'syllabusContent' },
-  schedule:    { label: 'Class Schedule', component: 'text',    field: 'scheduleContent' },
+  // V3.656 — these four moved from component:'text' to 'richtext' so a syllabus
+  // or a 16-week schedule can carry headings, lists and tables instead of being
+  // one <br>-joined run of plain lines. Editing is still a plain textarea; only
+  // the read-only render changed. BME 295C uses its own syllabus295c /
+  // schedule295c components and is untouched.
+  overview:    { label: 'Overview',       component: 'richtext', field: 'overviewContent' },
+  syllabus:    { label: 'Syllabus',       component: 'richtext', field: 'syllabusContent' },
+  schedule:    { label: 'Class Schedule', component: 'richtext', field: 'scheduleContent' },
   speakers:    { label: 'Guest Speakers', component: 'speakers' },
   files:       { label: 'Files',          component: 'files',   path: 'files' },
-  simulations: { label: 'Simulations',    component: 'text',    field: 'simulationsContent' },
+  simulations: { label: 'Simulations',    component: 'richtext', field: 'simulationsContent' },
   lectures:    { label: 'Lecture Notes',  component: 'files',   path: 'lectures' },
   homeworks:   { label: 'Assignments',    component: 'files',   path: 'homeworks', hasDue: true },
   exams:       { label: 'Exams',          component: 'files',   path: 'exams',     hasDue: true },
   modules:     { label: 'Learning Modules', component: 'modules' },
+  /* V3.803 — lists derived from the module TYPE. An entry whose `type` is
+     homework / homework_key / report / test is still managed in its Learning
+     Modules section (the "stack") but is LISTED here on the public page.
+     ensureTypedModuleTabs() creates these sections the first time a module of
+     the type exists, so they are never added by hand. */
+  homeworkModules:   { label: 'Homework & Keys', component: 'typedModules', types: ['homework', 'homework_key'], tabName: 'Homeworks' },
+  reportTestModules: { label: 'Reports & Tests', component: 'typedModules', types: ['report', 'test'],          tabName: 'Reports & Tests' },
   // BME 295C class-specific sections (V3.244). Hard-coded against
   // modules/bme295c/content.json; not generalized to other courses.
   checkin295c:  { label: 'Student Check-in (BME 295C)',     component: 'checkin295c' },
@@ -33,7 +45,22 @@ const SECTION_REG = {
   // schedules/bme295c/assessments/{uid}; gated by _classData.assessmentState
   // (closed → open → locked). Admin sees aggregated panels on the dashboard.
   assessment295c:{ label: 'Course Assessment (BME 295C)',    component: 'assessment295c' },
-  adminDash295c:{ label: 'Admin Dashboard (BME 295C)',       component: 'adminDash295c' }
+  adminDash295c:{ label: 'Admin Dashboard (BME 295C)',       component: 'adminDash295c' },
+  // V3.674 — BME466 homework-progress usage dashboard (reads hwProgress/*,
+  // written by the NetID cloud-save block inside the homework modules).
+  hwDash466:    { label: 'HW Progress Dashboard (BME466)',   component: 'hwDash466' },
+  /* V3.681 — BME466 course platform. Three surfaces, three audiences:
+     hwList466  public   — the Homeworks page (published assignments only)
+     hwMine466  student  — my assignments, my profile/section, my requests
+     hwAssign466 staff   — assign homework, status matrix, requests inbox
+     NOTE: the key `homeworks` above is an unrelated classFiles uploader that
+     happens to be labelled "Assignments"; these are deliberately distinct. */
+  hwList466:    { label: 'Homeworks (BME466)',               component: 'hwList466' },
+  hwMine466:    { label: 'My Homework (BME466, students)',   component: 'hwMine466' },
+  hwAssign466:  { label: 'Assignments & Requests (BME466, staff)', component: 'hwAssign466' },
+  // V3.677 — live lecture whiteboard (generic, any class). Body + all
+  // behavior live in whiteboard.js; this module only delegates.
+  whiteboard:   { label: 'Whiteboard (live drawing)',        component: 'whiteboard' }
 };
 
 const WIDGET_REG = {
@@ -80,6 +107,12 @@ let _bmeAssessmentSaveTimer = null; // V3.286 — 800ms debounce for assessment 
 let _bmeAssessmentSubmitInFlight = false; // V3.286 — submit click dedup (matches V3.285 _bmeSubmitInFlight pattern but boolean since there's only one assessment doc)
 let _bmeBannerFocusDay = null;   // V3.246 — banner's currently-focused day (rotation-chip click overrides "today")
 let _isClassAdminOnly = false;   // V3.247 — true if user is a BME 295C class admin but NOT a global admin (different welcome strip)
+/* V3.681 — narrow course staff (a TA on schedules/{id}.courseStaffEmails).
+   Deliberately NOT folded into `isAdmin`: admin means edit chrome, the roster
+   and progress deletion, and V3.679's whole point is that an @arizona.edu
+   account must not get those. This flag opens the staffOnly tabs only. */
+let _isCourseStaff = false;
+let _realIsCourseStaff = false;
 
 // V3.248 — admin "View as" override. Real admins can preview the page
 // as if signed-out (public) or as a specific roster student. Stored in
@@ -203,6 +236,358 @@ const DEFAULT_SCHEDULES = {
         ]
       }
     ]
+  },
+  /* V3.656 — BME/AME 466/566 Biomechanics (F26). Uses the GENERIC section types
+     (syllabus / schedule / modules), not a bespoke surface like BME 295C's.
+     Seeded here rather than hand-written into Firestore so the page is live the
+     moment this ships; resolveSchedule() prefers Firestore, so the first in-UI
+     save takes over and this becomes the offline fallback. Deliberately carries
+     NO studentRoster / attendance / grades — schedules/{id} is world-readable
+     (firestore.rules: `allow read: if true`), so nothing student-identifying
+     goes in this document. */
+  'bme466': {
+    id: 'bme466',
+    title: 'BME/AME 466/566 — Biomechanics',
+    subtitle: 'Mechanical forces in living systems, from molecules to gait',
+    semester: 'Fall 2026',
+    level: 'Undergraduate / Graduate',
+    description: 'How mechanical forces interact with living systems across scales — molecular diffusion and binding, cellular traction and migration, blood flow and tissue transport, and muscle and gait.',
+    startDate: '2026-08-24',
+    endDate: '2026-12-09',
+    ownerUid: null,
+    /* V3.679 — deliberately EMPTY. The instructor view (edit chrome, the
+       admin-only Dashboard tab, hwProgress list/delete) is reached only
+       through the global admin role on mcgheealex@gmail.com. The UA NetID
+       mcgheealex@arizona.edu used to sit here, which meant signing in with
+       the same kind of account a student uses (@arizona.edu is what the
+       homework modules require) handed out the instructor view. Anyone
+       added here gets class-admin rights in the client AND in
+       firestore.rules' bme466ClassAdmin(). */
+    classAdminEmails: [],
+    /* V3.681 — the NARROW TA list. Grants only the course surfaces added in
+       V3.681 (assignment manager, status matrix, requests inbox, section
+       assignment). NOT page-edit chrome, NOT the roster/CSV import, NOT
+       progress deletion — so naming a TA here no longer means handing them
+       the instructor view, which is what kept V3.679 from having a usable
+       answer for "assign a user to be a TA". Mirrored by
+       firestore.rules' bme466CourseStaff(). */
+    courseStaffEmails: [],
+    testMode: false,
+    tabs: [
+      {
+        id: 'tab_466_syllabus',
+        name: 'Syllabus',
+        sections: [
+          { key: 'syllabus', id: 'sec_466_syllabus', name: 'Course Information', collapsed: false, widgets: [],
+            content: `## Course description
+
+BME/AME 466/566 is an interdisciplinary course exploring how mechanical forces interact with
+living systems across biological scales — beginning with individual molecules and cells and
+building to tissues, organs, and the whole body. Bridging physics, engineering, biology, and
+physiology, it equips you with the tools to analyse how mechanical cues influence biological
+function, development, disease progression, and injury. (3 units)
+
+## Logistics
+
+| **Term** | Fall 2026 — Aug 24 to Dec 9, 2026 |
+| **Meetings** | Tuesday & Thursday, 9:30–10:45 AM, in person |
+| **Instructor** | Alexander McGhee, Ph.D. — mcgheealex@arizona.edu |
+| **Office hours** | TBA |
+| **Teaching assistant** | TBA |
+| **Course platform** | D2L for submissions and grades; modules and schedule here |
+
+## Prerequisites
+
+A basic course in statics (CE 214) and a basic course in differential equations (MATH 254),
+or consent of the instructor. Undergraduates in the College of Engineering need advanced
+standing. Students from outside the College of Engineering should contact the instructor to
+discuss interests and obtain consent to enrol.
+
+## Textbook
+
+**No textbook is required.** Lecture notes and interactive modules are provided. These
+references are available electronically through the University of Arizona Libraries:
+
+- Milo et al., *Cell Biology by the Numbers* (2016)
+- Hibbeler, *Engineering Mechanics — Statics*, 14th ed.
+- Selected readings from the peer-reviewed literature in cellular biomechanics,
+  mechanotransduction, and fluid mechanics
+
+## Course topics
+
+The course builds understanding from the molecular to the whole-body scale.
+
+### Part I — Molecular scale
+Diffusion and reaction dynamics; how molecular transport and binding kinetics regulate
+cellular behaviour. Mechanics of cell membranes: lipid-bilayer mechanics, deformation, and
+mechanical stress and damage at the nanoscale.
+
+### Part II — Cellular scale
+Traction force generation — how cells generate and transmit force through the cytoskeleton to
+their environment during migration and adhesion. The mechanobiology of cell migration, and the
+viscoelastic mechanics of the extracellular matrix.
+
+### Part III — Tissue scale
+Hemodynamics and blood rheology: the non-Newtonian behaviour of blood, flow through vessels,
+capillary exchange, and oxygen delivery. Spatial gradients and mass transport in the tumour
+microenvironment.
+
+### Part IV — System scale
+Musculoskeletal tissue mechanics; muscle mechanics and force production; and human motion and
+gait analysis.
+
+## Grading
+
+| Component | Weight |
+|---|---|
+| Homework (7 assignments) | 25% |
+| Midterm exam | 25% |
+| Final exam | 25% |
+| Reports | 10% |
+| Final project | 15% |
+
+Letter grades follow the standard UArizona scale: A ≥ 90, B ≥ 80, C ≥ 70, D ≥ 60, E < 60.
+Cut-offs may be lowered but will not be raised.
+
+## Expected learning outcomes
+
+By the end of this course you will have a working understanding of:
+
+- the statistical mechanics that govern cellular processes
+- the cellular response to mechanical stress, including injury
+- forces within the circulatory system and their relationship to blood pressure, blood flow,
+  and edema
+- the fundamental mechanical principles governing muscle force generation
+- the relationship between tissue structure and function in biological materials
+
+### ABET outcomes
+
+- **Outcome 1 — Problem solving.** You will solve open-ended, biologically inspired problems
+  using order-of-magnitude analysis, thermodynamic reasoning, and uncertainty quantification.
+- **Outcome 3 — Communication.** You will deliver an oral presentation in the format of a
+  scientific conference talk.
+- **Outcome 6 — Experimentation and analysis.** You will analyse quantitative data from
+  cellular imaging experiments to calculate traction forces on deformable substrates.
+- **Outcome 7 — Lifelong learning.** You will identify and use publicly available
+  computational tools through guided tutorials and self-directed exploration.
+
+## Graduate students (466 vs 566)
+
+This course is delivered concurrently to undergraduate and graduate students with
+differentiated expectations. Graduate students will additionally:
+
+- apply advanced mathematical modelling, including deriving and solving governing equations
+- critically evaluate current literature and synthesise findings into a research context
+- formulate and justify assumptions in multiscale models, linking molecular or cellular
+  behaviour to tissue- and system-level phenomena
+
+Concretely: **1–2 additional open-ended challenge problems per homework**, a fully
+self-directed final project rather than a guided one, and exam grading against a
+graduate-level rubric emphasising synthesis and defence of complex solutions.
+
+## Policies
+
+### Examinations
+All exams are **take-home**, with a completion window of at least five days. They consist of
+open-ended questions requiring independent analysis and original problem-solving. You must
+work individually.
+
+### Collaboration and disclosure
+Collaborative learning is encouraged, particularly on open-ended problems — but transparency
+is required. You must clearly disclose all collaborators and acknowledge every external
+resource used, including human and digital tutors, printed and online material, software and
+computational tools, forums, and **AI tools or assistants**. Failure to disclose may be
+treated as a violation of academic integrity.
+
+### Use of AI
+You may use AI tools to clarify concepts, brainstorm approaches, and debug code you wrote.
+You may **not** submit AI-generated prose, calculations, or figures as your answers, and you
+may **not** fabricate data, measurements, timestamps, figure references, or sources. Each
+problem asks for a one-or-two-sentence note on what you used AI for.
+
+### Teamwork
+Group work is assessed with a peer evaluation at the end of each group project covering
+professionalism, communication, and effort. Individual grades within a team may differ based
+on reported contributions.
+
+### Attendance
+If you feel unwell, stay home and notify the instructor. Non-attendance does not
+automatically extend a deadline — coordinate with the instructor directly. If you must miss
+more than a week of class, contact the Dean of Students Office.
+
+### University policies
+The full list of University of Arizona syllabus policies — including academic integrity,
+accessibility and accommodation, nondiscrimination, and threatening behaviour — is at
+https://catalog.arizona.edu/syllabus-policies
+
+## Support
+
+- **Academic advising** — https://advising.arizona.edu/advisors/major
+- **Dean of Students Office** — (520) 621-2057, DOS-deanofstudents@email.arizona.edu
+- **Campus Health** — (520) 621-9202; after hours (520) 570-7898
+- **Counseling & Psych Services (CAPS), 24/7** — (520) 621-3334` }
+        ]
+      },
+      {
+        id: 'tab_466_schedule',
+        name: 'Schedule',
+        sections: [
+          { key: 'schedule', id: 'sec_466_schedule', name: 'Weekly Schedule', collapsed: false, widgets: [],
+            content: `Sixteen weeks, Tuesday and Thursday. **The only class cancelled all semester is
+Thursday Nov 26** (Thanksgiving recess) — Labor Day and Veterans Day both fall outside our
+meeting days. Two weeks meet once: Nov 24 and Dec 8.
+
+Topics and dates are firm; assessment dates may shift and are announced on D2L.
+
+## Part I — Molecular scale
+
+| Wk | Dates | Topic | Assessment |
+|---|---|---|---|
+| 1 | Aug 25 / 27 | Diffusion — why anything moves at all | |
+| 2 | Sep 1 / 3 | Fick's laws and diffusion-limited reactions | HW1 out |
+| 3 | Sep 8 / 10 | Binding — how a cell reads a concentration | |
+| 4 | Sep 15 / 17 | The limit of sensing, and the membrane that senses | HW2 out · Report 1 out |
+
+## Part II — Cellular scale
+
+| Wk | Dates | Topic | Assessment |
+|---|---|---|---|
+| 5 | Sep 22 / 24 | Actin — a filament that pushes | |
+| 6 | Sep 29 / Oct 1 | The Brownian ratchet and network architecture | HW3 out |
+| 7 | Oct 6 / 8 | The motor–clutch | HW4 out |
+| 8 | Oct 13 / 15 | The matrix pushes back — viscoelasticity | Report 1 due |
+
+## Part III — Tissue scale
+
+| Wk | Dates | Topic | Assessment |
+|---|---|---|---|
+| 9 | Oct 20 / 22 | Blood is not a fluid — it's a suspension | **Midterm out** |
+| 10 | Oct 27 / 29 | Blood rheology and flow in a compliant tube | HW5 out · Midterm due |
+| 11 | Nov 3 / 5 | Exchange at the capillary, and oxygen to the tissue | |
+| 12 | Nov 10 / 12 | Spatial gradients and mass transport in the tumour microenvironment | HW6 out · Final project out |
+| 13 | Nov 17 / 19 | Lung mechanics and ventilation–perfusion | |
+
+## Part IV — System scale
+
+| Wk | Dates | Topic | Assessment |
+|---|---|---|---|
+| 14 | Nov 24 *(Tue only)* | Musculoskeletal tissue mechanics | HW7 out |
+| 15 | Dec 1 / 3 | Muscle and movement | |
+| 16 | Dec 8 *(Tue only)* | Synthesis and final project presentations | **Final exam out** |
+
+---
+
+**Final exam** is take-home, due during the final examination period (Dec 11–17).
+**Last day of classes** is Wednesday Dec 9; **Dec 10** is Reading Day.` }
+        ]
+      },
+      {
+        id: 'tab_466_modules',
+        name: 'Learning Modules',
+        sections: [
+          { key: 'modules', id: 'sec_466_modules', name: 'Learning Modules', collapsed: false, widgets: [] }
+        ]
+      },
+      /* V3.677 — live lecture whiteboard (whiteboard.js). NOTE: if
+         schedules/bme466 has already been saved to Firestore, this seed
+         edit is invisible (resolveSchedule prefers Firestore) — add the
+         tab once through the class editor UI instead. */
+      {
+        id: 'tab_466_whiteboard',
+        name: 'Whiteboard',
+        sections: [
+          { key: 'whiteboard', id: 'sec_466_whiteboard', name: 'Lecture Whiteboards', collapsed: false, widgets: [] }
+        ]
+      },
+      /* V3.681 — the public Homeworks page. Lists PUBLISHED assignment
+         records from schedules/bme466/assignments (world-readable when
+         published), so a student can see what is due without signing in. */
+      {
+        id: 'tab_466_homeworks',
+        name: 'Homeworks',
+        sections: [
+          { key: 'hwList466', id: 'sec_466_hwlist', name: 'Assignments & Due Dates', collapsed: false, widgets: [] }
+        ]
+      },
+      /* V3.681 — the student dashboard. studentOnly: any signed-in
+         @arizona.edu account, hidden from anonymous visitors (there is
+         nothing in it for them and it would only prompt a sign-in wall). */
+      {
+        id: 'tab_466_mine',
+        name: 'My Homework',
+        studentOnly: true,
+        sections: [
+          { key: 'hwMine466', id: 'sec_466_mine', name: 'My Assignments', collapsed: false, widgets: [] }
+        ]
+      },
+      /* V3.681 — staff surface. staffOnly (NOT adminOnly): a
+         courseStaffEmails TA must reach this without being elevated to
+         admin, because admin also means page-edit chrome + the roster. */
+      {
+        id: 'tab_466_assign',
+        name: 'Assignments & Requests',
+        staffOnly: true,
+        sections: [
+          { key: 'hwAssign466', id: 'sec_466_assign', name: 'Assign & Respond', collapsed: false, widgets: [] }
+        ]
+      },
+      /* V3.674 — usage dashboard over the hwProgress cloud saves (pretest
+         pilot). Admin-only: visible to global admins and, via the
+         classAdminEmails elevation in wireClassPage, to the instructor. */
+      {
+        id: 'tab_466_dashboard',
+        name: 'Dashboard',
+        adminOnly: true,
+        sections: [
+          { key: 'hwDash466', id: 'sec_466_hwdash', name: 'Homework Progress', collapsed: false, widgets: [] }
+        ]
+      },
+    ],
+    // Release control: flip `published` to true (the "Visible" checkbox in the
+    // Learning Modules section, admin view) to open a module to students.
+    modules: [
+      /* V3.674 — pretest (HW0): ungraded baseline diagnostic + the cloud-save
+         pilot. Published from day one; completion credit is the D2L upload. */
+      { id: 'mod_466_hw00_pretest', title: 'Pretest — Where You\'re Starting From (HW-00)',
+        folder: 'bme466', htmlFile: 'hw-00-pretest.html', order: -1, published: true },
+      { id: 'mod_466_w01_diffusion', title: 'Week 1 — Diffusion: Why Anything Moves at All',
+        folder: 'bme466', htmlFile: '01-diffusion-why-anything-moves.html', order: 0, published: true },
+      /* V3.659 — instructor board notes, kept unpublished. Admins see it in this
+         list with the "Visible" box unticked; the public renderer filters on
+         `published`, so students never see the row. The file itself is still an
+         unauthenticated static asset — this hides the row, not the file, so keep
+         exam keys and grades out of it. Deliberately NOT "_"-prefixed: the
+         leading underscore keeps a file out of manifest.json (see
+         scan_modules.py), which would also keep it out of the "+ Add Module"
+         picker, and this one needs to be pickable there. */
+      { id: 'notes_466_w01', title: 'Week 1 — board notes',
+        folder: 'bme466', htmlFile: 'w01-instructor-notes.html', order: 1,
+        kind: 'notes', published: false },
+      /* V2.48: HW1 v2 ("Transport Problems") replaces the never-published v1;
+         v1's files stay deployed as the archived fallback but leave the catalog. */
+      { id: 'mod_466_hw01_brief', title: 'Homework 1 — Assignment (read first)',
+        folder: 'bme466', htmlFile: 'hw1-transport-problems.html', order: 2, published: true },
+      { id: 'mod_466_hw01_bench', title: 'Homework 1 — Transport Problems: Your Own Bench',
+        folder: 'bme466', htmlFile: 'hw-01-transport-problems.html', order: 3, published: true },
+      /* V2.79: HW2 "Reading and Building" (Weeks 3–4) — one data tab (the Microscope),
+         five problems, the walk-to-the-wound challenge. Released 2026-09-16. */
+      { id: 'mod_466_hw02_brief', title: 'Homework 2 — Assignment (read first)',
+        folder: 'bme466', htmlFile: 'hw2-reading-and-building.html', order: 4, published: true },
+      { id: 'mod_466_hw02_bench', title: 'Homework 2 — Reading and Building: The Microscope',
+        folder: 'bme466', htmlFile: 'hw-02-reading-and-building.html', order: 5, published: true },
+      /* V2.82: Report 1 "Read & Rebuild" — one of three short papers, re-derived and
+         re-measured on two seeded benches. The written prompt is a PDF on D2L; this is
+         the bench + answer module the results file is exported from. Out Week 4. */
+      { id: 'mod_466_report01', title: 'Report 1 — Read & Rebuild (journal review)',
+        folder: 'bme466', htmlFile: 'report-01-journal-review.html', order: 6, published: true },
+      /* V3.798: HW3 "Grip and Ground" (Weeks 5–6) — no data tab; three problems, each
+         joining two relations, plus the 566 challenge by hand. The row starts HIDDEN
+         (Visible unticked): the V3.798 migration copies it onto the live schedule,
+         and an admin visit before the FTP must not show students a link that 404s.
+         V3.800: the module only — Alex wants no separate "read first" page for HW3. */
+      { id: 'mod_466_hw03_bench', title: 'Homework 3 — Grip and Ground: Your Dataset',
+        folder: 'bme466', htmlFile: 'hw-03-grip-and-ground.html', order: 7, published: false }
+    ]
   }
 };
 
@@ -244,6 +629,114 @@ function renderText(raw) {
     const linked = esc(line).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
     return linked || '<br>';
   }).join('<br>');
+}
+
+/* V3.656 — richer renderer for the generic text sections (overview / syllabus /
+   schedule / simulations). renderText() above is deliberately left alone so any
+   caller still on it behaves exactly as before.
+
+   Supported, and nothing else: "## heading", "### heading", "**bold**",
+   "- bullet", "1. numbered", "| table | rows |" with a |---|---| separator,
+   "---" horizontal rule, blank-line paragraphs, and bare-URL auto-linking.
+   Everything is esc()'d BEFORE any marker is applied, so this is no more
+   permissive than renderText(). */
+function renderRichText(raw) {
+  if (!raw || !String(raw).trim()) return '<p class="muted-text">No content yet.</p>';
+
+  const inline = (t) => esc(t)
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  const isTableRow = (l) => /^\s*\|.*\|\s*$/.test(l);
+  const isTableSep = (l) => /^\s*\|[\s:|-]+\|\s*$/.test(l);
+  const cells = (l) => l.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+  // Does this line open a non-paragraph block? Used only to decide where a
+  // paragraph ends, never to decide whether to advance.
+  const isBlockStart = (l) => /^\s*(#{2,4})\s+/.test(l)
+    || /^\s*[-*]\s+/.test(l)
+    || /^\s*\d+[.)]\s+/.test(l)
+    || /^\s*---+\s*$/.test(l)
+    || isTableRow(l);
+
+  const lines = String(raw).replace(/\r\n?/g, '\n').split('\n');
+  const out = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (!line.trim()) { i++; continue; }
+
+    // Table: a row, optionally followed by a separator, then more rows.
+    if (isTableRow(line) && !isTableSep(line)) {
+      const head = cells(line);
+      let j = i + 1;
+      const hasSep = j < lines.length && isTableSep(lines[j]);
+      if (hasSep) j++;
+      const body = [];
+      while (j < lines.length && isTableRow(lines[j]) && !isTableSep(lines[j])) {
+        body.push(cells(lines[j])); j++;
+      }
+      let t = '<div class="cb-rt-tablewrap"><table class="cb-rt-table">';
+      if (hasSep) {
+        t += '<thead><tr>' + head.map(c => `<th>${inline(c)}</th>`).join('') + '</tr></thead>';
+      } else {
+        body.unshift(head);
+      }
+      t += '<tbody>' + body.map(r => '<tr>' + r.map(c => `<td>${inline(c)}</td>`).join('') + '</tr>').join('') + '</tbody>';
+      out.push(t + '</table></div>');
+      i = j; continue;
+    }
+
+    // Horizontal rule
+    if (/^\s*---+\s*$/.test(line)) { out.push('<hr class="cb-rt-hr">'); i++; continue; }
+
+    // Headings
+    let m = line.match(/^\s*(#{2,4})\s+(.*)$/);
+    if (m) {
+      const lvl = Math.min(m[1].length + 1, 5); // ## -> h3, ### -> h4
+      out.push(`<h${lvl} class="cb-rt-h">${inline(m[2])}</h${lvl}>`);
+      i++; continue;
+    }
+
+    // Unordered list
+    if (/^\s*[-*]\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+        items.push(inline(lines[i].replace(/^\s*[-*]\s+/, ''))); i++;
+      }
+      out.push('<ul class="cb-rt-list">' + items.map(x => `<li>${x}</li>`).join('') + '</ul>');
+      continue;
+    }
+
+    // Ordered list
+    if (/^\s*\d+[.)]\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i])) {
+        items.push(inline(lines[i].replace(/^\s*\d+[.)]\s+/, ''))); i++;
+      }
+      out.push('<ol class="cb-rt-list">' + items.map(x => `<li>${x}</li>`).join('') + '</ol>');
+      continue;
+    }
+
+    // Paragraph: consecutive plain lines.
+    //
+    // This branch ALWAYS consumes lines[i] before looking further, so `i` can
+    // never stall. That matters: a line can reach here having matched none of
+    // the branches above -- a table-separator row with no table above it, e.g.
+    // an all-empty header row `| | |`, satisfies isTableSep() and so is skipped
+    // by the table branch -- and a condition-guarded loop would spin forever,
+    // hanging the class page. Consume-first makes progress structural.
+    const buf = [lines[i]];
+    i++;
+    while (i < lines.length && lines[i].trim() && !isBlockStart(lines[i])) {
+      buf.push(lines[i]); i++;
+    }
+    out.push(`<p>${buf.map(inline).join('<br>')}</p>`);
+  }
+
+  return out.join('\n') || '<p class="muted-text">No content yet.</p>';
 }
 
 function genBlockId() {
@@ -307,7 +800,7 @@ function migrateLegacy(schedule) {
     if (!sec.name) sec.name = reg?.label || sec.key;
     if (sec.collapsed === undefined) sec.collapsed = false;
     // Migrate text content from schedule-level fields to per-section
-    if (reg?.component === 'text' && sec.content === undefined) {
+    if ((reg?.component === 'text' || reg?.component === 'richtext') && sec.content === undefined) {
       sec.content = schedule[reg.field] || '';
     }
     // Migrate file storage path
@@ -417,6 +910,10 @@ const ScheduleDB = {
 };
 
 async function resolveSchedule(scheduleId) {
+  // V3.632 — demo mode serves its fixture classes (tc-demo-*) so the admin
+  // preview exercises the real class page without provisioning anything.
+  const demoSched = McgheeLab.TC_DEMO?.active ? McgheeLab.TC_DEMO.schedule(scheduleId) : null;
+  if (demoSched) return demoSched;
   try {
     const remote = await ScheduleDB.getSchedule(scheduleId);
     if (remote) return remote;
@@ -487,6 +984,15 @@ async function wireClassPage(scheduleId) {
   if (isClassAdmin) isAdmin = true;
   _isClassAdminOnly = isClassAdmin && !isGlobalAdmin;
 
+  // V3.681 — narrow course staff (TA). Does NOT set isAdmin: it opens the
+  // staffOnly tabs and nothing else. A global admin / class admin counts as
+  // course staff too, so staff-only code can test one flag.
+  const _courseStaffList = Array.isArray(schedule.courseStaffEmails)
+    ? schedule.courseStaffEmails.map(e => (e || '').toLowerCase())
+    : [];
+  _isCourseStaff = isAdmin || (!!_userEmail && _courseStaffList.includes(_userEmail));
+  _realIsCourseStaff = _isCourseStaff;
+
   // V3.248 — remember the "real" admin status before applying the View-as
   // override, so the toolbar stays visible while the rest of the page
   // renders as a public / student preview.
@@ -496,9 +1002,11 @@ async function wireClassPage(scheduleId) {
     if (_adminViewOverride.type === 'public') {
       isAdmin = false;
       _isClassAdminOnly = false;
+      _isCourseStaff = false;      // V3.681 — a public preview must hide the staff tab too
     } else if (_adminViewOverride.type === 'student') {
       isAdmin = false;
       _isClassAdminOnly = false;
+      _isCourseStaff = false;
     }
   }
 
@@ -590,6 +1098,293 @@ async function wireClassPage(scheduleId) {
         } catch (e) { console.warn('[BME295C] admin-tab migration failed', e); }
       }
     }
+  }
+
+  // V3.674 migration: ensure the BME466 Dashboard tab (hwDash466) exists on
+  // an already-seeded bme466 schedule doc. Appended after Learning Modules.
+  if (isAdmin && scheduleId === 'bme466' && Array.isArray(schedule.tabs)) {
+    const hasHwDash = schedule.tabs.some(t =>
+      (t.sections || []).some(s => s.key === 'hwDash466'));
+    if (!hasHwDash) {
+      const seedTab = DEFAULT_SCHEDULES['bme466'].tabs.find(t =>
+        (t.sections || []).some(s => s.key === 'hwDash466'));
+      if (seedTab) {
+        const newTabs = [...schedule.tabs, JSON.parse(JSON.stringify(seedTab))];
+        try {
+          await ScheduleDB.saveSchedule({ ...schedule, tabs: newTabs });
+          schedule = await resolveSchedule(scheduleId);
+        } catch (e) { console.warn('[BME466] dashboard-tab migration failed', e); }
+      }
+    }
+  }
+
+  // V3.677 migration: ensure the BME466 Whiteboard tab exists on an
+  // already-seeded bme466 schedule doc (the seed edit alone is invisible
+  // once the doc lives in Firestore — resolveSchedule prefers Firestore).
+  // Same pattern as the V3.674 dashboard-tab migration above.
+  if (isAdmin && scheduleId === 'bme466' && Array.isArray(schedule.tabs)) {
+    const hasWhiteboard = schedule.tabs.some(t =>
+      (t.sections || []).some(s => s.key === 'whiteboard'));
+    if (!hasWhiteboard) {
+      const seedTab = DEFAULT_SCHEDULES['bme466'].tabs.find(t =>
+        (t.sections || []).some(s => s.key === 'whiteboard'));
+      if (seedTab) {
+        const newTabs = [...schedule.tabs, JSON.parse(JSON.stringify(seedTab))];
+        try {
+          await ScheduleDB.saveSchedule({ ...schedule, tabs: newTabs });
+          schedule = await resolveSchedule(scheduleId);
+        } catch (e) { console.warn('[BME466] whiteboard-tab migration failed', e); }
+      }
+    }
+  }
+
+  // V3.674 migration: ensure the pretest module row exists on an
+  // already-seeded bme466 schedule doc (published — it goes live in W1).
+  if (isAdmin && scheduleId === 'bme466' && Array.isArray(schedule.modules)) {
+    const hasPretest = schedule.modules.some(m => m.htmlFile === 'hw-00-pretest.html');
+    if (!hasPretest) {
+      const seedMod = DEFAULT_SCHEDULES['bme466'].modules.find(m =>
+        m.htmlFile === 'hw-00-pretest.html');
+      if (seedMod) {
+        const newModules = [JSON.parse(JSON.stringify(seedMod)), ...schedule.modules];
+        try {
+          await ScheduleDB.saveSchedule({ ...schedule, modules: newModules });
+          schedule = await resolveSchedule(scheduleId);
+        } catch (e) { console.warn('[BME466] pretest-module migration failed', e); }
+      }
+    }
+  }
+
+  /* V3.777 migration: HW2 ("Reading and Building", Weeks 3–4) on an
+     already-seeded bme466 doc — two module rows and the assignment row.
+
+     Why a migration and not the seed: HW466_SEED_ASSIGNMENTS only runs when
+     the assignments collection is EMPTY (hw466SeedAssignments bails if any
+     doc exists), so a row added to that array after HW0/HW1 were seeded is
+     never written. Same for schedule.modules — DEFAULT_SCHEDULES seeds a new
+     doc, not an existing one. The pretest migration above is the pattern.
+
+     The assignment is created as a DRAFT on purpose. functions/bme466-notify.js
+     fans out to every student profile on the transition into published:true —
+     and creating a doc already published IS that transition (its `before` is
+     undefined). Publishing before the module files are on the server would
+     notify the class and hand them a 404. So: this migration fills the row in,
+     the instructor FTPs, then flips Publish in Assignments & Requests, which
+     carries its own confirmation. */
+  if (isAdmin && scheduleId === 'bme466') {
+    if (Array.isArray(schedule.modules)) {
+      const wantHw2 = ['hw2-reading-and-building.html', 'hw-02-reading-and-building.html'];
+      const missing = wantHw2.filter(f => !schedule.modules.some(m => m.htmlFile === f));
+      if (missing.length) {
+        const seedRows = missing
+          .map(f => DEFAULT_SCHEDULES['bme466'].modules.find(m => m.htmlFile === f))
+          .filter(Boolean)
+          .map(m => JSON.parse(JSON.stringify(m)));
+        if (seedRows.length) {
+          try {
+            await ScheduleDB.saveSchedule({ ...schedule, modules: [...schedule.modules, ...seedRows] });
+            schedule = await resolveSchedule(scheduleId);
+          } catch (e) { console.warn('[BME466] hw2-module migration failed', e); }
+        }
+      }
+    }
+    try {
+      const ref = hw466Col().collection('assignments').doc('hw2');
+      const existing = await ref.get();
+      if (!existing.exists) {
+        const seed = HW466_SEED_ASSIGNMENTS.find(a => a.slug === 'hw2');
+        if (seed) {
+          await ref.set({
+            ...seed,
+            published: false,                         // the instructor publishes; see above
+            dueAt: Date.parse('2026-09-30T23:59:00'),
+            createdAt: hw466Now(), createdBy: hw466MyEmail(),
+            updatedAt: hw466Now(), updatedBy: hw466MyEmail()
+          });
+          await hw466SyncProgressKeys();              // adds bme466-hw2, no rules deploy
+          console.log('[BME466] HW2 assignment row created as a draft — publish it in Assignments & Requests once the files are on the server');
+        }
+      }
+    } catch (e) { console.warn('[BME466] hw2-assignment migration failed', e); }
+  }
+
+  /* V3.778 migration: Report 1 ("Read & Rebuild") on an already-seeded bme466
+     doc — the module row, and the module link on the assignment row.
+
+     Report 1 differs from the V3.777 HW2 case in the one way that matters:
+     the `report-1` assignment document ALREADY EXISTS. The V3.681 inventory
+     seed wrote it as a bare draft with no moduleUrl and no progressKey, so
+     HW2's create-if-absent pattern would do nothing here and the row would
+     stay unlinked — visible in the list, with no way to open the module and
+     no progress for the student dashboard to read. This migration therefore
+     FILLS IN the missing fields on the existing draft, and still creates the
+     row if it is somehow absent.
+
+     It never writes `published`, and never touches `dueAt` or `title` — an
+     instructor may already have set those by hand. Publishing stays theirs,
+     in Assignments & Requests, after the FTP: functions/bme466-notify.js fans
+     out to every student profile on the transition into published:true, so
+     publishing before the file is on the server would notify the class and
+     hand them a 404. Leaving `published` out of the merge also means this
+     migration cannot fire that notification however many times it runs.
+
+     Rules path (firestore.rules, schedules/bme466/assignments/{slug}): a merge
+     write is validated as the MERGED document, so hasAll is satisfied by the
+     existing fields; every key written here is on the hasOnly whitelist;
+     updatedAt is a server timestamp (== request.time) and updatedBy is the
+     token email. allow update: bme466Staff() && aShapeOk(). */
+  if (isAdmin && scheduleId === 'bme466') {
+    if (Array.isArray(schedule.modules)) {
+      const wantR1 = 'report-01-journal-review.html';
+      if (!schedule.modules.some(m => m.htmlFile === wantR1)) {
+        const row = DEFAULT_SCHEDULES['bme466'].modules.find(m => m.htmlFile === wantR1);
+        if (row) {
+          try {
+            await ScheduleDB.saveSchedule({
+              ...schedule, modules: [...schedule.modules, JSON.parse(JSON.stringify(row))]
+            });
+            schedule = await resolveSchedule(scheduleId);
+          } catch (e) { console.warn('[BME466] report-1 module migration failed', e); }
+        }
+      }
+    }
+    try {
+      const seed = HW466_SEED_ASSIGNMENTS.find(a => a.slug === 'report-1');
+      const ref = hw466Col().collection('assignments').doc('report-1');
+      const existing = await ref.get();
+      if (seed && !existing.exists) {
+        await ref.set({
+          ...seed,
+          published: false,                           // the instructor publishes; see above
+          createdAt: hw466Now(), createdBy: hw466MyEmail(),
+          updatedAt: hw466Now(), updatedBy: hw466MyEmail()
+        });
+        await hw466SyncProgressKeys();                // adds bme466-report1, no rules deploy
+        console.log('[BME466] Report 1 assignment row created as a draft — publish it in Assignments & Requests once the file is on the server');
+      } else if (seed && existing.exists) {
+        const d = existing.data() || {};
+        const patch = {};
+        if (!d.moduleUrl)   patch.moduleUrl   = seed.moduleUrl;
+        if (!d.progressKey) patch.progressKey = seed.progressKey;
+        if (!d.notes)       patch.notes       = seed.notes;
+        if (Object.keys(patch).length) {
+          patch.updatedAt = hw466Now();               // rules require == request.time
+          patch.updatedBy = hw466MyEmail();
+          await ref.update(patch);                    // `published` deliberately absent
+          await hw466SyncProgressKeys();              // adds bme466-report1, no rules deploy
+          console.log('[BME466] Report 1 assignment row linked to its module — publish it in Assignments & Requests once the file is on the server');
+        }
+      }
+    } catch (e) { console.warn('[BME466] report-1 assignment migration failed', e); }
+  }
+
+  /* V3.798 migration: HW3 ("Grip and Ground", Weeks 5–6) on an already-seeded
+     bme466 doc — the module row and the assignment row (V3.800: one module row;
+     the "read first" prompt page was taken off the site). The Report 1 case
+     (V3.778), not the HW2 one: the V3.681 inventory seed wrote `hw3` as a bare
+     draft (title 'HW3', progressKey only), so create-if-absent alone would leave
+     it unlinked. This FILLS IN what is missing and creates the row only if it is
+     somehow absent.
+
+     Never written: `published` (the instructor publishes after the FTP —
+     functions/bme466-notify.js fans out to every student on the transition into
+     published:true); `dueAt`/`opensAt` when already set (an instructor may have
+     typed real dates); `title` unless it is still the seed placeholder 'HW3'.
+     The module rows arrive with Visible unticked for the same reason.
+     Rules path as V3.778: merged-document validation, whitelisted keys only,
+     updatedAt == request.time, updatedBy = token email. */
+  if (isAdmin && scheduleId === 'bme466') {
+    if (Array.isArray(schedule.modules)) {
+      const wantHw3 = ['hw-03-grip-and-ground.html'];
+      const missing = wantHw3.filter(f => !schedule.modules.some(m => m.htmlFile === f));
+      if (missing.length) {
+        const seedRows = missing
+          .map(f => DEFAULT_SCHEDULES['bme466'].modules.find(m => m.htmlFile === f))
+          .filter(Boolean)
+          .map(m => JSON.parse(JSON.stringify(m)));
+        if (seedRows.length) {
+          try {
+            await ScheduleDB.saveSchedule({ ...schedule, modules: [...schedule.modules, ...seedRows] });
+            schedule = await resolveSchedule(scheduleId);
+          } catch (e) { console.warn('[BME466] hw3-module migration failed', e); }
+        }
+      }
+    }
+    try {
+      const seed = HW466_SEED_ASSIGNMENTS.find(a => a.slug === 'hw3');
+      const ref = hw466Col().collection('assignments').doc('hw3');
+      const existing = await ref.get();
+      const opens = Date.parse('2026-10-06T00:00:00');
+      const due = Date.parse('2026-10-20T23:59:00');
+      if (seed && !existing.exists) {
+        await ref.set({
+          ...seed,
+          published: false,                           // the instructor publishes; see above
+          opensAt: opens, dueAt: due,
+          createdAt: hw466Now(), createdBy: hw466MyEmail(),
+          updatedAt: hw466Now(), updatedBy: hw466MyEmail()
+        });
+        await hw466SyncProgressKeys();                // bme466-hw3 is also in the legacy rules list
+        console.log('[BME466] HW3 assignment row created as a draft — publish it in Assignments & Requests once the files are on the server');
+      } else if (seed && existing.exists) {
+        const d = existing.data() || {};
+        const patch = {};
+        if (!d.moduleUrl)   patch.moduleUrl   = seed.moduleUrl;
+        if (!d.progressKey) patch.progressKey = seed.progressKey;
+        if (!d.notes)       patch.notes       = seed.notes;
+        if (!d.title || d.title === 'HW3') patch.title = seed.title;
+        if (!d.opensAt)     patch.opensAt     = opens;
+        if (!d.dueAt)       patch.dueAt       = due;
+        if (Object.keys(patch).length) {
+          patch.updatedAt = hw466Now();               // rules require == request.time
+          patch.updatedBy = hw466MyEmail();
+          await ref.update(patch);                    // `published` deliberately absent
+          await hw466SyncProgressKeys();
+          console.log('[BME466] HW3 assignment row linked to its module — publish it in Assignments & Requests once the files are on the server');
+        }
+      }
+    } catch (e) { console.warn('[BME466] hw3 assignment migration failed', e); }
+  }
+
+  /* V3.681 migration: the three course-platform tabs (Homeworks, My
+     Homework, Assignments & Requests) + the courseStaffEmails field, on an
+     already-seeded bme466 doc. The new tabs are inserted BEFORE the
+     admin-only Dashboard tab so the tab bar reads
+     public → student → staff → admin left to right. Runs once; each piece is
+     independently idempotent, so a partial failure retries next visit. */
+  if (isAdmin && scheduleId === 'bme466' && Array.isArray(schedule.tabs)) {
+    const wanted = ['hwList466', 'hwMine466', 'hwAssign466'];
+    const missing = wanted.filter(k =>
+      !schedule.tabs.some(t => (t.sections || []).some(s => s.key === k)));
+    const needsStaffField = !Array.isArray(schedule.courseStaffEmails);
+    if (missing.length || needsStaffField) {
+      const seeds = missing
+        .map(k => DEFAULT_SCHEDULES['bme466'].tabs.find(t =>
+          (t.sections || []).some(s => s.key === k)))
+        .filter(Boolean)
+        .map(t => JSON.parse(JSON.stringify(t)));
+      const dashIdx = schedule.tabs.findIndex(t =>
+        (t.sections || []).some(s => s.key === 'hwDash466'));
+      const at = dashIdx === -1 ? schedule.tabs.length : dashIdx;
+      const newTabs = [...schedule.tabs.slice(0, at), ...seeds, ...schedule.tabs.slice(at)];
+      try {
+        await ScheduleDB.saveSchedule({
+          ...schedule,
+          tabs: newTabs,
+          courseStaffEmails: Array.isArray(schedule.courseStaffEmails)
+            ? schedule.courseStaffEmails : []
+        });
+        schedule = await resolveSchedule(scheduleId);
+      } catch (e) { console.warn('[BME466] V3.681 tab migration failed', e); }
+    }
+  }
+  /* V3.681: seed the F26 assignment inventory as UNPUBLISHED drafts if the
+     subcollection is empty, and derive hwProgressKeys from it. Dates are
+     left blank on purpose — D2L is the authority on deadlines and no repo
+     file holds real F26 dates, so the instructor fills them in. */
+  if (isAdmin && scheduleId === 'bme466') {
+    try { await hw466SeedAssignments(); }
+    catch (e) { console.warn('[BME466] assignment seed failed', e); }
   }
 
   // V3.251 migration: ensure the chat tab exists. Inserted right
@@ -844,6 +1639,15 @@ async function wireClassPage(scheduleId) {
   // Resolve tabs (tabs field or migrate from layout/sections)
   _tabs = migrateLegacy(schedule);
   _activeTabId = _tabs[0]?.id || null;
+  // V3.716 — assign every module entry to a Learning Modules section. Needs
+  // _tabs, so it runs here rather than inside migrateLegacy; also covers the
+  // public/student render, which never calls refreshCanvas().
+  ensureModulePlacements();
+  // V3.803 — type every untyped entry from its file name / title, then give
+  // typed entries (homework, keys, reports, tests) the tab that lists them —
+  // for the public/student render too.
+  ensureModuleTypes();
+  ensureTypedModuleTabs();
 
   // Pre-load file data for ALL file-type sections across ALL tabs
   _fileData = {};
@@ -880,6 +1684,12 @@ async function wireClassPage(scheduleId) {
       <button type="button" id="cb-settings-btn" class="btn btn-small btn-secondary">Settings</button>
     `;
   }
+
+  // V3.677 — "🔴 Whiteboard is live" banner: whiteboard.js watches this
+  // schedule doc's liveWhiteboard field and shows the banner on any tab.
+  // Attached for every class (its own narrow listener — deliberately NOT
+  // folded into attachBmeScheduleListener's 295c splice logic).
+  window.Whiteboard?.attachLiveBanner?.(scheduleId);
 
   // Build canvas
   const content = document.getElementById('class-page-content');
@@ -920,6 +1730,8 @@ function cleanupListeners() {
   detachBmeScheduleListener();
   // V3.286 — release the assessments listener.
   detachBmeAssessmentsListener();
+  // V3.677 — release the live-whiteboard banner listener + remove the banner.
+  window.Whiteboard?.detachLiveBanner?.();
 }
 
 /** V3.251 — release the groupResponses snapshot subscription + the
@@ -1112,7 +1924,7 @@ function buildCanvasHTML() {
   // anything they do right now is tagged for wipe.
   if (_realIsAdmin && _classData?.testMode === true) {
     html += `<div class="cb295-testmode-banner" role="status">
-      <span class="cb295-testmode-banner-icon" aria-hidden="true">⚠</span>
+      <span class="cb295-testmode-banner-icon" aria-hidden="true">${ICON.svg('exclamation-triangle')}</span>
       <span class="cb295-testmode-banner-text">
         <strong>Test mode is ON.</strong> Group responses you submit are tagged for cleanup.
         Exit and wipe before the class goes live — controls are on the Admin Dashboard tab.
@@ -1164,9 +1976,25 @@ function buildCanvasHTML() {
 }
 
 /* ─── Tab Bar ───────────────────────────────────────────────── */
+/* V3.681 — three audience flags on a tab, checked here and mirrored by
+   buildSectionBlockHTML so a section cannot leak through a hand-built tab:
+     adminOnly   — the instructor view (edit chrome, roster, deletes)
+     staffOnly   — instructor OR a courseStaffEmails TA
+     studentOnly — any signed-in @arizona.edu account (staff included: they
+                   see their own empty list, which beats a tab that vanishes
+                   when you sign in as staff and reappears when you don't)
+   In edit mode every tab shows, or an admin could not manage what they
+   cannot see. */
+function tabIsVisible(t) {
+  if (isEditing()) return true;
+  if (t.adminOnly && _viewType !== 'admin') return false;
+  if (t.staffOnly && !(_viewType === 'admin' || _isCourseStaff)) return false;
+  if (t.studentOnly && !bme466SignedInStudent()) return false;
+  return true;
+}
 function buildTabBar() {
   const editing = isEditing();
-  const visibleTabs = _tabs.filter(t => !t.adminOnly || _viewType === 'admin');
+  const visibleTabs = _tabs.filter(tabIsVisible);
   // If the currently active tab is admin-only and the viewer can't see
   // it (because of a view-as override), fall through to the first
   // visible tab without mutating _activeTabId so that switching back to
@@ -1177,8 +2005,10 @@ function buildTabBar() {
   let html = '<div class="cb-tab-bar">';
   visibleTabs.forEach(tab => {
     const active = tab.id === effectiveActiveId;
-    const adminTag = tab.adminOnly ? '<span class="cb-tab-admin-tag" title="Admin only">ADMIN</span>' : '';
-    html += `<div class="cb-tab${active ? ' cb-tab-active' : ''}${tab.adminOnly ? ' cb-tab-admin' : ''}" data-tab-id="${tab.id}">
+    const adminTag = tab.adminOnly ? '<span class="cb-tab-admin-tag" title="Admin only">ADMIN</span>'
+      : tab.staffOnly ? '<span class="cb-tab-admin-tag" title="Instructor + TAs only">STAFF</span>'
+      : tab.studentOnly ? '<span class="cb-tab-admin-tag" title="Signed-in students only">MINE</span>' : '';
+    html += `<div class="cb-tab${active ? ' cb-tab-active' : ''}${(tab.adminOnly || tab.staffOnly) ? ' cb-tab-admin' : ''}" data-tab-id="${tab.id}">
       <span class="cb-tab-name">${esc(tab.name)}</span>${adminTag}
       ${editing ? `<button type="button" class="cb-tab-delete" data-tab-id="${tab.id}" title="Delete tab">&times;</button>` : ''}
     </div>`;
@@ -1211,18 +2041,26 @@ function buildViewAsToolbar() {
       const label = `${(s.name || '').split(',')[0]} (${s.campus || '—'})`;
       return `<option value="${escAttr(s.id)}" ${s.id === selectedStudentId ? 'selected' : ''}>${esc(label)}</option>`;
     }).join('');
+  /* V3.734 — a compact segmented toggle. "Student" no longer needs a
+     roster: with nothing picked it is YOU as a plain signed-in student
+     (admin + staff flags off), which is what "let me see what students
+     see" means for a class without a roster (BME 466). Picking a roster
+     entry still impersonates that student. */
   return `
     <div class="cb295-viewas" role="toolbar" aria-label="Admin view-as switcher">
-      <span class="cb295-viewas-label">Viewing as:</span>
-      <button type="button" class="cb295-viewas-btn${mode === 'admin' ? ' cb295-viewas-btn-active' : ''}" data-viewas="admin">Admin</button>
-      <button type="button" class="cb295-viewas-btn${mode === 'student' ? ' cb295-viewas-btn-active' : ''}" data-viewas="student">Student</button>
-      <select class="cb295-viewas-student" id="cb295-viewas-student-select" ${mode === 'student' ? '' : 'disabled'}>
-        <option value="">— pick a student —</option>
+      <span class="cb295-viewas-label">View as</span>
+      <div class="cb295-viewas-seg">
+        <button type="button" class="cb295-viewas-btn${mode === 'admin' ? ' cb295-viewas-btn-active' : ''}" data-viewas="admin">Admin</button>
+        <button type="button" class="cb295-viewas-btn${mode === 'student' ? ' cb295-viewas-btn-active' : ''}" data-viewas="student">Student</button>
+        <button type="button" class="cb295-viewas-btn${mode === 'public' ? ' cb295-viewas-btn-active' : ''}" data-viewas="public">Public</button>
+      </div>
+      ${mode === 'student' && studentOpts ? `
+      <select class="cb295-viewas-student" id="cb295-viewas-student-select" aria-label="Which student">
+        <option value="" ${selectedStudentId ? '' : 'selected'}>myself (a signed-in student)</option>
         ${studentOpts}
-      </select>
-      <button type="button" class="cb295-viewas-btn${mode === 'public' ? ' cb295-viewas-btn-active' : ''}" data-viewas="public">Public</button>
+      </select>` : ''}
       ${mode !== 'admin'
-        ? `<span class="cb295-viewas-note muted-text">Preview mode — your real role is ${_realIsClassAdminOnly ? 'class admin' : 'admin'}.</span>`
+        ? `<span class="cb295-viewas-note muted-text">Preview — your real role is ${_realIsClassAdminOnly ? 'class admin' : 'admin'}.</span>`
         : ''}
     </div>
   `;
@@ -1266,9 +2104,14 @@ function buildSectionBlockHTML(section) {
   // V3.244 — admin-only sections render to nothing for non-admin viewers.
   if (section.key === 'roster295c' && _viewType !== 'admin') return '';
   if (section.key === 'adminDash295c' && _viewType !== 'admin') return '';
+  if (section.key === 'hwDash466' && _viewType !== 'admin') return '';
+  // V3.681 — mirror of tabIsVisible(), at the SECTION level: a section
+  // dropped onto a hand-built public tab must not leak the staff surface.
+  if (section.key === 'hwAssign466' && !(_viewType === 'admin' || _isCourseStaff)) return '';
+  if (section.key === 'hwMine466' && !bme466SignedInStudent() && !editing) return '';
   const typeLabel = reg?.label || section.key;
   const displayName = section.name || typeLabel;
-  const collapseIcon = section.collapsed ? '&#x25B6;' : '&#x25BC;';
+  const collapseIcon = ICON.svg(section.collapsed ? 'chevron-right' : 'chevron-down');
 
   if (!editing) {
     // Public / preview: read-only section + widgets
@@ -1372,6 +2215,15 @@ function renderSectionBody(section) {
       }
       return `<div class="text-preview">${renderText(content)}</div>`;
     }
+    // V3.656 — same editing affordance as 'text', richer read-only render.
+    case 'richtext': {
+      const content = section.content || '';
+      if (editing) {
+        return `<textarea class="cb-textarea cb-section-text" data-section-id="${section.id}" rows="14" placeholder="Enter ${(section.name || reg.label).toLowerCase()} content...">${esc(content)}</textarea>
+          <p class="muted-text" style="margin:4px 0 0;font-size:.75rem;">Markdown-lite: <code>## heading</code>, <code>**bold**</code>, <code>- bullet</code>, <code>1. numbered</code>, <code>|&nbsp;tables&nbsp;|</code> with a <code>|---|</code> row, <code>---</code> rule. URLs auto-link.</p>`;
+      }
+      return `<div class="text-preview cb-richtext">${renderRichText(content)}</div>`;
+    }
     case 'files': {
       const files = _fileData[section.id] || [];
       const canUpload = editing || (_viewType === 'guest' && section.key === 'files');
@@ -1398,8 +2250,12 @@ function renderSectionBody(section) {
     }
     case 'speakers':
       return `<div id="cb-speakers-${section.id}">${McgheeLab.Scheduler?.render?.(buildSchedulerConfig()) || '<p class="muted-text">Scheduler not loaded.</p>'}</div>`;
+    // V3.716 — `section` is now passed: each modules section owns its own list.
     case 'modules':
-      return renderModulesBody(editing);
+      return renderModulesBody(editing, section);
+    // V3.803 — derived lists by type (Homework & Keys, Reports & Tests).
+    case 'typedModules':
+      return renderTypedModulesBody(editing, section);
     // ── BME 295C (V3.244) class-specific section bodies ─────────
     case 'checkin295c':  return renderBmeCheckinBody(section);
     case 'syllabus295c': return renderBmeSyllabusBody();
@@ -1409,37 +2265,366 @@ function renderSectionBody(section) {
     case 'chat295c':     return renderBmeChatBody(editing);
     case 'assessment295c': return renderBmeAssessmentBody(editing);
     case 'adminDash295c': return renderBmeAdminDashBody(editing);
+    case 'hwDash466':    return renderHw466DashBody();
+    // V3.681 — BME466 course platform
+    case 'hwList466':    return renderHw466ListBody();
+    case 'hwMine466':    return renderHw466MineBody();
+    case 'hwAssign466':  return renderHw466AssignBody();
+    // V3.677 — live whiteboard board list. whiteboard.js owns the body,
+    // hydration, and all board behavior; canEdit follows the View-as
+    // override (so admin's "Student"/"Public" preview shows the real
+    // student experience). The board page itself re-checks the gate.
+    case 'whiteboard':
+      return window.Whiteboard?.renderSectionBody?.(section, _scheduleId, {
+        canEdit: _viewType === 'admin',
+        liveWhiteboard: _classData?.liveWhiteboard || null
+      }) ?? '<p class="muted-text">Whiteboard module not loaded.</p>';
     default:
       return '<p class="muted-text">Unknown component.</p>';
   }
 }
 
+/* V3.660 — a module entry may be a lesson (default) or instructor **notes**.
+   Notes reuse the same modules[] array and the same manifest.json file list —
+   only the presentation and the default visibility differ. `kind:'notes'` is
+   additive, so every pre-existing entry keeps behaving exactly as before. */
+function isNotesEntry(mod) { return mod?.kind === 'notes'; }
+
+/* ─── Module types (V3.803) ─────────────────────────────────────
+   Alex: "when i add a new learning module to the learning module stack, i want
+   to set a type. Homework, Homework key, report, test, module, pretest.
+   Homeworks and keys should automatically be added to the homework tab. Make
+   another tab for reports and tests."
+
+   `type` is one optional field on a modules[] entry. Absent = 'module', so
+   nothing authored before V3.803 moves until it is retyped. Notes (kind:'notes')
+   never carry a listing type — they always stay in the stack. */
+const MODULE_TYPES = [
+  ['module',       'Module'],
+  ['pretest',      'Pretest'],
+  ['homework',     'Homework'],
+  ['homework_key', 'Homework key'],
+  ['report',       'Report'],
+  ['test',         'Test']
+];
+/* Which typedModules section LISTS each type on the public page. Types absent
+   here (module, pretest) stay in their Learning Modules section. */
+const MODULE_TYPE_HOME = {
+  homework: 'homeworkModules', homework_key: 'homeworkModules',
+  report:   'reportTestModules', test: 'reportTestModules'
+};
+/* Types that start HIDDEN when added. A key that is visible the moment it is
+   added is the one mistake this field must not make easy. */
+const MODULE_TYPE_HIDDEN_DEFAULT = ['homework_key', 'test'];
+/* Short glyph for the 22/28px circle where a lesson number would go. */
+const MODULE_TYPE_SHORT = { pretest: 'PRE', homework: 'HW', homework_key: 'KEY', report: 'RPT', test: 'TST' };
+
+/* ─── Type guessing ───
+   Alex: "any module i upload should have a type attached to it to autosort
+   them upon load." This course's catalog carries the type in the file name
+   and title (hw-01-…, HW1-student-key.html, report-01-…, hw-00-pretest.html),
+   so a new entry is pre-typed from them in the picker, and an entry with no
+   type at all reads as its guess everywhere (class page, viewer, module
+   header) and is stamped at load by ensureModuleTypes(). Keyword-only, most
+   specific first; anything unrecognised is a plain module, and the editor's
+   Type select is the one-click correction. An explicit type — including
+   'module' — is never second-guessed. */
+function guessModuleType(htmlFile, title) {
+  const s = `${htmlFile || ''} ${title || ''}`;
+  const hwWord = /\b(?:hw|homework|assignment|problem[- ]?set)\b|\bhw-?\d/i;
+  if (/\b(?:solutions?|answer[- ]?key)\b/i.test(s) || (/\bkey\b/i.test(s) && hwWord.test(s))) return 'homework_key';
+  if (/pre-?test|diagnostic/i.test(s)) return 'pretest';
+  if (hwWord.test(s)) return 'homework';
+  if (/\breports?\b/i.test(s)) return 'report';
+  if (/\b(?:test|exam|midterm|final|quiz)\b/i.test(s)) return 'test';
+  return 'module';
+}
+
+function moduleType(mod) {
+  const t = mod?.type;
+  if (MODULE_TYPES.some(x => x[0] === t)) return t;
+  return guessModuleType(mod?.htmlFile, mod?.title);
+}
+function moduleTypeLabel(type) { return (MODULE_TYPES.find(x => x[0] === type) || [, type])[1]; }
+/** The typedModules section key that lists this entry, or null when it stays
+    in its own Learning Modules section. Notes never leave the stack. */
+function moduleHomeKey(mod) {
+  if (isNotesEntry(mod)) return null;
+  return MODULE_TYPE_HOME[moduleType(mod)] || null;
+}
+/** Visible-by-default rule for a new entry: notes, keys and tests start hidden. */
+function defaultPublishedFor(kind, type) {
+  if (kind === 'notes') return false;
+  return !MODULE_TYPE_HIDDEN_DEFAULT.includes(type);
+}
+
+/* V3.803 — an editor notice in the site's own toast (same markup and CSS as
+   app.js's .pwa-toast), for the places that used to alert(). */
+function cbToast(html) {
+  document.querySelector('.pwa-toast')?.remove();
+  const t = document.createElement('div');
+  t.className = 'pwa-toast';
+  t.innerHTML = `<div class="pwa-toast-body">${html}</div>
+    <div class="pwa-toast-actions"><button type="button" class="pwa-toast-close" aria-label="Dismiss">&times;</button></div>`;
+  t.querySelector('.pwa-toast-close').addEventListener('click', () => t.remove());
+  document.body.appendChild(t);
+  setTimeout(() => { if (t.parentElement) t.remove(); }, 8000);
+}
+
+/* ─── Learning Modules placements (V3.716) ─────────────────────
+   Every "Learning Modules" section is its own instance. Before this, the
+   section body ignored its own `section` and read the one class-wide
+   `_classData.modules` array, so a second modules section rendered a copy of
+   the first and adding a module anywhere changed all of them.
+
+   The array stays flat and class-wide — no schema move, no rules change — and
+   is *partitioned* by `sectionId`. Every read filters, every write stamps. */
+
+/** Every section of key 'modules', in tab order. */
+function modulesSections() {
+  const out = [];
+  for (const tab of _tabs) {
+    for (const sec of (tab.sections || [])) {
+      if (sec.key === 'modules') out.push(sec);
+    }
+  }
+  return out;
+}
+
+/* Migration + repair, run on load and on every canvas refresh. An entry with
+   no `sectionId` (everything authored before V3.716) or one pointing at a
+   section that has since been deleted is adopted by the FIRST modules section,
+   so lessons can never silently disappear.
+
+   Deliberately does NOT markDirty(): it mutates in memory and rides along on
+   the next real save. That is the whole migration. It also bails when the class
+   has no modules section at all, which is how teacher-classes (created with
+   `tabs: []` and rendered by teacher-classes.js straight off `schedule.modules`)
+   stay completely untouched. */
+function ensureModulePlacements() {
+  const secs = modulesSections();
+  if (!secs.length) return;
+  const valid = new Set(secs.map(s => s.id));
+  const home = secs[0].id;
+  (_classData?.modules || []).forEach(m => {
+    if (!m.sectionId || !valid.has(m.sectionId)) m.sectionId = home;
+  });
+}
+
+/** The modules belonging to one section, in display order. */
+function modulesForSection(sectionId) {
+  return (_classData?.modules || [])
+    .filter(m => m.sectionId === sectionId)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
+
+/* ─── Typed lists (V3.803) ──────────────────────────────────────
+   A typedModules section is a DERIVED list: every entry in the class whose
+   moduleHomeKey() is its key, in stack order (section tab order, then `order`).
+   Nothing is copied, so there is nothing to drift. */
+function modulesForTypedSection(key) {
+  const rank = new Map(modulesSections().map((s, i) => [s.id, i]));
+  return (_classData?.modules || [])
+    .filter(m => moduleHomeKey(m) === key)
+    .sort((a, b) => ((rank.get(a.sectionId) ?? 0) - (rank.get(b.sectionId) ?? 0))
+                 || ((a.order ?? 0) - (b.order ?? 0)));
+}
+
+/* The "autosort upon load": an entry with no `type` is stamped with its guess,
+   so the editor's Type select shows it and it persists on the next real save.
+   In memory, never markDirty(); bails when the class has no modules section so
+   teacher-classes stay untouched; notes are skipped (they never leave the stack). */
+function ensureModuleTypes() {
+  if (!modulesSections().length) return;
+  (_classData?.modules || []).forEach(m => {
+    if (isNotesEntry(m) || m.type) return;
+    m.type = moduleType(m);
+  });
+}
+
+/** The tab a Homework & Keys list belongs on: BME 466's Homeworks tab (the
+    one holding hwList466), or any tab named like one. Null = make a new tab. */
+function findHomeworkTab() {
+  return _tabs.find(t => (t.sections || []).some(s => s.key === 'hwList466'))
+      || _tabs.find(t => /homework/i.test(t.name || ''))
+      || null;
+}
+
+/** Where a typedModules section currently lives: { tab, sec } or null. */
+function typedListLocation(key) {
+  for (const tab of _tabs) {
+    const sec = (tab.sections || []).find(s => s.key === key);
+    if (sec) return { tab, sec };
+  }
+  return null;
+}
+
+/* The "automatically" in the ask. In the mould of ensureModulePlacements():
+   runs after it at load and on every canvas refresh, mutates _tabs in memory,
+   never markDirty()s (it rides the next real save), and bails when the class has
+   no modules section so teacher-classes (tabs: []) stay untouched.
+
+   For each typed section key with at least one entry and no section yet:
+   - Homework & Keys joins an existing Homeworks tab (BME 466: under the
+     Assignments & Due Dates table) or gets a new public "Homeworks" tab.
+   - Reports & Tests gets a new public tab after the Homeworks tab, else before
+     the first gated (student / staff / admin) tab, else at the end.
+   Returns what it created, in words, for the toast. Because it runs on every
+   refresh, deleting the tab while typed entries exist brings it back — the way
+   to remove it is to retype or delete the entries. */
+function ensureTypedModuleTabs() {
+  const created = [];
+  if (!modulesSections().length) return created;
+  for (const [key, reg] of Object.entries(SECTION_REG)) {
+    if (reg.component !== 'typedModules') continue;
+    if (!(_classData?.modules || []).some(m => moduleHomeKey(m) === key)) continue;
+    if (typedListLocation(key)) continue;
+    const sec = { key, id: genBlockId(), name: reg.label, collapsed: false, widgets: [], content: '' };
+    const hwTab = findHomeworkTab();
+    if (key === 'homeworkModules' && hwTab) {
+      hwTab.sections = hwTab.sections || [];
+      hwTab.sections.push(sec);
+      created.push(`${reg.label} section on the ${hwTab.name} tab`);
+      continue;
+    }
+    const tab = { id: genTabId(), name: reg.tabName || reg.label, sections: [sec] };
+    const gated = _tabs.findIndex(t => t.adminOnly || t.staffOnly || t.studentOnly);
+    const at = (key !== 'homeworkModules' && hwTab)
+      ? _tabs.indexOf(hwTab) + 1
+      : (gated === -1 ? _tabs.length : gated);
+    _tabs.splice(at, 0, tab);
+    created.push(`${tab.name} tab`);
+  }
+  return created;
+}
+
+/** The circle where a lesson number goes: number for a module, ✎ for notes,
+    a short type glyph for everything else. `variant` is 'editor' or 'public'. */
+function moduleNumBadge(mod, lessonNum, variant) {
+  const isNotes = isNotesEntry(mod);
+  const type = moduleType(mod);
+  if (variant === 'public') {
+    if (isNotes) return '<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:rgba(217,119,6,.18);color:#f59e0b;font-size:.85rem;flex-shrink:0;">✎</span>';
+    if (type === 'module') return `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:rgba(91,174,209,.15);color:#5baed1;font-size:.8rem;font-weight:600;flex-shrink:0;">${lessonNum}</span>`;
+    return `<span class="cb-mod-type-circle cb-mod-type-circle-lg" data-type="${escAttr(type)}">${MODULE_TYPE_SHORT[type] || ''}</span>`;
+  }
+  if (isNotes) return '<span class="cb-mod-card-num cb-mod-card-num-notes">✎</span>';
+  if (type === 'module') return `<span class="cb-mod-card-num">${lessonNum}</span>`;
+  return `<span class="cb-mod-card-num cb-mod-type-circle" data-type="${escAttr(type)}">${MODULE_TYPE_SHORT[type] || ''}</span>`;
+}
+/** The pill after the title (HOMEWORK KEY, REPORT, …); empty for a plain module or notes. */
+function moduleTypeTag(mod) {
+  if (isNotesEntry(mod)) return '';
+  const type = moduleType(mod);
+  if (type === 'module') return '';
+  const label = moduleTypeLabel(type);
+  return `<span class="cb-mod-type-tag" data-type="${escAttr(type)}" title="${escAttr(label)}">${esc(label.toUpperCase())}</span>`;
+}
+
+/* ─── Typed list section body (V3.803) ───────────────────────── */
+function renderTypedModulesBody(editing, section) {
+  const reg = SECTION_REG[section?.key] || {};
+  const all = modulesForTypedSection(section?.key);
+  const typeNames = (reg.types || []).map(t => moduleTypeLabel(t)).join(' or ');
+  const stackName = (mod) => findSectionById(mod.sectionId)?.name || 'its Learning Modules section';
+
+  if (editing) {
+    let html = '<div class="cb-modules-manager cb-typed-manager">';
+    if (all.length) {
+      all.forEach(mod => {
+        html += `<div class="cb-mod-card cb-mod-card-listed" data-mod-id="${esc(mod.id)}">
+          <div class="cb-mod-card-body">
+            <div class="cb-mod-card-top">
+              ${moduleNumBadge(mod, 0, 'editor')}
+              <strong class="cb-mod-card-title">${esc(mod.title || 'Untitled')}</strong>
+              ${moduleTypeTag(mod)}
+              <span class="cb-mod-card-file muted-text">${esc(mod.folder ? mod.folder + '/' : '')}${esc(mod.htmlFile || '—')}</span>
+              <label class="cb-mod-card-pub" title="Visible to students">
+                <input type="checkbox" class="cb-mod-published" data-mod-id="${esc(mod.id)}" ${mod.published ? 'checked' : ''} /> Visible
+              </label>
+            </div>
+            <div class="cb-mod-card-bottom">
+              <span class="muted-text" style="font-size:.75rem;">From <strong>${esc(stackName(mod))}</strong> — reorder, retype or remove it there.</span>
+            </div>
+          </div>
+        </div>`;
+      });
+    } else {
+      html += '<p class="muted-text" style="margin:0 0 12px;">Nothing here yet.</p>';
+    }
+    html += `<p class="muted-text" style="margin:8px 0 0;font-size:.75rem;">Entries land here on their own when a module in any Learning Modules section has its <strong>Type</strong> set to ${esc(typeNames)}. This section stays while any such module exists.</p>`;
+    html += '</div>';
+    return html;
+  }
+
+  const published = all.filter(m => m.published);
+  if (!published.length) return '<p class="muted-text">Nothing has been released here yet.</p>';
+  let html = '<div class="cb-modules-list" style="display:flex;flex-direction:column;gap:6px;">';
+  published.forEach(mod => {
+    const href = `#/classes/${encodeURIComponent(_scheduleId)}/modules/${encodeURIComponent(mod.id)}`;
+    html += `<a href="${href}" class="cb-module-link" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;text-decoration:none;color:var(--text,#eef2f7);transition:background .2s,border-color .2s;">
+      ${moduleNumBadge(mod, 0, 'public')}
+      <span style="font-weight:500;">${esc(mod.title || mod.htmlFile)}</span>
+      ${moduleTypeTag(mod)}
+    </a>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+/** Viewer progress text. "Lesson 3 of 7" counts only plain modules; the
+    pretest and notes are named; a listed type reads "Homework key · 2 of 5". */
+function moduleProgressLabel(current, siblings, currentIdx) {
+  const type = moduleType(current);
+  if (moduleHomeKey(current)) return `${moduleTypeLabel(type)} · ${currentIdx + 1} of ${siblings.length}`;
+  if (isNotesEntry(current)) return 'Instructor notes';
+  if (type === 'pretest') return 'Pretest';
+  const isLesson = (m) => !isNotesEntry(m) && moduleType(m) === 'module';
+  return `Lesson ${siblings.slice(0, currentIdx + 1).filter(isLesson).length} of ${siblings.filter(isLesson).length}`;
+}
+
 /* ─── Learning Modules Section Body ────────────────────────── */
-function renderModulesBody(editing) {
-  const modules = (_classData.modules || []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+function renderModulesBody(editing, section) {
+  const modules = modulesForSection(section?.id);
 
   if (editing) {
     let html = '<div class="cb-modules-manager">';
 
     if (modules.length) {
+      let lessonNum = 0;
       modules.forEach((mod, i) => {
         const hwLabel = getHomeworkLabel(mod.homeworkFileId);
-        html += `<div class="cb-mod-card" data-mod-id="${esc(mod.id)}">
+        const isNotes = isNotesEntry(mod);
+        /* V3.803 — the type drives the badge, the numbering and where the entry
+           is listed. Only plain modules take a lesson number, so the editor's
+           numbers match the public page. */
+        const type = moduleType(mod);
+        const home = moduleHomeKey(mod);
+        if (!isNotes && type === 'module') lessonNum++;
+        const where = home ? typedListLocation(home) : null;
+        html += `<div class="cb-mod-card${isNotes ? ' cb-mod-card-notes' : ''}${home ? ' cb-mod-card-listed' : ''}" data-mod-id="${esc(mod.id)}">
           <div class="cb-mod-card-handle">
             <button type="button" class="btn btn-small btn-ghost cb-mod-move" data-dir="up" data-mod-id="${esc(mod.id)}" ${i === 0 ? 'disabled' : ''}>&uarr;</button>
             <button type="button" class="btn btn-small btn-ghost cb-mod-move" data-dir="down" data-mod-id="${esc(mod.id)}" ${i === modules.length - 1 ? 'disabled' : ''}>&darr;</button>
           </div>
           <div class="cb-mod-card-body">
             <div class="cb-mod-card-top">
-              <span class="cb-mod-card-num">${i + 1}</span>
+              ${moduleNumBadge(mod, lessonNum, 'editor')}
               <strong class="cb-mod-card-title">${esc(mod.title || 'Untitled')}</strong>
+              ${isNotes ? '<span class="cb-mod-notes-tag" title="Instructor notes — hidden from students unless you tick Visible">NOTES</span>' : moduleTypeTag(mod)}
               <span class="cb-mod-card-file muted-text">${esc(mod.folder ? mod.folder + '/' : '')}${esc(mod.htmlFile || '—')}</span>
-              <label class="cb-mod-card-pub" title="Published">
+              <label class="cb-mod-card-pub" title="${isNotes ? 'Notes are hidden from students by default' : 'Published'}">
                 <input type="checkbox" class="cb-mod-published" data-mod-id="${esc(mod.id)}" ${mod.published ? 'checked' : ''} /> Visible
               </label>
             </div>
             <div class="cb-mod-card-bottom">
-              <button type="button" class="btn btn-small btn-ghost cb-mod-edit-hw" data-mod-id="${esc(mod.id)}">Homework: ${hwLabel ? esc(hwLabel) : '<em>None</em>'}</button>
+              ${isNotes
+                ? '<span class="muted-text" style="font-size:.75rem;">Instructor notes — students never see this row while Visible is unticked.</span>'
+                : `<label class="cb-mod-type-label muted-text">Type
+                     <select class="cb-mod-type" data-mod-id="${esc(mod.id)}">${MODULE_TYPES.map(([v, l]) => `<option value="${v}"${v === type ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>
+                   </label>
+                   <button type="button" class="btn btn-small btn-ghost cb-mod-edit-hw" data-mod-id="${esc(mod.id)}">Homework: ${hwLabel ? esc(hwLabel) : '<em>None</em>'}</button>
+                   ${home ? `<span class="muted-text cb-mod-listed-note">Listed on the <strong>${esc(where ? where.tab.name : (SECTION_REG[home].tabName || home))}</strong> tab, not here.</span>` : ''}`}
             </div>
           </div>
           <button type="button" class="btn btn-danger btn-small cb-mod-delete" data-mod-id="${esc(mod.id)}" title="Remove">&times;</button>
@@ -1449,22 +2634,38 @@ function renderModulesBody(editing) {
       html += '<p class="muted-text" style="margin:0 0 12px;">No modules configured yet.</p>';
     }
 
-    html += '<button type="button" class="btn btn-small cb-mod-add" style="margin-top:10px;">+ Add Module</button>';
-    html += `<p class="muted-text" style="margin:8px 0 0;font-size:.75rem;">Run <code>python3 scripts/scan_modules.py</code> after adding new HTML files.</p>`;
+    html += '<div class="cb-mod-add-row" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">';
+    html += `<button type="button" class="btn btn-small cb-mod-add" data-section-id="${escAttr(section?.id || '')}">+ Add Module</button>`;
+    html += `<button type="button" class="btn btn-small btn-ghost cb-mod-add-notes" data-section-id="${escAttr(section?.id || '')}" title="Add instructor notes — hidden from students by default">+ Add Notes</button>`;
+    html += '</div>';
+    html += `<p class="muted-text" style="margin:8px 0 0;font-size:.75rem;">Modules are visible to students as soon as you tick <strong>Visible</strong>; notes, keys and tests start hidden. Homework and keys are listed on the Homeworks tab, reports and tests on the Reports &amp; Tests tab — set the <strong>Type</strong> and the tab is made for you. Run <code>python3 scripts/scan_modules.py</code> after adding new HTML files.</p>`;
     html += '</div>';
     return html;
   }
 
-  // Public view: clickable module list
-  const published = modules.filter(m => m.published);
+  // Public view: clickable module list.
+  // V3.803 — entries listed elsewhere by type (homework, keys, reports, tests)
+  // are left out here; renderTypedModulesBody shows them on their own tab.
+  const published = modules.filter(m => m.published && !moduleHomeKey(m));
   if (!published.length) return '<p class="muted-text">No modules available yet.</p>';
 
   let html = '<div class="cb-modules-list" style="display:flex;flex-direction:column;gap:6px;">';
-  published.forEach((mod, i) => {
-    const href = `#/classes/${encodeURIComponent(_scheduleId)}/modules/${encodeURIComponent(mod.htmlFile)}`;
+  let lessonNum = 0;
+  published.forEach((mod) => {
+    const isNotes = isNotesEntry(mod);
+    const type = moduleType(mod);
+    if (!isNotes && type === 'module') lessonNum++;   // notes and the pretest don't consume a lesson number
+    /* V3.716 — link by placement id, not filename. Two sections can hold the
+       same lesson file (or two different folders' overview.html), and the old
+       filename route resolved by first match, so both opened the same page with
+       the wrong folder. wireModuleViewer still accepts a filename as a
+       fallback, so pre-V3.716 links keep working. */
+    const href = `#/classes/${encodeURIComponent(_scheduleId)}/modules/${encodeURIComponent(mod.id)}`;
+    const badge = moduleNumBadge(mod, lessonNum, 'public');
     html += `<a href="${href}" class="cb-module-link" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;text-decoration:none;color:var(--text,#eef2f7);transition:background .2s,border-color .2s;">
-      <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:rgba(91,174,209,.15);color:#5baed1;font-size:.8rem;font-weight:600;flex-shrink:0;">${i + 1}</span>
+      ${badge}
       <span style="font-weight:500;">${esc(mod.title || mod.htmlFile)}</span>
+      ${isNotes ? '<span class="muted-text" style="font-size:.72rem;letter-spacing:.06em;">NOTES</span>' : moduleTypeTag(mod)}
     </a>`;
   });
   html += '</div>';
@@ -1636,8 +2837,13 @@ function openFilePicker(opts) {
   setTimeout(() => searchInput.focus(), 50);
 }
 
-/* ─── ADD MODULE MODAL ─────────────────────────────────────── */
-async function openAddModuleModal() {
+/* ─── ADD MODULE / NOTES MODAL ─────────────────────────────── */
+/* V3.660 — `kind` is 'module' (default) or 'notes'. Same manifest, same picker;
+   notes just land in the list flagged and, importantly, UNPUBLISHED.
+   V3.716 — `sectionId` is the Learning Modules section the button was clicked
+   in; the new entry is stamped with it so it lands in that section only. */
+async function openAddModuleModal(kind, sectionId) {
+  const isNotes = kind === 'notes';
   const manifest = await loadManifest();
   const allFiles = flattenManifest(manifest);
 
@@ -1661,18 +2867,28 @@ async function openAddModuleModal() {
   modal.innerHTML = `
     <div class="cb-modal cb-addmod-modal">
       <div class="cb-modal-header">
-        <h3>Add Learning Module</h3>
+        <h3>${isNotes ? 'Add Instructor Notes' : 'Add Learning Module'}</h3>
         <button type="button" class="cb-modal-close">&times;</button>
       </div>
       <div class="cb-modal-body">
+        ${isNotes ? `<p class="muted-text" style="margin:0 0 12px;font-size:.8rem;line-height:1.5;">
+          Notes are added <strong>hidden from students</strong> — the Visible box stays unticked
+          until you decide otherwise. Note that this hides the row, not the file: the page itself
+          is still reachable by anyone who has its direct URL, so keep exam keys and grades out of it.
+        </p>` : ''}
         <div class="form-group">
-          <label>Lesson Title</label>
-          <input type="text" id="cb-addmod-title" placeholder="e.g. Introduction to Microfluidics" />
+          <label>${isNotes ? 'Notes Title' : 'Lesson Title'}</label>
+          <input type="text" id="cb-addmod-title" placeholder="${isNotes ? 'e.g. Week 1 — board notes' : 'e.g. Introduction to Microfluidics'}" />
         </div>
         <div class="form-group">
-          <label>Module File</label>
+          <label>${isNotes ? 'Notes File' : 'Module File'}</label>
           <select id="cb-addmod-dropdown">${optionsHtml}</select>
         </div>
+        ${isNotes ? '' : `<div class="form-group">
+          <label>Type</label>
+          <select id="cb-addmod-type">${MODULE_TYPES.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('')}</select>
+          <p class="muted-text" style="margin:4px 0 0;font-size:.75rem;line-height:1.5;">Homework and keys are listed on the <strong>Homeworks</strong> tab, reports and tests on a <strong>Reports &amp; Tests</strong> tab — each made for you if the class has none. Keys and tests start hidden.</p>
+        </div>`}
         <div class="form-group">
           <label style="margin-bottom:4px;">Or search all files</label>
           <input type="text" id="cb-addmod-search" placeholder="Type to search..." />
@@ -1681,10 +2897,11 @@ async function openAddModuleModal() {
         <div class="cb-addmod-selected" id="cb-addmod-selected" style="display:none;">
           <span class="muted-text">Selected:</span> <strong id="cb-addmod-sel-label"></strong>
         </div>
+        <div class="cb-addmod-error" id="cb-addmod-error" role="alert" style="display:none;"></div>
       </div>
       <div class="cb-modal-footer">
         <button type="button" class="btn btn-secondary cb-modal-close">Cancel</button>
-        <button type="button" class="btn btn-primary" id="cb-addmod-confirm">Add Module</button>
+        <button type="button" class="btn btn-primary" id="cb-addmod-confirm">${isNotes ? 'Add Notes' : 'Add Module'}</button>
       </div>
     </div>
   `;
@@ -1699,8 +2916,17 @@ async function openAddModuleModal() {
   const selectedDiv = modal.querySelector('#cb-addmod-selected');
   const selLabel = modal.querySelector('#cb-addmod-sel-label');
 
+  /* V3.803 — the Type select follows the picked file (hw-01-… → Homework,
+     …-key.html → Homework key, report-01-… → Report) until the user sets it. */
+  const typeSel = modal.querySelector('#cb-addmod-type');
+  let typeTouched = false;
+  typeSel?.addEventListener('change', () => { typeTouched = true; });
+
   function selectFile(folder, name, title) {
     selectedFile = { folder, name, title };
+    const errEl0 = modal.querySelector('#cb-addmod-error');
+    if (errEl0) errEl0.style.display = 'none';
+    if (typeSel && !typeTouched) typeSel.value = guessModuleType(name, title);
     selLabel.textContent = folder + '/' + name;
     selectedDiv.style.display = '';
     if (!titleInput.value.trim()) titleInput.value = title || '';
@@ -1754,23 +2980,42 @@ async function openAddModuleModal() {
 
   // Confirm
   modal.querySelector('#cb-addmod-confirm').addEventListener('click', () => {
-    if (!selectedFile) { alert('Please select a module file.'); return; }
+    if (!selectedFile) {
+      /* V3.803 — inline, beside the field; never a browser popup */
+      const errEl = modal.querySelector('#cb-addmod-error');
+      errEl.textContent = isNotes ? 'Pick a notes file first.' : 'Pick a module file first.';
+      errEl.style.display = '';
+      modal.querySelector('#cb-addmod-search')?.focus();
+      return;
+    }
+    const type = isNotes ? 'module' : (modal.querySelector('#cb-addmod-type')?.value || 'module');
     const title = titleInput.value.trim() || selectedFile.title || selectedFile.name;
     gatherContentFromDOM();
     if (!_classData.modules) _classData.modules = [];
-    const maxOrder = _classData.modules.reduce((mx, m) => Math.max(mx, m.order ?? 0), -1);
+    /* V3.716 — order is computed within the section, so each Learning Modules
+       section numbers its own lessons from 1 instead of continuing a
+       class-wide count. */
+    const maxOrder = modulesForSection(sectionId).reduce((mx, m) => Math.max(mx, m.order ?? 0), -1);
     _classData.modules.push({
-      id: 'mod_' + generateKey().slice(0, 8),
+      id: (isNotes ? 'notes_' : 'mod_') + generateKey().slice(0, 8),
+      sectionId: sectionId || null,
       title,
       htmlFile: selectedFile.name,
       folder: selectedFile.folder,
       order: maxOrder + 1,
       homeworkFileId: null,
-      published: true
+      kind: isNotes ? 'notes' : 'module',
+      /* V3.803 — where the entry is listed; absent on older entries = 'module' */
+      type,
+      /* notes, keys and tests default to hidden; everything else to visible */
+      published: defaultPublishedFor(isNotes ? 'notes' : 'module', type)
     });
     markDirty();
     modal.remove();
+    /* V3.803 — a homework / report type may need its tab: make it now, say so */
+    const created = ensureTypedModuleTabs();
     refreshCanvas();
+    if (created.length) cbToast(`Added the ${esc(created.join(' and the '))}. ${esc(moduleTypeLabel(type))} entries are listed there.`);
   });
 
   setTimeout(() => titleInput.focus(), 50);
@@ -2165,6 +3410,11 @@ function wireCanvas() {
   if (tab?.sections?.some(s => s.key === 'chat295c')) wireBme295cChat();
   if (tab?.sections?.some(s => s.key === 'assessment295c')) wireBme295cAssessment();
   if (tab?.sections?.some(s => s.key === 'adminDash295c')) wireBme295cAdminDash();
+  if (tab?.sections?.some(s => s.key === 'hwDash466')) wireHw466Dash();
+  // V3.681 — BME466 course platform
+  if (tab?.sections?.some(s => s.key === 'hwList466')) wireHw466List();
+  if (tab?.sections?.some(s => s.key === 'hwMine466')) wireHw466Mine();
+  if (tab?.sections?.some(s => s.key === 'hwAssign466')) wireHw466Assign();
   // Wire simulation widgets (works in both admin preview and public view)
   wireSimulations();
 }
@@ -2179,26 +3429,15 @@ function wireViewAsToolbar() {
       } else if (mode === 'public') {
         await setAdminViewOverride({ type: 'public' });
       } else if (mode === 'student') {
-        // Use whatever student is selected in the dropdown; if none,
-        // default to the first roster entry with an email.
+        /* V3.734 — no roster needed: an empty studentId means "me, as a
+           plain student" (no alert; browser popups are banned here) */
         const sel = document.getElementById('cb295-viewas-student-select');
-        let studentId = sel?.value || '';
-        if (!studentId) {
-          const first = (_classData?.studentRoster || []).find(s => (s.email || '').trim());
-          studentId = first?.id || '';
-        }
-        if (!studentId) {
-          alert('No students with emails on the roster — add one before previewing as student.');
-          return;
-        }
-        await setAdminViewOverride({ type: 'student', studentId });
+        await setAdminViewOverride({ type: 'student', studentId: sel?.value || null });
       }
     });
   });
   document.getElementById('cb295-viewas-student-select')?.addEventListener('change', async (ev) => {
-    const studentId = ev.target.value;
-    if (!studentId) return;
-    await setAdminViewOverride({ type: 'student', studentId });
+    await setAdminViewOverride({ type: 'student', studentId: ev.target.value || null });
   });
 }
 
@@ -2265,7 +3504,7 @@ function wireSectionCollapse() {
       const sectionEl = btn.closest('.cb-section');
       const collapsible = sectionEl?.querySelector('.cb-section-collapsible');
       if (collapsible) collapsible.classList.toggle('cb-collapsed', sec.collapsed);
-      btn.innerHTML = sec.collapsed ? '&#x25B6;' : '&#x25BC;';
+      btn.innerHTML = ICON.svg(sec.collapsed ? 'chevron-right' : 'chevron-down');
       if (isEditing()) markDirty();
     });
   });
@@ -2377,14 +3616,33 @@ function wireModuleEditors() {
     el.addEventListener('change', () => markDirty());
   });
 
-  // Add module — open modal
+  // Add module — open modal. V3.716: scoped to the clicked section.
   document.querySelectorAll('.cb-mod-add').forEach(btn => {
-    btn.addEventListener('click', () => openAddModuleModal());
+    btn.addEventListener('click', () => openAddModuleModal('module', btn.dataset.sectionId));
+  });
+
+  // Add instructor notes — same picker, lands unpublished (V3.660)
+  document.querySelectorAll('.cb-mod-add-notes').forEach(btn => {
+    btn.addEventListener('click', () => openAddModuleModal('notes', btn.dataset.sectionId));
   });
 
   // Edit homework — open picker
   document.querySelectorAll('.cb-mod-edit-hw').forEach(btn => {
     btn.addEventListener('click', () => openHomeworkPicker(btn.dataset.modId));
+  });
+
+  // V3.803 — retype in place; a homework / report type may need its tab.
+  document.querySelectorAll('.cb-mod-type').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const mod = (_classData.modules || []).find(m => m.id === sel.dataset.modId);
+      if (!mod) return;
+      gatherContentFromDOM();
+      mod.type = sel.value;
+      markDirty();
+      const created = ensureTypedModuleTabs();
+      refreshCanvas();
+      if (created.length) cbToast(`Added the ${esc(created.join(' and the '))}. ${esc(moduleTypeLabel(mod.type))} entries are listed there.`);
+    });
   });
 
   // Delete module
@@ -2405,7 +3663,12 @@ function wireModuleEditors() {
       const modId = btn.dataset.modId;
       const dir = btn.dataset.dir;
       gatherContentFromDOM();
-      const modules = (_classData.modules || []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      /* V3.716 — swap within the moved entry's own section. The old code sorted
+         the whole class-wide array, so a move at a section boundary swapped
+         order values with a lesson in a different section. */
+      const moved = (_classData.modules || []).find(m => m.id === modId);
+      if (!moved) return;
+      const modules = modulesForSection(moved.sectionId);
       const idx = modules.findIndex(m => m.id === modId);
       if (idx < 0) return;
       const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
@@ -3007,6 +4270,12 @@ function moveWidget(widgetId, direction) {
 function refreshCanvas() {
   const content = document.getElementById('class-page-content');
   if (!content) return;
+  // V3.716 — re-home any module orphaned by a just-deleted section before we
+  // render, so its lessons show up in the first modules section rather than
+  // vanishing from the UI.
+  ensureModulePlacements();
+  ensureModuleTypes();       // V3.803
+  ensureTypedModuleTabs();   // V3.803
   content.innerHTML = buildCanvasHTML();
   wireCanvas();
 }
@@ -3070,6 +4339,11 @@ function gatherContentFromDOM() {
   document.querySelectorAll('.cb-mod-published[data-mod-id]').forEach(cb => {
     const mod = (_classData.modules || []).find(m => m.id === cb.dataset.modId);
     if (mod) mod.published = cb.checked;
+  });
+  // V3.803 — and the type select on each stack card
+  document.querySelectorAll('.cb-mod-type[data-mod-id]').forEach(sel => {
+    const mod = (_classData.modules || []).find(m => m.id === sel.dataset.modId);
+    if (mod) mod.type = sel.value;
   });
 }
 
@@ -3326,10 +4600,24 @@ function buildSchedulerConfig() {
 
 /* ================================================================
    MODULE VIEWER — iframe wrapper for standalone lesson HTML files
-   Route: #/classes/{classId}/modules/{filename}
+   Route: #/classes/{classId}/modules/{placementId}
+     V3.716 — the trailing segment is a modules[] placement id. A bare filename
+     is still accepted (pre-V3.716 links, teacher-class lists, hw466ModuleHref);
+     see the resolve in wireModuleViewer. This shell ignores the segment
+     entirely — wireModuleViewer fills in every field.
    ================================================================ */
-function renderModuleViewer(classId, moduleFile) {
+function renderModuleViewer(classId, modRef) {
   // iframe src is set by wireModuleViewer after looking up the folder from Firestore
+  //
+  // V3.682 — `allow-downloads` in the sandbox below is REQUIRED, not polish.
+  // Every assessment module turns in by exporting a JSON file (blob →
+  // a.download → a.click()), and Chrome silently blocks that inside a
+  // sandboxed iframe without this token: no file, no console error, and the
+  // module still prints "Exported PRETEST_… — upload it to the D2L dropbox".
+  // So a student who opened the pretest from the Learning Modules tab instead
+  // of a direct link was told they had a file they did not have. Verified
+  // three ways: no-sandbox control downloads, this sandbox without the token
+  // does not, this sandbox with it does.
   return `
     <div class="cb-module-viewer-page">
       <div class="cb-module-nav-bar" id="cb-module-nav-bar">
@@ -3347,22 +4635,28 @@ function renderModuleViewer(classId, moduleFile) {
         <iframe
           id="cb-module-iframe"
           class="cb-module-iframe"
-          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-downloads"
         ></iframe>
       </div>
     </div>
   `;
 }
 
-async function wireModuleViewer(classId, moduleFile) {
-  const db = McgheeLab.db;
-  if (!db) return;
-
+/* V3.716 — `modRef` is a module *placement* id (`mod_xxxxxxxx`), or, for
+   pre-V3.716 links, teacher-class lists and hw466ModuleHref, a bare filename.
+   Resolved id-first so two sections holding the same lesson file are two
+   distinct pages with two distinct folders. */
+async function wireModuleViewer(classId, modRef) {
   try {
-    const doc = await db.collection('schedules').doc(classId).get();
-    if (!doc.exists) return;
-
-    const schedule = doc.data();
+    // V3.656 — resolve through resolveSchedule() rather than reading Firestore
+    // directly. The old code did `.doc(classId).get()` and bailed on
+    // `!doc.exists`, which meant a class seeded in DEFAULT_SCHEDULES rendered
+    // its class page correctly (renderClassPage/wireClassPage DO fall back) but
+    // every module link opened a silently blank iframe until someone saved the
+    // doc to Firestore. resolveSchedule() handles demo classes, Firestore, and
+    // the DEFAULT_SCHEDULES fallback in one place, so the two paths agree.
+    const schedule = await resolveSchedule(classId);
+    if (!schedule) return;
 
     // V3.304 — soft gate for external teacher classes: only enrolled
     // students, the owning teacher, or an admin may open the viewer.
@@ -3390,18 +4684,84 @@ async function wireModuleViewer(classId, moduleFile) {
       .filter(m => m.published)
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-    const currentIdx = modules.findIndex(m => m.htmlFile === moduleFile);
-    const current = currentIdx >= 0 ? modules[currentIdx] : null;
-    const prev = currentIdx > 0 ? modules[currentIdx - 1] : null;
-    const next = (currentIdx >= 0 && currentIdx < modules.length - 1) ? modules[currentIdx + 1] : null;
+    /* V3.716 — placement id first, filename second. `current` decides both the
+       folder and the file, so a link to one placement can never open the other
+       placement's copy of the same filename. */
+    const current = modules.find(m => m.id === modRef)
+                 || modules.find(m => m.htmlFile === modRef)
+                 || null;
+
+    /* Prev/next walk the placement's OWN section, so "next lesson" stays inside
+       the section the student is reading.
+
+       This reads the schedule doc directly, so it applies the same adoption
+       rule the class page's normalizer does rather than trusting `sectionId`
+       to be present: an entry without one belongs to the first Learning
+       Modules section. Without this, a class whose doc had not yet been
+       re-saved since V3.716 would show sectioned lists on the class page but
+       class-wide prev/next in the viewer. A teacher-class has no modules
+       section at all, so `homeSectionId` is null and every entry falls back to
+       the full published list — exactly the pre-V3.716 behaviour. */
+    const homeSectionId = (schedule.tabs || [])
+      .flatMap(t => t.sections || [])
+      .find(s => s.key === 'modules')?.id || null;
+    const sectionOf = (m) => m.sectionId || homeSectionId;
+    /* V3.803 — a listed entry (homework, key, report, test) navigates within
+       its LIST in the order its tab shows, and the lesson stack's prev/next
+       skip listed entries, so "Next" from a lesson never lands on a key. */
+    const homeOf = (m) => moduleHomeKey(m || {});
+    const sectionRank = new Map((schedule.tabs || [])
+      .flatMap(t => t.sections || []).filter(s => s.key === 'modules').map((s, i) => [s.id, i]));
+    const siblings = homeOf(current)
+      ? modules.filter(m => homeOf(m) === homeOf(current))
+          .sort((a, b) => ((sectionRank.get(sectionOf(a)) ?? 0) - (sectionRank.get(sectionOf(b)) ?? 0))
+                       || ((a.order ?? 0) - (b.order ?? 0)))
+      : sectionOf(current || {})
+        ? modules.filter(m => !homeOf(m) && sectionOf(m) === sectionOf(current))
+        : modules.filter(m => !homeOf(m));
+    const currentIdx = current ? siblings.findIndex(m => m.id === current.id) : -1;
+    const prev = currentIdx > 0 ? siblings[currentIdx - 1] : null;
+    const next = (currentIdx >= 0 && currentIdx < siblings.length - 1) ? siblings[currentIdx + 1] : null;
+
+    // The file to load: from the resolved placement, or the ref itself when it
+    // was a filename that matched nothing published.
+    const moduleFile = current?.htmlFile || modRef;
 
     // Set iframe src using the folder from the module data
     const iframe = document.getElementById('cb-module-iframe');
     if (iframe) {
       const folder = current?.folder || classId;
-      iframe.src = `modules/${encodeURIComponent(folder)}/${encodeURIComponent(moduleFile)}`;
+      // V3.684 — `?class=` is how a module learns which class it belongs to.
+      // Nothing set it before (module-header.js:52 only built it for its own
+      // nav links), so an embedded module had no class context at all. The
+      // whiteboard panel needs it to find the class's live board.
+      // V3.716 — `&mod=` carries the placement id so the module's own header can
+      // build prev/next for the right section. Student state (notes boards,
+      // hwProgress) deliberately stays keyed on the lesson, not the placement.
+      iframe.src = `modules/${encodeURIComponent(folder)}/${encodeURIComponent(moduleFile)}`
+                 + `?class=${encodeURIComponent(classId)}`
+                 + (current?.id ? `&mod=${encodeURIComponent(current.id)}` : '');
       iframe.addEventListener('load', () => {
         try {
+          // V3.667 — modules with a fixed section rail (#rail: the weekly
+          // learning modules) must scroll INSIDE the iframe, or the rail
+          // scrolls away with the parent page. Give those a viewport-height
+          // iframe; content-height sizing stays for every other module.
+          //
+          // V3.684 — `<meta name="ml-module-viewport">` opts a module into the
+          // same regime. A module with a floating panel needs it: in the
+          // scrollHeight regime the iframe is as tall as its whole document,
+          // so `position:fixed` inside pins to that, not to the screen, and
+          // the panel scrolls away. Detected via <meta> rather than by
+          // sniffing for the panel element, because a deferred script builds
+          // the panel AFTER this load handler runs — the meta is parsed with
+          // the head and is always there. No existing module declares it, so
+          // every one of them falls through to exactly today's behaviour.
+          const cdoc = iframe.contentDocument;
+          if (cdoc?.querySelector('meta[name="ml-module-viewport"]') || cdoc?.getElementById('rail')) {
+            iframe.style.height = 'calc(100vh - 120px)'; /* match .cb-module-iframe's chrome allowance */
+            return;
+          }
           const h = iframe.contentDocument?.documentElement?.scrollHeight;
           if (h) iframe.style.height = h + 'px';
         } catch (e) {
@@ -3418,7 +4778,9 @@ async function wireModuleViewer(classId, moduleFile) {
     const modTitle = document.getElementById('cb-module-title');
     const modProgress = document.getElementById('cb-module-progress');
     if (modTitle) modTitle.textContent = current?.title || moduleFile;
-    if (modProgress && currentIdx >= 0) modProgress.textContent = `Lesson ${currentIdx + 1} of ${modules.length}`;
+    // V3.716 — "Lesson N of M" counts within the section, matching the numbers
+    // shown on the class page's own list for that section.
+    if (modProgress && currentIdx >= 0) modProgress.textContent = moduleProgressLabel(current, siblings, currentIdx);
 
     // Prev / Next / Homework nav buttons
     const navEl = document.getElementById('cb-module-nav');
@@ -3426,7 +4788,7 @@ async function wireModuleViewer(classId, moduleFile) {
       let navHtml = '';
 
       if (prev) {
-        navHtml += `<a href="#/classes/${esc(classId)}/modules/${encodeURIComponent(prev.htmlFile)}" class="cb-module-nav-btn" title="${esc(prev.title)}">&larr; Prev</a>`;
+        navHtml += `<a href="#/classes/${esc(classId)}/modules/${encodeURIComponent(prev.id || prev.htmlFile)}" class="cb-module-nav-btn" title="${esc(prev.title)}">&larr; Prev</a>`;
       } else {
         navHtml += '<span class="cb-module-nav-btn cb-module-nav-disabled">&larr; Prev</span>';
       }
@@ -3441,16 +4803,178 @@ async function wireModuleViewer(classId, moduleFile) {
       }
 
       if (next) {
-        navHtml += `<a href="#/classes/${esc(classId)}/modules/${encodeURIComponent(next.htmlFile)}" class="cb-module-nav-btn" title="${esc(next.title)}">Next &rarr;</a>`;
+        navHtml += `<a href="#/classes/${esc(classId)}/modules/${encodeURIComponent(next.id || next.htmlFile)}" class="cb-module-nav-btn" title="${esc(next.title)}">Next &rarr;</a>`;
       } else {
         navHtml += '<span class="cb-module-nav-btn cb-module-nav-disabled">Next &rarr;</span>';
       }
 
       navEl.innerHTML = navHtml;
     }
+
+    // V3.672 — engagement beacon: enrolled teacher-class students only.
+    const currentModule = current;
+    setupModuleEngagement(classId, schedule, currentModule, iframe).catch(e =>
+      console.warn('[ModuleViewer] engagement beacon', e));
   } catch (err) {
     console.warn('[ModuleViewer] Failed to load class data:', err);
   }
+}
+
+/* ================================================================
+   MODULE ENGAGEMENT BEACON (V3.672 — teacher program R3)
+   ----------------------------------------------------------------
+   Records, for an ENROLLED teacher-class student only: module opens,
+   visibility-aware time-on-module, rail-section progress, and scroll
+   depth — into moduleStats/{scheduleId}_{studentUid} via
+   TC_DB.recordEngagement (or the demo world's mirror, so demo never
+   touches Firestore). Teachers, admins, view-as previews, and
+   non-enrolled visitors produce ZERO writes.
+
+   The instrumentation point is the parent, not the modules: the
+   viewer iframe is same-origin, so all 47 module files stay untouched
+   — rail targets are observed with an IntersectionObserver built from
+   the IFRAME's own window (a parent-constructed IO cannot observe a
+   foreign document). A `message` listener also accepts the optional
+   {source:'ml-module', type:'section', id} protocol (module-header.js
+   emits it), deduped against the observer's stream.
+
+   Time is a 15s heartbeat that accrues only while the tab is visible,
+   flushed every 60s and on hidden/route-change/pagehide (the ≤60s
+   tail on a hard close is accepted — sendBeacon can't carry Firestore
+   SDK writes). Teardown self-removes every listener; a new viewer
+   visit tears down the previous beacon first, so rapid route changes
+   cannot leak intervals.
+   ================================================================ */
+let _engagementTeardown = null;
+
+async function setupModuleEngagement(classId, schedule, current, iframe) {
+  if (_engagementTeardown) { try { _engagementTeardown(); } catch (e) {} _engagementTeardown = null; }
+  if (!iframe || !current || !current.id || schedule.kind !== 'teacher-class') return;
+
+  const ML = McgheeLab;
+  const demo = ML.TC_DEMO?.active ? ML.TC_DEMO : null;
+  if (demo && demo.signedOut) return;
+  if (ML.tcViewAsFor && ML.tcViewAsFor(classId)) return;           // teacher preview
+  const uid = demo ? demo.uid : ML.Auth?.currentUser?.uid;
+  if (!uid) return;
+  if (!demo && ML.Auth?.currentProfile?.role === 'admin') return;  // admin browsing
+  if (schedule.ownerUid === uid) return;                           // the teacher
+  const dataLayer = demo ? demo.db : ML.TC_DB;
+  if (!dataLayer?.recordEngagement || !dataLayer.getEnrollment) return;
+  const enr = await dataLayer.getEnrollment(classId, uid).catch(() => null);
+  if (!enr || enr.status !== 'active') return;
+
+  const student = { uid, name: enr.studentName || '', teacherUid: enr.teacherUid };
+  const moduleId = current.id;
+  const rec = (patch) => dataLayer
+    .recordEngagement(classId, student, Object.assign({ moduleId }, patch))
+    .catch(e => console.warn('[ModuleViewer] engagement write', e));
+
+  let seconds = 0;                    // unflushed visible-time
+  let ticks = 0;
+  const pendingSections = new Set();  // seen, not yet written
+  const flushedSections = new Set();  // written this session — don't resend
+  let railCount = null;
+  let maxScrollPct = 0, flushedScrollPct = 0;
+  let observer = null;
+  let hooked = false;
+
+  function flush(extra) {
+    const patch = Object.assign({}, extra);
+    if (seconds > 0) { patch.seconds = seconds; seconds = 0; }
+    if (pendingSections.size) {
+      patch.sections = [...pendingSections];
+      patch.sections.forEach(s => flushedSections.add(s));
+      pendingSections.clear();
+      if (railCount != null) patch.railCount = railCount;
+    }
+    if (maxScrollPct > flushedScrollPct) {
+      patch.scrollPct = maxScrollPct;
+      flushedScrollPct = maxScrollPct;
+    }
+    if (Object.keys(patch).length) rec(patch);
+  }
+
+  rec({ opens: 1 }); // one open per viewer visit
+
+  const interval = setInterval(() => {
+    if (!document.body.contains(iframe)) { flush(); teardown(); return; }
+    if (document.visibilityState !== 'visible') return;
+    seconds += 15;
+    if (++ticks % 4 === 0) flush();
+  }, 15000);
+
+  function hookContent() {
+    if (hooked) return;
+    try {
+      const doc = iframe.contentDocument;
+      if (!doc || doc.location.href === 'about:blank') return;
+      hooked = true;
+      const rail = doc.getElementById('rail');
+      if (rail) {
+        const targets = [...rail.querySelectorAll('a[href^="#"]')]
+          .map(a => (a.getAttribute('href') || '').slice(1)).filter(Boolean)
+          .map(id => doc.getElementById(id)).filter(Boolean);
+        railCount = targets.length || null;
+        if (targets.length && iframe.contentWindow.IntersectionObserver) {
+          observer = new iframe.contentWindow.IntersectionObserver((entries) => {
+            for (const en of entries) {
+              if (en.isIntersecting && en.target.id && !flushedSections.has(en.target.id)) {
+                pendingSections.add(en.target.id);
+              }
+            }
+          }, { threshold: 0.4 });
+          targets.forEach(t => observer.observe(t));
+        }
+        return;
+      }
+      onScroll(); // non-rail: seed the initial depth
+    } catch (e) { /* torn down mid-hook — skip */ }
+  }
+  function onScroll() {
+    if (railCount != null || !hooked) return;
+    try {
+      const rect = iframe.getBoundingClientRect();
+      const h = iframe.offsetHeight || 1;
+      const seen = Math.min(h, Math.max(0, window.innerHeight - rect.top));
+      const pct = Math.min(100, Math.round((seen / h) * 100));
+      if (pct > maxScrollPct) maxScrollPct = pct;
+    } catch (e) { /* detached */ }
+  }
+  iframe.addEventListener('load', hookContent);
+  try {
+    if (iframe.contentDocument?.readyState === 'complete') hookContent();
+  } catch (e) { /* not ready yet — the load listener covers it */ }
+
+  function onMessage(e) {
+    if (e.origin !== window.location.origin) return;
+    const d = e.data;
+    if (d && d.source === 'ml-module' && d.type === 'section' &&
+        typeof d.id === 'string' && d.id && !flushedSections.has(d.id)) {
+      pendingSections.add(d.id);
+    }
+  }
+  function onVisibility() { if (document.visibilityState === 'hidden') flush(); }
+  function onLeave() { flush(); teardown(); }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('message', onMessage);
+  document.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('hashchange', onLeave);
+  window.addEventListener('pagehide', onLeave);
+
+  function teardown() {
+    clearInterval(interval);
+    iframe.removeEventListener('load', hookContent);
+    window.removeEventListener('scroll', onScroll);
+    window.removeEventListener('message', onMessage);
+    document.removeEventListener('visibilitychange', onVisibility);
+    window.removeEventListener('hashchange', onLeave);
+    window.removeEventListener('pagehide', onLeave);
+    try { if (observer) observer.disconnect(); } catch (e) {}
+    if (_engagementTeardown === teardown) _engagementTeardown = null;
+  }
+  _engagementTeardown = teardown;
 }
 
 /* ================================================================
@@ -3508,8 +5032,9 @@ async function loadBme295cData(schedule) {
     userEmail = '';
   } else if (_adminViewOverride?.type === 'student') {
     signedIn = true;
-    const impersonated = roster.find(r => r.id === _adminViewOverride.studentId);
-    userEmail = (impersonated?.email || '').toLowerCase();
+    const impersonated = _adminViewOverride.studentId ? roster.find(r => r.id === _adminViewOverride.studentId) : null;
+    /* V3.734 — generic student view keeps the admin's own identity */
+    userEmail = impersonated ? (impersonated.email || '').toLowerCase() : realEmail;
   }
 
   if (signedIn && userEmail) {
@@ -4144,19 +5669,19 @@ function renderBmeSyllabusBody() {
 
   const locCards = locs.map(l => {
     const links = [];
-    if (l.mapUrl) links.push(`<a href="${esc(l.mapUrl)}" target="_blank" rel="noopener" class="cb295-loc-link cb295-loc-link-map">📍 Open in Google Maps</a>`);
+    if (l.mapUrl) links.push(`<a href="${esc(l.mapUrl)}" target="_blank" rel="noopener" class="cb295-loc-link cb295-loc-link-map">${ICON.svg('map-pin')} Open in Google Maps</a>`);
     // V3.275 — `parkingOptions: [{ label, url }, ...]` supersedes the
     // single `parkingUrl`. Both fields can coexist on a location; the
     // array wins when present. Falls back to `parkingUrl` for any
     // location entry that hasn't been migrated.
     if (Array.isArray(l.parkingOptions) && l.parkingOptions.length) {
       l.parkingOptions.forEach(opt => {
-        if (opt?.url) links.push(`<a href="${esc(opt.url)}" target="_blank" rel="noopener" class="cb295-loc-link cb295-loc-link-parking">🅿️ ${esc(opt.label || 'Parking')}</a>`);
+        if (opt?.url) links.push(`<a href="${esc(opt.url)}" target="_blank" rel="noopener" class="cb295-loc-link cb295-loc-link-parking">${ICON.svg('square-parking')} ${esc(opt.label || 'Parking')}</a>`);
       });
     } else if (l.parkingUrl) {
-      links.push(`<a href="${esc(l.parkingUrl)}" target="_blank" rel="noopener" class="cb295-loc-link cb295-loc-link-parking">🅿️ Parking info</a>`);
+      links.push(`<a href="${esc(l.parkingUrl)}" target="_blank" rel="noopener" class="cb295-loc-link cb295-loc-link-parking">${ICON.svg('square-parking')} Parking info</a>`);
     }
-    if (l.parkingMap) links.push(`<a href="${bmeAssetUrl(l.parkingMap)}" target="_blank" rel="noopener" class="cb295-loc-link cb295-loc-link-parking">🅿️ Parking map (PDF)</a>`);
+    if (l.parkingMap) links.push(`<a href="${bmeAssetUrl(l.parkingMap)}" target="_blank" rel="noopener" class="cb295-loc-link cb295-loc-link-parking">${ICON.svg('square-parking')} Parking map (PDF)</a>`);
     return `
       <div class="cb295-loc-card">
         <h4>${esc(l.campus)}</h4>
@@ -4197,7 +5722,7 @@ function renderBmeSyllabusBody() {
   const feeNoticeHtml = fee ? `
     <section class="cb295-fee-notice">
       <div class="cb295-fee-notice-header">
-        <span class="cb295-fee-notice-icon" aria-hidden="true">⚠</span>
+        <span class="cb295-fee-notice-icon" aria-hidden="true">${ICON.svg('exclamation-triangle')}</span>
         <strong>${esc(fee.title || 'Important billing notice')}</strong>
       </div>
       ${fee.body ? `<p>${esc(fee.body)}</p>` : ''}
@@ -4276,19 +5801,19 @@ function renderBmeScheduleBody() {
   // of a session.
   const locBarCards = locs.map(l => {
     const links = [];
-    if (l.mapUrl) links.push(`<a href="${esc(l.mapUrl)}" target="_blank" rel="noopener" class="cb295-loc-link cb295-loc-link-map">📍 Map</a>`);
+    if (l.mapUrl) links.push(`<a href="${esc(l.mapUrl)}" target="_blank" rel="noopener" class="cb295-loc-link cb295-loc-link-map">${ICON.svg('map-pin')} Map</a>`);
     // V3.275 — match the syllabus card behavior: iterate parkingOptions
     // when present, otherwise fall back to the legacy single parkingUrl.
     // Compact button uses just the option label; the syllabus card has
     // the longer "Parking info" copy.
     if (Array.isArray(l.parkingOptions) && l.parkingOptions.length) {
       l.parkingOptions.forEach(opt => {
-        if (opt?.url) links.push(`<a href="${esc(opt.url)}" target="_blank" rel="noopener" class="cb295-loc-link cb295-loc-link-parking">🅿️ ${esc(opt.label || 'Parking')}</a>`);
+        if (opt?.url) links.push(`<a href="${esc(opt.url)}" target="_blank" rel="noopener" class="cb295-loc-link cb295-loc-link-parking">${ICON.svg('square-parking')} ${esc(opt.label || 'Parking')}</a>`);
       });
     } else if (l.parkingUrl) {
-      links.push(`<a href="${esc(l.parkingUrl)}" target="_blank" rel="noopener" class="cb295-loc-link cb295-loc-link-parking">🅿️ Parking</a>`);
+      links.push(`<a href="${esc(l.parkingUrl)}" target="_blank" rel="noopener" class="cb295-loc-link cb295-loc-link-parking">${ICON.svg('square-parking')} Parking</a>`);
     }
-    if (l.parkingMap) links.push(`<a href="${bmeAssetUrl(l.parkingMap)}" target="_blank" rel="noopener" class="cb295-loc-link cb295-loc-link-parking">🅿️ PDF</a>`);
+    if (l.parkingMap) links.push(`<a href="${bmeAssetUrl(l.parkingMap)}" target="_blank" rel="noopener" class="cb295-loc-link cb295-loc-link-parking">${ICON.svg('square-parking')} PDF</a>`);
     return `
       <div class="cb295-locbar-card">
         <div class="cb295-locbar-text">
@@ -4497,7 +6022,7 @@ function renderBmeModulesBody() {
     const hidePrompts = gateState === 'pending' && !adminPreview;
     const discussionBlock = hidePrompts
       ? `<p class="cb295-mod-pending-callout">
-           <span aria-hidden="true">⏳</span>
+           <span aria-hidden="true">${ICON.svg('clock')}</span>
            <strong>Discussion not yet open.</strong>
            Your instructor will release the prompts + the response box after the talk.
          </p>`
@@ -4681,7 +6206,7 @@ function buildBmeResponseShell(speaker, signedIn) {
       return `
         <div class="cb295-response cb295-response-readonly cb295-response-no-group" data-speaker-slug="${esc(speaker.slug)}">
           <p class="cb295-response-no-group-strip">
-            <span aria-hidden="true">👥</span>
+            <span aria-hidden="true">${ICON.svg('users')}</span>
             <strong>Your group for ${esc(day || 'this day')} hasn't been assigned yet.</strong>
             Ask your instructor to run group assignment so you can participate.
           </p>
@@ -4695,7 +6220,7 @@ function buildBmeResponseShell(speaker, signedIn) {
       return `
         <div class="cb295-response cb295-response-readonly cb295-response-pending" data-speaker-slug="${esc(speaker.slug)}">
           <p class="cb295-response-pending-strip">
-            <span aria-hidden="true">⏳</span>
+            <span aria-hidden="true">${ICON.svg('clock')}</span>
             <strong>Discussion not yet open.</strong>
             Your instructor will release this after the talk.
           </p>
@@ -4706,7 +6231,7 @@ function buildBmeResponseShell(speaker, signedIn) {
       return `
         <div class="cb295-response cb295-response-readonly cb295-response-locked" data-speaker-slug="${esc(speaker.slug)}">
           <p class="cb295-response-locked-strip">
-            <span aria-hidden="true">🔒</span>
+            <span aria-hidden="true">${ICON.svg('lock-closed')}</span>
             <strong>Discussion closed.</strong>
             Your group's response is locked.
           </p>
@@ -4890,7 +6415,7 @@ function renderBmeAssessmentBody(editing) {
       <section class="cb295-assess-panel">
         <h3>Course assessment</h3>
         <div class="cb295-assess-closed-strip">
-          <span aria-hidden="true">⏳</span>
+          <span aria-hidden="true">${ICON.svg('clock')}</span>
           <strong>Course assessment opens after the closing session on Friday.</strong>
           Check back at the end of the week to share your feedback.
         </div>
@@ -5015,7 +6540,7 @@ function renderBmeAssessmentBody(editing) {
 
   const lockedHeader = readonly ? `
     <div class="cb295-assess-locked-strip">
-      <span aria-hidden="true">🔒</span>
+      <span aria-hidden="true">${ICON.svg('lock-closed')}</span>
       <strong>Assessment closed.</strong>
       Thank you for your feedback. Your responses below are read-only.
     </div>
@@ -5078,7 +6603,7 @@ function wireBme295cAssessment() {
           clr.className = 'cb295-assess-star-clear';
           clr.dataset.qId = qid;
           clr.title = 'Clear';
-          clr.textContent = '×';
+          ICON.label(clr, 'x-mark');
           clr.addEventListener('click', () => bmeAssessClearStars(qid));
           row.appendChild(clr);
         }
@@ -5150,7 +6675,7 @@ function wireBme295cAssessment() {
           clr.className = 'cb295-assess-speaker-star-clear';
           clr.dataset.speakerSlug = slug;
           clr.title = 'Clear';
-          clr.textContent = '×';
+          ICON.label(clr, 'x-mark');
           clr.addEventListener('click', () => bmeAssessClearSpeakerStars(slug));
           row.querySelector('.cb295-assess-speaker-stars')?.appendChild(clr);
         }
@@ -5469,7 +6994,7 @@ function renderBmeRosterMgmtPanel() {
   }
   const placeholder = '<span class="cb295-roster-badge-loading" title="Loading…">…</span>';
   const yesNo = (b, tipYes = '', tipNo = '') => b
-    ? `<span class="cb295-dash-yes" title="${esc(tipYes)}">✓</span>`
+    ? `<span class="cb295-dash-yes" title="${esc(tipYes)}">${ICON.svg('check')}</span>`
     : `<span class="cb295-dash-no" title="${esc(tipNo)}">—</span>`;
 
   const rows = roster.map((s, i) => {
@@ -6604,6 +8129,7 @@ function renderBmeAdminDashBody(editing) {
       ${renderBmeClassAdminsPanel()}
       ${renderBmeInstructorsPanel()}
       ${renderBmeSpeakerVideosPanel()}
+      ${renderBmeWaitlistPanel()}
       ${renderBmeRosterMgmtPanel()}
       ${renderBmeDailyAttendancePanel()}
       ${renderBmeGradebookPanel()}
@@ -6757,7 +8283,7 @@ function renderBmeSpeakerVideosPanel() {
           <strong>${esc((sp.name || '').split(',')[0])}</strong>
           <span class="muted-text">${esc(sp.day || '')} · ${esc(sp.time || '')}</span>
           ${hasVideo
-            ? `<span class="cb295-speaker-video-pill cb295-speaker-video-pill-yt" title="YouTube embed set">▶ YouTube</span>`
+            ? `<span class="cb295-speaker-video-pill cb295-speaker-video-pill-yt" title="YouTube embed set">${ICON.svg('play')} YouTube</span>`
             : `<span class="cb295-speaker-video-pill" title="No video set">No video</span>`}
         </div>
         <div class="cb295-speaker-video-row-form">
@@ -6790,12 +8316,273 @@ function renderBmeSpeakerVideosPanel() {
         </span>
       </header>
       <p class="cb295-speaker-video-hint">
-        💡 <strong>YouTube embeds are free</strong> — no bandwidth charges no matter how many students watch.
+        ${ICON.svg('light-bulb')} <strong>YouTube embeds are free</strong> — no bandwidth charges no matter how many students watch.
         Make sure the upload is set to <strong>Unlisted</strong> in YouTube Studio so only people with the link can view it.
       </p>
       ${rows}
     </section>
   `;
+}
+
+/** V3.796 (was V3.793's "Interested in Summer 2027") — the BME 295C WAITLIST
+ * admin card. The lectures page (modules/bme295c/lesson-01.html) writes one
+ * `courseWaitlist/{course}_{uid}` entry per signed-in student; this card
+ * lists them (Copy emails / CSV / per-row Remove) and is where the list is
+ * WRITTEN TO when applications open: "Write to the waitlist" composes a
+ * subject + message, opens the admin's own mail app with everyone in BCC
+ * (batched at 50 — the site has no mail server, by design), and "Record as
+ * sent" stores a courseAnnouncements doc so the card shows what went out and
+ * when. Loaded ONCE per page visit by loadBmeWaitlist() (kicked from the
+ * dashboard wiring), cached in _bmeWl, re-rendered in place — the dashboard
+ * re-renders often and must not re-query on every paint. The compose draft
+ * lives in _bmeWl.compose so a repaint never eats a half-written message.
+ */
+const BME_WL_COURSE = 'bme295c';
+const BME_WL_BCC_BATCH = 50;
+const _bmeWl = {
+  rows: null,          // null = not loaded yet; [] = loaded, empty
+  history: [],         // courseAnnouncements, newest first
+  error: null,
+  compose: null        // { subject, body } while the compose box is open
+};
+
+function bmeWlDefaultMessage() {
+  return {
+    subject: 'BME 295C Summer 2027 — applications are open',
+    body: [
+      'Hi,',
+      '',
+      'You asked us to let you know when BME 295C — Challenges in Biomedical Engineering — opens for Summer 2027. Applications are now open.',
+      '',
+      '[How to apply, the deadline, and the course dates go here.]',
+      '',
+      'BME 295C is a one-week summer course at the University of Arizona (Tucson and Phoenix campuses) for rising high-school juniors and seniors: two faculty talks each morning, a discussion after each, and a lab tour. Last summer’s lectures are at https://mcgheelab.com/modules/bme295c/lesson-01.html if you’d like a preview.',
+      '',
+      'Questions? Just reply to this email.',
+      '',
+      'Dr. Alexander McGhee',
+      'Department of Biomedical Engineering, University of Arizona'
+    ].join('\n')
+  };
+}
+
+function renderBmeWaitlistPanel() {
+  if (_viewType !== 'admin') return '';
+  const rows = _bmeWl.rows;
+  const fmtDay = (ts) => {
+    const d = ts?.toDate ? ts.toDate() : null;
+    return d ? d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+  };
+  const campusLabel = { tucson: 'Tucson', phoenix: 'Phoenix', either: 'Either' };
+  const gradLabel = (g) => g === 'other' ? 'Other' : (g || '—');
+  let body;
+  if (_bmeWl.error) body = `<p class="error-text">Could not load the waitlist: ${esc(_bmeWl.error)}</p>`;
+  else if (rows === null) body = '<p class="muted-text">Loading…</p>';
+  else if (!rows.length) body = '<p class="muted-text">Nobody yet. Students join at the top of the Summer 2026 lectures page by signing in with Google.</p>';
+  else body = `
+    <table class="cb295-interest-table">
+      <thead><tr><th>Joined</th><th>Name</th><th>Email</th><th>Grad year</th><th>Campus</th><th>Note</th><th></th></tr></thead>
+      <tbody>${rows.map(r => `
+        <tr data-interest-id="${escAttr(r.id)}">
+          <td>${esc(fmtDay(r.createdAt))}</td>
+          <td>${esc(r.name || '')}</td>
+          <td><a href="mailto:${escAttr(r.email || '')}">${esc(r.email || '')}</a></td>
+          <td>${esc(gradLabel(r.gradYear))}</td>
+          <td>${esc(campusLabel[r.campus] || r.campus || '—')}</td>
+          <td class="cb295-interest-note">${esc(r.note || '')}</td>
+          <td><button type="button" class="btn btn-small cb295-interest-remove" data-interest-id="${escAttr(r.id)}">Remove</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  const n = rows ? rows.length : 0;
+  const emails = [...new Set((rows || []).map(r => (r.email || '').trim()).filter(Boolean))];
+
+  let compose = '';
+  if (_bmeWl.compose && n) {
+    const c = _bmeWl.compose;
+    const batches = [];
+    for (let i = 0; i < emails.length; i += BME_WL_BCC_BATCH) batches.push(emails.slice(i, i + BME_WL_BCC_BATCH));
+    const mailto = (list) => 'mailto:?bcc=' + encodeURIComponent(list.join(',')) +
+      '&subject=' + encodeURIComponent(c.subject || '') + '&body=' + encodeURIComponent(c.body || '');
+    compose = `
+      <div class="cb295-wl-compose" id="cb295-wl-compose">
+        <label class="cb295-wl-label">Subject
+          <input type="text" id="cb295-wl-subject" maxlength="200" value="${escAttr(c.subject || '')}">
+        </label>
+        <label class="cb295-wl-label">Message
+          <textarea id="cb295-wl-body" rows="9" maxlength="5000">${esc(c.body || '')}</textarea>
+        </label>
+        <p class="muted-text" style="font-size:.8rem;margin:.4rem 0 .5rem;">
+          This opens your own mail app with everyone in <strong>BCC</strong> (${emails.length} address${emails.length === 1 ? '' : 'es'}${batches.length > 1 ? `, in ${batches.length} batches of up to ${BME_WL_BCC_BATCH}` : ''}) so students never see each other’s addresses.
+          Send it there, then press <strong>Record as sent</strong> so this card remembers it.
+        </p>
+        <div class="cb295-wl-batches">
+          ${batches.map((list, i) => `<a class="btn btn-small" href="${mailto(list)}" data-wl-batch="${i}">${batches.length > 1 ? `Open email · batch ${i + 1} (${list.length})` : `Open email to everyone (${list.length})`}</a>`).join('')}
+          <button type="button" class="btn btn-small btn-primary" id="cb295-wl-record">Record as sent</button>
+          <button type="button" class="btn btn-small" id="cb295-wl-close">Close</button>
+        </div>
+      </div>`;
+  }
+
+  const history = _bmeWl.history.length ? `
+    <details class="cb295-wl-history">
+      <summary>Written to ${_bmeWl.history.length} time${_bmeWl.history.length === 1 ? '' : 's'} · last ${esc(fmtDay(_bmeWl.history[0].sentAt))}</summary>
+      <ul>${_bmeWl.history.map(h => `<li><strong>${esc(fmtDay(h.sentAt))}</strong> — ${esc(h.subject || '')} <span class="muted-text">(to ${h.recipientCount ?? '?'})</span></li>`).join('')}</ul>
+    </details>` : '';
+
+  return `
+    <section class="cb295-dash-card" id="cb295-interest-panel">
+      <header class="cb295-dash-card-header">
+        <h3>BME 295C waitlist — Summer 2027${rows ? ` <span class="muted-text">(${n})</span>` : ''}</h3>
+        <span class="muted-text" style="font-size:.8rem;">
+          Students join at the top of
+          <a href="modules/bme295c/lesson-01.html" target="_blank" rel="noopener">the Summer 2026 lectures page</a>
+          by signing in with Google, so every email here is the student’s own. Newest first.
+          When applications open, <strong>Write to the waitlist</strong> below.
+        </span>
+      </header>
+      ${body}
+      ${n ? `<div class="cb295-interest-actions">
+        <button type="button" class="btn btn-small btn-primary" id="cb295-wl-write">${_bmeWl.compose ? 'Writing to the waitlist…' : 'Write to the waitlist'}</button>
+        <button type="button" class="btn btn-small" id="cb295-interest-copy">Copy emails</button>
+        <button type="button" class="btn btn-small" id="cb295-interest-csv">Download CSV</button>
+        <span class="muted-text" id="cb295-interest-status" style="font-size:.8rem;"></span>
+      </div>` : ''}
+      ${compose}
+      ${history}
+    </section>`;
+}
+
+async function loadBmeWaitlist(force) {
+  if (_bmeWl.rows !== null && !force) return;
+  const ms = (ts) => ts?.toMillis ? ts.toMillis() : 0;
+  try {
+    const [wl, ann] = await Promise.all([
+      McgheeLab.db.collection('courseWaitlist').where('course', '==', BME_WL_COURSE).get(),
+      McgheeLab.db.collection('courseAnnouncements').where('course', '==', BME_WL_COURSE).get()
+        .catch(e => { console.warn('[BME295C] courseAnnouncements load failed', e); return { docs: [] }; })
+    ]);
+    const rows = wl.docs.map(d => ({ id: d.id, ...d.data() }));
+    rows.sort((a, b) => ms(b.createdAt) - ms(a.createdAt));
+    const history = ann.docs.map(d => ({ id: d.id, ...d.data() }));
+    history.sort((a, b) => ms(b.sentAt) - ms(a.sentAt));
+    _bmeWl.rows = rows;
+    _bmeWl.history = history;
+    _bmeWl.error = null;
+  } catch (e) {
+    console.warn('[BME295C] courseWaitlist load failed', e);
+    _bmeWl.error = e.message || String(e);
+  }
+  repaintBmeWaitlistPanel();
+}
+
+function repaintBmeWaitlistPanel() {
+  const el = document.getElementById('cb295-interest-panel');
+  if (!el) return;
+  el.outerHTML = renderBmeWaitlistPanel();
+  wireBmeWaitlistPanel();
+}
+
+function bmeWaitlistCSV(rows) {
+  const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const lines = [['joined', 'name', 'email', 'gradYear', 'campus', 'note', 'uid'].join(',')];
+  rows.forEach(r => {
+    const d = r.createdAt?.toDate ? r.createdAt.toDate().toISOString() : '';
+    lines.push([d, r.name, r.email, r.gradYear, r.campus, r.note, r.uid].map(q).join(','));
+  });
+  return lines.join('\n');
+}
+
+function wireBmeWaitlistPanel() {
+  const panel = document.getElementById('cb295-interest-panel');
+  if (!panel) return;
+  const status = panel.querySelector('#cb295-interest-status');
+  const say = (msg, sticky) => {
+    if (!status) return;
+    status.textContent = msg;
+    if (!sticky) setTimeout(() => { if (status.textContent === msg) status.textContent = ''; }, 4000);
+  };
+  panel.querySelector('#cb295-interest-copy')?.addEventListener('click', async () => {
+    const emails = [...new Set((_bmeWl.rows || []).map(r => r.email).filter(Boolean))];
+    try {
+      await navigator.clipboard.writeText(emails.join(', '));
+      say(`Copied ${emails.length} email${emails.length === 1 ? '' : 's'}.`);
+    } catch (e) { say('Copy failed — select the emails in the table instead.'); }
+  });
+  panel.querySelector('#cb295-interest-csv')?.addEventListener('click', () => {
+    const blob = new Blob([bmeWaitlistCSV(_bmeWl.rows || [])], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bme295c-summer-2027-waitlist.csv';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+  });
+
+  // Write to the waitlist: open the compose box (draft survives repaints).
+  panel.querySelector('#cb295-wl-write')?.addEventListener('click', () => {
+    if (!_bmeWl.compose) _bmeWl.compose = bmeWlDefaultMessage();
+    repaintBmeWaitlistPanel();
+    document.getElementById('cb295-wl-subject')?.focus();
+  });
+  panel.querySelector('#cb295-wl-subject')?.addEventListener('input', (ev) => { if (_bmeWl.compose) _bmeWl.compose.subject = ev.target.value; });
+  panel.querySelector('#cb295-wl-body')?.addEventListener('input', (ev) => { if (_bmeWl.compose) _bmeWl.compose.body = ev.target.value; });
+  // The subject/body change the mailto hrefs; rebuild them on blur so the
+  // links always carry the text the admin actually typed.
+  ['#cb295-wl-subject', '#cb295-wl-body'].forEach(sel => {
+    panel.querySelector(sel)?.addEventListener('change', () => repaintBmeWaitlistPanel());
+  });
+  panel.querySelector('#cb295-wl-close')?.addEventListener('click', () => { _bmeWl.compose = null; repaintBmeWaitlistPanel(); });
+  panel.querySelector('#cb295-wl-record')?.addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget;
+    const c = _bmeWl.compose || {};
+    const subject = (c.subject || '').trim();
+    if (!subject) { say('Give the email a subject first.', true); document.getElementById('cb295-wl-subject')?.focus(); return; }
+    const rows = _bmeWl.rows || [];
+    btn.disabled = true;
+    try {
+      const user = McgheeLab.auth?.currentUser;
+      await McgheeLab.db.collection('courseAnnouncements').add({
+        course: BME_WL_COURSE,
+        subject: subject.slice(0, 200),
+        body: (c.body || '').slice(0, 5000),
+        recipientCount: rows.length,
+        recipientUids: rows.map(r => r.uid).filter(Boolean),
+        sentBy: user ? user.uid : '',
+        sentAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      _bmeWl.compose = null;
+      await loadBmeWaitlist(true);
+      const st = document.getElementById('cb295-interest-status');
+      if (st) st.textContent = `Recorded: written to ${rows.length} student${rows.length === 1 ? '' : 's'}.`;
+    } catch (e) {
+      btn.disabled = false;
+      say('Could not record it: ' + (e.message || e), true);
+    }
+  });
+
+  // Remove is a two-click arm (no confirm() popup).
+  panel.querySelectorAll('.cb295-interest-remove').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!btn.classList.contains('is-armed')) {
+        btn.classList.add('is-armed');
+        btn.textContent = 'Sure? Remove';
+        setTimeout(() => { if (btn.isConnected) { btn.classList.remove('is-armed'); btn.textContent = 'Remove'; } }, 4000);
+        return;
+      }
+      btn.disabled = true;
+      const id = btn.dataset.interestId;
+      try {
+        await McgheeLab.db.collection('courseWaitlist').doc(id).delete();
+        _bmeWl.rows = (_bmeWl.rows || []).filter(r => r.id !== id);
+        repaintBmeWaitlistPanel();
+      } catch (e) {
+        btn.disabled = false;
+        say('Could not remove: ' + (e.message || e));
+      }
+    });
+  });
 }
 
 /** V3.272 — write a new video link for one speaker. Validates the
@@ -6905,7 +8692,7 @@ function renderBmeGradeDiscussionsPanel() {
         ? `${presentCount}/${presentCount + absentCount} present`
         : '';
       const statusPill = submitted
-        ? '<span class="cb295-gradebook-pill cb295-gradebook-pill-ok">✓ submitted</span>'
+        ? '<span class="cb295-gradebook-pill cb295-gradebook-pill-ok">' + ICON.svg('check') + ' submitted</span>'
         : draft
           ? '<span class="cb295-gradebook-pill cb295-gradebook-pill-mid">draft</span>'
           : '<span class="cb295-gradebook-pill cb295-gradebook-pill-low">—</span>';
@@ -6918,7 +8705,7 @@ function renderBmeGradeDiscussionsPanel() {
                    data-stars="${s}"
                    title="${s}/3 stars">${'★'.repeat(s)}${'☆'.repeat(3 - s)}</button>`).join('');
       const clearBtn = stars
-        ? `<button type="button" class="cb295-gradebook-star-clear" data-campus="${escAttr(col.campus)}" data-group="${escAttr(String(col.group))}" data-speaker-slug="${escAttr(sp.slug)}" title="Clear stars (back to ungraded = neutral)">×</button>`
+        ? `<button type="button" class="cb295-gradebook-star-clear" data-campus="${escAttr(col.campus)}" data-group="${escAttr(String(col.group))}" data-speaker-slug="${escAttr(sp.slug)}" title="Clear stars (back to ungraded = neutral)">${ICON.svg('x-mark')}</button>`
         : '';
       const viewBtn = r
         ? `<button type="button" class="btn btn-small btn-secondary cb295-grade-disc-view" data-doc-id="${escAttr(docId)}" title="Open the full response">View</button>`
@@ -7036,7 +8823,7 @@ function renderBmeOrphanedDraftsBlock() {
       <div class="cb295-orphan-row" data-doc-id="${escAttr(r.id)}">
         <span class="cb295-orphan-id" title="Firestore docId">${esc(r.id)}</span>
         ${submitted
-          ? '<span class="cb295-gradebook-pill cb295-gradebook-pill-ok">✓ submitted</span>'
+          ? '<span class="cb295-gradebook-pill cb295-gradebook-pill-ok">' + ICON.svg('check') + ' submitted</span>'
           : '<span class="cb295-gradebook-pill cb295-gradebook-pill-mid">draft</span>'}
         <span class="cb295-orphan-meta muted-text">${wc} word${wc === 1 ? '' : 's'}${editedBy ? ' · by ' + editedBy : ''}${editedStr ? ' · ' + esc(editedStr) : ''}</span>
         <button type="button" class="btn btn-small btn-secondary cb295-orphan-view" data-doc-id="${escAttr(r.id)}">View</button>
@@ -7048,7 +8835,7 @@ function renderBmeOrphanedDraftsBlock() {
   return `
     <details class="cb295-orphan-block">
       <summary>
-        <strong>⚠ Orphaned response docs</strong>
+        <strong>${ICON.svg('exclamation-triangle')} Orphaned response docs</strong>
         <span class="muted-text">${orphans.length} doc${orphans.length === 1 ? '' : 's'} at docIds that don't match any current student's (campus × group) — likely pre-V3.284 submissions stranded by the routing bug. Read-only; nothing is deleted.</span>
       </summary>
       <div class="cb295-orphan-rows">${rows}</div>
@@ -7308,7 +9095,7 @@ function openBmeStudentGradeModal(rosterId) {
     const sp = (_bmeContent?.speakers || []).find(s => s.slug === t.slug) || { name: t.slug };
     const respDoc = t.response;
     const respStatus = respDoc?.status === 'submitted'
-      ? '<span class="cb295-gradebook-pill cb295-gradebook-pill-ok">✓ submitted</span>'
+      ? '<span class="cb295-gradebook-pill cb295-gradebook-pill-ok">' + ICON.svg('check') + ' submitted</span>'
       : respDoc
         ? '<span class="cb295-gradebook-pill cb295-gradebook-pill-mid">draft</span>'
         : '<span class="cb295-gradebook-pill cb295-gradebook-pill-low">—</span>';
@@ -7330,7 +9117,7 @@ function openBmeStudentGradeModal(rosterId) {
                    title="Group quality: ${s}/3">${'★'.repeat(s)}${'☆'.repeat(3 - s)}</button>`).join('')
       : '<span class="muted-text">no group</span>';
     const starClear = (t.stars && t.group)
-      ? `<button type="button" class="cb295-gradebook-star-clear" data-campus="${escAttr(t.campus)}" data-group="${escAttr(String(t.group))}" data-speaker-slug="${escAttr(t.slug)}" title="Clear group quality stars (back to ungraded = neutral)">×</button>`
+      ? `<button type="button" class="cb295-gradebook-star-clear" data-campus="${escAttr(t.campus)}" data-group="${escAttr(String(t.group))}" data-speaker-slug="${escAttr(t.slug)}" title="Clear group quality stars (back to ungraded = neutral)">${ICON.svg('x-mark')}</button>`
       : '';
 
     return `
@@ -7372,7 +9159,7 @@ function openBmeStudentGradeModal(rosterId) {
                    ${(!present && !excused) ? 'disabled' : ''}
                    title="${r === 1 ? 'Not engaged' : r === 2 ? 'Partial' : 'Engaged'}">${r}</button>`).join('');
     const clearBtn = rating
-      ? `<button type="button" class="cb295-gradebook-alert-clear" data-day="${escAttr(day)}" data-student-id="${escAttr(student.id)}" title="Clear alertness rating">×</button>`
+      ? `<button type="button" class="cb295-gradebook-alert-clear" data-day="${escAttr(day)}" data-student-id="${escAttr(student.id)}" title="Clear alertness rating">${ICON.svg('x-mark')}</button>`
       : '';
     return `
       <div class="cb295-gradebook-modal-alert-day">
@@ -8291,6 +10078,1542 @@ function closeBmeMonitorCellModal() {
   document.getElementById('cb295-monitor-cell-modal')?.remove();
 }
 
+/* ================================================================
+   V3.674 — BME466 HOMEWORK-PROGRESS DASHBOARD (hwDash466)
+   Reads hwProgress/{assignment}_{uid} — the docs the homework modules'
+   ML-CLOUD-SAVE block autosaves for NetID-signed students. Rules allow
+   this list query only for global admins and bme466 classAdminEmails.
+   Progress only, never grades (grading stays the D2L JSON upload).
+   ================================================================ */
+let _hw466Dash = null;   // { assignment, rows|null, error?, loadedAt }
+/* V3.675 — class roster lives in schedules/bme466/roster/{email} (staff-only
+   subcollection: the parent schedules doc is world-readable, the roster is
+   not). Rules gate hwProgress writes on roster membership, so invite/drop
+   here IS access control. */
+let _hw466Roster = null;  // { rows|null, error?, loadedAt }
+async function loadHw466Roster() {
+  _hw466Roster = { rows: null };
+  try {
+    const snap = await McgheeLab.db.collection('schedules').doc('bme466')
+      .collection('roster').get();
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    rows.sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || ''));
+    _hw466Roster = { rows, loadedAt: Date.now() };
+  } catch (e) {
+    console.warn('[hw466] roster load', e);
+    _hw466Roster = { rows: [], error: String(e.message || e) };
+  }
+  const tab = getActiveTab();
+  if (tab?.sections?.some(s => s.key === 'hwDash466')) refreshCanvas();
+}
+/* minimal CSV parser: quoted fields, embedded commas/newlines, CRLF, BOM */
+function hw466ParseCSV(text) {
+  const out = []; let row = [], field = '', inQ = false;
+  const s = String(text || '').replace(/^﻿/, '');
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inQ) {
+      if (c === '"') { if (s[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+      else field += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && s[i + 1] === '\n') i++;
+      row.push(field); field = '';
+      if (row.length > 1 || row[0] !== '') out.push(row);
+      row = [];
+    } else field += c;
+  }
+  row.push(field);
+  if (row.length > 1 || row[0] !== '') out.push(row);
+  if (!out.length) return [];
+  const head = out[0].map(h => h.trim());
+  return out.slice(1).map(r => { const o = {}; head.forEach((h, i) => { o[h] = (r[i] ?? '').trim(); }); return o; });
+}
+async function hw466ImportRoster(file) {
+  let recs;
+  try { recs = hw466ParseCSV(await file.text()); }
+  catch (e) { alert('Could not read that file: ' + (e.message || e)); return; }
+  if (!recs.length || !('Email' in recs[0])) {
+    alert('That does not look like a D2L classlist export (no Email column).'); return;
+  }
+  const students = [], skipped = [];
+  recs.forEach(r => {
+    const email = (r.Email || '').trim().toLowerCase();
+    if (!email || !email.includes('@')) { skipped.push((r.Name || '(no email)')); return; }
+    if ((r.Role || 'student').toLowerCase() !== 'student') { skipped.push(`${r.Name || email} (${r.Role})`); return; }
+    let name = (r.Name || '').trim();
+    const m = name.match(/^([^,]+),\s*(.+)$/);           // D2L "Last, First" → "First Last"
+    if (m) name = `${m[2]} ${m[1]}`.trim();
+    students.push({ email, name, netid: email.split('@')[0], role: 'student' });
+  });
+  if (!students.length) { alert('No Student rows found in that file.'); return; }
+  if (!confirm(`Invite ${students.length} student(s) from the classlist?\n\nExisting entries with the same email are updated; nobody is auto-dropped (drop individually below). ${skipped.length} non-student/malformed row(s) skipped.`)) return;
+  try {
+    const col = McgheeLab.db.collection('schedules').doc('bme466').collection('roster');
+    let batch = McgheeLab.db.batch(), n = 0;
+    for (const s of students) {
+      batch.set(col.doc(s.email), { ...s, source: 'csv', addedAt: Date.now() }, { merge: true });
+      if (++n % 400 === 0) { await batch.commit(); batch = McgheeLab.db.batch(); }
+    }
+    await batch.commit();
+    // First import turns the roster into an access gate (rules read this
+    // flag; until it is true any @arizona.edu account may cloud-save, so an
+    // un-imported roster can never lock the class out).
+    if (!_classData?.rosterEnforced) {
+      try {
+        await McgheeLab.db.collection('schedules').doc('bme466').update({ rosterEnforced: true });
+        if (_classData) _classData.rosterEnforced = true;
+      } catch (e) { console.warn('[hw466] could not enable roster enforcement', e); }
+    }
+    alert(`Invited/updated ${students.length} student(s).\n\nOnly students on this roster can now save progress.`);
+    loadHw466Roster();
+  } catch (e) { alert('Import failed: ' + (e.message || e)); }
+}
+async function hw466SetRosterEnforced(on) {
+  if (!on && !confirm('Stop restricting saves to the roster?\n\nAny signed-in @arizona.edu account would then be able to save progress in this class\'s modules.')) return;
+  try {
+    await McgheeLab.db.collection('schedules').doc('bme466').update({ rosterEnforced: !!on });
+    if (_classData) _classData.rosterEnforced = !!on;
+    loadHw466Roster();
+  } catch (e) { alert('Could not change roster enforcement: ' + (e.message || e)); }
+}
+/* V3.685 — publish the opt-in classmate directory.
+   Students who want to be findable tick a box in their notes panel, which
+   writes schedules/bme466/directoryOptIn/{uid}. This materialises those
+   into ONE names-only doc that signed-in students may read, so sharing
+   notes never needs the roster (instructor-only, FERPA) and never needs a
+   `users` query (closed to guests). Nobody who has not opted in appears. */
+async function hw466PublishDirectory() {
+  const btn = document.getElementById('hw466-dir-publish');
+  if (btn) { btn.disabled = true; btn.textContent = 'Publishing…'; }
+  try {
+    const snap = await McgheeLab.db.collection('schedules').doc('bme466')
+      .collection('directoryOptIn').get();
+    const people = snap.docs
+      .filter(d => d.data().optIn === true)
+      .map(d => ({ uid: d.id, name: (d.data().displayName || '').slice(0, 60) }))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    await McgheeLab.db.collection('schedules').doc('bme466')
+      .collection('directory').doc('optedIn')
+      .set({ people, count: people.length, updatedAt: Date.now() });
+    const note = document.getElementById('hw466-dir-note');
+    if (note) note.textContent = `Published — ${people.length} student${people.length === 1 ? '' : 's'} findable.`;
+  } catch (e) {
+    alert('Could not publish the class directory: ' + (e.message || e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Publish class directory'; }
+  }
+}
+
+async function hw466AddMember(name, email) {
+  email = (email || '').trim().toLowerCase();
+  if (!/^[^@\s]+@arizona\.edu$/.test(email)) { alert('Enter an @arizona.edu email — cloud saves only accept NetID accounts.'); return; }
+  try {
+    await McgheeLab.db.collection('schedules').doc('bme466').collection('roster').doc(email)
+      .set({ name: (name || '').trim(), email, netid: email.split('@')[0],
+             role: 'student', source: 'manual', addedAt: Date.now() }, { merge: true });
+    loadHw466Roster();
+  } catch (e) { alert('Add failed: ' + (e.message || e)); }
+}
+async function hw466DropMember(email) {
+  const isTA = hw466StaffLists().tas.includes(email);   // V3.681 — narrow TA list
+  if (!confirm(`Drop ${email} from the roster?\n\nThis revokes their cloud-save access immediately${isTA ? ' AND removes their TA access' : ''}. Their existing progress docs and exports are untouched.`)) return;
+  try {
+    if (isTA) await hw466SetTA(email, false, { silent: true });
+    await McgheeLab.db.collection('schedules').doc('bme466').collection('roster').doc(email).delete();
+    loadHw466Roster();
+  } catch (e) { alert('Drop failed: ' + (e.message || e)); }
+}
+/* V3.681 — TA = an email in schedules/bme466.courseStaffEmails, NOT
+   classAdminEmails.
+   Until V3.681 this button wrote classAdminEmails, which is the FULL
+   instructor view: page-edit chrome, the roster (with every student's name
+   and email), and hwProgress delete. V3.679 emptied that list precisely
+   because an @arizona.edu address there hands the instructor view to the
+   same kind of account a student signs in with — so "assign a user to be a
+   TA" had no safe answer. courseStaffEmails is the narrow grant: the
+   Assignments & Requests tab (assign homework, status matrix, extensions,
+   answer requests, set sections) and nothing else. firestore.rules'
+   bme466CourseStaff() is deliberately absent from the roster block, the
+   schedule-doc write rule and hwProgress delete; the rules suite asserts
+   each of those denials. Promoting someone to full instructor access is a
+   deliberate act through classAdminEmails, not a button here. */
+async function hw466SetTA(email, makeTA, opts) {
+  email = (email || '').trim().toLowerCase();
+  if (!email.includes('@')) { alert('Enter the TA\'s full email address.'); return; }
+  const staff = (Array.isArray(_classData?.courseStaffEmails) ? _classData.courseStaffEmails : [])
+    .map(e => String(e || '').toLowerCase());
+  const me = (McgheeLab.Auth?.currentUser?.email || '').toLowerCase();
+  if (!makeTA && email === me &&
+      !confirm('Remove YOUR OWN TA access? You would lose the Assignments & Requests tab (a global admin can restore it).')) return;
+  let next = staff.filter(e => e !== email);
+  if (makeTA) next = next.concat([email]);
+  try {
+    await McgheeLab.db.collection('schedules').doc('bme466').update({ courseStaffEmails: next });
+    await McgheeLab.db.collection('schedules').doc('bme466').collection('roster').doc(email)
+      .set({ email, netid: email.split('@')[0], role: makeTA ? 'ta' : 'student' }, { merge: true });
+    if (_classData) _classData.courseStaffEmails = next;
+    if (!opts?.silent) loadHw466Roster(); else return;
+  } catch (e) { alert('TA change failed: ' + (e.message || e)); }
+}
+/** Every address with staff access, and which kind. */
+function hw466StaffLists() {
+  const lower = a => (Array.isArray(a) ? a : []).map(e => String(e || '').toLowerCase());
+  const instructors = lower(_classData?.classAdminEmails);
+  const tas = lower(_classData?.courseStaffEmails).filter(e => !instructors.includes(e));
+  return { instructors, tas, all: instructors.concat(tas) };
+}
+const HW466_ASSIGNMENTS = [
+  ['bme466-pretest', 'HW0 — Pretest (baseline)'],
+  ['bme466-hw1b', 'HW1 — Transport Problems (V2.49)'],
+  ['bme466-hw1', 'HW1 v1 — archived, never released'],
+  ['bme466-hw2', 'HW2'], ['bme466-hw3', 'HW3'], ['bme466-hw4', 'HW4'],
+  ['bme466-hw5', 'HW5'], ['bme466-hw6', 'HW6'], ['bme466-hw7', 'HW7'],
+  ['bme466-posttest', 'Post-test (end of semester)']
+];
+async function loadHw466Dash(assignment) {
+  _hw466Dash = { assignment, rows: null };
+  try {
+    const snap = await McgheeLab.db.collection('hwProgress')
+      .where('assignment', '==', assignment).get();
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    rows.sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || ''));
+    _hw466Dash = { assignment, rows, loadedAt: Date.now() };
+  } catch (e) {
+    console.warn('[hw466] dashboard load', e);
+    _hw466Dash = { assignment, rows: [], error: String(e.message || e) };
+  }
+  const tab = getActiveTab();
+  if (tab?.sections?.some(s => s.key === 'hwDash466')) refreshCanvas();
+}
+function renderHw466DashBody() {
+  if (_viewType !== 'admin') {
+    return '<p class="muted-text">This dashboard is only visible to course admins.</p>';
+  }
+  if (!_hw466Dash) loadHw466Dash('bme466-pretest');   // idempotent kick-off
+  const d = _hw466Dash || {};
+  const rows = d.rows;
+  const options = HW466_ASSIGNMENTS.map(([v, l]) =>
+    `<option value="${v}"${v === d.assignment ? ' selected' : ''}>${esc(l)}</option>`).join('');
+
+  let statCards = '', body = '';
+  if (!rows) {
+    body = '<p class="muted-text">Loading progress docs…</p>';
+  } else if (d.error) {
+    body = `<p class="muted-text">Could not load hwProgress: ${esc(d.error)} — are you signed in as an admin / class admin?</p>`;
+  } else if (!rows.length) {
+    body = '<p class="muted-text">No cloud saves for this assignment yet. Students appear here after they sign in with their NetID inside the module.</p>';
+  } else {
+    const now = Date.now(), DAY = 86400e3;
+    const activeToday = rows.filter(r => now - (r.lastActiveAt || 0) < DAY).length;
+    const mins = rows.map(r => (r.secondsActive || 0) / 60).sort((a, b) => a - b);
+    const median = mins.length ? mins[Math.floor(mins.length / 2)] : 0;
+    const done = rows.filter(r => r.totalQuestions && r.answeredCount >= r.totalQuestions).length;
+    const meta = (label, val) => `
+      <div class="cb295-dash-meta-row">
+        <span class="cb295-dash-meta-label">${esc(label)}</span>
+        <span class="cb295-dash-meta-val">${val}</span>
+      </div>`;
+    statCards = `<div class="cb295-dash-meta-grid">
+      ${meta('Students saving', String(rows.length))}
+      ${meta('Active in the last 24 h', String(activeToday))}
+      ${meta('Median active time', median.toFixed(0) + ' min')}
+      ${meta('Answered everything', `${done} / ${rows.length}`)}
+    </div>`;
+    const staffEmails = (Array.isArray(_classData?.classAdminEmails) ? _classData.classAdminEmails : [])
+      .map(e => (e || '').toLowerCase());
+    const tr = rows.map(r => {
+      const total = r.totalQuestions || 0;
+      const pct = total ? Math.round(100 * (r.answeredCount || 0) / total) : 0;
+      const last = r.lastActiveAt ? fmtRelativeTime(new Date(r.lastActiveAt)) : '—';
+      const quiet = r.lastActiveAt && (now - r.lastActiveAt > 7 * DAY);
+      const isStaff = staffEmails.includes((r.email || '').toLowerCase());
+      return `<tr>
+        <td>${esc(r.name || '')}${isStaff ? ' <span class="cb-tab-admin-tag" title="A class admin’s own run — a test, not a student">STAFF TEST</span>' : ''}<br><span class="muted-text" style="font-size:.78em">${esc(r.email || '')}</span></td>
+        <td><code>${esc(r.code || '')}</code></td>
+        <td style="min-width:150px"><div class="teach-eng-bar"><div class="teach-eng-fill" style="width:${pct}%"></div></div>
+            <span class="muted-text" style="font-size:.78em">${r.answeredCount || 0}/${total} (${pct}%)</span></td>
+        <td>${((r.secondsActive || 0) / 60).toFixed(0)} min</td>
+        <td${quiet ? ' style="color:#b91c1c"' : ''}>${esc(last)}</td>
+        <td><button type="button" class="btn btn-small btn-secondary hw466-dash-del" data-doc-id="${esc(r.id)}"
+             title="Delete this progress doc (cleanup for test runs)">${ICON.svg('trash')}</button></td>
+      </tr>`;
+    }).join('');
+    body = `<div class="cb295-dash-tablewrap"><table class="cb295-dash-table">
+      <thead><tr><th>Student</th><th>Dataset code</th><th>Progress</th><th>Active time</th><th>Last active</th><th></th></tr></thead>
+      <tbody>${tr}</tbody></table></div>`;
+    /* Who is invited but has not started? The dashboard only ever sees
+       students who signed in, so this cross-reference is the real "chase
+       list" — and the roster is the only place that knows the denominator. */
+    const started = new Set(rows.map(r => (r.email || '').toLowerCase()));
+    const notStarted = (_hw466Roster?.rows || [])
+      .filter(m => (m.role || 'student') === 'student' && !started.has((m.email || '').toLowerCase()));
+    if (notStarted.length) {
+      body += `<p class="muted-text" style="margin-top:10px;font-size:.85em">
+        <strong>${notStarted.length} invited student(s) have not started:</strong>
+        ${notStarted.slice(0, 40).map(m => esc(m.name || m.email)).join(' · ')}${notStarted.length > 40 ? ' …' : ''}</p>`;
+    }
+  }
+
+  /* ── Roster card (V3.675): invite by CSV, add/drop individually, name TAs.
+     Roster membership is what the hwProgress rules check, so this card IS
+     the access-control surface — dropping someone revokes cloud saves. */
+  if (!_hw466Roster) loadHw466Roster();       // idempotent kick-off
+  const R = _hw466Roster || {};
+  const SL = hw466StaffLists();               // V3.681 — instructors vs TAs
+  let rosterBody = '';
+  if (!R.rows) {
+    rosterBody = '<p class="muted-text">Loading roster…</p>';
+  } else if (R.error) {
+    rosterBody = `<p class="muted-text">Could not load the roster: ${esc(R.error)}</p>`;
+  } else {
+    const roleOf = m => {
+      const e = (m.email || m.id || '').toLowerCase();
+      return SL.instructors.includes(e) ? 'instructor' : SL.tas.includes(e) ? 'ta' : 'student';
+    };
+    const staffRows = R.rows.filter(m => roleOf(m) !== 'student');
+    const studentRows = R.rows.filter(m => roleOf(m) === 'student');
+    const memberRow = (m) => {
+      const email = (m.email || m.id || '').toLowerCase();
+      const role = roleOf(m);
+      const tag = role === 'instructor'
+        ? ' <span class="cb-tab-admin-tag" title="Full instructor access (classAdminEmails)">INSTRUCTOR</span>'
+        : role === 'ta' ? ' <span class="cb-tab-admin-tag" title="Course staff: assignments, status, requests, sections">TA</span>' : '';
+      return `<tr>
+        <td>${esc(m.name || '')}${tag}<br>
+            <span class="muted-text" style="font-size:.78em">${esc(email)}</span></td>
+        <td><code>${esc(m.netid || email.split('@')[0])}</code></td>
+        <td>${m.source === 'csv' ? 'classlist' : esc(m.source || 'manual')}</td>
+        <td>
+          ${role === 'instructor'
+            ? '<span class="muted-text" style="font-size:.8em">full access — change via classAdminEmails</span>'
+            : `<button type="button" class="btn btn-small btn-secondary hw466-roster-ta"
+            data-email="${esc(email)}" data-make="${role === 'ta' ? '0' : '1'}"
+            title="${role === 'ta' ? 'Remove TA access' : 'Grant TA access: assign homework, status matrix, extensions, answer requests, set sections. NOT the roster, page editing or progress deletion.'}">${role === 'ta' ? 'Remove TA' : 'Make TA'}</button>`}
+          <button type="button" class="btn btn-small btn-secondary hw466-roster-drop"
+            data-email="${esc(email)}" title="Drop from the class (revokes cloud saves)">Drop</button>
+        </td>
+      </tr>`;
+    };
+    const allRows = staffRows.map(memberRow).concat(studentRows.map(memberRow)).join('');
+    const missingStaff = SL.all.filter(a =>
+      !R.rows.some(m => (m.email || '').toLowerCase() === a));
+    const enforced = !!_classData?.rosterEnforced;
+    rosterBody = `
+      <div class="cb295-dash-meta-grid">
+        <div class="cb295-dash-meta-row"><span class="cb295-dash-meta-label">Students invited</span>
+          <span class="cb295-dash-meta-val">${studentRows.length}</span></div>
+        <div class="cb295-dash-meta-row"><span class="cb295-dash-meta-label">Instructors / TAs</span>
+          <span class="cb295-dash-meta-val">${SL.instructors.length} / ${SL.tas.length}</span></div>
+        <div class="cb295-dash-meta-row"><span class="cb295-dash-meta-label">Saves restricted to roster</span>
+          <span class="cb295-dash-meta-val">${enforced
+            ? '<span class="cb295-dash-yes">✓ yes</span>'
+            : '<span class="cb295-dash-no">no — any @arizona.edu account can save</span>'}
+            <button type="button" class="btn btn-small btn-secondary" id="hw466-enforce-toggle"
+              data-on="${enforced ? '0' : '1'}" style="margin-left:8px">${enforced ? 'Turn off' : 'Turn on'}</button></span></div>
+      </div>
+      ${missingStaff.length ? `<p class="muted-text" style="font-size:.85em">Staff not listed on the roster (access still works — it comes from
+        <code>classAdminEmails</code> / <code>courseStaffEmails</code>): ${missingStaff.map(e => `<code>${esc(e)}</code>`).join(' · ')}</p>` : ''}
+      <div class="cb295-dash-tablewrap"><table class="cb295-dash-table">
+        <thead><tr><th>Member</th><th>NetID</th><th>Added via</th><th></th></tr></thead>
+        <tbody>${allRows || '<tr><td colspan="4" class="muted-text">Nobody on the roster yet — import the D2L classlist above.</td></tr>'}</tbody>
+      </table></div>`;
+  }
+  const rosterPanel = `
+    <section class="cb295-dash-card">
+      <header class="cb295-dash-card-header">
+        <h3>Class roster — invite, drop, assign TAs</h3>
+        <span>
+          <button type="button" class="btn btn-small btn-primary" id="hw466-roster-import">Import D2L classlist (CSV)</button>
+          <input type="file" id="hw466-roster-csv" accept=".csv,text/csv" style="display:none">
+          <button type="button" class="btn btn-small btn-secondary" id="hw466-roster-refresh">Refresh</button>
+          <button type="button" class="btn btn-small btn-secondary" id="hw466-dir-publish"
+                  title="Publish the names of students who ticked &quot;let classmates find me&quot; so classmates can share lecture notes with them">Publish class directory</button>
+        </span>
+      </header>
+      <p class="muted-text" id="hw466-dir-note" style="margin:0 0 8px;font-size:.85em">
+        <strong>Class directory (V3.685):</strong> students who tick &ldquo;let classmates find me&rdquo;
+        in their notes whiteboard become shareable-with. Press <em>Publish class directory</em> after
+        students opt in. Only opted-in students ever appear, and only their display name &mdash;
+        the roster itself stays instructor-only. Homework boards are never shareable.
+      </p>
+      <p class="muted-text" style="margin:4px 0 10px;font-size:.85em">
+        Export the classlist from D2L (<em>Classlist → Export</em>) and import it here —
+        Student rows become invitations, "Last, First" is flipped, and re-importing
+        updates rather than duplicates (nobody is auto-dropped). <strong>Being on this
+        roster is what lets a student cloud-save</strong>, so dropping someone revokes
+        access immediately (their existing progress docs and any exported file are
+        untouched). <strong>Make TA</strong> (V3.681) grants the narrow course-staff role —
+        the <em>Assignments &amp; Requests</em> tab: assign homework, see status, grant
+        extensions, answer student requests, set sections — by adding the address to
+        <code>courseStaffEmails</code>. It deliberately does <strong>not</strong> grant this
+        dashboard, this roster, page editing, or progress deletion; those stay with
+        <code>classAdminEmails</code>. Works for any <code>@arizona.edu</code> account,
+        lab member or not.</p>
+      <div class="addrow" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        <input type="text" id="hw466-add-name" class="cb-input" style="width:180px" placeholder="Name (optional)" autocomplete="off">
+        <input type="text" id="hw466-add-email" class="cb-input" style="width:230px" placeholder="netid@arizona.edu" autocomplete="off" spellcheck="false">
+        <button type="button" class="btn btn-small btn-primary" id="hw466-add-go">Add student</button>
+        <span style="width:14px"></span>
+        <input type="text" id="hw466-ta-email" class="cb-input" style="width:230px" placeholder="TA's netid@arizona.edu" autocomplete="off" spellcheck="false">
+        <button type="button" class="btn btn-small btn-secondary" id="hw466-ta-go">Make TA</button>
+      </div>
+      ${rosterBody}
+    </section>`;
+
+  /* ── Test-an-assignment card: open ANY assignment module, released or not.
+     Unpublished only hides a module from the student list — the file itself
+     is live, so the instructor can drive it end-to-end before flipping
+     "Visible" in Learning Modules. */
+  const mods = (Array.isArray(_classData?.modules) ? _classData.modules : [])
+    .slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const modRows = mods.map(m => `
+    <tr>
+      <td>${esc(m.title || m.htmlFile)}${m.kind === 'notes' ? ' <span class="muted-text">(notes)</span>' : ''}<br>
+          <span class="muted-text" style="font-size:.78em"><code>${esc(m.htmlFile || '')}</code></span></td>
+      <td>${m.published ? '<span class="cb295-dash-yes">✓ released</span>' : '<span class="cb295-dash-no">not released</span>'}</td>
+      <td><button type="button" class="btn btn-small btn-secondary hw466-test-open"
+           data-folder="${esc(m.folder || 'bme466')}" data-file="${esc(m.htmlFile || '')}">Open &amp; test</button></td>
+    </tr>`).join('');
+  const testPanel = `
+    <section class="cb295-dash-card">
+      <header class="cb295-dash-card-header">
+        <h3>Test an assignment (works before release)</h3>
+        <span><input type="text" id="hw466-test-ds" class="cb-input" style="width:210px"
+          placeholder="netid (optional preview)" autocomplete="off" spellcheck="false"
+          title="Optional: appended as ?ds=<netid> so the module regenerates that student's seeded numbers (staff preview: exports disabled, no cloud saves). Currently supported by hw-00; harmlessly ignored by modules without it."></span>
+      </header>
+      <p class="muted-text" style="margin:4px 0 10px;font-size:.85em">
+        Opens the module in a new tab whether or not it is released ("not released"
+        only hides it from the student list; flip <em>Visible</em> in Learning Modules
+        to release). Leave the netid box empty to test as yourself — that run
+        autosaves like a student's and shows below tagged <strong>STAFF TEST</strong>;
+        delete it with ${ICON.svg('trash')} when you're done. Type a netid to preview that student's
+        seeded numbers instead — as a class admin your sign-in carries the preview
+        through (previews can't export or cloud-save, so nothing is polluted).</p>
+      <div class="cb295-dash-tablewrap"><table class="cb295-dash-table">
+        <thead><tr><th>Module</th><th>Status</th><th></th></tr></thead>
+        <tbody>${modRows || '<tr><td colspan="3" class="muted-text">No modules on the schedule doc yet.</td></tr>'}</tbody>
+      </table></div>
+    </section>`;
+  return `
+    ${rosterPanel}
+    ${testPanel}
+    <section class="cb295-dash-card">
+      <header class="cb295-dash-card-header">
+        <h3>Homework progress — cloud saves</h3>
+        <span>
+          <select id="hw466-dash-assignment" class="cb-input" style="width:auto">${options}</select>
+          <button type="button" class="btn btn-small btn-secondary" id="hw466-dash-refresh">Refresh</button>
+          <button type="button" class="btn btn-small btn-secondary" id="hw466-dash-csv"${rows && rows.length ? '' : ' disabled'}>CSV</button>
+        </span>
+      </header>
+      <p class="muted-text" style="margin:4px 0 10px;font-size:.85em">
+        Autosaved module progress for students who signed in with their UA NetID.
+        Progress only — turn-in and grading stay on D2L. Cross-reference the dataset
+        code with the keygen CSV on Synology to match D2L uploads.</p>
+      ${statCards}
+      ${body}
+    </section>`;
+}
+function hw466DashCSV() {
+  const d = _hw466Dash;
+  if (!d || !Array.isArray(d.rows) || !d.rows.length) return;
+  const cols = ['name', 'email', 'sid_norm', 'code', 'answeredCount', 'totalQuestions',
+                'runCount', 'secondsActive', 'lastActiveAt', 'clientSavedAt'];
+  const cell = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const csv = [cols.join(',')]
+    .concat(d.rows.map(r => cols.map(c => cell(r[c])).join(',')))
+    .join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${d.assignment}_progress_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+function wireHw466Dash() {
+  document.getElementById('hw466-dash-assignment')?.addEventListener('change', (ev) => {
+    loadHw466Dash(ev.target.value);
+    refreshCanvas();
+  });
+  document.getElementById('hw466-dash-refresh')?.addEventListener('click', () => {
+    loadHw466Dash(_hw466Dash?.assignment || 'bme466-pretest');
+  });
+  document.getElementById('hw466-dash-csv')?.addEventListener('click', hw466DashCSV);
+  // Test-an-assignment: open the raw module file (released or not), with an
+  // optional ?ds=<netid> staff preview of that student's seeded numbers.
+  document.querySelectorAll('.hw466-test-open').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const file = btn.dataset.file;
+      if (!file) return;
+      const folder = btn.dataset.folder || 'bme466';
+      const ds = (document.getElementById('hw466-test-ds')?.value || '').trim();
+      const url = `modules/${encodeURIComponent(folder)}/${encodeURIComponent(file)}`
+        + (ds ? `?ds=${encodeURIComponent(ds)}` : '');
+      window.open(url, '_blank', 'noopener');
+    });
+  });
+  // ── Roster (V3.675): CSV import, individual add/drop, TA assignment ──
+  document.getElementById('hw466-roster-import')?.addEventListener('click', () => {
+    document.getElementById('hw466-roster-csv')?.click();
+  });
+  document.getElementById('hw466-roster-csv')?.addEventListener('change', (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    ev.target.value = '';                     // allow re-picking the same file
+    if (f) hw466ImportRoster(f);
+  });
+  document.getElementById('hw466-roster-refresh')?.addEventListener('click', () => loadHw466Roster());
+  document.getElementById('hw466-dir-publish')?.addEventListener('click', hw466PublishDirectory);
+  document.getElementById('hw466-enforce-toggle')?.addEventListener('click', (ev) => {
+    hw466SetRosterEnforced(ev.currentTarget.dataset.on === '1');
+  });
+  const addGo = () => hw466AddMember(
+    document.getElementById('hw466-add-name')?.value,
+    document.getElementById('hw466-add-email')?.value);
+  document.getElementById('hw466-add-go')?.addEventListener('click', addGo);
+  document.getElementById('hw466-add-email')?.addEventListener('keydown', e => { if (e.key === 'Enter') addGo(); });
+  const taGo = () => {
+    const el = document.getElementById('hw466-ta-email');
+    if (el?.value) hw466SetTA(el.value, true);
+  };
+  document.getElementById('hw466-ta-go')?.addEventListener('click', taGo);
+  document.getElementById('hw466-ta-email')?.addEventListener('keydown', e => { if (e.key === 'Enter') taGo(); });
+  document.querySelectorAll('.hw466-roster-ta').forEach(btn => {
+    btn.addEventListener('click', () => hw466SetTA(btn.dataset.email, btn.dataset.make === '1'));
+  });
+  document.querySelectorAll('.hw466-roster-drop').forEach(btn => {
+    btn.addEventListener('click', () => hw466DropMember(btn.dataset.email));
+  });
+  // Per-row progress-doc delete (test cleanup) — rules allow admin/classAdmin.
+  document.querySelectorAll('.hw466-dash-del').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.docId;
+      if (!id) return;
+      if (!confirm(`Delete the cloud progress doc "${id}"?\n\nThe student's own browser copy and any exported file are untouched — this only clears the cloud save (meant for staff test runs).`)) return;
+      try {
+        await McgheeLab.db.collection('hwProgress').doc(id).delete();
+        loadHw466Dash(_hw466Dash?.assignment || 'bme466-pretest');
+      } catch (e) {
+        alert('Delete failed: ' + (e.message || e));
+      }
+    });
+  });
+}
+
+/* ================================================================
+   V3.681 — BME466 COURSE PLATFORM
+   Homeworks page · assignment management · student dashboard ·
+   private student↔staff requests · course sections.
+
+   Four collections (firestore.rules "V3.681" block):
+     schedules/bme466/assignments/{slug}   staff-authored, world-readable
+                                           once published
+     hw466Status/{slug}_{uid}              self-mark ∪ staff ack/extension
+     schedules/bme466/threads/{id}         private request threads
+                       …/messages/{id}     immutable
+     schedules/bme466/profiles/{uid}       profile + section
+
+   Two rules facts the code must respect:
+     • A student may GET but never LIST hwProgress and hw466Status, so the
+       student view reads its own docs BY ID. That is why an assignment
+       carries `progressKey`.
+     • A public list of assignments must carry where('published','==',true)
+       or the rule denies the whole query. Ordering is done client-side so
+       no composite index is required anywhere in this feature.
+   ================================================================ */
+
+/* ── Sections ───────────────────────────────────────────────────
+   The four "sections" are the cross-listed catalog lines
+   (BME/AME × 466/566), NOT D2L sections 001–004 — the D2L shell merges all
+   four into one org unit, which is why the classlist export cannot carry
+   them and students must self-declare. */
+const HW466_SECTION_CODES = ['BME466', 'AME466', 'BME566', 'AME566'];
+
+/* THE canonical section accessor. Every consumer goes through this — three
+   production bugs (V3.272/284/285) came from reading a raw field or falling
+   back silently, so there is exactly one place to be wrong.
+
+   Staff assignment WINS over the student's own claim. That is INVERTED
+   relative to bmeEffectiveCampus(), where the student's choice wins, and the
+   difference is deliberate: a section is registrar truth, not a preference.
+
+   source:'unknown' FAILS OPEN — the student sees every assignment and a
+   nudge to tell us their section, and the staff matrix shows "n/a?" and
+   drops them from per-level denominators. Silently defaulting to 466 would
+   hide a 566-only assignment from a 566 student, which is the worst
+   failure available here. */
+function bme466Section(profile) {
+  const p = profile || {};
+  const assigned = HW466_SECTION_CODES.includes(p.sectionAssigned) ? p.sectionAssigned : null;
+  const claimed  = HW466_SECTION_CODES.includes(p.sectionClaim)    ? p.sectionClaim    : null;
+  const code = assigned || claimed || null;
+  if (!code) {
+    if (p.sectionAssigned || p.sectionClaim) {
+      console.warn('[hw466] unrecognized section value', p.sectionAssigned, p.sectionClaim);
+    }
+    return { code: null, dept: null, level: null, source: 'unknown' };
+  }
+  return {
+    code,
+    dept: code.slice(0, 3),                 // 'BME' | 'AME' — reporting only
+    level: code.slice(3),                   // '466' | '566' — the axis that matters
+    source: assigned ? 'staff' : 'claim'
+  };
+}
+/** Does this assignment's audience include this student? Unknown → yes. */
+function hw466InAudience(assign, sec) {
+  const aud = assign?.audience || 'all';
+  if (aud === 'all') return true;
+  if (!sec || !sec.level) return true;      // fail open
+  return sec.level === aud;
+}
+/** Signed in with a UA NetID (the accounts the homework modules require). */
+function bme466SignedInStudent() {
+  const em = (McgheeLab.Auth?.currentUser?.email || '').toLowerCase();
+  return /@arizona\.edu$/.test(em);
+}
+function hw466IsStaff() { return _viewType === 'admin' || _isCourseStaff; }
+function hw466Db() { return McgheeLab.db; }
+function hw466Now() { return firebase.firestore.FieldValue.serverTimestamp(); }
+function hw466MyEmail() { return (McgheeLab.Auth?.currentUser?.email || '').toLowerCase(); }
+function hw466MyUid() { return McgheeLab.Auth?.currentUser?.uid || ''; }
+function hw466Col() { return hw466Db().collection('schedules').doc('bme466'); }
+function hw466RepaintIf(keys) {
+  const tab = getActiveTab();
+  if (tab?.sections?.some(s => keys.includes(s.key))) refreshCanvas();
+}
+/** YYYY-MM-DD (or '') from an epoch-ms number — dates are stored as ms so
+    the record survives a client with a skewed clock being irrelevant. */
+function hw466DateStr(ms) {
+  if (!ms) return '';
+  const d = new Date(ms);
+  return isNaN(d) ? '' : d.toISOString().slice(0, 10);
+}
+function hw466ParseDate(s) {
+  if (!s) return null;
+  const t = Date.parse(s + 'T23:59:00');    // a due date means end of that day
+  return isNaN(t) ? null : t;
+}
+
+/* ── The F26 assignment inventory (seeded as DRAFTS) ────────────
+   Weights and the 566-only markings come from the course repo
+   (F26Course/00-admin/COURSE-MAP.md, SEMESTER-PROJECT-DESIGN.md, HW1's
+   `[566 only]` parts). Due dates are deliberately absent: D2L is the
+   authority and no repo file holds real F26 dates. */
+const HW466_SEED_ASSIGNMENTS = [
+  { slug: 'hw0-pretest', title: 'HW0 — Pretest (baseline diagnostic)', kind: 'module',
+    audience: 'all', order: 0, progressKey: 'bme466-pretest',
+    moduleUrl: 'modules/bme466/hw-00-pretest.html',
+    notes: 'Ungraded. Completion credit for uploading the export to D2L.' },
+  { slug: 'hw1-transport', title: 'HW1 — Transport Problems', kind: 'module',
+    audience: 'all', order: 1, progressKey: 'bme466-hw1b',
+    moduleUrl: 'modules/bme466/hw-01-transport-problems.html',
+    notes: 'Challenge is solved by hand and graded from the PDF (566 only; weight redistributes for 466). V2.49, schema v6. Add bme466-hw1b to schedules/bme466.hwProgressKeys before the first sign-in.' },
+  { slug: 'hw2', title: 'HW2 — Reading and Building', kind: 'module', audience: 'all', order: 2, progressKey: 'bme466-hw2',
+    moduleUrl: 'modules/bme466/hw-02-reading-and-building.html',
+    notes: 'Weeks 3–4. One data tab (the Microscope: receptor, actin, myosin slides), five problems, challenge by hand (566). Released 2026-09-16, due 2026-09-30. V2.79, schema bme466-hw2-v1.' },
+  { slug: 'hw3', title: 'HW3 — Grip and Ground', kind: 'module', audience: 'all', order: 3, progressKey: 'bme466-hw3',
+    moduleUrl: 'modules/bme466/hw-03-grip-and-ground.html',
+    notes: 'Weeks 5–6. No data tab: every given printed per student; three problems × three parts, each joining two relations; challenge by hand (566). Released 2026-10-06, due 2026-10-20. V3.28, schema bme466-hw3-v1.' },
+  { slug: 'hw4', title: 'HW4', kind: 'module', audience: 'all', order: 4, progressKey: 'bme466-hw4' },
+  { slug: 'hw5', title: 'HW5', kind: 'module', audience: 'all', order: 5, progressKey: 'bme466-hw5' },
+  { slug: 'hw6', title: 'HW6', kind: 'module', audience: 'all', order: 6, progressKey: 'bme466-hw6' },
+  { slug: 'hw7', title: 'HW7', kind: 'module', audience: 'all', order: 7, progressKey: 'bme466-hw7' },
+  { slug: 'report-1', title: 'Report 1 — Read & Rebuild (journal review)', kind: 'report',
+    audience: 'all', order: 8, progressKey: 'bme466-report1',
+    moduleUrl: 'modules/bme466/report-01-journal-review.html',
+    notes: 'Choose ONE of three short papers, then re-derive and re-measure it on your own seeded benches. Turn in TWO files: your written solutions as one PDF, and the results file exported from Tab 3. Out Week 4. Needs nothing past Week 6. V2.82, schema bme466-report1-v1.' },
+  { slug: 'midterm', title: 'Midterm exam (covers HW1–4)', kind: 'exam', audience: 'all', order: 9,
+    notes: 'Week 9. Separate grad rubric for 566.' },
+  { slug: 'report-2', title: 'Report 2 / semester project', kind: 'project', audience: 'all', order: 10,
+    notes: 'Teams need at least one 566 student; 566 members own four structural contributions.' },
+  { slug: 'bme566-qe', title: 'BME566 qualifying exam', kind: 'qe', audience: '566', order: 11,
+    notes: 'Graduate students only.' },
+  { slug: 'final', title: 'Final exam', kind: 'exam', audience: 'all', order: 12,
+    notes: 'Week 16. Separate grad rubric for 566.' },
+  { slug: 'posttest', title: 'Post-test (what you learned)', kind: 'module',
+    audience: 'all', order: 13, progressKey: 'bme466-posttest',
+    notes: 'Paired with HW0 to measure change over the semester.' }
+];
+/** Idempotent: writes nothing if any assignment doc already exists. */
+async function hw466SeedAssignments() {
+  const col = hw466Col().collection('assignments');
+  const snap = await col.limit(1).get();
+  if (!snap.empty) return false;
+  const me = hw466MyEmail();
+  let batch = hw466Db().batch(), n = 0;
+  for (const a of HW466_SEED_ASSIGNMENTS) {
+    batch.set(col.doc(a.slug), {
+      ...a, published: false,
+      createdAt: hw466Now(), createdBy: me,
+      updatedAt: hw466Now(), updatedBy: me
+    });
+    if (++n % 400 === 0) { await batch.commit(); batch = hw466Db().batch(); }
+  }
+  await batch.commit();
+  // Keep the hwProgress enum in step with what the assignments declare, so
+  // adding a homework module never needs a rules redeploy.
+  await hw466SyncProgressKeys();
+  console.log(`[hw466] seeded ${HW466_SEED_ASSIGNMENTS.length} assignment drafts`);
+  return true;
+}
+/** schedules/bme466.hwProgressKeys ← every progressKey on an assignment. */
+async function hw466SyncProgressKeys() {
+  try {
+    const snap = await hw466Col().collection('assignments').get();
+    const keys = [...new Set(snap.docs.map(d => d.data().progressKey).filter(Boolean))];
+    if (!keys.length) return;
+    await hw466Col().update({ hwProgressKeys: keys });
+    if (_classData) _classData.hwProgressKeys = keys;
+  } catch (e) { console.warn('[hw466] hwProgressKeys sync failed', e); }
+}
+
+/* ── State ────────────────────────────────────────────────────── */
+let _hw466Assigns = null;    // { rows|null, error?, loadedAt }
+let _hw466Mine    = null;    // { profile, statuses:Map, progress:Map, threads, error? }
+let _hw466Staff   = null;    // { profiles, statuses:Map, progress:Map, threads, error? }
+let _hw466Thread  = null;    // { id, msgs|null, error? } — the open conversation
+let _hw466Editing = null;    // slug being edited, or '__new__', or null
+let _hw466Matrix  = null;    // slug the status matrix is showing
+let _hw466Compose = false;   // student's "new request" form open?
+
+/* ── Loaders ──────────────────────────────────────────────────── */
+async function loadHw466Assigns() {
+  _hw466Assigns = { rows: null };
+  try {
+    /* Staff read every draft; everyone else MUST filter on published or the
+       list rule denies the query outright (rules are not filters). */
+    const col = hw466Col().collection('assignments');
+    const snap = hw466IsStaff() ? await col.get()
+                                : await col.where('published', '==', true).get();
+    const rows = snap.docs.map(d => ({ slug: d.id, ...d.data() }));
+    rows.sort((a, b) => (a.order ?? 99) - (b.order ?? 99)
+                     || String(a.slug).localeCompare(String(b.slug)));
+    _hw466Assigns = { rows, loadedAt: Date.now() };
+  } catch (e) {
+    console.warn('[hw466] assignments load', e);
+    _hw466Assigns = { rows: [], error: String(e.message || e) };
+  }
+  hw466RepaintIf(['hwList466', 'hwMine466', 'hwAssign466']);
+}
+
+async function loadHw466Mine() {
+  const uid = hw466MyUid();
+  if (!uid) { _hw466Mine = { error: 'not signed in' }; return; }
+  _hw466Mine = { loading: true };
+  const out = { profile: null, statuses: new Map(), progress: new Map(), threads: [] };
+  try {
+    const pSnap = await hw466Col().collection('profiles').doc(uid).get();
+    out.profile = pSnap.exists ? pSnap.data() : null;
+  } catch (e) { console.warn('[hw466] profile load', e); }
+  // Own docs BY ID — a student may get but never list these collections.
+  const assigns = (_hw466Assigns?.rows) || [];
+  await Promise.all(assigns.map(async (a) => {
+    try {
+      const s = await hw466Db().collection('hw466Status').doc(`${a.slug}_${uid}`).get();
+      if (s.exists) out.statuses.set(a.slug, s.data());
+    } catch (e) { /* denied/absent is normal: no doc until they act */ }
+    if (a.progressKey) {
+      try {
+        const p = await hw466Db().collection('hwProgress').doc(`${a.progressKey}_${uid}`).get();
+        if (p.exists) out.progress.set(a.slug, p.data());
+      } catch (e) { /* same */ }
+    }
+  }));
+  try {
+    const tSnap = await hw466Col().collection('threads').where('authorUid', '==', uid).get();
+    out.threads = tSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    out.threads.sort((a, b) => hw466Ms(b.lastMessageAt || b.createdAt) - hw466Ms(a.lastMessageAt || a.createdAt));
+  } catch (e) { console.warn('[hw466] my threads', e); }
+  _hw466Mine = out;
+  hw466RepaintIf(['hwMine466']);
+}
+
+async function loadHw466Staff() {
+  _hw466Staff = { loading: true };
+  const out = { profiles: [], statuses: new Map(), progress: new Map(), threads: [], errors: [] };
+  try {
+    const snap = await hw466Col().collection('profiles').get();
+    out.profiles = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+  } catch (e) { out.errors.push('profiles: ' + (e.message || e)); }
+  try {
+    const snap = await hw466Col().collection('threads').get();
+    out.threads = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    out.threads.sort((a, b) => (b.unreadForStaff ? 1 : 0) - (a.unreadForStaff ? 1 : 0)
+      || hw466Ms(b.lastMessageAt || b.createdAt) - hw466Ms(a.lastMessageAt || a.createdAt));
+  } catch (e) { out.errors.push('threads: ' + (e.message || e)); }
+  const slug = _hw466Matrix;
+  if (slug) {
+    try {
+      const snap = await hw466Db().collection('hw466Status').where('assignment', '==', slug).get();
+      snap.docs.forEach(d => out.statuses.set(d.data().uid, d.data()));
+    } catch (e) { out.errors.push('status: ' + (e.message || e)); }
+    const a = (_hw466Assigns?.rows || []).find(x => x.slug === slug);
+    if (a?.progressKey) {
+      try {
+        const snap = await hw466Db().collection('hwProgress')
+          .where('assignment', '==', a.progressKey).get();
+        snap.docs.forEach(d => {
+          const v = d.data();
+          // hwProgress is keyed by uid in the docId, not by a uid field.
+          out.progress.set(String(d.id).split('_').slice(1).join('_'), v);
+        });
+      } catch (e) { out.errors.push('progress: ' + (e.message || e)); }
+    }
+  }
+  _hw466Staff = out;
+  hw466RepaintIf(['hwAssign466']);
+}
+
+/** Firestore Timestamp | number | undefined → ms (0 when unknown). */
+/* V3.684 — a module opened OUTSIDE the viewer (these links, and any
+   direct link) still needs its class context for the whiteboard panel,
+   which the iframe now gets from its src. Appends, never clobbers, an
+   existing query string. */
+function hw466ModuleHref(url, classId) {
+  if (!url) return url;
+  if (/[?&]class=/.test(url)) return url;
+  return url + (url.includes('?') ? '&' : '?') + 'class=' + encodeURIComponent(classId || 'bme466');
+}
+
+function hw466Ms(v) {
+  if (!v) return 0;
+  if (typeof v === 'number') return v;
+  if (typeof v.toMillis === 'function') return v.toMillis();
+  if (v.seconds) return v.seconds * 1000;
+  return 0;
+}
+
+async function loadHw466Thread(id) {
+  _hw466Thread = { id, msgs: null };
+  try {
+    const snap = await hw466Col().collection('threads').doc(id)
+      .collection('messages').get();
+    const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    msgs.sort((a, b) => hw466Ms(a.createdAt) - hw466Ms(b.createdAt));
+    _hw466Thread = { id, msgs };
+    // Clear MY unread flag (each side may only clear its own).
+    const side = hw466IsStaff() ? { unreadForStaff: false } : { unreadForAuthor: false };
+    try { await hw466Col().collection('threads').doc(id).update({ ...side, updatedAt: hw466Now() }); }
+    catch (e) { /* not fatal: the badge just stays until next time */ }
+  } catch (e) {
+    _hw466Thread = { id, msgs: [], error: String(e.message || e) };
+  }
+  hw466RepaintIf(['hwMine466', 'hwAssign466']);
+}
+
+/* ── Writers ──────────────────────────────────────────────────── */
+async function hw466SaveAssignment(vals) {
+  const slug = String(vals.slug || '').trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9-]{0,59}$/.test(slug)) {
+    alert('The id must be lowercase letters, digits and hyphens (no underscores or spaces) — it becomes part of the document id.');
+    return;
+  }
+  if (!vals.title.trim()) { alert('Give the assignment a title.'); return; }
+  const doc = {
+    slug, title: vals.title.trim(), kind: vals.kind, audience: vals.audience,
+    published: !!vals.published, order: Number(vals.order) || 0,
+    updatedAt: hw466Now(), updatedBy: hw466MyEmail()
+  };
+  // Only send optional fields that have a value: the rules whitelist allows
+  // them but a blank string is noise on a world-readable doc.
+  ['moduleUrl', 'd2lLink', 'notes', 'progressKey'].forEach(k => {
+    const v = String(vals[k] || '').trim();
+    if (v) doc[k] = v;
+  });
+  const due = hw466ParseDate(vals.dueAt);
+  if (due) doc.dueAt = due;
+  const opens = hw466ParseDate(vals.opensAt);
+  if (opens) doc.opensAt = opens;
+  try {
+    const ref = hw466Col().collection('assignments').doc(slug);
+    const existing = await ref.get();
+    if (!existing.exists) { doc.createdAt = hw466Now(); doc.createdBy = hw466MyEmail(); }
+    await ref.set(doc, { merge: true });
+    _hw466Editing = null;
+    if (doc.progressKey) await hw466SyncProgressKeys();
+    await loadHw466Assigns();
+  } catch (e) { alert('Save failed: ' + (e.message || e)); }
+}
+async function hw466TogglePublish(slug, on) {
+  if (on && !confirm(`Publish "${slug}"?\n\nIt becomes visible on the public Homeworks page, and every student it is for gets a notification.`)) return;
+  try {
+    await hw466Col().collection('assignments').doc(slug)
+      .set({ published: !!on, updatedAt: hw466Now(), updatedBy: hw466MyEmail() }, { merge: true });
+    await loadHw466Assigns();
+  } catch (e) { alert('Could not change release state: ' + (e.message || e)); }
+}
+async function hw466DeleteAssignment(slug) {
+  if (!confirm(`Delete the assignment record "${slug}"?\n\nStudent self-marks and staff notes for it are left behind (they live in hw466Status). Unpublishing is usually what you want instead.`)) return;
+  try {
+    await hw466Col().collection('assignments').doc(slug).delete();
+    await loadHw466Assigns();
+  } catch (e) { alert('Delete failed: ' + (e.message || e)); }
+}
+async function hw466SaveProfile(vals) {
+  const uid = hw466MyUid();
+  if (!uid) return;
+  const doc = {
+    uid, email: hw466MyEmail(),
+    displayName: String(vals.displayName || '').slice(0, 120),
+    pronouns: String(vals.pronouns || '').slice(0, 40),
+    major: String(vals.major || '').slice(0, 80),
+    year: String(vals.year || '').slice(0, 40),
+    interests: String(vals.interests || '').slice(0, 1000),
+    contactPref: String(vals.contactPref || '').slice(0, 40),
+    sectionClaim: HW466_SECTION_CODES.includes(vals.sectionClaim) ? vals.sectionClaim : null,
+    updatedAt: hw466Now()
+  };
+  try {
+    const ref = hw466Col().collection('profiles').doc(uid);
+    const existing = await ref.get();
+    if (!existing.exists) doc.createdAt = hw466Now();
+    await ref.set(doc, { merge: true });
+    await loadHw466Mine();
+  } catch (e) { alert('Could not save your profile: ' + (e.message || e)); }
+}
+/* The student's own "I uploaded it to D2L" mark. NOT a grade and not a
+   submission — D2L remains the turn-in and the gradebook; this is what makes
+   the pending/completed split honest without one. */
+async function hw466SelfMark(slug, on, note) {
+  const uid = hw466MyUid();
+  if (!uid) return;
+  const body = {
+    assignment: slug, uid, email: hw466MyEmail(),
+    name: (_hw466Mine?.profile?.displayName) || (McgheeLab.Auth?.currentUser?.displayName || ''),
+    selfMarked: !!on, selfMarkedAt: on ? Date.now() : null,
+    updatedAt: hw466Now()
+  };
+  if (typeof note === 'string') body.note = note.slice(0, 500);
+  try {
+    const ref = hw466Db().collection('hw466Status').doc(`${slug}_${uid}`);
+    const existing = await ref.get();
+    if (!existing.exists) body.createdAt = hw466Now();
+    await ref.set(body, { merge: true });
+    await loadHw466Mine();
+  } catch (e) { alert('Could not record that: ' + (e.message || e)); }
+}
+async function hw466Ack(slug, uid, on) {
+  try {
+    const ref = hw466Db().collection('hw466Status').doc(`${slug}_${uid}`);
+    const existing = await ref.get();
+    const body = on
+      ? { ackBy: hw466MyEmail(), ackAt: Date.now(), updatedAt: hw466Now() }
+      : { ackBy: null, ackAt: null, updatedAt: hw466Now() };
+    if (!existing.exists) { body.assignment = slug; body.uid = uid; body.createdAt = hw466Now(); }
+    await ref.set(body, { merge: true });
+    await loadHw466Staff();
+  } catch (e) { alert('Could not acknowledge: ' + (e.message || e)); }
+}
+async function hw466SetExtension(slug, uid, dateStr, note) {
+  const ms = hw466ParseDate(dateStr);
+  if (dateStr && !ms) { alert('Use a YYYY-MM-DD date.'); return; }
+  try {
+    const ref = hw466Db().collection('hw466Status').doc(`${slug}_${uid}`);
+    const existing = await ref.get();
+    const body = {
+      dueOverrideAt: ms || null,
+      extensionNote: String(note || '').slice(0, 500),
+      updatedAt: hw466Now()
+    };
+    if (!existing.exists) { body.assignment = slug; body.uid = uid; body.createdAt = hw466Now(); }
+    await ref.set(body, { merge: true });
+    await loadHw466Staff();
+  } catch (e) { alert('Could not set the extension: ' + (e.message || e)); }
+}
+async function hw466AssignSection(uid, code) {
+  const val = HW466_SECTION_CODES.includes(code) ? code : null;
+  try {
+    await hw466Col().collection('profiles').doc(uid).set({
+      sectionAssigned: val,
+      sectionAssignedBy: hw466MyEmail(),
+      sectionAssignedAt: Date.now(),
+      updatedAt: hw466Now()
+    }, { merge: true });
+    await loadHw466Staff();
+  } catch (e) { alert('Could not assign the section: ' + (e.message || e)); }
+}
+async function hw466NewThread(subject, topic, slug, body) {
+  if (!subject.trim() || !body.trim()) { alert('A subject and a message, please.'); return; }
+  try {
+    const ref = await hw466Col().collection('threads').add({
+      authorUid: hw466MyUid(), authorEmail: hw466MyEmail(),
+      authorName: (_hw466Mine?.profile?.displayName) || (McgheeLab.Auth?.currentUser?.displayName || ''),
+      authorRole: hw466IsStaff() ? 'staff' : 'student',
+      subject: subject.trim().slice(0, 160),
+      topic, assignmentSlug: slug || null,
+      status: 'open', createdAt: hw466Now()
+    });
+    await hw466PostMessage(ref.id, body, { quiet: true });
+    _hw466Compose = false;
+    await loadHw466Mine();
+    await loadHw466Thread(ref.id);
+  } catch (e) { alert('Could not send that: ' + (e.message || e)); }
+}
+async function hw466PostMessage(threadId, body, opts) {
+  const text = String(body || '').trim();
+  if (!text) return;
+  try {
+    await hw466Col().collection('threads').doc(threadId).collection('messages').add({
+      authorUid: hw466MyUid(), authorEmail: hw466MyEmail(),
+      authorName: (McgheeLab.Auth?.currentUser?.displayName || ''),
+      // Rules PROVE this against the caller's own staff status, so a wrong
+      // value here is a denied write, not a forged one.
+      authorRole: hw466IsStaff() ? 'staff' : 'student',
+      body: text.slice(0, 4000), createdAt: hw466Now()
+    });
+    if (!opts?.quiet) await loadHw466Thread(threadId);
+  } catch (e) { alert('Could not post: ' + (e.message || e)); }
+}
+async function hw466SetThreadStatus(threadId, status) {
+  try {
+    await hw466Col().collection('threads').doc(threadId)
+      .update({ status, updatedAt: hw466Now() });
+    if (hw466IsStaff()) await loadHw466Staff(); else await loadHw466Mine();
+  } catch (e) { alert('Could not change the status: ' + (e.message || e)); }
+}
+/* The sections export: the seam that lets scripts/hw1_grade.py score the
+   566-only fields for 566 students only, while roster data stays out of the
+   course repo (write it to Synology, never commit it). */
+function hw466SectionsCSV() {
+  const rows = (_hw466Staff?.profiles) || [];
+  if (!rows.length) { alert('No student profiles yet — students appear here once they open My Homework.'); return; }
+  const cell = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const out = ['netid,email,name,section,level,dept,source'];
+  rows.forEach(p => {
+    const s = bme466Section(p);
+    const email = String(p.email || '');
+    out.push([email.split('@')[0], email, p.displayName || '',
+      s.code || '', s.level || '', s.dept || '', s.source].map(cell).join(','));
+  });
+  const blob = new Blob([out.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `bme466_sections_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+/* ── Shared bits of markup ─────────────────────────────────────── */
+const HW466_KINDS = [['module', 'Module'], ['report', 'Report'], ['exam', 'Exam'],
+                     ['project', 'Project'], ['qe', 'Qualifying exam'], ['other', 'Other']];
+const HW466_TOPICS = [['assignment', 'An assignment'], ['grading', 'Grading'],
+                      ['logistics', 'Logistics / scheduling'], ['content', 'Course content'],
+                      ['other', 'Something else']];
+function hw466AudBadge(aud) {
+  if (aud === '466') return '<span class="cb-tab-admin-tag" title="Undergraduate section only">466 ONLY</span>';
+  if (aud === '566') return '<span class="cb-tab-admin-tag" title="Graduate section only">566 ONLY</span>';
+  return '';
+}
+function hw466KindLabel(k) { return (HW466_KINDS.find(x => x[0] === k) || [, k])[1]; }
+function hw466DueCell(a, override) {
+  const due = override || a.dueAt;
+  if (!due) return '<span class="muted-text">see D2L</span>';
+  const s = hw466DateStr(due);
+  const late = Date.now() > due;
+  return `${override ? '<strong title="Extension granted for you">' : ''}${esc(s)}${override ? '</strong>' : ''}`
+       + (late ? ' <span class="muted-text" style="font-size:.8em">(passed)</span>' : '');
+}
+
+/* ══ 1. Public Homeworks page ════════════════════════════════════ */
+function renderHw466ListBody() {
+  if (!_hw466Assigns) loadHw466Assigns();
+  const A = _hw466Assigns || {};
+  if (!A.rows) return '<p class="muted-text">Loading assignments…</p>';
+  if (A.error) return `<p class="muted-text">Could not load assignments: ${esc(A.error)}</p>`;
+  const rows = A.rows.filter(a => hw466IsStaff() ? true : a.published !== false);
+  if (!rows.length) {
+    return `<p class="muted-text">No assignments have been released yet. They appear here as the
+      semester goes on — and <strong>D2L is always the authority on deadlines and turn-in</strong>.</p>`;
+  }
+  const tr = rows.map(a => `
+    <tr${a.published === false ? ' style="opacity:.55"' : ''}>
+      <td><strong>${esc(a.title || a.slug)}</strong> ${hw466AudBadge(a.audience)}
+        ${a.published === false ? '<span class="cb295-dash-no" style="font-size:.8em">draft</span>' : ''}
+        ${a.notes ? `<br><span class="muted-text" style="font-size:.82em">${esc(a.notes)}</span>` : ''}</td>
+      <td>${esc(hw466KindLabel(a.kind))}</td>
+      <td>${hw466DueCell(a)}</td>
+      <td>${a.moduleUrl ? `<a class="btn btn-small btn-secondary" href="${escAttr(hw466ModuleHref(a.moduleUrl, _scheduleId))}" target="_blank" rel="noopener">Open module</a>` : ''}
+          ${a.d2lLink ? `<a class="btn btn-small btn-secondary" href="${escAttr(a.d2lLink)}" target="_blank" rel="noopener">D2L</a>` : ''}</td>
+    </tr>`).join('');
+  return `
+    <p class="muted-text" style="margin:0 0 10px">
+      Everything assigned this semester. <strong>Turn-in and grades live in D2L</strong> —
+      this page is the schedule and the links. Items marked
+      <span class="cb-tab-admin-tag">466 ONLY</span> or
+      <span class="cb-tab-admin-tag">566 ONLY</span> are for that level only;
+      sign in and open <em>My Homework</em> to see just yours.</p>
+    <div class="cb295-dash-tablewrap"><table class="cb295-dash-table">
+      <thead><tr><th>Assignment</th><th>Type</th><th>Due</th><th></th></tr></thead>
+      <tbody>${tr}</tbody></table></div>`;
+}
+function wireHw466List() {
+  /* Nothing interactive: plain links, and refreshing is a page action. The
+     loader kicks off from the renderer and repaints when it lands. */
+}
+
+/* ══ 2. Student dashboard ════════════════════════════════════════ */
+function renderHw466MineBody() {
+  if (!bme466SignedInStudent()) {
+    return `
+      <section class="cb295-assess-panel cb295-assess-panel-signedout">
+        <h3>My Homework</h3>
+        <p>Sign in with your <strong>UA NetID</strong> (the Google button — arizona.edu)
+           to see your assignments, keep your progress across devices, and message
+           the instructor and TA.</p>
+        <p class="muted-text">Signed in with a different account? The homework modules
+           and this page both require an <code>@arizona.edu</code> address.</p>
+      </section>`;
+  }
+  if (!_hw466Assigns) loadHw466Assigns();
+  if (!_hw466Mine && _hw466Assigns?.rows) loadHw466Mine();
+  const A = _hw466Assigns || {}, M = _hw466Mine || {};
+  if (!A.rows || M.loading || !M.statuses) return '<p class="muted-text">Loading your assignments…</p>';
+
+  const sec = bme466Section(M.profile);
+  const published = A.rows.filter(a => a.published !== false);
+  const mine = published.filter(a => hw466InAudience(a, sec));
+
+  const card = (a) => {
+    const st = M.statuses.get(a.slug) || {};
+    const pr = M.progress.get(a.slug);
+    const pct = (pr && pr.totalQuestions)
+      ? Math.round(100 * (pr.answeredCount || 0) / pr.totalQuestions) : null;
+    const done = !!st.selfMarked;
+    return `
+      <tr>
+        <td><strong>${esc(a.title || a.slug)}</strong> ${hw466AudBadge(a.audience)}
+          ${st.dueOverrideAt ? '<span class="cb295-dash-yes" style="font-size:.8em">extension</span>' : ''}
+          ${a.moduleUrl ? `<br><a href="${escAttr(hw466ModuleHref(a.moduleUrl, _scheduleId))}" target="_blank" rel="noopener" style="font-size:.85em">open the module →</a>` : ''}
+          ${st.feedback ? `<br><span class="muted-text" style="font-size:.82em">Note from staff: ${esc(st.feedback)}</span>` : ''}</td>
+        <td>${hw466DueCell(a, st.dueOverrideAt)}</td>
+        <td>${pct === null ? '<span class="muted-text">—</span>' :
+          `<div class="teach-eng-bar"><div class="teach-eng-fill" style="width:${pct}%"></div></div>
+           <span class="muted-text" style="font-size:.78em">${pr.answeredCount || 0}/${pr.totalQuestions} answered</span>`}</td>
+        <td>${st.ackBy ? '<span class="cb295-dash-yes">✓ received</span>' : '<span class="muted-text">—</span>'}</td>
+        <td><button type="button" class="btn btn-small ${done ? 'btn-secondary' : 'btn-primary'} hw466-mine-mark"
+              data-slug="${escAttr(a.slug)}" data-on="${done ? '0' : '1'}"
+              title="${done ? 'Undo — you have not uploaded it after all' : 'Tell us you uploaded it to D2L. This is not the turn-in; D2L is.'}">
+              ${done ? 'Uploaded ✓' : 'I uploaded it'}</button></td>
+      </tr>`;
+  };
+  const pending = mine.filter(a => !(M.statuses.get(a.slug) || {}).selfMarked);
+  const complete = mine.filter(a => (M.statuses.get(a.slug) || {}).selfMarked);
+  const table = (rows, empty) => rows.length ? `
+    <div class="cb295-dash-tablewrap"><table class="cb295-dash-table">
+      <thead><tr><th>Assignment</th><th>Due</th><th>Module progress</th><th>Staff</th><th></th></tr></thead>
+      <tbody>${rows.map(card).join('')}</tbody></table></div>`
+    : `<p class="muted-text">${empty}</p>`;
+
+  /* Section: staff-assigned wins, and when we don't know we show everything
+     rather than guessing (a hidden 566-only assignment is the bad outcome). */
+  const secNote = sec.source === 'staff'
+    ? `<span class="cb295-dash-yes">${esc(sec.code)}</span> <span class="muted-text">(set by the teaching team)</span>`
+    : sec.source === 'claim'
+      ? `<span class="cb295-dash-yes">${esc(sec.code)}</span> <span class="muted-text">(as you told us — staff can correct it)</span>`
+      : `<span class="cb295-dash-no">not set</span> <span class="muted-text">— you are seeing every assignment,
+         including ones only for the other level. Pick your section below.</span>`;
+  const p = M.profile || {};
+  const opt = (v, l, cur) => `<option value="${escAttr(v)}"${v === (cur || '') ? ' selected' : ''}>${esc(l)}</option>`;
+  const profileCard = `
+    <section class="cb295-dash-card">
+      <header class="cb295-dash-card-header"><h3>My profile</h3>
+        <span><button type="button" class="btn btn-small btn-primary" id="hw466-profile-save">Save</button></span></header>
+      <p class="muted-text" style="margin:4px 0 10px;font-size:.85em">
+        Your section decides which assignments are yours (the 566 parts of a homework, the
+        qualifying exam, project team rules). Registrar records are the truth; if what you
+        pick and what we have differ, the teaching team's value wins.</p>
+      <div class="addrow" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+        <input type="text" id="hw466-p-name" class="cb-input" style="width:200px" placeholder="Preferred name" value="${escAttr(p.displayName || '')}">
+        <input type="text" id="hw466-p-pron" class="cb-input" style="width:130px" placeholder="Pronouns" value="${escAttr(p.pronouns || '')}">
+        <input type="text" id="hw466-p-major" class="cb-input" style="width:170px" placeholder="Major" value="${escAttr(p.major || '')}">
+        <input type="text" id="hw466-p-year" class="cb-input" style="width:130px" placeholder="Year" value="${escAttr(p.year || '')}">
+        <select id="hw466-p-section" class="cb-input" style="width:auto">
+          ${opt('', 'Which section are you in?', p.sectionClaim)}
+          ${HW466_SECTION_CODES.map(c => opt(c, c.replace(/(\d)/, ' $1'), p.sectionClaim)).join('')}
+        </select>
+      </div>
+      <textarea id="hw466-p-int" class="cb-input" rows="2" style="width:100%"
+        placeholder="Anything you want us to know — interests, what you want out of the course, accommodations you'd rather mention here than in class.">${esc(p.interests || '')}</textarea>
+      <p class="muted-text" style="font-size:.82em;margin-top:6px">Your section: ${secNote}</p>
+    </section>`;
+
+  /* Requests: threads are private to the author + staff. */
+  const threads = M.threads || [];
+  const openThread = _hw466Thread && threads.some(t => t.id === _hw466Thread.id) ? _hw466Thread : null;
+  const threadRows = threads.map(t => `
+    <tr${t.unreadForAuthor ? ' style="font-weight:600"' : ''}>
+      <td><a href="#" class="hw466-thread-open" data-id="${escAttr(t.id)}">${esc(t.subject || '(no subject)')}</a>
+        ${t.unreadForAuthor ? ' <span class="cb-tab-admin-tag" title="New reply">NEW</span>' : ''}
+        <br><span class="muted-text" style="font-size:.8em">${esc(t.lastMessagePreview || '')}</span></td>
+      <td>${esc(t.status || 'open')}</td>
+      <td>${t.lastMessageAt ? esc(fmtRelativeTime(new Date(hw466Ms(t.lastMessageAt)))) : '—'}</td>
+    </tr>`).join('');
+  const requestsCard = `
+    <section class="cb295-dash-card">
+      <header class="cb295-dash-card-header"><h3>My requests to the instructor &amp; TA</h3>
+        <span><button type="button" class="btn btn-small btn-primary" id="hw466-req-new">${_hw466Compose ? 'Cancel' : 'New request'}</button></span></header>
+      <p class="muted-text" style="margin:4px 0 10px;font-size:.85em">
+        Private: only you and the teaching team can read a thread. Good for extensions,
+        an assignment question, or anything you would rather not ask in front of the class.
+        Messages cannot be edited or deleted once sent, by you or by us.</p>
+      ${_hw466Compose ? `
+        <div class="addrow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <input type="text" id="hw466-req-subject" class="cb-input" style="width:260px" placeholder="Subject">
+          <select id="hw466-req-topic" class="cb-input" style="width:auto">
+            ${HW466_TOPICS.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('')}
+          </select>
+          <select id="hw466-req-slug" class="cb-input" style="width:auto">
+            <option value="">(not about a specific assignment)</option>
+            ${mine.map(a => `<option value="${escAttr(a.slug)}">${esc(a.title || a.slug)}</option>`).join('')}
+          </select>
+        </div>
+        <textarea id="hw466-req-body" class="cb-input" rows="3" style="width:100%" placeholder="What do you need?"></textarea>
+        <p style="margin-top:6px"><button type="button" class="btn btn-small btn-primary" id="hw466-req-send">Send</button></p>` : ''}
+      ${threads.length ? `<div class="cb295-dash-tablewrap"><table class="cb295-dash-table">
+        <thead><tr><th>Subject</th><th>Status</th><th>Last activity</th></tr></thead>
+        <tbody>${threadRows}</tbody></table></div>` : '<p class="muted-text">No requests yet.</p>'}
+      ${openThread ? hw466ThreadPanel(openThread, threads.find(t => t.id === openThread.id)) : ''}
+    </section>`;
+
+  return `
+    <section class="cb295-dash-card">
+      <header class="cb295-dash-card-header"><h3>Pending — ${pending.length}</h3>
+        <span><button type="button" class="btn btn-small btn-secondary" id="hw466-mine-refresh">Refresh</button></span></header>
+      <p class="muted-text" style="margin:4px 0 10px;font-size:.85em">
+        <strong>D2L is still the turn-in and the gradebook.</strong> "I uploaded it" tells the
+        teaching team you're done so we can chase the right people — it is not a submission
+        and it is not a grade.</p>
+      ${table(pending, 'Nothing pending. Either you are done or nothing is released yet.')}
+    </section>
+    <section class="cb295-dash-card">
+      <header class="cb295-dash-card-header"><h3>Completed — ${complete.length}</h3></header>
+      ${table(complete, 'Nothing marked done yet.')}
+    </section>
+    ${profileCard}
+    ${requestsCard}`;
+}
+/** The conversation view, shared by the student tab and the staff inbox. */
+function hw466ThreadPanel(open, meta) {
+  if (!open.msgs) return '<p class="muted-text">Loading the conversation…</p>';
+  if (open.error) return `<p class="muted-text">Could not load it: ${esc(open.error)}</p>`;
+  const bubbles = open.msgs.map(m => {
+    const staff = m.authorRole === 'staff';
+    return `<div style="margin:8px 0;padding:8px 10px;border-radius:8px;border:1px solid var(--border,#e5e7eb);
+       ${staff ? 'background:rgba(59,130,246,.07)' : ''}">
+      <div class="muted-text" style="font-size:.78em">
+        ${esc(m.authorName || m.authorEmail || '')} ${staff ? '<span class="cb-tab-admin-tag">STAFF</span>' : ''}
+        · ${m.createdAt ? esc(fmtRelativeTime(new Date(hw466Ms(m.createdAt)))) : 'just now'}</div>
+      <div style="white-space:pre-wrap">${esc(m.body || '')}</div>
+    </div>`;
+  }).join('');
+  const closed = (meta?.status || 'open') === 'closed';
+  return `
+    <div style="margin-top:12px;border-top:1px solid var(--border,#e5e7eb);padding-top:10px">
+      <h4 style="margin:0 0 4px">${esc(meta?.subject || 'Conversation')}</h4>
+      ${bubbles || '<p class="muted-text">No messages.</p>'}
+      <textarea id="hw466-msg-body" class="cb-input" rows="2" style="width:100%" placeholder="${closed ? 'This thread is closed — reopening it posts a new message.' : 'Reply…'}"></textarea>
+      <p style="margin-top:6px">
+        <button type="button" class="btn btn-small btn-primary" id="hw466-msg-send" data-id="${escAttr(open.id)}">Send</button>
+        ${hw466IsStaff() ? `
+          <button type="button" class="btn btn-small btn-secondary hw466-thread-status" data-id="${escAttr(open.id)}" data-status="answered">Mark answered</button>
+          <button type="button" class="btn btn-small btn-secondary hw466-thread-status" data-id="${escAttr(open.id)}" data-status="closed">Close</button>`
+        : `<button type="button" class="btn btn-small btn-secondary hw466-thread-status" data-id="${escAttr(open.id)}" data-status="${closed ? 'open' : 'closed'}">${closed ? 'Reopen' : 'Close'}</button>`}
+      </p>
+    </div>`;
+}
+
+/* ══ 3. Staff surface: assign, matrix, inbox, sections ═══════════ */
+function renderHw466AssignBody() {
+  if (!hw466IsStaff()) {
+    return '<p class="muted-text">This surface is for the instructor and TAs.</p>';
+  }
+  if (!_hw466Assigns) loadHw466Assigns();
+  if (!_hw466Staff) loadHw466Staff();
+  const A = _hw466Assigns || {}, S = _hw466Staff || {};
+  // Say "loading" rather than flashing "No requests yet" at someone whose data
+  // is a round-trip away — an empty state that turns out to be wrong reads as
+  // a broken page.
+  if (S.loading || !A.rows) return '<p class="muted-text">Loading assignments, status and requests…</p>';
+  const staffOnlyNote = (_isCourseStaff && _viewType !== 'admin')
+    ? `<p class="muted-text" style="font-size:.85em">You are signed in as <strong>course staff (TA)</strong>:
+       you can assign homework, see status, set extensions and answer requests. The class
+       roster, page editing and progress deletion stay with the instructor.</p>` : '';
+
+  /* ── assignment manager ── */
+  let manager;
+  if (A.error) manager = `<p class="muted-text">Could not load assignments: ${esc(A.error)}</p>`;
+  else {
+    const rows = A.rows.map(a => `
+      <tr${a.published === false ? ' style="opacity:.7"' : ''}>
+        <td><strong>${esc(a.title || a.slug)}</strong> ${hw466AudBadge(a.audience)}
+          <br><span class="muted-text" style="font-size:.78em"><code>${esc(a.slug)}</code>${a.progressKey ? ` · module key <code>${esc(a.progressKey)}</code>` : ''}</span></td>
+        <td>${esc(hw466KindLabel(a.kind))}</td>
+        <td>${a.dueAt ? esc(hw466DateStr(a.dueAt)) : '<span class="muted-text">—</span>'}</td>
+        <td>${a.published ? '<span class="cb295-dash-yes">✓ released</span>' : '<span class="cb295-dash-no">draft</span>'}</td>
+        <td>
+          <button type="button" class="btn btn-small btn-secondary hw466-a-edit" data-slug="${escAttr(a.slug)}">Edit</button>
+          <button type="button" class="btn btn-small ${a.published ? 'btn-secondary' : 'btn-primary'} hw466-a-pub"
+            data-slug="${escAttr(a.slug)}" data-on="${a.published ? '0' : '1'}">${a.published ? 'Unpublish' : 'Publish'}</button>
+          <button type="button" class="btn btn-small hw466-a-matrix btn-secondary" data-slug="${escAttr(a.slug)}">Status</button>
+          ${_viewType === 'admin' ? `<button type="button" class="btn btn-small btn-secondary hw466-a-del" data-slug="${escAttr(a.slug)}" title="Delete the record">${ICON.svg('trash')}</button>` : ''}
+        </td>
+      </tr>`).join('');
+    manager = `<div class="cb295-dash-tablewrap"><table class="cb295-dash-table">
+      <thead><tr><th>Assignment</th><th>Type</th><th>Due</th><th>Release</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="5" class="muted-text">No assignment records yet.</td></tr>'}</tbody></table></div>`;
+  }
+  /* ── the editor form ── */
+  let editor = '';
+  if (_hw466Editing) {
+    const a = _hw466Editing === '__new__' ? { audience: 'all', kind: 'module', order: (A.rows?.length || 0) }
+      : (A.rows || []).find(x => x.slug === _hw466Editing) || {};
+    const isNew = _hw466Editing === '__new__';
+    editor = `
+      <div style="border:1px solid var(--border,#e5e7eb);border-radius:8px;padding:10px;margin:10px 0">
+        <h4 style="margin:0 0 8px">${isNew ? 'New assignment' : 'Editing ' + esc(a.slug)}</h4>
+        <div class="addrow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <input type="text" id="hw466-f-slug" class="cb-input" style="width:150px" placeholder="id (hw3-blood)"
+            value="${escAttr(a.slug || '')}"${isNew ? '' : ' readonly title="The id is the document id and cannot change — make a new record instead."'}>
+          <input type="text" id="hw466-f-title" class="cb-input" style="width:260px" placeholder="Title" value="${escAttr(a.title || '')}">
+          <select id="hw466-f-kind" class="cb-input" style="width:auto">
+            ${HW466_KINDS.map(([v, l]) => `<option value="${v}"${v === a.kind ? ' selected' : ''}>${esc(l)}</option>`).join('')}
+          </select>
+          <select id="hw466-f-aud" class="cb-input" style="width:auto" title="Which level this is for. The BME/AME axis is recorded but never used to target work.">
+            <option value="all"${a.audience === 'all' ? ' selected' : ''}>Everyone</option>
+            <option value="466"${a.audience === '466' ? ' selected' : ''}>466 only (undergrad)</option>
+            <option value="566"${a.audience === '566' ? ' selected' : ''}>566 only (grad)</option>
+          </select>
+          <input type="number" id="hw466-f-order" class="cb-input" style="width:80px" placeholder="order" value="${escAttr(String(a.order ?? 0))}">
+        </div>
+        <div class="addrow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <label style="font-size:.85em">Due <input type="date" id="hw466-f-due" class="cb-input" value="${escAttr(hw466DateStr(a.dueAt))}"></label>
+          <label style="font-size:.85em">Opens <input type="date" id="hw466-f-opens" class="cb-input" value="${escAttr(hw466DateStr(a.opensAt))}"></label>
+          <input type="text" id="hw466-f-module" class="cb-input" style="width:280px" placeholder="modules/bme466/….html" value="${escAttr(a.moduleUrl || '')}">
+          <input type="text" id="hw466-f-d2l" class="cb-input" style="width:220px" placeholder="D2L link (optional)" value="${escAttr(a.d2lLink || '')}">
+          <input type="text" id="hw466-f-pkey" class="cb-input" style="width:170px" placeholder="module key (bme466-hw3)" value="${escAttr(a.progressKey || '')}"
+            title="Links this record to the module's cloud-save key so students see their progress here. Also keeps schedules/bme466.hwProgressKeys in step, so a new module needs no rules deploy.">
+        </div>
+        <textarea id="hw466-f-notes" class="cb-input" rows="2" style="width:100%" placeholder="Notes shown to students (e.g. '566 students also answer parts d–e')">${esc(a.notes || '')}</textarea>
+        <p class="muted-text" style="font-size:.8em;margin:6px 0">Never put a grade, score or per-student note here — a published
+          assignment doc is world-readable, and the rules reject those fields.</p>
+        <p><label style="font-size:.85em;margin-right:10px"><input type="checkbox" id="hw466-f-pub"${a.published ? ' checked' : ''}> Released to students</label>
+          <button type="button" class="btn btn-small btn-primary" id="hw466-f-save">Save</button>
+          <button type="button" class="btn btn-small btn-secondary" id="hw466-f-cancel">Cancel</button></p>
+      </div>`;
+  }
+
+  /* ── status matrix ── */
+  let matrix = '';
+  if (_hw466Matrix) {
+    const a = (A.rows || []).find(x => x.slug === _hw466Matrix);
+    const profiles = (S.profiles || []).slice()
+      .sort((x, y) => String(x.displayName || x.email || '').localeCompare(String(y.displayName || y.email || '')));
+    const relevant = profiles.filter(p => hw466InAudience(a, bme466Section(p)));
+    const rows = relevant.map(p => {
+      const st = (S.statuses && S.statuses.get(p.uid)) || {};
+      const pr = (S.progress && S.progress.get(p.uid)) || null;
+      const sec = bme466Section(p);
+      const pct = (pr && pr.totalQuestions) ? Math.round(100 * (pr.answeredCount || 0) / pr.totalQuestions) : null;
+      return `<tr>
+        <td>${esc(p.displayName || '')}<br><span class="muted-text" style="font-size:.78em">${esc(p.email || '')}</span></td>
+        <td>${sec.code ? esc(sec.code)
+          /* Not .cb295-dash-no (35% white — the "quietly off" style): a
+             missing section is a call to action, not a quiet negative. */
+          : '<span class="cb-tab-admin-tag" title="No section on file — this student is left out of per-level counts and is shown every assignment until you set it">no section</span>'}
+          <br><select class="cb-input hw466-sec-set" data-uid="${escAttr(p.uid)}" style="width:auto;font-size:.8em">
+            <option value="">— assign —</option>
+            ${HW466_SECTION_CODES.map(c => `<option value="${c}"${p.sectionAssigned === c ? ' selected' : ''}>${c}</option>`).join('')}
+          </select></td>
+        <td>${pct === null ? '<span class="muted-text">—</span>' :
+          `<div class="teach-eng-bar"><div class="teach-eng-fill" style="width:${pct}%"></div></div>
+           <span class="muted-text" style="font-size:.78em">${pr.answeredCount || 0}/${pr.totalQuestions}</span>`}</td>
+        <td>${st.selfMarked ? '<span class="cb295-dash-yes">✓ says uploaded</span>' : '<span class="muted-text">not yet</span>'}
+          ${st.note ? `<br><span class="muted-text" style="font-size:.78em">${esc(st.note)}</span>` : ''}</td>
+        <td>${st.dueOverrideAt ? esc(hw466DateStr(st.dueOverrideAt)) : '<span class="muted-text">—</span>'}
+          <br><input type="date" class="cb-input hw466-ext-set" data-uid="${escAttr(p.uid)}" style="font-size:.8em"
+            value="${escAttr(hw466DateStr(st.dueOverrideAt))}" title="Per-student extension"></td>
+        <td><button type="button" class="btn btn-small ${st.ackBy ? 'btn-secondary' : 'btn-primary'} hw466-ack"
+              data-uid="${escAttr(p.uid)}" data-on="${st.ackBy ? '0' : '1'}">${st.ackBy ? 'Received ✓' : 'Mark received'}</button></td>
+      </tr>`;
+    }).join('');
+    const said = relevant.filter(p => ((S.statuses && S.statuses.get(p.uid)) || {}).selfMarked).length;
+    matrix = `
+      <section class="cb295-dash-card">
+        <header class="cb295-dash-card-header">
+          <h3>Status — ${esc(a?.title || _hw466Matrix)}</h3>
+          <span><button type="button" class="btn btn-small btn-secondary" id="hw466-matrix-refresh">Refresh</button>
+            <button type="button" class="btn btn-small btn-secondary" id="hw466-matrix-close">Close</button></span>
+        </header>
+        <p class="muted-text" style="margin:4px 0 10px;font-size:.85em">
+          ${said} of ${relevant.length} students in this audience say they uploaded it.
+          Rows come from student <em>profiles</em> — a student appears once they have opened
+          <em>My Homework</em>, so this is not the full class list until everyone has.
+          ${a?.audience !== 'all' ? `Students with no section on file are shown anyway rather than hidden — set theirs in the Section column.` : ''}
+          No grades here: acknowledgement means "we have it", nothing more.</p>
+        ${rows ? `<div class="cb295-dash-tablewrap"><table class="cb295-dash-table">
+          <thead><tr><th>Student</th><th>Section</th><th>Module progress</th><th>Self-report</th><th>Extension</th><th></th></tr></thead>
+          <tbody>${rows}</tbody></table></div>` : '<p class="muted-text">No student profiles yet.</p>'}
+      </section>`;
+  }
+
+  /* ── requests inbox ── */
+  const threads = S.threads || [];
+  const unread = threads.filter(t => t.unreadForStaff).length;
+  const openThread = _hw466Thread && threads.some(t => t.id === _hw466Thread.id) ? _hw466Thread : null;
+  const inboxRows = threads.map(t => `
+    <tr${t.unreadForStaff ? ' style="font-weight:600"' : ''}>
+      <td><a href="#" class="hw466-thread-open" data-id="${escAttr(t.id)}">${esc(t.subject || '(no subject)')}</a>
+        ${t.unreadForStaff ? ' <span class="cb-tab-admin-tag">NEW</span>' : ''}
+        <br><span class="muted-text" style="font-size:.8em">${esc(t.lastMessagePreview || '')}</span></td>
+      <td>${esc(t.authorName || '')}<br><span class="muted-text" style="font-size:.78em">${esc(t.authorEmail || '')}</span></td>
+      <td>${esc(t.topic || '')}${t.assignmentSlug ? `<br><span class="muted-text" style="font-size:.78em">${esc(t.assignmentSlug)}</span>` : ''}</td>
+      <td>${esc(t.status || 'open')}</td>
+      <td>${t.lastMessageAt ? esc(fmtRelativeTime(new Date(hw466Ms(t.lastMessageAt)))) : '—'}</td>
+    </tr>`).join('');
+
+  const sectionCounts = HW466_SECTION_CODES.map(c => {
+    const n = (S.profiles || []).filter(p => bme466Section(p).code === c).length;
+    return `${c}: ${n}`;
+  }).join(' · ');
+  const unknownSec = (S.profiles || []).filter(p => bme466Section(p).source === 'unknown').length;
+
+  return `
+    ${staffOnlyNote}
+    ${(S.errors && S.errors.length) ? `<p class="muted-text">Some data could not be loaded: ${esc(S.errors.join('; '))}</p>` : ''}
+    <section class="cb295-dash-card">
+      <header class="cb295-dash-card-header">
+        <h3>Assignments — assign homework</h3>
+        <span><button type="button" class="btn btn-small btn-primary" id="hw466-a-new">New assignment</button>
+          <button type="button" class="btn btn-small btn-secondary" id="hw466-a-refresh">Refresh</button></span>
+      </header>
+      <p class="muted-text" style="margin:4px 0 10px;font-size:.85em">
+        A <strong>draft</strong> is invisible to students; <strong>publish</strong> puts it on the
+        public Homeworks page and notifies the students it is for. Audience targets the
+        <em>level</em> (466 vs 566) — the BME/AME half of a section is recorded for reporting
+        and never changes who gets what. Dates here are a courtesy display:
+        <strong>D2L remains the authority</strong>.</p>
+      ${editor}
+      ${manager}
+    </section>
+    ${matrix}
+    <section class="cb295-dash-card">
+      <header class="cb295-dash-card-header">
+        <h3>Student requests${unread ? ` — ${unread} new` : ''}</h3>
+        <span><button type="button" class="btn btn-small btn-secondary" id="hw466-inbox-refresh">Refresh</button></span>
+      </header>
+      <p class="muted-text" style="margin:4px 0 10px;font-size:.85em">
+        Private threads between one student and the teaching team. Replies are signed
+        <strong>STAFF</strong> automatically — the rules prove the role rather than trusting
+        the label — and no message can be edited or deleted after it is sent.</p>
+      ${threads.length ? `<div class="cb295-dash-tablewrap"><table class="cb295-dash-table">
+        <thead><tr><th>Subject</th><th>Student</th><th>About</th><th>Status</th><th>Last activity</th></tr></thead>
+        <tbody>${inboxRows}</tbody></table></div>` : '<p class="muted-text">No requests yet.</p>'}
+      ${openThread ? hw466ThreadPanel(openThread, threads.find(t => t.id === openThread.id)) : ''}
+    </section>
+    <section class="cb295-dash-card">
+      <header class="cb295-dash-card-header"><h3>Sections</h3>
+        <span><button type="button" class="btn btn-small btn-secondary" id="hw466-sec-csv">Export sections CSV</button></span></header>
+      <p class="muted-text" style="margin:4px 0 10px;font-size:.85em">
+        ${esc(sectionCounts)}${unknownSec ? ` · <strong>${unknownSec} with no section on file</strong>` : ''}.
+        The D2L classlist export has no section column (all four catalog lines are merged into
+        one shell), so students self-declare and you correct them — assign from the Status
+        table above. The CSV feeds <code>scripts/hw1_grade.py --sections</code> so the 566-only
+        answers are scored only for 566 students. It contains student names: keep it on
+        Synology, never in a repo.</p>
+    </section>`;
+}
+
+/* ── Wiring ───────────────────────────────────────────────────── */
+function wireHw466Mine() {
+  document.getElementById('hw466-mine-refresh')?.addEventListener('click', async () => {
+    await loadHw466Assigns(); await loadHw466Mine();
+  });
+  document.querySelectorAll('.hw466-mine-mark').forEach(btn => {
+    btn.addEventListener('click', () => hw466SelfMark(btn.dataset.slug, btn.dataset.on === '1'));
+  });
+  document.getElementById('hw466-profile-save')?.addEventListener('click', () => {
+    hw466SaveProfile({
+      displayName: document.getElementById('hw466-p-name')?.value,
+      pronouns:    document.getElementById('hw466-p-pron')?.value,
+      major:       document.getElementById('hw466-p-major')?.value,
+      year:        document.getElementById('hw466-p-year')?.value,
+      interests:   document.getElementById('hw466-p-int')?.value,
+      sectionClaim: document.getElementById('hw466-p-section')?.value
+    });
+  });
+  document.getElementById('hw466-req-new')?.addEventListener('click', () => {
+    _hw466Compose = !_hw466Compose; refreshCanvas();
+  });
+  document.getElementById('hw466-req-send')?.addEventListener('click', () => {
+    hw466NewThread(
+      document.getElementById('hw466-req-subject')?.value || '',
+      document.getElementById('hw466-req-topic')?.value || 'other',
+      document.getElementById('hw466-req-slug')?.value || '',
+      document.getElementById('hw466-req-body')?.value || '');
+  });
+  wireHw466ThreadBits();
+}
+function wireHw466Assign() {
+  document.getElementById('hw466-a-new')?.addEventListener('click', () => {
+    _hw466Editing = '__new__'; refreshCanvas();
+  });
+  document.getElementById('hw466-a-refresh')?.addEventListener('click', () => loadHw466Assigns());
+  document.getElementById('hw466-inbox-refresh')?.addEventListener('click', () => loadHw466Staff());
+  document.getElementById('hw466-matrix-refresh')?.addEventListener('click', () => loadHw466Staff());
+  document.getElementById('hw466-matrix-close')?.addEventListener('click', () => {
+    _hw466Matrix = null; refreshCanvas();
+  });
+  document.getElementById('hw466-sec-csv')?.addEventListener('click', hw466SectionsCSV);
+  document.querySelectorAll('.hw466-a-edit').forEach(b => b.addEventListener('click', () => {
+    _hw466Editing = b.dataset.slug; refreshCanvas();
+  }));
+  document.querySelectorAll('.hw466-a-pub').forEach(b => b.addEventListener('click', () =>
+    hw466TogglePublish(b.dataset.slug, b.dataset.on === '1')));
+  document.querySelectorAll('.hw466-a-del').forEach(b => b.addEventListener('click', () =>
+    hw466DeleteAssignment(b.dataset.slug)));
+  document.querySelectorAll('.hw466-a-matrix').forEach(b => b.addEventListener('click', async () => {
+    _hw466Matrix = b.dataset.slug; await loadHw466Staff();
+  }));
+  document.getElementById('hw466-f-cancel')?.addEventListener('click', () => {
+    _hw466Editing = null; refreshCanvas();
+  });
+  document.getElementById('hw466-f-save')?.addEventListener('click', () => {
+    const v = id => document.getElementById('hw466-f-' + id)?.value || '';
+    hw466SaveAssignment({
+      slug: v('slug'), title: v('title'), kind: v('kind'), audience: v('aud'),
+      order: v('order'), dueAt: v('due'), opensAt: v('opens'),
+      moduleUrl: v('module'), d2lLink: v('d2l'), progressKey: v('pkey'), notes: v('notes'),
+      published: !!document.getElementById('hw466-f-pub')?.checked
+    });
+  });
+  document.querySelectorAll('.hw466-ack').forEach(b => b.addEventListener('click', () =>
+    hw466Ack(_hw466Matrix, b.dataset.uid, b.dataset.on === '1')));
+  document.querySelectorAll('.hw466-sec-set').forEach(sel => sel.addEventListener('change', () =>
+    hw466AssignSection(sel.dataset.uid, sel.value)));
+  document.querySelectorAll('.hw466-ext-set').forEach(inp => inp.addEventListener('change', () =>
+    hw466SetExtension(_hw466Matrix, inp.dataset.uid, inp.value, '')));
+  wireHw466ThreadBits();
+}
+/** Thread list + conversation controls, identical on both surfaces. */
+function wireHw466ThreadBits() {
+  document.querySelectorAll('.hw466-thread-open').forEach(a => a.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    loadHw466Thread(a.dataset.id);
+  }));
+  document.getElementById('hw466-msg-send')?.addEventListener('click', (ev) => {
+    const ta = document.getElementById('hw466-msg-body');
+    const body = ta?.value || '';
+    if (!body.trim()) return;
+    if (ta) ta.value = '';
+    hw466PostMessage(ev.currentTarget.dataset.id, body);
+  });
+  document.querySelectorAll('.hw466-thread-status').forEach(b => b.addEventListener('click', () =>
+    hw466SetThreadStatus(b.dataset.id, b.dataset.status)));
+}
+
 function wireBme295cAdminDash() {
   // "Edit title & dates" → toggles an inline edit modal driven by openSettings
   document.getElementById('cb295-dash-meta-edit')?.addEventListener('click', () => {
@@ -8509,6 +11832,10 @@ function wireBme295cAdminDash() {
       if (err) err.style.display = 'none';
     });
   });
+
+  // V3.796 — BME 295C waitlist card: wire its buttons, load once per visit.
+  wireBmeWaitlistPanel();
+  if (document.getElementById('cb295-interest-panel') && _bmeWl.rows === null && !_bmeWl.error) loadBmeWaitlist();
 
   // V3.261 — instructor editing: collect field values + persist. The
   // bio textarea (V3.266) carries the same `.cb295-instructor-field`
@@ -9043,7 +12370,7 @@ function subscribeBmeChat() {
  */
 function renderBmeChatMessage(m) {
   const isQuestion = m.messageType === 'raised_hand';
-  const icon = isQuestion ? '🙋' : '💬';
+  const icon = ICON.svg(isQuestion ? 'hand-raised' : 'chat-bubble-left-right');
   const isAnon = m.anonymous === true;
   const isAdmin = _viewType === 'admin';
 
@@ -9120,7 +12447,7 @@ function renderBmeChatMessage(m) {
           ${authorEl}${adminTag}
           <span class="muted-text cb295-chat-msg-time" title="${m.createdAt?.toDate ? esc(m.createdAt.toDate().toLocaleString()) : ''}">${esc(timeStr)}</span>
           ${speakerBadge}
-          ${answered ? '<span class="cb295-chat-msg-answered-tag">✓ answered</span>' : ''}
+          ${answered ? '<span class="cb295-chat-msg-answered-tag">' + ICON.svg('check') + ' answered</span>' : ''}
         </div>
         <div class="cb295-chat-msg-text">${bodyHtml}</div>
         ${(adminControls || deleteBtn) ? `<div class="cb295-chat-msg-controls">${adminControls}${deleteBtn}</div>` : ''}
@@ -9195,7 +12522,7 @@ function renderBmeChatBody(editing) {
         </label>
         <div class="cb295-chat-actions">
           <button type="button" class="btn cb295-chat-send-question"
-                  title="Ask the speaker (raised hand)">🙋 Ask</button>
+                  title="Ask the speaker (raised hand)">${ICON.svg('hand-raised')} Ask</button>
           <button type="button" class="btn btn-secondary cb295-chat-send-message"
                   title="Send to class chat">↗ Send</button>
         </div>

@@ -158,9 +158,8 @@
       const done = (checked === total);
       bar.classList.toggle('is-done', done);
       progress.classList.toggle('is-done', done);
-      progress.textContent = done
-        ? '✅ All ' + total + ' items ready — message Alex with the manuscript link.'
-        : checked + ' of ' + total + ' ready';
+      if (done) ICON.label(progress, 'check-circle', ' All ' + total + ' items ready — message Alex with the manuscript link.');
+      else progress.textContent = checked + ' of ' + total + ' ready';
     }
 
     checkboxes.forEach(box => box.addEventListener('change', refresh));

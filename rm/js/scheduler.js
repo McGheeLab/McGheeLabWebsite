@@ -93,7 +93,7 @@
   function CS() { return (typeof McgheeLab !== 'undefined' && McgheeLab.CalendarService) || null; }
 
   function lockIcon() { return '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>'; }
-  function calIcon() { return '\u{1F4C5}'; }
+  function calIcon() { return ICON.svg('calendar-days'); }
 
   function db() {
     if (typeof firebridge !== 'undefined' && firebridge.db) return firebridge.db();
@@ -379,7 +379,7 @@
             '<span class="sched-resp-badge hint" data-resp="' + escHTML(s.id) + '">&hellip;</span>' +
           '</div>' +
           '<div class="sched-item-actions">' +
-            '<button class="btn" data-links="' + escHTML(s.id) + '">&#128279; Links</button>' +
+            '<button class="btn" data-links="' + escHTML(s.id) + '">' + ICON.svg('link') + ' Links</button>' +
             '<button class="btn btn-primary" data-manage="' + escHTML(s.id) + '">Manage</button>' +
             '<button class="btn sched-btn-danger" data-delete="' + escHTML(s.id) + '">Delete</button>' +
           '</div>' +
@@ -901,7 +901,7 @@
           ${modeTag ? `<span class="ms-block-mode">${modeTag}</span>` : ''}
           ${isCal ? `<span class="ms-block-mode">${calStatusLabel}</span>` : ''}
           ${isCal ? `<div class="ms-block-cal-actions">
-            <button class="ms-block-status-toggle" data-event-id="${rawEventId}" data-current="${block.calStatus || 'unavailable'}" title="${isBusyAvail ? 'Mark as unavailable' : 'Mark as busy but available'}">${isBusyAvail ? '&#128308;' : '&#128994;'}</button>
+            <button class="ms-block-status-toggle" data-event-id="${rawEventId}" data-current="${block.calStatus || 'unavailable'}" title="${isBusyAvail ? 'Mark as unavailable' : 'Mark as busy but available'}">${ICON.svg('dot', { variant: 'solid', tint: isBusyAvail ? '#ef4444' : '#22c55e' })}</button>
             <button class="ms-block-dismiss" data-dismiss-id="${rawEventId}" title="Dismiss">&times;</button>
           </div>` : ''}
         </div>`;

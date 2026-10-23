@@ -38,6 +38,21 @@
   --fs-2xl: 22px;
   --fs-3xl: 28px;
 
+  /* ---- Icon scale (V3.641 — Heroicons v2, see rm/js/icons.js) ----
+     An .hi icon is sized in `em` so it tracks whatever font-size its
+     context already sets. These tokens are for the cases that need an
+     explicit size; they map the ad-hoc pixel sizes the codebase grew
+     (18/20/22/24/30/34) onto one scale. --hi-stroke is a variable so a
+     dense surface can thin its icons without touching the markup. */
+  --hi-xs: 14px;
+  --hi-sm: 16px;
+  --hi-md: 18px;
+  --hi-lg: 20px;
+  --hi-xl: 24px;
+  --hi-2xl: 28px;
+  --hi-stroke: 1.5;
+  --hi-stroke-sm: 1.75;   /* small sizes need a touch more weight to read */
+
   /* ---- Breakpoints (reference for JS; CSS @media uses literals) ---- */
   --bp-phone: 640px;
   --bp-tablet: 1024px;

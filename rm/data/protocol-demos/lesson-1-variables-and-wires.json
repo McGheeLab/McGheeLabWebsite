@@ -55,7 +55,7 @@
             },
             {
               "kind": "step",
-              "body": "Formulas are <b>built, never typed</b>. On the Equation node, every wired variable becomes a button with a <b>dimension alias</b> — <code>V1</code> for the first volume, <code>X1</code> for unitless — and a pad of operators sits below. Tap a variable, an operator, a variable; anything that would break the math stays greyed out. Need a plain number? Use the small <code>123</code> slot — but a constant <b>with a unit</b> belongs in a wired 📌 Constant node. Tapped the wrong variable? <b>Tap its chip in the strip and swap it</b> for another."
+              "body": "Formulas are <b>built, never typed</b>. On the Equation node, every wired variable becomes a button with a <b>dimension alias</b> — <code>V1</code> for the first volume, <code>X1</code> for unitless — and a pad of operators sits below. Tap a variable, an operator, a variable; anything that would break the math stays greyed out. Need a plain number? Use the small <code>123</code> slot — but a constant <b>with a unit</b> belongs in a wired Constant node. Tapped the wrong variable? <b>Tap its chip in the strip and swap it</b> for another."
             },
             {
               "kind": "step",
@@ -66,7 +66,7 @@
               "attrs": {
                 "type": "note"
               },
-              "body": "<b>The writing reads the graph.</b> Once you've built and named <code>total_volume</code>, you'll finish this very sentence with the <b>🔗 Reference</b> button in the ✎ Editor — click where the number belongs, pick the variable, and the live value drops in as a chip. No syntax to type, ever. Change a slider afterwards and the number follows. Before a value can be referenced it must be GATED: wire <code>total_volume</code> into a 📊 <b>Cards</b> node in the graph (the tour walks you through it) — that puts it on the document AND into the 🔗 picker. Then finish the sentence: Total volume to prepare:"
+              "body": "<b>The writing reads the graph.</b> Once you've built and named <code>total_volume</code>, you'll finish this very sentence with the <b>Reference</b> button in the ✎ Editor — click where the number belongs, pick the variable, and the live value drops in as a chip. No syntax to type, ever. Change a slider afterwards and the number follows. Before a value can be referenced it must be GATED: wire <code>total_volume</code> into a <b>Cards</b> node in the graph (the tour walks you through it) — that puts it on the document AND into the reference picker. Then finish the sentence: Total volume to prepare:"
             },
             {
               "kind": "step",

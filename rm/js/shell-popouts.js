@@ -13,6 +13,12 @@
        workflowPageIds,       // Array<pageId> for the page picker
        canAccessPage,         // (id) => boolean
        defaults: { left: 'chat', right: 'tasks' },
+       // V3.810 — PAGE MODE (nav.js mounts the popouts on every ordinary
+       // RM page as "quick contexts"):
+       pageMode: true,        // body.rm-page-popouts: fixed under the bar, closed by default
+       urlState: false,       // keep state in localStorage only — no ?leftPopout= on page urls
+       stateKey: 'mcgheelab.pagePopout.state',   // separate from the shells' (default-open) state
+       hideFor: 'chat',       // the current page's id — a popout showing THIS page is pointless
      });
 
    URL state (shared between shells, no collision with split's
@@ -30,62 +36,79 @@
   const DEFAULT_POPOUT_WIDTH = 460;
   const MIN_POPOUT_WIDTH = 240;
   const MAX_POPOUT_WIDTH = 900;
+  /* V3.836 — "open further": a second, wider state. The stored width is the
+   * BASE width; wide adds this much (chat shows its people/groups list in
+   * the extra room). Dragging while wide re-derives the base. */
+  const WIDE_EXTRA_PX = 300;
   const WIDTH_LS_KEY = function (side) { return 'mcgheelab.shellPopout.' + side + 'Width'; };
   // V3.89 — persist popout state (open/closed + selected page) to
   // localStorage so it survives navigations between workflows + browser
   // restarts. URL still wins when present (so shareable URLs keep
   // working); localStorage is the source-of-truth fallback when the URL
   // doesn't specify.
-  const STATE_LS_KEY = 'mcgheelab.shellPopout.state';
+  const STATE_LS_KEY_DEFAULT = 'mcgheelab.shellPopout.state';
 
   let _opts = null;       // saved init options
+  function stateKey() { return (_opts && _opts.stateKey) || STATE_LS_KEY_DEFAULT; }
+  function useUrl() { return !(_opts && _opts.urlState === false); }
+  function defaultOpen() { return !(_opts && _opts.pageMode); }
 
   /* ─── URL + localStorage state helpers ────────────────── */
   function readPersistedState() {
     try {
-      const raw = localStorage.getItem(STATE_LS_KEY);
+      const raw = localStorage.getItem(stateKey());
       if (raw) return JSON.parse(raw);
     } catch (e) { /* ignore */ }
     return {};
   }
   function writePersistedState(s) {
     try {
-      localStorage.setItem(STATE_LS_KEY, JSON.stringify({
+      localStorage.setItem(stateKey(), JSON.stringify({
         leftPopout: s.leftPopout, rightPopout: s.rightPopout,
         leftOpen:   s.leftOpen,   rightOpen:   s.rightOpen,
+        leftWide:   !!s.leftWide, rightWide:   !!s.rightWide,   // V3.836
       }));
     } catch (e) { /* ignore */ }
   }
 
   function readState() {
-    const p = new URLSearchParams(location.search);
+    // V3.810 — page mode ignores the url entirely (a stray ?leftOpen=1 on
+    // some bookmark must not pop a panel open on an unrelated page).
+    const p = useUrl() ? new URLSearchParams(location.search) : new URLSearchParams();
     const persisted = readPersistedState();
     const defL = (_opts && _opts.defaults && _opts.defaults.left)  || 'chat';
     const defR = (_opts && _opts.defaults && _opts.defaults.right) || 'tasks';
     const hasLeftOpen  = p.has('leftOpen');
     const hasRightOpen = p.has('rightOpen');
+    const dflt = defaultOpen();
     return {
       // URL > persisted > default. Means an explicit URL ?leftPopout=
       // overrides the persisted choice (handy for share links).
       leftPopout:  p.get('leftPopout')  || persisted.leftPopout  || defL,
       rightPopout: p.get('rightPopout') || persisted.rightPopout || defR,
       leftOpen:    hasLeftOpen  ? p.get('leftOpen')  === '1'
-                                 : (persisted.leftOpen  != null ? !!persisted.leftOpen  : true),
+                                 : (persisted.leftOpen  != null ? !!persisted.leftOpen  : dflt),
       rightOpen:   hasRightOpen ? p.get('rightOpen') === '1'
-                                 : (persisted.rightOpen != null ? !!persisted.rightOpen : true),
+                                 : (persisted.rightOpen != null ? !!persisted.rightOpen : dflt),
+      // V3.836 — wide ("open further") lives in localStorage only; a share
+      // link never forces the wider panel.
+      leftWide:    !!persisted.leftWide,
+      rightWide:   !!persisted.rightWide,
     };
   }
 
   function writeState(s) {
-    // Preserve every other URL param (shell-specific ones like
-    // ?workflow= / ?active= / ?left= / ?right= / ?ratio=). Only
-    // upsert popout params here.
-    const p = new URLSearchParams(location.search);
-    p.set('leftPopout',  s.leftPopout);
-    p.set('rightPopout', s.rightPopout);
-    p.set('leftOpen',    s.leftOpen  ? '1' : '0');
-    p.set('rightOpen',   s.rightOpen ? '1' : '0');
-    history.replaceState(null, '', location.pathname + '?' + p.toString());
+    if (useUrl()) {
+      // Preserve every other URL param (shell-specific ones like
+      // ?workflow= / ?active= / ?left= / ?right= / ?ratio=). Only
+      // upsert popout params here.
+      const p = new URLSearchParams(location.search);
+      p.set('leftPopout',  s.leftPopout);
+      p.set('rightPopout', s.rightPopout);
+      p.set('leftOpen',    s.leftOpen  ? '1' : '0');
+      p.set('rightOpen',   s.rightOpen ? '1' : '0');
+      history.replaceState(null, '', location.pathname + '?' + p.toString());
+    }
     writePersistedState(s);     // V3.89 — also persist for cross-nav
   }
 
@@ -104,16 +127,117 @@
       localStorage.setItem(WIDTH_LS_KEY(side), String(n));
     } catch (e) { /* ignore */ }
   }
+  function wideExtra(side) {
+    return readState()[side + 'Wide'] ? WIDE_EXTRA_PX : 0;
+  }
   function applyWidth(side) {
     const root = document.getElementById('shell-popout-' + side);
     if (!root) return;
     if (!root.classList.contains('open')) { root.style.width = ''; return; }
-    root.style.width = readWidth(side) + 'px';
+    root.style.width = (readWidth(side) + wideExtra(side)) + 'px';
+  }
+
+  /* ─── V3.836 iframe bridge ───────────────────────────────
+   * The page inside a popout can take part in the panel's chrome:
+   *   host → frame  {type:'rm-popout-state', side, open, wide, label}
+   *                 on iframe load, on every wide toggle, and on request
+   *   frame → host  {type:'rm-popout-caps', wideLabel, wideIcon}
+   *                 names the "open further" tab (chat: "People & groups")
+   *                 {type:'rm-popout-request', wide:bool | close:true | state:true}
+   * Same origin only; the sending side is found by comparing e.source with
+   * each popout's iframe window, so a stray message can't drive a panel. */
+  const _caps = { left: {}, right: {} };
+  let _onMessage = null;
+
+  function frameWin(side) {
+    const root = document.getElementById('shell-popout-' + side);
+    const f = root && root.querySelector('.shell-popout-frame');
+    try { return (f && f.contentWindow) || null; } catch (e) { return null; }
+  }
+  function sideOf(source) {
+    if (!source) return null;
+    if (frameWin('left') === source) return 'left';
+    if (frameWin('right') === source) return 'right';
+    return null;
+  }
+  function postState(side) {
+    const w = frameWin(side);
+    if (!w) return;
+    const s = readState();
+    try {
+      w.postMessage({
+        type: 'rm-popout-state', side: side,
+        open: !!s[side + 'Open'], wide: !!s[side + 'Wide'],
+        label: pageLabelForId(s[side + 'Popout']),
+      }, location.origin);
+    } catch (e) { /* frame gone */ }
+  }
+  function wireMessages() {
+    if (_onMessage) return;
+    _onMessage = function (e) {
+      if (e.origin !== location.origin) return;
+      const d = e.data;
+      if (!d || typeof d !== 'object') return;
+      const side = sideOf(e.source);
+      if (!side) return;
+      if (d.type === 'rm-popout-caps') {
+        _caps[side] = {
+          wideLabel: typeof d.wideLabel === 'string' ? d.wideLabel.slice(0, 40) : '',
+          wideIcon:  typeof d.wideIcon  === 'string' ? d.wideIcon.slice(0, 40)  : '',
+        };
+        refreshTabs(side);
+      } else if (d.type === 'rm-popout-request') {
+        if (d.close === true) { togglePopout(side, false); return; }
+        if (typeof d.wide === 'boolean') setWide(side, d.wide);
+        if (d.state === true) postState(side);
+      }
+    };
+    window.addEventListener('message', _onMessage);
+  }
+  function tabIcon(name) {
+    return (window.ICON && ICON.svg) ? ICON.svg(name) : '';
+  }
+  /* The open-state side tabs, in place (never rebuilds the iframe). */
+  function refreshTabs(side) {
+    const root = document.getElementById('shell-popout-' + side);
+    if (!root) return;
+    const s = readState();
+    const wide = !!s[side + 'Wide'];
+    const caps = _caps[side] || {};
+    const wideLabel = caps.wideLabel || 'Wider';
+    root.classList.toggle('shell-popout--wide', wide);
+    const wideBtn = root.querySelector('.shell-popout-tab--wide');
+    if (wideBtn) {
+      wideBtn.classList.toggle('is-on', wide);
+      wideBtn.setAttribute('aria-pressed', wide ? 'true' : 'false');
+      wideBtn.title = (wide ? 'Hide ' : 'Show ') + wideLabel.toLowerCase() + ' (open the panel further)';
+      wideBtn.innerHTML =
+        '<span class="shell-popout-tab-icon">' + tabIcon(caps.wideIcon || 'queue-list') + '</span>' +   /* icon markup — trusted */
+        '<span class="shell-popout-tab-label">' + escHtml(wideLabel) + '</span>';
+    }
+  }
+  function setWide(side, wide) {
+    const s = readState();
+    if (!!s[side + 'Wide'] === !!wide) return;
+    s[side + 'Wide'] = !!wide;
+    writeState(s);
+    refreshTabs(side);
+    applyWidth(side);
+    postState(side);
   }
 
   /* ─── Page registry helpers ──────────────────────────── */
+  /* page-registry.js is loaded by the two shells only; on an ordinary page
+   * (V3.810 page mode) fall back to nav.js's own flattening of NAV_ITEMS,
+   * which every page has. Same ids, same labels, plus `icon`. */
   function pageMap() {
-    return (window.PAGE_REGISTRY && window.PAGE_REGISTRY.byId) || new Map();
+    if (window.PAGE_REGISTRY && window.PAGE_REGISTRY.byId) return window.PAGE_REGISTRY.byId;
+    if (typeof _wfBuildPageMap === 'function') return _wfBuildPageMap();
+    return new Map();
+  }
+  function allPagesList() {
+    if (window.PAGE_REGISTRY && window.PAGE_REGISTRY.list) return window.PAGE_REGISTRY.list;
+    return Array.from(pageMap().values());
   }
   function pageHrefForId(id) {
     const p = pageMap().get(id);
@@ -123,15 +247,20 @@
     const p = pageMap().get(id);
     return p && p.label || id;
   }
+  /* V3.810 — the page's Heroicon from NAV_ITEMS (as markup), so the pill
+   * and header match the bar's chips; the icon-name map is the fallback for
+   * an id the nav doesn't know. */
   function pageIconForId(id) {
+    const p = pageMap().get(id);
+    if (p && p.icon && window.ICON && ICON.svg) return ICON.svg(p.icon);
     const map = {
-      'chat': '💬', 'tasks': '✅', 'huddle': '👥',
-      'meetings': '🗣', 'scheduler': '⌚', 'calendar': '🗓',
-      'library': '📚', 'paper-builder': '📝', 'pmr': '📋',
-      'sharing': '🤝', 'projects': '📁', 'inventory': '📦',
-      'compliance': '⚖️', 'chemicals': '🧪',
+      'chat': 'chat-bubble-left-right', 'tasks': 'check-circle', 'huddle': 'users',
+      'meetings': 'megaphone', 'scheduler': 'clock', 'calendar': 'calendar-days',
+      'library': 'books', 'paper-builder': 'pencil-square', 'pmr': 'clipboard-document-list',
+      'sharing': 'user-group', 'projects': 'folder', 'inventory': 'cube',
+      'compliance': 'scale', 'chemicals': 'test-tube',
     };
-    return map[id] || '📄';
+    return (window.ICON && ICON.render) ? ICON.render(map[id] || 'document-text') : '';
   }
 
   /* ─── Iframe URL embed helper ────────────────────────── */
@@ -165,6 +294,16 @@
     const label = pageLabelForId(pageId);
     const icon = pageIconForId(pageId);
 
+    // V3.810 — page mode: a popout showing the page we are ON is pointless
+    // (Chat inside Chat). Hide that side entirely; the other side stays.
+    if (_opts && _opts.hideFor && _opts.hideFor === pageId) {
+      root.classList.remove('open');
+      root.innerHTML = '';
+      root.style.display = 'none';
+      return;
+    }
+    root.style.display = '';
+
     root.classList.toggle('open', isOpen);
     root.innerHTML = '';
 
@@ -175,28 +314,52 @@
     // shows a single chevron pointing inward (= "collapse"). The
     // floating tab feel survives, but mouse muscle-memory carries
     // between states.
-    const pill = document.createElement('button');
-    pill.className = 'shell-popout-pill';
-    pill.type = 'button';
-    pill.title = (isOpen ? 'Close ' : 'Open ') + label + ' (' + side + ' popout)';
-    if (isOpen) {
-      pill.classList.add('shell-popout-pill--open');
+    // V3.836 — OPEN state is no longer one chevron: the same anchor holds a
+    // vertical cluster of side tabs — "open further" (wide) and "close".
+    // Alex: "i need a side tab for open further to reveal people, groups etc.
+    // another button to close the chat panel."
+    const pill = document.createElement(isOpen ? 'div' : 'button');
+    pill.className = 'shell-popout-pill' + (isOpen ? ' shell-popout-pill--open' : '');
+    if (!isOpen) {
+      pill.type = 'button';
+      pill.title = 'Open ' + label + ' (' + side + ' popout)';
       pill.innerHTML =
-        '<span class="shell-popout-pill-chev">' + (side === 'left' ? '◂' : '▸') + '</span>';
-    } else {
-      pill.innerHTML =
-        '<span class="shell-popout-pill-icon">' + escHtml(icon) + '</span>' +
+        '<span class="shell-popout-pill-icon">' + icon + '</span>' +      /* icon markup from pageIconForId — trusted */
         '<span class="shell-popout-pill-label">' + escHtml(label) + '</span>';
+      pill.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        togglePopout(side, true);
+      });
+    } else {
+      const wideBtn = document.createElement('button');
+      wideBtn.type = 'button';
+      wideBtn.className = 'shell-popout-tab shell-popout-tab--wide';
+      wideBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setWide(side, !readState()[side + 'Wide']);
+      });
+      const closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.className = 'shell-popout-tab shell-popout-tab--close';
+      closeBtn.title = 'Close ' + label;
+      closeBtn.innerHTML =
+        '<span class="shell-popout-tab-icon">' + tabIcon('x-mark') + '</span>' +
+        '<span class="shell-popout-tab-label">Close</span>';
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        togglePopout(side, false);
+      });
+      pill.appendChild(wideBtn);
+      pill.appendChild(closeBtn);
     }
-    pill.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      togglePopout(side, !isOpen);
-    });
     pill.addEventListener('pointerdown', (e) => e.stopPropagation());
     root.appendChild(pill);
 
-    if (!isOpen) return;
+    if (!isOpen) { root.classList.remove('shell-popout--wide'); return; }
+    refreshTabs(side);
 
     const handle = document.createElement('div');
     handle.className = 'shell-popout-resize shell-popout-resize--' + side;
@@ -208,12 +371,12 @@
     header.className = 'shell-popout-header';
     header.innerHTML =
       '<div class="shell-popout-title">' +
-      '  <span class="shell-popout-icon">' + escHtml(icon) + '</span>' +
+      '  <span class="shell-popout-icon">' + icon + '</span>' +      /* trusted markup */
       '  <span>' + escHtml(label) + '</span>' +
       '</div>' +
       '<div class="shell-popout-actions">' +
       '  <select class="shell-popout-picker" title="Pick a page for this popout"></select>' +
-      '  <button class="shell-popout-close" type="button" title="Close popout">×</button>' +
+      '  <button class="shell-popout-close" type="button" title="Close popout">' + ICON.svg('x-mark') + '</button>' +
       '</div>';
     root.appendChild(header);
 
@@ -222,6 +385,9 @@
     iframe.name = 'rm-shell-popout-' + side;
     iframe.src = embedHref(pageHrefForId(pageId) || '/rm/index.html');
     iframe.title = label;
+    // V3.836 — a freshly loaded page learns the panel state (open/wide) at
+    // once; it may also ask later via {type:'rm-popout-request', state:true}.
+    iframe.addEventListener('load', () => postState(side));
     root.appendChild(iframe);
 
     applyWidth(side);
@@ -236,7 +402,7 @@
     const wfPages = (_opts && _opts.workflowPageIds) || [];
     const canAcc = (_opts && _opts.canAccessPage) || (() => true);
     const seen = new Set();
-    const allPages = (window.PAGE_REGISTRY && window.PAGE_REGISTRY.list) || [];
+    const allPages = allPagesList();
 
     function appendOption(group, p) {
       if (seen.has(p.id)) return;
@@ -314,7 +480,8 @@
       if (!dragging) return;
       const dx = e.clientX - startX;
       const next = (side === 'left') ? startWidth + dx : startWidth - dx;
-      const clamped = Math.max(MIN_POPOUT_WIDTH, Math.min(MAX_POPOUT_WIDTH, next));
+      const extra = wideExtra(side);   // V3.836 — wide panels drag over a shifted range
+      const clamped = Math.max(MIN_POPOUT_WIDTH + extra, Math.min(MAX_POPOUT_WIDTH + extra, next));
       root.style.width = clamped + 'px';
     };
     const onUp = (e) => {
@@ -326,7 +493,7 @@
       window.removeEventListener('pointerup',   onUp);
       window.removeEventListener('pointercancel', onUp);
       const px = parseFloat(root.style.width) || DEFAULT_POPOUT_WIDTH;
-      writeWidth(side, px);
+      writeWidth(side, px - wideExtra(side));   // V3.836 — store the BASE width
     };
     handle.addEventListener('pointerdown', (e) => {
       if (e.button !== 0 && e.pointerType === 'mouse') return;
@@ -346,6 +513,7 @@
   function init(opts) {
     _opts = opts || {};
     const host = _opts.container || document.body;
+    document.body.classList.toggle('rm-page-popouts', !!_opts.pageMode);
     // Inject popout DOM if not already present (idempotent).
     if (!document.getElementById('shell-popout-left')) {
       const left = document.createElement('div');
@@ -359,6 +527,7 @@
       right.className = 'shell-popout shell-popout--right';
       host.appendChild(right);
     }
+    wireMessages();                       // V3.836 — iframe bridge
     renderPopout('left');
     renderPopout('right');
     const s = readState();
@@ -370,6 +539,7 @@
     init: init,
     renderPopout: renderPopout,
     togglePopout: togglePopout,
+    setWide: setWide,                     // V3.836
     readState: readState,
     writeState: writeState,
   };

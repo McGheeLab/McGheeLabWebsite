@@ -6,10 +6,10 @@
  * Storage `labIcons/{id}/icon.webp`, so an icon uploaded on one surface is
  * immediately selectable on all of them).
  *
- * An icon VALUE is either a plain emoji string ("🔬") or an image URL
- * (custom upload / `data:`). `ICON_PICKER.html(value)` renders whichever
- * form correctly — text for emoji, an <img> for a URL — so call sites stop
- * `esc()`-ing the raw value.
+ * An icon VALUE is an icon name ("microscope"), an image URL (custom upload /
+ * `data:`), or a legacy emoji from the V3.555 palette. `ICON_PICKER.html(value)`
+ * renders every form through ICON.render() — never `esc()` the raw value, or a
+ * name prints as a word.
  *
  * Public API (window.ICON_PICKER):
  *   open({ current, onPick, title })  — popout; onPick(value) on choose.
@@ -30,13 +30,19 @@
   function isUrl(v) { return /^(https?:|data:)/i.test(String(v || '')); }
   function toast(kind, msg) { if (window.TOAST && TOAST[kind]) TOAST[kind](msg); }
 
-  /* Curated pool — grouped, lab-leaning. Extend freely; custom uploads
-   * append a "Custom" group at the top. */
+  /* Curated pool — grouped, lab-leaning, icon NAMES (V3.861: Heroicons +
+   * Lucide, monochrome, never colour-emoji images). Extend freely with any
+   * name in scripts/icons.manifest.json; custom uploads append a "Custom"
+   * group at the top. A value picked from the V3.555 emoji palette is still
+   * valid: ICON.render() maps every one of those glyphs to an icon. */
   var GROUPS = [
-    { name: 'Lab & science', emoji: ['🔬','🧫','🧪','🧬','🦠','💉','🩸','🧷','⚗️','🌡️','🔭','📡','🛰️','⚙️','🔧','🔩','🧰','🧲','🔋','💡','🖥️','💻','📟','⌨️','🖨️','📷','📸','🎥','📽️','🎞️'] },
-    { name: 'Bio & nature', emoji: ['🫧','🧩','🌱','🌿','🍃','🌾','🦴','🫀','🫁','🧠','👁️','🐭','🐁','🐟','🪸','🌸','🌊','🔥','❄️','☀️','⭐','✨','🌈','🪐'] },
-    { name: 'Docs & work', emoji: ['📄','📃','📑','📊','📈','📉','🗂️','📁','📂','🗃️','📋','📝','✏️','🖊️','📌','📎','🔖','🏷️','📚','📖','⚖️','🎓','🏆','🥇','🎯','🧭','🗺️','📅','⏱️','⏳'] },
-    { name: 'Symbols', emoji: ['🔵','🟢','🟡','🟠','🔴','🟣','⚫','⚪','🟤','◼️','◻️','🔶','🔷','🔺','🔻','➕','➖','✅','❌','❓','❗','💠','♻️','⚡','🚀','🛠️','🧿','🔮','💎','🧱'] },
+    { name: 'Lab & science', icons: ['microscope','beaker','test-tube','flask-conical','pipette','dna','bug-ant','biohazard','syringe','droplet','thermometer','magnet','atom','radiation','telescope','satellite-dish','scale','cog-6-tooth','wrench','wrench-screwdriver','light-bulb','computer-desktop','printer','camera','video-camera','film'] },
+    { name: 'Bio & nature', icons: ['sprout','leaf','wheat','brain','heart-pulse','bone','eye','rat','fish','shell','flower-2','waves','fire','snowflake','sun','star','sparkles','rainbow','orbit','globe-alt','circle-dot','puzzle-piece','cube','cube-transparent'] },
+    { name: 'Docs & work', icons: ['document-text','bookmark-square','chart-bar','arrow-trending-up','arrow-trending-down','presentation-chart-bar','rectangle-stack','folder','folder-open','archive-box','clipboard-document-list','pencil-square','pencil','pen-line','pin','paper-clip','bookmark','tag','books','book-open','academic-cap','trophy','target','compass','map','calendar-days','clock','flag'] },
+    { name: 'Symbols', icons: ['check-circle','x-circle','question-mark-circle','exclamation-circle','exclamation-triangle','plus','minus','arrow-path','bolt','rocket-launch','gem','diamond','brick-wall','heart','hand-thumb-up','users','home','building-library'] },
+    /* colour IS the meaning here, so these stay coloured: a solid dot, not an image.
+     * Stored as the glyph so older picks (V3.555 palette) keep rendering. */
+    { name: 'Markers', icons: ['\u{1F534}','\u{1F7E0}','\u{1F7E1}','\u{1F7E2}','\u{1F535}','\u{1F7E3}','\u26AB'], labels: ['red','orange','yellow','green','blue','purple','black'] },  // emoji-ok: stored glyph values, ICON.render draws them as tinted dots
   ];
 
   /* ── shared custom-icon pool (labIcons) ─────────────────────── */
@@ -95,7 +101,12 @@
       return '<img class="ip-icon-img" src="' + esc(value) + '" alt="" ' +
         'style="width:' + size + ';height:' + size + ';object-fit:contain;vertical-align:middle;">';
     }
-    return esc(value || '');
+    if (!value) return '';
+    if (window.ICON) {
+      var px = /^\d+(\.\d+)?px$/.test(size) ? parseFloat(size) : null;
+      return '<span class="ip-icon" style="font-size:' + esc(size) + '">' + ICON.render(value, px ? { size: px } : {}) + '</span>';
+    }
+    return esc(value);
   }
 
   /* ── popout ─────────────────────────────────────────────────── */
@@ -106,11 +117,11 @@
     back.innerHTML =
       '<div class="ip-modal" role="dialog" aria-modal="true">' +
         '<div class="ip-head"><h3>' + esc(opts.title || 'Choose an icon') + '</h3>' +
-          '<button class="ip-x" aria-label="Close">✕</button></div>' +
+          '<button class="ip-x" aria-label="Close">' + (window.ICON ? ICON.svg('x-mark') : '✕') + '</button></div>' +
         '<input type="search" class="ip-search" placeholder="Search icons…">' +
         '<div class="ip-body"></div>' +
         '<div class="ip-foot">' +
-          '<label class="ip-upload"><input type="file" accept="image/*" hidden>＋ Upload custom icon</label>' +
+          '<label class="ip-upload"><input type="file" accept="image/*" hidden><span class="ip-upload-txt">＋ Upload custom icon</span></label>' +
           (opts.current ? '<button type="button" class="ip-clear">Clear</button>' : '') +
         '</div>' +
       '</div>';
@@ -135,16 +146,17 @@
           ct.map(function (c) { return tile(c.url, c.name); }).join('') + '</div>';
       }
       GROUPS.forEach(function (g) {
-        // Emoji have no names to search; when filtering, only the custom
-        // group narrows — keep full emoji groups unless the filter is long.
-        var items = g.emoji;
-        if (filter && filter.length >= 1) {
-          // simple keyword → group-name match so "sci" shows Lab & science
-          if (g.name.toLowerCase().indexOf(filter) === -1 && !custom.length) { /* still show */ }
-        }
+        // names are searchable: "flask", "cell", "chart" narrow the grid
+        var items = g.icons.map(function (v, i) {
+          return { v: v, label: (g.labels && g.labels[i]) || String(v).replace(/-/g, ' ') };
+        }).filter(function (it) {
+          return !filter || it.label.indexOf(filter) !== -1 || g.name.toLowerCase().indexOf(filter) !== -1;
+        });
+        if (!items.length) return;
         out += '<div class="ip-group-name">' + esc(g.name) + '</div><div class="ip-grid">' +
-          items.map(function (e) { return tile(e, e); }).join('') + '</div>';
+          items.map(function (it) { return tile(it.v, it.label); }).join('') + '</div>';
       });
+      if (!out) out = '<p class="ip-loading">No icon matches “' + esc(filter) + '”.</p>';
       body.innerHTML = out;
     }
 
@@ -161,7 +173,7 @@
     var fileInput = back.querySelector('.ip-upload input');
     fileInput.addEventListener('change', async function () {
       var file = fileInput.files && fileInput.files[0]; if (!file) return;
-      var lbl = back.querySelector('.ip-upload');
+      var lbl = back.querySelector('.ip-upload-txt');
       var prev = lbl.textContent; lbl.textContent = 'Uploading…';
       try {
         var url = await uploadCustom(file);
@@ -199,7 +211,8 @@
       '.ip-upload{border:1px solid var(--border,#e1e4e8);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px;}' +
       '.ip-upload:hover{border-color:var(--primary,#2563eb);}' +
       '.ip-clear{margin-left:auto;border:none;background:none;color:var(--text-muted,#6b7280);cursor:pointer;font-size:13px;}' +
-      '.ip-icon-img{border-radius:4px;}';
+      '.ip-icon-img{border-radius:4px;}' +
+      '.ip-icon{display:inline-flex;align-items:center;justify-content:center;line-height:1;vertical-align:middle;}';
     document.head.appendChild(st);
   }
 

@@ -109,6 +109,66 @@ body.split-dragging .split-pane-frame {
   user-select: none;
 }
 
+/* ─── V3.632 — pane pickers in the parent nav ─────────── */
+/* Outside a workflow there's no strip, so the top nav carries one page
+ * picker per pane plus "× Close split". Base .nav-dropdown /
+ * .dropdown-menu / .nav-dropdown-trigger styling already comes from
+ * style.css (loaded by split-view.html); only the split-specific bits
+ * live here. */
+
+/* Long page names (a deep-linked paper) must not push the bar wide. */
+.split-pane-picker > .nav-dropdown-trigger {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Mirrors .split-pane.active above, so the bar shows the same "this is
+ * the pane you're working in" signal the pane border does. */
+.split-pane-picker--active > .nav-dropdown-trigger {
+  box-shadow: inset 0 0 0 2px var(--red, #dc2626);
+  border-radius: var(--radius-sm, 4px);
+}
+
+.split-pane-picker .dropdown-menu {
+  min-width: 260px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* Group headers. .dropdown-divider is scoped to .nav-dropdown-pinned in
+ * workflow.css, so these need their own rule. */
+.split-picker-group {
+  padding: var(--sp-2, 8px) var(--sp-3, 12px) 2px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text-muted, #6b7280);
+}
+.split-picker-group:not(:first-child) {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+/* Already open in the OTHER pane — pickable (swapping is legitimate),
+ * just flagged so the user isn't surprised by a duplicate. */
+.split-pane-picker .dropdown-menu a.split-picker-open-other::after {
+  content: ' · other pane';
+  color: var(--text-muted, #6b7280);
+  font-size: 11px;
+}
+
+.split-picker-empty {
+  padding: var(--sp-3, 12px);
+  font-size: 12px;
+  color: var(--text-muted, #6b7280);
+}
+
+/* Same reset as .nav-dropdown-trigger but without its ▾ caret. */
+.split-close-btn::after { content: none !important; }
+
 /* ─── Mobile fallback (stack vertically) ──────────────── */
 /* V3.233: standardized 700px → 640px phone breakpoint. iPad-portrait
  * (1024px) keeps the side-by-side panes — 512px per pane is tight but
@@ -124,4 +184,5 @@ body.split-dragging .split-pane-frame {
     width: 36px;
     height: 4px;
   }
+  .split-pane-picker > .nav-dropdown-trigger { max-width: 120px; }
 }

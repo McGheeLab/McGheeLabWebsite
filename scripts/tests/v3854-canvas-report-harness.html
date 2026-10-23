@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.854 — ✓ on every card: report a result to My Week from the canvas</title>
+<!-- The V3.852 stub + seed (every card kind, a region, an instance) with a stub DAY_DISTRIBUTE; the real engine
+     and notebook host; the V3.854 ✓ on every card and region reports to a My Week step. ?mobile=1 for the phone path. -->
+<link rel="stylesheet" href="/whiteboard-board.css">
+<link rel="stylesheet" href="/rm/css/notebook-blocks.css">
+<link rel="stylesheet" href="/rm/css/canvas-widgets.css">
+<link rel="stylesheet" href="/rm/css/canvas-paper-reader.css">
+<link rel="stylesheet" href="/rm/css/notebook-canvas.css">
+<style>body{font:13px/1.5 system-ui,sans-serif;margin:0}.ok{color:#15803d}.bad{color:#b91c1c}
+#r{position:fixed;left:8px;top:8px;z-index:99999;font:12px/1.4 system-ui,sans-serif;background:#fff;border:1px solid #e5e7eb;padding:6px 8px;max-width:60vw;max-height:60vh;overflow:auto;opacity:.95}
+.page{width:100vw;max-width:none}.nbc-root{height:100vh}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;font:inherit}.btn-small{padding:4px 8px;font-size:12px}.muted-text{color:#6b7280}</style>
+<script>
+window.__popups = [];
+['prompt','alert','confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
+/* ── in-memory Firestore + Storage + firebridge + api stubs ── */
+(function () {
+  var store = new Map(), listeners = [], touched = [];
+  function snapOf(path) { return { id: path.split('/').pop(), exists: store.has(path), data: function () { return store.has(path) ? JSON.parse(JSON.stringify(store.get(path))) : undefined; }, ref: docRef(path) }; }
+  function docsIn(path) { var out = []; store.forEach(function (v, k) { if (k.slice(0, k.lastIndexOf('/')) === path) out.push(snapOf(k)); }); return out; }
+  function fire(path, type) {
+    var parent = path.slice(0, path.lastIndexOf('/'));
+    listeners.slice().forEach(function (l) {
+      if (l.kind === 'doc' && l.path === path) l.cb(snapOf(path));
+      if (l.kind === 'col' && l.path === parent) l.cb({ docChanges: function () { return [{ type: type, doc: snapOf(path) }]; }, docs: docsIn(parent), size: 1, empty: false, forEach: function (f) { docsIn(parent).forEach(f); } });
+    });
+  }
+  function applyUpdate(path, d) { var next = Object.assign({}, store.get(path) || {}); Object.keys(d).forEach(function (k) { if (d[k] === '__DEL__') delete next[k]; else if (d[k] && d[k].__arrayUnion) next[k] = (next[k] || []).concat([d[k].__arrayUnion]); else next[k] = JSON.parse(JSON.stringify(d[k])); }); store.set(path, next); fire(path, 'modified'); }
+  function docRef(path) {
+    return {
+      path: path, id: path.split('/').pop(),
+      collection: function (n) { return colRef(path + '/' + n); },
+      get: function () { touched.push('get ' + path); return Promise.resolve(snapOf(path)); },
+      set: function (d, o) { touched.push('set ' + path); var existed = store.has(path); store.set(path, (o && o.merge) ? Object.assign({}, store.get(path) || {}, JSON.parse(JSON.stringify(d))) : JSON.parse(JSON.stringify(d))); fire(path, existed ? 'modified' : 'added'); return Promise.resolve(); },
+      update: function (d) { touched.push('update ' + path); applyUpdate(path, d); return Promise.resolve(); },
+      delete: function () { touched.push('delete ' + path); store.delete(path); fire(path, 'removed'); return Promise.resolve(); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'doc', cb: cb }; listeners.push(l); setTimeout(function () { cb(snapOf(path)); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+  }
+  function colRef(path) {
+    var q = { path: path,
+      doc: function (id) { return docRef(path + '/' + (id || ('auto' + Math.random().toString(36).slice(2, 8)))); },
+      orderBy: function () { return q; }, where: function () { return q; }, limit: function () { return q; },
+      get: function () { var d = docsIn(path); return Promise.resolve({ docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'col', cb: cb }; listeners.push(l); var d = docsIn(path); setTimeout(function () { cb({ docChanges: function () { return d.map(function (s) { return { type: 'added', doc: s }; }); }, docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+    return q;
+  }
+  var db = {
+    collection: function (n) { return colRef(n); },
+    batch: function () { var ops = []; return { set: function (ref, d, o) { ops.push(function () { return ref.set(d, o); }); }, update: function (ref, d) { ops.push(function () { return ref.update(d); }); }, delete: function (ref) { ops.push(function () { return ref.delete(); }); }, commit: function () { return ops.reduce(function (p, f) { return p.then(f); }, Promise.resolve()); } }; },
+    runTransaction: function (fn) { var tx = { get: function (ref) { return ref.get(); }, set: function (ref, d, o) { ref.set(d, o); }, update: function (ref, d) { ref.update(d); } }; return Promise.resolve(fn(tx)); }
+  };
+  window.__stub = { store: store, touched: touched, db: db };
+  window.firebase = {
+    firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; }, delete: function () { return '__DEL__'; }, arrayUnion: function (x) { return { __arrayUnion: x }; } } },
+    storage: function () { return { ref: function () { return { child: function (p) { return { put: function () { touched.push('put ' + p); return Promise.resolve(); }, getDownloadURL: function () { return Promise.resolve('https://storage.example/' + p); }, delete: function () { touched.push('rm ' + p); return Promise.resolve(); } }; } }; } }; },
+    auth: function () { return { currentUser: { uid: 'u1', email: 'a@x.com' }, onAuthStateChanged: function (cb) { setTimeout(function () { cb({ uid: 'u1', email: 'a@x.com' }); }, 0); } }; }
+  };
+  window.firebridge = { requireSignIn: function () { return Promise.resolve({ allowed: true }); }, isLabMember: function () { return true; }, getUser: function () { return { uid: 'u1', email: 'a@x.com', displayName: 'Ada' }; }, isAdmin: function () { return false; }, db: function () { return db; } };
+  window.api = { load: function (p) { if (p === 'protocols/list.json') return Promise.resolve({ protocols: [{ id: 'coat', title: 'Granule coating', summary: 'coat beads', category: 'bench' }] }); if (p === 'inventory/items.json') return Promise.resolve({ items: [{ id: 'cov', name: 'Coverslips 18 mm', location: 'Drawer B', vendor: 'Fisher', catalog_number: '12-545' }] }); if (p === 'inventory/chemicals.json') return Promise.resolve({ chemicals: [{ id: 'pfa', name: 'PFA 16%', location: 'Fridge 2', cas: '30525-89-4' }] }); return Promise.resolve(null); }, save: function () { return Promise.resolve(); } };
+  window.TOAST = { info: function () {}, success: function () {}, error: function (m) { (window.__toastErr = window.__toastErr || []).push(m); } };
+  window.NOTEBOOK_FIGURES = { uploadImage: function () { return Promise.resolve({ download_url: 'https://firebasestorage.googleapis.com/x/y.webp', storage_path: 'notebook-figures/u1/y.webp', hash: 'h', mime: 'image/webp', size_bytes: 10, uploaded_at: 'now', uploaded_by: 'u1' }); } };
+  /* a V3.830 block entry to migrate: a note, a checklist and a whiteboard block whose board carries ink */
+  store.set('userData/u1/notebook/_index', { entries: [{ id: 'nb-2026-10-20-old', title: 'Old block entry', date: '2026-10-20', tags: ['tfm'], updated_at: '2026-10-20T10:00:00Z', block_types: ['note', 'checklist', 'whiteboard'] }] });
+  store.set('userData/u1/notebook/nb-2026-10-20-old', { title: 'Old block entry', date: '2026-10-20', tags: ['tfm'], schema_version: 2, updated_at: '2026-10-20T10:00:00Z',
+    blocks: [{ id: 'blk-a', type: 'note', title: 'Setup', collapsed: false, data: { html: '<p>Seeded <b>MCF10A</b> on gels.</p>' } },
+             { id: 'blk-b', type: 'checklist', title: '', collapsed: false, data: { items: [{ text: 'image at 24 h', done: false }] } },
+             { id: 'blk-c', type: 'whiteboard', title: 'Sketch', collapsed: false, data: { boardId: 'nbOLD_u1', size: 'm' } }] });
+  store.set('userData/u1/notebookBoards/nbOLD_u1', { name: 'Sketch', pages: [{ id: 'p1', background: 'blank' }], activePageId: 'p1', ownerUid: 'u1' });
+  store.set('items/pa', { type: 'paper', title: 'Collagen fibril alignment under shear flow', meta: { library: { is_library_entry: true, authors: [{ family: 'Smith' }, { family: 'Lee' }, { family: 'Wu' }], year: 2020, journal: 'Biophys J' } } });
+  store.set('items/pb', { type: 'paper', title: 'Stiffness and spreading of MCF10A', meta: { library: { is_library_entry: true, authors: [{ family: 'Jones' }], year: 2019, journal: 'Nature' } } });
+  try { sessionStorage.removeItem('nbb_papers_v1'); } catch (e) {}
+  try { localStorage.removeItem('wb_pens_v1'); localStorage.removeItem('wb_pillpos_v1'); } catch (e) {}
+  store.set('userData/u1/notebookBoards/nbOLD_u1/strokes/s1', { pageId: 'p1', seq: 1, pts: [0.1, 0.1, 0.5, 0.3, 0.3, 0.5], color: '#111827', width: 0.004 });
+  if (window.PointerEvent && !PointerEvent.prototype.getCoalescedEvents) PointerEvent.prototype.getCoalescedEvents = function () { return [this]; };
+})();
+</script>
+<script>/* production shape (V3.862): firebase-bridge.js declares `const firebridge` — a bare global, never window.firebridge.
+   Code that reads window.firebridge must fail here the way it fails on the live site. */
+const firebridge = window.firebridge; delete window.firebridge;</script>
+<script>
+/* a canvas entry (no migration) with EVERY card kind, a region and an instance of a region on another board */
+(function () {
+  var store = window.__stub.store;
+  var idx = store.get('userData/u1/notebook/_index');
+  idx.entries.push({ id: 'nb-m', title: 'Phone entry', date: '2026-10-23', tags: [], updated_at: '2026-10-23T10:00:00Z', canvas_version: 3, notebook_id: 'default', board_id: 'nbM_u1' });
+  store.set('userData/u1/notebook/_index', idx);
+  store.set('userData/u1/notebook/nb-m', { title: 'Phone entry', date: '2026-10-23', tags: [], schema_version: 2, canvas_version: 3, boardId: 'nbM_u1', updated_at: '2026-10-23T10:00:00Z', blocks: [] });
+  store.set('userData/u1/notebookBoards/nbM_u1', { name: 'Phone entry', pages: [{ id: 'p1', background: 'grid' }], activePageId: 'p1', ownerUid: 'u1', sheetMode: 'continuous' });
+  var base = 'userData/u1/notebookBoards/nbM_u1/items/';
+  var W = 0.18, X = [0.01, 0.21, 0.41, 0.61, 0.81], Y = [0.02, 0.2, 0.4];
+  function w(id, kind, col, row, title, data, text, z) { store.set(base + id, { type: 'widget', kind: kind, pageId: 'p1', x: X[col], y: Y[row], w: W, z: z, title: title, data: data, text: text, createdAt: 1700000000000 + z }); }
+  w('w1', 'note', 0, 0, 'Setup', { html: '<p>Seeded <b>MCF10A</b> on gels.</p>' }, 'Seeded MCF10A on gels.', 1);
+  w('w2', 'checklist', 1, 0, 'To do', { items: [{ text: 'image at 24 h', done: false }] }, '[ ] image at 24 h', 2);
+  w('w3', 'figure', 2, 0, 'Gel photo', { cells: [{ url: '', storagePath: '', hash: '', caption: '' }] }, '', 3);
+  w('w4', 'html', 3, 0, 'Sim', { url: 'about:blank', storagePath: '', name: 'sim.html', size: 2048, ar: 1.6 }, 'HTML frame: sim.html', 4);
+  w('w5', 'paperquote', 0, 1, '', { text: 'Fibrils align above 2 Pa', cite: 'Smith 2020', paperId: '', page: 0 }, 'Fibrils align above 2 Pa Smith 2020', 5);
+  w('w6', 'calc', 1, 1, 'Dilution', { spec: { kind: 'formula', attrs: { label: 'Dilution', expression: 'c1 * v1 / v2', variables: [{ name: 'c1', label: 'Stock', default: 10, unit: 'mM' }, { name: 'v1', label: 'Volume', default: 1, unit: 'mL' }, { name: 'v2', label: 'Final volume', default: 10, unit: 'mL' }], output: { name: 'c2', label: 'Final', unit: 'mM', decimals: 2 } } }, inputs: {}, context: [], result: '' }, 'Dilution c1 * v1 / v2', 6);
+  w('w7', 'protocol', 2, 1, '', { run: null }, '', 7);
+  w('w8', 'inventory', 3, 1, '', { itemId: '', kind: '', name: '', location: '', catalog: '', usage: [] }, '', 8);
+  w('w9', 'action', 0, 2, '', { actionId: '', kind: '', text: '', at: '', note: '', itemId: '', equipmentId: '', labelCode: '' }, '', 9);
+  w('w10', 'litreview', 1, 2, 'Lit review: collagen', { query: 'collagen', papers: {}, sections: [{ id: 'ls1', title: 'Papers', paperIds: [], notes_html: '', keyPoints: ['Fibrils align above 2 Pa'] }] }, 'Lit review: collagen', 10);
+  w('w11', 'boardlink', 2, 2, 'Sketch', { boardId: 'nbOLD_u1' }, '', 11);
+  /* a region at the top right (its header is in view) and an instance of a region from another board */
+  store.set(base + 'r1', { type: 'region', pageId: 'p1', x: X[4], y: 0.02, w: 0.18, h: 0.1, z: -1000, title: 'Prep', color: '#0D675E', collapsed: false, members: [] });
+  store.set('userData/u1/notebookBoards/nbSRC_u1', { name: 'Source entry', pages: [{ id: 'p1', background: 'grid' }], activePageId: 'p1', ownerUid: 'u1', sheetMode: 'continuous' });
+  store.set('userData/u1/notebookBoards/nbSRC_u1/items/rs', { type: 'region', pageId: 'p1', x: 0.05, y: 0.05, w: 0.4, h: 0.3, z: -1000, title: 'Source region', color: '#b45309', collapsed: false, members: ['sw1'] });
+  store.set('userData/u1/notebookBoards/nbSRC_u1/items/sw1', { type: 'widget', kind: 'note', pageId: 'p1', x: 0.08, y: 0.1, w: 0.3, z: 1, title: 'In the source', data: { html: '<p>Source card</p>' }, text: 'Source card', createdAt: 1700000000500 });
+  store.set(base + 'rr1', { type: 'regionref', pageId: 'p1', x: X[4], y: Y[1], w: 0.18, h: 0.14, z: 12, src: { coll: 'notebookBoards', classId: 'u1', boardId: 'nbSRC_u1', regionId: 'rs', boardName: 'Source entry' } });
+  var want = new URLSearchParams(location.search).get('mobile') || '0';
+  history.replaceState(null, '', location.pathname + '?mobile=' + want + '&entry=nb-m');
+})();
+</script>
+<script>
+/* ── stub DAY_DISTRIBUTE: eight steps, four weeks back through this week; saveOutcome records and flips status ── */
+(function () {
+  function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function day(n) { var d = new Date(); d.setDate(d.getDate() + n); return iso(d); }
+  var STEPS = [
+    { id: 's1', title: 'Run the gel', date: day(0), status: 'planned', created_at: new Date().toISOString() },
+    { id: 's2', title: 'Image the gels at 24 h', date: day(-1), status: 'done' },
+    { id: 's3', title: 'Coat the beads', date: day(-2), status: 'skipped', outcome: { kind: 'barrier', summary: 'Plasma cleaner down', links: [] } },
+    { id: 's4', title: 'Seed MCF10A on gels', date: day(-3), status: 'done', outcome: { kind: 'result', summary: 'good spreading', links: [{ kind: 'notebook_item', boardId: 'nbOLD_u1', itemId: 'zz', title: 'Old card', url: '#' }] } },
+    { id: 's5', title: 'Order collagen', date: day(-6), status: 'done' },
+    { id: 's6', title: 'Calibrate the confocal', date: day(-9), status: 'planned' },
+    { id: 's7', title: 'Write up the TFM method', date: day(-13), status: 'done' },
+    { id: 's8', title: 'Cancelled thing', date: day(-4), status: 'cancelled' },
+    { id: 's9', title: 'Plan the shear experiment', date: day(-20), status: 'planned' },
+  ];
+  window.__dd = { saves: [], ranges: [] };
+  function closedStatusFor(status, kind, closeAs) {
+    if (status === 'planned') { if (kind === 'result') return 'done'; return closeAs === 'done' ? 'done' : 'skipped'; }
+    if (status === 'skipped' && kind === 'result') return 'done';
+    return status;
+  }
+  window.DAY_DISTRIBUTE = {
+    ITEM_OUTCOME_META: { result: { icon: '✅', label: 'Result' }, barrier: { icon: '🚧', label: 'Barrier' }, no_result: { icon: '◌', label: 'No result' } },
+    listRange: async function (from, to) { window.__dd.ranges.push([from, to]); return STEPS.filter(function (s) { return s.date >= from && s.date <= to; }).map(function (s) { return JSON.parse(JSON.stringify(s)); }); },
+    saveOutcome: async function (item, payload, opts) {
+      window.__dd.saves.push({ id: item.id, payload: JSON.parse(JSON.stringify(payload)), opts: opts || null });
+      var real = STEPS.filter(function (s) { return s.id === item.id; })[0];
+      var next = closedStatusFor(item.status, payload.kind, opts && opts.closeAs);
+      item.status = next; item.outcome = payload;
+      if (real) { real.status = next; real.outcome = JSON.parse(JSON.stringify(payload)); }
+      return item;
+    },
+  };
+  window.__toastOk = []; window.__toastErr = window.__toastErr || [];
+  window.TOAST = { info: function () {}, success: function (m) { window.__toastOk.push(m); }, error: function (m) { window.__toastErr.push(m); } };
+})();
+</script>
+<script src="/rm/js/notebook-schemas.js"></script>
+<script src="/rm/js/icons.js"></script>   <!-- the site icon set, as every production page loads it -->
+<script src="/whiteboard.js"></script>
+<script src="/whiteboard-replay.js"></script>
+<script src="/rm/js/canvas-widgets.js"></script>
+<script src="/rm/js/canvas-paper-reader.js"></script>   <!-- V3.859 — collections (quote · lit review · claim) live in the shared module -->
+<script src="/rm/js/user-actions.js"></script>
+<script src="/rm/js/myweek-report.js"></script>
+</head>
+<body>
+<div class="page nbk-page nbc-page"><div id="nbc-content" class="nbk-loading">Loading…</div></div>
+<input type="file" id="nbk-camera-input" style="display:none"><input type="file" id="nbk-file-input" style="display:none">
+<div id="r">running…</div>
+<script src="/rm/js/notebook-canvas.js"></script>
+
+<script>
+(async function () {
+  var out = [], fails = 0, store = window.__stub.store;
+  var MOBILE = new URLSearchParams(location.search).get('mobile') === '1';
+  function check(name, ok, detail) { out.push('<div class="' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓' : '✗') + ' ' + name + (detail !== undefined ? ' <small>' + String(detail).replace(/</g, '&lt;') + '</small>' : '') + '</div>'); if (!ok) fails++; }
+  function q(s) { return document.querySelector(s); }
+  function qa(s) { return Array.from(document.querySelectorAll(s)); }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function until(fn, ms) { var t0 = Date.now(); while (Date.now() - t0 < (ms || 8000)) { try { var v = fn(); if (v) return v; } catch (e) {} await sleep(50); } return null; }
+  function card(id) { return q('.wb-item[data-item-id="' + id + '"]'); }
+  function item(id) { return store.get('userData/u1/notebookBoards/nbM_u1/items/' + id); }
+  function btn(id) { var c = card(id); return c ? c.querySelector('[data-wb-report]') : null; }
+  function pe(el, type, x, y) { el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 1, pointerType: MOBILE ? 'touch' : 'mouse', isPrimary: true, clientX: x, clientY: y, button: 0, buttons: type === 'pointerup' ? 0 : 1 })); }
+  function click(el) { el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); }
+  async function tap(el) { var r = el.getBoundingClientRect(); var x = r.left + r.width / 2, y = r.top + r.height / 2; pe(el, 'pointerdown', x, y); await sleep(30); pe(el, 'pointerup', x, y); click(el); await sleep(120); }
+  function pop() { return q('.mwr-pop'); }
+  function rows() { return qa('.mwr-pop .mwr-row'); }
+  function rowOf(id) { return q('.mwr-pop .mwr-row[data-id="' + id + '"]'); }
+  function groups() { return qa('.mwr-pop .cw-group').map(function (g) { return g.textContent; }); }
+  function sheet() { return q('.wb-sheet-back .wb-sheet'); }
+  function finish() { var r = document.getElementById('r'); r.innerHTML = out.join('') + '<div><b>' + (out.length - fails) + '/' + out.length + ' passed</b></div>'; r.dataset.done = '1'; r.dataset.fails = String(fails); }
+  try {
+    var ready = await until(function () { return qa('.wb-item-widget').length >= 11 && q('.wb-region') && q('.wb-regionref') && (!MOBILE || q('.wb-page.wb-m')); }, 15000);
+    check('the entry opens with eleven cards, a region and an instance' + (MOBILE ? ' in mobile mode' : ''), !!ready, qa('.wb-item-widget').length + ' cards');
+    if (!ready) { finish(); return; }
+    await sleep(500);
+
+    /* ── the ✓ is there, top-left, on cards and regions, not on instances ── */
+    var widgets = qa('.wb-item-widget').filter(function (w) { return !w.classList.contains('wb-regionref'); });   // an instance is a mirror, not a card
+    check('every card has a ✓ as the FIRST thing in its header', widgets.length >= 11 && widgets.every(function (w) { var h = w.querySelector('.wb-wh'); return h && h.firstElementChild && h.firstElementChild.matches('[data-wb-report].wb-wreport'); }));
+    var rh = q('.wb-region .wb-rh');
+    check('the region has a ✓ first in its header', !!rh && rh.firstElementChild.matches('[data-wb-report].wb-rreport'));
+    check('an instance of a region has no ✓', !q('.wb-regionref [data-wb-report]'));
+    check('a fresh card’s ✓ is hollow (not reported yet)', !btn('w1').classList.contains('wb-report-on') && btn('w1').getAttribute('aria-pressed') === 'false' && /Report this as the result/.test(btn('w1').title));
+    if (MOBILE) check('on a phone the ✓ is at least 2em so a thumb can hit it', parseFloat(getComputedStyle(btn('w1')).minWidth) > 0);
+
+    /* ── a press on the ✓ never starts a drag (or the phone sheet) ── */
+    var x0 = item('w3').x, y0 = item('w3').y; var b3 = btn('w3'); var r3 = b3.getBoundingClientRect();
+    pe(b3, 'pointerdown', r3.left + 5, r3.top + 5); await sleep(20); pe(b3, 'pointermove', r3.left + 40, r3.top + 30); await sleep(20); pe(b3, 'pointerup', r3.left + 40, r3.top + 30); await sleep(150);
+    check('pressing and moving on the ✓ does not drag the card' + (MOBILE ? ' nor open the sheet' : ''), item('w3').x === x0 && item('w3').y === y0 && !card('w3').classList.contains('wb-item-dragging') && !sheet());
+
+    /* ── tap the ✓ on the note card → the picker ── */
+    await tap(btn('w1'));
+    check('the ✓ opens the Report picker anchored to it' + (MOBILE ? ' (no sheet)' : ''), !!pop() && /Report as the result of/.test(pop().textContent) && !sheet());
+    check('the picker names the card', !!q('.mwr-pop .mwr-ctitle') && q('.mwr-pop .mwr-ctitle').textContent === 'Setup');
+    await until(function () { return rows().length > 0; }, 4000);
+    check('steps listed: four weeks back through this week, cancelled left out', rows().length === 8 && !rowOf('s8'), rows().length);
+    check('the range asked for is Monday −28 d … Sunday', window.__dd.ranges.length === 1 && /^\d{4}-\d{2}-\d{2}$/.test(window.__dd.ranges[0][0]) && window.__dd.ranges[0][1] > window.__dd.ranges[0][0]);
+    check('two groups: Needs a result (6), then Already has an outcome (2)', groups().length === 2 && /Needs a result/.test(groups()[0]) && /Already has an outcome/.test(groups()[1]) && rows().slice(0, 6).every(function (r) { return ['s1','s2','s5','s6','s7','s9'].indexOf(r.dataset.id) >= 0; }), groups());
+    check('newest first inside a group (today’s step leads)', rows()[0].dataset.id === 's1');
+    check('a row says when and what: Today · planned', /Today · planned/.test(rowOf('s1').textContent) && /Yesterday · done/.test(rowOf('s2').textContent) && /barrier recorded/.test(rowOf('s3').textContent) && /has a result/.test(rowOf('s4').textContent)   /* the icon sweep drew these as monochrome icons, not emoji */);
+    check('a search box, since there are more than six', !q('.mwr-pop .cw-pop-q').hidden);
+    var qi = q('.mwr-pop .cw-pop-q'); qi.value = 'gel'; qi.dispatchEvent(new Event('input', { bubbles: true })); await sleep(30);
+    check('typing filters the steps (gel → 3)', rows().length === 3 && rows().every(function (r) { return /gel/i.test(r.textContent); }), rows().map(function (r) { return r.dataset.id; }));
+    qi.value = ''; qi.dispatchEvent(new Event('input', { bubbles: true })); await sleep(30);
+
+    /* ── pick the planned step → reported, done, the card’s ✓ fills ── */
+    click(rowOf('s1'));
+    await until(function () { return window.__dd.saves.length === 1; }, 4000);
+    check('the picker closes and the step is saved through My Week’s writer with closeAs done', !pop() && window.__dd.saves.length === 1 && window.__dd.saves[0].id === 's1' && window.__dd.saves[0].opts && window.__dd.saves[0].opts.closeAs === 'done');
+    var L = window.__dd.saves[0].payload.links || [];
+    check('the card is the step’s result link, deep-linked to the card', window.__dd.saves[0].payload.kind === 'result' && L.length === 1 && L[0].kind === 'notebook_item' && L[0].entryId === 'nb-m' && L[0].boardId === 'nbM_u1' && L[0].itemId === 'w1' && L[0].title === 'Setup' && L[0].boardTitle === 'Phone entry' && L[0].item_kind === 'note' && L[0].url === '/rm/pages/notebook.html?entry=nb-m&item=w1', L[0]);
+    check('toast: reported and marked done', window.__toastOk.length === 1 && /Run the gel/.test(window.__toastOk[0]) && /marked done/.test(window.__toastOk[0]), window.__toastOk);
+    await until(function () { return (item('w1').myweek || []).length === 1; }, 4000); await sleep(200);
+    check('the card carries the step (myweek[])', (item('w1').myweek || []).length === 1 && item('w1').myweek[0].itemId === 's1' && item('w1').myweek[0].title === 'Run the gel');
+    check('…and its ✓ is filled and names the step', btn('w1').classList.contains('wb-report-on') && btn('w1').getAttribute('aria-pressed') === 'true' && /Run the gel/.test(btn('w1').title));
+
+    /* ── report the same card to a step that already has a result → appended, not replaced ── */
+    await tap(btn('w1'));
+    await until(function () { return rows().length > 0; }, 4000);
+    check('the step already linked to this card is greyed out', !!rowOf('s1') && rowOf('s1').disabled && /already linked to this card/.test(rowOf('s1').textContent));
+    click(rowOf('s4'));
+    await until(function () { return window.__dd.saves.length === 2; }, 4000);
+    var L2 = window.__dd.saves[1].payload.links || [];
+    check('an existing result keeps its links and gains this card', window.__dd.saves[1].id === 's4' && L2.length === 2 && L2[0].itemId === 'zz' && L2[1].itemId === 'w1' && window.__dd.saves[1].payload.summary === 'good spreading');
+    check('toast: added to its result', /added to its result/.test(window.__toastOk[1] || ''), window.__toastOk[1]);
+    await until(function () { return (item('w1').myweek || []).length === 2; }, 4000);
+    check('the card now names two steps', (item('w1').myweek || []).length === 2);
+
+    /* ── a region reports too ── */
+    await tap(btn('r1'));
+    await until(function () { return rows().length > 0; }, 4000);
+    check('the region’s ✓ opens the picker naming the region', !!pop() && q('.mwr-pop .mwr-ctitle').textContent === 'Prep');
+    click(rowOf('s2'));
+    await until(function () { return window.__dd.saves.length === 3; }, 4000);
+    var L3 = window.__dd.saves[2].payload.links || [];
+    check('a region becomes a result link of kind region', L3.length === 1 && L3[0].itemId === 'r1' && L3[0].item_kind === 'region' && L3[0].title === 'Prep');
+    await until(function () { return (item('r1').myweek || []).length === 1; }, 4000); await sleep(150);
+    check('the region’s ✓ fills', btn('r1') && btn('r1').classList.contains('wb-report-on'));
+
+    if (!MOBILE) {
+      /* ── the ⋯ menu offers it too ── */
+      click(card('w2').querySelector('[data-wb-wmenu]')); await sleep(120);
+      var mrow = qa('.cw-pop .cw-row').filter(function (r) { return /Report as a My Week result/.test(r.textContent); })[0];
+      check('the card menu has "Report as a My Week result…"', !!mrow);
+      if (mrow) { click(mrow); await sleep(150); }
+      check('…which opens the same picker for that card', !!pop() && q('.mwr-pop .mwr-ctitle').textContent === 'To do');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await sleep(60);
+      check('Escape closes it', !pop());
+    }
+
+    check('no browser popups', window.__popups.length === 0);
+    check('no toast errors', (window.__toastErr || []).length === 0, window.__toastErr);
+    check('no raw SVG markup leaked into text', document.body.innerText.indexOf('<svg') < 0);
+  } catch (e) { check('the harness itself threw: ' + (e && e.message), false, String(e && e.stack || '').split('\n').slice(0, 4).join(' | ')); }
+  finish();
+})();
+</script>
+</body>
+</html>

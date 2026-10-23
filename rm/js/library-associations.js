@@ -32,11 +32,15 @@
 (function () {
   'use strict';
 
-  // Mirror of paper-overlays.js GRANT_DRAFT_STATUSES — proposal statuses
-  // we'd still cite toward. Awarded/active/completed grants derive inactive.
-  var GRANT_DRAFT_STATUSES = {
-    drafting: 1, submitted: 1, under_review: 1, revising: 1, rejected: 1,
-  };
+  /* V3.631 — was a hand-maintained "mirror of paper-overlays.js
+   * GRANT_DRAFT_STATUSES" (its own comment said so). Now derived from the one
+   * definition in library-links.js, with the same list as a load-order
+   * fallback. Proposal statuses are the ones we'd still cite toward;
+   * awarded/active/completed grants derive inactive. */
+  var GRANT_DRAFT_STATUSES = {};
+  ((window.LIBRARY_LINKS && window.LIBRARY_LINKS.GRANT_DRAFT_STATUSES) ||
+   ['drafting', 'submitted', 'under_review', 'revising', 'rejected'])
+    .forEach(function (s) { GRANT_DRAFT_STATUSES[s] = 1; });
   var TTL_MS = 5 * 60 * 1000;
 
   var _cache = null;      // Map<draftId, info>
@@ -191,7 +195,7 @@
         (uncited ? '<span class="la-uncited-dot" title="Linked but not yet cited in this draft"></span>' : '') +
         '<span class="la-pill-title">' + _esc(info.title) + '</span>' +
         (isInactive && info.status ? '<span class="la-pill-status">' + _esc(info.status) + '</span>' : '') +
-        '<button class="la-pill-x" data-la-remove="' + _esc(info.id) + '" title="Remove this association">×</button>' +
+        '<button class="la-pill-x" data-la-remove="' + _esc(info.id) + '" title="Remove this association">' + ICON.svg('x-mark') + '</button>' +
         '</span>';
     }
 
@@ -209,7 +213,7 @@
       }
     }
     if (opts.showAdd !== false) {
-      html += '<button class="la-add-btn" data-la-add="1" title="Associate this paper with an active draft">＋</button>';
+      html += '<button class="la-add-btn" data-la-add="1" title="Associate this paper with an active draft">' + ICON.svg('plus') + '</button>';
     }
     container.innerHTML = html;
     container.classList.add('la-pill-row');
@@ -351,8 +355,12 @@
         var listed = new Set(all.map(function (d) { return d.id; }));
         var current = new Set(_linkedIds(item));
         var fresh = Array.from(current);
+        var added = [];   // V3.631 — newly-linked ids, for the focus-card offer
         for (const id of desired) {
-          if (!current.has(id)) fresh = await window.LIBRARY_LINKS.toggleDraftLink(item.id, id, true);
+          if (!current.has(id)) {
+            fresh = await window.LIBRARY_LINKS.toggleDraftLink(item.id, id, true);
+            added.push(id);
+          }
         }
         for (const id of current) {
           if (listed.has(id) && !desired.has(id)) {
@@ -364,6 +372,20 @@
         item.meta.library.linked_drafts = fresh;
         close();
         if (typeof onChanged === 'function') onChanged(fresh);
+        /* V3.631 — a draft and its card on the research map are often the
+         * same object recorded twice, so offer the other half of the act
+         * (and ask for the "why" note this axis has never had). Runs AFTER
+         * close() + onChanged: the link is already saved and re-rendered, so
+         * the offer can be dismissed freely and a failure here costs nothing. */
+        if (added.length && window.DRAFT_FOCUS_BRIDGE) {
+          try {
+            await window.DRAFT_FOCUS_BRIDGE.offerForDrafts({
+              item: item,
+              draftIds: added,
+              onDone: function () { if (typeof onChanged === 'function') onChanged(fresh); },
+            });
+          } catch (e) { console.warn('[library-assoc] focus offer failed:', e && e.message); }
+        }
       } catch (e) {
         console.error('[library-assoc] picker save failed:', e);
         btn.disabled = false;

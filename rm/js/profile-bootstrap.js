@@ -47,6 +47,15 @@
       if (user.photoURL) {
         payload.photo = { thumb: user.photoURL, medium: user.photoURL, full: user.photoURL };
       }
+      // V3.805 — CREATE-ONLY, confirmed by the server. `profile` is null not
+      // just when the doc is missing but when firebridge's read FAILED
+      // (offline, network blip) or a cached snapshot said exists:false. The
+      // old `set(payload, {merge:true})` then stamped role:'guest' over a real
+      // profile — rules let an admin rewrite their own role, so it demoted the
+      // PI on 2026-10-13. A transaction reads from the server (never the
+      // cache) and fails instead of queueing offline, so the write only
+      // happens when the doc truly does not exist.
+      var ref = fb.firestore().collection('users').doc(user.uid);
       // V3.338 — retry with backoff: a transient failure here used to strand
       // the user with no profile (and no overlay) until a full reload.
       var delays = [0, 800, 2400];
@@ -54,7 +63,11 @@
       for (var i = 0; i < delays.length; i++) {
         if (delays[i]) await new Promise(function (r) { setTimeout(r, delays[i]); });
         try {
-          await fb.firestore().collection('users').doc(user.uid).set(payload, { merge: true });
+          await fb.firestore().runTransaction(function (t) {
+            return t.get(ref).then(function (snap) {
+              if (!snap.exists) t.set(ref, payload);
+            });
+          });
           lastErr = null;
           break;
         } catch (err) {

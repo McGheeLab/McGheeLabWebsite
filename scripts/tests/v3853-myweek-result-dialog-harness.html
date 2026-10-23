@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.853 — My Week: a step ends in a result</title>
+<!-- Lifts the outcome dialog (openOutcomeDialog, loadResultSources, canvasCardRow + the helpers
+     it closes over) straight out of rm/js/my-week.js, and closedStatusFor out of
+     rm/js/day-distribute.js, onto a stub Firestore + stub DD / toast recorders. Then drives it:
+     ✓ opens the dialog first; the list is the CARDS touched since the step was planned (one
+     `updatedAt >=` query per board, widgets only, newest first); an empty Result is refused
+     inline; a ticked card saves as outcome.links[] with a deep-link url; Show everything lifts
+     the time filter and keeps the ticks; ✗ needs a reason; Cancel keeps the step planned; an old
+     outcome's links survive an edit; ✓ + "No result" stays done. Results land in #r (DOM, not a
+     page global — the browser runner's --eval is an isolated world). -->
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<link rel="stylesheet" href="/rm/css/my-week.css">
+<style>
+#r{position:fixed;left:8px;top:8px;z-index:9999;font:12px/1.4 system-ui,sans-serif;background:#fff;border:1px solid #e5e7eb;padding:6px 8px;max-width:70vw;max-height:40vh;overflow:auto;white-space:pre-wrap}
+.ok{color:#15803d}.bad{color:#b91c1c}
+#demo{position:fixed;right:8px;top:8px;z-index:9999}
+</style>
+<script src="/rm/js/icons.js"></script>
+<script>
+window.__popups = [];
+['prompt','alert','confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
+window.firebase = { firestore: { Timestamp: { fromDate: function (d) { return { toDate: function () { return d; } }; } } } };
+</script>
+</head>
+<body>
+<div id="r">booting…</div>
+<button id="demo" type="button">demo</button>
+<script>
+(async function () {
+  var log = [], pass = 0, fail = 0;
+  function ok(label, cond, extra) {
+    if (cond) pass++; else fail++;
+    log.push((cond ? 'ok ' : 'FAIL ') + label + (cond ? '' : (extra !== undefined ? ' — got ' + JSON.stringify(extra) : '')));
+  }
+  function lift(src, name) {
+    var i = src.indexOf('  async function ' + name + '(');
+    if (i < 0) i = src.indexOf('  function ' + name + '(');
+    if (i < 0) throw new Error('source no longer defines ' + name + '()');
+    var depth = 0;
+    for (var k = src.indexOf('{', i); k < src.length; k++) {
+      if (src[k] === '{') depth++;
+      else if (src[k] === '}' && --depth === 0) return src.slice(i, k + 1);
+    }
+    throw new Error('unbalanced braces in ' + name + '()');
+  }
+  function liftVar(src, name) {   // `  var NAME = {...};` — the kind-label map
+    var i = src.indexOf('  var ' + name + ' = {');
+    if (i < 0) throw new Error('source no longer defines ' + name);
+    var depth = 0;
+    for (var k = src.indexOf('{', i); k < src.length; k++) {
+      if (src[k] === '{') depth++;
+      else if (src[k] === '}' && --depth === 0) return src.slice(i, k + 2);
+    }
+    throw new Error('unbalanced ' + name);
+  }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function until(fn, ms) {
+    var t0 = Date.now();
+    while (Date.now() - t0 < (ms || 3000)) { if (fn()) return true; await sleep(20); }
+    return false;
+  }
+  var $ = function (sel) { return document.querySelector(sel); };
+  var $$ = function (sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); };
+
+  var MW = await (await fetch('/rm/js/my-week.js')).text();
+  var DDS = await (await fetch('/rm/js/day-distribute.js')).text();
+  var closedStatusFor = new Function(lift(DDS, 'closedStatusFor') + '\nreturn closedStatusFor;')();
+
+  /* ── recorders + stubs ─────────────────────────────────────── */
+  var toasts = [], saves = [], followUps = [], refreshes = 0, focusDone = 0, meetingDone = 0, QLOG = [];
+  var toast = function (kind, msg) { toasts.push([kind, msg]); };
+  var refresh = async function () { refreshes++; };
+  var maybeCompleteFocusTask = async function () { focusDone++; };
+  var maybeCompleteMeetingWork = async function () { meetingDone++; };
+  var ICON = { svg: function (n) { return '<i data-icon="' + n + '"></i>'; }, render: function (x) { return x; } };
+  var DD = {
+    ITEM_OUTCOME_META: { result: { icon: '✅', label: 'Result' }, barrier: { icon: '🚧', label: 'Barrier' }, no_result: { icon: '◌', label: 'No result' } },
+    nextMondayStr: function () { return '2026-10-26'; },
+    saveOutcome: async function (item, payload, opts) {
+      saves.push({ item: item.id, payload: JSON.parse(JSON.stringify(payload)), opts: opts || null });
+      item.outcome = payload;
+      item.status = closedStatusFor(item.status, payload.kind, opts && opts.closeAs);
+      return item;
+    },
+    createFollowUp: async function (item, o) { followUps.push(o); },
+  };
+  var T = function (iso) { return { toDate: function () { return new Date(iso); } }; };
+  var PAPERS = [
+    { id: 'p1', title: 'GELS paper', authorUids: ['u1'], updated_at: '2026-10-20' },
+    { id: 'p2', title: 'MEBP paper', authorUids: ['u1'], updated_at: '2026-10-19' },
+    { id: 'lib1', title: 'Some library import', authorUids: ['u1'], is_library_entry: true, updated_at: '2026-10-21' },
+  ];
+  // the step was planned Mon Oct 19 09:00Z; e-old's board is stale, e-noboard has no board at all
+  var ENTRIES = [
+    { id: 'e-week', title: 'Western Wed', date: '2026-10-21', board_id: 'b1', updated_at: '2026-10-22T16:00:05.000Z' },
+    { id: 'e-old', title: 'Sept entry', date: '2026-09-01', board_id: 'b0', updated_at: '2026-09-01T10:00:00.000Z' },
+    { id: 'e-noboard', title: 'Classic entry', date: '2026-10-20', updated_at: '2026-10-20T10:00:00.000Z' },
+  ];
+  var ITEMS = {
+    'papers': PAPERS.map(function (p) { return { id: p.id, data: p }; }),
+    'papers/p1/boards/main/items': [
+      { id: 'i1', data: { type: 'widget', kind: 'figcard', title: 'Gel 2 — lanes', data: { url: 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==#gel2', status: 'collected' }, updatedAt: T('2026-10-21T14:00:00Z') } },
+      { id: 'i2', data: { type: 'widget', kind: 'panel', title: 'A', data: { caption: 'Lanes 1–4', url: 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==#a' }, updatedAt: T('2026-10-20T10:00:00Z') } },
+      { id: 'r1', data: { type: 'region', title: 'Figure 2', updatedAt: T('2026-10-22T11:00:00Z') } },
+      { id: 'i3', data: { type: 'widget', kind: 'note', title: '', data: { html: '<p>Try <b>2×</b> load</p>' }, updatedAt: T('2026-10-22T09:00:00Z') } },
+    ],
+    'papers/p2/boards/main/items': [
+      { id: 'i4', data: { type: 'widget', kind: 'experiment', title: 'PCR run', data: { html: '' }, updatedAt: T('2026-10-10T09:00:00Z') } },
+    ],
+    'userData/u1/notebookBoards/b1/items': [
+      { id: 'n1', data: { type: 'widget', kind: 'figure', title: '', data: { cells: [{ url: 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==#blot', caption: 'Western blot' }] }, updatedAt: T('2026-10-21T15:00:00Z') } },
+      { id: 'n2', data: { type: 'widget', kind: 'checklist', title: '', data: { items: [{ text: 'a', done: true }] }, updatedAt: T('2026-10-21T12:00:00Z') } },
+      { id: 'n3', data: { type: 'widget', kind: 'note', title: '', data: { html: '<p>Lysis took 40 min</p>' }, updatedAt: T('2026-10-20T09:00:00Z') } },
+      { id: 'n4', data: { type: 'widget', kind: 'html', title: 'Sim', data: { name: 'sim.html', url: 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==#sim' }, updatedAt: T('2026-10-22T16:00:00Z') } },
+    ],
+    'userData/u1/notebookBoards/b0/items': [
+      { id: 'n0', data: { type: 'widget', kind: 'figure', title: '', data: { cells: [{ url: 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==#old', caption: 'Old blot' }] }, updatedAt: T('2026-09-01T10:00:00Z') } },
+    ],
+  };
+  var DOCS = { 'userData/u1/notebook/_index': { entries: ENTRIES } };
+  function Q(path, flt) {
+    flt = flt || {};
+    return {
+      where: function (f, op, v) { QLOG.push({ path: path, f: f, op: op, v: v }); return Q(path, Object.assign({}, flt, { where: { f: f, op: op, v: v } })); },
+      orderBy: function (f, dir) { return Q(path, Object.assign({}, flt, { orderBy: { f: f, dir: dir } })); },
+      limit: function (n) { QLOG.push({ path: path, limit: n, bare: !flt.where }); return Q(path, Object.assign({}, flt, { limit: n })); },
+      get: async function () {
+        var rows = (ITEMS[path] || []).slice();
+        if (flt.where && flt.where.f === 'updatedAt' && flt.where.op === '>=') {
+          var t = flt.where.v.toDate().getTime();
+          rows = rows.filter(function (r) { return r.data.updatedAt && r.data.updatedAt.toDate().getTime() >= t; });
+        }
+        if (flt.orderBy) rows.sort(function (a, b) { return b.data.updatedAt.toDate() - a.data.updatedAt.toDate(); });
+        if (flt.limit) rows = rows.slice(0, flt.limit);
+        return { forEach: function (fn) { rows.forEach(function (r) { fn({ id: r.id, data: function () { return r.data; } }); }); } };
+      },
+    };
+  }
+  function col(path) {
+    return Object.assign(Q(path), {
+      doc: function (id) {
+        return {
+          collection: function (n) { return col(path + '/' + id + '/' + n); },
+          get: async function () { var d = DOCS[path + '/' + id]; return d ? { exists: true, data: function () { return d; } } : { exists: false, data: function () { return {}; } }; },
+        };
+      },
+    });
+  }
+  var firebridge = { getUser: function () { return { uid: 'u1' }; }, db: function () { return { collection: function (n) { return col(n); } }; } };
+
+  var fns = new Function('DD', 'firebridge', 'ICON', 'toast', 'refresh', 'maybeCompleteFocusTask', 'maybeCompleteMeetingWork',
+    [lift(MW, 'esc'), lift(MW, 'localToday'), lift(MW, 'shiftDate'), lift(MW, 'mondayOf'), lift(MW, 'fmtDateLabel'),
+     liftVar(MW, 'CANVAS_KIND_LABELS'), lift(MW, 'sinceFor'), lift(MW, 'plainTextOf'), lift(MW, 'tsOf'), lift(MW, 'canvasCardRow'),
+     lift(MW, 'loadResultSources'), lift(MW, 'openOutcomeDialog')].join('\n') +
+    '\nreturn { openOutcomeDialog: openOutcomeDialog, loadResultSources: loadResultSources };'
+  )(DD, firebridge, ICON, toast, refresh, maybeCompleteFocusTask, maybeCompleteMeetingWork);
+
+  function item(id, status, extra) { return Object.assign({ id: id, title: 'Run the ' + id + ' gel', date: '2026-10-23', status: status, created_at: '2026-10-19T09:00:00.000Z' }, extra || {}); }
+  function overlay() { return $('.md-report-overlay'); }
+  async function closeAny() { var o = overlay(); if (o) { o.remove(); } }
+  function tiles() { return $$('.md-oc-tile').map(function (b) { return b.getAttribute('data-item'); }); }
+  function tileOf(id) { return $('.md-oc-tile[data-item="' + id + '"]'); }
+  function isOn(id) { var t = tileOf(id); return !!t && t.classList.contains('md-oc-tile-on') && t.getAttribute('aria-pressed') === 'true'; }
+  function tick(id) { tileOf(id).click(); }
+  function visibleTiles() { return $$('.md-oc-tile').filter(function (t) { return !t.hidden; }); }
+  function eyebrow() { return (($('.md-oc-eyebrow') || {}).textContent || ''); }
+
+  try {
+    /* ── S1: ✓ opens the dialog first; the list is the cards touched since the step was planned ── */
+    var A = item('A', 'planned');
+    await fns.openOutcomeDialog(A, 'result', null, { closeAs: 'done' });
+    ok('S1 dialog opened', !!overlay());
+    ok('S1 eyebrow says Done · planned', /^Done ✓ · planned /.test(eyebrow()), eyebrow());
+    ok('S1 the step’s title is the heading', (($('.md-oc-title') || {}).textContent || '') === 'Run the A gel', ($('.md-oc-title') || {}).textContent);
+    ok('S1 segmented choice shows Result as chosen', !!$('.md-oc-kind-on input[value="result"]'));
+    ok('S1 save label', (($('.md-r-save') || {}).textContent || '') === 'Save & mark done', ($('.md-r-save') || {}).textContent);
+    ok('S1 Result preselected', !!$('input[name="md-oc-kind"][value="result"]:checked'));
+    ok('S1 section says Where is the result? · cards since Oct 19', /Where is the result\?/.test($('#md-oc-sources .md-oc-h').textContent) && /since .*Oct 19/.test($('#md-oc-sources .md-oc-hsub').textContent), $('#md-oc-sources .md-oc-h').textContent);
+    ok('S1 result layout: cards first, then the sentence / photo', $('#md-oc-body').firstElementChild.id === 'md-oc-sources' && $('#md-oc-notes') && /A photo or a sentence/.test($('#md-oc-notes .md-oc-h').textContent));
+    var ids = tiles();
+    ok('S1 seven cards since the step was planned', ids.length === 7, ids);
+    ok('S1 newest first within each group (n4 leads the notebook, i3 leads GELS)', ids[0] === 'n4' && ids.indexOf('i3') < ids.indexOf('i1') && ids.indexOf('i1') < ids.indexOf('i2') && ids.indexOf('n1') < ids.indexOf('n2'), ids);
+    ok('S1 a region is not a result', ids.indexOf('r1') < 0);
+    ok('S1 a card edited before the plan is out (i4)', ids.indexOf('i4') < 0);
+    ok('S1 a stale entry’s board was not even queried (b0)', !QLOG.some(function (q) { return q.path === 'userData/u1/notebookBoards/b0/items'; }), QLOG.map(function (q) { return q.path; }));
+    ok('S1 the library import has no board of mine', !QLOG.some(function (q) { return /lib1/.test(q.path); }));
+    var wq = QLOG.filter(function (q) { return q.path === 'papers/p1/boards/main/items' && q.f === 'updatedAt'; })[0];
+    ok('S1 the query is updatedAt >= the step’s created_at', !!wq && wq.op === '>=' && wq.v.toDate().toISOString() === '2026-10-19T09:00:00.000Z', wq && wq.v.toDate());
+    ok('S1 figure card tile shows its thumbnail', !!(tileOf('i1') && tileOf('i1').querySelector('.md-oc-tthumb img') && /#gel2$/.test(tileOf('i1').querySelector('.md-oc-tthumb img').getAttribute('src'))));
+    ok('S1 tiles are grouped under their board', tileOf('i1') && /GELS paper.*figure board/.test(tileOf('i1').closest('.md-oc-group').querySelector('.md-oc-ghead').textContent) && /Planned figure · \w{3}/.test(tileOf('i1').querySelector('.md-oc-tmeta').textContent), tileOf('i1') && tileOf('i1').closest('.md-oc-group').querySelector('.md-oc-ghead').textContent);
+    ok('S1 groups: newest group first (Western Wed, then GELS, then nothing else)', $$('.md-oc-ghead').map(function (g) { return g.textContent.replace(/[📓📊]|figure board|notebook/g, '').trim(); }).join('|') === 'Western Wed|GELS paper', $$('.md-oc-ghead').map(function (g) { return g.textContent; }));
+    ok('S1 notebook figure titled by its caption, under its entry', tileOf('n1') && tileOf('n1').querySelector('.md-oc-ttitle').textContent === 'Western blot' && /Western Wed.*notebook/.test(tileOf('n1').closest('.md-oc-group').querySelector('.md-oc-ghead').textContent) && /Figure \/ photo/.test(tileOf('n1').querySelector('.md-oc-tmeta').textContent), tileOf('n1') && tileOf('n1').textContent);
+    ok('S1 note titled by its text', tileOf('i3') && tileOf('i3').querySelector('.md-oc-ttitle').textContent === 'Try 2× load', tileOf('i3') && tileOf('i3').querySelector('.md-oc-ttitle').textContent);
+    ok('S1 untitled checklist falls back to its kind', tileOf('n2') && tileOf('n2').querySelector('.md-oc-ttitle').textContent === 'Checklist');
+    ok('S1 a card without an image shows a glyph, not a broken picture', tileOf('n2') && !!tileOf('n2').querySelector('.md-oc-tglyph') && !tileOf('n2').querySelector('img'));
+    ok('S1 filter box present (> 6 rows)', !!$('.md-oc-filter[data-filter="cards"]'));
+    ok('S1 error hidden at open', $('#md-oc-err').hidden === true);
+    $('.md-r-save').click();
+    await sleep(30);
+    ok('S1 empty Result refused: error shown', $('#md-oc-err').hidden === false && /needs evidence/.test($('#md-oc-err').textContent), $('#md-oc-err').textContent);
+    ok('S1 sources marked invalid', $('#md-oc-sources').classList.contains('md-oc-invalid'));
+    ok('S1 nothing written', saves.length === 0 && A.status === 'planned', { saves: saves.length, status: A.status });
+    var flt = $('.md-oc-filter[data-filter="cards"]');
+    flt.value = 'lanes'; flt.dispatchEvent(new Event('input', { bubbles: true }));
+    var vis = visibleTiles();
+    ok('S1 filter narrows to the one card named lanes', vis.length === 1 && vis[0].getAttribute('data-item') === 'i1', vis.map(function (t) { return t.getAttribute('data-item'); }));
+    ok('S1 a group with no match folds away', $$('.md-oc-group').filter(function (g) { return !g.hidden; }).length === 1);
+    flt.value = 'gels'; flt.dispatchEvent(new Event('input', { bubbles: true }));
+    ok('S1 filter also matches the board’s name (3 GELS cards)', visibleTiles().length === 3);
+    flt.value = ''; flt.dispatchEvent(new Event('input', { bubbles: true }));
+    tick('i1'); tick('n1');
+    ok('S1 tapping a tile selects it (check badge) and clears the error', isOn('i1') && isOn('n1') && $('#md-oc-err').hidden === true && !$('#md-oc-sources').classList.contains('md-oc-invalid'));
+    flt.value = 'zzz'; flt.dispatchEvent(new Event('input', { bubbles: true }));
+    ok('S1 a chosen tile never hides under the filter', !tileOf('i1').hidden && !tileOf('n1').hidden);
+    $('.md-r-save').click();
+    ok('S1 dialog closes after save', await until(function () { return !overlay(); }));
+    ok('S1 one save with closeAs done', saves.length === 1 && saves[0].opts && saves[0].opts.closeAs === 'done', saves[0] && saves[0].opts);
+    var L = (saves[0] && saves[0].payload.links) || [];
+    var fbl = L.filter(function (l) { return l.kind === 'figure_board_item'; })[0], nbl = L.filter(function (l) { return l.kind === 'notebook_item'; })[0];
+    ok('S1 figure-board card saved with a deep link', !!fbl && fbl.paperId === 'p1' && fbl.boardId === 'main' && fbl.itemId === 'i1' && fbl.title === 'Gel 2 — lanes' && fbl.thumb === 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==#gel2' && fbl.boardTitle === 'GELS paper' && fbl.item_kind === 'figcard' && fbl.url === '/rm/pages/figure-board.html?paper=p1&item=i1', fbl);
+    ok('S1 notebook card saved with a deep link', !!nbl && nbl.entryId === 'e-week' && nbl.boardId === 'b1' && nbl.itemId === 'n1' && nbl.title === 'Western blot' && nbl.url === '/rm/pages/notebook.html?entry=e-week&item=n1', nbl);
+    ok('S1 exactly those two links', L.length === 2, L.length);
+    ok('S1 step is now done', A.status === 'done', A.status);
+    ok('S1 focus-task + meeting loop-closure ran once', focusDone === 1 && meetingDone === 1, [focusDone, meetingDone]);
+    ok('S1 page refreshed', refreshes === 1, refreshes);
+    ok('S1 success toast', toasts.length && toasts[toasts.length - 1][0] === 'success' && /Done ✓ — result recorded/.test(toasts[toasts.length - 1][1]), toasts[toasts.length - 1]);
+
+    /* ── S1b: Show everything lifts the time filter and keeps the ticks ── */
+    var A2 = item('A2', 'planned');
+    QLOG.length = 0;
+    await fns.openOutcomeDialog(A2, 'result', null, { closeAs: 'done' });
+    tick('i1');
+    ok('S1b the quiet link reads Show older cards', $('#md-oc-showall').textContent === 'Show older cards', $('#md-oc-showall').textContent);
+    $('#md-oc-showall').click();
+    ok('S1b re-listed with everything (9 cards)', await until(function () { return tiles().length === 9; }), tiles());
+    ok('S1b the link now offers the narrow list back', /Only cards since .*Oct 19/.test($('#md-oc-showall').textContent), $('#md-oc-showall').textContent);
+    ok('S1b older cards now present (i4, n0)', tiles().indexOf('i4') >= 0 && tiles().indexOf('n0') >= 0);
+    ok('S1b the choice survived the re-list', isOn('i1'));
+    ok('S1b bare limit queries, no time filter', QLOG.some(function (q) { return q.path === 'papers/p2/boards/main/items' && q.bare; }));
+    $('.md-r-cancel').click(); await sleep(20);
+    ok('S1b cancel keeps it planned', !overlay() && A2.status === 'planned' && saves.length === 1);
+
+    /* ── S2: ✗ needs a reason ── */
+    var B = item('B', 'planned');
+    await fns.openOutcomeDialog(B, 'barrier', null, { closeAs: 'skipped' });
+    ok('S2 eyebrow says Skipped', /^Skipped · planned /.test(eyebrow()), eyebrow());
+    ok('S2 barrier layout: the reason leads, required', $('#md-oc-body').firstElementChild.id === 'md-oc-notes' && /What blocked you\?/.test($('#md-oc-notes .md-oc-h').textContent) && /required/.test($('#md-oc-notes .md-oc-h').textContent));
+    ok('S2 Barrier preselected', !!$('input[name="md-oc-kind"][value="barrier"]:checked'));
+    ok('S2 save label', $('.md-r-save').textContent === 'Save & mark skipped', $('.md-r-save').textContent);
+    ok('S2 the cards fold into an optional Attach row', $('#md-oc-sources').tagName === 'DETAILS' && !$('#md-oc-sources').open && /Attach a card.*optional/.test($('#md-oc-sources > summary').textContent));
+    $('.md-r-save').click(); await sleep(30);
+    ok('S2 empty reason refused', $('#md-oc-err').hidden === false && /what blocked you/.test($('#md-oc-err').textContent), $('#md-oc-err').textContent);
+    ok('S2 textarea marked invalid + focused', $('#md-oc-summary').classList.contains('md-oc-invalid') && document.activeElement === $('#md-oc-summary'));
+    $('#md-oc-summary').value = 'Scope was booked all day'; $('#md-oc-summary').dispatchEvent(new Event('input', { bubbles: true }));
+    ok('S2 typing clears the error', $('#md-oc-err').hidden === true);
+    $('.md-r-save').click();
+    ok('S2 dialog closes', await until(function () { return !overlay(); }));
+    ok('S2 save with closeAs skipped + the reason', saves.length === 2 && saves[1].opts.closeAs === 'skipped' && saves[1].payload.kind === 'barrier' && saves[1].payload.summary === 'Scope was booked all day', saves[1]);
+    ok('S2 step is skipped', B.status === 'skipped', B.status);
+    ok('S2 no loop-closure on a skip', focusDone === 1 && meetingDone === 1);
+    ok('S2 barrier toast', /Barrier recorded/.test(toasts[toasts.length - 1][1]), toasts[toasts.length - 1]);
+
+    /* ── S3: Cancel keeps the step planned ── */
+    var C = item('C', 'planned');
+    await fns.openOutcomeDialog(C, 'result', null, { closeAs: 'done' });
+    $('.md-r-cancel').click(); await sleep(20);
+    ok('S3 dialog gone', !overlay());
+    ok('S3 still planned, nothing written', C.status === 'planned' && saves.length === 2, { status: C.status, saves: saves.length });
+    ok('S3 info toast says still planned', toasts[toasts.length - 1][0] === 'info' && /Still planned/.test(toasts[toasts.length - 1][1]), toasts[toasts.length - 1]);
+
+    /* ── S4: editing an old outcome keeps its links — a card the filter no longer lists, a legacy kind, V3.623 entry ids ── */
+    var D = item('D', 'done', { outcome: { kind: 'result', summary: 'nice bands', image: null, notebook_entry_ids: ['e-old'],
+      links: [{ kind: 'notebook_item', itemId: 'n0', entryId: 'e-old', boardId: 'b0', title: 'Old blot', url: '/rm/pages/notebook.html?entry=e-old&item=n0', thumb: 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==#old' },
+              { kind: 'figure_board', id: 'p-gone', title: 'Old paper', url: '/rm/pages/figure-board.html?paper=p-gone' }] } });
+    await fns.openOutcomeDialog(D);
+    ok('S4 eyebrow says Outcome', /^Outcome · planned /.test(eyebrow()), eyebrow());
+    ok('S4 save label', $('.md-r-save').textContent === 'Save outcome');
+    ok('S4 the earlier card is listed and chosen though outside the window', tiles().length === 8 && isOn('n0'), tiles());
+    ok('S4 summary restored', $('#md-oc-summary').value === 'nice bands');
+    $('.md-r-save').click();
+    ok('S4 dialog closes', await until(function () { return !overlay(); }));
+    var L4 = saves[2] && saves[2].payload;
+    ok('S4 links kept: the card + the legacy kind; entry ids preserved; no closeAs',
+      saves.length === 3 && saves[2].opts.closeAs === null && L4.links.length === 2 &&
+      L4.links.some(function (l) { return l.kind === 'notebook_item' && l.itemId === 'n0' && l.url === '/rm/pages/notebook.html?entry=e-old&item=n0'; }) &&
+      L4.links.some(function (l) { return l.kind === 'figure_board' && l.id === 'p-gone'; }) &&
+      L4.notebook_entry_ids.length === 1 && L4.notebook_entry_ids[0] === 'e-old', L4);
+    ok('S4 stays done', D.status === 'done');
+
+    /* ── S5: ✓ then "No result" saves empty-handed and stays done ── */
+    var E = item('E', 'planned');
+    await fns.openOutcomeDialog(E, 'result', null, { closeAs: 'done' });
+    var nr = $('input[name="md-oc-kind"][value="no_result"]'); nr.checked = true; nr.dispatchEvent(new Event('change', { bubbles: true }));
+    ok('S5 switching to No result re-lays the body: What happened? leads, cards fold', /What happened\?/.test($('#md-oc-notes .md-oc-h').textContent) && $('#md-oc-body').firstElementChild.id === 'md-oc-notes' && $('#md-oc-sources').tagName === 'DETAILS', $('#md-oc-notes .md-oc-h').textContent);
+    ok('S5 segmented choice follows', !!$('.md-oc-kind-on input[value="no_result"]') && !$('.md-oc-kind-on input[value="result"]'));
+    $('.md-r-save').click();
+    ok('S5 dialog closes', await until(function () { return !overlay(); }));
+    ok('S5 no_result accepted, step done', saves.length === 4 && saves[3].payload.kind === 'no_result' && E.status === 'done', { status: E.status, kind: saves[3] && saves[3].payload.kind });
+
+    /* ── S6: a sentence alone passes; follow-up rides along ── */
+    var F = item('F', 'planned');
+    await fns.openOutcomeDialog(F, 'result', null, { closeAs: 'done' });
+    $('#md-oc-summary').value = 'Reagent arrived; repeat with 2× load'; $('#md-oc-summary').dispatchEvent(new Event('input', { bubbles: true }));
+    var kb = $('input[name="md-oc-kind"][value="barrier"]'); kb.checked = true; kb.dispatchEvent(new Event('change', { bubbles: true }));
+    var kr = $('input[name="md-oc-kind"][value="result"]'); kr.checked = true; kr.dispatchEvent(new Event('change', { bubbles: true }));
+    ok('S6 typed text survives switching the kind back and forth', $('#md-oc-summary').value === 'Reagent arrived; repeat with 2× load', $('#md-oc-summary').value);
+    ok('S6 follow-up fields hidden until asked', $('#md-oc-fu-fields').hidden === true && getComputedStyle($('#md-oc-fu-fields')).display === 'none');
+    $('#md-oc-fu').checked = true; $('#md-oc-fu').dispatchEvent(new Event('change', { bubbles: true }));
+    ok('S6 follow-up fields revealed', $('#md-oc-fu-fields').hidden === false && getComputedStyle($('#md-oc-fu-fields')).display !== 'none');
+    $('.md-r-save').click();
+    ok('S6 dialog closes', await until(function () { return !overlay(); }));
+    ok('S6 sentence-only result saved, no links', saves.length === 5 && saves[4].payload.kind === 'result' && saves[4].payload.links.length === 0 && F.status === 'done');
+    ok('S6 follow-up created', followUps.length === 1 && followUps[0].date === '2026-10-26', followUps[0]);
+    ok('S6 toast mentions the follow-up', /follow-up planned/.test(toasts[toasts.length - 1][1]), toasts[toasts.length - 1]);
+
+    /* ── S7: a step with no created_at falls back to the start of its day ── */
+    var G = item('G', 'planned', { created_at: null, date: '2026-10-22' });
+    await fns.openOutcomeDialog(G, 'result', null, { closeAs: 'done' });
+    ok('S7 only cards from Oct 22 on (n4, i3)', tiles().join(',') === 'n4,i3', tiles());
+    $('.md-r-cancel').click(); await sleep(20);
+
+    ok('no browser popups anywhere', window.__popups.length === 0, window.__popups);
+  } catch (err) {
+    fail++; log.push('FAIL exception: ' + (err && err.stack || err));
+  }
+
+  var r = $('#r');
+  r.innerHTML = '<b>v3853: ' + pass + ' passed, ' + fail + ' failed</b>\n' + log.map(function (l) {
+    return '<span class="' + (l.indexOf('ok ') === 0 ? 'ok' : 'bad') + '">' + l.replace(/[<>&]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]; }) + '</span>';
+  }).join('\n');
+  r.setAttribute('data-done', '1'); r.setAttribute('data-pass', pass); r.setAttribute('data-fail', fail);
+  document.title = 'v3853: ' + pass + ' passed, ' + fail + ' failed';
+
+  // demo for a screenshot: a fresh ✓ dialog with one card chosen (data-demo="error" shows the refusal instead)
+  $('#demo').addEventListener('click', async function () {
+    await closeAny();
+    $('#r').hidden = true;
+    var H = item('H', 'planned');
+    await fns.openOutcomeDialog(H, 'result', null, { closeAs: 'done' });
+    if (document.body.getAttribute('data-demo') === 'error') $('.md-r-save').click();
+    else tick('n4');
+  });
+})();
+</script>
+</body>
+</html>

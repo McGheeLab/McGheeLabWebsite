@@ -154,7 +154,7 @@
     card.className = 'pfc-card';
     overlay.appendChild(card);
     card.innerHTML =
-      '<div class="pfc-head">🧩 Compose panels' +
+      '<div class="pfc-head">' + ICON.svg('puzzle-piece') + ' Compose panels' +
       '<span class="pfc-hint">Panels bake into ONE image — the manuscript pipeline sees a single figure; panel letters sync to the [!fig:…:A] references.</span></div>';
 
     /* Controls row. */
@@ -214,7 +214,7 @@
     cancel.type = 'button'; cancel.className = 'btn btn-sm'; cancel.textContent = 'Close';
     var bake = document.createElement('button');
     bake.type = 'button'; bake.className = 'btn btn-sm btn-primary';
-    bake.textContent = '✓ Bake into figure';
+    ICON.label(bake, 'check', ' Bake into figure');
     actions.appendChild(cancel);
     actions.appendChild(bake);
     card.appendChild(actions);
@@ -260,7 +260,7 @@
         });
         rowEl.appendChild(spanBtn);
         var upBtn = document.createElement('button');
-        upBtn.type = 'button'; upBtn.className = 'btn btn-sm'; upBtn.textContent = '◀';
+        upBtn.type = 'button'; upBtn.className = 'btn btn-sm'; ICON.label(upBtn, 'chevron-left');
         upBtn.title = 'Move earlier';
         upBtn.disabled = i === 0;
         upBtn.addEventListener('click', function () {
@@ -270,7 +270,7 @@
         });
         rowEl.appendChild(upBtn);
         var downBtn = document.createElement('button');
-        downBtn.type = 'button'; downBtn.className = 'btn btn-sm'; downBtn.textContent = '▶';
+        downBtn.type = 'button'; downBtn.className = 'btn btn-sm'; ICON.label(downBtn, 'chevron-right');
         downBtn.title = 'Move later';
         downBtn.disabled = i === panels.length - 1;
         downBtn.addEventListener('click', function () {

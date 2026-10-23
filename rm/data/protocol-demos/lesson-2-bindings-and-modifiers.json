@@ -3,7 +3,7 @@
   "protocol": {
     "id": "lesson-2-bindings-and-modifiers",
     "title": "Node lesson 2 — Bindings & modifiers",
-    "summary": "A guided build: wire a constant into an input's max (a binding), then gate the dose onto the document through a 📊 Cards node — settings wires and display wires in one lesson.",
+    "summary": "A guided build: wire a constant into an input's max (a binding), then gate the dose onto the document through a Cards node — settings wires and display wires in one lesson.",
     "tags": [
       "demo",
       "tutorial",
@@ -51,14 +51,14 @@
             },
             {
               "kind": "step",
-              "body": "Build 2: a <b>display gate</b>. A 📊 <b>Cards</b> node decides what the document shows — wire <code>dose</code> into it and the chosen dose renders as a live result card, read-only. Nothing displays by itself: ungated variables still compute, they just aren't offered to the page. (Card variables are automatically available to the editor's 🔗 reference picker too; a separate 🔗 <b>References</b> node offers values inline <i>without</i> a card.)"
+              "body": "Build 2: a <b>display gate</b>. A <b>Cards</b> node decides what the document shows — wire <code>dose</code> into it and the chosen dose renders as a live result card, read-only. Nothing displays by itself: ungated variables still compute, they just aren't offered to the page. (Card variables are automatically available to the editor's reference picker too; a separate <b>References</b> node offers values inline <i>without</i> a card.)"
             },
             {
               "kind": "callout",
               "attrs": {
                 "type": "assume"
               },
-              "body": "The binding roles, in plain terms. <b>math</b> — the variable is usable by name inside an Equation (or a Code node) formula. <b>param</b> — the variable's live value overrides one numeric setting on the target node (min, max, step, default, decimals). <b>structural</b> — a set feeds a List, changing what items exist rather than any single number. <b>display</b> — the variable is offered to the document: as a result card (📊 Cards) or as an inline reference (🔗 References). <b>none</b> — legacy wires with no effect; delete them."
+              "body": "The binding roles, in plain terms. <b>math</b> — the variable is usable by name inside an Equation (or a Code node) formula. <b>param</b> — the variable's live value overrides one numeric setting on the target node (min, max, step, default, decimals). <b>structural</b> — a set feeds a List, changing what items exist rather than any single number. <b>display</b> — the variable is offered to the document: as a result card (Cards) or as an inline reference (References). <b>none</b> — legacy wires with no effect; delete them."
             },
             {
               "kind": "step",

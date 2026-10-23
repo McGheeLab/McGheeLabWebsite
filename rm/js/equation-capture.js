@@ -68,6 +68,16 @@
     _viewer = opts.viewer || null;
   }
 
+  /* V3.621 — called from library-paper's _detachActive: close an open
+   * capture dialog (its save used to read module state at click time, so
+   * a dialog held across a tab switch wrote into the wrong paper). */
+  function destroy() {
+    _paperId = null;
+    _viewer = null;
+    var dlg = document.getElementById('eqcap-overlay');
+    if (dlg) dlg.remove();
+  }
+
   /* Static rendering needs MathLive's stylesheet + fonts css (vendored);
    * injected once on first use. */
   function _injectStaticCss() {
@@ -144,6 +154,8 @@
 
   function _openModal(ctx) {
     var existing = ctx.existing;
+    // V3.621 — bind the paper id at open time, not at save-click time.
+    var paperId = _paperId;
     var snip = existing ? (existing.snip_data_uri || null) : _snipFromAnchors(ctx.anchors);
 
     var old = document.getElementById('eqcap-overlay');
@@ -191,7 +203,7 @@
     var ocrBtn = document.createElement('button');
     ocrBtn.type = 'button';
     ocrBtn.className = 'eqcap-ocr-btn';
-    ocrBtn.textContent = '✨ Auto-read';
+    ICON.label(ocrBtn, 'sparkles', ' Auto-read');
     ocrBtn.title = 'Parse the snipped image to LaTeX automatically (overwrites the field)';
     ocrBtn.style.display = 'none';
     tabRow.appendChild(ocrBtn);
@@ -277,11 +289,11 @@
     save.addEventListener('click', function () {
       var latex = (currentLatex() || '').trim();
       if (!latex) { alert('Transcribe the equation first (Visual or LaTeX).'); return; }
-      if (!window.ANNOTATION_SYNC || !_paperId) { alert('Annotation sync unavailable.'); return; }
+      if (!window.ANNOTATION_SYNC || !paperId) { alert('Annotation sync unavailable.'); return; }
       save.disabled = true;
       var p;
       if (existing) {
-        p = window.ANNOTATION_SYNC.update(_paperId, existing.id, {
+        p = window.ANNOTATION_SYNC.update(paperId, existing.id, {
           latex: latex,
           name: nameIn.value.trim(),
           comment: noteIn.value,
@@ -289,7 +301,7 @@
       } else {
         var vis = (window.ANNOTATION_PANEL && window.ANNOTATION_PANEL.getDefaultVisibility &&
                    window.ANNOTATION_PANEL.getDefaultVisibility()) || 'lab';
-        p = window.ANNOTATION_SYNC.create(_paperId, {
+        p = window.ANNOTATION_SYNC.create(paperId, {
           kind: 'equation',
           annotation_type: 'equation',
           color_id: 'green',
@@ -322,7 +334,7 @@
       ocrBtn.disabled = true;
       ocrNote.hidden = false;
       ocrNote.className = 'eqcap-ocr-note';
-      ocrNote.textContent = '✨ Reading the equation from the snip…';
+      ICON.label(ocrNote, 'sparkles', ' Reading the equation from the snip…');
       _ocrTranscribe(snip).then(function (latex) {
         ocrBtn.disabled = false;
         if (auto === true && (currentLatex() || '').trim()) {
@@ -334,11 +346,11 @@
         ta.value = latex;
         if (mf) mf.value = latex;   // Visual tab mounts copy ta.value themselves
         ocrNote.className = 'eqcap-ocr-note eqcap-ocr-ok';
-        ocrNote.textContent = '✓ Parsed from the image — check it against the snip before saving.';
+        ICON.label(ocrNote, 'check', ' Parsed from the image — check it against the snip before saving.');
       }).catch(function (e) {
         ocrBtn.disabled = false;
         ocrNote.className = 'eqcap-ocr-note eqcap-ocr-err';
-        ocrNote.textContent = '⚠ Auto-read failed: ' + (e.message || e) + ' — transcribe manually.';
+        ICON.label(ocrNote, 'exclamation-triangle', ' Auto-read failed: ' + (e.message || e) + ' — transcribe manually.');
       });
     }
     if (snip) {
@@ -356,5 +368,6 @@
     open: open,
     openForAnnotation: openForAnnotation,
     renderStatic: renderStatic,
+    destroy: destroy,
   };
 })();

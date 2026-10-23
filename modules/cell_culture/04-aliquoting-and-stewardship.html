@@ -1,0 +1,1988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aliquoting & Stewardship — Why One Bottle Is a Bad Idea (Cell Culture Foundations 4)</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#f1f5f9;color:#1e293b;line-height:1.5;overflow-x:hidden}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,#1e3a5f 0%,#0891b2 100%);color:#fff;padding:24px 32px;text-align:center}
+header h1{font-size:1.7rem;font-weight:700;letter-spacing:-.5px}
+header .subtitle{font-size:.95rem;opacity:.85;margin-top:4px}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 16px;overflow-x:auto;position:sticky;top:0;z-index:100}
+.tab-btn{padding:12px 16px;border:none;background:none;font-size:.84rem;font-weight:600;color:#64748b;
+  cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:#2563eb}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+
+/* ── Constants & variables rail ── */
+.constants-bar{max-width:1400px;margin:10px auto 0;padding:0 16px}
+.constants-bar details{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.constants-bar summary{cursor:pointer;padding:10px 16px;font-size:.82rem;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:#1e3a5f}
+.constants-bar .const-body{padding:4px 20px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px 24px}
+.constants-bar .const-body h4{grid-column:1/-1;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-top:8px}
+.constants-bar .const-body p{font-size:.82rem;color:#475569;margin:1px 0}
+.constants-bar .const-body p .src{color:#94a3b8;font-size:.72rem}
+.constants-bar .eqindex p b{color:#1e3a5f;font-variant-numeric:tabular-nums}
+
+/* ── Main layout ── */
+main{max-width:1400px;margin:0 auto;padding:16px}
+.tab-content{display:none}
+.tab-content.active{display:flex;flex-direction:column}
+
+/* ── Lesson flow (stacked story → interactive pairs) ──
+   `contain:layout` keeps each block's internal reflow from reaching its
+   siblings; the reserved heights on .stats / .val-verdict below keep the
+   blocks themselves from changing size as live readouts update, so a
+   simulation never pushes the paragraph you are reading off the screen. */
+.lesson-block{margin-bottom:26px;padding-bottom:8px;border-bottom:1px dashed #cbd5e1;contain:layout}
+.lesson-block:last-of-type{border-bottom:none}
+.lesson-block .background-section{margin-bottom:12px}
+.panel.compact{grid-template-columns:260px 1fr;margin-bottom:4px;align-items:start}
+@media(max-width:900px){.panel.compact{grid-template-columns:1fr}}
+
+/* ── Cards & panels ── */
+.panel{display:grid;grid-template-columns:300px 1fr;gap:16px}
+@media(max-width:900px){.panel{grid-template-columns:1fr}}
+
+/* ── Background sections ── */
+.background-section{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  padding:24px 28px;margin-bottom:16px;border-left:4px solid #1e3a5f}
+.background-section h2{font-size:1.1rem;color:#1e3a5f;margin-bottom:12px}
+.background-section h3{font-size:.95rem;color:#334155;margin:16px 0 6px}
+.background-section p,.background-section li{font-size:.88rem;color:#475569;line-height:1.6}
+.background-section ul,.background-section ol{padding-left:20px;margin:6px 0}
+.equation-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 16px;margin:10px 0;overflow-x:auto}
+.equation-box .eqno{float:right;color:#94a3b8;font-size:.78rem;margin-left:10px;line-height:2.2}
+.equation-box mjx-container,.background-section mjx-container{max-width:100%;overflow-x:auto;overflow-y:hidden}
+.worked-example{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin:10px 0}
+.worked-example::before{content:"WORKED EXAMPLE";display:block;font-size:.65rem;font-weight:700;letter-spacing:.08em;color:#2563eb;margin-bottom:6px}
+/* ── Worked examples v2: stepped, equations shown assembling, COLLAPSED by default ── */
+details.worked{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;margin:12px 0}
+details.worked summary{cursor:pointer;padding:9px 14px;font-size:.72rem;font-weight:700;letter-spacing:.07em;color:#2563eb;text-transform:uppercase}
+details.worked summary .we-title{color:#1e40af;text-transform:none;letter-spacing:0;font-size:.86rem;font-weight:600;margin-left:6px}
+details.worked .worked-body{padding:2px 18px 14px}
+details.worked ol.steps{margin:0 0 0 18px;padding:0}
+details.worked ol.steps>li{font-size:.86rem;color:#1e3a8a;margin-bottom:9px;line-height:1.55}
+details.worked ol.steps>li .lead{font-weight:700;color:#2563eb}
+details.worked .step-eq{background:#fff;border:1px solid #dbeafe;border-radius:6px;padding:6px 12px;margin:6px 0;overflow-x:auto}
+details.worked .answer{background:#dbeafe;border-radius:6px;padding:9px 13px;margin-top:8px;font-size:.88rem;color:#1e3a8a}
+details.worked .answer::before{content:"ANSWER · ";font-size:.68rem;font-weight:800;letter-spacing:.07em;color:#2563eb}
+/* ── capstone tab button ── */
+.tab-btn.cap-tab{color:#047857;font-weight:700}
+.tab-btn.cap-tab.active{color:#047857;border-bottom-color:#10b981}
+.key-takeaways{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-top:12px}
+.key-takeaways::before{content:"KEY TAKEAWAYS";display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#15803d;margin-bottom:4px}
+.key-takeaways ul{margin:0 0 0 16px;padding:0}
+.key-takeaways li{font-size:.82rem;color:#14532d}
+.background-section table.cmp{width:100%;border-collapse:collapse;font-size:.84rem;margin:10px 0}
+.background-section table.cmp th,.background-section table.cmp td{border:1px solid #e2e8f0;padding:5px 9px;text-align:left;color:#475569}
+.background-section table.cmp th{background:#f1f5f9;color:#334155;font-weight:700}
+.background-section table.cmp td.c{text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ── Deep boxes (566 / curious-student depth) ── */
+details.deep{background:#faf5ff;border:1px solid #e9d5ff;border-radius:6px;padding:0;margin:10px 0}
+details.deep summary{cursor:pointer;padding:8px 14px;font-size:.76rem;font-weight:700;letter-spacing:.06em;color:#7c3aed}
+details.deep .deep-body{padding:2px 16px 12px}
+details.deep .deep-body p,details.deep .deep-body li{font-size:.84rem;color:#5b21b6}
+
+/* ── Check-yourself boxes ── */
+details.check{background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;margin:12px 0}
+details.check summary{cursor:pointer;padding:9px 14px;font-size:.78rem;font-weight:700;letter-spacing:.06em;color:#c2410c;text-transform:uppercase}
+details.check .check-body{padding:2px 18px 12px}
+details.check .check-body p,details.check .check-body li{font-size:.86rem;color:#7c2d12}
+details.check details{margin:4px 0 10px}
+details.check details summary{padding:2px 0;font-size:.78rem;color:#9a3412;text-transform:none;letter-spacing:0}
+details.check details p{font-size:.82rem;color:#78350f;padding:4px 0 0 6px}
+
+/* ── Student task ── */
+.student-task{border:2px solid #059669;border-radius:8px;background:#ecfdf5;padding:12px 16px;margin:12px 0;position:relative}
+.student-task::before{content:"TRY THIS";position:absolute;top:-0.6rem;left:1rem;background:#ecfdf5;padding:0 0.5rem;font-size:.65rem;font-weight:700;letter-spacing:.1em;color:#059669}
+.student-task ol{margin:.25rem 0 0 1.25rem;color:#065f46}
+.student-task li{font-size:.88rem;margin-bottom:4px}
+
+/* ── Controls ── */
+.ctrl{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px}
+.ctrl h3{font-size:.85rem;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:10px;border-bottom:1px solid #f1f5f9;padding-bottom:6px}
+.ctrl-group{margin-bottom:12px}
+.ctrl-group label{display:flex;justify-content:space-between;font-size:.82rem;font-weight:600;color:#334155;margin-bottom:3px}
+.ctrl-group label span{font-weight:400;color:#2563eb;font-variant-numeric:tabular-nums}
+.ctrl-group input[type=range]{width:100%;accent-color:#2563eb;height:6px}
+.toggle-btn{border:2px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 12px;font-size:.8rem;font-weight:700;color:#64748b;cursor:pointer;width:100%;transition:all .15s}
+.toggle-btn.on{border-color:#dc2626;color:#dc2626;background:#fef2f2}
+
+/* ── Stats ── (every widget emits exactly 4 rows; the reserved height means a
+   changing readout never resizes the box and shifts the page under the reader) */
+.stats{background:#f8fafc;border-radius:8px;padding:12px;font-size:.82rem;font-variant-numeric:tabular-nums;margin-top:8px;min-height:132px}
+.stats h4{font-size:.8rem;color:#64748b;margin-bottom:4px}
+.stat-row{display:flex;justify-content:space-between;gap:10px;align-items:baseline;min-height:27px;padding:2px 0;border-bottom:1px solid #f1f5f9}
+.stat-row .label{color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.stat-row .value{flex:0 0 auto}
+.stat-row .value{font-weight:600;color:#1e293b;text-align:right;white-space:nowrap}
+.stat-row.highlight .value{color:#2563eb}
+
+/* ── Viz area ── */
+.viz{display:flex;flex-direction:column;gap:12px}
+.canvas-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:12px}
+.canvas-wrap canvas{display:block;width:100%;height:auto;max-width:100%;border-radius:6px}
+.canvas-title{font-size:.78rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.chart-row{grid-template-columns:1fr}}
+
+/* ── Per-widget scenario bar ── */
+.scenario-bar{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.scenario-bar-label{font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700}
+.scen-btn{padding:6px 14px;border:2px solid #e2e8f0;background:#fff;border-radius:20px;font-size:.82rem;font-weight:600;color:#64748b;cursor:pointer;transition:all .15s}
+.scen-btn:hover{color:#1e293b;border-color:#cbd5e1}
+.scen-btn.on{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+
+/* ── Verdict box ── (reserved height: the narration rewrites itself as the
+   simulation crosses thresholds, and without this the box would grow/shrink
+   and move every lesson block below it) */
+.val-verdict{border-radius:8px;padding:10px 14px;margin-top:10px;font-size:.84rem;line-height:1.5;min-height:6.2em}
+/* the three longest narrations get extra reserved height — their wording (and
+   the width of the numbers inside it) changes as the sim runs, and without this
+   a rewrap nudges everything below them */
+.val-verdict.tall{min-height:8.8em}
+@media(max-width:900px){.val-verdict{min-height:8.5em}.val-verdict.tall{min-height:12em}}
+.val-verdict.good{background:#f0fdf4;border:1px solid #86efac;color:#14532d}
+.val-verdict.bad{background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d}
+.val-verdict.warn{background:#fffbeb;border:1px solid #fde68a;color:#78350f}
+/* only the leading title is a block — inline <strong> inside the narration
+   must stay inline (it was breaking mid-sentence onto its own line) */
+.val-verdict > strong:first-child{display:block;font-size:.9rem;margin-bottom:2px}
+
+/* ── Insight + handoff boxes ── */
+.insight{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#78350f}
+.insight strong{color:#b45309}
+.handoff{background:#eef2ff;border-left:4px solid #6366f1;border-radius:0 8px 8px 0;padding:10px 14px;margin:10px 0;font-size:.86rem;color:#3730a3}
+.handoff strong{color:#4338ca}
+
+/* ── Sources ── */
+.sources{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:18px 24px;margin-top:16px}
+.sources h2{font-size:1rem;color:#1e3a5f;margin-bottom:8px}
+.sources ol{margin:0 0 0 18px}
+.sources li{font-size:.8rem;color:#475569;margin-bottom:5px;line-height:1.45}
+.sources a{color:#2563eb;text-decoration:none}
+.sources a:hover{text-decoration:underline}
+
+/* ── Footer ── */
+footer{text-align:center;padding:20px;font-size:.78rem;color:#94a3b8}
+
+/* ── MathJax ── */
+mjx-container{display:inline-block !important}
+
+/* ════ RESPONSIVE ════ */
+@media (max-width: 900px){.panel{gap:12px}}
+@media (max-width: 640px){
+  header{padding:16px 14px} header h1{font-size:1.2rem} header .subtitle{font-size:.76rem}
+  .tab-bar{padding:0 8px;top:0} .tab-btn{padding:10px 9px;font-size:.74rem}
+  main{padding:10px 8px;max-width:100%}
+  .scenario-bar{padding:8px 10px;gap:6px} .scenario-bar-label{font-size:.68rem;width:100%;margin-bottom:2px}
+  .scen-btn{padding:5px 10px;font-size:.74rem;flex:1 1 calc(50% - 4px);text-align:center}
+  .background-section{padding:16px 16px} .background-section h2{font-size:1rem}
+  .worked-example,.equation-box{padding:10px 12px;font-size:.82rem}
+  .ctrl{padding:12px} .canvas-wrap{padding:8px} .stats{padding:10px;font-size:.76rem}
+  .constants-bar{padding:0 8px}
+}
+@media (max-width: 380px){ .scen-btn{flex:1 1 100%} header h1{font-size:1.05rem} .tab-btn{padding:8px 7px;font-size:.7rem} }
+
+/* ── Lab-SOP aside: content authored from McGhee Lab practice, NOT from a
+   vendor document. Visually distinct on purpose — a reader must be able to
+   tell house rules from published guidance. ── */
+.aside{background:#f0f9ff;border-left:4px solid #0891b2;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#155e75}
+.aside strong{color:#0e7490}
+.aside p{font-size:.88rem;color:#155e75;line-height:1.5;margin-top:8px}
+.aside .lab{display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#0891b2;margin-bottom:4px;text-transform:uppercase}
+
+/* ── Rule cards: the short imperative rules a tab earns ── */
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:12px 0}
+.rule{background:#fff;border:1px solid #e2e8f0;border-left:3px solid #2563eb;border-radius:8px;padding:10px 13px}
+.rule b{display:block;font-size:.84rem;color:#1e3a5f;margin-bottom:3px}
+.rule span{font-size:.8rem;color:#64748b;line-height:1.45}
+
+/* ── Toggle rows (checkbox groups inside a .ctrl) ── */
+.chk{display:flex;align-items:center;gap:7px;font-size:.8rem;color:#334155;margin-bottom:5px;cursor:pointer}
+.chk input{accent-color:#2563eb;width:15px;height:15px;flex:0 0 auto}
+.seg{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.seg button{flex:1 1 auto;border:2px solid #e2e8f0;background:#fff;border-radius:7px;padding:5px 9px;font-size:.76rem;font-weight:700;color:#64748b;cursor:pointer}
+.seg button.on{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+</style>
+</head>
+<body>
+<header>
+  <h1>Aliquoting &amp; Stewardship — Why One Bottle Is a Bad Idea</h1>
+  <p class="subtitle">Cell Culture Foundations · Lesson 4 of 4 · McGhee Lab</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="coin">1. Every Entry Is a Coin Flip</button>
+  <button class="tab-btn" data-tab="blast">2. What You Lose When It Goes</button>
+  <button class="tab-btn" data-tab="clock">3. The Other Clock, and What Pushes Back</button>
+  <button class="tab-btn cap-tab" data-tab="plan">4. Aliquoting a Bottle, Solved</button>
+</div>
+
+<div class="constants-bar">
+  <details>
+    <summary>Constants, symbols &amp; equation index</summary>
+    <div class="const-body">
+      <h4>Symbols</h4>
+      <p><b>p</b> — probability that one entry into a vessel contaminates it</p>
+      <p><b>N</b> — number of entries over the stock's working life</p>
+      <p><b>k</b> — number of aliquots the stock is split into</p>
+      <p><b>V</b> — the volume at risk</p>
+      <p><b>t<sub>½</sub></b> — half-life of the active component at storage temperature</p>
+      <p><b>u</b> — the volume you use in one session; one media change, one flask, one plate</p>
+      <p><b>a</b> — aliquot size, and <b>m = ⌈u/a⌉</b> the tubes that forces you to open</p>
+      <p><b>η</b> — the fraction of what you took out that reaches a cell</p>
+      <p><b>ρ</b> — the price of the tube divided by the price of what is in it</p>
+      <p><b>C<sub>event</sub></b> — what one contamination costs <em>you</em>: cells, plates, the fortnight</p>
+      <h4>Practice numbers</h4>
+      <p><b>15 mL tubes</b> — the published suggestion for small-volume packaging of trypsin, L-glutamine and antibiotics</p>
+      <p><b>Sterility check:</b> 10 mL of outdated antibiotic-free medium + 3–5% serum, 30 °C <em>and</em> 37 °C, ≥ 2 weeks</p>
+      <p><b>&lt; −130 °C</b> for long-term cell storage; vapour phase, never submerged</p>
+      <p><b>Tubes:</b> ~$0.09 a 1.5 mL microtube, $0.45 a 2 mL cryovial, $0.35 a 15 mL conical, $0.55 a 50 mL conical <span class="src">(order-of-magnitude US academic list, 2025 — the cryovial really is dearer than the conical)</span></p>
+      <h4>Equation index</h4>
+      <div class="eqindex">
+        <p><b>eq. 4.1.1</b> — risk of N entries <span class="src">(previewed in Lesson 3, earned here)</span></p>
+        <p><b>eq. 4.1.2</b> — expected loss</p>
+        <p><b>eq. 4.2.1</b> — expected loss with k aliquots</p>
+        <p><b>eq. 4.3.1</b> — first-order decay</p>
+        <p><b>eq. 4.3.2</b> — mean activity over a use period</p>
+        <p><b>eq. 4.4.1</b> — total cost, and where it bottoms out</p>
+        <p><b>eq. 4.4.2</b> — tubes per session, and the rounding you always pay</p>
+        <p><b>eq. 4.4.3</b> — ρ, the tube against what is in it</p>
+        <p><b>eq. 4.4.4</b> — the whole bill, in one currency</p>
+        <p><b>eq. 3.2.1</b> — the entrained film <span class="src">(reused from Lesson 3 — it sets the small-aliquot floor)</span></p>
+      </div>
+    </div>
+  </details>
+</div>
+
+<main>
+
+<!-- ══════════════════════════ TAB 1 ══════════════════════════ -->
+<section id="tab-coin" class="tab-content active">
+
+  <div class="lesson-block">
+    <div class="background-section">
+      <h2 data-nav="1.1" data-title="Flip it two hundred times">1.1 · Flip it two hundred times and count</h2>
+      <p>No equation yet. Two hundred identical bottles, each opened <em>N</em> times,
+        each entry an independent coin flip with the same small probability of letting
+        something in. Run it and count how many bottles are still clean at the end.</p>
+      <p>Then run it again with a different seed and see how much the answer moves.</p>
+    </div>
+
+    <div class="student-task">
+      <ol>
+        <li>Set the risk per entry to 0.5% and the entries to 40. Run it. How many of the 200 bottles survived?</li>
+        <li>Re-run with a new seed a few times. Is the answer stable to within a few percent?</li>
+        <li>Now push the entries to 120 without touching the risk. What fraction survives?</li>
+        <li>Predict the answer for 0.25% and 80 entries <em>before</em> you set it. Then check.</li>
+      </ol>
+    </div>
+
+    <div class="panel compact">
+      <div class="ctrl">
+        <h3>Controls</h3>
+        <div class="ctrl-group"><label>Risk per entry <span id="v-coin-p">0.50 %</span></label>
+          <input type="range" id="s-coin-p" min="0.05" max="5" step="0.05" value="0.5"></div>
+        <div class="ctrl-group"><label>Entries per bottle <span id="v-coin-n">40</span></label>
+          <input type="range" id="s-coin-n" min="1" max="120" step="1" value="40"></div>
+        <div class="ctrl-group"><label>Seed <span id="v-coin-seed">1</span></label>
+          <input type="range" id="s-coin-seed" min="1" max="40" step="1" value="1"></div>
+        <div class="stats" id="st-coin"></div>
+      </div>
+      <div class="viz">
+        <div class="canvas-wrap"><div class="canvas-title">200 bottles, each opened N times</div>
+          <canvas id="cv-coin" width="660" height="300"></canvas></div>
+        <div class="val-verdict" id="vd-coin" data-tall="1"></div>
+      </div>
+    </div>
+
+    <div class="background-section">
+      <h3>Now the equation that explains what you counted</h3>
+      <p>A bottle survives an entry with probability (1 − <em>p</em>). Entries are
+        independent, so it survives all <em>N</em> of them with probability
+        (1 − <em>p</em>)<sup><em>N</em></sup>, and therefore:</p>
+      <div class="equation-box"><span class="eqno">eq. 4.1.1</span>
+        <span class="src" style="float:right;margin-left:10px">again — previewed in Lesson 3, earned here</span>
+        $$P(\text{contaminated}) \;=\; 1-(1-p)^{N}$$</div>
+      <p>The sim drew the black line from that expression <em>after</em> counting the
+        bottles, and they agree. Now read what the equation says, because it is not
+        what most people expect:</p>
+      <ul>
+        <li><strong>N is in the exponent and p is not.</strong> For small <em>p</em>,
+          P ≈ <em>Np</em> — so halving your risk per entry and halving the number of
+          entries buy you the same thing.</li>
+        <li><strong>But you cannot halve p.</strong> Lessons 1 and 3 were entirely about
+          getting <em>p</em> down, and you have now done that work. There is a floor,
+          and it is set by physics and by being a human being.</li>
+        <li><strong>N you can change this afternoon.</strong> Nothing about your
+          technique has to improve.</li>
+      </ul>
+      <div class="insight"><strong>This is the whole argument for aliquoting, and it has
+        nothing to do with being tidy.</strong> You are not reducing the chance of a
+        mistake. You are reducing the number of opportunities, and — as the next tab
+        shows — the amount that each one can destroy.</div>
+
+      <details class="worked">
+        <summary>Worked example <span class="we-title">— your medium bottle, honestly counted</span></summary>
+        <div class="worked-body">
+          <ol class="steps">
+            <li><span class="lead">Write what you know.</span> A 500 mL bottle of medium.
+              You feed six flasks twice a week using ~10 mL a time, so it lasts about
+              four weeks and is opened roughly 40 times. Suppose your technique is good:
+              p = 0.5% per entry.</li>
+            <li><span class="lead">Assemble the equation.</span>
+              <div class="step-eq">$$P \;=\; 1-(1-p)^{N}$$</div></li>
+            <li><span class="lead">Plug in.</span>
+              <div class="step-eq">$$P \;=\; 1-(1-0.005)^{40} \;=\; 1-(0.995)^{40} \;=\; 1-0.818$$</div></li>
+            <li><span class="lead">Read it.</span> P = 0.182.</li>
+          </ol>
+          <div class="answer">About <b>18%</b> — roughly one bottle in five gets
+            contaminated before it is used up, with technique most people would call
+            good. That is not a statement about you. It is a statement about doing
+            anything forty times.</div>
+        </div>
+      </details>
+
+      <details class="check">
+        <summary>Check yourself</summary>
+        <div class="check-body">
+          <p><b>1.</b> Two people share a bottle and each is individually excellent, with
+            p = 0.5%. Does sharing change the per-entry risk?</p>
+          <details><summary>Answer</summary><p>No — but it doubles N, which is the term
+            in the exponent. Shared stocks are not riskier per entry; they are riskier
+            because they get opened twice as often, and because when one goes down it
+            takes two people's work with it. That is an argument for <em>aliquoting to
+            the person</em>, not for distrusting your colleagues.</p></details>
+          <p><b>2.</b> Why is "I have never contaminated anything" not evidence that
+            your p is zero?</p>
+          <details><summary>Answer</summary><p>With p = 0.2% you would get through about
+            350 entries before an even chance of one event — most of a year. The absence
+            of a visible failure over a few months is entirely consistent with a p that
+            will cost you a bottle a year, and mycoplasma at 10⁷–10⁹ organisms/mL is
+            invisible anyway. This is why the lab tests rather than trusts.</p></details>
+        </div>
+      </details>
+      <div class="key-takeaways">
+        <ul>
+          <li>P = 1 − (1 − p)<sup>N</sup>, and for small p it is roughly <b>Np</b>.</li>
+          <li>Good technique with 40 entries still loses about one bottle in five.</li>
+          <li>You have already spent Lessons 1 and 3 on <b>p</b>. <b>N</b> is the lever you have left.</li>
+        </ul>
+      </div>
+      <div class="handoff"><strong>Next:</strong> probability is only half of it. The
+        other half is how much you lose when it happens.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ TAB 2 ══════════════════════════ -->
+<section id="tab-blast" class="tab-content">
+
+  <div class="lesson-block">
+    <div class="background-section">
+      <h2 data-nav="2.1" data-title="Split it and watch">2.1 · Split the same bottle and watch the loss fall</h2>
+      <p>Same bottle, same technique, same number of entries. The <em>only</em> thing
+        that changes is how many containers the liquid is sitting in. Drag the number of
+        aliquots and watch the expected loss.</p>
+      <p>Then find the point where it stops improving, and work out what is holding it up.</p>
+    </div>
+
+    <div class="student-task">
+      <ol>
+        <li>Start at 1 aliquot — that is one bottle. Read the expected loss in mL.</li>
+        <li>Go to 20. How much better is it, as a ratio?</li>
+        <li>Keep going to 100. The curve flattens. What is the number it flattens onto?</li>
+        <li>Set the master-transfer risk to zero. Where does the floor go? What does that tell you about which single operation matters most?</li>
+      </ol>
+    </div>
+
+    <div class="scenario-bar">
+      <span class="scenario-bar-label">Stock:</span>
+      <button class="scen-btn on" data-widget="blast" data-scen="media">500 mL medium</button>
+      <button class="scen-btn" data-widget="blast" data-scen="tryp">100 mL trypsin</button>
+      <button class="scen-btn" data-widget="blast" data-scen="cyt">5 mL cytokine</button>
+    </div>
+
+    <div class="panel compact">
+      <div class="ctrl">
+        <h3>Controls</h3>
+        <div class="ctrl-group"><label>Aliquots <span id="v-blast-k">1</span></label>
+          <input type="range" id="s-blast-k" min="1" max="100" step="1" value="1"></div>
+        <div class="ctrl-group"><label>Entries over its life <span id="v-blast-n">40</span></label>
+          <input type="range" id="s-blast-n" min="4" max="150" step="1" value="40"></div>
+        <div class="ctrl-group"><label>Risk per entry <span id="v-blast-p">0.50 %</span></label>
+          <input type="range" id="s-blast-p" min="0.05" max="3" step="0.05" value="0.5"></div>
+        <div class="ctrl-group"><label>Risk per master transfer <span id="v-blast-m">0.50 %</span></label>
+          <input type="range" id="s-blast-m" min="0" max="3" step="0.05" value="0.5"></div>
+        <div class="stats" id="st-blast"></div>
+      </div>
+      <div class="viz">
+        <div class="canvas-wrap"><div class="canvas-title">Expected loss vs how many containers you used</div>
+          <canvas id="cv-blast" width="660" height="310"></canvas></div>
+        <div class="val-verdict" id="vd-blast" data-tall="1"></div>
+      </div>
+    </div>
+
+    <div class="background-section">
+      <h3>Name it: probability times blast radius</h3>
+      <p>What a contamination event costs you is not "a bottle". It is however much
+        material that vessel was holding:</p>
+      <div class="equation-box"><span class="eqno">eq. 4.1.2</span>
+        $$E[\text{loss}] \;=\; P \times V_{\rm at\ risk}$$</div>
+      <p>Split the stock into <em>k</em> aliquots and three things happen at once. Each
+        aliquot is entered fewer times (N/k), so its own P falls. Each aliquot holds
+        less (V/k), so its blast radius falls. But making the aliquots is itself an
+        operation, with one entry into the master and <em>k</em> fills:</p>
+      <div class="equation-box"><span class="eqno">eq. 4.2.1</span>
+        $$E[\text{loss}] \;=\; V\Big[\underbrace{p_{\rm master}}_{\text{loses everything}} \;+\; \underbrace{p_{\rm fill}}_{\text{loses one aliquot, }k\text{ times}} \;+\; \underbrace{1-(1-p)^{N/k}}_{\text{use}}\Big]$$</div>
+      <p>The first two terms do not fall with <em>k</em>. So the curve improves steeply
+        and then <strong>flattens onto a floor that is set entirely by the transfer that
+        made the aliquots</strong>.</p>
+      <div class="insight"><strong>Aliquoting concentrates all the risk you did not
+        eliminate into one moment.</strong> The master transfer is the highest-stakes
+        thing you do with that reagent all month: one lapse there and every aliquot is
+        contaminated identically, and you will not find out for weeks. That is not an
+        argument against aliquoting — the floor is still ten to twenty times better than
+        one bottle. It is an argument for doing <em>that one operation</em> with a fresh
+        cabinet, full attention, and a sterility check afterwards.</div>
+      <div class="key-takeaways">
+        <ul>
+          <li>Loss = probability × <b>blast radius</b>, and aliquoting shrinks both.</li>
+          <li>Splitting a bottle 20 ways cuts the expected loss by roughly an order of magnitude — with <b>no change in technique</b>.</li>
+          <li>The improvement floors on the <b>master transfer</b>. Do that one operation properly and check it.</li>
+        </ul>
+      </div>
+      <div class="handoff"><strong>Next:</strong> so split it into a hundred. Except
+        that a second clock has been running the whole time, and it points the other way.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ TAB 3 ══════════════════════════ -->
+<section id="tab-clock" class="tab-content">
+
+  <div class="lesson-block">
+    <div class="background-section">
+      <h2 data-nav="3.1" data-title="Nothing waits for you">3.1 · Nothing in that bottle is waiting for you</h2>
+      <p>The reagent has been degrading since the day it was made. An aliquot that sits
+        at 4 °C for three months is not the reagent you thought you were using, and the
+        experiment that stops working in week ten was not a biological result.</p>
+      <p>Watch what happens to the activity when the same stock is used up over the same
+        twelve weeks, split different ways.</p>
+    </div>
+
+    <div class="student-task">
+      <ol>
+        <li>Start on <em>L-glutamine in medium</em>, 1 aliquot. Read the mean activity across the twelve weeks.</li>
+        <li>Now 20 aliquots. Same total time, same total reagent. Why did the mean activity go up?</li>
+        <li>Switch to <em>a labile growth factor</em>. How bad is one bottle now?</li>
+        <li>Turn on freeze–thaw and put the aliquot count back to 4. What did partial use cost?</li>
+      </ol>
+    </div>
+
+    <div class="scenario-bar">
+      <span class="scenario-bar-label">Reagent:</span>
+      <button class="scen-btn on" data-widget="decay" data-scen="gln">L-glutamine in medium, 4 °C</button>
+      <button class="scen-btn" data-widget="decay" data-scen="tryp">trypsin, 4 °C</button>
+      <button class="scen-btn" data-widget="decay" data-scen="serum">serum, 4 °C</button>
+      <button class="scen-btn" data-widget="decay" data-scen="gf">a labile growth factor, 4 °C</button>
+    </div>
+
+    <div class="panel compact">
+      <div class="ctrl">
+        <h3>Controls</h3>
+        <div class="ctrl-group"><label>Aliquots <span id="v-decay-k">1</span></label>
+          <input type="range" id="s-decay-k" min="1" max="60" step="1" value="1"></div>
+        <div class="ctrl-group"><label>Half-life at 4 °C <span id="v-decay-th">8.0 wk</span></label>
+          <input type="range" id="s-decay-th" min="0.5" max="26" step="0.5" value="8"></div>
+        <div class="ctrl-group"><label>Stock lasts <span id="v-decay-shelf">12 wk</span></label>
+          <input type="range" id="s-decay-shelf" min="2" max="52" step="1" value="12"></div>
+        <div class="ctrl-group"><label>Loss per freeze–thaw <span id="v-decay-ft">0 %</span></label>
+          <input type="range" id="s-decay-ft" min="0" max="25" step="1" value="0"></div>
+        <div class="stats" id="st-decay"></div>
+      </div>
+      <div class="viz">
+        <div class="canvas-wrap"><div class="canvas-title">Activity of what you actually pipetted</div>
+          <canvas id="cv-decay" width="660" height="300"></canvas></div>
+        <div class="val-verdict" id="vd-decay" data-tall="1"></div>
+      </div>
+    </div>
+
+    <div class="background-section">
+      <p>Chemical decomposition of a single species is first order, so the activity of
+        an opened aliquot falls exponentially from the moment it is thawed:</p>
+      <div class="equation-box"><span class="eqno">eq. 4.3.1</span>
+        $$A(t) \;=\; A_0\,e^{-t\ln 2 / t_{1/2}}$$</div>
+      <p>What matters is not the activity at the end — it is the <em>average</em>
+        activity across everything you did with that aliquot, because each experiment
+        got whatever was there on the day:</p>
+      <div class="equation-box"><span class="eqno">eq. 4.3.2</span>
+        $$\bar{A} \;=\; \frac{1}{t_{\rm use}}\int_0^{t_{\rm use}}\! A(t)\,dt
+          \;=\; \frac{t_{1/2}}{t_{\rm use}\ln 2}\left(1-e^{-t_{\rm use}\ln 2/t_{1/2}}\right)$$</div>
+      <p>With <em>k</em> aliquots, each one is open for t<sub>use</sub> = shelf/<em>k</em>.
+        More aliquots means each is open briefly, so the mean activity rises toward 100%.
+        Decay, like contamination, argues for splitting.</p>
+      <div class="aside"><span class="lab">Honesty about these numbers</span>
+        <strong>The half-lives on the chips are order-of-magnitude.</strong> Real
+        stability depends on formulation, pH, light exposure and how many times the
+        tube was warmed. Treat them as a way to see the <em>shape</em> of the problem,
+        and get the real figure from the certificate of analysis for the lot you have.
+        The one thing that is not order-of-magnitude is the direction: everything
+        degrades, and nothing gets better in the fridge.</div>
+      <p>Freeze–thaw is the other term, and it is the one people create for themselves:
+        thaw a tube, use half, refreeze it, and every cycle costs a fixed fraction. An
+        aliquot sized so it is used <em>once</em> has no freeze–thaw term at all — which
+        is the real argument for single-use aliquots, quite separate from contamination.</p>
+    </div>
+  </div>
+
+  <div class="lesson-block">
+    <div class="background-section">
+      <h2 data-nav="3.2" data-title="Find the bottom">3.2 · Both clocks say "more aliquots". So find the bottom.</h2>
+      <p>Contamination says split it. Decay says split it. If nothing pushed back, the
+        answer would be "one aliquot per use, forever", and for a bottle of medium that
+        is very nearly right.</p>
+      <p>It stops being right for small, precious stocks — and the thing that stops it is
+        a film you already measured in Lesson 3.</p>
+    </div>
+
+    <div class="student-task">
+      <ol>
+        <li>Start on <em>500 mL medium</em>. Find the bottom of the curve. Is it sharp or flat?</li>
+        <li>Switch to <em>1 mL antibody</em>. Find the bottom again. What happens past it?</li>
+        <li>Turn the unrecoverable film to zero. Where does the minimum go?</li>
+        <li>State the rule for yourself: when does "smaller aliquots" stop being free?</li>
+      </ol>
+    </div>
+
+    <div class="scenario-bar">
+      <span class="scenario-bar-label">Stock:</span>
+      <button class="scen-btn on" data-widget="opt" data-scen="media">500 mL medium</button>
+      <button class="scen-btn" data-widget="opt" data-scen="tryp">100 mL trypsin</button>
+      <button class="scen-btn" data-widget="opt" data-scen="cyt">5 mL cytokine</button>
+      <button class="scen-btn" data-widget="opt" data-scen="ab">1 mL antibody</button>
+    </div>
+
+    <div class="panel compact">
+      <div class="ctrl">
+        <h3>Controls</h3>
+        <div class="ctrl-group"><label>Aliquots <span id="v-opt-k">20</span></label>
+          <input type="range" id="s-opt-k" min="1" max="120" step="1" value="20"></div>
+        <div class="ctrl-group"><label>Stock volume <span id="v-opt-v">500 mL</span></label>
+          <input type="range" id="s-opt-v" min="0.5" max="500" step="0.5" value="500"></div>
+        <div class="ctrl-group"><label>Unrecoverable film per tube <span id="v-opt-film">3.0 µL</span></label>
+          <input type="range" id="s-opt-film" min="0" max="20" step="0.5" value="3"></div>
+        <div class="stats" id="st-opt"></div>
+      </div>
+      <div class="viz">
+        <div class="canvas-wrap"><div class="canvas-title">Total cost vs number of aliquots</div>
+          <canvas id="cv-opt" width="660" height="310"></canvas></div>
+        <div class="val-verdict" id="vd-opt" data-tall="1"></div>
+      </div>
+    </div>
+
+    <div class="background-section">
+      <p>Add up everything the choice of <em>k</em> costs you, as a fraction of the stock:</p>
+      <div class="equation-box"><span class="eqno">eq. 4.4.1</span>
+        $$C(k) \;=\; \underbrace{p_m + p_f + 1-(1-p)^{N/k}}_{\text{contamination}}
+          \;+\; \underbrace{1-\bar{A}(k)}_{\text{decay}}
+          \;+\; \underbrace{\frac{k\,V_{\rm film}}{V}}_{\text{film}}
+          \;+\; \underbrace{h\,k}_{\text{handling}}$$</div>
+      <p>The first two terms fall with <em>k</em>. The last two rise with it. The film
+        term is <strong>eq. 3.2.1 again</strong> — the liquid you cannot get back out of
+        a tube or off a pipette wall — and it is a <em>fixed volume per tube</em>, so as
+        a fraction it grows as the tubes get smaller.</p>
+      <div class="insight"><strong>For a 500 mL bottle this curve's minimum is broad and
+        lives somewhere around forty tubes of ten millilitres. For a 1 mL vial of
+        antibody, the curve turns back up, and splitting it a hundred ways throws away
+        more in unrecoverable film than contamination would ever have cost you.</strong>
+        Same equation, opposite advice, and the thing that flipped it is the ratio of the
+        film to the aliquot. The bottom is flat for the bottle because the only rising
+        term <em>in this equation</em> is negligible at that size — and two more are
+        coming.</div>
+      <div class="key-takeaways">
+        <ul>
+          <li>Decay argues for splitting, exactly as contamination does — for a different reason.</li>
+          <li>An aliquot sized for <b>one use</b> has no freeze–thaw term at all.</li>
+          <li>What limits splitting is the <b>unrecoverable film per tube</b>, so it only bites on small, precious stocks.</li>
+          <li>Small precious stock: the film is the floor. Big cheap stock: the floor is somewhere else, and <b>&sect;3.3</b> and <b>&sect;4.1</b> are where it is.</li>
+        </ul>
+      </div>
+      <div class="handoff"><strong>Next:</strong> this curve still does not know two
+        things that decide the answer at the bench — <em>how much you actually use in
+        one go</em>, and <em>what the tubes cost</em>. Neither is anywhere in
+        eq. 4.4.1, and each one moves the bottom.</div>
+    </div>
+  </div>
+
+  <div class="lesson-block">
+    <div class="background-section">
+      <h2 data-nav="3.3" data-title="The tube has to fit the job">3.3 · The tube has to fit the job</h2>
+      <p>Nothing in eq. 4.4.1 knows what you do on a Tuesday. It counts entries and
+        weeks. It does not know that a T-75 takes about ten millilitres of medium, that
+        you feed four flasks at a sitting, or that you cannot use half a tube and put
+        the half back without undoing the thing you split it for.</p>
+      <p>So ask the question the curve cannot. <strong>How much do you use in one
+        go?</strong> Call it <em>u</em> — one media change, one flask trypsinised, one
+        plate dosed. An aliquot of size <em>a</em> then forces you to open</p>
+      <div class="equation-box"><span class="eqno">eq. 4.4.2</span>
+        $$m \;=\; \left\lceil \frac{u}{a} \right\rceil \ \text{tubes per session},
+          \qquad \eta \;=\; \frac{u}{m\,a}$$</div>
+      <p>That ceiling bracket is the whole section. <em>u/a</em> is how many tubes the
+        job needs; <em>m</em> is how many you actually open, because there is no such
+        thing as opening two-thirds of a tube. <strong>η is the fraction of what you
+        took out of the freezer that reaches a cell</strong> — the rest is in the bin,
+        or it is back in the fridge in a tube that is now open.</p>
+      <p>Set the aliquot size against your session and watch both.</p>
+    </div>
+
+    <div class="student-task">
+      <ol>
+        <li>Start on <em>500 mL medium</em> with the aliquot at 1.00 × a session. Read η, and count the tubes in the picture.</li>
+        <li>Now drag the aliquot to <em>0.95</em> × a session — a 5% change. What happened to η, and why is it so violent?</li>
+        <li>Drag it up to <em>2.0</em> × a session instead. η is bad again, for the opposite reason. Say both reasons out loud.</li>
+        <li>Find every setting where η = 100%. What do they have in common?</li>
+        <li>Turn off strict single use. η goes to 100% everywhere — read the verdict for what you just paid for it.</li>
+      </ol>
+    </div>
+
+    <div class="scenario-bar">
+      <span class="scenario-bar-label">Stock:</span>
+      <button class="scen-btn on" data-widget="fit" data-scen="media">500 mL medium</button>
+      <button class="scen-btn" data-widget="fit" data-scen="tryp">100 mL trypsin</button>
+      <button class="scen-btn" data-widget="fit" data-scen="cyt">5 mL cytokine</button>
+      <button class="scen-btn" data-widget="fit" data-scen="ab">1 mL antibody</button>
+    </div>
+
+    <div class="panel compact">
+      <div class="ctrl">
+        <h3>Controls</h3>
+        <div class="ctrl-group"><label>Aliquot size <span id="v-fit-r">1.00 x a session</span></label>
+          <input type="range" id="s-fit-r" min="0.15" max="3" step="0.05" value="1"></div>
+        <div class="ctrl-group"><label>Sessions the stock should cover <span id="v-fit-n">50</span></label>
+          <input type="range" id="s-fit-n" min="5" max="120" step="1" value="50"></div>
+        <label class="chk"><input type="checkbox" id="c-fit-save" checked> Strict single use: bin what is left in the tube</label>
+        <div class="stats" id="st-fit"></div>
+      </div>
+      <div class="viz">
+        <div class="chart-row">
+          <div class="canvas-wrap"><div class="canvas-title">One session, tube by tube</div>
+            <canvas id="cv-fit2" width="460" height="320"></canvas></div>
+          <div class="canvas-wrap"><div class="canvas-title">What reaches a cell</div>
+            <canvas id="cv-fit" width="460" height="320"></canvas></div>
+        </div>
+        <div class="val-verdict" id="vd-fit" data-tall="1"></div>
+      </div>
+    </div>
+
+    <div class="background-section">
+      <p>The curve is a comb, and it only touches 100% at
+        <em>a</em> = <em>u</em>, <em>u</em>/2, <em>u</em>/3, … — the sizes that divide a
+        session exactly. Everywhere else you are paying the rounding. The teeth are
+        brutally asymmetric: an aliquot <em>slightly smaller</em> than a session forces a
+        second tube that you then barely touch, so η falls off a cliff to about
+        <sup>1</sup>&frasl;<sub>2</sub>, while an aliquot slightly <em>larger</em> than a
+        session costs you only the few percent you did not use.</p>
+      <div class="insight"><strong>Round up, never down.</strong> If your session is
+        10 mL and you are choosing between 9 mL and 11 mL tubes, the 9 mL tube costs you
+        45% of the bottle and doubles the number of things you open in the cabinet; the
+        11 mL tube costs you 9%. The failure is not symmetric, so neither should your
+        rounding be.</div>
+      <p>The other end of the same argument is the one people actually break. Making the
+        aliquot <em>much</em> bigger than a session does not make η bad — it makes you
+        stop believing in single use. You put the rest back, and the moment you do, the
+        tube is entered a second time (eq. 4.1.1), it sits at 4 °C for another session's
+        worth of decay (eq. 4.3.2), and if it was frozen you have just bought a
+        freeze–thaw cycle. That is not a small correction; it is the entire reason the
+        lesson said "size it for one session" in the first place.</p>
+      <div class="aside"><span class="lab">McGhee Lab practice</span>
+        <strong>Pick the aliquot from the job, then the tube from the aliquot — in that
+        order.</strong> Write the session volume on the protocol first ("one media
+        change = 10 mL"), then choose the aliquot as that number or a clean half of it,
+        and only then go and see what tube it fits in. Choosing the tube first is how
+        people end up with 15 mL conicals holding 12 mL for a 10 mL job, binning a fifth
+        of every bottle and never noticing.</div>
+      <details class="check">
+        <summary>Check yourself</summary>
+        <div class="check-body">
+          <p><b>1.</b> Your session is 10 mL and you have 15 mL conicals. Somebody
+            suggests filling them to 12 mL "so they are not half empty". What does that
+            cost, under strict single use?</p>
+          <details><summary>Answer</summary><p><em>u/a</em> = 10/12 = 0.83, so
+            <em>m</em> = 1 and η = 10/12 = <b>83%</b>. You bin 2 mL every session and get
+            41 sessions out of the 500 mL bottle instead of 50. Fill them to 10 mL and
+            leave them looking half empty — the tube is a container, not a target.</p></details>
+          <p><b>2.</b> Why does <em>m</em> = 3 hurt more than the arithmetic in eq. 4.4.2
+            says it does?</p>
+          <details><summary>Answer</summary><p>Because eq. 4.4.2 only counts volume.
+            Three tubes per session is also three thaws, three caps off and on, three
+            entries into the cabinet, and three chances of the reach-over from L3 §3.4 —
+            all inside one sitting. The probability terms in eq. 4.1.1 scale with the
+            number of things you open, and your attention does not.</p></details>
+          <p><b>3.</b> η = 100% at <em>a</em> = <em>u</em>/4. Is that as good as
+            <em>a</em> = <em>u</em>?</p>
+          <details><summary>Answer</summary><p>Not at the bench. Nothing is wasted, so
+            eq. 4.4.2 is happy — but you now open four tubes for one media change, pay
+            the film of eq. 3.2.1 four times, and buy four times the plastic. It is on a
+            tooth of the comb, and it is still the wrong tooth. Which is exactly what
+            §4.1 is about.</p></details>
+        </div>
+      </details>
+      <div class="key-takeaways">
+        <ul>
+          <li>The aliquot is chosen against <b>u</b>, the volume of one session — not against the bottle.</li>
+          <li><b>m = ⌈u/a⌉</b>: you always round up, and you always pay for the rounding.</li>
+          <li>Just <b>under</b> a session is the worst place to be. Round <b>up</b>.</li>
+          <li>"Put the rest back" is not free — it re-buys every term aliquoting removed.</li>
+        </ul>
+      </div>
+      <div class="handoff"><strong>Next tab:</strong> the second thing eq. 4.4.1 does
+        not know. Every one of those tubes is a thing somebody had to buy — and so is
+        the experiment you lose when one of them goes down.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ TAB 4 — CAPSTONE ══════════════════════════ -->
+<section id="tab-plan" class="tab-content">
+
+  <div class="lesson-block">
+    <div class="background-section">
+      <h2 data-nav="4.1" data-title="The tubes cost money">4.1 · The tubes cost money, and so does the experiment</h2>
+      <p>A 500 mL bottle has arrived. Before the tube rack comes out there is one
+        question left, and it is the one the last three sections have been quietly
+        dodging.</p>
+      <p>Everything so far has been priced in <em>reagent</em> — every term of eq. 4.4.1
+        is a fraction of the stock. That quietly assumes the only thing at stake is the
+        stuff in the bottle. Two things at the bench are not made of reagent.</p>
+      <p>The first is the plastic. A hundred and twenty aliquots means a hundred and
+        twenty sterile tubes, and they are not free:</p>
+      <table class="cmp">
+        <tr><th>Aliquot</th><th>What it goes in</th><th class="c">Roughly</th></tr>
+        <tr><td>&le; 0.5 mL</td><td>1.5 mL sterile microtube</td><td class="c">$0.09</td></tr>
+        <tr><td>0.5 – 2 mL</td><td>2 mL cryovial</td><td class="c">$0.45</td></tr>
+        <tr><td>2 – 15 mL</td><td>15 mL conical</td><td class="c">$0.35</td></tr>
+        <tr><td>15 – 50 mL</td><td>50 mL conical</td><td class="c">$0.55</td></tr>
+        <tr><td>&gt; 50 mL</td><td>sterile media bottle</td><td class="c">$3.00</td></tr>
+      </table>
+      <p>Read that table twice. It does not go down as the tube gets smaller —
+        <strong>a 2 mL cryovial costs more than a 15 mL conical</strong>, because you are
+        paying for a sealed cap rated for the freezer, not for polypropylene. Splitting
+        finer can buy you <em>more expensive</em> plastic as well as more of it.</p>
+      <p>Compare a tube to what is in it. If the stock cost <em>P</em> for volume
+        <em>V</em>, one aliquot holds <em>aP/V</em> of reagent, and</p>
+      <div class="equation-box"><span class="eqno">eq. 4.4.3</span>
+        $$\rho \;=\; \frac{c_{\rm tube}}{a\,P/V}
+          \;=\; \frac{c_{\rm tube}}{\text{price per mL} \times a}$$</div>
+      <p>ρ is the plastic-to-contents ratio, and it is the number that decides whether
+        this section matters to you at all. At ρ ≈ 0.01 the tubes are noise. At ρ ≈ 1 the
+        tube costs as much as what you put in it.</p>
+      <p>The second non-reagent term is the one that actually dominates: <strong>what a
+        contamination event costs you</strong>. Eq. 4.1.2 priced the blast radius in
+        millilitres, because that is what the bottle holds. But losing a bottle of medium
+        is never the bill. The bill is the cells, the plates, the fortnight, and the
+        incubator you now have to strip. Put a number on it — your number — and the whole
+        thing lands in one currency:</p>
+      <div class="equation-box"><span class="eqno">eq. 4.4.4</span>
+        $$\$(k) \;=\; \underbrace{C_{\rm event}\,P_{\rm contam}(k)}_{\text{what it costs you when it goes}}
+          \;+\; \underbrace{P\big[(1-\eta) + (1-\bar{A}) + kV_{\rm film}/V\big]}_{\text{reagent you lose}}
+          \;+\; \underbrace{k\,c_{\rm tube}(V/k)}_{\text{plastic you buy}}$$</div>
+      <p>Three prices under the tube count, and one of them moves the answer more than
+        the other two together. Find out which.</p>
+    </div>
+
+    <div class="student-task">
+      <ol>
+        <li>On <em>500 mL medium</em>, read the cheapest split. Now do what a budget spreadsheet does: untick strict single use <em>and</em> drag "what a contamination costs you" to zero. Where does the answer go, and does it look like a lab you would want to work in?</li>
+        <li>Put strict single use back on but leave the contamination at zero. The answer snaps back. Which term caught you — and why is that a different argument for the same tube?</li>
+        <li>Put it back to $2,000. Read the plastic bill as a percentage of the reagent.</li>
+        <li>Set the plastic price to zero. How much does the answer actually move? Now you know whether tubes were ever the problem here.</li>
+        <li>Switch to <em>1 mL antibody</em> and read ρ. Compare it with the ρ you had on medium.</li>
+        <li>Find the green markers on the axis — those are the splits §3.3 allows, one tube per session, two per session, and so on. Is the cheapest <em>k</em> sitting on one?</li>
+      </ol>
+    </div>
+
+    <div class="scenario-bar">
+      <span class="scenario-bar-label">Stock:</span>
+      <button class="scen-btn on" data-widget="bill" data-scen="media">500 mL medium</button>
+      <button class="scen-btn" data-widget="bill" data-scen="tryp">100 mL trypsin</button>
+      <button class="scen-btn" data-widget="bill" data-scen="cyt">5 mL cytokine</button>
+      <button class="scen-btn" data-widget="bill" data-scen="ab">1 mL antibody</button>
+    </div>
+
+    <div class="panel compact">
+      <div class="ctrl">
+        <h3>Controls</h3>
+        <div class="ctrl-group"><label>Aliquots <span id="v-bill-k">50</span></label>
+          <input type="range" id="s-bill-k" min="1" max="120" step="1" value="50"></div>
+        <div class="ctrl-group"><label>What the stock cost <span id="v-bill-p">$70</span></label>
+          <input type="range" id="s-bill-p" min="5" max="600" step="5" value="70"></div>
+        <div class="ctrl-group"><label>What a contamination costs you <span id="v-bill-e">$2,000</span></label>
+          <input type="range" id="s-bill-e" min="0" max="6000" step="50" value="2000"></div>
+        <div class="ctrl-group"><label>Plastic price <span id="v-bill-t">1.00 x catalogue</span></label>
+          <input type="range" id="s-bill-t" min="0" max="2" step="0.05" value="1"></div>
+        <label class="chk"><input type="checkbox" id="c-bill-single" checked> Strict single use (§3.3)</label>
+        <div class="stats" id="st-bill"></div>
+      </div>
+      <div class="viz">
+        <div class="canvas-wrap"><div class="canvas-title">The whole bill, in dollars, vs number of aliquots</div>
+          <canvas id="cv-bill" width="660" height="340"></canvas></div>
+        <div class="val-verdict" id="vd-bill" data-tall="1"></div>
+      </div>
+    </div>
+
+    <div class="background-section">
+      <div class="aside"><span class="lab">Honesty about these prices</span>
+        <strong>The prices are order-of-magnitude US academic list, and they move.</strong>
+        They are sliders precisely so you can put your own in — your medium may be $25 or
+        $140 depending on the serum, and the lab's tube prices depend on what was on the
+        standing order that quarter. What does <em>not</em> move is the shape: the ratio
+        of plastic to contents, and the fact that <em>C</em><sub>event</sub> is bigger
+        than both. The one number nobody can look up for you is what a fortnight of your
+        own work is worth; the default of $2,000 is a deliberately conservative stand-in
+        for a cell line thawed, plates lost and an incubator stripped.</div>
+
+      <details class="worked">
+        <summary>Worked example <span class="we-title">— 500 mL of complete medium, priced three ways</span></summary>
+        <div class="worked-body">
+          <ol class="steps">
+            <li><span class="lead">Write what you know.</span> <em>V</em> = 500 mL,
+              <em>P</em> = $70 (DMEM plus 10% FBS), one media change <em>u</em> = 10 mL,
+              so the stock owes you <em>N</em> = 50 sessions. Half-life at 4 °C ≈ 8
+              weeks, shelf 12 weeks, <em>p</em> = 0.5% per entry.</li>
+            <li><span class="lead">Price it as reagent only</span> — set
+              <em>C</em><sub>event</sub> = 0 and let yourself put leftovers back. Now the
+              only k-dependent costs are decay and plastic, decay falls as 1/<em>k</em>,
+              and there is a closed form for the bottom.
+              <div class="step-eq">$$\$(k)\approx P\frac{\ln 2}{2}\frac{t_{\rm shelf}}{k\,t_{1/2}} \;+\; k\,c_{\rm tube} \quad\Rightarrow\quad k^\star=\sqrt{\frac{P\ln 2\,t_{\rm shelf}}{2\,t_{1/2}\,c_{\rm tube}}}$$</div>
+              With <em>P</em> = 70, <em>t</em><sub>shelf</sub> = 12 wk,
+              <em>t</em><sub>½</sub> = 8 wk, <em>c</em> = $0.55 (a 50 mL conical):
+              <em>k</em>* = √(70 × 0.693 × 12 / (16 × 0.55)) = √66 ≈ 8. Eight does not
+              survive contact with the tube ladder — 500/8 is 62 mL and that needs a
+              bottle at $3.00 — so the answer is <b>ten 50 mL conicals</b>: $5.50 of
+              plastic and $3.50 of medium that decayed while the tube sat open, about
+              <b>$9</b> all in. This is the answer a spreadsheet gives, and it is
+              wrong.</li>
+            <li><span class="lead">Put the experiment back in.</span> At
+              <em>C</em><sub>event</sub> = $2,000 the contamination term is worth $23
+              at its very best and hundreds at its worst — either way, several times the
+              whole plastic bill. Ten tubes means each one is entered five times:
+              <div class="step-eq">$$C_{\rm event}\big[p_m+p_f+1-(1-p)^{N/k}\big]\Big|_{k=10} = 2000\big[0.0065+0.0248\big] = \$63$$</div>
+              So the $9 plan was really a $72 plan, and $63 of it is the part nobody puts
+              on a purchase order.</li>
+            <li><span class="lead">Now impose §3.3.</span> <em>u</em> = 10 mL, so the
+              only splits that waste nothing are <em>a</em> = 10, 5, 3.33 mL — that is
+              <em>k</em> = 50, 100, 150. And at those sizes single use is real, so every
+              tube is opened exactly <em>once</em>: the exponent <em>N/k</em> collapses to
+              1, P<sub>contam</sub> sits on its floor of 1.15%, and η = 1.
+              <div class="step-eq">$$\$ = \underbrace{2000(0.0065+0.005)}_{\$23} \;+\; \underbrace{70\times0.0107}_{\$0.75} \;+\; \underbrace{50\times0.35}_{\$17.50} \;=\; \$41$$</div></li>
+            <li><span class="lead">Check the neighbour.</span> <em>k</em> = 100 doubles
+              the plastic to $35 and saves nothing at all, because the contamination term
+              was already on its floor at <em>k</em> = 50. The bill goes up to $58.</li>
+          </ol>
+          <div class="answer"><b>50 × 10 mL in 15 mL conicals — one tube, one media
+            change.</b> Which is where §3.2 landed before any of this. The money did not
+            change the answer; it changed the <em>reason</em>, and it showed that the
+            cheap-looking answer — ten big tubes — is only cheap if a contamination costs
+            you nothing. Note also what the arithmetic says about ρ: at
+            <em>a</em> = 10 mL, ρ = 0.35/(0.14 × 10) = 0.25, so a quarter of what you are
+            spending is the tube. That is a real cost, and it is still the right call.</div>
+        </div>
+      </details>
+
+      <div class="insight"><strong>Film limits small precious stocks. Plastic limits big
+        cheap ones. Your session volume limits both.</strong> Three different floors,
+        three different mechanisms, and which one you hit depends entirely on the
+        reagent in front of you. A 1 mL antibody split into 20 µL aliquots has
+        ρ ≈ 0.013 — the tubes are free, and what decides the answer is the film of
+        eq. 3.2.1, which by then is <b>15% of the vial</b>. A 500 mL bottle of medium at
+        the sensible split has ρ ≈ 0.25 — a quarter of the spend is plastic — and the
+        film never gets a look in at all.</div>
+
+      <div class="rules">
+        <div class="rule"><b>Price the experiment, not the bottle</b><span>The term that decides the split is <em>C</em><sub>event</sub>, and it is the only one that is not on a catalogue page. Guess it honestly — almost everyone guesses low.</span></div>
+        <div class="rule"><b>Compare the tube to its contents</b><span>ρ = c<sub>tube</sub>/(price per mL × a). Under 0.1, stop thinking about plastic. Near 1, you are buying tubes, not safety.</span></div>
+        <div class="rule"><b>Land on a tooth</b><span>Take the cheapest k, then move to the nearest split that divides a session exactly. It is almost always within a few percent, and it wastes nothing.</span></div>
+        <div class="rule"><b>Smaller is not free</b><span>Below 2 mL you move to cryovials and the price per tube goes <em>up</em>. Splitting finer can cost more plastic per aliquot, not less.</span></div>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Eq. 4.4.1 is priced in reagent. The bench pays in <b>plastic</b> and in <b>lost experiments</b>.</li>
+          <li><b>ρ = c<sub>tube</sub>V/(aP)</b> tells you in one number whether tubes are worth arguing about.</li>
+          <li>Price a contamination at only the reagent and you get the wrong answer — <b>too few, too big</b> aliquots.</li>
+          <li>Price it honestly and you land back on <b>one tube, one session</b> — now for a reason you can defend.</li>
+        </ul>
+      </div>
+      <div class="handoff"><strong>Next:</strong> a real bottle, a real plan, and what
+        actually goes on the label.</div>
+    </div>
+  </div>
+
+  <div class="lesson-block">
+    <div class="background-section">
+      <h2 data-nav="4.2" data-title="A bottle, a plan, a label">4.2 · A bottle, a plan, and a label</h2>
+      <p>You have the number. Twenty minutes, a clean cabinet and a rack of tubes: this
+        section turns it into something you can execute, and then into a label somebody
+        else can read in six months.</p>
+      <p>Set the plan and read what it produces.</p>
+    </div>
+
+    <div class="student-task">
+      <ol>
+        <li>Pick a reagent. The planner suggests a tube count — check it against §3.2's curve, §3.3's comb and the bill you just read.</li>
+        <li>Set your working volume per use. Does the suggested aliquot cover a whole session, or half of one?</li>
+        <li>Read the label the planner generates. Cover it and try to write it from memory — what did you forget?</li>
+        <li>Turn the sterility check off and watch the "what you would find out, and when" line change.</li>
+      </ol>
+    </div>
+
+    <div class="scenario-bar">
+      <span class="scenario-bar-label">Reagent:</span>
+      <button class="scen-btn on" data-widget="plan" data-scen="media">500 mL medium</button>
+      <button class="scen-btn" data-widget="plan" data-scen="tryp">100 mL trypsin</button>
+      <button class="scen-btn" data-widget="plan" data-scen="gln">100 mL L-glutamine</button>
+      <button class="scen-btn" data-widget="plan" data-scen="mtg">10 mL Matrigel</button>
+    </div>
+
+    <div class="panel compact">
+      <div class="ctrl">
+        <h3>Controls</h3>
+        <div class="ctrl-group"><label>Volume per use <span id="v-plan-use">10.0 mL</span></label>
+          <input type="range" id="s-plan-use" min="0.05" max="30" step="0.05" value="10"></div>
+        <div class="ctrl-group"><label>Uses per week <span id="v-plan-rate">3</span></label>
+          <input type="range" id="s-plan-rate" min="1" max="20" step="1" value="3"></div>
+        <label class="chk"><input type="checkbox" id="c-plan-check" checked> Run a sterility check on the batch</label>
+        <label class="chk"><input type="checkbox" id="c-plan-single" checked> Size aliquots for a single session</label>
+        <div class="stats" id="st-plan"></div>
+      </div>
+      <div class="viz">
+        <div class="canvas-wrap"><div class="canvas-title">The plan, and the label it produces</div>
+          <canvas id="cv-plan" width="660" height="330"></canvas></div>
+        <div class="val-verdict" id="vd-plan" data-tall="1"></div>
+      </div>
+    </div>
+
+    <div class="background-section">
+      <h3>The five things on every label</h3>
+      <p>A label is not for you today. It is for someone else in eight months, standing
+        at an open freezer, deciding whether the tube in their hand is usable. Five
+        fields, and every one of them answers a question that gets asked:</p>
+      <div class="rules">
+        <div class="rule"><b>What it is</b><span>The full name and the concentration — not "GLN" and not a colour of tape. Acronyms only if everyone in the lab has agreed on them.</span></div>
+        <div class="rule"><b>Lot / source</b><span>Which bottle it came from. When a lot turns out to be bad, this is the only field that lets you find every tube that came from it.</span></div>
+        <div class="rule"><b>Date aliquoted</b><span>Not the expiry — the date it was split. Expiry is derivable from that; the reverse is not.</span></div>
+        <div class="rule"><b>Volume</b><span>So nobody has to open it to find out. Every opening is an entry, and eq. 4.1.1 counts it.</span></div>
+        <div class="rule"><b>Initials</b><span>Not for blame — so the one person who knows what happened that day can be asked. Published practice goes further: a colour per worker, for tape and pen.</span></div>
+      </div>
+
+      <h3>The sterility check that costs almost nothing</h3>
+      <p>A batch of aliquots is exactly the situation where a check is worth running,
+        because a single master-transfer failure has been copied into every tube. The
+        published method uses material you were going to throw away:</p>
+      <ul>
+        <li>Take <strong>outdated, antibiotic-free medium with 3–5% serum</strong> — it
+          is a perfectly good microbiological broth.</li>
+        <li>Put <strong>10 mL in a screw-cap tube</strong> and inoculate it from the batch.</li>
+        <li>Incubate at <strong>30 °C and 37 °C</strong> — two temperatures, because one
+          misses organisms the other catches — for <strong>at least two weeks</strong>.</li>
+        <li>Turbidity means the batch is contaminated — and because every tube came from
+          one master transfer, it means <em>every tube</em> is. No turbidity is not a
+          guarantee — it is evidence, and mycoplasma will pass it silently.</li>
+      </ul>
+      <div class="aside"><span class="lab">McGhee Lab practice — agree the details with Alex</span>
+        <strong>Two things the method does not say: where the tubes go, and what
+        happens when one turns turbid.</strong>
+        <p><strong>Not in the cell-culture incubator.</strong> A capped broth needs no
+        CO₂, and nothing you are deliberately trying to grow belongs in the same box as
+        your cells. Use a plain 30 °C and 37 °C incubator or oven.</p>
+        <p><strong>And a failed batch is discarded.</strong> Every tube of it, through
+        the lab's biohazardous liquid-waste route, and decontaminate whatever it stood in.
+        Twenty minutes of splitting is the cheap part; the fortnight you would lose using
+        it is not.</p></div>
+      <div class="aside"><span class="lab">McGhee Lab practice — agree the details with Alex</span>
+        <strong>Note from Dr. McGhee.</strong> Do the master transfer at the start of a
+        session in a cabinet nobody else has been using, with nothing else in it, and do
+        not do it at the end of a long day. Then write the date on the log for whichever incubator you used and
+        put the check tubes somewhere they will not be thrown out. The two weeks are the
+        point: a check you read on Friday because you are impatient has told you almost
+        nothing.</div>
+
+      <details class="worked">
+        <summary>Worked example <span class="we-title">— Matrigel, where every lesson in this track shows up at once</span></summary>
+        <div class="worked-body">
+          <ol class="steps">
+            <li><span class="lead">Write what you know.</span> 10 mL of Matrigel, thawed
+              overnight at 4 °C, sets to a gel once it warms into the 22–35 °C range and
+              does not usefully come back, used ~250 µL at a time, and it is the most
+              viscous thing in the lab. Everything about handling it is a margin against
+              that transition: keep it below about 10 °C and you are nowhere near it.</li>
+            <li><span class="lead">Contamination (eq. 4.1.1).</span> 40 uses from one
+              vial at p = 0.5% gives P = 18%, and losing it means losing the vial and
+              the week. Split it.</li>
+            <li><span class="lead">Film (eq. 3.2.1).</span> At 100 mPa·s, a fast
+              withdrawal leaves a film two orders of magnitude thicker than medium
+              would — hundreds of microlitres on the pipette wall.
+              <div class="step-eq">$$t_{\rm film}\approx 0.94\,r\,\mathrm{Ca}^{2/3},\qquad \mathrm{Ca}=\frac{\mu U}{\gamma}$$</div>
+              So: pre-chill the tips, work slowly, and accept that the film sets a floor
+              on how small an aliquot is worth making.</li>
+            <li><span class="lead">Temperature.</span> Everything — vial, tips, tubes,
+              the pipette — goes on ice or in a cold block. Warm plastic gels it on
+              contact and you lose the aliquot and the tip together.</li>
+          </ol>
+          <div class="answer">Roughly <b>40 × 250 µL single-use aliquots</b>, made on ice
+            with pre-chilled tips, slowly, in one sitting, labelled with lot and date,
+            and stored at −20 °C. Every one of those decisions came from a different
+            lesson in this track — and the reason Matrigel has its own protocol is that
+            it is the reagent where getting any one of them wrong is immediately
+            visible.</div>
+        </div>
+      </details>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Size the aliquot for <b>one session</b>, so the tube is opened once and never refrozen.</li>
+          <li>Five fields on every label: what, lot, date split, volume, initials.</li>
+          <li>The master transfer is the one operation worth a <b>sterility check</b> — 10 mL of outdated medium, 30 and 37 °C, two weeks, in a plain incubator and <b>never the cell-culture box</b>.</li>
+          <li>A clean check is evidence, not a guarantee. Mycoplasma passes it silently.</li>
+          <li>A batch that goes turbid is <b>discarded, every tube of it</b>, through the biohazard waste route.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="background-section">
+      <h3>What to do next</h3>
+      <div class="rules">
+        <div class="rule"><b>Take the sign-off</b><span>The lab's <em>Cell culture &amp; sterile technique</em> training on the RM hub ends in a bench sign-off. That is the competency check before you culture cells unsupervised.</span></div>
+        <div class="rule"><b>Work through the case files</b><span>The same training carries a diagnostic gallery: ten cultures that look wrong, and which rule each one broke. Half of them are not contamination at all.</span></div>
+        <div class="rule"><b>Walk it once with someone</b><span>Everything here is physics you can now derive. The choreography — which hand, which direction, where the waste lives — you learn by doing it beside a person who already does it.</span></div>
+        <div class="rule"><b>Then teach it</b><span>The fastest way to find the parts you only half know is to explain the water pan to the next new student.</span></div>
+      </div>
+      <div class="handoff"><strong>One last thing.</strong> Every number in this track
+        came with its domain stated, because a model you cannot see the edge of is not a
+        model, it is a belief. When your bench disagrees with a number here, your bench
+        is right. Go and find out why.</div>
+    </div>
+  </div>
+</section>
+
+<div class="sources">
+  <h2>Sources</h2>
+  <ol>
+    <li>Ryan, J. A. <em>Understanding and Managing Cell Culture Contamination.</em>
+      Corning Technical Bulletin CLS-AN-020 Rev. 5 (2021). Source of the small-volume
+      packaging recommendation this lesson is built around — <em>"whenever possible,
+      package sterile solutions, such as trypsin, L-glutamine, and antibiotics, in small
+      volumes (i.e., stored in 15 mL tubes) to reduce the number of times each tube must
+      be entered and thus reduces the probability of contamination"</em> — and of the
+      sterility-test method in §4.2 (outdated antibiotic-free medium with 3–5% serum,
+      10 mL screw-cap tubes, 30 °C and 37 °C, at least two weeks) and the colour-coding
+      and labelling practice.</li>
+    <li>Corning Life Sciences. <em>Lab Life Essentials</em> (2024). "Use small media and
+      buffer volumes and never double-dip pipets"; cryopreservation handling; the
+      cell-culture log.</li>
+    <li>Corning Life Sciences. <em>Cell Culture Resource Guide</em> (2022). Aliquot and
+      cryopreservation practice, including vapour-phase storage below −130 °C and the
+      warning against submerging vials in liquid nitrogen.</li>
+    <li>Landau, L. D. and Levich, B. (1942), <em>Acta Physicochim. URSS</em> 17:42 —
+      the entrained-film result reused from Lesson 3 as the small-aliquot floor.</li>
+    <li>McGhee Lab. <em>Matrigel Aliquoting Protocol</em> (internal). The worked example
+      in §4.2 follows this protocol; use the protocol itself, not the summary here, when
+      you actually do it.</li>
+  </ol>
+  <p style="font-size:.78rem;color:#94a3b8;margin-top:10px">The probability model is
+    deliberately simple: entries are treated as independent with a constant p, which is
+    not exactly true (a bad day correlates entries). That approximation makes the risk
+    here an <em>under</em>-estimate, not an over-estimate. Half-lives on the reagent
+    chips are order-of-magnitude figures for seeing the shape of the problem — get the
+    real number from the certificate of analysis for your lot. Sections marked
+    <em>McGhee Lab practice</em> are house procedure, not published guidance.</p>
+</div>
+
+</main>
+<footer>Cell Culture Foundations · Lesson 4 of 4 · McGhee Lab, University of Arizona</footer>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   CELL CULTURE FOUNDATIONS — shared house layer.
+   Helpers (COL, fmt, niceTicks, clamp, setupCanvas, Chart, drawLine,
+   arrow, setStat, setVerdict, statTick, lsqFit, mulberry32, randn)
+   follow modules/AUTHORING.md §5 and are copied from the BME466
+   week-1 module verbatim. The learning-module framework layer
+   (defWidget / registerAnim / one shared rAF loop / geometric
+   syncVis) is AUTHORING.md §9 item 3; the section rail and Present
+   mode (§9 item 2) are deliberately NOT included in this track.
+   UNITS: length m (µm where stated) · time s · velocity m/s ·
+   viscosity Pa·s, unless a widget states otherwise.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── palette ── */
+const COL = {
+  air:'#38bdf8', clean:'#2563eb', dirty:'#ef4444', warmc:'#f59e0b',
+  cell:'#7c3aed', media:'#e11d48', plastic:'#94a3b8', steel:'#64748b',
+  good:'#10b981', bad:'#ef4444', warn:'#f59e0b', neutral:'#94a3b8',
+  hepa:'#0891b2', flowline:'#60a5fa', particle:'#7c3aed',
+  grid:'#e2e8f0', axis:'#64748b', text:'#1e293b', faint:'#f1f5f9'
+};
+
+/* ── math / canvas / DOM helpers (house pattern, copied verbatim) ── */
+function randn(){ let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function gaussOf(rng){ let u=0,v=0; while(u===0)u=rng(); while(v===0)v=rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function fmt(v,d){ if(!isFinite(v))return '—'; const a=Math.abs(v);
+  if(a>=1000)return v.toLocaleString('en-US',{maximumFractionDigits:d===undefined?0:d});
+  if(a>=1)return v.toFixed(d===undefined?2:d);
+  if(a>=0.001||a===0)return v.toFixed(d===undefined?3:d);
+  return v.toExponential(d===undefined?2:d); }
+function niceTicks(lo,hi,n){ if(hi<=lo)return [lo]; const range=hi-lo, rough=range/Math.max(n,1),
+  mag=Math.pow(10,Math.floor(Math.log10(rough))); let step;
+  if(rough/mag<1.5)step=mag; else if(rough/mag<3.5)step=2*mag; else if(rough/mag<7.5)step=5*mag; else step=10*mag;
+  const t=[]; let x=Math.ceil(lo/step)*step; while(x<=hi+step*1e-3){t.push(x);x+=step;} return t; }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function setupCanvas(canvas){ if(!canvas)return null; const dpr=window.devicePixelRatio||1; const rect=canvas.getBoundingClientRect();
+  const cssW=rect.width||canvas.width;
+  const w=cssW, h=w*(canvas.height/canvas.width);
+  canvas.width=cssW*dpr; canvas.height=h*dpr; canvas.style.width=cssW+'px'; canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h); return {ctx,w,h}; }
+class Chart{
+  constructor(ctx,w,h,m){ this.ctx=ctx;this.W=w;this.H=h;this.m=m||{l:58,r:18,t:14,b:42};
+    this.pw=w-this.m.l-this.m.r; this.ph=h-this.m.t-this.m.b;
+    /* setupCanvas clears only on FIRST allocation and getCv caches the result,
+       so without this every redraw paints on top of the previous curve.
+       Pass {keep:1} in the margins when the caller has ALREADY cleared and
+       drawn artwork beside the chart — otherwise this wipes it. */
+    if(!(m&&m.keep)){ ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h); } }
+  setRange(a,b,c,d){ this.xMin=a;this.xMax=b;this.yMin=c;this.yMax=d; }
+  toX(v){ return this.m.l+(v-this.xMin)/(this.xMax-this.xMin)*this.pw; }
+  toY(v){ return this.m.t+this.ph-(v-this.yMin)/(this.yMax-this.yMin)*this.ph; }
+  grid(xt,yt){ const c=this.ctx; c.save();c.strokeStyle=COL.grid;c.lineWidth=1;c.setLineDash([3,3]);
+    for(const t of xt){const x=this.toX(t);c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();}
+    for(const t of yt){const y=this.toY(t);c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();}
+    c.restore(); }
+  axes(xl,yl,xt,yt,dx,dy,xfmt,yfmt){ const c=this.ctx; c.save();c.strokeStyle=COL.axis;c.lineWidth=1.5;c.setLineDash([]);
+    c.beginPath();c.moveTo(this.m.l,this.m.t);c.lineTo(this.m.l,this.m.t+this.ph);c.lineTo(this.m.l+this.pw,this.m.t+this.ph);c.stroke();
+    c.fillStyle=COL.axis;c.font='11px sans-serif';c.textAlign='center';c.textBaseline='top';
+    for(const t of xt){c.fillText(xfmt?xfmt(t):fmt(t,dx===undefined?0:dx),this.toX(t),this.m.t+this.ph+6);}
+    c.textAlign='right';c.textBaseline='middle';
+    for(const t of yt){c.fillText(yfmt?yfmt(t):fmt(t,dy===undefined?1:dy),this.m.l-6,this.toY(t));}
+    c.fillStyle=COL.text;c.font='12px sans-serif';c.textAlign='center';c.textBaseline='top';
+    c.fillText(xl,this.m.l+this.pw/2,this.m.t+this.ph+22);
+    /* The y-label used to be pinned to x=13, which is only correct for a chart
+       that starts at the canvas edge. A {keep:1} chart offset to the right put
+       its label on top of whatever the left panel had drawn. */
+    c.save();c.translate(this.m.l>90?this.m.l-40:13,this.m.t+this.ph/2);c.rotate(-Math.PI/2);c.textBaseline='middle';c.fillText(yl,0,0);c.restore();
+    c.restore(); }
+  hLine(yv,color,dash){ const c=this.ctx,y=this.toY(yv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();c.restore(); }
+  vLine(xv,color,dash){ const c=this.ctx,x=this.toX(xv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();c.restore(); }
+  legend(items,x,y){ const c=this.ctx;c.save();c.font='11px sans-serif';let cx=x;
+    for(const it of items){c.fillStyle=it.color;c.fillRect(cx,y-5,12,10);c.fillStyle=COL.text;cx+=16;
+      c.textAlign='left';c.textBaseline='middle';c.fillText(it.label,cx,y);cx+=c.measureText(it.label).width+14;}c.restore(); }
+}
+function drawLine(ctx,pts,color,lw,dash){ if(pts.length<2)return; ctx.save();ctx.strokeStyle=color;ctx.lineWidth=lw||2;
+  if(dash)ctx.setLineDash(dash); ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]); ctx.stroke();ctx.restore(); }
+function arrow(ctx,x0,y0,x1,y1,color,lw){ ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=lw||1.6;
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+  const a=Math.atan2(y1-y0,x1-x0),hh=6.5; ctx.beginPath();ctx.moveTo(x1,y1);
+  ctx.lineTo(x1-hh*Math.cos(a-0.42),y1-hh*Math.sin(a-0.42));ctx.lineTo(x1-hh*Math.cos(a+0.42),y1-hh*Math.sin(a+0.42));
+  ctx.closePath();ctx.fill();ctx.restore(); }
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath(); }
+/* setStat / setVerdict rewrite DOM, so they are the two places that can make
+   the page flicker or jump. Both skip entirely when the rendered text is
+   unchanged, and are rate-limited by statTick(); combined with the reserved
+   heights in the CSS a running sim leaves the rest of the page still. */
+const _domCache={};
+function setStat(id,rows){ const el=document.getElementById(id); if(!el)return;
+  const html=rows.map(r=>`<div class="stat-row${r.hi?' highlight':''}"><span class="label">${r.k}</span><span class="value">${r.v}</span></div>`).join('');
+  if(_domCache[id]===html)return; _domCache[id]=html; el.innerHTML=html; }
+function setVerdict(id,cls,title,body){ const el=document.getElementById(id); if(!el)return;
+  const tall=el.dataset.tall?' tall':'';
+  const html='<strong>'+title+'</strong>'+body, key=cls+'|'+html;
+  if(_domCache['v:'+id]===key)return; _domCache['v:'+id]=key;
+  el.className='val-verdict'+tall+' '+cls; el.innerHTML=html; }
+const _statLast={};
+function statTick(key,ms){
+  /* Rate-limiting only applies to ANIMATED widgets, which redraw next frame
+     anyway. A static widget draws exactly once per input event, so gating it
+     would leave its readouts permanently stale whenever an input happened to
+     land inside the window. */
+  if(!ANIMS[key])return true;
+  const t=(typeof performance!=='undefined'?performance.now():0);
+  if(_statLast[key]&&t-_statLast[key]<(ms||160))return false; _statLast[key]=t; return true; }
+function lsqFit(xs,ys){ const n=xs.length; if(n<2)return null; let sx=0,sy=0,sxx=0,sxy=0;
+  for(let i=0;i<n;i++){sx+=xs[i];sy+=ys[i];sxx+=xs[i]*xs[i];sxy+=xs[i]*ys[i];}
+  const den=n*sxx-sx*sx; if(Math.abs(den)<1e-12)return null;
+  const m=(n*sxy-sx*sy)/den, b=(sy-m*sx)/n; return {m,b}; }
+function mulberry32(a){ return function(){ a|=0;a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+/* ════════ learning-module framework ════════
+   Widgets self-register:
+     defWidget(key, tab, drawFn, fmts, {reset, scenfn, scen0})
+     registerAnim(key, stepFn, minFrameMs)   // animated widgets only
+   Keys are globally unique and hyphen-free; slider ids are s-{key}-{param}
+   so id.split('-')[0] recovers the owning widget. TABW and the initial
+   activeTab are read from the DOM, so this whole block is identical in
+   every lesson of the track. */
+const FMT={}, DRAW={}, RESET={}, SCENFN={}, SCEN={}, WTAB={}, TABW={};
+document.querySelectorAll('.tab-content').forEach(s=>{ TABW[s.id.replace('tab-','')]=[]; });
+let activeTab=(document.querySelector('.tab-content.active')||document.querySelector('.tab-content')).id.replace('tab-','');
+function defWidget(key,tab,drawFn,fmts,opts){
+  if(!TABW[tab])TABW[tab]=[];
+  TABW[tab].push(key); DRAW[key]=drawFn; WTAB[key]=tab;
+  if(fmts)Object.assign(FMT,fmts);
+  if(opts&&opts.reset)RESET[key]=opts.reset;
+  if(opts&&opts.scenfn)SCENFN[key]=opts.scenfn;
+  if(opts&&opts.scen0)SCEN[key]=opts.scen0;
+}
+/* canvas-setup cache: setupCanvas reallocates the bitmap, so animated
+   widgets cache {ctx,w,h}; cache is cleared on resize and tab switch. */
+const CVS={};
+function getCv(id){ if(CVS[id])return CVS[id];
+  const el=document.getElementById(id); if(!el)return null;
+  const s=setupCanvas(el); if(s&&s.w>10)CVS[id]=s; return s; }
+function clearCvCache(){ for(const k in CVS) delete CVS[k]; }
+
+/* shared animation loop + viewport gating */
+const ANIMS={};
+let io=null, rafId=null;
+function registerAnim(key,stepFn,minFrame){
+  ANIMS[key]={step:stepFn,visible:false,last:0,minFrame:minFrame||33};
+  const el=document.getElementById('cv-'+key);
+  if(el){ el.dataset.anim=key; if(io)io.observe(el); else ANIMS[key].visible=true; }
+}
+if('IntersectionObserver' in window){
+  io=new IntersectionObserver(ents=>{
+    for(const en of ents){ const a=ANIMS[en.target.dataset.anim];
+      if(a){ a.visible=en.isIntersecting; if(a.visible)a.last=0; } }
+    kickAnim();
+  },{rootMargin:'120px',threshold:0.05});
+}
+function animLoop(ts){
+  let any=false;
+  for(const k in ANIMS){ const a=ANIMS[k];
+    if(WTAB[k]!==activeTab||!a.visible)continue;
+    any=true;
+    if(!a.last){a.last=ts;continue;}
+    const dt=Math.min(ts-a.last,50);
+    if(dt>=a.minFrame){ a.last=ts;
+      try{ a.step(dt/1000); DRAW[k](); }catch(e){ console.error('anim '+k,e); } }
+  }
+  rafId=any?requestAnimationFrame(animLoop):null;
+}
+function kickAnim(){ if(rafId==null)rafId=requestAnimationFrame(animLoop); }
+/* Visibility fallback: IntersectionObserver delivery is environment-dependent
+   (in some headless builds it never fires at all), so visibility is ALSO
+   recomputed straight from geometry — at boot, on tab switch, on scroll and
+   on resize. IO stays wired as a zero-cost extra wake-up where it works. */
+function syncVis(){
+  const vh=window.innerHeight||800;
+  for(const k in ANIMS){ if(WTAB[k]!==activeTab)continue;
+    const el=document.getElementById('cv-'+k); if(!el)continue;
+    const r=el.getBoundingClientRect();
+    const vis=r.width>0&&r.bottom>-120&&r.top<vh+120;
+    if(vis&&!ANIMS[k].visible)ANIMS[k].last=0;
+    ANIMS[k].visible=vis; }
+  kickAnim();
+}
+let _visPend=false;
+window.addEventListener('scroll',()=>{ if(_visPend)return; _visPend=true;
+  requestAnimationFrame(()=>{ _visPend=false; syncVis(); }); },{passive:true});
+window.__anim={ get running(){ return rafId!=null; },
+  get activeKeys(){ return Object.keys(ANIMS).filter(k=>WTAB[k]===activeTab&&ANIMS[k].visible); } };
+
+/* ════════ slider access + scenario machinery (house, adapted) ════════ */
+function val(id){ const el=document.getElementById('s-'+id); return el?el.value:''; }
+function num(id){ return parseFloat(val(id)); }
+function chk(id){ const el=document.getElementById('c-'+id); return !!(el&&el.checked); }
+function wireAll(){ Object.keys(FMT).forEach(id=>{ const s=document.getElementById('s-'+id),v=document.getElementById('v-'+id);
+  if(!s)return; const upd=()=>{ if(v)v.textContent=FMT[id](parseFloat(s.value));
+    const wk=id.split('-')[0];
+    if(RESET[wk])RESET[wk]();
+    if(DRAW[wk]){ try{DRAW[wk]();}catch(e){console.error('draw '+wk,e);} }
+    kickAnim(); };
+  s.addEventListener('input',upd); if(v)v.textContent=FMT[id](parseFloat(s.value)); });
+  document.querySelectorAll('input[type=checkbox][id^="c-"]').forEach(cb=>{
+    cb.addEventListener('change',()=>{ const wk=cb.id.slice(2).split('-')[0];
+      if(RESET[wk])RESET[wk]();
+      if(DRAW[wk]){ try{DRAW[wk]();}catch(e){console.error('draw '+wk,e);} }
+      kickAnim(); }); }); }
+function presetSlider(id,vv){ const el=document.getElementById('s-'+id); if(el){ el.value=String(vv);
+  const v=document.getElementById('v-'+id); if(v&&FMT[id])v.textContent=FMT[id](parseFloat(vv)); } }
+function presetChk(id,on){ const el=document.getElementById('c-'+id); if(el)el.checked=!!on; }
+function setScen(w,s){ SCEN[w]=s;
+  document.querySelectorAll('.scen-btn[data-widget="'+w+'"]').forEach(b=>b.classList.toggle('on',b.dataset.scen===s));
+  if(SCENFN[w])SCENFN[w](s);
+  if(RESET[w])RESET[w]();
+  if(DRAW[w]){ try{DRAW[w]();}catch(e){console.error('draw '+w,e);} }
+  kickAnim(); }
+
+/* ═══════════════════ WIDGET CODE START ═══════════════════ */
+const LN2=Math.log(2);
+/* eq. 4.1.1 */
+function pAny(p,N){ return 1-Math.pow(1-p,N); }
+/* eq. 4.3.2 — mean activity of an aliquot open for t_use */
+function meanAct(th,tu){ if(tu<=0)return 1; const k=LN2/th; return (1-Math.exp(-k*tu))/(k*tu); }
+
+/* ════════ widget: coin — flip it two hundred times (Tab 1.1) ════════
+   The measurement comes first: 200 independent bottles, each run entry by
+   entry, counted. Only then is eq. 4.1.1 drawn over the top. */
+const NB=200;
+function coinState(){ const p=num('coin-p')/100, N=Math.round(num('coin-n')), seed=Math.round(num('coin-seed'));
+  const rng=mulberry32(1000*seed+7);
+  const dead=[]; let alive=0;
+  for(let b=0;b<NB;b++){ let at=-1;
+    for(let e=1;e<=N;e++){ if(rng()<p){ at=e; break; } }
+    dead.push(at); if(at<0)alive++; }
+  return {p,N,seed,dead,alive,measured:1-alive/NB,theory:pAny(p,N)}; }
+function drawCoin(){ const c=getCv('cv-coin'); if(!c)return; const {ctx,w,h}=c; const s=coinState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  /* the 200 bottles as a grid */
+  const cols=20, rows=NB/cols, cw=Math.min(13,(w*0.42)/cols), gy=26;
+  for(let i=0;i<NB;i++){ const x=16+(i%cols)*cw, y=gy+Math.floor(i/cols)*cw;
+    const d=s.dead[i];
+    ctx.fillStyle=d<0?'#bbf7d0':'#fecaca';
+    roundRect(ctx,x,y,cw-2.5,cw-2.5,2); ctx.fill();
+    if(d>=0){ ctx.fillStyle='#dc2626'; ctx.beginPath(); ctx.arc(x+(cw-2.5)/2,y+(cw-2.5)/2,1.6,0,6.284); ctx.fill(); } }
+  ctx.fillStyle=COL.axis; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('200 bottles - green survived '+s.N+' entries',16,gy+rows*cw+6);
+  ctx.fillStyle=COL.good; ctx.font='bold 11px sans-serif';
+  ctx.fillText(s.alive+' clean',16,gy+rows*cw+22);
+  ctx.fillStyle=COL.bad; ctx.fillText((NB-s.alive)+' contaminated',86,gy+rows*cw+22);
+  /* survival curve: measured vs theory */
+  /* keep:1 — the bottle grid to the left is already painted; without it the
+     Chart constructor's clear erases the entire left half of this widget. */
+  const ch=new Chart(ctx,w,h,{l:w*0.50,r:18,t:22,b:44,keep:1});
+  ch.setRange(0,Math.max(s.N,1),0,1.02);
+  const xt=niceTicks(0,Math.max(s.N,1),5), yt=[0,0.25,0.5,0.75,1];
+  ch.grid(xt,yt); ch.axes('entries','fraction still clean',xt,yt,0,2);
+  const meas=[]; let left=NB;
+  meas.push([ch.toX(0),ch.toY(1)]);
+  for(let e=1;e<=s.N;e++){ left-=s.dead.filter(d=>d===e).length;
+    meas.push([ch.toX(e),ch.toY(left/NB)]); }
+  const th=[];
+  for(let i=0;i<=120;i++){ const e=s.N*i/120; th.push([ch.toX(e),ch.toY(Math.pow(1-s.p,e))]); }
+  drawLine(ctx,th,'#0f172a',2.6,[6,4]);
+  drawLine(ctx,meas,COL.clean,2.2);
+  ch.legend([{color:COL.clean,label:'counted'},{color:'#0f172a',label:'eq. 4.1.1'}],ch.m.l+4,ch.m.t+ch.ph+34);
+  if(!statTick('coin'))return;
+  setStat('st-coin',[
+    {k:'Survived',v:s.alive+' of '+NB},
+    {k:'Counted P',v:fmt(100*s.measured,1)+' %',hi:1},
+    {k:'eq. 4.1.1 says',v:fmt(100*s.theory,1)+' %',hi:1},
+    {k:'Difference',v:fmt(100*Math.abs(s.measured-s.theory),1)+' pts'}]);
+  const diff=Math.abs(s.measured-s.theory);
+  if(s.theory>0.5) setVerdict('vd-coin','bad','Most of them are gone.',
+    ' <b>'+(NB-s.alive)+' of 200</b> bottles contaminated at '+fmt(100*s.p,2)+'% per entry over '+s.N+' entries. The counted answer is '+fmt(100*s.measured,1)+'% and eq. 4.1.1 predicts '+fmt(100*s.theory,1)+'%. Nobody here made a mistake they would recognise as a mistake — the exponent did this.');
+  else if(diff<0.05) setVerdict('vd-coin','good','The count and the equation agree.',
+    ' Counted <b>'+fmt(100*s.measured,1)+'%</b>, eq. 4.1.1 gives '+fmt(100*s.theory,1)+'% — within '+fmt(100*diff,1)+' points, which is the sampling noise you would expect from 200 bottles. Now re-read the equation: N is in the exponent, and it is the term you can change without becoming a better scientist.');
+  else setVerdict('vd-coin','warn','Close, and the gap is sampling noise.',
+    ' Counted '+fmt(100*s.measured,1)+'% against '+fmt(100*s.theory,1)+'% predicted. 200 bottles is not many — change the seed a few times and watch the counted number move around the theoretical one. That scatter is exactly why "I have never contaminated anything" is not evidence about your p.'); }
+defWidget('coin','coin',drawCoin,{
+  'coin-p':v=>fmt(v,2)+' %', 'coin-n':v=>String(Math.round(v)), 'coin-seed':v=>String(Math.round(v))});
+
+/* ════════ widget: blast — split it and watch (Tab 2.1) ════════ */
+const BSTOCK={ media:{V:500,N:40,n:'500 mL medium'}, tryp:{V:100,N:60,n:'100 mL trypsin'},
+               cyt:{V:5,N:40,n:'5 mL cytokine'} };
+function blastState(){ const k=Math.round(num('blast-k')), N=Math.round(num('blast-n')),
+  p=num('blast-p')/100, pm=num('blast-m')/100;
+  const V=BSTOCK[SCEN.blast||'media'].V;
+  const pf=pm*0.3;                                   /* a controlled fill, in the hood */
+  const use=k=>pAny(p,Math.max(N/k,1));
+  const loss=kk=>V*((kk>1?pm+pf:0)+use(kk));
+  const one=V*use(1), now=loss(k), floor=V*(pm+pf+pAny(p,1));
+  return {k,N,p,pm,pf,V,one,now,floor,ratio:one/Math.max(now,1e-9),
+          name:BSTOCK[SCEN.blast||'media'].n,loss}; }
+function drawBlast(){ const c=getCv('cv-blast'); if(!c)return; const {ctx,w,h}=c; const s=blastState();
+  const ch=new Chart(ctx,w,h,{l:62,r:18,t:20,b:46});
+  const yMax=Math.max(s.one*1.08,1e-6);
+  ch.setRange(1,100,0,yMax);
+  const xt=[1,20,40,60,80,100], yt=niceTicks(0,yMax,5);
+  ch.grid(xt,yt); ch.axes('number of aliquots','expected loss (mL)',xt,yt,0,
+    yMax<2?2:(yMax<40?1:0));
+  const pts=[];
+  for(let kk=1;kk<=100;kk++) pts.push([ch.toX(kk),ch.toY(clamp(s.loss(kk),0,yMax))]);
+  drawLine(ctx,pts,COL.clean,2.6);
+  /* the floor */
+  ch.hLine(s.floor,'#b45309',[5,4]);
+  ctx.fillStyle='#b45309'; ctx.font='10px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='bottom';
+  ctx.fillText('floor: the transfer that made them = '+fmt(s.floor,2)+' mL',ch.m.l+ch.pw-4,ch.toY(s.floor)-3);
+  /* the working point */
+  const px=ch.toX(clamp(s.k,1,100)), py=ch.toY(clamp(s.now,0,yMax));
+  ctx.beginPath(); ctx.arc(px,py,6,0,6.284);
+  ctx.fillStyle=s.ratio>8?COL.good:(s.ratio>3?COL.warn:COL.bad); ctx.fill();
+  ctx.strokeStyle='#0f172a'; ctx.lineWidth=2; ctx.stroke();
+  ctx.fillStyle=COL.text; ctx.font='bold 12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText(fmt(s.now,2)+' mL',clamp(px+11,0,w-90),py);
+  /* the vessels, drawn */
+  const vy=ch.m.t+6, vx=ch.m.l+ch.pw-150;
+  const show=Math.min(s.k,24);
+  for(let i=0;i<show;i++){ const cwd=Math.max(4,Math.min(15,140/Math.ceil(Math.sqrt(show*2))));
+    const cx=vx+(i%8)*(cwd+3), cy=vy+Math.floor(i/8)*(cwd+3);
+    ctx.fillStyle=phenolRed4(); roundRect(ctx,cx,cy,cwd,cwd,2); ctx.fill(); }
+  ctx.fillStyle='#94a3b8'; ctx.font='9px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText(s.k+' x '+fmt(s.V/s.k,s.V/s.k<1?3:1)+' mL'+(s.k>24?' (24 shown)':''),vx,vy+Math.ceil(show/8)*(15+3)+2);
+  if(!statTick('blast'))return;
+  setStat('st-blast',[
+    {k:'Aliquot size',v:fmt(s.V/s.k,s.V/s.k<1?3:1)+' mL'},
+    {k:'Entries each',v:fmt(Math.max(s.N/s.k,1),1)},
+    {k:'Expected loss',v:fmt(s.now,2)+' mL',hi:1},
+    {k:'Floor (master transfer)',v:fmt(s.floor,2)+' mL'},
+    {k:'vs one bottle',v:fmt(s.ratio,1)+' x better',hi:1}]);
+  if(s.k===1&&s.pm<=0.0001) setVerdict('vd-blast','warn','One bottle — and you have set the master transfer to zero.',
+    ' Expected loss is still <b>'+fmt(s.now,1)+' mL</b>, because nothing has been split yet. Watch what the floor does as you drag k up: with a perfect master transfer, aliquoting keeps improving all the way down to the risk of a single entry. That floor is the honest limit of the whole strategy.');
+  else if(s.k===1) setVerdict('vd-blast','bad','One bottle. This is the baseline.',
+    ' '+fmt(s.N,0)+' entries at '+fmt(100*s.p,2)+'% gives P = '+fmt(100*pAny(s.p,s.N),1)+'%, and every one of those events costs the whole <b>'+fmt(s.V,0)+' mL</b>. Expected loss <b>'+fmt(s.now,1)+' mL</b> — '+fmt(100*s.now/s.V,0)+'% of the stock, gone, on average, with technique you would call good.');
+  else if(s.now<=s.floor*1.12) setVerdict('vd-blast','good','You have hit the floor. Look at what is holding it up.',
+    ' '+fmt(s.now,2)+' mL expected loss — <b>'+fmt(s.ratio,0)+'× better</b> than one bottle — and splitting further changes almost nothing, because what is left is the <em>master transfer</em>: one entry into the bottle plus '+s.k+' fills, and if that goes wrong every aliquot is contaminated identically. Aliquoting does not remove risk so much as <b>concentrate it into one moment you can prepare for</b>.');
+  else if(s.ratio>4) setVerdict('vd-blast','good',fmt(s.ratio,0)+'× better, for zero change in technique.',
+    ' '+s.k+' aliquots of '+fmt(s.V/s.k,2)+' mL: each is entered '+fmt(Math.max(s.N/s.k,1),1)+' times instead of '+s.N+', and each holds a '+s.k+'th as much. Both halves of eq. 4.1.2 improved at once. Your p did not move at all.');
+  else setVerdict('vd-blast','warn','Better, but you are barely off the baseline.',
+    ' '+s.k+' aliquot'+(s.k===1?'':'s')+' gives '+fmt(s.now,1)+' mL expected loss against '+fmt(s.one,1)+' for one bottle — only '+fmt(s.ratio,1)+'× . Each tube is still being entered '+fmt(Math.max(s.N/s.k,1),1)+' times, so its own exponent is still doing damage. Push k until each aliquot is opened once or twice.'); }
+function phenolRed4(){ return 'rgba(220,38,38,.45)'; }
+defWidget('blast','blast',drawBlast,{
+  'blast-k':v=>String(Math.round(v)), 'blast-n':v=>String(Math.round(v)),
+  'blast-p':v=>fmt(v,2)+' %', 'blast-m':v=>fmt(v,2)+' %'},
+  {scen0:'media', scenfn:s=>{ presetSlider('blast-n',BSTOCK[s].N); }});
+
+/* ════════ widget: decay — nothing waits for you (Tab 3.1) ════════ */
+const REAG={ gln:{th:3,n:'L-glutamine in medium'}, tryp:{th:4,n:'trypsin'},
+             serum:{th:8,n:'serum'}, gf:{th:1,n:'a labile growth factor'} };
+function decayState(){ const k=Math.round(num('decay-k')), th=num('decay-th'),
+  shelf=num('decay-shelf'), ftPct=num('decay-ft')/100;
+  const tu=shelf/k;
+  const ft=Math.pow(1-ftPct,Math.max(0,Math.min(Math.round(k>1?0:0)+ (ftPct>0? Math.max(0,Math.round(shelf/Math.max(tu,0.1))-k):0),6)));
+  const cycles=ftPct>0?Math.max(0,Math.round(tu/2)):0;   /* refrozen ~ every 2 weeks of use */
+  const mean=meanAct(th,tu)*Math.pow(1-ftPct,cycles);
+  return {k,th,shelf,tu,ftPct,cycles,mean,end:Math.exp(-tu*LN2/th)*Math.pow(1-ftPct,cycles)}; }
+function drawDecay(){ const c=getCv('cv-decay'); if(!c)return; const {ctx,w,h}=c; const s=decayState();
+  const ch=new Chart(ctx,w,h,{l:58,r:18,t:20,b:46});
+  ch.setRange(0,s.shelf,0,1.02);
+  const xt=niceTicks(0,s.shelf,6), yt=[0,0.25,0.5,0.75,1];
+  ch.grid(xt,yt); ch.axes('weeks since the stock was opened','activity',xt,yt,0,2);
+  /* one saw-tooth per aliquot: each starts fresh from the freezer */
+  const show=Math.min(s.k,40);
+  for(let i=0;i<show;i++){ const t0=i*s.tu, pts=[];
+    for(let j=0;j<=24;j++){ const t=t0+s.tu*j/24;
+      if(t>s.shelf)break;
+      pts.push([ch.toX(t),ch.toY(Math.exp(-(t-t0)*LN2/s.th))]); }
+    drawLine(ctx,pts,i%2?'#7c3aed':'#2563eb',2); }
+  if(s.k>40){ ctx.fillStyle='#94a3b8'; ctx.font='9px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='top';
+    ctx.fillText('40 of '+s.k+' aliquots drawn',ch.m.l+ch.pw,ch.m.t+2); }
+  /* the single-bottle comparison, always shown */
+  const one=[];
+  for(let j=0;j<=120;j++){ const t=s.shelf*j/120; one.push([ch.toX(t),ch.toY(Math.exp(-t*LN2/s.th))]); }
+  drawLine(ctx,one,'#cbd5e1',1.8,[5,4]);
+  ch.hLine(s.mean,COL.good,[3,3]);
+  ctx.fillStyle=COL.good; ctx.font='bold 10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('mean activity '+fmt(100*s.mean,0)+'%',ch.m.l+5,ch.toY(s.mean)-3);
+  ch.legend([{color:'#2563eb',label:'each aliquot'},{color:'#cbd5e1',label:'one bottle, never split'}],
+    ch.m.l+4,ch.m.t+ch.ph+34);
+  if(!statTick('decay'))return;
+  setStat('st-decay',[
+    {k:'Each aliquot open for',v:fmt(s.tu,2)+' wk',hi:1},
+    {k:'Mean activity',v:fmt(100*s.mean,0)+' %',hi:1},
+    {k:'At the end of a tube',v:fmt(100*s.end,0)+' %'},
+    {k:'Freeze-thaw cycles',v:String(s.cycles)}]);
+  const oneMean=meanAct(s.th,s.shelf);
+  if(s.k===1) setVerdict('vd-decay','bad','One bottle of something with a '+fmt(s.th,1)+'-week half-life, open for '+fmt(s.shelf,0)+' weeks.',
+    ' Mean activity across everything you did with it: <b>'+fmt(100*s.mean,0)+'%</b>, and by the end it is down to '+fmt(100*s.end,0)+'%. Your week-two experiment and your week-ten experiment used measurably different reagent — and nothing in your notebook records that, so it will read as an irreproducible biological result.');
+  else if(s.cycles>0) setVerdict('vd-decay','warn','Freeze–thaw is a cost you created.',
+    ' '+s.cycles+' refreeze cycle'+(s.cycles===1?'':'s')+' per tube at '+fmt(100*s.ftPct,0)+'% each, on top of the '+fmt(s.tu,2)+' weeks of decay. Mean activity <b>'+fmt(100*s.mean,0)+'%</b>. Sizing an aliquot so it is <em>used up in one session</em> removes this term completely — it is the cheapest of all the levers in this lesson, because it costs nothing but choosing the tube size once.');
+  else if(s.mean>0.9) setVerdict('vd-decay','good','Each tube is open briefly, so the reagent is almost fresh.',
+    ' Mean activity <b>'+fmt(100*s.mean,0)+'%</b> against '+fmt(100*oneMean,0)+'% for the same stock left in one bottle. Nothing about the chemistry changed — the half-life is still '+fmt(s.th,1)+' weeks. What changed is how long any given tube spends at 4 °C before it is finished.');
+  else setVerdict('vd-decay','warn','Better than one bottle, still losing a lot.',
+    ' Mean <b>'+fmt(100*s.mean,0)+'%</b> vs '+fmt(100*oneMean,0)+'% unsplit. With a '+fmt(s.th,1)+'-week half-life and each tube open for '+fmt(s.tu,2)+' weeks, you are still handing later experiments a weaker reagent than earlier ones. Split further, or buy smaller — or store colder, if the certificate of analysis for that stock says it takes freezing.'); }
+defWidget('decay','clock',drawDecay,{
+  'decay-k':v=>String(Math.round(v)), 'decay-th':v=>fmt(v,1)+' wk',
+  'decay-shelf':v=>fmt(v,0)+' wk', 'decay-ft':v=>fmt(v,0)+' %'},
+  {scen0:'gln', scenfn:s=>presetSlider('decay-th',REAG[s].th)});
+
+/* ════════ widget: opt — find the bottom (Tab 3.2) ════════
+   eq. 4.4.1. Contamination and decay both fall with k; the unrecoverable film
+   (eq. 3.2.1, reused) and per-tube handling both rise. The minimum only exists
+   because of the film, which is why it only bites on small precious stocks. */
+const OSTOCK={ media:{V:500,N:40,th:8,n:'500 mL medium'}, tryp:{V:100,N:60,th:4,n:'100 mL trypsin'},
+               cyt:{V:5,N:40,th:1.5,n:'5 mL cytokine'}, ab:{V:1,N:30,th:4,n:'1 mL antibody'} };
+function optCost(k,V,N,th,shelf,filmML,hand,p,pm){
+  const contam=pm+pm*0.3+pAny(p,Math.max(N/k,1));
+  const decay=1-meanAct(th,shelf/k);
+  const film=filmML*k/V;
+  return {tot:contam+decay+film+hand*k,contam,decay,film,hand:hand*k}; }
+function optState(){ const k=Math.round(num('opt-k')), V=num('opt-v'), filmUL=num('opt-film');
+  const S=OSTOCK[SCEN.opt||'media'];
+  const filmML=filmUL/1000, hand=V>50?0.00025:0.001, shelf=12, p=0.005, pm=0.005;
+  const cur=optCost(k,V,S.N,S.th,shelf,filmML,hand,p,pm);
+  let best={k:1,c:optCost(1,V,S.N,S.th,shelf,filmML,hand,p,pm)};
+  for(let kk=2;kk<=120;kk++){ const c=optCost(kk,V,S.N,S.th,shelf,filmML,hand,p,pm);
+    if(c.tot<best.c.tot)best={k:kk,c}; }
+  const f=kk=>optCost(kk,V,S.N,S.th,shelf,filmML,hand,p,pm).tot;
+  /* is the minimum flat? compare cost at half and double the optimum */
+  const flat=Math.abs(f(Math.max(1,Math.round(best.k/2)))-best.c.tot)<0.25*best.c.tot &&
+             Math.abs(f(Math.min(120,best.k*2))-best.c.tot)<0.25*best.c.tot;
+  return {k,V,S,filmUL,cur,best,f,flat,size:V/k,bestSize:V/best.k}; }
+function drawOpt(){ const c=getCv('cv-opt'); if(!c)return; const {ctx,w,h}=c; const s=optState();
+  const ch=new Chart(ctx,w,h,{l:60,r:18,t:20,b:46});
+  let yMax=0; for(let kk=1;kk<=120;kk++) yMax=Math.max(yMax,Math.min(s.f(kk),1.2));
+  yMax=Math.max(yMax*1.06,0.05);
+  ch.setRange(1,120,0,yMax);
+  const xt=[1,20,40,60,80,100,120], yt=niceTicks(0,yMax,5);
+  ch.grid(xt,yt); ch.axes('number of aliquots','total cost (fraction of the stock)',xt,yt,0,2);
+  /* the stacked components, faintly */
+  const comp=[['contamination','contam','#ef4444'],['decay','decay','#f59e0b'],
+              ['film (eq. 3.2.1)','film','#7c3aed'],['handling','hand','#64748b']];
+  comp.forEach(q=>{ const pts=[];
+    for(let kk=1;kk<=120;kk++){ const cc=optCost(kk,s.V,s.S.N,s.S.th,12,s.filmUL/1000,s.V>50?0.00025:0.001,0.005,0.005);
+      pts.push([ch.toX(kk),ch.toY(clamp(cc[q[1]],0,yMax))]); }
+    ctx.globalAlpha=.55; drawLine(ctx,pts,q[2],1.4,[4,3]); ctx.globalAlpha=1; });
+  const tot=[];
+  for(let kk=1;kk<=120;kk++) tot.push([ch.toX(kk),ch.toY(clamp(s.f(kk),0,yMax))]);
+  drawLine(ctx,tot,'#0f172a',2.8);
+  /* the optimum */
+  ch.vLine(s.best.k,COL.good,[4,3]);
+  ctx.fillStyle=COL.good; ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('best: '+s.best.k+' x '+fmt(s.bestSize,s.bestSize<1?3:1)+' mL',
+    clamp(ch.toX(s.best.k),ch.m.l+60,ch.m.l+ch.pw-60),ch.m.t+2);
+  const px=ch.toX(clamp(s.k,1,120)), py=ch.toY(clamp(s.cur.tot,0,yMax));
+  ctx.beginPath(); ctx.arc(px,py,6,0,6.284);
+  ctx.fillStyle=s.cur.tot<=s.best.c.tot*1.25?COL.good:(s.cur.tot<=s.best.c.tot*2?COL.warn:COL.bad); ctx.fill();
+  ctx.strokeStyle='#0f172a'; ctx.lineWidth=2; ctx.stroke();
+  ch.legend(comp.map(q=>({color:q[2],label:q[0]})),ch.m.l+4,ch.m.t+ch.ph+34);
+  if(!statTick('opt'))return;
+  setStat('st-opt',[
+    {k:'Your aliquot',v:fmt(s.size,s.size<1?3:1)+' mL x '+s.k,hi:1},
+    {k:'Total cost',v:fmt(100*s.cur.tot,1)+' % of stock'},
+    {k:'Best is',v:s.best.k+' x '+fmt(s.bestSize,s.bestSize<1?3:1)+' mL',hi:1},
+    {k:'Dominant term',v:(()=>{const e=[['contamination',s.cur.contam],['decay',s.cur.decay],['film',s.cur.film],['handling',s.cur.hand]];
+      return e.reduce((a,b)=>a[1]>=b[1]?a:b)[0];})()}]);
+  if(s.flat&&Math.abs(s.k-s.best.k)<=s.best.k) setVerdict('vd-opt','good','A flat minimum — as far as this equation can see.',
+    ' Best is '+s.best.k+' tubes of '+fmt(s.bestSize,s.bestSize<1?3:1)+' mL, and anything from half to double that costs you within a quarter of the same. For a big, cheap stock the film term is negligible against '+fmt(s.V,0)+' mL, so the film is not what stops you here — <b>something else is, and it is not in this equation</b> (&sect;3.3, then &sect;4.1). Note where the curve is steepest: between 1 and 10 tubes. The first split is nearly all of the benefit.');
+  else if(s.k>s.best.k*2&&s.cur.film>s.cur.contam) setVerdict('vd-opt','bad','Past the bottom — the film is now the biggest term.',
+    ' At '+s.k+' tubes of '+fmt(s.size,3)+' mL you are throwing away <b>'+fmt(100*s.cur.film,1)+'%</b> of the stock as unrecoverable film (eq. 3.2.1) to save '+fmt(100*(optCost(s.best.k,s.V,s.S.N,s.S.th,12,s.filmUL/1000,s.V>50?0.00025:0.001,0.005,0.005).contam-s.cur.contam),1)+' points of contamination risk. This is the regime where "smaller is safer" stops being true: a fixed few microlitres left in every tube is nothing out of 25 mL and a sixth of a 20 µL aliquot.');
+  else if(Math.abs(s.k-s.best.k)<=Math.max(2,s.best.k*0.3)) setVerdict('vd-opt','good','You are at the bottom of the curve.',
+    ' '+s.k+' × '+fmt(s.size,s.size<1?3:1)+' mL, total cost '+fmt(100*s.cur.tot,1)+'% of the stock — dominated by '+(s.cur.contam>=Math.max(s.cur.decay,s.cur.film)?'contamination':(s.cur.decay>=s.cur.film?'decay':'the unrecoverable film'))+'. Both of the falling terms have flattened and neither rising term has taken over yet. This is the aliquot size to write on the protocol.');
+  else setVerdict('vd-opt','warn','Off the bottom — '+(s.k<s.best.k?'too few':'too many')+' tubes.',
+    ' '+s.k+' × '+fmt(s.size,s.size<1?3:1)+' mL costs '+fmt(100*s.cur.tot,1)+'% against '+fmt(100*s.best.c.tot,1)+'% at the optimum of '+s.best.k+'. '+(s.k<s.best.k?'Each tube is still being opened too often and sitting at 4 °C too long.':'You are past the point where splitting helps, and paying for it in film and handling.')); }
+defWidget('opt','clock',drawOpt,{
+  'opt-k':v=>String(Math.round(v)), 'opt-v':v=>fmt(v,v<10?2:0)+' mL', 'opt-film':v=>fmt(v,1)+' uL'},
+  {scen0:'media', scenfn:s=>{ presetSlider('opt-v',OSTOCK[s].V);
+    presetSlider('opt-k',s==='media'?45:(s==='tryp'?60:(s==='cyt'?40:22))); }});
+
+/* ════════ shared: the bench-side numbers §3.3 and §4.1 both need ════════
+   u is the volume of ONE session, so N — the number of entries over the
+   stock's life — stops being a free parameter and becomes V/u. tubeCost is
+   NOT monotonic in size on purpose: a freezer-rated cryovial costs more than
+   a 15 mL conical, and that fact changes answers. */
+const USTOCK={
+  media:{V:500, u:10,   th:8,   P:70,  n:'500 mL complete medium', job:'one media change',      unit:'mL'},
+  tryp: {V:100, u:3,    th:4,   P:25,  n:'100 mL trypsin',         job:'one flask, trypsinised', unit:'mL'},
+  cyt:  {V:5,   u:0.05, th:1.5, P:400, n:'5 mL cytokine stock',    job:'one plate, dosed',       unit:'mL'},
+  ab:   {V:1,   u:0.02, th:4,   P:350, n:'1 mL antibody',          job:'one staining',           unit:'mL'} };
+function tubeCost(a){ return a<=0.5?0.09:(a<=2?0.45:(a<=15?0.35:(a<=50?0.55:3.00))); }
+function tubeName(a){ return a<=0.5?'1.5 mL microtube':(a<=2?'2 mL cryovial':(a<=15?'15 mL conical':(a<=50?'50 mL conical':'250 mL bottle'))); }
+/* volumes in this pair of sections span 20 uL to 500 mL, and fmt() falls
+   through to toExponential below 0.001 — so switch units rather than digits. */
+function vol(x){ if(!isFinite(x))return '—';
+  if(x<0.5){ const u=x*1000; return fmt(u,u<10?1:0)+' µL'; }
+  return fmt(x,x<10?2:1)+' mL'; }
+function usd(x){ if(!isFinite(x))return '—'; const a=Math.abs(x);
+  if(a>=1000)return '$'+Math.round(x).toLocaleString('en-US');
+  if(a>=100)return '$'+x.toFixed(0);
+  if(Math.abs(x-Math.round(x))<0.005)return '$'+Math.round(x);
+  return '$'+x.toFixed(2); }
+/* rho spans 0.005 (antibody) to >1 (medium in cryovials), and fmt() drops to
+   exponential below 0.001 — which is exactly where "the tubes are noise" lives. */
+function rhoTxt(r){ return r<0.001?'&lt; 0.001':fmt(r,r<0.1?3:2); }
+/* eq. 4.4.2 — you cannot open two-thirds of a tube. The 1e-9 matters: 1/0.2
+   is 5.000000000000001 in binary floating point, and a bare ceil would call
+   an exactly-fitting aliquot a six-tube job. */
+function tubesPer(q){ return Math.max(1,Math.ceil(q-1e-9)); }
+function etaOf(q){ return q/tubesPer(q); }
+
+/* ════════ widget: fit — the tube has to fit the job (Tab 3.3) ════════
+   eq. 4.4.2. r = a/u is the control because it is the only variable that means
+   the same thing for a 500 mL bottle and a 1 mL vial of antibody. */
+function fitState(){ const r=num('fit-r'), n0=Math.round(num('fit-n')), strict=chk('fit-save');
+  const S=USTOCK[SCEN.fit||'media'];
+  const u=S.V/n0, a=r*u, q=1/r, m=tubesPer(q), eta=etaOf(q);
+  const drawn=m*a, waste=strict?Math.max(drawn-u,0):0;
+  const effEta=strict?eta:1;
+  const k=Math.max(1,Math.round(S.V/a));
+  /* the nearest size that divides the session exactly — the answer the reader
+     is actually looking for, rather than a diagnosis of where they are */
+  const fitN=Math.max(1,Math.round(q));
+  return {S,r,n0,strict,u,a,q,m,eta,effEta,drawn,waste,k,fitN,fit:u/fitN,
+          sessions:n0*effEta, onTooth:Math.abs(eta-1)<0.005}; }
+function drawFit2(){ const c=getCv('cv-fit2'); if(!c)return; const {ctx,w,h}=c; const s=fitState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  /* Vertical layout only: anchors are fractions of h (which scales with width),
+     but every offset that positions TEXT is absolute, because text does not. */
+  const y0=h*0.14, th0=h*0.36;
+  const gap=10, x0=18;
+  /* the tube rank is capped at 55% of the width so the arithmetic beside it
+     always has a column to live in, however many tubes a session needs */
+  const tw=clamp((w*0.55-18)/Math.max(s.m,1)-gap,9,46);
+  const span=s.m*tw+(s.m-1)*gap, perTube=(tw+gap)>=46;
+  ctx.textAlign='left'; ctx.textBaseline='top'; ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText(s.S.job.toUpperCase()+' — '+s.m+(s.m===1?' TUBE':' TUBES'),16,10);
+  let left=s.u;                                    /* how much of the job is still unmet */
+  for(let i=0;i<s.m;i++){ const x=x0+i*(tw+gap);
+    const take=Math.min(left,s.a); left-=take;
+    const usedFrac=s.a>0?take/s.a:0;
+    ctx.fillStyle='#fff'; ctx.strokeStyle='#94a3b8'; ctx.lineWidth=1.4;
+    roundRect(ctx,x,y0,tw,th0,4); ctx.fill(); ctx.stroke();
+    const uh=th0*usedFrac;                          /* the part that reaches a cell */
+    ctx.fillStyle='rgba(37,99,235,.45)';
+    roundRect(ctx,x+2,y0+th0-uh+2,tw-4,Math.max(uh-4,0),3); ctx.fill();
+    if(usedFrac<0.999){ const lh=th0*(1-usedFrac);  /* and the part that does not */
+      ctx.fillStyle=s.strict?'rgba(239,68,68,.35)':'rgba(245,158,11,.35)';
+      roundRect(ctx,x+2,y0+2,tw-4,Math.max(lh-4,0),3); ctx.fill(); }
+    ctx.strokeStyle='#64748b'; ctx.lineWidth=1.2;
+    roundRect(ctx,x+tw*0.22,y0-7,tw*0.56,8,2); ctx.stroke();
+    if(perTube){ ctx.fillStyle=COL.axis; ctx.font='10px sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='top';
+      ctx.fillText(vol(s.a),x+tw/2,y0+th0+5); } }
+  ctx.textAlign='left'; ctx.textBaseline='top';
+  if(!perTube){ ctx.fillStyle=COL.axis; ctx.font='10px sans-serif';
+    ctx.fillText(s.m+' × '+vol(s.a),x0,y0+th0+5); }
+  ctx.fillStyle='#94a3b8'; ctx.font='9px sans-serif';
+  ctx.fillText(tubeName(s.a)+(s.m>1?'s':''),x0,y0+th0+18);
+  /* the arithmetic, in the column the tube rank leaves free */
+  const ax=Math.max(x0+span+26,w*0.44);
+  [['on the bench',vol(s.drawn)],['used',vol(s.u)],
+   ['reaches a cell',fmt(100*s.effEta,0)+'%']].forEach((q,i)=>{
+    const y=y0+th0*0.12+i*30;
+    ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillStyle=COL.axis; ctx.font='10px sans-serif'; ctx.fillText(q[0],ax,y);
+    ctx.fillStyle=i===2?(s.effEta>0.97?COL.good:(s.effEta>0.85?COL.warn:COL.bad)):COL.text;
+    ctx.font='bold '+(i===2?'14px':'12px')+' sans-serif'; ctx.fillText(q[1],ax,y+13); });
+  /* a key, rather than an annotation floating to the right of one tube */
+  const labY=y0+th0+5, keyY=labY+34, over=Math.max(s.drawn-s.u,0);
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  const key=[['rgba(37,99,235,.45)','used',vol(s.u),''],
+             over>1e-9
+               ? (s.strict?['rgba(239,68,68,.35)','binned',vol(over),'every session, for as long as this stock lasts']
+                          :['rgba(245,158,11,.35)','back in the fridge',vol(over),'that tube is now open, and will be entered again'])
+               : [null,'nothing left over','','the tubes divide the session exactly']];
+  key.forEach((q,i)=>{ const y=keyY+i*19;
+    if(q[0]){ ctx.fillStyle=q[0]; roundRect(ctx,16,y-6,12,12,2); ctx.fill();
+      ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=1; roundRect(ctx,16,y-6,12,12,2); ctx.stroke(); }
+    ctx.fillStyle=q[0]?COL.text:COL.good; ctx.font=(i?'bold ':'')+'11px sans-serif';
+    ctx.fillText(q[1]+(q[2]?'  '+q[2]:''),q[0]?34:16,y);
+    if(q[3]){ ctx.fillStyle=COL.axis; ctx.font='9px sans-serif';
+      ctx.fillText(q[3],q[0]?34:16,y+13); } });
+  /* the consequence: what the stock still gives you */
+  const barY=Math.max(keyY+46,h*0.74), barH=Math.max(11,h*0.05), bx=16, bw=w-32;
+  const frac=clamp(s.effEta,0,1);
+  ctx.fillStyle='rgba(239,68,68,.22)'; roundRect(ctx,bx,barY,bw,barH,3); ctx.fill();
+  ctx.fillStyle=frac>0.97?'rgba(16,185,129,.55)':'rgba(37,99,235,.40)';
+  roundRect(ctx,bx,barY,Math.max(bw*frac,2),barH,3); ctx.fill();
+  const step=bw/Math.max(s.n0,1);                   /* one tick per session, if legible */
+  if(step>=5){ ctx.strokeStyle='rgba(255,255,255,.85)'; ctx.lineWidth=1;
+    for(let i=1;i<s.n0;i++){ const x=bx+i*step;
+      ctx.beginPath(); ctx.moveTo(x,barY); ctx.lineTo(x,barY+barH); ctx.stroke(); } }
+  ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=1; roundRect(ctx,bx,barY,bw,barH,3); ctx.stroke();
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  const lost=s.n0-Math.floor(s.sessions);
+  ctx.fillText(fmt(s.sessions,0)+' of '+s.n0+' sessions'+(lost>0?'  —  '+lost+' lost to what stays in the tube'
+    :(s.strict?'  —  nothing lost':'  —  nothing binned, but partials go back')),bx,barY+barH+5); }
+function drawFit(){ drawFit2();
+  const c=getCv('cv-fit'); if(!c)return; const {ctx,w,h}=c; const s=fitState();
+  const ch=new Chart(ctx,w,h,{l:56,r:14,t:20,b:54});
+  ch.setRange(0.15,3,0,1.05);
+  const xt=[0.25,0.5,1,1.5,2,2.5,3], yt=[0,0.25,0.5,0.75,1];
+  /* the m-bands: the ceiling in eq. 4.4.2 drawn as territory */
+  for(let mm=1;mm<=7;mm++){
+    const lo=mm===1?1:1/mm, hi=mm===1?3:1/(mm-1);
+    const x0=ch.toX(clamp(lo,0.15,3)), x1=ch.toX(clamp(hi,0.15,3));
+    if(x1-x0<1)continue;
+    ctx.fillStyle=mm%2?'rgba(148,163,184,.07)':'rgba(148,163,184,.14)';
+    ctx.fillRect(x0,ch.m.t,x1-x0,ch.ph);
+    if(x1-x0>19){ ctx.font='9px sans-serif';
+      const full=mm===1?'1 tube':mm+' tubes';
+      const lab=ctx.measureText(full).width<x1-x0-4?full:String(mm);
+      ctx.fillStyle='#94a3b8'; ctx.textAlign='center'; ctx.textBaseline='top';
+      ctx.fillText(lab,(x0+x1)/2,ch.m.t+3); } }
+  ch.grid(xt,yt);
+  ch.axes('aliquot size, in sessions  (a/u)','fraction that reaches a cell',xt,yt,2,2,
+    t=>fmt(t,2),t=>fmt(100*t,0)+'%');
+  /* the comb: eta = q/ceil(q), q = 1/r */
+  const pts=[];
+  for(let i=0;i<=900;i++){ const r=0.15+(3-0.15)*i/900;
+    pts.push([ch.toX(r),ch.toY(etaOf(1/r))]); }
+  drawLine(ctx,pts,s.strict?'#0f172a':'#cbd5e1',s.strict?2.6:1.6,s.strict?null:[5,4]);
+  if(!s.strict) ch.hLine(1,COL.good,[6,4]);
+  /* the teeth */
+  for(let mm=1;mm<=6;mm++){ const r=1/mm; if(r<0.15)break;
+    ctx.beginPath(); ctx.arc(ch.toX(r),ch.toY(1),3.6,0,6.284);
+    ctx.fillStyle=COL.good; ctx.fill(); }
+  /* where you are */
+  const px=ch.toX(clamp(s.r,0.15,3)), py=ch.toY(clamp(s.effEta,0,1.05));
+  ctx.beginPath(); ctx.arc(px,py,6,0,6.284);
+  ctx.fillStyle=s.effEta>0.97?COL.good:(s.effEta>0.85?COL.warn:COL.bad); ctx.fill();
+  ctx.strokeStyle='#0f172a'; ctx.lineWidth=2; ctx.stroke();
+  ch.legend([{color:s.strict?'#0f172a':'#cbd5e1',label:'strict single use'},
+             {color:COL.good,label:'divides a session exactly'}],ch.m.l+4,ch.m.t+ch.ph+42);
+  if(!statTick('fit'))return;
+  setStat('st-fit',[
+    {k:'One session is',v:vol(s.u)},
+    {k:'Aliquot',v:vol(s.a),hi:1},
+    {k:'Tubes per session',v:String(s.m),hi:s.m>=3?1:0},
+    {k:'Exact fit',v:vol(s.fit)+' · '+s.fitN+'/session',hi:1},
+    {k:'Sessions from stock',v:fmt(s.sessions,0)+' of '+s.n0}]);
+  if(s.m>=3) setVerdict('vd-fit','bad',s.m+' tubes for '+s.S.job+'.',
+    ' At '+vol(s.a)+' against a '+vol(s.u)+' session you pick up, thaw, uncap, pipette and discard <b>'+s.m+' tubes every single time</b> — '+fmt(s.m*s.n0,0)+' openings over the life of this stock instead of '+s.n0+'. Eq. 4.4.2 only charges you the volume ('+fmt(100*(1-s.eta),0)+'% binned); the bench also charges you '+s.m+'× the film of eq. 3.2.1, '+s.m+'× the plastic, and '+s.m+' chances to make a mistake inside one sitting. Nothing about this is safer than one tube.');
+  else if(!s.strict) setVerdict('vd-fit','warn','Nothing is binned — and that is what it cost you.',
+    ' Putting '+vol(Math.max(s.drawn-s.u,0))+' back means that tube is entered a second time, so it is no longer a single-use aliquot: it re-enters eq. 4.1.1 with N = 2, it sits at 4 °C for another session’s worth of eq. 4.3.2, and if it lives in the freezer you have just bought a freeze–thaw cycle. η went to 100% on paper by moving the cost into three terms that are not on this chart. <b>The only way to get η = 100% for free is to sit on a green dot.</b>');
+  else if(s.eta<0.75&&s.r<1) setVerdict('vd-fit','bad','Just under a session — the worst place on the whole curve.',
+    ' Your aliquot is '+fmt(100*s.r,0)+'% of a session, so you must open a second tube and then use almost none of it: <b>'+fmt(100*(1-s.eta),0)+'% of everything you take out goes in the bin</b>. Move the slider up by a few percent to 1.00 and the waste vanishes entirely. This is the asymmetry worth remembering — rounding the aliquot <em>up</em> to the session costs you a few percent, rounding it <em>down</em> costs you nearly half.');
+  else if(s.r>1.05&&s.eta<0.95) setVerdict('vd-fit','bad','The tube is bigger than the job.',
+    ' One tube covers the session with '+vol(s.drawn-s.u)+' to spare, and under strict single use that is discarded '+s.n0+' times over. You paid for '+s.n0+' sessions and this size gives you <b>'+fmt(s.sessions,0)+'</b>. In practice nobody bins a nearly-full tube — which is the point: an oversized aliquot is how single use quietly stops happening.');
+  else if(s.onTooth) setVerdict('vd-fit','good',s.m===1?'One tube, one session. Nothing left over.':(s.m+' tubes exactly — nothing left over, but count them.'),
+    ' '+vol(s.a)+' × '+s.m+' is exactly '+vol(s.u)+', so η = 100%, every tube is opened once and finished, and the freeze–thaw term of §3.1 is <b>zero</b> rather than small. '+(s.m===1?'This is the design the rest of the lesson has been pointing at: the tube <em>is</em> the session.':'It is on a tooth of the comb, but it is '+s.m+' openings for one job — §4.1 will tell you what those extra tubes cost, and it is usually the wrong tooth.')+' You get '+s.n0+' sessions out of '+vol(s.S.V)+', which is exactly what you paid for.');
+  else setVerdict('vd-fit','warn','Off a tooth by '+fmt(100*(1-s.eta),0)+'%.',
+    ' '+vol(s.a)+' against a '+vol(s.u)+' session means '+s.m+(s.m===1?' tube':' tubes')+' and '+vol(s.drawn-s.u)+' binned each time — '+fmt(s.sessions,0)+' sessions from the stock instead of '+s.n0+'. The nearest size that wastes nothing is <b>'+vol(s.u/s.m)+'</b> ('+s.m+' per session) or <b>'+vol(s.u)+'</b> (one per session). Both are on the chart as green dots.'); }
+defWidget('fit','clock',drawFit,{
+  'fit-r':v=>fmt(v,2)+' x a session', 'fit-n':v=>String(Math.round(v))},
+  {scen0:'media', scenfn:s=>{ const S=USTOCK[s];
+    presetSlider('fit-n',Math.round(S.V/S.u)); presetSlider('fit-r',1); }});
+
+/* ════════ widget: bill — the tubes cost money (Tab 3.4) ════════
+   eq. 4.4.4. Everything in one currency, which is the only way the three
+   floors (film, session volume, plastic) can be compared at all. */
+function billCost(k,S,P,Ce,tmul,strict){
+  const a=S.V/k, N=S.V/S.u, shelf=12, p=0.005, pm=0.005, pf=0.0015, filmML=0.003;
+  /* strict single use: each tube is opened once, and whatever is left is binned.
+     Saving the leftover removes the waste and buys back the extra entries. */
+  const entries=strict?1:Math.max(N/k,1);
+  const pC=pm+pf+pAny(p,entries);
+  const q=S.u/a, eta=strict?etaOf(q):1;
+  const decay=1-meanAct(S.th,shelf/k);
+  const film=filmML*k/S.V;
+  const waste=P*clamp(1-eta,0,1);
+  const reagent=P*clamp((1-eta)+decay+film,0,1);
+  const plastic=k*tubeCost(a)*tmul;
+  return {a,pC,eta,decay,film,waste,event:Ce*pC,reagent,plastic,
+          tot:Ce*pC+reagent+plastic}; }
+function billState(){ const k=Math.round(num('bill-k')), P=num('bill-p'), Ce=num('bill-e'),
+        tmul=num('bill-t'), strict=chk('bill-single');
+  const S=USTOCK[SCEN.bill||'media'];
+  const f=kk=>billCost(kk,S,P,Ce,tmul,strict);
+  const cur=f(k);
+  let best={k:1,c:f(1)};
+  for(let kk=2;kk<=120;kk++){ const c=f(kk); if(c.tot<best.c.tot)best={k:kk,c}; }
+  const n0=S.V/S.u;
+  /* the splits §3.3 allows: m tubes per session, no rounding loss */
+  const teeth=[]; for(let m=1;m<=6;m++){ const kk=Math.round(m*n0); if(kk>=1&&kk<=120)teeth.push(kk); }
+  let tooth=null; for(const t of teeth){ const c=f(t); if(!tooth||c.tot<tooth.c.tot)tooth={k:t,c}; }
+  const rho=tubeCost(cur.a)*tmul/Math.max(cur.a*P/S.V,1e-12);
+  return {S,k,P,Ce,tmul,strict,cur,best,f,teeth,tooth,rho,n0,
+          perML:P/S.V, tube:tubeCost(cur.a)*tmul}; }
+function drawBill(){ const c=getCv('cv-bill'); if(!c)return; const {ctx,w,h}=c; const s=billState();
+  const ch=new Chart(ctx,w,h,{l:64,r:18,t:62,b:56});
+  let yMax=0; for(let kk=1;kk<=120;kk++) yMax=Math.max(yMax,Math.min(s.f(kk).tot,s.best.c.tot*4+10));
+  yMax=Math.max(yMax*1.06,1);
+  ch.setRange(1,120,0,yMax);
+  const xt=[1,20,40,60,80,100,120], yt=niceTicks(0,yMax,5);
+  ch.grid(xt,yt); ch.axes('number of aliquots','total expected cost',xt,yt,0,0,null,t=>usd(t));
+  /* the three components, faintly */
+  const comp=[['what a contamination costs','event','#ef4444'],
+              ['reagent lost','reagent','#f59e0b'],
+              ['plastic bought','plastic','#7c3aed']];
+  comp.forEach(q=>{ const pts=[];
+    for(let kk=1;kk<=120;kk++) pts.push([ch.toX(kk),ch.toY(clamp(s.f(kk)[q[1]],0,yMax))]);
+    ctx.globalAlpha=.55; drawLine(ctx,pts,q[2],1.4,[4,3]); ctx.globalAlpha=1; });
+  const tot=[]; for(let kk=1;kk<=120;kk++) tot.push([ch.toX(kk),ch.toY(clamp(s.f(kk).tot,0,yMax))]);
+  drawLine(ctx,tot,'#0f172a',2.8);
+  /* the splits §3.3 allows, as ticks under the axis */
+  const ay=ch.m.t+ch.ph;
+  s.teeth.forEach((t,i)=>{ const x=ch.toX(clamp(t,1,120));
+    ctx.save(); ctx.globalAlpha=.16; ctx.strokeStyle=COL.good; ctx.lineWidth=6;
+    ctx.beginPath(); ctx.moveTo(x,ch.m.t); ctx.lineTo(x,ay); ctx.stroke(); ctx.restore();
+    ctx.beginPath(); ctx.moveTo(x,ay); ctx.lineTo(x-7,ay-11); ctx.lineTo(x+7,ay-11);
+    ctx.closePath(); ctx.fillStyle=COL.good; ctx.fill();
+    ctx.fillStyle=COL.good; ctx.font='bold 9px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ctx.fillText((i+1)+'/session',x,ay-13); });
+  ch.vLine(clamp(s.best.k,1,120),COL.good,[4,3]);
+  ctx.fillStyle=COL.good; ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('cheapest: '+s.best.k+' × '+vol(s.S.V/s.best.k)+' = '+usd(s.best.c.tot),
+    clamp(ch.toX(s.best.k),ch.m.l+80,ch.m.l+ch.pw-80),ch.m.t+3);
+  const px=ch.toX(clamp(s.k,1,120)), py=ch.toY(clamp(s.cur.tot,0,yMax));
+  ctx.beginPath(); ctx.arc(px,py,6,0,6.284);
+  ctx.fillStyle=s.cur.tot<=s.best.c.tot*1.15?COL.good:(s.cur.tot<=s.best.c.tot*1.6?COL.warn:COL.bad); ctx.fill();
+  ctx.strokeStyle='#0f172a'; ctx.lineWidth=2; ctx.stroke();
+  ch.legend(comp.map(q=>({color:q[2],label:q[0]})),ch.m.l+4,ch.m.t+ch.ph+44);
+  /* what you are buying, as one bar in the reserved band above the plot */
+  const bx=ch.m.l, bw=ch.pw, by=16, bh=14;
+  ctx.fillStyle=COL.axis; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('AT '+s.k+' ALIQUOTS, '+usd(s.cur.tot)+' BUYS:',bx,2);
+  let cx=bx; const T=Math.max(s.cur.tot,1e-9);
+  [['#ef4444',s.cur.event,'risk'],['#f59e0b',s.cur.reagent,'reagent'],['#7c3aed',s.cur.plastic,'plastic']]
+    .forEach(q=>{ const seg=bw*clamp(q[1]/T,0,1); if(seg<=0)return;
+      ctx.fillStyle=q[0]; ctx.globalAlpha=.75; ctx.fillRect(cx,by,seg,bh); ctx.globalAlpha=1;
+      if(seg>52){ ctx.fillStyle='#fff'; ctx.font='bold 9px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(q[2]+' '+usd(q[1]),cx+seg/2,by+bh/2); }
+      cx+=seg; });
+  ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=1; ctx.strokeRect(bx,by,bw,bh);
+  if(!statTick('bill'))return;
+  setStat('st-bill',[
+    {k:'Your plan',v:s.k+' × '+vol(s.cur.a),hi:1},
+    {k:'Tube',v:tubeName(s.cur.a)+' @ '+usd(s.tube)},
+    {k:'Plastic',v:usd(s.cur.plastic)+' ('+fmt(100*s.cur.plastic/Math.max(s.P,1e-9),0)+'% of stock)'},
+    {k:'Tube vs contents ρ',v:rhoTxt(s.rho),hi:1},
+    {k:'Total',v:usd(s.cur.tot)+'  ·  best '+usd(s.best.c.tot),hi:1}]);
+  const teethTxt=s.tooth?(s.tooth.k+' × '+vol(s.S.V/s.tooth.k)+' at '+usd(s.tooth.c.tot)):'none in range';
+  if(s.Ce<200&&s.strict) setVerdict('vd-bill','warn','A contamination is worth '+usd(s.Ce)+' — and the answer barely moved.',
+    ' Still <b>'+s.best.k+' × '+vol(s.S.V/s.best.k)+'</b>. Not because the risk term is holding the line — you just set it to nearly nothing — but because <em>strict single use is</em>: any tube that does not divide a '+vol(s.S.u)+' session gets part of it binned, and that waste term costs '+usd(s.f(Math.max(1,Math.round(s.best.k/2))).waste)+' at half this many tubes. Untick strict single use as well, and then watch the floor fall out.');
+  else if(s.Ce<200) setVerdict('vd-bill','bad','You have priced a contamination at '+usd(s.Ce)+', and stopped binning leftovers.',
+    ' Now the answer is <b>'+s.best.k+' tube'+(s.best.k===1?'':'s')+' of '+vol(s.S.V/s.best.k)+'</b> — few and large, entered '+fmt(Math.max(s.n0/s.best.k,1),1)+' times each, because the only thing left to protect is the reagent and reagent is cheap. That is the answer a budget spreadsheet gives, and it is how a lab that costs plastic but not lost fortnights ends up sharing one bottle. Put a real number in: a cell line thawed, plates lost and an incubator stripped is thousands, not tens.');
+  else if(s.cur.plastic>s.P&&s.tmul>0) setVerdict('vd-bill','bad','You are buying more plastic than reagent.',
+    ' '+s.k+' '+tubeName(s.cur.a)+'s at '+usd(s.tube)+' each is <b>'+usd(s.cur.plastic)+'</b> against '+usd(s.P)+' of stock — ρ = '+rhoTxt(s.rho)+', so each tube costs '+fmt(s.rho,1)+'× what is in it. Look at the red curve: the contamination term flattened long before here, so these tubes are buying you almost nothing. The cheapest split is <b>'+s.best.k+'</b>, at '+usd(s.best.c.tot)+' against your '+usd(s.cur.tot)+'.');
+  else if(Math.abs(s.k-s.best.k)<=Math.max(2,s.best.k*0.15)) setVerdict('vd-bill','good','About as cheap as this stock gets.',
+    ' '+s.k+' × '+vol(s.cur.a)+' in '+tubeName(s.cur.a)+'s: '+usd(s.cur.event)+' of risk, '+usd(s.cur.reagent)+' of reagent, '+usd(s.cur.plastic)+' of plastic. ρ = '+fmt(s.rho,s.rho<0.1?3:2)+', so '+(s.rho<0.1?'the tubes are noise here and you should stop thinking about them — the film of eq. 3.2.1 is what will stop you splitting further.':'a real fraction of what you are spending is the tube, and it is still the right call.')+' Now check §3.3: the cheapest split that also divides a session exactly is <b>'+teethTxt+'</b>.');
+  else setVerdict('vd-bill','warn',(s.k<s.best.k?'Too few tubes':'Too many tubes')+' — '+usd(s.cur.tot)+' against '+usd(s.best.c.tot)+'.',
+    ' '+(s.k<s.best.k
+      ? ((s.strict&&s.cur.waste>0.12*s.cur.tot)
+        ? 'Your tubes hold '+vol(s.cur.a)+' against a '+vol(s.S.u)+' session, so under strict single use <b>'+fmt(100*(1-s.cur.eta),0)+'% of every tube is discarded unused</b> — '+usd(s.cur.waste)+' of reagent over this stock, on top of '+usd(s.cur.event)+' of risk. That is §3.3 charging you in dollars. Splitting further is cheap: '+tubeName(s.S.V/s.best.k)+'s at '+usd(tubeCost(s.S.V/s.best.k)*s.tmul)+' each.'
+        : (s.strict
+          ? 'Nothing is being binned and every tube is opened once, so neither §3.3 nor the entry count is what is costing you here — it is <b>decay</b>. Each tube stands open for shelf ÷ '+s.k+' before it is finished, worth '+usd(s.P*s.cur.decay)+', and splitting further shortens that. With these tube prices there is nothing pushing back until about '+s.best.k+'.'
+          : 'Each of your '+vol(s.cur.a)+' tubes gets entered '+fmt(Math.max(s.n0/s.k,1),1)+' times, so the red term — what it costs you when it goes — is '+usd(s.cur.event)+' and it dominates everything else on the chart. Splitting further is cheap: '+tubeName(s.S.V/s.best.k)+'s at '+usd(tubeCost(s.S.V/s.best.k)*s.tmul)+' each.'))
+      : 'The contamination term stopped falling around '+s.best.k+' tubes, so everything past that is '+usd(Math.max(s.cur.plastic-s.best.c.plastic,0))+' of extra plastic and '+usd(Math.max(s.cur.reagent-s.best.c.reagent,0))+' of extra film buying you '+usd(Math.max(s.best.c.event-s.cur.event,0))+' of risk. That is the plastic floor, and it is the one that bites on big cheap stocks exactly where the film floor does not.')
+      +' The cheapest split that §3.3 also allows is <b>'+teethTxt+'</b>.'); }
+defWidget('bill','plan',drawBill,{
+  'bill-k':v=>String(Math.round(v)), 'bill-p':v=>usd(v), 'bill-e':v=>usd(v),
+  'bill-t':v=>fmt(v,2)+' x catalogue'},
+  {scen0:'media', scenfn:s=>{ const S=USTOCK[s];
+    presetSlider('bill-p',S.P); presetSlider('bill-k',Math.round(S.V/S.u)); }});
+
+/* ════════ widget: plan — a bottle, a plan, a label (Tab 4.1) ════════ */
+const PSTOCK={ media:{V:500,n:'Complete DMEM + 10% FBS',lot:'2416-B',store:'4 C',th:8,unit:'mL'},
+               tryp:{V:100,n:'0.25% Trypsin-EDTA',lot:'T-0931',store:'-20 C',th:4,unit:'mL'},
+               gln:{V:100,n:'L-Glutamine 200 mM',lot:'G-7742',store:'-20 C',th:3,unit:'mL'},
+               mtg:{V:10,n:'Matrigel, growth-factor reduced',lot:'M-1084',store:'-20 C, on ice to handle',th:12,unit:'mL'} };
+function planState(){ const use=num('plan-use'), rate=Math.round(num('plan-rate'));
+  const single=chk('plan-single'), check=chk('plan-check');
+  const S=PSTOCK[SCEN.plan||'media'];
+  const per=single?use:use*Math.max(1,Math.round(2));
+  const k=Math.max(1,Math.round(S.V/Math.max(per,1e-3)));
+  const weeks=S.V/Math.max(use*rate,1e-6);
+  const tubeSize=per<=1.5?'2 mL cryovial':(per<=15?'15 mL tube':(per<=50?'50 mL tube':'bottle'));
+  /* §3.3 and §4.1, carried into the plan: how many tubes one session opens, and
+     what the whole rack of them cost. Sizing for a single session puts you on a
+     tooth of the comb by construction, so m is 1 and nothing is binned. */
+  const m=tubesPer(use/Math.max(per,1e-9)), plastic=k*tubeCost(per);
+  const N=Math.round(S.V/Math.max(use,1e-6));
+  const lossOne=S.V*pAny(0.005,N), lossK=S.V*(0.005+0.0015+pAny(0.005,Math.max(N/k,1)));
+  return {S,use,rate,single,check,per,k,weeks,tubeSize,N,lossOne,lossK,m,plastic,
+          ratio:lossOne/Math.max(lossK,1e-9)}; }
+function drawPlan(){ const c=getCv('cv-plan'); if(!c)return; const {ctx,w,h}=c; const s=planState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  /* the plan, left */
+  const L=18,T=20;
+  ctx.textAlign='left'; ctx.textBaseline='top'; ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText('THE PLAN',L,T);
+  const lines=[['Split into',s.k+' x '+fmt(s.per,s.per<1?3:1)+' '+s.S.unit],
+               ['Into',s.tubeSize+'s'],
+               ['Each covers',s.single?'one session':'about two sessions'],
+               ['Store at',s.S.store],
+               ['Tubes per session',s.m+(s.m===1?'  (nothing binned)':'  - see 3.3')],
+               ['Plastic bill',usd(s.plastic)+' of '+tubeName(s.per)+'s'],
+               ['Stock lasts',fmt(s.weeks,1)+' weeks at '+s.rate+'/wk'],
+               ['Sterility check',s.check?'yes - 2 weeks, 30 and 37 C':'NO']];
+  lines.forEach((q,i)=>{ const y=T+20+i*23;
+    ctx.fillStyle=COL.axis; ctx.font='11px sans-serif'; ctx.fillText(q[0],L,y);
+    ctx.fillStyle=(q[0]==='Sterility check'&&!s.check)?COL.bad:COL.text;
+    ctx.font='bold 12px sans-serif'; ctx.fillText(q[1],L+108,y); });
+  /* the label, right — drawn as an actual label */
+  const lx=w*0.50, ly=T+14, lw=w-lx-24, lh=136;
+  ctx.fillStyle='#fffbeb'; ctx.strokeStyle='#f59e0b'; ctx.lineWidth=1.6;
+  roundRect(ctx,lx,ly,lw,lh,6); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#b45309'; ctx.font='bold 9px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('WHAT GOES ON THE TUBE',lx+10,ly+8);
+  const lab=[['',s.S.n],['lot','Lot '+s.S.lot],['date','Split 2026-08-28'],
+             ['vol',fmt(s.per,s.per<1?3:1)+' '+s.S.unit],['who','AM']];
+  lab.forEach((q,i)=>{ const y=ly+24+i*21;
+    ctx.fillStyle='#92400e'; ctx.font=(i===0?'bold 13px':'12px')+' sans-serif';
+    ctx.fillText(q[1],lx+10,y); });
+  ctx.fillStyle='#b45309'; ctx.font='9px sans-serif';
+  ctx.fillText('what it is / lot / date split / volume / initials',lx+10,ly+lh-14);
+  /* the payoff bar */
+  const by=ly+lh+18;
+  ctx.textAlign='left'; ctx.textBaseline='top'; ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText('EXPECTED LOSS OVER THE STOCK\'S LIFE',lx,by);
+  [['one bottle',s.lossOne,'#94a3b8'],['this plan',s.lossK,COL.good]].forEach((q,i)=>{
+    const y=by+18+i*30, bw=lw;
+    ctx.fillStyle='#e2e8f0'; roundRect(ctx,lx,y,bw,12,6); ctx.fill();
+    ctx.fillStyle=q[2]; roundRect(ctx,lx,y,Math.max(bw*clamp(q[1]/Math.max(s.lossOne,1e-9),0,1),4),12,6); ctx.fill();
+    ctx.fillStyle=COL.text; ctx.font='10px sans-serif'; ctx.fillText(q[0]+': '+fmt(q[1],2)+' '+s.S.unit,lx,y+14); });
+  /* tubes, drawn */
+  const tx=L, ty=T+20+lines.length*23+16;
+  const show=Math.min(s.k,40);
+  for(let i=0;i<show;i++){ const cw=9, cx=tx+(i%12)*(cw+3), cy=ty+Math.floor(i/12)*(cw+16);
+    ctx.fillStyle='rgba(220,38,38,.35)'; roundRect(ctx,cx,cy,cw,14,2); ctx.fill();
+    ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=1; roundRect(ctx,cx,cy,cw,14,2); ctx.stroke(); }
+  ctx.fillStyle='#94a3b8'; ctx.font='9px sans-serif'; ctx.textBaseline='top';
+  ctx.fillText(s.k+' tubes'+(s.k>40?' (40 shown)':''),tx,ty+Math.ceil(show/12)*(9+16)+2);
+  if(!statTick('plan'))return;
+  setStat('st-plan',[
+    {k:'Aliquots',v:s.k+' x '+fmt(s.per,s.per<1?3:1)+' '+s.S.unit,hi:1},
+    {k:'Container',v:s.tubeSize+' · '+usd(s.plastic)},
+    {k:'Stock lasts',v:fmt(s.weeks,1)+' weeks'},
+    {k:'Sterility check',v:s.check?'2 wk, 30 + 37 C':'NONE'},
+    {k:'Loss vs one bottle',v:fmt(s.ratio,1)+' x better',hi:1}]);
+  if(!s.check) setVerdict('vd-plan','bad','No sterility check on a batch you just copied '+s.k+' ways.',
+    ' The master transfer is the one operation whose failure reaches every tube — and without a check you would find out about it <b>when an experiment fails, weeks from now</b>, with no way to tell which tube was first. The check costs 10 mL of outdated medium and two weeks of shelf space in a plain 30 °C and 37 °C incubator — not the cell-culture box. Turn it back on.');
+  else if(!s.single) setVerdict('vd-plan','warn','Two sessions per tube brings freeze–thaw back.',
+    ' '+s.k+' × '+fmt(s.per,2)+' '+s.S.unit+' means each tube gets opened twice and, if it is frozen, thawed twice. Every one of those is an entry in eq. 4.1.1 and a cycle in §3.1. Sizing for a <em>single session</em> removes both terms at once, and §4.1 prices what the extra tubes cost — for anything but the cheapest bulk reagent it is not close.');
+  else if((SCEN.plan||'media')==='mtg') setVerdict('vd-plan','good','Matrigel — every lesson in the track, in one operation.',
+    ' '+s.k+' × '+fmt(s.per,3)+' mL single-use aliquots. Do it <b>on ice, with pre-chilled tips, slowly</b>: it sets once it warms into the 22–35 °C range and does not usefully come back, so you work well under 10 °C for margin; and at ~100 mPa·s the film it leaves on a fast-withdrawn pipette (eq. 3.2.1) is two orders of magnitude thicker than medium\'s. Follow the lab\'s Matrigel protocol rather than this summary when you actually do it.');
+  else if(s.S.store.indexOf('-20')===0) setVerdict('vd-plan','good','Frozen stock — so the aliquot size decides the freeze–thaw count.',
+    ' '+s.k+' × '+fmt(s.per,s.per<1?3:1)+' '+s.S.unit+' at '+s.S.store+'. Because each tube is thawed once and finished, the freeze–thaw term in §3.1 is <b>zero</b> — not small, zero. That is a different and stronger guarantee than "we try not to refreeze things", and it is bought entirely by choosing the tube size once. Expected loss falls '+fmt(s.ratio,0)+'× as well.');
+  else setVerdict('vd-plan','good','A workable plan, and a label somebody else can read.',
+    ' '+s.k+' × '+fmt(s.per,s.per<1?3:1)+' '+s.S.unit+' in '+s.tubeSize+'s, single-use, checked. Expected loss over the stock\'s life falls from '+fmt(s.lossOne,1)+' to '+fmt(s.lossK,2)+' '+s.S.unit+' — <b>'+fmt(s.ratio,0)+'× better</b> — and your technique did not change at all. Twenty minutes now, once.'); }
+defWidget('plan','plan',drawPlan,{
+  'plan-use':v=>fmt(v,v<1?2:1)+' mL', 'plan-rate':v=>String(Math.round(v))},
+  {scen0:'media', scenfn:s=>{ const q={media:10,tryp:3,gln:5,mtg:0.25}[s];
+    presetSlider('plan-use',q); presetSlider('plan-rate',s==='mtg'?2:3); }});
+
+
+/* ════════ dispatch + wiring (house pattern) ════════ */
+function refreshActiveTab(){ for(const k of (TABW[activeTab]||[])){ const f=DRAW[k];
+  if(f){ try{ f(); }catch(e){ console.error('draw '+k,e); } } } }
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active'); activeTab=btn.dataset.tab;
+    const sec=document.getElementById('tab-'+activeTab); if(sec)sec.classList.add('active');
+    window.scrollTo({top:0}); clearCvCache(); refreshActiveTab(); syncVis();
+  });
+});
+window.addEventListener('resize',()=>{ clearCvCache(); refreshActiveTab(); syncVis(); });
+document.querySelectorAll('.scen-btn[data-widget]').forEach(b=>{
+  b.addEventListener('click',()=>setScen(b.dataset.widget,b.dataset.scen)); });
+for(const w in SCEN){ if(SCENFN[w])SCENFN[w](SCEN[w]); if(RESET[w])RESET[w](); }
+wireAll();
+refreshActiveTab();
+syncVis();
+</script>
+</body>
+</html>

@@ -58,6 +58,11 @@
     try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(_collapsed)); }
     catch (_) { /* private mode — collapse state just won't stick */ }
   }
+  // V3.826 — every shelf starts FOLDED; a person's own open/close is kept
+  // (explicit true/false). Group rows inside Groups keep their old default.
+  function _isSecCollapsed(secId) {
+    return Object.prototype.hasOwnProperty.call(_collapsed, secId) ? !!_collapsed[secId] : true;
+  }
 
   function _authed() {
     return !!(typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser);
@@ -82,9 +87,18 @@
     LIBRARY_PREFS.save(next);
   }
 
+  // V3.622 — external listeners (the reader's Groups widget) notified on
+  // every membership/group mutation, in addition to the shelf's own
+  // re-render path.
+  let _extraChangeCbs = [];
+  function onChanged(cb) { if (typeof cb === 'function') _extraChangeCbs.push(cb); }
+
   function _changed() {
     if (_cb && typeof _cb.onChanged === 'function') _cb.onChanged();
     else _rerender();
+    for (const cb of _extraChangeCbs) {
+      try { cb(); } catch (e) { console.error('[library-groups] onChanged cb failed:', e); }
+    }
   }
 
   // ---- reader tabs (localStorage, read-only) ------------------------------
@@ -140,8 +154,8 @@
 
   function _kindBadge(g, isShared) {
     const bits = [];
-    if (g.kind === 'smart') bits.push(`<span class="lg-badge lg-badge-smart" title="Smart group — auto-updates from the saved filter: ${_esc(g.query || '')}">🔍 smart</span>`);
-    if (g.kind === 'draft') bits.push(`<span class="lg-badge lg-badge-draft" title="Draft group — papers linked to this draft (via the reader's link-to-draft picker)">📄 draft</span>`);
+    if (g.kind === 'smart') bits.push(`<span class="lg-badge lg-badge-smart" title="Smart group — auto-updates from the saved filter: ${_esc(g.query || '')}">${ICON.svg('magnifying-glass')} smart</span>`);
+    if (g.kind === 'draft') bits.push(`<span class="lg-badge lg-badge-draft" title="Draft group — papers linked to this draft (via the reader's link-to-draft picker)">${ICON.svg('document-text')} draft</span>`);
     if (isShared) bits.push('<span class="lg-badge lg-badge-lab" title="Lab-shared group — published by an admin, visible to every lab member">lab</span>');
     return bits.join(' ');
   }
@@ -154,7 +168,7 @@
     const title = paper.title || 'Untitled';
     const year = lib.year ? `<span class="lg-chip-year">${_esc(lib.year)}</span>` : '';
     const x = o.removable
-      ? `<button class="lg-chip-x" data-act="chip-remove" data-ctx="${_esc(o.ctx)}"${o.gid ? ` data-gid="${_esc(o.gid)}"` : ''} data-pid="${_esc(paper.id)}" title="${_esc(o.removeTitle || 'Remove')}">×</button>`
+      ? `<button class="lg-chip-x" data-act="chip-remove" data-ctx="${_esc(o.ctx)}"${o.gid ? ` data-gid="${_esc(o.gid)}"` : ''} data-pid="${_esc(paper.id)}" title="${_esc(o.removeTitle || 'Remove')}">${ICON.svg('x-mark')}</button>`
       : '';
     return `<span class="lg-chip${o.active ? ' lg-chip-active' : ''}">
       <a class="lg-chip-link" href="/rm/pages/library-paper.html?id=${encodeURIComponent(paper.id)}" title="${_esc(title)}">${_esc(title)}</a>
@@ -178,10 +192,10 @@
   }
 
   function _sectionHead(secId, icon, label, count, toolsHtml) {
-    const isCollapsed = !!_collapsed[secId];
+    const isCollapsed = _isSecCollapsed(secId);
     return `<div class="lg-sec-head" data-act="sec-toggle" data-sec="${_esc(secId)}">
-      <span class="lg-caret">${isCollapsed ? '▸' : '▾'}</span>
-      <span class="lg-sec-title">${icon} ${_esc(label)}</span>
+      <span class="lg-caret">${ICON.svg(isCollapsed ? 'chevron-right' : 'chevron-down')}</span>
+      <span class="lg-sec-title">${ICON.render(icon)} ${_esc(label)}</span>
       <span class="lg-sec-count">${count}</span>
       <span class="lg-sec-tools">${toolsHtml || ''}</span>
     </div>`;
@@ -200,16 +214,16 @@
           removeTitle: 'Remove from this group',
         })).join(' ')
       : `<span class="lg-empty">${g.kind === 'manual'
-          ? 'Empty — add papers via the 📁 button on any table row.'
+          ? 'Empty — add papers via the ' + ICON.svg('folder') + ' button on any table row.'
           : (g.kind === 'smart' ? 'No papers match this filter yet.' : 'No papers linked to this draft yet.')}</span>`;
     const tools = canEdit ? `
       ${!isShared ? `<button class="btn btn-sm" data-act="grp-up" data-gid="${_esc(gid)}" title="Move up" ${idx === 0 ? 'disabled' : ''}>↑</button>
       <button class="btn btn-sm" data-act="grp-down" data-gid="${_esc(gid)}" title="Move down" ${idx === total - 1 ? 'disabled' : ''}>↓</button>` : ''}
       <button class="btn btn-sm" data-act="grp-rename" data-gid="${_esc(gid)}" title="Rename group">✎</button>
-      <button class="btn btn-sm" data-act="grp-del" data-gid="${_esc(gid)}" title="Delete group (papers themselves are untouched)">🗑</button>` : '';
+      <button class="btn btn-sm" data-act="grp-del" data-gid="${_esc(gid)}" title="Delete group (papers themselves are untouched)">${ICON.svg('trash')}</button>` : '';
     return `<div class="lg-group${isCollapsed ? ' lg-collapsed' : ''}" data-gid="${_esc(gid)}">
       <div class="lg-group-head" data-act="grp-toggle" data-gid="${_esc(gid)}">
-        <span class="lg-caret">${isCollapsed ? '▸' : '▾'}</span>
+        <span class="lg-caret">${ICON.svg(isCollapsed ? 'chevron-right' : 'chevron-down')}</span>
         <span class="lg-group-name">${_esc(g.name || '(unnamed)')}</span>
         ${_kindBadge(g, isShared)}
         <span class="lg-sec-count">${papers.length}</span>
@@ -235,7 +249,9 @@
     const showReader = widgets.shelf_reader !== false;
     const showPinned = widgets.shelf_pinned !== false;
     const showGroups = widgets.shelf_groups !== false;
-    if (!showReader && !showPinned && !showGroups) {
+    const showRecent = widgets.shelf_recent !== false && !!window.LIBRARY_RECENT;   // V3.826
+    const showReadings = widgets.shelf_readings !== false && !!(window.LIBRARY_READINGS && LIBRARY_READINGS.shelves);   // V3.827
+    if (!showReader && !showPinned && !showGroups && !showRecent && !showReadings) {
       host.style.display = 'none';
       return;
     }
@@ -245,12 +261,40 @@
     const authed = _authed();
     const sections = [];
 
+    // 📥 💡 ✓ Papers people sent me (V3.827) — Assigned to me / Suggested for
+    // me / Read as shelves, each counting its papers; rows come from
+    // library-readings.js (its mark-as-done buttons are document-delegated).
+    let toRead = 0;
+    if (showReadings) {
+      const rd = LIBRARY_READINGS.shelves();
+      if (rd && rd.any) {
+        toRead = rd.toRead || 0;
+        rd.groups.forEach((g) => {
+          sections.push(`<section class="lg-section${_isSecCollapsed(g.id) ? ' lg-collapsed' : ''}" data-sec="${_esc(g.id)}">
+            ${_sectionHead(g.id, g.icon, g.label, g.count, g.hint ? '<span class="lg-sec-hint">' + _esc(g.hint) + '</span>' : '')}
+            <div class="lg-sec-body lr-shelf-body">${g.bodyHtml}</div>
+          </section>`);
+        });
+      }
+    }
+
+    // 🆕 Recently added (V3.826) — the newest papers, newest first; the body
+    // is filled by LIBRARY_RECENT.render() once the shelf is in the DOM.
+    const withRecent = showRecent && LIBRARY_RECENT.hasAny();
+    if (withRecent) {
+      sections.push(`<section class="lg-section${_isSecCollapsed('recent') ? ' lg-collapsed' : ''}" data-sec="recent">
+        ${_sectionHead('recent', 'sparkles', 'Recently added', LIBRARY_RECENT.countLabel(),
+          '<span class="lg-sec-hint" title="When a paper arrived: the extension capture time, else the day its record was made, else the PDF upload day">newest first</span>')}
+        <div class="lg-sec-body" id="lib-recent"></div>
+      </section>`);
+    }
+
     // 📖 Open in reader — hidden entirely when no tabs.
     if (showReader) {
       const { tabs, activeId } = _readerTabs();
       if (tabs.length) {
-        sections.push(`<section class="lg-section${_collapsed.reader ? ' lg-collapsed' : ''}" data-sec="reader">
-          ${_sectionHead('reader', '📖', 'Open in reader', tabs.length,
+        sections.push(`<section class="lg-section${_isSecCollapsed('reader') ? ' lg-collapsed' : ''}" data-sec="reader">
+          ${_sectionHead('reader', 'book-open', 'Open in reader', tabs.length,
             '<span class="lg-sec-hint" title="Mirrors this browser\'s reader tabs — close/open tabs in the reader itself">this browser</span>')}
           <div class="lg-sec-body">${tabs.map(t => _readerChip(t, activeId, byId)).join(' ')}</div>
         </section>`);
@@ -262,8 +306,8 @@
       const pinnedIds = (prefs && prefs.pinned_papers) || [];
       const pinnedPapers = pinnedIds.map(id => byId.get(id)).filter(Boolean);
       if (pinnedPapers.length) {
-        sections.push(`<section class="lg-section${_collapsed.pinned ? ' lg-collapsed' : ''}" data-sec="pinned">
-          ${_sectionHead('pinned', '📌', 'Pinned', pinnedPapers.length,
+        sections.push(`<section class="lg-section${_isSecCollapsed('pinned') ? ' lg-collapsed' : ''}" data-sec="pinned">
+          ${_sectionHead('pinned', 'pin', 'Pinned', pinnedPapers.length,
             '<span class="lg-sec-hint" title="Only you see your pins — they follow you across devices">just you</span>')}
           <div class="lg-sec-body">${pinnedPapers.map(p => _paperChip(p, {
             removable: true, ctx: 'pin', removeTitle: 'Unpin',
@@ -287,13 +331,13 @@
       });
       const total = userGroups.length + sharedSorted.length;
       const footer = `<div class="lg-footer">
-        <button class="btn btn-sm" data-act="new-group" title="Create an empty group, then add papers via the 📁 button on table rows">＋ New group</button>
+        <button class="btn btn-sm" data-act="new-group" title="Create an empty group, then add papers via the folder button on table rows">＋ New group</button>
         <button class="btn btn-sm" data-act="from-draft" title="Create groups that mirror papers linked to a draft (the reader's link-to-draft picker)">＋ From draft</button>
-        ${admin ? '<button class="btn btn-sm" data-act="new-lab-group" title="Create a lab-shared group every member sees (admin)">＋ Lab group</button>' : ''}
-        <span class="lg-sec-hint">Tip: filter the table, then 💾 Save as group for an auto-updating smart group.</span>
+        ${admin ? '<button class="btn btn-sm" data-act="new-lab-group" title="Create a lab-shared group every member sees (admin)">' + ICON.svg('plus') + ' Lab group</button>' : ''}
+        <span class="lg-sec-hint">Tip: filter the table, then ${ICON.svg('save')} Save as group for an auto-updating smart group.</span>
       </div>`;
-      sections.push(`<section class="lg-section${_collapsed.groups ? ' lg-collapsed' : ''}" data-sec="groups">
-        ${_sectionHead('groups', '📁', 'Groups', total, '')}
+      sections.push(`<section class="lg-section${_isSecCollapsed('groups') ? ' lg-collapsed' : ''}" data-sec="groups">
+        ${_sectionHead('groups', 'folder', 'Groups', total, '')}
         <div class="lg-sec-body lg-groups-body">
           ${rows.join('') || '<span class="lg-empty">No groups yet — create one below, or save a search filter as a smart group.</span>'}
           ${footer}
@@ -307,6 +351,13 @@
     }
     host.style.display = '';
     host.innerHTML = `<div class="lg-shelf">${sections.join('')}</div>`;
+    if (withRecent) LIBRARY_RECENT.render();   // V3.826 — fill the shelf body
+    // V3.828 — the 📚 Shelves block starts folded: its header carries what is
+    // inside ("3 to read · 5 new") so nothing asked for is hidden by the fold.
+    if (window.LIBRARY_COLLAPSE) {
+      const n30 = withRecent ? LIBRARY_RECENT.count30() : 0;
+      LIBRARY_COLLAPSE.setCount('lib-shelf', [toRead ? `${toRead} to read` : '', n30 ? `${n30} new in 30 days` : ''].filter(Boolean).join(' · '));
+    }
   }
 
   function _rerender() { render(_lastState); }
@@ -358,7 +409,7 @@
       next.paper_groups = next.paper_groups || [];
       next.paper_groups.push({ id: _genId(), name, kind: 'smart', query });
     });
-    delete _collapsed.groups;   // reveal the section so the new group is visible
+    _collapsed.groups = false;   // reveal the section so the new group is visible (V3.826: folded is the default)
     _persistCollapsed();
     _changed();
   }
@@ -434,6 +485,25 @@
     _changed();
   }
 
+  /* V3.622 — which groups hold this paper. MANUAL groups only (smart and
+   * draft groups compute membership from the paper pool, which the reader
+   * page doesn't carry). Powers the reader sidebar's Groups widget. */
+  function groupsForPaper(paperId) {
+    const out = [];
+    const prefs = _prefs();
+    for (const g of ((prefs && prefs.paper_groups) || [])) {
+      if (g.kind === 'manual' && (g.paper_ids || []).includes(paperId)) {
+        out.push({ id: g.id, name: g.name, shared: false });
+      }
+    }
+    for (const g of _shared) {
+      if (g.kind === 'manual' && (g.paper_ids || []).includes(paperId)) {
+        out.push({ id: g.id, name: g.name, shared: true });
+      }
+    }
+    return out;
+  }
+
   function _removeFromGroup(gid, pid, isShared) {
     if (isShared) {
       const g = _findSharedGroup(gid);
@@ -504,7 +574,12 @@
       _toast('Sign in to use groups.', 'error');
       return;
     }
-    const admin = !!(_cb && _cb.isAdmin && _cb.isAdmin());
+    // V3.622 — the picker also runs standalone on the reader page, where
+    // no library.js callbacks are injected: fall back to firebridge for
+    // the admin check (manual groups need only LIBRARY_PREFS + _shared).
+    const admin = (_cb && _cb.isAdmin)
+      ? !!_cb.isAdmin()
+      : !!(window.firebridge && firebridge.isAdmin && firebridge.isAdmin());
 
     function _rowsHtml() {
       const prefs = _prefs();
@@ -638,7 +713,7 @@
     }
     if (act === 'sec-toggle') {
       const sec = el.getAttribute('data-sec');
-      if (_collapsed[sec]) delete _collapsed[sec]; else _collapsed[sec] = true;
+      _collapsed[sec] = !_isSecCollapsed(sec);   // V3.826 — explicit, since the default is folded
       _persistCollapsed();
       _rerender();
       return;
@@ -692,6 +767,8 @@
     loadShared,
     isPinned,
     togglePin,
+    groupsForPaper,   // V3.622 — reader sidebar widget
+    onChanged,        // V3.622 — external mutation listener
     openGroupPicker,
     createSmartGroup,
   };

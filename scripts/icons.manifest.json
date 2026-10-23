@@ -1,0 +1,1037 @@
+{
+  "_readme": [
+    "Source of truth for which Heroicons ship in rm/js/icons.js.",
+    "Run `node scripts/gen-icons.mjs` after editing. `--check` fails if the",
+    "generated file is stale; release_push.py runs it as a gate.",
+    "",
+    "`emoji` is the glyph this icon replaced. It is NOT decoration: icons.js",
+    "keeps the reverse map so ICON.mode='emoji' (or labConfig.iconMode) can",
+    "render the original glyph again with no deploy. That kill switch is the",
+    "only rollback that reaches phones already on a TestFlight build.",
+    "",
+    "`solid: true` also emits the filled weight. Only mark it where an active",
+    "or selected state actually needs one - every solid entry is ~600 bytes",
+    "shipped to a phone.",
+    "",
+    "Counts are live-code occurrences in rm/js/*.js measured 2026-08-15.",
+    "",
+    "V3.861: `lucide: true` sources the icon from vendor/lucide/24 (Lucide, ISC) — the gap",
+    "icons Heroicons does not ship (lab, bio, nature). Same 24-grid outline style; CSS owns the",
+    "stroke width, so both libraries render at the same weight. `tint{}` maps coloured-shape",
+    "emoji to a shape + colour."
+  ],
+  "heroicons": "2.2.0",
+  "fallback": "question-mark-circle",
+  "icons": {
+    "check": {
+      "emoji": "✓",
+      "n": 71,
+      "also": [
+        "✔"
+      ]
+    },
+    "x-mark": {
+      "emoji": "✕",
+      "n": 65,
+      "also": [
+        "✗",
+        "×",
+        "✖"
+      ]
+    },
+    "exclamation-triangle": {
+      "emoji": "⚠",
+      "n": 49
+    },
+    "star": {
+      "emoji": "★",
+      "n": 44,
+      "solid": true,
+      "also": [
+        "⭐"
+      ]
+    },
+    "chevron-down": {
+      "emoji": "▾",
+      "n": 43,
+      "also": [
+        "▼"
+      ]
+    },
+    "chevron-right": {
+      "emoji": "▸",
+      "n": 42
+    },
+    "document-text": {
+      "emoji": "📄",
+      "n": 40,
+      "also": [
+        "📃"
+      ]
+    },
+    "check-circle": {
+      "emoji": "✅",
+      "n": 35,
+      "solid": true,
+      "also": [
+        "☑"
+      ]
+    },
+    "pencil": {
+      "emoji": "✎",
+      "n": 34,
+      "also": [
+        "✍",
+        "✏️",
+        "✏"
+      ]
+    },
+    "clipboard-document-list": {
+      "emoji": "📋",
+      "n": 34
+    },
+    "link": {
+      "emoji": "🔗",
+      "n": 29
+    },
+    "pin": {
+      "emoji": "📌",
+      "n": 29,
+      "custom": true,
+      "solid": true
+    },
+    "target": {
+      "emoji": "🎯",
+      "n": 27,
+      "custom": true,
+      "solid": true
+    },
+    "chart-bar": {
+      "emoji": "📊",
+      "n": 26
+    },
+    "beaker": {
+      "emoji": "🧫",
+      "n": 23,
+      "also": [
+        "⚗"
+      ]
+    },
+    "arrow-path": {
+      "emoji": "↻",
+      "n": 23,
+      "also": [
+        "♻"
+      ]
+    },
+    "books": {
+      "emoji": "📚",
+      "n": 22,
+      "custom": true,
+      "solid": true
+    },
+    "arrow-top-right-on-square": {
+      "emoji": "↗",
+      "n": 22,
+      "also": [
+        "↗️"
+      ]
+    },
+    "trash": {
+      "emoji": "🗑",
+      "n": 20,
+      "also": [
+        "🗑️"
+      ]
+    },
+    "variable": {
+      "emoji": "📐",
+      "n": 18
+    },
+    "pencil-square": {
+      "emoji": "📝",
+      "n": 17
+    },
+    "play": {
+      "emoji": "▶",
+      "n": 17,
+      "solid": true
+    },
+    "photo": {
+      "emoji": "🖼",
+      "n": 17,
+      "also": [
+        "🖼️"
+      ]
+    },
+    "microscope": {
+      "emoji": "🔬",
+      "n": 16,
+      "custom": true
+    },
+    "book-open": {
+      "emoji": "📓",
+      "n": 16,
+      "also": [
+        "📖",
+        "📘"
+      ]
+    },
+    "academic-cap": {
+      "emoji": "🎓",
+      "n": 15,
+      "also": [
+        "🧑‍🏫"
+      ]
+    },
+    "flag": {
+      "emoji": "⚑",
+      "n": 15,
+      "solid": true,
+      "also": [
+        "⚐"
+      ]
+    },
+    "adjustments-horizontal": {
+      "emoji": "🎚",
+      "n": 15
+    },
+    "sparkles": {
+      "emoji": "✨",
+      "n": 14,
+      "also": [
+        "🎉",
+        "🆕",
+        "🔮"
+      ]
+    },
+    "chat-bubble-left-right": {
+      "emoji": "💬",
+      "n": 13,
+      "solid": true
+    },
+    "cog-6-tooth": {
+      "emoji": "⚙",
+      "n": 13,
+      "also": [
+        "⚙️"
+      ]
+    },
+    "folder": {
+      "emoji": "📁",
+      "n": 13
+    },
+    "chevron-up": {
+      "emoji": "▲",
+      "n": 12
+    },
+    "light-bulb": {
+      "emoji": "💡",
+      "n": 12
+    },
+    "lock-closed": {
+      "emoji": "🔒",
+      "n": 12,
+      "also": [
+        "🔐"
+      ]
+    },
+    "paper-clip": {
+      "emoji": "📎",
+      "n": 11,
+      "also": [
+        "🧷"
+      ]
+    },
+    "sun": {
+      "emoji": "☀",
+      "n": 11,
+      "solid": true,
+      "also": [
+        "🌞"
+      ]
+    },
+    "map-pin": {
+      "emoji": "📍",
+      "n": 11
+    },
+    "compass": {
+      "emoji": "🧭",
+      "n": 10,
+      "custom": true
+    },
+    "rectangle-stack": {
+      "emoji": "🗂",
+      "n": 10
+    },
+    "arrows-right-left": {
+      "emoji": "↔",
+      "n": 9,
+      "also": [
+        "🔀"
+      ]
+    },
+    "arrow-down-tray": {
+      "emoji": "📥",
+      "n": 9,
+      "also": [
+        "⤓"
+      ]
+    },
+    "arrow-uturn-left": {
+      "emoji": "↶",
+      "n": 9,
+      "also": [
+        "↺",
+        "↩"
+      ]
+    },
+    "arrow-turn-down-right": {
+      "emoji": "↳",
+      "n": 9
+    },
+    "bell": {
+      "emoji": "🔔",
+      "n": 9,
+      "solid": true
+    },
+    "document": {
+      "emoji": "📜",
+      "n": 8
+    },
+    "arrow-up": {
+      "emoji": "⬆",
+      "n": 8
+    },
+    "users": {
+      "emoji": "👥",
+      "n": 8
+    },
+    "scale": {
+      "emoji": "⚖",
+      "n": 8,
+      "also": [
+        "⚖️"
+      ]
+    },
+    "bookmark-square": {
+      "emoji": "📑",
+      "n": 8
+    },
+    "construction": {
+      "emoji": "🚧",
+      "n": 7,
+      "custom": true,
+      "also": [
+        "🏗"
+      ]
+    },
+    "camera": {
+      "emoji": "📷",
+      "n": 7,
+      "also": [
+        "📸"
+      ]
+    },
+    "signal": {
+      "emoji": "📶",
+      "n": 7
+    },
+    "user-group": {
+      "emoji": "🤝",
+      "n": 6,
+      "also": []
+    },
+    "clock": {
+      "emoji": "⏱",
+      "n": 6,
+      "also": [
+        "⏰",
+        "⏳",
+        "⌚"
+      ]
+    },
+    "bookmark": {
+      "emoji": "🔖",
+      "n": 6
+    },
+    "home": {
+      "emoji": "🏠",
+      "chrome": true
+    },
+    "ellipsis-horizontal": {
+      "emoji": "⋯",
+      "chrome": true,
+      "solid": true
+    },
+    "calendar-days": {
+      "emoji": "📅",
+      "chrome": true,
+      "also": [
+        "📆",
+        "🗓",
+        "🗓️"
+      ]
+    },
+    "arrow-right-start-on-rectangle": {
+      "emoji": "🚪",
+      "chrome": true
+    },
+    "eye": {
+      "emoji": "👁",
+      "chrome": true
+    },
+    "magnifying-glass": {
+      "emoji": "🔍",
+      "chrome": true,
+      "also": [
+        "🔎"
+      ]
+    },
+    "squares-plus": {
+      "emoji": "⊞",
+      "chrome": true
+    },
+    "view-columns": {
+      "emoji": "◫",
+      "chrome": true
+    },
+    "hand-raised": {
+      "emoji": "🙋",
+      "chrome": true
+    },
+    "megaphone": {
+      "emoji": "📣",
+      "chrome": true,
+      "also": [
+        "🗣",
+        "🗣️"
+      ]
+    },
+    "archive-box": {
+      "emoji": "🗃",
+      "chrome": true
+    },
+    "arrow-path-rounded-square": {
+      "emoji": "🔁",
+      "chrome": true
+    },
+    "rocket-launch": {
+      "emoji": "🚀",
+      "chrome": true
+    },
+    "wrench": {
+      "emoji": "🔧",
+      "chrome": true,
+      "also": [
+        "🔩"
+      ]
+    },
+    "arrow-trending-up": {
+      "emoji": "📈",
+      "chrome": true
+    },
+    "envelope": {
+      "emoji": "✉",
+      "chrome": true,
+      "also": [
+        "✉️",
+        "📧"
+      ]
+    },
+    "inbox-arrow-down": {
+      "emoji": "📨",
+      "chrome": true
+    },
+    "funnel": {
+      "emoji": "🔽",
+      "chrome": true,
+      "also": [
+        "🔻"
+      ]
+    },
+    "tag": {
+      "emoji": "🏷",
+      "chrome": true
+    },
+    "table-cells": {
+      "emoji": "▦",
+      "chrome": true
+    },
+    "user-circle": {
+      "emoji": "👤",
+      "chrome": true
+    },
+    "building-library": {
+      "emoji": "🏛",
+      "chrome": true
+    },
+    "dna": {
+      "emoji": "🧬",
+      "chrome": true,
+      "custom": true
+    },
+    "plus": {
+      "emoji": "＋",
+      "chrome": true,
+      "also": [
+        "➕"
+      ]
+    },
+    "question-mark-circle": {
+      "emoji": "❓",
+      "chrome": true,
+      "also": [
+        "🤷"
+      ]
+    },
+    "banknotes": {
+      "emoji": "💰",
+      "chrome": true
+    },
+    "identification": {
+      "emoji": "🪪",
+      "chrome": true
+    },
+    "building-office": {
+      "emoji": "🏢",
+      "chrome": true
+    },
+    "credit-card": {
+      "emoji": "💳",
+      "chrome": true
+    },
+    "chat-bubble-oval-left": {
+      "emoji": "💭",
+      "chrome": true
+    },
+    "cube": {
+      "emoji": "📦",
+      "chrome": true
+    },
+    "trophy": {
+      "emoji": "🎖",
+      "chrome": true,
+      "also": [
+        "🏆",
+        "🥇"
+      ]
+    },
+    "shopping-cart": {
+      "emoji": "🛒",
+      "chrome": true
+    },
+    "receipt-percent": {
+      "emoji": "🧾",
+      "chrome": true
+    },
+    "currency-dollar": {
+      "emoji": "💵",
+      "chrome": true
+    },
+    "paper-airplane": {
+      "emoji": "✈",
+      "chrome": true
+    },
+    "bolt": {
+      "emoji": "⚡",
+      "chrome": true
+    },
+    "squares-2x2": {
+      "emoji": "🔲",
+      "chrome": true
+    },
+    "presentation-chart-bar": {
+      "emoji": "📽",
+      "chrome": true
+    },
+    "briefcase": {
+      "emoji": "💼",
+      "chrome": true
+    },
+    "globe-alt": {
+      "emoji": "🌐",
+      "chrome": true
+    },
+    "key": {
+      "emoji": "🔑",
+      "chrome": true
+    },
+    "queue-list": {
+      "emoji": "☰",
+      "chrome": true
+    },
+    "chat-bubble-left-ellipsis": {
+      "emoji": "🗨",
+      "chrome": true
+    },
+    "calculator": {
+      "emoji": "🧮"
+    },
+    "cloud": {
+      "emoji": "☁",
+      "also": [
+        "⛅"
+      ]
+    },
+    "pause": {
+      "emoji": "⏸"
+    },
+    "stop": {
+      "emoji": "⏹"
+    },
+    "x-circle": {
+      "emoji": "❌"
+    },
+    "microphone": {
+      "emoji": "🎙",
+      "also": [
+        "🎤"
+      ]
+    },
+    "printer": {
+      "emoji": "🖨"
+    },
+    "puzzle-piece": {
+      "emoji": "🧩"
+    },
+    "map": {
+      "emoji": "🗺"
+    },
+    "arrow-down": {
+      "emoji": "⬇"
+    },
+    "adjustments-vertical": {
+      "emoji": "🎛"
+    },
+    "information-circle": {
+      "emoji": "ℹ"
+    },
+    "arrow-turn-right-down": {
+      "emoji": "⤵"
+    },
+    "arrow-turn-right-up": {
+      "emoji": "⤴"
+    },
+    "hand-thumb-up": {
+      "emoji": "👍"
+    },
+    "hand-thumb-down": {
+      "emoji": "👎"
+    },
+    "phone": {
+      "emoji": "📞"
+    },
+    "bug-ant": {
+      "emoji": "🦠",
+      "also": [
+        "🦟"
+      ]
+    },
+    "scissors": {
+      "emoji": "✂"
+    },
+    "minus": {
+      "emoji": "➖"
+    },
+    "divide": {
+      "emoji": "➗"
+    },
+    "wrench-screwdriver": {
+      "emoji": "🧰",
+      "also": [
+        "🛠"
+      ]
+    },
+    "no-symbol": {
+      "emoji": "🚫"
+    },
+    "lifebuoy": {
+      "emoji": "🆘"
+    },
+    "cube-transparent": {
+      "emoji": "🧊"
+    },
+    "chevron-left": {
+      "emoji": "◀"
+    },
+    "fire": {
+      "emoji": "🔥"
+    },
+    "computer-desktop": {
+      "emoji": "🖥",
+      "also": [
+        "💻"
+      ]
+    },
+    "speaker-x-mark": {
+      "emoji": "🔇"
+    },
+    "cursor-arrow-rays": {
+      "emoji": "🖱"
+    },
+    "lock-open": {
+      "emoji": "🔓"
+    },
+    "hashtag": {
+      "emoji": "🔢"
+    },
+    "heart": {
+      "emoji": "❤",
+      "also": [
+        "♥"
+      ]
+    },
+    "newspaper": {
+      "emoji": "📰"
+    },
+    "battery-100": {
+      "emoji": "🔋"
+    },
+    "device-tablet": {
+      "emoji": "📟"
+    },
+    "video-camera": {
+      "emoji": "🎥"
+    },
+    "film": {
+      "emoji": "🎞",
+      "also": [
+        "🎬"
+      ]
+    },
+    "arrow-trending-down": {
+      "emoji": "📉"
+    },
+    "exclamation-circle": {
+      "emoji": "❗"
+    },
+    "arrow-down-right": {
+      "emoji": "↘"
+    },
+    "device-phone-mobile": {
+      "emoji": "📱"
+    },
+    "user": {
+      "emoji": "🧑"
+    },
+    "folder-open": {
+      "emoji": "📂"
+    },
+    "test-tube": {
+      "emoji": "🧪",
+      "lucide": true
+    },
+    "flask-conical": {
+      "lucide": true
+    },
+    "pipette": {
+      "lucide": true
+    },
+    "atom": {
+      "emoji": "⚛",
+      "lucide": true
+    },
+    "droplet": {
+      "emoji": "💧",
+      "also": [
+        "🩸"
+      ],
+      "lucide": true
+    },
+    "mountain": {
+      "emoji": "🪨",
+      "lucide": true
+    },
+    "square-parking": {
+      "emoji": "🅿",
+      "lucide": true
+    },
+    "keyboard": {
+      "emoji": "⌨",
+      "lucide": true
+    },
+    "bot": {
+      "emoji": "🤖",
+      "lucide": true
+    },
+    "pen-line": {
+      "emoji": "🖊",
+      "lucide": true
+    },
+    "highlighter": {
+      "emoji": "🖍",
+      "lucide": true
+    },
+    "save": {
+      "emoji": "💾",
+      "lucide": true
+    },
+    "beer": {
+      "emoji": "🍺",
+      "lucide": true
+    },
+    "flashlight": {
+      "emoji": "🔦",
+      "lucide": true
+    },
+    "git-fork": {
+      "emoji": "🍴",
+      "lucide": true
+    },
+    "hand": {
+      "emoji": "✋",
+      "lucide": true
+    },
+    "thermometer": {
+      "emoji": "🌡",
+      "lucide": true
+    },
+    "skull": {
+      "emoji": "☠",
+      "lucide": true
+    },
+    "dices": {
+      "emoji": "🎲",
+      "lucide": true
+    },
+    "heart-handshake": {
+      "emoji": "🙏",
+      "lucide": true
+    },
+    "plug": {
+      "emoji": "🔌",
+      "lucide": true
+    },
+    "telescope": {
+      "emoji": "🔭",
+      "lucide": true
+    },
+    "satellite": {
+      "emoji": "🛰",
+      "lucide": true
+    },
+    "satellite-dish": {
+      "emoji": "📡",
+      "lucide": true
+    },
+    "sprout": {
+      "emoji": "🌱",
+      "lucide": true
+    },
+    "leaf": {
+      "emoji": "🌿",
+      "also": [
+        "🍃"
+      ],
+      "lucide": true
+    },
+    "wheat": {
+      "emoji": "🌾",
+      "lucide": true
+    },
+    "triangle": {
+      "lucide": true
+    },
+    "brick-wall": {
+      "emoji": "🧱",
+      "lucide": true
+    },
+    "gamepad-2": {
+      "emoji": "🕹",
+      "lucide": true
+    },
+    "syringe": {
+      "emoji": "💉",
+      "lucide": true
+    },
+    "magnet": {
+      "emoji": "🧲",
+      "lucide": true
+    },
+    "bone": {
+      "emoji": "🦴",
+      "lucide": true
+    },
+    "heart-pulse": {
+      "emoji": "🫀",
+      "lucide": true
+    },
+    "wind": {
+      "emoji": "🫁",
+      "lucide": true
+    },
+    "brain": {
+      "emoji": "🧠",
+      "lucide": true
+    },
+    "rat": {
+      "emoji": "🐭",
+      "also": [
+        "🐁"
+      ],
+      "lucide": true
+    },
+    "fish": {
+      "emoji": "🐟",
+      "lucide": true
+    },
+    "shell": {
+      "emoji": "🪸",
+      "lucide": true
+    },
+    "flower-2": {
+      "emoji": "🌸",
+      "lucide": true
+    },
+    "waves": {
+      "emoji": "🌊",
+      "lucide": true
+    },
+    "snowflake": {
+      "emoji": "❄",
+      "lucide": true
+    },
+    "rainbow": {
+      "emoji": "🌈",
+      "lucide": true
+    },
+    "orbit": {
+      "emoji": "🪐",
+      "lucide": true
+    },
+    "diamond": {
+      "emoji": "💠",
+      "lucide": true
+    },
+    "scan-eye": {
+      "emoji": "🧿",
+      "lucide": true
+    },
+    "gem": {
+      "emoji": "💎",
+      "lucide": true
+    },
+    "radiation": {
+      "emoji": "☢",
+      "lucide": true
+    },
+    "brush": {
+      "emoji": "🧹",
+      "lucide": true
+    },
+    "waypoints": {
+      "emoji": "🕸",
+      "lucide": true
+    },
+    "drama": {
+      "emoji": "🎭",
+      "lucide": true
+    },
+    "stethoscope": {
+      "emoji": "🧑‍⚕️",
+      "also": [
+        "⚕"
+      ],
+      "lucide": true
+    },
+    "swords": {
+      "emoji": "⚔",
+      "lucide": true
+    },
+    "square": {
+      "emoji": "◻",
+      "also": [
+        "◼"
+      ],
+      "lucide": true
+    },
+    "circle-dot": {
+      "emoji": "🫧",
+      "lucide": true
+    },
+    "spline": {
+      "emoji": "🧵",
+      "lucide": true
+    },
+    "biohazard": {
+      "lucide": true
+    },
+    "circle": {
+      "emoji": "⚪",
+      "lucide": true
+    },
+    "dot": {
+      "custom": true,
+      "solid": true
+    },
+    "bomb": {
+      "emoji": "💣",
+      "lucide": true
+    },
+    "cylinder": {
+      "lucide": true
+    },
+    "arrow-up-tray": {},
+    "arrow-uturn-right": {
+      "emoji": "↪"
+    }
+  },
+  "keep": {
+    "_why": "Deliberately NOT icons. Do not add these to `icons` later without re-reading the reason.",
+    "◌": "no_result outcome - reads as a SET with ◇ and ✗ in my-week.js; breaking one out to SVG breaks the set",
+    "◇": "recordable outcome - same set",
+    "⌖": "position marker - same family",
+    "⊡": "the '⊡ Split' GROUP KEY compared against p.group in all-pages.js:196 - changing it silently breaks grouping",
+    "·": "prose separator, not iconography",
+    "─": "box-drawing in comment banners (~41k occurrences)",
+    "═": "box-drawing in training-page diagrams (~19k occurrences)"
+  },
+  "tint": {
+    "_why": "Coloured-shape emoji whose colour carries meaning (status, user-picked markers). ICON.render() draws the named icon (solid where shipped) in that colour instead of the colour-emoji image. Never also list these under icons{}.",
+    "🔴": [
+      "dot",
+      "#ef4444"
+    ],
+    "🟠": [
+      "dot",
+      "#f97316"
+    ],
+    "🟡": [
+      "dot",
+      "#eab308"
+    ],
+    "🟢": [
+      "dot",
+      "#22c55e"
+    ],
+    "🔵": [
+      "dot",
+      "#3b82f6"
+    ],
+    "🟣": [
+      "dot",
+      "#a855f7"
+    ],
+    "🟤": [
+      "dot",
+      "#a16207"
+    ],
+    "⚫": [
+      "dot",
+      ""
+    ],
+    "🔶": [
+      "diamond",
+      "#f97316"
+    ],
+    "🔷": [
+      "diamond",
+      "#3b82f6"
+    ],
+    "🔺": [
+      "triangle",
+      "#ef4444"
+    ]
+  }
+}

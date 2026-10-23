@@ -1,6 +1,85 @@
 {
   "indexes": [
     {
+      "_comment": "V3.646 — the cheap-freshness probe at api-firestore-adapter.js:440-441 runs .where('kind','==',<k>).orderBy('updatedAt','desc').limit(1) on every inventory page load. With no index it threw into the catch-and-fall-through at :401-403 and refetched all 777 docs. Keyed on the FIELD not the value, so this one index serves items, chemicals AND stock.",
+      "collectionGroup": "inventory",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "kind",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "_comment": "V3.646 — the low-stock digest (functions/inventory-alerts.js). `stock_status in [...]` executes as a disjunction of equality queries, each needing this exact prefix.",
+      "collectionGroup": "inventory",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "qty_tracked",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "stock_status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "_comment": "V3.646 — the per-item 'Recent usage' panel.",
+      "collectionGroup": "inventoryUsage",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "itemId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "_comment": "V3.646 — 'everything I used this week' and the manager report.",
+      "collectionGroup": "inventoryUsage",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "_comment": "V3.646 — the box/location tree. Contents themselves are a locIds array-contains reverse lookup, which needs no composite index.",
+      "collectionGroup": "inventoryLocations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "parentId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "huddlePlans",
       "queryScope": "COLLECTION",
       "fields": [
@@ -448,9 +527,18 @@
       "collectionGroup": "protocols",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ownerUid",   "order": "ASCENDING" },
-        { "fieldPath": "updated_at", "order": "DESCENDING" },
-        { "fieldPath": "__name__",   "order": "DESCENDING" }
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updated_at",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
       ],
       "density": "SPARSE_ALL"
     },
@@ -458,9 +546,18 @@
       "collectionGroup": "protocols",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",     "order": "ASCENDING" },
-        { "fieldPath": "updated_at", "order": "DESCENDING" },
-        { "fieldPath": "__name__",   "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updated_at",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
       ],
       "density": "SPARSE_ALL"
     },
@@ -468,9 +565,18 @@
       "collectionGroup": "protocols",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "forked_from.protocol_id", "order": "ASCENDING" },
-        { "fieldPath": "created_at", "order": "DESCENDING" },
-        { "fieldPath": "__name__",   "order": "DESCENDING" }
+        {
+          "fieldPath": "forked_from.protocol_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
       ],
       "density": "SPARSE_ALL"
     },
@@ -478,9 +584,18 @@
       "collectionGroup": "entries",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "date",   "order": "ASCENDING" },
-        { "fieldPath": "__name__", "order": "ASCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
       ],
       "density": "SPARSE_ALL"
     },
@@ -488,9 +603,18 @@
       "collectionGroup": "entries",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",        "order": "ASCENDING" },
-        { "fieldPath": "scheduled_for", "order": "ASCENDING" },
-        { "fieldPath": "__name__",      "order": "ASCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "scheduled_for",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
       ],
       "density": "SPARSE_ALL"
     },
@@ -498,17 +622,47 @@
       "collectionGroup": "annotations",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "visibility",     "order": "ASCENDING" },
-        { "fieldPath": "cite_in_drafts", "arrayConfig": "CONTAINS" }
+        {
+          "fieldPath": "visibility",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "cite_in_drafts",
+          "arrayConfig": "CONTAINS"
+        }
       ]
     },
     {
       "collectionGroup": "annotations",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "creator.uid",    "order": "ASCENDING" },
-        { "fieldPath": "visibility",     "order": "ASCENDING" },
-        { "fieldPath": "cite_in_drafts", "arrayConfig": "CONTAINS" }
+        {
+          "fieldPath": "creator.uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "visibility",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "cite_in_drafts",
+          "arrayConfig": "CONTAINS"
+        }
+      ]
+    },
+    {
+      "_comment": "V3.671 — functions/class-notify.js onAssignmentPublished queries enrollments.where('scheduleId','==',id).where('status','==','active') via the Admin SDK (bypasses rules, not index requirements).",
+      "collectionGroup": "enrollments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "scheduleId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
       ]
     }
   ],

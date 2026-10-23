@@ -1,0 +1,222 @@
+/* label-mode.css — the reader's structure overlay (V3.644).
+ * Paired with rm/js/paper-label-mode.js. */
+
+/* ── left-column toggle ──────────────────────────────────────────── */
+.plm-host {
+  margin: 18px 0 8px;
+  border-top: 1px solid var(--border, #e3e6ea);
+  padding-top: 12px;
+}
+.plm-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border, #d8dce2);
+  border-radius: 6px;
+  background: var(--card, #fff);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+.plm-toggle-on {
+  background: #2f3b52;
+  border-color: #2f3b52;
+  color: #fff;
+}
+
+.plm-panel {
+  margin-top: 10px;
+  font-size: 12px;
+}
+.plm-panel-head {
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: var(--muted, #6b7280);
+  margin-bottom: 6px;
+}
+.plm-hint {
+  color: var(--muted, #6b7280);
+  line-height: 1.45;
+  margin-bottom: 10px;
+}
+.plm-palette { display: flex; flex-direction: column; gap: 2px; }
+.plm-pal-row { display: flex; align-items: center; gap: 4px; }
+.plm-pal {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 7px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+}
+.plm-pal:hover { background: var(--hover, #f2f4f7); }
+.plm-pal-on {
+  border-color: var(--plm-c);
+  background: color-mix(in srgb, var(--plm-c) 12%, transparent);
+}
+.plm-sw {
+  width: 11px; height: 11px; flex: 0 0 auto;
+  border-radius: 3px;
+  background: var(--plm-c);
+}
+.plm-nm { flex: 1 1 auto; }
+.plm-ct { color: var(--muted, #9aa1ab); font-variant-numeric: tabular-nums; }
+.plm-eye {
+  flex: 0 0 auto;
+  width: 20px; height: 20px;
+  border: none; background: none; cursor: pointer;
+  color: #9aa1ab; font-size: 11px; line-height: 1;
+  border-radius: 4px;
+}
+.plm-eye:hover { background: var(--hover, #f2f4f7); }
+.plm-eye-off { opacity: .3; }
+
+.plm-actions {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  margin-top: 10px;
+}
+.plm-actions .btn { flex: 1 1 auto; font-size: 11px; }
+.plm-status {
+  margin-top: 8px;
+  min-height: 15px;
+  color: var(--muted, #6b7280);
+  font-size: 11px;
+}
+
+/* ── the on-page overlay ─────────────────────────────────────────── */
+.plm-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 26;              /* over the text layer, under dialogs */
+  pointer-events: auto;
+}
+/* Label mode owns the pointer while it is on: the snip hotspots and text
+ * selection would otherwise swallow every drag meant for a box. */
+body.plm-active .fc-hotspot-layer { display: none; }
+body.plm-active .textLayer { pointer-events: none; }
+
+.plm-box {
+  position: absolute;
+  border: 1.5px solid var(--plm-c);
+  background: color-mix(in srgb, var(--plm-c) 7%, transparent);
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+.plm-box.plm-auto {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--plm-c) 4%, transparent);
+}
+.plm-box:hover {
+  background: color-mix(in srgb, var(--plm-c) 15%, transparent);
+  z-index: 2;
+}
+.plm-ghost { border-style: dashed; pointer-events: none; }
+/* With a type armed the layer is a canvas, not a set of targets — every
+ * existing box steps out of the way so a new one can be drawn over it. */
+.plm-layer.plm-drawing { cursor: crosshair; }
+.plm-layer.plm-drawing .plm-box { pointer-events: none; }
+
+.plm-chip {
+  position: absolute;
+  top: 2px; left: 2px;
+  max-width: calc(100% - 24px);
+  padding: 1px 6px;
+  font: 600 10px/1.5 system-ui, sans-serif;
+  color: #fff;
+  background: var(--plm-c);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: .82;
+}
+.plm-box:hover .plm-chip { opacity: 1; }
+/* An inline citation box is smaller than its own type chip — keep the chip
+ * out of the way until the box is hovered. */
+.plm-tiny .plm-chip { opacity: 0; pointer-events: none; }
+.plm-tiny:hover .plm-chip {
+  opacity: 1; pointer-events: auto;
+  top: -14px; left: 0; z-index: 3;
+}
+.plm-tiny .plm-del { display: none; }
+.plm-del {
+  position: absolute;
+  top: 2px; right: 2px;
+  width: 16px; height: 16px;
+  padding: 0;
+  font: 600 12px/1 system-ui, sans-serif;
+  color: #fff;
+  background: rgba(30, 30, 30, .45);
+  border: none; border-radius: 3px;
+  cursor: pointer;
+  opacity: 0;
+}
+.plm-box:hover .plm-del { opacity: 1; }
+.plm-del:hover { background: #c0392b; }
+
+/* eight resize handles */
+.plm-h {
+  position: absolute;
+  width: 9px; height: 9px;
+  background: #fff;
+  border: 1.5px solid var(--plm-c);
+  border-radius: 2px;
+  opacity: 0;
+}
+.plm-box:hover .plm-h { opacity: 1; }
+.plm-h-nw { left: -5px; top: -5px; cursor: nwse-resize; }
+.plm-h-n  { left: calc(50% - 4px); top: -5px; cursor: ns-resize; }
+.plm-h-ne { right: -5px; top: -5px; cursor: nesw-resize; }
+.plm-h-w  { left: -5px; top: calc(50% - 4px); cursor: ew-resize; }
+.plm-h-e  { right: -5px; top: calc(50% - 4px); cursor: ew-resize; }
+.plm-h-sw { left: -5px; bottom: -5px; cursor: nesw-resize; }
+.plm-h-s  { left: calc(50% - 4px); bottom: -5px; cursor: ns-resize; }
+.plm-h-se { right: -5px; bottom: -5px; cursor: nwse-resize; }
+
+/* ── type menu ───────────────────────────────────────────────────── */
+.plm-menu {
+  position: fixed;
+  z-index: 9000;
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #d8dce2);
+  border-radius: 8px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .18);
+  padding: 4px;
+  max-height: 60vh;
+  overflow: auto;
+}
+.plm-menu-it {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 10px 5px 7px;
+  border: none;
+  background: none;
+  border-radius: 5px;
+  font: 12px/1.4 system-ui, sans-serif;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+.plm-menu-it:hover { background: var(--hover, #f2f4f7); }
+.plm-menu-on { font-weight: 600; }
+
+@media (max-width: 640px) {
+  .plm-panel { font-size: 13px; }
+  .plm-h { width: 13px; height: 13px; opacity: 1; }
+}

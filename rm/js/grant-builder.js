@@ -113,7 +113,7 @@
       + '<div class="pb-card-meta">'
       +   (g.agency ? '<span>' + esc(g.agency) + '</span>' : '<span>—</span>')
       +   (g.mechanism ? ' · <span>' + esc(g.mechanism) + '</span>' : '')
-      +   (deadline ? ' · <span title="Deadline">📅 ' + esc(deadline) + '</span>' : '')
+      +   (deadline ? ' · <span title="Deadline">' + ICON.svg('calendar-days') + ' ' + esc(deadline) + '</span>' : '')
       +   (daysLeft ? ' · <span class="pb-template-tag">' + esc(daysLeft) + '</span>' : '')
       + '</div>'
       + (g.tree && g.tree.meta && g.tree.meta.templateId

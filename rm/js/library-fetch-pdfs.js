@@ -142,10 +142,10 @@
           ${targets.length} paper(s) missing a PDF have an identifier and will be tried
           server-side (Unpaywall + arXiv + Europe PMC + Semantic Scholar + the publisher's
           PDF link — no CORS).${noId ? ` ${noId} more have no identifier and are skipped (add a DOI via ✎ first).` : ''}
-          Paywalled papers with no open-access copy won't be found here — use the ⬆ manual upload for those.
+          Paywalled papers with no open-access copy won't be found here — use the ${ICON.svg('arrow-up')} manual upload for those.
         </div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <button type="button" class="btn btn-primary" id="lfp-start" ${targets.length ? '' : 'disabled'}>▶ Start</button>
+          <button type="button" class="btn btn-primary" id="lfp-start" ${targets.length ? '' : 'disabled'}>${ICON.svg('play')} Start</button>
           <span id="lfp-status" style="font-size:12px;color:#6b7280;"></span>
         </div>
         <div id="lfp-counters" style="font-size:12px;margin-bottom:6px;"></div>
@@ -185,7 +185,7 @@
         ui.status('Failed: ' + (e.message || e));
       } finally {
         _running = false;
-        startBtn.textContent = '▶ Start';
+        ICON.label(startBtn, 'play', ' Start');
       }
     });
   }

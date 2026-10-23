@@ -72,11 +72,14 @@
       if (!T || !T.getActiveTab) return;
       var p = location.pathname;
       var file = p.substring(p.lastIndexOf('/') + 1);
-      var mine = file === 'my-day.html' ? 'myday'
+      // V3.638 — my-day.html is the retired name, kept as a redirect stub;
+      // match both so an old deep link doesn't resolve to 'misc'.
+      var mine = /^my-(day|week)\.html$/.test(file) ? 'myday'
         : file === 'team-focus.html' ? 'focus'
         : file === 'chat.html' ? 'chat'
         : /^tasks[a-z-]*\.html$/.test(file) ? 'tasks'
-        : /^library[a-z-]*\.html$/.test(file) ? 'library' : 'misc';
+        : /^library[a-z-]*\.html$/.test(file) ? 'library'
+        : /^inventory[a-z-]*\.html$/.test(file) ? 'inventory' : 'misc';   // V3.835
       T.getActiveTab().then(function (r) {
         if (!r || !r.key) return;
         if (r.key !== mine) {

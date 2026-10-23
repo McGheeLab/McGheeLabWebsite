@@ -155,7 +155,7 @@
       var cw = await loadCustomWorkflow(state.id);
       if (!cw) return null;
       return {
-        id: cw.id, label: cw.label, description: cw.description || '', icon: cw.icon || '⭐',
+        id: cw.id, label: cw.label, description: cw.description || '', icon: cw.icon || 'star',
         kind: 'custom',
         basePageIds: cw.pageIds || [],
         effectivePageIds: effectivePageIds(cw.pageIds || [], state),

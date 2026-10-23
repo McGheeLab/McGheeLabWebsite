@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V3.844 user actions selftest</title>
+<script>
+  // Stubs: a signed-in bridge whose Firestore is an in-memory map, and an
+  // INV_QTY with the real onLocalWrite contract. The real user-actions.js and
+  // inventory-use.js run on top; nothing touches the network.
+  window.__store = {};   // path → data
+  window.__writes = [];
+  function _doc(path) {
+    return {
+      id: path.split('/').pop(), path: path,
+      set: async function (data, opts) { window.__writes.push({ op: 'set', path: path, data: data, merge: !!(opts && opts.merge) }); window.__store[path] = Object.assign({}, (opts && opts.merge) ? window.__store[path] : {}, data); },
+      update: async function (data) { window.__writes.push({ op: 'update', path: path, data: data }); if (!window.__store[path]) throw new Error('no doc ' + path); Object.assign(window.__store[path], data); },
+      get: async function () { var d = window.__store[path]; return { exists: !!d, id: path.split('/').pop(), data: function () { return Object.assign({}, d); } }; },
+      collection: function (name) { return _col(path + '/' + name); },
+    };
+  }
+  function _col(path) {
+    var q = { _order: null, _limit: 0 };
+    q.doc = function (id) { return _doc(path + '/' + id); };
+    q.orderBy = function (f, dir) { q._order = { f: f, dir: dir }; return q; };
+    q.limit = function (n) { q._limit = n; return q; };
+    q.get = async function () {
+      var rows = Object.keys(window.__store).filter(function (k) { return k.indexOf(path + '/') === 0 && k.slice(path.length + 1).indexOf('/') < 0; }).map(function (k) { return { id: k.split('/').pop(), data: (function (d) { return function () { return Object.assign({}, d); }; })(window.__store[k]) }; });
+      if (q._order) rows.sort(function (a, b) { var x = a.data()[q._order.f] || '', y = b.data()[q._order.f] || ''; return (q._order.dir === 'desc' ? -1 : 1) * String(x).localeCompare(String(y)); });
+      if (q._limit) rows = rows.slice(0, q._limit);
+      return { docs: rows };
+    };
+    return q;
+  }
+  var firebridge = {
+    getUser: function () { return { uid: 'u1', displayName: 'Test User' }; },
+    getProfile: function () { return { initials: 'TU' }; },
+    db: function () { return { collection: _col, runTransaction: async function (fn) { return fn({ get: async function (ref) { return { exists: true, data: function () { return { id: ref.id, name: 'Mystery kit', quantity: 2, use_mode: 'per_use' }; } }; }, update: function () {}, set: function (ref, row) { window.__writes.push({ op: 'tx-set', path: ref.path, data: row }); } }); } }; },
+  };
+  window.firebase = { firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; }, arrayUnion: function () { return { arrayUnion: Array.prototype.slice.call(arguments) }; } } } };
+  var _lw = [];
+  window.INV_QTY = { onLocalWrite: function (fn) { _lw.push(fn); }, _fire: function (out) { _lw.forEach(function (f) { f(out); }); }, summary: function () { return ''; }, presets: function () { return []; }, routeFor: function () { return 'inventory'; } };
+</script>
+<script src="/rm/js/icons.js"></script>
+<script src="/rm/js/user-actions.js"></script>
+<script src="/rm/js/inventory-use.js"></script>
+<style> #r { font-family: ui-monospace, Menlo, monospace; font-size: 12px; white-space: pre-wrap; padding: 12px; } </style>
+</head>
+<body>
+<p>Serve the repo root (<code>python3 -m http.server 8778</code>) and open <code>/scripts/tests/v3844-actions-selftest.html</code>. The real user-actions.js on an in-memory Firestore. Result: <code>#r[data-done=1]</code>.</p>
+<div id="r"></div>
+<script>
+(async function () {
+  var r = document.getElementById('r'); var pass = 0, fail = 0;
+  function ok(name) { pass++; r.textContent += 'ok    ' + name + '\n'; }
+  function bad(name, d) { fail++; r.textContent += 'FAIL  ' + name + (d ? '  → ' + d : '') + '\n'; }
+  function eq(got, want, name) { var g = JSON.stringify(got), w = JSON.stringify(want); if (g === w) ok(name); else bad(name, 'got ' + g + ' want ' + w); }
+  function tick(ms) { return new Promise(function (res) { setTimeout(res, ms || 20); }); }
+  var P = 'userData/u1/actions/';
+  try {
+    // 1 — a ledger 'use' from any surface becomes an action; a recount does not
+    INV_QTY._fire({ event: 'use', itemId: 'ab', usageId: 'u1', qty: 2.5, unit: 'uL', delta: -2.5, after: 95.5, note: 'GELS', labelCode: 'MG-A7K2X', context: 'scan', useMode: 'per_use', item: { id: 'ab', name: 'Anti-tubulin' } });
+    INV_QTY._fire({ event: 'recount', itemId: 'ab', usageId: 'u2', qty: 100, unit: 'uL', delta: 4.5, after: 100, item: { id: 'ab', name: 'Anti-tubulin' } });
+    await tick(30);
+    eq(Object.keys(window.__store), [P + 'inv_u1'], 'onLocalWrite: the use is recorded at userData/{uid}/actions/inv_<usageId>; the recount is not');
+    var a = window.__store[P + 'inv_u1'];
+    eq([a.kind, a.status, a.itemName, a.qty, a.unit, a.note, a.labelCode, a.useMode, a.createdAt], ['inventory_use', 'new', 'Anti-tubulin', 2.5, 'uL', 'GELS', 'MG-A7K2X', 'per_use', 'TS'], 'the action carries the facts + a server stamp');
+    eq(window.__writes[0].merge, true, 'written with merge (a retry never doubles)');
+
+    // 2 — the log route in INV_USE.run records its own action
+    var res = await INV_USE.run({ id: 'mys', name: 'Mystery kit', use_mode: 'per_use', quantity: 2 }, INV_USE.plan({ id: 'mys', use_mode: 'per_use', quantity: 2 }, { kind: 'use' }), { note: 'test', context: 'scan' });
+    await tick(30);
+    var logKey = Object.keys(window.__store).filter(function (k) { return k.indexOf(P + 'inv_') === 0 && k !== P + 'inv_u1'; })[0];
+    eq(!!logKey, true, 'a log row records an action too');
+    eq(USER_ACTIONS.describe(window.__store[logKey]), 'Logged a use of Mystery kit', '… that reads as a logged use');
+
+    // 3 — a booking
+    await USER_ACTIONS.record(USER_ACTIONS.fromBooking('bk1', { equipmentId: 'conf', equipmentName: 'Confocal', date: '2099-01-05', startTime: '10:00', endTime: '12:00', durationMin: 120, notes: '' }));
+    eq(!!window.__store[P + 'eq_bk1'], true, 'eq_<bookingId>');
+    eq(USER_ACTIONS.describe(window.__store[P + 'eq_bk1']).indexOf('Booked the Confocal') === 0, true, 'a future booking reads Booked');
+
+    // 4 — list (newest first), pending, ignore / restore / markNoted
+    var list = await USER_ACTIONS.list();
+    eq(list.length, 3, 'list returns all three');
+    eq(list.map(function (x) { return x.id; })[0], 'eq_bk1', 'newest first');
+    await USER_ACTIONS.ignore('inv_u1');
+    eq(window.__store[P + 'inv_u1'].status, 'ignored', 'ignore → status ignored');
+    eq((await USER_ACTIONS.list()).map(function (x) { return x.id; }).indexOf('inv_u1'), -1, 'list leaves ignored out…');
+    eq((await USER_ACTIONS.list({ includeIgnored: true })).length, 3, '… unless asked');
+    await USER_ACTIONS.restore('inv_u1');
+    eq(window.__store[P + 'inv_u1'].status, 'new', 'restore → new');
+    await USER_ACTIONS.markNoted('inv_u1', { entryId: 'nb-1', cardId: 'card-9' });
+    var noted = window.__store[P + 'inv_u1'];
+    eq(noted.status, 'noted', 'markNoted → status noted');
+    eq(noted.notedIn && noted.notedIn.arrayUnion && noted.notedIn.arrayUnion[0].entryId === 'nb-1' && noted.notedIn.arrayUnion[0].cardId === 'card-9', true, '… with where it went (arrayUnion)');
+    eq(USER_ACTIONS.pending(await USER_ACTIONS.list({ includeIgnored: true })).map(function (x) { return x.id; }).indexOf('inv_u1'), -1, 'pending leaves a noted one out');
+    var got = await USER_ACTIONS.get('eq_bk1');
+    eq(got && got.id === 'eq_bk1' && got.equipmentName === 'Confocal', true, 'get(id)');
+    eq(await USER_ACTIONS.get('nope'), null, 'get(unknown) → null');
+
+    // 5 — onChange fires
+    var seen = [];
+    var off = USER_ACTIONS.onChange(function (k, x) { seen.push(k); });
+    await USER_ACTIONS.ignore('eq_bk1'); off();
+    eq(seen, ['status'], 'onChange(status)');
+  } catch (e) { bad('threw', e && (e.stack || e.message)); }
+  r.setAttribute('data-pass', pass); r.setAttribute('data-fail', fail); r.setAttribute('data-done', '1');
+  r.textContent += '\n' + pass + ' passed, ' + fail + ' failed';
+})();
+</script>
+</body>
+</html>

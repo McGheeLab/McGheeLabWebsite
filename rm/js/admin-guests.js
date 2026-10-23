@@ -118,15 +118,38 @@
     });
   }
 
+  // V3.634 — name the inviting teacher, not just the class. The association
+  // has to survive removal and class deletion, so it is read from every
+  // enrollment regardless of status, with the denormalized
+  // users/{uid}.teacherUids as the fallback when the enrollment is gone.
+  function teachersOf(u) {
+    var uids = enrollments
+      .filter(function (e) { return e.studentUid === u.uid && e.teacherUid; })
+      .map(function (e) { return e.teacherUid; })
+      .concat(Array.isArray(u.teacherUids) ? u.teacherUids : []);
+    var seen = {}, names = [];
+    uids.forEach(function (uid) {
+      if (seen[uid]) return;
+      seen[uid] = 1;
+      var t = users.find(function (x) { return x.uid === uid; });
+      names.push(t ? (t.name || t.email || uid) : uid);
+    });
+    return names;
+  }
+
   function contextFor(u) {
     var bucket = bucketOf(u);
     if (bucket === 'student') {
+      var teachers = teachersOf(u);
+      var via = teachers.length
+        ? '<div class="gst-sub">invited by ' + escHtml(teachers.join(', ')) + '</div>'
+        : '';
       var mine = enrollments.filter(function (e) { return e.studentUid === u.uid && e.status === 'active'; });
-      if (!mine.length) return '<span class="gst-sub">no active class</span>';
+      if (!mine.length) return '<span class="gst-sub">no active class</span>' + via;
       return mine.map(function (e) {
         var cls = classes.find(function (c) { return c.id === e.scheduleId; });
         return escHtml(cls ? (cls.title || e.scheduleId) : e.scheduleId);
-      }).join(', ');
+      }).join(', ') + via;
     }
     if (bucket === 'teacher') {
       var owned = classes.filter(function (c) { return c.ownerUid === u.uid; });

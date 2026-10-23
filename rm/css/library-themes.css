@@ -88,6 +88,56 @@
   margin-bottom: 14px;
 }
 
+/* V3.631 — "This topic underpins <focus cards>": the reverse half of the
+   ABOUT↔FOR bridge. A strip, not a .lt-section — it's one line of context
+   above the real content, not a fifth panel to scroll past. */
+.lt-foci {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: -4px 0 14px;
+}
+.lt-foci:empty { display: none; }
+.lt-foci-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  font-weight: 700;
+  color: #9ca3af;
+}
+.lt-foci-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 12px;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  color: #5b21b6;
+  text-decoration: none;
+  font-weight: 600;
+}
+.lt-foci-chip:hover { background: #ede9fe; border-color: #c4b5fd; }
+.lt-foci-level {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  font-weight: 600;
+  color: #7c3aed;
+  background: #ffffff;
+  border: 1px solid #ddd6fe;
+  border-radius: 7px;
+  padding: 0 5px;
+}
+.lt-foci-empty {
+  font-size: 11px;
+  color: #9ca3af;
+  font-style: italic;
+}
+.lt-foci-empty a { color: #7c3aed; }
+
 .lt-section {
   background: #fff;
   border: 1px solid #e5e7eb;

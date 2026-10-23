@@ -1,0 +1,709 @@
+<!-- V3.650 selftest — table builder: border +/- controls, live re-render,
+     drag-to-merge.  Drives the REAL editor against a real Y.Doc: builds the
+     grid, clicks the gutter buttons, drags across cells, presses Merge.
+
+     Run:
+       python3 -m http.server 8777
+       node ~/.claude/skills/browser-automation/browser.mjs \
+         http://localhost:8777/scripts/tests/v3650-selftest.html \
+         --wait "#r[data-done='1']" --eval "document.getElementById('r').dataset.fail" -->
+<!doctype html><html><head><meta charset="utf-8"><title>V3.650 selftest</title>
+<script>if (!/[?&]paper=/.test(location.search)) location.replace(location.pathname + "?paper=selftest");</script>
+<link rel="stylesheet" href="/rm/css/paper-editor.css">
+</head><body>
+<h1>V3.650 selftest</h1>
+<pre id="r" data-pass="0" data-fail="0" data-detail="">running…</pre>
+<div class="pe-topbar" hidden><input type="text" id="pe-title"><select id="pe-status"></select><div id="pe-savestate"></div></div>
+<div id="pe-readonly-banner" hidden></div><ul id="pe-outline"></ul>
+<button id="pe-add-section-btn"></button><button id="pe-appendix-btn"></button>
+<div id="pe-paragraph-skel"></div><select id="pe-view-filter"></select><select id="pe-status-filter"></select>
+<div id="pe-content" hidden></div>
+<div id="pe-global-toolbar"></div>
+<div class="pe-tab-editor-body" id="host" style="width:640px"></div>
+
+<script>
+  window.__errs = [];
+  addEventListener('error', function (e) {
+    window.__errs.push(e.message + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno);
+  });
+  /* A popup here would HANG the headless run (and V3.650's whole point is
+   * that this editor no longer raises any). Trip the test if one fires. */
+  window.alert   = function (m) { window.__errs.push('alert(): ' + m); };
+  window.confirm = function (m) { window.__errs.push('confirm(): ' + m); return false; };
+  window.prompt  = function (m) { window.__errs.push('prompt(): ' + m); return null; };
+</script>
+<script src="/rm/js/icons.js"></script>
+<script src="/rm/js/paper-layout-rules.js"></script>
+<script src="/rm/js/paper-schemas.js"></script>
+<script src="/rm/js/paper-editor.js"></script>
+<script src="/rm/js/paper-equations.js"></script>
+<script src="/rm/js/paper-export-tex.js"></script>
+<script type="module">
+import * as Y from 'https://cdn.jsdelivr.net/npm/yjs@13/+esm';
+
+var pass = 0, fail = 0, detail = [];
+function ck(name, got, want) {
+  var ok = JSON.stringify(got) === JSON.stringify(want);
+  if (ok) pass++; else { fail++; detail.push(name + ': got ' + JSON.stringify(got) + ' want ' + JSON.stringify(want)); }
+}
+function done() {
+  var r = document.getElementById('r');
+  r.dataset.pass = String(pass); r.dataset.fail = String(fail);
+  r.dataset.detail = detail.concat(window.__errs.map(function (e) { return 'UNCAUGHT: ' + e; })).join(' | ');
+  r.textContent = pass + ' pass, ' + fail + ' fail\n' + r.dataset.detail;
+  r.setAttribute('data-done', '1');
+}
+
+try {
+  var T = window.PaperEquations.__tblTest;
+  ck('test seam present', typeof T.buildTableEditorBody, 'function');
+
+  /* ── A. _tblShiftMerges — the piece that never existed ───────────── */
+  var SM = T.shiftMerges;
+  ck('insert a row ABOVE an anchor pushes it down',
+     SM({ '2-1': { rs: 2, cs: 1 } }, 'r', 'ins', 0), { '3-1': { rs: 2, cs: 1 } });
+  ck('insert a row BELOW an anchor leaves it alone',
+     SM({ '0-0': { rs: 2, cs: 1 } }, 'r', 'ins', 5), { '0-0': { rs: 2, cs: 1 } });
+  ck('insert a row THROUGH a merge grows its span',
+     SM({ '0-0': { rs: 3, cs: 1 } }, 'r', 'ins', 1), { '0-0': { rs: 4, cs: 1 } });
+  ck('delete a row after the anchor shrinks nothing',
+     SM({ '0-0': { rs: 2, cs: 2 } }, 'r', 'del', 4), { '0-0': { rs: 2, cs: 2 } });
+  ck('delete a row THROUGH a merge shrinks its span',
+     SM({ '0-0': { rs: 3, cs: 2 } }, 'r', 'del', 1), { '0-0': { rs: 2, cs: 2 } });
+  ck('delete the ANCHOR row keeps the anchor, one shorter',
+     SM({ '1-0': { rs: 2, cs: 1 } }, 'r', 'del', 1), { '1-0': { rs: 1, cs: 1 } }.rs ? null : {});
+  ck('a merge that decays to 1x1 stops being a merge',
+     SM({ '1-0': { rs: 2, cs: 1 } }, 'r', 'del', 1), {});
+  ck('…but a 2x2 losing a row is still a 1x2 merge',
+     SM({ '1-0': { rs: 2, cs: 2 } }, 'r', 'del', 1), { '1-0': { rs: 1, cs: 2 } });
+  ck('deleting a row BEFORE the anchor moves it up',
+     SM({ '3-0': { rs: 2, cs: 1 } }, 'r', 'del', 0), { '2-0': { rs: 2, cs: 1 } });
+  ck('the same maths on the column axis',
+     SM({ '0-2': { rs: 1, cs: 2 } }, 'c', 'ins', 0), { '0-3': { rs: 1, cs: 2 } });
+  ck('insert a column THROUGH a colspan grows it',
+     SM({ '0-0': { rs: 1, cs: 3 } }, 'c', 'ins', 2), { '0-0': { rs: 1, cs: 4 } });
+
+  /* ── B. a real Y.Doc holding a real table block ──────────────────── */
+  var doc = new Y.Doc();
+  var paperMap = doc.getMap('paper');
+  var sections = new Y.Array();
+  paperMap.set('sections', sections);
+  var sec = new Y.Map();
+  sections.push([sec]);
+  var children = new Y.Array();
+  sec.set('children', children);
+  var blk = new Y.Map();
+  children.push([blk]);
+  blk.set('kind', 'table');
+  blk.set('id', 'tbl1');
+  var attrs = new Y.Map();
+  blk.set('attrs', attrs);
+  attrs.set('rows', 3);
+  attrs.set('cols', 3);
+  var cells = new Y.Map();
+  attrs.set('cells', cells);
+  for (var r = 0; r < 3; r++) {
+    for (var c = 0; c < 3; c++) {
+      var t = new Y.Text();
+      cells.set(r + '-' + c, t);
+      t.insert(0, 'c' + r + c);
+    }
+  }
+  attrs.set('caption', new Y.Text(''));
+
+  window.PaperEditor.getY = function () { return Y; };
+  window.PaperEditor.getPaperMap = function () { return paperMap; };
+
+  var host = document.getElementById('host');
+  T.buildTableEditorBody(host, { blockId: 'tbl1' });
+
+  function grid()  { return host.querySelector('.pe-tblgrid'); }
+  function table() { return host.querySelector('table.pe-grid-table-edit'); }
+  function cellTds() { return Array.prototype.slice.call(table().querySelectorAll('td[data-r]')); }
+  function td(r, c) { return table().querySelector('td[data-r="' + r + '"][data-c="' + c + '"]'); }
+  /* A structural op REPLACES attrs.cells wholesale (a Y.Text cannot be
+   * moved between keys), so every read must go back through attrs — a
+   * stale handle on the original map reads null forever. */
+  function liveCells() { return attrs.get('cells'); }
+  function txt(r, c) { var t = liveCells().get(r + '-' + c); return t ? t.toString() : null; }
+  function shape() { return [attrs.get('rows'), attrs.get('cols')]; }
+  function fire(el, type, init) {
+    el.dispatchEvent(new MouseEvent(type, Object.assign({ bubbles: true, cancelable: true, button: 0 }, init || {})));
+  }
+
+  ck('grid mounted', !!grid(), true);
+  ck('3x3 renders 9 body cells', cellTds().length, 9);
+  ck('one gutter head per column', table().querySelectorAll('td.pe-tbl-colhead').length, 3);
+  ck('one gutter head per row', table().querySelectorAll('td.pe-tbl-rowhead').length, 3);
+  /* V3.652 — the controls belong to the LINE. A 3x3 grid has 4 column
+   * lines and 4 row lines, each carrying one cluster. */
+  function lineEl(axis, i) {
+    return grid().querySelector('.pe-tbl-line-' + axis + '[data-i="' + i + '"]');
+  }
+  ck('one hit strip per grid line, both axes',
+     [grid().querySelectorAll('.pe-tbl-line-c').length,
+      grid().querySelectorAll('.pe-tbl-line-r').length], [4, 4]);
+  ck('every line carries exactly one cluster',
+     grid().querySelectorAll('.pe-tbl-line .pe-tbl-lineclu').length, 8);
+  ck('…and no button is pinned to a cell any more',
+     table().querySelectorAll('td .pe-tbl-linebtn').length, 0);
+  ck('every cluster has a ＋', grid().querySelectorAll('.pe-tbl-lineclu .pe-tbl-ins').length, 8);
+  ck('every cluster has a −', grid().querySelectorAll('.pe-tbl-lineclu .pe-tbl-del').length, 8);
+  /* V3.653 — the cluster rides the MIDDLE of its line, on both axes. */
+  function cluOffset(axis, i) {
+    var strip = lineEl(axis, i);
+    var clu = strip.querySelector('.pe-tbl-lineclu');
+    var sb = strip.getBoundingClientRect(), cb = clu.getBoundingClientRect();
+    if (!sb.width || !cb.width) return null;   // not laid out
+    return {
+      alongLine: Math.round((cb.top + cb.height / 2) - (sb.top + sb.height / 2)),
+      acrossLine: Math.round((cb.left + cb.width / 2) - (sb.left + sb.width / 2)),
+    };
+  }
+  var cluC = cluOffset('c', 1), cluR = cluOffset('r', 1);
+  ck('a column line centres its cluster along the line, not at one end',
+     cluC && [Math.abs(cluC.alongLine) <= 1, Math.abs(cluC.acrossLine) <= 1], [true, true]);
+  ck('…and a row line does the same',
+     cluR && [Math.abs(cluR.alongLine) <= 1, Math.abs(cluR.acrossLine) <= 1], [true, true]);
+  ck('the cluster runs ALONG its line — stacked on a column border, in a row on a row border',
+     [getComputedStyle(lineEl('c', 1).querySelector('.pe-tbl-lineclu')).flexDirection,
+      getComputedStyle(lineEl('r', 1).querySelector('.pe-tbl-lineclu')).flexDirection],
+     ['column', 'row']);
+  ck('an inactive cluster cannot intercept a click meant for a cell',
+     getComputedStyle(lineEl('c', 1).querySelector('.pe-tbl-lineclu')).pointerEvents, 'none');
+  ck('…and even an ACTIVE cluster only takes clicks on its buttons, not on the ' +
+     'card behind them — it floats over cells',
+     (function () {
+       var clu = lineEl('c', 1).querySelector('.pe-tbl-lineclu');
+       lineEl('c', 1).classList.add('is-active');
+       var card = getComputedStyle(clu).pointerEvents;
+       var btn = getComputedStyle(clu.querySelector('.pe-tbl-ins')).pointerEvents;
+       lineEl('c', 1).classList.remove('is-active');
+       return [card, btn];
+     })(), ['none', 'auto']);
+  ck('…and the hit strips themselves never take pointer events, so there is no ' +
+     'dead band down every cell edge',
+     [getComputedStyle(lineEl('c', 1)).pointerEvents,
+      getComputedStyle(lineEl('r', 1)).pointerEvents], ['none', 'none']);
+
+  /* Nearest-line arbitration. Row and column strips CROSS at every
+   * intersection, so hovering must never light up two lines at once. */
+  function moveTo(x, y) {
+    grid().dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
+  }
+  function activeLines() { return grid().querySelectorAll('.pe-tbl-line.is-active').length; }
+  function activeLine() { return grid().querySelector('.pe-tbl-line.is-active'); }
+  var baseBox = grid().querySelector('.pe-tbl-lines').getBoundingClientRect();
+  var colHead1 = table().querySelector('td.pe-tbl-colhead[data-ch="1"]').getBoundingClientRect();
+  var rowHead1 = table().querySelector('td.pe-tbl-rowhead[data-rh="1"]').getBoundingClientRect();
+
+  moveTo(colHead1.left, rowHead1.top + rowHead1.height / 2);
+  ck('on a column line, exactly one line is active', activeLines(), 1);
+  ck('…and it is that column line',
+     activeLine() && [activeLine().dataset.axis, activeLine().dataset.i], ['c', '1']);
+  ck('…and it previews the column the − would take',
+     table().querySelectorAll('td.pe-band-peek[data-c="1"]').length > 0, true);
+
+  moveTo(colHead1.left + colHead1.width / 2, rowHead1.top);
+  ck('on a row line, still exactly one', activeLines(), 1);
+  ck('…and it is that row line',
+     activeLine() && [activeLine().dataset.axis, activeLine().dataset.i], ['r', '1']);
+  ck('…and the column peek was cleared, not left behind',
+     table().querySelectorAll('td.pe-band-peek[data-c="1"]:not([data-r="1"])').length, 0);
+
+  /* The crossing: both a row and a column line are within grabbing
+   * distance. Exactly one must win. */
+  moveTo(colHead1.left, rowHead1.top);
+  ck('at a crossing, ONE line wins — never two clusters at once', activeLines(), 1);
+
+  moveTo(baseBox.left + baseBox.width / 2, rowHead1.top + rowHead1.height / 2);
+  ck('in the middle of a cell, no line is active', activeLines(), 0);
+  ck('…and nothing is left peeked', table().querySelectorAll('td.pe-band-peek').length, 0);
+
+  ck('the ||| grip sits BETWEEN the ＋ and the −',
+     Array.prototype.map.call(lineEl('c', 1).querySelector('.pe-tbl-lineclu').children,
+       function (n) { return n.className.replace(/pe-tbl-(linebtn |lineclu )?/g, '').trim(); }),
+     ['ins', 'grip', 'del']);
+  /* V3.654 — BOTH axes carry a grip, on every line that has a band before
+   * it to resize. `\arraystretch` is per-table, so a row line stores
+   * \\[dim] instead: extra space after that one row. */
+  ck('both axes carry a grip, one per line that has a band before it',
+     [grid().querySelectorAll('.pe-tbl-line-c .pe-tbl-grip').length,
+      grid().querySelectorAll('.pe-tbl-line-r .pe-tbl-grip').length], [3, 3]);
+  ck('…but not on an opening edge, which has nothing before it',
+     [lineEl('c', 0).querySelector('.pe-tbl-grip'),
+      lineEl('r', 0).querySelector('.pe-tbl-grip')], [null, null]);
+  ck('a row grip reads as a row resize',
+     lineEl('r', 1).querySelector('.pe-tbl-grip').title.indexOf('height') >= 0, true);
+  ck('the grip sits between ＋ and − on a ROW line too',
+     Array.prototype.map.call(lineEl('r', 1).querySelector('.pe-tbl-lineclu').children,
+       function (n) { return n.className.replace(/pe-tbl-(linebtn |lineclu )?/g, '').trim(); }),
+     ['ins', 'grip', 'del']);
+  ck('the old + Row / + Col buttons are gone',
+     /\+ Row|\+ Col/.test(host.textContent), false);
+
+  /* ── C. INSERT in the middle, and the grid repaints with NO blur ── */
+  var before = grid();
+  lineEl('c', 1).querySelector('.pe-tbl-ins').click();
+  ck('inserting a column grew the table', shape(), [3, 4]);
+  ck('…and the DOM repainted immediately (no click-off needed)',
+     table().querySelectorAll('td.pe-tbl-colhead').length, 4);
+  ck('…it is a NEW grid element, i.e. a real re-render', grid() !== before, true);
+  ck('column 0 kept its text', [txt(0,0), txt(1,0), txt(2,0)], ['c00','c10','c20']);
+  ck('the inserted column is empty', [txt(0,1), txt(1,1), txt(2,1)], ['','','']);
+  ck('the old column 1 shifted right', [txt(0,2), txt(1,2), txt(2,2)], ['c01','c11','c21']);
+  ck('align gained a slot', (attrs.get('align') || '').length, 4);
+
+  /* Row insert at the end, via the closing edge's ＋. */
+  lineEl('r', 3).querySelector('.pe-tbl-ins').click();
+  ck('the outer + appends a row', shape(), [4, 4]);
+  ck('the appended row is empty', [txt(3,0), txt(3,3)], ['','']);
+
+  /* ── D. DELETE — empty band goes straight away, a band with text arms ── */
+  lineEl('r', 3).querySelector('.pe-tbl-del').click();
+  ck('deleting an EMPTY row needs no confirmation', shape(), [3, 4]);
+  ck('the closing edge deletes the band BEFORE it — the only one it touches',
+     [txt(0, 0), attrs.get('rows')], ['c00', 3]);
+
+  var delCol1 = lineEl('c', 0).querySelector('.pe-tbl-del');
+  delCol1.click();
+  ck('a column WITH text arms instead of deleting', shape(), [3, 4]);
+  ck('…and says so on the button', delCol1.dataset.armed, '1');
+  ck('…and marks the doomed band', table().querySelectorAll('td.pe-band-doomed').length > 0, true);
+  ck('…without any browser popup', window.__errs.length, 0);
+  lineEl('c', 0).querySelector('.pe-tbl-del').click();
+  ck('the second click deletes it', shape(), [3, 3]);
+  ck('the right column went — the empty one is now first',
+     [txt(0,0), txt(0,1), txt(0,2)], ['', 'c01', 'c02']);
+
+  /* Never let the last row/column be deleted. */
+  T.structOp(blk, attrs, 'c', 'del', 0);
+  T.structOp(blk, attrs, 'c', 'del', 0);
+  ck('down to one column', attrs.get('cols'), 1);
+  T.structOp(blk, attrs, 'c', 'del', 0);
+  ck('the last column cannot be deleted', attrs.get('cols'), 1);
+  ck('…and no − is rendered on either of its lines',
+     grid().querySelectorAll('.pe-tbl-line-c .pe-tbl-del').length, 0);
+
+  /* ── E. drag across cells → Merge appears; merged cell → Unmerge ── */
+  T.structOp(blk, attrs, 'c', 'ins', 1);
+  T.structOp(blk, attrs, 'c', 'ins', 2);
+  ck('back to 3x3', shape(), [3, 3]);
+  /* Re-seed known text: six structural ops have shuffled the originals,
+   * and "the covered cells kept their text" only means something if we
+   * know what the text was. */
+  blk.doc.transact(function () {
+    for (var sr = 0; sr < 3; sr++) {
+      for (var sc = 0; sc < 3; sc++) {
+        var cy = liveCells().get(sr + '-' + sc);
+        cy.delete(0, cy.length);
+        cy.insert(0, 'm' + sr + sc);
+      }
+    }
+  }, 'test-seed');
+
+  ck('nothing selected → no action bar', grid().querySelector('.pe-tbl-actbar').hidden, true);
+  fire(td(0, 0), 'mousedown');
+  ck('a single click selects one cell', table().querySelectorAll('td.pe-cell-selected').length, 1);
+  ck('…and offers formatting but no Merge/Unmerge, because neither applies',
+     /Merge/.test(grid().querySelector('.pe-tbl-actbar').textContent), false);
+
+  fire(td(0, 1), 'mouseenter');
+  fire(td(1, 1), 'mouseenter');
+  ck('dragging across cells extends the selection',
+     table().querySelectorAll('td.pe-cell-selected').length, 4);
+  var bar = grid().querySelector('.pe-tbl-actbar');
+  ck('Merge arises on its own once >1 cell is selected', bar.hidden, false);
+  ck('…and says what it will do', bar.textContent.indexOf('Merge 2×2') >= 0, true);
+  ck('Unmerge is NOT offered — there is nothing merged', bar.textContent.indexOf('Unmerge'), -1);
+  ck('the drag suppressed the browser text selection',
+     table().classList.contains('pe-tbl-dragging'), true);
+
+  bar.querySelector('.pe-tbl-actbtn').click();
+  ck('the merge was written', JSON.parse(attrs.get('merges_json')), { '0-0': { rs: 2, cs: 2 } });
+  ck('…and the grid repainted itself — 4 cells became 1',
+     table().querySelectorAll('td[data-r]').length, 6);
+  ck('the anchor spans 2x2', [td(0,0).rowSpan, td(0,0).colSpan], [2, 2]);
+  ck('covered cells keep their text for unmerge', [txt(0,1), txt(1,1)], ['m01','m11']);
+
+  fire(td(0, 0), 'mousedown');
+  var bar2 = grid().querySelector('.pe-tbl-actbar');
+  ck('clicking a merged cell arises Unmerge', bar2.textContent.indexOf('Unmerge') >= 0, true);
+  ck('…and does not offer to merge a single cell', bar2.textContent.indexOf('Merge'), -1);
+  bar2.querySelector('.pe-tbl-actbtn').click();
+  ck('unmerge cleared the attr', attrs.get('merges_json'), undefined);
+  ck('…and the 9 cells are back', table().querySelectorAll('td[data-r]').length, 9);
+  ck('…with their text intact', [txt(0,1), txt(1,0), txt(1,1)], ['m01','m10','m11']);
+
+  /* A drag that clips half a merge still yields a legal target. */
+  T.structOp(blk, attrs, 'r', 'ins', 3);            // 4x3 so there is room
+  blk.doc.transact(function () {
+    attrs.set('merges_json', JSON.stringify({ '1-1': { rs: 2, cs: 2 } }));
+  }, 'test');
+  fire(td(0, 0), 'mousedown');
+  fire(td(1, 1), 'mouseenter');                     // clips the merge's top-left
+  var bar3 = grid().querySelector('.pe-tbl-actbar');
+  ck('the rect grew to swallow the whole merge', bar3.textContent.indexOf('Merge 3×3') >= 0, true);
+  ck('…and offers to undo the one inside it', bar3.textContent.indexOf('Unmerge') >= 0, true);
+
+  /* ── F. typing must NOT trigger the structural re-render (V3.647) ── */
+  T.clearSelection();
+  blk.doc.transact(function () { attrs.delete('merges_json'); }, 'test');
+  var liveGrid = grid();
+  var firstCell = td(0, 0).querySelector('.pe-grid-cell');
+  blk.doc.transact(function () { liveCells().get('0-0').insert(0, 'X'); }, 'typing');
+  ck('a keystroke does not rebuild the grid', grid() === liveGrid, true);
+  ck('…so the cell element under the caret survives',
+     td(0, 0).querySelector('.pe-grid-cell') === firstCell, true);
+  /* Caption and notes are not structural either. */
+  blk.doc.transact(function () { attrs.set('notes', 'n = 3'); }, 'tab-notes');
+  ck('editing notes does not rebuild the grid', grid() === liveGrid, true);
+  /* …but a shape change from ANOTHER client does. */
+  blk.doc.transact(function () { attrs.set('header_row', false); }, 'remote');
+  ck('a remote shape change repaints', grid() !== liveGrid, true);
+
+  /* ── G. V3.651 — the shared style model ──────────────────────────── */
+  var PL = window.PaperLayout;
+  ck('parseTableStyle exported', typeof PL.parseTableStyle, 'function');
+  var d = PL.parseTableStyle(null, undefined);
+  ck('defaults are booktabs / normal / normal / unstriped',
+     [d.rules, d.size, d.density, d.zebra, d.rule_after, d.stretch], ['booktabs','normal','normal',false,[],1]);
+  ck('a pre-V3.651 booktabs:false table reads as rules:none',
+     PL.parseTableStyle(null, false).rules, 'none');
+  ck('the default style is recognised as a no-op', PL.tableStyleIsDefault(d), true);
+  ck('…and anything off-default is not',
+     PL.tableStyleIsDefault(PL.parseTableStyle('{"zebra":true}', true)), false);
+  ck('garbage json falls back to defaults', PL.parseTableStyle('{{{', true).rules, 'booktabs');
+  ck('an unknown size/density is rejected, not passed through',
+     [PL.parseTableStyle('{"size":"huge","density":"squished"}', true).size,
+      PL.parseTableStyle('{"size":"huge","density":"squished"}', true).density], ['normal','normal']);
+  ck('rule_after is sorted and deduped',
+     PL.parseTableStyle('{"rule_after":[3,1,3,-2]}', true).rule_after, [1,3]);
+  ck('empty cell styles are dropped, not stored',
+     PL.parseTableCellStyles('{"0-0":{},"0-1":{"b":1}}'), { '0-1': { b: 1 } });
+  ck('an unknown fill name is rejected',
+     PL.parseTableCellStyles('{"0-0":{"bg":"chartreuse"}}'), {});
+  ck('cell styles shift on a row insert',
+     PL.shiftTableCellStyles({ '2-1': { b: 1 } }, 'r', 'ins', 0), { '3-1': { b: 1 } });
+  ck('…and the styled cell goes with its deleted row',
+     PL.shiftTableCellStyles({ '2-1': { b: 1 }, '3-0': { i: 1 } }, 'r', 'del', 2), { '2-0': { i: 1 } });
+  ck('rule_after shifts on a row insert',
+     PL.shiftTableRuleAfter([0, 2], 'r', 'ins', 1), [0, 3]);
+  ck('…and a column op leaves it alone',
+     PL.shiftTableRuleAfter([0, 2], 'c', 'del', 1), [0, 2]);
+
+  /* ── H. styling through the real editor ──────────────────────────── */
+  T.clearSelection();
+  /* Every control click rebuilds the body, so re-query rather than
+   * holding a handle across a repaint. */
+  function styleBar() { return host.querySelector('.pe-table-stylebar'); }
+  function lineBtn(i) {
+    return styleBar().querySelectorAll('.pe-tbl-stylegrp')[0]
+      .querySelectorAll('.pe-table-align-btn')[i];
+  }
+  function styleSel(i) { return host.querySelectorAll('.pe-tbl-style-sel')[i]; }
+  function pick(sel, v) { sel.value = v; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+
+  ck('the lone booktabs checkbox became three named presets',
+     styleBar().querySelectorAll('.pe-tbl-stylegrp').length >= 3, true);
+  ck('three line presets', [lineBtn(0).textContent, lineBtn(1).textContent, lineBtn(2).textContent],
+     ['booktabs','grid','none']);
+  ck('booktabs is the active one', lineBtn(0).classList.contains('active'), true);
+  ck('the editor grid shows it', table().classList.contains('pe-tbl-rules-booktabs'), true);
+  lineBtn(1).click();
+  ck('picking grid repaints the grid', table().classList.contains('pe-tbl-rules-grid'), true);
+  ck('…clears the legacy booktabs flag', attrs.get('booktabs'), false);
+  ck('…and stores it', JSON.parse(attrs.get('style_json')).rules, 'grid');
+  lineBtn(0).click();
+  ck('back to booktabs sets the legacy flag true', attrs.get('booktabs'), true);
+  ck('…and the attr is deleted again, so an untouched table stays clean',
+     attrs.get('style_json'), undefined);
+
+  pick(styleSel(0), 'footnote');
+  ck('font size stored', JSON.parse(attrs.get('style_json')).size, 'footnote');
+  pick(styleSel(1), 'roomy');
+  ck('row height stored', JSON.parse(attrs.get('style_json')).density, 'roomy');
+  ck('…and the grid shows it', table().classList.contains('pe-tbl-dens-roomy'), true);
+  pick(styleSel(0), 'normal');
+  pick(styleSel(1), 'normal');
+
+  /* Cell formatting off the selection. */
+  fire(td(0, 0), 'mousedown');
+  fire(td(0, 1), 'mouseenter');
+  var abar = grid().querySelector('.pe-tbl-actbar');
+  ck('styling buttons ride the merge selection',
+     abar.querySelectorAll('.pe-tbl-actbtn-style').length >= 5, true);
+  ck('…and a swatch per fill', abar.querySelectorAll('.pe-tbl-fillbtn').length, 5);
+  var boldBtn = Array.prototype.slice.call(abar.querySelectorAll('.pe-tbl-actbtn-style'))
+    .filter(function (b) { return b.textContent === 'B'; })[0];
+  boldBtn.click();
+  ck('bold written for every selected cell',
+     PL.parseTableCellStyles(attrs.get('cell_styles_json')), { '0-0': { b: 1 }, '0-1': { b: 1 } });
+  ck('…and painted', [td(0,0).classList.contains('pe-cell-b'),
+                      td(0,1).classList.contains('pe-cell-b')], [true, true]);
+  /* The selection survives the restyle, so the button toggles off. */
+  var abar2 = grid().querySelector('.pe-tbl-actbar');
+  var boldBtn2 = Array.prototype.slice.call(abar2.querySelectorAll('.pe-tbl-actbtn-style'))
+    .filter(function (b) { return b.textContent === 'B'; })[0];
+  ck('the button reads as active now', boldBtn2.classList.contains('active'), true);
+  boldBtn2.click();
+  ck('pressing it again clears it, attr and all', attrs.get('cell_styles_json'), undefined);
+
+  fire(td(1, 1), 'mousedown');
+  var fillBtn = grid().querySelector('.pe-tbl-actbar .pe-tbl-fillbtn');
+  fillBtn.click();
+  ck('a fill is stored by NAME, not by colour',
+     PL.parseTableCellStyles(attrs.get('cell_styles_json')), { '1-1': { bg: 'grey' } });
+  ck('…and painted', td(1,1).classList.contains('pe-cell-filled'), true);
+
+  /* Row selection from the gutter head, then the rule under it. */
+  fire(table().querySelector('td.pe-tbl-rowhead[data-rh="1"]'), 'mousedown');
+  ck('clicking a row head selects the whole row',
+     table().querySelectorAll('td.pe-cell-selected').length, 3);
+  var ruleBtn = Array.prototype.slice.call(grid().querySelectorAll('.pe-tbl-actbtn-style'))
+    .filter(function (b) { return /rule/.test(b.textContent); })[0];
+  ck('a whole-row selection offers the rule under it', !!ruleBtn, true);
+  ruleBtn.click();
+  ck('the rule is stored on the table style',
+     PL.parseTableStyle(attrs.get('style_json'), attrs.get('booktabs')).rule_after, [1]);
+  ck('…and drawn', table().querySelector('tr.pe-tbl-ruled') !== null, true);
+  /* …and it moves when a row is inserted above it. */
+  T.structOp(blk, attrs, 'r', 'ins', 0);
+  ck('the rule followed its row',
+     PL.parseTableStyle(attrs.get('style_json'), attrs.get('booktabs')).rule_after, [2]);
+  ck('…and so did the shaded cell',
+     Object.keys(PL.parseTableCellStyles(attrs.get('cell_styles_json'))), ['2-1']);
+
+  /* Column head selects the column. */
+  fire(table().querySelector('td.pe-tbl-colhead[data-ch="0"]'), 'mousedown');
+  ck('clicking a column head selects the whole column',
+     table().querySelectorAll('td.pe-cell-selected').length, attrs.get('rows'));
+
+  /* ── I. it has to COMPILE — the .tex the styling emits ───────────── */
+  var TX = window.PaperExportTex;
+  function tex(styleObj, cellObj, extra) {
+    return TX.blockToTex({
+      kind: 'table', id: 'tbl1',
+      attrs: Object.assign({
+        rows: 2, cols: 2, caption: 'Cap',
+        cells: { '0-0': 'h1', '0-1': 'h2', '1-0': 'a', '1-1': 'b' },
+        align: 'll',
+        style_json: styleObj ? JSON.stringify(styleObj) : undefined,
+        cell_styles_json: cellObj ? JSON.stringify(cellObj) : undefined,
+      }, extra || {}),
+    }, {});
+  }
+  var plain = tex(null, null);
+  ck('an unstyled table still emits booktabs rules',
+     [/\\toprule/.test(plain), /\\midrule/.test(plain), /\\bottomrule/.test(plain)],
+     [true, true, true]);
+  /* V3.652 changed one default on purpose — tables wrap now — so the
+   * byte-identical claim is scoped to wrap:false from here on. */
+  ck('…and no styling commands beyond the wrap default',
+     /arraystretch|rowcolors|cellcolor|textbf|hline|footnotesize/.test(plain), false);
+  ck('a wrap:false table is byte-identical to the pre-V3.651 output',
+     /arraystretch|rowcolors|cellcolor|textbf|hline|footnotesize|p\{/
+       .test(tex({ wrap: false })), false);
+  var gridTex = tex({ rules: 'grid', wrap: false });
+  ck('grid rules put bars in the colspec', /\\begin\{tabular\}\{\|l\|l\|\}/.test(gridTex), true);
+  ck('…and \\hline instead of booktabs rules',
+     [/\\hline/.test(gridTex), /toprule/.test(gridTex)], [true, false]);
+  ck('grid + wrap puts the bars around the p{} columns',
+     /\\begin\{tabular\}\{\|>\{\\raggedright\\arraybackslash\}p\{[^}]*\}\|>/.test(tex({ rules: 'grid' })), true);
+  var noneTex = tex({ rules: 'none' });
+  ck('rules:none emits no rules at all', /toprule|hline|midrule/.test(noneTex), false);
+  var sizedTex = tex({ size: 'footnote', density: 'roomy' });
+  ck('font size lands inside the float', /\\footnotesize/.test(sizedTex), true);
+  ck('row height becomes arraystretch',
+     /\\renewcommand\{\\arraystretch\}\{1\.25\}/.test(sizedTex), true);
+  var zebTex = tex({ zebra: true });
+  ck('striping starts BELOW the header row', /\\rowcolors\{2\}\{\}\{black!4\}/.test(zebTex), true);
+  ck('…and starts at row 1 when there is no header row',
+     /\\rowcolors\{1\}/.test(tex({ zebra: true }, null, { header_row: false })), true);
+  var cellTex = tex(null, { '0-0': { b: 1, i: 1 }, '1-1': { bg: 'yellow', al: 'c' } });
+  ck('bold + italic nest around the cell', /\\textit\{\\textbf\{h1\}\}/.test(cellTex), true);
+  ck('a per-cell align becomes multicolumn{1}',
+     /\\multicolumn\{1\}\{c\}\{/.test(cellTex), true);
+  /* \multicolumn must be the WHOLE cell and \cellcolor must be first
+   * INSIDE it — the other order is a "Misplaced \multicolumn" error. */
+  ck('a fill sits inside the alignment override, not before it',
+     /& \\multicolumn\{1\}\{c\}\{\\cellcolor\{yellow!22\}b\}/.test(cellTex), true);
+  ck('…so nothing ever precedes multicolumn in a cell',
+     /\\cellcolor[^&\n]*\\multicolumn/.test(cellTex), false);
+  /* Three rows, so "under row 1" is a rule the header \midrule has not
+   * already drawn and the \bottomrule is not about to. */
+  function tex3(styleObj) {
+    return TX.blockToTex({
+      kind: 'table', id: 'tbl3',
+      attrs: {
+        rows: 3, cols: 2, caption: 'Cap',
+        cells: { '0-0': 'h1', '0-1': 'h2', '1-0': 'a', '1-1': 'b', '2-0': 'c', '2-1': 'd' },
+        style_json: JSON.stringify(Object.assign({ wrap: false }, styleObj || {})),
+      },
+    }, {});
+  }
+  ck('an extra rule emits a midrule under that row',
+     (tex3({ rule_after: [1] }).match(/\\midrule/g) || []).length, 2);
+  ck('a rule on the LAST row is dropped — \\bottomrule already draws it',
+     (tex3({ rule_after: [2] }).match(/\\midrule/g) || []).length, 1);
+  ck('…but rules:none keeps it, since nothing else closes the table',
+     (tex3({ rules: 'none', rule_after: [2] }).match(/\\hline/g) || []).length, 1);
+  var ltTex = tex({ size: 'small', zebra: true }, null, { longtable: true });
+  ck('longtable wraps its styling in a group',
+     [/\\begingroup/.test(ltTex), /\\endgroup/.test(ltTex)], [true, true]);
+  ck('…so \\small cannot leak into the body text',
+     ltTex.indexOf('\\small') > ltTex.indexOf('\\begingroup'), true);
+
+  /* ── J. V3.652 — wrapping by default, and dragging a column width ── */
+  ck('wrap is on unless the table says otherwise', PL.parseTableStyle(null, true).wrap, true);
+  ck('…and can be turned off', PL.parseTableStyle('{"wrap":false}', true).wrap, false);
+  ck('wrap:true is still the DEFAULT style, so the attr stays deleted',
+     PL.tableStyleIsDefault(PL.parseTableStyle('{"wrap":true}', true)), true);
+  ck('…but wrap:false is not', PL.tableStyleIsDefault(PL.parseTableStyle('{"wrap":false}', true)), false);
+
+  ck('unsized columns split the line equally',
+     PL.tableColShares(null, 4).map(function (w) { return w.v; }), [0.25, 0.25, 0.25, 0.25]);
+  ck('a sized column takes its share out of the budget first',
+     PL.tableColShares([{ mode: 'frac', v: 0.5 }, { mode: 'auto' }, { mode: 'auto' }], 3)
+       .map(function (w) { return w.v; }), [0.5, 0.25, 0.25]);
+  ck('over-committed widths still leave a usable minimum, never 0 or negative',
+     PL.tableColShares([{ mode: 'frac', v: 0.99 }, { mode: 'auto' }], 2)[1].v, 0.05);
+
+  /* The editor draws it: fixed layout is what makes a cell wrap instead of
+   * widening its column, and it needs a width on every column. */
+  ck('the wrapping grid is fixed-layout', table().classList.contains('pe-tbl-wrap'), true);
+  ck('…and carries a colgroup covering the gutter + every column',
+     table().querySelector('colgroup').children.length, attrs.get('cols') + 1);
+  var wrapCb2 = Array.prototype.slice.call(host.querySelectorAll('.pe-table-style-cb'))
+    .filter(function (l) { return /wrap text/.test(l.textContent); })[0];
+  ck('there is a wrap toggle', !!wrapCb2, true);
+  wrapCb2.querySelector('input').checked = false;
+  wrapCb2.querySelector('input').dispatchEvent(new Event('change', { bubbles: true }));
+  ck('turning it off drops fixed layout', table().classList.contains('pe-tbl-wrap'), false);
+  ck('…and is stored', JSON.parse(attrs.get('style_json')).wrap, false);
+  var wrapCb3 = Array.prototype.slice.call(host.querySelectorAll('.pe-table-style-cb'))
+    .filter(function (l) { return /wrap text/.test(l.textContent); })[0];
+  wrapCb3.querySelector('input').checked = true;
+  wrapCb3.querySelector('input').dispatchEvent(new Event('change', { bubbles: true }));
+  ck('back on, and only the row rule from earlier is still stored',
+     JSON.parse(attrs.get('style_json')), { rules: 'booktabs', size: 'normal',
+       density: 'normal', zebra: false, wrap: true, rule_after: [2] });
+
+  /* Dragging a grip writes the same widths_json the dropdown writes. */
+  function dragGrip(lineIdx, dx) {
+    var g = lineEl('c', lineIdx).querySelector('.pe-tbl-grip');
+    var r = g.getBoundingClientRect();
+    g.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true,
+      clientX: r.left + 6, clientY: r.top + 6, button: 0 }));
+    document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true,
+      clientX: r.left + 6 + dx, clientY: r.top + 6 }));
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true,
+      clientX: r.left + 6 + dx, clientY: r.top + 6 }));
+  }
+  dragGrip(1, 60);
+  var dragged = PL.parseTableWidths(attrs.get('widths_json'), attrs.get('cols'));
+  ck('dragging a grip sizes the column on its LEFT', dragged[0].mode, 'frac');
+  ck('…wider than the equal share it started at', dragged[0].v > 0.34, true);
+  ck('…and leaves the others alone', [dragged[1].mode, dragged[2].mode], ['auto', 'auto']);
+  dragGrip(1, -4000);
+  ck('a drag past the edge clamps instead of collapsing the column',
+     PL.parseTableWidths(attrs.get('widths_json'), attrs.get('cols'))[0].v, 0.05);
+  blk.doc.transact(function () { attrs.delete('widths_json'); }, 'test-reset');
+
+  /* And it has to compile. */
+  ck('a wrapping table emits p{} columns, not l',
+     /\\begin\{tabular\}\{>\{\\raggedright\\arraybackslash\}p\{\\dimexpr 0\.5\\linewidth-2\\tabcolsep\\relax\}/
+       .test(tex(null, null)), true);
+  ck('…\\raggedright, because a narrow justified column is rivers of space',
+     (tex(null, null).match(/raggedright/g) || []).length, 2);
+  ck('…and \\dimexpr takes off the two \\tabcolsep gutters, or it overruns the line',
+     /-2\\tabcolsep\\relax/.test(tex(null, null)), true);
+  var noWrapTex = tex({ wrap: false });
+  ck('wrap:false is the old byte-identical l-column output',
+     /\\begin\{tabular\}\{ll\}/.test(noWrapTex), true);
+  ck('…with no p{} anywhere', /p\{/.test(noWrapTex), false);
+  ck('an explicitly sized column keeps its own width when wrapping',
+     /p\{\\dimexpr 0\.25\\linewidth/.test(
+       tex(null, null, { widths_json: JSON.stringify([{ mode: 'frac', v: 0.25 }, { mode: 'auto' }]) })), true);
+  ck('centre-aligned wrapping columns use \\centering, not \\raggedright',
+     /\\centering\\arraybackslash\}p\{/.test(tex(null, null, { align: 'cc' })), true);
+
+  /* ── K. V3.654 — dragging a horizontal line adds row height ──────── */
+  ck('parseTableRowExtras exported', typeof PL.parseTableRowExtras, 'function');
+  ck('points are kept to one decimal', PL.parseTableRowExtras('{"1":6.44}'), { '1': 6.4 });
+  ck('zero and negative are dropped, not stored as no-ops',
+     PL.parseTableRowExtras('{"0":0,"1":-3,"2":4}'), { '2': 4 });
+  ck('a runaway value is clamped rather than pushing the table off the page',
+     PL.parseTableRowExtras('{"0":9000}')['0'], PL.TABLE_ROW_EXTRA_MAX_PT);
+  ck('non-numeric keys are ignored', PL.parseTableRowExtras('{"a":6}'), {});
+  ck('garbage json is empty, not a throw', PL.parseTableRowExtras('{{{'), {});
+  ck('extras shift on a row insert', PL.shiftTableRowExtras({ '2': 6 }, 'r', 'ins', 0), { '3': 6 });
+  ck('…go with the row they belong to on delete',
+     PL.shiftTableRowExtras({ '1': 6, '2': 8 }, 'r', 'del', 1), { '1': 8 });
+  ck('…and a column op leaves them alone',
+     PL.shiftTableRowExtras({ '1': 6 }, 'c', 'del', 0), { '1': 6 });
+
+  /* Drag a row grip for real. */
+  function dragRowGrip(lineIdx, dy) {
+    var g = lineEl('r', lineIdx).querySelector('.pe-tbl-grip');
+    var r = g.getBoundingClientRect();
+    g.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true,
+      clientX: r.left + 6, clientY: r.top + 6, button: 0 }));
+    document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true,
+      clientX: r.left + 6, clientY: r.top + 6 + dy }));
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true,
+      clientX: r.left + 6, clientY: r.top + 6 + dy }));
+  }
+  dragRowGrip(1, 24);
+  var ext = PL.parseTableRowExtras(attrs.get('row_heights_json'));
+  ck('dragging a row grip adds height to the row ABOVE it', Object.keys(ext), ['0']);
+  ck('…in points, not pixels', Math.abs(ext['0'] - 24 * 72 / 96) < 0.2, true);
+  ck('…and the grid paints it as space under that row',
+     table().querySelector('tr.pe-tbl-rowext').style.getPropertyValue('--pe-row-extra').length > 0, true);
+  dragRowGrip(1, -400);
+  ck('dragging back past zero clears the attr entirely',
+     attrs.get('row_heights_json'), undefined);
+  dragRowGrip(1, 24);
+  T.structOp(blk, attrs, 'r', 'ins', 0);
+  ck('the extra height followed its row through an insert',
+     Object.keys(PL.parseTableRowExtras(attrs.get('row_heights_json'))), ['1']);
+  blk.doc.transact(function () { attrs.delete('row_heights_json'); }, 'test-reset');
+
+  /* And it compiles. */
+  function texRow(extras) {
+    return TX.blockToTex({
+      kind: 'table', id: 'tblr',
+      attrs: {
+        rows: 3, cols: 2, caption: 'Cap',
+        cells: { '0-0': 'h1', '0-1': 'h2', '1-0': 'a', '1-1': 'b', '2-0': 'c', '2-1': 'd' },
+        style_json: JSON.stringify({ wrap: false }),
+        row_heights_json: extras ? JSON.stringify(extras) : undefined,
+      },
+    }, {});
+  }
+  ck('extra row height becomes the row terminator \\[Npt]',
+     /a & b \\\\\[6pt\]/.test(texRow({ '1': 6 })), true);
+  ck('…on that row only', (texRow({ '1': 6 }).match(/\\\\\[/g) || []).length, 1);
+  ck('…composed with the \\\\ the row already ends in, never added after it',
+     /\\\\ \\\\\[/.test(texRow({ '1': 6 })), false);
+  ck('no extras means the plain row terminator, byte-identical to before',
+     /\\\\\[/.test(texRow(null)), false);
+  ck('it works on the last row too, before the \\bottomrule',
+     /c & d \\\\\[8pt\]\n\s*\\bottomrule/.test(texRow({ '2': 8 })), true);
+
+  /* Dump the emitted .tex into the DOM so the headless run can read it
+   * (page globals are invisible from the isolated world). */
+  var dbg = document.createElement('pre');
+  dbg.id = 'tex';
+  dbg.textContent = '--- cellTex ---\n' + cellTex +
+    '\n--- rule under row 1 ---\n' + tex3({ rule_after: [1] }) +
+    '\n--- 6pt under row 1 ---\n' + texRow({ '1': 6 });
+  document.body.appendChild(dbg);
+
+  ck('no popups and no uncaught errors', window.__errs, []);
+} catch (err) {
+  fail++; detail.push('THREW: ' + (err && err.stack || err));
+}
+done();
+</script>
+</body></html>

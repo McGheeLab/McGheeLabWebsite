@@ -305,7 +305,7 @@
       +       esc(c.title || ('Contribution ' + (idx + 1)))
       +     '</div>'
       +     '<div class="gd-contribution-actions">'
-      +       '<button data-gd-action="remove-contribution" data-idx="' + idx + '">×</button>'
+      +       '<button data-gd-action="remove-contribution" data-idx="' + idx + '">' + ICON.svg('x-mark') + '</button>'
       +     '</div>'
       +   '</div>'
       +   '<div contenteditable="true" data-gd-edit-contrib="narrative" data-idx="' + idx + '" '
@@ -356,7 +356,7 @@
         +       esc(s || '')
         +     '</div>'
         +     '<div class="gd-contribution-actions">'
-        +       '<button data-gd-action="remove-synact" data-idx="' + idx + '">×</button>'
+        +       '<button data-gd-action="remove-synact" data-idx="' + idx + '">' + ICON.svg('x-mark') + '</button>'
         +     '</div>'
         +   '</div>'
         + '</div>';

@@ -121,9 +121,8 @@
       const done = (checked === total);
       bar.classList.toggle('is-done', done);
       progress.classList.toggle('is-done', done);
-      progress.textContent = done
-        ? '✅ All four jobs covered — your Discussion will read as deliberate, not as filler.'
-        : checked + ' of ' + total + ' covered';
+      if (done) ICON.label(progress, 'check-circle', ' All four jobs covered — your Discussion will read as deliberate, not as filler.');
+      else progress.textContent = checked + ' of ' + total + ' covered';
     }
     checkboxes.forEach(box => box.addEventListener('change', refresh));
     refresh();

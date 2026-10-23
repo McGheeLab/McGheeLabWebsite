@@ -6,9 +6,11 @@
   <title>Radiation &amp; Color — Heat Transfer Foundations</title>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
   <style>
-    /* ===== house CSS — Heat Transfer Foundations ===== */
+    /* ===== house CSS — Heat Transfer Foundations (outreach house style) ===== */
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    /* One-glyph alias: most system fonts lack U+221D (∝) and fall back to a near-invisible glyph. */
+    @font-face{font-family:'PropSign';src:local('STIX Two Math Regular'),local('STIXTwoMath-Regular'),local('STIXGeneral-Regular'),local('Cambria Math'),local('CambriaMath'),local('Noto Sans Math Regular'),local('NotoSansMath-Regular'),local('Segoe UI Symbol'),local('SegoeUISymbol'),local('DejaVu Sans'),local('Menlo Regular'),local('Menlo-Regular');unicode-range:U+221D}
+    body{font-family:PropSign,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
       background:#f4f6fa;color:#1e293b;line-height:1.6}
     header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
     header h1{font-size:1.6rem;letter-spacing:.01em}
@@ -37,6 +39,17 @@
     .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
       font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
     .key-takeaways ul{margin-left:20px}
+    .plain{background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #0d9488;border-radius:6px;
+      padding:10px 14px;margin:12px 0}
+    .plain::before{content:"In plain words";display:block;font-weight:700;color:#0f766e;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+    ul.letters{margin:6px 0 12px 22px;font-size:.92rem;color:#334155}
+    ul.letters li{margin:3px 0}
+    ul.letters b{color:#1e3a5f}
+    .later{font-size:.88rem;color:#64748b;border-left:3px solid #cbd5e1;padding:2px 0 2px 10px;margin:10px 0}
+    .worked-example ol{margin:6px 0 4px 22px}
+    .worked-example li{margin:4px 0}
+    .worked-example p{margin:4px 0}
     .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
       padding:12px 16px;margin:14px 0}
     .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
@@ -74,6 +87,9 @@
       font-size:.85rem;color:#475569;margin-top:8px}
     .sources h3{color:#1e3a5f;font-size:1rem;margin-bottom:8px}
     .sources ul{margin-left:20px}
+    table.props{border-collapse:collapse;margin:12px 0;font-size:.88rem}
+    table.props th,table.props td{border:1px solid #cbd5e1;padding:5px 12px;text-align:left}
+    table.props th{background:#eff6ff}
     footer{text-align:center;color:#64748b;font-size:.85rem;padding:24px}
     @media(max-width:820px){
       .panel{grid-template-columns:1fr}
@@ -117,11 +133,21 @@
     all: the energy rides an electromagnetic wave — in particle language, a stream of
     <b>photons</b> — and crosses even a perfect vacuum. It's how the sun's heat reaches us
     through 150 million kilometers of empty space.</p>
-    <p>What happens on arrival? Call the arriving power per square meter \(G\) (the
-    <b>irradiance</b>, in W/m²). Each surface has an <b>absorptivity</b> \(\alpha\) ("alpha"):
-    the fraction of the arriving light it swallows. The rest, \(1-\alpha\), bounces off as
-    reflected light and carries its energy elsewhere. Fresh black paint has \(\alpha\approx0.95\);
-    a good mirror is down near 0.05. That single number is what "color" means to heat.</p>
+    <div class="plain">
+      What happens on arrival? Every surface keeps a certain <b>fraction</b> of the light that lands on
+      it — that fraction is what "colour" means to heat. Fresh black paint keeps about 95%; white paint
+      about 25%; a good mirror only 5%. The rest bounces off and carries its energy elsewhere.
+    </div>
+    <div class="equation-box">
+      $$ \underbrace{G}_{\text{arriving light, W/m}^2} \;\longrightarrow\;
+         \underbrace{\alpha\,G}_{\text{absorbed — becomes jiggle}} \;+\;
+         \underbrace{(1-\alpha)\,G}_{\text{reflected — bounces away}} $$
+    </div>
+    <ul class="letters">
+      <li><b>G</b> — the arriving power per square metre (the <b>irradiance</b>), W/m². Strong summer sun is about 1000.</li>
+      <li><b>α</b> — "alpha", the <b>absorptivity</b>: the fraction kept, from 0 to 1. Black ≈ 0.95, white paint ≈ 0.25, mirror ≈ 0.05.</li>
+      <li><b>αG</b> — the watts absorbed per square metre; <b>(1 − α)G</b> — the watts reflected.</li>
+    </ul>
     <p><b>Put on the atomic lens</b> one last time. When a photon is absorbed, its energy has
     exactly one place to go: into the <b>jiggle</b> of the atoms that caught it (Lesson 1's
     definition of heat). And the photon was <em>born</em> the same way — somewhere in the sun, a
@@ -129,30 +155,19 @@
     it is <b>jiggle that left a hot object as a wave, flew in a straight line, and became jiggle
     again on landing</b>. Watch the sim: every absorbed photon makes the surface atoms visibly
     shake harder.</p>
-    <div class="equation-box">
-      $$ \underbrace{G}_{\text{arriving light, W/m}^2} \;\longrightarrow\;
-         \underbrace{\alpha\,G}_{\text{absorbed — becomes jiggle}} \;+\;
-         \underbrace{(1-\alpha)\,G}_{\text{reflected — bounces away}} $$
-    </div>
     <div class="worked-example">
-      <p>Stand a panel in strong summer sun: \(G = 1000\ \text{W/m}^2\) is a good midsummer-noon
-      number. Painted black (\(\alpha = 0.95\)) it absorbs
-      \(\alpha G = 0.95 \times 1000 = 950\ \text{W}\) on every square meter — very nearly a full
-      space heater per square meter, all of it becoming atomic vibration. Painted white
-      (\(\alpha = 0.25\)) it keeps only \(250\ \text{W/m}^2\) — almost 4× less — and the other
-      750 W bounce away as light. And "light" is a torrent: one photon of green light carries
-      about \(3.6\times10^{-19}\ \text{J}\), so 1000 W/m² means roughly
-      \(1000 / 3.6\times10^{-19} \approx 3\times10^{21}\) photons landing per square meter,
-      <em>per second</em>.</p>
+      <p>Stand a 1&nbsp;m² panel in strong summer sun, G = 1000&nbsp;W/m².</p>
+      <ol>
+        <li><b>Painted black</b> (α = 0.95): absorbed = 0.95 × 1000 = <b>950&nbsp;W</b> — very nearly a full space heater per square metre, all of it becoming atomic vibration.</li>
+        <li><b>Painted white</b> (α = 0.25): absorbed = 0.25 × 1000 = <b>250&nbsp;W</b> — almost 4× less. The other 750&nbsp;W bounce away as light.</li>
+        <li><b>How many photons is that?</b> One photon of green light carries about 3.6 × 10⁻¹⁹&nbsp;J, so 1000&nbsp;W/m² means roughly 1000 ÷ (3.6 × 10⁻¹⁹) ≈ 3 × 10²¹ photons landing on each square metre, <em>every second</em>.</li>
+      </ol>
     </div>
     <div class="key-takeaways">
       <ul>
-        <li>Radiation is energy traveling as electromagnetic waves (photons). It needs no
-        material in between — it crosses vacuum.</li>
-        <li>A surface absorbs the fraction \(\alpha\) of arriving light and reflects the rest;
-        absorbed power per area = \(\alpha G\).</li>
-        <li>"Color" is heat-transfer hardware: black \(\alpha\approx0.95\), white paint ≈ 0.25,
-        mirror ≈ 0.05.</li>
+        <li>Radiation is energy traveling as electromagnetic waves (photons). It needs no material in between — it crosses vacuum.</li>
+        <li>A surface absorbs the fraction α of arriving light and reflects the rest; absorbed power per area = αG.</li>
+        <li>"Colour" is heat-transfer hardware: black α ≈ 0.95, white paint ≈ 0.25, mirror ≈ 0.05.</li>
         <li>Absorbed light becomes atomic jiggle — radiation is jiggle → wave → jiggle.</li>
       </ul>
     </div>
@@ -168,7 +183,7 @@
       <li>Click <b>Cloudy day</b>: intensity drops to 300 W/m². Even a dark surface stays tame
       when the deliveries slow — it's the <em>product</em> αG that matters.</li>
       <li>Set α ≈ 0.5 and follow ten photons with your eyes: about half sink in, half bounce.
-      Compare with the "of 100 photons" stat.</li>
+      Compare with the "of 100 photons" grid in the lower panel.</li>
     </ol>
   </div>
 
@@ -195,17 +210,1188 @@
     </div>
     <div class="viz">
       <div class="canvas-wrap">
-        <div class="canvas-title">Photons arriving — absorbed ones become jiggle</div>
+        <div class="canvas-title">Photons arriving — absorbed ones vanish in a flash and become jiggle, the rest bounce</div>
         <canvas id="cv-photons" width="640" height="300"></canvas>
       </div>
       <div class="canvas-wrap">
-        <div class="canvas-title">Energy bookkeeping — where the arriving watts go</div>
+        <div class="canvas-title">Energy bookkeeping — where the arriving watts go, and the fate of 100 photons</div>
         <canvas id="cv-photons2" width="640" height="190"></canvas>
       </div>
       <div class="val-verdict" id="vd-photons"></div>
     </div>
   </div>
 </section>
+
+<!-- ============================================================ TAB 2: color -->
+<section id="tab-color" class="tab-content">
+  <div class="background-section">
+    <h2>Background: why the black car is an oven — the balance point</h2>
+    <p>Tab 1 counted the watts going <em>in</em>. But a car roof does not heat up forever: as it
+    warms, it starts <em>losing</em> heat faster, and it settles at the temperature where the
+    losses exactly match the delivery. Two loss routes are already in your toolkit. The warm roof
+    heats the air touching it — <b>convection</b>, Lesson 5's h × (surface minus air temperature).
+    And the warm roof <b>glows</b>: every surface above absolute zero sends out its own invisible
+    infrared light, at a rate that climbs steeply with temperature (Tab 3 shows the glow; Tab 4
+    derives the law).</p>
+    <div class="plain">
+      At the balance point, for each square metre of roof: <b>sunlight kept = heat lost to the air +
+      heat lost as infrared glow</b>. The roof climbs until that is true, then stops climbing.
+    </div>
+    <div class="equation-box">
+      $$ \underbrace{\alpha\,G}_{\text{sunlight absorbed}} \;=\;
+         \underbrace{h\,(T_s - T_{\text{air}})}_{\text{lost to the air}} \;+\;
+         \underbrace{\varepsilon\,\sigma\,(T_s^{4} - T_{\text{air}}^{4})}_{\text{lost as infrared glow}} $$
+    </div>
+    <ul class="letters">
+      <li><b>αG</b> — Tab 1's absorbed sunlight, W/m².</li>
+      <li><b>T<sub>s</sub></b> — the roof temperature; <b>T<sub>air</sub></b> — the air (and surroundings) temperature. Both in <b>kelvin</b>: the glow term only makes sense on the absolute scale, so add 273 to every °C.</li>
+      <li><b>h</b> — Lesson 5's convection coefficient, W/m²K: about 5–10 in still air, higher in wind.</li>
+      <li><b>ε</b> — "epsilon", the <b>emissivity</b>: how good the surface is at glowing, 0 to 1, like α. <b>σ</b> — the Stefan–Boltzmann constant, 5.67 × 10⁻⁸ W/m²K⁴. The glow term is the only new piece; its fourth powers are what make it climb so steeply.</li>
+    </ul>
+    <p>The sim solves this balance for T<sub>s</sub> and also shows the roof <em>climbing</em>
+    toward it, because a real panel has to soak up energy (Lesson 2's thermal mass) before it
+    reaches the balance point.</p>
+    <p>Now the twist that makes the whole car story work. Ordinary paint — black, white, red,
+    any colour — glows infrared about equally well: ε ≈ 0.9 for all of them. Colour changes only
+    what a surface <em>absorbs</em> of <b>visible</b> sunlight. So the black roof and the white
+    roof lose heat by the same two routes at the same efficiency; the black one simply has almost
+    four times more coming in, and must climb far hotter before its losses catch up. (Bare
+    polished metal is the odd one out: it neither absorbs much nor glows much, ε ≈ 0.05.)</p>
+    <div class="worked-example">
+      <p>Black roof at noon: G = 1000, α = 0.95, ε = 0.90, a light breeze h = 10, air at 35&nbsp;°C (308&nbsp;K).</p>
+      <ol>
+        <li><b>Coming in:</b> 0.95 × 1000 = 950&nbsp;W/m².</li>
+        <li><b>Guess 60&nbsp;°C</b> (333&nbsp;K). To the air: 10 × (60 − 35) = 250. Glow: 0.9 × 5.67 × 10⁻⁸ × (333⁴ − 308⁴) ≈ 170. Out = 420, in = 950 — the roof keeps climbing.</li>
+        <li><b>The balance closes near 88&nbsp;°C</b> (361&nbsp;K): to the air ≈ 530, glow ≈ 420, total 950 ✓. (The sim does this hunt for you.)</li>
+        <li><b>White paint</b> (α = 0.25): only 250&nbsp;W/m² in, and it balances at about <b>50&nbsp;°C</b>. Same sun, same air, same wind — 38 degrees apart, all from α.</li>
+      </ol>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>A sunlit surface settles where losses = delivery: sunlight kept = lost to the air + lost as glow.</li>
+        <li>Two loss routes: convection (∝ T<sub>s</sub> − T<sub>air</sub>) and infrared glow (∝ T<sub>s</sub>⁴ − T<sub>air</sub>⁴, steep!).</li>
+        <li>Paint colour sets α for sunlight but barely changes ε (≈ 0.9 for any paint) — so black roofs run far hotter than white ones.</li>
+        <li>Wind (bigger h) and clouds (smaller G) both pull the balance point down.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Load <b>Black paint</b> and watch the roof climb. Read the balance temperature in the
+      stats — about 88 °C — and check that convection + glow ≈ 950 W/m² once it has settled.</li>
+      <li>Click <b>White paint</b>. Only α changed. How far does the balance point drop?</li>
+      <li>Back on black, raise <b>Wind h</b> from 10 to 40 W/m²K. Wind is the cheapest fix
+      there is — find the wind that brings a black roof below 60 °C.</li>
+      <li>Click <b>Polished aluminium</b>: it absorbs little (α = 0.10) <em>and</em> glows badly
+      (ε = 0.05). Which loss route is carrying almost all the load now? Read the two loss stats.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="color" data-scen="black" onclick="setScen('color','black')">Black paint</button>
+    <button class="scen-btn" data-tab="color" data-scen="white" onclick="setScen('color','white')">White paint</button>
+    <button class="scen-btn" data-tab="color" data-scen="alu" onclick="setScen('color','alu')">Polished aluminium</button>
+    <button class="scen-btn" data-tab="color" data-scen="cloudy" onclick="setScen('color','cloudy')">Cloudy day (black)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Absorptivity α (sunlight) <span id="v-color-alpha">0.95</span></label>
+        <input type="range" id="s-color-alpha" min="0.05" max="0.98" step="0.01" value="0.95">
+      </div>
+      <div class="ctrl-group">
+        <label>Emissivity ε (infrared glow) <span id="v-color-eps">0.90</span></label>
+        <input type="range" id="s-color-eps" min="0.02" max="1" step="0.01" value="0.9">
+      </div>
+      <div class="ctrl-group">
+        <label>Sunlight G <span id="v-color-G">1000 W/m²</span></label>
+        <input type="range" id="s-color-G" min="100" max="1100" step="10" value="1000">
+      </div>
+      <div class="ctrl-group">
+        <label>Wind h <span id="v-color-h">10 W/m²K</span></label>
+        <input type="range" id="s-color-h" min="5" max="50" step="1" value="10">
+      </div>
+      <div class="stats" id="st-color"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">The sunlit roof: what comes in, what bounces, what leaks back out (arrows ∝ W/m²)</div>
+        <canvas id="cv-color" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Roof temperature vs time — climbing to the balance point (1 mm steel skin, air 35 °C)</div>
+        <canvas id="cv-color2" width="640" height="230"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-color"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 3: glow -->
+<section id="tab-glow" class="tab-content">
+  <div class="background-section">
+    <h2>Background: everything glows — you just can't see most of it</h2>
+    <p>Tab 2 leaned on a claim: warm things glow. Here is the whole picture. A jiggling atom is a
+    shaking electric charge, and shaking charges broadcast electromagnetic waves. So <b>every
+    object above absolute zero glows</b>, all the time — you, this screen, an ice cube. What
+    changes with temperature is <em>how much</em> it glows and <em>what colour</em>. Cold things
+    glow feebly and only in long-wavelength <b>infrared</b> light your eyes cannot see. Heat an
+    object up and two things happen at once: the glow gets enormously brighter, and its peak
+    slides to shorter wavelengths — out of the infrared, into deep red, then orange, yellow,
+    white. That is the whole story of a stove element, a candle, a light-bulb filament and the
+    sun: the same glow, at different temperatures.</p>
+    <div class="plain">
+      <b>Rule 1 — colour (Wien's law):</b> the wavelength where the glow is brightest is a constant
+      divided by the temperature. Hotter → shorter wavelength. Your eyes see only 0.38–0.75 micrometres.
+    </div>
+    <div class="equation-box">
+      $$ \lambda_{\text{peak}} \;=\; \frac{2898\ \mu\text{m·K}}{T} $$
+    </div>
+    <ul class="letters">
+      <li><b>λ<sub>peak</sub></b> — "lambda peak", the peak wavelength, in micrometres (µm — a millionth of a metre).</li>
+      <li><b>T</b> — temperature in kelvin. The constant 2898 µm·K is Wien's constant.</li>
+    </ul>
+    <div class="plain">
+      <b>Rule 2 — brightness (the Stefan–Boltzmann law):</b> the total glow per square metre rises as the
+      <em>fourth power</em> of temperature. Double the temperature, sixteen times the glow.
+    </div>
+    <div class="equation-box">
+      $$ E \;=\; \sigma\,T^{4} $$
+    </div>
+    <ul class="letters">
+      <li><b>E</b> — total emitted power per square metre, W/m² (for a perfect "black" glower; a real surface gives ε times this).</li>
+      <li><b>σ</b> — the Stefan–Boltzmann constant, 5.67 × 10⁻⁸ W/m²K⁴.</li>
+    </ul>
+    <p>Those two laws are all an infrared camera needs: it "sees" the invisible glow and paints hot
+    things bright — which is why firefighters can find people in smoke and why night-vision works
+    with no light at all.</p>
+    <div class="worked-example">
+      <p>Four glowing objects.</p>
+      <ol>
+        <li><b>Your skin, 310&nbsp;K:</b> λ<sub>peak</sub> = 2898 ÷ 310 ≈ 9.3&nbsp;µm — a dozen times longer than red light, deep in the infrared. Glow: 5.67 × 10⁻⁸ × 310⁴ ≈ 520&nbsp;W/m²; with about 1.8&nbsp;m² of skin that is ≈ 900&nbsp;W leaving you as light (the 20&nbsp;°C room glows back about 750&nbsp;W, so the net is ~150&nbsp;W — Tab 4 does that subtraction).</li>
+        <li><b>Stove element, 900&nbsp;K:</b> λ<sub>peak</sub> ≈ 3.2&nbsp;µm, still infrared, but the short-wavelength tail just reaches red — <b>dull red heat</b>.</li>
+        <li><b>Light-bulb filament, 2700&nbsp;K:</b> peaks at 1.07&nbsp;µm; only about 7% of its glow is visible, which is why incandescent bulbs are mostly heaters.</li>
+        <li><b>The sun, 5800&nbsp;K:</b> peaks at 0.50&nbsp;µm — the middle of the visible band, which is no coincidence: eyes evolved under that lamp.</li>
+      </ol>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Everything above 0 K glows. Below ~800 K the glow is entirely infrared — invisible to eyes, obvious to an IR camera.</li>
+        <li>Wien: λ<sub>peak</sub> = 2898 µm·K / T. Hotter → shorter wavelength → red, then white.</li>
+        <li>Stefan–Boltzmann: glow ∝ T⁴ per m² — double the temperature, 16× the light.</li>
+        <li>Even at 2700 K a filament is only ~7% visible light; the sun (5800 K) peaks right in the visible band.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Load <b>Your skin (310 K)</b>. The eye view is black — but the infrared camera sees you
+      plainly. Read λ<sub>peak</sub> ≈ 9.3 µm and the total glow ≈ 520 W/m² in the stats.</li>
+      <li>Drag <b>Temperature</b> up slowly. Watch the spectrum's peak slide left toward the
+      shaded visible band, and note the temperature where the eye view first shows a dull red
+      (around 800–900 K).</li>
+      <li>Click <b>Bulb filament (2700 K)</b>: white-hot, yet the "visible share" stat says most
+      of the glow is still infrared. Now click <b>The Sun (5800 K)</b> — where is the peak?</li>
+      <li>Compare total glow at 310 K and 620 K in the stats. Doubling T multiplied the glow by
+      how much? (It should be 16 — that is the fourth power.)</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="glow" data-scen="skin" onclick="setScen('glow','skin')">Your skin (310 K)</button>
+    <button class="scen-btn" data-tab="glow" data-scen="stove" onclick="setScen('glow','stove')">Stove element (900 K)</button>
+    <button class="scen-btn" data-tab="glow" data-scen="bulb" onclick="setScen('glow','bulb')">Bulb filament (2700 K)</button>
+    <button class="scen-btn" data-tab="glow" data-scen="sun" onclick="setScen('glow','sun')">The Sun (5800 K)</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Temperature T <span id="v-glow-T">310 K</span></label>
+        <input type="range" id="s-glow-T" min="2.4771" max="3.7782" step="0.001" value="2.4914">
+      </div>
+      <div class="stats" id="st-glow"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Left: what your eye sees in a dark room · Right: what an infrared camera sees</div>
+        <canvas id="cv-glow" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">The glow's spectrum — brightness vs wavelength (visible band shaded; each curve scaled to its own peak)</div>
+        <canvas id="cv-glow2" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-glow"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TAB 4: levelup -->
+<section id="tab-levelup" class="tab-content">
+  <div class="background-section">
+    <h2>Level up: Stefan–Boltzmann exchange, Kirchhoff's law, and selective surfaces</h2>
+    <p><b>Everything in Tabs 1–3 stands on its own.</b> This tab is the real machinery, one box at a time.</p>
+    <div class="plain">
+      <b>Box 1 — exchange.</b> A surface glows, but the walls around it glow back. For a small object surrounded
+      by large surroundings, the <em>net</em> radiation leaving each square metre is the difference of two fourth
+      powers. Engineers often want that in the same shape as Newton's law of cooling, so they factor it — exactly,
+      no approximation — into a "radiation coefficient" h<sub>rad</sub> multiplying a plain temperature difference.
+    </div>
+    <div class="equation-box">
+      $$ q''_{\text{rad}} \;=\; \varepsilon\,\sigma\left(T_s^{4} - T_{\text{surr}}^{4}\right)
+         \;=\; h_{\text{rad}}\,(T_s - T_{\text{surr}}), \qquad
+         h_{\text{rad}} \;=\; \varepsilon\,\sigma\,(T_s + T_{\text{surr}})\left(T_s^{2} + T_{\text{surr}}^{2}\right)
+         \;\approx\; 4\,\varepsilon\,\sigma\,\bar{T}^{3} $$
+    </div>
+    <ul class="letters">
+      <li><b>q″<sub>rad</sub></b> — net radiation per square metre, W/m². <b>T<sub>surr</sub></b> — the temperature of the surroundings (walls), kelvin.</li>
+      <li><b>h<sub>rad</sub></b> — the radiation coefficient, W/m²K, defined so that q″<sub>rad</sub> = h<sub>rad</sub> × (T<sub>s</sub> − T<sub>surr</sub>) exactly (it uses the factorisation a⁴ − b⁴ = (a − b)(a + b)(a² + b²)). <b>T̄</b> — the mean of the two temperatures; near 300 K, h<sub>rad</sub> ≈ 4εσT̄³.</li>
+    </ul>
+    <p>The surprise is the size of h<sub>rad</sub> at ordinary temperatures: with ε = 0.95 around
+    300&nbsp;K it comes out near <b>6&nbsp;W/m²K</b> — the same size as natural convection. So a person,
+    a radiator, a mug of coffee in a room loses heat <em>about half by glow and half by air</em>, and
+    the glow half depends on the <em>wall</em> temperature, not the air temperature. That is why you
+    feel cold beside a big window on a winter night even in a warm room: your skin is trading infrared
+    with a 5&nbsp;°C sheet of glass. And because h<sub>rad</sub> grows as T̄³, radiation runs away from
+    convection as things get hot — a 400&nbsp;°C stove element loses several times more by glow than by air.</p>
+    <div class="plain">
+      <b>Box 2 — Kirchhoff's law (1860).</b> At any given wavelength, a surface's ability to absorb equals its ability
+      to emit: a good absorber is a good emitter — <em>at the same wavelength</em>. The subtlety that makes engineering
+      possible is that sunlight and room-temperature glow live at very different wavelengths (0.5 µm vs 10 µm, by Wien),
+      so a surface can be black to one and white to the other.
+    </div>
+    <div class="equation-box">
+      $$ \alpha_\lambda \;=\; \varepsilon_\lambda $$
+    </div>
+    <ul class="letters">
+      <li><b>α<sub>λ</sub>, ε<sub>λ</sub></b> — the absorptivity and emissivity <em>at wavelength λ</em>. Tab 1's α is the average over sunlight's wavelengths; Tab 2's ε is the average over the infrared a warm surface glows at.</li>
+    </ul>
+    <p>Such <b>selective surfaces</b> are chosen on purpose:</p>
+<table class="props">
+      <tr><th>Surface</th><th>α for sunlight</th><th>ε for room-temperature infrared</th><th>Behaviour in the sun</th></tr>
+      <tr><td>Black paint</td><td>0.95</td><td>0.90</td><td>absorbs a lot, glows a lot — hot</td></tr>
+      <tr><td>White paint</td><td>0.25</td><td>0.90</td><td>absorbs little, glows a lot — stays cool</td></tr>
+      <tr><td>Polished aluminium</td><td>0.10</td><td>0.05</td><td>absorbs little, glows little — warm (can't shed heat)</td></tr>
+      <tr><td>Black chrome (solar collector)</td><td>0.95</td><td>0.10</td><td>absorbs a lot, glows little — runs very hot on purpose</td></tr>
+      <tr><td>Fresh snow</td><td>0.28</td><td>0.97</td><td>reflects sunlight, glows freely — why it survives sunny days</td></tr>
+    </table>
+    <p style="font-size:.85rem;color:#64748b">Representative rounded values (Incropera et al., Table A.12); real coatings vary.</p>
+    <div class="worked-example">
+      <p><b>You in a room</b>, then two variations.</p>
+      <ol>
+        <li><b>Set up:</b> clothed-skin surface 33&nbsp;°C (306&nbsp;K), walls 20&nbsp;°C (293&nbsp;K), ε = 0.95.</li>
+        <li><b>Radiation:</b> 0.95 × 5.67 × 10⁻⁸ × (306⁴ − 293⁴) ≈ <b>75&nbsp;W/m²</b>; h<sub>rad</sub> = 0.95σ × 599 × (306² + 293²) ≈ 5.8&nbsp;W/m²K.</li>
+        <li><b>Convection</b> at h = 5: 5 × 13 = <b>65&nbsp;W/m²</b>. Radiation and convection are equals.</li>
+        <li><b>Beside a cold window</b> (walls 5&nbsp;°C = 278&nbsp;K, air still 20&nbsp;°C): 0.95σ(306⁴ − 278⁴) ≈ <b>150&nbsp;W/m²</b> — double, though the air never changed.</li>
+        <li><b>Thermos flask:</b> inner wall 80&nbsp;°C facing an outer wall at 20&nbsp;°C across a vacuum. Bare glass ε = 0.95: ≈ 440&nbsp;W/m². Silvered, ε = 0.05: ≈ 23&nbsp;W/m² — nineteen times less, and with no air in the gap there is no convection to pick up the slack. That is the Lesson 1 thermos, now with numbers.</li>
+      </ol>
+    </div>
+    <div class="key-takeaways">
+      <ul>
+        <li>Net exchange with large surroundings: q″ = εσ(T<sub>s</sub>⁴ − T<sub>surr</sub>⁴) = h<sub>rad</sub>(T<sub>s</sub> − T<sub>surr</sub>), with h<sub>rad</sub> ≈ 4εσT̄³.</li>
+        <li>Near room temperature h<sub>rad</sub> ≈ 5–6 W/m²K: radiation ≈ natural convection, and it answers to the <em>wall</em> temperature, not the air.</li>
+        <li>Kirchhoff: α<sub>λ</sub> = ε<sub>λ</sub> — good absorbers are good emitters at the same wavelength. Sunlight (0.5 µm) and room glow (10 µm) are different wavelengths, so selective surfaces can be black to one and white to the other.</li>
+        <li>Low-ε metal is the radiation insulator (thermos, space blanket); high-ε white paint is the cool roof.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="student-task">
+    <ol>
+      <li>Load <b>You in a room</b> and read both losses: radiation ≈ 75 W/m², convection ≈
+      65 W/m². Check h<sub>rad</sub> ≈ 5.8 W/m²K in the stats — same league as h.</li>
+      <li>Click <b>Beside a cold window</b>. Only the wall temperature changed. Which bar grew,
+      and by how much? (This is why the window seat feels cold.)</li>
+      <li>Load <b>Stove element</b> and read the ratio stat. Then drag <b>Surface temperature</b>
+      from 100 °C to 500 °C and watch the orange T⁴ curve pull away from the straight
+      convection line.</li>
+      <li>Load <b>Thermos, silvered</b>: only 23 W/m² escapes. Now slide <b>Emissivity ε</b> up
+      to 0.95 — bare glass — and watch the radiation loss multiply by ~19.</li>
+    </ol>
+  </div>
+
+  <div class="scenario-bar">
+    <span class="scenario-bar-label">Scenario:</span>
+    <button class="scen-btn on" data-tab="levelup" data-scen="room" onclick="setScen('levelup','room')">You in a room</button>
+    <button class="scen-btn" data-tab="levelup" data-scen="window" onclick="setScen('levelup','window')">Beside a cold window</button>
+    <button class="scen-btn" data-tab="levelup" data-scen="stove" onclick="setScen('levelup','stove')">Stove element</button>
+    <button class="scen-btn" data-tab="levelup" data-scen="thermos" onclick="setScen('levelup','thermos')">Thermos, silvered</button>
+  </div>
+
+  <div class="panel">
+    <div class="ctrl">
+      <h3>Controls</h3>
+      <div class="ctrl-group">
+        <label>Surface temperature T_s <span id="v-levelup-ts">33 °C</span></label>
+        <input type="range" id="s-levelup-ts" min="0" max="500" step="1" value="33">
+      </div>
+      <div class="ctrl-group">
+        <label>Air temperature T_air <span id="v-levelup-tair">20 °C</span></label>
+        <input type="range" id="s-levelup-tair" min="-10" max="50" step="1" value="20">
+      </div>
+      <div class="ctrl-group">
+        <label>Wall temperature T_surr <span id="v-levelup-tsurr">20 °C</span></label>
+        <input type="range" id="s-levelup-tsurr" min="-20" max="50" step="1" value="20">
+      </div>
+      <div class="ctrl-group">
+        <label>Emissivity ε <span id="v-levelup-eps">0.95</span></label>
+        <input type="range" id="s-levelup-eps" min="0.02" max="1" step="0.01" value="0.95">
+      </div>
+      <div class="ctrl-group">
+        <label>Convection h <span id="v-levelup-h">5 W/m²K</span></label>
+        <input type="range" id="s-levelup-h" min="0" max="50" step="1" value="5">
+      </div>
+      <div class="stats" id="st-levelup"></div>
+    </div>
+    <div class="viz">
+      <div class="canvas-wrap">
+        <div class="canvas-title">Two exits for the heat: infrared to the walls, convection to the air (arrows ∝ W/m²)</div>
+        <canvas id="cv-levelup" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="canvas-title">Loss vs surface temperature — the T⁴ curve against the straight convection line</div>
+        <canvas id="cv-levelup2" width="640" height="260"></canvas>
+      </div>
+      <div class="val-verdict" id="vd-levelup"></div>
+    </div>
+  </div>
+</section>
+
+<div class="sources">
+  <h3>Sources</h3>
+  <ul>
+    <li>T. L. Bergman, A. S. Lavine, F. P. Incropera &amp; D. P. DeWitt, <i>Fundamentals of Heat
+    and Mass Transfer</i>, 7th ed., Wiley (2011) — Ch. 1 (radiation exchange with surroundings,
+    the radiation coefficient), Ch. 12 (blackbody radiation, Planck and Wien, Kirchhoff's law,
+    Table A.12 solar absorptivities and emissivities).</li>
+    <li>Y. A. Çengel &amp; A. J. Ghajar, <i>Heat and Mass Transfer: Fundamentals and
+    Applications</i>, 5th ed., McGraw-Hill (2015) — Ch. 12 (fundamentals of thermal radiation,
+    blackbody band fractions) and Ch. 13 (radiation exchange; combined convection and
+    radiation).</li>
+    <li>D. Halliday, R. Resnick &amp; J. Walker, <i>Fundamentals of Physics</i>, 10th ed.,
+    Wiley (2013) — Ch. 18 (thermal radiation, Stefan–Boltzmann) and Ch. 38 (photons and
+    photon energy).</li>
+    <li>G. Kirchhoff, "Ueber das Verhältniss zwischen dem Emissionsvermögen und dem
+    Absorptionsvermögen der Körper für Wärme und Licht", <i>Annalen der Physik</i> 185, 275–301
+    (1860) — the original statement that emissivity equals absorptivity at each wavelength.</li>
+    <li>CODATA 2018 recommended values — Stefan–Boltzmann constant σ = 5.670374 × 10⁻⁸ W/m²K⁴,
+    Wien displacement constant b = 2897.77 µm·K, Planck and Boltzmann constants.</li>
+  </ul>
+</div>
+
 </main>
+
+<footer>McGhee Lab · Heat Transfer Foundations · Lesson 6 of 6 — the last delivery service. The
+whole course was one idea: heat is jiggling atoms, and every lesson was another way that jiggle
+moves, is stored, or is blocked.</footer>
+
+<script>
+/* ================================================================
+   SHARED HELPER LIBRARY (house contract — copy verbatim into every
+   module in this course; per-module code goes below the divider)
+   ================================================================ */
+const COL = {
+  accent:'#2563eb', ink:'#1e3a5f', good:'#16a34a', warn:'#d97706', bad:'#dc2626',
+  grid:'#e2e8f0', axis:'#64748b', muted:'#94a3b8', orange:'#f59e0b',
+  purple:'#8b5cf6', teal:'#0d9488'
+};
+
+function setupCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // Cache the intrinsic logical size ONCE. Setting cv.width below reflects into
+  // the width attribute, so re-reading getAttribute('width') next call would
+  // compound by ×dpr every redraw (canvas grows until the browser cap errors).
+  let w = +cv.dataset.w, h = +cv.dataset.h;
+  if (!w || !h) { w = +cv.getAttribute('width'); h = +cv.getAttribute('height'); cv.dataset.w = w; cv.dataset.h = h; }
+  const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+  if (cv.width !== bw) { cv.width = bw; cv.height = bh; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+
+function fmt(v, d = 2){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 0.001 || a >= 1e5)) return v.toExponential(1);
+  let s = v.toFixed(d);
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+
+function niceTicks(lo, hi, n = 5){
+  const span = (hi - lo) || 1, step0 = span / Math.max(1, n),
+    mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag,
+    step = (r >= 5 ? 5 : r >= 2 ? 2 : 1) * mag, ticks = [];
+  const i0 = Math.ceil(lo / step - 1e-9);
+  for (let i = i0; i * step <= hi + 1e-9 * span; i++) ticks.push(+(i * step).toPrecision(12));
+  return ticks;
+}
+
+class Chart {
+  constructor(ctx, w, h, m){ this.ctx = ctx; this.w = w; this.h = h;
+    this.m = m || { l: 56, r: 14, t: 12, b: 36 }; }
+  setRange(x0, x1, y0, y1){ this.x0 = x0; this.x1 = x1; this.y0 = y0; this.y1 = y1; }
+  toX(x){ return this.m.l + (x - this.x0) / (this.x1 - this.x0) * (this.w - this.m.l - this.m.r); }
+  toY(y){ return this.h - this.m.b - (y - this.y0) / (this.y1 - this.y0) * (this.h - this.m.t - this.m.b); }
+  grid(){ const c = this.ctx; c.strokeStyle = COL.grid; c.lineWidth = 1;
+    for (const t of niceTicks(this.x0, this.x1)) { const x = this.toX(t);
+      c.beginPath(); c.moveTo(x, this.m.t); c.lineTo(x, this.h - this.m.b); c.stroke(); }
+    for (const t of niceTicks(this.y0, this.y1)) { const y = this.toY(t);
+      c.beginPath(); c.moveTo(this.m.l, y); c.lineTo(this.w - this.m.r, y); c.stroke(); } }
+  axes(xl, yl){ const c = this.ctx; c.strokeStyle = COL.axis; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(this.m.l, this.m.t); c.lineTo(this.m.l, this.h - this.m.b);
+    c.lineTo(this.w - this.m.r, this.h - this.m.b); c.stroke();
+    c.fillStyle = COL.axis; c.font = '11px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top';
+    for (const t of niceTicks(this.x0, this.x1)) c.fillText(fmt(t), this.toX(t), this.h - this.m.b + 5);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (const t of niceTicks(this.y0, this.y1)) c.fillText(fmt(t), this.m.l - 6, this.toY(t));
+    c.font = 'bold 12px sans-serif'; c.fillStyle = COL.ink; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    if (xl) c.fillText(xl, (this.m.l + this.w - this.m.r) / 2, this.h - 6);
+    if (yl) { c.save(); c.translate(14, (this.m.t + this.h - this.m.b) / 2);
+      c.rotate(-Math.PI / 2); c.fillText(yl, 0, 0); c.restore(); } }
+  clipPlot(){ const c = this.ctx;
+    c.rect(this.m.l, this.m.t, this.w - this.m.l - this.m.r, this.h - this.m.t - this.m.b); }
+  plot(pts, color, width = 2, dash){ const c = this.ctx; c.save();
+    c.beginPath(); this.clipPlot(); c.clip();
+    c.strokeStyle = color; c.lineWidth = width; if (dash) c.setLineDash(dash);
+    c.beginPath(); let first = true;
+    for (const p of pts) { if (!isFinite(p[1])) { first = true; continue; }
+      const x = this.toX(p[0]), y = this.toY(p[1]);
+      if (first) { c.moveTo(x, y); first = false; } else c.lineTo(x, y); }
+    c.stroke(); c.restore(); }
+  hLine(y, color, dash){ this.plot([[this.x0, y], [this.x1, y]], color, 1, dash || [5, 4]); }
+  vLine(x, color, dash){ this.plot([[x, this.y0], [x, this.y1]], color, 1, dash || [5, 4]); }
+  dot(x, y, color, r = 5){ const c = this.ctx; c.fillStyle = color;
+    c.beginPath(); c.arc(this.toX(x), this.toY(y), r, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+  band(xa, xb, color){ const c = this.ctx; c.save(); c.fillStyle = color;
+    c.fillRect(this.toX(xa), this.m.t, this.toX(xb) - this.toX(xa), this.h - this.m.t - this.m.b);
+    c.restore(); }
+  legend(items){ const c = this.ctx; let x = this.m.l + 10; const y = this.m.t + 9;
+    c.font = '11px sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'left';
+    for (const it of items) {
+      c.strokeStyle = it.color; c.lineWidth = 3; if (it.dash) c.setLineDash(it.dash);
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + 18, y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#334155'; c.fillText(it.label, x + 23, y);
+      x += 23 + c.measureText(it.label).width + 16; }
+  }
+}
+
+function drawLine(ctx, x1, y1, x2, y2, color, width = 2, dash){
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width = 2){
+  const a = Math.atan2(y2 - y1, x2 - x1), hl = Math.max(7, width * 3);
+  drawLine(ctx, x1, y1, x2, y2, color, width);
+  ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hl * Math.cos(a - 0.45), y2 - hl * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - hl * Math.cos(a + 0.45), y2 - hl * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function springGlyph(ctx, x1, y1, x2, y2, coils = 8, amp = 7, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, lead = Math.min(14, L * 0.12);
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + ux * lead, y1 + uy * lead);
+  const n = coils * 2, seg = (L - 2 * lead) / n;
+  for (let i = 1; i <= n; i++) {
+    const s = lead + seg * i, off = (i < n ? (i % 2 ? amp : -amp) : 0);
+    ctx.lineTo(x1 + ux * s + px * off, y1 + uy * s + py * off);
+  }
+  ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+
+function dashpotGlyph(ctx, x1, y1, x2, y2, color = COL.ink, width = 2){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1,
+    ux = dx / L, uy = dy / L, px = -uy, py = ux, r = 8,
+    a = L * 0.30, b = L * 0.72, m = L * 0.5;
+  const P = (s, o) => [x1 + ux * s + px * o, y1 + uy * s + py * o];
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(...P(m, 0)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(m, r - 2)); ctx.lineTo(...P(m, -(r - 2))); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(a, r)); ctx.lineTo(...P(b, r));
+  ctx.moveTo(...P(a, -r)); ctx.lineTo(...P(b, -r));
+  ctx.moveTo(...P(b, r)); ctx.lineTo(...P(b, -r)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(...P(b, 0)); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.restore();
+}
+
+function val(id){ const e = document.getElementById(id); return e ? e.value : null; }
+function num(id){ return parseFloat(val(id)); }
+function setStat(id, rows){
+  const e = document.getElementById(id); if (!e) return;
+  e.innerHTML = rows.map(r =>
+    `<div class="stat-row${r.highlight ? ' highlight' : ''}"><span>${r.label}</span><b>${r.value}</b></div>`
+  ).join('');
+}
+function setVerdict(id, cls, title, body){
+  const e = document.getElementById(id); if (!e) return;
+  e.className = 'val-verdict ' + (cls || '');
+  e.innerHTML = `<b>${title}</b>${body}`;
+}
+function mulberry32(seed){ let t = seed >>> 0; return function(){
+  t += 0x6D2B79F5; let r = Math.imul(t ^ t >>> 15, 1 | t);
+  r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; }; }
+let _rng = mulberry32(42);
+function randn(){ let u = 0, v = 0; while (u === 0) u = _rng(); while (v === 0) v = _rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+/* ================================================================
+   PER-MODULE CODE — Lesson 6: Radiation & Color
+   ================================================================ */
+
+/* ---- PHYSICS-BEGIN: pure functions, no DOM. harness_06.mjs extracts this block
+   between the two markers and asserts the worked-example numbers in Node. ---- */
+const SIGMA = 5.670374e-8;                 // Stefan–Boltzmann constant, W/m²K⁴ (CODATA 2018)
+const H_PLANCK = 6.62607015e-34, C_LIGHT = 2.99792458e8, KB = 1.380649e-23;
+const WIEN_B = 2897.77;                    // Wien displacement constant, µm·K
+const C0 = 273.15;                         // 0 °C in kelvin
+const E_GREEN_PHOTON = H_PLANCK * C_LIGHT / 550e-9;   // J per green photon (≈ 3.6e-19)
+/* blackbody hemispherical spectral emissive power, W per m² per µm, at wavelength lamUm (µm) */
+function planck(lamUm, T){
+  const lam = lamUm * 1e-6;
+  const x = H_PLANCK * C_LIGHT / (lam * KB * T);
+  if (x > 700) return 0;
+  return 2 * Math.PI * H_PLANCK * C_LIGHT * C_LIGHT / Math.pow(lam, 5) / (Math.exp(x) - 1) * 1e-6;
+}
+/* fraction of a blackbody's total power emitted between lam1 and lam2 (µm); midpoint rule in log λ */
+function bandFraction(lam1, lam2, T, n = 400){
+  const l1 = Math.log(lam1), l2 = Math.log(lam2), dl = (l2 - l1) / n;
+  let sum = 0;
+  for (let i = 0; i < n; i++) { const lam = Math.exp(l1 + (i + 0.5) * dl); sum += planck(lam, T) * lam * dl; }
+  return sum / (SIGMA * Math.pow(T, 4));
+}
+const wienPeak = T => WIEN_B / T;                              // µm
+const stefanE = T => SIGMA * Math.pow(T, 4);                   // W/m², total emissive power
+/* net radiation W/m² from a surface at Ts (K) to large surroundings at Tsur (K) */
+const qRad = (eps, Ts, Tsur) => eps * SIGMA * (Math.pow(Ts, 4) - Math.pow(Tsur, 4));
+const hRad = (eps, Ts, Tsur) => eps * SIGMA * (Ts + Tsur) * (Ts * Ts + Tsur * Tsur);
+/* energy balance of a sunlit panel: net gain per m² at temperature T (K) */
+const panelNet = (T, alpha, eps, G, h, TairK) =>
+  alpha * G - h * (T - TairK) - eps * SIGMA * (Math.pow(T, 4) - Math.pow(TairK, 4));
+/* steady surface temperature (K): αG = h(T−Tair) + εσ(T⁴−Tair⁴), by bisection (net gain is monotone in T) */
+function panelSteadyT(alpha, eps, G, h, TairK){
+  let lo = TairK - 1, hi = TairK + 500;
+  for (let i = 0; i < 70; i++) { const mid = (lo + hi) / 2; if (panelNet(mid, alpha, eps, G, h, TairK) > 0) lo = mid; else hi = mid; }
+  return (lo + hi) / 2;
+}
+/* the panel's climb from Tair: explicit steps of dt (s); C = areal heat capacity, J/m²K */
+function panelTrajectory(alpha, eps, G, h, TairK, C, tEnd, dt){
+  const out = [[0, TairK]]; let T = TairK;
+  for (let t = dt; t <= tEnd + 1e-9; t += dt) { T += panelNet(T, alpha, eps, G, h, TairK) / C * dt; out.push([t, T]); }
+  return out;
+}
+const C_STEEL_1MM = 7850 * 490 * 0.001;    // J/m²K — 1 mm steel skin (ρ = 7850 kg/m³, c = 490 J/kg·K)
+/* ---- PHYSICS-END ---- */
+
+/* --- control state --- */
+let activeTab = 'photons';
+const scen = { photons: 'black', color: 'black', glow: 'skin', levelup: 'room' };
+
+const FMT = {
+  'photons-alpha': v => fmt(v, 2),
+  'photons-G':     v => fmt(v, 0) + ' W/m²',
+  'color-alpha':   v => fmt(v, 2),
+  'color-eps':     v => fmt(v, 2),
+  'color-G':       v => fmt(v, 0) + ' W/m²',
+  'color-h':       v => fmt(v, 0) + ' W/m²K',
+  'glow-T':        v => fmt(Math.pow(10, v), 0) + ' K',
+  'levelup-ts':    v => fmt(v, 0) + ' °C',
+  'levelup-tair':  v => fmt(v, 0) + ' °C',
+  'levelup-tsurr': v => fmt(v, 0) + ' °C',
+  'levelup-eps':   v => fmt(v, 2),
+  'levelup-h':     v => fmt(v, 0) + ' W/m²K'
+};
+
+const SCEN = {
+  photons: {
+    black:  { 's-photons-alpha': 0.95, 's-photons-G': 1000 },
+    white:  { 's-photons-alpha': 0.25, 's-photons-G': 1000 },
+    mirror: { 's-photons-alpha': 0.05, 's-photons-G': 1000 },
+    cloudy: { 's-photons-alpha': 0.95, 's-photons-G': 300 }
+  },
+  color: {
+    black:  { 's-color-alpha': 0.95, 's-color-eps': 0.90, 's-color-G': 1000, 's-color-h': 10 },
+    white:  { 's-color-alpha': 0.25, 's-color-eps': 0.90, 's-color-G': 1000, 's-color-h': 10 },
+    alu:    { 's-color-alpha': 0.10, 's-color-eps': 0.05, 's-color-G': 1000, 's-color-h': 10 },
+    cloudy: { 's-color-alpha': 0.95, 's-color-eps': 0.90, 's-color-G': 300,  's-color-h': 10 }
+  },
+  glow: {                                   // slider stores log10(T)
+    skin:  { 's-glow-T': Math.log10(310) },
+    stove: { 's-glow-T': Math.log10(900) },
+    bulb:  { 's-glow-T': Math.log10(2700) },
+    sun:   { 's-glow-T': Math.log10(5800) }
+  },
+  levelup: {
+    room:    { 's-levelup-ts': 33,  's-levelup-tair': 20, 's-levelup-tsurr': 20, 's-levelup-eps': 0.95, 's-levelup-h': 5 },
+    window:  { 's-levelup-ts': 33,  's-levelup-tair': 20, 's-levelup-tsurr': 5,  's-levelup-eps': 0.95, 's-levelup-h': 5 },
+    stove:   { 's-levelup-ts': 400, 's-levelup-tair': 20, 's-levelup-tsurr': 20, 's-levelup-eps': 0.90, 's-levelup-h': 10 },
+    thermos: { 's-levelup-ts': 80,  's-levelup-tair': 20, 's-levelup-tsurr': 20, 's-levelup-eps': 0.05, 's-levelup-h': 0 }
+  }
+};
+
+function fmtFor(key, v){ return FMT[key] ? FMT[key](v) : fmt(v); }
+function updateReadout(sl){
+  const key = sl.id.slice(2);
+  const out = document.getElementById('v-' + key);
+  if (out) out.textContent = fmtFor(key, parseFloat(sl.value));
+}
+function wireAll(){
+  document.querySelectorAll('input[type=range]').forEach(sl => {
+    updateReadout(sl);
+    sl.addEventListener('input', () => { updateReadout(sl); refreshActiveTab(); });
+  });
+}
+function presetSlider(id, v){
+  const sl = document.getElementById(id); if (!sl) return;
+  sl.value = v; updateReadout(sl);
+}
+function setScen(tab, s){
+  scen[tab] = s;
+  document.querySelectorAll(`.scen-btn[data-tab="${tab}"]`)
+    .forEach(b => b.classList.toggle('on', b.dataset.scen === s));
+  const p = SCEN[tab] && SCEN[tab][s];
+  if (p) for (const [id, v] of Object.entries(p)) presetSlider(id, v);
+  refreshActiveTab();
+}
+function refreshActiveTab(){
+  try { const f = DRAW[activeTab]; if (f) f(); }
+  catch (e) { console.error('draw error in tab', activeTab, e); }
+}
+
+/* --- animation pattern (house standard for this course) --- */
+let animId = null, animT = 0;
+const ANIMATED = { photons: true, color: true };
+function tick(){ animT += 1 / 60; refreshActiveTab(); animId = requestAnimationFrame(tick); }
+function startAnim(){ if (!animId && ANIMATED[activeTab]) animId = requestAnimationFrame(tick); }
+function stopAnim(){ if (animId){ cancelAnimationFrame(animId); animId = null; } }
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopAnim(); else startAnim(); });
+
+/* --- small shared drawing bits --- */
+function caption(ctx, x, y, text, color, bold){
+  ctx.save(); ctx.fillStyle = color || COL.axis;
+  ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+function haloText(ctx, x, y, text, color, size, align){
+  ctx.save(); ctx.font = 'bold ' + (size || 13) + 'px sans-serif';
+  ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.strokeText(text, x, y); ctx.fillStyle = color; ctx.fillText(text, x, y);
+  ctx.restore();
+}
+function bigOut(ctx, x, y, text, color){
+  ctx.save(); ctx.fillStyle = color || COL.ink; ctx.font = 'bold 21px sans-serif';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 5; ctx.lineJoin = 'round';
+  ctx.strokeText(text, x, y); ctx.fillText(text, x, y); ctx.restore();
+}
+function drawAtom(ctx, x, y, r, color){
+  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.15, x, y, r);
+  g.addColorStop(0, '#dbeafe'); g.addColorStop(1, color);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(30,58,95,.35)'; ctx.lineWidth = 1; ctx.stroke();
+}
+/* course-standard energy-colour language (same in every module of this course) */
+function energyColor(t){ // t in [0,1], cold -> hot
+  t = Math.max(0, Math.min(1, t));
+  const stops = [[37,99,235],[147,197,253],[248,250,252],[251,146,60],[220,38,38]];
+  const x = t*(stops.length-1), i = Math.min(stops.length-2, Math.floor(x)), f = x-i;
+  const c = stops[i].map((v,j)=>Math.round(v+(stops[i+1][j]-v)*f));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+/* a wavy "light" arrow from (x1,y1) to (x2,y2): amplitude amp, colour col, width wd */
+function wavyArrow(ctx, x1, y1, x2, y2, col, wd, amp, phase){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, px = -uy, py = ux;
+  ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = wd; ctx.lineCap = 'round'; ctx.beginPath();
+  const n = Math.max(8, Math.round(L / 3));
+  for (let i = 0; i <= n; i++) {
+    const s = i / n * (L - 10), off = amp * Math.sin(s / 6 + (phase || 0));
+    const x = x1 + ux * s + px * off, y = y1 + uy * s + py * off;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke(); ctx.restore();
+  arrow(ctx, x2 - ux * 10, y2 - uy * 10, x2, y2, col, wd);
+}
+/* sun disc with rays at (x, y) */
+function sun(ctx, x, y, r, strength){
+  ctx.save();
+  const g = ctx.createRadialGradient(x, y, r * 0.2, x, y, r * 2.2);
+  g.addColorStop(0, 'rgba(253,224,71,' + (0.55 * strength) + ')'); g.addColorStop(1, 'rgba(253,224,71,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 2.2, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgb(' + Math.round(250) + ',' + Math.round(200 + 24 * strength) + ',' + Math.round(60 + 20 * strength) + ')';
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(245,158,11,' + (0.3 + 0.6 * strength) + ')'; ctx.lineWidth = 2;
+  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2;
+    ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * (r + 6), y + Math.sin(a) * (r + 6));
+    ctx.lineTo(x + Math.cos(a) * (r + 12 + 6 * strength), y + Math.sin(a) * (r + 12 + 6 * strength)); ctx.stroke(); }
+  ctx.restore();
+}
+/* approximate perceived colour of a blackbody (display only): the Tanner Helland fit above
+   1000 K, faded toward black below it, where the glow is nearly all infrared */
+function glowRGB(T){
+  const t = Math.max(1000, Math.min(40000, T)) / 100;
+  let r, g, b;
+  if (t <= 66) { r = 255; g = 99.4708025861 * Math.log(t) - 161.1195681661;
+    b = t <= 19 ? 0 : 138.5177312231 * Math.log(t - 10) - 305.0447927307; }
+  else { r = 329.698727446 * Math.pow(t - 60, -0.1332047592); g = 288.1221695283 * Math.pow(t - 60, -0.0755148492); b = 255; }
+  const cl = v => Math.max(0, Math.min(255, Math.round(v)));
+  return [cl(r), cl(g), cl(b)];
+}
+/* infrared-camera false colour ("ironbow"): u in [0,1] */
+function ironbow(u){
+  u = Math.max(0, Math.min(1, u));
+  const stops = [[8,4,24],[70,10,120],[170,20,90],[220,60,30],[250,160,20],[255,235,120],[255,255,255]];
+  const x = u * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(x)), f = x - i;
+  const c = stops[i].map((v, j) => Math.round(v + (stops[i + 1][j] - v) * f));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+
+/* --- seeded tables (stable across redraws; no Math.random per frame) --- */
+const PHOT = (() => { const r = mulberry32(606), a = [];
+  for (let i = 0; i < 60; i++) a.push({ x0: 0.06 + 0.88 * r(), ph: r(), roll: r(), tilt: 0.12 + 0.18 * r(), per: 1.9 + 0.7 * r() });
+  return a; })();
+const JIG = (() => { const r = mulberry32(2024), a = [];
+  for (let i = 0; i < 3 * 22; i++) a.push({ p1: r() * 6.283, p2: r() * 6.283, f1: 0.85 + r() * 0.3, f2: 0.85 + r() * 0.3 });
+  return a; })();
+const RAYS = (() => { const r = mulberry32(77), a = [];
+  for (let i = 0; i < 9; i++) a.push({ ph: r(), off: r() });
+  return a; })();
+
+/* ---------------- TAB 1: photons (ANIMATED) ---------------- */
+function drawPhotons(){
+  const alpha = num('s-photons-alpha'), G = num('s-photons-G');
+  const qAbs = alpha * G, qRef = (1 - alpha) * G;
+  const nPhot = Math.round(60 * G / 1100);
+  const nAbs100 = Math.round(alpha * 100);
+  const photonsPerS = G / E_GREEN_PHOTON;
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-photons'));
+  const ys = 214;                                              // the surface
+  // sky
+  const sky = ctx.createLinearGradient(0, 0, 0, ys);
+  sky.addColorStop(0, 'rgba(191,219,254,' + (0.25 + 0.55 * G / 1100) + ')'); sky.addColorStop(1, 'rgba(219,234,254,0.15)');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, w, ys);
+  sun(ctx, 60, 48, 22, G / 1100);
+  haloText(ctx, 60, 92, 'G = ' + fmt(G, 0) + ' W/m²', COL.warn, 12);
+  // the surface lattice: 3 rows of atoms, jiggling harder the more they absorb
+  const heat = Math.min(1, qAbs / 1000);
+  const colr = energyColor(0.32 + 0.68 * heat), amp = 0.6 + 3.6 * heat;
+  const cols = 22, dx = (w - 60) / (cols - 1);
+  ctx.fillStyle = alpha > 0.5 ? 'rgba(30,41,59,' + (0.25 + 0.6 * (alpha - 0.5)) + ')' : 'rgba(241,245,249,' + (0.9 - alpha) + ')';
+  ctx.fillRect(0, ys, w, h - ys);
+  for (let r = 0; r < 3; r++) for (let c = 0; c < cols; c++) {
+    const g = JIG[r * cols + c], rx = 30 + c * dx, ry = ys + 16 + r * 26;
+    drawAtom(ctx, rx + amp * Math.sin(7 * g.f1 * animT + g.p1), ry + amp * Math.sin(7 * g.f2 * animT + g.p2), 8, colr);
+  }
+  // photons
+  for (let i = 0; i < nPhot; i++) {
+    const p = PHOT[i];
+    const u = (p.ph + animT / p.per) % 1;
+    const absorbed = p.roll < alpha;
+    const xHit = 30 + p.x0 * (w - 60);
+    const yTop = 100, fallLen = ys - 6 - yTop;
+    if (u < 0.6) {                                             // falling
+      const f = u / 0.6, y = yTop + f * fallLen, x = xHit - (1 - f) * fallLen * p.tilt;
+      wavyArrow(ctx, x - 22 * p.tilt, y - 22, x, y, 'rgba(245,158,11,0.9)', 2, 3, animT * 20 + i);
+    } else if (absorbed) {                                     // flash, then gone
+      if (u < 0.72) { const a = 1 - (u - 0.6) / 0.12;
+        ctx.save(); ctx.strokeStyle = 'rgba(245,158,11,' + a + ')'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(xHit, ys, 4 + 14 * (1 - a), 0, 7); ctx.stroke(); ctx.restore(); }
+    } else {                                                   // bouncing away, fading
+      const f = (u - 0.6) / 0.4, y = ys - 6 - f * fallLen, x = xHit + f * fallLen * p.tilt;
+      ctx.save(); ctx.globalAlpha = 0.9 - 0.7 * f;
+      wavyArrow(ctx, x - 22 * p.tilt, y + 22, x, y, 'rgba(245,158,11,0.9)', 2, 3, animT * 20 + i);
+      ctx.restore();
+    }
+  }
+  bigOut(ctx, w - 250, 8, 'absorbed ' + fmt(qAbs, 0) + ' W/m²', COL.bad);
+  bigOut(ctx, w - 250, 34, 'reflected ' + fmt(qRef, 0) + ' W/m²', COL.axis);
+  haloText(ctx, w / 2, ys - 12, 'surface, α = ' + fmt(alpha, 2) + ' — absorbed photons become atomic jiggle', COL.ink, 12);
+
+  // bookkeeping bar + 100-photon grid
+  const c2 = setupCanvas(document.getElementById('cv-photons2'));
+  const bx = 24, bw = c2.w - 48 - 250, by = 34, bh = 30;
+  const wAbs = bw * alpha;
+  c2.ctx.fillStyle = COL.grid; c2.ctx.fillRect(bx, by, bw, bh);
+  c2.ctx.fillStyle = COL.bad; c2.ctx.fillRect(bx, by, wAbs, bh);
+  c2.ctx.fillStyle = '#fde68a'; c2.ctx.fillRect(bx + wAbs, by, bw - wAbs, bh);
+  c2.ctx.strokeStyle = COL.axis; c2.ctx.strokeRect(bx, by, bw, bh);
+  caption(c2.ctx, bx + bw / 2, by - 10, 'arriving G = ' + fmt(G, 0) + ' W/m²', COL.ink, true);
+  if (wAbs > 60) { c2.ctx.save(); c2.ctx.fillStyle = '#fff'; c2.ctx.font = 'bold 12px sans-serif'; c2.ctx.textAlign = 'center';
+    c2.ctx.textBaseline = 'middle'; c2.ctx.fillText('absorbed αG = ' + fmt(qAbs, 0), bx + wAbs / 2, by + bh / 2); c2.ctx.restore(); }
+  else haloText(c2.ctx, bx + wAbs + 6, by + bh / 2, 'absorbed αG = ' + fmt(qAbs, 0), COL.bad, 12, 'left');
+  if (bw - wAbs > 90) haloText(c2.ctx, bx + wAbs + (bw - wAbs) / 2, by + bh / 2, 'reflected ' + fmt(qRef, 0), COL.ink, 12);
+  caption(c2.ctx, bx + bw / 2, by + bh + 18, 'becomes jiggle in the surface  ·  bounces away as light', COL.axis);
+  caption(c2.ctx, bx + bw / 2, by + bh + 40, 'about ' + fmt(photonsPerS / 1e21, 1) + ' × 10²¹ photons hit each m² every second', COL.axis);
+  // 100 photons
+  const gx = c2.w - 24 - 190, gy = 22, cell = 17;
+  caption(c2.ctx, gx + 85, gy - 8, 'of 100 photons: ' + nAbs100 + ' absorbed, ' + (100 - nAbs100) + ' bounce', COL.ink, true);
+  for (let i = 0; i < 100; i++) {
+    const cx = gx + (i % 10) * cell + 8, cy = gy + Math.floor(i / 10) * cell + 8;
+    c2.ctx.fillStyle = i < nAbs100 ? COL.bad : '#fde68a';
+    c2.ctx.beginPath(); c2.ctx.arc(cx, cy, 6, 0, 7); c2.ctx.fill();
+    c2.ctx.strokeStyle = 'rgba(30,58,95,.35)'; c2.ctx.lineWidth = 1; c2.ctx.stroke();
+  }
+
+  setStat('st-photons', [
+    { label: 'Arriving G', value: fmt(G, 0) + ' W/m²' },
+    { label: 'Absorptivity α', value: fmt(alpha, 2) },
+    { label: 'Absorbed αG', value: fmt(qAbs, 0) + ' W/m²', highlight: true },
+    { label: 'Reflected (1−α)G', value: fmt(qRef, 0) + ' W/m²' },
+    { label: 'Of 100 photons', value: nAbs100 + ' absorbed' },
+    { label: 'Photons per m² per s', value: (photonsPerS / 1e21).toFixed(1) + ' × 10²¹' }
+  ]);
+
+  if (alpha >= 0.8 && G >= 700)
+    setVerdict('vd-photons', 'bad', 'A dark surface in strong sun — nearly every delivery is kept.',
+      'α = ' + fmt(alpha, 2) + ' means ' + nAbs100 + ' of every 100 photons sink in, so ' + fmt(qAbs, 0) + ' W/m² becomes atomic jiggle — close to a space heater on every square meter. Watch the lattice: this is the black car seat, being charged all morning.');
+  else if (alpha <= 0.15)
+    setVerdict('vd-photons', 'good', 'A mirror — the deliveries bounce.',
+      'Only ' + nAbs100 + ' photons in 100 stay; ' + fmt(qRef, 0) + ' of the ' + fmt(G, 0) + ' W/m² leave again as light. The atoms barely notice the sun. This is why emergency blankets and rooftop reflectors are silver.');
+  else if (G < 500)
+    setVerdict('vd-photons', 'good', 'Weak light — the deliveries have slowed.',
+      'With G = ' + fmt(G, 0) + ' W/m² even a dark surface (α = ' + fmt(alpha, 2) + ') absorbs only ' + fmt(qAbs, 0) + ' W/m². It is the product αG that heats things: a black car on a cloudy day is just a car.');
+  else
+    setVerdict('vd-photons', 'warn', 'Somewhere between black and white.',
+      'α = ' + fmt(alpha, 2) + ': ' + nAbs100 + ' photons in 100 are absorbed and ' + fmt(qAbs, 0) + ' W/m² becomes jiggle, the other ' + fmt(qRef, 0) + ' W/m² bounces off. Most everyday colours — brick, denim, skin — live in this middle band.');
+}
+
+/* ---------------- TAB 2: color (ANIMATED climb to the balance point) ---------------- */
+const CLIMB = { key: null, traj: null, start: 0, refBlack: null, refWhite: null };
+const T_AIR_C = 35, T_AIR_K = T_AIR_C + C0;
+const CLIMB_END = 1500, CLIMB_DT = 2, CLIMB_REAL = 12, CLIMB_HOLD = 4;   // 25 sim-minutes in 12 real seconds
+
+function drawColor(){
+  const alpha = num('s-color-alpha'), eps = num('s-color-eps'), G = num('s-color-G'), h = num('s-color-h');
+  const key = [alpha, eps, G, h].join('|');
+  if (CLIMB.key !== key) {
+    CLIMB.key = key; CLIMB.start = animT;
+    CLIMB.traj = panelTrajectory(alpha, eps, G, h, T_AIR_K, C_STEEL_1MM, CLIMB_END, CLIMB_DT);
+    CLIMB.refBlack = panelTrajectory(0.95, 0.90, G, h, T_AIR_K, C_STEEL_1MM, CLIMB_END, CLIMB_DT);
+    CLIMB.refWhite = panelTrajectory(0.25, 0.90, G, h, T_AIR_K, C_STEEL_1MM, CLIMB_END, CLIMB_DT);
+  }
+  const TsK = panelSteadyT(alpha, eps, G, h, T_AIR_K), TsC = TsK - C0;
+  const qIn = alpha * G, qConv = h * (TsK - T_AIR_K), qGlow = qRad(eps, TsK, T_AIR_K), qRef = (1 - alpha) * G;
+  const tl = (animT - CLIMB.start) % (CLIMB_REAL + CLIMB_HOLD);
+  const tSim = Math.min(CLIMB_END, tl / CLIMB_REAL * CLIMB_END);
+  const idx = Math.min(CLIMB.traj.length - 1, Math.round(tSim / CLIMB_DT));
+  const TnowK = CLIMB.traj[idx][1], TnowC = TnowK - C0;
+  const convNow = h * (TnowK - T_AIR_K), glowNow = qRad(eps, TnowK, T_AIR_K);
+  // time to come within 2 K of the balance point
+  let tSettle = CLIMB_END;
+  for (const p of CLIMB.traj) if (TsK - p[1] < 2) { tSettle = p[0]; break; }
+
+  // ---- canvas 1: the sunlit roof ----
+  const { ctx, w, h: H } = setupCanvas(document.getElementById('cv-color'));
+  const sky = ctx.createLinearGradient(0, 0, 0, 200);
+  sky.addColorStop(0, 'rgba(147,197,253,' + (0.25 + 0.5 * G / 1100) + ')'); sky.addColorStop(1, 'rgba(219,234,254,0.2)');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, w, 200);
+  ctx.fillStyle = '#e2e8f0'; ctx.fillRect(0, 200, w, H - 200);            // ground
+  sun(ctx, 70, 46, 24, G / 1100);
+  // the car: body colour from α (white → black), metallic when ε is low
+  let grey = Math.round(238 - 215 * alpha);
+  let body = 'rgb(' + grey + ',' + grey + ',' + (grey + 4) + ')';
+  if (eps < 0.3) body = 'rgb(' + Math.round(grey * 0.75 + 55) + ',' + Math.round(grey * 0.75 + 60) + ',' + Math.round(grey * 0.75 + 68) + ')';
+  const cx0 = 250, cy = 200;
+  ctx.fillStyle = body; ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.5;
+  ctx.beginPath();                                                        // body + roof outline
+  ctx.moveTo(cx0, cy); ctx.lineTo(cx0, cy - 40); ctx.lineTo(cx0 + 55, cy - 44); ctx.lineTo(cx0 + 90, cy - 78);
+  ctx.lineTo(cx0 + 200, cy - 78); ctx.lineTo(cx0 + 235, cy - 44); ctx.lineTo(cx0 + 290, cy - 40); ctx.lineTo(cx0 + 290, cy);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(191,219,254,0.85)';                               // windows
+  ctx.beginPath(); ctx.moveTo(cx0 + 100, cy - 72); ctx.lineTo(cx0 + 192, cy - 72); ctx.lineTo(cx0 + 220, cy - 46); ctx.lineTo(cx0 + 72, cy - 46); ctx.closePath(); ctx.fill();
+  for (const wx of [cx0 + 55, cx0 + 235]) { ctx.fillStyle = '#334155'; ctx.beginPath(); ctx.arc(wx, cy, 16, 0, 7); ctx.fill();
+    ctx.fillStyle = '#94a3b8'; ctx.beginPath(); ctx.arc(wx, cy, 7, 0, 7); ctx.fill(); }
+  // roof temperature glow tint (subtle) + big readout
+  const hot = Math.max(0, Math.min(1, (TnowC - T_AIR_C) / 60));
+  ctx.save(); ctx.globalAlpha = 0.35 * hot; ctx.fillStyle = COL.bad;
+  ctx.beginPath(); ctx.moveTo(cx0 + 90, cy - 78); ctx.lineTo(cx0 + 200, cy - 78); ctx.lineTo(cx0 + 235, cy - 44); ctx.lineTo(cx0 + 55, cy - 44); ctx.closePath(); ctx.fill(); ctx.restore();
+  bigOut(ctx, 12, 96, 'roof ' + fmt(TnowC, 0) + ' °C', TnowC > 70 ? COL.bad : TnowC > 50 ? COL.warn : COL.ink);
+  haloText(ctx, 12, 132, 'balance point ' + fmt(TsC, 0) + ' °C · air ' + fmt(T_AIR_C, 0) + ' °C', COL.axis, 12, 'left');
+  haloText(ctx, 12, 156, 'in: absorbed ' + fmt(qIn, 0) + ' W/m²', COL.bad, 12, 'left');
+  haloText(ctx, 12, 172, 'bounced off: ' + fmt(qRef, 0) + ' W/m²', '#b45309', 12, 'left');
+  haloText(ctx, 12, 190, 'out to the air: ' + fmt(convNow, 0) + ' W/m²', COL.teal, 12, 'left');
+  haloText(ctx, 12, 206, 'out as infrared glow: ' + fmt(glowNow, 0) + ' W/m²', COL.orange, 12, 'left');
+  haloText(ctx, 12, 226, (qIn - convNow - glowNow > 10 ? 'net gain ' + fmt(qIn - convNow - glowNow, 0) + ' W/m² — still climbing' : 'balanced — losses match the delivery'),
+    (qIn - convNow - glowNow) > 10 ? COL.bad : COL.good, 12, 'left');
+  // arrows: sunlight in (yellow), reflected (yellow, thinner), convection (teal, wavy up), glow (orange, wavy up-right)
+  const wOf = q => Math.max(1.5, Math.min(14, q / 60));
+  const rx = cx0 + 145, ry = cy - 78;
+  for (const r of RAYS.slice(0, 5)) {
+    const x0 = 100 + r.off * 40, y0 = 70 + r.off * 20;
+    ctx.save(); ctx.globalAlpha = 0.5 + 0.5 * G / 1100;
+    drawLine(ctx, x0, y0, x0 + (rx - 60 - x0) * 0.92, y0 + (ry - 10 - y0) * 0.92, 'rgba(253,224,71,0.9)', 1.5); ctx.restore();
+  }
+  arrow(ctx, rx - 110, ry - 70, rx - 30, ry - 6, '#f59e0b', wOf(G));
+  haloText(ctx, rx - 150, ry - 84, 'sunlight ' + fmt(G, 0) + ' W/m²', COL.warn, 12);
+  if (qRef > 5) { arrow(ctx, rx - 24, ry - 6, rx + 40, ry - 58, '#fde047', wOf(qRef));
+    haloText(ctx, rx + 46, ry - 46, 'reflected', '#b45309', 11, 'left'); }
+  if (convNow > 3) { wavyArrow(ctx, rx + 112, ry - 4, rx + 112, ry - 52, COL.teal, wOf(convNow), 3, animT * 6);
+    haloText(ctx, rx + 112, ry - 62, 'to the air', COL.teal, 11); }
+  if (glowNow > 3) { wavyArrow(ctx, rx + 150, ry - 4, rx + 190, ry - 40, COL.orange, wOf(glowNow), 3, animT * 6 + 1);
+    haloText(ctx, rx + 170, ry - 52, 'infrared glow', COL.orange, 11); }
+  caption(ctx, w / 2, H - 8, 'sim clock t = ' + fmt(tSim / 60, 1) + ' min in the sun · the roof is a 1 mm steel skin', COL.axis);
+
+  // ---- canvas 2: T(t) ----
+  const c2 = setupCanvas(document.getElementById('cv-color2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const yTop = Math.max(TsC, CLIMB.refBlack[CLIMB.refBlack.length - 1][1] - C0) + 8;
+  ch.setRange(0, CLIMB_END / 60, T_AIR_C - 3, yTop);
+  ch.grid(); ch.axes('time in the sun (min)', 'roof temperature (°C)');
+  ch.hLine(TsC, COL.bad, [5, 4]);
+  ch.plot(CLIMB.refBlack.map(p => [p[0] / 60, p[1] - C0]), 'rgba(30,41,59,0.45)', 1.5, [3, 4]);
+  ch.plot(CLIMB.refWhite.map(p => [p[0] / 60, p[1] - C0]), 'rgba(148,163,184,0.9)', 1.5, [3, 4]);
+  ch.plot(CLIMB.traj.filter(p => p[0] <= tSim).map(p => [p[0] / 60, p[1] - C0]), COL.accent, 3);
+  ch.dot(tSim / 60, TnowC, COL.accent, 6);
+  ch.legend([{ label: 'your roof', color: COL.accent }, { label: 'balance ' + fmt(TsC, 0) + ' °C', color: COL.bad, dash: [5, 4] },
+             { label: 'black paint', color: 'rgba(30,41,59,0.6)', dash: [3, 4] }, { label: 'white paint', color: 'rgba(148,163,184,0.9)', dash: [3, 4] }]);
+
+  setStat('st-color', [
+    { label: 'Absorbed αG', value: fmt(qIn, 0) + ' W/m²' },
+    { label: 'Balance temperature T_s', value: fmt(TsC, 1) + ' °C', highlight: true },
+    { label: 'Lost to the air (convection)', value: fmt(qConv, 0) + ' W/m²' },
+    { label: 'Lost as infrared glow', value: fmt(qGlow, 0) + ' W/m²' },
+    { label: 'Losses at balance', value: fmt(qConv + qGlow, 0) + ' W/m²' },
+    { label: 'Time to settle (1 mm steel)', value: fmt(tSettle / 60, 0) + ' min' }
+  ]);
+
+  if (TsC >= 70)
+    setVerdict('vd-color', 'bad', 'An oven: the roof balances at ' + fmt(TsC, 0) + ' °C.',
+      'It absorbs ' + fmt(qIn, 0) + ' W/m² and has to climb ' + fmt(TsC - T_AIR_C, 0) + ' K above the air before convection (' + fmt(qConv, 0) + ') plus infrared glow (' + fmt(qGlow, 0) + ') can carry that much away. Skin burns in seconds on surfaces above ~70 °C. Lighten the colour or add wind.');
+  else if (TsC >= 50)
+    setVerdict('vd-color', 'warn', 'Hot to the touch: ' + fmt(TsC, 0) + ' °C.',
+      'The balance closes at ' + fmt(TsC - T_AIR_C, 0) + ' K above the air: ' + fmt(qConv, 0) + ' W/m² leaves by convection and ' + fmt(qGlow, 0) + ' W/m² by glow. Notice the glow share — a surface this warm sheds a large fraction of its heat as invisible light.');
+  else
+    setVerdict('vd-color', 'good', 'Merely warm: ' + fmt(TsC, 0) + ' °C.',
+      'With only ' + fmt(qIn, 0) + ' W/m² absorbed, a modest ' + fmt(TsC - T_AIR_C, 0) + ' K rise is enough for the losses (' + fmt(qConv, 0) + ' to the air, ' + fmt(qGlow, 0) + ' as glow) to match it. This is the white car — or any car in the shade.');
+}
+
+/* ---------------- TAB 3: glow (static) ---------------- */
+const VIS_LO = 0.38, VIS_HI = 0.75;
+function drawGlow(){
+  const T = Math.pow(10, num('s-glow-T'));
+  const lamPk = wienPeak(T), Etot = stefanE(T), visF = bandFraction(VIS_LO, VIS_HI, T);
+  const Pvis = visF * Etot;
+  const eyeB = Math.pow(Math.max(0, Math.min(1, (T - 720) / 2600)), 0.7);   // display brightness: dark below ~750 K (Draper point), full by ~3300 K
+  const [r, g, b] = glowRGB(T);
+  const irU = (Math.log10(Etot) - Math.log10(stefanE(293))) / (Math.log10(stefanE(6000)) - Math.log10(stefanE(293)));
+
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-glow'));
+  // left: eye view in a dark room
+  ctx.fillStyle = '#0b0e14'; ctx.fillRect(0, 0, w / 2 - 4, h);
+  const ex = w / 4, ey = h / 2 + 6, R = 62;
+  if (eyeB > 0.02) {
+    const gl = ctx.createRadialGradient(ex, ey, R * 0.6, ex, ey, R * (1.6 + 1.4 * eyeB));
+    gl.addColorStop(0, `rgba(${r},${g},${b},${0.55 * eyeB})`); gl.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(ex, ey, R * 3.2, 0, 7); ctx.fill();
+  }
+  const rr = Math.round(r * eyeB), gg = Math.round(g * eyeB), bb = Math.round(b * eyeB);
+  ctx.fillStyle = `rgb(${Math.max(rr, 12)},${Math.max(gg, 12)},${Math.max(bb, 16)})`;
+  ctx.beginPath(); ctx.arc(ex, ey, R, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(148,163,184,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.save(); ctx.fillStyle = '#cbd5e1'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('your eye', ex, 24);
+  ctx.font = '12px sans-serif'; ctx.fillStyle = '#94a3b8';
+  ctx.fillText(T < 750 ? 'nothing to see — the glow is all infrared' : T < 1100 ? 'a faint dull-red glow' : T < 1800 ? 'bright orange-red' : T < 3200 ? 'yellow-white, like a filament' : 'blazing white', ex, h - 14);
+  ctx.restore();
+  // right: infrared camera
+  ctx.fillStyle = ironbow(0.02); ctx.fillRect(w / 2 + 4, 0, w / 2 - 4, h);
+  const ix = 3 * w / 4;
+  ctx.fillStyle = ironbow(irU); ctx.beginPath(); ctx.arc(ix, ey, R, 0, 7); ctx.fill();
+  // camera scale bar
+  for (let i = 0; i < 60; i++) { ctx.fillStyle = ironbow(i / 59); ctx.fillRect(w - 26, h - 40 - i * 2, 10, 2); }
+  ctx.save(); ctx.fillStyle = '#e2e8f0'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('infrared camera', ix, 24);
+  ctx.font = '12px sans-serif'; ctx.fillStyle = '#cbd5e1';
+  ctx.fillText('emits ' + (Etot >= 1e5 ? Etot.toExponential(1) : fmt(Etot, 0)) + ' W/m² — brighter than the 20 °C room', ix, h - 14);
+  ctx.font = '10px sans-serif'; ctx.textAlign = 'right'; ctx.fillText('hot', w - 30, h - 156); ctx.fillText('cold', w - 30, h - 34);
+  ctx.restore();
+  haloText(ctx, w / 2, 24, fmt(T, 0) + ' K', COL.ink, 13);
+
+  // spectrum: log λ axis, each curve scaled to its own peak
+  const c2 = setupCanvas(document.getElementById('cv-glow2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h, { l: 56, r: 14, t: 14, b: 38 });
+  const lx0 = Math.log10(0.1), lx1 = Math.log10(100);
+  ch.setRange(lx0, lx1, 0, 1.12);
+  // visible band
+  const vx0 = ch.toX(Math.log10(VIS_LO)), vx1 = ch.toX(Math.log10(VIS_HI));
+  const rb = c2.ctx.createLinearGradient(vx0, 0, vx1, 0);
+  [['#7c3aed', 0], ['#2563eb', 0.25], ['#16a34a', 0.5], ['#eab308', 0.72], ['#dc2626', 1]].forEach(([c, s]) => rb.addColorStop(s, c));
+  c2.ctx.save(); c2.ctx.globalAlpha = 0.28; c2.ctx.fillStyle = rb;
+  c2.ctx.fillRect(vx0, ch.m.t, vx1 - vx0, ch.h - ch.m.t - ch.m.b); c2.ctx.restore();
+  // grid + axes (decades)
+  c2.ctx.strokeStyle = COL.grid; c2.ctx.lineWidth = 1;
+  for (let d = -1; d <= 2; d++) for (const m of [1, 2, 5]) { const lv = d + Math.log10(m); if (lv > lx1 + 1e-9) continue;
+    const x = ch.toX(lv); c2.ctx.beginPath(); c2.ctx.moveTo(x, ch.m.t); c2.ctx.lineTo(x, ch.h - ch.m.b); c2.ctx.stroke(); }
+  for (const t of [0.25, 0.5, 0.75, 1]) { const y = ch.toY(t); c2.ctx.beginPath(); c2.ctx.moveTo(ch.m.l, y); c2.ctx.lineTo(ch.w - ch.m.r, y); c2.ctx.stroke(); }
+  c2.ctx.strokeStyle = COL.axis; c2.ctx.lineWidth = 1.5;
+  c2.ctx.beginPath(); c2.ctx.moveTo(ch.m.l, ch.m.t); c2.ctx.lineTo(ch.m.l, ch.h - ch.m.b); c2.ctx.lineTo(ch.w - ch.m.r, ch.h - ch.m.b); c2.ctx.stroke();
+  c2.ctx.fillStyle = COL.axis; c2.ctx.font = '11px sans-serif'; c2.ctx.textAlign = 'center'; c2.ctx.textBaseline = 'top';
+  for (const [lv, lab] of [[-1, '0.1'], [Math.log10(0.5), '0.5'], [0, '1'], [Math.log10(5), '5'], [1, '10'], [Math.log10(50), '50'], [2, '100']])
+    c2.ctx.fillText(lab, ch.toX(lv), ch.h - ch.m.b + 5);
+  c2.ctx.textAlign = 'right'; c2.ctx.textBaseline = 'middle';
+  for (const t of [0, 0.5, 1]) c2.ctx.fillText(fmt(t), ch.m.l - 6, ch.toY(t));
+  c2.ctx.font = 'bold 12px sans-serif'; c2.ctx.fillStyle = COL.ink; c2.ctx.textAlign = 'center'; c2.ctx.textBaseline = 'alphabetic';
+  c2.ctx.fillText('wavelength λ (µm) — visible 0.38–0.75 µm shaded, infrared to the right', (ch.m.l + ch.w - ch.m.r) / 2, ch.h - 6);
+  c2.ctx.save(); c2.ctx.translate(14, (ch.m.t + ch.h - ch.m.b) / 2); c2.ctx.rotate(-Math.PI / 2); c2.ctx.fillText('relative brightness', 0, 0); c2.ctx.restore();
+  const curve = (TT) => { const pk = planck(wienPeak(TT), TT), pts = [];
+    for (let lv = lx0; lv <= lx1 + 1e-9; lv += 0.01) pts.push([lv, planck(Math.pow(10, lv), TT) / pk]); return pts; };
+  ch.plot(curve(310), 'rgba(100,116,139,0.8)', 1.5, [5, 4]);
+  ch.plot(curve(5800), 'rgba(245,158,11,0.8)', 1.5, [5, 4]);
+  ch.plot(curve(T), COL.accent, 3);
+  ch.dot(Math.log10(lamPk), 1, COL.accent, 6);
+  haloText(c2.ctx, ch.toX(Math.log10(lamPk)) + (lamPk > 3 ? -8 : 8), ch.toY(1) - 2, 'peak ' + fmt(lamPk, 2) + ' µm', COL.accent, 12, lamPk > 3 ? 'right' : 'left');
+  ch.legend([{ label: 'your object', color: COL.accent }, { label: 'skin 310 K', color: 'rgba(100,116,139,0.8)', dash: [5, 4] },
+             { label: 'the Sun 5800 K', color: 'rgba(245,158,11,0.8)', dash: [5, 4] }]);
+
+  setStat('st-glow', [
+    { label: 'Temperature', value: fmt(T, 0) + ' K = ' + fmt(T - C0, 0) + ' °C' },
+    { label: 'Peak wavelength λ = 2898/T', value: fmt(lamPk, 2) + ' µm', highlight: true },
+    { label: 'Total glow σT⁴', value: (Etot >= 1e5 ? Etot.toExponential(2) : fmt(Etot, 0)) + ' W/m²' },
+    { label: 'Visible share (0.38–0.75 µm)', value: visF < 0.0005 ? '< 0.05 %' : fmt(visF * 100, 1) + ' %' },
+    { label: 'Glow vs your skin (310 K)', value: fmt(Etot / stefanE(310), Etot / stefanE(310) < 10 ? 2 : 0) + '×' }
+  ]);
+
+  if (T < 750)
+    setVerdict('vd-glow', 'good', 'Glowing — entirely in the infrared.',
+      'At ' + fmt(T, 0) + ' K the peak sits at ' + fmt(lamPk, 1) + ' µm, far to the right of anything your eye can catch, so the eye view is black. But ' + fmt(Etot, 0) + ' W/m² is leaving as light — the infrared camera sees it plainly, and so does your palm held near a warm wall.');
+  else if (T < 1500)
+    setVerdict('vd-glow', 'warn', 'Red hot: the short-wavelength tail has reached your eye.',
+      'The peak (' + fmt(lamPk, 2) + ' µm) is still infrared, but the curve\'s left tail now leaks into the red end of the visible band — ' + (visF < 0.0005 ? 'well under 0.1 %' : fmt(visF * 100, 2) + ' %') + ' of the glow. That sliver is enough to see in a dark kitchen: the stove element, the embers, a blacksmith\'s iron.');
+  else if (T < 4000)
+    setVerdict('vd-glow', 'warn', 'White hot — but still mostly a heater.',
+      fmt(T, 0) + ' K puts the peak at ' + fmt(lamPk, 2) + ' µm with ' + fmt(visF * 100, 0) + ' % of the glow visible; the other ' + fmt(100 - visF * 100, 0) + ' % is infrared. This is the incandescent filament: bright to the eye, wasteful as a lamp, ' + fmt(Etot / 1e6, 1) + ' MW per square meter of glow.');
+  else
+    setVerdict('vd-glow', 'good', 'Sunlight territory: the peak lands in the visible band.',
+      'At ' + fmt(T, 0) + ' K the peak is ' + fmt(lamPk, 2) + ' µm — inside the shaded band — and ' + fmt(visF * 100, 0) + ' % of the emitted power is visible light. The photons that arrive in Tab 1 were born on a curve like this one, ' + fmt(Etot / 1e6, 0) + ' MW per square meter of solar surface.');
+}
+
+/* ---------------- TAB 4: levelup (static) ---------------- */
+function drawLevelup(){
+  const TsC = num('s-levelup-ts'), TairC = num('s-levelup-tair'), TsurC = num('s-levelup-tsurr');
+  const eps = num('s-levelup-eps'), h = num('s-levelup-h');
+  const Ts = TsC + C0, Tair = TairC + C0, Tsur = TsurC + C0;
+  const qr = qRad(eps, Ts, Tsur), qc = h * (Ts - Tair), hr = hRad(eps, Ts, Tsur);
+  const total = qr + qc, share = total !== 0 ? qr / total : 0;
+
+  // ---- canvas 1: the object between the air and the walls ----
+  const { ctx, w, h: H } = setupCanvas(document.getElementById('cv-levelup'));
+  const span = Math.max(30, Math.abs(TsC - Math.min(TairC, TsurC)) + 10);
+  const tOf = TC => 0.5 + (TC - (TsC + Math.min(TairC, TsurC)) / 2) / span;
+  ctx.fillStyle = energyColor(tOf(TairC)); ctx.save(); ctx.globalAlpha = 0.18; ctx.fillRect(0, 0, w, H); ctx.restore();   // the air
+  const wx = w - 70;
+  ctx.fillStyle = energyColor(tOf(TsurC)); ctx.fillRect(wx, 30, 40, H - 70);                                              // the wall
+  ctx.strokeStyle = COL.axis; ctx.strokeRect(wx, 30, 40, H - 70);
+  const ox = 150, oy = 82, ow = 44, oh = H - 156;
+  ctx.fillStyle = energyColor(tOf(TsC)); ctx.fillRect(ox, oy, ow, oh);                                                   // the surface
+  ctx.strokeStyle = COL.ink; ctx.lineWidth = 2; ctx.strokeRect(ox, oy, ow, oh);
+  haloText(ctx, ox + ow / 2, oy - 14, 'surface ' + fmt(TsC, 0) + ' °C · ε = ' + fmt(eps, 2), COL.ink, 12);
+  haloText(ctx, wx + 20, 20, 'walls ' + fmt(TsurC, 0) + ' °C', COL.ink, 12);
+  haloText(ctx, w - 10, H - 12, 'air ' + fmt(TairC, 0) + ' °C · h = ' + fmt(h, 0) + ' W/m²K', COL.ink, 12, 'right');
+  const wOf = q => Math.max(1.5, Math.min(16, 1.5 + Math.abs(q) / 40));
+  // radiation arrows: surface → wall (or back)
+  const nR = Math.max(1, Math.min(5, Math.round(Math.abs(qr) / 40)));
+  for (let i = 0; i < nR; i++) {
+    const y = oy + oh * (i + 1) / (nR + 1);
+    if (qr >= 0) wavyArrow(ctx, ox + ow + 6, y, wx - 8, y, COL.orange, wOf(qr), 4, i * 1.3);
+    else wavyArrow(ctx, wx - 8, y, ox + ow + 6, y, COL.orange, wOf(qr), 4, i * 1.3);
+  }
+  haloText(ctx, (ox + ow + wx) / 2, oy - 14, 'infrared exchange ' + fmt(qr, 0) + ' W/m²', COL.orange, 13);
+  // convection arrows: rising from both faces
+  if (Math.abs(qc) > 1) {
+    const nC = Math.max(1, Math.min(4, Math.round(Math.abs(qc) / 60)));
+    for (let i = 0; i < nC; i++) {
+      const x = ox - 14 - i * 14, x2 = ox + ow + 14 + i * 14, y0 = oy + oh - 10 - i * 6;
+      if (qc >= 0) { wavyArrow(ctx, x, y0, x, oy + 10, COL.teal, wOf(qc) * 0.8, 3, i); wavyArrow(ctx, x2, y0, x2, oy + 10, COL.teal, wOf(qc) * 0.8, 3, i + 2); }
+      else { wavyArrow(ctx, x, oy + 10, x, y0, COL.teal, wOf(qc) * 0.8, 3, i); wavyArrow(ctx, x2, oy + 10, x2, y0, COL.teal, wOf(qc) * 0.8, 3, i + 2); }
+    }
+  }
+  haloText(ctx, ox + ow / 2, oy + oh + 16, 'to the air ' + fmt(qc, 0) + ' W/m²', COL.teal, 13);
+  bigOut(ctx, 12, 8, 'radiation ' + fmt(qr, 0) + ' · convection ' + fmt(qc, 0) + ' W/m²', COL.ink);
+  haloText(ctx, 12, 46, 'h_rad = ' + fmt(hr, 1) + ' W/m²K  vs  h = ' + fmt(h, 0) + ' W/m²K', COL.axis, 12, 'left');
+  // share bar
+  const sx = 12, sy = H - 22, sw = 200, sh = 10;
+  ctx.fillStyle = COL.teal; ctx.fillRect(sx, sy, sw, sh);
+  ctx.fillStyle = COL.orange; ctx.fillRect(sx, sy, sw * Math.max(0, Math.min(1, share)), sh);
+  ctx.strokeStyle = COL.axis; ctx.strokeRect(sx, sy, sw, sh);
+  haloText(ctx, sx, sy - 10, 'share of the loss carried by radiation: ' + fmt(Math.max(0, Math.min(1, share)) * 100, 0) + ' %', COL.ink, 11, 'left');
+
+  // ---- canvas 2: q vs Ts ----
+  const c2 = setupCanvas(document.getElementById('cv-levelup2'));
+  const ch = new Chart(c2.ctx, c2.w, c2.h);
+  const xLo = Math.min(TairC, TsurC), xHi = Math.max(TsC, xLo) + 80;
+  const qrAt = TC => qRad(eps, TC + C0, Tsur), qcAt = TC => h * (TC + C0 - Tair);
+  const yMax = Math.max(qrAt(xHi), qcAt(xHi), 10) * 1.08, yMin = Math.min(0, qrAt(xLo), qcAt(xLo)) * 1.08;
+  ch.setRange(xLo, xHi, yMin, yMax);
+  ch.grid(); ch.axes('surface temperature T_s (°C)', 'heat loss per m² (W/m²)');
+  const pr = [], pc = [], pl = [];
+  for (let i = 0; i <= 200; i++) { const x = xLo + (xHi - xLo) * i / 200; pr.push([x, qrAt(x)]); pc.push([x, qcAt(x)]); pl.push([x, hr * (x - TsurC)]); }
+  ch.plot(pl, 'rgba(100,116,139,0.7)', 1.5, [5, 4]);
+  ch.plot(pc, COL.teal, 2.5); ch.plot(pr, COL.orange, 3);
+  ch.dot(TsC, qr, COL.orange, 6); ch.dot(TsC, qc, COL.teal, 6);
+  ch.legend([{ label: 'radiation εσ(T_s⁴ − T_surr⁴)', color: COL.orange }, { label: 'convection h(T_s − T_air)', color: COL.teal },
+             { label: 'h_rad line (tangent here)', color: 'rgba(100,116,139,0.7)', dash: [5, 4] }]);
+
+  setStat('st-levelup', [
+    { label: 'Radiation εσ(T_s⁴ − T_surr⁴)', value: fmt(qr, 0) + ' W/m²', highlight: true },
+    { label: 'Convection h(T_s − T_air)', value: fmt(qc, 0) + ' W/m²' },
+    { label: 'Radiation coefficient h_rad', value: fmt(hr, 1) + ' W/m²K' },
+    { label: 'Radiation ÷ convection', value: qc > 0 ? fmt(qr / qc, 2) + '×' : '— (no convection)' },
+    { label: 'Total loss', value: fmt(total, 0) + ' W/m²' },
+    { label: 'If ε were 0.95 instead', value: fmt(qRad(0.95, Ts, Tsur), 0) + ' W/m²' }
+  ]);
+
+  if (h === 0)
+    setVerdict('vd-levelup', eps < 0.2 ? 'good' : 'warn', 'Vacuum: radiation is the only exit.',
+      'With no air, everything must leave as infrared: ' + fmt(qr, 0) + ' W/m² at ε = ' + fmt(eps, 2) + '. ' + (eps < 0.2 ? 'A silvered wall chokes even that — this is the thermos flask, and the space blanket, working as designed.' : 'Bare glass at ε ≈ 0.95 would lose ' + fmt(qRad(0.95, Ts, Tsur), 0) + ' W/m²; silver it (ε ≈ 0.05) and the loss drops ~19×.'));
+  else if (Ts < Tsur && Ts < Tair)
+    setVerdict('vd-levelup', 'warn', 'Colder than its surroundings — heat is flowing in.',
+      'Both terms are negative: the walls glow at the surface harder than it glows back (' + fmt(qr, 0) + ' W/m²) and the warmer air feeds it (' + fmt(qc, 0) + '). The fourth-power law and Newton\'s law both run either direction.');
+  else if (share > 0.65)
+    setVerdict('vd-levelup', 'bad', 'Radiation dominates: ' + fmt(share * 100, 0) + '% of the loss is glow.',
+      'h_rad = ' + fmt(hr, 1) + ' W/m²K has outrun h = ' + fmt(h, 0) + ' because h_rad grows as the cube of the mean temperature. Hot surfaces — stove elements, engine blocks, glowing coals — shed most of their heat as invisible light. Shielding beats fanning here.');
+  else if (share > 0.35)
+    setVerdict('vd-levelup', 'good', 'Even split: radiation ≈ convection.',
+      'Radiation carries ' + fmt(qr, 0) + ' W/m² and the air ' + fmt(qc, 0) + ' — h_rad = ' + fmt(hr, 1) + ' vs h = ' + fmt(h, 0) + ' W/m²K. This is the everyday regime: a person, a radiator, a mug. Note that the glow half answers to the wall temperature ' + fmt(TsurC, 0) + ' °C, not the air.');
+  else
+    setVerdict('vd-levelup', 'good', 'Convection dominates: only ' + fmt(share * 100, 0) + '% of the loss is glow.',
+      'Either the wind is strong (h = ' + fmt(h, 0) + ') or the surface barely glows (ε = ' + fmt(eps, 2) + '). Radiation still ships ' + fmt(qr, 0) + ' W/m² — never zero — but the air is doing the hauling. Turn h down or ε up and watch the balance swing.');
+}
+
+/* --- dispatch + boot --- */
+const DRAW = { photons: drawPhotons, color: drawColor, glow: drawGlow, levelup: drawLevelup };
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    stopAnim();
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    const sec = document.getElementById('tab-' + activeTab);
+    if (sec) sec.classList.add('active');
+    refreshActiveTab();
+    startAnim();
+  });
+});
+window.addEventListener('resize', refreshActiveTab);
+wireAll();
+refreshActiveTab();
+startAnim();
+</script>
 </body>
 </html>

@@ -201,7 +201,7 @@
     actions.className = 'tqb-actions';
     const create = document.createElement('button');
     create.className = 'btn btn-primary btn-sm';
-    create.textContent = '✓ Create task';
+    ICON.label(create, 'check', ' Create task');
     create.disabled = true;     // enabled once a task builder is picked or "+ New" used
     actions.appendChild(create);
     wrap.appendChild(actions);

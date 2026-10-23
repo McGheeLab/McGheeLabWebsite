@@ -504,7 +504,7 @@
 
   function formatSymbolValue(sym) {
     if (!sym) return '?';
-    if (sym.error) return '⚠';
+    if (sym.error) return '!';
     if (sym.value === null || sym.value === undefined || sym.value === '') return '?';
     var s = String(sym.value);
     if (sym.unit) s += ' ' + sym.unit;

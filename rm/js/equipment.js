@@ -777,7 +777,7 @@ window.McgheeLab = window.McgheeLab || {};
           ${e.description ? `<p class="eq-ecard-desc">${esc(e.description)}</p>` : ''}
           <div class="eq-ecard-meta">
             ${glance ? `<span class="eq-ecard-glance eq-ecard-glance--${glance.cls}">${esc(glance.label)}</span>` : ''}
-            ${e.location ? `<span class="eq-ecard-tag">📍 ${esc(e.location)}</span>` : ''}
+            ${e.location ? `<span class="eq-ecard-tag">${ICON.svg('map-pin')} ${esc(e.location)}</span>` : ''}
             <span class="eq-ecard-tag">${e.maxDurationMin || 480} min max</span>
             ${todayCount > 0 ? `<span class="eq-ecard-tag eq-ecard-tag--active">${todayCount} booking${todayCount > 1 ? 's' : ''} today</span>` : ''}
           </div>
@@ -849,7 +849,7 @@ window.McgheeLab = window.McgheeLab || {};
           </div>
           <div class="eq-toolbar-right">
             ${_calView === 'week' ? `<button class="app-btn ${_watchMode ? 'app-btn--primary' : 'app-btn--secondary'}" id="eq-watch-mode"
-              title="Drag across the calendar to be notified if that time frees up">🔔 ${_watchMode ? 'Watching — drag a window' : 'Notify me'}</button>` : ''}
+              title="Drag across the calendar to be notified if that time frees up">${ICON.svg('bell')} ${_watchMode ? 'Watching — drag a window' : 'Notify me'}</button>` : ''}
             <button class="app-btn app-btn--primary" id="eq-new-booking">+ New Booking</button>
           </div>
         </div>
@@ -1078,7 +1078,7 @@ window.McgheeLab = window.McgheeLab || {};
       watchBands += `<div class="eq-wk-watch" data-watch-id="${w.id}"
         style="grid-column:${dayIdx + 2};grid-row:${startRow + 1}/span ${span};"
         title="Watching ${esc(eqLabel)} ${fmtTime(w.startTime)}–${fmtTime(w.endTime)} — you'll be notified if it frees up">
-        <button type="button" class="eq-wk-watch-x" data-watch-del="${w.id}" aria-label="Stop watching">🔔✕</button>
+        <button type="button" class="eq-wk-watch-x" data-watch-del="${w.id}" aria-label="Stop watching">${ICON.svg('bell')}✕</button>
       </div>`;
     });
 
@@ -1324,7 +1324,7 @@ window.McgheeLab = window.McgheeLab || {};
     overlay.innerHTML = `
       <div class="eq-modal eq-modal--narrow">
         <div class="eq-modal-header">
-          <h3>🔔 Notify me if it frees up</h3>
+          <h3>${ICON.svg('bell')} Notify me if it frees up</h3>
           <button class="eq-modal-close">&times;</button>
         </div>
         <div class="eq-modal-body">
@@ -1721,10 +1721,10 @@ window.McgheeLab = window.McgheeLab || {};
         ? checkAvailability(eq, date, endDate, start, end)
         : { ok: true };
       if (!check.ok) {
-        el.innerHTML = `<div class="eq-avail-line eq-avail-line--violation">⏰ ${esc(check.reason)}</div>`;
+        el.innerHTML = `<div class="eq-avail-line eq-avail-line--violation">${ICON.svg('clock')} ${esc(check.reason)}</div>`;
       } else {
         const suffix = check.bypassed ? ' — manager/admin override active' : '';
-        el.innerHTML = `<div class="eq-avail-line">⏰ ${esc(name)} is bookable ${esc(label)}${esc(suffix)}</div>`;
+        el.innerHTML = `<div class="eq-avail-line">${ICON.svg('clock')} ${esc(name)} is bookable ${esc(label)}${esc(suffix)}</div>`;
       }
     }
 
@@ -1768,7 +1768,7 @@ window.McgheeLab = window.McgheeLab || {};
         }).join(', ');
         conflictsEl.innerHTML = `
           <div class="eq-conflict-warning">
-            <strong>⚠ This will displace existing booking${_conflictDocs.length > 1 ? 's' : ''}:</strong> ${names}
+            <strong>${ICON.svg('exclamation-triangle')} This will displace existing booking${_conflictDocs.length > 1 ? 's' : ''}:</strong> ${names}
             <div style="margin-top:.3rem;font-size:.75rem">Their booking${_conflictDocs.length > 1 ? 's' : ''} will be moved to <strong>"needs rebooking"</strong> status and they will need to find a new time.</div>
             <label class="eq-checkbox-label" style="margin-top:.4rem">
               <input type="checkbox" id="eq-bk-displace-confirm" />
@@ -2026,6 +2026,8 @@ window.McgheeLab = window.McgheeLab || {};
             gcalEventId: null,
           };
           const newId = await EDB.createBooking(bookingData);
+          // V3.844 — recorded for the person: "Booked the confocal · Thu 23 Oct 10:00–12:00" (reads "Used" once the slot has passed)
+          try { if (window.USER_ACTIONS) USER_ACTIONS.record(USER_ACTIONS.fromBooking(newId, bookingData)).catch(() => {}); } catch (e) {}
           // Mark displaced bookings as needs-rebooking (only for confirmed bookings)
           if (!needsApproval) {
             for (const cb of _conflictDocs) {
@@ -2035,7 +2037,7 @@ window.McgheeLab = window.McgheeLab || {};
           if (!needsApproval) await syncBookingToGCal({ id: newId, ...bookingData }, 'create');
           showToast(needsApproval ? 'Booking submitted for manager approval' : (_conflictDocs.length ? 'Booking confirmed — displaced bookings marked for rebooking' : 'Booking confirmed'));
           // V3.530 — double-dip: offer to fan the booking out (huddle
-          // plan, notebook stub, tracker event) via My Day.
+          // plan, notebook stub, tracker event) via My Week.
           if (window.DAY_DISTRIBUTE) DAY_DISTRIBUTE.renderChipsFloating({
             source: 'equipment', type: 'equipment',
             nativeDocPath: 'equipmentBookings/' + newId,

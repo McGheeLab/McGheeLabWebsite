@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V3.865 — the phone app's crash reports (web side)</title>
+<!-- Serve the repo root and open /scripts/tests/v3865-app-diagnostics-harness.html. A stubbed OurlabDiagnostics plugin
+     (the native side's contract), a stub Firestore, and firebridge as a LEXICAL const (production shape). -->
+<style>body{font:13px/1.5 system-ui,sans-serif;margin:16px}.ok{color:#15803d}.bad{color:#b91c1c}#r{margin-top:12px}</style>
+<script>
+window.__popups = [];
+['prompt', 'alert', 'confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
+try { localStorage.removeItem('ourlab.crumbs.v1'); } catch (e) {}
+window.__OURLAB_DIAG_TEST = true;
+/* the native contract (OurlabDiagnostics.swift) */
+var NOW = Date.now();
+window.__nat = {
+  pending: [
+    { id: 'r-1-1111', kind: 'app-exit', summary: 'Ourlab closed while in use (tab myday)', createdAt: new Date(NOW + 400).toISOString(), app: { version: '1.0', build: '19' }, device: { model: 'iPhone17,4', os: '26.1', availableMemoryMB: 210 }, event: { previousRun: { phase: 'foreground', activeTab: 'myday' } } },
+    { id: 'r-1-2222', kind: 'hang', summary: 'The app froze for 4 s', createdAt: new Date(NOW + 400).toISOString(), app: { build: '19' }, device: { model: 'iPhone17,4' }, event: {}, metrickit: { hangDiagnostics: [{ callStackTree: { callStacks: [{ threadAttributed: true }] } }] } }
+  ],
+  claimed: {}, claims: 0, done: [], released: [], notes: [], shares: []
+};
+window.Capacitor = {
+  isNativePlatform: function () { return true; },
+  isPluginAvailable: function (n) { return n === 'OurlabDiagnostics'; },
+  Plugins: { OurlabDiagnostics: {
+    claim: function () { var n = window.__nat; n.claims++; var out = n.pending.filter(function (r) { return !n.claimed[r.id]; }).slice(0, 5); out.forEach(function (r) { n.claimed[r.id] = 1; }); return Promise.resolve({ reports: JSON.parse(JSON.stringify(out)) }); },
+    done: function (o) { var n = window.__nat; (o.ids || []).forEach(function (id) { n.done.push(id); n.pending = n.pending.filter(function (r) { return r.id !== id; }); delete n.claimed[id]; }); return Promise.resolve(); },
+    release: function (o) { var n = window.__nat; (o.ids || []).forEach(function (id) { n.released.push(id); delete n.claimed[id]; }); return Promise.resolve(); },
+    note: function (o) { window.__nat.notes.push(o); return Promise.resolve(); },
+    info: function () { return Promise.resolve({ device: { model: 'iPhone17,4' }, app: { build: '19' }, tab: 'myday' }); },
+    share: function (o) { window.__nat.shares.push(o); return Promise.resolve({ completed: true }); }
+  } }
+};
+/* Firestore stub */
+window.__fs = { docs: {}, failNext: 0 };
+window.firebase = { firestore: { FieldValue: { serverTimestamp: function () { return '__TS__'; } } } };
+window.__user = undefined;   /* firebridge.getUser(): undefined until sign-in resolves, null when nobody is signed in */
+setTimeout(function () { window.__user = { uid: 'gabe1', email: 'gabe@x.edu', displayName: 'Gabe' }; }, 1200);   /* auth restores a beat after load */
+</script>
+<script>
+/* production shape: firebase-bridge.js declares `const firebridge` — never window.firebridge */
+const firebridge = {
+  getUser: function () { return window.__user; },
+  db: function () { return { collection: function (c) { return { doc: function (id) { return { set: function (data) {
+    if (window.__fs.failNext > 0) { window.__fs.failNext--; return Promise.reject(new Error('permission-denied (stub)')); }
+    window.__fs.docs[c + '/' + id] = JSON.parse(JSON.stringify(data)); return Promise.resolve(); } }; } }; } }; }
+};
+</script>
+<script src="/rm/js/app-diagnostics.js"></script>
+</head>
+<body>
+<h1>V3.865 — app crash reports, web side</h1>
+<button type="button" data-act="save-entry" id="b1">Save</button>
+<input id="secret" type="text" value="">
+<div id="r">running…</div>
+<script>
+(async function () {
+  var out = [], fails = 0;
+  window.__rej = []; window.addEventListener('unhandledrejection', function (e) { var m = String((e.reason && e.reason.message) || e.reason); if (!/deliberate/.test(m)) window.__rej.push(m); });
+  function check(name, ok, detail) { out.push('<div class="' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓' : '✗') + ' ' + name + (detail !== undefined ? ' <small>' + String(detail).replace(/</g, '&lt;') + '</small>' : '') + '</div>'); if (!ok) fails++; }
+  function q(s) { return document.querySelector(s); }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function until(fn, ms) { var t0 = Date.now(); while (Date.now() - t0 < (ms || 8000)) { try { var v = fn(); if (v) return v; } catch (e) {} await sleep(40); } return null; }
+  function crumbs() { try { return JSON.parse(localStorage.getItem('ourlab.crumbs.v1') || '[]'); } catch (e) { return []; } }
+  function finish() { var r = document.getElementById('r'); r.innerHTML = out.join('') + '<div><b>' + (out.length - fails) + '/' + out.length + ' passed</b></div>'; r.dataset.done = '1'; r.dataset.fails = String(fails); }
+  try {
+    /* ── breadcrumbs ── */
+    check('the script is active in the app with the plugin', !!window.__OURLAB_DIAG && window.__OURLAB_DIAG.hasPlugin);
+    check('a page load is the first breadcrumb', crumbs().some(function (c) { return c.k === 'load'; }));
+    var inp = q('#secret'); inp.value = 'my-private-password-123'; inp.dispatchEvent(new Event('input', { bubbles: true }));
+    q('#b1').click(); inp.click();
+    var cs = crumbs();
+    check('a tap is recorded by the control\'s action name', cs.some(function (c) { return c.k === 'tap' && c.m === 'button[save-entry]'; }), JSON.stringify(cs.slice(-3)));
+    check('typed text never reaches the breadcrumbs', JSON.stringify(crumbs()).indexOf('my-private-password-123') < 0);
+    function boom() { throw new Error('boom in a render loop'); }   /* one source line, thrown five times */
+    for (var i = 0; i < 5; i++) { setTimeout(boom, 0); await sleep(15); }
+    Promise.reject(new Error('deliberate rejection')); await sleep(30);
+    console.error('save failed:', { code: 'unavailable' }); await sleep(10);
+    cs = crumbs();
+    var errs = cs.filter(function (c) { return c.k === 'error' && /boom in a render loop/.test(c.m); });
+    check('a JS error is recorded with where it happened, and a repeating one is ONE crumb with a count', errs.length === 1 && errs[0].n === 5 && /harness\.html:\d+/.test(errs[0].m), JSON.stringify(errs));
+    check('unhandled rejections and console.error are recorded', cs.some(function (c) { return c.k === 'rejection' && /deliberate rejection/.test(c.m); }) && cs.some(function (c) { return c.k === 'console' && /save failed/.test(c.m) && /unavailable/.test(c.m); }));
+    check('the tab tells the native side where it is', window.__nat.notes.length >= 1 && /v3865-app-diagnostics-harness/.test(window.__nat.notes[0].page), JSON.stringify(window.__nat.notes[0]));
+
+    /* ── claim → banner → upload → done ── */
+    var up = await until(function () { return window.__nat.done.length === 2; }, 9000);
+    var d1 = window.__fs.docs['crashReports/r-1-1111'], d2 = window.__fs.docs['crashReports/r-1-2222'];
+    check('once someone is signed in, both pending reports are uploaded to crashReports/{id} and marked done', !!up && !!d1 && !!d2 && window.__nat.claims >= 1, JSON.stringify(window.__nat.done));
+    check('a report carries who, the phone, the build, the event as JSON, and only the rule\'s fields', d1 && d1.uid === 'gabe1' && d1.email === 'gabe@x.edu' && d1.device.model === 'iPhone17,4' && d1.app.build === '19' && JSON.parse(d1.eventJson).previousRun.activeTab === 'myday' && d1.uploadedAt === '__TS__' &&
+      Object.keys(d1).every(function (k) { return ['id', 'uid', 'email', 'name', 'kind', 'summary', 'createdAt', 'uploadedAt', 'app', 'device', 'page', 'eventJson', 'metrickitJson', 'breadcrumbs'].indexOf(k) >= 0; }), d1 && Object.keys(d1).join(','));
+    check('Apple\'s MetricKit JSON travels as a string (Firestore cannot hold nested arrays)', d2 && typeof d2.metrickitJson === 'string' && JSON.parse(d2.metrickitJson).hangDiagnostics.length === 1);
+    check('the breadcrumbs from BEFORE the event ride along', d1 && d1.breadcrumbs.length >= 3 && d1.breadcrumbs.some(function (c) { return c.k === 'tap'; }), d1 && d1.breadcrumbs.length);
+    var ban = await until(function () { return q('.odg-banner'); }, 2000);
+    check('a banner says what happened, and that a report was sent', !!ban && /closed unexpectedly/.test(ban.textContent) && /sent to the lab/.test(ban.textContent), ban && ban.textContent);
+    q('.odg-banner [data-odg="share"]').click(); await sleep(60);
+    var sh = window.__nat.shares[0];
+    var shared = sh && JSON.parse(sh.text);
+    check('Share report opens the share sheet with the whole report as a JSON file — nothing to type', !!sh && /^ourlab-crash-\d+\.json$/.test(sh.filename) && shared.id === 'r-1-1111' && Array.isArray(shared.breadcrumbs) && shared.device.model === 'iPhone17,4', sh && sh.filename);
+    check('a hang is uploaded quietly (the banner is for crashes and stopped pages)', !/froze/i.test(ban.textContent));
+    q('.odg-banner [data-odg="close"]').click(); await sleep(30);
+    check('× dismisses the banner', !q('.odg-banner'));
+
+    /* ── a failed upload hands the report back ── */
+    window.__nat.pending.push({ id: 'r-2-3333', kind: 'webcontent', summary: 'A page stopped (its web process died) on the notebook tab', createdAt: new Date().toISOString(), app: { build: '19' }, device: { model: 'iPhone17,4' }, event: { tab: 'focus', url: 'capacitor://localhost/rm/pages/notebook.html' } });
+    window.__fs.failNext = 1;
+    await window.__OURLAB_DIAG.collect();
+    check('an upload that fails releases the report (another page tries again) and the banner offers Share', window.__nat.released.indexOf('r-2-3333') >= 0 && !window.__fs.docs['crashReports/r-2-3333'] && /stopped and reloaded/.test((q('.odg-banner') || {}).textContent || '') && /report is ready/.test((q('.odg-banner') || {}).textContent || ''), JSON.stringify(window.__nat.released));
+    await window.__OURLAB_DIAG.collect();
+    check('…and the next try uploads it', !!window.__fs.docs['crashReports/r-2-3333'] && window.__nat.done.indexOf('r-2-3333') >= 0);
+
+    /* ── a hidden preloaded tab never claims ── */
+    window.__nat.pending.push({ id: 'r-3-4444', kind: 'app-exit', summary: 'x', createdAt: new Date().toISOString(), app: {}, device: {}, event: {} });
+    var c0 = window.__nat.claims;
+    window.__OURLAB_TAB_VISIBLE = false;
+    await window.__OURLAB_DIAG.collect();
+    check('a hidden tab (idle preload) does not claim — its banner would show to nobody', window.__nat.claims === c0);
+    window.__OURLAB_TAB_VISIBLE = true; document.dispatchEvent(new Event('ourlab:tab-visible'));
+    var got = await until(function () { return window.__fs.docs['crashReports/r-3-4444']; }, 4000);
+    check('when the tab is shown, it claims and uploads', !!got && window.__nat.claims > c0);
+
+    /* ── nobody signed in: hand back, keep Share ── */
+    window.__user = null;
+    window.__nat.pending.push({ id: 'r-4-5555', kind: 'app-exit', summary: 'y', createdAt: new Date().toISOString(), app: {}, device: {}, event: {} });
+    var t0 = Date.now(); await window.__OURLAB_DIAG.collect(); var took = Date.now() - t0;
+    check('signed out: the report is handed back at once (uploaded after the next sign-in); the banner says it is ready to share', window.__nat.released.indexOf('r-4-5555') >= 0 && !window.__fs.docs['crashReports/r-4-5555'] && took < 900 && /report is ready/.test((q('.odg-banner') || {}).textContent || '') && !!q('.odg-banner [data-odg="share"]'), took + ' ms');
+
+    /* ── outside the app the script does nothing ── */
+    var fr = document.createElement('iframe');
+    fr.srcdoc = '<!doctype html><script src="/rm/js/app-diagnostics.js"><\/script><script>parent.__webOnly = { diag: !!window.__OURLAB_DIAG, crumbs: localStorage.getItem("ourlab.crumbs.v1") };<\/script>';
+    var before = localStorage.getItem('ourlab.crumbs.v1');
+    document.body.appendChild(fr);
+    await until(function () { return window.__webOnly; }, 3000);
+    check('on the website (no Capacitor) the script is inert: no hooks, no breadcrumbs', window.__webOnly && !window.__webOnly.diag && window.__webOnly.crumbs === before, JSON.stringify(window.__webOnly && window.__webOnly.diag));
+    check('no browser popups; no unexpected unhandled rejections', window.__popups.length === 0 && window.__rej.length === 0, window.__rej.join(' | '));
+  } catch (e) { check('the harness itself threw: ' + (e && e.message), false, String(e && e.stack || '').split('\n').slice(0, 4).join(' | ')); }
+  finish();
+})();
+</script>
+</body>
+</html>

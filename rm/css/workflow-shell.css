@@ -20,7 +20,8 @@ body.has-workflow-shell {
 }
 /* Strip should never shrink below its content height — locks it in
  * place so #shell-root can fill the remaining viewport. */
-body.has-workflow-shell > .workflow-strip {
+body.has-workflow-shell > .top-nav,
+body.has-workflow-shell > .workflow-strip {   /* V3.809: the bar is .top-nav everywhere */
   flex: 0 0 auto;
 }
 
@@ -268,4 +269,51 @@ body.shell-popout-resizing { cursor: col-resize; }
   }
   .shell-popout--left.open  { left: 0; }
   .shell-popout--right.open { right: 0; }
+}
+
+/* ─── V3.810 — PAGE MODE: the same popouts on every ordinary RM page ───
+ * nav.js mounts ShellPopouts into <body> with pageMode:true. There is no
+ * #shell-root to anchor to, so the overlays are FIXED under the 56px bar
+ * and sit above page content (z 90) but under the bar (100), its menus
+ * (150) and the palette (1000). Closed = a pill at each screen edge; open
+ * = the panel slides over the page without reflowing it. */
+body.rm-page-popouts .shell-popout {
+  position: fixed;
+  top: 56px;
+  bottom: 0;
+  z-index: 90;
+}
+body.rm-page-popouts .shell-popout.open {
+  max-width: calc(100vw - 80px);
+}
+/* a page's own bottom chrome (My Week composer etc.) stays usable: the
+   closed pill is small; when open, the panel is deliberately on top. */
+body.rm-page-popouts .shell-popout-pill {
+  box-shadow: 0 2px 10px rgba(15, 23, 42, .14);
+}
+
+/* ═══ V3.836 — OPEN state: a vertical side-tab cluster at the same edge
+   anchor as the closed pill — "open further" (wide: +300px, the page inside
+   may fill it, chat shows People & groups) and "close". The closed pill is
+   still the single button it was. ═══ */
+div.shell-popout-pill--open {
+  height: auto; min-height: 0; padding: 0; gap: 0;
+  cursor: default; overflow: hidden;
+}
+.shell-popout-tab {
+  appearance: none; background: transparent; border: 0;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  width: 32px; min-height: 64px; margin: 0; padding: 8px 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  cursor: pointer; color: var(--text-muted, #6b7280); font-family: inherit;
+}
+.shell-popout-tab:last-child { border-bottom: 0; }
+.shell-popout-tab:hover { background: var(--bg, #f3f4f6); color: var(--text, #111827); }
+.shell-popout-tab.is-on { color: var(--primary, #2563eb); background: rgba(37, 99, 235, .08); }
+.shell-popout-tab--close:hover { color: var(--danger, #dc2626); }
+.shell-popout-tab-icon { display: flex; }
+.shell-popout-tab-icon svg { width: 18px; height: 18px; }
+.shell-popout-tab-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+  writing-mode: vertical-rl; text-orientation: mixed; white-space: nowrap; line-height: 1;
 }

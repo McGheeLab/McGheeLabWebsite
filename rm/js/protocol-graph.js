@@ -1248,7 +1248,7 @@
       } else if (role === 'structural' && to.type !== 'list') {
         errors.push('Structural wire into "' + _nodeName(to) + '" (' + to.type + ') — only a list assembles wired inputs.');
       } else if (role === 'display' && to.type !== 'cards' && to.type !== 'refs') {
-        errors.push('Display wire into "' + _nodeName(to) + '" (' + to.type + ') — only 📊 Cards / 🔗 References nodes take display wires.');
+        errors.push('Display wire into "' + _nodeName(to) + '" (' + to.type + ') — only Cards / References nodes take display wires.');
       } else if (role === 'param') {
         var fields = paramTargets(to).map(function (t) { return t.field; });
         if (!e.paramField) {
@@ -1764,7 +1764,7 @@
    * rewritten to match). Pure: never mutates the passed graph. */
   var RECIPES = [
     {
-      key: 'dilution', icon: '💧', label: 'Dilute a stock (C1·V1 = C2·V2)',
+      key: 'dilution', icon: 'droplet', label: 'Dilute a stock (C1·V1 = C2·V2)',
       hint: 'Stock conc. + target conc. + final volume → stock and diluent volumes.',
       nodes: [
         { ref: 'c1', type: 'input', dx: 0, dy: 0, params: { name: 'C1', label: 'Stock conc.', widget: 'number', min: 0.001, max: 1000, step: 0.1, default: 10, unit: 'mM' } },
@@ -1795,7 +1795,7 @@
       ],
     },
     {
-      key: 'sets-list', icon: '🧪', label: 'Two sets → experiment list',
+      key: 'sets-list', icon: 'test-tube', label: 'Two sets → experiment list',
       hint: 'A choices set × an ordered set assemble into an item list.',
       nodes: [
         { ref: 'cond', type: 'choices', dx: 0, dy: 0, params: { field: 'condition', label: 'Condition', options: ['A', 'B'], editable: true } },
@@ -1812,7 +1812,7 @@
       ],
     },
     {
-      key: 'drive-setting', icon: '🎛', label: 'Drive a setting (binding)',
+      key: 'drive-setting', icon: 'adjustments-vertical', label: 'Drive a setting (binding)',
       hint: 'A constant drives another node’s setting — here a slider’s max.',
       nodes: [
         { ref: 'cap', type: 'constant', dx: 0, dy: 0, params: { name: 'cap', label: 'Upper cap', value: 100, unit: '' } },
@@ -1823,7 +1823,7 @@
       ],
     },
     {
-      key: 'code-transform', icon: '📜', label: 'Script transform (code)',
+      key: 'code-transform', icon: 'document', label: 'Script transform (code)',
       hint: 'An input feeds a JavaScript snippet with a named output.',
       nodes: [
         { ref: 'x', type: 'input', dx: 0, dy: 0, params: { name: 'x', label: 'X', widget: 'slider', min: 0, max: 20, step: 1, default: 4, unit: '' } },

@@ -1,0 +1,2400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Plasma Cleaner — Your Lowest Setting Is Someone Else's Highest (Equipment Foundations 4)</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#f1f5f9;color:#1e293b;line-height:1.5;overflow-x:hidden}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,#1e3a5f 0%,#0891b2 100%);color:#fff;padding:24px 32px;text-align:center}
+header h1{font-size:1.7rem;font-weight:700;letter-spacing:-.5px}
+header .subtitle{font-size:.95rem;opacity:.85;margin-top:4px}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 16px;overflow-x:auto;position:sticky;top:0;z-index:100}
+.tab-btn{padding:12px 16px;border:none;background:none;font-size:.84rem;font-weight:600;color:#64748b;
+  cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:#2563eb}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+.tab-btn.next-tab{color:#b45309;font-weight:700}
+.tab-btn.next-tab.active{color:#b45309;border-bottom-color:#f59e0b}
+
+/* ── Constants & variables rail ── */
+.constants-bar{max-width:1400px;margin:10px auto 0;padding:0 16px}
+.constants-bar details{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.constants-bar summary{cursor:pointer;padding:10px 16px;font-size:.82rem;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:#1e3a5f}
+.constants-bar .const-body{padding:4px 20px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px 24px}
+.constants-bar .const-body h4{grid-column:1/-1;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-top:8px}
+.constants-bar .const-body p{font-size:.82rem;color:#475569;margin:1px 0}
+.constants-bar .const-body p .src{color:#94a3b8;font-size:.72rem}
+.constants-bar .eqindex p b{color:#1e3a5f;font-variant-numeric:tabular-nums}
+
+/* ── Main layout ── */
+main{max-width:1400px;margin:0 auto;padding:16px}
+.tab-content{display:none}
+.tab-content.active{display:flex;flex-direction:column}
+
+/* ── Lesson flow (stacked story → interactive pairs) ──
+   `contain:layout` keeps each block's internal reflow from reaching its
+   siblings; the reserved heights on .stats / .val-verdict below keep the
+   blocks themselves from changing size as live readouts update, so a
+   simulation never pushes the paragraph you are reading off the screen. */
+.lesson-block{margin-bottom:26px;padding-bottom:8px;border-bottom:1px dashed #cbd5e1;contain:layout}
+.lesson-block:last-of-type{border-bottom:none}
+.lesson-block .background-section{margin-bottom:12px}
+.panel.compact{grid-template-columns:260px 1fr;margin-bottom:4px;align-items:start}
+@media(max-width:900px){.panel.compact{grid-template-columns:1fr}}
+
+/* ── Cards & panels ── */
+.panel{display:grid;grid-template-columns:300px 1fr;gap:16px}
+@media(max-width:900px){.panel{grid-template-columns:1fr}}
+
+/* ── Background sections ── */
+.background-section{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  padding:24px 28px;margin-bottom:16px;border-left:4px solid #1e3a5f}
+.background-section h2{font-size:1.1rem;color:#1e3a5f;margin-bottom:12px}
+.background-section h3{font-size:.95rem;color:#334155;margin:16px 0 6px}
+.background-section p,.background-section li{font-size:.88rem;color:#475569;line-height:1.6}
+.background-section ul,.background-section ol{padding-left:20px;margin:6px 0}
+.equation-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 16px;margin:10px 0;overflow-x:auto}
+.equation-box .eqno{float:right;color:#94a3b8;font-size:.78rem;margin-left:10px;line-height:2.2}
+.equation-box mjx-container,.background-section mjx-container{max-width:100%;overflow-x:auto;overflow-y:hidden}
+.worked-example{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin:10px 0}
+.worked-example::before{content:"WORKED EXAMPLE";display:block;font-size:.65rem;font-weight:700;letter-spacing:.08em;color:#2563eb;margin-bottom:6px}
+/* ── Worked examples v2: stepped, equations shown assembling, COLLAPSED by default ── */
+details.worked{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;margin:12px 0}
+details.worked summary{cursor:pointer;padding:9px 14px;font-size:.72rem;font-weight:700;letter-spacing:.07em;color:#2563eb;text-transform:uppercase}
+details.worked summary .we-title{color:#1e40af;text-transform:none;letter-spacing:0;font-size:.86rem;font-weight:600;margin-left:6px}
+details.worked .worked-body{padding:2px 18px 14px}
+details.worked ol.steps{margin:0 0 0 18px;padding:0}
+details.worked ol.steps>li{font-size:.86rem;color:#1e3a8a;margin-bottom:9px;line-height:1.55}
+details.worked ol.steps>li .lead{font-weight:700;color:#2563eb}
+details.worked .step-eq{background:#fff;border:1px solid #dbeafe;border-radius:6px;padding:6px 12px;margin:6px 0;overflow-x:auto}
+details.worked .answer{background:#dbeafe;border-radius:6px;padding:9px 13px;margin-top:8px;font-size:.88rem;color:#1e3a8a}
+details.worked .answer::before{content:"ANSWER · ";font-size:.68rem;font-weight:800;letter-spacing:.07em;color:#2563eb}
+/* ── capstone tab button ── */
+.tab-btn.cap-tab{color:#047857;font-weight:700}
+.tab-btn.cap-tab.active{color:#047857;border-bottom-color:#10b981}
+.key-takeaways{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-top:12px}
+.key-takeaways::before{content:"KEY TAKEAWAYS";display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#15803d;margin-bottom:4px}
+.key-takeaways ul{margin:0 0 0 16px;padding:0}
+.key-takeaways li{font-size:.82rem;color:#14532d}
+.background-section table.cmp{width:100%;border-collapse:collapse;font-size:.84rem;margin:10px 0}
+.background-section table.cmp th,.background-section table.cmp td{border:1px solid #e2e8f0;padding:5px 9px;text-align:left;color:#475569}
+.background-section table.cmp th{background:#f1f5f9;color:#334155;font-weight:700}
+.background-section table.cmp td.c{text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ── Deep boxes (566 / curious-student depth) ── */
+details.deep{background:#faf5ff;border:1px solid #e9d5ff;border-radius:6px;padding:0;margin:10px 0}
+details.deep summary{cursor:pointer;padding:8px 14px;font-size:.76rem;font-weight:700;letter-spacing:.06em;color:#7c3aed}
+details.deep .deep-body{padding:2px 16px 12px}
+details.deep .deep-body p,details.deep .deep-body li{font-size:.84rem;color:#5b21b6}
+
+/* ── Check-yourself boxes ── */
+details.check{background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;margin:12px 0}
+details.check summary{cursor:pointer;padding:9px 14px;font-size:.78rem;font-weight:700;letter-spacing:.06em;color:#c2410c;text-transform:uppercase}
+details.check .check-body{padding:2px 18px 12px}
+details.check .check-body p,details.check .check-body li{font-size:.86rem;color:#7c2d12}
+details.check details{margin:4px 0 10px}
+details.check details summary{padding:2px 0;font-size:.78rem;color:#9a3412;text-transform:none;letter-spacing:0}
+details.check details p{font-size:.82rem;color:#78350f;padding:4px 0 0 6px}
+
+/* ── Student task ── */
+.student-task{border:2px solid #059669;border-radius:8px;background:#ecfdf5;padding:12px 16px;margin:12px 0;position:relative}
+.student-task::before{content:"TRY THIS";position:absolute;top:-0.6rem;left:1rem;background:#ecfdf5;padding:0 0.5rem;font-size:.65rem;font-weight:700;letter-spacing:.1em;color:#059669}
+.student-task ol{margin:.25rem 0 0 1.25rem;color:#065f46}
+.student-task li{font-size:.88rem;margin-bottom:4px}
+
+/* ── Controls ── */
+.ctrl{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px}
+.ctrl h3{font-size:.85rem;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:10px;border-bottom:1px solid #f1f5f9;padding-bottom:6px}
+.ctrl-group{margin-bottom:12px}
+.ctrl-group label{display:flex;justify-content:space-between;font-size:.82rem;font-weight:600;color:#334155;margin-bottom:3px}
+.ctrl-group label span{font-weight:400;color:#2563eb;font-variant-numeric:tabular-nums}
+.ctrl-group input[type=range]{width:100%;accent-color:#2563eb;height:6px}
+.toggle-btn{border:2px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 12px;font-size:.8rem;font-weight:700;color:#64748b;cursor:pointer;width:100%;transition:all .15s}
+.toggle-btn.on{border-color:#dc2626;color:#dc2626;background:#fef2f2}
+
+/* ── Stats ── (every widget emits exactly 4 rows; the reserved height means a
+   changing readout never resizes the box and shifts the page under the reader) */
+.stats{background:#f8fafc;border-radius:8px;padding:12px;font-size:.82rem;font-variant-numeric:tabular-nums;margin-top:8px;min-height:132px}
+.stats h4{font-size:.8rem;color:#64748b;margin-bottom:4px}
+.stat-row{display:flex;justify-content:space-between;gap:10px;align-items:baseline;min-height:27px;padding:2px 0;border-bottom:1px solid #f1f5f9}
+.stat-row .label{color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.stat-row .value{flex:0 0 auto}
+.stat-row .value{font-weight:600;color:#1e293b;text-align:right;white-space:nowrap}
+.stat-row.highlight .value{color:#2563eb}
+
+/* ── Viz area ── */
+.viz{display:flex;flex-direction:column;gap:12px}
+.canvas-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:12px}
+.canvas-wrap canvas{display:block;width:100%;height:auto;max-width:100%;border-radius:6px}
+.canvas-title{font-size:.78rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.chart-row{grid-template-columns:1fr}}
+
+/* ── Per-widget scenario bar ── */
+.scenario-bar{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.scenario-bar-label{font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700}
+.scen-btn{padding:6px 14px;border:2px solid #e2e8f0;background:#fff;border-radius:20px;font-size:.82rem;font-weight:600;color:#64748b;cursor:pointer;transition:all .15s}
+.scen-btn:hover{color:#1e293b;border-color:#cbd5e1}
+.scen-btn.on{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+
+/* ── Verdict box ── (reserved height: the narration rewrites itself as the
+   simulation crosses thresholds, and without this the box would grow/shrink
+   and move every lesson block below it) */
+.val-verdict{border-radius:8px;padding:10px 14px;margin-top:10px;font-size:.84rem;line-height:1.5;min-height:6.2em}
+/* the three longest narrations get extra reserved height — their wording (and
+   the width of the numbers inside it) changes as the sim runs, and without this
+   a rewrap nudges everything below them */
+.val-verdict.tall{min-height:8.8em}
+@media(max-width:900px){.val-verdict{min-height:8.5em}.val-verdict.tall{min-height:12em}}
+.val-verdict.good{background:#f0fdf4;border:1px solid #86efac;color:#14532d}
+.val-verdict.bad{background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d}
+.val-verdict.warn{background:#fffbeb;border:1px solid #fde68a;color:#78350f}
+/* only the leading title is a block — inline <strong> inside the narration
+   must stay inline (it was breaking mid-sentence onto its own line) */
+.val-verdict > strong:first-child{display:block;font-size:.9rem;margin-bottom:2px}
+
+/* ── Insight + handoff boxes ── */
+.insight{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#78350f}
+.insight strong{color:#b45309}
+.handoff{background:#eef2ff;border-left:4px solid #6366f1;border-radius:0 8px 8px 0;padding:10px 14px;margin:10px 0;font-size:.86rem;color:#3730a3}
+.handoff strong{color:#4338ca}
+
+/* ── Sources ── */
+.sources{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:18px 24px;margin-top:16px}
+.sources h2{font-size:1rem;color:#1e3a5f;margin-bottom:8px}
+.sources ol{margin:0 0 0 18px}
+.sources li{font-size:.8rem;color:#475569;margin-bottom:5px;line-height:1.45}
+.sources a{color:#2563eb;text-decoration:none}
+.sources a:hover{text-decoration:underline}
+
+/* ── Footer ── */
+footer{text-align:center;padding:20px;font-size:.78rem;color:#94a3b8}
+
+/* ── MathJax ── */
+mjx-container{display:inline-block !important}
+
+/* ════ RESPONSIVE ════ */
+@media (max-width: 900px){.panel{gap:12px}}
+@media (max-width: 640px){
+  header{padding:16px 14px} header h1{font-size:1.2rem} header .subtitle{font-size:.76rem}
+  .tab-bar{padding:0 8px;top:0} .tab-btn{padding:10px 9px;font-size:.74rem}
+  main{padding:10px 8px;max-width:100%}
+  .scenario-bar{padding:8px 10px;gap:6px} .scenario-bar-label{font-size:.68rem;width:100%;margin-bottom:2px}
+  .scen-btn{padding:5px 10px;font-size:.74rem;flex:1 1 calc(50% - 4px);text-align:center}
+  .background-section{padding:16px 16px} .background-section h2{font-size:1rem}
+  .worked-example,.equation-box{padding:10px 12px;font-size:.82rem}
+  .ctrl{padding:12px} .canvas-wrap{padding:8px} .stats{padding:10px;font-size:.76rem}
+  .constants-bar{padding:0 8px}
+}
+@media (max-width: 380px){ .scen-btn{flex:1 1 100%} header h1{font-size:1.05rem} .tab-btn{padding:8px 7px;font-size:.7rem} }
+
+/* ── Lab-SOP aside: content authored from McGhee Lab practice, NOT from a
+   vendor document. Visually distinct on purpose — a reader must be able to
+   tell house rules from published guidance. ── */
+.aside{background:#f0f9ff;border-left:4px solid #0891b2;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#155e75}
+.aside strong{color:#0e7490}
+.aside .lab{display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#0891b2;margin-bottom:4px;text-transform:uppercase}
+
+/* ── Rule cards: the short imperative rules a tab earns ── */
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:12px 0}
+.rule{background:#fff;border:1px solid #e2e8f0;border-left:3px solid #2563eb;border-radius:8px;padding:10px 13px}
+.rule b{display:block;font-size:.84rem;color:#1e3a5f;margin-bottom:3px}
+.rule span{font-size:.8rem;color:#64748b;line-height:1.45}
+
+/* ── Toggle rows (checkbox groups inside a .ctrl) ── */
+.chk{display:flex;align-items:center;gap:7px;font-size:.8rem;color:#334155;margin-bottom:5px;cursor:pointer}
+.chk input{accent-color:#2563eb;width:15px;height:15px;flex:0 0 auto}
+.seg{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.seg button{flex:1 1 auto;border:2px solid #e2e8f0;background:#fff;border-radius:7px;padding:5px 9px;font-size:.76rem;font-weight:700;color:#64748b;cursor:pointer}
+.seg button.on{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+</style>
+</head>
+<body>
+<header>
+  <h1>The Plasma Cleaner — Your Lowest Setting Is Someone Else's Highest</h1>
+  <p class="subtitle">Equipment Foundations · Lesson 4 of 8 · McGhee Lab</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="work">1. How It Works</button>
+  <button class="tab-btn" data-tab="use">2. How to Use It</button>
+  <button class="tab-btn" data-tab="care">3. Precautions</button>
+  <button class="tab-btn" data-tab="maint">4. Maintenance</button>
+  <button class="tab-btn cap-tab" data-tab="recap">5. Recap &amp; the Real Job</button>
+</div>
+
+<div class="constants-bar">
+  <details>
+    <summary>Constants, machine numbers &amp; equation index</summary>
+    <div class="const-body">
+      <h4>Physical constants</h4>
+      <p><b>k</b><sub>B</sub> = 1.381 × 10<sup>−23</sup> J/K · <b>1 eV</b> ≡ 11,605 K</p>
+      <p><b>d</b> ≈ 0.37 nm — kinetic collision diameter for air, used in the mean free path</p>
+      <p><b>1 Torr</b> = 1000 mTorr = 133.3 Pa · atmosphere = 760 Torr</p>
+
+      <h4>The machine — Harrick High Power Expanded Plasma Cleaner</h4>
+      <p><b>PDC-001-HP</b> (115 V) · PDC-002-HP (230 V) · PDC-002-HPCE (230 V, CE)</p>
+      <p><b>RF power settings: 30 W (LOW) · 38 W (MEDIUM) · 45 W (HIGH)</b> <span class="src">(Harrick FAQ)</span></p>
+      <p>For comparison — Basic PDC-32G: 7 / 11 / 18 W · Expanded PDC-001: 7 / 11 / 30 W</p>
+      <p><b>Chamber</b> 6″ diameter × 6.5″ length Pyrex ≈ <b>3.0 L</b> · hinged door with viewing window · active fan cooling</p>
+      <p><b>RF frequency</b> — Harrick states only "MHz frequency" for this unit <span class="src">(the 8–12 MHz figure in the Basic model's manual is not quoted for the HP)</span></p>
+      <p><b>Pump required</b> ≥ 23 L/min (1.4 m³/h), ultimate ≤ 200 mTorr. Rotary vane or dry scroll qualify; diaphragm pumps usually do not</p>
+      <p><b>Maximum continuous run: 2 hours</b>, then main power off</p>
+      <p>Weight 37 lb · 11″ H × 18″ W × 9″ D · integral pump switch (≤ 7 A)</p>
+
+      <h4>The gas mixer — PlasmaFlo PDC-FMG</h4>
+      <p>Two independent gas channels · flowmeters ± 2% full scale · <b>max 50 mL/min</b> for atmospheric air at 0 psig</p>
+      <p>Thermocouple vacuum gauge, <b>1–1999 mTorr</b> · supply through a two-stage regulator at <b>10 psig</b>, ¼″ Swagelok</p>
+      <p>Correlated flow tables exist for Air, Ar, N₂ and O₂ metered at 10 psig, supplied by Harrick on request</p>
+
+      <h4>The operating envelope <span class="src">(Harrick FAQ and /pdms-bonding/)</span></h4>
+      <p>Plasma will not strike or sustain above <b>1500 mTorr</b> · recommended operating range <b>200–800 mTorr</b></p>
+      <p><b>PDMS bonding:</b> O₂ or room air, 200 mTorr – 1 Torr, RF typically HIGH, <b>15–60 s</b></p>
+      <p><b>Never exceed 2 minutes</b> — prolonged exposure cracks PDMS and drives low-molecular-weight chains to the surface</p>
+      <p>Contact immediately · press and hold lightly <b>30 s</b> · do not pull apart and realign · then <b>80–100 °C for 60 s</b></p>
+      <p>Bond <b>within 15 minutes to an hour</b>; PDMS recovers its hydrophobicity in about an hour</p>
+
+      <h4>Contact angles <span class="src">(literature — see Sources)</span></h4>
+      <p>Native PDMS <b>113 ± 4°</b> · after 2 min air plasma <b>6.8–8.8°</b> · after 30 min (over-treated) <b>13.7°</b></p>
+
+      <h4>Equation index</h4>
+      <div class="eqindex">
+        <p><b>eq. 4.1.1</b> — mean free path against pressure</p>
+        <p><b>eq. 4.1.2</b> — treatment dose</p>
+        <p><b>eq. 4.1.3</b> — the cold-plasma condition</p>
+        <p><b>eq. 4.2.1</b> — pump-down of the chamber</p>
+        <p><b>eq. 4.2.2</b> — chamber pressure from gas throughput</p>
+        <p><b>eq. 4.3.1</b> — contact angle against dose</p>
+        <p><b>eq. 4.3.2</b> — hydrophobic recovery and the bonding window</p>
+        <p><b>eq. 4.4.1</b> — ultimate pressure with a leak</p>
+        <p><b>eq. 4.5.1</b> — bond strength</p>
+        <p><span class="src">Nine equations. Nothing here is reused from an earlier lesson, but
+          <b>eq. 4.2.2</b> is the same conservation argument as the incubator's gas balance, and the
+          surface chemistry this lesson stops short of — silanol formation, Si–O–Si condensation — is
+          <a href="../surface_functionalization/02-plasma-treatment.html">Surface Functionalization lesson 2</a>.</span></p>
+      </div>
+    </div>
+  </details>
+</div>
+
+<main>
+  <!-- ══════════════════════════ TAB 1 — HOW IT WORKS ══════════════════════════ -->
+  <section id="tab-work" class="tab-content active">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="1.1" data-title="A window, not a floor">1.1 · The vacuum is a window, not a floor</h2>
+        <p>Everyone's first instinct about a vacuum chamber is that lower is better — pump harder, get a
+          better result. For a plasma cleaner that instinct is wrong in both directions. Harrick's FAQ puts
+          the rule in one sentence: the chamber must be <b>below 1500 mTorr</b> for plasma to be generated
+          and sustained at all, and they <b>recommend operating from 200–800 mTorr</b>.</p>
+        <p>There is a floor as well as a ceiling, and the reason is the distance an electron travels between
+          collisions. Sweep the pressure below and watch the discharge come and go.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start at atmosphere and drag <b>pressure</b> down. Find the pressure at which the discharge
+            first lights. Compare it to Harrick's 1500 mTorr ceiling.</li>
+          <li>Keep going down to 10 mTorr. The glow dies again. Read the <b>mean free path</b> at that point
+            and compare it to the 15 cm chamber.</li>
+          <li>Park in the middle of the green band. Read the mean free path there — it should be a small
+            fraction of the chamber, so an electron collides many times on its way across.</li>
+          <li>Now switch the gas from air to argon. The window moves. Say which way, and why a heavier,
+            larger atom should shift it.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Process gas:</span>
+        <button class="scen-btn on" data-widget="window" data-scen="air">room air</button>
+        <button class="scen-btn" data-widget="window" data-scen="o2">oxygen</button>
+        <button class="scen-btn" data-widget="window" data-scen="ar">argon</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Chamber pressure</span> <span id="v-window-p">500 mTorr</span></label>
+            <input type="range" id="s-window-p" min="0.7" max="5.9" step="0.01" value="2.7"></div>
+          <div class="ctrl-group"><label><span>RF power</span> <span id="v-window-w">45 W</span></label>
+            <input type="range" id="s-window-w" min="0" max="2" step="1" value="2"></div>
+          <div class="stats" id="st-window"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Where a discharge will and will not light</div>
+            <canvas id="cv-window" width="660" height="310"></canvas></div>
+          <div class="val-verdict" id="vd-window" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Why there are two edges</h3>
+        <p>The average distance a molecule travels between collisions is</p>
+        <div class="equation-box"><span class="eqno">eq. 4.1.1</span>
+          $$\lambda \;=\; \frac{k_B T}{\sqrt{2}\,\pi d^{2} p}$$</div>
+        <p>with \(k_B\) Boltzmann's constant, \(T\) the gas temperature, \(d\) the kinetic collision
+          diameter of the molecule and \(p\) the pressure. The only thing that matters here is
+          \(\lambda \propto 1/p\): halve the pressure and everything travels twice as far before hitting
+          something.</p>
+        <div class="rules">
+          <div class="rule"><b>Too much gas — the upper edge</b><span>At atmosphere λ is about 65 nm. An electron is knocked sideways almost immediately, so it never accumulates enough energy from the RF field to ionise anything. Plenty of collisions, none of them energetic. Nothing lights.</span></div>
+          <div class="rule"><b>Too little gas — the lower edge</b><span>Below about 10 mTorr λ becomes comparable with the chamber itself. Electrons now cross the whole chamber and hit the wall before meeting a molecule, so each one ionises nothing on the way. Plenty of energy, nothing to spend it on.</span></div>
+          <div class="rule"><b>In between — a chain reaction</b><span>An electron gains energy over a mean free path, ionises, and the two electrons that result do it again. Harrick's 200–800 mTorr sits comfortably inside that band, with margin at both ends.</span></div>
+        </div>
+        <div class="insight"><strong>The pressure knob is not a "cleanliness" knob.</strong> It sets whether
+          the discharge exists at all, and — as tab 2 shows — you do not set it with the pump. You set it
+          with the flowmeter, against a pump that is running flat out the whole time.</div>
+        <div class="aside"><span class="lab">Where the published guidance lands</span>
+          <strong>Note from Dr. McGhee.</strong> Harrick publishes the window (1500 mTorr ceiling,
+          200–800 mTorr recommended) but not the physics behind it — their site has no Paschen curve and no
+          mean-free-path discussion. Equation 4.1.1 is standard kinetic theory, and the position of the
+          lower edge in the sim is illustrative rather than a measured property of this chamber. The
+          <em>upper</em> edge is Harrick's own number and is the one to obey. If you want the electron
+          avalanche itself worked through, it is in
+          <a href="../surface_functionalization/02-plasma-treatment.html">Surface Functionalization lesson 2</a>.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="1.2" data-title="Your low is their high">1.2 · Your LOW is somebody else's HIGH</h2>
+        <p>The RF knob has three positions and no numbers on it. The numbers are in Harrick's FAQ, and for
+          this lab they are the most important fact in the lesson:</p>
+        <table class="cmp">
+          <tr><th>Model</th><th class="c">LOW</th><th class="c">MEDIUM</th><th class="c">HIGH</th></tr>
+          <tr><td>Basic PDC-32G</td><td class="c">7 W</td><td class="c">11 W</td><td class="c">18 W</td></tr>
+          <tr><td>Expanded PDC-001 / PDC-002</td><td class="c">7 W</td><td class="c">11 W</td><td class="c">30 W</td></tr>
+          <tr><td><b>High Power Expanded PDC-001-HP</b> <span class="src">(ours)</span></td><td class="c"><b>30 W</b></td><td class="c"><b>38 W</b></td><td class="c"><b>45 W</b></td></tr>
+        </table>
+        <p><b>This machine's lowest setting is the standard Expanded model's highest.</b> Harrick's own
+          datasheet says so in as many words — <i>"Low RF power setting is equivalent to High RF power
+          setting on PDC-001/PDC-002"</i> — and the unit is sold as having <i>"twice the cleaning
+          rate"</i>.</p>
+        <p>That matters the moment you read anyone else's recipe. Set a published protocol against this
+          machine below.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>a protocol written for a PDC-001</em>: HIGH for 60 s. Read the dose it was
+            written to deliver.</li>
+          <li>Now run that same instruction — HIGH, 60 s — on <em>this</em> machine. Read the dose you
+            actually delivered, and the ratio.</li>
+          <li>Find the setting and time on this machine that reproduces the original dose exactly. It is
+            not a coincidence.</li>
+          <li>Leave it on HIGH and drag <b>time</b> to 120 s. Read what the verdict says about Harrick's
+            two-minute rule.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Recipe as written for:</span>
+        <button class="scen-btn on" data-widget="power" data-scen="pdc001">a PDC-001 — HIGH, 60 s</button>
+        <button class="scen-btn" data-widget="power" data-scen="basic">a Basic PDC-32G — HIGH, 60 s</button>
+        <button class="scen-btn" data-widget="power" data-scen="ours">this machine — HIGH, 30 s</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>On our machine</h3>
+          <div class="ctrl-group"><label><span>RF setting</span> <span id="v-power-lvl">HIGH — 45 W</span></label>
+            <input type="range" id="s-power-lvl" min="0" max="2" step="1" value="2"></div>
+          <div class="ctrl-group"><label><span>Treatment time</span> <span id="v-power-t">60 s</span></label>
+            <input type="range" id="s-power-t" min="5" max="180" step="5" value="60"></div>
+          <div class="stats" id="st-power"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Dose delivered, against the recipe as written</div>
+            <canvas id="cv-power" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-power" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Dose, and the two things it is made of</h3>
+        <p>What a surface receives is power multiplied by time:</p>
+        <div class="equation-box"><span class="eqno">eq. 4.1.2</span>
+          $$D \;=\; P\,t$$</div>
+        <p>with \(P\) the RF power in watts and \(t\) the exposure in seconds, so \(D\) is in joules. It is a
+          deliberately crude quantity — it says nothing about gas, pressure or geometry — but it is exactly
+          the right crudeness for the question "is this recipe the same as that one?", because the two knobs
+          on the front of the machine are precisely \(P\) and \(t\).</p>
+        <div class="insight"><strong>Halving the power and doubling the time is not the same as leaving it
+          alone.</strong> It gives the same dose, and for surface activation the two routes land in much the
+          same place — but the <em>rate</em> of the damage in tab 3 is set by power, not by dose. On a
+          machine whose LOW is 30 W, dropping a step is the cheapest safety margin available to you.</div>
+        <div class="aside"><span class="lab">Where the published guidance lands</span>
+          <strong>Note from Dr. McGhee.</strong> Harrick's own operating note, from the plasma cleaner
+          manual, is worth taking literally: <i>"The RF power level used should be set at the lowest level,
+          just enough to initiate a glow discharge."</i> On the Basic model that advice starts at 7 W. On
+          ours the lowest level available is 30 W, so the advice bites harder here — there is no gentle
+          setting on this machine, and the only remaining way to reduce dose is to shorten the time.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="1.3" data-title="Five things it does">1.3 · Five things a plasma does to a surface</h2>
+        <p>Harrick's physics page lists five distinct mechanisms, and which one dominates is set almost
+          entirely by which gas you put in. Two of them are what people mean by "plasma cleaning"; the other
+          three are why the machine is also a surface-modification tool.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>oxygen</em>. Read which mechanism dominates and what it produces.</li>
+          <li>Switch to <em>argon</em>. The dominant mechanism changes completely. Read Harrick's stated
+            reason for using argon.</li>
+          <li>Switch to <em>room air</em> — the gas you get for free. Where does it sit relative to the
+            other two?</li>
+          <li>Using the panel, say which gas you would choose to clean a metal surface without oxidising it,
+            and check your answer against Harrick's guidance in the verdict.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Process gas:</span>
+        <button class="scen-btn on" data-widget="mech" data-scen="o2">oxygen</button>
+        <button class="scen-btn" data-widget="mech" data-scen="air">room air</button>
+        <button class="scen-btn" data-widget="mech" data-scen="ar">argon</button>
+        <button class="scen-btn" data-widget="mech" data-scen="n2">nitrogen</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>RF setting</span> <span id="v-mech-lvl">HIGH — 45 W</span></label>
+            <input type="range" id="s-mech-lvl" min="0" max="2" step="1" value="2"></div>
+          <div class="ctrl-group"><label><span>Treatment time</span> <span id="v-mech-t">30 s</span></label>
+            <input type="range" id="s-mech-t" min="5" max="120" step="5" value="30"></div>
+          <div class="stats" id="st-mech"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Which mechanism this gas is doing</div>
+            <canvas id="cv-mech" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-mech" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Harrick's five mechanisms, in their words</h3>
+        <div class="rules">
+          <div class="rule"><b>Ablation</b><span><i>"Mechanical removal of surface contaminants by energetic electron and ion bombardment."</i> Affects the contaminant layers and the outermost molecular layers only. <b>Argon</b> is used "for its high ablation efficiency and chemical inertness".</span></div>
+          <div class="rule"><b>Chemical etching</b><span><i>"Chemical reaction of surface organic contaminants or films with highly reactive free radicals in the plasma to form volatile byproducts that are released from the sample surface."</i> <b>Oxygen</b> is the standard choice.</span></div>
+          <div class="rule"><b>Activation</b><span>Plasma <i>"breaks down weak surface bonds in the polymer and replaces these surface polymer groups with chemical groups from the plasma gas, such as carbonyl, carboxyl, and hydroxyl groups"</i> — this is the one PDMS bonding depends on.</span></div>
+          <div class="rule"><b>Deposition</b><span>Plasma polymerisation of a vaporised monomer into a thin coating. Not something this lab does, and it needs a monomer feed.</span></div>
+          <div class="rule"><b>Cross-linking</b><span>An inert-gas plasma links polymer chains together, <i>"produc[ing] a stronger and harder substrate microsurface"</i> with better wear and chemical resistance.</span></div>
+        </div>
+        <p>And the plasma doing all this is <b>cold</b>, in the only sense that matters to a sample. Harrick:
+          plasma electrons sit <i>"around 10<sup>4</sup> K"</i> while <i>"the plasma as a whole is at
+          near-ambient temperature"</i>, with an electron density <i>"typically around 10<sup>10</sup>
+          cm<sup>−3</sup>"</i>. Formally:</p>
+        <div class="equation-box"><span class="eqno">eq. 4.1.3</span>
+          $$T_e \;\gg\; T_{\mathrm{ion}} \;\gtrsim\; T_{\mathrm{gas}} \;\approx\; 300\ \mathrm{K}$$</div>
+        <p>with \(T_e\) the electron temperature and \(T_{\mathrm{gas}}\) the temperature of everything
+          heavy. The electrons carry chemistry-breaking energies — 10<sup>4</sup> K is about 0.9 eV, and
+          plenty of the distribution sits well above that — while the gas your sample is actually sitting
+          in never leaves room temperature. Harrick's FAQ puts a number on the consequence: a conductive
+          sample may see about <b>5 °C</b> of surface heating during treatment, and that is all.</p>
+        <div class="insight"><strong>That disequilibrium is the whole product.</strong> A gas hot enough to
+          break a C–H bond would ordinarily melt PDMS. Here only the electrons are hot, there are only
+          10<sup>10</sup> of them per cubic centimetre, and they have almost no heat capacity between
+          them — so the chemistry happens and the part stays cool enough to pick up.</div>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Pressure is a <b>window</b>, not a floor: below 1500 mTorr to strike, <b>200–800 mTorr</b> recommended.</li>
+          <li>Both edges are the mean free path — too short and electrons never gain energy, too long and they never spend it.</li>
+          <li><b>This machine's LOW (30 W) is the standard model's HIGH.</b> Every borrowed recipe needs converting.</li>
+          <li>Gas chooses mechanism: <b>O₂ etches chemically, Ar ablates physically</b>, and both activate.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next:</strong> the two things you actually touch — a pump that never
+        stops, and a flowmeter that turns out to be the pressure control.</div>
+    </div>
+
+  </section>
+  <!-- ══════════════════════════ TAB 2 — HOW TO USE IT ══════════════════════════ -->
+  <section id="tab-use" class="tab-content">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="2.1" data-title="Getting the air out">2.1 · Getting the air out, and how long it honestly takes</h2>
+        <p>The sequence never changes. Sample in, hold the door, pump on. The vacuum itself seals the
+          door — Harrick's manual says so plainly, <i>"the vacuum will hold the Plasma Cleaner door in
+          place"</i> — and you wait until the gauge is where you want it.</p>
+        <p>How long is that wait? It is a calculable number, and the calculation is worth doing because it
+          tells you when something is wrong.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start with the <em>oxygen-service scroll pump</em>. Read the time to reach 200 mTorr. It is
+            shorter than most people expect.</li>
+          <li>Switch to <em>the minimum pump Harrick will accept</em>, 23 L/min. Read the time again — the
+            ratio is exactly the ratio of the pumping speeds.</li>
+          <li>Drag <b>outgassing</b> up. Watch the curve stop falling and flatten out. That floor is the
+            pressure the chamber will actually sit at, and no amount of waiting improves it.</li>
+          <li>Set outgassing high enough that the floor rises above 800 mTorr. What has that done to your
+            ability to run the machine at all?</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Pump:</span>
+        <button class="scen-btn on" data-widget="pumpdown" data-scen="ope">oxygen-service scroll, 50 L/min</button>
+        <button class="scen-btn" data-widget="pumpdown" data-scen="opd">larger scroll, 103 L/min</button>
+        <button class="scen-btn" data-widget="pumpdown" data-scen="min">Harrick minimum, 23 L/min</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Pumping speed</span> <span id="v-pumpdown-s">50 L/min</span></label>
+            <input type="range" id="s-pumpdown-s" min="10" max="120" step="1" value="50"></div>
+          <div class="ctrl-group"><label><span>Outgassing and leak</span> <span id="v-pumpdown-q">5 mTorr·L/s</span></label>
+            <input type="range" id="s-pumpdown-q" min="0" max="800" step="5" value="5"></div>
+          <div class="ctrl-group"><label><span>Wait</span> <span id="v-pumpdown-t">15 s</span></label>
+            <input type="range" id="s-pumpdown-t" min="2" max="300" step="2" value="15"></div>
+          <div class="stats" id="st-pumpdown"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Chamber pressure while the pump runs</div>
+            <canvas id="cv-pumpdown" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-pumpdown" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>An exponential with a floor</h3>
+        <p>A chamber of volume \(V\) evacuated by a pump of speed \(S\), with a steady gas load \(Q\) from
+          outgassing and leaks, obeys</p>
+        <div class="equation-box"><span class="eqno">eq. 4.2.1</span>
+          $$p(t) \;=\; p_\infty + \left(p_0 - p_\infty\right)e^{-St/V}, \qquad p_\infty = \frac{Q}{S}$$</div>
+        <p>with \(p_0\) the starting pressure, \(p_\infty\) the floor it will asymptote to, and \(V/S\) the
+          time constant. For this chamber — 6″ diameter by 6.5″ long, so <b>3.0 L</b> — against a 50 L/min
+          scroll pump, \(V/S\) is <b>3.6 seconds</b>, and getting from atmosphere to 200 mTorr takes
+          \(\ln(3800) \approx 8.2\) time constants, or about <b>30 seconds</b>.</p>
+        <div class="aside"><span class="lab">Worth knowing</span>
+          <strong>Note from Dr. McGhee.</strong> The manual says pump-down takes <i>"a few minutes"</i>, and
+          that is longer than 30 seconds for good reasons this model leaves out: the ½″ hose has a finite
+          conductance that limits the effective speed at the chamber, and a real pump's speed falls off as
+          it approaches its ultimate pressure. Treat the number here as the best case and the manual's few
+          minutes as the reality. The useful part of the model is not the absolute time — it is the
+          <em>floor</em>. If the gauge stops falling well above 200 mTorr, that is \(Q/S\) telling you about
+          a leak or a wet sample, and tab 4 is about finding it.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="2.2" data-title="The flowmeter is the knob">2.2 · The flowmeter is the pressure control</h2>
+        <p>Here is the part that surprises people. Once the plasma is running, <b>the pump never stops and
+          the pump is not how you set the pressure</b>. It runs flat out the whole time. The pressure in the
+          chamber is set by how fast you let gas in against it — which means the PlasmaFlo's flowmeter
+          knobs, not the vacuum, are your pressure control.</p>
+        <p>Set a flow below and watch where the chamber settles.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start with both channels closed. Read the pressure — this is the pump's floor, and the plasma
+            will not run here.</li>
+          <li>Open <b>channel 1 (O₂)</b> slowly. Find the setting that lands you in the middle of Harrick's
+            200–800 mTorr band.</li>
+          <li>Open it all the way to the flowmeter's 50 mL/min full scale. Where does the pressure land
+            relative to the top of the band? That is not a coincidence — read the note underneath.</li>
+          <li>Now add <b>channel 2 (Ar)</b> on top. Two gases, one pressure. Note that mixing changes the
+            chemistry without giving you an independent pressure knob.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Preset:</span>
+        <button class="scen-btn on" data-widget="flow" data-scen="closed">both closed</button>
+        <button class="scen-btn" data-widget="flow" data-scen="o2">oxygen only</button>
+        <button class="scen-btn" data-widget="flow" data-scen="mix">oxygen with a little argon</button>
+        <button class="scen-btn" data-widget="flow" data-scen="full">full scale</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>PlasmaFlo</h3>
+          <div class="ctrl-group"><label><span>Channel 1 — oxygen</span> <span id="v-flow-a">0 mL/min</span></label>
+            <input type="range" id="s-flow-a" min="0" max="50" step="0.5" value="0"></div>
+          <div class="ctrl-group"><label><span>Channel 2 — argon</span> <span id="v-flow-b">0 mL/min</span></label>
+            <input type="range" id="s-flow-b" min="0" max="50" step="0.5" value="0"></div>
+          <div class="ctrl-group"><label><span>Pumping speed</span> <span id="v-flow-s">50 L/min</span></label>
+            <input type="range" id="s-flow-s" min="10" max="120" step="1" value="50"></div>
+          <div class="stats" id="st-flow"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Where the chamber settles, against total flow</div>
+            <canvas id="cv-flow" width="660" height="310"></canvas></div>
+          <div class="val-verdict" id="vd-flow" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Throughput in, throughput out</h3>
+        <p>At steady state the gas going in equals the gas coming out. The pump removes volume at a rate
+          \(S\), so it removes gas at a rate \(pS\); the flowmeters admit gas at a throughput \(Q\).
+          Setting them equal:</p>
+        <div class="equation-box"><span class="eqno">eq. 4.2.2</span>
+          $$Q \;=\; p\,S \qquad\Longrightarrow\qquad p \;=\; \frac{Q}{S}$$</div>
+        <p>with \(Q\) a throughput in pressure×volume per time — a flowmeter reading of 50 mL/min of
+          <em>atmospheric</em> air is \(50 \times 760 = 38{,}000\) Torr·mL/min of gas. Divide by a 50 L/min
+          pump, which is 50,000 mL/min, and you get <b>0.76 Torr</b>.</p>
+        <div class="insight"><strong>The flowmeter's full scale is the top of the operating window.</strong>
+          760 mTorr against Harrick's recommended ceiling of 800. That is not luck — the PlasmaFlo is
+          specified to be a sensible controller for exactly these cleaners, and its whole range maps onto
+          the band the machine wants to run in. Practically: nearly all of the knob is usable, the bottom
+          of the range is where the plasma gets thin, and you should never need to force it.</div>
+        <div class="aside"><span class="lab">Worth knowing</span>
+          <strong>Note from Dr. McGhee.</strong> Two honesty notes. The 50 mL/min figure is Harrick's spec
+          <em>for atmospheric air at 0 psig</em>; the datasheet is explicit that <i>"maximum flowrate varies
+          with process gas and regulated pressure"</i> and that the real correlated tables — for Air, Ar,
+          N₂ and O₂ metered at 10 psig — are supplied on request rather than published. So the mL/min axis
+          here is the air scale, and an oxygen reading of "20" is not 20 mL/min of oxygen. Second, the
+          pressure the gauge shows you is the truth and the arithmetic is only a model: the thermocouple
+          gauge reads 1–1999 mTorr and it is what you should set by.</div>
+      </div>
+
+      <div class="background-section">
+        <h2 data-nav="2.3" data-title="The sequence">2.3 · The sequence, and the one fiddly bit</h2>
+        <p>Harrick's manual gives the operating order, and it is worth following exactly because two of the
+          steps exist to protect the hardware rather than the sample.</p>
+        <div class="rules">
+          <div class="rule"><b>1 · Purge the line</b><span>If the gas line may hold anything unwanted: regulator to <b>10 psi</b>, needle valve open, door off, purge a few minutes, then close the valve.</span></div>
+          <div class="rule"><b>2 · Load and pump down</b><span>Sample in, hold the door against the chamber, pump on. The vacuum takes over holding the door. Wait for the gauge.</span></div>
+          <div class="rule"><b>3 · Bleed gas in</b><span>Open the needle valve slowly and let the gas flow for a few minutes, so the chamber is running on your process gas rather than on whatever was left.</span></div>
+          <div class="rule"><b>4 · Strike the plasma</b><span><b>Close the needle valve</b>, switch the cleaner on, select the RF level, and wait for the glow. Harrick: <i>"wait until a purplish glow is observed"</i> — for air, the videos say purple-pink after 5–10 seconds.</span></div>
+          <div class="rule"><b>5 · Re-open the gas, carefully</b><span>The fiddly bit: <i>"carefully open the needle valve just enough to bleed process gas into the reaction chamber without extinguishing the plasma."</i> If it goes out, close the valve, let the plasma re-form, then open it again very slightly.</span></div>
+          <div class="rule"><b>6 · Treat, then stop</b><span>RF level to OFF, then the cleaner off.</span></div>
+          <div class="rule"><b>7 · Vent</b><span>Vacuum off, hold the door, vent for a few minutes, and only remove the door once you are back at atmospheric pressure. Then close the needle valve and take the sample out.</span></div>
+        </div>
+        <div class="insight"><strong>Step 5 is the whole skill.</strong> Striking a discharge needs a
+          different pressure from running one comfortably, so you light it in a quiet chamber and then feed
+          it without blowing it out. Nobody gets this on the first try, and the failure is completely
+          harmless — the glow just stops, and you close the valve and start again.</div>
+        <div class="aside"><span class="lab">Where the published guidance lands</span>
+          <strong>Note from Dr. McGhee.</strong> Harrick names a colour for <b>air only</b>: purplish, or
+          purple-pink. They publish no colour chart for oxygen, argon or nitrogen anywhere on their site,
+          and the colours quoted around the internet disagree with each other. So use the glow as a
+          <em>presence</em> check — is it lit, is it steady, does it fill the chamber — and not as a gas
+          identification, unless you have watched your own machine on a known gas and written down what you
+          saw.</div>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Pump-down is an exponential with a <b>floor</b> at Q/S. The floor, not the time, is the diagnostic.</li>
+          <li><b>The pump runs continuously.</b> You do not set pressure with it.</li>
+          <li><b>p = Q/S</b> — the flowmeter sets the pressure, and its full scale lands at the top of Harrick's window.</li>
+          <li>Strike the plasma in a closed chamber, <b>then</b> open the gas a little at a time. Losing it is harmless.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next:</strong> the two clocks that decide whether the treatment was any
+        good — one that runs while the plasma is on, and one that starts the moment it goes off.</div>
+    </div>
+
+  </section>
+  <!-- ══════════════════════════ TAB 3 — PRECAUTIONS ══════════════════════════ -->
+  <section id="tab-care" class="tab-content">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="3.1" data-title="More is not better">3.1 · More treatment is not more bonding</h2>
+        <p>The intuition to unlearn: if 30 seconds activates the surface, two minutes must activate it
+          more. Harrick's guidance is blunt about it — <i>"Plasma treatment should not exceed 2 min, as
+          prolonged plasma exposure causes cracking in PDMS and migration of low molecular mass molecules
+          from bulk to surface, decreasing the number of hydrophilic SiOH groups and resulting in weak or
+          incomplete bonding."</i></p>
+        <p>What makes this genuinely dangerous is that the measurement you would naturally reach for does
+          not catch it. Run the dose up and watch both readouts.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>Harrick's recipe</em>, HIGH for 30 s. Read the contact angle and the oxide skin
+            thickness.</li>
+          <li>Drag <b>time</b> to 120 s — Harrick's stated ceiling. Watch the <b>contact angle</b>. It
+            barely moves.</li>
+          <li>Now watch the <b>oxide skin</b> over the same drag, and the crack verdict underneath. This is
+            the damage, and the contact angle never told you about it.</li>
+          <li>Go to 180 s. Then drop to LOW and find the time that gives the same dose. Is the skin the
+            same? Say what that tells you about which knob to reach for.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Recipe:</span>
+        <button class="scen-btn on" data-widget="over" data-scen="harrick">Harrick — HIGH, 30 s</button>
+        <button class="scen-btn" data-widget="over" data-scen="short">HIGH, 15 s — the short end</button>
+        <button class="scen-btn" data-widget="over" data-scen="limit">HIGH, 120 s — the ceiling</button>
+        <button class="scen-btn" data-widget="over" data-scen="way">HIGH, 180 s — past it</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>RF setting</span> <span id="v-over-lvl">HIGH — 45 W</span></label>
+            <input type="range" id="s-over-lvl" min="0" max="2" step="1" value="2"></div>
+          <div class="ctrl-group"><label><span>Treatment time</span> <span id="v-over-t">30 s</span></label>
+            <input type="range" id="s-over-t" min="5" max="240" step="5" value="30"></div>
+          <div class="stats" id="st-over"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">What the dose buys, and what it costs</div>
+            <canvas id="cv-over" width="660" height="310"></canvas></div>
+          <div class="val-verdict" id="vd-over" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Two curves, and only one of them is visible</h3>
+        <p>Wettability improves fast and then saturates. A simple exponential approach captures it:</p>
+        <div class="equation-box"><span class="eqno">eq. 4.3.1</span>
+          $$\theta(D) \;=\; \theta_{\min} + \left(\theta_0 - \theta_{\min}\right)e^{-D/D_c}$$</div>
+        <p>with \(\theta_0 = 113°\) the native PDMS contact angle, \(\theta_{\min} \approx 7°\) the floor a
+          good treatment reaches, \(D\) the dose from eq. 4.1.2 and \(D_c\) a characteristic dose of a few
+          hundred joules. By 30 seconds at HIGH the exponential is essentially finished. <b>Everything after
+          that point is dose you are spending for nothing.</b></p>
+        <p>Underneath it, the oxidised silica-like layer keeps thickening the whole time, roughly as the
+          square root of dose, because it is a diffusion-limited oxidation. That layer is stiff and the
+          rubber underneath it is not, and the mismatch is what cracks.</p>
+        <div class="insight"><strong>The contact angle cannot tell you that you have over-treated.</strong>
+          The literature makes the same point starkly: two minutes of air plasma takes PDMS to about
+          <b>6.8°</b>, and thirty minutes takes it to <b>13.7°</b> — worse, but only slightly, and nowhere
+          near enough to look like failure. Meanwhile the surface has become a cracked, brittle skin that
+          bonds badly. If you are judging treatment by how well water spreads, you cannot see the failure
+          mode that matters.</div>
+        <div class="aside"><span class="lab">Worth knowing</span>
+          <strong>Note from Dr. McGhee.</strong> The oxide-thickness curve here is calibrated so that the
+          crack threshold lands on <em>Harrick's own two-minute rule</em> at HIGH on this machine — it is a
+          way of turning their instruction into a number you can reason with, not an independent
+          measurement. Published skin thicknesses for plasma-treated PDMS run from a few nanometres to over
+          a hundred depending on dose and technique, so treat the absolute nanometres as indicative and the
+          <em>rule</em> as the thing to obey. What is not in doubt is the shape: activation saturates,
+          damage does not.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="3.2" data-title="The clock starts at off">3.2 · The clock starts when the plasma stops</h2>
+        <p>A plasma-treated surface is not a finished product, it is a temporary state. The silanol groups
+          that make bonding possible begin disappearing the moment you vent the chamber, as
+          low-molecular-weight chains migrate up from the bulk and polar groups rotate away from the
+          surface. Harrick's instruction: perform bonding <b>within 15 minutes to an hour</b>, and the
+          surface recovers its hydrophobic character in <b>about an hour</b>.</p>
+        <p>And here the trap from §3.1 repeats itself, backwards. Watch the two curves separate.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Drag <b>delay</b> to zero. Both readouts are at their best, which is what Harrick means by
+            bringing the surfaces together straight away.</li>
+          <li>Drag <b>delay</b> to 60 minutes — the far end of Harrick's window. Read the contact angle.
+            It has hardly changed.</li>
+          <li>Now read <b>bondability</b> at the same 60 minutes. It has collapsed. The surface still looks
+            perfectly wettable and will no longer weld.</li>
+          <li>Switch to <em>stored under water</em> and drag out to several hours. Storage buys you time on
+            one curve — check whether it buys the same time on the other.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">After treatment:</span>
+        <button class="scen-btn on" data-widget="recovery" data-scen="bench">left on the bench, 20 °C</button>
+        <button class="scen-btn" data-widget="recovery" data-scen="water">stored under water</button>
+        <button class="scen-btn" data-widget="recovery" data-scen="warm">left somewhere warm, 70 °C</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Delay before mating</span> <span id="v-recovery-d">45 min</span></label>
+            <input type="range" id="s-recovery-d" min="0" max="240" step="1" value="45"></div>
+          <div class="ctrl-group"><label><span>Angle after treatment</span> <span id="v-recovery-t0">7 deg</span></label>
+            <input type="range" id="s-recovery-t0" min="5" max="40" step="0.5" value="7"></div>
+          <div class="stats" id="st-recovery"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Wettability and bondability do not decay together</div>
+            <canvas id="cv-recovery" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-recovery" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Two processes, two timescales</h3>
+        <p>Both recoveries are exponential and they have very different time constants:</p>
+        <div class="equation-box"><span class="eqno">eq. 4.3.2</span>
+          $$\theta(t) = \theta_{\mathrm{rec}} - \left(\theta_{\mathrm{rec}} - \theta_0\right)e^{-t/\tau_\theta}
+          \qquad\qquad B(t) = e^{-t/\tau_B}$$</div>
+        <p>with \(\theta_{\mathrm{rec}}\) the recovered contact angle, \(\tau_\theta\) of order <b>tens of
+          hours</b>, and \(B\) the fraction of bonding capability remaining with \(\tau_B\) of order
+          <b>tens of minutes</b>. The contact angle is a bulk-ish property that takes a day or more to come
+          back; bondability lives in the outermost monolayer and is gone far sooner.</p>
+        <div class="insight"><strong>This is why "it looked fine" is not a defence.</strong> An hour after
+          treatment your PDMS still wets beautifully and will not bond. The reverse mistake is rarer but
+          real: a part stored under water can stay bondable much longer than the bench-top rule suggests,
+          which is why cold, wet storage is the standard trick for buying time.</div>
+        <div class="aside"><span class="lab">Where the published guidance lands</span>
+          <strong>Note from Dr. McGhee.</strong> Harrick gives one number — bond within 15 minutes to an
+          hour, recovery in about an hour — and the literature gives a longer and more detailed picture:
+          surfaces stay water-wet for the first several hours and take a couple of days to recover fully,
+          with recovery slower at 4 °C than at 20 °C and slower again under water or saline. Both are right
+          because they are measuring different things, and this sim shows them as two curves for exactly
+          that reason. <b>Harrick's window is the one to work to.</b> Storage under water is a literature
+          result, not a Harrick instruction — treat it as a way to buy margin, not as a licence to plan
+          around it.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="3.3" data-title="The rules with teeth">3.3 · The rules that are about the machine, not the sample</h2>
+        <p>Everything above is about getting a good result. These are the ones where the cost of being
+          wrong is a broken chamber, a ruined pump or an injury. They come straight out of Harrick's
+          manual.</p>
+        <div class="rules">
+          <div class="rule"><b>Never open the door under vacuum</b><span>Repeated three times in the manual: <i>"Do not open the door when the chamber is under vacuum since this will damage the glass chamber."</i> Vent first, get back to atmosphere, then remove the door.</span></div>
+          <div class="rule"><b>Vent immediately after you finish</b><span><i>"If the Plasma Cleaner chamber is not vented immediately, oil may back stream from the vacuum pump and contaminate the system."</i> A chamber left under vacuum on a stopped pump is a chamber being slowly coated.</span></div>
+          <div class="rule"><b>Oxygen needs an oxygen-service pump</b><span><i>"The hydrocarbon pump oil mist can react with the ozone formed producing a potentially explosive combination."</i> This lab runs a Harrick oxygen-service pump — dry scroll, no hydrocarbon oil — so this requirement is met. It is met because somebody bought the right pump, and it stops being met the moment anyone substitutes a spare oil pump "just for today".</span></div>
+          <div class="rule"><b>Nothing flammable nearby</b><span><i>"Do not use the Plasma Cleaner near flammable materials."</i> An RF discharge and solvent vapour are a bad pairing, and the chamber is not the only place a plasma can strike.</span></div>
+          <div class="rule"><b>Toxic gases need an exhaust filter</b><span>The manual calls out CF₄ by name: gases that ionise to toxic products need <i>"an efficient exhaust filter"</i>. If you are contemplating a gas that is not air, O₂, Ar or N₂, that is a conversation before it is an experiment.</span></div>
+          <div class="rule"><b>7 amps into the pump outlet, no more</b><span>The cleaner has an integral switched outlet for the pump, and it is fused for 7 A. A larger pump goes in the wall, not in the machine.</span></div>
+          <div class="rule"><b>Two hours, then stop</b><span>Harrick: <i>"We recommend continuously operating for no longer than 2 hours at a time"</i>, then turn the main power off. The electronics are air-cooled and the chamber warms from them, not from the plasma.</span></div>
+        </div>
+        <div class="aside"><span class="lab">McGhee Lab practice — this is a gap, not guidance</span>
+          <strong>Note from Dr. McGhee.</strong> Harrick publishes <b>nothing</b> on several things you
+          might reasonably expect: room ventilation for the ozone an oxygen plasma makes, UV exposure from
+          the glow, RF emissions, a list of materials or solvents that must not go in the chamber, or
+          guidance on biological samples. Their silence is not permission. Until this lab writes its own
+          rule, the defensible defaults are: run the machine in a well-ventilated space, do not stare into
+          the chamber for extended periods, and put nothing in it that is wet, volatile, or that you have
+          not thought about — a sample that outgasses is a sample that will not let the chamber reach
+          pressure anyway, which tab 4 covers.</div>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Activation <b>saturates</b>; damage does not. Past about 30 s at HIGH you are only accumulating oxide.</li>
+          <li>The <b>contact angle cannot see over-treatment</b> — 2 min gives 6.8°, 30 min gives 13.7°, and the second one is cracked.</li>
+          <li><b>Bondability decays in tens of minutes; wettability takes a day.</b> "It still looks wet" is not evidence.</li>
+          <li>Never open the door under vacuum, and vent the moment you are done or the pump backstreams into your chamber.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next:</strong> what to do when the glow does not come on — and Harrick's
+        two-branch answer, which is more useful than it looks.</div>
+    </div>
+
+  </section>
+  <!-- ══════════════════════════ TAB 4 — MAINTENANCE ══════════════════════════ -->
+  <section id="tab-maint" class="tab-content">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="4.1" data-title="No glow, two branches">4.1 · No glow: it is one of two things</h2>
+        <p>Harrick's answer to the most common fault is a single sentence, and it is more useful than its
+          length suggests: <i>"these issues are usually caused by either a problem with the electrical
+          circuit or vacuum pressure where the chamber is not within the proper pressure range."</i></p>
+        <p>Two branches, and a test that separates them in under a minute. Break the machine below and work
+          out which branch you are on.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>nothing wrong</em> and confirm the glow is there. Note what both tests say when
+            the machine is healthy.</li>
+          <li>Switch to <em>chamber never got below 1500 mTorr</em>. Run both tests. Which one changed?</li>
+          <li>Switch to <em>a blown fuse</em>. Run both tests again. Notice that the symptom in the chamber
+            is identical and the tests are not.</li>
+          <li>Switch to <em>gas cylinder empty</em> — a third cause with the same symptom. Say which test
+            catches it and why the fluorescent bulb does not.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">What is wrong:</span>
+        <button class="scen-btn on" data-widget="diag" data-scen="none">nothing wrong</button>
+        <button class="scen-btn" data-widget="diag" data-scen="press">chamber above 1500 mTorr</button>
+        <button class="scen-btn" data-widget="diag" data-scen="fuse">a blown fuse</button>
+        <button class="scen-btn" data-widget="diag" data-scen="gas">gas cylinder empty</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Run a test</h3>
+          <div class="ctrl-group"><label><span>Which test</span> <span id="v-diag-test">both</span></label>
+            <input type="range" id="s-diag-test" min="0" max="2" step="1" value="2"></div>
+          <div class="ctrl-group"><label><span>Gauge reads</span> <span id="v-diag-p">400 mTorr</span></label>
+            <input type="range" id="s-diag-p" min="50" max="3000" step="10" value="400"></div>
+          <div class="stats" id="st-diag"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Which branch of Harrick's fault tree you are on</div>
+            <canvas id="cv-diag" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-diag" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>The two tests, verbatim</h3>
+        <div class="rules">
+          <div class="rule"><b>The fluorescent bulb test — is the RF working?</b><span>Put the supplied 6-inch bulb in the chamber, <b>door open, at atmosphere</b>. Main power on, wait 10–15 s, then step the RF from HI through MED to LOW, up to 10 s at each. <i>"If the bulb glows on all three RF power settings, the electronic system is functioning properly."</i> If it does not, check the fuses and repeat; if it still fails, call Harrick.</span></div>
+          <div class="rule"><b>The gauge — is the vacuum working?</b><span>If the RF is fine, the chamber is not in range. Harrick's checklist: the pump must be able to reach <b>200 mTorr or less</b>; check the vacuum hose is properly attached, the door is properly seated, the o-rings are in place and the window is intact. <i>"All o-rings should be clean and free of defects."</i></span></div>
+          <div class="rule"><b>Checking a fuse</b><span>Power off and unplug. The fuse holder is next to the power cord. Pull both fuses and look for an intact filament, or put a multimeter across: <b>under 1 ohm is good, "OL" is blown.</b> Cleaner 3 A fast-acting, pump 7 A, PlasmaFlo 0.5 A.</span></div>
+        </div>
+        <div class="insight"><strong>The bulb test works because it does not need a vacuum.</strong> It runs
+          with the door open at atmosphere, so it separates "the electronics are dead" from "the chamber is
+          not pumped down" without you having to fix one to test the other. That is the whole value of
+          it — the two branches produce an identical symptom in normal use.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="4.2" data-title="Chasing a floor">4.2 · When the gauge stops falling</h2>
+        <p>The other half of §2.1's equation. If pump-down flattens out above where it should, something is
+          adding gas as fast as the pump removes it — a leak, a wet sample, or a chamber that has been
+          soaking up humidity. The floor tells you how big the problem is, and the pump's own ultimate
+          pressure tells you how much of it is not your fault.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>a healthy system</em>. Read the floor and compare it to the pump's own ultimate
+            pressure.</li>
+          <li>Switch to <em>o-ring with debris on it</em>. Read the new floor. Can you still operate?</li>
+          <li>Switch to <em>a wet sample</em>. Same floor problem, completely different fix — and note the
+            floor drifts down as it dries.</li>
+          <li>With a leak selected, drag <b>pumping speed</b> up. A bigger pump helps, but read how much.
+            Say why buying your way out of a leak is a bad trade.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Condition:</span>
+        <button class="scen-btn on" data-widget="leak" data-scen="ok">a healthy system</button>
+        <button class="scen-btn" data-widget="leak" data-scen="oring">o-ring with debris on it</button>
+        <button class="scen-btn" data-widget="leak" data-scen="wet">a wet sample</button>
+        <button class="scen-btn" data-widget="leak" data-scen="bad">a real leak</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Gas load</span> <span id="v-leak-q">5 mTorr·L/s</span></label>
+            <input type="range" id="s-leak-q" min="0.5" max="1200" step="0.5" value="5"></div>
+          <div class="ctrl-group"><label><span>Pumping speed</span> <span id="v-leak-s">50 L/min</span></label>
+            <input type="range" id="s-leak-s" min="10" max="200" step="1" value="50"></div>
+          <div class="ctrl-group"><label><span>Pump ultimate</span> <span id="v-leak-u">40 mTorr</span></label>
+            <input type="range" id="s-leak-u" min="10" max="200" step="5" value="40"></div>
+          <div class="stats" id="st-leak"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">The floor, against how hard you pump</div>
+            <canvas id="cv-leak" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-leak" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>You cannot out-pump a leak</h3>
+        <div class="equation-box"><span class="eqno">eq. 4.4.1</span>
+          $$p_\infty \;=\; p_{\mathrm{pump}} + \frac{Q}{S}$$</div>
+        <p>with \(p_{\mathrm{pump}}\) the pump's own ultimate pressure, \(Q\) the total gas load from leaks
+          and outgassing, and \(S\) the pumping speed. The leak term falls only as \(1/S\), so doubling the
+          pump halves that contribution and no more — while fixing the leak removes it entirely. A machine
+          that needs its big pump to reach operating pressure is a machine with a leak somebody has decided
+          to live with.</p>
+        <div class="rules">
+          <div class="rule"><b>Check the cheap things first</b><span>Harrick's own order: connections at the chamber outlet, the vacuum hose, and the pump inlet — with a nut driver on the hose clamps. Then the chamber for cracks and the o-ring for debris.</span></div>
+          <div class="rule"><b>Thread fittings by hand</b><span><i>"Thread the valve assembly by hand until you feel resistance (3-4 turns)."</i> Teflon tape goes on <b>clockwise, no more than two wraps</b>.</span></div>
+          <div class="rule"><b>No vacuum grease</b><span>Harrick's installation video is explicit: <i>"Do NOT use Vacuum Grease on any of the vacuum connections."</i> It is the obvious thing to reach for and it is wrong here.</span></div>
+          <div class="rule"><b>A wet sample is not a leak</b><span>Same symptom, and it gets better on its own as the water pumps away. If the floor drifts down over a few minutes rather than sitting still, you are watching something dry — give it time rather than dismantling the plumbing.</span></div>
+        </div>
+        <div class="aside"><span class="lab">McGhee Lab practice — Harrick publishes no schedule</span>
+          <strong>Note from Dr. McGhee.</strong> There is no manufacturer maintenance interval for this
+          machine. Harrick's site has no chamber-cleaning procedure, no way to tell when the chamber is
+          dirty, no pump oil interval and no ballast procedure — and our pump is oil-free, so most of that
+          would not apply anyway. The consumables they <em>do</em> list are the ones that wear: the Pyrex
+          chamber, the Viton chamber o-ring and the fluorescent test bulb. Until this lab writes something
+          down, the honest practice is: check the o-ring every time you seat the door, watch the floor the
+          gauge settles at as your health indicator, and log it if it starts creeping up.</div>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>No glow is <b>either</b> the electrical circuit <b>or</b> the pressure. The bulb test separates them at atmosphere in a minute.</li>
+          <li>Fuse check: intact filament, or <b>under 1 ohm</b> on a meter. "OL" is blown.</li>
+          <li><b>p<sub>∞</sub> = p<sub>pump</sub> + Q/S.</b> A leak only falls as 1/S — you cannot out-pump it.</li>
+          <li>Cheap causes first: hose, door seating, o-ring debris, chamber cracks. <b>No vacuum grease.</b></li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next:</strong> everything above, on one PDMS chip, with the clock
+        running.</div>
+    </div>
+
+  </section>
+  <!-- ══════════════════════════ TAB 5 — RECAP & THE REAL JOB ══════════════════════════ -->
+  <section id="tab-recap" class="tab-content">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="5.1" data-title="Bond one chip">5.1 · Bond a PDMS chip to glass</h2>
+        <p>This is what the machine is for in this lab. A cured PDMS slab with channels in it, a glass
+          coverslip, and one minute of plasma standing between them and a device that holds pressure.</p>
+        <p>Harrick's recipe is the only complete one they publish, and it is the answer key here: <b>O₂ or
+          room air, 200 mTorr – 1 Torr, RF typically HIGH, 15–60 seconds</b>, then contact immediately,
+          press and hold lightly for 30 seconds, do not pull apart and realign, and finish at
+          <b>80–100 °C for 60 seconds</b>. Set it up below and see what comes out.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>Harrick's recipe, done properly</em>. Read the bond strength and note which term
+            is holding it back — there is always one.</li>
+          <li>Switch to <em>left it too long in the chamber</em>. The treatment is more thorough and the
+            bond is worse. Name the mechanism from §3.1.</li>
+          <li>Switch to <em>went to get coffee</em>. Same treatment, mated an hour later. Read what
+            survived.</li>
+          <li>Go back to the good recipe and drag <b>pressure</b> outside Harrick's band in both directions.
+            One end fails loudly and one end fails quietly — say which is which.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">How it went:</span>
+        <button class="scen-btn on" data-widget="bond" data-scen="good">Harrick's recipe, done properly</button>
+        <button class="scen-btn" data-widget="bond" data-scen="over">left it too long in the chamber</button>
+        <button class="scen-btn" data-widget="bond" data-scen="late">went to get coffee</button>
+        <button class="scen-btn" data-widget="bond" data-scen="shy">barely treated it</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>The run</h3>
+          <div class="ctrl-group"><label><span>RF setting</span> <span id="v-bond-lvl">HIGH — 45 W</span></label>
+            <input type="range" id="s-bond-lvl" min="0" max="2" step="1" value="2"></div>
+          <div class="ctrl-group"><label><span>Treatment time</span> <span id="v-bond-t">30 s</span></label>
+            <input type="range" id="s-bond-t" min="5" max="240" step="5" value="30"></div>
+          <div class="ctrl-group"><label><span>Chamber pressure</span> <span id="v-bond-p">500 mTorr</span></label>
+            <input type="range" id="s-bond-p" min="50" max="2000" step="10" value="500"></div>
+          <div class="ctrl-group"><label><span>Delay before mating</span> <span id="v-bond-d">0 min</span></label>
+            <input type="range" id="s-bond-d" min="0" max="180" step="1" value="0"></div>
+          <label class="chk"><input type="checkbox" id="c-bond-bake" checked> Baked at 80–100 °C for 60 s</label>
+          <div class="stats" id="st-bond"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Where the bond strength went</div>
+            <canvas id="cv-bond" width="660" height="330"></canvas></div>
+          <div class="val-verdict" id="vd-bond" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Four things multiply</h3>
+        <p>Bond strength is not the sum of your choices, it is the product of them — each one is a fraction
+          of the best case, and any single one near zero takes the whole bond with it:</p>
+        <div class="equation-box"><span class="eqno">eq. 4.5.1</span>
+          $$\sigma \;=\; \sigma_{\max}\; f(\theta)\; B(t_{\mathrm{delay}})\; g(\mathrm{skin})\; h(p)$$</div>
+        <p>with \(\sigma_{\max} \approx 510\) kPa the best PDMS–glass bond reported in the literature,
+          \(f(\theta)\) how far the contact angle got (eq. 4.3.1), \(B\) the bondability left after the
+          delay (eq. 4.3.2), \(g\) the penalty from an over-thick oxide skin, and \(h\) whether you were in
+          the pressure window at all. Multiplying is the right model because these are not independent
+          costs you can trade off — a surface that never activated cannot be rescued by mating it quickly.</p>
+        <div class="insight"><strong>The two failures that look like success are the expensive ones.</strong>
+          Under-treatment announces itself: the parts fall apart in your hand. Over-treatment and delay both
+          produce a chip that <em>looks</em> bonded, goes into the oven, comes out, and then delaminates
+          under pressure a day later with cells in it. Everything in tabs 1 to 4 exists so that you can tell
+          those two apart before you find out the expensive way.</div>
+        <div class="aside"><span class="lab">Worth knowing</span>
+          <strong>Note from Dr. McGhee.</strong> The 510 kPa figure and the contact-angle relationship come
+          from Bhattacharya and colleagues' 2005 blister-test study, which found the strongest PDMS–glass
+          bonds at contact angles below 5°. Worth knowing that they reached those angles at <em>lower</em>
+          RF power over longer times than Harrick's "typically HIGH", and reported an optimum near 100
+          mTorr. Both routes arrive at the same low contact angle; Harrick's is the faster one, and on
+          <em>this</em> machine — where HIGH is 45 W — the fast route reaches the two-minute ceiling sooner
+          than it would on the unit most published recipes were written for. When in doubt on this machine,
+          shorten the time before you raise the power.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="5.2" data-title="The whole machine, one card">5.2 · The whole machine, on one card</h2>
+        <div class="rules">
+          <div class="rule"><b>Pressure is a window</b><span>Below 1500 mTorr to strike at all; run at 200–800 mTorr. Too dense and electrons never gain energy; too thin and they never spend it.</span></div>
+          <div class="rule"><b>The flowmeter sets the pressure</b><span>p = Q/S. The pump runs flat out the whole time. Full scale on the PlasmaFlo lands at the top of the window.</span></div>
+          <div class="rule"><b>Our LOW is their HIGH</b><span>30 / 38 / 45 W here against 7 / 11 / 30 W on a standard Expanded. Convert every borrowed recipe before you run it.</span></div>
+          <div class="rule"><b>Lowest power that lights</b><span>Harrick's own instruction. On this machine the lowest available is 30 W, so the remaining lever is time.</span></div>
+          <div class="rule"><b>Strike closed, then feed</b><span>Close the needle valve, light the plasma, then open it a little at a time without losing the glow. Losing it costs nothing.</span></div>
+          <div class="rule"><b>15–60 seconds, never 2 minutes</b><span>Activation saturates in the first half-minute at HIGH. Past that you are only growing a brittle oxide skin.</span></div>
+          <div class="rule"><b>Contact angle cannot see damage</b><span>2 min gives 6.8°, 30 min gives 13.7° — and the second one is cracked. Judge by dose, not by how well it wets.</span></div>
+          <div class="rule"><b>Bond within 15–60 minutes</b><span>Sooner is better. Bondability decays in tens of minutes while wettability takes a day, so "it still looks wet" proves nothing.</span></div>
+          <div class="rule"><b>Press 30 s, do not realign</b><span>Bring the faces together once. Pulling them apart to adjust destroys the bond you just made.</span></div>
+          <div class="rule"><b>Never open under vacuum</b><span>It breaks the glass chamber. Vent, reach atmosphere, then the door.</span></div>
+          <div class="rule"><b>Vent the moment you finish</b><span>Otherwise pump oil backstreams into the chamber. Our pump is oil-free, which mitigates this — it does not license leaving it.</span></div>
+          <div class="rule"><b>No glow: bulb or gauge</b><span>Fluorescent bulb at atmosphere, door open, all three RF settings. If it lights, the fault is vacuum. If not, it is fuses.</span></div>
+        </div>
+
+        <details class="check">
+          <summary>Check yourself — the competency set</summary>
+          <div class="check-body">
+            <p><b>1.</b> A paper you are copying says "60 s oxygen plasma at high power" and reports lovely
+              bonds. You run exactly that on our machine and the chips delaminate. What is the most likely
+              explanation, and what would you change first?</p>
+            <details><summary>Answer</summary><p>Their HIGH was almost certainly not your HIGH. If they used
+              a PDC-001 or a comparable unit, HIGH is <b>30 W</b> and 60 s delivers about 1800 J. On ours
+              HIGH is <b>45 W</b>, so the same instruction delivers 2700 J — half as much again, and well
+              past the point where activation saturated. You have over-treated, grown a thicker oxide skin
+              and produced a surface that looks fine and bonds badly. The first change is to drop to
+              <b>LOW (30 W) for 60 s</b>, which reproduces their dose exactly. Shorten the time before you
+              touch the power.</p></details>
+            <p><b>2.</b> The chamber will not go below 900 mTorr, and it used to reach 80. Walk through the
+              diagnosis in order.</p>
+            <details><summary>Answer</summary><p>The floor has risen, so from eq. 4.4.1 either
+              \(p_{\mathrm{pump}}\) or \(Q\) has changed. Watch it for a couple of minutes first: if it
+              drifts <em>down</em>, something is drying and you should wait rather than dismantle. If it
+              sits still, work Harrick's order from cheapest: hose connections at the chamber outlet and
+              the pump inlet, the door seating, the o-ring for debris, then the chamber for cracks. Note
+              900 mTorr is below the 1500 mTorr ceiling, so a plasma may well still strike — you would be
+              running out of the recommended band without an obvious symptom, which is exactly the kind of
+              slow drift that makes results stop reproducing.</p></details>
+            <p><b>3.</b> Someone needs the machine for a solvent-cleaning job and the oxygen-service pump is
+              away being serviced. There is a spare oil-sealed rotary vane pump on the shelf that meets the
+              speed and ultimate-pressure spec. Can they use it?</p>
+            <details><summary>Answer</summary><p>For air, N₂ or argon — yes, an oil pump meeting
+              ≥23 L/min and ≤200 mTorr is exactly what Harrick specifies for non-reactive gases. For
+              <b>oxygen — no</b>. Harrick's warning is unambiguous: <i>"The hydrocarbon pump oil mist can
+              react with the ozone formed producing a potentially explosive combination."</i> Meeting the
+              speed spec is irrelevant to that hazard. Either run the job on air or argon, or wait for the
+              oxygen-service pump. And whoever swaps the pump back needs to know which one is on the bench,
+              because the machine will happily run either.</p></details>
+          </div>
+        </details>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Bond strength is a <b>product</b> of four fractions. Any one near zero takes the whole bond.</li>
+          <li>Under-treatment fails loudly; <b>over-treatment and delay fail quietly</b>, a day later, with cells in the chip.</li>
+          <li>On this machine, when in doubt, <b>shorten the time before you raise the power</b>.</li>
+          <li>Every number on this page is Harrick's. Where they publish nothing — ozone, UV, chamber cleaning — the page says so.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Where this goes next.</strong> This lesson stopped at the chamber door.
+        What the plasma actually does to the polymer — silanol formation, the Si–O–Si condensation that
+        welds two treated faces into one piece, and the surface chemistry that makes APTES stick
+        afterwards — is
+        <a href="../surface_functionalization/02-plasma-treatment.html">Surface Functionalization lesson 2</a>,
+        which is the companion to this one: it owns the surface, this one owns the machine.</div>
+    </div>
+
+  </section>
+
+  <div class="sources">
+    <h2>Sources</h2>
+    <ol>
+      <li>Harrick Plasma. <i>High Power Expanded Plasma Cleaner</i> datasheet (PDC-001-HP / PDC-002-HP /
+        PDC-002-HPCE) and product page — RF power, chamber, valves, pump requirement, dimensions.
+        <span class="src">Saved to <code>Data/equipment/</code>; retrieved 2026-09-02.</span></li>
+      <li>Harrick Plasma. <i>PDC-FMG PlasmaFlo Gas Mixer</i> datasheet and product page — dual channels,
+        ±2% full scale, 50 mL/min maximum for atmospheric air at 0 psig, thermocouple gauge 1–1999 mTorr,
+        10 psig regulated supply. <span class="src">Saved to <code>Data/equipment/</code>.</span></li>
+      <li>Harrick Plasma. <b>FAQ</b>, harrickplasma.com/support/faq/ — the power table for all three
+        cleaners (7/11/18, 7/11/30, <b>30/38/45 W</b>), chamber sizes, the 1500 mTorr ceiling and
+        200–800 mTorr recommendation, the 2-hour continuous limit, the pump specification, the ~5 °C
+        surface heating figure, and the fuse check.</li>
+      <li>Harrick Plasma. <b>PDMS Bonding</b>, harrickplasma.com/pdms-bonding/ — the only complete recipe
+        Harrick publishes: gas, 200 mTorr–1 Torr, HIGH, 15–60 s, the 2-minute ceiling and its consequences,
+        contact immediately, press 30 s, 80–100 °C for 60 s, and the 15 min–1 h bonding window.</li>
+      <li>Harrick Plasma. <b>Physics of Plasma</b> and <b>What is Plasma</b>,
+        harrickplasma.com/plasma-cleaning/ — the five mechanisms quoted in §1.3, the 10<sup>4</sup> K
+        electron temperature and 10<sup>10</sup> cm<sup>−3</sup> electron density.</li>
+      <li>Harrick Plasma. <b>Plasma Process Gases</b> and <b>Troubleshooting</b> — the gas-to-mechanism
+        table, the argon-for-metals note, the oxygen-service pump requirement, and the fluorescent bulb
+        test.</li>
+      <li>Harrick Plasma. <i>Plasma Cleaner User's Manual</i>, doc <b>PDC32G-M-03</b> — the safety list,
+        the operating sequence, the venting caution and the troubleshooting table quoted throughout.
+        <span class="src">This is the <b>Basic PDC-32G</b> manual. Its procedures and safety rules are
+        general; its specification numbers (3″ chamber, 6.8/10.5/18 W, 8–12 MHz) are for that model and are
+        <b>not</b> quoted as ours.</span></li>
+      <li>Bhattacharya, Datta, Berg &amp; Gangopadhyay. "Studies on surface wettability of
+        poly(dimethyl)siloxane (PDMS) and glass under oxygen-plasma treatment and correlation with bond
+        strength." <i>Journal of Microelectromechanical Systems</i> <b>14</b>(3):590–597 (2005) — the
+        bond-strength figure and its correlation with contact angle used in eq. 4.5.1.</li>
+      <li>Contact angles and hydrophobic-recovery kinetics for RF-plasma-treated PDMS: native 113 ± 4°,
+        6.8–8.8° after 2 minutes, 13.7° after 30 minutes, and the effect of storage temperature and
+        immersion on recovery rate. <span class="src">PMC2631384.</span></li>
+    </ol>
+    <p style="font-size:.78rem;color:#94a3b8">Every operating number on this page is Harrick's own, per the
+      instruction that this lesson follow the manufacturer's recommendations. Where Harrick publishes
+      nothing — a per-gas glow-colour chart, an RF frequency for this specific unit, ozone or UV or RF
+      safety guidance, a prohibited-materials list, a chamber-cleaning procedure, or any maintenance
+      interval — the page says so rather than filling the gap from general knowledge. Sections marked
+      <b>McGhee Lab practice</b> are house procedure or an acknowledged gap, not published guidance. The
+      simulations are teaching models calibrated to Harrick's stated limits: the mean-free-path window's
+      lower edge and the oxide-thickness scale in particular are illustrative, and each says so in its own
+      aside.</p>
+  </div>
+</main>
+<footer>Equipment Foundations · Lesson 4 of 8 · McGhee Lab, University of Arizona</footer>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   CELL CULTURE FOUNDATIONS — shared house layer.
+   Helpers (COL, fmt, niceTicks, clamp, setupCanvas, Chart, drawLine,
+   arrow, setStat, setVerdict, statTick, lsqFit, mulberry32, randn)
+   follow modules/AUTHORING.md §5 and are copied from the BME466
+   week-1 module verbatim. The learning-module framework layer
+   (defWidget / registerAnim / one shared rAF loop / geometric
+   syncVis) is AUTHORING.md §9 item 3; the section rail and Present
+   mode (§9 item 2) are deliberately NOT included in this track.
+   UNITS: length m (µm where stated) · time s · velocity m/s ·
+   viscosity Pa·s, unless a widget states otherwise.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── palette ── */
+const COL = {
+  air:'#38bdf8', clean:'#2563eb', dirty:'#ef4444', warmc:'#f59e0b',
+  cell:'#7c3aed', media:'#e11d48', plastic:'#94a3b8', steel:'#64748b',
+  good:'#10b981', bad:'#ef4444', warn:'#f59e0b', neutral:'#94a3b8',
+  hepa:'#0891b2', flowline:'#60a5fa', particle:'#7c3aed',
+  grid:'#e2e8f0', axis:'#64748b', text:'#1e293b', faint:'#f1f5f9'
+};
+
+/* ── math / canvas / DOM helpers (house pattern, copied verbatim) ── */
+function randn(){ let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function gaussOf(rng){ let u=0,v=0; while(u===0)u=rng(); while(v===0)v=rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function fmt(v,d){ if(!isFinite(v))return '—'; const a=Math.abs(v);
+  if(a>=1000)return v.toLocaleString('en-US',{maximumFractionDigits:d===undefined?0:d});
+  if(a>=1)return v.toFixed(d===undefined?2:d);
+  if(a>=0.001||a===0)return v.toFixed(d===undefined?3:d);
+  return v.toExponential(d===undefined?2:d); }
+function niceTicks(lo,hi,n){ if(hi<=lo)return [lo]; const range=hi-lo, rough=range/Math.max(n,1),
+  mag=Math.pow(10,Math.floor(Math.log10(rough))); let step;
+  if(rough/mag<1.5)step=mag; else if(rough/mag<3.5)step=2*mag; else if(rough/mag<7.5)step=5*mag; else step=10*mag;
+  const t=[]; let x=Math.ceil(lo/step)*step; while(x<=hi+step*1e-3){t.push(x);x+=step;} return t; }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function setupCanvas(canvas){ if(!canvas)return null; const dpr=window.devicePixelRatio||1; const rect=canvas.getBoundingClientRect();
+  const cssW=rect.width||canvas.width;
+  const w=cssW, h=w*(canvas.height/canvas.width);
+  canvas.width=cssW*dpr; canvas.height=h*dpr; canvas.style.width=cssW+'px'; canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h); return {ctx,w,h}; }
+class Chart{
+  constructor(ctx,w,h,m){ this.ctx=ctx;this.W=w;this.H=h;this.m=m||{l:58,r:18,t:14,b:42};
+    this.pw=w-this.m.l-this.m.r; this.ph=h-this.m.t-this.m.b;
+    /* setupCanvas clears only on FIRST allocation and getCv caches the result,
+       so without this every redraw paints on top of the previous curve.
+       Pass {keep:1} in the margins when the caller has ALREADY cleared and
+       drawn artwork beside the chart — otherwise this wipes it. */
+    if(!(m&&m.keep)){ ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h); } }
+  setRange(a,b,c,d){ this.xMin=a;this.xMax=b;this.yMin=c;this.yMax=d; }
+  toX(v){ return this.m.l+(v-this.xMin)/(this.xMax-this.xMin)*this.pw; }
+  toY(v){ return this.m.t+this.ph-(v-this.yMin)/(this.yMax-this.yMin)*this.ph; }
+  grid(xt,yt){ const c=this.ctx; c.save();c.strokeStyle=COL.grid;c.lineWidth=1;c.setLineDash([3,3]);
+    for(const t of xt){const x=this.toX(t);c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();}
+    for(const t of yt){const y=this.toY(t);c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();}
+    c.restore(); }
+  axes(xl,yl,xt,yt,dx,dy,xfmt,yfmt){ const c=this.ctx; c.save();c.strokeStyle=COL.axis;c.lineWidth=1.5;c.setLineDash([]);
+    c.beginPath();c.moveTo(this.m.l,this.m.t);c.lineTo(this.m.l,this.m.t+this.ph);c.lineTo(this.m.l+this.pw,this.m.t+this.ph);c.stroke();
+    c.fillStyle=COL.axis;c.font='11px sans-serif';c.textAlign='center';c.textBaseline='top';
+    for(const t of xt){c.fillText(xfmt?xfmt(t):fmt(t,dx===undefined?0:dx),this.toX(t),this.m.t+this.ph+6);}
+    c.textAlign='right';c.textBaseline='middle';
+    for(const t of yt){c.fillText(yfmt?yfmt(t):fmt(t,dy===undefined?1:dy),this.m.l-6,this.toY(t));}
+    c.fillStyle=COL.text;c.font='12px sans-serif';c.textAlign='center';c.textBaseline='top';
+    c.fillText(xl,this.m.l+this.pw/2,this.m.t+this.ph+22);
+    /* The y-label used to be pinned to x=13, which is only correct for a chart
+       that starts at the canvas edge. A {keep:1} chart offset to the right put
+       its label on top of whatever the left panel had drawn. */
+    c.save();c.translate(this.m.l>90?this.m.l-40:13,this.m.t+this.ph/2);c.rotate(-Math.PI/2);c.textBaseline='middle';c.fillText(yl,0,0);c.restore();
+    c.restore(); }
+  hLine(yv,color,dash){ const c=this.ctx,y=this.toY(yv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();c.restore(); }
+  vLine(xv,color,dash){ const c=this.ctx,x=this.toX(xv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();c.restore(); }
+  legend(items,x,y){ const c=this.ctx;c.save();c.font='11px sans-serif';let cx=x;
+    for(const it of items){c.fillStyle=it.color;c.fillRect(cx,y-5,12,10);c.fillStyle=COL.text;cx+=16;
+      c.textAlign='left';c.textBaseline='middle';c.fillText(it.label,cx,y);cx+=c.measureText(it.label).width+14;}c.restore(); }
+}
+function drawLine(ctx,pts,color,lw,dash){ if(pts.length<2)return; ctx.save();ctx.strokeStyle=color;ctx.lineWidth=lw||2;
+  if(dash)ctx.setLineDash(dash); ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]); ctx.stroke();ctx.restore(); }
+function arrow(ctx,x0,y0,x1,y1,color,lw){ ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=lw||1.6;
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+  const a=Math.atan2(y1-y0,x1-x0),hh=6.5; ctx.beginPath();ctx.moveTo(x1,y1);
+  ctx.lineTo(x1-hh*Math.cos(a-0.42),y1-hh*Math.sin(a-0.42));ctx.lineTo(x1-hh*Math.cos(a+0.42),y1-hh*Math.sin(a+0.42));
+  ctx.closePath();ctx.fill();ctx.restore(); }
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath(); }
+/* setStat / setVerdict rewrite DOM, so they are the two places that can make
+   the page flicker or jump. Both skip entirely when the rendered text is
+   unchanged, and are rate-limited by statTick(); combined with the reserved
+   heights in the CSS a running sim leaves the rest of the page still. */
+const _domCache={};
+function setStat(id,rows){ const el=document.getElementById(id); if(!el)return;
+  const html=rows.map(r=>`<div class="stat-row${r.hi?' highlight':''}"><span class="label">${r.k}</span><span class="value">${r.v}</span></div>`).join('');
+  if(_domCache[id]===html)return; _domCache[id]=html; el.innerHTML=html; }
+function setVerdict(id,cls,title,body){ const el=document.getElementById(id); if(!el)return;
+  const tall=el.dataset.tall?' tall':'';
+  const html='<strong>'+title+'</strong>'+body, key=cls+'|'+html;
+  if(_domCache['v:'+id]===key)return; _domCache['v:'+id]=key;
+  el.className='val-verdict'+tall+' '+cls; el.innerHTML=html; }
+const _statLast={};
+function statTick(key,ms){
+  /* Rate-limiting only applies to ANIMATED widgets, which redraw next frame
+     anyway. A static widget draws exactly once per input event, so gating it
+     would leave its readouts permanently stale whenever an input happened to
+     land inside the window. */
+  if(!ANIMS[key])return true;
+  const t=(typeof performance!=='undefined'?performance.now():0);
+  if(_statLast[key]&&t-_statLast[key]<(ms||160))return false; _statLast[key]=t; return true; }
+function lsqFit(xs,ys){ const n=xs.length; if(n<2)return null; let sx=0,sy=0,sxx=0,sxy=0;
+  for(let i=0;i<n;i++){sx+=xs[i];sy+=ys[i];sxx+=xs[i]*xs[i];sxy+=xs[i]*ys[i];}
+  const den=n*sxx-sx*sx; if(Math.abs(den)<1e-12)return null;
+  const m=(n*sxy-sx*sy)/den, b=(sy-m*sx)/n; return {m,b}; }
+function mulberry32(a){ return function(){ a|=0;a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+/* ════════ learning-module framework ════════
+   Widgets self-register:
+     defWidget(key, tab, drawFn, fmts, {reset, scenfn, scen0})
+     registerAnim(key, stepFn, minFrameMs)   // animated widgets only
+   Keys are globally unique and hyphen-free; slider ids are s-{key}-{param}
+   so id.split('-')[0] recovers the owning widget. TABW and the initial
+   activeTab are read from the DOM, so this whole block is identical in
+   every lesson of the track. */
+const FMT={}, DRAW={}, RESET={}, SCENFN={}, SCEN={}, WTAB={}, TABW={};
+document.querySelectorAll('.tab-content').forEach(s=>{ TABW[s.id.replace('tab-','')]=[]; });
+let activeTab=(document.querySelector('.tab-content.active')||document.querySelector('.tab-content')).id.replace('tab-','');
+function defWidget(key,tab,drawFn,fmts,opts){
+  if(!TABW[tab])TABW[tab]=[];
+  TABW[tab].push(key); DRAW[key]=drawFn; WTAB[key]=tab;
+  if(fmts)Object.assign(FMT,fmts);
+  if(opts&&opts.reset)RESET[key]=opts.reset;
+  if(opts&&opts.scenfn)SCENFN[key]=opts.scenfn;
+  if(opts&&opts.scen0)SCEN[key]=opts.scen0;
+}
+/* canvas-setup cache: setupCanvas reallocates the bitmap, so animated
+   widgets cache {ctx,w,h}; cache is cleared on resize and tab switch. */
+const CVS={};
+function getCv(id){ if(CVS[id])return CVS[id];
+  const el=document.getElementById(id); if(!el)return null;
+  const s=setupCanvas(el);
+  /* QA probe: the drawing surface is w x w*(attrH/attrW), so h changes with the
+     viewport. Layout bugs from fixed y-offsets are invisible at 660 px wide and
+     obvious at 950; publishing the dims lets a harness check them. */
+  if(s&&s.w>10){ CVS[id]=s; el.dataset.cvw=Math.round(s.w); el.dataset.cvh=Math.round(s.h); }
+  return s; }
+function clearCvCache(){ for(const k in CVS) delete CVS[k]; }
+
+/* shared animation loop + viewport gating */
+const ANIMS={};
+let io=null, rafId=null;
+function registerAnim(key,stepFn,minFrame){
+  ANIMS[key]={step:stepFn,visible:false,last:0,minFrame:minFrame||33};
+  const el=document.getElementById('cv-'+key);
+  if(el){ el.dataset.anim=key; if(io)io.observe(el); else ANIMS[key].visible=true; }
+}
+if('IntersectionObserver' in window){
+  io=new IntersectionObserver(ents=>{
+    for(const en of ents){ const a=ANIMS[en.target.dataset.anim];
+      if(a){ a.visible=en.isIntersecting; if(a.visible)a.last=0; } }
+    kickAnim();
+  },{rootMargin:'120px',threshold:0.05});
+}
+function animLoop(ts){
+  let any=false;
+  for(const k in ANIMS){ const a=ANIMS[k];
+    if(WTAB[k]!==activeTab||!a.visible)continue;
+    any=true;
+    if(!a.last){a.last=ts;continue;}
+    const dt=Math.min(ts-a.last,50);
+    if(dt>=a.minFrame){ a.last=ts; a.n=(a.n|0)+1;
+      try{ a.step(dt/1000); DRAW[k](); }catch(e){ console.error('anim '+k,e); a.err=String(e); }
+      /* QA probe: a browser harness runs in an ISOLATED world and cannot read
+         page globals, and a throw inside this try leaves the page reporting
+         itself clean. The frame counter and the error land on the canvas
+         element instead, where the DOM can be asked about them. */
+      const el=document.getElementById('cv-'+k);
+      if(el){ el.dataset.frames=a.n; if(a.err)el.dataset.animerr=a.err; } }
+  }
+  rafId=any?requestAnimationFrame(animLoop):null;
+}
+function kickAnim(){ if(rafId==null)rafId=requestAnimationFrame(animLoop); }
+/* Visibility fallback: IntersectionObserver delivery is environment-dependent
+   (in some headless builds it never fires at all), so visibility is ALSO
+   recomputed straight from geometry — at boot, on tab switch, on scroll and
+   on resize. IO stays wired as a zero-cost extra wake-up where it works. */
+function syncVis(){
+  const vh=window.innerHeight||800;
+  for(const k in ANIMS){ if(WTAB[k]!==activeTab)continue;
+    const el=document.getElementById('cv-'+k); if(!el)continue;
+    const r=el.getBoundingClientRect();
+    const vis=r.width>0&&r.bottom>-120&&r.top<vh+120;
+    if(vis&&!ANIMS[k].visible)ANIMS[k].last=0;
+    ANIMS[k].visible=vis; }
+  kickAnim();
+}
+let _visPend=false;
+window.addEventListener('scroll',()=>{ if(_visPend)return; _visPend=true;
+  requestAnimationFrame(()=>{ _visPend=false; syncVis(); }); },{passive:true});
+window.__anim={ get running(){ return rafId!=null; },
+  get activeKeys(){ return Object.keys(ANIMS).filter(k=>WTAB[k]===activeTab&&ANIMS[k].visible); } };
+
+/* ════════ slider access + scenario machinery (house, adapted) ════════ */
+function val(id){ const el=document.getElementById('s-'+id); return el?el.value:''; }
+function num(id){ return parseFloat(val(id)); }
+function chk(id){ const el=document.getElementById('c-'+id); return !!(el&&el.checked); }
+/* ── the reset-on-every-tick guard (AUTHORING §9.4) ──────────────────────
+   wireAll calls RESET[widget]() on EVERY input event, which is correct for a
+   widget that draws a fresh sample per parameter change and catastrophic for
+   one that carries a continuous tracer field: dragging a slider restarts the
+   animation from cold on every tick, so it never looks like it is running.
+   RESEED is true only when a reseed is genuinely wanted (boot, scenario
+   switch); a field-owning reset asks keepField() and keeps what it has. */
+let RESEED=false;
+function keepField(arr){ return !!(arr&&arr.length&&!RESEED); }
+function wireAll(){ Object.keys(FMT).forEach(id=>{ const s=document.getElementById('s-'+id),v=document.getElementById('v-'+id);
+  if(!s)return; const upd=()=>{ if(v)v.textContent=FMT[id](parseFloat(s.value));
+    const wk=id.split('-')[0];
+    if(RESET[wk])RESET[wk]();
+    if(DRAW[wk]){ try{DRAW[wk]();}catch(e){console.error('draw '+wk,e);} }
+    kickAnim(); };
+  s.addEventListener('input',upd); if(v)v.textContent=FMT[id](parseFloat(s.value)); });
+  document.querySelectorAll('input[type=checkbox][id^="c-"]').forEach(cb=>{
+    cb.addEventListener('change',()=>{ const wk=cb.id.slice(2).split('-')[0];
+      if(RESET[wk])RESET[wk]();
+      if(DRAW[wk]){ try{DRAW[wk]();}catch(e){console.error('draw '+wk,e);} }
+      kickAnim(); }); }); }
+function presetSlider(id,vv){ const el=document.getElementById('s-'+id); if(el){ el.value=String(vv);
+  const v=document.getElementById('v-'+id); if(v&&FMT[id])v.textContent=FMT[id](parseFloat(vv)); } }
+function presetChk(id,on){ const el=document.getElementById('c-'+id); if(el)el.checked=!!on; }
+function setScen(w,s){ SCEN[w]=s;
+  document.querySelectorAll('.scen-btn[data-widget="'+w+'"]').forEach(b=>b.classList.toggle('on',b.dataset.scen===s));
+  if(SCENFN[w])SCENFN[w](s);
+  RESEED=true; if(RESET[w])RESET[w](); RESEED=false;
+  if(DRAW[w]){ try{DRAW[w]();}catch(e){console.error('draw '+w,e);} }
+  kickAnim(); }
+
+/* ═══════════════════ WIDGET CODE START ═══════════════════ */
+/* Shared constants. Every machine number is Harrick's, from the PDC-001-HP and
+   PDC-FMG datasheets and the FAQ; sources are listed at the foot of the page. */
+const RF={low:30, med:38, high:45};              /* W, PDC-001-HP (Harrick FAQ) */
+const RF_LVL=['LOW','MEDIUM','HIGH'];
+const RF_W=[RF.low,RF.med,RF.high];
+const RF_OTHER={ basic:[7,11,18], expanded:[7,11,30] };   /* the other two cleaners */
+const P_MIN=200, P_MAX=800, P_CEIL=1500;         /* mTorr: recommended band, and the strike ceiling */
+const V_CHAMBER=3.0;                             /* L, from 6" dia x 6.5" length */
+const S_DEFAULT=50;                              /* L/min, oxygen-service scroll */
+const FLOW_MAX=50;                               /* mL/min air at 0 psig, PlasmaFlo full scale */
+const KB=1.381e-23;
+const T_OVER=120;                                /* s: Harrick's ceiling, "should not exceed 2 min" */
+const THETA_0=113, THETA_MIN=6.8;                /* native and best-case PDMS contact angle, deg */
+const D_C=260;                                   /* J, activation characteristic dose */
+const SIGMA_MAX=510;                             /* kPa, best reported PDMS-glass bond */
+
+function doseOf(lvlIdx,t){ return RF_W[clamp(Math.round(lvlIdx),0,2)]*t; }
+function thetaOf(D){ return THETA_MIN+(THETA_0-THETA_MIN)*Math.exp(-D/D_C); }
+/* Oxide skin grows as sqrt(dose) -- diffusion-limited oxidation. Scaled so the
+   crack threshold lands on Harrick's own 2-minute ceiling at HIGH on this
+   machine, which turns their rule into a number rather than measuring one. */
+const D_CEIL=RF.high*T_OVER;                     /* 5400 J */
+const SKIN_K=15/Math.sqrt(D_CEIL);               /* nm per sqrt(J), so 15 nm at the ceiling */
+function skinOf(D){ return SKIN_K*Math.sqrt(Math.max(D,0)); }
+const SKIN_CRACK=15;                             /* nm, = Harrick's ceiling by construction */
+
+/* ════════ widget: window — the pressure window (Tab 1.1) ════════
+   Mean free path is exact kinetic theory (eq. 4.1.1). The UPPER edge is
+   Harrick's published 1500 mTorr. The LOWER edge is illustrative: it is where
+   the mean free path becomes comparable with the chamber, and Harrick publishes
+   no number for it. */
+const WINSCEN={ air:{d:0.37,n:'room air'}, o2:{d:0.36,n:'oxygen'}, ar:{d:0.34,n:'argon'} };
+function windowState(){
+  const lg=num('window-p'), p=Math.pow(10,lg);   /* mTorr */
+  const lvl=clamp(Math.round(num('window-w')),0,2), P=RF_W[lvl];
+  const g=WINSCEN[SCEN.window||'air'];
+  const d=g.d*1e-9, pPa=p*0.133322;
+  const lam=KB*295/(Math.SQRT2*Math.PI*d*d*pPa);         /* m */
+  const lamCm=lam*100;
+  const L=15.2;                                          /* chamber ~6 in across, cm */
+  /* how many ionising collisions an electron makes crossing the chamber */
+  const nColl=L/lamCm;
+  /* More power means more energetic electrons, so fewer collisions are needed to
+     sustain the avalanche -- which is why a weak setting goes out first as you
+     pump down. The ceiling is Harrick's published 1500 mTorr and does not move. */
+  const nNeed=30*Math.pow(RF.high/P,0.55);
+  const lit = p<P_CEIL && nColl>nNeed;
+  const band = p>=P_MIN && p<=P_MAX;
+  return {p,lg,lvl,P,g,lam,lamCm,L,nColl,nNeed,lit,band};
+}
+function drawWindow(){
+  const cv=getCv('cv-window'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=windowState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:66,r:150,t:18,b:46});
+  ch.setRange(0.7,5.9,-5,1.5);                           /* log10 mTorr, log10 cm */
+  const xt=[1,2,3,4,5], yt=[-5,-4,-3,-2,-1,0,1];
+  ch.grid(xt,yt);
+  ch.axes('chamber pressure','mean free path',xt,yt,0,0,
+    t=>({1:'10 mTorr',2:'100 mTorr',3:'1 Torr',4:'10 Torr',5:'100 Torr'})[t],
+    t=>({'-5':'0.1 µm','-4':'1 µm','-3':'10 µm','-2':'100 µm','-1':'1 mm','0':'1 cm','1':'10 cm'})[String(t)]);
+  /* the recommended band */
+  ctx.fillStyle='rgba(16,185,129,.16)';
+  ctx.fillRect(ch.toX(Math.log10(P_MIN)),ch.m.t,
+    ch.toX(Math.log10(P_MAX))-ch.toX(Math.log10(P_MIN)),ch.ph);
+  ctx.fillStyle=COL.good; ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('200–800 mTorr',(ch.toX(Math.log10(P_MIN))+ch.toX(Math.log10(P_MAX)))/2,ch.m.t+4);
+  /* the strike ceiling */
+  ch.vLine(Math.log10(P_CEIL),COL.bad,[5,3]);
+  ctx.fillStyle=COL.bad; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('1500 mTorr — nothing strikes above this',ch.toX(Math.log10(P_CEIL))+5,ch.m.t+4);
+  /* chamber size reference */
+  ch.hLine(Math.log10(q.L),COL.steel,[4,3]);
+  ctx.fillStyle=COL.steel; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('the chamber itself, 15 cm',ch.m.l+6,ch.toY(Math.log10(q.L))-3);
+  const pts=[];
+  for(let i=0;i<=120;i++){ const lg=0.7+5.2*i/120, pp=Math.pow(10,lg)*0.133322;
+    const l=KB*295/(Math.SQRT2*Math.PI*q.g.d*1e-9*q.g.d*1e-9*pp)*100;
+    pts.push([ch.toX(lg),ch.toY(clamp(Math.log10(l),-5,1.5))]); }
+  drawLine(ctx,pts,COL.clean,2.6);
+  const px=ch.toX(q.lg), py=ch.toY(clamp(Math.log10(q.lamCm),-5,1.5));
+  ctx.fillStyle=q.lit?COL.good:COL.bad; ctx.beginPath(); ctx.arc(px,py,6.5,0,7); ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.8; ctx.stroke();
+  /* the chamber, glowing or not */
+  const bx=w-138, by=ch.m.t+16, bw=118, bh=76;
+  ctx.fillStyle='#0f172a'; roundRect(ctx,bx,by,bw,bh,8); ctx.fill();
+  if(q.lit){
+    const rng=mulberry32(11);
+    ctx.fillStyle='rgba(168,85,247,.30)'; roundRect(ctx,bx+5,by+5,bw-10,bh-10,6); ctx.fill();
+    for(let i=0;i<70;i++){ ctx.fillStyle='rgba(232,171,255,'+(0.25+rng()*0.5)+')';
+      ctx.beginPath(); ctx.arc(bx+8+rng()*(bw-16),by+8+rng()*(bh-16),1+rng()*1.6,0,7); ctx.fill(); }
+    ctx.fillStyle='#e9d5ff'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('glowing',bx+bw/2,by+bh-14);
+  } else {
+    ctx.fillStyle='#334155'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('dark',bx+bw/2,by+bh/2);
+  }
+  ctx.fillStyle=COL.text; ctx.font='10.5px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText(q.g.n+' at '+RF_LVL[q.lvl],bx+bw/2,by+bh+8);
+  ctx.fillText(fmt(q.P,0)+' W',bx+bw/2,by+bh+24);
+  if(!statTick('window'))return;
+  setStat('st-window',[
+    {k:'Pressure',v:q.p<1000?fmt(q.p,0)+' mTorr':fmt(q.p/1000,2)+' Torr',hi:1},
+    {k:'Mean free path',v:q.lamCm<0.1?fmt(q.lamCm*1e4,0)+' µm':fmt(q.lamCm,2)+' cm'},
+    {k:'Collisions',v:(q.nColl>999?'>999':fmt(q.nColl,q.nColl<10?1:0))+' / '+fmt(q.nNeed,0)+' needed',hi:1},
+    {k:'Discharge',v:q.lit?(q.band?'lit, in band':'lit, out of band'):'dark'}]);
+  if(q.p>P_CEIL)
+    setVerdict('vd-window','bad','Too much gas — nothing will light.',
+      ' At <b>'+(q.p<1000?fmt(q.p,0)+' mTorr':fmt(q.p/1000,2)+' Torr')+'</b> the mean free path is '+(q.lamCm<0.1?fmt(q.lamCm*1e4,0)+' µm':fmt(q.lamCm,2)+' cm')+', so an electron is knocked sideways almost as soon as it starts accelerating and never reaches ionising energy. Harrick\'s ceiling is <b>1500 mTorr</b> and this is above it. Pump further down, or close the flowmeter.');
+  else if(!q.lit)
+    setVerdict('vd-window','bad','Too little gas — nothing left to ionise.',
+      ' The mean free path is <b>'+fmt(q.lamCm,1)+' cm</b> against a 15 cm chamber, so an electron crosses it making only '+fmt(q.nColl,1)+' collisions against the '+fmt(q.nNeed,0)+' that this power setting needs, and hits the wall. At '+RF_LVL[q.lvl]+' the discharge gives out sooner than it would at HIGH, which is the flip side of Harrick&rsquo;s advice to use the lowest power that will light. There is plenty of energy per electron and almost nothing to spend it on. Let some gas back in — this is the edge people meet when they pump down hard and then forget to open the flowmeter.');
+  else if(q.band)
+    setVerdict('vd-window','good','Lit, and inside the band Harrick recommends.',
+      ' <b>'+fmt(q.p,0)+' mTorr</b>, mean free path '+(q.lamCm<0.1?fmt(q.lamCm*1e4,0)+' µm':fmt(q.lamCm,2)+' cm')+', about <b>'+fmt(q.nColl,0)+' collisions</b> for an electron crossing the chamber. Enough collisions to sustain an avalanche, far enough apart that each one is energetic. This is where the machine is designed to run.');
+  else
+    setVerdict('vd-window','warn','Lit, but outside the recommended band.',
+      ' It will run at <b>'+(q.p<1000?fmt(q.p,0)+' mTorr':fmt(q.p/1000,2)+' Torr')+'</b> — the ceiling is 1500 mTorr and you are under it — but Harrick recommends <b>200–800 mTorr</b> and you are '+(q.p<P_MIN?'below':'above')+' that. A discharge that lights outside the band is the quiet kind of wrong: nothing looks broken and your results stop matching anyone else\'s.');
+}
+defWidget('window','work',drawWindow,{
+  'window-p':v=>{const p=Math.pow(10,v); return p<1000?fmt(p,0)+' mTorr':fmt(p/1000,2)+' Torr';},
+  'window-w':v=>RF_W[clamp(Math.round(v),0,2)]+' W'},
+  {scen0:'air'});
+
+/* ════════ widget: power — dose across the three machines (Tab 1.2) ════════
+   Stateless. The whole point is the comparison, so the other two cleaners'
+   published settings are on the chart beside ours. */
+const POWSCEN={ pdc001:{src:'expanded',lvl:2,t:60}, basic:{src:'basic',lvl:2,t:60}, ours:{src:'ours',lvl:2,t:30} };
+function powerState(){
+  const lvl=clamp(Math.round(num('power-lvl')),0,2), t=num('power-t');
+  const sc=POWSCEN[SCEN.power||'pdc001'];
+  const srcW = sc.src==='ours' ? RF_W[sc.lvl] : RF_OTHER[sc.src][sc.lvl];
+  const srcName = sc.src==='ours' ? 'this machine' : (sc.src==='basic'?'a Basic PDC-32G':'a PDC-001');
+  const srcDose=srcW*sc.t;
+  const ourDose=doseOf(lvl,t);
+  /* the setting on OUR machine that reproduces the source dose at this time */
+  const needW=srcDose/t;
+  return {lvl,t,sc,srcW,srcName,srcDose,ourDose,needW,
+          ratio:ourDose/srcDose, over:t>T_OVER};
+}
+function drawPower(){
+  const cv=getCv('cv-power'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=powerState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const bl=176, bw=w-bl-96;
+  ctx.fillStyle=COL.text; ctx.font='12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('dose delivered, joules',bl,12);
+  const dmax=Math.max(q.srcDose,q.ourDose,RF.high*T_OVER)*1.12;
+  const rows=[{k:'as written for '+q.srcName,v:q.srcDose,c:COL.steel,sub:fmt(q.srcW,0)+' W × '+fmt(q.sc.t,0)+' s'},
+              {k:'what you just ran',v:q.ourDose,c:q.ourDose>RF.high*T_OVER?COL.bad:COL.clean,
+               sub:RF_LVL[q.lvl]+' ('+fmt(RF_W[q.lvl],0)+' W) × '+fmt(q.t,0)+' s'}];
+  let yy=44;
+  for(const r of rows){
+    ctx.fillStyle=COL.axis; ctx.font='11px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText(r.k,bl-10,yy+13);
+    ctx.fillStyle=COL.neutral; ctx.font='9.5px sans-serif'; ctx.textBaseline='top';
+    ctx.fillText(r.sub,bl-10,yy+24);
+    ctx.fillStyle='#e6ebf2'; roundRect(ctx,bl,yy,bw,26,6); ctx.fill();
+    ctx.fillStyle=r.c; roundRect(ctx,bl,yy,Math.max(4,bw*clamp(r.v/dmax,0,1)),26,6); ctx.fill();
+    ctx.fillStyle=COL.text; ctx.font='bold 12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText(fmt(r.v,0)+' J',bl+bw+8,yy+13);
+    yy+=64;
+  }
+  /* Harrick's 2-minute ceiling on our machine */
+  const cx=bl+bw*clamp(RF.high*T_OVER/dmax,0,1);
+  ctx.strokeStyle=COL.bad; ctx.lineWidth=2; ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(cx,36);ctx.lineTo(cx,yy-14);ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=COL.bad; ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('2 min at HIGH — Harrick\'s ceiling',cx,yy-12);
+  /* the three machines' power ladders */
+  const ly=yy+22;
+  ctx.fillStyle=COL.text; ctx.font='11.5px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('RF power available, watts',bl-166,ly);
+  const machines=[{n:'Basic PDC-32G',w:RF_OTHER.basic,c:COL.neutral},
+                  {n:'Expanded PDC-001',w:RF_OTHER.expanded,c:COL.steel},
+                  {n:'ours — PDC-001-HP',w:RF_W,c:COL.cell}];
+  const wmax=50, lx=bl-166, lw=w-lx-30;
+  machines.forEach((m,i)=>{
+    const y=ly+22+i*22;
+    ctx.fillStyle=COL.axis; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText(m.n,lx,y);
+    m.w.forEach((ww,k)=>{
+      const x=lx+150+(lw-150)*ww/wmax;
+      ctx.fillStyle=m.c; ctx.beginPath(); ctx.arc(x,y,i===2?5.5:4,0,7); ctx.fill();
+      if(i===2){ ctx.fillStyle=COL.text; ctx.font='9px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+        ctx.fillText(RF_LVL[k].charAt(0)+' '+ww,x,y-7); ctx.textBaseline='middle'; ctx.textAlign='left'; }
+    });
+  });
+  if(!statTick('power'))return;
+  setStat('st-power',[
+    {k:'Recipe as written',v:fmt(q.srcDose,0)+' J',hi:1},
+    {k:'What you delivered',v:fmt(q.ourDose,0)+' J',hi:1},
+    {k:'Ratio',v:fmt(q.ratio,2)+'×'},
+    {k:'To match, use',v:q.needW<=RF.high&&q.needW>=RF.low?fmt(q.needW,0)+' W for '+fmt(q.t,0)+' s':'a different time'}]);
+  if(q.over)
+    setVerdict('vd-power','bad','Past Harrick\'s two-minute ceiling.',
+      ' <b>'+fmt(q.t,0)+' seconds</b> at '+fmt(RF_W[q.lvl],0)+' W is '+fmt(q.ourDose,0)+' J. Harrick is explicit that treatment <i>"should not exceed 2 min"</i> — beyond that you crack PDMS and drive low-molecular-weight chains to the surface, which is tab 3. Whatever this recipe was trying to achieve, it stopped achieving it long before here.');
+  else if(Math.abs(q.ratio-1)<0.03)
+    setVerdict('vd-power','good','Same dose. This is the conversion.',
+      ' <b>'+fmt(q.ourDose,0)+' J</b> either way. Note how you got here: '+q.srcName+' at '+fmt(q.srcW,0)+' W for '+fmt(q.sc.t,0)+' s, reproduced on our machine at '+fmt(RF_W[q.lvl],0)+' W for '+fmt(q.t,0)+' s. When a published recipe says HIGH and it was not written for a High Power unit, the honest translation is usually <b>our LOW</b>.');
+  else if(q.ratio>1.2)
+    setVerdict('vd-power','bad','You are delivering <b>'+fmt(q.ratio,1)+'×</b> the dose the recipe intended.',
+      ' The instruction said '+fmt(q.srcW,0)+' W; this machine\'s '+RF_LVL[q.lvl]+' is <b>'+fmt(RF_W[q.lvl],0)+' W</b>. Following the words exactly gives you '+fmt(q.ourDose,0)+' J against the '+fmt(q.srcDose,0)+' J that was actually tested. This is the single most common way to over-treat on this machine, and it happens to people who did everything the paper said.');
+  else if(q.ratio<0.8)
+    setVerdict('vd-power','warn','Under the intended dose.',
+      ' <b>'+fmt(q.ourDose,0)+' J</b> against '+fmt(q.srcDose,0)+' J intended — '+fmt(q.ratio,2)+'×. Under-treatment is the honest failure: the surface never activates and the parts simply do not stick, so you find out immediately rather than a day later. Lengthen the time before you raise the power.');
+  else
+    setVerdict('vd-power','good','Close enough to the intended dose.',
+      ' <b>'+fmt(q.ourDose,0)+' J</b> against '+fmt(q.srcDose,0)+' J — '+fmt(q.ratio,2)+'×. Within the run-to-run spread you would see anyway. Harrick themselves note that <i>"plasma process conditions reported by users have varied widely, even when plasma treating similar PDMS materials"</i>, so treat any published recipe as a starting point rather than a specification.');
+}
+defWidget('power','work',drawPower,{
+  'power-lvl':v=>{const i=clamp(Math.round(v),0,2); return RF_LVL[i]+' — '+RF_W[i]+' W';},
+  'power-t':v=>fmt(v,0)+' s'},
+  {scen0:'pdc001'});
+
+/* ════════ widget: mech — which mechanism this gas is doing (Tab 1.3) ════════
+   A lookup of Harrick's own five-mechanism taxonomy and their gas table, with
+   the weightings chosen to reproduce what they SAY, not measured. */
+const GASES={
+  o2:  {n:'oxygen',   abl:0.20, etch:1.00, act:0.90, xl:0.10, ox:1.0,
+        note:'chemically etches organics to volatile byproducts; the standard choice for activation before bonding'},
+  air: {n:'room air', abl:0.25, etch:0.80, act:0.80, xl:0.15, ox:0.8,
+        note:'oxygen chemistry diluted by nitrogen — free, and what most people use'},
+  ar:  {n:'argon',    abl:1.00, etch:0.05, act:0.55, xl:0.85, ox:0.0,
+        note:'ablates physically by ion bombardment, and cross-links; adds no oxygen to the surface'},
+  n2:  {n:'nitrogen', abl:0.35, etch:0.15, act:0.65, xl:0.35, ox:0.1,
+        note:'activation without oxidation, per Harrick’s process-gas table'}
+};
+function mechState(){
+  const lvl=clamp(Math.round(num('mech-lvl')),0,2), t=num('mech-t');
+  const g=GASES[SCEN.mech||'o2'];
+  const D=doseOf(lvl,t);
+  const s=Math.min(1,D/900);                    /* how far each mechanism has run */
+  return {lvl,t,g,D,s,
+    bars:[{k:'ablation',v:g.abl*s,c:COL.steel},
+          {k:'chemical etching',v:g.etch*s,c:COL.cell},
+          {k:'activation',v:g.act*s,c:COL.good},
+          {k:'cross-linking',v:g.xl*s,c:COL.hepa}]};
+}
+function drawMech(){
+  const cv=getCv('cv-mech'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=mechState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const bl=150, bw=w-bl-150;
+  ctx.fillStyle=COL.text; ctx.font='12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText(q.g.n+' at '+RF_LVL[q.lvl]+' for '+fmt(q.t,0)+' s — '+fmt(q.D,0)+' J',bl,10);
+  let yy=42;
+  const top=q.bars.slice().sort((a,b)=>b.v-a.v)[0];
+  for(const r of q.bars){
+    const dom=(r===top);
+    ctx.fillStyle=dom?COL.text:COL.axis; ctx.font=(dom?'bold ':'')+'11.5px sans-serif';
+    ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText(r.k,bl-10,yy+11);
+    ctx.fillStyle='#e6ebf2'; roundRect(ctx,bl,yy,bw,22,5); ctx.fill();
+    ctx.fillStyle=r.c; roundRect(ctx,bl,yy,Math.max(3,bw*clamp(r.v,0,1)),22,5); ctx.fill();
+    if(dom){ ctx.fillStyle=COL.text; ctx.font='bold 10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+      ctx.fillText('dominant',bl+bw+8,yy+11); }
+    yy+=42;
+  }
+  /* oxidising or not */
+  ctx.fillStyle=COL.text; ctx.font='11.5px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('adds oxygen to the surface',bl-140,yy+8);
+  ctx.fillStyle='#e6ebf2'; roundRect(ctx,bl,yy+6,bw,16,4); ctx.fill();
+  ctx.fillStyle=q.g.ox>0.5?COL.warmc:COL.neutral;
+  roundRect(ctx,bl,yy+6,Math.max(3,bw*q.g.ox),16,4); ctx.fill();
+  ctx.fillStyle=COL.axis; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText(q.g.ox>0.5?'yes':(q.g.ox>0?'a little':'no'),bl+bw+8,yy+14);
+  if(!statTick('mech'))return;
+  setStat('st-mech',[
+    {k:'Gas',v:q.g.n,hi:1},
+    {k:'Dose',v:fmt(q.D,0)+' J'},
+    {k:'Dominant',v:top.k,hi:1},
+    {k:'Oxidises the surface',v:q.g.ox>0.5?'yes':(q.g.ox>0?'slightly':'no')}]);
+  const k=SCEN.mech||'o2';
+  if(k==='ar')
+    setVerdict('vd-mech','good','Argon: physical ablation, and no oxygen anywhere.',
+      ' Harrick use argon <i>"for its high ablation efficiency and chemical inertness"</i> — it knocks contamination off by ion bombardment rather than burning it off chemically, and it cross-links the polymer underneath. Their note on when to reach for it: <i>"Argon plasma may be preferred for surface activation to minimize further oxidation of surfaces (e.g. metals)."</i> That is the answer to task 4.');
+  else if(k==='o2')
+    setVerdict('vd-mech','good','Oxygen: chemical etching, and the activation that bonding needs.',
+      ' Reactive oxygen radicals convert surface organics into volatile byproducts that the pump carries away, and decorate what is left with oxygen-containing groups. Harrick recommend O₂ over air for PDMS where you have it, because it delivers more reactive oxygen species. Note the pump requirement that comes with it — tab 3.');
+  else if(k==='n2')
+    setVerdict('vd-mech','good','Nitrogen: activation without oxidation.',
+      ' Harrick\'s process-gas table lists nitrogen for surface activation only — not for contamination removal. Useful when you want to change wettability and adhesion without adding oxygen to the surface, and a middle path between argon\'s pure physics and oxygen\'s pure chemistry.');
+  else
+    setVerdict('vd-mech','good','Room air: oxygen chemistry, diluted, and free.',
+      ' About four-fifths nitrogen, so you get the oxygen mechanisms at reduced strength alongside nitrogen activation. Harrick list air alongside O₂ for contamination removal and activation, and their PDMS recipe accepts either. It costs nothing and needs no cylinder — which is exactly why it is what most people actually run.');
+}
+defWidget('mech','work',drawMech,{
+  'mech-lvl':v=>{const i=clamp(Math.round(v),0,2); return RF_LVL[i]+' — '+RF_W[i]+' W';},
+  'mech-t':v=>fmt(v,0)+' s'},
+  {scen0:'o2'});
+
+/* ════════ widget: pumpdown — evacuating the chamber (Tab 2.1) ════════
+   eq. 4.2.1, exact for a fixed pumping speed and a steady gas load. The honest
+   limits (hose conductance, falling pump speed near ultimate) are in the aside. */
+const PUMPSCEN={ ope:{s:50}, opd:{s:103}, min:{s:23} };
+function pumpdownState(){
+  const S=num('pumpdown-s'), Q=num('pumpdown-q'), t=num('pumpdown-t');
+  const Slps=S/60;                                  /* L/s */
+  const tau=V_CHAMBER/Slps;                          /* s */
+  const pInf=Q/Slps;                                 /* mTorr */
+  const p0=760000;                                   /* mTorr, atmosphere */
+  const p=pInf+(p0-pInf)*Math.exp(-t/tau);
+  const reach = pInf<P_MAX ? tau*Math.log((p0-pInf)/(P_MAX-pInf)) : Infinity;
+  const reach200 = pInf<200 ? tau*Math.log((p0-pInf)/(200-pInf)) : Infinity;
+  return {S,Q,t,Slps,tau,pInf,p,reach,reach200};
+}
+function drawPumpdown(){
+  const cv=getCv('cv-pumpdown'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=pumpdownState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:70,r:150,t:18,b:46});
+  ch.setRange(0,300,1,6);                            /* s, log10 mTorr */
+  const xt=[0,60,120,180,240,300], yt=[1,2,3,4,5,6];
+  ch.grid(xt,yt);
+  ch.axes('seconds pumping','chamber pressure',xt,yt,0,0,undefined,
+    t=>({1:'10 mTorr',2:'100 mTorr',3:'1 Torr',4:'10 Torr',5:'100 Torr',6:'760 Torr'})[t]);
+  ctx.fillStyle='rgba(16,185,129,.14)';
+  ctx.fillRect(ch.m.l,ch.toY(Math.log10(P_MAX)),ch.pw,ch.toY(Math.log10(P_MIN))-ch.toY(Math.log10(P_MAX)));
+  ctx.fillStyle=COL.good; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('200–800 mTorr',ch.m.l+6,ch.toY(Math.log10(P_MAX))-3);
+  const pts=[];
+  for(let i=0;i<=150;i++){ const tt=300*i/150;
+    const pp=q.pInf+(760000-q.pInf)*Math.exp(-tt/q.tau);
+    pts.push([ch.toX(tt),ch.toY(clamp(Math.log10(pp),1,6))]); }
+  drawLine(ctx,pts,COL.clean,2.6);
+  ch.hLine(clamp(Math.log10(Math.max(q.pInf,10)),1,6),COL.bad,[5,3]);
+  ctx.fillStyle=COL.bad; ctx.textAlign='right'; ctx.textBaseline='bottom';
+  ctx.fillText('floor '+(q.pInf<1000?fmt(q.pInf,0)+' mTorr':fmt(q.pInf/1000,1)+' Torr'),
+    ch.m.l+ch.pw-4,ch.toY(clamp(Math.log10(Math.max(q.pInf,10)),1,6))-3);
+  ch.vLine(q.t,COL.text,[4,3]);
+  const py=ch.toY(clamp(Math.log10(q.p),1,6));
+  ctx.fillStyle=q.p<=P_MAX&&q.p>=P_MIN?COL.good:(q.p<P_CEIL?COL.warn:COL.bad);
+  ctx.beginPath(); ctx.arc(ch.toX(q.t),py,6.5,0,7); ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.8; ctx.stroke();
+  const rx=w-142;
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('after '+fmt(q.t,0)+' s',rx,ch.m.t+8);
+  ctx.font='bold 20px sans-serif'; ctx.fillStyle=q.p<=P_MAX?COL.good:COL.text;
+  ctx.fillText(q.p<1000?fmt(q.p,0)+' mTorr':fmt(q.p/1000,2)+' Torr',rx,ch.m.t+26);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText('time constant V/S',rx,ch.m.t+62);
+  ctx.font='bold 14px sans-serif'; ctx.fillStyle=COL.text;
+  ctx.fillText(fmt(q.tau,1)+' s',rx,ch.m.t+78);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText('to reach 200 mTorr',rx,ch.m.t+104);
+  ctx.font='bold 14px sans-serif'; ctx.fillStyle=isFinite(q.reach200)?COL.text:COL.bad;
+  ctx.fillText(isFinite(q.reach200)?fmt(q.reach200,0)+' s':'never',rx,ch.m.t+120);
+  if(!statTick('pumpdown'))return;
+  setStat('st-pumpdown',[
+    {k:'Time constant V/S',v:fmt(q.tau,1)+' s',hi:1},
+    {k:'Floor it settles at',v:q.pInf<1000?fmt(q.pInf,0)+' mTorr':fmt(q.pInf/1000,1)+' Torr',hi:1},
+    {k:'Now reads',v:q.p<1000?fmt(q.p,0)+' mTorr':fmt(q.p/1000,2)+' Torr'},
+    {k:'To reach 200 mTorr',v:isFinite(q.reach200)?fmt(q.reach200,0)+' s':'never'}]);
+  if(q.pInf>P_CEIL)
+    setVerdict('vd-pumpdown','bad','The floor is above the strike ceiling. This machine cannot run.',
+      ' A gas load of '+fmt(q.Q,0)+' mTorr·L/s against '+fmt(q.S,0)+' L/min settles at <b>'+(q.pInf<1000?fmt(q.pInf,0)+' mTorr':fmt(q.pInf/1000,1)+' Torr')+'</b>, above Harrick\'s 1500 mTorr ceiling. No amount of waiting helps — the curve is flat. Something is leaking or something in the chamber is wet, and tab 4 is about telling those apart.');
+  else if(q.pInf>P_MAX)
+    setVerdict('vd-pumpdown','warn','It will strike, but you cannot reach the recommended band.',
+      ' The floor is <b>'+fmt(q.pInf,0)+' mTorr</b> — under the 1500 mTorr ceiling so a plasma will light, but above the 200–800 mTorr Harrick recommend. You have lost the ability to choose your pressure, because the leak is now setting it instead of the flowmeter.');
+  else if(!isFinite(q.reach200))
+    setVerdict('vd-pumpdown','warn','Fine for running, but it will never see 200 mTorr.',
+      ' The floor sits at <b>'+fmt(q.pInf,0)+' mTorr</b>, inside the operating band, so the machine works. It just cannot get to the bottom of its range, which matters the day you want a low-pressure recipe.');
+  else
+    setVerdict('vd-pumpdown','good','Down to 200 mTorr in about '+fmt(q.reach200,0)+' seconds.',
+      ' Time constant <b>'+fmt(q.tau,1)+' s</b> for a 3.0 L chamber at '+fmt(q.S,0)+' L/min, and roughly eight of them to cross four decades of pressure. Harrick\'s manual says "a few minutes", which is longer for real reasons — hose conductance and a pump that slows near its ultimate — so treat this as the best case. The number that matters is the <b>floor</b>: '+fmt(q.pInf,0)+' mTorr here, comfortably below the band.');
+}
+defWidget('pumpdown','use',drawPumpdown,{
+  'pumpdown-s':v=>fmt(v,0)+' L/min','pumpdown-q':v=>fmt(v,0)+' mTorr·L/s','pumpdown-t':v=>fmt(v,0)+' s'},
+  {scen0:'ope', scenfn:s=>{ presetSlider('pumpdown-s',PUMPSCEN[s].s); }});
+
+/* ════════ widget: flow — the flowmeter IS the pressure control (Tab 2.2) ════════
+   eq. 4.2.2. Flow readings are the PlasmaFlo's AIR scale at 0 psig, which is the
+   only figure Harrick publish; the per-gas correlated tables are supplied on
+   request and are not reproduced here. */
+const FLOWSCEN={ closed:{a:0,b:0}, o2:{a:26,b:0}, mix:{a:26,b:3}, full:{a:50,b:50} };
+function flowState(){
+  const a=num('flow-a'), b=num('flow-b'), S=num('flow-s');
+  const Qml=a+b;                                   /* mL/min at atmosphere */
+  const Q=Qml*760;                                 /* Torr·mL/min throughput */
+  const Sml=S*1000;                                /* mL/min */
+  const pBase=40;                                  /* mTorr, pump ultimate */
+  const p=pBase+Q/Sml*1000;                        /* mTorr */
+  const frac=Qml>0?a/Qml:0;
+  return {a,b,S,Qml,Q,p,frac,
+          band:p>=P_MIN&&p<=P_MAX, lit:p<P_CEIL&&p>60};
+}
+function drawFlow(){
+  const cv=getCv('cv-flow'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=flowState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:70,r:158,t:18,b:46});
+  const pAtFull=40+FLOW_MAX*760/(q.S*1000)*1000;
+  const ymax=Math.max(1000,pAtFull*1.1);
+  ch.setRange(0,100,0,ymax);
+  const xt=[0,20,40,60,80,100], yt=niceTicks(0,ymax,5);
+  ch.grid(xt,yt);
+  ch.axes('total flow (mL/min, air scale)','chamber pressure (mTorr)',xt,yt,0,0);
+  ctx.fillStyle='rgba(16,185,129,.15)';
+  ctx.fillRect(ch.m.l,ch.toY(P_MAX),ch.pw,ch.toY(P_MIN)-ch.toY(P_MAX));
+  ctx.fillStyle=COL.good; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('200–800 mTorr',ch.m.l+6,ch.toY(P_MAX)-3);
+  if(P_CEIL<ymax){ ch.hLine(P_CEIL,COL.bad,[5,3]);
+    ctx.fillStyle=COL.bad; ctx.textBaseline='bottom';
+    ctx.fillText('1500 mTorr ceiling',ch.m.l+6,ch.toY(P_CEIL)-3); }
+  const pts=[];
+  for(let i=0;i<=100;i++){ const f=i;
+    pts.push([ch.toX(f),ch.toY(clamp(40+f*760/(q.S*1000)*1000,0,ymax))]); }
+  drawLine(ctx,pts,COL.clean,2.6);
+  /* full scale of ONE channel */
+  ch.vLine(FLOW_MAX,COL.steel,[4,3]);
+  ctx.fillStyle=COL.steel; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('one channel, full scale',ch.toX(FLOW_MAX)+5,ch.m.t+4);
+  const px=ch.toX(clamp(q.Qml,0,100)), py=ch.toY(clamp(q.p,0,ymax));
+  ctx.fillStyle=q.band?COL.good:(q.lit?COL.warn:COL.bad);
+  ctx.beginPath(); ctx.arc(px,py,6.5,0,7); ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.8; ctx.stroke();
+  /* the gauge */
+  const rx=w-150, ry=ch.m.t+10;
+  ctx.fillStyle='#0f172a'; roundRect(ctx,rx,ry,132,52,7); ctx.fill();
+  ctx.fillStyle='#4ade80'; ctx.font='bold 21px monospace'; ctx.textAlign='right'; ctx.textBaseline='middle';
+  ctx.fillText(q.p>1999?'----':fmt(q.p,0),rx+100,ry+26);
+  ctx.font='10px monospace'; ctx.fillStyle='#94a3b8'; ctx.textAlign='left';
+  ctx.fillText('mTorr',rx+104,ry+26);
+  ctx.fillStyle=COL.axis; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText(q.p>1999?'over range — gauge reads to 1999':'PlasmaFlo thermocouple gauge',rx,ry+58);
+  /* the mix */
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('gas mix',rx,ry+84);
+  const mw=132, my=ry+102;
+  ctx.fillStyle='#e6ebf2'; roundRect(ctx,rx,my,mw,16,4); ctx.fill();
+  if(q.Qml>0){ ctx.fillStyle=COL.cell; roundRect(ctx,rx,my,Math.max(2,mw*q.frac),16,4); ctx.fill(); }
+  ctx.fillStyle=COL.axis; ctx.font='10px sans-serif'; ctx.textBaseline='top';
+  ctx.fillText(q.Qml>0?fmt(q.frac*100,0)+'% O₂ / '+fmt(100-q.frac*100,0)+'% Ar':'no flow',rx,my+20);
+  if(!statTick('flow'))return;
+  setStat('st-flow',[
+    {k:'Total flow',v:fmt(q.Qml,1)+' mL/min',hi:1},
+    {k:'Throughput Q',v:fmt(q.Q/1000,1)+' Torr·L/min'},
+    {k:'Chamber settles at',v:q.p>1999?'>1999 mTorr':fmt(q.p,0)+' mTorr',hi:1},
+    {k:'In Harrick\'s band',v:q.band?'yes':'no'}]);
+  if(q.Qml===0)
+    setVerdict('vd-flow','warn','Both channels closed — this is the pump\'s floor, not an operating point.',
+      ' With no gas coming in the chamber sits at about <b>'+fmt(q.p,0)+' mTorr</b>, well below the 200 mTorr Harrick recommend. There is almost nothing left to ionise. This is the state people are in when they have pumped down beautifully and cannot understand why nothing lights — the answer is to open a flowmeter.');
+  else if(q.p>P_CEIL)
+    setVerdict('vd-flow','bad','Too much flow — you have pushed it over the ceiling.',
+      ' <b>'+fmt(q.Qml,0)+' mL/min</b> against '+fmt(q.S,0)+' L/min of pumping gives '+fmt(q.p,0)+' mTorr, above the 1500 mTorr at which a discharge can be sustained. Note the gauge: it only reads to 1999 mTorr, so past here it stops being able to tell you how wrong you are. Close the flowmeters down.');
+  else if(q.band)
+    setVerdict('vd-flow','good','In the band, and the flowmeter is what put you there.',
+      ' <b>'+fmt(q.Qml,1)+' mL/min</b> ÷ '+fmt(q.S,0)+' L/min = <b>'+fmt(q.p,0)+' mTorr</b>. The pump has not changed at all — it is running flat out as it always does. Every mTorr of that reading came from how far you opened the needle valve, which is why the flowmeter, not the vacuum, is the pressure control on this machine.');
+  else
+    setVerdict('vd-flow','warn','Lit, but under the recommended band.',
+      ' <b>'+fmt(q.p,0)+' mTorr</b> against a recommended floor of 200. Open the flowmeter further. Notice from the curve how much room you have: one channel\'s full scale reaches about '+fmt(pAtFull,0)+' mTorr on this pump, so essentially the whole knob is usable and you never need to force it.');
+}
+defWidget('flow','use',drawFlow,{
+  'flow-a':v=>fmt(v,1)+' mL/min','flow-b':v=>fmt(v,1)+' mL/min','flow-s':v=>fmt(v,0)+' L/min'},
+  {scen0:'closed', scenfn:s=>{ presetSlider('flow-a',FLOWSCEN[s].a); presetSlider('flow-b',FLOWSCEN[s].b); }});
+
+/* ════════ widget: over — activation saturates, damage does not (Tab 3.1) ════════
+   Contact angle from eq. 4.3.1, anchored on published PDMS values. Oxide skin
+   from sqrt(dose), scaled so the crack threshold IS Harrick's 2-minute rule. */
+const OVERSCEN={ harrick:{lvl:2,t:30}, short:{lvl:2,t:15}, limit:{lvl:2,t:120}, way:{lvl:2,t:180} };
+function overState(){
+  const lvl=clamp(Math.round(num('over-lvl')),0,2), t=num('over-t');
+  const D=doseOf(lvl,t);
+  const th=thetaOf(D), sk=skinOf(D);
+  return {lvl,t,D,th,sk, cracked:sk>SKIN_CRACK, overTime:t>T_OVER,
+          activated:th<20, wasted:Math.max(0,D-3*D_C)};
+}
+function drawOver(){
+  const cv=getCv('cv-over'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=overState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:66,r:150,t:18,b:46});
+  const Dmax=RF.high*240;
+  ch.setRange(0,Dmax,0,120);
+  const xt=niceTicks(0,Dmax,5), yt=[0,30,60,90,120];
+  ch.grid(xt,yt);
+  ch.axes('dose (J)','contact angle (°)  /  oxide skin (nm × 4)',xt,yt,0,0);
+  /* the crack region */
+  const Dcrack=Math.pow(SKIN_CRACK/SKIN_K,2);
+  ctx.fillStyle='rgba(239,68,68,.09)';
+  ctx.fillRect(ch.toX(Dcrack),ch.m.t,Math.max(0,ch.toX(Dmax)-ch.toX(Dcrack)),ch.ph);
+  ch.vLine(Dcrack,COL.bad,[5,3]);
+  ctx.fillStyle=COL.bad; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('2 min at HIGH — cracking',ch.toX(Dcrack)+5,ch.m.t+4);
+  const ta=[],sa=[];
+  for(let i=0;i<=120;i++){ const D=Dmax*i/120;
+    ta.push([ch.toX(D),ch.toY(clamp(thetaOf(D),0,120))]);
+    sa.push([ch.toX(D),ch.toY(clamp(skinOf(D)*4,0,120))]); }
+  drawLine(ctx,ta,COL.clean,2.8);
+  drawLine(ctx,sa,COL.dirty,2.4,[6,3]);
+  ch.legend([{label:'contact angle',color:COL.clean},{label:'oxide skin',color:COL.dirty}],ch.m.l+8,ch.m.t+ch.ph-10);
+  ch.vLine(clamp(q.D,0,Dmax),COL.text,[4,3]);
+  ctx.fillStyle=q.cracked?COL.bad:COL.good;
+  ctx.beginPath(); ctx.arc(ch.toX(clamp(q.D,0,Dmax)),ch.toY(clamp(q.th,0,120)),6,0,7); ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.6; ctx.stroke();
+  const rx=w-142;
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('contact angle',rx,ch.m.t+8);
+  ctx.font='bold 22px sans-serif'; ctx.fillStyle=q.activated?COL.good:COL.warn;
+  ctx.fillText(fmt(q.th,1)+'°',rx,ch.m.t+24);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.text; ctx.textBaseline='top';
+  ctx.fillText('oxide skin',rx,ch.m.t+62);
+  ctx.font='bold 22px sans-serif'; ctx.fillStyle=q.cracked?COL.bad:COL.text;
+  ctx.fillText(fmt(q.sk,1)+' nm',rx,ch.m.t+78);
+  ctx.font='11px sans-serif'; ctx.fillStyle=q.cracked?COL.bad:COL.axis;
+  ctx.fillText(q.cracked?'cracking expected':'intact',rx,ch.m.t+116);
+  if(!statTick('over'))return;
+  setStat('st-over',[
+    {k:'Dose',v:fmt(q.D,0)+' J',hi:1},
+    {k:'Contact angle',v:fmt(q.th,1)+'°',hi:1},
+    {k:'Oxide skin',v:fmt(q.sk,1)+' nm'},
+    {k:'Dose spent for nothing',v:fmt(q.wasted,0)+' J'}]);
+  if(!q.activated)
+    setVerdict('vd-over','bad','Not activated yet.',
+      ' <b>'+fmt(q.th,0)+'°</b> — barely moved from native PDMS at 113°. At '+fmt(q.D,0)+' J the exponential in eq. 4.3.1 has hardly started. This surface will not bond, and it will tell you so immediately by falling apart in your hand, which is the honest kind of failure.');
+  else if(q.cracked)
+    setVerdict('vd-over','bad','Over-treated. The angle looks fine and the surface is cracked.',
+      ' Contact angle <b>'+fmt(q.th,1)+'°</b> — excellent, and completely misleading. The oxide skin is <b>'+fmt(q.sk,1)+' nm</b>, past the threshold this model puts at Harrick\'s two-minute ceiling, and a stiff skin on soft rubber cracks. You have also spent <b>'+fmt(q.wasted,0)+' J</b> beyond the point where activation finished. This is the failure that passes inspection and delaminates a day later.');
+  else if(q.wasted>1200)
+    setVerdict('vd-over','warn','Activated a while ago; still going.',
+      ' <b>'+fmt(q.th,1)+'°</b> and the curve is flat — you reached this angle at roughly a third of the dose. The extra <b>'+fmt(q.wasted,0)+' J</b> has bought no wettability and added '+fmt(q.sk,1)+' nm of oxide. You are not yet in the cracking region, but you are heading there and gaining nothing on the way.');
+  else
+    setVerdict('vd-over','good','Activated, and stopped in time.',
+      ' <b>'+fmt(q.th,1)+'°</b> from a native 113°, with only <b>'+fmt(q.sk,1)+' nm</b> of oxide. This is what Harrick\'s 15–60 seconds is for: the activation exponential is essentially complete and the damage integral has barely started. Note how much of the useful work happened in the first few hundred joules.');
+}
+defWidget('over','care',drawOver,{
+  'over-lvl':v=>{const i=clamp(Math.round(v),0,2); return RF_LVL[i]+' — '+RF_W[i]+' W';},
+  'over-t':v=>fmt(v,0)+' s'},
+  {scen0:'harrick', scenfn:s=>{ presetSlider('over-lvl',OVERSCEN[s].lvl); presetSlider('over-t',OVERSCEN[s].t); }});
+
+/* ════════ widget: recovery — two clocks, not one (Tab 3.2) ════════
+   eq. 4.3.2. Bondability decays in TENS OF MINUTES (Harrick's 15-60 min window);
+   contact angle recovers over TENS OF HOURS (the literature's ~72 h). Both are
+   right because they measure different things -- that separation is the lesson. */
+const RECSCEN={ bench:{tb:35,tt:1200}, water:{tb:150,tt:5000}, warm:{tb:12,tt:400} };
+function recoveryState(){
+  const d=num('recovery-d'), t0=num('recovery-t0');
+  const sc=RECSCEN[SCEN.recovery||'bench'];
+  const B=Math.exp(-d/sc.tb);
+  const th=THETA_0-(THETA_0-t0)*Math.exp(-d/sc.tt);
+  return {d,t0,sc,B,th, inWindow:d<=60, best:d<=15};
+}
+function drawRecovery(){
+  const cv=getCv('cv-recovery'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=recoveryState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:66,r:150,t:18,b:46});
+  ch.setRange(0,240,0,100);
+  const xt=[0,60,120,180,240], yt=[0,25,50,75,100];
+  ch.grid(xt,yt);
+  ch.axes('minutes since the plasma went off','% of the way there',xt,yt,0,0);
+  /* Harrick's window */
+  ctx.fillStyle='rgba(16,185,129,.15)';
+  ctx.fillRect(ch.m.l,ch.m.t,ch.toX(60)-ch.m.l,ch.ph);
+  ctx.fillStyle=COL.good; ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('Harrick: bond within 15–60 min',(ch.m.l+ch.toX(60))/2,ch.m.t+4);
+  const ba=[],ta=[];
+  for(let i=0;i<=120;i++){ const d=240*i/120;
+    ba.push([ch.toX(d),ch.toY(100*Math.exp(-d/q.sc.tb))]);
+    const th=THETA_0-(THETA_0-q.t0)*Math.exp(-d/q.sc.tt);
+    ta.push([ch.toX(d),ch.toY(100*(th-q.t0)/(THETA_0-q.t0))]); }
+  drawLine(ctx,ba,COL.cell,2.8);
+  drawLine(ctx,ta,COL.warmc,2.4,[6,3]);
+  ch.legend([{label:'bondability remaining',color:COL.cell},
+             {label:'hydrophobicity recovered',color:COL.warmc}],ch.m.l+8,ch.m.t+ch.ph-10);
+  ch.vLine(q.d,COL.text,[4,3]);
+  ctx.fillStyle=q.B>0.5?COL.good:(q.B>0.15?COL.warn:COL.bad);
+  ctx.beginPath(); ctx.arc(ch.toX(q.d),ch.toY(100*q.B),6,0,7); ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.6; ctx.stroke();
+  const rx=w-142;
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('bondability left',rx,ch.m.t+8);
+  ctx.font='bold 24px sans-serif'; ctx.fillStyle=q.B>0.5?COL.good:(q.B>0.15?COL.warn:COL.bad);
+  ctx.fillText(fmt(q.B*100,0)+'%',rx,ch.m.t+24);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.text;
+  ctx.fillText('contact angle now',rx,ch.m.t+64);
+  ctx.font='bold 24px sans-serif'; ctx.fillStyle=COL.warmc;
+  ctx.fillText(fmt(q.th,1)+'°',rx,ch.m.t+80);
+  ctx.font='10.5px sans-serif'; ctx.fillStyle=COL.axis; ctx.textBaseline='top';
+  ctx.fillText('still looks '+(q.th<40?'very wettable':(q.th<80?'wettable':'like fresh PDMS')),rx,ch.m.t+118);
+  if(!statTick('recovery'))return;
+  setStat('st-recovery',[
+    {k:'Delay',v:fmt(q.d,0)+' min',hi:1},
+    {k:'Bondability left',v:fmt(q.B*100,0)+'%',hi:1},
+    {k:'Contact angle',v:fmt(q.th,1)+'°'},
+    {k:'Recovered by',v:fmt(100*(q.th-q.t0)/(THETA_0-q.t0),0)+'%'}]);
+  if(q.best)
+    setVerdict('vd-recovery','good','Bond now. This is the state Harrick means by "immediately".',
+      ' <b>'+fmt(q.B*100,0)+'%</b> of the bonding capability is still there after '+fmt(q.d,0)+' minutes. Harrick ask for contact within 15 minutes to an hour and say the strongest bonds come from bringing the surfaces together straight away. Everything you do between the chamber and the bench is spending this number.');
+  else if(q.inWindow)
+    setVerdict('vd-recovery','warn','Inside Harrick\'s window, but you have spent most of it.',
+      ' <b>'+fmt(q.B*100,0)+'%</b> left at '+fmt(q.d,0)+' minutes. Now look at the other curve: the contact angle is <b>'+fmt(q.th,1)+'°</b> and has recovered only '+fmt(100*(q.th-q.t0)/(THETA_0-q.t0),0)+'% of the way back. The surface looks every bit as good as it did at the start and will bond substantially worse. That gap is the whole point of this section.');
+  else
+    setVerdict('vd-recovery','bad','Past the window. It still looks wet and it will not weld.',
+      ' <b>'+fmt(q.B*100,0)+'%</b> bondability at '+fmt(q.d,0)+' minutes, against a contact angle of only <b>'+fmt(q.th,1)+'°</b>. Nothing you can see has changed. Harrick\'s ceiling is an hour and you are past it, so the honest move is to re-treat rather than to press harder — a weak bond made now will hold through assembly and fail under pressure later.');
+}
+defWidget('recovery','care',drawRecovery,{
+  'recovery-d':v=>fmt(v,0)+' min','recovery-t0':v=>fmt(v,1)+' deg'},
+  {scen0:'bench'});
+
+/* ════════ widget: diag — Harrick's two-branch fault tree (Tab 4.1) ════════
+   The bulb test runs at ATMOSPHERE with the door open, which is exactly why it
+   separates the two branches: it does not need the vacuum to work. */
+const DIAGSCEN={ none:{}, press:{}, fuse:{}, gas:{} };
+function diagState(){
+  const which=clamp(Math.round(num('diag-test')),0,2);   /* 0 bulb, 1 gauge, 2 both */
+  const p=num('diag-p');
+  const f=SCEN.diag||'none';
+  const elecOK = f!=='fuse';
+  const vacOK  = f!=='press' && p<P_CEIL;
+  const gasOK  = f!=='gas';
+  const glow = elecOK && vacOK && gasOK && p>60;
+  return {which,p,f,elecOK,vacOK,gasOK,glow,
+    bulb: elecOK,                                   /* bulb test only sees the electronics */
+    gauge: p<P_CEIL && f!=='press'};
+}
+function drawDiag(){
+  const cv=getCv('cv-diag'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=diagState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  ctx.fillStyle=COL.text; ctx.font='12.5px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('Symptom: no glow in the chamber',26,14);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText('Harrick: "either a problem with the electrical circuit or vacuum pressure"',26,34);
+  const bl=210, bw=w-bl-150;
+  const rows=[
+    {k:'fluorescent bulb test', run:q.which===0||q.which===2, pass:q.bulb,
+     sub:'door open, at atmosphere, HI → MED → LOW', tells:'the RF electronics'},
+    {k:'vacuum gauge', run:q.which===1||q.which===2, pass:q.gauge,
+     sub:'must be under 1500 mTorr to strike', tells:'the vacuum system'}
+  ];
+  let yy=70;
+  for(const r of rows){
+    ctx.fillStyle=r.run?COL.text:COL.neutral; ctx.font=(r.run?'':'')+'11.5px sans-serif';
+    ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText(r.k,bl-12,yy+14);
+    ctx.fillStyle=COL.neutral; ctx.font='9.5px sans-serif'; ctx.textBaseline='top';
+    ctx.fillText(r.sub,bl-12,yy+26);
+    ctx.fillStyle='#e6ebf2'; roundRect(ctx,bl,yy,bw,28,6); ctx.fill();
+    if(r.run){
+      ctx.fillStyle=r.pass?COL.good:COL.bad; roundRect(ctx,bl,yy,bw,28,6); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.font='bold 12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+      ctx.fillText(r.pass?'PASSES — this half is fine':'FAILS — the fault is here',bl+12,yy+14);
+    } else {
+      ctx.fillStyle=COL.neutral; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+      ctx.fillText('not run',bl+12,yy+14);
+    }
+    ctx.fillStyle=COL.axis; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText('tells you about '+r.tells,bl+bw+8,yy+14);
+    yy+=76;
+  }
+  /* the chamber */
+  const cx=w-128, cy=64, cw=104, chh=60;
+  ctx.fillStyle='#0f172a'; roundRect(ctx,cx,cy,cw,chh,7); ctx.fill();
+  if(q.glow){ const rng=mulberry32(5);
+    ctx.fillStyle='rgba(168,85,247,.32)'; roundRect(ctx,cx+4,cy+4,cw-8,chh-8,5); ctx.fill();
+    for(let i=0;i<40;i++){ ctx.fillStyle='rgba(232,171,255,'+(0.25+rng()*0.5)+')';
+      ctx.beginPath(); ctx.arc(cx+7+rng()*(cw-14),cy+7+rng()*(chh-14),1+rng()*1.5,0,7); ctx.fill(); } }
+  ctx.fillStyle=q.glow?'#e9d5ff':'#334155'; ctx.font='bold 11px sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(q.glow?'glowing':'dark',cx+cw/2,cy+chh/2);
+  ctx.fillStyle=COL.axis; ctx.font='10px sans-serif'; ctx.textBaseline='top';
+  ctx.fillText('gauge: '+fmt(q.p,0)+' mTorr',cx+cw/2,cy+chh+8);
+  if(!statTick('diag'))return;
+  const name={none:'nothing',press:'chamber above ceiling',fuse:'a blown fuse',gas:'gas cylinder empty'}[q.f];
+  setStat('st-diag',[
+    {k:'Fault',v:name,hi:1},
+    {k:'Bulb test',v:(q.which===0||q.which===2)?(q.bulb?'passes':'FAILS'):'not run'},
+    {k:'Gauge',v:(q.which===1||q.which===2)?(q.gauge?'passes':'FAILS'):'not run'},
+    {k:'Chamber',v:q.glow?'glowing':'dark',hi:1}]);
+  if(q.f==='none')
+    setVerdict('vd-diag','good','Healthy — both halves pass and the chamber lights.',
+      ' The bulb glows on all three RF settings and the gauge is inside the range. Worth running the bulb test once when the machine is <em>working</em>, so you know what a pass looks like before you need to recognise one.');
+  else if(q.f==='fuse')
+    setVerdict('vd-diag','bad','Electrical branch. The bulb test caught it and the gauge could not.',
+      ' The vacuum is perfect and the chamber is dark, because no RF is reaching the coil. Harrick: if the bulb does not glow, <i>"check the fuses at the back of the unit"</i> — cleaner 3 A, pump 7 A, PlasmaFlo 0.5 A, all fast-acting. Pull them and look for an intact filament, or meter them: under 1 ohm good, OL blown.');
+  else if(q.f==='press')
+    setVerdict('vd-diag','bad','Vacuum branch. The bulb test passes and tells you nothing is wrong with the electronics.',
+      ' RF is being delivered correctly — that is exactly what a passing bulb test means — and the chamber still will not light because it is above the 1500 mTorr ceiling. Now work Harrick\'s vacuum checklist: pump able to reach 200 mTorr, hose attached, door seated, o-rings in place and clean, window intact.');
+  else
+    setVerdict('vd-diag','warn','Neither test catches this one, and that is worth knowing.',
+      ' The electronics are fine and the pump is fine — so the bulb glows and the gauge looks reasonable — but with no gas coming in the chamber pumps down below the point where there is anything to ionise. Harrick\'s two branches cover the two things that <em>break</em>; an empty cylinder is a third cause with the same symptom. Check the flowmeter balls are moving before you start dismantling anything.');
+}
+defWidget('diag','maint',drawDiag,{
+  'diag-test':v=>['bulb only','gauge only','both'][clamp(Math.round(v),0,2)],
+  'diag-p':v=>fmt(v,0)+' mTorr'},
+  {scen0:'none'});
+
+/* ════════ widget: leak — you cannot out-pump a leak (Tab 4.2) ════════
+   eq. 4.4.1, exact. The leak term falls only as 1/S, which is the whole point. */
+const LEAKSCEN={ ok:{q:5}, oring:{q:140}, wet:{q:420}, bad:{q:900} };
+function leakState(){
+  const Q=num('leak-q'), S=num('leak-s'), pu=num('leak-u');
+  const Slps=S/60;
+  const pLeak=Q/Slps;
+  const pInf=pu+pLeak;
+  const share=pLeak/pInf;
+  /* what doubling the pump would buy */
+  const pDouble=pu+Q/(2*Slps);
+  return {Q,S,pu,Slps,pLeak,pInf,share,pDouble,
+          band:pInf<P_MIN, runs:pInf<P_CEIL};
+}
+function drawLeak(){
+  const cv=getCv('cv-leak'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=leakState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:70,r:150,t:18,b:46});
+  const ymax=Math.max(1000,q.pInf*1.25);
+  ch.setRange(0,200,0,ymax);
+  const xt=[0,50,100,150,200], yt=niceTicks(0,ymax,5);
+  ch.grid(xt,yt);
+  ch.axes('pumping speed (L/min)','floor pressure (mTorr)',xt,yt,0,0);
+  ctx.fillStyle='rgba(16,185,129,.14)';
+  ctx.fillRect(ch.m.l,ch.toY(P_MIN),ch.pw,ch.m.t+ch.ph-ch.toY(P_MIN));
+  ctx.fillStyle=COL.good; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('under 200 mTorr — full range available',ch.m.l+6,ch.toY(P_MIN)-3);
+  if(P_CEIL<ymax){ ch.hLine(P_CEIL,COL.bad,[5,3]);
+    ctx.fillStyle=COL.bad; ctx.fillText('1500 mTorr — nothing strikes',ch.m.l+6,ch.toY(P_CEIL)-3); }
+  const pts=[],base=[];
+  for(let i=1;i<=100;i++){ const S=200*i/100;
+    pts.push([ch.toX(S),ch.toY(clamp(q.pu+q.Q/(S/60),0,ymax))]);
+    base.push([ch.toX(S),ch.toY(clamp(q.pu,0,ymax))]); }
+  drawLine(ctx,base,COL.neutral,1.8,[4,3]);
+  drawLine(ctx,pts,COL.clean,2.8);
+  ctx.fillStyle=COL.neutral; ctx.font='10px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='bottom';
+  ctx.fillText('the pump alone',ch.m.l+ch.pw-4,ch.toY(clamp(q.pu,0,ymax))-3);
+  ch.vLine(q.S,COL.text,[4,3]);
+  ctx.fillStyle=q.band?COL.good:(q.runs?COL.warn:COL.bad);
+  ctx.beginPath(); ctx.arc(ch.toX(q.S),ch.toY(clamp(q.pInf,0,ymax)),6.5,0,7); ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.8; ctx.stroke();
+  const rx=w-142;
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('the floor',rx,ch.m.t+8);
+  ctx.font='bold 22px sans-serif'; ctx.fillStyle=q.band?COL.good:(q.runs?COL.warn:COL.bad);
+  ctx.fillText(fmt(q.pInf,0)+' mTorr',rx,ch.m.t+24);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis; ctx.textBaseline='top';
+  ctx.fillText('of which the leak is',rx,ch.m.t+60);
+  ctx.font='bold 15px sans-serif'; ctx.fillStyle=COL.dirty;
+  ctx.fillText(fmt(q.share*100,0)+'%',rx,ch.m.t+76);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText('double the pump and',rx,ch.m.t+104);
+  ctx.font='bold 15px sans-serif'; ctx.fillStyle=COL.text;
+  ctx.fillText(fmt(q.pDouble,0)+' mTorr',rx,ch.m.t+120);
+  if(!statTick('leak'))return;
+  setStat('st-leak',[
+    {k:'Floor',v:fmt(q.pInf,0)+' mTorr',hi:1},
+    {k:'From the pump',v:fmt(q.pu,0)+' mTorr'},
+    {k:'From the gas load',v:fmt(q.pLeak,0)+' mTorr',hi:1},
+    {k:'Double the pump',v:fmt(q.pDouble,0)+' mTorr'}]);
+  const k=SCEN.leak||'ok';
+  if(k==='wet')
+    setVerdict('vd-leak','warn','A wet sample. Same symptom, and it fixes itself.',
+      ' The floor is <b>'+fmt(q.pInf,0)+' mTorr</b>, dominated by the '+fmt(q.pLeak,0)+' mTorr the sample is putting out. The tell is that it <em>drifts down</em> over a few minutes as the water pumps away, where a real leak sits perfectly still. Watch the gauge before you touch a single fitting — this is the one fault that rewards patience over tools.');
+  else if(!q.runs)
+    setVerdict('vd-leak','bad','The floor is above the strike ceiling. Nothing will light.',
+      ' <b>'+fmt(q.pInf,0)+' mTorr</b>, and <b>'+fmt(q.share*100,0)+'%</b> of it is the gas load rather than the pump. Doubling the pumping speed would get you to '+fmt(q.pDouble,0)+' mTorr — still no good. Fixing the leak removes the term entirely, which is the only move that works. Harrick\'s order: hose connections, door seating, o-ring debris, then the chamber for cracks.');
+  else if(q.band)
+    setVerdict('vd-leak','good','Healthy. The pump, not the leak, is setting the floor.',
+      ' <b>'+fmt(q.pInf,0)+' mTorr</b>, of which only '+fmt(q.share*100,0)+'% comes from the gas load. The whole operating band is available to you and the flowmeter is genuinely in charge of the pressure. This is the number worth writing down when the machine is well, so you can notice it creeping.');
+  else
+    setVerdict('vd-leak','warn','It will run, but the leak is now choosing your pressure.',
+      ' The floor sits at <b>'+fmt(q.pInf,0)+' mTorr</b> — inside the 1500 mTorr ceiling so a plasma lights, but above the 200 mTorr bottom of the band. <b>'+fmt(q.share*100,0)+'%</b> of that is gas load. Note what doubling the pump buys: '+fmt(q.pDouble,0)+' mTorr. The leak term only falls as 1/S, so you cannot buy your way out of it — a bigger pump just hides it more expensively.');
+}
+defWidget('leak','maint',drawLeak,{
+  'leak-q':v=>fmt(v,1)+' mTorr·L/s','leak-s':v=>fmt(v,0)+' L/min','leak-u':v=>fmt(v,0)+' mTorr'},
+  {scen0:'ok', scenfn:s=>{ presetSlider('leak-q',LEAKSCEN[s].q); }});
+
+/* ════════ widget: bond — the capstone (Tab 5.1) ════════
+   eq. 4.5.1: four independent fractions multiply. sigma_max and the
+   angle-to-strength relation are from Bhattacharya et al. 2005. */
+const BONDSCEN={
+  good: {lvl:2,t:30, p:500, d:0,  bake:true},
+  over: {lvl:2,t:180,p:500, d:0,  bake:true},
+  late: {lvl:2,t:30, p:500, d:75, bake:true},
+  shy:  {lvl:2,t:5,  p:500, d:0,  bake:true}
+};
+function bondState(){
+  const lvl=clamp(Math.round(num('bond-lvl')),0,2), t=num('bond-t');
+  const p=num('bond-p'), d=num('bond-d'), bake=chk('bond-bake');
+  const D=doseOf(lvl,t);
+  const th=thetaOf(D), sk=skinOf(D);
+  /* h(p): outside the strike ceiling nothing happened at all */
+  const hP = p>P_CEIL ? 0 : (p>=P_MIN&&p<=P_MAX ? 1 : 0.72);
+  /* f(theta): Bhattacharya found the strongest bonds below ~5 deg */
+  const fTh = clamp(Math.exp(-(th-5)/16),0,1);
+  /* B(delay): bondability, tens of minutes */
+  const B = Math.exp(-d/35);
+  /* g(skin): the over-treatment penalty, biting past the crack threshold */
+  const g = sk<=SKIN_CRACK ? 1 : clamp(1-1.35*(sk-SKIN_CRACK)/SKIN_CRACK,0.05,1);
+  const bakeF = bake?1:0.72;
+  const sigma = SIGMA_MAX*fTh*B*g*hP*bakeF;
+  const terms=[{k:'activation',v:fTh,c:COL.good},
+               {k:'bondable',v:B,c:COL.cell},
+               {k:'not cracked',v:g,c:COL.dirty},
+               {k:'pressure',v:hP,c:COL.hepa},
+               {k:'baked',v:bakeF,c:COL.warmc}];
+  const worst=terms.slice().sort((a,b)=>a.v-b.v)[0];
+  return {lvl,t,p,d,bake,D,th,sk,fTh,B,g,hP,bakeF,sigma,terms,worst,
+          cracked:sk>SKIN_CRACK};
+}
+function drawBond(){
+  const cv=getCv('cv-bond'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=bondState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const bl=168, bw=w-bl-130;
+  ctx.fillStyle=COL.text; ctx.font='12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('every term is a fraction of the best case — they multiply',bl,12);
+  const resultH=104;                                   /* space the result block needs */
+  const topY=40, botY=Math.max(topY+80,h-resultH);
+  const pitch=clamp((botY-topY)/q.terms.length,24,44);
+  const barH=Math.min(26,pitch-8);
+  let yy=topY;
+  for(const r of q.terms){
+    ctx.fillStyle=(r===q.worst&&r.v<0.9)?COL.bad:COL.axis;
+    ctx.font=((r===q.worst&&r.v<0.9)?'bold ':'')+'11px sans-serif';
+    ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText(r.k,bl-10,yy+barH/2);
+    ctx.fillStyle='#e6ebf2'; roundRect(ctx,bl,yy,bw,barH,5); ctx.fill();
+    ctx.fillStyle=r.c; roundRect(ctx,bl,yy,Math.max(3,bw*clamp(r.v,0,1)),barH,5); ctx.fill();
+    ctx.fillStyle=COL.text; ctx.font='10.5px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText(fmt(r.v*100,0)+'%',bl+bw+8,yy+barH/2);
+    yy+=pitch;
+  }
+  yy=botY;
+  ctx.strokeStyle=COL.grid; ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(bl-150,yy-6);ctx.lineTo(bl+bw+60,yy-6);ctx.stroke();
+  /* the result */
+  ctx.fillStyle=COL.text; ctx.font='12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('bond strength',bl-150,yy+4);
+  const sx=bl-150, sw=bw+210, sy=yy+30;
+  ctx.fillStyle='#e6ebf2'; roundRect(ctx,sx,sy,sw,26,6); ctx.fill();
+  const col=q.sigma>350?COL.good:(q.sigma>150?COL.warn:COL.bad);
+  ctx.fillStyle=col; roundRect(ctx,sx,sy,Math.max(4,sw*clamp(q.sigma/SIGMA_MAX,0,1)),26,6); ctx.fill();
+  ctx.fillStyle=COL.text; ctx.font='bold 14px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText(fmt(q.sigma,0)+' kPa',sx+10,sy+13);
+  ctx.font='10.5px sans-serif'; ctx.fillStyle=COL.axis; ctx.textAlign='right';
+  ctx.fillText('best reported '+SIGMA_MAX+' kPa',sx+sw-8,sy+13);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('dose '+fmt(q.D,0)+' J  ·  contact angle '+fmt(q.th,1)+'°  ·  oxide '+fmt(q.sk,1)+' nm'
+    +(q.cracked?'  ·  CRACKED':''),sx,sy+34);
+  if(!statTick('bond'))return;
+  setStat('st-bond',[
+    {k:'Dose',v:fmt(q.D,0)+' J',hi:1},
+    {k:'Contact angle',v:fmt(q.th,1)+'°'},
+    {k:'Weakest term',v:q.worst.v<0.98?q.worst.k:'none'},
+    {k:'Bond strength',v:fmt(q.sigma,0)+' kPa',hi:1}]);
+  if(q.hP===0)
+    setVerdict('vd-bond','bad','No plasma ever formed.',
+      ' At <b>'+fmt(q.p,0)+' mTorr</b> the chamber is above Harrick\'s 1500 mTorr ceiling, so nothing lit and nothing was treated. The parts will not stick at all. This is the failure that announces itself immediately, and of the four ways to get this wrong it is by far the cheapest.');
+  else if(q.th>40)
+    setVerdict('vd-bond','bad','Barely treated. The parts will fall apart in your hand.',
+      ' <b>'+fmt(q.D,0)+' J</b> left the surface at '+fmt(q.th,0)+'°, close to native PDMS. Harrick ask for 15–60 seconds at HIGH; you gave it '+fmt(q.t,0)+' s at '+fmt(RF_W[q.lvl],0)+' W. Honest failure — you find out in the first thirty seconds rather than in a week.');
+  else if(q.cracked&&q.B>0.5)
+    setVerdict('vd-bond','bad','Over-treated. It looks bonded and it is not.',
+      ' The contact angle is a beautiful <b>'+fmt(q.th,1)+'°</b> and the oxide skin is <b>'+fmt(q.sk,1)+' nm</b>, past the point where a stiff layer on soft rubber cracks. Bond strength <b>'+fmt(q.sigma,0)+' kPa</b> against a possible '+SIGMA_MAX+'. Harrick\'s ceiling is two minutes and you ran '+fmt(q.t,0)+' s at '+fmt(RF_W[q.lvl],0)+' W. This chip will pass every check you can make today.');
+  else if(q.B<0.35)
+    setVerdict('vd-bond','bad','Treated well, mated too late.',
+      ' Activation was fine — <b>'+fmt(q.th,1)+'°</b> — and then '+fmt(q.d,0)+' minutes went by, leaving <b>'+fmt(q.B*100,0)+'%</b> of the bonding capability. Harrick ask for contact within 15 minutes to an hour. The surface still looks perfectly wettable, which is exactly why this one keeps happening. Re-treat rather than pressing harder.');
+  else if(q.sigma>350)
+    setVerdict('vd-bond','good','A good bond, and you can say why.',
+      ' <b>'+fmt(q.sigma,0)+' kPa</b> of a possible '+SIGMA_MAX+'. Dose '+fmt(q.D,0)+' J took the surface to '+fmt(q.th,1)+'° without cracking it, you were inside the pressure band, and you mated it after '+fmt(q.d,0)+' minutes with '+fmt(q.B*100,0)+'% of the bondability still there. '+(q.bake?'The 80–100 °C bake is doing the last of the work.':'Add the 60-second bake at 80–100 °C and you would get the rest.'));
+  else
+    setVerdict('vd-bond','warn','It will hold, but <b>'+q.worst.k+'</b> is costing you most of it.',
+      ' <b>'+fmt(q.sigma,0)+' kPa</b> against a possible '+SIGMA_MAX+', and that term is at '+fmt(q.worst.v*100,0)+'%. Because eq. 4.5.1 multiplies, fixing the weakest one is worth more than improving any of the others — and improving the others while leaving it alone buys almost nothing.');
+}
+defWidget('bond','recap',drawBond,{
+  'bond-lvl':v=>{const i=clamp(Math.round(v),0,2); return RF_LVL[i]+' — '+RF_W[i]+' W';},
+  'bond-t':v=>fmt(v,0)+' s','bond-p':v=>fmt(v,0)+' mTorr','bond-d':v=>fmt(v,0)+' min'},
+  {scen0:'good', scenfn:s=>{ const c=BONDSCEN[s];
+    presetSlider('bond-lvl',c.lvl); presetSlider('bond-t',c.t);
+    presetSlider('bond-p',c.p); presetSlider('bond-d',c.d); presetChk('bond-bake',c.bake); }});
+
+/* ════════ dispatch + wiring (house pattern) ════════ */
+function refreshActiveTab(){ for(const k of (TABW[activeTab]||[])){ const f=DRAW[k];
+  if(f){ try{ f(); }catch(e){ console.error('draw '+k,e); } } } }
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active'); activeTab=btn.dataset.tab;
+    const sec=document.getElementById('tab-'+activeTab); if(sec)sec.classList.add('active');
+    window.scrollTo({top:0}); clearCvCache(); refreshActiveTab(); syncVis();
+  });
+});
+window.addEventListener('resize',()=>{ clearCvCache(); refreshActiveTab(); syncVis(); });
+document.querySelectorAll('.scen-btn[data-widget]').forEach(b=>{
+  b.addEventListener('click',()=>setScen(b.dataset.widget,b.dataset.scen)); });
+RESEED=true; for(const w in SCEN){ if(SCENFN[w])SCENFN[w](SCEN[w]); if(RESET[w])RESET[w](); } RESEED=false;
+wireAll();
+refreshActiveTab();
+syncVis();
+</script>
+</body>
+</html>

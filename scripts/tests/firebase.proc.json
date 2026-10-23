@@ -1,0 +1,5 @@
+{
+  "//": "V3.813 — same as firebase.json but the Auth emulator on 9299, because a long-running emulator for another repo may hold 9099 on this machine. Use: firebase emulators:exec --config firebase.proc.json ... with AUTH_EMU_PORT=9299.",
+  "firestore": { "rules": "placeholder.rules" },
+  "emulators": { "firestore": { "port": 8199 }, "auth": { "port": 9299 }, "ui": { "enabled": false } }
+}

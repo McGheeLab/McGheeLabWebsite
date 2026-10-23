@@ -184,7 +184,13 @@
         coauthorUids: state.meta.coauthor_uids,
         canEdit: canEdit });
 
-    if (!canEdit) {
+    /* V3.741 — checked out as a .paperbundle.zip: canEditPaper is false for
+     * everyone (admins included) and the provider drops local updates. The
+     * banner says who has it and offers the two ways out. */
+    var checkedOut = !!(firebridge.isPaperCheckedOut && firebridge.isPaperCheckedOut(state.meta));
+    if (checkedOut) {
+      showCheckoutBanner();
+    } else if (!canEdit) {
       if (user) {
         showReadonlyBanner('Read-only. Signed in as ' + who + ' (role: ' + role +
           '). To edit, you must be admin OR have your uid in this paper\'s ' +
@@ -217,7 +223,9 @@
      * render as the journal will typeset them (superscript / [1] / (1) /
      * author-year). Non-blocking; falls back to Author-Year labels. */
     if (window.PaperCiteStyle) window.PaperCiteStyle.init(state.paperId);
-    var conn = await window.PaperYjs.connect(state.paperId);
+    // V3.741 — `locked` is the belt-and-braces kill-switch: the server rule
+    // refuses yjs_updates while checked out, this stops them being queued.
+    var conn = await window.PaperYjs.connect(state.paperId, { locked: checkedOut });
     state.conn = conn;
     state.Y = conn.Y;
     var paperMap = conn.yDoc.getMap('paper');
@@ -269,6 +277,13 @@
       }
       if (!paperMap.has('table_unplaced')) {
         paperMap.set('table_unplaced', new conn.Y.Array());
+      }
+      /* V3.645 — per-paper value keys ([!val:KEY] / [@item:KEY]). Same
+       * idempotent create as equation_library above: only materializes
+       * on the first connect after the V3.645 deploy, so existing
+       * papers pick it up without a migration. */
+      if (!paperMap.has('value_library')) {
+        paperMap.set('value_library', new conn.Y.Array());
       }
     }, 'init');
 
@@ -465,6 +480,10 @@
     /* Appendix flag + cross-ref anchor — same round-trip contract. */
     if (sec.appendix) m.set('appendix', true);
     if (sec.ref_label) m.set('ref_label', sec.ref_label);
+    /* V3.742 — per-section style overrides: same round-trip contract
+     * (mirrors paper-tree-build.js appendSection). */
+    if (sec.style_overrides && typeof sec.style_overrides === 'object' &&
+        Object.keys(sec.style_overrides).length) m.set('style_overrides', sec.style_overrides);
     var childrenArr = new Y.Array();
     m.set('children', childrenArr);
     (sec.children || []).forEach(function (blk) {
@@ -516,6 +535,27 @@
         } else {
           attrs.set(k, v);   // plain object — stored as a JSON value (unchanged)
         }
+      });
+    }
+    /* V3.742 — paragraph outline items (mirrors paper-tree-build.js
+     * writeSkeletonItems). Accepts the bundle's plain [{id, depth, text,
+     * claim_id}] array OR a {__ytype:'array'} snapshot. Before this, a
+     * SECTION move (sectionMapToTree → hydrateSectionFromTree → here) silently
+     * dropped every paragraph's skeleton_items. */
+    var sk = blk.skeleton_items;
+    if (sk && sk.__ytype) {
+      _writeAttrValue(m, 'skeleton_items', sk, Y);
+    } else if (Array.isArray(sk) && sk.length) {
+      var skArr = new Y.Array();
+      m.set('skeleton_items', skArr);
+      sk.forEach(function (it) {
+        if (!it || typeof it !== 'object') return;
+        var im = new Y.Map();
+        skArr.push([im]);
+        im.set('id', it.id || window.PaperSchemas.shortId('sk-'));
+        im.set('depth', typeof it.depth === 'number' ? it.depth : 0);
+        im.set('text', new Y.Text(it.text ? String(it.text) : ''));
+        im.set('claim_id', it.claim_id || null);
       });
     }
     return m;
@@ -595,6 +635,7 @@
           special: sec.special, special_render: sec.special_render,
           appendix: sec.appendix, ref_label: sec.ref_label,
           uploaded_file: sec.uploaded_file,
+          style_overrides: sec.style_overrides,   // V3.742
           children: sec.children || [],
         });
       });
@@ -608,6 +649,27 @@
           m.set('name', new Y.Text(e.name || ''));
           m.set('latex', new Y.Text(e.latex || ''));
           m.set('type', e.type === 'main' ? 'main' : 'inline');
+        });
+      }
+      /* V3.645 — value keys. Scalars only (no Y.Text): a value is
+       * edited as a whole field on the Values page, never
+       * character-by-character in prose, so per-char CRDT merge buys
+       * nothing and costs a hydration branch. */
+      var valSrc = bundle.value_library || [];
+      var valLib = state.paperMap && state.paperMap.get('value_library');
+      if (valLib && valSrc.length) {
+        valSrc.forEach(function (v) {
+          var e = window.PaperSchemas.newValueEntry(v || {});
+          var m = new Y.Map(); valLib.push([m]);
+          Object.keys(e).forEach(function (k) {
+            if (k === 'snapshot') {
+              var sm = new Y.Map();
+              m.set('snapshot', sm);
+              Object.keys(e.snapshot).forEach(function (sk) { sm.set(sk, e.snapshot[sk]); });
+            } else {
+              m.set(k, e[k]);
+            }
+          });
         });
       }
       // Unplaced figure/table libraries (same block shape).
@@ -847,7 +909,7 @@
       /* V3.369 — completed marker in the outline. */
       if (sec.get('completed_at')) {
         var doneMark = document.createElement('span');
-        doneMark.textContent = '✓';
+        ICON.label(doneMark, 'check');
         doneMark.title = 'Section completed — final form';
         doneMark.style.cssText = 'color:#047857;font-weight:700;margin-left:4px;';
         li.appendChild(doneMark);
@@ -929,14 +991,14 @@
       ctrls.className = 'pe-appendix-divider-ctrls';
       var up = document.createElement('button');
       up.type = 'button';
-      up.textContent = '▲';
+      ICON.label(up, 'chevron-up');
       up.title = 'Move the divider up — the section above becomes an appendix';
       up.disabled = idx <= 0;
       up.addEventListener('click', function () { _setAppendixBoundary(idx - 1); });
       ctrls.appendChild(up);
       var down = document.createElement('button');
       down.type = 'button';
-      down.textContent = '▼';
+      ICON.label(down, 'chevron-down');
       down.title = (idx + 1 < total)
         ? 'Move the divider down — the section below it leaves the appendices'
         : 'Move the divider past the last section — removes it';
@@ -946,7 +1008,7 @@
       ctrls.appendChild(down);
       var clear = document.createElement('button');
       clear.type = 'button';
-      clear.textContent = '✕';
+      ICON.label(clear, 'x-mark');
       clear.title = 'Remove the divider — all sections return to normal numbering';
       clear.addEventListener('click', function () { _setAppendixBoundary(null); });
       ctrls.appendChild(clear);
@@ -978,7 +1040,7 @@
       var file = secMap.get('uploaded_file') || null;
       var label = document.createElement('span');
       label.className = 'pe-upload-label';
-      label.textContent = '📎 Final document';
+      ICON.label(label, 'paper-clip', ' Final document');
       slot.appendChild(label);
 
       if (file && file.download_url) {
@@ -1083,7 +1145,7 @@
       wrap.classList.add('pe-section-submission');
       var subBanner = document.createElement('div');
       subBanner.className = 'pe-submission-banner';
-      subBanner.textContent = '📨 Not part of the manuscript — compiles as a separate PDF (Export page → Submission documents).';
+      ICON.label(subBanner, 'inbox-arrow-down', ' Not part of the manuscript — compiles as a separate PDF (Export page → Submission documents).');
       wrap.appendChild(subBanner);
     }
 
@@ -1124,7 +1186,7 @@
       var refInput = document.createElement('input');
       refInput.type = 'text';
       refInput.className = 'pe-section-reflabel';
-      refInput.placeholder = '🔖 sec:label';
+      refInput.placeholder = 'sec:label';
       refInput.title = 'Cross-reference label — reference this section elsewhere with [!sec:label]';
       refInput.value = secMap.get('ref_label') || '';
       refInput.addEventListener('change', function () {
@@ -1161,20 +1223,20 @@
       statusPill.type = 'button';
       if (secStatus === 'complete') {
         statusPill.className = 'pe-section-status-pill pe-section-status-complete';
-        statusPill.textContent = '✓ Completed section';
+        ICON.label(statusPill, 'check', ' Completed section');
         statusPill.title = 'This section is complete (locked, final form). Click to reopen it for editing.';
         statusPill.addEventListener('click', function () { _setSectionStatus(secId, 'draft'); });
       } else if (secStatus === 'needs-review') {
         statusPill.className = 'pe-section-status-pill pe-section-status-revision';
         var _rBy = secMap.get('revision_by') || '';
         var _rWhen = String(secMap.get('revision_at') || '').slice(0, 10);
-        statusPill.textContent = '⚑ Needs revision';
+        ICON.label(statusPill, 'flag', ' Needs revision');
         statusPill.title = 'Sent back for revision' + (_rBy ? ' by ' + _rBy : '') +
           (_rWhen ? ' on ' + _rWhen : '') + '. Edit the section, then click to mark it complete.';
         statusPill.addEventListener('click', function () { _setSectionStatus(secId, 'complete'); });
       } else {
         statusPill.className = 'pe-section-status-pill pe-section-status-editing';
-        statusPill.textContent = '✎ Editing section';
+        ICON.label(statusPill, 'pencil', ' Editing section');
         statusPill.title = 'This section is being edited. Click to mark it complete — locks it and shows the final document form.';
         statusPill.addEventListener('click', function () { _setSectionStatus(secId, 'complete'); });
       }
@@ -1186,7 +1248,7 @@
         var flagBtn = document.createElement('button');
         flagBtn.type = 'button';
         flagBtn.className = 'pe-section-flag-btn';
-        flagBtn.textContent = '⚑';
+        ICON.label(flagBtn, 'flag');
         flagBtn.title = 'Mark as "Needs revision" — sends the section back for editing (lead author / PI)';
         flagBtn.addEventListener('click', function () { _setSectionStatus(secId, 'needs-review'); });
         actions.appendChild(flagBtn);
@@ -1204,9 +1266,9 @@
       finalBanner.className = 'pe-final-banner';
       var _cBy = secMap.get('completed_by') || '';
       var _cWhen = String(secMap.get('completed_at') || '').slice(0, 10);
-      finalBanner.textContent = '🔒 Final form — completed' +
+      ICON.label(finalBanner, 'lock-closed', ' Final form — completed' +
         (_cBy ? ' by ' + _cBy : '') + (_cWhen ? ' · ' + _cWhen : '') +
-        (state.editable ? '. Click the green status pill to reopen.' : '.');
+        (state.editable ? '. Click the green status pill to reopen.' : '.'));
       wrap.appendChild(finalBanner);
     } else if (String(secMap.get('status') || '') === 'needs-review') {
       /* V3.455 — send-back banner (visible to read-only viewers too). */
@@ -2198,6 +2260,7 @@
       special_render: secMap.get('special_render') || null,
       appendix: !!secMap.get('appendix'),
       ref_label: secMap.get('ref_label') || null,
+      style_overrides: secMap.get('style_overrides') || null,   // V3.742
       children: children,
     };
   }
@@ -2220,6 +2283,8 @@
       kind: b.get('kind'),
       status: b.get('status') || 'draft',
       skeleton: (sk instanceof Y.Text) ? sk.toString() : String(sk || ''),
+      /* V3.742 — outline items survive a section move (was dropped). */
+      skeleton_items: _snapshotYValue(b.get('skeleton_items')),
       body:     (bd instanceof Y.Text) ? bd.toString() : String(bd || ''),
       attrs: attrs,
     };
@@ -2247,6 +2312,8 @@
     if (sec.special_render) m.set('special_render', sec.special_render);
     if (sec.appendix) m.set('appendix', true);
     if (sec.ref_label) m.set('ref_label', sec.ref_label);
+    if (sec.style_overrides && typeof sec.style_overrides === 'object' &&
+        Object.keys(sec.style_overrides).length) m.set('style_overrides', sec.style_overrides);   // V3.742
     m.set('children', new Y.Array());
     var children = m.get('children');
     (sec.children || []).forEach(function (blk) {
@@ -2607,11 +2674,72 @@
   /* ── Banner ── */
 
   function showReadonlyBanner(msg) {
+    readonlyBanner.className = 'pe-readonly-banner';   // V3.741 — drop any checkout variant
     readonlyBanner.textContent = msg;
     readonlyBanner.hidden = false;
   }
   function hideReadonlyBanner() {
     readonlyBanner.hidden = true;
+  }
+
+  /* V3.741 — checkout banner: who has the bundle, and the two ways back
+   * (import it on the papers list, or unlock without it — admin / holder /
+   * lead author). Unlock is a two-tap button, never a browser confirm. */
+  function showCheckoutBanner() {
+    var m = state.meta || {};
+    var when = m.checked_out_at ? String(m.checked_out_at).slice(0, 16).replace('T', ' ') : '';
+    readonlyBanner.innerHTML = '';
+    readonlyBanner.className = 'pe-readonly-banner pe-checkout-banner';
+    var txt = document.createElement('span');
+    txt.className = 'pe-checkout-text';
+    txt.innerHTML = ICON.svg('lock-closed') + ' <b>Checked out</b> by ' + escapeHtml(m.checked_out_by || 'someone') +
+      (when ? ' on ' + escapeHtml(when) : '') +
+      ' as a .paperbundle.zip — read-only for everyone until the updated bundle is imported back.';
+    readonlyBanner.appendChild(txt);
+    var acts = document.createElement('span');
+    acts.className = 'pe-checkout-actions';
+    var imp = document.createElement('a');
+    imp.className = 'pe-checkout-btn';
+    imp.href = '/rm/pages/paper-builder.html';
+    imp.textContent = 'Import updated bundle';
+    imp.title = 'Go to the papers list and use Import paper with the edited .paperbundle.zip';
+    acts.appendChild(imp);
+    var user = firebridge.getUser();
+    var mayUnlock = firebridge.isAdmin() ||
+      (user && m.checked_out_by_uid === user.uid) ||
+      (firebridge.isLeadAuthor && firebridge.isLeadAuthor(m));
+    if (mayUnlock) {
+      var un = document.createElement('button');
+      un.type = 'button';
+      un.className = 'pe-checkout-btn pe-checkout-unlock';
+      un.textContent = 'Unlock without importing';
+      var armed = false, timer = null;
+      un.addEventListener('click', async function () {
+        if (!armed) {
+          armed = true;
+          un.textContent = 'Tap again to unlock — later importing the bundle will overwrite web edits';
+          timer = setTimeout(function () { armed = false; un.textContent = 'Unlock without importing'; }, 5000);
+          return;
+        }
+        clearTimeout(timer);
+        un.disabled = true; un.textContent = 'Unlocking…';
+        try {
+          var del = firebase.firestore.FieldValue.delete();
+          await firebridge.db().collection('projects').doc(state.paperId).set({
+            checked_out_by_uid: del, checked_out_by: del, checked_out_at: del, checkout_token: del,
+          }, { merge: true });
+          try { if (typeof api !== 'undefined' && api.invalidate) await api.invalidate('projects/papers.json'); } catch (e) {}
+          // The rule mirror (papers/{id}.checkedOutByUid) lands a moment later;
+          // a reload re-evaluates editability against the fresh row.
+          setTimeout(function () { window.location.reload(); }, 1200);
+        } catch (e) {
+          un.disabled = false; un.textContent = 'Unlock failed: ' + (e && e.message || e);
+        }
+      });
+      acts.appendChild(un);
+    }
+    readonlyBanner.appendChild(acts);
+    readonlyBanner.hidden = false;
   }
 
   /* ── Presence row ── */
@@ -2720,7 +2848,7 @@
       docViewBtnEl = document.createElement('button');
       docViewBtnEl.type = 'button';
       docViewBtnEl.className = 'btn pe-invite-btn';
-      docViewBtnEl.textContent = '📄 Document';
+      ICON.label(docViewBtnEl, 'document-text', ' Document');
       docViewBtnEl.title = 'Preview the paper as journal-styled pages — design figure layout and switch the target journal';
       docViewBtnEl.addEventListener('click', function () { window.PaperDocView.open(); });
       topbarEl.insertBefore(docViewBtnEl, saveStateEl);
@@ -2862,19 +2990,19 @@
       return;
     }
     try {
-      setSaveStatus('📚 Importing ' + refs.length + ' references…', 'saving');
+      setSaveStatus('Importing ' + refs.length + ' references…', 'saving');
       var data = await api.load('items.json');
       var existing = (data && data.items) || [];
       var res = window.REFERENCE_IMPORT.dedupeAndKey(refs, existing);
       var fresh = window.REFERENCE_IMPORT.newItems(res);
       if (fresh.length) {
-        setSaveStatus('📚 Adding ' + fresh.length + ' references to the library…', 'saving');
+        setSaveStatus('Adding ' + fresh.length + ' references to the library…', 'saving');
         await window.REFERENCE_IMPORT.commitToLibrary(fresh);
       }
       // Attach every reference (new + already-in-library) to this draft.
       var linked = 0;
       if (window.LIBRARY_LINKS && state.paperId) {
-        setSaveStatus('🔗 Linking references to this paper…', 'saving');
+        setSaveStatus('Linking references to this paper…', 'saving');
         for (var i = 0; i < res.entries.length; i++) {
           var e = res.entries[i];
           var id = e.status === 'existing' ? e.existingId : (e.item && e.item.id);
@@ -2950,7 +3078,7 @@
   function refreshExternalLinksBtnLabel() {
     if (!extLinksBtnEl) return;
     var n = Array.isArray(extLinksLocal) ? extLinksLocal.length : 0;
-    extLinksBtnEl.textContent = '🔗 Linked files' + (n ? ' (' + n + ')' : '');
+    ICON.label(extLinksBtnEl, 'link', ' Linked files' + (n ? ' (' + n + ')' : ''));
   }
 
   function toggleExternalLinksPopover() {
@@ -3518,7 +3646,7 @@
     clearBtn.type = 'button';
     clearBtn.className = 'pe-comments-anchor-clear';
     clearBtn.title = 'Detach this highlight — comment will apply to the whole block';
-    clearBtn.textContent = '×';
+    ICON.label(clearBtn, 'x-mark');
     clearBtn.addEventListener('click', function () {
       commentsState.pendingAnchor = null;
       _refreshAnchorPreview();
@@ -3583,7 +3711,7 @@
       rawList = rawList.filter(function (c) { return anchorIdSet[c.id]; });
       labelHtml = '<div class="pe-comments-scope-label pe-comments-anchor-scope">Anchored to highlighted text — ' +
                   rawList.length + ' comment' + (rawList.length === 1 ? '' : 's') +
-                  ' <button type="button" class="pe-comments-scope-clear" title="Clear anchor filter">×</button></div>';
+                  ' <button type="button" class="pe-comments-scope-clear" title="Clear anchor filter">' + ICON.svg('x-mark') + '</button></div>';
     }
     /* V3.204 — when in view mode, group comments by block so the
      * reader can see which paragraph each comment is on. */
@@ -3816,7 +3944,7 @@
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'pe-comment-floating-btn';
-    btn.innerHTML = '💬 Comment';
+    btn.innerHTML = ICON.svg('chat-bubble-left-right') + ' Comment';
     btn.hidden = true;
     /* Use mousedown so the selection isn't cleared before our
      * handler reads it. */
@@ -4948,7 +5076,7 @@
       if (claimId) {
         var flag = document.createElement('span');
         flag.className = 'pe-sidebar-skel-flag';
-        flag.textContent = '⚑';
+        ICON.label(flag, 'flag');
         flag.title = 'Flagged as claim';
         li.appendChild(flag);
       }
@@ -5127,7 +5255,7 @@
               (e.year ? ' (' + escapeHtmlForCE(String(e.year)) + ')' : '') +
               (e.journal ? ' · <i>' + escapeHtmlForCE(e.journal) + '</i>' : '') +
               /* V3.351 — light library richness. */
-              (e.hasPdf ? ' <span class="pe-cite-pdf" title="PDF in the library">📄</span>' : '') +
+              (e.hasPdf ? ' <span class="pe-cite-pdf" title="PDF in the library">' + ICON.svg('document-text') + '</span>' : '') +
               (e.tags && e.tags.length
                 ? ' ' + e.tags.map(function (t) {
                     return '<span class="pe-cite-tag">' + escapeHtmlForCE(t) + '</span>';
@@ -5306,7 +5434,7 @@
           arrow.type = 'button';
           arrow.className = 'pe-cite-pop-claim-expand';
           arrow.title = 'Show highlights for this paper + claim';
-          arrow.textContent = expanded.has(expKey) ? '▼' : '▶';
+          ICON.label(arrow, expanded.has(expKey) ? 'chevron-down' : 'play');
           arrow.addEventListener('click', function (ev) {
             ev.stopPropagation();
             if (expanded.has(expKey)) expanded.delete(expKey);
@@ -5840,11 +5968,19 @@
         var chipHtml = renderChipsOnlyHtml(newText);
         var tpl = document.createElement('template');
         tpl.innerHTML = chipHtml;
-        var chipNode = tpl.content.firstChild;
-        if (chipNode) {
-          range.insertNode(chipNode);
+        /* V3.649 — insert the WHOLE fragment. This used to insert
+         * `tpl.content.firstChild` only, which was invisible while every
+         * caller replaced a single token (a footnote or a citation group
+         * renders to exactly one chip node). A multi-line replacement
+         * renders to text/<br>/text/<br>/text, and all but the first node
+         * was silently dropped — turning three lines into one. Capture
+         * lastChild BEFORE inserting: insertNode empties the fragment. */
+        var frag = tpl.content;
+        var lastNode = frag.lastChild;
+        if (lastNode) {
+          range.insertNode(frag);
           var after = document.createRange();
-          after.setStartAfter(chipNode);
+          after.setStartAfter(lastNode);
           after.collapse(true);
           sel.removeAllRanges();
           sel.addRange(after);
@@ -6023,6 +6159,35 @@
           if (/^[\w:.\-]+$/.test(secLabel)) {
             out += renderSecRefChip(secLabel);
             i = endSec + 1;
+            continue;
+          }
+        }
+      }
+
+      /* V3.645 — [!val:KEY] paper-local value. */
+      if (ch === '[' && text[i + 1] === '!' && text.slice(i + 2, i + 6) === 'val:') {
+        var endVal = text.indexOf(']', i + 6);
+        if (endVal > i + 6) {
+          var valKey = text.slice(i + 6, endVal).trim();
+          if (/^[A-Za-z0-9][\w-]*$/.test(valKey)) {
+            out += renderValChip(valKey);
+            i = endVal + 1;
+            continue;
+          }
+        }
+      }
+
+      /* V3.645 — [@item:KEY] lab inventory item. MUST be tested BEFORE
+       * the [@key] citation branch below: the citation validator allows
+       * colons, so `[@item:24WP]` would otherwise parse as a citation
+       * with key "item:24WP" and compile to an undefined \cite{}. */
+      if (ch === '[' && text[i + 1] === '@' && text.slice(i + 2, i + 7) === 'item:') {
+        var endItem = text.indexOf(']', i + 7);
+        if (endItem > i + 7) {
+          var itemKey = text.slice(i + 7, endItem).trim();
+          if (/^[A-Za-z0-9][\w-]*$/.test(itemKey)) {
+            out += renderItemChip(itemKey);
+            i = endItem + 1;
             continue;
           }
         }
@@ -6438,6 +6603,294 @@
            '" title="' + escapeAttr(tgt.title) + '">§ ' + escapeHtmlForCE(tgt.title || label) + '</span>';
   }
 
+  /* ── V3.645 — value keys ────────────────────────────────────────
+   * [!val:KEY] (paper-local value) and [@item:KEY] (lab inventory item)
+   * both read the ONE value_library table; they differ only in which
+   * namespace they live in. See paper-schemas.js for why the table is
+   * shared and why inventory entries carry a snapshot. */
+
+  /* `[@item:…]` lives inside the citation namespace, so every consumer
+   * that scans for `[@…]` MUST route through this predicate or item
+   * keys leak into the bibliography as undefined \cite{} entries. The
+   * six known consumers are listed in the V3.645 plan; this is the
+   * single definition they all share. */
+  var ITEM_TOKEN_PREFIX = 'item:';
+  function isItemToken(inner) {
+    if (!inner) return false;
+    /* Narrative `*` is meaningless for items but strip it defensively
+     * so `[@*item:x]` is still excluded from the bibliography. */
+    return String(inner).replace(/^\*/, '').indexOf(ITEM_TOKEN_PREFIX) === 0;
+  }
+  function itemKeyFromToken(inner) {
+    return String(inner || '').replace(/^\*/, '').slice(ITEM_TOKEN_PREFIX.length).trim();
+  }
+
+  /* Plain-JS projection of the value library, in table order. */
+  function getValueEntries() {
+    var out = [];
+    if (!state.paperMap) return out;
+    var lib = state.paperMap.get('value_library');
+    if (!lib || typeof lib.forEach !== 'function') return out;
+    lib.forEach(function (m) {
+      if (!m || typeof m.get !== 'function') return;
+      var snapY = m.get('snapshot');
+      var snap = { name: '', vendor: '', catalogue_number: '' };
+      if (snapY && typeof snapY.get === 'function') {
+        snap.name = snapY.get('name') || '';
+        snap.vendor = snapY.get('vendor') || '';
+        snap.catalogue_number = snapY.get('catalogue_number') || '';
+      }
+      out.push({
+        id: m.get('id') || '',
+        key: m.get('key') || '',
+        kind: window.PaperSchemas.normalizeValueKind(m.get('kind')),
+        note: m.get('note') || '',
+        value: m.get('value') || '',
+        num: (typeof m.get('num') === 'number') ? m.get('num') : null,
+        unit: m.get('unit') || '',
+        sigfigs: (typeof m.get('sigfigs') === 'number') ? m.get('sigfigs') : null,
+        inv_id: m.get('inv_id') || '',
+        inv_kind: m.get('inv_kind') === 'chemical' ? 'chemical' : 'item',
+        snapshot: snap,
+        format: m.get('format') || window.PaperSchemas.DEFAULT_ITEM_FORMAT,
+        refreshed_at: m.get('refreshed_at') || null,
+      });
+    });
+    return out;
+  }
+
+  /* Key lookup is case-SENSITIVE and exact: `[!val:MRD]` and
+   * `[!val:mrd]` are different keys, matching how citation keys behave.
+   * On a duplicate key the first entry wins (the Values page flags the
+   * collision rather than silently resolving it here). */
+  function getValueByKey(key) {
+    if (!key) return null;
+    var all = getValueEntries();
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].key === key) return all[i];
+    }
+    return null;
+  }
+
+  /* Resolve through the ONE shared formatter in paper-schemas so the
+   * editor, the Document view and the .tex export can never disagree
+   * about what the paper actually says. */
+  function resolveValueText(key) {
+    var e = getValueByKey(key);
+    return e ? window.PaperSchemas.formatValueEntry(e) : null;
+  }
+
+  /* ── Value library mutators ──
+   * All writes go through here so every caller gets the same transact
+   * origin and the same repaint broadcast; a module writing the Y.Array
+   * directly would leave stale chips on screen. */
+  function _valueLibArr() {
+    return state.paperMap ? state.paperMap.get('value_library') : null;
+  }
+
+  function _writeValueMap(m, obj, Y) {
+    Object.keys(obj).forEach(function (k) {
+      if (k === 'snapshot') {
+        var sm = m.get('snapshot');
+        if (!sm || typeof sm.set !== 'function') { sm = new Y.Map(); m.set('snapshot', sm); }
+        Object.keys(obj.snapshot || {}).forEach(function (sk) { sm.set(sk, obj.snapshot[sk]); });
+      } else {
+        m.set(k, obj[k]);
+      }
+    });
+  }
+
+  function _broadcastValuesChanged() {
+    window.dispatchEvent(new CustomEvent('paper-values-changed'));
+  }
+
+  function addValueEntry(opts) {
+    var arr = _valueLibArr();
+    if (!arr || !state.conn) return null;
+    var Y = state.Y;
+    var entry = window.PaperSchemas.newValueEntry(opts || {});
+    state.conn.yDoc.transact(function () {
+      var m = new Y.Map();
+      arr.push([m]);
+      _writeValueMap(m, entry, Y);
+    }, 'local-values');
+    _broadcastValuesChanged();
+    return entry;
+  }
+
+  function updateValueEntry(id, patch) {
+    var arr = _valueLibArr();
+    if (!arr || !state.conn || !id) return false;
+    var Y = state.Y;
+    var found = false;
+    state.conn.yDoc.transact(function () {
+      arr.forEach(function (m) {
+        if (found || !m || typeof m.get !== 'function') return;
+        if (m.get('id') !== id) return;
+        found = true;
+        _writeValueMap(m, patch || {}, Y);
+      });
+    }, 'local-values');
+    if (found) _broadcastValuesChanged();
+    return found;
+  }
+
+  function deleteValueEntry(id) {
+    var arr = _valueLibArr();
+    if (!arr || !state.conn || !id) return false;
+    var idx = -1, i = 0;
+    arr.forEach(function (m) {
+      if (idx < 0 && m && typeof m.get === 'function' && m.get('id') === id) idx = i;
+      i++;
+    });
+    if (idx < 0) return false;
+    state.conn.yDoc.transact(function () { arr.delete(idx, 1); }, 'local-values');
+    _broadcastValuesChanged();
+    return true;
+  }
+
+  function renderValChip(key) {
+    var srcToken = '[!val:' + key + ']';
+    var entry = getValueByKey(key);
+    if (!entry) {
+      return '<span class="pe-val-chip pe-val-chip-unknown" contenteditable="false" data-src="' + escapeAttr(srcToken) +
+             '" data-val-key="' + escapeAttr(key) + '" title="No value defined for key: ' + escapeAttr(key) +
+             '">[?' + escapeHtmlForCE(key) + ']</span>';
+    }
+    var txt = window.PaperSchemas.formatValueEntry(entry);
+    var tip = key + (entry.note ? ' — ' + entry.note : '');
+    if (!txt) {
+      return '<span class="pe-val-chip pe-val-chip-empty" contenteditable="false" data-src="' + escapeAttr(srcToken) +
+             '" data-val-key="' + escapeAttr(key) + '" title="' + escapeAttr(tip + ' (no value yet)') +
+             '">[' + escapeHtmlForCE(key) + ']</span>';
+    }
+    return '<span class="pe-val-chip" contenteditable="false" data-src="' + escapeAttr(srcToken) +
+           '" data-val-key="' + escapeAttr(key) + '" title="' + escapeAttr(tip) + '">' +
+           escapeHtmlForCE(txt) + '</span>';
+  }
+
+  function renderItemChip(key) {
+    var srcToken = '[@item:' + key + ']';
+    var entry = getValueByKey(key);
+    if (!entry || entry.kind !== 'inventory') {
+      return '<span class="pe-item-chip pe-item-chip-unknown" contenteditable="false" data-src="' + escapeAttr(srcToken) +
+             '" data-item-key="' + escapeAttr(key) + '" title="No inventory item defined for key: ' + escapeAttr(key) +
+             '">[?' + escapeHtmlForCE(key) + ']</span>';
+    }
+    var txt = window.PaperSchemas.formatValueEntry(entry);
+    var tip = (entry.snapshot && entry.snapshot.name) || key;
+    if (entry.note) tip += ' — ' + entry.note;
+    return '<span class="pe-item-chip" contenteditable="false" data-src="' + escapeAttr(srcToken) +
+           '" data-item-key="' + escapeAttr(key) + '" title="' + escapeAttr(tip) + '">' +
+           escapeHtmlForCE(txt || key) + '</span>';
+  }
+
+  /* V3.649 — every place a [!sec:] token COULD point at, in document
+   * order, whether or not it has a ref_label yet.
+   *
+   * getSectionRefTargets (below) only knows about anchors that already
+   * carry a hand-typed `ref_label`, which is why cross-references had no
+   * picker: there was nothing to list until the writer had already gone to
+   * each section header and invented a label. This walks the real
+   * structure instead — sections, and the subheadings nested under them —
+   * so the picker can offer everything and mint the label on the way past.
+   *
+   * Each choice: { id, kind:'section'|'subheading', title, refLabel|null,
+   *                sectionId, appendixBoundary }
+   */
+  function getSectionRefChoices() {
+    var out = [];
+    var sections = state.sectionsArr;
+    if (!sections || typeof sections.forEach !== 'function') return out;
+    sections.forEach(function (sec) {
+      if (!sec || typeof sec.get !== 'function') return;
+      var secId = sec.get('id');
+      out.push({
+        id: secId,
+        kind: 'section',
+        title: readSectionLabel(sec),
+        refLabel: sec.get('ref_label') || null,
+        sectionId: secId,
+        appendixBoundary: !!sec.get('appendix'),
+      });
+      var children = sec.get('children');
+      if (!children || typeof children.forEach !== 'function') return;
+      children.forEach(function (blk) {
+        if (!blk || typeof blk.get !== 'function' || blk.get('kind') !== 'subheading') return;
+        var a = blk.get('attrs');
+        var bd = blk.get('body');
+        out.push({
+          id: blk.get('id'),
+          kind: 'subheading',
+          title: (bd && bd.toString) ? bd.toString() : String(bd || ''),
+          refLabel: (a && typeof a.get === 'function' && a.get('ref_label')) || null,
+          sectionId: secId,
+          appendixBoundary: false,
+        });
+      });
+    });
+    return out;
+  }
+
+  /* V3.649 — return the anchor's ref_label, minting one from its title if
+   * it has none. Mirrors paper-equations' _autoAssignFloatLabel for
+   * figures/tables: the writer should never have to invent a label before
+   * they can point at something.
+   *
+   * Slugs collide (two subheadings called "Statistics"), and a collision
+   * would silently repoint an existing reference at the wrong heading, so
+   * uniqueness is enforced against every label already in the document. */
+  function ensureSectionRefLabel(anchorId) {
+    if (!anchorId || !state.editable) return null;
+    var sections = state.sectionsArr;
+    if (!sections || typeof sections.forEach !== 'function') return null;
+
+    var taken = {};
+    getSectionRefChoices().forEach(function (c) {
+      if (c.refLabel) taken[c.refLabel] = c.id;
+    });
+
+    function slugFor(title, id) {
+      var base = String(title || '').trim().toLowerCase()
+        .replace(/[^a-z0-9\s_-]+/g, '')
+        .trim().split(/\s+/).filter(Boolean).slice(0, 5).join('-');
+      if (!base) base = String(id || '').replace(/^[a-z]-/, '');
+      base = 'sec:' + base.slice(0, 40);
+      if (taken[base] == null || taken[base] === id) return base;
+      var n = 2;
+      while (taken[base + '-' + n] != null) n++;
+      return base + '-' + n;
+    }
+
+    var result = null;
+    sections.forEach(function (sec) {
+      if (result || !sec || typeof sec.get !== 'function') return;
+      if (sec.get('id') === anchorId) {
+        var have = sec.get('ref_label');
+        if (have) { result = have; return; }
+        var lbl = slugFor(readSectionLabel(sec), anchorId);
+        sec.doc.transact(function () { sec.set('ref_label', lbl); }, 'auto-sec-label');
+        result = lbl;
+        return;
+      }
+      var children = sec.get('children');
+      if (!children || typeof children.forEach !== 'function') return;
+      children.forEach(function (blk) {
+        if (result || !blk || typeof blk.get !== 'function') return;
+        if (blk.get('id') !== anchorId || blk.get('kind') !== 'subheading') return;
+        var attrs = blk.get('attrs');
+        if (!attrs || typeof attrs.get !== 'function') return;
+        var had = attrs.get('ref_label');
+        if (had) { result = had; return; }
+        var bd = blk.get('body');
+        var lbl2 = slugFor((bd && bd.toString) ? bd.toString() : '', anchorId);
+        blk.doc.transact(function () { attrs.set('ref_label', lbl2); }, 'auto-sec-label');
+        result = lbl2;
+      });
+    });
+    return result;
+  }
+
   /* Map of ref_label → {title, id} across sections + subheading blocks —
    * the anchors a [!sec:label] token can point at. */
   function getSectionRefTargets() {
@@ -6462,6 +6915,182 @@
       }
     });
     return map;
+  }
+
+  /* V3.650 — the Write view shows REAL bullets, and Enter continues the
+   * list. Alex: "it needs to display as bullet points. if i press enter at
+   * the end the next bullet point shows up. All the standard rules apply."
+   *
+   * The trick that makes this safe: the marker is rendered as a **chip** —
+   * `contenteditable="false"` with `data-src` holding its exact source
+   * prefix ("  - " / "2. "). The editor already has one atomic-token
+   * contract, and every source-mapping walker speaks it: `serializeChipDom`
+   * contributes `data-src`, `readCaretCharOffset` counts `data-src.length`,
+   * `setCaretCharOffset` / `_rangeFromCharOffset` treat it as an
+   * indivisible unit, and `replaceParagraphRange` aligns ranges to it. So
+   * the marker can look like a bullet, be uneditable, and still round-trip
+   * to the exact source — with ZERO changes to the caret machinery, which
+   * is the part of this editor least safe to touch.
+   *
+   * V3.649 showed the raw "- " instead; that read as loose prose, not a
+   * list. */
+  var _BULLET_GLYPHS = ['\u2022', '\u25E6', '\u25AA', '\u2023'];  // emoji-ok: a typographic list bullet, text presentation
+
+  function renderChipsOnlyBodyHtml(text) {
+    var PS = window.PaperSchemas;
+    if (!PS || !PS.bodyHasList || !PS.listLineMatch || !PS.bodyHasList(text)) {
+      return renderChipsOnlyHtml(text);
+    }
+    return String(text).split('\n').map(function (line) {
+      var m = PS.listLineMatch(line);
+      if (!m) return renderChipsOnlyHtml(line);
+      var prefix = m.indent + line.slice(m.indent.length, m.indent.length + m.markerLength);
+      var glyph = (m.listType === 'number')
+        ? line.slice(m.indent.length, m.indent.length + m.markerLength).trim()
+        : _BULLET_GLYPHS[Math.min(m.depth, _BULLET_GLYPHS.length - 1)];
+      return '<span class="pe-src-li" data-list-depth="' + m.depth + '">' +
+               '<span class="pe-li-mark" contenteditable="false" data-src="' +
+                 escapeAttr(prefix) + '">' + escapeHtmlForCE(glyph) + '</span>' +
+               renderChipsOnlyHtml(m.content) +
+             '</span>';
+    }).join('<br>');
+  }
+
+  /* V3.650 — the standard list keys, applied in SOURCE space and repainted,
+   * rather than by mutating the live DOM: the source is the thing that has
+   * to stay correct, and repainting through the same renderer guarantees
+   * the DOM the caret walkers see is the one the renderer would produce.
+   *
+   * Enter        — new item at the same depth (empty item → leave the list)
+   * Tab / S-Tab  — indent / outdent one level
+   * Backspace    — at the very start of an item, outdent, then unlist
+   *
+   * Returns true when it handled the key. */
+  function handleListKey(ev, el, repaint) {
+    var PS = window.PaperSchemas;
+    if (!PS || !PS.listLineMatch) return false;
+    var key = ev.key;
+    if (key !== 'Enter' && key !== 'Tab' && key !== 'Backspace') return false;
+    if (ev.metaKey || ev.ctrlKey || ev.altKey) return false;
+    if (key === 'Enter' && ev.shiftKey) return false;   // Shift+Enter = plain break
+
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return false;
+    if (!sel.getRangeAt(0).collapsed) return false;     // ranged edits: browser default
+
+    var src = serializeChipDom(el);
+    var caret = readCaretCharOffset(el);
+    if (caret == null) return false;
+
+    var lineStart = src.lastIndexOf('\n', Math.max(0, caret - 1)) + 1;
+    var nlAt = src.indexOf('\n', caret);
+    var lineEnd = (nlAt === -1) ? src.length : nlAt;
+    var line = src.slice(lineStart, lineEnd);
+    var m = PS.listLineMatch(line);
+    if (!m) return false;                               // not in a list: default
+
+    var head = src.slice(0, lineStart);
+    var tail = src.slice(lineEnd);                      // starts with \n, or empty
+    var next, nextLine, nextCol;
+    /* Caret is tracked as (line index, column) across the renumber pass,
+     * because renumbering can change the width of any marker ("9. " ->
+     * "10. ") and a raw offset would drift. */
+    var lineIdx = head ? head.split('\n').length - 1 : 0;
+
+    if (key === 'Enter') {
+      if (!m.content.trim()) {
+        /* Empty item + Enter leaves the list — the item becomes a blank
+         * prose line, exactly like every other editor. */
+        next = head + tail;
+        nextLine = lineIdx;
+        nextCol = 0;
+      } else {
+        var marker = (m.listType === 'number') ? '1. ' : '- ';
+        var carried = m.indent + marker;
+        /* Split the item at the caret: text to the right of the caret moves
+         * down to the new item, which is what Enter does mid-item. */
+        var col = caret - lineStart;
+        next = head + line.slice(0, col) + '\n' + carried + line.slice(col) + tail;
+        nextLine = lineIdx + 1;
+        nextCol = carried.length;
+      }
+    } else if (key === 'Tab') {
+      if (ev.shiftKey && !m.indent.length) return false;   // already flush left
+      if (!ev.shiftKey && m.depth >= 3) return false;      // parser caps nesting at 3
+      var newIndent = ev.shiftKey ? m.indent.slice(2) : ('  ' + m.indent);
+      next = head + newIndent + line.slice(m.indent.length) + tail;
+      nextLine = lineIdx;
+      nextCol = Math.max(0, (caret - lineStart) + (ev.shiftKey ? -2 : 2));
+    } else {
+      /* Backspace, only at the very start of the item's own text: outdent
+       * one level, or strip the marker when already flush left. */
+      if (caret !== lineStart + m.indent.length + m.markerLength) return false;
+      if (m.indent.length) {
+        next = head + m.indent.slice(2) + line.slice(m.indent.length) + tail;
+        nextLine = lineIdx;
+        nextCol = (caret - lineStart) - 2;
+      } else {
+        next = head + m.content + tail;
+        nextLine = lineIdx;
+        nextCol = 0;
+      }
+    }
+
+    if (PS.renumberOrderedRuns) next = PS.renumberOrderedRuns(next);
+
+    /* (line, col) -> absolute offset against the FINAL source. */
+    var finalLines = next.split('\n');
+    var offset = 0;
+    for (var i = 0; i < Math.min(nextLine, finalLines.length - 1); i++) {
+      offset += finalLines[i].length + 1;
+    }
+    offset += Math.min(nextCol, (finalLines[Math.min(nextLine, finalLines.length - 1)] || '').length);
+
+    ev.preventDefault();
+    repaint(next, offset);
+    return true;
+  }
+
+  /* V3.649 — paragraph BODY renderer. `renderParagraphHtml` is the INLINE
+   * contract (cites, math, markdown) and is reused for captions, table
+   * cells, subheadings and list-block items — so list parsing must NOT go
+   * in there: a list item's own text runs back through it and would
+   * re-parse its own marker. This wrapper is the block-level layer, used
+   * only where a paragraph body is rendered. Prose runs fall straight
+   * through, so ordinary paragraphs are byte-identical to before. */
+  function renderParagraphBodyHtml(text) {
+    var PS = window.PaperSchemas;
+    if (!PS || !PS.bodyHasList || !PS.bodyHasList(text)) {
+      return renderParagraphHtml(text);
+    }
+    var runs = PS.parseBodyRuns(text);
+    var out = '';
+    runs.forEach(function (run) {
+      if (run.type === 'prose') { out += renderParagraphHtml(run.text); return; }
+      out += renderBodyListHtml(run);
+    });
+    return out;
+  }
+
+  /* Nested <ul>/<ol>; each item's text through the inline contract so
+   * citations, math and chips work inside list items. */
+  function renderBodyListHtml(run) {
+    var tag = run.listType === 'number' ? 'ol' : 'ul';
+    /* Both classes on purpose: `pe-body-list` is the editor's styling, and
+     * `pdv-list` is what the Document view already styles AND names in its
+     * SPLIT_GUARD_SEL — without it the column packer would be free to
+     * break a page mid-list, which it deliberately avoids for the list
+     * BLOCK. One renderer serves both surfaces, so it carries both hooks. */
+    var cls = 'pe-body-list pdv-list';
+    var html = '<' + tag + ' class="' + cls + '">';
+    var depth = 0;
+    run.items.forEach(function (it) {
+      while (depth < it.depth) { html += '<' + tag + ' class="' + cls + '">'; depth++; }
+      while (depth > it.depth) { html += '</' + tag + '>'; depth--; }
+      html += '<li>' + renderParagraphHtml(it.text) + '</li>';
+    });
+    while (depth-- > 0) html += '</' + tag + '>';
+    return html + '</' + tag + '>';
   }
 
   function renderOneMath(src, displayMode, fallback) {
@@ -6510,6 +7139,35 @@
     var i = 0;
     while (i < text.length) {
       var ch = text[i];
+      /* V3.645 — [!val:KEY] paper-local value. */
+      if (ch === '[' && text[i + 1] === '!' && text.slice(i + 2, i + 6) === 'val:') {
+        var endValC = text.indexOf(']', i + 6);
+        if (endValC > i + 6) {
+          var valKeyC = text.slice(i + 6, endValC).trim();
+          if (/^[A-Za-z0-9][\w-]*$/.test(valKeyC)) {
+            out += renderValChip(valKeyC);
+            i = endValC + 1;
+            continue;
+          }
+        }
+      }
+
+      /* V3.645 — [@item:KEY] lab inventory item. MUST be tested BEFORE
+       * the [@key] citation branch below: the citation validator allows
+       * colons, so `[@item:24WP]` would otherwise parse as a citation
+       * with key "item:24WP" and compile to an undefined \cite{}. */
+      if (ch === '[' && text[i + 1] === '@' && text.slice(i + 2, i + 7) === 'item:') {
+        var endItemC = text.indexOf(']', i + 7);
+        if (endItemC > i + 7) {
+          var itemKeyC = text.slice(i + 7, endItemC).trim();
+          if (/^[A-Za-z0-9][\w-]*$/.test(itemKeyC)) {
+            out += renderItemChip(itemKeyC);
+            i = endItemC + 1;
+            continue;
+          }
+        }
+      }
+
       /* [@key] / [@k1; @k2] */
       if (ch === '[' && text[i + 1] === '@') {
         var endBracket = text.indexOf(']', i + 2);
@@ -6610,22 +7268,47 @@
    * identical to what the user would see if the chip-mode renderer
    * were re-applied, so the binding's diff against lastValue produces
    * the correct Y.Text mutations. */
+  /* V3.649 — block elements are line breaks too.
+   *
+   * This used to recurse into every non-chip element with NO separator, so
+   * `- a<div>- b</div>` serialized to `- a- b`. That matters because
+   * pressing Enter in a contenteditable does not produce a <br> in Chrome
+   * or Safari — it wraps the new line in a <div>. So every newline the
+   * writer typed into a paragraph body was silently dropped on the way
+   * back into the Y.Text: multi-line prose collapsed to one line, and a
+   * typed list came back as "- a- b- c" all on one line, which is exactly
+   * what Alex reported. (V3.649 also stops the divs being created at all —
+   * see the Enter handler in bindYTextToContentEditable — but this has to
+   * be correct anyway for content typed before that landed, and for paste.)
+   */
+  var _BLOCK_TAGS = {
+    DIV: 1, P: 1, LI: 1, UL: 1, OL: 1, BLOCKQUOTE: 1, PRE: 1, SECTION: 1,
+    ARTICLE: 1, H1: 1, H2: 1, H3: 1, H4: 1, H5: 1, H6: 1, TR: 1,
+  };
   function serializeChipDom(node) {
-    if (!node) return '';
-    if (node.nodeType === Node.TEXT_NODE) {
-      return node.nodeValue || '';
-    }
-    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+    var acc = { s: '' };
+    _serializeChipInto(node, acc, true);
+    return acc.s;
+  }
+  function _serializeChipInto(node, acc, isRoot) {
+    if (!node) return;
+    if (node.nodeType === Node.TEXT_NODE) { acc.s += node.nodeValue || ''; return; }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
     /* Atomic chip — its data-src is the canonical source token. */
-    if (node.dataset && node.dataset.src) return node.dataset.src;
-    if (node.tagName === 'BR') return '\n';
+    if (node.dataset && node.dataset.src) { acc.s += node.dataset.src; return; }
+    if (node.tagName === 'BR') { acc.s += '\n'; return; }
+    /* A block boundary starts a new line — unless we are at the very start
+     * or the previous node already ended one (`text<br><div>x</div>` must
+     * not produce a blank line). */
+    if (!isRoot && _BLOCK_TAGS[node.tagName] &&
+        acc.s && acc.s.charAt(acc.s.length - 1) !== '\n') {
+      acc.s += '\n';
+    }
     /* Recurse for any other element (e.g. <span> wrappers Chrome
      * sometimes inserts around composed text). */
-    var out = '';
     for (var i = 0; i < node.childNodes.length; i++) {
-      out += serializeChipDom(node.childNodes[i]);
+      _serializeChipInto(node.childNodes[i], acc, false);
     }
-    return out;
   }
 
   /* Render the source text into a contenteditable element using a callback.
@@ -6678,6 +7361,9 @@
   function bindYTextToContentEditable(yText, el, opts) {
     opts = opts || {};
     var renderFn = opts.renderHtml || renderParagraphHtml;
+    /* V3.649 — chip mode (focused) has its own renderer so a paragraph body
+     * can lay its list lines out while still showing editable source. */
+    var chipFn = opts.renderChipsHtml || renderChipsOnlyHtml;
     /* V3.216 — `onRendered(el)` fires after every full-HTML render
      * (initial bind, blur, remote update while unfocused, equation-
      * library refresh). Used by paper-blocks.js to overlay anchored
@@ -6705,6 +7391,34 @@
       document.execCommand('insertText', false, text);
     });
 
+    /* V3.647 — survive the focus-time re-render with the caret where the
+     * user actually clicked.
+     *
+     * The focus handler below replaces this element's innerHTML with
+     * chip-mode HTML, which destroys the caret the browser had just placed
+     * from the click. What's left is a selection collapsed at offset 0 —
+     * or no selection at all, in which case paper-equations'
+     * `_saveCaretFromCurrentFocus` falls back to the END of the paragraph.
+     * Either way the next "Insert citation" lands somewhere the user never
+     * pointed at: the "it bumps me off the location I'm trying to insert
+     * at, and it happens when I click into the text the first time" half of
+     * the bug. The click POINT survives the swap, so re-derive the caret
+     * from it against the freshly rendered DOM. */
+    var clickPt = null;    // last mousedown on this element
+    var pendingPt = null;  // promoted by the focus handler; consumed on mouseup
+    el.addEventListener('mousedown', function (ev) {
+      if (opts.readOnly) return;
+      clickPt = { x: ev.clientX, y: ev.clientY, t: Date.now() };
+    });
+    function applyCaretPoint(pt) {
+      if (!pt || Date.now() - pt.t > 2000) return;
+      var sel = window.getSelection();
+      /* A drag-selection that survived the swap is the user's — leave it. */
+      if (sel && sel.rangeCount && !sel.getRangeAt(0).collapsed &&
+          el.contains(sel.getRangeAt(0).startContainer)) return;
+      setCaretFromPoint(el, pt.x, pt.y);
+    }
+
     el.addEventListener('focus', function () {
       /* V3.159 — show chip-mode HTML when focused so atomic
        * `[@cite]` / `[!eqi:…]` / `[!eqr:…]` / `[!fig:…]` / `[!tab:…]`
@@ -6713,12 +7427,21 @@
        * input handler reads source back via `serializeChipDom(el)`. */
       if (opts.readOnly) return;
       var src = yText.toString();
-      el.innerHTML = renderChipsOnlyHtml(src);
+      el.innerHTML = chipFn(src);
       lastValue = src;
       el.dataset.empty = src ? 'false' : 'true';
       /* V3.218 — re-apply highlights on top of the chip-mode HTML so
        * commented spans stay visible while the user edits. */
       fireOnRendered();
+      /* V3.647 — restore the caret the innerHTML above discarded, and
+       * record the focus now instead of waiting for the first
+       * keyup/mouseup (a Tab into the element never fires either). The
+       * mouseup handler re-applies the same point afterwards, so the
+       * browser's own default selection handling can't win the race. */
+      pendingPt = clickPt;
+      clickPt = null;
+      applyCaretPoint(pendingPt);
+      rememberFocus(el);
     });
 
     /* V3.157 — click on a rendered citation group opens the popover
@@ -6729,9 +7452,11 @@
      * source text before we can read its data-cite-* attributes). */
     el.addEventListener('mousedown', function (ev) {
       if (opts.readOnly) return;
-      /* V3.345 — footnote chip → prompt-based text editor over the
-       * chip's source byte range. Checked before the cite group since
-       * both are atomic chips inside the same contenteditable. */
+      /* V3.345 — footnote chip → a text editor over the chip's source byte
+       * range. Checked before the cite group since both are atomic chips
+       * inside the same contenteditable.
+       * V3.648 — edited in the picker's inline form anchored on the chip,
+       * not a window.prompt box. */
       var fnEl = ev.target && ev.target.closest && ev.target.closest('.pe-footnote-chip');
       if (fnEl && el.contains(fnEl) && fnEl.dataset.fnSrcStart != null) {
         ev.preventDefault();
@@ -6739,11 +7464,43 @@
         var fnStart = parseInt(fnEl.dataset.fnSrcStart, 10);
         var fnEnd = parseInt(fnEl.dataset.fnSrcEnd, 10);
         var currentText = (fnEl.dataset.src || '').replace(/^\[\^/, '').replace(/\]$/, '');
-        var next = window.prompt('Footnote text (empty removes the footnote):', currentText);
-        if (next === null) return;                    // cancelled
-        next = _sanitizeFootnoteText(next);
-        replaceParagraphRange(el, fnStart, fnEnd, next ? '[^' + next + ']' : '');
+        var fnRect = fnEl.getBoundingClientRect();
+        if (!window.PaperEquations || !window.PaperEquations.openPicker) return;
+        window.PaperEquations.openPicker(fnRect.left, fnRect.bottom + 6, {
+          title: 'Footnote', emptyMsg: '', renderRowMode: 'plain', rows: [],
+          form: {
+            title: 'Edit footnote',
+            fields: [{
+              key: 'text', label: 'Note text', value: currentText,
+              placeholder: 'Measured on the 2026-04 calibration.',
+              hint: 'Clear the field and save to remove the footnote.',
+            }],
+            submitLabel: 'Save',
+            backLabel: 'Cancel',
+            onSubmit: function (vals, handle) {
+              handle.close();
+              var next = _sanitizeFootnoteText(vals.text);
+              replaceParagraphRange(el, fnStart, fnEnd, next ? '[^' + next + ']' : '');
+            },
+          },
+        });
         return;
+      }
+      /* V3.645 — value / inventory chip → the "where is this used"
+       * fold-out. Same capture-phase reasoning as above: the chip's
+       * data-* attributes are gone once focus swaps in chip-mode HTML. */
+      var valEl = ev.target && ev.target.closest &&
+        ev.target.closest('.pe-val-chip, .pe-item-chip');
+      if (valEl && el.contains(valEl)) {
+        var vKey = valEl.dataset.valKey || valEl.dataset.itemKey || '';
+        if (vKey) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          window.dispatchEvent(new CustomEvent('paper-value-chip-click', {
+            detail: { key: vKey, anchor: valEl },
+          }));
+          return;
+        }
       }
       var groupEl = ev.target && ev.target.closest && ev.target.closest('.pe-cite-group');
       if (!groupEl || !el.contains(groupEl)) return;
@@ -6756,12 +7513,71 @@
     /* Track caret across blur so Cmd+K's citation popover can insert at the
      * right spot in the right element. The contenteditable loses native
      * selection on blur; we save the offset to a module-level var. */
+    /* V3.649 — Enter must produce a <br>, not a <div>.
+     *
+     * Chrome and Safari wrap a new line in a <div>; the chip-mode renderer
+     * emits <br>. Two things break when the DOM disagrees with the
+     * renderer: `serializeChipDom` has to guess at block boundaries, and —
+     * worse — `readCaretCharOffset` / `_rangeFromCharOffset` count a <br>
+     * as one source character but a <div> boundary as zero, so every caret
+     * offset past the first line was short by one per line. That silently
+     * misplaced inserted citations and values in any multi-line paragraph.
+     * Forcing the line break keeps the live DOM identical to what the
+     * renderer would produce for the same source. */
+    el.addEventListener('keydown', function (ev) {
+      if (opts.readOnly) return;
+      if (ev.defaultPrevented) return;
+      /* V3.650 — Enter / Tab / Backspace inside a list line get the standard
+       * list behaviour. Only bindings that opted into the body renderer have
+       * lists at all, so the plain chip renderer is untouched. */
+      if (opts.renderChipsHtml && handleListKey(ev, el, function (nextSrc, nextCaret) {
+        el.innerHTML = chipFn(nextSrc);
+        el.dataset.empty = nextSrc ? 'false' : 'true';
+        setCaretCharOffset(el, nextCaret);
+        /* The input handler diffs serializeChipDom(el) against lastValue and
+         * writes the minimal Y.Text mutation — one path for every edit. */
+        el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+        rememberFocus(el);
+      })) return;
+      if (ev.key !== 'Enter' || ev.shiftKey || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+      var ok = false;
+      try { ok = document.execCommand('insertLineBreak'); } catch (e) { ok = false; }
+      if (!ok) {
+        try {
+          var sel = window.getSelection();
+          if (sel && sel.rangeCount) {
+            var r = sel.getRangeAt(0);
+            r.deleteContents();
+            var br = document.createElement('br');
+            r.insertNode(br);
+            var after = document.createRange();
+            after.setStartAfter(br);
+            after.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(after);
+            ok = true;
+          }
+        } catch (e2) { ok = false; }
+      }
+      if (!ok) return;                       // let the browser do its thing
+      ev.preventDefault();
+      el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    });
+
     el.addEventListener('keyup',     function () { rememberFocus(el); });
-    el.addEventListener('mouseup',   function () { rememberFocus(el); });
+    el.addEventListener('mouseup',   function () {
+      /* V3.647 — the click that focused this element re-rendered it out
+       * from under the browser's caret. Re-apply the click point here, once
+       * the default mousedown/mouseup selection handling has finished. */
+      if (pendingPt) { applyCaretPoint(pendingPt); pendingPt = null; }
+      rememberFocus(el);
+    });
     el.addEventListener('input',     function () { rememberFocus(el); }, true);
 
     el.addEventListener('blur', function () {
       // Re-render on blur using the provided renderFn.
+      pendingPt = null;   // V3.647 — never replay a point into a later click
+      clickPt = null;
       var v = yText.toString();
       lastValue = v;
       applyRendered(el, v, renderFn, fireOnRendered);
@@ -6800,7 +7616,7 @@
          * early above.) */
         if (newVal === lastValue) return;
         lastValue = newVal;
-        el.innerHTML = renderChipsOnlyHtml(newVal);
+        el.innerHTML = chipFn(newVal);
         el.dataset.empty = newVal ? 'false' : 'true';
         fireOnRendered();
       } else {
@@ -6825,14 +7641,21 @@
       // contains an equation token. Saves work on prose without any.
       /* V3.344 — `[@` included so numeric citation chips renumber when
        * citations are added/moved elsewhere in the doc. */
-      if (v.indexOf('[!eqi:') === -1 && v.indexOf('[!eqr:') === -1 && v.indexOf('[!fig:') === -1 && v.indexOf('[!tab:') === -1 && v.indexOf('[@') === -1) return;
+      /* V3.645 — `[!val:` added so a value edit repaints chips already
+       * on screen. `[@item:` needs no entry: it is covered by the
+       * `[@` test. Miss this and changing a value looks exactly like
+       * the edit failed to save. */
+      if (v.indexOf('[!eqi:') === -1 && v.indexOf('[!eqr:') === -1 && v.indexOf('[!fig:') === -1 && v.indexOf('[!tab:') === -1 && v.indexOf('[!val:') === -1 && v.indexOf('[@') === -1) return;
       applyRendered(el, v, renderFn, fireOnRendered);
     };
     window.addEventListener('paper-equations-changed', onEquationsChanged);
+    /* V3.645 — the Values page fires its own event; same repaint. */
+    window.addEventListener('paper-values-changed', onEquationsChanged);
 
     return function unbind() {
       yText.unobserve(observer);
       window.removeEventListener('paper-equations-changed', onEquationsChanged);
+      window.removeEventListener('paper-values-changed', onEquationsChanged);
     };
   }
 
@@ -7012,6 +7835,43 @@
     sel.addRange(range);
   }
 
+  /* V3.647 — place a collapsed caret at a viewport point inside `el`.
+   *
+   * Used to re-derive the caret after the focus-time chip-mode re-render
+   * has thrown away the one the browser placed from the click. A point that
+   * resolves inside an atomic chip is nudged to just after it: chips are
+   * contenteditable=false and `readCaretCharOffset` counts them as
+   * `data-src.length` without walking in, so a caret parked inside one
+   * reads back as the wrong source offset. */
+  function setCaretFromPoint(el, x, y) {
+    var range = null;
+    try {
+      if (document.caretRangeFromPoint) {
+        range = document.caretRangeFromPoint(x, y);
+      } else if (document.caretPositionFromPoint) {
+        var pos = document.caretPositionFromPoint(x, y);
+        if (pos && pos.offsetNode) {
+          range = document.createRange();
+          range.setStart(pos.offsetNode, pos.offset);
+        }
+      }
+    } catch (e) { return false; }
+    if (!range || !el.contains(range.startContainer)) return false;
+    range.collapse(true);
+    var node = range.startContainer;
+    var host = (node.nodeType === Node.ELEMENT_NODE) ? node : node.parentElement;
+    var chip = (host && host.closest) ? host.closest('[data-src]') : null;
+    if (chip && chip !== el && el.contains(chip)) {
+      try { range.setStartAfter(chip); range.collapse(true); } catch (e) { return false; }
+    }
+    try {
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (e) { return false; }
+    return true;
+  }
+
   /* Expose the bindings + helpers to PaperBlocks for in-block use. */
   /* V3.107 — rich-text utilities. The paragraph block renders a small
    * toolbar above the body contenteditable; the toolbar's mousedown
@@ -7070,6 +7930,84 @@
       } catch (e3) { /* caret reposition is best-effort */ }
     }
     return true;
+  }
+
+  /* V3.649 — bullet / numbered lists in a paragraph body.
+   *
+   * Unlike bold/italic this is a LINE operation, not a selection wrap: it
+   * takes every line the selection touches, toggles the marker on all of
+   * them, and writes the result back through `replaceParagraphRange` —
+   * which already knows how to map source offsets across atomic chips, so
+   * a line containing a citation survives being turned into a list item.
+   *
+   * Re-applying the same marker strips it, like every other toggle. */
+  function toggleListAtSelection(type) {
+    var PS = window.PaperSchemas;
+    if (!PS || !PS.toggleListLines) return false;
+
+    var el = null;
+    var active = document.activeElement;
+    if (active && active.isContentEditable) el = active;
+    else if (lastFocusedEditable && document.body.contains(lastFocusedEditable)) el = lastFocusedEditable;
+    if (!el) return false;
+
+    var src = serializeChipDom(el);
+    var off = readRangeCharOffsets(el);
+    /* No live selection (the toolbar button was clicked after a blur) —
+     * fall back to the remembered caret so the button still does something
+     * sensible instead of silently no-opping. */
+    var from = off ? off.start : (lastFocusedCaret || 0);
+    var to = off ? off.end : from;
+    if (to < from) { var tmp = from; from = to; to = tmp; }
+
+    /* Grow the range to whole lines. */
+    var lineStart = src.lastIndexOf('\n', Math.max(0, from - 1)) + 1;
+    var nl = src.indexOf('\n', to);
+    var lineEnd = (nl === -1) ? src.length : nl;
+
+    var lines = src.slice(lineStart, lineEnd).split('\n');
+    var next = PS.toggleListLines(lines, type).join('\n');
+    if (next === src.slice(lineStart, lineEnd)) return false;
+
+    replaceParagraphRange(el, lineStart, lineEnd, next);
+    return true;
+  }
+
+  /* Both ends of the current selection as source-space char offsets, or
+   * null when the selection isn't inside `el`. Mirrors
+   * readCaretCharOffset's chip-aware walk for the START container too. */
+  function readRangeCharOffsets(el) {
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return null;
+    var range = sel.getRangeAt(0);
+    if (!el.contains(range.startContainer) || !el.contains(range.endContainer)) return null;
+    function walk(target, targetOff) {
+      var count = 0, done = false;
+      function visit(parent) {
+        for (var i = 0; i < parent.childNodes.length; i++) {
+          if (done) return;
+          var node = parent.childNodes[i];
+          if (node === target && target.nodeType === Node.TEXT_NODE) {
+            count += targetOff; done = true; return;
+          }
+          if (parent === target && i === targetOff) { done = true; return; }
+          if (node.nodeType === Node.TEXT_NODE) {
+            count += node.length;
+          } else if (node.nodeType === Node.ELEMENT_NODE) {
+            if (node.dataset && node.dataset.src) count += node.dataset.src.length;
+            else if (node.tagName === 'BR') count += 1;
+            else visit(node);
+          }
+        }
+        if (parent === target && targetOff === parent.childNodes.length) done = true;
+      }
+      visit(el);
+      return count;
+    }
+    return {
+      start: walk(range.startContainer, range.startOffset),
+      end: walk(range.endContainer, range.endOffset),
+    };
   }
 
   /* Map Cmd/Ctrl+B/I/E to the corresponding markdown wrap. Returns true
@@ -7338,25 +8276,20 @@
    * Walks: paragraph bodies, paragraph skeleton bullet text, figure block
    * bodies (captions), table block attrs.caption Y.Text. Returns a unique
    * sorted array of citation keys. */
-  function getCitedKeysInPaper() {
-    if (!state.paperMap) return [];
+  /* V3.645 — ONE traversal of every prose surface in the paper, shared
+   * by getCitedKeysInPaper and getKeyUsages. Previously this walk was
+   * inlined in getCitedKeysInPaper; a second hand-synced copy is
+   * exactly how a key used in a table caption ends up invisible to the
+   * usage panel while showing up fine in the bibliography.
+   *
+   * cb(text, meta) where meta = {sectionId, sectionLabel, blockId,
+   * kind, field}. `field` distinguishes the several texts a single
+   * block can own (body vs skeleton bullet vs table caption). */
+  function walkProseTexts(cb) {
+    if (!state.paperMap) return;
     var sections = state.paperMap.get('sections');
-    if (!sections || typeof sections.forEach !== 'function') return [];
-    var keys = Object.create(null);
+    if (!sections || typeof sections.forEach !== 'function') return;
 
-    function scanText(text) {
-      if (!text) return;
-      var re = /\[@([^\]\n]+)\]/g;
-      var m;
-      while ((m = re.exec(text))) {
-        m[1].split(/\s*;\s*@?/).forEach(function (k) {
-          /* V3.344 — a leading `*` (narrative citation) is not part of
-           * the key. */
-          k = (k || '').trim().replace(/^\*/, '');
-          if (k && /^[\w:.\-+/]+$/.test(k)) keys[k] = true;
-        });
-      }
-    }
     function yTextStr(y) {
       if (!y) return '';
       if (typeof y === 'string') return y;
@@ -7365,42 +8298,130 @@
     }
 
     sections.forEach(function (secMap) {
-      var children = secMap && secMap.get && secMap.get('children');
+      if (!secMap || typeof secMap.get !== 'function') return;
+      var children = secMap.get('children');
       if (!children || typeof children.forEach !== 'function') return;
+      var secKind = secMap.get('kind');
+      var secLabel = secMap.get('label') ||
+        (window.PaperSchemas.SECTION_KIND_LABELS || {})[secKind] || secKind || '';
+      var secId = secMap.get('id') || '';
+
       children.forEach(function (blk) {
         if (!blk || typeof blk.get !== 'function') return;
         var kind = blk.get('kind');
+        var blockId = blk.get('id') || '';
+        function emit(text, field) {
+          if (text) cb(text, {
+            sectionId: secId, sectionLabel: secLabel,
+            blockId: blockId, kind: kind, field: field,
+          });
+        }
         // body holds the prose for paragraphs / figure captions / subheadings / lists.
         if (kind === 'paragraph' || kind === 'figure' || kind === 'subheading' || kind === 'list') {
-          scanText(yTextStr(blk.get('body')));
+          emit(yTextStr(blk.get('body')), 'body');
         }
         // V3.115 — skeleton bullets carry their own text Y.Texts.
         if (kind === 'paragraph') {
           var skItems = blk.get('skeleton_items');
           if (skItems && typeof skItems.forEach === 'function') {
-            skItems.forEach(function (it) {
+            skItems.forEach(function (it, idx) {
               if (it && typeof it.get === 'function') {
-                scanText(yTextStr(it.get('text')));
+                emit(yTextStr(it.get('text')), 'skeleton:' + idx);
               }
             });
           }
           // Legacy skeleton Y.Text fallback.
           var legacy = blk.get('skeleton');
-          if (legacy) scanText(yTextStr(legacy));
+          if (legacy) emit(yTextStr(legacy), 'skeleton');
         }
         // V3.120 — table caption is now a Y.Text inside attrs.
         if (kind === 'table') {
           var attrs = blk.get('attrs');
           if (attrs && typeof attrs.get === 'function') {
-            scanText(yTextStr(attrs.get('caption')));
+            emit(yTextStr(attrs.get('caption')), 'caption');
           }
         }
       });
     });
+  }
 
+  function getCitedKeysInPaper() {
+    var keys = Object.create(null);
+    walkProseTexts(function (text) {
+      var re = /\[@([^\]\n]+)\]/g;
+      var m;
+      while ((m = re.exec(text))) {
+        /* V3.645 — `[@item:KEY]` is an inventory reference sharing the
+         * citation namespace. Excluded here or it would show up on the
+         * References page and in refs.bib as a phantom entry. */
+        if (isItemToken(m[1])) continue;
+        m[1].split(/\s*;\s*@?/).forEach(function (k) {
+          /* V3.344 — a leading `*` (narrative citation) is not part of
+           * the key. */
+          k = (k || '').trim().replace(/^\*/, '');
+          if (k && /^[\w:.\-+/]+$/.test(k)) keys[k] = true;
+        });
+      }
+    });
     var arr = Object.keys(keys);
     arr.sort();
     return arr;
+  }
+
+  /* V3.645 — expand [start,end) out to the sentence containing it, in
+   * the SOURCE text. Working on source (not rendered) text matters: a
+   * resolved value like "0.5 µm" would otherwise create a false
+   * sentence break at its decimal point. Bails to the whole paragraph
+   * when no clean boundary is found. */
+  function extractSentence(text, start, end) {
+    var lo = 0, hi = text.length;
+    var i;
+    /* Backwards: a boundary is .!? followed by whitespace, where the
+     * next non-space character starts a new sentence (uppercase, digit
+     * or an opening bracket). The uppercase test is what keeps "e.g."
+     * and "Fig." from splitting mid-sentence. */
+    for (i = start - 1; i > 0; i--) {
+      if (text[i] === '\n') { lo = i + 1; break; }
+      if ('.!?'.indexOf(text[i]) >= 0 && /\s/.test(text[i + 1] || ' ')) {
+        var j = i + 1;
+        while (j < text.length && /\s/.test(text[j])) j++;
+        var nxt = text[j];
+        if (nxt && (nxt === nxt.toUpperCase()) && /[A-Za-z0-9[]/.test(nxt)) { lo = j; break; }
+      }
+    }
+    /* Forwards: first .!? followed by whitespace or end of text. */
+    for (i = end; i < text.length; i++) {
+      if (text[i] === '\n') { hi = i; break; }
+      if ('.!?'.indexOf(text[i]) >= 0) {
+        var after = text[i + 1];
+        if (after === undefined || /\s/.test(after)) { hi = i + 1; break; }
+      }
+    }
+    var out = text.slice(lo, hi).trim();
+    return out || text.trim();
+  }
+
+  /* V3.645 — every place each value key is used, for the fold-out
+   * context panel. Returns { key: [ {sectionId, sectionLabel, blockId,
+   * kind, field, offset, token, sentence} ] }. Both namespaces are
+   * collected into one map because they share one table. */
+  function getKeyUsages() {
+    var byKey = Object.create(null);
+    walkProseTexts(function (text, meta) {
+      var re = /\[!val:([A-Za-z0-9][\w-]*)\]|\[@item:([A-Za-z0-9][\w-]*)\]/g;
+      var m;
+      while ((m = re.exec(text))) {
+        var key = m[1] || m[2];
+        if (!key) continue;
+        (byKey[key] || (byKey[key] = [])).push({
+          sectionId: meta.sectionId, sectionLabel: meta.sectionLabel,
+          blockId: meta.blockId, kind: meta.kind, field: meta.field,
+          offset: m.index, token: m[0],
+          sentence: extractSentence(text, m.index, m.index + m[0].length),
+        });
+      }
+    });
+    return byKey;
   }
 
   window.PaperEditor = {
@@ -7408,6 +8429,9 @@
     bindYTextToInput: bindYTextToInput,
     textDiff: textDiff,
     renderParagraphHtml: renderParagraphHtml,
+    renderParagraphBodyHtml: renderParagraphBodyHtml,   // V3.649
+    renderChipsOnlyBodyHtml: renderChipsOnlyBodyHtml,   // V3.650
+    serializeChipDom: serializeChipDom,                 // V3.649 (tests)
     /* V3.159 — chip-mode renderer for focused contenteditables.
      * Used by paper-equations.js's picker-insertion path so a freshly
      * picked citation/equation/figure/table chip appears in the
@@ -7420,6 +8444,7 @@
     openCitationPopover: openCitationPopover,
     wrapSelectionInTokens: wrapSelectionInTokens,
     richTextKeydownHandler: richTextKeydownHandler,
+    toggleListAtSelection: toggleListAtSelection,   // V3.649
     /* V3.109 — equation library / numbering. */
     getInlineEquationLibrary: getInlineEquationLibrary,
     getInlineEquationById: getInlineEquationById,
@@ -7435,6 +8460,17 @@
     getNumberedTableByLabel: getNumberedTableByLabel,
     /* V3.122 — references tab helpers. */
     getCitedKeysInPaper: getCitedKeysInPaper,
+    /* V3.645 — value keys */
+    isItemToken: isItemToken,
+    itemKeyFromToken: itemKeyFromToken,
+    getValueEntries: getValueEntries,
+    getValueByKey: getValueByKey,
+    resolveValueText: resolveValueText,
+    getKeyUsages: getKeyUsages,
+    walkProseTexts: walkProseTexts,
+    addValueEntry: addValueEntry,
+    updateValueEntry: updateValueEntry,
+    deleteValueEntry: deleteValueEntry,
     loadCitationIndex: loadCitationIndex,
     invalidateCitationIndex: invalidateCitationIndex,
     ensureFreshCitationIndex: ensureFreshCitationIndex,   // V3.351
@@ -7482,6 +8518,9 @@
      * button without first having clicked into a paragraph). The
      * PaperEditor tracker is robust — it's updated on keyup/mouseup/
      * input on every contenteditable bound through bindYTextToContentEditable. */
+    /* V3.649 — section cross-reference picker data + label minting. */
+    getSectionRefChoices: getSectionRefChoices,
+    ensureSectionRefLabel: ensureSectionRefLabel,
     getLastFocusedEditable: function () { return lastFocusedEditable; },
     getLastFocusedCaret: function () { return lastFocusedCaret; },
     getCitationList: function () { return state.citationList || []; },
@@ -7541,17 +8580,29 @@
 
   // Re-render visible paragraphs once the citation index loads, so chips
   // get their author/year tooltip + label.
+  //
+  // V3.647 — repaint the chips IN PLACE; do not call render(). render()
+  // tears down and rebuilds every section's DOM, so the paragraph the user
+  // was about to cite into becomes a detached node: `lastFocusedEditable`
+  // and paper-equations' `_state.savedEl` both point at it, the
+  // `document.body.contains()` guard fails, and the next "Insert citation"
+  // either alerts "place the cursor in a paragraph first" or silently goes
+  // nowhere. That is the other half of the reported bug, and it fires
+  // exactly when the user says it does — a just-placed citation is still in
+  // key form precisely because the index hasn't loaded, so the load that
+  // converts it to its short number form is the same load that used to
+  // rebuild the document underneath them.
+  //
+  // Every binding already knows how to repaint itself for a changed
+  // citation index (the `paper-equations-changed` listener re-renders any
+  // source containing `[@`, and skips elements that are focused), so the
+  // broadcast does the visible work without touching the DOM the caret
+  // lives in.
   window.addEventListener('paper-citations-loaded', function () {
-    document.querySelectorAll('.pe-block-content[data-kind="paragraph-body"]').forEach(function () {
-      // The Y.Text observers are the cleanest way; just dispatch a no-op
-      // event the binding recognises.
-    });
-    // Simpler: trigger render() if no paragraph is focused.
-    if (document.activeElement && document.activeElement.classList &&
-        document.activeElement.classList.contains('pe-block-content')) {
-      return;
-    }
-    if (state.sectionsArr) render();
+    try {
+      window.dispatchEvent(new CustomEvent('paper-equations-changed'));
+      window.dispatchEvent(new CustomEvent('paper-panel-changed'));
+    } catch (e) { /* ignore */ }
   });
 
   /* ── V3.235 — Mobile side drawers ──

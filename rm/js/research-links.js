@@ -59,6 +59,8 @@
     var links = JSON.parse(JSON.stringify(f.links || {}));
     links.specialty_ids = links.specialty_ids || [];
     links.concept_ids = links.concept_ids || [];
+    links.grant_ids = links.grant_ids || [];
+    links.aim_ids = links.aim_ids || [];
     links.draft_refs = links.draft_refs || [];
     links.patents = links.patents || [];
     links.training_slugs = links.training_slugs || [];
@@ -66,15 +68,22 @@
     var memberRoles = Object.assign({}, f.member_roles || {});
 
     function crossOptions() {
-      // specialties always selectable; concepts too for output cards.
-      var pools = [{ label: 'Specialties', level: 'specialty', arr: links.specialty_ids }];
-      if (f.level === 'output') pools.push({ label: 'Concepts', level: 'concept', arr: links.concept_ids });
+      /* V3.717 — the pools come from RD.PARENTS, so this modal follows the
+       * chain (concept→specialty, grant→concept, aim→grant, output→aim)
+       * without knowing it. The trailing legacy parents on aim/output are
+       * how a pre-V3.717 card linked straight to a concept stays editable. */
+      var pools = (RD.PARENTS[f.level] || []).map(function (lvl) {
+        var key = RD.LINK_KEY[lvl];
+        links[key] = links[key] || [];
+        return { label: RD.LEVELS[lvl].plural, level: lvl, arr: links[key] };
+      });
+      if (!pools.length) return '<p class="rf-empty-sm">A specialty is the root of the map — it builds on nothing.</p>';
       return pools.map(function (pool) {
         var opts = allFoci.filter(function (x) { return x.level === pool.level && x.id !== f.id; });
         return '<div class="rf-linkgroup"><h4>' + pool.label + '</h4>' +
           (opts.length ? opts.map(function (o) {
             var on = pool.arr.indexOf(o.id) !== -1;
-            return '<label class="rf-check"><input type="checkbox" data-cross="' + pool.level + '" value="' + esc(o.id) + '"' + (on ? ' checked' : '') + '> ' + esc(o.icon || '') + ' ' + esc(o.title) + '</label>';
+            return '<label class="rf-check"><input type="checkbox" data-cross="' + pool.level + '" value="' + esc(o.id) + '"' + (on ? ' checked' : '') + '> ' + ICON.render(o.icon || '') + ' ' + esc(o.title) + '</label>';
           }).join('') : '<p class="rf-empty-sm">None yet.</p>') + '</div>';
       }).join('');
     }
@@ -85,14 +94,14 @@
       return entries.length ? entries.map(function (d) {
         var on = linkedIds.indexOf(d.id) !== -1;
         return '<label class="rf-check"><input type="checkbox" data-draft="' + esc(d.id) + '" data-kind="' + esc(d.kind) + '" data-title="' + esc(d.title) + '"' + (on ? ' checked' : '') + '> ' +
-          (d.kind === 'grant' ? '📑 ' : '📝 ') + esc(d.title) + ' <span class="rf-mini-status">' + esc(d.status || '') + '</span></label>';
+          ICON.svg(d.kind === 'grant' ? 'bookmark-square' : 'pencil-square') + ' ' + esc(d.title) + ' <span class="rf-mini-status">' + esc(d.status || '') + '</span></label>';
       }).join('') : '<p class="rf-empty-sm">No paper or grant drafts found.</p>';
     }
     function patentRows() {
       return links.patents.map(function (p, i) {
-        return '<div class="rf-patent-row" data-patent-i="' + i + '">⚖️ ' + esc(p.title || '') +
+        return '<div class="rf-patent-row" data-patent-i="' + i + '">' + ICON.svg('scale') + ' ' + esc(p.title || '') +
           (p.number ? ' · ' + esc(p.number) : '') + (p.status ? ' · ' + esc(p.status) : '') +
-          ' <button type="button" class="rf-btn-danger rf-btn-xs" data-patent-rm="' + i + '">✕</button></div>';
+          ' <button type="button" class="rf-btn-danger rf-btn-xs" data-patent-rm="' + i + '">' + ICON.svg('x-mark') + '</button></div>';
       }).join('');
     }
     function themeOptions() {
@@ -105,7 +114,7 @@
       var all = TRAINING_SLUGS.slice();
       links.training_slugs.forEach(function (s) { if (all.indexOf(s) === -1) all.push(s); });
       return all.map(function (s) {
-        return '<label class="rf-check"><input type="checkbox" data-training="' + esc(s) + '"' + (set[s] ? ' checked' : '') + '> 🎓 ' + esc(s) + '</label>';
+        return '<label class="rf-check"><input type="checkbox" data-training="' + esc(s) + '"' + (set[s] ? ' checked' : '') + '> ' + ICON.svg('academic-cap') + ' ' + esc(s) + '</label>';
       }).join('');
     }
     function peopleRows() {
@@ -122,7 +131,7 @@
         '<h4>Patents</h4><div data-patents>' + patentRows() + '</div>' +
         '<div class="rf-patent-add"><input type="text" data-pt-title placeholder="Patent title"><input type="text" data-pt-number placeholder="Number"><input type="text" data-pt-status placeholder="status"><button type="button" class="rf-btn rf-btn-xs" data-pt-add>＋ Add patent</button></div>' +
       '</section>' +
-      '<section class="rf-link-sec" data-sec="theme"><h3>Lab Theme</h3>' + themeOptions() + '</section>' +
+      '<section class="rf-link-sec" data-sec="theme"><h3>Topic</h3>' + themeOptions() + '</section>' +
       '<section class="rf-link-sec" data-sec="trainings"><h3>Trainings</h3>' + trainingRows() + '</section>' +
       '<section class="rf-link-sec" data-sec="people"><h3>Attached students</h3>' + peopleRows() + '</section>' +
       '<div class="rf-modal-actions"><span class="rf-modal-err" hidden></span>' +
@@ -151,9 +160,12 @@
     });
 
     function collect() {
-      links.specialty_ids = []; links.concept_ids = [];
+      // Clear only the pools this card actually offers, so a level the modal
+      // never rendered can't be silently emptied.
+      (RD.PARENTS[f.level] || []).forEach(function (lvl) { links[RD.LINK_KEY[lvl]] = []; });
       m.body.querySelectorAll('[data-cross]:checked').forEach(function (c) {
-        (c.getAttribute('data-cross') === 'specialty' ? links.specialty_ids : links.concept_ids).push(c.value);
+        var key = RD.LINK_KEY[c.getAttribute('data-cross')];
+        if (key) links[key].push(c.value);
       });
       links.draft_refs = [];
       m.body.querySelectorAll('[data-draft]:checked').forEach(function (c) {
@@ -195,7 +207,9 @@
    * established "output points up" direction). parent may be null (hub
    * "⤵ Existing" button): then checking just materializes cards. */
   async function openOutputLinker(parent, allFoci, onDone) {
-    var key = parent ? (parent.level === 'specialty' ? 'specialty_ids' : 'concept_ids') : null;
+    // V3.717 — the link key is the PARENT's own level (an output under an
+    // aim writes links.aim_ids), so this works for every level in the chain.
+    var key = parent ? RD.LINK_KEY[parent.level] : null;
     var m = RD.modal({ title: parent ? 'Outputs — ' + parent.title : 'Add existing outputs' });
     m.body.innerHTML = '<p class="rf-empty-sm">Loading papers…</p>';
 
@@ -209,8 +223,9 @@
     // Authored cards (patents, planned outputs) have no backing draft.
     var authored = outputs.filter(function (o) { return !o.source_draft_id; });
 
-    // V3.558 — outputs are papers/patents; grants live within concepts
-    // (linked there via openGrantLinker), so they don't appear here.
+    // Outputs are papers and patents. Grant drafts attach to a GRANT card
+    // (openGrantLinker) — V3.558 put them on concepts, V3.717 moved them to
+    // the grant level — so they don't appear here either way.
     var drafts = Array.from(draftMap.values())
       .filter(function (d) { return d.kind !== 'grant'; })
       .sort(function (a, b) { return (a.title || '').localeCompare(b.title || ''); });
@@ -229,7 +244,7 @@
             var on = parent ? linkedToParent(card) : !!card;
             var dis = (!parent && card) ? ' disabled' : '';
             return '<label class="rf-check"><input type="checkbox" data-draft-out="' + esc(d.id) + '" data-kind="' + esc(d.kind) + '" data-title="' + esc(d.title) + '"' + (on ? ' checked' : '') + dis + '> ' +
-              (d.kind === 'grant' ? '📑 ' : '📝 ') + esc(d.title) +
+              ICON.svg(d.kind === 'grant' ? 'bookmark-square' : 'pencil-square') + ' ' + esc(d.title) +
               ' <span class="rf-mini-status">' + esc(d.status || '') + (!parent && card ? ' · already a card' : '') + '</span></label>';
           }).join('') + '</div>'
         : '<p class="rf-empty-sm">No papers found yet.</p>') +
@@ -237,7 +252,7 @@
         ? '<h4 class="rf-link-h4">Other output cards (patents / planned)</h4>' +
           '<div class="rf-check-list">' + authored.map(function (o) {
             return '<label class="rf-check"><input type="checkbox" data-card-out="' + esc(o.id) + '"' + (linkedToParent(o) ? ' checked' : '') + '> ' +
-              esc(o.icon || '') + ' ' + esc(o.title) + '</label>';
+              ICON.render(o.icon || '') + ' ' + esc(o.title) + '</label>';
           }).join('') + '</div>'
         : '') +
       '<div class="rf-modal-actions"><span class="rf-modal-err" hidden></span>' +
@@ -322,12 +337,14 @@
     }
   }
 
-  /* V3.558 — link an existing GRANT draft to a concept (grants live within
-   * concepts). Writes the concept's own links.draft_refs (kind 'grant');
-   * status renders live via the resolver. The one-grant-per-concept soft
-   * warning happens in the caller (research.js). */
+  /* V3.717 — attach the builder GRANT DRAFT that this grant card represents.
+   * (V3.558 put grant drafts on concepts; grants are their own level now.)
+   * Writes the card's links.draft_refs (kind 'grant') AND source_draft_id,
+   * so the card and its draft share an identity — but NOT its status: a
+   * grant's status is manual, set on the card, always (research.js
+   * effStatus). The draft's own status renders beside it as a muted pill. */
   async function openGrantLinker(concept, onDone) {
-    var m = RD.modal({ title: 'Link a grant — ' + concept.title });
+    var m = RD.modal({ title: 'Link a grant draft — ' + concept.title });
     m.body.innerHTML = '<p class="rf-empty-sm">Loading grants…</p>';
     var draftMap = new Map();
     if (window.LIBRARY_ASSOC && LIBRARY_ASSOC.loadDraftInfo) {
@@ -344,10 +361,10 @@
       (grants.length
         ? '<div class="rf-check-list">' + grants.map(function (d) {
             return '<label class="rf-check"><input type="checkbox" data-grant="' + esc(d.id) + '" data-title="' + esc(d.title) + '"' +
-              (linked.indexOf(d.id) !== -1 ? ' checked' : '') + '> 📑 ' + esc(d.title) +
+              (linked.indexOf(d.id) !== -1 ? ' checked' : '') + '> ' + ICON.svg('bookmark-square') + ' ' + esc(d.title) +
               ' <span class="rf-mini-status">' + esc(d.status || '') + '</span></label>';
           }).join('') + '</div>'
-        : '<p class="rf-empty-sm">No grant drafts found — capture a 💡 grant idea and promote it instead.</p>') +
+        : '<p class="rf-empty-sm">No grant drafts found — fill in this grant’s details and use “Promote to grant draft” instead.</p>') +
       '<div class="rf-modal-actions"><span class="rf-modal-err" hidden></span>' +
         '<button type="button" class="rf-btn" data-act="cancel">Cancel</button>' +
         (grants.length ? '<button type="button" class="rf-btn rf-btn-primary" data-act="save">Save</button>' : '') +
@@ -367,9 +384,13 @@
           keepIds.push(cb.getAttribute('data-grant'));
           refs.push({ id: cb.getAttribute('data-grant'), title: cb.getAttribute('data-title'), kind: 'grant' });
         });
-        await RD.update(concept.id, { 'links.draft_refs': refs });
+        var patch = { 'links.draft_refs': refs };
+        // The FIRST linked draft is the one this card represents; clearing
+        // them all detaches. Status is untouched either way — manual, always.
+        if (concept.level === 'grant') patch.source_draft_id = keepIds[0] || null;
+        await RD.update(concept.id, patch);
         m.close();
-        toast('success', keepIds.length ? 'Grant linked.' : 'Grant links updated.');
+        toast('success', keepIds.length ? 'Grant draft linked.' : 'Grant draft links updated.');
         if (onDone) onDone();
       } catch (err) {
         var el = m.body.querySelector('.rf-modal-err'); if (el) { el.textContent = err && err.message; el.hidden = false; }

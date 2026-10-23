@@ -21,7 +21,7 @@
 
   function log(msg, level) {
     var ts = new Date().toLocaleTimeString();
-    var prefix = level === 'err' ? '❌ ' : level === 'ok' ? '✅ ' : '   ';
+    var prefix = level === 'err' ? '✕ ' : level === 'ok' ? '✓ ' : '  ';
     if ($log) $log.textContent = prefix + '[' + ts + '] ' + msg + '\n' + $log.textContent;
   }
   function status(msg) { if ($status) $status.textContent = msg; }

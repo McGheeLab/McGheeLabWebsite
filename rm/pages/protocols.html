@@ -8,7 +8,9 @@
   <link rel="stylesheet" href="/rm/css/style.css">
   <link rel="stylesheet" href="/rm/css/activity-signals.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
   <link rel="stylesheet" href="/rm/css/paper-editor.css">
+  <link rel="stylesheet" href="/rm/css/inventory-picker.css">
   <link rel="stylesheet" href="/rm/css/protocol-editor.css">
   <link rel="stylesheet" href="/rm/css/protocol-doc.css">
   <link rel="stylesheet" href="/rm/css/protocol-cheat.css">
@@ -57,8 +59,8 @@
     <div class="page-header">
       <h1 class="page-title">Protocols</h1>
       <div class="pr-list-actions">
-        <button class="btn" id="pr-demos-btn" title="Load a guided demo that teaches the node workflow">🎓 Demos</button>
-        <button class="btn" id="pr-import-btn" title="Import a Claude-converted protocol JSON file">📥 Import protocol</button>
+        <button class="btn" id="pr-demos-btn" title="Load a guided demo that teaches the node workflow"><i data-hi="academic-cap"></i> Demos</button>
+        <button class="btn" id="pr-import-btn" title="Import a Claude-converted protocol JSON file"><i data-hi="arrow-down-tray"></i> Import protocol</button>
         <button class="btn btn-primary" id="pr-new-btn">+ New protocol</button>
       </div>
     </div>
@@ -146,7 +148,7 @@
         <div class="pb-modal-error" id="pr-demo-error" hidden></div>
       </div>
       <div class="pb-modal-actions">
-        <button class="btn pr-demo-clean" id="pr-demo-clean" hidden>🗑 Remove my demo copies</button>
+        <button class="btn pr-demo-clean" id="pr-demo-clean" hidden><i data-hi="trash"></i> Remove my demo copies</button>
         <button class="btn" id="pr-demo-cancel">Close</button>
       </div>
     </div>
@@ -197,14 +199,14 @@
         <div class="pre-fork-lineage" id="pre-fork-lineage" hidden></div>
       </div>
       <div class="pre-topbar-actions">
-        <a class="btn pre-action-btn" id="pre-docview-btn" href="#" title="Read-only document view — print / export to PDF from there">📄 Doc view</a>
-        <button class="btn pre-action-btn" id="pre-save-version-btn" disabled title="Save a named version snapshot">💾 Save version</button>
+        <a class="btn pre-action-btn" id="pre-docview-btn" href="#" title="Read-only document view — print / export to PDF from there"><i data-hi="document-text"></i> Doc view</a>
+        <button class="btn pre-action-btn" id="pre-save-version-btn" disabled title="Save a named version snapshot"><i data-hi="save"></i> Save version</button>
         <div class="pre-versions-wrap">
-          <button class="btn pre-action-btn" id="pre-versions-btn" disabled title="Browse version history">📜 Versions <span id="pre-versions-count" class="pre-versions-count"></span></button>
+          <button class="btn pre-action-btn" id="pre-versions-btn" disabled title="Browse version history"><i data-hi="document"></i> Versions <span id="pre-versions-count" class="pre-versions-count"></span></button>
           <div class="pre-versions-dropdown" id="pre-versions-dropdown" hidden></div>
         </div>
-        <button class="btn pre-action-btn" id="pre-fork-btn" disabled title="Fork this protocol into a copy you own">🍴 Fork</button>
-        <button class="btn pre-action-btn" id="pre-match-inv-btn" disabled title="Walk unlinked materials rows and link to lab inventory">🔁 Match inventory</button>
+        <button class="btn pre-action-btn" id="pre-fork-btn" disabled title="Fork this protocol into a copy you own"><i data-hi="git-fork"></i> Fork</button>
+        <button class="btn pre-action-btn" id="pre-match-inv-btn" disabled title="Walk unlinked materials rows and link to lab inventory"><i data-hi="arrow-path-rounded-square"></i> Match inventory</button>
         <button class="btn pre-action-btn pre-action-migrate" id="pre-migrate-btn" hidden title="Sever the fork-of relationship">Migrate to standalone</button>
       </div>
       <div class="pe-savestate" id="pre-savestate"></div>
@@ -344,7 +346,7 @@
   <div class="pr-doc-mode prd-shell" id="prd-shell">
     <div class="prd-toolbar" id="prd-toolbar">
       <a class="btn pre-action-btn" id="prd-back" href="#">← Back to editor</a>
-      <button class="btn btn-primary pre-action-btn" id="prd-print">🖨 Print / PDF</button>
+      <button class="btn btn-primary pre-action-btn" id="prd-print"><i data-hi="printer"></i> Print / PDF</button>
     </div>
     <div class="prd-status" id="prd-status">Loading…</div>
     <article class="prd-doc" id="prd-doc" hidden></article>
@@ -354,8 +356,8 @@
   <div class="pr-cheat-mode prc-shell" id="prc-shell">
     <div class="prc-toolbar" id="prc-toolbar">
       <a class="btn pre-action-btn" id="prc-back" href="#">← Back to editor</a>
-      <a class="btn pre-action-btn" id="prc-fulldoc" href="#" title="Open the full read-only document view">📄 Full document</a>
-      <button class="btn btn-primary pre-action-btn" id="prc-print">🖨 Print / PDF</button>
+      <a class="btn pre-action-btn" id="prc-fulldoc" href="#" title="Open the full read-only document view"><i data-hi="document-text"></i> Full document</a>
+      <button class="btn btn-primary pre-action-btn" id="prc-print"><i data-hi="printer"></i> Print / PDF</button>
     </div>
     <div class="prc-status" id="prc-status">Loading…</div>
     <article class="prd-doc prc-doc" id="prc-doc" hidden></article>

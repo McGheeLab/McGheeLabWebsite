@@ -33,9 +33,9 @@
  */
 (function () {
   const KIND_META = {
-    offer:   { chip: 'offer',   label: 'offer',   icon: '📋' },
-    request: { chip: 'request', label: 'request', icon: '🙋' },
-    handoff: { chip: 'handoff', label: 'handoff', icon: '🤝' },
+    offer:   { chip: 'offer',   label: 'offer',   icon: 'clipboard-document-list' },
+    request: { chip: 'request', label: 'request', icon: 'hand-raised' },
+    handoff: { chip: 'handoff', label: 'handoff', icon: 'user-group' },
   };
   const TERMINAL = ['completed', 'withdrawn', 'declined'];
 
@@ -216,20 +216,20 @@
     const btns = [];
     if (post.status === 'open') {
       if (post.targetUid === me) {
-        btns.push('<button class="tm-btn primary" data-act="accept" data-id="' + esc(post.id) + '">✓ Accept</button>');
-        btns.push('<button class="tm-btn" data-act="decline" data-id="' + esc(post.id) + '">✗ Decline</button>');
+        btns.push('<button class="tm-btn primary" data-act="accept" data-id="' + esc(post.id) + '">' + ICON.svg('check') + ' Accept</button>');
+        btns.push('<button class="tm-btn" data-act="decline" data-id="' + esc(post.id) + '">' + ICON.svg('x-mark') + ' Decline</button>');
       } else if (!mine && !post.targetUid) {
         btns.push('<button class="tm-btn primary" data-act="claim" data-id="' + esc(post.id) + '">' +
-          (post.kind === 'request' ? '🙋 I’ll handle this' : '✋ Claim') + '</button>');
+          (post.kind === 'request' ? ICON.svg('hand-raised') + ' I’ll handle this' : ICON.svg('hand') + ' Claim') + '</button>');
       }
       if (mine) {
         btns.push('<button class="tm-btn" data-act="withdraw" data-id="' + esc(post.id) + '">Withdraw</button>');
       }
     } else if ((post.status === 'claimed' || post.status === 'accepted') && mine) {
-      btns.push('<button class="tm-btn primary" data-act="complete" data-id="' + esc(post.id) + '">✓ Complete</button>');
+      btns.push('<button class="tm-btn primary" data-act="complete" data-id="' + esc(post.id) + '">' + ICON.svg('check') + ' Complete</button>');
     }
     if (mine || state.isAdmin) {
-      btns.push('<button class="tm-btn danger" data-act="delete" data-id="' + esc(post.id) + '" title="Delete post">🗑</button>');
+      btns.push('<button class="tm-btn danger" data-act="delete" data-id="' + esc(post.id) + '" title="Delete post">' + ICON.svg('trash') + '</button>');
     }
     return btns.join('');
   }
@@ -251,7 +251,7 @@
     return (
       '<div class="tm-card" data-id="' + esc(post.id) + '">' +
         '<div class="tm-card-head">' +
-          '<span class="tm-chip ' + meta.chip + '">' + meta.icon + ' ' + meta.label + '</span>' +
+          '<span class="tm-chip ' + meta.chip + '">' + ICON.render(meta.icon) + ' ' + meta.label + '</span>' +
           statusChip +
           (due ? '<span class="tm-due">due ' + esc(due) + '</span>' : '') +
         '</div>' +
@@ -398,7 +398,7 @@
   function renderAssignmentRow(t) {
     const isPaper = !!(t.paper_ref && t.paper_ref.paperId);
     const kindChip = isPaper
-      ? '<span class="tm-chip handoff">📄 ' + (t.paper_ref.kind === 'suggested' ? 'suggested' : 'paper') + '</span>'
+      ? '<span class="tm-chip handoff">' + ICON.svg('document-text') + ' ' + (t.paper_ref.kind === 'suggested' ? 'suggested' : 'paper') + '</span>'
       : '<span class="tm-chip offer">task</span>';
     const fromName = t.createdByName || memberLabel(t.createdByUid);
     const toName = t.assignedToName || memberLabel(t._userDocId || t.assignedToUid);
@@ -493,9 +493,9 @@
         '<form class="tm-form">' +
           '<label>Kind' +
             '<select class="tmf-kind">' +
-              '<option value="offer">📋 Offer — post a task anyone can claim</option>' +
-              '<option value="request">🙋 Request — I need something to do</option>' +
-              '<option value="handoff">🤝 Handoff — ask a teammate for help / take-over</option>' +
+              '<option value="offer">Offer — post a task anyone can claim</option>' +
+              '<option value="request">Request — I need something to do</option>' +
+              '<option value="handoff">Handoff — ask a teammate for help / take-over</option>' +
             '</select>' +
           '</label>' +
           '<label class="tmf-target-wrap" hidden>Directed to' +

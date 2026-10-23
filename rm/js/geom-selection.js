@@ -56,6 +56,11 @@
   let _armed = false;       // V3.613 — touch highlight mode (🖍)
 
   function _pageOfNode(el) {
+    // V3.620 — the create popover is a CHILD of the page wrap (it has to
+    // scroll with the selection), so pointer events inside it must never
+    // read as "on the page": a textarea drag would otherwise start a new
+    // selection gesture and destroy the popover mid-typing.
+    if (el && el.closest && el.closest('.ann-popover')) return null;
     while (el && (!el.classList || !el.classList.contains('pv-page-wrap'))) {
       el = el.parentElement;
     }
@@ -101,6 +106,18 @@
     const lo = Math.min(aIdx, bIdx);
     const hi = Math.max(aIdx, bIdx);
     return items.slice(lo, hi + 1);
+  }
+
+  /* V3.621 — saved_scale's contract is "the zoom these rects are in". The
+   * rects come from text items measured at the page's LAST RENDER
+   * (node.itemsZoom), but pdf-viewer.setZoom flips viewer.zoom BEFORE its
+   * sequential page re-renders — a drag in that window used to stamp the
+   * NEW zoom onto OLD-zoom rects, producing a permanently mis-scaled
+   * highlight. Stamp the measurement zoom instead; anchorToRects then
+   * rescales correctly at any future zoom. */
+  function _scaleForPage(p) {
+    const node = _viewer.getPageNode && _viewer.getPageNode(p);
+    return (node && node.itemsZoom != null) ? node.itemsZoom : _viewer.zoom;
   }
 
   /** Build per-page anchors for the current drag state. */
@@ -190,7 +207,7 @@
           textPosition: { start: lo, end: hi },
         },
         rects,
-        saved_scale: _viewer.zoom,
+        saved_scale: _scaleForPage(p),
       });
     }
     return anchors;
@@ -336,7 +353,10 @@
       _state.anchors = (r.width < 3 || r.height < 3) ? [] : [{
         page: _state.startPage,
         rects: [r],
-        saved_scale: _viewer.zoom,
+        // V3.621 — marquee rects are measured against the wrap's CURRENT
+        // rendered size, which is the last-render zoom (itemsZoom), not
+        // necessarily viewer.zoom mid-transition.
+        saved_scale: _scaleForPage(_state.startPage),
         marquee: true,
       }];
       _renderPreview(_state.anchors);
@@ -614,6 +634,16 @@
     _clearAllSelLayers();
   }
 
+  /* V3.620 — clear ONLY a committed selection. Safe to call from document
+   * mousedown handlers: pointer events fire first, so a mousedown that
+   * begins a new gesture has already reset _hasCommitted to false in
+   * _beginGesture — this no-ops and the fresh drag survives. A bare
+   * clear() there would null the in-flight _state and kill the drag. */
+  function clearCommitted() {
+    if (!_hasCommitted) return;
+    clear();
+  }
+
   function selectedAnchors() { return (_state && _state.anchors) || []; }
 
   function selectedText() {
@@ -662,7 +692,7 @@
   function isArmed() { return _armed; }
 
   window.GEOM_SELECTION = {
-    init, clear, selectedText, selectedAnchors,
+    init, clear, clearCommitted, selectedText, selectedAnchors,
     setMarquee, isMarquee, setArmed, isArmed, destroy,
   };
 })();

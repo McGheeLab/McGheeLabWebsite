@@ -6,9 +6,11 @@
   <title>Specific Heat — Holding the Jiggle — Heat Transfer Foundations</title>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
   <style>
-    /* ===== house CSS — Solid Mechanics Foundations ===== */
+    /* ===== house CSS — Heat Transfer Foundations (outreach house style) ===== */
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    /* One-glyph alias: most system fonts lack U+221D (∝) and fall back to a near-invisible glyph. */
+    @font-face{font-family:'PropSign';src:local('STIX Two Math Regular'),local('STIXTwoMath-Regular'),local('STIXGeneral-Regular'),local('Cambria Math'),local('CambriaMath'),local('Noto Sans Math Regular'),local('NotoSansMath-Regular'),local('Segoe UI Symbol'),local('SegoeUISymbol'),local('DejaVu Sans'),local('Menlo Regular'),local('Menlo-Regular');unicode-range:U+221D}
+    body{font-family:PropSign,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
       background:#f4f6fa;color:#1e293b;line-height:1.6}
     header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
     header h1{font-size:1.6rem;letter-spacing:.01em}
@@ -37,6 +39,17 @@
     .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
       font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
     .key-takeaways ul{margin-left:20px}
+    .plain{background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #0d9488;border-radius:6px;
+      padding:10px 14px;margin:12px 0}
+    .plain::before{content:"In plain words";display:block;font-weight:700;color:#0f766e;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+    ul.letters{margin:6px 0 12px 22px;font-size:.92rem;color:#334155}
+    ul.letters li{margin:3px 0}
+    ul.letters b{color:#1e3a5f}
+    .later{font-size:.88rem;color:#64748b;border-left:3px solid #cbd5e1;padding:2px 0 2px 10px;margin:10px 0}
+    .worked-example ol{margin:6px 0 4px 22px}
+    .worked-example li{margin:4px 0}
+    .worked-example p{margin:4px 0}
     .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
       padding:12px 16px;margin:14px 0}
     .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
@@ -108,42 +121,48 @@
     <h2>Background: same burner, different block — who heats up first?</h2>
     <p>Lesson 1's punchline: <b>temperature is jiggle</b> — the random vibration of atoms. A
     burner is just a machine that pours jiggle into whatever sits on it, at a steady rate we
-    call <b>power</b>, \(P\), measured in watts (1&nbsp;W = 1 joule of energy per second).
-    Put two identical blocks on two identical burners and every second each block swallows
-    exactly the same number of joules.</p>
+    call <b>power</b>, measured in watts (1&nbsp;W = 1 joule of energy per second). Put two
+    identical blocks on two identical burners and every second each block swallows exactly the
+    same number of joules.</p>
     <p>So they heat up together, right? No — and that's the whole lesson. Materials differ
     wildly in how many joules it takes to push 1&nbsp;kilogram up by 1&nbsp;degree. That number
-    is the <b>specific heat</b>, \(c\), in joules per kilogram per kelvin (a step of 1&nbsp;K is
-    the same size as a step of 1&nbsp;°C). Real values: water <b>4186</b>, air <b>≈1005</b>
-    (per kilogram — though a kilogram of air fills a whole bedroom), aluminum <b>897</b>,
-    dry sand <b>≈830</b>, copper <b>385</b>&nbsp;J/kg·K. Water needs almost eleven times more
-    energy per degree than copper — it is a <b>heat sponge</b>.</p>
-    <div class="equation-box">
-      $$ \frac{dT}{dt} \;=\; \frac{P}{m\,c} $$
+    is the <b>specific heat</b>. Real values, in joules per kilogram per degree: water
+    <b>4186</b>, air <b>≈1005</b>, aluminum <b>897</b>, dry sand <b>≈830</b>, copper
+    <b>385</b>. Water needs almost eleven times more energy per degree than copper — it is a
+    <b>heat sponge</b>.</p>
+    <div class="plain">
+      How fast the temperature climbs = <b>power in ÷ (mass × specific heat)</b>. A bigger burner
+      → a faster climb. A bigger block, or a spongier material → a slower climb.
     </div>
-    <p>Read it like a sentence: the rate the temperature \(T\) climbs with time \(t\) equals the
-    power \(P\) coming in, divided by the mass \(m\) (kg) times the specific heat \(c\). Bigger
-    burner → faster climb. Bigger block, or spongier material → slower climb. That's the beach:
-    the sun delivers roughly the same power to every square meter, but dry sand
-    (\(c \approx 830\)) climbs about five times faster per kilogram than sea water
-    (\(c \approx 4186\)) — and only a thin top layer of sand takes the hit, while the ocean
-    stirs its heat downward. Burnt feet, cool waves.</p>
+    <div class="equation-box">
+      $$ \text{climb rate} \;=\; \frac{P}{m\,c} $$
+    </div>
+    <ul class="letters">
+      <li><b>climb rate</b> — how many degrees the temperature rises each second (K/s). The stats show it per minute.</li>
+      <li><b>P</b> — the burner's power, in watts (joules per second).</li>
+      <li><b>m</b> — the block's mass, in kilograms.</li>
+      <li><b>c</b> — the specific heat, in J/kg·K: the price, in joules, of one degree for one kilogram. (A step of 1&nbsp;K is the same size as 1&nbsp;°C.)</li>
+      <li>The product <b>mc</b> acts as one number — the block's "thermal mass", the joules it takes to warm the whole block by one degree.</li>
+    </ul>
+    <p>That's the beach: the sun delivers roughly the same power to every square meter, but dry
+    sand (c ≈ 830) climbs about five times faster per kilogram than sea water (c ≈ 4186) — and
+    only a thin top layer of sand takes the hit, while the ocean stirs its heat downward. Burnt
+    feet, cool waves.</p>
+    <p class="later">In calculus notation the climb rate is written dT/dt — "the change in T per
+    change in t". Tab 3 uses it to draw the whole heating curve.</p>
     <div class="worked-example">
-      <p>Put a 1000&nbsp;W burner under 1&nbsp;kg of copper:
-      \(dT/dt = 1000/(1 \times 385) \approx 2.6\ \text{°C/s}\) — a 40&nbsp;°C rise in about
-      15&nbsp;seconds. The same burner under 1&nbsp;kg of water:
-      \(1000/(1 \times 4186) \approx 0.24\ \text{°C/s}\), so the same 40&nbsp;°C rise takes
-      about 167&nbsp;seconds. The ratio is exactly the ratio of the specific heats:
-      \(4186/385 \approx 10.9\). Same energy in — copper just has nowhere spongy to put it,
-      so its temperature shoots up.</p>
+      <p>Put a 1000&nbsp;W burner under 1&nbsp;kg of copper, then under 1&nbsp;kg of water.</p>
+      <ol>
+        <li><b>Copper:</b> climb rate = 1000 ÷ (1 × 385) = 1000 ÷ 385 ≈ <b>2.6 degrees per second</b>. A 40-degree rise takes 40 ÷ 2.6 ≈ 15&nbsp;seconds.</li>
+        <li><b>Water:</b> climb rate = 1000 ÷ (1 × 4186) ≈ <b>0.24 degrees per second</b>. The same 40-degree rise takes 40 ÷ 0.24 ≈ 167&nbsp;seconds.</li>
+        <li><b>The ratio</b> is exactly the ratio of the specific heats: 4186 ÷ 385 ≈ 10.9. Same energy in — copper just has nowhere spongy to put it, so its temperature shoots up.</li>
+      </ol>
     </div>
     <div class="key-takeaways">
       <ul>
-        <li>Specific heat \(c\) = joules needed to raise 1&nbsp;kg of a material by 1&nbsp;K.</li>
-        <li>Under steady power, temperature climbs at \(P/(mc)\) — the product \(mc\) acts as
-        one number, the object's "thermal mass."</li>
-        <li>Water (4186&nbsp;J/kg·K) is the everyday champion sponge; metals like copper (385)
-        heat up ~10× faster per kilogram.</li>
+        <li>Specific heat c = joules needed to raise 1&nbsp;kg of a material by 1 degree.</li>
+        <li>Under steady power the temperature climbs at P ÷ (mc): the thermal mass mc decides the pace.</li>
+        <li>Water (4186 J/kg·K) is the everyday champion sponge; metals like copper (385) heat up ~10× faster per kilogram.</li>
         <li>The burning beach is specific heat in action: dry sand ≈ 830 vs water ≈ 4186.</li>
       </ul>
     </div>
@@ -186,7 +205,7 @@
     <div class="viz">
       <div class="canvas-wrap">
         <div class="canvas-title">The race: same power into each block — first thermometer to the 60 °C line wins</div>
-        <canvas id="cv-hold" width="640" height="320"></canvas>
+        <canvas id="cv-hold" width="640" height="270"></canvas>
       </div>
       <div class="canvas-wrap">
         <div class="canvas-title">Temperature vs time · finish flags at 60 °C · grey dashes = before your change</div>
@@ -200,37 +219,41 @@
 <!-- ============================================================ TAB 2: qmcdt -->
 <section id="tab-qmcdt" class="tab-content">
   <div class="background-section">
-    <h2>Background: the energy bill for a temperature change — Q = mcΔT</h2>
+    <h2>Background: the energy bill for a temperature change</h2>
     <p>Tab&nbsp;1 was about <em>rates</em>. Now ask the total-cost question: how many joules
     does it take to warm this much stuff by this many degrees? Multiply the three knobs
-    together. We call the energy \(Q\) (joules), and the temperature <em>change</em>
-    \(\Delta T\) ("delta-T", in kelvin — a rise of 1&nbsp;K is the same as a rise of
-    1&nbsp;°C):</p>
+    together.</p>
+    <div class="plain">
+      Energy needed = <b>mass × specific heat × temperature change</b>. Twice the mass, twice
+      the energy. Twice the temperature rise, twice the energy. And the specific heat is the
+      price per kilogram per degree — water charges 4186 joules, copper only 385.
+    </div>
     <div class="equation-box">
       $$ Q \;=\; m\,c\,\Delta T $$
     </div>
-    <p>Three knobs, all fair: twice the mass \(m\), twice the energy. Twice the temperature
-    rise \(\Delta T\), twice the energy. And \(c\) is the <b>price per kilogram per degree</b> —
-    water charges 4186&nbsp;J for every kg-degree, copper only 385. On the chart below, \(Q\)
-    versus \(\Delta T\) is a straight line through zero with slope \(mc\): the steeper the
-    line, the spongier your block. Slide \(c\) around and you're sliding between real
-    materials — the verdict box will tell you which one you're closest to.</p>
+    <ul class="letters">
+      <li><b>Q</b> — the energy, in joules (the sim shows kilojoules, kJ: thousands of joules).</li>
+      <li><b>m</b> — mass in kilograms; <b>c</b> — specific heat in J/kg·K, as in Tab 1.</li>
+      <li><b>ΔT</b> — "delta T", the temperature <em>change</em>, in kelvin. Only the change matters, not where you started; a rise of 1&nbsp;K is the same as a rise of 1&nbsp;°C.</li>
+    </ul>
+    <p>On the chart below, Q plotted against ΔT is a straight line through zero, and its
+    <b>slope is mc</b>: the steeper the line, the spongier your block. Slide c around and you're
+    sliding between real materials — the verdict box will tell you which one you're closest to.</p>
     <div class="worked-example">
-      <p>Pasta water: bring 1&nbsp;kg of water (about a litre) from 20&nbsp;°C to 100&nbsp;°C,
-      so \(\Delta T = 80\ \text{K}\). Then
-      \(Q = 1 \times 4186 \times 80 = 334{,}880\ \text{J} \approx 335\ \text{kJ}\).
-      If a 2&nbsp;kW burner delivered every joule into the pot, that's
-      \(335{,}000 / 2000 \approx 167\ \text{s} \approx 2.8\ \text{minutes}\). Your stove takes
-      longer because plenty of those joules heat the kitchen instead of the water.</p>
+      <p>Pasta water: bring 1&nbsp;kg of water (about a litre) from 20&nbsp;°C to 100&nbsp;°C.</p>
+      <ol>
+        <li><b>The change:</b> ΔT = 100 − 20 = 80&nbsp;K.</li>
+        <li><b>The bill:</b> Q = 1 × 4186 × 80 = 334,880&nbsp;J ≈ <b>335&nbsp;kJ</b>.</li>
+        <li><b>How long on a 2&nbsp;kW burner?</b> 2&nbsp;kW means 2000 joules every second, so 335,000 ÷ 2000 ≈ 167&nbsp;s ≈ <b>2.8&nbsp;minutes</b> — if every joule went into the pot.</li>
+        <li><b>Reality check:</b> your stove takes longer, because plenty of those joules heat the kitchen instead of the water.</li>
+      </ol>
     </div>
     <div class="key-takeaways">
       <ul>
-        <li>\(Q = mc\Delta T\): energy = mass × specific heat × temperature change.</li>
-        <li>On a \(Q\) vs \(\Delta T\) plot, the slope is \(mc\) — steeper line = more energy
-        per degree.</li>
-        <li>Only the <em>change</em> \(\Delta T\) matters here, not the starting temperature.</li>
-        <li>Boiling a litre of pasta water costs ≈ 335&nbsp;kJ — about 2.8 minutes of a
-        2&nbsp;kW burner at 100% efficiency.</li>
+        <li>Q = mcΔT: energy = mass × specific heat × temperature change.</li>
+        <li>On a Q-vs-ΔT plot the slope is mc — steeper line = more energy per degree.</li>
+        <li>Only the <em>change</em> ΔT matters here, not the starting temperature.</li>
+        <li>Boiling a litre of pasta water costs ≈ 335&nbsp;kJ — about 2.8 minutes of a 2&nbsp;kW burner at 100% efficiency.</li>
       </ul>
     </div>
   </div>
@@ -292,38 +315,46 @@
 <section id="tab-rate" class="tab-content">
   <div class="background-section">
     <h2>Background: heating takes time — power is the slope</h2>
-    <p>Put Tabs 1 and 2 together and you can predict the whole heating curve. Start at
-    temperature \(T_0\) (that's the temperature at time zero — tap water is about 20&nbsp;°C),
-    pour in power \(P\), and the temperature at any later time \(t\) is:</p>
-    <div class="equation-box">
-      $$ T(t) \;=\; T_0 + \frac{P\,t}{m\,c} $$
+    <p>Put Tabs 1 and 2 together and you can predict the whole heating curve. Start at some
+    temperature (tap water is about 20&nbsp;°C), pour in power at a steady rate, and the
+    temperature climbs at a steady rate too.</p>
+    <div class="plain">
+      Temperature now = <b>starting temperature + (climb rate) × (time so far)</b>. The climb
+      rate is Tab 1's P ÷ (mc). Plotted against time, that is a straight line — and its
+      <b>slope</b> is the climb rate.
     </div>
-    <p>It's a straight line. The <b>slope</b> is \(P/(mc)\): power on top, thermal mass on the
-    bottom. Same burner under a kettle, a big soup pot, and a copper pan gives three very
-    different waits — not because the burner changed, but because \(mc\) did. Triple the water
-    and the line goes three times shallower; swap water for copper and it rockets.</p>
+    <div class="equation-box">
+      $$ T(t) \;=\; T_0 \;+\; \frac{P}{m\,c}\,t $$
+    </div>
+    <ul class="letters">
+      <li><b>T(t)</b> — "T at time t": the temperature after t seconds of heating.</li>
+      <li><b>T<sub>0</sub></b> — "T-zero", the temperature at time zero, before the burner is on.</li>
+      <li><b>P/(mc)</b> — the climb rate from Tab 1: power on top, thermal mass on the bottom.</li>
+      <li><b>t</b> — time since the burner went on, in seconds.</li>
+    </ul>
+    <p>Same burner under a kettle, a big soup pot, and a copper pan gives three very different
+    waits — not because the burner changed, but because mc did. Triple the water and the line
+    goes three times shallower; swap water for copper and it rockets.</p>
     <p>One honest warning: this straight line assumes <em>every joule stays put</em>. Real
     objects leak heat to the room while you heat them — the hotter they get, the faster they
     leak — so the real curve sags below the line and eventually flattens. We'll build that
     leak properly when we meet moving air in Lesson&nbsp;5. The line is a good friend early in
     the heating and an optimist late in it.</p>
     <div class="worked-example">
-      <p>Kettle: \(P = 2000\ \text{W}\), \(m = 1\ \text{kg}\) water, 20&nbsp;→&nbsp;100&nbsp;°C.
-      Slope \(= 2000/(1 \times 4186) \approx 0.48\ \text{°C/s}\) (about 29&nbsp;°C per
-      minute), so \(t = 80/0.48 \approx 167\ \text{s} \approx 2.8\ \text{min}\). Now a
-      1.5&nbsp;kg copper pan on the same burner: slope
-      \(= 2000/(1.5 \times 385) \approx 3.5\ \text{°C/s}\) — it covers the same 80&nbsp;°C in
-      about 23&nbsp;seconds. That's why an empty pan scorches before you've found the oil.</p>
+      <p>A kettle and a copper pan on the same 2000&nbsp;W burner, both going from 20 to 100&nbsp;°C.</p>
+      <ol>
+        <li><b>Kettle, 1&nbsp;kg of water.</b> Climb rate = 2000 ÷ (1 × 4186) ≈ 0.48 degrees per second — about 29 degrees per minute.</li>
+        <li><b>Time to boil:</b> 80 degrees ÷ 0.48 ≈ 167&nbsp;s ≈ <b>2.8&nbsp;min</b>.</li>
+        <li><b>Copper pan, 1.5&nbsp;kg.</b> Climb rate = 2000 ÷ (1.5 × 385) ≈ 3.5 degrees per second.</li>
+        <li><b>Its time:</b> 80 ÷ 3.5 ≈ <b>23&nbsp;seconds</b>. That's why an empty pan scorches before you've found the oil.</li>
+      </ol>
     </div>
     <div class="key-takeaways">
       <ul>
-        <li>Under constant power, temperature rises along a straight line with slope
-        \(P/(mc)\).</li>
-        <li>Same power, bigger \(mc\) → shallower slope → longer wait. The kettle-vs-soup-pot
-        difference is pure thermal mass.</li>
-        <li>Low-\(c\) metals respond in seconds — great for pans, dangerous for fingers.</li>
-        <li>Real objects also <em>lose</em> heat while heating, so this no-loss line is an
-        upper bound (Lesson&nbsp;5 fixes it).</li>
+        <li>Under constant power, temperature rises along a straight line with slope P/(mc).</li>
+        <li>Same power, bigger mc → shallower slope → longer wait. The kettle-vs-soup-pot difference is pure thermal mass.</li>
+        <li>Low-c metals respond in seconds — great for pans, dangerous for fingers.</li>
+        <li>Real objects also <em>lose</em> heat while heating, so this no-loss line is an upper bound (Lesson&nbsp;5 fixes it).</li>
       </ul>
     </div>
   </div>
@@ -385,60 +416,57 @@
 <section id="tab-levelup" class="tab-content">
   <div class="background-section">
     <h2>Level up: calorimetry, and why (per mole) all metals hold the same</h2>
-    <p>Time for the real machinery. Drop a hot block into a bath of water inside an insulated
-    cup, so no energy escapes. The block cools, the water warms, and they meet at one final
-    temperature \(T_f\). Energy conservation writes itself: whatever the block loses, the
-    water gains. With block mass \(m_1\), specific heat \(c_1\), starting temperature \(T_1\),
-    and water \(m_2\), \(c_2 = 4186\ \text{J/kg·K}\), \(T_2\):</p>
-    <div class="equation-box">
-      $$ m_1 c_1 (T_f - T_1) \;=\; -\,m_2 c_2 (T_f - T_2)
-      \qquad\Rightarrow\qquad
-      T_f \;=\; \frac{m_1 c_1 T_1 + m_2 c_2 T_2}{m_1 c_1 + m_2 c_2} $$
+    <p><b>Everything in Tabs 1–3 stands on its own.</b> This tab is the real machinery, one box at a time.</p>
+    <div class="plain">
+      <b>Box 1 — mixing.</b> Drop a hot block into a bath of water inside an insulated cup, so no energy
+      escapes. Whatever the block loses, the water gains, and they meet at one final temperature. That
+      final temperature is a <b>weighted average</b> of the two starting temperatures — and the weights
+      are the thermal masses mc. Whoever holds more jiggle per degree drags the average toward itself.
     </div>
-    <p>\(T_f\) is a <b>weighted average</b> of the two starting temperatures, and the weights
-    are the heat capacities \(m_i c_i\) (units J/K — joules per kelvin for the whole object).
-    Whoever holds more jiggle per degree drags the average toward themselves. This is
-    <b>calorimetry</b>: run it backwards and a measured \(T_f\) hands you an unknown \(c_1\) —
-    which is exactly how the specific heats in the tables were measured.</p>
-    <p>Now the atomic punchline. Lesson&nbsp;1 said each atom in a solid stores an average
-    thermal energy of about \(3k_BT\), where \(k_B = 1.38\times10^{-23}\ \text{J/K}\) is the
-    Boltzmann constant. So each atom contributes about \(3k_B\) of heat capacity — regardless
-    of what atom it is. Count one mole of atoms (\(N_A = 6.022\times10^{23}\), Avogadro's
-    number) and you get the <b>Dulong–Petit law</b>:</p>
     <div class="equation-box">
-      $$ C_{\text{molar}} \;\approx\; 3 N_A k_B \;=\; 3R \;\approx\; 24.9\ \text{J/mol·K}
-      \qquad\qquad c \;=\; \frac{3R}{M} $$
+      $$ T_f \;=\; \frac{m_1 c_1 T_1 + m_2 c_2 T_2}{m_1 c_1 + m_2 c_2} $$
     </div>
-    <p>Here \(R = 8.314\ \text{J/mol·K}\) is the gas constant and \(M\) is the molar mass —
-    the mass of one mole of the substance. Per <em>mole</em>, nearly every simple solid stores
-    the same. The wild per-kilogram differences in the tables are mostly just atom-counting:
-    a kilogram of aluminum (light atoms) contains far more atoms than a kilogram of lead
-    (heavy atoms), so it holds far more jiggle. Water breaks the pattern from the other side:
-    its <em>molecules</em> also tumble and flex, storing extra energy — about
-    75&nbsp;J/mol·K, tripling the metal value — which is why it's the champion sponge. (One
-    caveat you'll meet in statistical mechanics: at low temperatures vibrations "freeze out"
+    <ul class="letters">
+      <li><b>T<sub>f</sub></b> — the final, shared temperature.</li>
+      <li><b>m<sub>1</sub>, c<sub>1</sub>, T<sub>1</sub></b> — the block's mass, specific heat and starting temperature; <b>m<sub>2</sub>, c<sub>2</sub>, T<sub>2</sub></b> the same for the water (c<sub>2</sub> = 4186).</li>
+      <li>Where it comes from: energy lost by the block = energy gained by the water, m<sub>1</sub>c<sub>1</sub>(T<sub>1</sub> − T<sub>f</sub>) = m<sub>2</sub>c<sub>2</sub>(T<sub>f</sub> − T<sub>2</sub>); solve for T<sub>f</sub>.</li>
+    </ul>
+    <p>This is <b>calorimetry</b>: run it backwards and a measured T<sub>f</sub> hands you an
+    unknown c<sub>1</sub> — which is exactly how the specific heats in the tables were measured.</p>
+    <div class="plain">
+      <b>Box 2 — the atomic punchline.</b> Lesson&nbsp;1 said each atom stores about 3k<sub>B</sub>T of jiggle, so each atom
+      contributes about 3k<sub>B</sub> of heat capacity — <em>regardless of what atom it is</em>. Count one mole of atoms and
+      every simple solid stores the same amount per mole: the <b>Dulong–Petit law</b>.
+    </div>
+    <div class="equation-box">
+      $$ C_{\text{molar}} \;\approx\; 3R \;\approx\; 24.9\ \text{J/mol·K} \qquad\qquad c \;=\; \frac{3R}{M} $$
+    </div>
+    <ul class="letters">
+      <li><b>R</b> — the gas constant, 8.314 J/mol·K (it is k<sub>B</sub> × Avogadro's number).</li>
+      <li><b>C<sub>molar</sub></b> — heat capacity per mole (per 6.022 × 10²³ atoms).</li>
+      <li><b>M</b> — molar mass in kg/mol: the mass of one mole of the substance. Light atoms → many atoms per kilogram → big c per kilogram.</li>
+    </ul>
+    <p>The wild per-kilogram differences in the tables are mostly just atom-counting. Water breaks
+    the pattern from the other side: its <em>molecules</em> also tumble and flex, storing extra
+    energy — about 75&nbsp;J/mol·K, triple the metal value — which is why it's the champion sponge.
+    (One caveat you'll meet in statistical mechanics: at low temperatures vibrations "freeze out"
     quantum-mechanically and Dulong–Petit fails — see Kittel, Ch.&nbsp;5.)</p>
     <div class="worked-example">
-      <p>Drop 100&nbsp;g of copper at 100&nbsp;°C into 200&nbsp;g of water at 20&nbsp;°C.
-      Numerator: \(0.1 \times 385 \times 100 = 3850\) and
-      \(0.2 \times 4186 \times 20 = 16{,}744\), summing to \(20{,}594\). Denominator:
-      \(38.5 + 837.2 = 875.7\ \text{J/K}\). So
-      \(T_f = 20{,}594 / 875.7 \approx 23.5\ \text{°C}\) — the water barely notices a
-      boiling-hot lump of metal, because its heat capacity outweighs the copper's
-      \(837.2/38.5 \approx 22\times\). And the Dulong–Petit check: copper's molar mass is
-      \(M = 63.5\ \text{g/mol}\), so \(c = 24.9/0.0635 \approx 392\ \text{J/kg·K}\) —
-      measured value 385, within 2%, from nothing but \(3k_B\) per atom.</p>
+      <p>Drop 100&nbsp;g of copper at 100&nbsp;°C into 200&nbsp;g of water at 20&nbsp;°C.</p>
+      <ol>
+        <li><b>Thermal masses:</b> block 0.1 × 385 = 38.5&nbsp;J/K; water 0.2 × 4186 = 837.2&nbsp;J/K. The water outweighs the block 22 to 1.</li>
+        <li><b>Top of the fraction:</b> 38.5 × 100 + 837.2 × 20 = 3850 + 16,744 = 20,594.</li>
+        <li><b>Bottom:</b> 38.5 + 837.2 = 875.7.</li>
+        <li><b>Divide:</b> T<sub>f</sub> = 20,594 ÷ 875.7 ≈ <b>23.5&nbsp;°C</b>. The water barely notices a boiling-hot lump of metal.</li>
+        <li><b>Dulong–Petit check:</b> copper's molar mass is 63.5&nbsp;g/mol = 0.0635&nbsp;kg/mol, so c = 24.9 ÷ 0.0635 ≈ 392&nbsp;J/kg·K. Measured: 385 — within 2%, from nothing but 3k<sub>B</sub> per atom.</li>
+      </ol>
     </div>
     <div class="key-takeaways">
       <ul>
-        <li>In an insulated mix, \(T_f\) is the heat-capacity-weighted average of the starting
-        temperatures.</li>
-        <li>The weights \(m_i c_i\) (J/K) decide everything: water baths dominate metal blocks.</li>
-        <li>Dulong–Petit: per mole, simple solids all store \(\approx 3R \approx 24.9\)
-        J/mol·K — each atom carries \(\approx 3k_B\), straight from Lesson&nbsp;1's
-        \(3k_BT\).</li>
-        <li>Per-kilogram \(c = 3R/M\): light atoms → many atoms per kg → big \(c\). Water's
-        extra molecular motions make it the outlier.</li>
+        <li>In an insulated mix, T<sub>f</sub> is the thermal-mass-weighted average of the starting temperatures.</li>
+        <li>The weights m<sub>i</sub>c<sub>i</sub> (J/K) decide everything: water baths dominate metal blocks.</li>
+        <li>Dulong–Petit: per mole, simple solids all store ≈ 3R ≈ 24.9 J/mol·K — each atom carries ≈ 3k<sub>B</sub>, straight from Lesson&nbsp;1.</li>
+        <li>Per kilogram c = 3R/M: light atoms → many atoms per kg → big c. Water's extra molecular motions make it the outlier.</li>
       </ul>
     </div>
   </div>
@@ -832,6 +860,7 @@ const PARAMS = {
 };
 const GHOST = { hold: null, qmcdt: null, rate: null, levelup: null };
 const BASE = {};
+const GHOSTCOL = 'rgba(100,116,139,0.8)';
 function tabOfSlider(id){ return id.slice(2).split('-')[0]; }   // 's-hold-p' → 'hold'
 function commitBase(tab){ if (PARAMS[tab]) BASE[tab] = PARAMS[tab](); }
 function ghostFor(tab){
@@ -856,16 +885,6 @@ function callout(ctx, x, y, text, color, px){
   ctx.fillRect(x - tw / 2 - 5, y - px - 3, tw + 10, px + 8);
   ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillText(text, x, y); ctx.restore();
-}
-function flame(ctx, x, baseY, h, ph){
-  const fh = Math.max(4, h + 0.16 * h * Math.sin(animT * 9 + ph));
-  const fw = Math.max(5, fh * 0.42);
-  ctx.fillStyle = 'rgba(249,115,22,.85)';
-  ctx.beginPath(); ctx.moveTo(x - fw, baseY); ctx.lineTo(x + fw, baseY);
-  ctx.lineTo(x, baseY - fh); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = 'rgba(250,204,21,.9)';
-  ctx.beginPath(); ctx.moveTo(x - fw * 0.45, baseY); ctx.lineTo(x + fw * 0.45, baseY);
-  ctx.lineTo(x, baseY - fh * 0.55); ctx.closePath(); ctx.fill();
 }
 /* atom grid inside a square block: per-atom fill = energyColor(t01),
    jiggle amplitude ∝ amp (deterministic: animT + mulberry32 phases) */
@@ -934,7 +953,9 @@ function drawHold(){
   const tA = RISE / rateA, tB = RISE / rateB;
   const tSlow = Math.max(tA, tB);
   const RACE = 12, HOLD = 2.5;                          // wall-clock seconds per loop
-  const wall = animT % (RACE + HOLD);
+  const key = P + '|' + m + '|' + scen.hold;            // any change restarts the race
+  if (HD.key !== key) { HD.key = key; HD.start = animT; }
+  const wall = (animT - HD.start) % (RACE + HOLD);
   const simT = Math.min(wall, RACE) / RACE * tSlow;     // deterministic from animT
   const TA = Math.min(TCAP, T0 + rateA * simT);
   const TB = Math.min(TCAP, T0 + rateB * simT);
@@ -961,10 +982,19 @@ function drawHold(){
     pA.push([t / u, Math.min(TCAP, T0 + rateA * t)]);
     pB.push([t / u, Math.min(TCAP, T0 + rateB * t)]);
   }
+  const G = ghostFor('hold');
+  if (G) {                                              // dashed grey: the race before your change
+    const rA = G.P / (G.m * A.c), rB = G.P / (G.m * B.c), tS = RISE / Math.min(rA, rB);
+    const gA = [], gB = [];
+    for (let i = 0; i <= 200; i++) { const t = tS * 1.06 * i / 200;
+      gA.push([t / u, Math.min(TCAP, T0 + rA * t)]); gB.push([t / u, Math.min(TCAP, T0 + rB * t)]); }
+    ch.plot(gA, GHOSTCOL, 1.5, [7, 5]); ch.plot(gB, GHOSTCOL, 1.5, [7, 5]);
+  }
   ch.plot(pA, A.col, 2.5); ch.plot(pB, B.col, 2.5);
   ch.dot(simT / u, TA, A.col, 5); ch.dot(simT / u, TB, B.col, 5);
   ch.legend([{ label: A.label, color: A.col }, { label: B.label, color: B.col },
-             { label: 'finish 60 °C', color: COL.muted, dash: [4, 4] }]);
+             { label: 'finish 60 °C', color: COL.muted, dash: [4, 4] }]
+    .concat(G ? [{ label: 'before', color: GHOSTCOL, dash: [7, 5] }] : []));
 
   const fast = tA < tB ? A : B, slow = tA < tB ? B : A;
   const fastT = tA < tB ? TA : TB, slowT = tA < tB ? TB : TA;
@@ -1012,7 +1042,7 @@ function drawQmcdt(){
   ctx.fillRect(170 - side / 2, 205 - side, side, side);
   ctx.strokeStyle = COL.ink; ctx.lineWidth = 2;
   ctx.strokeRect(170 - side / 2, 205 - side, side, side);
-  caption(ctx, 170, 40, 'block size ∝ mass · colour ∝ ΔT', COL.muted);
+  caption(ctx, 170, 40, 'block size shows mass · colour shows ΔT', COL.muted);
   caption(ctx, 170, 226, fmt(m, 2) + ' kg · c = ' + fmt(c, 0) + ' J/kg·K', COL.ink, true);
 
   const tx = 470, tTop = 30, tBot = 190;
@@ -1044,12 +1074,16 @@ function drawQmcdt(){
     const rm = MAT[key];
     ch.plot([[0, 0], [80, m * rm.c * 80 / 1000]], rm.col, 2, [6, 4]);
   }
+  const G = ghostFor('qmcdt');
+  if (G) { ch.plot([[0, 0], [80, G.m * G.c * 80 / 1000]], GHOSTCOL, 2, [7, 5]);
+           ch.dot(G.dT, G.m * G.c * G.dT / 1000, GHOSTCOL, 5); }
   ch.plot([[0, 0], [80, m * c * 80 / 1000]], COL.purple, 2.5);
   ch.dot(dT, Q / 1000, COL.purple, 6);
   ch.legend([{ label: 'water', color: MAT.water.col, dash: [6, 4] },
              { label: 'aluminum', color: MAT.aluminum.col, dash: [6, 4] },
              { label: 'copper', color: MAT.copper.col, dash: [6, 4] },
-             { label: 'your block', color: COL.purple }]);
+             { label: 'your block', color: COL.purple }]
+    .concat(G ? [{ label: 'before', color: GHOSTCOL, dash: [7, 5] }] : []));
 
   setStat('st-qmcdt', [
     { label: 'Energy Q = mcΔT', value: fmt(Q / 1000, 1) + ' kJ', highlight: true },
@@ -1086,11 +1120,16 @@ function drawRate(){
   ch.setRange(0, xMax, 15, 118);
   ch.grid(); ch.axes('time (' + (mins ? 'min' : 's') + ')', 'temperature (°C)');
   ch.hLine(100, COL.bad, [5, 4]);
+  const G = ghostFor('rate');
+  if (G) { const gs = G.P / (G.m * G.c);
+           ch.plot([[0, T0], [xMax, T0 + gs * xMax * u]], GHOSTCOL, 2, [7, 5]);
+           ch.dot(((TT - T0) / gs) / u, 100, GHOSTCOL, 5); }
   ch.plot([[0, T0], [xMax, T0 + slope * xMax * u]], COL.accent, 2.5);
   ch.vLine(t100 / u, COL.muted, [3, 3]);
   ch.dot(t100 / u, 100, COL.accent, 6);
   ch.legend([{ label: 'T(t) — slope P/(mc)', color: COL.accent },
-             { label: 'boiling 100 °C', color: COL.bad, dash: [5, 4] }]);
+             { label: 'boiling 100 °C', color: COL.bad, dash: [5, 4] }]
+    .concat(G ? [{ label: 'before', color: GHOSTCOL, dash: [7, 5] }] : []));
 
   // time-to-target bars
   const c2 = setupCanvas(document.getElementById('cv-rate2'));
@@ -1134,39 +1173,99 @@ function drawRate(){
       'boil at all. Heat loss gets its own machinery in Lesson 5.');
 }
 
-/* ---------------- TAB 4: levelup ---------------- */
+/* ---------------- TAB 4: levelup (ANIMATED: drop the block in) ---------------- */
 function drawLevelup(){
   const m1 = num('s-levelup-m1'), T1 = num('s-levelup-t1'), c1v = num('s-levelup-c1');
   const m2 = num('s-levelup-m2'), T2 = num('s-levelup-t2');
   const C1 = m1 * c1v, C2 = m2 * 4186;               // heat capacities, J/K
   const Tf = (C1 * T1 + C2 * T2) / (C1 + C2);
   const Qx = C1 * (T1 - Tf);                          // J handed from block to water
+  const G = ghostFor('levelup');
+  const tau = 30, tEnd = 150;                         // illustrative convergence clock, s
+  const TfOf = g => (g.m1 * g.c1 * g.T1 + g.m2 * 4186 * g.T2) / (g.m1 * g.c1 + g.m2 * 4186);
 
-  // converging temperatures (exponential approach; same τ for both keeps
-  // the energy balance exact at every instant — τ itself is illustrative)
-  const cc = setupCanvas(document.getElementById('cv-levelup'));
+  // drop-in clock: a short fall, then 150 sim-seconds in 10 real seconds, a hold, repeat.
+  // Re-keyed on every slider/scenario change, so the block is dropped afresh.
+  const key = [m1, T1, c1v, m2, T2].join('|');
+  if (LV.key !== key) { LV.key = key; LV.start = animT; }
+  const FALL = 0.8, RUN = 10, HOLD = 3;
+  const tl = (animT - LV.start) % (FALL + RUN + HOLD);
+  const fallF = Math.min(1, tl / FALL);
+  const tSim = tl <= FALL ? 0 : Math.min(tEnd, (tl - FALL) / RUN * tEnd);
+  const decay = Math.exp(-tSim / tau);
+  const Tb = Tf + (T1 - Tf) * decay, Tw = Tf + (T2 - Tf) * decay;
+  const Tlo = Math.min(T1, T2) - 5, Thi = Math.max(T1, T2) + 5;
+  const t01 = T => (T - Tlo) / (Thi - Tlo);
+
+  // ---- canvas 1: the scene — a beaker of water, the block dropping in, colours converging ----
+  const { ctx, w, h } = setupCanvas(document.getElementById('cv-levelup'));
+  const bx0 = 250, bx1 = 450, bTop = 84, bBot = 258;             // beaker walls
+  const depth = 70 + 90 * Math.min(1, Math.sqrt(m2 / 2));        // water depth, px (∝ √m₂)
+  const side = 32 + 56 * Math.sqrt(Math.min(1, m1));             // block side, px (∝ √m₁)
+  const yRest = bBot - 3 - side, yStart = 6;
+  const by = yStart + (yRest - yStart) * fallF * fallF;          // gravity-ish fall
+  const bxl = (bx0 + bx1) / 2 - side / 2;
+  const inWater = by + side > bBot - depth;
+
+  ctx.save(); ctx.globalAlpha = 0.55; ctx.fillStyle = energyColor(t01(Tw));   // the water, coloured by ITS temperature
+  ctx.fillRect(bx0 + 3, bBot - depth, bx1 - bx0 - 6, depth); ctx.restore();
+  if (inWater && tl < FALL + 1.2) {                                            // ripples right after the splash
+    const a = 1 - (tl - FALL) / 1.2;
+    ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,' + (0.7 * a) + ')'; ctx.lineWidth = 2;
+    for (let r = 1; r <= 3; r++) { const rr = 10 + 26 * r * (1 - a);
+      ctx.beginPath(); ctx.ellipse((bx0 + bx1) / 2, bBot - depth, rr, rr * 0.28, 0, 0, 7); ctx.stroke(); }
+    ctx.restore();
+  }
+  ctx.strokeStyle = COL.axis; ctx.lineWidth = 3; ctx.lineJoin = 'round';        // beaker
+  ctx.beginPath(); ctx.moveTo(bx0, bTop); ctx.lineTo(bx0, bBot); ctx.lineTo(bx1, bBot); ctx.lineTo(bx1, bTop); ctx.stroke();
+  caption(ctx, bx0 - 34, bBot - depth + 4, 'water', COL.axis);
+  ctx.fillStyle = '#f8fafc'; ctx.fillRect(bxl, by, side, side);                // the block: atoms coloured + jiggling by ITS temperature
+  atomGrid(ctx, bxl, by, side, t01(Tb), 0.6 + 2.4 * Math.max(0, Math.min(1, (Tb - 20) / 120)), 0);
+  ctx.strokeStyle = COL.ink; ctx.lineWidth = 2; ctx.strokeRect(bxl, by, side, side);
+  callout(ctx, bxl + side / 2, Math.max(16, by - 8), 'block ' + fmt(Tb, 1) + ' °C', COL.ink, 12);
+  callout(ctx, bx1 + 62, bBot - depth - 8, 'water ' + fmt(Tw, 1) + ' °C', COL.accent, 12);
+  if (inWater && Math.abs(Tb - Tw) > 0.5) {                                    // heat still crossing the block's faces
+    const dir = Tb > Tw ? 1 : -1, yc = by + side / 2;
+    arrow(ctx, bxl + side + 2, yc, bxl + side + 2 + 26 * dir, yc, COL.orange, 3);
+    arrow(ctx, bxl - 2, yc, bxl - 2 - 26 * dir, yc, COL.orange, 3);
+  }
+  bigText(ctx, 12, 30, 'T_f = ' + fmt(Tf, 1) + ' °C', Tf >= 100 ? COL.bad : COL.ink, 22, 'left');
+  bigText(ctx, 12, 50, 'the heat-capacity-weighted', COL.axis, 12, 'left');
+  bigText(ctx, 12, 66, 'average of ' + fmt(T1, 0) + ' °C and ' + fmt(T2, 0) + ' °C', COL.axis, 12, 'left');
+  caption(ctx, w / 2, h - 6,
+    tl <= FALL ? 'dropping the block in — insulated cup, no energy escapes'
+               : 't = ' + fmt(tSim, 0) + ' s (illustrative clock) · ' + fmt(Qx / 1000, 2) + ' kJ moves block → water',
+    COL.muted);
+
+  // ---- canvas 2: both temperatures converge to T_f (live dots ride the curves; grey dash = before) ----
+  const cc = setupCanvas(document.getElementById('cv-levelup2'));
   const ch = new Chart(cc.ctx, cc.w, cc.h);
-  const tau = 30, tEnd = 150;
   let yLo = Math.min(T1, T2) - 5, yHi = Math.max(T1, T2) + 5;
+  if (G) { yLo = Math.min(yLo, G.T1 - 5, G.T2 - 5); yHi = Math.max(yHi, G.T1 + 5, G.T2 + 5); }
   if (yHi - yLo < 10) { yLo -= 5; yHi += 5; }
   ch.setRange(0, tEnd, yLo, yHi);
   ch.grid(); ch.axes('time (s)', 'temperature (°C)');
+  if (G) {
+    const gf = TfOf(G), gH = [], gW = [];
+    for (let i = 0; i <= 200; i++) { const t = tEnd * i / 200, ee = Math.exp(-t / tau);
+      gH.push([t, gf + (G.T1 - gf) * ee]); gW.push([t, gf + (G.T2 - gf) * ee]); }
+    ch.plot(gH, GHOSTCOL, 1.5, [7, 5]); ch.plot(gW, GHOSTCOL, 1.5, [7, 5]);
+  }
   ch.hLine(Tf, COL.warn, [5, 4]);
   const pH = [], pW = [];
   for (let i = 0; i <= 200; i++) {
-    const t = tEnd * i / 200, e = Math.exp(-t / tau);
-    pH.push([t, Tf + (T1 - Tf) * e]);
-    pW.push([t, Tf + (T2 - Tf) * e]);
+    const t = tEnd * i / 200, ee = Math.exp(-t / tau);
+    pH.push([t, Tf + (T1 - Tf) * ee]); pW.push([t, Tf + (T2 - Tf) * ee]);
   }
-  ch.plot(pH, COL.orange, 2.5);
-  ch.plot(pW, COL.accent, 2.5);
-  ch.dot(0, T1, COL.orange, 5); ch.dot(0, T2, COL.accent, 5);
-  ch.legend([{ label: 'hot block', color: COL.orange },
-             { label: 'water bath', color: COL.accent },
-             { label: 'T_f = ' + fmt(Tf, 1) + ' °C', color: COL.warn, dash: [5, 4] }]);
+  ch.plot(pH, COL.orange, 2.5); ch.plot(pW, COL.accent, 2.5);
+  ch.dot(tSim, Tb, COL.orange, 5); ch.dot(tSim, Tw, COL.accent, 5);
+  ch.legend([{ label: 'hot block', color: COL.orange }, { label: 'water bath', color: COL.accent },
+             { label: 'T_f = ' + fmt(Tf, 1) + ' °C', color: COL.warn, dash: [5, 4] }]
+    .concat(G ? [{ label: 'before', color: GHOSTCOL, dash: [7, 5] }] : []));
 
+  // ---- canvas 3: Dulong–Petit ----
   // Dulong–Petit bar chart: measured c × molar mass M (CRC values)
-  const c2 = setupCanvas(document.getElementById('cv-levelup2'));
+  const c2 = setupCanvas(document.getElementById('cv-levelup3'));
   const DP = [['Al', 24.2], ['Fe', 25.1], ['Cu', 24.5], ['Au', 25.4], ['Pb', 26.5], ['Water', 75.4]];
   const L = 54, R = 14, top = 16, base = c2.h - 34, ymax = 85;
   const yOf = v => base - v / ymax * (base - top);
@@ -1244,6 +1343,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) stopAnim(); else startAnim();
 });
 wireAll();
+for (const t in PARAMS) commitBase(t);   // seed the "before" baseline so the very first drag has a ghost
 refreshActiveTab();
 startAnim();
 </script>

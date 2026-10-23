@@ -98,10 +98,10 @@
   var STATUS_ORDER = ['planned', 'running', 'blocked', 'done'];
 
   var FIGURE_KINDS = {
-    figure:     { label: 'Figure',     icon: '📊' },
-    panel:      { label: 'Panel',      icon: '🔲' },
-    table:      { label: 'Table',      icon: '▦' },
-    supplement: { label: 'Supplement', icon: '📎' },
+    figure:     { label: 'Figure',     icon: 'chart-bar' },
+    panel:      { label: 'Panel',      icon: 'squares-2x2' },
+    table:      { label: 'Table',      icon: 'table-cells' },
+    supplement: { label: 'Supplement', icon: 'paper-clip' },
   };
   var FIGURE_STATUS = {
     none:  { label: 'Not started', color: '#6b7280', bg: '#f3f4f6' },
@@ -379,13 +379,17 @@
       var rows = [];
       snap.docs.forEach(function (doc) {
         var d = doc.data() || {};
-        if ((d.level || 'concept') !== 'output') return;
+        // V3.717 — aims carry roadmaps too: an aim is the target result,
+        // which is precisely the thing with experiments to run. Outputs keep
+        // theirs (the write-up still has analyses behind it).
+        var lvl = d.level || 'concept';
+        if (lvl !== 'output' && lvl !== 'aim') return;
         var rm = hydrate(d.roadmap);
         if (opts.withRoadmapOnly && isEmpty(rm)) return;
         rows.push({
           id: doc.id,
           title: d.title || doc.id,
-          icon: d.icon || '📄',
+          icon: d.icon || 'document-text',
           one_liner: d.one_liner || '',
           status: d.status || '',
           member_uids: Array.isArray(d.member_uids) ? d.member_uids : [],
@@ -399,18 +403,88 @@
     }
   }
 
+  /* ── V3.631: which focus card IS this draft? ─────────────────
+   *
+   * An `output` focus card and a paper/grant draft are frequently the same
+   * object recorded twice: the card carries `source_draft_id` (it was
+   * created FROM that draft) and/or `links.draft_refs[]` (the PI pointed it
+   * at one). So "link this library paper to draft X" and "attach it to the
+   * card built from draft X" were two storages for one act, with no reason
+   * for a student to know both existed.
+   *
+   * Deliberately NOT restricted to level:'output'. In the real lab data the
+   * card that points at the CAREER draft (`gels-energy-landscape`) is a
+   * `concept`, so an output-only filter would find nothing — which is
+   * exactly the kind of silent-empty this program keeps finding.
+   *
+   * One whole-collection get (single digits of docs), cached for the page —
+   * the foci map changes on PI edits, not while a student links papers.
+   * Returns [] on any failure: this is an offer, never a gate. */
+  var _draftCardCache = null;
+
+  function invalidateDraftCards() { _draftCardCache = null; }
+
+  async function _allCardsForDraftLookup() {
+    if (_draftCardCache) return _draftCardCache;
+    try {
+      var snap = await foci().get();
+      _draftCardCache = snap.docs.map(function (doc) {
+        var d = doc.data() || {};
+        var links = d.links || {};
+        var refs = Array.isArray(links.draft_refs) ? links.draft_refs : [];
+        return {
+          id: doc.id,
+          title: d.title || doc.id,
+          icon: d.icon || 'document-text',
+          level: d.level || 'concept',
+          one_liner: d.one_liner || '',
+          source_draft_id: d.source_draft_id || null,
+          draft_ids: refs.map(function (r) { return r && r.id; }).filter(Boolean),
+        };
+      });
+    } catch (err) {
+      console.warn('[roadmap-data] draft-card lookup failed:', err && err.message);
+      _draftCardCache = [];
+    }
+    return _draftCardCache;
+  }
+
+  /** Focus cards that represent this draft, most-specific first
+   * (source_draft_id is a stronger claim than a links.draft_refs pointer). */
+  async function cardsForDraft(draftId) {
+    if (!draftId) return [];
+    var all = await _allCardsForDraftLookup();
+    var strong = [], weak = [];
+    all.forEach(function (c) {
+      if (c.source_draft_id === draftId) strong.push(c);
+      else if (c.draft_ids.indexOf(draftId) !== -1) weak.push(c);
+    });
+    return strong.concat(weak);
+  }
+
   /* ── structure writes (admin) ───────────────────────────────── */
 
   function assertAdmin() {
     if (!isAdmin()) throw new Error('Only the PI can edit a roadmap’s structure.');
+  }
+  /* V3.851 — a card awaiting approval is editable by its proposer and
+   * their advisor (RESEARCH_DATA.mayEdit mirrors the rule); on a page
+   * without research-data.js the admin-only guard stands. */
+  async function assertMayWrite(fociId) {
+    if (isAdmin()) return;
+    var RDm = window.RESEARCH_DATA;
+    if (!(RDm && RDm.mayEdit && RDm.get && RDm.loadMentees)) assertAdmin();
+    var card = await RDm.get(fociId);
+    await RDm.loadMentees();
+    if (!card || !RDm.mayEdit(card)) throw new Error('Only the PI can edit an approved card’s roadmap.');
   }
 
   /** Replace a card's whole roadmap. The editor modal collects the full
    * tree and saves once, so there is no partial-write race to design
    * around (and the doc is admin-write, i.e. single-author by rule). */
   async function saveRoadmap(fociId, roadmap) {
-    assertAdmin();
     if (!fociId) throw new Error('fociId is required.');
+    await assertMayWrite(fociId);
     var body = hydrate(roadmap);
     body.updated_by = me();
     body.updated_at = isoNow();
@@ -610,6 +684,8 @@
     figureProgressOf: figureProgressOf,
 
     listRoadmapCards: listRoadmapCards,
+    cardsForDraft: cardsForDraft,             // V3.631
+    invalidateDraftCards: invalidateDraftCards,
     saveRoadmap: saveRoadmap,
 
     refIdFor: refIdFor,

@@ -106,7 +106,8 @@
   position: fixed;
   z-index: 1200;
   width: 330px;
-  max-height: 60vh;
+  max-height: calc(100vh - 16px);   /* V3.827 — POPOVER_PLACE.fit sets the exact height */
+  max-width: calc(100vw - 16px);
   overflow: auto;
   background: #fff;
   border: 1px solid #d1d5db;
@@ -123,6 +124,87 @@
   font-weight: 600;
   margin-bottom: 6px;
 }
+
+/* ── V3.630: the row's ONE "Organize" popover ────────────────────────────
+   Same four rows and the same 🌐/🔒 ownership badges as the reader sidebar's
+   Organize block, replacing the row's 📌 / 📁 / 🗺 button cluster. */
+.lib-org-btn { font-weight: 600; }
+.lib-org-btn.on { background: #eef2ff; border-color: #c7d2fe; color: #3730a3; }
+.lib-org-n {
+  display: inline-block;
+  min-width: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: #c7d2fe;
+  color: #312e81;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
+.lib-org-pop { width: 340px; }
+.lib-org-row { padding: 8px 0; border-top: 1px solid #f3f4f6; }
+.lib-org-row:first-child { border-top: none; padding-top: 2px; }
+.lib-org-rowhead {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #374151;
+  margin-bottom: 5px;
+}
+.lib-org-badge {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #3730a3;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  padding: 1px 6px;
+  cursor: help;
+}
+.lib-org-badge-priv { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.lib-org-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.lib-org-chip {
+  display: inline-block;
+  max-width: 100%;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+a.lib-org-chip:hover { background: #eef2ff; border-color: #c7d2fe; color: #3730a3; }
+code.lib-org-chip { font-family: ui-monospace, monospace; font-size: 10px; }
+.lib-org-empty { font-size: 11px; color: #9ca3af; font-style: italic; }
+.lib-org-note { font-size: 10px; color: #9ca3af; margin-top: 5px; line-height: 1.5; }
+.lib-org-act {
+  display: inline-block;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-right: 8px;
+  font: inherit;
+  font-size: 10px;
+  color: #4338ca;
+  cursor: pointer;
+  text-decoration: none;
+}
+.lib-org-act:hover { text-decoration: underline; }
+.lib-org-act:disabled { color: #9ca3af; cursor: default; text-decoration: none; }
+.lib-org-row-adv .lib-org-rowhead { color: #9ca3af; font-weight: 600; }
+.lib-org-advnote { font-size: 9px; font-weight: 400; text-transform: none; letter-spacing: 0; opacity: .8; }
 
 /* Library row badge — the passive V3.352 span became a button (V3.365).
  * Base look inherited from .lib-links-badge in style.css; the ghost

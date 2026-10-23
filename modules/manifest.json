@@ -1,20 +1,108 @@
 {
   "folders": {
-    "foundations": {
-      "label": "Lab Foundations",
-      "files": [
-        {
-          "name": "overview.html",
-          "title": "Lab Foundations: Start Here — Getting Started in the Lab"
-        }
-      ]
-    },
     "bme295c": {
       "label": "BME295C",
       "files": [
         {
           "name": "lesson-01.html",
-          "title": "Lesson 1: Welcome — BME 295C"
+          "title": "Summer 2026 Lectures & Recordings \u2014 BME 295C"
+        }
+      ]
+    },
+    "bme466": {
+      "label": "BME466/566 Biomechanics (F26)",
+      "files": [
+        {
+          "name": "01-diffusion-why-anything-moves.html",
+          "title": "Diffusion \u2014 Why Anything Moves at All (Week 1, BME/AME 466/566)"
+        },
+        {
+          "name": "02-gradients-and-encounters.html",
+          "title": "Gradients & Encounters \u2014 How Molecules Find Their Targets (Week 2, BME/AME 466/566)"
+        },
+        {
+          "name": "03-binding-how-cells-read-concentration.html",
+          "title": "Binding \u2014 How a Cell Reads a Concentration (Week 3, BME/AME 466/566)"
+        },
+        {
+          "name": "04c-the-cytoskeleton.html",
+          "title": "The Cytoskeleton: From Reading to Moving (Week 4 module, BME/AME 466/566)"
+        },
+        {
+          "name": "05-integrins-and-the-motor-clutch.html",
+          "title": "Integrins, Focal Adhesions & the Motor\u2013Clutch (Week 5, BME 466/566)"
+        },
+        {
+          "name": "06-the-ground-gives.html",
+          "title": "The Ground Gives \u2014 Stiffness, Viscoelasticity & Traction (Week 6, BME 466/566)"
+        },
+        {
+          "name": "HW1-student-key.html",
+          "title": "HW1 \u2014 Worked solutions"
+        },
+        {
+          "name": "HW2-student-key.html",
+          "title": "HW2 \u2014 Worked solutions"
+        },
+        {
+          "name": "HW3-student-key.html",
+          "title": "HW3 \u2014 Worked solutions"
+        },
+        {
+          "name": "N1-equation-compendium.html",
+          "title": "Equation Compendium & Midterm Practice \u2014 Weeks 1\u20136 (N1, BME/AME 466/566)"
+        },
+        {
+          "name": "P1-egfr-beyond-the-membrane.html",
+          "title": "Beyond the Membrane \u2014 EGFR Signaling, Read Closely (Paper Module P1, BME/AME 466/566)"
+        },
+        {
+          "name": "R1-board-notes-cf-mucus.html",
+          "title": "R1 Lecture Notes \u2014 Why the Antibiotic Never Arrives (30-minute board run, instructor)"
+        },
+        {
+          "name": "R1-case-review-cf-mucus.html",
+          "title": "Case Review \u2014 Why the Antibiotic Never Arrives (Cystic Fibrosis, BME/AME 466/566)"
+        },
+        {
+          "name": "hw-00-pretest.html",
+          "title": "Pretest \u2014 Where You're Starting From (HW-00, BME 466/566)"
+        },
+        {
+          "name": "hw-01-diffusion-mass-transport.html",
+          "title": "Diffusion & Mass Transport \u2014 Your Dataset (HW-01, BME 466/566)"
+        },
+        {
+          "name": "hw-01-transport-problems.html",
+          "title": "Transport Problems \u2014 Your Dataset (HW-01, BME 466/566)"
+        },
+        {
+          "name": "hw-02-reading-and-building.html",
+          "title": "Reading and Building \u2014 Your Dataset (HW-02, BME 466/566)"
+        },
+        {
+          "name": "hw-03-grip-and-ground.html",
+          "title": "Grip and Ground \u2014 Your Dataset (HW-03, BME 466/566)"
+        },
+        {
+          "name": "hw1-diffusion.html",
+          "title": "BME/AME 466/566 \u2014 Homework 1"
+        },
+        {
+          "name": "hw1-transport-problems.html",
+          "title": "BME/AME 466/566 \u2014 Homework 1"
+        },
+        {
+          "name": "hw2-reading-and-building.html",
+          "title": "BME/AME 466/566 \u2014 Homework 2"
+        },
+        {
+          "name": "report-01-journal-review.html",
+          "title": "Read & Rebuild \u2014 Report 1 (BME 466/566)"
+        },
+        {
+          "name": "w01-instructor-notes.html",
+          "title": "W01 Live Lecture Notes \u2014 Diffusion (BME/AME 466/566, Instructor)"
         }
       ]
     },
@@ -22,20 +110,264 @@
       "label": "BME576",
       "files": [
         {
-          "name": "mc_interactive_explorer.html",
-          "title": "Module 10: Uncertainty & Error Propagation — Engineering Cancer Course"
-        },
-        {
           "name": "11_parameter_estimation.html",
-          "title": "Model Calibration & Parameter Estimation — Interactive Explorer"
+          "title": "Model Calibration & Parameter Estimation \u2014 Interactive Explorer"
         },
         {
           "name": "12_experimental_design.html",
-          "title": "Module 12: Design of Experiments — Multiplexed Cytokine Assay"
+          "title": "Module 12: Design of Experiments \u2014 Multiplexed Cytokine Assay"
         },
         {
           "name": "13_model_validation.html",
-          "title": "Module 13: Model Validation — Engineering Cancer Course"
+          "title": "Module 13: Model Validation \u2014 Engineering Cancer Course"
+        },
+        {
+          "name": "mc_interactive_explorer.html",
+          "title": "Module 10: Uncertainty & Error Propagation \u2014 Engineering Cancer Course"
+        }
+      ]
+    },
+    "cell_culture": {
+      "label": "Cell Culture Foundations",
+      "files": [
+        {
+          "name": "01-the-cabinet.html",
+          "title": "The Cabinet \u2014 Why the Air Above Your Bench Is Different (Cell Culture Foundations 1)"
+        },
+        {
+          "name": "02-the-incubator.html",
+          "title": "The Incubator \u2014 Three Knobs and a Puddle (Cell Culture Foundations 2)"
+        },
+        {
+          "name": "03-the-hands.html",
+          "title": "The Hands \u2014 Pipetting, Opening Things, and the Sterile Path (Cell Culture Foundations 3)"
+        },
+        {
+          "name": "04-aliquoting-and-stewardship.html",
+          "title": "Aliquoting & Stewardship \u2014 Why One Bottle Is a Bad Idea (Cell Culture Foundations 4)"
+        },
+        {
+          "name": "overview.html",
+          "title": "Cell Culture Foundations: Start Here \u2014 Course Overview"
+        }
+      ]
+    },
+    "equipment": {
+      "label": "Equipment Foundations",
+      "files": [
+        {
+          "name": "01-the-balance.html",
+          "title": "The Balance \u2014 The Number Is a Coil Current (Equipment Foundations 1)"
+        },
+        {
+          "name": "02-the-pipette.html",
+          "title": "The Pipette \u2014 An Air Spring You Cannot See (Equipment Foundations 2)"
+        },
+        {
+          "name": "03-labware-and-consumables.html",
+          "title": "Labware and Consumables \u2014 The Plastic Is Not Inert (Equipment Foundations 3)"
+        },
+        {
+          "name": "04-the-plasma-cleaner.html",
+          "title": "The Plasma Cleaner \u2014 Your Lowest Setting Is Someone Else's Highest (Equipment Foundations 4)"
+        },
+        {
+          "name": "overview.html",
+          "title": "Equipment Foundations: Start Here \u2014 Course Overview"
+        }
+      ]
+    },
+    "exploration": {
+      "label": "Exploration \u2014 lab design studies",
+      "files": [
+        {
+          "name": "01-magnetic-tweezers.html",
+          "title": "Magnetic Tweezers for Granular Hydrogels \u2014 coil, force, deformation (Exploration 01, McGhee Lab)"
+        }
+      ]
+    },
+    "foundations": {
+      "label": "Lab Foundations",
+      "files": [
+        {
+          "name": "overview.html",
+          "title": "Lab Foundations: Start Here \u2014 Getting Started in the Lab"
+        }
+      ]
+    },
+    "heat_transfer": {
+      "label": "Heat Transfer",
+      "files": [
+        {
+          "name": "01-heat-is-jiggling-atoms.html",
+          "title": "Heat Is Jiggling Atoms \u2014 Heat Transfer Foundations"
+        },
+        {
+          "name": "02-specific-heat.html",
+          "title": "Specific Heat \u2014 Holding the Jiggle \u2014 Heat Transfer Foundations"
+        },
+        {
+          "name": "03-crossing-boundaries.html",
+          "title": "Crossing the Boundary \u2014 Heat Transfer Foundations"
+        },
+        {
+          "name": "04-layers-air-gaps.html",
+          "title": "Layers, Air Gaps & Insulation \u2014 Heat Transfer Foundations"
+        },
+        {
+          "name": "05-fins-and-airflow.html",
+          "title": "Fins & Flowing Air \u2014 Heat Transfer Foundations"
+        },
+        {
+          "name": "06-radiation-and-color.html",
+          "title": "Radiation & Color \u2014 Heat Transfer Foundations"
+        },
+        {
+          "name": "overview.html",
+          "title": "Heat Transfer Foundations: Start Here \u2014 Course Overview"
+        },
+        {
+          "name": "worksheet-01-heat-is-jiggling-atoms.html",
+          "title": "Worksheet 1: Heat Is Jiggling Atoms \u2014 Heat Transfer Foundations"
+        },
+        {
+          "name": "worksheet-02-specific-heat.html",
+          "title": "Worksheet 2: Specific Heat \u2014 Heat Transfer Foundations"
+        },
+        {
+          "name": "worksheet-03-crossing-boundaries.html",
+          "title": "Worksheet 3: Crossing the Boundary \u2014 Heat Transfer Foundations"
+        },
+        {
+          "name": "worksheet-04-layers-air-gaps.html",
+          "title": "Worksheet 4: Layers, Air Gaps & Insulation \u2014 Heat Transfer Foundations"
+        },
+        {
+          "name": "worksheet-05-fins-and-airflow.html",
+          "title": "Worksheet 5: Fins & Flowing Air \u2014 Heat Transfer Foundations"
+        },
+        {
+          "name": "worksheet-06-radiation-and-color.html",
+          "title": "Worksheet 6: Radiation & Color \u2014 Heat Transfer Foundations"
+        }
+      ]
+    },
+    "optics": {
+      "label": "Optics Foundations",
+      "files": [
+        {
+          "name": "01-light-and-matter.html",
+          "title": "Light & Matter \u2014 Optics Foundations"
+        },
+        {
+          "name": "02-reflection-and-tir.html",
+          "title": "Color, Reflection & Trapped Light \u2014 Optics Foundations"
+        },
+        {
+          "name": "03-lenses.html",
+          "title": "Bending Light: Lenses \u2014 Optics Foundations"
+        },
+        {
+          "name": "04-scattering-and-metamaterials.html",
+          "title": "Scattering, Index Matching & Metamaterials \u2014 Optics Foundations"
+        },
+        {
+          "name": "05-coherence-and-microscopy.html",
+          "title": "Coherence, Interference & the Microscope \u2014 Optics Foundations"
+        },
+        {
+          "name": "overview.html",
+          "title": "Optics Foundations: Start Here \u2014 Course Overview"
+        }
+      ]
+    },
+    "solid_mechanics": {
+      "label": "Solid Mechanics Foundations",
+      "files": [
+        {
+          "name": "01-atoms-as-springs.html",
+          "title": "Atoms as Springs \u2014 Solid Mechanics Foundations"
+        },
+        {
+          "name": "02-grains-and-boundaries.html",
+          "title": "Grains \u2014 Why Metals Bend Before They Break \u2014 Solid Mechanics Foundations"
+        },
+        {
+          "name": "03-honey-cheese-metal-diamond.html",
+          "title": "Honey, Cheese, Metal, Diamond \u2014 Solid Mechanics Foundations"
+        },
+        {
+          "name": "04-stress-and-strain.html",
+          "title": "Stress and Strain \u2014 Solid Mechanics Foundations"
+        },
+        {
+          "name": "05-loading-modes.html",
+          "title": "Loading Modes \u2014 Solid Mechanics Foundations"
+        },
+        {
+          "name": "overview.html",
+          "title": "Solid Mechanics Foundations: Start Here \u2014 Course Overview"
+        },
+        {
+          "name": "worksheet-01-atoms-as-springs.html",
+          "title": "Worksheet 1: Atoms as Springs \u2014 Solid Mechanics Foundations"
+        },
+        {
+          "name": "worksheet-02-grains-and-boundaries.html",
+          "title": "Worksheet 2: Grains and Boundaries \u2014 Solid Mechanics Foundations"
+        },
+        {
+          "name": "worksheet-03-honey-cheese-metal-diamond.html",
+          "title": "Worksheet 3: Honey, Cheese, Metal, Diamond \u2014 Solid Mechanics Foundations"
+        },
+        {
+          "name": "worksheet-04-stress-and-strain.html",
+          "title": "Worksheet 4: Stress and Strain \u2014 Solid Mechanics Foundations"
+        },
+        {
+          "name": "worksheet-05-loading-modes.html",
+          "title": "Worksheet 5: Loading Modes \u2014 Solid Mechanics Foundations"
+        }
+      ]
+    },
+    "surface_functionalization": {
+      "label": "Surface Functionalization Foundations",
+      "files": [
+        {
+          "name": "01-surface-energy-and-adsorbed-water.html",
+          "title": "Surfaces Are Hungry \u2014 Surface Functionalization Foundations"
+        },
+        {
+          "name": "02-plasma-treatment.html",
+          "title": "Plasma Treatment \u2014 Surface Functionalization Foundations"
+        },
+        {
+          "name": "03-silanes.html",
+          "title": "Silanes: Molecular Paint \u2014 Surface Functionalization Foundations"
+        },
+        {
+          "name": "04-roughness-and-superhydrophobicity.html",
+          "title": "Roughness & Superhydrophobicity \u2014 Surface Functionalization Foundations"
+        },
+        {
+          "name": "overview.html",
+          "title": "Surface Functionalization Foundations: Start Here \u2014 Course Overview"
+        },
+        {
+          "name": "worksheet-01-surface-energy.html",
+          "title": "Worksheet 1: Surface Energy & Adsorbed Water \u2014 Surface Functionalization Foundations"
+        },
+        {
+          "name": "worksheet-02-plasma-treatment.html",
+          "title": "Worksheet 2: Plasma Treatment \u2014 Surface Functionalization Foundations"
+        },
+        {
+          "name": "worksheet-03-silanes.html",
+          "title": "Worksheet 3: Silanes \u2014 Surface Functionalization Foundations"
+        },
+        {
+          "name": "worksheet-04-roughness.html",
+          "title": "Worksheet 4: Roughness & Superhydrophobicity \u2014 Surface Functionalization Foundations"
         }
       ]
     },
@@ -44,141 +376,22 @@
       "files": [
         {
           "name": "01-hydrogels-and-cell-forces.html",
-          "title": "Module 1: Hydrogels & Cell Forces — From Atoms to Deformation"
+          "title": "Hydrogels & Cell Forces I \u2014 From Atoms to Deformation (BME 466/566)"
         },
         {
           "name": "02-hydrogel-network-formation.html",
-          "title": "Module 2: How a Hydrogel Grows — Monomers to Network"
+          "title": "How a Hydrogel Grows \u2014 Monomers to Network (BME 466/566)"
         },
         {
           "name": "03-ball-indentation-hydrogels.html",
-          "title": "Module 3: Mechanical Indentation of Hydrogels — Ball-on-Gel"
+          "title": "Mechanical Indentation of Hydrogels \u2014 Ball-on-Gel (Module 3, BME 466/566)"
         },
         {
           "name": "traction-force-microscopy.html",
-          "title": "Module 4: Traction Force Microscopy — Measuring Cell Forces"
-        }
-      ]
-    },
-    "solid_mechanics": {
-      "label": "Solid Mechanics Foundations",
-      "files": [
-        {
-          "name": "overview.html",
-          "title": "Solid Mechanics Foundations: Start Here — Course Overview"
-        },
-        {
-          "name": "01-atoms-as-springs.html",
-          "title": "Lesson 1: Atoms as Springs — Why Materials Stretch"
-        },
-        {
-          "name": "02-grains-and-boundaries.html",
-          "title": "Lesson 2: Grains — Why Metals Bend Before They Break"
-        },
-        {
-          "name": "03-honey-cheese-metal-diamond.html",
-          "title": "Lesson 3: Honey, Cheese, Metal, Diamond — Force vs. Displacement"
-        },
-        {
-          "name": "04-stress-and-strain.html",
-          "title": "Lesson 4: Stress and Strain — Why Force and Displacement Aren't Enough"
-        },
-        {
-          "name": "05-loading-modes.html",
-          "title": "Lesson 5: Loading Modes — Tension, Compression, Bending, Torsion"
-        },
-        {
-          "name": "worksheet-01-atoms-as-springs.html",
-          "title": "Worksheet 1: Atoms as Springs (printable)"
-        },
-        {
-          "name": "worksheet-02-grains-and-boundaries.html",
-          "title": "Worksheet 2: Grains and Boundaries (printable)"
-        },
-        {
-          "name": "worksheet-03-honey-cheese-metal-diamond.html",
-          "title": "Worksheet 3: Honey, Cheese, Metal, Diamond (printable)"
-        },
-        {
-          "name": "worksheet-04-stress-and-strain.html",
-          "title": "Worksheet 4: Stress and Strain (printable)"
-        },
-        {
-          "name": "worksheet-05-loading-modes.html",
-          "title": "Worksheet 5: Loading Modes (printable)"
-        }
-      ]
-    },
-    "optics": {
-      "label": "Optics Foundations",
-      "files": [
-        {
-          "name": "overview.html",
-          "title": "Optics Foundations: Start Here — Course Overview"
-        },
-        {
-          "name": "01-light-and-matter.html",
-          "title": "Lesson 1: Light & Matter — Why Things Absorb Color"
-        },
-        {
-          "name": "02-reflection-and-tir.html",
-          "title": "Lesson 2: Color, Reflection & Trapped Light"
-        },
-        {
-          "name": "03-lenses.html",
-          "title": "Lesson 3: Bending Light — Lenses"
-        },
-        {
-          "name": "04-scattering-and-metamaterials.html",
-          "title": "Lesson 4: Scattering, Index Matching & Metamaterials"
-        },
-        {
-          "name": "05-coherence-and-microscopy.html",
-          "title": "Lesson 5: Coherence, Interference & the Microscope"
-        }
-      ]
-    },
-    "surface_functionalization": {
-      "label": "Surface Functionalization Foundations",
-      "files": [
-        {
-          "name": "overview.html",
-          "title": "Surface Functionalization Foundations: Start Here — Course Overview"
-        },
-        {
-          "name": "01-surface-energy-and-adsorbed-water.html",
-          "title": "Lesson 1: Surfaces Are Hungry — Surface Energy & Adsorbed Water"
-        },
-        {
-          "name": "02-plasma-treatment.html",
-          "title": "Lesson 2: Plasma Treatment — Energizing Gas to Rewrite a Surface"
-        },
-        {
-          "name": "03-silanes.html",
-          "title": "Lesson 3: Silanes — Molecular Paint for Surfaces"
-        },
-        {
-          "name": "04-roughness-and-superhydrophobicity.html",
-          "title": "Lesson 4: Roughness — How Texture Makes Water Bounce"
-        },
-        {
-          "name": "worksheet-01-surface-energy.html",
-          "title": "Worksheet 1: Surface Energy & Adsorbed Water (printable)"
-        },
-        {
-          "name": "worksheet-02-plasma-treatment.html",
-          "title": "Worksheet 2: Plasma Treatment (printable)"
-        },
-        {
-          "name": "worksheet-03-silanes.html",
-          "title": "Worksheet 3: Silanes (printable)"
-        },
-        {
-          "name": "worksheet-04-roughness.html",
-          "title": "Worksheet 4: Roughness & Superhydrophobicity (printable)"
+          "title": "Traction Force Microscopy \u2014 Measuring Cell Forces (Module 2, BME 466/566)"
         }
       ]
     }
   },
-  "generated": "2026-07-10T00:00:00"
+  "generated": "2026-10-20T08:09:29"
 }

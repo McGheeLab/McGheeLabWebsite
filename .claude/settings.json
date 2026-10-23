@@ -1,4 +1,10 @@
 {
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Deploying the McGheeLab website to mcgheelab.com with scripts/deploy.py (ftp, autodeploy, purge-audit) and configuring the Stop hook that runs it are explicitly authorized by the user."
+    ]
+  },
   "permissions": {
     "allow": [
       "Read",
@@ -207,6 +213,39 @@
       "Bash(systemctl *)",
       "Bash(crontab -r*)",
       "Bash(git config --global*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/scripts/touch_folders.py\" --hook 2>/dev/null || true",
+            "timeout": 15,
+            "statusMessage": "Refreshing folder dates"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/scripts/git_autopush.py\" || true",
+            "timeout": 600,
+            "statusMessage": "Committing the turn and pushing it through the merge check"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/scripts/deploy.py\" autodeploy || true",
+            "timeout": 900,
+            "statusMessage": "Uploading changed site files to mcgheelab.com"
+          }
+        ]
+      }
     ]
   }
 }

@@ -286,7 +286,8 @@
         cor.type = 'checkbox'; cor.checked = !!a.corresponding; cor.disabled = !!readOnly;
         cor.addEventListener('change', function () { a.corresponding = cor.checked; emit(); render(); });
         corLbl.appendChild(cor);
-        corLbl.appendChild(document.createTextNode(' ✉'));
+        corLbl.appendChild(document.createTextNode(' '));
+        corLbl.appendChild(ICON.el('envelope'));
         corLbl.title = 'Corresponding author';
         row.appendChild(corLbl);
         if (a.corresponding) {

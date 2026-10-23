@@ -67,6 +67,7 @@ window.McgheeLab = window.McgheeLab || {};
   let _currentSection = 'week';
   let _huddleSettings = null;      // user's huddle defaults (Firestore)
   let _myPlansView = 'weekly';     // This Week view: 'daily' | 'weekly' | 'monthly'
+  let _openDay = null;             // V3.848 — the one expanded day of the week accordion (YYYY-MM-DD)
   let _composerOpen = false;       // inline plan composer expanded?
   let _featureFlags = {};          // labConfig/featureFlags (V3.533 retirement)
   let _helpComposerOpen = false;   // inline help composer expanded?
@@ -908,7 +909,7 @@ window.McgheeLab = window.McgheeLab || {};
     if (McgheeLab.MobileShell?.saveTabScroll) McgheeLab.MobileShell.saveTabScroll('hud-tabs');
     appEl.innerHTML = `
       <div class="hud-layout">
-        <nav class="hud-sidebar" id="hud-tabs">${sidebarHTML()}</nav>
+        <nav class="hud-sidebar" id="hud-tabs"><h1 class="hud-sidebar-title">The Huddle</h1>${sidebarHTML()}</nav>
         <div class="hud-main" id="hud-main">${renderSection()}</div>
       </div>`;
     wireSidebar();
@@ -1068,23 +1069,36 @@ window.McgheeLab = window.McgheeLab || {};
       if (plan) popupHTML = planPopupHTML(plan);
     }
 
-    let calHTML = '';
+    /* V3.849 — the top is frozen and compact: one bar (date nav · Day/Week/Month · zoom), then the
+       member pills with the composer's one-liner on the same row. Only the calendar scrolls, and
+       "Anytime this week" + the help strip ride at the bottom of that scroller. The plan popup
+       overlays the calendar instead of pushing it down. */
+    const below = anytimeSectionHTML(untimed, legacyTasks) + helpStripHTML();
+    let calHTML = '', navHTML = '', zoomHTML = '';
     if (_myPlansView === 'monthly') {
       // Month view is personal by design — everyone's dots would be noise.
-      calHTML = viewToggleHTML + renderMyMonthly(_plans.filter(p => p.ownerUid === _user.uid));
+      navHTML = monthNavHTML();
+      calHTML = renderMyMonthly(_plans.filter(p => p.ownerUid === _user.uid), below);
     } else if (_myPlansView === 'daily') {
-      calHTML = renderMyDaily(filtered, viewToggleHTML);
+      navHTML = dayNavHTML(); zoomHTML = zoomControlsHTML();
+      calHTML = renderMyDaily(filtered, below);
     } else {
-      calHTML = renderMyWeekly(filtered, viewToggleHTML);
+      navHTML = weekNavHTML(); zoomHTML = zoomControlsHTML();
+      calHTML = renderMyWeekly(filtered, below);
     }
+    const composer = planComposerHTML();
+    const composerCollapsed = !_composerOpen && _editingPlanId == null;
 
     return `
-      ${chipsRowHTML()}
-      ${planComposerHTML()}
-      ${popupHTML}
-      ${calHTML}
-      ${anytimeSectionHTML(untimed, legacyTasks)}
-      ${helpStripHTML()}`;
+      <div class="hud-week-top">
+        <div class="hud-week-bar">${navHTML}${viewToggleHTML}${zoomHTML}</div>
+        <div class="hud-week-filters">${chipsRowHTML()}${composerCollapsed ? composer : ''}</div>
+        ${composerCollapsed ? '' : composer}
+      </div>
+      <div class="hud-week-body">
+        ${popupHTML}
+        ${calHTML}
+      </div>`;
   }
 
   function wireThisWeek() {
@@ -1099,7 +1113,7 @@ window.McgheeLab = window.McgheeLab || {};
     switch (_myPlansView) {
       case 'monthly': wireMyMonthly(); break;
       case 'daily':   wireMyDaily(); wireGridClicks(); wireDragDrop(); wireCalFeatures(); break;
-      default:        wireWeekNav(); wireGridClicks(); wireDragDrop(); wireCalFeatures(); break;
+      default:        wireWeekNav(); wireAccordion(); wireGridClicks(); wireDragDrop(); wireCalFeatures(); break;
     }
 
     wireAnytimeCards();
@@ -1388,8 +1402,12 @@ window.McgheeLab = window.McgheeLab || {};
   /* ═══════════════════════════════════════════════════════════
      TIME GRID BUILDER (shared between Plan Feed + My Plans)
      ═══════════════════════════════════════════════════════════ */
-  function buildTimeGrid(days, plans, bounds, slots, today, draggable) {
+  function buildTimeGrid(days, plans, bounds, slots, today, draggable, openDate) {
     const totalSlots = slots.length;
+    /* V3.848 — with openDate the week is an accordion: that day's column is wide and shows its
+       text, the other days are slivers of colour. Every column element carries data-day and an
+       open/closed class so setOpenDay can swap days in place (the track widths animate). */
+    const colCls = (date) => openDate ? (date === openDate ? ' hud-col-open' : ' hud-col-closed') : '';
 
     // Group plans by day
     const byDay = {};
@@ -1409,15 +1427,15 @@ window.McgheeLab = window.McgheeLab || {};
     days.forEach((d, ci) => {
       const isToday = d.date === today;
       const dayNum = d.date ? parseInt(d.date.split('-')[2], 10) : d.monthDay;
-      headerCells += `<div class="hud-grid-day-header hud-sticky-head ${isToday ? 'hud-today' : ''}" style="grid-column:${ci + 2}; grid-row:1;">${d.dayShort}<span class="hud-grid-daynum">${dayNum}</span></div>`;
+      headerCells += `<div class="hud-grid-day-header hud-sticky-head ${isToday ? 'hud-today' : ''}${colCls(d.date)}" data-day="${d.date}"${openDate ? ` role="button" tabindex="0" aria-expanded="${d.date === openDate}" title="${d.date === openDate ? 'This day is open' : 'Open ' + (d.dayName || d.dayShort)}"` : ''} style="grid-column:${ci + 2}; grid-row:1;"><span class="hud-grid-dayshort">${d.dayShort}</span><span class="hud-grid-daynum">${dayNum}</span></div>`;
     });
 
     // All-day row — row 2
     let allDayCells = `<div class="hud-grid-time-label" style="grid-column:1; grid-row:2; font-size:.65rem;">All Day</div>`;
     days.forEach((d, ci) => {
       const items = allDay[d.date] || [];
-      allDayCells += `<div class="hud-grid-allday-cell" style="grid-column:${ci + 2}; grid-row:2;" data-drop-date="${d.date}" data-drop-time="">
-        ${items.map(p => planBlockHTML(p, 0, draggable)).join('')}
+      allDayCells += `<div class="hud-grid-allday-cell${colCls(d.date)}" data-day="${d.date}" style="grid-column:${ci + 2}; grid-row:2;" data-drop-date="${d.date}" data-drop-time="">
+        ${items.map(p => planBlockHTML(p, 0, draggable, colCls(d.date))).join('')}
       </div>`;
     });
 
@@ -1434,7 +1452,7 @@ window.McgheeLab = window.McgheeLab || {};
       }
       days.forEach((d, ci) => {
         const isToday = d.date === today;
-        rows += `<div class="hud-grid-cell ${isToday ? 'hud-today-col' : ''}" style="grid-column:${ci + 2}; grid-row:${gridRow};" data-drop-date="${d.date}" data-drop-time="${sl.time}" data-slot="${i}"></div>`;
+        rows += `<div class="hud-grid-cell ${isToday ? 'hud-today-col' : ''}${colCls(d.date)}" data-day="${d.date}" style="grid-column:${ci + 2}; grid-row:${gridRow};" data-drop-date="${d.date}" data-drop-time="${sl.time}" data-slot="${i}"></div>`;
       });
     }
 
@@ -1458,8 +1476,8 @@ window.McgheeLab = window.McgheeLab || {};
         const laneWidth = (100 / laneCount).toFixed(3);
         const color = getUserColor(p.ownerUid);
         const tooltip = `${p.ownerName || ''}: ${p.text} (${timeLabel})`;
-        overlayBlocks += `<div class="hud-grid-block ${isNewDoc(p, 'week') ? 'hud-block-new' : ''}"
-          style="grid-column:${gridCol}; grid-row:${gridRow}/span ${spanSlots}; width:calc(${laneWidth}% - 4px); margin-left:calc(${laneWidth}% * ${lane} + 2px); border-left-color:${color}; background:${color}22; z-index:${1 + lane};"
+        overlayBlocks += `<div class="hud-grid-block ${isNewDoc(p, 'week') ? 'hud-block-new' : ''}${colCls(d.date)}" data-day="${d.date}"
+          style="grid-column:${gridCol}; grid-row:${gridRow}/span ${spanSlots}; width:calc(${laneWidth}% - 4px); margin-left:calc(${laneWidth}% * ${lane} + 2px); border-left-color:${color}; background:${color}22; --hud-bc:${color}; z-index:${1 + lane};"
           data-plan-id="${p.id}" data-lane-count="${laneCount}" title="${escHTML(tooltip)}" ${draggable && p.ownerUid === _user.uid ? 'draggable="true"' : ''}>
           <div class="hud-block-head">
             <span class="hud-block-avatar" style="background:${color}">${getInitials(p.ownerName)}</span>
@@ -1473,7 +1491,7 @@ window.McgheeLab = window.McgheeLab || {};
 
     const slotH = ZOOM_LEVELS[_zoomIdx];
     // All cells get explicit grid positions to prevent overlay blocks from disrupting flow
-    return `<div class="hud-time-grid" style="grid-template-columns:60px repeat(${days.length}, 1fr); grid-template-rows:auto auto repeat(${totalSlots}, ${slotH}px);">
+    return `<div class="hud-time-grid${openDate ? ' hud-accordion' : ''}" data-days="${days.map(d => d.date).join(',')}" style="grid-template-columns:${openDate ? accordionColumns(days, openDate) : `60px repeat(${days.length}, 1fr)`}; grid-template-rows:auto auto repeat(${totalSlots}, ${slotH}px);">
       ${headerCells}
       ${allDayCells}
       ${rows}
@@ -1481,9 +1499,58 @@ window.McgheeLab = window.McgheeLab || {};
     </div>`;
   }
 
-  function planBlockHTML(p, slot, draggable) {
+  /* ─── V3.848 — WEEK ACCORDION: one day open, the other six are slivers ───
+     Alex: "the week view should only have one day open at a time, all other days are just
+     slivers of color with no text … the day expands to show the text for that day like an
+     accordion." Today is open when it is on screen, otherwise the Monday; the choice lives in
+     _openDay so re-renders (every plans snapshot) keep it. Switching days edits the live grid
+     (track list + open/closed classes) instead of re-rendering, so the columns animate and the
+     scroll position stays. Only the weekly grid is an accordion; the Day view is one column. */
+  function resolveOpenDay(days) {
+    const dates = days.map(d => d.date);
+    if (_openDay && dates.includes(_openDay)) return _openDay;
+    const t = todayStr();
+    _openDay = dates.includes(t) ? t : dates[0];
+    return _openDay;
+  }
+  function accordionColumns(days, openDate) {
+    return 'var(--hud-tcol) ' + days.map(d => `minmax(0, var(${d.date === openDate ? '--hud-open' : '--hud-closed'}))`).join(' ');
+  }
+  function setOpenDay(date) {
+    if (!date || date === _openDay) return;
+    _openDay = date;
+    const grid = appEl.querySelector('.hud-time-grid.hud-accordion');
+    if (!grid) { renderMain(); return; }
+    const days = (grid.dataset.days || '').split(',').filter(Boolean).map(d => ({ date: d }));
+    grid.style.gridTemplateColumns = accordionColumns(days, date);
+    grid.querySelectorAll('[data-day]').forEach(el => {
+      const open = el.dataset.day === date;
+      el.classList.toggle('hud-col-open', open);
+      el.classList.toggle('hud-col-closed', !open);
+      if (el.classList.contains('hud-grid-day-header')) {
+        el.setAttribute('aria-expanded', open ? 'true' : 'false');
+        el.title = open ? 'This day is open' : 'Open ' + (el.querySelector('.hud-grid-dayshort')?.textContent || 'this day');
+      }
+    });
+  }
+  function wireAccordion() {
+    const grid = appEl.querySelector('.hud-time-grid.hud-accordion');
+    if (!grid) return;
+    grid.querySelectorAll('.hud-grid-day-header[data-day]').forEach(h => {
+      h.addEventListener('click', () => setOpenDay(h.dataset.day));
+      h.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenDay(h.dataset.day); } });
+    });
+    // A tap anywhere in a closed column — header, empty cell or a sliver block — opens that day.
+    // Capture phase, so the block's popup click and the cell's drag never see it.
+    grid.addEventListener('click', (e) => {
+      const el = e.target.closest('[data-day]');
+      if (el && el.classList.contains('hud-col-closed')) { e.stopPropagation(); setOpenDay(el.dataset.day); }
+    }, true);
+  }
+
+  function planBlockHTML(p, slot, draggable, extraCls) {
     const color = getUserColor(p.ownerUid);
-    return `<div class="hud-allday-block ${isNewDoc(p, 'week') ? 'hud-block-new' : ''}" style="background:${color}22; border-left:2px solid ${color};" data-plan-id="${p.id}" title="${escHTML((p.ownerName || '') + ': ' + p.text)}" ${draggable && p.ownerUid === _user.uid ? 'draggable="true"' : ''}>
+    return `<div class="hud-allday-block ${isNewDoc(p, 'week') ? 'hud-block-new' : ''}${extraCls || ''}" style="background:${color}22; border-left:2px solid ${color}; --hud-bc:${color};" data-plan-id="${p.id}" title="${escHTML((p.ownerName || '') + ': ' + p.text)}" ${draggable && p.ownerUid === _user.uid ? 'draggable="true"' : ''}>
       <span class="hud-block-avatar hud-block-avatar--inline" style="background:${color}">${getInitials(p.ownerName)}</span>${escHTML(p.text.slice(0, 24))}${p.text.length > 24 ? '...' : ''}
     </div>`;
   }
@@ -1540,8 +1607,12 @@ window.McgheeLab = window.McgheeLab || {};
     const thumb = document.getElementById('hud-time-slider-thumb');
     if (!slider || !thumb) return;
 
+    // V3.849 — the scroller also holds "Anytime this week" below the grid; the slider is the time
+    // of day, so its extent is the grid's own height and past the grid the thumb rests at the end
+    const gridEl = wrapEl.querySelector('.hud-time-grid');
+    const extent = () => (gridEl ? gridEl.offsetHeight : wrapEl.scrollHeight);
     function syncThumb() {
-      const scrollH = wrapEl.scrollHeight;
+      const scrollH = extent();
       const clientH = wrapEl.clientHeight;
       const max = scrollH - clientH;
       if (max <= 0) { slider.style.display = 'none'; return; }
@@ -1550,7 +1621,7 @@ window.McgheeLab = window.McgheeLab || {};
       const ratio = clientH / scrollH;
       const thumbH = Math.max(24, Math.round(ratio * trackH));
       thumb.style.height = thumbH + 'px';
-      const scrollRatio = wrapEl.scrollTop / max;
+      const scrollRatio = Math.min(1, wrapEl.scrollTop / max);
       thumb.style.top = Math.round(scrollRatio * (trackH - thumbH)) + 'px';
     }
 
@@ -1562,7 +1633,7 @@ window.McgheeLab = window.McgheeLab || {};
       const thumbH = thumb.offsetHeight;
       const trackH = slider.clientHeight;
       const ratio = Math.max(0, Math.min(1, (clientY - rect.top - thumbH / 2) / (trackH - thumbH)));
-      wrapEl.scrollTop = ratio * (wrapEl.scrollHeight - wrapEl.clientHeight);
+      wrapEl.scrollTop = ratio * (extent() - wrapEl.clientHeight);
     }
 
     let dragging = false;
@@ -1682,7 +1753,7 @@ window.McgheeLab = window.McgheeLab || {};
      CALENDAR VIEW RENDERERS (Day / Week / Month) — used by This Week
      ═══════════════════════════════════════════════════════════ */
 
-  function renderMyDaily(myPlans, viewToggle) {
+  function renderMyDaily(myPlans, below) {
     const d = getDayDate(_currentDayOffset);
     const dateStr = localDateStr(d);
     const dayPlans = myPlans.filter(p => p.plannedDay === dateStr);
@@ -1690,27 +1761,31 @@ window.McgheeLab = window.McgheeLab || {};
     const slots = timeLabels(bounds.startHour, bounds.endHour);
     const dayData = [{ date: dateStr, dayShort: d.toLocaleDateString('en-US', { weekday: 'short' }), monthDay: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), dayName: '' }];
 
-    const nav = `<div class="hud-week-nav">
+    const gridHTML = buildTimeGrid(dayData, dayPlans, bounds, slots, todayStr(), true);
+    return calBodyHTML(gridHTML, below);
+  }
+
+  /* V3.849 — the nav rows live in the frozen bar (renderThisWeek); the calendar body is the one
+     scroller, with "Anytime this week" + the help strip below the grid inside it. */
+  function dayNavHTML() {
+    return `<div class="hud-week-nav">
       <button id="hud-day-prev">&larr;</button>
       <span class="hud-week-label">${getDayLabel(_currentDayOffset)}</span>
       <button id="hud-day-next">&rarr;</button>
       ${_currentDayOffset !== 0 ? '<button id="hud-day-today">Today</button>' : ''}
     </div>`;
-
-    const gridHTML = buildTimeGrid(dayData, dayPlans, bounds, slots, todayStr(), true);
-    const zoomHTML = `<div class="hud-zoom-controls">
+  }
+  function zoomControlsHTML() {
+    return `<div class="hud-zoom-controls">
       <button class="hud-zoom-btn" id="hud-zoom-out" title="Zoom out">−</button>
       <button class="hud-zoom-btn" id="hud-zoom-in" title="Zoom in">+</button>
     </div>`;
+  }
+  function calBodyHTML(gridHTML, below) {
     return `<div class="hud-cal-layout">
-      <div class="hud-cal-header">
-        ${viewToggle || ''}
-        ${nav}
-        <div class="hud-legend-row">${zoomHTML}</div>
-      </div>
       <div class="hud-cal-body">
         <div class="hud-cal-scroll-area">
-          <div class="hud-grid-wrap" data-slot-h="${ZOOM_LEVELS[_zoomIdx]}">${gridHTML}</div>
+          <div class="hud-grid-wrap" data-slot-h="${ZOOM_LEVELS[_zoomIdx]}">${gridHTML}<div class="hud-below-grid">${below || ''}</div></div>
           <div class="hud-time-slider" id="hud-time-slider">
             <div class="hud-time-slider-track"></div>
             <div class="hud-time-slider-thumb" id="hud-time-slider-thumb"></div>
@@ -1720,45 +1795,31 @@ window.McgheeLab = window.McgheeLab || {};
     </div>`;
   }
 
-  function renderMyWeekly(myPlans, viewToggle) {
+  function renderMyWeekly(myPlans, below) {
     const days = getWeekDays(_currentWeekOffset);
     const today = todayStr();
     const bounds = getGridBounds(myPlans);
     const slots = timeLabels(bounds.startHour, bounds.endHour);
-    const gridHTML = buildTimeGrid(days, myPlans, bounds, slots, today, true);
-    const zoomHTML = `<div class="hud-zoom-controls">
-      <button class="hud-zoom-btn" id="hud-zoom-out" title="Zoom out">−</button>
-      <button class="hud-zoom-btn" id="hud-zoom-in" title="Zoom in">+</button>
-    </div>`;
-    return `<div class="hud-cal-layout">
-      <div class="hud-cal-header">
-        ${viewToggle || ''}
-        ${weekNavHTML()}
-        <div class="hud-legend-row">${zoomHTML}</div>
-      </div>
-      <div class="hud-cal-body">
-        <div class="hud-cal-scroll-area">
-          <div class="hud-grid-wrap" data-slot-h="${ZOOM_LEVELS[_zoomIdx]}">${gridHTML}</div>
-          <div class="hud-time-slider" id="hud-time-slider">
-            <div class="hud-time-slider-track"></div>
-            <div class="hud-time-slider-thumb" id="hud-time-slider-thumb"></div>
-          </div>
-        </div>
-      </div>
-    </div>`;
+    const openDate = resolveOpenDay(days);   /* V3.848 — the accordion's open day */
+    const gridHTML = buildTimeGrid(days, myPlans, bounds, slots, today, true, openDate);
+    return calBodyHTML(gridHTML, below);
   }
 
-  function renderMyMonthly(myPlans) {
+  function monthNavHTML() {
     const { year, month } = _currentMonth;
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const monthLabel = firstDay.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-    const nav = `<div class="hud-week-nav">
+    const monthLabel = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    return `<div class="hud-week-nav">
       <button id="hud-month-prev">&larr;</button>
       <span class="hud-week-label">${monthLabel}</span>
       <button id="hud-month-next">&rarr;</button>
     </div>`;
+  }
+
+  function renderMyMonthly(myPlans, below) {
+    const { year, month } = _currentMonth;
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const monthLabel = firstDay.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
     // Build calendar grid (matches equipment scheduler — shows out-of-month days)
     const startDow = (firstDay.getDay() + 6) % 7; // Mon=0
@@ -1792,7 +1853,7 @@ window.McgheeLab = window.McgheeLab || {};
       }
     }
 
-    return `${nav}<div class="hud-month-grid">${cells}</div>`;
+    return `<div class="hud-month-scroll"><div class="hud-month-grid">${cells}</div><div class="hud-below-grid">${below || ''}</div></div>`;
   }
 
 
@@ -1889,6 +1950,7 @@ window.McgheeLab = window.McgheeLab || {};
       cell.addEventListener('pointerdown', (e) => {
         // Only start drag on empty area (not on existing plan blocks)
         if (e.target.closest('.hud-grid-block')) return;
+        if (cell.classList.contains('hud-col-closed')) return;   // V3.848 — a tap on a closed day opens it (wireAccordion), never a drag
         e.preventDefault();
         const col = parseInt(cell.style.gridColumn);
         const row = parseInt(cell.style.gridRow);
@@ -1949,13 +2011,13 @@ window.McgheeLab = window.McgheeLab || {};
     const isEditing = _editingPlanId != null;
     if (!_composerOpen && !isEditing) {
       // V3.533 — retirement flag (labConfig/featureFlags): when flipped,
-      // new plans are composed in My Day and distributed back here. The
+      // new plans are composed in My Week and distributed back here. The
       // composer code stays intact (editing existing plans still opens
       // it), so rollback is flipping the flag — no redeploy.
       if (_featureFlags.myday_retire_huddle_composer) {
-        return `<a class="hud-composer hud-composer--collapsed" href="/rm/pages/my-day.html?compose=1"
+        return `<a class="hud-composer hud-composer--collapsed" href="/rm/pages/my-week.html?compose=1"
           style="display:block;text-decoration:none;text-align:center">
-          ＋ Plan your week in My Day → <span style="opacity:.65;font-size:.85em">(it posts here too)</span>
+          ＋ Plan your week in My Week → <span style="opacity:.65;font-size:.85em">(it posts here too)</span>
         </a>`;
       }
       return `<button class="hud-composer hud-composer--collapsed" id="hud-composer-open">
@@ -2232,7 +2294,7 @@ window.McgheeLab = window.McgheeLab || {};
             const ref = await createPlan(fields);
             toast('Plan created!');
             // V3.530 — double-dip: offer to fan this plan out to other
-            // surfaces (notebook stub, tracker event, …) via My Day.
+            // surfaces (notebook stub, tracker event, …) via My Week.
             if (window.DAY_DISTRIBUTE) DAY_DISTRIBUTE.renderChipsFloating({
               source: 'huddle',
               nativeDocPath: ref && ref.id ? 'huddlePlans/' + ref.id : '',
@@ -2288,7 +2350,7 @@ window.McgheeLab = window.McgheeLab || {};
       ${helpComposerHTML()}
       ${chips}
       ${shown.length ? shown.map(r => helpCardHTML(r, r.ownerUid === _user.uid)).join('')
-        : `<div class="hud-empty"><p>${_helpFilterMine ? 'You have no open help requests.' : 'No open help requests. Stuck on something?'}</p><button class="app-btn app-btn--primary" id="hud-help-empty-cta">＋ Request help</button></div>`}
+        : `<div class="hud-empty"><p>${_helpFilterMine ? 'You have no open help requests.' : 'No open help requests. Stuck on something?'}</p><button class="app-btn app-btn--primary" id="hud-help-empty-cta">${ICON.svg('plus')} Request help</button></div>`}
       ${resolvedHTML}`;
   }
 
@@ -3085,7 +3147,7 @@ window.McgheeLab = window.McgheeLab || {};
           </p>
           <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
             <button class="app-btn app-btn--secondary" id="hud-migrate-rundown" style="font-size:.78rem;">⇪ Migrate legacy rundown tasks</button>
-            <button class="app-btn app-btn--danger" id="hud-purge-rundown" style="font-size:.78rem;">🗑 Purge migrated originals</button>
+            <button class="app-btn app-btn--danger" id="hud-purge-rundown" style="font-size:.78rem;">${ICON.svg('trash')} Purge migrated originals</button>
           </div>
         </div>` : ''}
 

@@ -44,7 +44,7 @@
       .where('creator.uid', '==', u.uid)
       .where('visibility', '==', 'private');
 
-    const state = { lab: [], mine: [], ready: { lab: false, mine: false } };
+    const state = { lab: [], mine: [] };
 
     function _emit() {
       // Merge: lab covers everyone's lab annotations (including mine);
@@ -71,27 +71,28 @@
     // server ack).
     const DATA_OPTS = { serverTimestamps: 'estimate' };
 
+    // V3.621 — onError carries which listener died ('lab' | 'private') so
+    // the host can say "your private highlights are missing" instead of a
+    // generic failure. (The old `state.ready` flags were write-only.)
     const unsubLab = labCol.onSnapshot({
       next: snap => {
         state.lab = snap.docs.map(d => Object.assign({ id: d.id }, d.data(DATA_OPTS)));
-        state.ready.lab = true;
         _emit();
       },
       error: err => {
         console.error('[ann-sync] lab listener error:', err);
-        if (onError) onError(err);
+        if (onError) onError(err, 'lab');
       },
     });
 
     const unsubMine = myCol.onSnapshot({
       next: snap => {
         state.mine = snap.docs.map(d => Object.assign({ id: d.id }, d.data(DATA_OPTS)));
-        state.ready.mine = true;
         _emit();
       },
       error: err => {
         console.error('[ann-sync] private listener error:', err);
-        if (onError) onError(err);
+        if (onError) onError(err, 'private');
       },
     });
 
@@ -137,7 +138,33 @@
     const ref = await firebase.firestore()
       .collection('papers').doc(paperId).collection('annotations')
       .add(doc);
+    _recordAnnotationSignal(paperId);   // V3.626 — fire-and-forget
     return ref.id;
+  }
+
+  /* V3.626 — reading activity signal: one work event per paper per day
+   * (deterministic id via ActivitySignals) the first time the user
+   * annotates it that day. The paper title is fetched once per paperId
+   * per session; failures never touch the annotation write. */
+  const _annSignalTitles = {};
+  function _recordAnnotationSignal(paperId) {
+    try {
+      if (!window.ActivitySignals) return;
+      const fire = (title) => {
+        ActivitySignals.recordWork({
+          source: 'rm-library',
+          sourceRef: { kind: 'annotation', id: paperId, path: 'papers/' + paperId },
+          text: 'Annotated: ' + (title || 'a paper'),
+          categoryPath: ['research', 'reading'],
+        }).catch(() => {});
+      };
+      if (_annSignalTitles[paperId] !== undefined) { fire(_annSignalTitles[paperId]); return; }
+      firebase.firestore().collection('papers').doc(paperId).get().then((snap) => {
+        const d = (snap.exists && snap.data()) || {};
+        _annSignalTitles[paperId] = d.title || d.meta_title || '';
+        fire(_annSignalTitles[paperId]);
+      }).catch(() => { _annSignalTitles[paperId] = ''; fire(''); });
+    } catch (e) { /* signals never break annotation creation */ }
   }
 
   async function update(paperId, annId, patch) {

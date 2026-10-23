@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
   <style>
     .wn-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;box-shadow:var(--shadow)}
     .wn-card h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin:0 0 4px 0}
@@ -41,7 +42,7 @@
 <body>
   <div class="page">
     <div class="page-header">
-      <h1 class="page-title">🚀 What's New</h1>
+      <h1 class="page-title"><i data-hi="rocket-launch"></i> What's New</h1>
     </div>
 
     <!-- Admin compose (hidden for non-admins) -->
@@ -52,7 +53,7 @@
         <label for="wn-version">Version</label>
         <input id="wn-version" type="text" placeholder="e.g. 3.610">
         <label for="wn-title">Title (optional)</label>
-        <input id="wn-title" type="text" placeholder="🚀 App updated — v3.610">
+        <input id="wn-title" type="text" placeholder="App updated — v3.610">
         <label for="wn-appbuild">App build</label>
         <input id="wn-appbuild" type="text" placeholder="TestFlight build number, e.g. 10 — leave blank if the app wasn't rebuilt">
         <label for="wn-appversion">App version</label>
@@ -63,7 +64,7 @@
         <textarea id="wn-changes" placeholder="One change per line, written for lab members (leading -, *, or 1. is stripped)."></textarea>
       </div>
       <div class="wn-actions">
-        <button class="btn btn-primary" id="wn-send">📣 Send to all lab members</button>
+        <button class="btn btn-primary" id="wn-send"><i data-hi="megaphone"></i> Send to all lab members</button>
         <span class="wn-status" id="wn-status"></span>
       </div>
     </div>

@@ -245,6 +245,7 @@ function _defaultNotifSettings() {
         scheduler: { push: true },
         activityTracker: { push: false },
         releases: { push: true },
+        procurement: { push: true },   // V3.813 — purchase requests / approvals / orders / arrivals
       },
     },
   };
@@ -296,6 +297,7 @@ async function renderNotifications(content) {
       row('n-scheduler', 'Scheduler',        'Schedule invitations and assignment changes', !!(apps.scheduler && apps.scheduler.push)) +
       row('n-activity',  'Activity Tracker', 'Daily logging reminders',                     !!(apps.activityTracker && apps.activityTracker.push)) +
       row('n-releases',  'App Updates',      "What's-new announcements when the app ships a batch of changes", !(apps.releases && apps.releases.push === false)) +
+      row('n-procurement', 'Purchasing',     'Purchase requests, approvals, orders and deliveries', !(apps.procurement && apps.procurement.push === false)) +
 
       '<h3 class="settings-h3">Quiet Hours</h3>' +
       row('n-quiet', 'Do Not Disturb', 'Silence notifications during the hours below.', qh.enabled) +
@@ -341,6 +343,7 @@ async function renderNotifications(content) {
             scheduler:       { push: !!document.getElementById('n-scheduler').checked },
             activityTracker: { push: !!document.getElementById('n-activity').checked },
             releases:        { push: !!document.getElementById('n-releases').checked },
+            procurement:     { push: !!document.getElementById('n-procurement').checked },
           },
         },
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),

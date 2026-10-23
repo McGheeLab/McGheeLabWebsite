@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/rm/css/style.css">
   <link rel="stylesheet" href="/rm/css/activity-signals.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
   <style>
     /* ── Page chrome ──────────────────────────────────────────── */
     .pmr-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:12px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
@@ -150,6 +151,51 @@
     .pmr-fig-lightbox{position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;cursor:zoom-out}
     .pmr-fig-lightbox-img{max-width:90vw;max-height:88vh;object-fit:contain;border-radius:6px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.5)}
     .pmr-fig-lightbox-label{margin-top:12px;color:#f9fafb;font-size:13px;max-width:90vw;text-align:center}
+    /* V3.624 — My Week ledger block */
+    .pmr-lg-refresh{float:right;font-size:12px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;color:#6b7280;padding:2px 8px;cursor:pointer}
+    .pmr-lg-week{border:1px solid #eef0f4;border-radius:8px;padding:8px 10px;margin:8px 0;background:#fafbfc}
+    .pmr-lg-weekhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+    .pmr-lg-range{font-weight:600;font-size:12px;color:#374151}
+    .pmr-lg-chip{font-size:11px;border:1px solid #e5e7eb;border-radius:999px;padding:1px 8px;background:#fff;color:#6b7280}
+    .pmr-lg-golink{margin-left:auto;font-size:11px;color:#2563eb;text-decoration:none}
+    .pmr-lg-item{display:flex;gap:8px;padding:5px 0;border-top:1px dashed #eef0f4}
+    .pmr-lg-item:first-of-type{border-top:none}
+    .pmr-lg-icon{flex:0 0 auto;font-size:13px}
+    .pmr-lg-main{min-width:0;flex:1}
+    .pmr-lg-title{font-size:13px;color:#1f2937}
+    .pmr-lg-day{font-size:11px;color:#9ca3af;margin-left:6px}
+    .pmr-lg-bits{font-size:11px;color:#6b7280;margin-left:8px}
+    .pmr-lg-outcome{font-size:12px;color:#6b7280;margin-top:2px}
+    .pmr-lg-oc-result{color:#166534}
+    .pmr-lg-oc-barrier{color:#92400e}
+    .pmr-lg-oc-missing{color:#b45309}
+    .pmr-lg-missing{background:#fffbeb;border-radius:6px;padding-left:4px;padding-right:4px}
+    .pmr-lg-img{font-size:11px;color:#2563eb;text-decoration:none;margin-left:6px}
+    .pmr-lg-thumb{height:18px;width:auto;max-width:36px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:3px;border:1px solid #e5e7eb} /* V3.853 — the card a result points at */
+    .pmr-lg-fu{font-size:11px;color:#6b7280}
+    .pmr-lg-more{margin-top:6px;font-size:12px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;color:#374151;padding:4px 10px;cursor:pointer}
+    /* V3.626 — per-week presence dots (Mon→Sun, from tracker events) */
+    .pmr-lg-presence{display:inline-flex;gap:2px;align-items:center}
+    .pmr-lg-pd{width:7px;height:7px;border-radius:50%;background:#e5e7eb}
+    .pmr-lg-pd.on{background:#16a34a}
+    .pmr-lg-pd.future{background:transparent;border:1px dashed #e5e7eb}
+    /* V3.625 — My projects health header */
+    .pmr-ph-card{border:1px solid #eef0f4;border-radius:10px;padding:10px 12px;margin:8px 0;background:#fff}
+    .pmr-ph-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .pmr-ph-dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+    .pmr-ph-dot.healthy{background:#16a34a}
+    .pmr-ph-dot.attention{background:#f59e0b}
+    .pmr-ph-dot.stuck{background:#dc2626}
+    .pmr-ph-title{font-weight:600;font-size:14px;color:#111827;text-decoration:none}
+    .pmr-ph-trend{font-size:13px}
+    .pmr-ph-why{font-size:12px;color:#6b7280;flex-basis:100%}
+    .pmr-ph-strip{display:flex;gap:3px;margin-top:6px}
+    .pmr-ph-wk{width:18px;height:18px;border-radius:4px;border:1px solid #e5e7eb;display:flex;align-items:center;justify-content:center;font-size:10px;background:#fafbfc}
+    .pmr-ph-desc{width:100%;margin-top:6px;font-size:12px;border:1px solid #e5e7eb;border-radius:6px;padding:4px 8px;color:#374151}
+    .pmr-ph-expand{font-size:11px;border:none;background:none;color:#2563eb;cursor:pointer;padding:2px 0}
+    .pmr-ph-detail{margin-top:6px;border-top:1px dashed #eef0f4;padding-top:6px}
+    .pmr-ph-accept{font-size:11px;border:1px solid #16a34a;color:#166534;background:#f0fdf4;border-radius:999px;padding:1px 8px;cursor:pointer;margin-left:6px}
+    .pmr-ph-accepted{font-size:11px;color:#166534;margin-left:6px}
   </style>
 </head>
 <body>
@@ -164,7 +210,7 @@
         <button id="pmr-show-archived" style="display:none" title="Show archived periods in the list"></button>
         <span class="grow"></span>
         <!-- V3.323 — optional 1:1 meeting date on the period doc (feeds FuturePlan 05 reminders). -->
-        <label id="pmr-meeting-wrap" style="display:none;font-size:11px;color:#6b7280;align-items:center;gap:4px">🗓 1:1
+        <label id="pmr-meeting-wrap" style="display:none;font-size:11px;color:#6b7280;align-items:center;gap:4px"><i data-hi="calendar-days"></i> 1:1
           <input type="date" id="pmr-meeting-date" style="font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:6px">
         </label>
         <span id="pmr-status-pill" class="status-pill draft">draft</span>
@@ -195,7 +241,7 @@
   <script src="/rm/js/section-comments.js"></script>
   <!-- V3.194 — bridge to Tasks-page subtasks (Add to PMR + completion sync). -->
   <script src="/rm/js/task-pmr-sync.js"></script>
-  <!-- V3.532 — "⤓ Assemble" pulls the week's notebook/tracker/tasks/My Day
+  <!-- V3.532 — "⤓ Assemble" pulls the week's notebook/tracker/tasks/My Week
        work into weekly entries (notebook is canonical; PMR is curated). -->
   <script src="/rm/js/pmr-week-assemble.js"></script>
   <!-- V3.541 — weekly focus review block (mentor↔mentee focus loop rollup) -->
@@ -204,6 +250,10 @@
        pick into roadmapClaims, so this must load first. -->
   <script src="/rm/js/roadmap-data.js"></script>
   <script src="/rm/js/focus-areas.js"></script>
+  <!-- V3.625 — "My projects" health header: research-data lists the foci
+       cards, project-health scores them from the My Week outcome ledger. -->
+  <script src="/rm/js/research-data.js"></script>
+  <script src="/rm/js/project-health.js"></script>
   <script src="/rm/js/pmr.js"></script>
   <!-- V3.535 -- which-surface-for-what orientation banner -->
   <script src="/rm/js/surface-guide.js" defer></script>

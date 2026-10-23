@@ -279,7 +279,7 @@
             '<div style="font-size:13px;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(title) + '</div>' +
             '<div style="font-size:11px;color:#6b7280">' + escHtml([CV_SECTION_LABELS[t.section] || t.section, age].filter(Boolean).join(' · ')) + '</div>' +
           '</div>' +
-          '<button class="btn" data-restore="' + escAttr(e._id || '') + '" style="font-size:12px;padding:4px 10px">↶ Restore</button>' +
+          '<button class="btn" data-restore="' + escAttr(e._id || '') + '" style="font-size:12px;padding:4px 10px">' + ICON.svg('arrow-uturn-left') + ' Restore</button>' +
         '</div>';
       });
       body += '</div>';
@@ -363,7 +363,7 @@
     head.appendChild(sel);
     var close = document.createElement('button');
     close.className = 'btn';
-    close.textContent = '✕';
+    ICON.label(close, 'x-mark');
     close.title = 'Hide preview';
     close.style.cssText = 'padding:2px 8px;font-size:12px';
     close.addEventListener('click', togglePreview);
@@ -381,10 +381,11 @@
   function renderToolbar() {
     var bar = document.createElement('div');
     bar.className = 'cve-toolbar';
-    function mkBtn(label, onClick, color) {
+    function mkBtn(label, onClick, color, icon) {
       var b = document.createElement('button');
       b.className = 'btn';
-      b.textContent = label;
+      if (icon) ICON.label(b, icon, ' ' + label);
+      else b.textContent = label;
       if (color) { b.style.borderColor = color; b.style.color = color; }
       b.addEventListener('click', onClick);
       return b;
@@ -392,7 +393,7 @@
     if (typeof CV_ONBOARDING !== 'undefined') {
       bar.appendChild(CV_ONBOARDING.healthChip(onboardingCtx()));
     }
-    bar.appendChild(mkBtn('📚 Pull from library', openLibraryPull, '#b45309'));
+    bar.appendChild(mkBtn('Pull from library', openLibraryPull, '#b45309', 'books'));
     bar.appendChild(mkBtn('⊕ ORCID sync',     openORCIDDialog,  '#059669'));
     bar.appendChild(mkBtn('⇓ Import BibTeX',   openBibTeXDialog, '#2563eb'));
     bar.appendChild(mkBtn('↻ Refresh citations', runCitationRefresh, '#7c3aed'));
@@ -421,15 +422,15 @@
       render();
     });
     bar.appendChild(vSel);
-    bar.appendChild(mkBtn('⚙ Variants', openVariantsDialog));
-    var previewBtn = mkBtn(state.previewOn ? '👁 Hide preview' : '👁 Preview', togglePreview);
+    bar.appendChild(mkBtn('Variants', openVariantsDialog, null, 'cog-6-tooth'));
+    var previewBtn = mkBtn(state.previewOn ? 'Hide preview' : 'Preview', togglePreview, null, 'eye');
     if (state.previewOn) { previewBtn.style.borderColor = '#2563eb'; previewBtn.style.color = '#2563eb'; }
     bar.appendChild(previewBtn);
     bar.appendChild(mkBtn('⇩ Markdown',      function () { CVExport.downloadMarkdown(state.doc, exportBaseName(), exportOpts()); markExported(); }));
     bar.appendChild(mkBtn('⇩ HTML',          function () { CVExport.downloadHTML(state.doc, exportBaseName(), exportOpts()); markExported(); }));
     bar.appendChild(mkBtn('⇩ Word (.doc)',   function () { CVExport.downloadDoc(state.doc, exportBaseName(), exportOpts()); markExported(); }));
     bar.appendChild(mkBtn('⇩ Backup (JSON)', downloadBackup));
-    bar.appendChild(mkBtn('🖨 Print / PDF',   function () { CVExport.openPrintPreview(state.doc, exportOpts()); markExported(); }));
+    bar.appendChild(mkBtn('Print / PDF',     function () { CVExport.openPrintPreview(state.doc, exportOpts()); markExported(); }, null, 'printer'));
     return bar;
   }
 
@@ -473,7 +474,7 @@
     if (trashCount > 0) {
       var trashLink = document.createElement('button');
       trashLink.className = 'cve-trash-link';
-      trashLink.innerHTML = '🗑 Recently deleted<span class="cve-side-count">' + trashCount + '</span>';
+      trashLink.innerHTML = ICON.svg('trash') + ' Recently deleted<span class="cve-side-count">' + trashCount + '</span>';
       trashLink.addEventListener('click', openTrashDialog);
       side.appendChild(trashLink);
     }
@@ -568,7 +569,7 @@
     if (prev || next) {
       var up = document.createElement('button');
       up.className = 'cve-move';
-      up.textContent = '▲';
+      ICON.label(up, 'chevron-up');
       up.title = 'Move up within ' + (disp.year ? 'this year' : 'the list');
       up.disabled = !prev;
       up.addEventListener('click', function (ev) {
@@ -578,7 +579,7 @@
       actions.appendChild(up);
       var down = document.createElement('button');
       down.className = 'cve-move';
-      down.textContent = '▼';
+      ICON.label(down, 'chevron-down');
       down.title = 'Move down within ' + (disp.year ? 'this year' : 'the list');
       down.disabled = !next;
       down.addEventListener('click', function (ev) {

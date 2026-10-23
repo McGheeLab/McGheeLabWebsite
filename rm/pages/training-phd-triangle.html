@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/rm/css/style.css">
   <link rel="stylesheet" href="/rm/css/training.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
 </head>
 <body>
   <div class="page">
@@ -95,14 +96,14 @@
               <!-- Vertex: Communication (top) -->
               <g class="pillar-vertex" data-pillar="communication" tabindex="0" role="button" aria-label="Scientific Communication pillar">
                 <circle cx="300" cy="60" r="22" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
-                <text x="300" y="65" text-anchor="middle" style="font-size:18px;pointer-events:none;">✍️</text>
+                <svg class="hi" viewBox="0 0 24 24" data-icon="pencil" style="font-size:18px;" aria-hidden="true" focusable="false" x="291" y="51" width="18" height="18" pointer-events="none"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/></svg>
                 <text class="pillar-label" x="300" y="32" text-anchor="middle" fill="#1f2937">Scientific Communication</text>
               </g>
 
               <!-- Vertex: Creativity (bottom-left) -->
               <g class="pillar-vertex" data-pillar="creativity" tabindex="0" role="button" aria-label="Creativity and Synthesis pillar">
                 <circle cx="60" cy="480" r="22" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
-                <text x="60" y="485" text-anchor="middle" style="font-size:18px;pointer-events:none;">💡</text>
+                <svg class="hi" viewBox="0 0 24 24" data-icon="light-bulb" style="font-size:18px;" aria-hidden="true" focusable="false" x="51" y="471" width="18" height="18" pointer-events="none"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"/></svg>
                 <text class="pillar-label" x="60" y="515" text-anchor="middle" fill="#1f2937">Creativity</text>
                 <text class="pillar-label" x="60" y="532" text-anchor="middle" fill="#1f2937" style="font-size:12px;">&amp; Synthesis</text>
               </g>
@@ -110,7 +111,7 @@
               <!-- Vertex: Grit (bottom-right) -->
               <g class="pillar-vertex" data-pillar="grit" tabindex="0" role="button" aria-label="Grit pillar">
                 <circle cx="540" cy="480" r="22" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
-                <text x="540" y="485" text-anchor="middle" style="font-size:18px;pointer-events:none;">🪨</text>
+                <svg class="hi" viewBox="0 0 24 24" data-icon="mountain" style="font-size:18px;" aria-hidden="true" focusable="false" x="531" y="471" width="18" height="18" pointer-events="none"><path d="m8 3 4 8 5-5 5 15H2L8 3z" /></svg>
                 <text class="pillar-label" x="540" y="515" text-anchor="middle" fill="#1f2937">Grit</text>
               </g>
             </svg>
@@ -132,7 +133,7 @@
             </div>
 
             <div class="training-pillar-panel" data-pillar-panel="communication">
-              <h3>✍️ Scientific Communication</h3>
+              <h3><i data-hi="pencil"></i> Scientific Communication</h3>
               <p>
                 Writing papers and grants, presenting at lab meeting and at
                 conferences, teaching, and defending what you've done.
@@ -163,7 +164,7 @@
             </div>
 
             <div class="training-pillar-panel" data-pillar-panel="creativity">
-              <h3>💡 Creativity & Synthesis</h3>
+              <h3><i data-hi="light-bulb"></i> Creativity & Synthesis</h3>
               <p>
                 Generating questions that haven't been asked, connecting ideas
                 across fields, and designing experiments that genuinely
@@ -194,7 +195,7 @@
             </div>
 
             <div class="training-pillar-panel" data-pillar-panel="grit">
-              <h3>🪨 Grit</h3>
+              <h3><i data-hi="mountain"></i> Grit</h3>
               <p>
                 The capacity to keep working through failed experiments, lost
                 samples, rejected papers, scooping, funding turn-downs, and
@@ -240,17 +241,17 @@
 
         <div class="self-assessment">
           <div class="assessment-row">
-            <label for="score-communication">✍️ Communication</label>
+            <label for="score-communication"><i data-hi="pencil"></i> Communication</label>
             <input type="range" id="score-communication" min="1" max="5" step="1" value="3" aria-label="Scientific Communication score 1 to 5">
             <span class="score-value" id="score-communication-out">3</span>
           </div>
           <div class="assessment-row">
-            <label for="score-creativity">💡 Creativity</label>
+            <label for="score-creativity"><i data-hi="light-bulb"></i> Creativity</label>
             <input type="range" id="score-creativity" min="1" max="5" step="1" value="3" aria-label="Creativity score 1 to 5">
             <span class="score-value" id="score-creativity-out">3</span>
           </div>
           <div class="assessment-row">
-            <label for="score-grit">🪨 Grit</label>
+            <label for="score-grit"><i data-hi="mountain"></i> Grit</label>
             <input type="range" id="score-grit" min="1" max="5" step="1" value="3" aria-label="Grit score 1 to 5">
             <span class="score-value" id="score-grit-out">3</span>
           </div>
@@ -278,41 +279,41 @@
             <div class="milestone-name">Coursework + rotations</div>
             <div class="milestone-pillars">
               <span class="milestone-pillar-tag">Knowledge</span>
-              <span class="milestone-pillar-tag">✍️</span>
+              <span class="milestone-pillar-tag"><i data-hi="pencil" data-hi-label="Communication"></i></span>
             </div>
           </div>
           <div class="milestone-card">
             <div class="milestone-year">Year 2</div>
             <div class="milestone-name">Qualifying exam, project taking shape</div>
             <div class="milestone-pillars">
-              <span class="milestone-pillar-tag">✍️</span>
-              <span class="milestone-pillar-tag">💡</span>
+              <span class="milestone-pillar-tag"><i data-hi="pencil" data-hi-label="Communication"></i></span>
+              <span class="milestone-pillar-tag"><i data-hi="light-bulb" data-hi-label="Creativity"></i></span>
             </div>
           </div>
           <div class="milestone-card">
             <div class="milestone-year">Year 3</div>
             <div class="milestone-name">Comprehensive / proposal</div>
             <div class="milestone-pillars">
-              <span class="milestone-pillar-tag">💡</span>
-              <span class="milestone-pillar-tag">✍️</span>
-              <span class="milestone-pillar-tag">🪨</span>
+              <span class="milestone-pillar-tag"><i data-hi="light-bulb" data-hi-label="Creativity"></i></span>
+              <span class="milestone-pillar-tag"><i data-hi="pencil" data-hi-label="Communication"></i></span>
+              <span class="milestone-pillar-tag"><i data-hi="mountain" data-hi-label="Grit"></i></span>
             </div>
           </div>
           <div class="milestone-card">
             <div class="milestone-year">Year 4</div>
             <div class="milestone-name">Productive research + first papers</div>
             <div class="milestone-pillars">
-              <span class="milestone-pillar-tag">🪨</span>
-              <span class="milestone-pillar-tag">✍️</span>
+              <span class="milestone-pillar-tag"><i data-hi="mountain" data-hi-label="Grit"></i></span>
+              <span class="milestone-pillar-tag"><i data-hi="pencil" data-hi-label="Communication"></i></span>
             </div>
           </div>
           <div class="milestone-card">
             <div class="milestone-year">Year 5</div>
             <div class="milestone-name">Thesis + defense</div>
             <div class="milestone-pillars">
-              <span class="milestone-pillar-tag">✍️</span>
-              <span class="milestone-pillar-tag">🪨</span>
-              <span class="milestone-pillar-tag">💡</span>
+              <span class="milestone-pillar-tag"><i data-hi="pencil" data-hi-label="Communication"></i></span>
+              <span class="milestone-pillar-tag"><i data-hi="mountain" data-hi-label="Grit"></i></span>
+              <span class="milestone-pillar-tag"><i data-hi="light-bulb" data-hi-label="Creativity"></i></span>
             </div>
           </div>
         </div>
@@ -328,7 +329,7 @@
 
         <div class="support-grid">
           <div class="support-card">
-            <h4>✍️ Communication</h4>
+            <h4><i data-hi="pencil"></i> Communication</h4>
             <ul>
               <li><a href="/rm/pages/paper-builder.html">Paper builder</a> — start drafting early</li>
               <li><a href="/rm/pages/library.html">Library</a> — annotate as you read</li>
@@ -337,7 +338,7 @@
             </ul>
           </div>
           <div class="support-card">
-            <h4>💡 Creativity</h4>
+            <h4><i data-hi="light-bulb"></i> Creativity</h4>
             <ul>
               <li><a href="/rm/pages/pmr.html">PMR</a> brainstorming sections</li>
               <li><a href="/rm/pages/protocols.html">Protocols</a> — see what already works</li>
@@ -346,7 +347,7 @@
             </ul>
           </div>
           <div class="support-card">
-            <h4>🪨 Grit</h4>
+            <h4><i data-hi="mountain"></i> Grit</h4>
             <ul>
               <li><a href="/rm/pages/pmr.html">PMR barriers block</a> — name the obstacle</li>
               <li>Weekly 1:1s with Alex</li>
@@ -355,9 +356,9 @@
             </ul>
           </div>
           <div class="support-card">
-            <h4>📚 Knowledge</h4>
+            <h4><i data-hi="books"></i> Knowledge</h4>
             <ul>
-              <li><a href="/rm/pages/lab-notebook.html">Lab Notebook</a> — record everything</li>
+              <li><a href="/rm/pages/notebook.html">Lab Notebook</a> — record everything</li>
               <li><a href="/rm/pages/library.html">Library</a> annotations + discussions</li>
               <li>Recommended reading lists per project</li>
               <li>This training library — keep coming back</li>

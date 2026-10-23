@@ -1,6 +1,6 @@
-/* equipment-availability.js — V3.527 (My Day program R2)
+/* equipment-availability.js — V3.527 (My Week program R2)
  *
- * Read-side equipment helpers shared by the My Day composer's inline
+ * Read-side equipment helpers shared by the My Week composer's inline
  * availability strip and day-distribute.js's equipment adapter. Extracted
  * as a COPY of the pure logic in rm/js/equipment.js (availability window
  * V3.336, conflict overlap) so equipment.js itself stays untouched — the
@@ -9,7 +9,7 @@
  * NEVER displaces an existing booking.
  *
  * Differences from equipment.js on purpose:
- *   - no admin/manager availability bypass (My Day is the student path);
+ *   - no admin/manager availability bypass (My Week is the student path);
  *   - duration over maxDurationMin → { needsApproval: true } instead of
  *     the extended-booking confirm dance;
  *   - conflicts block, full stop (the displacement flow lives on the

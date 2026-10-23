@@ -128,7 +128,7 @@
       if (!totalWords) return '—';
       const pct = Math.round((words / totalWords) * 100);
       let flag = '';
-      if (Math.abs(pct - target) > 15) flag = ' ⚠';
+      if (Math.abs(pct - target) > 15) flag = ' ' + ICON.svg('exclamation-triangle');
       return words + ' (' + pct + '%' + flag + ')';
     }
 
@@ -153,10 +153,10 @@
         partWords[part] += countWords(s);
       });
       totalEl.textContent = totalWords + (limit ? ' / ' + limit : '');
-      motivEl.textContent = fmt(partWords.motivation, totalWords, 20);
-      methodEl.textContent = fmt(partWords.method, totalWords, 20);
-      resultEl.textContent = fmt(partWords.result, totalWords, 40);
-      impactEl.textContent = fmt(partWords.impact, totalWords, 20);
+      motivEl.innerHTML = fmt(partWords.motivation, totalWords, 20);
+      methodEl.innerHTML = fmt(partWords.method, totalWords, 20);
+      resultEl.innerHTML = fmt(partWords.result, totalWords, 40);
+      impactEl.innerHTML = fmt(partWords.impact, totalWords, 20);
 
       verdict.classList.remove('is-warning', 'is-critical');
       const warnings = [];

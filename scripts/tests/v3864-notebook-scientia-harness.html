@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.864 — Scientia is a notebook of the Lab Notebook</title>
+<!-- The V3.852 stub (in-memory Firestore + firebridge) plus a Scientia hub: notes in hub/rows, a desktop key, the hub doc.
+     The REAL notebook-canvas.js + notebook-scientia.js run on it, and Gabe's REAL build (with cloud-sync.js) loads in the
+     notebook's sheet area. fetch() to the scientiaHub function is answered here. ?start=scientia boots on ?notebook=scientia. -->
+<link rel="stylesheet" href="/whiteboard-board.css">
+<link rel="stylesheet" href="/rm/css/notebook-blocks.css">
+<link rel="stylesheet" href="/rm/css/canvas-widgets.css">
+<link rel="stylesheet" href="/rm/css/canvas-paper-reader.css">
+<link rel="stylesheet" href="/rm/css/notebook-canvas.css">
+<link rel="stylesheet" href="/rm/css/notebook-scientia.css">
+<style>body{font:13px/1.5 system-ui,sans-serif;margin:0}.ok{color:#15803d}.bad{color:#b91c1c}
+#r{position:fixed;right:8px;bottom:8px;z-index:99999;font:12px/1.4 system-ui,sans-serif;background:#fff;border:1px solid #e5e7eb;padding:6px 8px;max-width:50vw;max-height:50vh;overflow:auto;opacity:.95}
+.page{width:100vw;max-width:none}.nbc-root{height:100vh}</style>
+<script>
+window.__popups = [];
+['prompt','alert','confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
+/* ── in-memory Firestore + Storage + firebridge + api stubs ── */
+(function () {
+  var store = new Map(), listeners = [], touched = [];
+  function snapOf(path) { return { id: path.split('/').pop(), exists: store.has(path), data: function () { return store.has(path) ? JSON.parse(JSON.stringify(store.get(path))) : undefined; }, ref: docRef(path) }; }
+  function docsIn(path) { var out = []; store.forEach(function (v, k) { if (k.slice(0, k.lastIndexOf('/')) === path) out.push(snapOf(k)); }); return out; }
+  function fire(path, type) {
+    var parent = path.slice(0, path.lastIndexOf('/'));
+    listeners.slice().forEach(function (l) {
+      if (l.kind === 'doc' && l.path === path) l.cb(snapOf(path));
+      if (l.kind === 'col' && l.path === parent) l.cb({ docChanges: function () { return [{ type: type, doc: snapOf(path) }]; }, docs: docsIn(parent), size: 1, empty: false, forEach: function (f) { docsIn(parent).forEach(f); } });
+    });
+  }
+  function applyUpdate(path, d) { var next = Object.assign({}, store.get(path) || {}); Object.keys(d).forEach(function (k) { if (d[k] === '__DEL__') delete next[k]; else if (d[k] && d[k].__arrayUnion) next[k] = (next[k] || []).concat([d[k].__arrayUnion]); else next[k] = JSON.parse(JSON.stringify(d[k])); }); store.set(path, next); fire(path, 'modified'); }
+  function docRef(path) {
+    return {
+      path: path, id: path.split('/').pop(),
+      collection: function (n) { return colRef(path + '/' + n); },
+      get: function () { touched.push('get ' + path); return Promise.resolve(snapOf(path)); },
+      set: function (d, o) { touched.push('set ' + path); var existed = store.has(path); store.set(path, (o && o.merge) ? Object.assign({}, store.get(path) || {}, JSON.parse(JSON.stringify(d))) : JSON.parse(JSON.stringify(d))); fire(path, existed ? 'modified' : 'added'); return Promise.resolve(); },
+      update: function (d) { touched.push('update ' + path); applyUpdate(path, d); return Promise.resolve(); },
+      delete: function () { touched.push('delete ' + path); store.delete(path); fire(path, 'removed'); return Promise.resolve(); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'doc', cb: cb }; listeners.push(l); setTimeout(function () { cb(snapOf(path)); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+  }
+  function colRef(path) {
+    var q = { path: path,
+      doc: function (id) { return docRef(path + '/' + (id || ('auto' + Math.random().toString(36).slice(2, 8)))); },
+      orderBy: function () { return q; }, where: function () { return q; }, limit: function () { return q; },
+      get: function () { var d = docsIn(path); return Promise.resolve({ docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'col', cb: cb }; listeners.push(l); var d = docsIn(path); setTimeout(function () { cb({ docChanges: function () { return d.map(function (s) { return { type: 'added', doc: s }; }); }, docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+    return q;
+  }
+  var db = {
+    collection: function (n) { return colRef(n); },
+    batch: function () { var ops = []; return { set: function (ref, d, o) { ops.push(function () { return ref.set(d, o); }); }, update: function (ref, d) { ops.push(function () { return ref.update(d); }); }, delete: function (ref) { ops.push(function () { return ref.delete(); }); }, commit: function () { return ops.reduce(function (p, f) { return p.then(f); }, Promise.resolve()); } }; },
+    runTransaction: function (fn) { var tx = { get: function (ref) { return ref.get(); }, set: function (ref, d, o) { ref.set(d, o); }, update: function (ref, d) { ref.update(d); } }; return Promise.resolve(fn(tx)); }
+  };
+  window.__stub = { store: store, touched: touched, db: db };
+  window.firebase = {
+    firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; }, delete: function () { return '__DEL__'; }, arrayUnion: function (x) { return { __arrayUnion: x }; } } },
+    storage: function () { return { ref: function () { return { child: function (p) { return { put: function () { touched.push('put ' + p); return Promise.resolve(); }, getDownloadURL: function () { return Promise.resolve('https://storage.example/' + p); }, delete: function () { touched.push('rm ' + p); return Promise.resolve(); } }; } }; } }; },
+    auth: function () { return { currentUser: { uid: 'u1', email: 'a@x.com', getIdToken: function () { return Promise.resolve('tok'); } }, onAuthStateChanged: function (cb) { setTimeout(function () { cb({ uid: 'u1', email: 'a@x.com' }); }, 0); } }; }
+  };
+  window.firebridge = { requireSignIn: function () { return Promise.resolve({ allowed: true }); }, isLabMember: function () { return true; }, getUser: function () { return { uid: 'u1', email: 'a@x.com', displayName: 'Ada' }; }, isAdmin: function () { return false; }, db: function () { return db; } };
+  window.api = { load: function (p) { if (p === 'protocols/list.json') return Promise.resolve({ protocols: [{ id: 'coat', title: 'Granule coating', summary: 'coat beads', category: 'bench' }] }); if (p === 'inventory/items.json') return Promise.resolve({ items: [{ id: 'cov', name: 'Coverslips 18 mm', location: 'Drawer B', vendor: 'Fisher', catalog_number: '12-545' }] }); if (p === 'inventory/chemicals.json') return Promise.resolve({ chemicals: [{ id: 'pfa', name: 'PFA 16%', location: 'Fridge 2', cas: '30525-89-4' }] }); return Promise.resolve(null); }, save: function () { return Promise.resolve(); } };
+  window.TOAST = { info: function () {}, success: function () {}, error: function (m) { (window.__toastErr = window.__toastErr || []).push(m); } };
+  window.NOTEBOOK_FIGURES = { uploadImage: function () { return Promise.resolve({ download_url: 'https://firebasestorage.googleapis.com/x/y.webp', storage_path: 'notebook-figures/u1/y.webp', hash: 'h', mime: 'image/webp', size_bytes: 10, uploaded_at: 'now', uploaded_by: 'u1' }); } };
+  /* a V3.830 block entry to migrate: a note, a checklist and a whiteboard block whose board carries ink */
+  store.set('userData/u1/notebook/_index', { entries: [{ id: 'nb-2026-10-20-old', title: 'Old block entry', date: '2026-10-20', tags: ['tfm'], updated_at: '2026-10-20T10:00:00Z', block_types: ['note', 'checklist', 'whiteboard'] }] });
+  store.set('userData/u1/notebook/nb-2026-10-20-old', { title: 'Old block entry', date: '2026-10-20', tags: ['tfm'], schema_version: 2, updated_at: '2026-10-20T10:00:00Z',
+    blocks: [{ id: 'blk-a', type: 'note', title: 'Setup', collapsed: false, data: { html: '<p>Seeded <b>MCF10A</b> on gels.</p>' } },
+             { id: 'blk-b', type: 'checklist', title: '', collapsed: false, data: { items: [{ text: 'image at 24 h', done: false }] } },
+             { id: 'blk-c', type: 'whiteboard', title: 'Sketch', collapsed: false, data: { boardId: 'nbOLD_u1', size: 'm' } }] });
+  store.set('userData/u1/notebookBoards/nbOLD_u1', { name: 'Sketch', pages: [{ id: 'p1', background: 'blank' }], activePageId: 'p1', ownerUid: 'u1' });
+  store.set('items/pa', { type: 'paper', title: 'Collagen fibril alignment under shear flow', meta: { library: { is_library_entry: true, authors: [{ family: 'Smith' }, { family: 'Lee' }, { family: 'Wu' }], year: 2020, journal: 'Biophys J' } } });
+  store.set('items/pb', { type: 'paper', title: 'Stiffness and spreading of MCF10A', meta: { library: { is_library_entry: true, authors: [{ family: 'Jones' }], year: 2019, journal: 'Nature' } } });
+  try { sessionStorage.removeItem('nbb_papers_v1'); } catch (e) {}
+  try { localStorage.removeItem('wb_pens_v1'); localStorage.removeItem('wb_pillpos_v1'); } catch (e) {}
+  store.set('userData/u1/notebookBoards/nbOLD_u1/strokes/s1', { pageId: 'p1', seq: 1, pts: [0.1, 0.1, 0.5, 0.3, 0.3, 0.5], color: '#111827', width: 0.004 });
+  if (window.PointerEvent && !PointerEvent.prototype.getCoalescedEvents) PointerEvent.prototype.getCoalescedEvents = function () { return [this]; };
+})();
+</script>
+<script>/* production shape (V3.862): firebase-bridge.js declares `const firebridge` — a bare global, never window.firebridge.
+   Code that reads window.firebridge must fail here the way it fails on the live site. */
+const firebridge = window.firebridge; delete window.firebridge;</script>
+<script>
+(function () {
+  var store = window.__stub.store, now = Date.now();
+  function iso(ms) { return new Date(ms).toISOString(); }
+  var idx = store.get('userData/u1/notebook/_index');
+  idx.entries.push({ id: 'nb-m', title: 'Canvas entry', date: '2026-10-23', tags: [], updated_at: '2026-10-23T10:00:00Z', canvas_version: 3, notebook_id: 'default', board_id: 'nbM_u1' });
+  store.set('userData/u1/notebook/_index', idx);
+  store.set('userData/u1/notebook/nb-m', { title: 'Canvas entry', date: '2026-10-23', tags: [], schema_version: 2, canvas_version: 3, boardId: 'nbM_u1', updated_at: '2026-10-23T10:00:00Z', blocks: [] });
+  store.set('userData/u1/notebookBoards/nbM_u1', { name: 'Canvas entry', pages: [{ id: 'p1', background: 'grid' }], activePageId: 'p1', ownerUid: 'u1', sheetMode: 'continuous' });
+  /* the Scientia hub: two notes, one block (must NOT become a tab), a review (hidden), a desktop key seen a minute ago */
+  var H = 'userData/u1/scientia/hub';
+  store.set(H, { sid: 'sidA', seq: 9, records: 3, conflictsN: 0, updated: iso(now - 120000) });
+  function row(id, rec, storeName) { store.set(H + '/rows/' + (storeName || 'documents') + '__' + id, { store: storeName || 'documents', id: id, recJson: JSON.stringify(rec), deleted: false, seq: 1 }); }
+  row('d1', { id: 'd1', type: 'experiment', title: 'Gel stiffness run 3', created: '2026-10-20T09:00:00', modified: '2026-10-21T09:00:00' });
+  row('d2', { id: 'd2', type: 'planning', title: 'Plan for coverslips', created: '2026-10-22T09:00:00', modified: '2026-10-23T08:00:00' });
+  row('rv', { id: 'rv', type: 'review', title: 'Week review', created: '2026-10-19T09:00:00', modified: '2026-10-19T09:00:00' });
+  row('b1', { id: 'b1', docId: 'd1', label: 'Setup' }, 'blocks');
+  store.set(H + '/keys/k1', { id: 'k1', name: 'Office PC', hash: 'h', created: iso(now - 86400000), lastSeen: iso(now - 60000) });
+  /* the scientiaHub function, answered here */
+  window.__hubCalls = [];
+  var realFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    var u = typeof input === 'string' ? input : input.url;
+    if (u.indexOf('cloudfunctions.net/scientiaHub/') < 0) return realFetch(input, init);
+    var path = u.split('/scientiaHub/')[1], body = init && init.body ? String(init.body) : '';
+    window.__hubCalls.push({ path: path, method: (init && init.method) || 'GET', auth: init && init.headers && init.headers.Authorization, body: body });
+    var res = { ok: true };
+    if (path === 'api/cloud/key') res = { ok: true, id: 'k2', name: JSON.parse(body).name, key: 'sck_u1_' + '0123456789abcdef0123456789abcdef' };
+    else if (path === 'api/snapshot') res = { ok: true, meta: { records: 2, sid: 'sidB', syncSeq: 10 } };
+    else if (path.indexOf('api/sync/state') === 0) res = { app: 'Scientia In Situ', stores: { documents: [] }, counts: { documents: 0 }, sid: 'sidA', syncSeq: 9 };
+    else if (path === 'api/cloud/key/remove') res = { ok: true };
+    return Promise.resolve(new Response(JSON.stringify(res), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+  };
+  var start = new URLSearchParams(location.search).get('start');
+  try { localStorage.removeItem('nbc_view'); localStorage.removeItem('nbc_sis_col'); } catch (e) {}
+  history.replaceState(null, '', location.pathname + (start === 'scientia' ? '?start=scientia&notebook=scientia&note=d2' : '?entry=nb-m'));
+})();
+</script>
+<script src="/rm/js/notebook-schemas.js"></script>
+<script src="/rm/js/icons.js"></script>
+<script src="/whiteboard.js"></script>
+<script src="/whiteboard-replay.js"></script>
+<script src="/rm/js/canvas-widgets.js"></script>
+<script src="/rm/js/canvas-paper-reader.js"></script>
+<script src="/rm/js/user-actions.js"></script>
+</head>
+<body>
+<div class="page nbk-page nbc-page"><div id="nbc-content" class="nbk-loading">Loading…</div></div>
+<input type="file" id="nbk-camera-input" style="display:none"><input type="file" id="nbk-file-input" style="display:none">
+<div id="r">running…</div>
+<script src="/rm/js/notebook-scientia.js"></script>
+<script src="/rm/js/notebook-canvas.js"></script>
+<script>
+(async function () {
+  var out = [], fails = 0, store = window.__stub.store;
+  window.__rej = []; window.addEventListener('unhandledrejection', function (e) { window.__rej.push(String((e.reason && e.reason.message) || e.reason)); });
+  function check(name, ok, detail) { out.push('<div class="' + (ok ? 'ok' : 'bad') + '">' + (ok ? 'PASS' : 'FAIL') + ' ' + name + (detail !== undefined ? ' <small>' + String(detail).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</small>' : '') + '</div>'); if (!ok) fails++; }
+  function q(s) { return document.querySelector(s); }
+  function qa(s) { return Array.from(document.querySelectorAll(s)); }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function until(fn, ms) { var t0 = Date.now(); while (Date.now() - t0 < (ms || 8000)) { try { var v = fn(); if (v) return v; } catch (e) {} await sleep(50); } return null; }
+  function finish() { var r = document.getElementById('r'); r.innerHTML = out.join('') + '<div><b>' + (out.length - fails) + '/' + out.length + ' passed</b></div>'; r.dataset.done = '1'; r.dataset.fails = String(fails); }
+  function sisTabs() { return qa('.nbc-sis-group [data-t="sis-go"] .nbc-tab-title').map(function (b) { return b.textContent.trim(); }); }
+  function frameHash() { try { return q('#nbc-sis-frame').contentWindow.location.hash; } catch (e) { return 'ERR ' + e.message; } }
+  var root = function () { return q('#nbc-content'); };
+  var start = new URLSearchParams(location.search).get('start');
+  try {
+    if (start === 'scientia') {
+      await until(function () { return q('#nbc-sis-frame'); }, 10000);
+      check('?notebook=scientia&note=d2 boots straight into Scientia', root().classList.contains('nbc-sis-on') && !!q('#nbc-sis-frame'));
+      check('the frame opens that note', /#\/doc\/d2$/.test(q('#nbc-sis-frame').getAttribute('src') || ''), q('#nbc-sis-frame').getAttribute('src'));
+      check('no canvas entry was mounted', !q('#nbb-mount .wb-stage'), q('#nbb-mount').innerHTML.slice(0, 80));
+      check('its tab is lit', !!(await until(function () { var on = q('.nbc-sis-group .nbc-tab-on'); return on && /coverslips/.test(on.textContent); })));
+      check('the header is Scientia\'s', /Scientia/.test(q('#nbc-header').textContent) && !!q('[data-h="sis-sync"]'));
+      check('no browser popups, rejections or error toasts', !window.__popups.length && !window.__rej.length && !(window.__toastErr || []).length, JSON.stringify([window.__popups, window.__rej, window.__toastErr]));
+      finish(); return;
+    }
+    await until(function () { return q('.nbc-sis-group') && q('#nbb-mount .wb-stage'); }, 10000);
+    /* 1. the tab row */
+    check('a canvas link (?entry=) opens the canvas entry, not Scientia', !root().classList.contains('nbc-sis-on') && !!q('#nbb-mount .wb-stage'));
+    var tabs = sisTabs();
+    check('the Scientia group sits in the same tab row as the canvas notebooks', !!q('#nbc-tabs .nbc-tabrow .nbc-sis-group') && !!q('#nbc-tabs .nbc-group[data-nb="default"]'));
+    check('its tabs are Today, then notes newest-changed first', JSON.stringify(tabs) === JSON.stringify(['Today', 'Plan for coverslips', 'Gel stiffness run 3']), JSON.stringify(tabs));
+    check('blocks and reviews are not tabs; the count says 2', /Scientia\s*2/.test(q('.nbc-sis-group .nbc-gname').textContent), q('.nbc-sis-group .nbc-gname').textContent);
+    /* 2. open a note */
+    q('.nbc-sis-group [data-hash="#/doc/d1"]').click();
+    await until(function () { return q('#nbc-sis-frame'); });
+    check('a Scientia tab opens Gabe\'s app in the sheet area', root().classList.contains('nbc-sis-on') && getComputedStyle(q('#nbc-sis')).display !== 'none' && getComputedStyle(q('#nbc-stage > .nbb-main')).display === 'none');
+    check('the frame is his build at that note', /\/rm\/scientia\/scientia\.html#\/doc\/d1$/.test(q('#nbc-sis-frame').getAttribute('src')), q('#nbc-sis-frame').getAttribute('src'));
+    check('the canvas entry was saved and put away', !q('#nbb-mount .wb-stage'));
+    check('the URL says ?notebook=scientia&note=d1', location.search === '?notebook=scientia&note=d1', location.search);
+    check('the choice is remembered for next time', localStorage.getItem('nbc_view') === 'scientia');
+    var stat = await until(function () { var t = q('#nbc-sis-status'); return t && /records/.test(t.textContent) && t.textContent; });
+    check('the header shows the sync state: records, last change, the computer', /3 records/.test(stat) && /changed 2 min ago/.test(stat) && /Office PC synced 1 min ago/.test(stat), stat);
+    check('the dot is green (the computer synced in the last 3 min)', q('#nbc-sis-dot').classList.contains('nbc-sis-ok'), q('#nbc-sis-dot').className);
+    /* 3. Gabe's app loads in the frame, and the bridge reports where it is */
+    var fr = q('#nbc-sis-frame');
+    await until(function () { try { return fr.contentDocument && fr.contentDocument.readyState === 'complete' && fr.contentDocument.querySelector('#app'); } catch (e) { return false; } }, 20000);
+    check('his build loaded (same origin, his #app root)', !!(fr.contentDocument && fr.contentDocument.querySelector('#app')));
+    q('.nbc-sis-group [data-hash="#/doc/d2"]').click();
+    var h2 = await until(function () { return /#\/doc\/d2$/.test(frameHash()) && frameHash(); }, 8000);
+    check('another note tab navigates the SAME frame (no reload)', !!h2 && q('#nbc-sis-frame') === fr, frameHash());
+    check('its tab lights up', !!(await until(function () { var on = q('.nbc-sis-group .nbc-tab-on'); return on && /coverslips/.test(on.textContent); })));
+    fr.contentWindow.location.hash = '#/doc/d1';
+    var lit = await until(function () { var on = q('.nbc-sis-group .nbc-tab-on'); return on && /Gel stiffness/.test(on.textContent) && location.search === '?notebook=scientia&note=d1'; }, 6000);
+    check('a note opened INSIDE Scientia lights its notebook tab and updates the URL', !!lit, location.search + ' / ' + (q('.nbc-sis-group .nbc-tab-on') || {}).textContent);
+    /* 4. live: a note made on the desktop appears as a tab */
+    var rref = window.__stub.db.collection('userData').doc('u1').collection('scientia').doc('hub').collection('rows').doc('documents__d3');
+    await rref.set({ store: 'documents', id: 'd3', recJson: JSON.stringify({ id: 'd3', type: 'note', title: 'Made on the desktop', created: '2026-10-23T11:00:00', modified: '2026-10-23T11:00:00' }), deleted: false, seq: 10 });
+    var t3 = await until(function () { return sisTabs().join('|').indexOf('Made on the desktop') >= 0; }, 4000);
+    check('a note written to the hub (the desktop bridge) appears as a tab at once, first after Today', !!t3 && sisTabs()[1] === 'Made on the desktop', sisTabs().join(' | '));
+    /* 5. the sync panel: keys */
+    q('[data-h="sis-sync"]').click();
+    await until(function () { return q('#nbc-sis-side') && !q('#nbc-sis-side').hidden; });
+    check('Desktop sync opens the panel inside the Scientia area', !!q('#nbc-sis .nbc-sis-side:not([hidden])') && /Connect your computer/.test(q('#nbc-sis-side').textContent));
+    check('the panel lists the connected computer', /Office PC/.test(q('#nbc-sis-keys').textContent), q('#nbc-sis-keys').textContent);
+    check('the panel links the desktop script', !!q('#nbc-sis-side a[href="/rm/scientia/scientia-cloud.py"]'));
+    q('#nbc-sis-keyname').value = 'Lab Mac'; q('[data-p="key-make"]').click();
+    var kv = await until(function () { return q('#nbc-sis-keyval') && q('#nbc-sis-keyval').textContent; });
+    var mk = window.__hubCalls.filter(function (c) { return c.path === 'api/cloud/key'; })[0];
+    check('Make a key calls the hub with the ID token and shows the key once', !!kv && /^sck_u1_/.test(kv) && mk && mk.auth === 'Bearer tok' && JSON.parse(mk.body).name === 'Lab Mac', kv);
+    var rm = q('[data-p="key-rm"]'); rm.click();
+    check('Remove is a two-tap (first tap only arms it)', rm.dataset.armed === '1' && !window.__hubCalls.some(function (c) { return c.path === 'api/cloud/key/remove'; }));
+    rm.click(); await until(function () { return window.__hubCalls.some(function (c) { return c.path === 'api/cloud/key/remove'; }); });
+    check('the second tap removes it', window.__hubCalls.some(function (c) { return c.path === 'api/cloud/key/remove' && JSON.parse(c.body).id === 'k1'; }));
+    /* 6. upload a desktop export */
+    var exp = { app: 'Scientia In Situ', format: 2, savedAt: new Date(Date.now() - 3600000).toISOString(), stores: { documents: [{ id: 'x1' }, { id: 'x2' }], settings: [{ id: 'main' }], journal: [{ seq: 1 }], blobs: [{ id: 'b' }] }, counts: { documents: 2, settings: 1, journal: 1, blobs: 1 } };
+    var dt = new DataTransfer(); dt.items.add(new File([JSON.stringify(exp)], 'scientia-export-2026-10-23.json', { type: 'application/json' }));
+    var fi = q('#nbc-sis-file'); fi.files = dt.files; fi.dispatchEvent(new Event('change', { bubbles: true }));
+    var conf = await until(function () { return q('.nbc-sis-confirm') && q('.nbc-sis-confirm').textContent; });
+    check('picking an export asks inline, with its name and record count (no popup)', !!conf && /scientia-export-2026-10-23\.json/.test(conf) && /holds 2 records/.test(conf), conf);
+    var srcBefore = q('#nbc-sis-frame').getAttribute('src');
+    q('[data-p="up-go"]').click();
+    var up = await until(function () { return window.__hubCalls.filter(function (c) { return c.path === 'api/snapshot'; })[0]; });
+    var sent = up ? JSON.parse(up.body) : {};
+    check('Replace posts the export to the hub without journal / blobs', !!up && up.method === 'POST' && !sent.stores.journal && !sent.stores.blobs && sent.stores.documents.length === 2, up && Object.keys(sent.stores).join(','));
+    check('afterwards the confirm closes and Scientia reloads from the cloud', !!(await until(function () { return !q('.nbc-sis-confirm') && q('#nbc-sis-frame').getAttribute('src') === '/rm/scientia/scientia.html'; })), srcBefore + ' -> ' + q('#nbc-sis-frame').getAttribute('src'));
+    /* 7. back to the canvas */
+    q('#nbc-tabs [data-t="entry"][data-id="nb-m"]').click();
+    await until(function () { return q('#nbb-mount .wb-stage') && !root().classList.contains('nbc-sis-on'); });
+    check('a canvas tab brings the canvas back and hides Scientia', !root().classList.contains('nbc-sis-on') && !!q('#nbb-mount .wb-stage') && getComputedStyle(q('#nbc-sis')).display === 'none');
+    check('the header is the entry\'s again', !!q('#nbc-title') && q('#nbc-title').value === 'Canvas entry');
+    check('Scientia stays loaded in the background (sync keeps running)', !!q('#nbc-sis-frame'));
+    check('the choice is remembered as canvas', localStorage.getItem('nbc_view') === 'canvas');
+    check('no browser popups, rejections or error toasts', !window.__popups.length && !window.__rej.length && !(window.__toastErr || []).length, JSON.stringify([window.__popups, window.__rej, window.__toastErr]));
+    check('no raw "<svg" text leaked into the page', document.body.innerText.indexOf('<svg') < 0);
+  } catch (e) { check('harness ran without throwing', false, e && e.stack); }
+  finish();
+})();
+</script>
+</body>
+</html>

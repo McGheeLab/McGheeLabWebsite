@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Optional: keeps Finder folder dates current for edits made OUTSIDE Claude Code
+       (VS Code, Preview, etc.). Install once:
+         cp scripts/launchd/com.mcgheelab.touch-folders.plist ~/Library/LaunchAgents/
+         launchctl load ~/Library/LaunchAgents/com.mcgheelab.touch-folders.plist
+       Remove:
+         launchctl unload ~/Library/LaunchAgents/com.mcgheelab.touch-folders.plist -->
+  <key>Label</key>
+  <string>com.mcgheelab.touch-folders</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>/Users/alexmcghee/Documents/GitHub/McGheeLabWebsite/scripts/touch_folders.py</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>300</integer>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>LowPriorityIO</key>
+  <true/>
+  <key>Nice</key>
+  <integer>10</integer>
+</dict>
+</plist>

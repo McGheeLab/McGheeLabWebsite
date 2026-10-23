@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Worksheet 2: Specific Heat — Heat Transfer Foundations</title>
+<style>
+  /* ===== worksheet house style (print-first, self-contained) ===== */
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    color:#1e293b;background:#fff;line-height:1.5;max-width:820px;margin:0 auto;
+    padding:28px 22px;font-size:14px}
+  .ws-head{border-bottom:3px solid #2563eb;padding-bottom:10px;margin-bottom:14px}
+  .ws-head .course{color:#2563eb;font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}
+  .ws-head h1{color:#1e3a5f;font-size:1.45rem;margin:2px 0}
+  .id-row{display:flex;gap:18px;margin-top:10px;font-size:.95em}
+  .id-row span{flex:1;border-bottom:1px solid #94a3b8;padding:0 4px;white-space:nowrap}
+  .howto{background:#eff6ff;border-left:4px solid #2563eb;border-radius:6px;padding:10px 14px;margin:14px 0;font-size:.95em}
+  .exp{border:1px solid #cbd5e1;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .exp h2{color:#1e3a5f;font-size:1.05rem}
+  .tabpill{display:inline-block;background:#2563eb;color:#fff;border-radius:999px;font-size:.72rem;
+    font-weight:700;padding:2px 10px;margin-right:8px;vertical-align:2px}
+  .goal{color:#475569;font-style:italic;margin:2px 0 8px}
+  h3.part{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
+  h3.predict{color:#7c3aed} h3.do{color:#b45309} h3.record{color:#0d9488} h3.explain{color:#16a34a}
+  ol.steps{margin-left:20px} ol.steps li{margin:3px 0}
+  table.data{border-collapse:collapse;width:100%;margin:6px 0}
+  table.data th{background:#f1f5f9;color:#1e3a5f}
+  table.data th,table.data td{border:1px solid #94a3b8;padding:5px 8px;font-size:.92em;text-align:center}
+  table.data td.fill{height:26px;min-width:64px}
+  table.data td.lab,table.data th.lab{text-align:left;background:#f8fafc}
+  .blank{display:inline-block;min-width:90px;border-bottom:1px solid #64748b}
+  .blank.w{min-width:160px}
+  .writeline{border-bottom:1px solid #94a3b8;height:24px}
+  .writeline+.writeline{margin-top:2px}
+  .hint{color:#64748b;font-size:.85em}
+  .circle{color:#334155}
+  .synth{background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px 16px;margin:16px 0;break-inside:avoid}
+  .synth h2{color:#15803d;font-size:1.05rem;margin-bottom:6px}
+  footer{margin-top:18px;color:#64748b;font-size:.8em;text-align:center}
+  @media print{
+    body{padding:0;font-size:12px;max-width:100%}
+    a{color:inherit;text-decoration:none}
+    @page{margin:14mm}
+  }
+</style>
+</head>
+<body>
+
+<div class="ws-head">
+  <div class="course">Heat Transfer Foundations · Lesson 2 Worksheet</div>
+  <h1>Specific Heat — Holding the Jiggle</h1>
+  <div class="id-row"><span>Name:</span><span>Date:</span><span>Period:</span></div>
+</div>
+
+<div class="howto">
+  <b>How this works:</b> open the interactive lesson
+  <a href="02-specific-heat.html"><b>02-specific-heat.html</b></a> and keep it next to this
+  worksheet. Each experiment below uses one tab of the lesson. <b>Predict first</b> (before you
+  touch the sliders!), then run the experiment, record your data, and explain what you saw. The
+  <b>stats panel</b> (left side, under the sliders) and the <b>verdict box</b> (below the plots)
+  give you the numbers to record. Grey dashed lines on the charts show where things were
+  <em>before</em> your last slider move.
+</div>
+
+<!-- ================= Experiment 1 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 1</span>Same burner, different block</h2>
+  <p class="goal">Goal: race water against copper and discover that specific heat, not power, decides the winner.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">With identical burners, copper reaches 60 °C about… &nbsp;☐ 2× &nbsp; ☐ 5×
+  &nbsp; ☐ 11× &nbsp; sooner than water.</p>
+  <p class="circle">If you double the burner power, the speed ratio between the two blocks will…
+  &nbsp;☐ double &nbsp; ☐ halve &nbsp; ☐ stay the same</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Water vs copper</b> (1000 W, 1 kg each). Let the race finish; fill in row A.</li>
+    <li>Click <b>Beach: water vs dry sand</b>. Fill in row B.</li>
+    <li>Back on <b>Water vs copper</b>, drag <b>Block mass</b> to 2 kg. Fill in row C.</li>
+    <li>Set the mass back to 1 kg and drag <b>Burner power</b> to 3000 W. Fill in row D.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>Power (W)</th><th>Mass (kg)</th><th>Slower block: K/min</th><th>Faster block: K/min</th><th>Slower finishes in</th><th>Faster finishes in</th><th>Speed ratio</th></tr>
+    <tr><td class="lab">A water / copper</td><td>1000</td><td>1</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">B water / sand</td><td>1000</td><td>1</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">C water / copper</td><td>1000</td><td>2</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">D water / copper</td><td>3000</td><td>1</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Check: 4186 ÷ 385 = <span class="blank"></span>. Does it match the speed ratio in rows A, C
+  and D? &nbsp;☐ yes &nbsp; ☐ no</p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. Doubling the mass (row C) doubled every finish time but left the ratio alone. Using
+  dT/dt = P/(mc), explain why:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. Why do your feet burn on the sand while the sea stays cool? Use the numbers from row B:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 2 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 2</span>The energy bill: Q = mcΔT</h2>
+  <p class="goal">Goal: see that Q is a product of three knobs, and that the knobs trade off exactly.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">Doubling the mass <em>and</em> halving ΔT will make Q… &nbsp;☐ double
+  &nbsp; ☐ halve &nbsp; ☐ stay the same</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Water</b>, set <b>Mass</b> = 1 kg and <b>ΔT</b> = 80 K. Fill in row A (this is the
+    pasta-water example).</li>
+    <li>Click <b>Copper</b> with the same mass and ΔT. Fill in row B.</li>
+    <li>Back on <b>Water</b>: mass 2 kg, ΔT 40 K. Fill in row C.</li>
+    <li>Drag <b>Specific heat</b> to exactly 1005 J/kg·K with mass 1 kg, ΔT 80 K. Fill in row D
+    and note which material the verdict names.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>m (kg)</th><th>c (J/kg·K)</th><th>ΔT (K)</th><th>Q (kJ)</th><th>Time at 2 kW</th><th>Nearest material</th></tr>
+    <tr><td class="lab">A</td><td>1</td><td>4186</td><td>80</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">B</td><td>1</td><td>385</td><td>80</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">C</td><td>2</td><td>4186</td><td>40</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">D</td><td>1</td><td>1005</td><td>80</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Row A ÷ row B = <span class="blank"></span>. On the chart, which line is steeper — water or
+  copper? <span class="blank"></span>. What does the slope of a line stand for?
+  <span class="blank w"></span></p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. Rows A and C have the same Q. Explain why in one sentence using the formula:</p>
+  <div class="writeline"></div>
+  <p>2. Row D: a kilogram of air is cheap to heat, yet a house full of air takes a big furnace.
+  What is the catch? <span class="hint">(Think about what m is for a whole room.)</span></p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 3 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 3</span>Heating takes time — power is the slope</h2>
+  <p class="goal">Goal: predict the whole heating curve, and find where the straight-line model stops being honest.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">A 1.5 kW burner under 3 kg of water (the soup pot) reaches 100 °C in about…
+  &nbsp;☐ 3 min &nbsp; ☐ 11 min &nbsp; ☐ 30 min</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Kettle</b>, <b>Soup pot</b> and <b>Copper pan</b> in turn; fill in rows A–C from
+    the stats.</li>
+    <li>Build the worst case: <b>Power</b> 200 W, <b>Mass</b> 5 kg, <b>Specific heat</b> 4186.
+    Fill in row D and read the verdict.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>P (W)</th><th>m (kg)</th><th>c</th><th>Slope P/(mc) (K/min)</th><th>Thermal mass mc (J/K)</th><th>Time 20 → 100 °C</th></tr>
+    <tr><td class="lab">A Kettle</td><td>2000</td><td>1</td><td>4186</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">B Soup pot</td><td>1500</td><td>3</td><td>4186</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">C Copper pan</td><td>2000</td><td>1.5</td><td>385</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">D Worst case</td><td>200</td><td>5</td><td>4186</td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Kettle slope ÷ soup-pot slope = <span class="blank"></span>. The verdict for row D turns
+  yellow and warns that the straight line is now "a lie". What does the real curve do instead?
+  <span class="blank w"></span></p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. The kettle and the copper pan sit on the <em>same</em> 2 kW burner. Explain the 7× difference
+  in their times using the words <b>thermal mass</b> and <b>slope</b>:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. Why does a real pot leak heat faster and faster the hotter it gets? (You will build this
+  properly in Lesson 5 — take a guess now.)</p>
+  <div class="writeline"></div>
+</div>
+
+<!-- ================= Experiment 4 ================= -->
+<div class="exp">
+  <h2><span class="tabpill">TAB 4</span>Calorimetry, and 3R per mole</h2>
+  <p class="goal">Goal: predict the final temperature of a hot block dropped into water, and see that per mole all metals hold about the same.</p>
+
+  <h3 class="part predict">Predict</h3>
+  <p class="circle">100 g of copper at 100 °C dropped into 200 g of water at 20 °C will settle
+  near… &nbsp;☐ 60 °C &nbsp; ☐ 40 °C &nbsp; ☐ 24 °C</p>
+
+  <h3 class="part do">Do</h3>
+  <ol class="steps">
+    <li>Click <b>Copper into water</b>. Watch the block drop in and the colours equalize. Fill in
+    row A from the stats.</li>
+    <li>Click <b>Aluminum into water</b>. Fill in row B.</li>
+    <li>Click <b>Big hot splash</b>. Fill in row C and copy the verdict's warning in your own words.</li>
+    <li>Read the bar chart on the third canvas: record the molar heat capacity of Al, Cu, Pb and
+    water.</li>
+  </ol>
+
+  <h3 class="part record">Record</h3>
+  <table class="data">
+    <tr><th></th><th>Block</th><th>m₁ (kg)</th><th>T₁ (°C)</th><th>Block m₁c₁ (J/K)</th><th>Water m₂c₂ (J/K)</th><th>T_f (°C)</th><th>Energy handed over (kJ)</th></tr>
+    <tr><td class="lab">A</td><td>copper</td><td>0.10</td><td>100</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">B</td><td>aluminum</td><td>0.10</td><td>100</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    <tr><td class="lab">C</td><td>copper</td><td>1.00</td><td>300</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <table class="data">
+    <tr><th>Molar heat capacity (J/mol·K)</th><th>Al</th><th>Cu</th><th>Pb</th><th>Water</th></tr>
+    <tr><th class="lab">from the bar chart</th><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+  </table>
+  <p>Row C's T_f is <span class="blank"></span> °C. Why can that not happen in a real kitchen?
+  <span class="blank w"></span></p>
+
+  <h3 class="part explain">Explain</h3>
+  <p>1. In row A the water barely warms while the copper plunges 76 K. Use the two heat capacities
+  (J/K) to explain who "wins" the negotiation:</p>
+  <div class="writeline"></div><div class="writeline"></div>
+  <p>2. Gold has a molar mass of 197 g/mol. Predict its specific heat from c = 3R/M
+  (R = 8.314 J/mol·K): c ≈ <span class="blank"></span> J/kg·K. The measured value is 129. Why do
+  light atoms (aluminum, 27 g/mol) get a much bigger c per kilogram?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<!-- ================= Synthesis ================= -->
+<div class="synth">
+  <h2>Big picture — put it together</h2>
+  <p>1. In three sentences, explain why water is the "champion sponge" of everyday materials. Use
+  <b>specific heat</b>, <b>jiggle</b>, and <b>per mole</b>.</p>
+  <div class="writeline"></div><div class="writeline"></div><div class="writeline"></div><div class="writeline"></div>
+  <p>2. <b>Challenge (optional):</b> a 40 L (40 kg) water heater must warm its tank from 15 °C to
+  60 °C. Energy needed: Q = mcΔT = <span class="blank"></span> MJ. With a 3 kW element and no
+  losses, that takes about <span class="blank"></span> minutes. <span class="hint">Compare with
+  Tab 3's kettle: same slope formula, bigger mc.</span></p>
+  <p>3. Next lesson preview: a hot block and cold water must actually <em>touch</em> for heat to
+  cross between them. What do you think decides how <em>fast</em> heat crosses a wall between hot
+  and cold?</p>
+  <div class="writeline"></div><div class="writeline"></div>
+</div>
+
+<footer>McGhee Lab · Heat Transfer Foundations · Worksheet 2 of 6</footer>
+</body>
+</html>

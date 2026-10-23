@@ -256,6 +256,24 @@
     scope: 'lab', collection: 'meetingConfig', doc: 'settings',
     cache: LONG,
   });
+  // V3.743 — the meetings page now hydrates from api.subscribe snapshots
+  // (the LIVE_SYNC refresh→api.load pattern re-read this cache and other
+  // viewers never actually updated). The cache still serves the first paint
+  // on a cold load; every direct write api.invalidate()s its route. Three
+  // more lab collections registered so the explorer/migrate tooling sees
+  // them: topic suggestions, peer-accept slot swaps, weekly chore boards.
+  api.registerRoute('meetings/topics.json', {
+    scope: 'lab', collection: 'meetingTopics', wrapKey: 'topics',
+    cache: SHORT,
+  });
+  api.registerRoute('meetings/swaps.json', {
+    scope: 'lab', collection: 'meetingSwaps', wrapKey: 'swaps',
+    cache: SHORT,
+  });
+  api.registerRoute('meetings/chores.json', {
+    scope: 'lab', collection: 'labChores', wrapKey: 'chores',
+    cache: SHORT,
+  });
 
   // Protocols (V3.113) — protocols.io-style lab protocol authoring. New
   // top-level `protocols` collection; no JSON shadow (born in Firestore).
@@ -403,7 +421,7 @@
     cache: SHORT,
   });
 
-  // My Day (V3.526) — per-user day plans + distribution prefs. Item docs
+  // My Week (V3.526) — per-user day plans + distribution prefs. Item docs
   // live at userData/{uid}/dayPlans/{itemId} and are read/written directly
   // by js/day-distribute.js (task-pmr-sync pattern — direct firebridge.db()
   // refs, so host pages don't need this route table). Only the prefs doc is
@@ -563,5 +581,15 @@
   api.registerRoute('workflows/custom.json', {
     scope: 'user', subcollection: 'customWorkflows', wrapKey: 'workflows',
     cache: SHORT,
+  });
+
+  /* ── V3.715 — Semester Focus layer ────────────────────────────
+   * labConfig/semesters — the admin-set semester calendar (label +
+   * start/end per semester) that Team Focus and My Week resolve the
+   * current semester from (rm/js/semesters.js). Existing labConfig rule
+   * already gates write to admin; shadowJson off — net-new doc. */
+  api.registerRoute('settings/semesters.json', {
+    scope: 'lab', collection: 'labConfig', doc: 'semesters',
+    cache: MEDIUM,
   });
 })();

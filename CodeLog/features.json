@@ -1,0 +1,1755 @@
+{
+ "_comment": "The feature registry (V3.868). Every feature-sized thing in RM, the site and Scientia, with the files that make it. scripts/merge_check.py reads it on every git push: a new module must be registered here, and two features that look alike must say how they relate (extends | merges_into | related | distinct_from). Keywords are what the feature is ABOUT; the checker tokenises identifiers, labels and file names in a push and compares them with these.",
+ "version": 1,
+ "sides": {
+  "rm": "the lab site (rm/)",
+  "site": "the parent website",
+  "scientia": "Gabe's app (scientia/src)",
+  "shared": "the layer that joins them"
+ },
+ "relations": {
+  "extends": "built on that feature (one id)",
+  "merges_into": "this feature is being folded into that one; new work goes there (status: retiring)",
+  "related": "uses or links to those features; not a duplicate",
+  "distinct_from": "{id: reason} — looks similar, reviewed, kept separate on purpose",
+  "status": "active (default) | retiring | decision | merged",
+  "desktop_only": "true when the feature never ships in the web build"
+ },
+ "feature_dirs": [
+  "rm/js/*.js",
+  "rm/pages/*.html",
+  "functions/*.js",
+  "scientia/src/*.js",
+  "rm/scientia/*.js",
+  "rm/scientia/*.py",
+  "*.js"
+ ],
+ "features": [
+  {
+   "id": "rm.shell",
+   "name": "RM shell & navigation",
+   "side": "rm",
+   "summary": "The one nav bar, workflows, command palette, popouts, split view, the phone shell and tab lifecycle.",
+   "keywords": [
+    "navigation",
+    "nav",
+    "shell",
+    "workflow",
+    "palette",
+    "popout",
+    "split",
+    "mobile",
+    "tabs",
+    "sheet"
+   ],
+   "paths": [
+    "rm/index.html",
+    "rm/js/nav.js",
+    "rm/js/nav-palette.js",
+    "rm/js/app-shell.js",
+    "rm/js/shell-popouts.js",
+    "rm/js/workflow-*.js",
+    "rm/js/page-registry.js",
+    "rm/js/all-pages.js",
+    "rm/js/split-view.js",
+    "rm/js/mobile-*.js",
+    "rm/js/app-sheet.js",
+    "rm/js/tab-lifecycle.js",
+    "rm/js/desktop-only-guard.js",
+    "rm/js/runtime-mode.js",
+    "rm/js/surface-guide.js",
+    "rm/pages/app-shell.html",
+    "rm/pages/split-view.html",
+    "rm/pages/workflow-shell.html",
+    "rm/js/home.js",
+    "rm/js/home-feed.js",
+    "rm/js/dashboard.js",
+    "rm/js/mobile-drawers.js"
+   ]
+  },
+  {
+   "id": "rm.platform",
+   "name": "RM platform layer",
+   "side": "rm",
+   "summary": "Firestore adapter and routes, auth bridge, local cache, live sync, dialogs, toasts, icons, forms and shared helpers.",
+   "keywords": [
+    "firestore",
+    "adapter",
+    "cache",
+    "sync",
+    "auth",
+    "bridge",
+    "dialog",
+    "toast",
+    "icon",
+    "helper",
+    "util",
+    "push"
+   ],
+   "paths": [
+    "rm/js/api-*.js",
+    "rm/js/firebase-bridge.js",
+    "rm/js/local-cache.js",
+    "rm/js/live-sync-helper.js",
+    "rm/js/sync-status.js",
+    "rm/js/util.js",
+    "rm/js/toast.js",
+    "rm/js/icons.js",
+    "rm/js/icon-picker.js",
+    "rm/js/rm-dialog.js",
+    "rm/js/popover-place.js",
+    "rm/js/forms.js",
+    "rm/js/card-grid.js",
+    "rm/js/disp-shared.js",
+    "rm/js/mathlive-loader.js",
+    "rm/js/links.js",
+    "rm/js/external-links.js",
+    "rm/js/drive-link.js",
+    "rm/js/profile-bootstrap.js",
+    "rm/js/mobile-push.js",
+    "rm/js/presence.js",
+    "rm/js/rm-categories.js",
+    "rm/js/layout-audit.js",
+    "rm/pages/layout-audit.html",
+    "rm/pages/icon-audit.html",
+    "functions/index.js",
+    "functions/helpers/**",
+    "functions/auth-alias.js",
+    "functions/test-notifications.js",
+    "functions/yjs-compactor.js",
+    "functions/oauth.js",
+    "rm/js/oauth-connections.js",
+    "rm/css/**",
+    "rm/vendor/**",
+    "rm/data/**"
+   ]
+  },
+  {
+   "id": "rm.my-week",
+   "name": "My Week",
+   "side": "rm",
+   "summary": "Plan the week once: focus, protocol, equipment and tasks combine into steps that fan out to huddle, bookings, notebook and tracker; outcomes are required.",
+   "keywords": [
+    "week",
+    "plan",
+    "step",
+    "outcome",
+    "focus",
+    "fan-out",
+    "day",
+    "weekly",
+    "did-it",
+    "skipped"
+   ],
+   "paths": [
+    "rm/js/my-week.js",
+    "rm/js/myweek-report.js",
+    "rm/js/day-distribute.js",
+    "rm/js/draft-focus-bridge.js",
+    "rm/pages/my-week.html",
+    "rm/pages/my-day.html",
+    "rm/css/my-week.css"
+   ],
+   "related": [
+    "rm.pmr",
+    "rm.tasks",
+    "rm.protocols",
+    "rm.equipment",
+    "rm.notebook"
+   ]
+  },
+  {
+   "id": "rm.team-focus",
+   "name": "Team Focus",
+   "side": "rm",
+   "summary": "Mentor and mentee weekly and semester focus areas: assign, edit, sign off, review.",
+   "keywords": [
+    "focus",
+    "mentor",
+    "mentee",
+    "semester",
+    "sign-off",
+    "weekly",
+    "assign"
+   ],
+   "paths": [
+    "rm/js/team-focus.js",
+    "rm/js/focus-areas.js",
+    "rm/js/semesters.js",
+    "rm/pages/team-focus.html",
+    "rm/css/team-focus.css"
+   ]
+  },
+  {
+   "id": "rm.activity",
+   "name": "Activity & year review",
+   "side": "rm",
+   "summary": "Activity signals and summaries across the lab, the daily time tracker, page-time tracking, the year timeline and lab stats.",
+   "keywords": [
+    "activity",
+    "tracker",
+    "time",
+    "log",
+    "signal",
+    "summary",
+    "timeline",
+    "year",
+    "stats",
+    "hours",
+    "session"
+   ],
+   "paths": [
+    "rm/js/activity-*.js",
+    "rm/js/page-time-tracker.js",
+    "rm/js/year-review.js",
+    "rm/js/yr-shared.js",
+    "rm/pages/activity-*.html",
+    "rm/pages/year-review.html",
+    "rm/pages/lab-overview.html",
+    "rm/pages/admin-tracker-migrate.html",
+    "functions/stats-updater.js"
+   ]
+  },
+  {
+   "id": "rm.email",
+   "name": "Email triage",
+   "side": "rm",
+   "summary": "Scraped Gmail triaged into categories and tasks; the live classifier and its rules.",
+   "keywords": [
+    "email",
+    "gmail",
+    "triage",
+    "classifier",
+    "category",
+    "rule",
+    "inbox",
+    "scrape"
+   ],
+   "paths": [
+    "rm/js/email-*.js",
+    "rm/js/classifier-*.js",
+    "rm/js/category-rules.js",
+    "rm/pages/email-review.html",
+    "rm/pages/classifier-settings.html",
+    "functions/gmail-scraper.js",
+    "functions/scrape-now.js"
+   ]
+  },
+  {
+   "id": "rm.pmr",
+   "name": "PMR (progress & mentoring review)",
+   "side": "rm",
+   "summary": "Weekly progress review assembled from My Week outcomes, foci and project health.",
+   "keywords": [
+    "pmr",
+    "progress",
+    "review",
+    "mentoring",
+    "health",
+    "weekly",
+    "report"
+   ],
+   "paths": [
+    "rm/js/pmr.js",
+    "rm/js/pmr-week-assemble.js",
+    "rm/js/project-health.js",
+    "rm/pages/pmr.html"
+   ]
+  },
+  {
+   "id": "rm.calendar",
+   "name": "Calendar & availability",
+   "side": "rm",
+   "summary": "Lab calendar from Google and ICS feeds, events, deadlines, availability.",
+   "keywords": [
+    "calendar",
+    "event",
+    "ics",
+    "availability",
+    "schedule",
+    "date",
+    "deadline",
+    "google"
+   ],
+   "paths": [
+    "rm/js/calendar.js",
+    "rm/js/calendar-service.js",
+    "rm/js/availability.js",
+    "rm/js/schedule-service.js",
+    "rm/js/schedule-utils.js",
+    "rm/pages/calendar.html",
+    "functions/calendar-*.js",
+    "functions/ics-scraper.js"
+   ]
+  },
+  {
+   "id": "rm.tasks",
+   "name": "Tasks & Task Market",
+   "side": "rm",
+   "summary": "Lab tasks: inbox, buckets, assignment, due dates, archive, the task market, quick builder and PMR sync.",
+   "keywords": [
+    "task",
+    "todo",
+    "assign",
+    "due",
+    "deadline",
+    "inbox",
+    "bucket",
+    "market",
+    "archive",
+    "checklist",
+    "reminder"
+   ],
+   "paths": [
+    "rm/js/tasks*.js",
+    "rm/js/task-*.js",
+    "rm/js/lab-tasks.js",
+    "rm/js/user-actions.js",
+    "rm/pages/tasks*.html",
+    "rm/pages/lab-tasks.html",
+    "rm/pages/task-market.html",
+    "rm/pages/actions.html",
+    "functions/tasks.js",
+    "functions/task-market.js"
+   ]
+  },
+  {
+   "id": "rm.explorer",
+   "name": "Item Explorer",
+   "side": "rm",
+   "summary": "Browse every RM item and its links as a graph with a detail panel.",
+   "keywords": [
+    "explorer",
+    "graph",
+    "link",
+    "relation",
+    "browse",
+    "detail"
+   ],
+   "paths": [
+    "rm/js/item-explorer.js",
+    "rm/js/explorer-detail.js",
+    "rm/js/detail-panel.js",
+    "rm/pages/explorer.html"
+   ]
+  },
+  {
+   "id": "rm.research",
+   "name": "Research foci & roadmap",
+   "side": "rm",
+   "summary": "The research map: foci, aims and themes as cards; experiments, analyses and figures on the roadmap; student proposals.",
+   "keywords": [
+    "research",
+    "focus",
+    "foci",
+    "aim",
+    "theme",
+    "roadmap",
+    "experiment",
+    "analysis",
+    "hypothesis",
+    "card",
+    "proposal",
+    "project"
+   ],
+   "paths": [
+    "rm/js/research*.js",
+    "rm/js/roadmap-*.js",
+    "rm/pages/research.html",
+    "rm/css/research.css",
+    "functions/research-foci-notify.js"
+   ],
+   "related": [
+    "rm.projects",
+    "rm.outputs",
+    "rm.grants"
+   ]
+  },
+  {
+   "id": "rm.outputs",
+   "name": "Outputs",
+   "side": "rm",
+   "summary": "Deliverables on research cards: figures, datasets, documents, notebook runs.",
+   "keywords": [
+    "output",
+    "deliverable",
+    "dataset",
+    "data",
+    "document",
+    "figure"
+   ],
+   "paths": [
+    "rm/js/outputs-manager.js",
+    "rm/pages/outputs.html"
+   ]
+  },
+  {
+   "id": "rm.projects",
+   "name": "Projects & grant accounts",
+   "side": "rm",
+   "summary": "Project packages and the grant accounts that fund them.",
+   "keywords": [
+    "project",
+    "package",
+    "account",
+    "funding",
+    "portfolio"
+   ],
+   "paths": [
+    "rm/js/projects.js",
+    "rm/js/projects-grants.js",
+    "rm/pages/projects.html",
+    "rm/pages/projects-grants.html"
+   ]
+  },
+  {
+   "id": "rm.library",
+   "name": "Library",
+   "side": "rm",
+   "summary": "The lab's paper collection: import by DOI or PDF, metadata, PDFs in Storage, topics, associations, readings, comments, sharing and export.",
+   "keywords": [
+    "library",
+    "paper",
+    "doi",
+    "pdf",
+    "citation",
+    "reference",
+    "bibliography",
+    "csl",
+    "metadata",
+    "import",
+    "topic",
+    "collection",
+    "reading",
+    "share",
+    "zotero",
+    "semantic-scholar",
+    "journal",
+    "author"
+   ],
+   "paths": [
+    "rm/js/library.js",
+    "rm/js/library-*.js",
+    "rm/js/reference-import.js",
+    "rm/js/citation-audit.js",
+    "rm/pages/library.html",
+    "rm/pages/library-comments.html",
+    "rm/pages/library-public.html",
+    "rm/pages/library-mobile.html",
+    "rm/pages/citation-audit.html",
+    "rm/css/library*.css",
+    "functions/library*.js",
+    "functions/fetch-paper-pdf.js",
+    "functions/upload-paper-pdf.js",
+    "functions/semantic-scholar.js",
+    "functions/paper-pdf-fetch-proxy.js",
+    "functions/restore-paper-comments.js"
+   ],
+   "related": [
+    "rm.paper-reader",
+    "rm.paper-builder"
+   ]
+  },
+  {
+   "id": "rm.paper-reader",
+   "name": "Paper reader & annotations",
+   "side": "rm",
+   "summary": "Read a library PDF: highlights by colour category, comments, claims and evidence, figure and equation capture, label mode, the phone reader.",
+   "keywords": [
+    "reader",
+    "highlight",
+    "annotation",
+    "comment",
+    "pdf",
+    "viewer",
+    "selection",
+    "quote",
+    "evidence",
+    "claim",
+    "capture",
+    "label",
+    "overlay",
+    "anchor",
+    "colour",
+    "page"
+   ],
+   "paths": [
+    "rm/js/library-paper.js",
+    "rm/js/library-mobile-paper.js",
+    "rm/js/pdf-viewer.js",
+    "rm/js/annotation-*.js",
+    "rm/js/canvas-paper-reader.js",
+    "rm/js/viewer-touch.js",
+    "rm/js/claims-panel.js",
+    "rm/js/claims.js",
+    "rm/js/figure-capture.js",
+    "rm/js/equation-capture.js",
+    "rm/js/paper-label-mode.js",
+    "rm/js/page-layout.js",
+    "rm/js/page-regions.js",
+    "rm/js/page-collections.js",
+    "rm/js/geom-selection.js",
+    "rm/js/section-comments.js",
+    "rm/js/paper-overlay*.js",
+    "rm/pages/library-paper.html",
+    "rm/pages/library-mobile-paper.html",
+    "rm/js/admin-annotation-sweep.js"
+   ],
+   "related": [
+    "rm.library",
+    "rm.figure-board"
+   ]
+  },
+  {
+   "id": "rm.canvas-engine",
+   "name": "Canvas engine (whiteboard)",
+   "side": "rm",
+   "summary": "The shared infinite-canvas engine: pages or a continuous sheet, pen and highlighter ink, shapes, cards, regions, wires, live streaming, lecture replay.",
+   "keywords": [
+    "canvas",
+    "whiteboard",
+    "board",
+    "pen",
+    "ink",
+    "stroke",
+    "shape",
+    "card",
+    "region",
+    "wire",
+    "zoom",
+    "pan",
+    "lasso",
+    "replay",
+    "sheet"
+   ],
+   "paths": [
+    "whiteboard.js",
+    "whiteboard-replay.js",
+    "whiteboard-board.css",
+    "rm/js/wire-router.js",
+    "rm/js/canvas-widgets.js",
+    "modules/shared/**"
+   ]
+  },
+  {
+   "id": "rm.notebook",
+   "name": "Lab Notebook",
+   "side": "rm",
+   "summary": "Notebook entries on the canvas engine: widgets for protocol runs, inventory items, papers, collections, figures; the ✓ reports to My Week; Scientia as a notebook.",
+   "keywords": [
+    "notebook",
+    "entry",
+    "block",
+    "widget",
+    "protocol-run",
+    "collection",
+    "mirror",
+    "journal",
+    "note"
+   ],
+   "paths": [
+    "rm/js/lab-notebook.js",
+    "rm/js/notebook-*.js",
+    "rm/pages/notebook*.html",
+    "rm/pages/lab-notebook.html",
+    "rm/css/notebook*.css"
+   ],
+   "extends": "rm.canvas-engine",
+   "related": [
+    "rm.my-week",
+    "rm.protocols",
+    "rm.inventory",
+    "rm.library",
+    "scientia.cloud"
+   ]
+  },
+  {
+   "id": "rm.figure-board",
+   "name": "Figure board",
+   "side": "rm",
+   "summary": "Figures composed on the canvas engine from reader captures: panels, captions, key points, the lit-review board.",
+   "keywords": [
+    "figure",
+    "board",
+    "panel",
+    "caption",
+    "snip",
+    "compose",
+    "lit-review",
+    "key-point"
+   ],
+   "paths": [
+    "rm/js/figure-board-canvas.js",
+    "rm/js/paper-figure-board.js",
+    "rm/js/paper-fig-*.js",
+    "rm/js/paper-figures.js",
+    "rm/pages/figure-board.html",
+    "rm/css/paper-figure-board.css",
+    "functions/figure-board-notify.js"
+   ],
+   "extends": "rm.canvas-engine",
+   "related": [
+    "rm.paper-builder",
+    "rm.notebook"
+   ]
+  },
+  {
+   "id": "rm.protocols",
+   "name": "Protocols",
+   "side": "rm",
+   "summary": "The protocols builder: steps, variables and formulas as a live calculator, graph editor, versions, figures, inventory links, imports, cheat sheets, runs.",
+   "keywords": [
+    "protocol",
+    "step",
+    "formula",
+    "variable",
+    "calculator",
+    "run",
+    "version",
+    "graph",
+    "plate",
+    "cheat-sheet",
+    "import",
+    "materials"
+   ],
+   "paths": [
+    "rm/js/protocol*.js",
+    "rm/js/protocols.js",
+    "rm/pages/protocols.html",
+    "rm/css/protocol*.css"
+   ],
+   "related": [
+    "rm.inventory",
+    "rm.notebook"
+   ]
+  },
+  {
+   "id": "rm.paper-builder",
+   "name": "Paper builder",
+   "side": "rm",
+   "summary": "Collaborative manuscripts: sections, figures, tables, equations, citations, exports to LaTeX and PDF, bundles, overlays, layout mode.",
+   "keywords": [
+    "manuscript",
+    "draft",
+    "section",
+    "table",
+    "equation",
+    "latex",
+    "export",
+    "bundle",
+    "yjs",
+    "layout",
+    "cite",
+    "symbol",
+    "evidence"
+   ],
+   "paths": [
+    "rm/js/paper-*.js",
+    "rm/pages/paper-*.html",
+    "rm/css/paper-*.css",
+    "functions/paper-*.js",
+    "functions/delete-builder-paper.js",
+    "functions/equation-ocr.js"
+   ],
+   "related": [
+    "rm.library",
+    "rm.paper-reader",
+    "rm.grants"
+   ]
+  },
+  {
+   "id": "rm.grants",
+   "name": "Grants",
+   "side": "rm",
+   "summary": "Grants in the paper editor: budgets, biosketches, facilities, checklists, exports.",
+   "keywords": [
+    "grant",
+    "proposal",
+    "budget",
+    "biosketch",
+    "facilities",
+    "aims",
+    "checklist",
+    "funding"
+   ],
+   "paths": [
+    "rm/js/grant-*.js",
+    "rm/js/grants.js",
+    "rm/pages/grant-*.html",
+    "rm/pages/grants.html",
+    "rm/pages/funding.html"
+   ],
+   "extends": "rm.paper-builder",
+   "related": [
+    "rm.projects",
+    "rm.cv"
+   ]
+  },
+  {
+   "id": "rm.teaching-service",
+   "name": "Teaching & service",
+   "side": "rm",
+   "summary": "Teaching record and service record pages.",
+   "keywords": [
+    "teaching",
+    "course",
+    "class",
+    "service",
+    "committee"
+   ],
+   "paths": [
+    "rm/pages/teaching.html",
+    "rm/pages/service.html",
+    "rm/js/service.js"
+   ]
+  },
+  {
+   "id": "rm.training",
+   "name": "Training",
+   "side": "rm",
+   "summary": "Instrument and skills training tracks with lessons, quizzes and bench sign-off.",
+   "keywords": [
+    "training",
+    "lesson",
+    "quiz",
+    "sign-off",
+    "certificate",
+    "microscope",
+    "track",
+    "onboarding"
+   ],
+   "paths": [
+    "rm/js/training*.js",
+    "rm/pages/training*.html",
+    "rm/css/training.css"
+   ],
+   "related": [
+    "site.modules"
+   ]
+  },
+  {
+   "id": "rm.chat",
+   "name": "Chat, Huddle & calls",
+   "side": "rm",
+   "summary": "Lab chat channels, groups and threads, the side panel, huddle, voice calls, presence, Slack import.",
+   "keywords": [
+    "chat",
+    "message",
+    "channel",
+    "thread",
+    "reaction",
+    "huddle",
+    "call",
+    "voice",
+    "presence",
+    "dm",
+    "slack"
+   ],
+   "paths": [
+    "rm/js/chat*.js",
+    "rm/js/huddle*.js",
+    "rm/js/voice-call.js",
+    "rm/pages/chat.html",
+    "rm/pages/huddle.html",
+    "rm/css/chat.css",
+    "rm/css/huddle.css",
+    "functions/chat.js",
+    "functions/huddle.js",
+    "functions/voice-call.js"
+   ]
+  },
+  {
+   "id": "rm.meetings",
+   "name": "Lab meetings",
+   "side": "rm",
+   "summary": "Lab meeting schedule, presenters, agenda, chores, live meeting view.",
+   "keywords": [
+    "meeting",
+    "presenter",
+    "agenda",
+    "chore",
+    "roster",
+    "journal-club",
+    "live"
+   ],
+   "paths": [
+    "rm/js/meetings*.js",
+    "rm/pages/meetings.html",
+    "rm/css/meetings.css",
+    "functions/meetings.js"
+   ],
+   "related": [
+    "rm.calendar"
+   ]
+  },
+  {
+   "id": "rm.scheduler",
+   "name": "Scheduler",
+   "side": "rm",
+   "summary": "Appointment and slot booking with availability.",
+   "keywords": [
+    "schedule",
+    "booking",
+    "slot",
+    "appointment",
+    "availability"
+   ],
+   "paths": [
+    "rm/js/scheduler.js",
+    "scheduler.js",
+    "rm/pages/scheduler.html",
+    "functions/scheduler.js"
+   ],
+   "related": [
+    "rm.calendar",
+    "rm.equipment"
+   ]
+  },
+  {
+   "id": "rm.equipment",
+   "name": "Equipment",
+   "side": "rm",
+   "summary": "Instruments: bookings, status, maintenance reminders, availability, notifications.",
+   "keywords": [
+    "equipment",
+    "instrument",
+    "booking",
+    "maintenance",
+    "reminder",
+    "status",
+    "calibration",
+    "availability"
+   ],
+   "paths": [
+    "rm/js/equipment*.js",
+    "rm/pages/equipment.html",
+    "functions/equipment*.js"
+   ],
+   "related": [
+    "rm.training"
+   ]
+  },
+  {
+   "id": "rm.compliance",
+   "name": "Compliance",
+   "side": "rm",
+   "summary": "Safety and compliance records and certificates.",
+   "keywords": [
+    "compliance",
+    "safety",
+    "certificate",
+    "record",
+    "ibc",
+    "iacuc"
+   ],
+   "paths": [
+    "rm/js/compliance.js",
+    "rm/pages/compliance.html"
+   ]
+  },
+  {
+   "id": "rm.chemicals",
+   "name": "Chemical safety",
+   "side": "rm",
+   "summary": "Chemical inventory with SDS, hazards and storage.",
+   "keywords": [
+    "chemical",
+    "sds",
+    "hazard",
+    "storage",
+    "cas",
+    "safety"
+   ],
+   "paths": [
+    "rm/js/chemicals.js",
+    "rm/pages/chemicals.html"
+   ],
+   "related": [
+    "rm.inventory"
+   ]
+  },
+  {
+   "id": "rm.inventory",
+   "name": "Inventory",
+   "side": "rm",
+   "summary": "Lab inventory: items, quantities, lots, locations, QR labels, scan-to-use, stock take, reorder alerts; the source for materials elsewhere.",
+   "keywords": [
+    "inventory",
+    "stock",
+    "item",
+    "material",
+    "reagent",
+    "supply",
+    "quantity",
+    "lot",
+    "location",
+    "label",
+    "qr",
+    "scan",
+    "reorder",
+    "consumable"
+   ],
+   "paths": [
+    "rm/js/inventory*.js",
+    "rm/js/stock-take.js",
+    "rm/js/scan*.js",
+    "rm/js/label-id.js",
+    "rm/js/qty-picker.js",
+    "rm/pages/inventory*.html",
+    "rm/pages/scan.html",
+    "functions/inventory-alerts.js",
+    "l/**"
+   ],
+   "related": [
+    "rm.protocols",
+    "rm.procurement"
+   ]
+  },
+  {
+   "id": "rm.people",
+   "name": "People & profiles",
+   "side": "rm",
+   "summary": "Lab members, important people, profiles and roles.",
+   "keywords": [
+    "people",
+    "member",
+    "profile",
+    "role",
+    "contact",
+    "mentor",
+    "team"
+   ],
+   "paths": [
+    "rm/js/people.js",
+    "rm/js/important-people.js",
+    "rm/js/profile.js",
+    "rm/pages/people.html",
+    "rm/pages/profile.html",
+    "rm/pages/important-people.html"
+   ]
+  },
+  {
+   "id": "rm.career",
+   "name": "Career & tenure",
+   "side": "rm",
+   "summary": "The tenure and promotion dossier.",
+   "keywords": [
+    "career",
+    "tenure",
+    "dossier",
+    "promotion"
+   ],
+   "paths": [
+    "rm/js/career.js",
+    "rm/pages/career.html"
+   ],
+   "related": [
+    "rm.cv"
+   ]
+  },
+  {
+   "id": "rm.procurement",
+   "name": "Procurement, receipts & budget",
+   "side": "rm",
+   "summary": "Purchase requests captured by the extension, approval-gated catalogue, price watch, pcard helper, receipts, budgets, travel.",
+   "keywords": [
+    "procurement",
+    "purchase",
+    "order",
+    "request",
+    "vendor",
+    "price",
+    "catalogue",
+    "pcard",
+    "receipt",
+    "budget",
+    "travel",
+    "expense",
+    "capture"
+   ],
+   "paths": [
+    "rm/js/procurement*.js",
+    "rm/js/pcard-helper.js",
+    "rm/js/receipts.js",
+    "rm/js/budget-model.js",
+    "rm/js/finance.js",
+    "rm/pages/procurement.html",
+    "rm/pages/purchase-requests.html",
+    "rm/pages/pcard-helper.html",
+    "rm/pages/receipts.html",
+    "rm/pages/budget.html",
+    "rm/pages/finance.html",
+    "rm/css/procurement.css",
+    "functions/procurement-notify.js",
+    "rm/downloads/**"
+   ],
+   "related": [
+    "rm.inventory",
+    "rm.projects"
+   ]
+  },
+  {
+   "id": "rm.analytics",
+   "name": "Analytics & API usage",
+   "side": "rm",
+   "summary": "Site analytics and API usage pages.",
+   "keywords": [
+    "analytics",
+    "usage",
+    "api",
+    "stats",
+    "views"
+   ],
+   "paths": [
+    "rm/js/analytics.js",
+    "rm/js/api-usage.js",
+    "rm/pages/analytics.html",
+    "rm/pages/api-usage.html"
+   ]
+  },
+  {
+   "id": "rm.admin",
+   "name": "Settings & admin",
+   "side": "rm",
+   "summary": "Settings, permissions and per-user capabilities, default workflows, teachers, guests, migrations, sharing.",
+   "keywords": [
+    "settings",
+    "admin",
+    "permission",
+    "role",
+    "capability",
+    "workflow",
+    "guest",
+    "teacher",
+    "migrate",
+    "sharing"
+   ],
+   "paths": [
+    "rm/js/settings.js",
+    "rm/js/admin-*.js",
+    "rm/js/capability-registry.js",
+    "rm/js/sharing.js",
+    "rm/pages/settings.html",
+    "rm/pages/admin-*.html",
+    "rm/pages/sharing.html",
+    "functions/teacher-invite.js"
+   ],
+   "related": [
+    "site.teacher"
+   ]
+  },
+  {
+   "id": "rm.whats-new",
+   "name": "What's New & releases",
+   "side": "rm",
+   "summary": "Release notes, the announcement to all lab members, app build numbers.",
+   "keywords": [
+    "release",
+    "announcement",
+    "changelog",
+    "version",
+    "whats-new"
+   ],
+   "paths": [
+    "rm/js/whats-new.js",
+    "rm/pages/whats-new.html",
+    "functions/release-announce.js"
+   ]
+  },
+  {
+   "id": "rm.cv",
+   "name": "CV suite",
+   "side": "rm",
+   "summary": "CV editor and overview, importers, exports, library pull, profile sync.",
+   "keywords": [
+    "cv",
+    "resume",
+    "publication",
+    "export",
+    "import",
+    "profile-sync"
+   ],
+   "paths": [
+    "rm/js/cv-*.js",
+    "cv-builder.js",
+    "cv-styles.css",
+    "rm/pages/cv-*.html"
+   ],
+   "related": [
+    "rm.library",
+    "rm.grants"
+   ]
+  },
+  {
+   "id": "rm.app-reports",
+   "name": "App crash reports",
+   "side": "rm",
+   "summary": "Crash and diagnostics reports from the phone app.",
+   "keywords": [
+    "crash",
+    "report",
+    "diagnostics",
+    "app",
+    "phone"
+   ],
+   "paths": [
+    "rm/js/app-diagnostics.js",
+    "rm/pages/app-reports.html"
+   ]
+  },
+  {
+   "id": "rm.app-mobile",
+   "name": "Ourlab phone app bundle",
+   "side": "rm",
+   "summary": "What the phone app bundles and how it differs: bottom tabs, scan-first tools, push.",
+   "keywords": [
+    "app",
+    "phone",
+    "mobile",
+    "capacitor",
+    "bundle",
+    "tabs"
+   ],
+   "paths": [
+    "manifest.json",
+    "firebase-messaging-sw.js",
+    "push-notifications.js",
+    "sw.js"
+   ],
+   "related": [
+    "rm.shell"
+   ]
+  },
+  {
+   "id": "site.spa",
+   "name": "Lab website (parent SPA)",
+   "side": "site",
+   "summary": "mcgheelab.com: mission, research, projects, team, classes, contact; the hash router and content.json.",
+   "keywords": [
+    "mission",
+    "research",
+    "team",
+    "classes",
+    "contact",
+    "router",
+    "spa",
+    "hero"
+   ],
+   "paths": [
+    "index.html",
+    "app.js",
+    "content.json",
+    "styles.css",
+    "user-styles.css",
+    "privacy.html",
+    "terms.html",
+    "robots.txt",
+    "sitemap.xml",
+    "lab-apps.js",
+    "firebase-config.js",
+    "Images/**",
+    "Videos/**",
+    "icons/**",
+    "poster/**",
+    "DataIllustrations/**"
+   ]
+  },
+  {
+   "id": "site.user-system",
+   "name": "Accounts & dashboard editors",
+   "side": "site",
+   "summary": "Sign-in, user bootstrap, the dashboard editors for stories, news, project packages, team.",
+   "keywords": [
+    "login",
+    "account",
+    "dashboard",
+    "editor",
+    "story",
+    "news",
+    "team",
+    "submission"
+   ],
+   "paths": [
+    "user-system.js"
+   ]
+  },
+  {
+   "id": "site.teacher",
+   "name": "Teacher outreach",
+   "side": "site",
+   "summary": "The teach hub, engage step cards, presenters, opportunities, no-account posts.",
+   "keywords": [
+    "teacher",
+    "teach",
+    "engage",
+    "presenter",
+    "outreach",
+    "opportunity",
+    "guest"
+   ],
+   "paths": [
+    "teacher-*.js",
+    "engage-*.js",
+    "functions/engage-*.js",
+    "functions/class-notify.js",
+    "functions/bme466-notify.js"
+   ]
+  },
+  {
+   "id": "site.class-builder",
+   "name": "Class builder",
+   "side": "site",
+   "summary": "Course pages and class builder for the lab's classes.",
+   "keywords": [
+    "class",
+    "course",
+    "lecture",
+    "gradebook",
+    "waitlist"
+   ],
+   "paths": [
+    "class-builder.js"
+   ]
+  },
+  {
+   "id": "site.modules",
+   "name": "Learning modules",
+   "side": "site",
+   "summary": "Interactive course modules with whiteboard panels, homework, keys, reports.",
+   "keywords": [
+    "module",
+    "lesson",
+    "homework",
+    "worksheet",
+    "simulation",
+    "course"
+   ],
+   "paths": [
+    "modules/**"
+   ],
+   "related": [
+    "rm.training",
+    "rm.canvas-engine"
+   ]
+  },
+  {
+   "id": "scientia.core",
+   "name": "Scientia core",
+   "side": "scientia",
+   "summary": "The app's spine: util, schema and stores, IndexedDB, model, index, UI kit, editor, shell, document view, blocks, wires, panels, boot.",
+   "keywords": [
+    "schema",
+    "store",
+    "indexeddb",
+    "model",
+    "component",
+    "wire",
+    "docpanel",
+    "wikilink",
+    "undo",
+    "journal"
+   ],
+   "paths": [
+    "scientia/src/01-util.js",
+    "scientia/src/02-schema.js",
+    "scientia/src/03-db.js",
+    "scientia/src/04-model.js",
+    "scientia/src/06-index.js",
+    "scientia/src/08-ui.js",
+    "scientia/src/09-editor.js",
+    "scientia/src/10-base.css",
+    "scientia/src/11-shell.js",
+    "scientia/src/12-doc.js",
+    "scientia/src/12b-wires.js",
+    "scientia/src/13-docpanels.js",
+    "scientia/src/13g-embed.js",
+    "scientia/src/13p-edit.js",
+    "scientia/src/13q-focus.js",
+    "scientia/src/13u-write.js",
+    "scientia/src/13z-multisel.js",
+    "scientia/src/13zb-move.js",
+    "scientia/src/13ze-mobile.js",
+    "scientia/src/13zg-slim.js",
+    "scientia/src/13zi-noteref.js",
+    "scientia/src/13zj-headstart.js",
+    "scientia/src/13zk-docs.js",
+    "scientia/src/13zp-links.js",
+    "scientia/src/13zr-split.js",
+    "scientia/src/13zz-maxhl.js",
+    "scientia/src/99-boot.js",
+    "scientia/src/shell.html",
+    "scientia/build.py",
+    "scientia/vendor/**",
+    "scientia/fonts.css",
+    "scientia/icons/**",
+    "scientia/docs/**",
+    "scientia/README.md",
+    "scientia/MANUAL.md"
+   ],
+   "distinct_from": {
+    "rm.people": "Scientia's 'profiles' store holds note TYPES as data, not people"
+   }
+  },
+  {
+   "id": "scientia.desktop-server",
+   "name": "Scientia desktop server",
+   "side": "scientia",
+   "summary": "serve.py and friends: the computer that holds the record, pairing, ink, speech, slides, handwriting.",
+   "keywords": [
+    "serve",
+    "server",
+    "record",
+    "pairing",
+    "device",
+    "ink",
+    "speech",
+    "slides",
+    "handwriting",
+    "desktop"
+   ],
+   "paths": [
+    "scientia/serve.py",
+    "scientia/sisync.py",
+    "scientia/winink.py",
+    "scientia/sttread.py",
+    "scientia/slides.py",
+    "scientia/hwread.py",
+    "scientia/launch.bat",
+    "scientia/diagnose-pairing.*",
+    "scientia/src/13zc-sync.js",
+    "scientia/src/13zd-devices.js",
+    "scientia/src/21-sync.css",
+    "scientia/src/13zo-install.js"
+   ],
+   "related": [
+    "scientia.cloud"
+   ]
+  },
+  {
+   "id": "scientia.today",
+   "name": "Scientia Today (day note)",
+   "side": "scientia",
+   "summary": "The day note: today's work, the running timer, reminders and chores for the day.",
+   "keywords": [
+    "today",
+    "day",
+    "daily",
+    "note",
+    "timer",
+    "home"
+   ],
+   "paths": [
+    "scientia/src/14-home.js",
+    "scientia/src/13l-day.js"
+   ],
+   "related": [
+    "rm.my-week"
+   ],
+   "note": "Keeps its own day note; My Week stays the lab's plan. Phase 2 adds the ✓ report to a My Week step."
+  },
+  {
+   "id": "scientia.portfolio",
+   "name": "Scientia Portfolio",
+   "side": "scientia",
+   "summary": "Projects, themes and aims as the note hierarchy; general notes.",
+   "keywords": [
+    "portfolio",
+    "project",
+    "theme",
+    "aim",
+    "milestone",
+    "hierarchy"
+   ],
+   "paths": [
+    "scientia/src/15-portfolio.js",
+    "scientia/src/15b-general.js"
+   ],
+   "related": [
+    "rm.projects",
+    "rm.research"
+   ],
+   "note": "V3.866 plan §6 (Phase 4): decide whether projects/themes/aims mirror RM research foci."
+  },
+  {
+   "id": "scientia.review",
+   "name": "Scientia Review (weekly)",
+   "side": "scientia",
+   "summary": "Weekly review decisions and carried flags.",
+   "keywords": [
+    "review",
+    "weekly",
+    "flag",
+    "carry",
+    "decision"
+   ],
+   "paths": [
+    "scientia/src/18-review.js"
+   ],
+   "status": "decision",
+   "related": [
+    "rm.my-week",
+    "rm.pmr"
+   ],
+   "note": "V3.866 plan §7: keep, or fold into My Week — Alex's call."
+  },
+  {
+   "id": "scientia.activity",
+   "name": "Scientia Activity",
+   "side": "scientia",
+   "summary": "The in-app activity log and time by note.",
+   "keywords": [
+    "activity",
+    "log",
+    "time",
+    "session",
+    "history"
+   ],
+   "paths": [
+    "scientia/src/19-activity.js"
+   ],
+   "status": "retiring",
+   "merges_into": "rm.activity",
+   "plan": "CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md"
+  },
+  {
+   "id": "scientia.terms",
+   "name": "Scientia Terms & lens",
+   "side": "scientia",
+   "summary": "Wikilink terms, term forms, term scanning and the lens view.",
+   "keywords": [
+    "term",
+    "wikilink",
+    "lens",
+    "glossary",
+    "scan"
+   ],
+   "paths": [
+    "scientia/src/16-lens.js",
+    "scientia/src/16b-termforms.js",
+    "scientia/src/13w-termscan.js"
+   ]
+  },
+  {
+   "id": "scientia.library",
+   "name": "Scientia Library",
+   "side": "scientia",
+   "summary": "The in-app paper list with CSL metadata and PDFs; cites and reference widgets.",
+   "keywords": [
+    "library",
+    "paper",
+    "doi",
+    "csl",
+    "pdf",
+    "cite",
+    "reference",
+    "quote"
+   ],
+   "paths": [
+    "scientia/src/07-library.js",
+    "scientia/src/17-library.js",
+    "scientia/src/13zx-refwidget.js",
+    "scientia/src/13zw-quote.js",
+    "scientia/src/10-paper.js"
+   ],
+   "status": "retiring",
+   "merges_into": "rm.library",
+   "related": [
+    "rm.paper-reader",
+    "scientia.reader"
+   ],
+   "plan": "CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md"
+  },
+  {
+   "id": "scientia.reader",
+   "name": "Scientia reader & highlights",
+   "side": "scientia",
+   "summary": "The in-app PDF and HTML reader with text-quote highlights and structure colours.",
+   "keywords": [
+    "reader",
+    "highlight",
+    "pdf",
+    "html",
+    "anchor",
+    "quote",
+    "structure",
+    "colour"
+   ],
+   "paths": [
+    "scientia/src/17b-reader.js",
+    "scientia/src/17c-reader2.js"
+   ],
+   "status": "retiring",
+   "merges_into": "rm.paper-reader",
+   "plan": "CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md",
+   "note": "Phase 3: highlights sync both ways; the desktop reader stays and pulls from RM."
+  },
+  {
+   "id": "scientia.data",
+   "name": "Scientia Data",
+   "side": "scientia",
+   "summary": "Raw data by reference: folder handles, heads and tails, previews (desktop only).",
+   "keywords": [
+    "data",
+    "dataset",
+    "file",
+    "folder",
+    "preview",
+    "raw"
+   ],
+   "paths": [
+    "scientia/src/13i-data.js"
+   ],
+   "desktop_only": true,
+   "related": [
+    "rm.outputs"
+   ]
+  },
+  {
+   "id": "scientia.materials",
+   "name": "Scientia Materials",
+   "side": "scientia",
+   "summary": "Materials and the materials sheet inside notes.",
+   "keywords": [
+    "material",
+    "reagent",
+    "sheet",
+    "stock",
+    "supply"
+   ],
+   "paths": [
+    "scientia/src/13j-materials.js",
+    "scientia/src/13r-matsheet.js"
+   ],
+   "status": "retiring",
+   "merges_into": "rm.inventory",
+   "plan": "CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md"
+  },
+  {
+   "id": "scientia.canvas",
+   "name": "Scientia Canvas & ink",
+   "side": "scientia",
+   "summary": "Spatial canvases, regions, shapes, pen, pressure, lasso, fill.",
+   "keywords": [
+    "canvas",
+    "ink",
+    "pen",
+    "shape",
+    "region",
+    "lasso",
+    "fill",
+    "pressure",
+    "spatial"
+   ],
+   "paths": [
+    "scientia/src/13m-canvas.js",
+    "scientia/src/20-canvas.css",
+    "scientia/src/13v-region.js",
+    "scientia/src/13zh-shapes.js",
+    "scientia/src/13zf-ink.js",
+    "scientia/src/13zm-pen2.js",
+    "scientia/src/13zu-lasso2.js",
+    "scientia/src/13zv-fill.js",
+    "scientia/src/13zq-pressure.js"
+   ],
+   "related": [
+    "rm.canvas-engine"
+   ],
+   "note": "V3.866 plan §4: pen arcs evaluated only; the two engines stay separate for now."
+  },
+  {
+   "id": "scientia.settings",
+   "name": "Scientia Settings, export & seed",
+   "side": "scientia",
+   "summary": "Settings, export, demo seed.",
+   "keywords": [
+    "settings",
+    "export",
+    "seed",
+    "demo",
+    "backup"
+   ],
+   "paths": [
+    "scientia/src/20-settings.js",
+    "scientia/src/21-export.js",
+    "scientia/src/22-seed.js"
+   ],
+   "distinct_from": {
+    "rm.admin": "the app's own preferences (notebook folder, pens, citation style); RM settings are site roles and workflows"
+   }
+  },
+  {
+   "id": "scientia.tasks",
+   "name": "Scientia Tasks, reminders & chores",
+   "side": "scientia",
+   "summary": "In-app tasks, reminders with alerts and repeats, recurring chores.",
+   "keywords": [
+    "task",
+    "reminder",
+    "chore",
+    "deadline",
+    "repeat",
+    "alert",
+    "due"
+   ],
+   "paths": [
+    "scientia/src/23-tasks.js",
+    "scientia/src/13s-remind.js",
+    "scientia/src/13zy-reminder.js"
+   ],
+   "status": "retiring",
+   "merges_into": "rm.tasks",
+   "related": [
+    "rm.calendar",
+    "rm.meetings"
+   ],
+   "plan": "CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md",
+   "note": "Found by the checker (V3.868): Scientia chores (passaging, media changes) overlap RM meeting chores — Phase 1 maps them."
+  },
+  {
+   "id": "scientia.protocol-blocks",
+   "name": "Scientia protocol blocks",
+   "side": "scientia",
+   "summary": "Protocol, chain and plate blocks inside notes.",
+   "keywords": [
+    "protocol",
+    "chain",
+    "plate",
+    "step",
+    "well"
+   ],
+   "paths": [
+    "scientia/src/13b-protocol.js",
+    "scientia/src/13c-chain.js",
+    "scientia/src/13t-chaindrop.js",
+    "scientia/src/13e-plate.js"
+   ],
+   "status": "decision",
+   "related": [
+    "rm.protocols"
+   ],
+   "note": "V3.866 plan §4 (Phase 2): the RM protocol-run card is ported in; decide whether these blocks retire."
+  },
+  {
+   "id": "scientia.timer",
+   "name": "Scientia timer & sessions",
+   "side": "scientia",
+   "summary": "The work timer, its UI and comparisons; sessions.",
+   "keywords": [
+    "timer",
+    "session",
+    "stopwatch",
+    "segment",
+    "elapsed"
+   ],
+   "paths": [
+    "scientia/src/05-timer.js",
+    "scientia/src/13y-timerui.js",
+    "scientia/src/13za-timercmp.js"
+   ],
+   "related": [
+    "rm.activity"
+   ]
+  },
+  {
+   "id": "scientia.calc",
+   "name": "Scientia calc, math & equations",
+   "side": "scientia",
+   "summary": "Calculations, math blocks, registered equations with legends.",
+   "keywords": [
+    "calc",
+    "math",
+    "equation",
+    "latex",
+    "formula",
+    "unit"
+   ],
+   "paths": [
+    "scientia/src/13f-calc.js",
+    "scientia/src/13h-math.js",
+    "scientia/src/13n-eq.js"
+   ],
+   "related": [
+    "rm.paper-builder",
+    "rm.protocols"
+   ]
+  },
+  {
+   "id": "scientia.media",
+   "name": "Scientia media, recordings & vault",
+   "side": "scientia",
+   "summary": "Images, GIFs, video, recordings, the vault.",
+   "keywords": [
+    "media",
+    "image",
+    "video",
+    "recording",
+    "vault",
+    "figure"
+   ],
+   "paths": [
+    "scientia/src/13d-media.js",
+    "scientia/src/13zn-rec.js",
+    "scientia/src/13o-vault.js",
+    "scientia/src/13x-figure.js"
+   ],
+   "related": [
+    "rm.figure-board"
+   ]
+  },
+  {
+   "id": "scientia.views",
+   "name": "Scientia live views",
+   "side": "scientia",
+   "summary": "Live views over stores: tables, boards, calendars, timelines with predicates.",
+   "keywords": [
+    "view",
+    "table",
+    "board",
+    "calendar",
+    "timeline",
+    "query",
+    "predicate"
+   ],
+   "paths": [
+    "scientia/src/13k-views.js"
+   ],
+   "related": [
+    "rm.explorer"
+   ]
+  },
+  {
+   "id": "scientia.cloud",
+   "name": "Scientia cloud hub & notebook bridge",
+   "side": "shared",
+   "summary": "The lab layer: the hub on Firestore speaking Gabe's sync protocol, the web shim, the desktop bridge, Scientia as a notebook of the Lab Notebook.",
+   "keywords": [
+    "hub",
+    "sync",
+    "shim",
+    "bridge",
+    "cloud",
+    "device",
+    "push",
+    "pull",
+    "relay",
+    "key"
+   ],
+   "paths": [
+    "rm/scientia/**",
+    "functions/scientia-hub*.js",
+    "functions/test/scientia-hub.test.js",
+    "rm/js/notebook-scientia.js",
+    "rm/css/notebook-scientia.css",
+    "rm/pages/scientia.html",
+    "scripts/scientia_build.py",
+    "scripts/scientia_hub_dev.js",
+    "scientia/CLAUDE.md"
+   ],
+   "related": [
+    "rm.notebook",
+    "scientia.desktop-server",
+    "rm.platform"
+   ]
+  }
+ ]
+}

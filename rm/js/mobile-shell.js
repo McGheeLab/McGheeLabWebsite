@@ -1,22 +1,97 @@
-/* mobile-shell.js — Ourlab app bottom tab bar (V3.565, m-v0.1).
+/* mobile-shell.js — Ourlab app bottom bar (V3.565, m-v0.1).
  *
- * Renders the phone app's persistent bottom tabs — 🌞 My Day · 💬 Chat ·
- * ✅ Tasks · ⋯ More — on every rm/ page, but ONLY when running inside the
- * Capacitor shell (the OurlabMobile sibling repo bundles rm/ into its
- * webDir and injects this script into every page at build time; the
- * production website never references it, and even if it did, the gate
- * below makes it a no-op in ordinary browsers).
+ * V3.847 — the bar is ONE round ☰ button. Tap it and the person's quick links
+ * fan out around it: Scan a label first (fixed), then the pages they chose
+ * (More → Customize quick links, up to MAX_TABS), then More (fixed). There is
+ * no row of tabs any more and nothing is "active". Alex: "the bottom of the
+ * page tool button should replace all of the quick page links… a hamburger
+ * icon… all of the pages the user has selected as quick links should fan out."
  *
- * Dev preview in a normal browser: append ?mobileShell=1 (persists for
- * the session via sessionStorage).
+ * Runs ONLY inside the Capacitor shell (the OurlabMobile sibling repo bundles
+ * rm/ into its webDir and injects this script into every page at build time;
+ * the production website never references it, and even if it did, the gate
+ * below makes it a no-op in ordinary browsers). Dev preview in a normal
+ * browser: append ?mobileShell=1 (persists for the session via sessionStorage).
+ *
+ * The choice of quick links lives in localStorage (read synchronously at mount)
+ * and is mirrored to userData/{uid}/prefs/mobileTabs so it follows the person
+ * across phones. A page with a native webview (TabKey in TabRoute.swift)
+ * switches with OurlabTabs.switchTo; any other opens in the shell's misc
+ * webview via OurlabTabs.open.
  *
  * Deliberately framework-free and dependency-free (loads before/without
- * firebridge): tabs are plain page navigations — state lives in
- * Firestore, exactly like the web app. Self-injecting CSS follows the
- * icon-picker.js pattern.
+ * firebridge): links are plain page navigations — state lives in Firestore,
+ * exactly like the web app. Self-injecting CSS follows the icon-picker.js
+ * pattern.
  */
 (function () {
   'use strict';
+
+  /* ── every page the app can offer as a quick link ─────────────────────
+   * `native: true` = one of the warm top-level webviews in TabRoute.swift
+   * (KEEP THOSE SIX IN LOCKSTEP with TabRoute.swift + tab-lifecycle.js
+   * selfCheck); the rest open in the shell's misc webview. */
+  var CATALOG = [
+    // V3.638 — my-day.html was renamed my-week.html; the match covers both so
+    // the retired path's redirect stub still resolves.
+    { key: 'myday',       icon: 'sun',                     label: 'My Week',   href: '/rm/pages/my-week.html',        match: /\/my-(day|week)\.html$/,      native: true },
+    { key: 'focus',       icon: 'target',                  label: 'Focus',     href: '/rm/pages/team-focus.html',     match: /\/team-focus\.html$/,         native: true },
+    { key: 'chat',        icon: 'chat-bubble-left-right',  label: 'Chat',      href: '/rm/pages/chat.html',           match: /\/chat\.html$/,               native: true },
+    { key: 'tasks',       icon: 'check-circle',            label: 'Tasks',     href: '/rm/pages/tasks.html',          match: /\/tasks[a-z-]*\.html$/,       native: true },
+    // V3.613 — the whole library* family (the mobile reader included).
+    { key: 'library',     icon: 'books',                   label: 'Library',   href: '/rm/pages/library-mobile.html', match: /\/library[a-z-]*\.html$/,     native: true },
+    // V3.835 — Inventory: QR labels on every item; V3.840 scan → dial.
+    { key: 'inventory',   icon: 'archive-box',             label: 'Inventory', href: '/rm/pages/inventory.html',      match: /\/inventory[a-z-]*\.html$/,   native: true },
+    // V3.844 — the scan tool and the person's actions are pages too
+    { key: 'scan',        icon: 'camera',                  label: 'Scan',      href: '/rm/pages/scan.html',           match: /\/scan\.html$/ },
+    { key: 'actions',     icon: 'bolt',                    label: 'Actions',   href: '/rm/pages/actions.html',        match: /\/actions\.html$/ },
+    { key: 'notebook',    icon: 'book-open',               label: 'Notebook',  href: '/rm/pages/notebook.html',       match: /\/notebook[a-z-]*\.html$/ },
+    { key: 'scheduler',   icon: 'calendar-days',           label: 'Scheduler', href: '/rm/pages/scheduler.html',      match: /\/scheduler\.html$/ },
+    { key: 'research',    icon: 'microscope',              label: 'Research',  href: '/rm/pages/research.html',       match: /\/research\.html$/ },
+    { key: 'meetings',    icon: 'user-group',              label: 'Meetings',  href: '/rm/pages/meetings.html',       match: /\/meetings\.html$/ },
+    { key: 'protocols',   icon: 'clipboard-document-list', label: 'Protocols', href: '/rm/pages/protocols.html',      match: /\/protocols[a-z-]*\.html$/ },
+    { key: 'procurement', icon: 'shopping-cart',           label: 'Buying',    href: '/rm/pages/procurement.html',    match: /\/procurement\.html$/ },
+    { key: 'equipment',   icon: 'beaker',                  label: 'Equipment', href: '/rm/pages/equipment.html',      match: /\/equipment[a-z-]*\.html$/ },
+    { key: 'pmr',         icon: 'clipboard-document-list', label: 'PMR',       href: '/rm/pages/pmr.html',            match: /\/pmr\.html$/ },
+    { key: 'settings',    icon: 'cog-6-tooth',             label: 'Settings',  href: '/rm/pages/settings.html',       match: /\/settings\.html$/ },
+  ];
+  // V3.847 — up to eight quick links; the fan also carries Scan and More (fixed), ten at most.
+  var DEFAULT_KEYS = ['myday', 'focus', 'chat', 'tasks', 'library', 'inventory'];
+  var MAX_TABS = 8;
+  var SCAN_TOOL = { key: 'scan', icon: 'camera', label: 'Scan a label', href: '/rm/pages/scan.html', fresh: true, fixed: true };
+  var MORE_TOOL = { key: 'more', icon: 'ellipsis-horizontal', label: 'More', more: true, fixed: true };
+  function catalogByKey(k) { for (var i = 0; i < CATALOG.length; i++) if (CATALOG[i].key === k) return CATALOG[i]; return null; }
+  /** A saved list → a valid one: known keys only, no repeats, at most MAX_TABS; empty → the default. */
+  function normalizeKeys(keys) {
+    var out = [];
+    (Array.isArray(keys) ? keys : []).forEach(function (k) {
+      if (k !== 'scan' && catalogByKey(k) && out.indexOf(k) < 0 && out.length < MAX_TABS) out.push(k);   // Scan is always in the fan
+    });
+    return out.length ? out : DEFAULT_KEYS.slice();
+  }
+  /** What the ☰ fans out: Scan, the chosen pages (a chosen Scan is not doubled), More. */
+  function fanItems(keys) {
+    var pages = normalizeKeys(keys).map(catalogByKey).filter(Boolean);
+    return [SCAN_TOOL].concat(pages).concat([MORE_TOOL]);
+  }
+  /**
+   * Where n items go: [{ ring, deg }] — one arc (160° → 20°) up to four items,
+   * two arcs beyond that (the first four inner, the rest outer, 150° → 30°).
+   */
+  function ringLayout(n) {
+    var out = [];
+    if (!(n > 0)) return out;
+    var inner = n <= 4 ? n : 4, outer = n - inner;
+    var spread = function (count, from, to, ring) {
+      for (var i = 0; i < count; i++) out.push({ ring: ring, deg: count === 1 ? 90 : from - i * ((from - to) / (count - 1)) });
+    };
+    spread(inner, 160, 20, 1);
+    if (outer > 0) spread(outer, 150, 30, 2);
+    return out;
+  }
+  var TABS_CORE = { CATALOG: CATALOG, DEFAULT_KEYS: DEFAULT_KEYS, MAX_TABS: MAX_TABS, SCAN_TOOL: SCAN_TOOL, MORE_TOOL: MORE_TOOL,
+                    normalizeKeys: normalizeKeys, byKey: catalogByKey, fanItems: fanItems, ringLayout: ringLayout };
+  if (typeof module !== 'undefined' && module.exports) module.exports = TABS_CORE;
 
   function isApp() {
     try {
@@ -56,9 +131,9 @@
   // EMBED mode: when this page is a tab hosted inside the persistent app
   // shell (app-shell.html) — i.e. we're in an iframe or carry ?embed=1 /
   // window.name rm-embed|rm-shell — the shell owns ALL app chrome (top bar,
-  // bottom tab bar, auth gate). nav.js already hides the page's own top-nav
+  // bottom bar, auth gate). nav.js already hides the page's own top-nav
   // in embed mode; mobile-shell must add NOTHING here, or every tab iframe
-  // would render its own duplicate tab bar + auth gate. Bail out early.
+  // would render its own duplicate bar + auth gate. Bail out early.
   function isEmbedded() {
     try {
       if (window.top !== window.self) return true;
@@ -68,10 +143,10 @@
     return false;
   }
   if (isEmbedded()) {
-    // A tab hosted in the app shell. The shell owns the top bar + tab bar +
+    // A tab hosted in the app shell. The shell owns the top bar + bar +
     // auth gate, so render NONE of that here. We only need to (a) hide the
     // page's own top nav / sync indicator + drop its top padding, and (b) mark
-    // the page as running in the app so its app-gated UX (My Day composer FAB,
+    // the page as running in the app so its app-gated UX (My Week composer FAB,
     // Tasks/Team-Focus/Task-Market fold-ups, Chat app layout — the V3.567–571
     // work) turns on. We deliberately do this with CSS + a body class rather
     // than ?embed=1 / window.name, because the pages' split-view "embed" mode
@@ -89,41 +164,90 @@
     return;
   }
 
-  var TABS = [
-    { key: 'myday', icon: '🌞', label: 'My Day', href: '/rm/pages/my-day.html',    match: /\/my-day\.html$/ },
-    { key: 'focus', icon: '🎯', label: 'Focus',  href: '/rm/pages/team-focus.html', match: /\/team-focus\.html$/ },
-    { key: 'chat',  icon: '💬', label: 'Chat',   href: '/rm/pages/chat.html',      match: /\/chat\.html$/ },
-    { key: 'tasks', icon: '✅', label: 'Tasks',  href: '/rm/pages/tasks.html',     match: /\/tasks[a-z-]*\.html$/ },
-    // V3.613 — Library. The match covers the whole library* family so the
-    // mobile reader (library-mobile-paper.html) keeps this tab highlighted.
-    // KEEP IN LOCKSTEP with TabRoute.swift + tab-lifecycle.js selfCheck.
-    { key: 'library', icon: '📚', label: 'Library', href: '/rm/pages/library-mobile.html', match: /\/library[a-z-]*\.html$/ },
-    // "More" is NOT a link into the rest of RM — it opens a curated sheet
-    // of only the pages the app ships. Edit MORE_LINKS to add/remove.
-    { key: 'more',  icon: '⋯',  label: 'More',   sheet: true,                      match: /\/more-never-matches$/ },
-  ];
+  /* ── V3.840 — the person's quick-link list ───────────────────────────
+   * localStorage is the synchronous source; the cloud doc follows them across
+   * phones. `dirty` = saved here but not yet in the cloud (offline, or saved
+   * before auth resolved) — pushed on the next onAuth; otherwise a differing
+   * cloud list is adopted. The app's warm webviews share localStorage, so a
+   * change made in one reaches the others the next time their fan opens. */
+  var PREFS_KEY = 'ourlab-tabs.v1';
+  function readPrefs() {
+    try {
+      var o = JSON.parse(localStorage.getItem(PREFS_KEY) || 'null');
+      if (o && Array.isArray(o.keys)) return { keys: normalizeKeys(o.keys), dirty: !!o.dirty, at: o.at || 0, saved: true };
+    } catch (e) {}
+    return { keys: DEFAULT_KEYS.slice(), dirty: false, at: 0, saved: false };
+  }
+  function writePrefs(keys, dirty) {
+    var p = { keys: normalizeKeys(keys), dirty: !!dirty, at: Date.now() };
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch (e) {}
+    return p;
+  }
+  var _keys = readPrefs().keys;   // the quick links
+  function tabs() { return _keys.map(catalogByKey).filter(Boolean); }
+  function moreLinks() { return CATALOG.filter(function (t) { return _keys.indexOf(t.key) < 0 && t.key !== 'scan'; }); }
 
-  /* The ONLY pages reachable from the app beyond the tabs. This is the
-   * allowlist — the app never exposes the full RM nav. Add entries here.
-   * (Team Focus is now a first-class bottom tab, so it's not repeated here.) */
-  var MORE_LINKS = [
-    { icon: '📓', label: 'Lab Notebook', href: '/rm/pages/lab-notebook.html' },
-    { icon: '📅', label: 'Scheduler',    href: '/rm/pages/scheduler.html' },
-    { icon: '🔬', label: 'Research',     href: '/rm/pages/research.html' },
-    { icon: '⚙️', label: 'Settings',     href: '/rm/pages/settings.html' },
-  ];
+  function cloudRef() {
+    // firebridge is a lexical const (bare global) — window.firebridge is
+    // ALWAYS undefined (window.firebridge dead-checks memory).
+    var fb = (typeof firebridge !== 'undefined') ? firebridge : null;
+    var u = fb && fb.getUser && fb.getUser();
+    if (!u || !fb.db) return null;
+    try { return fb.db().collection('userData').doc(u.uid).collection('prefs').doc('mobileTabs'); } catch (e) { return null; }
+  }
+  function pushCloud(keys) {
+    var ref = cloudRef(); if (!ref) return Promise.resolve(false);
+    return ref.set({ keys: keys, updatedAt: new Date().toISOString() }, { merge: true })
+      .then(function () { writePrefs(keys, false); return true; })
+      .catch(function () { return false; });
+  }
+  function syncCloud() {
+    var ref = cloudRef(); if (!ref) return;
+    var local = readPrefs();
+    if (local.dirty) { pushCloud(local.keys); return; }
+    ref.get().then(function (snap) {
+      if (!snap || !snap.exists) return;
+      var cloud = normalizeKeys((snap.data() || {}).keys);
+      if (cloud.join(',') !== local.keys.join(',')) { writePrefs(cloud, false); applyKeys(cloud); }
+    }).catch(function () {});
+  }
+  function savePrefs(keys) {
+    var p = writePrefs(keys, true);
+    applyKeys(p.keys);
+    pushCloud(p.keys);
+    return p.keys;
+  }
+  function applyKeys(keys) {
+    _keys = normalizeKeys(keys);
+    closeFan();
+  }
 
   var CSS =
     '.ourlab-tabbar{position:fixed;left:0;right:0;bottom:0;z-index:9000;' +
-      'display:flex;background:var(--card,#fff);border-top:1px solid var(--border,#e2e8f0);' +
-      'padding-bottom:env(safe-area-inset-bottom,0px);' +
+      'display:flex;justify-content:center;align-items:center;height:64px;background:var(--card,#fff);border-top:1px solid var(--border,#e2e8f0);' +
+      'padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:content-box;' +
       'box-shadow:0 -2px 12px rgba(0,0,0,.06);}' +
-    '.ourlab-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;' +
-      'padding:8px 0 6px;border:none;background:transparent;cursor:pointer;' +
-      'font-size:10px;font-weight:600;color:var(--text-muted,#64748b);text-decoration:none;' +
-      '-webkit-tap-highlight-color:transparent;}' +
-    '.ourlab-tab .ot-icon{font-size:22px;line-height:1;}' +
-    '.ourlab-tab.ot-active{color:var(--primary,#2563eb);}' +
+    /* V3.847 — the one button: a neutral ☰ that becomes an × while the fan is out */
+    '.ourlab-menu{width:56px;height:56px;border-radius:50%;border:1px solid var(--border,#e2e8f0);background:var(--card,#fff);' +
+      'color:var(--text,#0f172a);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;' +
+      'box-shadow:0 4px 14px rgba(0,0,0,.14);-webkit-tap-highlight-color:transparent;transition:transform .15s ease;}' +
+    '.ourlab-menu:active{transform:scale(.94);}' +
+    '.ourlab-menu svg{width:28px;height:28px;display:block;}' +
+    '.ourlab-menu .om-x{display:none;}' +
+    '.ourlab-menu.on .om-bars{display:none;}.ourlab-menu.on .om-x{display:block;}' +
+    '.ourlab-menu.on{background:var(--text,#0f172a);color:#fff;border-color:var(--text,#0f172a);}' +
+    /* the fan */
+    '.ourlab-fan-back{position:fixed;inset:0;z-index:9400;background:rgba(15,23,42,.42);}' +
+    '.ourlab-fan-tool{position:fixed;z-index:9401;width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;' +
+      'background:var(--card,#fff);color:var(--primary,#2563eb);display:flex;align-items:center;justify-content:center;' +
+      'box-shadow:0 6px 18px rgba(0,0,0,.28);animation:ourlab-fan-in .18s ease-out backwards;-webkit-tap-highlight-color:transparent;}' +
+    '.ourlab-fan-tool svg{width:28px;height:28px;}' +
+    '.ourlab-fan-tool.is-fixed{color:var(--text,#0f172a);}' +
+    '.ourlab-fan-tool:active{transform:scale(.94);}' +
+    '.ourlab-fan-lbl{position:fixed;z-index:9401;width:90px;margin-left:-15px;text-align:center;font-size:11px;font-weight:700;color:#fff;' +
+      'text-shadow:0 1px 2px rgba(0,0,0,.6);pointer-events:none;animation:ourlab-fan-in .18s ease-out backwards;' +
+      'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+    '@keyframes ourlab-fan-in{from{opacity:0;transform:scale(.5);}to{opacity:1;transform:none;}}' +
     /* More sheet */
     '.ourlab-sheet-back{position:fixed;inset:0;z-index:9500;background:rgba(15,23,42,.45);' +
       'display:flex;flex-direction:column;justify-content:flex-end;}' +
@@ -143,19 +267,39 @@
       'padding:14px 20px;border:none;background:transparent;cursor:pointer;text-decoration:none;' +
       'font-size:16px;color:var(--text,#0f172a);}' +
     '.ourlab-sheet-item:active{background:var(--bg,#f1f5f9);}' +
-    '.ourlab-sheet-item .osi-icon{font-size:22px;width:26px;text-align:center;}' +
+    '.ourlab-sheet-item .osi-icon{font-size:22px;width:26px;display:inline-flex;align-items:center;justify-content:center;}' +
+    '.ourlab-sheet-customize{border-top:1px solid var(--border,#e2e8f0);margin-top:6px;color:var(--primary,#2563eb);font-weight:600;}' +
     '.ourlab-sheet-signout{color:#dc2626;font-weight:600;border-top:1px solid var(--border,#e2e8f0);margin-top:6px;}' +
+    /* V3.840 — Customize quick links sheet */
+    '.ourlab-cz{padding-left:16px;padding-right:16px;}' +
+    '.ourlab-cz-head{display:flex;align-items:center;justify-content:space-between;padding:6px 4px 2px;font-size:16px;color:var(--text,#0f172a);}' +
+    '.ourlab-cz-count{font-size:13px;color:var(--text-muted,#64748b);font-weight:600;}' +
+    '.ourlab-cz-hint{font-size:12.5px;color:var(--text-muted,#64748b);padding:0 4px 10px;}' +
+    '.ourlab-cz-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 4px;border-top:1px solid var(--border,#e2e8f0);}' +
+    '.ourlab-cz-row.on{background:transparent;}' +
+    '.ourlab-cz-main{display:flex;align-items:center;gap:12px;flex:1;min-width:0;font-size:16px;color:var(--text,#0f172a);cursor:pointer;}' +
+    '.ourlab-cz-main input{width:22px;height:22px;margin:0;flex:0 0 22px;}' +
+    '.ourlab-cz-main .osi-icon{width:26px;display:inline-flex;justify-content:center;font-size:20px;}' +
+    '.ourlab-cz-order{display:flex;gap:4px;}' +
+    '.ourlab-cz-order button{width:38px;height:34px;border-radius:8px;border:1px solid var(--border,#e2e8f0);background:var(--bg,#f1f5f9);color:var(--text,#0f172a);font-size:13px;cursor:pointer;}' +
+    '.ourlab-cz-order button:disabled{opacity:.35;}' +
+    '.ourlab-cz-sep{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted,#64748b);padding:12px 4px 4px;}' +
+    '.ourlab-cz-actions{display:flex;gap:10px;justify-content:flex-end;padding:14px 4px 4px;}' +
+    '.ourlab-cz-actions button{min-height:44px;padding:0 18px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;}' +
+    '.ourlab-cz-reset{border:1px solid var(--border,#e2e8f0);background:var(--bg,#f1f5f9);color:var(--text,#0f172a);}' +
+    '.ourlab-cz-save{border:none;background:var(--primary,#2563eb);color:#fff;}' +
+    '.ourlab-cz-save:disabled{opacity:.4;}' +
     /* app-wide: drop the RM nav's Workflows / All Pages / Split / My
-       Workflows buttons — each page's own tab bar is the nav in the app */
+       Workflows buttons — the ☰ is the nav in the app */
     'body.ourlab-app .nav-app-hide{display:none !important;}' +
-    'body.ourlab-app{padding-bottom:calc(64px + env(safe-area-inset-bottom,0px)) !important;}' +
-    /* pages with their own bottom-fixed chrome (My Day composer) sit above the bar */
-    'body.ourlab-app .md-composer{bottom:calc(56px + env(safe-area-inset-bottom,0px));}' +
-    /* voice-call panel (V3.584) floats above the tab bar, not under it */
-    'body.ourlab-app #vc-panel{bottom:calc(72px + env(safe-area-inset-bottom,0px));}' +
+    'body.ourlab-app{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px)) !important;}' +
+    /* pages with their own bottom-fixed chrome (My Week composer) sit above the bar */
+    'body.ourlab-app .md-composer{bottom:calc(64px + env(safe-area-inset-bottom,0px));}' +
+    /* voice-call panel (V3.584) floats above the bar, not under it */
+    'body.ourlab-app #vc-panel{bottom:calc(80px + env(safe-area-inset-bottom,0px));}' +
     /* The RM top nav (McGhee Lab · sync status · avatar) is pinned FIXED to
        the very top on every app page — always in place, content scrolls
-       under it (like the bottom tab bar). Its background fills the status
+       under it (like the bottom bar). Its background fills the status
        bar / Dynamic Island inset; content sits below the notch. */
     'body.ourlab-app .top-nav,body.ourlab-app .workflow-strip{' +
       'position:fixed;top:0;left:0;right:0;z-index:8000;}' +
@@ -166,12 +310,12 @@
     'body.ourlab-app.ourlab-has-nav{padding-top:calc(56px + env(safe-area-inset-top,0px));}' +
     /* tighten the page header: .page-title and .page-header each carry a
        20px bottom margin that doubles into a big gap before the page's own
-       tabs (e.g. My Day Day/Week/Month) — collapse to one small gap. */
+       tabs (e.g. My Week Day/Week/Month) — collapse to one small gap. */
     'body.ourlab-app .page-header{margin-bottom:8px;}' +
     'body.ourlab-app .page-title{margin-bottom:0;}' +
     'body.ourlab-app.ourlab-no-nav{padding-top:env(safe-area-inset-top,0px);}' +
     /* full-screen sign-in / loading overlay — the app shows NOTHING but
-       this until a user is authenticated (covers the tab bar + any page's
+       this until a user is authenticated (covers the bar + any page's
        own sign-in card). */
     /* brand "Deep Well" navy gradient — matches the native splash screen
        (assets/logo.png on #0A1730) so cold-launch → sign-in is seamless. */
@@ -203,12 +347,68 @@
       'border-top-color:#fff;animation:ourlab-spin .8s linear infinite;margin:0 auto 4px;}' +
     '@keyframes ourlab-spin{to{transform:rotate(360deg);}}';
 
+  // icons.js has no hamburger; the two marks are inline.
+  var BARS_SVG = '<svg class="om-bars" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
+  var X_SVG = '<svg class="om-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+
+  /** The catalog page this webview is showing, if any (kept for callers; nothing is highlighted). */
   function activeKey() {
     var p = location.pathname;
-    for (var i = 0; i < TABS.length; i++) {
-      if (TABS[i].match.test(p)) return TABS[i].key;
+    for (var i = 0; i < CATALOG.length; i++) {
+      if (CATALOG[i].match.test(p)) return CATALOG[i].key;
     }
     return '';
+  }
+
+  function barHtml() {
+    return '<button type="button" class="ourlab-menu" data-menu="1" aria-label="Menu" aria-haspopup="true" aria-expanded="false">' + BARS_SVG + X_SVG + '</button>';
+  }
+
+  /** Go to a catalog page the app way: native webview swap, misc webview, or a plain navigation. */
+  function goTo(t) {
+    var href = t.fresh ? t.href + '?t=' + Date.now().toString(36) : t.href;
+    var T = tabsPlugin();
+    if (!T) { location.href = href; return; }
+    var p = (t.native && !t.fresh) ? T.switchTo({ key: t.key }) : T.open({ href: href });
+    p.catch(function () { location.href = href; });
+  }
+
+  /* ── V3.847 — the fan: Scan, the quick links, More — on one or two arcs above the ☰ ── */
+  function closeFan() {
+    document.querySelectorAll('.ourlab-fan-back,.ourlab-fan-tool,.ourlab-fan-lbl').forEach(function (n) { n.remove(); });
+    var b = document.querySelector('.ourlab-menu');
+    if (b) { b.classList.remove('on'); b.setAttribute('aria-expanded', 'false'); }
+  }
+  function openFan() {
+    if (document.querySelector('.ourlab-fan-back')) { closeFan(); return; }
+    var btn = document.querySelector('.ourlab-menu'); if (!btn) return;
+    _keys = readPrefs().keys;   // another webview may have saved a new list
+    var items = fanItems(_keys);
+    var r = btn.getBoundingClientRect();
+    var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    var back = document.createElement('div'); back.className = 'ourlab-fan-back';
+    back.addEventListener('click', closeFan);
+    document.body.appendChild(back);
+    // radii scaled so the outer arc's ends stay inside a narrow phone (60 px circles)
+    var scale = Math.min(1, (window.innerWidth / 2 - 42) / (182 * Math.cos(30 * Math.PI / 180)));
+    var R = { 1: Math.round(96 * scale), 2: Math.round(182 * scale) };
+    var spots = ringLayout(items.length);
+    items.forEach(function (t, i) {
+      var s = spots[i], a = s.deg * Math.PI / 180;
+      var x = cx + R[s.ring] * Math.cos(a), y = cy - R[s.ring] * Math.sin(a) - 22;
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'ourlab-fan-tool' + (t.fixed ? ' is-fixed' : ''); b.setAttribute('data-tool', t.key); b.setAttribute('aria-label', t.label);
+      b.style.left = Math.round(x - 30) + 'px'; b.style.top = Math.round(y - 30) + 'px'; b.style.animationDelay = (i * 25) + 'ms';
+      b.innerHTML = ICON.svg(t.icon, { variant: 'outline' });
+      b.addEventListener('click', function (ev) {
+        ev.preventDefault(); closeFan();
+        if (t.more) openMoreSheet(); else goTo(t);
+      });
+      var l = document.createElement('div'); l.className = 'ourlab-fan-lbl'; l.textContent = t.label;
+      l.style.left = Math.round(x - 30) + 'px'; l.style.top = Math.round(y + 34) + 'px'; l.style.animationDelay = (i * 25) + 'ms';
+      document.body.appendChild(b); document.body.appendChild(l);
+    });
+    btn.classList.add('on'); btn.setAttribute('aria-expanded', 'true');
   }
 
   function mount() {
@@ -251,15 +451,8 @@
 
     var bar = document.createElement('nav');
     bar.className = 'ourlab-tabbar';
-    bar.setAttribute('aria-label', 'App tabs');
-    var act = activeKey();
-    bar.innerHTML = TABS.map(function (t) {
-      var cls = 'ourlab-tab' + (t.key === act ? ' ot-active' : '');
-      var inner = '<span class="ot-icon">' + t.icon + '</span>' + t.label;
-      return t.sheet
-        ? '<button type="button" class="' + cls + '" data-more="1">' + inner + '</button>'
-        : '<a class="' + cls + '" data-key="' + t.key + '" href="' + t.href + '">' + inner + '</a>';
-    }).join('');
+    bar.setAttribute('aria-label', 'App menu');
+    bar.innerHTML = barHtml();
 
     bar.addEventListener('click', function (ev) {
       // haptic tick
@@ -267,22 +460,15 @@
         var H = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Haptics;
         if (H && H.impact) H.impact({ style: 'LIGHT' });
       } catch (e) { /* haptics are garnish */ }
-      var moreBtn = ev.target.closest('[data-more]');
-      if (moreBtn) { ev.preventDefault(); openMoreSheet(); return; }
-      // V3.586 — m-v0.3 multi-WebView shell: tab taps become native webview
-      // swaps instead of navigations (each tab stays warm). Falls back to the
-      // anchor's normal navigation on web/Android/plugin-rejection.
-      var a = ev.target.closest('a.ourlab-tab');
-      var T = tabsPlugin();
-      if (a && T) {
-        ev.preventDefault();
-        T.switchTo({ key: a.getAttribute('data-key') })
-          .catch(function () { location.href = a.getAttribute('href'); });
-      }
+      if (ev.target.closest('[data-menu]')) { ev.preventDefault(); openFan(); }
     });
 
     document.body.classList.add('ourlab-app');
     document.body.appendChild(bar);
+
+    // Another webview may have saved a new list (shared localStorage); the fan
+    // re-reads it when it opens. Close a stale fan when this view comes back.
+    document.addEventListener('ourlab:tab-visible', function () { _keys = readPrefs().keys; closeFan(); });
 
     // Hide the iOS keyboard accessory bar (the ⌃ ⌄ ✓ toolbar above the
     // keyboard) — we provide our own composer controls instead.
@@ -439,12 +625,12 @@
     // name until firebase-bridge.js has executed.
     if (typeof firebridge === 'undefined' || !firebridge.onAuth) { setTimeout(ensureAuthGate, 80); return; }
     firebridge.onAuth(function (user) {
-      if (user) hideAuthOverlay();
+      if (user) { hideAuthOverlay(); syncCloud(); }   // V3.840 — the quick links follow the person
       else showAuthOverlay('signin');
     });
   }
 
-  /* ── the "More" sheet: curated app pages + account, nothing else ── */
+  /* ── the "More" sheet: the catalog pages not among the quick links + Customize + account ── */
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -463,9 +649,9 @@
     var email = user.email || '';
     var initials = name.split(/\s+/).map(function (w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase();
 
-    var links = MORE_LINKS.map(function (l) {
-      return '<a class="ourlab-sheet-item" href="' + l.href + '">' +
-        '<span class="osi-icon">' + l.icon + '</span>' + esc(l.label) + '</a>';
+    var links = moreLinks().map(function (l) {
+      return '<a class="ourlab-sheet-item" data-key="' + l.key + '" href="' + l.href + '">' +
+        '<span class="osi-icon">' + ICON.svg(l.icon) + '</span>' + esc(l.label) + '</a>';
     }).join('');
 
     var back = document.createElement('div');
@@ -474,26 +660,30 @@
       '<div class="ourlab-sheet" role="dialog" aria-label="More">' +
         '<div class="ourlab-sheet-grip"></div>' +
         '<div class="ourlab-sheet-user">' +
-          '<div class="ourlab-sheet-av">' + esc(initials || '👤') + '</div>' +
+          '<div class="ourlab-sheet-av">' + (initials ? esc(initials) : ICON.svg('user-circle')) + '</div>' +
           '<div><div class="ourlab-sheet-name">' + esc(name) + '</div>' +
             (email ? '<div class="ourlab-sheet-email">' + esc(email) + '</div>' : '') + '</div>' +
         '</div>' +
         links +
+        '<button type="button" class="ourlab-sheet-item ourlab-sheet-customize" data-customize="1">' +
+          '<span class="osi-icon">' + ICON.svg('adjustments-horizontal') + '</span>Customize quick links</button>' +
         '<button type="button" class="ourlab-sheet-item ourlab-sheet-signout" data-signout="1">' +
-          '<span class="osi-icon">🚪</span>Sign out</button>' +
+          '<span class="osi-icon">' + ICON.svg('arrow-right-start-on-rectangle') + '</span>Sign out</button>' +
       '</div>';
 
     back.addEventListener('click', function (ev) {
       if (ev.target === back) { back.remove(); return; }
+      if (ev.target.closest('[data-customize]')) { ev.preventDefault(); back.remove(); openCustomizeSheet(); return; }
       // V3.586 — m-v0.3: More-sheet pages open in the shell's misc webview so
-      // the 4 tab webviews never navigate away from their page. Fallback:
-      // plain navigation (web / Android / plugin rejection).
+      // the tab webviews never navigate away from their page (a page that has
+      // a native webview switches to it). Fallback: plain navigation
+      // (web / Android / plugin rejection).
       var link = ev.target.closest('a.ourlab-sheet-item');
-      if (link && tabsPlugin()) {
+      var t = link && catalogByKey(link.getAttribute('data-key'));
+      if (t && tabsPlugin()) {
         ev.preventDefault();
         back.remove();
-        tabsPlugin().open({ href: link.getAttribute('href') })
-          .catch(function () { location.href = link.getAttribute('href'); });
+        goTo(t);
         return;
       }
       if (ev.target.closest('[data-signout]')) {
@@ -504,7 +694,7 @@
             // V3.586 — m-v0.3: auth state does NOT propagate across the
             // shell's webviews (no cross-webview storage events), so reset
             // the OTHERS natively, then reload SELF to this webview's OWN
-            // tab page (navigating to my-day.html here would put My Day
+            // tab page (navigating to my-week.html here would put My Week
             // inside e.g. the Chat webview — webview identity is fixed).
             // reloadAll is called ONLY from this sign-out path and the
             // auth-gate sign-in success path — never from onAuth callbacks —
@@ -514,7 +704,7 @@
               T.reloadAll().catch(function () {});
               location.reload();
             } else {
-              location.href = '/rm/pages/my-day.html';
+              location.href = '/rm/pages/my-week.html';
             }
           });
         }
@@ -523,14 +713,83 @@
     document.body.appendChild(back);
   }
 
+  /* ── V3.840 — Customize quick links: tick up to MAX_TABS catalog pages, order them ── */
+  function openCustomizeSheet() {
+    if (document.querySelector('.ourlab-sheet-back')) return;
+    var sel = _keys.slice();
+    var back = document.createElement('div');
+    back.className = 'ourlab-sheet-back';
+
+    function rowHtml(t, i) {
+      var on = i >= 0;
+      var full = !on && sel.length >= MAX_TABS;
+      return '<div class="ourlab-cz-row' + (on ? ' on' : '') + '" data-key="' + t.key + '">' +
+        '<label class="ourlab-cz-main"><input type="checkbox" data-pick="' + t.key + '"' + (on ? ' checked' : '') + (full ? ' disabled' : '') + '>' +
+          '<span class="osi-icon">' + ICON.svg(t.icon) + '</span><span>' + esc(t.label) + '</span></label>' +
+        (on ? '<span class="ourlab-cz-order">' +
+          '<button type="button" data-move="' + t.key + '" data-dir="-1" aria-label="Move ' + esc(t.label) + ' up"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+          '<button type="button" data-move="' + t.key + '" data-dir="1" aria-label="Move ' + esc(t.label) + ' down"' + (i === sel.length - 1 ? ' disabled' : '') + '>▼</button></span>' : '') +
+      '</div>';
+    }
+    function render() {
+      var chosen = sel.map(catalogByKey).filter(Boolean).map(function (t) { return rowHtml(t, sel.indexOf(t.key)); }).join('');
+      var rest = CATALOG.filter(function (t) { return sel.indexOf(t.key) < 0 && t.key !== 'scan'; }).map(function (t) { return rowHtml(t, -1); }).join('');
+      back.innerHTML =
+        '<div class="ourlab-sheet ourlab-cz" role="dialog" aria-label="Customize quick links">' +
+          '<div class="ourlab-sheet-grip"></div>' +
+          '<div class="ourlab-cz-head"><strong>Your quick links</strong><span class="ourlab-cz-count">' + sel.length + ' of ' + MAX_TABS + '</span></div>' +
+          '<div class="ourlab-cz-hint">Tick up to ' + MAX_TABS + ' pages for the ☰ menu; ▲ ▼ sets their order. Scan a label and More are always there; everything else stays under More.</div>' +
+          '<div class="ourlab-cz-list">' + chosen + (rest ? '<div class="ourlab-cz-sep">Also available</div>' + rest : '') + '</div>' +
+          '<div class="ourlab-cz-actions">' +
+            '<button type="button" class="ourlab-cz-reset" data-reset="1">Reset</button>' +
+            '<button type="button" class="ourlab-cz-save" data-save="1"' + (sel.length ? '' : ' disabled') + '>Save</button>' +
+          '</div>' +
+        '</div>';
+    }
+    back.addEventListener('click', function (ev) {
+      if (ev.target === back) { back.remove(); return; }
+      var mv = ev.target.closest('[data-move]');
+      if (mv) {
+        var k = mv.getAttribute('data-move'), d = parseInt(mv.getAttribute('data-dir'), 10);
+        var i = sel.indexOf(k), j = i + d;
+        if (i >= 0 && j >= 0 && j < sel.length) { sel.splice(i, 1); sel.splice(j, 0, k); render(); }
+        return;
+      }
+      if (ev.target.closest('[data-reset]')) { sel = DEFAULT_KEYS.slice(); render(); return; }
+      if (ev.target.closest('[data-save]')) { if (sel.length) { savePrefs(sel); back.remove(); } return; }
+    });
+    back.addEventListener('change', function (ev) {
+      var cb = ev.target.closest('[data-pick]'); if (!cb) return;
+      var k = cb.getAttribute('data-pick');
+      if (cb.checked) { if (sel.indexOf(k) < 0 && sel.length < MAX_TABS) sel.push(k); }
+      else sel = sel.filter(function (x) { return x !== k; });
+      render();
+    });
+    render();
+    document.body.appendChild(back);
+  }
+
   // Expose a small surface so the persistent app shell (app-shell.js) can
-  // reuse the same tab list / More sheet instead of duplicating them.
+  // reuse the same list / More sheet instead of duplicating them.
   window.OURLAB_SHELL = {
-    TABS: TABS,
-    MORE_LINKS: MORE_LINKS,
+    CATALOG: CATALOG,
+    DEFAULT_KEYS: DEFAULT_KEYS,
+    MAX_TABS: MAX_TABS,
+    tabs: tabs,
+    keys: function () { return _keys.slice(); },
+    setTabs: savePrefs,
+    fanItems: function () { return fanItems(_keys); },
+    moreLinks: moreLinks,
+    activeKey: activeKey,
     openMore: openMoreSheet,
+    openCustomize: openCustomizeSheet,
+    openFan: openFan,
+    closeFan: closeFan,
     getLabGroup: getLabGroup,
   };
+  // V3.586-era readers took these as arrays; keep live snapshots.
+  Object.defineProperty(window.OURLAB_SHELL, 'TABS', { get: tabs });
+  Object.defineProperty(window.OURLAB_SHELL, 'MORE_LINKS', { get: moreLinks });
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
   else mount();

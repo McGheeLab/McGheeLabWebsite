@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="hud-html">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,12 +8,11 @@
   <link rel="stylesheet" href="/rm/css/style.css">
   <link rel="stylesheet" href="/rm/css/huddle.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
 </head>
-<body>
-  <div class="page">
-    <div class="page-header">
-      <h1 class="page-title">The Huddle</h1>
-    </div>
+<body class="hud-body">
+  <div class="page page-wide">
+    <!-- V3.850 — no page header: the title sits at the top of the menu box (huddle.js render) -->
     <div id="huddle-root"></div>
   </div>
 
@@ -59,7 +58,7 @@
   <script src="/rm/js/calendar-service.js"></script>
 
   <!-- Page renderer (V3.50 native port). -->
-  <!-- V3.530 — My Day double-dip chips after the composer creates a plan.
+  <!-- V3.530 — My Week double-dip chips after the composer creates a plan.
        activity-signals + notebook-schemas are the (dependency-free) helpers
        the tracker/notebook fan-out adapters need on this page. -->
   <script src="/rm/js/activity-signals.js"></script>

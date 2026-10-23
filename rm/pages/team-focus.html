@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/rm/css/style.css">
   <link rel="stylesheet" href="/rm/css/team-focus.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
 </head>
 <body>
   <div class="page">
@@ -39,7 +40,13 @@
        focus-areas.js reads roadmaps through ROADMAP_DATA and mirrors the
        pick into roadmapClaims, so this must load first. -->
   <script src="/rm/js/roadmap-data.js"></script>
+  <!-- V3.717 — RESEARCH_DATA owns the card chain (specialty → concept →
+       grant → aim → output). focus-areas.js walks it to resolve which
+       grant a pickable card belongs to; without this it falls back to the
+       direct grant link and misses outputs that reach a grant via an aim. -->
+  <script src="/rm/js/research-data.js"></script>
   <script src="/rm/js/focus-areas.js"></script>
+  <script src="/rm/js/semesters.js"></script>
   <script src="/rm/js/app-sheet.js"></script>
   <script src="/rm/js/team-focus.js"></script>
 </body>

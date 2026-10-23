@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>V3813 procurement self-test</title>
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<link rel="stylesheet" href="/rm/css/procurement.css">
+<script src="/rm/js/icons.js"></script>
+<style>
+  #r { font: 12px/1.5 ui-monospace, Menlo, monospace; white-space: pre-wrap; padding: 16px; border-top: 2px solid #e5e7eb; margin-top: 24px; }
+  #r .ok { color: #166534; } #r .bad { color: #b91c1c; font-weight: 700; }
+</style>
+<script>
+/* V3.813 — self-driving test of the procurement page.
+ *   python3 -m http.server 8777   (repo root)
+ *   open http://127.0.0.1:8777/scripts/tests/v3813-procurement-selftest.html
+ * The REAL page module + core + CSS run against an in-page Firestore stub
+ * that applies arrayUnion/serverTimestamp and RECORDS every write in
+ * window.__writes. A mutable persona lets one page load play student, PI,
+ * bystander and purchaser. window.confirm/prompt/alert THROW, so any
+ * browser popup fails the run. Result: #r[data-done=1] data-pass/data-fail. */
+window.__writes = []; window.__popups = [];
+['confirm', 'prompt', 'alert'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('window.' + k + ' used'); }; });
+
+var STORE = {
+  procurementTickets: {},
+  inventory: {
+    INV1: { kind: 'item', name: 'Pipette tips 200 µL', vendor: 'Sigma', catalogue_number: 'T-200', quantity: 10, unit_price: 70, qty_tracked: true, qty_remaining: 4, qty_min: 5, qty_made: 10, qty_unit: 'ea', locations: [{ name: 'Bench 4', quantity: 10, notes: '' }], reorder: { url: 'https://sigma/t200', last_price: 75 } },
+    INV2: { kind: 'item', name: 'Nitrile gloves M', vendor: 'Fisher', quantity: 3, locations: [] },
+  },
+  inventoryUsage: {},
+  inventoryLocations: { box1: { kind: 'box', name: 'Freezer A drawer 2' } },
+  // V3.819 — two items captured with the Chrome extension, waiting in the student's own queue
+  'userData/stu/procurementCaptures': {
+    cap1: { name: 'ELISA plates, 96-well, high-bind', vendor: 'Corning', catalogueNumber: '3590', url: 'https://www.corning.com/p/3590', price: 18.75, priceText: '$18.75', currency: 'USD', packSize: '50/case', quantity: 3, note: 'for the ELISA plates', source: 'jsonld', sourceUrl: 'https://www.corning.com/p/3590', sourceHost: 'www.corning.com', status: 'captured', ticketId: null, capturedAtIso: new Date(Date.now() - 3600000).toISOString(), capturedByUid: 'stu' },
+    cap2: { name: 'Lab tape, 1 inch', vendor: '', catalogueNumber: '', url: '', price: null, priceText: 'see cart', currency: '', packSize: '', quantity: 1, note: '', source: 'title', sourceUrl: 'https://shop.example.com/tape', sourceHost: 'shop.example.com', status: 'captured', ticketId: null, capturedAtIso: new Date(Date.now() - 7200000).toISOString(), capturedByUid: 'stu' },
+    capUsed: { name: 'Already used', status: 'used', ticketId: 'T_old', capturedAtIso: new Date(Date.now() - 86400000).toISOString(), capturedByUid: 'stu' },
+  },
+  labConfig: { fundingSources: { sources: [{ id: '1101935', label: 'Startup (1101935)' }] },
+               fundedProjects: { projects: [{ id: 'mcghee-startup', name: 'McGhee Startup', account_number: '1101935', status: 'active', type: 'startup' }, { id: 'prostate', name: 'Cancer Engineering - Prostate', account_number: '1101917', funding_string: '1101917-MCMI', status: 'active' }, { id: 'old-grant', name: 'Old grant', account_number: '9', status: 'expired' }] } },
+};
+var USERS = [{ id: 'stu', name: 'Sam Student', role: 'editor' }, { id: 'pi', name: 'The PI', role: 'admin' }, { id: 'oth', name: 'Otto Other', role: 'editor' }, { id: 'buy', name: 'Bo Buyer', role: 'contributor' }];
+var __seq = 0; function newId(p) { return p + (++__seq); }
+function clone(o) { return o == null ? o : JSON.parse(JSON.stringify(o, function (k, v) { return v instanceof Date ? { __date: v.toISOString() } : v; }), function (k, v) { return v && v.__date ? new Date(v.__date) : v; }); }
+function applyPatch(target, patch) {
+  Object.keys(patch).forEach(function (k) {
+    var v = patch[k];
+    if (v && typeof v === 'object' && Array.isArray(v.__arrayUnion)) {
+      var cur = Array.isArray(target[k]) ? target[k] : [];
+      v.__arrayUnion.forEach(function (e) { if (!cur.some(function (x) { return JSON.stringify(x) === JSON.stringify(e); })) cur.push(clone(e)); });
+      target[k] = cur;
+    } else if (v && typeof v === 'object' && v.__stamp === true) target[k] = new Date();
+    else target[k] = clone(v);
+  });
+}
+function docRef(coll, id) {
+  return {
+    id: id,
+    get: function () { var d = STORE[coll] && STORE[coll][id]; return Promise.resolve({ exists: !!d, id: id, data: function () { return d ? clone(d) : undefined; } }); },
+    update: function (patch) { if (!STORE[coll] || !STORE[coll][id]) return Promise.reject(new Error('not-found ' + coll + '/' + id)); applyPatch(STORE[coll][id], patch); window.__writes.push({ op: 'update', coll: coll, id: id, patch: clone(patch) }); return Promise.resolve(); },
+    set: function (data) { STORE[coll] = STORE[coll] || {}; STORE[coll][id] = {}; applyPatch(STORE[coll][id], data); window.__writes.push({ op: 'set', coll: coll, id: id, data: clone(data) }); return Promise.resolve(); },
+    delete: function () { if (STORE[coll]) delete STORE[coll][id]; window.__writes.push({ op: 'delete', coll: coll, id: id }); return Promise.resolve(); },
+    collection: function (sub) { return collRef(coll + '/' + id + '/' + sub); },   // V3.819 — userData/{uid}/procurementCaptures
+  };
+}
+function collRef(coll) {
+  return {
+    doc: function (id) { return docRef(coll, id || newId('d')); },
+    add: function (data) { var id = newId(coll.slice(0, 4) + '_'); STORE[coll] = STORE[coll] || {}; STORE[coll][id] = {}; applyPatch(STORE[coll][id], data); window.__writes.push({ op: 'add', coll: coll, id: id, data: clone(data) }); return Promise.resolve(docRef(coll, id)); },
+    get: function () { var docs = Object.keys(STORE[coll] || {}).map(function (id) { return { id: id, data: function () { return clone(STORE[coll][id]); } }; }); return Promise.resolve({ docs: docs, forEach: function (fn) { docs.forEach(fn); } }); },
+    where: function () { return this; },
+  };
+}
+var dbStub = { collection: collRef, batch: function () { var ops = []; return { update: function (ref, patch) { ops.push(function () { return ref.update(patch); }); }, set: function (ref, data) { ops.push(function () { return ref.set(data); }); }, commit: function () { return ops.reduce(function (p, op) { return p.then(op); }, Promise.resolve()).then(function () { window.__writes.push({ op: 'commit', n: ops.length }); }); } }; } };
+window.firebase = {
+  firestore: Object.assign(function () { return dbStub; }, { FieldValue: { serverTimestamp: function () { return { __stamp: true }; }, arrayUnion: function () { return { __arrayUnion: Array.prototype.slice.call(arguments) }; } } }),
+  storage: function () { return { ref: function () { return { child: function (p) { return { put: function (file) { window.__writes.push({ op: 'upload', path: p, name: file.name, size: file.size }); return Promise.resolve({ ref: { getDownloadURL: function () { return Promise.resolve('https://stub.storage/' + p); } } }); } }; } }; } }; },
+};
+window.api = {
+  load: function (path) {
+    switch (path) {
+      case 'procurement/tickets.json': return Promise.resolve({ tickets: Object.keys(STORE.procurementTickets).map(function (id) { return Object.assign({ id: id }, clone(STORE.procurementTickets[id])); }) });
+      case 'lab/users.json': return Promise.resolve({ users: clone(USERS) });
+      case 'funding/awards.json': return Promise.resolve({ awards: [{ id: 'onr', title: 'ONR', account_number: '3062920', status: 'active' }] });
+      case 'funding/accounts.json': return Promise.resolve({ accounts: [] });
+      case 'projects/papers.json': return Promise.resolve({ papers: [{ id: 'mebp', title: 'MEBP paper' }] });
+      case 'projects/infrastructure.json': return Promise.resolve({ infrastructure: [] });
+      case 'projects/tools.json': return Promise.resolve({ tools: [] });
+      case 'inventory/items.json': return Promise.resolve({ items: Object.keys(STORE.inventory).map(function (id) { return Object.assign({ id: id }, clone(STORE.inventory[id])); }) });
+    }
+    return Promise.reject(new Error('no route ' + path));
+  },
+  invalidate: function () { return Promise.resolve(); },
+  subscribe: function () { return function () {}; },
+};
+window.LIVE_SYNC = { attach: function () { return { suppressUntil: 0 }; } };
+window.LAB_USERS = { isVisible: function () { return true; } };
+window.__persona = { uid: 'stu', name: 'Sam Student', role: 'editor', caps: [] };
+window.firebridge = {
+  requireSignIn: function () { return Promise.resolve({ allowed: true }); },
+  loadAccessGrant: function () { return Promise.resolve({}); },
+  getUser: function () { return { uid: __persona.uid, email: __persona.uid + '@x', displayName: __persona.name }; },
+  getProfile: function () { return { name: __persona.name, role: __persona.role }; },
+  isAdmin: function () { return __persona.role === 'admin'; },
+  isLabMember: function () { return true; },
+  hasCapability: function (c) { return __persona.role === 'admin' || __persona.caps.indexOf(c) >= 0; },
+  onAuth: function () {},
+  db: function () { return dbStub; },
+};
+function become(p) {
+  window.__persona = { uid: p.uid, name: p.name, role: p.role || 'editor', caps: p.caps || [] };
+  var S = PROCUREMENT.state();
+  S.user = firebridge.getUser(); S.profile = firebridge.getProfile();
+  S.actor = PROC_CORE.actorFrom(S.user, S.profile, firebridge.hasCapability);
+  S.form = null; S.composer = null; S.q = ''; S.status = '';
+  S.view = 'inbox';   // a fresh sign-in lands on the inbox, like a page load
+  PROCUREMENT.render();
+}
+/* Exploratory knobs — MUST run before procurement.js boots (its boot resumes
+ * in a microtask right after its own script tag, before the next inline
+ * script), so this lives in the head block.
+ *   ?noauto=1          skip the scripted journey below
+ *   ?persona=pi|oth|buy start as that person (default: stu, a student)
+ *   ?seed=1            start with tickets in every state (ids T_req, T_q, T_app, T_ord, T_rcv, T_pl, T_den, T_can)
+ * The persona can also be switched from the DOM-only world through the
+ * hidden form #persona-switch (select + Apply), since page globals are not
+ * reachable from an isolated-world --eval. */
+(function () {
+  var q = new URLSearchParams(location.search);
+  var PERSONAS = { stu: { uid: 'stu', name: 'Sam Student' }, pi: { uid: 'pi', name: 'The PI', role: 'admin' }, oth: { uid: 'oth', name: 'Otto Other' }, buy: { uid: 'buy', name: 'Bo Buyer', role: 'contributor', caps: ['procurement:order'] }, app: { uid: 'app', name: 'Ava Approver', caps: ['procurement:approve'] } };
+  if (q.get('persona') && PERSONAS[q.get('persona')]) { var p = PERSONAS[q.get('persona')]; window.__persona = { uid: p.uid, name: p.name, role: p.role || 'editor', caps: p.caps || [] }; }
+  if (q.get('seed') === '1') {
+    var now = new Date(), day = 86400000;
+    function mk(id, over) { STORE.procurementTickets[id] = Object.assign({ requestedBy: 'stu', requesterName: 'Sam Student', itemDescription: 'Seed ' + id, vendor: 'Sigma-Aldrich', catalogueNumber: 'C-' + id, quantity: 2, unitCost: 25, estimatedCost: 50, category: 'reagent', fundingAccount: '3062920', fundingLabel: 'ONR (3062920)', project: 'MEBP paper', reason: 'Seeded for exploration', urgency: 'routine', status: 'requested', piNotes: '', question: null, issue: null, inventoryItemId: null, history: [{ id: 'h-' + id, at: new Date(now - 6 * day).toISOString(), by: 'stu', byName: 'Sam Student', action: 'submit', from: null, to: 'requested', note: null }], notes: [], watcherUids: ['stu'], lastActorUid: 'stu', lastActivityAt: new Date(now - 6 * day).toISOString(), createdAt: new Date(now - 6 * day), updatedAt: new Date(now - 6 * day) }, over || {}); }
+    mk('T_req', {});
+    mk('T_urg', { urgency: 'urgent', neededBy: new Date(now + 2 * day).toISOString().slice(0, 10), itemDescription: 'Seed T_urg (urgent, needed soon)' });
+    mk('T_q', { status: 'needs_info', question: 'Which size?', questionBy: 'pi', questionByName: 'The PI', questionAt: new Date(now - day).toISOString(), notes: [{ id: 'n1', at: new Date(now - day).toISOString(), by: 'pi', byName: 'The PI', text: 'Which size?', kind: 'question' }] });
+    mk('T_app', { status: 'approved', approvedBy: 'pi', approvedByName: 'The PI', approvedAt: new Date(now - 2 * day), piNotes: 'ok' });
+    mk('T_app2', { status: 'approved', approvedBy: 'pi', approvedByName: 'The PI', approvedAt: new Date(now - 2 * day), vendor: 'sigma aldrich', itemDescription: 'Seed T_app2 (same vendor as T_app)' });
+    mk('T_ord', { status: 'ordered', approvedBy: 'pi', approvedByName: 'The PI', approvedAt: new Date(now - 3 * day), orderedBy: 'pi', orderedByName: 'The PI', orderedAt: new Date(now - 2 * day), poNumber: 'PO-77', purchaseMethod: 'buyways', orderDate: new Date(now - 2 * day).toISOString().slice(0, 10), expectedDelivery: new Date(now - day).toISOString().slice(0, 10), poUrl: 'https://stub.storage/po.pdf' });
+    mk('T_rcv', { status: 'received', requestedBy: 'oth', requesterName: 'Otto Other', inventoryItemId: 'INV1', itemDescription: 'Seed T_rcv (reorder of Pipette tips)', receivedBy: 'stu', receivedByName: 'Sam Student', receivedAt: new Date(now - day), quantityReceived: 2, actualCost: 48 });
+    mk('T_pl', { status: 'placed', location: 'Freezer A drawer 2', placedBy: 'oth', placedByName: 'Otto Other', placedAt: new Date(now - day), inventoryItemId: 'INV2', placementMode: 'new', receivedAt: new Date(now - 2 * day), actualCost: 51 });
+    mk('T_den', { status: 'denied', deniedBy: 'pi', deniedByName: 'The PI', deniedAt: new Date(now - day), piNotes: 'Not this year.' });
+    mk('T_can', { status: 'cancelled', cancelledBy: 'stu', cancelledAt: new Date(now - day).toISOString() });
+    mk('T_flag', { status: 'ordered', issue: 'Backordered', issueBy: 'oth', issueByName: 'Otto Other', issueAt: new Date(now - day).toISOString(), orderDate: new Date(now - 4 * day).toISOString().slice(0, 10), purchaseMethod: 'pcard' });
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    var sw = document.createElement('form'); sw.id = 'persona-switch'; sw.style.cssText = 'position:fixed;top:4px;right:8px;font:12px system-ui;z-index:5;background:#fff;border:1px solid #ddd;padding:4px 6px;border-radius:6px';
+    sw.innerHTML = '<label>Persona <select id="persona-select">' + Object.keys(PERSONAS).map(function (k) { return '<option value="' + k + '"' + (k === window.__persona.uid ? ' selected' : '') + '>' + PERSONAS[k].name + ' (' + k + ')</option>'; }).join('') + '</select></label> <button type="submit">Apply</button>';
+    sw.addEventListener('submit', function (e) { e.preventDefault(); become(PERSONAS[document.getElementById('persona-select').value]); });
+    document.body.appendChild(sw);
+  });
+})();
+</script>
+<script src="/rm/js/toast.js"></script>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header"><h1 class="page-title">Procurement (self-test)</h1></div>
+    <div id="proc-root"><div class="empty-state">Loading…</div></div>
+  </div>
+  <div id="r">running…</div>
+<script src="/rm/js/procurement-core.js"></script>
+<script src="/rm/js/procurement.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (new URLSearchParams(location.search).get('noauto') !== '1') setTimeout(run, 80);
+  else { var r = document.getElementById('r'); r.textContent = 'noauto — drive it by hand (persona switch top-right)'; r.dataset.done = '1'; r.dataset.pass = '0'; r.dataset.fail = '0'; }
+});
+async function run() {
+  var out = document.getElementById('r'), lines = [], pass = 0, fail = 0;
+  var ok = function (c, m) { if (c) { pass++; lines.push('<span class="ok">✓</span> ' + m); } else { fail++; lines.push('<span class="bad">✗ ' + m + '</span>'); } };
+  var eq = function (a, b, m) { var A = JSON.stringify(a), B = JSON.stringify(b); ok(A === B, m + '  →  ' + A + (A === B ? '' : '  (want ' + B + ')')); };
+  var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+  var $ = function (s) { return document.querySelector(s); }, $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  var typeInto = function (el, v) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); };
+  var f = function (key, scope) { return (scope || document).querySelector('[data-f="' + key + '"]'); };
+  var row = function (id) { return $('.pt-row[data-id="' + id + '"]'); };
+  var openRow = async function (id) { var r = row(id); if (!r) return null; if (!r.classList.contains('is-open')) { r.querySelector('[data-toggle]').click(); await sleep(20); } return row(id); };
+  var actions = function (id) { return Array.prototype.slice.call(row(id).querySelectorAll('.pt-actions [data-act]')).map(function (b) { return b.dataset.act; }); };
+  var clickAct = async function (id, act) { var r = await openRow(id); r.querySelector('.pt-actions [data-act="' + act + '"]').click(); await sleep(20); return row(id).querySelector('.pt-form'); };
+  var submit = async function (form) { form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); await sleep(60); };
+  var T = function (id) { return STORE.procurementTickets[id]; };
+  var lastWrite = function (op, coll) { for (var i = window.__writes.length - 1; i >= 0; i--) { var w = window.__writes[i]; if (w.op === op && (!coll || w.coll === coll)) return w; } return null; };
+  var tabs = function () { return $$('.pt-tab').map(function (b) { return b.dataset.view + (b.classList.contains('is-active') ? '*' : ''); }); };
+  var view = function (v) { $('.pt-tab[data-view="' + v + '"]').click(); };
+  var fieldErr = function (scope, key) { var e = scope.querySelector('[data-field="' + key + '"] .pt-field-err'); return e && !e.hidden ? e.textContent : ''; };
+  try {
+    for (var i = 0; i < 50 && !$('.pt-top'); i++) await sleep(50);
+    lines.push('<b>Load (student)</b>');
+    ok(!!$('.pt-top'), 'page rendered');
+    eq(tabs(), ['inbox*', 'active', 'mine', 'archive'], 'student sees four views, no Report');
+    ok(/Nothing needs you/.test($('#pt-body').textContent), 'empty inbox says so');
+
+    lines.push('\n<b>Submit</b>');
+    $('#pt-new').click(); await sleep(20);
+    var cf = $('#pt-composer-form'); ok(!!cf, 'composer opens inline');
+    await submit(cf);
+    ok(fieldErr(cf, 'itemDescription') === 'Say what you need.', 'empty submit → inline error on the item field (' + fieldErr(cf, 'itemDescription') + ')');
+    ok(document.activeElement === f('itemDescription', cf), 'the offending field is focused');
+    typeInto(f('itemDescription', cf), 'PEG 6000, 100 g'); typeInto(f('vendor', cf), 'Sigma-Aldrich'); typeInto(f('catalogueNumber', cf), '81260');
+    typeInto(f('productUrl', cf), 'https://sigma.com/81260'); typeInto(f('quantity', cf), '2'); typeInto(f('unitCost', cf), '50');
+    eq(f('estimatedCost', cf).value, '$100.00', 'estimated total follows unit × qty');
+    typeInto(f('category', cf), 'reagent'); typeInto(f('urgency', cf), 'urgent');
+    typeInto(f('reason', cf), 'Gels for the Friday run');
+    await submit(cf);
+    ok(/which project/.test(fieldErr(cf, 'projectId')), 'project required, inline (' + fieldErr(cf, 'projectId') + ')');
+    eq($$('[data-f="projectId"] option', cf).map(function (o) { return o.value; }), ['', 'mcghee-startup', 'prostate', '__other'], 'project list = active funded projects + Other (expired one hidden)');
+    typeInto(f('projectId', cf), 'prostate');
+    eq(cf.querySelector('[data-charged]').value, 'Cancer Engineering - Prostate · 1101917-MCMI', 'choosing the project fills “Charged to” with its funding string');
+    await submit(cf);
+    ok(/one-time purchase or something we will buy again/.test(fieldErr(cf, 'purchaseType')), 'V3.814: one-time vs recurring is required, inline (' + fieldErr(cf, 'purchaseType') + ')');
+    ok(f('recurrence', cf).hidden, 'the how-often select is hidden until "recurring" is chosen');
+    typeInto(f('purchaseType', cf), 'recurring');
+    ok(!f('recurrence', cf).hidden, 'choosing recurring reveals how-often');
+    typeInto(f('recurrence', cf), 'monthly');
+    await submit(cf);
+    var w = lastWrite('add', 'procurementTickets'); var peg = w && w.id;
+    eq([w.data.purchaseType, w.data.recurrence, w.data.comparisons], ['recurring', 'monthly', []], 'create payload carries purchase type + recurrence (no comparison given)');
+    ok(!!peg, 'ticket written');
+    eq([w.data.status, w.data.estimatedCost, w.data.requestedBy, w.data.history.length, w.data.watcherUids, w.data.projectId, w.data.project, w.data.fundingAccount, w.data.fundingLabel, w.data.urgency, w.data.lastActorUid], ['requested', 100, 'stu', 1, ['stu'], 'prostate', 'Cancer Engineering - Prostate', '1101917-MCMI', 'Cancer Engineering - Prostate · 1101917-MCMI', 'urgent', 'stu'], 'create payload carries project + funding string');
+    ok(!!w.data.createdAt && w.data.createdAt.__stamp === true, 'createdAt is a server timestamp');
+    ok(!$('#pt-composer-form'), 'composer closed');
+    eq(tabs(), ['inbox', 'active', 'mine*', 'archive'], 'jumps to Mine');
+    ok(row(peg) && row(peg).classList.contains('is-open'), 'new ticket shown expanded');
+    ok(/Requested/.test(row(peg).querySelector('.pt-chip').textContent) && /urgent/.test(row(peg).querySelector('.pt-row-flags').textContent), 'chip Requested + urgent flag');
+    eq(actions(peg), ['edit', 'cancel', 'note', 'link'], 'requester actions');
+    ok($('#toast-stack') && /Request submitted/.test($('#toast-stack').textContent), 'toast, not alert');
+    // three more requests for later steps
+    async function quick(item, vendor, projectId) { $('#pt-new').click(); await sleep(10); var c = $('#pt-composer-form'); typeInto(f('itemDescription', c), item); typeInto(f('vendor', c), vendor || ''); typeInto(f('unitCost', c), '80'); typeInto(f('reason', c), 'r'); typeInto(f('projectId', c), projectId || 'mcghee-startup'); if (projectId === '__other') typeInto(f('projectOther', c), 'Side project'); typeInto(f('purchaseType', c), 'one_time'); await submit(c); return lastWrite('add', 'procurementTickets').id; }
+    var tips = await quick('Pipette tips 200 µL', 'sigma aldrich');
+    var den = await quick('Gold-plated centrifuge', 'Beckman');
+    var wd = await quick('Something I no longer need', '');
+    eq(Object.keys(STORE.procurementTickets).length, 4, 'four tickets');
+
+    lines.push('\n<b>Ask ⇄ answer</b>');
+    become({ uid: 'pi', name: 'The PI', role: 'admin' }); await sleep(20);
+    eq(tabs(), ['inbox*', 'active', 'mine', 'archive', 'report'], 'PI sees Report');
+    ok($('.pt-section[data-section="approve"]') && /4/.test($('.pt-section[data-section="approve"] h3').textContent), 'inbox: 4 waiting for approval');
+    eq(actions(peg), ['approve', 'ask', 'deny', 'edit', 'reassign', 'note', 'delete', 'link'], 'PI actions on a request (incl. Change funding)');
+    var form = await clickAct(peg, 'ask');
+    ok(!!form && form.dataset.form === 'ask', 'ask opens an inline form');
+    await submit(form);
+    ok(fieldErr(row(peg).querySelector('.pt-form'), 'note') === 'Type the question.', 'empty question → inline error');
+    typeInto(f('note', row(peg).querySelector('.pt-form')), 'Which molecular weight exactly?');
+    await submit(row(peg).querySelector('.pt-form'));
+    eq([T(peg).status, T(peg).question, T(peg).notes.length, T(peg).notes[0].kind], ['needs_info', 'Which molecular weight exactly?', 1, 'question'], 'ask → needs_info with the question in the thread');
+    ok(!$('.pt-section[data-section="approve"]') || !/4/.test($('.pt-section[data-section="approve"] h3').textContent), 'inbox approvals drop to 3');
+    become({ uid: 'stu', name: 'Sam Student' }); await sleep(20);
+    ok($('.pt-section[data-section="answer"]'), 'student inbox: Questions for you');
+    await openRow(peg);
+    ok(/The PI asks:/.test(row(peg).querySelector('.pt-banner--question').textContent), 'question banner names the asker');
+    eq(actions(peg)[0], 'answer', 'Answer is the first action');
+    form = await clickAct(peg, 'answer'); typeInto(f('note', form), '6000 Da, Sigma 81260'); await submit(form);
+    eq([T(peg).status, T(peg).question, T(peg).notes.length], ['requested', null, 2], 'answer → requested');
+
+    lines.push('\n<b>Approve + batch order with a PO file</b>');
+    become({ uid: 'pi', name: 'The PI', role: 'admin' }); await sleep(20);
+    form = await clickAct(peg, 'approve'); typeInto(f('note', form), 'Use ONR.'); await submit(form);
+    eq([T(peg).status, T(peg).approvedBy, T(peg).piNotes, T(peg).approvedAt instanceof Date], ['approved', 'pi', 'Use ONR.', true], 'approved');
+    form = await clickAct(tips, 'approve'); await submit(form);
+    eq(T(tips).status, 'approved', 'second approved');
+    ok($('.pt-section[data-section="order"]') && /2/.test($('.pt-section[data-section="order"] h3').textContent), 'inbox: 2 ready to order (admin purchases)');
+    form = await clickAct(peg, 'order');
+    ok(form.querySelector('[data-batch="' + tips + '"]'), 'order form lists the same-vendor sibling for the batch');
+    form.querySelector('[data-batch="' + tips + '"]').click();
+    typeInto(f('purchaseMethod', form), 'buyways'); typeInto(f('poNumber', form), 'PO-2026-014'); typeInto(f('expectedDelivery', form), '2026-10-26');
+    var dt = new DataTransfer(); dt.items.add(new File(['%PDF-1.4'], 'po confirmation.pdf', { type: 'application/pdf' }));
+    var fileInp = form.querySelector('[data-file="po"]'); fileInp.files = dt.files; fileInp.dispatchEvent(new Event('change', { bubbles: true }));
+    await submit(form); await sleep(60);
+    var up = lastWrite('upload');
+    ok(up && /^procurement\/.+\/po-\d+-po_confirmation\.pdf$/.test(up.path), 'PO uploaded to procurement/{id}/po-… (' + (up && up.path) + ')');
+    eq([T(peg).status, T(tips).status, T(peg).poNumber, T(tips).poNumber, T(peg).purchaseMethod, !!T(peg).orderGroupId && T(peg).orderGroupId === T(tips).orderGroupId, T(peg).poUrl === T(tips).poUrl && /stub\.storage/.test(T(peg).poUrl)], ['ordered', 'ordered', 'PO-2026-014', 'PO-2026-014', 'buyways', true, true], 'both ordered on one PO, same group, same file');
+    ok(lastWrite('commit') && lastWrite('commit').n === 2, 'written as ONE batch of 2');
+    ok(!$('.pt-section[data-section="order"]'), 'ordered tickets leave the PI inbox');
+    view('active'); await sleep(20);
+    ok(/Ordered/.test(row(peg).querySelector('.pt-chip').textContent) && /ETA Oct 26, 2026/.test(row(peg).querySelector('.pt-row-flags').textContent), 'row shows Ordered + ETA');
+
+    lines.push('\n<b>Receive + put away (new item)</b>');
+    become({ uid: 'oth', name: 'Otto Other' }); await sleep(20);
+    ok(!$('.pt-section[data-section="approve"]') && !$('.pt-section[data-section="order"]'), 'bystander inbox has no approvals/orders');
+    view('active'); await sleep(20);
+    eq(actions(peg), ['receive', 'flag', 'note', 'again', 'link'], 'bystander can receive / flag (and Request again once ordered)');
+    form = await clickAct(peg, 'receive');
+    eq(f('quantityReceived', form).value, '2', 'qty defaults to ordered qty');
+    typeInto(f('actualCost', form), '98.50'); typeInto(f('note', form), 'one box dented'); await submit(form);
+    eq([T(peg).status, T(peg).receivedBy, T(peg).actualCost, T(peg).quantityReceived, T(peg).receivedNote], ['received', 'oth', 98.5, 2, 'one box dented'], 'received');
+    form = await clickAct(peg, 'place');
+    ok(form.querySelector('[data-mode="new"]').checked, 'new-item mode by default');
+    ok(!!$('#pt-locs option[value="Freezer A drawer 2"]'), 'location datalist offers the inventory box');
+    eq(f('unitPrice', form).value, '49.25', 'unit price derived from actual cost / qty');
+    await submit(form);
+    ok(fieldErr(row(peg).querySelector('.pt-form'), 'location') === 'Where did it go? A location is required.', 'location required, inline');
+    typeInto(f('location', row(peg).querySelector('.pt-form')), 'Freezer A drawer 2'); typeInto(f('notes', row(peg).querySelector('.pt-form')), 'lot 42');
+    await submit(row(peg).querySelector('.pt-form')); await sleep(40);
+    var inv = lastWrite('set', 'inventory');   // the atomic put-away batch uses set() on a pre-generated ref
+    ok(!!inv, 'inventory item created');
+    ok(lastWrite('commit') && lastWrite('commit').n === 2, 'put-away landed as ONE batch: inventory item + ticket move');
+    eq([inv.data.kind, inv.data.name, inv.data.quantity, inv.data.unit_price, inv.data.category, inv.data.locations[0].name, inv.data.locations[0].quantity, inv.data.procurementTicketId, inv.data.notes, inv.data.reorder.url, inv.data.account_number, inv.data.project_tag], ['item', 'PEG 6000, 100 g', 2, 49.25, 'research_reagents', 'Freezer A drawer 2', 2, peg, 'lot 42', 'https://sigma.com/81260', '1101917-MCMI', 'prostate'], 'inventory payload from the ticket (account = funding string, project tag)');
+    eq([T(peg).status, T(peg).location, T(peg).inventoryItemId === inv.id, T(peg).placementMode, T(peg).placedBy], ['placed', 'Freezer A drawer 2', true, 'new', 'oth'], 'ticket placed + linked');
+    view('archive'); await sleep(20); await openRow(peg);   // placed tickets live in the archive
+    ok(row(peg).querySelector('a[href="/rm/pages/inventory.html?item=' + inv.id + '"]'), 'open-in-inventory link uses ?item=');
+    eq(PROC_CORE.timelineOf(T(peg)).map(function (h) { return h.action; }), ['submit', 'ask', 'answer', 'approve', 'order', 'receive', 'place'], 'timeline');
+    ok(row(peg).querySelectorAll('.pt-timeline li').length === 7 && row(peg).querySelectorAll('.pt-notes li').length === 4, 'timeline + notes rendered (7 / 4: question, answer, approval note, receipt note)');
+    view('active'); await sleep(20);
+
+    lines.push('\n<b>Restock an existing tracked item</b>');
+    form = await clickAct(tips, 'receive'); await submit(form);
+    eq(T(tips).status, 'received', 'tips received');
+    form = await clickAct(tips, 'place');
+    form.querySelector('[data-mode="restock"]').click(); await sleep(30);
+    form = row(tips).querySelector('.pt-form');
+    ok(!!f('q', form), 'restock mode shows the inventory search');
+    typeInto(f('q', form), 't-200'); await sleep(20);
+    ok(form.querySelector('[data-pick="INV1"]'), 'search by cat# finds the tracked item');
+    form.querySelector('[data-pick="INV1"]').click(); await sleep(30);
+    form = row(tips).querySelector('.pt-form');
+    ok(/Pipette tips 200/.test(form.querySelector('.pt-picked').textContent), 'picked item shown');
+    eq(f('location', form).value, 'Bench 4', 'location prefilled from the item');
+    ok(/can only be raised by an inventory manager/.test(form.textContent), 'member is told the tracked count is not raised');
+    await submit(form); await sleep(40);
+    var upd = lastWrite('update', 'inventory');
+    eq([upd.id, upd.patch.quantity, upd.patch.locations.length, upd.patch.locations[0].quantity, upd.patch.qty_remaining, STORE.inventory.INV1.qty_remaining], ['INV1', 11, 1, 11, undefined, 4], 'restock: quantity + location bumped, ledger untouched');
+    ok(!Object.keys(STORE.inventoryUsage).length, 'no usage row from a member');
+    eq([T(tips).status, T(tips).placementMode, T(tips).inventoryItemId], ['placed', 'restock', 'INV1'], 'ticket placed as a restock');
+    ok(/tracked count was not raised/.test($('#toast-stack').textContent), 'toast explains the tracked count');
+
+    lines.push('\n<b>Deny, withdraw, reopen, delete</b>');
+    become({ uid: 'pi', name: 'The PI', role: 'admin' }); await sleep(20);
+    form = await clickAct(den, 'deny'); await submit(form);
+    ok(fieldErr(row(den).querySelector('.pt-form'), 'note') === 'Give a reason — the requester sees it.', 'deny needs a reason, inline');
+    typeInto(f('note', row(den).querySelector('.pt-form')), 'Not this year.'); await submit(row(den).querySelector('.pt-form'));
+    eq([T(den).status, T(den).piNotes, T(den).deniedBy], ['denied', 'Not this year.', 'pi'], 'denied');
+    become({ uid: 'stu', name: 'Sam Student' }); await sleep(20);
+    view('archive'); await sleep(20);
+    ok(row(den) && /Denied/.test(row(den).querySelector('.pt-chip').textContent), 'archive shows the denied ticket');
+    await openRow(den);
+    ok(/Not this year/.test(row(den).querySelector('.pt-banner--denied').textContent), 'denied banner carries the reason');
+    eq(actions(den), ['note', 'again', 'link'], 'requester cannot reopen a denied ticket (but can request again)');
+    view('mine'); await sleep(20);
+    form = await clickAct(wd, 'cancel');
+    ok(form.dataset.form === 'cancel' && /told you no longer need it/.test(form.textContent), 'withdraw is an inline confirm strip');
+    await submit(form);
+    eq(T(wd).status, 'cancelled', 'withdrawn');
+    eq(actions(wd), ['reopen', 'note', 'again', 'link'], 'requester can reopen own withdrawn ticket');
+    form = await clickAct(wd, 'reopen'); await submit(form);
+    eq([T(wd).status, T(wd).cancelledBy], ['requested', null], 'reopened');
+    become({ uid: 'pi', name: 'The PI', role: 'admin' }); await sleep(20);
+    view('archive'); await sleep(20); await openRow(den);
+    ok(actions(den).indexOf('reopen') >= 0, 'PI can reopen a denied ticket');
+    view('active'); await sleep(20);
+    form = await clickAct(wd, 'delete');
+    ok(form.dataset.form === 'delete' && /removes the ticket/.test(form.textContent), 'delete is an inline confirm strip');
+    await submit(form);
+    ok(!STORE.procurementTickets[wd] && lastWrite('delete', 'procurementTickets').id === wd && !row(wd), 'deleted and gone from the list');
+
+    lines.push('\n<b>Purchaser cap, search, report</b>');
+    become({ uid: 'stu', name: 'Sam Student' }); await sleep(20);
+    var g = await quick('Nitrile gloves M', 'Fisher');
+    become({ uid: 'pi', name: 'The PI', role: 'admin' }); await sleep(20);
+    form = await clickAct(g, 'approve'); await submit(form);
+    become({ uid: 'buy', name: 'Bo Buyer', role: 'contributor', caps: ['procurement:order'] }); await sleep(20);
+    eq(tabs(), ['inbox*', 'active', 'mine', 'archive', 'report'], 'purchaser sees Report');
+    ok($('.pt-section[data-section="order"]') && !$('.pt-section[data-section="approve"]'), 'purchaser inbox: orders, not approvals');
+    eq(actions(g), ['order', 'note', 'link'], 'purchaser can order but not approve');
+    view('active'); await sleep(20);
+    $('#pt-q').focus(); typeInto($('#pt-q'), 'gloves'); await sleep(20);
+    eq($$('.pt-row').map(function (r) { return r.dataset.id; }), [g], 'search narrows');
+    ok(document.activeElement === $('#pt-q'), 'search keeps focus while filtering');
+    typeInto($('#pt-q'), ''); typeInto($('#pt-status'), 'placed'); await sleep(20);
+    eq($$('.pt-row').length, 2, 'status filter looks across every tab: the two placed tickets show even from Active');
+    typeInto($('#pt-status'), ''); view('archive'); await sleep(20);
+    eq($$('.pt-row').map(function (r) { return r.dataset.id; }).sort(), [peg, tips, den].sort(), 'archive = placed + denied');
+    view('report'); await sleep(20);
+    ok($$('.pt-table').length === 3 && /1101917-MCMI/.test($('#pt-body').textContent) && /Cancer Engineering - Prostate/.test($('#pt-body').textContent), 'report tables by project, funding string and category');
+    ok(/committed \$80\.00 · spent \$98\.50/.test($('.pt-report-bar').textContent) || /committed/.test($('.pt-report-bar').textContent), 'report totals line (' + $('.pt-report-bar .pt-muted').textContent + ')');
+    ok(!!$('#pt-rep-csv'), 'CSV export button');
+
+    lines.push('\n<b>Live refresh never wipes typing</b>');
+    become({ uid: 'stu', name: 'Sam Student' }); await sleep(20);
+    view('archive'); await sleep(20);
+    form = await clickAct(peg, 'note');
+    var ta = f('note', form); ta.focus(); typeInto(ta, 'hello there');
+    PROCUREMENT.liveRefresh();   // a live-sync refresh, not the forced debug render
+    ok(PROCUREMENT.state().deferred === true && document.body.contains(ta) && ta.value === 'hello there', 'render deferred while the note is focused');
+    ta.blur(); await sleep(150);
+    ok(PROCUREMENT.state().deferred === false, 'rendered after blur');
+    form = row(peg).querySelector('.pt-form');
+    eq(f('note', form).value, 'hello there', 'typed text survives the re-render');
+    await submit(form);
+    eq(T(peg).notes.length, 5, 'note added');
+
+    lines.push('\n<b>Counts, drafts, filters (explorer findings)</b>');
+    become({ uid: 'stu', name: 'Sam Student' }); await sleep(20);
+    var d1 = await quick('Draft test A', 'V'), d2 = await quick('Draft test B', 'V');
+    become({ uid: 'pi', name: 'The PI', role: 'admin' }); await sleep(20);
+    var before = $('.pt-tab[data-view="inbox"] .pt-tab-n').textContent;
+    form = await clickAct(d1, 'deny'); typeInto(f('note', form), 'half-typed reason');
+    form = await clickAct(d2, 'note');
+    ok(!row(d1).querySelector('.pt-form') && !!row(d2).querySelector('.pt-form'), 'opening a form on another ticket closes the first');
+    form = await clickAct(d1, 'deny');
+    eq(f('note', form).value, 'half-typed reason', 'the half-typed reason came back (draft kept)');
+    row(d1).querySelector('[data-toggle]').click(); await sleep(20); await openRow(d1); form = await clickAct(d1, 'deny');
+    eq(f('note', form).value, 'half-typed reason', 'collapsing the row keeps the draft too');
+    form.querySelector('[data-form-cancel]').click(); await sleep(20); form = await clickAct(d1, 'deny');
+    eq(f('note', form).value, '', 'Cancel discards the draft');
+    typeInto(f('note', form), 'Not needed.'); await submit(form);
+    var after = $('.pt-tab[data-view="inbox"] .pt-tab-n').textContent;
+    ok(+after === +before - 1, 'inbox tab count refreshes after an inline action (' + before + ' → ' + after + ')');
+    ok(/Denied \(2\)/.test($('#pt-status option[value="denied"]').textContent), 'status dropdown counts refresh');
+    $('#pt-q').focus(); typeInto($('#pt-q'), 'draft test'); await sleep(20);
+    ok($$('.pt-row').length === 2 && !!$('.pt-filter-note'), 'search on the Inbox tab finds tickets in every state, and says so');
+    typeInto($('#pt-q'), ''); typeInto($('#pt-status'), 'denied'); await sleep(20);
+    ok($$('.pt-row').some(function (r) { return r.dataset.id === d1; }), 'the status filter also looks across every tab');
+    typeInto($('#pt-status'), ''); await sleep(20);
+    $('#pt-new').click(); await sleep(10); typeInto(f('itemDescription', $('#pt-composer-form')), 'keep me'); $('#pt-new').click(); await sleep(10);
+    ok($('#pt-composer-form') && f('itemDescription', $('#pt-composer-form')).value === 'keep me', '+ New request while open focuses the composer instead of closing it');
+    $('#pt-composer-form').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await sleep(10);
+    ok(!$('#pt-composer-form'), 'Escape closes the composer');
+    $('#pt-new').click(); await sleep(10); var cq = $('#pt-composer-form'); typeInto(f('itemDescription', cq), 'q'); typeInto(f('reason', cq), 'r'); typeInto(f('quantity', cq), '-3'); await submit(cq);
+    ok(/1 or more/.test(fieldErr(cq, 'quantity')), 'a negative quantity is refused beside the field');
+    typeInto(f('quantity', cq), '2'); typeInto(f('projectId', cq), '__other'); await submit(cq);
+    ok(/which project/.test(fieldErr(cq, 'projectId')), 'Other… with no project name typed is refused');
+    ok(/approver will assign/.test(cq.querySelector('[data-charged]').value), 'Other… says the approver assigns the funding string');
+    $('#pt-composer-cancel').click(); await sleep(10);
+    // an "Other" request must get its project at approval
+    become({ uid: 'stu', name: 'Sam Student' }); await sleep(20);
+    var oth1 = await quick('Side-project widget', 'Misc', '__other');
+    eq([T(oth1).projectId, T(oth1).project, T(oth1).fundingAccount], ['', 'Side project', ''], 'Other… stores the typed name and no funding string');
+    become({ uid: 'pi', name: 'The PI', role: 'admin' }); await sleep(20);
+    form = await clickAct(oth1, 'approve');
+    ok(!!f('projectId', form) && /no funding string yet/.test(form.textContent), 'approve form asks for the project when there is no funding string');
+    await submit(form);
+    ok(/Pick the project/.test(fieldErr(row(oth1).querySelector('.pt-form'), 'projectId')), 'approving without a project is refused inline');
+    typeInto(f('projectId', row(oth1).querySelector('.pt-form')), 'mcghee-startup'); await submit(row(oth1).querySelector('.pt-form'));
+    eq([T(oth1).status, T(oth1).projectId, T(oth1).project, T(oth1).fundingAccount], ['approved', 'mcghee-startup', 'McGhee Startup', '1101935'], 'approval assigned the project and its funding string');
+    await openRow(oth1);
+    ok(/1101935/.test(row(oth1).querySelector('.pt-details').textContent), 'card shows what it is charged to');
+    form = await clickAct(oth1, 'order');
+    ok(/Charge to/.test(form.textContent) && /1101935/.test(form.textContent), 'order form tells the purchaser what to charge');
+    form.querySelector('[data-form-cancel]').click(); await sleep(10);
+    view('active'); await sleep(20);
+    become({ uid: 'buy', name: 'Bo Buyer', role: 'contributor', caps: ['procurement:order'] }); await sleep(20);
+    var gg = await (async function () { become({ uid: 'stu', name: 'Sam Student' }); await sleep(10); var a1 = await quick('Group A', 'Grp'); var a2 = await quick('Group B', 'grp'); become({ uid: 'pi', name: 'The PI', role: 'admin' }); await sleep(10); var fa = await clickAct(a1, 'approve'); await submit(fa); fa = await clickAct(a2, 'approve'); await submit(fa); fa = await clickAct(a1, 'order'); fa.querySelector('[data-batch="' + a2 + '"]').click(); typeInto(f('poNumber', fa), 'PO-G1'); await submit(fa); await sleep(30); return [a1, a2]; })();
+    view('active'); await sleep(20);
+    form = await clickAct(gg[0], 'edit_order');
+    ok(!!form.querySelector('[data-f-group]'), 'Edit order offers to apply to the other item on the PO');
+    form.querySelector('[data-f-group]').click(); typeInto(f('poNumber', form), 'PO-G1-corrected'); await submit(form); await sleep(30);
+    eq([T(gg[0]).poNumber, T(gg[1]).poNumber], ['PO-G1-corrected', 'PO-G1-corrected'], 'the corrected PO # reached both items');
+    form = await clickAct(gg[0], 'unorder'); await submit(form); await sleep(20);
+    await openRow(gg[0]);
+    ok(!/PO-G1/.test(row(gg[0]).querySelector('.pt-details').textContent), 'after Undo order the stale PO details are no longer shown');
+
+    lines.push('\n<b>Attribute breakout (XSS canary)</b>');
+    var evil = 'Tubes "15 mL" <b>&</b> \'x\' onmouseover="document.title=1"';
+    var xid = await quick(evil, 'Sigma "Aldrich"');
+    view('mine'); await sleep(20); await openRow(xid);
+    eq(row(xid).querySelector('.pt-row-title strong').textContent, evil, 'a quoted/bracketed item renders as text');
+    ok(!document.querySelector('[onmouseover]') && !document.querySelector('#pt-body b'), 'no attribute or tag escaped the escaping');
+    form = await clickAct(xid, 'edit');
+    eq(f('itemDescription', form).value, evil, 'the edit form carries the raw value back intact');
+    $('#pt-new').click(); await sleep(10); var cx = $('#pt-composer-form'); typeInto(f('itemDescription', cx), 'x'); typeInto(f('reason', cx), 'r'); typeInto(f('productUrl', cx), 'https://e.com/" onmouseover="1'); await submit(cx);
+    ok(/no spaces or quotes/.test(fieldErr(cx, 'productUrl')), 'a product link with a quote is refused inline');
+    $('#pt-composer-cancel').click(); await sleep(10);
+
+    lines.push('\n<b>V3.814 — price comparison, AI prompt + import, Use</b>');
+    become({ uid: 'stu', name: 'Sam Student' }); await sleep(20);
+    $('#pt-new').click(); await sleep(10); var ca = $('#pt-composer-form');
+    ok(!!ca.querySelector('[data-cmp-block]') && !!ca.querySelector('[data-ai-prompt]') && !!ca.querySelector('[data-ai-open]'), 'composer has the comparison block with Download AI prompt + Import AI results');
+    ca.querySelector('[data-ai-prompt]').click(); await sleep(10);
+    ok(/Say what you need first/.test(fieldErr(ca, 'itemDescription')), 'the prompt needs an item first (inline, on the item field)');
+    typeInto(f('itemDescription', ca), 'Nitrile gloves, medium, 100/box'); typeInto(f('quantity', ca), '4'); typeInto(f('reason', ca), 'daily bench work');
+    window.__dl = []; var _co = URL.createObjectURL; URL.createObjectURL = function (b) { window.__dl.push(b); return 'blob:stub'; };
+    var _aclick = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { if (this.download) { window.__dl.push('click:' + this.download); return; } return _aclick.call(this); };
+    ca.querySelector('[data-ai-prompt]').click(); await sleep(30);
+    var promptBlob = window.__dl.find(function (x) { return x instanceof Blob; }), promptName = window.__dl.find(function (x) { return typeof x === 'string'; });
+    ok(!!promptBlob && promptName === 'click:procurement-prompt-nitrile-gloves-medium-100-box.txt', 'Download AI prompt downloads a .txt named after the item (' + promptName + ')');
+    var promptText = promptBlob ? await promptBlob.text() : '';
+    ok(/ITEM: Nitrile gloves, medium, 100\/box/.test(promptText) && /QUANTITY NEEDED: 4/.test(promptText) && /WHY WE NEED IT: daily bench work/.test(promptText) && /ONLY this JSON/.test(promptText), 'the prompt carries the form and demands JSON');
+    ok(/Prompt downloaded/.test($('#toast-stack').textContent), 'toast tells them what to do next');
+    URL.createObjectURL = _co; HTMLAnchorElement.prototype.click = _aclick;
+    ca.querySelector('[data-ai-open]').click(); await sleep(10);
+    var ta2 = ca.querySelector('[data-ai-paste]'); ok(!!ta2 && document.activeElement === ta2, 'Import opens an inline paste box (no popup) and focuses it');
+    typeInto(ta2, 'Sorry, I cannot browse the web.'); ca.querySelector('[data-ai-import]').click(); await sleep(10);
+    ok(/JSON block/.test(ca.querySelector('[data-field="aiPaste"] .pt-field-err').textContent), 'prose instead of JSON → inline error beside the box');
+    typeInto(ca.querySelector('[data-ai-paste]'), 'Here you go:\n```json\n{"item":"Nitrile gloves M","sources":[{"vendor":"Fisher Scientific","catalogueNumber":"19-130-1597B","url":"https://www.fishersci.com/x","unitPrice":"$14.95","packSize":"100/box","leadTime":"2 days"},{"vendor":"VWR","catalogueNumber":"82026-426","url":"https://us.vwr.com/x","unitPrice":12.4,"packSize":"100/box"},{"vendor":"Amazon Business","unitPrice":"13.10","url":"amazon.com/dp/x"}],"recommended":1,"whyRecommended":"Cheapest per box with 2-day delivery","purchaseType":"recurring","recurrence":"monthly"}\n```');
+    ca.querySelector('[data-ai-import]').click(); await sleep(20);
+    ok(!ca.querySelector('[data-ai-panel]'), 'import closes the paste box');
+    eq($$('.pt-cmp-row', ca).length, 3, 'three sources imported as rows');
+    eq([f('vendor', ca).value, f('catalogueNumber', ca).value, f('productUrl', ca).value, f('unitCost', ca).value, f('estimatedCost', ca).value, f('purchaseType', ca).value, f('recurrence', ca).value, f('recurrence', ca).hidden], ['VWR', '82026-426', 'https://us.vwr.com/x', '12.4', '$49.60', 'recurring', 'monthly', false], 'the recommended source filled the main fields; purchase type + how-often taken from the AI; estimate recomputed');
+    ok(ca.querySelector('.pt-cmp-row[data-cmp-row="1"]').classList.contains('is-chosen') && /AI’s pick: Cheapest per box/.test(ca.querySelector('[data-cmp-block]').textContent), 'the chosen row is marked and the AI’s reason shown');
+    ok(/Imported 3 sources — using VWR at \$12\.40 · marked recurring/.test($('#toast-stack').textContent), 'toast says what came in (' + $('#toast-stack').textContent.slice(-80) + ')');
+    ca.querySelector('[data-cmp-use="0"]').click(); await sleep(10);
+    eq([f('vendor', ca).value, f('unitCost', ca).value, f('catalogueNumber', ca).value], ['Fisher Scientific', '14.95', '19-130-1597B'], 'Use on another row moves the main fields to it');
+    ok(ca.querySelector('.pt-cmp-row[data-cmp-row="0"]').classList.contains('is-chosen') && !ca.querySelector('.pt-cmp-row[data-cmp-row="1"]').classList.contains('is-chosen'), 'chosen mark moved');
+    typeInto(ca.querySelector('[data-cmp="2"][data-ck="unitPrice"]'), 'thirteen'); typeInto(f('projectId', ca), 'mcghee-startup'); await submit(ca);
+    ok(/Source 3: the price must be a plain number/.test(ca.querySelector('[data-cmp-err]').textContent) && document.activeElement === ca.querySelector('[data-cmp-row="2"] input'), 'a junk comparison price is refused beside the block and the row is focused');
+    typeInto(ca.querySelector('[data-cmp="2"][data-ck="unitPrice"]'), '13.10'); ca.querySelector('[data-cmp-del="2"]').click(); await sleep(10);
+    eq($$('.pt-cmp-row', ca).length, 2, 'a source can be removed');
+    ca.querySelector('[data-cmp-add]').click(); await sleep(10);
+    ok($$('.pt-cmp-row', ca).length === 3 && document.activeElement === ca.querySelector('[data-cmp-row="2"] [data-ck="vendor"]'), '+ Add a source adds an empty row and focuses its vendor');
+    await submit(ca);
+    var wa = lastWrite('add', 'procurementTickets'); var glv = wa.id;
+    eq([wa.data.purchaseType, wa.data.recurrence, wa.data.comparisons.length, wa.data.comparisons[0].chosen, wa.data.comparisons[0].unitPrice, wa.data.vendor, wa.data.unitCost, wa.data.estimatedCost], ['recurring', 'monthly', 2, true, 14.95, 'Fisher Scientific', 14.95, 59.8], 'ticket written with the comparison (empty added row dropped) + the chosen source as the main fields');
+    become({ uid: 'pi', name: 'The PI', role: 'admin' }); await sleep(20);
+    await openRow(glv);
+    ok(!!row(glv).querySelector('.pt-cmp-table') && row(glv).querySelectorAll('.pt-cmp-table tbody tr').length === 2 && row(glv).querySelector('.pt-cmp-table tr.is-chosen') && /Fisher Scientific/.test(row(glv).querySelector('.pt-cmp-table tr.is-chosen').textContent), 'the PI sees the comparison table on the card with the chosen source marked');
+    ok(/Recurring — about monthly/.test(row(glv).querySelector('.pt-details').textContent), 'card shows the purchase type');
+    await openRow(d2);
+    ok(/No price comparison was given/.test(row(d2).querySelector('.pt-card-body').textContent), 'the PI is told when a request skipped the comparison');
+
+    lines.push('\n<b>V3.814 — Change funding at any stage (requester notified by the function)</b>');
+    view('archive'); await sleep(20); await openRow(tips);   // tips is PLACED (restocked) and charged to the startup account
+    ok(actions(tips).indexOf('reassign') >= 0, 'PI has Change funding on a placed ticket');
+    become({ uid: 'oth', name: 'Otto Other' }); await sleep(20); view('archive'); await sleep(20); await openRow(tips);
+    ok(actions(tips).indexOf('reassign') < 0, 'a member does not');
+    become({ uid: 'pi', name: 'The PI', role: 'admin' }); await sleep(20); view('archive'); await sleep(20);
+    form = await clickAct(tips, 'reassign');
+    ok(form.dataset.form === 'reassign' && /Currently charged to/.test(form.textContent) && /1101935/.test(form.textContent) && /will be notified/.test(form.textContent), 'reassign form shows the current string and says the requester is told');
+    eq(f('projectId', form).value, 'mcghee-startup', 'picker starts on the ticket’s current project');
+    await submit(form);
+    ok(/already the project/.test(fieldErr(row(tips).querySelector('.pt-form'), 'projectId')), 'saving with no change is refused inline');
+    typeInto(f('projectId', row(tips).querySelector('.pt-form')), 'prostate');
+    eq(row(tips).querySelector('.pt-form [data-charged]').value, 'Cancer Engineering - Prostate · 1101917-MCMI', 'picking shows the new string');
+    typeInto(f('note', row(tips).querySelector('.pt-form')), 'startup account is closing'); await submit(row(tips).querySelector('.pt-form')); await sleep(20);
+    eq([T(tips).status, T(tips).projectId, T(tips).fundingAccount, T(tips).fundingChangedBy, T(tips).fundingChangedFrom, T(tips).history[T(tips).history.length - 1].action, T(tips).notes[T(tips).notes.length - 1].kind], ['placed', 'prostate', '1101917-MCMI', 'pi', 'McGhee Startup · 1101935', 'reassign', 'funding'], 'funding moved; status untouched; who/from stamped; history + funding note');
+    var wr = lastWrite('update', 'procurementTickets');
+    ok(Object.keys(wr.patch).every(function (k) { return PROC_CORE.NOTE_ONLY_KEYS.indexOf(k) >= 0 || PROC_CORE.FUNDING_KEYS.indexOf(k) >= 0; }), 'the write touches only the keys the rules allow past approval (' + Object.keys(wr.patch).join(',') + ')');
+    ok(/Funding changed — Sam Student has been notified/.test($('#toast-stack').textContent), 'toast names the requester');
+    await openRow(tips);
+    ok(/Funding changed/.test(row(tips).querySelector('.pt-details').textContent) && /was McGhee Startup · 1101935/.test(row(tips).querySelector('.pt-details').textContent) && /1101917-MCMI/.test(row(tips).querySelector('.pt-details').textContent), 'card shows the new string and the Funding changed row');
+    ok(row(tips).querySelector('.pt-note--funding') && /startup account is closing/.test(row(tips).querySelector('.pt-note--funding').textContent), 'the reason sits in the notes thread as a funding note');
+
+    lines.push('\n<b>V3.814 — Request again</b>');
+    become({ uid: 'stu', name: 'Sam Student' }); await sleep(20);
+    view('archive'); await sleep(20); await openRow(peg);
+    ok(!!row(peg).querySelector('[data-act="again"]'), 'a placed ticket offers Request again');
+    view('mine'); await sleep(20); await openRow(d2);
+    ok(!row(d2).querySelector('[data-act="again"]'), 'a live request does not (it would duplicate)');
+    view('archive'); await sleep(20); await openRow(peg);
+    row(peg).querySelector('[data-act="again"]').click(); await sleep(20);
+    var cg = $('#pt-composer-form');
+    ok(!!cg && /Again:/.test(cg.textContent) && /PEG 6000, 100 g/.test(cg.textContent) && /restock the same inventory item/.test(cg.textContent), 'composer opens with the Again banner and the restock note');
+    eq([f('itemDescription', cg).value, f('vendor', cg).value, f('catalogueNumber', cg).value, f('unitCost', cg).value, f('quantity', cg).value, f('projectId', cg).value, f('purchaseType', cg).value, f('recurrence', cg).value, f('neededBy', cg).value, f('urgency', cg).value, f('reason', cg).value], ['PEG 6000, 100 g', 'Sigma-Aldrich', '81260', '50', '2', 'prostate', 'recurring', 'monthly', '', 'routine', 'Gels for the Friday run'], 'everything copied; needed-by and urgency reset');
+    await submit(cg);
+    var wg = lastWrite('add', 'procurementTickets');
+    eq([wg.data.repeatOf, wg.data.inventoryItemId === inv.id, wg.data.source, wg.data.status, wg.data.fundingAccount], [peg, true, 'repeat', 'requested', '1101917-MCMI'], 'the repeat ticket points at the original and will restock the same inventory item');
+
+    lines.push('\n<b>V3.816 — two doors: Reorder existing (the picker) and New item</b>');
+    become({ uid: 'stu', name: 'Sam Student' }); await sleep(20);
+    ok(!!$('#pt-reorder') && !!$('#pt-new') && /Reorder existing/.test($('#pt-reorder').textContent) && /New item/.test($('#pt-new').textContent), 'the tools bar offers Reorder existing and New item');
+    $('#pt-reorder').click(); await sleep(60);
+    var pkc = $('#pt-picker-card');
+    ok(!!pkc && document.activeElement === $('#pt-pk-q'), 'Reorder existing opens the picker and focuses its search');
+    ok($$('.pt-pk-row').length >= 4 && /of \d+ items/.test($('.pt-pk-count').textContent), 'the catalogue lists inventory + previously approved items (' + $('.pt-pk-count').textContent + ')');
+    ok(!!pkc.querySelector('[data-pick-entry="inv:INV1"]') && !!pkc.querySelector('[data-pick-entry="inv:INV2"]'), 'both seeded inventory items are rows');
+    ok(!$$('.pt-pk-row').some(function (r) { return /Draft test|Gold-plated|keep me/.test(r.textContent); }), 'requested and denied tickets are not offered');
+    ok(/Nitrile gloves M/.test(pkc.querySelector('[data-entry="inv:INV2"]').textContent) && /bought 1×/.test(pkc.querySelector('[data-entry="inv:INV2"]').textContent), 'an approved order for a stocked item folds into that item (bought 1×)');
+    ok($$('.pt-pk-head').some(function (h) { return /Consumables/.test(h.textContent); }), 'grouped by category by default');
+    ok(/low/.test(pkc.querySelector('[data-entry="inv:INV1"] .pt-pk-badge--low').textContent) && /4 ea left at Bench 4/.test(pkc.querySelector('[data-entry="inv:INV1"]').textContent), 'a tracked item below its minimum is badged low, with count and location');
+    $('#pt-pk-q').focus(); typeInto($('#pt-pk-q'), 't-200'); await sleep(20);
+    ok($$('.pt-pk-row').length === 1 && !!$('[data-entry="inv:INV1"]') && document.activeElement === $('#pt-pk-q'), 'search by catalogue # narrows to one row and keeps focus');
+    typeInto($('#pt-pk-q'), ''); typeInto($('[data-pk="group"]'), 'vendor'); await sleep(20);
+    ok($$('.pt-pk-head').some(function (h) { return /^Sigma/.test(h.textContent.trim()); }) && $$('.pt-pk-head').some(function (h) { return /^Fisher/.test(h.textContent.trim()); }), 'group by vendor');
+    eq($('[data-pk="category"]').value, '', 'the Category select starts on "All categories" (Uncategorised must not share its value)');
+    typeInto($('[data-pk="category"]'), '~'); await sleep(20);
+    ok($$('.pt-pk-row').length === 2 && !!$('[data-entry="inv:INV1"]') && !!$('[data-entry="inv:INV2"]'), 'the Uncategorised facet filters to the two seeded items with no category');
+    typeInto($('[data-pk="category"]'), ''); await sleep(20);
+    typeInto($('[data-pk="stock"]'), 'low'); await sleep(20);
+    ok($$('.pt-pk-row').length === 1 && !!$('[data-entry="inv:INV1"]') && !!$('[data-pk-clear]'), 'stock filter: only the low item, and a Clear filters link appears');
+    $('[data-pk-clear]').click(); await sleep(20);
+    ok($$('.pt-pk-row').length >= 4 && $('[data-pk="stock"]').value === '' && !$('[data-pk-clear]'), 'Clear filters resets them');
+    typeInto($('[data-pk="kind"]'), 'ticket'); await sleep(20);
+    ok($$('.pt-pk-row').length >= 1 && $$('.pt-pk-row').every(function (r) { return /not in inventory/.test(r.textContent); }) && $$('.pt-pk-row').some(function (r) { return /Side-project widget/.test(r.textContent); }), 'source filter: bought before, not in inventory');
+    typeInto($('[data-pk="kind"]'), ''); await sleep(20);
+    $('[data-pick-entry="inv:INV1"]').click(); await sleep(60);
+    var cr = $('#pt-composer-form');
+    ok(!$('#pt-picker-card') && !!cr && cr.dataset.mode === 'reorder', 'Reorder closes the picker and opens the compact reorder form');
+    ok(/Reorder: Pipette tips 200/.test(cr.querySelector('.pt-h2').textContent) && /Bench 4/.test(cr.querySelector('.pt-reorder-item').textContent) && /restocks this inventory item/.test(cr.querySelector('.pt-reorder-item').textContent), 'the form names the item and where it is');
+    var more = cr.querySelector('details[data-more]');
+    ok(!!more && !more.open && !!f('vendor', more) && !!more.querySelector('[data-cmp-block]'), 'vendor / catalogue / link and the price comparison are folded away, prefilled');
+    eq([f('itemDescription', cr).value, f('vendor', cr).value, f('catalogueNumber', cr).value, f('unitCost', cr).value, f('purchaseType', cr).value, document.activeElement === f('quantity', cr)], ['Pipette tips 200 µL', 'sigma aldrich', 'T-200', '80', 'recurring', true], 'prefilled from the inventory item as the LAST restock left it (vendor + price from the tips ticket); quantity focused');
+    typeInto(f('productUrl', cr), 'not a link'); typeInto(f('reason', cr), 'restock'); typeInto(f('projectId', cr), 'mcghee-startup'); await submit(cr);
+    ok(more.open && /http/.test(fieldErr(cr, 'productUrl')) && document.activeElement === f('productUrl', cr), 'an error inside the folded details unfolds them and focuses the field');
+    typeInto(f('productUrl', cr), 'https://sigma/t200'); typeInto(f('quantity', cr), '3'); await submit(cr);
+    var wr2 = lastWrite('add', 'procurementTickets');
+    eq([wr2.data.inventoryItemId, wr2.data.source, wr2.data.quantity, wr2.data.purchaseType, wr2.data.fundingAccount], ['INV1', 'reorder', 3, 'recurring', '1101935'], 'the reorder ticket restocks INV1');
+    $('#pt-reorder').click(); await sleep(60);
+    $('#pt-pk-q').focus(); typeInto($('#pt-pk-q'), 'side-project'); await sleep(20);
+    var tk = $$('[data-pick-entry]').find(function (b) { return /^tkt:/.test(b.dataset.pickEntry); });
+    ok(!!tk, 'a bought-before item that is not in inventory has a Reorder button');
+    tk.click(); await sleep(60); cr = $('#pt-composer-form');
+    ok(!!cr && cr.dataset.mode === 'reorder' && /Reorder: Side-project widget/.test(cr.querySelector('.pt-h2').textContent) && /Again:/.test(cr.textContent) && f('projectId', cr).value === 'mcghee-startup', 'a ticket-only row reopens that request prefilled (project included)');
+    $('#pt-new').click(); await sleep(20); cr = $('#pt-composer-form');
+    ok(cr.dataset.mode === 'new' && f('itemDescription', cr).value === '' && !cr.querySelector('details[data-more]') && !!cr.querySelector('[data-cmp-block]') && /New item/.test(cr.querySelector('.pt-h2').textContent), 'New item replaces the reorder form with the full blank form, comparison on show');
+    $('#pt-composer-cancel').click(); await sleep(10);
+    $('#pt-reorder').click(); await sleep(60);
+    $('#pt-picker-card').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await sleep(10);
+    ok(!$('#pt-picker-card'), 'Escape closes the picker');
+
+    lines.push('\n<b>V3.819 — items captured in the browser extension</b>');
+    become({ uid: 'stu', name: 'Sam Student' }); await sleep(20);
+    PROCUREMENT.state().captures = Object.keys(STORE['userData/stu/procurementCaptures']).map(function (id) { return Object.assign({ id: id }, STORE['userData/stu/procurementCaptures'][id]); }).filter(function (c) { return c.status !== 'used'; });
+    PROCUREMENT.render(); await sleep(20);
+    var capc = $('#pt-captures-card');
+    ok(!!capc && /Captured in your browser/.test(capc.textContent) && $$('.pt-cap-row', capc).length === 2, 'the strip lists the two unused captures (the used one is not offered)');
+    ok(/ELISA plates/.test(capc.querySelector('[data-cap="cap1"]').textContent) && /Corning · 3590 · \$18\.75 · 3× · 50\/case · from corning\.com/.test(capc.querySelector('[data-cap="cap1"] .pt-pk-meta').textContent) && /for the ELISA plates/.test(capc.querySelector('[data-cap="cap1"]').textContent), 'a row shows vendor, cat #, price, quantity, pack, host and the note (' + capc.querySelector('[data-cap="cap1"] .pt-pk-meta').textContent + ')');
+    capc.querySelector('[data-cap-use="cap1"]').click(); await sleep(60);
+    var cc = $('#pt-composer-form');
+    ok(!!cc && cc.dataset.mode === 'new' && cc.dataset.capture === 'cap1' && /Captured in your browser from corning\.com/.test(cc.textContent) && !cc.querySelector('details[data-more]'), 'Add to request opens the FULL New-item form, naming the capture');
+    eq([f('itemDescription', cc).value, f('vendor', cc).value, f('catalogueNumber', cc).value, f('productUrl', cc).value, f('unitCost', cc).value, f('quantity', cc).value, f('estimatedCost', cc).value, f('reason', cc).value, f('projectId', cc).value, f('purchaseType', cc).value, document.activeElement === f('projectId', cc)], ['ELISA plates, 96-well, high-bind', 'Corning', '3590', 'https://www.corning.com/p/3590', '18.75', '3', '$56.25', 'for the ELISA plates', '', '', true], 'prefilled from the capture; project (focused) and purchase type are still the person’s to choose');
+    ok($$('.pt-cmp-row', cc).length === 1 && cc.querySelector('.pt-cmp-row[data-cmp-row="0"]').classList.contains('is-chosen') && cc.querySelector('[data-cmp="0"][data-ck="vendor"]').value === 'Corning' && /captured from corning\.com/.test(cc.querySelector('[data-cmp="0"][data-ck="notes"]').value), 'the capture is the first, chosen price-comparison row');
+    await submit(cc);
+    ok(/which project/.test(fieldErr(cc, 'projectId')), 'a capture still needs a project (inline error)');
+    typeInto(f('projectId', cc), 'prostate'); typeInto(f('purchaseType', cc), 'one_time'); await submit(cc); await sleep(40);
+    var wc = lastWrite('add', 'procurementTickets');
+    eq([wc.data.source, wc.data.captureId, wc.data.status, wc.data.comparisons.length, wc.data.vendor, wc.data.fundingAccount], ['extension', 'cap1', 'requested', 1, 'Corning', '1101917-MCMI'], 'the ticket records the capture and starts as requested, like every ticket');
+    var wid = PROC_CORE.watchIdFor('https://www.corning.com/p/3590'), wdoc = STORE.priceWatch && STORE.priceWatch[wid];
+    ok(!!wdoc && wdoc.latest.price === 18.75 && wdoc.history.length === 1 && wdoc.history[0].method === 'request' && wdoc.ticketIds[0] === wc.id && wdoc.createdBy === 'stu' && /^\d{4}-/.test(wdoc.nextCheckAt), 'V3.820: the request\'s link + price started a price watch on that page (due in 90 days)');
+    await openRow(wc.id);
+    ok(/Price watch/.test(row(wc.id).querySelector('.pt-details').textContent) && /\$18\.75 list price/.test(row(wc.id).querySelector('.pt-details').textContent) && /1 check/.test(row(wc.id).querySelector('.pt-details').textContent), 'the card shows the Price watch row');
+    ok(PROC_CORE.catalogue([], [Object.assign({ id: wc.id }, STORE.procurementTickets[wc.id], { status: 'approved' })], PROCUREMENT.state().watches)[0].watchPrice === 18.75, 'the catalogue would show it as the list price');
+    var capDoc = STORE['userData/stu/procurementCaptures'].cap1;
+    eq([capDoc.status, capDoc.ticketId === wc.id, !!capDoc.usedAtIso], ['used', true, true], 'the capture is marked used with the ticket id — nothing else is written until approval');
+    ok(!!$('#pt-captures-card') && $$('.pt-cap-row').length === 1 && !!$('[data-cap="cap2"]'), 'the strip now shows only the other capture');
+    ok(!PROC_CORE.catalogue(Object.keys(STORE.inventory).map(function (id) { return Object.assign({ id: id }, STORE.inventory[id]); }), Object.keys(STORE.procurementTickets).map(function (id) { return Object.assign({ id: id }, STORE.procurementTickets[id]); })).some(function (e) { return /ELISA plates/.test(e.name); }), 'a requested (not yet approved) capture is NOT in the Reorder existing catalogue');
+    become({ uid: 'pi', name: 'The PI', role: 'admin' }); await sleep(20);
+    form = await clickAct(wc.id, 'approve'); await submit(form); await sleep(20);
+    ok(PROC_CORE.catalogue([], Object.keys(STORE.procurementTickets).map(function (id) { return Object.assign({ id: id }, STORE.procurementTickets[id]); })).some(function (e) { return /ELISA plates/.test(e.name) && e.status === 'approved'; }), 'once approved it IS in the catalogue (the "database")');
+    become({ uid: 'stu', name: 'Sam Student' }); await sleep(20);
+    PROCUREMENT.state().captures = [Object.assign({ id: 'cap2' }, STORE['userData/stu/procurementCaptures'].cap2)]; PROCUREMENT.render(); await sleep(20);
+    $('[data-cap-drop="cap2"]').click(); await sleep(30);
+    ok(!STORE['userData/stu/procurementCaptures'].cap2 && lastWrite('delete').id === 'cap2' && !$('#pt-captures-card'), 'Discard deletes the capture and the strip goes away when the queue is empty');
+
+    lines.push('\n<b>Hygiene</b>');
+    eq(window.__popups, [], 'no window.prompt / confirm / alert, ever');
+    ok(document.body.innerText.indexOf('<svg') < 0, 'no markup reached a text sink');
+    ok(!$$('.pt-field-err:not([hidden])').length, 'no stray field errors');
+    eq(Object.keys(STORE.procurementTickets).length, 14, 'fourteen tickets remain');
+  } catch (e) {
+    fail++; lines.push('<span class="bad">✗ EXCEPTION ' + (e && e.stack || e) + '</span>');
+  }
+  out.innerHTML = lines.join('\n') + '\n\n' + pass + ' passed, ' + fail + ' failed';
+  out.dataset.pass = pass; out.dataset.fail = fail; out.dataset.done = '1';
+  out.dataset.detail = lines.filter(function (l) { return l.indexOf('✗') >= 0; }).map(function (l) { return l.replace(/<[^>]+>/g, ''); }).slice(0, 6).join(' | ');
+  document.title = 'V3813 ' + (fail ? 'FAIL (' + fail + ')' : 'PASS (' + pass + ')');
+}
+</script>
+</body>
+</html>

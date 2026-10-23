@@ -142,7 +142,7 @@
     var forkBadgeHTML = '';
     var ff = p.forked_from;
     if (ff && ff.protocol_id && !ff.migrated_to_standalone_at) {
-      forkBadgeHTML = '<div class="pr-card-fork">🍴 Fork of ' +
+      forkBadgeHTML = '<div class="pr-card-fork">' + ICON.svg('git-fork') + ' Fork of ' +
         escapeHtml(ff.protocol_title || ff.protocol_id) +
         (typeof ff.version === 'number' && ff.version > 0 ? ' v' + ff.version : '') +
         '</div>';
@@ -173,7 +173,7 @@
       del.type = 'button';
       del.className = 'pr-card-del';
       del.title = 'Delete this protocol (and its version history)';
-      del.textContent = '🗑';
+      ICON.label(del, 'trash');
       del.addEventListener('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
@@ -416,8 +416,8 @@
         (s.headings ? '<span>' + s.headings + ' heading' + (s.headings === 1 ? '' : 's') + '</span>' : '') +
         (s.docHeaders ? '<span>' + s.docHeaders + ' doc header' + (s.docHeaders === 1 ? '' : 's') + '</span>' : '') +
       '</div>' +
-      (v.warnings.length ? '<div class="pr-import-preview-warnings">⚠ ' +
-        v.warnings.map(function (w) { return escapeHtml(w); }).join('<br>⚠ ') + '</div>' : '');
+      (v.warnings.length ? '<div class="pr-import-preview-warnings">' + ICON.svg('exclamation-triangle') + ' ' +
+        v.warnings.map(function (w) { return escapeHtml(w); }).join('<br>' + ICON.svg('exclamation-triangle') + ' ') + '</div>' : '');
     importPreview.hidden = false;
     if (!importSlugInp.value.trim()) {
       var seedSlug = p.id || _slugify(p.title || '');
@@ -519,7 +519,7 @@
    * skills, 🔗 references, and the protocol lifecycle). (V3.404) */
   var DEMOS = [
     { slug: 'lesson-1-variables-and-wires', title: 'Lesson 1 — Variables & wires',
-      desc: 'START HERE · inputs → equation → a live 🔗 reference in the write-up, plus the canvas basics (zoom, fit, collapse, tidy).',
+      desc: 'START HERE · inputs → equation → a live reference in the write-up, plus the canvas basics (zoom, fit, collapse, tidy).',
       file: '/rm/data/protocol-demos/lesson-1-variables-and-wires.json',
       tour: 'build-lesson-1' },
     { slug: 'lesson-2-bindings-and-modifiers', title: 'Lesson 2 — Bindings & modifiers',
@@ -612,7 +612,7 @@
         var freshBtn = document.createElement('button');
         freshBtn.type = 'button';
         freshBtn.className = 'btn pr-demo-fresh';
-        freshBtn.textContent = '↺ Start from scratch';
+        ICON.label(freshBtn, 'arrow-uturn-left', ' Start from scratch');
         freshBtn.title = 'Clear your copy and walk through building it step by step';
         freshBtn.addEventListener('click', function () { loadDemo(d, { reset: true }); });
         actions.appendChild(freshBtn);
@@ -620,7 +620,7 @@
         var startBtn = document.createElement('button');
         startBtn.type = 'button';
         startBtn.className = 'btn btn-primary pr-demo-start';
-        startBtn.textContent = '▶ Start guided build';
+        ICON.label(startBtn, 'play', ' Start guided build');
         startBtn.title = 'Build this workflow yourself on an empty canvas, step by step';
         startBtn.addEventListener('click', function () { loadDemo(d, {}); });
         actions.appendChild(startBtn);
@@ -633,7 +633,7 @@
     if (demoClean) {
       var mineAll = myDemoRows();
       demoClean.hidden = !mineAll.length;
-      demoClean.textContent = '🗑 Remove my demo copies (' + mineAll.length + ')';
+      ICON.label(demoClean, 'trash', ' Remove my demo copies (' + mineAll.length + ')');
     }
     demoModal.hidden = false;
   }

@@ -1,8 +1,8 @@
-/* day-distribute.js — My Day program (V3.526 R1 core; V3.527 equipment;
+/* day-distribute.js — My Week program (V3.526 R1 core; V3.527 equipment;
  * V3.528 notebook; V3.529 prefs; V3.530 double-dip chips)
  *
- * The cross-surface distribution engine behind rm/pages/my-day.html.
- * A My Day item (userData/{uid}/dayPlans/{itemId}) is the HUB record; this
+ * The cross-surface distribution engine behind rm/pages/my-week.html.
+ * A My Week item (userData/{uid}/dayPlans/{itemId}) is the HUB record; this
  * module fans it out to the surfaces it belongs on and keeps the copies in
  * sync (edit cascade) or removes them (delete cascade). Every destination
  * write uses a DETERMINISTIC doc id derived from the item id, so re-runs
@@ -20,6 +20,12 @@
  *     distributions: { <surface>: { surface, docPath, docId, status,
  *                       lastSyncedAt, error, meta } },
  *     origin: null | { surface, docPath },   // set by double-dip import
+ *     outcome: null | { kind: 'result'|'barrier'|'no_result',   // V3.623
+ *                       summary, image: null|{storage_path,download_url},
+ *                       notebook_entry_ids: [], links: [{kind,title,url,   // V3.853 cards:
+ *                         boardId,itemId,paperId|entryId,boardTitle,item_kind,thumb}],
+ *                       follow_up_item_id, recorded_at, recorded_by },
+ *     follow_up_of: null | { item_id, date },  // V3.623 — chained follow-up
  *     created_at, updated_at, ownerUid, schema_version: 1 }
  *
  * Distribution record status:
@@ -99,6 +105,26 @@
     return (p === 'high' || p === 'urgent') ? p : 'normal';
   }
 
+  /* V3.623 — local-date helpers for the follow-up chain (same math as
+   * my-week.js shiftDate/mondayOf; duplicated because neither module may
+   * depend on the other's page being loaded). */
+  function shiftDateStr(dateStr, days) {
+    var p = dateStr.split('-');
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);
+    d.setDate(d.getDate() + days);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function mondayOfStr(dateStr) {
+    var p = dateStr.split('-');
+    var dow = new Date(+p[0], +p[1] - 1, +p[2]).getDay();
+    return shiftDateStr(dateStr, dow === 0 ? -6 : 1 - dow);
+  }
+  /* Next week's Monday relative to TODAY (not the item's date — following
+   * up a two-week-old barrier should land next week, not in the past). */
+  function nextMondayStr() {
+    return shiftDateStr(mondayOfStr(todayStr()), 7);
+  }
+
   /* ISO week id for a YYYY-MM-DD string — same math as huddle.js
    * getWeekId (V3.something), parameterized by date instead of offset so
    * a plan for any calendar date lands in the right huddle week. */
@@ -158,7 +184,7 @@
   /* ── feature flags (V3.533/534 retirements) ──────────────── */
 
   var _flagsCache = null;
-  /* labConfig/featureFlags — admin-editable kill switches for the My Day
+  /* labConfig/featureFlags — admin-editable kill switches for the My Week
    * retirement releases (myday_retire_huddle_composer,
    * myday_retire_tracker_manual, myday_retire_task_add). Absent doc or
    * absent key ⇒ false: every retirement ships dark. */
@@ -191,12 +217,23 @@
   };
 
   var SURFACE_LABELS = {
-    huddle:    { icon: '👥', label: 'Huddle' },
-    equipment: { icon: '🔬', label: 'Equipment' },
-    notebook:  { icon: '📓', label: 'Notebook' },
-    tracker:   { icon: '⏱', label: 'Tracker' },
-    task:      { icon: '✅', label: 'Task' },
-    pmr_week:  { icon: '📋', label: 'PMR week' },
+    huddle:    { icon: 'users', label: 'Huddle' },
+    equipment: { icon: 'microscope', label: 'Equipment' },
+    notebook:  { icon: 'book-open', label: 'Notebook' },
+    tracker:   { icon: 'clock', label: 'Tracker' },
+    task:      { icon: 'check-circle', label: 'Task' },
+    pmr_week:  { icon: 'clipboard-document-list', label: 'PMR week' },
+  };
+
+  /* V3.623 — per-ITEM outcome vocabulary. Deliberately NOT the focus-week
+   * verdict (FOCUS_AREAS.OUTCOME_META success/partial/failure): a focus
+   * report judges the week's WHY, an item outcome records what came of one
+   * planned step — a result, the barrier that blocked it, or a fizzle.
+   * The PMR ledger (V3.624) and project health (V3.625) read this. */
+  var ITEM_OUTCOME_META = {
+    result:    { icon: 'check-circle', label: 'Result' },
+    barrier:   { icon: 'construction', label: 'Barrier' },
+    no_result: { icon: '◌',  label: 'No result' },
   };
 
   function defaultSurfacesFor(item, prefs) {
@@ -215,7 +252,7 @@
     switch (rec.surface) {
       case 'huddle':    return '/rm/pages/huddle.html';
       case 'equipment': return '/rm/pages/equipment.html';
-      case 'notebook':  return '/rm/pages/lab-notebook.html?entry=' + encodeURIComponent(rec.docId || (item && item.id) || '');
+      case 'notebook':  return '/rm/pages/notebook.html?entry=' + encodeURIComponent(rec.docId || (item && item.id) || '');
       case 'tracker':   return '/rm/pages/activity-overview.html?tab=tracker';
       case 'task':      return '/rm/pages/tasks.html';
       case 'pmr_week':  return '/rm/pages/pmr.html';
@@ -366,8 +403,8 @@
         date: item.date, endDate: item.date,
         startTime: item.startTime, endTime: item.endTime,
         durationMin: timeToMin(item.endTime) - timeToMin(item.startTime),
-        // V3.588 — criticality picked in the My Day composer. Was hardcoded
-        // 'normal', which silently flattened every My Day booking to Soft.
+        // V3.588 — criticality picked in the My Week composer. Was hardcoded
+        // 'normal', which silently flattened every My Week booking to Soft.
         priority: normalizePriority(det.priority),
         status: check.needsApproval ? 'pending-approval' : 'confirmed',
         notes: item.title || '',
@@ -394,7 +431,7 @@
         startTime: item.startTime, endTime: item.endTime,
         durationMin: timeToMin(item.endTime) - timeToMin(item.startTime),
         // V3.588 — priority was omitted here, so criticality edits made in
-        // the My Day composer never reached the booking.
+        // the My Week composer never reached the booking.
         priority: normalizePriority(det.priority),
         notes: item.title || '',
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -477,7 +514,7 @@
         entry.protocol_id = det.protocolId || null;
         entry.phase = 'plan';
         if (det.protocolId) entry.protocol_run = buildProtocolRun(det);
-        entry.reference_links = [{ kind: 'other', label: 'Planned in My Day', url: '/rm/pages/my-day.html?date=' + (item.date || '') }];
+        entry.reference_links = [{ kind: 'other', label: 'Planned in My Week', url: '/rm/pages/my-week.html?date=' + (item.date || '') }];
         await notebookEntryRef(item.id).set(entry);
       }
       await upsertIndexRow(entry);
@@ -507,7 +544,7 @@
       if (!snap.exists) return record('notebook', { docPath: rec.docPath, docId: rec.docId, status: 'removed' });
       var entry = snap.data();
       if (hasUserContent(entry)) {
-        entry.body_html = '<p class="nb-orphan-note">⚠ The My Day plan that created this entry was deleted on '
+        entry.body_html = '<p class="nb-orphan-note">' + ICON.svg('exclamation-triangle') + ' The My Week plan that created this entry was deleted on '
           + todayStr() + '; the entry is kept.</p>' + (entry.body_html || '');
         entry.updated_at = isoNow();
         await notebookEntryRef(rec.docId).set(entry);
@@ -728,6 +765,126 @@
     return item;
   }
 
+  /* V3.623 — confirm-skipped. The old skip path wrote status:'skipped' on
+   * the hub doc only, so the huddle post and booking kept saying
+   * "planned" forever. Skips now cascade like done does. */
+  async function confirmSkipped(item) {
+    item.status = 'skipped';
+    await itemRef(item.id).update({ status: 'skipped', updated_at: isoNow() });
+    await cascadeUpdate(item);
+    return item;
+  }
+
+  /* V3.853 — which status an outcome closes an item to (pure; lifted by
+   * scripts/tests/myweek-needs-result.test.mjs). A result always means
+   * done. On a PLANNED item the caller's intent wins otherwise — closeAs
+   * 'done' from the ✓ button keeps "did it, but no result" as done — and
+   * with no intent a barrier / no_result means the step didn't happen →
+   * skipped. A result on a previously skipped item flips it to done
+   * ("actually, it did work"); a done item stays done. */
+  function closedStatusFor(status, kind, closeAs) {
+    if (status === 'planned') {
+      if (kind === 'result') return 'done';
+      return closeAs === 'done' ? 'done' : 'skipped';
+    }
+    if (status === 'skipped' && kind === 'result') return 'done';
+    return status;
+  }
+
+  /* V3.853 — an outcome link: the CARD on a figure board or in the notebook
+   * that holds the result. kind 'figure_board_item' (paperId + boardId +
+   * itemId) | 'notebook_item' (entryId + boardId + itemId) | anything else
+   * generic; url deep-links with &item=<id> so the host centres the card. */
+  function cleanLink(l) {
+    var out = {
+      kind: String(l.kind || 'link').slice(0, 40),
+      id: String(l.id || l.itemId || '').slice(0, 200),
+      title: String(l.title || '').slice(0, 200),
+      url: String(l.url || '').slice(0, 600),
+    };
+    ['boardId', 'itemId', 'paperId', 'entryId', 'boardTitle', 'item_kind'].forEach(function (k) {
+      if (l[k]) out[k] = String(l[k]).slice(0, 200);
+    });
+    if (l.thumb) out.thumb = String(l.thumb).slice(0, 1000);
+    return out;
+  }
+
+  /* V3.623 — record what came of a planned item. The outcome lives on the
+   * hub doc only (it never cascades — copies carry status, the verdict
+   * belongs to the ledger). Recording an outcome on a still-'planned'
+   * item also closes it (closedStatusFor) so the pending list stops asking
+   * about it. V3.853: opts.closeAs ('done'|'skipped') is the ✓ / ✗ intent
+   * — the dialog is the confirm step now, so the status and the outcome
+   * land in ONE write; links[] carries the figure boards. */
+  async function saveOutcome(item, outcome, opts) {
+    outcome = outcome || {};
+    opts = opts || {};
+    var kind = ITEM_OUTCOME_META[outcome.kind] ? outcome.kind : 'no_result';
+    item.outcome = {
+      kind: kind,
+      summary: String(outcome.summary || ''),
+      image: (outcome.image && outcome.image.storage_path) ? {
+        storage_path: outcome.image.storage_path,
+        download_url: outcome.image.download_url || '',
+      } : null,
+      notebook_entry_ids: Array.isArray(outcome.notebook_entry_ids) ? outcome.notebook_entry_ids : [],
+      links: (Array.isArray(outcome.links) ? outcome.links : [])
+        .filter(function (l) { return l && typeof l === 'object' && (l.url || l.id); }).map(cleanLink),
+      follow_up_item_id: (item.outcome && item.outcome.follow_up_item_id) || null,
+      recorded_at: isoNow(),
+      recorded_by: uid(),
+    };
+    var patch = { outcome: item.outcome, updated_at: isoNow() };
+    var next = closedStatusFor(item.status, kind, opts.closeAs);
+    var becameDone = next === 'done' && item.status !== 'done';
+    var becameSkipped = next === 'skipped' && item.status !== 'skipped';
+    item.status = next;
+    if (becameDone) {
+      item.confirmed_at = isoNow();
+      patch.confirmed_at = item.confirmed_at;
+    }
+    if (becameDone || becameSkipped) patch.status = item.status;
+    await itemRef(item.id).update(patch);
+    if (becameDone) await recordDoneWork(item);
+    if (becameDone || becameSkipped) await cascadeUpdate(item);
+    return item;
+  }
+
+  /* V3.623 — spawn next week's chained follow-up. A NEW planned item: the
+   * original keeps its week and its outcome (history is never re-dated —
+   * that's the → Today move's flaw). details are copied so the focus /
+   * project attribution survives the chain; the PMR ledger and the
+   * barrier-persistence health signal (V3.625) walk `follow_up_of`.
+   * Deliberately not auto-distributed — the student refines and sends it
+   * from My Week like any planned item. */
+  async function createFollowUp(item, opts) {
+    opts = opts || {};
+    var fu = {
+      id: newItemId(),
+      type: item.type || 'work',
+      title: String(opts.title || ('Follow up: ' + (item.title || ''))).slice(0, 300),
+      notes: '',
+      date: /^\d{4}-\d{2}-\d{2}$/.test(opts.date || '') ? opts.date : nextMondayStr(),
+      startTime: null, endTime: null,
+      status: 'planned', confirmed_at: null,
+      details: Object.assign({}, item.details || {}),
+      categoryPath: (item.categoryPath || []).slice(),
+      auto_distributed: false, excluded_surfaces: [],
+      distributions: {},
+      origin: null,
+      outcome: null,
+      follow_up_of: { item_id: item.id, date: item.date || null },
+      created_at: isoNow(), updated_at: isoNow(),
+      ownerUid: uid(), schema_version: 1,
+    };
+    await itemRef(fu.id).set(fu);
+    if (item.outcome) {
+      item.outcome.follow_up_item_id = fu.id;
+      await itemRef(item.id).update({ 'outcome.follow_up_item_id': fu.id, updated_at: isoNow() });
+    }
+    return fu;
+  }
+
   /* ── double-dip chips (V3.530) ───────────────────────────── */
 
   /* ctx = { source: 'huddle'|'notebook'|'tracker'|'tasks'|'equipment',
@@ -806,7 +963,7 @@
       var row = document.createElement('div');
       row.className = 'dd-chip-row';
       row.innerHTML = '<span class="dd-lead">Also add to:</span>' + suggestions.map(function (s) {
-        return '<button type="button" class="dd-chip" data-surface="' + esc(s.surface) + '">' + s.icon + ' ' + esc(s.label) + '</button>';
+        return '<button type="button" class="dd-chip" data-surface="' + esc(s.surface) + '">' + ICON.render(s.icon) + ' ' + esc(s.label) + '</button>';
       }).join('');
       var importedItem = null;
       row.addEventListener('click', async function (ev) {
@@ -827,7 +984,7 @@
           } else {
             btn.classList.add('dd-done');
             btn.textContent = '✓ ' + btn.textContent.replace(/^✓ /, '');
-            if (window.TOAST) TOAST.success('Added to ' + surface + ' (+ My Day)');
+            if (window.TOAST) TOAST.success('Added to ' + surface + ' (+ My Week)');
             if (typeof onDone === 'function') onDone(importedItem, surface);
           }
         } catch (err) {
@@ -858,7 +1015,7 @@
         'box-shadow:0 8px 24px rgba(0,0,0,.18);padding:.5rem .75rem;max-width:min(92vw,480px)';
       var close = document.createElement('button');
       close.type = 'button';
-      close.textContent = '✕';
+      ICON.label(close, 'x-mark');
       close.style.cssText = 'float:right;border:none;background:transparent;cursor:pointer;opacity:.6;font-size:.9rem';
       close.addEventListener('click', function () { panel.remove(); });
       panel.appendChild(close);
@@ -871,7 +1028,7 @@
     }
   }
 
-  /* ── item CRUD helpers used by my-day.js ─────────────────── */
+  /* ── item CRUD helpers used by my-week.js ─────────────────── */
 
   async function saveItem(item) {
     item.updated_at = isoNow();
@@ -901,6 +1058,11 @@
     cascadeDelete: cascadeDelete,
     retry: retry,
     confirmDone: confirmDone,
+    confirmSkipped: confirmSkipped,   // V3.623
+    saveOutcome: saveOutcome,         // V3.623 · V3.853 (opts.closeAs)
+    closedStatusFor: closedStatusFor, // V3.853
+    createFollowUp: createFollowUp,   // V3.623
+    nextMondayStr: nextMondayStr,     // V3.623
     recordDoneWork: recordDoneWork,
     // double-dip
     suggestFor: suggestFor,
@@ -911,6 +1073,7 @@
     registerAdapter: registerAdapter,
     notebookUpsertIndexRow: upsertIndexRow, // V3.540 — focus reports create entry stubs
     SURFACE_LABELS: SURFACE_LABELS,
+    ITEM_OUTCOME_META: ITEM_OUTCOME_META,   // V3.623
     TYPE_SURFACES: TYPE_SURFACES,
     linkFor: linkFor,
     weekIdForDate: weekIdForDate,

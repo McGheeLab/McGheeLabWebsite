@@ -2595,3 +2595,98 @@ body.ourlab-app .chat-mobile-search .chat-search-results {
   border-radius: 8px;
   padding: .45rem .6rem;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   V3.836 — PANEL mode: chat inside a shell popout
+   (html/body carry .chat-panel-mode, set at parse time by chat.js when
+   window.name is rm-shell-popout-*). The channel header + view tabs are
+   a frozen band; the feed is its own scroller underneath; the list column
+   on the left appears when the HOST opens the panel "further".
+   ═══════════════════════════════════════════════════════════ */
+html.chat-panel-mode,
+html.chat-panel-mode body { height: 100%; overflow: hidden; margin: 0; }
+body.chat-panel-mode .page {
+  padding: 0; margin: 0; max-width: none; height: 100%;
+  display: flex; flex-direction: column;
+}
+body.chat-panel-mode .page-header { display: none; }
+body.chat-panel-mode #chat-root { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.chat-panel { display: flex; flex: 1 1 auto; min-height: 0; overflow: hidden; position: relative; }
+.chat-panel-list {
+  flex: 0 0 300px; width: 300px; min-width: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column;
+}
+.chat-panel-list[hidden] { display: none; }
+.chat-panel-list .chat-mobile-overview { flex: 1 1 auto; overflow: visible; }
+.chat-panel-main {
+  flex: 1 1 auto; min-width: 0; min-height: 0;
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--bg);
+}
+body.chat-panel-mode .chat-sticky-top { position: static; flex-shrink: 0; z-index: auto; }
+body.chat-panel-mode .chat-feed { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+body.chat-panel-mode .chat-input-area { position: static; box-shadow: none; padding-bottom: .5rem; margin: 0; }
+body.chat-panel-mode .chat-main { padding-bottom: 0; overflow: hidden; }
+body.chat-panel-mode .chat-date-sep,
+body.chat-panel-mode .chat-history-banner { top: 0; }
+body.chat-panel-mode .chat-hamburger {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 6px; flex-shrink: 0;
+}
+body.chat-panel-mode .chat-hamburger:hover,
+body.chat-panel-mode .chat-hamburger.is-on { background: var(--surface2); color: var(--accent); }
+body.chat-panel-mode .chat-thread { position: fixed; inset: 0; width: 100%; min-width: 0; z-index: 50; }
+body.chat-panel-mode .chat-files-view,
+body.chat-panel-mode .chat-pinned-page { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.chat-header--empty .chat-header-name { color: var(--muted); font-weight: 600; }
+
+/* ─── V3.836 Groups ─────────────────────────────────────── */
+.chat-conv-icon--group { background: rgba(91,174,209,.12); color: var(--accent); }
+.chat-conv-icon--group svg,
+.chat-sidebar-group-glyph svg,
+.chat-group-glyph svg { width: 18px; height: 18px; }
+.chat-sidebar-group-glyph { display: inline-flex; width: 16px; justify-content: center; color: var(--muted); flex-shrink: 0; }
+.chat-group-glyph { display: inline-flex; vertical-align: -3px; margin-right: .35rem; color: var(--accent); }
+
+/* ─── V3.836 Select people → group ───────────────────────── */
+.chat-overview-section-header--row { gap: .35rem; }
+.chat-overview-section-toggle {
+  display: flex; align-items: center; gap: .5rem; flex: 1 1 auto; min-width: 0;
+  background: none; border: 0; color: inherit; font: inherit; text-align: left;
+  padding: 0; cursor: pointer; text-transform: inherit; letter-spacing: inherit;
+}
+.chat-pick-toggle {
+  margin-left: auto; appearance: none; background: none;
+  border: 1px solid var(--border); border-radius: 999px; color: var(--muted);
+  font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  padding: .15rem .55rem; cursor: pointer; flex-shrink: 0;
+}
+.chat-pick-toggle:hover,
+.chat-pick-toggle.is-on { border-color: var(--accent); color: var(--accent); background: rgba(91,174,209,.1); }
+.chat-sidebar-section-header .chat-pick-toggle { margin-left: auto; margin-right: .25rem; }
+.chat-pick-box {
+  width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: transparent; flex-shrink: 0; background: var(--surface);
+}
+.chat-pick-box svg { width: 13px; height: 13px; stroke-width: 3; }
+.chat-pick-box.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chat-sidebar-item .chat-pick-box { margin-right: .25rem; }
+.chat-overview-item--picked,
+.chat-sidebar-item--picked,
+.chat-group-pick.is-on { background: rgba(91,174,209,.1); }
+.chat-pick-bar {
+  position: sticky; bottom: 0; display: flex; align-items: center; gap: .5rem;
+  padding: .5rem .75rem; background: var(--surface); border-top: 1px solid var(--border);
+  box-shadow: 0 -2px 8px rgba(0,0,0,.06); z-index: 3;
+}
+.chat-pick-count { flex: 1; font-size: .8rem; font-weight: 600; }
+.chat-pick-bar .app-btn svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: .25rem; }
+.chat-field-error { color: var(--danger); font-size: .75rem; margin-top: .25rem; }
+.chat-field-error:empty { display: none; }
+.chat-group-pick-list { max-height: 40vh; overflow-y: auto; }
+.chat-modal--group { max-width: 460px; }
+.chat-btn--danger { color: var(--danger); }

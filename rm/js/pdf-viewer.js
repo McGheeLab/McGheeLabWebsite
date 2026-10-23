@@ -23,6 +23,7 @@
 import {
   getDocument,
   GlobalWorkerOptions,
+  OPS,
   TextLayer,
 } from '/rm/vendor/pdfjs/pdf.mjs';
 
@@ -82,129 +83,65 @@ function _makePixelProbe(canvas, cssW, cssH, maxGrid) {
 }
 
 /**
- * V3.616 — detect FIGURE regions on a rendered page: connected areas of
- * ink that no text item covers. Text glyphs all live in the text layer, so
- * whatever ink remains after masking them is graphical content — raster
- * images AND vector plots alike (the operator-list approach only sees
- * raster XObjects and misses every vector figure).
- *
- * Pipeline: downscale the canvas to a small grid (same trick as
- * _makePixelProbe) → ink threshold → zero out cells under text items →
- * 8-neighbor connected components → merge boxes closer than ~12 natural px
- * (multi-panel figures fragment around their embedded labels) → size
- * filters (drop icons/rules; drop near-full-page coverage, i.e. scanned
- * pages where a hotspot would be noise).
- *
- * Returns rects in NATURAL (scale-1) top-down page coords so they survive
- * zoom changes; getFigureRegions() rescales at access time (the
- * getLinkAnnotations pattern). Empty array on any failure — the feature
- * degrades to the marquee/Alt-drag flow.
+ * V3.640 — figure/table regions come from the SHARED layout engine:
+ * PAGE_LAYOUT.figureRegions anchors one region per NUMBERED caption
+ * ("Figure 3.", "Table 1.") and grows it to the surrounding text —
+ * whole figures only, never sub-panels (which is exactly where the
+ * retired V3.616 ink-blob detector fell down). The viewer's ink probe
+ * is passed in ONLY to decide whether the content sits above or below
+ * its caption. Regions are stored natural-scale on the page node;
+ * getFigureRegions() rescales per zoom.
  */
-function _detectFigureRegions(canvas, cssW, cssH, items, zoom) {
-  if (!canvas || !canvas.width || !canvas.height || cssW <= 0 || cssH <= 0 || !zoom) return [];
+function _detectFigureRegions(canvas, cssW, cssH, items, zoom, graphics, pageNum) {
+  if (!zoom || !items || !items.length) return [];
+  if (typeof window === 'undefined' || !window.PAGE_LAYOUT ||
+      !window.PAGE_LAYOUT.figureRegions) return [];
   try {
-    const gw = Math.max(60, Math.min(300, Math.round(cssW / 3)));
-    const gh = Math.max(60, Math.min(1400, Math.round(gw * cssH / cssW)));
-    const off = document.createElement('canvas');
-    off.width = gw; off.height = gh;
-    const octx = off.getContext('2d', { willReadFrequently: true });
-    if (!octx) return [];
-    octx.drawImage(canvas, 0, 0, gw, gh);
-    const data = octx.getImageData(0, 0, gw, gh).data;
-    const sx = gw / cssW, sy = gh / cssH;
-    const N = gw * gh;
-
-    // Ink cells (threshold low enough for pale microscopy images).
-    const qual = new Uint8Array(N);
-    for (let i = 0, p = 0; i < N; i++, p += 4) {
-      const a = data[p + 3] / 255;
-      const lum = (data[p] + data[p + 1] + data[p + 2]) / 765;
-      if (a * (1 - lum) > 0.045) qual[i] = 1;
-    }
-    // Mask text (pad one cell so anti-aliased glyph edges don't leak).
-    for (const it of (items || [])) {
-      const x1 = Math.max(0, Math.floor(it.x * sx) - 1);
-      const x2 = Math.min(gw - 1, Math.ceil((it.x + it.width) * sx));
-      const y1 = Math.max(0, Math.floor(it.y * sy) - 1);
-      const y2 = Math.min(gh - 1, Math.ceil((it.y + it.height) * sy));
-      for (let gy = y1; gy <= y2; gy++) qual.fill(0, gy * gw + x1, gy * gw + x2 + 1);
-    }
-
-    // Connected components over the remaining ink.
-    const seen = new Uint8Array(N);
-    const stack = [];
-    let boxes = [];
-    for (let i = 0; i < N; i++) {
-      if (!qual[i] || seen[i]) continue;
-      let minx = gw, maxx = 0, miny = gh, maxy = 0, count = 0;
-      stack.length = 0;
-      stack.push(i);
-      seen[i] = 1;
-      while (stack.length) {
-        const c = stack.pop();
-        const cy = (c / gw) | 0, cx = c - cy * gw;
-        count++;
-        if (cx < minx) minx = cx;
-        if (cx > maxx) maxx = cx;
-        if (cy < miny) miny = cy;
-        if (cy > maxy) maxy = cy;
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            const nx = cx + dx, ny = cy + dy;
-            if (nx < 0 || ny < 0 || nx >= gw || ny >= gh) continue;
-            const n = ny * gw + nx;
-            if (qual[n] && !seen[n]) { seen[n] = 1; stack.push(n); }
-          }
-        }
-      }
-      if (count >= 12) boxes.push({ x1: minx, y1: miny, x2: maxx, y2: maxy, count });
-    }
-
-    // Merge boxes separated by less than ~12 natural px (panel gaps,
-    // holes left by masked axis/panel labels).
-    const gap = Math.max(2, Math.round(12 * zoom * sx));
-    let mergedSomething = true;
-    while (mergedSomething) {
-      mergedSomething = false;
-      outer:
-      for (let i = 0; i < boxes.length; i++) {
-        for (let j = i + 1; j < boxes.length; j++) {
-          const a = boxes[i], b = boxes[j];
-          if (a.x1 - gap <= b.x2 && b.x1 - gap <= a.x2 &&
-              a.y1 - gap <= b.y2 && b.y1 - gap <= a.y2) {
-            a.x1 = Math.min(a.x1, b.x1); a.y1 = Math.min(a.y1, b.y1);
-            a.x2 = Math.max(a.x2, b.x2); a.y2 = Math.max(a.y2, b.y2);
-            a.count += b.count;
-            boxes.splice(j, 1);
-            mergedSomething = true;
-            break outer;
-          }
-        }
-      }
-    }
-
-    // Size filters + convert to natural coords (pad 4 natural px).
-    const pageWN = cssW / zoom, pageHN = cssH / zoom;
-    const out = [];
-    for (const b of boxes) {
-      if (b.count < 25) continue;
-      const wN = ((b.x2 - b.x1 + 1) / sx) / zoom;
-      const hN = ((b.y2 - b.y1 + 1) / sy) / zoom;
-      if (wN < 60 || hN < 45) continue;                    // icons, rules, ORCID logos
-      if (wN * hN > 0.85 * pageWN * pageHN) continue;      // scanned full-page image
-      const pad = 4;
-      const xN = Math.max(0, (b.x1 / sx) / zoom - pad);
-      const yN = Math.max(0, (b.y1 / sy) / zoom - pad);
-      out.push({
-        xN,
-        yN,
-        wN: Math.min(pageWN - xN, wN + 2 * pad),
-        hN: Math.min(pageHN - yN, hN + 2 * pad),
-      });
-    }
-    return out;
+    const probe = _makePixelProbe(canvas, cssW, cssH, 360);
+    const regions = window.PAGE_LAYOUT.figureRegions(items, {
+      pageWidth: cssW,
+      pageHeight: cssH,
+      inkProbe: probe,
+      pageNum,
+      /* V3.826 — the page's painted images + vector paths (natural
+       * coords, collected once per page) in the items' basis. The
+       * detector reads the artwork's extent from these instead of
+       * guessing it from where the prose stops. null = unknown. */
+      graphics: Array.isArray(graphics)
+        ? graphics.map(g => ({ x: g.x * zoom, y: g.y * zoom, w: g.w * zoom, h: g.h * zoom, k: g.k }))
+        : undefined,
+    });
+    return regions.map(r => ({
+      xN: r.x / zoom,
+      yN: r.y / zoom,
+      wN: r.w / zoom,
+      hN: r.h / zoom,
+      label: r.label || '',
+    }));
   } catch (e) {
-    return [];   // tainted canvas / anything odd → no hotspots, marquee still works
+    return [];   // detection is optional — marquee/Alt-drag still work
+  }
+}
+
+/**
+ * V3.826 — every painted image and vector path on the page, as boxes in
+ * natural (scale-1) coords, from the operator list pdf.js already built to
+ * render the page. Figures are where the PDF paints, not where the text
+ * isn't: the caption-anchored detector lost a 2/3-width figure whose
+ * caption glued to the next column's prose, and clipped a page-wide
+ * figure to its one-column caption. Resolves null when the list can't be
+ * read (the detector then runs text-only, as before); [] is a real answer
+ * ("this page paints nothing").
+ */
+async function _collectPageGraphics(page) {
+  if (typeof window === 'undefined' || !window.PAGE_LAYOUT ||
+      !window.PAGE_LAYOUT.collectGraphics) return null;
+  try {
+    const opList = await page.getOperatorList();
+    const vp = page.getViewport({ scale: 1 });
+    return window.PAGE_LAYOUT.collectGraphics(opList, OPS, vp.transform, vp.width, vp.height);
+  } catch (e) {
+    return null;
   }
 }
 
@@ -431,10 +368,18 @@ async function create(container, pdfUrl, opts = {}) {
     // can drag-select without relying on browser native Range walks.
     node.items = _collectTextItems(node);
     node.itemsZoom = state.zoom;   // V3.613 — staleness marker for virtualize
-    // V3.616 — figure hotspots: ink minus text = graphical regions. Stored
-    // at natural scale; getFigureRegions() rescales per zoom.
+    // V3.826 — the graphics layer is zoom-independent: collect it once per
+    // page and keep it on the node (a few hundred small boxes at most).
+    if (node.graphics === undefined) {
+      node.graphics = await _collectPageGraphics(page);
+      if (state.destroyed) return;
+    }
+    // V3.616 — figure hotspots. V3.826 — caption anchors + the page's own
+    // artwork boxes. Stored at natural scale; getFigureRegions() rescales
+    // per zoom.
     node.figures = _detectFigureRegions(
-      node.canvas, viewport.width, viewport.height, node.items, state.zoom);
+      node.canvas, viewport.width, viewport.height, node.items, state.zoom,
+      node.graphics, pageNum);
     // V3.333 — capture Link annotations once per page (natural scale-1
     // coords; getLinkAnnotations rescales at access time). Publisher PDFs
     // encode inline citations as internal GoTo links — paper-citations
@@ -759,6 +704,10 @@ async function create(container, pdfUrl, opts = {}) {
     getContentEl() { return state.contentEl; },
     // Exposed for Phase 3 annotation-overlay to reach the per-page DOM.
     getPageNode(pageNum) { return state.pageNodes.get(pageNum); },
+    // V3.830 — the pdf.js document itself, so a caller can render a page
+    // region at its own scale (the notebook whiteboard's figure snips)
+    // without downloading the PDF a second time.
+    getPdfDocument() { return state.doc; },
     // Exposed for geom-selection — text items in visual reading order.
     getTextItems(pageNum) {
       const n = state.pageNodes.get(pageNum);
@@ -784,7 +733,15 @@ async function create(container, pdfUrl, opts = {}) {
     },
     // V3.616 — detected figure regions in the SAME coordinate basis as
     // getTextItems (wrap-local CSS px at the current zoom). Consumed by
-    // figure-capture's click-to-snip hotspots.
+    // figure-capture's click-to-snip hotspots. V3.640 — caption-anchored
+    // (PAGE_LAYOUT.figureRegions); label = the caption's opening text.
+    // V3.826 — the page's painted-image/path boxes, NATURAL coords (or
+    // null while unread). Label mode feeds these to PAGE_REGIONS.detect so
+    // its first draft matches the hotspots.
+    getPageGraphics(p) {
+      const n = state.pageNodes.get(p);
+      return (n && Array.isArray(n.graphics)) ? n.graphics : null;
+    },
     getFigureRegions(p) {
       const n = state.pageNodes.get(p);
       if (!n || !n.figures) return [];
@@ -792,6 +749,7 @@ async function create(container, pdfUrl, opts = {}) {
       return n.figures.map(f => ({
         page: p,
         x: f.xN * z, y: f.yN * z, width: f.wN * z, height: f.hN * z,
+        label: f.label || '',
       }));
     },
     forEachPage(cb) { state.pageNodes.forEach(cb); },

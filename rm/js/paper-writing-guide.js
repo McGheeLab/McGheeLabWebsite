@@ -31,7 +31,7 @@
   var TRAIN = '/rm/pages/training-paper-';
   var GUIDE_CONTENT = {
     abstract: {
-      icon: '📄',
+      icon: 'document-text',
       purpose: 'A self-contained miniature of the whole paper — most readers never get past it.',
       moves: [
         { id: 'context', label: 'Set the context', hint: '1–2 sentences on why this problem matters. No textbook history.' },
@@ -54,7 +54,7 @@
       training: TRAIN + 'abstract.html',
     },
     keywords: {
-      icon: '🏷',
+      icon: 'tag',
       purpose: 'Discovery terms — how a searcher who has never heard of your paper would find it.',
       moves: [
         { id: 'distinct', label: 'Pick 4–6 terms', hint: 'Prefer terms NOT already in your title (the title is already indexed).' },
@@ -70,7 +70,7 @@
       training: TRAIN + 'writing.html',
     },
     introduction: {
-      icon: '🧭',
+      icon: 'compass',
       purpose: 'Funnel the reader from "why this field matters" down to "here is exactly what we did."',
       moves: [
         { id: 'context', label: 'Establish context', hint: '1–2 sentences. Why does this problem matter now? No textbook openings.' },
@@ -93,7 +93,7 @@
       training: TRAIN + 'introduction.html',
     },
     background: {
-      icon: '📚',
+      icon: 'books',
       purpose: 'Give the reader only what they need to follow YOUR argument — not a full literature review.',
       moves: [
         { id: 'orient', label: 'Orient the reader', hint: 'The minimum context to understand the rest of the paper.' },
@@ -105,7 +105,7 @@
       training: TRAIN + 'introduction.html',
     },
     methods: {
-      icon: '⚗️',
+      icon: 'beaker',
       purpose: 'Enough detail that a competent peer could reproduce your work exactly.',
       moves: [
         { id: 'materials', label: 'Reagents & materials', hint: 'Name, source/vendor, and catalog number for anything non-obvious.' },
@@ -123,12 +123,12 @@
       example: {
         good: 'Cells were seeded at 2×10⁴ cells/cm² on gels (n = 6 biological replicates) and imaged on a Nikon AX-R at 60× (561 nm). Traction was computed in ImageJ 1.54 (FTTC plugin). Groups were compared with a two-sided t-test (α = 0.05).',
         bad: 'Cells were seeded on gels and imaged. Traction was calculated and compared between groups.',
-        note: 'Tip: use the ⚗ inventory quick-insert to pull exact reagent/catalog details.',
+        note: 'Tip: use the inventory quick-insert to pull exact reagent/catalog details.',
       },
       training: TRAIN + 'methods.html',
     },
     results: {
-      icon: '📊',
+      icon: 'chart-bar',
       purpose: 'Narrate what the data show — figure by figure — without interpreting yet.',
       moves: [
         { id: 'goal', label: 'State the goal', hint: '"To determine whether…" — why this experiment, in one clause.' },
@@ -150,7 +150,7 @@
       training: TRAIN + 'results.html',
     },
     discussion: {
-      icon: '💭',
+      icon: 'chat-bubble-oval-left',
       purpose: 'Interpret what the results mean, honestly place them against the literature, and say what is next.',
       moves: [
         { id: 'restate', label: 'Restate the key finding', hint: 'In new words — not a copy of the abstract or results.' },
@@ -168,7 +168,7 @@
       training: TRAIN + 'discussion.html',
     },
     conclusions: {
-      icon: '✅',
+      icon: 'check-circle',
       purpose: 'One tight paragraph answering "so what" — no new information.',
       moves: [
         { id: 'answer', label: 'Answer the question', hint: 'The single most important takeaway of the paper.' },
@@ -179,7 +179,7 @@
       training: TRAIN + 'discussion.html',
     },
     acknowledgements: {
-      icon: '🙏',
+      icon: 'heart-handshake',
       purpose: 'Credit funding, facilities, and non-author contributors.',
       moves: [
         { id: 'funding', label: 'Funding', hint: 'Agencies and grant numbers.' },
@@ -189,10 +189,10 @@
       training: TRAIN + 'writing.html',
     },
     references: {
-      icon: '🔖',
+      icon: 'bookmark',
       purpose: 'Auto-generated at export from your [@cite] tokens.',
       moves: [
-        { id: 'manage', label: 'Manage citations in the References tab', hint: 'Insert, link, and review every citation from the 📚 References pill — you do not write this section by hand.' },
+        { id: 'manage', label: 'Manage citations in the References tab', hint: 'Insert, link, and review every citation from the References pill — you do not write this section by hand.' },
       ],
       checks: [],
       training: TRAIN + 'writing.html',
@@ -202,7 +202,7 @@
   /* Guidance for a focused non-paragraph block. */
   var BLOCK_GUIDE = {
     figure: {
-      icon: '🖼',
+      icon: 'photo',
       purpose: 'A caption that lets the figure be read without the main text.',
       moves: [
         { id: 'title', label: 'Lead with a title sentence', hint: 'A short declarative statement of the takeaway, not "Figure showing…".' },
@@ -216,7 +216,7 @@
   };
 
   var GENERIC = {
-    icon: '📝',
+    icon: 'pencil-square',
     purpose: 'Write one idea per paragraph, led by a topic sentence that carries the claim.',
     moves: [
       { id: 'topic', label: 'Open with the claim', hint: 'The first sentence states what the paragraph argues.' },
@@ -370,7 +370,13 @@
       if (!CITE_KINDS[sec.kind]) return null;
       var proseParas = sec.blocks.filter(function (b) { return b.kind === 'paragraph' && _wordCount(b.body) >= 40; });
       if (!proseParas.length) return null;
-      var uncited = proseParas.filter(function (b) { return b.body.indexOf('[@') === -1; });
+      /* V3.645 — `[@item:KEY]` shares the citation namespace but is an
+       * inventory reference, not a citation. Strip those first or a
+       * Methods paragraph whose only bracket token is a reagent reads
+       * as "cited" and this check silently stops firing on it. */
+      var uncited = proseParas.filter(function (b) {
+        return String(b.body).replace(/\[@item:[A-Za-z0-9][\w-]*\]/g, '').indexOf('[@') === -1;
+      });
       if (!uncited.length) return null;
       return { level: 'warn', message: uncited.length + ' substantial paragraph' + (uncited.length > 1 ? 's have' : ' has') + ' no citations' };
     },
@@ -550,11 +556,14 @@
 
     var header = _el('div', 'pe-guide-header');
     var titleWrap = _el('div', 'pe-guide-title');
-    titleWrap.appendChild(_el('span', 'pe-guide-icon', content ? content.icon : '✍️'));
+    var titleIcon = _el('span', 'pe-guide-icon');
+    titleIcon.innerHTML = ICON.render(content ? content.icon : 'pencil');
+    titleWrap.appendChild(titleIcon);
     titleWrap.appendChild(_el('span', 'pe-guide-kind', content ? headingKind : 'Writing Guide'));
     header.appendChild(titleWrap);
 
-    var pin = _el('button', 'pe-icon-btn pe-guide-pin', _follow ? '📌' : '📍');
+    var pin = _el('button', 'pe-icon-btn pe-guide-pin');
+    ICON.label(pin, _follow ? 'pin' : 'map-pin');
     pin.type = 'button';
     pin.title = _follow ? 'Following your cursor — click to pin to this section' : 'Pinned — click to follow your cursor again';
     pin.setAttribute('aria-pressed', _follow ? 'false' : 'true');

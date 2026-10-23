@@ -108,7 +108,7 @@
     commentBtn.title = 'Open comments for this paragraph';
     function refreshCommentCount() {
       var n = (window.PaperComments && window.PaperComments.countFor(blockId)) || 0;
-      commentBtn.textContent = '💬' + (n ? ' ' + n : '');
+      ICON.label(commentBtn, 'chat-bubble-left-right', n ? ' ' + n : '');
       commentBtn.classList.toggle('pe-comment-btn-active', n > 0);
     }
     refreshCommentCount();
@@ -139,7 +139,7 @@
     var delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.title = 'Delete paragraph';
-    delBtn.textContent = '✕';
+    ICON.label(delBtn, 'x-mark');
     delBtn.addEventListener('click', function () {
       if (!ctx.editable) return;
       ctx.onDelete(blockId);
@@ -174,6 +174,13 @@
 
     var bdUnbind = window.PaperEditor.bindYTextToContentEditable(yBlock.get('body'), bdEl, {
       readOnly: !ctx.editable,
+      /* V3.649 — the body may contain bullet / numbered lists, so it goes
+       * through the BODY renderer, not the inline one. Chip mode (while
+       * focused) still shows the raw `- item` source, exactly like it
+       * shows `**bold**` — you edit the markers directly. */
+      renderHtml: window.PaperEditor.renderParagraphBodyHtml,
+      /* V3.649 — and the Write view lays those lists out while you edit. */
+      renderChipsHtml: window.PaperEditor.renderChipsOnlyBodyHtml,
       onLocalChange: function () { ctx.onFocusBlock && ctx.onFocusBlock(blockId); },
       renderHtml: window.PaperEditor.renderParagraphHtml,
       /* V3.216 — overlay anchored comment highlights after every full
@@ -458,7 +465,7 @@
       _lockToastEl.className = 'pe-lock-toast';
       document.body.appendChild(_lockToastEl);
     }
-    _lockToastEl.textContent = '🔒 Locked by ' + (holder.name || holder.uid || 'someone');
+    ICON.label(_lockToastEl, 'lock-closed', ' Locked by ' + (holder.name || holder.uid || 'someone'));
     _lockToastEl.style.borderColor = holder.color || '#f59e0b';
     _lockToastEl.style.left = (x + 12 + window.scrollX) + 'px';
     _lockToastEl.style.top = (y + 12 + window.scrollY) + 'px';
@@ -676,7 +683,7 @@
       pill.className = 'pe-claim-pill';
       pill.dataset.claimId = claimId;
       pill.dataset.status = 'loading';
-      pill.textContent = '⚑ …';
+      ICON.label(pill, 'flag', ' …');
 
       function refresh() {
         var bc = window.PaperBulletClaims;
@@ -776,7 +783,7 @@
           flagBtn.type = 'button';
           flagBtn.className = 'pe-skeleton-flag-btn';
           flagBtn.title = 'Flag this bullet as a claim that needs literature review';
-          flagBtn.textContent = '⚑';
+          ICON.label(flagBtn, 'flag');
           flagBtn.addEventListener('mousedown', function (e) {
             // mousedown not click — preserves caret position in the bullet
             e.preventDefault();
@@ -1006,7 +1013,7 @@
     var delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.title = 'Delete equation';
-    delBtn.textContent = '✕';
+    ICON.label(delBtn, 'x-mark');
     delBtn.addEventListener('click', function () {
       if (!ctx.editable) return;
       ctx.onDelete(blockId);
@@ -1235,7 +1242,7 @@
     var delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.title = 'Delete figure';
-    delBtn.textContent = '✕';
+    ICON.label(delBtn, 'x-mark');
     delBtn.addEventListener('click', function () {
       if (!ctx.editable) return;
       ctx.onDelete(blockId);
@@ -1678,26 +1685,12 @@
       bar.appendChild(tabEditPanelBtn);
     }
 
-    if (ctx.editable && hasCells) {
-      bar.appendChild(mkSmallBtn('+ Row', function () {
-        yBlock.doc.transact(function () {
-          var r = (attrs.get('rows') || 0);
-          var cells = attrs.get('cells');
-          var cols = attrs.get('cols') || 0;
-          for (var c = 0; c < cols; c++) cells.set(r + '-' + c, new Y.Text(''));
-          attrs.set('rows', r + 1);
-        }, 'table-add-row');
-      }));
-      bar.appendChild(mkSmallBtn('+ Col', function () {
-        yBlock.doc.transact(function () {
-          var c = (attrs.get('cols') || 0);
-          var cells = attrs.get('cells');
-          var rows = attrs.get('rows') || 0;
-          for (var r = 0; r < rows; r++) cells.set(r + '-' + c, new Y.Text(''));
-          attrs.set('cols', c + 1);
-        }, 'table-add-col');
-      }));
-    }
+    /* V3.650 — the "+ Row" / "+ Col" buttons that used to live here are
+     * gone. This preview has been read-only since V3.127 (cells bind with
+     * readOnly:true), so growing the grid from a surface where the content
+     * cannot be typed was the wrong half of the job — and both buttons could
+     * only APPEND. Insert/delete on any border now lives with the cell
+     * editing, on the Tables page; "Edit on Tables page" above goes there. */
     if (ctx.editable && rawTex && !hasCells) {
       bar.appendChild(mkSmallBtn('Convert to grid', function () {
         // Initialize a minimal 1x1 grid so the user can rebuild from the
@@ -1731,7 +1724,7 @@
     var delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.title = 'Delete table';
-    delBtn.textContent = '✕';
+    ICON.label(delBtn, 'x-mark');
     delBtn.addEventListener('click', function () {
       if (!ctx.editable) return;
       ctx.onDelete(blockId);
@@ -1834,14 +1827,38 @@
       table.className = 'pe-grid-table';
       /* Tables II — mirror merges + column widths (read-only preview). */
       var PLm = window.PaperLayout || {};
+      /* V3.651 — mirror the styling too, from the same shared parse the
+       * editor and the export use. A preview that ignores the formatting
+       * is a preview you stop trusting. */
+      var mStyle = PLm.parseTableStyle
+        ? PLm.parseTableStyle(attrs.get('style_json'), attrs.get('booktabs'))
+        : null;
+      var mCellSt = PLm.parseTableCellStyles
+        ? PLm.parseTableCellStyles(attrs.get('cell_styles_json')) : {};
+      var mFills = PLm.TABLE_FILLS || {};
+      var mRowExt = PLm.parseTableRowExtras
+        ? PLm.parseTableRowExtras(attrs.get('row_heights_json')) : {};
+      var mAlign = String(attrs.get('align') || '');
+      if (mStyle) {
+        table.classList.add('pe-tbl-rules-' + mStyle.rules, 'pe-tbl-dens-' + mStyle.density);
+        if (mStyle.zebra) table.classList.add('pe-tbl-zebra');
+        if (mStyle.wrap) table.classList.add('pe-tbl-wrap');
+        table.style.fontSize = (mStyle.sizeCss * 13).toFixed(1) + 'px';
+      }
       var mMerges = PLm.parseTableMerges ? PLm.parseTableMerges(attrs.get('merges_json')) : {};
       var mCover = PLm.tableCoverMap ? PLm.tableCoverMap(mMerges, rows, cols) : { anchors: {}, skip: {}, cont: {} };
       var mWidths = PLm.parseTableWidths ? PLm.parseTableWidths(attrs.get('widths_json'), cols) : null;
-      if (mWidths && mWidths.some(function (w) { return w.mode !== 'auto'; })) {
+      /* V3.651/652 — when the table wraps, EVERY column needs a width:
+       * `table-layout: fixed` otherwise takes them from the first row,
+       * where a merge can hide one. The shares come from the same helper
+       * the .tex export uses. */
+      var mShares = (mStyle && mStyle.wrap && PLm.tableColShares)
+        ? PLm.tableColShares(mWidths, cols) : mWidths;
+      if (mShares && mShares.some(function (w) { return w.mode !== 'auto'; })) {
         var cg = document.createElement('colgroup');
-        mWidths.forEach(function (w) {
+        mShares.forEach(function (w) {
           var colEl = document.createElement('col');
-          if (w.mode === 'frac') colEl.style.width = (w.v * 100).toFixed(1) + '%';
+          if (w.mode === 'frac') colEl.style.width = (w.v * 100).toFixed(2) + '%';
           else if (w.mode === 'mm') colEl.style.width = (w.v * 96 / 25.4).toFixed(0) + 'px';
           cg.appendChild(colEl);
         });
@@ -1849,15 +1866,36 @@
       }
       for (var r = 0; r < rows; r++) {
         var tr = document.createElement('tr');
+        if (r === 0) tr.classList.add('pe-tbl-r-first');
+        if (r === rows - 1) tr.classList.add('pe-tbl-r-last');
+        if (attrs.get('header_row') !== false && r === 0) tr.classList.add('pe-tbl-headerrow');
+        if (mStyle && mStyle.rule_after.indexOf(r) !== -1) tr.classList.add('pe-tbl-ruled');
+        if (mStyle && mStyle.zebra && r % 2 === 1) tr.classList.add('pe-tbl-zebrarow');
+        if (mRowExt[r] > 0) {
+          tr.classList.add('pe-tbl-rowext');
+          tr.style.setProperty('--pe-row-extra', (mRowExt[r] * 96 / 72).toFixed(1) + 'px');
+        }
         for (var c = 0; c < cols; c++) {
           var key = r + '-' + c;
           if (mCover.skip[key] || mCover.cont[key] != null) continue;   // merged away
           var td = document.createElement('td');
+          td.dataset.r = String(r);
+          td.dataset.c = String(c);
           var anch = mCover.anchors[key];
           if (anch) {
             if (anch.cs > 1) td.colSpan = anch.cs;
             if (anch.rs > 1) td.rowSpan = anch.rs;
             td.classList.add('pe-cell-merged');
+          }
+          var mSt = mCellSt[key] || {};
+          var mColA = mAlign.charAt(c);
+          var mEff = mSt.al || (mColA === 'c' || mColA === 'r' ? mColA : 'l');
+          td.style.textAlign = mEff === 'c' ? 'center' : mEff === 'r' ? 'right' : 'left';
+          if (mSt.b) td.classList.add('pe-cell-b');
+          if (mSt.i) td.classList.add('pe-cell-i');
+          if (mSt.bg && mFills[mSt.bg]) {
+            td.classList.add('pe-cell-filled');
+            td.style.background = mFills[mSt.bg].css;
           }
           var cellY = cells.get(key);
           if (!(cellY instanceof Y.Text)) {
@@ -2127,7 +2165,7 @@
       var refInput = document.createElement('input');
       refInput.type = 'text';
       refInput.className = 'pe-subheading-reflabel';
-      refInput.placeholder = '🔖 sub:label';
+      refInput.placeholder = 'sub:label';
       refInput.title = 'Cross-reference label — reference this subheading with [!sec:label]';
       refInput.value = attrs.get('ref_label') || '';
       refInput.addEventListener('change', function () {
@@ -2144,7 +2182,7 @@
     var delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.title = 'Delete subheading';
-    delBtn.textContent = '✕';
+    ICON.label(delBtn, 'x-mark');
     delBtn.addEventListener('click', function () {
       if (!ctx.editable) return;
       ctx.onDelete(blockId);
@@ -2354,7 +2392,7 @@
     var delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.title = 'Delete list';
-    delBtn.textContent = '✕';
+    ICON.label(delBtn, 'x-mark');
     delBtn.addEventListener('click', function () {
       if (!ctx.editable) return;
       ctx.onDelete(blockId);
@@ -2419,7 +2457,7 @@
     actions.className = 'pe-block-actions';
     var delBtn = document.createElement('button');
     delBtn.type = 'button';
-    delBtn.textContent = '✕';
+    ICON.label(delBtn, 'x-mark');
     delBtn.title = 'Delete block';
     delBtn.addEventListener('click', function () {
       if (!ctx.editable) return;

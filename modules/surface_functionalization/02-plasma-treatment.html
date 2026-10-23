@@ -84,6 +84,14 @@
   </style>
 </head>
 <body>
+<!-- hi-icons:start (scripts/module_icons.py — generated; re-run after adding an icon) -->
+<style>.hi{width:1em;height:1em;display:inline-block;vertical-align:-0.125em;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;overflow:visible}.hi-solid{fill:currentColor;stroke:none}</style>
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><defs><symbol id="hi-dot-solid" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z"/></symbol></defs></svg>
+<script>window.HI={svg:function(n,o){o=o||{};var s=o.solid?'-solid':'';return '<svg class="hi'+(o.solid?' hi-solid':'')+(o.cls?' '+o.cls:'')+'"'+(o.tint?' style="color:'+o.tint+'"':'')+(o.label?' role="img" aria-label="'+String(o.label).replace(/"/g,'&quot;')+'"':' aria-hidden="true"')+'><use href="#hi-'+n+s+'"/></svg>';},
+draw:function(c,n,x,y,z,col,o){o=o||{};var sym=document.getElementById('hi-'+n+(o.solid?'-solid':''));if(!c||!sym||typeof Path2D==='undefined')return;var k=(z||16)/24;c.save();c.translate(x,y);c.scale(k,k);c.lineWidth=1.5;c.lineCap='round';c.lineJoin='round';c.strokeStyle=c.fillStyle=col||'#475569';
+[].forEach.call(sym.children,function(e){var a=function(q){return parseFloat(e.getAttribute(q))||0},p=new Path2D(),t=e.tagName.toLowerCase();if(t==='path')p=new Path2D(e.getAttribute('d'));else if(t==='circle')p.arc(a('cx'),a('cy'),a('r'),0,7);else if(t==='ellipse')p.ellipse(a('cx'),a('cy'),a('rx'),a('ry'),0,0,7);else if(t==='rect')p.rect(a('x'),a('y'),a('width'),a('height'));else if(t==='line'){p.moveTo(a('x1'),a('y1'));p.lineTo(a('x2'),a('y2'));}else{var v=(e.getAttribute('points')||'').trim().split(/[\s,]+/).map(parseFloat);for(var i=0;i+1<v.length;i+=2)p[i?'lineTo':'moveTo'](v[i],v[i+1]);if(t==='polygon')p.closePath();}
+if(o.solid)c.fill(p,'evenodd');else c.stroke(p);});c.restore();}};</script>
+<!-- hi-icons:end -->
 
 <header>
   <h1>Plasma Treatment — Energizing Gas to Rewrite a Surface</h1>
@@ -1006,7 +1014,7 @@ function drawIgnite(){
     { label: 'p × d', value: fmt(pd, 2) + ' Torr·cm' },
     { label: 'Breakdown V_b', value: isFinite(Vb) ? fmt(Vb, 0) + ' V' : '∞ (too thin)' },
     { label: 'Applied V', value: fmt(V, 0) + ' V' },
-    { label: struck ? 'Plasma' : 'Status', value: struck ? 'STRUCK 🟣' : 'dark', highlight: true }
+    { label: struck ? 'Plasma' : 'Status', value: struck ? 'STRUCK ' + HI.svg('dot', {solid:1, tint:'#a855f7'}) : 'dark', highlight: true }
   ]);
 
   if (struck)

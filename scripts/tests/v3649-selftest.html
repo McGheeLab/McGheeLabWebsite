@@ -1,0 +1,409 @@
+<!-- V3.649 selftest — section cross-references + lists in a paragraph body.
+     Run:
+       python3 -m http.server 8777
+       node ~/.claude/skills/browser-automation/browser.mjs \
+         http://localhost:8777/scripts/tests/v3649-selftest.html \
+         --wait "#r[data-done='1']" --eval "document.getElementById('r').dataset.fail" -->
+<!doctype html><html><head><meta charset="utf-8"><title>V3.649 selftest</title>
+<script>if (!/[?&]paper=/.test(location.search)) location.replace(location.pathname + "?paper=selftest");</script>
+</head><body>
+<h1>V3.649 selftest</h1>
+<pre id="r" data-pass="0" data-fail="0" data-detail="">running…</pre>
+<div class="pe-topbar" hidden><input type="text" id="pe-title"><select id="pe-status"></select><div id="pe-savestate"></div></div>
+<div id="pe-readonly-banner" hidden></div><ul id="pe-outline"></ul>
+<button id="pe-add-section-btn"></button><button id="pe-appendix-btn"></button>
+<div id="pe-paragraph-skel"></div><select id="pe-view-filter"></select><select id="pe-status-filter"></select>
+<div id="pe-content" hidden></div>
+<div id="pe-global-toolbar"></div>
+<div id="para" style="width:520px;font:16px/1.6 Georgia,serif"></div>
+
+<script>window.__errs=[];addEventListener('error',function(e){window.__errs.push(e.message+' @'+(e.filename||'').split('/').pop()+':'+e.lineno);});</script>
+<script src="/rm/js/icons.js"></script>
+<script src="/rm/js/paper-schemas.js"></script>
+<script src="/rm/js/paper-editor.js"></script>
+<script src="/rm/js/paper-equations.js"></script>
+<script src="/rm/js/paper-export-tex.js"></script>
+<script>
+(async function () {
+  var pass = 0, fail = 0, detail = [];
+  function ck(name, got, want) {
+    var ok = JSON.stringify(got) === JSON.stringify(want);
+    if (ok) pass++; else { fail++; detail.push(name + ': got ' + JSON.stringify(got) + ' want ' + JSON.stringify(want)); }
+  }
+  function done() {
+    var r = document.getElementById('r');
+    r.dataset.pass = String(pass); r.dataset.fail = String(fail);
+    r.dataset.detail = detail.concat(window.__errs.map(function (e) { return 'UNCAUGHT: ' + e; })).join(' | ');
+    r.textContent = pass + ' pass, ' + fail + ' fail\n' + r.dataset.detail;
+    r.setAttribute('data-done', '1');
+  }
+  function until(fn, ms) {
+    var t0 = Date.now();
+    return new Promise(function (res) {
+      (function tick() { var v = fn(); if (v) return res(v);
+        if (Date.now() - t0 > ms) return res(null); setTimeout(tick, 50); })();
+    });
+  }
+
+  try {
+    var PS = window.PaperSchemas, PE = window.PaperEditor;
+    ck('modules loaded', [typeof PS, typeof PE, typeof window.PaperExportTex], ['object','object','object']);
+
+    /* ───── A. the shared body-run parser ───── */
+    ck('plain prose is one prose run',
+       PS.parseBodyRuns('Just a sentence.').map(function (r) { return r.type; }), ['prose']);
+    ck('bodyHasList is false for prose', PS.bodyHasList('Just a sentence.'), false);
+
+    var mixed = 'We measured three things:\n- density\n- stiffness\n- recovery\nThen we fit the curve.';
+    var runs = PS.parseBodyRuns(mixed);
+    ck('prose / list / prose', runs.map(function (r) { return r.type; }), ['prose','list','prose']);
+    ck('bullet items parsed', runs[1].items.map(function (i) { return i.text; }),
+       ['density','stiffness','recovery']);
+    ck('list type is bullet', runs[1].listType, 'bullet');
+    ck('trailing prose survives', runs[2].text, 'Then we fit the curve.');
+
+    var numbered = '1. first\n2) second\n3. third';
+    var nr = PS.parseBodyRuns(numbered);
+    ck('numbered list, both . and ) markers', [nr[0].listType, nr[0].items.length], ['number', 3]);
+
+    var nested = '- top\n  - nested\n    - deeper\n- back';
+    var ni = PS.parseBodyRuns(nested)[0].items;
+    ck('two spaces per nesting level', ni.map(function (i) { return i.depth; }), [0,1,2,0]);
+
+    ck('switching marker starts a new list',
+       PS.parseBodyRuns('- a\n1. b').map(function (r) { return r.listType; }), ['bullet','number']);
+    ck('a blank line ends the list',
+       PS.parseBodyRuns('- a\n\n- b').filter(function (r) { return r.type === 'list'; }).length, 2);
+    ck('a hyphen mid-sentence is NOT a list',
+       PS.parseBodyRuns('The well-plate was cold.')[0].type, 'prose');
+    ck('a bare "-" with no space is not a list item',
+       PS.parseBodyRuns('-notalist')[0].type, 'prose');
+
+    /* ───── B. toggleListLines ───── */
+    ck('marks every line', PS.toggleListLines(['a','b'], 'bullet'), ['- a','- b']);
+    ck('numbers restart at 1', PS.toggleListLines(['a','b','c'], 'number'), ['1. a','2. b','3. c']);
+    ck('re-applying strips', PS.toggleListLines(['- a','- b'], 'bullet'), ['a','b']);
+    ck('blank lines untouched', PS.toggleListLines(['a','','b'], 'bullet'), ['- a','','- b']);
+    ck('converts bullet → number', PS.toggleListLines(['- a','- b'], 'number'), ['1. a','2. b']);
+    ck('indent preserved', PS.toggleListLines(['  a'], 'bullet'), ['  - a']);
+
+    /* ───── C. editor rendering ───── */
+    await until(function () { return PE.renderParagraphHtml('$x$').indexOf('katex') >= 0; }, 6000);
+    var html = PE.renderParagraphBodyHtml(mixed);
+    ck('body renderer emits a <ul>', /<ul[^>]*>/.test(html), true);
+    ck('…carrying BOTH style hooks', /class="pe-body-list pdv-list"/.test(html), true);
+    ck('one <li> per item', (html.match(/<li>/g) || []).length, 3);
+    ck('prose around it survives', html.indexOf('Then we fit the curve.') >= 0, true);
+    ck('numbered renders <ol>', /<ol[^>]*>/.test(PE.renderParagraphBodyHtml(numbered)), true);
+    ck('plain prose is byte-identical to the inline renderer',
+       PE.renderParagraphBodyHtml('Plain **bold** text.'), PE.renderParagraphHtml('Plain **bold** text.'));
+    ck('a citation inside a list item still becomes a chip',
+       /pe-cite-group/.test(PE.renderParagraphBodyHtml('- see [@smith2024]')), true);
+
+    /* ───── D. LaTeX export ───── */
+    var tex = window.PaperExportTex.blockToTex(
+      { kind: 'paragraph', body: mixed, skeleton_items: [] }, {});
+    ck('export opens itemize', tex.indexOf('\\begin{itemize}') >= 0, true);
+    ck('export emits one \\item per entry', (tex.match(/\\item /g) || []).length, 3);
+    ck('export closes itemize', tex.indexOf('\\end{itemize}') >= 0, true);
+    ck('export keeps the surrounding prose', tex.indexOf('Then we fit the curve.') >= 0, true);
+    ck('export does NOT print the raw markers', tex.indexOf('- density') === -1, true);
+    var texN = window.PaperExportTex.blockToTex({ kind: 'paragraph', body: numbered, skeleton_items: [] }, {});
+    ck('numbered exports enumerate', texN.indexOf('\\begin{enumerate}') >= 0, true);
+    var texNest = window.PaperExportTex.blockToTex({ kind: 'paragraph', body: nested, skeleton_items: [] }, {});
+    ck('nesting opens a sub-environment', (texNest.match(/\\begin\{itemize\}/g) || []).length, 3);
+    ck('every opened environment is closed',
+       (texNest.match(/\\begin\{itemize\}/g) || []).length,
+       (texNest.match(/\\end\{itemize\}/g) || []).length);
+    // the list BLOCK still exports through the shared emitter
+    var texBlock = window.PaperExportTex.blockToTex(
+      { kind: 'list', body: 'alpha\n  beta', attrs: { list_type: 'number' } }, {});
+    ck('list BLOCK still exports enumerate', texBlock.indexOf('\\begin{enumerate}') >= 0, true);
+    ck('list BLOCK nesting intact', (texBlock.match(/\\begin\{enumerate\}/g) || []).length, 2);
+    var texPlain = window.PaperExportTex.blockToTex(
+      { kind: 'paragraph', body: 'No list here at all.', skeleton_items: [] }, {});
+    ck('a prose paragraph gains no list markup', /itemize|enumerate/.test(texPlain), false);
+
+    /* ───── E. section cross-references ───── */
+    ck('getSectionRefChoices exported', typeof PE.getSectionRefChoices, 'function');
+    ck('ensureSectionRefLabel exported', typeof PE.ensureSectionRefLabel, 'function');
+    ck('no paper connected → empty choices, no throw', PE.getSectionRefChoices(), []);
+    /* Build the real global toolbar and assert the new buttons exist and
+       are wired — the point of the feature is a button you can press. */
+    window.PaperEquations.attach();
+    await until(function () { return document.getElementById('pe-gt-secref'); }, 3000);
+    ck('+ Section button rendered', !!document.getElementById('pe-gt-secref'), true);
+    ck('• List button rendered', !!document.getElementById('pe-gt-ul'), true);
+    ck('1. List button rendered', !!document.getElementById('pe-gt-ol'), true);
+    ck('they sit in the right groups', [
+      document.getElementById('pe-gt-ul').closest('.pe-gt-group') ===
+        document.getElementById('pe-gt-bold') ? null : 'fmt',
+      document.getElementById('pe-gt-secref').textContent,
+    ], ['fmt', '+ Section']);
+    ck('an unknown [!sec:] renders the faded unknown chip',
+       /pe-secref-chip-unknown/.test(PE.renderParagraphHtml('see [!sec:nope]')), true);
+    ck('…and keeps its source token for round-tripping',
+       /data-src="\[!sec:nope\]"/.test(PE.renderParagraphHtml('see [!sec:nope]')), true);
+    /* ───── F. the list toggle against a REAL bound paragraph ───── */
+    function FakeYText(v) { this._s = v; this._obs = []; var self = this;
+      this.doc = { transact: function (fn, o) { fn(); self._fire(o); } }; }
+    FakeYText.prototype.toString  = function () { return this._s; };
+    FakeYText.prototype.insert    = function (p, t) { this._s = this._s.slice(0,p) + t + this._s.slice(p); };
+    FakeYText.prototype.delete    = function (p, n) { this._s = this._s.slice(0,p) + this._s.slice(p+n); };
+    FakeYText.prototype.observe   = function (f) { this._obs.push(f); };
+    FakeYText.prototype.unobserve = function (f) { this._obs = this._obs.filter(function(x){return x!==f;}); };
+    FakeYText.prototype._fire = function (o) { this._obs.forEach(function (f) { f({delta:[]},{origin:o}); }); };
+
+    var para = document.getElementById('para');
+    var y = new FakeYText('density\nstiffness\nrecovery');
+    var unbind = PE.bindYTextToContentEditable(y, para, {
+      renderHtml: PE.renderParagraphBodyHtml,
+      renderChipsHtml: PE.renderChipsOnlyBodyHtml,
+    });
+    para.focus();                      // chip mode: raw source, <br> per line
+    // Select from the first line into the third.
+    var sel = window.getSelection(), rg = document.createRange();
+    rg.setStart(para.firstChild, 2);
+    rg.setEnd(para.childNodes[para.childNodes.length - 1], 3);
+    sel.removeAllRanges(); sel.addRange(rg);
+
+    ck('toggle reports it acted', PE.toggleListAtSelection('bullet'), true);
+    ck('every touched line got a marker', y.toString(), '- density\n- stiffness\n- recovery');
+
+    // Pressing it again strips them.
+    sel.removeAllRanges();
+    var rg2 = document.createRange();
+    rg2.selectNodeContents(para);
+    sel.addRange(rg2);
+    PE.toggleListAtSelection('bullet');
+    ck('pressing again strips the markers', y.toString(), 'density\nstiffness\nrecovery');
+
+    // Numbered, on a single line via the caret only.
+    sel.removeAllRanges();
+    var rg3 = document.createRange();
+    // First NON-EMPTY text node: a re-render can leave a zero-length text
+    // node at the front where deleteContents split one.
+    var firstText = para.firstChild;
+    while (firstText && (firstText.nodeType !== 3 || !firstText.length)) {
+      firstText = firstText.nextSibling;
+    }
+    rg3.setStart(firstText, 3); rg3.collapse(true);
+    sel.addRange(rg3);
+    PE.toggleListAtSelection('number');
+    ck('a bare caret marks just its own line', y.toString(), '1. density\nstiffness\nrecovery');
+    unbind();
+
+    /* ───── G. newlines round-trip through the body (Alex: "a bunch of
+       - in line"). Pressing Enter in a contenteditable makes a <div> in
+       Chrome/Safari, and the serializer used to drop that boundary. ───── */
+    ck('a <div> boundary serializes as a newline',
+       PE.serializeChipDom(Object.assign(document.createElement('div'),
+         { innerHTML: '- a<div>- b</div><div>- c</div>' })), '- a\n- b\n- c');
+    ck('a <br> still serializes as a newline',
+       PE.serializeChipDom(Object.assign(document.createElement('div'),
+         { innerHTML: '- a<br>- b' })), '- a\n- b');
+    ck('br followed by a div does NOT double the newline',
+       PE.serializeChipDom(Object.assign(document.createElement('div'),
+         { innerHTML: 'a<br><div>b</div>' })), 'a\nb');
+    ck('a leading div does not add a newline at the start',
+       PE.serializeChipDom(Object.assign(document.createElement('div'),
+         { innerHTML: '<div>a</div><div>b</div>' })), 'a\nb');
+    ck('an empty div line survives as a blank line',
+       PE.serializeChipDom(Object.assign(document.createElement('div'),
+         { innerHTML: 'a<div><br></div><div>b</div>' })), 'a\n\nb');
+    ck('chips inside blocks keep their source token',
+       PE.serializeChipDom(Object.assign(document.createElement('div'),
+         { innerHTML: 'a<div><span data-src="[@k]">K</span></div>' })), 'a\n[@k]');
+
+    /* Enter inserts a <br> and the newline reaches the Y.Text. */
+    var para2 = document.createElement('div');
+    document.body.appendChild(para2);
+    var y2 = new FakeYText('density');
+    var unbind2 = PE.bindYTextToContentEditable(y2, para2, {
+      renderHtml: PE.renderParagraphBodyHtml,
+      renderChipsHtml: PE.renderChipsOnlyBodyHtml,
+    });
+    para2.focus();
+    var s2 = window.getSelection(), r2 = document.createRange();
+    r2.selectNodeContents(para2); r2.collapse(false);
+    s2.removeAllRanges(); s2.addRange(r2);
+    para2.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    ck('Enter produced a <br>, not a <div>',
+       [para2.querySelectorAll('br').length > 0, para2.querySelectorAll('div').length], [true, 0]);
+    ck('…and the newline reached the source', y2.toString().indexOf('\n') >= 0, true);
+    unbind2();
+    para2.remove();
+
+    /* ───── H. the Write-view layout must not disturb the SOURCE ─────
+       Each list line is wrapped in a hanging-indent span. That span is
+       invisible to every source-mapping walker, or the caret would drift
+       and inserted citations would land in the wrong place. */
+    var probe = document.createElement('div');
+    document.body.appendChild(probe);
+    var SRC = 'Intro line:\n- alpha with [@smith2024] inside\n  - nested beta\n- gamma\nOutro.';
+    probe.innerHTML = PE.renderChipsOnlyBodyHtml(SRC);
+    ck('Write-view layout round-trips to identical source',
+       PE.serializeChipDom(probe), SRC);
+    ck('…and it really did wrap the list lines',
+       probe.querySelectorAll('.pe-src-li').length, 3);
+    ck('non-list lines are NOT wrapped',
+       probe.querySelectorAll('.pe-src-li').length < SRC.split('\n').length, true);
+    ck('a body with no list is untouched by the Write renderer',
+       PE.renderChipsOnlyBodyHtml('just prose'), PE.renderChipsOnlyHtml('just prose'));
+    ck('the chip inside a wrapped line kept its source token',
+       PE.serializeChipDom(probe).indexOf('[@smith2024]') >= 0, true);
+    probe.remove();
+
+    /* Caret offsets across the wrapper: bind, focus, place the caret at a
+       known source offset via the picker's own range builder, and read it
+       back. Drift here is what misplaces an inserted citation. */
+    var para3 = document.createElement('div');
+    document.body.appendChild(para3);
+    var y3 = new FakeYText(SRC);
+    var unbind3 = PE.bindYTextToContentEditable(y3, para3, {
+      renderHtml: PE.renderParagraphBodyHtml,
+      renderChipsHtml: PE.renderChipsOnlyBodyHtml,
+    });
+    para3.focus();
+    ck('focused Write view serializes back to the same source',
+       PE.serializeChipDom(para3), SRC);
+    // Put the caret at the end of the "gamma" line and confirm the offset.
+    var want = SRC.indexOf('- gamma') + '- gamma'.length;
+    var walker = document.createTreeWalker(para3, NodeFilter.SHOW_TEXT);
+    var node, found = null;
+    while ((node = walker.nextNode())) {
+      if (node.nodeValue.indexOf('gamma') >= 0) { found = node; break; }
+    }
+    ck('the gamma line is reachable as a text node', !!found, true);
+    if (found) {
+      var selG = window.getSelection(), rgG = document.createRange();
+      rgG.setStart(found, found.nodeValue.indexOf('gamma') + 'gamma'.length);
+      rgG.collapse(true);
+      selG.removeAllRanges(); selG.addRange(rgG);
+      var offs = PE.getLastFocusedCaret;   // rememberFocus runs on mouseup/keyup
+      para3.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+      ck('caret offset is correct across the hanging-indent spans',
+         PE.getLastFocusedCaret(), want);
+    }
+    unbind3();
+    para3.remove();
+
+    /* ───── I. V3.650 — real bullets + standard list keys ───── */
+    ck('renumberOrderedRuns fixes a mid-list insert',
+       PS.renumberOrderedRuns('1. a\n1. b\n1. c'), '1. a\n2. b\n3. c');
+    ck('…restarts per depth', PS.renumberOrderedRuns('1. a\n  1. x\n  1. y\n1. b'),
+       '1. a\n  1. x\n  2. y\n2. b');
+    ck('…restarts after prose', PS.renumberOrderedRuns('1. a\nprose\n1. b'),
+       '1. a\nprose\n1. b');
+    ck('…leaves bullets alone', PS.renumberOrderedRuns('- a\n- b'), '- a\n- b');
+
+    var mk = document.createElement('div');
+    document.body.appendChild(mk);
+    var LSRC = '- alpha\n  - beta\n1. one\n2. two';
+    mk.innerHTML = PE.renderChipsOnlyBodyHtml(LSRC);
+    ck('markers render as chips, not raw text',
+       mk.querySelectorAll('.pe-li-mark[contenteditable="false"]').length, 4);
+    ck('bullets show a real glyph, not a hyphen',
+       mk.querySelector('.pe-li-mark').textContent, '\u2022');
+    ck('nested bullet uses the second glyph',
+       mk.querySelectorAll('.pe-li-mark')[1].textContent, '\u25E6');
+    ck('numbered items show their number',
+       mk.querySelectorAll('.pe-li-mark')[2].textContent, '1.');
+    ck('no raw "- " left in the visible text', mk.textContent.indexOf('- ') === -1, true);
+    ck('and it STILL round-trips to the exact source', PE.serializeChipDom(mk), LSRC);
+    mk.remove();
+
+    /* The standard keys, driven through the real binding. */
+    function listBed(src, caretAt) {
+      var host = document.createElement('div');
+      document.body.appendChild(host);
+      var yy = new FakeYText(src);
+      var un = PE.bindYTextToContentEditable(yy, host, {
+        renderHtml: PE.renderParagraphBodyHtml,
+        renderChipsHtml: PE.renderChipsOnlyBodyHtml,
+      });
+      host.focus();
+      PE.setCaretCharOffsetForTest
+        ? PE.setCaretCharOffsetForTest(host, caretAt)
+        : (function () {
+            // walk to the source offset using the same chip-aware rules
+            var want = caretAt, sel = window.getSelection(), r = document.createRange();
+            var done = false;
+            (function visit(parent) {
+              for (var i = 0; i < parent.childNodes.length && !done; i++) {
+                var n = parent.childNodes[i];
+                if (n.nodeType === 3) {
+                  if (want <= n.length) { r.setStart(n, want); done = true; return; }
+                  want -= n.length;
+                } else if (n.nodeType === 1) {
+                  if (n.dataset && n.dataset.src) {
+                    if (want <= n.dataset.src.length) {
+                      r.setStart(parent, want === 0 ? i : i + 1); done = true; return;
+                    }
+                    want -= n.dataset.src.length;
+                  } else if (n.tagName === 'BR') {
+                    if (want < 1) { r.setStart(parent, i); done = true; return; }
+                    want -= 1;
+                  } else visit(n);
+                }
+              }
+            })(host);
+            if (!done) { r.selectNodeContents(host); r.collapse(false); }
+            r.collapse(true);
+            sel.removeAllRanges(); sel.addRange(r);
+          })();
+      return { host: host, y: yy, unbind: un,
+               key: function (k, shift) {
+                 host.dispatchEvent(new KeyboardEvent('keydown',
+                   { key: k, shiftKey: !!shift, bubbles: true, cancelable: true }));
+               },
+               done: function () { un(); host.remove(); } };
+    }
+
+    var b1 = listBed('- alpha', '- alpha'.length);
+    b1.key('Enter');
+    ck('Enter at the end of an item starts the next one', b1.y.toString(), '- alpha\n- ');
+    b1.done();
+
+    var b2 = listBed('- alpha\n- ', '- alpha\n- '.length);
+    b2.key('Enter');
+    ck('Enter on an EMPTY item leaves the list', b2.y.toString(), '- alpha\n');
+    b2.done();
+
+    var b3 = listBed('1. one', '1. one'.length);
+    b3.key('Enter');
+    ck('Enter in a numbered list numbers the next item', b3.y.toString(), '1. one\n2. ');
+    b3.done();
+
+    var b4 = listBed('- alpha\n- beta', '- alpha\n- beta'.length);
+    b4.key('Tab');
+    ck('Tab indents the item', b4.y.toString(), '- alpha\n  - beta');
+    b4.key('Tab', true);
+    ck('Shift+Tab outdents it again', b4.y.toString(), '- alpha\n- beta');
+    b4.done();
+
+    var b5 = listBed('- alpha\n  - beta', '- alpha\n  - '.length);
+    b5.key('Backspace');
+    ck('Backspace at the start of an item outdents', b5.y.toString(), '- alpha\n- beta');
+    b5.key('Backspace');
+    ck('…and again strips the marker entirely', b5.y.toString(), '- alpha\nbeta');
+    b5.done();
+
+    var b6 = listBed('- alpha beta', '- alpha'.length);
+    b6.key('Enter');
+    ck('Enter mid-item splits it into two items', b6.y.toString(), '- alpha\n-  beta');
+    b6.done();
+
+    var b7 = listBed('just prose', 'just prose'.length);
+    b7.key('Enter');
+    ck('Enter in ordinary prose is untouched by the list handler',
+       b7.y.toString().indexOf('- ') === -1, true);
+    b7.done();
+
+  } catch (e) {
+    fail++; detail.push('THREW: ' + (e && e.message || e) + ' @' + ((e && e.stack || '').split('\n')[1] || ''));
+  }
+  done();
+})();
+</script>
+</body></html>

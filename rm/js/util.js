@@ -339,3 +339,49 @@ function el(tag, attrs, ...children) {
   });
   return e;
 }
+
+/* V3.647 — re-render a panel without moving what the reader is looking at.
+ *
+ * The paper reader's left rail is ONE scroll container (`.lp-side-inner`)
+ * holding several panels that re-render independently: the per-page
+ * citations list repaints on every PDF page change, and "Cited by" repaints
+ * whenever the library changes. Replacing a panel's innerHTML makes it
+ * momentarily zero-height, so the container clamps `scrollTop`; and a panel
+ * that comes back a different height shoves everything below it. Both read
+ * to the user as "the list keeps refreshing and moving my scroll position".
+ *
+ * The anchor rule: once the panel has scrolled off the top, hold its BOTTOM
+ * edge, so the panels BELOW it — what the reader is actually looking at —
+ * stay put no matter how its height changes. While it's still on screen,
+ * hold its TOP edge so its own rows don't slide under the caret of the eye.
+ *
+ * Measurements are taken AFTER renderFn() as well as before, so a scrollTop
+ * the browser clamped mid-render is corrected rather than compounded.
+ */
+function scrollParentOf(el) {
+  let n = el && el.parentElement;
+  while (n && n !== document.body && n !== document.documentElement) {
+    const ov = window.getComputedStyle(n).overflowY;
+    if (/(auto|scroll|overlay)/.test(ov) && n.scrollHeight > n.clientHeight + 1) return n;
+    n = n.parentElement;
+  }
+  return null;
+}
+
+function rerenderPreservingScroll(el, renderFn) {
+  if (typeof renderFn !== 'function') return;
+  const scroller = el ? scrollParentOf(el) : null;
+  if (!scroller) { renderFn(); return; }
+  const sTop0 = scroller.getBoundingClientRect().top;
+  const r0 = el.getBoundingClientRect();
+  const useBottom = r0.bottom <= sTop0;
+  const before = (useBottom ? r0.bottom : r0.top) - sTop0;
+  renderFn();
+  const sTop1 = scroller.getBoundingClientRect().top;
+  const r1 = el.getBoundingClientRect();
+  const after = (useBottom ? r1.bottom : r1.top) - sTop1;
+  const delta = after - before;
+  if (!delta) return;
+  const max = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+  scroller.scrollTop = Math.max(0, Math.min(max, scroller.scrollTop + delta));
+}

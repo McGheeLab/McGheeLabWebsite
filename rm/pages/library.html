@@ -7,9 +7,15 @@
   <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
   <link rel="stylesheet" href="/rm/css/library-groups.css">
+  <!-- V3.639 — assigned/suggested readings block + page-level collapsible
+       sections. Loads after library-groups.css: it reuses that file's
+       .lg-section chrome and overrides only the body layout. -->
+  <link rel="stylesheet" href="/rm/css/library-readings.css">
   <link rel="stylesheet" href="/rm/css/library-associations.css">
   <link rel="stylesheet" href="/rm/css/library-themes.css">
+  <link rel="stylesheet" href="/rm/css/library-recent.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
   <script>
     /* V3.613 — inside the Ourlab native app the Library tab uses the
      * dedicated mobile page; this desktop page redirects so push deep
@@ -31,8 +37,15 @@
      * separate page reached via the previous nav entry. The DOM
      * blocks live side-by-side; CSS hides the inactive ones, and only
      * the active tab's renderer script is loaded.
-     * V3.367 — third tab: ?tab=themes (Lab Themes — shared lit-review
-     * clusters with synthesis notes + helped-me voting). */
+     * V3.367 — third tab: ?tab=themes (shared lit-review clusters with
+     * synthesis notes + helped-me voting).
+     * V3.630 — that tab is now called **Topics** everywhere a user can see
+     * it. It was called "Lab Themes", which sat one box away from the
+     * reader's "🧭 Lab focus" (research roadmaps) and nobody could tell the
+     * two apart — they're the paper's ABOUT axis and its FOR axis. The URL
+     * stays ?tab=themes, the collection stays labThemes, and the `theme:`
+     * search token still works: this is a naming change only, so every
+     * existing link, bookmark and saved query survives. */
     (function () {
       var tab = new URLSearchParams(location.search).get('tab');
       tab = (tab === 'comments' || tab === 'themes') ? tab : 'papers';
@@ -40,7 +53,7 @@
       document.title = (tab === 'comments')
         ? 'Comments & Annotations — McGhee Lab'
         : (tab === 'themes')
-          ? 'Lab Themes — McGhee Lab'
+          ? 'Topics — McGhee Lab'
           : 'Library — McGhee Lab';
       document.documentElement.dataset.libTab = tab;
     })();
@@ -107,6 +120,21 @@
     .lc-draft-x { background: none; border: none; color: #fff; cursor: pointer; font-size: 14px; line-height: 1; padding: 0 3px; opacity: .75; }
     .lc-draft-x:hover { opacity: 1; }
     .lc-empty-mini { font-size: 11px; color: #9ca3af; font-style: italic; }
+    /* V3.622 — categorization workspace: per-paper groups, triage queue,
+       category badge, inline evidence + comment forms */
+    .lc-paper-group { border: 1px solid #e5e7eb; border-radius: 10px; margin-bottom: 10px; background: #fff; overflow: hidden; }
+    .lc-paper-summary { cursor: pointer; padding: 9px 14px; font-weight: 600; font-size: 13px; color: #111827; background: #f9fafb; display: flex; align-items: center; gap: 8px; list-style: none; }
+    .lc-paper-summary::-webkit-details-marker { display: none; }
+    .lc-paper-summary::before { content: '▸'; color: #9ca3af; font-size: 11px; }
+    .lc-paper-group[open] > .lc-paper-summary::before { content: '▾'; }
+    .lc-section-triage { background: #fef3c7; color: #92400e; }
+    .lc-cat { font-size: 9px; text-transform: uppercase; letter-spacing: .3px; padding: 1px 6px; border-radius: 8px; font-weight: 700; color: #374151; }
+    .lc-ev-form, .lc-comment-form { margin-top: 6px; padding: 8px 10px; border: 1px dashed #d1d5db; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; background: #fafafa; }
+    .lc-claims-list { display: flex; flex-direction: column; gap: 3px; max-height: 160px; overflow-y: auto; }
+    .lc-claim-pick { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; line-height: 1.4; }
+    .lc-ev-err { color: #b91c1c; font-size: 11.5px; }
+    .lc-ev-newclaim { flex: 1; min-width: 140px; padding: 4px 7px; font-size: 12px; border: 1px solid #d1d5db; border-radius: 6px; }
+    .lc-comment-input { width: 100%; box-sizing: border-box; padding: 5px 8px; font-size: 12.5px; border: 1px solid #d1d5db; border-radius: 6px; font-family: inherit; resize: vertical; }
     .lc-draft-add { font-size: 11px; padding: 2px 6px; border: 1px solid #d1d5db; border-radius: 5px; background: #fff; color: #374151; max-width: 180px; }
     .lc-edit-color, .lc-edit-vis, .lc-edit-group { font-size: 11px; padding: 2px 6px; border: 1px solid #d1d5db; border-radius: 5px; background: #fff; color: #374151; }
     .lc-edit-comment, .lc-clear-stance, .lc-edit-delete { font-size: 11px; padding: 2px 8px; border: 1px solid #e5e7eb; background: #fff; color: #4b5563; cursor: pointer; border-radius: 5px; }
@@ -122,7 +150,7 @@
         const HUB = [
           { tab: 'papers',   label: 'Papers' },
           { tab: 'comments', label: 'Comments' },
-          { tab: 'themes',   label: 'Lab Themes' },   // V3.367
+          { tab: 'themes',   label: 'Topics' },       // V3.367, renamed V3.630
         ];
         const bar = document.getElementById('lib-hub-tabs');
         const current = window.__LIB_TAB;
@@ -142,13 +170,13 @@
     <div class="page-header">
       <h1 class="page-title">Library</h1>
       <div>
-        <button class="btn" id="library-customize-btn" title="Customize what you see (filters, sort, visibility)">⚙ Customize</button>
+        <button class="btn" id="library-customize-btn" title="Customize what you see (filters, sort, visibility)"><i data-hi="cog-6-tooth"></i> Customize</button>
         <button class="btn" id="library-sync-btn" title="Pull pending captures from the Chrome extension">↻ Sync captures</button>
         <button class="btn" id="library-add-doi">+ Add by DOI / arXiv / PMID</button>
         <button class="btn" id="library-import-refs" title="Bulk-import a reference list (BibTeX or a list of DOIs) as citation entries (V3.483)">⇪ Import references</button>
         <button class="btn" id="library-missing-pdfs" style="display:none;" title="Filter to entries without a PDF — retry the OA fetch, upload manually, or mark unobtainable (V3.311)">Missing PDFs</button>
         <button class="btn" id="library-fetch-pdfs" title="Auto-fetch open-access PDFs for every entry missing one — server-side, tries Unpaywall + arXiv + PMC + Semantic Scholar + the publisher's PDF link (V3.498)">⤓ Fetch missing PDFs</button>
-        <button class="btn" id="library-bookmarklet" title="Get the 'Grab PDF for RM' bookmarklet — click it on a paywalled paper's page to pull the PDF using your UArizona access (V3.500)">🔖 PDF grabber</button>
+        <button class="btn" id="library-bookmarklet" title="Get the 'Grab PDF for RM' bookmarklet — click it on a paywalled paper's page to pull the PDF using your UArizona access (V3.500)"><i data-hi="bookmark"></i> PDF grabber</button>
         <button class="btn" id="library-recheck" title="Bulk re-check every paper's metadata — re-lookup identifiers, fill gaps, enrich references; title matches queue for review (V3.326)">⟳ Re-check metadata</button>
         <span id="library-status" class="lib-status"></span>
       </div>
@@ -159,8 +187,14 @@
       <a href="/rm/pages/profile.html" style="color:#92400e;text-decoration:underline;">Sign in on the profile page →</a>
     </div>
 
+    <!-- V3.639 — "papers people sent me". Rendered by js/library-readings.js
+         from two sources: assigned-bucket tasks carrying paper_ref, plus
+         handoff posts stranded by the pre-V3.639 marketplace routing.
+         Hides itself entirely when the user has no readings. -->
+    <div id="lib-readings" style="display:none;"></div>
+
     <details class="lib-extension-card" style="margin-bottom:16px;background:#eff6ff;border:1px solid #dbeafe;border-radius:10px;padding:12px 16px;">
-      <summary style="cursor:pointer;font-weight:600;color:#1e3a8a;font-size:13px;">📥 Install the McGhee Lab Capture Chrome extension</summary>
+      <summary style="cursor:pointer;font-weight:600;color:#1e3a8a;font-size:13px;"><i data-hi="arrow-down-tray"></i> Install the McGhee Lab Capture Chrome extension</summary>
       <div style="margin-top:10px;font-size:13px;color:#1e3a8a;line-height:1.55;">
         Captures papers from publisher pages and PDF tabs straight into the lab library.
         <ol style="margin:10px 0 10px 18px;padding:0;">
@@ -171,22 +205,22 @@
           <li>Click the icon → <strong>Sign in</strong> with your <code>@arizona.edu</code> Google account.</li>
         </ol>
         <div style="margin:8px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <a class="btn primary" href="/api/extension/download.zip" download>↓ Download extension (.zip)</a>
+          <a class="btn primary" href="/rm/downloads/mcgheelab-capture-extension.zip" download="mcgheelab-capture-extension.zip">↓ Download extension (.zip)</a>
           <span id="lib-ext-member-status" style="font-size:11px;color:#3730a3;"></span>
         </div>
 
         <div id="lib-account-diag" style="font-size:11px;color:#3730a3;background:#dbeafe;border-radius:6px;padding:6px 10px;margin-top:6px;line-height:1.5;display:none;"></div>
         <div style="font-size:11px;color:#1e40af;margin-top:8px;background:#dbeafe;border-radius:6px;padding:6px 10px;">
-          <strong>Access is by invitation:</strong> the extension only works once the PI has added your email to <code>labConfig/extensionMembers</code>. If you see <em>"Permission denied"</em> after sign-in, ask the PI to add you.
+          <strong>Who can use it:</strong> every lab member — anyone with a lab role on this site (not a guest). Sign in to the extension with the <strong>same Google account</strong> you use here. If you see <em>"Permission denied"</em> after sign-in, you are either on a different Google account or still a guest — ask the PI. Collaborators without a lab role can be added by email below.
         </div>
 
         <div id="lib-ext-admin" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid #c7d2fe;">
           <div style="font-weight:600;font-size:13px;color:#1e3a8a;margin-bottom:10px;">Member access (admin)</div>
 
           <details open style="margin-bottom:12px;">
-            <summary style="cursor:pointer;font-weight:600;font-size:12px;color:#1e3a8a;">Extension members &mdash; full contributors</summary>
+            <summary style="cursor:pointer;font-weight:600;font-size:12px;color:#1e3a8a;">Extension members &mdash; accounts without a lab role</summary>
             <div style="font-size:11px;color:#3730a3;margin:6px 0 8px;line-height:1.45;">
-              Granted read/write on <code>pending_captures</code> and <code>paper_index</code> (capture papers via the extension). Admins always pass.
+              Every lab member (and admin) can already capture — this list is for accounts that have <em>no</em> lab role: an outside collaborator, or a second Google account. Granted read/write on <code>pending_captures</code> and <code>paper_index</code>.
             </div>
             <div style="display:flex;gap:6px;margin-bottom:8px;">
               <input type="email" id="lib-ext-add-email" placeholder="student@arizona.edu" style="flex:1;padding:5px 8px;font-size:12px;border:1px solid #c7d2fe;border-radius:6px;">
@@ -231,8 +265,17 @@
     <div id="lib-groups-shelf" style="display:none;"></div>
 
     <div class="lib-toolbar">
-      <input type="text" id="library-search" placeholder="Search title, author, year, journal, tag, draft, theme — try 'author:smith year:2024' or 'draft:gels'" class="lib-search-input">
-      <button class="btn btn-sm" id="library-save-group" style="display:none;" title="Save the current search + tag filter as a smart group — it auto-updates as matching papers arrive (V3.363)">💾 Save as group</button>
+      <input type="text" id="library-search" placeholder="Search title, author, year, journal, tag, draft, topic — try 'author:smith year:2024', 'topic:mebp' or 'added:30d'" class="lib-search-input">
+      <select id="library-added" class="lib-added-select" title="Show only papers added recently (V3.825). The same as typing added:7d, added:30d… in the search box.">
+        <option value="">Added: any time</option>
+        <option value="today">Added today</option>
+        <option value="7d">Added: last 7 days</option>
+        <option value="30d">Added: last 30 days</option>
+        <option value="90d">Added: last 90 days</option>
+        <option value="year">Added: this year</option>
+        <option value="older">Added: more than 90 days ago</option>
+      </select>
+      <button class="btn btn-sm" id="library-save-group" style="display:none;" title="Save the current search + tag filter as a smart group — it auto-updates as matching papers arrive (V3.363)"><i data-hi="save"></i> Save as group</button>
       <span id="library-count" class="lib-count"></span>
     </div>
 
@@ -360,28 +403,35 @@
       <div id="lc-rows"></div>
     </div><!-- /.lib-comments-block -->
 
-    <!-- ===== Lab Themes tab (V3.367) =====
+    <!-- ===== Topics tab (V3.367, renamed from "Lab Themes" V3.630) =====
          Shared literature-review clusters. Rendered by js/library-themes.js:
-         theme cards → detail view with the ranked paper list, co-written
-         synthesis notes (V3.368), and a SECTION_COMMENTS discussion. -->
+         topic cards → detail view with the ranked paper list, co-written
+         synthesis notes (V3.368), and a SECTION_COMMENTS discussion.
+         Ids/collection/`theme:` token unchanged — user-facing wording only. -->
     <div class="lib-themes-block lt-page">
       <div class="page-header">
-        <h1 class="page-title">Lab Themes</h1>
+        <h1 class="page-title">Topics</h1>
         <div>
-          <button class="btn btn-primary" id="lt-new-theme">+ New theme</button>
+          <button class="btn btn-primary" id="lt-new-theme">+ New topic</button>
           <span id="lt-status" class="lib-status"></span>
         </div>
       </div>
       <div id="lt-auth-hint" style="display:none;padding:10px 14px;background:#fef3c7;border:1px solid #fde68a;color:#92400e;border-radius:8px;margin-bottom:12px;font-size:13px;">
-        <strong>Not signed in.</strong> Lab Themes load once you sign in.
+        <strong>Not signed in.</strong> Topics load once you sign in.
         <a href="/rm/pages/profile.html" style="color:#92400e;text-decoration:underline;">Sign in on the profile page →</a>
       </div>
       <div class="lt-intro">
-        Themes are shared literature-review clusters around the lab's core
-        concepts. Tag papers with themes from the library or the reader,
-        co-write synthesis notes with the whole lab, and vote 👍 on the
-        papers that helped you most — new students start with the
-        top-voted <b>Start here</b> papers.
+        A topic is <b>what a paper is about</b> — a shared reading cluster
+        around one of the lab's core concepts. Anyone can make one. Tag papers
+        with topics from the library or the reader, co-write synthesis notes
+        with the whole lab, and vote <i data-hi="hand-thumb-up"></i> on the papers that helped you most —
+        new students start with the top-voted <b>Start here</b> papers.
+        <div style="margin-top:6px;color:#6b7280;">
+          Not to be confused with <b>Lab focus</b> on the
+          <a href="/rm/pages/research.html" style="color:#5b21b6;">research map</a>,
+          which is what a paper is <b>for</b> — the experiment or analysis it
+          informs.
+        </div>
       </div>
       <div id="lt-cards" class="lt-cards"></div>
       <div id="lt-detail" class="lt-detail" style="display:none;"></div>
@@ -455,11 +505,34 @@
         // RESEARCH_DATA dependency), so this is two files, not the stack.
         '/rm/js/roadmap-data.js',
         '/rm/js/roadmap-attach.js',
+        // V3.631 — after a draft link lands, offer the other half of the same
+        // act (attach to that draft's research-map card, with the why note).
+        // Needs roadmap-data above it; read by library-associations' picker.
+        '/rm/js/draft-focus-bridge.js',
+        // V3.639 — collapsible page sections + the "papers people sent me"
+        // block. Both must load before library.js, whose init() calls
+        // LIBRARY_COLLAPSE.register() and LIBRARY_READINGS.init().
+        // library-readings depends on task-assign.js (writeTaskFor) above.
+        '/rm/js/library-collapse.js',
+        '/rm/js/library-readings.js',
+        // V3.825 — "Recently added" strip + the Added filter (core + page half).
+        '/rm/js/library-recent.js',
+        // V3.827 — keeps the Organize / associations popovers fully on screen.
+        '/rm/js/popover-place.js',
         '/rm/js/library.js'
       ];
       var commentsScripts = [
+        // V3.626 — reading-activity signal seam (annotation-sync fires it)
+        '/rm/js/activity-signals.js',
         '/rm/js/annotation-sync.js',
-        '/rm/js/annotation-groups.js',
+        // V3.620 — THE highlight palette (annotation-groups.js retired:
+        // the annotation group field was write-only).
+        '/rm/js/annotation-colors.js',
+        // V3.622 — the claims/evidence flow lives on this tab now (moved
+        // out of the reader panel); library-links auto-links the draft to
+        // the source paper on evidence tag.
+        '/rm/js/claims.js',
+        '/rm/js/library-links.js',
         '/rm/js/library-comments.js'
       ];
       // V3.367 — Lab Themes tab. library-links.js provides the atomic

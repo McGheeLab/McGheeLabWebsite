@@ -1,12 +1,23 @@
 /* annotation-panel.js — sidebar list of annotations + filter chips +
- * comment threads + per-annotation visibility / color / delete controls.
+ * per-annotation comment / draft-filing / evidence controls.
+ *
+ * V3.620 panel diet: a card is quote → comment → draft chips → footer
+ * (Jump to · Comment · ⋯). "Tag as information" and the group picker are
+ * gone (the group field was write-only — nothing ever read it; the real
+ * "groups" concept is PAPER-level library groups, V3.622). V3.622: the
+ * claims/evidence flow moved to Library → Comments (the categorization
+ * workspace) — the reader is quick capture only. Mutating controls render
+ * only when `canWrite`, mirroring firestore.rules instead of alerting on
+ * a doomed click.
  *
  * Public API (window.ANNOTATION_PANEL):
- *   init({rootEl, viewer, getColors, onFocus, onUpdate, onDelete, onReply,
- *         currentUserUid, defaultVisibility, onVisibilityDefaultChange})
+ *   init({rootEl, viewer, getColors, onFocus, onUpdate, onDelete,
+ *         canWrite, currentUserUid, defaultVisibility,
+ *         onVisibilityDefaultChange, getDrafts, onCiteToggle})
  *   setAnnotations(list)      — replace data; re-render
  *   getFilterFn()             — returns a fn(ann)→bool that respects current filters
  *   onFilterChange(cb)        — invoked whenever filter state changes
+ *   getDefaultVisibility() / focusCard(annId)
  *
  * Filters are stored in URL search params (author, color, stance) and
  * mirrored to localStorage so each user retains their last view.
@@ -17,30 +28,18 @@
   let _annotations = [];
   let _getColors = () => [];
   let _currentUid = '';
+  let _canWrite = true;           // V3.620 — host passes _canAnnotate
   let _onFocus = null;
   let _onUpdate = null;
   let _getDrafts = null;          // () → [{id, title}, ...]
-  let _getGroups = null;          // () → [{id, name}, ...]
-  let _onCreateGroup = null;      // (name) → Promise<groupId>
-  // V3.605 — whether the current user may create annotation groups
-  // (isLabContributor allowlist OR 'library-paper:groups' capability;
-  // computed by the host page). When false the "+ New group…" option is
-  // omitted entirely — previously every member saw it and non-allowlisted
-  // ones got a rules alert at write time.
-  let _allowNewGroup = true;
   let _onCiteToggle = null;       // (annId, draftId, on:boolean) → ...
-  let _onEnsureDraftLinked = null; // (draftId) → Promise — auto-link on evidence tag (V3.475)
-  let _getBuckets = null;         // () → [{id, title}, ...] linked-to-this-paper
-  let _onBucketToggle = null;     // (annId, bucketId, on:boolean) → ...
-  let _getBucketColor = null;     // (bucketId) → '#rrggbb'
-  let _expandedCards = new Set(); // ann.id of cards whose general "▸ more" edit panel is open
-  // For inline forms, each card can have ONE active section: 'comment',
-  // 'evidence', or 'info'. null means none. Per-card draft selection +
-  // claim cache lives here so the form survives re-renders inside the page.
-  let _cardSection = new Map();   // annId → 'comment' | 'evidence' | 'info' | null
-  let _evidenceForm = new Map();  // annId → { draftId, claims, claimId, stance, busy, err, newStmt }
+  let _expandedCards = new Set(); // ann.id of cards whose "⋯" edit panel is open
+  // Per-card form state lives in these Maps so an in-progress edit
+  // survives the full re-renders that every Firestore snapshot triggers
+  // (V3.620 — a teammate's highlight used to eat your half-typed comment).
+  let _cardSection = new Map();   // annId → 'comment' | null
+  let _commentForm = new Map();   // annId → { text, busy, err }
   let _onDelete = null;
-  let _onReply = null;
   let _onVisibilityDefaultChange = null;
   let _defaultVisibility = 'lab';
   let _filters = { authors: null, colors: null, stance: null, onlyMine: false };
@@ -55,7 +54,11 @@
   }
 
   function _color(id) {
-    return _getColors().find(c => c.id === id) || { hex: '#facc15', name: 'Note' };
+    // Same resolution + fallback as the page overlay (annotation-colors.js
+    // is THE palette) so a card's accent can never disagree with its rect.
+    return _getColors().find(c => c.id === id)
+      || (window.ANNOTATION_COLORS && window.ANNOTATION_COLORS.byId(id))
+      || { hex: '#facc15', name: 'Note' };
   }
 
   function _firstQuote(ann) {
@@ -216,54 +219,55 @@
     const stanceBadge = ann.evidence_stance
       ? `<span class="ann-stance ann-stance-${_esc(ann.evidence_stance)}" title="Evidence ${_esc(ann.evidence_stance)} ${evCount} claim${evCount === 1 ? '' : 's'}">${_esc(ann.evidence_stance)}${evCount > 1 ? ` ×${evCount}` : ''}</span>` : '';
     const investigateBadge = ann.marked_for_investigation
-      ? '<span class="ann-investigate" title="Marked for further investigation">⚑</span>' : '';
+      ? '<span class="ann-investigate" title="Marked for further investigation">' + ICON.svg('flag') + '</span>' : '';
     const visBadge = ann.visibility === 'private'
-      ? '<span class="ann-vis ann-vis-private" title="Only you can see this">🔒</span>'
-      : '<span class="ann-vis ann-vis-lab" title="Visible to the whole lab">👥</span>';
+      ? '<span class="ann-vis ann-vis-private" title="Only you can see this">' + ICON.svg('lock-closed') + '</span>'
+      : '<span class="ann-vis ann-vis-lab" title="Visible to the whole lab">' + ICON.svg('users') + '</span>';
 
-    // ---- Drafts: chips for tagged + a dropdown to add more (NOT pills).
+    // Category badge — color IS the category (V3.619/620); same hue as the
+    // page rect so the panel and the page can never disagree.
+    const catBadge = `<span class="ann-cat" style="background:${_esc(c.hex)}33;border-color:${_esc(c.hex)};">${_esc(c.name)}</span>`;
+
+    // ---- Drafts: inline on EVERY card (V3.620 — this is the workflow's
+    // point, it was buried inside "Tag as information"). Chips for tagged +
+    // a dropdown to add more.
+    // V3.629 — comment corrected: `_getDrafts()` does NOT return only linked
+    // drafts. Since V3.475 the host passes a SHORTLIST of every active draft
+    // in the lab with the linked ones floated to the top (library-paper.js
+    // _draftShortlist), so this dropdown can file a highlight into a draft
+    // the paper isn't linked to. That's now safe — the host's onCiteToggle
+    // links the paper on the way (V3.629 _ensureDraftLinked), because
+    // otherwise the evidence never reached the builder's Evidence Inbox and
+    // an engaged draft lens could hide the highlight. The "＋ Link another
+    // draft…" option still opens PAPER_OVERLAYS.openLinkPicker for linking
+    // the paper explicitly, without filing this highlight.
     const cited = Array.isArray(ann.cite_in_drafts) ? ann.cite_in_drafts : [];
-    // V3.103 — `_getDrafts()` returns ONLY drafts the user has linked to
-    // this paper (via meta.library.linked_drafts). To extend the
-    // shortlist, click the "+ Link draft" button on the right (calls
-    // PAPER_OVERLAYS.openLinkPicker).
     const drafts = (_getDrafts && _getDrafts()) || [];
     const taggedDrafts = drafts.filter(d => cited.includes(d.id));
     const untaggedDrafts = drafts.filter(d => !cited.includes(d.id));
-    const linkBtn = window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.openLinkPicker
-      ? `<button class="ann-draft-link" data-action="link-draft" title="Link a paper / grant draft to this paper">+ Link draft…</button>`
-      : '';
+    /* V3.628 — ONE control, not two. This row used to carry a "+ add draft…"
+     * <select> AND a "+ Link draft…" button side by side, visually identical
+     * but doing different things (file THIS highlight vs. link a draft to
+     * the PAPER so it becomes offerable). The link action is now the last
+     * option inside the same dropdown. */
+    const canLink = _canWrite && window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.openLinkPicker;
     const draftsBlock = `
-      <div class="ann-edit-row" title="Drafts this highlight feeds into (cite_in_drafts)">
+      <div class="ann-edit-row ann-drafts-inline" title="Drafts this highlight feeds into (cite_in_drafts)">
         <span class="ann-tiny-label">Drafts</span>
         <div class="ann-draft-chips">
           ${taggedDrafts.map(d => `
-            <span class="ann-draft-chip">${_esc((d.title || d.id).slice(0, 24))}${(d.title || d.id).length > 24 ? '…' : ''}<button class="ann-draft-x" data-id="${_esc(ann.id)}" data-draft="${_esc(d.id)}" title="Remove">×</button></span>
-          `).join('') || (drafts.length ? '<span class="ann-empty">none</span>' : '<span class="ann-empty">no drafts linked yet</span>')}
+            <span class="ann-draft-chip">${_esc((d.title || d.id).slice(0, 24))}${(d.title || d.id).length > 24 ? '…' : ''}${_canWrite ? `<button class="ann-draft-x" data-id="${_esc(ann.id)}" data-draft="${_esc(d.id)}" title="Remove">${ICON.svg('x-mark')}</button>` : ''}</span>
+          `).join('') || (drafts.length ? '<span class="ann-empty">none</span>' : '<span class="ann-empty">no drafts in the lab yet</span>')}
         </div>
-        ${untaggedDrafts.length ? `
+        ${_canWrite ? `
           <select class="ann-draft-add" data-id="${_esc(ann.id)}">
-            <option value="">+ add draft…</option>
+            <option value="">${untaggedDrafts.length ? '+ file to draft…' : '+ draft…'}</option>
             ${untaggedDrafts.map(d => `<option value="${_esc(d.id)}">${_esc((d.title || d.id).slice(0, 60))}</option>`).join('')}
+            ${canLink ? `<option value="__link__">${ICON.svg('plus')} Link another draft to this paper…</option>` : ''}
           </select>` : ''}
-        ${linkBtn}
       </div>`;
 
-    // ---- Group selector + create-new affordance.
-    const groupCur = ann.group || 'general';
-    const groups = (_getGroups && _getGroups()) || [{ id: 'general', name: 'General' }];
-    const hasCur = groups.some(g => g.id === groupCur);
-    const groupBlock = `
-      <div class="ann-edit-row" title="Organize this highlight into a group (lab-shared)">
-        <span class="ann-tiny-label">Group</span>
-        <select class="ann-row-group" data-id="${_esc(ann.id)}">
-          ${groups.map(g => `<option value="${_esc(g.id)}"${g.id === groupCur ? ' selected' : ''}>${_esc(g.name || g.id)}</option>`).join('')}
-          ${hasCur ? '' : `<option value="${_esc(groupCur)}" selected>${_esc(groupCur)} (legacy)</option>`}
-          ${_allowNewGroup ? '<option value="__new__">+ New group…</option>' : ''}
-        </select>
-      </div>`;
-
-    const ownerActions = isMine ? `
+    const ownerActions = (isMine && _canWrite) ? `
       <div class="ann-row-actions">
         <select class="ann-row-color" data-id="${_esc(ann.id)}">
           ${_getColors().map(cc => `<option value="${_esc(cc.id)}"${cc.id === ann.color_id ? ' selected' : ''}>${_esc(cc.name)}</option>`).join('')}
@@ -273,21 +277,25 @@
           <option value="private"${ann.visibility === 'private' ? ' selected' : ''}>Private</option>
         </select>
         <button class="ann-row-investigate${ann.marked_for_investigation ? ' active' : ''}" data-id="${_esc(ann.id)}" title="Mark for investigation">⚑</button>
-        <button class="ann-row-delete" data-id="${_esc(ann.id)}" title="Delete">🗑</button>
+        <button class="ann-row-delete" data-id="${_esc(ann.id)}" title="Delete">${ICON.svg('trash')}</button>
       </div>` : '';
 
     // Inline action panels (replace prompts/modals with expansions).
     const section = _cardSection.get(ann.id) || null;
-    const sectionPanel = section ? _renderSectionPanel(ann, section, drafts, groups, groupCur) : '';
+    const sectionPanel = section ? _renderSectionPanel(ann, section, drafts) : '';
 
-    // The general "▸ more" edit panel — color/visibility/investigate/delete.
+    // The "⋯" edit panel — owner controls. V3.622: the claims/evidence
+    // flow moved to the Library → Comments categorization workspace (the
+    // reader is for quick capture: color + note + draft chips).
     const expanded = _expandedCards.has(ann.id);
-    const editToggleLabel = expanded ? '▾ less' : '▸ more';
-    const editPanel = expanded ? `
+    const editToggleLabel = expanded ? '▾ less' : '⋯';
+    const evidenceLink = _isEvidence(ann)
+      ? `<a class="ann-ev-link" href="/rm/pages/library.html?tab=comments" title="Claim evidence is managed on the Comments page">${ICON.svg('scale')} evidence — manage in Comments</a>`
+      : '';
+    const editPanel = (expanded && _canWrite) ? `
       <div class="ann-edit-panel">
-        ${draftsBlock}
-        ${groupBlock}
         ${ownerActions}
+        ${evidenceLink ? `<div class="ann-row-actions">${evidenceLink}</div>` : ''}
       </div>` : '';
 
     return `
@@ -297,6 +305,7 @@
           <span class="ann-card-meta">
             <span class="ann-card-name">${_esc(dn)}</span>
             <span class="ann-card-page">${_esc(pageLabel)}</span>
+            ${catBadge}
             ${visBadge}
             ${investigateBadge}
             ${stanceBadge}
@@ -307,23 +316,22 @@
             ${ann.name ? `<div class="ann-eq-name">${_esc(ann.name)}</div>` : ''}
             <div class="ann-eq-math" data-eq-id="${_esc(ann.id)}"></div>
             ${ann.snip_data_uri ? `<img class="ann-eq-snip" src="${_esc(ann.snip_data_uri)}" alt="Snip from the paper" title="Snipped from the page — reference for the transcription">` : ''}
-            ${isMine ? `<button class="ann-eq-edit" data-id="${_esc(ann.id)}">✎ Transcription</button>` : ''}
+            ${(isMine && _canWrite) ? `<button class="ann-eq-edit" data-id="${_esc(ann.id)}">${ICON.svg('pencil')} Transcription</button>` : ''}
           </div>` : ''}
         ${ann.kind === 'figure' ? `
           <div class="ann-eq-block">
-            ${ann.name ? `<div class="ann-eq-name">🖼 ${_esc(ann.name)}</div>` : ''}
+            ${ann.name ? `<div class="ann-eq-name">${ICON.svg('photo')} ${_esc(ann.name)}</div>` : ''}
             ${(ann.image && ann.image.download_url) || ann.snip_data_uri ? `<img class="ann-eq-snip" src="${_esc((ann.image && ann.image.download_url) || ann.snip_data_uri)}" alt="Figure snipped from the paper" title="Captured figure — available in the paper builder's Figure board" loading="lazy">` : ''}
           </div>` : ''}
         ${quote ? `<blockquote class="ann-quote">${_esc(quote.slice(0, 600))}${quote.length > 600 ? '…' : ''}</blockquote>` : ''}
         ${ann.comment && section !== 'comment' ? `<div class="ann-comment">${_esc(ann.comment)}</div>` : ''}
+        ${draftsBlock}
         ${sectionPanel}
         ${editPanel}
         <div class="ann-card-foot">
           <button class="ann-link-jump" data-id="${_esc(ann.id)}">Jump to →</button>
-          ${isMine ? `<button class="ann-link-section${section === 'comment' ? ' on' : ''}" data-id="${_esc(ann.id)}" data-section="comment">${ann.comment ? 'Edit comment' : '+ Comment'}</button>` : ''}
-          <button class="ann-link-section${section === 'evidence' ? ' on' : ''}" data-id="${_esc(ann.id)}" data-section="evidence">Tag as evidence</button>
-          <button class="ann-link-section${section === 'info' ? ' on' : ''}" data-id="${_esc(ann.id)}" data-section="info">Tag as information</button>
-          <button class="ann-link-edit-toggle" data-id="${_esc(ann.id)}" title="More edit controls">${editToggleLabel}</button>
+          ${(isMine && _canWrite) ? `<button class="ann-link-section${section === 'comment' ? ' on' : ''}" data-id="${_esc(ann.id)}" data-section="comment">${ann.comment ? 'Edit comment' : '+ Comment'}</button>` : ''}
+          ${_canWrite ? `<button class="ann-link-edit-toggle" data-id="${_esc(ann.id)}" title="More edit controls">${editToggleLabel}</button>` : ''}
         </div>
       </div>
     `;
@@ -331,140 +339,52 @@
 
   // ---- Inline section panels --------------------------------------------
 
-  // V3.475 — build <option>s for a draft picker, grouping "Linked to this
-  // paper" above "Other drafts" when the list carries `linked` flags (set by
-  // library-paper.js _draftShortlist). Falls back to a flat list otherwise.
-  function _draftSelectOptions(drafts, selectedId) {
-    const opt = d => `<option value="${_esc(d.id)}"${d.id === selectedId ? ' selected' : ''}>${_esc((d.title || d.id).slice(0, 60))}</option>`;
-    const hasFlags = drafts.some(d => Object.prototype.hasOwnProperty.call(d, 'linked'));
-    if (!hasFlags) return drafts.map(opt).join('');
-    const linked = drafts.filter(d => d.linked);
-    const other = drafts.filter(d => !d.linked);
-    let html = '';
-    if (linked.length) html += `<optgroup label="Linked to this paper">${linked.map(opt).join('')}</optgroup>`;
-    if (other.length) html += `<optgroup label="Other drafts">${other.map(opt).join('')}</optgroup>`;
-    return html;
+  function _isEvidence(ann) {
+    if (ann.evidence_stance) return true;
+    return Array.isArray(ann.evidence_for_claim_ids) && ann.evidence_for_claim_ids.length > 0;
   }
 
-  function _renderSectionPanel(ann, section, drafts, groups, groupCur) {
+  function _renderSectionPanel(ann, section, drafts) {
     if (section === 'comment') return _renderCommentPanel(ann);
-    if (section === 'evidence') return _renderEvidencePanel(ann, drafts);
-    if (section === 'info') return _renderInfoPanel(ann, drafts, groups, groupCur);
     return '';
   }
 
   function _renderCommentPanel(ann) {
+    // V3.620 — in-progress text lives in _commentForm so the snapshot-driven
+    // full re-renders can't eat it; save awaits the write and only closes on
+    // success (failure keeps the editor open with the text intact).
+    const state = _commentForm.get(ann.id) || null;
+    const text = state && typeof state.text === 'string' ? state.text : (ann.comment || '');
+    const busy = !!(state && state.busy);
+    const err = (state && state.err) || '';
     return `
       <div class="ann-section-panel ann-section-comment">
         <textarea class="ann-comment-input" data-id="${_esc(ann.id)}"
-          rows="3" placeholder="Type a comment about this highlight…">${_esc(ann.comment || '')}</textarea>
+          rows="3" placeholder="Type a comment about this highlight…"${busy ? ' disabled' : ''}>${_esc(text)}</textarea>
+        ${err ? `<div class="ann-section-err">${_esc(err)}</div>` : ''}
         <div class="ann-section-actions">
-          <button class="ann-section-cancel" data-id="${_esc(ann.id)}">Cancel</button>
-          <button class="ann-section-save ann-comment-save" data-id="${_esc(ann.id)}">Save</button>
+          <button class="ann-section-cancel" data-id="${_esc(ann.id)}"${busy ? ' disabled' : ''}>Cancel</button>
+          <button class="ann-section-save ann-comment-save" data-id="${_esc(ann.id)}"${busy ? ' disabled' : ''}>${busy ? 'Saving…' : 'Save'}</button>
         </div>
       </div>`;
   }
 
-  function _renderEvidencePanel(ann, drafts) {
-    const state = _evidenceForm.get(ann.id) || { draftId: '', claims: null, claimId: '', stance: 'for', busy: false, err: '', newStmt: '' };
-    if (!state.draftId && drafts.length) state.draftId = drafts[0].id;
-    _evidenceForm.set(ann.id, state);
+  // V3.622 — _renderEvidencePanel deleted: the claims/evidence flow lives
+  // on Library → Comments (the categorization workspace). The reader is
+  // for quick capture only.
 
-    const draftOpts = _draftSelectOptions(drafts, state.draftId);
-
-    let claimsList;
-    if (!state.draftId) {
-      claimsList = '<div class="ann-section-empty">No drafts available.</div>';
-    } else if (state.claims === null) {
-      claimsList = '<div class="ann-section-empty">Loading claims…</div>';
-    } else if (state.claims.length === 0) {
-      claimsList = '<div class="ann-section-empty">No claims yet on this draft.</div>';
-    } else {
-      claimsList = state.claims.map(c => `
-        <label class="ann-claim-pick">
-          <input type="radio" name="ann-claim-${_esc(ann.id)}" value="${_esc(c.id)}"
-            data-id="${_esc(ann.id)}"${c.id === state.claimId ? ' checked' : ''}>
-          <span class="ann-claim-stmt">${_esc((c.statement || '(no statement)').slice(0, 120))}${(c.statement || '').length > 120 ? '…' : ''}</span>
-        </label>
-      `).join('');
-    }
-
-    return `
-      <div class="ann-section-panel ann-section-evidence">
-        <div class="ann-section-row">
-          <span class="ann-section-label">Draft</span>
-          <select class="ann-evidence-draft" data-id="${_esc(ann.id)}">${draftOpts || '<option value="">(no drafts)</option>'}</select>
-        </div>
-        <div class="ann-section-row">
-          <span class="ann-section-label">Claim</span>
-          <div class="ann-claims-list">${claimsList}</div>
-        </div>
-        <div class="ann-section-row">
-          <span class="ann-section-label">+ new</span>
-          <input type="text" class="ann-evidence-newclaim" data-id="${_esc(ann.id)}"
-            placeholder="Or create a new claim on this draft" value="${_esc(state.newStmt || '')}">
-          <button class="ann-evidence-newclaim-btn" data-id="${_esc(ann.id)}">Add</button>
-        </div>
-        <div class="ann-section-row">
-          <span class="ann-section-label">Stance</span>
-          <label><input type="radio" name="ann-stance-${_esc(ann.id)}" value="for" data-id="${_esc(ann.id)}"${state.stance === 'for' ? ' checked' : ''}> Supports</label>
-          <label><input type="radio" name="ann-stance-${_esc(ann.id)}" value="against" data-id="${_esc(ann.id)}"${state.stance === 'against' ? ' checked' : ''}> Against</label>
-        </div>
-        ${state.err ? `<div class="ann-section-err">${_esc(state.err)}</div>` : ''}
-        <div class="ann-section-actions">
-          <button class="ann-section-cancel" data-id="${_esc(ann.id)}">Cancel</button>
-          <button class="ann-section-save ann-evidence-save" data-id="${_esc(ann.id)}"${(state.busy || !state.claimId) ? ' disabled' : ''}>${state.busy ? 'Linking…' : 'Tag as evidence'}</button>
-        </div>
-      </div>`;
-  }
-
-  function _renderInfoPanel(ann, drafts, groups, groupCur) {
-    const cited = Array.isArray(ann.cite_in_drafts) ? ann.cite_in_drafts : [];
-    const tagged = drafts.filter(d => cited.includes(d.id));
-    const untagged = drafts.filter(d => !cited.includes(d.id));
-
-    // V3.103 — Overlays row retired. Pre-V3.103 it managed `bucket_ids`
-    // separately from `cite_in_drafts`; now drafts are the only
-    // scoping mechanism, and the "Drafts" row above already shows /
-    // edits cite_in_drafts.
-    const overlaysRow = '';
-
-    const linkBtnInfo = window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.openLinkPicker
-      ? `<button class="ann-draft-link" data-action="link-draft" title="Link a paper / grant draft to this paper">+ Link draft…</button>`
-      : '';
-    return `
-      <div class="ann-section-panel ann-section-info">
-        <div class="ann-section-row">
-          <span class="ann-section-label">Drafts</span>
-          <div class="ann-draft-chips">
-            ${tagged.map(d => `<span class="ann-draft-chip">${_esc((d.title || d.id).slice(0, 24))}<button class="ann-draft-x" data-id="${_esc(ann.id)}" data-draft="${_esc(d.id)}">×</button></span>`).join('') || (drafts.length ? '<span class="ann-empty">none</span>' : '<span class="ann-empty">no drafts linked yet</span>')}
-          </div>
-          ${untagged.length ? `
-            <select class="ann-draft-add" data-id="${_esc(ann.id)}">
-              <option value="">+ add draft…</option>
-              ${untagged.map(d => `<option value="${_esc(d.id)}">${_esc((d.title || d.id).slice(0, 60))}</option>`).join('')}
-            </select>` : ''}
-          ${linkBtnInfo}
-        </div>
-        ${overlaysRow}
-        <div class="ann-section-row">
-          <span class="ann-section-label">Group</span>
-          <select class="ann-row-group" data-id="${_esc(ann.id)}">
-            ${groups.map(g => `<option value="${_esc(g.id)}"${g.id === groupCur ? ' selected' : ''}>${_esc(g.name || g.id)}</option>`).join('')}
-            ${groups.some(g => g.id === groupCur) ? '' : `<option value="${_esc(groupCur)}" selected>${_esc(groupCur)} (legacy)</option>`}
-            ${_allowNewGroup ? '<option value="__new__">+ New group…</option>' : ''}
-          </select>
-        </div>
-        <div class="ann-section-actions">
-          <button class="ann-section-cancel" data-id="${_esc(ann.id)}">Done</button>
-        </div>
-      </div>`;
-  }
+  // V3.620 — _renderInfoPanel deleted: its Drafts row is inline on every
+  // card now, and the group picker is gone (write-only field; the real
+  // "save this paper to a group" concept is paper-level, V3.622).
 
   function _render() {
     if (!_root) return;
     const filterFn = getFilterFn();
-    const visible = _annotations.filter(a => !a.parent_id).filter(filterFn);
+    // V3.621 — the `!a.parent_id` filter is gone: threading never shipped
+    // (parent_id was always written null), but a non-null value — e.g.
+    // from a hand-authored overlay import — made the annotation render on
+    // the PAGE while being invisible/uneditable here.
+    const visible = _annotations.filter(filterFn);
     const html = `
       ${_renderHeader()}
       <div class="ann-list">
@@ -527,39 +447,30 @@
     _root.querySelectorAll('.ann-link-jump').forEach(btn => {
       btn.addEventListener('click', () => _onFocus && _onFocus(btn.dataset.id));
     });
+    // Fire-and-forget updates surface failures via alert (the comment save
+    // below handles its own errors inline instead).
+    const _updateOrAlert = (id, patch) => {
+      if (!_onUpdate) return;
+      Promise.resolve(_onUpdate(id, patch))
+        .catch(e => alert(`Update failed: ${e.message || e}`));
+    };
     _root.querySelectorAll('.ann-row-color').forEach(sel => {
-      sel.addEventListener('change', () => _onUpdate && _onUpdate(sel.dataset.id, { color_id: sel.value }));
+      sel.addEventListener('change', () => _updateOrAlert(sel.dataset.id, { color_id: sel.value }));
     });
     _root.querySelectorAll('.ann-row-vis').forEach(sel => {
-      sel.addEventListener('change', () => _onUpdate && _onUpdate(sel.dataset.id, { visibility: sel.value }));
+      sel.addEventListener('change', () => _updateOrAlert(sel.dataset.id, { visibility: sel.value }));
     });
     _root.querySelectorAll('.ann-row-investigate').forEach(btn => {
       btn.addEventListener('click', () => {
         const ann = _annotations.find(a => a.id === btn.dataset.id);
         if (!ann) return;
-        _onUpdate && _onUpdate(btn.dataset.id, { marked_for_investigation: !ann.marked_for_investigation });
+        _updateOrAlert(btn.dataset.id, { marked_for_investigation: !ann.marked_for_investigation });
       });
     });
     _root.querySelectorAll('.ann-row-delete').forEach(btn => {
       btn.addEventListener('click', () => {
         if (!confirm('Delete this highlight? This cannot be undone.')) return;
         _onDelete && _onDelete(btn.dataset.id);
-      });
-    });
-    _root.querySelectorAll('.ann-bucket-chip[data-bucket]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const annId = btn.dataset.id;
-        const bucketId = btn.dataset.bucket;
-        const ann = _annotations.find(a => a.id === annId);
-        if (!ann || !bucketId) return;
-        const cur = Array.isArray(ann.bucket_ids) ? ann.bucket_ids.slice() : [];
-        const has = cur.includes(bucketId);
-        const next = has ? cur.filter(x => x !== bucketId) : cur.concat([bucketId]);
-        if (_onBucketToggle) {
-          _onBucketToggle(annId, bucketId, !has);
-        } else if (_onUpdate) {
-          _onUpdate(annId, { bucket_ids: next });
-        }
       });
     });
     // Edit-panel expand/collapse toggle — defaults to collapsed.
@@ -572,11 +483,21 @@
       });
     });
 
-    // Drafts dropdown — adding a new draft (anyone authenticated).
+    // Drafts dropdown — adding a new draft (any lab member; the R1
+    // cite_in_drafts rules carve-out makes this legal on others' cards).
     _root.querySelectorAll('.ann-draft-add').forEach(sel => {
       sel.addEventListener('change', () => {
         const draftId = sel.value;
         if (!draftId) return;
+        // V3.628 — the merged control's last option opens the paper-level
+        // link picker instead of filing this highlight.
+        if (draftId === '__link__') {
+          sel.value = '';
+          if (window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.openLinkPicker) {
+            window.PAPER_OVERLAYS.openLinkPicker();
+          }
+          return;
+        }
         const annId = sel.dataset.id;
         if (_onCiteToggle) {
           _onCiteToggle(annId, draftId, true);
@@ -584,7 +505,7 @@
           const ann = _annotations.find(a => a.id === annId);
           const cur = Array.isArray(ann && ann.cite_in_drafts) ? ann.cite_in_drafts.slice() : [];
           if (!cur.includes(draftId)) cur.push(draftId);
-          _onUpdate && _onUpdate(annId, { cite_in_drafts: cur });
+          _updateOrAlert(annId, { cite_in_drafts: cur });
         }
         sel.value = '';
       });
@@ -602,70 +523,25 @@
           const ann = _annotations.find(a => a.id === annId);
           const cur = Array.isArray(ann && ann.cite_in_drafts)
             ? ann.cite_in_drafts.filter(d => d !== draftId) : [];
-          _onUpdate && _onUpdate(annId, { cite_in_drafts: cur });
+          _updateOrAlert(annId, { cite_in_drafts: cur });
         }
       });
     });
 
-    // V3.103 — "+ Link draft…" button opens the paper-overlays draft
-    // picker so the user can extend meta.library.linked_drafts inline
-    // from the per-annotation evidence form.
-    _root.querySelectorAll('.ann-draft-link[data-action="link-draft"]').forEach(btn => {
-      btn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        if (window.PAPER_OVERLAYS && window.PAPER_OVERLAYS.openLinkPicker) {
-          window.PAPER_OVERLAYS.openLinkPicker();
-        }
-      });
-    });
-
-    // Group dropdown — change to a known group, or "+ New group..." opens
-    // a prompt and creates one in Firestore via _onCreateGroup.
-    _root.querySelectorAll('.ann-row-group').forEach(sel => {
-      sel.addEventListener('change', async () => {
-        const annId = sel.dataset.id;
-        const next = sel.value;
-        if (next === '__new__') {
-          // Reset to current value while we prompt; user may cancel.
-          const ann = _annotations.find(a => a.id === annId);
-          const prevGroup = (ann && ann.group) || 'general';
-          sel.value = prevGroup;
-          // V3.605 — belt-and-suspenders: the option is hidden when not
-          // allowed, but guard the handler too (firestore.rules is the
-          // real gate either way).
-          if (!_allowNewGroup) return;
-          const name = window.prompt('New group name (e.g. "method", "open question"):');
-          if (!name || !name.trim()) return;
-          if (!_onCreateGroup) {
-            alert('Create-group not wired on this page.');
-            return;
-          }
-          try {
-            const id = await _onCreateGroup(name.trim());
-            _onUpdate && _onUpdate(annId, { group: id });
-          } catch (e) {
-            alert(`Could not create group: ${e.message || e}`);
-          }
-          return;
-        }
-        _onUpdate && _onUpdate(annId, { group: next });
-      });
-    });
+    // (V3.628 — the separate "+ Link draft…" button is gone; the action is
+    // the last option of the .ann-draft-add dropdown above.)
 
     // ---- Section-based inline panels ----
 
-    // Section button toggle (Comment / Evidence / Information).
+    // Section button toggle (Comment — V3.622: evidence moved to the
+    // Library → Comments workspace).
     _root.querySelectorAll('.ann-link-section').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.dataset.id;
         const target = btn.dataset.section;
         const cur = _cardSection.get(id) || null;
-        if (cur === target) {
-          _cardSection.delete(id);
-        } else {
-          _cardSection.set(id, target);
-          if (target === 'evidence') _ensureEvidenceClaims(id);
-        }
+        if (cur === target) _cardSection.delete(id);
+        else _cardSection.set(id, target);
         _render();
       });
     });
@@ -673,7 +549,19 @@
     _root.querySelectorAll('.ann-section-cancel').forEach(btn => {
       btn.addEventListener('click', () => {
         _cardSection.delete(btn.dataset.id);
+        _commentForm.delete(btn.dataset.id);
         _render();
+      });
+    });
+
+    // Keep in-progress comment text across snapshot re-renders. Typing
+    // itself never re-renders — this only records the draft.
+    _root.querySelectorAll('.ann-comment-input').forEach(ta => {
+      ta.addEventListener('input', () => {
+        const id = ta.dataset.id;
+        const state = _commentForm.get(id) || {};
+        state.text = ta.value;
+        _commentForm.set(id, state);
       });
     });
 
@@ -694,144 +582,31 @@
       });
     });
 
-    // Comment section save.
+    // Comment section save. V3.620 — await the write; close only on
+    // success. The old handler closed the textarea and re-rendered from
+    // stale state BEFORE the write resolved, so a failure lost the only
+    // copy of the typed text.
     _root.querySelectorAll('.ann-comment-save').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const id = btn.dataset.id;
         const ta = _root.querySelector(`.ann-comment-input[data-id="${id}"]`);
         const next = ta ? ta.value : '';
-        _onUpdate && _onUpdate(id, { comment: next });
-        _cardSection.delete(id);
-        _render();
-      });
-    });
-
-    // Evidence section: draft, claim radio, stance radio, new-claim, save.
-    _root.querySelectorAll('.ann-evidence-draft').forEach(sel => {
-      sel.addEventListener('change', () => {
-        const id = sel.dataset.id;
-        const state = _evidenceForm.get(id) || {};
-        state.draftId = sel.value;
-        state.claims = null;
-        state.claimId = '';
-        state.err = '';
-        _evidenceForm.set(id, state);
-        _ensureEvidenceClaims(id);
-        _render();
-      });
-    });
-    _root.querySelectorAll(`input[name^="ann-claim-"]`).forEach(input => {
-      input.addEventListener('change', () => {
-        const id = input.dataset.id;
-        const state = _evidenceForm.get(id) || {};
-        state.claimId = input.value;
-        state.err = '';
-        _evidenceForm.set(id, state);
-        _render();
-      });
-    });
-    _root.querySelectorAll(`input[name^="ann-stance-"]`).forEach(input => {
-      input.addEventListener('change', () => {
-        const id = input.dataset.id;
-        const state = _evidenceForm.get(id) || {};
-        state.stance = input.value;
-        _evidenceForm.set(id, state);
-      });
-    });
-    _root.querySelectorAll('.ann-evidence-newclaim').forEach(input => {
-      input.addEventListener('input', () => {
-        const id = input.dataset.id;
-        const state = _evidenceForm.get(id) || {};
-        state.newStmt = input.value;
-        _evidenceForm.set(id, state);
-      });
-    });
-    _root.querySelectorAll('.ann-evidence-newclaim-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.dataset.id;
-        const state = _evidenceForm.get(id) || {};
-        const stmt = String(state.newStmt || '').trim();
-        if (!stmt) { state.err = 'Type a claim statement first.'; _evidenceForm.set(id, state); _render(); return; }
-        if (!window.CLAIMS) { state.err = 'CLAIMS module missing.'; _evidenceForm.set(id, state); _render(); return; }
-        state.busy = true; state.err = '';
-        _evidenceForm.set(id, state);
+        const state = _commentForm.get(id) || {};
+        state.text = next; state.busy = true; state.err = '';
+        _commentForm.set(id, state);
         _render();
         try {
-          const newId = await window.CLAIMS.create(state.draftId, { statement: stmt });
-          state.claims = await _loadClaimsForDraft(state.draftId);
-          state.claimId = newId;
-          state.newStmt = '';
-        } catch (e) {
-          state.err = `Create failed: ${e.message || e}`;
-        }
-        state.busy = false;
-        _evidenceForm.set(id, state);
-        _render();
-      });
-    });
-    _root.querySelectorAll('.ann-evidence-save').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.dataset.id;
-        const state = _evidenceForm.get(id) || {};
-        if (!state.draftId || !state.claimId || !state.stance) return;
-        const ann = _annotations.find(a => a.id === id);
-        if (!ann || !window.CLAIMS) return;
-        state.busy = true; state.err = '';
-        _evidenceForm.set(id, state);
-        _render();
-        try {
-          await window.CLAIMS.addEvidence(state.draftId, state.claimId, ann.paperId, ann.id, state.stance);
-          // V3.475 — auto-link the chosen draft to this journal paper so the
-          // "Used in paper drafts" association reflects the new evidence tie.
-          // Non-fatal: the evidence already persisted regardless.
-          if (_onEnsureDraftLinked) {
-            try { await _onEnsureDraftLinked(state.draftId); } catch (_) { /* ignore */ }
-          }
+          await (_onUpdate ? _onUpdate(id, { comment: next }) : Promise.resolve());
+          _commentForm.delete(id);
           _cardSection.delete(id);
-          _evidenceForm.delete(id);
         } catch (e) {
-          state.err = `Tag failed: ${e.message || e}`;
           state.busy = false;
-          _evidenceForm.set(id, state);
+          state.err = `Save failed: ${e.message || e}`;
+          _commentForm.set(id, state);
         }
         _render();
       });
     });
-  }
-
-  // Lazy-load claims for the chosen draft when the Evidence form opens.
-  async function _ensureEvidenceClaims(annId) {
-    const state = _evidenceForm.get(annId);
-    if (!state || !state.draftId || (state.claims !== null && state.claims !== undefined && Array.isArray(state.claims))) return;
-    try {
-      const claims = await _loadClaimsForDraft(state.draftId);
-      const cur = _evidenceForm.get(annId);
-      if (!cur || cur.draftId !== state.draftId) return;
-      cur.claims = claims;
-      _evidenceForm.set(annId, cur);
-    } catch (e) {
-      const cur = _evidenceForm.get(annId) || state;
-      cur.claims = [];
-      cur.err = `Could not load claims: ${e.message || e}`;
-      _evidenceForm.set(annId, cur);
-    }
-    _render();
-  }
-
-  function _loadClaimsForDraft(draftId) {
-    if (!draftId || typeof firebase === 'undefined' || !firebase.firestore) return Promise.resolve([]);
-    return firebase.firestore()
-      .collection('drafts').doc(draftId).collection('claims').get()
-      .then(snap => {
-        const out = [];
-        snap.forEach(doc => out.push(Object.assign({ id: doc.id }, doc.data())));
-        out.sort((a, b) => {
-          const ta = a.created && a.created.toMillis ? a.created.toMillis() : 0;
-          const tb = b.created && b.created.toMillis ? b.created.toMillis() : 0;
-          return ta - tb;
-        });
-        return out;
-      });
   }
 
   function setAnnotations(list) {
@@ -855,6 +630,26 @@
     setTimeout(() => { try { card.classList.remove('ann-card-flash'); } catch (_) {} }, 1600);
   }
 
+  /* V3.628 — open a highlight's comment from outside the panel (clicking the
+   * rect on the page). Owners get the editor open and focused; everyone else
+   * just gets the card scrolled to + flashed, since the comment already
+   * renders on it. */
+  function openComment(annId) {
+    if (!annId) return;
+    const ann = _annotations.find(a => a.id === annId);
+    const isMine = ann && ann.creator && ann.creator.uid === _currentUid;
+    if (ann && isMine && _canWrite) {
+      if (!_commentForm.has(annId)) {
+        _commentForm.set(annId, { text: ann.comment || '', busy: false, err: '' });
+      }
+      _cardSection.set(annId, 'comment');
+      _render();
+    }
+    focusCard(annId);
+    const ta = _root && _root.querySelector(`.ann-comment-input[data-id="${annId}"]`);
+    if (ta) { try { ta.focus({ preventScroll: true }); } catch (_) { ta.focus(); } }
+  }
+
   function init(opts) {
     // V3.294 — reset accumulating per-paper state so re-init on a tab switch
     // doesn't stack duplicate filter callbacks (each would fire on every
@@ -862,26 +657,19 @@
     _filterCallbacks = [];
     _expandedCards.clear();
     _cardSection.clear();
-    _evidenceForm.clear();
+    _commentForm.clear();
     _annotations = [];
     _root = opts.rootEl;
     _viewer = opts.viewer;
     _getColors = opts.getColors || (() => []);
     _currentUid = opts.currentUserUid || '';
+    _canWrite = (opts.canWrite !== undefined) ? !!opts.canWrite : true;
     _onFocus = opts.onFocus || null;
     _onUpdate = opts.onUpdate || null;
     _getDrafts = opts.getDrafts || null;
-    _getGroups = opts.getGroups || null;
-    _onCreateGroup = opts.onCreateGroup || null;
-    _allowNewGroup = (opts.allowNewGroup !== undefined) ? !!opts.allowNewGroup : true;
     _onCiteToggle = opts.onCiteToggle || null;
-    _onEnsureDraftLinked = opts.onEnsureDraftLinked || null;
     _onDelete = opts.onDelete || null;
-    _onReply = opts.onReply || null;
     _onVisibilityDefaultChange = opts.onVisibilityDefaultChange || null;
-    _getBuckets = opts.getBuckets || null;
-    _onBucketToggle = opts.onBucketToggle || null;
-    _getBucketColor = opts.getBucketColor || (() => '#a78bfa');
 
     let stored = null;
     try { stored = localStorage.getItem('rm_lib_default_vis'); } catch (_) { /* ignore */ }
@@ -904,5 +692,6 @@
     onFilterChange,
     getDefaultVisibility,
     focusCard,
+    openComment,   // V3.628 — clicking a highlight on the page
   };
 })();

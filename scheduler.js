@@ -972,7 +972,7 @@ function guestViewHTML(config) {
       <h4>${hasAnyFields ? 'Step 1 — Pick your times' : 'Your Availability'}</h4>
       <p class="muted-text" style="margin:0 0 12px;font-size:.85rem;">${mode === 'freeform' ? 'Tap or drag to paint the times you are available.' : 'Tap every slot you are available for.'}</p>
       ${availHTML}
-      ${config.getAvailabilityData ? `<div style="margin-bottom:10px;"><button type="button" id="autofill-avail-btn" class="btn">&#9889; Auto-fill from my availability</button><span class="muted-text" style="margin-left:8px;font-size:.8rem;">Uses the availability you keep in RM. You can adjust before saving.</span></div>` : ''}
+      ${config.getAvailabilityData ? `<div style="margin-bottom:10px;"><button type="button" id="autofill-avail-btn" class="btn">${ICON.svg('bolt')} Auto-fill from my availability</button><span class="muted-text" style="margin-left:8px;font-size:.8rem;">Uses the availability you keep in RM. You can adjust before saving.</span></div>` : ''}
       <div style="margin-top:12px;"><button type="button" id="save-availability-btn" class="btn">Save Availability</button><span id="avail-status" class="save-status"></span>${mode === 'freeform' ? `<span id="ff-selected-count" class="muted-text" style="margin-left:10px;font-size:.85rem;">${avail.length ? avail.length + ' slot(s) selected' : ''}</span>` : ''}</div>
     </div>
 
@@ -1046,7 +1046,7 @@ function adminViewHTML(config) {
         guestTableHTML += `<td title="${esc(tooltip)}">${yesCount} / ${boolQs.length}</td>`;
       }
       const emailBtn = (sp.speakerEmail && sp.assignedSlot)
-        ? `<a class="btn btn-small" href="${esc(assignedSlotMailto(sp, schedule, allSlots, inviteURL))}" style="margin-left:4px;">&#9993; Email</a>`
+        ? `<a class="btn btn-small" href="${esc(assignedSlotMailto(sp, schedule, allSlots, inviteURL))}" style="margin-left:4px;">${ICON.svg('envelope')} Email</a>`
         : '';
       guestTableHTML += `<td><button class="btn btn-small copy-invite-btn" data-invite-url="${esc(inviteURL)}">Copy Link</button>${emailBtn}</td><td>`;
       if (mode === 'sessions') guestTableHTML += `<select class="assign-select" data-speaker-id="${sp.id}"><option value="">—</option>${allSlots.map(s => `<option value="${s.id}" ${sp.assignedSlot === s.id ? 'selected' : ''} ${(sp.availability || []).includes(s.id) ? '' : 'disabled'}>${s.day.label} ${s.slot.label}</option>`).join('')}</select>`;

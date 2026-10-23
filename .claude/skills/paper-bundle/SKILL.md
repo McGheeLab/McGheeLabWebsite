@@ -24,6 +24,33 @@ and restores comments. The finished paper then appears in the list to open.
 > `PaperTreeBuild.buildInto` (the importer). The exporter is the canonical
 > shape; this skill hand-authors the same manifest.
 
+## Two kinds of bundle (V3.741/742)
+
+| Bundle | How it arises | What import does |
+|---|---|---|
+| **Fresh** | hand-authored with this skill, or `📦 Export paper (portable)` on the Export page | creates a **new** paper (fresh slug) |
+| **Checked-out** | `⇩ Export for updates` on the papers list; `paper.json` carries a `checkout` block | offers to **update the same paper in place** and release its lock |
+
+A checked-out bundle is the round trip Alex uses: export → edit in the paper's
+VSCode repo (with Claude) → re-zip → import. While the bundle is out, the web
+draft is **locked read-only for everyone** (the `yjs_updates` create rule
+refuses writes, admins included; only the checkout holder's import gets
+through). If you are editing a checked-out bundle:
+
+- **Edit `paper.json`; `paper.md` is a rendering and is ignored on import.**
+- **Never change the `checkout` block** — it is the return address (`paper_id`
+  + `token`). A missing block turns the import into a new copy.
+- **Keep every existing section/block `id`.** Comments, highlights and
+  cross-references bind to them.
+- On update the importer **replaces** the whole tree, equation library,
+  unplaced figures/tables and value library from the bundle — anything you
+  delete from `paper.json` is deleted from the paper. Comments are left alone
+  (they never left Firestore).
+- New references: append to `references[]` and cite `[N]` (1-based position in
+  that array). Existing citations stay `[@citekey]`. The exporter already fills
+  `references[]` from the lab library, so the array is in citation order.
+- The exporter also ships a `README.md` inside the zip repeating these rules.
+
 ## When to invoke
 
 The user has a paper/grant outside RM and wants it as an editable RM draft:
@@ -96,11 +123,22 @@ Top level:
   "equation_library": [],   // reusable inline equations (optional)
   "figure_unplaced":  [],   // figure blocks not yet placed (optional)
   "table_unplaced":   [],   // table blocks not yet placed (optional)
+  "value_library":    [],   // [!val:KEY] value entries (optional; round-trips)
   "references": [ /* unified-metadata refs → library (optional) */ ],
+  "bibliography": { /* keyed copy of the same refs — exporter only, for paper.md; NOT read on import */ },
   "assets":     [ /* index of assets/ files (optional) */ ],
-  "grant_docs": [ /* attached PDFs for grants (optional) */ ]
+  "grant_docs": [ /* attached PDFs for grants (optional) */ ],
+  "checkout": {             // ONLY on a bundle from "⇩ Export for updates" — do not hand-author or edit
+    "paper_id": "granule-coating", "token": "co-…",
+    "checked_out_at": "2026-09-04T14:20:11.000Z",
+    "checked_out_by": "Alex McGhee", "checked_out_by_uid": "…"
+  }
 }
 ```
+
+Paragraph blocks may also carry `skeleton_items` (`[{id, depth, text,
+claim_id}]`, the outline behind the prose) and sections `style_overrides` (plain
+JSON); both round-trip since V3.742.
 
 ### `paper` — the `projects/{slug}` row
 
@@ -361,7 +399,9 @@ Index every image/PDF the manifest points at:
 `blockId` must match a block/section `id` in the tree. Restore is best-effort
 and health-gated on a Cloud Function (`restorePaperComments`) — if it isn't
 deployed, comments are skipped without failing the import. Emit `[]` (or omit
-the file) when there are none.
+the file) when there are none. On an **update-in-place** import (checked-out
+bundle) `comments.json` is ignored entirely — the comments are still in
+Firestore and re-restoring would duplicate them.
 
 ## Build + validate
 

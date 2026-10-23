@@ -1672,7 +1672,7 @@ function drawTeachingTab3() {
       ctx.fillStyle="#fef3c7";ctx.beginPath();ctx.roundRect(pL+6,wY,cw-12,30,4);ctx.fill();
       ctx.strokeStyle="#f59e0b";ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(pL+6,wY,cw-12,30,4);ctx.stroke();
       ctx.fillStyle="#92400e";ctx.font="bold 11px -apple-system,sans-serif";ctx.textAlign="center";
-      ctx.fillText("\u26A0 R\u00B2 OK but residuals show a pattern!",pL+cw/2,wY+19);
+      ctx.fillText("R\u00B2 OK but residuals show a pattern!",pL+cw/2,wY+19);
     }
   }
 }
@@ -2398,9 +2398,9 @@ function drawTab6CovMatrix(){
     ctx.fillText("r = "+r.toFixed(2),matX-20,sumY+56);
     /* interpretation */
     ctx.fillStyle="#64748b";ctx.font="10px -apple-system,sans-serif";
-    const rInterp=Math.abs(r)>0.9?"\u26A0 Danger: nearly non-identifiable":Math.abs(r)>0.7?"Moderate tradeoff":Math.abs(r)>0.3?"Weak correlation":"Nearly independent";
+    const rInterp=Math.abs(r)>0.9?"Danger: nearly non-identifiable":Math.abs(r)>0.7?"Moderate tradeoff":Math.abs(r)>0.3?"Weak correlation":"Nearly independent";
     ctx.fillText(rInterp,matX+60,sumY+56);
-    if(Math.abs(r)>0.9){ctx.fillStyle="#dc2626";ctx.font="bold 11px -apple-system,sans-serif";ctx.fillText("\u26A0 |r| > 0.9",w-MARGIN.r-10,sumY+56);}
+    if(Math.abs(r)>0.9){ctx.fillStyle="#dc2626";ctx.font="bold 11px -apple-system,sans-serif";ctx.fillText("|r| > 0.9",w-MARGIN.r-10,sumY+56);}
   }
 
   /* ── Plot 2: Confidence ellipse with annotations ── */
@@ -2932,7 +2932,7 @@ function drawSynthesis() {
       "",
       "Model Selection:" + (SYN.compResult ? " Best = " + SYN.compResult.reduce((a, b) => a.aic < b.aic ? a : b).name : " (not run)"),
       "",
-      "Identifiability:" + (SYN.bootResult ? " r(\u03B1,\u03B2) = " + SYN.bootResult.corr[1][2].toFixed(2) + (Math.abs(SYN.bootResult.corr[1][2]) > 0.9 ? " \u26A0 Strong correlation" : " \u2713 OK") : " (not run)"),
+      "Identifiability:" + (SYN.bootResult ? " r(\u03B1,\u03B2) = " + SYN.bootResult.corr[1][2].toFixed(2) + (Math.abs(SYN.bootResult.corr[1][2]) > 0.9 ? " — strong correlation!" : " \u2713 OK") : " (not run)"),
       "",
       "Verdict: " + (r2 > 0.95 ? "Excellent calibration" : r2 > 0.85 ? "Good calibration" : "Needs improvement")
     ];

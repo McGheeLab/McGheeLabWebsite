@@ -1,0 +1,2123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Pipette — An Air Spring You Cannot See (Equipment Foundations 2)</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#f1f5f9;color:#1e293b;line-height:1.5;overflow-x:hidden}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,#1e3a5f 0%,#0891b2 100%);color:#fff;padding:24px 32px;text-align:center}
+header h1{font-size:1.7rem;font-weight:700;letter-spacing:-.5px}
+header .subtitle{font-size:.95rem;opacity:.85;margin-top:4px}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 16px;overflow-x:auto;position:sticky;top:0;z-index:100}
+.tab-btn{padding:12px 16px;border:none;background:none;font-size:.84rem;font-weight:600;color:#64748b;
+  cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:#2563eb}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+.tab-btn.next-tab{color:#b45309;font-weight:700}
+.tab-btn.next-tab.active{color:#b45309;border-bottom-color:#f59e0b}
+
+/* ── Constants & variables rail ── */
+.constants-bar{max-width:1400px;margin:10px auto 0;padding:0 16px}
+.constants-bar details{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.constants-bar summary{cursor:pointer;padding:10px 16px;font-size:.82rem;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:#1e3a5f}
+.constants-bar .const-body{padding:4px 20px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px 24px}
+.constants-bar .const-body h4{grid-column:1/-1;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-top:8px}
+.constants-bar .const-body p{font-size:.82rem;color:#475569;margin:1px 0}
+.constants-bar .const-body p .src{color:#94a3b8;font-size:.72rem}
+.constants-bar .eqindex p b{color:#1e3a5f;font-variant-numeric:tabular-nums}
+
+/* ── Main layout ── */
+main{max-width:1400px;margin:0 auto;padding:16px}
+.tab-content{display:none}
+.tab-content.active{display:flex;flex-direction:column}
+
+/* ── Lesson flow (stacked story → interactive pairs) ──
+   `contain:layout` keeps each block's internal reflow from reaching its
+   siblings; the reserved heights on .stats / .val-verdict below keep the
+   blocks themselves from changing size as live readouts update, so a
+   simulation never pushes the paragraph you are reading off the screen. */
+.lesson-block{margin-bottom:26px;padding-bottom:8px;border-bottom:1px dashed #cbd5e1;contain:layout}
+.lesson-block:last-of-type{border-bottom:none}
+.lesson-block .background-section{margin-bottom:12px}
+.panel.compact{grid-template-columns:260px 1fr;margin-bottom:4px;align-items:start}
+@media(max-width:900px){.panel.compact{grid-template-columns:1fr}}
+
+/* ── Cards & panels ── */
+.panel{display:grid;grid-template-columns:300px 1fr;gap:16px}
+@media(max-width:900px){.panel{grid-template-columns:1fr}}
+
+/* ── Background sections ── */
+.background-section{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  padding:24px 28px;margin-bottom:16px;border-left:4px solid #1e3a5f}
+.background-section h2{font-size:1.1rem;color:#1e3a5f;margin-bottom:12px}
+.background-section h3{font-size:.95rem;color:#334155;margin:16px 0 6px}
+.background-section p,.background-section li{font-size:.88rem;color:#475569;line-height:1.6}
+.background-section ul,.background-section ol{padding-left:20px;margin:6px 0}
+.equation-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 16px;margin:10px 0;overflow-x:auto}
+.equation-box .eqno{float:right;color:#94a3b8;font-size:.78rem;margin-left:10px;line-height:2.2}
+.equation-box mjx-container,.background-section mjx-container{max-width:100%;overflow-x:auto;overflow-y:hidden}
+.worked-example{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin:10px 0}
+.worked-example::before{content:"WORKED EXAMPLE";display:block;font-size:.65rem;font-weight:700;letter-spacing:.08em;color:#2563eb;margin-bottom:6px}
+/* ── Worked examples v2: stepped, equations shown assembling, COLLAPSED by default ── */
+details.worked{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;margin:12px 0}
+details.worked summary{cursor:pointer;padding:9px 14px;font-size:.72rem;font-weight:700;letter-spacing:.07em;color:#2563eb;text-transform:uppercase}
+details.worked summary .we-title{color:#1e40af;text-transform:none;letter-spacing:0;font-size:.86rem;font-weight:600;margin-left:6px}
+details.worked .worked-body{padding:2px 18px 14px}
+details.worked ol.steps{margin:0 0 0 18px;padding:0}
+details.worked ol.steps>li{font-size:.86rem;color:#1e3a8a;margin-bottom:9px;line-height:1.55}
+details.worked ol.steps>li .lead{font-weight:700;color:#2563eb}
+details.worked .step-eq{background:#fff;border:1px solid #dbeafe;border-radius:6px;padding:6px 12px;margin:6px 0;overflow-x:auto}
+details.worked .answer{background:#dbeafe;border-radius:6px;padding:9px 13px;margin-top:8px;font-size:.88rem;color:#1e3a8a}
+details.worked .answer::before{content:"ANSWER · ";font-size:.68rem;font-weight:800;letter-spacing:.07em;color:#2563eb}
+/* ── capstone tab button ── */
+.tab-btn.cap-tab{color:#047857;font-weight:700}
+.tab-btn.cap-tab.active{color:#047857;border-bottom-color:#10b981}
+.key-takeaways{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-top:12px}
+.key-takeaways::before{content:"KEY TAKEAWAYS";display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#15803d;margin-bottom:4px}
+.key-takeaways ul{margin:0 0 0 16px;padding:0}
+.key-takeaways li{font-size:.82rem;color:#14532d}
+.background-section table.cmp{width:100%;border-collapse:collapse;font-size:.84rem;margin:10px 0}
+.background-section table.cmp th,.background-section table.cmp td{border:1px solid #e2e8f0;padding:5px 9px;text-align:left;color:#475569}
+.background-section table.cmp th{background:#f1f5f9;color:#334155;font-weight:700}
+.background-section table.cmp td.c{text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ── Deep boxes (566 / curious-student depth) ── */
+details.deep{background:#faf5ff;border:1px solid #e9d5ff;border-radius:6px;padding:0;margin:10px 0}
+details.deep summary{cursor:pointer;padding:8px 14px;font-size:.76rem;font-weight:700;letter-spacing:.06em;color:#7c3aed}
+details.deep .deep-body{padding:2px 16px 12px}
+details.deep .deep-body p,details.deep .deep-body li{font-size:.84rem;color:#5b21b6}
+
+/* ── Check-yourself boxes ── */
+details.check{background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;margin:12px 0}
+details.check summary{cursor:pointer;padding:9px 14px;font-size:.78rem;font-weight:700;letter-spacing:.06em;color:#c2410c;text-transform:uppercase}
+details.check .check-body{padding:2px 18px 12px}
+details.check .check-body p,details.check .check-body li{font-size:.86rem;color:#7c2d12}
+details.check details{margin:4px 0 10px}
+details.check details summary{padding:2px 0;font-size:.78rem;color:#9a3412;text-transform:none;letter-spacing:0}
+details.check details p{font-size:.82rem;color:#78350f;padding:4px 0 0 6px}
+
+/* ── Student task ── */
+.student-task{border:2px solid #059669;border-radius:8px;background:#ecfdf5;padding:12px 16px;margin:12px 0;position:relative}
+.student-task::before{content:"TRY THIS";position:absolute;top:-0.6rem;left:1rem;background:#ecfdf5;padding:0 0.5rem;font-size:.65rem;font-weight:700;letter-spacing:.1em;color:#059669}
+.student-task ol{margin:.25rem 0 0 1.25rem;color:#065f46}
+.student-task li{font-size:.88rem;margin-bottom:4px}
+
+/* ── Controls ── */
+.ctrl{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px}
+.ctrl h3{font-size:.85rem;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:10px;border-bottom:1px solid #f1f5f9;padding-bottom:6px}
+.ctrl-group{margin-bottom:12px}
+.ctrl-group label{display:flex;justify-content:space-between;font-size:.82rem;font-weight:600;color:#334155;margin-bottom:3px}
+.ctrl-group label span{font-weight:400;color:#2563eb;font-variant-numeric:tabular-nums}
+.ctrl-group input[type=range]{width:100%;accent-color:#2563eb;height:6px}
+.toggle-btn{border:2px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 12px;font-size:.8rem;font-weight:700;color:#64748b;cursor:pointer;width:100%;transition:all .15s}
+.toggle-btn.on{border-color:#dc2626;color:#dc2626;background:#fef2f2}
+
+/* ── Stats ── (every widget emits exactly 4 rows; the reserved height means a
+   changing readout never resizes the box and shifts the page under the reader) */
+.stats{background:#f8fafc;border-radius:8px;padding:12px;font-size:.82rem;font-variant-numeric:tabular-nums;margin-top:8px;min-height:132px}
+.stats h4{font-size:.8rem;color:#64748b;margin-bottom:4px}
+.stat-row{display:flex;justify-content:space-between;gap:10px;align-items:baseline;min-height:27px;padding:2px 0;border-bottom:1px solid #f1f5f9}
+.stat-row .label{color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.stat-row .value{flex:0 0 auto}
+.stat-row .value{font-weight:600;color:#1e293b;text-align:right;white-space:nowrap}
+.stat-row.highlight .value{color:#2563eb}
+
+/* ── Viz area ── */
+.viz{display:flex;flex-direction:column;gap:12px}
+.canvas-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:12px}
+.canvas-wrap canvas{display:block;width:100%;height:auto;max-width:100%;border-radius:6px}
+.canvas-title{font-size:.78rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.chart-row{grid-template-columns:1fr}}
+
+/* ── Per-widget scenario bar ── */
+.scenario-bar{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.scenario-bar-label{font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700}
+.scen-btn{padding:6px 14px;border:2px solid #e2e8f0;background:#fff;border-radius:20px;font-size:.82rem;font-weight:600;color:#64748b;cursor:pointer;transition:all .15s}
+.scen-btn:hover{color:#1e293b;border-color:#cbd5e1}
+.scen-btn.on{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+
+/* ── Verdict box ── (reserved height: the narration rewrites itself as the
+   simulation crosses thresholds, and without this the box would grow/shrink
+   and move every lesson block below it) */
+.val-verdict{border-radius:8px;padding:10px 14px;margin-top:10px;font-size:.84rem;line-height:1.5;min-height:6.2em}
+/* the three longest narrations get extra reserved height — their wording (and
+   the width of the numbers inside it) changes as the sim runs, and without this
+   a rewrap nudges everything below them */
+.val-verdict.tall{min-height:8.8em}
+@media(max-width:900px){.val-verdict{min-height:8.5em}.val-verdict.tall{min-height:12em}}
+.val-verdict.good{background:#f0fdf4;border:1px solid #86efac;color:#14532d}
+.val-verdict.bad{background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d}
+.val-verdict.warn{background:#fffbeb;border:1px solid #fde68a;color:#78350f}
+/* only the leading title is a block — inline <strong> inside the narration
+   must stay inline (it was breaking mid-sentence onto its own line) */
+.val-verdict > strong:first-child{display:block;font-size:.9rem;margin-bottom:2px}
+
+/* ── Insight + handoff boxes ── */
+.insight{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#78350f}
+.insight strong{color:#b45309}
+.handoff{background:#eef2ff;border-left:4px solid #6366f1;border-radius:0 8px 8px 0;padding:10px 14px;margin:10px 0;font-size:.86rem;color:#3730a3}
+.handoff strong{color:#4338ca}
+
+/* ── Sources ── */
+.sources{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:18px 24px;margin-top:16px}
+.sources h2{font-size:1rem;color:#1e3a5f;margin-bottom:8px}
+.sources ol{margin:0 0 0 18px}
+.sources li{font-size:.8rem;color:#475569;margin-bottom:5px;line-height:1.45}
+.sources a{color:#2563eb;text-decoration:none}
+.sources a:hover{text-decoration:underline}
+
+/* ── Footer ── */
+footer{text-align:center;padding:20px;font-size:.78rem;color:#94a3b8}
+
+/* ── MathJax ── */
+mjx-container{display:inline-block !important}
+
+/* ════ RESPONSIVE ════ */
+@media (max-width: 900px){.panel{gap:12px}}
+@media (max-width: 640px){
+  header{padding:16px 14px} header h1{font-size:1.2rem} header .subtitle{font-size:.76rem}
+  .tab-bar{padding:0 8px;top:0} .tab-btn{padding:10px 9px;font-size:.74rem}
+  main{padding:10px 8px;max-width:100%}
+  .scenario-bar{padding:8px 10px;gap:6px} .scenario-bar-label{font-size:.68rem;width:100%;margin-bottom:2px}
+  .scen-btn{padding:5px 10px;font-size:.74rem;flex:1 1 calc(50% - 4px);text-align:center}
+  .background-section{padding:16px 16px} .background-section h2{font-size:1rem}
+  .worked-example,.equation-box{padding:10px 12px;font-size:.82rem}
+  .ctrl{padding:12px} .canvas-wrap{padding:8px} .stats{padding:10px;font-size:.76rem}
+  .constants-bar{padding:0 8px}
+}
+@media (max-width: 380px){ .scen-btn{flex:1 1 100%} header h1{font-size:1.05rem} .tab-btn{padding:8px 7px;font-size:.7rem} }
+
+/* ── Lab-SOP aside: content authored from McGhee Lab practice, NOT from a
+   vendor document. Visually distinct on purpose — a reader must be able to
+   tell house rules from published guidance. ── */
+.aside{background:#f0f9ff;border-left:4px solid #0891b2;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#155e75}
+.aside strong{color:#0e7490}
+.aside .lab{display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#0891b2;margin-bottom:4px;text-transform:uppercase}
+
+/* ── Rule cards: the short imperative rules a tab earns ── */
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:12px 0}
+.rule{background:#fff;border:1px solid #e2e8f0;border-left:3px solid #2563eb;border-radius:8px;padding:10px 13px}
+.rule b{display:block;font-size:.84rem;color:#1e3a5f;margin-bottom:3px}
+.rule span{font-size:.8rem;color:#64748b;line-height:1.45}
+
+/* ── Toggle rows (checkbox groups inside a .ctrl) ── */
+.chk{display:flex;align-items:center;gap:7px;font-size:.8rem;color:#334155;margin-bottom:5px;cursor:pointer}
+.chk input{accent-color:#2563eb;width:15px;height:15px;flex:0 0 auto}
+.seg{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.seg button{flex:1 1 auto;border:2px solid #e2e8f0;background:#fff;border-radius:7px;padding:5px 9px;font-size:.76rem;font-weight:700;color:#64748b;cursor:pointer}
+.seg button.on{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+</style>
+</head>
+<body>
+<header>
+  <h1>The Pipette — An Air Spring You Cannot See</h1>
+  <p class="subtitle">Equipment Foundations · Lesson 2 of 7 · McGhee Lab</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="work">1. How It Works</button>
+  <button class="tab-btn" data-tab="use">2. How to Use It</button>
+  <button class="tab-btn" data-tab="care">3. Precautions</button>
+  <button class="tab-btn" data-tab="maint">4. Maintenance</button>
+  <button class="tab-btn cap-tab" data-tab="recap">5. Recap &amp; the Real Job</button>
+</div>
+
+<div class="constants-bar">
+  <details>
+    <summary>Constants, pipette numbers &amp; equation index</summary>
+    <div class="const-body">
+      <h4>Physical constants</h4>
+      <p><b>g</b> = 9.81 m/s² · <b>ρ</b><sub>water</sub> = 997.8 kg/m³ at 22 °C</p>
+      <p><b>p</b><sub>atm</sub> ≈ 92.9 kPa in Tucson (728 m); 101.3 kPa at sea level</p>
+      <p><b>Z</b> = 1.0032 µL/mg — water, 22 °C, 95 kPa <span class="src">(manual, p. 6; full table p. 26)</span></p>
+      <h4>Saturated vapour pressure at 22 °C</h4>
+      <p>water <b>2.6 kPa</b> · ethanol <b>6.5 kPa</b> · acetone <b>25 kPa</b> · DMSO <b>0.06 kPa</b> · glycerol ≈ 0</p>
+      <h4>Fisherbrand Elite (FB77100–FB77118 single, FB77120–FB77134 multi)</h4>
+      <p>Ten single-channel models from <b>0.2–2 µL</b> to <b>1–10 mL</b>; eight 8- and 12-channel models from 1–10 µL to 30–300 µL</p>
+      <p><b>SureOne</b> tips, virgin polypropylene. Standard tips autoclavable at 121 °C; <b>filter tips are not</b></p>
+      <p><b>Maximum permissible error, 100–1000 µL model:</b> ±8.0 µL at both 1000 µL (0.8%) and 100 µL (8.0%)</p>
+      <p><b>Maximum permissible error, 10–100 µL model:</b> ±0.80 µL at both 100 µL (0.8%) and 10 µL (8.0%)</p>
+      <p><b>Balance graduation needed to calibrate:</b> 0.001 mg below 10 µL · 0.01 mg for 10–100 µL · 0.1 mg above 100 µL</p>
+      <p><b>Calibration conditions:</b> ISO 3696 grade 3 water, draft-free, 15–30 °C held to ±0.5 °C, <b>RH above 50%</b></p>
+      <p><span class="src">Every tolerance on this page is the ISO 8655 limit reproduced in the manual's Table 1,
+        for the single-channel models. The multichannel limits are looser — check the second table for those.</span></p>
+
+      <h4>Equation index</h4>
+      <div class="eqindex">
+        <p><b>eq. 2.1.1</b> — Boyle's law for the air cushion</p>
+        <p><b>eq. 2.1.2</b> — aspiration shortfall from vapour pressure and head</p>
+        <p><b>eq. 2.2.1</b> — inaccuracy, absolute and relative</p>
+        <p><b>eq. 2.2.2</b> — imprecision as a coefficient of variation</p>
+        <p><b>eq. 1.1.4</b> — sample standard deviation <span class="src">(reused from Lesson 1, earned there)</span></p>
+        <p><b>eq. 2.3.1</b> — leak rate past a worn seal</p>
+        <p><b>eq. 2.3.2</b> — delivered mass against temperature</p>
+        <p><b>eq. 2.4.1</b> — volume from weight, the manual's own formula</p>
+        <p><b>eq. 1.3.4</b> — minimum weight <span class="src">(reused from Lesson 1, used here to pick the balance)</span></p>
+        <p><b>eq. 2.5.1</b> — error propagation through a serial dilution</p>
+        <p><span class="src">Eight new equations and two reused from Lesson 1, which keep their original
+          numbers. Lesson 1's balance is the instrument that calibrates this one, so its statistics come
+          along unchanged.</span></p>
+      </div>
+    </div>
+  </details>
+</div>
+
+<main>
+  <!-- ══════════════════════════ TAB 1 — HOW IT WORKS ══════════════════════════ -->
+  <section id="tab-work" class="tab-content active">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="1.1" data-title="The piston never touches it">1.1 · The piston never touches your liquid</h2>
+        <p>Press the plunger on a pipette and something moves. It is not the liquid. Inside the barrel a
+          piston slides in a sealed bore, and between that piston and the top of your sample sits a column
+          of <em>air</em>. The piston pushes the air, the air pushes the liquid. The manual calls this an
+          <b>air displacement principle (i.e. an air interface)</b>, and that interface is the source of
+          almost every systematic error a pipette has.</p>
+        <p>Air is compressible. Water is not. So the piston does not sweep the volume you get — it sweeps
+          the volume you get <em>plus whatever the air cushion quietly absorbed</em>. Below, watch how much
+          that is.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>water, straight from the box</em> at 1000 µL. Read the <b>shortfall</b>. Compare
+            it to the ±8.0 µL the manual permits for this model at this volume.</li>
+          <li>Tick <b>tip pre-wetted</b>. Read the shortfall again. One habit, described in the manual
+            in a single sentence with no explanation, and this is what it was for.</li>
+          <li>Untick it and switch to <em>acetone</em>. This is what a volatile solvent does to an
+            un-wetted tip.</li>
+          <li>Leave it on acetone, tick pre-wetted, and drag <b>dead air volume</b> from 50 to 800 µL. Which
+            matters more for a volatile — the pre-wet, or the size of the air cushion?</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">In the tip:</span>
+        <button class="scen-btn on" data-widget="piston" data-scen="water">water</button>
+        <button class="scen-btn" data-widget="piston" data-scen="ethanol">70% ethanol</button>
+        <button class="scen-btn" data-widget="piston" data-scen="acetone">acetone</button>
+        <button class="scen-btn" data-widget="piston" data-scen="dmso">DMSO</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Volume set</span> <span id="v-piston-v">1000 uL</span></label>
+            <input type="range" id="s-piston-v" min="20" max="1000" step="10" value="1000"></div>
+          <div class="ctrl-group"><label><span>Dead air volume</span> <span id="v-piston-vd">350 uL</span></label>
+            <input type="range" id="s-piston-vd" min="50" max="800" step="10" value="350"></div>
+          <div class="ctrl-group"><label><span>Vapour pressure</span> <span id="v-piston-pv">2.6 kPa</span></label>
+            <input type="range" id="s-piston-pv" min="0" max="30" step="0.1" value="2.6"></div>
+          <label class="chk"><input type="checkbox" id="c-piston-wet"> Tip pre-wetted 2–3 times</label>
+          <div class="stats" id="st-piston"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Piston, air cushion and liquid</div>
+            <canvas id="cv-piston" width="660" height="310"></canvas></div>
+          <div class="val-verdict" id="vd-piston" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Why the cushion loses you volume</h3>
+        <p>The air between piston and liquid obeys Boyle's law — at constant temperature its pressure and
+          volume trade off:</p>
+        <div class="equation-box"><span class="eqno">eq. 2.1.1</span>
+          $$p_1 V_1 \;=\; p_2 V_2$$</div>
+        <p>with \(p\) the absolute pressure and \(V\) the volume of the trapped air. Pull the piston back and
+          the cushion expands, so its pressure drops and liquid is drawn up until the pressures balance. But
+          two things push back. The liquid column you have just lifted weighs something, \(\rho g h\). And
+          the liquid <em>evaporates</em> into the dry cushion, adding its saturated vapour pressure
+          \(p_v\). Both reduce how far the liquid climbs:</p>
+        <div class="equation-box"><span class="eqno">eq. 2.1.2</span>
+          $$\Delta V \;=\; V_d\,\frac{\rho g h + p_v}{p_{\mathrm{atm}}}$$</div>
+        <p>where \(\Delta V\) is the volume you are short by, \(V_d\) the dead air volume between piston and
+          liquid, \(h\) the height of the liquid column in the tip, \(\rho\) its density, and
+          \(p_{\mathrm{atm}}\) the ambient pressure — 92.9 kPa in Tucson, not the 101.3 kPa at sea level,
+          which makes every one of these errors about 9% larger here.</p>
+        <div class="insight"><strong>Pre-wetting deletes the \(p_v\) term.</strong> Fill and empty the tip
+          two or three times and the air cushion is already saturated with your liquid's vapour, so no
+          further evaporation happens during the real aspiration. For water it takes a 1.05% error down to
+          0.07%. The manual says "fill and empty the tip 2–3 times" and never says why. That is why.</div>
+        <div class="aside"><span class="lab">Worth knowing</span>
+          <strong>Note from Dr. McGhee.</strong> This model treats the cushion as going from bone dry to
+          fully saturated. Reality is in between — some evaporation happens during the aspiration itself,
+          and the tip's shape sets how fast. So read the <em>size</em> and the <em>ordering</em> here, not
+          the third decimal: water is a fraction of a percent, ethanol is a percent or two, acetone is
+          catastrophic, and DMSO does not care. That ordering is what decides how many times you pre-wet.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="1.2" data-title="Two stops, two jobs">1.2 · There are two stops, and they do different jobs</h2>
+        <p>Press the plunger slowly and you will feel it stop twice. The <b>first stop</b> is the calibrated
+          stroke — the volume in the display window. The <b>second stop</b> is past it, and it exists only
+          to push out what surface tension left behind.</p>
+        <p>Which stop you aspirate from, and which you dispense to, <em>is</em> the difference between the
+          two pipetting techniques in the manual. Work the plunger below and watch where the liquid goes.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Drag the <b>plunger</b> slowly from the top to the first stop and back, in <em>forward</em>
+            mode. Watch the liquid rise. Read the delivered volume.</li>
+          <li>Now push past the first stop to the second. Watch what leaves the tip — and notice what
+            follows it out.</li>
+          <li>Switch to <em>reverse</em> and repeat. Where does the extra liquid come from, and where does
+            it end up?</li>
+          <li>Set <b>surface tension</b> to its maximum in forward mode. Which mode leaves less behind?</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Technique:</span>
+        <button class="scen-btn on" data-widget="stops" data-scen="fwd">forward</button>
+        <button class="scen-btn" data-widget="stops" data-scen="rev">reverse</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Plunger position</span> <span id="v-stops-p">0%</span></label>
+            <input type="range" id="s-stops-p" min="0" max="100" step="1" value="0"></div>
+          <div class="ctrl-group"><label><span>Volume set</span> <span id="v-stops-v">200 uL</span></label>
+            <input type="range" id="s-stops-v" min="20" max="1000" step="10" value="200"></div>
+          <div class="ctrl-group"><label><span>Retention on the wall</span> <span id="v-stops-ret">1.0%</span></label>
+            <input type="range" id="s-stops-ret" min="0" max="6" step="0.1" value="1"></div>
+          <div class="stats" id="st-stops"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">The stroke, from ready to second stop</div>
+            <canvas id="cv-stops" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-stops" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>The manual's two techniques, in one sentence each</h3>
+        <div class="rules">
+          <div class="rule"><b>Forward</b><span>Aspirate from the <em>first</em> stop. Dispense to the first stop, wait about a second, then go to the second stop to empty the tip. This is what the pipette was factory-calibrated with, so it is the default.</span></div>
+          <div class="rule"><b>Reverse</b><span>Aspirate from the <em>second</em> stop, so the tip takes up more than the set volume. Dispense only to the <em>first</em> stop and keep it there. The excess stays in the tip and is discarded. For viscous liquids, anything that foams, and very small volumes.</span></div>
+        </div>
+        <div class="insight"><strong>Reverse works because the tip never has to empty completely.</strong>
+          In forward mode the last of the liquid is blown out against surface tension, and whatever clings
+          to the wall is volume you were supposed to deliver and did not. In reverse mode the delivered
+          volume is bounded by two piston positions with liquid on both sides of the transition, so wall
+          retention never enters the number at all — it just stays behind in the discarded excess.</div>
+        <div class="aside"><span class="lab">Where the published guidance lands</span>
+          <strong>Note from Dr. McGhee.</strong> The manual is explicit that the pipette is
+          "factory calibrated and adjusted … using the forward pipetting technique" and that
+          "the use of other pipetting techniques may affect the calibration results". So reverse pipetting
+          is not free: it is more repeatable on hard liquids, and it is <em>differently</em> accurate. If a
+          protocol needs both accuracy and reverse technique, the pipette has to be re-checked in that mode
+          — which is exactly what tab 4 shows you how to do.</div>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>The piston moves <b>air</b>, not liquid. Every systematic error lives in that cushion.</li>
+          <li>The cushion loses you volume through the liquid's <b>vapour pressure</b> and the weight of the column it lifted.</li>
+          <li><b>Pre-wetting saturates the cushion</b> and deletes the vapour term — worth about 1% on water and about 10% on acetone.</li>
+          <li>First stop = the calibrated volume. Second stop = blow-out. Forward and reverse differ only in which stop you start from.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next:</strong> the single table in the manual that decides which pipette
+        you should be holding — and why using the wrong one costs you a factor of ten.</div>
+    </div>
+
+  </section>
+  <!-- ══════════════════════════ TAB 2 — HOW TO USE IT ══════════════════════════ -->
+  <section id="tab-use" class="tab-content">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="2.1" data-title="The same volume, two pipettes">2.1 · The same volume, two pipettes, ten times the error</h2>
+        <p>The manual's Table 1 is the most useful page in it, and the thing to notice is what stays
+          constant down each column. For the 100–1000 µL model the permitted inaccuracy is
+          <b>±8.0 µL at 1000 µL</b> — and <b>±8.0 µL at 100 µL</b>. The same number of microlitres. Which
+          means 0.8% at the top of the range and <b>8.0%</b> at the bottom.</p>
+        <p>Set a volume below and compare what each pipette in the rack is allowed to do with it.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Set <b>volume wanted</b> to 100 µL. Read the permitted error for the <em>100–1000 µL</em>
+            pipette and for the <em>10–100 µL</em> pipette. They differ by a factor of ten.</li>
+          <li>Now set 20 µL and find the best pipette for it. Note how the chart's lower envelope is made of
+            each pipette's <em>top</em> end.</li>
+          <li>Set 1000 µL. Only one pipette can do it — is it also the one with the smallest relative error?</li>
+          <li>Find a volume where two pipettes are almost equally good, and say which you would pick and why.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Jump to:</span>
+        <button class="scen-btn on" data-widget="range" data-scen="v100">100 µL</button>
+        <button class="scen-btn" data-widget="range" data-scen="v20">20 µL</button>
+        <button class="scen-btn" data-widget="range" data-scen="v1000">1000 µL</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Volume wanted</span> <span id="v-range-v">100 uL</span></label>
+            <input type="range" id="s-range-v" min="0.3" max="3" step="0.005" value="2"></div>
+          <div class="stats" id="st-range"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Permitted error against volume, per model</div>
+            <canvas id="cv-range" width="660" height="310"></canvas></div>
+          <div class="val-verdict" id="vd-range" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>The two numbers the table is quoting</h3>
+        <p>Every row gives two independent things. <b>Inaccuracy</b> is how far the mean of your deliveries
+          sits from the volume you dialled — a systematic error, the same every time:</p>
+        <div class="equation-box"><span class="eqno">eq. 2.2.1</span>
+          $$A \;=\; \bar{V} - V_0 \qquad\qquad A\% \;=\; 100\,\frac{A}{V_0}$$</div>
+        <p>with \(\bar{V}\) the mean delivered volume and \(V_0\) the nominal (set) volume.
+          <b>Imprecision</b> is the scatter around that mean — a random error, different every time:</p>
+        <div class="equation-box"><span class="eqno">eq. 2.2.2</span>
+          $$\mathrm{CV} \;=\; 100\,\frac{s}{\bar{V}}$$</div>
+        <p>where \(s\) is the ordinary sample standard deviation — the same statistic the balance's
+          repeatability was built from in Lesson 1, applied to volumes instead of masses, and carrying its
+          original number:</p>
+        <div class="equation-box"><span class="eqno">eq. 1.1.4</span>
+          <span class="src" style="float:right;margin-left:10px">again — earned in Lesson 1, applied here to volumes</span>
+          $$s \;=\; \sqrt{\frac{1}{n-1}\sum_{i=1}^{n}\left(x_i - \bar{x}\right)^2}$$</div>
+        <p>Read either way, A pipette can be badly inaccurate and beautifully precise, which is the failure mode you
+          will never notice, because every replicate agrees with every other one.</p>
+        <div class="insight"><strong>Use the smallest pipette that reaches your volume.</strong> Not the one
+          already in your hand, and not the one whose range merely contains the number. The tolerance is
+          fixed in microlitres per <em>model</em>, so the relative error is worst at the bottom of every
+          range — and a volume near the <em>top</em> of a smaller pipette's range is always the better
+          instrument for it.</div>
+
+        <details class="worked">
+          <summary>Worked example <span class="we-title">— what reaching for the wrong pipette costs a 6-well plate</span></summary>
+          <div class="worked-body">
+            <ol class="steps">
+              <li><span class="lead">Write what you know.</span> You need 100 µL of a treatment into each of
+                six wells. Two pipettes are within reach: the 100–1000 µL and the 10–100 µL. From the
+                manual's Table 1, at 100 µL each is permitted:
+                <div class="step-eq">$$\text{100–1000 µL model: } A = \pm 8.0\ \text{µL},\quad s = 3.0\ \text{µL}$$</div>
+                <div class="step-eq">$$\text{10–100 µL model: } A = \pm 0.80\ \text{µL},\quad s = 0.30\ \text{µL}$$</div></li>
+              <li><span class="lead">Turn each into a relative error.</span> Symbolically, from eq. 2.2.1:
+                <div class="step-eq">$$A\% = 100\,\frac{A}{V_0}$$</div>
+                giving 8.0% for the large pipette and 0.8% for the small one.</li>
+              <li><span class="lead">Ask what that does to the experiment.</span> Inaccuracy is systematic,
+                so it shifts <em>every</em> well the same way — a dose you believe is 1× may be 0.92× or
+                1.08×, in all six wells, invisibly.</li>
+              <li><span class="lead">Now the well-to-well scatter.</span> That is imprecision, and it is
+                what makes replicates disagree:
+                <div class="step-eq">$$\mathrm{CV} = 100\,\frac{s}{\bar{V}} = 100\times\frac{3.0}{100} = 3.0\%\quad\text{vs}\quad 100\times\frac{0.30}{100} = 0.30\%$$</div></li>
+              <li><span class="lead">Read the answer.</span> Same volume, same operator, same minute.</li>
+            </ol>
+            <div class="answer">The wrong pipette gives you a dose that may be <b>8% off</b> with <b>3%</b>
+              well-to-well scatter; the right one gives <b>0.8%</b> and <b>0.3%</b>. A tenfold penalty on
+              both, for a choice that costs nothing. And note which error is more dangerous: the 8%
+              systematic shift is identical in every well, so no amount of replication reveals it, and no
+              statistical test will flag it.</div>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="2.2" data-title="Hard liquids">2.2 · Liquids that do not behave like water</h2>
+        <p>The pipette was calibrated with distilled water, in forward mode. Every liquid that is not water
+          departs from that, and in three different ways: it may be more viscous, so it flows into and out
+          of the tip slowly; it may be denser, so the column weighs more; or it may be volatile, so it
+          attacks the air cushion. Pick a liquid below and see which of the three is biting.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>water</em> in <em>forward</em> mode with a normal speed. This is the calibrated
+            condition — the error should be near zero.</li>
+          <li>Switch to <em>glycerol</em>. Keep forward mode. Read the error, then slow the
+            <b>plunger speed</b> right down and read it again.</li>
+          <li>Now switch that same glycerol to <em>reverse</em> mode. Compare.</li>
+          <li>Switch to <em>ethanol</em> and set <b>pre-wets</b> to 0, then to 5. Which technique change
+            helps a volatile, and which helps a viscous liquid? They are not the same fix.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Liquid:</span>
+        <button class="scen-btn on" data-widget="tech" data-scen="water">water</button>
+        <button class="scen-btn" data-widget="tech" data-scen="glycerol">glycerol / Matrigel</button>
+        <button class="scen-btn" data-widget="tech" data-scen="ethanol">ethanol</button>
+        <button class="scen-btn" data-widget="tech" data-scen="serum">serum-rich medium</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Volume set</span> <span id="v-tech-v">200 uL</span></label>
+            <input type="range" id="s-tech-v" min="20" max="1000" step="10" value="200"></div>
+          <div class="ctrl-group"><label><span>Plunger speed</span> <span id="v-tech-sp">1.0 s stroke</span></label>
+            <input type="range" id="s-tech-sp" min="0.3" max="5" step="0.1" value="1"></div>
+          <div class="ctrl-group"><label><span>Pre-wets</span> <span id="v-tech-pw">3</span></label>
+            <input type="range" id="s-tech-pw" min="0" max="6" step="1" value="3"></div>
+          <label class="chk"><input type="checkbox" id="c-tech-rev"> Reverse technique</label>
+          <div class="stats" id="st-tech"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Where the error comes from, by liquid</div>
+            <canvas id="cv-tech" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-tech" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Three problems, three different fixes</h3>
+        <div class="rules">
+          <div class="rule"><b>Viscous → go slow, and reverse</b><span>A thick liquid has not finished flowing when you stop moving the plunger. Slowing the stroke lets it catch up; reverse technique removes the wall-retention term entirely. The manual: "Push and release the push button slowly at all times particularly when working with high viscosity liquids. Never allow the push button to snap back."</span></div>
+          <div class="rule"><b>Volatile → pre-wet more</b><span>Slowing down makes a volatile <em>worse</em>, because there is more time to evaporate. The fix is saturating the cushion first — and for high-vapour-pressure solvents that means more than the standard 2–3 wets.</span></div>
+          <div class="rule"><b>Dense → recalibrate, or accept it</b><span>Density enters through the column weight in eq. 2.1.2 and through the mass-to-volume factor in tab 4. Neither technique nor speed fixes it; the manual notes the pipettes "permit re-adjustment for other pipetting techniques or liquids of different temperature and viscosity".</span></div>
+          <div class="rule"><b>Foaming → reverse</b><span>Blowing to the second stop through a foaming liquid aerosolises it. Reverse never blows out, so it never foams.</span></div>
+        </div>
+        <div class="aside"><span class="lab">McGhee Lab practice — confirm before you rely on it</span>
+          <strong>Note from Dr. McGhee.</strong> For Matrigel specifically, everything above compounds: it
+          is viscous, it is temperature-sensitive, and it gels if it warms. Our aliquoting protocol handles
+          that with cold tips and cold plasticware rather than with pipetting technique, and that protocol
+          wins over anything on this page. The viscosity model in this sim is a first-order lag calibrated
+          to give sensible orderings between water, glycerol and serum — it is not a rheology of Matrigel,
+          which is shear-thinning and time-dependent in ways this cartoon does not attempt.</div>
+
+        <details class="check">
+          <summary>Check yourself</summary>
+          <div class="check-body">
+            <p><b>1.</b> A labmate pipettes ethanol very slowly and carefully, and gets consistently low
+              volumes. What is happening, and what should they change?</p>
+            <details><summary>Answer</summary><p>Slowness is the problem, not the cure. Ethanol's vapour
+              pressure is about 6.5 kPa, so the dry air cushion is losing volume to evaporation the whole
+              time the liquid sits in the tip — and going slowly gives it longer. Their care is making it
+              worse. The fix is to pre-wet the tip several times so the cushion is already saturated, then
+              work at a normal pace. Slow strokes are for <em>viscous</em> liquids, where the problem is
+              flow, not evaporation.</p></details>
+            <p><b>2.</b> You need 15 µL. The rack holds a 2–20 µL, a 10–100 µL and a 20–200 µL pipette.
+              Which, and what would the 20–200 give you?</p>
+            <details><summary>Answer</summary><p>The 2–20 µL. Fifteen microlitres is near the top of its
+              range, where its ±0.20 µL tolerance is about 1.3% — the best of the three. The 10–100 µL is
+              permitted ±0.80 µL, about 5.3%. The 20–200 µL cannot legitimately be used at all: 15 µL is
+              <em>below</em> its stated range, and the manual warns that turning the button outside the
+              range "may jam the mechanism and eventually damage the pipette". Even if it physically
+              displayed 15, its tolerance is ±1.60 µL, better than 10%.</p></details>
+          </div>
+        </details>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Tolerance is fixed in <b>microlitres per model</b>, so relative error is always worst at the bottom of a range.</li>
+          <li><b>Use the smallest pipette that reaches the volume</b> — it is a free tenfold improvement.</li>
+          <li>Inaccuracy shifts every replicate the same way and <b>no amount of replication reveals it</b>.</li>
+          <li>Viscous wants a slow stroke and reverse technique; volatile wants more pre-wets. Applying the wrong fix makes it worse.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next:</strong> what goes wrong that is not technique — a seal you cannot
+        see, a hand that is warmer than the liquid, and a tip that was never on properly.</div>
+    </div>
+
+  </section>
+  <!-- ══════════════════════════ TAB 3 — PRECAUTIONS ══════════════════════════ -->
+  <section id="tab-care" class="tab-content">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="3.1" data-title="A seal you cannot see">3.1 · The seal you cannot see, and the tip that was never on</h2>
+        <p>An air displacement pipette works only if the air cushion is <em>sealed</em>. Two things seal it:
+          the O-ring around the piston, inside the handle where you will never look, and the friction fit
+          between the tip and the tip cone, which you press on by hand and mostly do not check.</p>
+        <p>When either leaks, the cushion bleeds pressure and the liquid slides back down the tip. It is
+          slow, so a fast operator may never see it — and it is worse for large volumes, because a taller
+          column pushes harder. Aspirate below, then wait.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>everything sound</em> at 1000 µL. Aspirate and let the clock run to 10 s. The
+            meniscus should not move measurably.</li>
+          <li>Switch to <em>tip not seated</em>. Watch the meniscus over the same ten seconds and read the
+            volume lost.</li>
+          <li>Switch to <em>O-ring worn, never serviced</em>. Compare the two — one of them you can fix in
+            a second, and one needs the strip-down in tab 4.</li>
+          <li>With the worn O-ring still selected, drop the <b>volume</b> to 50 µL. Does the leak get better
+            or worse, and why?</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Condition:</span>
+        <button class="scen-btn on" data-widget="leak" data-scen="ok">everything sound</button>
+        <button class="scen-btn" data-widget="leak" data-scen="tip">tip not seated</button>
+        <button class="scen-btn" data-widget="leak" data-scen="oring">O-ring worn, never serviced</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Volume aspirated</span> <span id="v-leak-v">1000 uL</span></label>
+            <input type="range" id="s-leak-v" min="20" max="1000" step="10" value="1000"></div>
+          <div class="ctrl-group"><label><span>Seal quality</span> <span id="v-leak-q">100%</span></label>
+            <input type="range" id="s-leak-q" min="70" max="100" step="0.5" value="100"></div>
+          <div class="ctrl-group"><label><span>Hold before dispensing</span> <span id="v-leak-t">3.0 s</span></label>
+            <input type="range" id="s-leak-t" min="0.5" max="30" step="0.5" value="3"></div>
+          <div class="stats" id="st-leak"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Volume held, against time in the air</div>
+            <canvas id="cv-leak" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-leak" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Why a leak looks like carelessness</h3>
+        <p>Liquid drains back through a leaking seal at a rate set by how hard it is being pushed — the
+          weight of the column it is holding up — and by how big the leak is:</p>
+        <div class="equation-box"><span class="eqno">eq. 2.3.1</span>
+          $$\frac{dV}{dt} \;=\; -\,k_\ell\,\rho\,g\,h(V)$$</div>
+        <p>with \(k_\ell\) a leak conductance set by the gap, \(h(V)\) the height of the liquid column for
+          the aspirated volume \(V\), and the minus sign because you are losing it. Since \(h\) grows with
+          \(V\), <b>a big volume leaks faster than a small one</b>, and the loss also grows with how long
+          you hold it. A leaking pipette therefore behaves exactly like an inattentive operator: fine on
+          quick small transfers, mysteriously low whenever you pause or work at the top of the range.</p>
+        <div class="insight"><strong>Test it in one second, without any equipment.</strong> Aspirate a full
+          volume of water, hold the pipette vertically, and watch the meniscus for ten seconds. If it moves
+          at all, either the tip is not seated or the seal is gone. Do this at the start of any session
+          where the number matters. It is the fastest diagnostic in this entire series.</div>
+        <div class="aside"><span class="lab">Worth knowing</span>
+          <strong>Note from Dr. McGhee.</strong> The manual says "Make sure that the tip is firmly attached
+          to the tip cone. Check for foreign particles in the tip." Both halves matter. A tip pressed on
+          with a light touch, a tip cone with dried medium on it, and a cracked tip all produce the same
+          symptom. Check the cheap causes before you conclude the pipette needs servicing — and note that
+          <em>hammering</em> tips on is not the fix either, since it damages the cone and creates the
+          problem permanently.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="3.2" data-title="Your hand is a heater">3.2 · Your hand is warmer than your reagent</h2>
+        <p>The manual asks you to "make sure that the tips, pipette and solution are at the same
+          temperature", which sounds like fussiness. It is not. Temperature reaches the delivered volume by
+          two routes at once: the liquid's density changes, and — much larger — the sealed air cushion
+          expands when it warms, pushing liquid straight back out of the tip.</p>
+        <p>Take a pipette out of a 4 °C cold room, or hold one in your fist for five minutes, and see what
+          it costs.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>everything equilibrated</em>. Both errors should be near zero.</li>
+          <li>Switch to <em>reagent from the fridge</em>: liquid at 4 °C, pipette and room at 22 °C. Read
+            the total error at 1000 µL.</li>
+          <li>Switch to <em>held in your hand</em>. This is the one people do not believe. Read it.</li>
+          <li>Drop to 50 µL with the hand-warmed case still selected. Is the <em>relative</em> error better
+            or worse at small volume?</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Situation:</span>
+        <button class="scen-btn on" data-widget="temp" data-scen="equil">everything equilibrated</button>
+        <button class="scen-btn" data-widget="temp" data-scen="fridge">reagent from the fridge</button>
+        <button class="scen-btn" data-widget="temp" data-scen="hand">pipette held in your hand</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Volume set</span> <span id="v-temp-v">1000 uL</span></label>
+            <input type="range" id="s-temp-v" min="20" max="1000" step="10" value="1000"></div>
+          <div class="ctrl-group"><label><span>Liquid temperature</span> <span id="v-temp-tl">22.0 C</span></label>
+            <input type="range" id="s-temp-tl" min="2" max="40" step="0.5" value="22"></div>
+          <div class="ctrl-group"><label><span>Pipette body</span> <span id="v-temp-tp">22.0 C</span></label>
+            <input type="range" id="s-temp-tp" min="15" max="40" step="0.5" value="22"></div>
+          <div class="ctrl-group"><label><span>Dead air volume</span> <span id="v-temp-vd">350 uL</span></label>
+            <input type="range" id="s-temp-vd" min="50" max="800" step="10" value="350"></div>
+          <div class="stats" id="st-temp"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Delivered volume against temperature mismatch</div>
+            <canvas id="cv-temp" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-temp" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Two temperature terms, one much bigger than the other</h3>
+        <p>The air cushion is a fixed quantity of gas in a nearly fixed space, so warming it makes it push:</p>
+        <div class="equation-box"><span class="eqno">eq. 2.3.2</span>
+          $$\Delta V \;=\; V_d\,\frac{\Delta T}{T} \;+\; V\,\beta\,\Delta T_\ell$$</div>
+        <p>The first term is the air cushion, from the ideal gas law at constant pressure: \(V_d\) the dead
+          air volume, \(\Delta T\) how much warmer the cushion is than when the volume was set, and \(T\)
+          the absolute temperature. The second is the liquid's own thermal expansion, with
+          \(\beta \approx 2.1\times10^{-4}\)/K for water near room temperature and \(\Delta T_\ell\) its
+          temperature offset. The first term is roughly ten times the second, and it does not care what
+          volume you dialled — which is why this error is proportionally devastating at small volumes.</p>
+        <div class="insight"><strong>Warm hands are worth more than cold reagents.</strong> Holding the
+          pipette until its body is 3 °C above the room moves a 350 µL cushion by about 3.6 µL — regardless
+          of whether you set 1000 µL or 50 µL. At 1000 µL that is 0.4% and inside spec. At 50 µL it is
+          <b>7%</b> and far outside it. Put the pipette down between transfers.</div>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>A leak drains <b>faster at large volumes</b> and worsens the longer you hold — so it mimics carelessness.</li>
+          <li>The ten-second meniscus watch is a complete, free leak test. Do it whenever the number matters.</li>
+          <li>Thermal error lives mostly in the <b>air cushion</b>, not the liquid, so it is a fixed number of microlitres.</li>
+          <li>A fixed microlitre error is a <b>catastrophe at small volumes</b>. Everything in this tab hurts the bottom of the range most.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next:</strong> how to find out what your pipette actually delivers — using
+        the balance from Lesson 1, and the manual's own formula.</div>
+    </div>
+
+  </section>
+  <!-- ══════════════════════════ TAB 4 — MAINTENANCE ══════════════════════════ -->
+  <section id="tab-maint" class="tab-content">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="4.1" data-title="Weigh what comes out">4.1 · Find out what it really delivers: weigh the water</h2>
+        <p>A pipette has no display of truth. The only way to know what it delivers is to catch the delivery
+          on a balance and convert. That is what the manual's calibration section does, and it is a
+          twenty-minute job you can run yourself.</p>
+        <p>The procedure, verbatim in outline: pre-wet a new tip 3–5 times, do <b>ten pipettings at the
+          minimum volume</b> and <b>ten at the maximum</b>, compute inaccuracy and imprecision for both
+          series, and compare against Table 1. Run it below.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>a healthy pipette</em> at 1000 µL. Read the inaccuracy and CV, and check both
+            against the ISO 8655 limits shown on the chart.</li>
+          <li>Drop to the <b>minimum volume</b> of the same model, 100 µL. The limits move; does the pipette
+            still pass?</li>
+          <li>Switch to <em>needs adjusting</em>. Which of the two numbers went bad — the mean, or the
+            scatter? Which service does that call for?</li>
+          <li>Switch to <em>worn seal</em> and answer the same question. The two faults look completely
+            different on this chart, and that is the diagnostic.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">The pipette:</span>
+        <button class="scen-btn on" data-widget="grav" data-scen="good">a healthy pipette</button>
+        <button class="scen-btn" data-widget="grav" data-scen="offset">needs adjusting</button>
+        <button class="scen-btn" data-widget="grav" data-scen="worn">worn seal</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Test volume</span> <span id="v-grav-v">1000 uL</span></label>
+            <input type="range" id="s-grav-v" min="100" max="1000" step="10" value="1000"></div>
+          <div class="ctrl-group"><label><span>Balance readability</span> <span id="v-grav-d">0.1 mg</span></label>
+            <input type="range" id="s-grav-d" min="0" max="3" step="1" value="2"></div>
+          <div class="ctrl-group"><label><span>Room humidity</span> <span id="v-grav-rh">50%</span></label>
+            <input type="range" id="s-grav-rh" min="10" max="80" step="1" value="50"></div>
+          <div class="stats" id="st-grav"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Ten deliveries, against the permitted band</div>
+            <canvas id="cv-grav" width="660" height="310"></canvas></div>
+          <div class="val-verdict" id="vd-grav" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Mass to volume — the manual's own formula</h3>
+        <div class="equation-box"><span class="eqno">eq. 2.4.1</span>
+          $$V \;=\; (w + e)\,Z$$</div>
+        <p>with \(V\) the delivered volume in µL, \(w\) the weight in mg, \(e\) the evaporation loss in mg,
+          and \(Z\) the conversion factor for water at the test temperature and pressure — 1.0032 µL/mg at
+          22 °C and 95 kPa. \(Z\) is not 1.000 because water is not exactly 1 mg/µL and because the water
+          on the pan is buoyed by air, which is <b>eq. 1.3.3</b> from Lesson 1 folded into a single
+          lookup number.</p>
+        <p>The \(e\) term is real work, not a formality. The manual tells you how to measure it: dispense
+          water into the vessel, note the reading, start a stopwatch, and see how much the reading falls in
+          30 seconds. If it drops 6 mg in 30 s that is 0.2 mg/s, and a 10-second pipetting cycle costs you
+          2 mg. This is also why the calibration conditions demand <b>relative humidity above 50%</b> — a
+          requirement Tucson fails for most of the year, and one reason the manual recommends an
+          evaporation trap below 50 µL.</p>
+        <p>Which balance you need is then set by the volume, and Lesson 1 already told you why. Its
+          minimum-weight rule comes back unchanged, with the pipette's tolerance standing in for the
+          required accuracy:</p>
+        <div class="equation-box"><span class="eqno">eq. 1.3.4</span>
+          <span class="src" style="float:right;margin-left:10px">again — earned in Lesson 1, used here to choose the balance</span>
+          $$m_{\min} \;=\; \frac{2s}{\mathrm{RE}}$$</div>
+        <div class="insight"><strong>A 1 mg-readability precision balance can check a 1000 µL pipette and
+          cannot check a 10 µL one.</strong> The manual asks for a graduation of 0.1 mg above 100 µL,
+          0.01 mg from 10 to 100 µL, and <b>0.001 mg below 10 µL</b>. Put that through eq. 1.3.4: to
+          resolve a P10's ±0.12 µL tolerance you must see about 0.12 mg, and a balance with
+          <em>s</em> = 0.5 mg cannot — \(2s\) alone is 1 mg. That is not a technique problem; it is
+          arithmetic.</div>
+
+        <details class="worked">
+          <summary>Worked example <span class="we-title">— can we calibrate our P1000 on the lab's XSR balance?</span></summary>
+          <div class="worked-body">
+            <ol class="steps">
+              <li><span class="lead">Write what you know.</span> The pipette is the 100–1000 µL model. At
+                1000 µL the manual permits \(A = \pm 8.0\) µL and \(s = 3.0\) µL. Lesson 1's XSR303S has a
+                typical repeatability of \(s_{\mathrm{bal}} = 0.5\) mg. One microlitre of water is about
+                one milligram.</li>
+              <li><span class="lead">State what "can calibrate" means.</span> The balance must resolve the
+                tolerance you are testing against, so from eq. 1.3.4 with the tolerance as the required
+                relative accuracy:
+                <div class="step-eq">$$m_{\min} = \frac{2s_{\mathrm{bal}}}{\mathrm{RE}}, \qquad \mathrm{RE} = \frac{8.0\ \text{µL}}{1000\ \text{µL}} = 0.008$$</div></li>
+              <li><span class="lead">Plug in.</span>
+                <div class="step-eq">$$m_{\min} = \frac{2(0.5\ \mathrm{mg})}{0.008} = 125\ \mathrm{mg}$$</div></li>
+              <li><span class="lead">Compare with what you are weighing.</span> A 1000 µL delivery weighs
+                about 1000 mg, comfortably above 125 mg.</li>
+              <li><span class="lead">Now repeat for a 10 µL pipette.</span> Tolerance ±0.12 µL on 10 µL, so
+                \(\mathrm{RE} = 0.012\):
+                <div class="step-eq">$$m_{\min} = \frac{2(0.5\ \mathrm{mg})}{0.012} = 83\ \mathrm{mg}\quad\text{against a delivery of only }10\ \mathrm{mg}$$</div></li>
+            </ol>
+            <div class="answer"><b>Yes for the P1000, no for the P10</b> — and the manual says the same thing
+              from the other direction, asking for a 0.001 mg graduation below 10 µL. So a check at the
+              <em>top</em> of a large pipette's range is something this lab can do this afternoon; anything
+              at the small end needs a semi-micro or micro balance. Notice this is the mirror image of tab
+              2's lesson: the volume you can trust most is the one at the top of a range, and it is also
+              the only one you can independently verify.</div>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="4.2" data-title="The schedule, verbatim">4.2 · The schedule, and the three-monthly strip-down</h2>
+        <table class="cmp">
+          <tr><th>Maintenance action</th><th>Interval</th></tr>
+          <tr><td><b>Store upright</b><br><span class="src">on a pipette stand, whenever not in use</span></td><td>Always</td></tr>
+          <tr><td><b>Short-term service</b><br><span class="src">check the outside surfaces for dust and dirt, with particular attention to the tip cone. <b>No solvent except 70% ethanol.</b></span></td><td>Beginning of each day</td></tr>
+          <tr><td><b>Long-term service</b><br><span class="src">disassemble; clean piston, piston spring and O-rings with a dry napless cloth; check the tip cone for foreign particles; re-grease with the supplied lubricant; reassemble; then re-check calibration</span></td><td>Every 3 months, if used daily</td></tr>
+          <tr><td><b>Adjustment</b><br><span class="src">with the service tool, at the calibration nut in the top of the handle — clockwise increases volume. Always re-check calibration afterwards.</span></td><td>When a calibration check fails on the mean</td></tr>
+        </table>
+        <p>Two things in that table are easy to skip and expensive to skip. <b>Storing upright</b> keeps
+          liquid that got into the shaft from running down into the piston and seals — a pipette laid on
+          its side with liquid in the tip is how an O-ring dies. And <b>70% ethanol only</b> is a real
+          restriction, not boilerplate: the housing is a moulded plastic and the aggressive solvents that
+          would clean it best will craze it.</p>
+
+        <h3>Which fault does which service fix?</h3>
+        <div class="rules">
+          <div class="rule"><b>Mean is off, scatter is fine</b><span>The stroke is delivering the wrong volume consistently. That is an <b>adjustment</b>, at the calibration nut. It is quick, and it does not touch the seals.</span></div>
+          <div class="rule"><b>Scatter is large</b><span>Something is inconsistent: a worn O-ring, dry grease, a damaged tip cone, or dirt. That is the <b>strip-down</b>. Adjusting it would only re-centre a distribution that is too wide.</span></div>
+          <div class="rule"><b>Both are bad</b><span>Strip down first, then re-check, then adjust if the mean is still off. Adjusting before servicing means adjusting to a moving target.</span></div>
+          <div class="rule"><b>Neither is bad but it feels wrong</b><span>Check the tip cone and the tip. A gritty or sticky plunger is a service item even when the numbers still pass — it is the beginning of a fault, not the absence of one.</span></div>
+        </div>
+        <div class="aside"><span class="lab">McGhee Lab practice — confirm before you rely on it</span>
+          <strong>Note from Dr. McGhee.</strong> The manual's interval is "every three months if used
+          daily", which is a manufacturer's default and not a McGhee Lab schedule. What the lab actually
+          does — who services which pipettes, when, and whether we log it — is not written down anywhere I
+          can cite, and it should be. Until it is, the honest advice is: run the ten-second leak test from
+          §3.1 before any session where the volume matters, and run the full gravimetric check from §4.1 on
+          any pipette that has been dropped, that feels different, or that you are about to trust with a
+          result you will publish.</div>
+
+        <details class="check">
+          <summary>Check yourself</summary>
+          <div class="check-body">
+            <p><b>1.</b> Ten deliveries at 1000 µL give a mean of 1006 µL and a standard deviation of
+              1.1 µL. Pass or fail, and what do you do?</p>
+            <details><summary>Answer</summary><p>Pass on both counts. Inaccuracy is +6 µL against a
+              permitted ±8.0 µL, and \(s = 1.1\) µL against a permitted 3.0 µL. It is a good pipette with a
+              small positive bias. You <em>could</em> adjust the 6 µL out at the calibration nut, and if you
+              do you must re-run the check afterwards — but nothing obliges you to, and adjusting a pipette
+              that already passes is a way to introduce a mistake rather than remove one.</p></details>
+            <p><b>2.</b> The same pipette gives a mean of 999 µL with a standard deviation of 9 µL. Now what?</p>
+            <details><summary>Answer</summary><p>Fail — on imprecision, not accuracy. The mean is nearly
+              perfect but \(s = 9\) µL is three times the permitted 3.0 µL. Adjusting is exactly the wrong
+              response, because the mean is not the problem. This is the strip-down: O-rings, piston,
+              grease, tip cone. Check the obvious first — a poorly seated tip produces this signature too,
+              and costs nothing to rule out.</p></details>
+          </div>
+        </details>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li><b>V = (w + e)Z</b>. The evaporation term is measurable and the manual tells you how; below 50 µL it is not optional.</li>
+          <li>Calibration wants water, a draft-free room held to ±0.5 °C, and <b>RH above 50%</b> — which Tucson fails for most of the year.</li>
+          <li>A 1 mg balance can check a 1000 µL pipette and <b>cannot</b> check a 10 µL one. That is eq. 1.3.4, not an opinion.</li>
+          <li><b>Bad mean → adjust. Bad scatter → strip down.</b> Doing them in the wrong order wastes both.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next:</strong> six transfers in a row, and what happens to an error when
+        you multiply it by itself.</div>
+    </div>
+
+  </section>
+  <!-- ══════════════════════════ TAB 5 — RECAP & THE REAL JOB ══════════════════════════ -->
+  <section id="tab-recap" class="tab-content">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="5.1" data-title="A thousand-fold dilution">5.1 · Make a 1:1000 dilution. How many steps?</h2>
+        <p>Here is the question this whole lesson has been circling. You need to dilute something a
+          thousand-fold. You can do it in one step — 1 µL into 999 µL — or in three steps of one-in-ten, or
+          in six steps of about one in three. More steps means more transfers, and every transfer adds its
+          error to the pile. So fewer steps must be better.</p>
+        <p>It is not, and the reason is tab 2. Work it out below.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>one step</em>. Read the transfer volume the arithmetic demands, which pipette
+            that forces you into, and the final error.</li>
+          <li>Step to <em>three steps of 1:10</em>. Three times as many transfers. Read the final error
+            again — it should be markedly <em>better</em>, not worse.</li>
+          <li>Go to <em>six steps</em>. The trend turns around hard between four and five. Find the exact
+            step where it breaks, look at the transfer volume there, and say what has gone wrong.</li>
+          <li>Drag <b>volume per step</b> from 200 µL up to 2000 µL with three steps selected. What does a
+            bigger working volume buy, and what does it cost?</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Strategy:</span>
+        <button class="scen-btn on" data-widget="dilute" data-scen="one">one step</button>
+        <button class="scen-btn" data-widget="dilute" data-scen="three">three steps of 1:10</button>
+        <button class="scen-btn" data-widget="dilute" data-scen="six">six small steps</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>The job</h3>
+          <div class="ctrl-group"><label><span>Total dilution</span> <span id="v-dilute-d">1000-fold</span></label>
+            <input type="range" id="s-dilute-d" min="1" max="6" step="0.05" value="3"></div>
+          <div class="ctrl-group"><label><span>Steps</span> <span id="v-dilute-n">1</span></label>
+            <input type="range" id="s-dilute-n" min="1" max="8" step="1" value="1"></div>
+          <div class="ctrl-group"><label><span>Volume per step</span> <span id="v-dilute-vt">1000 uL</span></label>
+            <input type="range" id="s-dilute-vt" min="200" max="2000" step="50" value="1000"></div>
+          <div class="stats" id="st-dilute"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Final error against number of steps</div>
+            <canvas id="cv-dilute" width="660" height="320"></canvas></div>
+          <div class="val-verdict" id="vd-dilute" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Why the two errors grow at different rates</h3>
+        <p>Each step multiplies the concentration by a factor \(r\), so after \(n\) steps</p>
+        <div class="equation-box"><span class="eqno">eq. 2.5.1</span>
+          $$C_n \;=\; C_0\,r^{\,n} \qquad\Longrightarrow\qquad \left(\frac{\sigma_C}{C}\right)_{\!\mathrm{sys}} \!=\; n\,A\% \qquad \left(\frac{\sigma_C}{C}\right)_{\!\mathrm{rand}} \!=\; \sqrt{n}\;\mathrm{CV}$$</div>
+        <p>with \(A\%\) the per-step relative inaccuracy from eq. 2.2.1 and \(\mathrm{CV}\) the per-step
+          imprecision from eq. 2.2.2. The difference in how they grow is the whole point.
+          <b>Inaccuracy is the same bias every time</b>, so it adds: \(n\) steps, \(n\) times the error.
+          <b>Imprecision is a fresh random draw every time</b>, so the draws partly cancel and the total
+          grows only as \(\sqrt{n}\).</p>
+        <p>Set against that is the effect you found in step 2: adding steps makes each individual transfer
+          <em>larger</em>, which moves each pipette toward the top of its range where its relative error is
+          smallest. That effect is strong — going from one step to three takes the transfer from 1 µL to
+          100 µL and the per-step transfer error from 8% to 0.8%. The two effects fight, so there is a
+          genuine optimum: for a thousand-fold dilution at 1 mL per step it sits at <b>two or three
+          steps</b>, and going to five is far worse than going to one, because a 251 µL transfer is above
+          every small pipette's range and strands you on the 1000 µL model at a quarter of its scale.</p>
+        <div class="insight"><strong>The one-step dilution is the worst option, every time.</strong> Not
+          because compounding is kind, but because a thousand-fold dilution in one step forces a
+          microlitre-scale transfer, and a microlitre-scale transfer is where every error in this lesson is
+          at its largest — vapour pressure, thermal expansion of the cushion, a fixed-microlitre tolerance,
+          and a volume too small to verify on any balance this lab owns.</div>
+        <div class="aside"><span class="lab">Worth knowing</span>
+          <strong>Note from Dr. McGhee.</strong> Two honesty notes on this model. First, it adds the two
+          pipettes' systematic errors as magnitudes, which is a worst case — in reality they may partly
+          cancel, and if you use the <em>same</em> pipette for every transfer the bias is genuinely
+          identical each time, which is what makes the \(n\) scaling exact. Second, it assumes you mix
+          properly between steps. Incomplete mixing is a bigger error than anything on this page and it is
+          not modelled at all, because it is not a property of the pipette.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="5.2" data-title="The whole pipette, one card">5.2 · The whole pipette, on one card</h2>
+        <div class="rules">
+          <div class="rule"><b>It moves air, not liquid</b><span>The piston pushes a compressible cushion. Every systematic error is something that cushion did.</span></div>
+          <div class="rule"><b>Pre-wet 2–3 times</b><span>It saturates the cushion and deletes the vapour-pressure term — about 1% on water, about 10% on acetone. More wets for volatile solvents.</span></div>
+          <div class="rule"><b>Smallest pipette that reaches</b><span>Tolerance is fixed in microlitres per model, so relative error is ten times worse at the bottom of a range than the top.</span></div>
+          <div class="rule"><b>Never outside the range</b><span>The manual: turning the button past the range "may jam the mechanism and eventually damage the pipette".</span></div>
+          <div class="rule"><b>Slow for viscous, more wets for volatile</b><span>Different problems, opposite fixes. Going slowly with ethanol makes it worse.</span></div>
+          <div class="rule"><b>Reverse for thick, foaming or tiny</b><span>It never blows out, so wall retention never enters the delivered volume. But it is not the calibrated mode.</span></div>
+          <div class="rule"><b>Ten-second meniscus watch</b><span>Aspirate, hold vertical, watch. Any movement is a leak — a bad tip seat or a dead O-ring. Free, and it takes ten seconds.</span></div>
+          <div class="rule"><b>Put it down</b><span>A warm hand expands the cushion by a fixed number of microlitres, which is 0.4% at 1000 µL and 7% at 50 µL.</span></div>
+          <div class="rule"><b>Store it upright</b><span>On a stand. Liquid running back down the shaft is how seals die.</span></div>
+          <div class="rule"><b>Bad mean → adjust. Bad scatter → service.</b><span>Adjusting a pipette whose scatter is too wide only re-centres a bad distribution.</span></div>
+          <div class="rule"><b>70% ethanol only</b><span>Outside surfaces, daily, with attention to the tip cone. No other solvent.</span></div>
+          <div class="rule"><b>Three steps, not one</b><span>Big dilutions in stages, each transfer near the top of a pipette's range. One-step dilutions are the worst option available.</span></div>
+        </div>
+
+        <details class="check">
+          <summary>Check yourself — the competency set</summary>
+          <div class="check-body">
+            <p><b>1.</b> Six wells dosed from the same pipette all come out about 8% high. A colleague says
+              "run more replicates". Will that help?</p>
+            <details><summary>Answer</summary><p>No. An 8% offset that is the same in every well is
+              <em>inaccuracy</em> — a systematic error, and eq. 2.5.1's \(n\) term rather than its
+              \(\sqrt{n}\) one. Replication reduces the random component and does nothing at all to a bias.
+              What would help: checking that the volume is not near the bottom of the pipette's range
+              (tab 2), pre-wetting (tab 1), a ten-second leak test (tab 3), and if it survives all three, a
+              gravimetric check (tab 4) followed by an adjustment.</p></details>
+            <p><b>2.</b> You are asked to pipette 300 µL of glycerol accurately. Walk through the choices.</p>
+            <details><summary>Answer</summary><p><em>Pipette:</em> the 100–1000 µL model — 300 µL is above
+              the 20–200's range, and ±8.0 µL on 300 µL is 2.7%. <em>Technique:</em> reverse, because
+              glycerol is viscous and will not blow out cleanly. <em>Speed:</em> slow, and never let the
+              plunger snap back. <em>Pre-wet:</em> yes, though glycerol's vapour pressure is essentially
+              zero so this is about wetting the wall, not saturating the cushion. <em>Caveat:</em> the
+              pipette was calibrated in forward mode with water, so if 2.7% is not good enough you must
+              re-check it in reverse with glycerol, or weigh the delivery directly.</p></details>
+            <p><b>3.</b> Why can this lab verify a 1000 µL pipette but not a 10 µL one, and what would it
+              take to change that?</p>
+            <details><summary>Answer</summary><p>Because of eq. 1.3.4. Verifying against a ±0.12 µL
+              tolerance means resolving about 0.12 mg, and a balance with \(s = 0.5\) mg has \(2s = 1\) mg
+              of expanded uncertainty on a single weighing — eight times the tolerance you are trying to
+              measure. The manual asks for a 0.001 mg graduation below 10 µL. Changing it needs a
+              semi-micro or micro balance, plus the conditions that make one usable: a draft-free enclosure,
+              ±0.5 °C, and above 50% humidity — which in Tucson means an evaporation trap and probably a
+              humidified enclosure.</p></details>
+          </div>
+        </details>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Systematic error accumulates as <b>n</b>; random error as <b>√n</b>. They are not interchangeable and replication only touches one.</li>
+          <li>Splitting a big dilution into steps makes each transfer <b>larger</b>, which beats the compounding — up to a point.</li>
+          <li>For a 1000-fold dilution at 1 mL per step the optimum is <b>two or three</b> — and five is worse than one.</li>
+          <li>Everything in this lesson hurts small volumes most. When you have a choice, <b>work bigger</b>.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next lesson — Labware &amp; Consumables.</strong> This lesson assumed the
+        tip was inert, the tube was inert, and the liquid that went in came back out. Lesson 3 is about how
+        wrong all three of those are: what a surface does to a protein, where a microgram of peptide goes
+        when you park it in a big tube, and why the tip you just chose was made of that particular plastic.</div>
+    </div>
+
+  </section>
+
+  <div class="sources">
+    <h2>Sources</h2>
+    <ol>
+      <li>Fisher Scientific. <i>Fisherbrand® Elite Pipettes — Instruction Manual</i> (EN/DE/FR), models
+        FB77100–FB77118 single-channel and FB77120–FB77134 multichannel. Product description and volume
+        ranges p. 3; pipette operation and the two techniques pp. 3–4; calibration procedure, test
+        conditions and balance-graduation requirements pp. 4–5; <b>Table 1, maximum permissible errors
+        according to ISO 8655</b>, pp. 5–6; the mass-to-volume formula, the Z factor and the evaporation
+        measurement p. 6; maintenance, short- and long-term service pp. 7–8. Every tolerance and interval
+        on this page comes from here.</li>
+      <li>ISO 8655, <i>Piston-operated volumetric apparatus</i> — the standard the manual's Table 1
+        reproduces, and the source of the inaccuracy and imprecision definitions in eq. 2.2.1 and eq. 2.2.2.</li>
+      <li>ISO 3696, <i>Water for analytical laboratory use</i> — grade 3 water, specified for the
+        calibration procedure in §4.1.</li>
+      <li>Corning Life Sciences. <i>Lab Life Essentials: Top Tips for Everyday Tasks</i>, doc 60931,
+        pp. 3–6 — pipettor selection, tip pre-wetting, reverse technique for viscous and high-density
+        liquids, and the recommendation of five or more pre-wets for high-vapour-pressure solvents.</li>
+      <li>Mettler Toledo. <i>XSR Precision Balances — Reference Manual</i>, §9.3.1.1 — the balance
+        repeatability used in §4.1 to decide which pipettes this lab can and cannot verify.</li>
+    </ol>
+    <p style="font-size:.78rem;color:#94a3b8">Sections marked <b>McGhee Lab practice</b> are house procedure
+      rather than published guidance, and are flagged wherever they appear. In this lesson that is the
+      servicing schedule in §4.2, which the lab has not written down, and the Matrigel note in §2.2. The
+      air-cushion model in §1.1 and the viscosity model in §2.2 are teaching cartoons: they reproduce the
+      right sizes and the right ordering between liquids, and each states its own limits in an aside. Use
+      the manual's Table 1, not a number read off a chart here, for anything that goes into a notebook.</p>
+  </div>
+</main>
+<footer>Equipment Foundations · Lesson 2 of 7 · McGhee Lab, University of Arizona</footer>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   CELL CULTURE FOUNDATIONS — shared house layer.
+   Helpers (COL, fmt, niceTicks, clamp, setupCanvas, Chart, drawLine,
+   arrow, setStat, setVerdict, statTick, lsqFit, mulberry32, randn)
+   follow modules/AUTHORING.md §5 and are copied from the BME466
+   week-1 module verbatim. The learning-module framework layer
+   (defWidget / registerAnim / one shared rAF loop / geometric
+   syncVis) is AUTHORING.md §9 item 3; the section rail and Present
+   mode (§9 item 2) are deliberately NOT included in this track.
+   UNITS: length m (µm where stated) · time s · velocity m/s ·
+   viscosity Pa·s, unless a widget states otherwise.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── palette ── */
+const COL = {
+  air:'#38bdf8', clean:'#2563eb', dirty:'#ef4444', warmc:'#f59e0b',
+  cell:'#7c3aed', media:'#e11d48', plastic:'#94a3b8', steel:'#64748b',
+  good:'#10b981', bad:'#ef4444', warn:'#f59e0b', neutral:'#94a3b8',
+  hepa:'#0891b2', flowline:'#60a5fa', particle:'#7c3aed',
+  grid:'#e2e8f0', axis:'#64748b', text:'#1e293b', faint:'#f1f5f9'
+};
+
+/* ── math / canvas / DOM helpers (house pattern, copied verbatim) ── */
+function randn(){ let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function gaussOf(rng){ let u=0,v=0; while(u===0)u=rng(); while(v===0)v=rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function fmt(v,d){ if(!isFinite(v))return '—'; const a=Math.abs(v);
+  if(a>=1000)return v.toLocaleString('en-US',{maximumFractionDigits:d===undefined?0:d});
+  if(a>=1)return v.toFixed(d===undefined?2:d);
+  if(a>=0.001||a===0)return v.toFixed(d===undefined?3:d);
+  return v.toExponential(d===undefined?2:d); }
+function niceTicks(lo,hi,n){ if(hi<=lo)return [lo]; const range=hi-lo, rough=range/Math.max(n,1),
+  mag=Math.pow(10,Math.floor(Math.log10(rough))); let step;
+  if(rough/mag<1.5)step=mag; else if(rough/mag<3.5)step=2*mag; else if(rough/mag<7.5)step=5*mag; else step=10*mag;
+  const t=[]; let x=Math.ceil(lo/step)*step; while(x<=hi+step*1e-3){t.push(x);x+=step;} return t; }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function setupCanvas(canvas){ if(!canvas)return null; const dpr=window.devicePixelRatio||1; const rect=canvas.getBoundingClientRect();
+  const cssW=rect.width||canvas.width;
+  const w=cssW, h=w*(canvas.height/canvas.width);
+  canvas.width=cssW*dpr; canvas.height=h*dpr; canvas.style.width=cssW+'px'; canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h); return {ctx,w,h}; }
+class Chart{
+  constructor(ctx,w,h,m){ this.ctx=ctx;this.W=w;this.H=h;this.m=m||{l:58,r:18,t:14,b:42};
+    this.pw=w-this.m.l-this.m.r; this.ph=h-this.m.t-this.m.b;
+    /* setupCanvas clears only on FIRST allocation and getCv caches the result,
+       so without this every redraw paints on top of the previous curve. */
+    ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h); }
+  setRange(a,b,c,d){ this.xMin=a;this.xMax=b;this.yMin=c;this.yMax=d; }
+  toX(v){ return this.m.l+(v-this.xMin)/(this.xMax-this.xMin)*this.pw; }
+  toY(v){ return this.m.t+this.ph-(v-this.yMin)/(this.yMax-this.yMin)*this.ph; }
+  grid(xt,yt){ const c=this.ctx; c.save();c.strokeStyle=COL.grid;c.lineWidth=1;c.setLineDash([3,3]);
+    for(const t of xt){const x=this.toX(t);c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();}
+    for(const t of yt){const y=this.toY(t);c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();}
+    c.restore(); }
+  axes(xl,yl,xt,yt,dx,dy,xfmt,yfmt){ const c=this.ctx; c.save();c.strokeStyle=COL.axis;c.lineWidth=1.5;c.setLineDash([]);
+    c.beginPath();c.moveTo(this.m.l,this.m.t);c.lineTo(this.m.l,this.m.t+this.ph);c.lineTo(this.m.l+this.pw,this.m.t+this.ph);c.stroke();
+    c.fillStyle=COL.axis;c.font='11px sans-serif';c.textAlign='center';c.textBaseline='top';
+    for(const t of xt){c.fillText(xfmt?xfmt(t):fmt(t,dx===undefined?0:dx),this.toX(t),this.m.t+this.ph+6);}
+    c.textAlign='right';c.textBaseline='middle';
+    for(const t of yt){c.fillText(yfmt?yfmt(t):fmt(t,dy===undefined?1:dy),this.m.l-6,this.toY(t));}
+    c.fillStyle=COL.text;c.font='12px sans-serif';c.textAlign='center';c.textBaseline='top';
+    c.fillText(xl,this.m.l+this.pw/2,this.m.t+this.ph+22);
+    c.save();c.translate(13,this.m.t+this.ph/2);c.rotate(-Math.PI/2);c.textBaseline='middle';c.fillText(yl,0,0);c.restore();
+    c.restore(); }
+  hLine(yv,color,dash){ const c=this.ctx,y=this.toY(yv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();c.restore(); }
+  vLine(xv,color,dash){ const c=this.ctx,x=this.toX(xv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();c.restore(); }
+  legend(items,x,y){ const c=this.ctx;c.save();c.font='11px sans-serif';let cx=x;
+    for(const it of items){c.fillStyle=it.color;c.fillRect(cx,y-5,12,10);c.fillStyle=COL.text;cx+=16;
+      c.textAlign='left';c.textBaseline='middle';c.fillText(it.label,cx,y);cx+=c.measureText(it.label).width+14;}c.restore(); }
+}
+function drawLine(ctx,pts,color,lw,dash){ if(pts.length<2)return; ctx.save();ctx.strokeStyle=color;ctx.lineWidth=lw||2;
+  if(dash)ctx.setLineDash(dash); ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]); ctx.stroke();ctx.restore(); }
+function arrow(ctx,x0,y0,x1,y1,color,lw){ ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=lw||1.6;
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+  const a=Math.atan2(y1-y0,x1-x0),hh=6.5; ctx.beginPath();ctx.moveTo(x1,y1);
+  ctx.lineTo(x1-hh*Math.cos(a-0.42),y1-hh*Math.sin(a-0.42));ctx.lineTo(x1-hh*Math.cos(a+0.42),y1-hh*Math.sin(a+0.42));
+  ctx.closePath();ctx.fill();ctx.restore(); }
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath(); }
+/* setStat / setVerdict rewrite DOM, so they are the two places that can make
+   the page flicker or jump. Both skip entirely when the rendered text is
+   unchanged, and are rate-limited by statTick(); combined with the reserved
+   heights in the CSS a running sim leaves the rest of the page still. */
+const _domCache={};
+function setStat(id,rows){ const el=document.getElementById(id); if(!el)return;
+  const html=rows.map(r=>`<div class="stat-row${r.hi?' highlight':''}"><span class="label">${r.k}</span><span class="value">${r.v}</span></div>`).join('');
+  if(_domCache[id]===html)return; _domCache[id]=html; el.innerHTML=html; }
+function setVerdict(id,cls,title,body){ const el=document.getElementById(id); if(!el)return;
+  const tall=el.dataset.tall?' tall':'';
+  const html='<strong>'+title+'</strong>'+body, key=cls+'|'+html;
+  if(_domCache['v:'+id]===key)return; _domCache['v:'+id]=key;
+  el.className='val-verdict'+tall+' '+cls; el.innerHTML=html; }
+const _statLast={};
+function statTick(key,ms){
+  /* Rate-limiting only applies to ANIMATED widgets, which redraw next frame
+     anyway. A static widget draws exactly once per input event, so gating it
+     would leave its readouts permanently stale whenever an input happened to
+     land inside the window. */
+  if(!ANIMS[key])return true;
+  const t=(typeof performance!=='undefined'?performance.now():0);
+  if(_statLast[key]&&t-_statLast[key]<(ms||160))return false; _statLast[key]=t; return true; }
+function lsqFit(xs,ys){ const n=xs.length; if(n<2)return null; let sx=0,sy=0,sxx=0,sxy=0;
+  for(let i=0;i<n;i++){sx+=xs[i];sy+=ys[i];sxx+=xs[i]*xs[i];sxy+=xs[i]*ys[i];}
+  const den=n*sxx-sx*sx; if(Math.abs(den)<1e-12)return null;
+  const m=(n*sxy-sx*sy)/den, b=(sy-m*sx)/n; return {m,b}; }
+function mulberry32(a){ return function(){ a|=0;a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+/* ════════ learning-module framework ════════
+   Widgets self-register:
+     defWidget(key, tab, drawFn, fmts, {reset, scenfn, scen0})
+     registerAnim(key, stepFn, minFrameMs)   // animated widgets only
+   Keys are globally unique and hyphen-free; slider ids are s-{key}-{param}
+   so id.split('-')[0] recovers the owning widget. TABW and the initial
+   activeTab are read from the DOM, so this whole block is identical in
+   every lesson of the track. */
+const FMT={}, DRAW={}, RESET={}, SCENFN={}, SCEN={}, WTAB={}, TABW={};
+document.querySelectorAll('.tab-content').forEach(s=>{ TABW[s.id.replace('tab-','')]=[]; });
+let activeTab=(document.querySelector('.tab-content.active')||document.querySelector('.tab-content')).id.replace('tab-','');
+function defWidget(key,tab,drawFn,fmts,opts){
+  if(!TABW[tab])TABW[tab]=[];
+  TABW[tab].push(key); DRAW[key]=drawFn; WTAB[key]=tab;
+  if(fmts)Object.assign(FMT,fmts);
+  if(opts&&opts.reset)RESET[key]=opts.reset;
+  if(opts&&opts.scenfn)SCENFN[key]=opts.scenfn;
+  if(opts&&opts.scen0)SCEN[key]=opts.scen0;
+}
+/* canvas-setup cache: setupCanvas reallocates the bitmap, so animated
+   widgets cache {ctx,w,h}; cache is cleared on resize and tab switch. */
+const CVS={};
+function getCv(id){ if(CVS[id])return CVS[id];
+  const el=document.getElementById(id); if(!el)return null;
+  const s=setupCanvas(el); if(s&&s.w>10)CVS[id]=s; return s; }
+function clearCvCache(){ for(const k in CVS) delete CVS[k]; }
+
+/* shared animation loop + viewport gating */
+const ANIMS={};
+let io=null, rafId=null;
+function registerAnim(key,stepFn,minFrame){
+  ANIMS[key]={step:stepFn,visible:false,last:0,minFrame:minFrame||33};
+  const el=document.getElementById('cv-'+key);
+  if(el){ el.dataset.anim=key; if(io)io.observe(el); else ANIMS[key].visible=true; }
+}
+if('IntersectionObserver' in window){
+  io=new IntersectionObserver(ents=>{
+    for(const en of ents){ const a=ANIMS[en.target.dataset.anim];
+      if(a){ a.visible=en.isIntersecting; if(a.visible)a.last=0; } }
+    kickAnim();
+  },{rootMargin:'120px',threshold:0.05});
+}
+function animLoop(ts){
+  let any=false;
+  for(const k in ANIMS){ const a=ANIMS[k];
+    if(WTAB[k]!==activeTab||!a.visible)continue;
+    any=true;
+    if(!a.last){a.last=ts;continue;}
+    const dt=Math.min(ts-a.last,50);
+    if(dt>=a.minFrame){ a.last=ts;
+      try{ a.step(dt/1000); DRAW[k](); }catch(e){ console.error('anim '+k,e); } }
+  }
+  rafId=any?requestAnimationFrame(animLoop):null;
+}
+function kickAnim(){ if(rafId==null)rafId=requestAnimationFrame(animLoop); }
+/* Visibility fallback: IntersectionObserver delivery is environment-dependent
+   (in some headless builds it never fires at all), so visibility is ALSO
+   recomputed straight from geometry — at boot, on tab switch, on scroll and
+   on resize. IO stays wired as a zero-cost extra wake-up where it works. */
+function syncVis(){
+  const vh=window.innerHeight||800;
+  for(const k in ANIMS){ if(WTAB[k]!==activeTab)continue;
+    const el=document.getElementById('cv-'+k); if(!el)continue;
+    const r=el.getBoundingClientRect();
+    const vis=r.width>0&&r.bottom>-120&&r.top<vh+120;
+    if(vis&&!ANIMS[k].visible)ANIMS[k].last=0;
+    ANIMS[k].visible=vis; }
+  kickAnim();
+}
+let _visPend=false;
+window.addEventListener('scroll',()=>{ if(_visPend)return; _visPend=true;
+  requestAnimationFrame(()=>{ _visPend=false; syncVis(); }); },{passive:true});
+window.__anim={ get running(){ return rafId!=null; },
+  get activeKeys(){ return Object.keys(ANIMS).filter(k=>WTAB[k]===activeTab&&ANIMS[k].visible); } };
+
+/* ════════ slider access + scenario machinery (house, adapted) ════════ */
+function val(id){ const el=document.getElementById('s-'+id); return el?el.value:''; }
+function num(id){ return parseFloat(val(id)); }
+function chk(id){ const el=document.getElementById('c-'+id); return !!(el&&el.checked); }
+function wireAll(){ Object.keys(FMT).forEach(id=>{ const s=document.getElementById('s-'+id),v=document.getElementById('v-'+id);
+  if(!s)return; const upd=()=>{ if(v)v.textContent=FMT[id](parseFloat(s.value));
+    const wk=id.split('-')[0];
+    if(RESET[wk])RESET[wk]();
+    if(DRAW[wk]){ try{DRAW[wk]();}catch(e){console.error('draw '+wk,e);} }
+    kickAnim(); };
+  s.addEventListener('input',upd); if(v)v.textContent=FMT[id](parseFloat(s.value)); });
+  document.querySelectorAll('input[type=checkbox][id^="c-"]').forEach(cb=>{
+    cb.addEventListener('change',()=>{ const wk=cb.id.slice(2).split('-')[0];
+      if(RESET[wk])RESET[wk]();
+      if(DRAW[wk]){ try{DRAW[wk]();}catch(e){console.error('draw '+wk,e);} }
+      kickAnim(); }); }); }
+function presetSlider(id,vv){ const el=document.getElementById('s-'+id); if(el){ el.value=String(vv);
+  const v=document.getElementById('v-'+id); if(v&&FMT[id])v.textContent=FMT[id](parseFloat(vv)); } }
+function presetChk(id,on){ const el=document.getElementById('c-'+id); if(el)el.checked=!!on; }
+function setScen(w,s){ SCEN[w]=s;
+  document.querySelectorAll('.scen-btn[data-widget="'+w+'"]').forEach(b=>b.classList.toggle('on',b.dataset.scen===s));
+  if(SCENFN[w])SCENFN[w](s);
+  if(RESET[w])RESET[w]();
+  if(DRAW[w]){ try{DRAW[w]();}catch(e){console.error('draw '+w,e);} }
+  kickAnim(); }
+
+/* A redraw caused by a CLICK or a DRAG must show its new readouts immediately.
+   statTick rate-limits animated widgets to ~6 Hz, so two interactions inside
+   one window would leave the second one's verdict stale — which is exactly the
+   freeze this framework already had once, in the other direction. */
+function redraw(key){ _statLast[key]=0; if(DRAW[key]){ try{ DRAW[key](); }catch(e){ console.error('draw '+key,e); } } kickAnim(); }
+/* ═══════════════════ WIDGET CODE START ═══════════════════ */
+/* Shared constants. Every tolerance below is the ISO 8655 limit as printed in
+   the Elite manual's Table 1 for the single-channel models: lo/hi are the model
+   range in uL, A is the maximum permissible inaccuracy in uL and S the maximum
+   permissible standard deviation in uL. Both are CONSTANT across each model's
+   range -- which is the whole of section 2.1. */
+const PIPETTES=[
+  {lo:0.2,  hi:2,     A:0.080, S:0.040, name:'0.2–2 µL'},
+  {lo:0.5,  hi:5,     A:0.125, S:0.075, name:'0.5–5 µL'},
+  {lo:1,    hi:10,    A:0.120, S:0.080, name:'1–10 µL'},
+  {lo:2,    hi:20,    A:0.20,  S:0.10,  name:'2–20 µL'},
+  {lo:5,    hi:50,    A:0.50,  S:0.20,  name:'5–50 µL'},
+  {lo:10,   hi:100,   A:0.80,  S:0.30,  name:'10–100 µL'},
+  {lo:20,   hi:200,   A:1.60,  S:0.60,  name:'20–200 µL'},
+  {lo:100,  hi:1000,  A:8.0,   S:3.0,   name:'100–1000 µL'},
+  {lo:500,  hi:5000,  A:40.0,  S:15.0,  name:'0.5–5 mL'},
+  {lo:1000, hi:10000, A:60.0,  S:30.0,  name:'1–10 mL'}
+];
+const P_ATM=92900;            /* Pa, Tucson at 728 m */
+const RHO_W=997.8, G=9.81;
+const Z_FACTOR=1.0032;        /* uL/mg, water at 22 degC and 95 kPa (manual, p.6) */
+const BETA_W=2.1e-4;          /* volumetric expansion of water, per K */
+const S_BAL=0.5;              /* XSR303S typical repeatability, mg (Lesson 1) */
+
+/* the best pipette for a volume: the one whose range contains it with the
+   smallest absolute tolerance, i.e. the smallest model that reaches it. */
+function bestPipette(v){
+  /* The tolerance matters: a transfer computed as D^(-1/n) lands a few ulp above
+     a model's stated maximum (100.00000000000003 uL for a nominal 100), which
+     without it silently disqualifies the right pipette. */
+  const EPS=1e-9;
+  let best=null;
+  for(const p of PIPETTES){
+    if(v>=p.lo*(1-EPS)&&v<=p.hi*(1+EPS)){ if(!best||p.A<best.A)best=p; } }
+  return best;
+}
+function pipetteErr(p,v){ return p?{A:100*p.A/v, CV:100*p.S/v}:null; }
+const LIQ={
+  water:   {pv:2600,  rho:997.8, mu:1,    name:'water'},
+  ethanol: {pv:6500,  rho:870,   mu:1.6,  name:'70% ethanol'},
+  acetone: {pv:25000, rho:790,   mu:0.4,  name:'acetone'},
+  dmso:    {pv:60,    rho:1100,  mu:2.2,  name:'DMSO'},
+  glycerol:{pv:1,     rho:1260,  mu:90,   name:'glycerol'},
+  serum:   {pv:2400,  rho:1010,  mu:3.5,  name:'serum-rich medium'}
+};
+
+/* ════════ widget: piston — the air cushion (Tab 1.1) ════════
+   Model: eq. 2.1.2. The cushion is treated as going from bone dry to fully
+   saturated, which brackets the real behaviour rather than reproducing it. */
+function pistonState(){
+  const v=num('piston-v'), vd=num('piston-vd'), pv=num('piston-pv')*1000, wet=chk('piston-wet');
+  const scen=SCEN.piston||'water';
+  const rho=LIQ[scen]?LIQ[scen].rho:997.8;
+  const h=0.012+0.020*(v/1000);                 /* column height in the tip, m */
+  const head=rho*G*h;
+  const pEff=wet?head:head+pv;
+  const dV=vd*pEff/P_ATM;
+  const p=bestPipette(v), e=pipetteErr(p,v);
+  return {v,vd,pv,wet,scen,rho,h,head,dV,rel:100*dV/v,p,e};
+}
+function drawPiston(){
+  const cv=getCv('cv-piston'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=pistonState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  /* --- the pipette, in section --- */
+  const bx=90, bw=64, top=24, bot=h-26;
+  ctx.fillStyle='#e8eef6'; roundRect(ctx,bx,top,bw,bot-top-70,6); ctx.fill();
+  ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=2; ctx.stroke();
+  /* tip */
+  const tipTop=bot-70, tipBot=bot;
+  ctx.beginPath(); ctx.moveTo(bx+4,tipTop); ctx.lineTo(bx+bw-4,tipTop);
+  ctx.lineTo(bx+bw/2+7,tipBot); ctx.lineTo(bx+bw/2-7,tipBot); ctx.closePath();
+  ctx.fillStyle='#eef2f7'; ctx.fill(); ctx.strokeStyle='#cbd5e1'; ctx.stroke();
+  /* liquid in the tip */
+  const fill=clamp(q.v/1000,0.05,1);
+  const lTop=tipBot-(tipBot-tipTop)*fill;
+  ctx.save(); ctx.beginPath(); ctx.moveTo(bx+4,tipTop); ctx.lineTo(bx+bw-4,tipTop);
+  ctx.lineTo(bx+bw/2+7,tipBot); ctx.lineTo(bx+bw/2-7,tipBot); ctx.closePath(); ctx.clip();
+  ctx.fillStyle='rgba(56,189,248,.65)'; ctx.fillRect(bx,lTop,bw,tipBot-lTop); ctx.restore();
+  /* piston */
+  const pistonY=top+34;
+  ctx.fillStyle='#64748b'; roundRect(ctx,bx+10,pistonY,bw-20,14,3); ctx.fill();
+  ctx.fillStyle='#94a3b8'; ctx.fillRect(bx+bw/2-4,top-14,8,48);
+  /* the cushion */
+  ctx.fillStyle='rgba(148,163,184,.16)';
+  ctx.fillRect(bx+6,pistonY+14,bw-12,tipTop-pistonY-14);
+  ctx.fillStyle=COL.axis; ctx.font='11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('air',bx+bw/2,(pistonY+14+tipTop)/2-8);
+  ctx.fillText('cushion',bx+bw/2,(pistonY+14+tipTop)/2+6);
+  ctx.fillStyle=COL.text; ctx.textBaseline='top';
+  ctx.fillText('piston',bx+bw/2,pistonY-20);
+  /* vapour dots when not pre-wet */
+  if(!q.wet&&q.pv>200){
+    const rng=mulberry32(7); const nd=Math.round(clamp(q.pv/900,3,28));
+    ctx.fillStyle='rgba(225,29,72,.6)';
+    for(let i=0;i<nd;i++){ const yy=pistonY+18+rng()*(tipTop-pistonY-22);
+      ctx.beginPath(); ctx.arc(bx+9+rng()*(bw-18),yy,2.1,0,7); ctx.fill(); }
+    ctx.fillStyle=COL.dirty; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText('evaporating into a dry cushion',bx+bw+12,pistonY+30);
+  } else if(q.pv>200){
+    ctx.fillStyle=COL.good; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText('cushion already saturated',bx+bw+12,pistonY+30);
+  }
+  /* --- right: the shortfall against the tolerance --- */
+  const gl=290, gw=w-gl-24;
+  ctx.fillStyle=COL.text; ctx.font='12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('Shortfall on a '+fmt(q.v,0)+' µL delivery',gl,18);
+  const tol=q.p?q.p.A:8;
+  const emax=Math.max(q.dV*1.2, tol*2.2);
+  const EX=x=>gl+clamp(x,0,emax)/emax*gw;
+  ctx.fillStyle='#e6ebf2'; roundRect(ctx,gl,50,gw,28,6); ctx.fill();
+  const col=q.dV<tol?COL.good:(q.dV<2*tol?COL.warn:COL.bad);
+  ctx.fillStyle=col; roundRect(ctx,gl,50,Math.max(4,EX(q.dV)-gl),28,6); ctx.fill();
+  ctx.strokeStyle=COL.dirty; ctx.lineWidth=2; ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(EX(tol),42);ctx.lineTo(EX(tol),86);ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=COL.dirty; ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+  ctx.fillText('ISO 8655 limit '+fmt(tol,2)+' µL',EX(tol),40);
+  ctx.fillStyle=COL.text; ctx.font='bold 22px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText(fmt(q.dV,q.dV<10?2:1)+' µL short',gl,94);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText('= '+fmt(q.rel,2)+'% of the volume you dialled',gl,124);
+  /* the two contributions */
+  const yy=156;
+  const parts=[{k:'liquid column, ρgh',v:q.vd*q.head/P_ATM,c:COL.hepa},
+               {k:'vapour pressure',v:q.wet?0:q.vd*q.pv/P_ATM,c:COL.dirty}];
+  for(let i=0;i<parts.length;i++){
+    const r=parts[i], y=yy+i*40;
+    ctx.fillStyle=COL.axis; ctx.font='10.5px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+    ctx.fillText(r.k,gl,y-3);
+    ctx.fillStyle='#e6ebf2'; roundRect(ctx,gl,y,gw,16,4); ctx.fill();
+    if(r.v>0){ ctx.fillStyle=r.c; roundRect(ctx,gl,y,Math.max(3,clamp(r.v/emax,0,1)*gw),16,4); ctx.fill(); }
+    ctx.fillStyle=r.v>0?COL.text:COL.neutral; ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText(r.v>0?fmt(r.v,2)+' µL':'deleted by pre-wetting',gl+gw-4,y+8);
+  }
+  if(!statTick('piston'))return;
+  setStat('st-piston',[
+    {k:'Shortfall',v:fmt(q.dV,q.dV<10?2:1)+' µL',hi:1},
+    {k:'As a fraction',v:fmt(q.rel,2)+'%',hi:1},
+    {k:'Permitted',v:q.p?fmt(q.p.A,2)+' µL':'no model'},
+    {k:'Best pipette',v:q.p?q.p.name:'out of range'}]);
+  const ratio=q.dV/tol;
+  if(q.wet&&ratio<0.3)
+    setVerdict('vd-piston','good','Pre-wetted, and the cushion has stopped costing you anything.',
+      ' <b>'+fmt(q.dV,2)+' µL</b> against a permitted '+fmt(tol,2)+' µL. All that is left is the weight of the liquid column, which no technique removes — and at this volume it is a small fraction of the tolerance. This is the state the pipette was calibrated in.');
+  else if(ratio<1)
+    setVerdict('vd-piston','good','Inside the tolerance, but not by much.',
+      ' <b>'+fmt(q.dV,2)+' µL</b> short, against '+fmt(tol,2)+' µL permitted — '+fmt(100*ratio,0)+'% of your whole error budget spent on the air cushion alone, before technique, temperature or the pipette\'s own accuracy get a turn.'+(q.wet?'':' Pre-wetting would remove most of it.'));
+  else if(ratio<4)
+    setVerdict('vd-piston','warn','Out of specification, from the cushion alone.',
+      ' <b>'+fmt(q.dV,2)+' µL</b> against a '+fmt(tol,2)+' µL limit. '+(q.wet?'Even pre-wetted, this combination of dead volume and column height is too much — a smaller pipette would have both a shorter column and a smaller cushion.':'The vapour-pressure term is doing most of it, and pre-wetting is free.'));
+  else
+    setVerdict('vd-piston','bad','The tip is delivering a different liquid volume than you think.',
+      ' <b>'+fmt(q.dV,1)+' µL</b> short — '+fmt(ratio,0)+' times the permitted error, or '+fmt(q.rel,1)+'% of the delivery. '+(q.wet?'':'This is what a volatile solvent does to a dry air cushion. Pre-wet until the reading stops changing; for something like acetone that means five or more, not two.'));
+}
+defWidget('piston','work',drawPiston,{
+  'piston-v':v=>fmt(v,0)+' uL','piston-vd':v=>fmt(v,0)+' uL','piston-pv':v=>fmt(v,1)+' kPa'},
+  {scen0:'water', scenfn:s=>{ presetSlider('piston-pv',LIQ[s].pv/1000); }});
+
+/* ════════ widget: stops — the two-stop stroke (Tab 1.2) ════════
+   Stateless: the plunger slider IS the state. Forward aspirates from the first
+   stop; reverse aspirates from the second and dispenses only to the first. */
+function stopsState(){
+  const p=num('stops-p'), v=num('stops-v'), ret=num('stops-ret')/100;
+  const rev=(SCEN.stops||'fwd')==='rev';
+  const FIRST=70;                      /* % of plunger travel to the first stop */
+  const f=clamp(p/FIRST,0,1);          /* fraction of the calibrated stroke used */
+  let inTip, delivered, finalOut;
+  if(rev){
+    /* Filled at the SECOND stop, so the tip carries the dose plus an excess.
+       Dispensing stops at the first stop; the excess and the wall film stay. */
+    inTip = v*(1+ret) + 0.12*v;
+    delivered = v*f;
+    finalOut = v;
+  } else {
+    /* Filled at the FIRST stop. Blow-out clears the bulk; ret is the film that
+       survives it, and that film is volume you were meant to deliver. */
+    inTip = v;
+    delivered = v*(1-ret)*f;
+    finalOut = v*(1-ret);
+  }
+  const held=clamp(inTip-delivered,0,inTip);
+  return {p,v,ret,rev,inTip,held,delivered,finalOut,FIRST,
+          excess: rev? inTip-v : 0,
+          stage: p<FIRST? 'dispensing' : (rev?'at first stop':'blowing out')};
+}
+function drawStops(){
+  const cv=getCv('cv-stops'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=stopsState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  /* --- plunger travel bar --- */
+  const tl=60, tw=w-tl-260, ty=54;
+  ctx.fillStyle='#e6ebf2'; roundRect(ctx,tl,ty,tw,22,6); ctx.fill();
+  const fs=tl+tw*q.FIRST/100;
+  ctx.strokeStyle=COL.text; ctx.lineWidth=2.4; ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(fs,ty-12);ctx.lineTo(fs,ty+34);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(tl+tw,ty-12);ctx.lineTo(tl+tw,ty+34);ctx.stroke();
+  ctx.fillStyle=COL.clean; roundRect(ctx,tl,ty,Math.max(4,tw*q.p/100),22,6); ctx.fill();
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+  ctx.fillText('first stop',fs,ty-16); ctx.fillText('second stop',tl+tw,ty-16);
+  ctx.textAlign='left'; ctx.fillText('ready',tl,ty-16);
+  ctx.textBaseline='top'; ctx.fillStyle=COL.axis; ctx.font='11px sans-serif';
+  ctx.textAlign='center'; ctx.fillText(q.rev?'REVERSE — fill to the second stop, dispense to the first'
+                                             :'FORWARD — fill to the first stop, dispense to the second',tl+tw/2,ty+40);
+  /* --- the tip --- */
+  const cx=tl+tw/2, top=130, bottom=h-34, tw2=54;
+  ctx.beginPath(); ctx.moveTo(cx-tw2/2,top); ctx.lineTo(cx+tw2/2,top);
+  ctx.lineTo(cx+8,bottom); ctx.lineTo(cx-8,bottom); ctx.closePath();
+  ctx.fillStyle='#eef2f7'; ctx.fill(); ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=2; ctx.stroke();
+  const cap=q.rev? q.inTip : q.v;
+  const frac=clamp(q.held/Math.max(cap,1),0,1);
+  const lTop=bottom-(bottom-top)*frac;
+  ctx.save(); ctx.beginPath(); ctx.moveTo(cx-tw2/2,top); ctx.lineTo(cx+tw2/2,top);
+  ctx.lineTo(cx+8,bottom); ctx.lineTo(cx-8,bottom); ctx.closePath(); ctx.clip();
+  ctx.fillStyle='rgba(56,189,248,.7)'; ctx.fillRect(cx-40,lTop,80,bottom-lTop);
+  if(q.rev&&q.p>=q.FIRST){ ctx.fillStyle='rgba(245,158,11,.55)'; ctx.fillRect(cx-40,lTop,80,bottom-lTop); }
+  ctx.restore();
+  ctx.fillStyle=COL.axis; ctx.font='11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('in the tip: '+fmt(q.held,0)+' µL',cx,bottom+8);
+  if(q.rev&&q.p>=q.FIRST){ ctx.fillStyle=COL.warmc; ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText('← held back, then discarded',cx+34,(lTop+bottom)/2); }
+  /* --- the ledger --- */
+  const rl=w-236;
+  ctx.fillStyle=COL.text; ctx.font='12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('Delivered so far',rl,ty-30);
+  ctx.font='bold 26px sans-serif'; ctx.fillStyle=COL.clean;
+  ctx.fillText(fmt(q.delivered,0)+' µL',rl,ty-8);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText('target '+fmt(q.v,0)+' µL',rl,ty+26);
+  ctx.fillStyle=COL.text; ctx.font='12px sans-serif';
+  ctx.fillText('When the stroke ends',rl,ty+66);
+  ctx.font='bold 20px sans-serif'; ctx.fillStyle=q.rev?COL.good:(q.ret>0.02?COL.bad:COL.warn);
+  ctx.fillText(fmt(q.finalOut,1)+' µL',rl,ty+88);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText(q.rev?'wall retention never counted':'short by '+fmt(q.v*q.ret,1)+' µL left on the wall',rl,ty+114);
+  if(!statTick('stops'))return;
+  setStat('st-stops',[
+    {k:'Stage',v:q.stage},
+    {k:'Held in the tip',v:fmt(q.held,0)+' µL'},
+    {k:'Delivered',v:fmt(q.delivered,0)+' µL',hi:1},
+    {k:'Final error',v:(q.rev?'0.0':fmt(-q.v*q.ret,1))+' µL',hi:1}]);
+  if(q.rev)
+    setVerdict('vd-stops','good','Reverse: the wall keeps its share of the excess, not of your dose.',
+      ' The tip took up <b>'+fmt(q.inTip,0)+' µL</b> for a '+fmt(q.v,0)+' µL delivery. Dispensing stops at the first stop, so the volume that leaves is set by two piston positions with liquid on both sides of the move — retention on the wall never enters it. The leftover '+fmt(q.inTip-q.v,0)+' µL is discarded with the tip. You pay in reagent, and you buy back repeatability.');
+  else if(q.ret<0.01)
+    setVerdict('vd-stops','good','Forward, on a liquid that lets go cleanly.',
+      ' Wall retention is only '+fmt(q.ret*100,1)+'%, so blowing out to the second stop recovers essentially all of it and the delivery lands at <b>'+fmt(q.finalOut,1)+' µL</b>. This is the mode the pipette was factory-calibrated in, and for aqueous work it is the right default.');
+  else
+    setVerdict('vd-stops','bad','Forward, on a liquid that does not want to leave.',
+      ' <b>'+fmt(q.v*q.ret,1)+' µL</b> stays on the wall — '+fmt(q.ret*100,1)+'% of the dose, and '+fmt(q.v*q.ret/(bestPipette(q.v)?bestPipette(q.v).A:8),1)+' times the pipette\'s entire permitted inaccuracy. Blowing harder does not help; surface tension is holding it. This is precisely the case the manual sends you to reverse technique for.');
+}
+defWidget('stops','work',drawStops,{
+  'stops-p':v=>fmt(v,0)+'%','stops-v':v=>fmt(v,0)+' uL','stops-ret':v=>fmt(v,1)+'%'},
+  {scen0:'fwd'});
+
+/* ════════ widget: range — the ISO 8655 table, drawn (Tab 2.1) ════════
+   Stateless. Every curve is A/V for one model, with A the constant maximum
+   permissible inaccuracy from the manual's Table 1. The curves are hyperbolae
+   BECAUSE the tolerance is constant in microlitres -- that is the lesson. */
+const RANGESCEN={ v100:{v:2}, v20:{v:Math.log10(20)}, v1000:{v:3} };
+function rangeState(){
+  const lg=num('range-v'), v=Math.pow(10,lg);
+  const usable=PIPETTES.filter(p=>v>=p.lo&&v<=p.hi)
+    .map(p=>({p, A:100*p.A/v, CV:100*p.S/v})).sort((a,b)=>a.A-b.A);
+  return {lg,v,usable,best:usable[0]||null,worst:usable[usable.length-1]||null};
+}
+function drawRange(){
+  const cv=getCv('cv-range'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=rangeState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:64,r:118,t:16,b:46});
+  const xlo=Math.log10(0.2), xhi=Math.log10(10000);
+  const ylo=Math.log10(0.2), yhi=Math.log10(60);
+  ch.setRange(xlo,xhi,ylo,yhi);
+  const xt=[Math.log10(1),Math.log10(10),Math.log10(100),Math.log10(1000),Math.log10(10000)];
+  const yt=[Math.log10(0.5),Math.log10(1),Math.log10(2),Math.log10(5),Math.log10(10),Math.log10(30)];
+  ch.grid(xt,yt);
+  ch.axes('volume','permitted inaccuracy',xt,yt,0,0,
+    t=>({0:'1 µL',1:'10 µL',2:'100 µL',3:'1 mL',4:'10 mL'})[Math.round(t)],
+    t=>fmt(Math.pow(10,t),Math.pow(10,t)<1?1:0)+'%');
+  const cols=['#0891b2','#2563eb','#7c3aed','#e11d48','#f59e0b','#10b981','#64748b','#0ea5e9','#a855f7','#f97316'];
+  PIPETTES.forEach((p,i)=>{
+    const pts=[];
+    for(let k=0;k<=40;k++){ const v=p.lo*Math.pow(p.hi/p.lo,k/40);
+      const y=Math.log10(clamp(100*p.A/v,0.2,60));
+      pts.push([ch.toX(Math.log10(v)),ch.toY(y)]); }
+    const on=q.usable.some(u=>u.p===p);
+    drawLine(ctx,pts,on?cols[i]:'rgba(148,163,184,.35)',on?2.6:1.4);
+    if(on){ ctx.fillStyle=cols[i]; ctx.font='9.5px sans-serif';
+      ctx.textAlign='left'; ctx.textBaseline='bottom';
+      ctx.fillText(p.name,ch.toX(Math.log10(p.hi))+7,
+                   ch.toY(Math.log10(clamp(100*p.A/p.hi,0.2,60)))-7); }
+  });
+  ch.vLine(clamp(q.lg,xlo,xhi),COL.text,[4,3]);
+  if(q.best){
+    const y=ch.toY(Math.log10(clamp(q.best.A,0.2,60)));
+    ctx.fillStyle=COL.good; ctx.beginPath(); ctx.arc(ch.toX(q.lg),y,6,0,7); ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=1.6; ctx.stroke();
+  }
+  if(q.worst&&q.worst!==q.best){
+    const y=ch.toY(Math.log10(clamp(q.worst.A,0.2,60)));
+    ctx.fillStyle=COL.bad; ctx.beginPath(); ctx.arc(ch.toX(q.lg),y,6,0,7); ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=1.6; ctx.stroke();
+  }
+  if(!statTick('range'))return;
+  setStat('st-range',[
+    {k:'Best pipette',v:q.best?q.best.p.name:'none',hi:1},
+    {k:'Its permitted error',v:q.best?fmt(q.best.A,2)+'%':'—',hi:1},
+    {k:'Worst that fits',v:q.worst?q.worst.p.name:'none'},
+    {k:'Its permitted error',v:q.worst?fmt(q.worst.A,2)+'%':'—'}]);
+  if(!q.best)
+    setVerdict('vd-range','bad','No pipette in the set covers this volume.',
+      ' Nothing in the Elite range reaches '+fmt(q.v,1)+' µL. The manual is explicit that forcing the button outside a model\'s range "may jam the mechanism and eventually damage the pipette" — so this is not a case of using one anyway. Split the transfer, or use a different instrument.');
+  else if(q.usable.length===1)
+    setVerdict('vd-range','good','Only one pipette can do this, and it is a good fit.',
+      ' The <b>'+q.best.p.name+'</b> is the only model whose range contains '+fmt(q.v,0)+' µL, and at '+fmt(q.best.A,2)+'% you are near the top of its range where its fixed ±'+fmt(q.best.p.A,2)+' µL tolerance is proportionally smallest. No decision to make.');
+  else {
+    const factor=q.worst.A/q.best.A;
+    setVerdict('vd-range','warn','Two pipettes fit. They are not equivalent.',
+      ' The <b>'+q.best.p.name+'</b> gives you '+fmt(q.best.A,2)+'%; the <b>'+q.worst.p.name+'</b> gives you '+fmt(q.worst.A,2)+'% — <b>'+fmt(factor,1)+'× worse</b> for the same volume, same operator, same minute. Both tolerances are the same number of microlitres across each model\'s whole range, so the one whose range <em>ends</em> near your volume always wins.');
+  }
+}
+defWidget('range','use',drawRange,{
+  'range-v':v=>{const x=Math.pow(10,v); return x<1000?fmt(x,x<10?1:0)+' uL':fmt(x/1000,x<10000?1:0)+' mL';}},
+  {scen0:'v100', scenfn:s=>{ presetSlider('range-v',RANGESCEN[s].v); }});
+
+/* ════════ widget: tech — liquids that are not water (Tab 2.2) ════════
+   Three independent error channels: a viscous lag (first-order in stroke time),
+   an evaporation term from eq. 2.1.2, and a density term. Calibrated to give the
+   right ORDERING between liquids rather than a rheology of any one of them. */
+const TECHSCEN={ water:'water', glycerol:'glycerol', ethanol:'ethanol', serum:'serum' };
+function techState(){
+  const v=num('tech-v'), sp=num('tech-sp'), pw=Math.round(num('tech-pw')), rev=chk('tech-rev');
+  const L=LIQ[TECHSCEN[SCEN.tech||'water']];
+  /* Viscous lag: liquid still moving when the plunger stops, plus the film that
+     blow-out cannot clear. tau grows only weakly with viscosity -- calibrated so
+     water is essentially unaffected at any sane stroke speed while glycerol loses
+     a few percent at 1 s and catastrophically at 0.3 s -- the range actually seen
+     at the bench, and the reason the manual says never to let the button snap
+     back on a viscous liquid. A LINEAR tau(mu) gives glycerol a 90% error and
+     water an 8% one, both nonsense. */
+  const tau=0.05*Math.pow(L.mu,0.42);
+  const lag=v*Math.exp(-sp/tau);                             /* uL not yet transferred */
+  const visc=rev? lag*0.15 : lag;                            /* reverse never blows out */
+  /* evaporation: each pre-wet removes ~55% of what remains unsaturated */
+  const dry=Math.pow(0.45,pw);
+  const vd=350, h=0.012+0.020*(v/1000);
+  const evap=vd*(L.pv*dry + (sp>1?(sp-1)*0.02*L.pv*dry:0))/P_ATM;
+  /* density: the column head term, referenced to water */
+  const dens=vd*((L.rho-RHO_W)*G*h)/P_ATM;
+  const tot=visc+evap+Math.abs(dens);
+  const p=bestPipette(v), tol=p?p.A:8;
+  return {v,sp,pw,rev,L,visc,evap,dens:Math.abs(dens),tot,p,tol,rel:100*tot/v};
+}
+function drawTech(){
+  const cv=getCv('cv-tech'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=techState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const bl=150, bw=w-bl-120;
+  ctx.fillStyle=COL.text; ctx.font='12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('Error on '+fmt(q.v,0)+' µL of '+q.L.name+(q.rev?', reverse technique':', forward technique'),bl,12);
+  const rows=[{k:'viscous lag',v:q.visc,c:COL.cell,fix:'slower stroke, or reverse'},
+              {k:'evaporation',v:q.evap,c:COL.dirty,fix:'more pre-wets'},
+              {k:'density',v:q.dens,c:COL.hepa,fix:'recalibrate for this liquid'}];
+  const vmax=Math.max(q.tot*1.15,q.tol*2.2);
+  let yy=48;
+  for(const r of rows){
+    ctx.fillStyle=COL.axis; ctx.font='11px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText(r.k,bl-10,yy+10);
+    ctx.fillStyle='#e6ebf2'; roundRect(ctx,bl,yy,bw,20,5); ctx.fill();
+    if(r.v>0.001){ ctx.fillStyle=r.c; roundRect(ctx,bl,yy,Math.max(3,clamp(r.v/vmax,0,1)*bw),20,5); ctx.fill(); }
+    ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText(r.v>0.01?fmt(r.v,2)+' µL':'—',bl+bw+8,yy+10);
+    ctx.fillStyle=COL.neutral; ctx.font='9.5px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='top';
+    ctx.fillText(r.v>q.tol*0.3?('fix: '+r.fix):'',bl-10,yy+22);
+    yy+=56;
+  }
+  /* the tolerance marker */
+  const tx=bl+clamp(q.tol/vmax,0,1)*bw;
+  ctx.strokeStyle=COL.dirty; ctx.lineWidth=2; ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(tx,38);ctx.lineTo(tx,yy-18);ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=COL.dirty; ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('permitted '+fmt(q.tol,2)+' µL',tx,yy-16);
+  ctx.fillStyle=COL.text; ctx.font='bold 20px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('total '+fmt(q.tot,2)+' µL  ·  '+fmt(q.rel,2)+'%',bl,yy+4);
+  if(!statTick('tech'))return;
+  setStat('st-tech',[
+    {k:'Total error',v:fmt(q.tot,2)+' µL',hi:1},
+    {k:'As a fraction',v:fmt(q.rel,2)+'%',hi:1},
+    {k:'Permitted',v:fmt(q.tol,2)+' µL'},
+    {k:'Biggest term',v:[['viscous',q.visc],['evaporation',q.evap],['density',q.dens]].sort((a,b)=>b[1]-a[1])[0][0]}]);
+  const top=[['viscous lag',q.visc,'slow the stroke down and switch to reverse technique'],
+             ['evaporation',q.evap,'pre-wet the tip more times before the real aspiration'],
+             ['density',q.dens,'re-check the pipette against this liquid, or accept the offset']]
+             .sort((a,b)=>b[1]-a[1])[0];
+  if(q.tot<q.tol*0.5)
+    setVerdict('vd-tech','good','This liquid is behaving like the water it was calibrated with.',
+      ' <b>'+fmt(q.tot,2)+' µL</b> of liquid-specific error against a '+fmt(q.tol,2)+' µL budget. Nothing here needs a technique change — the settings you have are already right for it.');
+  else if(q.tot<q.tol)
+    setVerdict('vd-tech','good','Inside the tolerance, with <b>'+top[0]+'</b> doing most of it.',
+      ' <b>'+fmt(q.tot,2)+' µL</b> against '+fmt(q.tol,2)+' µL permitted, and '+fmt(100*top[1]/q.tot,0)+'% of it is '+top[0]+'. You have margin, but it is being spent on one thing — and the fix for it is to '+top[2]+'.');
+  else
+    setVerdict('vd-tech','bad','Out of specification, and <b>'+top[0]+'</b> is why.',
+      ' <b>'+fmt(q.tot,2)+' µL</b> against a '+fmt(q.tol,2)+' µL limit — '+fmt(q.rel,2)+'% of the delivery. '+fmt(100*top[1]/q.tot,0)+'% of the error is '+top[0]+', so the single thing to change is to '+top[2]+'. Applying the other liquid\'s fix instead will not help and may make it worse.');
+}
+defWidget('tech','use',drawTech,{
+  'tech-v':v=>fmt(v,0)+' uL','tech-sp':v=>fmt(v,1)+' s stroke','tech-pw':v=>String(Math.round(v))},
+  {scen0:'water'});
+
+/* ════════ widget: leak — a seal that is not sealing (Tab 3.1) ════════
+   Model: eq. 2.3.1 integrated. The driving pressure is the head of the liquid
+   column, so the loss rate falls as the column does -- an exponential-ish decay,
+   not a straight line, and always worse at large volumes. */
+const LEAKSCEN={ ok:{q:100}, tip:{q:88}, oring:{q:79} };
+function leakState(){
+  const v=num('leak-v'), qual=num('leak-q'), t=num('leak-t');
+  const kl=Math.pow((100-qual)/100,1.6)*2.6;        /* leak conductance, arbitrary units */
+  const h0=0.012+0.020*(v/1000);
+  const tc=kl>1e-6 ? 1/(kl*0.42) : 1e9;             /* time constant, s */
+  const held=v*Math.exp(-t/tc);
+  const lost=v-held;
+  const p=bestPipette(v), tol=p?p.A:8;
+  return {v,qual,t,kl,tc,held,lost,p,tol,rel:100*lost/v,h0};
+}
+function drawLeak(){
+  const cv=getCv('cv-leak'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=leakState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:66,r:150,t:18,b:44});
+  ch.setRange(0,30,0,q.v*1.06);
+  const xt=[0,5,10,15,20,25,30], yt=niceTicks(0,q.v*1.06,5);
+  ch.grid(xt,yt); ch.axes('seconds held in the air','volume still in the tip (µL)',xt,yt,0,0);
+  const pts=[];
+  for(let i=0;i<=90;i++){ const t=30*i/90; pts.push([ch.toX(t),ch.toY(q.v*Math.exp(-t/q.tc))]); }
+  drawLine(ctx,pts,COL.clean,2.6);
+  ch.hLine(q.v,COL.neutral,[4,3]);
+  ch.hLine(q.v-q.tol,COL.dirty,[5,3]);
+  ctx.fillStyle=COL.dirty; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('one permitted error below nominal',ch.m.l+6,ch.toY(q.v-q.tol)+3);
+  ch.vLine(q.t,COL.text,[4,3]);
+  ctx.fillStyle=q.lost>q.tol?COL.bad:COL.good;
+  ctx.beginPath(); ctx.arc(ch.toX(q.t),ch.toY(q.held),6,0,7); ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.6; ctx.stroke();
+  /* the readout block */
+  const rx=w-142;
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('after '+fmt(q.t,1)+' s',rx,ch.m.t+8);
+  ctx.font='bold 24px sans-serif'; ctx.fillStyle=q.lost>q.tol?COL.bad:COL.good;
+  ctx.fillText(fmt(q.held,0)+' µL',rx,ch.m.t+26);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText('lost '+fmt(q.lost,q.lost<10?2:1)+' µL',rx,ch.m.t+58);
+  ctx.fillText('permitted '+fmt(q.tol,2)+' µL',rx,ch.m.t+74);
+  ctx.fillText(q.tc>1e6?'no measurable leak':'half gone in '+fmt(q.tc*0.693,0)+' s',rx,ch.m.t+98);
+  if(!statTick('leak'))return;
+  setStat('st-leak',[
+    {k:'Lost by now',v:fmt(q.lost,q.lost<10?2:1)+' µL',hi:1},
+    {k:'As a fraction',v:fmt(q.rel,2)+'%',hi:1},
+    {k:'Permitted',v:fmt(q.tol,2)+' µL'},
+    {k:'Loss rate at t = 0',v:q.tc>1e6?'nil':fmt(q.v/q.tc,2)+' µL/s'}]);
+  if(q.lost<q.tol*0.05)
+    setVerdict('vd-leak','good','Sealed. The meniscus does not move.',
+      ' Under '+fmt(Math.max(q.lost,0.001),3)+' µL lost in '+fmt(q.t,1)+' seconds. This is what a healthy pipette with a properly seated tip looks like, and it is the reference you are comparing against when you run the ten-second watch.');
+  else if(q.lost<q.tol)
+    setVerdict('vd-leak','warn','Something is leaking, slowly.',
+      ' <b>'+fmt(q.lost,2)+' µL</b> gone after '+fmt(q.t,1)+' s — still inside the '+fmt(q.tol,2)+' µL tolerance, but the meniscus is visibly moving and it will not stay inside for long. Re-seat the tip first: it is free, and it is the more common of the two causes. If it persists, the seal needs the strip-down in tab 4.');
+  else
+    setVerdict('vd-leak','bad','This pipette is not holding its volume.',
+      ' <b>'+fmt(q.lost,1)+' µL</b> lost in '+fmt(q.t,1)+' s — '+fmt(q.lost/q.tol,1)+'× the permitted error, and it keeps going the longer you hold. Note how this masquerades as bad technique: quick small transfers look fine and anything at the top of the range, or any pause to talk to someone, comes out low. Re-seat the tip; if that does not fix it, the pipette is out of service until it is stripped.');
+}
+defWidget('leak','care',drawLeak,{
+  'leak-v':v=>fmt(v,0)+' uL','leak-q':v=>fmt(v,1)+'%','leak-t':v=>fmt(v,1)+' s'},
+  {scen0:'ok', scenfn:s=>{ presetSlider('leak-q',LEAKSCEN[s].q); }});
+
+/* ════════ widget: temp — thermal error (Tab 3.2) ════════
+   Model: eq. 2.3.2. The air-cushion term dominates and is independent of the set
+   volume, which is what makes it devastating at the small end. */
+const TEMPSCEN={ equil:{tl:22,tp:22}, fridge:{tl:4,tp:22}, hand:{tl:22,tp:25} };
+function tempState(){
+  const v=num('temp-v'), tl=num('temp-tl'), tp=num('temp-tp'), vd=num('temp-vd');
+  const Troom=22;
+  const dTair=tp-Troom;                       /* cushion warmer than when set */
+  const air=vd*dTair/(Troom+273.15);          /* uL pushed out by the cushion */
+  const liq=v*BETA_W*(tl-Troom);              /* liquid's own expansion */
+  const tot=air+liq;
+  const p=bestPipette(v), tol=p?p.A:8;
+  return {v,tl,tp,vd,dTair,air,liq,tot,p,tol,rel:100*tot/v};
+}
+function drawTemp(){
+  const cv=getCv('cv-temp'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=tempState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:66,r:24,t:18,b:46});
+  const lim=Math.max(Math.abs(q.tot)*1.3, q.tol*2.4);
+  ch.setRange(20,1000,-lim,lim);
+  const xt=[20,250,500,750,1000], yt=niceTicks(-lim,lim,5);
+  ch.grid(xt,yt); ch.axes('volume set (µL)','error (µL)',xt,yt,0,2);
+  /* the cushion term is flat with volume; the liquid term is proportional */
+  const a=[],b=[],t=[];
+  for(let i=0;i<=60;i++){ const v=20+980*i/60;
+    const air=q.air, liq=v*BETA_W*(q.tl-22);
+    a.push([ch.toX(v),ch.toY(clamp(air,-lim,lim))]);
+    b.push([ch.toX(v),ch.toY(clamp(liq,-lim,lim))]);
+    t.push([ch.toX(v),ch.toY(clamp(air+liq,-lim,lim))]); }
+  drawLine(ctx,a,COL.warmc,2,[5,3]);
+  drawLine(ctx,b,COL.hepa,2,[5,3]);
+  drawLine(ctx,t,COL.cell,2.8);
+  ch.hLine(0,COL.axis);
+  ch.hLine(q.tol,COL.dirty,[4,3]); ch.hLine(-q.tol,COL.dirty,[4,3]);
+  ch.legend([{label:'air cushion',color:COL.warmc},{label:'liquid',color:COL.hepa},
+             {label:'total',color:COL.cell}],ch.m.l+8,ch.m.t+12);
+  const px=ch.toX(clamp(q.v,20,1000)), py=ch.toY(clamp(q.tot,-lim,lim));
+  ctx.fillStyle=Math.abs(q.tot)>q.tol?COL.bad:COL.good;
+  ctx.beginPath(); ctx.arc(px,py,6,0,7); ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.6; ctx.stroke();
+  if(!statTick('temp'))return;
+  setStat('st-temp',[
+    {k:'Air cushion term',v:fmt(q.air,2)+' µL',hi:1},
+    {k:'Liquid term',v:fmt(q.liq,2)+' µL'},
+    {k:'Total error',v:fmt(q.tot,2)+' µL ('+fmt(q.rel,2)+'%)',hi:1},
+    {k:'Permitted',v:fmt(q.tol,2)+' µL'}]);
+  const ratio=Math.abs(q.tot)/q.tol;
+  const dom=Math.abs(q.air)>Math.abs(q.liq)?'air cushion':'liquid';
+  if(ratio<0.15)
+    setVerdict('vd-temp','good','Everything is at the same temperature, and it shows.',
+      ' <b>'+fmt(q.tot,3)+' µL</b> of thermal error against a '+fmt(q.tol,2)+' µL budget. This is the condition the manual asks for — "make sure that the tips, pipette and solution are at the same temperature" — and it costs nothing except letting things sit for a few minutes.');
+  else if(ratio<1)
+    setVerdict('vd-temp','warn','Real, and the <b>'+dom+'</b> is doing most of it.',
+      ' <b>'+fmt(q.tot,2)+' µL</b> — '+fmt(100*ratio,0)+'% of your error budget spent on temperature. Look at the two dashed curves: the cushion term is <em>flat</em> across the whole volume axis while the liquid term is proportional. At '+fmt(q.v,0)+' µL that is survivable; slide the volume down to 50 µL and watch the same absolute error become '+fmt(Math.abs(q.air+50*BETA_W*(q.tl-22))/50*100,1)+'%.');
+  else
+    setVerdict('vd-temp','bad','Out of specification on temperature alone.',
+      ' <b>'+fmt(q.tot,2)+' µL</b> against a '+fmt(q.tol,2)+' µL limit, dominated by the <b>'+dom+'</b>. '+(Math.abs(q.dTair)>0.5?'The pipette body is '+fmt(Math.abs(q.dTair),1)+' °C off room temperature — put it down on the stand and let it equilibrate, which takes a few minutes and fixes this entirely.':'Let the reagent come to room temperature before you pipette it.'));
+}
+defWidget('temp','care',drawTemp,{
+  'temp-v':v=>fmt(v,0)+' uL','temp-tl':v=>fmt(v,1)+' C','temp-tp':v=>fmt(v,1)+' C','temp-vd':v=>fmt(v,0)+' uL'},
+  {scen0:'equil', scenfn:s=>{ presetSlider('temp-tl',TEMPSCEN[s].tl); presetSlider('temp-tp',TEMPSCEN[s].tp); }});
+
+/* ════════ widget: grav — the gravimetric check (Tab 4.1) ════════
+   Ten deliveries drawn from the pipette's true behaviour, weighed on a balance
+   with its own repeatability and quantisation, converted back through
+   eq. 2.4.1 and scored against the manual's Table 1. */
+const DGRAV=[0.001,0.01,0.1,1];
+const GRAVSCEN={ good:{}, offset:{}, worn:{} };
+function gravState(){
+  const v=num('grav-v'), d=DGRAV[clamp(Math.round(num('grav-d')),0,3)], rh=num('grav-rh');
+  const f=SCEN.grav||'good';
+  const p=PIPETTES.find(x=>x.name==='100–1000 µL');
+  const trueA = f==='offset' ? p.A*1.9 : p.A*0.25;     /* systematic offset, uL */
+  const trueS = f==='worn'   ? p.S*2.4 : p.S*0.35;     /* pipette scatter, uL */
+  /* evaporation between dispensing and reading, per the manual's stopwatch method */
+  const evapRate=0.42*Math.max(0,(60-rh)/50);          /* mg/s, illustrative */
+  const evap=evapRate*10;                              /* a 10 s pipetting cycle */
+  const rng=mulberry32(4242+Math.round(v)+Math.round(rh)*13+f.length*101);
+  const vols=[];
+  for(let i=0;i<10;i++){
+    const trueV=v+trueA+gaussOf(rng)*trueS;            /* what the pipette delivered */
+    const wTrue=trueV/Z_FACTOR;                        /* mg of water on the pan */
+    const wObs=wTrue-evap+gaussOf(rng)*S_BAL;          /* the balance sees less, and scatters */
+    const wDisp=Math.round(wObs/d)*d;                  /* quantised by readability */
+    vols.push((wDisp+evap)*Z_FACTOR);                  /* eq. 2.4.1, evaporation corrected */
+  }
+  const mean=vols.reduce((a,b)=>a+b,0)/10;
+  let ss=0; for(const x of vols)ss+=(x-mean)*(x-mean);
+  const s=Math.sqrt(ss/9);
+  const A=mean-v, CV=100*s/mean;
+  return {v,d,rh,f,p,vols,mean,s,A,CV,evap,evapRate,
+          passA:Math.abs(A)<=p.A, passS:s<=p.S};
+}
+function drawGrav(){
+  const cv=getCv('cv-grav'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=gravState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:70,r:24,t:18,b:46});
+  const span=Math.max(q.p.A*1.7, Math.abs(q.A)+3*q.s+q.p.A*0.4);
+  ch.setRange(0.4,10.6,q.v-span,q.v+span);
+  const xt=[1,2,3,4,5,6,7,8,9,10], yt=niceTicks(q.v-span,q.v+span,5);
+  ch.grid(xt,yt); ch.axes('delivery number','volume delivered (µL)',xt,yt,0,1);
+  /* permitted band around the nominal volume */
+  ctx.fillStyle='rgba(16,185,129,.10)';
+  ctx.fillRect(ch.m.l,ch.toY(q.v+q.p.A),ch.pw,ch.toY(q.v-q.p.A)-ch.toY(q.v+q.p.A));
+  ch.hLine(q.v+q.p.A,COL.good,[5,3]); ch.hLine(q.v-q.p.A,COL.good,[5,3]);
+  ch.hLine(q.v,COL.axis);
+  ctx.fillStyle=COL.good; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('permitted ±'+fmt(q.p.A,2)+' µL',ch.m.l+6,ch.toY(q.v+q.p.A)-3);
+  q.vols.forEach((val,i)=>{
+    const x=ch.toX(i+1), y=ch.toY(clamp(val,q.v-span,q.v+span));
+    ctx.fillStyle=Math.abs(val-q.v)<=q.p.A?COL.clean:COL.bad;
+    ctx.beginPath(); ctx.arc(x,y,5,0,7); ctx.fill();
+  });
+  ch.hLine(clamp(q.mean,q.v-span,q.v+span),COL.cell,[2,2]);
+  ctx.fillStyle=COL.cell; ctx.font='11px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='bottom';
+  ctx.fillText('mean '+fmt(q.mean,1),ch.m.l+ch.pw-4,ch.toY(clamp(q.mean,q.v-span,q.v+span))-3);
+  if(!statTick('grav'))return;
+  setStat('st-grav',[
+    {k:'Mean delivered',v:fmt(q.mean,1)+' µL',hi:1},
+    {k:'Inaccuracy A',v:fmt(q.A,2)+' µL '+(q.passA?'pass':'FAIL'),hi:1},
+    {k:'Std deviation s',v:fmt(q.s,2)+' µL '+(q.passS?'pass':'FAIL')},
+    {k:'Evaporation loss',v:fmt(q.evap,1)+' mg'}]);
+  const balOK=(2*S_BAL)<=(q.p.A*0.5/Z_FACTOR);
+  if(!balOK)
+    setVerdict('vd-grav','warn','This balance is too coarse to judge this pipette.',
+      ' The tolerance you are testing against is '+fmt(q.p.A,2)+' µL, or about '+fmt(q.p.A/Z_FACTOR,2)+' mg of water, and a single weighing on a balance with s = '+fmt(S_BAL,1)+' mg carries '+fmt(2*S_BAL,1)+' mg of expanded uncertainty. The scatter you are reading is partly the balance\'s, not the pipette\'s — this is eq. 1.3.4 again. Test at a larger volume, or use a finer balance.');
+  else if(q.passA&&q.passS)
+    setVerdict('vd-grav','good','Passes on both counts.',
+      ' Inaccuracy <b>'+fmt(q.A,2)+' µL</b> against a permitted ±'+fmt(q.p.A,2)+', and scatter <b>'+fmt(q.s,2)+' µL</b> against a permitted '+fmt(q.p.S,2)+'. Nothing to do. Adjusting a pipette that already passes is a way to introduce an error, not remove one.');
+  else if(!q.passA&&q.passS)
+    setVerdict('vd-grav','warn','The mean is off; the scatter is fine. That is an adjustment.',
+      ' <b>A = '+fmt(q.A,2)+' µL</b> against ±'+fmt(q.p.A,2)+' permitted, but s = '+fmt(q.s,2)+' µL is well inside its '+fmt(q.p.S,2)+' limit. A tight, consistent, wrong volume: the stroke is delivering the wrong amount and delivering it reliably. Turn the calibration nut with the service tool, then re-run this check. Do <em>not</em> strip it down — nothing is worn.');
+  else if(q.passA&&!q.passS)
+    setVerdict('vd-grav','bad','The mean is fine; the scatter is not. That is a strip-down.',
+      ' s = <b>'+fmt(q.s,2)+' µL</b> against a permitted '+fmt(q.p.S,2)+' — '+fmt(q.s/q.p.S,1)+'× too wide — while the mean sits at '+fmt(q.A,2)+' µL, nearly perfect. Adjusting would only re-centre a distribution that is too broad to begin with. Check the tip seating first, then service the piston, spring and O-rings.');
+  else
+    setVerdict('vd-grav','bad','Both wrong. Service first, adjust second.',
+      ' A = '+fmt(q.A,2)+' µL and s = '+fmt(q.s,2)+' µL, both outside their limits. Strip it down, re-grease, reassemble, then re-run this check — and only adjust if the mean is <em>still</em> off. Adjusting before servicing means adjusting to a target that is about to move.');
+}
+defWidget('grav','maint',drawGrav,{
+  'grav-v':v=>fmt(v,0)+' uL',
+  'grav-d':v=>fmt(DGRAV[clamp(Math.round(v),0,3)],3)+' mg',
+  'grav-rh':v=>fmt(v,0)+'%'},
+  {scen0:'good'});
+
+/* ════════ widget: dilute — the capstone (Tab 5.1) ════════
+   For each n, the per-step transfer volume is fixed by the arithmetic, which
+   fixes which pipette you are forced to use, which fixes the per-step error.
+   Systematic terms then grow as n and random terms as sqrt(n) -- eq. 2.5.1. */
+const DILSCEN={ one:{n:1}, three:{n:3}, six:{n:6} };
+function stepErr(D,n,Vtot){
+  const r=Math.pow(D,-1/n);            /* dilution factor per step */
+  const Vt=Vtot*r, Vd=Vtot-Vt;
+  const pt=bestPipette(Vt), pd=bestPipette(Vd);
+  if(!pt||!pd)return {Vt,Vd,pt,pd,ok:false};
+  const et=pipetteErr(pt,Vt), ed=pipetteErr(pd,Vd);
+  const sys=et.A+ed.A*(Vd/Vtot);                       /* worst case: magnitudes add */
+  const rand=Math.hypot(et.CV, ed.CV*(Vd/Vtot));
+  return {Vt,Vd,pt,pd,et,ed,ok:true,
+          sysTot:n*sys, randTot:Math.sqrt(n)*rand,
+          tot:Math.hypot(n*sys, Math.sqrt(n)*rand)};
+}
+function diluteState(){
+  const D=Math.pow(10,num('dilute-d')), n=Math.round(num('dilute-n')), Vtot=num('dilute-vt');
+  const cur=stepErr(D,n,Vtot);
+  const curve=[];
+  for(let k=1;k<=8;k++){ const e=stepErr(D,k,Vtot); curve.push({n:k,e}); }
+  const okOnes=curve.filter(c=>c.e.ok);
+  const best=okOnes.length?okOnes.reduce((a,b)=>a.e.tot<b.e.tot?a:b):null;
+  return {D,n,Vtot,cur,curve,best};
+}
+function drawDilute(){
+  const cv=getCv('cv-dilute'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=diluteState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:66,r:150,t:18,b:46});
+  const vals=q.curve.filter(c=>c.e.ok).map(c=>c.e.tot);
+  const ymax=Math.max(4, Math.min(120, Math.max(...vals)*1.15));
+  ch.setRange(0.5,8.5,0,ymax);
+  const xt=[1,2,3,4,5,6,7,8], yt=niceTicks(0,ymax,5);
+  ch.grid(xt,yt); ch.axes('number of steps','final error (%)',xt,yt,0,1);
+  const tot=[],sys=[],rnd=[];
+  for(const c of q.curve){ if(!c.e.ok)continue;
+    tot.push([ch.toX(c.n),ch.toY(clamp(c.e.tot,0,ymax))]);
+    sys.push([ch.toX(c.n),ch.toY(clamp(c.e.sysTot,0,ymax))]);
+    rnd.push([ch.toX(c.n),ch.toY(clamp(c.e.randTot,0,ymax))]); }
+  drawLine(ctx,sys,COL.dirty,2,[5,3]);
+  drawLine(ctx,rnd,COL.hepa,2,[5,3]);
+  drawLine(ctx,tot,COL.cell,3);
+  for(const c of q.curve){ if(!c.e.ok)continue;
+    ctx.fillStyle=COL.cell; ctx.beginPath();
+    ctx.arc(ch.toX(c.n),ch.toY(clamp(c.e.tot,0,ymax)),3.5,0,7); ctx.fill(); }
+  ch.legend([{label:'systematic, grows as n',color:COL.dirty},
+             {label:'random, grows as √n',color:COL.hepa},
+             {label:'total',color:COL.cell}],ch.m.l+8,ch.m.t+10);
+  if(q.cur.ok){
+    const px=ch.toX(q.n), py=ch.toY(clamp(q.cur.tot,0,ymax));
+    ctx.fillStyle=COL.warmc; ctx.beginPath(); ctx.arc(px,py,7,0,7); ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+  }
+  if(q.best){ ch.vLine(q.best.n,COL.good,[3,3]);
+    ctx.fillStyle=COL.good; ctx.font='bold 10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ctx.fillText('best: '+q.best.n+(q.best.n===1?' step':' steps'),ch.toX(q.best.n),ch.m.t+ch.ph-6); }
+  /* the per-step recipe */
+  const rx=w-142;
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('each step',rx,ch.m.t+8);
+  if(q.cur.ok){
+    ctx.font='bold 15px sans-serif'; ctx.fillStyle=COL.clean;
+    ctx.fillText(fmt(q.cur.Vt,q.cur.Vt<10?2:0)+' µL',rx,ch.m.t+26);
+    ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+    ctx.fillText('into '+fmt(q.cur.Vd,0)+' µL',rx,ch.m.t+46);
+    ctx.fillStyle=COL.text; ctx.font='10.5px sans-serif';
+    ctx.fillText('transfer: '+q.cur.pt.name,rx,ch.m.t+70);
+    ctx.fillText('diluent: '+q.cur.pd.name,rx,ch.m.t+86);
+    ctx.fillStyle=COL.axis;
+    ctx.fillText('per step ±'+fmt(q.cur.et.A,2)+'%',rx,ch.m.t+108);
+    ctx.font='bold 20px sans-serif'; ctx.fillStyle=q.cur.tot<3?COL.good:(q.cur.tot<8?COL.warn:COL.bad);
+    ctx.fillText('±'+fmt(q.cur.tot,1)+'%',rx,ch.m.t+132);
+  } else {
+    ctx.font='12px sans-serif'; ctx.fillStyle=COL.bad;
+    ctx.fillText('no pipette',rx,ch.m.t+28);
+    ctx.fillText('reaches',rx,ch.m.t+44);
+    ctx.fillText(fmt(q.cur.Vt,2)+' µL',rx,ch.m.t+60);
+  }
+  if(!statTick('dilute'))return;
+  setStat('st-dilute',[
+    {k:'Transfer per step',v:q.cur.ok?fmt(q.cur.Vt,q.cur.Vt<10?2:0)+' µL':'—',hi:1},
+    {k:'Pipette forced',v:q.cur.ok?q.cur.pt.name:'none'},
+    {k:'Systematic',v:q.cur.ok?fmt(q.cur.sysTot,1)+'%':'—'},
+    {k:'Final error',v:q.cur.ok?'±'+fmt(q.cur.tot,1)+'%':'—',hi:1}]);
+  if(!q.cur.ok)
+    setVerdict('vd-dilute','bad','The arithmetic demands a transfer no pipette can make.',
+      ' A '+fmt(q.D,0)+'-fold dilution in '+q.n+(q.n===1?' step':' steps')+' at '+fmt(q.Vtot,0)+' µL means transferring <b>'+fmt(q.cur.Vt,3)+' µL</b>, which is below the smallest Elite model\'s 0.2 µL range. This is not a technique problem — it is impossible. Add a step, or work at a larger volume per step.');
+  else if(q.best&&q.n===q.best.n)
+    setVerdict('vd-dilute','good','This is the best split available.',
+      ' <b>±'+fmt(q.cur.tot,1)+'%</b> from '+q.n+(q.n===1?' step':' steps')+', each transferring '+fmt(q.cur.Vt,0)+' µL with the '+q.cur.pt.name+'. Fewer steps would force a smaller transfer and a worse pipette; more steps would pile up systematic error faster than the improved transfer volume can pay for it. The two dashed curves show that trade directly.');
+  else if(q.n===1)
+    setVerdict('vd-dilute','bad','One step is the worst option, and not because of compounding.',
+      ' A single '+fmt(q.D,0)+'-fold step forces a <b>'+fmt(q.cur.Vt,2)+' µL</b> transfer, which lands you on the '+q.cur.pt.name+' at the very bottom of its range — ±'+fmt(q.cur.et.A,1)+'% per transfer. Splitting it into '+(q.best?q.best.n:3)+' still gets you to ±'+fmt(q.best?q.best.e.tot:0,1)+'%, despite '+(q.best?q.best.n:3)+' times as many transfers, because each one becomes big enough for a pipette to do well.');
+  else if(q.cur.sysTot>q.cur.randTot*1.6)
+    setVerdict('vd-dilute','warn','Past the optimum — the systematic term is now running the show.',
+      ' <b>±'+fmt(q.cur.tot,1)+'%</b>, of which '+fmt(q.cur.sysTot,1)+' points are systematic and only '+fmt(q.cur.randTot,1)+' random. Every extra step adds a full copy of the bias while the random part grows only as √n, so past a certain point more steps simply make it worse. '+(q.best?'Try '+q.best.n+' instead.':''));
+  else
+    setVerdict('vd-dilute','warn','Workable, but not the best split.',
+      ' <b>±'+fmt(q.cur.tot,1)+'%</b> against ±'+fmt(q.best?q.best.e.tot:0,1)+'% at the optimum of '+(q.best?q.best.n:'—')+' steps. The transfer here is '+fmt(q.cur.Vt,0)+' µL on the '+q.cur.pt.name+'; the win comes from getting each transfer as close as possible to the <em>top</em> of some pipette\'s range.');
+}
+defWidget('dilute','recap',drawDilute,{
+  'dilute-d':v=>fmt(Math.pow(10,v),0)+'-fold','dilute-n':v=>String(Math.round(v)),'dilute-vt':v=>fmt(v,0)+' uL'},
+  {scen0:'one', scenfn:s=>{ presetSlider('dilute-n',DILSCEN[s].n); }});
+
+/* ════════ dispatch + wiring (house pattern) ════════ */
+function refreshActiveTab(){ for(const k of (TABW[activeTab]||[])){ const f=DRAW[k];
+  if(f){ try{ f(); }catch(e){ console.error('draw '+k,e); } } } }
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active'); activeTab=btn.dataset.tab;
+    const sec=document.getElementById('tab-'+activeTab); if(sec)sec.classList.add('active');
+    window.scrollTo({top:0}); clearCvCache(); refreshActiveTab(); syncVis();
+  });
+});
+window.addEventListener('resize',()=>{ clearCvCache(); refreshActiveTab(); syncVis(); });
+document.querySelectorAll('.scen-btn[data-widget]').forEach(b=>{
+  b.addEventListener('click',()=>setScen(b.dataset.widget,b.dataset.scen)); });
+for(const w in SCEN){ if(SCENFN[w])SCENFN[w](SCEN[w]); if(RESET[w])RESET[w](); }
+wireAll();
+refreshActiveTab();
+syncVis();
+</script>
+</body>
+</html>

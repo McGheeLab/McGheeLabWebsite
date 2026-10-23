@@ -1,0 +1,149 @@
+/* ================================================================
+   Whiteboard panel for learning modules (V3.684)
+   ================================================================
+   The floating-panel chrome only. The BOARD inside it is styled by
+   whiteboard-board.css, which the SPA loads too — one stylesheet, so the
+   board cannot look different in the panel than it does on its own page.
+
+   Panel geometry follows the context-panel pattern already proven in the
+   homework modules (hw-00-pretest.html): fixed position, drag by the
+   header, CSS resize from the corner, collapse to the title bar, and a
+   bottom sheet under 700px.
+   ================================================================ */
+
+.cpanel.wb-panel{
+  position: fixed; z-index: 240;
+  background: #fff; border: 1px solid #cbd5e1; border-radius: 12px;
+  box-shadow: 0 10px 34px rgba(15,23,42,.30);
+  display: flex; flex-direction: column;
+  resize: both; overflow: hidden;
+  min-width: 320px; min-height: 44px; max-width: 97vw; max-height: 94vh;
+}
+.cpanel.wb-panel[hidden]{ display: none; }
+.cpanel.wb-panel.min{ resize: none; min-height: 0; height: auto !important; }
+.cpanel.wb-panel.min .cpanel-body{ display: none; }
+
+.wb-panel .cpanel-head{
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 7px 10px; border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc; cursor: grab; flex: none;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.wb-panel .cpanel-head:active{ cursor: grabbing; }
+.wb-panel .cpanel-title{ font-weight: 700; font-size: .86rem; color: #0f172a; }
+.wb-panel .cpanel-btns{ display: flex; gap: 4px; }
+.wb-panel .cpanel-min,
+.wb-panel .cpanel-x{
+  border: 1px solid #cbd5e1; background: #fff; border-radius: 6px;
+  width: 24px; height: 24px; cursor: pointer; line-height: 1;
+  font-size: .8rem; color: #334155; padding: 0;
+}
+.wb-panel .cpanel-min:hover,
+.wb-panel .cpanel-x:hover{ background: #f1f5f9; }
+
+.wb-panel .cpanel-body{
+  flex: 1; display: flex; flex-direction: column; min-height: 0;
+  padding: 8px; overflow: hidden; overscroll-behavior: contain;
+}
+
+.wb-panel-tabs{ display: flex; gap: 4px; flex: none; margin-bottom: 6px; }
+.wb-panel-tab{
+  border: 1px solid #cbd5e1; background: #fff; color: #334155;
+  border-radius: 999px; padding: 3px 11px; font-size: .76rem;
+  cursor: pointer; font-weight: 600;
+}
+.wb-panel-tab-on{ background: #0f172a; color: #fff; border-color: #0f172a; }
+
+.wb-panel-mount{ flex: 1; min-height: 0; display: flex; }
+/* The board fills the panel body; its own stylesheet handles the rest.
+   Height must come from the flex parent, not the viewport — the panel is
+   not the page. */
+.wb-panel-mount .wb-page{
+  height: 100%; min-height: 0; max-width: none;
+  margin: 0; padding: 0; flex: 1;
+}
+.wb-panel-mount .wb-topbar{ padding: 0 0 6px; }
+.wb-panel-mount .wb-title{ font-size: .8rem; }
+.wb-panel-mount .wb-toolbar{ padding: 0 0 6px; gap: 10px; }
+.wb-panel-mount .wb-pagesbar{ padding: 6px 0 0; min-height: 0; }
+
+.wb-panel-msg{
+  flex: none; padding: 10px 6px 4px; font-size: .82rem; color: #64748b;
+}
+.wb-panel-msg[hidden]{ display: none; }
+
+/* ── Toggle button ──
+   Learning modules mount it in the dark section rail's head, homework
+   modules in their .tool-dock; both inherit their host's button styling,
+   so only the live pip and the floating fallback are defined here. */
+.wb-tool-btn{ position: relative; }
+.wb-tool-btn.wb-tool-live::after{
+  content: ''; position: absolute; top: 3px; right: 3px;
+  width: 7px; height: 7px; border-radius: 50%; background: #dc2626;
+  animation: wb-tool-pulse 1.4s ease-in-out infinite;
+}
+@keyframes wb-tool-pulse{ 0%,100%{ opacity: 1; } 50%{ opacity: .3; } }
+#rail .rail-head .wb-tool-btn{
+  width: 100%; margin-top: 6px; border: 1px solid #334155;
+  background: #1e293b; color: #e2e8f0; border-radius: 8px;
+  padding: 5px 8px; font-size: .78rem; cursor: pointer;
+}
+#rail .rail-head .wb-tool-btn.on{ background: #b45309; border-color: #f59e0b; color: #fff; }
+/* Present mode collapses the rail to a 62px strip — the label would
+   overflow it, so show a short glyph instead. */
+body.present #rail .rail-head .wb-tool-btn{ font-size: 0; padding: 6px 0; }
+body.present #rail .rail-head .wb-tool-btn::before{ content: '✎'; font-size: 15px; }
+
+.wb-tool-floating{
+  position: fixed; right: 14px; bottom: 14px; z-index: 239;
+  border: 1px solid #cbd5e1; background: #fff; border-radius: 999px;
+  padding: 8px 14px; font-size: .82rem; font-weight: 600; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(15,23,42,.2);
+}
+
+/* ── Snap button on a simulation canvas ── */
+.wb-snap{
+  position: absolute; top: 6px; right: 6px; z-index: 5;
+  border: 1px solid #cbd5e1; background: rgba(255,255,255,.94);
+  color: #0f172a; border-radius: 999px; padding: 3px 10px;
+  font-size: .72rem; font-weight: 600; cursor: pointer;
+  box-shadow: 0 1px 4px rgba(15,23,42,.18);
+}
+.wb-snap:hover{ background: #fff; border-color: #94a3b8; }
+.wb-snap:disabled{ opacity: .6; cursor: default; }
+
+/* ── Mobile: bottom sheet, no drag ── */
+@media (max-width: 700px){
+  .cpanel.wb-panel{
+    left: 0 !important; right: 0 !important; top: auto !important; bottom: 0 !important;
+    width: 100% !important; height: auto !important; max-height: 74vh;
+    border-radius: 14px 14px 0 0; resize: none; max-width: 100vw;
+  }
+  .wb-panel .cpanel-head{ cursor: default; }
+  .wb-panel-mount{ min-height: 46vh; }
+}
+
+/* ── Sharing (notes boards only; homework has no control at all) ── */
+.wb-panel-share{ flex: none; padding: 6px 4px 0; }
+.wb-panel-share[hidden]{ display: none; }
+.wb-share-toggle{
+  border: 1px solid #cbd5e1; background: #fff; color: #334155;
+  border-radius: 999px; padding: 3px 11px; font-size: .74rem;
+  cursor: pointer; font-weight: 600;
+}
+.wb-share-list{
+  margin-top: 6px; max-height: 30vh; overflow: auto;
+  border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px;
+}
+.wb-share-list[hidden]{ display: none; }
+.wb-share-row{
+  display: flex; align-items: center; gap: 7px;
+  font-size: .8rem; padding: 3px 0; cursor: pointer;
+}
+.wb-share-optin{ margin-top: 6px; border-top: 1px solid #e2e8f0; padding-top: 7px; color: #475569; }
+.wb-share-msg{ font-size: .78rem; color: #64748b; display: block; }
+.wb-share-save{
+  margin-top: 7px; border: 1px solid #0f172a; background: #0f172a; color: #fff;
+  border-radius: 7px; padding: 4px 12px; font-size: .78rem; cursor: pointer; font-weight: 600;
+}
+.wb-share-save:disabled{ opacity: .6; cursor: default; }

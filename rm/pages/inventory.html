@@ -7,6 +7,21 @@
   <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
+  <style>
+    /* V3.840 — the phone's reason for this tab: scan, then the dial. Hidden on the desktop. */
+    .inv-scan-hero, .inv-scan-fab { display: none; }
+    body.ourlab-app .inv-scan-hero { display: flex; align-items: center; gap: 14px; width: 100%; margin: 4px 0 12px; padding: 16px 18px; border: none; border-radius: 16px; background: var(--primary, #2563eb); color: #fff; text-align: left; cursor: pointer; box-shadow: 0 6px 18px rgba(37, 99, 235, .3); }
+    body.ourlab-app .inv-scan-hero:active { transform: scale(.985); }
+    .inv-scan-hero .ish-icon { font-size: 30px; line-height: 1; }
+    .inv-scan-hero .ish-text { display: flex; flex-direction: column; gap: 2px; }
+    .inv-scan-hero strong { font-size: 18px; font-weight: 800; }
+    .inv-scan-hero small { font-size: 13px; opacity: .85; }
+    body.ourlab-app .inv-scan-fab { display: flex; }
+    .inv-scan-fab svg { width: 28px; height: 28px; }
+    body.ourlab-app .page-header > div { flex-wrap: wrap; }
+    body.ourlab-app #inv-scan, body.ourlab-app #inv-print-labels { display: none; }
+  </style>
 </head>
 <body>
   <div class="page">
@@ -23,10 +38,17 @@
           <option value="out_of_stock">Out of Stock</option>
         </select>
         <input id="search-input" type="text" placeholder="Search items..." style="font-size:14px;padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);width:220px;">
+        <button class="btn" id="inv-scan" title="Scan an item's QR label — camera, or type the code, or a USB scanner (V3.834)"><i data-hi="camera"></i> Scan</button>
+        <button class="btn" id="inv-print-labels" title="Queue QR labels for every item in the current list at the lab's label printer (V3.834)"><i data-hi="tag"></i> Print labels</button>
         <button class="btn" onclick="createManualGroup()">Create Group</button>
         <button class="btn btn-primary" id="add-item">+ Add Item</button>
       </div>
     </div>
+    <!-- V3.840 — app-only scan hero (body.ourlab-app); the desktop keeps the toolbar's 📷 Scan -->
+    <button type="button" class="inv-scan-hero" id="inv-scan-hero" aria-label="Scan a label to use an item">
+      <span class="ish-icon"><i data-hi="camera"></i></span>
+      <span class="ish-text"><strong>Scan a label</strong><small>then say how much you are taking</small></span>
+    </button>
     <div class="tab-bar" id="tabs"></div>
     <div id="content"></div>
   </div>
@@ -45,6 +67,22 @@
   <script src="/rm/js/sync-status.js"></script>
   <script src="/rm/js/profile-bootstrap.js"></script>
   <script src="/rm/js/forms.js"></script>
+  <!-- V3.646 — quantity tracking + the take-from-stock sheet. app-sheet.js must
+       come before stock-take.js (STOCK_TAKE calls APP_SHEET.open), and both
+       before inventory.js, which renders the affordances that use them. -->
+  <script src="/rm/js/app-sheet.js"></script>
+  <script src="/rm/js/inventory-qty.js"></script>
+  <!-- V3.834 — QR labels + scan-to-use: the V3.646 label registry/scanner
+       (label-id, scan, scan-resolve) finally wired to a page, plus the two
+       new modules. The QR encoder (rm/vendor/qrcode) loads on demand. -->
+  <script src="/rm/js/label-id.js"></script>
+  <script src="/rm/js/scan.js"></script>
+  <script src="/rm/js/scan-resolve.js"></script>
+  <script src="/rm/js/inventory-labels.js"></script>
+  <script src="/rm/js/qty-picker.js"></script>
+  <script src="/rm/js/inventory-use.js"></script>
+  <script src="/rm/js/user-actions.js"></script>
+  <script src="/rm/js/stock-take.js"></script>
   <script src="/rm/js/inventory.js"></script>
 </body>
 </html>

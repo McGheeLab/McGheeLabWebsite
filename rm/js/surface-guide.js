@@ -1,7 +1,7 @@
-/* surface-guide.js — V3.535 (My Day program R10): "which surface for what".
+/* surface-guide.js — V3.535 (My Week program R10): "which surface for what".
  *
  * A one-line dismissible banner mounted at the top of the surfaces whose
- * roles shifted under the My Day program, so students know where each
+ * roles shifted under the My Week program, so students know where each
  * kind of input belongs now. Dismissal is per-page, per-browser
  * (localStorage) — this is orientation, not chrome.
  *
@@ -13,11 +13,12 @@
   'use strict';
 
   var GUIDES = {
-    'huddle': 'The Huddle is the lab’s shared board — plan your own week in <a href="/rm/pages/my-day.html">☀️ My Day</a> and it posts here automatically.',
-    'activity-overview': 'The Tracker is your review/analytics view — log what you’re doing in <a href="/rm/pages/my-day.html">☀️ My Day</a> and events land here on their own.',
-    'tasks': 'This is the organizing workspace — day-to-day “what am I doing today” lives in <a href="/rm/pages/my-day.html">☀️ My Day</a>.',
-    'lab-notebook': 'The notebook is the canonical record of what you did — My Day plans create entry stubs here; write your results into them.',
-    'pmr': 'Weekly entries can be assembled from your notebook, tracker, tasks and My Day — use “⤓ Assemble” on a week instead of retyping.',
+    'huddle': 'The Huddle is the lab’s shared board — plan your own week in <a href="/rm/pages/my-week.html">' + ICON.svg('sun') + ' My Week</a> and it posts here automatically.',
+    'activity-overview': 'The Tracker is your review/analytics view — log what you’re doing in <a href="/rm/pages/my-week.html">' + ICON.svg('sun') + ' My Week</a> and events land here on their own.',
+    'tasks': 'This is the organizing workspace — day-to-day “what am I doing today” lives in <a href="/rm/pages/my-week.html">' + ICON.svg('sun') + ' My Week</a>.',
+    'lab-notebook': 'The notebook is the canonical record of what you did — My Week plans create entry stubs here; write your results into them.',
+    'notebook': 'The notebook is the canonical record of what you did — add blocks (notes, calculators, protocols, a whiteboard) to each entry; My Week plans create entry stubs here.',
+    'pmr': 'Weekly entries can be assembled from your notebook, tracker, tasks and My Week — use “⤓ Assemble” on a week instead of retyping.',
   };
 
   function slug() {
@@ -55,10 +56,10 @@
       'font-size:.85rem;color:var(--text-muted,#6b7280);background:var(--bg,#f5f6fa)';
     var span = document.createElement('span');
     span.style.flex = '1';
-    span.innerHTML = 'ℹ️ ' + text;
+    span.innerHTML = ICON.svg('information-circle') + ' ' + text;
     var x = document.createElement('button');
     x.type = 'button';
-    x.textContent = '✕';
+    ICON.label(x, 'x-mark');
     x.setAttribute('aria-label', 'Dismiss');
     x.style.cssText = 'border:none;background:transparent;cursor:pointer;opacity:.6;font-size:.9rem';
     x.addEventListener('click', function () {

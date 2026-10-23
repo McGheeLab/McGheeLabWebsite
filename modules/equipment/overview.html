@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Equipment Foundations: Start Here — Course Overview</title>
+
+  <!-- Module header styles (dark theme nav bar) -->
+  <link rel="stylesheet" href="../shared/module-header.css" />
+
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --panel: #141925;
+      --panel-2: #1a1f2e;
+      --ink: #eef2f7;
+      --muted: #a8b3c7;
+      --accent: #5baed1;
+      --accent-2: #7fd1b9;
+      --line: rgba(255,255,255,.09);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--ink);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      background:
+        radial-gradient(120% 140% at 0% 0%, rgba(91,174,209,.18), transparent 55%),
+        radial-gradient(120% 140% at 100% 0%, rgba(127,209,185,.14), transparent 55%),
+        var(--panel);
+      overflow: hidden;
+    }
+    .hero .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      font-size: .72rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin: 0 0 .6rem;
+    }
+    .hero h1 {
+      margin: 0 0 .6rem;
+      font-size: clamp(1.9rem, 4.5vw, 2.7rem);
+      line-height: 1.1;
+      letter-spacing: -.01em;
+    }
+    .hero .lede {
+      margin: 0;
+      max-width: 60ch;
+      font-size: 1.06rem;
+      color: var(--muted);
+    }
+    .hero .lede strong { color: var(--ink); font-weight: 600; }
+
+    /* ── Section heading ── */
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      gap: .75rem;
+      margin: 3rem 0 1.2rem;
+    }
+    .section-head h2 { margin: 0; font-size: 1.35rem; color: var(--ink); }
+    .section-head .sub { color: var(--muted); font-size: .92rem; }
+
+    /* ── How it works ── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1.25rem 1.25rem 1.4rem;
+      background: var(--panel);
+    }
+    .step .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: rgba(91,174,209,.16);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: .95rem;
+      margin-bottom: .7rem;
+    }
+    .step h3 { margin: 0 0 .35rem; font-size: 1.02rem; }
+    .step p { margin: 0; color: var(--muted); font-size: .92rem; }
+
+    /* ── Lesson cards ── */
+    .lessons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.1rem;
+    }
+    .lesson {
+      border: 1px solid rgba(127,209,185,.32);
+      border-radius: 14px;
+      background: var(--panel);
+      padding: 1.35rem 1.4rem 1.4rem;
+      display: flex;
+      flex-direction: column;
+    }
+    .lesson-top {
+      display: flex;
+      align-items: flex-start;
+      gap: .8rem;
+      margin-bottom: .45rem;
+    }
+    .lesson-top .no {
+      flex: none;
+      width: 34px; height: 34px;
+      border-radius: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--panel-2);
+      color: var(--accent);
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .lesson-top h3 { margin: .1rem 0 0; font-size: 1.14rem; line-height: 1.3; }
+    .lesson-desc { margin: 0 0 .9rem; color: var(--muted); font-size: .93rem; }
+    .lesson-desc strong { color: var(--ink); font-weight: 600; }
+    .arc {
+      margin: 0 0 1rem;
+      padding: .55rem .8rem;
+      border-left: 3px solid rgba(91,174,209,.45);
+      background: rgba(91,174,209,.07);
+      border-radius: 0 8px 8px 0;
+      color: var(--muted);
+      font-size: .84rem;
+    }
+    .lesson-actions {
+      margin-top: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .6rem;
+    }
+    a.btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      padding: .55rem .95rem;
+      border-radius: 9px;
+      font-weight: 600;
+      font-size: .9rem;
+      text-decoration: none;
+      transition: transform .12s ease, background .12s ease;
+    }
+    a.btn:hover { transform: translateY(-1px); }
+    a.btn-lesson { background: rgba(91,174,209,.16); color: var(--accent); }
+    a.btn-lesson:hover { background: rgba(91,174,209,.26); }
+    a.btn-ws {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--line);
+    }
+    a.btn-ws:hover { color: var(--accent-2); border-color: rgba(127,209,185,.4); }
+
+    /* ── Teacher note / closing ── */
+    .closing {
+      margin-top: 2.5rem;
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 1.25rem 1.4rem;
+      color: var(--muted);
+      font-size: .92rem;
+    }
+    .closing strong { color: var(--ink); }
+
+    @media (max-width: 600px) {
+      .wrap { padding: 1.25rem 1rem 3rem; }
+      .hero { padding: 1.8rem 1.3rem; }
+    }
+    /* Sign-off call-out — this track ends in a competency check, unlike the
+       other Lab Foundations tracks, so the overview has to say so up front. */
+    .gate {
+      margin-top: 2rem;
+      border: 1px solid rgba(127,209,185,.35);
+      border-left: 4px solid var(--accent-2);
+      border-radius: 12px;
+      padding: 1.2rem 1.4rem;
+      background: var(--panel);
+      color: var(--muted);
+      font-size: .94rem;
+    }
+    .gate strong { color: var(--ink); }
+    .gate a { color: var(--accent-2); }
+</style>
+
+  <!-- Firebase SDK (needed for header navigation when opened with ?class=) -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script defer src="../../firebase-config.js"></script>
+  <script defer src="../shared/module-header.js"></script>
+
+<style>
+  /* lessons not yet built: same card, visibly inert */
+  .lesson.is-soon { opacity: .62; }
+  .lesson.is-soon .lesson-top h3 { color: var(--muted); }
+  .soon-tag {
+    display: inline-block; margin-left: .5rem; padding: .1rem .5rem;
+    border-radius: 999px; font-size: .68rem; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase;
+    background: rgba(255,255,255,.07); color: var(--muted);
+  }
+</style>
+</head>
+<body>
+  <!-- Module header (auto-populated from Firestore when ?class= is present) -->
+  <header id="module-header"></header>
+
+  <div class="wrap">
+
+    <section class="hero">
+      <p class="eyebrow">Equipment Foundations</p>
+      <h1>Every instrument is telling you something slightly different from what you asked</h1>
+      <p class="lede">
+        A balance does not measure mass, it measures a current. A pipette does not move liquid, it
+        moves an air spring. A pH meter does not measure acidity, it measures a voltage across a
+        piece of glass. Each of those gaps is where the errors live — and every one of them is
+        calculable, which means every one of them can be designed around instead of guessed at.
+        This series takes the lab's instruments one at a time and asks the same five questions of
+        each: <strong>how does it work, how do you use it, what will bite you, how is it kept
+        honest, and what does all of that add up to on a real job?</strong>
+      </p>
+    </section>
+
+    <div class="section-head">
+      <h2>How to use this series</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <span class="num">1</span>
+        <h3>Drive the sim first</h3>
+        <p>Each section opens with something to measure. Move the sliders and read the number before you read the prose &mdash; the derivation is there to explain a result you already have.</p>
+      </div>
+      <div class="step">
+        <span class="num">2</span>
+        <h3>Do the "Try this" steps</h3>
+        <p>Every simulation has two to five numbered things to do with it. Several of them ask you to check the sim against the instrument's own manual, and they agree — that is the point.</p>
+      </div>
+      <div class="step">
+        <span class="num">3</span>
+        <h3>Then go and look at the real one</h3>
+        <p>Every lesson is built from the manual in <code>Data/equipment/</code>, but written for the general model. Check the badge on the instrument you actually use before you copy a number into a notebook.</p>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <h2>The eight instruments</h2>
+    </div>
+
+    <div class="lessons">
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">1</span>
+          <h3>The Balance: The Number Is a Coil Current</h3>
+        </div>
+        <p class="lesson-desc">
+          The pan never moves. Find out what the reading actually is, why the balance carries a motorised
+          weight inside it, and the one line of algebra — <em>m</em><sub>min</sub> = 2<em>s</em>/RE — that
+          tells you whether a weighing is possible at all before you attempt it. Ends on the lab's own
+          agarose weigh-out, which sits <em>exactly</em> on the limit.
+        </p>
+        <p class="arc">Force Restoration &amp; Local Gravity → Levelling and Where You Put It → Static, Buoyancy &amp; Minimum Weight → Daily Adjustment and the Three Tests → Capstone: Was Your 2% Gel 2%?</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="01-the-balance.html">Open lesson &rarr;</a>
+        </div>
+      </section>
+
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">2</span>
+          <h3>The Pipette: An Air Spring You Cannot See</h3>
+        </div>
+        <p class="lesson-desc">
+          Air displacement, dead volume, and why a P1000 set to 20 µL is a different instrument from a
+          P20 set to 20 µL. Forward against reverse pipetting, what a worn seal looks like from the
+          outside, and how to calibrate one by weighing what comes out of it — on the balance from lesson 1.
+        </p>
+        <p class="arc">The Air Column → Technique &amp; Range → Seals, Temperature &amp; Density → Gravimetric Calibration → Capstone: A Dilution Series</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="02-the-pipette.html">Open lesson &rarr;</a>
+        </div>
+      </section>
+
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">3</span>
+          <h3>Labware &amp; Consumables: The Plastic Is Not Inert</h3>
+        </div>
+        <p class="lesson-desc">
+          Why a treated flask holds cells and an untreated one does not, where a microgram of peptide goes
+          when you put it in a big tube, what the g-rating on a centrifuge tube means, and why autoclaving
+          does nothing whatsoever to endotoxin.
+        </p>
+        <p class="arc">Surfaces &amp; Materials → Choosing the Vessel → Edge Effects &amp; Adsorption → Sterilisation and Cold Storage → Capstone: Pick the Right Plastic</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="03-labware-and-consumables.html">Open lesson &rarr;</a>
+        </div>
+      </section>
+
+      <section class="lesson">
+        <div class="lesson-top">
+          <span class="no">4</span>
+          <h3>The Plasma Cleaner: Your Lowest Setting Is Someone Else's Highest</h3>
+        </div>
+        <p class="lesson-desc">
+          The machine that bonds every microfluidic chip in this lab. Why the vacuum is a
+          <em>window</em> and not a floor, why the flowmeter — not the pump — is the pressure control,
+          and why this particular unit's <strong>LOW is the standard model's HIGH</strong>, so every
+          recipe you borrow needs converting before you run it. Ends on bonding a PDMS chip to glass.
+        </p>
+        <p class="arc">The Pressure Window &amp; the RF Ladder → Pump-Down and the PlasmaFlo → Over-Treatment &amp; the Bonding Clock → No Glow: Bulb or Gauge → Capstone: Bond a Chip</p>
+        <div class="lesson-actions">
+          <a class="btn btn-lesson" data-file="04-the-plasma-cleaner.html">Open lesson &rarr;</a>
+        </div>
+      </section>
+
+      <section class="lesson is-soon">
+        <div class="lesson-top">
+          <span class="no">5</span>
+          <h3>The pH Meter: A Voltage Across a Piece of Glass <span class="soon-tag">coming soon</span></h3>
+        </div>
+        <p class="lesson-desc">
+          The Nernst slope, what a two-point calibration is actually fitting, and why an electrode stored in
+          deionised water is an electrode you have ruined. Includes the manual's own table for telling a
+          tired electrode from a dead one.
+        </p>
+        <p class="arc">The Nernst Slope → Calibration &amp; Temperature → Ageing, Junctions &amp; Buffer Capacity → Storage and Electrode Care → Capstone: Checking a Medium</p>
+      </section>
+
+      <section class="lesson is-soon">
+        <div class="lesson-top">
+          <span class="no">6</span>
+          <h3>The Homogenizer: 850 Watts Into a One-Millimetre Gap <span class="soon-tag">coming soon</span></h3>
+        </div>
+        <p class="lesson-desc">
+          Rotor–stator shear, why the probe must never start dry, and how much of that 850 W ends up as heat
+          in your sample. The capstone reproduces the lab's own agarose LLS result — 3% w/v, 25,000 rpm,
+          five minutes — from the physics.
+        </p>
+        <p class="arc">Shear Rate &amp; Tip Speed → Probe Choice and the Run → Dry Starts, Aerosols &amp; Heating → Wear and Cleaning → Capstone: Making Agarose LLS</p>
+      </section>
+
+      <section class="lesson is-soon">
+        <div class="lesson-top">
+          <span class="no">7</span>
+          <h3>The Biosafety Cabinet: The Machine, Not the Technique <span class="soon-tag">coming soon</span></h3>
+        </div>
+        <p class="lesson-desc">
+          Two blowers, two HEPA filters and a 70/30 split. What SmartFlow is compensating for, what the
+          annual certification actually tests, and why a Type A2 cabinet is the wrong place for anything
+          volatile. Pairs with <em>Cell Culture Foundations</em> lesson 1, which covers the technique.
+        </p>
+        <p class="arc">The Air Budget &amp; Filter Loading → Start-Up and the Sash → Alarms &amp; Volatiles → Certification and Decontamination → Capstone: A Pre-Use Check</p>
+      </section>
+
+      <section class="lesson is-soon">
+        <div class="lesson-top">
+          <span class="no">8</span>
+          <h3>The CO₂ Incubator: How a Box Holds a Climate <span class="soon-tag">coming soon</span></h3>
+        </div>
+        <p class="lesson-desc">
+          Direct heat, in-chamber HEPA, and the difference between an infrared and a thermal-conductivity
+          CO₂ sensor — which matters more than it sounds. What a 180 °C decontamination cycle does, and why
+          the three-monthly calibration probe goes in glycerol and not water.
+        </p>
+        <p class="arc">Airflow &amp; Sensing → Start-Up and the Door → Contamination Routes &amp; Condensation → Steri-Run and Calibration → Capstone: Diagnose an Incubator</p>
+      </section>
+    </div>
+
+    <p class="gate">
+      <strong>These lessons are not a substitute for being shown the instrument.</strong> They exist so that
+      when someone does show you, you already know what the machine is doing and which of its numbers you
+      are allowed to trust. Every performance figure quoted comes from the manufacturer's manual and is
+      cited; anything that is McGhee Lab house practice is marked as such, in a box, so you can tell the
+      difference.
+    </p>
+
+    <p class="closing">
+      Lessons 1 to 4 are available now; the rest are being written in batches. If you want the
+      <em>technique</em> of sterile work rather than the instruments themselves, start with
+      <a href="../cell_culture/overview.html">Cell Culture Foundations</a> instead — the two series are
+      designed to be read together, and lessons 7 and 8 here are the machine-side companions to its
+      lessons 1 and 2. In the same way, lesson 4 owns the plasma <em>machine</em> while
+      <a href="../surface_functionalization/02-plasma-treatment.html">Surface Functionalization lesson 2</a>
+      owns what the plasma does to a surface.
+    </p>
+
+  </div>
+  <script>
+    /* Make each lesson link class-aware so a student stays inside their class
+       flow (prev/next nav, progress) when this overview is opened as the first
+       lesson of a class. Same behaviour as the other Lab Foundations overviews:
+       inside the SPA module viewer top-navigation is sandboxed off, so links
+       open in a new tab carrying ?class=; standalone, they navigate in place. */
+    (function () {
+      function getClassId() {
+        try {
+          const fromParam = new URLSearchParams(location.search).get('class');
+          if (fromParam) return fromParam;
+          if (window.top !== window) {
+            const m = (window.top.location.hash || '').match(/#\/classes\/([^\/?]+)/);
+            if (m) return decodeURIComponent(m[1]);
+          }
+        } catch (e) { /* cross-origin or blocked — fall back to standalone links */ }
+        return null;
+      }
+      const inIframe = window.parent !== window;
+      const classId = getClassId();
+      document.querySelectorAll('a.btn[data-file]').forEach(function (a) {
+        let href = a.getAttribute('data-file');
+        if (classId) href += '?class=' + encodeURIComponent(classId);
+        a.setAttribute('href', href);
+        if (inIframe) { a.target = '_blank'; a.rel = 'noopener'; }
+      });
+    })();
+  </script>
+</body>

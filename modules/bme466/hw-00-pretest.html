@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pretest — Where You're Starting From (HW-00, BME 466/566)</title>
+<!-- ML-CLOUD-SAVE: Firebase compat SDK (same 10.14.0 pins as mcgheelab.com).
+     Loaded with defer; Cloud.init() runs on window load and fails soft to
+     localStorage-only when these are unreachable (file://, offline). -->
+<script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+<!-- V3.685 — whiteboard panel: the student's own homework working-out, saved
+     to their account only. `ml-module-board=homework` selects the hwBoards
+     collection, whose rules contain NO sharing clause at all, so a homework
+     board can never be shared with a classmate. `ml-module-viewport` also
+     fixes a pre-existing bug: without it this module gets an iframe as tall
+     as its whole document, so every position:fixed panel here (including the
+     calculator) scrolls away inside the class module viewer. -->
+<meta name="ml-module-viewport" content="1">
+<meta name="ml-module-board" content="homework">
+<meta name="ml-module-key" content="bme466-pretest">
+<script defer src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
+<link rel="stylesheet" href="../../whiteboard-board.css">
+<link rel="stylesheet" href="../shared/whiteboard-panel.css">
+<script defer src="../../firebase-config.js"></script>
+<script defer src="../../rm/js/icons.js"></script>
+<script defer src="../../whiteboard.js"></script>
+<script defer src="../shared/whiteboard-panel.js"></script>
+<style>
+/* ── Reset & Base (house pattern, hw-01) ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#f1f5f9;color:#1e293b;line-height:1.5;overflow-x:hidden}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);color:#fff;padding:22px 32px;text-align:center}
+header h1{font-size:1.65rem;font-weight:700;letter-spacing:-.5px}
+header .subtitle{font-size:.95rem;opacity:.85;margin-top:4px}
+
+/* ── Course-ID rail ── */
+.id-rail{background:#0f172a;color:#e2e8f0;padding:8px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  position:sticky;top:0;z-index:120;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.id-rail label{font-size:.78rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#94a3b8}
+.id-rail input[type=text]{background:#1e293b;border:1px solid #334155;color:#f1f5f9;border-radius:6px;
+  padding:5px 10px;font-size:.85rem;font-family:ui-monospace,Menlo,monospace;width:150px}
+.id-rail button{border:none;border-radius:6px;padding:6px 12px;font-size:.78rem;font-weight:700;cursor:pointer;transition:all .15s}
+.id-status{font-size:.75rem;color:#94a3b8;flex:1;min-width:180px}
+.id-status strong{color:#fbbf24}
+.save-dot{font-size:.7rem;color:#34d399}
+/* cloud-save UI */
+.cloud-dot{font-size:.72rem;color:#94a3b8;white-space:nowrap}
+.cloud-dot.ok{color:#34d399}
+.cloud-dot.warn{color:#fbbf24}
+.cloud-dot.err{color:#f87171;cursor:pointer;text-decoration:underline}
+#cloud-google{background:#1e293b;color:#93c5fd;border:1px solid #334155}
+#cloud-google:hover{color:#dbeafe;border-color:#475569}
+#cloud-google[hidden]{display:none}
+.cloud-user{font-size:.72rem;color:#a7f3d0;white-space:nowrap}
+.cloud-user a{color:#64748b;font-size:.68rem;margin-left:6px}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 16px;overflow-x:auto;position:sticky;top:46px;z-index:100}
+.tab-btn{padding:12px 14px;border:none;background:none;font-size:.84rem;font-weight:600;color:#64748b;
+  cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:#2563eb}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+.tabprog{font-size:.62rem;background:#eff6ff;color:#2563eb;border-radius:8px;padding:1px 6px;margin-left:5px;font-weight:800;vertical-align:middle}
+.tabprog.done{background:#dcfce7;color:#15803d}
+
+/* ── Main layout ── */
+main{max-width:1100px;margin:0 auto;padding:16px}
+.tab-content{display:none}
+.tab-content.active{display:flex;flex-direction:column}
+
+/* ── Background prose ── */
+.background-section{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  padding:20px 26px;margin-bottom:14px;border-left:4px solid #1e3a5f}
+.background-section h2{font-size:1.08rem;color:#1e3a5f;margin-bottom:10px}
+.background-section h3{font-size:.95rem;color:#334155;margin:14px 0 6px}
+.background-section p,.background-section li{font-size:.88rem;color:#475569;line-height:1.6}
+.background-section ul,.background-section ol{padding-left:20px;margin:6px 0}
+.insight{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#78350f}
+.insight strong{color:#b45309}
+
+/* ── Question cards ── */
+.qcard{background:#fff;border:2px solid #e2e8f0;border-radius:10px;padding:14px 18px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.qcard.answered{border-color:#86efac;background:#f7fdf9}
+.qnum{font-size:.64rem;font-weight:800;letter-spacing:.08em;color:#7c3aed}
+.qcard.answered .qnum{color:#15803d}
+.qtitle{font-size:.98rem;color:#1e3a5f;font-weight:700;margin:2px 0 4px}
+.qintro{font-size:.86rem;color:#475569;line-height:1.55;margin-bottom:8px}
+.qpart{border-top:1px dashed #e2e8f0;padding:10px 0 4px;margin-top:8px}
+.qpart.done .ptag{background:#dcfce7;color:#15803d}
+.ptag{display:inline-block;background:#ede9fe;color:#6d28d9;border-radius:4px;font-size:.62rem;font-weight:800;padding:1px 6px;margin-right:6px;vertical-align:middle}
+.qtext{font-size:.9rem;color:#334155;margin:3px 0 8px;line-height:1.5}
+.qrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.qrow input[type=text]{border:1px solid #cbd5e1;border-radius:6px;padding:6px 10px;font-size:.86rem;
+  font-family:ui-monospace,Menlo,monospace;width:150px}
+.qrow input[type=text]:focus{outline:2px solid #c4b5fd;border-color:#7c3aed}
+.qrow .unit{font-size:.78rem;color:#64748b;min-width:50px}
+.qsubmit{background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:.78rem;font-weight:700;cursor:pointer}
+.qsubmit:hover{background:#6d28d9}
+.idk-btn{background:none;border:1px dashed #cbd5e1;color:#64748b;border-radius:6px;padding:6px 10px;font-size:.74rem;cursor:pointer}
+.idk-btn:hover{border-color:#94a3b8;color:#475569}
+.qstatus{font-size:.8rem;line-height:1.4;flex-basis:100%}
+.qstatus.rec{color:#047857;font-weight:600}
+.qstatus.no{color:#b91c1c}
+.qchoices{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.choice-btn{text-align:left;border:1.5px solid #e2e8f0;background:#fff;border-radius:8px;padding:8px 12px;
+  font-size:.84rem;color:#334155;cursor:pointer;transition:all .12s;line-height:1.4}
+.choice-btn:hover{border-color:#c4b5fd;background:#faf5ff}
+.choice-btn.chosen{border-color:#7c3aed;background:#f5f3ff;color:#5b21b6;font-weight:600}
+.choice-btn.idk{border-style:dashed;color:#64748b}
+.choice-btn.idk.chosen{border-color:#94a3b8;background:#f8fafc;color:#475569}
+.qfig{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin:10px 0}
+.qfig canvas{display:block;width:100%;height:auto;max-width:640px;margin:0 auto}
+.qfig .figcap{font-size:.74rem;color:#64748b;text-align:center;margin-top:6px}
+
+/* ── Finish tab ── */
+.report-grid{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:18px 22px;margin-bottom:14px}
+.report-grid h3{font-size:.95rem;color:#1e3a5f;margin:12px 0 8px;border-bottom:1px solid #f1f5f9;padding-bottom:4px}
+.report-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.report-actions button,.report-actions label.filebtn{border:none;border-radius:8px;padding:10px 18px;font-size:.85rem;font-weight:700;cursor:pointer}
+#btn-export{background:#2563eb;color:#fff}
+#btn-export:hover{background:#1d4ed8}
+label.filebtn{background:#f1f5f9;color:#334155;border:1px solid #cbd5e1 !important;display:inline-block}
+label.filebtn:hover{background:#e2e8f0}
+#btn-clear{background:#fff;color:#b91c1c;border:1px solid #fca5a5 !important}
+.report-note{font-size:.8rem;color:#64748b;margin-top:10px;line-height:1.5}
+.report-note strong{color:#b45309}
+table.prog{width:100%;border-collapse:collapse;font-size:.84rem;margin:8px 0}
+table.prog th,table.prog td{border:1px solid #e2e8f0;padding:5px 10px;text-align:left;color:#475569}
+table.prog th{background:#f1f5f9;color:#334155}
+table.prog td.ok{color:#15803d;font-weight:700}
+table.prog td.todo{color:#b45309}
+
+footer{text-align:center;padding:20px;font-size:.78rem;color:#94a3b8}
+
+/* ── Context panel (calculator) — house pattern, hw-01 V2.38-41 ── */
+.tool-dock{display:flex;gap:6px;flex:none}
+.tool-btn{background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:5px 10px;
+  font-size:.76rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.tool-btn:hover{color:#e2e8f0;border-color:#475569}
+.tool-btn.on{background:#0e7490;color:#fff;border-color:#0e7490}
+.cpanel{position:fixed;z-index:210;background:#fff;border:1px solid #cbd5e1;border-radius:12px;
+  box-shadow:0 10px 34px rgba(15,23,42,.30);display:flex;flex-direction:column;
+  resize:both;overflow:hidden;min-width:300px;min-height:44px;max-width:97vw;max-height:94vh}
+.cpanel[hidden]{display:none}
+.cpanel.min{resize:none;min-height:0;height:auto !important}
+.cpanel.min .cpanel-body{display:none}
+.cpanel-head{display:flex;align-items:center;gap:8px;background:#0f172a;color:#e2e8f0;padding:8px 12px;
+  cursor:grab;flex:none;touch-action:none;user-select:none}
+.cpanel-head:active{cursor:grabbing}
+.cpanel-title{font-size:.82rem;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cpanel-btns{display:flex;gap:6px}
+.cpanel-btns button{background:#1e293b;color:#cbd5e1;border:none;border-radius:5px;width:24px;height:22px;
+  font-size:.68rem;cursor:pointer;line-height:1}
+.cpanel-btns button:hover{background:#334155;color:#fff}
+.cpanel-body{flex:1;overflow:auto;padding:12px 14px;min-height:0;overscroll-behavior:contain}
+.cpanel-body-calc{display:flex;flex-direction:column}
+.cpanel-body-calc .calc{flex:1;min-height:0}
+@media(max-width:700px){
+  .cpanel{left:0 !important;right:0 !important;top:auto !important;bottom:0 !important;width:100% !important;
+    height:auto !important;max-height:72vh;border-radius:14px 14px 0 0;resize:none;max-width:100vw}
+  .cpanel-head{cursor:default}
+  .graph-wrap{flex:none}
+  #graph-cv{height:auto;aspect-ratio:16/10;max-height:34vh}
+}
+.calc{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0}
+.calc-modes{display:flex;gap:5px;align-items:center;flex:none}
+.calc-modes button{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:7px;padding:4px 0;flex:1;
+  font-size:.76rem;font-weight:700;color:#475569;cursor:pointer}
+.calc-modes button:hover{border-color:#94a3b8}
+.calc-modes button.on{background:#0e7490;border-color:#0e7490;color:#fff}
+.calc-modes #cm-pad{flex:0 0 36px}
+.calc-q{flex:none;width:18px;height:18px;border-radius:50%;background:#e2e8f0;color:#64748b;font-size:.68rem;
+  font-weight:800;display:flex;align-items:center;justify-content:center;cursor:help}
+.calc-face{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0}
+.calc-face[hidden]{display:none}
+.calc-hist{flex:1;min-height:60px;overflow:auto;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;
+  padding:8px 10px;font:12px/1.7 ui-monospace,Menlo,monospace}
+.calc-row{display:flex;align-items:baseline;gap:8px;padding:2px 0;border-bottom:1px dashed #f1f5f9;cursor:pointer}
+.calc-row:hover{background:#f1f5f9}
+.calc-row .ce{color:#64748b;flex:1;word-break:break-all;font-size:11px}
+.calc-row .cr{color:#0f172a;font-weight:700;white-space:nowrap}
+.calc-row .cerr{color:#b45309;font-size:11px}
+.calc-row .ccopy{border:none;background:none;color:#94a3b8;cursor:pointer;font-size:12px;padding:0 2px;flex:none}
+.calc-row .ccopy:hover{color:#0e7490}
+.calc-vars{display:flex;gap:6px;font-size:.72rem;align-items:center;min-height:22px;overflow-x:auto;flex:none;white-space:nowrap}
+.calc-vars .vchip{background:#ecfeff;border:1px solid #a5f3fc;color:#155e75;border-radius:12px;padding:2px 9px;
+  cursor:pointer;font-family:ui-monospace,Menlo,monospace;flex:none}
+.calc-vars .vchip:hover{border-color:#22d3ee}
+.calc-vars .vdel{margin-left:6px;color:#94a3b8;cursor:pointer}
+.calc-vars .vdel:hover{color:#b91c1c}
+.calc-vars .vclear{border:none;background:none;color:#94a3b8;text-decoration:underline;cursor:pointer;font-size:.7rem;flex:none}
+.calc-disp{background:#0f172a;border-radius:10px;padding:9px 12px 7px;flex:none;display:flex;flex-direction:column;gap:2px}
+.calc-disp-row{display:flex;gap:8px;align-items:center}
+.calc-disp-row input{flex:1;background:none;border:none;outline:none;min-width:0;
+  font:1.02rem/1.4 ui-monospace,Menlo,monospace;color:#f1f5f9;caret-color:#7dd3fc}
+.calc-disp-row input::placeholder{color:#475569;font-size:.8rem}
+#calc-mode{background:#1e293b;color:#fbbf24;border:none;border-radius:6px;padding:3px 8px;
+  font-size:.68rem;font-weight:800;cursor:pointer;flex:none;letter-spacing:.04em}
+#calc-mode:hover{background:#334155}
+.calc-prev{min-height:1.15em;text-align:right;font:.84rem ui-monospace,Menlo,monospace;color:#7dd3fc}
+.calc-prev.perr{color:#fbbf24;font-size:.72rem}
+.calc-pad{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;flex:none}
+.calc-pad[hidden],.calc-more[hidden]{display:none}
+.calc-pad button{border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;min-height:30px;
+  font-size:.88rem;color:#334155;cursor:pointer;font-family:ui-monospace,Menlo,monospace;padding:0}
+.calc-pad button:hover{background:#ecfeff;border-color:#67e8f9}
+.calc-pad button:active{transform:scale(.96)}
+.calc-pad button.kd{background:#fff;font-weight:700;color:#0f172a}
+.calc-pad button.kf{background:#e2e8f0;font-size:.78rem}
+.calc-pad button.keq{background:#0e7490;border-color:#0e7490;color:#fff;font-weight:800}
+.calc-pad button.keq:hover{background:#155e75}
+.calc-pad button.kon{background:#0f172a;border-color:#0f172a;color:#fbbf24}
+.calc-more{display:flex;flex-wrap:wrap;gap:4px;flex:none}
+.calc-more button{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:3px 9px;font-size:.74rem;
+  font-family:ui-monospace,Menlo,monospace;cursor:pointer;color:#334155}
+.calc-more button:hover{background:#ecfeff;border-color:#67e8f9}
+.calc-hint{font-size:.66rem;color:#94a3b8;line-height:1.5;flex:none;margin:0}
+/* graph face */
+.graph-wrap{position:relative;flex:1 1 58%;min-height:110px}
+#graph-cv{display:block;width:100%;height:100%;background:#fff;
+  border:1px solid #e2e8f0;border-radius:10px;touch-action:none;cursor:grab}
+#graph-cv:active{cursor:grabbing}
+.graph-tools{position:absolute;right:7px;top:7px;display:flex;flex-direction:column;gap:4px}
+.graph-tools button{width:26px;height:24px;border:1px solid #e2e8f0;background:rgba(255,255,255,.92);
+  border-radius:6px;cursor:pointer;color:#475569;font-size:.8rem;line-height:1}
+.graph-tools button:hover{border-color:#67e8f9;color:#0e7490}
+.graph-exprs{flex:1 1 42%;min-height:64px;overflow:auto;display:flex;flex-direction:column;gap:4px}
+.gexpr{display:flex;align-items:center;gap:7px;border:1px solid #e2e8f0;border-radius:8px;
+  padding:5px 7px;flex-wrap:wrap;flex:none;background:#fff}
+.gexpr.gerr{border-color:#fca5a5;background:#fff7f7}
+.gexpr .gdot{width:15px;height:15px;border-radius:50%;border:none;background:var(--c,#2563eb);cursor:pointer;flex:none;padding:0}
+.gexpr.goff .gdot{background:#fff;box-shadow:inset 0 0 0 2.5px var(--c,#2563eb)}
+.gexpr .gin{flex:1;border:none;outline:none;background:none;min-width:0;
+  font:.85rem ui-monospace,Menlo,monospace;color:#0f172a}
+.gexpr .gx{border:none;background:none;color:#cbd5e1;cursor:pointer;font-size:.78rem;flex:none;padding:0 2px}
+.gexpr .gx:hover{color:#b91c1c}
+.gexpr .gsl{flex:0 0 100%;display:flex;align-items:center;gap:6px}
+.gexpr .gsl[hidden]{display:none}
+.gexpr .gsr{flex:1;accent-color:var(--c,#2563eb);min-width:0}
+.gexpr .gsn{width:52px;border:1px solid #e2e8f0;border-radius:5px;font:.68rem ui-monospace,Menlo,monospace;
+  padding:2px 4px;color:#64748b;text-align:center}
+.graph-add{border:1px dashed #cbd5e1;background:none;border-radius:8px;padding:5px;color:#64748b;
+  cursor:pointer;font-size:.76rem;flex:none}
+.graph-add:hover{border-color:#0e7490;color:#0e7490}
+
+/* ════ RESPONSIVE ════ */
+@media (max-width: 640px){
+  header{padding:14px 12px} header h1{font-size:1.15rem} header .subtitle{font-size:.75rem}
+  .tab-bar{padding:0 6px;top:118px} .tab-btn{padding:10px 8px;font-size:.72rem}
+  main{padding:10px 8px;max-width:100%}
+  .id-rail{padding:6px 8px;gap:6px}
+  .id-rail input[type=text]{width:118px}
+  .background-section{padding:14px 14px}
+  .qrow input[type=text]{width:110px}
+}
+</style>
+<!-- ══ no-copy guard ══════════════════════════════════════════════════════════
+     Canonical source. Paste this block verbatim into the <head> of every
+     student-facing course page, and pass it to pandoc-built pages with
+     `--include-in-header scripts/nocopy-header.html`. Edit it HERE, then
+     re-sync the copies (`python3 scripts/sync_nocopy.py --check`).
+
+     What it does: course text cannot be selected, copied, cut, dragged out,
+     right-click-saved, or printed. Fields the student types into stay fully
+     editable and pasteable — students still paste numbers and notes.
+
+     Why: bulk-pasting a gated question into a chatbot should be a decision,
+     not a reflex. Honest limit — this is friction, not encryption. View
+     Source, devtools, "Save page as", a screen reader, or a phone camera all
+     still reach the text; per-student data is what actually makes the answer
+     unshareable. Screen readers are unaffected: `user-select` does not touch
+     the accessibility tree, and no ARIA is hidden here.
+-->
+<style id="nocopy-css">
+html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+  -webkit-touch-callout:none}
+input,textarea,select,option,[contenteditable="true"]{
+  -webkit-user-select:text !important;-moz-user-select:text !important;
+  -ms-user-select:text !important;user-select:text !important}
+::selection{background:transparent}
+input::selection,textarea::selection{background:#bfdbfe}
+@media print{
+  html,body{visibility:hidden !important}
+  body::after{visibility:visible !important;display:block;position:fixed;top:38%;left:0;right:0;
+    padding:0 12%;text-align:center;color:#111;
+    font:600 13pt/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    content:"This page is not printable. Work through it in the browser — your dataset is generated live."}
+}
+</style>
+<script id="nocopy-js">
+(function(){
+  'use strict';
+  /* Anything you type into stays live; everything else is inert. */
+  function editable(el){
+    return !!el && (el.tagName==='INPUT'||el.tagName==='TEXTAREA'||el.isContentEditable===true);
+  }
+  function inEditable(node){
+    var n = (node && node.nodeType===1) ? node : (node && node.parentElement);
+    while(n){ if(editable(n)) return true; n = n.parentElement; }
+    return false;
+  }
+  /* Capture phase: the event is stopped before it reaches element-level
+     handlers, which is also what kills the MathJax right-click menu (it
+     offers "Show Math As → TeX Commands", i.e. copyable source). */
+  ['contextmenu','selectstart','dragstart','copy','cut'].forEach(function(ev){
+    document.addEventListener(ev, function(e){
+      if(editable(e.target)) return;
+      if(e.clipboardData){ try{ e.clipboardData.setData('text/plain',''); }catch(_){} }
+      e.preventDefault(); e.stopPropagation();
+    }, true);
+  });
+  document.addEventListener('keydown', function(e){
+    if(editable(e.target)) return;          /* Ctrl+A / Ctrl+C inside a field is fine */
+    var k = (e.key||'').toLowerCase();
+    if((e.ctrlKey||e.metaKey) && (k==='c'||k==='x'||k==='a'||k==='p'||k==='s')){
+      e.preventDefault(); e.stopPropagation();
+    }
+  }, true);
+  /* Backstop for selections that arrive without a selectstart (caret
+     browsing, programmatic select-all, some Firefox paths). */
+  document.addEventListener('selectionchange', function(){
+    var s = document.getSelection();
+    if(!s || s.isCollapsed || s.rangeCount===0) return;
+    if(inEditable(s.anchorNode)) return;
+    s.removeAllRanges();
+  });
+})();
+</script>
+<!-- ══ end no-copy guard ══════════════════════════════════════════════════ -->
+</head>
+<body>
+<!-- hi-icons:start (scripts/module_icons.py — generated; re-run after adding an icon) -->
+<style>.hi{width:1em;height:1em;display:inline-block;vertical-align:-0.125em;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;overflow:visible}.hi-solid{fill:currentColor;stroke:none}</style>
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><defs><symbol id="hi-arrow-trending-up" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941"/></symbol><symbol id="hi-calculator" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm2.498-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5v2.25h-7.5V6ZM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0 0 12 2.25Z"/></symbol><symbol id="hi-cloud" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z"/></symbol><symbol id="hi-keyboard" viewBox="0 0 24 24"><path d="M10 8h.01" /><path d="M12 12h.01" /><path d="M14 8h.01" /><path d="M16 12h.01" /><path d="M18 8h.01" /><path d="M6 8h.01" /><path d="M7 16h10" /><path d="M8 12h.01" /><rect width="20" height="16" x="2" y="4" rx="2" /></symbol><symbol id="hi-question-mark-circle" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z"/></symbol></defs></svg>
+<script>window.HI={svg:function(n,o){o=o||{};var s=o.solid?'-solid':'';return '<svg class="hi'+(o.solid?' hi-solid':'')+(o.cls?' '+o.cls:'')+'"'+(o.tint?' style="color:'+o.tint+'"':'')+(o.label?' role="img" aria-label="'+String(o.label).replace(/"/g,'&quot;')+'"':' aria-hidden="true"')+'><use href="#hi-'+n+s+'"/></svg>';},
+draw:function(c,n,x,y,z,col,o){o=o||{};var sym=document.getElementById('hi-'+n+(o.solid?'-solid':''));if(!c||!sym||typeof Path2D==='undefined')return;var k=(z||16)/24;c.save();c.translate(x,y);c.scale(k,k);c.lineWidth=1.5;c.lineCap='round';c.lineJoin='round';c.strokeStyle=c.fillStyle=col||'#475569';
+[].forEach.call(sym.children,function(e){var a=function(q){return parseFloat(e.getAttribute(q))||0},p=new Path2D(),t=e.tagName.toLowerCase();if(t==='path')p=new Path2D(e.getAttribute('d'));else if(t==='circle')p.arc(a('cx'),a('cy'),a('r'),0,7);else if(t==='ellipse')p.ellipse(a('cx'),a('cy'),a('rx'),a('ry'),0,0,7);else if(t==='rect')p.rect(a('x'),a('y'),a('width'),a('height'));else if(t==='line'){p.moveTo(a('x1'),a('y1'));p.lineTo(a('x2'),a('y2'));}else{var v=(e.getAttribute('points')||'').trim().split(/[\s,]+/).map(parseFloat);for(var i=0;i+1<v.length;i+=2)p[i?'lineTo':'moveTo'](v[i],v[i+1]);if(t==='polygon')p.closePath();}
+if(o.solid)c.fill(p,'evenodd');else c.stroke(p);});c.restore();}};</script>
+<!-- hi-icons:end -->
+
+<div class="id-rail">
+  <span class="id-status" id="id-status"><strong>Sign in with your UA NetID</strong> (right) to begin — your questions are assigned automatically.</span>
+  <span class="save-dot" id="save-dot"></span>
+  <span class="cloud-dot" id="cloud-dot" title="Cloud autosave status"><svg class="hi" aria-hidden="true"><use href="#hi-cloud"/></svg> —</span>
+  <button id="cloud-google" hidden>Sign in with UA NetID</button>
+  <span class="cloud-user" id="cloud-user" hidden></span>
+  <span class="tool-dock">
+    <button class="tool-btn" id="tool-calc" title="Scientific calculator — variables, ans, constants, copyable results"><svg class="hi" aria-hidden="true"><use href="#hi-calculator"/></svg> Calc</button>
+  </span>
+</div>
+
+<header>
+  <h1>Pretest — Where You're Starting From</h1>
+  <p class="subtitle">HW-00 · Baseline check, completion credit only · BME/AME 466·566</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="s">Start Here</button>
+  <button class="tab-btn" data-tab="a">1. Mechanics &amp; Math<span class="tabprog" id="prog-a"></span></button>
+  <button class="tab-btn" data-tab="b">2. Biology &amp; Scales<span class="tabprog" id="prog-b"></span></button>
+  <button class="tab-btn" data-tab="f">3. Finish &amp; Export<span class="tabprog" id="prog-f"></span></button>
+</div>
+
+<main>
+
+<!-- ══════════ START TAB ══════════ -->
+<section id="tab-s" class="tab-content active">
+  <div class="background-section">
+    <h2>What this is (and what it is not)</h2>
+    <p>This pretest takes about <strong>30 minutes</strong> and shows us — and you — where you are starting from. The course brings together people from very different backgrounds (BME, mechanical, pre-med, CS, applied math…), so <strong>nobody is expected to know all of this</strong>. We will ask some of these questions again at the end of the semester to measure what the course actually taught.</p>
+    <ul>
+      <li><strong>It is not graded for correctness.</strong> Credit is for completing it and uploading your results file to D2L. The module never tells you whether an answer is right.</li>
+      <li><strong>"I'm not sure" is a real answer.</strong> Every question has that option, and choosing it is more useful to us than a guess. Please don't look things up — a blank spot on the map is exactly what this instrument is for.</li>
+      <li><strong>You may use the <svg class="hi" aria-hidden="true"><use href="#hi-calculator"/></svg> calculator</strong> in the top bar for arithmetic.</li>
+    </ul>
+    <h3>How to do it</h3>
+    <ol>
+      <li><strong>Sign in with your UA NetID</strong> (top bar — it's your <code>@arizona.edu</code> Google account). That's the only setup: your personal dataset is assigned from your NetID automatically, and your progress autosaves to the course cloud, so you can stop and continue on any computer.</li>
+      <li>Work through the two question tabs, in any order. Skipping is fine.</li>
+      <li>On the <strong>Finish</strong> tab, export <strong>your results file</strong> and upload it to the D2L dropbox. That upload is what earns the completion credit.</li>
+    </ol>
+    <div class="insight"><strong>Privacy.</strong> Signing in stores your progress (answers and time-on-page — never a grade) in the course's own database, readable only by you and the instructor. Until you sign in, the page shows demo numbers and nothing you do leaves this browser.</div>
+  </div>
+</section>
+
+<!-- ══════════ TAB A: MECHANICS & MATH ══════════ -->
+<section id="tab-a" class="tab-content">
+  <div class="background-section">
+    <h2>Part 1 — Mechanics &amp; Math</h2>
+    <p>Statics, materials, fluids, and one differential equation — the engineering you've met in your first three years. The numbers in these questions are your own, assigned automatically when you sign in.</p>
+  </div>
+  <div id="quests-a"></div>
+</section>
+
+<!-- ══════════ TAB B: BIOLOGY & SCALES ══════════ -->
+<section id="tab-b" class="tab-content">
+  <div class="background-section">
+    <h2>Part 2 — Biology &amp; Scales</h2>
+    <p>Cells, molecules, randomness, and orders of magnitude — the other half of biomechanics. Same rules: answer what you know, record "I'm not sure" for the rest.</p>
+  </div>
+  <div id="quests-b"></div>
+</section>
+
+<!-- ══════════ FINISH TAB ══════════ -->
+<section id="tab-f" class="tab-content">
+  <div class="report-grid">
+    <h3>Progress — what your results file contains right now</h3>
+    <div id="progress-grid"></div>
+    <h3>Export — this upload is your turn-in</h3>
+    <div class="report-actions">
+      <button id="btn-export">Export results (JSON)</button>
+      <label class="filebtn">Load progress<input type="file" id="btn-import" accept=".json,application/json" style="display:none"></label>
+      <button id="btn-clear">Clear this dataset's work</button>
+    </div>
+    <p class="report-note" id="report-note"></p>
+  </div>
+</section>
+
+</main>
+
+<!-- ══════════ 🧮 CALCULATOR PANEL (house pattern, hw-01 V2.39–41) ══════════ -->
+<div class="cpanel" id="panel-calc" hidden>
+  <div class="cpanel-head"><span class="cpanel-title"><svg class="hi" aria-hidden="true"><use href="#hi-calculator"/></svg> Calculator</span>
+    <span class="cpanel-btns"><button class="cpanel-min" title="Collapse">▁</button><button class="cpanel-x" title="Close">✕</button></span></div>
+  <div class="cpanel-body cpanel-body-calc"><div class="calc">
+    <div class="calc-modes">
+      <button id="cm-calc" type="button" class="on"><svg class="hi" aria-hidden="true"><use href="#hi-calculator"/></svg> Calc</button>
+      <button id="cm-graph" type="button"><svg class="hi" aria-hidden="true"><use href="#hi-arrow-trending-up"/></svg> Graph</button>
+      <button id="cm-pad" type="button" title="show / hide keypad"><svg class="hi" aria-hidden="true"><use href="#hi-keyboard"/></svg></button>
+      <span class="calc-q" title="* to multiply (no implicit multiplication) · ^ = power · 1e-9 scientific notation · declare variables: F = 2200 · ans = last result · constants: pi e kB NA R g h c · functions: sin cos tan asin acos atan sinh cosh tanh ln log log2 exp sqrt cbrt abs floor ceil round min max pow atan2 · click a history line to reuse it, ⧉ copies a result · Graph face: y = a*x^2 plots live, a = 2 becomes a slider, drag to pan, scroll to zoom, ⌂ resets the view">?</span>
+    </div>
+    <div class="calc-face" id="face-calc">
+      <div class="calc-hist" id="calc-hist"></div>
+      <div class="calc-vars" id="calc-vars"></div>
+      <div class="calc-disp">
+        <div class="calc-disp-row">
+          <input type="text" id="calc-in" placeholder="e.g.  F = 2200   then   F/90" autocomplete="off" spellcheck="false" autocapitalize="off">
+          <button id="calc-mode" type="button" title="trig angle mode">DEG</button>
+        </div>
+        <div class="calc-prev" id="calc-prev">&nbsp;</div>
+      </div>
+    </div>
+    <div class="calc-face" id="face-graph" hidden>
+      <div class="graph-wrap">
+        <canvas id="graph-cv"></canvas>
+        <div class="graph-tools">
+          <button id="gz-in" type="button" title="zoom in">＋</button>
+          <button id="gz-out" type="button" title="zoom out">−</button>
+          <button id="gz-home" type="button" title="reset view">⌂</button>
+        </div>
+      </div>
+      <div class="graph-exprs" id="graph-exprs"></div>
+      <button class="graph-add" id="graph-add" type="button">＋ add expression</button>
+    </div>
+    <div class="calc-more" id="calc-more" hidden></div>
+    <div class="calc-pad" id="calc-pad"></div>
+    <p class="calc-hint">Type or tap — <b>*</b> to multiply · <b>F = 2200</b> declares a variable · <b>1e-9</b> · <b>ans</b> = last result · hover <b>?</b> for everything else.</p>
+  </div></div>
+</div>
+
+<footer>
+  BME/AME 466/566 Biomechanics · University of Arizona · McGhee Lab interactive module HW-00 (pretest).<br>
+  Privacy: your dataset is assigned from your UA NetID when you sign in, and your progress (answers and time-on-page — never a grade) autosaves to this browser and to the course cloud under your account, readable only by you and the instructor. Until you sign in, nothing you do leaves this browser. Turn-in is the exported JSON file on D2L.<br>
+  Text here is not selectable — that is deliberate, not a bug. The boxes you type into work normally.
+</footer>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   HW-00 PRETEST MODULE v1 — diagnostic baseline (V2.44).
+   Record-only questions (no correctness feedback), per-student seeded
+   numerics, localStorage persistence, JSON export → D2L, and the
+   ML-CLOUD-SAVE v1 block (UA NetID sign-in → Firestore autosave).
+   The SEEDING CONTRACT below is mirrored bit-for-bit by
+   scripts/hw0_keygen.py — parity vectors frozen 2026-08-27.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── helpers (house pattern) ── */
+function fmt(v,d){ if(!isFinite(v))return '—'; const a=Math.abs(v);
+  if(a>=1000)return v.toLocaleString('en-US',{maximumFractionDigits:d===undefined?0:d});
+  if(a>=1)return v.toFixed(d===undefined?2:d);
+  if(a>=0.001||a===0)return v.toFixed(d===undefined?3:d);
+  return v.toExponential(d===undefined?2:d); }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function setupCanvas(canvas){ if(!canvas)return null; const dpr=window.devicePixelRatio||1; const rect=canvas.getBoundingClientRect();
+  const w=rect.width||canvas.width; const h=w*(canvas.height/canvas.width);
+  canvas.width=w*dpr; canvas.height=h*dpr; canvas.style.width=w+'px'; canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h); return {ctx,w,h}; }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ════════════════════════════════════════════════════════════════
+   SEEDING CONTRACT — mirrored bit-for-bit by scripts/hw0_keygen.py.
+   DRAW ORDER IS FROZEN. Parity vectors frozen 2026-08-27.
+   ════════════════════════════════════════════════════════════════ */
+const SALT_PARAM = 'BME466-F26-HW0|';
+const SALT_CODE  = 'BME466-F26-HW0-CODE|';
+const SALT_NOISE = 'BME466-F26-HW0-NOISE|';
+const SALT_FILE  = 'BME466-F26-HW0-FILE|';
+const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+const LAT_FT   = [1200,1400,1600,1800,2000,2200,2400,2600];  // N     tendon force
+const LAT_AT   = [60,70,80,90,100,110,120];                  // mm²   tendon cross-section
+const LAT_ET   = [600,800,1000,1200,1500];                   // MPa   figure modulus
+const LAT_EPSF = [0.06,0.08,0.10];                           // –     figure failure strain
+const LAT_W    = [50,60,70,80,90,100];                       // N     held weight
+const LAT_LW   = [30,32,34,36,38];                           // cm    weight moment arm
+const LAT_DB   = [3.0,3.5,4.0,4.5,5.0];                      // cm    biceps insertion
+const LAT_MU   = [1.0,2.0,3.0,4.0,5.0];                      // mPa·s viscosity
+const LAT_UP   = [10,20,30,40,50];                           // mm/s  plate speed
+const LAT_H    = [0.5,1.0,2.0];                              // mm    gap
+const LAT_K    = [0.05,0.1,0.2,0.25,0.5];                    // 1/s   decay rate
+const LAT_EPN  = [4.1,8.3,12.4,16.6,20.7];                   // pN·nm energy
+const LAT_RC   = [2.0,2.5,3.0,4.0,5.0];                      // µm    cell radius
+const DEMO_PARAMS = {Ft:1800, At:90, Et:1000, epsf:0.08, W:80, Lw:34, db:4.0,
+                     mu:3.0, U:30, h:1.0, k:0.2, Epn:12.4, rc:3.0};
+const DEMO_CODE = 'DEMO00';
+
+function normalizeSid(sid){ let out=''; for(const ch of String(sid).toLowerCase()){
+  if((ch>='a'&&ch<='z')||(ch>='0'&&ch<='9')) out+=ch; } return out; }
+function fnv1a32(str){ let h=2166136261>>>0; const bytes=new TextEncoder().encode(str);
+  for(const b of bytes){ h=(h^b)>>>0; h=Math.imul(h,16777619)>>>0; } return h; }
+function mulberry32(a){ return function(){ a|=0;a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function crock(v,n){ let out=''; for(let i=n-1;i>=0;i--) out+=CROCKFORD[(v>>>(5*i))&31]; return out; }
+function datasetCode(sid){ const h=fnv1a32(SALT_CODE+normalizeSid(sid));
+  return crock(h&((1<<30)-1),6); }
+function drawParams(sid){ /* DRAW ORDER IS FROZEN */
+  const rng=mulberry32(fnv1a32(SALT_PARAM+normalizeSid(sid)));
+  const pick=t=>t[Math.min(Math.floor(rng()*t.length),t.length-1)];
+  const p={};
+  p.Ft=pick(LAT_FT); p.At=pick(LAT_AT); p.Et=pick(LAT_ET); p.epsf=pick(LAT_EPSF);
+  p.W=pick(LAT_W); p.Lw=pick(LAT_LW); p.db=pick(LAT_DB);
+  p.mu=pick(LAT_MU); p.U=pick(LAT_UP); p.h=pick(LAT_H);
+  p.k=pick(LAT_K); p.Epn=pick(LAT_EPN); p.rc=pick(LAT_RC);
+  return p; }
+/* answer fields — FROZEN checksum canonicalization order */
+const FIELD_ORDER = ['q1a','q1b','q1c','q1d','q2a','q2b','q2c','q3a','q3b','q3c',
+  'q4a','q4b','q4c','q5a','q5b','q6a','q6b','q7a','q7b','q8a','q8b','q8c','q8d',
+  'q9a','q9b','q10a','q10b','q10c'];
+function fileChecksum(sid,code,answers){
+  const parts=['bme466-hw0-v1','HW0',normalizeSid(sid),'homework',code];
+  for(const name of FIELD_ORDER){ const v=answers[name]; parts.push(name+'='+(v==null?'':String(v))); }
+  return (fnv1a32(SALT_FILE+parts.join('|'))>>>0).toString(16).padStart(8,'0'); }
+/* frozen parity vectors — checked at load; failure = contract broken */
+const SELFTEST = [
+  {sid:'BME466-7Q2M',code:'TZNX3Q',Ft:2200,At:90,Et:800,epsf:0.06,W:60,Lw:38,db:4.0,mu:1.0,U:40,h:0.5,k:0.5,Epn:16.6,rc:2.5},
+  {sid:'BME466-0000',code:'CPCA7T',Ft:1400,At:70,Et:1500,epsf:0.1,W:80,Lw:32,db:3.0,mu:4.0,U:30,h:0.5,k:0.1,Epn:4.1,rc:3.0},
+  {sid:'abc123',code:'B04YJT',Ft:2200,At:100,Et:1200,epsf:0.06,W:80,Lw:34,db:4.5,mu:2.0,U:40,h:1.0,k:0.05,Epn:12.4,rc:2.0}
+];
+(function(){ for(const v of SELFTEST){ const p=drawParams(v.sid), c=datasetCode(v.sid);
+  for(const k of Object.keys(DEMO_PARAMS)) if(p[k]!==v[k]) console.error('SEEDING PARITY BROKEN:',v.sid,k,p[k],'!=',v[k]);
+  if(c!==v.code) console.error('SEEDING PARITY BROKEN (code):',v.sid,c,'!=',v.code); } })();
+/* ── end seeding contract ── */
+
+/* ════════ state ════════ */
+const ST = { sid:'', norm:'', demo:true,
+  params:{...DEMO_PARAMS}, code:DEMO_CODE,
+  answers:{}, attempts:{},
+  events:{generated_at:null,checks:0,exports:0,saves:0,seconds:0} };
+
+/* ════════ question bank — RECORD-ONLY (no correctness anywhere in this file).
+   The item↔topic map and reference answers live in
+   F26Course/assessments/pretest/PRETEST-design-notes.md. ════════ */
+const IDK=HI.svg('question-mark-circle')+' I\'m not sure yet — record that.';
+function QUESTS(){ const P=ST.params; return [
+ {tab:'a', title:'1 · Stress & strain — the language of mechanics',
+  intro:'During a sprint push-off, your Achilles tendon carries a large tensile load. Use it to check the vocabulary: what stress and strain are, and how force and energy relate to them.',
+  fig:'figA',
+  parts:[
+   {id:'q1a',kind:'choice',text:'Which statement best defines <strong>mechanical stress</strong>?',
+    options:['How much the material stretches when loaded',
+             'The force per unit area carried inside the material',
+             'The total force applied to the object, in newtons',
+             'The energy stored in the material']},
+   {id:'q1b',kind:'choice',text:'And <strong>strain</strong> is…',
+    options:['measured in pascals, like pressure',
+             'the force divided by the length',
+             'the fractional change in length, ΔL/L — a dimensionless number',
+             'the same thing as displacement, in meters']},
+   {id:'q1c',kind:'num',unit:'MPa',
+    text:`Your tendon carries <strong>F = ${P.Ft} N</strong> over a cross-section <strong>A = ${P.At} mm²</strong>. Compute the tensile stress. <em>(Hint on units: 1 N/mm² = 1 MPa.)</em>`},
+   {id:'q1d',kind:'choice',text:'On the stress–strain curve in the figure, the <strong>area under the curve</strong> up to some strain represents…',
+    options:['the stiffness of the material',
+             'the applied force',
+             'the hardness of the material',
+             'the elastic energy stored per unit volume of material']}
+  ]},
+ {tab:'a', title:'2 · Statics — forces in a moving body',
+  intro:`You hold a <strong>W = ${P.W} N</strong> weight in your hand, forearm horizontal. The weight sits <strong>${P.Lw} cm</strong> from your elbow joint; your biceps inserts only <strong>${P.db} cm</strong> from the joint and pulls straight up. Treat the forearm as weightless and in static equilibrium.`,
+  parts:[
+   {id:'q2a',kind:'num',unit:'N',
+    text:'Balance the moments about the elbow: what force must the biceps produce?'},
+   {id:'q2b',kind:'choice',text:'Your answer should come out much <strong>larger</strong> than the weight itself. Why?',
+    options:['It shouldn\'t — muscle force always equals the load',
+             'Muscles are chemically inefficient, so they must overshoot',
+             'The muscle works on a much shorter lever arm than the load, so it must pull harder to balance the moment',
+             'Gravity acts twice on the forearm system']},
+   {id:'q2c',kind:'choice',text:'Now the whole body: you step on a force plate and <strong>walk</strong> across it. The vertical force the ground pushes back with (the ground reaction force)…',
+    options:['always exactly equals your body weight',
+             'is zero if you walk slowly enough',
+             'only differs from body weight when running',
+             'rises above body weight during push-off and dips below it in between']}
+  ]},
+ {tab:'a', title:'3 · Reading a material — stiffness, strength, and time',
+  intro:'Same figure as Question 1 — a tendon pulled to failure. Soft tissues (tendon, skin, the extracellular matrix that cells live in) are where the course uses these words, and they mean different things.',
+  parts:[
+   {id:'q3a',kind:'choice',text:'<strong>Stiffness</strong> (how hard it is to deform) is read from…',
+    options:['the peak stress the curve reaches',
+             'the strain at which the specimen breaks',
+             'the total area under the curve',
+             'the slope of the initial straight portion']},
+   {id:'q3b',kind:'choice',text:'<strong>Strength</strong> (the most it can carry) is read from…',
+    options:['the peak stress the curve reaches',
+             'the slope of the initial straight portion',
+             'the area under the curve',
+             'the x-intercept']},
+   {id:'q3c',kind:'choice',text:'Hang a constant weight from that tendon and just <strong>wait</strong>: it keeps slowly stretching (creep), and if instead you stretch it and hold, the force slowly fades (stress relaxation). What does that behavior tell you about the material?',
+    options:['It is starting to fail',
+             'It behaves partly like a spring and partly like a fluid — its response depends on time',
+             'It is perfectly elastic; the drift is measurement error',
+             'Its Young\'s modulus is infinite']}
+  ]},
+ {tab:'a', title:'4 · Fluids — viscosity, shear, and blood',
+  intro:`A thin film of fluid sits between two plates a gap <strong>h = ${P.h} mm</strong> apart. The top plate slides at <strong>U = ${P.U} mm/s</strong>; the fluid's viscosity is <strong>μ = ${P.mu} mPa·s</strong>. The velocity profile is shown in the figure.`,
+  fig:'figB',
+  parts:[
+   {id:'q4a',kind:'choice',text:'What does <strong>viscosity</strong> measure?',
+    options:['A fluid\'s density',
+             'A fluid\'s resistance to shearing flow — how strongly layers drag on each other',
+             'A fluid\'s surface tension',
+             'A fluid\'s weight per unit volume']},
+   {id:'q4b',kind:'num',unit:'Pa',
+    text:'For this linear profile, Newton\'s law of viscosity gives the shear stress on the plate: τ = μ·(U/h). Compute it in pascals. <em>(Watch the unit conversions: mPa·s, mm/s, mm.)</em>'},
+   {id:'q4c',kind:'choice',text:'Is <strong>blood</strong> well described as a simple fluid like this one — a single constant viscosity?',
+    options:['Yes — it behaves like water, just a bit thicker',
+             'Blood has no measurable viscosity',
+             'No — it is a concentrated suspension of cells, and its effective viscosity changes with how fast it is sheared',
+             'Only the plasma has viscosity; the cells don\'t matter']}
+  ]},
+ {tab:'a', title:'5 · One differential equation',
+  intro:`A quantity x drains at a rate proportional to itself: <strong>dx/dt = −k·x</strong>, with k = ${P.k} s⁻¹. The figure shows x(t) starting from x₀ = 100.`,
+  fig:'figC',
+  parts:[
+   {id:'q5a',kind:'choice',text:'The solution of dx/dt = −k·x with x(0) = x₀ is…',
+    options:['x(t) = x₀ − k·t (a straight line down)',
+             'x(t) = x₀·cos(k·t)',
+             'x(t) = x₀·e<sup>−k·t</sup> (exponential decay)',
+             'x(t) = x₀/(1 + k²t²)']},
+   {id:'q5b',kind:'num',unit:'s',
+    text:`For k = ${P.k} s⁻¹, after how long has x fallen to 1/e (≈ 37%) of its starting value? <em>(You can also read this time off the figure.)</em>`}
+  ]},
+ {tab:'b', title:'6 · Units and orders of magnitude',
+  intro:'Biomechanics lives across ~15 orders of magnitude. Two quick checks: carry units through a conversion, and place a big number.',
+  parts:[
+   {id:'q6a',kind:'num',unit:'J',
+    text:`A molecular motor does about <strong>${P.Epn} pN·nm</strong> of work per step. Convert that to joules. <em>(pico = 10⁻¹², nano = 10⁻⁹.)</em> Scientific notation like 2.1e-20 is fine.`},
+   {id:'q6b',kind:'choice',text:'The number of <strong>cells in an adult human body</strong> is closest to…',
+    options:['10⁹ (a billion)',
+             '10¹³ (ten trillion)',
+             '10¹⁷',
+             '10²¹']}
+  ]},
+ {tab:'b', title:'7 · Diffusion — first instincts',
+  intro:'A drop of dye lands in a glass of perfectly still water. No stirring, no currents. (Answer from instinct — this is exactly where the course begins next week.)',
+  parts:[
+   {id:'q7a',kind:'choice',text:'How does the edge of the dye cloud advance?',
+    options:['At a constant speed, like a wave',
+             'It accelerates as it spreads',
+             'It doesn\'t move at all without stirring',
+             'It slows as it spreads — the distance grows like √t, not like t']},
+   {id:'q7b',kind:'choice',text:'What actually <strong>drives</strong> the net movement of dye from crowded to empty regions?',
+    options:['Each dye molecule senses the concentration and steers toward emptier water',
+             'Purely random thermal motion — there are simply more molecules on the crowded side to wander across',
+             'Tiny convection currents that always exist in water',
+             'Electrostatic repulsion between dye molecules']}
+  ]},
+ {tab:'b', title:'8 · The cell — parts you\'ll need this semester',
+  intro:'Four quick vocabulary checks on the biology this course leans on. No trick questions.',
+  parts:[
+   {id:'q8a',kind:'choice',text:'The <strong>cell membrane</strong> is mainly…',
+    options:['a rigid wall of cellulose',
+             'a solid shell of protein',
+             'a two-molecule-thick fluid film of lipids, with proteins embedded in it',
+             'a single layer of lipid molecules']},
+   {id:'q8b',kind:'choice',text:'When a cell crawls or contracts, the machinery <strong>generating the force</strong> is…',
+    options:['the mitochondria, which push on the membrane',
+             'the ribosomes',
+             'the DNA coiling and uncoiling',
+             'the actin cytoskeleton and myosin motors']},
+   {id:'q8c',kind:'choice',text:'How does a cell <strong>detect a specific chemical</strong> in the fluid around it?',
+    options:['Receptor proteins in its membrane bind that particular molecule and trigger a signal inside',
+             'The chemical diffuses into the nucleus, where the DNA reads it directly',
+             'The mitochondria taste everything that enters the cell',
+             'Cells sense the chemical\'s electric field at a distance']},
+   {id:'q8d',kind:'choice',text:'The relationship between a <strong>gene</strong> and a <strong>protein</strong> is…',
+    options:['they are two names for the same molecule',
+             'a gene is a stretch of DNA carrying the instructions; the protein is the molecular machine built from them',
+             'proteins store the genetic information; genes do the work',
+             'genes are chains of amino acids']}
+  ]},
+ {tab:'b', title:'9 · Randomness — reading an average',
+  intro:'Release many microscopic particles at x = 0 and let each take random steps left and right. After a while you measure them all.',
+  parts:[
+   {id:'q9a',kind:'choice',text:'The <strong>average</strong> position ⟨x⟩ of all the particles stays ≈ 0 the whole time. What does that mean?',
+    options:['The particles never actually move',
+             'Each particle returns to the origin after every step',
+             'Individual particles wander far from 0 — but left and right are equally likely, so the average cancels',
+             'The measurement must be broken']},
+   {id:'q9b',kind:'choice',text:'Meanwhile the <strong>spread</strong> of the particles (their standard deviation) …',
+    options:['stays constant',
+             'grows in proportion to time, t',
+             'shrinks as particles cancel each other out',
+             'grows like √t — fast at first, ever slower after']}
+  ]},
+ {tab:'b', title:'10 · Scaling — from cells to circulation',
+  intro:`Everything a cell eats and breathes crosses its surface; everything it must feed fills its volume. Consider a spherical cell of radius <strong>r = ${P.rc} µm</strong>.`,
+  parts:[
+   {id:'q10a',kind:'num',unit:'µm⁻¹',
+    text:'Compute its surface-area-to-volume ratio, SA/V. <em>(Sphere: SA = 4πr², V = (4/3)πr³.)</em>'},
+   {id:'q10b',kind:'choice',text:'Why does this ratio limit how big a cell can get?',
+    options:['Bigger cells are crushed by gravity',
+             'A bigger cell has less membrane per unit of volume it must supply — exchange can no longer keep up with demand',
+             'The DNA cannot physically fit in a bigger cell',
+             'It doesn\'t — cells can be any size']},
+   {id:'q10c',kind:'choice',text:'Your whole body faces the same problem, and the circulation is the answer. Where does oxygen/nutrient <strong>exchange with tissue</strong> actually happen, and why there?',
+    options:['In the arteries — the pressure is highest there',
+             'In the heart — the blood is freshest there',
+             'In the capillaries — enormous total surface area, walls one cell thick, and slow flow',
+             'In the veins — they hold the largest volume of blood']}
+  ]}
+];}
+
+/* ════════ seeded figures ════════ */
+function drawFigA(){ /* stress–strain curve, modulus Et, failure strain epsf */
+  const cv=setupCanvas(document.getElementById('cv-figA')); if(!cv)return;
+  const {ctx,w,h}=cv; const P=ST.params;
+  const m={l:56,r:16,t:14,b:38}, pw=w-m.l-m.r, ph=h-m.t-m.b;
+  const epsMax=P.epsf*1.15, sigY=P.Et*P.epsf*0.6;      /* linear to 60% of failure strain */
+  const sigMax=sigY*1.18;                               /* gentle hardening to peak */
+  const X=e=>m.l+e/epsMax*pw, Y=s=>m.t+ph-s/(sigMax*1.1)*ph;
+  ctx.strokeStyle='#e2e8f0'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  for(let i=1;i<=4;i++){ const y=m.t+ph*i/5; ctx.beginPath();ctx.moveTo(m.l,y);ctx.lineTo(m.l+pw,y);ctx.stroke(); }
+  ctx.setLineDash([]);
+  ctx.strokeStyle='#64748b'; ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(m.l,m.t);ctx.lineTo(m.l,m.t+ph);ctx.lineTo(m.l+pw,m.t+ph);ctx.stroke();
+  /* curve: linear → hardening arc → drop at failure */
+  const eY=P.epsf*0.6;
+  ctx.strokeStyle='#2563eb'; ctx.lineWidth=2.4; ctx.beginPath();
+  ctx.moveTo(X(0),Y(0));
+  ctx.lineTo(X(eY),Y(sigY));
+  for(let e=eY;e<=P.epsf;e+=(P.epsf-eY)/40){
+    const fr=(e-eY)/(P.epsf-eY);
+    ctx.lineTo(X(e),Y(sigY+(sigMax-sigY)*Math.sin(fr*Math.PI/2)));
+  }
+  ctx.stroke();
+  /* failure X */
+  ctx.strokeStyle='#ef4444'; ctx.lineWidth=2;
+  const fx=X(P.epsf),fy=Y(sigMax);
+  ctx.beginPath();ctx.moveTo(fx-5,fy-5);ctx.lineTo(fx+5,fy+5);ctx.moveTo(fx+5,fy-5);ctx.lineTo(fx-5,fy+5);ctx.stroke();
+  ctx.fillStyle='#ef4444'; ctx.font='10px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('failure',fx+7,fy);
+  /* axis labels + ticks */
+  ctx.fillStyle='#334155'; ctx.font='11px sans-serif'; ctx.textAlign='center';
+  ctx.fillText('strain ε (–)',m.l+pw/2,h-8);
+  ctx.save();ctx.translate(13,m.t+ph/2);ctx.rotate(-Math.PI/2);ctx.fillText('stress σ (MPa)',0,0);ctx.restore();
+  ctx.fillStyle='#64748b'; ctx.font='10px sans-serif';
+  [0,P.epsf*0.5,P.epsf].forEach(e=>{ ctx.textAlign='center'; ctx.fillText(e.toFixed(2),X(e),m.t+ph+13); });
+  [0,Math.round(sigY),Math.round(sigMax)].forEach(s=>{ ctx.textAlign='right'; ctx.fillText(String(s),m.l-5,Y(s)+3); });
+}
+function drawFigB(){ /* linear velocity profile between plates */
+  const cv=setupCanvas(document.getElementById('cv-figB')); if(!cv)return;
+  const {ctx,w,h}=cv; const P=ST.params;
+  const m={l:70,r:110,t:26,b:30}, pw=w-m.l-m.r, ph=h-m.t-m.b;
+  /* plates */
+  ctx.fillStyle='#94a3b8';
+  ctx.fillRect(m.l-10,m.t-10,pw+20,8);            /* top plate (moving) */
+  ctx.fillRect(m.l-10,m.t+ph+2,pw+20,8);          /* bottom plate (fixed) */
+  ctx.fillStyle='#334155'; ctx.font='11px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('top plate → U = '+P.U+' mm/s',m.l,m.t-14);
+  ctx.fillText('fixed plate (u = 0)',m.l,m.t+ph+24);
+  /* fluid + linear profile arrows */
+  ctx.fillStyle='rgba(37,99,235,0.06)'; ctx.fillRect(m.l-10,m.t,pw+20,ph);
+  ctx.strokeStyle='#2563eb'; ctx.fillStyle='#2563eb'; ctx.lineWidth=1.6;
+  const n=6;
+  for(let i=0;i<=n;i++){
+    const y=m.t+ph-(i/n)*ph, len=(i/n)*pw*0.8;
+    ctx.beginPath(); ctx.moveTo(m.l,y); ctx.lineTo(m.l+len,y); ctx.stroke();
+    if(len>4){ ctx.beginPath(); ctx.moveTo(m.l+len,y);
+      ctx.lineTo(m.l+len-6,y-3.4); ctx.lineTo(m.l+len-6,y+3.4); ctx.closePath(); ctx.fill(); }
+  }
+  ctx.strokeStyle='#ef4444'; ctx.lineWidth=1.8; ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.moveTo(m.l,m.t+ph); ctx.lineTo(m.l+pw*0.8,m.t); ctx.stroke(); ctx.setLineDash([]);
+  /* gap label */
+  ctx.strokeStyle='#64748b'; ctx.lineWidth=1.2;
+  const gx=m.l+pw+22;
+  ctx.beginPath(); ctx.moveTo(gx,m.t); ctx.lineTo(gx,m.t+ph); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(gx-4,m.t);ctx.lineTo(gx+4,m.t); ctx.moveTo(gx-4,m.t+ph);ctx.lineTo(gx+4,m.t+ph); ctx.stroke();
+  ctx.fillStyle='#334155'; ctx.textAlign='left';
+  ctx.fillText('h = '+P.h+' mm',gx+8,m.t+ph/2+4);
+  ctx.fillStyle='#64748b'; ctx.font='10px sans-serif';
+  ctx.fillText('μ = '+P.mu+' mPa·s',m.l+pw*0.55,m.t+ph-12);   /* lower right: arrows are short there */
+}
+function drawFigC(){ /* exponential decay x(t)=100 e^{-kt} with 1/e line */
+  const cv=setupCanvas(document.getElementById('cv-figC')); if(!cv)return;
+  const {ctx,w,h}=cv; const P=ST.params;
+  const m={l:52,r:16,t:14,b:38}, pw=w-m.l-m.r, ph=h-m.t-m.b;
+  const tMax=4.6/P.k;
+  const X=t=>m.l+t/tMax*pw, Y=x=>m.t+ph-x/110*ph;
+  ctx.strokeStyle='#e2e8f0'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  for(let i=1;i<=4;i++){ const y=m.t+ph*i/5; ctx.beginPath();ctx.moveTo(m.l,y);ctx.lineTo(m.l+pw,y);ctx.stroke(); }
+  ctx.setLineDash([]);
+  ctx.strokeStyle='#64748b'; ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(m.l,m.t);ctx.lineTo(m.l,m.t+ph);ctx.lineTo(m.l+pw,m.t+ph);ctx.stroke();
+  ctx.strokeStyle='#2563eb'; ctx.lineWidth=2.4; ctx.beginPath();
+  for(let i=0;i<=140;i++){ const t=tMax*i/140, x=100*Math.exp(-P.k*t);
+    if(i===0)ctx.moveTo(X(t),Y(x)); else ctx.lineTo(X(t),Y(x)); }
+  ctx.stroke();
+  /* 37% line */
+  ctx.strokeStyle='#f59e0b'; ctx.lineWidth=1.4; ctx.setLineDash([5,4]);
+  ctx.beginPath();ctx.moveTo(m.l,Y(36.8));ctx.lineTo(m.l+pw,Y(36.8));ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle='#b45309'; ctx.font='10px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('x₀/e ≈ 37',m.l+pw-58,Y(36.8)-5);
+  /* axes labels + t ticks */
+  ctx.fillStyle='#334155'; ctx.font='11px sans-serif'; ctx.textAlign='center';
+  ctx.fillText('time t (s)',m.l+pw/2,h-8);
+  ctx.save();ctx.translate(13,m.t+ph/2);ctx.rotate(-Math.PI/2);ctx.fillText('x(t)',0,0);ctx.restore();
+  ctx.fillStyle='#64748b'; ctx.font='10px sans-serif';
+  const tstep=tMax/4;
+  for(let i=0;i<=4;i++){ const t=tstep*i; ctx.textAlign='center';
+    ctx.fillText((t<10?t.toFixed(1):Math.round(t)),X(t),m.t+ph+13); }
+  [0,50,100].forEach(x=>{ ctx.textAlign='right'; ctx.fillText(String(x),m.l-5,Y(x)+3); });
+}
+const FIGS={figA:drawFigA,figB:drawFigB,figC:drawFigC};
+const FIGCAP={
+  figA:'Stress–strain curve of the tendon, pulled to failure (seeded to your dataset).',
+  figB:'Fluid film sheared between a moving and a fixed plate (your dataset\'s numbers).',
+  figC:'x(t) for dx/dt = −k·x with your dataset\'s k.'};
+function drawFigs(){ for(const k of Object.keys(FIGS)){ const el=document.getElementById('cv-'+k);
+  if(el&&el.offsetParent!==null){ try{ FIGS[k](); }catch(e){ console.error('fig '+k,e); } } } }
+
+/* ════════ rendering — record-only question cards ════════ */
+function answered(id){ const v=ST.answers[id]; return v!=null&&v!==''; }
+function renderQuests(){
+  for(const tab of ['a','b']){
+    const host=document.getElementById('quests-'+tab); if(!host)continue;
+    let html='';
+    QUESTS().filter(q=>q.tab===tab).forEach(q=>{
+      const done=q.parts.every(p=>answered(p.id));
+      html+=`<div class="qcard${done?' answered':''}"><span class="qnum">${done?'ANSWERED ✓':'QUESTION'}</span>
+        <p class="qtitle">${q.title}</p><p class="qintro">${q.intro}</p>`;
+      if(q.fig) html+=`<div class="qfig"><canvas id="cv-${q.fig}" width="640" height="300"></canvas><p class="figcap">${FIGCAP[q.fig]}</p></div>`;
+      q.parts.forEach((p,pi)=>{
+        const v=ST.answers[p.id], has=answered(p.id);
+        html+=`<div class="qpart${has?' done':''}"><span class="ptag">${String.fromCharCode(97+pi)}</span>`;
+        html+=`<span class="qtext">${p.text}</span>`;
+        if(p.kind==='choice'){
+          html+='<div class="qchoices">';
+          p.options.forEach((opt,k)=>{
+            const chosen=String(v)===String(k);
+            html+=`<button class="choice-btn${chosen?' chosen':''}" id="opt-${p.id}-${k}">${String.fromCharCode(65+k)}. ${opt}</button>`;
+          });
+          const idkChosen=String(v)==='idk';
+          html+=`<button class="choice-btn idk${idkChosen?' chosen':''}" id="opt-${p.id}-idk">${IDK}</button>`;
+          html+=`</div><p class="qstatus" id="qs-${p.id}"></p>`;
+        } else {
+          const shown=(v!=null&&v!=='idk')?v:'';
+          html+=`<div class="qrow"><input type="text" id="ans-${p.id}" value="${esc(shown)}" autocomplete="off">
+            <span class="unit">${p.unit}</span>
+            <button class="qsubmit" id="sub-${p.id}">${has?'Update':'Record'}</button>
+            <button class="idk-btn" id="idk-${p.id}">${String(v)==='idk'?'✓ recorded as "not sure"':'I\'m not sure'}</button>
+            <span class="qstatus" id="qs-${p.id}"></span></div>`;
+        }
+        html+='</div>';
+      });
+      html+='</div>';
+    });
+    host.innerHTML=html;
+  }
+  /* wire */
+  QUESTS().forEach(q=>q.parts.forEach(p=>{
+    if(p.kind==='choice'){
+      p.options.forEach((_o,k)=>{ const b=document.getElementById('opt-'+p.id+'-'+k);
+        if(b)b.addEventListener('click',()=>recordChoice(p,String(k))); });
+      const bi=document.getElementById('opt-'+p.id+'-idk');
+      if(bi)bi.addEventListener('click',()=>recordChoice(p,'idk'));
+    } else {
+      const btn=document.getElementById('sub-'+p.id), inp=document.getElementById('ans-'+p.id),
+            idk=document.getElementById('idk-'+p.id);
+      if(btn)btn.addEventListener('click',()=>recordNum(p));
+      if(inp)inp.addEventListener('keydown',e=>{ if(e.key==='Enter')recordNum(p); });
+      if(idk)idk.addEventListener('click',()=>{ ST.attempts[p.id]=(ST.attempts[p.id]||0)+1;
+        ST.answers[p.id]='idk'; ST.events.checks++; flashRec(p.id,'Recorded as "not sure" ✓ — genuinely useful data. You can replace it any time.');
+        saveLocal(); softRefresh(); });
+    }
+  }));
+  drawFigs(); updateProg();
+}
+function flashRec(id,msg){ const st=document.getElementById('qs-'+id);
+  if(st){ st.className='qstatus rec'; st.innerHTML=msg; } }
+function recordChoice(p,val){
+  ST.attempts[p.id]=(ST.attempts[p.id]||0)+1;
+  ST.answers[p.id]=val; ST.events.checks++;
+  document.querySelectorAll('[id^="opt-'+p.id+'-"]').forEach(b=>{
+    const k=b.id.slice(('opt-'+p.id+'-').length);
+    b.classList.toggle('chosen',k===String(val)); });
+  flashRec(p.id,'Recorded ✓ — no right/wrong feedback on a pretest; you can change it any time.');
+  saveLocal(); softRefreshSoon();
+}
+function recordNum(p){
+  const inp=document.getElementById('ans-'+p.id); if(!inp)return;
+  const raw=inp.value.trim(); const x=parseFloat(raw);
+  if(!raw||!isFinite(x)){ const st=document.getElementById('qs-'+p.id);
+    if(st){st.className='qstatus no'; st.textContent='Enter a number (e.g. 3.2 or 4.5e-3) — or click "I\'m not sure".';} return; }
+  ST.attempts[p.id]=(ST.attempts[p.id]||0)+1;
+  ST.answers[p.id]=raw; ST.events.checks++;
+  flashRec(p.id,'Recorded ✓ — you can update it any time.');
+  saveLocal(); softRefreshSoon();
+}
+/* re-render (to move cards to "answered" state) without stealing focus mid-typing */
+let softT=null;
+function softRefreshSoon(){ clearTimeout(softT); softT=setTimeout(softRefresh,1600); }
+function softRefresh(){ clearTimeout(softT);
+  const ae=document.activeElement;
+  if(ae&&ae.tagName==='INPUT'&&ae.id&&ae.id.startsWith('ans-')&&ae.value.trim()!=='') return; /* typing — don't yank */
+  renderQuests(); renderProgress(); }
+
+/* ════════ progress ════════ */
+function tabFields(tab){ const ids=[];
+  QUESTS().filter(q=>q.tab===tab).forEach(q=>q.parts.forEach(p=>ids.push(p.id))); return ids; }
+function updateProg(){
+  for(const tab of ['a','b']){
+    const ids=tabFields(tab), a=ids.filter(answered).length;
+    const el=document.getElementById('prog-'+tab);
+    if(el){ el.textContent=a+'/'+ids.length; el.className='tabprog'+(a>=ids.length?' done':''); }
+  }
+  const elf=document.getElementById('prog-f');
+  const total=FIELD_ORDER.filter(answered).length;
+  if(elf){ elf.textContent=total+'/'+FIELD_ORDER.length; elf.className='tabprog'+(total>=FIELD_ORDER.length?' done':''); }
+}
+function renderProgress(){
+  const host=document.getElementById('progress-grid'); if(!host)return;
+  let html='<table class="prog"><tr><th>Question</th><th>Parts answered</th><th>Status</th></tr>';
+  QUESTS().forEach(q=>{
+    const n=q.parts.length, a=q.parts.filter(p=>answered(p.id)).length;
+    html+=`<tr><td>${q.title}</td><td>${a}/${n}</td><td class="${a>=n?'ok':'todo'}">${a>=n?'✓ complete':'in progress'}</td></tr>`;
+  });
+  host.innerHTML=html+'</table>';
+  updateReportNote(); updateProg();
+}
+
+/* ════════ dataset assignment (NetID-seeded) ════════
+   The dataset comes from the signed-in UA NetID (email local part) — there is
+   no ID to type. `?ds=<netid>` is a STAFF PREVIEW hook (regenerates any
+   student's numbers for QA/office hours; export stays disabled and sign-in
+   always overrides it). */
+let AUTH_NETID=null;                       // set by the cloud block on sign-in
+const QS_DS=(new URLSearchParams(location.search).get('ds')||'').trim();
+function blankState(){
+  ST.answers={}; ST.attempts={};
+  ST.events={generated_at:new Date().toISOString(),checks:0,exports:0,saves:0,seconds:0};
+}
+function setDataset(sidRaw){
+  const norm=normalizeSid(sidRaw||'');
+  if(!norm){ ST.sid=''; ST.norm=''; ST.demo=true; ST.params={...DEMO_PARAMS}; ST.code=DEMO_CODE; }
+  else { ST.sid=sidRaw.trim(); ST.norm=norm; ST.demo=false;
+    ST.params=drawParams(sidRaw); ST.code=datasetCode(sidRaw); }
+  blankState(); loadLocal();
+  updateRail(); renderQuests(); renderProgress();
+  Cloud.onDataset(ST.demo?null:ST.norm);
+}
+function isPreview(){ return !ST.demo && (!AUTH_NETID || normalizeSid(AUTH_NETID)!==ST.norm); }
+function updateRail(){
+  /* deliberately shows NO dataset code or seed (instructor directive) —
+     students just see whether they're signed in and saving */
+  const stEl=document.getElementById('id-status');
+  if(ST.demo) stEl.innerHTML='<strong>Sign in with your UA NetID</strong> (right) to begin — your questions are assigned automatically.';
+  else if(isPreview()) stEl.innerHTML='<strong>Staff preview</strong> of '+esc(ST.norm)+' — exports are disabled in preview.';
+  else stEl.innerHTML='Signed in — your work saves automatically. Export from the <strong>Finish</strong> tab when done.';
+}
+function updateReportNote(){
+  const el=document.getElementById('report-note'); if(!el)return;
+  if(ST.demo) el.innerHTML='<strong>Demo dataset.</strong> Sign in with your UA NetID (top bar) first — your dataset is assigned from it, and a DEMO export earns no completion credit.';
+  else if(isPreview()) el.innerHTML='<strong>Staff preview.</strong> Exports are disabled — sign in to work on your own dataset.';
+  else el.innerHTML='Export produces <strong>PRETEST_'+ST.norm.toUpperCase()+'_'+ST.code+'.json</strong> — upload it to the D2L pretest dropbox for the completion credit. Your work also autosaves to your account, so you can finish on any computer.';
+}
+
+/* ════════ persistence + export/import ════════ */
+function lsKey(){ return 'bme466hw0v1|'+(ST.demo?'demo':ST.norm)+'|homework'; }
+let saveT=null;
+function saveLocal(){ try{ ST.events.saves++;
+  localStorage.setItem(lsKey(),JSON.stringify({v:1,savedAt:Date.now(),
+    answers:ST.answers,attempts:ST.attempts,events:ST.events}));
+  const dot=document.getElementById('save-dot'); if(dot){ dot.textContent='saved ✓'; clearTimeout(saveT); saveT=setTimeout(()=>{dot.textContent='';},1500); }
+  }catch(e){}
+  Cloud.onLocalSave(); }
+function loadLocal(){ try{ const raw=localStorage.getItem(lsKey()); if(!raw)return;
+  const s=JSON.parse(raw); if(s.v!==1)return;
+  if(s.answers)ST.answers=s.answers; if(s.attempts)ST.attempts=s.attempts;
+  if(s.events)ST.events=Object.assign(ST.events,s.events); }catch(e){} }
+function localSavedAt(){ try{ const raw=localStorage.getItem(lsKey()); if(!raw)return 0;
+  return JSON.parse(raw).savedAt||0; }catch(e){ return 0; } }
+function stateString(){ return JSON.stringify({v:1,savedAt:Date.now(),
+  answers:ST.answers,attempts:ST.attempts,events:ST.events}); }
+function applyStateString(str){ try{ const s=JSON.parse(str); if(!s||s.v!==1)return false;
+  ST.answers=s.answers||{}; ST.attempts=s.attempts||{};
+  if(s.events)ST.events=Object.assign(ST.events,s.events);
+  try{ localStorage.setItem(lsKey(),str); }catch(e){}
+  renderQuests(); renderProgress(); return true; }catch(e){ return false; } }
+/* V3.685 — async so the whiteboard can be flattened into the SAME file the
+   student uploads to D2L. Deliberately not a second download: the one
+   blob -> a.download -> a.click() path is the only one that survives the
+   viewer iframe sandbox (see V3.682, allow-downloads). Schema bumped to v2;
+   importResults accepts both. The whiteboard is omitted entirely when the
+   student drew nothing, so an unused panel costs nothing in the file. */
+async function exportResults(){
+  if(ST.demo){ alert('Sign in with your UA NetID first — your dataset (and the export) comes from it.'); return; }
+  if(isPreview()){ alert('Staff preview — exports are disabled. Sign in to work on your own dataset.'); return; }
+  ST.events.exports++; ST.events.exported_at=new Date().toISOString(); saveLocal();
+  Cloud.flush();
+  const payload={ schema:'bme466-hw0-v2', hw:'HW0', module:'hw-00-pretest',
+    sid:ST.sid, sid_norm:ST.norm, mode:'homework', code:ST.code,
+    answers:{...ST.answers}, attempts:{...ST.attempts}, events:{...ST.events} };
+  try{ const wb = window.ML_WHITEBOARD_EXPORT ? await window.ML_WHITEBOARD_EXPORT() : null;
+       if(wb) payload.whiteboard = wb; }catch(e){ console.warn('whiteboard export skipped', e); }
+  payload.checksum=fileChecksum(ST.sid,ST.code,payload.answers);
+  const name='PRETEST_'+ST.norm.toUpperCase()+'_'+ST.code+'.json';
+  const blob=new Blob([JSON.stringify(payload,null,1)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  const el=document.getElementById('report-note');
+  el.innerHTML='<strong>Exported '+name+'</strong> — upload it to the D2L pretest dropbox. That upload is the turn-in.';
+}
+function importResults(ev){
+  const file=ev.target.files&&ev.target.files[0]; if(!file)return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{
+    const j=JSON.parse(rd.result);
+    if(j.schema!=='bme466-hw0-v1'&&j.schema!=='bme466-hw0-v2'){ alert('Not a pretest results file.'); return; }
+    if(AUTH_NETID&&normalizeSid(j.sid||'')!==normalizeSid(AUTH_NETID)){
+      alert('That file belongs to "'+(j.sid||'?')+'" but you are signed in as '+AUTH_NETID+'. Sign in with the matching NetID to load it.'); return; }
+    if(!AUTH_NETID) setDataset(j.sid||'');
+    if(j.answers)ST.answers={...j.answers}; if(j.attempts)ST.attempts={...j.attempts};
+    if(j.events)ST.events=Object.assign(ST.events,j.events);
+    saveLocal(); renderQuests(); renderProgress();
+    document.getElementById('report-note').innerHTML='<strong>Progress loaded</strong> for '+esc(j.sid||'?')+'. Carry on where you left off.';
+  }catch(e){ alert('Could not read that file: '+e.message); } };
+  rd.readAsText(file); ev.target.value='';
+}
+
+/* ════════ active-time tracking (feeds the usage dashboard) ════════ */
+let secTick=0;
+setInterval(()=>{ if(document.visibilityState==='visible'&&!ST.demo){
+  ST.events.seconds=(ST.events.seconds||0)+15; secTick++;
+  if(secTick%2===0) saveLocal();          /* persist (and cloud-push) every 30 s of activity */
+} },15000);
+
+/* ════════════════════════════════════════════════════════════════
+   ML-CLOUD-SAVE v1 — account-keyed progress autosave (V2.44 pilot).
+   Students sign in with their UA NetID (Google on arizona.edu) and this
+   module autosaves progress to Firestore doc hwProgress/{assignment}_{uid}.
+   The sign-in also assigns the dataset (seeded from the NetID). Everything
+   fails soft: no SDK / no sign-in / offline → localStorage-only, exactly
+   the pre-cloud behavior. To reuse in another module: copy this block,
+   set CLOUD_CFG.assignment, and call the four hooks
+   (Cloud.init / Cloud.onDataset / Cloud.onLocalSave / Cloud.flush).
+   ════════════════════════════════════════════════════════════════ */
+const CLOUD_CFG = {
+  assignment:'bme466-pretest',
+  schema:1,
+  totalQuestions:28,
+  fb:{ apiKey:'AIzaSyAnkKivjCcjAS8_Lp-R2JSIG4wSDSJBFI0',
+       authDomain:'mcgheelab-f56cc.firebaseapp.com',
+       projectId:'mcgheelab-f56cc' }
+};
+const Cloud=(function(){
+  let app=null,auth=null,db=null,user=null,ready=false;
+  let dirty=false,pushT=null,pulled=false,lastErr='';
+  const DEBOUNCE=4000;
+  function el(id){ return document.getElementById(id); }
+  function setStatus(s,msg){
+    const dot=el('cloud-dot'); if(!dot)return;
+    dot.className='cloud-dot'; dot.onclick=null;
+    const M={
+      off:['—','Cloud save unavailable here (offline or local file) — the export file is your save.'],
+      nosid:['waiting','Signed in — assigning your dataset…'],
+      nouser:['sign in to begin','Sign in with your UA NetID to get your dataset and autosave.'],
+      dirty:['…','Unsaved changes — autosaving shortly.'],
+      saving:['syncing…','Saving to the course cloud…'],
+      synced:['saved','Progress saved to your account.'],
+      offline:['offline — saved here','No connection — work is saved in this browser and will sync when back online.'],
+      error:['error (click to retry)',msg||lastErr||'Cloud save failed — click to retry.']
+    };
+    const m=M[s]||M.off;
+    dot.innerHTML=HI.svg('cloud')+' '+m[0]; dot.title=msg||m[1];
+    if(s==='synced')dot.classList.add('ok');
+    if(s==='offline'||s==='dirty')dot.classList.add('warn');
+    if(s==='error'){ dot.classList.add('err'); dot.onclick=()=>{ dirty=true; push(); }; }
+  }
+  function updateUserUI(){
+    const btn=el('cloud-google'), who=el('cloud-user');
+    if(!btn||!who)return;
+    if(!ready){ btn.hidden=true; who.hidden=true; return; }
+    if(user){ btn.hidden=true; who.hidden=false;
+      const em=user.email||'';
+      who.innerHTML='✓ '+esc(user.displayName||em)+' <a href="javascript:void 0" id="cloud-out">sign out</a>';
+      const out=el('cloud-out'); if(out)out.onclick=()=>{ auth.signOut(); };
+      if(em&&!/@arizona\.edu$/i.test(em))
+        setStatus('error','Signed in as '+em+' — cloud save needs your @arizona.edu (NetID) account. Sign out and pick the right account.');
+    } else { btn.hidden=false; who.hidden=true; }
+  }
+  function docRef(){ if(!ready||!user||ST.demo)return null;
+    return db.collection('hwProgress').doc(CLOUD_CFG.assignment+'_'+user.uid); }
+  /* cloud-save only for the signed-in student's OWN dataset — never a staff preview */
+  function active(){ return !!(ready&&user&&!ST.demo&&!isPreview()
+    &&user.email&&/@arizona\.edu$/i.test(user.email)); }
+  function answeredCount(){ return FIELD_ORDER.filter(f=>{const v=ST.answers[f];return v!=null&&v!=='';}).length; }
+  function push(){
+    clearTimeout(pushT); pushT=null;
+    if(!active()){ return; }
+    if(!dirty)return;
+    const ref=docRef(); if(!ref)return;
+    dirty=false; setStatus('saving');
+    const now=Date.now();
+    ref.set({
+      schema:CLOUD_CFG.schema, assignment:CLOUD_CFG.assignment,
+      sid_norm:ST.norm, code:ST.code,
+      email:user.email||'', name:user.displayName||'',
+      state:stateString(), clientSavedAt:now,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+      answeredCount:answeredCount(), totalQuestions:CLOUD_CFG.totalQuestions,
+      runCount:ST.events.checks||0, secondsActive:ST.events.seconds||0,
+      lastActiveAt:now
+    }).then(()=>{ if(!dirty)setStatus('synced'); },err=>{
+      dirty=true;
+      const code=(err&&err.code)||'';
+      if(code==='unavailable'||code==='deadline-exceeded'){ setStatus('offline'); }
+      else { lastErr='Cloud save failed ('+code+').'; setStatus('error'); console.warn('[cloud] push',err); }
+    });
+  }
+  function schedulePush(){ if(!active())return; dirty=true; setStatus('dirty');
+    clearTimeout(pushT); pushT=setTimeout(push,DEBOUNCE); }
+  function pull(){
+    if(!active()){ return; }
+    const ref=docRef(); if(!ref)return;
+    setStatus('saving','Checking the cloud for saved progress…');
+    ref.get().then(snap=>{
+      pulled=true;
+      if(!snap.exists){ dirty=true; push(); return; }
+      const d=snap.data()||{};
+      const localAt=localSavedAt(), remoteAt=d.clientSavedAt||0;
+      const localEmpty=answeredCount()===0;
+      if(d.state&&(localEmpty||remoteAt>localAt+2000)){
+        let apply=localEmpty;
+        if(!apply) apply=confirm('The cloud has newer progress for this pretest (saved '+new Date(remoteAt).toLocaleString()+', likely from another computer).\n\nOK = load the cloud copy here.\nCancel = keep this computer\'s copy and overwrite the cloud.');
+        if(apply&&applyStateString(d.state)){
+          setStatus('synced','Restored your cloud save from '+new Date(remoteAt).toLocaleString()+'.');
+          if(d.sid_norm&&d.sid_norm!==ST.norm)
+            console.warn('[cloud] doc was saved under a different dataset seed:',d.sid_norm);
+          return;
+        }
+      }
+      dirty=true; push();
+    },err=>{
+      const code=(err&&err.code)||'';
+      if(code==='unavailable'){ setStatus('offline'); }
+      else { lastErr='Could not read the cloud save ('+code+').'; setStatus('error'); console.warn('[cloud] pull',err); }
+    });
+  }
+  function signIn(){
+    if(!ready)return;
+    const provider=new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({prompt:'select_account', hd:'arizona.edu'});
+    auth.signInWithPopup(provider).catch(err=>{
+      const code=(err&&err.code)||'';
+      if(code==='auth/popup-blocked') setStatus('error','Your browser blocked the sign-in popup — allow popups for this site and try again.');
+      else if(code!=='auth/popup-closed-by-user'&&code!=='auth/cancelled-popup-request'){
+        setStatus('error','Sign-in failed ('+code+').'); console.warn('[cloud] signIn',err); }
+    });
+  }
+  function init(){
+    try{
+      if(typeof firebase==='undefined'||!firebase.initializeApp){ setStatus('off','Cloud save unavailable here (offline or local file) — the export file is your save.'); return; }
+      app=firebase.apps&&firebase.apps.length?firebase.app():firebase.initializeApp(CLOUD_CFG.fb);
+      auth=firebase.auth(); db=firebase.firestore(); ready=true;
+      auth.onAuthStateChanged(async u=>{ user=u; pulled=false; updateUserUI();
+        const em=(u&&u.email)||'';
+        if(u&&/@arizona\.edu$/i.test(em)){
+          /* the NetID IS the dataset: assign it automatically */
+          AUTH_NETID=em.split('@')[0];
+          /* class admins may carry ?ds=<netid> through sign-in to preview a
+             student's numbers (isPreview() then blocks export + cloud-save);
+             for everyone else the sign-in always wins over ?ds. */
+          if(QS_DS&&normalizeSid(QS_DS)!==normalizeSid(AUTH_NETID)){
+            let staff=false;
+            try{ const s=await db.collection('schedules').doc('bme466').get();
+              const list=(s.exists&&s.data().classAdminEmails)||[];
+              staff=list.map(x=>String(x||'').toLowerCase()).includes(em.toLowerCase());
+            }catch(e){}
+            if(staff){ setDataset(QS_DS); return; }
+          }
+          if(normalizeSid(AUTH_NETID)!==ST.norm) setDataset(AUTH_NETID);   // → onDataset → pull
+          else onDataset(ST.norm);
+          return;
+        }
+        AUTH_NETID=null;
+        if(u){ /* signed in with a non-arizona account — no dataset for it */
+          setDataset(QS_DS); return;                 // updateUserUI already shows the fix
+        }
+        setDataset(QS_DS);                            // signed out → demo (or staff preview)
+        setStatus('nouser'); });
+      const btn=el('cloud-google'); if(btn){ btn.hidden=false; btn.addEventListener('click',signIn); }
+      document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden')flush(); });
+      window.addEventListener('pagehide',flush);
+      setStatus('nouser');
+      updateUserUI();
+    }catch(e){ console.warn('[cloud] init',e); setStatus('off'); }
+  }
+  function onDataset(norm){
+    if(!ready){ return; }
+    pulled=false;
+    if(!norm){ setStatus('nouser'); return; }
+    if(!active()){ setStatus('nouser'); return; }    // staff preview / signed out
+    pull();
+  }
+  function onLocalSave(){ if(active())schedulePush(); }
+  function flush(){ if(active()&&dirty){ push(); } }
+  return {init,onDataset,onLocalSave,flush};
+})();
+/* ══ /ML-CLOUD-SAVE ══ */
+
+/* ════════ tab dispatch + wiring ════════ */
+let activeTab='s';
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active'); activeTab=btn.dataset.tab;
+    document.getElementById('tab-'+activeTab).classList.add('active');
+    if(activeTab==='f')renderProgress();
+    drawFigs();
+  });
+});
+document.getElementById('btn-export').addEventListener('click',exportResults);
+document.getElementById('btn-import').addEventListener('change',importResults);
+document.getElementById('btn-clear').addEventListener('click',()=>{
+  if(!confirm('Erase ALL pretest answers for this dataset on this computer?'))return;
+  try{ localStorage.removeItem(lsKey()); }catch(e){}
+  blankState(); saveLocal(); renderQuests(); renderProgress(); });
+window.addEventListener('resize',drawFigs);
+
+/* ════════════════════════════════════════════════════════════════
+   CONTEXT PANEL: 🧮 calculator (copied from hw-01 V2.39–41; its own
+   localStorage silo). The engine is a tokenizer + recursive-descent
+   compiler — never eval.
+   ════════════════════════════════════════════════════════════════ */
+const TOOLS_LS='bme466hw0v1|tools';
+let TOOLS={panels:{}, vars:{}, hist:[], deg:true, ans:null};
+(function loadTools(){ try{ const s=JSON.parse(localStorage.getItem(TOOLS_LS)||'null');
+  if(s&&typeof s==='object'){ TOOLS=Object.assign(TOOLS,s);
+    TOOLS.panels=TOOLS.panels||{}; TOOLS.vars=TOOLS.vars||{}; TOOLS.hist=TOOLS.hist||[];
+    if(TOOLS.deg===undefined)TOOLS.deg=true; } }catch(e){} })();
+let toolsT=null;
+function saveTools(){ clearTimeout(toolsT); toolsT=setTimeout(()=>{ try{
+  localStorage.setItem(TOOLS_LS,JSON.stringify(TOOLS)); }catch(e){} },250); }
+
+const PANEL_DEFS={ calc:{w:360,h:600, x:24, y:80} };
+function isMobileView(){ return window.innerWidth<=700; }
+function panelSt(k){ TOOLS.panels[k]=TOOLS.panels[k]||{}; return TOOLS.panels[k]; }
+let panelZ=210;
+function bringFront(el){ panelZ+=1; if(panelZ>290)panelZ=211; el.style.zIndex=panelZ; }
+function applyPanelGeom(k){ const el=document.getElementById('panel-'+k); if(!el)return;
+  if(isMobileView()){ el.style.left=el.style.top=el.style.width=el.style.height=''; return; }
+  const st=panelSt(k), d=PANEL_DEFS[k];
+  let w=Math.min(st.w||d.w, window.innerWidth-16), h=Math.min(st.h||d.h, window.innerHeight-16);
+  let x=(st.x!=null)?st.x:((d.x!=null)?d.x:window.innerWidth-w-24);
+  let y=(st.y!=null)?st.y:d.y;
+  x=Math.max(4,Math.min(x,window.innerWidth-70)); y=Math.max(0,Math.min(y,window.innerHeight-44));
+  el.style.left=x+'px'; el.style.top=y+'px'; el.style.width=w+'px';
+  el.style.height=st.min?'auto':(h+'px');
+}
+function applyPanelMin(k){ const el=document.getElementById('panel-'+k); if(!el)return;
+  const st=panelSt(k);
+  el.classList.toggle('min',!!st.min);
+  const mb=el.querySelector('.cpanel-min'); if(mb){ mb.textContent=st.min?'▣':'▁'; mb.title=st.min?'Expand':'Collapse'; }
+  if(!isMobileView()) el.style.height=st.min?'auto':((Math.min(st.h||PANEL_DEFS[k].h,window.innerHeight-16))+'px');
+}
+function setPanelOpen(k,open){ const el=document.getElementById('panel-'+k), b=document.getElementById('tool-'+k);
+  if(!el)return; panelSt(k).open=!!open; saveTools();
+  el.hidden=!open; if(b)b.classList.toggle('on',!!open);
+  if(open){ applyPanelGeom(k); applyPanelMin(k); bringFront(el); } }
+function watchPanel(k){ const el=document.getElementById('panel-'+k); if(!el)return;
+  const head=el.querySelector('.cpanel-head');
+  head.addEventListener('pointerdown',e=>{
+    if(e.target.closest('button')||isMobileView())return;
+    const st=panelSt(k), r=el.getBoundingClientRect();
+    const ox=e.clientX-r.left, oy=e.clientY-r.top;
+    const move=ev=>{ let x=ev.clientX-ox, y=ev.clientY-oy;
+      x=Math.max(4,Math.min(x,window.innerWidth-70)); y=Math.max(0,Math.min(y,window.innerHeight-44));
+      el.style.left=x+'px'; el.style.top=y+'px'; st.x=Math.round(x); st.y=Math.round(y); };
+    const up=()=>{ document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up); saveTools(); };
+    document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
+    bringFront(el); e.preventDefault();
+  });
+  el.addEventListener('pointerdown',()=>bringFront(el));
+  if(window.ResizeObserver){ const ro=new ResizeObserver(()=>{
+    if(el.hidden||isMobileView()||el.classList.contains('min'))return;
+    const r=el.getBoundingClientRect(); if(!r.width||!r.height)return;
+    const st=panelSt(k);
+    if(Math.abs((st.w||0)-r.width)>1.5||Math.abs((st.h||0)-r.height)>1.5){
+      st.w=Math.round(r.width); st.h=Math.round(r.height); saveTools(); }
+  }); ro.observe(el); }
+  const mb=el.querySelector('.cpanel-min');
+  if(mb) mb.addEventListener('click',()=>{ const st=panelSt(k); st.min=!st.min; applyPanelMin(k); saveTools(); });
+  const xb=el.querySelector('.cpanel-x');
+  if(xb) xb.addEventListener('click',()=>setPanelOpen(k,false));
+}
+
+/* ── calculator engine (no eval) ── */
+const CALC_CONST={pi:Math.PI, e:Math.E, kB:1.380649e-23, NA:6.02214076e23,
+                  R:8.314462618, g:9.80665, h:6.62607015e-34, c:299792458};
+function degIn(x){ return TOOLS.deg?x*Math.PI/180:x; }
+function degOut(x){ return TOOLS.deg?x*180/Math.PI:x; }
+const CALC_FN={
+  sin:x=>Math.sin(degIn(x)), cos:x=>Math.cos(degIn(x)), tan:x=>Math.tan(degIn(x)),
+  asin:x=>degOut(Math.asin(x)), acos:x=>degOut(Math.acos(x)), atan:x=>degOut(Math.atan(x)),
+  atan2:(y,x)=>degOut(Math.atan2(y,x)),
+  sinh:Math.sinh, cosh:Math.cosh, tanh:Math.tanh,
+  ln:Math.log, log:Math.log10, log2:Math.log2, exp:Math.exp,
+  sqrt:Math.sqrt, cbrt:Math.cbrt, abs:Math.abs, floor:Math.floor, ceil:Math.ceil, round:Math.round,
+  min:Math.min, max:Math.max, pow:Math.pow };
+const CALC_ARGN={min:2,max:2,pow:2,atan2:2};
+function calcTokens(src){
+  const toks=[]; let i=0;
+  const isd=c=>c>='0'&&c<='9', isa=c=>/[A-Za-z_]/.test(c);
+  while(i<src.length){
+    const ch=src[i];
+    if(ch===' '||ch==='\t'){ i++; continue; }
+    if(isd(ch)||(ch==='.'&&isd(src[i+1]))){
+      let j=i; while(j<src.length&&(isd(src[j])||src[j]==='.'))j++;
+      if((src[j]==='e'||src[j]==='E')&&(isd(src[j+1])||((src[j+1]==='+'||src[j+1]==='-')&&isd(src[j+2])))){
+        j++; if(src[j]==='+'||src[j]==='-')j++; while(j<src.length&&isd(src[j]))j++; }
+      const s=src.slice(i,j), v=parseFloat(s);
+      if(!isFinite(v)) throw new Error('bad number “'+s+'”');
+      toks.push({t:'num',v}); i=j; continue; }
+    if(isa(ch)){ let j=i; while(j<src.length&&/[A-Za-z0-9_]/.test(src[j]))j++;
+      toks.push({t:'id',v:src.slice(i,j)}); i=j; continue; }
+    if(ch==='π'){ toks.push({t:'id',v:'pi'}); i++; continue; }
+    if(ch==='√'){ toks.push({t:'id',v:'sqrt'}); i++; continue; }
+    if(ch==='×'){ toks.push({t:'*'}); i++; continue; }
+    if(ch==='÷'){ toks.push({t:'/'}); i++; continue; }
+    if(ch==='−'){ toks.push({t:'-'}); i++; continue; }
+    if('+-*/%^(),='.includes(ch)){ toks.push({t:ch}); i++; continue; }
+    throw new Error('unexpected “'+ch+'”');
+  }
+  return toks;
+}
+function calcCompile(src){
+  const toks=calcTokens(src); let p=0;
+  const peek=()=>toks[p], eat=t=>{ if(!toks[p]||toks[p].t!==t) throw new Error('expected “'+t+'”'); return toks[p++]; };
+  let assign=null;
+  if(toks.length>=2&&toks[0].t==='id'&&toks[1].t==='='){
+    const name=toks[0].v;
+    if(CALC_FN[name]||(name in CALC_CONST)||name==='ans') throw new Error('“'+name+'” is reserved');
+    assign=name; p=2;
+    if(p>=toks.length) throw new Error('nothing after “=”');
+  }
+  function expr(){ let f=term();
+    while(peek()&&(peek().t==='+'||peek().t==='-')){ const op=toks[p++].t, r=term(), l=f;
+      f=(op==='+')?(s=>l(s)+r(s)):(s=>l(s)-r(s)); }
+    return f; }
+  function term(){ let f=unary();
+    while(peek()&&(peek().t==='*'||peek().t==='/'||peek().t==='%')){ const op=toks[p++].t, r=unary(), l=f;
+      f=(op==='*')?(s=>l(s)*r(s)):((op==='/')?(s=>l(s)/r(s)):(s=>l(s)%r(s))); }
+    return f; }
+  function unary(){ if(peek()&&peek().t==='-'){ p++; const u=unary(); return s=>-u(s); }
+    if(peek()&&peek().t==='+'){ p++; return unary(); }
+    return power(); }
+  function power(){ const b=primary();
+    if(peek()&&peek().t==='^'){ p++; const e2=unary(); return s=>Math.pow(b(s),e2(s)); }
+    return b; }
+  function primary(){
+    const tk=peek(); if(!tk) throw new Error('expression ended early');
+    if(tk.t==='num'){ p++; const v=tk.v; return ()=>v; }
+    if(tk.t==='('){ p++; const f=expr(); eat(')'); return f; }
+    if(tk.t==='id'){ p++;
+      const name=tk.v;
+      if(peek()&&peek().t==='('){
+        const fn=CALC_FN[name]; if(!fn) throw new Error('unknown function “'+name+'”');
+        p++; const args=[expr()];
+        while(peek()&&peek().t===','){ p++; args.push(expr()); }
+        eat(')');
+        const need=CALC_ARGN[name]||1;
+        if(args.length!==need) throw new Error(name+'() takes '+need+' argument'+(need>1?'s':''));
+        if(args.length===1){ const a=args[0]; return s=>fn(a(s)); }
+        const a0=args[0], a1=args[1]; return s=>fn(a0(s),a1(s));
+      }
+      return s=>{
+        if(s&&(name in s)) return s[name];
+        if(name==='ans'){ if(TOOLS.ans==null) throw new Error('no previous result yet'); return TOOLS.ans; }
+        if(name in CALC_CONST) return CALC_CONST[name];
+        if(name in TOOLS.vars) return TOOLS.vars[name];
+        throw new Error('unknown name “'+name+'” — declare it first (e.g. '+name+' = 3.4)');
+      };
+    }
+    throw new Error('unexpected “'+(tk.v||tk.t)+'”');
+  }
+  const f=expr();
+  if(p<toks.length) throw new Error('unexpected “'+(toks[p].v||toks[p].t)+'”');
+  return {fn:f, assign};
+}
+function calcEval(src,dry){
+  const c=calcCompile(src);
+  const v=c.fn(null);
+  if(!isFinite(v)) throw new Error(Number.isNaN(v)?'undefined result — check the domain (e.g. sqrt of a negative)':'infinite result — check for division by zero');
+  if(!dry){ if(c.assign) TOOLS.vars[c.assign]=v; TOOLS.ans=v; }
+  return {v,assign:c.assign};
+}
+function calcFmt(v){
+  if(v===0)return '0';
+  const a=Math.abs(v);
+  if(a>=1e7||a<1e-4){
+    let s=v.toExponential(6);
+    s=s.replace(/(\.\d*?)0+e/,'$1e').replace(/\.e/,'e');
+    return s;
+  }
+  let s=v.toPrecision(8);
+  if(s.indexOf('e')<0&&s.indexOf('.')>=0) s=s.replace(/0+$/,'').replace(/\.$/,'');
+  return s;
+}
+function calcEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ── keypad: one pad, two targets (REPL input / focused graph row) ── */
+let PAD2=false, PADMORE=false, lastGIn=null;
+function padTarget(){
+  if(TOOLS.calcMode==='g'){
+    if(lastGIn&&document.contains(lastGIn)) return lastGIn;
+    const ins=document.querySelectorAll('#graph-exprs .gin');
+    return ins[ins.length-1]||null;
+  }
+  return document.getElementById('calc-in');
+}
+function calcInsert(txt){ const inp=padTarget(); if(!inp)return;
+  const s=inp.selectionStart!=null?inp.selectionStart:inp.value.length, e=inp.selectionEnd!=null?inp.selectionEnd:s;
+  inp.value=inp.value.slice(0,s)+txt+inp.value.slice(e);
+  const pos=s+txt.length;
+  inp.focus(); try{ inp.setSelectionRange(pos,pos); }catch(_){}
+  inp.dispatchEvent(new Event('input',{bubbles:true}));
+}
+function padBackspace(){ const inp=padTarget(); if(!inp)return;
+  const s=inp.selectionStart, e=inp.selectionEnd, v=inp.value;
+  if(s==null){ inp.value=v.slice(0,-1); }
+  else if(e>s){ inp.value=v.slice(0,s)+v.slice(e); try{inp.setSelectionRange(s,s);}catch(_){ } }
+  else if(s>0){ inp.value=v.slice(0,s-1)+v.slice(s); try{inp.setSelectionRange(s-1,s-1);}catch(_){ } }
+  inp.focus();
+  inp.dispatchEvent(new Event('input',{bubbles:true}));
+}
+const PAD=[
+ {p:'2nd',k:'2nd',cls:'kf'},{p:'sin',i:'sin(',s:['sin⁻¹','asin(']},{p:'cos',i:'cos(',s:['cos⁻¹','acos(']},{p:'tan',i:'tan(',s:['tan⁻¹','atan(']},{p:'π',i:'pi',s:['e','e']},
+ {p:'ln',i:'ln(',s:['eˣ','exp(']},{p:'log',i:'log(',s:['log₂','log2(']},{p:'√',i:'sqrt(',s:['∛','cbrt(']},{p:'x²',i:'^2',s:['x³','^3']},{p:'^',i:'^',s:['mod','%']},
+ {p:'7',i:'7',cls:'kd'},{p:'8',i:'8',cls:'kd'},{p:'9',i:'9',cls:'kd'},{p:'(',i:'('},{p:')',i:')'},
+ {p:'4',i:'4',cls:'kd'},{p:'5',i:'5',cls:'kd'},{p:'6',i:'6',cls:'kd'},{p:'×',i:'*'},{p:'÷',i:'/'},
+ {p:'1',i:'1',cls:'kd'},{p:'2',i:'2',cls:'kd'},{p:'3',i:'3',cls:'kd'},{p:'+',i:'+'},{p:'−',i:'-'},
+ {p:'0',i:'0',cls:'kd'},{p:'.',i:'.',cls:'kd'},{p:'EXP',i:'e',s:[',',',']},{p:'ans',i:'ans',gx:1},{p:'=',k:'eq',cls:'keq'},
+ {p:'AC',k:'ac',cls:'kf'},{p:'⌫',k:'bs',cls:'kf'},{p:'kB',i:'kB',s:['R','R']},{p:'NA',i:'NA',s:['h','h']},{p:'⋯',k:'more',cls:'kf'}
+];
+const PAD_MORE=[['R','R'],['g','g'],['h','h'],['c','c'],['x =','x = '],['min','min('],['max','max('],['pow','pow('],['atan2','atan2(']];
+function padLabels(){
+  document.querySelectorAll('#calc-pad button[data-i]').forEach(b=>{
+    const d=PAD[+b.dataset.i];
+    let lab=d.p;
+    if(d.gx&&TOOLS.calcMode==='g') lab='x';
+    else if(PAD2&&d.s) lab=d.s[0];
+    b.textContent=lab;
+    if(d.k==='2nd') b.classList.toggle('kon',PAD2);
+    if(d.k==='more') b.classList.toggle('kon',PADMORE);
+  });
+}
+function padPress(d){
+  if(d.k==='2nd'){ PAD2=!PAD2; padLabels(); return; }
+  if(d.k==='more'){ PADMORE=!PADMORE;
+    const m=document.getElementById('calc-more'); if(m)m.hidden=!PADMORE; padLabels(); return; }
+  if(d.k==='ac'){ const t=padTarget(); if(t){ t.value=''; t.focus(); t.dispatchEvent(new Event('input',{bubbles:true})); } return; }
+  if(d.k==='bs'){ padBackspace(); return; }
+  if(d.k==='eq'){ if(TOOLS.calcMode==='g') calcInsert('='); else calcGo(); return; }
+  let ins=d.i;
+  if(d.gx&&TOOLS.calcMode==='g') ins='x';
+  else if(PAD2&&d.s) ins=d.s[1];
+  calcInsert(ins);
+  if(PAD2){ PAD2=false; padLabels(); }   /* one-shot 2nd, like a real calculator */
+}
+function padBuild(){
+  const pad=document.getElementById('calc-pad'); if(!pad)return;
+  pad.innerHTML=PAD.map((d,i)=>'<button type="button" data-i="'+i+'"'+(d.cls?' class="'+d.cls+'"':'')+'></button>').join('');
+  pad.addEventListener('pointerdown',e=>{ if(e.target.closest('button'))e.preventDefault(); });  /* keep focus in the input */
+  pad.querySelectorAll('button[data-i]').forEach(b=>b.addEventListener('click',()=>padPress(PAD[+b.dataset.i])));
+  const more=document.getElementById('calc-more');
+  if(more){ more.innerHTML=PAD_MORE.map((m,i)=>'<button type="button" data-i="'+i+'">'+m[0]+'</button>').join('');
+    more.addEventListener('pointerdown',e=>{ if(e.target.closest('button'))e.preventDefault(); });
+    more.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>calcInsert(PAD_MORE[+b.dataset.i][1]))); }
+  padLabels();
+}
+
+/* ── REPL face ── */
+function calcRenderVars(){ const host=document.getElementById('calc-vars'); if(!host)return;
+  const names=Object.keys(TOOLS.vars);
+  host.innerHTML=(names.length
+    ? names.map(n=>'<span class="vchip" data-n="'+n+'">'+n+' = '+calcFmt(TOOLS.vars[n])+'<span class="vdel" data-n="'+n+'" title="delete '+n+'">✕</span></span>').join('')
+      +'<button class="vclear" id="calc-vclear">clear all</button>'
+    : '<span style="color:#94a3b8">no variables yet — try:&nbsp; <b>F = 2200</b></span>');
+  host.querySelectorAll('.vchip').forEach(cEl=>cEl.addEventListener('click',e=>{
+    if(e.target.classList.contains('vdel'))return; calcInsert(cEl.dataset.n); }));
+  host.querySelectorAll('.vdel').forEach(d=>d.addEventListener('click',e=>{ e.stopPropagation();
+    delete TOOLS.vars[d.dataset.n]; saveTools(); calcRenderVars(); gDrawSoon(); }));
+  const vc=document.getElementById('calc-vclear');
+  if(vc)vc.addEventListener('click',()=>{ TOOLS.vars={}; saveTools(); calcRenderVars(); gDrawSoon(); });
+}
+function calcRenderHist(){ const host=document.getElementById('calc-hist'); if(!host)return;
+  host.innerHTML=TOOLS.hist.map((h,i)=>'<div class="calc-row" data-i="'+i+'"><span class="ce">'+calcEsc(h.e)+'</span><span class="'+(h.err?'cerr':'cr')+'">= '+calcEsc(h.r)+'</span>'+(h.err?'':'<button class="ccopy" data-i="'+i+'" title="copy result">⧉</button>')+'</div>').join('')
+    ||'<div style="color:#94a3b8">results appear here — click a line to reuse it</div>';
+  host.querySelectorAll('.calc-row').forEach(r=>r.addEventListener('click',e=>{
+    if(e.target.classList.contains('ccopy'))return;
+    const h=TOOLS.hist[+r.dataset.i]; if(!h)return;
+    const inp=document.getElementById('calc-in'); inp.value=h.e; inp.focus(); calcPreview(); }));
+  host.querySelectorAll('.ccopy').forEach(b=>b.addEventListener('click',()=>{
+    const h=TOOLS.hist[+b.dataset.i]; if(!h)return;
+    const val=h.r.indexOf('= ')>=0?h.r.slice(h.r.indexOf('= ')+2):h.r;   /* strip "name = " on assignments */
+    if(navigator.clipboard&&navigator.clipboard.writeText)
+      navigator.clipboard.writeText(val).then(()=>{ b.textContent='✓'; setTimeout(()=>{b.textContent='⧉';},1200); },()=>{});
+  }));
+  host.scrollTop=host.scrollHeight;
+}
+function calcPreview(){ const el=document.getElementById('calc-prev'), inp=document.getElementById('calc-in');
+  if(!el||!inp)return;
+  const src=(inp.value||'').trim();
+  if(!src){ el.innerHTML='&nbsp;'; el.classList.remove('perr'); return; }
+  try{ const out=calcEval(src,true);   /* dry run: never commits ans or the variable */
+    el.textContent=(out.assign?out.assign+' = ':'= ')+calcFmt(out.v); el.classList.remove('perr'); }
+  catch(err){ const m=String(err.message||'');
+    if(m.indexOf('undefined result')===0||m.indexOf('infinite result')===0){ el.textContent=m; el.classList.add('perr'); }
+    else { el.innerHTML='&nbsp;'; el.classList.remove('perr'); } }
+}
+function calcGo(){ const inp=document.getElementById('calc-in'); if(!inp)return;
+  const src=(inp.value||'').trim(); if(!src)return;
+  let row;
+  try{ const out=calcEval(src); row={e:src, r:(out.assign?out.assign+' = ':'')+calcFmt(out.v)}; inp.value=''; }
+  catch(err){ row={e:src, r:err.message, err:1}; }
+  TOOLS.hist.push(row); if(TOOLS.hist.length>80)TOOLS.hist=TOOLS.hist.slice(-80);
+  saveTools(); calcRenderHist(); calcRenderVars(); calcPreview(); gDrawSoon();
+}
+
+/* ── graph face (Desmos-style: live curves, sliders, pan/zoom) ── */
+const GCOLORS=['#2563eb','#dc2626','#059669','#9333ea','#ea580c','#0891b2'];
+const GCURVE_RE=/^\s*(?:y|[A-Za-z_]\w*\s*\(\s*x\s*\))\s*=\s*(.+)$/;
+const GASSIGN_RE=/^\s*([A-Za-z_]\w*)\s*=\s*(.+)$/;
+const GNUM_RE=/^\s*[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?\s*$/;
+function gstate(){ TOOLS.graph=TOOLS.graph||{};
+  if(!Array.isArray(TOOLS.graph.exprs)||!TOOLS.graph.exprs.length)
+    TOOLS.graph.exprs=[{src:'y = x^2',on:true,c:0}];
+  return TOOLS.graph; }
+let GW=null, gRaf=0, gTypeT=null;
+function gcv(){ return document.getElementById('graph-cv'); }
+function gwin(){
+  if(!GW){ const g=gstate();
+    if(g.win&&isFinite(g.win.x0)&&g.win.x1>g.win.x0&&g.win.y1>g.win.y0) GW=Object.assign({},g.win);
+    else { const cv=gcv(); const ar=cv&&cv.clientWidth?cv.clientHeight/cv.clientWidth:0.69;
+      GW={x0:-10,x1:10,y0:-10*ar,y1:10*ar}; } }
+  return GW; }
+function gSaveWin(){ gstate().win=Object.assign({},GW); saveTools(); }
+function gDrawSoon(){ if(gRaf)return; gRaf=requestAnimationFrame(()=>{ gRaf=0; graphDraw(); }); }
+function niceStep(raw){ if(!isFinite(raw)||raw<=0)return 1;
+  const p=Math.pow(10,Math.floor(Math.log10(raw))), m=raw/p;
+  return (m<1.5?1:m<3.5?2:m<7.5?5:10)*p; }
+function gFmt(v){ if(Math.abs(v)<1e-12)return'0';
+  const a=Math.abs(v);
+  if(a>=1e5||a<1e-3) return v.toExponential(0).replace('e+','e');
+  return String(parseFloat(v.toPrecision(6))); }
+function gZoom(f,gx,gy){ const w=gwin();
+  w.x0=gx+(w.x0-gx)*f; w.x1=gx+(w.x1-gx)*f;
+  w.y0=gy+(w.y0-gy)*f; w.y1=gy+(w.y1-gy)*f; }
+function syncSliderUI(el,row,slider){
+  const r=el.querySelector('.gsr'), mn=el.querySelector('.gmin'), mx=el.querySelector('.gmax');
+  if(!r)return;
+  if(row.min==null||!isFinite(row.min))row.min=Math.min(-10,Math.floor(slider.v));
+  if(row.max==null||!isFinite(row.max)||row.max<=row.min)row.max=Math.max(10,Math.ceil(slider.v));
+  if(document.activeElement!==mn) mn.value=row.min;
+  if(document.activeElement!==mx) mx.value=row.max;
+  r.min=row.min; r.max=row.max; r.step=(row.max-row.min)/200||0.05;
+  if(document.activeElement!==r) r.value=slider.v;
+}
+function drawCurve(ctx,fn,gscope,w,W,H,X,Y,color){
+  const N=Math.min(500,Math.max(120,Math.round(W)));
+  const sc=Object.create(gscope);
+  ctx.strokeStyle=color; ctx.lineWidth=2; ctx.lineJoin='round'; ctx.beginPath();
+  let pen=false, prevOff=0;   /* prevOff: -1 below window, +1 above, 0 inside */
+  try{
+    for(let i=0;i<=N;i++){
+      sc.x=w.x0+(w.x1-w.x0)*i/N;
+      let y=fn(sc);
+      if(!isFinite(y)){ pen=false; prevOff=0; continue; }
+      const off=y>w.y1?1:(y<w.y0?-1:0);
+      if(pen&&off&&prevOff&&off!==prevOff){ pen=false; }   /* jumped clean across → asymptote */
+      const py=Math.max(-2*H,Math.min(3*H,Y(y)));
+      if(!pen){ ctx.moveTo(X(sc.x),py); pen=true; } else ctx.lineTo(X(sc.x),py);
+      prevOff=off;
+    }
+  }catch(_){ return false; }
+  ctx.stroke(); return true;
+}
+function graphDraw(){
+  const cv=gcv(); if(!cv)return;
+  const face=document.getElementById('face-graph'); if(!face||face.hidden)return;
+  const W=cv.clientWidth, H=cv.clientHeight; if(!W||!H)return;
+  const dpr=window.devicePixelRatio||1;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  const w=gwin();
+  const X=x=>(x-w.x0)/(w.x1-w.x0)*W, Y=y=>H-(y-w.y0)/(w.y1-w.y0)*H;
+  ctx.clearRect(0,0,W,H);
+  /* grid + labels */
+  const sx=niceStep((w.x1-w.x0)/6), sy=niceStep((w.y1-w.y0)/5);
+  const ylab=Math.max(12,Math.min(H-5,Y(0)+12)), xlab=Math.max(4,Math.min(W-38,X(0)+4));
+  ctx.font='10px system-ui'; ctx.lineWidth=1;
+  for(let x=Math.ceil(w.x0/sx-1e-9)*sx; x<=w.x1+1e-9; x+=sx){
+    const px=X(x); ctx.strokeStyle='#eef2f7';
+    ctx.beginPath(); ctx.moveTo(px,0); ctx.lineTo(px,H); ctx.stroke();
+    if(Math.abs(x)>sx/2){ ctx.fillStyle='#94a3b8'; ctx.fillText(gFmt(x),px+2,ylab); } }
+  for(let y=Math.ceil(w.y0/sy-1e-9)*sy; y<=w.y1+1e-9; y+=sy){
+    const py=Y(y); ctx.strokeStyle='#eef2f7';
+    ctx.beginPath(); ctx.moveTo(0,py); ctx.lineTo(W,py); ctx.stroke();
+    if(Math.abs(y)>sy/2){ ctx.fillStyle='#94a3b8'; ctx.fillText(gFmt(y),xlab,py-2); } }
+  ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=1.4;
+  if(w.x0<0&&w.x1>0){ ctx.beginPath(); ctx.moveTo(X(0),0); ctx.lineTo(X(0),H); ctx.stroke(); }
+  if(w.y0<0&&w.y1>0){ ctx.beginPath(); ctx.moveTo(0,Y(0)); ctx.lineTo(W,Y(0)); ctx.stroke(); }
+  /* rows, top to bottom: assignments build a shared scope, curves sample it */
+  const g=gstate(), rows=document.querySelectorAll('#graph-exprs .gexpr');
+  const gscope={}; let assigned=false;
+  g.exprs.forEach((row,i)=>{
+    const el=rows[i], src=(row.src||'').trim();
+    let err=false, slider=null, curveFn=null;
+    if(src){ try{
+      const mc=src.match(GCURVE_RE);
+      if(mc){ curveFn=calcCompile(mc[1]).fn; }
+      else{ const ma=src.match(GASSIGN_RE);
+        if(ma){ const cc=calcCompile(src);
+          const v=cc.fn(gscope);
+          if(!isFinite(v)) throw new Error('not finite');
+          TOOLS.vars[cc.assign]=v; gscope[cc.assign]=v; assigned=true;
+          if(GNUM_RE.test(ma[2])) slider={name:cc.assign,v:v};
+        } else curveFn=calcCompile(src).fn;
+      }
+    }catch(_){ err=true; } }
+    if(el){ el.classList.toggle('gerr',err);
+      el.classList.toggle('goff',row.on===false);
+      const sl=el.querySelector('.gsl');
+      if(sl){ sl.hidden=!slider; if(slider) syncSliderUI(el,row,slider); } }
+    if(curveFn&&row.on!==false&&!err)
+      drawCurve(ctx,curveFn,gscope,w,W,H,X,Y,GCOLORS[(row.c||0)%GCOLORS.length]);
+  });
+  if(assigned){ saveTools(); calcRenderVars(); }
+}
+function renderGraphRows(){
+  const host=document.getElementById('graph-exprs'); if(!host)return;
+  const g=gstate();
+  host.innerHTML='';
+  g.exprs.forEach((row,i)=>{
+    const div=document.createElement('div'); div.className='gexpr'+(row.on===false?' goff':'');
+    div.style.setProperty('--c',GCOLORS[(row.c||0)%GCOLORS.length]);
+    div.innerHTML='<button class="gdot" type="button" title="show / hide"></button>'
+      +'<input class="gin" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="y = 100*exp(-k*x)   ·   a = 2 (slider)   ·   1/x" value="'+calcEsc(row.src||'')+'">'
+      +'<button class="gx" type="button" title="remove">✕</button>'
+      +'<div class="gsl" hidden><input type="range" class="gsr"><input class="gsn gmin" title="slider min"><input class="gsn gmax" title="slider max"></div>';
+    const gin=div.querySelector('.gin');
+    gin.addEventListener('focus',()=>{ lastGIn=gin; });
+    gin.addEventListener('input',()=>{ row.src=gin.value; saveTools();
+      clearTimeout(gTypeT); gTypeT=setTimeout(gDrawSoon,120); });
+    gin.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); gDrawSoon(); } });
+    div.querySelector('.gdot').addEventListener('click',()=>{ row.on=row.on===false; saveTools(); gDrawSoon(); });
+    div.querySelector('.gx').addEventListener('click',()=>{ g.exprs.splice(i,1);
+      if(!g.exprs.length)g.exprs.push({src:'',on:true,c:0});
+      lastGIn=null; saveTools(); renderGraphRows(); gDrawSoon(); });
+    const r=div.querySelector('.gsr');
+    r.addEventListener('input',()=>{ const m=(row.src||'').match(GASSIGN_RE); if(!m)return;
+      row.src=m[1]+' = '+parseFloat((+r.value).toPrecision(6));
+      if(document.activeElement!==gin) gin.value=row.src;
+      saveTools(); gDrawSoon(); });
+    div.querySelector('.gmin').addEventListener('change',function(){ row.min=parseFloat(this.value); saveTools(); gDrawSoon(); });
+    div.querySelector('.gmax').addEventListener('change',function(){ row.max=parseFloat(this.value); saveTools(); gDrawSoon(); });
+    host.appendChild(div);
+  });
+}
+function graphInit(){
+  const cv=gcv(); if(!cv)return;
+  const add=document.getElementById('graph-add');
+  if(add)add.addEventListener('click',()=>{ const g=gstate();
+    g.exprs.push({src:'',on:true,c:g.exprs.length%GCOLORS.length});
+    saveTools(); renderGraphRows(); gDrawSoon();
+    const ins=document.querySelectorAll('#graph-exprs .gin'); const last=ins[ins.length-1];
+    if(last){ last.focus(); lastGIn=last; } });
+  const zin=document.getElementById('gz-in'), zout=document.getElementById('gz-out'), zh=document.getElementById('gz-home');
+  const gcenter=()=>{ const w=gwin(); return [(w.x0+w.x1)/2,(w.y0+w.y1)/2]; };
+  if(zin)zin.addEventListener('click',()=>{ const c=gcenter(); gZoom(0.8,c[0],c[1]); gSaveWin(); gDrawSoon(); });
+  if(zout)zout.addEventListener('click',()=>{ const c=gcenter(); gZoom(1.25,c[0],c[1]); gSaveWin(); gDrawSoon(); });
+  if(zh)zh.addEventListener('click',()=>{ GW=null; gstate().win=null; saveTools(); gDrawSoon(); });
+  const ptrs=new Map();
+  cv.addEventListener('pointerdown',e=>{ try{cv.setPointerCapture(e.pointerId);}catch(_){}
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY}); e.preventDefault(); });
+  cv.addEventListener('pointermove',e=>{ if(!ptrs.has(e.pointerId))return;
+    const w=gwin(), r=cv.getBoundingClientRect();
+    if(ptrs.size===1){ const pt=ptrs.get(e.pointerId);
+      const dx=(e.clientX-pt.x)/r.width*(w.x1-w.x0), dy=(e.clientY-pt.y)/r.height*(w.y1-w.y0);
+      w.x0-=dx; w.x1-=dx; w.y0+=dy; w.y1+=dy;
+      ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY}); gDrawSoon(); }
+    else if(ptrs.size===2){ const ids=[...ptrs.keys()];
+      const a=ptrs.get(ids[0]), b=ptrs.get(ids[1]);
+      const d0=Math.hypot(a.x-b.x,a.y-b.y);
+      ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      const a2=ptrs.get(ids[0]), b2=ptrs.get(ids[1]);
+      const d1=Math.hypot(a2.x-b2.x,a2.y-b2.y);
+      if(d0>4&&d1>4){ const mx=(a2.x+b2.x)/2-r.left, my=(a2.y+b2.y)/2-r.top;
+        const gx=w.x0+mx/r.width*(w.x1-w.x0), gy=w.y1-my/r.height*(w.y1-w.y0);
+        gZoom(d0/d1,gx,gy); gDrawSoon(); } }
+  });
+  const drop=e=>{ if(ptrs.has(e.pointerId)){ ptrs.delete(e.pointerId); gSaveWin(); } };
+  cv.addEventListener('pointerup',drop); cv.addEventListener('pointercancel',drop);
+  cv.addEventListener('wheel',e=>{ e.preventDefault();
+    const w=gwin(), r=cv.getBoundingClientRect();
+    const gx=w.x0+(e.clientX-r.left)/r.width*(w.x1-w.x0);
+    const gy=w.y1-(e.clientY-r.top)/r.height*(w.y1-w.y0);
+    gZoom(e.deltaY>0?1.12:1/1.12,gx,gy); gSaveWin(); gDrawSoon(); },{passive:false});
+  if(window.ResizeObserver) new ResizeObserver(()=>gDrawSoon()).observe(cv);
+  renderGraphRows();
+}
+
+/* ── mode switch + init ── */
+function applyPadVis(){ const pad=document.getElementById('calc-pad'); if(!pad)return;
+  const key=TOOLS.calcMode==='g'?'g':'c', show=!!TOOLS.pad[key];
+  pad.hidden=!show;
+  const more=document.getElementById('calc-more'); if(more)more.hidden=!show||!PADMORE;
+  const pb=document.getElementById('cm-pad'); if(pb)pb.classList.toggle('on',show);
+}
+function setCalcMode(m){
+  TOOLS.calcMode=(m==='g')?'g':'c'; saveTools();
+  const g=TOOLS.calcMode==='g';
+  const fc=document.getElementById('face-calc'), fg=document.getElementById('face-graph');
+  if(fc)fc.hidden=g; if(fg)fg.hidden=!g;
+  const bc=document.getElementById('cm-calc'), bg=document.getElementById('cm-graph');
+  if(bc)bc.classList.toggle('on',!g); if(bg)bg.classList.toggle('on',g);
+  applyPadVis(); padLabels();
+  if(g) gDrawSoon();
+}
+function calcInit(){
+  const pad=document.getElementById('calc-pad'); if(!pad)return;
+  TOOLS.calcMode=(TOOLS.calcMode==='g')?'g':'c';
+  TOOLS.pad=TOOLS.pad||{c:true,g:false};
+  padBuild();
+  document.getElementById('cm-calc').addEventListener('click',()=>setCalcMode('c'));
+  document.getElementById('cm-graph').addEventListener('click',()=>setCalcMode('g'));
+  document.getElementById('cm-pad').addEventListener('click',()=>{
+    const k=TOOLS.calcMode==='g'?'g':'c'; TOOLS.pad[k]=!TOOLS.pad[k]; saveTools(); applyPadVis(); });
+  const md=document.getElementById('calc-mode');
+  md.textContent=TOOLS.deg?'DEG':'RAD';
+  md.addEventListener('click',()=>{ TOOLS.deg=!TOOLS.deg; saveTools();
+    md.textContent=TOOLS.deg?'DEG':'RAD'; calcPreview(); gDrawSoon(); });
+  const inp=document.getElementById('calc-in');
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); calcGo(); } });
+  inp.addEventListener('input',calcPreview);
+  graphInit();
+  calcRenderHist(); calcRenderVars();
+  setCalcMode(TOOLS.calcMode);
+}
+(function initPanels(){
+  ['calc'].forEach(k=>{
+    watchPanel(k);
+    const b=document.getElementById('tool-'+k);
+    if(b)b.addEventListener('click',()=>{ const el=document.getElementById('panel-'+k);
+      setPanelOpen(k, el?el.hidden:false); });
+    if(panelSt(k).open) setPanelOpen(k,true);
+  });
+  window.addEventListener('resize',()=>{ ['calc'].forEach(k=>{
+    const el=document.getElementById('panel-'+k); if(el&&!el.hidden){ applyPanelGeom(k); applyPanelMin(k); } }); });
+  calcInit();
+})();
+
+/* ════════ boot ════════ */
+setDataset(QS_DS);   /* demo, or ?ds=<netid> staff preview; sign-in overrides */
+/* Firebase SDK is deferred → not yet defined while this inline script runs.
+   Cloud.init() waits for window load; everything before it stays fully local. */
+window.addEventListener('load',()=>Cloud.init());
+</script>
+</body>
+</html>

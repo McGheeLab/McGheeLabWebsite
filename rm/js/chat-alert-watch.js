@@ -129,7 +129,7 @@
       el = document.createElement('div');
       el.id = 'rm-chat-alert';
       el.innerHTML = `
-        <button type="button" class="rm-chat-alert-body">💬 <span></span></button>
+        <button type="button" class="rm-chat-alert-body">${ICON.svg('chat-bubble-left-right')} <span></span></button>
         <button type="button" class="rm-chat-alert-x" title="Dismiss">✕</button>`;
       document.body.appendChild(el);
       el.querySelector('.rm-chat-alert-body').addEventListener('click', () => {
@@ -139,7 +139,7 @@
       });
       el.querySelector('.rm-chat-alert-x').addEventListener('click', hide);
     }
-    el.querySelector('.rm-chat-alert-body span').textContent = label;
+    el.querySelector('.rm-chat-alert-body > span:last-child').textContent = label;
     requestAnimationFrame(() => el.classList.add('rm-chat-alert--show'));
     clearTimeout(_fadeTimer);
     // The entry "you have unread chats" card lingers longer than the

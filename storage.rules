@@ -156,6 +156,49 @@ service firebase.storage {
                        || request.resource.contentType == 'application/pdf');
     }
 
+    // V3.830 — Lab Notebook whiteboard blocks: the audio of a recording
+    // made while drawing (one chunk a minute on Chrome; Safari delivers the
+    // WHOLE recording as one blob at stop, hence the 100 MB cap) and the
+    // webp medium/full copies of figures snipped from library papers.
+    // Owner-only write; any signed-in read, because the Firestore
+    // `userData/{uid}/notebookBoards/{bid}` item/recording doc is the real
+    // gate (the paper-figures / classes precedent) and PMR reviewers
+    // (mentors, PI) play a mentee's recordings. Path:
+    //   notebook-boards/{ownerUid}/{boardId}/{recordings|items}/...
+    match /notebook-boards/{userId}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 100 * 1024 * 1024
+                   && (request.resource.contentType.matches('image/.*')
+                       || request.resource.contentType.matches('audio/.*'));
+    }
+
+    // V3.837 — a paper's figure board on the whiteboard engine: panels made
+    // from drawn regions (webp, alpha), reference snips and recordings.
+    // Same gate as paper-figures: any signed-in lab account; the Firestore
+    // rules on papers/{paperId}/boards decide who may place them.
+    match /paper-boards/{paperId}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 100 * 1024 * 1024
+                   && (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('audio/.*'));
+    }
+
+    // V3.841 — files placed on a canvas (the lab notebook, a paper's figure
+    // board): HTML frames (a simulation or an interactive figure running in
+    // its own sandboxed iframe) and dropped images. Owner-only write, 25 MB;
+    // any signed-in read (a paper board's co-authors render them). Path:
+    //   canvas-files/{ownerUid}/{fileId}/{name}
+    match /canvas-files/{userId}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 25 * 1024 * 1024
+                   && (request.resource.contentType == 'text/html'
+                       || request.resource.contentType.matches('image/.*'));
+    }
+
     // V3.113 — Protocols Builder figure assets. Lab-wide read (protocols
     // are a shared resource, unlike per-user notebook entries); any
     // authenticated lab member can upload images/PDFs up to 15 MB. Path:

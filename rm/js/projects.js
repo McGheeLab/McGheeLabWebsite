@@ -561,7 +561,7 @@ function renderPinBox(item) {
     exitBtn.className = 'pin-expand';
     exitBtn.title = 'Exit focus view';
     exitBtn.style.fontSize = '14px';
-    exitBtn.textContent = '×';
+    ICON.label(exitBtn, 'x-mark');
     exitBtn.addEventListener('click', function (ev) {
       ev.stopPropagation();
       _expandedId = null;
@@ -698,7 +698,7 @@ function renderLinkedTasksHero(item) {
     if (earliest) html += '<span class="chip chip-amber">due ' + earliest.slice(5) + '</span>';
     html += '<span style="flex:1"></span>';
     html += '<button class="btn btn-sm" onclick="event.stopPropagation(); LINKS.navigateToBucket(\'' + proj.id + '\')">Open →</button>';
-    html += '<button class="btn btn-sm" title="Unlink" onclick="event.stopPropagation(); unlinkBucketFromItem(\'' + item.id + '\', \'' + proj.id + '\')">×</button>';
+    html += '<button class="btn btn-sm" title="Unlink" onclick="event.stopPropagation(); unlinkBucketFromItem(\'' + item.id + '\', \'' + proj.id + '\')">' + ICON.svg('x-mark') + '</button>';
     html += '</div>';
   });
   html += '</div>';
@@ -1127,7 +1127,7 @@ function renderPersonnelSection(item) {
         var clickHandler = isAdminUser
           ? 'event.stopPropagation(); toggleFirstAuthor(\'' + item.id + '\',\'' + pid + '\')'
           : 'event.stopPropagation();';
-        body += '<span class="' + starCls + '" title="' + escHtml(starTitle) + '" onclick="' + clickHandler + '">★</span>';
+        body += '<span class="' + starCls + '" title="' + escHtml(starTitle) + '" onclick="' + clickHandler + '">' + ICON.svg('star') + '</span>';
       }
       body += escHtml(display);
       if (role) body += ' <span style="color:var(--text-muted);">(' + escHtml(role) + ')</span>';
@@ -1137,7 +1137,7 @@ function renderPersonnelSection(item) {
       body += '</span>';
     });
     if (isPaper && firstAuthors.length) {
-      body += '<div style="margin-top:6px;font-size:11px;color:var(--text-muted);">⭐ First authors have higher admin rights to this paper.</div>';
+      body += '<div style="margin-top:6px;font-size:11px;color:var(--text-muted);">' + ICON.svg('star') + ' First authors have higher admin rights to this paper.</div>';
     }
   }
   var actions = canEdit
@@ -1235,7 +1235,7 @@ function renderLinkedTasksSection(item) {
       if (earliest) body += '<span class="chip chip-amber" style="font-size:11px">due ' + earliest.slice(5) + '</span>';
       body += '<span style="flex:1"></span>';
       body += '<button class="btn btn-sm" onclick="event.stopPropagation(); LINKS.navigateToBucket(\'' + proj.id + '\')">Open →</button>';
-      body += '<button class="btn btn-sm" onclick="event.stopPropagation(); unlinkBucketFromItem(\'' + item.id + '\', \'' + proj.id + '\')">×</button>';
+      body += '<button class="btn btn-sm" onclick="event.stopPropagation(); unlinkBucketFromItem(\'' + item.id + '\', \'' + proj.id + '\')">' + ICON.svg('x-mark') + '</button>';
       body += '</div>';
     });
   }

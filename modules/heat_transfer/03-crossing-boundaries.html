@@ -6,9 +6,11 @@
   <title>Crossing the Boundary — Heat Transfer Foundations</title>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
   <style>
-    /* ===== house CSS — Solid Mechanics Foundations ===== */
+    /* ===== house CSS — Heat Transfer Foundations (outreach house style) ===== */
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    /* One-glyph alias: most system fonts lack U+221D (∝) and fall back to a near-invisible glyph. */
+    @font-face{font-family:'PropSign';src:local('STIX Two Math Regular'),local('STIXTwoMath-Regular'),local('STIXGeneral-Regular'),local('Cambria Math'),local('CambriaMath'),local('Noto Sans Math Regular'),local('NotoSansMath-Regular'),local('Segoe UI Symbol'),local('SegoeUISymbol'),local('DejaVu Sans'),local('Menlo Regular'),local('Menlo-Regular');unicode-range:U+221D}
+    body{font-family:PropSign,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
       background:#f4f6fa;color:#1e293b;line-height:1.6}
     header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;padding:28px 24px;text-align:center}
     header h1{font-size:1.6rem;letter-spacing:.01em}
@@ -37,6 +39,17 @@
     .key-takeaways::before{content:"Key takeaways";display:block;font-weight:700;color:#15803d;
       font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
     .key-takeaways ul{margin-left:20px}
+    .plain{background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #0d9488;border-radius:6px;
+      padding:10px 14px;margin:12px 0}
+    .plain::before{content:"In plain words";display:block;font-weight:700;color:#0f766e;
+      font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+    ul.letters{margin:6px 0 12px 22px;font-size:.92rem;color:#334155}
+    ul.letters li{margin:3px 0}
+    ul.letters b{color:#1e3a5f}
+    .later{font-size:.88rem;color:#64748b;border-left:3px solid #cbd5e1;padding:2px 0 2px 10px;margin:10px 0}
+    .worked-example ol{margin:6px 0 4px 22px}
+    .worked-example li{margin:4px 0}
+    .worked-example p{margin:4px 0}
     .student-task{background:#fff7ed;border:1px dashed #f59e0b;border-radius:10px;
       padding:12px 16px;margin:14px 0}
     .student-task::before{content:"Try this";display:block;font-weight:700;color:#b45309;
@@ -106,45 +119,46 @@
 <section id="tab-slab" class="tab-content active">
   <div class="background-section">
     <h2>Background: a wall between hot and cold</h2>
-    <p>In Lesson 1 you watched heat spread as atoms handed their jiggle to their neighbors. Now
+    <p>In Lesson 1 you watched heat spread as atoms handed their jiggle to their neighbours. Now
     put that idea to work on the most common situation in the real world: a <b>hot region</b> and
     a <b>cold region</b> with a wall in between. Coffee inside a mug, you inside a jacket, a warm
     house inside a winter. In every case, jiggle enters one face of the wall, gets handed
     atom-to-atom across it, and leaks out the other face.</p>
     <p>Give the wall a little time and it settles into <b>steady state</b>: every layer of the
     wall passes along exactly as much energy as it receives, so no layer heats up or cools down
-    anymore — the temperatures stop changing even though heat keeps flowing through. And in steady
-    state, a uniform wall does something beautifully simple: the temperature inside it falls in a
-    <b>perfectly straight ramp</b> from the hot-face temperature \(T_{hot}\) to the cold-face
-    temperature \(T_{cold}\). If \(x\) is how far you are into the wall and \(L\) is its total
-    thickness:</p>
-    <div class="equation-box">
-      $$ T(x) \;=\; T_{hot} \;-\; \left(T_{hot} - T_{cold}\right)\frac{x}{L}
-      \qquad \text{(steady state, uniform wall)} $$
+    anymore — the temperatures stop changing even though heat keeps flowing through.</p>
+    <div class="plain">
+      In steady state a plain wall does something beautifully simple: the temperature inside it
+      <b>drops evenly</b>, in a straight ramp from the hot face to the cold face. Halfway
+      through the wall, you are halfway down in temperature.
     </div>
+    <div class="equation-box">
+      $$ T(x) \;=\; T_{\text{hot}} \;-\; \left(T_{\text{hot}} - T_{\text{cold}}\right)\frac{x}{L} $$
+    </div>
+    <ul class="letters">
+      <li><b>T(x)</b> — the temperature at a depth x into the wall.</li>
+      <li><b>T<sub>hot</sub>, T<sub>cold</sub></b> — the temperatures of the two faces.</li>
+      <li><b>x/L</b> — how far in you are, as a fraction of the total thickness L (0 at the hot face, 1 at the cold face). The temperature has dropped that fraction of the whole difference.</li>
+    </ul>
     <p>Think of the ramp as a hill and heat as water running down it. The height of the hill is
-    the <b>temperature difference</b> \(\Delta T = T_{hot} - T_{cold}\) (measured in kelvin, K —
-    a difference of 1&nbsp;K is the same size as 1&nbsp;°C). A taller hill means a steeper ramp,
+    the <b>temperature difference</b> ΔT = T<sub>hot</sub> − T<sub>cold</sub> (in kelvin — a
+    difference of 1&nbsp;K is the same size as 1&nbsp;°C). A taller hill means a steeper ramp,
     and a steeper ramp drives a bigger flow. Equal temperatures? Flat ramp, no flow — heat only
     ever runs downhill in temperature. The next two tabs put numbers on <em>how much</em> flow.</p>
     <div class="worked-example">
-      <p>A winter wall, 10&nbsp;cm thick. The inside face sits at \(T_{hot} = 21\ \text{°C}\) and
-      the outside face at \(T_{cold} = -9\ \text{°C}\), so \(\Delta T = 21-(-9) = 30\ \text{K}\).
-      The steady-state ramp drops those 30&nbsp;K evenly across 0.1&nbsp;m: the gradient is
-      \(30/0.1 = 300\ \text{K per meter}\), i.e. 3&nbsp;K per centimeter. Halfway through the
-      wall (\(x = L/2\)) the temperature is \(21 - 30\times0.5 = 6\ \text{°C}\) — exactly the
-      average of the two faces.</p>
+      <p>A winter wall, 10&nbsp;cm thick: inside face 21&nbsp;°C, outside face −9&nbsp;°C.</p>
+      <ol>
+        <li><b>The difference:</b> ΔT = 21 − (−9) = 30&nbsp;K.</li>
+        <li><b>How steep:</b> 30&nbsp;K spread over 0.1&nbsp;m is 300 kelvin per meter — 3 degrees for every centimeter.</li>
+        <li><b>Halfway in</b> (x/L = 0.5): T = 21 − 30 × 0.5 = <b>6&nbsp;°C</b> — exactly the average of the two faces.</li>
+      </ol>
     </div>
     <div class="key-takeaways">
       <ul>
-        <li>Heat flows through a wall only when the two sides differ: downhill in temperature,
-        always.</li>
-        <li>In steady state, temperatures stop changing but heat keeps flowing — in one face and
-        out the other at the same rate.</li>
-        <li>The steady-state profile inside a uniform wall is a straight ramp from
-        \(T_{hot}\) to \(T_{cold}\); the midpoint sits at the average.</li>
-        <li>\(\Delta T\) is the driver: double the difference, double the steepness, double the
-        flow.</li>
+        <li>Heat flows through a wall only when the two sides differ: downhill in temperature, always.</li>
+        <li>In steady state, temperatures stop changing but heat keeps flowing — in one face and out the other at the same rate.</li>
+        <li>The steady-state profile inside a uniform wall is a straight ramp; the midpoint sits at the average.</li>
+        <li>ΔT is the driver: double the difference, double the steepness, double the flow.</li>
       </ul>
     </div>
   </div>
@@ -174,12 +188,12 @@
     <div class="ctrl">
       <h3>Controls</h3>
       <div class="ctrl-group">
-        <label>Hot-side temperature <span id="v-slab-th">21</span></label>
+        <label>Hot-side temperature <span id="v-slab-th">21 °C</span></label>
         <input type="range" id="s-slab-th" min="0" max="250" step="1" value="21">
       </div>
       <div class="ctrl-group">
-        <label>Cold-side temperature <span id="v-slab-tc">-10</span></label>
-        <input type="range" id="s-slab-tc" min="-30" max="250" step="1" value="-10">
+        <label>Cold-side temperature <span id="v-slab-tc">-9 °C</span></label>
+        <input type="range" id="s-slab-tc" min="-30" max="250" step="1" value="-9">
       </div>
       <div class="stats" id="st-slab"></div>
     </div>
@@ -201,43 +215,47 @@
 <section id="tab-material" class="tab-content">
   <div class="background-section">
     <h2>Background: material matters — thermal conductivity k</h2>
-    <p>Same wall, same \(\Delta T\) — but swap the material and everything changes. Remember the
+    <p>Same wall, same ΔT — but swap the material and everything changes. Remember the
     handoff-speed slider from Lesson 1's bar of atoms? Some atoms and bonds pass their jiggle to
-    the neighbor almost instantly (metals, where free electrons carry it too); others hold onto
+    the neighbour almost instantly (metals, where free electrons carry it too); others hold onto
     it stubbornly (wood, foam, still air). Zoom out to human scale and that microscopic handoff
-    speed becomes a single measurable number for each material: the <b>thermal conductivity</b>
-    \(k\), in watts per meter per kelvin (W/m·K). Big \(k\) = eager handoffs = conductor.
-    Tiny \(k\) = reluctant handoffs = insulator.</p>
-    <p>Put \(k\) together with Tab 1's ramp and you get the workhorse formula of this whole
-    lesson — the rate of heat flow \(q\) (in watts, W, i.e. joules per second) through a wall of
-    face area \(A\) (m²) and thickness \(L\) (m):</p>
+    speed becomes a single measurable number for each material: the <b>thermal conductivity</b>,
+    written k. Big k = eager handoffs = conductor. Tiny k = reluctant handoffs = insulator.</p>
+    <div class="plain">
+      Heat flow through a wall = <b>conductivity × area × temperature difference ÷ thickness</b>.
+      A better conductor, a bigger wall, or a bigger difference → more flow. A thicker wall → less.
+      This one rule is the workhorse of the whole lesson.
+    </div>
     <div class="equation-box">
       $$ q \;=\; \frac{k\,A\,\Delta T}{L} $$
     </div>
-    <p>The astonishing part is the <em>range</em> of \(k\) in ordinary life: copper 401, aluminum
+    <ul class="letters">
+      <li><b>q</b> — the heat flow, in watts (joules per second).</li>
+      <li><b>k</b> — thermal conductivity, in W/m·K: the watts that get through one square meter of a one-meter-thick slab for each degree of difference.</li>
+      <li><b>A</b> — face area of the wall, m². <b>L</b> — thickness, m.</li>
+      <li><b>ΔT</b> — the temperature difference across the wall, K.</li>
+    </ul>
+    <p>The astonishing part is the <em>range</em> of k in ordinary life: copper 401, aluminum
     237, glass 1.0, brick 0.72, wood 0.15, fiberglass batt 0.04, still air 0.026&nbsp;W/m·K.
     That's a factor of about <b>15,000</b> between copper and still air — which is why the
-    \(k\) slider below is logarithmic: each step multiplies rather than adds. Nothing else in
-    this lesson varies by anywhere near that much.</p>
+    k slider below is logarithmic: each step multiplies rather than adds. Nothing else in this
+    lesson varies by anywhere near that much.</p>
     <div class="worked-example">
-      <p>Take a wall with \(A = 1\ \text{m}^2\), \(L = 10\ \text{cm} = 0.1\ \text{m}\), and
-      \(\Delta T = 20\ \text{K}\) (cozy inside, freezing outside). Glass
-      (\(k = 1.0\)): \(q = 1.0 \times 1 \times 20 / 0.1 = 200\ \text{W}\). Swap in wood
-      (\(k = 0.15\)): \(q = 30\ \text{W}\). Still air (\(k = 0.026\)): just
-      \(5.2\ \text{W}\). And copper (\(k = 401\)): \(q = 80{,}200\ \text{W}\) — eighty
-      kilowatts, more than fifty space heaters. Same geometry, same \(\Delta T\); the material
-      alone spans four orders of magnitude.</p>
+      <p>A wall 1&nbsp;m² in area and 10&nbsp;cm thick, with 20&nbsp;K across it (cozy inside, freezing outside). Change only the material.</p>
+      <ol>
+        <li><b>Glass</b> (k = 1.0): q = 1.0 × 1 × 20 ÷ 0.1 = <b>200&nbsp;W</b>.</li>
+        <li><b>Wood</b> (k = 0.15): q = 0.15 × 1 × 20 ÷ 0.1 = <b>30&nbsp;W</b>.</li>
+        <li><b>Still air</b> (k = 0.026): q = 0.026 × 20 ÷ 0.1 = <b>5.2&nbsp;W</b>.</li>
+        <li><b>Copper</b> (k = 401): q = 401 × 20 ÷ 0.1 = <b>80,200&nbsp;W</b> — eighty kilowatts, more than fifty space heaters.</li>
+      </ol>
+      <p>Same geometry, same ΔT; the material alone spans four orders of magnitude.</p>
     </div>
     <div class="key-takeaways">
       <ul>
-        <li>\(k\) is Lesson 1's atomic handoff speed measured at human scale: W of heat per m²
-        of wall, per K of drive, per m of thickness.</li>
-        <li>\(q = kA\Delta T/L\): flow is proportional to conductivity — double \(k\), double
-        \(q\).</li>
-        <li>Everyday materials span ~15,000× in \(k\); that range, not \(\Delta T\) or geometry,
-        is the biggest lever you own.</li>
-        <li>Metals conduct so well partly because free electrons carry jiggle in addition to the
-        vibrating lattice.</li>
+        <li>k is Lesson 1's atomic handoff speed measured at human scale.</li>
+        <li>q = kAΔT/L: flow is proportional to conductivity — double k, double q.</li>
+        <li>Everyday materials span ~15,000× in k; that range, not ΔT or geometry, is the biggest lever you own.</li>
+        <li>Metals conduct so well partly because free electrons carry jiggle in addition to the vibrating lattice.</li>
       </ul>
     </div>
   </div>
@@ -294,41 +312,39 @@
 <section id="tab-geometry" class="tab-content">
   <div class="background-section">
     <h2>Background: thickness and area — the geometry knobs</h2>
-    <p>Material chosen, \(\Delta T\) set by the weather. Two knobs remain, and you can see both
-    in the formula: <b>area</b> \(A\) sits on top, <b>thickness</b> \(L\) sits on the bottom.</p>
+    <p>Material chosen, ΔT set by the weather. Two knobs remain, and you can see both in Tab 2's
+    rule: <b>area</b> sits on top, <b>thickness</b> sits on the bottom.</p>
+    <div class="plain">
+      <b>Area is the doorway.</b> Twice the wall area means twice as many atomic bucket-brigades
+      working side by side, so twice the flow. <b>Thickness is the journey.</b> Twice the
+      thickness means every parcel of jiggle must survive twice as many hand-offs to get across,
+      so the flow <em>halves</em>.
+    </div>
     <div class="equation-box">
       $$ q \;=\; \frac{k\,A\,\Delta T}{L}
-      \qquad\Rightarrow\qquad q \propto A \quad\text{and}\quad q \propto \frac{1}{L} $$
+      \qquad\Rightarrow\qquad \text{double } A \to \text{double } q, \qquad \text{double } L \to \text{half } q $$
     </div>
-    <p><b>Area is the doorway.</b> Twice the wall area means twice as many atomic bucket-brigades
-    working side by side, so twice the flow. This is the parallel-chains idea from Solid
-    Mechanics Lesson 1, wearing a thermal hat. <b>Thickness is the journey.</b> Twice the
-    thickness means every parcel of jiggle must survive twice as many neighbor-to-neighbor
-    handoffs to get across, so the flow <em>halves</em>. Plot \(q\) against \(L\) and you get a
-    <b>hyperbola</b>: brutal at small \(L\) (thin walls leak ferociously), flattening at large
-    \(L\) (past a point, extra thickness buys you less and less).</p>
-    <p>To isolate geometry, this tab freezes the material at glass-like \(k = 1.0\ \text{W/m·K}\)
-    and the drive at \(\Delta T = 20\ \text{K}\). Only your two sliders move. Keep an eye on the
-    <b>Window pane</b> scenario — it produces a number so large it should bother you. Tab 4 is
-    where we deal with it.</p>
+    <ul class="letters">
+      <li>Same letters as Tab 2. This tab freezes the material at glass-like k = 1.0&nbsp;W/m·K and the drive at ΔT = 20&nbsp;K, so only A and L move.</li>
+      <li><b>q ∝ A</b> — "q is proportional to A": the flow scales up with area.</li>
+      <li><b>q ∝ 1/L</b> — the flow scales down with thickness. Plotted against L that gives a <b>hyperbola</b>: brutal at small L (thin walls leak ferociously), flattening at large L (past a point, extra thickness buys less and less).</li>
+    </ul>
+    <p>Keep an eye on the <b>Window pane</b> scenario — it produces a number so large it should
+    bother you. Tab 4 is where we deal with it.</p>
     <div class="worked-example">
-      <p>Glass-like wall, \(k = 1.0\ \text{W/m·K}\), \(A = 1\ \text{m}^2\),
-      \(\Delta T = 20\ \text{K}\). At \(L = 10\ \text{cm}\):
-      \(q = 1.0 \times 1 \times 20 / 0.1 = 200\ \text{W}\). Halve the thickness to 5&nbsp;cm:
-      \(q = 20/0.05 = 400\ \text{W}\) — exactly double. Now shrink it to a window-pane
-      4&nbsp;mm with \(A = 2\ \text{m}^2\): \(q = 1.0 \times 2 \times 20 / 0.004 =
-      10{,}000\ \text{W}\). Ten kilowatts through one window?! Hold that thought.</p>
+      <p>Glass-like wall, k = 1.0&nbsp;W/m·K, ΔT = 20&nbsp;K.</p>
+      <ol>
+        <li><b>Start:</b> A = 1&nbsp;m², L = 10&nbsp;cm: q = 1.0 × 1 × 20 ÷ 0.1 = <b>200&nbsp;W</b>.</li>
+        <li><b>Halve the thickness</b> to 5&nbsp;cm: q = 20 ÷ 0.05 = <b>400&nbsp;W</b> — exactly double.</li>
+        <li><b>Now a window pane:</b> 4&nbsp;mm thick and 2&nbsp;m² in area: q = 1.0 × 2 × 20 ÷ 0.004 = <b>10,000&nbsp;W</b>. Ten kilowatts through one window?! Hold that thought.</li>
+      </ol>
     </div>
     <div class="key-takeaways">
       <ul>
-        <li>Flow scales up with area: \(q \propto A\) — a bigger doorway for the same
-        bucket-brigade.</li>
-        <li>Flow scales down with thickness: \(q \propto 1/L\) — halve the wall, double the
-        leak.</li>
-        <li>\(q\) vs. \(L\) is a hyperbola: thin walls are catastrophically leaky, and extra
-        thickness has diminishing returns.</li>
-        <li>Thin + wide (a window) is the worst combination a heated house can have — the
-        formula even seems to over-predict it, which Tab 4 resolves.</li>
+        <li>Flow scales up with area: q ∝ A — a bigger doorway for the same bucket-brigade.</li>
+        <li>Flow scales down with thickness: q ∝ 1/L — halve the wall, double the leak.</li>
+        <li>q vs. L is a hyperbola: thin walls are catastrophically leaky, and extra thickness has diminishing returns.</li>
+        <li>Thin + wide (a window) is the worst combination a heated house can have — the formula even seems to over-predict it, which Tab 4 resolves.</li>
       </ul>
     </div>
   </div>
@@ -384,67 +400,66 @@
 <section id="tab-levelup" class="tab-content">
   <div class="background-section">
     <h2>Level up: Fourier's law, thermal resistance, and an honest window</h2>
-    <p>Time for the real machinery. Everything in Tabs 1–3 is the integrated form of
-    <b>Fourier's law of conduction</b> (Fourier, 1822), which says the local <b>heat flux</b>
-    \(q''\) — watts crossing each square meter — is proportional to the local temperature
-    gradient \(dT/dx\), with the minus sign recording that heat runs <em>down</em> the gradient.
-    For a uniform slab in steady state, integrating Fourier's law across the thickness gives back
-    Tab 2's formula, which engineers immediately rearrange into <b>resistance form</b>:</p>
-    <div class="equation-box">
-      $$ q'' \;=\; -\,k\,\frac{dT}{dx} \qquad\qquad
-         q \;=\; \frac{\Delta T}{R}, \quad R \;=\; \frac{L}{k\,A}\ \ (\text{K/W}) $$
+    <p><b>Everything in Tabs 1–3 stands on its own.</b> This tab rewrites the same rule the way
+    engineers use it, and then fixes the window paradox.</p>
+    <div class="plain">
+      <b>Box 1 — resistance.</b> Rearrange Tab 2's rule: flow = temperature difference ÷ resistance,
+      where the resistance is thickness ÷ (conductivity × area). That is <b>Ohm's law with the labels
+      changed</b>: temperature difference plays the voltage, heat flow plays the current, and every
+      trick you know from circuits transfers wholesale — resistances in series add up, and the biggest
+      one hogs the drop.
     </div>
-    <p>Why bother? Because \(q = \Delta T / R\) is <b>Ohm's law with the labels changed</b>, and
-    every trick you know from circuits transfers wholesale — series resistances add, the biggest
-    resistor hogs the voltage drop, and so on (that becomes Lesson 4):</p>
+    <div class="equation-box">
+      $$ q \;=\; \frac{\Delta T}{R}, \qquad R \;=\; \frac{L}{k\,A}\ \ (\text{K/W}) $$
+    </div>
+    <ul class="letters">
+      <li><b>R</b> — thermal resistance, in kelvin per watt: how many degrees of difference it takes to push one watt through.</li>
+      <li>Everything else as before: L thickness, k conductivity, A area, ΔT the difference.</li>
+    </ul>
     <table style="border-collapse:collapse;margin:12px 0;font-size:.9rem">
-      <tr>
-        <th style="border:1px solid #cbd5e1;padding:6px 12px;background:#eff6ff;text-align:left">Thermal</th>
-        <th style="border:1px solid #cbd5e1;padding:6px 12px;background:#eff6ff;text-align:left">Electrical</th>
-      </tr>
-      <tr>
-        <td style="border:1px solid #cbd5e1;padding:6px 12px">temperature difference \(\Delta T\) (K) — the driver</td>
-        <td style="border:1px solid #cbd5e1;padding:6px 12px">voltage \(V\) (V)</td>
-      </tr>
-      <tr>
-        <td style="border:1px solid #cbd5e1;padding:6px 12px">heat flow \(q\) (W) — the current of energy</td>
-        <td style="border:1px solid #cbd5e1;padding:6px 12px">current \(I\) (A)</td>
-      </tr>
-      <tr>
-        <td style="border:1px solid #cbd5e1;padding:6px 12px">thermal resistance \(R = L/(kA)\) (K/W)</td>
-        <td style="border:1px solid #cbd5e1;padding:6px 12px">resistance \(R = V/I\) (Ω)</td>
-      </tr>
+      <tr><th style="border:1px solid #cbd5e1;padding:6px 12px;background:#eff6ff;text-align:left">Thermal</th><th style="border:1px solid #cbd5e1;padding:6px 12px;background:#eff6ff;text-align:left">Electrical</th></tr>
+      <tr><td style="border:1px solid #cbd5e1;padding:6px 12px">temperature difference ΔT (K) — the driver</td><td style="border:1px solid #cbd5e1;padding:6px 12px">voltage V (V)</td></tr>
+      <tr><td style="border:1px solid #cbd5e1;padding:6px 12px">heat flow q (W) — the current of energy</td><td style="border:1px solid #cbd5e1;padding:6px 12px">current I (A)</td></tr>
+      <tr><td style="border:1px solid #cbd5e1;padding:6px 12px">thermal resistance R = L/(kA) (K/W)</td><td style="border:1px solid #cbd5e1;padding:6px 12px">resistance R = V/I (Ω)</td></tr>
     </table>
-    <p>Now the honesty check the last two tabs have been building toward. A bare slab of glass
-    predicts absurd heat flows — because <b>no real wall touches the hot and cold air
-    directly</b>. A thin layer of nearly still air clings to each face (a boundary layer —
-    Lesson 5's subject), and Tab 2 told you still air is a spectacular insulator. Each clinging
-    <b>film</b> contributes an area-specific resistance \(R'' = R \cdot A\) (units m²·K/W);
-    typical values are ≈0.12&nbsp;m²·K/W for the calm indoor face and ≈0.05&nbsp;m²·K/W for the
-    breezier outdoor face — about <b>0.17&nbsp;m²·K/W of air, in series with the wall</b>,
-    whether you asked for it or not.</p>
+    <div class="plain">
+      <b>Box 2 — Fourier's law (1822), the local version.</b> Tab 1's straight ramp has a slope; the heat
+      crossing each square meter is the conductivity times that slope, with a minus sign because heat
+      runs <em>down</em> the slope. Integrate it across a uniform slab and you get Tab 2's rule back.
+    </div>
+    <div class="equation-box">
+      $$ q'' \;=\; -\,k\,\frac{dT}{dx} $$
+    </div>
+    <ul class="letters">
+      <li><b>q″</b> — "q double-prime", the heat <b>flux</b>: watts per square meter.</li>
+      <li><b>dT/dx</b> — calculus shorthand for the slope of the temperature ramp (degrees per meter). For a straight ramp it is just −ΔT/L.</li>
+    </ul>
+    <div class="plain">
+      <b>Box 3 — the honesty check.</b> A bare slab of glass predicts absurd heat flows — because <b>no real
+      wall touches the hot and cold air directly</b>. A thin layer of nearly still air clings to each face
+      (a boundary layer — Lesson 5's subject), and Tab 2 told you still air is a spectacular insulator.
+      Each clinging <b>film</b> is one more resistor in series, whether you asked for it or not.
+    </div>
+    <ul class="letters">
+      <li><b>R″</b> — "R double-prime", a resistance per square meter (m²·K/W); divide by the area A to get R in K/W.</li>
+      <li>Typical films: ≈ 0.12 m²·K/W for the calm indoor face and ≈ 0.05 for the breezier outdoor face — about <b>0.17 m²·K/W of air</b>, in series with the wall.</li>
+    </ul>
     <div class="worked-example">
-      <p><b>The single-pane window paradox.</b> Glass \(k = 1.0\ \text{W/m·K}\),
-      \(A = 1\ \text{m}^2\), \(L = 4\ \text{mm}\), \(\Delta T = 20\ \text{K}\). Bare glass:
-      \(R_{glass} = L/(kA) = 0.004/(1.0 \times 1) = 0.004\ \text{K/W}\), so
-      \(q = 20/0.004 = 5000\ \text{W}\) — three space heaters pouring out through one pane, which
-      is <em>not</em> what anyone measures. Add the air films: \(R_{films} = 0.17/A =
-      0.17\ \text{K/W}\), giving \(R_{tot} = 0.004 + 0.17 = 0.174\ \text{K/W}\) and
-      \(q = 20/0.174 \approx 115\ \text{W}\) — the measured ballpark. The glass carries only
-      \(q \cdot R_{glass} \approx 0.46\ \text{K}\) of the 20&nbsp;K drop (about 2%); the
-      invisible air films carry the rest. <b>The air, not the glass, is the insulation.</b>
-      Lesson 4 stacks layers and traps air on purpose; Lesson 5 studies the films themselves.</p>
+      <p><b>The single-pane window paradox.</b> Glass k = 1.0&nbsp;W/m·K, A = 1&nbsp;m², L = 4&nbsp;mm, ΔT = 20&nbsp;K.</p>
+      <ol>
+        <li><b>Bare glass:</b> R = L ÷ (kA) = 0.004 ÷ (1.0 × 1) = 0.004&nbsp;K/W, so q = 20 ÷ 0.004 = <b>5000&nbsp;W</b> — three space heaters pouring out through one pane, which is <em>not</em> what anyone measures.</li>
+        <li><b>Add the air films:</b> R<sub>films</sub> = 0.17 ÷ 1 = 0.17&nbsp;K/W. In series: R<sub>total</sub> = 0.004 + 0.17 = 0.174&nbsp;K/W.</li>
+        <li><b>The honest flow:</b> q = 20 ÷ 0.174 ≈ <b>115&nbsp;W</b> — the measured ballpark.</li>
+        <li><b>Who holds the drop?</b> The glass carries q × R<sub>glass</sub> = 115 × 0.004 ≈ 0.46&nbsp;K of the 20&nbsp;K (about 2%); the invisible air films carry the rest. <b>The air, not the glass, is the insulation.</b></li>
+      </ol>
+      <p>Lesson 4 stacks layers and traps air on purpose; Lesson 5 studies the films themselves.</p>
     </div>
     <div class="key-takeaways">
       <ul>
-        <li>Fourier's law \(q'' = -k\,dT/dx\) is the local rule; \(q = kA\Delta T/L\) is its
-        steady-state slab solution.</li>
-        <li>Resistance form: \(R = L/(kA)\), \(q = \Delta T/R\) — a perfect Ohm's-law analogy
-        (\(\Delta T \leftrightarrow V\), \(q \leftrightarrow I\), \(R \leftrightarrow R\)).</li>
-        <li>Resistances in series add, and the biggest resistance takes the biggest share of
-        \(\Delta T\).</li>
-        <li>Real surfaces always carry still-air film resistances (≈0.17 m²·K/W total for a
-        window) — for thin conductive walls, the films dominate everything.</li>
+        <li>Resistance form: R = L/(kA), q = ΔT/R — a perfect Ohm's-law analogy (ΔT ↔ V, q ↔ I, R ↔ R).</li>
+        <li>Fourier's law q″ = −k dT/dx is the local rule; q = kAΔT/L is its steady-state slab solution.</li>
+        <li>Resistances in series add, and the biggest resistance takes the biggest share of ΔT.</li>
+        <li>Real surfaces always carry still-air film resistances (≈ 0.17 m²·K/W total for a window) — for thin conductive walls, the films dominate everything.</li>
       </ul>
     </div>
   </div>
@@ -718,7 +733,7 @@ const FMT = {
 
 const SCEN = {
   slab: {
-    winter:   { 's-slab-th': 21,  's-slab-tc': -10 },
+    winter:   { 's-slab-th': 21,  's-slab-tc': -9 },
     oven:     { 's-slab-th': 200, 's-slab-tc': 25 },
     cooler:   { 's-slab-th': 35,  's-slab-tc': 0 },
     balanced: { 's-slab-th': 20,  's-slab-tc': 20 }
@@ -782,10 +797,6 @@ function caption(ctx, x, y, text, color, bold){
   ctx.font = (bold ? 'bold ' : '') + '12px sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillText(text, x, y); ctx.restore();
-}
-function tempColor(T, lo, hi){
-  const t = Math.max(0, Math.min(1, (T - lo) / ((hi - lo) || 1)));
-  return 'hsl(' + Math.round(220 - 220 * t) + ',72%,' + Math.round(58 - 10 * t) + '%)';
 }
 function decadeTicks(lo, hi){
   const t = [];
@@ -969,7 +980,8 @@ function qHeadline(ctx, x0, x1, y, q, G){
 
 /* --- chart annotations: value tag on the live dot + gray "before" dot --- */
 function tagDot(ch, x, y, text, color){
-  const px = ch.toX(x), py = Math.max(ch.m.t + 10, ch.toY(y) - 12);
+  const px = ch.toX(x), yd = ch.toY(y);
+  const py = (yd - 12 < ch.m.t + 24) ? Math.min(ch.h - ch.m.b - 10, yd + 18) : yd - 12;  // below the dot when it would sit on the legend
   const left = px < ch.w - 120;
   haloText(ch.ctx, px + (left ? 12 : -12), py, text, color || COL.purple, 13, left ? 'left' : 'right');
 }
@@ -1161,7 +1173,8 @@ function drawMaterial(){
   ch.plot(pts, COL.accent, 2.5);
   for (const m of MATS) ch.dot(Math.log10(m[1]), Math.log10(qOf(m[1])), COL.teal, 3.5);
   for (const m of [MATS[6], MATS[4], MATS[2], MATS[0]])   // air, wood, glass, copper
-    caption(c2.ctx, ch.toX(Math.log10(m[1])), ch.toY(Math.log10(qOf(m[1]))) - 12, m[0], COL.teal);
+    if (Math.abs(Math.log10(m[1] / k)) > 0.12)              // the live tag already names it
+      caption(c2.ctx, ch.toX(Math.log10(m[1])), ch.toY(Math.log10(qOf(m[1]))) - 12, m[0], COL.teal);
   if (G) ghostDot(ch, Math.log10(G.k), Math.log10(G.q), 'before: ' + fmt(G.q, 0) + ' W');
   ch.dot(Math.log10(k), Math.log10(q), COL.purple, 6);
   tagDot(ch, Math.log10(k), Math.log10(q), 'q = ' + fmt(q, q < 10 ? 1 : 0) + ' W');
@@ -1243,7 +1256,7 @@ function drawGeometry(){
 
   drawDots(ctx, 60, 580, wTop + 2, wBot - 2, q, 1, 0);  // stream squeezes through the doorway
   qHeadline(ctx, 70, 570, cy, q, G);
-  caption(ctx, 320, 262, 'drawn to scale: thickness 1 px per mm · face height ∝ area A', COL.axis);
+  caption(ctx, 320, 262, 'drawn to scale: thickness 1 px per mm · face height scaled to area A', COL.axis);
   caption(ctx, 320, 280, 'L = ' + fmt(Lmm, 0) + ' mm · A = ' + fmt(A, 2) +
     ' m² · frozen: k = 1.0 W/m·K, ΔT = 20 K', COL.ink, true);
 
@@ -1258,7 +1271,10 @@ function drawGeometry(){
   ch.plot(pts, COL.accent, 2.5);
   if (Lmm / 2 >= 2 && 2 * q <= yMax) {
     ch.dot(Lmm / 2, 2 * q, COL.orange, 5);
-    caption(c2.ctx, ch.toX(Lmm / 2), ch.toY(2 * q) - 12, 'halve L → double q', COL.orange, true);
+    // at the chart's ceiling the label would sit above the plot and clip — drop it under the legend instead
+    const hy = ch.toY(2 * q) - 12;
+    if (hy < ch.m.t + 20) caption(c2.ctx, ch.toX(Lmm / 2) + 78, ch.m.t + 34, 'halve L → double q', COL.orange, true);
+    else caption(c2.ctx, ch.toX(Lmm / 2), hy, 'halve L → double q', COL.orange, true);
   }
   if (G) ghostDot(ch, G.Lmm, G.q, 'before: ' + fmt(G.q, 0) + ' W');
   ch.dot(Lmm, q, COL.purple, 6);
@@ -1384,7 +1400,7 @@ function drawLevelup(){
     caption(ctx, 320, yC + 24, 'R wall = ' + fmt(Rwall, 3) + ' K/W — the only resistor', COL.ink, true);
     caption(ctx, 320, yC + 39, 'carries 100% of ΔT = ' + fmt(dT, 0) + ' K', COL.axis);
   }
-  caption(ctx, 320, yC + 88, 'resistor length ∝ share of R_total · q = ΔT / R_total = ' +
+  caption(ctx, 320, yC + 88, 'resistor length = share of R_total · q = ΔT / R_total = ' +
     fmt(dT, 0) + ' K / ' + fmt(Rtot, 3) + ' K/W = ' + fmt(q, 0) + ' W', COL.axis);
 
   // --- chart: q vs film resistance ---

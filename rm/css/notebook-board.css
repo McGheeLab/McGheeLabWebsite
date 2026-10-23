@@ -1,0 +1,110 @@
+/* ================================================================
+   V3.830 — notebook whiteboard host (rm/pages/notebook-board.html)
+   ================================================================
+   The page IS the iframe: the board fills it, a thin bar above carries
+   🎙 Record and the recordings toggle, and ＋ From paper opens a picker
+   column beside the sheet. Shared board styles come from
+   /whiteboard-board.css; this file only adds the host chrome. */
+html, body.nbb-body{ height: 100%; margin: 0; background: #f3f4f6; overflow: hidden; }
+.nbb-root{ display: flex; flex-direction: column; height: 100dvh; min-height: 0; }
+.nbb-bar{
+  flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 6px 10px; background: #fff; border-bottom: 1px solid #e5e7eb; font-size: .85rem;
+}
+.nbb-bar[hidden]{ display: none; }
+.nbb-bar .nbb-title{ font-weight: 700; margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nbb-main{ flex: 1; min-height: 0; display: flex; align-items: stretch; }
+.nbb-mount{ flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.nbb-loading, .nbb-msg{ padding: 24px; color: #6b7280; font-size: .9rem; }
+.nbb-msg a{ color: #2563eb; }
+/* the engine's page fills the host instead of the SPA's calc(100dvh − 150px) */
+.nbb-mount .wb-page{ height: auto; min-height: 0; flex: 1; max-width: none; margin: 0; padding: 0 6px; }
+body.wb-max .nbb-mount .wb-page{ position: static; height: auto; }
+
+/* ── the bar: record + recordings ── */
+.btn.btn-small{ padding: 4px 10px; font-size: 13px; }
+.btn.btn-secondary{ background: #f3f4f6; }
+.btn.btn-ghost{ background: transparent; }
+.muted-text{ color: #6b7280; }
+.wb-live-dot{ width: 9px; height: 9px; border-radius: 50%; background: #dc2626; display: inline-block; flex: none; animation: nbb-pulse 1.4s ease-in-out infinite; }
+@keyframes nbb-pulse{ 0%,100%{ opacity: 1; } 50%{ opacity: .35; } }
+.wb-armed{ background: #dc2626 !important; color: #fff !important; }
+.wb-input{ padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: .9rem; }
+.wb-field-err{ color: #dc2626; font-size: .8rem; }
+.nbb-rec-btn.nbb-rec-on{ background: #dc2626; color: #fff; border-color: #dc2626; }
+.nbb-rec-timer{ font-variant-numeric: tabular-nums; }
+.nbb-recs{
+  flex: none; max-height: 34%; overflow: auto; background: #fff; border-top: 1px solid #e5e7eb;
+  padding: 8px 12px; font-size: .85rem;
+}
+.nbb-recs[hidden]{ display: none; }
+.nbb-recs-head{ font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: #6b7280; margin-bottom: 6px; }
+.nbb-rec{ display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid #f3f4f6; }
+.nbb-rec-name{ font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nbb-rec-meta{ color: #6b7280; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.nbb-rec-live{ color: #dc2626; font-weight: 600; }
+.nbb-rec-int{ color: #b45309; }
+
+/* ── the From-paper picker column ── */
+.nbb-picker{
+  flex: none; width: min(46%, 520px); min-width: 300px; display: flex; flex-direction: column;
+  background: #fff; border-left: 1px solid #d1d5db; min-height: 0;
+}
+.nbb-picker[hidden]{ display: none; }
+.nbb-pk-head{ flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #e5e7eb; }
+.nbb-pk-head .nbb-pk-title{ font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9rem; }
+.nbb-pk-search{ flex: none; padding: 8px 10px; border-bottom: 1px solid #e5e7eb; }
+.nbb-pk-search input{ width: 100%; box-sizing: border-box; }
+.nbb-pk-list{ flex: 1; overflow: auto; min-height: 0; }
+.nbb-pk-row{
+  display: block; width: 100%; text-align: left; padding: 8px 10px; border: 0; border-bottom: 1px solid #f3f4f6;
+  background: #fff; cursor: pointer; font: inherit; color: inherit;
+}
+.nbb-pk-row:hover{ background: #f9fafb; }
+.nbb-pk-row-title{ font-weight: 600; font-size: .86rem; line-height: 1.25; }
+.nbb-pk-row-meta{ color: #6b7280; font-size: .76rem; margin-top: 2px; }
+.nbb-pk-row-nopdf{ opacity: .55; }
+.nbb-pk-tabs{ flex: none; display: flex; border-bottom: 1px solid #e5e7eb; }
+.nbb-pk-tab{ flex: 1; border: 0; background: #fff; padding: 7px 4px; font: inherit; font-size: .8rem; font-weight: 600; color: #6b7280; cursor: pointer; border-bottom: 2px solid transparent; }
+.nbb-pk-tab.nbb-sel{ color: #111827; border-bottom-color: #f0be46; }
+.nbb-pk-body{ flex: 1; min-height: 0; overflow: auto; position: relative; }
+.nbb-pk-hint{ padding: 8px 10px; font-size: .76rem; color: #6b7280; background: #fffbeb; border-bottom: 1px solid #fde68a; flex: none; }
+.nbb-pk-status{ padding: 16px 10px; color: #6b7280; font-size: .85rem; }
+.nbb-pk-status.nbb-err{ color: #dc2626; }
+/* PDF pane: the reader's viewer, reused */
+.nbb-pdf{ position: absolute; inset: 0; overflow: auto; background: #e5e7eb; }
+.nbb-pdf .pv-page-wrap{ position: relative; margin: 10px auto; background: #fff; box-shadow: 0 1px 4px rgba(15,23,42,.2); }
+.nbb-pdf .pv-canvas{ display: block; }
+.nbb-pdf .textLayer{ -webkit-user-select: none; user-select: none; }
+.nbb-hs-layer{ position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+.nbb-hs{
+  position: absolute; pointer-events: auto; cursor: pointer; border: 2px dashed rgba(37,99,235,.55); border-radius: 4px;
+  background: rgba(37,99,235,.05); transition: background .12s;
+}
+.nbb-hs:hover{ background: rgba(37,99,235,.18); border-style: solid; }
+.nbb-hs-badge{
+  position: absolute; left: 4px; top: 4px; padding: 1px 6px; border-radius: 999px; background: #2563eb; color: #fff;
+  font: 600 .66rem system-ui, sans-serif; white-space: nowrap; max-width: 80%; overflow: hidden; text-overflow: ellipsis;
+}
+.nbb-mq{ position: absolute; z-index: 6; border: 2px solid #dc2626; background: rgba(220,38,38,.08); pointer-events: none; }
+.nbb-mq-acts{
+  position: absolute; z-index: 7; display: flex; gap: 4px; padding: 4px; border-radius: 8px;
+  background: #fff; border: 1px solid #d1d5db; box-shadow: 0 2px 8px rgba(15,23,42,.2);
+}
+.nbb-mq-acts .btn{ white-space: nowrap; }
+.nbb-pk-busy{ position: absolute; inset: 0; z-index: 8; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.6); font-weight: 600; color: #374151; }
+.nbb-pk-busy[hidden]{ display: none; }
+/* figure + highlight lists */
+.nbb-fig{ display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: left; padding: 8px 10px; border: 0; border-bottom: 1px solid #f3f4f6; background: #fff; cursor: pointer; font: inherit; color: inherit; }
+.nbb-fig:hover{ background: #f9fafb; }
+.nbb-fig img{ width: 96px; height: 72px; object-fit: contain; background: #fff; border: 1px solid #e5e7eb; border-radius: 4px; flex: none; }
+.nbb-fig-name{ font-weight: 600; font-size: .84rem; }
+.nbb-fig-meta{ color: #6b7280; font-size: .74rem; margin-top: 2px; }
+.nbb-hl{ display: block; width: 100%; text-align: left; padding: 8px 10px 8px 14px; border: 0; border-left: 4px solid #fde047; border-bottom: 1px solid #f3f4f6; background: #fff; cursor: pointer; font: inherit; color: inherit; }
+.nbb-hl:hover{ background: #f9fafb; }
+.nbb-hl-quote{ font-family: Georgia, serif; font-size: .84rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.nbb-hl-meta{ color: #6b7280; font-size: .74rem; margin-top: 3px; }
+@media (max-width: 760px){
+  .nbb-main{ flex-direction: column; }
+  .nbb-picker{ width: auto; min-width: 0; max-height: 55%; border-left: 0; border-top: 1px solid #d1d5db; }
+}

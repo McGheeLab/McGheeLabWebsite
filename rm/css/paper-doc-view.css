@@ -693,6 +693,24 @@ ol.pdv-list { list-style: decimal; }
 .pdv-booktabs { border-top: 1.5px solid #111; border-bottom: 1.5px solid #111; }
 .pdv-booktabs tr.pdv-thead td { border-bottom: 1px solid #111; font-weight: 600; }
 .pdv-grid td { border: 1px solid #6b7280; }
+/* V3.651 — table styling in the journal-page preview. `pdv-tbl-rules-*`
+ * comes from the shared PaperLayout.parseTableStyle, so this preview, the
+ * builder grid, the doc-side block and the compiled .tex agree. */
+.pdv-table.pdv-tbl-rules-none { border-top: none; border-bottom: none; }
+.pdv-table.pdv-tbl-rules-none td { border: none; }
+.pdv-table.pdv-tbl-rules-grid td { border: 1px solid #6b7280; }
+.pdv-table.pdv-tbl-rules-grid { border-top: none; border-bottom: none; }
+.pdv-table tr.pdv-tbl-ruled td { border-bottom: 1px solid #111; }
+.pdv-table.pdv-tbl-dens-compact td { padding: 1px 10px; }
+.pdv-table.pdv-tbl-dens-roomy   td { padding: 6px 10px; }
+.pdv-table.pdv-tbl-dens-airy    td { padding: 10px 10px; }
+.pdv-table tr.pdv-tbl-zebrarow td:not(.pdv-cell-filled) { background: #f2f3f5; }
+/* V3.652 — wrapping tables are fixed-layout and span the column, matching
+ * the p{...\linewidth} colspec the export emits. */
+.pdv-table.pdv-tbl-wrap { table-layout: fixed; width: 100%; }
+.pdv-table.pdv-tbl-wrap td { overflow-wrap: anywhere; }
+/* V3.654 — per-row extra height, mirroring \[dim] after that row. */
+.pdv-table tr.pdv-tbl-rowext > td { padding-bottom: var(--pdv-row-extra, 0); }
 .pdv-tabcap { font-size: 0.88em; line-height: 1.4; margin-top: 6px; text-align: left; }
 .pdv-tabcap .pdv-para { display: inline; }
 

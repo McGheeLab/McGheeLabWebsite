@@ -174,9 +174,17 @@ const deletePaper = onRequest(
       return;
     }
 
-    // 1. Storage blob.
+    // 1. Storage blob(s). V3.621 — also the paper-figures/{itemId}/ prefix:
+    //    reader figure captures upload there (figure-capture.js) and were
+    //    orphaned by item deletion (only builder papers cleaned the prefix,
+    //    via delete-builder-paper.js).
     const storagePath = (lib.pdf && lib.pdf.storage_path) || '';
     const blobDeleted = await _deleteStorageBlob(storagePath);
+    try {
+      await getStorage().bucket().deleteFiles({ prefix: 'paper-figures/' + itemId + '/' });
+    } catch (err) {
+      console.warn('[deletePaper] figure-prefix delete failed for', itemId, err.message);
+    }
 
     // 2. Recursive delete of papers/{itemId} (annotations, yjs_*, snapshots,
     //    comments, presence, plus the doc itself if any). This is a single

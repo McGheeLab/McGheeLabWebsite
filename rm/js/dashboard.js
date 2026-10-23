@@ -305,6 +305,22 @@ async function _runDashboard() {
     grid.appendChild(card('Inventory', invItems.length, invBody, '/rm/pages/inventory.html'));
   } catch (e) { /* inventory data not yet populated */ }
 
+  // 12b. Procurement (V3.813) — what is waiting on someone right now.
+  try {
+    var procData = await api.load('procurement/tickets.json');
+    var procTix = (procData && procData.tickets) || [];
+    var pc = { requested: 0, needs_info: 0, approved: 0, ordered: 0, received: 0 };
+    procTix.forEach(function (t) { var st = t.status || 'requested'; if (pc[st] != null) pc[st]++; });
+    var procOpen = pc.requested + pc.needs_info + pc.approved + pc.ordered + pc.received;
+    var procBits = [];
+    if (pc.requested) procBits.push('<span style="color:var(--amber)">' + pc.requested + ' awaiting approval</span>');
+    if (pc.needs_info) procBits.push(pc.needs_info + ' waiting on a question');
+    if (pc.approved) procBits.push(pc.approved + ' to order');
+    if (pc.ordered) procBits.push(pc.ordered + ' on order');
+    if (pc.received) procBits.push('<span style="color:var(--green)">' + pc.received + ' to put away</span>');
+    grid.appendChild(card('Procurement', procOpen, procBits.length ? procBits.join(' · ') : 'No open requests', '/rm/pages/procurement.html'));
+  } catch (e) { /* procurement not readable (guest) — skip the card */ }
+
   // 13. Chemical Safety
   try {
     var chems = chemicals.chemicals || [];
@@ -399,21 +415,34 @@ async function _runDashboard() {
 
     try {
       // Meetings — next upcoming or recent
+      // Forward-looking: the 6 nearest meetings from today (the old
+      // desc/limit-5 read the LAST five of the semester, so "next" was
+      // December in September). Single-field range → no composite index.
       var meetingsSnap = await db.collection('meetings')
-        .orderBy('date', 'desc').limit(5).get();
+        .where('date', '>=', today()).orderBy('date').limit(6).get();
       var meetings = meetingsSnap.docs.map(function (d) { return d.data(); });
+      // V3.743 — read the real schema: status/kind, presenters as a uid-keyed
+      // map (legacy array tolerated), actionItems[].status === 'done'.
       var upcoming = meetings.filter(function (m) {
-        return m.date && m.date >= today();
-      });
+        return m.date && m.date >= today() && m.status !== 'cancelled' && m.kind !== 'break';
+      }).sort(function (a, b) { return a.date.localeCompare(b.date); });
       var actionItems = 0;
       meetings.forEach(function (m) {
-        if (m.actionItems) actionItems += m.actionItems.filter(function (a) { return !a.completed; }).length;
+        if (m.actionItems) actionItems += m.actionItems.filter(function (a) { return a.status !== 'done'; }).length;
       });
+      function presenterNames(m) {
+        if (m.kind === 'flash') return 'flash talks';
+        var p = m.presenters;
+        var names = Array.isArray(p) ? p.map(function (x) { return x.name; })
+          : (p && typeof p === 'object') ? Object.keys(p).map(function (uid) { return p[uid].name; }) : [];
+        names = names.filter(Boolean).map(function (n) { return n.split(/\s+/)[0]; });
+        return names.length ? names.join(' & ') : 'presenter TBD';
+      }
       var meetBody = upcoming.length
-        ? 'Next: ' + (upcoming[0].title || upcoming[0].topic || 'Lab Meeting')
+        ? 'Next: ' + upcoming[0].date.slice(5).replace('-', '/') + ' · ' + presenterNames(upcoming[0])
         : (actionItems ? actionItems + ' open action items' : 'No upcoming meetings');
-      grid.appendChild(card('Lab Meetings', meetings.length,
-        meetBody, '#'));
+      grid.appendChild(card('Lab Meetings', upcoming.length,
+        meetBody, '/rm/pages/meetings.html'));
     } catch (e) {
       console.warn('[dashboard] Meetings read failed:', e.message);
     }

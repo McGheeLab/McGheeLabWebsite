@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.830 — whiteboard engine in notebook mode</title>
+<link rel="stylesheet" href="/whiteboard-board.css">
+<style>body{font:13px/1.5 system-ui,sans-serif;margin:20px}.ok{color:#15803d}.bad{color:#b91c1c}code{background:#f3f4f6;padding:1px 4px;border-radius:3px}#r{margin:14px 0;padding:10px;border:1px solid #e5e7eb}
+#host{width:960px;height:600px;border:1px solid #ccc;display:flex;flex-direction:column}#host .wb-page{height:100%;min-height:0;flex:1;max-width:none}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;font:inherit}.btn-small{padding:4px 8px;font-size:12px}.muted-text{color:#6b7280}</style>
+<script>
+window.__popups = [];
+['prompt','alert','confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
+/* ── in-memory Firestore + Storage stub ── */
+(function () {
+  var store = new Map(), listeners = [], touched = [];
+  function snapOf(path) { return { id: path.split('/').pop(), exists: store.has(path), data: function () { return store.has(path) ? JSON.parse(JSON.stringify(store.get(path))) : undefined; }, ref: docRef(path) }; }
+  function docsIn(path) { var out = []; store.forEach(function (v, k) { if (k.slice(0, k.lastIndexOf('/')) === path) out.push(snapOf(k)); }); return out; }
+  function fire(path, type) {
+    var parent = path.slice(0, path.lastIndexOf('/'));
+    listeners.slice().forEach(function (l) {
+      if (l.kind === 'doc' && l.path === path) l.cb(snapOf(path));
+      if (l.kind === 'col' && l.path === parent) l.cb({ docChanges: function () { return [{ type: type, doc: snapOf(path) }]; }, docs: docsIn(parent), size: 1, empty: false });
+    });
+  }
+  function docRef(path) {
+    return {
+      path: path, id: path.split('/').pop(),
+      collection: function (n) { return colRef(path + '/' + n); },
+      get: function () { touched.push('get ' + path); return Promise.resolve(snapOf(path)); },
+      set: function (d, o) { touched.push('set ' + path); var existed = store.has(path); store.set(path, (o && o.merge) ? Object.assign({}, store.get(path) || {}, d) : JSON.parse(JSON.stringify(d))); fire(path, existed ? 'modified' : 'added'); return Promise.resolve(); },
+      update: function (d) { touched.push('update ' + path); var next = Object.assign({}, store.get(path) || {}); Object.keys(d).forEach(function (k) { if (d[k] === '__DEL__') delete next[k]; else if (d[k] && d[k].__arrayUnion) next[k] = (next[k] || []).concat([d[k].__arrayUnion]); else next[k] = d[k]; }); store.set(path, next); fire(path, 'modified'); return Promise.resolve(); },
+      delete: function () { touched.push('delete ' + path); store.delete(path); fire(path, 'removed'); return Promise.resolve(); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'doc', cb: cb }; listeners.push(l); setTimeout(function () { cb(snapOf(path)); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+  }
+  function colRef(path) {
+    var q = { path: path,
+      doc: function (id) { return docRef(path + '/' + (id || ('auto' + Math.random().toString(36).slice(2, 8)))); },
+      orderBy: function () { return q; }, where: function () { return q; }, limit: function () { return q; },
+      get: function () { var d = docsIn(path); return Promise.resolve({ docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'col', cb: cb }; listeners.push(l); var d = docsIn(path); setTimeout(function () { cb({ docChanges: function () { return d.map(function (s) { return { type: 'added', doc: s }; }); }, docs: d, size: d.length, empty: !d.length }); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+    return q;
+  }
+  var db = {
+    collection: function (n) { return colRef(n); },
+    batch: function () { var ops = []; return { set: function (ref, d) { ops.push(function () { return ref.set(d); }); }, delete: function (ref) { ops.push(function () { return ref.delete(); }); }, commit: function () { return ops.reduce(function (p, f) { return p.then(f); }, Promise.resolve()); } }; }
+  };
+  window.__stub = { store: store, touched: touched, db: db };
+  window.firebase = {
+    firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; }, delete: function () { return '__DEL__'; }, arrayUnion: function (x) { return { __arrayUnion: x }; } } },
+    storage: function () { return { ref: function () { return { child: function (p) { return { put: function () { touched.push('put ' + p); return Promise.resolve(); }, getDownloadURL: function () { return Promise.resolve('https://storage.example/' + p); }, delete: function () { touched.push('rm ' + p); return Promise.resolve(); } }; } }; } }; }
+  };
+  window.McgheeLab = { db: db, Auth: { currentUser: { uid: 'u1', email: 'a@x.com' }, currentProfile: { role: 'member' }, onChange: function () {}, offChange: function () {} } };
+  store.set('userData/u1/notebookBoards/nb1_u1', { name: 'Sketches', pages: [{ id: 'p1', background: 'blank' }, { id: 'p2', background: 'grid' }], activePageId: 'p1', ownerUid: 'u1' });
+  /* ?class=1 — regression: the CLASS board must be untouched by the notebook family */
+  store.set('schedules/bme466', { title: 'BME466', classAdminEmails: ['a@x.com'], ownerUid: null });
+  store.set('schedules/bme466/whiteboards/b1', { name: 'Week 3', pages: [{ id: 'p1', background: 'grid' }], activePageId: 'p1' });
+  /* synthetic PointerEvent coalescing (harness lesson from V3.727) */
+  if (window.PointerEvent && !PointerEvent.prototype.getCoalescedEvents) PointerEvent.prototype.getCoalescedEvents = function () { return [this]; };
+})();
+</script>
+<script src="/rm/js/icons.js"></script>   <!-- the site icon set, as every production page loads it -->
+<script src="/whiteboard.js"></script>
+</head>
+<body>
+<h1>V3.830 — whiteboard engine mounted on a notebook board (collection notebookBoards)</h1>
+<p>Serve the repo root and open <code>/scripts/tests/v3830-whiteboard-notebook-harness.html</code> (add <code>?class=1</code> for the class-board regression). Real <code>whiteboard.js</code> against a stub Firestore. Result: <code>#r[data-done=1]</code>.</p>
+<div id="r">running…</div>
+<div id="host"></div>
+<script>
+(function () {
+  var out = [], pass = 0, fail = 0;
+  function ok(c, m, got) { if (c) pass++; else fail++; out.push('<div class="' + (c ? 'ok' : 'bad') + '">' + (c ? '✓' : '✗') + ' ' + m + (got !== undefined ? '  →  <code>' + String(got).replace(/</g, '&lt;') + '</code>' : '') + '</div>'); }
+  function done() { var r = document.getElementById('r'); r.innerHTML = '<b>' + pass + ' passed, ' + fail + ' failed</b>' + out.join(''); r.dataset.done = '1'; r.dataset.pass = pass; r.dataset.fail = fail; }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function until(fn, ms) { ms = ms || 4000; var t0 = Date.now(); return new Promise(function (res, rej) { (function poll() { var v; try { v = fn(); } catch (e) {} if (v) return res(v); if (Date.now() - t0 > ms) return rej(new Error('timeout')); setTimeout(poll, 40); })(); }); }
+  var q = function (s) { return document.querySelector(s); }, qa = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  var store = window.__stub.store, touched = window.__stub.touched;
+
+  async function classRegression() {
+    var host = document.getElementById('host');
+    host.innerHTML = Whiteboard.boardShellHTML({ classId: 'bme466', ids: true });
+    var h = await Whiteboard.mountBoardView(host.querySelector('.wb-page'), { classId: 'bme466', boardId: 'b1', chrome: 'full', view: { enabled: true }, items: { enabled: true } });
+    ok(!!h, 'class board mounts (collection whiteboards)');
+    await until(function () { return h.getBoard() && q('.wb-toolbar') && !q('.wb-toolbar').hidden; });
+    ok(h.isAdmin(), 'class admin (classAdminEmails) may draw');
+    ok(!!q('.wb-sheetmode') && !!q('[data-wb-act="sim-form"]') && !!q('[data-wb-act="arrange"]'), 'class toolbar keeps Continuous/Pages + ＋ Simulation and gains ⤧ Arrange');
+    ok(!!q('[data-wb-act="live-toggle"]') && !!q('[data-wb-act="role-leader"]'), 'Go live + Leader/Follower still render for a class admin');
+    ok(h.getCollection() === 'whiteboards' && touched.some(function (t) { return /schedules\/bme466\/whiteboards\/b1/.test(t); }), 'routes under schedules/{classId}/whiteboards');
+    var id = await h.addImageItem({ url: 'https://storage.example/m.webp', ar: 1.6 });
+    var it = store.get('schedules/bme466/whiteboards/b1/items/' + id);
+    ok(it && it.pageId === 'p1' && it.x === 0.14 && it.y === 0.1 && it.src === 'canvas', 'class addImageItem keeps the V3.684 placement + src', JSON.stringify(it && { x: it.x, y: it.y, src: it.src }));
+    var pngs = await h.exportPNGs({ width: 800 });
+    ok(pngs.length === 1, 'export ok');
+    ok(window.__popups.length === 0, 'no browser popups');
+    h.destroy(); ok(true, 'destroy ok');
+  }
+
+  (async function () {
+    try {
+      if (/class=1/.test(location.search)) { await classRegression(); done(); return; }
+      var tools = [];
+      var host = document.getElementById('host');
+      host.innerHTML = Whiteboard.boardShellHTML({ classId: 'u1', ids: false, back: false, zoomControls: true, maximize: false });
+      var h = await Whiteboard.mountBoardView(host.querySelector('.wb-page'), {
+        classId: 'u1', boardId: 'nb1_u1', collection: 'notebookBoards', ownerUid: 'u1', boardName: 'Sketches',
+        chrome: 'full', view: { enabled: true }, items: { enabled: true }, pills: false,   /* V3.837: the legacy linear toolbar path */
+        tools: [{ act: 'paper', label: '＋ From paper', title: 't' }], onTool: function (a) { tools.push(a); }
+      });
+      ok(!!h, 'mountBoardView returns a handle for collection notebookBoards');
+      await until(function () { return h.getBoard() && q('.wb-toolbar') && !q('.wb-toolbar').hidden; });
+      ok(h.isAdmin() === true, 'the owner (board id suffix = uid) may draw');
+      ok(h.getCollection() === 'notebookBoards', 'handle.getCollection');
+      ok(!q('.wb-sheetmode') && !q('[data-wb-act="sim-form"]') && !q('[data-wb-act="mode-pages"]'), 'no Continuous/Pages toggle and no ＋ Simulation on a notebook board');
+      ok(q('[data-wb-act="arrange"]') && q('[data-wb-act="tool"][data-tool="paper"]'), 'toolbar has ⤧ Arrange and the host tool ＋ From paper');
+      ok(q('.wb-side').hidden && q('.wb-topbar-right').innerHTML === '' && !q('[data-wb-act="live-toggle"]') && !q('[data-wb-act="role-leader"]'), 'no live column, Go live, or Leader/Follower');
+      ok(touched.some(function (t) { return /userData\/u1\/notebookBoards\/nb1_u1/.test(t); }) && !touched.some(function (t) { return /schedules/.test(t); }), 'board routes under userData/{uid}/notebookBoards and never touches schedules', touched.slice(0, 3).join(' | '));
+      ok(qa('.wb-page-dot').length === 0 && q('.wb-pagesbar').hidden && q('.wb-rail').hidden, 'V3.841: a notebook board is one plane — no page dots, no rail');
+
+      q('[data-wb-act="tool"][data-tool="paper"]').click();
+      await wait(20);
+      ok(tools.join(',') === 'paper', 'the host tool button calls onTool("paper")', tools.join(','));
+
+      /* text item */
+      var id = await h.addTextItem({ text: 'Collagen fibrils align under flow.', cite: 'Smith et al., 2020, p. 4', paperId: 'x', page: 4 });
+      ok(!!id && store.has('userData/u1/notebookBoards/nb1_u1/items/' + id), 'addTextItem writes an items doc', id);
+      var it = store.get('userData/u1/notebookBoards/nb1_u1/items/' + id);
+      ok(it.type === 'text' && it.text.indexOf('Collagen') === 0 && it.cite.indexOf('Smith') === 0 && it.pageId === 'p1' && it.x > 0 && it.y >= 0.03, 'text item doc: type/text/cite/page placement', JSON.stringify({ pageId: it.pageId, x: it.x, y: it.y, w: it.w }));
+      await until(function () { return q('.wb-item-text'); });
+      ok(q('.wb-item-text .wb-item-quote').textContent.indexOf('Collagen') === 0 && q('.wb-item-text .wb-item-cite').textContent.indexOf('Smith') === 0, 'the card renders under the ink with quote + citation');
+      var fs = parseFloat(getComputedStyle(q('.wb-item-text')).fontSize);
+      ok(fs > 6 && fs < 40, 'card font scales with the page', fs);
+
+      /* image item from the picker path */
+      var iid = await h.addImageItem({ url: 'https://storage.example/m.webp', fullUrl: 'https://storage.example/f.webp', storagePath: 'notebook-boards/u1/nb1_u1/items/i9', ar: 1.5, src: 'paper', srcLabel: 'Fig 2 — Smith', paperId: 'x', page: 2 });
+      await until(function () { return qa('.wb-item').length === 2; });
+      ok(!!iid && store.get('userData/u1/notebookBoards/nb1_u1/items/' + iid).src === 'paper', 'addImageItem keeps src/paperId from the host');
+
+      /* arrange mode */
+      ok(!q('.wb-item-del') && !q('.wb-item-resize'), 'no item tools rendered while drawing');
+      q('[data-wb-act="arrange"]').click();
+      await wait(30);
+      ok(q('.wb-page').classList.contains('wb-arrange') && h.isArrange(), '⤧ Arrange sets .wb-arrange');
+      ok(getComputedStyle(q('.wb-item-del')).display !== 'none' && getComputedStyle(q('.wb-items')).zIndex === '4', 'items lift above the ink with × and resize handles');
+      /* drag the text card 100px right with a synthetic pointer sequence on the layer */
+      var layer = q('.wb-items'), card = q('.wb-item-text');
+      var r = card.getBoundingClientRect();
+      var ev = function (type, x, y, target) { var e = new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 7, pointerType: 'mouse', button: 0 }); (target || layer).dispatchEvent(e); };
+      var before = store.get('userData/u1/notebookBoards/nb1_u1/items/' + id).x;
+      ev('pointerdown', r.left + 10, r.top + 10, card);
+      ev('pointermove', r.left + 60, r.top + 10);
+      ev('pointermove', r.left + 110, r.top + 10);
+      ev('pointerup', r.left + 110, r.top + 10);
+      await until(function () { var d = store.get('userData/u1/notebookBoards/nb1_u1/items/' + id); return d && d.x > before; }, 3000);
+      var after = store.get('userData/u1/notebookBoards/nb1_u1/items/' + id);
+      ok(after.x > before && Math.abs(after.y - it.y) < 0.01, 'dragging in Arrange mode writes the new x (y unchanged)', before + ' → ' + after.x);
+      /* two-tap delete of the image item */
+      var del = q('.wb-item:not(.wb-item-text) .wb-item-del');
+      ev('pointerdown', 0, 0, del);
+      await wait(20);
+      ok(store.has('userData/u1/notebookBoards/nb1_u1/items/' + iid), 'first tap on × only arms');
+      ev('pointerdown', 0, 0, del);
+      await until(function () { return !store.has('userData/u1/notebookBoards/nb1_u1/items/' + iid); }, 3000);
+      ok(touched.some(function (t) { return t === 'rm notebook-boards/u1/nb1_u1/items/i9/medium.webp'; }), 'second tap deletes the doc and the notebook upload bytes');
+      q('[data-wb-act="arrange"]').click();
+      await wait(20);
+      ok(!q('.wb-page').classList.contains('wb-arrange'), 'Arrange off again');
+
+      /* export draws the text card (page not skipped as blank) */
+      var pngs = await h.exportPNGs({ width: 800 });
+      ok(pngs.length === 1 && pngs[0].pageId === 'p1' && /^data:image\/webp/.test(pngs[0].dataUrl), 'export flattens the page with the text card', pngs.length);
+
+      /* recording without a mic: no crash, null */
+      var rec = await h.startRecording();
+      ok(rec === null && !h.isRecording(), 'startRecording with no microphone returns null (no live flag involved)');
+      ok(!touched.some(function (t) { return /schedules/.test(t); }), 'still nothing under schedules/');
+      ok(window.__popups.length === 0, 'no browser popups');
+      h.destroy();
+      ok(true, 'destroy ok');
+    } catch (e) { ok(false, 'exception: ' + (e && e.message)); console.error(e); }
+    done();
+  })();
+})();
+</script>
+</body>
+</html>

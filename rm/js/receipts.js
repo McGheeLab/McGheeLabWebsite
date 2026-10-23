@@ -89,6 +89,12 @@ async function _saveReceiptsInvItem(item) {
     clean.kind = 'item';
     clean.updatedAt = ts;
     await db.collection('inventory').doc(item.id).set(clean, { merge: true });
+    // V3.646 — see inventory.js:_saveInvItemsSurgical. A surgical write bypasses
+    // api.save, so nothing clears the route's MEDIUM (30 min) cache and the next
+    // page load serves pre-edit data.
+    try {
+      if (typeof api !== 'undefined' && api.invalidate) await api.invalidate(INV_PATH);
+    } catch (e) { /* cache hygiene must never fail a completed write */ }
   } catch (err) {
     console.warn('[receipts] surgical inv save failed, falling back:', err.message);
     await api.save(INV_PATH, _invData);

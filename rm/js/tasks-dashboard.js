@@ -151,9 +151,9 @@ function derivePriority(task) {
   return { flag: 'on-track', label: 'on track' };
 }
 const PRIORITY_FLAG_STYLE = {
-  'overdue':       { bg: '#fecaca', fg: '#7f1d1d', icon: '\u26A0' },
-  'overdue-risk':  { bg: '#fee2e2', fg: '#991b1b', icon: '\u26A0' },
-  'schedule-now':  { bg: '#fef3c7', fg: '#92400e', icon: '\u23F3' },
+  'overdue':       { bg: '#fecaca', fg: '#7f1d1d', icon: 'exclamation-triangle' },
+  'overdue-risk':  { bg: '#fee2e2', fg: '#991b1b', icon: 'exclamation-triangle' },
+  'schedule-now':  { bg: '#fef3c7', fg: '#92400e', icon: 'clock' },
   'on-track':      { bg: '#dcfce7', fg: '#166534', icon: '\u2713' },
   'unscheduled':   { bg: '#e5e7eb', fg: '#374151', icon: '\u2014' },
 };
@@ -640,7 +640,7 @@ function renderSuggestionStrip() {
       <div class="sug-title">${S.escapeHtml(task.title || '')}</div>
       <div class="sug-meta">
         <span>${S.escapeHtml(task.category || '?')}${task.sub_category ? ' / ' + S.escapeHtml(task.sub_category) : ''}</span>
-        <span class="priority-chip" style="background:${sty.bg};color:${sty.fg}">${sty.icon} ${pri.flag.replace('-',' ')}</span>
+        <span class="priority-chip" style="background:${sty.bg};color:${sty.fg}">${ICON.render(sty.icon)} ${pri.flag.replace('-',' ')}</span>
       </div>
     `;
     const btn = document.createElement('button');
@@ -1119,7 +1119,7 @@ function renderBucketBox(bucket) {
 
   const unpin = document.createElement('button');
   unpin.className = 'btn-icon bucket-unpin';
-  unpin.textContent = '\u2716';
+  ICON.label(unpin, 'x-mark');
   unpin.title = 'Unpin this project';
   unpin.addEventListener('click', async () => {
     if (!confirmAction(`Unpin "${cat}${sub ? ' / ' + sub : ''}" from dashboard?`)) return;
@@ -1414,7 +1414,7 @@ function bucketRowShell(type, id, bucket, ui, headerHtml, bodyFn, extraFooterFn,
   if (allowReclassify && id && record) {
     const btn = document.createElement('button');
     btn.className = 'btn-icon focus-reclass-btn';
-    btn.textContent = '\u21aa';
+    ICON.label(btn, 'arrow-turn-down-right');
     const tgtPath = [bucket.category || '', bucket.sub_category || ''].filter(Boolean).join(':');
     btn.title = `Reclassify this ${type} to ${tgtPath}`;
     btn.addEventListener('click', (ev) => {
@@ -1591,7 +1591,7 @@ function bucketActivityRow(a, type, bucket, ui, allowReclassify) {
 }
 
 function bucketTaskRow(t, type, bucket, ui, allowReclassify) {
-  const pin = t.pinned ? '\ud83d\udccc ' : '';
+  const pin = t.pinned ? ICON.svg('pin') + ' ' : '';
   const header = `
     <span class="rel-date">${S.escapeHtml(t.status || '')}</span>
     <span class="rel-title">${pin}${S.escapeHtml(t.title || '')}</span>
@@ -1829,7 +1829,7 @@ function renderTaskCard(task) {
     flag.style.background = sty.bg;
     flag.style.color = sty.fg;
     flag.title = pri.label;
-    flag.textContent = `${sty.icon} ${pri.flag.replace('-', ' ')}`;
+    flag.innerHTML = ICON.render(sty.icon) + ' ' + S.escapeHtml(pri.flag.replace('-', ' '));
 
     const stars = S.starBar(task.importance || 0, (v) => setImportance(task, v), 12);
 
@@ -1871,7 +1871,7 @@ function renderTaskCard(task) {
     const unpin = document.createElement('button');
     unpin.className = 'btn-icon';
     unpin.title = 'Unpin';
-    unpin.textContent = '\u2716';
+    ICON.label(unpin, 'x-mark');
     unpin.addEventListener('click', () => setPinned(task, false));
 
     row.appendChild(flag);
@@ -2050,7 +2050,7 @@ function relActivityRow(a) {
 function relTaskRow(t) {
   const li = document.createElement('li');
   li.className = 'rel-row';
-  const pin = t.pinned ? '\ud83d\udccc ' : '';
+  const pin = t.pinned ? ICON.svg('pin') + ' ' : '';
   li.innerHTML = `<span class="rel-date">${S.escapeHtml(t.status || '')}</span><span class="rel-title">${pin}${S.escapeHtml(t.title || '')}</span><span class="rel-meta">${S.escapeHtml(t.sub_category || '')}</span>`;
   return li;
 }
@@ -2237,7 +2237,7 @@ function renderFocusHeader(task) {
   const priChip = document.createElement('span');
   priChip.className = 'priority-chip';
   priChip.style.cssText = `background:${sty.bg};color:${sty.fg};margin-left:10px;vertical-align:middle`;
-  priChip.textContent = `${sty.icon} ${pri.flag.replace('-', ' ')}`;
+  priChip.innerHTML = ICON.render(sty.icon) + ' ' + S.escapeHtml(pri.flag.replace('-', ' '));
   titleWrap.querySelector('h2').appendChild(priChip);
   header.appendChild(titleWrap);
 
@@ -2518,7 +2518,7 @@ function focusRowShell(type, id, task, headerHtml, bodyFn, extraFooterFn, record
   if (allowReclassify && id && record) {
     const btn = document.createElement('button');
     btn.className = 'btn-icon focus-reclass-btn';
-    btn.textContent = '\u21aa';
+    ICON.label(btn, 'arrow-turn-down-right');
     const tgtPath = [task.category || '', task.sub_category || ''].filter(Boolean).join(':');
     btn.title = `Reclassify this ${type} to ${tgtPath}`;
     btn.addEventListener('click', (ev) => {
@@ -2610,7 +2610,7 @@ function focusActivityRow(a, type, task, allowReclassify) {
 }
 
 function focusTaskRow(t, type, parentTask, allowReclassify) {
-  const pin = t.pinned ? '\ud83d\udccc ' : '';
+  const pin = t.pinned ? ICON.svg('pin') + ' ' : '';
   const header = `
     <span class="rel-date">${S.escapeHtml(t.status || '')}</span>
     <span class="rel-title">${pin}${S.escapeHtml(t.title || '')}</span>
@@ -2859,7 +2859,7 @@ function openPinPicker() {
   modal.innerHTML = `
     <div class="pin-modal-head">
       <h3>Pin projects to dashboard</h3>
-      <button class="btn-icon" id="pp-close">\u2716</button>
+      <button class="btn-icon" id="pp-close">${ICON.svg('x-mark', { label: 'Close' })}</button>
     </div>
     <input type="text" id="pp-search" placeholder="Search by category or path\u2026" class="pp-search">
     <div class="pp-create" style="display:flex;gap:6px;align-items:center;font-size:12px;padding:6px 8px;background:#f9fafb;border:1px dashed #d1d5db;border-radius:6px">

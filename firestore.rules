@@ -39,14 +39,22 @@ service cloud.firestore {
         data.get('sharedWithUids', []).hasAny([request.auth.uid]);
     }
 
-    // Helper: check if the requesting user is on the McGhee Lab Capture
-    // extension allowlist. Admins always pass. Other users are matched by
-    // their (lowercased) Google sign-in email against the `emails` array
-    // stored in labConfig/extensionMembers. The PI maintains this list via
-    // the dashboard's settings page.
+    // Helper: may the requesting user use the McGhee Lab Capture extension
+    // (read/write pending_captures and paper_index)?
+    //
+    // V3.858 — every LAB MEMBER passes (users/{uid}.role != 'guest'; admins
+    // are lab members, so "admins always pass" still holds). Alex: "all my
+    // students should be able to use this extension". The email allowlist in
+    // labConfig/extensionMembers is now only for accounts WITHOUT a lab role
+    // (an outside collaborator, a second Google account); emails are matched
+    // lowercased. The PI maintains that list from the Library page's install
+    // card. isLabMember() is exists()-guarded, so an allowlisted account that
+    // has never signed in on the site (no users/{uid} doc) falls through to
+    // the email test instead of raising — the old isAdmin() first clause
+    // raised there and denied the whole OR.
     function isExtensionMember() {
       return request.auth != null && (
-        isAdmin() ||
+        isLabMember() ||
         (request.auth.token.email != null &&
          request.auth.token.email.lower() in
            get(/databases/$(database)/documents/labConfig/extensionMembers).data.emails)
@@ -94,6 +102,22 @@ service cloud.firestore {
       return request.auth != null &&
         exists(/databases/$(database)/documents/userPermissions/$(request.auth.uid)) &&
         cap in get(/databases/$(database)/documents/userPermissions/$(request.auth.uid)).data.get('caps', []);
+    }
+
+    // ── V3.646 — inventory manager gate ───────────────────────────────
+    // Who may set an ABSOLUTE quantity (a recount/override), re-parent a box,
+    // and receive low-stock alerts. Ordinary members may only DECREASE a
+    // quantity — that is a consumption event. Raising one is a recount, and a
+    // recount is the auditable act.
+    //
+    // The cap is BOTH the authorization primitive and the addressing one:
+    // functions/inventory-alerts.js enumerates recipients with
+    //   userPermissions.where('caps','array-contains','inventory:manage')
+    // (single-field auto-index, one query), so there is no managers[] array to
+    // curate anywhere. hasCap() is LAST per the placement note above it, so
+    // admins short-circuit without the extra read.
+    function isInvMgr() {
+      return request.auth != null && (isAdmin() || hasCap('inventory:manage'));
     }
 
     // V3.243 — mentor relationship gate. Admin assigns mentors via the
@@ -193,6 +217,31 @@ service cloud.firestore {
           .data.get('mentorUids', []).hasAny([request.auth.uid]);
     }
 
+    // V3.741 — checkout lock. "Export for updates" on the papers list writes
+    // checked_out_by_uid onto projects/{id}; paper-author-sync mirrors it to
+    // papers/{id}.checkedOutByUid (Admin-SDK, like authorUids). While set, NO
+    // ONE — admins included — may append yjs_updates: the manuscript is out
+    // as a .paperbundle.zip and the web copy must not drift. Reads the same
+    // papers/{paperId} doc as isPaperAuthor, so the get() is deduped: adding
+    // this to the yjs_updates create rule costs zero extra reads. An admin
+    // clears the field (force unlock) rather than bypassing it, so client
+    // and server agree.
+    function isPaperCheckedOut(paperId) {
+      return exists(/databases/$(database)/documents/papers/$(paperId)) &&
+        get(/databases/$(database)/documents/papers/$(paperId))
+          .data.get('checkedOutByUid', null) != null;
+    }
+    // The one exception: the HOLDER of the checkout may write while locked —
+    // that is how the edited bundle comes back (the importer rebuilds the
+    // tree, then clears the lock). The holder's own web editor is still
+    // read-only client-side (canEditPaper + the paper-yjs kill-switch).
+    function isPaperCheckoutHolder(paperId) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/papers/$(paperId)) &&
+        get(/databases/$(database)/documents/papers/$(paperId))
+          .data.get('checkedOutByUid', null) == request.auth.uid;
+    }
+
     // V3.302 — publish gate for public-site content (stories, newsPosts,
     // projectPackages). Mirrors the client's Auth.canPublish(): only
     // admins and editors may write status:'published'. Everyone else is
@@ -226,7 +275,31 @@ service cloud.firestore {
     // teacher/student grants no capabilities (those come from schedules
     // ownership + enrollments membership).
     match /users/{userId} {
-      allow read:  if true;
+      // V3.637 — `users` is the lab directory (names, emails, roles, bios) and
+      // it was world-readable: any visitor could list the whole collection.
+      // That predates V3.304, but V3.304 is what made it matter — outside
+      // teachers and their students, some of them minors, now land in this
+      // same collection. Public read is therefore narrowed to the docs the
+      // public team page actually renders (`role != 'guest'`); guest docs are
+      // readable by their owner, by lab members, and by admins.
+      //
+      // A `list` is allowed only when EVERY doc it returns passes, so the
+      // public team query must carry the matching constraint — see
+      // `McgheeLab.DB.getPublicProfiles()` (app.js's team page). A read of a
+      // doc that does not exist still works for its owner: the first clause
+      // errors on the null resource, but an errored operand does not poison
+      // an `||` whose other side is true, which is what first-sign-in profile
+      // bootstrap relies on (asserted in scripts/tests/teacher-rules.test.mjs).
+      //
+      // Residual, deliberately out of scope here: lab-member docs stay
+      // publicly readable because the public team page renders them straight
+      // from this collection. Narrowing that further means mirroring the
+      // public fields into `teamProfiles` first — its own version, with a
+      // backfill.
+      allow read:  if resource.data.get('role', 'guest') != 'guest'
+                   || isOwner(userId)
+                   || isLabMember()
+                   || isAdmin();
       allow create: if isAdmin()
                     || (request.auth != null && request.auth.uid == userId
                         && (request.resource.data.get('role', 'guest') == 'guest'
@@ -234,7 +307,13 @@ service cloud.firestore {
                                 && exists(/databases/$(database)/documents/invitations/$(request.resource.data.inviteToken))
                                 && get(/databases/$(database)/documents/invitations/$(request.resource.data.inviteToken)).data.get('used', true) == false
                                 && get(/databases/$(database)/documents/invitations/$(request.resource.data.inviteToken)).data.get('role', 'contributor') == request.resource.data.get('role', 'guest'))));
-      allow update: if isAdmin()
+      // V3.806 — nobody changes their OWN role, admins included. On
+      // 2026-10-13 a client bug merge-wrote role:'guest' over the PI's own
+      // doc and the old `isAdmin() ||` let it land, locking the lab's only
+      // admin out. An admin still edits every other user's role, and their
+      // own doc's other fields through the owner clause; demoting yourself
+      // takes another admin or the console.
+      allow update: if (isAdmin() && request.auth.uid != userId)
                     || (request.auth != null && request.auth.uid == userId
                         && request.resource.data.get('role', 'guest') == resource.data.get('role', 'guest'));
       allow delete: if isAdmin()
@@ -383,7 +462,18 @@ service cloud.firestore {
     // global admin role).
     match /schedules/{scheduleId} {
       allow read:  if true;
-      allow create: if request.auth != null;
+      // V3.635 — the teacher-class marker is admin-issued. Before this, any
+      // signed-in user could create a schedules doc carrying
+      // kind:'teacher-class' with themselves as ownerUid and every module set
+      // in grantedFolders, then mint their own join code for it — i.e. the
+      // "admin approves each class request" gate was client-side only (the
+      // grantedFolders pin on *update* was airtight; create was the hole).
+      // Provisioning now belongs to the admin approve modal in
+      // rm/js/admin-teachers.js, which runs as admin. Docs without `kind`
+      // (the lab's own classes, created from class-builder) are unaffected.
+      allow create: if request.auth != null
+                    && (isAdmin()
+                        || request.resource.data.get('kind', '') != 'teacher-class');
       // V3.304 — teacher-class instances (kind:'teacher-class', provisioned
       // by admin from a classRequest) pin the admin-granted fields: the
       // owning teacher may edit their class but cannot expand grantedFolders,
@@ -404,6 +494,21 @@ service cloud.firestore {
                         || isAdmin()
                         || (request.auth.token.email != null
                             && request.auth.token.email in resource.data.get('classAdminEmails', [])));
+
+      // ── V3.675 — class roster (BME466 pilot, generic to any schedule) ──
+      // One doc per member, id = LOWERCASED email (so hwProgress rules can
+      // gate on exists() with the auth token's email). FERPA: the parent
+      // schedules doc is world-readable, so the roster deliberately lives
+      // HERE, readable/writable only by admins and the schedule's
+      // classAdminEmails (instructor + TAs). Students never read it; their
+      // only interaction is the exists() membership check on their own email.
+      match /roster/{memberEmail} {
+        allow read, create, update, delete: if isAdmin()
+          || (request.auth != null && request.auth.token.email != null
+              && request.auth.token.email in
+                 get(/databases/$(database)/documents/schedules/$(scheduleId))
+                   .data.get('classAdminEmails', []));
+      }
 
       // V3.244 — group response submissions for class-specific discussion
       // assignments (BME 295C). Doc id is `${campus}-${groupNumber}-${speakerSlug}`.
@@ -450,6 +555,175 @@ service cloud.firestore {
                     && request.resource.data.lastEditedBy == request.auth.uid;
         allow delete: if isAdmin();
       }
+
+      // V3.677 — live lecture whiteboard (whiteboard.js). World-readable
+      // like the schedule doc itself (students watch without signing in;
+      // nothing student-identifying is ever drawn — same contract as the
+      // parent doc). Writes are class-admin only: global admin, the
+      // schedule's ownerUid, or a classAdminEmails member (same get()-the-
+      // parent pattern as classQA/assessments above). Strokes stream as
+      // small docs under each board while the instructor draws.
+      // V3.685 — TOTAL class-admin gate for the board family. The previous
+      // form led with isAdmin(), which dereferences users/{uid} UNGUARDED and
+      // therefore RAISES for a signed-in user with no users doc — and a
+      // raising rule denies the whole expression, so a delegated class admin
+      // (email on classAdminEmails, no users doc) was locked out of the board
+      // they own. Cheap, non-raising checks first; the admin lookup last and
+      // guarded by exists(). Same lesson as bme466Staff() in V3.681.
+      function wbClassAdmin(scheduleId) {
+        return request.auth != null
+          && ((request.auth.token.email != null
+               && request.auth.token.email in get(/databases/$(database)/documents/schedules/$(scheduleId)).data.get('classAdminEmails', []))
+              // `is string` guard: bme466's schedule doc carries ownerUid: null
+              // (class-builder seeds it that way), and .get(f, default) returns
+              // the stored null rather than the default for a field that EXISTS
+              // with a null value — so an unguarded comparison raises.
+              || (get(/databases/$(database)/documents/schedules/$(scheduleId)).data.get('ownerUid', '') is string
+                  && get(/databases/$(database)/documents/schedules/$(scheduleId)).data.get('ownerUid', '') == request.auth.uid)
+              || (exists(/databases/$(database)/documents/users/$(request.auth.uid))
+                  && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'admin'));
+      }
+
+      match /whiteboards/{boardId} {
+        allow read: if true;
+        allow write: if wbClassAdmin(scheduleId);
+
+        match /strokes/{strokeId} {
+          allow read: if true;
+          allow write: if wbClassAdmin(scheduleId);
+        }
+
+        // V3.684 — image items: figures snapped out of a learning module
+        // onto the board, then annotated over. A SIBLING of strokes rather
+        // than a field on them, because items mutate on every drag commit
+        // and strokes are the one feed that has to stay low-latency.
+        //
+        // Same gate as strokes, restated in full: rules do NOT cascade into
+        // subcollections, so the parent's get() has to be repeated here.
+        //
+        // Note the real access boundary is THIS rule, not Storage: the
+        // bytes live under classes/{classId}/** which any signed-in user
+        // may write, but an image is only ever *shown* if an item doc
+        // points at it, and only a class admin can write one of those.
+        match /items/{itemId} {
+          allow read: if true;
+          allow write: if wbClassAdmin(scheduleId);
+        }
+
+        // V3.731 — recorded lectures: the recording doc (audio chunk
+        // list, trim, name) and its timed events (page snaps, erases,
+        // figure moves). World-readable like the board they replay;
+        // only a class admin — the device that pressed Go live — writes.
+        // Gate restated in full: rules do not cascade. Audio bytes live in
+        // Storage under classes/{classId}/** (existing rule); as with
+        // items, the access boundary is THIS doc, not the bytes.
+        // notesBoards / hwBoards deliberately have no recordings path.
+        match /recordings/{recId} {
+          allow read: if true;
+          allow write: if wbClassAdmin(scheduleId);
+
+          match /events/{eventId} {
+            allow read: if true;
+            allow write: if wbClassAdmin(scheduleId);
+          }
+        }
+      }
+
+      // ── V3.685 — per-student boards ────────────────────────────────
+      //
+      // Board ids are `{key}_{uid}`, so ownership is proven from the id
+      // itself: no document read, and it works BEFORE the board exists
+      // (a student's first visit reads a board nobody has created yet —
+      // with a uid *field* instead, `resource` would be null and the
+      // read would fail closed instead of returning "not found").
+      // Same reasoning as hwProgress. Keys must never contain '_';
+      // whiteboard.js's ownerBoardId() enforces that client-side.
+      //
+      // list stays staff-only on both families: a student reads its own
+      // board BY ID and never enumerates.
+      // TOTAL by construction: a board id with no '_' (or an unauthenticated
+      // caller) must return false, not raise. An erroring rule denies too, but
+      // it denies noisily and it stops being composable inside an || chain.
+      function wbOwns(boardId) {
+        return request.auth != null
+          && boardId.split('_').size() > 1
+          && boardId.split('_')[1] == request.auth.uid;
+      }
+      function wbSharedWith(scheduleId, boardId) {
+        return request.auth != null
+          && exists(/databases/$(database)/documents/schedules/$(scheduleId)/notesBoards/$(boardId))
+          && get(/databases/$(database)/documents/schedules/$(scheduleId)/notesBoards/$(boardId))
+               .data.get('sharedWithUids', []).hasAny([request.auth.uid]);
+      }
+
+      // Learning-module notes. Owner writes; owner, anyone the owner
+      // listed, and staff may read.
+      match /notesBoards/{boardId} {
+        allow get: if wbOwns(boardId) || bme466Staff()
+                   || (request.auth != null && resource != null
+                       && resource.data.get('sharedWithUids', []).hasAny([request.auth.uid]));
+        allow list: if bme466Staff();
+        allow create, update: if wbOwns(boardId);
+        allow delete: if wbOwns(boardId) || isAdmin();
+
+        // Subcollections re-state the gate — rules do not cascade. The
+        // OWNER path costs no document read (it is the id split again);
+        // only a shared reader pays a get() of the parent, which is the
+        // rare case and keeps the common one free.
+        match /strokes/{strokeId} {
+          allow read: if wbOwns(boardId) || bme466Staff() || wbSharedWith(scheduleId, boardId);
+          allow write: if wbOwns(boardId);
+        }
+        match /items/{itemId} {
+          allow read: if wbOwns(boardId) || bme466Staff() || wbSharedWith(scheduleId, boardId);
+          allow write: if wbOwns(boardId);
+        }
+      }
+
+      // Homework working-out. Owner + staff only. There is deliberately
+      // NO sharing clause anywhere in this block: "a homework board can
+      // never be shared with another student" is a property of the rules
+      // file, not a flag on a document that a client could try to flip.
+      // (Same structural-privacy reasoning as engageProfiles/{uid}/private.)
+      match /hwBoards/{boardId} {
+        allow get: if wbOwns(boardId) || bme466Staff();
+        allow list: if bme466Staff();
+        allow create, update: if wbOwns(boardId);
+        allow delete: if wbOwns(boardId) || isAdmin();
+
+        match /strokes/{strokeId} {
+          allow read: if wbOwns(boardId) || bme466Staff();
+          allow write: if wbOwns(boardId);
+        }
+        match /items/{itemId} {
+          allow read: if wbOwns(boardId) || bme466Staff();
+          allow write: if wbOwns(boardId);
+        }
+      }
+
+      // ── V3.685 — opt-in classmate directory ────────────────────────
+      // Sharing notes needs a way to name a classmate, but the roster is
+      // instructor-only by design (FERPA) and students cannot query
+      // `users`. So: a student opts in, staff publishes a names-only
+      // directory, and only signed-in students can read it. Nothing about
+      // a student who has not opted in ever appears here.
+      match /directory/{docId} {
+        allow read: if request.auth != null
+                    && request.auth.token.email != null
+                    && request.auth.token.email.matches('.*@arizona[.]edu');
+        allow write: if bme466Staff();
+      }
+      // A student's own opt-in request; staff materialises the directory
+      // from these. Owner-writable, staff-readable, never listable by
+      // students.
+      match /directoryOptIn/{uid} {
+        allow get: if request.auth != null && (request.auth.uid == uid || bme466Staff());
+        allow list: if bme466Staff();
+        allow create, update: if request.auth != null && request.auth.uid == uid
+                    && request.resource.data.keys().hasOnly(['displayName', 'optIn', 'updatedAt'])
+                    && request.resource.data.optIn is bool;
+        allow delete: if request.auth != null && (request.auth.uid == uid || bme466Staff());
+      }
     }
 
     // Participants — linked to a schedule via scheduleId field
@@ -487,6 +761,114 @@ service cloud.firestore {
     // Teachers and students keep role:'guest' (RM stays sealed); all class
     // capabilities flow from schedules.ownerUid + enrollments membership.
 
+    // V3.669 — "does the caller own this teacher-class?" — shared by the
+    // teacher-platform collections below (assignments/submissions from R2 on).
+    function isClassTeacher(scheduleId) {
+      return request.auth != null
+        && get(/databases/$(database)/documents/schedules/$(scheduleId)).data.ownerUid == request.auth.uid;
+    }
+
+    // V3.680 — admin-issued teacher invites. Doc id IS the invite token.
+    // Admin-only on the client: redemption happens server-side in
+    // functions/teacher-invite.js (Admin SDK), which is what lets a plain
+    // guest end up owning a provisioned class without any client-writable
+    // hole — the same reason V3.635 moved teacher-class creation to admin.
+    match /teacherInvites/{token} {
+      allow read, write: if isAdmin();
+    }
+
+    // V3.669 — global module catalog: which modules teachers may distribute.
+    // One doc per module, id `${folder}--${basename}` (same convention as
+    // schedules.modules[].id). Admin curates; teachers/students (signed-in
+    // guests) read it to build the class-module picker. The catalog gates the
+    // PICKER only — module HTML is public static (accepted V3.304 trade-off),
+    // so there is nothing for a rules-side membership check to protect.
+    match /teacherCatalog/{moduleId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // V3.796 — BME 295C WAITLIST (replaces V3.793's anonymous courseInterest,
+    // which never held a real row). One entry per signed-in student per
+    // course at `${course}_${uid}`: the email written MUST be the Google
+    // account's own (== token email, lower-cased), so nobody can list someone
+    // else's address, and a student can never appear twice. Students read /
+    // update / leave their own entry BY ID — provable from the path, so the
+    // "are you on the list?" GET of a missing own entry never raises. Owner
+    // clauses come before isAdmin(): a student with no users/ doc would make
+    // isAdmin() raise and kill the whole ||. Admins and the course's
+    // classAdminEmails read the list (the query must filter course ==) and
+    // may remove entries.
+    match /courseWaitlist/{entryId} {
+      function ownEntryId() {
+        return request.auth != null && entryId.matches('^[a-z0-9]+_' + request.auth.uid + '$');
+      }
+      function classAdminOf(course) {
+        return request.auth != null && request.auth.token.email != null
+          && course is string && course != ''
+          && request.auth.token.email in
+             get(/databases/$(database)/documents/schedules/$(course)).data.get('classAdminEmails', []);
+      }
+      function entryShape(d) {
+        return d.course in ['bme295c']
+          && d.name is string && d.name.size() >= 2 && d.name.size() <= 120
+          && d.gradYear in ['2027', '2028', '2029', '2030', 'other']
+          && d.campus in ['tucson', 'phoenix', 'either']
+          && d.get('note', '') is string && d.get('note', '').size() <= 1000
+          && d.get('source', '') is string && d.get('source', '').size() <= 40;
+      }
+      allow get:  if ownEntryId() || isAdmin() || classAdminOf(resource.data.get('course', ''));
+      allow list: if isAdmin() || classAdminOf(resource.data.get('course', ''));
+      allow create: if request.auth != null && request.auth.token.email != null
+                    && entryId == request.resource.data.course + '_' + request.auth.uid
+                    && request.resource.data.keys().hasOnly(['course', 'uid', 'name', 'email', 'gradYear', 'campus', 'note', 'source', 'createdAt', 'updatedAt'])
+                    && request.resource.data.keys().hasAll(['course', 'uid', 'name', 'email', 'gradYear', 'campus', 'createdAt', 'updatedAt'])
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.email == request.auth.token.email.lower()
+                    && entryShape(request.resource.data)
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.updatedAt == request.time;
+      allow update: if (request.auth != null && resource.data.uid == request.auth.uid
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['name', 'gradYear', 'campus', 'note', 'source', 'updatedAt'])
+                        && entryShape(request.resource.data)
+                        && request.resource.data.updatedAt == request.time)
+                    || isAdmin();
+      allow delete: if (request.auth != null && resource.data.uid == request.auth.uid)
+                    || isAdmin() || classAdminOf(resource.data.get('course', ''));
+    }
+
+    // V3.796 — a record of each time the waitlist was written to. The email
+    // itself goes out from the admin's own mail app (a BCC mailto built on the
+    // class dashboard; the site has no mail server), so this is the audit
+    // trail: what was said, when, to how many. Admins and the course's class
+    // admins write; the same read it.
+    match /courseAnnouncements/{announcementId} {
+      function classAdminOf(course) {
+        return request.auth != null && request.auth.token.email != null
+          && course is string && course != ''
+          && request.auth.token.email in
+             get(/databases/$(database)/documents/schedules/$(course)).data.get('classAdminEmails', []);
+      }
+      allow read: if isAdmin() || classAdminOf(resource.data.get('course', ''));
+      allow create: if request.auth != null
+                    && request.resource.data.keys().hasOnly(['course', 'subject', 'body', 'recipientCount', 'recipientUids', 'sentBy', 'sentAt'])
+                    && request.resource.data.keys().hasAll(['course', 'subject', 'recipientCount', 'sentBy', 'sentAt'])
+                    && request.resource.data.course in ['bme295c']
+                    && request.resource.data.subject is string
+                    && request.resource.data.subject.size() >= 1
+                    && request.resource.data.subject.size() <= 200
+                    && request.resource.data.get('body', '') is string
+                    && request.resource.data.get('body', '').size() <= 5000
+                    && request.resource.data.recipientCount is int
+                    && request.resource.data.recipientCount >= 0
+                    && request.resource.data.get('recipientUids', []) is list
+                    && request.resource.data.sentBy == request.auth.uid
+                    && request.resource.data.sentAt == request.time
+                    && (isAdmin() || classAdminOf(request.resource.data.course));
+      allow update, delete: if isAdmin();
+    }
+
     // Class requests — a teacher's application to run a class with the lab's
     // modules. Teacher creates pending and may edit/withdraw while pending;
     // admin decides (status flip + scheduleId stamp happen via admin panel).
@@ -520,7 +902,17 @@ service cloud.firestore {
                     || (request.auth != null
                         && request.resource.data.teacherUid == request.auth.uid
                         && get(/databases/$(database)/documents/schedules/$(request.resource.data.scheduleId)).data.ownerUid == request.auth.uid);
-      allow update, delete: if isAdmin()
+      // V3.635 — ownership was checked on the EXISTING doc, so a teacher could
+      // rewrite any field of their own code, including scheduleId/teacherUid.
+      // Repointing a code at another teacher's class made every student who
+      // redeemed it land in that teacher's roster with access to their
+      // modules. The only update the client performs is deactivation, so the
+      // writable key set is now exactly that; regeneration creates a NEW doc.
+      allow update: if isAdmin()
+                    || (request.auth != null
+                        && resource.data.teacherUid == request.auth.uid
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active']));
+      allow delete: if isAdmin()
                     || (request.auth != null && resource.data.teacherUid == request.auth.uid);
     }
 
@@ -530,8 +922,28 @@ service cloud.firestore {
     // join code — this is the rules-only replacement for a Cloud Function.
     // (The repeated get()s of the same joinCodes doc dedupe to one read.)
     match /enrollments/{enrollmentId} {
+      // ⚠ V3.772 — the id clause is LOAD-BEARING, not decoration.
+      //
+      // A `get` of a document that DOES NOT EXIST evaluates this rule with no
+      // readable `resource`, so every clause that touches `resource.data`
+      // RAISES. An `||` of nothing-but-errors is an error, and an error
+      // denies — so "not found" reached the client as "Missing or
+      // insufficient permissions". That is what made joining a class
+      // impossible for everyone (zero enrollments existed project-wide):
+      // joinClassWithCode reads its OWN enrollment doc first to decide
+      // join-vs-rejoin, and on a first join that document never exists.
+      // Same family as the V3.684 `isAdmin()` raise.
+      //
+      // The fix is a clause that is TRUE for the legitimate caller WITHOUT
+      // touching `resource`: rules use three-valued logic, so `error || true`
+      // is allow (verified against the rules engine, both ways). The id of
+      // "my enrollment" always ends in my uid, so a student may always ask
+      // about their own id — existing or not — and learns nothing about
+      // anyone else's. `list` is unaffected: the engine binds `resource` per
+      // candidate document there, so it is never absent.
       allow read: if request.auth != null
-                  && (isAdmin()
+                  && (enrollmentId.matches('.*_' + request.auth.uid)
+                      || isAdmin()
                       || resource.data.studentUid == request.auth.uid
                       || resource.data.teacherUid == request.auth.uid);
       allow create: if request.auth != null
@@ -540,16 +952,743 @@ service cloud.firestore {
                     && request.resource.data.status == 'active'
                     && get(/databases/$(database)/documents/joinCodes/$(request.resource.data.joinCode)).data.active == true
                     && get(/databases/$(database)/documents/joinCodes/$(request.resource.data.joinCode)).data.scheduleId == request.resource.data.scheduleId
-                    && get(/databases/$(database)/documents/joinCodes/$(request.resource.data.joinCode)).data.teacherUid == request.resource.data.teacherUid;
+                    && get(/databases/$(database)/documents/joinCodes/$(request.resource.data.joinCode)).data.teacherUid == request.resource.data.teacherUid
+                    // V3.637 — the teacher's "Enrollment open" toggle was
+                    // enforced only by joinClassWithCode, so a redeemed code
+                    // still worked on a closed class. The toggle now means
+                    // what it says. (A deleted class also fails here, since
+                    // the get() has nothing to read — correct: its codes may
+                    // still be marked active.)
+                    && get(/databases/$(database)/documents/schedules/$(request.resource.data.scheduleId)).data.get('enrollmentOpen', true) == true;
+      // V3.635 — the student self-update carve-out let a REMOVED student flip
+      // their own status back to 'active' with no code check, quietly undoing
+      // a teacher's Remove (the enrollment row is kept for audit, so it was a
+      // one-field write). A student may now leave freely, but re-joining costs
+      // what joining costs: a live code for this class. joinClassWithCode
+      // writes the fresh code alongside the status, which is why `joinCode` is
+      // in the writable key set and why the check reads request.resource
+      // (the stored code may since have been regenerated away).
       allow update: if isAdmin()
                     || (request.auth != null && resource.data.teacherUid == request.auth.uid)
                     || (request.auth != null
                         && resource.data.studentUid == request.auth.uid
                         && request.resource.data.diff(resource.data).affectedKeys()
-                             .hasOnly(['status', 'studentName', 'updatedAt']));
+                             .hasOnly(['status', 'studentName', 'joinCode', 'updatedAt'])
+                        && (request.resource.data.status == 'removed'
+                            // A teacher's Remove is final until the teacher
+                            // undoes it: `removedBy` is outside the student's
+                            // writable key set above, so they cannot clear it.
+                            // (Checking only the code isn't enough — the
+                            // student still holds the code they joined with,
+                            // and request.resource.data is the MERGED doc, so
+                            // an untouched joinCode field still reads live.)
+                            || (request.resource.data.status == 'active'
+                                && resource.data.get('removedBy', '') != 'teacher'
+                                && get(/databases/$(database)/documents/joinCodes/$(request.resource.data.joinCode)).data.active == true
+                                && get(/databases/$(database)/documents/joinCodes/$(request.resource.data.joinCode)).data.scheduleId == resource.data.scheduleId
+                                // V3.637 — re-joining costs what joining costs,
+                                // including a class that is still open.
+                                && get(/databases/$(database)/documents/schedules/$(resource.data.scheduleId)).data.get('enrollmentOpen', true) == true)));
       allow delete: if isAdmin()
                     || (request.auth != null && resource.data.teacherUid == request.auth.uid);
     }
+
+    // ── V3.671 — teacher program R2: assignments + submissions ──
+
+    // Assignments — teacher-authored coursework for one teacher-class.
+    // Students see them only once published (their list query MUST carry
+    // where('status','in',['published','closed']) or the whole query is
+    // denied — list rules are proven against the query's filters, and a
+    // draft candidate would fail the read clause). The teacher's list query
+    // is keyed on teacherUid for the same reason.
+    match /assignments/{assignmentId} {
+      allow read: if isAdmin()
+                  || (request.auth != null && resource.data.teacherUid == request.auth.uid)
+                  || (request.auth != null
+                      && resource.data.status != 'draft'
+                      && exists(/databases/$(database)/documents/enrollments/$(resource.data.scheduleId + '_' + request.auth.uid)));
+      allow create: if isAdmin()
+                    || (request.auth != null
+                        && request.resource.data.teacherUid == request.auth.uid
+                        && request.resource.data.status in ['draft', 'published']
+                        && isClassTeacher(request.resource.data.scheduleId));
+      // scheduleId/teacherUid are pinned on update (the joinCodes V3.635
+      // lesson: never let an owned doc be repointed at someone else's class).
+      allow update: if isAdmin()
+                    || (request.auth != null
+                        && resource.data.teacherUid == request.auth.uid
+                        && request.resource.data.teacherUid == resource.data.teacherUid
+                        && request.resource.data.scheduleId == resource.data.scheduleId);
+      allow delete: if isAdmin()
+                    || (request.auth != null && resource.data.teacherUid == request.auth.uid);
+    }
+
+    // Submissions — one doc per (assignment, student); id MUST be
+    // `${assignmentId}_${studentUid}` so "my submission" is a single get and
+    // students never need `list` (the enrollments trick). Create is
+    // self-service against a PUBLISHED assignment by an ACTIVE enrollee, with
+    // the denormalized scheduleId/teacherUid proven against the assignment
+    // doc (anti-spoof — repeated get()s of the same doc dedupe to one read).
+    // A student may edit until the teacher grades; the teacher's only write
+    // is the grade; `grade` is outside the student's key set both ways, and
+    // create refuses it so nobody self-grades at birth.
+    match /submissions/{submissionId} {
+      // V3.772 — the id clause first: "my submission" is fetched by a single
+      // get of a composite id that does NOT exist until the student first
+      // responds, and a rule that can only answer by dereferencing a missing
+      // document denies instead of returning empty. See enrollments.
+      allow read: if (request.auth != null
+                      && submissionId.matches('.*_' + request.auth.uid))
+                  || isAdmin()
+                  || (request.auth != null
+                      && (resource.data.studentUid == request.auth.uid
+                          || resource.data.teacherUid == request.auth.uid));
+      allow create: if request.auth != null
+                    && request.resource.data.studentUid == request.auth.uid
+                    && submissionId == request.resource.data.assignmentId + '_' + request.auth.uid
+                    && request.resource.data.lastEditedBy == request.auth.uid
+                    && request.resource.data.status in ['done', 'submitted']
+                    && !('grade' in request.resource.data)
+                    && get(/databases/$(database)/documents/assignments/$(request.resource.data.assignmentId)).data.status == 'published'
+                    && get(/databases/$(database)/documents/assignments/$(request.resource.data.assignmentId)).data.scheduleId == request.resource.data.scheduleId
+                    && get(/databases/$(database)/documents/assignments/$(request.resource.data.assignmentId)).data.teacherUid == request.resource.data.teacherUid
+                    && get(/databases/$(database)/documents/enrollments/$(request.resource.data.scheduleId + '_' + request.auth.uid)).data.status == 'active';
+      allow update: if isAdmin()
+                    || (request.auth != null
+                        && resource.data.teacherUid == request.auth.uid
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['grade', 'updatedAt']))
+                    || (request.auth != null
+                        && resource.data.studentUid == request.auth.uid
+                        && !('grade' in resource.data)
+                        && request.resource.data.lastEditedBy == request.auth.uid
+                        && request.resource.data.status in ['done', 'submitted']
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['status', 'text', 'submittedAt', 'updatedAt', 'studentName', 'lastEditedBy']));
+      allow delete: if isAdmin()
+                    || (request.auth != null && resource.data.teacherUid == request.auth.uid);
+    }
+
+    // ── V3.673 — teacher program R4: engagement scheduling hub (#/engage) ──
+    //
+    // V3.791 — the unit is an OPPORTUNITY (engageOpportunities): one thing a
+    // teacher would like, with several dates that would work. Presenters
+    // sign up for it (engageRequests, ticking the dates they could do); the
+    // teacher accepts one — or several, when presentersWanted > 1 — and
+    // picks the date; a filled opportunity leaves the list (status
+    // 'booked'). There is deliberately no transactional lock — competing
+    // sign-ups are tolerated and the teacher is the tiebreaker, the
+    // equipment-booking precedent at this scale. pendingCount /
+    // acceptedCount on an opportunity are written ONLY by
+    // functions/engage-notify.js (Admin SDK), so a presenter can see
+    // "pending acceptance" without reading anyone else's request.
+    //
+    // V3.785 — presenters come through the link-only #/presenters page, and
+    // ANY signed-in user may browse approved listings / open slots and
+    // request (Alex: the link is the gate). The engage:browse/request caps
+    // no longer gate anything. What stays structural: the street address is
+    // only on a request the teacher accepted, and admin can block a
+    // presenter (engagePresenters/{uid}.blocked, checked on request create).
+
+    // True when admin has blocked the caller from requesting. exists() first:
+    // a get of a missing doc raises, and a raise here would deny every
+    // presenter who has not saved their details yet.
+    function presenterBlocked() {
+      return exists(/databases/$(database)/documents/engagePresenters/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/engagePresenters/$(request.auth.uid)).data.get('blocked', false) == true;
+    }
+
+    // Hub listing — the teacherProfiles approval pattern: owner writes are
+    // forced to draft/pending, ONLY admin lands 'approved', so editing an
+    // approved listing pulls it off the hub until re-approved.
+    match /engageProfiles/{uid} {
+      // Id/field clauses first: isAdmin() reads users/{uid}, and ordering the
+      // cheap provable clauses ahead of it keeps a presenter's list query
+      // (where status == 'approved') independent of their profile doc.
+      allow read: if (request.auth != null && resource.data.status == 'approved')
+                  || isOwner(uid)
+                  || isAdmin();
+      allow create, update: if isAdmin()
+                  || (isOwner(uid)
+                      && request.resource.data.status in ['draft', 'pending']);
+      allow delete: if isAdmin() || isOwner(uid);
+
+      // The address-reveal boundary is STRUCTURAL: the school's street
+      // address / room / phone live here, readable only by the teacher and
+      // admin. A requester sees a location only when the teacher copies it
+      // onto a request they CONFIRM — a doc exactly {requester, teacher,
+      // admin} can read.
+      match /private/{docId} {
+        allow read, write: if isAdmin() || isOwner(uid);
+      }
+    }
+
+    // Opportunities (V3.791). Read by any signed-in user while 'open' (the
+    // presenter page queries where status == 'open'), by the teacher always,
+    // and by admin. Only an approved teacher creates one; the teacher may
+    // change anything except the two function-maintained counts.
+    match /engageOpportunities/{oppId} {
+      allow read: if (request.auth != null && resource.data.status == 'open')
+                  || (request.auth != null && resource.data.teacherUid == request.auth.uid)
+                  || isAdmin();
+      // V3.808 — `|| isAdmin()` (LAST, so a teacher's own create never
+      // depends on isAdmin's users/ read): publishing a no-account post
+      // (engage-guest.js) is the admin creating the opportunity for
+      // teacherUid 'guest_{postId}', which is nobody's auth uid.
+      allow create: if (request.auth != null
+                        && request.resource.data.teacherUid == request.auth.uid
+                        && request.resource.data.status == 'open'
+                        && !request.resource.data.keys().hasAny(['pendingCount', 'acceptedCount'])
+                        && get(/databases/$(database)/documents/engageProfiles/$(request.auth.uid)).data.status == 'approved')
+                    || isAdmin();
+      allow update: if isAdmin()
+                    || (request.auth != null
+                        && resource.data.teacherUid == request.auth.uid
+                        && request.resource.data.teacherUid == resource.data.teacherUid
+                        && !request.resource.data.diff(resource.data).affectedKeys()
+                              .hasAny(['pendingCount', 'acceptedCount']));
+      allow delete: if isAdmin()
+                    || (request.auth != null && resource.data.teacherUid == request.auth.uid);
+    }
+
+    // V3.808 — a teacher's visit post made WITHOUT an account
+    // (#/invite-a-scientist). It holds the teacher's email, phone and the
+    // school's street address plus `manageToken`, the secret in their
+    // private-page link — so no client but an admin may read it. Teachers
+    // reach their own post only through the engageGuest function, which
+    // looks it up by token with the Admin SDK. Admins publish (status →
+    // 'published', writing the public listing + opportunity), decline, and
+    // email the teacher from rm/pages/admin-teachers.html?tab=engage.
+    match /engageGuestPosts/{guestId} {
+      allow read, write: if isAdmin();
+    }
+    // The function's per-IP submit counter. Server-only.
+    match /engageGuestRate/{key} {
+      allow read, write: if false;
+    }
+
+    // Legacy (pre-V3.791) availability slots. The collection is empty and no
+    // current client reads it; this read-only stub only keeps the LAST
+    // shipped client from erroring between this rules deploy and the FTP
+    // that replaces it. Safe to delete after V3.791 is on the server.
+    match /engageSlots/{slotId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Requests — a presenter's sign-up for one opportunity, with the dates
+    // they could do. The teacher's decision write may touch only
+    // status/location/teacherNote/expectedStudents/emailedAt and the chosen
+    // date (+stamps), and the chosen date must be one the presenter offered;
+    // the requester may only self-cancel. The opportunity gets dedupe to one
+    // read.
+    match /engageRequests/{reqId} {
+      allow read: if isAdmin()
+                  || (request.auth != null
+                      && (resource.data.teacherUid == request.auth.uid
+                          || resource.data.requesterUid == request.auth.uid));
+      // V3.791 — any signed-in, unblocked presenter; the opportunity must be
+      // open and the teacher's; every date ticked must be one of its dates;
+      // once a first presenter fixed the date (a panel), only that date; and
+      // the teacher's listing must be approved. The presenter never sets the
+      // final date/time — the teacher does on accept.
+      allow create: if request.auth != null
+                    && request.resource.data.requesterUid == request.auth.uid
+                    && request.resource.data.status == 'pending'
+                    && !request.resource.data.keys().hasAny(['location', 'expectedStudents', 'emailedAt', 'date', 'startTime', 'endTime'])
+                    && request.resource.data.dates is list
+                    && request.resource.data.dates.size() >= 1
+                    && request.resource.data.dates.size() <= 30
+                    && get(/databases/$(database)/documents/engageOpportunities/$(request.resource.data.opportunityId)).data.status == 'open'
+                    && get(/databases/$(database)/documents/engageOpportunities/$(request.resource.data.opportunityId)).data.teacherUid == request.resource.data.teacherUid
+                    && get(/databases/$(database)/documents/engageOpportunities/$(request.resource.data.opportunityId)).data.get('dateKeys', []).hasAll(request.resource.data.dates)
+                    && (get(/databases/$(database)/documents/engageOpportunities/$(request.resource.data.opportunityId)).data.get('bookedDate', null) == null
+                        || (request.resource.data.dates.size() == 1
+                            && request.resource.data.dates[0] == get(/databases/$(database)/documents/engageOpportunities/$(request.resource.data.opportunityId)).data.bookedDate))
+                    && get(/databases/$(database)/documents/engageProfiles/$(request.resource.data.teacherUid)).data.status == 'approved'
+                    && !presenterBlocked();
+      // V3.787 — accepting records how many students to expect, and opening
+      // the confirmation email stamps emailedAt. V3.791 — accepting also
+      // sets the date, which must be one the presenter ticked.
+      allow update: if isAdmin()
+                    || (request.auth != null
+                        && resource.data.teacherUid == request.auth.uid
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['status', 'location', 'teacherNote', 'decidedAt', 'updatedAt',
+                                       'expectedStudents', 'emailedAt', 'date', 'startTime', 'endTime'])
+                        && (!('date' in request.resource.data.diff(resource.data).affectedKeys())
+                            || request.resource.data.date in resource.data.get('dates', [])))
+                    || (request.auth != null
+                        && resource.data.requesterUid == request.auth.uid
+                        && request.resource.data.status == 'cancelled'
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['status', 'updatedAt']));
+      allow delete: if isAdmin();
+    }
+
+    // ── V3.785 — presenters (the #/presenters side of the hub) ──
+    //
+    // Who a presenter is, filled in once and denormalised onto each request.
+    // The owner reads/writes their own (provable from the id, so a get of the
+    // not-yet-created doc works); only admin sets `blocked`.
+    match /engagePresenters/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid)
+                    && !request.resource.data.keys().hasAny(['blocked', 'blockedAt', 'blockedBy']);
+      allow update: if isOwner(uid)
+                    && !request.resource.data.diff(resource.data).affectedKeys()
+                          .hasAny(['blocked', 'blockedAt', 'blockedBy']);
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── V3.787 — a presenter's review of a visit ──
+    //
+    // Doc id = the engageRequests id (one review per visit). Read by the
+    // presenter who wrote it, the visit's teacher, and admin. ⚠ The read
+    // clauses dereference resource.data, so clients MUST read by query
+    // (where requesterUid / teacherUid ==): a get of a review that does not
+    // exist yet raises, and a raise denies (V3.772).
+    match /engageReviews/{reqId} {
+      function reviewShapeOk() {
+        return request.resource.data.keys().hasOnly(['requesterUid', 'teacherUid', 'requesterName',
+                 'visitDate', 'rating', 'engagement', 'studentsReached', 'wouldReturn', 'wentWell',
+                 'improve', 'createdAt', 'updatedAt'])
+          && request.resource.data.rating is int
+          && request.resource.data.rating >= 1 && request.resource.data.rating <= 5
+          && request.resource.data.engagement is int
+          && request.resource.data.engagement >= 1 && request.resource.data.engagement <= 5;
+      }
+      allow read: if (request.auth != null
+                      && (resource.data.requesterUid == request.auth.uid
+                          || resource.data.teacherUid == request.auth.uid))
+                  || isAdmin();
+      allow create: if request.auth != null
+                    && request.resource.data.requesterUid == request.auth.uid
+                    && get(/databases/$(database)/documents/engageRequests/$(reqId)).data.requesterUid == request.auth.uid
+                    && get(/databases/$(database)/documents/engageRequests/$(reqId)).data.status == 'confirmed'
+                    && request.resource.data.teacherUid == get(/databases/$(database)/documents/engageRequests/$(reqId)).data.teacherUid
+                    && reviewShapeOk();
+      allow update: if request.auth != null
+                    && resource.data.requesterUid == request.auth.uid
+                    && request.resource.data.requesterUid == resource.data.requesterUid
+                    && request.resource.data.teacherUid == resource.data.teacherUid
+                    && reviewShapeOk();
+      allow delete: if isAdmin();
+    }
+
+    // ── V3.672 — teacher program R3: module engagement stats ──
+    //
+    // One pre-aggregated doc per (class, student), id `${scheduleId}_${uid}`
+    // — the SAME composite id as the student's enrollment doc, which is what
+    // makes create cheap to prove: the enrollment at that exact path must be
+    // the caller's own active row, and its teacherUid must match the
+    // denormalized copy. The student's client writes FieldValue.increment
+    // patches; update pins identity by key-set (modules/lastActiveAt/
+    // studentName only). These are self-reported engagement counters, not
+    // grades — inflation is an accepted non-risk; the rules only prevent
+    // cross-doc writes and identity spoofing. Teacher list queries key on
+    // teacherUid (list rules are proven against query filters).
+    match /moduleStats/{statId} {
+      // V3.772 — same composite-id "my doc" family as enrollments and
+      // submissions: a get before the first heartbeat finds nothing, and a
+      // rule that can only answer by dereferencing a missing document denies
+      // rather than returning empty.
+      allow read: if (request.auth != null
+                      && statId.matches('.*_' + request.auth.uid))
+                  || isAdmin()
+                  || (request.auth != null
+                      && (resource.data.studentUid == request.auth.uid
+                          || resource.data.teacherUid == request.auth.uid));
+      allow create: if request.auth != null
+                    && request.resource.data.studentUid == request.auth.uid
+                    && statId == request.resource.data.scheduleId + '_' + request.auth.uid
+                    && get(/databases/$(database)/documents/enrollments/$(statId)).data.status == 'active'
+                    && get(/databases/$(database)/documents/enrollments/$(statId)).data.teacherUid == request.resource.data.teacherUid;
+      allow update: if request.auth != null
+                    && resource.data.studentUid == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['modules', 'lastActiveAt', 'studentName']);
+      allow delete: if isAdmin();
+    }
+
+    // ── V3.674 — BME466 homework progress cloud-save (pilot: HW0 pretest) ──
+    //
+    // One doc per (assignment, student): id `${assignment}_${uid}`. Students
+    // sign in with their UA NetID (Google on arizona.edu) inside a homework
+    // module and the module autosaves their in-progress work here. The course
+    // ID (BME466-XXXX) is NOT a credential — it only seeds the dataset and is
+    // recorded (sid_norm/code) so the teaching team can cross-reference the
+    // D2L export. Docs hold PROGRESS only: grading stays the D2L JSON upload,
+    // and no grade ever lands in this collection. The fixed assignment enum
+    // caps what ids can exist; state.size() keeps docs under the 1 MiB doc
+    // limit (rules count chars, the module enforces the real byte cap).
+    // Students read/write ONLY their own doc (docId carries their uid);
+    // list/delete is the instructor dashboard (admin or a bme466
+    // classAdminEmails member — same pattern as schedules/{id}/assessments).
+    function bme466Data() {
+      return get(/databases/$(database)/documents/schedules/bme466).data;
+    }
+    // FULL instructor access: page-edit chrome, the roster, hwProgress
+    // delete. V3.679 emptied this list on purpose — see bme466CourseStaff().
+    function bme466ClassAdmin() {
+      return request.auth != null &&
+        request.auth.token.email in bme466Data().get('classAdminEmails', []);
+    }
+    // V3.681 — NARROW course-staff (TA) access. Deliberately a SECOND list:
+    // an @arizona.edu address in classAdminEmails hands out the whole
+    // instructor view to the same kind of account a student signs in with,
+    // which is exactly what V3.679 removed. courseStaffEmails appears ONLY in
+    // the V3.681 course-platform blocks below (assignments, hw466Status,
+    // threads, profiles). Its ABSENCE from the roster block, from the
+    // schedules/{id} update rule, and from hwProgress delete is the point —
+    // hw-progress-rules.test.mjs asserts each of those denials.
+    function bme466CourseStaff() {
+      return request.auth != null && request.auth.token.email != null
+        && request.auth.token.email in bme466Data().get('courseStaffEmails', []);
+    }
+    // isAdmin() dereferences users/{uid} unguarded, so it ERRORS (→ denies the
+    // whole rule) for a signed-in user with no users doc. Everywhere else that
+    // is harmless because isAdmin() sits at the end of an || chain a real user
+    // already satisfied. Here it is not: bme466Staff() is evaluated eagerly
+    // inside `authorRole == (bme466Staff() ? 'staff' : 'student')`, so an
+    // un-bootstrapped student could not open a thread at all. bme466Staff()
+    // must therefore be TOTAL — email lists first (they cannot error), and the
+    // admin lookup guarded by exists().
+    function bme466IsGlobalAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+             .data.get('role', '') == 'admin';
+    }
+    function bme466Staff() {
+      return bme466ClassAdmin() || bme466CourseStaff() || bme466IsGlobalAdmin();
+    }
+    // V3.675 — roster gate, OPT-IN so it can never lock a class out.
+    // Only meaningful once the instructor sets `rosterEnforced: true` on
+    // schedules/bme466 (the dashboard's roster import does this, and a
+    // toggle there turns it off): then a student needs a doc under
+    // schedules/bme466/roster keyed by their lowercased email, so dropping
+    // someone revokes cloud-save immediately. While the flag is absent or
+    // false the rule is exactly the pre-roster behavior — any @arizona.edu
+    // account may save — which is what keeps a not-yet-imported roster
+    // from blocking the whole class. Staff always pass.
+    // (Hoisted out of the hwProgress block in V3.681 so the course-platform
+    // blocks can share it.)
+    function bme466RosterEnforced() {
+      return bme466Data().get('rosterEnforced', false) == true;
+    }
+    function bme466Rostered() {
+      return request.auth != null && request.auth.token.email != null
+        && exists(/databases/$(database)/documents/schedules/bme466/roster/$(request.auth.token.email));
+    }
+    match /hwProgress/{docId} {
+      // The nine keys that existed before V3.681. Kept INLINE and evaluated
+      // FIRST in hwAssignmentAllowed(): || short-circuits, so these keep
+      // working even if schedules/bme466 is missing and the get() errors.
+      function hwAssignmentsLegacy() {
+        return ['bme466-pretest', 'bme466-posttest', 'bme466-hw1',
+                'bme466-hw2', 'bme466-hw3', 'bme466-hw4', 'bme466-hw5',
+                'bme466-hw6', 'bme466-hw7'];
+      }
+      // V3.681 — the enum is now DATA. Adding a homework module used to mean
+      // editing this file and redeploying rules; now the instructor lists the
+      // key in schedules/bme466.hwProgressKeys (world-readable, holds only
+      // slugs) from the dashboard. Still an allow-list: an arbitrary
+      // assignment id cannot mint a doc.
+      function hwAssignmentAllowed(a) {
+        return a in hwAssignmentsLegacy()
+            || a in bme466Data().get('hwProgressKeys', []);
+      }
+      function hwShapeOk() {
+        return request.resource.data.keys().hasOnly(
+                 ['schema', 'assignment', 'sid_norm', 'code', 'email', 'name',
+                  'state', 'clientSavedAt', 'updatedAt', 'answeredCount',
+                  'totalQuestions', 'runCount', 'secondsActive', 'lastActiveAt'])
+            && request.resource.data.keys().hasAll(
+                 ['schema', 'assignment', 'state', 'clientSavedAt',
+                  'updatedAt', 'email'])
+            && hwAssignmentAllowed(request.resource.data.assignment)
+            && docId == request.resource.data.assignment + '_' + request.auth.uid
+            && request.resource.data.email == request.auth.token.email
+            && request.resource.data.email.matches('.*@arizona[.]edu')
+            && request.resource.data.state is string
+            && request.resource.data.state.size() < 900000
+            && request.resource.data.clientSavedAt is number
+            && request.resource.data.updatedAt == request.time;
+      }
+      // The opt-in roster gate lives at the top of this file (V3.681 hoist).
+      // V3.681 — READ widened to bme466Staff() so a narrow-role TA can see
+      // the status matrix ("who has started"); DELETE deliberately stays
+      // classAdmin-only, because destroying a student's saved work is not a
+      // TA affordance.
+      allow get: if bme466Staff()
+                 || (request.auth != null && docId.split('_')[1] == request.auth.uid);
+      allow list: if bme466Staff();
+      allow create, update: if request.auth != null && hwShapeOk()
+                    && (!bme466RosterEnforced() || bme466Rostered()
+                        || bme466Staff());
+      allow delete: if isAdmin() || bme466ClassAdmin();
+    }
+
+    // ══ V3.681 — BME466 course platform ═══════════════════════════════════
+    //
+    // Four shapes: assignments (staff-authored, world-readable once
+    // published), hw466Status (per student × assignment), threads/messages
+    // (private student↔staff), profiles (student's own + staff-assigned
+    // section). Three facts shape every rule below:
+    //
+    //  1. D2L is the gradebook. No grade/score/points field may exist in any
+    //     of these docs, and that is enforced by key whitelists rather than
+    //     by trusting the client.
+    //  2. schedules/bme466 is world-readable, so nothing student-identifying
+    //     may live on the parent doc — per-student data goes in these
+    //     subcollections / top-level docs (same reasoning as the V3.675
+    //     roster, which stays staff-only: a student's own section reaches
+    //     them through their profiles doc, never through the roster).
+    //  3. Assignments are a SUBCOLLECTION, not an array on the schedule doc,
+    //     because writing that doc requires classAdminEmails = the full
+    //     instructor view — which V3.679 denies to a TA. A subcollection also
+    //     gets rules-enforced shape validation and free-form ids, so creating
+    //     an assignment never needs a rules redeploy.
+
+    // Assignment records. Published ones are world-readable (that IS the
+    // Homeworks page — no sign-in required to see what is due), so the key
+    // whitelist below is a FERPA boundary, not a formality: no per-student
+    // field may ever be added here.
+    match /schedules/bme466/assignments/{slug} {
+      function aShapeOk() {
+        return request.resource.data.keys().hasOnly(
+                 ['slug', 'title', 'kind', 'audience', 'published', 'order',
+                  'moduleUrl', 'd2lLink', 'opensAt', 'dueAt', 'notes',
+                  // links this record to its hwProgress key (bme466-hw1 …), so
+                  // the student dashboard can read their own progress doc and
+                  // hwProgressKeys stays derivable instead of hand-kept
+                  'progressKey',
+                  'createdAt', 'createdBy', 'updatedAt', 'updatedBy',
+                  // written by functions/bme466-notify.js (admin SDK). Listed
+                  // because a merge write makes request.resource.data the
+                  // MERGED doc — omit them and every later edit is denied.
+                  'notifiedFor', 'notifiedAt'])
+            && request.resource.data.keys().hasAll(
+                 ['slug', 'title', 'kind', 'audience', 'published', 'updatedAt'])
+            && request.resource.data.slug == slug
+            // No underscore in a slug, ever: hwProgress and hw466Status both
+            // recover the uid from docId.split('_')[1].
+            && slug.matches('^[a-z0-9][a-z0-9-]{0,59}$')
+            && request.resource.data.title is string
+            && request.resource.data.title.size() > 0
+            && request.resource.data.title.size() < 200
+            && request.resource.data.kind in
+                 ['module', 'report', 'exam', 'project', 'qe', 'other']
+            && request.resource.data.audience in ['all', '466', '566']
+            && request.resource.data.published is bool
+            && request.resource.data.get('notes', '') is string
+            && request.resource.data.get('notes', '').size() < 4000
+            && request.resource.data.updatedBy == request.auth.token.email
+            && request.resource.data.updatedAt == request.time;
+      }
+      // Student/visitor queries MUST carry where('published','==',true);
+      // staff query unfiltered. Unpublished drafts are invisible either way.
+      allow get, list: if resource.data.get('published', false) == true
+                       || bme466Staff();
+      allow create, update: if bme466Staff() && aShapeOk();
+      allow delete: if isAdmin() || bme466ClassAdmin();
+    }
+
+    // Per (assignment, student) status. Doc id `${slug}_${uid}` — same
+    // composition as hwProgress. Holds the student's self-report ("I uploaded
+    // to D2L"), the staff acknowledgement, and a per-student due override.
+    // The two sides are pinned to DISJOINT key sets in both directions: a
+    // student can never write ackBy/dueOverrideAt, and staff can never forge
+    // a self-mark. No grade field exists.
+    match /hw466Status/{docId} {
+      function sStudentKeys() {
+        return ['assignment', 'uid', 'email', 'name',
+                'selfMarked', 'selfMarkedAt', 'note', 'updatedAt', 'createdAt'];
+      }
+      function sStaffKeys() {
+        return ['ackBy', 'ackAt', 'feedback', 'dueOverrideAt',
+                'extensionNote', 'updatedAt'];
+      }
+      function sBaseOk() {
+        return request.resource.data.keys().hasOnly(
+                 ['assignment', 'uid', 'email', 'name', 'selfMarked',
+                  'selfMarkedAt', 'note', 'ackBy', 'ackAt', 'feedback',
+                  'dueOverrideAt', 'extensionNote', 'updatedAt', 'createdAt'])
+            && request.resource.data.assignment is string
+            && request.resource.data.get('note', '') is string
+            && request.resource.data.get('note', '').size() <= 500
+            && request.resource.data.get('feedback', '') is string
+            && request.resource.data.get('feedback', '').size() <= 2000
+            && request.resource.data.get('extensionNote', '') is string
+            && request.resource.data.get('extensionNote', '').size() <= 500
+            && request.resource.data.updatedAt == request.time;
+      }
+      function sStudentCreate() {
+        return request.auth != null
+          && docId == request.resource.data.assignment + '_' + request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.email == request.auth.token.email
+          && request.resource.data.email.matches('.*@arizona[.]edu')
+          && request.resource.data.keys().hasOnly(sStudentKeys())
+          && request.resource.data.keys().hasAll(['assignment', 'uid', 'email']);
+      }
+      // Staff may open a doc the student has not touched yet — that is how an
+      // extension gets recorded before someone starts.
+      function sStaffCreate() {
+        return bme466Staff()
+          && request.resource.data.uid is string
+          && request.resource.data.uid.size() > 0
+          && docId == request.resource.data.assignment + '_' + request.resource.data.uid
+          && request.resource.data.keys().hasOnly(
+               ['assignment', 'uid', 'email', 'name', 'ackBy', 'ackAt',
+                'feedback', 'dueOverrideAt', 'extensionNote', 'updatedAt',
+                'createdAt'])
+          && request.resource.data.keys().hasAll(['assignment', 'uid']);
+      }
+      allow get: if request.auth != null
+                 && (resource.data.get('uid', '') == request.auth.uid
+                     || bme466Staff());
+      allow list: if bme466Staff();
+      allow create: if sBaseOk() && (sStudentCreate() || sStaffCreate());
+      allow update: if request.auth != null && sBaseOk()
+        && ((resource.data.get('uid', '') == request.auth.uid
+             && request.resource.data.diff(resource.data).affectedKeys()
+                  .hasOnly(['selfMarked', 'selfMarkedAt', 'note', 'name', 'updatedAt']))
+            || (bme466Staff()
+                && request.resource.data.diff(resource.data).affectedKeys()
+                     .hasOnly(sStaffKeys())));
+      allow delete: if isAdmin() || bme466ClassAdmin();
+    }
+
+    // ── V3.681 — private student↔staff request threads ──
+    // classQA (above) has the right create rule and the right UI but is
+    // class-PUBLIC on read, which is wrong for "I need an extension because…".
+    // This composes the assessments read rule (own-doc or staff) with the
+    // classQA create rule. Messages are IMMUTABLE, which is what makes a
+    // thread a record rather than an editable claim, and authorRole is PROVEN
+    // from the caller's own staff status, never accepted as a claim.
+    match /schedules/bme466/threads/{threadId} {
+      function tAuthor() {
+        return request.auth != null
+               && resource.data.get('authorUid', '') == request.auth.uid;
+      }
+      allow get, list: if tAuthor() || bme466Staff();
+      allow create: if request.auth != null
+                    && request.auth.token.email != null
+                    && (request.auth.token.email.matches('.*@arizona[.]edu')
+                        || bme466Staff())
+                    && request.resource.data.authorUid == request.auth.uid
+                    && request.resource.data.authorEmail == request.auth.token.email
+                    && request.resource.data.authorRole ==
+                         (bme466Staff() ? 'staff' : 'student')
+                    && request.resource.data.status == 'open'
+                    && request.resource.data.subject is string
+                    && request.resource.data.subject.size() > 0
+                    && request.resource.data.subject.size() <= 160
+                    && request.resource.data.topic in
+                         ['assignment', 'grading', 'logistics', 'content', 'other']
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.keys().hasOnly(
+                         ['authorUid', 'authorEmail', 'authorName', 'authorRole',
+                          'subject', 'topic', 'assignmentSlug', 'status',
+                          'createdAt', 'updatedAt', 'assignedTo',
+                          // denormalized by functions/bme466-notify.js
+                          'lastMessageAt', 'lastMessagePreview', 'messageCount',
+                          'unreadForStaff', 'unreadForAuthor']);
+      allow update: if request.auth != null
+        && ((tAuthor()
+             && request.resource.data.diff(resource.data).affectedKeys()
+                  .hasOnly(['status', 'unreadForAuthor', 'updatedAt'])
+             && request.resource.data.status in ['open', 'closed'])
+            || (bme466Staff()
+                && request.resource.data.diff(resource.data).affectedKeys()
+                     .hasOnly(['status', 'assignedTo', 'unreadForStaff', 'updatedAt'])
+                && request.resource.data.status in ['open', 'answered', 'closed']));
+      allow delete: if isAdmin() || bme466ClassAdmin();
+
+      match /messages/{msgId} {
+        function mParticipant() {
+          return request.auth != null
+            && (get(/databases/$(database)/documents/schedules/bme466/threads/$(threadId))
+                  .data.get('authorUid', '') == request.auth.uid
+                || bme466Staff());
+        }
+        allow get, list: if mParticipant();
+        allow create: if mParticipant()
+                      && request.resource.data.authorUid == request.auth.uid
+                      && request.resource.data.authorEmail == request.auth.token.email
+                      && request.resource.data.authorRole ==
+                           (bme466Staff() ? 'staff' : 'student')
+                      && request.resource.data.body is string
+                      && request.resource.data.body.size() > 0
+                      && request.resource.data.body.size() <= 4000
+                      && request.resource.data.createdAt == request.time
+                      && request.resource.data.keys().hasOnly(
+                           ['authorUid', 'authorEmail', 'authorName',
+                            'authorRole', 'body', 'createdAt']);
+        allow update, delete: if false;   // immutable by design
+      }
+    }
+
+    // ── V3.681 — student profile + course section ──
+    // Lives HERE and not on users/{uid}.bme466 because a role:'guest' TA
+    // cannot read another guest's users doc (see the users block above), so a
+    // TA could never see a student's section there.
+    //
+    // Two fields, two owners, and that split is the whole design: the student
+    // writes `sectionClaim` (they self-declare) and staff write
+    // `sectionAssigned` (registrar truth, and it WINS — see bme466Section()
+    // in class-builder.js). Neither side can write the other's field.
+    match /schedules/bme466/profiles/{uid} {
+      function pSections() { return ['BME466', 'AME466', 'BME566', 'AME566']; }
+      function pStudentKeys() {
+        return ['uid', 'email', 'displayName', 'pronouns', 'major', 'year',
+                'interests', 'contactPref', 'sectionClaim',
+                'createdAt', 'updatedAt'];
+      }
+      function pStaffKeys() {
+        return ['sectionAssigned', 'sectionAssignedBy', 'sectionAssignedAt',
+                'staffNote', 'updatedAt'];
+      }
+      function pClaimOk() {
+        return (!('sectionClaim' in request.resource.data)
+                || request.resource.data.sectionClaim == null
+                || request.resource.data.sectionClaim in pSections())
+            && (!('sectionAssigned' in request.resource.data)
+                || request.resource.data.sectionAssigned == null
+                || request.resource.data.sectionAssigned in pSections())
+            && request.resource.data.get('displayName', '') is string
+            && request.resource.data.get('displayName', '').size() <= 120
+            && request.resource.data.get('interests', '') is string
+            && request.resource.data.get('interests', '').size() <= 1000
+            && request.resource.data.get('staffNote', '') is string
+            && request.resource.data.get('staffNote', '').size() <= 1000
+            && request.resource.data.updatedAt == request.time;
+      }
+      allow get: if request.auth != null
+                 && (request.auth.uid == uid || bme466Staff());
+      allow list: if bme466Staff();
+      allow create: if pClaimOk()
+        && ((request.auth != null && request.auth.uid == uid
+             && request.auth.token.email != null
+             && request.auth.token.email.matches('.*@arizona[.]edu')
+             && request.resource.data.email == request.auth.token.email
+             && request.resource.data.keys().hasOnly(pStudentKeys()))
+            || (bme466Staff()
+                && request.resource.data.keys().hasOnly(
+                     ['uid', 'email', 'displayName', 'sectionAssigned',
+                      'sectionAssignedBy', 'sectionAssignedAt', 'staffNote',
+                      'createdAt', 'updatedAt'])));
+      allow update: if request.auth != null && pClaimOk()
+        && ((request.auth.uid == uid
+             && request.resource.data.diff(resource.data).affectedKeys()
+                  .hasOnly(pStudentKeys()))
+            || (bme466Staff()
+                && request.resource.data.diff(resource.data).affectedKeys()
+                     .hasOnly(pStaffKeys())));
+      allow delete: if isAdmin() || bme466ClassAdmin();
+    }
+    // ══ end V3.681 ════════════════════════════════════════════════════════
 
     // Reviews — teacher/student testimonials, admin-moderated. Public reads
     // only for approved docs (public queries must carry
@@ -564,8 +1703,15 @@ service cloud.firestore {
                     && request.resource.data.authorUid == request.auth.uid
                     && request.resource.data.status == 'pending'
                     && request.resource.data.get('featured', false) == false
-                    && (get(/databases/$(database)/documents/schedules/$(request.resource.data.scheduleId)).data.ownerUid == request.auth.uid
-                        || exists(/databases/$(database)/documents/enrollments/$(request.resource.data.scheduleId + '_' + request.auth.uid)));
+                    // V3.637 — enrollment first, and the schedule read is
+                    // guarded by exists(). Previously this dereferenced a
+                    // schedule that "Delete class" had removed, which errored
+                    // and denied — so the review you most want ("the class is
+                    // over, how was it?") was the one that couldn't be written,
+                    // even by a student whose enrollment doc was still there.
+                    && (exists(/databases/$(database)/documents/enrollments/$(request.resource.data.scheduleId + '_' + request.auth.uid))
+                        || (exists(/databases/$(database)/documents/schedules/$(request.resource.data.scheduleId))
+                            && get(/databases/$(database)/documents/schedules/$(request.resource.data.scheduleId)).data.ownerUid == request.auth.uid));
       allow update: if isAdmin()
                     || (request.auth != null
                         && resource.data.authorUid == request.auth.uid
@@ -582,7 +1728,14 @@ service cloud.firestore {
     // lands status 'approved'. Editing an approved profile therefore pulls
     // it off the team page until re-approved.
     match /teacherProfiles/{uid} {
-      allow read: if resource.data.status == 'approved' || isAdmin() || isOwner(uid);
+      // V3.772 — identity checks FIRST, and the status check guarded: a
+      // teacher opening the profile editor for the first time gets a document
+      // that does not exist yet, and `resource.data.status` on a null
+      // resource raises, which denies the whole `||` (see enrollments). The
+      // public People-page query is a list, where `resource` is per-document
+      // and never null, so it is unaffected.
+      allow read: if isAdmin() || isOwner(uid)
+                  || (resource != null && resource.data.status == 'approved');
       allow create: if isOwner(uid)
                     && request.resource.data.status in ['draft', 'pending'];
       allow update: if isAdmin()
@@ -767,18 +1920,112 @@ service cloud.firestore {
                     && (request.auth.uid == resource.data.ownerUid || isAdmin());
     }
 
-    // Lab Meetings — any authenticated member reads/creates/updates; admin-only delete
-    match /meetings/{meetingId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null && isAdmin();
+    // ── Lab Meetings (V3.743 remodel) ─────────────────────────────────────
+    //
+    // Meeting coordinator = site admin OR a uid listed in
+    // meetingConfig/settings.coordinatorUids. The exists() guard is
+    // load-bearing: get() on a missing doc RAISES, and a raising branch
+    // denies the whole || chain (the V3.684 isAdmin()-with-no-users-doc
+    // lesson). Placed LAST in every OR so admins short-circuit without the
+    // extra read.
+    function isMeetingCoordinator() {
+      return isAdmin() || (
+        request.auth != null &&
+        exists(/databases/$(database)/documents/meetingConfig/settings) &&
+        request.auth.uid in
+          get(/databases/$(database)/documents/meetingConfig/settings)
+            .data.get('coordinatorUids', [])
+      );
     }
 
-    // Meeting config — admin manages rotation/schedule, members can read
+    // Before V3.743 this block was `request.auth != null` for read/create/
+    // update — any signed-in GUEST could rewrite every meeting, and the
+    // client's isMeetingAdmin() gate was pure decoration. Now:
+    //   • lab members read; coordinators create/delete and edit anything;
+    //   • members may write only the collaborative fields (minutes,
+    //     action items, reactions, the slide pipeline) and, inside
+    //     `presenters` (a MAP keyed by uid, not an array — that is what
+    //     makes this checkable), only their OWN key: claim an empty slot,
+    //     edit/release their own, never touch anyone else's.
+    // Swaps between two students are executed by the onMeetingWritten
+    // Cloud Function, never client-side, precisely because B may not write
+    // A's key.
+    match /meetings/{meetingId} {
+      allow read:   if isLabMember();
+      allow create: if isMeetingCoordinator();
+      allow delete: if isMeetingCoordinator();
+      allow update: if isMeetingCoordinator() || (
+        isLabMember() &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['presenters', 'updates', 'minutes', 'actionItems', 'feedback', 'updatedAt']) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['presenters'])
+         || request.resource.data.get('presenters', {})
+              .diff(resource.data.get('presenters', {}))
+              .affectedKeys().hasOnly([request.auth.uid]))
+      );
+    }
+
+    // Meeting config — coordinators manage the schedule, templates, chore
+    // catalogue and Drive settings; only an ADMIN appoints coordinators or
+    // reviewers (otherwise a coordinator could appoint themselves forever).
     match /meetingConfig/{docId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
+      allow read:  if isLabMember();
+      allow write: if isAdmin() || (
+        isMeetingCoordinator() && resource != null &&
+        !request.resource.data.diff(resource.data).affectedKeys()
+           .hasAny(['coordinatorUids', 'primaryCoordinatorUid', 'reviewerUids'])
+      );
+    }
+
+    // Topic suggestions — any member suggests; anyone may vote (votes-only
+    // write); the author or a coordinator edits/withdraws.
+    match /meetingTopics/{topicId} {
+      allow read:   if isLabMember();
+      allow create: if isLabMember()
+                    && request.resource.data.suggestedBy == request.auth.uid;
+      allow update: if isMeetingCoordinator()
+                    || resource.data.suggestedBy == request.auth.uid
+                    || (isLabMember() && request.resource.data.diff(resource.data)
+                          .affectedKeys().hasOnly(['votes', 'updatedAt']));
+      allow delete: if isMeetingCoordinator()
+                    || resource.data.suggestedBy == request.auth.uid;
+    }
+
+    // Slot-swap requests (peer-accept model). The requester creates it
+    // pending; only the target may accept/decline; only the requester may
+    // cancel; a coordinator may do anything. The presenter moves themselves
+    // are performed server-side once status flips to 'accepted'.
+    match /meetingSwaps/{swapId} {
+      allow read:   if isLabMember();
+      allow create: if isLabMember()
+                    && request.resource.data.fromUid == request.auth.uid
+                    && request.resource.data.status == 'pending';
+      allow update: if isMeetingCoordinator()
+                    || (resource.data.toUid == request.auth.uid
+                        && request.resource.data.status in ['accepted', 'declined'])
+                    || (resource.data.fromUid == request.auth.uid
+                        && request.resource.data.status == 'cancelled');
+      allow delete: if isMeetingCoordinator();
+    }
+
+    // Weekly chore board, one doc per ISO week. Two maps, two owners:
+    //   assignments: { <choreId>: { uid, name, taskId, assignedBy } }  — coordinator
+    //   completions: { <uid>: { <choreId>: { doneAt } } }              — each member,
+    //                                                                    own key only
+    // Splitting done-state out of `assignments` and keying it by uid is what
+    // lets the rule say "only YOUR ticks" instead of "only one key, trust
+    // the client" — the same MapDiff trick `presenters` uses above.
+    match /labChores/{weekId} {
+      allow read:   if isLabMember();
+      allow create, delete: if isMeetingCoordinator();
+      allow update: if isMeetingCoordinator() || (
+        isLabMember() &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['completions', 'updatedAt']) &&
+        request.resource.data.get('completions', {})
+          .diff(resource.data.get('completions', {}))
+          .affectedKeys().hasOnly([request.auth.uid])
+      );
     }
 
     // Activity tracker data — owner-only (private by default)
@@ -790,10 +2037,14 @@ service cloud.firestore {
     // Activity tracker entries — owner-only, OR admin (V3.160: PMR Activity block
     // needs unconditional admin cross-user read; the legacy shareActivity opt-in
     // stays as an OR for non-admin sharing flows that might be added later).
+    // V3.624 — assigned mentors join the read set: the PMR's Activity/Stats
+    // blocks and the My Week ledger render for the same reviewer set that can
+    // already read the PMR itself (the V3.517 notebook precedent).
     match /trackerEntries/{userId}/entries/{entryId} {
       allow read:  if request.auth != null
                    && (request.auth.uid == userId
                        || isAdmin()
+                       || isMentorOf(userId)
                        || (isLabMember()
                            && get(/databases/$(database)/documents/users/$(userId)).data.shareActivity == true));
       allow write: if request.auth != null
@@ -845,8 +2096,8 @@ service cloud.firestore {
         && (request.resource.data.priority in ['normal', 'high', 'urgent']
             || (request.resource.data.priority == 'maintenance' && isAdmin()))
         // V3.527 — optional source_ref map {kind:'dayplan', id} lets a
-        // booking created by My Day's distribution engine carry its hub
-        // backref (equipment.html renders a "via My Day" chip from it).
+        // booking created by My Week's distribution engine carry its hub
+        // backref (equipment.html renders a "via My Week" chip from it).
         && (!('source_ref' in request.resource.data.keys())
             || request.resource.data.source_ref is map)
         && request.resource.data.keys().hasOnly(
@@ -860,7 +2111,7 @@ service cloud.firestore {
         isAdmin()
 
         // Owner reschedule/edit — status untouched (source_ref: V3.527
-        // My Day cascade may re-stamp its backref on date/time edits)
+        // My Week cascade may re-stamp its backref on date/time edits)
         || (isBookingOwner()
             && bkChanged().hasOnly(
                  ['equipmentId', 'equipmentName', 'date', 'endDate', 'startTime',
@@ -996,6 +2247,9 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if request.auth != null
                     && request.resource.data.createdBy == request.auth.uid
+                    // V3.836 — a group's creator must be one of its members
+                    && (request.resource.data.get('type', 'channel') != 'group'
+                        || request.auth.uid in request.resource.data.get('members', []))
                     && (request.resource.data.get('type', 'channel') == 'dm'
                         || (chatRole() != 'readonly'
                             && (request.resource.data.get('isAnnouncement', false) != true
@@ -1004,6 +2258,11 @@ service cloud.firestore {
            isChatAdmin()
            // subscribe/unsubscribe: subscriberUids (self only) + memberCount
         || (chChanged().hasOnly(['subscriberUids', 'memberCount']) && onlySelfSubToggle())
+           // V3.836 — groups (type 'group', members[]): any MEMBER may add or
+           // remove people, rename, or leave. hasOnly freezes type/createdBy.
+        || (resource.data.get('type', '') == 'group'
+            && request.auth.uid in resource.data.get('members', [])
+            && chChanged().hasOnly(['members', 'subscriberUids', 'memberCount', 'displayName', 'description']))
            // TRANSITION carve-out: pre-V3.507 clients bump these after
            // send; the Cloud Function owns them for fanout:'v2'
            // messages. R7 (V3.5xx) shipped the client side — DELETE
@@ -1119,20 +2378,167 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // Procurement Tickets (V3.44) — unified request → order → receive →
-    // place → inventory lifecycle. Any lab member can read (so they can
-    // see open orders to mark received and pending placements). Anyone
-    // signed in can create (students submit requests). Lab members can
-    // update because the lifecycle has multiple actors: requester edits
-    // their own ticket, admin approves/uploads PO, receiver marks
-    // received + records location. The UI gates the affordances; audit
-    // lives on the doc fields (approvedBy, receivedBy, placedBy,
-    // updatedAt). Delete is admin-only.
+    // Procurement Tickets (V3.813 — rewrite of V3.44). One document walks
+    //   requested ⇄ needs_info → approved → ordered → received → placed
+    // with denied / cancelled terminal. V3.44 allowed any lab member to
+    // update anything ("the UI gates it"), so a requester could approve
+    // their own ticket and nothing in the data could be trusted. The
+    // transition table from rm/js/procurement-core.js is enforced here:
+    //   requester  = resource.data.requestedBy
+    //   approver   = admin or cap 'procurement:approve'
+    //   purchaser  = admin or cap 'procurement:order'
+    //   member     = isLabMember()  (receive / put away / notes)
+    // Identity fields (requestedBy, createdAt) are frozen on update; a
+    // same-status write by any member may touch only the note/flag keys
+    // (NOTE_ONLY_KEYS in procurement-core.js — keep the two lists equal);
+    // admins may write anything; delete is admin-only. isRequester() reads
+    // resource.data only inside `update`, where the doc exists, so the
+    // missing-doc trap (feedback_rules_missing_doc_read) does not apply.
+    // Tested: scripts/tests/procurement-rules.test.mjs (emulator).
     match /procurementTickets/{ticketId} {
-      allow read:   if isLabMember();
-      allow create: if request.auth != null;
-      allow update: if isLabMember();
+      function tFrom() { return resource.data.get('status', 'requested'); }
+      function tTo() { return request.resource.data.get('status', 'requested'); }
+      function move() { return tFrom() + '>' + tTo(); }
+      function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+      function touchesOnly(keys) { return changed().hasOnly(keys); }
+      function isRequester() { return resource.data.get('requestedBy', '') == request.auth.uid; }
+      function canApprove() { return isAdmin() || hasCap('procurement:approve'); }
+      function canOrder() { return isAdmin() || hasCap('procurement:order'); }
+      function keepsIdentity() {
+        return request.resource.data.get('requestedBy', '') == resource.data.get('requestedBy', '')
+            && request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null);
+      }
+      // lastActorUid is how the notify function excludes the actor — it must be
+      // the caller (or absent, for the pre-V3.813 page still cached somewhere).
+      function actorOk() { return request.resource.data.get('lastActorUid', request.auth.uid) == request.auth.uid; }
+      // The audit trail is append-only for everyone but admins: history, notes
+      // and watcherUids may grow, never shrink or be rewritten.
+      function appendOnly() {
+        return request.resource.data.get('history', []).hasAll(resource.data.get('history', []))
+            && request.resource.data.get('notes', []).hasAll(resource.data.get('notes', []))
+            && request.resource.data.get('watcherUids', []).hasAll(resource.data.get('watcherUids', []));
+      }
+      function noteKeys() {
+        return ['notes', 'history', 'updatedAt', 'issue', 'issueBy', 'issueByName',
+                'issueAt', 'watcherUids', 'lastActorUid', 'lastActivityAt'];
+      }
+      function noteOnly() { return tTo() == tFrom() && touchesOnly(noteKeys()); }
+      // A problem may be flagged by anyone while the order is out (ordered /
+      // received); only a purchaser clears one.
+      function issueOk() {
+        return !changed().hasAny(['issue', 'issueBy', 'issueByName', 'issueAt'])
+            || (tFrom() in ['ordered', 'received']
+                && (request.resource.data.get('issue', null) != null || canOrder()));
+      }
+      // What a requester may touch: the request itself, notes, the fields that
+      // CLEAR a decision (answer, withdraw, reopen) — never the decision stamps.
+      function requesterKeys() {
+        return noteKeys().concat(['status', 'itemDescription', 'productUrl', 'vendor', 'catalogueNumber',
+          'quantity', 'unitCost', 'estimatedCost', 'category', 'projectId', 'project', 'fundingAccount', 'fundingLabel',
+          'neededBy', 'urgency', 'reason', 'question', 'answeredAt', 'cancelledBy', 'cancelledAt',
+          'approvedBy', 'approvedByName', 'approvedAt', 'deniedBy', 'deniedByName', 'deniedAt', 'piNotes',
+          'purchaseType', 'recurrence', 'comparisons']);   // V3.814 request fields
+      }
+      // V3.814 — an approver may move the charge to another project at ANY live
+      // stage ("Change funding"); past approval that is a same-status write that
+      // touches only these keys (FUNDING_KEYS in procurement-core.js).
+      function fundingKeys() {
+        return noteKeys().concat(['projectId', 'project', 'fundingAccount', 'fundingLabel',
+          'fundingChangedBy', 'fundingChangedByName', 'fundingChangedAt', 'fundingChangedFrom']);
+      }
+      function fundingOnly() { return tTo() == tFrom() && tFrom() in ['ordered', 'received', 'placed'] && touchesOnly(fundingKeys()); }
+      function requesterDecisionsOk() {
+        return (!changed().hasAny(['approvedBy', 'approvedByName', 'approvedAt'])
+                || (request.resource.data.get('approvedBy', null) == null && request.resource.data.get('approvedAt', null) == null))
+            && (!changed().hasAny(['deniedBy', 'deniedByName', 'deniedAt']) || request.resource.data.get('deniedBy', null) == null)
+            && (!changed().hasAny(['piNotes']) || request.resource.data.get('piNotes', '') == '');
+      }
+      // What a purchaser may touch: the order, undoing it, undoing a receipt.
+      function purchaserKeys() {
+        return noteKeys().concat(['status', 'poNumber', 'purchaseMethod', 'orderDate', 'expectedDelivery', 'poUrl',
+          'poStoragePath', 'orderGroupId', 'orderedCost', 'orderedBy', 'orderedByName', 'orderedAt',
+          'receivedBy', 'receivedByName', 'receivedAt']);
+      }
+      // Any member may receive and put away — only those fields, signed with
+      // their own uid.
+      function receiveOnly() {
+        return touchesOnly(noteKeys().concat(['status', 'quantityReceived', 'actualCost', 'receiptUrl',
+                                              'receiptStoragePath', 'receivedNote', 'receivedBy', 'receivedByName', 'receivedAt']))
+            && request.resource.data.get('receivedBy', '') == request.auth.uid;
+      }
+      function placeOnly() {
+        return touchesOnly(noteKeys().concat(['status', 'location', 'placementMode', 'inventoryItemId',
+                                              'placedBy', 'placedByName', 'placedAt']))
+            && request.resource.data.get('placedBy', '') == request.auth.uid;
+      }
+
+      allow read: if isLabMember();
+
+      // A new ticket is the caller's own, un-decided, born now, with at most
+      // its own 'submit' history entry (forged approvals / back-dated requests
+      // were the adversary suite's C4–C6).
+      allow create: if isLabMember()
+                    && request.resource.data.requestedBy == request.auth.uid
+                    && request.resource.data.status == 'requested'
+                    && request.resource.data.itemDescription is string
+                    && request.resource.data.itemDescription.size() > 0
+                    && request.resource.data.get('lastActorUid', request.auth.uid) == request.auth.uid
+                    && request.resource.data.get('createdAt', request.time) == request.time
+                    && request.resource.data.get('approvedBy', null) == null
+                    && request.resource.data.get('orderedBy', null) == null
+                    && request.resource.data.get('history', []).size() <= 1
+                    && request.resource.data.get('notes', []).size() == 0;
+
+      // The transition table from rm/js/procurement-core.js, as exact
+      // from>to moves per role. Tested: scripts/tests/procurement-rules.test.mjs.
+      allow update: if isLabMember() && (
+           isAdmin()
+        || (keepsIdentity() && actorOk() && appendOnly() && issueOk() && (
+                 (isRequester() && touchesOnly(requesterKeys()) && requesterDecisionsOk()
+                   && move() in ['requested>requested', 'requested>cancelled', 'needs_info>requested',
+                                 'needs_info>cancelled', 'approved>requested', 'approved>cancelled',
+                                 'cancelled>requested'])
+              || (canApprove()
+                   && move() in ['requested>needs_info', 'requested>approved', 'requested>denied', 'requested>requested',
+                                 'needs_info>approved', 'needs_info>denied', 'needs_info>needs_info',
+                                 'approved>approved', 'approved>requested', 'approved>denied',
+                                 'denied>requested', 'cancelled>requested'])
+              || (canApprove() && fundingOnly())
+              || (canOrder() && touchesOnly(purchaserKeys())
+                   && move() in ['approved>ordered', 'ordered>ordered', 'ordered>approved', 'received>ordered'])
+              || (move() == 'ordered>received' && receiveOnly())
+              || (move() == 'received>placed' && placeOnly())
+              || noteOnly()
+           ))
+      );
+
       allow delete: if isAdmin();
+    }
+
+    // V3.820 — Price watch: one doc per product URL (id = host slug + hash of
+    // the normalised URL, computed identically by rm/js/procurement-core.js
+    // and the Chrome extension's price-watch-core.js). Any lab member may
+    // start or extend a watch — a captured item, a request with a link and a
+    // price, the extension's three-monthly re-scrape — but the observation
+    // history only ever grows and the creator is frozen. A snapshot is the
+    // page as printed text at the time of a price; write-once by its author.
+    match /priceWatch/{watchId} {
+      allow read: if isLabMember();
+      allow create: if isLabMember()
+                    && request.resource.data.url is string
+                    && request.resource.data.get('createdBy', '') == request.auth.uid
+                    && request.resource.data.get('lastActorUid', '') == request.auth.uid;
+      allow update: if isLabMember()
+                    && request.resource.data.get('lastActorUid', '') == request.auth.uid
+                    && request.resource.data.get('createdBy', null) == resource.data.get('createdBy', null)
+                    && request.resource.data.get('history', []).hasAll(resource.data.get('history', []));
+      allow delete: if isAdmin();
+      match /snapshots/{snapId} {
+        allow read: if isLabMember();
+        allow create: if isLabMember() && request.resource.data.get('by', '') == request.auth.uid;
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
     }
 
     // Lab Tasks — admin creates, assignee + admin read/update
@@ -1207,6 +2613,23 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // V3.644 — Label mode: which part of a PDF page is the figure, the
+    // abstract, the author list…  This is structural metadata about a
+    // published document, not anybody's private content, and the whole
+    // point is that one reader's correction fixes the paper for everyone
+    // (and feeds the detector's training set).  So it reads and writes on
+    // the same footing as annotating: any lab member, or a guest holding
+    // the per-user annotate capability.  Delete is admin-only — the client
+    // never deletes a page doc (clearing a page writes an empty box list),
+    // and `write` would have covered delete, where request.resource is
+    // null and the updatedBy check throws.
+    match /papers/{paperId}/pageLabels/{pageId} {
+      allow read: if isLabMember() || hasCap('library-paper:annotate') || isAdmin();
+      allow create, update: if (isLabMember() || hasCap('library-paper:annotate'))
+                            && request.resource.data.updatedBy == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
     // ResearchManagement library: shared paper annotations.
     //
     // Visibility model:
@@ -1276,8 +2699,12 @@ service cloud.firestore {
     }
     match /papers/{paperId}/yjs_updates/{seq} {
       allow read:   if isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId);
+      // V3.741 — the checkout lock gates EVERY manuscript mutation here (all
+      // content writes funnel through this one create). Admins unlock, they
+      // don't bypass; only the checkout holder writes through it (re-import).
       allow create: if (isAdmin() || isPaperAuthor(paperId))
-                    && request.resource.data.authorUid == request.auth.uid;
+                    && request.resource.data.authorUid == request.auth.uid
+                    && (!isPaperCheckedOut(paperId) || isPaperCheckoutHolder(paperId));
       allow update, delete: if isAdmin();   // append-only for authors; compaction via admin
     }
     match /papers/{paperId}/presence/{uid} {
@@ -1354,6 +2781,15 @@ service cloud.firestore {
                                 || isAdmin());
     }
 
+    // V3.837 — a paper's FIGURE BOARD on the whiteboard engine: the board doc
+    // plus its strokes / items (widget cards, panels) / wires / recordings /
+    // events. One shared planning surface, so the same gate as boardItems —
+    // author, mentor or admin — for read AND write. The paper id rides in the
+    // engine's classId slot (whiteboard.js boardsCol 'paperBoards').
+    match /papers/{paperId}/boards/{boardId}/{document=**} {
+      allow read, write: if isAdmin() || isPaperAuthor(paperId) || isPaperMentor(paperId);
+    }
+
     // V3.231 — Paper Export Workspace config + compile history.
     //
     // paperExports/{paperId} holds the shared compile configuration
@@ -1412,9 +2848,10 @@ service cloud.firestore {
 
     // ResearchManagement extension: capture queue (Phase 6b).
     //
-    // Access is gated on isExtensionMember() — the PI maintains the email
-    // allowlist in labConfig/extensionMembers. Sign-in alone isn't enough;
-    // a student must be on the allowlist to capture or sync.
+    // Access is gated on isExtensionMember(): V3.858 — every lab member
+    // (role != 'guest'), plus accounts on the labConfig/extensionMembers
+    // email allowlist. Sign-in alone isn't enough; a guest must be given a
+    // lab role (or be allowlisted) to capture or sync.
     //
     // - `read` is lab-wide so the dashboard sync sees every member's captures.
     // - `create` requires `captured_by_uid` to match the writer (no spoofing).
@@ -1461,7 +2898,8 @@ service cloud.firestore {
       allow update: if false;
     }
 
-    // labConfig/extensionMembers — the email allowlist itself. Anyone
+    // labConfig/extensionMembers — the email allowlist for accounts that
+    // have no lab role (V3.858: lab members pass without it). Anyone
     // authenticated can read it (so the popup can preflight-check whether
     // the user is on the list before showing capture affordances). Only
     // admins can write.
@@ -1513,18 +2951,36 @@ service cloud.firestore {
     // path mapping and migration sequencing.
 
     match /projects/{projectId} {
-      allow read:  if isLabMember();
+      // V3.729 — a guest holding the per-user 'paper-builder:create' cap
+      // (admin permissions → Per-user → Papers) reads the PAPER slice only,
+      // so the Paper Builder list (query where type=='paper') works for them
+      // without exposing courses/infrastructure/tools. hasCap() last so
+      // members short-circuit without the extra read.
+      allow read:  if isLabMember()
+                   || (resource.data.type == 'paper' && hasCap('paper-builder:create'));
       // V3.47x — paper import/export: a lab member may create/modify/delete
       // their OWN paper row (import creates a self-owned paper). Scoped to
       // the `type=='paper'` discriminator so courses/infrastructure/tools
       // stay admin-only; other project kinds keep the admin-only write.
+      // V3.729 — the create cap lifts a guest into the same self-owned create.
       allow create: if isAdmin()
-                    || (isLabMember()
-                        && request.resource.data.type == 'paper'
-                        && request.resource.data.lead_author_uid == request.auth.uid);
+                    || (request.resource.data.type == 'paper'
+                        && request.resource.data.lead_author_uid == request.auth.uid
+                        && (isLabMember() || hasCap('paper-builder:create')));
+      // V3.741 — a COAUTHOR may touch only the activity stamp and the
+      // checkout-lock fields on a paper they're on (check it out, cancel their
+      // checkout, and the paper-yjs 5-minute updatedAt touch that keeps the
+      // list's recency order truthful). hasOnly() keeps title / status /
+      // authors / everything else lead-author-or-admin.
       allow update, delete: if isAdmin()
                     || (resource.data.type == 'paper'
                         && resource.data.lead_author_uid == request.auth.uid);
+      allow update: if resource.data.type == 'paper'
+                    && request.auth != null
+                    && request.auth.uid in resource.data.get('coauthor_uids', [])
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+                         ['updatedAt', 'checked_out_by_uid', 'checked_out_by',
+                          'checked_out_at', 'checkout_token']);
     }
 
     match /funding/{fundingId} {
@@ -1598,16 +3054,57 @@ service cloud.firestore {
     }
 
     // V3.544 — Research Foci hub (rm/pages/research.html). The lab's
-    // three-level research map: specialty / concept / output cards with
+    // research map: specialty / concept / grant / aim / output cards with
     // descriptions, media, links (drafts, patents, themes, trainings),
-    // attached students, grant ideas, and the designed public overview
-    // blocks. Lab-wide read (every member sees the lab's research map);
-    // admin-only write (the PI authors all cards — students are attached
-    // via member_uids by the admin, never self-attach). Whole-collection
+    // attached students, and the designed public overview blocks. Lab-wide
+    // read (every member sees the lab's research map). Whole-collection
     // get + client sort — no composite index.
+    //
+    // V3.851 — any lab member may PROPOSE a card. A proposal is an ordinary
+    // card doc carrying `approval: { status: 'proposed', proposed_by, … }`,
+    // created by its proposer and never published. While it awaits a
+    // decision the proposer edits it (but can only ever re-assert 'proposed'
+    // in their own name — never decide), and the proposer's mentors
+    // (users/{proposer}.mentor_uids — the direct advisor) may edit it or
+    // decide it ('approved' / 'declined'), stamped with their OWN uid. The
+    // PI (admin) may do anything, as before. Once approved the card is
+    // admin-write like every pre-V3.851 card; a card with no `approval` key
+    // reads as approved, so the status lookup below is resource-free for
+    // legacy cards and a non-admin's write to one is false before
+    // isMentorOf() is ever reached. `published` is pinned false on every
+    // non-admin write: publicFoci is admin-write anyway, but the flag on
+    // the card is what the hub's publish controls key off.
     match /researchFoci/{fociId} {
       allow read:  if isLabMember();
-      allow write: if isAdmin();
+      allow create: if isAdmin()
+                    || (isLabMember()
+                        && request.resource.data.get('created_by', '') == request.auth.uid
+                        && request.resource.data.get('approval', {}).get('status', '') == 'proposed'
+                        && request.resource.data.get('approval', {}).get('proposed_by', '') == request.auth.uid
+                        && request.resource.data.get('published', false) == false);
+      allow update: if isAdmin()
+                    || (isLabMember()
+                        && resource.data.get('approval', {}).get('status', 'approved') in ['proposed', 'declined']
+                        && request.resource.data.get('created_by', '') == resource.data.get('created_by', '')
+                        && request.resource.data.get('published', false) == false
+                        && (
+                             // the proposer: edit, or re-propose after a decline — never decide
+                             (resource.data.get('created_by', '') == request.auth.uid
+                              && request.resource.data.get('approval', {}).get('status', '') == 'proposed'
+                              && request.resource.data.get('approval', {}).get('proposed_by', '') == request.auth.uid)
+                             // the direct advisor: edit while open, or decide in their own name
+                          || (isMentorOf(resource.data.get('created_by', ''))
+                              && request.resource.data.get('approval', {}).get('proposed_by', '')
+                                   == resource.data.get('approval', {}).get('proposed_by', '')
+                              && (request.resource.data.get('approval', {}).get('status', '') == 'proposed'
+                                  || (request.resource.data.get('approval', {}).get('status', '') in ['approved', 'declined']
+                                      && request.resource.data.get('approval', {}).get('decided_by', '') == request.auth.uid)))
+                        ));
+      allow delete: if isAdmin()
+                    || (isLabMember()
+                        && resource.data.get('approval', {}).get('status', 'approved') in ['proposed', 'declined']
+                        && (resource.data.get('created_by', '') == request.auth.uid
+                            || isMentorOf(resource.data.get('created_by', ''))));
 
       // V3.600 — roadmap reference papers. The card doc itself is
       // admin-write (the PI authors the experiment → analysis → figure
@@ -1663,6 +3160,20 @@ service cloud.firestore {
       allow create, update: if false;
     }
 
+    // V3.865 — the phone app's crash reports. rm/js/app-diagnostics.js uploads one per crash, written once by the
+    // signed-in person whose app it was (uid == auth.uid, doc id == its own id field), never edited; the field list is
+    // fixed and Firestore's 1 MiB doc limit bounds the size. Admins read and clear them on rm/pages/app-reports.html.
+    match /crashReports/{reportId} {
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.id == reportId
+                    && request.resource.data.keys().hasOnly(['id', 'uid', 'email', 'name', 'kind', 'summary', 'createdAt',
+                         'uploadedAt', 'app', 'device', 'page', 'eventJson', 'metrickitJson', 'breadcrumbs'])
+                    && request.resource.data.kind is string && request.resource.data.kind.size() <= 40;
+      allow read, delete: if isAdmin();
+      allow update: if false;
+    }
+
     // V3.555 — shared icon pool (ICON_PICKER custom uploads). One doc per
     // custom icon: {name, url, storage_path, created_by, created_at}. Any
     // lab member may add to the pool and read it (used across many
@@ -1677,10 +3188,236 @@ service cloud.firestore {
                     || (isLabMember() && resource.data.created_by == request.auth.uid);
     }
 
+    // ── Inventory (V3.646) ────────────────────────────────────────────
+    // ONE collection, `kind` discriminator: 'item' | 'chemical' | 'stock'.
+    // 'stock' = a lab-made batch (e.g. inert LLS 100um + rhodamine + FITC
+    // beads), owned by its maker, consumed by anybody.
+    //
+    // THE POINT OF THIS BLOCK is the quantity invariant: any lab member may
+    // DECREASE qty_remaining (a consumption event) but only a manager may
+    // raise it or set an absolute value (a recount — the auditable act).
+    // Everything else stays exactly as writable as it was pre-V3.646, so no
+    // existing inline editor in rm/js/inventory.js breaks.
     match /inventory/{itemId} {
-      allow read:                 if isLabMember();
-      allow create, update:       if isLabMember();
-      allow delete:               if isAdmin();
+
+      // `.get(field, <resource's own value>)` on the REQUEST side is
+      // deliberate, and load-bearing three ways:
+      //   1. Bare dot access on a missing field ERRORS (denies), and ~740 of
+      //      777 legacy items have no qty_remaining at all.
+      //   2. A write that OMITS the field must compare EQUAL, so the existing
+      //      inline editors keep saving untouched.
+      //   3. Defaulting the request side to a large number would let a member
+      //      DELETE the field to escape the rule entirely.
+      function qtyBefore() { return resource.data.get('qty_remaining', 0); }
+      function qtyAfter() {
+        return request.resource.data.get('qty_remaining',
+                 resource.data.get('qty_remaining', 0));
+      }
+      // Type-guarded on BOTH sides: without `is number`, '10' <= '5' compares
+      // lexicographically and is TRUE.
+      function qtyNotRaised() {
+        return qtyAfter() is number && qtyBefore() is number
+            && qtyAfter() <= qtyBefore();
+      }
+      // The other three ways to fake "there is more than there is": inflate
+      // qty_made, raise the reorder point, or swap mL for L.
+      function qtyControlsUnchanged() {
+        return request.resource.data.get('qty_tracked', false) == resource.data.get('qty_tracked', false)
+            && request.resource.data.get('qty_made', 0)         == resource.data.get('qty_made', 0)
+            && request.resource.data.get('qty_min', null)       == resource.data.get('qty_min', null)
+            && request.resource.data.get('qty_unit', '')        == resource.data.get('qty_unit', '')
+            // V3.835 — how a scan consumes the item (per use vs. a package) is
+            // a manager's designation, like switching tracking on.
+            && request.resource.data.get('use_mode', '')        == resource.data.get('use_mode', '');
+      }
+
+      allow read: if isLabMember();
+
+      // Unchanged for item/chemical. A 'stock' batch must be signed by its
+      // maker and cannot claim more remaining than was made. There is no
+      // `resource` on create, so the monotonic clause must NOT appear here.
+      allow create: if isLabMember()
+        && (request.resource.data.get('kind', 'item') != 'stock'
+            || (request.resource.data.ownerUid == request.auth.uid
+                && request.resource.data.qty_tracked == true
+                && request.resource.data.qty_made is number
+                && request.resource.data.qty_made > 0
+                && request.resource.data.qty_remaining is number
+                && request.resource.data.qty_remaining >= 0
+                && request.resource.data.qty_remaining <= request.resource.data.qty_made
+                && request.resource.data.qty_unit is string));
+
+      // A manager may write anything (recount / override / fix / opt-in).
+      // Everyone else may write anything EXCEPT raising the counter or
+      // touching the tracking controls. Note this makes turning tracking ON a
+      // manager act, which is intended — it is a curation decision.
+      // qtyNotRaised() alone has a hole: a non-merge set() that DROPS
+      // qty_remaining makes qtyAfter() fall back to the resource's own value,
+      // so it compares equal and passes — deleting the count. qty_tracked
+      // catches the usual case (a non-merge set drops that too), but not a
+      // write that keeps the controls and drops only the counter. Close it.
+      function qtyPresentIfTracked() {
+        return request.resource.data.get('qty_tracked', false) != true
+            || request.resource.data.get('qty_remaining', null) is number;
+      }
+
+      allow update: if isLabMember()
+        && (isInvMgr() || (qtyNotRaised() && qtyControlsUnchanged() && qtyPresentIfTracked()));
+
+      // Delete stays admin-only, EXCEPT a stock batch's own maker may remove
+      // the batch they made — a mis-entered batch is a student's own mess.
+      // Safe because the full-collection api.save delete-diff is scoped by
+      // route.where (api-firestore-adapter.js:249-253) and never enumerates
+      // kind:'stock'.
+      allow delete: if isAdmin()
+        || (isLabMember() && resource.data.get('kind', '') == 'stock'
+            && resource.data.get('ownerUid', '') == request.auth.uid);
+    }
+
+    // ── Inventory usage ledger (V3.646) ───────────────────────────────
+    // Append-only. TOP-LEVEL, not a subcollection under inventory/{id}: the
+    // item-scoped read costs the same either way (one composite index), but the
+    // queries that justify the feature are CROSS-item ("what did I use this
+    // week", the manager report, the low-stock digest) and this repo has zero
+    // COLLECTION_GROUP composite indexes today. A top-level doc carrying
+    // itemId also needs no parent get() here.
+    //
+    // IMMUTABILITY IS THE AUDIT GUARANTEE. before/after on every row means
+    // row N's `before` must equal row N-1's `after`, so a lost write or a rogue
+    // direct edit to qty_remaining is DETECTABLE by scanning the ledger,
+    // without trusting the counter. A wrong row is corrected by an offsetting
+    // 'recount' row, never by editing history. Admin break-glass is the Admin
+    // SDK, which bypasses rules and leaves a Cloud Audit Log trail.
+    match /inventoryUsage/{eventId} {
+      allow read: if isLabMember();
+
+      allow create: if isLabMember()
+        && request.resource.data.userUid == request.auth.uid
+        && request.resource.data.itemId is string
+        && request.resource.data.event in ['use', 'recount', 'add', 'discard', 'transfer']
+        && request.resource.data.qty is number && request.resource.data.qty >= 0
+        && request.resource.data.delta is number
+        && request.resource.data.before is number
+        && request.resource.data.after is number
+        // Internally consistent: before + delta == after, with an epsilon
+        // because a mL/uL ledger is FLOATING POINT — 0.1 + 0.2 != 0.3, and an
+        // exact == here would silently deny a few percent of real writes.
+        && (request.resource.data.after - (request.resource.data.before + request.resource.data.delta)) < 0.001
+        && ((request.resource.data.before + request.resource.data.delta) - request.resource.data.after) < 0.001
+        // Only a manager may write a row that ADDS stock. Mirrors
+        // qtyNotRaised() on the item so the two can never disagree.
+        && (isInvMgr() || (request.resource.data.delta <= 0
+                           && request.resource.data.event in ['use', 'discard']));
+
+      allow update, delete: if false;
+    }
+
+    // ── Inventory locations / boxes (V3.646) ──────────────────────────
+    // A DIMENSION table, deliberately NOT kind:'box' inside `inventory`: a box
+    // is a place with a capacity and a parent, is never consumed, and would
+    // otherwise inherit ~30 meaningless item fields and pollute every
+    // kind-agnostic reduce (dashboard.js:298 sums extended_price over the whole
+    // items route; also analytics.js:80, budget-model.js:62). Boxes also NEST
+    // (room -> freezer -> rack -> box) via parentId, and self-nesting a fact
+    // table is worse than nesting a dimension table.
+    //
+    // Contents are a REVERSE LOOKUP —
+    //   inventory.where('locIds', 'array-contains', locId)
+    // (equality only, no composite index) — never a denormalized contents[]
+    // here, which would need a write on every consumption event from a client
+    // that may not own the box, and would diverge the first time a batch
+    // half-failed.
+    match /inventoryLocations/{locId} {
+      allow read:   if isLabMember();
+      allow create: if isLabMember() && request.resource.data.createdBy == request.auth.uid;
+      // Anyone may fix a name or a note; only a manager may re-parent or
+      // retire a box, because that silently relocates other people's things.
+      allow update: if isInvMgr()
+                    || (isLabMember()
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['name', 'short_name', 'notes', 'capacity_note',
+                                       'temp', 'label_code', 'updatedAt']));
+      allow delete: if isAdmin();
+    }
+
+    // ── Label code registry (V3.646) ──────────────────────────────────
+    // Doc id IS the normalized code (uppercase, Crockford-folded — see
+    // LabelPrinter web/core/ids.js normalize(), ported to rm/js/label-id.js).
+    // ONE getDoc resolves any scan; the indirection lets a label be re-bound or
+    // reprinted without the code changing.
+    //
+    // RESERVATION: Firestore `create` fires ONLY when the doc does not exist,
+    // so a racing second binder's set() is evaluated as an `update` and
+    // refused here. Clients wrap it in
+    //   runTransaction(t.get -> throw if exists -> t.set)
+    // so the loser gets a clean retryable error and mints again. This is why
+    // the code body stays 4 chars: central reservation makes keyspace a retry
+    // RATE question rather than a CORRECTNESS one, and widening it would
+    // worsen the human-readable overflow measured at LabelPrinter
+    // web/core/layout.js:572-578 (63-dot block, h=12, 31% already overflow).
+    match /labels/{labelCode} {
+      allow read: if isLabMember();
+
+      allow create: if isLabMember()
+        && request.resource.data.code == labelCode
+        && request.resource.data.boundBy == request.auth.uid
+        && request.resource.data.get('target_kind', '')
+             in ['', 'item', 'chemical', 'stock', 'location', 'aliquot'];
+
+      allow update: if isLabMember()
+        && (resource.data.get('boundBy', '') == request.auth.uid || isInvMgr());
+
+      // NEVER delete a code — retire it (`retired: true`). A deleted code is a
+      // code that can be re-minted onto a DIFFERENT tube, which is the one
+      // failure this registry exists to prevent.
+      allow delete: if false;
+    }
+
+    // ── Print queue (V3.646) ──────────────────────────────────────────
+    // RM is the surface where labels are composed; the label printer's browser
+    // app (LabelPrinter/web, served from 127.0.0.1 on the lab PC) reads this
+    // queue and prints what it needs. Members compose from anywhere, including
+    // a phone.
+    //
+    // cells[] carries label CONTENT, never geometry — it matches
+    // LabelPrinter/web/core/batch.js emptyCell() field-for-field so the
+    // printer's own layout.js still computes every coordinate, keeping its
+    // stated invariant and every fitting / QR-suppression decision intact.
+    match /labelQueue/{jobId} {
+      allow read: if isLabMember();
+
+      allow create: if isLabMember()
+        && request.resource.data.requestedBy == request.auth.uid
+        && request.resource.data.status == 'queued'
+        && request.resource.data.cells is list
+        && request.resource.data.cells.size() > 0
+        && request.resource.data.cells.size() <= 200;
+
+      // The printer operator is NOT the requester, so any member may claim a
+      // job and mark it printed. The requester may cancel their own.
+      allow update: if isLabMember()
+        && request.resource.data.get('status', '')
+             in ['queued', 'claimed', 'printed', 'cancelled', 'failed'];
+
+      allow delete: if isAdmin();
+    }
+
+    // ── Initials claim registry (V3.646) ──────────────────────────────
+    // Doc id = the uppercase initials. Exists so two lab members can never
+    // share initials: a stock label identifies its maker by initials ALONE,
+    // and an ambiguous 'AM' six months later is unresolvable. Same create-only
+    // reservation as /labels.
+    //
+    // The canonical value lives on users/{uid}.initials, which needs NO rules
+    // change — the users block already allows self-write of any field as long
+    // as `role` is unchanged. Retired members keep their claim so old tubes
+    // still resolve.
+    match /labInitials/{initials} {
+      allow read:   if isLabMember();
+      allow create: if isLabMember() && request.resource.data.uid == request.auth.uid;
+      allow update: if isAdmin()
+                    || (isLabMember() && resource.data.get('uid', '') == request.auth.uid);
+      allow delete: if isAdmin();
     }
 
     match /items/{itemId} {
@@ -1865,7 +3602,9 @@ service cloud.firestore {
     //   notifications (V3.594 in-app notification feed — the catch-up
     //   surface for pushes the user missed; written by Cloud Functions via
     //   the Admin SDK, read + marked-read + dismissed by the owner).
-    // pmr / tasks have explicit overrides below for cross-user collaboration.
+    // pmr / tasks / notebook / focusAreas / dayPlans / healthReviews have
+    // explicit overrides below for cross-user collaboration (mentor/PI
+    // review surfaces).
     //
     // NOTE on `notifications`: this wildcard grants the owner write, so a
     // user can technically forge items in their OWN feed. That is
@@ -1895,6 +3634,67 @@ service cloud.firestore {
       allow read:  if isOwner(userId) || isShared(resource.data)
                    || isMentorOf(userId) || isAdmin();
       allow write: if isOwner(userId);
+    }
+
+    // V3.830 — a notebook entry's WHITEBOARD blocks: the board doc plus its
+    // strokes / items / recordings / events subcollections, all under the
+    // owner. Owner read+write already comes from the userData catch-all
+    // above; this block adds the same reviewer read as the notebook entry
+    // (mentor of the owner, or admin) so a PMR reviewer can open a mentee's
+    // board and its recordings. Write stays owner-only — a board is the
+    // student's own record, like the entry it belongs to.
+    match /userData/{userId}/notebookBoards/{boardId}/{document=**} {
+      allow read:  if isOwner(userId) || isMentorOf(userId) || isAdmin();
+      allow write: if isOwner(userId);
+    }
+
+    // V3.833 — the canvas notebook's NOTEBOOKS list (a person's named
+    // notebooks; every entry carries a notebookId). Same reviewer read as
+    // the entries themselves so a mentor's rail groups a mentee's entries
+    // the way the mentee sees them. Write stays owner-only; `memberUids`
+    // (invited collaborators, Phase 2) is stored now and granted later.
+    match /userData/{userId}/notebooks/{notebookId} {
+      allow read:  if isOwner(userId) || isMentorOf(userId) || isAdmin();
+      allow write: if isOwner(userId);
+    }
+
+    // V3.838 — a person's LIT REVIEWS index: one mirror doc per lit-review
+    // card on their notebook canvases ({ title, paperIds, keyPoints, … }).
+    // Any lab member may read, because a review placed on a paper's figure
+    // board is rendered by every author of that paper. Write stays the
+    // owner's (the canvas host writes it).
+    match /userData/{userId}/litReviews/{reviewId} {
+      allow read:  if isLabMember();
+      allow write: if isOwner(userId);
+    }
+
+    // V3.624 — My Week plans cross-user READ for PMR reviewers. The PMR's
+    // My Week ledger renders every plan + its outcome (result / barrier /
+    // no-result, V3.623) week by week, and project health (V3.625) is
+    // computed from the same rows — so the PI (admin) and assigned mentors
+    // need read access, exactly the V3.517 notebook relaxation. Write stays
+    // strictly owner-only: outcomes are the student's own record; a mentor
+    // responds via barrier-acceptance (healthReviews) and PMR comments,
+    // never by editing the plan. `{itemId}` also matches the `_prefs`
+    // sentinel doc — harmless, readers already filter it.
+    match /userData/{userId}/dayPlans/{itemId} {
+      allow read:  if isOwner(userId) || isShared(resource.data)
+                   || isMentorOf(userId) || isAdmin();
+      allow write: if isOwner(userId);
+    }
+
+    // V3.625 — Barrier acceptance (project health). A mentor/admin marking
+    // a mentee's barrier reason as acceptable pushes that project's health
+    // back toward neutral; the doc is the durable record of that judgment.
+    // Reviewer-written (never the student — accepting your own barrier
+    // would defeat the score), owner-readable, author-or-admin editable.
+    match /userData/{userId}/healthReviews/{reviewId} {
+      allow read:   if isOwner(userId) || isMentorOf(userId) || isAdmin();
+      allow create: if (isMentorOf(userId) || isAdmin())
+                    && request.resource.data.reviewer_uid == request.auth.uid;
+      allow update, delete: if request.auth != null
+                    && ((resource.data.reviewer_uid == request.auth.uid && isMentorOf(userId))
+                        || isAdmin());
     }
 
     // V3.536 — Weekly focus areas (the mentor↔mentee focus loop). A focus

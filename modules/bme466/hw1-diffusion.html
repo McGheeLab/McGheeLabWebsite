@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>BME/AME 466/566 — Homework 1</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: 1.5em;}
+    div.column{flex: auto;}
+    @media screen {
+    div.columns{gap: min(4vw, 1.5em);}
+    div.column{overflow-x: auto;}
+    }
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    max-width:820px;margin:0 auto;padding:24px 18px;color:#1e293b;line-height:1.6;background:#f8fafc}
+  h1,h2,h3{color:#1e3a5f} h1{font-size:1.6rem;border-bottom:3px solid #2563eb;padding-bottom:8px}
+  h2{font-size:1.15rem;margin-top:1.6em;border-bottom:1px solid #e2e8f0;padding-bottom:4px}
+  h3{font-size:1rem;margin-top:1.2em}
+  .subtitle{color:#64748b;font-size:1.05rem;margin-top:-8px}
+  blockquote{background:#eff6ff;border-left:4px solid #2563eb;margin:14px 0;padding:10px 16px;border-radius:0 8px 8px 0}
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.92rem}
+  th,td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left}
+  th{background:#f1f5f9}
+  code{background:#f1f5f9;border-radius:4px;padding:1px 5px;font-size:.9em}
+  a{color:#2563eb}
+  strong{color:#0f172a}
+  hr{border:none;border-top:1px solid #e2e8f0;margin:22px 0}
+  @media(max-width:640px){body{padding:14px 10px}}
+  </style>
+  <!-- ══ no-copy guard ══════════════════════════════════════════════════════════
+       Canonical source. Paste this block verbatim into the <head> of every
+       student-facing course page, and pass it to pandoc-built pages with
+       `--include-in-header scripts/nocopy-header.html`. Edit it HERE, then
+       re-sync the copies (`python3 scripts/sync_nocopy.py --check`).
+
+       What it does: course text cannot be selected, copied, cut, dragged out,
+       right-click-saved, or printed. Fields the student types into stay fully
+       editable and pasteable — students still paste numbers and notes.
+
+       Why: bulk-pasting a gated question into a chatbot should be a decision,
+       not a reflex. Honest limit — this is friction, not encryption. View
+       Source, devtools, "Save page as", a screen reader, or a phone camera all
+       still reach the text; per-student data is what actually makes the answer
+       unshareable. Screen readers are unaffected: `user-select` does not touch
+       the accessibility tree, and no ARIA is hidden here.
+  -->
+  <style id="nocopy-css">
+  html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+    -webkit-touch-callout:none}
+  input,textarea,select,option,[contenteditable="true"]{
+    -webkit-user-select:text !important;-moz-user-select:text !important;
+    -ms-user-select:text !important;user-select:text !important}
+  ::selection{background:transparent}
+  input::selection,textarea::selection{background:#bfdbfe}
+  @media print{
+    html,body{visibility:hidden !important}
+    body::after{visibility:visible !important;display:block;position:fixed;top:38%;left:0;right:0;
+      padding:0 12%;text-align:center;color:#111;
+      font:600 13pt/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      content:"This page is not printable. Work through it in the browser — your dataset is generated live."}
+  }
+  </style>
+  <script id="nocopy-js">
+  (function(){
+    'use strict';
+    /* Anything you type into stays live; everything else is inert. */
+    function editable(el){
+      return !!el && (el.tagName==='INPUT'||el.tagName==='TEXTAREA'||el.isContentEditable===true);
+    }
+    function inEditable(node){
+      var n = (node && node.nodeType===1) ? node : (node && node.parentElement);
+      while(n){ if(editable(n)) return true; n = n.parentElement; }
+      return false;
+    }
+    /* Capture phase: the event is stopped before it reaches element-level
+       handlers, which is also what kills the MathJax right-click menu (it
+       offers "Show Math As → TeX Commands", i.e. copyable source). */
+    ['contextmenu','selectstart','dragstart','copy','cut'].forEach(function(ev){
+      document.addEventListener(ev, function(e){
+        if(editable(e.target)) return;
+        if(e.clipboardData){ try{ e.clipboardData.setData('text/plain',''); }catch(_){} }
+        e.preventDefault(); e.stopPropagation();
+      }, true);
+    });
+    document.addEventListener('keydown', function(e){
+      if(editable(e.target)) return;          /* Ctrl+A / Ctrl+C inside a field is fine */
+      var k = (e.key||'').toLowerCase();
+      if((e.ctrlKey||e.metaKey) && (k==='c'||k==='x'||k==='a'||k==='p'||k==='s')){
+        e.preventDefault(); e.stopPropagation();
+      }
+    }, true);
+    /* Backstop for selections that arrive without a selectstart (caret
+       browsing, programmatic select-all, some Firefox paths). */
+    document.addEventListener('selectionchange', function(){
+      var s = document.getSelection();
+      if(!s || s.isCollapsed || s.rangeCount===0) return;
+      if(inEditable(s.anchorNode)) return;
+      s.removeAllRanges();
+    });
+  })();
+  </script>
+  <!-- ══ end no-copy guard ══════════════════════════════════════════════════ -->
+  <script defer=""
+  src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"
+  type="text/javascript"></script>
+</head>
+<body>
+<!-- hi-icons:start (scripts/module_icons.py — generated; re-run after adding an icon) -->
+<style>.hi{width:1em;height:1em;display:inline-block;vertical-align:-0.125em;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;overflow:visible}.hi-solid{fill:currentColor;stroke:none}</style>
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><defs><symbol id="hi-arrow-trending-up" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941"/></symbol><symbol id="hi-book-open" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"/></symbol><symbol id="hi-bot" viewBox="0 0 24 24"><path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" /></symbol><symbol id="hi-calculator" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm2.498-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5v2.25h-7.5V6ZM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0 0 12 2.25Z"/></symbol><symbol id="hi-lock-closed" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></symbol></defs></svg>
+<script>window.HI={svg:function(n,o){o=o||{};var s=o.solid?'-solid':'';return '<svg class="hi'+(o.solid?' hi-solid':'')+(o.cls?' '+o.cls:'')+'"'+(o.tint?' style="color:'+o.tint+'"':'')+(o.label?' role="img" aria-label="'+String(o.label).replace(/"/g,'&quot;')+'"':' aria-hidden="true"')+'><use href="#hi-'+n+s+'"/></svg>';},
+draw:function(c,n,x,y,z,col,o){o=o||{};var sym=document.getElementById('hi-'+n+(o.solid?'-solid':''));if(!c||!sym||typeof Path2D==='undefined')return;var k=(z||16)/24;c.save();c.translate(x,y);c.scale(k,k);c.lineWidth=1.5;c.lineCap='round';c.lineJoin='round';c.strokeStyle=c.fillStyle=col||'#475569';
+[].forEach.call(sym.children,function(e){var a=function(q){return parseFloat(e.getAttribute(q))||0},p=new Path2D(),t=e.tagName.toLowerCase();if(t==='path')p=new Path2D(e.getAttribute('d'));else if(t==='circle')p.arc(a('cx'),a('cy'),a('r'),0,7);else if(t==='ellipse')p.ellipse(a('cx'),a('cy'),a('rx'),a('ry'),0,0,7);else if(t==='rect')p.rect(a('x'),a('y'),a('width'),a('height'));else if(t==='line'){p.moveTo(a('x1'),a('y1'));p.lineTo(a('x2'),a('y2'));}else{var v=(e.getAttribute('points')||'').trim().split(/[\s,]+/).map(parseFloat);for(var i=0;i+1<v.length;i+=2)p[i?'lineTo':'moveTo'](v[i],v[i+1]);if(t==='polygon')p.closePath();}
+if(o.solid)c.fill(p,'evenodd');else c.stroke(p);});c.restore();}};</script>
+<!-- hi-icons:end -->
+<header id="title-block-header">
+<h1 class="title">BME/AME 466/566 — Homework 1</h1>
+<p class="subtitle">Diffusion &amp; Mass Transport — <em>The unknown
+particle</em></p>
+</header>
+<p><strong>Instructions.</strong> This homework <em>is</em> the
+interactive module <strong>Diffusion &amp; Mass Transport</strong> (<a
+href="https://mcgheelab.com/modules/bme466/hw-01-diffusion-mass-transport.html"
+class="uri">https://mcgheelab.com/modules/bme466/hw-01-diffusion-mass-transport.html</a>;
+if the site is down, open the copy the instructor posts on D2L):
+<strong>a ★ Practice tab, five numbered experiment tabs, and a final Map
+&amp; Export tab — plus two floating tools you can open beside ANY tab:
+the <svg class="hi" aria-hidden="true"><use href="#hi-book-open"/></svg> Notes panel and a <svg class="hi" aria-hidden="true"><use href="#hi-calculator"/></svg> calculator</strong>. In each numbered tab
+you read a mission question, choose experiment parameters, run the
+simulation until the event <em>you</em> prescribed, transcribe the
+reported results into your data table, watch the live plot build, and
+answer in the tab — questions unlock <strong>one at a time</strong>.
+Your dataset is unique to you. Show all work in your written solutions;
+an unreadable answer is marked incorrect. <strong>Total: 100 %</strong>
+(part weights in brackets). Parts marked <strong>[566 only]</strong> are
+required for graduate students; for 466 students their weight
+redistributes within that problem. <strong>Due:</strong> TBD (see
+D2L).</p>
+<p><strong>Expected time: 4–6 hours.</strong> Real measurement takes
+real runs, and several parts require replicated data before a question
+will even open. This assignment is set for a <strong>two-week
+window</strong> and the module <strong>autosaves your progress to your
+UA account</strong>, so you can stop on one computer and pick up on
+another — plan on a few separate sittings rather than one long
+night.</p>
+<hr />
+<h3 id="before-you-touch-anything-sign-in">Before you touch anything:
+sign in</h3>
+<ol type="1">
+<li><strong>Sign in with your UA NetID</strong> in the module’s top bar
+(your <code>@arizona.edu</code> Google account). That is the whole setup
+— there is <strong>no code to type and none to write down</strong>: your
+personal dataset is assigned from your NetID automatically, so the
+values below are <em>yours</em>. There is <strong>one graded dataset and
+it is yours</strong>. Signed out you get demo numbers and export is
+blocked. (The ★ Practice tab needs no sign-in — see (5).)</li>
+<li>Put your <strong>name and NetID on page 1</strong> of your written
+submission so it can be matched to your dataset. Your work
+<strong>autosaves to your UA account</strong> as you go, so you can
+continue on any computer; the exported file is a second, portable save
+you can reload with <strong>Load progress</strong>.</li>
+<li><strong>How every experiment tab works.</strong> Read the current
+<strong>mission question</strong> (successors are visible but locked
+<svg class="hi" aria-hidden="true"><use href="#hi-lock-closed"/></svg>). Set parameters and <strong>Run</strong>: the sim animates and stops
+at the event you prescribed (a particle hitting <em>your</em> boundary,
+a bead crossing the finish line, recovery reaching 50 %).
+<strong>Transcribe</strong> the result card into your data table — each
+row is validated against your actual last run (a mismatched row is
+blocked; this checks copying, never the physics) — and the live plot
+updates with every row. Questions unlock <strong>one at a time within
+each tab</strong>. A question does not appear at all until its
+<strong>data gate</strong> is satisfied — the minimum number of runs and
+distinct settings that tab requires; the panel tells you what is still
+missing. Once it appears, the next question stays <svg class="hi" aria-hidden="true"><use href="#hi-lock-closed"/></svg> until you deal with
+the current one — and it unlocks as soon as you answer it <em>at
+all</em>. These tabs are the graded assignment, so the module never
+tells you whether you were right. If you want feedback on a concept,
+that is what the ★ Practice tab is for — see (5).</li>
+<li><strong>The results file builds in the background.</strong> There is
+no answer-entry page: every in-tab answer, table row, and run is logged
+automatically. The final tab (<strong>The Map</strong>) shows only
+progress + transport map, and holds <strong>Export</strong>.</li>
+<li><strong>Practice first — the ★ tab.</strong> The module opens on
+<strong>★ Practice the Concepts</strong>, the first tab, and that tab is
+<strong>always there</strong>: it needs no sign-in, it is not part of
+your dataset, it is never exported, and it is never graded. It is
+<strong>seven worked examples you build yourself</strong>, one page, in
+teaching order — Escape, Ensemble MSD, Crowded α, Drag, FRAP, Counting,
+Finite receptors — all on a <strong>certified calibration
+standard</strong>, one known sample shared by the whole class: certified
+<span class="math inline">\(D_1 = 3.43\)</span> µm²/s, cytoplasm
+viscosity <span class="math inline">\(5.00\times\)</span> water at <span
+class="math inline">\(T = 300\)</span> K, <span
+class="math inline">\(D_2 = 15.0\)</span> µm²/s, cell radius <span
+class="math inline">\(a = 3.0\)</span> µm, and a certified capture-rate
+slope of <span class="math inline">\(340.5\)</span> s⁻¹ per nM.
+<strong>Each example is a series of question-steps, and every step has
+its own little experiment.</strong> Run it, read the plot, answer —
+answers check themselves immediately (✓ with the reasoning, ✗ with a
+targeted hint), and the next step appears. Answered steps stay live on
+the page, so by the last step you have <em>built</em> the worked example
+from your own runs: scatter → exponent → the physical constant → the
+trap → the prediction. A <strong>summary card</strong> then assembles
+<em>your</em> numbers into the full chain, with the certified value
+behind a <strong>Reveal</strong> — compare only after you have
+committed. Because this is a known standard, immediate checking is
+honest: whatever procedure reproduces the certified value is the
+procedure you can trust on your unknown. Stuck on a step after several
+tries? A “show this step” link appears — practice is for learning, not
+for gatekeeping. Your progress on the steps is remembered; collected
+runs regenerate with one click. <strong><svg class="hi" aria-hidden="true"><use href="#hi-book-open"/></svg> Notes is a floating panel —
+open it beside your work.</strong> The <strong>Notes</strong> button in
+the dark top bar opens the equation sheet as a movable window: every law
+in this unit with its symbols, when it applies, the trap that breaks it,
+and one fully worked example per concept on the calibration standard.
+Drag it by its title bar, resize it from the corner, collapse it to a
+strip, close it — it reopens at exactly the size and spot you left it.
+Each section collapses to its heading — the panel opens as a scannable
+index; click a heading to expand just what you need, and it remembers
+which sections you keep open. Keep it open <em>next to</em> the
+experiment you are running; that is what it is for. Use it to synthesize
+— every equation there is the same idea (thermal motion + a geometry) in
+a different costume. <strong><svg class="hi" aria-hidden="true"><use href="#hi-calculator"/></svg> The calculator is its twin</strong> (the
+<strong>Calc</strong> button beside Notes): a scientific calculator
+built for this homework, with a full keypad (2nd layer for inverse
+functions) and a live result that previews as you type. Declare
+variables and reuse them (<code>D = 3.43</code> …
+<code>900/(4*D)</code>), chain with <code>ans</code>, use scientific
+notation (<code>3.43e-12</code>), and the constants are preloaded
+(<code>pi</code>, <code>e</code>, <code>kB</code>, <code>NA</code>,
+<code>R</code>, <code>g</code>, <code>h</code>, <code>c</code>) — so
+<code>kB*300/(6*pi*eta*D)</code> is one line, not a units safari.
+History and variables persist across sessions, clicking a past line
+reuses it, and the ⧉ button copies a result — the sanctioned way to
+carry a number out of this page. (Trig has a DEG/RAD toggle;
+multiplication needs an explicit <code>*</code>.) It also has a
+<strong><svg class="hi" aria-hidden="true"><use href="#hi-arrow-trending-up"/></svg> Graph face</strong> that works like Desmos: type
+<code>y = a*x^2</code> and it plots live, <code>a = 2</code> becomes a
+draggable slider that re-plots every curve using it, and you pan by
+dragging, zoom by scrolling, reset with ⌂. Use it to <em>see</em> the
+laws before you fit them — plot <code>x^2</code> against your escape
+times, or <code>1/x</code> to feel an asymptote. <strong><svg class="hi" aria-hidden="true"><use href="#hi-bot"/></svg> “Copy this
+for my chatbot.”</strong> Each worked example has a button that copies a
+ready-made tutor prompt for ChatGPT/Claude: the task restated for a bot,
+the standard equation sheet, the module’s <em>deliberate
+simplifications</em> (so the bot coaches within the model instead of
+“correcting” it), your collected practice runs, and an instruction to
+walk you through the method step by step, explaining <em>why</em> each
+step is right — while holding the certified answer back until you have
+made your own estimate. This is the <strong>sanctioned</strong> way to
+use AI on this homework, and it is deliberately better than pasting: the
+prompt carries context no paste would. It exists only on the practice
+tab, where the data is the shared standard. <strong>The standard is not
+your sample.</strong> Once your method reproduces the certified values,
+do the experiment for real on <strong>your own</strong> data in the
+numbered tabs (Problems 1–5 → Tabs 1–5). That is the pattern for the
+whole assignment: build the worked example on the standard, reveal to
+check, then do it for real on your own sample. The numbered tabs give no
+correctness feedback; answers stay editable.</li>
+<li><strong>The numbered tabs give you cross-checks, not
+answers.</strong> The module will never tell you whether an answer is
+right, but <strong>Tab 6 carries a “Cross-checks” panel</strong> (with
+inline notes as certain answers are recorded) that compares <strong>your
+own</strong> independent measurements against <strong>each
+other</strong> — never against an answer key: <span
+class="math inline">\(D_1\)</span> measured two ways (Tab 1 escape times
+vs Tab 2 MSD) should agree; the spread of <span
+class="math inline">\(\zeta = F/v\)</span> across your own forces tests
+<strong>drag linearity</strong>; the spread of <span
+class="math inline">\(D_2\)</span> across your own spot sizes tests
+<strong>FRAP consistency</strong>; the spread of <span
+class="math inline">\(k/c\)</span> tests <strong>capture
+linearity</strong>; the <strong>perfect-absorber ratio</strong> should
+sit near 1 (a value near 0.60 or 1.66 is the signature of the nM →
+molecules/µm³ conversion going missing or backwards); <strong>search
+time ÷ traverse time must equal</strong> <span
+class="math inline">\(2R_\text{nuc}/a_\text{site}\)</span>, which
+catches nm↔︎µm slips; and your <strong>particle radius</strong> should be
+physically plausible (1–200 nm). Agreement between measurements you made
+independently — not an answer key — is what should make you confident in
+what you submit. A check that warns is telling you <em>where to
+look</em>, not what to write.</li>
+<li><strong>Work in sessions.</strong> The module autosaves in your
+browser, but browsers get cleared: click <strong>Export results</strong>
+at the end of <em>every</em> session; the file re-imports via
+<strong>Load progress</strong> and restores your full state on any
+machine.</li>
+</ol>
+<h3 id="what-you-submit-two-files-one-d2l-dropbox">What you submit (two
+files, one D2L dropbox)</h3>
+<ul>
+<li><strong>The module’s exported results file</strong>
+<code>HW1_&lt;ID&gt;_&lt;code&gt;.json</code> — your in-tab answers,
+data tables, and run log. Auto-graded.</li>
+<li><strong>A written solutions PDF</strong> (scanned handwriting or
+typeset): full reasoning, derivations, unit tracks, uncertainty
+estimates, a citation for every looked-up value, and hand-drawn figures
+where asked. Numbers in your PDF <strong>must match your JSON</strong> —
+a mismatch is a fabricated measurement (an integrity violation).</li>
+</ul>
+<hr />
+<h3 id="the-scenario">The scenario</h3>
+<p>You’ve been handed a vial of unlabeled nanoparticles and a virtual
+microscope. Your job, as the lab’s cell biophysicist, unfolds in stages:
+watch a single particle escape a corral you draw around it and discover
+the <span class="math inline">\(L^2\)</span> law (Problem 1); track a
+whole ensemble to pin down the diffusion coefficient (Problem 2); drag a
+calibration bead with an optical tweezer to weigh the cytoplasm and
+unmask the particle’s identity (Problem 3); turn the same physics on a
+transcription factor hunting for one 10-bp address in a nucleus (Problem
+4); ask how well a cell can <em>count</em> the ligand molecules raining
+onto its surface (Problem 5); and finally ask why, if diffusion is so
+effective at the micron scale, you can’t smell a banana from across the
+room (Problem 6). Every number you use is one you measured; every number
+you look up, you cite.</p>
+<blockquote>
+<p><strong>Data (use as needed).</strong> Your module displays
+<em>your</em> values of: temperature <span
+class="math inline">\(T\)</span>, tweezer bead radius <span
+class="math inline">\(r_\text{bead}\)</span>, default FRAP spot radius
+<span class="math inline">\(w\)</span>, nucleus radius <span
+class="math inline">\(R_\text{nuc}\)</span>, absorber-cell radius <span
+class="math inline">\(a\)</span>, and environment concentration <span
+class="math inline">\(c^\star\)</span>. Boltzmann constant <span
+class="math inline">\(k_B = 1.38\times10^{-23}\ \mathrm{J/K}\)</span>.
+First passage from the center of an absorbing disk (2-D): <span
+class="math inline">\(\tau = L^2/4D\)</span>. FRAP (Soumpasis 1983,
+given in the module): <span class="math inline">\(D_2 = 0.224\,
+w^2/\tau_{1/2}\)</span>. Smoluchowski perfect-absorber rate: <span
+class="math inline">\(k_\text{max} = 4\pi D\, a\, c\)</span>.
+Berg–Purcell averaging time: <span class="math inline">\(\tau_{BP}
+\approx 1/(D\, a\, c\, \delta^{2})\)</span>, <span
+class="math inline">\(\delta = 0.1\)</span>. Target-site radius <span
+class="math inline">\(a_\text{site} \approx 3.4\ \mathrm{nm}\)</span>
+(10 bp — justify and cite in Problem 4); search time <span
+class="math inline">\(\tau \approx R_\text{nuc}^3/(3 D_2
+a_\text{site})\)</span>. Receptor radius <span class="math inline">\(s =
+1\ \mathrm{nm}\)</span> (Problem 5, 566).</p>
+</blockquote>
+<hr />
+<h2 id="problem-1-escape-15-tab-1-first-passage-and-the-l2-law">Problem
+1 — Escape! <strong>[15 %]</strong> <em>(Tab 1: first passage and the
+<span class="math inline">\(L^2\)</span> law)</em></h2>
+<p>A single particle random-walks from the center of a dish at your
+temperature <span class="math inline">\(T\)</span>. You set the
+<strong>escape radius <span class="math inline">\(L\)</span></strong>
+(1–25 µm); the run stops the instant the particle crosses <em>your</em>
+boundary and reports the first-passage time <span
+class="math inline">\(\tau\)</span>. Transcribe each <span
+class="math inline">\((L, \tau)\)</span> pair. Single runs scatter
+enormously, so the module enforces a <strong>replicated design: ≥ 12
+runs across ≥ 4 distinct distances, with every distance repeated at
+least 3 times.</strong> The repeats at the <em>same</em> <span
+class="math inline">\(L\)</span> are not padding — they are what makes
+the analysis in (c) possible.</p>
+<p><strong>(a) [5 %] Module questions</strong> (Q1 opens once that
+design is satisfied): - <code>t1_factor</code> — “When you double <span
+class="math inline">\(L\)</span>, the typical escape time is multiplied
+by ≈ what factor?” <em>(the exponent check)</em> - <code>t1_D</code> —
+“<span class="math inline">\(D\)</span> (µm²/s) from the square law
+applied to your <strong>averaged</strong> times: <span
+class="math inline">\(D = L^2/(4\bar\tau)\)</span> at each distance,
+averaged over distances.” - <code>t1_extrap</code> — “With YOUR <span
+class="math inline">\(D\)</span>: typical escape time (s) from <span
+class="math inline">\(L = 100\)</span> µm.”</p>
+<p><strong>(b) [4 %] In your PDF:</strong> show by <strong>dimensional
+analysis</strong> why the mean escape time <em>must</em> scale as <span
+class="math inline">\(\tau \sim L^2/D\)</span> — no other combination of
+<span class="math inline">\(L\)</span> and <span
+class="math inline">\(D\)</span> has units of time — and state the exact
+2-D result <span class="math inline">\(\tau = L^2/4D\)</span>. Why does
+a <em>single</em> run scatter so widely around that mean, and what does
+that imply for how many rows to collect?</p>
+<p><strong>(c) [3 %] In your PDF — the two-step method, and why it is
+the method.</strong></p>
+<ol type="1">
+<li><strong>Average <span class="math inline">\(\tau\)</span> first,
+then convert.</strong> Escape times are <strong>heavy-tailed</strong> —
+the coefficient of variation across runs is ≈ 0.71 — so you must average
+<span class="math inline">\(\tau\)</span> at each distance
+<em>first</em> and only then convert, <span class="math inline">\(D =
+L^2/(4\bar\tau)\)</span>. Averaging run-by-run values of <span
+class="math inline">\(L^2/4\tau\)</span> instead inflates <span
+class="math inline">\(D\)</span> badly, because <span
+class="math inline">\(\langle 1/\tau \rangle \neq 1/\langle \tau
+\rangle\)</span> (Jensen’s inequality). In one or two sentences, say why
+the inequality runs in the direction it does — which runs dominate a
+mean of <span class="math inline">\(1/\tau\)</span>? — and
+<strong>report the spread you actually observed</strong> (min, max, and
+standard deviation at one of your distances).</li>
+<li><strong>Establish the exponent, then use the law.</strong> The free
+log–log fit’s <strong>slope</strong> is what tests whether the exponent
+is 2 — that is Q1’s (<code>t1_factor</code>) entire job. <span
+class="math inline">\(D\)</span> must then come from the
+<strong>confirmed square law</strong>, <span class="math inline">\(D =
+L^2/(4\bar\tau)\)</span> at each distance, averaged — that is Q2’s
+(<code>t1_D</code>) answer. Reading <span
+class="math inline">\(D\)</span> off the free fit’s
+<strong>intercept</strong> is an extrapolation all the way down to <span
+class="math inline">\(L = 1\)</span> µm, and it is wildly unstable when
+the slope is even slightly off. The module’s plot prints
+<strong>both</strong> readings; in one sentence, explain why the
+intercept route is the fragile one and which reading you reported.</li>
+</ol>
+<p><strong>(d) [3 %] In your PDF:</strong> <strong>hand-sketch your own
+<span class="math inline">\(\tau\)</span>-vs-<span
+class="math inline">\(L\)</span> table</strong> on log–log axes (plot
+the per-distance averages, and show the scatter of the repeats), draw
+your fit line, and label its slope. Mark the extrapolated point you
+reported in <code>t1_extrap</code>.</p>
+<h2
+id="problem-2-the-ensemble-15-tab-2-msd-and-measurement-windows">Problem
+2 — The Ensemble <strong>[15 %]</strong> <em>(Tab 2: MSD and measurement
+windows)</em></h2>
+<p>One particle told you the law; an ensemble tells you the number. Run
+tracking sessions (2–10 tracks; 12 s at 20 fps, realistic localization
+noise), then slide the <strong>fit window</strong> across the MSD curve;
+each window yields a row of <strong>window-lo, window-hi, slope, <span
+class="math inline">\(D_\text{fit}\)</span></strong>. The plot of <span
+class="math inline">\(D_\text{fit}\)</span> vs window center reveals the
+stable plateau between noise floor and long-lag scatter. A scenario
+switch adds a crowded cytoplasm <strong>[566]</strong>, simulated as
+true <strong>fractional Brownian motion</strong> — so its MSD genuinely
+scales as <span class="math inline">\(\tau^\alpha\)</span>.</p>
+<p><strong>(a) [5 %] Module questions</strong> (Q1 opens after ≥ 4
+rows): - <code>t2_slope</code> — “In a clean window the log-log slope
+reads ≈?” - <code>t2_D</code> — “Best estimate of <span
+class="math inline">\(D_1\)</span> (µm²/s)?” — this should agree with
+Tab 1. - <code>t2_unc</code> — “± uncertainty on <span
+class="math inline">\(D_1\)</span> from the window-to-window spread
+(µm²/s)?”</p>
+<p><strong>(b) [4 %] In your PDF:</strong> justify your fit window. Why
+exclude the <em>shortest</em> lag times (what does the
+localization-noise floor do to the apparent MSD?) and the
+<em>longest</em> (what happens to the statistics near the track
+length?)?</p>
+<p><strong>(c) [3 %] In your PDF:</strong> defend your uncertainty
+estimate (window-to-window spread, repeat sessions, track-to-track
+spread — your choice, but defend it); do <code>t1_D</code> and
+<code>t2_D</code> agree within it? Which do you trust more, and why?</p>
+<p><strong>(d) [3 %] [566 only]</strong> Module question
+<code>t2_alpha</code> (needs ≥ 2 crowded rows) — “Crowded-scenario
+exponent <span class="math inline">\(\alpha\)</span>?” In your PDF,
+explain physically why crowding produces anomalous subdiffusion (<span
+class="math inline">\(\langle r^2\rangle \propto t^\alpha\)</span>,
+<span class="math inline">\(\alpha &lt; 1\)</span>) and give one
+concrete consequence for reaction kinetics. State explicitly how you
+obtained <span class="math inline">\(\alpha\)</span>: it is the slope of
+the <strong>time-averaged</strong> MSD measured in a clean window — not
+from a single lag, and not from the noise-dominated short lags or the
+statistics-starved long ones.</p>
+<h2 id="problem-3-drag-15-tab-3-the-einstein-relation">Problem 3 — Drag
+<strong>[15 %]</strong> <em>(Tab 3: the Einstein relation)</em></h2>
+<p>An optical tweezer pulls the calibration bead (radius <span
+class="math inline">\(r_\text{bead}\)</span>, shown) with a force <span
+class="math inline">\(F\)</span> you choose; the run stops when the bead
+<strong>crosses the 10 µm finish line</strong> and reports transit time
+and drift velocity <span class="math inline">\(v\)</span>. Transcribe
+<span class="math inline">\((F, v)\)</span> rows; the plot of <span
+class="math inline">\(v\)</span> vs <span
+class="math inline">\(F\)</span> is a line through the origin, slope
+<span class="math inline">\(1/\zeta\)</span>.</p>
+<p><strong>(a) [6 %] Module questions</strong> (Q1 opens after ≥ 4
+distinct <span class="math inline">\(F\)</span>; Q3 unlocks once
+<code>t2_D</code> is answered): - <code>t3_zeta</code> — “<span
+class="math inline">\(\zeta\)</span> = 1/slope (pN·s/µm)?” -
+<code>t3_eta_rel</code> — “Cytoplasm viscosity as ×water at YOUR <span
+class="math inline">\(T\)</span> (look up water — cite in PDF)?” -
+<code>t3_rp</code> — “Stokes–Einstein with your <span
+class="math inline">\(D_1\)</span> → unknown-particle radius (nm)?”</p>
+<p><strong>(b) [5 %] In your PDF:</strong> the full
+<strong>Stokes–Einstein unit track</strong>. Starting from Einstein’s
+(1905) relation <span class="math inline">\(D = k_B T/\zeta\)</span>
+with Stokes drag <span class="math inline">\(\zeta = 6\pi\eta
+r\)</span>, carry every unit explicitly from your <span
+class="math inline">\(\zeta\)</span> in pN·s/µm through <span
+class="math inline">\(\eta\)</span> in Pa·s to <span
+class="math inline">\(r_p\)</span> in nm — no silent conversions — and
+say in one sentence why the <em>same</em> <span
+class="math inline">\(\zeta\)</span> governs pulled drift and free
+jiggling (fluctuation–dissipation).</p>
+<p><strong>(c) [4 %] In your PDF:</strong> <strong>cite your
+source</strong> for the viscosity of water at your module temperature
+<span class="math inline">\(T\)</span>. Then identify a plausible
+biological particle of radius <span class="math inline">\(r_p\)</span>
+(a specific protein complex, vesicle class, virus, ribosome…),
+<strong>cite your source</strong> for its size, and say in a sentence or
+two why the identification is (or isn’t) convincing.</p>
+<h2
+id="problem-4-filling-the-hole-20-tab-4-frap-and-the-searching-factor">Problem
+4 — Filling the Hole <strong>[20 %]</strong> <em>(Tab 4: FRAP and the
+searching factor)</em></h2>
+<p>Photobleach a spot in a nucleus expressing a GFP-tagged transcription
+factor. You choose the bleach-spot radius <span
+class="math inline">\(w\)</span> (0.5–5 µm; your seeded <span
+class="math inline">\(w\)</span> is the marked default); recovery
+animates, <strong>stops when it crosses 50 %</strong>, and reports <span
+class="math inline">\(\tau_{1/2}\)</span>. Transcribe <span
+class="math inline">\((w, \tau_{1/2})\)</span> rows — the module
+requires <strong>≥ 5 rows across ≥ 4 distinct spot sizes</strong>; the
+log–log plot builds toward slope ≈ 2.</p>
+<p><strong>(a) [8 %] Module questions</strong> (Q1 opens after ≥ 5 rows,
+≥ 4 distinct <span class="math inline">\(w\)</span>): -
+<code>t4_factor</code> — “Doubling <span
+class="math inline">\(w\)</span> multiplies <span
+class="math inline">\(\tau_{1/2}\)</span> by ≈?” <em>(the exponent
+check)</em> - <code>t4_D2</code> — “<span
+class="math inline">\(D_2\)</span> (µm²/s) from the square law: <span
+class="math inline">\(D_2 = 0.224\, w^2/\bar\tau_{1/2}\)</span> at each
+spot size, averaged?” - <code>t4_ttrav</code> — “Time (s) to traverse
+YOUR nucleus (<span class="math inline">\(R_\text{nuc}\)</span> shown),
+3-D?” - <code>t4_tsearch</code> — “Mean time (s) for ONE TF to find a
+10-bp site (<span class="math inline">\(a_\text{site} = 3.4\)</span>
+nm)?”</p>
+<p><strong>(b) [6 %] In your PDF:</strong> argue from Fick’s second law
+(dimensionally) why <span class="math inline">\(\tau_{1/2} \propto
+w^2\)</span> must hold — the 0.224 prefactor is the Soumpasis (1983)
+result, which you may quote. Then apply the <strong>same two-step logic
+as Problem 1</strong>, in a sentence or two: the log–log
+<strong>slope</strong> is the exponent check (<code>t4_factor</code>),
+and <span class="math inline">\(D_2\)</span> comes from the law itself —
+<span class="math inline">\(D_2 = 0.224\, w^2/\bar\tau_{1/2}\)</span>
+evaluated at each spot size and averaged — never from the fit’s
+intercept. State the 3-D scaling used for the traverse time and why it’s
+right. Then justify <span class="math inline">\(a_\text{site} \approx
+3.4\ \mathrm{nm}\)</span>: what sets the length of 10 bp of DNA?
+<strong>Cite your source.</strong></p>
+<p><strong>(c) [3 %] In your PDF:</strong> interpret
+<code>t4_tsearch</code> — on the timescale of gene regulation, is pure
+3-D diffusion fast enough? Sanity-check <span
+class="math inline">\(D_2\)</span> against <span
+class="math inline">\(D_1\)</span>: which particle is smaller, and do
+the magnitudes make sense?</p>
+<p><strong>(d) [3 %] [566 only] In your PDF:</strong> a real cell
+carries $$100 copies of the factor — what is the search time then?
+Qualitatively, what does <em>facilitated diffusion</em> — intermittent
+1-D sliding along DNA — change, and why can 1-D + 3-D beat either alone?
+(Cite Berg &amp; von Hippel 1985 or a comparable source.)</p>
+<h2
+id="problem-5-counting-20-tab-5-encounter-rates-and-bergpurcell">Problem
+5 — Counting <strong>[20 %]</strong> <em>(Tab 5: encounter rates and
+Berg–Purcell)</em></h2>
+<p>A cell of radius <span class="math inline">\(a\)</span> (shown) sits
+in a ligand bath. You choose the concentration <span
+class="math inline">\(c\)</span> (0.5–20 nM; your seeded <span
+class="math inline">\(c^\star\)</span> is marked as “your cell’s
+environment”); the counter runs for 20 s and reports the slope-fit
+capture rate <span class="math inline">\(k\)</span> (s⁻¹). Transcribe
+<span class="math inline">\((c, k)\)</span> rows; <span
+class="math inline">\(k\)</span> vs <span
+class="math inline">\(c\)</span> is a line through the origin. Scenario
+B <strong>[566]</strong>: <span class="math inline">\(N\)</span>
+discrete receptors — lower <span class="math inline">\(N\)</span> until
+the rate halves.</p>
+<p><strong>(a) [8 %] Module questions</strong> (Q1 opens after ≥ 4
+distinct <span class="math inline">\(c\)</span> including <span
+class="math inline">\(c^\star\)</span>): - <code>t5_kslope</code> —
+“Slope of <span class="math inline">\(k\)</span> vs <span
+class="math inline">\(c\)</span> (s⁻¹ per nM)?” - <code>t5_ratio</code>
+— “<span class="math inline">\(k\)</span> measured at <span
+class="math inline">\(c^\star\)</span> ÷ Smoluchowski <span
+class="math inline">\(4\pi D_2 a c^\star\)</span> (derive 1 nM = 0.6022
+µm⁻³ in the PDF)?” - <code>t5_tauBP</code> — “Berg–Purcell averaging
+time (s) at <span class="math inline">\(c^\star\)</span>, <span
+class="math inline">\(\delta = 0.1\)</span>?”</p>
+<p><strong>(b) [4 %] In your PDF:</strong> derive and verify <span
+class="math inline">\(1\ \mathrm{nM} = 0.6022\
+\text{molecules}/\text{µm}^3\)</span> from Avogadro’s number, and use it
+to keep <span class="math inline">\(D\)</span>, <span
+class="math inline">\(a\)</span>, and <span
+class="math inline">\(c\)</span> in one consistent unit system
+throughout.</p>
+<p><strong>(c) [5 %] In your PDF:</strong> Berg &amp; Purcell (1977)
+showed that a cell measuring concentration by counting arrivals faces a
+fundamental noise floor. <strong>Give the scaling argument in words
+first</strong> — how many independent counts to resolve a fractional
+difference <span class="math inline">\(\delta\)</span>, and how fast can
+diffusion refresh the sample? — then compute <span
+class="math inline">\(\tau_{BP}\)</span> by hand and confirm it matches
+your <code>t5_tauBP</code>.</p>
+<p><strong>(d) [3 %] [566 only]</strong> Module question
+<code>t5_nrec</code> (needs ≥ 3 finite-receptor rows) — “Receptors for
+half the perfect-absorber rate?” In your PDF: with <span
+class="math inline">\(k = k_\text{max}\, N s/(N s + \pi a)\)</span>,
+<span class="math inline">\(s = 1\)</span> nm, estimate the fraction of
+the cell surface those receptors cover and why the answer is
+“surprisingly few.”</p>
+<h2 id="problem-6-how-fast-is-a-smell-15-fermi-pdf-only">Problem 6 — How
+fast is a smell? <strong>[15 %]</strong> <em>(Fermi — PDF
+only)</em></h2>
+<p>No module number is typed for this problem, but your estimate must be
+<strong>anchored to your own data</strong>: start from <em>your</em>
+measured <span class="math inline">\(D_1\)</span>.</p>
+<p><strong>(a) [7 %]</strong> Estimate the diffusion coefficient of a
+small odorant (e.g., isoamyl acetate) in <strong>air</strong> by scaling
+from your <span class="math inline">\(D_1\)</span>. State the
+kinetic-theory reasoning explicitly: between a nanoparticle in cytoplasm
+and a small molecule in air, what changes — medium viscosity/density,
+particle size — and how does each enter? <strong>Cite any values you
+look up.</strong></p>
+<p><strong>(b) [4 %]</strong> With your <span
+class="math inline">\(D_\text{air}\)</span>, estimate the time for the
+odorant to diffuse 2 m through <em>still</em> air. Compare to everyday
+experience.</p>
+<p><strong>(c) [4 %]</strong> Resolve the paradox: what actually carries
+smells across a room? Estimate the Péclet number <span
+class="math inline">\(\mathrm{Pe} = uL/D\)</span> for a gentle indoor
+draft, and explain why <span class="math inline">\(\mathrm{Pe} \gg
+1\)</span> means advection wins at this scale while diffusion wins in
+your cells.</p>
+<h2 id="your-results-file">Your results file</h2>
+<p>You never fill in an answer sheet — the file assembles itself as you
+work. These are the answer fields it accumulates (plus your data tables
+and run log):</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Field</th>
+<th>Quantity</th>
+<th>Units</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>t1_factor</code></td>
+<td>Escape-time multiplier when <span class="math inline">\(L\)</span>
+doubles</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>t1_D</code></td>
+<td><span class="math inline">\(D\)</span> implied by your <span
+class="math inline">\(\tau\)</span>–<span
+class="math inline">\(L\)</span> fit</td>
+<td>µm²/s</td>
+</tr>
+<tr>
+<td><code>t1_extrap</code></td>
+<td>Extrapolated escape time from <span class="math inline">\(L =
+100\)</span> µm</td>
+<td>s</td>
+</tr>
+<tr>
+<td><code>t2_slope</code></td>
+<td>Clean-window log-log MSD slope</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>t2_D</code></td>
+<td>Best estimate of <span class="math inline">\(D_1\)</span></td>
+<td>µm²/s</td>
+</tr>
+<tr>
+<td><code>t2_unc</code></td>
+<td>Uncertainty on <span class="math inline">\(D_1\)</span></td>
+<td>µm²/s</td>
+</tr>
+<tr>
+<td><code>t2_alpha</code></td>
+<td>Crowded-scenario MSD exponent <strong>(566)</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>t3_zeta</code></td>
+<td>Bead drag coefficient</td>
+<td>pN·s/µm</td>
+</tr>
+<tr>
+<td><code>t3_eta_rel</code></td>
+<td>Cytoplasm viscosity</td>
+<td>×water</td>
+</tr>
+<tr>
+<td><code>t3_rp</code></td>
+<td>Unknown-particle radius</td>
+<td>nm</td>
+</tr>
+<tr>
+<td><code>t4_factor</code></td>
+<td><span class="math inline">\(\tau_{1/2}\)</span> multiplier when
+<span class="math inline">\(w\)</span> doubles</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>t4_D2</code></td>
+<td>Transcription-factor diffusion coefficient</td>
+<td>µm²/s</td>
+</tr>
+<tr>
+<td><code>t4_ttrav</code></td>
+<td>Nucleus traverse time</td>
+<td>s</td>
+</tr>
+<tr>
+<td><code>t4_tsearch</code></td>
+<td>Single-copy target search time</td>
+<td>s</td>
+</tr>
+<tr>
+<td><code>t5_kslope</code></td>
+<td>Capture-rate slope vs concentration</td>
+<td>s⁻¹ per nM</td>
+</tr>
+<tr>
+<td><code>t5_ratio</code></td>
+<td>Measured / Smoluchowski limit at <span
+class="math inline">\(c^\star\)</span></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>t5_tauBP</code></td>
+<td>Berg–Purcell averaging time</td>
+<td>s</td>
+</tr>
+<tr>
+<td><code>t5_nrec</code></td>
+<td>Receptors for half the perfect-absorber rate
+<strong>(566)</strong></td>
+<td>count</td>
+</tr>
+</tbody>
+</table>
+<p>When the Map tab’s completion grid is full, <strong>Export
+results</strong> one final time — that file,
+<code>HW1_&lt;NETID&gt;_&lt;code&gt;.json</code>, is what you upload.
+(Practice-tab work is never part of the export; the file you submit is
+bound to your own dataset.)</p>
+<h2 id="grading">Grading</h2>
+<p>Your results file is auto-graded <strong>against your own dataset’s
+accept bands</strong> — but the 18 fields are not all treated the same
+way, and you should know which is which:</p>
+<ul>
+<li><strong>12 per-student measured fields carry the measurement
+grade:</strong> <code>t1_D</code>, <code>t1_extrap</code>,
+<code>t2_D</code>, <code>t2_unc</code>, <code>t3_zeta</code>,
+<code>t3_eta_rel</code>, <code>t3_rp</code>, <code>t4_D2</code>,
+<code>t4_ttrav</code>, <code>t4_tsearch</code>, <code>t5_kslope</code>,
+<code>t5_tauBP</code>. Every one depends on <em>your</em> dataset — no
+one else’s answer fits.</li>
+<li><strong>4 concept checkpoints are ungraded scaffolding:</strong>
+<code>t1_factor</code>, <code>t2_slope</code>, <code>t4_factor</code>,
+<code>t5_ratio</code>. Their answers are universal constants (≈ 4, ≈ 1,
+≈ 4, ≈ 1) — <strong>the same for every student in the class</strong>.
+They exist to make you commit to the exponent or the limiting law
+<em>before</em> you use it, and they <strong>gate progress through the
+tab; they earn no measurement credit.</strong> Getting one right proves
+nothing about your data. Getting one wrong is a signal to stop and
+re-read your plot before going on.</li>
+<li><strong>2 fields are [566 only]:</strong> <code>t2_alpha</code> and
+<code>t5_nrec</code>.</li>
+</ul>
+<p><strong>Exact match is not the standard.</strong> The bands are
+deliberately wide so that honest measurement scatter is credited in
+full. What is <em>not</em> credited is an answer that floats free of
+your own work: the grader least-squares-fits <strong>your</strong>
+submitted tables and compares them against what you answered, so a value
+that matches the expected result while <strong>contradicting your own
+measurements</strong> earns no credit. Transcribed rows are likewise
+checked against the runs the module actually logged, and both the
+<strong>answers and the data</strong> in the exported file are covered
+by an <strong>integrity checksum</strong> — an edited file is
+detectable.</p>
+<p>The written PDF is graded by the course rubric:</p>
+<table>
+<thead>
+<tr>
+<th>Criterion</th>
+<th>Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reasoning &amp; method</td>
+<td>35</td>
+</tr>
+<tr>
+<td>Framing &amp; assumptions</td>
+<td>20</td>
+</tr>
+<tr>
+<td>Numerical execution &amp; units</td>
+<td>15</td>
+</tr>
+<tr>
+<td>Uncertainty &amp; sanity checks</td>
+<td>15</td>
+</tr>
+<tr>
+<td>Sources, name/NetID identification &amp; LLM-use notes</td>
+<td>15</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ai-use-policy">AI-use policy</h2>
+<p>You may use AI tools to <em>learn</em>, not to <em>answer</em>.</p>
+<p><strong>The sanctioned path — use it.</strong> The ★ Practice tab’s
+<strong>“<svg class="hi" aria-hidden="true"><use href="#hi-bot"/></svg> Copy this for my chatbot”</strong> button hands your AI a
+curated tutor prompt: the concept, the standard equation sheet, the
+module’s deliberate simplifications, your collected practice runs, and
+instructions to coach you step-by-step <em>with reasons</em> — holding
+the certified answer back until you’ve committed to your own estimate.
+That prompt will teach you more than pasting ever could, because it
+carries context a paste loses. Use it as much as you like: everything in
+it is the shared calibration standard.</p>
+<p><strong>Allowed:</strong> the sanctioned prompt above; clarifying
+concepts, definitions, or equations (the <svg class="hi" aria-hidden="true"><use href="#hi-book-open"/></svg> Notes panel holds the full
+equation sheet, and every practice prompt carries it); checking algebra
+<em>you already did</em> (the <svg class="hi" aria-hidden="true"><use href="#hi-calculator"/></svg> calculator panel is there precisely so
+arithmetic is never the hard part); debugging a spreadsheet or code
+<em>you wrote</em> to analyze your tables.</p>
+<p><strong>Not allowed:</strong> AI-generated solution prose, figures,
+or numbers. Figures must be hand-drawn or self-made.</p>
+<p>End <strong>every problem</strong> with a brief note — ≤2 sentences,
+or simply “LLM use: none”:</p>
+<blockquote>
+<p>“LLM use: I asked <em>(tool)</em> to explain <em>(concept)</em>; key
+takeaway: <em>(how it helped)</em>.”</p>
+</blockquote>
+<p>Remember: the module’s numbers cannot be obtained from an AI — they
+exist only in <em>your</em> dataset, and each question unlocks only
+after you answer the last. By submitting, you affirm every measurement
+is your own; answers inconsistent with the dataset your NetID was
+assigned are treated as fabricated measurements and handled as an
+integrity violation.</p>
+<p><strong>On this page and in the module, text is not selectable and
+pages do not print.</strong> That is deliberate, not a bug: a question
+is worth more to you when you have read it than when you have pasted it.
+Boxes you type into work normally, and if you want the assignment on
+paper, ask for the <code>.docx</code>. Nothing here prevents you from
+<em>asking</em> an AI to explain diffusion — you just have to put the
+question in your own words first, which is most of the learning.</p>
+</body>
+</html>

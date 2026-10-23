@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>V3809 nav self-test</title>
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<link rel="stylesheet" href="/rm/css/workflow.css">
+<script src="/rm/js/icons.js"></script>
+<style>
+  body { margin: 0; }
+  #results { font: 12px/1.5 ui-monospace, Menlo, monospace; white-space: pre-wrap; padding: 16px; }
+  #results .ok { color: #166534; } #results .bad { color: #b91c1c; font-weight: 700; }
+</style>
+<script>
+/* V3.809 — self-driving test of the ONE BAR (rm/js/nav.js + nav-palette.js).
+ *
+ *   python3 -m http.server 8765        # from the repo root
+ *   open http://127.0.0.1:8765/scripts/tests/v3809-nav-selftest.html
+ *   (or headless: node browser.mjs <url> --eval "document.title")
+ *
+ * A stub `firebridge` (signed in, lab member, admin toggle, empty Firestore)
+ * stands in for the real one, so the bar renders exactly as it does for a
+ * lab member, without Google sign-in. Each scenario rewrites the URL with
+ * history.replaceState (same origin) to put nav.js on a different page or
+ * shell, calls _wfRefreshStrip() to redraw, and asserts on the DOM. Nothing
+ * here navigates: the paths that would (Leave in the shell, Enter on a
+ * normal page) are exercised through the event-dispatching surfaces (split,
+ * shell) instead. The document title ends up "V3809 PASS (n)" or
+ * "V3809 FAIL (n)" so a headless runner can read the verdict. */
+var __stub = { admin: false, user: { uid: 'u-test', email: 'test@example.com' } };
+/* In-memory Firestore: __store[path] = data; __writes records every set/delete;
+ * __delay[path] = ms makes a read of that doc resolve late (race tests). */
+window.__store = {}; window.__writes = []; window.__delay = {}; window.__toasts = [];
+window.toast = { success: m => __toasts.push('ok:' + m), info: m => __toasts.push('info:' + m), warn: m => __toasts.push('warn:' + m), error: m => __toasts.push('err:' + m) };
+function _stubDoc(path) {
+  return {
+    get: function () {
+      var d = __store[path];
+      var res = { exists: !!d, data: function () { return d ? JSON.parse(JSON.stringify(d)) : {}; } };
+      var ms = __delay[path] || 0;
+      return ms ? new Promise(r => setTimeout(() => r(res), ms)) : Promise.resolve(res);
+    },
+    set: function (payload, opts) {
+      var copy = JSON.parse(JSON.stringify(payload));
+      __store[path] = (opts && opts.merge && __store[path]) ? Object.assign({}, __store[path], copy) : copy;
+      __writes.push({ op: 'set', path: path, payload: copy });
+      return Promise.resolve();
+    },
+    delete: function () { delete __store[path]; __writes.push({ op: 'delete', path: path }); return Promise.resolve(); },
+    collection: function (c) { return _stubColl(path + '/' + c); },
+  };
+}
+function _stubColl(path) {
+  var c = {
+    doc: function (d) { return _stubDoc(path + '/' + d); },
+    where: function () { return c; },
+    orderBy: function () { return c; },
+    limit: function () { return c; },
+    get: function () { return Promise.resolve({ forEach: function () {}, docs: [], size: 0 }); },
+  };
+  return c;
+}
+const firebridge = {
+  whenAuthResolved: function () { return Promise.resolve({ user: __stub.user, profile: { role: 'member' } }); },
+  loadAccessGrant: function () { return Promise.resolve({ allowedPageIds: null, caps: null }); },
+  requireSignIn: function () { return Promise.resolve({ allowed: true, user: __stub.user }); },
+  getUser: function () { return __stub.user; },
+  getProfile: function () { return { name: 'Test User', role: __stub.admin ? 'admin' : 'member' }; },
+  isAdmin: function () { return __stub.admin; },
+  isLabMember: function () { return true; },
+  canAccessPage: function () { return true; },
+  hasExplicitPageGrant: function () { return false; },
+  hasAnyCapabilityFor: function () { return false; },
+  onAuth: function (cb) { try { cb(__stub.user, { role: 'member' }); } catch (e) {} },
+  db: function () { return { collection: function (c) { return _stubColl(c); } }; },
+};
+</script>
+<script src="/rm/js/nav.js"></script>
+</head>
+<body>
+<div class="page"><h1 class="page-title">V3809 nav self-test</h1><div id="results">running…</div></div>
+<script>
+/* Start after DOMContentLoaded so nav.js's own first render has happened
+ * (the scenarios then replace that bar); #demo-workflow / #demo-palette
+ * leave the page in a state worth screenshotting instead of resetting. */
+document.addEventListener('DOMContentLoaded', () => setTimeout(runSelfTest, 50));
+async function runSelfTest() {
+  const demo = location.hash;          // read before the scenarios rewrite the url
+  const out = document.getElementById('results');
+  const lines = []; let pass = 0, fail = 0;
+  const ok = (c, m) => { if (c) { pass++; lines.push('<span class="ok">✓</span> ' + m); } else { fail++; lines.push('<span class="bad">✗ ' + m + '</span>'); } };
+  const eq = (a, b, m) => ok(JSON.stringify(a) === JSON.stringify(b), m + '  →  ' + JSON.stringify(a) + (JSON.stringify(a) === JSON.stringify(b) ? '' : '  (want ' + JSON.stringify(b) + ')'));
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const nav = () => document.querySelector('nav.top-nav');
+  const chips = () => Array.from(nav().querySelectorAll('.nav-chip[data-page-id]'));
+  const chipIds = () => chips().map(c => c.dataset.pageId + (c.classList.contains('active') ? '*' : '') + (c.classList.contains('nav-chip--overflow') ? '(hidden)' : ''));
+  const go = async (path, opts) => {
+    opts = opts || {};
+    history.replaceState(null, '', path);
+    if (opts.session === null) sessionStorage.removeItem('mcgheelab.activeWorkflow');
+    else if (opts.session) sessionStorage.setItem('mcgheelab.activeWorkflow', JSON.stringify(opts.session));
+    // A fresh page load: renderNav() adopts ?workflow= from the url the way
+    // a real load does (_wfRefreshStrip only redraws from session state).
+    const old = nav(); if (old) old.remove();
+    renderNav();
+    await sleep(opts.wait || 250);
+  };
+  const section = t => lines.push('\n<b>' + t + '</b>');
+  const events = [];
+  ['rm:shell:set-active', 'rm:shell:switch-workflow', 'rm:split:swap', 'rm:split:set-active', 'rm:split:close'].forEach(t =>
+    window.addEventListener(t, e => events.push({ type: t, detail: e.detail })));
+  // Emulate workflow-shell.js: it owns the ?active= update on set-active.
+  window.addEventListener('rm:shell:set-active', e => {
+    if (location.pathname !== '/rm/pages/workflow-shell.html') return;
+    const p = new URLSearchParams(location.search); p.set('active', e.detail.pageId);
+    history.replaceState(null, '', location.pathname + '?' + p.toString());
+  });
+  const SEED_PW = ['paper-builder', 'library', 'library__tab__comments', 'tasks', 'pmr', 'chat', 'lab-notebook'];
+
+  try {
+    localStorage.clear(); sessionStorage.clear();
+
+    /* ── A. personal bar ── */
+    section('A. Personal bar on /rm/pages/tasks.html');
+    await go('/rm/pages/tasks.html', { session: null, wait: 300 });
+    ok(!!nav() && !nav().classList.contains('top-nav--workflow'), 'one .top-nav, not in workflow mode');
+    eq(Math.round(nav().getBoundingClientRect().height), 56, 'bar is 56px tall');
+    eq(chipIds(), ['my-week', 'tasks*', 'chat'], 'default pins, current page active');
+    ok(!!nav().querySelector('.nav-goto'), 'Go to… button present');
+    ok(!!nav().querySelector('.nav-chip-add'), '+ chip present');
+    eq(nav().querySelector('.nav-wf-trigger .nav-label').textContent, 'Workflows', 'Workflows ▾ label');
+    ok(nav().querySelector('.nav-split-link').getAttribute('href') === '/rm/pages/split-view.html', '⊟ links to split view');
+    eq(chips().map(c => c.dataset.alt), ['1', '2', '3'], '⌥ hints numbered');
+    ok(!document.body.innerText.includes('<svg'), 'no SVG markup leaked as text');
+    const rec = JSON.parse(localStorage.getItem('rm.nav.recent.v1'));
+    ok(rec && rec.pages && rec.pages.tasks, 'visit to tasks recorded');
+    ok(chips().every(c => c.querySelector('svg.hi')), 'every chip has an icon');
+    // star on a chip → pin toggled, chips re-rendered
+    chips()[2].querySelector('.nav-chip-pin').click();
+    await sleep(100);
+    eq(JSON.parse(localStorage.getItem('rm.nav.pins.v1')).pageIds, ['my-week', 'tasks'], 'unpin chat writes the mirror');
+    eq(chipIds(), ['my-week', 'tasks*'], 'chat chip gone (not recent either)');
+    // a recent page shows up after a visit elsewhere
+    await go('/rm/pages/library.html?tab=comments', { session: null });
+    eq(chipIds(), ['my-week', 'tasks', 'library__tab__comments*'], 'recent/current ?tab page is its own chip');
+    await go('/rm/pages/tasks.html', { session: null });
+    eq(chipIds(), ['my-week', 'tasks*', 'library__tab__comments'], 'recents follow pins');
+    // admin-gated chip hidden for a non-admin
+    NavPins.set(['my-week', 'tasks', 'admin-permissions'], { silent: true });
+    await go('/rm/pages/tasks.html', { session: null, wait: 350 });
+    ok(!chips().some(c => c.dataset.pageId === 'admin-permissions'), 'admin page chip dropped for a non-admin (pinned but gated)');
+    __stub.admin = true;
+    await go('/rm/pages/tasks.html', { session: null, wait: 350 });
+    ok(chips().some(c => c.dataset.pageId === 'admin-permissions' && c.style.display !== 'none'), 'admin page chip shown for an admin');
+    __stub.admin = false;
+    NavPins.set(['my-week', 'tasks', 'chat'], { silent: true });
+
+    /* ── B. overflow ── */
+    section('B. Overflow fitting');
+    const now = Date.now();
+    ['pmr', 'calendar', 'huddle', 'equipment', 'inventory', 'compliance', 'people'].forEach(id => NavRecents.record(id, now));
+    await go('/rm/pages/people.html', { session: null });
+    const row = nav().querySelector('.nav-chips');
+    ok(chips().length === 10, 'ten chips rendered before fitting (' + chips().length + ')');
+    row.style.maxWidth = '360px'; _navFitChips(row); await sleep(50);
+    const hidden = chips().filter(c => c.classList.contains('nav-chip--overflow'));
+    ok(hidden.length > 0, 'narrow row hides chips (' + hidden.length + ' hidden)');
+    ok(!chips().find(c => c.dataset.pageId === 'people').classList.contains('nav-chip--overflow'), 'active chip is never hidden');
+    ok(hidden.every(c => c.dataset.alt == null), 'hidden chips carry no ⌥ hint');
+    row.style.maxWidth = ''; _navFitChips(row); await sleep(50);
+    const hiddenWide = chips().filter(c => c.classList.contains('nav-chip--overflow')).length;
+    ok(hiddenWide < hidden.length, 'wide row shows more again (' + hiddenWide + ' hidden; ten chips need ~1000px)');
+    const shown = chips().filter(c => !c.classList.contains('nav-chip--overflow'));
+    ok(shown.reduce((w, c) => w + c.offsetWidth + 6, 0) <= row.clientWidth + 1, 'visible chips fit inside the row');
+    localStorage.removeItem('rm.nav.recent.v1');
+
+    /* ── C. workflow mode on a normal page ── */
+    section('C. Workflow mode on /rm/pages/library.html');
+    _wfDefaultsCache = null;
+    await go('/rm/pages/library.html', { session: { id: 'paper-writing', kind: 'default', addedPageIds: [], removedPageIds: [], orderOverride: null, pageState: {} }, wait: 500 });
+    ok(nav().classList.contains('top-nav--workflow'), 'bar tinted as workflow');
+    eq(chips().map(c => c.dataset.pageId), SEED_PW, 'chips = Paper Writing seed pages');
+    eq(chipIds().filter(x => x.endsWith('*')), ['library*'], 'current page chip active');
+    eq(nav().querySelector('.nav-wf-trigger .nav-label').textContent, 'Paper Writing', 'Workflows ▾ shows the workflow name');
+    ok(!nav().querySelector('.nav-chip-save'), 'no Save chip (edits persist by themselves)');
+    ok(chips().every(c => c.getAttribute('href').indexOf('workflow=paper-writing') >= 0), 'chip links carry ?workflow=');
+    ok(chips().every(c => c.draggable), 'chips draggable');
+    ok(!chips()[0].querySelector('.nav-chip-pin') && !!chips()[0].querySelector('.nav-chip-remove'), 'workflow chips have × not ★');
+    const st = JSON.parse(sessionStorage.getItem('mcgheelab.activeWorkflow'));
+    eq(st.pageState.library, '/rm/pages/library.html', 'current url remembered on its chip');
+    // remove a page
+    chips().find(c => c.dataset.pageId === 'pmr').querySelector('.nav-chip-remove').click();
+    await sleep(500);
+    ok(!chips().some(c => c.dataset.pageId === 'pmr'), '× removes the chip');
+    ok(!nav().querySelector('.nav-chip-save'), 'still no Save chip after an edit');
+    eq(JSON.parse(sessionStorage.getItem('mcgheelab.activeWorkflow')).removedPageIds, ['pmr'], 'removal persisted in session state');
+    await sleep(600);
+    const prefW = __writes.filter(w => w.path === 'userData/u-test/workflowPrefs/paper-writing');
+    ok(prefW.length === 1 && prefW[0].op === 'set', 'one overlay write to userData/{uid}/workflowPrefs/paper-writing (debounced)');
+    eq(prefW[0] && prefW[0].payload.removedPageIds, ['pmr'], 'overlay carries the removal');
+    ok(nav().querySelector('.nav-dropdown-wf--customized'), 'Workflows trigger marked customized');
+    ok(nav().querySelector('.nav-split-link').getAttribute('href').indexOf('left=%2Frm%2Fpages%2Flibrary.html') >= 0, '⊟ pre-fills left = current page');
+    // menu
+    nav().querySelector('.nav-wf-trigger').click(); await sleep(400);
+    const menuText = Array.from(nav().querySelectorAll('.nav-wf-menu > *')).map(e => e.textContent.trim().replace(/\s+/g, ' '));
+    ok(menuText[0].indexOf('Active · Paper Writing') === 0, 'menu header names the active workflow');
+    ok(menuText.some(t => t === 'Leave workflow') && menuText.some(t => t.indexOf('Add a page') === 0), 'menu has Leave + Add a page');
+    ok(menuText[0].indexOf('customized for you') > 0, 'menu header says customized for you');
+    ok(menuText.some(t => t === 'Reset to lab default'), 'menu offers Reset to lab default');
+    ok(menuText.some(t => t.indexOf('Save as my workflow') === 0), 'menu still offers Save as my workflow… (a separate copy)');
+    ok(menuText.some(t => /^Paper Writing\s*\d+ pages$/.test(t)), 'menu lists the default workflows with page counts');
+    ok(nav().querySelector('.nav-wf-menu .nav-wf-item.active'), 'the active workflow is marked in the list');
+    ok(menuText.some(t => t === 'New workflow…') && menuText.some(t => t === 'All workflows on Home'), 'menu footer links');
+    // palette in add mode via +
+    nav().querySelector('.nav-chip-add').click();
+    await (async () => { for (let i = 0; i < 40 && !document.querySelector('.nav-palette-back.open'); i++) await sleep(100); })();
+    ok(!!document.querySelector('.nav-palette-back.open'), 'palette opens from + (lazy-loaded nav-palette.js)');
+    ok(document.querySelector('.nav-palette-mode') && !document.querySelector('.nav-palette-mode').hidden, 'palette in Add-to-workflow mode');
+    const addRows = Array.from(document.querySelectorAll('.nav-palette-row .nav-palette-row-label')).map(l => l.textContent.trim());
+    ok(addRows.indexOf('Paper Builder') < 0 && addRows.indexOf('Papers') < 0 && addRows.indexOf('Library') < 0, 'pages already in the workflow are not offered');
+    ok(addRows.indexOf('PMR') >= 0, 'the removed page is offered again');
+    document.querySelector('.nav-palette-input').value = 'proto';
+    document.querySelector('.nav-palette-input').dispatchEvent(new Event('input'));
+    await sleep(50);
+    eq(document.querySelector('.nav-palette-row.selected .nav-palette-row-label').textContent.trim(), 'Protocols', 'typing filters to Protocols');
+    document.querySelector('.nav-palette-input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await sleep(500);
+    ok(!document.querySelector('.nav-palette-back.open'), 'palette closes on Enter');
+    ok(chips().some(c => c.dataset.pageId === 'protocols'), 'Protocols added as a chip');
+    eq(JSON.parse(sessionStorage.getItem('mcgheelab.activeWorkflow')).addedPageIds, ['protocols'], 'addition persisted');
+    await sleep(600);
+    eq((__store['userData/u-test/workflowPrefs/paper-writing'] || {}).addedPageIds, ['protocols'], 'overlay doc now carries the addition too');
+    // leave on a normal page → personal bar, no navigation
+    _navLeaveWorkflow(); await sleep(300);
+    ok(!nav().classList.contains('top-nav--workflow'), 'Leave returns to the personal bar in place');
+    ok(sessionStorage.getItem('mcgheelab.activeWorkflow') === null, 'workflow state cleared');
+    eq(location.pathname, '/rm/pages/library.html', 'no navigation happened');
+
+    /* ── D. shell host ── */
+    section('D. Workflow shell host');
+    // Scenario C's edits were persisted as an overlay (that IS the feature) —
+    // start the shell scenarios from the lab default.
+    await sleep(500); delete __store['userData/u-test/workflowPrefs/paper-writing'];
+    events.length = 0;
+    await go('/rm/pages/workflow-shell.html?workflow=paper-writing&active=paper-builder', { session: null, wait: 500 });
+    ok(nav().classList.contains('top-nav--workflow'), 'shell renders the workflow bar');
+    eq(chipIds().filter(x => x.endsWith('*')), ['paper-builder*'], 'active chip = ?active');
+    ok(sessionStorage.getItem('mcgheelab.activeWorkflow') !== null, '?workflow adopted into session (url param stripped)');
+    ok(location.search.indexOf('workflow=') < 0 && location.search.indexOf('active=paper-builder') >= 0, 'url keeps ?active, drops ?workflow');
+    chips().find(c => c.dataset.pageId === 'chat').click(); await sleep(500);
+    eq(events.map(e => e.type + ':' + (e.detail && e.detail.pageId)), ['rm:shell:set-active:chat'], 'chip click dispatches set-active instead of navigating');
+    eq(chipIds().filter(x => x.endsWith('*')), ['chat*'], 'bar re-rendered with the new active chip');
+    const recShell = JSON.parse(localStorage.getItem('rm.nav.recent.v1') || '{"pages":{}}');
+    ok(recShell.pages.chat, 'a shell chip switch counts as a visit to chat');
+    // palette 'go' in the shell → set-active (+ add when missing)
+    events.length = 0;
+    _navOpenPalette({ mode: 'go' });
+    await (async () => { for (let i = 0; i < 40 && !document.querySelector('.nav-palette-back.open'); i++) await sleep(100); })();
+    const secTitles = Array.from(document.querySelectorAll('.nav-palette-section')).map(s => s.textContent);
+    ok(secTitles.indexOf('Pinned') >= 0 && secTitles.indexOf('This workflow') >= 0, 'empty palette shows Pinned + This workflow sections (' + secTitles.slice(0, 4).join(', ') + '…)');
+    document.querySelector('.nav-palette-input').value = 'equip';
+    document.querySelector('.nav-palette-input').dispatchEvent(new Event('input'));
+    await sleep(50);
+    document.querySelector('.nav-palette-input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await sleep(500);
+    eq(events.map(e => e.type + ':' + (e.detail && e.detail.pageId)), ['rm:shell:set-active:equipment'], 'Go to a page outside the workflow → set-active');
+    ok(chips().some(c => c.dataset.pageId === 'equipment' && c.classList.contains('active')), 'the page joined the workflow chips and is active');
+    // menu entry click in shell → switch-workflow event, no navigation
+    events.length = 0;
+    nav().querySelector('.nav-wf-trigger').click(); await sleep(400);
+    const entry = Array.from(nav().querySelectorAll('.nav-wf-menu a.nav-wf-item')).find(a => a.textContent.indexOf('Meetings') >= 0);
+    ok(!!entry, 'menu lists Meetings workflow');
+    if (entry) { entry.click(); await sleep(100); }
+    eq(events.map(e => e.type + ':' + (e.detail && e.detail.workflowId)), ['rm:shell:switch-workflow:meetings'], 'picking a workflow in the shell switches in place');
+    eq(location.pathname, '/rm/pages/workflow-shell.html', 'still on the shell');
+
+    /* ── E. split host ── */
+    section('E. Split view host');
+    await sleep(500); delete __store['userData/u-test/workflowPrefs/paper-writing'];   // D added Equipment
+    events.length = 0;
+    await go('/rm/pages/split-view.html?left=%2Frm%2Fpages%2Ftasks.html&right=%2Frm%2Fpages%2Fchat.html&active=left', { session: null, wait: 500 });
+    eq(nav().querySelectorAll('.split-pane-picker').length, 2, 'two pane pickers');
+    ok(!nav().querySelector('.nav-split-link') && !!nav().querySelector('.split-close-btn'), 'no ⊟ on the split shell; Close split present');
+    eq(Array.from(nav().querySelectorAll('.split-pane-picker .nav-label')).map(l => l.textContent), ['Tasks', 'Chat'], 'pickers labelled from the pane urls');
+    ok(chips().length >= 1, 'personal chips still render on the split host');
+    _navOpenPalette({ mode: 'go' });
+    await (async () => { for (let i = 0; i < 40 && !document.querySelector('.nav-palette-back.open'); i++) await sleep(100); })();
+    document.querySelector('.nav-palette-input').value = 'huddle';
+    document.querySelector('.nav-palette-input').dispatchEvent(new Event('input'));
+    await sleep(50);
+    document.querySelector('.nav-palette-input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await sleep(200);
+    eq(events.map(e => e.type + ':' + e.detail.side + ':' + e.detail.href), ['rm:split:swap:left:/rm/pages/huddle.html'], 'Go to on the split host swaps the active pane');
+    // workflow chips on the split host carry open/active markers
+    await go('/rm/pages/split-view.html?left=%2Frm%2Fpages%2Ftasks.html&right=%2Frm%2Fpages%2Fchat.html&active=right', { session: { id: 'paper-writing', kind: 'default', addedPageIds: [], removedPageIds: [], orderOverride: null, pageState: {} }, wait: 500 });
+    const openL = chips().find(c => c.classList.contains('nav-chip--open-left'));
+    const openR = chips().find(c => c.classList.contains('nav-chip--open-right'));
+    eq([openL && openL.dataset.pageId, openR && openR.dataset.pageId], ['tasks', 'chat'], 'open-in-pane markers on the right chips');
+    ok(openR && openR.classList.contains('nav-chip--active-split'), 'active pane chip outlined');
+    events.length = 0;
+    chips().find(c => c.dataset.pageId === 'pmr').click(); await sleep(100);
+    eq(events.map(e => e.type + ':' + e.detail.side + ':' + e.detail.href), ['rm:split:swap:right:/rm/pages/pmr.html'], 'closed chip click swaps the active pane');
+    sessionStorage.clear();
+
+    /* ── F. keyboard ── */
+    section('F. Keyboard');
+    await go('/rm/pages/tasks.html', { session: null, wait: 300 });
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true, cancelable: true }));
+    await (async () => { for (let i = 0; i < 40 && !document.querySelector('.nav-palette-back.open'); i++) await sleep(100); })();
+    ok(!!document.querySelector('.nav-palette-back.open'), '⌘K opens the palette');
+    ok(document.activeElement && document.activeElement.classList.contains('nav-palette-input'), 'search box focused');
+    document.querySelector('.nav-palette-input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await sleep(50);
+    ok(!document.querySelector('.nav-palette-back.open'), 'Esc closes it');
+    const inp = document.createElement('input'); document.body.appendChild(inp); inp.focus();
+    inp.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true }));
+    await sleep(100);
+    ok(!document.querySelector('.nav-palette-back.open'), '"/" inside a text field does NOT open the palette');
+    inp.remove();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true }));
+    await sleep(100);
+    ok(!!document.querySelector('.nav-palette-back.open'), '"/" elsewhere opens it');
+    NavPalette.close();
+
+    /* ── G. quick contexts: chat / tasks popouts on ordinary pages (V3.810) ── */
+    section('G. Quick contexts (page-mode popouts)');
+    const resetPopouts = () => { ['shell-popout-left', 'shell-popout-right'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); }); document.body.classList.remove('rm-page-popouts'); localStorage.removeItem('mcgheelab.pagePopout.state'); };
+    const waitPopouts = async () => { for (let i = 0; i < 60 && !document.getElementById('shell-popout-left'); i++) await sleep(100); await sleep(150); };
+    resetPopouts(); sessionStorage.clear();
+    await go('/rm/pages/tasks.html', { session: null }); await waitPopouts();
+    const L = document.getElementById('shell-popout-left'), R = document.getElementById('shell-popout-right');
+    ok(!!L && !!R, 'both popout roots mounted on a normal page');
+    ok(document.body.classList.contains('rm-page-popouts'), 'body.rm-page-popouts (fixed under the bar)');
+    ok(L && getComputedStyle(L).position === 'fixed' && Math.round(L.getBoundingClientRect().top) === 56, 'left popout is fixed just under the 56px bar');
+    ok(L && !L.classList.contains('open') && R && !R.classList.contains('open'), 'both closed by default');
+    ok(L && !!L.querySelector('.shell-popout-pill') && L.querySelector('.shell-popout-pill-label').textContent === 'Chat', 'left pill says Chat');
+    ok(L && !!L.querySelector('.shell-popout-pill svg.hi'), 'pill carries the Heroicon');
+    ok(R && getComputedStyle(R).display === 'none', 'Tasks side hidden on the Tasks page itself');
+    eq(location.search, '', 'page url untouched by popout state');
+    L.querySelector('.shell-popout-pill').click(); await sleep(250);
+    ok(L.classList.contains('open'), 'pill click opens the chat panel');
+    const fr = L.querySelector('iframe.shell-popout-frame');
+    ok(fr && /\/rm\/pages\/chat\.html\?embed=1/.test(fr.getAttribute('src')) && fr.name === 'rm-shell-popout-left', 'panel iframe = chat.html?embed=1 with the rm-shell-popout name (no nested bar)');
+    const pst = JSON.parse(localStorage.getItem('mcgheelab.pagePopout.state') || 'null');
+    ok(pst && pst.leftOpen === true && pst.leftPopout === 'chat', 'open state persisted under the PAGE key');
+    ok(localStorage.getItem('mcgheelab.shellPopout.state') === null, "the shells' state key is untouched");
+    eq(location.search, '', 'still no url params after opening');
+    ok(!!L.querySelector('.shell-popout-picker option[value="protocols"]'), 'header picker lists pages from the nav map (no page-registry on this page)');
+    L.querySelector('.shell-popout-close').click(); await sleep(150);
+    ok(!L.classList.contains('open'), 'header × closes it');
+    // fresh load of chat.html → chat side hidden, tasks side shown
+    resetPopouts();
+    await go('/rm/pages/chat.html', { session: null }); await waitPopouts();
+    ok(getComputedStyle(document.getElementById('shell-popout-left')).display === 'none', 'Chat side hidden on the Chat page');
+    ok(getComputedStyle(document.getElementById('shell-popout-right')).display !== 'none' && document.getElementById('shell-popout-right').querySelector('.shell-popout-pill-label').textContent === 'Tasks', 'Tasks pill shown on the Chat page');
+    // the shells mount their own — nav must not
+    resetPopouts();
+    await go('/rm/pages/workflow-shell.html?workflow=paper-writing&active=paper-builder', { session: null, wait: 700 });
+    ok(!document.getElementById('shell-popout-left'), 'not mounted by nav.js on the workflow shell host');
+    resetPopouts(); sessionStorage.clear();
+    await go('/rm/pages/tasks.html', { session: null, wait: 300 });
+    /* ── H. pins: a slow cloud read must not revert a fresh toggle (V3.812) ── */
+    section('H. Pin race');
+    resetPopouts(); sessionStorage.clear();
+    localStorage.removeItem('rm.nav.pins.v1'); NavPins._cloudLoaded = false; __toasts.length = 0;
+    __store['userData/u-test/navPrefs/pins'] = { pageIds: ['my-week', 'tasks', 'chat'] };
+    __delay['userData/u-test/navPrefs/pins'] = 350;
+    await go('/rm/pages/library.html', { session: null, wait: 50 });
+    const chatChip = chips().find(c => c.dataset.pageId === 'chat');
+    ok(!!chatChip, 'chat chip rendered from defaults before the cloud read lands');
+    chatChip.querySelector('.nav-chip-pin').click();          // unpin right away, read still in flight
+    const dirtyNow = JSON.parse(localStorage.getItem('rm.nav.pins.v1')).dirty;   // read synchronously: the stub write lands a microtask later
+    ok(dirtyNow === true, 'mirror marked dirty by the toggle (until its write lands)');
+    await sleep(60);
+    ok(JSON.parse(localStorage.getItem('rm.nav.pins.v1')).dirty === false, 'the toggle\'s own write landed and cleared dirty — before the stale read returns');
+    ok(__toasts.some(t => /Unpinned Chat/.test(t)), 'toast confirms the unpin');
+    await sleep(700);                                          // let the stale read resolve
+    ok(!chips().some(c => c.dataset.pageId === 'chat' && c.classList.contains('nav-chip--pinned')), 'chat is STILL unpinned after the stale cloud read');
+    eq((__store['userData/u-test/navPrefs/pins'] || {}).pageIds, ['my-week', 'tasks'], 'the cloud doc was pushed, not pulled');
+    ok(JSON.parse(localStorage.getItem('rm.nav.pins.v1')).dirty === false, 'mirror clean once the write landed');
+    delete __delay['userData/u-test/navPrefs/pins'];
+    // the current page's star is visible without hover
+    const cur = chips().find(c => c.classList.contains('active'));
+    ok(cur && getComputedStyle(cur.querySelector('.nav-chip-pin')).display !== 'none', 'the active chip shows its ★ without hovering');
+    cur.querySelector('.nav-chip-pin').click(); await sleep(60);
+    ok(NavPins.has('library') && __toasts.some(t => /Pinned Library/.test(t)), 'pinning the current page works and toasts');
+
+    /* ── I. your version of a default workflow: hydrate + reset (V3.812) ── */
+    section('I. Workflow overlay');
+    NavPins.set(['my-week', 'tasks', 'chat'], { silent: true });
+    __store['userData/u-test/workflowPrefs/paper-writing'] = { addedPageIds: ['protocols'], removedPageIds: ['pmr', 'chat'], orderOverride: ['library', 'paper-builder'] };
+    sessionStorage.clear(); __writes.length = 0;
+    await go('/rm/pages/tasks.html?workflow=paper-writing', { wait: 600 });
+    eq(chips().map(c => c.dataset.pageId), ['library', 'paper-builder', 'library__tab__comments', 'tasks', 'lab-notebook', 'protocols'], 'a fresh tab shows YOUR version: order override first, removed gone, added at the end');
+    ok(nav().querySelector('.nav-dropdown-wf--customized'), 'trigger marked customized on load');
+    ok(JSON.parse(sessionStorage.getItem('mcgheelab.activeWorkflow')).prefsLoaded === true, 'session state marked hydrated');
+    eq(__writes.filter(w => w.path.indexOf('workflowPrefs') >= 0).length, 0, 'hydrating writes nothing');
+    nav().querySelector('.nav-wf-trigger').click(); await sleep(400);
+    const reset = Array.from(nav().querySelectorAll('.nav-wf-menu .nav-wf-action')).find(b => b.textContent.trim() === 'Reset to lab default');
+    ok(!!reset, 'menu offers Reset to lab default');
+    reset.click(); await sleep(700);
+    eq(chips().map(c => c.dataset.pageId), SEED_PW, 'reset shows the lab default again');
+    ok(__writes.some(w => w.op === 'delete' && w.path === 'userData/u-test/workflowPrefs/paper-writing'), 'reset deletes the overlay doc');
+    ok(!nav().querySelector('.nav-dropdown-wf--customized'), 'customized mark cleared');
+    ok(__toasts.some(t => /Back to the lab default/.test(t)), 'reset toasts');
+    sessionStorage.clear(); localStorage.removeItem('rm.nav.pins.v1');
+    await go('/rm/pages/tasks.html', { session: null, wait: 300 });
+  } catch (err) {
+    fail++;
+    lines.push('<span class="bad">✗ EXCEPTION: ' + (err && err.stack || err) + '</span>');
+  }
+
+  document.title = 'V3809 ' + (fail ? 'FAIL' : 'PASS') + ' (' + pass + ' passed, ' + fail + ' failed)';
+  lines.push('\n<b>' + document.title + '</b>');
+  out.innerHTML = lines.join('\n');
+  history.replaceState(null, '', '/scripts/tests/v3809-nav-selftest.html');
+  ok(chipIds().length >= 0 && document.querySelectorAll('nav.top-nav').length === 1, 'exactly one bar in the document');
+  if (demo === '#demo-workflow') {
+    localStorage.clear();
+    sessionStorage.setItem('mcgheelab.activeWorkflow', JSON.stringify({ id: 'paper-writing', kind: 'default', addedPageIds: [], removedPageIds: ['pmr'], orderOverride: null, pageState: {} }));
+    history.replaceState(null, '', '/rm/pages/library.html');
+    _wfDefaultsCache = null; renderNav(); await sleep(700);
+    nav().querySelector('.nav-wf-trigger').click();
+    document.body.dataset.demo = 'ready';
+  } else if (demo === '#demo-popout') {
+    localStorage.clear(); sessionStorage.clear();
+    ['shell-popout-left', 'shell-popout-right'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
+    history.replaceState(null, '', '/rm/pages/library.html');
+    renderNav();
+    for (let i = 0; i < 60 && !document.getElementById('shell-popout-left'); i++) await sleep(100);
+    await sleep(200);
+    document.getElementById('shell-popout-left').querySelector('.shell-popout-pill').click();
+    await sleep(1500);
+    document.body.dataset.demo = 'ready';
+  } else if (demo === '#demo-palette') {
+    localStorage.clear(); sessionStorage.clear();
+    const now = Date.now(); ['library', 'library', 'protocols', 'meetings'].forEach(id => NavRecents.record(id, now));
+    history.replaceState(null, '', '/rm/pages/tasks.html');
+    renderNav(); await sleep(300);
+    _navOpenPalette({ mode: 'go' });
+    for (let i = 0; i < 40 && !document.querySelector('.nav-palette-back.open'); i++) await sleep(100);
+    await sleep(300);
+    document.body.dataset.demo = 'ready';
+  }
+}
+</script>
+</body>
+</html>

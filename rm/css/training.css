@@ -1447,3 +1447,92 @@
   font-size: 13px;
 }
 .support-card li { margin-bottom: 2px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Cell culture & sterile technique (V3.686) — habit checkboxes, the
+   sign-off critique panel, and the inline fields on the printable sheet.
+   Everything else on that page reuses the existing house classes
+   (.panel/.ctrl/.stats/.val-verdict/.scen-btn/.rm-quiz/.signoff-sheet).
+   ═══════════════════════════════════════════════════════════════════ */
+
+.cc-chk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text);
+  margin: 6px 0;
+  cursor: pointer;
+}
+.cc-chk input {
+  accent-color: var(--primary);
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+/* Sign-off critique — sits where a canvas would, so it uses the same
+   .canvas-wrap frame and has to look at home inside it. */
+.cc-critique {
+  min-height: 200px;
+  padding: 4px 2px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.cc-crit-empty,
+.cc-crit-ok { color: var(--text-muted); font-style: italic; }
+.cc-crit-ok { color: var(--green); font-style: normal; }
+.cc-crit-item {
+  margin: 0 0 10px;
+  padding-left: 4px;
+  border-left: 3px solid var(--border);
+  padding: 6px 0 6px 10px;
+}
+.cc-crit-item.is-crit { border-left-color: var(--red); }
+.cc-crit-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-right: 8px;
+}
+.cc-crit-tag.is-minor { color: var(--text-muted); }
+
+/* Inline fields on the sign-off sheet. Deliberately inputs and not a
+   prompt() — a browser prompt hangs headless QA and is banned in RM. */
+.signoff-sheet .cc-in {
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  padding: 1px 4px;
+  min-width: 170px;
+}
+.signoff-sheet .cc-in:focus { outline: none; border-bottom-color: var(--primary); }
+
+/* The sign-off tab uses <select>s in .ctrl-group, which the house CSS
+   styles for range inputs only. */
+.ctrl-group select {
+  width: 100%;
+  /* the native dropdown arrow overlaps long option text without this */
+  padding: 7px 28px 7px 8px;
+  text-overflow: ellipsis;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+.ctrl-group select:focus { outline: none; border-color: var(--primary); }
+
+@media print {
+  .tab-bar, .scenario-bar, .student-task, .ctrl, .training-module-eyebrow { display: none !important; }
+  .signoff-sheet { break-inside: avoid; }
+}

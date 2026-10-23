@@ -201,7 +201,8 @@
       ctx.fillRect(0, 0, w, h);
       ctx.fillStyle = '#dc2626';
       ctx.font = 'bold 13px -apple-system, sans-serif';
-      ctx.fillText('⚠  Emission filter is 200 nm off from any fluorophore', 10, 20);
+      ICON.draw(ctx, 'exclamation-triangle', 10, 8, 14, '#dc2626');
+      ctx.fillText('Emission filter is 200 nm off from any fluorophore', 30, 20);
       // Cross out the emission path
       ctx.strokeStyle = '#dc2626';
       ctx.lineWidth = 3;

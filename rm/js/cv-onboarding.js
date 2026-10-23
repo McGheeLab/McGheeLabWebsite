@@ -103,11 +103,11 @@ var CV_ONBOARDING = (function () {
     rail.className = 'cve-onboard';
     var head = document.createElement('div');
     head.className = 'cve-onboard-head';
-    head.innerHTML = '<span class="cve-onboard-title">🚀 Get your CV started</span>' +
+    head.innerHTML = '<span class="cve-onboard-title">' + ICON.svg('rocket-launch') + ' Get your CV started</span>' +
       '<span class="cve-onboard-progress">' + done + '/' + list.length + '</span>';
     var dismiss = document.createElement('button');
     dismiss.className = 'cve-onboard-dismiss';
-    dismiss.textContent = '✕';
+    ICON.label(dismiss, 'x-mark');
     dismiss.title = 'Hide this checklist (the toolbar chip brings it back)';
     dismiss.addEventListener('click', function () { ctx.setDismissed(true); });
     head.appendChild(dismiss);
@@ -162,15 +162,16 @@ var CV_ONBOARDING = (function () {
     empty.innerHTML = html;
     var btnRow = document.createElement('div');
     btnRow.style.cssText = 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap';
-    function mk(label, fn, primary) {
+    function mk(label, fn, primary, icon) {
       var b = document.createElement('button');
       b.className = 'btn' + (primary ? ' btn-primary' : '');
-      b.textContent = label;
+      if (icon) ICON.label(b, icon, ' ' + label);
+      else b.textContent = label;
       b.addEventListener('click', fn);
       return b;
     }
     if (sectionKey === 'journals' || sectionKey === 'conferences') {
-      if (a.pull) btnRow.appendChild(mk('📚 Pull from library', a.pull, true));
+      if (a.pull) btnRow.appendChild(mk('Pull from library', a.pull, true, 'books'));
       if (a.orcid) btnRow.appendChild(mk('⊕ Import from ORCID', a.orcid));
       if (a.bibtex) btnRow.appendChild(mk('⇓ Paste BibTeX', a.bibtex));
       if (a.addEntry) btnRow.appendChild(mk('+ Add manually', a.addEntry));

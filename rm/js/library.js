@@ -176,14 +176,20 @@
     // draft: (V3.365) matches against linked_drafts ids AND their
     // resolved draft/grant titles, e.g. draft:gels or draft:prostate.
     // theme: (V3.367) matches meta.library.themes ids AND theme names.
-    const fields = { title: [], author: [], year: [], journal: [], tag: [], draft: [], theme: [] };
+    // topic: (V3.630) is a SYNONYM of theme: — the axis is called "Topics" in
+    // the UI now, but `theme:` keeps working forever so nobody's saved smart
+    // group or bookmarked query breaks. Both collapse onto `fields.theme`.
+    // added: (V3.825) is a recency window on the day the paper arrived —
+    // added:today, added:7d, added:30d, added:year, added:2026-10, added:older.
+    const fields = { title: [], author: [], year: [], journal: [], tag: [], draft: [], theme: [], added: [] };
     const free = [];
     const negFree = [];
-    const re = /(-?)(?:(title|author|year|journal|tag|draft|theme):)?(?:"([^"]+)"|(\S+))/g;
+    const re = /(-?)(?:(title|author|year|journal|tag|draft|theme|topic|added):)?(?:"([^"]+)"|(\S+))/g;
     let m;
     while ((m = re.exec(q || '')) !== null) {
       const neg = m[1] === '-';
-      const field = (m[2] || '').toLowerCase();
+      let field = (m[2] || '').toLowerCase();
+      if (field === 'topic') field = 'theme';
       const value = (m[3] || m[4] || '').toLowerCase();
       if (!value) continue;
       if (field) fields[field].push(value);
@@ -240,6 +246,14 @@
       ).join(' ');
       for (const t of parsed.fields.theme) {
         if (!themeHay.includes(t)) return false;
+      }
+    }
+    if (parsed.fields.added.length && window.LIBRARY_RECENT_CORE) {
+      // V3.825 — every added: token must hold (a saved group keeps the token).
+      const C = LIBRARY_RECENT_CORE, now = Date.now();
+      for (const t of parsed.fields.added) {
+        const spec = C.parseWindow(t);
+        if (spec && !C.withinWindow(paper, spec, now)) return false;
       }
     }
     const all = `${title} ${journal} ${year} ${authorBlob} ${tags.join(' ')}`;
@@ -538,13 +552,13 @@
   function _missingActionsHtml(it) {
     const lib = it.meta.library;
     if (_pdfStatus(it) === 'unobtainable') {
-      return `<span class="muted" title="Marked unobtainable — no PDF exists or none is accessible">🚫 no PDF</span>
-        <button class="btn btn-sm" data-act="pdf-unobtainable" data-id="${_escape(it.id)}" title="Clear the unobtainable flag (back into the missing-PDF queue)">↩</button>`;
+      return `<span class="muted" title="Marked unobtainable — no PDF exists or none is accessible">${ICON.svg('no-symbol')} no PDF</span>
+        <button class="btn btn-sm" data-act="pdf-unobtainable" data-id="${_escape(it.id)}" title="Clear the unobtainable flag (back into the missing-PDF queue)">${ICON.svg('arrow-uturn-left')}</button>`;
     }
     return `<span class="muted"${lib.pdf_retry && lib.pdf_retry.last_error ? ` title="${_escape(lib.pdf_retry.last_error)}"` : ''}>no PDF</span>
-      ${(lib.doi || lib.pmid || lib.arxiv_id || lib.url) ? `<button class="btn btn-sm" data-act="pdf-retry" data-id="${_escape(it.id)}" title="Auto-fetch the open-access PDF — server-side, tries Unpaywall + arXiv + PMC + Semantic Scholar + the publisher's PDF link${lib.pdf_retry ? ` (attempt ${(lib.pdf_retry.attempts || 0) + 1})` : ''}">↻</button>` : ''}
-      <button class="btn btn-sm" data-act="pdf-upload" data-id="${_escape(it.id)}" title="Upload the PDF manually — attaches to THIS entry">⬆</button>
-      <button class="btn btn-sm" data-act="pdf-unobtainable" data-id="${_escape(it.id)}" title="Mark unobtainable (drops out of the missing-PDF queue; reversible)">🚫</button>`;
+      ${(lib.doi || lib.pmid || lib.arxiv_id || lib.url) ? `<button class="btn btn-sm" data-act="pdf-retry" data-id="${_escape(it.id)}" title="Auto-fetch the open-access PDF — server-side, tries Unpaywall + arXiv + PMC + Semantic Scholar + the publisher's PDF link${lib.pdf_retry ? ` (attempt ${(lib.pdf_retry.attempts || 0) + 1})` : ''}">${ICON.svg('arrow-path')}</button>` : ''}
+      <button class="btn btn-sm" data-act="pdf-upload" data-id="${_escape(it.id)}" title="Upload the PDF manually — attaches to THIS entry">${ICON.svg('arrow-up')}</button>
+      <button class="btn btn-sm" data-act="pdf-unobtainable" data-id="${_escape(it.id)}" title="Mark unobtainable (drops out of the missing-PDF queue; reversible)">${ICON.svg('no-symbol')}</button>`;
   }
 
   let _pdfUploadTarget = null;
@@ -661,7 +675,7 @@
             if (blob) { lib.pdf_retry = retry; await _attachPdf(it, blob); return; }
             lib.pdf_candidate_url = oa.bestPdfUrl;
             lib.pdf_candidate_source = oa.source || '';
-            retry.last_error = 'OA PDF found but auto-fetch was blocked — open the candidate URL, then ⬆ upload.';
+            retry.last_error = 'OA PDF found but auto-fetch was blocked — open the candidate URL, then upload.';
           } else {
             retry.last_error = e.message || 'Auto-fetch failed.';
           }
@@ -692,19 +706,32 @@
     // row affordance. LIBRARY_PREFS.get() is a cached sync read.
     const wg = (window.LIBRARY_PREFS && LIBRARY_PREFS.get().widgets_enabled) || {};
     const isPinned = !!(window.LIBRARY_GROUPS && LIBRARY_GROUPS.isPinned(it.id));
-    const pinBtn = (window.LIBRARY_GROUPS && wg.shelf_pinned !== false)
-      ? `<button class="btn btn-sm lib-pin-btn${isPinned ? ' on' : ''}" data-act="pin-toggle" data-id="${_escape(it.id)}" title="${isPinned ? 'Unpin — remove from your pinned papers' : 'Pin to your pinned papers (per-user, only you see it)'}">📌</button>`
-      : '';
-    const grpBtn = (window.LIBRARY_GROUPS && wg.shelf_groups !== false)
-      ? `<button class="btn btn-sm" data-act="add-to-group" data-id="${_escape(it.id)}" title="Add / remove this paper in your groups">📁</button>`
-      : '';
-    /* V3.601 — attach to a research roadmap (an experiment or analysis on
-     * an output card) with a note saying why. Count comes off the reverse
-     * index the ref writer maintains, so no extra read per row. */
     const nRoadmaps = Array.isArray(lib.roadmaps) ? lib.roadmaps.length : 0;
-    const roadBtn = (window.ROADMAP_ATTACH && wg.roadmap !== false)
-      ? `<button class="btn btn-sm${nRoadmaps ? ' on' : ''}" data-act="add-to-roadmap" data-id="${_escape(it.id)}" title="${nRoadmaps ? `On ${nRoadmaps} roadmap${nRoadmaps === 1 ? '' : 's'} — click to manage` : 'Attach this paper to an experiment or analysis on a research roadmap'}">🗺${nRoadmaps ? ` ${nRoadmaps}` : ''}</button>`
-      : '';
+    /* V3.630 — 📌 / 📁 / 🗺 collapse into ONE "Organize" button.
+     *
+     * The row carried five categorization affordances side by side (★ star,
+     * `+ draft` badge, 📌 pin, 📁 group, 🗺 roadmap) with nothing to tell you
+     * which one you wanted, whether anyone else would see the result, or that
+     * two of them (📌 pin and ★ star) are near-duplicates on different
+     * scopes. They're now one button opening one popover with the same four
+     * labeled rows as the reader sidebar — Topics / Used in / My shelf / Tags
+     * — each carrying its 🌐-or-🔒 badge. The individual handlers are
+     * untouched; only the entry point is consolidated.
+     *
+     * ★ stays on its own in the star column: it's a lab-wide flag on the
+     * paper, not a place you file it. The `widgets_enabled` prefs still gate
+     * the ROWS inside the popover, so anyone who hid a shelf section keeps it
+     * hidden. A count summary rides the button so the row still tells you at
+     * a glance whether the paper is filed anywhere. */
+    const nGroups = (window.LIBRARY_GROUPS && LIBRARY_GROUPS.groupsForPaper)
+      ? LIBRARY_GROUPS.groupsForPaper(it.id).length : 0;
+    const nTopics = Array.isArray(lib.themes) ? lib.themes.length : 0;
+    const orgBits = [];
+    if (nTopics)    orgBits.push(`${nTopics} topic${nTopics === 1 ? '' : 's'}`);
+    if (nRoadmaps)  orgBits.push(`${nRoadmaps} lab focus`);
+    if (nGroups)    orgBits.push(`${nGroups} group${nGroups === 1 ? '' : 's'}`);
+    if (isPinned)   orgBits.push('pinned');
+    const orgBtn = `<button class="btn btn-sm lib-org-btn${orgBits.length ? ' on' : ''}" data-act="organize" data-id="${_escape(it.id)}" title="${orgBits.length ? _escape('Filed under: ' + orgBits.join(' · ') + ' — click to manage') : 'File this paper: topics, drafts it feeds, your shelf'}">Organize${orgBits.length ? ` <span class="lib-org-n">${orgBits.length}</span>` : ''}</button>`;
     /* V3.365 — interactive associations badge. Active/inactive derives
      * from draft status via LIBRARY_ASSOC (falls back to raw counts +
      * _draftTitleById while the resolver cache is cold). Zero-assoc rows
@@ -734,18 +761,19 @@
         </div>
         <div class="lib-authors">${_escape(_authorLine(lib.authors))}</div>
         ${assocBtn}
-        ${_needsMetadataFix(lib) ? `<button class="btn btn-sm" data-act="edit-meta" data-id="${_escape(it.id)}" style="margin-top:3px;background:#fef3c7;border-color:#fde68a;color:#92400e;" title="Lookup failed at ingest — edit the metadata or pull it from a DOI">⚠ Fix metadata</button>` : ''}
+        ${_needsMetadataFix(lib) ? `<button class="btn btn-sm" data-act="edit-meta" data-id="${_escape(it.id)}" style="margin-top:3px;background:#fef3c7;border-color:#fde68a;color:#92400e;" title="Lookup failed at ingest — edit the metadata or pull it from a DOI">${ICON.svg('exclamation-triangle')} Fix metadata</button>` : ''}
       </td>
       <td class="lib-col-journal">${_escape(journalYear)}</td>
       <td class="lib-col-key"><code>${_escape(lib.citation_key || '')}</code></td>
       <td class="lib-col-actions">
         ${lib.pdf ? `<a class="btn btn-sm" href="/rm/pages/library-paper.html?id=${encodeURIComponent(it.id)}">Read</a>` : _missingActionsHtml(it)}
-        ${lib.pdf ? `<button class="btn btn-sm" data-act="open-pdf-tab" data-id="${_escape(it.id)}" title="Open raw PDF in new tab">↗</button>` : ''}
+        ${lib.pdf ? `<button class="btn btn-sm" data-act="open-pdf-tab" data-id="${_escape(it.id)}" title="Open raw PDF in new tab">${ICON.svg('arrow-top-right-on-square')}</button>` : ''}
+        ${lib.pdf ? `<button class="btn btn-sm" data-act="download-pdf" data-id="${_escape(it.id)}" title="Download the PDF to your computer">${ICON.svg('arrow-down-tray')}</button>` : ''}
         ${src ? `<a class="btn btn-sm" href="${_escape(src.url)}" target="_blank" rel="noopener" title="Open at ${_escape(src.host)}">Go to source</a>` : ''}
         <button class="btn btn-sm" data-act="edit-meta" data-id="${_escape(it.id)}" title="Edit metadata / fetch from DOI">✎</button>
-        ${pinBtn}${grpBtn}${roadBtn}
+        ${orgBtn}
         <button class="btn btn-sm" data-act="assign-paper" data-id="${_escape(it.id)}" title="Send this paper to a teammate">Send</button>
-        ${canDel ? `<button class="btn btn-sm lib-delete-btn" data-act="delete-paper" data-id="${_escape(it.id)}" title="Delete this paper, its PDF, and all annotations">🗑</button>` : ''}
+        ${canDel ? `<button class="btn btn-sm lib-delete-btn" data-act="delete-paper" data-id="${_escape(it.id)}" title="Delete this paper, its PDF, and all annotations">${ICON.svg('trash')}</button>` : ''}
       </td>
     `;
     return tr;
@@ -855,6 +883,12 @@
     // (unobtainable ones included so ↩ stays reachable) and keeps its
     // count current on every render.
     if (_missingOnly) filtered = filtered.filter(p => _pdfStatus(p) !== 'ok');
+    // V3.825 — the Added select (a per-browser convenience; the query token is
+    // the saveable form). While it is on, the list reads newest first.
+    const addedOn = !!(window.LIBRARY_RECENT && LIBRARY_RECENT.active());
+    if (addedOn) filtered = filtered.filter(p => LIBRARY_RECENT.matches(p));
+    const addedSel = document.getElementById('library-added');
+    if (addedSel) addedSel.classList.toggle('lib-added-on', addedOn);
     const missBtn = document.getElementById('library-missing-pdfs');
     if (missBtn) {
       const nMissing = _libraryPapers.filter(p => _pdfStatus(p) === 'missing').length;
@@ -863,14 +897,24 @@
     }
 
     const sortMode = (prefs && prefs.default_sort) || 'year-desc';
-    filtered.sort(_sortFor(sortMode));
+    if (addedOn) { const C = LIBRARY_RECENT_CORE; filtered.sort((a, b) => C.addedMs(b) - C.addedMs(a) || (a.title || '').localeCompare(b.title || '')); }
+    else filtered.sort(_sortFor(sortMode));
 
     if (countEl) {
       const denom = visiblePool.length;
       countEl.textContent =
         `${filtered.length} of ${denom} paper${denom === 1 ? '' : 's'}` +
-        (visiblePool.length !== _libraryPapers.length ? ` (filtered from ${_libraryPapers.length})` : '');
+        (visiblePool.length !== _libraryPapers.length ? ` (filtered from ${_libraryPapers.length})` : '') +
+        (addedOn ? ` · ${LIBRARY_RECENT.label().toLowerCase()}, newest first` : '');
     }
+
+    // V3.825/V3.826 — the 🆕 Recently added shelf reads the visible pool (the
+    // shelf itself is rendered by LIBRARY_GROUPS below, folded by default).
+    if (window.LIBRARY_RECENT) LIBRARY_RECENT.setPool(visiblePool);
+
+    // V3.639 — mirror the count onto the collapsible "All papers" header so
+    // it still reads while the section is folded.
+    if (window.LIBRARY_COLLAPSE) LIBRARY_COLLAPSE.setCount('lib-papers', filtered.length);
 
     _renderTagStrip();
     _applyWidgetVisibility();
@@ -880,7 +924,7 @@
     // when there's a query/tag filter worth saving.
     if (window.LIBRARY_GROUPS) {
       LIBRARY_GROUPS.render({
-        filterActive: !!(_filterText.trim() || _tagFilter || _missingOnly),
+        filterActive: !!(_filterText.trim() || _tagFilter || _missingOnly || addedOn),
       });
     }
     const sgBtn = document.getElementById('library-save-group');
@@ -890,7 +934,7 @@
       const tr = document.createElement('tr');
       tr.innerHTML = `<td colspan="5" class="lib-empty">${
         _libraryPapers.length
-          ? (visiblePool.length === 0 ? 'No papers visible — try ⚙ Customize → Whose papers to show.' : 'No papers match the current filter.')
+          ? (visiblePool.length === 0 ? 'No papers visible — try ' + ICON.svg('cog-6-tooth') + ' Customize → Whose papers to show.' : 'No papers match the current filter.')
           : 'No papers yet — drop a PDF onto the upload zone above to get started.'
       }</td>`;
       tbody.appendChild(tr);
@@ -1001,7 +1045,7 @@
     const active = (_tagFilter === tag);
     const bg = active ? '#1e40af' : (pinned ? '#dbeafe' : '#f3f4f6');
     const fg = active ? '#fff' : (pinned ? '#1e3a8a' : '#374151');
-    return `<button type="button" data-tag-chip="${_escape(tag)}" style="background:${bg};color:${fg};border:1px solid ${active ? '#1e3a8a' : '#d1d5db'};border-radius:14px;padding:3px 10px;font-size:11px;font-family:ui-monospace,monospace;cursor:pointer;">${_escape(tag)}${pinned ? ' 📌' : ''}</button>`;
+    return `<button type="button" data-tag-chip="${_escape(tag)}" style="background:${bg};color:${fg};border:1px solid ${active ? '#1e3a8a' : '#d1d5db'};border-radius:14px;padding:3px 10px;font-size:11px;font-family:ui-monospace,monospace;cursor:pointer;">${_escape(tag)}${pinned ? ' ' + ICON.svg('pin') : ''}</button>`;
   }
 
   // ---- Row actions -------------------------------------------------------
@@ -1041,6 +1085,7 @@
       <div class="la-pop-body"></div>
     `;
     document.body.appendChild(pop);
+    if (window.POPOVER_PLACE) POPOVER_PLACE.fit(pop, r, { preferLeft: parseFloat(pop.style.left) });   // V3.827 — fully on screen
     _assocPopEl = pop;
     document.addEventListener('mousedown', _assocPopOutside, true);
     document.addEventListener('keydown', _assocPopEsc, true);
@@ -1048,6 +1093,164 @@
     LIBRARY_ASSOC.renderPills(pop.querySelector('.la-pop-body'), it, {
       showCited: true,
       onChanged: () => _render(),   // repaint badges; `it` already patched
+    });
+  }
+
+  /* V3.827 — "download the pdf to their computer": fetch the Storage object
+   * and hand it to the browser as a file named after the paper id, so it lands
+   * in Downloads instead of opening in a viewer tab (a cross-origin
+   * `download` attribute is ignored, so the bytes go through a blob URL). */
+  function _pdfFilename(it) {
+    return (String(it.id || 'paper').replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'paper') + '.pdf';
+  }
+  async function _downloadPdf(it) {
+    const lib = (it.meta && it.meta.library) || {};
+    let url = '';
+    try {
+      _setBusy('Fetching PDF…');
+      url = await LIBRARY_UPLOAD.downloadUrl(lib.pdf.storage_path);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = _pdfFilename(it);
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+      _toast(`Downloading ${a.download}`);
+    } catch (e) {
+      if (url) { window.open(url, '_blank', 'noopener'); _toast('Opened the PDF in a new tab — use its download button.', 'error'); }
+      else _toast(`Could not download PDF: ${e.message || e}`, 'error');
+    } finally {
+      _setBusy('');
+    }
+  }
+
+  /* V3.630 — the row's ONE "Organize" popover: the same four rows as the
+   * reader sidebar's Organize block, with the same 🌐/🔒 ownership badges.
+   *
+   * Deliberately NOT a reimplementation of four pickers. "Used in" renders
+   * inline because LIBRARY_ASSOC.renderPills already does exactly that; the
+   * other three hand off to the modals that already exist
+   * (LIBRARY_THEMES-backed topic add, ROADMAP_ATTACH.open,
+   * LIBRARY_GROUPS.openGroupPicker) and close this popover first so two
+   * layers never fight. Each row shows its current state so the popover
+   * answers "where is this paper filed?" without opening anything. */
+  function _orgBadge(scope) {
+    return scope === 'private'
+      ? '<span class="lib-org-badge lib-org-badge-priv" title="Private — nobody else sees this">' + ICON.svg('lock-closed') + ' only you</span>'
+      : '<span class="lib-org-badge" title="Shared — everyone in the lab sees this">' + ICON.svg('globe-alt') + ' lab</span>';
+  }
+
+  function _openOrganizePopover(it, anchor) {
+    _closeAssocPopover();
+    const lib = (it.meta && it.meta.library) || {};
+    const wg = (window.LIBRARY_PREFS && LIBRARY_PREFS.get().widgets_enabled) || {};
+    const pop = document.createElement('div');
+    pop.className = 'la-popover lib-org-pop';
+    const r = anchor.getBoundingClientRect();
+    pop.style.left = `${Math.max(8, Math.min(r.left - 120, window.innerWidth - 346))}px`;
+    pop.style.top = `${Math.min(r.bottom + 6, window.innerHeight - 160)}px`;
+
+    // Topics — names resolved through the LIBRARY_THEMES cache when the tab
+    // bundle loaded it; ids are a fine fallback (the papers tab doesn't load
+    // library-themes.js, so this row is read-only there and says so).
+    const themeIds = Array.isArray(lib.themes) ? lib.themes : [];
+    const themeName = (id) => (window.LIBRARY_THEMES && LIBRARY_THEMES.getThemeNameById)
+      ? LIBRARY_THEMES.getThemeNameById(id) : id;
+    const topicChips = themeIds.length
+      ? themeIds.map(id => `<a class="lib-org-chip" href="/rm/pages/library.html?tab=themes&theme=${encodeURIComponent(id)}" title="Open this topic">${_escape(themeName(id))}</a>`).join('')
+      : '<span class="lib-org-empty">none</span>';
+
+    const nRoad = Array.isArray(lib.roadmaps) ? lib.roadmaps.length : 0;
+    const groups = (window.LIBRARY_GROUPS && LIBRARY_GROUPS.groupsForPaper)
+      ? LIBRARY_GROUPS.groupsForPaper(it.id) : [];
+    const anyShared = groups.some(g => g.shared);
+    const groupChips = groups.length
+      ? groups.map(g => `<span class="lib-org-chip">${ICON.svg(g.shared ? 'globe-alt' : 'folder')} ${_escape(g.name)}</span>`).join('')
+      : '<span class="lib-org-empty">none</span>';
+    const isPinned = !!(window.LIBRARY_GROUPS && LIBRARY_GROUPS.isPinned(it.id));
+    const tags = (window.LIBRARY_TAGS ? LIBRARY_TAGS.getTags(it) : []) || [];
+
+    pop.innerHTML = `
+      <div class="la-pop-title">Organize — ${_escape(it.title || it.id)}</div>
+      <div class="lib-org-rows">
+        <div class="lib-org-row">
+          <div class="lib-org-rowhead">Topics ${_orgBadge('lab')}</div>
+          <div class="lib-org-chips">${topicChips}</div>
+          <div class="lib-org-note">What it's <b>about</b> — durable lab knowledge.
+            ${window.LIBRARY_THEMES
+              ? '<button class="lib-org-act" data-org="topics">Manage on the Topics tab →</button>'
+              : '<a class="lib-org-act" href="/rm/pages/library.html?tab=themes">Manage on the Topics tab →</a>'}
+          </div>
+        </div>
+        <div class="lib-org-row">
+          <div class="lib-org-rowhead">Used in ${_orgBadge('lab')}</div>
+          <div class="lib-org-usedin"></div>
+          ${(window.ROADMAP_ATTACH && wg.roadmap !== false) ? `
+            <div class="lib-org-note">${ICON.svg('compass')} Lab focus — ${nRoad ? `on ${nRoad} roadmap item${nRoad === 1 ? '' : 's'}` : 'not on a roadmap'}.
+              <button class="lib-org-act" data-org="roadmap">${nRoad ? 'Manage' : 'Attach to an experiment / analysis'} →</button>
+            </div>` : ''}
+        </div>
+        ${(window.LIBRARY_GROUPS && wg.shelf_groups !== false) ? `
+          <div class="lib-org-row">
+            <div class="lib-org-rowhead">My shelf ${_orgBadge(anyShared ? 'lab' : 'private')}</div>
+            <div class="lib-org-chips">${groupChips}</div>
+            <div class="lib-org-note">A pile you keep for yourself.
+              <button class="lib-org-act" data-org="groups">Add / remove groups →</button>
+              ${wg.shelf_pinned !== false ? `<button class="lib-org-act" data-org="pin">${isPinned ? 'Unpin' : ICON.svg('pin') + ' Pin'}</button>` : ''}
+            </div>
+          </div>` : ''}
+        <div class="lib-org-row lib-org-row-adv">
+          <div class="lib-org-rowhead">Tags <span class="lib-org-advnote">power search</span></div>
+          <div class="lib-org-chips">${tags.length
+            ? tags.map(t => `<code class="lib-org-chip">${_escape(t)}</code>`).join('')
+            : '<span class="lib-org-empty">none</span>'}</div>
+          <div class="lib-org-note">Edit tags in the reader's Organize block.</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(pop);
+    if (window.POPOVER_PLACE) POPOVER_PLACE.fit(pop, r, { preferLeft: parseFloat(pop.style.left) });   // V3.827 — fully on screen
+    _assocPopEl = pop;
+    document.addEventListener('mousedown', _assocPopOutside, true);
+    document.addEventListener('keydown', _assocPopEsc, true);
+    window.addEventListener('scroll', _closeAssocPopover, true);
+
+    if (window.LIBRARY_ASSOC && window.LIBRARY_LINKS) {
+      LIBRARY_ASSOC.renderPills(pop.querySelector('.lib-org-usedin'), it, {
+        showCited: true,
+        onChanged: () => _render(),   // repaint the row's count; `it` is patched
+      });
+    } else {
+      pop.querySelector('.lib-org-usedin').innerHTML =
+        '<span class="lib-org-empty">unavailable on this page</span>';
+    }
+
+    pop.addEventListener('click', async (ev) => {
+      const act = ev.target.closest('[data-org]');
+      if (!act) return;
+      const which = act.getAttribute('data-org');
+      if (which === 'topics') {
+        _closeAssocPopover();
+        location.href = '/rm/pages/library.html?tab=themes';
+        return;
+      }
+      if (which === 'roadmap') {
+        _closeAssocPopover();
+        ROADMAP_ATTACH.open({ item: it, onDone: () => _render() });
+        return;
+      }
+      if (which === 'groups') {
+        _closeAssocPopover();
+        LIBRARY_GROUPS.openGroupPicker(it.id);
+        return;
+      }
+      if (which === 'pin') {
+        act.disabled = true;
+        try { await LIBRARY_GROUPS.togglePin(it.id); _closeAssocPopover(); _render(); }
+        catch (e) { act.disabled = false; _toast('Pin failed: ' + (e.message || e), 'error'); }
+      }
     });
   }
 
@@ -1073,6 +1276,11 @@
       return;
     }
 
+    if (btn.dataset.act === 'download-pdf' && lib.pdf && lib.pdf.storage_path) {   // V3.827
+      await _downloadPdf(it);
+      return;
+    }
+
     if (btn.dataset.act === 'pdf-retry') {
       await _retryPdf(it);
       return;
@@ -1093,6 +1301,15 @@
       } catch (e) {
         _toast(`Save failed: ${e.message || e}`, 'error');
       }
+      return;
+    }
+
+    /* V3.630 — the row's single Organize entry point. The three handlers
+     * below are kept: the groups shelf still renders `pin-toggle` /
+     * `add-to-group` chips of its own, and both are reachable from inside the
+     * popover, so removing them would break the shelf. */
+    if (btn.dataset.act === 'organize') {
+      _openOrganizePopover(it, btn);
       return;
     }
 
@@ -1183,7 +1400,10 @@
         // stale-while-revalidate cheap check ignores deletes (max updatedAt
         // unchanged), so a plain refresh would resurrect the deleted paper.
         // Bust the cache so the next load fetches fresh.
-        try { if (window.api && api.invalidate) await api.invalidate('items.json'); } catch (e) { /* non-fatal */ }
+        // V3.647 — was `window.api && …`, which is always false (util.js's `api`
+        // is a lexical const, never a window property), so a deleted paper could
+        // come straight back from the cached list.
+        try { if (typeof api !== 'undefined' && api.invalidate) await api.invalidate('items.json'); } catch (e) { /* non-fatal */ }
         // Drop the row from the in-memory caches and re-render.
         _libraryPapers = _libraryPapers.filter(x => x.id !== it.id);
         _items = _libraryPapers;
@@ -1547,6 +1767,16 @@
       });
   }
 
+  // V3.858 — truthy iff the signed-in user has a lab role (not a guest) per
+  // any source we can reach: the local own-profile mirror or firebridge's
+  // cached profile. Mirrors firestore.rules isLabMember(), which since
+  // V3.858 is enough to use the Capture extension.
+  function _isLabMemberAny() {
+    if (_ownProfileCache && _ownProfileCache.role && _ownProfileCache.role !== 'guest') return true;
+    if (typeof firebridge !== 'undefined' && firebridge.isLabMember && firebridge.isLabMember()) return true;
+    return false;
+  }
+
   // Truthy iff the signed-in user is admin per any source we can reach:
   // the local own-profile mirror or firebridge's cached profile.
   function _isAdminAny() {
@@ -1674,18 +1904,24 @@
     // local mirror, firebridge profile, or firebridge._ready.
     if (!_ownProfileCache) _refreshOwnProfile();
     const isAdmin = _isAdminAny();
-    if (list === null) {
+    // V3.858 — a lab role is enough (rules isExtensionMember() now ORs
+    // isLabMember()); the allowlist only matters for role-less accounts.
+    const isMember = _isLabMemberAny();
+    if (isAdmin || isMember) {
+      el.textContent = `✓ ${email} has access${isAdmin ? ' (admin)' : ' (lab member)'}`;
+      el.style.color = '#15803d';
+    } else if (list === null) {
       el.textContent = '(could not check the allowlist — see console)';
       el.style.color = '#6b7280';
       return;
-    }
-    if (isAdmin || list.includes(email)) {
-      el.textContent = `✓ ${email} has access${isAdmin ? ' (admin)' : ''}`;
+    } else if (list.includes(email)) {
+      el.textContent = `✓ ${email} has access (allowlist)`;
       el.style.color = '#15803d';
     } else {
-      el.textContent = `✗ ${email} is NOT on the allowlist — ask the PI to add you`;
+      el.textContent = `✗ ${email} has no lab role here and is not on the allowlist — ask the PI`;
       el.style.color = '#b91c1c';
     }
+    if (list === null) return;
     // Reveal the admin blocks if the current user is an admin.
     const adminBlock = document.getElementById('lib-ext-admin');
     if (adminBlock) {
@@ -1788,22 +2024,38 @@
   function _addExtensionMember(email)    { return _addToAllowlist('extensionMembers', email); }
   function _removeExtensionMember(email) { return _removeFromAllowlist('extensionMembers', email); }
 
+  // V3.819 — the Chrome extension's "open it in the library" link lands here
+  // as library.html?paper=<id>: the pending captures merge first (the sync
+  // above), then the paper page opens. Said once if it never turns up.
+  let _deepLinkDone = false;
+  function _openDeepLinkedPaper(afterSync) {
+    if (_deepLinkDone) return;
+    let id = '';
+    try { id = new URLSearchParams(location.search).get('paper') || ''; } catch (e) { /* no URL API */ }
+    if (!id) { _deepLinkDone = true; return; }
+    const hit = (_libraryPapers || []).find(it => it && (it.id === id || it.paper_id === id));
+    if (hit) { _deepLinkDone = true; location.replace('/rm/pages/library-paper.html?id=' + encodeURIComponent(id)); return; }
+    if (afterSync) { _deepLinkDone = true; _toast('That capture hasn’t merged into the library yet — press ↻ Sync captures, or check the extension allowlist.', 'info'); }
+  }
+
   async function _runCaptureSync(opts) {
     const force = !!(opts && opts.force);
     const silent = !!(opts && opts.silent);   // suppress no-op toasts (auto-resync)
     // One sync per page load is enough by default — extra captures only
     // happen via the extension while the user is on a different tab anyway.
-    if (_syncedThisSession && !force) return;
+    if (_syncedThisSession && !force) { _openDeepLinkedPaper(false); return; }
     // V3.583 — the queue is allowlist-gated; once we know this user isn't on
     // it, stop re-running on every refocus.
-    if (_captureSyncUnavailable) return;
+    if (_captureSyncUnavailable) { _openDeepLinkedPaper(true); return; }
     if (!window.LIBRARY_SYNC) {
       if (force) _toast('library-sync.js not loaded — reload the page.', 'error');
+      _openDeepLinkedPaper(true);
       return;
     }
     if (typeof firebase === 'undefined' || !firebase.auth || !firebase.auth().currentUser) {
       if (force) _toast('Sign in first (profile page) to merge extension captures.', 'error');
       _updateAuthHint();
+      _openDeepLinkedPaper(false);   // not signed in: the paper may still be in the shared items.json
       return;
     }
     _syncedThisSession = true;
@@ -1819,7 +2071,7 @@
       if (result.notMember) {
         _captureSyncUnavailable = true;
         if (force && !silent) {
-          _toast('Extension capture isn\'t enabled for your account — ask an admin to add you to the capture allowlist in Settings.', 'info');
+          _toast('Extension capture isn\'t enabled for your account: it needs a lab role on this site (not guest), or your email on the extension allowlist in the Library install card — ask the PI.', 'info');
         }
         return;
       }
@@ -1851,6 +2103,7 @@
     } finally {
       _setBusy('');
       _lastSyncMs = Date.now();
+      _openDeepLinkedPaper(true);
     }
   }
 
@@ -1877,6 +2130,7 @@
     _wireDoiAdd();
     _wireImportRefs();
     _wireMissingChip();
+    if (window.LIBRARY_RECENT) LIBRARY_RECENT.init({ onChange: _render });   // V3.825
     _wireRecheck();
     _wireFetchPdfs();
     _wireBookmarklet();
@@ -1897,6 +2151,27 @@
     }
     document.getElementById('library-tbody')
       ?.addEventListener('click', _onTableClick);
+
+    // V3.639 — "papers people sent me" at the top of the page. Owns its own
+    // Firestore reads + auth hook, so it just needs starting; it hides
+    // itself when the user has no readings.
+    if (window.LIBRARY_READINGS) LIBRARY_READINGS.init();
+
+    // V3.639 — fold every top-level block behind a collapsible header.
+    // Done AFTER the shelf/table exist but BEFORE _render(), because
+    // register() moves each block into a new wrapper and we want that
+    // settled before the first paint. The readings block renders its own
+    // sections (they re-render on change), so it isn't registered here.
+    // The extension card is already a native <details> and is left alone.
+    if (window.LIBRARY_COLLAPSE) {
+      LIBRARY_COLLAPSE.register('#library-dropzone', { id: 'lib-dropzone', icon: 'arrow-up', label: 'Add papers' });
+      // The shelf ships display:none and reveals itself from
+      // library-groups.js — mirrorHidden keeps the header in step so we
+      // never show a header over an empty body.
+      LIBRARY_COLLAPSE.register('#lib-groups-shelf', { id: 'lib-shelf', icon: 'books', label: 'Shelves', mirrorHidden: true, defaultCollapsed: true });   // V3.828 — folded until opened
+      LIBRARY_COLLAPSE.register('.lib-table', { id: 'lib-papers', icon: 'document-text', label: 'All papers' });
+    }
+
     await _load();
     _render();
 
@@ -2082,6 +2357,8 @@
       search: 'Search box',
       stars:  'Star column',
       tags:   'Tag chip strip',
+      shelf_readings: 'Shelf: papers sent to me (assigned / suggested / read)',
+      shelf_recent: 'Shelf: recently added',
       shelf_reader: 'Shelf: open in reader',
       shelf_pinned: 'Shelf: pinned papers',
       shelf_groups: 'Shelf: paper groups',

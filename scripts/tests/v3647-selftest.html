@@ -1,0 +1,312 @@
+<!-- V3.647 in-page selftest for the bugfix batch (BugFixes_081923.md).
+
+     Lives OUTSIDE rm/ on purpose: OurlabMobile/scripts/sync-rm.mjs rsyncs the
+     whole rm/ tree into the phone app, so a test page there would ship. The
+     absolute /rm/js/... paths below still resolve from anywhere on the origin.
+
+     Run:
+       python3 -m http.server 8777
+       node ~/.claude/skills/browser-automation/browser.mjs \
+         http://localhost:8777/scripts/tests/v3647-selftest.html \
+         --eval "document.getElementById('r').dataset.fail"
+
+     Assertions live IN the page and publish to data-* attributes because
+     browser.mjs runs --eval in an ISOLATED world and cannot see window.* at
+     all — a global that never loaded and one the harness simply cannot reach
+     look identical from outside. -->
+<!doctype html><html><head><meta charset="utf-8"><title>V3.647 selftest</title></head><body>
+<h1>V3.647 selftest</h1>
+<pre id="r" data-pass="0" data-fail="0" data-detail="">running…</pre>
+
+<!-- Scroll-anchor fixture: mirrors the reader's left rail — ONE scroll
+     container holding the citations panel above the cited-by panel. -->
+<div id="scroller" style="height:200px;overflow:auto;border:1px solid #ccc;width:300px">
+  <div id="spacerTop" style="height:300px;background:#eee"></div>
+  <div id="panelA" style="height:200px;background:#cde"></div>
+  <!-- content-sized, like the real #lp-cited-by: its height IS its rows, so a
+       wipe really does collapse it. panelA is height-driven like a panel whose
+       row count changes. -->
+  <div id="panelB" style="background:#dec"><div style="height:200px"></div></div>
+  <div id="spacerBot" style="height:600px;background:#eee"></div>
+</div>
+
+<script src="/rm/js/icons.js"></script>
+<script src="/rm/js/util.js"></script>
+<script src="/rm/js/paper-schemas.js"></script>
+<script src="/rm/js/paper-equations.js"></script>
+<script src="/rm/js/reference-import.js"></script>
+<script src="/rm/js/paper-values.js"></script>
+<script>
+window.addEventListener('error', function (e) {
+  var r = document.getElementById('r');
+  r.dataset.fail = String((+r.dataset.fail || 0) + 1);
+  r.dataset.detail = (r.dataset.detail || '') + ' | UNCAUGHT: ' +
+    (e.message || '') + ' @' + (e.filename || '') + ':' + (e.lineno || '');
+  r.textContent = r.dataset.detail;
+});
+(function () {
+  var pass = 0, fail = 0, detail = [];
+  function ck(name, got, want) {
+    var ok = JSON.stringify(got) === JSON.stringify(want);
+    if (ok) pass++; else { fail++; detail.push(name + ': got ' + JSON.stringify(got) + ' want ' + JSON.stringify(want)); }
+  }
+  function publish() {
+    var r = document.getElementById('r');
+    r.dataset.pass = String(pass);
+    r.dataset.fail = String(fail);
+    r.dataset.detail = detail.join(' | ');
+    r.textContent = pass + ' pass, ' + fail + ' fail\n' + detail.join('\n');
+  }
+  /* The commitToLibrary case resolves a promise, so the harness must wait:
+     browser.mjs --wait '#r[data-done]'. */
+  function done() { publish(); document.getElementById('r').setAttribute('data-done', '1'); }
+
+  ck('modules loaded', [
+    typeof window.rerenderPreservingScroll,
+    typeof window.PaperEquations,
+    typeof window.REFERENCE_IMPORT,
+    typeof window.PaperValues,
+    typeof window.PaperSchemas,
+  ], ['function', 'object', 'object', 'object', 'object']);
+
+  /* ───────── 1. rerenderPreservingScroll (library bug 2) ───────── */
+  var scroller = document.getElementById('scroller');
+  var panelA = document.getElementById('panelA');
+  var panelB = document.getElementById('panelB');
+
+  ck('scrollParentOf finds the rail', scrollParentOf(panelB) === scroller, true);
+
+  // Reader has scrolled down so panelA (citations) is fully above the fold
+  // and panelB (cited by) is what they are looking at.
+  scroller.scrollTop = 520;
+  var bBefore = panelB.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+  ck('fixture: panelA is above the fold',
+     panelA.getBoundingClientRect().bottom <= scroller.getBoundingClientRect().top, true);
+
+  // The citations panel repaints taller (a page with more citations on it).
+  rerenderPreservingScroll(panelA, function () { panelA.style.height = '400px'; });
+  var bAfter = panelB.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+  ck('panel above the fold grows → cited-by does not move', Math.round(bAfter - bBefore), 0);
+
+  // ...and shorter.
+  rerenderPreservingScroll(panelA, function () { panelA.style.height = '80px'; });
+  var bAfter2 = panelB.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+  ck('panel above the fold shrinks → cited-by does not move', Math.round(bAfter2 - bBefore), 0);
+
+  // The "+ Add" case: cited-by repaints itself, via a zero-height moment.
+  // Scroll so panelB is on screen but the rail is scrolled well past 0 —
+  // that is what the innerHTML wipe used to reset.
+  panelA.style.height = '200px';
+  scroller.scrollTop = 420;
+  var bVis = panelB.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+  var topBefore = scroller.scrollTop;
+  rerenderPreservingScroll(panelB, function () {
+    panelB.innerHTML = '';                                    // zero-height moment
+    panelB.innerHTML = '<div style="height:200px"></div>';
+  });
+  ck('self-repaint keeps the reader in place', Math.round(
+      (panelB.getBoundingClientRect().top - scroller.getBoundingClientRect().top) - bVis), 0);
+  ck('self-repaint did not dump the rail to the top', scroller.scrollTop > 0, true);
+  ck('self-repaint restored the rail exactly', scroller.scrollTop, topBefore);
+
+  // Regression guard. In the real reader "Cited by" is the LAST block in the
+  // rail, so wiping it shortens the content below the current offset and the
+  // browser clamps. Reproduce that layout, then show the bug and the fix.
+  var spacerBot = document.getElementById('spacerBot');
+  spacerBot.style.height = '0px';
+  panelB.innerHTML = '<div style="height:200px"></div>';
+  scroller.scrollTop = scroller.scrollHeight;      // reading the bottom of the rail
+  var atBottom = scroller.scrollTop;
+  panelB.innerHTML = '';                           // the old, unwrapped repaint
+  ck('control: a bare innerHTML wipe really does move the rail',
+     scroller.scrollTop < atBottom, true);
+
+  panelB.innerHTML = '<div style="height:200px"></div>';
+  scroller.scrollTop = scroller.scrollHeight;
+  var bBottomPos = panelB.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+  rerenderPreservingScroll(panelB, function () {
+    panelB.innerHTML = '';
+    panelB.innerHTML = '<div style="height:200px"></div>';
+  });
+  ck('wrapper holds position even when the wipe forces a clamp', Math.round(
+      (panelB.getBoundingClientRect().top - scroller.getBoundingClientRect().top) - bBottomPos), 0);
+  spacerBot.style.height = '600px';
+
+  /* ───────── 2. picker: always-rows + query (paper bug 3) ───────── */
+  var picked = null;
+  window.PaperEquations.openPicker(10, 10, {
+    title: 'test',
+    emptyMsg: 'nothing',
+    renderRowMode: 'plain',
+    rows: [
+      { name: 'alpha entry', searchKey: 'alpha entry', insert: '[X]' },
+      { name: function (q) { return q ? ('create "' + q + '"') : 'create…'; },
+        searchKey: 'create new', always: true, _new: 'text' },
+    ],
+    onPick: function (row, query) { picked = { row: row, query: query }; },
+  });
+  var pop = document.querySelector('.pe-eq-picker');
+  ck('picker opened', !!pop, true);
+  var input = pop.querySelector('.pe-eq-picker-search');
+  var rowsOf = function () {
+    return Array.prototype.map.call(pop.querySelectorAll('.pe-eq-picker-row'), function (b) {
+      return b.querySelector('.pe-eq-picker-row-name').textContent;
+    });
+  };
+  ck('no query → both rows', rowsOf(), ['alpha entry', 'create…']);
+
+  input.value = 'N2TError';
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  ck('no-match query keeps the always-row', rowsOf(), ['create "N2TError"']);
+
+  pop.querySelectorAll('.pe-eq-picker-row')[0].click();
+  ck('onPick got the raw (un-lowercased) query', picked && picked.query, 'N2TError');
+  ck('onPick got the always-row', picked && picked.row._new, 'text');
+  ck('picker closed after the pick', !document.querySelector('.pe-eq-picker'), true);
+
+  /* ───────── 3. value picker rows + create-and-insert (paper bug 3) ── */
+  var added = [], inserted = [], captured = null;
+  var realOpenPicker = window.PaperEquations.openPicker;   // restored for 3b
+  window.PaperEquations.openPicker = function (x, y, opts) { captured = opts; };
+  window.PaperEquations.insertAtCaret = function (t) { inserted.push(t); };
+  var store = [{ id: 'v1', key: 'FPS', kind: 'text', value: '30', note: '' }];
+  window.PaperEditor = {
+    getValueEntries: function () { return store; },
+    getKeyUsages: function () { return {}; },
+    addValueEntry: function (p) { added.push(p); store.push(p); },
+    updateValueEntry: function () {},
+  };
+
+  window.PaperValues.openInsertPicker(null, { x: 40, y: 60 });
+  ck('value picker anchored at the right-click point', captured && [captured], [captured]);
+  var names = captured.rows.map(function (r) {
+    return typeof r.name === 'function' ? r.name('') : r.name;
+  });
+  ck('value rows: existing key, then the two creators, then inventory', names, [
+    'FPS — 30', '＋ New text value…', '＋ New number & unit…', 'Search the lab inventory…',
+  ]);
+  ck('escape rows survive filtering',
+     captured.rows.filter(function (r) { return r.always; }).length, 3);
+  ck('creator row echoes a valid typed key',
+     captured.rows[2].name('N2TError'), '＋ New number & unit “N2TError”…');
+  ck('creator row ignores an unusable typed key',
+     captured.rows[1].name('not a key!'), '＋ New text value…');
+
+  ck('creator rows keep the dropdown open instead of dismissing it',
+     captured.rows.filter(function (r) { return r._new; }).map(function (r) { return !!r.keepOpen; }),
+     [true, true]);
+  // The create-and-insert path itself is driven against the REAL picker in
+  // section 3b — onPick now needs the picker's handle to render its form.
+
+  /* ───────── 3b. V3.648 — the inline form, no browser prompts ───────── */
+  // Nothing in this flow may reach window.prompt/alert/confirm. Stub them so
+  // a regression is a hard failure rather than a hung headless run.
+  var popped = [];
+  window.prompt  = function (m) { popped.push('prompt:' + m); return null; };
+  window.alert   = function (m) { popped.push('alert:' + m); };
+  window.confirm = function (m) { popped.push('confirm:' + m); return false; };
+
+  // Back to the REAL picker for this section.
+  window.PaperEquations.openPicker = realOpenPicker;
+  window.PaperEquations.insertAtCaret = function (t) { inserted.push(t); };
+  inserted.length = 0; added.length = 0;
+
+  window.PaperValues.openInsertPicker(null, { x: 40, y: 60 });
+  var vp = document.querySelector('.pe-eq-picker');
+  ck('value picker opened', !!vp, true);
+  var vin = vp.querySelector('.pe-eq-picker-search');
+  vin.value = 'N2TError';
+  vin.dispatchEvent(new Event('input', { bubbles: true }));
+  var vrows = vp.querySelectorAll('.pe-eq-picker-row');
+  ck('creator rows are what survive a no-match query', vrows.length, 3);
+  vrows[1].click();                                  // ＋ New number & unit
+
+  ck('picker stayed OPEN — no browser dialog', !!document.querySelector('.pe-eq-picker'), true);
+  var form = vp.querySelector('.pe-eq-picker-form');
+  ck('the form replaced the list, in the same dropdown', !!form, true);
+  ck('the list is hidden while the form is up', vp.querySelector('.pe-eq-picker-list').hidden, true);
+  ck('the search box is hidden too', vin.hidden, true);
+  ck('title switched to the form', vp.querySelector('.pe-eq-picker-title').textContent, 'New number & unit');
+
+  var labels = Array.prototype.map.call(form.querySelectorAll('.pe-eq-picker-field-label'),
+    function (l) { return l.textContent; });
+  ck('every option that used to be a prompt is now a field', labels,
+     ['Key', 'Number', 'Unit', 'Significant figures', 'Note']);
+  var fin = form.querySelectorAll('.pe-eq-picker-field-input');
+  ck('key is pre-filled from what was typed', fin[0].value, 'N2TError');
+
+  // Validation reports inside the form, never in an alert.
+  fin[1].value = 'not-a-number';
+  form.querySelector('.pe-eq-picker-form-btn-primary').click();
+  var errEl = form.querySelector('.pe-eq-picker-form-err');
+  ck('a bad number is reported in the form', errEl.hidden, false);
+  ck('the error names the problem', /is not a number/.test(errEl.textContent), true);
+  ck('nothing was written on a failed save', added.length, 0);
+  ck('form still open after a validation failure', !!document.querySelector('.pe-eq-picker-form'), true);
+
+  fin[1].value = '0.5'; fin[2].value = 'um'; fin[4].value = 'from the N2 fit';
+  form.querySelector('.pe-eq-picker-form-btn-primary').click();
+
+  ck('one entry written', added.length, 1);
+  ck('entry carries every field from the form',
+     added[0] && [added[0].key, added[0].kind, added[0].num, added[0].unit, added[0].sigfigs, added[0].note],
+     ['N2TError', 'number', 0.5, 'um', null, 'from the N2 fit']);
+  ck('its token was inserted at the caret', inserted, ['[!val:N2TError]']);
+  ck('picker closed after saving', !document.querySelector('.pe-eq-picker'), true);
+  ck('NO browser dialog was used anywhere in the flow', popped, []);
+
+  // Esc from the form steps back to the list rather than discarding the picker.
+  window.PaperValues.openInsertPicker(null, { x: 40, y: 60 });
+  var vp2 = document.querySelector('.pe-eq-picker');
+  // Find the creator row by label — the list now also contains the value the
+  // previous case created, so a positional index would pick the wrong row.
+  Array.prototype.filter.call(vp2.querySelectorAll('.pe-eq-picker-row'), function (b) {
+    return /New text value/.test(b.textContent);
+  })[0].click();
+  ck('form is up', !!vp2.querySelector('.pe-eq-picker-form'), true);
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  ck('Esc goes BACK to the list, not away', !!document.querySelector('.pe-eq-picker'), true);
+  ck('the list is showing again', !!vp2.querySelector('.pe-eq-picker-row'), true);
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  ck('a second Esc closes the picker', !document.querySelector('.pe-eq-picker'), true);
+  ck('still no browser dialog', popped, []);
+
+  /* ───────── 4. commitToLibrary (library bug 1) ───────── */
+  var wrote = [], invalidated = [];
+  var STAMP = { __serverTimestamp: true };
+  window.firebase = {
+    firestore: Object.assign(function () { return db; },
+      { FieldValue: { serverTimestamp: function () { return STAMP; } } }),
+  };
+  var db = { collection: function () { return {
+    doc: function (id) { return {
+      set: function (payload) { wrote.push({ id: id, payload: payload }); return Promise.resolve(); },
+    }; },
+  }; } };
+  /* `api` is a lexical const from util.js — `window.api` is undefined, which
+     is exactly the dead-check this release fixes. Patch the real binding. */
+  api.invalidate = function (p) { invalidated.push(p); return Promise.resolve(); };
+  ck('window.api really is undefined (the dead-check trap)', typeof window.api, 'undefined');
+
+  window.REFERENCE_IMPORT.commitToLibrary([
+    { id: 'smith2024', title: 'A', type: 'paper', meta: { library: { is_library_entry: true } } },
+    { id: 'jones2023', title: 'B', type: 'paper', meta: { library: { is_library_entry: true } } },
+  ]).then(function (n) {
+    ck('commit reports how many it wrote', n, 2);
+    ck('every item was written', wrote.map(function (w) { return w.id; }), ['smith2024', 'jones2023']);
+    ck('every write carries the freshness-probe stamp',
+       wrote.every(function (w) { return w.payload.updatedAt === STAMP; }), true);
+    ck('payload still carries the item body',
+       wrote[0].payload.meta.library.is_library_entry, true);
+    ck('BOTH list-route caches are busted', invalidated.slice().sort(),
+       ['items.json', 'library/papers.json']);
+    done();
+  }).catch(function (e) {
+    fail++; detail.push('commitToLibrary threw: ' + (e && e.message || e));
+    done();
+  });
+
+  publish();
+})();
+</script>
+</body></html>

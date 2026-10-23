@@ -3416,22 +3416,23 @@ summary.assoc-header h4{
 }
 
 /* ─── Tab Bar ─────────────────────────────────────────────── */
+/* V3.734 — the bar WRAPS on desktop. It used to be one overflow-x row
+   with the scrollbar hidden: fingers could swipe it, a mouse could not,
+   and the admin view's extra tabs pushed the last ones (Whiteboard) off
+   the edge with no hint they existed. Phones keep the swipe row. */
 .cb-tab-bar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 2px;
   border-bottom: 1px solid rgba(255,255,255,.08);
   margin-bottom: 1rem;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
 }
-.cb-tab-bar::-webkit-scrollbar { display: none; }
 .cb-tab {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: .6rem 1rem;
+  padding: .55rem .8rem;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
@@ -3813,6 +3814,65 @@ summary.assoc-header h4{
 .text-preview p { margin: 0 0 .75rem; }
 .text-preview a { color: var(--accent, #5baed1); text-decoration: underline; }
 
+/* ─── V3.656 — markdown-lite render for generic richtext sections
+       (overview / syllabus / schedule / simulations) ─────────── */
+.cb-richtext .cb-rt-h {
+  color: var(--text, #eef2f7);
+  line-height: 1.3;
+  margin: 1.5rem 0 .5rem;
+  font-weight: 650;
+}
+.cb-richtext .cb-rt-h:first-child { margin-top: 0; }
+.cb-richtext h3.cb-rt-h { font-size: 1.12rem; }
+.cb-richtext h4.cb-rt-h { font-size: 1rem; color: var(--accent, #5baed1); }
+.cb-richtext h5.cb-rt-h { font-size: .92rem; color: var(--muted, #a8b3c7); text-transform: uppercase; letter-spacing: .04em; }
+.cb-richtext .cb-rt-list { margin: 0 0 .85rem; padding-left: 1.35rem; }
+.cb-richtext .cb-rt-list li { margin: 0 0 .3rem; }
+.cb-richtext .cb-rt-hr {
+  border: 0; border-top: 1px solid rgba(255,255,255,.1); margin: 1.4rem 0;
+}
+.cb-richtext code {
+  background: rgba(255,255,255,.07);
+  padding: .1em .35em; border-radius: 4px;
+  font-size: .88em;
+}
+/* Tables scroll inside their own container so a wide schedule never forces
+   the page to scroll sideways on a phone. */
+.cb-richtext .cb-rt-tablewrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 0 1.1rem;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 8px;
+}
+.cb-richtext .cb-rt-table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 34rem;
+  font-size: .88rem;
+}
+.cb-richtext .cb-rt-table th,
+.cb-richtext .cb-rt-table td {
+  padding: .5rem .7rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.cb-richtext .cb-rt-table th {
+  background: rgba(91,174,209,.1);
+  color: var(--accent, #5baed1);
+  font-weight: 650;
+  white-space: nowrap;
+  position: sticky; top: 0;
+}
+.cb-richtext .cb-rt-table tbody tr:last-child td { border-bottom: 0; }
+.cb-richtext .cb-rt-table tbody tr:hover { background: rgba(255,255,255,.025); }
+@media (max-width: 640px) {
+  .cb-richtext .cb-rt-table { min-width: 30rem; font-size: .82rem; }
+  .cb-richtext .cb-rt-table th,
+  .cb-richtext .cb-rt-table td { padding: .4rem .5rem; }
+}
+
 /* ─── File upload area ────────────────────────────────────── */
 .file-upload-area {
   background: rgba(255,255,255,.02);
@@ -4012,7 +4072,15 @@ summary.assoc-header h4{
   }
   .cb-tab-bar {
     gap: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* fade at the right edge hints that more tabs are off-screen */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+            mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
   }
+  .cb-tab-bar::-webkit-scrollbar { display: none; }
   .cb-tab {
     padding: .5rem .6rem;
     font-size: .8rem;
@@ -4508,6 +4576,86 @@ summary.assoc-header h4{
   padding: 8px 10px;
   margin-bottom: 6px;
 }
+/* V3.660 — instructor notes rows in the Learning Modules editor. Same card,
+   amber accent + a NOTES tag, so an unpublished notes row is never mistaken
+   for a lesson that failed to publish. */
+.cb-mod-card-notes {
+  background: rgba(217,119,6,.07);
+  border-color: rgba(217,119,6,.30);
+}
+.cb-mod-card-num-notes {
+  background: rgba(217,119,6,.18);
+  color: #f59e0b;
+}
+.cb-mod-notes-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: rgba(217,119,6,.18);
+  border: 1px solid rgba(217,119,6,.45);
+  color: #f59e0b;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .09em;
+  flex-shrink: 0;
+}
+
+/* V3.803 — module TYPE on the Learning Modules cards and the typed lists
+   (Homework & Keys, Reports & Tests). The tag sits after the title; the circle
+   replaces the lesson number for anything that is not a plain module. One
+   colour per type: pretest slate, homework blue, key amber (it hides solutions,
+   like notes), report green, test red. */
+.cb-mod-type-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .09em;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.cb-mod-type-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: .5rem;
+  font-weight: 800;
+  letter-spacing: .03em;
+  flex-shrink: 0;
+}
+.cb-mod-type-circle-lg { width: 28px; height: 28px; font-size: .56rem; }
+.cb-mod-type-tag[data-type="pretest"],      .cb-mod-type-circle[data-type="pretest"]      { background: rgba(148,163,184,.18); border-color: rgba(148,163,184,.45); color: #cbd5e1; }
+.cb-mod-type-tag[data-type="homework"],     .cb-mod-type-circle[data-type="homework"]     { background: rgba(91,174,209,.18);  border-color: rgba(91,174,209,.5);   color: #7cc7e8; }
+.cb-mod-type-tag[data-type="homework_key"], .cb-mod-type-circle[data-type="homework_key"] { background: rgba(217,119,6,.18);   border-color: rgba(217,119,6,.45);   color: #f59e0b; }
+.cb-mod-type-tag[data-type="report"],       .cb-mod-type-circle[data-type="report"]       { background: rgba(34,197,94,.16);   border-color: rgba(34,197,94,.45);   color: #4ade80; }
+.cb-mod-type-tag[data-type="test"],         .cb-mod-type-circle[data-type="test"]         { background: rgba(239,68,68,.16);   border-color: rgba(239,68,68,.45);   color: #f87171; }
+/* a stack card whose entry is listed on another tab */
+.cb-mod-card-listed { border-style: dashed; }
+.cb-mod-type-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .75rem;
+  margin-right: 8px;
+}
+.cb-mod-type {
+  font-size: .75rem;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.14);
+  color: var(--text, #eef2f7);
+}
+.cb-mod-listed-note { font-size: .75rem; margin-left: 8px; }
+.cb-mod-card-bottom { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 0; }
+/* the Add Module modal's inline error (replaces an alert()) */
+.cb-addmod-error { margin-top: 8px; color: #f87171; font-size: .8rem; }
+
 .cb-mod-card-handle {
   display: flex;
   flex-direction: column;

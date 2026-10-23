@@ -44,6 +44,9 @@
   <!-- Preload JSON so content is snappy -->
   <link rel="preload" href="content.json" as="fetch" crossorigin="anonymous" />
   <link rel="stylesheet" href="styles.css" />
+  <!-- V3.684 — board-view styles shared with the module whiteboard panel,
+       which runs inside the module iframe and never loads styles.css. -->
+  <link rel="stylesheet" href="whiteboard-board.css" />
   <link rel="stylesheet" href="user-styles.css" />
   <link rel="stylesheet" href="cv-styles.css" />
 
@@ -58,12 +61,24 @@
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
   <!-- User system (must load after Firebase SDK, before app.js) -->
+  <!-- V3.642 — Heroicons. Same generated file the RM tree uses; it is
+       same-origin from mcgheelab.com, so the public site needs no second
+       icon system. NOT deferred: app.js renders on DOMContentLoaded and
+       calls ICON.svg() during that first paint. -->
+  <script src="/rm/js/icons.js"></script>
   <script defer src="firebase-config.js"></script>
   <script defer src="user-system.js"></script>
   <script defer src="cv-builder.js"></script>
   <script defer src="scheduler.js"></script>
   <script defer src="class-builder.js"></script>
+  <script defer src="whiteboard.js"></script>
+  <script defer src="whiteboard-replay.js"></script>
   <script defer src="teacher-classes.js"></script>
+  <script defer src="teacher-teach.js"></script>
+  <script defer src="engage-hub.js"></script>
+  <script defer src="engage-presenters.js"></script>
+  <script defer src="engage-guest.js"></script>
+  <script defer src="teacher-demo.js"></script>
   <!-- lab-apps.js script load retired in V3.53 (Phase C). The file
        itself is preserved in the repo for the split-view harness
        (_splitAppId / _splitRatio) which RM may reintroduce as a
@@ -74,21 +89,29 @@
   <!-- Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {
+      // V3.775 — a lecture recording (whiteboard.js) lives only in this tab's memory:
+      // the MediaRecorder buffer and the event log. A reload here destroyed a whole
+      // lecture's audio on 2026-09-15, seconds after sw.js was FTP'd mid-class. While
+      // recording, neither look for updates nor reload on one.
+      function lectureRecording() {
+        try { return !!(window.Whiteboard && window.Whiteboard.isRecording && window.Whiteboard.isRecording()); }
+        catch (e) { return false; }
+      }
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js', { scope: '/' })
           .then(reg => {
             console.log('[SW] Registered:', reg.scope);
             // Store registration for update checks
             window.__swReg = reg;
-            // Check for updates every 30 minutes
-            setInterval(() => reg.update(), 30 * 60 * 1000);
+            // Check for updates every 30 minutes — never while recording a lecture
+            setInterval(() => { if (!lectureRecording()) reg.update(); }, 30 * 60 * 1000);
           })
           .catch(err => console.warn('[SW] Registration failed:', err));
       });
 
       // Check for updates when user returns to the tab/app (covers PWA resume)
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && window.__swReg) {
+        if (document.visibilityState === 'visible' && window.__swReg && !lectureRecording()) {
           window.__swReg.update();
         }
       });
@@ -98,6 +121,13 @@
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (refreshing) return;
+        // The browser also checks for a new worker on its own (every in-scope navigation,
+        // including a simulation iframe loading), so the reload itself must be gated too.
+        if (lectureRecording()) {
+          window.__swReloadDeferred = true;
+          console.warn('[SW] new version activated during a lecture recording — reload held back');
+          return;
+        }
         refreshing = true;
         location.reload();
       });

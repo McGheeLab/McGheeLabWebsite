@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.842 — regions, instances across boards, organise by connections</title>
+<link rel="stylesheet" href="/whiteboard-board.css">
+<style>body{font:13px/1.5 system-ui,sans-serif;margin:20px}.ok{color:#15803d}.bad{color:#b91c1c}code{background:#f3f4f6;padding:1px 4px;border-radius:3px}#r{margin:14px 0;padding:10px;border:1px solid #e5e7eb}
+#host{width:1100px;height:620px;border:1px solid #ccc;display:flex;flex-direction:column}#host .wb-page{height:100%;min-height:0;flex:1;max-width:none;margin:0;width:100%;box-sizing:border-box}</style>
+<script>
+window.__popups = [];
+['prompt','alert','confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
+try { localStorage.removeItem('wb_pens_v1'); localStorage.removeItem('wb_pillpos_v1'); localStorage.removeItem('wb_view_u1_nb9_u1'); localStorage.removeItem('wb_origin_u1_nb9_u1'); localStorage.removeItem('wb_rail'); } catch (e) {}
+/* ── in-memory Firestore + Storage stub (the V3.830 harness's) ── */
+(function () {
+  var store = new Map(), listeners = [], touched = [];
+  function snapOf(path) { return { id: path.split('/').pop(), exists: store.has(path), data: function () { return store.has(path) ? JSON.parse(JSON.stringify(store.get(path))) : undefined; }, ref: docRef(path) }; }
+  function docsIn(path) { var out = []; store.forEach(function (v, k) { if (k.slice(0, k.lastIndexOf('/')) === path) out.push(snapOf(k)); }); return out; }
+  function fire(path, type) {
+    var parent = path.slice(0, path.lastIndexOf('/'));
+    listeners.slice().forEach(function (l) {
+      if (l.kind === 'doc' && l.path === path) l.cb(snapOf(path));
+      if (l.kind === 'col' && l.path === parent) l.cb({ docChanges: function () { return [{ type: type, doc: snapOf(path) }]; }, docs: docsIn(parent), size: 1, empty: false });
+    });
+  }
+  function applyUpdate(path, d) { var next = Object.assign({}, store.get(path) || {}); Object.keys(d).forEach(function (k) { if (d[k] === '__DEL__') delete next[k]; else if (d[k] && d[k].__arrayUnion) next[k] = (next[k] || []).concat([d[k].__arrayUnion]); else next[k] = JSON.parse(JSON.stringify(d[k])); }); store.set(path, next); fire(path, 'modified'); }
+  function docRef(path) {
+    return {
+      path: path, id: path.split('/').pop(),
+      collection: function (n) { return colRef(path + '/' + n); },
+      get: function () { touched.push('get ' + path); return Promise.resolve(snapOf(path)); },
+      set: function (d, o) { touched.push('set ' + path); var existed = store.has(path); store.set(path, (o && o.merge) ? Object.assign({}, store.get(path) || {}, JSON.parse(JSON.stringify(d))) : JSON.parse(JSON.stringify(d))); fire(path, existed ? 'modified' : 'added'); return Promise.resolve(); },
+      update: function (d) { touched.push('update ' + path); applyUpdate(path, d); return Promise.resolve(); },
+      delete: function () { touched.push('delete ' + path); store.delete(path); fire(path, 'removed'); return Promise.resolve(); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'doc', cb: cb }; listeners.push(l); setTimeout(function () { cb(snapOf(path)); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+  }
+  function colRef(path) {
+    var q = { path: path,
+      doc: function (id) { return docRef(path + '/' + (id || ('auto' + Math.random().toString(36).slice(2, 8)))); },
+      orderBy: function () { return q; }, where: function () { return q; }, limit: function () { return q; },
+      get: function () { var d = docsIn(path); return Promise.resolve({ docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'col', cb: cb }; listeners.push(l); var d = docsIn(path); setTimeout(function () { cb({ docChanges: function () { return d.map(function (s) { return { type: 'added', doc: s }; }); }, docs: d, size: d.length, empty: !d.length }); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+    return q;
+  }
+  var db = {
+    collection: function (n) { return colRef(n); },
+    batch: function () { var ops = []; return { set: function (ref, d, o) { ops.push(function () { return ref.set(d, o); }); }, update: function (ref, d) { ops.push(function () { return ref.update(d); }); }, delete: function (ref) { ops.push(function () { return ref.delete(); }); }, commit: function () { return ops.reduce(function (p, f) { return p.then(f); }, Promise.resolve()); } }; }
+  };
+  window.__stub = { store: store, touched: touched, db: db };
+  window.firebase = {
+    firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; }, delete: function () { return '__DEL__'; }, arrayUnion: function (x) { return { __arrayUnion: x }; } } },
+    storage: function () { return { ref: function () { return { child: function (p) { return { put: function () { touched.push('put ' + p); return Promise.resolve(); }, getDownloadURL: function () { return Promise.resolve('https://storage.example/' + p); }, delete: function () { touched.push('rm ' + p); return Promise.resolve(); } }; } }; } }; }
+  };
+  window.McgheeLab = { db: db, Auth: { currentUser: { uid: 'u1', email: 'a@x.com' }, currentProfile: { role: 'member' }, onChange: function () {}, offChange: function () {} } };
+  window.TOAST = { info: function () {}, success: function () {}, error: function (m) { (window.__toastErr = window.__toastErr || []).push(m); } };
+  store.set('userData/u1/notebookBoards/nb9_u1', { name: 'Regions', pages: [{ id: 'p1', background: 'grid' }], activePageId: 'p1', ownerUid: 'u1', sheetMode: 'continuous' });
+  /* a second board (a paper's figure board) with a region, a card inside it and a stroke inside it: the SOURCE of an instance */
+  store.set('papers/px', { title: 'Paper X', authorUids: ['u1'] });
+  store.set('papers/px/boards/main', { name: 'Paper X board', pages: [{ id: 'p1', background: 'grid' }], activePageId: 'p1', ownerUid: 'u1', sheetMode: 'continuous' });
+  store.set('papers/px/boards/main/items/rg1', { pageId: 'p1', type: 'region', x: 0.1, y: 0.1, w: 0.5, h: 0.3, title: 'Source region', color: '#b45309', collapsed: false, z: -1000 });
+  store.set('papers/px/boards/main/items/sc', { pageId: 'p1', type: 'widget', kind: 'note', title: 'Src card', text: 'inside the source', x: 0.15, y: 0.15, w: 0.2, ar: 1.6, z: 5, data: {} });
+  store.set('papers/px/boards/main/items/outside', { pageId: 'p1', type: 'widget', kind: 'note', title: 'Elsewhere', text: 'not in the region', x: 0.7, y: 0.7, w: 0.2, ar: 1.6, z: 6, data: {} });
+  store.set('papers/px/boards/main/strokes/ss1', { pageId: 'p1', seq: 1, pts: [0.15, 0.3, 0.5, 0.5, 0.3, 0.5, 0.55, 0.32, 0.5], color: '#111827', w: 0.006 });
+  if (window.PointerEvent && !PointerEvent.prototype.getCoalescedEvents) PointerEvent.prototype.getCoalescedEvents = function () { return [this]; };
+})();
+</script>
+<script src="/rm/js/icons.js"></script>   <!-- the site icon set, as every production page loads it -->
+<script src="/whiteboard.js"></script>
+<script src="/rm/js/canvas-widgets.js"></script>
+<script src="/rm/js/canvas-paper-reader.js"></script>   <!-- V3.859 — collections (quote · lit review · claim) live in the shared module -->
+</head>
+<body>
+<h1>V3.842 — regions, instances across boards, organise by connections</h1>
+<p>Serve the repo root and open <code>/scripts/tests/v3842-regions-harness.html</code>. Real <code>whiteboard.js</code> on a notebook board with pills + wires, against a stub Firestore. Result: <code>#r[data-done=1]</code>.</p>
+<div id="r">running…</div>
+<div id="host"></div>
+<script>
+(function () {
+  var out = [], pass = 0, fail = 0;
+  function ok(c, m, got) { if (c) pass++; else fail++; out.push('<div class="' + (c ? 'ok' : 'bad') + '">' + (c ? '✓' : '✗') + ' ' + m + (got !== undefined ? '  →  <code>' + String(got).replace(/</g, '&lt;') + '</code>' : '') + '</div>'); }
+  function done() { var r = document.getElementById('r'); r.innerHTML = '<b>' + pass + ' passed, ' + fail + ' failed</b>' + out.join(''); r.dataset.done = '1'; r.dataset.pass = pass; r.dataset.fail = fail; }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function until(fn, ms) { ms = ms || 4000; var t0 = Date.now(); return new Promise(function (res, rej) { (function poll() { var v; try { v = fn(); } catch (e) {} if (v) return res(v); if (Date.now() - t0 > ms) return rej(new Error('timeout: ' + fn.toString().slice(0, 100))); setTimeout(poll, 40); })(); }); }
+  var q = function (s) { return document.querySelector(s); }, qa = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  var store = window.__stub.store;
+  var BOARD = 'userData/u1/notebookBoards/nb9_u1';
+  var items = function () { var o = []; store.forEach(function (v, k) { if (k.indexOf(BOARD + '/items/') === 0) o.push(Object.assign({ id: k.split('/').pop() }, v)); }); return o; };
+  var item = function (id) { return items().find(function (i) { return i.id === id; }); };
+  var wires = function () { var o = []; store.forEach(function (v, k) { if (k.indexOf(BOARD + '/wires/') === 0) o.push(Object.assign({ id: k.split('/').pop() }, v)); }); return o; };
+  var pe = function (type, target, x, y, extra) { var e = new PointerEvent(type, Object.assign({ bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 5, pointerType: 'pen', pressure: 0.7, button: 0, isPrimary: true }, extra || {})); target.dispatchEvent(e); };
+  var mv = function (type, target, x, y) { var e = new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 9, pointerType: 'mouse', button: 0 }); target.dispatchEvent(e); };
+  var same = function (a, b) { return JSON.stringify(a.slice().sort()) === JSON.stringify(b.slice().sort()); };
+  var layer0 = function () { return q('.wb-widgets'); };
+
+  (async function () {
+    try {
+      var host = document.getElementById('host');
+      host.innerHTML = Whiteboard.boardShellHTML({ classId: 'u1', ids: false, back: false, zoomControls: false, maximize: false, topbar: false });
+      var h = await Whiteboard.mountBoardView(host.querySelector('.wb-page'), {
+        classId: 'u1', boardId: 'nb9_u1', collection: 'notebookBoards', ownerUid: 'u1', boardName: 'Regions',
+        chrome: 'full', view: { enabled: true }, items: { enabled: true }, pills: true, fitWidth: true, wires: { enabled: true },
+        widgets: { render: function (it, body) { body.textContent = it.text || ''; }, meta: function (k) { return { label: k, glyph: '' }; }, summary: function (it) { return it.text || ''; } }
+      });
+      ok(!!h && h.isInfinite(), 'mounts a notebook board (the plane) with wires on');
+      await until(function () { return h.getBoard() && q('.wb-pill[data-pill="tools"] .wb-pill-btn'); });
+      var inkEl = q('.wb-canvas-ink'), ir = inkEl.getBoundingClientRect(), pw = inkEl.clientWidth;
+      var sx = function (u) { return ir.left + (u - h.getOrigin().x) * pw; }, sy = function (v) { return ir.top + (v - h.getOrigin().y) * pw; };
+      var A = await h.addWidget({ kind: 'note', title: 'A', text: 'first', w: 0.3, pageId: 'p1', x: 0.1, y: 0.1 });
+      var B = await h.addWidget({ kind: 'note', title: 'B', text: 'second', w: 0.3, pageId: 'p1', x: 0.5, y: 0.1 });
+      var C = await h.addWidget({ kind: 'note', title: 'C', text: 'third', w: 0.3, pageId: 'p1', x: 0.1, y: 0.55 });
+      await until(function () { return qa('.wb-item-widget').length === 3; });
+      await h.addWire(A, B, 'then');
+      await until(function () { return q('.wb-wires .wb-wire'); });
+
+      /* ── 1. draw a region around A and B ── */
+      q('.wb-pill[data-pill="tools"] .wb-pill-btn').click(); await until(function () { return q('.wb-pill-tools.wb-open .wb-fan-item[data-wb-act="group"]'); });
+      ok(!!q('.wb-pill-tools .wb-fan-item[data-wb-act="organise"]') && !!q('.wb-pill-tools .wb-fan-item[data-wb-act="regionref"]'), 'the Tools pill has ▭ Region, ⇶ Organise and ⧉ Region from another board');
+      q('.wb-pill-tools .wb-fan-item[data-wb-act="group"]').click(); await wait(20);
+      ok(h.getTool() === 'group', '▭ puts the region tool in hand');
+      pe('pointerdown', inkEl, sx(0.05), sy(0.05)); pe('pointermove', inkEl, sx(0.5), sy(0.3)); pe('pointermove', inkEl, sx(0.85), sy(0.4)); pe('pointerup', inkEl, sx(0.85), sy(0.4));
+      await until(function () { return items().some(function (i) { return i.type === 'region'; }); }, 3000);
+      var reg = items().find(function (i) { return i.type === 'region'; }); var rid = reg.id;
+      ok(reg.title === 'Region 1' && reg.color === '#0D675E' && reg.collapsed === false, 'the box becomes a region doc: "Region 1", the first colour', JSON.stringify({ t: reg.title, c: reg.color }));
+      var hA = q('.wb-item-widget[data-item-id="' + A + '"]').offsetHeight / pw;
+      ok(Math.abs(reg.x - 0.08) < 0.005 && Math.abs(reg.w - 0.74) < 0.005 && Math.abs(reg.y - 0.05) < 0.005 && Math.abs(reg.h - (hA + 0.07)) < 0.01, 'V3.843: the drawn box SNAPS to the cards inside it (A + B + padding, header room above)', JSON.stringify({ x: reg.x, y: reg.y, w: reg.w, h: reg.h, hA: hA.toFixed(4) }));
+      /* a card moved inside the box pushes the box out */
+      var bn = q('.wb-item-widget[data-item-id="' + B + '"]'), bh = bn.querySelector('.wb-wh'), bhr = bh.getBoundingClientRect(), rw1 = reg.w;
+      mv('pointerdown', bh, bhr.left + 6, bhr.top + bhr.height / 2); mv('pointermove', layer0(), bhr.left + 60, bhr.top + bhr.height / 2); mv('pointermove', layer0(), bhr.left + 100, bhr.top + bhr.height / 2); mv('pointerup', layer0(), bhr.left + 100, bhr.top + bhr.height / 2);
+      await until(function () { return item(rid).w > rw1 + 0.05; }, 3000);
+      reg = item(rid);
+      ok(Math.abs((reg.x + reg.w) - (item(B).x + item(B).w + 0.02)) < 0.005, 'dragging B to the right (centre still inside) grows the region to keep it', (rw1 + ' → ' + reg.w));
+      ok(h.getTool() === 'pen', 'and the pen is back in hand');
+      await until(function () { return q('.wb-region[data-item-id="' + rid + '"] .wb-rcount') && /2 cards/.test(q('.wb-region[data-item-id="' + rid + '"] .wb-rcount').textContent); });
+      var rn = q('.wb-region[data-item-id="' + rid + '"]');
+      ok(rn.querySelector('.wb-rtitle').value === 'Region 1' && same(h.regionMembers(rid), [A, B]) && getComputedStyle(rn).zIndex === '1', 'the region renders behind the cards with its name and "2 cards" (membership = the cards whose centre is inside)', h.regionMembers(rid).length);
+      ok(getComputedStyle(rn).pointerEvents === 'none' && getComputedStyle(rn.querySelector('.wb-rh')).pointerEvents === 'auto', 'the box lets the pen through; only its header takes the pointer');
+      ok(same(item(rid).members || [], [A, B]), 'V3.843: membership is stored on the region (A, B)', JSON.stringify(item(rid).members));
+      /* a card CREATED inside the box joins it and the box grows to fit it */
+      var N = await h.addWidget({ kind: 'note', title: 'N', text: 'new inside', w: 0.3, pageId: 'p1', x: item(rid).x + 0.02, y: item(rid).y + 0.06, avoidOverlap: false });
+      await until(function () { return (item(rid).members || []).includes(N); }, 3000);
+      await wait(600);
+      var nr = q('.wb-item-widget[data-item-id="' + N + '"]').offsetHeight / pw;
+      ok(same(h.regionMembers(rid), [A, B, N]) && item(rid).y + item(rid).h >= item(N).y + nr - 0.001, 'a card created inside the region becomes a member and the box grows to hold it', JSON.stringify({ foot: item(rid).y + item(rid).h, nFoot: item(N).y + nr }));
+      /* drag N out by its NAME field (a plain tap would focus it) */
+      var nn = q('.wb-item-widget[data-item-id="' + N + '"]'), nt = nn.querySelector('.wb-wtitle'), ntr = nt.getBoundingClientRect();
+      mv('pointerdown', nt, ntr.left + 10, ntr.top + ntr.height / 2); mv('pointermove', layer0(), ntr.left + 10, ntr.top + 200); mv('pointermove', layer0(), ntr.left + 10, ntr.top + 460); mv('pointerup', layer0(), ntr.left + 10, ntr.top + 460);
+      await until(function () { return !(item(rid).members || []).includes(N); }, 3000);
+      ok(same(h.regionMembers(rid), [A, B]) && document.activeElement !== nt && item(N).y > 0.4, 'dragging a card out by its name field moves it and it leaves the region (no focus)', JSON.stringify({ members: (item(rid).members || []).length, ny: item(N).y }));
+      mv('pointerdown', nt, ntr.left + 10, ntr.top + ntr.height / 2); mv('pointerup', layer0(), ntr.left + 10, ntr.top + ntr.height / 2);
+      await wait(30);
+      var ntNow = q('.wb-item-widget[data-item-id="' + N + '"] .wb-wtitle');
+      ok(document.activeElement === ntNow, 'a plain tap on the name field focuses it for editing');
+      ntNow.blur();
+      await h.removeItem(N); await until(function () { return !item(N); }, 3000);
+
+      /* ── 2. move the region: its cards come along ── */
+      var rh = rn.querySelector('.wb-rh'), hr = rh.getBoundingClientRect(), layer = layer0();
+      var ax0 = item(A).x, bx0 = item(B).x, cx0 = item(C).x, rx0 = reg.x;
+      mv('pointerdown', rh, hr.right - 70, hr.top + hr.height / 2);
+      mv('pointermove', layer, hr.right - 20, hr.top + hr.height / 2);
+      mv('pointermove', layer, hr.right + 30, hr.top + hr.height / 2);
+      mv('pointerup', layer, hr.right + 30, hr.top + hr.height / 2);
+      await until(function () { return item(rid).x > rx0 + 0.05; }, 3000);
+      var dxr = item(rid).x - rx0;
+      ok(dxr > 0.05 && Math.abs((item(A).x - ax0) - dxr) < 0.02 && Math.abs((item(B).x - bx0) - dxr) < 0.02 && item(C).x === cx0, 'dragging the region by its header moves it AND the cards inside it (C, outside, stays)', JSON.stringify({ dxr: dxr, dA: item(A).x - ax0, dB: item(B).x - bx0 }));
+
+      /* ── 3. collapse hides the cards and their wire; open displaces a neighbour ── */
+      reg = item(rid);
+      var D = await h.addWidget({ kind: 'note', title: 'D', text: 'in the way', w: 0.3, pageId: 'p1', x: reg.x + 0.1, y: reg.y + reg.h - 0.02, avoidOverlap: false });
+      await until(function () { return q('.wb-item-widget[data-item-id="' + D + '"]'); });
+      ok(!h.regionMembers(rid).includes(D), 'a card whose centre is below the box is not a member, though it overlaps the box');
+      rn.querySelector('.wb-rchev').click();
+      await until(function () { return item(rid).collapsed === true; }, 3000);
+      await wait(60);
+      ok(q('.wb-item-widget[data-item-id="' + A + '"]').hidden && q('.wb-item-widget[data-item-id="' + B + '"]').hidden && !q('.wb-item-widget[data-item-id="' + C + '"]').hidden, 'collapsed: the member cards are hidden, the one outside stays', JSON.stringify({ A: q('.wb-item-widget[data-item-id="' + A + '"]').hidden, B: q('.wb-item-widget[data-item-id="' + B + '"]').hidden, C: q('.wb-item-widget[data-item-id="' + C + '"]').hidden }));
+      await wait(500);
+      ok(q('.wb-item-widget[data-item-id="' + A + '"]').hidden && q('.wb-item-widget[data-item-id="' + B + '"]').hidden, 'and they stay hidden through later renders (a hidden card keeps its measured height)');
+      ok(!q('.wb-wires .wb-wire') && rn.classList.contains('wb-collapsed') && rn.offsetHeight < 60, 'their wire disappears and the region folds to its header', rn.offsetHeight);
+      var dy0 = item(D).y;
+      rn.querySelector('.wb-rchev').click();
+      await until(function () { return item(rid).collapsed === false && item(D).y > dy0 + 0.01; }, 3000);
+      var regNow = item(rid);
+      ok(item(D).y >= regNow.y + regNow.h && !q('.wb-item-widget[data-item-id="' + A + '"]').hidden, 'opening it brings the cards back and pushes the overlapping neighbour below the box', dy0 + ' → ' + item(D).y + ' (box foot ' + (regNow.y + regNow.h).toFixed(4) + ')');
+      await until(function () { return q('.wb-wires .wb-wire'); });
+      ok(!!q('.wb-wires .wb-wire'), 'the wire is drawn again');
+
+      /* ── 4. colour and resize ── */
+      rn.querySelector('.wb-rsw').click(); await wait(20);
+      ok(rn.querySelectorAll('.wb-rpal .wb-tint-sw').length === 6, 'the swatch opens a palette of six');
+      rn.querySelector('.wb-rpal .wb-tint-sw[data-color="#2563eb"]').click();
+      await until(function () { return item(rid).color === '#2563eb'; }, 3000);
+      ok(rn.style.getPropertyValue('--wb-rcol') === '#2563eb', 'the region takes the colour');
+      var rg = rn.querySelector('.wb-rgrip'), gr = rg.getBoundingClientRect(), rw0 = item(rid).w, rh0 = item(rid).h;
+      mv('pointerdown', rg, gr.left + 4, gr.top + 4); mv('pointermove', layer, gr.left + 60, gr.top + 40); mv('pointermove', layer, gr.left + 120, gr.top + 80); mv('pointerup', layer, gr.left + 120, gr.top + 80);
+      await until(function () { return item(rid).w > rw0 + 0.05; }, 3000);
+      ok(item(rid).w > rw0 + 0.05 && item(rid).h > rh0 + 0.03, 'the corner grip resizes the region in both directions', (rw0 + '→' + item(rid).w) + ' · ' + (rh0 + '→' + item(rid).h));
+      await wait(600);
+      ok(item(rid).w > rw0 + 0.05, 'a hand-enlarged box is kept while nothing moves (grow-only auto-fit)');
+      rn.querySelector('.wb-rfit').click();
+      await until(function () { return item(rid).w < rw0 + 0.05; }, 3000);
+      ok(Math.abs(item(rid).w - rw0) < 0.01, '⤢ fits the region back around its cards', rw0 + ' ← ' + item(rid).w);
+
+      /* ── 5. organise by connections ── */
+      await h.updateItem(D, { y: 0.85 });   /* D out of the (now larger) box, so Region 1 holds exactly A and B */
+      await until(function () { return Math.abs(item(D).y - 0.85) < 1e-6 && same(h.regionMembers(rid), [A, B]); }, 3000);
+      var E = await h.addWidget({ kind: 'note', title: 'E', text: 'prep', w: 0.26, pageId: 'p1', x: 0.1, y: 1.0, avoidOverlap: false });
+      var F = await h.addWidget({ kind: 'note', title: 'F', text: 'image', w: 0.26, pageId: 'p1', x: 0.1, y: 1.3, avoidOverlap: false });
+      var G = await h.addWidget({ kind: 'note', title: 'G', text: 'analyse', w: 0.26, pageId: 'p1', x: 0.6, y: 1.0, avoidOverlap: false });
+      var L = await h.addWidget({ kind: 'note', title: 'L', text: 'loose', w: 0.26, pageId: 'p1', x: 0.6, y: 1.5, avoidOverlap: false });
+      await until(function () { return qa('.wb-item-widget').length === 8; });
+      await h.addWire(E, F, 'then'); await h.addWire(F, G, 'then');
+      await until(function () { return wires().length === 3; });
+      var n = await h.organise();
+      await wait(300);
+      var regs = items().filter(function (i) { return i.type === 'region'; });
+      var flow = regs.find(function (r) { return r.title === 'Flow 1'; });
+      ok(n === 5 && regs.length === 2 && !!flow, 'organise: 5 connected cards, one NEW region "Flow 1" (the A–B region is reused, not duplicated)', JSON.stringify({ n: n, regions: regs.map(function (r) { return r.title; }) }));
+      ok(flow && same(h.regionMembers(flow.id), [E, F, G]) && same(flow.members, [E, F, G]), '"Flow 1" holds E, F, G (stored as its members)');
+      ok(item(E).x < item(F).x && item(F).x < item(G).x && item(E).y === item(F).y && item(F).y === item(G).y, 'E → F → G are laid out left to right on one row', [item(E).x, item(F).x, item(G).x].join(' < '));
+      var wEF = wires().find(function (w) { return w.from === E && w.to === F; });
+      ok(wEF && wEF.fromSide === 'e' && wEF.toSide === 'w', 'the flow\'s wires leave east and arrive west');
+      ok(same(h.regionMembers(rid), [A, B]) && item(rid).title === 'Region 1', 'the existing region still holds A and B under its own name');
+      ok(item(L).x > flow.x + flow.w - 0.001 && item(C).x > flow.x + flow.w - 0.001, 'loose cards stack in a column to the right of the flows', item(L).x + ' vs ' + (flow.x + flow.w));
+
+      /* ── 6. an instance of another board's region ── */
+      var inst = await h.addRegionRef({ coll: 'paperBoards', classId: 'px', boardId: 'main', regionId: 'rg1', title: 'Source region', color: '#b45309', boardName: 'Paper X' }, { pageId: 'p1', x: 0.05, y: 3.0 });
+      await until(function () { return q('.wb-regionref[data-item-id="' + inst + '"] .wb-rr-card'); }, 4000);
+      var rr = q('.wb-regionref[data-item-id="' + inst + '"]');
+      ok(rr.querySelectorAll('.wb-rr-card').length === 1 && /Src card/.test(rr.querySelector('.wb-rr-card').textContent) && /from Paper X board/.test(rr.querySelector('.wb-rr-from').textContent), 'the instance renders the source region\'s card (not the one outside it) and names the source board', rr.querySelector('.wb-rr-from').textContent);
+      ok(rr.querySelector('.wb-rr-title').textContent === 'Source region' && rr.style.getPropertyValue('--wb-rcol') === '#b45309' && rr.querySelector('.wb-rr-open').getAttribute('href') === '/rm/pages/figure-board.html?paper=px', 'its header carries the region\'s name and colour and a link to the source board');
+      var cv = rr.querySelector('.wb-rr-ink'); var idata = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; var inkPx = 0; for (var k = 3; k < idata.length; k += 4 * 5) if (idata[k] > 0) inkPx++;
+      ok(inkPx > 20, 'the source region\'s ink is painted into the instance', inkPx);
+      await window.__stub.db.collection('papers').doc('px').collection('boards').doc('main').collection('items').doc('sc').update({ title: 'Src card v2' });
+      await until(function () { return /Src card v2/.test(rr.querySelector('.wb-rr-card').textContent); }, 3000);
+      ok(true, 'an edit at the source shows up in the instance (live mirror)');
+      /* the picker: boards → regions → instance */
+      q('.wb-pill[data-pill="tools"] .wb-pill-btn').click(); await until(function () { return q('.wb-pill-tools.wb-open .wb-fan-item[data-wb-act="regionref"]'); });
+      q('.wb-pill-tools .wb-fan-item[data-wb-act="regionref"]').click();
+      await until(function () { return q('.wb-refpick .wb-rp-row[data-rp-board]'); }, 3000);
+      ok(/Paper X/.test(q('.wb-refpick .wb-rp-row[data-rp-board]').textContent), '⧉ lists the user\'s other boards (the paper\'s figure board)');
+      q('.wb-refpick .wb-rp-row[data-rp-board]').click();
+      await until(function () { return q('.wb-refpick .wb-rp-row[data-rp-region]'); }, 3000);
+      ok(qa('.wb-refpick .wb-rp-row[data-rp-region]').length === 1 && /Source region/.test(q('.wb-refpick .wb-rp-row[data-rp-region]').textContent), 'then that board\'s regions (only regions)');
+      q('.wb-refpick .wb-rp-row[data-rp-region]').click();
+      await until(function () { return items().filter(function (i) { return i.type === 'regionref'; }).length === 2; }, 3000);
+      ok(!q('.wb-refpick') && items().filter(function (i) { return i.type === 'regionref'; }).length === 2, 'picking one adds the instance and closes the picker');
+
+      /* a card dragged out of its region (centre past the edge) leaves it, and the region shrinks to what stays */
+      var gn = q('.wb-item-widget[data-item-id="' + G + '"]'), gh = gn.querySelector('.wb-wh'), ghr = gh.getBoundingClientRect(), fw0 = item(flow.id).w;
+      mv('pointerdown', gh, ghr.left + 6, ghr.top + ghr.height / 2); mv('pointermove', layer, ghr.left + 6, ghr.top + 200); mv('pointermove', layer, ghr.left + 6, ghr.top + 420); mv('pointerup', layer, ghr.left + 6, ghr.top + 420);
+      await until(function () { return item(flow.id).w < fw0 - 0.1; }, 3000);
+      ok(same(h.regionMembers(flow.id), [E, F]) && item(flow.id).w < fw0 - 0.1, 'G dragged out of "Flow 1" leaves it; the region shrinks around E and F', fw0 + ' → ' + item(flow.id).w + ' members=' + h.regionMembers(flow.id).length);
+      var exp = await h.exportPNGs({ width: 800 });
+      ok(exp.length === 1, 'export renders with regions and instances');
+      ok(window.__popups.length === 0, 'no browser popups');
+      ok(!(window.__toastErr || []).length, 'no error toasts', (window.__toastErr || []).join(' | '));
+      h.destroy(); ok(true, 'destroy ok');
+    } catch (e) { ok(false, 'exception: ' + (e && e.message)); console.error(e); }
+    done();
+  })();
+})();
+</script>
+</body>
+</html>

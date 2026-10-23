@@ -206,21 +206,53 @@
     var i = 0;
     function done() {
       // V3.493 — these are DIRECT single-doc writes (they bypass api.save), so
-      // the stale-while-revalidate `items.json` route cache would not include
-      // them. Consumers that read items.json (the export pre-flight's
+      // the stale-while-revalidate route caches would not include them.
+      // Consumers that read a cached list (the export pre-flight's
       // `_loadFullCitations`, the editor's citation index, the library list)
       // would then report the freshly-imported citation keys as "missing".
-      // Bust the cache so the next read is fresh.
-      if (window.api && api.invalidate) {
-        try { return Promise.resolve(api.invalidate('items.json')).then(function () { return items.length; }); }
-        catch (e) { /* non-fatal */ }
+      // Bust the caches so the next read is fresh.
+      //
+      // V3.647 — bust `library/papers.json` TOO. That is the V3.206
+      // `where('type','==','paper')` fast path the library page actually
+      // reads; `items.json` is only its fallback. Invalidating one and not
+      // the other is why a DOI-list import reported "Added N references" and
+      // then showed none of them: library.js pushes the new rows into
+      // `_libraryPapers`, then `_load()` overwrites that array with the
+      // untouched pre-import cache.
+      var paths = ['items.json', 'library/papers.json'];
+      // V3.647 — `typeof api`, not `window.api`. util.js declares `api` with a
+      // top-level `const`: a lexical global that is never a property of window,
+      // so `window.api` is ALWAYS undefined and this branch had never once run.
+      // The cache-bust added in V3.493 has been dead since the day it landed —
+      // which is the deeper reason a DOI-list import reported success and then
+      // showed nothing. Same dead-check class as V3.392/V3.577.
+      if (typeof api !== 'undefined' && api.invalidate) {
+        try {
+          return Promise.all(paths.map(function (p) {
+            return Promise.resolve(api.invalidate(p));
+          })).then(function () { return items.length; });
+        } catch (e) { /* non-fatal */ }
       }
       return Promise.resolve(items.length);
     }
     function next() {
       if (i >= items.length) return done();
       var it = items[i++];
-      return db.collection('items').doc(it.id).set(it).then(next);
+      /* V3.647 — stamp the server timestamp the adapter's cheap freshness
+       * probe orders by (`orderBy('updatedAt','desc').limit(1)`). Firestore
+       * ORDER BY excludes docs that lack the field, so an item written
+       * without `updatedAt` is invisible to `_refreshRouteCacheCheap`: the
+       * probe reads the old top doc, sees `updatedAt <= savedAt`, declares
+       * the cache fresh and re-leases it. On `library/papers.json` (LONG
+       * TTL) that kept imported references missing indefinitely, not just
+       * until the TTL expired. Mirrors library.js `_saveOne`. */
+      var payload = it;
+      try {
+        payload = JSON.parse(JSON.stringify(it));
+        delete payload.updatedAt;
+        payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+      } catch (e) { payload = it; }
+      return db.collection('items').doc(it.id).set(payload).then(next);
     }
     return next();
   }

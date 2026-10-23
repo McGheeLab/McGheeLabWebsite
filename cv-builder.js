@@ -45,11 +45,11 @@ const SM = {
   courses:       {label:'Courses Taught',    icon:'\u25EB', color:'#7cc4ff'},
   import_:       {label:'Import',            icon:'\u21D3', color:'#86efac'},
   ai:            {label:'AI Assistant',      icon:'\u2726', color:'#c4b5fd'},
-  versions:      {label:'CV Versions',       icon:'\u25FB', color:T.text},
+  versions:      {label:'CV Versions',       icon:'square', color:T.text},
   export_:       {label:'Export & Share',    icon:'\u2197', color:'#5baed1'},
   citations:     {label:'Citation Tracker',  icon:'\u2726', color:'#7cc4ff'},
   orcid:         {label:'ORCID Sync',        icon:'\u2295', color:'#86efac'},
-  settings:      {label:'Settings',          icon:'\u2699', color:T.muted},
+  settings:      {label:'Settings',          icon:'cog-6-tooth', color:T.muted},
 };
 
 const NAV_GROUPS = [
@@ -532,7 +532,7 @@ function buildNavHTML() {
       const m = SM[k];
       const cnt = _data?.[k === 'import_' || k === 'export_' ? null : k]?.length;
       html += `<button class="cv-nav-btn${_sec === k ? ' active' : ''}" data-cv-sec="${k}" style="border-left-color:${_sec===k?m.color:'transparent'};color:${_sec===k?T.cream:T.mutedLight}">
-        <span class="cv-nav-icon" style="color:${_sec===k?m.color:T.muted}">${m.icon}</span>
+        <span class="cv-nav-icon" style="color:${_sec===k?m.color:T.muted}">${ICON.render(m.icon)}</span>
         <span class="cv-nav-label">${m.label}</span>
         ${cnt != null && cnt > 0 ? `<span class="cv-nav-count" style="color:${m.color}">${cnt}</span>` : ''}
       </button>`;
@@ -614,7 +614,7 @@ function renderDashboard() {
     if (['dashboard','analytics','profile','import_','ai','versions','export_','citations','orcid','settings'].includes(k)) continue;
     const cnt = d[k]?.length || 0;
     tilesHTML += `<div class="cv-dash-tile" data-cv-sec="${k}">
-      <span style="font-size:15px;color:${m.color};width:18px;text-align:center">${m.icon}</span>
+      <span style="font-size:15px;color:${m.color};width:18px;text-align:center">${ICON.render(m.icon)}</span>
       <div style="flex:1"><div style="font-size:12px;color:${T.cream};font-family:inherit">${m.label}</div></div>
       <div style="font-size:22px;font-family:inherit;font-weight:700;color:${cnt>0?m.color:T.border}">${cnt}</div>
     </div>`;
@@ -816,7 +816,7 @@ function renderEntryForm(schema, initial) {
   let doiHTML = '';
   if (schema.doiField) {
     doiHTML = `<div class="cv-doi-bar">
-      <div class="cv-section-label" style="color:${T.gold};margin-bottom:8px">\u26A1 Auto-fill from DOI</div>
+      <div class="cv-section-label" style="color:${T.gold};margin-bottom:8px">${ICON.svg('bolt')} Auto-fill from DOI</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <input class="cv-field" id="cv-doi-input" placeholder="e.g. 10.1038/nature12345" style="flex:1;min-width:180px">
         <button class="cv-btn cv-btn-gold" id="cv-doi-fetch">Fetch</button>
@@ -1112,7 +1112,7 @@ function renderAI() {
   return `<div class="cv-fade-up">
     <h2 class="cv-h2" style="margin-bottom:6px">AI Writing Assistant</h2>
     <div id="cv-ai-key-warn" style="background:${T.gold}0A;border:1px solid ${T.gold}33;padding:10px 14px;margin-bottom:14px;display:none;align-items:center;gap:8px">
-      <span style="font-size:11px;color:${T.mutedLight};font-family:inherit;line-height:1.5">No API key configured. Add one in <strong style="color:${T.gold}">\u2699 Settings</strong>.</span>
+      <span style="font-size:11px;color:${T.mutedLight};font-family:inherit;line-height:1.5">No API key configured. Add one in <strong style="color:${T.gold}">${ICON.svg('cog-6-tooth')} Settings</strong>.</span>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">${btns}</div>
     <div class="cv-card" style="display:flex;flex-direction:column;gap:12px">
@@ -1177,7 +1177,7 @@ function wireAI() {
         body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: prompts[mode](input) }] }),
       });
       const j = await res.json();
-      if (j.error) { output.textContent = 'API Error: ' + j.error.message + (key ? '' : '\n\nTip: Go to \u2699 Settings to add your API key.'); }
+      if (j.error) { output.textContent = 'API Error: ' + j.error.message + (key ? '' : '\n\nTip: Go to Settings to add your API key.'); }
       else { output.textContent = j.content?.map(b => b.text || '').join('') || 'No response.'; }
       resultDiv.style.display = 'block';
     } catch (e) { output.textContent = 'Error: ' + e.message; resultDiv.style.display = 'block'; }
@@ -1475,7 +1475,7 @@ function renderCitations() {
     <div class="cv-card" style="margin-bottom:1px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div><div class="cv-section-label" style="color:${T.muted};margin-bottom:4px">Last Updated</div><div style="font-size:12px;color:${meta.lastRun?T.cream:T.muted};font-family:inherit">${meta.lastRun?new Date(meta.lastRun).toLocaleString():'Never'}</div></div>
-        <button class="cv-btn cv-btn-gold" id="cv-cit-run" ${papersWithDOI.length===0?'disabled':''}>&#9654; Run Now</button>
+        <button class="cv-btn cv-btn-gold" id="cv-cit-run" ${papersWithDOI.length===0?'disabled':''}>${ICON.svg('play')} Run Now</button>
       </div>
       <div id="cv-cit-progress" style="display:none;margin-top:14px">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px">
@@ -1618,8 +1618,8 @@ function renderSettings() {
     <div class="cv-card">
       <div class="cv-section-label" style="color:${T.muted};margin-bottom:12px">Data Backup</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="cv-btn cv-btn-outline" id="cv-backup-dl">\u2B07 Download Backup</button>
-        <label class="cv-btn cv-btn-outline" style="cursor:pointer">\u2B06 Restore from Backup<input type="file" id="cv-backup-restore" accept=".json" style="display:none"></label>
+        <button class="cv-btn cv-btn-outline" id="cv-backup-dl">${ICON.svg('arrow-down-tray')} Download Backup</button>
+        <label class="cv-btn cv-btn-outline" style="cursor:pointer">${ICON.svg('arrow-up')} Restore from Backup<input type="file" id="cv-backup-restore" accept=".json" style="display:none"></label>
       </div>
     </div>
     <div class="cv-card">
@@ -1631,7 +1631,7 @@ function renderSettings() {
     <div class="cv-card" style="border-color:rgba(185,28,28,.25)">
       <div class="cv-section-label" style="color:${T.red};margin-bottom:12px">Danger Zone</div>
       <p style="font-size:11px;color:${T.muted};font-family:inherit;margin-bottom:12px;line-height:1.7">Permanently delete <strong style="color:${T.red}">all</strong> CV data including profile, publications, grants, presentations, students, and all other entries. This cannot be undone.</p>
-      <button class="cv-btn cv-btn-danger" id="cv-reset-all">\u26A0 Reset All Data</button>
+      <button class="cv-btn cv-btn-danger" id="cv-reset-all">${ICON.svg('exclamation-triangle')} Reset All Data</button>
     </div>
   </div>`;
 }

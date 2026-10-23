@@ -1,0 +1,238 @@
+<!-- V3.647 caret-preservation selftest (BugFixes_081923.md, paper writer #2).
+
+     Loads the REAL bindYTextToContentEditable and drives the exact sequence a
+     first click into a paragraph produces: mousedown at a pixel → focus (which
+     replaces innerHTML with chip-mode HTML and destroys the browser's caret) →
+     mouseup. The question under test is whether the remembered caret still
+     points at the character the writer clicked, because that offset is where
+     the next inserted citation lands.
+
+     Yjs is faked: the binding only needs toString/insert/delete/observe and a
+     doc.transact. The thing under test is the caret, not the CRDT.
+
+     Run:
+       python3 -m http.server 8777
+       node ~/.claude/skills/browser-automation/browser.mjs \
+         http://localhost:8777/scripts/tests/v3647-caret.html \
+         --eval "document.getElementById('r').dataset.fail" -->
+<!doctype html><html><head><meta charset="utf-8"><title>V3.647 caret selftest</title>
+<!-- paper-editor.js reads ?paper= at module load and bails without it, so
+     self-redirect BEFORE the module scripts run. Keeps the page runnable as a
+     bare URL, the way scripts/tests/run-all.sh invokes it. -->
+<script>if (!/[?&]paper=/.test(location.search)) location.replace(location.pathname + "?paper=selftest");</script>
+<style>
+  #para { width: 520px; font: 16px/1.6 Georgia, serif; padding: 8px; border: 1px solid #ccc; }
+</style>
+</head><body>
+<h1>V3.647 caret selftest</h1>
+<pre id="r" data-pass="0" data-fail="0" data-detail="">running…</pre>
+<!-- paper-editor.js is a page controller: it bails at boot without ?paper=
+     and wires topbar/sidebar handlers unconditionally. Give it the same
+     skeleton ids paper-builder.html does so the module reaches its export.
+     It never connects (no firebridge), which is what we want — the binding
+     under test is independent of the CRDT transport. -->
+<div class="pe-topbar" hidden>
+  <input type="text" id="pe-title"><select id="pe-status"></select>
+  <div id="pe-savestate"></div>
+</div>
+<div id="pe-readonly-banner" hidden></div>
+<ul id="pe-outline"></ul>
+<button id="pe-add-section-btn"></button>
+<button id="pe-appendix-btn"></button>
+<div id="pe-paragraph-skel"></div>
+<select id="pe-view-filter"></select>
+<select id="pe-status-filter"></select>
+<div id="pe-content" hidden></div>
+<div id="para"></div>
+
+<script>
+window.__errs = [];
+window.addEventListener('error', function (e) {
+  window.__errs.push((e.message || '') + ' @' + (e.filename || '').split('/').pop() + ':' + (e.lineno || ''));
+  var r = document.getElementById('r');
+  if (r) { r.dataset.detail = window.__errs.join(' | '); r.textContent = r.dataset.detail; }
+});
+</script>
+<script src="/rm/js/icons.js"></script>
+<script src="/rm/js/paper-schemas.js"></script>
+<script src="/rm/js/paper-editor.js"></script>
+<script src="/rm/js/paper-equations.js"></script>
+<script>
+(async function () {
+  var pass = 0, fail = 0, detail = [], notes = [];
+  function ck(name, got, want) {
+    var ok = JSON.stringify(got) === JSON.stringify(want);
+    if (ok) pass++; else { fail++; detail.push(name + ': got ' + JSON.stringify(got) + ' want ' + JSON.stringify(want)); }
+  }
+  function publish() {
+    var r = document.getElementById('r');
+    r.dataset.pass = String(pass); r.dataset.fail = String(fail);
+    r.dataset.detail = detail.concat(window.__errs.map(function (e) { return 'UNCAUGHT: ' + e; })).join(' | ');
+    r.dataset.notes = notes.join(' | ');
+    r.textContent = pass + ' pass, ' + fail + ' fail\n' + r.dataset.detail + '\n' + r.dataset.notes;
+    r.setAttribute('data-done', '1');   // --wait '#r[data-done]' 
+  }
+  function until(fn, ms) {
+    var t0 = Date.now();
+    return new Promise(function (res) {
+      (function tick() {
+        var v = fn();
+        if (v) return res(v);
+        if (Date.now() - t0 > ms) return res(null);
+        setTimeout(tick, 50);
+      })();
+    });
+  }
+
+  try {
+    ck('PaperEditor loaded', typeof window.PaperEditor, 'object');
+    ck('binding exported', typeof window.PaperEditor.bindYTextToContentEditable, 'function');
+
+    /* Minimal Y.Text: exactly the surface bindYTextToContentEditable uses. */
+    function FakeYText(s) { this._s = s; this._obs = []; var self = this;
+      this.doc = { transact: function (fn, origin) { fn(); self._fire(origin); } }; }
+    FakeYText.prototype.toString  = function () { return this._s; };
+    FakeYText.prototype.insert    = function (p, t) { this._s = this._s.slice(0, p) + t + this._s.slice(p); };
+    FakeYText.prototype.delete    = function (p, n) { this._s = this._s.slice(0, p) + this._s.slice(p + n); };
+    FakeYText.prototype.observe   = function (f) { this._obs.push(f); };
+    FakeYText.prototype.unobserve = function (f) { this._obs = this._obs.filter(function (x) { return x !== f; }); };
+    FakeYText.prototype._fire = function (o) { this._obs.forEach(function (f) { f({ delta: [] }, { origin: o }); }); };
+
+    /* Each case gets a FRESH element. bindYTextToContentEditable's unbind()
+       detaches the Y.Text observer and the window listeners, but not the
+       element's own mousedown/focus handlers — in production the element is
+       thrown away by the re-render, so nothing leaks. Re-binding the same
+       node here would stack N capture handlers and every one of them would
+       react to a chip click. */
+    var el = document.getElementById('para');
+    function freshPara() {
+      var next = document.createElement('div');
+      next.id = 'para';
+      el.parentNode.replaceChild(next, el);
+      el = next;
+      return next;
+    }
+    function pointAtOffset(node, k) {
+      var rg = document.createRange();
+      rg.setStart(node, k); rg.setEnd(node, k + 1);
+      var b = rg.getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    }
+    /* The real first-click sequence: mousedown records the pixel, focus
+       replaces innerHTML (destroying the browser's caret), mouseup settles. */
+    function click(pt) {
+      el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: pt.x, clientY: pt.y }));
+      el.focus();
+      el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: pt.x, clientY: pt.y }));
+    }
+
+    /* ── 1. plain prose: the caret lands where the writer clicked ── */
+    var TEXT = 'Collagen gels were cast at four densities and imaged every ten minutes.';
+    var unbind = window.PaperEditor.bindYTextToContentEditable(new FakeYText(TEXT), el, {
+      renderHtml: window.PaperEditor.renderParagraphHtml,
+    });
+    ck('renders unfocused', el.textContent, TEXT);
+
+    var target = TEXT.indexOf('densities');
+    click(pointAtOffset(el.firstChild, target));
+
+    var got = window.PaperEditor.getLastFocusedCaret();
+    ck('focused element is the paragraph', window.PaperEditor.getLastFocusedEditable() === el, true);
+    ck('caret landed at the clicked word', Math.abs(got - target) <= 1, true);
+    ck('caret is NOT the pre-fix offset 0', got !== 0, true);
+    ck('caret is NOT the pre-fix end-of-paragraph', got !== TEXT.length, true);
+    el.blur();
+    unbind();
+
+    /* Clicking near the END of a long paragraph must not snap to the start
+       either — the two pre-fix failure modes are opposite ends. */
+    var el2Text = TEXT;
+    freshPara();
+    var unbindB = window.PaperEditor.bindYTextToContentEditable(new FakeYText(el2Text), el, {
+      renderHtml: window.PaperEditor.renderParagraphHtml,
+    });
+    var late = el2Text.indexOf('minutes');
+    click(pointAtOffset(el.firstChild, late));
+    ck('caret near the end lands near the end',
+       Math.abs(window.PaperEditor.getLastFocusedCaret() - late) <= 1, true);
+    el.blur();
+    unbindB();
+
+    /* ── 2. a caret already inside a focused element is left alone ── */
+    var PLAIN = 'One two three four five six seven eight nine ten eleven twelve.';
+    freshPara();
+    var unbind3 = window.PaperEditor.bindYTextToContentEditable(new FakeYText(PLAIN), el, {
+      renderHtml: window.PaperEditor.renderParagraphHtml,
+    });
+    click(pointAtOffset(el.firstChild, 4));
+    var later = PLAIN.indexOf('eleven');
+    var sel = window.getSelection(), rg = document.createRange();
+    rg.setStart(el.firstChild, later); rg.collapse(true);
+    sel.removeAllRanges(); sel.addRange(rg);
+    el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: 0, clientY: 0 }));
+    ck('an already-focused element keeps its own caret',
+       window.PaperEditor.getLastFocusedCaret(), later);
+    el.blur();
+    unbind3();
+
+    /* ── 3. clicking a citation chip parks the caret AFTER it ──
+       Needs the rendered (unfocused) DOM to contain chips, which only
+       happens once KaTeX has loaded — applyRendered falls back to plain
+       textContent until then. Skipped, loudly, if the CDN is unreachable. */
+    var CITED = 'Stiffness rose with density [@smith2024] across every gel.';
+    var chipEndAt = CITED.indexOf('[@smith2024]') + '[@smith2024]'.length;
+    freshPara();
+    var unbind4 = window.PaperEditor.bindYTextToContentEditable(new FakeYText(CITED), el, {
+      renderHtml: window.PaperEditor.renderParagraphHtml,
+    });
+    var chipEl = await until(function () { return el.querySelector('[data-src]'); }, 6000);
+    if (!chipEl) {
+      notes.push('SKIPPED chip-nudge case: KaTeX CDN unreachable, so the unfocused render never produced chips');
+    } else {
+      var cb = chipEl.getBoundingClientRect();
+      click({ x: cb.left + cb.width / 2, y: cb.top + cb.height / 2 });
+      ck('caret parked just after the chip, never inside it',
+         window.PaperEditor.getLastFocusedCaret(), chipEndAt);
+      el.blur();
+    }
+    unbind4();
+
+    /* ── 4. V3.648 — editing a footnote uses the inline form, never a
+       browser prompt. Also re-exercises the V3.647 chip mousedown path. */
+    var popped = [];
+    window.prompt = function (m) { popped.push('prompt:' + m); return null; };
+    var FN = 'Densities were matched across plates.[^calibrated 2026-04] Imaging followed.';
+    freshPara();
+    var fnY = new FakeYText(FN);
+    var unbind5 = window.PaperEditor.bindYTextToContentEditable(fnY, el, {
+      renderHtml: window.PaperEditor.renderParagraphHtml,
+    });
+    var fnChip = await until(function () { return el.querySelector('.pe-footnote-chip'); }, 6000);
+    ck('footnote rendered as a chip', !!fnChip, true);
+    var fr = fnChip.getBoundingClientRect();
+    fnChip.dispatchEvent(new MouseEvent('mousedown', {
+      bubbles: true, clientX: fr.left + 2, clientY: fr.top + 2 }));
+
+    var fnPop = document.querySelector('.pe-eq-picker');
+    ck('a picker opened, not a browser prompt', !!fnPop, true);
+    ck('no window.prompt was reached', popped, []);
+    var fnForm = fnPop && fnPop.querySelector('.pe-eq-picker-form');
+    ck('it opened straight into form mode', !!fnForm, true);
+    var fnInput = fnForm.querySelector('.pe-eq-picker-field-input');
+    ck('the field carries the existing note text', fnInput.value, 'calibrated 2026-04');
+
+    fnInput.value = 'recalibrated 2026-08';
+    fnForm.querySelector('.pe-eq-picker-form-btn-primary').click();
+    ck('the edit was written back into the source', fnY.toString(),
+       'Densities were matched across plates.[^recalibrated 2026-08] Imaging followed.');
+    ck('picker closed after saving', !document.querySelector('.pe-eq-picker'), true);
+    ck('still no browser prompt anywhere in the flow', popped, []);
+    el.blur();
+    unbind5();
+  } catch (e) {
+    fail++; detail.push('THREW: ' + (e && e.message || e));
+  }
+  publish();
+})();
+</script>
+</body></html>

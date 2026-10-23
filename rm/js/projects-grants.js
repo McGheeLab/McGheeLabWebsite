@@ -8,6 +8,9 @@ var _items = [];
 var PROJECT_FIELDS = [
   { key: 'name', label: 'Project Name', type: 'text', required: true },
   { key: 'account_number', label: 'Account Number', type: 'text', required: true, placeholder: 'e.g. 1101935' },
+  // V3.813 — what purchasing actually charges, when it is more than the account
+  // number (sub-account / worktags). Procurement shows funding_string || account_number.
+  { key: 'funding_string', label: 'Funding string (if different from the account number)', type: 'text', placeholder: 'e.g. 1101917-MCMI, or the Workday worktags' },
   { key: 'type', label: 'Type', type: 'select', options: ['startup', 'grant', 'contract', 'gift', 'internal'] },
   { key: 'pi', label: 'PI', type: 'text', placeholder: 'e.g. Alexander McGhee' },
   { key: 'status', label: 'Status', type: 'select', options: ['active', 'pending', 'completed', 'expired'] },
@@ -19,6 +22,25 @@ var PROJECT_FIELDS = [
   { key: 'notes', label: 'Notes', type: 'textarea' },
 ];
 
+/* V3.813 — this list is per-user (finance/projects.json), but lab members pick
+ * from it on the Procurement page, where the project decides the funding
+ * string. Admins therefore PUBLISH the active projects to
+ * labConfig/fundedProjects (auth-read, admin-write) on every save, and once on
+ * load if nothing has been published yet. */
+async function publishFundedProjects(projects) {
+  if (typeof firebridge === 'undefined' || !firebridge.isAdmin || !firebridge.isAdmin()) return false;
+  try {
+    var pub = (projects || []).map(function (p) {
+      return { id: p.id || '', name: p.name || '', account_number: p.account_number || '', funding_string: p.funding_string || '',
+               type: p.type || '', status: p.status || 'active', funder: p.funder || '', end_date: p.end_date || '' };
+    });
+    await firebridge.db().collection('labConfig').doc('fundedProjects').set({
+      projects: pub, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), publishedBy: firebridge.getUser().uid,
+    });
+    return true;
+  } catch (e) { console.warn('[projects-grants] publish to lab failed:', e); return false; }
+}
+
 async function loadAndRender() {
   var results = await Promise.all([
     api.load(DATA_PATH),
@@ -27,6 +49,13 @@ async function loadAndRender() {
   _projects = results[0].projects || [];
   _items = results[1].items || [];
   render();
+  // First admin visit after V3.813: publish what is already here.
+  if (_projects.length && typeof firebridge !== 'undefined' && firebridge.isAdmin && firebridge.isAdmin()) {
+    try {
+      var snap = await firebridge.db().collection('labConfig').doc('fundedProjects').get();
+      if (!snap.exists) { if (await publishFundedProjects(_projects)) { if (window.TOAST) TOAST.info('Published ' + _projects.length + ' projects to the lab — members pick from them on the Procurement page.'); } }
+    } catch (e) { /* non-admins cannot read labConfig? they can — ignore */ }
+  }
 }
 
 function render() {
@@ -38,6 +67,9 @@ function render() {
   }
 
   var html = '';
+  if (typeof firebridge !== 'undefined' && firebridge.isAdmin && firebridge.isAdmin()) {
+    html += '<div class="pt-muted" style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Lab members pick one of these projects when they request a purchase; the project decides the funding string the purchaser charges (<em>funding string</em> if set, otherwise the account number). Active projects are published to the lab automatically when you save.</div>';
+  }
 
   _projects.forEach(function (proj, i) {
     // Count items charged to this project
@@ -53,7 +85,8 @@ function render() {
     html += '<div>';
     html += '<div style="font-size:18px;font-weight:700;">' + proj.name + '</div>';
     html += '<div style="font-size:14px;color:var(--text-muted);margin-top:2px;">';
-    html += '<code style="background:var(--bg);padding:2px 6px;border-radius:4px;">' + proj.account_number + '</code>';
+    html += '<code style="background:var(--bg);padding:2px 6px;border-radius:4px;">' + (proj.funding_string || proj.account_number) + '</code>';
+    if (proj.funding_string && proj.funding_string !== proj.account_number) html += ' <span style="font-size:12px;">(account ' + proj.account_number + ')</span>';
     if (proj.type) html += ' &middot; ' + proj.type;
     if (proj.funder) html += ' &middot; ' + proj.funder;
     if (proj.grant_number) html += ' &middot; #' + proj.grant_number;
@@ -131,6 +164,7 @@ window.editProject = async function (index) {
       vals.id = slugify(vals.name);
       Object.assign(data.projects[index], vals);
       await api.save(DATA_PATH, data);
+      await publishFundedProjects(data.projects);
       loadAndRender();
     },
   });
@@ -141,6 +175,7 @@ window.deleteProject = async function (index) {
   var data = await api.load(DATA_PATH);
   data.projects.splice(index, 1);
   await api.save(DATA_PATH, data);
+  await publishFundedProjects(data.projects);
   loadAndRender();
 };
 
@@ -153,6 +188,7 @@ document.getElementById('add-project').onclick = function () {
       vals.id = slugify(vals.name);
       data.projects.push(vals);
       await api.save(DATA_PATH, data);
+      await publishFundedProjects(data.projects);
       loadAndRender();
     },
   });

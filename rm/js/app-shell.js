@@ -26,9 +26,9 @@
 (function () {
   'use strict';
 
-  var HOME = '/rm/pages/my-day.html';
+  var HOME = '/rm/pages/my-week.html';
   // Warm these in the background after boot so the FIRST switch is instant too.
-  var PRELOAD = ['/rm/pages/my-day.html', '/rm/pages/tasks.html', '/rm/pages/chat.html'];
+  var PRELOAD = ['/rm/pages/my-week.html', '/rm/pages/tasks.html', '/rm/pages/chat.html'];
 
   // Keep in sync with brand/ourlab-mark.svg — turned 90° CCW, well opens
   // downward, inlet reads as an "L". (This shell is orphaned as of V3.574,

@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/rm/vendor/pdfjs/pdf_viewer.css">
   <link rel="stylesheet" href="/rm/css/library-mobile.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
 </head>
 <body class="lib-m lmp-body">
   <div class="lmp-page">
@@ -16,8 +17,8 @@
     <div class="lmp-bar">
       <button class="lmp-bar-btn" id="lmp-back" type="button" aria-label="Back to library">←</button>
       <div class="lmp-title" id="lmp-title">Loading…</div>
-      <button class="lmp-bar-btn" id="lmp-hl" type="button" aria-label="Highlight mode" aria-pressed="false" hidden>🖍</button>
-      <button class="lmp-bar-btn" id="lmp-notes" type="button" aria-label="Notes and info">📝</button>
+      <button class="lmp-bar-btn" id="lmp-hl" type="button" aria-label="Highlight mode" aria-pressed="false" hidden><i data-hi="highlighter"></i></button>
+      <button class="lmp-bar-btn" id="lmp-notes" type="button" aria-label="Notes and info"><i data-hi="pencil-square"></i></button>
     </div>
 
     <!-- The viewer keeps id="lp-viewer": annotation-overlay's focus()
@@ -40,7 +41,7 @@
         <button class="lmp-panel-close" id="lmp-panel-close" type="button" aria-label="Close notes">▾</button>
       </div>
       <details class="lmp-info" id="lmp-info-details">
-        <summary>ℹ️ Paper info</summary>
+        <summary><i data-hi="information-circle"></i> Paper info</summary>
         <div id="lmp-info"></div>
       </details>
       <div class="lp-annotations lmp-panel-body" id="lp-annotations">
@@ -72,8 +73,11 @@
   <script src="/rm/js/annotation-anchor.js"></script>
   <script src="/rm/js/annotation-overlay.js"></script>
   <script src="/rm/js/geom-selection.js"></script>
+  <!-- V3.626 — reading-activity signal seam (annotation-sync fires it) -->
+  <script src="/rm/js/activity-signals.js"></script>
   <script src="/rm/js/annotation-sync.js"></script>
-  <script src="/rm/js/annotation-groups.js"></script>
+  <!-- V3.620 — THE highlight palette (annotation-groups.js retired here). -->
+  <script src="/rm/js/annotation-colors.js"></script>
   <script src="/rm/js/annotation-panel.js"></script>
   <script src="/rm/js/claims.js"></script>
   <!-- V3.352 atomic linked_drafts writer (evidence auto-link). -->

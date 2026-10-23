@@ -161,6 +161,7 @@
       title: titleY ? titleY.toString() : '',
       sections: [],
       equation_library: [],   // V3.109
+      value_library: [],      // V3.645
     };
     /* V3.109 — extract the inline equation library so paragraphTextToTex
      * can resolve [!eqi:<id>] tokens to the entry's latex source at
@@ -175,6 +176,32 @@
           id: e.get('id') || '',
           name: yTextToString(nameY),
           latex: yTextToString(latexY),
+        });
+      });
+    }
+    /* V3.645 — value keys, so paragraphTextToTex can resolve
+     * [!val:KEY] / [@item:KEY] to their printed text at export time. */
+    var vlib = paperMap.get('value_library');
+    if (vlib && typeof vlib.forEach === 'function') {
+      vlib.forEach(function (v) {
+        if (!v || typeof v.get !== 'function') return;
+        var snapY = v.get('snapshot');
+        var snap = { name: '', vendor: '', catalogue_number: '' };
+        if (snapY && typeof snapY.get === 'function') {
+          snap.name = snapY.get('name') || '';
+          snap.vendor = snapY.get('vendor') || '';
+          snap.catalogue_number = snapY.get('catalogue_number') || '';
+        }
+        tree.value_library.push({
+          id: v.get('id') || '', key: v.get('key') || '',
+          kind: v.get('kind') || 'text', note: v.get('note') || '',
+          value: v.get('value') || '',
+          num: (typeof v.get('num') === 'number') ? v.get('num') : null,
+          unit: v.get('unit') || '',
+          sigfigs: (typeof v.get('sigfigs') === 'number') ? v.get('sigfigs') : null,
+          inv_id: v.get('inv_id') || '', inv_kind: v.get('inv_kind') || 'item',
+          snapshot: snap, format: v.get('format') || '',
+          refreshed_at: v.get('refreshed_at') || null,
         });
       });
     }
@@ -457,7 +484,46 @@
   }
 
   function paragraphToTex(block, template) {
-    return prefixSkeletonComment(block) + paragraphTextToTex(block.body || '', template);
+    return prefixSkeletonComment(block) + paragraphBodyToTex(block.body || '', template);
+  }
+
+  /* V3.649 — a paragraph body may contain bullet / numbered lists (see
+   * PaperSchemas.parseBodyRuns). Prose runs go through the inline
+   * contract unchanged; list runs become itemize / enumerate. Without
+   * this the PDF prints the literal "- item" lines the editor and the
+   * Document view both render as a list — the exact class of screen/PDF
+   * disagreement the shared parser exists to prevent. */
+  function paragraphBodyToTex(body, template) {
+    var PS = window.PaperSchemas;
+    if (!PS || !PS.bodyHasList || !PS.bodyHasList(body)) {
+      return paragraphTextToTex(body || '', template);
+    }
+    var out = '';
+    PS.parseBodyRuns(body).forEach(function (run) {
+      if (run.type === 'prose') {
+        var tex = paragraphTextToTex(run.text, template);
+        if (tex) out += tex + '\n';
+        return;
+      }
+      out += listItemsToTex(run.items, run.listType, template);
+    });
+    return out;
+  }
+
+  /* Shared by the list BLOCK and by lists inside a paragraph body, so the
+   * two can never nest or indent differently. */
+  function listItemsToTex(items, listType, template) {
+    if (!items || !items.length) return '';
+    var env = listType === 'number' ? 'enumerate' : 'itemize';
+    function ind(n) { return new Array(n + 1).join('  '); }
+    var out = '\\begin{' + env + '}\n', depth = 0;
+    items.forEach(function (it) {
+      while (depth < it.depth) { depth++; out += ind(depth) + '\\begin{' + env + '}\n'; }
+      while (depth > it.depth) { out += ind(depth) + '\\end{' + env + '}\n'; depth--; }
+      out += ind(depth + 1) + '\\item ' + paragraphTextToTex(it.text, template) + '\n';
+    });
+    while (depth > 0) { out += ind(depth) + '\\end{' + env + '}\n'; depth--; }
+    return out + '\\end{' + env + '}\n';
   }
 
   /* V3.104 — emit the paragraph's skeleton bullets as a LaTeX comment
@@ -502,6 +568,31 @@
    * state is acceptable because export runs are serial. */
   var _exportEqLibrary = null;
 
+  /* V3.645 — per-run value-key table, same lifecycle as
+   * _exportEqLibrary. Resolved through PaperSchemas.formatValueEntry so
+   * the .tex and the on-screen chip can never print different text. */
+  var _exportValueLibrary = null;
+
+  function _valueEntryByKey(key) {
+    /* Defensive fallback to the live editor table. paragraphTextToTex
+     * is only ever called inside a buildBundle run today (where
+     * _exportValueLibrary is set), but it is a PUBLIC export — if a
+     * future caller invokes it outside a run, silently emitting
+     * "% [missing value key]" would drop real numbers out of the PDF
+     * with no visible error. */
+    var lib = _exportValueLibrary;
+    if (!lib) {
+      try {
+        lib = (window.PaperEditor && window.PaperEditor.getValueEntries)
+          ? window.PaperEditor.getValueEntries() : [];
+      } catch (e) { lib = []; }
+    }
+    for (var i = 0; i < lib.length; i++) {
+      if (lib[i] && lib[i].key === key) return lib[i];
+    }
+    return null;
+  }
+
   /* V3.341 — per-run collector for abstract_placeholder /
    * keywords_placeholder sections (see sectionToTex). Set/cleared by
    * buildBundle around section rendering, same lifecycle as
@@ -530,6 +621,7 @@
    * the array package's >{...} column prefixes; multi-page tables need
    * longtable; table notes need threeparttable. Same lifecycle. */
   var _usedMultirow = false;
+  var _usedColortbl = false;   // V3.651 — cell/row shading, zebra striping
   var _usedArray = false;
   var _usedLongtable = false;
   var _usedThreeparttable = false;
@@ -826,6 +918,33 @@
     // that the italic pass would otherwise pair with a later asterisk
     // and mangle. A leading `*` on a single key emits the template's
     // narrative_command (\citet) instead.
+    /* V3.645 — value keys. BOTH passes run BEFORE the citation pass
+     * below, because that pass's regex is a wide-open /\[@([^\]]+)\]/
+     * that would otherwise swallow `[@item:24WP]` and emit
+     * \cite{item:24WP} — an undefined citation in the compiled PDF.
+     * Resolved text is escapeTex'd and protect()ed: a catalogue number
+     * containing `_` or a unit containing `^` must not be re-read by
+     * the markdown passes further down. An unknown key emits a LaTeX
+     * comment rather than silently vanishing, matching how [!eqi:]
+     * handles a missing entry. */
+    out = out.replace(/\[!val:([A-Za-z0-9][\w-]*)\]/g, function (_m, key) {
+      var entry = _valueEntryByKey(key);
+      /* An unknown key emits a VISIBLE `[?KEY]` marker, not a `%`
+       * comment: `%` runs to end of line in LaTeX, so a comment placed
+       * mid-paragraph silently deletes the rest of the sentence from
+       * the PDF. `[?KEY]` matches what the editor chip shows and shows
+       * up in the proof where the author will catch it. */
+      if (!entry) return protect(escapeTex('[?' + key + ']'));
+      return protect(escapeTex(window.PaperSchemas.formatValueEntry(entry)));
+    });
+    out = out.replace(/\[@item:([A-Za-z0-9][\w-]*)\]/g, function (_m, key) {
+      var entry = _valueEntryByKey(key);
+      if (!entry || entry.kind !== 'inventory') {
+        return protect(escapeTex('[?' + key + ']'));
+      }
+      return protect(escapeTex(window.PaperSchemas.formatValueEntry(entry)));
+    });
+
     var citeCmd = citeCommandFor(template);
     out = out.replace(/\[@([^\]]+)\]/g, function (_m, inner) {
       var narrative = inner.charAt(0) === '*';
@@ -1108,19 +1227,101 @@
       var merges = PL && PL.parseTableMerges ? PL.parseTableMerges(attrs.merges_json) : {};
       var cover = PL && PL.tableCoverMap ? PL.tableCoverMap(merges, rows, cols) : { anchors: {}, skip: {}, cont: {} };
       var widths = PL && PL.parseTableWidths ? PL.parseTableWidths(attrs.widths_json, cols) : null;
-      /* Colspec: width-set columns become p{…} (alignment preserved via
-       * array-package prefixes); auto columns keep their l/c/r char. */
+
+      /* V3.651 — table styling, from the same shared parse the builder
+       * grid, the doc-side preview and Document view read. An untouched
+       * table has no style_json, `rules` falls back to the pre-V3.651
+       * `booktabs` boolean and every default is a no-op, so its .tex is
+       * byte-identical to what this function emitted before. */
+      var tstyle = PL && PL.parseTableStyle
+        ? PL.parseTableStyle(attrs.style_json, attrs.booktabs)
+        : { rules: booktabs ? 'booktabs' : 'none', size: 'normal', density: 'normal',
+            zebra: false, rule_after: [], stretch: 1, sizeTex: null };
+      var cellSt = PL && PL.parseTableCellStyles
+        ? PL.parseTableCellStyles(attrs.cell_styles_json) : {};
+      var FILLS = (PL && PL.TABLE_FILLS) || {};
+      var gridRules = tstyle.rules === 'grid';
+      booktabs = tstyle.rules === 'booktabs';
+
+      /* Wrap a cell's body in the formatting it carries.
+       *
+       * ORDER MATTERS TWICE. \cellcolor has to be the first thing in the
+       * cell's content, and \multicolumn has to be the ENTIRE cell — so
+       * the alignment override wraps LAST, with the shading inside it.
+       * The other way round is a "Misplaced \multicolumn" error, not a
+       * cosmetic difference. \multicolumn{1} is how LaTeX overrides one
+       * column's alignment, which is exactly what a per-cell align is. */
+      function styleCell(content, key, colChar, span) {
+        var st = cellSt[key];
+        if (!st) return content;
+        if (st.b) content = '\\textbf{' + content + '}';
+        if (st.i) content = '\\textit{' + content + '}';
+        if (st.bg && FILLS[st.bg]) {
+          _usedColortbl = true;
+          content = '\\cellcolor{' + FILLS[st.bg].tex + '}' + content;
+        }
+        if (st.al && !(span && span.cs > 1)) {
+          content = '\\multicolumn{1}{' + st.al + '}{' + content + '}';
+        }
+        return content;
+      }
+      /* V3.654 — per-row extra height. `\arraystretch` is per-TABLE, so a
+       * single taller row is `\\[dim]`: extra space after that one row.
+       * Emitted as the row terminator, so it has to be composed with the
+       * `\\` every row already ends in rather than added after it. */
+      var rowExtras = PL && PL.parseTableRowExtras
+        ? PL.parseTableRowExtras(attrs.row_heights_json) : {};
+      function rowEnd(r) {
+        var pt = rowExtras[r];
+        return (pt > 0) ? (' \\\\[' + pt + 'pt]') : ' \\\\';
+      }
+      /* Extra horizontal rules the writer drew under specific rows. The
+       * last row is skipped when a closing rule is already coming, or the
+       * table ends in a doubled line. */
+      function ruleAfterTex(r, indent) {
+        if (tstyle.rule_after.indexOf(r) === -1) return null;
+        if (r === rows - 1 && (booktabs || gridRules)) return null;
+        return indent + (booktabs ? '\\midrule' : '\\hline');
+      }
+      /* V3.652 — WRAPPING. In LaTeX a cell only wraps in a p{width} column,
+       * and p{} needs a NUMBER: tabular has no "auto but wrapping" column
+       * type. So when `wrap` is on, the columns the writer has not sized
+       * share whatever fraction of the line is left over — via
+       * PaperLayout.tableColShares, the same helper the editor's colgroup
+       * and Document view use, so what you drag is what compiles.
+       *
+       * The \dimexpr subtracts the two \tabcolsep gutters every column
+       * carries. Without it, N columns of 1/N\linewidth overrun the line by
+       * 2N\tabcolsep and LaTeX reports an overfull hbox on a table that
+       * looked right on screen. */
+      var wrapCols = tstyle.wrap === true;
+      var wShares = (wrapCols && PL && PL.tableColShares)
+        ? PL.tableColShares(widths, cols) : null;
       function colspecChar(c) {
         var a = alignStr[c] || 'l';
-        var w = widths && widths[c];
+        var w = (wShares ? wShares[c] : (widths && widths[c])) || null;
         if (!w || w.mode === 'auto') return a;
-        var dim = w.mode === 'mm' ? (w.v + 'mm') : (w.v + '\\linewidth');
+        var dim = w.mode === 'mm'
+          ? (w.v + 'mm')
+          : ('\\dimexpr ' + w.v + '\\linewidth-2\\tabcolsep\\relax');
         if (a === 'c') { _usedArray = true; return '>{\\centering\\arraybackslash}p{' + dim + '}'; }
         if (a === 'r') { _usedArray = true; return '>{\\raggedleft\\arraybackslash}p{' + dim + '}'; }
+        /* A left-aligned p{} column is JUSTIFIED by default, which in a
+         * narrow column gives the rivers of whitespace that make a wrapped
+         * table look broken. \raggedright fixes it; \arraybackslash puts
+         * \\ back to meaning "end of row" rather than "line break". */
+        if (wrapCols) { _usedArray = true; return '>{\\raggedright\\arraybackslash}p{' + dim + '}'; }
         return 'p{' + dim + '}';
       }
       var colspec = '';
       for (var ci = 0; ci < cols; ci++) colspec += colspecChar(ci);
+      /* The "grid" preset boxes every cell: vertical bars in the colspec
+       * plus an \hline between every row (emitted below). */
+      if (gridRules) {
+        var gparts = [];
+        for (var gi = 0; gi < cols; gi++) gparts.push(colspecChar(gi));
+        colspec = '|' + gparts.join('|') + '|';
+      }
 
       /* V3.120 — caption may be a Y.Text (live mode) or a string
        * (extracted projection). Route through paragraphTextToTex so
@@ -1158,6 +1359,21 @@
          * \endhead. Float anchor/span/lock and spacing don't apply. */
         _usedLongtable = true;
         var lt = [];
+        /* V3.651 — longtable is not a float, so the size/stretch/striping
+         * commands need their own group or they leak into the body text
+         * that follows. */
+        var ltGrouped = !!tstyle.sizeTex || tstyle.stretch !== 1 || tstyle.zebra;
+        if (ltGrouped) {
+          lt.push('\\begingroup');
+          if (tstyle.sizeTex) lt.push('  ' + tstyle.sizeTex);
+          if (tstyle.stretch !== 1) {
+            lt.push('  \\renewcommand{\\arraystretch}{' + tstyle.stretch + '}');
+          }
+          if (tstyle.zebra) {
+            _usedColortbl = true;
+            lt.push('  \\rowcolors{' + (headerRow ? 2 : 1) + '}{}{black!4}');
+          }
+        }
         lt.push('\\begin{longtable}{' + colspec + '}');
         if (numbered) {
           lt.push('  \\caption{' + captionTex + '}\\label{' + label + '} \\\\');
@@ -1165,6 +1381,7 @@
           lt.push('  \\caption*{' + captionTex + '} \\\\');
         }
         if (booktabs) lt.push('  \\toprule');
+        else if (gridRules) lt.push('  \\hline');
         var ltHeader = [];
         if (headerRow) {
           for (var hc = 0; hc < cols; hc++) {
@@ -1172,9 +1389,13 @@
             if (cover.skip[hKey] || cover.cont[hKey] != null) continue;
             var hCell = cells[hKey];
             if (hCell && typeof hCell.toString === 'function' && hCell !== hCell.toString) hCell = hCell.toString();
-            var hContent = escapeTex(hCell || '');
+            var hContent = styleCell(escapeTex(hCell || ''), hKey, alignStr[hc] || 'l',
+              cover.anchors[hKey]);
             var hAnchor = cover.anchors[hKey];
-            if (hAnchor && hAnchor.cs > 1) hContent = '\\multicolumn{' + hAnchor.cs + '}{' + (alignStr[hc] || 'l') + '}{' + hContent + '}';
+            if (hAnchor && hAnchor.cs > 1) {
+              hContent = '\\multicolumn{' + hAnchor.cs + '}{' +
+                ((cellSt[hKey] && cellSt[hKey].al) || alignStr[hc] || 'l') + '}{' + hContent + '}';
+            }
             ltHeader.push(hContent);
           }
           lt.push('  ' + ltHeader.join(' & ') + ' \\\\');
@@ -1199,23 +1420,32 @@
             }
             var lCell = cells[lKey];
             if (lCell && typeof lCell.toString === 'function' && lCell !== lCell.toString) lCell = lCell.toString();
-            var lContent = escapeTex(lCell || '');
+            var lContent = styleCell(escapeTex(lCell || ''), lKey, alignStr[lc] || 'l',
+              cover.anchors[lKey]);
             var lAnchor = cover.anchors[lKey];
             if (lAnchor) {
               if (lAnchor.rs > 1) { _usedMultirow = true; lContent = '\\multirow{' + lAnchor.rs + '}{*}{' + lContent + '}'; }
-              if (lAnchor.cs > 1) lContent = '\\multicolumn{' + lAnchor.cs + '}{' + (alignStr[lc] || 'l') + '}{' + lContent + '}';
+              if (lAnchor.cs > 1) {
+                lContent = '\\multicolumn{' + lAnchor.cs + '}{' +
+                  ((cellSt[lKey] && cellSt[lKey].al) || alignStr[lc] || 'l') + '}{' + lContent + '}';
+              }
             }
             ltCells.push(lContent);
           }
-          lt.push('  ' + ltCells.join(' & ') + ' \\\\');
+          lt.push('  ' + ltCells.join(' & ') + rowEnd(lr));
+          var ltExtra = ruleAfterTex(lr, '  ');
+          if (ltExtra) lt.push(ltExtra);
+          else if (gridRules && lr < rows - 1) lt.push('  \\hline');
         }
         if (booktabs) lt.push('  \\bottomrule');
+        else if (gridRules) lt.push('  \\hline');
         /* Notes inside a longtable: full-width footnotesize rows
          * (threeparttable does not pair with longtable). */
         noteLines.forEach(function (n) {
           lt.push('  \\multicolumn{' + cols + '}{l}{\\footnotesize ' + escapeTex(n) + '} \\\\');
         });
         lt.push('\\end{longtable}');
+        if (ltGrouped) lt.push('\\endgroup');
         return lt.join('\n');
       }
 
@@ -1236,8 +1466,22 @@
         _usedThreeparttable = true;
         lines.push('  \\begin{threeparttable}');
       }
+      /* V3.651 — table-level styling, emitted inside the float so it
+       * cannot leak into the body text. */
+      if (tstyle.sizeTex) lines.push('  ' + tstyle.sizeTex);
+      if (tstyle.stretch !== 1) {
+        lines.push('  \\renewcommand{\\arraystretch}{' + tstyle.stretch + '}');
+      }
+      if (tstyle.zebra) {
+        /* \rowcolors{n}{odd}{even} counts from the first BODY row, so a
+         * header row shifts the start by one — otherwise the header takes
+         * the tint and the striping reads off by one. */
+        _usedColortbl = true;
+        lines.push('  \\rowcolors{' + (headerRow ? 2 : 1) + '}{}{black!4}');
+      }
       lines.push('  \\begin{tabular}{' + colspec + '}');
       if (booktabs) lines.push('    \\toprule');
+      else if (gridRules) lines.push('    \\hline');
       for (var r = 0; r < rows; r++) {
         var rowCells = [];
         for (var c = 0; c < cols; c++) {
@@ -1261,23 +1505,30 @@
           var content = escapeTex(cell || '');
           var anchor = cover.anchors[key];
           if (anchor) {
-            var inner = content;
+            var inner = styleCell(content, key, alignStr[c] || 'l', anchor);
             if (anchor.rs > 1) {
               _usedMultirow = true;
-              inner = '\\multirow{' + anchor.rs + '}{*}{' + content + '}';
+              inner = '\\multirow{' + anchor.rs + '}{*}{' + inner + '}';
             }
             if (anchor.cs > 1) {
-              inner = '\\multicolumn{' + anchor.cs + '}{' + (alignStr[c] || 'l') + '}{' + inner + '}';
+              var mcAlign = (cellSt[key] && cellSt[key].al) || alignStr[c] || 'l';
+              inner = '\\multicolumn{' + anchor.cs + '}{' + mcAlign + '}{' + inner + '}';
             }
             rowCells.push(inner);
           } else {
-            rowCells.push(content);
+            rowCells.push(styleCell(content, key, alignStr[c] || 'l', null));
           }
         }
-        lines.push('    ' + rowCells.join(' & ') + ' \\\\');
+        lines.push('    ' + rowCells.join(' & ') + rowEnd(r));
         if (r === 0 && booktabs && headerRow) lines.push('    \\midrule');
+        else {
+          var extra = ruleAfterTex(r, '    ');
+          if (extra) lines.push(extra);
+          else if (gridRules && r < rows - 1) lines.push('    \\hline');
+        }
       }
       if (booktabs) lines.push('    \\bottomrule');
+      else if (gridRules) lines.push('    \\hline');
       lines.push('  \\end{tabular}');
       if (noteLines.length) {
         lines.push('  \\begin{tablenotes}\\footnotesize');
@@ -1311,7 +1562,6 @@
   function listToTex(block, template) {
     var body = String(block.body || '');
     if (!body.trim()) return (block.attrs && block.attrs.raw_tex) ? block.attrs.raw_tex : '';
-    var env = (block.attrs && block.attrs.list_type === 'number') ? 'enumerate' : 'itemize';
     var items = [];
     body.split('\n').forEach(function (line) {
       var m = line.match(/^(\s*)(.*)$/);
@@ -1320,15 +1570,9 @@
       items.push({ depth: Math.min(3, Math.floor(m[1].replace(/\t/g, '  ').length / 2)), text: text });
     });
     if (!items.length) return '';
-    function ind(n) { return new Array(n + 1).join('  '); }
-    var out = '\\begin{' + env + '}\n', depth = 0;
-    items.forEach(function (it) {
-      while (depth < it.depth) { depth++; out += ind(depth) + '\\begin{' + env + '}\n'; }
-      while (depth > it.depth) { out += ind(depth) + '\\end{' + env + '}\n'; depth--; }
-      out += ind(depth + 1) + '\\item ' + paragraphTextToTex(it.text, template) + '\n';
-    });
-    while (depth > 0) { out += ind(depth) + '\\end{' + env + '}\n'; depth--; }
-    return out + '\\end{' + env + '}\n';
+    /* V3.649 — one emitter for the list block and for lists inside a
+     * paragraph body. */
+    return listItemsToTex(items, (block.attrs && block.attrs.list_type), template);
   }
 
   /* ── Citation collection + BibTeX ── */
@@ -1341,6 +1585,11 @@
       var re = /\[@([^\]]+)\]/g;
       var m;
       while ((m = re.exec(text))) {
+        /* V3.645 — `[@item:KEY]` is an inventory reference sharing the
+         * citation namespace, not a citation. Excluded here or it would
+         * enter refs.bib as a phantom entry and LaTeX would warn about
+         * an undefined citation on every compile. */
+        if (String(m[1]).replace(/^\*/, '').indexOf('item:') === 0) continue;
         m[1].split(/\s*;\s*@?/).forEach(function (k) {
           /* V3.344 — a leading `*` (narrative citation) is not part of
            * the key. */
@@ -1619,6 +1868,7 @@
      * so it can resolve [!eqi:<id>] tokens. Module-level set/clear
      * around the section rendering keeps it scoped to this run. */
     _exportEqLibrary = tree.equation_library || [];
+    _exportValueLibrary = tree.value_library || [];
     /* V3.341 — collector for placeholder sections. V3.413: a TOKEN MAP
      * — {{ABSTRACT}}/{{KEYWORDS}} always seeded (legacy behavior), plus
      * every placeholder token any special_sections catalog entry
@@ -1644,6 +1894,7 @@
     _usedArray = false;    // Tables II — width+align colspec flag
     _usedLongtable = false;      // Tables II — multi-page table flag
     _usedThreeparttable = false; // Tables II — table-notes flag
+    _usedColortbl = false;       // V3.651 — cell/row shading flag
     _usedWrapfig = false;        // V3.485 — wrapped-figure flag
 
     /* Render sections to per-file .tex */
@@ -1708,6 +1959,13 @@
         effectiveTemplate.preamble +=
           '\n% --- RM tables: table notes ---\n\\usepackage{threeparttable}\n';
       }
+      /* V3.651 — cell/row shading. The `table` option is what pulls in
+       * colortbl and gives us \cellcolor / \rowcolors; loading plain
+       * xcolor would compile and then fail on the first \cellcolor. */
+      if (_usedColortbl) {
+        effectiveTemplate.preamble +=
+          '\n% --- RM tables: cell and row shading ---\n\\usepackage[table]{xcolor}\n';
+      }
       /* V3.485 — a corner/side wrap figure was rendered: wrapfig joins the
        * preamble on demand (stock TeX Live; single-column classes only —
        * two-column wraps degrade to flow in resolveFloat, never flagged). */
@@ -1734,6 +1992,7 @@
       }
     } finally {
       _exportEqLibrary = null;
+      _exportValueLibrary = null;
       _placeholderStash = null;
       _layoutWarnings = null;
       _usedCuted = false;
@@ -1742,6 +2001,7 @@
       _usedArray = false;
       _usedLongtable = false;
       _usedThreeparttable = false;
+      _usedColortbl = false;
       _usedWrapfig = false;
     }
 

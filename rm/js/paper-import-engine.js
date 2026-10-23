@@ -18,7 +18,10 @@
  *     manifest  — parsed paper.json
  *     assets    — { relpath: base64 }  (from the zip)
  *     comments  — papers/{id}/comments docs (optional)
- *     slug      — fresh paper id (row already created by the caller)
+ *     slug      — fresh paper id (row already created by the caller), or the
+ *                 EXISTING paper id when mode === 'update'
+ *     mode      — 'create' (default) | 'update' (V3.742 — checked-out bundle
+ *                 returning to the same paper: replace tree, skip comments)
  *     onProgress(evt) — evt = { phase, done, total, label }
  *   Pure helpers exposed for tests: _partition, _grantDocList.
  */
@@ -159,10 +162,18 @@
     } catch (e) { console.warn('[import-engine] comment restore skipped', e); }
   }
 
+  /* opts.mode (V3.742): 'create' (default) materializes into a fresh paper;
+   * 'update' rebuilds an EXISTING paper in place from a checked-out bundle —
+   * PaperTreeBuild.buildInto runs with replace:true (clear, then build, one
+   * transact) and the comment restore is skipped (comments never left
+   * Firestore; restoring would duplicate them). The caller owns the
+   * checkout-lock lifecycle: the paper stays locked through the import and
+   * is released only after this resolves. */
   async function run(opts) {
     opts = opts || {};
     var manifest = opts.manifest || {}, assets = opts.assets || {}, comments = opts.comments || [];
     var slug = opts.slug, onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : function () {};
+    var isUpdate = opts.mode === 'update';
     function report(phase, done, total, label) { try { onProgress({ phase: phase, done: done, total: total, label: label || '' }); } catch (e) {} }
     if (!slug) throw new Error('paper-import-engine: slug required');
     if (!window.PaperYjs || !window.PaperTreeBuild) throw new Error('paper-import-engine: PaperYjs/PaperTreeBuild not loaded');
@@ -175,13 +186,14 @@
       var Y = conn.Y, paperMap = conn.yDoc.getMap('paper');
 
       // 1. Sections (narrative + references; grant-doc kinds filtered out).
-      report('sections', 0, 1, 'Building sections…');
+      report('sections', 0, 1, isUpdate ? 'Replacing sections…' : 'Building sections…');
       conn.yDoc.transact(function () {
         window.PaperTreeBuild.buildInto(paperMap, manifest, Y, {
           sectionFilter: function (s) { return !_isGrantKind(s.kind); },
+          replace: isUpdate,
         });
       }, 'import-build');
-      report('sections', 1, 1, 'Sections built');
+      report('sections', 1, 1, isUpdate ? 'Sections replaced' : 'Sections built');
 
       var part = _partition(manifest);
 
@@ -272,8 +284,9 @@
         report('references', n, n, 'References placed');
       }
 
-      // 6. Comments (best-effort; health-gated CF).
-      if (comments && comments.length) {
+      // 6. Comments (best-effort; health-gated CF). Never on update — they
+      // are still in papers/{id}/comments and would double.
+      if (!isUpdate && comments && comments.length) {
         report('comments', 0, 1, 'Restoring comments…');
         await _restoreComments(slug, comments);
         report('comments', 1, 1, 'Comments restored');
@@ -306,7 +319,8 @@
     // enrichItemFromSemanticScholar reads library/papers.json to find the item;
     // that route's SWR cache is separate from items.json and would miss the
     // just-created entries — bust both so enrichment sees them.
-    try { if (window.api && api.invalidate) { await api.invalidate('library/papers.json'); await api.invalidate('items.json'); } } catch (e) {}
+    // V3.647 — `typeof api`; `window.api` is always undefined (lexical const).
+    try { if (typeof api !== 'undefined' && api.invalidate) { await api.invalidate('library/papers.json'); await api.invalidate('items.json'); } } catch (e) {}
     var enriched = 0;
     for (var i = 0; i < ids.length; i++) {
       if (shouldCancel()) break;
@@ -317,7 +331,8 @@
     }
     onProgress(ids.length, ids.length);
     // Refresh the caches so the enriched extras are visible to the next read.
-    try { if (window.api && api.invalidate) { await api.invalidate('items.json'); await api.invalidate('library/papers.json'); } } catch (e) {}
+    // V3.647 — `typeof api`; `window.api` is always undefined (lexical const).
+    try { if (typeof api !== 'undefined' && api.invalidate) { await api.invalidate('items.json'); await api.invalidate('library/papers.json'); } } catch (e) {}
     return { enriched: enriched };
   }
 

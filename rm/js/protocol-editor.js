@@ -313,7 +313,7 @@
     // V3.141 — admin-only edit affordance for author + creation date.
     var isAdmin = typeof firebridge.isAdmin === 'function' && firebridge.isAdmin();
     if (isAdmin) {
-      html += ' <button class="pre-byline-edit" id="pre-byline-edit-btn" title="Admin: edit author / creation date">✏️</button>';
+      html += ' <button class="pre-byline-edit" id="pre-byline-edit-btn" title="Admin: edit author / creation date">' + ICON.svg('pencil') + '</button>';
     }
     bylineEl.innerHTML = html;
     var btn = document.getElementById('pre-byline-edit-btn');
@@ -464,7 +464,7 @@
     }
     forkLineageEl.hidden = false;
     forkLineageEl.innerHTML =
-      '<span class="pre-fork-icon">🍴</span> Fork of ' +
+      '<span class="pre-fork-icon">' + ICON.svg('git-fork') + '</span> Fork of ' +
       '<a href="/rm/pages/protocols.html?protocol=' + encodeURIComponent(ff.protocol_id) + '">' +
       escapeHtml(ff.protocol_title || ff.protocol_id) + '</a>' +
       (typeof ff.version === 'number' && ff.version > 0 ? ' v' + ff.version : '');
@@ -699,13 +699,13 @@
     });
     var docA = document.createElement('a');
     docA.className = 'pre-viewseg-btn';
-    docA.textContent = '📄 Document';
+    ICON.label(docA, 'document-text', ' Document');
     docA.title = 'Read-only document view — print / export to PDF from there';
     docA.href = docViewHref();
     seg.appendChild(docA);
     var cheatA = document.createElement('a');
     cheatA.className = 'pre-viewseg-btn';
-    cheatA.textContent = '📋 Cheat sheet';
+    ICON.label(cheatA, 'clipboard-document-list', ' Cheat sheet');
     cheatA.title = 'Condensed, print-first cheat sheet — bare-minimum steps for someone who knows the protocol';
     cheatA.href = cheatViewHref();
     seg.appendChild(cheatA);
@@ -873,7 +873,7 @@
         });
       }
       if (!groups.length) {
-        listEl.innerHTML = '<div class="pre-var-pop-note">No references yet — in the ⬡ Nodes view, add a 🔗 References (or 📊 Cards) node and wire variables into it.</div>';
+        listEl.innerHTML = '<div class="pre-var-pop-note">No references yet — in the ⬡ Nodes view, add a ' + ICON.svg('link') + ' References (or ' + ICON.svg('chart-bar') + ' Cards) node and wire variables into it.</div>';
         return;
       }
       var shown = 0;
@@ -901,7 +901,7 @@
         shown += rows.length;
         var head = document.createElement('div');
         head.className = 'pre-var-group';
-        head.textContent = (grp.type === 'cards' ? '📊 ' : '🔗 ') + grp.label;
+        ICON.label(head, grp.type === 'cards' ? 'chart-bar' : 'link', ' ' + grp.label);
         listEl.appendChild(head);
         rows.forEach(function (r) { listEl.appendChild(r); });
       });
@@ -963,7 +963,7 @@
     b.type = 'button';
     b.className = 'btn pre-action-btn';
     b.id = 'pre-refvar-btn';
-    b.textContent = '🔗 Reference';
+    ICON.label(b, 'link', ' Reference');
     b.title = 'Insert a live variable reference — click into a text block first, then pick the variable';
     b.disabled = true; // until a text block has been focused
     b.addEventListener('click', function () { openVarPopover(b); });
@@ -1185,7 +1185,7 @@
         var delSec = document.createElement('button');
         delSec.type = 'button';
         delSec.className = 'pre-block-btn';
-        delSec.textContent = '× section';
+        ICON.label(delSec, 'x-mark', ' section');
         delSec.title = 'Delete section';
         delSec.addEventListener('click', function () { removeSection(ySec); });
         headerRow.appendChild(delSec);

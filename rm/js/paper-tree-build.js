@@ -19,6 +19,16 @@
  *   appendSection(sectionsArr, sec, Y) → Y.Map
  *   buildInto(paperMap, bundle, Y, opts) → { sectionsBuilt }
  *     opts.sectionFilter(sec) → bool (default: keep all)
+ *     opts.replace (V3.742) → clear sections / equation_library /
+ *       figure_unplaced / table_unplaced / value_library and reset the title
+ *       BEFORE building, so a checked-out bundle updates a paper IN PLACE.
+ *       Ordinary Y edits — no admin snapshot surgery needed. Only safe because
+ *       the paper is locked while its bundle is out (no concurrent editors).
+ *
+ * V3.742 — round-trip fidelity: skeleton_items (paragraph outlines),
+ * style_overrides and value_library were emitted by the exporter but dropped
+ * here, which with `replace` would have silently deleted them on every
+ * export→edit→import cycle. All three now rebuild.
  *
  * Callers MUST invoke buildInto inside a yDoc.transact (attach-then-mutate:
  * shared types must be integrated before nested shared types are set on them).
@@ -103,7 +113,30 @@
         }
       });
     }
+    writeSkeletonItems(m, blk.skeleton_items, Y);   // V3.742
     return m;
+  }
+
+  /* V3.742 — paragraph outline items. Bundle shape is the exporter's plain
+   * array [{id, depth, text, claim_id}]; the live shape is Y.Array<Y.Map> with
+   * `text` a Y.Text (paper-blocks.js ensureSkeletonItems). A `{__ytype:'array'}`
+   * snapshot (editor move paths) is accepted too. Empty/missing → no key, so
+   * the editor's lazy seeding from the legacy `skeleton` string still runs. */
+  function writeSkeletonItems(m, items, Y) {
+    if (!items) return;
+    if (items.__ytype) { writeAttrValue(m, 'skeleton_items', items, Y); return; }
+    if (!Array.isArray(items) || !items.length) return;
+    var arr = new Y.Array();
+    m.set('skeleton_items', arr);
+    items.forEach(function (it) {
+      if (!it || typeof it !== 'object') return;
+      var im = new Y.Map();
+      arr.push([im]);
+      im.set('id', it.id || shortId('sk-'));
+      im.set('depth', typeof it.depth === 'number' ? it.depth : 0);
+      im.set('text', new Y.Text(it.text ? String(it.text) : ''));
+      im.set('claim_id', it.claim_id || null);
+    });
   }
 
   /* Mirrors paper-editor.js `appendSectionFromTree` (:444-474). */
@@ -124,10 +157,35 @@
     if (sec.special_render) m.set('special_render', sec.special_render);
     if (sec.appendix) m.set('appendix', true);
     if (sec.ref_label) m.set('ref_label', sec.ref_label);
+    // V3.742 — per-section style overrides (plain JSON), when non-empty.
+    if (sec.style_overrides && typeof sec.style_overrides === 'object' &&
+        Object.keys(sec.style_overrides).length) m.set('style_overrides', sec.style_overrides);
     var childrenArr = new Y.Array();
     m.set('children', childrenArr);
     (sec.children || []).forEach(function (blk) { appendBlock(childrenArr, blk, Y); });
     return m;
+  }
+
+  /* V3.742 — value keys (mirrors paper-editor.js _hydrateBundle / _writeValueMap:
+   * scalars on a Y.Map, `snapshot` a nested Y.Map). */
+  function appendValueEntry(valLib, v, Y) {
+    var e = (window.PaperSchemas && window.PaperSchemas.newValueEntry)
+      ? window.PaperSchemas.newValueEntry(v || {}) : Object.assign({}, v || {});
+    var m = new Y.Map(); valLib.push([m]);
+    Object.keys(e).forEach(function (k) {
+      if (k === 'snapshot') {
+        var sm = new Y.Map();
+        m.set('snapshot', sm);
+        Object.keys(e.snapshot || {}).forEach(function (sk) { sm.set(sk, e.snapshot[sk]); });
+      } else {
+        m.set(k, e[k]);
+      }
+    });
+    return m;
+  }
+
+  function clearYArray(arr) {
+    if (arr && typeof arr.delete === 'function' && arr.length) arr.delete(0, arr.length);
   }
 
   /* Initialize the paperMap structure (mirrors paper-editor.js:248-273) and
@@ -144,11 +202,21 @@
     if (!paperMap.has('equation_library')) paperMap.set('equation_library', new Y.Array());
     if (!paperMap.has('figure_unplaced')) paperMap.set('figure_unplaced', new Y.Array());
     if (!paperMap.has('table_unplaced')) paperMap.set('table_unplaced', new Y.Array());
+    if (!paperMap.has('value_library')) paperMap.set('value_library', new Y.Array());   // V3.742
 
-    // Title (only if the doc has none yet).
     var titleStr = (bundle.tree && bundle.tree.meta && bundle.tree.meta.title) ||
       (bundle.paper && bundle.paper.title) || (bundle.title) || '';
     var titleY = paperMap.get('meta').get('title');
+
+    if (opts.replace) {
+      // V3.742 — update in place: empty every library the bundle carries, then
+      // rebuild below. Same transact → one atomic Y update.
+      ['sections', 'equation_library', 'figure_unplaced', 'table_unplaced', 'value_library']
+        .forEach(function (k) { clearYArray(paperMap.get(k)); });
+      if (titleY && titleY.length) titleY.delete(0, titleY.length);
+    }
+
+    // Title (only if the doc has none yet — always true after replace).
     if (titleStr && titleY && titleY.length === 0) titleY.insert(0, String(titleStr));
 
     // Sections (filtered).
@@ -179,11 +247,18 @@
       if (Array.isArray(arr)) arr.forEach(function (blk) { appendBlock(yarr, blk, Y); });
     });
 
+    // V3.742 — value keys.
+    var valSrc = bundle.value_library || [];
+    var valLib = paperMap.get('value_library');
+    if (valLib && Array.isArray(valSrc)) valSrc.forEach(function (v) { appendValueEntry(valLib, v, Y); });
+
     return { sectionsBuilt: built };
   }
 
   window.PaperTreeBuild = {
     writeAttrValue: writeAttrValue,
+    writeSkeletonItems: writeSkeletonItems,   // V3.742
+    appendValueEntry: appendValueEntry,       // V3.742
     appendBlock: appendBlock,
     appendSection: appendSection,
     buildInto: buildInto,

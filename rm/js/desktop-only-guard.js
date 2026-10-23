@@ -45,7 +45,7 @@
 
     overlay.innerHTML =
       '<div class="rm-desktop-only-card">' +
-        '<div class="rm-desktop-only-icon" aria-hidden="true">🖥️</div>' +
+        '<div class="rm-desktop-only-icon" aria-hidden="true">' + ICON.svg('computer-desktop') + '</div>' +
         '<h2 class="rm-desktop-only-title" id="rm-desktop-only-title">Designed for desktop</h2>' +
         '<p class="rm-desktop-only-body">' +
           'This page uses a layout that needs a wider screen — a tablet ' +

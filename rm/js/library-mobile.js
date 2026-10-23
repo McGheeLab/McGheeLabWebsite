@@ -241,19 +241,19 @@
     // Pinned papers chip
     const pinnedCount = ((prefs && prefs.pinned_papers) || []).length;
     if (pinnedCount) {
-      chips.push(`<button class="libm-chip${on(_groupFilter && _groupFilter.kind === 'pinned')}" data-chip="pinned">📌 Pinned (${pinnedCount})</button>`);
+      chips.push(`<button class="libm-chip${on(_groupFilter && _groupFilter.kind === 'pinned')}" data-chip="pinned">${ICON.svg('pin')} Pinned (${pinnedCount})</button>`);
     }
     // User groups (manual + draft; smart is desktop-only)
     for (const g of ((prefs && prefs.paper_groups) || [])) {
       if (g.kind === 'smart') continue;
       const active = _groupFilter && _groupFilter.kind === 'group' && _groupFilter.id === g.id && !_groupFilter.shared;
-      chips.push(`<button class="libm-chip${on(active)}" data-chip="group" data-gid="${_esc(g.id)}">📁 ${_esc(g.name)}</button>`);
+      chips.push(`<button class="libm-chip${on(active)}" data-chip="group" data-gid="${_esc(g.id)}">${ICON.svg('folder')} ${_esc(g.name)}</button>`);
     }
     // Lab-shared groups
     for (const g of _sharedGroups) {
       if (g.kind === 'smart') continue;
       const active = _groupFilter && _groupFilter.kind === 'group' && _groupFilter.id === g.id && _groupFilter.shared;
-      chips.push(`<button class="libm-chip${on(active)}" data-chip="group" data-gid="${_esc(g.id)}" data-shared="1">🏛 ${_esc(g.name)}</button>`);
+      chips.push(`<button class="libm-chip${on(active)}" data-chip="group" data-gid="${_esc(g.id)}" data-shared="1">${ICON.svg('building-library')} ${_esc(g.name)}</button>`);
     }
     // Tag chips: pinned tags + top tags
     const pinnedTags = (prefs && prefs.pinned_tags) || [];
@@ -285,7 +285,7 @@
       <a class="libm-card-main" href="/rm/pages/library-mobile-paper.html?id=${encodeURIComponent(p.id)}">
         <div class="libm-card-title">${_esc(p.title || 'Untitled')}</div>
         ${sub ? `<div class="libm-card-sub">${_esc(sub)}</div>` : ''}
-        ${(isPinned || noPdf) ? `<div class="libm-card-badges">${isPinned ? '<span>📌 pinned</span>' : ''}${noPdf ? '<span class="libm-badge-nopdf">no PDF</span>' : ''}</div>` : ''}
+        ${(isPinned || noPdf) ? `<div class="libm-card-badges">${isPinned ? '<span>' + ICON.svg('pin') + ' pinned</span>' : ''}${noPdf ? '<span class="libm-badge-nopdf">no PDF</span>' : ''}</div>` : ''}
       </a>
       <button class="libm-more" data-act="more" data-id="${_esc(p.id)}" aria-label="More actions">⋯</button>
     </div>`;
@@ -345,10 +345,10 @@
       title: (p.title || 'Paper').slice(0, 60),
       build(body, api) {
         body.innerHTML = `
-          <button class="libm-sheet-row" data-row="open">📖 <span>Open in reader</span></button>
+          <button class="libm-sheet-row" data-row="open">${ICON.svg('book-open')} <span>Open in reader</span></button>
           <button class="libm-sheet-row" data-row="star">${lib.starred ? '☆' : '★'} <span>${lib.starred ? 'Remove star' : 'Star'}</span></button>
-          <button class="libm-sheet-row" data-row="pin">📌 <span>${isPinned ? 'Unpin' : 'Pin to my papers'}</span></button>
-          <button class="libm-sheet-row" data-row="group">📁 <span>Add to group…</span></button>`;
+          <button class="libm-sheet-row" data-row="pin">${ICON.svg('pin')} <span>${isPinned ? 'Unpin' : 'Pin to my papers'}</span></button>
+          <button class="libm-sheet-row" data-row="group">${ICON.svg('folder')} <span>Add to group…</span></button>`;
         body.addEventListener('click', (ev) => {
           const b = ev.target.closest('[data-row]');
           if (!b) return;
@@ -382,7 +382,7 @@
             <button class="btn" id="libm-add-go">Look up</button>
           </div>
           <div class="libm-sheet-div"></div>
-          <button class="libm-sheet-row" data-row="upload">⬆️ <span>Upload PDF from Files</span></button>`;
+          <button class="libm-sheet-row" data-row="upload">${ICON.svg('arrow-up')} <span>Upload PDF from Files</span></button>`;
         body.querySelector('#libm-add-go').addEventListener('click', () => {
           const q = (body.querySelector('#libm-add-input').value || '').trim();
           if (!q) return;
@@ -685,7 +685,7 @@
       return `<a class="libm-feed-row" href="/rm/pages/library-mobile-paper.html?id=${encodeURIComponent(ann.paperId)}#ann-${encodeURIComponent(ann.id)}">
         <div class="libm-feed-paper">${_esc(ann.paperTitle || ann.paperId)}</div>
         ${snippet ? `<div class="libm-feed-quote">“${_esc(snippet.slice(0, 160))}${snippet.length > 160 ? '…' : ''}”</div>` : ''}
-        ${ann.comment ? `<div class="libm-feed-comment">💬 ${_esc(String(ann.comment).slice(0, 160))}</div>` : ''}
+        ${ann.comment ? `<div class="libm-feed-comment">${ICON.svg('chat-bubble-left-right')} ${_esc(String(ann.comment).slice(0, 160))}</div>` : ''}
         <div class="libm-feed-meta">${_esc([who, when].filter(Boolean).join(' · '))}</div>
       </a>`;
     }).join('');

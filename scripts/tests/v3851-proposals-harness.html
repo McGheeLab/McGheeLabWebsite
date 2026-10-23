@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.851 proposals harness</title>
+<!--
+  Self-driving harness for the student-proposal flow on the research map.
+  Loads the REAL research-data.js / research-composer.js / research.js over a
+  stub firebridge + in-page Firestore, as one of three personas:
+
+    ?as=stu     the proposer (one open proposal, one declined)
+    ?as=mentor  the proposer's advisor (users/stu.mentor_uids = ['mentor'])
+    ?as=admin   the PI
+    &id=<card>  the detail page instead of the hub
+
+  Every check writes to #results (one line each, "ok"/"FAIL") and
+  document.body.dataset.verdict ends up "pass" or "fail". window.prompt /
+  alert / confirm are stubbed to THROW, so any browser popup is a failure.
+
+  Serve from the repo root:  python3 -m http.server 8077
+  then open  http://localhost:8077/scripts/tests/v3851-proposals-harness.html?as=mentor
+-->
+<link rel="stylesheet" href="../../rm/css/research.css">
+<script>
+  var AS = new URLSearchParams(location.search).get('as') || 'stu';
+  var store = {
+    'users/admin':  { role: 'admin',  name: 'Alex (PI)' },
+    'users/mentor': { role: 'editor', name: 'Mentor Mae' },
+    'users/stu':    { role: 'editor', name: 'Student Sam', mentor_uids: ['mentor'] },
+    'users/other':  { role: 'editor', name: 'Other Olu' },
+    'researchFoci/career': { level: 'grant', title: 'CAREER', abbr: 'CAREER', created_by: 'admin', status: 'awarded', links: {}, grant_meta: { agency: 'NSF' } },
+    'researchFoci/gels': { level: 'specialty', title: 'Granule-Enabled Living Scaffolds', abbr: 'GELS', created_by: 'admin', links: {} },
+    'researchFoci/void-space': { level: 'aim', title: 'Void space over time', created_by: 'stu', member_uids: ['stu'],
+      approval: { status: 'proposed', proposed_by: 'stu', proposed_at: '2026-10-23T00:00:00Z' }, links: { grant_ids: ['career'] } },
+    'researchFoci/phase-map': { level: 'output', title: 'Phase map paper', created_by: 'stu', member_uids: ['stu'],
+      approval: { status: 'proposed', proposed_by: 'stu', proposed_at: '2026-10-22T00:00:00Z' }, links: { grant_ids: ['career'] } },
+    'researchFoci/old-idea': { level: 'concept', title: 'Old idea', created_by: 'stu', member_uids: ['stu'],
+      approval: { status: 'declined', proposed_by: 'stu', decided_by: 'mentor', decided_at: '2026-10-21T00:00:00Z', note: 'too broad' }, links: {} },
+  };
+  var writes = [];
+  function k(c, id) { return c + '/' + id; }
+  function docRef(c, id) {
+    return {
+      get: async function () { return { exists: !!store[k(c, id)], id: id, data: function () { return store[k(c, id)]; } }; },
+      set: async function (d) { writes.push(['set', k(c, id), d]); store[k(c, id)] = JSON.parse(JSON.stringify(d)); },
+      update: async function (d) { writes.push(['update', k(c, id), d]); Object.assign(store[k(c, id)], JSON.parse(JSON.stringify(d))); },
+      delete: async function () { writes.push(['delete', k(c, id)]); delete store[k(c, id)]; },
+    };
+  }
+  function rows(c, pred) {
+    return Object.keys(store).filter(function (x) { return x.indexOf(c + '/') === 0 && pred(store[x]); })
+      .map(function (x) { return { id: x.slice(c.length + 1), data: function () { return store[x]; } }; });
+  }
+  function collRef(c) {
+    return {
+      doc: function (id) { return docRef(c, id); },
+      get: async function () { return { docs: rows(c, function () { return true; }) }; },
+      where: function (f, op, v) { return { get: async function () { return { docs: rows(c, function (d) { return Array.isArray(d[f]) && d[f].indexOf(v) !== -1; }) }; } }; },
+    };
+  }
+  window.firebridge = {
+    db: function () { return { collection: collRef }; },
+    getUser: function () { return { uid: AS }; },
+    isAdmin: function () { return AS === 'admin'; },
+    isLabMember: function () { return true; },
+    requireSignIn: async function () {},
+  };
+  var toasts = [];
+  window.TOAST = { success: function (m) { toasts.push('success:' + m); }, error: function (m) { toasts.push('error:' + m); }, info: function (m) { toasts.push('info:' + m); } };
+  window.prompt = window.alert = window.confirm = function () { throw new Error('POPUP CALLED'); };
+</script>
+<script src="../../rm/js/icons.js"></script>
+<script src="../../rm/js/research-data.js"></script>
+<script src="../../rm/js/research-composer.js"></script>
+<script src="../../rm/js/research.js"></script>
+</head>
+<body>
+<div id="research-root"></div>
+<pre id="results"></pre>
+<script>
+  var R = [];
+  function ok(name, cond, detail) { R.push((cond ? 'ok   ' : 'FAIL ') + name + (cond || !detail ? '' : ' — ' + detail)); }
+  function $(sel) { return document.querySelector(sel); }
+  function $$(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+  function text(sel) { var el = $(sel); return el ? el.textContent : ''; }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function settle() { return wait(150); }
+
+  async function drive() {
+    await wait(400);   // research.js init: loadMentees → loadAll → render
+    var id = new URLSearchParams(location.search).get('id');
+    try {
+      if (!id) await driveHub(); else await driveDetail(id);
+    } catch (e) { ok('drive threw', false, e && e.message); }
+    ok('no <svg text leaked into innerText', document.body.innerText.indexOf('<svg') === -1);
+    document.getElementById('results').textContent = R.join('\n');
+    document.body.dataset.verdict = R.some(function (l) { return l.indexOf('FAIL') === 0; }) ? 'fail' : 'pass';
+  }
+
+  async function driveHub() {
+    ok('hub rendered', !!$('.rf-hub'));
+    var proposeBtns = $$('[data-act="new"]');
+    if (AS === 'stu') {
+      ok('student: toolbar offers Propose a focus', proposeBtns.some(function (b) { return /Propose a focus/.test(b.textContent); }));
+      ok('student: per-band buttons say Propose, never Add', proposeBtns.length > 1 && proposeBtns.every(function (b) { return /Propose/.test(b.textContent); }));
+      ok('student: no approvals strip', !$('.rf-approvals'));
+      ok('student: Your proposals strip lists the open AND the declined one', $$('.rf-mine-proposals .rf-mine-chip').length === 3);
+      ok('student: declined card is on MY map (concept band)', !!$('[data-expand="old-idea"]'));
+      ok('student: declined pill shows', $$('.rf-status-declined').length >= 1);
+      ok('student: proposed aim carries the dashed outline', $('[href*="void-space"].rf-card-proposed') !== null || $$('.rf-card-proposed').length >= 2);
+      ok('student: no Approve button anywhere', !$('[data-act="approve"]'));
+      // open the composer from the aims band → Propose wording + Builds on (grants)
+      var aimBtn = proposeBtns.filter(function (b) { return b.getAttribute('data-level') === 'aim'; })[0];
+      ok('student: an aim Propose button exists', !!aimBtn);
+      aimBtn.click(); await settle();
+      ok('composer: title says Propose', /Propose a new/.test(text('.rf-modal-head h3')));
+      ok('composer: hint about review', /reviews this/.test(text('.rf-propose-hint')));
+      ok('composer: save button reads Propose', text('.rf-modal [data-act="save"]').trim() === 'Propose');
+      var pick = $('.rf-parent-pick');
+      ok('composer: Builds on picker offers the grant', !!pick && /grants/.test(pick.textContent) && !!pick.querySelector('[data-parent-id="career"]'));
+      ok('composer: declined cards never offered as a parent', !$('[data-parent-id="old-idea"]'));
+      // fill + propose → store gets a proposal in stu's name, linked to the grant
+      $('.rf-modal [data-field="title"]').value = 'Compaction of the inert phase';
+      pick.querySelector('[data-parent-id="career"]').checked = true;
+      $('.rf-modal [data-act="save"]').click(); await wait(400);
+      var w = store['researchFoci/compaction-of-the-inert-phase'];
+      ok('propose: card written under its slug', !!w);
+      ok('propose: approval proposed in own name, published false', w && w.approval && w.approval.status === 'proposed' && w.approval.proposed_by === 'stu' && w.published === false);
+      ok('propose: Builds on → links.grant_ids', w && w.links && w.links.grant_ids && w.links.grant_ids[0] === 'career');
+      ok('propose: proposer attached as lead', w && w.member_roles && w.member_roles.stu === 'lead');
+      ok('propose: modal closed, hub re-rendered with 4 proposals', !$('.rf-modal') && $$('.rf-mine-proposals .rf-mine-chip').length === 4);
+    }
+    if (AS === 'mentor') {
+      ok('mentor: approvals strip with the 2 open proposals', $$('.rf-approval-row').length === 2);
+      ok('mentor: proposer name resolved (not a uid)', /Student Sam/.test(text('.rf-approvals')));
+      ok('mentor: declined card of a mentee is HIDDEN from the map', !$('[data-expand="old-idea"]'));
+      ok('mentor: no admin toolbar, but Propose offered', !$('[data-act="add-existing"]') && proposeBtns.length > 0);
+      // decline → inline textarea, never a popup
+      var declineBtn = $('[data-act="decline"][data-id="void-space"]');
+      ok('mentor: Decline button on the row', !!declineBtn);
+      declineBtn.click(); await settle();
+      var form = $('[data-decline-form="void-space"]');
+      ok('decline: form opened IN the row (no popup)', !!form && !!form.querySelector('textarea') && !!form.closest('.rf-approval-row'));
+      ok('decline: textarea focused', document.activeElement === form.querySelector('textarea'));
+      form.querySelector('textarea').value = 'name the measurement';
+      form.querySelector('[data-act="decline-cancel"]').click(); await settle();
+      ok('decline: Cancel closes the form', !$('[data-decline-form]'));
+      $('[data-act="decline"][data-id="void-space"]').click(); await settle();
+      form = $('[data-decline-form="void-space"]');
+      form.querySelector('textarea').value = 'name the measurement';
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); await wait(400);
+      var a = store['researchFoci/void-space'].approval;
+      ok('decline: written in mentor\'s name with the note', a.status === 'declined' && a.decided_by === 'mentor' && a.note === 'name the measurement' && a.proposed_by === 'stu');
+      ok('decline: toast, and the row is gone', toasts.some(function (t) { return /^success:Declined/.test(t); }) && $$('.rf-approval-row').length === 1);
+      // approve the other
+      $('[data-act="approve"][data-id="phase-map"]').click(); await wait(400);
+      var b = store['researchFoci/phase-map'].approval;
+      ok('approve: written in mentor\'s name', b.status === 'approved' && b.decided_by === 'mentor');
+      ok('approve: strip disappears, card now shows its lifecycle pill', !$('.rf-approvals') && !$('.rf-status-proposed'));
+      ok('approve: toast named the card', toasts.some(function (t) { return /Phase map paper/.test(t); }));
+    }
+    if (AS === 'admin') {
+      ok('admin: approvals strip with the 2 open proposals', $$('.rf-approval-row').length === 2);
+      ok('admin: the declined card IS visible, with its pill', !!$('[data-expand="old-idea"]') && $$('.rf-status-declined').length >= 1);
+      ok('admin: toolbar still has Add existing paper', !!$('[data-act="add-existing"]'));
+      ok('admin: band buttons say Add, not Propose', proposeBtns.length > 0 && !proposeBtns.some(function (b) { return /Propose/.test(b.textContent); }));
+      $('[data-act="approve"][data-id="void-space"]').click(); await wait(400);
+      ok('admin approve: written in admin\'s name', store['researchFoci/void-space'].approval.decided_by === 'admin');
+    }
+    ok('no popup was ever called', !R.some(function (l) { return /POPUP/.test(l); }));
+  }
+
+  async function driveDetail(id) {
+    ok('detail rendered for ' + id, !!$('.rf-detail[data-foci="' + id + '"]'));
+    var banner = $('.rf-approval');
+    if (AS === 'stu' && id === 'void-space') {
+      ok('student detail: proposed banner says "by you"', !!banner && banner.classList.contains('rf-approval-proposed') && /Proposed by you/.test(banner.textContent));
+      ok('student detail: can edit (✎ Edit shown)', !!$('.rf-detail-head [data-act="edit"]'));
+      ok('student detail: header button reads Withdraw', text('.rf-detail-head [data-act="delete"]').trim() === 'Withdraw');
+      ok('student detail: no Approve, no Publish', !$('[data-act="approve"]') && !$('[data-act="publish"]'));
+      ok('student detail: Build overview offered, publish not', !!$('[data-act="edit-overview"]'));
+      ok('student detail: status pill reads Proposed', /Proposed/.test(text('.rf-detail-meta .rf-status')));
+    }
+    if (AS === 'stu' && id === 'old-idea') {
+      ok('student detail: declined banner with the note', !!banner && banner.classList.contains('rf-approval-declined') && /too broad/.test(banner.textContent));
+      ok('student detail: decider name resolved', /Mentor Mae/.test(banner.textContent));
+      var rp = $('[data-act="repropose"]');
+      ok('student detail: Re-propose offered', !!rp);
+      rp.click(); await wait(400);
+      var a = store['researchFoci/old-idea'].approval;
+      ok('repropose: proposed again in own name, previous_note carried', a.status === 'proposed' && a.proposed_by === 'stu' && a.previous_note === 'too broad');
+      ok('repropose: banner now proposed and shows "Last time"', !!$('.rf-approval-proposed') && /Last time/.test(text('.rf-approval')));
+    }
+    if (AS === 'mentor' && id === 'void-space') {
+      ok('mentor detail: banner names the proposer', !!banner && /Student Sam/.test(banner.textContent));
+      ok('mentor detail: Approve + Decline in the banner', !!$('.rf-approval [data-act="approve"]') && !!$('.rf-approval [data-act="decline"]'));
+      ok('mentor detail: can edit the undecided card', !!$('.rf-detail-head [data-act="edit"]'));
+      ok('mentor detail: header button reads Delete (not Withdraw)', text('.rf-detail-head [data-act="delete"]').trim() === 'Delete');
+      $('.rf-approval [data-act="decline"]').click(); await settle();
+      ok('mentor detail: decline form opens inline in the banner', !!$('.rf-approval [data-decline-form]'));
+    }
+    if (AS === 'other' && id === 'void-space') {
+      ok('outsider detail: banner shown, no actions, no Edit', !!banner && !$('.rf-approval [data-act]') && !$('.rf-detail-head [data-act="edit"]'));
+    }
+    if (AS === 'mentor' && id === 'career') {
+      ok('mentor on a legacy grant: no banner, no edit', !banner && !$('.rf-detail-head [data-act="edit"]'));
+    }
+    if (AS === 'admin' && id === 'career') {
+      ok('admin on a legacy grant: edit yes, no banner', !banner && !!$('.rf-detail-head [data-act="edit"]'));
+    }
+    ok('no popup was ever called', !R.some(function (l) { return /POPUP/.test(l); }));
+  }
+
+  if (document.readyState === 'complete') drive(); else window.addEventListener('load', drive);
+</script>
+</body>
+</html>

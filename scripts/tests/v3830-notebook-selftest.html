@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.830 — block notebook self-test</title>
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<link rel="stylesheet" href="/rm/css/notebook-blocks.css">
+<style>body{font:13px/1.5 system-ui,sans-serif;margin:20px}.ok{color:#15803d}.bad{color:#b91c1c}code{background:#f3f4f6;padding:1px 4px;border-radius:3px}#r{margin:14px 0;padding:10px;border:1px solid #e5e7eb}</style>
+<script>
+/* ── popup canary: a regression to window.prompt/alert/confirm must FAIL, never hang ── */
+window.__popups = [];
+['prompt','alert','confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
+
+/* ── in-memory Firestore stub ── */
+(function () {
+  var store = new Map(), listeners = [], touched = [];
+  function snapOf(path) { return { id: path.split('/').pop(), exists: store.has(path), data: function () { return store.has(path) ? JSON.parse(JSON.stringify(store.get(path))) : undefined; }, ref: docRef(path) }; }
+  function fire(path, type) {
+    var parent = path.slice(0, path.lastIndexOf('/'));
+    listeners.slice().forEach(function (l) {
+      if (l.kind === 'doc' && l.path === path) l.cb(snapOf(path));
+      if (l.kind === 'col' && l.path === parent) l.cb({ docChanges: function () { return [{ type: type, doc: snapOf(path) }]; }, docs: docsIn(parent), size: 1, empty: false });
+    });
+  }
+  function docsIn(path) { var out = []; store.forEach(function (v, k) { if (k.slice(0, k.lastIndexOf('/')) === path) out.push(snapOf(k)); }); return out; }
+  function deepMerge(a, b) { var o = Object.assign({}, a || {}); Object.keys(b).forEach(function (k) { o[k] = (b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) && o[k] && typeof o[k] === 'object' && !Array.isArray(o[k])) ? deepMerge(o[k], b[k]) : b[k]; }); return o; }
+  function docRef(path) {
+    return {
+      path: path, id: path.split('/').pop(),
+      collection: function (n) { return colRef(path + '/' + n); },
+      get: function () { touched.push('get ' + path); return Promise.resolve(snapOf(path)); },
+      set: function (d, o) { touched.push('set ' + path); var prev = store.get(path); var existed = store.has(path); store.set(path, (o && o.merge) ? deepMerge(prev, d) : JSON.parse(JSON.stringify(d))); fire(path, existed ? 'modified' : 'added'); return Promise.resolve(); },
+      update: function (d) { touched.push('update ' + path); var next = Object.assign({}, store.get(path) || {}); Object.keys(d).forEach(function (k) { if (d[k] === '__DEL__') delete next[k]; else next[k] = d[k]; }); store.set(path, next); fire(path, 'modified'); return Promise.resolve(); },
+      delete: function () { touched.push('delete ' + path); store.delete(path); fire(path, 'removed'); return Promise.resolve(); },
+      onSnapshot: function (cb) { var l = { path: path, kind: 'doc', cb: cb }; listeners.push(l); setTimeout(function () { cb(snapOf(path)); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+  }
+  function colRef(path) {
+    var q = {
+      path: path,
+      doc: function (id) { return docRef(path + '/' + (id || ('auto' + Math.random().toString(36).slice(2, 8)))); },
+      orderBy: function () { return q; }, where: function () { return q; }, limit: function () { return q; },
+      get: function () { var d = docsIn(path); return Promise.resolve({ docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); },
+      onSnapshot: function (cb) { var l = { path: path, kind: 'col', cb: cb }; listeners.push(l); var d = docsIn(path); setTimeout(function () { cb({ docChanges: function () { return d.map(function (s) { return { type: 'added', doc: s }; }); }, docs: d, size: d.length, empty: !d.length }); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+    return q;
+  }
+  var db = {
+    collection: function (n) { return colRef(n); },
+    runTransaction: function (fn) { var tx = { get: function (ref) { return ref.get(); }, set: function (ref, d, o) { return ref.set(d, o); } }; return Promise.resolve().then(function () { return fn(tx); }); },
+    batch: function () { var ops = []; return { set: function (ref, d) { ops.push(function () { return ref.set(d); }); }, delete: function (ref) { ops.push(function () { return ref.delete(); }); }, commit: function () { return ops.reduce(function (p, f) { return p.then(f); }, Promise.resolve()); } }; }
+  };
+  window.__stub = { store: store, touched: touched, db: db, seed: function (path, data) { store.set(path, data); } };
+  window.firebase = { firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; }, delete: function () { return '__DEL__'; } } } };
+  window.firebridge = {
+    requireSignIn: function () { return Promise.resolve({ allowed: true }); },
+    isLabMember: function () { return true; }, isAdmin: function () { return false; },
+    getUser: function () { return { uid: 'u1', email: 'a@x.com' }; },
+    db: function () { return db; }
+  };
+  window.api = { load: function (p) { return Promise.resolve(p === 'protocols/list.json' ? { protocols: [{ id: 'p1', title: 'Collagen gel casting', summary: 'cast gels', category: 'bench', updated_at: '2026-10-01' }] } : {}); } };
+  window.__toasts = [];
+  window.TOAST = { error: function (m) { window.__toasts.push(['error', m]); }, warn: function (m) { window.__toasts.push(['warn', m]); }, success: function (m) { window.__toasts.push(['success', m]); }, info: function (m) { window.__toasts.push(['info', m]); } };
+  window.NOTEBOOK_FIGURES = { uploadImage: function (blob) { return Promise.resolve({ download_url: 'https://firebasestorage.googleapis.com/v0/b/x/o/notebook-figures%2Fu1%2Fabc.png?alt=media&token=t', storage_path: 'notebook-figures/u1/abc.png', hash: 'abc', mime: blob.type, size_bytes: blob.size, uploaded_at: '2026-10-22', uploaded_by: 'a@x.com' }); } };
+
+  /* seed: one classic entry + one v2 entry */
+  window.__stub.seed('userData/u1/notebook/nb-2026-10-20-old', {
+    title: 'Old style entry', date: '2026-10-20', tags: ['gel'], status: 'open', phase: 'running',
+    body_html: '<p>Mixed <b>collagen</b> at 4 mg/mL.</p><img src="https://firebasestorage.googleapis.com/v0/b/x/o/a.png?alt=media">',
+    body_text: 'Mixed collagen at 4 mg/mL.', observations: [{ id: 'obs-1', at: '2026-10-20T10:00:00Z', text: 'gel set', metric: 'time', value: 30, unit: 'min' }],
+    protocol_run: { protocol_id: 'p1', protocol_title: 'Collagen gel casting', inputs: { m: 2 }, graph_state: {}, grids: [], assignment: {}, factor: 1, computed: null, frozen: true, frozen_at: '2026-10-20T11:00:00Z', snapshot: { inputs: { m: 2 }, computed: { items: [] } }, view: 'doc' },
+    created_at: '2026-10-20T09:00:00Z', updated_at: '2026-10-20T12:00:00Z', ownerUid: 'u1', schema_version: 1
+  });
+  window.__stub.seed('userData/u1/notebook/nb-v2', {
+    title: 'Block entry', date: '2026-10-22', tags: [], status: 'open', phase: 'complete', schema_version: 2,
+    body_html: '', body_text: '', created_at: '2026-10-22T09:00:00Z', updated_at: '2026-10-22T09:00:00Z', ownerUid: 'u1',
+    blocks: [
+      { id: 'b-note', type: 'note', title: 'Notes', collapsed: false, data: { html: '<p>Hello <i>world</i></p>' } },
+      { id: 'b-calc', type: 'calc', title: '', collapsed: true, data: { spec: null, inputs: {}, context: [] } },
+      { id: 'b-proto', type: 'protocol', title: '', collapsed: false, data: { run: null } },
+      { id: 'b-wb', type: 'whiteboard', title: 'Sketches', collapsed: true, data: { boardId: 'nbabc_u1', size: 'm' } },
+      { id: 'b-fig', type: 'figure', title: '', collapsed: false, data: { url: '', caption: '' } },
+      { id: 'b-ck', type: 'checklist', title: 'To do', collapsed: false, data: { items: [{ text: 'thaw cells', done: false }, { text: 'coat plates', done: true }] } }
+    ]
+  });
+  window.__stub.seed('userData/u1/notebook/_index', { entries: [
+    { id: 'nb-v2', title: 'Block entry', date: '2026-10-22', tags: [], updated_at: '2026-10-22T09:00:00Z', block_count: 6, block_types: ['note', 'calc', 'protocol', 'whiteboard', 'figure', 'checklist'] },
+    { id: 'nb-2026-10-20-old', title: 'Old style entry', date: '2026-10-20', tags: ['gel'], updated_at: '2026-10-20T12:00:00Z', excerpt: 'Mixed collagen at 4 mg/mL.' }
+  ] });
+  if (!/entry=/.test(location.search)) history.replaceState(null, '', location.pathname + '?entry=nb-v2');
+})();
+</script>
+<script src="/rm/js/icons.js"></script>
+<script src="/rm/js/notebook-schemas.js"></script>
+<script src="/rm/js/protocol-schemas.js"></script>
+</head>
+<body>
+<h1>V3.830 — block notebook: blocks render, collapse, add, migrate, save mirrors, delete</h1>
+<p>Serve the repo root (<code>python3 -m http.server 8789</code>) and open <code>/scripts/tests/v3830-notebook-selftest.html</code>. Loads the real <code>notebook-blocks.js</code> against an in-memory Firestore. Result: <code>#r[data-done=1]</code>.</p>
+<div id="r">running…</div>
+<div class="page"><div id="nbk-content" class="nbk-loading">Loading…</div></div>
+<input type="file" id="nbk-camera-input" style="display:none"><input type="file" id="nbk-file-input" style="display:none">
+<script src="/rm/js/notebook-blocks.js"></script>
+<script>
+(function () {
+  var out = [], pass = 0, fail = 0;
+  function ok(c, m, got) { if (c) pass++; else fail++; out.push('<div class="' + (c ? 'ok' : 'bad') + '">' + (c ? '✓' : '✗') + ' ' + m + (got !== undefined ? '  →  <code>' + String(got).replace(/</g, '&lt;') + '</code>' : '') + '</div>'); }
+  function done() { var r = document.getElementById('r'); r.innerHTML = '<b>' + pass + ' passed, ' + fail + ' failed</b>' + out.join(''); r.dataset.done = '1'; r.dataset.pass = pass; r.dataset.fail = fail; }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function until(fn, ms) { ms = ms || 4000; var t0 = Date.now(); return new Promise(function (res, rej) { (function poll() { var v; try { v = fn(); } catch (e) {} if (v) return res(v); if (Date.now() - t0 > ms) return rej(new Error('timeout')); setTimeout(poll, 40); })(); }); }
+  var q = function (s) { return document.querySelector(s); }, qa = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  var store = window.__stub.store;
+
+  (async function () {
+    try {
+      await until(function () { return qa('#nbk-blocks .nbk-block').length === 6; });
+      ok(qa('#nbk-rail .nbk-row').length === 2 && q('#nbk-rail .nbk-row.nbk-sel') && q('#nbk-rail .nbk-row.nbk-sel').dataset.id === 'nb-v2', 'rail lists both entries, the deep-linked one selected');
+      var types = qa('#nbk-blocks .nbk-block').map(function (n) { return n.className.match(/nbk-block-(\w+)/)[1]; });
+      ok(types.join(',') === 'note,calc,protocol,whiteboard,figure,checklist', 'six block cards in order', types.join(','));
+      ok(q('.nbk-block-whiteboard').classList.contains('nbk-collapsed') && !q('.nbk-block-whiteboard iframe'), 'a collapsed whiteboard block mounts no iframe');
+      ok(q('.nbk-block-note .nbk-note').innerHTML.indexOf('Hello <i>world</i>') >= 0, 'note block shows its HTML');
+      ok(q('.nbk-block-checklist').querySelectorAll('.nbk-ck-row').length === 2 && q('.nbk-block-checklist .nbk-bh-sum').textContent === '1/2 done', 'checklist rows + summary', q('.nbk-block-checklist .nbk-bh-sum').textContent);
+      ok(q('.nbk-block-protocol [data-load]'), 'an empty protocol block offers “Load a protocol…” inline (no popup)');
+
+      /* collapse persists + the mirror is written */
+      q('.nbk-block-checklist [data-b="toggle"]').click();
+      ok(q('.nbk-block-checklist').classList.contains('nbk-collapsed'), 'chevron collapses the checklist');
+      await until(function () { var d = store.get('userData/u1/notebook/nb-v2'); return d && d.blocks && d.blocks[5].collapsed === true; }, 3000);
+      var saved = store.get('userData/u1/notebook/nb-v2');
+      ok(saved.schema_version === 2 && /☐ thaw cells/.test(saved.body_html) && /☒ coat plates/.test(saved.body_html) && saved.body_text.indexOf('Hello world') >= 0, 'save writes blocks + the body_html/body_text mirror', saved.body_text);
+      ok(saved.protocol_run === null && Array.isArray(saved.protocol_refs) && saved.protocol_refs.length === 0, 'protocol_run mirror is null with no loaded protocol');
+
+      /* add a block through the inline menu */
+      q('[data-act="add"]').click();
+      ok(!q('#nbk-addmenu').hidden, '＋ Add block opens the inline menu');
+      q('#nbk-addmenu [data-add="note"]').click();
+      await until(function () { return qa('#nbk-blocks .nbk-block').length === 7; });
+      await until(function () { var d = store.get('userData/u1/notebook/nb-v2'); return d && d.blocks.length === 7; }, 3000);
+      var idx = store.get('userData/u1/notebook/_index');
+      var row = idx.entries.filter(function (r) { return r.id === 'nb-v2'; })[0];
+      ok(row && row.block_count === 7 && idx.entries.length === 2, 'index row updated in place through the transaction (no duplicate, other row kept)', JSON.stringify(idx.entries.map(function (r) { return r.id; })));
+
+      /* move + delete a block */
+      var last = qa('#nbk-blocks .nbk-block')[6];
+      last.querySelector('[data-b="up"]').click();
+      await wait(50);
+      ok(qa('#nbk-blocks .nbk-block')[5].className.indexOf('nbk-block-note') >= 0, '▲ moves the new note above the checklist');
+      var del = qa('#nbk-blocks .nbk-block')[5].querySelector('[data-b="del"]');
+      del.click();
+      ok(qa('#nbk-blocks .nbk-block').length === 7, 'first tap on × only arms it');
+      del.click();
+      await until(function () { return qa('#nbk-blocks .nbk-block').length === 6; });
+      ok(true, 'second tap removes the block');
+
+      /* a classic entry migrates in memory, and only writes on edit */
+      q('#nbk-rail .nbk-row[data-id="nb-2026-10-20-old"]').click();
+      await until(function () { return q('#nbk-title') && q('#nbk-title').value === 'Old style entry' && qa('#nbk-blocks .nbk-block').length >= 3; });
+      types = qa('#nbk-blocks .nbk-block').map(function (n) { return n.className.match(/nbk-block-(\w+)/)[1]; });
+      ok(types.join(',') === 'note,protocol,note', 'classic entry → note (body), protocol (run), note (observations)', types.join(','));
+      ok(q('.nbk-block-note .nbk-note img') && q('.nbk-block-note .nbk-note img').src.indexOf('firebasestorage') > 0, 'the body image survived the sanitizer');
+      ok(!Array.isArray(store.get('userData/u1/notebook/nb-2026-10-20-old').blocks), 'opening alone writes nothing');
+      ok(/Observations/.test(qa('#nbk-blocks .nbk-block')[2].querySelector('.nbk-bh-title').value) && /gel set/.test(qa('#nbk-blocks .nbk-block')[2].querySelector('.nbk-note').textContent), 'observations became a table in a note block');
+      var ed = q('.nbk-block-note .nbk-note');
+      ed.innerHTML += '<p>added later</p><script>alert(1)<\/script><img src="http://evil/x.png">';
+      ed.dispatchEvent(new Event('input', { bubbles: true }));
+      await until(function () { var d = store.get('userData/u1/notebook/nb-2026-10-20-old'); return d && Array.isArray(d.blocks); }, 4000);
+      var old = store.get('userData/u1/notebook/nb-2026-10-20-old');
+      ok(old.blocks.length === 3 && old.schema_version === 2, 'first edit writes the migrated blocks');
+      ok(old.body_html.indexOf('collagen') > 0 && old.body_html.indexOf('added later') > 0 && old.body_html.indexOf('<script') < 0 && old.body_html.indexOf('evil') < 0, 'mirror keeps the classic text + the edit; script and foreign <img> stripped', old.body_html.slice(0, 160));
+      ok(old.protocol_run && old.protocol_run.protocol_id === 'p1' && old.protocol_run.frozen === true, 'protocol_run mirror carries the (frozen) run from the protocol block');
+      ok(q('.nbk-block-protocol .nbk-run-record') || q('.nbk-block-protocol [data-run="reopen"]') || q('.nbk-block-protocol .nbk-section-label'), 'frozen protocol block renders its toolbar/record (or is loading the document)');
+
+      /* delete the entry: two taps, doc + index row gone */
+      var d1 = q('[data-act="delete"]'); d1.click(); d1.click();
+      await until(function () { return !store.has('userData/u1/notebook/nb-2026-10-20-old'); }, 3000);
+      await wait(100);
+      idx = store.get('userData/u1/notebook/_index');
+      ok(idx.entries.length === 1 && idx.entries[0].id === 'nb-v2', 'entry deleted for real and its index row removed', JSON.stringify(idx.entries.map(function (r) { return r.id; })));
+      await until(function () { return q('#nbk-title') && q('#nbk-title').value === 'Block entry'; });
+      ok(true, 'the next entry opened');
+
+      /* new entry inline form */
+      q('[data-act="new"]').click();
+      q('#nbk-newform .nbk-new-title').value = 'Fresh gels';
+      q('#nbk-newform [data-act="create"]').click();
+      await until(function () { return store.has('userData/u1/notebook/nb-' + new Date().toISOString().slice(0, 10) + '-fresh-gels'); }, 3000);
+      ok(true, 'inline new-entry form creates nb-{date}-{slug}');
+      ok(window.__popups.length === 0, 'no browser popups anywhere');
+      ok(!window.__toasts.some(function (t) { return t[0] === 'error'; }), 'no error toasts', JSON.stringify(window.__toasts));
+      ok(!window.__stub.touched.some(function (t) { return /schedules\//.test(t); }), 'nothing touched a class schedule');
+    } catch (e) { ok(false, 'exception: ' + (e && e.message)); console.error(e); }
+    done();
+  })();
+})();
+</script>
+</body>
+</html>

@@ -52,23 +52,28 @@ var TABS = [
 
 /* ---- GHS Pictogram rendering ---- */
 
+/* V3.861 — `symbol` is an icon name (ICON.render), one per GHS pictogram:
+ * exploding bomb, flame, flame-over-circle, gas cylinder, corrosion, skull,
+ * exclamation, health hazard, environment. Kept in step with LN_GHS_MAP in
+ * lab-notebook.js. */
 var GHS_PICTOGRAMS = {
-  'GHS01': { symbol: '\u2620', label: 'Explosive', color: '#dc2626' },
-  'GHS02': { symbol: '\u2622', label: 'Flammable', color: '#dc2626' },
-  'GHS03': { symbol: '\u26a0', label: 'Oxidizer', color: '#d97706' },
-  'GHS04': { symbol: '\u26c5', label: 'Compressed Gas', color: '#2563eb' },
-  'GHS05': { symbol: '\u2620', label: 'Corrosive', color: '#dc2626' },
-  'GHS06': { symbol: '\u2620', label: 'Acute Toxicity', color: '#dc2626' },
-  'GHS07': { symbol: '!', label: 'Irritant', color: '#d97706' },
-  'GHS08': { symbol: '\u2665', label: 'Health Hazard', color: '#dc2626' },
-  'GHS09': { symbol: '\u2600', label: 'Environmental', color: '#059669' },
+  'GHS01': { symbol: 'bomb',                 label: 'Explosive', color: '#dc2626' },
+  'GHS02': { symbol: 'fire',                 label: 'Flammable', color: '#dc2626' },
+  'GHS03': { symbol: 'fire',                 label: 'Oxidizer', color: '#d97706' },
+  'GHS04': { symbol: 'cylinder',             label: 'Compressed Gas', color: '#2563eb' },
+  'GHS05': { symbol: 'droplet',              label: 'Corrosive', color: '#dc2626' },
+  'GHS06': { symbol: 'skull',                label: 'Acute Toxicity', color: '#dc2626' },
+  'GHS07': { symbol: 'exclamation-triangle', label: 'Irritant', color: '#d97706' },
+  'GHS08': { symbol: 'heart-pulse',          label: 'Health Hazard', color: '#dc2626' },
+  'GHS09': { symbol: 'fish',                 label: 'Environmental', color: '#059669' },
 };
 
 function ghsPictograms(pictograms) {
   if (!pictograms || !pictograms.length) return '<span style="color:var(--text-muted);font-size:12px;">No data</span>';
   return pictograms.map(function (code) {
     var p = GHS_PICTOGRAMS[code] || { symbol: '?', label: code, color: '#6b7280' };
-    return '<span class="ghs-pictogram" style="background:' + p.color + ';" title="' + p.label + '">' + p.symbol + '</span>';
+    return '<span class="ghs-pictogram" style="background:' + p.color + ';" title="' + p.label + '">' +
+      (window.ICON && p.symbol !== '?' ? ICON.render(p.symbol) : p.symbol) + '</span>';
   }).join(' ');
 }
 
@@ -458,6 +463,11 @@ async function _saveChemsSurgical(chems) {
       batch.set(db.collection('inventory').doc(c.id), clean, { merge: true });
     });
     await batch.commit();
+    // V3.646 — see inventory.js:_saveInvItemsSurgical. A surgical write bypasses
+    // api.save, so nothing clears the route's MEDIUM (30 min) cache.
+    try {
+      if (typeof api !== 'undefined' && api.invalidate) await api.invalidate(DATA_PATH);
+    } catch (e) { /* cache hygiene must never fail a completed write */ }
   } catch (err) {
     console.warn('[chemicals] surgical save failed, falling back to full save:', err.message);
     await api.save(DATA_PATH, { chemicals: _chemicals });
@@ -471,6 +481,9 @@ async function _deleteChemSurgical(id) {
     if (_chemLive) _chemLive.suppressUntil = Date.now() + 2500;
     var db = firebridge.db();
     await db.collection('inventory').doc(id).delete();
+    try {
+      if (typeof api !== 'undefined' && api.invalidate) await api.invalidate(DATA_PATH);
+    } catch (e) { /* cache hygiene must never fail a completed write */ }
   } catch (err) {
     console.warn('[chemicals] surgical delete failed, falling back to full save:', err.message);
     await api.save(DATA_PATH, { chemicals: _chemicals });

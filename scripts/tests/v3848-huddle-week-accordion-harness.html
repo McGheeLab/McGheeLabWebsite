@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.848 — the Huddle week view is an accordion</title>
+<!-- Boots rm/js/huddle.js on an in-page stub Firestore (the V3.837 pattern) with four
+     plans in the current week, then drives the week grid: one day open, the rest
+     slivers; a tap on a sliver's header, cell or block opens that day in place. -->
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<link rel="stylesheet" href="/rm/css/huddle.css">
+<style>
+#r{position:fixed;left:8px;bottom:8px;z-index:9999;font:12px/1.4 system-ui,sans-serif;background:#fff;border:1px solid #e5e7eb;padding:6px 8px;max-width:70vw;max-height:45vh;overflow:auto}
+.ok{color:#15803d}.bad{color:#b91c1c}
+.hud-grid-wrap{height:520px !important}
+</style>
+<script>
+window.__popups = [];
+['prompt','alert','confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
+(function () {
+  var store = new Map(), listeners = [], touched = [];
+  function snapOf(path) { return { id: path.split('/').pop(), exists: store.has(path), data: function () { return store.has(path) ? JSON.parse(JSON.stringify(store.get(path))) : undefined; }, ref: docRef(path) }; }
+  function docsIn(path) { var out = []; store.forEach(function (v, k) { if (k.slice(0, k.lastIndexOf('/')) === path) out.push(snapOf(k)); }); return out; }
+  function fire(path, type) { var parent = path.slice(0, path.lastIndexOf('/')); listeners.slice().forEach(function (l) { if (l.kind === 'doc' && l.path === path) l.cb(snapOf(path)); if (l.kind === 'col' && l.path === parent) { var d = docsIn(parent); l.cb({ docChanges: function () { return [{ type: type, doc: snapOf(path) }]; }, docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); } }); }
+  function applyUpdate(path, d) { var next = Object.assign({}, store.get(path) || {}); Object.keys(d).forEach(function (k) { if (d[k] === '__DEL__') delete next[k]; else if (d[k] && d[k].__arrayUnion) next[k] = (next[k] || []).concat([d[k].__arrayUnion]); else next[k] = JSON.parse(JSON.stringify(d[k])); }); store.set(path, next); fire(path, 'modified'); }
+  function docRef(path) { return { path: path, id: path.split('/').pop(), collection: function (n) { return colRef(path + '/' + n); },
+      get: function () { touched.push('get ' + path); return Promise.resolve(snapOf(path)); },
+      set: function (d, o) { touched.push('set ' + path); var existed = store.has(path); store.set(path, (o && o.merge) ? Object.assign({}, store.get(path) || {}, JSON.parse(JSON.stringify(d))) : JSON.parse(JSON.stringify(d))); fire(path, existed ? 'modified' : 'added'); return Promise.resolve(); },
+      update: function (d) { touched.push('update ' + path); applyUpdate(path, d); return Promise.resolve(); },
+      delete: function () { touched.push('delete ' + path); store.delete(path); fire(path, 'removed'); return Promise.resolve(); },
+      onSnapshot: function (cb) { var l = { path: path, kind: 'doc', cb: cb }; listeners.push(l); setTimeout(function () { cb(snapOf(path)); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; } }; }
+  function colRef(path) { var q = { path: path, doc: function (id) { return docRef(path + '/' + (id || ('auto' + Math.random().toString(36).slice(2, 8)))); }, orderBy: function () { return q; }, where: function () { return q; }, limit: function () { return q; },
+      add: function (d) { var r = q.doc(); return r.set(d).then(function () { return r; }); },
+      get: function () { var d = docsIn(path); return Promise.resolve({ docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); },
+      onSnapshot: function (cb, err) { var l = { path: path, kind: 'col', cb: cb }; listeners.push(l); var d = docsIn(path); setTimeout(function () { cb({ docChanges: function () { return d.map(function (s) { return { type: 'added', doc: s }; }); }, docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; } }; return q; }
+  var db = { collection: function (n) { return colRef(n); },
+    batch: function () { var ops = []; return { set: function (ref, d, o) { ops.push(function () { return ref.set(d, o); }); }, update: function (ref, d) { ops.push(function () { return ref.update(d); }); }, delete: function (ref) { ops.push(function () { return ref.delete(); }); }, commit: function () { return ops.reduce(function (p, f) { return p.then(f); }, Promise.resolve()); } }; } };
+  window.__stub = { store: store, touched: touched, db: db };
+  window.firebase = { firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; }, delete: function () { return '__DEL__'; }, arrayUnion: function (x) { return { __arrayUnion: x }; } }, Timestamp: { now: function () { return { toMillis: function () { return Date.now(); } }; } } } };
+  window.firebridge = { requireSignIn: function () { return Promise.resolve({ allowed: true }); }, gateSignedIn: function () {}, isLabMember: function () { return true; }, isAdmin: function () { return false; },
+    getUser: function () { return { uid: 'u1', email: 'ada@x.com', displayName: 'Ada Lovelace' }; }, getProfile: function () { return { name: 'Ada Lovelace', role: 'member', category: 'grad' }; }, onAuth: function () {}, db: function () { return db; } };
+  window.TOAST = { info: function () {}, success: function () {}, error: function () {} };
+
+  /* the same week maths as huddle.js (Monday start, local dates) */
+  function localDateStr(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function getMonday(offset) { var d = new Date(); d.setHours(12, 0, 0, 0); var day = d.getDay(); d.setDate(d.getDate() - day + 1 + (offset * 7)); return d; }
+  function getWeekId(offset) { var mon = getMonday(offset); var tmp = new Date(mon.getTime()); tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay() + 6) % 7)); var jan4 = new Date(tmp.getFullYear(), 0, 4); var weekNum = 1 + Math.round(((tmp - jan4) / 86400000 - 3 + ((jan4.getDay() + 6) % 7)) / 7); return tmp.getFullYear() + '-W' + String(weekNum).padStart(2, '0'); }
+  var today = localDateStr(new Date()), mon = getMonday(0), days = [];
+  for (var i = 0; i < 7; i++) { var d = new Date(mon); d.setDate(mon.getDate() + i); days.push(localDateStr(d)); }
+  var other = days.find(function (x) { return x !== today; });
+  window.__wk = { today: today, other: other, days: days, weekId: getWeekId(0), nextMonday: localDateStr(getMonday(1)) };
+  var wk = getWeekId(0);
+  store.set('huddlePlans/p1', { ownerUid: 'u1', ownerName: 'Ada Lovelace', weekId: wk, plannedDay: today, startTime: '09:00', endTime: '10:30', text: 'Western blot', status: 'planned', watchers: [], joiners: [], joinRequests: [] });
+  store.set('huddlePlans/p2', { ownerUid: 'u2', ownerName: 'Grace Hopper', weekId: wk, plannedDay: today, startTime: '09:30', endTime: '11:00', text: 'Image cells', status: 'planned', watchers: [], joiners: [], joinRequests: [] });
+  store.set('huddlePlans/p3', { ownerUid: 'u2', ownerName: 'Grace Hopper', weekId: wk, plannedDay: other, startTime: '13:00', endTime: '14:00', text: 'PCR run', status: 'planned', watchers: [], joiners: [], joinRequests: [] });
+  store.set('huddlePlans/p4', { ownerUid: 'u1', ownerName: 'Ada Lovelace', weekId: wk, plannedDay: other, startTime: null, endTime: null, text: 'Order reagents', status: 'planned', watchers: [], joiners: [], joinRequests: [] });
+})();
+</script>
+<script src="/rm/js/icons.js"></script>
+<script src="/rm/js/schedule-utils.js"></script>
+</head>
+<body>
+<div class="page page-wide"><div id="huddle-root"></div></div>
+<div id="r">running…</div>
+<script src="/rm/js/huddle.js"></script>
+<script>
+(async function () {
+  var out = [], fails = 0;
+  function check(name, ok, detail) { out.push('<div class="' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓' : '✗') + ' ' + name + (detail ? ' <small>' + String(detail).replace(/</g, '&lt;') + '</small>' : '') + '</div>'); if (!ok) fails++; }
+  function q(s) { return document.querySelector(s); }
+  function qa(s) { return Array.from(document.querySelectorAll(s)); }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function until(fn, ms) { var t0 = Date.now(); while (Date.now() - t0 < (ms || 8000)) { try { var v = fn(); if (v) return v; } catch (e) {} await sleep(60); } return null; }
+  function w(el) { return el ? Math.round(el.getBoundingClientRect().width) : -1; }
+  function openHeaders() { return qa('.hud-grid-day-header.hud-col-open'); }
+  function visible(el) { return !!el && getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().width > 0; }
+  function click(el) { el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); }
+  function finish() { var r = document.getElementById('r'); r.innerHTML = out.join('') + '<div><b>' + (out.length - fails) + '/' + out.length + ' passed</b></div>'; r.dataset.done = '1'; r.dataset.fails = String(fails); }
+
+  var grid = await until(function () { return q('.hud-time-grid.hud-accordion .hud-grid-block') && q('.hud-time-grid.hud-accordion'); });
+  check('the week grid renders as an accordion with the week\'s plans on it', !!grid);
+  if (!grid) { finish(); return; }
+  await sleep(150);
+  grid = q('.hud-time-grid.hud-accordion');   // the plans snapshot re-renders once after boot; hold the live element
+  var W = window.__wk;
+  var headers = qa('.hud-grid-day-header[data-day]');
+  check('seven day headers carry data-day', headers.length === 7 && headers.map(function (h) { return h.dataset.day; }).join(',') === W.days.join(','), headers.map(function (h) { return h.dataset.day; }).join(','));
+  check('exactly one day is open, and it is today', openHeaders().length === 1 && openHeaders()[0].dataset.day === W.today, openHeaders().map(function (h) { return h.dataset.day; }).join(','));
+  check('the open header says so (aria-expanded) and the others are buttons', openHeaders()[0].getAttribute('aria-expanded') === 'true' && headers.every(function (h) { return h.getAttribute('role') === 'button'; }) && qa('.hud-grid-day-header[aria-expanded="false"]').length === 6);
+  var openW = w(openHeaders()[0]), closedW = w(q('.hud-grid-day-header.hud-col-closed'));
+  check('the open column is at least 6× a sliver', openW >= 6 * closedW && closedW > 8, openW + ' vs ' + closedW);
+  var openBlock = q('.hud-grid-block.hud-col-open'), closedBlock = q('.hud-grid-block.hud-col-closed');
+  check('today\'s two overlapping plans render side by side in the open column', qa('.hud-grid-block.hud-col-open').length === 2 && openBlock.dataset.laneCount === '2');
+  check('the open day\'s blocks show their text', visible(openBlock.querySelector('.hud-block-text')) && openBlock.querySelector('.hud-block-text').textContent.length > 3);
+  check('a sliver block shows no text', !!closedBlock && !visible(closedBlock.querySelector('.hud-block-text')) && !visible(closedBlock.querySelector('.hud-block-head')));
+  var bgClosed = getComputedStyle(closedBlock).backgroundColor, bgOpen = getComputedStyle(openBlock).backgroundColor;
+  check('a sliver block is the owner\'s solid colour (the open block stays tinted)', /^rgb\(/.test(bgClosed) && /^rgba\(/.test(bgOpen), bgClosed + ' | ' + bgOpen);
+  var alldayClosed = q('.hud-allday-block.hud-col-closed');
+  check('an all-day plan on a closed day is a colour bar with no text', !!alldayClosed && Math.round(alldayClosed.getBoundingClientRect().height) <= 8 && parseFloat(getComputedStyle(alldayClosed).fontSize) === 0, alldayClosed && alldayClosed.getBoundingClientRect().height);
+  var colsBefore = grid.style.gridTemplateColumns;
+
+  /* 1. tap a closed header */
+  var target = headers.find(function (h) { return h.dataset.day === W.other; });
+  click(target);
+  await sleep(50);
+  check('tapping a sliver\'s header opens that day and closes today', openHeaders().length === 1 && openHeaders()[0].dataset.day === W.other && !headers.find(function (h) { return h.dataset.day === W.today; }).classList.contains('hud-col-open'));
+  check('the track list changed in place (no re-render: same grid element)', q('.hud-time-grid.hud-accordion') === grid && grid.style.gridTemplateColumns !== colsBefore && grid.style.gridTemplateColumns.indexOf('--hud-open') > 0);
+  check('aria-expanded follows the open day', target.getAttribute('aria-expanded') === 'true' && qa('.hud-grid-day-header[aria-expanded="true"]').length === 1);
+  check('the newly open day\'s block now shows its text; today\'s block is a sliver', visible(q('.hud-grid-block[data-day="' + W.other + '"] .hud-block-text')) && !visible(q('.hud-grid-block[data-day="' + W.today + '"] .hud-block-text')));
+
+  /* 2. tap a sliver block: opens the day, no popup */
+  var sliverBlock = q('.hud-grid-block.hud-col-closed[data-day="' + W.today + '"]');
+  click(sliverBlock);
+  await sleep(50);
+  check('tapping a sliver block opens its day instead of the plan popup', openHeaders()[0].dataset.day === W.today && !q('#hud-main [class*="popup"]'));
+
+  /* 3. pointerdown on a closed cell never starts a drag; a click opens the day */
+  var closedCell = q('.hud-grid-cell.hud-col-closed[data-day="' + W.other + '"][data-drop-time="10:00"]');
+  closedCell.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 7, pointerType: 'touch' }));
+  await sleep(20);
+  check('a pointer down on a closed day does not start drag-to-create', !q('.hud-grid-cell--selected'));
+  click(closedCell);
+  await sleep(50);
+  check('a tap on a closed day\'s empty cell opens that day', openHeaders()[0].dataset.day === W.other);
+
+  /* 4. drag-to-create still works on the open day, and the open day survives the re-render */
+  var openCell = q('.hud-grid-cell.hud-col-open[data-drop-time="15:00"]');
+  openCell.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 8, pointerType: 'mouse' }));
+  await sleep(20);
+  check('a pointer down on the open day starts the drag (cell highlighted)', !!q('.hud-grid-cell--selected'));
+  q('.hud-time-grid.hud-accordion').dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerId: 8, pointerType: 'mouse' }));
+  await sleep(120);
+  check('the composer opened for that slot (15:00 prefilled) and the same day is still the open one', !!q('#hud-composer.hud-composer--open #hud-plan-text') && openHeaders().length === 1 && openHeaders()[0].dataset.day === W.other, q('#hud-composer.hud-composer--open') ? 'composer open' : 'composer closed');
+
+  /* 5. next week: today is off screen → Monday opens; This Week → today again */
+  click(q('#hud-week-next'));
+  await sleep(150);
+  var g2 = q('.hud-time-grid.hud-accordion');
+  check('next week opens its Monday (today is not on screen)', !!g2 && openHeaders().length === 1 && openHeaders()[0].dataset.day === W.nextMonday, openHeaders().map(function (h) { return h.dataset.day; }).join(','));
+  click(q('#hud-week-today'));
+  await sleep(150);
+  check('back on this week, today is the open day again', openHeaders().length === 1 && openHeaders()[0].dataset.day === W.today);
+
+  /* 6. the Day view is one plain column; back to Week is the accordion again */
+  click(q('.hud-view-btn[data-view="daily"]'));
+  await sleep(120);
+  check('the Day view grid is not an accordion', !!q('.hud-time-grid') && !q('.hud-time-grid.hud-accordion'));
+  click(q('.hud-view-btn[data-view="weekly"]'));
+  await sleep(120);
+  check('the Week view is the accordion again with today open', !!q('.hud-time-grid.hud-accordion') && openHeaders().length === 1 && openHeaders()[0].dataset.day === W.today);
+
+  /* 7. keyboard: Enter on a closed header */
+  var kb = qa('.hud-grid-day-header.hud-col-closed')[2];
+  kb.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  await sleep(50);
+  check('Enter on a focused closed header opens it', kb.classList.contains('hud-col-open') && openHeaders().length === 1);
+
+  check('no browser popups', window.__popups.length === 0);
+  check('no raw SVG markup leaked into text', document.body.innerText.indexOf('<svg') < 0);
+  finish();
+})();
+</script>
+</body>
+</html>

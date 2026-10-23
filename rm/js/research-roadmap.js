@@ -43,7 +43,7 @@
     var st = RM.FIGURE_STATUS[fig.status] || RM.FIGURE_STATUS.none;
     var label = fig.figure_ref ? fig.figure_ref : kind.label;
     return '<span class="rmap-fig" title="' + esc(kind.label) + ' — ' + esc(st.label) + '">' +
-      '<span class="rmap-fig-kind">' + kind.icon + ' ' + esc(label) + '</span>' +
+      '<span class="rmap-fig-kind">' + ICON.render(kind.icon) + ' ' + esc(label) + '</span>' +
       (fig.caption_target ? '<span class="rmap-fig-cap">' + esc(fig.caption_target) + '</span>' : '') +
       '<span class="rmap-fig-st" style="color:' + st.color + ';background:' + st.bg + '">' + esc(st.label) + '</span>' +
     '</span>';
@@ -58,7 +58,7 @@
       var rel = RM.RELEVANCE[r.relevance] || 'Supporting';
       return '<li class="rmap-ref" data-ref="' + esc(r.id) + '" data-item="' + esc(r.item_id) + '">' +
         '<a class="rmap-ref-title" href="/rm/pages/library-paper.html?id=' + encodeURIComponent(r.item_id) + '">' +
-          '📄 ' + esc(r.title_snapshot || r.item_id) +
+          ICON.svg('document-text') + ' ' + esc(r.title_snapshot || r.item_id) +
           (r.year_snapshot ? ' <span class="rmap-ref-yr">(' + esc(r.year_snapshot) + ')</span>' : '') +
         '</a>' +
         '<span class="rmap-ref-rel" data-rel="' + esc(r.relevance) + '">' + esc(rel) + '</span>' +
@@ -66,8 +66,8 @@
         '<span class="rmap-ref-by">— ' + esc(r.creator_name || 'someone') + '</span>' +
         (canManage(r)
           ? '<span class="rmap-ref-acts">' +
-              '<button class="rf-btn-xs" data-act="roadmap-ref-edit" title="Edit the note">✎</button>' +
-              '<button class="rf-btn-xs" data-act="roadmap-ref-remove" title="Detach this paper">✕</button>' +
+              '<button class="rf-btn-xs" data-act="roadmap-ref-edit" title="Edit the note">' + ICON.svg('pencil') + '</button>' +
+              '<button class="rf-btn-xs" data-act="roadmap-ref-remove" title="Detach this paper">' + ICON.svg('x-mark') + '</button>' +
             '</span>'
           : '') +
       '</li>';
@@ -99,7 +99,7 @@
         ? '<span class="rmap-board-prog">' + prog.final + ' of ' + prog.total + ' final' +
           (prog.drafted ? ' · ' + prog.drafted + ' drafted' : '') + '</span>'
         : '') +
-      (canEdit ? '<button class="rf-btn rf-btn-sm" data-act="edit-board">🖼 Edit figure board</button>' : '') +
+      (canEdit ? '<button class="rf-btn rf-btn-sm" data-act="edit-board">' + ICON.svg('photo') + ' Edit figure board</button>' : '') +
     '</div>';
 
     if (!figs.length) {
@@ -132,7 +132,7 @@
           : '<span class="rmap-bfig-ph-sm">' + esc(p.letter) + '</span>';
       }).join('') + '</div>';
     } else {
-      art = '<div class="rmap-bfig-img rmap-bfig-ph">🖼<span>no image yet</span></div>';
+      art = '<div class="rmap-bfig-img rmap-bfig-ph">' + ICON.svg('photo') + '<span>no image yet</span></div>';
     }
 
     return '<figure class="rmap-bfig" id="rmap-' + esc(x.id) + '" data-bfig="' + esc(x.id) + '">' +
@@ -170,7 +170,7 @@
         : '') +
       '</h2>' +
       (canEdit
-        ? '<span class="rf-sec-actions"><button class="rf-btn rf-btn-sm" data-act="edit-roadmap">✎ Edit roadmap</button></span>'
+        ? '<span class="rf-sec-actions"><button class="rf-btn rf-btn-sm" data-act="edit-roadmap">' + ICON.svg('pencil') + ' Edit roadmap</button></span>'
         : '') +
     '</div>';
 
@@ -269,7 +269,7 @@
         var rows = byAn[h.getAttribute('data-claims-for')] || [];
         if (!rows.length) return;
         h.innerHTML = '<span class="rmap-claim" title="' +
-          esc(rows.map(function (c) { return c.name; }).join(', ')) + '">🎯 ' +
+          esc(rows.map(function (c) { return c.name; }).join(', ')) + '">' + ICON.svg('target') + ' ' +
           esc(rows.map(function (c) { return c.name; }).join(', ')) + '</span>';
       });
     } catch (e) { /* claims are a nicety — never break the section */ }
@@ -283,7 +283,12 @@
    * lost between renders. Saved once at the end — the doc is admin-write,
    * so there is no concurrent writer to merge against. */
   function openEditor(f, onDone) {
-    if (!RM.isAdmin()) { alert('Only the PI can edit a roadmap.'); return; }
+    // V3.851 — the proposer and their advisor edit an undecided card's
+    // roadmap too (RD.mayEdit mirrors the rule); a toast, never a popup.
+    if (!(RD.mayEdit ? RD.mayEdit(f) : RM.isAdmin())) {
+      if (window.TOAST && TOAST.error) TOAST.error('Only the PI can edit an approved card’s roadmap.');
+      return;
+    }
     var draft = RM.hydrate(f.roadmap);
     var m = RD.modal({ title: 'Roadmap — ' + (f.title || f.id), wide: true });
     var bulkFor = null;   // experiment id whose bulk-add textarea is open
@@ -302,16 +307,16 @@
         '<div class="rmap-ed-an-top">' +
           '<input type="text" class="rmap-ed-an-title" data-id="' + esc(a.id) + '" placeholder="Analysis — e.g. Void space over time" value="' + esc(a.title) + '">' +
           statusSelect('rmap-ed-an-status', a.id, a.status) +
-          '<button type="button" class="rf-btn-xs" data-ed="an-up" title="Move up">▲</button>' +
-          '<button type="button" class="rf-btn-xs" data-ed="an-down" title="Move down">▼</button>' +
-          '<button type="button" class="rf-btn-xs rf-btn-danger" data-ed="an-del" title="Delete analysis">✕</button>' +
+          '<button type="button" class="rf-btn-xs" data-ed="an-up" title="Move up">' + ICON.svg('chevron-up') + '</button>' +
+          '<button type="button" class="rf-btn-xs" data-ed="an-down" title="Move down">' + ICON.svg('chevron-down') + '</button>' +
+          '<button type="button" class="rf-btn-xs rf-btn-danger" data-ed="an-del" title="Delete analysis">' + ICON.svg('x-mark') + '</button>' +
         '</div>' +
         '<input type="text" class="rmap-ed-an-note" data-id="' + esc(a.id) + '" placeholder="How is it measured? (optional)" value="' + esc(a.method_note) + '">' +
         '<div class="rmap-ed-fig">' +
           '<label class="rmap-ed-check"><input type="checkbox" class="rmap-ed-fig-needed" data-id="' + esc(a.id) + '"' + (fig.needed ? ' checked' : '') + '> needs a figure</label>' +
           '<select class="rmap-ed-fig-kind" data-id="' + esc(a.id) + '">' +
             Object.keys(RM.FIGURE_KINDS).map(function (k) {
-              return '<option value="' + k + '"' + (k === fig.kind ? ' selected' : '') + '>' + RM.FIGURE_KINDS[k].icon + ' ' + esc(RM.FIGURE_KINDS[k].label) + '</option>';
+              return '<option value="' + k + '"' + (k === fig.kind ? ' selected' : '') + '>' + esc(RM.FIGURE_KINDS[k].label) + '</option>';
             }).join('') + '</select>' +
           '<input type="text" class="rmap-ed-fig-ref" data-id="' + esc(a.id) + '" placeholder="Fig 2b" value="' + esc(fig.figure_ref) + '">' +
           '<select class="rmap-ed-fig-status" data-id="' + esc(a.id) + '">' +
@@ -329,9 +334,9 @@
         '<div class="rmap-ed-exp-top">' +
           '<input type="text" class="rmap-ed-exp-title" data-id="' + esc(x.id) + '" placeholder="Experiment — e.g. Confocal time-point measurements of granules in various conditions" value="' + esc(x.title) + '">' +
           statusSelect('rmap-ed-exp-status', x.id, x.status) +
-          '<button type="button" class="rf-btn-xs" data-ed="exp-up" title="Move up">▲</button>' +
-          '<button type="button" class="rf-btn-xs" data-ed="exp-down" title="Move down">▼</button>' +
-          '<button type="button" class="rf-btn-xs rf-btn-danger" data-ed="exp-del" title="Delete experiment">✕</button>' +
+          '<button type="button" class="rf-btn-xs" data-ed="exp-up" title="Move up">' + ICON.svg('chevron-up') + '</button>' +
+          '<button type="button" class="rf-btn-xs" data-ed="exp-down" title="Move down">' + ICON.svg('chevron-down') + '</button>' +
+          '<button type="button" class="rf-btn-xs rf-btn-danger" data-ed="exp-del" title="Delete experiment">' + ICON.svg('x-mark') + '</button>' +
         '</div>' +
         RESEARCH_COMPOSER.richToolbar() +
         '<div class="rf-richtext-edit rmap-ed-exp-desc" contenteditable="true" data-id="' + esc(x.id) + '">' + sanitize(x.description_html) + '</div>' +
@@ -344,8 +349,8 @@
             '</div>'
           : '') +
         '<div class="rmap-ed-exp-foot">' +
-          '<button type="button" class="rf-btn rf-btn-sm" data-ed="an-add">＋ Analysis</button>' +
-          (bulkFor === x.id ? '' : '<button type="button" class="rf-btn rf-btn-sm" data-ed="bulk-open">⤵ Paste a list</button>') +
+          '<button type="button" class="rf-btn rf-btn-sm" data-ed="an-add">' + ICON.svg('plus') + ' Analysis</button>' +
+          (bulkFor === x.id ? '' : '<button type="button" class="rf-btn rf-btn-sm" data-ed="bulk-open">' + ICON.svg('arrow-turn-right-down') + ' Paste a list</button>') +
         '</div>' +
       '</fieldset>';
     }
@@ -358,7 +363,7 @@
           '<div class="rf-richtext-edit rmap-ed-intro" contenteditable="true">' + sanitize(draft.intro_html) + '</div>' +
         '</div>' +
         '<div class="rmap-ed-exps">' + draft.experiments.map(expBlock).join('') + '</div>' +
-        '<button type="button" class="rf-btn rf-btn-sm" data-ed="exp-add">＋ Experiment</button>' +
+        '<button type="button" class="rf-btn rf-btn-sm" data-ed="exp-add">' + ICON.svg('plus') + ' Experiment</button>' +
         '<div class="rf-modal-actions">' +
           '<span class="rf-modal-err" data-err></span>' +
           '<button type="button" class="rf-btn" data-ed="cancel">Cancel</button>' +
@@ -488,32 +493,78 @@
    * Structure comes from state.foci (already loaded — roadmaps ride on
    * the card docs), so the only extra read is one whole-collection get of
    * roadmapClaims. */
+  /* ── the hub band (V3.603, rebuilt around grants V3.725) ─────
+   *
+   * Three columns that read left to right as one sentence: which GRANT we
+   * are driving forward → what is unclaimed under the one you picked → who
+   * is on it this week. Column 1 is the selector; the other two follow it.
+   *
+   * Before V3.725 column 1 listed every output card that happened to own a
+   * roadmap, so the lab's top-level view was a list of papers and the two
+   * columns beside it mixed every grant's work together. A grant is the
+   * unit work is actually spent against, so it is the unit here too.
+   *
+   * Starts COLLAPSED (Alex): it is an orientation panel, not the page. The
+   * open flag is module state rather than markup, so a claim — which
+   * re-renders the whole hub — does not slam the panel shut mid-action. */
+  var _bandOpen = false;      // "start collapsed" = per page load, not forever
+  var _bandGrant = null;      // selected grant id, or '' for the unattached bucket
+
+  function bandGrants(state) {
+    var RD = window.RESEARCH_DATA;
+    var withWork = (state.foci || []).filter(function (f) {
+      return (f.level === 'aim' || f.level === 'output') && !RM.isEmpty(RM.hydrate(f.roadmap));
+    });
+    var grants = (state.foci || []).filter(function (f) { return f.level === 'grant'; });
+    var out = [];
+    grants.forEach(function (g) {
+      var mine = withWork.filter(function (c) {
+        return RD.grantIdsForCard(c, state.foci).some(function (h) { return h.id === g.id && !h.indirect; });
+      });
+      if (mine.length) out.push({ id: g.id, grant: g, cards: mine });
+    });
+    // Roadmap work that reaches no grant must not vanish from the lab's
+    // top-level view just because nobody has linked it yet.
+    var claimedIds = {};
+    out.forEach(function (b) { b.cards.forEach(function (c) { claimedIds[c.id] = 1; }); });
+    var loose = withWork.filter(function (c) { return !claimedIds[c.id]; });
+    if (loose.length) out.push({ id: '', grant: null, cards: loose });
+    return out;
+  }
+
   async function renderHubBand(host, state) {
     if (!host || !RM) return;
-    var cards = (state.foci || []).filter(function (f) {
-      return f.level === 'output' && !RM.isEmpty(RM.hydrate(f.roadmap));
-    });
-    if (!cards.length) { host.innerHTML = ''; return; }
+    var buckets = bandGrants(state);
+    if (!buckets.length) { host.innerHTML = ''; return; }
+
+    if (_bandGrant === null || !buckets.some(function (b) { return b.id === _bandGrant; })) {
+      _bandGrant = buckets[0].id;      // something is always selected
+    }
 
     var week = window.FOCUS_AREAS ? FOCUS_AREAS.weekIdFor() : '';
     var claims = [];
     try { claims = await RM.listClaims(); } catch (e) {}
     // Claim docs are keyed {uid}__{analysisId} and persist across weeks;
     // only this week's are "who's on it now".
-    var thisWeek = claims.filter(function (c) { return !week || c.week_id === week; });
     var byAnalysis = {};
-    thisWeek.forEach(function (c) { (byAnalysis[c.analysis_id] = byAnalysis[c.analysis_id] || []).push(c); });
+    claims.filter(function (c) { return !week || c.week_id === week; })
+      .forEach(function (c) { (byAnalysis[c.analysis_id] = byAnalysis[c.analysis_id] || []).push(c); });
 
-    var goals = [], open = [], taken = [];
-    cards.forEach(function (f) {
-      var rm = RM.hydrate(f.roadmap);
-      var prog = RM.progressOf(rm);
-      goals.push({ f: f, prog: prog });
-      RM.flattenAnalyses(rm).forEach(function (a) {
-        var who = byAnalysis[a.analysis_id] || [];
-        var row = { f: f, a: a, who: who };
-        if (who.length) taken.push(row);
-        else if (a.analysis.status !== 'done') open.push(row);
+    // Per-bucket tallies for column 1; the open/taken rows for the SELECTED
+    // bucket only, which is what the other two columns show.
+    var open = [], taken = [];
+    buckets.forEach(function (b) {
+      b.done = 0; b.total = 0; b.open = 0; b.taken = 0;
+      b.cards.forEach(function (f) {
+        var rm = RM.hydrate(f.roadmap);
+        var prog = RM.progressOf(rm);
+        b.done += prog.done; b.total += prog.total;
+        RM.flattenAnalyses(rm).forEach(function (a) {
+          var who = byAnalysis[a.analysis_id] || [];
+          var row = { f: f, a: a, who: who };
+          if (who.length) { b.taken++; if (b.id === _bandGrant) taken.push(row); }
+          else if (a.analysis.status !== 'done') { b.open++; if (b.id === _bandGrant) open.push(row); }
+        });
       });
     });
     // Blocked first: an analysis someone gave up on is the most useful
@@ -526,38 +577,65 @@
     }
     open.sort(function (x, y) { return rankOf(x) - rankOf(y); });
 
+    var sel = buckets.filter(function (b) { return b.id === _bandGrant; })[0];
+    var selName = sel && sel.grant ? (sel.grant.abbr || sel.grant.title) : 'work with no grant';
+
     host.innerHTML =
       '<section class="rf-band rmap-band">' +
-        '<div class="rf-band-head"><div>' +
-          '<h2 class="rf-band-title">How the lab moves forward</h2>' +
-          '<p class="rf-band-sub">What we’re driving toward, what’s unclaimed, and who’s on what this week.</p>' +
-        '</div></div>' +
-        '<div class="rmap-band-cols">' +
-          goalsCol(goals) +
-          openCol(open) +
-          takenCol(taken) +
-        '</div>' +
+        '<details class="rmap-band-details"' + (_bandOpen ? ' open' : '') + '>' +
+          '<summary class="rf-band-head">' +
+            '<div><h2 class="rf-band-title">How the lab moves forward</h2>' +
+            '<p class="rf-band-sub">Which grant we’re driving forward, what’s unclaimed under it, and who’s on it this week.</p></div>' +
+            '<span class="rmap-band-toggle"></span>' +
+          '</summary>' +
+          '<div class="rmap-band-cols">' +
+            grantsCol(buckets) +
+            openCol(open, selName) +
+            takenCol(taken, selName) +
+          '</div>' +
+        '</details>' +
       '</section>';
+
+    var det = host.querySelector('.rmap-band-details');
+    if (det) det.addEventListener('toggle', function () { _bandOpen = det.open; });
+    host.addEventListener('click', function (e) {
+      var pick = e.target.closest('[data-band-grant]');
+      if (!pick) return;
+      e.preventDefault();
+      _bandGrant = pick.getAttribute('data-band-grant');
+      _bandOpen = true;
+      renderHubBand(host, state);
+    });
   }
 
-  function goalsCol(goals) {
+  /* Column 1 — the selector. One card per grant that has roadmap work
+   * beneath it, plus an "unattached" bucket so nothing disappears. */
+  function grantsCol(buckets) {
     return '<div class="rmap-band-col">' +
-      '<h3 class="rmap-band-h">🎯 What we’re driving toward</h3>' +
-      goals.map(function (g) {
-        var pct = g.prog.total ? Math.round((g.prog.done / g.prog.total) * 100) : 0;
-        return '<a class="rmap-goal" href="/rm/pages/research.html?id=' + encodeURIComponent(g.f.id) + '">' +
-          '<span class="rmap-goal-title">' + esc(g.f.title || g.f.id) + '</span>' +
-          (g.f.one_liner ? '<span class="rmap-goal-liner">' + esc(g.f.one_liner) + '</span>' : '') +
+      '<h3 class="rmap-band-h">' + ICON.svg('target') + ' What we’re driving forward</h3>' +
+      buckets.map(function (b) {
+        var pct = b.total ? Math.round((b.done / b.total) * 100) : 0;
+        var on = b.id === _bandGrant;
+        var title = b.grant ? (b.grant.title || b.grant.id) : 'Not under a grant';
+        return '<button type="button" class="rmap-goal rmap-goal-pick' + (on ? ' rmap-goal-on' : '') + '" ' +
+            'data-band-grant="' + esc(b.id) + '" aria-pressed="' + on + '">' +
+          '<span class="rmap-goal-title">' +
+            (b.grant ? ICON.render(b.grant.icon || 'bookmark-square') + ' ' : '') + esc(title) + '</span>' +
+          (b.grant && b.grant.one_liner
+            ? '<span class="rmap-goal-liner">' + esc(b.grant.one_liner) + '</span>' : '') +
           '<span class="rmap-goal-bar"><span style="width:' + pct + '%"></span></span>' +
-          '<span class="rmap-goal-num">' + g.prog.done + ' of ' + g.prog.total + ' analyses done</span>' +
-        '</a>';
+          '<span class="rmap-goal-num">' + b.done + ' of ' + b.total + ' analyses done' +
+            (b.open ? ' · ' + b.open + ' open' : '') +
+            (b.taken ? ' · ' + b.taken + ' being worked' : '') + '</span>' +
+        '</button>';
       }).join('') +
     '</div>';
   }
 
-  function openCol(open) {
+  function openCol(open, selName) {
     return '<div class="rmap-band-col">' +
-      '<h3 class="rmap-band-h">🙋 Open work you could pick up</h3>' +
+      '<h3 class="rmap-band-h">' + ICON.svg('hand-raised') + ' Open work you could pick up</h3>' +
+      '<p class="rmap-band-scope">in ' + esc(selName) + '</p>' +
       (open.length
         ? open.map(function (r) {
             var fig = r.a.analysis.figure;
@@ -571,17 +649,18 @@
               (fig && fig.needed && fig.caption_target
                 ? '<div class="rmap-open-fig">→ ' + esc(fig.caption_target) + '</div>' : '') +
               (window.FOCUS_AREAS
-                ? '<button class="rf-btn rf-btn-xs rf-btn-primary" data-act="roadmap-claim">🎯 Make this my focus</button>'
+                ? '<button class="rf-btn rf-btn-xs rf-btn-primary" data-act="roadmap-claim">' + ICON.svg('target') + ' Make this my focus</button>'
                 : '') +
             '</div>';
           }).join('')
-        : '<p class="rf-empty-sm">Every analysis on every roadmap is claimed or done. Ask the PI what’s next.</p>') +
+        : '<p class="rf-empty-sm">Nothing unclaimed here — every analysis under this grant is taken or done.</p>') +
     '</div>';
   }
 
-  function takenCol(taken) {
+  function takenCol(taken, selName) {
     return '<div class="rmap-band-col">' +
-      '<h3 class="rmap-band-h">👥 Who’s on what this week</h3>' +
+      '<h3 class="rmap-band-h">' + ICON.svg('users') + ' Who’s on what this week</h3>' +
+      '<p class="rmap-band-scope">in ' + esc(selName) + '</p>' +
       (taken.length
         ? taken.map(function (r) {
             return '<div class="rmap-taken">' +
@@ -591,7 +670,7 @@
               '<span class="rmap-taken-ctx">' + esc(r.f.title) + '</span>' +
             '</div>';
           }).join('')
-        : '<p class="rf-empty-sm">Nobody has aligned a week to a specific analysis yet. Team Focus and My Day are where that happens.</p>') +
+        : '<p class="rf-empty-sm">Nobody has aligned a week to an analysis under this grant yet. Team Focus and My Week are where that happens.</p>') +
     '</div>';
   }
 
@@ -609,7 +688,7 @@
     if (!row) return;
 
     if (!confirm('Make "' + row.analysis_title + '" your focus for this week?\n\n' +
-      'It becomes a proposed focus area on your My Day and Team Focus, and the lab sees it as taken. ' +
+      'It becomes a proposed focus area on your My Week and Team Focus, and the lab sees it as taken. ' +
       'Your mentor signs off from there.')) return;
 
     btn.disabled = true; btn.textContent = 'Claiming…';
@@ -632,10 +711,10 @@
         uid: me.uid, foci_id: fociId, experiment_id: row.experiment_id,
         analysis_id: anId, analysis_title: row.analysis_title, week_id: created.weekId,
       });
-      if (window.TOAST) TOAST.success('It’s yours this week — see it on My Day.');
+      if (window.TOAST) TOAST.success('It’s yours this week — see it on My Week.');
       return true;
     } catch (err) {
-      btn.disabled = false; btn.textContent = '🎯 Make this my focus';
+      btn.disabled = false; ICON.label(btn, 'target', ' Make this my focus');
       if (window.TOAST) TOAST.error('Could not claim that: ' + (err && err.message));
       return false;
     }

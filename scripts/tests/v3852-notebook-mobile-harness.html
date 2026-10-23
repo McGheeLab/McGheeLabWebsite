@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.852 — the notebook on a phone: every card in ✎ Edit and ⚙ Settings</title>
+<!-- The V3.833 stub with a canvas entry of every card kind, a region and an instance, opened with ?mobile=1. -->
+<link rel="stylesheet" href="/whiteboard-board.css">
+<link rel="stylesheet" href="/rm/css/notebook-blocks.css">
+<link rel="stylesheet" href="/rm/css/canvas-widgets.css">
+<link rel="stylesheet" href="/rm/css/canvas-paper-reader.css">
+<link rel="stylesheet" href="/rm/css/notebook-canvas.css">
+<style>body{font:13px/1.5 system-ui,sans-serif;margin:0}.ok{color:#15803d}.bad{color:#b91c1c}
+#r{position:fixed;left:8px;top:8px;z-index:99999;font:12px/1.4 system-ui,sans-serif;background:#fff;border:1px solid #e5e7eb;padding:6px 8px;max-width:60vw;max-height:60vh;overflow:auto;opacity:.95}
+.page{width:100vw;max-width:none}.nbc-root{height:100vh}
+.btn{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;font:inherit}.btn-small{padding:4px 8px;font-size:12px}.muted-text{color:#6b7280}</style>
+<script>
+window.__popups = [];
+['prompt','alert','confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
+/* ── in-memory Firestore + Storage + firebridge + api stubs ── */
+(function () {
+  var store = new Map(), listeners = [], touched = [];
+  function snapOf(path) { return { id: path.split('/').pop(), exists: store.has(path), data: function () { return store.has(path) ? JSON.parse(JSON.stringify(store.get(path))) : undefined; }, ref: docRef(path) }; }
+  function docsIn(path) { var out = []; store.forEach(function (v, k) { if (k.slice(0, k.lastIndexOf('/')) === path) out.push(snapOf(k)); }); return out; }
+  function fire(path, type) {
+    var parent = path.slice(0, path.lastIndexOf('/'));
+    listeners.slice().forEach(function (l) {
+      if (l.kind === 'doc' && l.path === path) l.cb(snapOf(path));
+      if (l.kind === 'col' && l.path === parent) l.cb({ docChanges: function () { return [{ type: type, doc: snapOf(path) }]; }, docs: docsIn(parent), size: 1, empty: false, forEach: function (f) { docsIn(parent).forEach(f); } });
+    });
+  }
+  function applyUpdate(path, d) { var next = Object.assign({}, store.get(path) || {}); Object.keys(d).forEach(function (k) { if (d[k] === '__DEL__') delete next[k]; else if (d[k] && d[k].__arrayUnion) next[k] = (next[k] || []).concat([d[k].__arrayUnion]); else next[k] = JSON.parse(JSON.stringify(d[k])); }); store.set(path, next); fire(path, 'modified'); }
+  function docRef(path) {
+    return {
+      path: path, id: path.split('/').pop(),
+      collection: function (n) { return colRef(path + '/' + n); },
+      get: function () { touched.push('get ' + path); return Promise.resolve(snapOf(path)); },
+      set: function (d, o) { touched.push('set ' + path); var existed = store.has(path); store.set(path, (o && o.merge) ? Object.assign({}, store.get(path) || {}, JSON.parse(JSON.stringify(d))) : JSON.parse(JSON.stringify(d))); fire(path, existed ? 'modified' : 'added'); return Promise.resolve(); },
+      update: function (d) { touched.push('update ' + path); applyUpdate(path, d); return Promise.resolve(); },
+      delete: function () { touched.push('delete ' + path); store.delete(path); fire(path, 'removed'); return Promise.resolve(); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'doc', cb: cb }; listeners.push(l); setTimeout(function () { cb(snapOf(path)); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+  }
+  function colRef(path) {
+    var q = { path: path,
+      doc: function (id) { return docRef(path + '/' + (id || ('auto' + Math.random().toString(36).slice(2, 8)))); },
+      orderBy: function () { return q; }, where: function () { return q; }, limit: function () { return q; },
+      get: function () { var d = docsIn(path); return Promise.resolve({ docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'col', cb: cb }; listeners.push(l); var d = docsIn(path); setTimeout(function () { cb({ docChanges: function () { return d.map(function (s) { return { type: 'added', doc: s }; }); }, docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+    return q;
+  }
+  var db = {
+    collection: function (n) { return colRef(n); },
+    batch: function () { var ops = []; return { set: function (ref, d, o) { ops.push(function () { return ref.set(d, o); }); }, update: function (ref, d) { ops.push(function () { return ref.update(d); }); }, delete: function (ref) { ops.push(function () { return ref.delete(); }); }, commit: function () { return ops.reduce(function (p, f) { return p.then(f); }, Promise.resolve()); } }; },
+    runTransaction: function (fn) { var tx = { get: function (ref) { return ref.get(); }, set: function (ref, d, o) { ref.set(d, o); }, update: function (ref, d) { ref.update(d); } }; return Promise.resolve(fn(tx)); }
+  };
+  window.__stub = { store: store, touched: touched, db: db };
+  window.firebase = {
+    firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; }, delete: function () { return '__DEL__'; }, arrayUnion: function (x) { return { __arrayUnion: x }; } } },
+    storage: function () { return { ref: function () { return { child: function (p) { return { put: function () { touched.push('put ' + p); return Promise.resolve(); }, getDownloadURL: function () { return Promise.resolve('https://storage.example/' + p); }, delete: function () { touched.push('rm ' + p); return Promise.resolve(); } }; } }; } }; },
+    auth: function () { return { currentUser: { uid: 'u1', email: 'a@x.com' }, onAuthStateChanged: function (cb) { setTimeout(function () { cb({ uid: 'u1', email: 'a@x.com' }); }, 0); } }; }
+  };
+  window.firebridge = { requireSignIn: function () { return Promise.resolve({ allowed: true }); }, isLabMember: function () { return true; }, getUser: function () { return { uid: 'u1', email: 'a@x.com', displayName: 'Ada' }; }, isAdmin: function () { return false; }, db: function () { return db; } };
+  window.api = { load: function (p) { if (p === 'protocols/list.json') return Promise.resolve({ protocols: [{ id: 'coat', title: 'Granule coating', summary: 'coat beads', category: 'bench' }] }); if (p === 'inventory/items.json') return Promise.resolve({ items: [{ id: 'cov', name: 'Coverslips 18 mm', location: 'Drawer B', vendor: 'Fisher', catalog_number: '12-545' }] }); if (p === 'inventory/chemicals.json') return Promise.resolve({ chemicals: [{ id: 'pfa', name: 'PFA 16%', location: 'Fridge 2', cas: '30525-89-4' }] }); return Promise.resolve(null); }, save: function () { return Promise.resolve(); } };
+  window.TOAST = { info: function () {}, success: function () {}, error: function (m) { (window.__toastErr = window.__toastErr || []).push(m); } };
+  window.NOTEBOOK_FIGURES = { uploadImage: function () { return Promise.resolve({ download_url: 'https://firebasestorage.googleapis.com/x/y.webp', storage_path: 'notebook-figures/u1/y.webp', hash: 'h', mime: 'image/webp', size_bytes: 10, uploaded_at: 'now', uploaded_by: 'u1' }); } };
+  /* a V3.830 block entry to migrate: a note, a checklist and a whiteboard block whose board carries ink */
+  store.set('userData/u1/notebook/_index', { entries: [{ id: 'nb-2026-10-20-old', title: 'Old block entry', date: '2026-10-20', tags: ['tfm'], updated_at: '2026-10-20T10:00:00Z', block_types: ['note', 'checklist', 'whiteboard'] }] });
+  store.set('userData/u1/notebook/nb-2026-10-20-old', { title: 'Old block entry', date: '2026-10-20', tags: ['tfm'], schema_version: 2, updated_at: '2026-10-20T10:00:00Z',
+    blocks: [{ id: 'blk-a', type: 'note', title: 'Setup', collapsed: false, data: { html: '<p>Seeded <b>MCF10A</b> on gels.</p>' } },
+             { id: 'blk-b', type: 'checklist', title: '', collapsed: false, data: { items: [{ text: 'image at 24 h', done: false }] } },
+             { id: 'blk-c', type: 'whiteboard', title: 'Sketch', collapsed: false, data: { boardId: 'nbOLD_u1', size: 'm' } }] });
+  store.set('userData/u1/notebookBoards/nbOLD_u1', { name: 'Sketch', pages: [{ id: 'p1', background: 'blank' }], activePageId: 'p1', ownerUid: 'u1' });
+  store.set('items/pa', { type: 'paper', title: 'Collagen fibril alignment under shear flow', meta: { library: { is_library_entry: true, authors: [{ family: 'Smith' }, { family: 'Lee' }, { family: 'Wu' }], year: 2020, journal: 'Biophys J' } } });
+  store.set('items/pb', { type: 'paper', title: 'Stiffness and spreading of MCF10A', meta: { library: { is_library_entry: true, authors: [{ family: 'Jones' }], year: 2019, journal: 'Nature' } } });
+  try { sessionStorage.removeItem('nbb_papers_v1'); } catch (e) {}
+  try { localStorage.removeItem('wb_pens_v1'); localStorage.removeItem('wb_pillpos_v1'); } catch (e) {}
+  store.set('userData/u1/notebookBoards/nbOLD_u1/strokes/s1', { pageId: 'p1', seq: 1, pts: [0.1, 0.1, 0.5, 0.3, 0.3, 0.5], color: '#111827', width: 0.004 });
+  if (window.PointerEvent && !PointerEvent.prototype.getCoalescedEvents) PointerEvent.prototype.getCoalescedEvents = function () { return [this]; };
+})();
+</script>
+<script>/* production shape (V3.862): firebase-bridge.js declares `const firebridge` — a bare global, never window.firebridge.
+   Code that reads window.firebridge must fail here the way it fails on the live site. */
+const firebridge = window.firebridge; delete window.firebridge;</script>
+<script>
+/* a canvas entry (no migration) with EVERY card kind, a region and an instance of a region on another board */
+(function () {
+  var store = window.__stub.store;
+  var idx = store.get('userData/u1/notebook/_index');
+  idx.entries.push({ id: 'nb-m', title: 'Phone entry', date: '2026-10-23', tags: [], updated_at: '2026-10-23T10:00:00Z', canvas_version: 3, notebook_id: 'default', board_id: 'nbM_u1' });
+  store.set('userData/u1/notebook/_index', idx);
+  store.set('userData/u1/notebook/nb-m', { title: 'Phone entry', date: '2026-10-23', tags: [], schema_version: 2, canvas_version: 3, boardId: 'nbM_u1', updated_at: '2026-10-23T10:00:00Z', blocks: [] });
+  store.set('userData/u1/notebookBoards/nbM_u1', { name: 'Phone entry', pages: [{ id: 'p1', background: 'grid' }], activePageId: 'p1', ownerUid: 'u1', sheetMode: 'continuous' });
+  var base = 'userData/u1/notebookBoards/nbM_u1/items/';
+  var W = 0.18, X = [0.01, 0.21, 0.41, 0.61, 0.81], Y = [0.02, 0.2, 0.4];
+  function w(id, kind, col, row, title, data, text, z) { store.set(base + id, { type: 'widget', kind: kind, pageId: 'p1', x: X[col], y: Y[row], w: W, z: z, title: title, data: data, text: text, createdAt: 1700000000000 + z }); }
+  w('w1', 'note', 0, 0, 'Setup', { html: '<p>Seeded <b>MCF10A</b> on gels.</p>' }, 'Seeded MCF10A on gels.', 1);
+  w('w2', 'checklist', 1, 0, 'To do', { items: [{ text: 'image at 24 h', done: false }] }, '[ ] image at 24 h', 2);
+  w('w3', 'figure', 2, 0, 'Gel photo', { cells: [{ url: '', storagePath: '', hash: '', caption: '' }] }, '', 3);
+  w('w4', 'html', 3, 0, 'Sim', { url: 'about:blank', storagePath: '', name: 'sim.html', size: 2048, ar: 1.6 }, 'HTML frame: sim.html', 4);
+  w('w5', 'paperquote', 0, 1, '', { text: 'Fibrils align above 2 Pa', cite: 'Smith 2020', paperId: '', page: 0 }, 'Fibrils align above 2 Pa Smith 2020', 5);
+  w('w6', 'calc', 1, 1, 'Dilution', { spec: { kind: 'formula', attrs: { label: 'Dilution', expression: 'c1 * v1 / v2', variables: [{ name: 'c1', label: 'Stock', default: 10, unit: 'mM' }, { name: 'v1', label: 'Volume', default: 1, unit: 'mL' }, { name: 'v2', label: 'Final volume', default: 10, unit: 'mL' }], output: { name: 'c2', label: 'Final', unit: 'mM', decimals: 2 } } }, inputs: {}, context: [], result: '' }, 'Dilution c1 * v1 / v2', 6);
+  w('w7', 'protocol', 2, 1, '', { run: null }, '', 7);
+  w('w8', 'inventory', 3, 1, '', { itemId: '', kind: '', name: '', location: '', catalog: '', usage: [] }, '', 8);
+  w('w9', 'action', 0, 2, '', { actionId: '', kind: '', text: '', at: '', note: '', itemId: '', equipmentId: '', labelCode: '' }, '', 9);
+  w('w10', 'litreview', 1, 2, 'Lit review: collagen', { query: 'collagen', papers: {}, sections: [{ id: 'ls1', title: 'Papers', paperIds: [], notes_html: '', keyPoints: ['Fibrils align above 2 Pa'] }] }, 'Lit review: collagen', 10);
+  w('w11', 'boardlink', 2, 2, 'Sketch', { boardId: 'nbOLD_u1' }, '', 11);
+  /* a region at the top right (its header is in view) and an instance of a region from another board */
+  store.set(base + 'r1', { type: 'region', pageId: 'p1', x: X[4], y: 0.02, w: 0.18, h: 0.1, z: -1000, title: 'Prep', color: '#0D675E', collapsed: false, members: [] });
+  store.set('userData/u1/notebookBoards/nbSRC_u1', { name: 'Source entry', pages: [{ id: 'p1', background: 'grid' }], activePageId: 'p1', ownerUid: 'u1', sheetMode: 'continuous' });
+  store.set('userData/u1/notebookBoards/nbSRC_u1/items/rs', { type: 'region', pageId: 'p1', x: 0.05, y: 0.05, w: 0.4, h: 0.3, z: -1000, title: 'Source region', color: '#b45309', collapsed: false, members: ['sw1'] });
+  store.set('userData/u1/notebookBoards/nbSRC_u1/items/sw1', { type: 'widget', kind: 'note', pageId: 'p1', x: 0.08, y: 0.1, w: 0.3, z: 1, title: 'In the source', data: { html: '<p>Source card</p>' }, text: 'Source card', createdAt: 1700000000500 });
+  store.set(base + 'rr1', { type: 'regionref', pageId: 'p1', x: X[4], y: Y[1], w: 0.18, h: 0.14, z: 12, src: { coll: 'notebookBoards', classId: 'u1', boardId: 'nbSRC_u1', regionId: 'rs', boardName: 'Source entry' } });
+  var want = new URLSearchParams(location.search).get('mobile') || '1';
+  history.replaceState(null, '', location.pathname + '?mobile=' + want + '&entry=nb-m');
+})();
+</script>
+<script src="/rm/js/notebook-schemas.js"></script>
+<script src="/rm/js/icons.js"></script>   <!-- the site icon set, as every production page loads it -->
+<script src="/whiteboard.js"></script>
+<script src="/whiteboard-replay.js"></script>
+<script src="/rm/js/canvas-widgets.js"></script>
+<script src="/rm/js/canvas-paper-reader.js"></script>   <!-- V3.859 — collections (quote · lit review · claim) live in the shared module -->
+<script src="/rm/js/user-actions.js"></script>
+</head>
+<body>
+<div class="page nbk-page nbc-page"><div id="nbc-content" class="nbk-loading">Loading…</div></div>
+<input type="file" id="nbk-camera-input" style="display:none"><input type="file" id="nbk-file-input" style="display:none">
+<div id="r">running…</div>
+<script src="/rm/js/notebook-canvas.js"></script>
+
+<script>
+(async function () {
+  var out = [], fails = 0, store = window.__stub.store;
+  window.__rej = []; window.addEventListener('unhandledrejection', function (e) { window.__rej.push(String((e.reason && e.reason.message) || e.reason)); });
+  function check(name, ok, detail) { out.push('<div class="' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓' : '✗') + ' ' + name + (detail !== undefined ? ' <small>' + String(detail).replace(/</g, '&lt;') + '</small>' : '') + '</div>'); if (!ok) fails++; }
+  function q(s) { return document.querySelector(s); }
+  function qa(s) { return Array.from(document.querySelectorAll(s)); }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function until(fn, ms) { var t0 = Date.now(); while (Date.now() - t0 < (ms || 8000)) { try { var v = fn(); if (v) return v; } catch (e) {} await sleep(50); } return null; }
+  function card(id) { return q('.wb-item[data-item-id="' + id + '"]'); }
+  function item(id) { return store.get('userData/u1/notebookBoards/nbM_u1/items/' + id); }
+  function spot(el) { var r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + Math.min(36, r.height / 2) }; }
+  function pe(el, type, x, y) { el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y, button: 0, buttons: type === 'pointerup' ? 0 : 1 })); }
+  function hit(x, y) { return document.elementFromPoint(x, y); }
+  async function tapAt(x, y, fallback) { var el = hit(x, y) || fallback; pe(el, 'pointerdown', x, y); await sleep(30); pe(el, 'pointerup', x, y); await sleep(150); return el; }
+  async function tapCard(id) { var n = card(id); var b = n.querySelector('.wb-wb') || n; var p = spot(b); return tapAt(p.x, p.y, n); }
+  /* a tap dispatched on the card itself (what the browser does when that card is the one under the finger) — used
+     where earlier steps may have piled other cards on top of it */
+  async function tapNode(n, el) { var t = el || n; var p = spot(t); pe(t, 'pointerdown', p.x, p.y); await sleep(30); pe(t, 'pointerup', p.x, p.y); await sleep(150); }
+  async function dragAt(x, y, dx, dy) { var el = hit(x, y); pe(el, 'pointerdown', x, y); await sleep(20); pe(el, 'pointermove', x + dx / 2, y + dy / 2); await sleep(20); pe(el, 'pointermove', x + dx, y + dy); await sleep(20); pe(el, 'pointerup', x + dx, y + dy); await sleep(150); }
+  function click(el) { el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); }
+  function sheet() { return q('.wb-sheet-back .wb-sheet'); }
+  function mode() { var s = sheet(); return s ? s.dataset.wbSheetMode : null; }
+  function pane(m) { return q('.wb-sheet-back [data-wb-sheet-pane="' + m + '"]'); }
+  function shown(el) { return !!el && !el.hidden && getComputedStyle(el).display !== 'none'; }
+  async function toSettings() { var t = q('.wb-sheet-back [data-wb-sheet-tab="settings"]'); if (t) click(t); await sleep(40); }
+  async function toEdit() { var t = q('.wb-sheet-back [data-wb-sheet-tab="content"]'); if (t) click(t); await sleep(40); }
+  async function done() { var b = q('.wb-sheet-back [data-wb-sheet-close]'); if (b) click(b); await sleep(100); }
+  function actLabels() { return qa('.wb-sheet-back .wb-sheet-act b').map(function (b) { return b.textContent; }); }
+  function act(re) { return qa('.wb-sheet-back .wb-sheet-act').find(function (b) { return re.test(b.querySelector('b').textContent); }); }
+  function finish() { var r = document.getElementById('r'); r.innerHTML = out.join('') + '<div><b>' + (out.length - fails) + '/' + out.length + ' passed</b></div>'; r.dataset.done = '1'; r.dataset.fails = String(fails); }
+  try {
+    var ready = await until(function () { return qa('.wb-item-widget').length >= 11 && q('.wb-page.wb-m') && q('.wb-region') && q('.wb-regionref'); }, 15000);
+    check('the entry opens in mobile mode with eleven cards, a region and an instance (root has .wb-m)', !!ready, qa('.wb-item-widget').length + ' cards, region=' + !!q('.wb-region') + ', ref=' + !!q('.wb-regionref') + ', wb-m=' + !!q('.wb-page.wb-m'));
+    if (!ready) { finish(); return; }
+    await sleep(600);
+    /* V3.863 — a phone starts in Pan (a finger moves the board, through the cards); the card taps below are made in Select */
+    var nbh = window.NOTEBOOK_CANVAS._state.inst;
+    check('a phone starts in Pan; the cards are Select\'s (one tap on the mode bar)', nbh.handMode() === 'pan' && !!q('.wb-modebar [data-wb-mode="card"]'), nbh.handMode());
+    nbh.setHandMode('card'); await sleep(150);
+    var note = card('w1'), body = note.querySelector('.wb-wb');
+    check('a card\'s body and title are inert on a phone', getComputedStyle(body).pointerEvents === 'none' && getComputedStyle(note.querySelector('.wb-wtitle')).pointerEvents === 'none');
+    check('the corner grip and the connection dots are hidden; the card refuses browser panning', getComputedStyle(note.querySelector('.wb-wgrip')).display === 'none' && qa('.wb-wport').every(function (p) { return getComputedStyle(p).display === 'none'; }) && getComputedStyle(note).touchAction === 'none');
+
+    /* ── a tap opens EDIT; ⋯ opens SETTINGS ── */
+    await tapCard('w1');
+    check('a tap on a card opens the sheet in EDIT mode (first tap, off-grid card, no nudge)', !!sheet() && mode() === 'content' && item('w1').x === 0.01 && item('w1').y === 0.02, mode());
+    check('Edit mode shows the real note editor and hides the settings', shown(pane('content')) && !shown(pane('settings')) && !!q('.wb-sheet-back [data-wb-sheet-pane="content"] .nbk-note[contenteditable="true"]') && !!q('.wb-sheet-back [data-wb-sheet-pane="content"] .nbk-fmtbar [data-photo]'));
+    check('the two tabs are there: ✎ Edit (selected) and ⚙ Settings', qa('.wb-sheet-back [data-wb-sheet-tab]').length === 2 && q('.wb-sheet-back [data-wb-sheet-tab="content"]').getAttribute('aria-selected') === 'true');
+    var ed = q('.wb-sheet-back [data-wb-sheet-pane="content"] .nbk-note');
+    ed.innerHTML = '<p>Edited on the phone</p>'; ed.dispatchEvent(new Event('input', { bubbles: true }));
+    await until(function () { return /Edited on the phone/.test((item('w1').data || {}).html || ''); }, 3000);
+    check('typing in Edit saves the card\'s data', /Edited on the phone/.test((item('w1').data || {}).html || ''));
+    await toSettings();
+    check('⚙ Settings shows name, ten colours, four widths, connections and the actions; Edit is hidden', mode() === 'settings' && shown(pane('settings')) && !shown(pane('content')) && q('.wb-sheet-back [data-wb-sheet-title]').value === 'Setup' && qa('.wb-sheet-back [data-wb-sheet-color]').length === 10 && qa('.wb-sheet-back [data-wb-sheet-w]').length === 4 && !!q('.wb-sheet-back [data-wb-sheet-links]') && actLabels().length >= 4, actLabels().join(' · '));
+    check('the actions are the desktop menu\'s — and never "Card settings…" inside the sheet', /Collapse/.test(actLabels().join('|')) && /Bring to front/.test(actLabels().join('|')) && /Duplicate/.test(actLabels().join('|')) && /^Remove$/.test(actLabels()[actLabels().length - 1]) && !/Card settings/.test(actLabels().join('|')), actLabels().join(' · '));
+    var ti = q('.wb-sheet-back [data-wb-sheet-title]'); ti.value = 'Renamed on the phone'; ti.dispatchEvent(new Event('change', { bubbles: true }));
+    await until(function () { return item('w1').title === 'Renamed on the phone'; }, 2000);
+    check('the name field renames the card', item('w1').title === 'Renamed on the phone' && card('w1').querySelector('.wb-wtitle').value === 'Renamed on the phone');
+    click(qa('.wb-sheet-back [data-wb-sheet-color]')[2]);
+    await until(function () { return item('w1').color === '#dcfce7'; }, 2000);
+    check('a colour swatch tints the card', item('w1').color === '#dcfce7' && card('w1').classList.contains('wb-tinted'));
+    var wBefore = card('w1').getBoundingClientRect().width;
+    click(q('.wb-sheet-back [data-wb-sheet-w="0.62"]'));
+    await until(function () { return Math.abs((item('w1').w || 0) - 0.62) < 0.001; }, 2000); await sleep(100);
+    check('the width presets resize the card (S → L)', Math.abs((item('w1').w || 0) - 0.62) < 0.001 && card('w1').getBoundingClientRect().width > wBefore + 20);
+    click(act(/^Collapse$/)); await until(function () { return item('w1').collapsed === true; }, 2000); await sleep(80);
+    check('Collapse folds the card and the action flips to Expand', item('w1').collapsed === true && card('w1').classList.contains('wb-collapsed') && !!act(/^Expand$/));
+    click(act(/^Expand$/)); await until(function () { return item('w1').collapsed === false; }, 2000);
+    check('Expand opens it again', item('w1').collapsed === false);
+    var sel = q('.wb-sheet-back [data-wb-sheet-target]');
+    check('the connect picker lists the other ten cards', !!sel && sel.options.length === 10, sel && sel.options.length);
+    sel.value = 'w2'; click(q('.wb-sheet-back [data-wb-sheet-connect]'));
+    await until(function () { return qa('.wb-sheet-back .wb-sheet-wire').length === 1; }, 3000); await sleep(150);
+    check('Connect → draws a wire to the chosen card and lists it', qa('.wb-sheet-back .wb-sheet-wire').length === 1 && /To do/.test(q('.wb-sheet-back .wb-sheet-wire').textContent) && qa('.wb-wires .wb-wire').length === 1);
+    click(q('.wb-sheet-back [data-wb-sheet-unwire]'));
+    await until(function () { return qa('.wb-sheet-back .wb-sheet-wire').length === 0; }, 3000); await sleep(150);
+    check('× removes the connection again', qa('.wb-sheet-back .wb-sheet-wire').length === 0 && qa('.wb-wires .wb-wire').length === 0);
+    var n0 = qa('.wb-item-widget').length;
+    click(act(/^Duplicate$/)); await until(function () { return qa('.wb-item-widget').length === n0 + 1; }, 3000);
+    check('Duplicate adds a copy while the sheet stays open', qa('.wb-item-widget').length === n0 + 1 && !!sheet());
+    await toEdit();
+    check('switching back to Edit keeps the editor live', mode() === 'content' && shown(pane('content')) && /Edited on the phone/.test(q('.wb-sheet-back [data-wb-sheet-pane="content"] .nbk-note').textContent));
+    await done();
+    check('Done closes the sheet and the card repaints with the edits', !sheet() && /Edited on the phone/.test(card('w1').querySelector('.nbk-note').textContent));
+
+    click(card('w2').querySelector('[data-wb-wmenu]')); await sleep(120);
+    check('the ⋯ button opens the sheet in SETTINGS mode (no desktop popover)', !!sheet() && mode() === 'settings' && !q('.cw-pop') && shown(pane('settings')) && !shown(pane('content')));
+    await toEdit();
+    check('…and ✎ Edit shows the checklist editor', mode() === 'content' && !!q('.wb-sheet-back [data-wb-sheet-pane="content"] [data-ck-add]'));
+    q('.wb-sheet-back').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await sleep(80);
+    check('Escape closes it', !sheet());
+
+    /* ── drag vs tap ── */
+    var x0 = item('w2').x, y0 = item('w2').y; var c2 = spot(card('w2').querySelector('.wb-wb'));
+    await dragAt(c2.x, c2.y, 90, 60); await until(function () { return item('w2').x !== x0; }, 3000);
+    check('a drag anywhere on the card moves it (no sheet)', item('w2').x > x0 && item('w2').y > y0 && !sheet());
+    var x1 = item('w2').x, y1 = item('w2').y; var c3 = spot(card('w2').querySelector('.wb-wb'));
+    var el3 = hit(c3.x, c3.y) || card('w2'); pe(el3, 'pointerdown', c3.x, c3.y); await sleep(20); pe(el3, 'pointermove', c3.x + 3, c3.y + 2); await sleep(20); pe(el3, 'pointerup', c3.x + 3, c3.y + 2); await sleep(150);
+    check('a 4 px jitter is still a tap (Edit opens, the card did not move)', !!sheet() && mode() === 'content' && item('w2').x === x1 && item('w2').y === y1);
+    await done();
+
+    /* ── EVERY kind opens in both modes ── */
+    var kinds = { w1: 'note', w2: 'checklist', w3: 'figure', w4: 'html', w5: 'paperquote', w6: 'calc', w7: 'protocol', w8: 'inventory', w9: 'action', w10: 'litreview', w11: 'boardlink' };
+    var specific = {
+      figure: function (b) { return !!b.querySelector('[data-pick="camera"]') && !!b.querySelector('[data-pick="file"]'); },
+      html: function (b) { return !b.querySelector('iframe') && /sim\.html/.test(b.textContent); },
+      paperquote: function (b) { return !!b.querySelector('.nbc-quote-in') && !!b.querySelector('.nbc-cite-in'); },
+      checklist: function (b) { return !!b.querySelector('[data-ck-add]'); },
+      calc: function (b) { return !!b.querySelector('.nbk-calc-host') && !!b.querySelector('[data-calc="from-protocol"]'); },
+      protocol: function (b) { return !!b.querySelector('[data-load]'); },
+      litreview: function (b) { return !!b.querySelector('.nbc-lit-q') && !!b.querySelector('[data-kpadd]'); },
+      boardlink: function (b) { return !!b.querySelector('a[href*="notebook-board.html"]'); },
+      note: function (b) { return !!b.querySelector('.nbk-note[contenteditable="true"]'); },
+      inventory: function (b) { return !!b.querySelector('input, button'); },
+      action: function (b) { return b.textContent.trim().length > 0 || !!b.querySelector('input, button'); }
+    };
+    var kindActs = { html: /Replace the file/, figure: null, protocol: null, inventory: null, action: null };
+    for (var id in kinds) {
+      var k = kinds[id];
+      await tapNode(card(id));
+      var b = q('.wb-sheet-back [data-wb-sheet-pane="content"] .wb-sheet-body');
+      var okEdit = !!sheet() && mode() === 'content' && !!b && b.textContent.trim().length + b.querySelectorAll('input,button,[contenteditable],a,iframe,img').length > 0 && !/could not be/.test(b.textContent);
+      var okSpec = okEdit && (!specific[k] || specific[k](b));
+      check(k + ': tap → ✎ Edit shows its editor' + (specific[k] ? ' (kind-specific controls present)' : ''), okEdit && okSpec, okEdit ? (b.textContent.trim().slice(0, 60) || b.innerHTML.slice(0, 60)) : ('sheet=' + !!sheet() + ' mode=' + mode()));
+      await toSettings();
+      var hasActs = actLabels().length >= 3 && /^Remove$/.test(actLabels()[actLabels().length - 1]) && !!q('.wb-sheet-back [data-wb-sheet-title]') && qa('.wb-sheet-back [data-wb-sheet-color]').length === 10 && qa('.wb-sheet-back [data-wb-sheet-w]').length === 4;
+      check(k + ': ⚙ Settings has name, colours, widths and its actions' + (kindActs[k] ? ' incl. ' + kindActs[k].source.replace(/\\/g, '') : ''), mode() === 'settings' && hasActs && (!kindActs[k] || kindActs[k].test(actLabels().join('|'))), actLabels().join(' · '));
+      await done();
+    }
+
+    /* ── remove: two taps (quote card) ── */
+    await tapNode(card('w5')); await toSettings();
+    var rm = act(/^Remove$/); click(rm); await sleep(60);
+    check('Remove arms first (two taps) and the card is still there', !!card('w5') && /Really remove/.test(rm.textContent));
+    click(rm); await until(function () { return !card('w5'); }, 3000); await sleep(80);
+    check('the second tap removes the card and closes the sheet', !card('w5') && !sheet() && !item('w5'));
+
+    /* ── V3.855 — what the Opus review found ── */
+    await tapNode(card('w1'));
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await sleep(80);
+    check('V3.855: Escape closes the sheet right after a tap-open (focus is not inside it)', !sheet());
+    var moreBad = qa('.wb-item-widget').filter(function (c) { var m = c.querySelector('.wb-wmore'); if (!m) return true; var cr = c.getBoundingClientRect(), mr = m.getBoundingClientRect(); return !(getComputedStyle(m).opacity === '1' && mr.width > 0 && mr.right <= cr.right + 1); });
+    check('V3.855: ⋯ is visible on a phone and sits inside every card; the kind, stamp and colour dot are off the header', moreBad.length === 0 && qa('.wb-item-widget .wb-wkind').every(function (k) { return getComputedStyle(k).display === 'none'; }) && qa('.wb-wstamp').every(function (k) { return getComputedStyle(k).display === 'none'; }), moreBad.length + ' card(s) with ⋯ hidden or clipped');
+    await tapNode(card('w6'));
+    var hd = q('.wb-sheet-back .wb-sheet-head');
+    check('V3.855: the sheet head with Done is sticky', !!hd && getComputedStyle(hd).position === 'sticky', hd && getComputedStyle(hd).position);
+    await until(function () { return /mM/.test(((item('w6') || {}).data || {}).result || ''); }, 6000);
+    var det = q('.wb-sheet-back .nbk-calc-edit'); if (det) det.open = true; await sleep(60);
+    var shEl = sheet();
+    var small = qa('.wb-sheet-back input:not([type="checkbox"]):not([type="radio"]), .wb-sheet-back select, .wb-sheet-back textarea').filter(function (i) { return parseFloat(getComputedStyle(i).fontSize) < 16; });
+    check('V3.855: every field in the phone sheet is 16 px or larger (iOS zooms on anything smaller)', small.length === 0, small.length + ' small field(s)' + (small[0] ? ': ' + (small[0].className || small[0].dataset.f || small[0].dataset.v || small[0].type) + ' ' + getComputedStyle(small[0]).fontSize : ''));
+    check('V3.855: the calc formula form fits the sheet (no sideways scroll)', !!shEl && shEl.scrollWidth <= shEl.clientWidth + 1, shEl && (shEl.scrollWidth + ' vs ' + shEl.clientWidth));
+    var ex = q('.wb-sheet-back [data-f="expression"]');
+    if (ex) { ex.value = 'c1 * v1 / v2 * 2'; ex.dispatchEvent(new Event('input', { bubbles: true })); }
+    await until(function () { return /^2(\.0+)?\s*mM$/.test(((item('w6') || {}).data || {}).result || ''); }, 5000); await sleep(80);
+    check('V3.855: editing the formula in the sheet rebuilds the calculator (1 → 2 mM) with no unhandled error', !!ex && /^2(\.0+)?\s*mM$/.test((item('w6').data || {}).result || '') && window.__rej.length === 0, 'result=' + ((item('w6').data || {}).result) + ' rejections=' + window.__rej.join(' | '));
+    await done();
+    await tapNode(card('w8'));
+    var prow = await until(function () { return q('.wb-sheet-back .nbk-pick-row'); }, 5000);
+    if (prow) click(prow);
+    await until(function () { return ((item('w8') || {}).data || {}).itemId; }, 4000); await sleep(80);
+    await toSettings();
+    check('V3.855: after picking an item in ✎ Edit, ⚙ Settings shows the new name and "Change the item…"', mode() === 'settings' && q('.wb-sheet-back [data-wb-sheet-title]').value === 'Coverslips 18 mm' && !!act(/Change the item/), 'title="' + (q('.wb-sheet-back [data-wb-sheet-title]') || {}).value + '" ' + actLabels().join(' · '));
+    var chg = act(/Change the item/); if (chg) click(chg); await sleep(150);
+    check('V3.855: "Change the item…" hands over to ✎ Edit with the picker open', mode() === 'content' && !!q('.wb-sheet-back [data-wb-sheet-pane="content"] [data-iq]'), mode());
+    await done();
+
+    /* ── a region: settings only ── */
+    var rh = q('.wb-region[data-item-id="r1"] .wb-rh');
+    await tapNode(card('r1'), rh);
+    check('a tap on a region header opens its sheet: settings only (no tabs), name, six colours, collapse / fit / remove', !!sheet() && !q('.wb-sheet-back [data-wb-sheet-tab]') && mode() === 'settings' && qa('.wb-sheet-back [data-wb-sheet-color]').length === 6 && /Fit around its cards/.test(actLabels().join('|')) && /Collapse the region/.test(actLabels().join('|')) && /Remove the region/.test(actLabels().join('|')), actLabels().join(' · '));
+    var rt = q('.wb-sheet-back [data-wb-sheet-title]'); rt.value = 'Prep work'; rt.dispatchEvent(new Event('change', { bubbles: true }));
+    await until(function () { return (item('r1') || {}).title === 'Prep work'; }, 2000);
+    click(qa('.wb-sheet-back [data-wb-sheet-color]')[2]); await until(function () { return (item('r1') || {}).color === '#2563eb'; }, 2000);
+    check('the region sheet renames and recolours the region', (item('r1') || {}).title === 'Prep work' && (item('r1') || {}).color === '#2563eb');
+    click(act(/^Collapse the region$/)); await until(function () { return (item('r1') || {}).collapsed === true; }, 2000); await sleep(80);
+    check('Collapse the region folds it and the action flips to Open', (item('r1') || {}).collapsed === true && !!act(/^Open the region$/));
+    await done();
+
+    /* ── an instance of a region on another board ── */
+    var ref = q('.wb-regionref[data-item-id="rr1"]');
+    check('the instance shows its source\'s card', !!ref && /In the source|Source card/.test(ref.textContent), ref && ref.textContent.trim().slice(0, 80));
+    await tapNode(ref);
+    check('a tap on the instance opens a settings-only sheet with the source link and Remove', !!sheet() && !q('.wb-sheet-back [data-wb-sheet-tab]') && !!q('.wb-sheet-back .wb-sheet-link') && /Source entry/.test(q('.wb-sheet-back .wb-sheet-body').textContent) && /Remove this instance/.test(actLabels().join('|')), actLabels().join(' · '));
+    await done();
+
+    check('no browser popups', window.__popups.length === 0);
+    check('no raw SVG markup leaked into text', document.body.innerText.indexOf('<svg') < 0);
+  } catch (e) { check('the harness itself threw: ' + (e && e.message), false, String(e && e.stack || '').split('\n').slice(0, 4).join(' | ')); }
+  finish();
+})();
+</script>
+</body>
+</html>

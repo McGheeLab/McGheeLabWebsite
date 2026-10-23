@@ -150,7 +150,7 @@
     const chev = document.createElement('button');
     chev.type = 'button';
     chev.className = 'ix-item-chev' + (isExpanded ? ' open' : '');
-    chev.textContent = isExpanded ? '▾' : '▸';
+    ICON.label(chev, isExpanded ? 'chevron-down' : 'chevron-right');
     chev.title = isExpanded ? 'Collapse details' : 'Expand to read full content';
     chev.addEventListener('click', (ev) => {
       ev.stopPropagation();

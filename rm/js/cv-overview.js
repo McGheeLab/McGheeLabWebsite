@@ -223,7 +223,7 @@
       var nudge = document.createElement('a');
       nudge.className = 'btn';
       nudge.style.cssText = 'font-size:12px;text-decoration:none';
-      nudge.textContent = '📧 Nudge';
+      ICON.label(nudge, 'envelope', ' Nudge');
       nudge.title = 'Email ' + u.email + ' a CV-refresh reminder';
       nudge.href = 'mailto:' + encodeURIComponent(u.email) +
         '?subject=' + encodeURIComponent('Quick CV refresh?') +
@@ -232,7 +232,7 @@
     }
     var closeBtn = document.createElement('button');
     closeBtn.className = 'btn';
-    closeBtn.textContent = '✕';
+    ICON.label(closeBtn, 'x-mark');
     closeBtn.style.cssText = 'font-size:12px;padding:4px 10px';
     head.appendChild(closeBtn);
     panel.appendChild(head);

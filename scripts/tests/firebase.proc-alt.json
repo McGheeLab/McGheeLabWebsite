@@ -1,0 +1,5 @@
+{
+  "//": "V3.813 — alternate emulator ports (firestore 8399, auth 9399) so a second run (e.g. while an agent uses 8199/9299) does not collide. Use with FS_EMU_PORT=8399 AUTH_EMU_PORT=9399.",
+  "firestore": { "rules": "placeholder.rules" },
+  "emulators": { "firestore": { "port": 8399 }, "auth": { "port": 9399 }, "ui": { "enabled": false } }
+}

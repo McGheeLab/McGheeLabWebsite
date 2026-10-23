@@ -245,7 +245,7 @@
       data.callouts.forEach(function (c) {
         var card = document.createElement('div');
         card.className = 'pgc-callout pgc-callout-' + _esc(c.kind || 'note');
-        card.innerHTML = '<div class="pgc-callout-title">' + (c.kind === 'rwr' ? '⚠ ' : '') + _esc(c.title || '') + '</div>' +
+        card.innerHTML = '<div class="pgc-callout-title">' + (c.kind === 'rwr' ? ICON.svg('exclamation-triangle') + ' ' : '') + _esc(c.title || '') + '</div>' +
           '<ul>' + (c.items || []).map(function (it) { return '<li>' + _esc(it) + '</li>'; }).join('') + '</ul>';
         cc.appendChild(card);
       });

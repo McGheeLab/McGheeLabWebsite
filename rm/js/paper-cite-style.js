@@ -63,6 +63,10 @@
       if (!text) return;
       var re = /\[@([^\]\n]+)\]/g, m;
       while ((m = re.exec(text))) {
+        /* V3.645 — skip `[@item:KEY]` inventory references. Without
+         * this they consume citation numbers, shifting every real
+         * citation in the paper by one. */
+        if (String(m[1]).replace(/^\*/, '').indexOf('item:') === 0) continue;
         m[1].split(/\s*;\s*@?/).forEach(function (k) {
           k = (k || '').trim().replace(/^\*/, '');
           if (!k || !/^[\w:.\-+/]+$/.test(k)) return;

@@ -79,9 +79,8 @@
       const done = (checked === total);
       bar.classList.toggle('is-done', done);
       progress.classList.toggle('is-done', done);
-      progress.textContent = done
-        ? '✅ Methods complete — a stranger could reproduce your experiment.'
-        : checked + ' of ' + total + ' covered';
+      if (done) ICON.label(progress, 'check-circle', ' Methods complete — a stranger could reproduce your experiment.');
+      else progress.textContent = checked + ' of ' + total + ' covered';
     }
     checkboxes.forEach(box => box.addEventListener('change', refresh));
     refresh();

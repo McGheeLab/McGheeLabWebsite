@@ -7,19 +7,25 @@
   <link rel="stylesheet" href="/rm/css/tokens.css">
   <link rel="stylesheet" href="/rm/css/style.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
   <script>
-    /* V3.304 — external-teacher oversight page. Four tabs:
+    /* V3.304 — external-teacher oversight page. Six tabs (5th: V3.669,
+     * 6th: V3.673):
      *   ?tab=requests (default) → pending/decided class requests
      *   ?tab=teachers           → every teacher + their classes/codes/rosters
+     *   ?tab=catalog            → global module catalog (what teachers may assign)
+     *   ?tab=engage             → engagement hub oversight (listings, slots, visits)
      *   ?tab=profiles           → featured-profile approval queue
      *   ?tab=reviews            → review moderation (all statuses) */
     (function () {
       var raw = new URLSearchParams(location.search).get('tab') || '';
-      var t = (raw === 'teachers' || raw === 'profiles' || raw === 'reviews') ? raw : 'requests';
+      var t = (raw === 'teachers' || raw === 'catalog' || raw === 'engage' || raw === 'profiles' || raw === 'reviews') ? raw : 'requests';
       window.__TC_TAB = t;
       document.documentElement.dataset.tcTab = t;
       document.title =
         t === 'teachers' ? 'Admin · Teachers · McGhee Lab'
+      : t === 'catalog'  ? 'Admin · Module Catalog · McGhee Lab'
+      : t === 'engage'   ? 'Admin · Engagement Hub · McGhee Lab'
       : t === 'profiles' ? 'Admin · Teacher Profiles · McGhee Lab'
       : t === 'reviews'  ? 'Admin · Class Reviews · McGhee Lab'
       : 'Admin · Class Requests · McGhee Lab';
@@ -39,8 +45,64 @@
 
     html[data-tc-tab="requests"] .tcadm-tab:not(.tab-requests) { display: none; }
     html[data-tc-tab="teachers"] .tcadm-tab:not(.tab-teachers) { display: none; }
+    html[data-tc-tab="catalog"]  .tcadm-tab:not(.tab-catalog)  { display: none; }
+    html[data-tc-tab="engage"]   .tcadm-tab:not(.tab-engage)   { display: none; }
     html[data-tc-tab="profiles"] .tcadm-tab:not(.tab-profiles) { display: none; }
     html[data-tc-tab="reviews"]  .tcadm-tab:not(.tab-reviews)  { display: none; }
+
+    /* V3.669 — module catalog tab; V3.770 — picking + per-module open link */
+    .tcadm-cat-bar {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 10px 14px; margin-bottom: 10px; max-width: 1000px;
+      background: #fff; border: 1px solid var(--border, #e5e7eb); border-radius: 8px;
+    }
+    .tcadm-cat-bar .sum { font-size: 12.5px; color: #374151; }
+    .tcadm-cat-bar .sum b { color: #047857; font-size: 14px; }
+    .tcadm-cat-search {
+      font-size: 12px; padding: 4px 9px; border: 1px solid #d1d5db;
+      border-radius: 6px; width: 190px; margin-left: auto;
+    }
+    .tcadm-cat-folder-head {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 10px 14px; background: #f9fafb; border-bottom: 1px solid #f1f5f9;
+      font-weight: 600; font-size: 13px; color: #1f2937;
+    }
+    .tcadm-cat-folder-head .fold { cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .tcadm-cat-folder-head .caret { color: #9ca3af; font-size: 11px; width: 10px; }
+    .tcadm-cat-folder-head .cnt { color: #6b7280; font-weight: 400; }
+    .tcadm-cat-folder.shut .tcadm-cat-row { display: none; }
+    .tcadm-cat-row {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 8px 14px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px;
+    }
+    .tcadm-cat-row:last-child { border-bottom: none; }
+    .tcadm-cat-row.on { background: #f0fdf4; box-shadow: inset 3px 0 0 #10b981; }
+    .tcadm-cat-row .ttl { flex: 1 1 240px; min-width: 200px; }
+    .tcadm-cat-row .ttl .fn { color: #9ca3af; font-size: 11px; margin-left: 6px; }
+    .tcadm-cat-row .tags { font-size: 11px; color: #6b7280; }
+    .tcadm-cat-row input[type="text"] {
+      font-size: 12px; padding: 3px 6px; border: 1px solid #e5e7eb; border-radius: 6px;
+      width: 150px;
+    }
+    .tcadm-cat-row input.cat-desc { width: 260px; }
+    .tcadm-cat-row label { font-size: 11.5px; color: #4b5563; display: inline-flex; gap: 4px; align-items: center; }
+    .tcadm-cat-pick {
+      display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+      font-size: 11.5px; font-weight: 600; color: #6b7280;
+      min-width: 92px; user-select: none;
+    }
+    .tcadm-cat-row.on .tcadm-cat-pick { color: #047857; }
+    .tcadm-cat-pick input { width: 16px; height: 16px; cursor: pointer; }
+    .tcadm-cat-open {
+      font-size: 11.5px; text-decoration: none; white-space: nowrap;
+      padding: 3px 9px; border: 1px solid #d1d5db; border-radius: 6px;
+      color: #1e40af; background: #fff;
+    }
+    .tcadm-cat-open:hover { background: #eff6ff; border-color: #bfdbfe; }
+    /* Full-width second line — flex-wrap drops it under the pick row. The
+       [hidden] guard is required: `display:flex` would otherwise beat it. */
+    .tcadm-cat-details { display: flex; gap: 8px; flex-wrap: wrap; width: 100%; padding-top: 2px; }
+    .tcadm-cat-details[hidden] { display: none; }
 
     .tcadm-list {
       background: #fff; border: 1px solid var(--border, #e5e7eb);
@@ -71,6 +133,12 @@
     .tcadm-chip.denied, .tcadm-chip.rejected, .tcadm-chip.hidden, .tcadm-chip.removed
       { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
     .tcadm-chip.draft { background: #f3f4f6; color: #6b7280; }
+    .tcadm-chip.blocked { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+    .tcadm-linkbar code { font-size: .8rem; user-select: all; }
+    /* V3.808 — no-account visit posts */
+    .tcadm-guest-decline { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .4rem; }
+    .tcadm-guest-decline input { flex: 1 1 14rem; min-width: 0; padding: .3rem .5rem; }
+    .tcadm-guest-link code { font-size: .78rem; user-select: all; word-break: break-all; }
     .tcadm-chip.active { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
     .tcadm-chip.featured { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
     .tcadm-folders { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
@@ -156,6 +224,8 @@
           const HUB = [
             { tab: 'requests', label: 'Class Requests' },
             { tab: 'teachers', label: 'Teachers & Classes' },
+            { tab: 'catalog',  label: 'Module Catalog' },
+            { tab: 'engage',   label: 'Engagement Hub' },
             { tab: 'profiles', label: 'Featured Profiles' },
             { tab: 'reviews',  label: 'Reviews' },
           ];
@@ -174,10 +244,25 @@
 
       <div class="tcadm-toolbar">
         <button class="btn" id="tcadm-refresh">Refresh</button>
+        <!-- V3.632 — see what a teacher or student actually sees. Opens the
+             main site's demo panel: fake personas, no data written. -->
+        <a class="btn" href="/#/demo" target="_blank" rel="noopener"
+           title="Preview the teacher/student dashboards and class page with fake users"><i data-hi="drama"></i> Demo mode</a>
         <span id="tcadm-status" class="tcadm-status"></span>
       </div>
 
       <div class="tcadm-tab tab-requests">
+        <!-- V3.680 — admin-issued teacher setup links: no request/approval
+             round-trip; the teacher opens the link, signs in, and
+             redeemTeacherInvite provisions class + code + category. -->
+        <div id="tcadm-invites-block" class="tcadm-list" style="margin-bottom:14px;">
+          <div class="tcadm-cat-folder-head">
+            <span>Invite a teacher</span>
+            <button class="btn btn-primary btn-sm" id="tcadm-invite-new" style="margin-left:auto;"><i data-hi="envelope"></i> New invite…</button>
+          </div>
+          <div id="tcadm-invite-form-wrap" style="display:none;padding:12px 14px;border-bottom:1px solid #f1f5f9;"></div>
+          <div id="tcadm-invites-list"><div class="tcadm-empty">Loading invites…</div></div>
+        </div>
         <div id="tcadm-requests-list" class="tcadm-list"><div class="tcadm-empty">Loading requests…</div></div>
         <div style="margin-top:12px;font-size:12px;color:var(--text-muted,#6b7280);line-height:1.55;max-width:1000px;">
           Approving a request provisions a <code>schedules</code> doc (<code>kind:'teacher-class'</code>) owned by the
@@ -188,6 +273,42 @@
 
       <div class="tcadm-tab tab-teachers">
         <div id="tcadm-teachers-list" class="tcadm-list"><div class="tcadm-empty">Loading teachers…</div></div>
+      </div>
+
+      <div class="tcadm-tab tab-catalog">
+        <!-- V3.770 — the pick line: how many modules teachers can see, a
+             filter for finding the ones still switched off, and search. -->
+        <div class="tcadm-cat-bar">
+          <span class="sum" id="tcadm-cat-summary">Loading…</span>
+          <span class="tcadm-filter-row" id="tcadm-cat-filters" style="margin:0;">
+            <button class="tcadm-filter-btn on" data-cat-filter="all">All</button>
+            <button class="tcadm-filter-btn" data-cat-filter="on">Available</button>
+            <button class="tcadm-filter-btn" data-cat-filter="off">Not available</button>
+          </span>
+          <button class="btn btn-sm" id="tcadm-cat-fold">Collapse all</button>
+          <input type="search" id="tcadm-cat-search" class="tcadm-cat-search"
+                 placeholder="Search modules…" autocomplete="off">
+        </div>
+        <div id="tcadm-catalog-list" class="tcadm-list"><div class="tcadm-empty">Loading catalog…</div></div>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-muted,#6b7280);line-height:1.55;max-width:1000px;">
+          Tick <strong>Available</strong> to put a module in every teacher's picker on the
+          <code>#/teach</code> dashboard — nothing else here changes what teachers see. Use
+          <strong>↗ Open</strong> to read the module in a new tab exactly as a student gets it
+          before you make it available. <strong>✎ Details</strong> adds the subjects, grade levels
+          and one-line description that help a teacher choose. The module files themselves come from
+          <code>/modules/manifest.json</code> — this tab only curates visibility and metadata.
+        </div>
+      </div>
+
+      <div class="tcadm-tab tab-engage">
+        <div id="tcadm-engage-list" class="tcadm-list"><div class="tcadm-empty">Loading engagement hub…</div></div>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-muted,#6b7280);line-height:1.55;max-width:1000px;">
+          Oversight of the public engagement hub (<code>/#/engage</code>): approve teacher listings
+          (nothing is browsable until approved), watch every availability slot, and intervene on any
+          visit request — confirm, decline, or cancel on the teacher's behalf. External researchers get
+          in via the <code>engage:browse</code> / <code>engage:request</code> capabilities on the
+          <a href="/rm/pages/admin-permissions.html">permissions page</a>; lab members need no grant.
+        </div>
       </div>
 
       <div class="tcadm-tab tab-profiles">

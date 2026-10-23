@@ -10,6 +10,7 @@
   <!-- V3.480 — Task Market board styles (market tab, folded from task-market.html). -->
   <link rel="stylesheet" href="/rm/css/task-market.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
   <script>
     /* V3.58 — unified Tasks shell. Single page hosts the tabs selected via
      * ?tab=<name>; default is `dashboard`. Replaces the V3.40-era four-page
@@ -166,7 +167,7 @@
   <!-- V3.194 — bridge to PMR (Add to PMR button + completion sync). -->
   <script src="/rm/js/task-pmr-sync.js"></script>
   <script src="/rm/js/activity-signals.js"></script>
-  <!-- V3.530 — My Day double-dip chips on subtask adds -->
+  <!-- V3.530 — My Week double-dip chips on subtask adds -->
   <script src="/rm/js/notebook-schemas.js"></script>
   <script src="/rm/js/day-distribute.js"></script>
   <!-- V3.234 — external links (Synology share URLs etc) on project buckets. -->
@@ -196,7 +197,7 @@
         // for this tab because task-market.js is already on the page.
         market:   '<h1 class="page-title">Task Market</h1>'
                  + '<div>'
-                 + '  <button type="button" class="btn" id="tm-need-work">🙋 I need work</button>'
+                 + '  <button type="button" class="btn" id="tm-need-work">' + ICON.svg('hand-raised') + ' I need work</button>'
                  + '  <button type="button" class="btn btn-primary" id="tm-new" style="margin-left:6px;">＋ New post</button>'
                  + '</div>'
       };

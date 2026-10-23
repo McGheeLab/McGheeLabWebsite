@@ -128,7 +128,7 @@
           href: a.url, target: '_blank', rel: 'noopener',
         });
         const sizeKb = a.size_bytes ? ` · ${(a.size_bytes / 1024).toFixed(1)} KB` : '';
-        link.textContent = `📎 ${a.filename}${sizeKb}`;
+        ICON.label(link, 'paper-clip', ` ${a.filename}${sizeKb}`);
         ah.appendChild(link);
       }
       wrap.appendChild(ah);
@@ -143,7 +143,9 @@
   let _inboxPromise = null;
   function loadInboxOnce() {
     if (!_inboxPromise) {
-      _inboxPromise = window.api.load('tasks/inbox.json')
+      // V3.647 — bare `api`: `window.api` is undefined (util.js declares it with
+      // a top-level `const`), so this THREW a TypeError rather than loading.
+      _inboxPromise = api.load('tasks/inbox.json')
         .then(j => j && Array.isArray(j.tasks) ? j : { tasks: [] })
         .catch(() => ({ tasks: [] }));
     }
@@ -160,7 +162,7 @@
     }
     inbox.tasks[i] = taskRef;
     inbox.generated_at = new Date().toISOString();
-    await window.api.save('tasks/inbox.json', inbox);
+    await api.save('tasks/inbox.json', inbox);   // V3.647 — window.api is undefined
   }
 
   function renderTask(d, ctx) {

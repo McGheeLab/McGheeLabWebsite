@@ -58,10 +58,10 @@ var NOTEBOOK_PHASE_LABELS = {
   complete: 'Complete',
 };
 
-var NOTEBOOK_PHASE_GLYPHS = {
-  plan:     '📝',
-  running:  '▶',
-  complete: '✅',
+var NOTEBOOK_PHASE_GLYPHS = {   // V3.861 — icon names: ICON.svg(...) them, never as text
+  plan:     'pencil-square',
+  running:  'play',
+  complete: 'check-circle',
 };
 
 var NOTEBOOK_DOE_TYPES = ['lhs', 'factorial', 'ccd'];

@@ -1,14 +1,15 @@
-/* workflow-chooser.js — V3.64 RM front-page workflow chooser, V3.65
- * extended with the "My workflows" section and custom-workflow builder.
+/* workflow-chooser.js — the "Workflows" section of RM Home (V3.64, V3.65
+ * custom workflows + builder, reshaped V3.809).
  *
- * Replaces the old 14-card stats dashboard at rm/index.html. Renders:
- *   - Default workflows (5 from labConfig/defaultWorkflows or seed)
+ * Renders into #home-workflows on rm/index.html:
+ *   - Default workflows (from labConfig/defaultWorkflows or seed)
  *   - My workflows (from userData/{uid}/customWorkflows)
- *   - "+ New custom workflow" card
+ *   - "+ New custom workflow" card (also opened by the #new-workflow hash,
+ *     which the bar's Workflows ▾ menu links to)
  *
- * Click a workflow card → WorkflowState.setActive() → navigate to the
- * workflow's first accessible page. nav.js then renders the workflow
- * strip (instead of the six-group nav) on every page in the workflow.
+ * Click a workflow card → WorkflowState.setActive() → the workflow shell
+ * opens on its landing page. nav.js shows the workflow's pages as chips
+ * in the one shared bar (V3.809 — there is no separate strip any more).
  */
 
 (function () {
@@ -18,15 +19,16 @@
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  var ROOT_ID = 'home-workflows';     // V3.809 — one section of the home page
+  var _builderOpenedFromHash = false;
+
   async function boot() {
-    // V3.74 — only render when the workflows tab is active. The all-pages
-    // tab is handled by all-pages.js on the same container.
-    if (window.__RM_HOME_VIEW && window.__RM_HOME_VIEW !== 'workflows') return;
     if (typeof firebridge === 'undefined') return;
+    if (!document.getElementById(ROOT_ID)) return;
     if (firebridge.requireSignIn) await firebridge.requireSignIn('Sign in to see your workflows.');
     else await firebridge.whenAuthResolved();
     if (!firebridge.getUser()) {
-      var root = document.getElementById('rm-home-root');
+      var root = document.getElementById(ROOT_ID);
       if (root) root.innerHTML = '<div class="empty-state">Sign in to see your workflows.</div>';
       return;
     }
@@ -37,6 +39,12 @@
     try { custom = await WorkflowState.loadCustomWorkflows(); } catch (e) { /* ignore */ }
 
     render(defaults, custom);
+
+    // V3.809 — the bar's Workflows ▾ → "New workflow…" lands here.
+    if (location.hash === '#new-workflow' && !_builderOpenedFromHash) {
+      _builderOpenedFromHash = true;
+      openBuilder();
+    }
   }
 
   function pageChips(wf) {
@@ -77,7 +85,7 @@
       : '';
     card.innerHTML =
       '<div class="wf-card-head">' +
-      '  <div class="wf-icon">' + escHtml(wf.icon || '🗂') + '</div>' +
+      '  <div class="wf-icon">' + ICON.render(wf.icon || 'rectangle-stack') + '</div>' +
       '  <div class="wf-titlebox">' +
       '    <div class="wf-label">' + escHtml(wf.label) + '</div>' +
       '    <div class="wf-pagecount">' + accessiblePages.length + ' page' +
@@ -117,7 +125,7 @@
       : '';
     card.innerHTML =
       '<div class="wf-card-head">' +
-      '  <div class="wf-icon">' + escHtml(wf.icon || '⭐') + '</div>' +
+      '  <div class="wf-icon">' + ICON.render(wf.icon || 'star') + '</div>' +
       '  <div class="wf-titlebox">' +
       '    <div class="wf-label">' + escHtml(wf.label) + '</div>' +
       '    <div class="wf-pagecount">' + accessiblePages.length + ' page' +
@@ -173,20 +181,25 @@
   }
 
   function render(defaults, custom) {
-    var root = document.getElementById('rm-home-root');
+    var root = document.getElementById(ROOT_ID);
     if (!root) return;
     root.innerHTML = '';
 
     // Default workflows section.
     var defaultsSection = document.createElement('section');
     defaultsSection.className = 'wf-section';
+    // V3.811 — admins get a link to the editor right where they look.
+    var isAdmin = firebridge.isAdmin && firebridge.isAdmin();
     defaultsSection.innerHTML =
-      '<h2 class="wf-section-title">Workflows</h2>' +
-      '<p class="wf-section-sub">Pick a workflow to get a focused page strip on top of every page you visit. Each workflow is a curated bundle of related tools — leave anytime to return to the full nav.</p>';
+      '<h2 class="wf-section-title">Workflows' +
+      (isAdmin ? ' <a class="wf-admin-link" href="/rm/pages/admin-workflows.html">Edit defaults →</a>' : '') +
+      '</h2>' +
+      '<p class="wf-section-sub">A workflow bundles the pages for one kind of work and keeps them loaded side by side, with chat and tasks in pull-out panels. Open one and its pages become the chips in the top bar; leave it from the Workflows menu whenever you like.</p>';
     var grid = document.createElement('div');
     grid.className = 'wf-grid';
     var anyVisible = false;
     defaults.forEach(function (wf) {
+      if (wf.enabled === false) return;          // V3.811 — hidden by the admin
       var card = renderDefaultCard(wf);
       if (card) { grid.appendChild(card); anyVisible = true; }
     });
@@ -201,7 +214,7 @@
     customSection.className = 'wf-section';
     customSection.innerHTML =
       '<h2 class="wf-section-title">My workflows</h2>' +
-      '<p class="wf-section-sub">Custom workflows you saved. Build new ones with the card below or by clicking <em>Save as custom</em> from any default workflow strip.</p>';
+      '<p class="wf-section-sub">Workflows you saved. Build one with the card below, or open a default workflow, add and remove pages in the bar, and press <em>Save as mine</em>.</p>';
     var cgrid = document.createElement('div');
     cgrid.className = 'wf-grid';
     custom.forEach(function (wf) {
@@ -231,7 +244,7 @@
     modal.className = 'ws-modal';
     modal.innerHTML =
       '<h3>New custom workflow</h3>' +
-      '<div class="ws-modal-sub">Pick the pages you want to bundle. You can edit the list anytime by entering the workflow and using the strip\'s <em>+ Add page</em> button.</div>' +
+      '<div class="ws-modal-sub">Pick the pages you want to bundle. You can change the list any time from inside the workflow with the <em>+</em> chip in the bar.</div>' +
       '<label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:4px;">Name</label>' +
       '<input type="text" id="wf-build-name" class="ws-modal-search" placeholder="e.g. Onboarding tasks" style="margin-bottom:10px;">' +
       '<input type="text" id="wf-build-search" class="ws-modal-search" placeholder="Filter pages…">' +
@@ -305,7 +318,7 @@
           .collection('userData').doc(u.uid)
           .collection('customWorkflows').doc(slug)
           .set({
-            id: slug, label: name, icon: '⭐',
+            id: slug, label: name, icon: 'star',
             description: '',
             pageIds: pageIds,
             landingPageId: landingPageId,

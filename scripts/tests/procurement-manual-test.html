@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Procurement Test Run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Public+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one 880px column read like a requisition pad: header, the two people, the ticket path, then numbered test slips, each with a tear-off result stub. */
+:root {
+  --paper: #f3f5f8;
+  --card: #ffffff;
+  --ink: #172131;
+  --muted: #576377;
+  --rule: #d6dce6;
+  --rule-soft: #eaeef3;
+  --accent: #2446a6;
+  --accent-bg: #e6ecfa;
+  --alex: #2446a6;
+  --alex-bg: #e6ecfa;
+  --tester: #74399a;
+  --tester-bg: #f2e8f8;
+  --pass: #17733f;
+  --pass-bg: #e2f3e8;
+  --fail: #b0261c;
+  --fail-bg: #fbe6e4;
+  --blocked: #985500;
+  --blocked-bg: #fbefd9;
+  --on-solid: #ffffff;
+  --f-display: "Archivo Narrow", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e131a; --card: #151c26; --ink: #e5eaf1; --muted: #9ba6b6; --rule: #2c3645; --rule-soft: #1c2430;
+    --accent: #90a9ff; --accent-bg: #1c2645; --alex: #90a9ff; --alex-bg: #1c2645; --tester: #d6a0f2; --tester-bg: #2c1d37;
+    --pass: #5fd096; --pass-bg: #11301f; --fail: #ff8b80; --fail-bg: #3a1714; --blocked: #f2b652; --blocked-bg: #35260c;
+    --on-solid: #0e131a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e131a; --card: #151c26; --ink: #e5eaf1; --muted: #9ba6b6; --rule: #2c3645; --rule-soft: #1c2430;
+  --accent: #90a9ff; --accent-bg: #1c2645; --alex: #90a9ff; --alex-bg: #1c2645; --tester: #d6a0f2; --tester-bg: #2c1d37;
+  --pass: #5fd096; --pass-bg: #11301f; --fail: #ff8b80; --fail-bg: #3a1714; --blocked: #f2b652; --blocked-bg: #35260c;
+  --on-solid: #0e131a;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.55 var(--f-body); }
+.wrap {
+  max-width: 880px; margin: 0 auto;
+  padding-block: 28px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 28px;
+}
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: .005em; }
+h1 { font-size: clamp(32px, 6vw, 44px); line-height: 1.05; font-weight: 700; }
+h2 { font-size: 24px; font-weight: 700; }
+h3 { font-size: 19px; font-weight: 600; line-height: 1.25; }
+p { margin: 0; }
+code, .mono { font-family: var(--f-mono); font-size: .88em; }
+code { background: var(--rule-soft); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.eyebrow { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.lede { max-width: 66ch; color: var(--muted); font-size: 16px; }
+.head { display: flex; flex-direction: column; gap: 10px; }
+
+/* the two people */
+.cast { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.person { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.person p { color: var(--muted); font-size: 14px; }
+.who { display: inline-flex; align-items: center; gap: 6px; font-family: var(--f-mono); font-size: 11.5px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+.who--alex { color: var(--alex); background: var(--alex-bg); }
+.who--tester { color: var(--tester); background: var(--tester-bg); }
+.who--both { color: var(--muted); background: var(--rule-soft); }
+
+/* notes before starting */
+.brief { border: 1px solid var(--rule); border-radius: 10px; background: var(--card); padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.brief ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.brief li { max-width: 72ch; }
+
+/* summary */
+.summary { display: flex; flex-direction: column; gap: 12px; }
+.bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--rule-soft); }
+.bar span { display: block; height: 100%; transition: width .3s ease; }
+.bar .b-pass { background: var(--pass); } .bar .b-fail { background: var(--fail); } .bar .b-blocked { background: var(--blocked); }
+.counts { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.counts b { font-weight: 700; }
+.c-pass b { color: var(--pass); } .c-fail b { color: var(--fail); } .c-blocked b { color: var(--blocked); }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.chipbtn { font: 600 13px var(--f-body); border: 1px solid var(--rule); background: var(--card); color: var(--ink); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+.chipbtn[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.chipbtn:hover { border-color: var(--accent); }
+.savebar { font-size: 13px; color: var(--muted); }
+.tools { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.marker { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--muted); }
+.marker select { font: 600 13.5px var(--f-body); color: var(--ink); background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 5px 8px; }
+.copybox { width: 100%; min-height: 160px; font: 12.5px/1.45 var(--f-mono); color: var(--ink); background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 10px; }
+.savebar.is-warn { color: var(--blocked); }
+
+/* ticket path coverage */
+.path { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.stage { font-family: var(--f-mono); font-size: 12px; border: 1px solid var(--rule); border-radius: 6px; padding: 3px 8px; background: var(--card); color: var(--muted); font-variant-numeric: tabular-nums; }
+.stage.is-done { border-color: var(--pass); color: var(--pass); background: var(--pass-bg); }
+.stage.is-bad { border-color: var(--fail); color: var(--fail); background: var(--fail-bg); }
+.path-arrow { color: var(--muted); font-size: 12px; }
+
+/* sections + slips */
+.section { display: flex; flex-direction: column; gap: 14px; }
+.section-head { display: flex; flex-direction: column; gap: 4px; }
+.section-head p { color: var(--muted); font-size: 14px; max-width: 70ch; }
+.slip { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+.slip-head { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 16px 18px 10px; }
+.num { font-family: var(--f-display); font-weight: 700; font-size: 26px; line-height: 1; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 2px; }
+.titleblock { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tag { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); border: 1px solid var(--rule); border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
+.tag--opt { border-style: dashed; }
+.status { font: 700 12px var(--f-body); letter-spacing: .04em; text-transform: uppercase; border-radius: 999px; padding: 4px 10px; white-space: nowrap; background: var(--rule-soft); color: var(--muted); }
+.status[data-s="pass"] { background: var(--pass-bg); color: var(--pass); }
+.status[data-s="fail"] { background: var(--fail-bg); color: var(--fail); }
+.status[data-s="blocked"] { background: var(--blocked-bg); color: var(--blocked); }
+.slip-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; padding: 4px 18px 16px 82px; }
+.col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.col-label { font-family: var(--f-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.col ol, .col ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.col ul.expect { list-style: none; padding-left: 0; }
+.expect li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.expect li.plain { grid-template-columns: minmax(0, 1fr); color: var(--muted); font-size: 14px; font-style: italic; }
+.slip-note { margin: 0 18px 14px 82px; font-size: 13.5px; color: var(--muted); border-left: 2px solid var(--rule); padding-left: 10px; }
+
+/* the tear-off stub */
+.stub { border-top: 1px dashed var(--rule); background: var(--rule-soft); padding: 12px 18px 14px 82px; display: flex; flex-direction: column; gap: 10px; }
+.stub-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.rbtn { font: 600 13.5px var(--f-body); border: 1px solid var(--rule); background: var(--card); color: var(--ink); border-radius: 8px; padding: 6px 14px; cursor: pointer; }
+.rbtn:hover:not(:disabled) { border-color: var(--accent); }
+.rbtn[data-r="pass"][aria-pressed="true"] { background: var(--pass); border-color: var(--pass); color: var(--on-solid); }
+.rbtn[data-r="fail"][aria-pressed="true"] { background: var(--fail); border-color: var(--fail); color: var(--on-solid); }
+.rbtn[data-r="blocked"][aria-pressed="true"] { background: var(--blocked); border-color: var(--blocked); color: var(--on-solid); }
+.rbtn:disabled { opacity: .5; cursor: not-allowed; }
+.linkbtn { font: 600 13px var(--f-body); background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; padding: 4px 2px; }
+.linkbtn:disabled { opacity: .5; cursor: not-allowed; }
+.notebox { display: flex; flex-direction: column; gap: 6px; }
+.notebox label { font-size: 12.5px; color: var(--muted); }
+.notebox textarea { width: 100%; min-height: 58px; resize: vertical; font: 14px/1.45 var(--f-body); color: var(--ink); background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; }
+.notebox textarea:disabled { opacity: .6; }
+.meta { font-size: 12.5px; color: var(--muted); }
+.err { font-size: 13px; color: var(--fail); }
+.empty-filter { color: var(--muted); font-size: 14px; padding: 8px 0; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.foot { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule); padding-top: 14px; }
+
+@media (max-width: 640px) {
+  .cast { grid-template-columns: minmax(0, 1fr); }
+  .slip-head { grid-template-columns: 38px minmax(0, 1fr); }
+  .slip-head .status { grid-column: 2; justify-self: start; }
+  .num { font-size: 22px; }
+  .slip-body { grid-template-columns: minmax(0, 1fr); padding: 4px 16px 14px 16px; }
+  .slip-note { margin: 0 16px 14px 16px; }
+  .stub { padding: 12px 16px 14px 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .bar span { transition: none; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="head">
+    <div class="eyebrow">McGhee Lab · RM Procurement · V3.813–V3.814</div>
+    <h1>Procurement Test Run</h1>
+    <p class="lede">Two people walk two purchase requests through every step: asking, approving, changing the funding, ordering, receiving, putting away, and requesting again. Each slip says who acts, what to press, and what each of you should see. Mark every slip Pass, Fail or Blocked. Marks save in this browser, so keep one copy open as the scorecard. Plan on about an hour.</p>
+  </header>
+
+  <section class="cast" aria-label="Who plays which part">
+    <div class="person">
+      <span class="who who--alex">Alex</span>
+      <p>The PI, signed in as admin. Approves, asks questions, changes the funding, places the orders and cleans up afterwards.</p>
+    </div>
+    <div class="person">
+      <span class="who who--tester">Tester</span>
+      <p>Any lab member who is <b>not</b> an admin and has no procurement rights. Files the requests, answers, receives and puts away.</p>
+    </div>
+  </section>
+
+  <section class="brief" aria-label="Read before you start">
+    <h2>Read before you start</h2>
+    <ul>
+      <li>Start every item name with <code>[TEST]</code>. Those tickets are real records, and the prefix makes them easy to find and delete at the end.</li>
+      <li>A push is silenced while the person it is for has the Procurement page in front of them, on any device. Before the other person acts, the one waiting for the buzz switches to another tab or locks their phone.</li>
+      <li>Every notice also lands in <b>My Week → Notifications</b>. It keeps only the latest unread notice per ticket, so a later step can replace an earlier one there.</li>
+      <li>Nobody is notified about their own action. Alex is both approver and purchaser, so Alex never gets "Ready to order" after approving.</li>
+      <li>The phone app keeps the old Procurement page until the next app build. Run the tests in a web browser. Pushes still reach the phone.</li>
+      <li>The web site uploads itself at the end of each Claude turn now, so the page you test is always the latest. Only the phone build and the announcement wait for a batch.</li>
+      <li>When a slip fails, write what you saw in its note. At the end press <b>Download results</b> and give the file to Claude to fix what failed.</li>
+    </ul>
+  </section>
+
+  <section class="summary" aria-label="Progress">
+    <div class="bar" id="bar" aria-hidden="true"><span class="b-pass"></span><span class="b-fail"></span><span class="b-blocked"></span></div>
+    <div class="counts" id="counts"></div>
+    <div class="path" id="path" aria-label="Ticket stages covered"></div>
+    <div class="filters" role="group" aria-label="Show">
+      <button type="button" class="chipbtn" data-filter="all" id="f-all">All slips</button>
+      <button type="button" class="chipbtn" data-filter="alex" id="f-alex">Alex acts</button>
+      <button type="button" class="chipbtn" data-filter="tester" id="f-tester">Tester acts</button>
+      <button type="button" class="chipbtn" data-filter="open" id="f-open">Not run yet</button>
+      <button type="button" class="chipbtn" data-filter="fail" id="f-fail">Failed or blocked</button>
+    </div>
+    <div class="tools">
+      <label class="marker" for="marker">Marking as
+        <select id="marker"><option value="Alex">Alex</option><option value="Tester">Tester</option></select>
+      </label>
+      <button type="button" class="rbtn" id="dl">Download results</button>
+      <button type="button" class="rbtn" id="copy">Copy results</button>
+      <button type="button" class="linkbtn" id="reset">Clear all marks</button>
+    </div>
+    <textarea id="copybox" class="copybox" readonly hidden aria-label="Results as text"></textarea>
+    <div class="savebar" id="savebar">Marks save in this browser as you press them.</div>
+  </section>
+
+  <div id="sections"></div>
+
+  <p class="foot">This file lives at <code>scripts/tests/procurement-manual-test.html</code>. Behind it: the same journeys already pass as automated tests (219 core checks, 117 security-rule checks, 96 end-to-end steps with real sign-ins, 162 browser checks). This run is the part only people can check: that the right person gets the right notice, and that each screen reads clearly.</p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── The run. Order matters: two tickets carry through the whole sequence. ── */
+  var STAGES = ['Requested', 'Question', 'Approved', 'Ordered', 'Arrived', 'Placed', 'Denied', 'Withdrawn'];
+  var GLOVES = '[TEST] Nitrile gloves';
+  var TIPS = '[TEST] Pipette tips';
+  var REPEAT = 'Repeat gloves request';
+
+  var SECTIONS = [
+    {
+      id: 'setup', title: 'Before you start', blurb: 'Five minutes. If any of these fails, stop and mark it Blocked; the rest of the run depends on them.',
+      items: [
+        { id: 's1', n: 'S1', who: ['alex'], title: 'Put the new page on the server',
+          steps: ['The site now uploads itself at the end of every Claude turn, so nothing to FTP: just check that the last turn reported “Deployed … to mcgheelab.com”.', 'Open <code>mcgheelab.com/rm/pages/procurement.html</code> and reload it twice, so the browser picks up the new version.'],
+          expect: [['alex', 'Tabs read Inbox, Active, Mine, Archive and Report, with <b>Reorder existing</b> and <b>New item</b> buttons on the right.'], ['alex', 'No pop-up box appears anywhere. If the tabs are missing, the old page is still cached: reload once more, then mark this Blocked.']] },
+        { id: 's2', n: 'S2', who: ['tester'], title: 'Sign in as an ordinary lab member',
+          steps: ['Sign in to RM with your own account.', 'Open <b>Settings → Notifications</b> and make sure <b>Purchasing</b> is on. Allow browser notifications if asked.', 'Open <b>Procurement</b>.'],
+          expect: [['tester', 'Tabs read Inbox, Active, Mine and Archive. There is no Report tab; that one is only for approvers and purchasers.']] },
+        { id: 's3', n: 'S3', who: ['alex'], title: 'Check notifications and the tester’s rights',
+          steps: ['<b>Settings → Notifications → Purchasing</b> is on for you too.', 'Open <b>Permissions</b> and find the Procurement row for the tester.'],
+          expect: [['alex', 'The tester has neither <b>Approve requests</b> nor <b>Place orders</b>, so they test as an ordinary member.']] },
+        { id: 's4', n: 'S4', who: ['alex'], title: 'Check the project list',
+          steps: ['Open <b>Grant Accounts</b> and look over your active projects and their funding strings.', 'On Procurement press <b>New item</b>, open the <b>Project</b> list, then press <b>Cancel</b>.'],
+          expect: [['alex', 'The list shows McGhee Startup · <code>1101935</code>, Cancer Engineering - Prostate · <code>1101917-MCMI</code>, Cancer Engineering - TF-ELISA · <code>1101917-MCPO</code>, McGhee-Triff · <code>5406011-AMSTP</code>, and “Other / not listed…”.']] },
+        { id: 's5', n: 'S5', who: ['alex', 'tester'], title: 'Agree who keeps score',
+          steps: ['Pick one browser to hold the marks: Alex’s, or the tester’s if you are not in the same room. Send the other person this file, <code>scripts/tests/procurement-manual-test.html</code>, so they can read the steps.', 'Set <b>Marking as</b> above to whoever is pressing the buttons.'],
+          expect: [['both', 'Marks survive a reload of this file in the same browser. They do not travel to another browser or computer; use Download results for that.']] },
+      ],
+    },
+    {
+      id: 'run', title: 'The run', blurb: 'In order. The gloves request goes all the way to the shelf; the pipette tips request is filled by an AI, approved, edited and denied.',
+      items: [
+        { id: 't01', n: '1', who: ['tester'], title: 'Submit a request', ticket: GLOVES, stages: ['Requested'],
+          steps: ['Press <b>New item</b>. Item: <code>[TEST] Nitrile gloves, medium, 100/box</code>. Vendor: Fisher. Quantity 2, unit cost 12.50.', 'Leave Project empty and press <b>Submit request</b>.', 'Pick <b>McGhee Startup</b> and press Submit request again.', 'Choose <b>Possibly recurring</b>, then <b>About monthly</b>. Why: “Testing the purchase workflow”. Press Submit request.'],
+          expect: [['tester', 'Estimated total reads $25.00 as you type.'], ['tester', 'The first submit shows an error beside Project, the second beside “One-time or recurring?”. No pop-up box at any point.'], ['tester', 'Picking the project fills <b>Charged to</b> with “McGhee Startup · 1101935”.'], ['tester', 'After submitting, a toast says the approver was notified, the Mine tab opens, and the ticket shows a Requested chip.'], ['alex', 'Push “New purchase request”: “Tester: [TEST] Nitrile gloves, medium, 100/box · ~$25.00 · recurring”.']] },
+        { id: 't02', n: '2', who: ['tester'], title: 'Fill a request from an AI’s price comparison', ticket: TIPS, stages: ['Requested'],
+          steps: ['Press <b>New item</b>. Item: <code>[TEST] Pipette tips 200 µL, sterile, racked</code>. Quantity 5. Why: “Testing the AI comparison”.', 'Press <b>Download AI prompt</b>. Paste the downloaded text into ChatGPT, Claude or Gemini and send it.', 'Press <b>Import AI results</b>, type <code>hello</code> in the box and press <b>Import</b>.', 'Replace it with the AI’s whole answer and press Import.', 'Press <b>Use</b> on a different source row.', 'Project: <b>Other / not listed…</b>, named <code>[TEST] side project</code>. Submit request.'],
+          expect: [['tester', 'A file named <code>procurement-prompt-test-pipette-tips-…txt</code> downloads, and the same text is on your clipboard.'], ['tester', '<code>hello</code> gets an error under the paste box saying no JSON block was found.'], ['tester', 'The real answer fills 2 to 4 source rows. The recommended row is highlighted, and its vendor, catalogue number, link and price fill the main fields. A toast says how many sources came in.'], ['tester', '<b>Use</b> moves the highlight and the main fields to that row.'], ['tester', 'With “Other”, Charged to says the approver will assign the funding string.'], ['alex', 'Push “New purchase request” for the tips.']],
+          note: 'If the AI says it cannot browse, try another AI or ask it to answer from what it knows. Mark Fail only when a proper JSON answer does not import.' },
+        { id: 't03', n: '3', who: ['alex', 'tester'], title: 'Ask a question, get an answer', ticket: GLOVES, stages: ['Question', 'Requested'],
+          steps: ['Alex: Inbox → <b>Waiting for your approval</b> lists both requests. Open the gloves → <b>Ask a question</b> → “Which brand?” → Send question.', 'Tester: Inbox → <b>Questions for you</b> → open the gloves → <b>Answer</b> → “Kimberly-Clark” → Send answer.'],
+          expect: [['tester', 'Push “Question about your request”: “Alex: Which brand?”. The ticket carries a yellow banner with the question.'], ['alex', 'Push “Tester answered”: “[TEST] Nitrile gloves… — Kimberly-Clark”. The ticket is back to Requested.']] },
+        { id: 't04', n: '4', who: ['alex'], title: 'Approve', ticket: GLOVES, stages: ['Approved'],
+          steps: ['Open the gloves → <b>Approve</b> → note “OK for the test” → Approve.'],
+          expect: [['tester', 'Push “Approved: [TEST] Nitrile gloves…”: “By Alex. OK for the test.”'], ['alex', 'The ticket moves to <b>Approved — ready to order</b> in your Inbox. No “Ready to order” push, because it was your own action.']] },
+        { id: 't05', n: '5', who: ['alex'], title: 'Approve a request that has no funding string', ticket: TIPS, stages: ['Approved'],
+          steps: ['Open the tips and read the <b>Price comparison</b> table on the card.', 'Press Approve, then press Approve again without picking a project.', 'Pick <b>McGhee Startup</b> and press Approve.'],
+          expect: [['alex', 'The card shows the comparison table with the chosen source ticked, plus a Purchase type row.'], ['alex', 'The approve form says the request has no funding string yet. Approving without a project shows an error beside Project.'], ['alex', 'Afterwards the card shows Charged to <code>1101935</code>.'], ['tester', 'Push “Approved: [TEST] Pipette tips…”.']] },
+        { id: 't06', n: '6', who: ['tester'], title: 'Editing an approved request sends it back', ticket: TIPS, stages: ['Requested'],
+          steps: ['Open the tips → <b>Edit request</b> → quantity 6 → <b>Save changes</b>.'],
+          expect: [['tester', 'The form warns that saving sends it back to the approver. Afterwards the chip reads Requested.'], ['alex', 'Push “Back for approval”: “[TEST] Pipette tips… — Changed quantity… (needs re-approval)”.']] },
+        { id: 't07', n: '7', who: ['alex'], title: 'Change funding before ordering', ticket: GLOVES, stages: ['Approved'],
+          steps: ['Open the gloves → <b>Change funding</b> → press Change funding without changing anything.', 'Pick <b>Cancer Engineering - Prostate</b>, why: “testing a funding move”, then press Change funding.'],
+          expect: [['alex', 'The form shows “Currently charged to McGhee Startup · 1101935” and says the tester will be notified. Saving unchanged shows “That is already the project on this ticket.”'], ['alex', 'After saving: Charged to reads <code>1101917-MCMI</code>, a <b>Funding changed</b> row names you and “was McGhee Startup · 1101935”, the same line sits under Notes, and the status stays Approved.'], ['tester', 'Push “Funding changed: [TEST] Nitrile gloves…”: “Alex moved it to Cancer Engineering - Prostate · 1101917-MCMI (was McGhee Startup · 1101935) — testing a funding move.”']] },
+        { id: 't08', n: '8', who: ['alex'], title: 'Mark ordered with a PO', ticket: GLOVES, stages: ['Ordered'],
+          steps: ['Open the gloves → <b>Mark ordered</b>.', 'Bought via P-card, PO <code>TEST-PO-1</code>, expected delivery three days from today. Attach any PDF or photo as the PO file.', 'Press Mark ordered.'],
+          expect: [['alex', 'The order form’s banner reads “Charge to Cancer Engineering - Prostate · 1101917-MCMI”.'], ['alex', 'The row shows Ordered with the ETA date, and the PO file link on the card opens the file.'], ['tester', 'Push “Ordered: [TEST] Nitrile gloves…”: “PO TEST-PO-1. Expected <date>.”']] },
+        { id: 't09', n: '9', who: ['alex'], title: 'Change funding after the order was placed', ticket: GLOVES, stages: ['Ordered'],
+          steps: ['Open the gloves → <b>Change funding</b> → McGhee Startup, why: “moving it back” → Change funding.'],
+          expect: [['alex', 'The form says the order was already placed and that the purchaser is told. The status stays Ordered and the PO details are unchanged.'], ['tester', 'Push “Funding changed”, naming both funding strings and your reason.'], ['plain', 'Anyone else holding Place orders would get “Charge to a different string”. With only Alex holding it, nobody else does.']] },
+        { id: 't10', n: '10', who: ['tester', 'alex'], title: 'Flag a problem and clear it', ticket: GLOVES, stages: ['Ordered'],
+          steps: ['Tester: open the gloves → <b>Flag a problem</b> → “Box arrived damaged (test)” → Flag it.', 'Alex: Inbox → <b>Flagged problems</b> → open the gloves → <b>Clear flag</b> → Clear flag.'],
+          expect: [['alex', 'Urgent push “Problem with an order”: “[TEST] Nitrile gloves…: Box arrived damaged (test)”. The row carries a “problem” flag.'], ['tester', 'The flag disappears once Alex clears it.']] },
+        { id: 't11', n: '11', who: ['tester'], title: 'Receive and put away', ticket: GLOVES, stages: ['Arrived', 'Placed'],
+          steps: ['Open the gloves → <b>Mark received</b>: quantity 2, actual cost 24.00, attach any photo as the receipt → Mark received.', '<b>Put away</b> → New inventory item → Location <code>TEST shelf</code> → Put away.', 'Archive → the gloves → <b>open in inventory</b>.'],
+          expect: [['alex', 'Push “Arrived: [TEST] Nitrile gloves…”.'], ['tester', 'A toast says it was put away and recorded in inventory. The ticket moves to the Archive as Placed.'], ['tester', 'Inventory opens the new item: quantity 2, location TEST shelf, unit price $12.00, account 1101935.'], ['plain', 'Nobody gets a “Put away” push here: that notice goes to the requester, and the requester did it.']] },
+        { id: 't12', n: '12', who: ['tester'], title: 'Request again', ticket: REPEAT, stages: ['Requested'],
+          steps: ['Archive → the gloves → <b>Request again</b>.', 'Read the form, change quantity to 1, and press Submit request.'],
+          expect: [['tester', 'The form opens as “Reorder: …” with an “Again:” banner naming the earlier request and saying putting it away will restock the same inventory item. Vendor, link and the price comparison are folded under <b>Item details</b>; open it to see them.'], ['tester', 'Item, vendor, price, project, “Possibly recurring”, “About monthly” and the reason are copied. Needed by is empty and urgency is Routine.'], ['alex', 'Push “New purchase request” for the repeat.']] },
+        { id: 't13', n: '13', who: ['tester'], title: 'Withdraw and reopen', ticket: REPEAT, stages: ['Withdrawn', 'Requested'],
+          steps: ['Open the repeat request → <b>Withdraw</b> → Withdraw.', 'Then <b>Reopen</b> → Reopen.'],
+          expect: [['tester', 'Both are confirm strips inside the card, never a pop-up box. The ticket ends back at Requested.'], ['alex', 'Push “Request withdrawn”, then push “Request reopened”.']] },
+        { id: 't14', n: '14', who: ['alex'], title: 'Deny with a reason', ticket: TIPS, stages: ['Denied'],
+          steps: ['Open the tips → <b>Deny</b> → press Deny request with no reason.', 'Reason: “Test — not needed” → Deny request.'],
+          expect: [['alex', 'With no reason, an error appears beside the reason box.'], ['tester', 'Push “Denied: [TEST] Pipette tips…”: “Test — not needed”.'], ['tester', 'In the Archive the ticket has a red Denied banner with the reason, and no Reopen button. Only approvers reopen a denied request.']] },
+        { id: 't15', n: '15', who: ['tester'], title: 'What an ordinary member cannot do', ticket: 'All test tickets', stages: [],
+          steps: ['Open the tips (denied), the repeat request (requested) and the gloves (placed, in the Archive).'],
+          expect: [['tester', 'No Approve, Ask a question, Deny, Change funding or Delete button on any of them.'], ['tester', 'No Mark ordered, Edit order or Undo order button anywhere, and still no Report tab.'], ['plain', 'The server refuses these too, even if someone forces the request; the automated rule tests cover that part.']] },
+        { id: 't16', n: '16', who: ['alex', 'tester'], title: 'Give the tester purchasing rights', ticket: REPEAT, stages: ['Approved', 'Ordered'], optional: true,
+          steps: ['Alex: <b>Permissions</b> → Procurement → tick <b>Place orders</b> for the tester.', 'Tester: reload Procurement.', 'Alex: approve the repeat request.', 'Tester: <b>Mark ordered</b> on it, any method, PO <code>TEST-PO-2</code>.', 'Alex: untick Place orders for the tester.'],
+          expect: [['tester', 'After the reload a Report tab appears.'], ['tester', 'Pushes “Approved” and “Ready to order”. The phone may stack them into one, since they are about the same ticket.'], ['tester', 'The order goes through. Approve and Change funding are still missing.'], ['alex', 'Push “Ordered: [TEST] Nitrile gloves…”, because you watch the ticket.']] },
+        { id: 't17', n: '17', who: ['tester'], title: 'Reorder existing: find it, then reorder it', ticket: 'The [TEST] gloves inventory item', stages: [],
+          steps: ['Procurement → <b>Reorder existing</b>. Read the list, then type <code>test</code> in its search box.', 'Set <b>Group by</b> to Vendor, then <b>Stock</b> to “Low or out”, then press <b>Clear filters</b>.', 'Set <b>Source</b> to “Bought before, not in Inventory”.', 'Clear that, find <code>[TEST] Nitrile gloves</code> and press its <b>Reorder</b> button.', 'Read the form, then press Cancel.', 'Inventory → the <code>[TEST] Nitrile gloves</code> item → <b>Request reorder →</b>.'],
+          expect: [['tester', 'The picker lists everything in Inventory grouped by category, plus a “not in inventory” badge on things bought before that were never put away (the pipette tips, if they were approved). Requested and denied tickets are not offered.'], ['tester', 'Typing narrows the list as you type without losing your place in the search box. Group by Vendor shows a Fisher heading. The Stock filter leaves only low or out-of-stock items; Clear filters brings everything back.'], ['tester', 'The Source filter shows only items bought through procurement that are not in Inventory.'], ['tester', 'Reorder opens a “Reorder: [TEST] Nitrile gloves…” form naming TEST shelf, with Fisher, the last price and McGhee Startup filled in, “Possibly recurring” selected, and the vendor / link / price comparison folded under Item details. The cursor is in Quantity.'], ['tester', 'Request reorder from Inventory opens the same prefilled form.']] },
+        { id: 't18', n: '18', who: ['alex'], title: 'Report and spreadsheet export', ticket: 'All test tickets', stages: [],
+          steps: ['Open the <b>Report</b> tab and set From to the start of this month.', 'Press <b>Export CSV</b> and open the file.'],
+          expect: [['alex', 'By project, By funding string and By category list the test tickets. Denied and withdrawn tickets are left out of the totals.'], ['alex', 'The CSV has purchase_type, recurrence, sources_compared and funding_changed_from columns.']] },
+        { id: 't19', n: '19', who: ['alex', 'tester'], title: 'Tap a push on the phone', ticket: 'Any', stages: [], optional: true,
+          steps: ['After the next app build is installed, tap any procurement notification on the phone.'],
+          expect: [['both', 'The app opens Procurement on that ticket.']],
+          note: 'The phone app keeps the old page until Alex runs the release script and the new build is installed. Mark this Blocked until then.' },
+        { id: 't20', n: '20', who: ['tester', 'alex'], title: '“+ Item” from the Chrome extension', ticket: '[TEST] captured item', stages: ['Requested', 'Approved'], optional: true,
+          steps: ['Tester: install or reload the McGhee Lab Capture extension (Library page → Install the extension), sign in with your lab Google account.', 'Open a product page on Fisher, Sigma, VWR or Amazon. Click the extension icon.', 'Press <b>+ Add</b> on the item, set quantity 2, note “[TEST] extension capture”, press <b>Add to request</b>.', 'In the RM tab that opens, pick a project and “One-time”, press Submit request.', 'Alex: approve it. Tester: Procurement → Reorder existing → search the item.', 'Alex: deny or delete it afterwards (cleanup C1 covers it).'],
+          expect: [['tester', 'The toolbar icon shows a green <b>+</b> on the product page. The popup lists the item with its vendor, catalogue number and price; every field is editable.'], ['tester', 'A new tab opens on Procurement with the New-item form prefilled: item, vendor, catalogue number, link, price, quantity 2, the note as “why”, and the vendor as the first row of the price comparison. Project is empty and focused.'], ['tester', 'Before approval, the item is not in Reorder existing. After Alex approves, it is (with a “not in inventory” badge). It never appears in Inventory until someone puts it away.'], ['alex', 'Push “New purchase request” for the captured item.']],
+          note: 'Needs the updated extension (0.3.1). If the popup shows a yellow “Reload needed” bar, press Reload now and open the popup again — Chrome keeps the old background worker until the extension is reloaded. Mark Blocked if the extension is not installed. “Captured in your browser” above the composer lists any capture you did not finish; Discard removes it. Price watch: the card of the submitted request shows a “Price watch” row with the captured price and “1 check”; the popup’s “Check now” re-reads the page in a background tab and the row then shows 2 checks.' },
+      ],
+    },
+    {
+      id: 'cleanup', title: 'Clean up', blurb: 'Alex only. Deleting a ticket sends no notification.',
+      items: [
+        { id: 'c1', n: 'C1', who: ['alex'], title: 'Delete the test tickets',
+          steps: ['On Procurement, search <code>[TEST]</code>.', 'Open each ticket → <b>Delete</b> → Delete.'],
+          expect: [['both', 'Each ticket disappears for both of you.']] },
+        { id: 'c2', n: 'C2', who: ['alex'], title: 'Delete the test inventory item',
+          steps: ['Inventory → <code>[TEST] Nitrile gloves</code> → <b>Delete Item</b>.'],
+          expect: [['alex', 'The item is gone from Inventory.']] },
+        { id: 'c3', n: 'C3', who: ['alex'], title: 'Undo test permissions',
+          steps: ['Permissions → Procurement: Place orders is unticked for the tester, if slip 16 was run.'],
+          expect: [['alex', 'The tester is back to an ordinary member.']] },
+      ],
+    },
+  ];
+  var ITEMS = [];
+  SECTIONS.forEach(function (s) { s.items.forEach(function (it) { it.section = s.id; ITEMS.push(it); }); });
+  var BY_ID = {}; ITEMS.forEach(function (it) { BY_ID[it.id] = it; });
+
+  /* ── State: kept in this browser (localStorage), exported as a text file ── */
+  var KEY = 'procurement-manual-test:v1';
+  var results = {};          // id → { status, note, by, at }
+  var filter = 'all';
+  var marker = 'Alex';
+  var cards = {};
+  var storageOk = true;
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      var obj = raw ? JSON.parse(raw) : {};
+      results = {}; Object.keys(obj || {}).forEach(function (k) { if (BY_ID[k]) results[k] = obj[k]; });
+      var f = localStorage.getItem(KEY + ':filter'); if (f) filter = f;
+      var m = localStorage.getItem(KEY + ':marker'); if (m === 'Alex' || m === 'Tester') marker = m;
+    } catch (e) { storageOk = false; }
+  }
+  function persist() {
+    try { localStorage.setItem(KEY, JSON.stringify(results)); storageOk = true; }
+    catch (e) { storageOk = false; }
+    setBar(storageOk ? 'Saved in this browser.' : 'This browser is not keeping the marks (a private window, or storage is blocked). Press Download results before you close it.', !storageOk);
+  }
+  function remember(k, v) { try { localStorage.setItem(KEY + ':' + k, v); } catch (e) {} }
+
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+  function text(html) { var d = document.createElement('div'); d.innerHTML = html; return d.textContent; }
+  var WHO_LABEL = { alex: 'Alex', tester: 'Tester', both: 'Both' };
+
+  /* ── Build the slips once ── */
+  function build() {
+    var host = $('sections');
+    SECTIONS.forEach(function (s) {
+      var sec = el('section', 'section'); sec.id = 'sec-' + s.id;
+      var head = el('div', 'section-head');
+      head.appendChild(el('h2', null, s.title));
+      head.appendChild(el('p', null, s.blurb));
+      sec.appendChild(head);
+      s.items.forEach(function (it) { sec.appendChild(buildSlip(it)); });
+      var empty = el('p', 'empty-filter', 'Nothing in this section matches the filter.'); empty.hidden = true; empty.dataset.empty = s.id;
+      sec.appendChild(empty);
+      host.appendChild(sec);
+    });
+  }
+
+  function buildSlip(it) {
+    var slip = el('article', 'slip'); slip.id = 'slip-' + it.id;
+    var head = el('div', 'slip-head');
+    head.appendChild(el('div', 'num', it.n));
+    var tb = el('div', 'titleblock');
+    tb.appendChild(el('h3', null, it.title));
+    var tags = el('div', 'tags');
+    it.who.forEach(function (w) { tags.appendChild(el('span', 'who who--' + w, WHO_LABEL[w])); });
+    if (it.ticket) { var t = el('span', 'tag'); t.textContent = it.ticket; tags.appendChild(t); }
+    (it.stages || []).forEach(function (st) { var g = el('span', 'tag'); g.textContent = '→ ' + st; tags.appendChild(g); });
+    if (it.optional) tags.appendChild(el('span', 'tag tag--opt', 'optional'));
+    tb.appendChild(tags);
+    head.appendChild(tb);
+    var status = el('span', 'status', 'Not run'); status.dataset.s = '';
+    head.appendChild(status);
+    slip.appendChild(head);
+
+    var body = el('div', 'slip-body');
+    var c1 = el('div', 'col'); c1.appendChild(el('div', 'col-label', 'Steps'));
+    var ol = el('ol'); it.steps.forEach(function (s) { ol.appendChild(el('li', null, s)); }); c1.appendChild(ol);
+    var c2 = el('div', 'col'); c2.appendChild(el('div', 'col-label', 'What should happen'));
+    var ul = el('ul', 'expect');
+    it.expect.forEach(function (x) {
+      var li = el('li', x[0] === 'plain' ? 'plain' : null);
+      if (x[0] !== 'plain') li.appendChild(el('span', 'who who--' + x[0], WHO_LABEL[x[0]]));
+      li.appendChild(el('span', null, x[1]));
+      ul.appendChild(li);
+    });
+    c2.appendChild(ul);
+    body.appendChild(c1); body.appendChild(c2);
+    slip.appendChild(body);
+    if (it.note) slip.appendChild(el('p', 'slip-note', it.note));
+
+    var stub = el('div', 'stub');
+    var row = el('div', 'stub-row');
+    var btns = {};
+    [['pass', 'Pass'], ['fail', 'Fail'], ['blocked', 'Blocked']].forEach(function (p) {
+      var b = el('button', 'rbtn'); b.type = 'button'; b.textContent = p[1]; b.dataset.r = p[0]; b.setAttribute('aria-pressed', 'false');
+      b.id = 'r-' + it.id + '-' + p[0];
+      b.addEventListener('click', function () { setStatus(it.id, b.getAttribute('aria-pressed') === 'true' ? '' : p[0]); });
+      btns[p[0]] = b; row.appendChild(b);
+    });
+    var clear = el('button', 'linkbtn', 'Clear'); clear.type = 'button'; clear.id = 'r-' + it.id + '-clear';
+    clear.addEventListener('click', function () { clearResult(it.id); });
+    row.appendChild(clear);
+    var meta = el('span', 'meta'); row.appendChild(meta);
+    stub.appendChild(row);
+
+    var nb = el('div', 'notebox');
+    var lab = el('label', null, 'Note: what you saw, especially if it differs'); lab.setAttribute('for', 'n-' + it.id);
+    var ta = el('textarea'); ta.id = 'n-' + it.id; ta.rows = 2; ta.placeholder = 'e.g. the push arrived but said “Someone” instead of my name';
+    var saveRow = el('div', 'stub-row');
+    var save = el('button', 'rbtn', 'Save note'); save.type = 'button'; save.disabled = true; save.id = 's-' + it.id;
+    saveRow.appendChild(save);
+    nb.appendChild(lab); nb.appendChild(ta); nb.appendChild(saveRow);
+    stub.appendChild(nb);
+    slip.appendChild(stub);
+
+    var card = { el: slip, status: status, btns: btns, note: ta, save: save, clear: clear, meta: meta, dirty: false };
+    ta.addEventListener('input', function () { card.dirty = ta.value !== ((results[it.id] && results[it.id].note) || ''); save.disabled = !card.dirty; });
+    ta.addEventListener('keydown', function (e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); saveNote(it.id); } });
+    ta.addEventListener('blur', function () { if (card.dirty) saveNote(it.id); });
+    save.addEventListener('click', function () { saveNote(it.id); });
+    cards[it.id] = card;
+    return slip;
+  }
+
+  /* ── Paint ── */
+  var STATUS_LABEL = { pass: 'Pass', fail: 'Fail', blocked: 'Blocked', '': 'Not run' };
+  function fmtWhen(iso) {
+    var d = new Date(iso); if (isNaN(d)) return '';
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  }
+  function paint() {
+    ITEMS.forEach(function (it) {
+      var c = cards[it.id], r = results[it.id] || {}, s = r.status || '';
+      c.status.dataset.s = s; c.status.textContent = STATUS_LABEL[s] || 'Not run';
+      Object.keys(c.btns).forEach(function (k) { c.btns[k].setAttribute('aria-pressed', String(s === k)); });
+      c.clear.disabled = !s && !r.note;
+      if (document.activeElement !== c.note && !c.dirty) c.note.value = r.note || '';
+      c.save.disabled = !c.dirty;
+      c.meta.textContent = r.at ? (s ? STATUS_LABEL[s] : 'Note') + ' by ' + (r.by || 'someone') + ' · ' + fmtWhen(r.at) : '';
+    });
+    paintSummary();
+    applyFilter();
+  }
+
+  function tally() {
+    var n = { pass: 0, fail: 0, blocked: 0, open: 0 };
+    ITEMS.forEach(function (it) { var s = (results[it.id] || {}).status || ''; if (n[s] != null) n[s]++; else n.open++; });
+    return n;
+  }
+  function paintSummary() {
+    var n = tally(), total = ITEMS.length;
+    var spans = $('bar').children;
+    spans[0].style.width = (100 * n.pass / total) + '%';
+    spans[1].style.width = (100 * n.fail / total) + '%';
+    spans[2].style.width = (100 * n.blocked / total) + '%';
+    $('counts').innerHTML = '';
+    [['c-pass', n.pass, 'passed'], ['c-fail', n.fail, 'failed'], ['c-blocked', n.blocked, 'blocked'], ['', n.open, 'not run'], ['', total, 'slips in all']].forEach(function (x) {
+      var s = el('span', x[0]); var b = el('b'); b.textContent = x[1]; s.appendChild(b); s.appendChild(document.createTextNode(' ' + x[2])); $('counts').appendChild(s);
+    });
+    // Ticket path: a stage counts as covered when every slip that moves a ticket into it has passed.
+    var path = $('path'); path.innerHTML = '';
+    STAGES.forEach(function (st, i) {
+      var ts = ITEMS.filter(function (it) { return (it.stages || []).indexOf(st) >= 0; });
+      var passed = ts.filter(function (it) { return (results[it.id] || {}).status === 'pass'; }).length;
+      var bad = ts.some(function (it) { var s = (results[it.id] || {}).status; return s === 'fail' || s === 'blocked'; });
+      var pill = el('span', 'stage' + (bad ? ' is-bad' : (ts.length && passed === ts.length ? ' is-done' : '')));
+      pill.textContent = st + ' ' + passed + '/' + ts.length;
+      pill.title = ts.length + ' slip' + (ts.length === 1 ? '' : 's') + ' move a ticket to ' + st;
+      path.appendChild(pill);
+      if (i === 5) path.appendChild(el('span', 'path-arrow', '·'));
+    });
+  }
+
+  function applyFilter() {
+    document.querySelectorAll('[data-filter]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.filter === filter)); });
+    ITEMS.forEach(function (it) {
+      var s = (results[it.id] || {}).status || '';
+      var show = filter === 'all' || (filter === 'alex' && it.who.indexOf('alex') >= 0) || (filter === 'tester' && it.who.indexOf('tester') >= 0) ||
+                 (filter === 'open' && !s) || (filter === 'fail' && (s === 'fail' || s === 'blocked'));
+      cards[it.id].el.hidden = !show;
+    });
+    SECTIONS.forEach(function (s) {
+      var any = s.items.some(function (it) { return !cards[it.id].el.hidden; });
+      var e = document.querySelector('[data-empty="' + s.id + '"]'); if (e) e.hidden = any;
+    });
+  }
+  document.querySelectorAll('[data-filter]').forEach(function (b) {
+    b.addEventListener('click', function () { filter = b.dataset.filter; remember('filter', filter); applyFilter(); });
+  });
+
+  /* ── Marks ── */
+  function stamp(id, patch) {
+    var cur = results[id] || {};
+    return { status: patch.status != null ? patch.status : (cur.status || ''), note: patch.note != null ? patch.note : (cur.note || ''), by: marker, at: new Date().toISOString() };
+  }
+  function setStatus(id, status) {
+    var c = cards[id];
+    results[id] = stamp(id, { status: status, note: c.note.value });
+    if (!results[id].status && !results[id].note) delete results[id];
+    c.dirty = false; persist(); paint();
+  }
+  function saveNote(id) {
+    var c = cards[id]; if (!c.dirty) return;
+    results[id] = stamp(id, { note: c.note.value });
+    if (!results[id].status && !results[id].note) delete results[id];
+    c.dirty = false; persist(); paint();
+  }
+  function clearResult(id) {
+    var c = cards[id];
+    delete results[id]; c.dirty = false; c.note.value = ''; persist(); paint();
+  }
+
+  /* ── Export ── */
+  function report() {
+    var n = tally(), lines = [];
+    lines.push('Procurement Test Run — results');
+    lines.push('Exported ' + new Date().toLocaleString() + ' · ' + n.pass + ' passed, ' + n.fail + ' failed, ' + n.blocked + ' blocked, ' + n.open + ' not run, of ' + ITEMS.length);
+    SECTIONS.forEach(function (s) {
+      lines.push('', '== ' + s.title + ' ==');
+      s.items.forEach(function (it) {
+        var r = results[it.id] || {};
+        var st = r.status ? r.status.toUpperCase() : 'NOT RUN';
+        lines.push('[' + st + '] ' + it.n + ' ' + text(it.title) + (r.at ? '  (' + (r.by || '?') + ', ' + fmtWhen(r.at) + ')' : ''));
+        if (r.note) lines.push('    Note: ' + r.note.replace(/\s*\n\s*/g, ' / '));
+      });
+    });
+    return lines.join('\n') + '\n';
+  }
+  function setBar(msg, warn) { var b = $('savebar'); b.textContent = msg; b.classList.toggle('is-warn', !!warn); }
+  $('dl').addEventListener('click', function () {
+    var blob = new Blob([report()], { type: 'text/plain' });
+    var a = document.createElement('a');
+    var d = new Date(), pad = function (x) { return String(x).padStart(2, '0'); };
+    a.href = URL.createObjectURL(blob);
+    a.download = 'procurement-test-results-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.txt';
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    setBar('Results downloaded as ' + a.download + '.');
+  });
+  $('copy').addEventListener('click', function () {
+    var t = report(), box = $('copybox');
+    var show = function (msg) { box.value = t; box.hidden = false; box.focus(); box.select(); setBar(msg, true); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(function () { box.hidden = true; setBar('Results copied. Paste them into a message to Claude.'); },
+        function () { show('Copying was blocked here. The results are selected below: press Cmd+C or Ctrl+C.'); });
+    } else show('Copying is not available here. The results are selected below: press Cmd+C or Ctrl+C.');
+  });
+  var resetArmed = null;
+  $('reset').addEventListener('click', function () {
+    var b = $('reset');
+    if (!resetArmed) {
+      b.textContent = 'Press again to clear every mark and note';
+      resetArmed = setTimeout(function () { resetArmed = null; b.textContent = 'Clear all marks'; }, 4000);
+      return;
+    }
+    clearTimeout(resetArmed); resetArmed = null; b.textContent = 'Clear all marks';
+    results = {}; Object.keys(cards).forEach(function (k) { cards[k].dirty = false; cards[k].note.value = ''; });
+    persist(); paint(); setBar('All marks cleared.');
+  });
+  $('marker').addEventListener('change', function (e) { marker = e.target.value; remember('marker', marker); });
+
+  /* ── Boot ── */
+  load();
+  build();
+  $('marker').value = marker;
+  paint();
+  if (!storageOk) setBar('This browser is not keeping the marks (a private window, or storage is blocked). Press Download results before you close it.', true);
+})();
+</script>
+</body>
+</html>

@@ -19,7 +19,7 @@
   function log(msg, level) {
     var ts = new Date().toLocaleTimeString();
     var line = '[' + ts + '] ' + msg;
-    var prefix = level === 'err' ? '❌ ' : level === 'ok' ? '✅ ' : '   ';
+    var prefix = level === 'err' ? '✕ ' : level === 'ok' ? '✓ ' : '  ';
     $log.textContent = prefix + line + '\n' + $log.textContent;
   }
 
@@ -166,7 +166,7 @@
       }
       if (result && result.duplicate_ids && result.duplicate_ids.length) {
         log('migrated ' + path + ' (' + summary + ') → ' + routeTargetLabel(route) +
-            '  ⚠ ' + result.duplicate_ids.length + ' duplicate id(s) collapsed: ' +
+            '  warning: ' + result.duplicate_ids.length + ' duplicate id(s) collapsed: ' +
             result.duplicate_ids.slice(0, 3).join(', ') +
             (result.duplicate_ids.length > 3 ? '…' : ''), 'ok');
       } else {

@@ -55,16 +55,24 @@
   // V3.190 — canonical section order for the PMR body. state.doc.section_order
   // (a list of these keys) overrides this; any key not in section_order is
   // appended to the end so future-added sections surface for older docs.
+  // V3.625 — project_health leads: the first thing a student (or the PI)
+  // should see is which projects they have and how each is doing.
+  // project_overview left the default order the same release — the health
+  // header supersedes its hand-set good/behind/delayed/paused pill — but
+  // stays renderable (LEGACY_SECTIONS) for docs that pinned it.
   const DEFAULT_SECTION_ORDER = [
-    'goals', 'focus_review', 'project_overview', 'open_tasks', 'reference_links',
-    'weekly_entries', 'activity', 'stats', 'barriers', 'paper_writing',
-    'figure_reviews', 'discussion', 'past_pmrs',
+    'project_health', 'goals', 'focus_review', 'myday_ledger', 'open_tasks',
+    'reference_links', 'weekly_entries', 'activity', 'stats', 'barriers',
+    'paper_writing', 'figure_reviews', 'discussion', 'past_pmrs',
   ];
+  const LEGACY_SECTIONS = ['project_overview'];
   // Friendly labels per key (used for the block header H2 + the reorder UI).
   const SECTION_LABELS = {
+    project_health: 'My projects',
     goals: 'Goals',
     focus_review: 'Weekly focus review',
-    project_overview: 'Project overview',
+    myday_ledger: 'My Week ledger',
+    project_overview: 'Project overview (legacy)',
     open_tasks: 'Open tasks',
     reference_links: 'Reference links',
     weekly_entries: 'Weekly entries',
@@ -76,6 +84,17 @@
     discussion: 'Discussion',
     past_pmrs: 'Past PMRs',
   };
+
+  // V3.624 — My Week item-outcome vocabulary + type icons, mirrored from
+  // day-distribute.js (ITEM_OUTCOME_META / my-week.js TYPE_ICONS — keep in
+  // sync; day-distribute is not loaded on pmr.html and pulling in the whole
+  // fan-out engine for two lookup tables would be worse).
+  const MYDAY_OUTCOME_META = {
+    result:    { icon: 'check-circle', label: 'Result' },
+    barrier:   { icon: 'construction', label: 'Barrier' },
+    no_result: { icon: '◌',  label: 'No result' },
+  };
+  const MYDAY_TYPE_ICONS = { work: 'target', equipment: 'microscope', task: 'check-circle', meeting: 'users', reading: 'book-open', order: 'shopping-cart', help: 'lifebuoy' };
 
   // V3.185 — Goal horizons. Four time scales from "this semester" out to
   // "after the PhD". Each gets its own rich-text card + per-horizon
@@ -172,6 +191,10 @@
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
+  // V3.624 bug fix — renderFocusReviewBlock has referenced `escHTML` since
+  // V3.541 but nothing on pmr.html ever defined it, so the block's async
+  // body threw ReferenceError and degraded to "Focus areas unavailable."
+  const escHTML = escapeHtml;
 
   function viewedUid() {
     return state.viewAsUid || (state.user && state.user.uid) || null;
@@ -210,6 +233,110 @@
   function notebookEntryDocRef(uid, entryId) {
     return firebridge.db().collection('userData').doc(uid)
       .collection('notebook').doc(entryId);
+  }
+
+  // V3.624 — cross-user My Week refs for the ledger block. Same rationale:
+  // the adapter is self-only, reviewers go direct. Gated server-side by the
+  // dayPlans read rule (owner || mentor || admin) added in V3.624.
+  function dayPlansCollRef(uid) {
+    return firebridge.db().collection('userData').doc(uid).collection('dayPlans');
+  }
+  // V3.625 — barrier-acceptance records (owner-readable, reviewer-written).
+  function healthReviewsCollRef(uid) {
+    return firebridge.db().collection('userData').doc(uid).collection('healthReviews');
+  }
+
+  // Monday of a YYYY-MM-DD, local math (same as my-week.js mondayOf).
+  function mondayStr(dateStr) {
+    if (!dateStr) return '';
+    const p = dateStr.split('-');
+    const d = new Date(+p[0], +p[1] - 1, +p[2]);
+    const dow = d.getDay();
+    d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function shiftDateStr(dateStr, days) {
+    const p = dateStr.split('-');
+    const d = new Date(+p[0], +p[1] - 1, +p[2]);
+    d.setDate(d.getDate() + days);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function weekRangeLabel(mon) {
+    const a = mon.split('-'), bStr = shiftDateStr(mon, 6), b = bStr.split('-');
+    const f = x => new Date(+x[0], +x[1] - 1, +x[2]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return f(a) + ' – ' + f(b);
+  }
+
+  // V3.624 — period-scoped dayPlans, cached per uid+period so the ledger
+  // doesn't re-query on every keystroke-triggered renderBody(). The ↻
+  // button and a period/user switch invalidate it.
+  let _ledgerCache = { key: null, rows: null };
+  async function loadDayPlansForPeriod(force) {
+    const uid = viewedUid();
+    const period = (state.doc && state.doc.period) || {};
+    const from = period.start_date || shiftDateStr(mondayStr(todayStr()), -7 * 12);
+    const to = period.end_date || todayStr();
+    const key = uid + '|' + (state.currentPeriodId || '') + '|' + from + '|' + to;
+    if (!force && _ledgerCache.key === key && _ledgerCache.rows) return _ledgerCache.rows;
+    const snap = await dayPlansCollRef(uid)
+      .where('date', '>=', from).where('date', '<=', to).get();
+    const rows = snap.docs
+      .filter(d => d.id !== '_prefs')
+      .map(d => Object.assign({ id: d.id }, d.data()))
+      .filter(it => it && it.status !== 'cancelled')
+      .sort((a, b) => (a.date || '').localeCompare(b.date || '') ||
+                      (a.startTime || '').localeCompare(b.startTime || ''));
+    _ledgerCache = { key, rows };
+    return rows;
+  }
+
+  // An item whose day has passed with no verdict recorded — the ◇ state
+  // the My Week nudge (V3.623) chases. Mirrors loadOutcomeQueue's filter.
+  function isUnaccounted(it) {
+    if (it.outcome) return false;
+    // V3.853 — done/skipped without a result counts the same day (My Week's
+    // needsResult agrees), so the student and the mentor see one number.
+    if (it.status === 'done' || it.status === 'skipped') return it.date <= todayStr();
+    return it.status === 'planned' && it.date < todayStr();
+  }
+
+  // V3.626 — one-flight activity fetch for the period. The ledger's
+  // presence dots and the Activity/Stats blocks all consume the same
+  // query; whoever asks first fetches, everyone else awaits the same
+  // promise (renderBody mounts them near-simultaneously).
+  let _activityPromise = null;
+  function ensureActivityForPeriod() {
+    const period = state.doc && state.doc.period;
+    const fromDate = period && period.start_date;
+    const toDate = period && period.end_date;
+    const uid = viewedUid();
+    if (!window.ActivitySignals || !fromDate || !toDate || !uid) return Promise.resolve([]);
+    const key = uid + '|' + fromDate + '|' + toDate;
+    if (state._activityCache && state._activityCache.uid === uid &&
+        state._activityCache.from === fromDate && state._activityCache.to === toDate) {
+      return Promise.resolve(state._activityCache.entries);
+    }
+    if (_activityPromise && _activityPromise._key === key) return _activityPromise;
+    const p = window.ActivitySignals.listForPeriod(uid, { from: fromDate, to: toDate })
+      .then(entries => {
+        state._activityCache = { uid, from: fromDate, to: toDate, entries };
+        return entries;
+      });
+    p._key = key;
+    _activityPromise = p;
+    return p;
+  }
+
+  // Dates (YYYY-MM-DD) with at least one real WORK event — schedule
+  // markers and legacy pending docs don't count as presence.
+  function activeDaySet(entries) {
+    const set = new Set();
+    (entries || []).forEach(e => {
+      if (!e || !e.date) return;
+      if (e.kind === 'schedule' || (!e.kind && e.scheduled_for && e.status === 'pending')) return;
+      set.add(e.date);
+    });
+    return set;
   }
 
   function periodPathFor(periodId) { return 'pmr/' + periodId + '.json'; }
@@ -646,14 +773,14 @@
     btn.type = 'button';
     btn.className = 'pmr-add-btn';
     btn.style.cssText = 'font-size:11px;color:#475569;background:none;border:none;padding:2px 0;cursor:pointer';
-    btn.textContent = '💬 conversation';
+    ICON.label(btn, 'chat-bubble-left-right', ' conversation');
     btn.title = 'Toggle the admin↔student thread for this section';
     let mountHandle = null;
     btn.addEventListener('click', () => {
       if (mountHandle) {
         try { mountHandle.unmount(); } catch (_) {}
         mountHandle = null;
-        btn.textContent = '💬 conversation';
+        ICON.label(btn, 'chat-bubble-left-right', ' conversation');
         return;
       }
       mountHandle = mountCommentsFor(wrap, sectionId, targetId, label);
@@ -772,7 +899,9 @@
    * initial state for fresh PMR docs).
    */
   function effectiveSectionOrder() {
-    const known = new Set(DEFAULT_SECTION_ORDER);
+    // V3.625 — LEGACY_SECTIONS are renderable when a stored section_order
+    // pins them, but never appended by default for new/unordered docs.
+    const known = new Set(DEFAULT_SECTION_ORDER.concat(LEGACY_SECTIONS));
     const out = [];
     const seen = new Set();
     (state.doc && state.doc.section_order || []).forEach(k => {
@@ -1085,6 +1214,10 @@
       // trackerEntries/{uid}/entries — not on this PMR doc — so we can't
       // hang discussed_at on the row itself.
       activity_archive: {},
+      // V3.625 — student-editable one-liner per project on the health
+      // header ([{foci_id, description}]). The health itself is derived
+      // (project-health.js) and never stored.
+      project_health: [],
       legacy_archive: null,
       created_at: isoNow(),
       updated_at: isoNow(),
@@ -1210,6 +1343,8 @@
     d.section_order = Array.isArray(d.section_order) ? d.section_order : [];
     // V3.195 — activity-week archive map (weekKey → discussed_at iso).
     if (!d.activity_archive || typeof d.activity_archive !== 'object') d.activity_archive = {};
+    // V3.625 — per-project description lines on the health header.
+    d.project_health = Array.isArray(d.project_health) ? d.project_health : [];
     // V3.323 — optional 1:1 meeting date (YYYY-MM-DD | null). Feeds
     // FuturePlan 05's meeting-reminder push.
     if (d.meeting_date === undefined) d.meeting_date = null;
@@ -1398,8 +1533,8 @@
     const showArchBtn = document.getElementById('pmr-show-archived');
     if (showArchBtn) {
       showArchBtn.style.display = archivedCount ? '' : 'none';
-      showArchBtn.textContent = state.showArchivedPeriods
-        ? 'hide archived' : '🗃 ' + archivedCount + ' archived';
+      if (state.showArchivedPeriods) showArchBtn.textContent = 'hide archived';
+      else ICON.label(showArchBtn, 'archive-box', ' ' + archivedCount + ' archived');
       showArchBtn.onclick = () => {
         state.showArchivedPeriods = !state.showArchivedPeriods;
         renderToolbar();
@@ -1420,7 +1555,8 @@
         archBtn.style.display = 'none';
       } else {
         archBtn.style.display = '';
-        archBtn.textContent = idxRow.archived ? '↶ Unarchive' : '🗃 Archive';
+        if (idxRow.archived) archBtn.textContent = '↶ Unarchive';
+        else ICON.label(archBtn, 'archive-box', ' Archive');
         archBtn.title = idxRow.archived
           ? 'Bring this period back into the period list'
           : 'Archive this period — hides it from the period list';
@@ -1610,8 +1746,10 @@
     // resolves to a (label, renderFn) via SECTION_RENDERERS. Unknown keys
     // are skipped; missing keys are appended via effectiveSectionOrder().
     const SECTION_RENDERERS = {
+      project_health:   renderProjectHealthBlock, // V3.625
       goals:            renderGoalsBlock,
       focus_review:     renderFocusReviewBlock,
+      myday_ledger:     renderMyWeekLedgerBlock,  // V3.624 (key is stored; not migrated)
       project_overview: renderProjectOverviewBlock,
       open_tasks:       renderOpenTasksBlock,
       reference_links:  renderReferenceLinksBlock,
@@ -1754,7 +1892,7 @@
       det.style.cssText = 'margin:10px 0 4px 0;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:6px 10px';
       const sum = document.createElement('summary');
       sum.style.cssText = 'cursor:pointer;font-size:12px;font-weight:700;color:#92400e;padding:4px 0';
-      sum.textContent = '📥 Assigned by teammates  ·  ' + assignedRows.length + ' open';
+      ICON.label(sum, 'arrow-down-tray', ' Assigned by teammates  ·  ' + assignedRows.length + ' open');
       det.appendChild(sum);
       assignedRows.forEach(r => det.appendChild(renderOpenTaskRow(r)));
       block.appendChild(det);
@@ -1777,7 +1915,7 @@
     actions.style.cssText = 'margin-top:10px;display:flex;gap:8px;align-items:center';
     const refresh = document.createElement('button');
     refresh.className = 'pmr-add-btn';
-    refresh.textContent = '↻ Refresh';
+    ICON.label(refresh, 'arrow-path', ' Refresh');
     refresh.title = 'Re-read tasks/buckets.json';
     refresh.onclick = async () => {
       state.openTasksLoaded = false;
@@ -1789,7 +1927,7 @@
 
     const sugBtn = document.createElement('button');
     sugBtn.className = 'pmr-add-btn';
-    sugBtn.textContent = '✨ Suggest discussion items';
+    ICON.label(sugBtn, 'sparkles', ' Suggest discussion items');
     sugBtn.title = 'Auto-add Discussion cards for blocked / overdue / stale tasks';
     sugBtn.onclick = () => {
       const added = refreshDiscussionSuggestions();
@@ -1841,14 +1979,14 @@
     if (summary.allDone && !isReadOnlyView()) {
       const mark = document.createElement('button');
       mark.type = 'button';
-      mark.textContent = '✓ Mark complete';
+      ICON.label(mark, 'check', ' Mark complete');
       mark.title = 'Archive this bucket — every subtask is done.';
       mark.style.cssText = 'font-size:11px;padding:3px 10px;border:1px solid #16a34a;color:#fff;background:#16a34a;border-radius:4px;cursor:pointer;font-weight:600';
       mark.addEventListener('click', () => markBucketComplete(summary.projectId, summary.bucketId, summary.bucketTitle));
       head.appendChild(mark);
     } else if (summary.allDone && isReadOnlyView()) {
       const note = document.createElement('span');
-      note.textContent = '✓ all done — student can archive';
+      ICON.label(note, 'check', ' all done — student can archive');
       note.style.cssText = 'font-size:10px;color:#16a34a;font-weight:600';
       head.appendChild(note);
     }
@@ -1903,7 +2041,7 @@
     if (!isReadOnlyView()) {
       const restore = document.createElement('button');
       restore.type = 'button';
-      restore.textContent = '↶ restore';
+      ICON.label(restore, 'arrow-uturn-left', ' restore');
       restore.title = 'Un-archive this bucket';
       restore.style.cssText = 'font-size:10px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;background:#fff;cursor:pointer;color:#374151';
       restore.addEventListener('click', () => unarchiveBucket(summary.projectId, summary.bucketId, summary.bucketTitle));
@@ -2013,7 +2151,7 @@
 
     // Pull into week
     const pull = document.createElement('button');
-    pull.textContent = '⤓ pull';
+    ICON.label(pull, 'arrow-down-tray', ' pull');
     pull.title = 'Copy as an item into a weekly entry';
     pull.style.cssText = 'font-size:11px;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;background:#fff;cursor:pointer';
     pull.onclick = (ev) => { ev.stopPropagation(); openPullIntoWeek(rowMeta, pull); };
@@ -2208,7 +2346,7 @@
 
     const fillBtn = document.createElement('button');
     fillBtn.className = 'pmr-add-btn';
-    fillBtn.textContent = '⤓ Auto-fill from my projects';
+    ICON.label(fillBtn, 'arrow-down-tray', ' Auto-fill from my projects');
     fillBtn.title = 'Pull projects where I am listed in members[] (papers/courses/infrastructure/tools)';
     fillBtn.onclick = autoFillProjectRows;
     actions.appendChild(fillBtn);
@@ -2320,7 +2458,7 @@
     const delTd = document.createElement('td');
     const del = document.createElement('span');
     del.className = 'del';
-    del.textContent = '✕';
+    ICON.label(del, 'x-mark');
     del.style.cursor = 'pointer';
     del.style.color = '#dc2626';
     del.title = 'Remove row';
@@ -2399,7 +2537,7 @@
     if (!isReadOnlyView()) {
       const auto = document.createElement('button');
       auto.className = 'pmr-add-btn';
-      auto.textContent = '⤓ Auto-fill from my work';
+      ICON.label(auto, 'arrow-down-tray', ' Auto-fill from my work');
       auto.title = 'Pull in notebook entries, protocols, paper drafts, past PMRs, and grant drafts you have created';
       auto.onclick = autoFillReferenceLinks;
       actions.appendChild(auto);
@@ -2452,7 +2590,7 @@
         const data = nb.data() || {};
         (data.entries || []).forEach(e => {
           const label = (e.title || e.id || 'Notebook entry') + (e.date ? ' (' + e.date + ')' : '');
-          pushCandidate('notebook', label, '/rm/pages/lab-notebook.html?entry=' + encodeURIComponent(e.id));
+          pushCandidate('notebook', label, '/rm/pages/notebook.html?entry=' + encodeURIComponent(e.id));
         });
       }
     } catch (err) { console.warn('[pmr] auto-fill notebook failed:', err && err.message); }
@@ -2530,7 +2668,7 @@
 
     const del = document.createElement('span');
     del.className = 'del';
-    del.textContent = '✕';
+    ICON.label(del, 'x-mark');
     del.title = 'Remove';
     del.onclick = () => {
       // V3.190 — idx is from the original reference_links[] (not from the
@@ -2559,7 +2697,7 @@
    * (userData/{uid}/focusAreas via window.FOCUS_AREAS). Grouped by week
    * with month subheads, so it serves the weekly 1:1 AND the monthly
    * review in one block. Source of truth stays the focus docs — edits
-   * happen on Team Focus / My Day; here the PI and student review
+   * happen on Team Focus / My Week; here the PI and student review
    * expectations vs outcomes (with linked notebook entries carrying the
    * narrative). Exempt from scheduleSave. */
   function renderFocusReviewBlock() {
@@ -2619,16 +2757,16 @@
           const done = tasks.filter(t => t.done).length;
           return '<div class="pmr-fr-card">' +
             '<div class="pmr-fr-head">' +
-              '<span class="pmr-fr-title">🎯 ' + escHTML(f.title) + '</span>' +
+              '<span class="pmr-fr-title">' + ICON.svg('target') + ' ' + escHTML(f.title) + '</span>' +
               '<span class="pmr-fr-chip" style="color:' + meta.color + ';background:' + meta.bg + '">' + escHTML(meta.label || f.status) + '</span>' +
-              (om ? '<span class="pmr-fr-outcome">' + (om.icon || '') + ' ' + escHTML(om.label || '') + '</span>' : '') +
+              (om ? '<span class="pmr-fr-outcome">' + ICON.render(om.icon) + ' ' + escHTML(om.label || '') + '</span>' : '') +
               (tasks.length ? '<span class="pmr-fr-tasks">' + done + '/' + tasks.length + ' tasks</span>' : '') +
               /* V3.602 — grouped by thrust the card name is already the
                * group head, so the chip narrows to the analysis alone;
                * ungrouped it shows the full "card › analysis" path. */
               (f.focus_ref && (!groupByThrust || f.focus_ref.analysis_title)
                 ? '<a class="pmr-fr-nb" href="/rm/pages/research.html?id=' + encodeURIComponent(f.focus_ref.id) +
-                    (f.focus_ref.analysis_id ? '#rmap-' + f.focus_ref.analysis_id : '') + '">🎯 ' +
+                    (f.focus_ref.analysis_id ? '#rmap-' + f.focus_ref.analysis_id : '') + '">' + ICON.svg('target') + ' ' +
                     escHTML(groupByThrust
                       ? f.focus_ref.analysis_title
                       : (FOCUS_AREAS.focusRefLabel ? FOCUS_AREAS.focusRefLabel(f.focus_ref) : f.focus_ref.title)) +
@@ -2637,10 +2775,10 @@
             '</div>' +
             (f.description ? '<div class="pmr-fr-desc">' + escHTML(f.description) + '</div>' : '') +
             ((f.paper_refs || []).map(r =>
-              '<a class="pmr-fr-nb" href="/rm/pages/paper-builder.html?id=' + encodeURIComponent(r.id) + '">📝 ' + escHTML(r.title) + '</a>').join(' ')) +
+              '<a class="pmr-fr-nb" href="/rm/pages/paper-builder.html?id=' + encodeURIComponent(r.id) + '">' + ICON.svg('pencil-square') + ' ' + escHTML(r.title) + '</a>').join(' ')) +
             (f.report && f.report.summary ? '<div class="pmr-fr-summary">' + escHTML(f.report.summary) + '</div>' : '') +
             ((f.report && f.report.notebook_entry_ids || []).map(id =>
-              '<a class="pmr-fr-nb" href="/rm/pages/lab-notebook.html?entry=' + encodeURIComponent(id) + '">📓 notebook entry</a>').join(' ')) +
+              '<a class="pmr-fr-nb" href="/rm/pages/notebook.html?entry=' + encodeURIComponent(id) + '">' + ICON.svg('book-open') + ' notebook entry</a>').join(' ')) +
           '</div>';
         };
 
@@ -2654,7 +2792,7 @@
           return keys.map(k => {
             const g = byRef[k];
             const head = g.ref
-              ? '<a href="/rm/pages/research.html?id=' + encodeURIComponent(g.ref.id) + '">🎯 ' + escHTML(g.ref.title) + '</a>'
+              ? '<a href="/rm/pages/research.html?id=' + encodeURIComponent(g.ref.id) + '">' + ICON.svg('target') + ' ' + escHTML(g.ref.title) + '</a>'
               : 'Not aligned with a research focus';
             const rows = g.rows.sort((a, b) => (b.weekId || '').localeCompare(a.weekId || ''))
               .map(f => '<div class="pmr-fr-weekhead">Week ' + escHTML(f.weekId) + '</div>' + focusCard(f)).join('');
@@ -2690,6 +2828,345 @@
         host.innerHTML = '<div style="color:#9ca3af;font-size:13px">Focus areas unavailable.</div>';
       }
     })();
+
+    return block;
+  }
+
+  /* ── Block: My projects — health header (V3.625) ───────────── */
+  /* Derived from the outcome ledger by project-health.js: traffic-light
+   * status + trend + a human "why" per researchFoci project the student
+   * is attached to. Replaces the hand-set project_overview status pill.
+   * The only stored piece is the student's one-line description
+   * (doc.project_health); mentors act through ✔ Accept on barriers. */
+
+  let _healthCache = { key: null, rows: null };
+
+  function canAcceptBarriers() {
+    // A reviewer looking at someone else's PMR: the PI (admin) or one of
+    // the student's assigned mentors. Never the student on their own doc.
+    return isReadOnlyView() &&
+      (state.isAdmin || state.menteeUids.has(viewedUid()));
+  }
+
+  async function loadProjectHealth(force) {
+    if (!window.PROJECT_HEALTH || !window.FOCUS_AREAS) return null;
+    const uid = viewedUid();
+    const key = uid + '|' + todayStr();
+    if (!force && _healthCache.key === key && _healthCache.rows) return _healthCache.rows;
+    const mondays = PROJECT_HEALTH.windowMondays();
+    const from = mondays[0], to = shiftDateStr(mondays[mondays.length - 1], 6);
+    const [itemsSnap, reviewsSnap, focusAreas] = await Promise.all([
+      dayPlansCollRef(uid).where('date', '>=', from).where('date', '<=', to).get(),
+      healthReviewsCollRef(uid).get(),
+      FOCUS_AREAS.listForRange(uid, FOCUS_AREAS.weekIdFor(from), FOCUS_AREAS.weekIdFor(to)),
+    ]);
+    const items = itemsSnap.docs.filter(d => d.id !== '_prefs')
+      .map(d => Object.assign({ id: d.id }, d.data()))
+      .filter(it => it.status !== 'cancelled');
+    const reviews = reviewsSnap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    const projects = await PROJECT_HEALTH.listProjectsForStudent(uid, focusAreas);
+    const rows = PROJECT_HEALTH.compute({
+      projects, items, focusAreas, reviews,
+      weekIdFor: FOCUS_AREAS.weekIdFor,
+    });
+    _healthCache = { key, rows };
+    return rows;
+  }
+
+  function projectDescRow(fociId) {
+    const list = (state.doc && state.doc.project_health) || [];
+    return list.find(r => r && r.foci_id === fociId) || null;
+  }
+
+  function renderProjectHealthBlock() {
+    const block = document.createElement('section');
+    block.className = 'pmr-block';
+    block.innerHTML = '<h2>My projects <span class="pmr-help">health per project, derived from your My Week outcomes — barriers escalate until a mentor accepts the reason</span></h2>';
+    const host = document.createElement('div');
+    host.className = 'pmr-ph';
+    host.innerHTML = '<div style="color:#9ca3af;font-size:13px">Scoring projects…</div>';
+    block.appendChild(host);
+    buildCommentToggle(block, 'project_health', null, 'Projects discussion');
+
+    const paint = (rows) => {
+      if (!rows) { host.innerHTML = ''; return; }
+      if (!rows.length) {
+        host.innerHTML = '<div style="color:#9ca3af;font-size:13px">No projects attached yet — ' +
+          'projects come from the <a href="/rm/pages/research.html">research roadmap</a> ' +
+          '(cards you\'re a member of, analyses you own) and from aligning your weekly focus (' + ICON.svg('target') + ') to one.</div>';
+        return;
+      }
+      host.innerHTML = '';
+      rows.forEach(ph => {
+        const meta = PROJECT_HEALTH.STATUS_META[ph.status] || {};
+        const trend = PROJECT_HEALTH.TREND_META[ph.trend] || {};
+        const card = document.createElement('div');
+        card.className = 'pmr-ph-card';
+        const descRow = projectDescRow(ph.id);
+        const strip = ph.weeks.map(w =>
+          '<span class="pmr-ph-wk" title="Week of ' + escHTML(w.monday) + (w.score ? ' · score ' + w.score.toFixed(1) : '') + '">' +
+          ICON.render(w.icon) + '</span>').join('');
+        const openBarriers = ph.barrierRows.filter(r => !r.accepted);
+        card.innerHTML =
+          '<div class="pmr-ph-head">' +
+            '<span class="pmr-ph-dot ' + escHTML(ph.status) + '" title="' + escHTML(meta.label || ph.status) + '"></span>' +
+            '<a class="pmr-ph-title" href="/rm/pages/research.html?id=' + encodeURIComponent(ph.id) + '">' +
+              (ph.icon ? ICON.render(ph.icon) + ' ' : '') + escHTML(ph.title) + '</a>' +
+            '<span class="pmr-ph-trend" title="' + escHTML(trend.label || '') + '">' + (trend.icon || '') + '</span>' +
+            (openBarriers.length ? '<span class="pmr-lg-chip pmr-lg-oc-barrier">' + ICON.svg('construction') + ' ' + openBarriers.length + ' open</span>' : '') +
+            '<span class="pmr-ph-why">' + escHTML(ph.why) + '</span>' +
+          '</div>' +
+          '<div class="pmr-ph-strip">' + strip + '</div>';
+
+        // student-editable one-liner (owner only)
+        const desc = document.createElement('input');
+        desc.className = 'pmr-ph-desc';
+        desc.placeholder = 'One line: what this project is / where it stands…';
+        desc.value = (descRow && descRow.description) || '';
+        desc.readOnly = isReadOnlyView();
+        desc.addEventListener('input', () => {
+          if (isReadOnlyView()) return;
+          let row = projectDescRow(ph.id);
+          if (!row) {
+            row = { foci_id: ph.id, description: '' };
+            state.doc.project_health.push(row);
+          }
+          row.description = desc.value;
+          scheduleSave();
+        });
+        card.appendChild(desc);
+
+        // expandable barrier history (the actionable ledger slice)
+        if (ph.barrierRows.length) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'pmr-ph-expand';
+          btn.textContent = '▸ barriers (' + ph.barrierRows.length + ')';
+          const detail = document.createElement('div');
+          detail.className = 'pmr-ph-detail';
+          detail.style.display = 'none';
+          btn.addEventListener('click', () => {
+            const open = detail.style.display !== 'none';
+            detail.style.display = open ? 'none' : '';
+            ICON.label(btn, open ? 'chevron-right' : 'chevron-down', ' barriers (' + ph.barrierRows.length + ')');
+          });
+          ph.barrierRows.forEach(row => {
+            const it = row.item;
+            const line = document.createElement('div');
+            line.className = 'pmr-lg-item';
+            const summary = (it.outcome && it.outcome.summary) || '';
+            line.innerHTML =
+              '<span class="pmr-lg-icon">' + ICON.svg('construction') + '</span>' +
+              '<div class="pmr-lg-main">' +
+                '<div class="pmr-lg-title">' + escHTML(it.title || '(untitled)') +
+                  '<span class="pmr-lg-day">week of ' + escHTML(weekRangeLabel(row.monday)) + '</span></div>' +
+                (summary ? '<div class="pmr-lg-outcome pmr-lg-oc-barrier">' + escHTML(summary) + '</div>' : '') +
+              '</div>';
+            const slot = document.createElement('span');
+            if (row.accepted) {
+              slot.className = 'pmr-ph-accepted';
+              ICON.label(slot, 'check', ' accepted by ' + ((row.review && row.review.reviewer_name) || 'mentor') +
+                ((row.review && row.review.note) ? ' — ' + row.review.note : ''));
+              slot.title = 'This barrier no longer counts against health.';
+            } else if (canAcceptBarriers()) {
+              const accept = document.createElement('button');
+              accept.type = 'button';
+              accept.className = 'pmr-ph-accept';
+              ICON.label(accept, 'check', ' Accept reason');
+              accept.title = 'Mark this barrier\'s reason as acceptable — resets its drag on project health';
+              accept.addEventListener('click', async () => {
+                const note = window.prompt('Why is this barrier acceptable? (the student sees this note)', '');
+                if (note === null) return;
+                accept.disabled = true;
+                try {
+                  const id = newId('hr');
+                  await healthReviewsCollRef(viewedUid()).doc(id).set({
+                    id: id,
+                    item_id: it.id,
+                    foci_id: ph.id,
+                    note: String(note || ''),
+                    reviewer_uid: state.user.uid,
+                    reviewer_name: (state.labMembersByUid[state.user.uid] || {}).name || state.user.displayName || state.user.email || '',
+                    week_monday: row.monday,
+                    created_at: isoNow(),
+                  });
+                  if (window.TOAST) TOAST.success('Barrier accepted — health recalculated.');
+                  paint(await loadProjectHealth(true));
+                } catch (err) {
+                  accept.disabled = false;
+                  alert('Could not record the acceptance: ' + (err && err.message));
+                }
+              });
+              slot.appendChild(accept);
+            }
+            line.appendChild(slot);
+            detail.appendChild(line);
+          });
+          card.appendChild(btn);
+          card.appendChild(detail);
+        }
+        host.appendChild(card);
+      });
+    };
+
+    (async () => {
+      try {
+        paint(await loadProjectHealth());
+      } catch (err) {
+        console.warn('[pmr] project health load failed:', err && err.message);
+        host.innerHTML = '<div style="color:#9ca3af;font-size:13px">Project health unavailable' +
+          (isReadOnlyView() ? ' — visible to the student, their mentors, and admins.' : '.') + '</div>';
+      }
+    })();
+
+    return block;
+  }
+
+  /* ── Block: My Week ledger (V3.624) ─────────────────────────── */
+  /* Derived + read-only: every My Week plan in the period and what came of
+   * it (outcome, V3.623), grouped by week. Nothing here writes into the
+   * PMR doc — the curated weekly entries stay human; this is the factual
+   * record beside them. Cross-user via dayPlansCollRef (rules V3.624). */
+  function renderMyWeekLedgerBlock() {
+    const block = document.createElement('section');
+    block.className = 'pmr-block';
+    block.innerHTML = '<h2>My Week ledger <span class="pmr-help">every plan and what came of it — recorded on My Week, reported here</span>' +
+      '<button type="button" class="pmr-lg-refresh" title="Reload plans">' + ICON.svg('arrow-path') + '</button></h2>';
+    const host = document.createElement('div');
+    host.className = 'pmr-ledger';
+    host.innerHTML = '<div style="color:#9ca3af;font-size:13px">Loading My Week plans…</div>';
+    block.appendChild(host);
+    buildCommentToggle(block, 'myday_ledger', null, 'My Week ledger discussion');
+
+    const outcomeLine = (it) => {
+      if (it.outcome && MYDAY_OUTCOME_META[it.outcome.kind]) {
+        const om = MYDAY_OUTCOME_META[it.outcome.kind];
+        const img = (it.outcome.image && it.outcome.image.download_url)
+          ? ' <a class="pmr-lg-img" href="' + escHTML(it.outcome.image.download_url) + '" target="_blank" rel="noopener">' + ICON.svg('photo') + ' image</a>' : '';
+        const nbs = (it.outcome.notebook_entry_ids || []).map(id =>
+          ' <a class="pmr-lg-img" href="/rm/pages/notebook.html?entry=' + encodeURIComponent(id) + '">' + ICON.svg('book-open') + ' notebook</a>').join('');
+        // V3.853 — the cards the result points at (figure board / notebook), deep-linked to the card
+        const lks = (Array.isArray(it.outcome.links) ? it.outcome.links : []).filter(l => l && l.url).map(l => {
+          const fb = /^figure_board/.test(l.kind || ''), nb = l.kind === 'notebook_item';
+          const where = fb ? 'figure board' : nb ? 'notebook' : '';
+          const label = (where ? where + (l.boardTitle ? ' · ' + l.boardTitle : '') + (l.title ? ': ' + l.title : '') : (l.title || 'link'));
+          const thumb = l.thumb ? '<img class="pmr-lg-thumb" src="' + escHTML(l.thumb) + '" alt="" loading="lazy"> ' : '';
+          return ' <a class="pmr-lg-img" href="' + escHTML(l.url) + '" target="_blank" rel="noopener">' + thumb + ICON.svg(fb ? 'chart-bar' : nb ? 'book-open' : 'link') + ' ' + escHTML(label) + '</a>';
+        }).join('');
+        const fu = it.outcome.follow_up_item_id ? ' <span class="pmr-lg-fu" title="Follow-up planned next week">' + ICON.svg('arrow-path') + ' follow-up planned</span>' : '';
+        return '<div class="pmr-lg-outcome pmr-lg-oc-' + escHTML(it.outcome.kind) + '">' +
+          ICON.render(om.icon) + ' ' + om.label +
+          (it.outcome.summary ? ' — ' + escHTML(it.outcome.summary) : '') +
+          lks + img + nbs + fu + '</div>';
+      }
+      if (isUnaccounted(it)) {
+        const why = it.status === 'planned' ? 'never confirmed' : (it.status + ', no result recorded');
+        return '<div class="pmr-lg-outcome pmr-lg-oc-missing">◇ unaccounted — ' + escHTML(why) + '</div>';
+      }
+      if (it.status === 'done') return '<div class="pmr-lg-outcome">✓ done</div>';
+      if (it.status === 'skipped') return '<div class="pmr-lg-outcome">✗ skipped</div>';
+      return ''; // upcoming planned item — the plan line is enough
+    };
+
+    const itemRow = (it) => {
+      const det = it.details || {};
+      const bits = [];
+      if (it.follow_up_of) bits.push('<span class="pmr-lg-fu" title="Follows up an earlier step">' + ICON.svg('arrow-path') + '</span>');
+      if (det.focusTitle) bits.push(ICON.svg('target') + ' ' + escHTML(det.focusTitle));
+      const dayName = it.date ? new Date(it.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' }) : '';
+      return '<div class="pmr-lg-item' + (isUnaccounted(it) ? ' pmr-lg-missing' : '') + '">' +
+        '<span class="pmr-lg-icon">' + (MYDAY_TYPE_ICONS[it.type] ? ICON.render(MYDAY_TYPE_ICONS[it.type]) : '•') + '</span>' +
+        '<div class="pmr-lg-main">' +
+          '<div class="pmr-lg-title">' + escHTML(it.title || '(untitled)') +
+            '<span class="pmr-lg-day">' + escHTML(dayName) + '</span>' +
+            (bits.length ? '<span class="pmr-lg-bits">' + bits.join(' · ') + '</span>' : '') +
+          '</div>' +
+          outcomeLine(it) +
+        '</div>' +
+      '</div>';
+    };
+
+    const weekHtml = (mon, items, activeDays) => {
+      const counts = { result: 0, barrier: 0, no_result: 0, missing: 0, upcoming: 0 };
+      items.forEach(it => {
+        if (it.outcome && counts[it.outcome.kind] != null) counts[it.outcome.kind]++;
+        else if (isUnaccounted(it)) counts.missing++;
+        else if (it.status === 'planned') counts.upcoming++;
+      });
+      // V3.626 — 7 presence dots (Mon→Sun): which days actually saw work,
+      // from the same tracker events the Activity block renders.
+      let presence = '';
+      if (activeDays) {
+        const today = todayStr();
+        presence = '<span class="pmr-lg-presence" title="Days with recorded activity">' +
+          [0, 1, 2, 3, 4, 5, 6].map(i => {
+            const d = shiftDateStr(mon, i);
+            const cls = activeDays.has(d) ? ' on' : (d > today ? ' future' : '');
+            return '<span class="pmr-lg-pd' + cls + '" title="' + escHTML(d) + (activeDays.has(d) ? ' — active' : '') + '"></span>';
+          }).join('') + '</span>';
+      }
+      const chips =
+        (counts.result ? '<span class="pmr-lg-chip pmr-lg-oc-result">' + ICON.svg('check-circle') + ' ' + counts.result + '</span>' : '') +
+        (counts.barrier ? '<span class="pmr-lg-chip pmr-lg-oc-barrier">' + ICON.svg('construction') + ' ' + counts.barrier + '</span>' : '') +
+        (counts.no_result ? '<span class="pmr-lg-chip">◌ ' + counts.no_result + '</span>' : '') +
+        (counts.missing ? '<span class="pmr-lg-chip pmr-lg-oc-missing">◇ ' + counts.missing + '</span>' : '') +
+        (counts.upcoming ? '<span class="pmr-lg-chip">' + ICON.svg('calendar-days') + ' ' + counts.upcoming + ' planned</span>' : '');
+      const ownerLink = !isReadOnlyView()
+        ? '<a class="pmr-lg-golink" href="/rm/pages/my-week.html?date=' + encodeURIComponent(mon) + '&view=week">My Week →</a>'
+        : '';
+      return '<div class="pmr-lg-week">' +
+        '<div class="pmr-lg-weekhead"><span class="pmr-lg-range">Week of ' + escHTML(weekRangeLabel(mon)) + '</span>' +
+          presence + chips + ownerLink + '</div>' +
+        items.map(itemRow).join('') +
+      '</div>';
+    };
+
+    const paint = (rows, activeDays) => {
+      if (!rows.length) {
+        host.innerHTML = '<div style="color:#9ca3af;font-size:13px">No My Week plans in this period yet' +
+          (!isReadOnlyView() ? ' — plan your steps on <a href="/rm/pages/my-week.html">My Week</a> and they report here automatically.' : '.') +
+          '</div>';
+        return;
+      }
+      const byWeek = {};
+      rows.forEach(it => { const wk = mondayStr(it.date); (byWeek[wk] = byWeek[wk] || []).push(it); });
+      const weekKeys = Object.keys(byWeek).sort().reverse();
+      let showAll = false;
+      const draw = () => {
+        const keys = showAll ? weekKeys : weekKeys.slice(0, 12);
+        host.innerHTML = keys.map(k => weekHtml(k, byWeek[k], activeDays)).join('') +
+          (weekKeys.length > 12 && !showAll
+            ? '<button type="button" class="pmr-lg-more">Show all ' + weekKeys.length + ' weeks</button>' : '');
+        const more = host.querySelector('.pmr-lg-more');
+        if (more) more.addEventListener('click', () => { showAll = true; draw(); });
+      };
+      draw();
+    };
+
+    (async () => {
+      try {
+        const [rows, entries] = await Promise.all([
+          loadDayPlansForPeriod(),
+          ensureActivityForPeriod().catch(() => []),   // presence is best-effort
+        ]);
+        paint(rows, activeDaySet(entries));
+      } catch (err) {
+        console.warn('[pmr] My Week ledger load failed:', err && err.message);
+        host.innerHTML = '<div style="color:#9ca3af;font-size:13px">My Week plans unavailable' +
+          (isReadOnlyView() ? ' — visible to the student, their mentors, and admins.' : '.') + '</div>';
+      }
+    })();
+
+    const refreshBtn = block.querySelector('.pmr-lg-refresh');
+    if (refreshBtn) refreshBtn.addEventListener('click', async () => {
+      host.innerHTML = '<div style="color:#9ca3af;font-size:13px">Reloading…</div>';
+      try {
+        const rows = await loadDayPlansForPeriod(true);
+        const entries = await ensureActivityForPeriod().catch(() => []);
+        paint(rows, activeDaySet(entries));
+      }
+      catch (_) { host.innerHTML = '<div style="color:#9ca3af;font-size:13px">My Week plans unavailable.</div>'; }
+    });
 
     return block;
   }
@@ -2771,13 +3248,13 @@
     head.appendChild(buildDiscussedToggle(wk, () => { scheduleSave(); renderBody(); }));
 
     // V3.532 — assemble the week from what the student already did
-    // (notebook entries, tracker events, done subtasks, My Day plans).
+    // (notebook entries, tracker events, done subtasks, My Week plans).
     // Owner-only: the reviewer view is read-only anyway.
     if (!isReadOnlyView() && window.PMR_WEEK_ASSEMBLE) {
       const asm = document.createElement('button');
       asm.className = 'pmr-add-btn';
-      asm.textContent = '⤓ Assemble';
-      asm.title = 'Pull this week’s notebook entries, tracker events, completed tasks and My Day plans into the week';
+      ICON.label(asm, 'arrow-down-tray', ' Assemble');
+      asm.title = 'Pull this week’s notebook entries, tracker events, completed tasks and My Week plans into the week';
       asm.onclick = () => PMR_WEEK_ASSEMBLE.open(wk, state.doc, {
         onInsert: (picked) => {
           wk.subsections = (wk.subsections && wk.subsections.length)
@@ -2858,7 +3335,7 @@
     wrap.className = 'pmr-week-notebook';
     const head = document.createElement('div');
     head.className = 'pmr-wn-head';
-    head.textContent = '📓 Lab notebook (' + rows.length + ')';
+    ICON.label(head, 'book-open', ' Lab notebook (' + rows.length + ')');
     wrap.appendChild(head);
     rows.forEach(row => wrap.appendChild(renderWeekNotebookRow(row)));
     return wrap;
@@ -2873,7 +3350,7 @@
 
     const twist = document.createElement('span');
     twist.className = 'pmr-wn-twist';
-    twist.textContent = '▸';
+    ICON.label(twist, 'chevron-right');
     header.appendChild(twist);
 
     const title = document.createElement('span');
@@ -2900,7 +3377,7 @@
     if (!isReadOnlyView()) {
       const open = document.createElement('a');
       open.className = 'pmr-wn-open';
-      open.href = '/rm/pages/lab-notebook.html?entry=' + encodeURIComponent(row.id);
+      open.href = '/rm/pages/notebook.html?entry=' + encodeURIComponent(row.id);
       open.target = '_blank';
       open.rel = 'noopener';
       open.textContent = 'open ↗';
@@ -2920,7 +3397,7 @@
       const isOpen = body.style.display !== 'none';
       if (isOpen) { body.style.display = 'none'; twist.textContent = '▸'; return; }
       body.style.display = '';
-      twist.textContent = '▾';
+      ICON.label(twist, 'chevron-down');
       if (loaded) return;
       loaded = true;
       body.innerHTML = '<div class="pmr-empty" style="padding:6px">Loading…</div>';
@@ -3175,7 +3652,7 @@
       actions.appendChild(dismissBtn);
     }
     const delBtn = document.createElement('button');
-    delBtn.textContent = '✕';
+    ICON.label(delBtn, 'x-mark');
     delBtn.title = 'Remove permanently';
     delBtn.onclick = () => {
       const targetIdx = (idx != null && idx >= 0) ? idx : state.doc.discussion.indexOf(card);
@@ -3481,7 +3958,7 @@
     if (!isReadOnlyView()) {
       const del = document.createElement('span');
       del.className = 'del';
-      del.textContent = '✕';
+      ICON.label(del, 'x-mark');
       del.title = 'Remove barrier';
       del.style.cssText = 'cursor:pointer;color:#dc2626;font-size:14px;padding:4px 8px';
       del.onclick = () => {
@@ -3582,7 +4059,7 @@
         wrap.appendChild(img);
         if (!isReadOnlyView()) {
           const x = document.createElement('span');
-          x.textContent = '✕';
+          ICON.label(x, 'x-mark');
           x.title = 'Remove figure';
           x.style.cssText = 'position:absolute;top:2px;right:2px;background:rgba(255,255,255,0.85);border-radius:10px;padding:0 5px;font-size:11px;color:#dc2626;cursor:pointer;line-height:1.2';
           x.onclick = (ev) => {
@@ -3617,7 +4094,7 @@
     actions.style.cssText = 'display:flex;gap:6px;margin-top:8px;flex-wrap:wrap';
     const assignBtn = document.createElement('button');
     assignBtn.type = 'button';
-    assignBtn.textContent = '＋ Assign task';
+    ICON.label(assignBtn, 'plus', ' Assign task');
     assignBtn.title = 'Create a task to address this barrier (admin → student, or student-to-self)';
     assignBtn.style.cssText = 'font-size:11px;padding:4px 10px;border:1px solid #c4b5fd;color:#5b21b6;background:#f5f3ff;border-radius:4px;cursor:pointer;font-weight:500';
     assignBtn.onclick = () => openAssignFromBarrier(barrier);
@@ -3781,7 +4258,7 @@
 
     const assignBtn = document.createElement('button');
     assignBtn.type = 'button';
-    assignBtn.textContent = '＋ task';
+    ICON.label(assignBtn, 'plus', ' task');
     assignBtn.title = 'Create a task related to this paper';
     assignBtn.style.cssText = 'font-size:11px;padding:3px 8px;border:1px solid #c4b5fd;color:#5b21b6;background:#f5f3ff;border-radius:4px;cursor:pointer';
     assignBtn.onclick = () => openAssignFromPaperDraft(draft);
@@ -3881,7 +4358,9 @@
     }
     let entries;
     try {
-      entries = await window.ActivitySignals.listForPeriod(uid, { from: fromDate, to: toDate });
+      // V3.626 — shared one-flight fetch (the ledger's presence dots ask
+      // for the same range at the same time).
+      entries = await ensureActivityForPeriod();
     } catch (err) {
       throw err;
     }
@@ -4216,9 +4695,9 @@
     if (!split.active.length && !split.archived.length) {
       const empty = document.createElement('div');
       empty.className = 'pmr-empty';
-      empty.textContent = isReadOnlyView()
-        ? 'No figures flagged for this period. The student can flag images from the 📌 button on a lab notebook attachment.'
-        : 'No figures flagged yet. Open a Lab Notebook entry, click 📌 on any image attachment to flag it for the next PMR.';
+      empty.innerHTML = isReadOnlyView()
+        ? 'No figures flagged for this period. The student can flag images from the ' + ICON.svg('pin') + ' button on a lab notebook attachment.'
+        : 'No figures flagged yet. Open a Lab Notebook entry, click ' + ICON.svg('pin') + ' on any image attachment to flag it for the next PMR.';
       block.appendChild(empty);
       // V3.190 — always render the archive section so the system is
       // discoverable even before items are flagged.
@@ -4267,9 +4746,9 @@
     const meta = document.createElement('div');
     meta.className = 'pmr-fig-review-meta';
     const link = document.createElement('a');
-    link.href = '/rm/pages/lab-notebook.html?entry=' + encodeURIComponent(fr.notebook_entry_id || '');
-    link.textContent = '📓 ' + (fr.notebook_title || '(untitled entry)') +
-      (fr.notebook_date ? ' · ' + fr.notebook_date : '');
+    link.href = '/rm/pages/notebook.html?entry=' + encodeURIComponent(fr.notebook_entry_id || '');
+    ICON.label(link, 'book-open', ' ' + (fr.notebook_title || '(untitled entry)') +
+      (fr.notebook_date ? ' · ' + fr.notebook_date : ''));
     link.title = 'Open the originating notebook entry';
     meta.appendChild(link);
     if (fr.flagged_at) {
@@ -4308,7 +4787,7 @@
       const rmBtn = document.createElement('button');
       rmBtn.type = 'button';
       rmBtn.className = 'pmr-add-btn pmr-fig-review-remove';
-      rmBtn.textContent = '× Remove';
+      ICON.label(rmBtn, 'x-mark', ' Remove');
       rmBtn.title = 'Remove this figure from the PMR (the notebook flag stays on)';
       rmBtn.addEventListener('click', () => {
         if (!confirm('Remove this figure from the PMR? The notebook flag will stay; re-flag from the notebook to bring it back.')) return;

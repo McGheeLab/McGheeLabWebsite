@@ -35,10 +35,10 @@
   }
 
   var CALLOUT_META = {
-    critical: { label: 'Critical', icon: '⚠' },
-    note:     { label: 'Note',     icon: 'ℹ' },
-    assume:   { label: 'Assumption', icon: '⚙' },
-    timing:   { label: 'Timing',   icon: '⏱' },
+    critical: { label: 'Critical', icon: 'exclamation-triangle' },
+    note:     { label: 'Note',     icon: 'information-circle' },
+    assume:   { label: 'Assumption', icon: 'cog-6-tooth' },
+    timing:   { label: 'Timing',   icon: 'clock' },
   };
   function calloutType(b) {
     if (b.kind === 'callout') return CALLOUT_META[(b.attrs || {}).type] ? b.attrs.type : 'note';
@@ -55,7 +55,7 @@
       inner.className = 'prd-timing-pill';
       var label = document.createElement('span');
       label.className = 'prd-timing-icon';
-      label.textContent = meta.icon;
+      ICON.label(label, meta.icon);
       inner.appendChild(label);
       var body = document.createElement('span');
       body.className = 'prd-prose';
@@ -68,7 +68,7 @@
     el.className = 'prd-callout prd-callout-' + type;
     var head = document.createElement('div');
     head.className = 'prd-callout-label';
-    head.textContent = meta.icon + ' ' + meta.label;
+    ICON.label(head, meta.icon, ' ' + meta.label);
     el.appendChild(head);
     var body2 = document.createElement('div');
     body2.className = 'prd-callout-body prd-prose';
@@ -101,7 +101,7 @@
         var tr = document.createElement('tr');
         tr.innerHTML = '<td class="prd-col-num prd-mono">' + esc(r.qty || '') +
           '</td><td>' + esc(r.unit || '') +
-          '</td><td>' + (r.item_ref ? '🧪 ' : '') + esc(label) + '</td>';
+          '</td><td>' + (r.item_ref ? ICON.svg('test-tube') + ' ' : '') + esc(label) + '</td>';
         tbody.appendChild(tr);
       });
     }
@@ -311,7 +311,7 @@
     if (res.warnings && res.warnings.length) {
       var w = document.createElement('div');
       w.className = 'prd-calc-control-hint';
-      w.textContent = '⚠ ' + res.warnings.join(' · ');
+      ICON.label(w, 'exclamation-triangle', ' ' + res.warnings.join(' · '));
       el.appendChild(w);
     }
     return el;

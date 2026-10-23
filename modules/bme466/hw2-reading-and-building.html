@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>BME/AME 466/566 — Homework 2</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: 1.5em;}
+    div.column{flex: auto;}
+    @media screen {
+    div.columns{gap: min(4vw, 1.5em);}
+    div.column{overflow-x: auto;}
+    }
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    max-width:820px;margin:0 auto;padding:24px 18px;color:#1e293b;line-height:1.6;background:#f8fafc}
+  h1,h2,h3{color:#1e3a5f} h1{font-size:1.6rem;border-bottom:3px solid #2563eb;padding-bottom:8px}
+  h2{font-size:1.15rem;margin-top:1.6em;border-bottom:1px solid #e2e8f0;padding-bottom:4px}
+  h3{font-size:1rem;margin-top:1.2em}
+  .subtitle{color:#64748b;font-size:1.05rem;margin-top:-8px}
+  blockquote{background:#eff6ff;border-left:4px solid #2563eb;margin:14px 0;padding:10px 16px;border-radius:0 8px 8px 0}
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.92rem}
+  th,td{border:1px solid #e2e8f0;padding:6px 10px;text-align:left}
+  th{background:#f1f5f9}
+  code{background:#f1f5f9;border-radius:4px;padding:1px 5px;font-size:.9em}
+  a{color:#2563eb}
+  strong{color:#0f172a}
+  hr{border:none;border-top:1px solid #e2e8f0;margin:22px 0}
+  @media(max-width:640px){body{padding:14px 10px}}
+  </style>
+  <!-- ══ no-copy guard ══════════════════════════════════════════════════════════
+       Canonical source. Paste this block verbatim into the <head> of every
+       student-facing course page, and pass it to pandoc-built pages with
+       `--include-in-header scripts/nocopy-header.html`. Edit it HERE, then
+       re-sync the copies (`python3 scripts/sync_nocopy.py --check`).
+
+       What it does: course text cannot be selected, copied, cut, dragged out,
+       right-click-saved, or printed. Fields the student types into stay fully
+       editable and pasteable — students still paste numbers and notes.
+
+       Why: bulk-pasting a gated question into a chatbot should be a decision,
+       not a reflex. Honest limit — this is friction, not encryption. View
+       Source, devtools, "Save page as", a screen reader, or a phone camera all
+       still reach the text; per-student data is what actually makes the answer
+       unshareable. Screen readers are unaffected: `user-select` does not touch
+       the accessibility tree, and no ARIA is hidden here.
+  -->
+  <style id="nocopy-css">
+  html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+    -webkit-touch-callout:none}
+  input,textarea,select,option,[contenteditable="true"]{
+    -webkit-user-select:text !important;-moz-user-select:text !important;
+    -ms-user-select:text !important;user-select:text !important}
+  ::selection{background:transparent}
+  input::selection,textarea::selection{background:#bfdbfe}
+  @media print{
+    html,body{visibility:hidden !important}
+    body::after{visibility:visible !important;display:block;position:fixed;top:38%;left:0;right:0;
+      padding:0 12%;text-align:center;color:#111;
+      font:600 13pt/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+      content:"This page is not printable. Work through it in the browser — your dataset is generated live."}
+  }
+  </style>
+  <script id="nocopy-js">
+  (function(){
+    'use strict';
+    /* Anything you type into stays live; everything else is inert. */
+    function editable(el){
+      return !!el && (el.tagName==='INPUT'||el.tagName==='TEXTAREA'||el.isContentEditable===true);
+    }
+    function inEditable(node){
+      var n = (node && node.nodeType===1) ? node : (node && node.parentElement);
+      while(n){ if(editable(n)) return true; n = n.parentElement; }
+      return false;
+    }
+    /* Capture phase: the event is stopped before it reaches element-level
+       handlers, which is also what kills the MathJax right-click menu (it
+       offers "Show Math As → TeX Commands", i.e. copyable source). */
+    ['contextmenu','selectstart','dragstart','copy','cut'].forEach(function(ev){
+      document.addEventListener(ev, function(e){
+        if(editable(e.target)) return;
+        if(e.clipboardData){ try{ e.clipboardData.setData('text/plain',''); }catch(_){} }
+        e.preventDefault(); e.stopPropagation();
+      }, true);
+    });
+    document.addEventListener('keydown', function(e){
+      if(editable(e.target)) return;          /* Ctrl+A / Ctrl+C inside a field is fine */
+      var k = (e.key||'').toLowerCase();
+      if((e.ctrlKey||e.metaKey) && (k==='c'||k==='x'||k==='a'||k==='p'||k==='s')){
+        e.preventDefault(); e.stopPropagation();
+      }
+    }, true);
+    /* Backstop for selections that arrive without a selectstart (caret
+       browsing, programmatic select-all, some Firefox paths). */
+    document.addEventListener('selectionchange', function(){
+      var s = document.getSelection();
+      if(!s || s.isCollapsed || s.rangeCount===0) return;
+      if(inEditable(s.anchorNode)) return;
+      s.removeAllRanges();
+    });
+  })();
+  </script>
+  <!-- ══ end no-copy guard ══════════════════════════════════════════════════ -->
+</head>
+<body>
+<!-- hi-icons:start (scripts/module_icons.py — generated; re-run after adding an icon) -->
+<style>.hi{width:1em;height:1em;display:inline-block;vertical-align:-0.125em;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;overflow:visible}.hi-solid{fill:currentColor;stroke:none}</style>
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><defs><symbol id="hi-book-open" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"/></symbol><symbol id="hi-calculator" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm2.498-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5v2.25h-7.5V6ZM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0 0 12 2.25Z"/></symbol><symbol id="hi-light-bulb" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"/></symbol></defs></svg>
+<script>window.HI={svg:function(n,o){o=o||{};var s=o.solid?'-solid':'';return '<svg class="hi'+(o.solid?' hi-solid':'')+(o.cls?' '+o.cls:'')+'"'+(o.tint?' style="color:'+o.tint+'"':'')+(o.label?' role="img" aria-label="'+String(o.label).replace(/"/g,'&quot;')+'"':' aria-hidden="true"')+'><use href="#hi-'+n+s+'"/></svg>';},
+draw:function(c,n,x,y,z,col,o){o=o||{};var sym=document.getElementById('hi-'+n+(o.solid?'-solid':''));if(!c||!sym||typeof Path2D==='undefined')return;var k=(z||16)/24;c.save();c.translate(x,y);c.scale(k,k);c.lineWidth=1.5;c.lineCap='round';c.lineJoin='round';c.strokeStyle=c.fillStyle=col||'#475569';
+[].forEach.call(sym.children,function(e){var a=function(q){return parseFloat(e.getAttribute(q))||0},p=new Path2D(),t=e.tagName.toLowerCase();if(t==='path')p=new Path2D(e.getAttribute('d'));else if(t==='circle')p.arc(a('cx'),a('cy'),a('r'),0,7);else if(t==='ellipse')p.ellipse(a('cx'),a('cy'),a('rx'),a('ry'),0,0,7);else if(t==='rect')p.rect(a('x'),a('y'),a('width'),a('height'));else if(t==='line'){p.moveTo(a('x1'),a('y1'));p.lineTo(a('x2'),a('y2'));}else{var v=(e.getAttribute('points')||'').trim().split(/[\s,]+/).map(parseFloat);for(var i=0;i+1<v.length;i+=2)p[i?'lineTo':'moveTo'](v[i],v[i+1]);if(t==='polygon')p.closePath();}
+if(o.solid)c.fill(p,'evenodd');else c.stroke(p);});c.restore();}};</script>
+<!-- hi-icons:end -->
+<header id="title-block-header">
+<h1 class="title">BME/AME 466/566 — Homework 2</h1>
+<p class="subtitle">Reading and Building — <em>from a receptor to a
+moving cell</em></p>
+</header>
+<h2 id="instructions">Instructions</h2>
+<p>This homework <em>is</em> the interactive module at
+<code>https://mcgheelab.com/modules/bme466/hw-02-reading-and-building.html</code>
+(also linked from the class page). It has a <strong>★ Practice tab, one
+data tab (The Microscope), a Problems tab, a Challenge tab, and a final
+Map &amp; Export tab</strong> — plus two floating tools you can open
+beside any tab: the <strong><svg class="hi" aria-hidden="true"><use href="#hi-book-open"/></svg> Notes panel</strong> (every law of Weeks
+1–4, and when each applies) and a <strong><svg class="hi" aria-hidden="true"><use href="#hi-calculator"/></svg> calculator</strong>.</p>
+<p><strong>Released Wednesday 2026-09-16 · due Wednesday
+2026-09-30.</strong></p>
+<p><strong>One rule shapes everything here: no question names its
+equation.</strong> Each problem describes a biological situation and
+asks for a quantity; <em>finding the most reasonable relation</em> — and
+defending that choice in your written solutions — is the skill being
+graded. The <svg class="hi" aria-hidden="true"><use href="#hi-book-open"/></svg> Notes panel is the sanctioned search space. The ★
+Practice tab is where you train that skill with hints and revealed
+solutions; the graded tabs have neither.</p>
+<p><strong>Total: 100 %</strong> (weights in brackets). The
+<strong>Challenge</strong> is shown to everyone and graded <strong>only
+for 566 students</strong>; for 466 students its weight redistributes
+across the other problems.</p>
+<p><strong>Expected time: 6–8 hours</strong>, set for a <strong>two-week
+window</strong> — two weeks of material (binding, then the cytoskeleton)
+sit behind it. The module <strong>autosaves your progress to your UA
+account</strong>, so you can stop on one computer and continue on
+another. Plan on several sittings.</p>
+<h3 id="before-you-touch-anything-sign-in">Before you touch anything:
+sign in</h3>
+<ol type="1">
+<li><strong>Sign in with your UA NetID</strong> in the module’s top bar
+(your <code>@arizona.edu</code> Google account). That is the whole
+setup: your personal dataset is assigned from your NetID automatically —
+the printed givens below are <em>yours</em> and nobody else’s. Signed
+out you get demo numbers and export is blocked.</li>
+<li>Put your <strong>name and NetID on page 1</strong> of your written
+solutions (the PDF you upload).</li>
+<li><strong>Practice first.</strong> The ★ tab needs no sign-in: eight
+worked examples, each a cousin of one from the Week 3 and Week 4
+learning modules, re-posed in new biology with a different unknown.
+Steps check themselves (the one place in this homework that ever says
+right or wrong), a <svg class="hi" aria-hidden="true"><use href="#hi-light-bulb"/></svg> hint ladder nudges when you want it, and each
+finishes by revealing <strong>the module’s original worked
+example</strong> — two examples of every concept, one of them built by
+you. <strong>Practice Example 1 is the real Microscope</strong>, run on
+a calibration standard whose answer is known — do it before you touch
+the graded data tab, so the first time you Set → Run → Keep is a time
+with feedback.</li>
+<li><strong>The Microscope hands you raw readouts only.</strong> It
+reports what a camera sees — a plateau, a stopwatch time, a length
+change per second, a gliding speed — and never converts anything into a
+rate constant. That conversion, including <em>which relation justifies
+it</em>, is yours.</li>
+<li><strong>Keep honestly.</strong> Every run the microscope completes
+is logged; the runs you keep ride along inside your results file, and
+the grader re-checks every kept run against the log. Your judgment is
+part of the measurement: each kept run carries the tag <em>you</em> gave
+it.</li>
+<li><strong>Answers are recorded, never judged.</strong> The graded tabs
+give no correctness feedback — real measurements don’t come with an
+answer key. Your confidence comes from the <strong>cross-checks</strong>
+(Map &amp; Export tab): the same quantity computed two independent ways
+must agree.</li>
+<li><strong>Export at the end of every sitting.</strong> The same file
+is your resumable save (Load progress), on any computer, alongside the
+cloud autosave.</li>
+</ol>
+<h3 id="what-you-submit-two-files-one-d2l-dropbox">What you submit (two
+files, one D2L dropbox)</h3>
+<ul>
+<li><strong>The module’s exported results file</strong>
+<code>HW2_&lt;NETID&gt;_&lt;code&gt;.json</code> — your answers, your
+kept runs, and the run log. Auto-graded.</li>
+<li><strong>Your written solutions</strong> (one PDF): for
+<em>every</em> problem — which relation you chose and <strong>why it
+applies to this situation</strong> (assumptions named), the symbolic
+form before any numbers, the unit track, the number, and a citation for
+every looked-up value. Numbers in your written solutions <strong>must
+match your JSON</strong> — a mismatch is a fabricated measurement (an
+integrity violation).</li>
+</ul>
+<hr />
+<h3 id="the-scenario">The scenario</h3>
+<p>The neutrophil in the infected bite — the cell Weeks 2–4 followed.
+Before asking whether it can find the wound, your lab characterizes the
+three molecular parts it depends on, <strong>on one microscope</strong>.
+A TIRF rig sits on the bench with three slides in the box:</p>
+<ul>
+<li><strong>the receptor slide</strong> — the neutrophil’s chemokine
+receptor in a supported membrane, fed a vendor’s
+<strong>proprietary</strong> chemokine analogue whose binding rates are
+undisclosed;</li>
+<li><strong>the actin slide</strong> — a single filament growing from a
+seed, using actin from a <strong>proprietary</strong> expression line
+whose kinetics are undisclosed;</li>
+<li><strong>the myosin slide</strong> — filaments gliding over a lawn of
+the same lab’s myosin II, whose ATP dependence is undisclosed.</li>
+</ul>
+<p>Characterize all three <strong>once</strong>, then spend those
+numbers on five questions about the neutrophil and the cells around it,
+and one challenge about its walk to the wound. Every number you use is
+one you measured or one printed in your dataset; every constant you look
+up, you cite.</p>
+<blockquote>
+<p><strong>Constants live in <svg class="hi" aria-hidden="true"><use href="#hi-book-open"/></svg> Notes</strong> (k_B, the nM and µM
+bridges, water’s viscosity by temperature, documented structural
+constants). Citing them from Notes is fine; citing the primary source is
+better.</p>
+</blockquote>
+<hr />
+<h2 id="the-microscope-one-instrument-three-slides-10">The Microscope —
+one instrument, three slides <strong>[10 %]</strong></h2>
+<p>Every slide is run the same way, with the same five words:
+<strong>Set</strong> one dial → <strong>Run</strong> →
+<strong>Keep</strong> the run (with your tag) → <strong>Repeat</strong>
+at a new setting → <strong>Answer</strong>. Two pictures, two names:
+<strong>This run</strong> (the trace the camera recorded, with its
+readouts) and <strong>Your sweep</strong> (every run you kept, plotted,
+with a straight line drawn through the ones you called usable). A
+protocol strip above the slide lights each step as you complete it and
+states the rule in its own words.</p>
+<p><strong>The rule, on every slide:</strong> keep <strong>at least five
+usable runs at at least four different settings, bracketing the
+feature</strong> — the feature is the thing each slide is about, and
+<em>finding where it is by choosing settings</em> is the inquiry. On the
+receptor slide you need kept runs on both sides of half coverage; on the
+actin slide at least one kept run in which the barbed end shrinks and
+one in which it grows; on the myosin slide your fastest kept speed must
+be at least three times your slowest. The strip tells you which side is
+missing.</p>
+<p><strong>Tagging is your judgment.</strong> Each run’s card asks you
+to call it <em>usable</em> or <em>noisy</em> before you keep it — a
+trace that never reached its plateau, or barely left the noise, is data
+you keep and mark, not data you delete. Only usable runs feed the line
+and count toward the rule.</p>
+<p><strong>What the microscope reports, and never reports.</strong> Per
+run it gives you raw readouts only: the receptor slide’s plateau
+occupancy and the times to reach 63 % of that plateau on the way up and
+fall to 37 % of it on the wash; the actin slide’s elongation rate of
+each end in subunits per second (signed); the myosin slide’s gliding
+speed in µm/s. The line through your sweep prints its slope, intercept
+and axis crossing as numbers with units. It never reports a rate
+constant, a K_D, a C_c, a K_M or a maximum speed — those are what you
+<em>answer</em>.</p>
+<p><strong>The six things it asks you to answer</strong> (typed, one box
+each, gated by that slide’s rule):</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>slide</th>
+<th>report</th>
+<th>field</th>
+<th>unit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>receptor</td>
+<td>the rate at which a free receptor captures this ligand, per molecule
+per µm³ per second</td>
+<td><code>b1_kon</code></td>
+<td>µm³/s</td>
+</tr>
+<tr>
+<td>receptor</td>
+<td>the rate at which a bound ligand lets go</td>
+<td><code>b1_koff</code></td>
+<td>s⁻¹</td>
+</tr>
+<tr>
+<td>actin</td>
+<td>how fast this actin’s barbed end adds subunits per µM of free
+monomer</td>
+<td><code>b2_konB</code></td>
+<td>µM⁻¹s⁻¹</td>
+</tr>
+<tr>
+<td>actin</td>
+<td>the free-monomer concentration below which the barbed end
+shrinks</td>
+<td><code>b2_CcB</code></td>
+<td>µM</td>
+</tr>
+<tr>
+<td>myosin</td>
+<td>the gliding speed this motor reaches when ATP is not limiting</td>
+<td><code>b3_vmax</code></td>
+<td>µm/s</td>
+</tr>
+<tr>
+<td>myosin</td>
+<td>the ATP concentration at which it reaches half of that</td>
+<td><code>b3_KM</code></td>
+<td>µM</td>
+</tr>
+</tbody>
+</table>
+<p>The number of receptor sites in the field of view is printed on the
+receptor slide. In your written solutions, for each slide:
+<strong>(a)</strong> which axes you drew your line on and why that
+choice makes the slope and intercept <em>mean</em> what you report;
+<strong>(b)</strong> the second route to at least one of your two
+numbers (the Map &amp; Export tab prints the agreement);
+<strong>(c)</strong> your uncertainty from the spread across defensible
+choices of which runs to call usable.</p>
+<hr />
+<h2 id="problem-1-two-readers-one-ligand-15">Problem 1 — Two readers,
+one ligand <strong>[15 %]</strong></h2>
+<p>Your chemokine, in the bite: a bacterium of radius
+<strong>a_B</strong> and a neutrophil of radius <strong>a_N</strong>
+(both printed), each carrying <strong>N</strong> receptors (printed)
+whose capture radius is <strong>a_s</strong> (printed); the ligand’s
+molecular radius <strong>r_L</strong> (printed) in tissue fluid that is
+<strong>η_rel</strong> times as viscous as water (printed), at your
+<strong>T</strong>. <strong>(a)</strong> The ligand concentration at
+which half of a cell’s receptors are occupied at equilibrium — from
+<em>your</em> binding rates (<code>p1_Chalf</code>, nM).
+<strong>(b)</strong> How many times more ligand per second the
+neutrophil intercepts than the bacterium, if each were a perfect
+adsorber — every molecule that touched its surface stuck
+(<code>p1_ratio</code>, recorded). <strong>(c)</strong> For each cell,
+the fraction of that perfect-adsorber capture rate its N receptors of
+capture radius a_s actually achieve, if the receptors are spread evenly
+over its surface (<code>p1_fracN</code>, <code>p1_fracB</code>).
+<strong>(d)</strong> The recorded verdict: a cell is <em>at its
+ceiling</em> when its receptors capture within <strong>10 %</strong> of
+what a perfectly adsorbing sphere of the same radius would. Which
+statement do <em>your two fractions</em> support
+(<code>p1_verdict</code>)? Written solutions: the relation for (a) and
+why equilibrium applies; the unit bridge, shown; what (c) assumes about
+the receptors’ spacing; a defence of (d) that says what it would take
+for the other cell to get there.</p>
+<h2 id="problem-2-how-long-must-the-t-cell-pause-15">Problem 2 — How
+long must the T cell pause? <strong>[15 %]</strong></h2>
+<p>A T cell of radius <strong>a_T</strong> (printed) pauses on the
+vessel wall to decide whether the local chemokine has stepped up by a
+fraction <strong>ε</strong> (printed) over a background
+<strong>C₀</strong> (printed). Its receptors are yours from the receptor
+slide, <strong>N</strong> of them (the count printed in Problem 1).
+<strong>(a)</strong> The shortest averaging time that lets it resolve
+that step — an error in its concentration estimate equal to the step
+itself — with its N receptors (<code>p2_tmin</code>, s); the occupancy
+enters through what <em>your own</em> rates say it is at the background
+concentration. <strong>(b)</strong> The recorded verdict: does it decide
+within the pause time <strong>t_p</strong> (printed)?
+(<code>p2_verdict</code>). Written solutions: the relation you used and
+what it assumes; why occupancy enters through θ(1 − θ); what changes if
+the cell were a perfect adsorber instead of N receptors.</p>
+<h2 id="problem-3-fuel-for-the-motor-10">Problem 3 — Fuel for the motor
+<strong>[10 %]</strong></h2>
+<p>In the neutrophil’s rear, myosin II runs on ATP at a concentration
+your dataset prints (<strong>[ATP]</strong>) — below saturation. In a
+separate optical-trap experiment on this myosin — a single head pulling
+on a bead, the way Finer, Simmons and Spudich did it in 1994 — the lab
+measured the head’s turnover at saturating ATP (<strong>k_cyc</strong>),
+its unitary force (<strong>F_step</strong>) and its working stroke
+(<strong>d_step</strong>); your dataset prints all three. From
+<em>your</em> motility curve: <strong>(a)</strong> the fraction of its
+maximum cycling rate the motor reaches at that ATP
+(<code>p3_frac</code>); <strong>(b)</strong> the power one head delivers
+there (<code>p3_P</code>, aW; 1 aW = 10⁻¹⁸ W); <strong>(c)</strong> the
+ATP concentration at which the motor would reach 90 % of its maximum
+(<code>p3_C90</code>, µM). Written solutions: why the gliding speed
+reports the cycle rate; the energy bookkeeping per stroke against the
+free energy of ATP hydrolysis (cite it).</p>
+<h2 id="problem-4-the-belt-20">Problem 4 — The belt <strong>[20
+%]</strong></h2>
+<p>At the neutrophil’s front, actin filaments grow at the leading edge
+while their far ends are taken apart behind it, so the network runs like
+a conveyor belt. Your actin slide measured how fast each end of a
+filament adds and loses subunits — those are the numbers this problem
+runs on. Your dataset prints: the factor by which cofilin makes the
+pointed end lose subunits faster (<strong>f_cof</strong>); the speed at
+which the leading edge advances (<strong>v_edge</strong>); the radius of
+a free actin monomer (<strong>r_G</strong>); and how many times more
+viscous than water the cytoplasm is (<strong>η_cyt</strong>), at
+temperature <strong>T</strong>.</p>
+<p><strong>(a)</strong> At what free-monomer concentration does a
+filament keep a constant length while subunits still join at one end and
+leave at the other? Use both of your lines from the actin slide
+(<code>p4_Css</code>, µM). <strong>(b)</strong> At that concentration,
+how many subunits per second pass through the filament
+(<code>p4_J</code>, s⁻¹), and what speed does that correspond to
+(<code>p4_v</code>, nm/s)? Each subunit adds a fixed length to a
+filament — a documented number you find and cite. <strong>(c)</strong>
+Now let cofilin make the pointed end lose subunits faster by
+<strong>f_cof</strong>, everything else unchanged: how many subunits per
+second pass through now (<code>p4_Jcof</code>, s⁻¹)?
+<strong>(d)</strong> For the leading edge to advance at
+<strong>v_edge</strong>, assuming the network is not being dragged
+backward, what free-monomer concentration must the front have
+(<code>p4_Cneed</code>, µM)? <strong>(e)</strong> Compare your measured
+barbed-end capture rate with the fastest rate diffusion alone could
+bring monomers of radius <strong>r_G</strong> to a filament tip in this
+cytoplasm. Report the ratio — your rate divided by that limit — which is
+the fraction of arriving monomers that actually stick
+(<code>p4_stick</code>; every unit conversion matters), and record the
+verdict: is the barbed end limited by how fast monomers <em>arrive</em>,
+or by how often an arrival <em>sticks</em>?
+(<code>p4_verdict</code>).</p>
+<p>Written solutions: the adding-and-losing balance for both ends in
+symbols before any numbers; why cofilin’s effect enters only through the
+pointed end; the assumption behind (d); every unit conversion in
+(e).</p>
+<h2 id="problem-5-road-or-random-walk-10">Problem 5 — Road, or random
+walk? <strong>[10 %]</strong></h2>
+<p>Two transport decisions inside the same cell. <strong>(a)</strong> A
+vesicle of radius <strong>r_v</strong> (printed) must cross
+<strong>L</strong> (printed) of cytoplasm that is <strong>η_cyt</strong>
+times as viscous as water (printed); a kinesin can carry it at
+<strong>v_kin</strong> (printed). Report the dimensionless ratio that
+decides whether the road pays (<code>p5_Pe</code>), and the recorded
+verdict (<code>p5_verdict</code>). <strong>(b)</strong> The whole cell
+walks at <strong>v_cell</strong> (printed, in µm/min) and forgets its
+direction every <strong>τ_p</strong> (printed); how far from its start,
+root-mean-square, is it after <strong>t_obs</strong> (printed, in
+minutes) (<code>p5_rrms</code>, µm) — and how far would a straight walk
+have taken it (<code>p5_straight</code>, µm)? Written solutions: the two
+transit times behind (a); what regime (b) is in at t_obs and how you
+know.</p>
+<h2
+id="challenge-the-walk-to-the-wound-20-graded-for-566-attempted-by-all">Challenge
+— The walk to the wound <strong>[20 %; graded for 566, attempted by
+all]</strong></h2>
+<p><strong>The situation.</strong> A splinter has carried bacteria into
+the dermis, and they have founded a <strong>colony</strong> — a patch of
+dividing cells whose number doubles every <strong>t_double</strong>
+(printed). The nearest capillary runs a distance <strong>L_c</strong>
+(printed) away. Neutrophils leave the capillary there and set off
+through the tissue. Watch one of them. It crawls at a steady speed
+<strong>v_cell</strong> (printed, in µm/min), but it does not hold a
+heading: averaged over many such cells the velocity relaxes toward zero,
+d⟨<strong>v</strong>⟩/dt = −⟨<strong>v</strong>⟩/τ_p, so a cell
+remembers its direction for about <strong>τ_p</strong> (printed) and
+then wanders. There is no gradient to steer it in this problem.</p>
+<p><strong>The question: how long does a wandering neutrophil take to
+reach the colony — and does it get there before the colony has
+doubled?</strong></p>
+<p>It is solved <strong>entirely by hand and graded from your written
+solutions</strong>; the module records nothing for it. Let G(t) = ⟨r²⟩
+be the cell’s mean-squared displacement from the point where it left the
+capillary, and let H(t) = ⟨<strong>r</strong>·<strong>v</strong>⟩. Your
+written solution must do three things:</p>
+<ol type="1">
+<li><strong>Set up the differential equation that G obeys.</strong>
+<em>A way in:</em> write dG/dt in terms of H; then write dH/dt with the
+product rule, using ⟨<strong>v</strong>·<strong>v</strong>⟩ = v_cell²
+and the relaxation law above (the random part of the cell’s turning is
+uncorrelated with where it is); eliminate H. You should arrive at a
+second-order linear equation for G with constant coefficients. Then
+<strong>decide, and justify from the physics, the conditions at t =
+0</strong> that pin down its solution.</li>
+<li><strong>Solve it</strong>, and show what G becomes for t ≪ τ_p and
+for t ≫ τ_p. Name the quantity that multiplies t in the second
+limit.</li>
+<li><strong>Estimate the time at which the cell’s root-mean-square
+displacement first equals L_c.</strong> Report it in minutes, check
+which limit it falls in, and compare it with the doubling time and with
+the time a straight crawl at v_cell would take.</li>
+</ol>
+<hr />
+<h2 id="your-results-file">Your results file</h2>
+<p>The module assembles it in the background; export from the
+<strong>Map &amp; Export</strong> tab. 27 fields, in three kinds:</p>
+<ul>
+<li><strong>6 earned on the Microscope:</strong>
+<code>b1_kon, b1_koff, b2_konB, b2_CcB, b3_vmax, b3_KM</code>.</li>
+<li><strong>17 derived numerics:</strong>
+<code>p1_Chalf, p1_ratio, p1_fracN, p1_fracB, p2_tmin, p3_frac, p3_P, p3_C90, p4_Css, p4_J, p4_v, p4_Jcof, p4_Cneed, p4_stick, p5_Pe, p5_rrms, p5_straight</code>
+— of which <code>p1_ratio</code> is a recorded checkpoint (it can be
+computed from printed givens alone, so it carries no measurement
+credit).</li>
+<li><strong>4 recorded choices:</strong>
+<code>p1_verdict, p2_verdict, p4_verdict, p5_verdict</code>.</li>
+</ul>
+<p>Your kept runs and the run log ride along in the same file, with the
+tag you gave each run.</p>
+<p>The challenge exports nothing — it is hand-graded from your written
+solutions. Practice-tab work is never exported.</p>
+<h2 id="grading">Grading</h2>
+<ul>
+<li>The graded numerics are scored <strong>against your own dataset’s
+accept bands</strong> — and the six earned ones
+(<code>b1_kon, b1_koff, b2_konB, b2_CcB, b3_vmax, b3_KM</code>) must
+additionally agree with <strong>your own kept runs</strong>, while every
+downstream answer must agree with <strong>the chain your own earned
+numbers imply</strong>. A value that matches the expected result while
+contradicting your own measurements earns no credit.</li>
+<li><strong>Exact match is never the standard</strong> — bands are wide
+enough for honest work. They are <em>not</em> wide enough for the wrong
+equation: each band was audited to exclude its neighboring-law error
+(the nM bridge crossed backwards, a volume reported where its reciprocal
+concentration belongs, a fraction entered as a percent, a speed left in
+µm/min, the wrong end’s threshold, the wrong regime of a walk).</li>
+<li>Choice fields are recorded, not banded; your written solutions
+defend them.</li>
+<li>Your written solutions are graded by the course rubric:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Criterion</th>
+<th>Weight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reasoning &amp; method (incl. <em>which relation and why</em>)</td>
+<td>35</td>
+</tr>
+<tr>
+<td>Framing &amp; assumptions</td>
+<td>20</td>
+</tr>
+<tr>
+<td>Numerical execution &amp; units</td>
+<td>15</td>
+</tr>
+<tr>
+<td>Uncertainty &amp; sanity checks</td>
+<td>15</td>
+</tr>
+<tr>
+<td>Sources, name/NetID identification &amp; LLM-use notes</td>
+<td>15</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ai-use-policy">AI-use policy</h2>
+<p>You may use AI tools to <em>learn</em>, not to <em>answer</em>.</p>
+<p><strong>The sanctioned path.</strong> When you finish a practice
+example (or get honestly stuck in one), a quiet <strong>“Need more
+support?”</strong> link under its solution copies a tutor prompt for
+your chatbot: the practice problem, the full equation sheet
+<em>unmarked</em> (choosing the relation stays your job), the module’s
+deliberate simplifications, and the certified answer embargoed until you
+commit. That is the sanctioned way to get AI help here — practice runs
+on known numbers shared by the whole class, so nothing leaks.</p>
+<p><strong>Allowed:</strong> the sanctioned prompt; clarifying concepts
+and definitions; checking algebra <em>you already did</em> (the <svg class="hi" aria-hidden="true"><use href="#hi-calculator"/></svg>
+calculator exists so arithmetic is never the hard part); debugging
+analysis code <em>you wrote</em>.</p>
+<p><strong>Not allowed:</strong> AI-generated solution prose, figures,
+or numbers; pasting a graded problem into a chatbot. Figures must be
+hand-drawn or self-made.</p>
+<p>End <strong>every problem</strong> with a note — ≤2 sentences, or
+simply “LLM use: none”:</p>
+<blockquote>
+<p>“LLM use: I asked <em>(tool)</em> to explain <em>(concept)</em>; key
+takeaway: <em>(how it helped)</em>.”</p>
+</blockquote>
+<p>Your graded numbers exist only in <em>your</em> dataset and your own
+kept runs; by submitting, you affirm every measurement is your own.
+Answers inconsistent with the dataset your NetID was assigned are
+treated as fabricated measurements and handled as an integrity
+violation.</p>
+<p><strong>On this page and in the module, text is not selectable and
+pages do not print.</strong> That is deliberate, not a bug —
+bulk-pasting a question into a chatbot should be a decision, not a
+reflex. The boxes you type into work normally.</p>
+</body>
+</html>

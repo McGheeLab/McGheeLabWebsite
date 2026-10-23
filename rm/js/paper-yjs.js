@@ -87,6 +87,13 @@
   var THROTTLE_MS = 200;
   var PRESENCE_HEARTBEAT_MS = 10000;
   var PRESENCE_STALE_MS = 30000;
+  /* V3.740 — how often a session may bump projects/{id}.updatedAt while
+   * editing. The papers list sorts on that field, and until now nothing that
+   * edited manuscript CONTENT ever touched it (Yjs updates live under
+   * papers/{id}/…), so "most recently worked on" was really "most recently
+   * had its metadata row saved". One single-doc merge per 5 minutes per
+   * editing session is enough to make the order truthful and cheap. */
+  var ACTIVITY_TOUCH_MS = 5 * 60 * 1000;
 
   /** Connect a Yjs document to Firestore for the given paper.
    *
@@ -96,12 +103,23 @@
    *   getPresence(): array of { uid, name, color, lastSeen, focusBlockId }
    *   onPresence(cb): listener; cb(presenceArray) on each change; returns unsubscribe
    *   setFocusBlock(blockId): updates this client's presence focus
+   *   setLocked(bool): V3.741 — flip the outgoing kill-switch live
+   *   isLocked(): current kill-switch state
    *   disconnect(): closes listeners and deletes own presence doc
    *   yClientId: short client tag used in seqs
    * }.
+   *
+   * opts.locked (V3.741): when true, local Y updates are dropped instead of
+   *   written — the paper is checked out as a .paperbundle.zip and the server
+   *   rule would refuse them anyway. Belt-and-braces for the write paths that
+   *   never consult state.editable (table builder cells, figure captions).
+   * opts.touchActivity (default true): bump projects/{id}.updatedAt on the
+   *   first successful flush and then at most every ACTIVITY_TOUCH_MS.
    */
   async function connect(paperId, opts) {
     opts = opts || {};
+    var locked = !!opts.locked;
+    var touchActivity = opts.touchActivity !== false;
     var Y = await ensureYjs();
     if (typeof firebridge === 'undefined' || !firebridge.getUser()) {
       throw new Error('paper-yjs: firebridge user required');
@@ -197,6 +215,28 @@
     /* 4. Outgoing: throttle local updates, merge, write as one doc */
     var pendingUpdates = [];
     var flushTimer = null;
+    var lastActivityTouch = 0;
+    function touchActivityRow() {
+      if (!touchActivity) return;
+      var now = Date.now();
+      if (now - lastActivityTouch < ACTIVITY_TOUCH_MS) return;
+      lastActivityTouch = now;
+      // Single-doc merge on the paper's own row — never the whole-collection
+      // api.save, which re-stamps every row and is admin-only in practice
+      // (V3.729). Lead author / admin pass the projects update rule outright;
+      // coauthors pass the V3.741 activity+checkout carve-out.
+      db.collection('projects').doc(paperId).set(
+        { updatedAt: firebase.firestore.FieldValue.serverTimestamp() },
+        { merge: true }
+      ).then(function () {
+        if (typeof api !== 'undefined' && api.invalidate) {
+          return api.invalidate('projects/papers.json').catch(function () {});
+        }
+      }).catch(function (err) {
+        // Not fatal — the list just won't reorder for this edit.
+        console.warn('[paper-yjs] activity touch skipped:', err.message);
+      });
+    }
     function flushPending() {
       flushTimer = null;
       if (!pendingUpdates.length) return;
@@ -209,12 +249,13 @@
         originId: originId,
         authorUid: user.uid,
         ts: firebase.firestore.FieldValue.serverTimestamp(),
-      }).catch(function (err) {
+      }).then(touchActivityRow).catch(function (err) {
         console.warn('[paper-yjs] failed to write update', seq, err.message);
       });
     }
     function onLocalUpdate(update, origin) {
       if (origin === 'remote') return;
+      if (locked) return;   // V3.741 — checked out: drop, don't queue
       pendingUpdates.push(update);
       if (flushTimer) return;
       flushTimer = setTimeout(flushPending, THROTTLE_MS);
@@ -431,6 +472,11 @@
       getPresence: getPresence,
       onPresence: onPresence,
       setFocusBlock: setFocusBlock,
+      setLocked: function (v) {
+        locked = !!v;
+        if (locked) { pendingUpdates = []; if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; } }
+      },
+      isLocked: function () { return locked; },
       disconnect: function () {
         window.removeEventListener('beforeunload', beforeUnload);
         disconnect();

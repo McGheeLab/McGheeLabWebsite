@@ -281,7 +281,7 @@
       else if (stockSev === 'low') cls += ' proto-inv-low';
       html += '<span class="' + cls + '" data-inv-id="' + escapeHtml(id) +
               '" title="' + escapeHtml(titleStr) +
-              '" contenteditable="false">🧪 ' + escapeHtml(label) + '</span>';
+              '" contenteditable="false">' + ICON.svg('test-tube') + ' ' + escapeHtml(label) + '</span>';
       last = m.index + m[0].length;
     }
     html += escapeHtml(text.substring(last));

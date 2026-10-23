@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V3.840/V3.847 ☰ fan + quick links selftest</title>
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<script>
+  // The shell's browser preview flag, a "likely signed in" hint so the auth
+  // overlay never covers the page, and a clean quick-link list. No firebridge
+  // here: the gate polls harmlessly and the cloud mirror is skipped.
+  sessionStorage.setItem('ourlab-shell-preview', '1');
+  localStorage.setItem('ourlab-authed', '1');
+  localStorage.removeItem('ourlab-tabs.v1');
+</script>
+<script src="/rm/js/icons.js"></script>
+<script src="/rm/js/mobile-shell.js"></script>
+<style> #r { font-family: ui-monospace, Menlo, monospace; font-size: 12px; white-space: pre-wrap; padding: 12px; } </style>
+</head>
+<body>
+<p>Serve the repo root (<code>python3 -m http.server 8778</code>) and open <code>/scripts/tests/v3840-mobile-tabs-selftest.html</code>. Loads the real mobile-shell.js in its browser preview mode. Result: <code>#r[data-done=1]</code>.</p>
+<div id="r"></div>
+<script>
+document.addEventListener('DOMContentLoaded', function () { setTimeout(run, 50); });
+function run() {
+  var r = document.getElementById('r'); var pass = 0, fail = 0;
+  try {
+  function ok(name) { pass++; r.textContent += 'ok    ' + name + '\n'; }
+  function bad(name, d) { fail++; r.textContent += 'FAIL  ' + name + (d ? '  → ' + d : '') + '\n'; }
+  function eq(got, want, name) { var g = JSON.stringify(got), w = JSON.stringify(want); if (g === w) ok(name); else bad(name, 'got ' + g + ' want ' + w); }
+  function $(q) { return document.querySelector(q); }
+  function $$(q) { return Array.prototype.slice.call(document.querySelectorAll(q)); }
+  function fanKeys() { return $$('.ourlab-fan-tool').map(function (b) { return b.getAttribute('data-tool'); }); }
+  function stored() { try { return JSON.parse(localStorage.getItem('ourlab-tabs.v1')); } catch (e) { return null; } }
+  function pick(key) { var cb = $('.ourlab-cz [data-pick="' + key + '"]'); cb.checked = !cb.checked; cb.dispatchEvent(new Event('change', { bubbles: true })); }
+  function openFan() { $('.ourlab-tabbar [data-menu]').click(); }
+
+  // 1 — the bar is one ☰ button, nothing else
+  eq($$('.ourlab-tabbar .ourlab-menu').length, 1, 'one ☰ button');
+  eq($$('.ourlab-tabbar a, .ourlab-tabbar .ourlab-tab, .ourlab-tabbar [data-plus]').length, 0, 'no page tabs, no ＋');
+  eq(!!$('.ourlab-menu .om-bars') && !!$('.ourlab-menu .om-x'), true, 'hamburger + × marks');
+  eq(getComputedStyle($('.ourlab-menu')).backgroundColor !== 'rgb(37, 99, 235)', true, 'not blue');
+  eq(document.body.classList.contains('ourlab-app'), true, 'body.ourlab-app');
+
+  // 2 — the fan: Scan, the six default quick links, More
+  openFan();
+  eq(!!$('.ourlab-fan-back'), true, '☰ opens the fan');
+  eq(fanKeys(), ['scan', 'myday', 'focus', 'chat', 'tasks', 'library', 'inventory', 'more'], 'Scan · the quick links · More');
+  eq($$('.ourlab-fan-lbl').map(function (l) { return l.textContent; }).slice(0, 2), ['Scan a label', 'My Week'], 'labelled');
+  eq($('.ourlab-menu').classList.contains('on') && $('.ourlab-menu').getAttribute('aria-expanded') === 'true', true, 'the ☰ becomes an ×');
+  var menuRect = $('.ourlab-menu').getBoundingClientRect();
+  var tools = $$('.ourlab-fan-tool');
+  eq(tools.every(function (b) { return b.getBoundingClientRect().top < menuRect.top; }), true, 'every item sits above the ☰');
+  var topsInner = tools.slice(0, 4).map(function (b) { return b.getBoundingClientRect().top; });
+  var topsOuter = tools.slice(4).map(function (b) { return b.getBoundingClientRect().top; });
+  eq(Math.min.apply(null, topsOuter) < Math.min.apply(null, topsInner), true, 'eight items → a second, higher arc');
+  eq(tools.every(function (b) { var x = b.getBoundingClientRect(); return x.left >= 0 && x.right <= window.innerWidth; }), true, 'nothing clips the viewport');
+  $('.ourlab-fan-back').click();
+  eq(!$('.ourlab-fan-back') && !$('.ourlab-fan-tool'), true, 'tapping outside closes the fan');
+  openFan(); openFan();
+  eq(!$('.ourlab-fan-back'), true, '☰ again closes it');
+
+  // 3 — More (from the fan) lists the catalog pages that are NOT quick links + Customize + Sign out
+  openFan(); $('.ourlab-fan-tool[data-tool="more"]').click();
+  eq(!$('.ourlab-fan-back') && !!$('.ourlab-sheet-back'), true, 'More closes the fan and opens the sheet');
+  var moreKeys = $$('.ourlab-sheet-back a.ourlab-sheet-item').map(function (a) { return a.getAttribute('data-key'); });
+  eq(moreKeys, ['actions', 'notebook', 'scheduler', 'research', 'meetings', 'protocols', 'procurement', 'equipment', 'pmr', 'settings'], 'More = the rest of the catalog (Scan is always in the fan, so not here)');
+  eq(!!$('.ourlab-sheet-back [data-customize]') && !!$('.ourlab-sheet-back [data-signout]'), true, 'Customize quick links + Sign out');
+
+  // 4 — Customize: tick, untick, order
+  $('.ourlab-sheet-back [data-customize]').click();
+  eq(!!$('.ourlab-cz'), true, 'Customize sheet opens (More closed)');
+  eq($$('.ourlab-cz-row').length, 16, 'every catalog page but Scan is a row');
+  eq($$('.ourlab-cz [data-pick]:checked').length, 6, 'six ticked');
+  eq(($('.ourlab-cz-count') || {}).textContent, '6 of 8', 'count');
+  pick('notebook'); pick('pmr');
+  eq(($('.ourlab-cz-count') || {}).textContent, '8 of 8', 'two more → 8 of 8');
+  eq($$('.ourlab-cz [data-pick]:not(:checked)').every(function (c) { return c.disabled; }), true, 'full → the rest are disabled');
+  pick('chat');
+  eq(($('.ourlab-cz-count') || {}).textContent, '7 of 8', 'untick chat → 7 of 8');
+  eq($$('.ourlab-cz [data-pick]:not(:checked)').some(function (c) { return c.disabled; }), false, 'room again → all enabled');
+  $('.ourlab-cz [data-move="pmr"][data-dir="-1"]').click();
+  eq($$('.ourlab-cz-row.on').map(function (d) { return d.getAttribute('data-key'); }), ['myday', 'focus', 'tasks', 'library', 'inventory', 'pmr', 'notebook'], '▲ moves PMR up');
+  eq($('.ourlab-cz [data-move="myday"][data-dir="-1"]').disabled, true, 'first row cannot move up');
+  eq($('.ourlab-cz [data-move="notebook"][data-dir="1"]').disabled, true, 'last row cannot move down');
+
+  // 5 — Save: the fan, localStorage, OURLAB_SHELL
+  $('.ourlab-cz [data-save]').click();
+  eq(!$('.ourlab-sheet-back'), true, 'sheet closes on Save');
+  eq(stored() && stored().keys, ['myday', 'focus', 'tasks', 'library', 'inventory', 'pmr', 'notebook'], 'saved to localStorage');
+  eq(stored() && stored().dirty, true, 'dirty until the cloud has it (no bridge here)');
+  eq(OURLAB_SHELL.keys(), ['myday', 'focus', 'tasks', 'library', 'inventory', 'pmr', 'notebook'], 'OURLAB_SHELL.keys()');
+  openFan();
+  eq(fanKeys(), ['scan', 'myday', 'focus', 'tasks', 'library', 'inventory', 'pmr', 'notebook', 'more'], 'the fan is the chosen list, in order');
+  eq($$('.ourlab-fan-tool').length, 9, 'nine items (4 + 5)');
+  eq($$('.ourlab-fan-tool').every(function (b) { var x = b.getBoundingClientRect(); return x.left >= 0 && x.right <= window.innerWidth && x.top >= 0; }), true, 'nine still fit');
+  $('.ourlab-fan-back').click();
+
+  // 6 — another webview saved a different list: the fan re-reads it when it opens
+  localStorage.setItem('ourlab-tabs.v1', JSON.stringify({ keys: ['chat', 'settings'], dirty: false, at: Date.now() }));
+  document.dispatchEvent(new Event('ourlab:tab-visible'));
+  openFan();
+  eq(fanKeys(), ['scan', 'chat', 'settings', 'more'], 'fan rebuilt from shared localStorage');
+  var tops4 = $$('.ourlab-fan-tool').map(function (b) { return Math.round(b.getBoundingClientRect().top); });
+  eq(tops4[1] === tops4[2] && tops4[0] === tops4[3] && tops4[1] < tops4[0], true, 'four items on one symmetric arc');
+  $('.ourlab-fan-back').click();
+
+  // 7 — garbage is normalised; an empty save is refused; Reset restores the six; eight is the cap
+  OURLAB_SHELL.setTabs(['bogus', 'chat', 'chat', 'pmr', 'scan']);
+  eq(OURLAB_SHELL.keys(), ['chat', 'pmr'], 'setTabs normalises (Scan is never a quick link)');
+  openFan(); eq(fanKeys(), ['scan', 'chat', 'pmr', 'more'], 'a chosen Scan is not doubled in the fan'); $('.ourlab-fan-back').click();
+  openFan(); $('.ourlab-fan-tool[data-tool="more"]').click(); $('.ourlab-sheet-back [data-customize]').click();
+  pick('chat'); pick('pmr');
+  eq($('.ourlab-cz [data-save]').disabled, true, 'nothing ticked → Save disabled');
+  $('.ourlab-cz [data-reset]').click();
+  eq($$('.ourlab-cz [data-pick]:checked').length, 6, 'Reset ticks the six');
+  $('.ourlab-cz [data-save]').click();
+  eq(OURLAB_SHELL.keys(), ['myday', 'focus', 'chat', 'tasks', 'library', 'inventory'], 'back to the default');
+  OURLAB_SHELL.setTabs(['myday', 'focus', 'chat', 'tasks', 'library', 'inventory', 'notebook', 'settings', 'pmr', 'research']);
+  eq(OURLAB_SHELL.keys().length, 8, 'capped at eight');
+  openFan(); eq($$('.ourlab-fan-tool').length, 10, '… so the fan is at most ten'); $('.ourlab-fan-back').click();
+  OURLAB_SHELL.setTabs(['myday', 'focus', 'chat', 'tasks', 'library', 'inventory']);
+  } catch (e) { bad('threw', e && e.message); }
+  r.setAttribute('data-pass', pass); r.setAttribute('data-fail', fail); r.setAttribute('data-done', '1');
+  r.textContent += '\n' + pass + ' passed, ' + fail + ' failed';
+  // ?demo=1 — the fan open (eight items); ?demo=10 — ten items; ?demo=2 — the Customize sheet
+  var m = /[?&]demo=(\d+)/.exec(location.search);
+  if (m) {
+    r.style.display = 'none';
+    if (m[1] === '10') OURLAB_SHELL.setTabs(['myday', 'focus', 'chat', 'tasks', 'library', 'inventory', 'notebook', 'pmr']);
+    if (m[1] === '2') OURLAB_SHELL.openCustomize(); else OURLAB_SHELL.openFan();
+    setTimeout(function () { document.body.setAttribute('data-demo-ready', '1'); }, 600);
+  }
+}
+</script>
+</body>
+</html>

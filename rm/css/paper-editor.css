@@ -27,6 +27,24 @@
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 12px;
 }
+/* V3.740 — on the papers page the list is a stack of type groups (Papers /
+ * Grants / …), each its own card grid. Scoped by the .pb-grouped modifier
+ * because protocols.html and grant-builder.html reuse .pb-list as a flat grid. */
+.pb-list.pb-grouped {
+  display: flex; flex-direction: column; gap: 22px;
+}
+.pb-group { min-width: 0; }
+.pb-group-title {
+  margin: 0 0 8px; padding: 0 2px;
+  font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: #6b7280;
+}
+.pb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+.pb-card-ago { white-space: nowrap; }
 .pb-card {
   display: block;
   position: relative;
@@ -45,19 +63,44 @@
 .pb-card-row {
   display: flex; justify-content: space-between; align-items: flex-start;
   gap: 10px; margin-bottom: 6px;
-  padding-right: 24px;   /* clear the corner delete button (V3.482) */
+  padding-right: 52px;   /* clear the corner export (V3.741) + delete (V3.482) buttons */
 }
-/* V3.482 — per-card delete control (hover-revealed, top-right corner). */
-.pb-card-del {
+/* V3.482 — per-card delete control (hover-revealed, top-right corner).
+ * V3.741 — the export-for-updates ⇩ sits just left of it, same treatment. */
+.pb-card-del,
+.pb-card-export {
   position: absolute; top: 8px; right: 8px;
   border: none; background: transparent; cursor: pointer;
   font-size: 14px; line-height: 1; padding: 4px 6px; border-radius: 6px;
   color: #9ca3af; opacity: 0;
   transition: opacity .12s ease, background .12s ease, color .12s ease;
 }
+.pb-card-export { right: 34px; }
 .pb-card:hover .pb-card-del,
-.pb-card-del:focus-visible { opacity: 1; }
+.pb-card-del:focus-visible,
+.pb-card:hover .pb-card-export,
+.pb-card-export:focus-visible { opacity: 1; }
 .pb-card-del:hover { background: #fee2e2; color: #dc2626; }
+.pb-card-export:hover { background: #dbeafe; color: #1d4ed8; }
+
+/* V3.741 — checked-out paper: amber lock row with the who/when + actions. */
+.pb-card.pb-locked { border-color: #fcd34d; background: #fffbeb; }
+.pb-card-lockrow {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin-top: 10px; padding-top: 8px; border-top: 1px dashed #fde68a;
+  font-size: 12px; color: #92400e;
+}
+.pb-card-lock { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; margin-right: auto; }
+.pb-card-lock svg { width: 14px; height: 14px; }
+.pb-lock-btn {
+  border: 1px solid #f59e0b; background: #fff; color: #92400e;
+  font-size: 12px; padding: 3px 9px; border-radius: 6px; cursor: pointer;
+}
+.pb-lock-btn:hover { background: #fef3c7; }
+.pb-lock-btn-warn { border-color: #e5e7eb; color: #6b7280; }
+.pb-lock-btn-warn:hover { background: #f3f4f6; color: #374151; }
+.pb-btn-danger { border-color: #fca5a5 !important; color: #b91c1c !important; }
+.pb-btn-danger:hover { background: #fee2e2 !important; }
 .pb-card-title {
   font-weight: 600; font-size: 15px; line-height: 1.35;
 }
@@ -207,6 +250,19 @@
   background: #fffbeb; border-bottom: 1px solid #fde68a;
   padding: 8px 16px; font-size: 13px; color: #92400e;
 }
+/* V3.741 — checkout variant: text + the two ways back, on one line. */
+.pe-checkout-banner { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
+.pe-checkout-text { display: inline-flex; align-items: center; gap: 6px; flex: 1 1 320px; min-width: 0; }
+.pe-checkout-text svg { width: 14px; height: 14px; flex: none; }
+.pe-checkout-actions { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+.pe-checkout-btn {
+  border: 1px solid #f59e0b; background: #fff; color: #92400e; text-decoration: none;
+  font-size: 12px; padding: 3px 10px; border-radius: 6px; cursor: pointer; line-height: 1.4;
+}
+.pe-checkout-btn:hover { background: #fef3c7; }
+.pe-checkout-unlock { border-color: #e5e7eb; color: #6b7280; }
+.pe-checkout-unlock:hover { background: #f3f4f6; color: #374151; }
+.pe-checkout-unlock:disabled { opacity: .6; cursor: default; }
 
 /* ── Presence row + per-block presence dots ── */
 .pe-presence-row {
@@ -1620,6 +1676,7 @@ math-field.pe-mathfield {
  * resize handle / close button / internal tab nav (the header pills ARE
  * the navigation). */
 .pe-toolpage {
+  width: 100%;              /* V3.845 — a flex item with auto margins shrinks to fit its content without this */
   max-width: 1100px;
   margin: 0 auto;
   padding: 10px 18px 60px;
@@ -1876,6 +1933,120 @@ math-field.pe-mathfield {
   padding-top: 4px;
   border-top: 1px solid #f3f4f6;
   margin-top: 4px;
+}
+
+/* V3.648 — the picker's inline form. Replaces the window.prompt() chain that
+   used to define a value: every field lives inside the dropdown the writer
+   already had open, and errors land next to the field instead of in an
+   alert. Same visual language as the rows above it. */
+.pe-eq-picker-form {
+  display: flex; flex-direction: column;
+  min-height: 0;
+  padding: 2px 2px 0;
+}
+/* Only the fields scroll — the error line and the buttons stay pinned. */
+.pe-eq-picker-form-fields {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.pe-eq-picker-field {
+  display: block;
+  margin-bottom: 8px;
+}
+.pe-eq-picker-field-label {
+  display: block;
+  font-size: 11px; font-weight: 600; color: #374151;
+  margin-bottom: 3px;
+}
+.pe-eq-picker-field-input {
+  width: 100%; box-sizing: border-box;
+  font-size: 13px; padding: 5px 8px;
+  border: 1px solid #d1d5db; border-radius: 3px;
+  background: #fff; color: #111827;
+}
+.pe-eq-picker-field-input:focus { border-color: #93c5fd; outline: none; }
+.pe-eq-picker-field-hint {
+  display: block;
+  font-size: 10px; color: #9ca3af;
+  margin-top: 3px;
+}
+.pe-eq-picker-form-err {
+  font-size: 11px; color: #991b1b;
+  background: #fef2f2; border: 1px solid #fecaca; border-radius: 3px;
+  padding: 5px 7px;
+  flex: none;
+  margin-top: 6px;
+}
+.pe-eq-picker-form-actions {
+  display: flex; gap: 6px; justify-content: flex-end;
+  flex: none;
+  padding-top: 8px;
+  border-top: 1px solid #f3f4f6;
+  margin-top: 2px;
+}
+.pe-eq-picker-form-btn {
+  font-size: 12px; padding: 5px 12px;
+  border: 1px solid #d1d5db; border-radius: 3px;
+  background: #fff; color: #374151;
+  cursor: pointer;
+}
+.pe-eq-picker-form-btn:hover { background: #f9fafb; }
+.pe-eq-picker-form-btn-primary {
+  background: #1e40af; border-color: #1e40af; color: #fff;
+}
+.pe-eq-picker-form-btn-primary:hover { background: #1d4ed8; }
+.pe-eq-picker-form-btn-danger {
+  background: #b91c1c; border-color: #b91c1c;
+}
+.pe-eq-picker-form-btn-danger:hover { background: #991b1b; }
+/* V3.650 — a list line in the WRITE view renders as a real list item: the
+   marker is an atomic chip (contenteditable=false, data-src = its exact
+   source prefix) so it looks like a bullet, cannot be typed into, and still
+   round-trips to the source byte-for-byte. Hanging indent per nesting level,
+   so a wrapped item lines up under its own text. */
+.pe-src-li {
+  display: inline-block;
+  padding-left: 1.5em;
+  text-indent: -1.5em;
+  vertical-align: top;
+}
+.pe-src-li[data-list-depth="1"] { padding-left: 3.0em; text-indent: -1.5em; }
+.pe-src-li[data-list-depth="2"] { padding-left: 4.5em; text-indent: -1.5em; }
+.pe-src-li[data-list-depth="3"] { padding-left: 6.0em; text-indent: -1.5em; }
+/* text-indent inherits, and any descendant that establishes its own line box
+   (the citation / value / footnote chips are inline-block) would apply the
+   negative indent to its OWN text — sliding "smith2024" out of the left edge
+   of its background box so it reads "mith2024". Reset it below the line. */
+.pe-src-li * { text-indent: 0; }
+.pe-li-mark {
+  display: inline-block;
+  width: 1.5em;
+  text-indent: 0;
+  /* Slightly muted against the prose: it is structure, not something you
+     wrote. Close enough to the rendered <ul>/<ol> markers that switching
+     between Write and the rendered view is not a jolt. */
+  color: #4b5563;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+/* V3.649 — bullet / numbered lists inside a paragraph body. Rendered only
+   when the body is NOT focused; while editing you see the raw `- item`
+   source, exactly as you do for `**bold**`. Margins are tight because the
+   list sits inside a paragraph rather than replacing it. */
+.pe-body-list {
+  margin: 4px 0 4px 0;
+  padding-left: 22px;
+}
+.pe-body-list li { margin: 1px 0; }
+.pe-body-list .pe-body-list { margin: 1px 0; }
+
+.pe-eq-picker-form-note {
+  font-size: 12px; color: #374151; line-height: 1.45;
+  margin-bottom: 10px;
 }
 
 /* Inline-library equation chip in paragraph render. */
@@ -4643,6 +4814,26 @@ a.pgd-doc-link:hover { background: #eef0f9; }
 .pi-close{margin-top:14px;border:1px solid #d1d5db;background:#fff;padding:7px 16px;border-radius:8px;cursor:pointer;font-size:13px}
 .pi-close:hover{background:#f3f4f6}
 .pi-modal-err .pi-bar>i{background:#dc2626}
+/* V3.741 — indeterminate bar (export phases are network-bound) + in-page
+ * dialog / picker on the same modal chrome. */
+.pi-bar-indet>i{width:38%;animation:pi-indet 1.1s ease-in-out infinite}
+@keyframes pi-indet{0%{margin-left:-38%}100%{margin-left:100%}}
+.pi-dialog{max-width:480px}
+.pi-body{font-size:13.5px;color:#374151;line-height:1.5}
+.pi-body p{margin:0 0 10px}
+.pi-body code{font-size:12px;background:#f3f4f6;padding:1px 5px;border-radius:4px}
+.pi-warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e;padding:8px 10px;border-radius:8px}
+.pi-ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;padding:8px 10px;border-radius:8px}
+.pi-ack{display:flex;align-items:center;gap:8px;font-size:13px;color:#111827;margin:4px 0 6px;cursor:pointer}
+.pi-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.pi-picklist{display:flex;flex-direction:column;gap:4px;max-height:50vh;overflow:auto;margin:0 -6px 10px;padding:0 6px}
+.pi-pick-group{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;margin:8px 0 2px}
+.pi-pick{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;cursor:pointer}
+.pi-pick:hover{border-color:#93c5fd;background:#f8fafc}
+.pi-pick input{margin-top:3px}
+.pi-pick-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pi-pick-title{font-weight:600;font-size:13px;color:#111827}
+.pi-pick-meta{font-size:11.5px;color:#6b7280}
 
 /* V3.493 — Grant Docs page: per-paper PDF attachments panel. */
 .pgd-pdf-panel{margin:0 0 24px}
@@ -4683,3 +4874,374 @@ a.pgd-doc-link:hover { background: #eef0f9; }
 .pgc-lg{width:9px;height:9px;border-radius:2px;display:inline-block}
 .pgc-lg-ok{background:#16a34a}.pgc-lg-mid{background:#d97706}.pgc-lg-miss{background:#dc2626}.pgc-lg-neu{background:#9ca3af}
 @media (max-width:640px){.pgc-callouts{grid-template-columns:1fr}}
+
+/* ── V3.645 — value keys ([!val:KEY]) and inventory refs ([@item:KEY]) ──
+ * Chips print the RESOLVED text, not the key — the writer reads the
+ * sentence as it will appear. The tint is what marks it as dynamic; the
+ * underline survives into a printout of the editor, which the tint does
+ * not. In Document view both are neutralized (see .pdv-scale below) so
+ * the page reads as the final manuscript. */
+.pe-val-chip,
+.pe-item-chip {
+  display: inline;
+  background: #ecfdf5;
+  color: #065f46;
+  border-bottom: 1px dashed #6ee7b7;
+  border-radius: 2px;
+  padding: 0 1px;
+  cursor: pointer;
+}
+.pe-val-chip:hover,
+.pe-item-chip:hover { background: #d1fae5; }
+
+.pe-item-chip {
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-bottom-color: #93c5fd;
+}
+.pe-item-chip:hover { background: #dbeafe; }
+
+/* An undefined key must be LOUD. Silently printing nothing is how a
+ * manuscript goes out with a hole where a number should be. */
+.pe-val-chip-unknown,
+.pe-item-chip-unknown {
+  background: #fee2e2; color: #991b1b;
+  border: 1px solid #fecaca;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  padding: 0 4px;
+  cursor: not-allowed;
+}
+/* Defined but still blank — amber, not red: the key exists, the author
+ * just hasn't filled the value in yet. */
+.pe-val-chip-empty {
+  background: #fef3c7; color: #92400e;
+  border-bottom: 1px dashed #fcd34d;
+}
+
+/* Document view = the final look. Chips become ordinary prose; only an
+ * unresolved key keeps its warning colour, because shipping that
+ * silently is the failure this feature exists to prevent. Pure CSS
+ * rather than a post-mount JS pass — nothing to keep in sync. */
+.pdv-scale .pe-val-chip,
+.pdv-scale .pe-item-chip {
+  background: none;
+  color: inherit;
+  border-bottom: none;
+  padding: 0;
+  cursor: inherit;
+}
+
+/* ── Values tool page ── */
+.pe-val-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pe-val-table th {
+  text-align: left; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.04em; color: #6b7280; font-weight: 600;
+  padding: 4px 6px; border-bottom: 1px solid #e5e7eb; white-space: nowrap;
+}
+.pe-val-table td {
+  padding: 4px 6px; border-bottom: 1px solid #f3f4f6; vertical-align: top;
+}
+.pe-val-table tr:hover td { background: #fafafa; }
+.pe-val-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px; font-weight: 600; color: #111827;
+}
+.pe-val-token {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; color: #6b7280;
+}
+.pe-val-resolved { color: #065f46; font-weight: 500; }
+.pe-val-resolved-empty { color: #b45309; font-style: italic; }
+.pe-val-note { color: #6b7280; font-size: 12px; }
+.pe-val-kind {
+  display: inline-block; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.03em; padding: 1px 5px; border-radius: 999px;
+  background: #f3f4f6; color: #4b5563;
+}
+.pe-val-kind-inventory { background: #eff6ff; color: #1e40af; }
+.pe-val-kind-number { background: #ecfdf5; color: #065f46; }
+.pe-val-uses {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: #2563eb; font-size: 12px; text-decoration: underline;
+}
+.pe-val-uses-none { color: #9ca3af; text-decoration: none; cursor: default; }
+.pe-val-dup {
+  background: #fee2e2; color: #991b1b; border-radius: 3px;
+  font-size: 10px; padding: 1px 5px; margin-left: 6px;
+}
+.pe-val-stale {
+  background: #fef3c7; color: #92400e; border-radius: 3px;
+  font-size: 10px; padding: 1px 5px; margin-left: 6px;
+}
+
+/* Fold-out: every sentence the key does work in. */
+.pe-val-usage-wrap {
+  background: #f9fafb; border-left: 2px solid #d1d5db;
+  padding: 6px 10px; margin: 2px 0 6px;
+}
+.pe-val-usage-row {
+  padding: 4px 0; border-bottom: 1px solid #f3f4f6;
+  cursor: pointer; font-size: 12px; line-height: 1.5;
+}
+.pe-val-usage-row:last-child { border-bottom: 0; }
+.pe-val-usage-row:hover { background: #f3f4f6; }
+.pe-val-usage-where {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;
+  color: #6b7280; display: block; margin-bottom: 1px;
+}
+.pe-val-usage-sentence { color: #111827; }
+.pe-val-usage-empty { color: #9ca3af; font-size: 12px; font-style: italic; }
+
+/* Inventory picker rows inside the value editor. */
+.pe-val-inv-row { display: flex; gap: 8px; align-items: baseline; }
+.pe-val-inv-name { font-weight: 500; }
+.pe-val-inv-meta { color: #6b7280; font-size: 11px; }
+
+/* ── V3.650 — table grid editor: border ＋/−, drag-merge, live paint ──
+ *
+ * The +/- controls are REAL TABLE CELLS in a gutter row / gutter column,
+ * not an overlay. That is the whole trick: a head cell occupies exactly
+ * one column, so a button pinned to its left edge sits exactly ON the
+ * border between two columns with no measurement code — and it stays put
+ * when a merge or a width change reflows the table. */
+.pe-tblgrid {
+  position: relative;
+  /* V3.651 — a padded canvas. The gutter buttons poke 8px outside their
+   * head cells, and building a table in a box with no margin feels like
+   * typing into the edge of the panel, so the grid gets real air on all
+   * four sides. */
+  margin: 12px 0 4px;
+  padding: 18px 20px 16px;
+  background: #fcfcfd;
+  border: 1px solid #eef0f3;
+  border-radius: 6px;
+}
+.pe-tblgrid-scroll { overflow-x: auto; overflow-y: visible; }
+.pe-tblgrid-hint {
+  margin: 4px 0 2px;
+  font-size: 10.5px; color: #9ca3af;
+}
+
+/* Gutter cells carry no border of their own — they are chrome, not grid. */
+.pe-grid-table-edit td.pe-tbl-corner,
+.pe-grid-table-edit td.pe-tbl-colhead,
+.pe-grid-table-edit td.pe-tbl-rowhead {
+  border: none;
+  padding: 0;
+  background: transparent;
+  position: relative;          /* containing block for the ＋/− buttons */
+}
+.pe-grid-table-edit td.pe-tbl-corner,
+.pe-grid-table-edit td.pe-tbl-rowhead { width: 16px; min-width: 16px; }
+.pe-grid-table-edit td.pe-tbl-colhead { height: 15px; }
+.pe-grid-table-edit tr.pe-tbl-gutrow { height: 15px; }
+.pe-grid-table-edit tr.pe-tbl-headerrow .pe-grid-cell { font-weight: 600; }
+
+
+/* While dragging across cells, suppress the browser's own text selection
+ * so it does not paint underneath the cell selection. */
+.pe-grid-table.pe-tbl-dragging .pe-grid-cell {
+  user-select: none; -webkit-user-select: none;
+}
+
+/* Floating actions — only rendered when Merge / Unmerge actually apply. */
+.pe-tbl-actbar {
+  position: absolute;
+  display: flex; gap: 4px;
+  z-index: 6;
+  pointer-events: auto;
+}
+.pe-tbl-actbtn {
+  font-size: 11px; line-height: 1;
+  padding: 4px 8px;
+  border: 1px solid #2563eb; border-radius: 4px;
+  background: #2563eb; color: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .25);
+  white-space: nowrap;
+}
+.pe-tbl-actbtn:hover { background: #1d4ed8; }
+
+
+/* ── V3.651 — table styling, and room to build a table in ────────────
+ *
+ * The editor draws the table as the PDF will read it: the chosen rule
+ * style solid, cell boundaries a faint dashed hint underneath so the
+ * "none" look is still something you can type into. Four surfaces render
+ * a table (this editor, the doc-side preview, Document view, the .tex)
+ * and they all read the same parsed style out of PaperLayout. */
+
+/* Cells you actually build in — the old 22px/6px was sized for a
+ * read-only preview, not for typing. */
+.pe-tab-editor-body .pe-grid-cell { min-height: 30px; padding: 8px 10px; }
+.pe-tab-editor-body .pe-table-align-wrap { margin-top: 8px; }
+.pe-tab-editor-body .pe-table-caption-label { margin-top: 14px; }
+
+/* Rule presets. In the EDITOR the gutter row is tr:first-child, so the
+ * first/last BODY rows carry explicit classes; the doc-side preview sets
+ * the same classes so one block of rules drives both. */
+.pe-grid-table-edit td[data-r] { border: 1px dashed #e8eaee; }
+.pe-grid-table.pe-tbl-rules-none td[data-r] { border: 1px dashed #eef0f3; }
+.pe-grid-table.pe-tbl-rules-grid td[data-r] { border: 1px solid #b6bcc6; }
+.pe-grid-table.pe-tbl-rules-booktabs td[data-r] { border: 1px dashed #eef0f3; }
+.pe-grid-table.pe-tbl-rules-booktabs tr.pe-tbl-r-first td[data-r] { border-top: 2px solid #374151; }
+.pe-grid-table.pe-tbl-rules-booktabs tr.pe-tbl-headerrow td[data-r] { border-bottom: 1.5px solid #374151; }
+.pe-grid-table.pe-tbl-rules-booktabs tr.pe-tbl-r-last td[data-r] { border-bottom: 2px solid #374151; }
+.pe-grid-table tr.pe-tbl-ruled td[data-r] { border-bottom: 1.5px solid #374151; }
+
+/* Row height — mirrors \arraystretch. */
+.pe-grid-table.pe-tbl-dens-compact .pe-grid-cell { min-height: 24px; padding: 4px 10px; }
+.pe-grid-table.pe-tbl-dens-roomy   .pe-grid-cell { min-height: 38px; padding: 12px 10px; }
+.pe-grid-table.pe-tbl-dens-airy    .pe-grid-cell { min-height: 46px; padding: 17px 10px; }
+.pe-tab-editor-body .pe-grid-table.pe-tbl-dens-compact .pe-grid-cell { min-height: 24px; padding: 4px 10px; }
+.pe-tab-editor-body .pe-grid-table.pe-tbl-dens-roomy   .pe-grid-cell { min-height: 38px; padding: 12px 10px; }
+.pe-tab-editor-body .pe-grid-table.pe-tbl-dens-airy    .pe-grid-cell { min-height: 46px; padding: 17px 10px; }
+
+/* Striping, and per-cell formatting. A filled cell wins over the stripe —
+ * the same precedence \cellcolor has over \rowcolors. */
+.pe-grid-table tr.pe-tbl-zebrarow td[data-r]:not(.pe-cell-filled) { background: #f6f7f9; }
+.pe-grid-table td.pe-cell-b .pe-grid-cell { font-weight: 700; }
+.pe-grid-table td.pe-cell-i .pe-grid-cell { font-style: italic; }
+.pe-grid-table td[data-r] { vertical-align: middle; }
+
+/* Table-level style bar groups. */
+.pe-tbl-stylegrp { display: inline-flex; align-items: center; gap: 3px; }
+.pe-tbl-style-sel { display: inline-block; margin-top: 0; }
+
+/* Styling buttons on the floating bar: quieter than Merge/Unmerge, which
+ * are the structural actions. */
+.pe-tbl-actbar { align-items: center; }
+.pe-tbl-actbtn-style {
+  background: #fff; color: #374151; border-color: #cbd2dc;
+  min-width: 24px; padding: 4px 6px; font-weight: 600;
+}
+.pe-tbl-actbtn-style:hover { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+.pe-tbl-actbtn-style.active { background: #1f2937; border-color: #1f2937; color: #fff; }
+.pe-tbl-fillbtn {
+  width: 20px; height: 22px; padding: 0;
+  border: 1px solid #cbd2dc; border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .25);
+}
+.pe-tbl-fillbtn.active { border: 2px solid #1f2937; }
+
+
+/* ── V3.652 — line handles, column resizing, wrapped cells ───────────
+ *
+ * The +/-/||| cluster belongs to a grid LINE, not to a cell, and only
+ * appears when the pointer is on that line. Each line is an invisible
+ * 11px hit strip running its whole length; the cluster sits at the strip's
+ * head (in the gutter) so it never covers a cell you are reading. */
+.pe-tbl-lines { position: absolute; inset: 0; pointer-events: none; }
+/* The strips are INERT. They are geometry, not hit targets: taking pointer
+ * events would put a 5px dead band down every cell edge where a click
+ * lands on the strip instead of the cell. Which line the pointer is on is
+ * decided by nearest-line arbitration in JS (see pickLine) — row and
+ * column strips cross at every intersection, so :hover would light up two
+ * lines, and two centred clusters, at once. */
+.pe-tbl-line { position: absolute; pointer-events: none; }
+.pe-tbl-line-c { width: 11px; }
+.pe-tbl-line-r { height: 11px; }
+
+/* The line itself gets a hairline highlight so you can see WHICH line you
+ * are about to act on. */
+.pe-tbl-line::before {
+  content: ''; position: absolute; background: #2563eb;
+  opacity: 0; transition: opacity .1s ease;
+}
+.pe-tbl-line-c::before { left: 5px; width: 1px; top: 0; bottom: 0; }
+.pe-tbl-line-r::before { top: 5px; height: 1px; left: 0; right: 0; }
+.pe-tbl-line.is-active::before { opacity: .55; }
+
+/* V3.653 — the cluster sits at the MIDDLE of the line it belongs to, on
+ * both axes, and runs ALONG the line: stacked on a vertical column
+ * border, laid out in a row on a horizontal row border. Centring it means
+ * it overlaps cells, which is the point — it reads as part of the line
+ * rather than as a label hanging off one end — and it stays
+ * pointer-events:none until the line is hovered, so it never intercepts a
+ * click meant for a cell. */
+.pe-tbl-lineclu {
+  position: absolute;
+  left: 50%; top: 50%;
+  translate: -50% -50%;
+  transform-origin: 50% 50%;
+  display: flex; align-items: center; justify-content: center;
+  gap: 1px;
+  padding: 1px;
+  background: #fff;
+  border: 1px solid #cbd2dc; border-radius: 9px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, .22);
+  opacity: 0; transform: scale(.85);
+  transition: opacity .1s ease, transform .1s ease;
+  pointer-events: none;
+  z-index: 5;
+}
+.pe-tbl-lineclu-c { flex-direction: column; }
+.pe-tbl-lineclu-r { flex-direction: row; }
+.pe-tbl-line.is-active .pe-tbl-lineclu,
+.pe-tbl-line:focus-within .pe-tbl-lineclu {
+  opacity: 1; transform: scale(1);
+}
+/* Only the CONTROLS take clicks — never the cluster's card behind them.
+ * The cluster is centred on its line, so it floats over cells; if the card
+ * itself were clickable, its padding and gaps would be a dead patch in the
+ * middle of every line where you could not put the caret. The three
+ * buttons intercepting is correct: that is what they are for. */
+.pe-tbl-line.is-active .pe-tbl-lineclu > *,
+.pe-tbl-line:focus-within .pe-tbl-lineclu > * { pointer-events: auto; }
+
+.pe-tbl-linebtn {
+  width: 15px; height: 15px;
+  padding: 0; margin: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; line-height: 1;
+  border: none; border-radius: 50%;
+  background: transparent; color: #4b5563;
+  cursor: pointer;
+}
+.pe-tbl-linebtn:hover { background: #eff6ff; color: #1d4ed8; }
+.pe-tbl-del:hover { background: #fef2f2; color: #b91c1c; }
+.pe-tbl-linebtn[data-armed="1"] { background: #b91c1c; color: #fff; }
+
+/* ||| — the resize grip, between the ＋ and the −. */
+.pe-tbl-grip {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+  color: #9ca3af;
+  user-select: none;
+}
+.pe-tbl-lineclu-c .pe-tbl-grip { width: 15px; height: 16px; cursor: col-resize; }
+.pe-tbl-lineclu-r .pe-tbl-grip { width: 16px; height: 15px; }
+.pe-tbl-grip:hover { color: #1d4ed8; }
+.pe-grid-table.pe-tbl-colsizing { cursor: col-resize; user-select: none; }
+.pe-grid-table.pe-tbl-rowsizing { cursor: row-resize; user-select: none; }
+.pe-grid-table.pe-tbl-colsizing .pe-grid-cell,
+.pe-grid-table.pe-tbl-rowsizing .pe-grid-cell { pointer-events: none; }
+.pe-tbl-lineclu-r .pe-tbl-grip { cursor: row-resize; }
+
+/* V3.654 — per-row extra height. Padding UNDER the row's cells, because
+ * that is what \[dim] does in the PDF: space after the row, not a taller
+ * cell box. Driven by a custom property so the drag can preview it
+ * without touching every cell. */
+.pe-grid-table tr.pe-tbl-rowext > td { padding-bottom: var(--pe-row-extra, 0); }
+
+/* Hovering a line previews which band its − would take, and an armed −
+ * marks it red. Both have to outrank the zebra stripe — `.pe-grid-table
+ * tr.pe-tbl-zebrarow td[data-r]` is a 3-class selector, so a 2-class
+ * highlight would lose on every other row and the preview would blink. */
+.pe-grid-table tr td.pe-band-peek[data-r],
+.pe-grid-table td.pe-tbl-colhead.pe-band-peek,
+.pe-grid-table td.pe-tbl-rowhead.pe-band-peek { background: #fdefdc; }
+.pe-grid-table tr td.pe-band-doomed[data-r],
+.pe-grid-table td.pe-tbl-colhead.pe-band-doomed,
+.pe-grid-table td.pe-tbl-rowhead.pe-band-doomed { background: #fef2f2; }
+.pe-grid-table tr td.pe-band-doomed[data-r] .pe-grid-cell { color: #b91c1c; }
+
+/* Wrapping is the default. `table-layout: fixed` is what actually makes a
+ * long cell wrap instead of widening its column — and it is why the grid
+ * always carries a colgroup, since fixed layout reads its widths from the
+ * first row otherwise, and a merge can hide a column there. */
+.pe-grid-table.pe-tbl-wrap { table-layout: fixed; width: 100%; }
+.pe-grid-table.pe-tbl-wrap .pe-grid-cell { overflow-wrap: anywhere; }
+.pe-grid-table col.pe-tbl-gutcol { width: 16px; }

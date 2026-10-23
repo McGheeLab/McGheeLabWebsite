@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>R1 Lecture Notes — Why the Antibiotic Never Arrives (30-minute board run, instructor)</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#f1f5f9;color:#1e293b;line-height:1.5;overflow-x:hidden}
+
+/* ── instructor banner ── */
+.instr-bar{background:#7f1d1d;color:#fecaca;font-size:.78rem;letter-spacing:.04em;padding:7px 18px;
+  display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:200}
+.instr-bar .dot{width:9px;height:9px;border-radius:50%;background:#fca5a5;flex:0 0 auto}
+.instr-bar strong{color:#fff;letter-spacing:.08em}
+.instr-bar .note{opacity:.8}
+
+header{background:linear-gradient(135deg,#1e3a5f 0%,#0891b2 100%);color:#fff;padding:20px 32px}
+header h1{font-size:1.5rem;font-weight:700;letter-spacing:-.4px}
+header .sub{font-size:.9rem;opacity:.88;margin-top:3px}
+header .meta{font-size:.8rem;opacity:.75;margin-top:6px}
+header a{color:#bae6fd}
+
+/* ── the 30-minute clock ── */
+.timer{position:sticky;top:31px;z-index:150;background:#0f172a;color:#e2e8f0;padding:8px 18px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.timer button{padding:5px 13px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;border-radius:16px;
+  font-size:.78rem;font-weight:700;cursor:pointer}
+.timer button:hover{border-color:#0891b2;color:#67e8f9}
+.timer button.run{background:#065f46;border-color:#10b981;color:#d1fae5}
+.timer .big{font-size:1.15rem;font-weight:700;letter-spacing:.5px}
+.timer .lab{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8}
+.timer .pace{font-size:.8rem;font-weight:700;padding:3px 10px;border-radius:12px;background:#1e293b}
+.timer .pace.ok{background:#065f46;color:#d1fae5}
+.timer .pace.late{background:#7c2d12;color:#fed7aa}
+.timer .bar{flex:1 1 180px;height:8px;background:#1e293b;border-radius:4px;overflow:hidden;min-width:120px}
+.timer .bar i{display:block;height:100%;background:linear-gradient(90deg,#0891b2,#10b981);width:0}
+
+main{max-width:1180px;margin:0 auto;padding:16px}
+
+/* ── a block = one board move ── */
+.blk{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:20px 26px;
+  margin-bottom:18px;border-left:5px solid #1e3a5f;page-break-inside:avoid}
+.blk.cap{border-left-color:#047857}
+.blk h2{font-size:1.12rem;color:#1e3a5f;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.blk h2 .clock{margin-left:auto;font-size:.72rem;font-weight:700;letter-spacing:.06em;color:#0e7490;
+  background:#ecfeff;border:1px solid #a5f3fc;border-radius:12px;padding:2px 10px;white-space:nowrap}
+.blk h2 .cum{font-size:.7rem;font-weight:600;color:#94a3b8;white-space:nowrap}
+.say{background:#eef2ff;border-left:4px solid #6366f1;border-radius:0 8px 8px 0;padding:10px 15px;margin:12px 0;
+  font-size:.95rem;color:#312e81}
+.say::before{content:"SAY";display:block;font-size:.6rem;font-weight:800;letter-spacing:.1em;color:#4338ca;margin-bottom:3px}
+.draw{background:#fffbeb;border:1px dashed #f59e0b;border-radius:8px;padding:10px 15px;margin:12px 0}
+.draw::before{content:"DRAW ON THE FIGURE";display:block;font-size:.6rem;font-weight:800;letter-spacing:.1em;color:#b45309;margin-bottom:4px}
+.draw ol{margin:2px 0 0 18px}
+.draw li{font-size:.87rem;color:#78350f;margin-bottom:3px}
+.ask{background:#fdf4ff;border-left:4px solid #a855f7;border-radius:0 8px 8px 0;padding:9px 14px;margin:10px 0;
+  font-size:.88rem;color:#581c87}
+.ask::before{content:"ASK THE ROOM";display:block;font-size:.6rem;font-weight:800;letter-spacing:.1em;color:#9333ea;margin-bottom:3px}
+.ask .exp{display:block;color:#7e22ce;font-size:.84rem;margin-top:3px;font-style:italic}
+.num{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 15px;margin:12px 0;font-size:.92rem;color:#14532d}
+.num::before{content:"WORK THIS LIVE";display:block;font-size:.6rem;font-weight:800;letter-spacing:.1em;color:#15803d;margin-bottom:4px}
+.payoff{background:#0f172a;color:#e2e8f0;border-radius:8px;padding:11px 16px;margin:12px 0 0;font-size:.95rem;font-weight:600}
+.payoff::before{content:"THE POINT";display:block;font-size:.6rem;font-weight:800;letter-spacing:.1em;color:#38bdf8;margin-bottom:3px}
+.blk p{font-size:.9rem;color:#475569;margin:8px 0}
+.equation-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 15px;margin:10px 0;overflow-x:auto}
+.equation-box .eqno{float:right;color:#94a3b8;font-size:.75rem;margin-left:10px;line-height:2.2}
+mjx-container{display:inline-block !important}
+.equation-box mjx-container{max-width:100%;overflow-x:auto;overflow-y:hidden}
+
+/* ── figure + ink layer ── */
+.figwrap{position:relative;margin:14px 0 6px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;overflow:hidden}
+.figwrap canvas{display:block;width:100%;height:auto}
+.figwrap canvas.ink{position:absolute;inset:0;touch-action:none;cursor:crosshair}
+.figbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;background:#f8fafc;border-top:1px solid #e2e8f0}
+.figbar button{padding:4px 11px;border:1px solid #cbd5e1;background:#fff;border-radius:14px;font-size:.74rem;
+  font-weight:700;color:#475569;cursor:pointer}
+.figbar button:hover{border-color:#0891b2;color:#0e7490}
+.figbar button.rev{border-color:#10b981;color:#047857;background:#f0fdf4}
+.figbar button.rev.on{background:#047857;color:#fff}
+.figbar .fl{font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;font-weight:800;margin-right:2px}
+
+/* ── the floating pen tray ── */
+#tray{position:fixed;right:14px;bottom:14px;z-index:180;background:#0f172a;border-radius:14px;padding:10px;
+  box-shadow:0 6px 22px rgba(0,0,0,.3);display:flex;flex-direction:column;gap:8px;align-items:center}
+#tray .row{display:flex;gap:6px;align-items:center}
+#tray .sw{width:24px;height:24px;border-radius:50%;border:2px solid #334155;cursor:pointer}
+#tray .sw.on{border-color:#fff;transform:scale(1.12)}
+#tray .tb{padding:4px 9px;border:1px solid #334155;background:#1e293b;color:#cbd5e1;border-radius:10px;
+  font-size:.72rem;font-weight:700;cursor:pointer}
+#tray .tb.on{background:#0891b2;border-color:#67e8f9;color:#fff}
+#tray .lbl{font-size:.6rem;letter-spacing:.08em;color:#64748b;font-weight:800;text-transform:uppercase}
+#tray input[type=range]{width:92px;accent-color:#0891b2}
+@media print{#tray,.timer,.instr-bar,#rail{display:none}}
+
+/* ── section rail + presenter mode (as in the student modules) ── */
+#rail{display:none}
+body.hasrail #rail{display:block;position:fixed;left:0;top:0;bottom:0;width:210px;background:#0f172a;
+  color:#cbd5e1;z-index:120;overflow-y:auto;padding-bottom:20px}
+body.hasrail main{margin-left:210px}
+body.hasrail .timer{padding-left:224px}
+.rail-head{padding:12px 12px 8px;border-bottom:1px solid #1e293b;display:flex;gap:6px;flex-wrap:wrap}
+#rail button{padding:5px 9px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;border-radius:8px;
+  font-size:.72rem;font-weight:700;cursor:pointer}
+#rail button.on{background:#0891b2;border-color:#67e8f9;color:#fff}
+.rl-i{display:flex;gap:8px;width:100%;text-align:left;background:none;border:none;color:#94a3b8;
+  padding:7px 12px;font-size:.76rem;cursor:pointer;align-items:baseline}
+.rl-i:hover{background:#1e293b;color:#e2e8f0}
+.rl-i.cur{background:#164e63;color:#fff}
+.rl-i .rl-k{font-weight:800;color:#0891b2;min-width:16px}
+.rl-i .rl-m{margin-left:auto;font-size:.68rem;color:#475569}
+body.present main{max-width:none}
+body.present .blk{min-height:calc(100vh - 120px);display:flex;flex-direction:column;justify-content:center}
+@media(max-width:1149px){body.hasrail main{margin-left:0}body.hasrail .timer{padding-left:18px}}
+@media print{body{background:#fff}main{max-width:none;margin:0}.blk{box-shadow:none;border:1px solid #cbd5e1;
+  page-break-after:always}.payoff{background:#e2e8f0;color:#0f172a}}
+</style>
+</head>
+<body>
+<!-- hi-icons:start (scripts/module_icons.py — generated; re-run after adding an icon) -->
+<style>.hi{width:1em;height:1em;display:inline-block;vertical-align:-0.125em;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;overflow:visible}.hi-solid{fill:currentColor;stroke:none}</style>
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><defs><symbol id="hi-pencil" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/></symbol><symbol id="hi-play" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"/></symbol></defs></svg>
+<script>window.HI={svg:function(n,o){o=o||{};var s=o.solid?'-solid':'';return '<svg class="hi'+(o.solid?' hi-solid':'')+(o.cls?' '+o.cls:'')+'"'+(o.tint?' style="color:'+o.tint+'"':'')+(o.label?' role="img" aria-label="'+String(o.label).replace(/"/g,'&quot;')+'"':' aria-hidden="true"')+'><use href="#hi-'+n+s+'"/></svg>';},
+draw:function(c,n,x,y,z,col,o){o=o||{};var sym=document.getElementById('hi-'+n+(o.solid?'-solid':''));if(!c||!sym||typeof Path2D==='undefined')return;var k=(z||16)/24;c.save();c.translate(x,y);c.scale(k,k);c.lineWidth=1.5;c.lineCap='round';c.lineJoin='round';c.strokeStyle=c.fillStyle=col||'#475569';
+[].forEach.call(sym.children,function(e){var a=function(q){return parseFloat(e.getAttribute(q))||0},p=new Path2D(),t=e.tagName.toLowerCase();if(t==='path')p=new Path2D(e.getAttribute('d'));else if(t==='circle')p.arc(a('cx'),a('cy'),a('r'),0,7);else if(t==='ellipse')p.ellipse(a('cx'),a('cy'),a('rx'),a('ry'),0,0,7);else if(t==='rect')p.rect(a('x'),a('y'),a('width'),a('height'));else if(t==='line'){p.moveTo(a('x1'),a('y1'));p.lineTo(a('x2'),a('y2'));}else{var v=(e.getAttribute('points')||'').trim().split(/[\s,]+/).map(parseFloat);for(var i=0;i+1<v.length;i+=2)p[i?'lineTo':'moveTo'](v[i],v[i+1]);if(t==='polygon')p.closePath();}
+if(o.solid)c.fill(p,'evenodd');else c.stroke(p);});c.restore();}};</script>
+<!-- hi-icons:end -->
+
+<div class="instr-bar"><span class="dot"></span><strong>INSTRUCTOR COPY</strong>
+  <span class="note">Board plan with the answers in it. The figures are deliberately unfinished — you draw the answer, then press Reveal to check.</span></div>
+
+<nav id="rail" aria-label="Board plan">
+  <div class="rail-head">
+    <button id="rail-present" type="button" title="Full-screen one block at a time">⛶ Present</button>
+    <button id="rail-fminus" type="button">A−</button><button id="rail-fplus" type="button">A+</button>
+  </div>
+  <div id="rail-body"></div>
+</nav>
+
+<header>
+  <h1>R1 · Board Notes — “Why the antibiotic never arrives”</h1>
+  <p class="sub">BME/AME 466·566 Biomechanics · a <strong>30-minute</strong> case review of Modules 1–2 · cystic fibrosis</p>
+  <p class="meta">Pairs with the student module <a href="R1-case-review-cf-mucus.html">R1-case-review-cf-mucus.html</a> ·
+  nine board moves, one per figure · equation numbers are the modules’ own, nothing new is minted here</p>
+</header>
+
+<div class="timer">
+  <button id="tm-run" type="button"><svg class="hi" aria-hidden="true"><use href="#hi-play"/></svg> Start</button>
+  <button id="tm-reset" type="button">Reset</button>
+  <span class="lab">elapsed</span><span class="big" id="tm-el">0:00</span>
+  <span class="lab">of 30:00</span>
+  <div class="bar"><i id="tm-bar"></i></div>
+  <span class="lab">you should be on</span><span class="big" id="tm-should">0</span>
+  <span class="pace" id="tm-pace">not started</span>
+</div>
+
+<main>
+
+<section class="blk" id="b0">
+  <h2 data-nav="0" data-title="The case" data-min="4">0 · The case — open with the paradox
+    <span class="clock">4 min</span><span class="cum">0 → 4</span></h2>
+  <div class="say">A nineteen-year-old with cystic fibrosis has grown <em>Pseudomonas</em> from every sputum culture
+  for six years. Twice a day she inhales tobramycin — sprayed <strong>directly onto</strong> the infection, reaching
+  sputum levels about a thousand times what kills this organism in a test tube. She gets fewer exacerbations.
+  The cultures never turn negative. Today we find out why, and the answer is entirely transport.</div>
+  <div class="figwrap" data-fig="case">
+    <canvas class="base" id="fb-case" width="900" height="330"></canvas>
+    <canvas class="ink" id="fi-case" width="900" height="330"></canvas></div>
+  <div class="figbar"><span class="fl">figure 0 · the airway wall</span>
+    <button class="rev" onclick="toggleReveal('case',this)">Reveal numbers</button>
+    <button onclick="undoInk('case')">Undo</button><button onclick="clearInk('case')">Clear ink</button>
+    <button onclick="savePng('case')">Save PNG</button></div>
+  <div class="draw"><ol>
+    <li>On the healthy side write <strong>L ≈ 7 µm</strong> beside the mucus band and <strong>v ≈ 50 µm/s</strong> on the arrow.</li>
+    <li>On the CF side write <strong>L ≈ 50–500 µm</strong>, cross out the arrow, and put <strong>10⁸–10⁹ /mL</strong> by the bacteria.</li>
+    <li>Across both, write the one number that never changes: <strong>the airway is ~5 mm wide</strong>.</li>
+  </ol></div>
+  <div class="ask">Losing one chloride channel gives you a chronic bacterial infection. What is the mechanical chain?
+    <span class="exp">You want: no anion secretion → no water → dehydrated mucus → cilia buried → mucus stops → nothing is removed. Write that chain along the top; everything today hangs off it.</span></div>
+  <div class="payoff">Two lengths and one velocity are the whole case: how thick the film is, how wide the airway is, and how fast the blanket moves.</div>
+</section>
+
+<section class="blk" id="b1">
+  <h2 data-nav="1" data-title="Crossing time" data-min="3">1 · How long to cross? — and is 1D even legal
+    <span class="clock">3 min</span><span class="cum">4 → 7</span></h2>
+  <div class="say">The drug lands on top of the film. The bacteria are at the bottom. First question in any transport
+  problem: how long does it take to get across — and am I allowed to do this in one dimension?</div>
+  <div class="figwrap" data-fig="slab">
+    <canvas class="base" id="fb-slab" width="900" height="300"></canvas>
+    <canvas class="ink" id="fi-slab" width="900" height="300"></canvas></div>
+  <div class="figbar"><span class="fl">figure 1 · the slab</span>
+    <button class="rev" onclick="toggleReveal('slab',this)">Reveal answer</button>
+    <button onclick="undoInk('slab')">Undo</button><button onclick="clearInk('slab')">Clear ink</button>
+    <button onclick="savePng('slab')">Save PNG</button></div>
+  <div class="draw"><ol>
+    <li>Mark the top boundary <strong>reflecting</strong> (nothing goes back into the air) and the bottom <strong>absorbing</strong>.</li>
+    <li>Write the licence in the empty box: <strong>L/W ≈ 10⁻², so (L/W)² ≈ 10⁻⁴</strong> — sideways transport is ten thousand times slower.</li>
+    <li>Under the arrow write the answer: <strong>t = L²/2D = 2500/1100 ≈ 2.3 s</strong>.</li>
+  </ol></div>
+  <div class="equation-box"><span class="eqno">eq. 1.2.8</span>
+  $$t \approx \frac{L^2}{2dD} \;\xrightarrow{\ d=1\ }\; \frac{L^2}{2D}$$</div>
+  <div class="num">D = 550 µm²/s for tobramycin in water (Stokes–Einstein, next block earns it). L = 50 µm.
+  <strong>t = 2500/1100 ≈ 2.3 s</strong> against a fifteen-minute nebulization. Then invert it:
+  \(L^\star=\sqrt{2Dt_{\text{dose}}}\) — the thickness that just fails to fill in one dose is <strong>~300 µm</strong>.</div>
+  <div class="payoff">Arrival is not the bottleneck. Cross out “the drug can’t penetrate the mucus” on the board — except in plugs thicker than a third of a millimetre, which is exactly what CF airways are full of.</div>
+</section>
+
+<section class="blk" id="b2">
+  <h2 data-nav="2" data-title="Does gravity matter?" data-min="3">2 · Two cargoes, one gravitational field
+    <span class="clock">3 min</span><span class="cum">7 → 10</span></h2>
+  <div class="say">The dose does not arrive as molecules. It arrives as three-micron droplets, each carrying millions
+  of molecules. Two cargoes, a factor of 2500 in radius, same gravity. One of them falls. Which?</div>
+  <div class="figwrap" data-fig="grav">
+    <canvas class="base" id="fb-grav" width="900" height="320"></canvas>
+    <canvas class="ink" id="fi-grav" width="900" height="320"></canvas></div>
+  <div class="figbar"><span class="fl">figure 2 · the settling column</span>
+    <button class="rev" onclick="toggleReveal('grav',this)">Reveal profiles</button>
+    <button onclick="undoInk('grav')">Undo</button><button onclick="clearInk('grav')">Clear ink</button>
+    <button onclick="savePng('grav')">Save PNG</button></div>
+  <div class="draw"><ol>
+    <li>In the left column sketch the molecule’s profile — <strong>flat</strong>, all the way up.</li>
+    <li>In the right column sketch the droplet’s — <strong>a spike on the floor</strong>.</li>
+    <li>Write <strong>ℓg ≈ 1 km</strong> and <strong>ℓg ≈ 30 nm</strong> under them. Eight orders of magnitude, same field.</li>
+  </ol></div>
+  <div class="equation-box"><span class="eqno">eq. 1.2.2</span>
+  $$\ell_g=\frac{k_BT}{\Delta\rho\,Vg}\qquad\text{and, equivalently,}\qquad \ell_g=\frac{D}{v_{\text{sed}}}$$</div>
+  <div class="ask">Why does the droplet’s answer contain \(a^3\) and the molecule’s not care?
+    <span class="exp">Volume is in the denominator: ℓg falls like a³ while thermal energy stays put. Size sorts cargo into diffusers and projectiles far more brutally than anything else in the course.</span></div>
+  <div class="payoff">Gravity <em>delivers</em> the dose and diffusion <em>distributes</em> it. That handoff is where patchy deposition is born — and it is why we can leave gravity out of Fick’s laws for the rest of the hour.</div>
+</section>
+
+<section class="blk" id="b3">
+  <h2 data-nav="3" data-title="The viscosity trap" data-min="4">3 · “CF mucus is 1000× more viscous.” So?
+    <span class="clock">4 min</span><span class="cum">10 → 14</span></h2>
+  <div class="say">Here is the sentence in every review of this disease: CF mucus is up to a thousand times more viscous
+  than normal. And you own an equation with η in the denominator. It is extremely tempting.</div>
+  <div class="ask">Put η = 1 Pa·s into Stokes–Einstein for a 0.6-nm molecule. What crossing time does block 1 now predict?
+    <span class="exp">D drops from 550 to 0.38 µm²/s, so t = 2500/0.76 ≈ 3300 s ≈ 55 minutes. Measurement says the film fills in seconds. We are wrong by a thousand — let them sit in it before you rescue them.</span></div>
+  <div class="figwrap" data-fig="mesh">
+    <canvas class="base" id="fb-mesh" width="900" height="360"></canvas>
+    <canvas class="ink" id="fi-mesh" width="900" height="360"></canvas></div>
+  <div class="figbar"><span class="fl">figure 3 · D versus cargo size</span>
+    <button class="rev" onclick="toggleReveal('mesh',this)">Reveal curves</button>
+    <button onclick="undoInk('mesh')">Undo</button><button onclick="clearInk('mesh')">Clear ink</button>
+    <button onclick="savePng('mesh')">Save PNG</button></div>
+  <div class="draw"><ol>
+    <li>Draw the water line: a straight line of slope −1 on these log–log axes (D ∝ 1/a).</li>
+    <li>Draw the naive bulk-viscosity line: <strong>the same line, three decades lower</strong>. Point at where it puts tobramycin.</li>
+    <li>Now the truth: water’s line for everything below ξ, falling off a cliff <strong>at a ≈ ξ = 140 nm</strong>.</li>
+  </ol></div>
+  <div class="equation-box"><span class="eqno">eq. 1.3.9</span>
+  $$D=\frac{k_BT}{6\pi\eta a}\qquad\text{— whose }\eta\text{ is it?}$$</div>
+  <div class="num">A 0.6-nm molecule in a 140-nm mesh <strong>swims through water-filled holes and never touches the net</strong>.
+  Its η is water’s. Bulk rheology measures shearing the whole network — a different experiment. What actually costs this
+  drug a factor of ten is <strong>binding</strong>: tobramycin is a polycation, sputum is anionic DNA and mucin, so
+  \(D_{\text{eff}} \approx 55\) µm²/s and only a tenth of the drug is free (eq. R.2.2).</div>
+  <div class="payoff">In eq. 1.3.9, use the viscosity the particle <em>feels</em>. Mucus is not thick — it is <strong>selectively</strong> thick, and the selector is size. That is why dornase alfa reaches its substrate and a 100-nm vector does not.</div>
+</section>
+
+<section class="blk" id="b4">
+  <h2 data-nav="4" data-title="Oxygen runs out" data-min="4">4 · Fick I — on the molecule that is not the drug
+    <span class="clock">4 min</span><span class="cum">14 → 18</span></h2>
+  <div class="say">Change molecules. This layer is not just thick, it is <em>inhabited</em>: a billion bacteria per
+  millilitre, each burning about a million oxygen molecules a second, and oxygen only arrives from the air side.
+  Supply from one direction, demand everywhere. That has a definite answer.</div>
+  <div class="figwrap" data-fig="oxy">
+    <canvas class="base" id="fb-oxy" width="900" height="330"></canvas>
+    <canvas class="ink" id="fi-oxy" width="900" height="330"></canvas></div>
+  <div class="figbar"><span class="fl">figure 4 · oxygen with depth</span>
+    <button class="rev" onclick="toggleReveal('oxy',this)">Reveal profile</button>
+    <button onclick="undoInk('oxy')">Undo</button><button onclick="clearInk('oxy')">Clear ink</button>
+    <button onclick="savePng('oxy')">Save PNG</button></div>
+  <div class="ask">Straight line or curve — and which way does it bend?
+    <span class="exp">Curve, bending down: every slice eats some, so there is less flux left to carry deeper, so the gradient gets shallower with depth. It reaches zero with zero slope — you cannot deliver past the point where nothing is left.</span></div>
+  <div class="draw"><ol>
+    <li>Sketch the curve from the surface point down to zero, flattening as it lands.</li>
+    <li>Mark where it hits zero and label it <strong>δ ≈ 28 µm</strong>. Shade everything below it.</li>
+    <li>In the shaded zone write two words: <strong>no respiration</strong>.</li>
+  </ol></div>
+  <div class="equation-box"><span class="eqno">eq. R.2.3</span>
+  $$D\frac{d^2C}{dx^2}=Q \;\Longrightarrow\; C(x)=C_s\Big(1-\frac{x}{\delta}\Big)^{2},\qquad
+    \delta=\sqrt{\frac{2DC_s}{Q}}$$</div>
+  <div class="num">Do the crude version first, out loud, in one division: supply \(DC_s/L\) = 4000 against demand
+  \(QL\) = 25 000 per µm² per second — <strong>demand wins sixfold</strong>. Then the exact depth:
+  \(\delta=\sqrt{2(2000)(100)/500}=\sqrt{800}\approx 28\) µm. In a 500-µm plug that is <strong>94 % anoxic</strong>,
+  and quartering the bacterial load only doubles δ — it is a square root.</div>
+  <div class="payoff">Now the sting: <strong>aminoglycoside uptake is energy-dependent and needs a proton-motive force, which needs respiration, which needs oxygen.</strong> Fick’s first law, applied to a molecule that isn’t the drug, has just predicted antibiotic tolerance with no genetics in the story.</div>
+</section>
+
+<section class="blk" id="b5">
+  <h2 data-nav="5" data-title="The dosing clock" data-min="4">5 · Fick II — fifteen minutes on, twelve hours off
+    <span class="clock">4 min</span><span class="cum">18 → 22</span></h2>
+  <div class="say">Everything so far was steady state. Therapy is not: she nebulizes for fifteen minutes, then there is
+  no source for twelve hours. So the clinical quantity is not the peak — it is <strong>how long the concentration down
+  there stays above the killing threshold</strong>. And there are two thresholds.</div>
+  <div class="figwrap" data-fig="clock">
+    <canvas class="base" id="fb-clock" width="900" height="330"></canvas>
+    <canvas class="ink" id="fi-clock" width="900" height="330"></canvas></div>
+  <div class="figbar"><span class="fl">figure 5 · free drug at the biofilm, one interval</span>
+    <button class="rev" onclick="toggleReveal('clock',this)">Reveal curve</button>
+    <button onclick="undoInk('clock')">Undo</button><button onclick="clearInk('clock')">Clear ink</button>
+    <button onclick="savePng('clock')">Save PNG</button></div>
+  <div class="draw"><ol>
+    <li>Draw the rise: it fills in <strong>23 seconds</strong> — on a twelve-hour axis that is a vertical line.</li>
+    <li>Draw the decay: exponential, two-hour lifetime. Mark where it crosses each threshold.</li>
+    <li>Shade the time above each line and write the two clocks: <strong>~6 h</strong> and <strong>~15 min</strong>.</li>
+  </ol></div>
+  <div class="equation-box"><span class="eqno">eq. 2.2.1</span>
+  $$\frac{\partial C}{\partial t}=D\frac{\partial^2C}{\partial x^2}\;-\;\frac{C}{\tau_{\text{clr}}}
+    \qquad(\text{source on for }t_{\text{dose}})$$</div>
+  <div class="num">Sputum total peaks near 10³ µg/mL; binding leaves <strong>10² µg/mL free</strong> — which is exactly
+  the biofilm threshold. Zero margin. Time above a threshold \(c^\star\) is
+  \(t_{\text{dose}}+\tau_{\text{clr}}\ln(c_{\text{peak}}/c^\star)\): for the planktonic MIC of 4 that is
+  \(900+7200\ln 25\approx\) <strong>6.7 h</strong>; for the biofilm’s 100 it is \(\ln 1 = 0\) — <strong>just the dose
+  window, 2 % of the interval</strong>.</div>
+  <div class="payoff">Above the planktonic MIC half the day, above the biofilm threshold for a quarter of an hour. That is not a failure of the drug — it is the arithmetic of her regimen, and it predicts both halves of her chart: real benefit, no cure.</div>
+</section>
+
+<section class="blk" id="b6">
+  <h2 data-nav="6" data-title="Encounter rate" data-min="3">6 · Smoluchowski — how often does it even hit a bacterium?
+    <span class="clock">3 min</span><span class="cum">22 → 25</span></h2>
+  <div class="say">A concentration doesn’t kill anything. A molecule arriving at a cell does. So: one immobile
+  bacterium, half a micron of radius, sitting in the drug we just delivered. How many hits per second?</div>
+  <div class="figwrap" data-fig="meet">
+    <canvas class="base" id="fb-meet" width="900" height="300"></canvas>
+    <canvas class="ink" id="fi-meet" width="900" height="300"></canvas></div>
+  <div class="figbar"><span class="fl">figure 6 · the hungry sphere</span>
+    <button class="rev" onclick="toggleReveal('meet',this)">Reveal halo + rate</button>
+    <button onclick="undoInk('meet')">Undo</button><button onclick="clearInk('meet')">Clear ink</button>
+    <button onclick="savePng('meet')">Save PNG</button></div>
+  <div class="draw"><ol>
+    <li>On the right axes sketch the concentration around the cell: zero at contact, recovering to c<sub>∞</sub> — the <strong>1 − a/r</strong> halo.</li>
+    <li>Beside the cell write the two collapses: <strong>D₂ ≈ 0</strong> (it is stuck in a biofilm) and <strong>a₂ ≪ a₁</strong> (0.6 nm against 0.5 µm).</li>
+    <li>Write the number big: <strong>4.5 × 10⁷ hits per second</strong>.</li>
+  </ol></div>
+  <div class="equation-box"><span class="eqno">eq. 1.5.1</span>
+  $$k_s=4\pi(D_1+D_2)(a_1+a_2)\;\longrightarrow\;4\pi D_{\text{eff}}a_{\text{cell}}=345\ \mu\mathrm{m^3/s}$$</div>
+  <div class="num">100 µg/mL free is \(1.3\times10^{5}\) molecules/µm³ (the nM → per-µm³ conversion they keep dropping).
+  \(345\times1.3\times10^{5}\approx\) <strong>4.5 × 10⁷ per second, on one cell</strong> — about 4000 hits per ribosome
+  per second. Even at the MIC it is \(1.8\times10^{6}\)/s. But killing takes 10³–10⁴ s.</div>
+  <div class="ask">Delivery is a hundred-million a second and killing takes an hour. Where did seven orders of magnitude go?
+    <span class="exp">Not into diffusion — the physics says arrival is free. Into the membrane: uptake needs the proton-motive force, which needs oxygen, which block 4 says is gone. Two blocks meeting from opposite directions is the moment to pause.</span></div>
+  <div class="payoff">When the physics says a step is free, stop modelling it and go find the gate. Here the gate is uptake, and block 4 already told you it is shut.</div>
+</section>
+
+<section class="blk" id="b7">
+  <h2 data-nav="7" data-title="Flow or diffusion?" data-min="3">7 · Péclet — three arenas, and the exit that closed
+    <span class="clock">3 min</span><span class="cum">25 → 28</span></h2>
+  <div class="say">Last tool, and it is the one that explains why she has a chronic infection at all. A healthy airway
+  is not a still pond: cilia move the whole mucus blanket at about 50 µm/s and you swallow it. In CF that stops.</div>
+  <div class="figwrap" data-fig="pe">
+    <canvas class="base" id="fb-pe" width="900" height="340"></canvas>
+    <canvas class="ink" id="fi-pe" width="900" height="340"></canvas></div>
+  <div class="figbar"><span class="fl">figure 7 · three arenas</span>
+    <button class="rev" onclick="toggleReveal('pe',this)">Reveal the numbers</button>
+    <button onclick="undoInk('pe')">Undo</button><button onclick="clearInk('pe')">Clear ink</button>
+    <button onclick="savePng('pe')">Save PNG</button></div>
+  <div class="draw"><ol>
+    <li>Fill the three Pe boxes: <strong>0.05</strong> across the film, <strong>9 × 10³</strong> along the airway, <strong>10⁹</strong> for a cough.</li>
+    <li>Under each, the clock that matters: <strong>seconds · 3 min · 2 ms</strong>, and beside them diffusion’s answer for a centimetre: <strong>10 days</strong>.</li>
+    <li>In the CF row write <strong>Pe = 10⁴</strong> and next to it <strong>12 days to clear</strong>. Circle both.</li>
+  </ol></div>
+  <div class="equation-box"><span class="eqno">eq. 2.3.8</span>
+  $$\mathrm{Pe}=\frac{Lv}{D}\qquad\text{— and }L\text{ is whatever distance you are asking about}$$</div>
+  <div class="num">Across the 50-µm film Pe ≈ 0.05, which retroactively licenses treating blocks 4 and 5 as pure
+  diffusion. Along a centimetre of airway at 50 µm/s, Pe ≈ 9000: flow clears in <strong>3 minutes</strong> what
+  diffusion needs <strong>10 days</strong> for. And a 0.5-µm bacterium in a 140-nm mesh has essentially
+  <strong>no diffusion coefficient at all</strong> — the escalator is not its best exit, it is its only one.</div>
+  <div class="ask">CF: Pe is still ten thousand. Is the airway fine?
+    <span class="exp">No — and this is the trap worth three minutes. Pe = 10⁴ with v = 0.01 µm/s still takes twelve days to clear a centimetre. <strong>A dimensionless number ranks two mechanisms; it never tells you whether the winner is fast enough.</strong> For that you need L/v and L²/2D themselves.</span></div>
+  <div class="payoff">Cystic fibrosis is a transport disease: it zeroes the one clearance mechanism that has no backup. Every physical therapy in the disease — the vest, the huff cough, exercise — is prosthetic convection.</div>
+</section>
+
+<section class="blk cap" id="b8">
+  <h2 data-nav="8" data-title="The verdict" data-min="2">8 · The verdict — losses multiply
+    <span class="clock">2 min</span><span class="cum">28 → 30</span></h2>
+  <div class="say">Seven questions, seven equations, and — this is the part worth remembering — <strong>four answers
+  that say “not the bottleneck.”</strong> Knowing which of your tools does <em>not</em> explain a pathology is the same
+  skill as knowing which one does.</div>
+  <div class="figwrap" data-fig="chain">
+    <canvas class="base" id="fb-chain" width="900" height="340"></canvas>
+    <canvas class="ink" id="fi-chain" width="900" height="340"></canvas></div>
+  <div class="figbar"><span class="fl">figure 8 · the delivery chain and its gates</span>
+    <button class="rev" onclick="toggleReveal('chain',this)">Reveal Θ and the gates</button>
+    <button onclick="undoInk('chain')">Undo</button><button onclick="clearInk('chain')">Clear ink</button>
+    <button onclick="savePng('chain')">Save PNG</button></div>
+  <div class="draw"><ol>
+    <li>Fill the four boxes: <strong>0.5 × 0.1 × 1 × 10</strong>, and under the arrow the product <strong>Θ = 0.5</strong>.</li>
+    <li>Put a ✗ on the uptake gate (block 4) and a ✗ on the removal gate (block 7).</li>
+    <li>Last line on the board: <strong>the lever is L, K and v — never the antibiotic.</strong></li>
+  </ol></div>
+  <div class="equation-box"><span class="eqno">eq. R.4.1</span>
+  $$\Theta=\underbrace{f_{\text{dep}}}_{\text{where it lands}}\times
+    \underbrace{\frac{1}{1+K}}_{\text{how much is free}}\times
+    \underbrace{\min\!\Big(1,\tfrac{2D_{\text{eff}}t_{\text{dose}}}{L^2}\Big)}_{\text{how deep}}\times
+    \frac{c_{\text{neb}}}{\mathrm{MIC}_{\text{biofilm}}}$$</div>
+  <div class="num">\(0.5\times0.1\times1\times10=\) <strong>0.5</strong> — a factor of two short of the biofilm
+  threshold before either gate is considered, and both gates are shut. Then name what modern therapy actually moves:
+  dornase alfa (L ↓ and K ↓, because the DNA it digests is also the drug’s main binder), hypertonic saline (L ↓, v ↑),
+  a CFTR modulator (v ↑↑, L ↓, load ↓). <strong>Nothing on that list makes the antibiotic better.</strong></div>
+  <div class="ask">One sentence each — why is doubling the dose worse value than halving the layer?
+    <span class="exp">Dose multiplies one factor that is already saturated; L enters the penetration term as L² and moves δ and the removal clock too. Send them to the module’s intervention dashboard to argue with it.</span></div>
+  <div class="payoff">Suppression without cure is not a mystery and not a resistance story. It is three multiplicative losses and two shut gates — and every one of them is a transport number you can compute in a lecture.</div>
+</section>
+
+<section class="blk" id="b9">
+  <h2 data-nav="9" data-title="If you run over" data-min="0">Overflow valve — what to cut, and where they go next
+    <span class="clock">0 min</span><span class="cum">—</span></h2>
+  <p><strong>Behind at block 4?</strong> Cut block 2 to one sentence (“ℓg says the droplet is a projectile and the
+  molecule is a diffuser — that’s why deposition is patchy”) and cut the crude supply/demand division in block 4,
+  keeping only δ. Those two recoveries buy four minutes and cost nothing structural.</p>
+  <p><strong>Do not cut</strong> blocks 4, 5 and 7 — the anoxia, the 2 %, and the closed exit are the case. Block 6
+  exists mainly to hand block 4 its second, independent confirmation; if it must go, say the sentence anyway.</p>
+  <p><strong>Send them to:</strong> the student module, where all nine figures are live simulations they can turn the
+  knobs on, every step is collapsed behind a “predict first” prompt, and the worked examples carry the algebra this
+  hour skipped. <strong>Next lecture</strong> picks up the seven missing orders of magnitude from block 6: binding
+  kinetics, receptor occupancy, and the number that decides transport-limited versus reaction-limited.</p>
+</section>
+
+</main>
+<script>
+/* ════════════════════════════════════════════════════════════════
+   R1 BOARD NOTES — a 30-minute instructor run of the CF case review.
+   Two things live here and nothing else: (1) nine figure SKELETONS that
+   are deliberately unfinished, each with a Reveal that draws the answer,
+   and (2) an ink layer over every figure so the answer can be drawn by
+   hand first. Strokes are stored in NORMALIZED coordinates so they stay
+   registered when the canvas is resized or scaled by presenter mode, and
+   are persisted per figure in localStorage so a reload mid-lecture does
+   not lose the board.
+   ════════════════════════════════════════════════════════════════ */
+const C={ink:'#0f172a',axis:'#64748b',grid:'#e2e8f0',txt:'#334155',faint:'#94a3b8',
+  mucus:'rgba(180,83,9,.20)',mucus2:'rgba(180,83,9,.35)',air:'#eff6ff',epi:'#fecdd3',
+  ok:'#047857',bad:'#b91c1c',warn:'#b45309',blue:'#2563eb',purple:'#7c3aed',cyan:'#0891b2'};
+let PZ=1;
+const FIGS={}, REV={}, INK={};
+
+function T(ctx,txt,x,y,o){ o=o||{};
+  ctx.font=(o.w||'')+' '+(o.s||12)+'px sans-serif'; ctx.fillStyle=o.c||C.txt;
+  ctx.textAlign=o.a||'left'; ctx.textBaseline=o.b||'top'; ctx.fillText(txt,x,y); }
+function RB(ctx,x,y,w,h,o){ o=o||{}; ctx.save();
+  if(o.dash)ctx.setLineDash(o.dash);
+  ctx.beginPath();
+  if(ctx.roundRect)ctx.roundRect(x,y,w,h,o.r===undefined?6:o.r); else ctx.rect(x,y,w,h);
+  if(o.fill){ctx.fillStyle=o.fill;ctx.fill();}
+  if(o.stroke){ctx.strokeStyle=o.stroke;ctx.lineWidth=o.lw||1.4;ctx.stroke();}
+  ctx.restore(); }
+function AR(ctx,x0,y0,x1,y1,col,lw){ ctx.save(); ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=lw||1.8;
+  ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();
+  const a=Math.atan2(y1-y0,x1-x0),h=7; ctx.beginPath(); ctx.moveTo(x1,y1);
+  ctx.lineTo(x1-h*Math.cos(a-.42),y1-h*Math.sin(a-.42)); ctx.lineTo(x1-h*Math.cos(a+.42),y1-h*Math.sin(a+.42));
+  ctx.closePath(); ctx.fill(); ctx.restore(); }
+function LN(ctx,pts,col,lw,dash){ if(pts.length<2)return; ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=lw||2;
+  if(dash)ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]); ctx.stroke(); ctx.restore(); }
+/* "10^-3" with a guaranteed minus: some sans-serif fallbacks have no U+207B,
+   so the superscript-minus decade labels silently rendered as 10³ instead of
+   10⁻³ — caught in the first screenshot pass. Draw the exponent instead. */
+function DEC10(ctx,x,y,e){ ctx.textAlign='right'; ctx.textBaseline='middle'; ctx.fillStyle=C.axis;
+  ctx.font='9px sans-serif'; const es=String(e), ew=ctx.measureText(es).width;
+  ctx.fillText(es,x,y-5);
+  ctx.font='11px sans-serif'; ctx.fillText('10',x-ew-1,y); }
+/* a blank the instructor is meant to fill in by hand */
+function BLANK(ctx,x,y,w,h,hint){ RB(ctx,x,y,w,h,{stroke:'#cbd5e1',dash:[5,4],fill:'#fff',r:5});
+  if(hint)T(ctx,hint,x+w/2,y+h/2,{s:11,c:'#cbd5e1',a:'center',b:'middle'}); }
+function FILLED(ctx,x,y,w,h,txt,col){ RB(ctx,x,y,w,h,{stroke:col||C.ok,fill:'#f0fdf4',r:5,lw:1.6});
+  T(ctx,txt,x+w/2,y+h/2,{s:13,c:col||C.ok,a:'center',b:'middle',w:'bold'}); }
+/* simple linear axes helper: returns mapping fns */
+function AX(ctx,m,xr,yr,xl,yl,xt,yt,xf,yf){
+  const toX=v=>m.l+(v-xr[0])/(xr[1]-xr[0])*m.pw, toY=v=>m.t+m.ph-(v-yr[0])/(yr[1]-yr[0])*m.ph;
+  ctx.save(); ctx.strokeStyle=C.grid; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  for(const t of xt){ctx.beginPath();ctx.moveTo(toX(t),m.t);ctx.lineTo(toX(t),m.t+m.ph);ctx.stroke();}
+  for(const t of yt){ctx.beginPath();ctx.moveTo(m.l,toY(t));ctx.lineTo(m.l+m.pw,toY(t));ctx.stroke();}
+  ctx.restore();
+  ctx.save(); ctx.strokeStyle=C.axis; ctx.lineWidth=1.6; ctx.beginPath();
+  ctx.moveTo(m.l,m.t); ctx.lineTo(m.l,m.t+m.ph); ctx.lineTo(m.l+m.pw,m.t+m.ph); ctx.stroke(); ctx.restore();
+  for(const t of xt)T(ctx,xf?xf(t):String(t),toX(t),m.t+m.ph+7,{s:11,c:C.axis,a:'center'});
+  for(const t of yt)T(ctx,yf?yf(t):String(t),m.l-7,toY(t),{s:11,c:C.axis,a:'right',b:'middle'});
+  T(ctx,xl,m.l+m.pw/2,m.t+m.ph+26,{s:12,c:C.txt,a:'center'});
+  ctx.save(); ctx.translate(m.l-46,m.t+m.ph/2); ctx.rotate(-Math.PI/2);
+  T(ctx,yl,0,0,{s:12,c:C.txt,a:'center',b:'middle'}); ctx.restore();
+  return {toX,toY}; }
+
+/* ──────────────── FIGURE 0 · the airway wall ──────────────── */
+function figCase(ctx,w,h,rv){
+  const pw=(w-60)/2;
+  const panel=(x,cf)=>{
+    RB(ctx,x,34,pw,(cf?96:16)+26+(cf?7:16)+54+20,{stroke:'#e2e8f0',fill:'#fff',r:8});
+    T(ctx,cf?'CYSTIC FIBROSIS':'HEALTHY',x+pw/2,14,{s:12,c:cf?C.bad:C.ok,a:'center',w:'bold'});
+    const ix=x+10, iw=pw-20, y0=44;
+    ctx.fillStyle=C.air; ctx.fillRect(ix,y0,iw,26);
+    T(ctx,'air',ix+6,y0+7,{s:10,c:'#1d4ed8'});
+    const mh=cf?96:16, ym=y0+26;
+    ctx.fillStyle=cf?C.mucus2:C.mucus; ctx.fillRect(ix,ym,iw,mh);
+    ctx.strokeStyle='rgba(146,64,14,.35)'; ctx.lineWidth=.8;
+    for(let i=0;i<(cf?9:3);i++){ const yy=ym+mh*(i+.5)/(cf?9:3); ctx.beginPath();
+      ctx.moveTo(ix+3,yy); for(let k=1;k<=8;k++)ctx.lineTo(ix+3+(iw-6)*k/8,yy+Math.sin(k*1.7+i)*Math.min(6,mh/8));
+      ctx.stroke(); }
+    const yp=ym+mh, ph=cf?7:16;
+    ctx.fillStyle='#e0f2fe'; ctx.fillRect(ix,yp,iw,ph);
+    ctx.strokeStyle=C.cyan; ctx.lineWidth=1.5;
+    for(let i=0;i<16;i++){ const xx=ix+8+(iw-16)*i/15; ctx.beginPath(); ctx.moveTo(xx,yp+ph);
+      ctx.quadraticCurveTo(xx+(cf?1:6),yp+ph*.3,xx+(cf?2:9),yp); ctx.stroke(); }
+    ctx.fillStyle=C.epi; ctx.fillRect(ix,yp+ph,iw,54);
+    T(ctx,'epithelium',ix+6,yp+ph+6,{s:10,c:'#9f1239'});
+    if(cf){ for(let i=0;i<26;i++){ const bx=ix+12+(iw-24)*((i*37)%100)/100, by=ym+mh*(.45+.5*((i*61)%100)/100);
+      ctx.fillStyle='rgba(4,120,87,.85)'; ctx.beginPath(); ctx.ellipse(bx,by,3,1.7,i,0,7); ctx.fill(); } }
+    /* the blanks */
+    const bx=x+pw-104;
+    if(rv){ FILLED(ctx,bx,ym+2,96,22,cf?'L ≈ 50–500 µm':'L ≈ 7 µm',cf?C.bad:C.ok);
+      FILLED(ctx,bx,y0-2,96,22,cf?'v ≈ 0':'v ≈ 50 µm/s',cf?C.bad:C.ok);
+      if(cf)FILLED(ctx,x+12,h-52,150,22,'10⁸–10⁹ bacteria/mL',C.bad); }
+    else { BLANK(ctx,bx,ym+2,96,22,'L = ?'); BLANK(ctx,bx,y0-2,96,22,'v = ?');
+      if(cf)BLANK(ctx,x+12,h-52,150,22,'load = ?'); }
+    if(!cf)AR(ctx,ix+8,y0+13,ix+70,y0+13,C.ok,2);
+    else { AR(ctx,ix+30,y0+13,ix+56,y0+13,'#cbd5e1',2);
+      ctx.strokeStyle=C.bad; ctx.lineWidth=2.2; ctx.beginPath();
+      ctx.moveTo(ix+34,y0+7); ctx.lineTo(ix+52,y0+19); ctx.moveTo(ix+52,y0+7); ctx.lineTo(ix+34,y0+19); ctx.stroke(); }
+  };
+  panel(20,false); panel(40+pw,true);
+  T(ctx, rv?'the airway is ~5 mm across — 100× the film thickness, which is what makes a 1D model legal'
+        :'and the one length that never changes: the airway is ____ across',
+    w/2,h-22,{s:12,c:rv?C.ok:C.faint,a:'center',w:rv?'bold':''});
+}
+
+/* ──────────────── FIGURE 1 · the slab ──────────────── */
+function figSlab(ctx,w,h,rv){
+  const x0=70,x1=520,yT=54,yB=h-96;
+  ctx.fillStyle=C.air; ctx.fillRect(x0,yT-24,x1-x0,24);
+  ctx.fillStyle=C.mucus; ctx.fillRect(x0,yT,x1-x0,yB-yT);
+  ctx.fillStyle=C.epi; ctx.fillRect(x0,yB,x1-x0,16);
+  ctx.strokeStyle=C.blue; ctx.lineWidth=2.4; ctx.beginPath(); ctx.moveTo(x0,yT); ctx.lineTo(x1,yT); ctx.stroke();
+  ctx.strokeStyle='#e11d48'; ctx.beginPath(); ctx.moveTo(x0,yB); ctx.lineTo(x1,yB); ctx.stroke();
+  T(ctx,'air interface — REFLECTING',x0+6,yT-19,{s:11,c:'#1d4ed8',w:'bold'});
+  T(ctx,'epithelium — ABSORBING (arrival counted here)',x0+6,yB+3,{s:11,c:'#9f1239',w:'bold'});
+  for(let i=0;i<44;i++){ const px=x0+12+(x1-x0-24)*((i*53)%100)/100;
+    const py=yT+6+(yB-yT-12)*Math.pow(((i*29)%100)/100,1.6);
+    ctx.fillStyle='rgba(124,58,237,.75)'; ctx.beginPath(); ctx.arc(px,py,2.4,0,7); ctx.fill(); }
+  AR(ctx,x1+24,yT,x1+24,yB,C.warn,2); AR(ctx,x1+24,yB,x1+24,yT,C.warn,2);
+  T(ctx,'L',x1+30,(yT+yB)/2,{s:14,c:C.warn,b:'middle',w:'bold'});
+  if(rv)FILLED(ctx,x1+44,(yT+yB)/2-13,150,26,'t = L²/2D ≈ 2.3 s',C.ok);
+  else BLANK(ctx,x1+44,(yT+yB)/2-13,150,26,'t = ?');
+  /* aspect-ratio inset */
+  const iy=h-40;
+  T(ctx,'the same film, drawn to scale:',x0,iy-18,{s:11,c:C.faint});
+  ctx.fillStyle=C.mucus2; ctx.fillRect(x0,iy,760,4);
+  AR(ctx,x0,iy+18,x0+760,iy+18,C.axis,1.4); AR(ctx,x0+760,iy+18,x0,iy+18,C.axis,1.4);
+  T(ctx,'W ≈ 5 mm',x0+380,iy+22,{s:11,c:C.axis,a:'center'});
+  if(rv)FILLED(ctx,600,54,270,44,'(L/W)² ≈ 10⁻⁴ → 1D is legal',C.ok);
+  else BLANK(ctx,600,54,270,44,'licence for 1D = ?');
+}
+
+/* ──────────────── FIGURE 2 · the settling column ──────────────── */
+function figGrav(ctx,w,h,rv){
+  const col=(x,lab,sub,mode)=>{
+    const y0=40,y1=h-58,cw=170;
+    RB(ctx,x,y0,cw,y1-y0,{stroke:'#cbd5e1',fill:'#f8fafc',r:6});
+    T(ctx,lab,x+cw/2,18,{s:13,c:C.txt,a:'center',w:'bold'});
+    T(ctx,sub,x+cw/2,y1+6,{s:11,c:C.faint,a:'center'});
+    AR(ctx,x-16,y0+8,x-16,y1-8,C.axis,1.4); T(ctx,'g',x-26,(y0+y1)/2,{s:12,c:C.axis,b:'middle'});
+    if(!rv)return;
+    if(mode==='flat'){ for(let i=0;i<70;i++){ const px=x+8+(cw-16)*((i*37)%100)/100, py=y0+8+(y1-y0-16)*((i*61)%100)/100;
+        ctx.fillStyle='rgba(124,58,237,.7)'; ctx.beginPath(); ctx.arc(px,py,2.3,0,7); ctx.fill(); }
+      LN(ctx,[[x+4,y0+10],[x+cw-4,y0+10]],C.bad,2,[6,4]);
+      T(ctx,'uniform — ℓg ≈ 1 km',x+cw/2,(y0+y1)/2,{s:12,c:C.bad,a:'center',b:'middle',w:'bold'}); }
+    else { for(let i=0;i<70;i++){ const px=x+8+(cw-16)*((i*37)%100)/100, py=y1-8-Math.pow(((i*61)%100)/100,6)*(y1-y0-16);
+        ctx.fillStyle='rgba(124,58,237,.7)'; ctx.beginPath(); ctx.arc(px,py,2.3,0,7); ctx.fill(); }
+      LN(ctx,[[x+4,y1-12],[x+cw-4,y1-12]],C.bad,2,[6,4]);
+      T(ctx,'all on the floor',x+cw/2,(y0+y1)/2,{s:12,c:C.bad,a:'center',b:'middle',w:'bold'});
+      T(ctx,'ℓg ≈ 30 nm',x+cw/2,y1-30,{s:12,c:C.bad,a:'center',w:'bold'}); }
+  };
+  col(90,'tobramycin molecule','a = 0.6 nm, in water','flat');
+  col(360,'nebulizer droplet','a = 1.5 µm, in air','spike');
+  const bx=600;
+  if(rv){ FILLED(ctx,bx,52,270,30,'ℓg = kBT / ΔρVg',C.ok);
+    FILLED(ctx,bx,90,270,30,'ℓg ≫ container → diffuser',C.ok);
+    FILLED(ctx,bx,128,270,30,'ℓg ≪ particle → projectile',C.bad);
+    FILLED(ctx,bx,176,270,30,'ℓg = D / v_sed  (this is Pe = 1)',C.cyan);
+    T(ctx,'so: gravity delivers the dose,',bx,224,{s:12,c:C.txt,w:'bold'});
+    T(ctx,'diffusion distributes it — and',bx,240,{s:12,c:C.txt,w:'bold'});
+    T(ctx,'deposition is therefore patchy.',bx,256,{s:12,c:C.txt,w:'bold'}); }
+  else { BLANK(ctx,bx,52,270,30,'ℓg = ?'); BLANK(ctx,bx,90,270,30,'big ℓg means…');
+    BLANK(ctx,bx,128,270,30,'small ℓg means…'); BLANK(ctx,bx,176,270,30,'ℓg in terms of D and v_sed?'); }
+}
+
+/* ──────────────── FIGURE 3 · D vs cargo size (log–log) ──────────────── */
+function figMesh(ctx,w,h,rv){
+  const m={l:70,t:24,pw:w-70-210,ph:h-24-52}; m.r=w-m.l-m.pw;
+  const lx0=Math.log10(.2), lx1=Math.log10(5000), ly0=-5, ly1=4;
+  const DEC={'-5':'10⁻⁵','-4':'10⁻⁴','-3':'10⁻³','-2':'10⁻²','-1':'10⁻¹','0':'1','1':'10','2':'10²','3':'10³','4':'10⁴'};
+  const yt=[-5,-4,-3,-2,-1,0,1,2,3,4];
+  const a=AX(ctx,m,[lx0,lx1],[ly0,ly1],'cargo radius a (nm, log)','D (µm²/s, log)',
+    [-.7,0,1,2,3,Math.log10(5000)],yt,
+    v=>{const p=Math.pow(10,v); return p>=1000?Math.round(p/1000)+' µm':(p>=1?String(Math.round(p)):p.toFixed(1));},
+    ()=>'');
+  for(const t of yt){ const y=a.toY(t);
+    if(t===0)T(ctx,'1',m.l-7,y,{s:11,c:C.axis,a:'right',b:'middle'}); else DEC10(ctx,m.l-7,y,t); }
+  /* mesh line always shown — it is the axis of the argument */
+  ctx.save(); ctx.strokeStyle=C.warn; ctx.lineWidth=1.6; ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.moveTo(a.toX(Math.log10(140)),m.t); ctx.lineTo(a.toX(Math.log10(140)),m.t+m.ph); ctx.stroke(); ctx.restore();
+  T(ctx,'mesh ξ = 140 nm',a.toX(Math.log10(140))+5,m.t+2,{s:11,c:C.warn,w:'bold'});
+  const cargo=[[.6,'tobramycin'],[3,'DNase'],[5.5,'IgG'],[12,'AAV'],[50,'100 nm'],[4000,'cell']];
+  for(const [an,lab] of cargo){ const x=a.toX(Math.log10(an));
+    ctx.strokeStyle=C.faint; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x,m.t+m.ph); ctx.lineTo(x,m.t+m.ph+5); ctx.stroke();
+    ctx.save(); ctx.translate(x,m.t+m.ph-4); ctx.rotate(-Math.PI/2);
+    T(ctx,lab,0,0,{s:9.5,c:C.faint,b:'middle'}); ctx.restore(); }
+  const SE=(an,eta)=>4.28e-21/(6*Math.PI*eta*an*1e-9)*1e12;
+  if(rv){
+    const cv=f=>{ const p=[]; for(let i=0;i<=120;i++){ const la=lx0+(lx1-lx0)*i/120, D=f(Math.pow(10,la));
+      if(D>0)p.push([a.toX(la),a.toY(Math.max(ly0,Math.min(ly1,Math.log10(D))))]); } return p; };
+    LN(ctx,cv(an=>SE(an,6.9e-4)),C.faint,2,[6,4]);
+    LN(ctx,cv(an=>SE(an,1)),C.bad,2.4);
+    LN(ctx,cv(an=>(an>=140?0:Math.exp(-an/(140-an))*SE(an,6.9e-4))),C.blue,2.8);
+    const px=a.toX(Math.log10(.6)), py=a.toY(Math.log10(546));
+    ctx.fillStyle=C.ink; ctx.beginPath(); ctx.arc(px,py,4,0,7); ctx.fill();
+    T(ctx,'546 µm²/s ✓',px+8,py-14,{s:11,c:C.ok,w:'bold'});
+    const py2=a.toY(Math.log10(.38));
+    ctx.fillStyle=C.bad; ctx.beginPath(); ctx.arc(px,py2,4,0,7); ctx.fill();
+    T(ctx,'0.38 — wrong by 10³',px+8,py2-4,{s:11,c:C.bad,w:'bold'});
+  }
+  const bx=m.l+m.pw+56, keys=[['water (η = 0.69 mPa·s)',C.faint],['bulk sputum η = 1 Pa·s',C.bad],['mesh + water',C.blue]];
+  keys.forEach((k,i)=>{ const y=m.t+10+i*22;
+    if(rv){ ctx.fillStyle=k[1]; ctx.fillRect(bx,y,16,4); T(ctx,k[0],bx+22,y-5,{s:11,c:C.txt}); }
+    else BLANK(ctx,bx,y-9,150,20,'curve '+(i+1)); });
+  if(rv){ T(ctx,'below ξ the cargo never',bx,m.t+96,{s:12,c:C.ok,w:'bold'});
+    T(ctx,'touches the network:',bx,m.t+112,{s:12,c:C.ok,w:'bold'});
+    T(ctx,'its η is water’s.',bx,m.t+128,{s:12,c:C.ok,w:'bold'});
+    T(ctx,'The real penalty is',bx,m.t+156,{s:12,c:C.warn,w:'bold'});
+    T(ctx,'binding: D_eff = 55,',bx,m.t+172,{s:12,c:C.warn,w:'bold'});
+    T(ctx,'c_free = c/10.',bx,m.t+188,{s:12,c:C.warn,w:'bold'}); }
+  else BLANK(ctx,bx,m.t+92,150,74,'so which η?');
+}
+
+/* ──────────────── FIGURE 4 · oxygen with depth ──────────────── */
+function figOxy(ctx,w,h,rv){
+  const m={l:74,t:26,pw:w-74-240,ph:h-26-54}; 
+  const a=AX(ctx,m,[0,50],[0,1.06],'depth into the layer (µm)','C / Cs  (dissolved O₂)',
+    [0,10,20,30,40,50],[0,.25,.5,.75,1],null,v=>v.toFixed(2));
+  ctx.fillStyle=C.ink; ctx.beginPath(); ctx.arc(a.toX(0),a.toY(1),4.5,0,7); ctx.fill();
+  T(ctx,'air side: Cs ≈ 100 O₂/µm³',a.toX(0)+8,a.toY(1)-16,{s:11,c:C.txt,w:'bold'});
+  T(ctx,'bacteria eat ~10⁶ O₂ per cell per second, everywhere in the layer',
+    a.toX(2),m.t+m.ph-14,{s:11,c:C.faint});
+  if(rv){
+    const del=28.28, p=[];
+    for(let i=0;i<=160;i++){ const x=50*i/160, c=x>=del?0:Math.pow(1-x/del,2);
+      p.push([a.toX(x),a.toY(c)]); }
+    ctx.fillStyle='rgba(15,23,42,.10)';
+    ctx.fillRect(a.toX(del),m.t,a.toX(50)-a.toX(del),m.ph);
+    LN(ctx,p,C.blue,3);
+    ctx.save(); ctx.strokeStyle=C.bad; ctx.lineWidth=1.8; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.moveTo(a.toX(del),m.t); ctx.lineTo(a.toX(del),m.t+m.ph); ctx.stroke(); ctx.restore();
+    T(ctx,'δ = 28 µm',a.toX(del)+6,m.t+26,{s:12,c:C.bad,w:'bold'});
+    T(ctx,'ANOXIC',(a.toX(del)+a.toX(50))/2,m.t+m.ph*.45,{s:13,c:'#0f172a',a:'center',w:'bold'});
+    T(ctx,'no respiration → no proton-motive force',(a.toX(del)+a.toX(50))/2,m.t+m.ph*.45+18,{s:10,c:'#334155',a:'center'});
+  }
+  const bx=m.l+m.pw+58;
+  if(rv){ FILLED(ctx,bx,m.t+6,176,28,'supply DCs/L = 4 000',C.ok);
+    FILLED(ctx,bx,m.t+40,176,28,'demand QL = 25 000',C.bad);
+    FILLED(ctx,bx,m.t+82,176,28,'δ = √(2DCs/Q) = 28 µm',C.bad);
+    T(ctx,'and in a 500-µm plug,',bx,m.t+124,{s:12,c:C.txt,w:'bold'});
+    T(ctx,'94 % of it is anoxic.',bx,m.t+140,{s:12,c:C.txt,w:'bold'});
+    T(ctx,'÷10 the bacteria and δ',bx,m.t+166,{s:11,c:C.warn});
+    T(ctx,'only improves √10 ≈ 3×.',bx,m.t+180,{s:11,c:C.warn}); }
+  else { BLANK(ctx,bx,m.t+6,176,28,'supply = ?'); BLANK(ctx,bx,m.t+40,176,28,'demand = ?');
+    BLANK(ctx,bx,m.t+82,176,28,'δ = ?'); BLANK(ctx,bx,m.t+120,176,46,'so who wins, and where?'); }
+}
+
+/* ──────────────── FIGURE 5 · the dosing clock ──────────────── */
+function figClock(ctx,w,h,rv){
+  const m={l:78,t:26,pw:w-78-232,ph:h-26-54};
+  const a=AX(ctx,m,[0,12],[-1.1,2.3],'time since the dose started (h)','free drug at the biofilm (µg/mL)',
+    [0,3,6,9,12],[-1,0,1,2],null,v=>({'-1':'0.1','0':'1','1':'10','2':'100'})[String(v)]||'');
+  const th=(v,col,lab)=>{ ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=1.8; ctx.setLineDash([6,4]);
+    ctx.beginPath(); ctx.moveTo(m.l,a.toY(Math.log10(v))); ctx.lineTo(m.l+m.pw,a.toY(Math.log10(v))); ctx.stroke();
+    ctx.restore(); T(ctx,lab,m.l+m.pw-6,a.toY(Math.log10(v))-15,{s:11,c:col,a:'right',w:'bold'}); };
+  th(100,C.warn,'biofilm needs ~100'); th(4,C.ok,'planktonic MIC 4');
+  if(rv){
+    const cf=t=>t<0.25?100:100*Math.exp(-(t-0.25)*3600/7200);
+    const p=[[a.toX(0),a.toY(-1.1)]];
+    for(let i=0;i<=240;i++){ const t=12*i/240, c=cf(t);
+      p.push([a.toX(t),a.toY(Math.max(-1.1,Math.log10(c)))]); }
+    LN(ctx,p,C.purple,3);
+    ctx.fillStyle='rgba(180,83,9,.16)';
+    ctx.fillRect(a.toX(0),a.toY(Math.log10(200)),a.toX(.25)-a.toX(0),a.toY(Math.log10(100))-a.toY(Math.log10(200)));
+    const tp=0.25+7200*Math.log(25)/3600;
+    ctx.fillStyle='rgba(4,120,87,.12)';
+    ctx.fillRect(a.toX(0),a.toY(Math.log10(100)),a.toX(tp)-a.toX(0),a.toY(Math.log10(4))-a.toY(Math.log10(100)));
+    AR(ctx,a.toX(.25)+2,m.t+16,a.toX(1.6),m.t+16,C.warn,1.6);
+    T(ctx,'above the biofilm threshold: 15 min = 2 % of the interval',a.toX(1.7),m.t+10,{s:11,c:C.warn,w:'bold'});
+    AR(ctx,a.toX(tp),a.toY(Math.log10(4))-8,a.toX(tp)-70,a.toY(Math.log10(4))-8,C.ok,1.6);
+    T(ctx,'above the MIC: ~6.7 h',a.toX(tp)+6,a.toY(Math.log10(4))-14,{s:11,c:C.ok,w:'bold'});
+  }
+  const bx=m.l+m.pw+52;
+  if(rv){ FILLED(ctx,bx,m.t+6,176,28,'fills in 23 s (L²/2D)',C.ok);
+    FILLED(ctx,bx,m.t+40,176,28,'free peak = 10³/10 = 100',C.warn);
+    FILLED(ctx,bx,m.t+74,176,28,'= the threshold exactly',C.bad);
+    T(ctx,'t>c* = t_dose + τ ln(peak/c*)',bx,m.t+116,{s:11,c:C.txt,w:'bold'});
+    T(ctx,'MIC 4:  900 + 7200 ln25 ≈ 6.7 h',bx,m.t+134,{s:11,c:C.ok});
+    T(ctx,'biofilm 100:  ln 1 = 0 → the',bx,m.t+150,{s:11,c:C.bad});
+    T(ctx,'dose window and nothing more.',bx,m.t+166,{s:11,c:C.bad}); }
+  else { BLANK(ctx,bx,m.t+6,176,28,'how fast does it fill?');
+    BLANK(ctx,bx,m.t+40,176,28,'what is the free peak?');
+    BLANK(ctx,bx,m.t+80,176,80,'time above each line?'); }
+}
+
+/* ──────────────── FIGURE 6 · the hungry sphere ──────────────── */
+function figMeet(ctx,w,h,rv){
+  const cx=190, cy=h/2-8, sc=40;   /* left: the picture */
+  ctx.save(); ctx.strokeStyle=C.axis; ctx.lineWidth=1.3; ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.arc(cx,cy,3*sc,0,7); ctx.stroke(); ctx.restore();
+  T(ctx,'sputum around the cell, c∞',cx,cy-3*sc-6,{s:11,c:C.axis,a:'center',b:'bottom'});
+  for(let i=0;i<120;i++){ const r=(.55+2.4*((i*37)%100)/100)*sc, th=((i*61)%100)/100*7;
+    const px=cx+r*Math.cos(th), py=cy+r*Math.sin(th)*.72;
+    if(rv&&r<1.4*sc&&((i*29)%100)/100>r/(1.6*sc))continue;   /* the halo, thinned */
+    ctx.fillStyle='rgba(37,99,235,.7)'; ctx.beginPath(); ctx.arc(px,py,2.1,0,7); ctx.fill(); }
+  ctx.fillStyle='#047857'; ctx.beginPath(); ctx.ellipse(cx,cy,sc*.62,sc*.42,0,0,7); ctx.fill();
+  T(ctx,'a = 0.5 µm',cx,cy,{s:11,c:'#fff',a:'center',b:'middle',w:'bold'});
+  T(ctx,'immobile — it is in a biofilm',cx,cy+3*sc+8,{s:11,c:C.txt,a:'center',w:'bold'});
+  /* right: the radial census */
+  const m={l:400,t:26,pw:w-400-236,ph:h-26-52};
+  const a=AX(ctx,m,[.5,3],[0,1.25],'r from the cell centre (µm)','C(r) / c∞',[.5,1,1.5,2,2.5,3],[0,.5,1],
+    v=>v.toFixed(1),v=>v.toFixed(1));
+  ctx.save(); ctx.strokeStyle=C.grid; ctx.setLineDash([3,3]); ctx.beginPath();
+  ctx.moveTo(m.l,a.toY(1)); ctx.lineTo(m.l+m.pw,a.toY(1)); ctx.stroke(); ctx.restore();
+  if(rv){ const p=[]; for(let i=0;i<=80;i++){ const r=.5+2.5*i/80; p.push([a.toX(r),a.toY(1-.5/r)]); }
+    LN(ctx,p,C.bad,2.8);
+    T(ctx,'1 − a/r',a.toX(2.1),a.toY(1-.5/2.1)-18,{s:12,c:C.bad,w:'bold'});
+    T(ctx,'zero at contact: it reacts on arrival',a.toX(.72),a.toY(.12),{s:11,c:C.txt}); }
+  const bx=m.l+m.pw+56;
+  if(rv){ FILLED(ctx,bx,m.t+6,180,26,'D₂ ≈ 0 (it is stuck)',C.ok);
+    FILLED(ctx,bx,m.t+38,180,26,'a₂ ≪ a₁ (0.6 nm vs 0.5 µm)',C.ok);
+    FILLED(ctx,bx,m.t+76,180,26,'k_s = 4πDa = 345 µm³/s',C.cyan);
+    RB(ctx,bx,m.t+112,180,38,{stroke:C.bad,fill:'#fef2f2',r:5,lw:1.6});
+    T(ctx,'× 1.3×10⁵ /µm³',bx+90,m.t+118,{s:12,c:C.bad,a:'center',w:'bold'});
+    T(ctx,'= 4.5×10⁷ hits/s',bx+90,m.t+133,{s:13,c:C.bad,a:'center',w:'bold'});
+    T(ctx,'4 000 hits per ribosome',bx,m.t+156,{s:11,c:C.txt,w:'bold'});
+    T(ctx,'per second — and killing',bx,m.t+172,{s:11,c:C.txt,w:'bold'});
+    T(ctx,'takes an hour.',bx,m.t+188,{s:11,c:C.bad,w:'bold'}); }
+  else { BLANK(ctx,bx,m.t+6,180,26,'which term drops out?');
+    BLANK(ctx,bx,m.t+38,180,26,'and which other one?');
+    BLANK(ctx,bx,m.t+76,180,26,'k_s = ?'); BLANK(ctx,bx,m.t+112,180,34,'hits per second = ?'); }
+}
+
+/* ──────────────── FIGURE 7 · three arenas ──────────────── */
+function figPe(ctx,w,h,rv){
+  const rows=[['across the film','L = 50 µm · v ≈ 0.05 µm/s · D = 55','0.05','diffusion — seconds','licences blocks 4–5',C.ok],
+    ['along the airway, healthy cilia','L = 1 cm · v = 50 µm/s · D = 55','9 × 10³','flow — 3 min (vs 10 days)','the escalator does everything',C.ok],
+    ['along the airway, CF','L = 1 cm · v ≈ 0.01 µm/s · D ≈ 0.01','10⁴','flow — 12 DAYS','Pe is big and nothing leaves',C.bad],
+    ['a cough','L = 1 cm · v ≈ 5 m/s','10⁹','flow — 2 ms','the only exit she has left',C.warn]];
+  T(ctx,'arena',24,14,{s:10,c:C.faint,w:'bold'}); T(ctx,'Pe = Lv/D',470,14,{s:10,c:C.faint,w:'bold'});
+  T(ctx,'the clock that matters',600,14,{s:10,c:C.faint,w:'bold'});
+  rows.forEach((r,i)=>{
+    const y=32+i*74;
+    RB(ctx,20,y,w-40,64,{stroke:'#e2e8f0',fill:i===2?'#fef2f2':'#fff',r:8});
+    T(ctx,r[0],34,y+12,{s:13,c:C.txt,w:'bold'});
+    T(ctx,r[1],34,y+32,{s:11,c:C.faint});
+    T(ctx,r[4],34,y+46,{s:11,c:r[5],w:'bold'});
+    if(rv)FILLED(ctx,440,y+16,110,32,r[2],r[5]);
+  });
+  /* second pass for the clock column, kept separate so the blanks line up */
+  rows.forEach((r,i)=>{ const y=32+i*74;
+    if(rv)FILLED(ctx,570,y+16,190,32,r[3],r[5]);
+    else { BLANK(ctx,440,y+16,110,32,'Pe = ?'); BLANK(ctx,570,y+16,190,32,'time to clear = ?'); } });
+  T(ctx, rv?'Pe ranks the two mechanisms. It never tells you whether the winner is fast enough — that takes L/v and L²/2D themselves.'
+        :'and one warning to write under the table: __________________',
+    w/2,h-16,{s:12,c:rv?C.bad:C.faint,a:'center',b:'bottom',w:'bold'});
+}
+
+/* ──────────────── FIGURE 8 · the chain and its gates ──────────────── */
+function figChain(ctx,w,h,rv){
+  T(ctx,'the delivery chain (eq. R.4.1)',22,12,{s:12,c:'#1e3a5f',w:'bold'});
+  const items=[['where it lands','f_dep','0.50'],['how much is free','1/(1+K)','0.10'],
+    ['how deep it got','min(1, 2Dt/L²)','1.00'],['raw potency','c_neb/MIC','10']];
+  const bw=(w-44-3*24)/4, y0=34, bh=62;
+  items.forEach((it,i)=>{ const x=22+i*(bw+24);
+    if(rv){ const v=parseFloat(it[2]), col=v>=.9?C.ok:(v<.2?C.bad:C.warn);
+      RB(ctx,x,y0,bw,bh,{stroke:col,fill:v>=.9?'#f0fdf4':(v<.2?'#fef2f2':'#fffbeb'),r:8,lw:1.8});
+      T(ctx,it[0],x+bw/2,y0+8,{s:11,c:C.txt,a:'center'});
+      T(ctx,it[2],x+bw/2,y0+24,{s:19,c:'#0f172a',a:'center',w:'bold'});
+      T(ctx,it[1],x+bw/2,y0+46,{s:10,c:C.faint,a:'center'}); }
+    else { BLANK(ctx,x,y0,bw,bh,''); T(ctx,it[0],x+bw/2,y0+10,{s:11,c:C.faint,a:'center'});
+      T(ctx,it[1],x+bw/2,y0+40,{s:10,c:'#cbd5e1',a:'center'}); }
+    if(i<3)T(ctx,'×',x+bw+11,y0+bh/2,{s:17,c:C.faint,a:'center',b:'middle',w:'bold'}); });
+  const ty=y0+bh+14;
+  if(rv){ RB(ctx,22,ty,w-44,38,{stroke:C.bad,fill:'#fee2e2',r:8,lw:2});
+    T(ctx,'Θ = 0.5 × 0.1 × 1 × 10 = 0.50   ✕ below the threshold of 1',34,ty+11,{s:14,c:'#0f172a',w:'bold'}); }
+  else { BLANK(ctx,22,ty,w-44,38,'Θ = ?  (and what is the threshold?)'); }
+  const gy=ty+52, gh=h-gy-14, gw=(w-44-2*12)/3;
+  const gates=[['concentration','Θ = 0.50, need > 1',false,'three losses multiplied'],
+    ['uptake','14 % aerobic (δ = 28 µm)',false,'block 4 shut this one'],
+    ['removal','2.8 h to clear vs 200 s',false,'block 7 shut this one']];
+  gates.forEach((g,i)=>{ const x=22+i*(gw+12);
+    if(rv){ RB(ctx,x,gy,gw,gh,{stroke:'#fca5a5',fill:'#fef2f2',r:8,lw:1.6});
+      T(ctx,'✕ '+g[0]+' gate',x+10,gy+8,{s:12,c:C.bad,w:'bold'});
+      T(ctx,g[1],x+10,gy+26,{s:12,c:'#0f172a',w:'bold'});
+      T(ctx,g[3],x+10,gy+46,{s:10,c:C.faint}); }
+    else { BLANK(ctx,x,gy,gw,gh,''); T(ctx,g[0]+' gate',x+10,gy+8,{s:12,c:C.faint,w:'bold'});
+      T(ctx,'open or shut?',x+10,gy+26,{s:11,c:'#cbd5e1'}); } });
+}
+
+const DRAWF={case:figCase,slab:figSlab,grav:figGrav,mesh:figMesh,oxy:figOxy,
+  clock:figClock,meet:figMeet,pe:figPe,chain:figChain};
+
+/* ════════ canvas setup, reveal, and the ink layer ════════
+   Both canvases in a figure are sized from the same rect, and strokes are
+   kept in NORMALIZED (0–1) coordinates, so presenter mode and window
+   resizes re-render the ink in register with the diagram underneath. */
+function setupC(cv){ if(!cv)return null;
+  const dpr=window.devicePixelRatio||1, rect=cv.getBoundingClientRect();
+  const cssW=rect.width||cv.width, z=PZ>0?PZ:1;
+  const w=cssW/z, h=w*(cv.dataset.ar?parseFloat(cv.dataset.ar):(cv.height/cv.width));
+  cv.width=cssW*dpr; cv.height=h*z*dpr; cv.style.width=cssW+'px'; cv.style.height=(h*z)+'px';
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr*z,0,0,dpr*z,0,0); ctx.clearRect(0,0,w,h);
+  return {ctx,w,h}; }
+function drawBase(f){ const cv=document.getElementById('fb-'+f); if(!cv)return;
+  const s=setupC(cv); if(!s||s.w<10)return; FIGS[f]=s;
+  s.ctx.fillStyle='#fff'; s.ctx.fillRect(0,0,s.w,s.h);
+  try{ DRAWF[f](s.ctx,s.w,s.h,!!REV[f]); }catch(e){ console.error('fig '+f,e); } }
+function drawInk(f){ const cv=document.getElementById('fi-'+f); if(!cv)return;
+  const s=setupC(cv); if(!s||s.w<10)return; INKC[f]=s;
+  const {ctx,w,h}=s; ctx.clearRect(0,0,w,h);
+  for(const st of (INK[f]||[]))strokePath(ctx,st,w,h); }
+const INKC={};
+function strokePath(ctx,st,w,h){ if(st.p.length<1)return;
+  ctx.save();
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  if(st.m==='erase'){ ctx.globalCompositeOperation='destination-out'; ctx.strokeStyle='rgba(0,0,0,1)'; ctx.lineWidth=st.w*4; }
+  else if(st.m==='hi'){ ctx.globalAlpha=.35; ctx.strokeStyle=st.c; ctx.lineWidth=st.w*5; }
+  else { ctx.strokeStyle=st.c; ctx.lineWidth=st.w; }
+  ctx.beginPath(); ctx.moveTo(st.p[0][0]*w,st.p[0][1]*h);
+  if(st.p.length===1)ctx.lineTo(st.p[0][0]*w+.01,st.p[0][1]*h);
+  for(let i=1;i<st.p.length;i++)ctx.lineTo(st.p[i][0]*w,st.p[i][1]*h);
+  ctx.stroke(); ctx.restore(); }
+function redrawAll(){ for(const f in DRAWF){ drawBase(f); drawInk(f); } }
+function toggleReveal(f,btn){ REV[f]=!REV[f]; drawBase(f);
+  if(btn){ btn.classList.toggle('on',!!REV[f]); btn.textContent=REV[f]?'Hide answer':btn.dataset.lab||'Reveal answer'; } }
+function undoInk(f){ if(INK[f]&&INK[f].length){ INK[f].pop(); drawInk(f); saveInk(f); } }
+function clearInk(f){ INK[f]=[]; drawInk(f); saveInk(f); }
+function savePng(f){ const b=document.getElementById('fb-'+f), k=document.getElementById('fi-'+f);
+  const t=document.createElement('canvas'); t.width=b.width; t.height=b.height;
+  const c=t.getContext('2d'); c.drawImage(b,0,0); c.drawImage(k,0,0);
+  const a=document.createElement('a'); a.download='R1-notes-'+f+'.png'; a.href=t.toDataURL('image/png');
+  document.body.appendChild(a); a.click(); a.remove(); }
+function saveInk(f){ try{ localStorage.setItem('r1notes-ink-'+f,JSON.stringify(INK[f]||[])); }catch(e){} }
+function loadInk(){ for(const f in DRAWF){ try{ const v=localStorage.getItem('r1notes-ink-'+f);
+  INK[f]=v?JSON.parse(v):[]; }catch(e){ INK[f]=[]; } } }
+
+/* ── pen tray ── */
+const TOOL={c:'#e11d48',w:3,m:'pen'};
+function buildTray(){
+  const cols=['#e11d48','#2563eb','#047857','#b45309','#0f172a'];
+  const el=document.createElement('div'); el.id='tray';
+  el.innerHTML='<div class="lbl" id="tr-fold" style="cursor:pointer" title="collapse the tray">pen ▾</div><div id="tr-body"><div class="row">'+
+    cols.map(c=>'<div class="sw'+(c===TOOL.c?' on':'')+'" data-c="'+c+'" style="background:'+c+'"></div>').join('')+
+    '</div><div class="row"><button class="tb on" data-m="pen">'+HI.svg('pencil',{label:'Pen'})+'</button>'+
+    '<button class="tb" data-m="hi">▭</button><button class="tb" data-m="erase">⌫</button></div>'+
+    '<input type="range" id="tr-w" min="1" max="10" step="1" value="3">'+
+    '<div class="row"><button class="tb" id="tr-undo">undo</button><button class="tb" id="tr-clear">clear page</button></div></div>';
+  document.body.appendChild(el);
+  el.querySelectorAll('.sw').forEach(s=>s.addEventListener('click',()=>{ TOOL.c=s.dataset.c;
+    el.querySelectorAll('.sw').forEach(o=>o.classList.toggle('on',o===s)); }));
+  el.querySelectorAll('.tb[data-m]').forEach(b=>b.addEventListener('click',()=>{ TOOL.m=b.dataset.m;
+    el.querySelectorAll('.tb[data-m]').forEach(o=>o.classList.toggle('on',o===b)); }));
+  document.getElementById('tr-w').addEventListener('input',e=>{ TOOL.w=parseFloat(e.target.value); });
+  document.getElementById('tr-undo').addEventListener('click',()=>{ if(LASTF)undoInk(LASTF); });
+  document.getElementById('tr-clear').addEventListener('click',()=>{ for(const f in DRAWF)clearInk(f); });
+  document.getElementById('tr-fold').addEventListener('click',()=>{ const b=document.getElementById('tr-body');
+    const hid=b.style.display==='none'; b.style.display=hid?'':'none';
+    document.getElementById('tr-fold').textContent=hid?'pen ▾':'pen ▸'; });
+}
+let LASTF=null;
+function wireInk(){
+  for(const f in DRAWF){ const cv=document.getElementById('fi-'+f); if(!cv)continue;
+    let cur=null;
+    const pt=e=>{ const r=cv.getBoundingClientRect();
+      return [(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]; };
+    cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId); LASTF=f;
+      cur={c:TOOL.c,w:TOOL.w,m:TOOL.m,p:[pt(e)]}; (INK[f]=INK[f]||[]).push(cur);
+      const s=INKC[f]; if(s)strokePath(s.ctx,cur,s.w,s.h); });
+    cv.addEventListener('pointermove',e=>{ if(!cur)return; cur.p.push(pt(e));
+      const s=INKC[f]; if(s){ ctxSeg(s,cur); } });
+    const end=()=>{ if(cur){ cur=null; saveInk(f); } };
+    cv.addEventListener('pointerup',end); cv.addEventListener('pointercancel',end);
+    cv.addEventListener('pointerleave',end);
+  }
+}
+/* draw only the newest segment while the pen is down (cheap and smooth) */
+function ctxSeg(s,st){ const n=st.p.length; if(n<2)return;
+  const seg={c:st.c,w:st.w,m:st.m,p:[st.p[n-2],st.p[n-1]]};
+  strokePath(s.ctx,seg,s.w,s.h); }
+
+/* ════════ the 30-minute clock ════════
+   Blocks carry data-min; the timer turns elapsed seconds into "you should be
+   on block N" so the instructor can see drift without doing arithmetic. */
+const BLOCKS=[...document.querySelectorAll('.blk h2[data-nav]')].map(h=>({
+  nav:h.dataset.nav,title:h.dataset.title,min:parseFloat(h.dataset.min||0)}));
+const TOTAL=BLOCKS.reduce((a,b)=>a+b.min,0)*60;
+let tStart=null,tElapsed=0,tRun=false,tInt=null;
+function fmtClock(s){ s=Math.max(0,Math.round(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+function shouldBe(sec){ let acc=0; for(const b of BLOCKS){ acc+=b.min*60; if(sec<acc)return b; }
+  return BLOCKS[BLOCKS.length-1]; }
+function tickClock(){
+  const el=tRun?tElapsed+(Date.now()-tStart)/1000:tElapsed;
+  document.getElementById('tm-el').textContent=fmtClock(el);
+  document.getElementById('tm-bar').style.width=Math.min(100,100*el/TOTAL)+'%';
+  const b=shouldBe(el);
+  document.getElementById('tm-should').textContent=b?(b.nav+' · '+b.title):'—';
+  const p=document.getElementById('tm-pace');
+  if(!tRun&&el===0){ p.textContent='not started'; p.className='pace'; return; }
+  const cur=curBlockNav();
+  if(cur===null){ p.textContent='running'; p.className='pace'; return; }
+  const diff=parseFloat(cur)-parseFloat(b.nav);
+  p.textContent=diff>0?'ahead by '+diff+' block'+(diff>1?'s':''):(diff<0?'BEHIND by '+(-diff)+' block'+(diff<-1?'s':''):'on pace');
+  p.className='pace '+(diff<0?'late':'ok');
+}
+function curBlockNav(){ const line=140; let cur=null;
+  document.querySelectorAll('.blk h2[data-nav]').forEach(h=>{
+    if(h.getBoundingClientRect().top<=line)cur=h.dataset.nav; });
+  return cur; }
+function tmRun(){ const btn=document.getElementById('tm-run');
+  if(tRun){ tElapsed+=(Date.now()-tStart)/1000; tRun=false; btn.innerHTML=HI.svg('play')+' Resume'; btn.classList.remove('run'); }
+  else { tStart=Date.now(); tRun=true; btn.textContent='❚❚ Pause'; btn.classList.add('run'); }
+  tickClock(); }
+function tmReset(){ tRun=false; tElapsed=0; tStart=null;
+  const b=document.getElementById('tm-run'); b.innerHTML=HI.svg('play')+' Start'; b.classList.remove('run'); tickClock(); }
+
+/* ════════ rail + presenter mode ════════ */
+const FSTEPS=[16,19,22,25,28]; let presentOn=false, fsIdx=2;
+function applyPresent(){ document.body.classList.toggle('present',presentOn);
+  document.documentElement.style.fontSize=(presentOn?FSTEPS[fsIdx]:16)+'px';
+  PZ=presentOn?FSTEPS[fsIdx]/16:1;
+  const b=document.getElementById('rail-present');
+  b.textContent=presentOn?'✕ Exit':'⛶ Present'; b.classList.toggle('on',presentOn);
+  redrawAll();
+  try{ localStorage.setItem('r1notes-present',JSON.stringify({on:presentOn,fs:fsIdx})); }catch(e){} }
+function buildRail(){ const body=document.getElementById('rail-body');
+  body.innerHTML=BLOCKS.map(b=>'<button type="button" class="rl-i" data-nav="'+b.nav+'">'+
+    '<span class="rl-k">'+b.nav+'</span><span class="rl-t">'+b.title+'</span>'+
+    (b.min?'<span class="rl-m">'+b.min+'′</span>':'')+'</button>').join('');
+  body.addEventListener('click',e=>{ const it=e.target.closest('.rl-i'); if(!it)return;
+    const h=document.querySelector('h2[data-nav="'+it.dataset.nav+'"]');
+    if(h)h.closest('.blk').scrollIntoView({behavior:'smooth',block:'start'}); });
+}
+function railSpot(){ const cur=curBlockNav();
+  document.querySelectorAll('#rail-body .rl-i').forEach(i=>i.classList.toggle('cur',i.dataset.nav===cur)); }
+
+/* ════════ boot ════════ */
+loadInk(); buildTray(); buildRail();
+document.querySelectorAll('.figbar button.rev').forEach(b=>{ b.dataset.lab=b.textContent; });
+document.getElementById('tm-run').addEventListener('click',tmRun);
+document.getElementById('tm-reset').addEventListener('click',tmReset);
+document.getElementById('rail-present').addEventListener('click',()=>{ presentOn=!presentOn; applyPresent(); });
+document.getElementById('rail-fminus').addEventListener('click',()=>{ if(fsIdx>1){fsIdx--;applyPresent();} });
+document.getElementById('rail-fplus').addEventListener('click',()=>{ if(fsIdx<FSTEPS.length-1){fsIdx++;applyPresent();} });
+const railMq=window.matchMedia('(min-width:1150px)');
+function railFit(){ document.body.classList.toggle('hasrail',railMq.matches); }
+if(railMq.addEventListener)railMq.addEventListener('change',railFit); else railMq.addListener(railFit);
+railFit();
+try{ const sv=JSON.parse(localStorage.getItem('r1notes-present')||'null');
+  if(sv&&typeof sv.fs==='number')fsIdx=Math.max(1,Math.min(FSTEPS.length-1,sv.fs));
+  if(new URLSearchParams(location.search).get('present')==='1'||(sv&&sv.on))presentOn=true; }catch(e){}
+redrawAll(); wireInk();
+if(presentOn)applyPresent();
+let _p=false;
+window.addEventListener('scroll',()=>{ if(_p)return; _p=true;
+  requestAnimationFrame(()=>{ _p=false; railSpot(); tickClock(); }); },{passive:true});
+let _r=null;
+window.addEventListener('resize',()=>{ clearTimeout(_r); _r=setTimeout(redrawAll,150); });
+tInt=setInterval(tickClock,1000); tickClock(); railSpot();
+window.toggleReveal=toggleReveal; window.undoInk=undoInk; window.clearInk=clearInk; window.savePng=savePng;
+</script>
+</body>
+</html>

@@ -33,6 +33,7 @@
  *   init({paperId, viewer})     — per-paper wiring (reader tab attach)
  *   open({anchors})             — create flow from a selection
  *   refreshHotspots(pageNum)    — (re)paint the click-to-snip layer
+ *   destroy()                   — tab detach (V3.621)
  */
 (function () {
   'use strict';
@@ -43,6 +44,19 @@
   function init(opts) {
     _paperId = opts.paperId || null;
     _viewer = opts.viewer || null;
+  }
+
+  /* V3.621 — called from library-paper's _detachActive. Before this the
+   * module was never detached: a capture dialog left open across a tab
+   * switch would save paper A's snip into paper B's annotations (the save
+   * handler read module-level _paperId at CLICK time), and stale
+   * .fc-hotspot-layer nodes with live handlers lingered on warm panes. */
+  function destroy() {
+    _paperId = null;
+    _viewer = null;
+    var dlg = document.getElementById('figcap-overlay');
+    if (dlg) dlg.remove();
+    document.querySelectorAll('.fc-hotspot-layer').forEach(function (l) { l.remove(); });
   }
 
   /* Crop the selection's union rect from the rendered page canvas.
@@ -98,16 +112,21 @@
 
   function open(opts) {
     var anchors = (opts && opts.anchors) || [];
+    var name = (opts && opts.name) || '';   // V3.640 — caption-derived prefill
+    // V3.621 — bind the paper id at OPEN time. The save handler used to
+    // dereference module-level _paperId at click time, so a dialog held
+    // open across a tab switch wrote into the wrong paper.
+    var paperId = _paperId;
     _snipFromAnchors(anchors).then(function (snip) {
       if (!snip) {
         alert('Could not snip that region — try re-selecting the figure (⬚ Snip mode or Alt-drag a box over it).');
         return;
       }
-      _openModal(anchors, snip);
+      _openModal(paperId, anchors, snip, name);
     });
   }
 
-  function _openModal(anchors, snip) {
+  function _openModal(paperId, anchors, snip, presetName) {
     var old = document.getElementById('figcap-overlay');
     if (old) old.remove();
     /* Reuses the eqcap-* modal styles from style.css — same look. */
@@ -134,7 +153,8 @@
     var nameIn = document.createElement('input');
     nameIn.type = 'text';
     nameIn.className = 'eqcap-name';
-    nameIn.placeholder = 'Name (e.g. Fig 3b — stiffness vs. strain)';
+    nameIn.placeholder = 'Name (e.g. Fig 3 — stiffness vs. strain)';
+    nameIn.value = presetName || '';    // V3.640 — caption-derived prefill
     card.appendChild(nameIn);
 
     var noteIn = document.createElement('textarea');
@@ -163,14 +183,14 @@
     overlay.addEventListener('mousedown', function (ev) { if (ev.target === overlay) close(); });
 
     save.addEventListener('click', function () {
-      if (!window.ANNOTATION_SYNC || !_paperId) { alert('Annotation sync unavailable.'); return; }
+      if (!window.ANNOTATION_SYNC || !paperId) { alert('Annotation sync unavailable.'); return; }
       if (!window.PAPER_FIGURES) { alert('Upload module unavailable.'); return; }
       save.disabled = true;
       save.textContent = 'Uploading…';
-      window.PAPER_FIGURES.uploadImage(_paperId, snip.blob).then(function (up) {
+      window.PAPER_FIGURES.uploadImage(paperId, snip.blob).then(function (up) {
         var vis = (window.ANNOTATION_PANEL && window.ANNOTATION_PANEL.getDefaultVisibility &&
                    window.ANNOTATION_PANEL.getDefaultVisibility()) || 'lab';
-        return window.ANNOTATION_SYNC.create(_paperId, {
+        return window.ANNOTATION_SYNC.create(paperId, {
           kind: 'figure',
           annotation_type: 'figure',
           color_id: 'yellow',
@@ -202,7 +222,25 @@
     var node = _viewer.getPageNode(pageNum);
     if (!node || !node.wrap) return;
     var layer = node.wrap.querySelector('.fc-hotspot-layer');
-    var regions = _viewer.getFigureRegions(pageNum) || [];
+    /* V3.644 — a human correction outranks the detector. PAPER_LABEL_MODE
+     * returns null unless someone has actually touched this page in Label
+     * mode, so every untouched paper still runs on live detection. Its
+     * boxes are natural coords; scale them the way getFigureRegions does. */
+    var regions = null;
+    if (window.PAPER_LABEL_MODE && window.PAPER_LABEL_MODE.regionsFor) {
+      var fixed = window.PAPER_LABEL_MODE.regionsFor(pageNum);
+      if (fixed) {
+        var z = _viewer.zoom || 1;
+        regions = fixed.map(function (f) {
+          return {
+            page: pageNum,
+            x: f.x * z, y: f.y * z, width: f.w * z, height: f.h * z,
+            label: f.label || '',
+          };
+        });
+      }
+    }
+    if (!regions) regions = _viewer.getFigureRegions(pageNum) || [];
     if (!regions.length) {
       if (layer) layer.remove();
       return;
@@ -220,19 +258,31 @@
       hs.style.top = r.y + 'px';
       hs.style.width = r.width + 'px';
       hs.style.height = r.height + 'px';
-      hs.title = 'Click to snip this figure';
+      hs.title = r.label ? ('Click to snip — ' + r.label) : 'Click to snip this figure';
       var badge = document.createElement('span');
       badge.className = 'fc-hotspot-badge';
-      badge.textContent = '🖼';
+      ICON.label(badge, 'photo');
       hs.appendChild(badge);
       /* A drag that starts here is a selection gesture (marquee / Alt) —
-       * only a genuine click opens the capture dialog. */
+       * only a genuine click opens the capture dialog. V3.621 — `down` is
+       * consumed per click: it used to persist forever, so a click whose
+       * pointerdown landed elsewhere (e.g. a text drag ENDING over the
+       * figure) was compared against a stale origin and could open the
+       * dialog on top of the create popover.  */
       var down = null;
       hs.addEventListener('pointerdown', function (e) { down = { x: e.clientX, y: e.clientY }; });
       hs.addEventListener('click', function (e) {
-        if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6) return;
+        var d = down;
+        down = null;
+        if (!d) return;   // no pointerdown on this hotspot — not a click on it
+        if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;
         e.preventDefault();
         e.stopPropagation();
+        /* V3.640 — prefill the capture name with the caption's opener
+         * ("Figure 3" / "Table 1"); the full sentence stays in the
+         * hotspot tooltip. */
+        var m = (r.label || '').match(
+          /^\s*((?:extended\s+data\s+|supp(?:lementary)?\.?\s*)?(?:fig(?:ure)?|table|scheme)\.?\s*S?\d+)/i);
         open({
           anchors: [{
             page: pageNum,
@@ -240,6 +290,7 @@
             saved_scale: _viewer.zoom,
             marquee: true,
           }],
+          name: m ? m[1].replace(/\s+/g, ' ').trim() : '',
         });
       });
       layer.appendChild(hs);
@@ -250,5 +301,6 @@
     init: init,
     open: open,
     refreshHotspots: refreshHotspots,
+    destroy: destroy,
   };
 })();

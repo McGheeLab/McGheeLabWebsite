@@ -108,7 +108,7 @@
       +   '<option value="complete">complete</option>'
       + '</select>'
       + '<span style="flex:1 1 auto;"></span>'
-      + '<button class="btn pe-block-action" data-action="delete" title="Delete block">×</button>';
+      + '<button class="btn pe-block-action" data-action="delete" title="Delete block">' + ICON.svg('x-mark') + '</button>';
 
     var statusSel = toolbar.querySelector('[data-status-select]');
     statusSel.value = blk.status || 'draft';
@@ -197,7 +197,7 @@
       var head = document.createElement('div');
       head.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:6px;';
       head.innerHTML = '<strong style="flex:1 1 auto;">Aim ' + (idx + 1) + '</strong>'
-        + '<button class="btn pe-block-action" data-aim-rm="' + esc(aim.id) + '" title="Remove">×</button>';
+        + '<button class="btn pe-block-action" data-aim-rm="' + esc(aim.id) + '" title="Remove">' + ICON.svg('x-mark') + '</button>';
       head.querySelector('[data-aim-rm]').addEventListener('click', function (e) {
         e.preventDefault();
         blk.attrs.aims = blk.attrs.aims.filter(function (a) { return a.id !== aim.id; });
@@ -319,7 +319,7 @@
       var rmTd = document.createElement('td');
       var rm = document.createElement('button');
       rm.className = 'btn pe-block-action';
-      rm.textContent = '×';
+      ICON.label(rm, 'x-mark');
       rm.addEventListener('click', function (e) {
         e.preventDefault();
         blk.attrs.rows.splice(idx, 1);
@@ -642,8 +642,8 @@
     if (!bioCount && !facCount) {
       html = '<em>No attachments yet.</em>';
     } else {
-      if (bioCount) html += '<div>📄 Biosketches: ' + bioCount + '</div>';
-      if (facCount) html += '<div>🏛 Facilities: ' + facCount + '</div>';
+      if (bioCount) html += '<div>' + ICON.svg('document-text') + ' Biosketches: ' + bioCount + '</div>';
+      if (facCount) html += '<div>' + ICON.svg('building-library') + ' Facilities: ' + facCount + '</div>';
       html += '<a href="#" id="ge-clear-attachments" style="font-size:11px;">Clear all</a>';
     }
     host.innerHTML = html;
@@ -856,7 +856,7 @@
               ? ('<a href="/rm/pages/library-paper.html?id=' + encodeURIComponent(o.paperId) + '&draft=' + encodeURIComponent(state.grantId)
                  + '&import=' + encodeURIComponent(o.id) + '" style="font-size:10px;">open & import</a>')
               : '';
-            return '<div style="margin-bottom:3px;">📎 ' + esc(fn) + ' ' + openLink + '</div>';
+            return '<div style="margin-bottom:3px;">' + ICON.svg('paper-clip') + ' ' + esc(fn) + ' ' + openLink + '</div>';
           }).join('');
     } catch (e) {
       console.warn('[grant-editor] overlay list failed:', e);

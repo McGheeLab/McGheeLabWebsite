@@ -1,0 +1,771 @@
+/* ================================================================
+   Whiteboard board view — SHARED (V3.684)
+   ================================================================
+   Everything the MOUNTED BOARD needs, and nothing else. Extracted from
+   styles.css so the SPA (index.html) and the module whiteboard panel
+   (loaded inside the module iframe, which never loads styles.css) render
+   an identical board from ONE stylesheet instead of two copies that
+   drift. Board-list rows, the live banner and the toast stay in
+   styles.css — those are SPA chrome, not the board.
+
+   Selectors are class-based; the #wb-canvas-* ids are kept only for the
+   full-page route's stacking order, which the panel restates by class.
+   ================================================================ */
+
+.wb-page{
+  display: flex; flex-direction: column;
+  height: calc(100dvh - 150px); min-height: 420px;
+  max-width: 1500px; margin: 0 auto; padding: 0 8px;
+}
+.wb-topbar{
+  display: flex; align-items: center; gap: 12px; padding: 8px 4px;
+}
+.wb-back{ font-size: .85rem; white-space: nowrap; text-decoration: none; }
+.wb-title{ font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-topbar-right{ display: flex; align-items: center; gap: 8px; }
+.wb-live-tag{
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .78rem; font-weight: 700; color: #dc2626; letter-spacing: .04em;
+}
+.wb-toolbar{
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 6px 4px 8px;
+}
+.wb-tools-group{ display: flex; align-items: center; gap: 6px; }
+.wb-color{
+  width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent;
+  cursor: pointer; padding: 0;
+}
+.wb-color.wb-sel{ border-color: #f0be46; box-shadow: 0 0 0 2px #fff inset; }
+.wb-width{
+  width: 34px; height: 26px; border: 1px solid #d1d5db; border-radius: 6px;
+  background: #fff; cursor: pointer; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0 6px;
+}
+.wb-width span{ display: block; width: 100%; background: #111827; border-radius: 99px; }
+.wb-width.wb-sel{ border-color: #f0be46; box-shadow: 0 0 0 1px #f0be46; }
+.wb-toolbar .btn.wb-sel{ background: #111827; color: #fff; }
+.wb-bg-label{ display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; }
+.wb-bg-select{ padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 6px; font-size: .85rem; }
+
+/* V3.730 — the stage is a row: thumbnail rail | sheet. The sheet area
+   (.wb-board) fills the rest and the three canvases cover it entirely;
+   the pages themselves are painted onto the bg canvas (white sheets on a
+   grey desk), so the "board" no longer has a size of its own. */
+.wb-stage{
+  flex: 1; min-height: 0; display: flex; align-items: stretch;
+  background: #e5e7eb; border-radius: 10px; overflow: hidden;
+}
+.wb-board{ position: relative; flex: 1; min-width: 0; min-height: 0; }
+.wb-board canvas{ position: absolute; inset: 0; display: block; }
+
+.wb-rail{
+  flex: none; width: 112px; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column; gap: 8px; padding: 8px 6px;
+  background: #f3f4f6; border-right: 1px solid #d1d5db;
+  scrollbar-width: thin;
+}
+.wb-rail[hidden]{ display: none; }
+/* V3.732 — collapsed rail: a thin strip with the reopen button */
+.wb-rail.wb-rail-collapsed{ width: 26px; padding: 6px 2px; align-items: center; gap: 6px; }
+.wb-rail-toggle{
+  border: 1px solid #d1d5db; background: #fff; color: #374151; border-radius: 6px;
+  font-size: .72rem; font-weight: 600; padding: 3px 4px; cursor: pointer; width: 100%;
+}
+.wb-rail-collapsed .wb-rail-toggle{ width: 22px; padding: 6px 0; font-size: .8rem; }
+.wb-rail-count{ font-size: .68rem; color: #6b7280; writing-mode: vertical-rl; }
+/* V3.732 — live/recording column on the right, same width as the rail so
+   the sheet stays centred on the screen */
+.wb-side{
+  flex: none; width: 112px; display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  padding: 10px 8px; background: #f3f4f6; border-left: 1px solid #d1d5db;
+}
+.wb-side[hidden]{ display: none; }
+.wb-side-head{ font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; }
+.wb-side .btn{ width: 100%; white-space: nowrap; }
+.wb-side .wb-rec-badge{ flex-direction: column; align-items: flex-start; gap: 2px; white-space: normal; font-size: .72rem; }
+.wb-side .wb-live-tag{ justify-content: center; }
+/* an author display rule on .wb-live-dot would otherwise beat the UA's [hidden] */
+.wb-thumb-btn .wb-live-dot-mini[hidden]{ display: none; }
+.wb-thumb-btn{
+  position: relative; display: block; width: 100%; padding: 0;
+  border: 2px solid transparent; border-radius: 6px; background: #fff;
+  box-shadow: 0 1px 3px rgba(15,23,42,.18); cursor: pointer;
+}
+.wb-thumb-btn.wb-sel{ border-color: #f0be46; }
+.wb-thumb-btn canvas{ display: block; width: 100%; height: auto; border-radius: 4px; }
+.wb-thumb-num{
+  position: absolute; left: 4px; bottom: 2px; font-size: .62rem; font-weight: 700;
+  color: #6b7280; pointer-events: none;
+}
+.wb-thumb-btn .wb-live-dot-mini{ position: absolute; right: 4px; top: 4px; }
+.wb-thumb-add{
+  width: 100%; height: 30px; border: 1px dashed #9ca3af; border-radius: 6px;
+  background: transparent; color: #6b7280; cursor: pointer; font-size: 1rem;
+}
+.wb-thumb-add:hover{ background: #fff; color: #111827; }
+/* with the rail showing, the page dots under the board are redundant —
+   the pages bar keeps only the "Jump to live page" chip */
+.wb-has-rail .wb-pages{ display: none; }
+.wb-has-rail .wb-pagesbar{ min-height: 0; padding: 0; }
+.wb-has-rail .wb-pagesbar:has(.wb-follow-chip){ padding: 8px 0 10px; }
+@media (max-width: 900px){ .wb-rail{ width: 84px; } .wb-side{ width: 84px; padding: 8px 4px; } }
+#wb-canvas-ink{ z-index: 2; }
+#wb-canvas-bg{ z-index: 1; }
+
+.wb-pagesbar{
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 8px 0 10px; min-height: 30px;
+}
+.wb-pages{ display: flex; gap: 6px; }
+.wb-page-dot{
+  position: relative; min-width: 30px; height: 30px; border-radius: 8px;
+  border: 1px solid #d1d5db; background: #fff; cursor: pointer;
+  font-size: .82rem; font-weight: 600; color: #374151;
+}
+.wb-page-dot.wb-sel{ background: #111827; color: #fff; border-color: #111827; }
+.wb-page-add{ color: #6b7280; }
+.wb-follow-chip{
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid #dc2626; color: #dc2626; background: #fff;
+  border-radius: 999px; padding: 4px 12px; font-size: .8rem; font-weight: 600;
+  cursor: pointer;
+}
+
+/* ── Toast ── */
+.wb-toast{
+  position: fixed; left: 50%; transform: translateX(-50%) translateY(12px);
+  bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+  background: #111827; color: #fff; padding: 10px 16px; border-radius: 8px;
+  font-size: .88rem; z-index: 1500; opacity: 0; pointer-events: none;
+  transition: opacity .2s, transform .2s; max-width: 90vw;
+}
+.wb-toast-show{ opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── Projector mode: chrome-free for the classroom screen ── */
+body.wb-projector .site-header,
+body.wb-projector .site-footer,
+body.wb-projector .bottom-tabs,
+body.wb-projector .wb-topbar,
+body.wb-projector .wb-toolbar,
+body.wb-projector .wb-pagesbar{ display: none !important; }
+body.wb-projector .wb-page{
+  position: fixed; inset: 0; height: 100dvh; max-width: none;
+  margin: 0; padding: 0; z-index: 2000; background: #f3f4f6;
+}
+body.wb-projector .wb-stage{ border-radius: 0; }
+body.wb-projector .wb-rail, body.wb-projector .wb-side{ display: none !important; }
+
+/* ── V3.762 Maximize: the board fills the screen, chrome stays usable ── */
+.wb-max-btn{
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+  font-size: .78rem; font-weight: 600; color: #374151; background: #fff;
+  border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 8px; cursor: pointer;
+}
+.wb-max-btn:hover{ background: #f3f4f6; }
+.wb-max-btn[aria-pressed="true"]{ background: #111827; color: #fff; border-color: #111827; }
+body.wb-max .site-header,
+body.wb-max .site-footer,
+body.wb-max .bottom-tabs{ display: none !important; }
+body.wb-max .wb-page{
+  position: fixed; inset: 0; height: 100dvh; max-width: none;
+  margin: 0; padding: 0 6px; z-index: 2000; background: #f3f4f6;
+  box-sizing: border-box;
+}
+body.wb-max .wb-topbar{ padding: 4px; }
+body.wb-max .wb-stage{ border-radius: 6px; }
+body.wb-max .wb-pagesbar{ min-height: 0; }
+@media (max-width: 700px){ .wb-max-label{ display: none; } .wb-max-btn{ padding: 4px 6px; } }
+
+/* ── Mobile ── */
+@media (max-width: 700px){
+  .wb-page{ height: calc(100dvh - 210px); min-height: 320px; }
+  .wb-toolbar{ gap: 8px; }
+  .wb-board-meta{ display: none; }
+}
+
+/* ── Draw mode (V3.678): seamless pen surface on iPadOS ──
+   While the drawing tools are active, the page must never react to the
+   pen as text: no selection highlight, no copy/look-up callout, no
+   scroll/pinch/pull-to-refresh starting from the board. Paired with the
+   touch/selectstart preventDefault guards in whiteboard.js — CSS alone
+   does not stop the legacy touch pipeline, and JS alone does not stop
+   selection anchoring on neighboring text. Viewers never get this class. */
+.wb-draw-mode,
+.wb-draw-mode *{
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.wb-draw-mode .wb-stage,
+.wb-draw-mode .wb-board,
+.wb-draw-mode .wb-board canvas{
+  touch-action: none;
+}
+.wb-draw-mode{
+  overscroll-behavior: contain;
+}
+
+/* ── Zoom controls + image items (V3.684) ── */
+.wb-zoom{ display: inline-flex; align-items: center; gap: 2px; }
+.wb-zoom-btn{
+  width: 28px; height: 28px; border: 1px solid #d1d5db; background: #fff;
+  border-radius: 7px; cursor: pointer; font-size: .95rem; line-height: 1;
+  color: #374151; padding: 0;
+}
+.wb-zoom-btn:hover{ background: #f3f4f6; }
+.wb-zoom-pct{ font-size: .72rem; color: #6b7280; min-width: 34px; text-align: right; }
+
+/* V3.804 — quick view dock: zoom + / − / home and "Page + ¼", floating in
+   the board's top-left corner (the desk margin beside the page at 100%).
+   touch-action: manipulation keeps quick double taps on + from triggering
+   iOS double-tap page zoom. */
+.wb-viewdock{
+  position: absolute; left: 8px; top: 8px; z-index: 6;
+  display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+  padding: 4px; border-radius: 10px;
+  background: rgba(255,255,255,.92); border: 1px solid #d1d5db;
+  box-shadow: 0 1px 4px rgba(15,23,42,.15);
+  -webkit-user-select: none; user-select: none;
+}
+.wb-viewdock[hidden]{ display: none; }
+.wb-dock-btn{
+  width: 40px; min-height: 36px; padding: 0; cursor: pointer; touch-action: manipulation;
+  border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #111827;
+  font: 600 1.05rem/1 system-ui, -apple-system, sans-serif;
+}
+.wb-dock-btn:hover{ background: #f3f4f6; }
+.wb-dock-btn:active{ background: #e5e7eb; }
+.wb-dock-btn:focus-visible{ outline: 2px solid #f0be46; outline-offset: 1px; }
+.wb-dock-quarter{ font-size: .66rem; line-height: 1.15; padding: 4px 0; }
+.wb-dock-pct{
+  font: 600 .64rem system-ui, -apple-system, sans-serif; color: #6b7280;
+  text-align: center; font-variant-numeric: tabular-nums;
+}
+
+.wb-items{
+  position: absolute; inset: 0; z-index: 2;   /* between bg (1) and ink (3) */
+  transform-origin: 0 0; pointer-events: none;
+}
+.wb-item{ position: absolute; }
+.wb-item img{
+  width: 100%; height: 100%; object-fit: contain; display: block;
+  border-radius: 4px; background: #fff;
+  box-shadow: 0 1px 6px rgba(15,23,42,.18);
+  -webkit-user-select: none; user-select: none;
+}
+/* ink must composite ON TOP of snapped figures — you annotate over them */
+.wb-canvas-ink{ z-index: 3; }
+.wb-canvas-bg{ z-index: 1; }
+.wb-draw-mode .wb-items{ touch-action: none; }
+
+/* V3.727 — the stroke being drawn is redrawn whole on its own layer each
+   frame (no overdraw → edges keep their antialiasing). It never takes the
+   pointer: input stays on the ink canvas underneath. */
+.wb-canvas-live{ z-index: 4; pointer-events: none; }
+
+/* ── V3.731 — recording + replay ── */
+.wb-rec-badge{
+  display: inline-flex; align-items: center; gap: 6px; font-size: .76rem; font-weight: 700;
+  color: #dc2626; letter-spacing: .02em; white-space: nowrap;
+}
+.wb-rec-badge-remote, .wb-rec-badge-off{ color: #6b7280; font-weight: 600; }
+/* the projector's corner control: faint until hovered or live */
+.wb-projector-ctl{
+  position: fixed; right: 14px; bottom: 14px; z-index: 2100;
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(255,255,255,.92); border: 1px solid #d1d5db; border-radius: 999px;
+  padding: 6px 10px; opacity: .22; transition: opacity .2s;
+}
+.wb-projector-ctl:hover, .wb-projector-ctl:focus-within, .wb-projector-ctl-live{ opacity: 1; }
+/* replay mode: the sheet exactly as the room saw it — no rail, no tools */
+.wb-replay .wb-rail, .wb-replay .wb-side, .wb-replay .wb-toolbar, .wb-replay .wb-pagesbar{ display: none !important; }
+.wb-replay-bar{
+  flex: none; display: flex; flex-direction: column; gap: 4px;
+  padding: 8px 4px 6px; border-top: 1px solid #e5e7eb;
+}
+.wb-rp-row{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.wb-rp-meta{ font-size: .82rem; }
+.wb-rp-name{ font-weight: 700; }
+.wb-rp-admin{ margin-left: auto; display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.wb-rp-btn{
+  min-width: 36px; height: 32px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff;
+  cursor: pointer; font-size: .95rem; padding: 0 8px; color: #111827;
+}
+.wb-rp-play{ font-size: 1.05rem; }
+.wb-rp-time{ font-variant-numeric: tabular-nums; font-size: .82rem; color: #374151; white-space: nowrap; min-width: 92px; }
+.wb-rp-track{ position: relative; flex: 1; min-width: 160px; height: 32px; display: flex; align-items: center; }
+.wb-rp-range{ width: 100%; margin: 0; position: relative; z-index: 2; }
+.wb-rp-markers{ position: absolute; left: 0; right: 0; top: 4px; height: 6px; pointer-events: none; z-index: 1; }
+.wb-rp-marker{ position: absolute; top: 0; width: 2px; height: 6px; background: #f0be46; transform: translateX(-1px); }
+.wb-rp-marker-add{ background: #dc2626; }
+.wb-rp-msg{ font-size: .8rem; }
+/* recorded lectures under a board row on the class page */
+.wb-rec-list{
+  flex-basis: 100%; width: 100%; display: flex; flex-direction: column; gap: 4px;
+  padding: 8px 0 2px 24px; margin-top: 4px; border-top: 1px solid #374151;
+}
+.wb-rec-list[hidden]{ display: none; }
+.wb-rec-head{ font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: #9ca3af; }
+.wb-rec{ display: inline-flex; align-items: center; gap: 8px; font-size: .86rem; text-decoration: none; color: inherit; }
+.wb-rec:hover .wb-rec-name{ text-decoration: underline; }
+.wb-rec-play{ color: #f87171; font-size: .8rem; }
+.wb-rec-live{ color: #f87171; font-weight: 600; }
+.wb-rec-interrupted{ color: #fbbf24; }
+/* V3.733 — leader / follower switch in the live column */
+.wb-role{ display: flex; border: 1px solid #d1d5db; border-radius: 8px; overflow: hidden; }
+.wb-role-btn{ flex: 1; border: 0; background: #fff; color: #374151; font-size: .72rem; font-weight: 600; padding: 5px 0; cursor: pointer; }
+.wb-role-btn + .wb-role-btn{ border-left: 1px solid #d1d5db; }
+.wb-role-btn.wb-sel{ background: #111827; color: #fff; }
+.wb-role-note{ font-size: .68rem; line-height: 1.25; }
+@media (max-width: 700px){
+  .wb-rp-admin{ margin-left: 0; }
+  .wb-rec-list{ padding-left: 8px; }
+}
+
+/* ── V3.736 — simulation pages ── */
+/* The layer sits ABOVE the ink so the module's controls take the pointer
+   (Interact). In Annotate mode it drops below the ink canvas, which then
+   catches the pen; the iframe keeps running underneath. */
+.wb-sims{ position: absolute; inset: 0; z-index: 5; pointer-events: none; transform-origin: 0 0; }
+.wb-annotate .wb-sims{ z-index: 2; }
+.wb-sim{ position: absolute; overflow: hidden; background: #fff; pointer-events: auto; }
+.wb-annotate .wb-sim{ pointer-events: none; }
+.wb-sim iframe{
+  position: absolute; left: 0; top: 0; width: 1280px; height: 800px; border: 0;
+  transform-origin: 0 0; background: #fff;
+}
+.wb-sim-cap{
+  position: absolute; left: 0; bottom: 0; right: 0; padding: 2px 8px;
+  font-size: .7rem; color: #4338ca; background: rgba(238,242,255,.92);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+}
+.wb-projector .wb-sim-cap, .wb-replay .wb-sim-cap{ display: none; }
+.wb-sim-form{ display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-basis: 100%; padding-top: 4px; }
+.wb-sim-form[hidden]{ display: none; }
+.wb-sim-picks{ display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.wb-sim-select{ max-width: 280px; }
+.wb-sim-status{ font-size: .8rem; }
+.wb-sim-status.wb-field-err{ color: #dc2626; }
+.wb-simmode{ margin-left: 4px; }
+.wb-simmode .wb-role-btn{ padding: 4px 8px; }
+.wb-sim-cap-mode{ opacity: .7; margin-left: 6px; }
+.wb-sim-form .wb-simmode{ margin-left: 0; }
+
+/* ── V3.739 — page actions on the selected thumbnail ── */
+.wb-thumb-acts{ display: flex; gap: 4px; justify-content: center; margin-top: -4px; }
+.wb-thumb-act{
+  width: 28px; height: 22px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff;
+  color: #374151; font-size: .72rem; cursor: pointer; padding: 0; line-height: 1;
+}
+.wb-thumb-act:hover:not(:disabled){ background: #f3f4f6; }
+.wb-thumb-act:disabled{ opacity: .35; cursor: default; }
+.wb-thumb-act-del{ color: #dc2626; }
+.wb-thumb-act-del.wb-armed{ background: #dc2626 !important; color: #fff !important; }
+
+/* ── V3.740 — follower sync ── */
+.wb-sync-btn{ white-space: nowrap; }
+.wb-sync-btn-off{ border-color: #f59e0b !important; color: #92400e !important; background: #fffbeb !important; }
+.wb-projector-ctl .wb-sync-btn{ margin-left: 4px; }
+
+/* V3.801 — keep the layout toggle's icon and label on one line */
+.wb-sheetmode .wb-role-btn{ white-space: nowrap; }
+
+/* ── V3.830 — text cards + Arrange mode (lab-notebook whiteboard blocks) ── */
+/* a passage from a paper, under the ink like a snapped figure */
+.wb-item-text{
+  box-sizing: border-box; background: #fffbe6; border: 1px solid #f0d58a; border-radius: 6px;
+  padding: .7em .8em; box-shadow: 0 1px 6px rgba(15,23,42,.14);
+  font-family: Georgia, 'Times New Roman', serif; line-height: 1.35; color: #111827;
+  -webkit-user-select: none; user-select: none;
+}
+.wb-item-quote{ white-space: pre-wrap; word-wrap: break-word; }
+.wb-item-cite{ margin-top: .4em; font-size: .8em; color: #6b7280; font-family: system-ui, -apple-system, sans-serif; }
+/* Arrange: the items layer takes the pointer ABOVE the ink; each item gets
+   a drag surface, a corner handle and a remove button. The pen keeps
+   drawing the moment Arrange is switched off. */
+.wb-arrange .wb-items{ z-index: 4; }
+.wb-arrange .wb-item{ pointer-events: auto; cursor: grab; touch-action: none; outline: 2px dashed rgba(37,99,235,.6); outline-offset: 3px; }
+.wb-arrange .wb-item.wb-item-dragging{ cursor: grabbing; outline-color: #2563eb; }
+.wb-arrange .wb-item img{ pointer-events: none; }
+.wb-item-del, .wb-item-resize{ display: none; }
+.wb-arrange .wb-item-del{
+  display: flex; align-items: center; justify-content: center;
+  position: absolute; top: -12px; right: -12px; width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid #d1d5db; background: #fff; color: #dc2626; font: 700 14px/1 system-ui, sans-serif;
+  cursor: pointer; padding: 0; box-shadow: 0 1px 3px rgba(15,23,42,.2); z-index: 2; touch-action: manipulation;
+}
+.wb-arrange .wb-item-del.wb-armed{ background: #dc2626; color: #fff; }
+.wb-arrange .wb-item-resize{
+  display: block; position: absolute; right: -8px; bottom: -8px; width: 18px; height: 18px;
+  border-radius: 4px; background: #2563eb; border: 2px solid #fff; cursor: nwse-resize;
+  box-shadow: 0 1px 3px rgba(15,23,42,.3); z-index: 2;
+}
+
+/* ─── V3.833 widget cards (the canvas notebook) ───────────────────
+   Widgets live on their OWN layer above the ink (the pen goes around
+   them; their controls take the pointer), while images and text cards
+   stay under the ink as before. Both layers carry the same lens
+   transform. Font size is set per card from the page width, so text
+   scales with the sheet like everything else. */
+.wb-widgets{ position: absolute; inset: 0; z-index: 4; pointer-events: none; transform-origin: 0 0; }
+.wb-item-widget{
+  pointer-events: auto; display: flex; flex-direction: column; box-sizing: border-box;
+  background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 1px 3px rgba(15,23,42,.08);
+  color: #111827; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.35;
+}
+.wb-item-widget.wb-collapsed{ box-shadow: none; }
+.wb-wh{ display: flex; align-items: center; gap: .35em; padding: .25em .4em; background: #f8fafc; border-bottom: 1px solid #e5e7eb; border-radius: 8px 8px 0 0; min-height: 1.9em; }
+.wb-collapsed .wb-wh{ border-bottom: 0; border-radius: 8px; }
+.wb-wchev{ flex: none; width: 1.6em; height: 1.6em; border: 0; background: transparent; cursor: pointer; font: inherit; font-size: .85em; color: #6b7280; border-radius: 4px; padding: 0; }
+.wb-wchev:hover{ background: #e5e7eb; }
+.wb-wkind{ flex: none; font-size: .68em; text-transform: uppercase; letter-spacing: .06em; color: #6b7280; white-space: nowrap; }
+.wb-wtitle{ flex: 1 1 4em; min-width: 3em; font: inherit; font-weight: 600; font-size: .95em; padding: .1em .3em; border: 1px solid transparent; border-radius: 4px; background: transparent; color: inherit; }
+.wb-wtitle:focus{ outline: none; border-color: #93c5fd; background: #fff; }
+.wb-wtitle[readonly]{ pointer-events: none; }
+.wb-wsum{ flex: 1 1 40%; min-width: 0; font-size: .8em; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-item-widget:not(.wb-collapsed) .wb-wsum{ display: none; }
+.wb-wstamp{ flex: none; font-size: .68em; color: #9ca3af; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wb-wmore{ flex: none; width: 1.7em; height: 1.6em; border: 0; background: transparent; cursor: pointer; font: inherit; color: #6b7280; border-radius: 4px; padding: 0; }
+.wb-wmore:hover{ background: #e5e7eb; }
+.wb-wb{ padding: .5em .6em; font-size: .95em; }
+.wb-wb[hidden]{ display: none; }
+.wb-arrange .wb-widgets{ z-index: 5; }
+.wb-arrange .wb-item-widget{ cursor: grab; touch-action: none; outline: 2px dashed rgba(37,99,235,.6); outline-offset: 3px; }
+.wb-arrange .wb-item-widget .wb-wb, .wb-arrange .wb-item-widget .wb-wh > *{ pointer-events: none; }
+.wb-arrange .wb-item-widget.wb-item-dragging{ cursor: grabbing; outline-color: #2563eb; }
+
+/* ─── V3.837 wires between cards + connect mode (figure board) ─── */
+.wb-wires{ position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 0; }
+.wb-wire-hit{ stroke: transparent; stroke-width: 14; fill: none; pointer-events: stroke; cursor: pointer; }
+.wb-wire-line{ stroke: #475569; stroke-width: 2; fill: none; }
+.wb-wire text{ font: 600 11px system-ui, sans-serif; fill: #475569; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.wb-wire:hover .wb-wire-line{ stroke: #2563eb; }
+.wb-connecting .wb-item-widget{ cursor: crosshair; }
+.wb-connecting .wb-item-widget .wb-wb, .wb-connecting .wb-item-widget .wb-wh > *{ pointer-events: none; }
+.wb-item.wb-connect-from{ outline: 3px solid #2563eb; outline-offset: 2px; }
+
+/* ─── V3.837 radial pills (host boards): pens · tools · widgets · zoom ─── */
+.wb-pills{ position: absolute; inset: 0; pointer-events: none; z-index: 12; }
+.wb-pill{ position: absolute; width: 46px; height: 46px; pointer-events: auto; }
+.wb-pill-widgets{ left: 14px; bottom: 126px; }
+.wb-pill-tools{ left: 14px; bottom: 70px; }
+.wb-pill-pens{ left: 14px; bottom: 14px; }
+.wb-pill-zoom{ right: 14px; bottom: 14px; }
+.wb-pill-btn{
+  position: relative; z-index: 2; width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--wb-rule, #cfcac0);
+  background: var(--wb-surface, #fff); color: var(--wb-ink, #24211C); box-shadow: 0 1px 2px rgba(36,33,28,.08), 0 6px 18px -10px rgba(36,33,28,.4);
+  cursor: pointer; font: 600 20px/1 system-ui, -apple-system, sans-serif; display: grid; place-items: center; padding: 0; touch-action: manipulation;
+}
+.wb-pill-btn:hover{ border-color: var(--wb-rule-2, #b8b1a3); }
+.wb-pill.wb-open .wb-pill-btn{ background: var(--wb-ink, #24211C); color: var(--wb-surface, #fff); border-color: var(--wb-ink, #24211C); }
+.wb-pill.wb-pill-on:not(.wb-open) .wb-pill-btn{ box-shadow: 0 0 0 3px color-mix(in srgb, var(--wb-teal, #0D675E) 30%, transparent); }
+.wb-pill-ic{ pointer-events: none; }
+.wb-pill-dot{ position: absolute; right: -2px; top: -2px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--wb-surface, #fff); box-sizing: border-box; }
+.wb-pill-rec{ position: absolute; left: 50%; bottom: -18px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; border-radius: 999px; background: #dc2626; color: #fff; font: 600 10px/16px ui-monospace, monospace; white-space: nowrap; pointer-events: none; }
+.wb-pill-rec .wb-live-dot{ width: 6px; height: 6px; background: #fff; }
+.wb-pill-pct{ position: absolute; left: 50%; bottom: -18px; transform: translateX(-50%); font: 600 10px/16px ui-monospace, monospace; color: var(--wb-ink-3, #766F63); pointer-events: none; white-space: nowrap; }
+.wb-fan{ position: absolute; left: 23px; top: 23px; width: 0; height: 0; }
+.wb-fan-item{
+  position: absolute; left: -19px; top: -19px; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--wb-rule, #cfcac0);
+  background: var(--wb-surface, #fff); color: var(--wb-ink, #24211C); box-shadow: 0 2px 8px -4px rgba(36,33,28,.5);
+  display: grid; place-items: center; padding: 0; cursor: pointer; font: 500 16px/1 system-ui, -apple-system, sans-serif;
+  transform: translate(0, 0) scale(.4); opacity: 0; transition: transform .22s cubic-bezier(.2,.9,.3,1.2) var(--d, 0ms), opacity .16s var(--d, 0ms);
+  touch-action: manipulation;
+}
+.wb-fanned .wb-fan-item{ transform: translate(var(--tx), var(--ty)) scale(1); opacity: 1; }
+.wb-fan-item:hover{ border-color: var(--wb-ink-3, #766F63); }
+.wb-fan-item.wb-sel{ background: var(--wb-ink, #24211C); color: var(--wb-surface, #fff); border-color: var(--wb-ink, #24211C); }
+.wb-fan-item.wb-armed{ background: #dc2626; color: #fff; border-color: #dc2626; }
+.wb-fan-dot{ width: 18px; height: 18px; border-radius: 50%; display: block; border: 1px solid rgba(0,0,0,.15); }
+.wb-fan-item.wb-sel .wb-fan-dot{ box-shadow: 0 0 0 2px #fff; }
+.wb-fan-bar{ display: block; width: 20px; border-radius: 3px; background: currentColor; }
+.wb-fan-caption{
+  position: absolute; left: 30px; top: -58px; white-space: nowrap; font: 500 11px/18px system-ui, sans-serif; color: var(--wb-ink-2, #4D483F);
+  background: var(--wb-surface, #fff); border: 1px solid var(--wb-rule, #cfcac0); border-radius: 999px; padding: 0 8px; pointer-events: none;
+}
+.wb-fan-caption:empty{ display: none; }
+.wb-pill-zoom .wb-fan-caption{ left: auto; right: 30px; }
+.wb-pill-widgets .wb-fan-caption{ top: 30px; }
+@media (max-width: 700px){
+  .wb-pill, .wb-pill-btn{ width: 42px; height: 42px; }
+  .wb-pill-widgets{ bottom: 114px; } .wb-pill-tools{ bottom: 64px; }
+  .wb-fan{ left: 21px; top: 21px; }
+}
+
+/* ─── V3.839 canvas controls: movable pills, the pen set + editor, card colour + grip ─── */
+.wb-pill-btn{ touch-action: none; }
+.wb-pill.wb-pill-dragging .wb-pill-btn{ box-shadow: 0 10px 26px -8px rgba(36,33,28,.6); transform: scale(1.06); }
+.wb-pill[data-side="right"] .wb-fan-caption{ left: auto; right: 30px; }
+.wb-pill[data-side="left"] .wb-fan-caption{ left: 30px; right: auto; }
+.wb-pill[data-vert="down"] .wb-fan-caption{ top: 30px; }
+.wb-pill[data-vert="up"][data-moved] .wb-fan-caption{ top: -58px; }
+.wb-fan-dot-hl{ border-radius: 4px; opacity: .8; width: 20px; height: 13px; }
+.wb-fan-hl{ display: inline-block; padding: 0 3px; border-radius: 3px; background: rgba(253,224,71,.85); color: #24211C; font-size: 14px; line-height: 18px; }
+.wb-pill-dot.wb-pill-dot-hl{ border-radius: 3px; opacity: .9; }
+.wb-pen-edit{
+  position: absolute; z-index: 3; width: 258px; padding: 10px; border-radius: 12px; box-sizing: border-box; pointer-events: auto;
+  background: var(--wb-surface, #fff); border: 1px solid var(--wb-rule, #cfcac0); box-shadow: 0 12px 32px -12px rgba(36,33,28,.5);
+  font: 12px/1.3 system-ui, -apple-system, sans-serif; color: var(--wb-ink, #24211C);
+}
+.wb-pe-row{ display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.wb-pe-kinds{ margin-top: 0; }
+.wb-pe-kind{ flex: 1; padding: 5px 0; border-radius: 999px; border: 1px solid var(--wb-rule, #cfcac0); background: transparent; color: inherit; font: 600 12px system-ui, sans-serif; cursor: pointer; }
+.wb-pe-kind.wb-sel{ background: var(--wb-ink, #24211C); color: var(--wb-surface, #fff); border-color: var(--wb-ink, #24211C); }
+.wb-pe-swatches{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 10px; }
+.wb-pe-swatch{ width: 100%; aspect-ratio: 1; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); padding: 0; cursor: pointer; }
+.wb-pe-swatch.wb-sel{ box-shadow: 0 0 0 2px var(--wb-surface, #fff), 0 0 0 4px var(--wb-ink, #24211C); }
+.wb-pe-custom{ position: relative; display: grid; place-items: center; aspect-ratio: 1; border-radius: 50%; border: 1px dashed var(--wb-ink-3, #766F63); cursor: pointer; overflow: hidden; }
+.wb-pe-custom input{ position: absolute; inset: -8px; width: calc(100% + 16px); height: calc(100% + 16px); opacity: 0; cursor: pointer; }
+.wb-pe-custom span{ pointer-events: none; font-size: 13px; color: var(--wb-ink-3, #766F63); }
+.wb-pe-lbl{ flex: none; color: var(--wb-ink-3, #766F63); }
+.wb-pe-width input[type=range]{ flex: 1; min-width: 0; accent-color: var(--wb-ink, #24211C); }
+.wb-pe-preview{ flex: none; width: 60px; height: 28px; display: grid; place-items: center; background: #fff; border: 1px solid var(--wb-rule, #cfcac0); border-radius: 6px; }
+.wb-pe-line{ display: block; width: 46px; border-radius: 999px; }
+.wb-pe-line-hl{ opacity: .45; border-radius: 3px; }
+.wb-pe-foot{ justify-content: space-between; }
+.wb-pe-btn{ padding: 5px 10px; border-radius: 999px; border: 1px solid var(--wb-rule, #cfcac0); background: transparent; color: inherit; font: 600 12px system-ui, sans-serif; cursor: pointer; }
+.wb-pe-btn:disabled{ opacity: .4; cursor: default; }
+.wb-pe-btn.wb-armed{ background: #dc2626; color: #fff; border-color: #dc2626; }
+.wb-pe-done{ background: var(--wb-ink, #24211C); color: var(--wb-surface, #fff); border-color: var(--wb-ink, #24211C); }
+.wb-pe-hint{ flex: 1; text-align: center; color: var(--wb-ink-3, #766F63); font-size: 11px; }
+/* cards: a colour, and the corner grip that scales them */
+.wb-wtint{ flex: none; width: 1.1em; height: 1.1em; border-radius: 50%; border: 1px solid rgba(0,0,0,.18); padding: 0; cursor: pointer; background: conic-gradient(#fef3c7, #dcfce7, #dbeafe, #fce7f3, #ede9fe, #fef3c7); }
+.wb-item-widget.wb-tinted .wb-wtint{ background-image: none; }
+.wb-page .wb-item-widget.wb-tinted{ border-color: color-mix(in srgb, var(--wb-card) 55%, var(--wb-rule, #cfcac0)); background: color-mix(in srgb, var(--wb-card) 30%, var(--wb-surface, #fff)); }
+.wb-page .wb-item-widget.wb-tinted > .wb-wh{ background: var(--wb-card); border-radius: 7px 7px 0 0; }
+.wb-page .wb-item-widget.wb-tinted.wb-collapsed > .wb-wh{ border-radius: 7px; }
+.wb-tint-pop{
+  position: absolute; top: 2em; right: .4em; z-index: 30; display: grid; grid-template-columns: repeat(5, 22px); gap: 6px; padding: 8px; border-radius: 10px;
+  background: var(--wb-surface, #fff); border: 1px solid var(--wb-rule, #cfcac0); box-shadow: 0 10px 28px -10px rgba(36,33,28,.5); font-size: 12px;
+}
+.wb-tint-sw{ width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); padding: 0; cursor: pointer; }
+.wb-tint-sw.wb-tint-none{ background: linear-gradient(135deg, transparent 46%, #b91c1c 46%, #b91c1c 54%, transparent 54%), #fff; }
+.wb-tint-sw.wb-sel{ box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--wb-ink, #24211C); }
+.wb-wgrip{
+  position: absolute; right: -2px; bottom: -2px; width: 1.3em; height: 1.3em; cursor: nwse-resize; touch-action: none; opacity: .3; border-radius: 0 0 7px 0;
+  background: linear-gradient(135deg, transparent 52%, var(--wb-ink-3, #9ca3af) 52%);
+}
+.wb-item-widget:hover .wb-wgrip, .wb-item-widget:focus-within .wb-wgrip{ opacity: .85; }
+.wb-arrange .wb-wgrip{ display: none; }
+
+/* ─── V3.841 the plane: move by the header, ports + wires, drops, the eraser ─── */
+.wb-wh{ cursor: grab; touch-action: none; }
+.wb-wh:active{ cursor: grabbing; }
+.wb-wgrab{ flex: none; font-size: .8em; letter-spacing: -.15em; color: var(--wb-ink-3, #9ca3af); opacity: .55; pointer-events: none; user-select: none; }
+.wb-item-widget:hover .wb-wgrab{ opacity: .95; }
+.wb-wport{
+  position: absolute; width: .9em; height: .9em; border-radius: 50%; box-sizing: border-box; z-index: 3;
+  background: var(--wb-surface, #fff); border: 2px solid var(--wb-teal, #0D675E); opacity: .25; cursor: crosshair; touch-action: none;
+  transition: opacity .12s, transform .12s;
+}
+.wb-wport-n{ left: 50%; top: -.45em; transform: translateX(-50%); }
+.wb-wport-s{ left: 50%; bottom: -.45em; transform: translateX(-50%); }
+.wb-wport-w{ top: 50%; left: -.45em; transform: translateY(-50%); }
+.wb-wport-e{ top: 50%; right: -.45em; transform: translateY(-50%); }
+.wb-item-widget:hover .wb-wport, .wb-item-widget:focus-within .wb-wport, .wb-wiring .wb-wport{ opacity: .9; }
+.wb-wport:hover{ background: var(--wb-teal, #0D675E); }
+.wb-wiring .wb-item-widget{ cursor: crosshair; }
+.wb-item-widget.wb-port-target{ outline: 3px solid var(--wb-teal, #0D675E); outline-offset: 2px; }
+.wb-wire-draft{ stroke: var(--wb-teal, #0D675E); stroke-width: 2; stroke-dasharray: 6 4; fill: none; pointer-events: none; }
+.wb-wire-line{ stroke-linecap: round; }
+/* V3.856 — a wire that leaves a node keeps its node's colour on hover too (the line's colour is inline) */
+.wb-wire-node:hover .wb-wire-line{ filter: brightness(.8); }
+.wb-board.wb-drop-over::after{ content: ''; position: absolute; inset: 6px; border: 2px dashed var(--wb-teal, #0D675E); border-radius: 10px; pointer-events: none; z-index: 11; background: color-mix(in srgb, var(--wb-teal, #0D675E) 6%, transparent); }
+.wb-fan-eraser{ display: block; width: 18px; height: 12px; border-radius: 3px; background: #fff; border: 1.5px dashed var(--wb-ink-3, #766F63); box-sizing: border-box; }
+.wb-fan-item.wb-sel .wb-fan-eraser{ border-color: #fff; background: transparent; }
+.wb-pill-dot.wb-pill-dot-eraser{ border: 2px dashed var(--wb-ink-3, #766F63); background: #fff !important; }
+.wb-pe-eraser{ display: block; border-radius: 3px; background: #fff; border: 1.5px dashed var(--wb-ink-3, #766F63); box-sizing: border-box; }
+.wb-pe-kinds .wb-pe-kind{ font-size: 11px; padding: 5px 0; }
+.wb-arrange .wb-wport{ display: none; }
+
+/* ─── V3.842 regions · instances · organise ─── */
+.wb-region{ pointer-events: none; box-sizing: border-box; border: 1.5px solid color-mix(in srgb, var(--wb-rcol, #0D675E) 70%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--wb-rcol, #0D675E) 10%, transparent); font-family: system-ui, -apple-system, sans-serif; line-height: 1.3; }
+.wb-region.wb-collapsed{ height: auto !important; background: color-mix(in srgb, var(--wb-rcol, #0D675E) 18%, var(--wb-surface, #fff)); }
+.wb-rh{ pointer-events: auto; display: flex; align-items: center; gap: .35em; padding: .25em .5em; cursor: grab; touch-action: none; color: var(--wb-rcol, #0D675E); }
+.wb-rh:active{ cursor: grabbing; }
+.wb-rsw{ flex: none; width: 1em; height: 1em; border-radius: 50%; border: 1px solid rgba(0,0,0,.2); padding: 0; cursor: pointer; }
+.wb-rtitle{ flex: 1 1 4em; min-width: 3em; font: inherit; font-weight: 700; font-size: .95em; letter-spacing: .01em; padding: .1em .3em; border: 1px solid transparent; border-radius: 4px; background: transparent; color: inherit; }
+.wb-rtitle:focus{ outline: none; border-color: color-mix(in srgb, var(--wb-rcol, #0D675E) 50%, transparent); background: var(--wb-surface, #fff); }
+.wb-rtitle[readonly]{ pointer-events: none; }
+.wb-rcount{ flex: none; font-size: .72em; opacity: .75; white-space: nowrap; }
+.wb-rchev, .wb-rmore{ flex: none; width: 1.6em; height: 1.6em; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; border-radius: 4px; padding: 0; }
+.wb-rchev:hover, .wb-rmore:hover{ background: color-mix(in srgb, var(--wb-rcol, #0D675E) 18%, transparent); }
+.wb-rmore.wb-armed{ background: #dc2626; color: #fff; }
+.wb-rgrip{ position: absolute; right: -2px; bottom: -2px; width: 1.3em; height: 1.3em; pointer-events: auto; cursor: nwse-resize; touch-action: none; opacity: .5; border-radius: 0 0 9px 0; background: linear-gradient(135deg, transparent 52%, var(--wb-rcol, #0D675E) 52%); }
+.wb-region.wb-collapsed .wb-rgrip{ display: none; }
+.wb-tint-pop.wb-rpal{ top: 1.9em; left: .4em; right: auto; grid-template-columns: repeat(6, 22px); pointer-events: auto; }
+.wb-displacing .wb-item{ transition: left .3s ease, top .3s ease; }
+.wb-item[hidden]{ display: none !important; }
+/* instances */
+.wb-regionref{ border-color: color-mix(in srgb, var(--wb-rcol, #0D675E) 60%, var(--wb-rule, #cfcac0)); }
+.wb-page .wb-regionref > .wb-wh{ background: color-mix(in srgb, var(--wb-rcol, #0D675E) 14%, var(--wb-surface, #fff)); border-radius: 7px 7px 0 0; }
+.wb-rr-title{ flex: 1 1 4em; min-width: 0; font-weight: 600; font-size: .95em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-rr-from{ flex: none; font-size: .72em; opacity: .7; white-space: nowrap; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
+.wb-rr-open{ flex: none; font-size: .9em; text-decoration: none; color: var(--wb-rcol, #0D675E); padding: 0 .2em; }
+.wb-rr-body{ position: relative; width: 100%; aspect-ratio: 1.6; background: color-mix(in srgb, var(--wb-rcol, #0D675E) 6%, var(--wb-surface, #fff)); border-radius: 0 0 7px 7px; overflow: hidden; }
+.wb-rr-ink{ position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+.wb-rr-cards{ position: absolute; inset: 0; }
+.wb-rr-card{ position: absolute; box-sizing: border-box; padding: .25em .4em; border: 1px solid var(--wb-rule, #cfcac0); border-radius: 5px; background: var(--wb-surface, #fff); font-size: .68em; line-height: 1.25; overflow: hidden; max-height: 7em; }
+.wb-rr-card.wb-tinted{ background: color-mix(in srgb, var(--wb-card) 35%, var(--wb-surface, #fff)); }
+.wb-rr-ckind{ display: block; font-size: .8em; text-transform: uppercase; letter-spacing: .06em; color: var(--wb-ink-3, #766F63); }
+.wb-rr-ctext{ display: block; }
+.wb-rr-card img{ width: 100%; height: auto; display: block; }
+.wb-rr-status{ position: absolute; inset: 0; display: grid; place-items: center; padding: 1em; text-align: center; font-size: .8em; color: var(--wb-ink-3, #766F63); }
+.wb-rr-status[hidden]{ display: none; }
+/* the "region from another board" picker */
+.wb-refpick{ position: absolute; left: 50%; bottom: 80px; transform: translateX(-50%); z-index: 14; width: min(420px, 92%); max-height: 60%; display: flex; flex-direction: column; background: var(--wb-surface, #fff); border: 1px solid var(--wb-rule, #cfcac0); border-radius: 12px; box-shadow: 0 12px 32px -12px rgba(36,33,28,.5); font: 13px/1.35 system-ui, -apple-system, sans-serif; color: var(--wb-ink, #24211C); pointer-events: auto; }
+.wb-rp-head{ display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; font-weight: 600; border-bottom: 1px solid var(--wb-rule, #cfcac0); }
+.wb-rp-x{ border: 0; background: transparent; cursor: pointer; font: inherit; color: var(--wb-ink-3, #766F63); }
+.wb-rp-body{ overflow: auto; padding: 6px; }
+.wb-rp-list{ display: flex; flex-direction: column; gap: 2px; }
+.wb-rp-row{ display: flex; align-items: center; gap: 8px; text-align: left; padding: 7px 10px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.wb-rp-row:hover{ background: color-mix(in srgb, var(--wb-teal, #0D675E) 10%, transparent); }
+.wb-rp-kind{ flex: none; font-size: .7em; text-transform: uppercase; letter-spacing: .06em; color: var(--wb-ink-3, #766F63); width: 7em; }
+.wb-rp-name{ flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-rp-dot{ flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.wb-rp-back{ border: 0; background: transparent; color: var(--wb-teal, #0D675E); cursor: pointer; font: inherit; padding: 4px 8px; }
+.wb-rp-sub{ padding: 2px 10px 6px; font-weight: 600; }
+.wb-rp-empty{ padding: 14px; color: var(--wb-ink-3, #766F63); text-align: center; }
+
+/* V3.843 — regions hug their cards */
+.wb-rfit{ flex: none; width: 1.6em; height: 1.6em; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; font-size: .9em; border-radius: 4px; padding: 0; }
+.wb-rfit:hover{ background: color-mix(in srgb, var(--wb-rcol, #0D675E) 18%, transparent); }
+.wb-displacing .wb-region{ transition: left .3s ease, top .3s ease, width .3s ease, height .3s ease; }
+.wb-rtitle, .wb-wtitle{ touch-action: none; cursor: grab; }
+.wb-rtitle:focus, .wb-wtitle:focus{ cursor: text; }
+
+/* V3.863 — Cards: the whole card is the handle (figures and text items are lifted above the ink too); a card's body is
+   inert until the card is chosen (a tap), then it is live and outlined */
+.wb-hand-card .wb-canvas-ink{ cursor: default; }
+.wb-hand-card .wb-items{ z-index: 4; }
+.wb-hand-card .wb-items > .wb-item{ pointer-events: auto; cursor: grab; touch-action: none; }
+.wb-hand-card .wb-items > .wb-item img{ pointer-events: none; }
+.wb-hand-card .wb-item-widget, .wb-hand-card .wb-regionref{ cursor: grab; touch-action: none; }
+.wb-hand-card .wb-item-widget:not(.wb-card-sel) .wb-wb, .wb-hand-card .wb-regionref:not(.wb-card-sel) .wb-wb{ pointer-events: none; }
+.wb-hand-card .wb-item:not(.wb-region):not(.wb-card-sel):hover{ outline: 2px dashed color-mix(in srgb, var(--wb-teal, #0D675E) 45%, transparent); outline-offset: 3px; }
+.wb-hand-card .wb-item.wb-item-dragging{ cursor: grabbing; }
+.wb-hand-card .wb-item.wb-card-sel{ outline: 2px solid var(--wb-teal, #0D675E); outline-offset: 3px; cursor: default; touch-action: auto; }
+.wb-hand-card .wb-item-widget.wb-card-sel .wb-wh{ cursor: grab; touch-action: none; }
+
+/* V3.863 — Pan means navigate: a touch goes THROUGH the cards to the board (nothing opens, no keyboard). On a phone the
+   pen / highlighter / eraser draw with a finger, so the cards are see-through there too; only Select touches cards. */
+.wb-m.wb-hand-pan .wb-widgets, .wb-m.wb-hand-pan .wb-widgets *,
+.wb-m.wb-hand-zoom .wb-widgets, .wb-m.wb-hand-zoom .wb-widgets *,
+.wb-m.wb-hand-pen .wb-widgets, .wb-m.wb-hand-pen .wb-widgets *,
+.wb-m.wb-hand-hl .wb-widgets, .wb-m.wb-hand-hl .wb-widgets *,
+.wb-m.wb-hand-eraser .wb-widgets, .wb-m.wb-hand-eraser .wb-widgets *{ pointer-events: none !important; }
+@media (pointer: coarse){ .wb-hand-pan .wb-widgets, .wb-hand-pan .wb-widgets *{ pointer-events: none !important; } }
+.wb-m.wb-hand-pen .wb-canvas-ink, .wb-m.wb-hand-hl .wb-canvas-ink, .wb-m.wb-hand-eraser .wb-canvas-ink{ touch-action: none; }
+
+/* V3.863 — the phone's mode bar: Pan · Select · Pen · Highlight, one tap each (the lit one opens its options) */
+.wb-modebar{ position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 13; display: flex; gap: 2px; padding: 3px;
+  border-radius: 14px; background: var(--wb-surface, #fff); border: 1px solid var(--wb-rule, #cfcac0); box-shadow: 0 2px 10px rgba(15,23,42,.16); pointer-events: auto; }
+.wb-mode-btn{ display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 50px; height: 44px; padding: 0 5px; border: 0;
+  border-radius: 11px; background: transparent; color: var(--wb-ink-2, #475569); font: 600 10px/1.1 system-ui, -apple-system, "Segoe UI", sans-serif; cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.wb-mode-btn .hi{ width: 20px; height: 20px; }
+.wb-mode-btn.wb-sel{ background: var(--wb-teal, #0D675E); color: #fff; }
+.wb-mode-btn:focus-visible{ outline: 2px solid var(--wb-teal, #0D675E); outline-offset: 2px; }
+.wb-mode-undo{ min-width: 42px; }
+.wb-m .wb-modehint{ bottom: 72px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   V3.852 — MOBILE: inert cards, whole-card drag, the tap-to-edit sheet
+   (.wb-m is set on the board root by the engine: a coarse pointer on a
+   small screen, or the host's ?mobile=1)
+   ═══════════════════════════════════════════════════════════════ */
+.wb-m .wb-item-widget{ touch-action: none; cursor: default; }
+.wb-m .wb-item-widget .wb-wb, .wb-m .wb-item-widget .wb-wb *{ pointer-events: none !important; }
+.wb-m .wb-item-widget .wb-wb [contenteditable], .wb-m .wb-item-widget .wb-wb input, .wb-m .wb-item-widget .wb-wb textarea{ caret-color: transparent; -webkit-user-select: none; user-select: none; }
+.wb-m .wb-wtitle, .wb-m .wb-rtitle{ pointer-events: none; }
+.wb-m .wb-wgrip, .wb-m .wb-wport, .wb-m .wb-rgrip{ display: none; }
+.wb-m .cpr-port{ display: none; }   /* V3.856 — node ports (inside a paper card's rows) hide with the side ports on a phone */
+.wb-m .wb-wchev, .wb-m .wb-wmore, .wb-m .wb-wtint{ min-width: 2em; min-height: 2em; }
+/* V3.855 — a phone header is ✓ · ▾ · title · ⋯ and nothing else: the kind, the stamp and the colour dot are in the
+   sheet, and ⋯ is always visible (no hover on a phone) and never pushed past a narrow card's edge */
+.wb-m .wb-wkind, .wb-m .wb-wstamp, .wb-m .wb-wtint{ display: none; }
+.wb-m .wb-wtitle{ min-width: 0; flex: 1 1 0; }
+.wb-m .wb-wmore{ opacity: 1 !important; }
+.wb-sheet-back.wb-sheet-m .wb-sheet input:not([type="checkbox"]):not([type="radio"]), .wb-sheet-back.wb-sheet-m .wb-sheet select, .wb-sheet-back.wb-sheet-m .wb-sheet textarea{ font-size: 16px; }
+.wb-m .wb-item-widget.wb-item-dragging{ box-shadow: 0 10px 24px -10px rgba(15,23,42,.5); }
+.wb-sheet-back{ position: fixed; inset: 0; z-index: 2550; background: rgba(15,23,42,.45); display: flex; flex-direction: column; justify-content: flex-end; }
+.wb-sheet{ background: var(--wb-surface, #fff); color: var(--wb-ink, #111827); border-radius: 18px 18px 0 0; padding: 8px 14px calc(14px + env(safe-area-inset-bottom, 0px)); max-height: 88vh; overflow-y: auto; box-shadow: 0 -8px 30px rgba(0,0,0,.2); font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; animation: wb-sheet-up .2s ease; }
+@keyframes wb-sheet-up{ from{ transform: translateY(100%); } to{ transform: translateY(0); } }
+.wb-sheet-grip{ width: 38px; height: 4px; border-radius: 2px; background: var(--wb-rule, #e2e8f0); margin: 2px auto 8px; }
+.wb-sheet-head{ display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 -14px 8px; padding: 4px 14px 6px; position: sticky; top: 0; z-index: 2; background: var(--wb-surface, #fff); }   /* V3.855 — Done stays in reach on a long sheet */
+.wb-sheet-kind{ font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--wb-ink-3, #6b7280); }
+.wb-sheet-done{ border: 1px solid var(--wb-ink, #111827); background: var(--wb-ink, #111827); color: var(--wb-surface, #fff); border-radius: 999px; padding: 6px 16px; font: inherit; font-weight: 600; cursor: pointer; min-height: 36px; }
+.wb-sheet-title{ width: 100%; box-sizing: border-box; font: inherit; font-size: 17px; font-weight: 600; padding: 8px 10px; border: 1px solid var(--wb-rule, #e2e8f0); border-radius: 10px; background: var(--wb-surface-2, #f8fafc); color: inherit; margin-bottom: 10px; }
+.wb-sheet-body{ margin-bottom: 10px; }
+.wb-sheet-body input, .wb-sheet-body textarea, .wb-sheet-body select{ font-size: 16px; }
+.wb-sheet-body .nbk-note{ min-height: 120px; font-size: 16px; }
+.wb-sheet-row{ display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.wb-sheet-label{ font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--wb-ink-3, #6b7280); flex-basis: 100%; }
+.wb-sheet-size .wb-sheet-label{ flex-basis: auto; margin-right: 4px; }
+.wb-sheet-sw{ width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(15,23,42,.12); cursor: pointer; padding: 0; }
+.wb-sheet-sw.wb-sel{ border-color: var(--wb-ink, #111827); box-shadow: 0 0 0 2px #fff inset; }
+.wb-sheet-sw-none{ background: #fff; position: relative; }
+.wb-sheet-sw-none::after{ content: ''; position: absolute; left: 4px; right: 4px; top: 50%; border-top: 2px solid #ef4444; transform: rotate(-45deg); }
+.wb-sheet-btn{ border: 1px solid var(--wb-rule, #e2e8f0); background: var(--wb-surface, #fff); color: inherit; border-radius: 10px; padding: 7px 12px; font: inherit; font-size: 14px; cursor: pointer; min-height: 36px; }
+.wb-sheet-btn.wb-sel{ background: var(--wb-ink, #111827); color: var(--wb-surface, #fff); border-color: var(--wb-ink, #111827); }
+.wb-sheet-wire{ display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; box-sizing: border-box; padding: 6px 10px; border: 1px solid var(--wb-rule, #e2e8f0); border-radius: 10px; font-size: 14px; }
+.wb-sheet-wire i{ color: var(--wb-ink-3, #6b7280); }
+.wb-sheet-x{ border: 0; background: transparent; font-size: 20px; line-height: 1; color: var(--wb-ink-3, #6b7280); cursor: pointer; min-width: 32px; min-height: 32px; }
+.wb-sheet-connect{ display: flex; gap: 8px; width: 100%; }
+.wb-sheet-select{ flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 7px 10px; border: 1px solid var(--wb-rule, #e2e8f0); border-radius: 10px; background: var(--wb-surface, #fff); color: inherit; }
+.wb-sheet-note{ font-size: 14px; color: var(--wb-ink-3, #6b7280); }
+.wb-sheet-link{ display: inline-block; margin-top: 6px; color: var(--wb-teal, #0D675E); font-weight: 600; }
+.wb-sheet-acts{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.wb-sheet-act{ display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; border: 1px solid var(--wb-rule, #e2e8f0); background: var(--wb-surface-2, #f8fafc); color: inherit; border-radius: 12px; padding: 10px 12px; font: inherit; font-size: 14px; cursor: pointer; min-height: 44px; }
+.wb-sheet-act small{ font-size: 12px; color: var(--wb-ink-3, #6b7280); }
+.wb-sheet-act.wb-sheet-danger, .wb-sheet-act .wb-armed{ color: #b91c1c; }
+
+/* V3.853 — a card a deep link landed on (My Week result → ?item=<id>) */
+.wb-item-flash { animation: wbItemFlash 1.2s ease-out 2; border-radius: 10px; }
+@keyframes wbItemFlash {
+  0%   { box-shadow: 0 0 0 0 rgba(217, 119, 6, .95); }
+  100% { box-shadow: 0 0 0 16px rgba(217, 119, 6, 0); }
+}
+/* V3.852 — the sheet's two modes: ✎ Edit (the card's editor) · ⚙ Settings (name, colour, width, connections, actions) */
+.wb-sheet-tabs{ display: flex; border: 1px solid var(--wb-rule, #e2e8f0); border-radius: 10px; overflow: hidden; margin: 0 0 10px; }
+.wb-sheet-tab{ flex: 1; padding: 9px 8px; border: 0; background: transparent; font: inherit; font-size: 14px; font-weight: 600; color: var(--wb-ink-3, #6b7280); cursor: pointer; min-height: 40px; }
+.wb-sheet-tab + .wb-sheet-tab{ border-left: 1px solid var(--wb-rule, #e2e8f0); }
+.wb-sheet-tab[aria-selected="true"]{ background: var(--wb-ink, #111827); color: var(--wb-surface, #fff); }
+.wb-sheet-pane[hidden]{ display: none; }
+.wb-sheet-label-block{ display: block; margin: 8px 0 4px; }
+.wb-sheet-pane-settings .wb-sheet-title{ margin-bottom: 4px; }
+@media (min-width: 700px){
+  .wb-sheet-back{ align-items: center; }
+  .wb-sheet{ width: min(560px, 96vw); border-radius: 18px; margin-bottom: 24px; max-height: 84vh; }
+}
+/* V3.852 — on a phone the zoom dock would sit on the cards; the zoom pill does its job */
+.wb-m .wb-viewdock{ display: none; }
+
+/* V3.854 — ✓ at a card's / region's top-left: report it as the result of a My Week step */
+.wb-report{
+  flex: none; width: 1.6em; height: 1.6em; padding: 0; border: 1px solid #cbd5e1; border-radius: 50%;
+  background: #fff; color: #94a3b8; font: inherit; font-size: .8em; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.wb-report:hover{ border-color: #16a34a; color: #16a34a; }
+.wb-report-on{ background: #16a34a; border-color: #16a34a; color: #fff; }
+.wb-report-on:hover{ background: #15803d; border-color: #15803d; color: #fff; }
+.wb-m .wb-report{ min-width: 2em; min-height: 2em; }
+
+/* V3.860 — the hand's modes (✎ pill): the cursor is the mode; the fan's first arc is zoom · pan · pen · highlighter ·
+   cards (V3.863: cards, not text), its second arc the selected one's options */
+.wb-hand-pen .wb-canvas-ink, .wb-hand-hl .wb-canvas-ink{ cursor: crosshair; }
+.wb-hand-pan .wb-canvas-ink{ cursor: grab; }
+.wb-hand-pan .wb-canvas-ink:active{ cursor: grabbing; }
+.wb-hand-zoom .wb-canvas-ink{ cursor: zoom-in; }
+.wb-hand-zoom.wb-zooming .wb-canvas-ink{ cursor: ns-resize; }
+.wb-fan-mode{ display: inline-flex; align-items: center; justify-content: center; font-size: 1.05em; line-height: 1; }
+.wb-fan-item .hi, .wb-pill-btn .hi{ width: 1.15em; height: 1.15em; }
+.wb-fan-dot.wb-fan-dot-none{ box-shadow: inset 0 0 0 1.5px #cbd5e1; position: relative; }
+.wb-fan-dot.wb-fan-dot-none::after{ content: ''; position: absolute; left: 2px; right: 2px; top: 50%; border-top: 1.5px solid #ef4444; transform: rotate(-45deg); }
+.wb-fan-item.wb-fan-modeitem{ box-shadow: 0 0 0 2px rgba(13,103,94,.18), 0 2px 8px rgba(15,23,42,.18); }
+.wb-fan-item.wb-fan-modeitem.wb-sel{ box-shadow: 0 0 0 3px var(--wb-teal, #0D675E), 0 2px 8px rgba(15,23,42,.2); }
+.wb-modehint{ position: absolute; left: 50%; bottom: 18px; transform: translate(-50%, 6px); z-index: 60; pointer-events: none; padding: 7px 14px; border-radius: 999px; background: rgba(17,24,39,.88); color: #fff; font: 600 13px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; opacity: 0; transition: opacity .16s, transform .16s; white-space: nowrap; }
+.wb-modehint.wb-on{ opacity: 1; transform: translate(-50%, 0); }
+@media (prefers-reduced-motion: reduce){ .wb-modehint{ transition: none; } }

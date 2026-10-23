@@ -4,17 +4,17 @@
  * (library-paper.js) drives: PDF_VIEWER (with the V3.613 phone opts),
  * GEOM_SELECTION (long-press / 🖍-armed touch selection), ANNOTATION_OVERLAY
  * (rect rendering + tap hit-test), ANNOTATION_SYNC (live Firestore),
- * ANNOTATION_GROUPS and ANNOTATION_PANEL (threads, filters, visibility,
- * evidence tagging, cite-in-draft) — so every highlight round-trips live
- * with desktop. Differences from desktop, by design:
+ * and ANNOTATION_PANEL (filters, visibility, evidence tagging,
+ * cite-in-draft) — so every highlight round-trips live with desktop.
+ * Differences from desktop, by design:
  *
  *   • ONE paper per page — no tab strip, no warm-viewer pool (back returns
  *     to library-mobile.html). This alone removes the iOS canvas-memory
  *     problem the desktop's 10-tab model would cause.
  *   • Post-selection UX is an APP_SHEET bottom sheet (color names WITH
- *     meanings, group, optional comment, visibility) instead of the
- *     floating swatch bubble — the desktop bubble is never shown because
- *     this page routes GEOM_SELECTION.onCommit to its own sheet.
+ *     meanings, optional comment, visibility) instead of the desktop
+ *     create popover — this page routes GEOM_SELECTION.onCommit to its
+ *     own sheet.
  *   • Notes live in a full-height slide-up panel hosting the unmodified
  *     ANNOTATION_PANEL; tapping a highlight on the page opens it scrolled
  *     to that card (ANNOTATION_OVERLAY.annotationAt + focusCard).
@@ -34,26 +34,17 @@
   let _colors = [];
   let _drafts = [];
   let _allDrafts = [];
-  let _groups = [{ id: 'general', name: 'General' }];
   let _unsubSync = null;
-  let _unsubGroups = null;
   let _canAnnotate = false;
-  let _allowNewGroup = false;
   let _fitMode = true;
   let _booted = false;
   let _pendingHashAnn = null;
   let _pillTimer = 0;
 
-  // Same fallback palette as library-paper.js DEFAULT_COLORS (V3.608) —
-  // used only when library/highlight_colors.json is empty/unreadable.
-  const DEFAULT_COLORS = [
-    { id: 'yellow', name: 'Note', hex: '#facc15', meaning: 'Interesting / general note', auto_flags: [] },
-    { id: 'green', name: 'Evidence', hex: '#4ade80', meaning: 'Evidence supporting a claim (use evidence_stance="for" when linked to a claim)', auto_flags: [] },
-    { id: 'red', name: 'Critique', hex: '#f87171', meaning: 'Counter-evidence / critique / disagree', auto_flags: [] },
-    { id: 'blue', name: 'Method', hex: '#60a5fa', meaning: 'Method or technique to remember', auto_flags: [] },
-    { id: 'purple', name: 'Investigate', hex: '#a78bfa', meaning: 'Come back to this — needs further investigation', auto_flags: ['marked_for_investigation'] },
-    { id: 'orange', name: 'Quote', hex: '#fb923c', meaning: 'Quote-worthy for direct citation in a draft', auto_flags: [] },
-  ];
+  // V3.620 — palette single-sourced in annotation-colors.js (the copy that
+  // used to live here was one of THREE byte-identical duplicates).
+  const DEFAULT_COLORS = (window.ANNOTATION_COLORS && window.ANNOTATION_COLORS.DEFAULT) || [];
+  const COLOR_TO_TYPE = (window.ANNOTATION_COLORS && window.ANNOTATION_COLORS.COLOR_TO_TYPE) || {};
 
   function _qs(key) { return new URLSearchParams(location.search).get(key); }
 
@@ -85,30 +76,10 @@
 
   // ---- access (library-paper.js V3.605 pattern) -----------------------------
 
-  async function _emailOnContributorAllowlists() {
-    const user = firebase.auth().currentUser;
-    const email = user && user.email && user.email.toLowerCase();
-    if (!email) return false;
-    try {
-      const [ext, guest] = await Promise.all([
-        firebridge.db().collection('labConfig').doc('extensionMembers').get(),
-        firebridge.db().collection('labConfig').doc('guestEditors').get(),
-      ]);
-      const inList = (snap) => {
-        const emails = (snap.exists && snap.data().emails) || [];
-        return Array.isArray(emails) && emails.indexOf(email) >= 0;
-      };
-      return inList(ext) || inList(guest);
-    } catch (_) { return false; }
-  }
-
   async function _computeAccess() {
     try { await firebridge.loadAccessGrant(); } catch (_) { /* role-only */ }
     const isMember = firebridge.isAdmin() || firebridge.isLabMember();
     _canAnnotate = isMember || firebridge.hasCapability('library-paper:annotate');
-    _allowNewGroup = firebridge.isAdmin()
-      || firebridge.hasCapability('library-paper:groups')
-      || await _emailOnContributorAllowlists();
     firebridge.onAuth(function () {
       const member = firebridge.isAdmin() || firebridge.isLabMember();
       const next = member || firebridge.hasCapability('library-paper:annotate');
@@ -215,14 +186,8 @@
               </button>`).join('')}
           </div>
           <details class="lmp-create-details">
-            <summary>＋ Comment, group, visibility</summary>
+            <summary>＋ Comment, visibility</summary>
             <textarea id="lmp-create-comment" placeholder="Comment (optional)"></textarea>
-            <div class="lmp-create-row">
-              <label>Group</label>
-              <select id="lmp-create-group">
-                ${_groups.map(g => `<option value="${_esc(g.id)}">${_esc(g.name)}</option>`).join('')}
-              </select>
-            </div>
             <div class="lmp-create-row">
               <label>Visibility</label>
               <select id="lmp-create-vis">
@@ -239,16 +204,20 @@
           const color = colors.find(c => c.id === colorId);
           const autoFlags = (color && color.auto_flags) || [];
           const comment = (body.querySelector('#lmp-create-comment') || {}).value || '';
-          const group = (body.querySelector('#lmp-create-group') || {}).value || 'general';
           const visibility = (body.querySelector('#lmp-create-vis') || {}).value || defaultVis;
           api.close();
           try {
+            // V3.620 parity with the desktop popover: annotation_type from
+            // color, cite_in_drafts from active overlays (PAPER_OVERLAYS is
+            // desktop-only, so [] here). Group select retired — the field
+            // was write-only.
             await window.ANNOTATION_SYNC.create(_item.id, {
               color_id: colorId,
+              annotation_type: COLOR_TO_TYPE[colorId] || 'note',
               visibility,
-              group,
               comment: comment.trim(),
               target: { pages: anchors },
+              cite_in_drafts: [],
               marked_for_investigation: autoFlags.includes('marked_for_investigation'),
             });
             if (window.TOAST) TOAST.success('Highlight saved');
@@ -264,12 +233,30 @@
   // ---- annotation stack ------------------------------------------------------------
 
   async function _loadColors() {
+    // V3.620 — the per-user palette route was dead code with no writer
+    // (V3.608's root cause); the palette is annotation-colors.js.
+    _colors = DEFAULT_COLORS;
+  }
+
+  /* V3.629 — mobile counterpart of library-paper.js's _ensureDraftLinked:
+   * filing a highlight to a draft links the PAPER to that draft, so the
+   * evidence is visible in the builder's Evidence Inbox (which fans out over
+   * linked_drafts). PAPER_OVERLAYS is desktop-only, so this writes through
+   * LIBRARY_LINKS directly — the module library-mobile-paper.html has always
+   * loaded and never used. Best-effort: never lose the highlight over a
+   * failed link. */
+  async function _ensureDraftLinked(draftId) {
+    if (!_item || !draftId || !window.LIBRARY_LINKS) return;
     try {
-      const data = await api.load('library/highlight_colors.json');
-      const saved = (data && Array.isArray(data.colors)) ? data.colors : [];
-      _colors = saved.length ? saved : DEFAULT_COLORS;
+      const lib = (_item.meta && _item.meta.library) || {};
+      const linked = Array.isArray(lib.linked_drafts) ? lib.linked_drafts : [];
+      if (linked.indexOf(draftId) >= 0) return;
+      const fresh = await window.LIBRARY_LINKS.toggleDraftLink(_item.id, draftId, true);
+      _item.meta = _item.meta || {};
+      _item.meta.library = _item.meta.library || {};
+      _item.meta.library.linked_drafts = fresh;
     } catch (e) {
-      _colors = DEFAULT_COLORS;
+      console.warn('[library-mobile-paper] auto-link to draft failed:', e.message || e);
     }
   }
 
@@ -278,7 +265,12 @@
     // ones first (library-paper.js V3.475 behavior).
     _drafts = [];
     _allDrafts = [];
-    const GRANT_DRAFT_STATUSES = new Set(['drafting', 'submitted', 'under_review', 'revising', 'rejected']);
+    // V3.631 — one definition, in library-links.js (loaded on this page since
+    // V3.613; the local list is only a load-order fallback).
+    const GRANT_DRAFT_STATUSES = new Set(
+      (window.LIBRARY_LINKS && window.LIBRARY_LINKS.GRANT_DRAFT_STATUSES) ||
+      ['drafting', 'submitted', 'under_review', 'revising', 'rejected']
+    );
     try {
       const member = firebridge.isAdmin() || firebridge.isLabMember();
       const [papersData, itemsData] = await Promise.all([
@@ -310,10 +302,9 @@
       viewer: _viewer,
       container: viewerEl,
       getColors: () => _colors,
-      // The desktop bubble path is never used here: GEOM_SELECTION.onCommit
+      // The desktop popover path is never used here: GEOM_SELECTION.onCommit
       // routes to the bottom sheet below, so onCreate stays unused.
       onCreate: null,
-      onSelect: (annId) => window.ANNOTATION_OVERLAY.focus(annId),
     });
 
     window.GEOM_SELECTION.init({
@@ -336,67 +327,57 @@
       panelHost.insertBefore(note, panelHost.firstChild);
     }
 
-    if (window.ANNOTATION_GROUPS) {
-      try { await window.ANNOTATION_GROUPS.ensureSeed(); }
-      catch (e) { console.warn('[library-mobile-paper] groups seed failed:', e.message); }
-      try { _unsubGroups && _unsubGroups(); } catch (_) { /* ignore */ }
-      _unsubGroups = window.ANNOTATION_GROUPS.subscribe((g) => {
-        _groups = g.slice();
-        window.ANNOTATION_PANEL.setAnnotations(_annotations);
-      });
-    }
+    // V3.620 — annotation-level groups retired (write-only field; see the
+    // desktop reader). ANNOTATION_GROUPS wiring removed with the panel's
+    // group picker.
 
     window.ANNOTATION_PANEL.init({
       rootEl: panelEl,
       viewer: _viewer,
       getColors: () => _colors,
       getDrafts: () => _drafts,
-      getGroups: () => _groups,
       currentUserUid: (user && user.uid) || '',
+      canWrite: _canAnnotate,
       defaultVisibility: 'lab',
-      allowNewGroup: _allowNewGroup,
       onFocus: (annId) => {
         _closePanel();   // jumping to the page should show the page
         window.ANNOTATION_OVERLAY.focus(annId);
       },
+      // V3.620 — rethrows so the panel's comment editor can keep unsaved
+      // text on failure; other panel controls alert via their own wrapper.
+      // Color changes re-stamp annotation_type (color IS the category).
       onUpdate: async (annId, patch) => {
-        try { await window.ANNOTATION_SYNC.update(paperId, annId, patch); }
-        catch (e) { alert(`Update failed: ${e.message}`); }
+        if (patch && patch.color_id) {
+          const ann = _annotations.find(a => a.id === annId);
+          if (!ann || !ann.kind) {
+            patch = Object.assign({}, patch, {
+              annotation_type: COLOR_TO_TYPE[patch.color_id] || 'note',
+            });
+          }
+        }
+        return window.ANNOTATION_SYNC.update(paperId, annId, patch);
       },
       onDelete: async (annId) => {
-        try { await window.ANNOTATION_SYNC.remove(paperId, annId); }
-        catch (e) { alert(`Delete failed: ${e.message}`); }
-      },
-      onCreateGroup: async (name) => {
-        if (!window.ANNOTATION_GROUPS) throw new Error('annotation-groups module missing');
-        return await window.ANNOTATION_GROUPS.create(name);
+        try {
+          // V3.621 — same claim-evidence unlink as desktop (best-effort).
+          const ann = _annotations.find(a => a.id === annId);
+          if (ann && window.CLAIMS && window.CLAIMS.removeEvidenceForAnnotation) {
+            try { await window.CLAIMS.removeEvidenceForAnnotation(ann); }
+            catch (e) { console.warn('[library-mobile-paper] evidence unlink failed:', e.message || e); }
+          }
+          await window.ANNOTATION_SYNC.remove(paperId, annId);
+        } catch (e) { alert(`Delete failed: ${e.message}`); }
       },
       onCiteToggle: async (annId, draftId, on) => {
         try {
           await window.ANNOTATION_SYNC.toggleCiteInDraft(paperId, annId, draftId, on ? 'add' : 'remove');
+          if (on) await _ensureDraftLinked(draftId);
         } catch (e) {
           alert(`Could not ${on ? 'tag' : 'untag'} draft: ${e.message}`);
         }
       },
-      onEnsureDraftLinked: async (draftId) => {
-        if (!draftId || !_item || !window.LIBRARY_LINKS) return;
-        const lib = (_item.meta && _item.meta.library) || {};
-        const already = Array.isArray(lib.linked_drafts) && lib.linked_drafts.indexOf(draftId) >= 0;
-        if (already) return;
-        try {
-          const fresh = await window.LIBRARY_LINKS.toggleDraftLink(_item.id, draftId, true);
-          _item.meta = _item.meta || {};
-          _item.meta.library = _item.meta.library || {};
-          _item.meta.library.linked_drafts = fresh;
-          const linkedIds = new Set(fresh);
-          _drafts = _allDrafts.map(d => Object.assign({}, d, { linked: linkedIds.has(d.id) }))
-            .sort((a, b) => (b.linked ? 1 : 0) - (a.linked ? 1 : 0));
-          window.ANNOTATION_PANEL.setAnnotations(_annotations);
-        } catch (e) {
-          console.warn('[library-mobile-paper] auto-link draft failed:', e.message);
-        }
-      },
-      getBuckets: () => [],   // project-bucket overlays are desktop-only
+      // (V3.622 — onEnsureDraftLinked removed with the panel's evidence
+      // flow; evidence tagging lives on Library → Comments.)
     });
     window.ANNOTATION_PANEL.onFilterChange(() => {
       window.ANNOTATION_OVERLAY.setFilter(window.ANNOTATION_PANEL.getFilterFn());
@@ -589,19 +570,16 @@
       viewer: null,
       getColors: () => _colors,
       getDrafts: () => _drafts,
-      getGroups: () => _groups,
       currentUserUid: (user && user.uid) || '',
+      canWrite: _canAnnotate,
       defaultVisibility: 'lab',
-      allowNewGroup: _allowNewGroup,
       onUpdate: async (annId, patch) => {
-        try { await window.ANNOTATION_SYNC.update(_item.id, annId, patch); }
-        catch (e) { alert(`Update failed: ${e.message}`); }
+        return window.ANNOTATION_SYNC.update(_item.id, annId, patch);
       },
       onDelete: async (annId) => {
         try { await window.ANNOTATION_SYNC.remove(_item.id, annId); }
         catch (e) { alert(`Delete failed: ${e.message}`); }
       },
-      getBuckets: () => [],
     });
     _unsubSync = window.ANNOTATION_SYNC.start({
       paperId: _item.id,
@@ -616,7 +594,6 @@
 
   window.addEventListener('beforeunload', () => {
     try { _unsubSync && _unsubSync(); } catch (_) { /* ignore */ }
-    try { _unsubGroups && _unsubGroups(); } catch (_) { /* ignore */ }
     try { window.VIEWER_TOUCH && VIEWER_TOUCH.destroy(); } catch (_) { /* ignore */ }
     try { window.GEOM_SELECTION && GEOM_SELECTION.destroy(); } catch (_) { /* ignore */ }
     try { _viewer && _viewer.destroy(); } catch (_) { /* ignore */ }

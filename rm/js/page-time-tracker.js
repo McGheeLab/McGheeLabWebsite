@@ -56,7 +56,8 @@
   var PAGE_LABELS = {
     'index':              'Dashboard',
     'dashboard':          'Dashboard',
-    'lab-notebook':       'Lab Notebook',
+    'lab-notebook':       'Lab Notebook (old link)',
+    'notebook':           'Lab Notebook',
     'protocols':          'Protocols',
     'meetings':           'Meetings',
     'tasks':              'Tasks',

@@ -46,11 +46,70 @@
 (function () {
   'use strict';
 
+  /* V3.631 — ONE definition of "which grant statuses count as a draft".
+   *
+   * This list was copy-pasted into FOUR files — paper-overlays.js (Set),
+   * library-associations.js (object map, whose comment already admitted it was
+   * "a mirror of paper-overlays.js"), library-paper.js and
+   * library-mobile-paper.js (inline Sets inside their draft loaders). Four
+   * places to edit means the pickers can disagree about what a draft is, and
+   * "every picker shows a different list" is one of the things that made this
+   * subsystem confusing in the first place.
+   *
+   * It lives here because library-links.js is the single writer for the
+   * association arrays AND the only one of these modules loaded on all six
+   * pages that need it — including library-mobile-paper.html, which does not
+   * load library-associations.js. Consumers keep a local fallback so a module
+   * that loads before this one can never crash.
+   *
+   * Awarded / active / completed grants are not drafts — they're post-award
+   * work. Proposals are anything we'd still cite toward. */
+  var GRANT_DRAFT_STATUSES = [
+    'drafting', 'submitted', 'under_review', 'revising', 'rejected',
+  ];
+
+  function isGrantDraftStatus(status) {
+    return GRANT_DRAFT_STATUSES.indexOf(status) !== -1;
+  }
+
   function _db() {
     if (typeof firebase === 'undefined' || !firebase.firestore) {
       throw new Error('Firestore unavailable — cannot update library links.');
     }
     return firebase.firestore();
+  }
+
+  /* V3.627 — bust the route caches after every direct write.
+   *
+   * Every writer in this module updates `items/{id}` through the Firestore
+   * SDK, entirely OUTSIDE api.save, so the adapter's stale-while-revalidate
+   * route cache for items.json / library/papers.json keeps serving the
+   * PRE-WRITE list. Consumers that refresh with api.load (paper-overlays'
+   * _fetchLinkedDrafts, library-associations' loadDraftInfo,
+   * library-paper's onChange handler) therefore re-derive from the old
+   * array and paint the link away again — the write lands in Firestore but
+   * the UI shows nothing, with no error anywhere. That's the "I link a
+   * paper to a draft and it just doesn't work" report.
+   *
+   * The MEDIUM-cache MAX(updatedAt) probe does NOT save us: the write's
+   * serverTimestamp has to land in the orderBy('updatedAt') index before a
+   * QUERY can see it, so a probe fired immediately after the ack can still
+   * read the previous top doc and conclude "nothing changed".
+   *
+   * api.invalidate (V3.485) exists for exactly this; library-upload.js,
+   * library-fetch-pdfs.js and library-mobile.js all call it after their
+   * direct writes — this module was the one that never did. Awaited so
+   * callers that refresh immediately after us can't race the clear. */
+  async function _bustItemCaches() {
+    if (typeof api === 'undefined' || !api.invalidate) return;
+    try {
+      await Promise.all([
+        api.invalidate('items.json'),
+        api.invalidate('library/papers.json'),
+      ]);
+    } catch (e) {
+      console.warn('[library-links] cache invalidate failed:', e.message || e);
+    }
   }
 
   // Shared atomic single-doc array toggle. fieldPath is a dotted
@@ -70,6 +129,7 @@
       ? firebase.firestore.FieldValue.arrayUnion(value)
       : firebase.firestore.FieldValue.arrayRemove(value);
     await ref.update(patch);
+    await _bustItemCaches();
     if (!readBackKey) return null;
     var snap = await ref.get();
     var data = snap.data() || {};
@@ -107,6 +167,7 @@
         firebase.firestore.FieldValue.delete();
     }
     await ref.update(patch);
+    await _bustItemCaches();
     var snap = await ref.get();
     var data = snap.data() || {};
     var lib = (data.meta && data.meta.library) || {};
@@ -141,9 +202,12 @@
       ? weight
       : firebase.firestore.FieldValue.delete();
     await ref.update(patch);
+    await _bustItemCaches();
   }
 
   window.LIBRARY_LINKS = {
+    GRANT_DRAFT_STATUSES: GRANT_DRAFT_STATUSES,   // V3.631 — the one copy
+    isGrantDraftStatus: isGrantDraftStatus,
     toggleDraftLink: toggleDraftLink,
     setCitedInDraft: setCitedInDraft,
     toggleTheme: toggleTheme,

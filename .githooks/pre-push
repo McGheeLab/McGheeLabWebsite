@@ -1,0 +1,10 @@
+#!/bin/sh
+# .githooks/pre-push — the push gate (V3.868). Installed once per clone by
+#     python3 scripts/merge_check.py install        (sets git config core.hooksPath .githooks)
+# git gives it "<remote> <url>" as arguments and the refs being pushed on stdin; it runs
+# scripts/merge_check.py, which refuses the push when: a new module is not in CodeLog/features.json,
+# a change looks like a feature we already have and no relation is declared, the branch would not
+# merge with origin/main, or a gate fails. `git push --no-verify` skips it; the GitHub check does not.
+top="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if command -v python3 >/dev/null 2>&1; then py=python3; else py=python; fi
+exec "$py" "$top/scripts/merge_check.py" pre-push "$@"

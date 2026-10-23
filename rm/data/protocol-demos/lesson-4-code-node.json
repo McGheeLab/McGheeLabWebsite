@@ -69,7 +69,7 @@
             },
             {
               "kind": "step",
-              "body": "That's the full node toolkit: inputs, constants, choices, ordered sets, equations, lists, plate planners, and code. Combine them — and lean on <b>✨ Recipes</b> for common patterns, or <b>🎓 Tours</b> to revisit any node — to make any lab protocol calculate itself."
+              "body": "That's the full node toolkit: inputs, constants, choices, ordered sets, equations, lists, plate planners, and code. Combine them — and lean on <b>Recipes</b> for common patterns, or <b>Tours</b> to revisit any node — to make any lab protocol calculate itself."
             },
             {
               "kind": "design",

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V3.840 scan → take selftest</title>
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<script>
+  // Stubs: a signed-in bridge, a fake Firestore transaction for the log/legacy
+  // routes, and an INV_QTY.consume that moves a fixture's remaining. Nothing
+  // here touches the network; the real qty-picker.js + inventory-use.js run.
+  window.__calls = { consume: [], rows: [], updates: [] };
+  window.__items = {
+    ab:   { id: 'ab', name: 'Anti-tubulin', use_mode: 'per_use', qty_tracked: true, qty_remaining: 98, qty_unit: 'uL', qty_made: 100, qty_min: 10, use_count: 7 },
+    tips: { id: 'tips', name: 'Tips 200 µL', use_mode: 'package', qty_tracked: true, qty_remaining: 12, qty_unit: 'pack', qty_made: 20 },
+    cone: { id: 'cone', name: 'Conical tubes', is_consumable: true, quantity: 3 },
+    mys:  { id: 'mys', name: 'Mystery kit', quantity: 2 },
+  };
+  var firebridge = {
+    getUser: function () { return { uid: 'u1', displayName: 'Test User' }; },
+    getProfile: function () { return { initials: 'TU' }; },
+    db: function () {
+      return {
+        collection: function (name) { return { doc: function (id) { return { id: id || 'new-' + Math.random().toString(36).slice(2, 7), coll: name }; } }; },
+        runTransaction: async function (fn) {
+          return fn({
+            get: async function (ref) { var it = window.__items[ref.id]; return { exists: !!it, data: function () { return Object.assign({}, it); } }; },
+            update: function (ref, patch) { window.__calls.updates.push({ id: ref.id, patch: patch }); Object.assign(window.__items[ref.id], patch); },
+            set: function (ref, row) { window.__calls.rows.push(row); },
+          });
+        },
+      };
+    },
+  };
+  window.firebase = { firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; } } } };
+  window.INV_QTY = {
+    consume: async function (o) {
+      window.__calls.consume.push(o);
+      var it = window.__items[o.itemId]; var after = Math.round((it.qty_remaining - o.qty) * 1e6) / 1e6;
+      Object.assign(it, { qty_remaining: after }, o.itemPatch || {});
+      return { item: Object.assign({}, it), usageId: 'use-' + window.__calls.consume.length, status: after <= 0 ? 'out_of_stock' : (after <= (it.qty_min || 0) ? 'low' : 'ok'), after: after };
+    },
+    summary: function (it) { return it.qty_remaining + ' ' + it.qty_unit + ' remaining of ' + it.qty_made + ' ' + it.qty_unit; },
+    presets: function (it) { return it.qty_unit === 'uL' ? [1, 2.5, 5, 10] : [1, 2, 3, 5]; },
+    routeFor: function () { return 'inventory'; },
+  };
+</script>
+<script src="/rm/js/icons.js"></script>
+<script src="/rm/js/toast.js"></script>
+<script src="/rm/js/app-sheet.js"></script>
+<script src="/rm/js/qty-picker.js"></script>
+<script src="/rm/js/inventory-use.js"></script>
+<style> #r { font-family: ui-monospace, Menlo, monospace; font-size: 12px; white-space: pre-wrap; padding: 12px; } </style>
+</head>
+<body>
+<p>Serve the repo root (<code>python3 -m http.server 8778</code>) and open <code>/scripts/tests/v3840-scan-take-selftest.html</code>. Drives the real dial + use flow against stubs. Result: <code>#r[data-done=1]</code>.</p>
+<div id="r"></div>
+<script>
+(async function () {
+  var r = document.getElementById('r'); var pass = 0, fail = 0;
+  function ok(name) { pass++; r.textContent += 'ok    ' + name + '\n'; }
+  function bad(name, d) { fail++; r.textContent += 'FAIL  ' + name + (d ? '  → ' + d : '') + '\n'; }
+  function eq(got, want, name) { var g = JSON.stringify(got), w = JSON.stringify(want); if (g === w) ok(name); else bad(name, 'got ' + g + ' want ' + w); }
+  function tick(ms) { return new Promise(function (res) { setTimeout(res, ms || 30); }); }
+  function $(q) { return document.querySelector(q); }
+  function click(q) { var el = $(q); if (!el) { bad('click ' + q, 'missing'); return; } el.click(); }
+  function readout() { return ($('.qp-val') || {}).textContent; }
+  function toastText() { return Array.prototype.map.call(document.querySelectorAll('#toast-stack div, [id*="toast"] div'), function (d) { return d.textContent; }).join(' | ') || document.body.textContent; }
+  try { localStorage.removeItem('rm.qtyPicker.v1'); } catch (e) {}
+
+  // 1 — a tracked antibody: the dial asks in µL, defaults near a tenth, presets, note + finished tick
+  var p1 = INV_USE.take(window.__items.ab, { labelCode: 'MG-A7K2X', context: 'scan' });
+  await tick();
+  eq(!!$('.qp-bg'), true, 'scan a per-use antibody → the dial opens');
+  eq(($('.qp-unit') || {}).textContent, 'µL', 'unit is the item\'s own: µL');
+  eq(($('.qp-title') || {}).textContent, 'Anti-tubulin', 'title is the item');
+  eq(($('.qp-hint') || {}).textContent.indexOf('How much are you taking?') === 0, true, 'asks how much');
+  eq(readout(), '10', 'starts at a tenth of what is left, on the ladder');
+  eq(document.querySelectorAll('.qp-preset').length, 4, 'preset chips from INV_QTY.presets');
+  eq(!!$('.qp-extra input[name=note]') && !!$('.qp-extra input[name=finished]'), true, 'note field + finished tick');
+  eq(document.querySelectorAll('.qp-item').length, 197, 'drum: 0 … 98 in 0.5 steps');
+  click('.qp-plus'); eq(readout(), '10.05', '+ is the fine dial step (0.05)');
+  click('.qp-minus'); click('.qp-minus'); eq(readout(), '9.95', '− twice');
+  click('.qp-preset[data-v="2.5"]'); eq(readout(), '2.5', 'a preset chip sets the value');
+  $('.qp-extra input[name=note]').value = 'GELS day 3';
+  click('.qp-done'); var res1 = await p1;
+  eq(window.__calls.consume.length, 1, 'Done → one ledger write');
+  var c1 = window.__calls.consume[0];
+  eq([c1.itemId, c1.qty, c1.unit, c1.labelCode, c1.note, c1.context, c1.itemPatch.use_count, c1.itemPatch.use_mode], ['ab', 2.5, 'uL', 'MG-A7K2X', 'GELS day 3', 'scan', 8, 'per_use'], 'consume: 2.5 µL, the label, the note, use_count 8');
+  eq(res1 && res1.after, 95.5, 'resolves with the result');
+  eq(window.__items.ab.qty_remaining, 95.5, 'the item object was updated in place');
+  eq(!$('.qp-bg'), true, 'the dial closed');
+  eq(document.body.textContent.indexOf('Used 2.5 µL of Anti-tubulin. 95.5 µL left.') >= 0, true, 'toast says what happened');
+
+  // 2 — the memo: the next scan of the same item starts where you left it
+  var p2 = INV_USE.take(window.__items.ab, {}); await tick();
+  eq(readout(), '2.5', 'remembers the last amount for this item');
+  click('.qp-cancel'); eq(await p2, null, 'Cancel resolves null');
+  eq(window.__calls.consume.length, 1, '… and writes nothing');
+
+  // 3 — finished: amount + the tick = two writes, the second takes the rest
+  var p3 = INV_USE.take(window.__items.ab, { labelCode: 'MG-A7K2X' }); await tick();
+  $('.qp-extra input[name=finished]').checked = true;
+  click('.qp-done'); var res3 = await p3;
+  eq(window.__calls.consume.length, 3, 'two writes');
+  eq([window.__calls.consume[1].qty, window.__calls.consume[2].qty, window.__calls.consume[2].itemPatch.use_count], [2.5, 93, 0], '2.5 µL, then everything left (93), uses reset');
+  eq(res3 && res3.finished === true && res3.last === true, true, 'finished + last');
+  eq(document.body.textContent.indexOf('Finished — took it off the shelf. 0 µL left. That was the last one.') >= 0, true, 'finished toast');
+  eq(document.body.textContent.indexOf('Request a reorder') >= 0, true, 'reorder action on the toast');
+
+  // 4 — a package item tracked in packs: an integer drum in packs
+  var p4 = INV_USE.take(window.__items.tips, {}); await tick();
+  eq(($('.qp-unit') || {}).textContent, 'pack', 'packs: unit pack');
+  eq(readout(), '1', 'starts at 1');
+  eq(document.querySelectorAll('.qp-item').length, 12, '1 … 12 (what is left)');
+  eq(($('.qp-done') || {}).textContent, 'Take', 'the button says Take');
+  eq(!$('.qp-extra input[name=finished]'), true, 'no finished tick for a package');
+  click('.qp-plus'); eq(readout(), '2', '+ steps a whole pack');
+  click('.qp-done'); await p4;
+  eq([window.__calls.consume[3].qty, window.__calls.consume[3].unit, window.__calls.consume[3].itemPatch.use_mode], [2, 'pack', 'package'], 'took 2 packs');
+  eq(document.body.textContent.indexOf('Took 2 packs of Tips 200 µL. 10 packs left.') >= 0, true, 'pack toast');
+
+  // 5 — an untracked consumable: packages, the legacy Qty scalar moves through a transaction
+  var p5 = INV_USE.take(window.__items.cone, {}); await tick();
+  eq(($('.qp-unit') || {}).textContent, 'package', 'untracked → packages');
+  eq(document.querySelectorAll('.qp-item').length, 3, '1 … Qty (3)');
+  click('.qp-done'); await p5;
+  eq(window.__calls.rows.length, 1, 'one ledger row through the transaction');
+  eq([window.__calls.rows[0].qty, window.__calls.rows[0].delta, window.__calls.rows[0].legacy, window.__calls.rows[0].after], [1, -1, true, 2], 'legacy row: 1 off, 2 left');
+  eq(window.__items.cone.quantity, 2, 'Qty 3 → 2');
+
+  // 6 — no mode yet: ask once, then the dial (a member's pick is for this time)
+  var p6 = INV_USE.take(window.__items.mys, {}); await tick();
+  eq(document.querySelectorAll('.iu-mode-btn').length, 2, 'mode unknown → the two-way question first');
+  eq(!$('.qp-bg'), true, '… and no dial yet');
+  click('.iu-mode-btn[data-iu-mode="per_use"]'); await tick(60);
+  eq(!!$('.qp-bg'), true, 'picked → the dial');
+  eq(($('.qp-unit') || {}).textContent, 'use', 'untracked per-use → uses');
+  eq(document.querySelectorAll('.qp-item').length, 20, '1 … 20 uses');
+  eq(($('.qp-done') || {}).textContent, 'Use', 'button says Use');
+  click('.qp-done'); await p6;
+  eq(window.__calls.rows.length, 2, 'a log row');
+  eq([window.__calls.rows[1].unit, window.__calls.rows[1].delta, window.__calls.rows[1].useMode], ['use', 0, 'per_use'], 'use row: unit use, nothing moves');
+  eq(window.__items.mys.use_mode, 'per_use', 'this-time mode kept on the object (not written)');
+
+  // 7 — backdrop tap cancels
+  var p7 = INV_USE.take(window.__items.tips, {}); await tick();
+  $('.qp-bg').click(); eq(await p7, null, 'tapping outside cancels');
+
+  r.setAttribute('data-pass', pass); r.setAttribute('data-fail', fail); r.setAttribute('data-done', '1');
+  r.textContent += '\n' + pass + ' passed, ' + fail + ' failed';
+  // ?demo=1 — leave the dial open for a look / screenshot (the harness's --eval cannot reach page globals)
+  if (/[?&]demo=1/.test(location.search)) {
+    r.style.display = 'none';
+    QTY_PICKER.open({ title: 'Anti-β-tubulin antibody, mouse monoclonal', unit: 'uL', remaining: 98, hint: 'How much are you taking? · 98 uL remaining of 100 uL', presets: [1, 2.5, 5, 10],
+      extraHtml: '<input type="text" name="note" placeholder="Note — which experiment (optional)"><label><input type="checkbox" name="finished"> Finished this one — take it off the shelf</label>', doneLabel: 'Use' });
+    setTimeout(function () { document.body.setAttribute('data-demo-ready', '1'); }, 600);   // past the entry animation
+  }
+})();
+</script>
+</body>
+</html>

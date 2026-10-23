@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scan a label — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
+  <style>
+    /* V3.844 — the Scan tool: the scanner opens on arrival, a hit goes to the dial, then today's actions. */
+    .sc-wrap { max-width: 640px; margin: 0 auto; }
+    .sc-go { display: flex; align-items: center; gap: 14px; width: 100%; margin: 4px 0 14px; padding: 18px; border: none; border-radius: 16px; background: var(--primary, #2563eb); color: #fff; text-align: left; cursor: pointer; box-shadow: 0 6px 18px rgba(37, 99, 235, .3); }
+    .sc-go:active { transform: scale(.985); }
+    .sc-go .sc-ic { font-size: 30px; line-height: 1; }
+    .sc-go strong { display: block; font-size: 18px; font-weight: 800; }
+    .sc-go small { font-size: 13px; opacity: .85; }
+    .sc-last { padding: 12px 14px; border-radius: 12px; background: #ecfdf5; color: #065f46; font-weight: 600; margin-bottom: 14px; display: none; }
+    .sc-last.on { display: block; }
+    .sc-h { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted, #64748b); margin: 14px 0 6px; display: flex; justify-content: space-between; align-items: baseline; }
+    .sc-h a { font-size: 12px; text-transform: none; letter-spacing: 0; font-weight: 600; }
+    .ua-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border, #e2e8f0); }
+    .ua-ic { font-size: 20px; width: 28px; text-align: center; flex-shrink: 0; }
+    .ua-main { flex: 1; min-width: 0; }
+    .ua-text { font-weight: 600; }
+    .ua-sub { font-size: 12px; color: var(--text-muted, #64748b); }
+    .ua-acts { display: flex; gap: 6px; flex-shrink: 0; }
+    .ua-acts .btn { padding: 6px 10px; font-size: 13px; min-height: 36px; }
+    .ua-empty { color: var(--text-muted, #64748b); font-size: 14px; padding: 10px 0; }
+    .ua-noted { color: #4f46e5; }
+  </style>
+</head>
+<body>
+  <div class="page sc-wrap">
+    <div class="page-header">
+      <h1 class="page-title">Scan a label</h1>
+    </div>
+    <button type="button" class="sc-go" id="sc-go">
+      <span class="sc-ic"><i data-hi="camera"></i></span>
+      <span><strong>Scan a label</strong><small>then say how much you are taking</small></span>
+    </button>
+    <div class="sc-last" id="sc-last"></div>
+    <div class="sc-h"><span>Today</span><a href="/rm/pages/actions.html">All my actions →</a></div>
+    <div id="sc-today" class="ua-list"><div class="ua-empty">Loading…</div></div>
+  </div>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/live-sync-helper.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script src="/rm/js/sync-status.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/app-sheet.js"></script>
+  <script src="/rm/js/inventory-qty.js"></script>
+  <script src="/rm/js/label-id.js"></script>
+  <script src="/rm/js/scan.js"></script>
+  <script src="/rm/js/scan-resolve.js"></script>
+  <script src="/rm/js/qty-picker.js"></script>
+  <script src="/rm/js/inventory-use.js"></script>
+  <script src="/rm/js/user-actions.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var $ = function (id) { return document.getElementById(id); };
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    function toast(kind, msg) { if (window.TOAST && TOAST[kind]) TOAST[kind](msg); }
+
+    function openScanner() {
+      if (typeof SCAN === 'undefined') { toast('error', 'The scanner did not load.'); return; }
+      SCAN.open({ prompt: 'Scan an item label', cameraFirst: true, onResult: function (res) { if (res && res.ok) { try { SCAN.close(); } catch (e) {} handle(res.code); } } });
+    }
+    async function handle(code) {
+      var res = await SCAN_RESOLVE.resolve(code);
+      if (!res.ok) { toast('error', SCAN_RESOLVE.explain(res) || 'Unknown code'); return; }
+      if (!res.item) { toast('error', 'That label points at a ' + (res.label && res.label.target_kind || 'location') + ', not an item.'); return; }
+      var r = await INV_USE.take(res.item, { labelCode: res.code, context: 'scan' });
+      if (r) {
+        var el = $('sc-last'); el.textContent = INV_USE.describe(r); el.classList.add('on');
+        setTimeout(refreshToday, 400);
+      }
+    }
+    window.scanHandle = handle;   // a USB wedge or a test can feed a code here
+
+    async function refreshToday() {
+      var host = $('sc-today');
+      if (!window.USER_ACTIONS) return;
+      try {
+        var rows = await USER_ACTIONS.list({ limit: 60 });
+        var today = USER_ACTIONS.dayKey();
+        rows = rows.filter(function (a) { return USER_ACTIONS.dayKey(a.at) === today; });
+        host.innerHTML = rows.length ? rows.map(function (a) {
+          var noted = a.status === 'noted';
+          return '<div class="ua-row" data-id="' + esc(a.id) + '"><span class="ua-ic">' + ICON.render((USER_ACTIONS.core.KINDS[a.kind] || {}).icon) + '</span>' +
+            '<div class="ua-main"><div class="ua-text">' + esc(USER_ACTIONS.describe(a)) + '</div><div class="ua-sub">' + esc(USER_ACTIONS.timeOf(a.at)) + (a.note || a.notes ? ' · ' + esc(a.note || a.notes) : '') + (noted ? ' · <span class="ua-noted">in your notebook</span>' : '') + '</div></div>' +
+            (noted ? '' : '<div class="ua-acts"><a class="btn btn-primary" href="/rm/pages/notebook.html?action=' + encodeURIComponent(a.id) + '">＋ Notebook</a><button type="button" class="btn" data-ignore="' + esc(a.id) + '">Ignore</button></div>') +
+          '</div>';
+        }).join('') : '<div class="ua-empty">Nothing yet today. Scan a label to use an item — it lands here, ready for your notebook.</div>';
+      } catch (e) { host.innerHTML = '<div class="ua-empty">' + esc(e.message || 'Could not load your actions.') + '</div>'; }
+    }
+    document.addEventListener('click', async function (e) {
+      var b = e.target.closest('[data-ignore]'); if (!b) return;
+      b.disabled = true;
+      try { await USER_ACTIONS.ignore(b.getAttribute('data-ignore')); toast('success', 'Ignored — it will not be offered for the notebook.'); refreshToday(); }
+      catch (err) { b.disabled = false; toast('error', err.message || 'Could not ignore it.'); }
+    });
+
+    $('sc-go').addEventListener('click', openScanner);
+    var started = false;
+    firebridge.onAuth(function (user) {
+      if (!user || started) return;
+      started = true;
+      refreshToday();
+      if (!/[?&]auto=0/.test(location.search)) setTimeout(openScanner, 150);   // the tool was tapped to scan — open at once
+    });
+  })();
+  </script>
+</body>
+</html>

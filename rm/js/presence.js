@@ -70,7 +70,7 @@
   /* ★ V3.599 — the surface key MUST be per-WEBVIEW/TAB, not per device.
    *
    * V3.596 keyed `surfaces` by deviceId alone. In the Ourlab app all five
-   * webviews (My Day / Focus / Chat / Tasks / misc) share one
+   * webviews (My Week / Focus / Chat / Tasks / misc) share one
    * WKWebsiteDataStore — one localStorage, therefore one deviceId — so
    * every tab wrote to the SAME map entry and clobbered the others. An
    * idle-preloaded background tab writing `visible:false` erased the

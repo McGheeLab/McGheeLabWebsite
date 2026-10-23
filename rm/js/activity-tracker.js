@@ -181,7 +181,7 @@ window.McgheeLab = window.McgheeLab || {};
       console.error('[ActivityTracker] loadData failed:', err);
       initDefaults();
     }
-    // V3.534 — retirement flag: manual entry moves to My Day when flipped.
+    // V3.534 — retirement flag: manual entry moves to My Week when flipped.
     try {
       _featureFlags = window.DAY_DISTRIBUTE ? await DAY_DISTRIBUTE.getFeatureFlags() : {};
     } catch (_) { _featureFlags = {}; }
@@ -989,9 +989,9 @@ Split every distinct activity into its own task. Respond with the JSON array onl
       </div>
 
       ${_featureFlags.myday_retire_tracker_manual ? `
-      <a class="act-input-area" href="/rm/pages/my-day.html" style="display:block;text-decoration:none;
+      <a class="act-input-area" href="/rm/pages/my-week.html" style="display:block;text-decoration:none;
          border:1px dashed var(--border,#d1d5db);border-radius:10px;padding:.7rem 1rem;text-align:center">
-        ☀️ Log today in <strong>My Day</strong> → <span style="opacity:.65">(it lands here automatically — this page is now your review view)</span>
+        ${ICON.svg('sun')} Log today in <strong>My Week</strong> → <span style="opacity:.65">(it lands here automatically — this page is now your review view)</span>
       </a>` : `
       <div class="act-input-mode">
         <button class="act-mode-tab${!_bulkMode ? ' active' : ''}" id="act-mode-single">Single Task</button>
@@ -1099,7 +1099,7 @@ Split every distinct activity into its own task. Respond with the JSON array onl
       }
       html += '</div>';
     } else {
-      html += `<div class="act-empty"><div class="act-empty-icon">&#128203;</div><p>No tasks logged for this day.</p><p style="font-size:.8rem">Type what you did and press Add.</p></div>`;
+      html += `<div class="act-empty"><div class="act-empty-icon">${ICON.svg('clipboard-document-list')}</div><p>No tasks logged for this day.</p><p style="font-size:.8rem">Type what you did and press Add.</p></div>`;
     }
 
     // Summary chips

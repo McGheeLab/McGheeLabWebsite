@@ -1638,7 +1638,7 @@ function renderCalEventGroup(g) {
   const recat = document.createElement('button');
   recat.className = 'ch-group-recat-btn';
   recat.type = 'button';
-  recat.innerHTML = '\u{1F3F7}';   // 🏷 label / tag
+  recat.innerHTML = ICON.svg('tag');
   recat.title = `Reassign category + sub-category for all ${g.events.length} events in this group`;
   recat.addEventListener('click', (ev) => {
     ev.stopPropagation();
@@ -1729,7 +1729,7 @@ function renderCalEventEntry(e) {
   delBtn.className = 'ch-del-btn';
   delBtn.type = 'button';
   delBtn.title = 'Move to Trash';
-  delBtn.innerHTML = '\u{1F5D1}';
+  delBtn.innerHTML = ICON.svg('trash');
   delBtn.addEventListener('click', async (ev) => {
     ev.stopPropagation();
     await deleteCalEvent(e);

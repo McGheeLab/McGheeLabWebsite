@@ -179,12 +179,12 @@ async function sendToUsers(db, messaging, userIds, notif, appKey) {
  * Push is transient: if a student misses the buzz, the information is
  * GONE, and most of it is not re-derivable from current data ("the
  * booking after yours was cancelled" leaves no trace on the calendar
- * once the doc flips). The feed is the catch-up surface — My Day renders
+ * once the doc flips). The feed is the catch-up surface — My Week renders
  * it as a 🔔 Notifications section.
  *
  * Deliberately independent of push preferences: a user who muted
  * equipment push should still be able to READ what happened when they
- * open My Day. That's the whole point of a fallback surface.
+ * open My Week. That's the whole point of a fallback surface.
  *
  * `tag` collapse mirrors FCM: an unread item with the same tag is
  * REPLACED, so a student editing their booking five times in two

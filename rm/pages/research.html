@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/rm/css/style.css">
   <link rel="stylesheet" href="/rm/css/research.css">
   <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
 </head>
 <body>
   <div class="page">
@@ -58,6 +59,14 @@
   <script src="/rm/js/roadmap-data.js"></script>
   <script src="/rm/js/roadmap-attach.js"></script>
   <script src="/rm/js/research-roadmap.js"></script>
+  <!-- V3.717 — a grant's page is a review of the work under it, not a card
+       detail. Loads after roadmap-data.js (it reads analysis counts) and
+       before research.js, which mounts it. -->
+  <!-- V3.718 — a reference card reads its bibliography live from the lab
+       library (api route library/papers.json), so it needs the adapter,
+       which is already loaded above. -->
+  <script src="/rm/js/research-references.js"></script>
+  <script src="/rm/js/research-grant-review.js"></script>
   <script src="/rm/js/research.js"></script>
 </body>
 </html>

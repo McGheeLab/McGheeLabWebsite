@@ -495,7 +495,7 @@
         } else if (best) {
           bestHtml =
             '<span class="proto-inv proto-inv-computed">' +
-              '🧪 ' + escapeHtml(window.PROTOCOL_INVENTORY.formatLabel(best)) +
+              ICON.svg('test-tube') + ' ' + escapeHtml(window.PROTOCOL_INVENTORY.formatLabel(best)) +
             '</span> ' +
             (window.PROTOCOL_INVENTORY.formatStockChipHtml(best) || '');
         } else {
@@ -514,7 +514,7 @@
           altsHtml = '<details class="pre-matcher-alts"><summary>Other candidates (' + (p.candidates.length - 1) + ')</summary>';
           p.candidates.slice(1).forEach(function (c, idx) {
             altsHtml +=
-              '<div class="pre-matcher-alt"><span class="proto-inv">🧪 ' +
+              '<div class="pre-matcher-alt"><span class="proto-inv">' + ICON.svg('beaker') + ' ' +
                 escapeHtml(window.PROTOCOL_INVENTORY.formatLabel(c.entry)) +
               '</span> ' +
               (window.PROTOCOL_INVENTORY.formatStockChipHtml(c.entry) || '') +

@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cell Culture &amp; Sterile Technique — McGhee Lab Training</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/training.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
+</head>
+<body>
+  <div class="page">
+    <div class="training-module">
+
+      <header class="training-module-header">
+        <div class="training-module-eyebrow">
+          <a href="/rm/pages/training.html" style="text-decoration:none;color:inherit;">← Lab Training</a>
+          &nbsp;·&nbsp; <span style="color:var(--red);">Required before culturing cells unsupervised</span>
+        </div>
+        <h1 class="training-module-title">Cell Culture &amp; Sterile Technique</h1>
+        <p class="training-module-subtitle">
+          The cabinet, the incubator, your hands, and the bottle everyone shares — the four things
+          that actually kill cultures, and what is physically happening in each. Tab 5 is a
+          diagnostic gallery; Tab 6 is your bench sign-off sheet.
+          The full derivations live in the four-lesson
+          <a href="/modules/cell_culture/overview.html" target="_blank" rel="noopener">Cell Culture Foundations</a> track.
+        </p>
+      </header>
+
+      <nav class="tab-bar" role="tablist">
+        <button class="tab-btn active" data-tab="tab-cabinet"   role="tab" aria-selected="true">1. The Cabinet</button>
+        <button class="tab-btn"        data-tab="tab-incubator" role="tab">2. The Incubator</button>
+        <button class="tab-btn"        data-tab="tab-hands"     role="tab">3. The Hands</button>
+        <button class="tab-btn"        data-tab="tab-aliquot"   role="tab">4. Aliquoting</button>
+        <button class="tab-btn"        data-tab="tab-cases"     role="tab">5. Case Files</button>
+        <button class="tab-btn"        data-tab="tab-signoff"   role="tab">6. Sign-off</button>
+      </nav>
+
+      <!-- ══════════════ TAB 1 ══════════════ -->
+      <section id="tab-cabinet" class="tab-content active" role="tabpanel">
+        <div class="background-section">
+          <h2>1. The cabinet is a shape made of moving air</h2>
+          <p>
+            A biosafety cabinet is not a box that keeps things out. It is two streams of
+            air doing two different jobs, and the metal is what holds their shape. Turn
+            the blower off and it is a shelf.
+          </p>
+          <ul>
+            <li><strong>Downflow</strong> (≈ 0.25–0.36 m/s, from the HEPA filter in the
+              ceiling) protects <em>your culture</em> — a slow rain of sterile air onto
+              the work surface.</li>
+            <li><strong>Inflow</strong> (≥ 0.51 m/s, room air pulled in at the front
+              grille) protects <em>you</em> — it is captured at the grille and never
+              reaches the work surface.</li>
+          </ul>
+          <p>
+            The two meet a few centimetres inside the opening and turn down together.
+            That meeting line is the <strong>air curtain</strong>. Everything that goes
+            wrong at a cabinet is something you did to it.
+          </p>
+          <h3>Why the sash height is a safety setting</h3>
+          <p>
+            The blower moves a roughly fixed volume per second, and volume flow is
+            velocity times area. The area is the work opening — width × sash height — so:
+          </p>
+          <div class="equation-box"><span class="lhs">v<sub>in</sub></span> = Q / (w · h<sub>sash</sub>)</div>
+          <p>
+            Inflow velocity is <strong>inversely proportional to sash height</strong>.
+            Going from the certified 8 inches to 16 halves the velocity holding the room
+            out — and nothing sounds any different.
+          </p>
+          <div class="worked-example">
+            <strong>Overcrowding, which is the question people actually get wrong.</strong>
+            Blocking the front grille makes the remaining air go <em>faster</em>, not
+            slower. It is still worse, for two reasons: across the covered span the
+            inward velocity is <em>zero</em>, so there is no curtain there at all; and the
+            rest becomes a jet that rolls up into vortices and mixes room air into the
+            work zone. About a third of the grille is enough to do this.
+          </div>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Start with the sash at 8 in and nothing blocked. Note the inflow and the "reaching the work surface" figure.</li>
+            <li>Raise the sash to 16 in without touching anything else. Watch the inflow readout and the verdict.</li>
+            <li>Put the sash back and block 40% of the grille instead. Different cause, same result.</li>
+            <li>Set hand speed above 50 cm/s. Your hands can be faster than the protection.</li>
+          </ol>
+        </div>
+
+        <div class="scenario-bar">
+          <span class="scenario-bar-label">Scenario:</span>
+          <button class="scen-btn active" data-scen="ok"    data-sash="8"  data-block="0"  data-hand="30">Certified and clear</button>
+          <button class="scen-btn"        data-scen="sash"  data-sash="16" data-block="0"  data-hand="30">Sash raised for elbow room</button>
+          <button class="scen-btn"        data-scen="crowd" data-sash="8"  data-block="45" data-hand="30">Pads and racks on the grille</button>
+          <button class="scen-btn"        data-scen="fast"  data-sash="8"  data-block="0"  data-hand="120">Clear, but working fast</button>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="cab-sash">Sash height</label>
+              <input type="range" id="cab-sash" min="4" max="20" step="0.5" value="8">
+              <div class="ctrl-readout"><span class="v" id="cab-sash-out">8.0</span> in</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="cab-block">Front grille blocked</label>
+              <input type="range" id="cab-block" min="0" max="80" step="1" value="0">
+              <div class="ctrl-readout"><span class="v" id="cab-block-out">0</span> %</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="cab-hand">Hand speed</label>
+              <input type="range" id="cab-hand" min="5" max="200" step="5" value="30">
+              <div class="ctrl-readout"><span class="v" id="cab-hand-out">30</span> cm/s</div>
+            </div>
+            <div class="stats">
+              <h4>Computed</h4>
+              <div class="stat-row"><span class="label">Inflow at the sash</span><span class="value" id="cab-vin">— m/s</span></div>
+              <div class="stat-row"><span class="label">% of NSF minimum</span><span class="value" id="cab-pct">— %</span></div>
+              <div class="stat-row"><span class="label">Opening with no inward flow</span><span class="value" id="cab-dead">— %</span></div>
+              <div class="stat-row"><span class="label">Disturbance ratio Π</span><span class="value" id="cab-pi">—</span></div>
+              <div class="stat-row"><span class="label">Reaching the work surface</span><span class="value" id="cab-esc">— %</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap">
+              <div class="canvas-title">Cabinet in section — room air, curtain, work surface</div>
+              <canvas id="canvas-cabinet" width="640" height="300"></canvas>
+            </div>
+            <div class="val-verdict" id="cab-verdict" role="status" aria-live="polite">—</div>
+          </div>
+        </div>
+
+        <div class="insight">
+          <strong>The curtain moves at about 0.5 m/s.</strong> Move your hands slower
+          than that, and parallel to the sash rather than in and out through it. That
+          one sentence is most of what "good technique in the hood" means, and it is the
+          only part you can practise with no cells at all.
+        </div>
+      </section>
+
+      <!-- ══════════════ TAB 2 ══════════════ -->
+      <section id="tab-incubator" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>2. The incubator: three knobs and a puddle</h2>
+          <p>
+            37 °C, 5% CO<sub>2</sub>, about 95% relative humidity. The first is obvious,
+            the second is not a magic number, and the third has an open tray of warm
+            water attached to it that is a documented contamination source.
+          </p>
+          <h3>Why 5%</h3>
+          <p>
+            The pH of your medium is a <strong>ratio</strong> — the bicarbonate the
+            manufacturer put in the powder over the CO<sub>2</sub> the box is holding:
+          </p>
+          <div class="equation-box"><span class="lhs">pH</span> = 6.1 + log<sub>10</sub>( [HCO<sub>3</sub><sup>−</sup>] / (0.0307 · pCO<sub>2</sub>) )</div>
+          <p>
+            5% is what balances about 24 mM bicarbonate at pH 7.4 — which is RPMI.
+            DMEM has 3.7 g/L ≈ 44 mM and therefore runs <em>alkaline</em> at 5%; the
+            high-bicarbonate formulations specify 10%. <strong>The percentage on the
+            incubator belongs to the medium, not to the cells.</strong>
+          </p>
+          <div class="worked-example">
+            <strong>Cells left too long.</strong> The gas has not changed. What changed
+            is the top of the ratio: every millimole of lactic acid the cells make
+            consumes a millimole of bicarbonate, and buffer capacity is proportional to
+            the bicarbonate that is <em>left</em>. So the pH holds almost flat until
+            about three quarters of the buffer is gone, then falls through two-tenths of
+            a unit in a few hours. That is why it "looked fine yesterday" — it was fine
+            yesterday. The colour change is the <em>end</em> of the buffer, not the
+            beginning of the problem. And the medium goes acid while there is still
+            plenty of glucose: the cells poison themselves before they starve.
+          </div>
+          <h3>The water pan</h3>
+          <p>
+            It is there to stop the medium <strong>concentrating</strong>, not to stop
+            it drying out. A dish that has lost a fifth of its volume looks completely
+            normal — liquid present, cells covered, colour fine — and is at 400 mOsm/kg
+            against 320 fresh. It costs you a 37 °C open reservoir under a circulating
+            fan: sterile distilled water only, cleaned monthly, spills wiped immediately,
+            never allowed to run dry.
+          </p>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Start on RPMI at 5%. That is the reference colour.</li>
+            <li>Drag CO<sub>2</sub> to 0.04% — room air. Where does the colour go?</li>
+            <li>Switch to DMEM without touching the gas. Why did the colour change when the gas did not?</li>
+            <li>Add lactate. Find the concentration at which the medium turns visibly orange.</li>
+          </ol>
+        </div>
+
+        <div class="scenario-bar">
+          <span class="scenario-bar-label">Scenario:</span>
+          <button class="scen-btn active" data-scen="rpmi"  data-hco3="24" data-co2="5"    data-lact="0">RPMI, 5% CO₂</button>
+          <button class="scen-btn"        data-scen="dmem"  data-hco3="44" data-co2="5"    data-lact="0">DMEM, 5% CO₂</button>
+          <button class="scen-btn"        data-scen="bench" data-hco3="24" data-co2="0.04" data-lact="0">Left on the bench</button>
+          <button class="scen-btn"        data-scen="conf"  data-hco3="24" data-co2="5"    data-lact="19">Cells left too long</button>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="inc-co2">CO₂ in the box</label>
+              <input type="range" id="inc-co2" min="0.04" max="15" step="0.02" value="5">
+              <div class="ctrl-readout"><span class="v" id="inc-co2-out">5.00</span> %</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="inc-hco3">Bicarbonate in the medium</label>
+              <input type="range" id="inc-hco3" min="8" max="50" step="0.5" value="24">
+              <div class="ctrl-readout"><span class="v" id="inc-hco3-out">24</span> mM</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="inc-lact">Lactate made by the cells</label>
+              <input type="range" id="inc-lact" min="0" max="30" step="0.5" value="0">
+              <div class="ctrl-readout"><span class="v" id="inc-lact-out">0</span> mM</div>
+            </div>
+            <div class="stats">
+              <h4>Computed</h4>
+              <div class="stat-row"><span class="label">Dissolved CO₂</span><span class="value" id="inc-aq">— mM</span></div>
+              <div class="stat-row"><span class="label">Bicarbonate left</span><span class="value" id="inc-left">— mM</span></div>
+              <div class="stat-row"><span class="label">pH</span><span class="value" id="inc-ph">—</span></div>
+              <div class="stat-row"><span class="label">Colour you would see</span><span class="value" id="inc-col">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap">
+              <div class="canvas-title">The bottle, and the phenol-red scale</div>
+              <canvas id="canvas-ph" width="640" height="240"></canvas>
+            </div>
+            <div class="val-verdict" id="inc-verdict" role="status" aria-live="polite">—</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════ TAB 3 ══════════════ -->
+      <section id="tab-hands" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>3. The hands: accuracy, and then sterility</h2>
+          <p>
+            A pipettor does not touch your liquid. There is a column of <strong>air</strong>
+            between the piston and the sample, and everything that goes wrong is
+            something that happens to that air.
+          </p>
+          <h3>The two stops</h3>
+          <p>
+            The <strong>first stop</strong> is calibrated: it displaces the volume on the
+            dial. The <strong>second stop</strong> pushes further and exists to clear the
+            tip on <em>dispense</em>. Aspirating from the second stop pulls up more than
+            you set and is the classic systematic error — the dial still says the right
+            number. The one deliberate exception is <strong>reverse pipetting</strong>
+            for viscous or foaming liquids: aspirate from the second stop, dispense only
+            to the first, and discard the remainder with the tip.
+          </p>
+          <h3>The six habits</h3>
+          <p>Every term in the error budget is a decision, not a hardware limit:</p>
+          <ol>
+            <li><strong>Right pipettor for the volume.</strong> 10 µL from a 0.5–10 µL device, not from a 10–100 µL one. Usually the biggest single term.</li>
+            <li><strong>Pre-wet the tip</strong> above 10 µL — aspirate and dispense back into the source once.</li>
+            <li><strong>Hold it vertical</strong> while aspirating.</li>
+            <li><strong>Immerse just below the surface</strong>; never touch the bottom.</li>
+            <li><strong>Wait one second</strong> before withdrawing the tip.</li>
+            <li><strong>Touch off against the vessel wall</strong> to clear the tip.</li>
+          </ol>
+          <p>
+            Two more that are free: leave the pipettor <em>on its stand</em> between
+            cycles (a warm hand expands the air cushion), and <em>change the tip</em>
+            between liquids — reusing one costs about 4%.
+          </p>
+
+          <h3 style="margin-top:20px">And now the half that loses the experiment</h3>
+          <p>
+            None of the above keeps anything sterile. Three physical facts drive
+            everything that does:
+          </p>
+          <div class="training-callout">
+            <strong>1 · Blow-out makes two populations.</strong> Big droplets are
+            ballistic and land a hand's width away — you can wipe those up. Droplets
+            around 5 µm stop essentially where they left the tip and then take
+            <em>minutes</em> to fall 30 cm. That invisible fraction is why you
+            <b>touch off against the wall</b> rather than blowing out into air, and why
+            filter tips protect the pipettor shaft as much as the sample.
+          </div>
+          <div class="training-callout">
+            <strong>2 · A wet thread is a road.</strong> Capillary rise goes as
+            2γcosθ/(ρgr) — <em>inverse</em> in the gap — so a 0.1 mm cap thread lifts
+            medium about 8 cm, many times the height of any bottle neck. A drop left on
+            the threads after pouring becomes a continuous film from the medium to the
+            outside. <b>Do not pour</b>; use a 50 or 100 mL pipette, and if you must
+            pour, wipe the neck.
+          </div>
+          <div class="training-callout is-warning">
+            <strong>3 · A reach-over is 10–100× baseline.</strong> Not infinite — your
+            hand is a local source at 10 cm instead of a room-averaged one at a metre.
+            Nothing visible happens the first time, which is exactly why it has to be a
+            habit rather than a judgement call. You do it two hundred times a month.
+          </div>
+
+          <h3>Opening things — the part nobody writes down</h3>
+          <p>
+            One rule, and everything below is a consequence:
+            <strong>a sterile surface stays sterile only while nothing unsterile has
+            passed above it or touched it.</strong>
+          </p>
+          <ul>
+            <li><strong>Tip box</strong> — open it <em>inside</em> the cabinet; lift the lid on its hinge and leave it attached as a shield; take the tip straight down and straight up, never sweeping the pipettor sideways across an open rack; close it between uses.</li>
+            <li><strong>Serological pipette</strong> — peel the wrapper from the <em>plunger</em> end, seat the controller while the pipette is still mostly wrapped, then slide the wrapper off and straight into the waste. Never tear open the pointed end.</li>
+            <li><strong>Caps</strong> — pre-loosen before you start so one hand can open a tube while the other holds the controller. The cap stays in your hand, or goes threads-<em>up</em> on a clean surface. Never threads-down.</li>
+            <li><strong>Anything from a water bath</strong> — wipe the outside before it comes in. A wet bottle drips into the work zone.</li>
+            <li><strong>One pipette per liquid.</strong> Never re-enter a stock bottle with a pipette that has been in a culture.</li>
+          </ul>
+          <div class="insight">
+            <strong>McGhee Lab practice.</strong> This section is house procedure, not a
+            vendor document — no published guide specifies how to open a tip box. The
+            reasoning is physics and transfers anywhere; the exact hand order depends on
+            your cabinet and your handedness. Walk through it once with Alex before you
+            work alone.
+          </div>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Set 100 µL from the 1000 µL pipettor with every habit off. Read the total error.</li>
+            <li>Turn the habits on one at a time and watch which bar collapses most.</li>
+            <li>Move the pipettor down to the 100 µL range. That single change is usually the biggest.</li>
+            <li>Warm the body to 31 °C on the 1000 µL device, then on the 100 µL one. Why does hand warmth only matter in one of them?</li>
+          </ol>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="hnd-vol">Volume wanted</label>
+              <input type="range" id="hnd-vol" min="2" max="900" step="1" value="100">
+              <div class="ctrl-readout"><span class="v" id="hnd-vol-out">100</span> µL</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="hnd-range">Pipettor you picked up</label>
+              <input type="range" id="hnd-range" min="0" max="3" step="1" value="3">
+              <div class="ctrl-readout">0 – <span class="v" id="hnd-range-out">1000</span> µL</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="hnd-temp">Pipettor body</label>
+              <input type="range" id="hnd-temp" min="18" max="34" step="0.5" value="22">
+              <div class="ctrl-readout"><span class="v" id="hnd-temp-out">22.0</span> °C</div>
+            </div>
+            <div class="ctrl-group">
+              <label>Habits</label>
+              <label class="cc-chk"><input type="checkbox" id="hnd-prewet"> Pre-wet the tip</label>
+              <label class="cc-chk"><input type="checkbox" id="hnd-vert"> Held vertical</label>
+              <label class="cc-chk"><input type="checkbox" id="hnd-depth"> Immersed just below the surface</label>
+              <label class="cc-chk"><input type="checkbox" id="hnd-wait"> Wait one second</label>
+              <label class="cc-chk"><input type="checkbox" id="hnd-wall"> Touch off against the wall</label>
+            </div>
+            <div class="stats">
+              <h4>Computed</h4>
+              <div class="stat-row"><span class="label">Air cushion</span><span class="value" id="hnd-cush">— µL</span></div>
+              <div class="stat-row"><span class="label">Delivered</span><span class="value" id="hnd-del">— µL</span></div>
+              <div class="stat-row"><span class="label">Total error</span><span class="value" id="hnd-err">— %</span></div>
+              <div class="stat-row"><span class="label">Biggest term</span><span class="value" id="hnd-big">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap">
+              <div class="canvas-title">Error budget, term by term</div>
+              <canvas id="canvas-hands" width="640" height="260"></canvas>
+            </div>
+            <div class="val-verdict" id="hnd-verdict" role="status" aria-live="polite">—</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════ TAB 4 ══════════════ -->
+      <section id="tab-aliquot" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>4. Aliquoting: the one thing that works without changing your technique</h2>
+          <p>
+            Every entry into a vessel carries some small probability <em>p</em> of letting
+            something in. Entries are independent, so over <em>N</em> of them:
+          </p>
+          <div class="equation-box"><span class="lhs">P(contaminated)</span> = 1 − (1 − p)<sup>N</sup></div>
+          <p>
+            A 500 mL bottle of medium opened 40 times, with technique most people would
+            call good (p = 0.5%), has an <strong>18% chance</strong> of being
+            contaminated before it is used up. That is not a statement about you. It is a
+            statement about doing anything forty times.
+          </p>
+          <h3>What that costs</h3>
+          <p>
+            Expected loss is probability times <strong>blast radius</strong> — how much
+            that vessel was holding. Splitting the stock <em>k</em> ways shrinks both at
+            once: each aliquot is entered N/k times <em>and</em> holds V/k. Twenty
+            aliquots of a 500 mL bottle cuts the expected loss by roughly an order of
+            magnitude, and <strong>your p does not move at all</strong>.
+          </p>
+          <div class="worked-example">
+            <strong>Where it stops improving, and why that matters.</strong> Making the
+            aliquots is itself one entry into the master plus <em>k</em> fills, and
+            neither of those falls with k. So the curve flattens onto a floor set
+            entirely by the transfer that made them — and a failure <em>there</em> is
+            copied into every tube identically. Aliquoting does not remove risk so much
+            as concentrate it into one moment you can prepare for: a clean cabinet,
+            nothing else in it, full attention, not at the end of a long day, and a
+            sterility check afterwards.
+          </div>
+          <h3>The rest of stewardship</h3>
+          <ul>
+            <li><strong>Size for a single session.</strong> A tube opened once and finished has no freeze–thaw term at all — not small, zero.</li>
+            <li><strong>Five fields on the label:</strong> what it is (full name + concentration), lot / source, date split, volume, initials.</li>
+            <li><strong>Sterility check the batch:</strong> 10 mL of outdated antibiotic-free medium with 3–5% serum in a screw-cap tube, incubated at 30 °C <em>and</em> 37 °C for at least two weeks. Clean is evidence, not a guarantee — mycoplasma passes it silently.</li>
+            <li><strong>Small precious stocks have a floor.</strong> The few microlitres of unrecoverable film per tube is nothing out of 25 mL and a sixth of a 20 µL aliquot. Split a bottle of medium aggressively; find the bottom for an antibody.</li>
+          </ul>
+        </div>
+
+        <div class="student-task">
+          <h3>Try this</h3>
+          <ol>
+            <li>Start at 1 aliquot — that is one bottle. Read the expected loss.</li>
+            <li>Drag to 20. How much better, as a ratio?</li>
+            <li>Keep going to 100. Find the number the curve flattens onto.</li>
+            <li>Set the master-transfer risk to zero. Where does the floor go?</li>
+          </ol>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="alq-k">Aliquots</label>
+              <input type="range" id="alq-k" min="1" max="100" step="1" value="1">
+              <div class="ctrl-readout"><span class="v" id="alq-k-out">1</span> tube(s)</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="alq-n">Entries over its life</label>
+              <input type="range" id="alq-n" min="4" max="150" step="1" value="40">
+              <div class="ctrl-readout"><span class="v" id="alq-n-out">40</span> entries</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="alq-p">Risk per entry</label>
+              <input type="range" id="alq-p" min="0.05" max="3" step="0.05" value="0.5">
+              <div class="ctrl-readout"><span class="v" id="alq-p-out">0.50</span> %</div>
+            </div>
+            <div class="ctrl-group">
+              <label for="alq-m">Risk per master transfer</label>
+              <input type="range" id="alq-m" min="0" max="3" step="0.05" value="0.5">
+              <div class="ctrl-readout"><span class="v" id="alq-m-out">0.50</span> %</div>
+            </div>
+            <div class="stats">
+              <h4>Computed</h4>
+              <div class="stat-row"><span class="label">Aliquot size</span><span class="value" id="alq-size">— mL</span></div>
+              <div class="stat-row"><span class="label">Entries each</span><span class="value" id="alq-each">—</span></div>
+              <div class="stat-row"><span class="label">Expected loss</span><span class="value" id="alq-loss">— mL</span></div>
+              <div class="stat-row"><span class="label">Floor (master transfer)</span><span class="value" id="alq-floor">— mL</span></div>
+              <div class="stat-row"><span class="label">vs one bottle</span><span class="value" id="alq-ratio">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap">
+              <div class="canvas-title">Expected loss from a 500 mL bottle vs how many containers you used</div>
+              <canvas id="canvas-aliquot" width="640" height="270"></canvas>
+            </div>
+            <div class="val-verdict" id="alq-verdict" role="status" aria-live="polite">—</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════ TAB 5 — CASE FILES ══════════════ -->
+      <section id="tab-cases" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>5. Case files — ten cultures that look wrong</h2>
+          <p>
+            Diagnosis is the skill this training is actually for. Below are ten
+            cultures, described the way you would actually meet them: what you see in
+            the flask, what you see down the scope, and what the medium looks like.
+            Pick the cause before you read the answer.
+          </p>
+          <div class="training-callout is-warning">
+            <strong>Four of these are not contamination.</strong> That is the point.
+            The most expensive mistake in this list is not missing an infection — it is
+            autoclaving a culture that had an incubator problem, or spending a fortnight
+            on a coating protocol when something was vibrating.
+          </div>
+        </div>
+
+        <div class="rm-quiz" id="cc-cases">
+          <div class="rm-quiz-score" id="cc-cases-score">0 / 10</div>
+
+          <div class="rm-quiz-item" data-correct="bact">
+            <div class="question"><strong>Case 1.</strong> Yesterday the flask was clear and red. This morning the medium is <em>cloudy</em>, slightly yellow, and there is a faint film. Down the scope: shimmering motile dots between the cells.</div>
+            <div class="choices">
+              <button data-choice="bact">Bacterial contamination</button>
+              <button data-choice="myco">Mycoplasma</button>
+              <button data-choice="ph">pH crash from over-confluence</button>
+              <button data-choice="chem">Chemical — something in the medium</button>
+            </div>
+            <div class="explain"><strong>Bacteria.</strong> Fast (overnight), visibly turbid, and the pH drops because they make acid too. Motile dots at high magnification confirm it. <em>Autoclave it.</em> Rescue attempts almost never work and the flask is a reservoir while you try. Then ask which rule broke: an unsterile entry, a reach-over, or a re-entered bottle — and check whether anything shares that bottle.</div>
+          </div>
+
+          <div class="rm-quiz-item" data-correct="myco">
+            <div class="question"><strong>Case 2.</strong> The medium is clear and the right colour. Nothing visible down the scope. But growth has been slower for a month, and an assay that used to work does not replicate.</div>
+            <div class="choices">
+              <button data-choice="bact">Bacterial contamination</button>
+              <button data-choice="myco">Mycoplasma</button>
+              <button data-choice="evap">Evaporation / osmolality</button>
+              <button data-choice="vib">Vibration</button>
+            </div>
+            <div class="explain"><strong>Mycoplasma.</strong> 0.3–0.8 µm, no cell wall, reaching 10<sup>7</sup>–10<sup>9</sup>/mL with <em>no turbidity, no pH shift and no cytopathic effect</em>. It changes metabolism and gene expression, so the symptom is irreproducibility, not sickness. You cannot see it — you test for it (Hoechst DNA stain, PCR, or culture), and the strongest predictor is a cell line brought in from another lab without quarantine.</div>
+          </div>
+
+          <div class="rm-quiz-item" data-correct="fung">
+            <div class="question"><strong>Case 3.</strong> A fuzzy white sphere floating on the meniscus, filamentous strands radiating from it. Faintly musty smell when you open the flask. The medium is otherwise clear.</div>
+            <div class="choices">
+              <button data-choice="bact">Bacterial contamination</button>
+              <button data-choice="fung">Yeast or fungal contamination</button>
+              <button data-choice="myco">Mycoplasma</button>
+              <button data-choice="chem">Chemical</button>
+            </div>
+            <div class="explain"><strong>Fungal.</strong> Slower than bacteria, visible as mycelia, and often smellable. Ask where the spores came from: the incubator water tray and shelves soiled with spilled medium are the classic reservoirs, and the circulating fan distributes them. Cardboard and plants in the culture room are the other two. Autoclave the flask <em>and</em> clean the incubator.</div>
+          </div>
+
+          <div class="rm-quiz-item" data-correct="ph">
+            <div class="question"><strong>Case 4.</strong> Monday morning. The medium is bright yellow. The cells are still attached but rounded. You seeded on Friday afternoon and the flask is about 70% confluent.</div>
+            <div class="choices">
+              <button data-choice="bact">Bacterial contamination</button>
+              <button data-choice="ph">pH crash — over-confluent for the volume</button>
+              <button data-choice="co2">CO₂ supply failure</button>
+              <button data-choice="evap">Evaporation</button>
+            </div>
+            <div class="explain"><strong>Not contamination.</strong> The medium is clear, just yellow. Lactate ate the bicarbonate over 64 hours; the pH held flat and then crashed on Sunday while there was still plenty of glucose left. <em>Change the medium now</em> — attached cells usually recover — and note it in the log, because they have an acid-stress history. The fix next Friday is <b>more medium</b>, not fewer cells: growth is limited by surface area, acid is diluted by volume, and those are independent levers.</div>
+          </div>
+
+          <div class="rm-quiz-item" data-correct="co2">
+            <div class="question"><strong>Case 5.</strong> The medium in <em>every</em> flask on <em>every</em> shelf is pink-purple. Cells are rounded and poorly attached. Nothing is cloudy.</div>
+            <div class="choices">
+              <button data-choice="ph">pH crash</button>
+              <button data-choice="co2">CO₂ supply, sensor or door</button>
+              <button data-choice="bact">Bacterial contamination</button>
+              <button data-choice="chem">A bad lot of medium</button>
+            </div>
+            <div class="explain"><strong>Not contamination — and the simultaneity is the diagnosis.</strong> Alkaline means the bottom of the pH ratio has collapsed: not enough dissolved CO₂. One pink flask is a flask problem; a pink <em>incubator</em> is the tank, the regulator, the sensor or a door left ajar. Check the cylinder pressure before you touch anything else.</div>
+          </div>
+
+          <div class="rm-quiz-item" data-correct="cross">
+            <div class="question"><strong>Case 6.</strong> The line looks subtly wrong — morphology has shifted, and it now doubles noticeably faster than it used to. Everything is clean and healthy. Two lines were being fed in the cabinet at the same time last month.</div>
+            <div class="choices">
+              <button data-choice="myco">Mycoplasma</button>
+              <button data-choice="cross">Cross-contamination with another cell line</button>
+              <button data-choice="ph">pH stress</button>
+              <button data-choice="pass">Normal passage drift</button>
+            </div>
+            <div class="explain"><strong>Cross-contamination.</strong> Faster growth is the tell — the overtaking line is usually the more vigorous one, which is how HeLa displaced so many lines historically. It is invisible to every routine check and only found by <em>authentication</em> (STR profiling). Prevention is procedural and absolute: one cell line in the cabinet at a time, separate bottles of medium per line, disinfect between lines, quarantine anything that arrives from another lab.</div>
+          </div>
+
+          <div class="rm-quiz-item" data-correct="vib">
+            <div class="question"><strong>Case 7.</strong> A 35 mm dish, fixed and stained. The cells have settled into clean <em>concentric rings</em> around the centre. Attachment is fine everywhere; only the density varies.</div>
+            <div class="choices">
+              <button data-choice="coat">Uneven surface coating</button>
+              <button data-choice="vib">Vibration</button>
+              <button data-choice="seed">Bad seeding technique</button>
+              <button data-choice="evap">Evaporation</button>
+            </div>
+            <div class="explain"><strong>Vibration — not biology, not chemistry.</strong> Cells landing in a liquid driven at a standing-wave frequency collect at the nodes, and the spacing is set by the frequency. Look for a loose fan motor in the incubator, a centrifuge or fridge compressor on the same bench, or foot traffic on a suspended floor. This one costs people weeks on coating protocols.</div>
+          </div>
+
+          <div class="rm-quiz-item" data-correct="evap">
+            <div class="question"><strong>Case 8.</strong> A 96-well plate after three days. The interior wells look perfect. The entire outer ring is sparse, the cells look shrunken, and those wells are visibly a little low.</div>
+            <div class="choices">
+              <button data-choice="pipet">Pipetting error while seeding</button>
+              <button data-choice="evap">Evaporation — the edge effect</button>
+              <button data-choice="bact">Contamination entering from the edge</button>
+              <button data-choice="co2">CO₂ gradient across the plate</button>
+            </div>
+            <div class="explain"><strong>The edge effect.</strong> An outer well has a shallow, exposed vapour path and only ~200 µL to lose it from, so it concentrates several times faster than a middle well. Osmolality goes as V₀/V, so it accelerates — a well that has lost a fifth of its volume is already past 380 mOsm. Fixes: keep the incubator water tray full, and <b>fill the outer ring with sterile PBS and do not use it</b>.</div>
+          </div>
+
+          <div class="rm-quiz-item" data-correct="foam">
+            <div class="question"><strong>Case 9.</strong> Patchy, blotchy attachment with clear round "holes" in the monolayer, plus odd spots on the vessel. It happens to whoever seeded the plate, not to a particular incubator or medium lot.</div>
+            <div class="choices">
+              <button data-choice="foam">Bubbles / foam and static from handling</button>
+              <button data-choice="bact">Contamination</button>
+              <button data-choice="vib">Vibration</button>
+              <button data-choice="chem">A bad lot of serum</button>
+            </div>
+            <div class="explain"><strong>Handling.</strong> Uneven mixing or dispensing straight onto the monolayer makes bubbles and foam, which block attachment and leave spots — dispense <em>down the wall</em>. Static electricity does something similar in low-humidity rooms: try not to rub vessels against the packaging when opening them. The tell is that it follows the <em>person</em>, not the equipment or the lot.</div>
+          </div>
+
+          <div class="rm-quiz-item" data-correct="chem">
+            <div class="question"><strong>Case 10.</strong> Cells die by passage three, but only in one incubator. Sterility checks are clean, mycoplasma is negative, pH and humidity read normal, and the same medium works fine next door.</div>
+            <div class="choices">
+              <button data-choice="myco">Mycoplasma after all</button>
+              <button data-choice="chem">Chemical contamination</button>
+              <button data-choice="ph">pH</button>
+              <button data-choice="cross">Cross-contamination</button>
+            </div>
+            <div class="explain"><strong>Chemical.</strong> Nothing is growing — something is poisoning. The usual suspects, in order: disinfectant residue on shelves or in the tray after a clean, impurities in the CO₂ supply, plasticiser or endotoxin leaching from a storage vessel, and photoactivation of HEPES/riboflavin/tryptophan by fluorescent light producing hydrogen peroxide and free radicals. Chemical contaminants are <em>additive</em>, which is why the same medium can be fine in one box and lethal in another.</div>
+          </div>
+        </div>
+
+        <div class="insight">
+          <strong>The habit worth taking away.</strong> Before reaching for the
+          autoclave, ask three questions in order: <em>is it in every vessel or just
+          this one?</em> (a whole-box symptom is equipment), <em>is anything actually
+          growing?</em> (clear medium with sick cells is chemistry or physics), and
+          <em>does it follow the person, the lot, or the box?</em> That triage separates
+          eight of these ten cases in under a minute.
+        </div>
+      </section>
+
+      <!-- ══════════════ TAB 6 — SIGN-OFF ══════════════ -->
+      <section id="tab-signoff" class="tab-content" role="tabpanel">
+        <div class="background-section">
+          <h2>6. Bench sign-off</h2>
+          <p>
+            This is the competency check. Configure a real media change on six T-25
+            flasks of one cell line, then answer six things that will actually happen
+            during it. The sheet at the bottom only shows a pass when every critical
+            item is right; print it and bring it to your first supervised session.
+          </p>
+          <div class="training-callout">
+            <strong>What this is and is not.</strong> Getting a pass here means your
+            <em>decisions</em> are sound. It does not mean your hands are — that part is
+            the three observed items at the bottom of the sheet, which only a person
+            standing next to you can sign.
+          </div>
+        </div>
+
+        <div class="student-task">
+          <h3>Fill this in</h3>
+          <ol>
+            <li>Set up the cabinet and the run. Every control has one right answer and at least one that a real person has chosen.</li>
+            <li>Answer the six branch points — the things that go wrong mid-procedure.</li>
+            <li>Read the critique. Fix what it flags and watch the sheet turn.</li>
+            <li>Fill in your name, the date and the cell line, print it, and bring it.</li>
+          </ol>
+        </div>
+
+        <div class="panel">
+          <div class="ctrl">
+            <div class="ctrl-group">
+              <label for="so-sash">Sash height</label>
+              <select id="so-sash">
+                <option value="">— choose —</option>
+                <option value="8">At the certified mark (8 in)</option>
+                <option value="12">A bit higher, for elbow room</option>
+                <option value="18">As high as it goes</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="so-warm">Warming the medium</label>
+              <select id="so-warm">
+                <option value="">— choose —</option>
+                <option value="bead">Bead bath, wipe the bottle before it comes in</option>
+                <option value="water">Water bath, wipe the bottle before it comes in</option>
+                <option value="wet">Water bath, straight into the cabinet</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="so-layout">Layout on the work surface</label>
+              <select id="so-layout">
+                <option value="">— choose —</option>
+                <option value="good">Front strip clear, tall items at the back, waste downstream</option>
+                <option value="reach">Everything within easy reach at the front</option>
+                <option value="store">Yesterday's racks still in there too</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="so-pipette">Getting the serological pipette out</label>
+              <select id="so-pipette">
+                <option value="">— choose —</option>
+                <option value="plunger">Peel from the plunger end, seat the controller, slide the wrapper off</option>
+                <option value="tip">Tear open the pointed end and pull it out</option>
+                <option value="down">Peel it, then set it down while you get the bottle</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="so-aspirate">Removing the spent medium</label>
+              <select id="so-aspirate">
+                <option value="">— choose —</option>
+                <option value="asp">Aspirator line, tip against the wall</option>
+                <option value="pour">Pour it off into the waste</option>
+                <option value="blow">Pipette it out and blow out the last drop</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="so-fresh">Taking fresh medium for flask two</label>
+              <select id="so-fresh">
+                <option value="">— choose —</option>
+                <option value="clean">The same pipette, which has only ever been in the bottle</option>
+                <option value="used">The one you just used inside flask one</option>
+                <option value="new">A brand-new pipette for every flask</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="so-open">How many flasks are open at once</label>
+              <select id="so-open">
+                <option value="">— choose —</option>
+                <option value="one">One — cap each before opening the next</option>
+                <option value="three">Three at a time, as a compromise</option>
+                <option value="all">All six, cap them at the end</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="so-move">How you move</label>
+              <select id="so-move">
+                <option value="">— choose —</option>
+                <option value="slow">Slowly, parallel to the sash, never over an open flask</option>
+                <option value="fast">Quickly but carefully, in and out through the opening</option>
+                <option value="over">Slowly, but reaching across the open flasks</option>
+              </select>
+            </div>
+            <div class="ctrl-group">
+              <label for="so-finish">Finishing</label>
+              <select id="so-finish">
+                <option value="">— choose —</option>
+                <option value="clean">Everything out, waste out, wipe with 70% ethanol, leave it running</option>
+                <option value="later">Take the flasks in, come back for the rest later</option>
+                <option value="off">Wipe down, then switch the cabinet off</option>
+              </select>
+            </div>
+            <div class="stats">
+              <h4>Progress</h4>
+              <div class="stat-row"><span class="label">Decisions made</span><span class="value" id="so-done">0 / 9</span></div>
+              <div class="stat-row"><span class="label">Critical items right</span><span class="value" id="so-crit">— / 5</span></div>
+              <div class="stat-row"><span class="label">Result</span><span class="value" id="so-result">—</span></div>
+            </div>
+          </div>
+          <div class="viz">
+            <div class="canvas-wrap">
+              <div class="canvas-title">Critique — every flagged item, and the reason</div>
+              <div id="so-critique" class="cc-critique">Make your choices on the left; the critique appears here.</div>
+            </div>
+            <div class="val-verdict" id="so-verdict" role="status" aria-live="polite">—</div>
+          </div>
+        </div>
+
+        <div class="background-section">
+          <h3>Six things that will happen during the run</h3>
+          <p>Pick what you would actually do.</p>
+          <div class="rm-quiz" id="cc-branch">
+            <div class="rm-quiz-score" id="cc-branch-score">0 / 6</div>
+
+            <div class="rm-quiz-item" data-correct="new">
+              <div class="question">You drop the cap of the medium bottle on the work surface, threads down.</div>
+              <div class="choices">
+                <button data-choice="back">Pick it up and put it straight back on</button>
+                <button data-choice="wipe">Wipe the threads with 70% ethanol and put it back</button>
+                <button data-choice="new">Use a fresh sterile cap, or finish the bottle into aliquots today</button>
+              </div>
+              <div class="explain"><strong>Fresh cap.</strong> Alcohol on the threads does not sterilise a contact-contaminated surface reliably, and it introduces liquid exactly where a capillary bridge forms. Wiping is what you do to a neck that got <em>wet</em>; a cap that touched the surface is a different problem.</div>
+            </div>
+
+            <div class="rm-quiz-item" data-correct="out">
+              <div class="question">While reaching for tips, the bottom of the medium bottle brushes the front intake grille.</div>
+              <div class="choices">
+                <button data-choice="ignore">Nothing — the outside of the bottle is not sterile anyway</button>
+                <button data-choice="out">Wipe it down with 70% ethanol before it goes anywhere near an open vessel</button>
+                <button data-choice="bin">Discard the bottle</button>
+              </div>
+              <div class="explain"><strong>Wipe it.</strong> The outside of the bottle is not sterile — but the grille is the dirtiest surface in the cabinet, because everything that gets captured goes through it. The risk is not the bottle's contents; it is that you now carry grille-surface material over your open flasks. Discarding is over-reaction; ignoring is how a run goes wrong.</div>
+            </div>
+
+            <div class="rm-quiz-item" data-correct="stop">
+              <div class="question">Flask three's medium is distinctly orange rather than red. The other five look normal.</div>
+              <div class="choices">
+                <button data-choice="carry">Feed it and carry on — fresh medium will fix the pH</button>
+                <button data-choice="stop">Set it aside, finish the others, then look at it under the scope before deciding</button>
+                <button data-choice="bin">Autoclave it immediately</button>
+              </div>
+              <div class="explain"><strong>Set it aside and look.</strong> Orange in <em>one</em> flask is either over-confluence (fine, feed it and log it) or early contamination (not fine, and you must not put a fresh pipette into your medium bottle afterwards). You cannot tell without looking, and the cost of getting it wrong is asymmetric. Finish the healthy flasks first so a possible contaminant is last, not first.</div>
+            </div>
+
+            <div class="rm-quiz-item" data-correct="wait">
+              <div class="question">Halfway through, someone opens the culture-room door to ask you a question.</div>
+              <div class="choices">
+                <button data-choice="answer">Answer them and keep working</button>
+                <button data-choice="wait">Stop, cap what is open, wait for the door to close and the cabinet to settle</button>
+                <button data-choice="ignore">Ignore them; the cabinet handles it</button>
+              </div>
+              <div class="explain"><strong>Stop and cap.</strong> A door sweeps a large volume of air and sets up a cross-draft that peels the air curtain off sideways — the same failure as a fast hand, but across the whole width. Talking also generates aerosols directly over your work, and mycoplasma has been recovered from exactly that. Cap, answer, let it settle, carry on.</div>
+            </div>
+
+            <div class="rm-quiz-item" data-correct="change">
+              <div class="question">The tip of your serological pipette brushes the inside edge of the sash on the way in.</div>
+              <div class="choices">
+                <button data-choice="carry">Carry on — the sash is inside the cabinet</button>
+                <button data-choice="change">Discard it and take a new pipette</button>
+                <button data-choice="flame">Flame the tip</button>
+              </div>
+              <div class="explain"><strong>Discard it.</strong> The sash is <em>at</em> the boundary — it is the surface room air flows past on its way to the grille, and it is not wiped between runs the way the work surface is. And never flame anything in a cabinet: it damages the filter and, per the CDC, "creates turbulence that disrupts the pattern of HEPA-filtered air being supplied to the work surface".</div>
+            </div>
+
+            <div class="rm-quiz-item" data-correct="restart">
+              <div class="question">You realise you already put the used pipette back into the medium bottle two flasks ago.</div>
+              <div class="choices">
+                <button data-choice="finish">Finish the run, then throw the bottle away</button>
+                <button data-choice="restart">Stop, quarantine the bottle and every flask fed from it, and tell whoever else uses that bottle</button>
+                <button data-choice="watch">Carry on and watch the flasks for a few days</button>
+              </div>
+              <div class="explain"><strong>Stop and tell people.</strong> This is the one on the list that reaches beyond your own bench: everything fed from that bottle is suspect, and anyone else who uses it needs to know today rather than in two weeks. The published human-factors point is exact — most major contamination events trace to someone who knew they had done something and said nothing. Communication is the control.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="signoff-sheet" id="so-sheet" style="display:none;">
+          <h3>Cell culture — bench sign-off</h3>
+          <div class="signoff-row"><span class="label">Trainee</span><span class="value"><input class="cc-in" id="so-name" type="text" placeholder="your name" autocomplete="off"></span></div>
+          <div class="signoff-row"><span class="label">Date</span><span class="value"><input class="cc-in" id="so-date" type="date"></span></div>
+          <div class="signoff-row"><span class="label">Cell line</span><span class="value"><input class="cc-in" id="so-line" type="text" placeholder="e.g. MDA-MB-231, p12" autocomplete="off"></span></div>
+          <div class="signoff-row"><span class="label">Cabinet configuration</span><span class="value" id="so-ss-cab">—</span></div>
+          <div class="signoff-row"><span class="label">Sterile path</span><span class="value" id="so-ss-path">—</span></div>
+          <div class="signoff-row"><span class="label">Branch points</span><span class="value" id="so-ss-branch">—</span></div>
+          <div class="signoff-row"><span class="label">Case files</span><span class="value" id="so-ss-cases">—</span></div>
+          <div class="signoff-pass" id="so-pass" style="display:none;"><i data-hi="check-circle"></i> Decisions pass review — bring this sheet to your supervised session.</div>
+          <div class="signoff-fail" id="so-fail" style="display:none;"><i data-hi="x-circle"></i> Fix the flagged items above before this run is approved.</div>
+          <h4 style="margin-top:14px;font-size:13px;">Observed at the bench — only a supervisor can sign these</h4>
+          <div class="signoff-row"><span class="label">Hands moved slowly and parallel to the sash</span><span class="value">________________</span></div>
+          <div class="signoff-row"><span class="label">No reach-over across an open vessel observed</span><span class="value">________________</span></div>
+          <div class="signoff-row"><span class="label">Cabinet left clean, empty and running</span><span class="value">________________</span></div>
+          <div class="signoff-row"><span class="label">Supervisor (Alex or senior member)</span><span class="value">________________________</span></div>
+          <p style="margin-top:8px;font-size:12px;color:var(--text-muted);">
+            Print this page (browser <kbd>Cmd/Ctrl + P</kbd>) and bring it to your first supervised session.
+            Nothing on this page is saved anywhere — the printed sheet is the record.
+          </p>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+
+  <!-- RM auth + nav -->
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/chat-alert-watch.js" defer></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+
+  <!-- Page renderer -->
+  <script src="/rm/js/training-cell-culture.js"></script>
+</body>
+</html>

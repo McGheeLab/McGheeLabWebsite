@@ -49,7 +49,7 @@ const MORNING_MIN = 7 * 60 + 30;   // 07:30
 /* T-minus window. Must be >= the schedule interval or a booking can slip
    between runs; 30 with a 15-min cadence gives every booking two looks. */
 const TMINUS_MIN = 30;
-/* Feed retention — matches My Day's read window. */
+/* Feed retention — matches My Week's read window. */
 const FEED_TTL_DAYS = 14;
 
 /**

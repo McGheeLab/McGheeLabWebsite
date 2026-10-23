@@ -39,10 +39,10 @@
     experiment: ['planned', 'running', 'done'],
   };
   var TYPE_META = {
-    figure:     { chip: '🧪 Planned figure',  hint: 'What should this figure show?' },
-    experiment: { chip: '🔬 Experiment',      hint: 'Method / conditions / n…' },
-    snip:       { chip: '📎 Reference',       hint: 'Why is this figure a good model?' },
-    note:       { chip: '📝 Note',            hint: 'Thinking out loud…' },
+    figure:     { icon: 'test-tube',     chip: 'Planned figure',  hint: 'What should this figure show?' },
+    experiment: { icon: 'microscope',    chip: 'Experiment',      hint: 'Method / conditions / n…' },
+    snip:       { icon: 'paper-clip',    chip: 'Reference',       hint: 'Why is this figure a good model?' },
+    note:       { icon: 'pencil-square', chip: 'Note',            hint: 'Thinking out loud…' },
   };
 
   var _root = null;          // #pe-figure-board-root
@@ -167,7 +167,20 @@
     if (!rootEl) return;
     var pid = window.__PAPER_ID;
     if (!pid) return;
-    /* Idempotent: same paper already mounted into this root → done. */
+    /* V3.837 — the figure board lives on the canvas engine now
+     * (rm/pages/figure-board.html, the same system as the lab notebook:
+     * pills, cards, drawn regions → panels, arrows, lit reviews). The tab
+     * shows it in an iframe; the old boardItems board migrates onto it on
+     * first open. The rest of this file is kept only for reference. */
+    var want = '/rm/pages/figure-board.html?paper=' + encodeURIComponent(pid) + '&embed=1';
+    var cur = rootEl.querySelector('iframe.pfb-canvas-frame');
+    if (cur && cur.getAttribute('src') === want) return;
+    rootEl.innerHTML = '<div class="pfb-canvas-wrap">' +
+      '<div class="pfb-canvas-bar"><span class="muted-text">The figure board is a canvas: draw, add cards from the ＋ pill, box a drawing to make a panel, connect cards with arrows.</span>' +
+      '<a class="btn btn-small" href="/rm/pages/figure-board.html?paper=' + encodeURIComponent(pid) + '" target="_blank" rel="noopener">⤢ Open full</a></div>' +
+      '<iframe class="pfb-canvas-frame" src="' + want + '" title="Figure board" allow="microphone; fullscreen" allowfullscreen></iframe></div>';
+    return;
+    /* eslint-disable no-unreachable */
     if (_root === rootEl && _paperId === pid && rootEl.querySelector('.pfb-wrap')) return;
     _teardown();
     _root = rootEl;
@@ -216,14 +229,14 @@
     var bar = document.createElement('div');
     bar.className = 'pfb-toolbar';
     bar.innerHTML =
-      '<button type="button" class="btn pfb-add" data-type="figure">＋ Figure</button>' +
-      '<button type="button" class="btn pfb-add" data-type="experiment">＋ Experiment</button>' +
-      '<button type="button" class="btn pfb-add" data-type="note">＋ Note</button>' +
-      '<button type="button" class="btn pfb-add-lib">＋ 📚 From library</button>' +
-      '<button type="button" class="btn pfb-add-ref">＋ Reference image</button>' +
+      '<button type="button" class="btn pfb-add" data-type="figure">' + ICON.svg('plus') + ' Figure</button>' +
+      '<button type="button" class="btn pfb-add" data-type="experiment">' + ICON.svg('plus') + ' Experiment</button>' +
+      '<button type="button" class="btn pfb-add" data-type="note">' + ICON.svg('plus') + ' Note</button>' +
+      '<button type="button" class="btn pfb-add-lib">' + ICON.svg('plus') + ' ' + ICON.svg('books') + ' From library</button>' +
+      '<button type="button" class="btn pfb-add-ref">' + ICON.svg('plus') + ' Reference image</button>' +
       '<input type="file" class="pfb-ref-file" accept="image/*" hidden>' +
-      '<button type="button" class="btn pfb-connect" title="Connect two cards with an arrow (Esc cancels)">↗ Connect</button>' +
-      '<button type="button" class="btn pfb-review" title="Step through cards changed since you last looked" hidden>▶ Review</button>' +
+      '<button type="button" class="btn pfb-connect" title="Connect two cards with an arrow (Esc cancels)">' + ICON.svg('arrow-top-right-on-square') + ' Connect</button>' +
+      '<button type="button" class="btn pfb-review" title="Step through cards changed since you last looked" hidden>' + ICON.svg('play') + ' Review</button>' +
       '<span class="pfb-bar-spacer"></span>' +
       '<span class="pfb-status" role="status"></span>';
     wrap.appendChild(bar);
@@ -247,10 +260,10 @@
     var hint = document.createElement('div');
     hint.className = 'pfb-empty-hint';
     hint.innerHTML =
-      '<h2>🧭 Figure board</h2>' +
+      '<h2>' + ICON.svg('compass') + ' Figure board</h2>' +
       '<p>Plan this paper\'s methods &amp; results: add the <strong>figures</strong> you ' +
       'intend to produce, the <strong>experiments</strong> that generate them, reference ' +
-      'images from your reading, and notes — then <strong>↗ Connect</strong> them to map the flow.</p>' +
+      'images from your reading, and notes — then <strong>' + ICON.svg('arrow-top-right-on-square') + ' Connect</strong> them to map the flow.</p>' +
       '<p class="pfb-empty-sub">Drag the background to pan · scroll to pan · ' +
       'ctrl/⌘-scroll or pinch to zoom · drag cards to arrange</p>';
     _canvas.appendChild(hint);
@@ -262,7 +275,7 @@
     zoomCtl.innerHTML =
       '<button type="button" class="pfb-zoom-out" title="Zoom out">−</button>' +
       '<span class="pfb-zoom-pct">100%</span>' +
-      '<button type="button" class="pfb-zoom-in" title="Zoom in">＋</button>' +
+      '<button type="button" class="pfb-zoom-in" title="Zoom in">' + ICON.svg('plus') + '</button>' +
       '<button type="button" class="pfb-zoom-fit" title="Fit all cards in view">⤢</button>';
     ['pointerdown', 'pointermove', 'pointerup', 'wheel'].forEach(function (t) {
       zoomCtl.addEventListener(t, function (e) { e.stopPropagation(); });
@@ -698,7 +711,7 @@
     if (!btn) return;
     var n = _changedIds().length;
     btn.hidden = n === 0;
-    btn.textContent = '▶ Review ' + n + ' changed';
+    ICON.label(btn, 'play', ' Review ' + n + ' changed');
   }
 
   function _reviewNext() {
@@ -760,7 +773,7 @@
     var btn = el.querySelector('.pfb-comment-btn');
     if (!btn) return;
     var n = _commentCounts[id] || 0;
-    btn.textContent = n ? ('💬 ' + n) : '💬';
+    ICON.label(btn, n ? ('chat-bubble-left-right' + n) : 'chat-bubble-left-right');
     btn.classList.toggle('pfb-has-comments', n > 0);
   }
 
@@ -786,7 +799,7 @@
     var closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'pfb-del';
-    closeBtn.textContent = '×';
+    ICON.label(closeBtn, 'x-mark');
     closeBtn.title = 'Close discussion';
     closeBtn.addEventListener('click', _closeCommentPanel);
     head.appendChild(title);
@@ -862,7 +875,7 @@
       if (q) items = items.filter(function (it) { return (it.searchHaystack || '').indexOf(q) >= 0; });
       listHost.innerHTML = '';
       if (!items.length) {
-        listHost.innerHTML = '<div class="pe-eqimport-hint">No library papers found. Import papers on the Library page, then capture figures in the reader (⬚ Snip a region → 🖼).</div>';
+        listHost.innerHTML = '<div class="pe-eqimport-hint">No library papers found. Import papers on the Library page, then capture figures in the reader (⬚ Snip a region → ' + ICON.svg('photo') + ').</div>';
         return;
       }
       items.slice(0, 40).forEach(function (it) {
@@ -902,7 +915,7 @@
         });
         listHost.innerHTML = '';
         if (!caps.length) {
-          listHost.innerHTML = '<div class="pe-eqimport-hint">No figure captures on this paper yet — in the reader, toggle ⬚ Snip (or Alt-drag) a box over the figure, then 🖼.</div>';
+          listHost.innerHTML = '<div class="pe-eqimport-hint">No figure captures on this paper yet — in the reader, toggle ⬚ Snip (or Alt-drag) a box over the figure, then ' + ICON.svg('photo') + '.</div>';
           return;
         }
         caps.forEach(function (cap) {
@@ -1051,10 +1064,10 @@
     var meta = TYPE_META[it.type] || TYPE_META.note;
     el.innerHTML =
       '<div class="pfb-card-head">' +
-        '<span class="pfb-chip">' + meta.chip + '</span>' +
+        '<span class="pfb-chip">' + ICON.svg(meta.icon) + ' ' + meta.chip + '</span>' +
         '<button type="button" class="pfb-stat" title="Click to change status"></button>' +
         '<span class="pfb-head-spacer"></span>' +
-        '<button type="button" class="pfb-del" title="Delete card">×</button>' +
+        '<button type="button" class="pfb-del" title="Delete card">' + ICON.svg('x-mark') + '</button>' +
       '</div>' +
       '<input class="pfb-title" type="text" placeholder="Title…">' +
       '<div class="pfb-img-wrap" hidden><img class="pfb-img" alt=""><button type="button" class="pfb-img-swap" title="Replace image">↻</button></div>' +
@@ -1070,12 +1083,12 @@
       '</div>' +
       '<div class="pfb-card-foot">' +
         (it.type === 'figure' || it.type === 'snip'
-          ? '<button type="button" class="pfb-img-btn">🖼 Add image</button>' +
+          ? '<button type="button" class="pfb-img-btn">' + ICON.svg('photo') + ' Add image</button>' +
             '<input type="file" class="pfb-img-file" accept="image/*" hidden>'
           : '') +
-        '<a class="pfb-src-link" target="_blank" hidden>↗ source paper</a>' +
+        '<a class="pfb-src-link" target="_blank" hidden>' + ICON.svg('arrow-top-right-on-square') + ' source paper</a>' +
         '<span class="pfb-foot-spacer"></span>' +
-        '<button type="button" class="pfb-comment-btn" title="Discuss this card (student ↔ mentor thread)">💬</button>' +
+        '<button type="button" class="pfb-comment-btn" title="Discuss this card (student \u2194 mentor thread)">' + ICON.svg('chat-bubble-left-right') + '</button>' +
       '</div>' +
       '<div class="pfb-resize" title="Drag to resize"></div>';
 

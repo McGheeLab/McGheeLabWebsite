@@ -116,7 +116,8 @@
     }
 
     if (opts.canPost !== false && opts.canReply !== false) {
-      var replyBtn = _btn('↩ reply', 'Reply to this comment');
+      var replyBtn = _btn('', 'Reply to this comment');
+      ICON.label(replyBtn, 'arrow-uturn-left', ' reply');
       replyBtn.addEventListener('click', function () { callbacks.onReply(comment); });
       actions.appendChild(replyBtn);
     }
@@ -188,7 +189,7 @@
     btnRow.appendChild(statusEl);
     var clearReplyBtn = document.createElement('button');
     clearReplyBtn.type = 'button';
-    clearReplyBtn.textContent = '↺ cancel reply';
+    ICON.label(clearReplyBtn, 'arrow-uturn-left', ' cancel reply');
     clearReplyBtn.style.cssText = 'font-size:11px;padding:3px 8px;border:1px solid #e5e7eb;border-radius:4px;background:#fff;cursor:pointer;display:none';
     btnRow.appendChild(clearReplyBtn);
     var postBtn = document.createElement('button');
@@ -299,6 +300,19 @@
         _clearReplyTo();
         statusEl.textContent = '';
         postBtn.disabled = false;
+        // V3.626 — discussion activity signal: one work event per thread
+        // per day (deterministic id), so commenting shows up on the PMR
+        // activity/presence views. Fire-and-forget.
+        try {
+          if (window.ActivitySignals) {
+            ActivitySignals.recordWork({
+              source: 'rm-comments',
+              sourceRef: { kind: 'comment', id: opts.collectionPath || 'thread', path: opts.collectionPath || '' },
+              text: 'Discussed: ' + (opts.label || 'a thread'),
+              categoryPath: ['research', 'discussion'],
+            }).catch(function () {});
+          }
+        } catch (e) { /* signals never break posting */ }
       }).catch(function (err) {
         console.error('[section-comments] post failed:', err);
         statusEl.textContent = 'post failed: ' + (err.message || 'check rules');

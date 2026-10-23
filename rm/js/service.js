@@ -250,7 +250,7 @@ function svcRenderPinBox(row) {
     exitBtn.className = 'pin-expand';
     exitBtn.title = 'Exit focus view';
     exitBtn.style.fontSize = '14px';
-    exitBtn.textContent = '×';
+    ICON.label(exitBtn, 'x-mark');
     exitBtn.addEventListener('click', (ev) => {
       ev.stopPropagation();
       _svcExpandedKey = null;

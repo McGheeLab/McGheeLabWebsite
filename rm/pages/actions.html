@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My actions — McGhee Lab</title>
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <script src="/rm/js/runtime-mode.js"></script>
+  <script src="/rm/js/icons.js"></script>
+  <style>
+    /* V3.844 — My actions: what you did, by day; each one goes to the notebook or is ignored. */
+    .ua-wrap { max-width: 720px; margin: 0 auto; }
+    .ua-intro { font-size: 14px; color: var(--text-muted, #64748b); margin: 0 0 10px; }
+    .ua-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+    .ua-bar label { font-size: 13px; display: flex; align-items: center; gap: 6px; }
+    .ua-day { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted, #64748b); margin: 16px 0 4px; }
+    .ua-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border, #e2e8f0); }
+    .ua-row.is-ignored { opacity: .55; }
+    .ua-ic { font-size: 20px; width: 28px; text-align: center; flex-shrink: 0; }
+    .ua-main { flex: 1; min-width: 0; }
+    .ua-text { font-weight: 600; }
+    .ua-sub { font-size: 12px; color: var(--text-muted, #64748b); }
+    .ua-acts { display: flex; gap: 6px; flex-shrink: 0; }
+    .ua-acts .btn { padding: 6px 10px; font-size: 13px; min-height: 36px; }
+    .ua-empty { color: var(--text-muted, #64748b); font-size: 14px; padding: 16px 0; }
+    .ua-noted { color: #4f46e5; }
+    @media (max-width: 480px) { .ua-row { flex-wrap: wrap; } .ua-acts { width: 100%; justify-content: flex-end; } }
+  </style>
+</head>
+<body>
+  <div class="page ua-wrap">
+    <div class="page-header">
+      <h1 class="page-title">My actions</h1>
+      <a class="btn btn-primary" href="/rm/pages/scan.html"><i data-hi="camera"></i> Scan a label</a>
+    </div>
+    <p class="ua-intro">Every item you use and every piece of equipment you book is recorded here for you. Put the ones that matter in your lab notebook; ignore the rest.</p>
+    <div class="ua-bar">
+      <label><input type="checkbox" id="ua-show-ignored"> Show ignored</label>
+      <label><input type="checkbox" id="ua-show-noted" checked> Show ones already in the notebook</label>
+    </div>
+    <div id="ua-list"><div class="ua-empty">Loading…</div></div>
+  </div>
+
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/nav.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="/rm/js/firebase-bridge.js"></script>
+  <script src="/rm/js/api-firestore-adapter.js"></script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/profile-bootstrap.js"></script>
+  <script src="/rm/js/user-actions.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var $ = function (id) { return document.getElementById(id); };
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    function toast(kind, msg) { if (window.TOAST && TOAST[kind]) TOAST[kind](msg); }
+    var _rows = [];
+
+    function linkFor(a) {
+      if (a.kind === 'equipment_booking') return '/rm/pages/equipment.html';
+      return a.itemId ? '/rm/pages/inventory.html?item=' + encodeURIComponent(a.itemId) : '';
+    }
+    function render() {
+      var host = $('ua-list');
+      var showIgn = $('ua-show-ignored').checked, showNoted = $('ua-show-noted').checked;
+      var rows = _rows.filter(function (a) { return (showIgn || a.status !== 'ignored') && (showNoted || a.status !== 'noted'); });
+      if (!rows.length) { host.innerHTML = '<div class="ua-empty">' + (_rows.length ? 'Nothing to show with these filters.' : 'Nothing recorded yet. Scan a label to use an item, or book equipment — it lands here.') + '</div>'; return; }
+      var groups = USER_ACTIONS.groupByDay(rows);
+      host.innerHTML = groups.map(function (g) {
+        return '<div class="ua-day">' + esc(g.label) + '</div>' + g.rows.map(function (a) {
+          var ign = a.status === 'ignored', noted = a.status === 'noted';
+          var link = linkFor(a);
+          var sub = [USER_ACTIONS.timeOf(a.at), a.note || a.notes || '', noted ? '<span class="ua-noted">in your notebook</span>' : '', link ? '<a href="' + esc(link) + '">open ↗</a>' : ''].filter(Boolean).map(function (s, i) { return i === 1 ? esc(s) : s; }).join(' · ');
+          var acts = ign ? '<button type="button" class="btn" data-restore="' + esc(a.id) + '">Restore</button>'
+            : noted ? '<a class="btn" href="/rm/pages/notebook.html?action=' + encodeURIComponent(a.id) + '">＋ Again</a>'
+            : '<a class="btn btn-primary" href="/rm/pages/notebook.html?action=' + encodeURIComponent(a.id) + '">＋ Notebook</a><button type="button" class="btn" data-ignore="' + esc(a.id) + '">Ignore</button>';
+          return '<div class="ua-row' + (ign ? ' is-ignored' : '') + '" data-id="' + esc(a.id) + '"><span class="ua-ic">' + (ICON.render((USER_ACTIONS.core.KINDS[a.kind] || {}).icon) || '•') + '</span>' +
+            '<div class="ua-main"><div class="ua-text">' + esc(USER_ACTIONS.describe(a)) + (ign ? ' <small>(ignored)</small>' : '') + '</div><div class="ua-sub">' + sub + '</div></div>' +
+            '<div class="ua-acts">' + acts + '</div></div>';
+        }).join('');
+      }).join('');
+    }
+    async function load() {
+      try { _rows = await USER_ACTIONS.list({ limit: 300, includeIgnored: true }); render(); }
+      catch (e) { $('ua-list').innerHTML = '<div class="ua-empty">' + esc(e.message || 'Could not load your actions.') + '</div>'; }
+    }
+    document.addEventListener('click', async function (e) {
+      var ig = e.target.closest('[data-ignore]'), rs = e.target.closest('[data-restore]');
+      var b = ig || rs; if (!b) return;
+      b.disabled = true;
+      try {
+        if (ig) { await USER_ACTIONS.ignore(ig.getAttribute('data-ignore')); toast('success', 'Ignored.'); }
+        else { await USER_ACTIONS.restore(rs.getAttribute('data-restore')); toast('success', 'Back in the list.'); }
+        var id = b.getAttribute('data-ignore') || b.getAttribute('data-restore');
+        _rows.forEach(function (a) { if (a.id === id) a.status = ig ? 'ignored' : 'new'; });
+        render();
+      } catch (err) { b.disabled = false; toast('error', err.message || 'Could not save.'); }
+    });
+    $('ua-show-ignored').addEventListener('change', render);
+    $('ua-show-noted').addEventListener('change', render);
+    window.__actionsPage = { load: load, render: render, setRows: function (r) { _rows = r; render(); } };   // test seam
+    firebridge.onAuth(function (user) { if (user) load(); });
+  })();
+  </script>
+</body>
+</html>

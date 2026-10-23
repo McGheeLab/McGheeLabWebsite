@@ -116,6 +116,9 @@ const firebridge = (function () {
         // Best-effort; never block init on persistence setup.
       }
       firebase.auth().onAuthStateChanged(async function (user) {
+        // V3.806 — an alias login is swapped for its primary account; this
+        // listener re-fires with that account, so skip the alias entirely.
+        if (user && await _aliasSwap(user)) return;
         if (user) {
           _user = user;
           // Ourlab app: synchronous "a session exists" paint hint so the
@@ -147,6 +150,37 @@ const firebridge = (function () {
     } catch (err) {
       console.warn('[firebridge] Firebase init failed:', err.message);
       _notifyAuth(null, null);
+    }
+  }
+
+  /* V3.806 — one person, two Google logins. Signing in with an alias email
+   * (mcgheealex@arizona.edu) swaps the session for the account it belongs
+   * to, so both logins are literally the same account. The server map in
+   * functions/auth-alias.js is authoritative; this list only spares every
+   * other sign-in the round-trip. Keep in sync with user-system.js. On any
+   * failure we stay signed in as the alias (a plain guest), as before. */
+  var _ALIAS_EMAILS = ['mcgheealex@arizona.edu'];
+  var _ALIAS_FN_URL = 'https://us-central1-mcgheelab-f56cc.cloudfunctions.net/aliasSignIn';
+  var _aliasSwapping = false;
+  async function _aliasSwap(user) {
+    var email = String(user.email || '').toLowerCase();
+    if (_ALIAS_EMAILS.indexOf(email) === -1 || _aliasSwapping) return false;
+    _aliasSwapping = true;
+    try {
+      var r = await fetch(_ALIAS_FN_URL, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + (await user.getIdToken()), 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      var body = await r.json().catch(function () { return {}; });
+      if (!r.ok || !body.token) throw new Error(body.error || ('HTTP ' + r.status));
+      await firebase.auth().signInWithCustomToken(body.token);
+      return true;
+    } catch (err) {
+      console.warn('[firebridge] alias sign-in failed; staying signed in as ' + email + ':', err.message);
+      return false;
+    } finally {
+      _aliasSwapping = false;
     }
   }
 
@@ -322,8 +356,32 @@ const firebridge = (function () {
    * security rules (in Firebase console) are the actual enforcement layer. */
   function canEditPaper(paperMeta) {
     if (!_user) return false;
+    // V3.741 — checked out as a .paperbundle.zip: read-only for EVERYONE,
+    // admins included, until the bundle comes back or an admin force-unlocks.
+    // Tested before the admin short-circuit on purpose — the server rule
+    // (yjs_updates create) refuses admins too, so the UI must agree.
+    if (isPaperCheckedOut(paperMeta)) return false;
     if (isAdmin()) return true;
     if (!paperMeta) return false;
+    if (paperMeta.lead_author_uid === _user.uid) return true;
+    var co = paperMeta.coauthor_uids || [];
+    return co.indexOf(_user.uid) >= 0;
+  }
+
+  /** V3.741 — the paper row carries checked_out_by_uid while its bundle is
+   * out for editing in a VSCode repo. */
+  function isPaperCheckedOut(paperMeta) {
+    return !!(paperMeta && paperMeta.checked_out_by_uid);
+  }
+
+  /** V3.741 — who may write the checkout-lock fields on this row: admin,
+   * lead author, or a coauthor (the coauthor carve-out in firestore.rules'
+   * projects update rule is scoped to exactly those fields). This is the
+   * PRE-lock author check — deliberately not canEditPaper(), which is false
+   * once the lock is on. */
+  function canCheckOutPaper(paperMeta) {
+    if (!_user || !paperMeta) return false;
+    if (isAdmin()) return true;
     if (paperMeta.lead_author_uid === _user.uid) return true;
     var co = paperMeta.coauthor_uids || [];
     return co.indexOf(_user.uid) >= 0;
@@ -379,8 +437,17 @@ const firebridge = (function () {
         }
       } catch (err) {
         // Non-admin user without a grant doc gets PERMISSION_DENIED here.
-        // That's fine — fall back to implicit baseline.
+        // That's fine — fall back to implicit baseline. V3.621 — but do
+        // NOT memoize the failure: a transient read error (offline blip,
+        // WebChannel hiccup) used to cache "no caps" for the whole
+        // session, silently downgrading a capped guest to read-only.
+        // PERMISSION_DENIED is the one *expected* outcome and stays
+        // cached; anything else lets the next caller retry.
         _accessGrant = { allowedPageIds: null, allowedCollections: null, caps: null };
+        if (!err || err.code !== 'permission-denied') {
+          console.warn('[firebridge] access-grant read failed (will retry next call):', err && err.message);
+          _accessGrantPromise = null;
+        }
       }
       return _accessGrant;
     })();
@@ -437,6 +504,8 @@ const firebridge = (function () {
   var PAGE_ALIASES = {
     'library-mobile': { page: 'library', capPage: 'library-paper' },
     'library-mobile-paper': { page: 'library-paper', capPage: 'library-paper' },
+    // V3.830 — the block notebook: an explicit grant on the classic page id covers it
+    'notebook': { page: 'lab-notebook', capPage: 'lab-notebook' },
   };
 
   /** True if a guest's explicit grants (pages or caps) cover the page the
@@ -662,10 +731,11 @@ const firebridge = (function () {
     btn.textContent = _user ? _initials() : '';
     btn.setAttribute('aria-label', _statusTitle());
     if (!_user) {
-      // Render a generic user glyph when signed out
-      btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">' +
-        '<path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-3.3 0-8 1.7-8 5v2h16v-2c0-3.3-4.7-5-8-5z"/>' +
-      '</svg>';
+      // Render a generic user glyph when signed out. V3.642 — was a
+      // hand-drawn path; now the shared Heroicon so it matches the rest of
+      // the chrome. The button already carries aria-label, so the icon is
+      // decorative (ICON.svg omits a label by default).
+      btn.innerHTML = ICON.svg('user-circle', { size: 'md' });
     }
   }
 
@@ -1289,6 +1359,8 @@ const firebridge = (function () {
     isAdmin: isAdmin,
     isLabMember: isLabMember,
     canEditPaper: canEditPaper,
+    isPaperCheckedOut: isPaperCheckedOut,   // V3.741
+    canCheckOutPaper: canCheckOutPaper,     // V3.741
     isLeadAuthor: isLeadAuthor,
     canAccessPage: canAccessPage,
     loadAccessGrant: loadAccessGrant,

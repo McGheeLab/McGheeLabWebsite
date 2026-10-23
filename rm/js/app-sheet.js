@@ -1,7 +1,7 @@
 /* app-sheet.js — the app's standard fold-up input surface (V3.568).
  *
  * A reusable bottom sheet that slides up from the bottom edge, with a
- * ▾ fold-away control and a grip — the same interaction the My Day
+ * ▾ fold-away control and a grip — the same interaction the My Week
  * composer uses. Any page that needs a form/chooser "pops up" through
  * this so inputs feel consistent across the whole app.
  *
@@ -117,7 +117,8 @@
     b.type = 'button';
     b.className = 'app-fab' + (opts.className ? ' ' + opts.className : '');
     b.setAttribute('aria-label', opts.label || 'Add');
-    b.textContent = opts.icon || '＋';
+    if (opts.icon) b.innerHTML = ICON.render(opts.icon);   // a name, legacy emoji or image URL
+    else b.textContent = '＋';
     if (opts.onClick) b.addEventListener('click', opts.onClick);
     return b;
   }

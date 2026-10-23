@@ -1,0 +1,66 @@
+/* ================================================================
+   notebook-scientia.css — V3.864 — Scientia inside the Lab Notebook
+   ================================================================
+   rm/js/notebook-scientia.js. Gabe's app fills the notebook's sheet area
+   (same place as a canvas entry's board); the sync panel slides in on the
+   right like the canvas's Recordings list. Tokens are the notebook frame's
+   (--ink, --paper, --rule, --surface from notebook-canvas.css).
+   ================================================================ */
+
+/* the two surfaces of the stage: a canvas entry, or Scientia */
+.nbc-sis{ display: none; }
+.nbc-root.nbc-sis-on .nbc-stage > .nbb-main{ display: none; }
+.nbc-root.nbc-sis-on .nbc-sis{ display: flex; flex: 1; min-height: 0; position: relative; background: var(--paper, #F1EDE5); border-radius: 10px; overflow: hidden; }
+.nbc-sis-main{ flex: 1; min-width: 0; min-height: 0; display: flex; }
+.nbc-sis-frame{ flex: 1; width: 100%; height: 100%; border: 0; display: block; background: #f4f1ea; }
+body.nbc-full .nbc-root.nbc-sis-on .nbc-sis{ border-radius: 0; }
+
+/* the Scientia group in the tab row */
+.nbc-sis-group .nbc-gname i{ background: #1D1D1B; }
+.nbc-sis-more .nbc-tab-title{ font-style: italic; }
+
+/* header: the sync dot + status */
+.nbc-sis-meta{ display: flex; align-items: center; gap: 7px; min-width: 0; }
+.nbc-sis-status{ overflow: hidden; text-overflow: ellipsis; }
+.nbc-sis-dot{ width: 9px; height: 9px; border-radius: 50%; flex: none; display: inline-block; background: var(--ink-4, #9a9488); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink-4, #9a9488) 22%, transparent); }
+.nbc-sis-dot.nbc-sis-ok{ background: #1B7A43; box-shadow: 0 0 0 2px rgba(27, 122, 67, .22); }
+.nbc-sis-dot.nbc-sis-idle{ background: #B5761B; box-shadow: 0 0 0 2px rgba(181, 118, 27, .22); }
+.nbc-sis-dot.nbc-sis-warn{ background: #B2361F; box-shadow: 0 0 0 2px rgba(178, 54, 31, .25); }
+.nbc-sis-btn svg, .nbc-sis-b svg{ width: 16px; height: 16px; }
+
+/* the sync panel */
+.nbc-sis-side{ width: min(46%, 400px); }
+.nbc-sis-sec{ padding: 10px 12px; border-bottom: 1px solid var(--rule, #d8d2c6); line-height: 1.45; }
+.nbc-sis-sec h4{ margin: 0 0 6px; font-size: .9rem; }
+.nbc-sis-sec p{ margin: 0 0 8px; }
+.nbc-sis-sec ol{ margin: 4px 0 8px 18px; padding: 0; }
+.nbc-sis-sec li{ margin: 3px 0; }
+.nbc-sis-sec code{ font-family: var(--f-m, ui-monospace, monospace); font-size: .78rem; background: color-mix(in srgb, var(--ink, #24211c) 6%, transparent); padding: 1px 4px; border-radius: 4px; word-break: break-word; }
+.nbc-sis-stat{ display: flex; align-items: center; gap: 8px; }
+.nbc-sis-sub{ font-size: .78rem; color: var(--ink-3, #6b655a); margin-top: 4px; }
+.nbc-sis-warnt{ color: #B2361F; }
+.nbc-sis-row{ display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+.nbc-sis-row input[type=text]{ flex: 1; min-width: 150px; padding: 6px 8px; border: 1px solid var(--rule-2, #c9c2b4); border-radius: 6px; background: var(--paper, #fff); font: inherit; font-size: 16px; }
+@media (min-width: 700px){ .nbc-sis-row input[type=text]{ font-size: .85rem; } }
+.nbc-sis-b{ display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule-2, #c9c2b4); background: var(--surface, #fff); color: var(--ink, #24211c); border-radius: 6px; padding: 6px 10px; font: inherit; font-size: .82rem; cursor: pointer; white-space: nowrap; }
+.nbc-sis-b:hover{ background: color-mix(in srgb, var(--ink, #24211c) 6%, var(--surface, #fff)); }
+.nbc-sis-b:disabled{ opacity: .55; cursor: default; }
+.nbc-sis-b[data-armed="1"]{ border-color: #B2361F; color: #B2361F; }
+.nbc-sis-pri{ background: var(--ink, #24211c); color: var(--paper, #fff); border-color: var(--ink, #24211c); }
+.nbc-sis-pri:hover{ background: var(--ink, #24211c); opacity: .9; }
+.nbc-sis-key{ display: flex; gap: 6px; align-items: center; margin: 6px 0 2px; }
+.nbc-sis-key code{ flex: 1; display: block; padding: 6px 8px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; word-break: break-all; font-size: .76rem; }
+.nbc-sis-keys{ margin-top: 6px; }
+.nbc-sis-krow{ display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-top: 1px solid var(--rule, #d8d2c6); }
+.nbc-sis-krow span{ display: flex; flex-direction: column; min-width: 0; }
+.nbc-sis-krow small{ font-size: .74rem; color: var(--ink-3, #6b655a); }
+.nbc-sis-confirm{ margin-top: 8px; padding: 8px 10px; border: 1px solid #fde68a; background: #fffbeb; border-radius: 8px; }
+.nbc-sis-msg{ font-size: .78rem; color: var(--ink-3, #6b655a); min-height: 0; }
+.nbc-sis-msg.nbc-sis-err{ color: #b91c1c; }
+
+/* a phone: the panel covers the app instead of sitting beside it */
+@media (max-width: 760px){
+  /* notebook-canvas.css caps .nbc-side at 55% for the canvas's bottom sheet; this panel covers the whole area */
+  .nbc-sis-side{ position: absolute; inset: 0; width: 100%; max-width: none; max-height: none; border-top: 0; z-index: 5; }
+  .nbc-sis-status{ font-size: .72rem; }
+}

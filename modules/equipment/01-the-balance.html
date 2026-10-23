@@ -1,0 +1,2553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Balance — The Number Is a Coil Current (Equipment Foundations 1)</title>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  background:#f1f5f9;color:#1e293b;line-height:1.5;overflow-x:hidden}
+
+/* ── Header ── */
+header{background:linear-gradient(135deg,#1e3a5f 0%,#0891b2 100%);color:#fff;padding:24px 32px;text-align:center}
+header h1{font-size:1.7rem;font-weight:700;letter-spacing:-.5px}
+header .subtitle{font-size:.95rem;opacity:.85;margin-top:4px}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 16px;overflow-x:auto;position:sticky;top:0;z-index:100}
+.tab-btn{padding:12px 16px;border:none;background:none;font-size:.84rem;font-weight:600;color:#64748b;
+  cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:#2563eb}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+.tab-btn.next-tab{color:#b45309;font-weight:700}
+.tab-btn.next-tab.active{color:#b45309;border-bottom-color:#f59e0b}
+
+/* ── Constants & variables rail ── */
+.constants-bar{max-width:1400px;margin:10px auto 0;padding:0 16px}
+.constants-bar details{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.constants-bar summary{cursor:pointer;padding:10px 16px;font-size:.82rem;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:#1e3a5f}
+.constants-bar .const-body{padding:4px 20px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px 24px}
+.constants-bar .const-body h4{grid-column:1/-1;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-top:8px}
+.constants-bar .const-body p{font-size:.82rem;color:#475569;margin:1px 0}
+.constants-bar .const-body p .src{color:#94a3b8;font-size:.72rem}
+.constants-bar .eqindex p b{color:#1e3a5f;font-variant-numeric:tabular-nums}
+
+/* ── Main layout ── */
+main{max-width:1400px;margin:0 auto;padding:16px}
+.tab-content{display:none}
+.tab-content.active{display:flex;flex-direction:column}
+
+/* ── Lesson flow (stacked story → interactive pairs) ──
+   `contain:layout` keeps each block's internal reflow from reaching its
+   siblings; the reserved heights on .stats / .val-verdict below keep the
+   blocks themselves from changing size as live readouts update, so a
+   simulation never pushes the paragraph you are reading off the screen. */
+.lesson-block{margin-bottom:26px;padding-bottom:8px;border-bottom:1px dashed #cbd5e1;contain:layout}
+.lesson-block:last-of-type{border-bottom:none}
+.lesson-block .background-section{margin-bottom:12px}
+.panel.compact{grid-template-columns:260px 1fr;margin-bottom:4px;align-items:start}
+@media(max-width:900px){.panel.compact{grid-template-columns:1fr}}
+
+/* ── Cards & panels ── */
+.panel{display:grid;grid-template-columns:300px 1fr;gap:16px}
+@media(max-width:900px){.panel{grid-template-columns:1fr}}
+
+/* ── Background sections ── */
+.background-section{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  padding:24px 28px;margin-bottom:16px;border-left:4px solid #1e3a5f}
+.background-section h2{font-size:1.1rem;color:#1e3a5f;margin-bottom:12px}
+.background-section h3{font-size:.95rem;color:#334155;margin:16px 0 6px}
+.background-section p,.background-section li{font-size:.88rem;color:#475569;line-height:1.6}
+.background-section ul,.background-section ol{padding-left:20px;margin:6px 0}
+.equation-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 16px;margin:10px 0;overflow-x:auto}
+.equation-box .eqno{float:right;color:#94a3b8;font-size:.78rem;margin-left:10px;line-height:2.2}
+.equation-box mjx-container,.background-section mjx-container{max-width:100%;overflow-x:auto;overflow-y:hidden}
+.worked-example{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin:10px 0}
+.worked-example::before{content:"WORKED EXAMPLE";display:block;font-size:.65rem;font-weight:700;letter-spacing:.08em;color:#2563eb;margin-bottom:6px}
+/* ── Worked examples v2: stepped, equations shown assembling, COLLAPSED by default ── */
+details.worked{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;margin:12px 0}
+details.worked summary{cursor:pointer;padding:9px 14px;font-size:.72rem;font-weight:700;letter-spacing:.07em;color:#2563eb;text-transform:uppercase}
+details.worked summary .we-title{color:#1e40af;text-transform:none;letter-spacing:0;font-size:.86rem;font-weight:600;margin-left:6px}
+details.worked .worked-body{padding:2px 18px 14px}
+details.worked ol.steps{margin:0 0 0 18px;padding:0}
+details.worked ol.steps>li{font-size:.86rem;color:#1e3a8a;margin-bottom:9px;line-height:1.55}
+details.worked ol.steps>li .lead{font-weight:700;color:#2563eb}
+details.worked .step-eq{background:#fff;border:1px solid #dbeafe;border-radius:6px;padding:6px 12px;margin:6px 0;overflow-x:auto}
+details.worked .answer{background:#dbeafe;border-radius:6px;padding:9px 13px;margin-top:8px;font-size:.88rem;color:#1e3a8a}
+details.worked .answer::before{content:"ANSWER · ";font-size:.68rem;font-weight:800;letter-spacing:.07em;color:#2563eb}
+/* ── capstone tab button ── */
+.tab-btn.cap-tab{color:#047857;font-weight:700}
+.tab-btn.cap-tab.active{color:#047857;border-bottom-color:#10b981}
+.key-takeaways{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-top:12px}
+.key-takeaways::before{content:"KEY TAKEAWAYS";display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#15803d;margin-bottom:4px}
+.key-takeaways ul{margin:0 0 0 16px;padding:0}
+.key-takeaways li{font-size:.82rem;color:#14532d}
+.background-section table.cmp{width:100%;border-collapse:collapse;font-size:.84rem;margin:10px 0}
+.background-section table.cmp th,.background-section table.cmp td{border:1px solid #e2e8f0;padding:5px 9px;text-align:left;color:#475569}
+.background-section table.cmp th{background:#f1f5f9;color:#334155;font-weight:700}
+.background-section table.cmp td.c{text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ── Deep boxes (566 / curious-student depth) ── */
+details.deep{background:#faf5ff;border:1px solid #e9d5ff;border-radius:6px;padding:0;margin:10px 0}
+details.deep summary{cursor:pointer;padding:8px 14px;font-size:.76rem;font-weight:700;letter-spacing:.06em;color:#7c3aed}
+details.deep .deep-body{padding:2px 16px 12px}
+details.deep .deep-body p,details.deep .deep-body li{font-size:.84rem;color:#5b21b6}
+
+/* ── Check-yourself boxes ── */
+details.check{background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;margin:12px 0}
+details.check summary{cursor:pointer;padding:9px 14px;font-size:.78rem;font-weight:700;letter-spacing:.06em;color:#c2410c;text-transform:uppercase}
+details.check .check-body{padding:2px 18px 12px}
+details.check .check-body p,details.check .check-body li{font-size:.86rem;color:#7c2d12}
+details.check details{margin:4px 0 10px}
+details.check details summary{padding:2px 0;font-size:.78rem;color:#9a3412;text-transform:none;letter-spacing:0}
+details.check details p{font-size:.82rem;color:#78350f;padding:4px 0 0 6px}
+
+/* ── Student task ── */
+.student-task{border:2px solid #059669;border-radius:8px;background:#ecfdf5;padding:12px 16px;margin:12px 0;position:relative}
+.student-task::before{content:"TRY THIS";position:absolute;top:-0.6rem;left:1rem;background:#ecfdf5;padding:0 0.5rem;font-size:.65rem;font-weight:700;letter-spacing:.1em;color:#059669}
+.student-task ol{margin:.25rem 0 0 1.25rem;color:#065f46}
+.student-task li{font-size:.88rem;margin-bottom:4px}
+
+/* ── Controls ── */
+.ctrl{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px}
+.ctrl h3{font-size:.85rem;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:10px;border-bottom:1px solid #f1f5f9;padding-bottom:6px}
+.ctrl-group{margin-bottom:12px}
+.ctrl-group label{display:flex;justify-content:space-between;font-size:.82rem;font-weight:600;color:#334155;margin-bottom:3px}
+.ctrl-group label span{font-weight:400;color:#2563eb;font-variant-numeric:tabular-nums}
+.ctrl-group input[type=range]{width:100%;accent-color:#2563eb;height:6px}
+.toggle-btn{border:2px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 12px;font-size:.8rem;font-weight:700;color:#64748b;cursor:pointer;width:100%;transition:all .15s}
+.toggle-btn.on{border-color:#dc2626;color:#dc2626;background:#fef2f2}
+
+/* ── Stats ── (every widget emits exactly 4 rows; the reserved height means a
+   changing readout never resizes the box and shifts the page under the reader) */
+.stats{background:#f8fafc;border-radius:8px;padding:12px;font-size:.82rem;font-variant-numeric:tabular-nums;margin-top:8px;min-height:132px}
+.stats h4{font-size:.8rem;color:#64748b;margin-bottom:4px}
+.stat-row{display:flex;justify-content:space-between;gap:10px;align-items:baseline;min-height:27px;padding:2px 0;border-bottom:1px solid #f1f5f9}
+.stat-row .label{color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.stat-row .value{flex:0 0 auto}
+.stat-row .value{font-weight:600;color:#1e293b;text-align:right;white-space:nowrap}
+.stat-row.highlight .value{color:#2563eb}
+
+/* ── Viz area ── */
+.viz{display:flex;flex-direction:column;gap:12px}
+.canvas-wrap{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:12px}
+.canvas-wrap canvas{display:block;width:100%;height:auto;max-width:100%;border-radius:6px}
+.canvas-title{font-size:.78rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.chart-row{grid-template-columns:1fr}}
+
+/* ── Per-widget scenario bar ── */
+.scenario-bar{background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.scenario-bar-label{font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700}
+.scen-btn{padding:6px 14px;border:2px solid #e2e8f0;background:#fff;border-radius:20px;font-size:.82rem;font-weight:600;color:#64748b;cursor:pointer;transition:all .15s}
+.scen-btn:hover{color:#1e293b;border-color:#cbd5e1}
+.scen-btn.on{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+
+/* ── Verdict box ── (reserved height: the narration rewrites itself as the
+   simulation crosses thresholds, and without this the box would grow/shrink
+   and move every lesson block below it) */
+.val-verdict{border-radius:8px;padding:10px 14px;margin-top:10px;font-size:.84rem;line-height:1.5;min-height:6.2em}
+/* the three longest narrations get extra reserved height — their wording (and
+   the width of the numbers inside it) changes as the sim runs, and without this
+   a rewrap nudges everything below them */
+.val-verdict.tall{min-height:8.8em}
+@media(max-width:900px){.val-verdict{min-height:8.5em}.val-verdict.tall{min-height:12em}}
+.val-verdict.good{background:#f0fdf4;border:1px solid #86efac;color:#14532d}
+.val-verdict.bad{background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d}
+.val-verdict.warn{background:#fffbeb;border:1px solid #fde68a;color:#78350f}
+/* only the leading title is a block — inline <strong> inside the narration
+   must stay inline (it was breaking mid-sentence onto its own line) */
+.val-verdict > strong:first-child{display:block;font-size:.9rem;margin-bottom:2px}
+
+/* ── Insight + handoff boxes ── */
+.insight{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#78350f}
+.insight strong{color:#b45309}
+.handoff{background:#eef2ff;border-left:4px solid #6366f1;border-radius:0 8px 8px 0;padding:10px 14px;margin:10px 0;font-size:.86rem;color:#3730a3}
+.handoff strong{color:#4338ca}
+
+/* ── Sources ── */
+.sources{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:18px 24px;margin-top:16px}
+.sources h2{font-size:1rem;color:#1e3a5f;margin-bottom:8px}
+.sources ol{margin:0 0 0 18px}
+.sources li{font-size:.8rem;color:#475569;margin-bottom:5px;line-height:1.45}
+.sources a{color:#2563eb;text-decoration:none}
+.sources a:hover{text-decoration:underline}
+
+/* ── Footer ── */
+footer{text-align:center;padding:20px;font-size:.78rem;color:#94a3b8}
+
+/* ── MathJax ── */
+mjx-container{display:inline-block !important}
+
+/* ════ RESPONSIVE ════ */
+@media (max-width: 900px){.panel{gap:12px}}
+@media (max-width: 640px){
+  header{padding:16px 14px} header h1{font-size:1.2rem} header .subtitle{font-size:.76rem}
+  .tab-bar{padding:0 8px;top:0} .tab-btn{padding:10px 9px;font-size:.74rem}
+  main{padding:10px 8px;max-width:100%}
+  .scenario-bar{padding:8px 10px;gap:6px} .scenario-bar-label{font-size:.68rem;width:100%;margin-bottom:2px}
+  .scen-btn{padding:5px 10px;font-size:.74rem;flex:1 1 calc(50% - 4px);text-align:center}
+  .background-section{padding:16px 16px} .background-section h2{font-size:1rem}
+  .worked-example,.equation-box{padding:10px 12px;font-size:.82rem}
+  .ctrl{padding:12px} .canvas-wrap{padding:8px} .stats{padding:10px;font-size:.76rem}
+  .constants-bar{padding:0 8px}
+}
+@media (max-width: 380px){ .scen-btn{flex:1 1 100%} header h1{font-size:1.05rem} .tab-btn{padding:8px 7px;font-size:.7rem} }
+
+/* ── Lab-SOP aside: content authored from McGhee Lab practice, NOT from a
+   vendor document. Visually distinct on purpose — a reader must be able to
+   tell house rules from published guidance. ── */
+.aside{background:#f0f9ff;border-left:4px solid #0891b2;border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:.88rem;color:#155e75}
+.aside strong{color:#0e7490}
+.aside .lab{display:block;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#0891b2;margin-bottom:4px;text-transform:uppercase}
+
+/* ── Rule cards: the short imperative rules a tab earns ── */
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:12px 0}
+.rule{background:#fff;border:1px solid #e2e8f0;border-left:3px solid #2563eb;border-radius:8px;padding:10px 13px}
+.rule b{display:block;font-size:.84rem;color:#1e3a5f;margin-bottom:3px}
+.rule span{font-size:.8rem;color:#64748b;line-height:1.45}
+
+/* ── Toggle rows (checkbox groups inside a .ctrl) ── */
+.chk{display:flex;align-items:center;gap:7px;font-size:.8rem;color:#334155;margin-bottom:5px;cursor:pointer}
+.chk input{accent-color:#2563eb;width:15px;height:15px;flex:0 0 auto}
+.seg{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.seg button{flex:1 1 auto;border:2px solid #e2e8f0;background:#fff;border-radius:7px;padding:5px 9px;font-size:.76rem;font-weight:700;color:#64748b;cursor:pointer}
+.seg button.on{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+</style>
+</head>
+<body>
+<header>
+  <h1>The Balance — The Number Is a Coil Current</h1>
+  <p class="subtitle">Equipment Foundations · Lesson 1 of 7 · McGhee Lab</p>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="work">1. How It Works</button>
+  <button class="tab-btn" data-tab="use">2. How to Use It</button>
+  <button class="tab-btn" data-tab="care">3. Precautions</button>
+  <button class="tab-btn" data-tab="maint">4. Maintenance</button>
+  <button class="tab-btn cap-tab" data-tab="recap">5. Recap &amp; the Real Job</button>
+</div>
+
+<div class="constants-bar">
+  <details>
+    <summary>Constants, balance numbers &amp; equation index</summary>
+    <div class="const-body">
+      <h4>Physical constants</h4>
+      <p><b>g</b> = 9.80665 m/s² — standard gravity (the number the SI definition uses, not the number in this room)</p>
+      <p><b>g</b><sub>Tucson</sub> ≈ 9.7928 m/s² — latitude 32.22°&nbsp;N, elevation 728 m</p>
+      <p><b>R</b> = 8.314 J/(mol·K) · <b>M</b><sub>air</sub> = 0.028964 kg/mol</p>
+      <p><b>ρ</b><sub>air</sub> ≈ 1.10 kg/m³ in Tucson at 22 °C (≈ 1.20 at sea level)</p>
+      <p><b>ρ</b><sub>ref</sub> = 8000 kg/m³ — the conventional density of the reference weight, by definition</p>
+      <p><b>ε₀</b> = 8.854 × 10<sup>−12</sup> F/m</p>
+
+      <h4>Balance numbers (Mettler Toledo XSR303S, 1 mg readability)</h4>
+      <p><b>Capacity</b> 310 g · <b>nominal load</b> 300 g · <b>readability d</b> 1 mg</p>
+      <p>The manual publishes every performance figure twice — as a <b>limit value</b> (guaranteed worst
+        case) and a <b>typical value</b> (what a healthy balance actually delivers). Both are listed here as
+        <i>limit / typical</i>, and which one you use depends on whether you are promising or predicting.</p>
+      <p><b>Repeatability s</b> 0.9 / 0.5 mg · <b>linearity deviation</b> 2 / 0.6 mg</p>
+      <p><b>Eccentricity deviation</b> 3 / 1 mg at a 100 g test load</p>
+      <p><b>Sensitivity offset at nominal load</b> 6 / 1.2 mg, after adjustment with the internal weight</p>
+      <p><b>Sensitivity temperature drift</b> 0.0005 %/°C</p>
+      <p><b>Minimum weight</b> 1 g at 0.10% tolerance (USP), 100 mg at 1% tolerance <span class="src">(the manual's own footnote: determined at 5% load, k = 2)</span></p>
+      <p><b>Settling time</b> 1.5 s · <b>weighing pan</b> 127 × 127 mm · <b>draft shield height</b> 175 mm</p>
+      <p><b>Acclimatization</b> ≥ 4 h · <b>warm-up</b> ≥ 30 min · <b>operating range</b> 10–30 °C, 30–70% RH</p>
+      <p><span class="src">Your balance may be a different XSR model — capacity, readability and every derived
+        number above change with it. Check the model badge and the manual's §9.3 table before you rely on a number from this page.</span></p>
+
+      <h4>Equation index</h4>
+      <div class="eqindex">
+        <p><b>eq. 1.1.1</b> — Lorentz force on the compensation coil</p>
+        <p><b>eq. 1.1.2</b> — mass from coil current</p>
+        <p><b>eq. 1.1.3</b> — international gravity formula</p>
+        <p><b>eq. 1.1.4</b> — sample standard deviation (repeatability)</p>
+        <p><b>eq. 1.2.1</b> — tilt error</p>
+        <p><b>eq. 1.2.2</b> — eccentricity error</p>
+        <p><b>eq. 1.2.3</b> — uncertainty of a net mass</p>
+        <p><b>eq. 1.3.1</b> — electrostatic force from an image charge</p>
+        <p><b>eq. 1.3.2</b> — air density from the ideal gas law</p>
+        <p><b>eq. 1.3.3</b> — air buoyancy correction</p>
+        <p><b>eq. 1.3.4</b> — minimum weight</p>
+        <p><b>eq. 1.4.1</b> — sensitivity drift with temperature</p>
+        <p><b>eq. 1.5.1</b> — concentration and its propagated uncertainty</p>
+        <p><span class="src">Thirteen equations: four in tab 1, three in tab 2, four in tab 3, one each in
+          tabs 4 and 5. No equation on this page is reused from another lesson. Lesson 2 reuses
+          <b>eq. 1.1.4</b> and <b>eq. 1.3.4</b> when it calibrates a pipette on this balance.</span></p>
+      </div>
+    </div>
+  </details>
+</div>
+
+<main>
+  <!-- ══════════════════════════ TAB 1 — HOW IT WORKS ══════════════════════════ -->
+  <section id="tab-work" class="tab-content active">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="1.1" data-title="Watch what doesn't move">1.1 · Put something on the pan and watch what <em>doesn't</em> move</h2>
+        <p>Here is the mental model almost everyone arrives with: you put an object on the pan, the pan
+          sinks a little, a spring stretches, and something measures how far it stretched. That is a
+          kitchen scale. It is not this balance.</p>
+        <p>On a Mettler Toledo XSR the pan is not allowed to move. It hangs off a lever inside a magnetic
+          field, and the moment your sample pushes it down by a fraction of a micrometre, a position
+          detector notices and a control loop pushes a current through a coil until the pan is <em>back
+          exactly where it started</em>. The balance never measures a displacement. It measures how hard
+          it had to push back.</p>
+        <p>Run the loop below and watch three things at once: where the pan is, how much current the coil
+          is drawing, and what the display says. They do not settle at the same time, and that gap is the
+          first practical thing this lesson will cost you if you ignore it.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Leave everything at its default and press through the <em>set it down</em> scenario. Watch the
+            <b>pan position</b> trace dive and come back to zero. Read how far it actually moved — the
+            number is in micrometres, and the drawing is exaggerated 2000×.</li>
+          <li>Now watch the <b>coil current</b> trace. Double the mass and read the current again. Write down
+            both pairs.</li>
+          <li>Switch to <em>knock the bench</em>. The pan is disturbed but no mass was added. Does the
+            settled current change? Should it?</li>
+          <li>Drag the <b>display filter</b> down to 0.03 s. The number now twitches. Drag it to 0.5 s:
+            the number is calm but late. Find the setting that settles in about <b>1.5 s</b> — the manual's
+            quoted settling time for this balance — and notice that the two traces are on completely
+            different time axes. The mechanism is finished in milliseconds; the number is not.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">What happens:</span>
+        <button class="scen-btn on" data-widget="emfr" data-scen="place">set it down</button>
+        <button class="scen-btn" data-widget="emfr" data-scen="bump">knock the bench</button>
+        <button class="scen-btn" data-widget="emfr" data-scen="draft">a draft on the pan</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Sample mass</span> <span id="v-emfr-m">100.0 g</span></label>
+            <input type="range" id="s-emfr-m" min="0.1" max="310" step="0.1" value="100"></div>
+          <div class="ctrl-group"><label><span>Loop damping</span> <span id="v-emfr-damp">1.00</span></label>
+            <input type="range" id="s-emfr-damp" min="0.25" max="2.5" step="0.05" value="1"></div>
+          <div class="ctrl-group"><label><span>Display filter</span> <span id="v-emfr-filt">0.12 s</span></label>
+            <input type="range" id="s-emfr-filt" min="0.02" max="0.6" step="0.01" value="0.12"></div>
+          <div class="stats" id="st-emfr"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Force restoration, played back 200 times slower</div>
+            <canvas id="cv-emfr" width="660" height="310"></canvas></div>
+          <div class="val-verdict" id="vd-emfr" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Now the equation that explains the current you just watched</h3>
+        <p>A wire of length <em>L</em> carrying current <em>I</em> through a magnetic field <em>B</em> feels
+          a force. That is all the compensation coil is:</p>
+        <div class="equation-box"><span class="eqno">eq. 1.1.1</span>
+          $$F \;=\; B\,I\,L$$</div>
+        <p>and when the loop has finished, that force is holding your sample up against gravity, so
+          \(mg = BIL\), and therefore</p>
+        <div class="equation-box"><span class="eqno">eq. 1.1.2</span>
+          $$m \;=\; \frac{B\,I\,L}{g}$$</div>
+        <p>Here <em>B</em> is the field of the permanent magnet in tesla, <em>L</em> the effective conductor
+          length in the gap in metres, <em>I</em> the coil current in amperes, <em>g</em> the local
+          gravitational acceleration in m/s², and <em>m</em> the mass in kilograms. <em>B</em> and <em>L</em>
+          are fixed by the mechanism; the balance knows their product from its last adjustment.</p>
+        <div class="insight"><strong>The reading is a current, converted.</strong> Everything that can
+          corrupt a weighing is something that either adds a force the coil has to fight, or changes the
+          conversion factor between current and mass. The rest of this lesson is a tour of those two
+          categories — and nothing else.</div>
+        <div class="aside"><span class="lab">Where the published guidance lands</span>
+          <strong>Note from Dr. McGhee.</strong> The XSR manual does not describe its own transducer; it
+          tells you how to operate and maintain the instrument, not how it was designed. Electromagnetic
+          force restoration is the standard mechanism for precision balances at this readability, and the
+          equations above are general physics rather than a quotation from Mettler Toledo. What
+          <em>is</em> quoted, throughout this lesson, is every performance number — those all come from the
+          manual's §9.3 tables and are listed in the constants bar.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="1.2" data-title="The g in the denominator">1.2 · There is a <em>g</em> in the denominator, and it is not the same everywhere</h2>
+        <p>Look at eq. 1.1.2 again. The balance measures a force and divides by <em>g</em> to report a mass.
+          It does not know <em>g</em>. It was told, once, at a place that is not this room.</p>
+        <p>Gravity is weaker at the equator than at the poles, because the Earth is not a sphere and because
+          you are moving in a circle. It is weaker high up than low down. The standard formula:</p>
+        <div class="equation-box"><span class="eqno">eq. 1.1.3</span>
+          $$g(\varphi,h) \;=\; 9.780327\left(1 + 0.0053024\sin^{2}\!\varphi - 0.0000058\sin^{2}\!2\varphi\right) \;-\; 3.086\times10^{-6}\,h$$</div>
+        <p>with \(\varphi\) the latitude and \(h\) the elevation in metres. Tucson sits at 32.22°&nbsp;N and
+          728 m. Greifensee, where these balances are built, sits at 47.37°&nbsp;N and about 440 m. Those
+          are not exotic numbers, and the difference between them is not small.</p>
+
+        <details class="worked">
+          <summary>Worked example <span class="we-title">— what a balance shipped from Switzerland reads in Tucson, before you adjust it</span></summary>
+          <div class="worked-body">
+            <ol class="steps">
+              <li><span class="lead">Write what you know.</span> Greifensee: \(\varphi = 47.37°\), \(h = 440\) m.
+                Tucson: \(\varphi = 32.22°\), \(h = 728\) m. Sample mass 100 g.</li>
+              <li><span class="lead">Evaluate eq. 1.1.3 at the factory.</span> \(\sin^2(47.37°) = 0.5413\),
+                \(\sin^2(94.74°) = 0.9933\):
+                <div class="step-eq">$$g_{\mathrm{GF}} = 9.780327\left(1 + 0.0053024(0.5413) - 0.0000058(0.9933)\right) - 3.086\times10^{-6}(440)$$</div>
+                <div class="step-eq">$$g_{\mathrm{GF}} = 9.780327(1.0028645) - 0.00136 = 9.8070\ \mathrm{m/s^2}$$</div></li>
+              <li><span class="lead">Evaluate it again here.</span> \(\sin^2(32.22°) = 0.2843\),
+                \(\sin^2(64.44°) = 0.8140\):
+                <div class="step-eq">$$g_{\mathrm{TUS}} = 9.780327(1.0015028) - 3.086\times10^{-6}(728) = 9.7928\ \mathrm{m/s^2}$$</div></li>
+              <li><span class="lead">Assemble the error, symbolically first.</span> The coil current for a
+                given mass is fixed by the real local gravity, but the balance divides by the <em>g</em> it
+                was adjusted against. So the reading is
+                <div class="step-eq">$$m_{\mathrm{read}} \;=\; m\,\frac{g_{\mathrm{TUS}}}{g_{\mathrm{GF}}}$$</div></li>
+              <li><span class="lead">Plug in.</span>
+                <div class="step-eq">$$\frac{g_{\mathrm{TUS}}}{g_{\mathrm{GF}}} = \frac{9.7928}{9.8070} = 0.998551 \qquad\Rightarrow\qquad \Delta m = 100\ \mathrm{g} \times (1 - 0.998551)$$</div></li>
+              <li><span class="lead">Read the answer.</span> \(\Delta m = 0.145\) g.</li>
+            </ol>
+            <div class="answer">145 mg low on a 100 g sample — <b>145 times the balance's readability</b>, and
+              73 times its linearity spec. This is not a subtle effect, and it is exactly why the balance
+              carries a motorised internal weight and why the manual's maintenance table says to run an
+              internal adjustment <em>after changing the location</em>. The adjustment does not calibrate
+              the mass of the internal weight; it re-measures <em>BL/g</em> in the room the balance is
+              standing in.</div>
+          </div>
+        </details>
+
+        <div class="insight"><strong>An internal adjustment is a local-gravity measurement.</strong> Every
+          time you run one, the balance lifts a known mass with its own motor, sees what current that takes
+          <em>here</em>, and rewrites its conversion factor. Move the balance across the bench and nothing
+          changes. Move it to another building, another floor, or another city, and you must re-adjust
+          before the readings mean anything.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="1.3" data-title="The same object, ten times">1.3 · Weigh the same object ten times</h2>
+        <p>The XSR303S displays milligrams. It is natural to read that as "this balance is accurate to a
+          milligram". Those are different claims, and the gap between them is where most bad numbers in a
+          lab notebook come from.</p>
+        <p><b>Readability</b> (<em>d</em>) is the size of the last digit — a display property, chosen by the
+          manufacturer. <b>Repeatability</b> (<em>s</em>) is the scatter you get putting the <em>same</em>
+          object on the <em>same</em> pan ten times in a row — a physics property, set by the mechanism and
+          by the room. The manual quotes both, separately. For the XSR303S readability is 1 mg, and
+          repeatability is given twice: <b>0.9 mg</b> as a limit value and <b>0.5 mg</b> as a typical one.</p>
+        <p>Below, weigh one object repeatedly. The tall bars are what the mechanism actually produced; the
+          comb underneath is what the display was willing to show you.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on the <em>typical value</em>. Read the number of <b>distinct values the display
+            showed</b>. With scatter below the readability, most repeats land on the same digit.</li>
+          <li>Step through <em>limit value</em> and then <em>a draughty bench</em>. Same object, same
+            balance, nothing about the sample changed. Count the distinct displayed values each time.</li>
+          <li>Drag <b>readability</b> to 0.1 mg with the scatter left where it is. The display gets more
+            digits. Did the measurement get better?</li>
+          <li>Find the scatter at which the displayed values first spread over three digits. Compare it to
+            the 1 mg readability.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Conditions:</span>
+        <button class="scen-btn on" data-widget="noise" data-scen="typ">typical value, 0.5 mg</button>
+        <button class="scen-btn" data-widget="noise" data-scen="lim">limit value, 0.9 mg</button>
+        <button class="scen-btn" data-widget="noise" data-scen="bad">a draughty bench</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Repeatability</span> <span id="v-noise-sig">0.50 mg</span></label>
+            <input type="range" id="s-noise-sig" min="0.05" max="3" step="0.05" value="0.5"></div>
+          <div class="ctrl-group"><label><span>Readability</span> <span id="v-noise-d">1 mg</span></label>
+            <input type="range" id="s-noise-d" min="0" max="2" step="1" value="1"></div>
+          <div class="ctrl-group"><label><span>Repeat weighings</span> <span id="v-noise-n">20</span></label>
+            <input type="range" id="s-noise-n" min="5" max="40" step="1" value="20"></div>
+          <div class="stats" id="st-noise"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">One object, weighed over and over</div>
+            <canvas id="cv-noise" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-noise" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>The number the manual calls repeatability</h3>
+        <p>It is the ordinary sample standard deviation of those repeats:</p>
+        <div class="equation-box"><span class="eqno">eq. 1.1.4</span>
+          $$s \;=\; \sqrt{\frac{1}{n-1}\sum_{i=1}^{n}\left(x_i - \bar{x}\right)^2}$$</div>
+        <p>with \(x_i\) the individual readings, \(\bar{x}\) their mean and \(n\) the number of repeats.
+          Mettler Toledo publishes it twice. The <b>typical value</b>, 0.5 mg, is what a healthy XSR303S
+          delivers on a decent bench. The <b>limit value</b>, 0.9 mg, is the number the instrument is
+          guaranteed not to exceed — the one to quote when you are promising an accuracy to someone else.
+          Neither is a measurement of <em>your</em> balance in <em>your</em> room, and you can make that
+          measurement in about two minutes: tab 4 has the routine test that does exactly that.</p>
+        <div class="insight"><strong>Readability is what the balance shows you. Repeatability is what it
+          knows.</strong> A display with more digits than the mechanism can support is not more accurate;
+          it just spreads the same uncertainty across more of them. Everything in tab 3 that decides whether
+          a weighing is trustworthy is built on <em>s</em>, never on <em>d</em>.</div>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>The pan does not move. The reading is the <b>coil current</b> needed to hold it still, converted through <em>BL/g</em>.</li>
+          <li>Local gravity is part of that conversion. An internal adjustment is how the balance measures it <b>here</b>.</li>
+          <li><b>Readability ≠ repeatability.</b> 1 mg on the display; 0.5 mg of real scatter typically, 0.9 mg guaranteed.</li>
+          <li>Anything that adds a force to the pan, or changes <em>BL/g</em>, changes your answer. There is no third category.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next:</strong> two forces you add yourself, every time you weigh, just by
+        where you put the balance and where you put the sample on it.</div>
+    </div>
+
+  </section>
+  <!-- ══════════════════════════ TAB 2 — HOW TO USE IT ══════════════════════════ -->
+  <section id="tab-use" class="tab-content">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="2.1" data-title="Tilt it and watch">2.1 · Tilt the balance and watch the number move</h2>
+        <p>The bubble in the corner of the balance is not a decoration and it is not a suggestion. The
+          compensation coil pushes along one axis. If that axis is not vertical, the coil is not fighting
+          your sample's whole weight — only the part of it that points along the axis. The rest is carried
+          by the mechanism, and the balance never sees it.</p>
+        <p>Tilt the balance below and watch what a level you would call "close enough" is actually worth.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Leave the load at 100 g and tilt to <b>1.0°</b> in one axis. Read the error in milligrams.
+            Compare it to the balance's 1 mg readability.</li>
+          <li>Double the tilt to 2.0°. Did the error double? Look at the equation underneath and explain why not.</li>
+          <li>Put the tilt back to 1.0° and drag the <b>load</b> from 10 g to 300 g. Watch the error in
+            milligrams and the error in percent. Only one of them moves.</li>
+          <li>Find the tilt at which a 300 g weighing is wrong by one full readability step.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Bench:</span>
+        <button class="scen-btn on" data-widget="level" data-scen="ok">levelled this morning</button>
+        <button class="scen-btn" data-widget="level" data-scen="nudge">someone nudged it</button>
+        <button class="scen-btn" data-widget="level" data-scen="moved">just moved to a new bench</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Tilt, left–right</span> <span id="v-level-tx">0.00 deg</span></label>
+            <input type="range" id="s-level-tx" min="-2.5" max="2.5" step="0.05" value="0"></div>
+          <div class="ctrl-group"><label><span>Tilt, front–back</span> <span id="v-level-ty">0.00 deg</span></label>
+            <input type="range" id="s-level-ty" min="-2.5" max="2.5" step="0.05" value="0"></div>
+          <div class="ctrl-group"><label><span>Load on the pan</span> <span id="v-level-m">100.0 g</span></label>
+            <input type="range" id="s-level-m" min="1" max="310" step="1" value="100"></div>
+          <div class="stats" id="st-level"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">The bubble, and what it is worth in milligrams</div>
+            <canvas id="cv-level" width="660" height="290"></canvas></div>
+          <div class="val-verdict" id="vd-level" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Why doubling the tilt more than doubles the error</h3>
+        <p>Only the vertical component of the sample's weight reaches the coil, so the balance reads</p>
+        <div class="equation-box"><span class="eqno">eq. 1.2.1</span>
+          $$m_{\mathrm{read}} \;=\; m\cos\theta \qquad\Longrightarrow\qquad \frac{\Delta m}{m} \;=\; 1-\cos\theta \;\approx\; \frac{\theta^{2}}{2}$$</div>
+        <p>with \(\theta\) the total tilt from vertical in radians and \(\Delta m = m - m_{\mathrm{read}}\)
+          the shortfall. The error goes as \(\theta^{2}\), which is why a small tilt looks harmless and a
+          moderate one does not: going from 1° to 2° does not double the error, it quadruples it.</p>
+        <p>Notice what the sim showed you in step 3: the error in <em>milligrams</em> grows with the load,
+          but the error in <em>percent</em> does not move at all. Tilt is a <b>proportional</b> error — it
+          scales your whole answer. That will matter in tab 3, because the other big errors are not
+          proportional, and the two kinds have to be handled differently.</p>
+        <div class="insight"><strong>A tilt error is invisible.</strong> Nothing about the reading looks
+          wrong. It is stable, it repeats beautifully, and it is wrong by the same fraction every time. The
+          bubble is the only instrument you have that can see it.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="2.2" data-title="Put it in the middle">2.2 · Put the sample in the middle of the pan</h2>
+        <p>The pan is 127 mm square. The lever underneath it is not, and no mechanism is perfectly
+          indifferent to <em>where</em> on the pan the load sits. Mettler Toledo measures this and publishes
+          it twice, as it does every performance figure: for the XSR303S, <b>3 mg at a 100 g test load</b>
+          as a limit value and <b>1 mg</b> as a typical one, with the weight placed off-centre in the
+          standard test position. The sim below models the limit value, so it shows you the worst the
+          instrument is allowed to be.</p>
+        <p>Slide the sample around the pan and watch what it costs.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start centred. Confirm the error reads zero, then slide the load to one corner of the pan.</li>
+          <li>Move it to the <em>test position</em> chip — the place the specification is measured at — and
+            check that the sim reproduces the manual's 3 mg limit value at 100 g.</li>
+          <li>Drop the load to 10 g and go back to the corner. Compare the error in milligrams and in
+            percent with what you saw at 100 g.</li>
+          <li>Turn on the tilt from the previous sim using the <b>bench tilt</b> slider. Do the two errors
+            add, or does one hide the other?</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Where you put it:</span>
+        <button class="scen-btn on" data-widget="ecc" data-scen="centre">dead centre</button>
+        <button class="scen-btn" data-widget="ecc" data-scen="test">the specification test position</button>
+        <button class="scen-btn" data-widget="ecc" data-scen="corner">shoved into a corner</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Offset, left–right</span> <span id="v-ecc-x">0 mm</span></label>
+            <input type="range" id="s-ecc-x" min="-58" max="58" step="1" value="0"></div>
+          <div class="ctrl-group"><label><span>Offset, front–back</span> <span id="v-ecc-y">0 mm</span></label>
+            <input type="range" id="s-ecc-y" min="-58" max="58" step="1" value="0"></div>
+          <div class="ctrl-group"><label><span>Load on the pan</span> <span id="v-ecc-m">100.0 g</span></label>
+            <input type="range" id="s-ecc-m" min="1" max="310" step="1" value="100"></div>
+          <div class="ctrl-group"><label><span>Bench tilt</span> <span id="v-ecc-tilt">0.00 deg</span></label>
+            <input type="range" id="s-ecc-tilt" min="0" max="2" step="0.05" value="0"></div>
+          <div class="stats" id="st-ecc"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">The weighing pan, seen from above</div>
+            <canvas id="cv-ecc" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-ecc" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Eccentricity, and the one number the manual gives you</h3>
+        <p>To first order the error grows with how far off-centre the load sits and with how heavy it is:</p>
+        <div class="equation-box"><span class="eqno">eq. 1.2.2</span>
+          $$\Delta m_{\mathrm{ecc}} \;=\; k_e\,r\,m$$</div>
+        <p>with \(r\) the radial distance from the centre of the pan in millimetres, \(m\) the load, and
+          \(k_e\) a per-balance coefficient in mm<sup>−1</sup>. You never look \(k_e\) up — you back it out
+          of the one specification you are given. Standard eccentricity testing puts the load at the centre
+          of a pan quadrant, which on a 127 mm square pan is \(r = 44.9\) mm; the manual's 3 mg limit
+          value at 100 g then fixes \(k_e = 6.7\times10^{-7}\) mm<sup>−1</sup> for this model. Repeat the
+          arithmetic with the 1 mg typical value and you get a third of that — the honest range your own
+          balance lives in until you measure it.</p>
+        <div class="aside"><span class="lab">Worth knowing</span>
+          <strong>Note from Dr. McGhee.</strong> Real eccentricity is not exactly linear in <em>r</em> and it
+          is not the same in every direction — a mechanism can be well-behaved front-to-back and poor
+          left-to-right. The straight line above is a cartoon calibrated to hit the one published point.
+          Its job is to get the <em>size</em> and the <em>scaling</em> right, which it does; do not read a
+          specific number off it and put it in a notebook. If you need to know your own balance's
+          behaviour, run the eccentricity routine test in tab 4 — that measures it instead of modelling it.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="2.3" data-title="The order of operations">2.3 · The order of operations, and why it is that order</h2>
+        <p>The manual gives a start-up sequence and it is worth taking literally, because every step
+          invalidates the ones before it:</p>
+        <div class="rules">
+          <div class="rule"><b>1 · Acclimatise, ≥ 4 h</b><span>After the balance arrives at the bench it stays there, powered off, for at least four hours. A mechanism at a different temperature from its housing is still moving.</span></div>
+          <div class="rule"><b>2 · Warm up, ≥ 30 min</b><span>From cold power-on. From standby it is ready immediately — which is the real argument for never switching the balance off at the wall.</span></div>
+          <div class="rule"><b>3 · Check the level</b><span>Level first, because levelling moves the mechanism and invalidates any adjustment made before it.</span></div>
+          <div class="rule"><b>4 · Internal adjustment</b><span>Now, and only now, does re-measuring <em>BL/g</em> mean anything. The manual asks for this daily, and after cleaning, levelling or moving.</span></div>
+          <div class="rule"><b>5 · Routine test</b><span>Per your SOP. Adjustment sets the balance; a test tells you whether it worked. They are not the same operation.</span></div>
+          <div class="rule"><b>6 · Zero, then weigh</b><span>Zero with the pan as it will be — bare, or with whatever stays on it all day.</span></div>
+        </div>
+        <p>Steps 3 and 4 are the pair people invert, and inverting them wastes both. Levelling after
+          adjusting means you adjusted a balance that then moved.</p>
+
+        <h3>Tare, or weigh by difference?</h3>
+        <p>You almost never want the mass of the weighing boat. Two ways to get rid of it: put the empty
+          boat on and press <b>tare</b>, or weigh the boat, weigh boat-plus-sample, and subtract. People
+          argue about which is more accurate. The arithmetic says they are identical:</p>
+        <div class="equation-box"><span class="eqno">eq. 1.2.3</span>
+          $$\sigma_{\mathrm{net}} \;=\; \sqrt{\sigma_{\mathrm{tare}}^{2} + \sigma_{\mathrm{gross}}^{2}} \;=\; s\sqrt{2} \;\approx\; 1.41\,s$$</div>
+        <p>Both routes are a <em>difference of two weighings</em>, each carrying the balance's repeatability
+          \(s\), so both cost you a factor \(\sqrt{2}\). Taring does not make the boat's uncertainty
+          disappear; it just stores it out of sight. What weigh-by-difference buys you is a written record
+          of both numbers, so a drift between them is something you can notice afterwards. What taring buys
+          you is one less transcription error. Pick per job, not per dogma.</p>
+
+        <details class="worked">
+          <summary>Worked example <span class="we-title">— you bumped the bench mid-session and carried on. What did it cost?</span></summary>
+          <div class="worked-body">
+            <ol class="steps">
+              <li><span class="lead">Write what you know.</span> The knock left the balance 0.8° out of
+                level. You weighed out 250 mg of a reagent, tared with the boat on the pan, and the boat
+                sat about 35 mm off-centre. XSR303S: \(k_e = 6.7\times10^{-7}\) mm<sup>−1</sup>.</li>
+              <li><span class="lead">Take the tilt term first, symbolically.</span> Tilt is proportional, and
+                it acts on the <em>net</em> mass because the tare was taken under the same tilt:
+                <div class="step-eq">$$\Delta m_{\theta} = m\left(1-\cos\theta\right), \qquad \theta = 0.8° = 0.01396\ \mathrm{rad}$$</div>
+                <div class="step-eq">$$\Delta m_{\theta} = 250\ \mathrm{mg}\times\left(1-\cos 0.8°\right) = 250\times 9.75\times10^{-5} = 0.024\ \mathrm{mg}$$</div></li>
+              <li><span class="lead">Now eccentricity.</span> Same argument — the boat did not move between
+                tare and reading, so only the <em>added</em> 250 mg is weighed off-centre:
+                <div class="step-eq">$$\Delta m_{\mathrm{ecc}} = k_e\,r\,m = 6.7\times10^{-7}\times 35 \times 250\ \mathrm{mg} = 0.0059\ \mathrm{mg}$$</div></li>
+              <li><span class="lead">Compare against the noise you cannot avoid.</span>
+                <div class="step-eq">$$\sigma_{\mathrm{net}} = s\sqrt{2} = 0.5\ \mathrm{mg}\times 1.41 = 0.71\ \mathrm{mg}$$</div></li>
+              <li><span class="lead">Read the answer.</span> Tilt and eccentricity together contribute
+                0.03 mg. Repeatability contributes 0.71 mg — more than twenty times as much.</li>
+            </ol>
+            <div class="answer">The bump cost you essentially nothing, and that is the lesson. At 250 mg
+              these two errors are far below the noise floor. They become the dominant term only on
+              <b>large</b> loads: repeat this at 250 <em>grams</em> and the tilt term alone is 24 mg,
+              against the same 0.71 mg of scatter. <b>Proportional errors matter for big samples; the noise
+              floor matters for small ones</b> — and almost everything the McGhee Lab weighs is small.
+              Tab 3 is about the small end.</div>
+          </div>
+        </details>
+
+        <details class="check">
+          <summary>Check yourself</summary>
+          <div class="check-body">
+            <p><b>1.</b> You level the balance, then run an internal adjustment, then discover the bench
+              wobbles and move the whole thing to a different bench. What must you repeat, and in what order?</p>
+            <details><summary>Answer</summary><p>Everything from step 3. The new bench is a new level and a
+              new location, so: re-level, then re-adjust, then re-test. Adjusting before levelling on the new
+              bench would set <em>BL/g</em> against a mechanism that then moves. And because it is a genuinely
+              new place, the gravity argument from §1.2 applies too — although across one room the change is
+              far too small to see, the levelling change is not.</p></details>
+            <p><b>2.</b> A colleague says taring is sloppy and insists on weighing by difference for
+              everything because "it is more accurate". Are they right?</p>
+            <details><summary>Answer</summary><p>No — eq. 1.2.3 is the same for both. Both are a difference
+              of two weighings and both cost \(s\sqrt{2}\). Weighing by difference is <em>better documented</em>,
+              not more accurate: you keep both raw numbers, so if the balance drifted between them you can
+              see it. If your SOP requires a record of the vessel mass, weigh by difference. If it does not,
+              taring is one fewer number to write down wrong.</p></details>
+          </div>
+        </details>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Tilt error goes as <b>θ²</b> and is <b>proportional</b> — the same percentage on every sample, invisible in the reading.</li>
+          <li>Eccentricity error grows with radius <b>and</b> with load: 3 mg (limit) or 1 mg (typical) at 100 g in the test position.</li>
+          <li><b>Level, then adjust, then test, then zero.</b> Levelling after adjusting throws the adjustment away.</li>
+          <li>Tare and weigh-by-difference cost the same <b>s√2</b>. Choose on documentation, not on accuracy.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next:</strong> the errors that do not scale with your sample — the ones
+        that stay the same size while the sample gets smaller, until they are the whole answer.</div>
+    </div>
+
+  </section>
+  <!-- ══════════════════════════ TAB 3 — PRECAUTIONS ══════════════════════════ -->
+  <section id="tab-care" class="tab-content">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="3.1" data-title="The reading that won't settle">3.1 · The reading that will not settle</h2>
+        <p>You put a plastic weighing boat on the pan and the number will not stop moving. It drifts one way
+          for thirty seconds, slows, and eventually parks somewhere. You take the boat off and the zero has
+          moved too. Nothing is broken. You are watching electrostatic charge leak off a piece of plastic.</p>
+        <p>A charged object near a grounded metal surface — the pan, the draft shield, the balance
+          housing — is pulled toward it. That pull is a force the coil has to fight, and the coil cannot
+          tell it apart from weight. The pull dies as the charge drains away, and how fast it drains
+          depends almost entirely on how humid the room is. In Tucson, the room is not humid.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>plastic boat, Tucson in June</em>. Watch the apparent mass drift. Read the
+            <b>initial error</b> and compare it to the 1 mg readability.</li>
+          <li>Drag <b>humidity</b> up to 60% and watch the same charge disappear. Read the time constant at
+            25% and at 60% — it is not a small factor.</li>
+          <li>Halve the <b>charge</b> slider. Does the error halve? Look at the equation and say why not.</li>
+          <li>Switch to <em>metal spatula and boat</em>. Explain, in one sentence, why the error is gone.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">On the pan:</span>
+        <button class="scen-btn on" data-widget="static" data-scen="dry">plastic boat, Tucson in June</button>
+        <button class="scen-btn" data-widget="static" data-scen="humid">plastic boat, humid day</button>
+        <button class="scen-btn" data-widget="static" data-scen="metal">metal spatula and boat</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Charge on the vessel</span> <span id="v-static-q">5.0 nC</span></label>
+            <input type="range" id="s-static-q" min="0" max="20" step="0.5" value="5"></div>
+          <div class="ctrl-group"><label><span>Relative humidity</span> <span id="v-static-rh">25%</span></label>
+            <input type="range" id="s-static-rh" min="10" max="70" step="1" value="25"></div>
+          <div class="ctrl-group"><label><span>Gap to grounded metal</span> <span id="v-static-d">10 mm</span></label>
+            <input type="range" id="s-static-d" min="4" max="60" step="1" value="10"></div>
+          <div class="stats" id="st-static"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Apparent mass while the charge drains away</div>
+            <canvas id="cv-static" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-static" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Why halving the charge quarters the error</h3>
+        <p>A charge <em>q</em> a distance <em>d</em> above a grounded conducting plane is attracted to it
+          exactly as if an equal and opposite charge sat the same distance <em>below</em> the plane — the
+          image charge. The two are \(2d\) apart, so</p>
+        <div class="equation-box"><span class="eqno">eq. 1.3.1</span>
+          $$F \;=\; \frac{q^{2}}{4\pi\varepsilon_{0}(2d)^{2}} \;=\; \frac{q^{2}}{16\pi\varepsilon_{0}d^{2}} \qquad\Longrightarrow\qquad \Delta m \;=\; \frac{F}{g}$$</div>
+        <p>with \(q\) the charge in coulombs, \(d\) the gap in metres, \(\varepsilon_0\) the permittivity of
+          free space and \(\Delta m\) the spurious mass the balance reports. The \(q^{2}\) is why halving
+          the charge quarters the error, and the \(d^{-2}\) is why the draft shield being close is not
+          helping you.</p>
+        <div class="insight"><strong>Static is not a small effect.</strong> Five nanocoulombs — a boat
+          rubbed once against a nitrile glove — sitting 10 mm from grounded metal produces about
+          <b>57 mg</b> of apparent mass on this balance. That is fifty-seven times the readability, and it
+          decays while you watch, so it does not even look like a constant offset you might catch.</div>
+        <div class="aside"><span class="lab">McGhee Lab practice</span>
+          <strong>Note from Dr. McGhee.</strong> Tucson bench humidity sits in the teens for months at a
+          time, which is squarely in the regime where charge takes tens of minutes to drain. In practice:
+          weigh powders in a <b>metal or antistatic vessel</b> wherever the protocol allows it; do not peel
+          a boat off a stack and go straight to the pan; and if a reading is drifting monotonically in one
+          direction with nothing on the pan but a plastic vessel, stop and treat it as charge, not as a
+          balance fault. If it becomes a recurring problem for a specific protocol, an ioniser is the
+          standard fix and worth asking for.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="3.2" data-title="Everything floats a little">3.2 · Everything on the pan is floating a little</h2>
+        <p>Air is a fluid and your sample displaces it. Archimedes does not care that the fluid is thin: an
+          object in air weighs less than the same object in vacuum, by the weight of the air it pushed
+          aside. The balance does not correct for this, because it cannot — it has no idea what your sample
+          is made of.</p>
+        <p>What the balance <em>was</em> given is a reference density. Adjustment weights are conventionally
+          treated as 8000 kg/m³, so the balance implicitly reports "the mass of a piece of 8000 kg/m³ steel
+          that would read the same". If your sample is not steel, that is not your mass.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>water</em>. Read the correction in percent and in milligrams on a 100 g sample.
+            Is it bigger or smaller than the balance's readability?</li>
+          <li>Switch to <em>steel weights</em>. The correction nearly vanishes. Say why, using the equation below.</li>
+          <li>Switch to <em>polystyrene foam</em>. Read the correction. This is the case people find
+            unbelievable, and it is real.</li>
+          <li>Put it back on water and drag <b>elevation</b> from 0 m to 728 m — Tucson. Which direction does
+            the correction move, and by how much of itself?</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">On the pan:</span>
+        <button class="scen-btn on" data-widget="buoy" data-scen="water">water</button>
+        <button class="scen-btn" data-widget="buoy" data-scen="agar">agarose powder</button>
+        <button class="scen-btn" data-widget="buoy" data-scen="steel">steel weights</button>
+        <button class="scen-btn" data-widget="buoy" data-scen="foam">polystyrene foam</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Sample density</span> <span id="v-buoy-rho">1.00 g/cm3</span></label>
+            <input type="range" id="s-buoy-rho" min="0.03" max="12" step="0.01" value="1"></div>
+          <div class="ctrl-group"><label><span>Elevation</span> <span id="v-buoy-h">728 m</span></label>
+            <input type="range" id="s-buoy-h" min="0" max="3000" step="10" value="728"></div>
+          <div class="ctrl-group"><label><span>Room temperature</span> <span id="v-buoy-T">22.0 C</span></label>
+            <input type="range" id="s-buoy-T" min="10" max="30" step="0.5" value="22"></div>
+          <div class="ctrl-group"><label><span>Displayed mass</span> <span id="v-buoy-m">100.0 g</span></label>
+            <input type="range" id="s-buoy-m" min="0.05" max="310" step="0.05" value="100"></div>
+          <div class="stats" id="st-buoy"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Buoyancy correction against sample density</div>
+            <canvas id="cv-buoy" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-buoy" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>The correction, and where the air density comes from</h3>
+        <p>Air is close enough to an ideal gas for this:</p>
+        <div class="equation-box"><span class="eqno">eq. 1.3.2</span>
+          $$\rho_{\mathrm{air}} \;=\; \frac{p\,M_{\mathrm{air}}}{R\,T}$$</div>
+        <p>with \(p\) the ambient pressure in pascals, \(M_{\mathrm{air}} = 0.028964\) kg/mol,
+          \(R = 8.314\) J/(mol·K) and \(T\) the absolute temperature. At sea level and 22 °C that is
+          1.20 kg/m³; in Tucson, where the pressure is about 92.9 kPa, it is 1.10 — nine percent less air to
+          be buoyed by, which is nine percent less correction. Then</p>
+        <div class="equation-box"><span class="eqno">eq. 1.3.3</span>
+          $$m_{\mathrm{true}} \;=\; m_{\mathrm{read}}\left[1 + \rho_{\mathrm{air}}\left(\frac{1}{\rho_{s}} - \frac{1}{\rho_{\mathrm{ref}}}\right)\right]$$</div>
+        <p>with \(\rho_s\) the sample's density and \(\rho_{\mathrm{ref}} = 8000\) kg/m³ the conventional
+          reference-weight density. The bracket is the whole story: when \(\rho_s = \rho_{\mathrm{ref}}\)
+          the two terms cancel and there is no correction at all, which is exactly why steel weights show
+          nothing. As the sample gets lighter than steel, \(1/\rho_s\) grows and the correction grows with it.</p>
+        <div class="insight"><strong>Water on this balance reads about 0.1% low.</strong> On 100 g that is
+          96 mg — ninety-six readability steps, and a hundred and ninety times the repeatability. Buoyancy
+          is not a fussy metrologist's correction; it is the largest systematic error in this lesson for any
+          low-density sample weighed in quantity.</div>
+        <div class="aside"><span class="lab">Worth knowing</span>
+          <strong>Note from Dr. McGhee.</strong> Before you start correcting everything: buoyancy is a
+          <em>proportional</em> error, so it cancels wherever you only care about a ratio. Weighing agarose
+          to make a percentage solution, you weigh the powder and measure the volume — the buoyancy error on
+          0.1 g of powder is about 0.06 mg, which is nothing. Buoyancy earns its keep when you are
+          transferring an absolute mass between labs, calibrating something, or working with foams and
+          low-density solids. Powders are also awkward for a second reason: the volume that matters is the
+          volume the powder actually displaces, air gaps included, not the density of the solid material.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="3.3" data-title="How small can you go">3.3 · How small a sample is this balance allowed to weigh?</h2>
+        <p>Every error so far has been proportional: tilt, eccentricity and buoyancy all scale with the
+          sample, so they are a fixed percentage whether you weigh 300 g or 300 mg. Repeatability does not.
+          It is a fixed number of milligrams — and as the sample shrinks, that fixed number becomes a
+          bigger and bigger fraction of it.</p>
+        <p>There is a mass below which the balance simply cannot deliver the accuracy you need, and it is
+          calculable. Find it below, then check your answer against the manual.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Leave <b>repeatability</b> at 0.5 mg and set <b>required accuracy</b> to 0.10%. Read the
+            minimum weight off the chart. Now open the constants bar and compare it to the manual's
+            published number for this balance.</li>
+          <li>Change required accuracy to 1%. Read the minimum weight again and check it against the manual
+            a second time.</li>
+          <li>Switch to <em>the agarose job</em>: 0.1 g of powder. Where does it sit relative to the two
+            thresholds?</li>
+          <li>Now drag repeatability up to 0.9 mg — the manual's <em>typical</em> figure rather than its
+            reference-conditions one. What happens to the agarose job?</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Requirement:</span>
+        <button class="scen-btn on" data-widget="minw" data-scen="usp">0.10% — the USP rule</button>
+        <button class="scen-btn" data-widget="minw" data-scen="onepct">1% — ordinary prep work</button>
+        <button class="scen-btn" data-widget="minw" data-scen="agar">the agarose job</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Repeatability</span> <span id="v-minw-s">0.50 mg</span></label>
+            <input type="range" id="s-minw-s" min="0.05" max="3" step="0.05" value="0.5"></div>
+          <div class="ctrl-group"><label><span>Required accuracy</span> <span id="v-minw-re">0.10%</span></label>
+            <input type="range" id="s-minw-re" min="0.02" max="5" step="0.01" value="0.1"></div>
+          <div class="ctrl-group"><label><span>Your sample</span> <span id="v-minw-m">1.00 g</span></label>
+            <input type="range" id="s-minw-m" min="0" max="4" step="0.01" value="3"></div>
+          <div class="stats" id="st-minw"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Relative uncertainty against sample mass</div>
+            <canvas id="cv-minw" width="660" height="310"></canvas></div>
+          <div class="val-verdict" id="vd-minw" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>The minimum weight, in one line</h3>
+        <p>The uncertainty of a single weighing, expanded to about 95% confidence, is \(2s\). Divide it by
+          the sample mass to get a relative uncertainty, demand that this be no worse than your required
+          accuracy \(\mathrm{RE}\), and solve:</p>
+        <div class="equation-box"><span class="eqno">eq. 1.3.4</span>
+          $$\frac{2s}{m} \;\le\; \mathrm{RE} \qquad\Longrightarrow\qquad m_{\min} \;=\; \frac{2s}{\mathrm{RE}}$$</div>
+        <p>with \(s\) the repeatability from eq. 1.1.4, \(\mathrm{RE}\) the required relative accuracy as a
+          fraction, and \(m_{\min}\) the smallest sample the balance may be used for. The factor 2 is a
+          coverage factor — the \(k = 2\) the manual names in its own footnote to the minimum-weight
+          row — and it is <em>not</em> the \(\sqrt{2}\) from eq. 1.2.3. The two arrive from different
+          arguments and must never be multiplied together by accident.</p>
+
+        <details class="worked">
+          <summary>Worked example <span class="we-title">— derive the manual's two published minimum weights from one measured number</span></summary>
+          <div class="worked-body">
+            <ol class="steps">
+              <li><span class="lead">Write what you know.</span> XSR303S <em>typical</em> repeatability,
+                from the manual's §9.3 table: \(s = 0.5\) mg. Two requirements to test: the
+                USP pharmacopoeial tolerance of 0.10%, and an ordinary prep tolerance of 1%.</li>
+              <li><span class="lead">Assemble the equation.</span> Symbolically, from eq. 1.3.4:
+                <div class="step-eq">$$m_{\min} = \frac{2s}{\mathrm{RE}}$$</div></li>
+              <li><span class="lead">Plug in the pharmacopoeial case.</span> \(\mathrm{RE} = 0.0010\):
+                <div class="step-eq">$$m_{\min} = \frac{2(0.5\ \mathrm{mg})}{0.0010} = 1000\ \mathrm{mg} = 1\ \mathrm{g}$$</div></li>
+              <li><span class="lead">Plug in the prep case.</span> \(\mathrm{RE} = 0.010\):
+                <div class="step-eq">$$m_{\min} = \frac{2(0.5\ \mathrm{mg})}{0.010} = 100\ \mathrm{mg}$$</div></li>
+              <li><span class="lead">Check against the manual.</span> Its §9.3 table lists, for the
+                XSR303S: minimum weight 1 g at 0.10% tolerance, and 100 mg at 1% tolerance.</li>
+            </ol>
+            <div class="answer">Both numbers, exactly — and the manual's own footnote on that row
+              (<i>determined at 5% load, k = 2</i>) confirms it used the same coverage factor 2 that
+              eq. 1.3.4 does. You did not look the answers up; one repeatability figure and one line of
+              algebra reproduced the manufacturer's published specification. Which means the reverse is
+              available to you: measure <em>your</em> balance's repeatability with the
+              routine test in tab 4, and you can compute its real minimum weight on your bench, on a
+              Tuesday, with the air handling doing whatever it does.</div>
+          </div>
+        </details>
+
+        <div class="insight"><strong>0.1 g of agarose sits exactly on the 1% line.</strong> The
+          protocol's weigh-out is precisely at this balance's minimum weight for 1% work — not below it,
+          but with no margin either. Use the manual's <em>limit</em> repeatability of 0.9 mg instead of
+          its typical 0.5 mg and the minimum weight becomes 180 mg — the same weigh-out is now
+          <b>under</b> it. That is the single most useful number in this lesson, and tab 5 spends its
+          capstone on it.</div>
+
+        <details class="check">
+          <summary>Check yourself</summary>
+          <div class="check-body">
+            <p><b>1.</b> You need 20 mg of a peptide to 2% accuracy. Your balance has a measured
+              repeatability of 0.5 mg. Can you do it?</p>
+            <details><summary>Answer</summary><p>No. \(m_{\min} = 2(0.5)/0.02 = 50\) mg, and you have 20 mg.
+              At 20 mg the achievable relative uncertainty is \(2(0.5)/20 = 5\%\), not 2%. Your options are
+              a balance with better repeatability (a semi-micro or micro balance, where <em>s</em> is tens
+              of micrograms), or weighing a larger mass and diluting down — which trades the balance's
+              uncertainty for a pipette's, and lesson 2 is about whether that is a good trade.</p></details>
+            <p><b>2.</b> Someone corrects a 250 g water weighing for buoyancy and quotes the answer to the
+              nearest 0.1 mg. What is wrong?</p>
+            <details><summary>Answer</summary><p>The correction is right — about 240 mg on 250 g — but the
+              precision claimed is not supportable. A single weighing carries \(2s = 1\) mg of expanded
+              uncertainty at best, so the last digit is meaningless. Correcting a systematic error does not
+              shrink the random one; buoyancy and repeatability are independent, and the answer can only be
+              as precise as the worse of the two.</p></details>
+          </div>
+        </details>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Static charge on plastic can be worth <b>tens of milligrams</b>, goes as <b>q²/d²</b>, and drains slowly in dry air. Tucson is dry air.</li>
+          <li>Buoyancy makes water read about <b>0.1% low</b>, and vanishes only for samples as dense as the 8000 kg/m³ reference.</li>
+          <li>Proportional errors (tilt, eccentricity, buoyancy) are a fixed <b>percentage</b>. Repeatability is a fixed <b>number of milligrams</b>.</li>
+          <li><b>m<sub>min</sub> = 2s/RE.</b> One measured number reproduces the manufacturer's published minimum weights exactly.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next:</strong> the two operations that keep <em>BL/g</em> honest, how often
+        the manual actually wants them, and which routine test catches which fault.</div>
+    </div>
+
+  </section>
+  <!-- ══════════════════════════ TAB 4 — MAINTENANCE ══════════════════════════ -->
+  <section id="tab-maint" class="tab-content">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="4.1" data-title="One degree is enough">4.1 · Let the room warm up and watch the span go</h2>
+        <p>The manual's maintenance table opens with a single word in the interval column for internal
+          adjustment: <b>Daily</b>. That looks like ritual. It is not — it is a number, and you can compute it.</p>
+        <p>An internal adjustment re-measures the conversion factor <em>BL/g</em> from §1.1 by lifting a
+          known mass with the balance's own motor. Between adjustments that factor drifts, mostly with
+          temperature: the magnet gets weaker as it warms, so the same current holds up slightly less mass.
+          The manual quantifies exactly this and calls it the <b>sensitivity temperature drift</b>. Below,
+          let the bench warm up and watch what it costs.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>same morning</em>, load at 300 g — this balance's nominal load. Confirm the span
+            error is essentially zero.</li>
+          <li>Step to <em>that afternoon</em>. Read the span error. Compare it to the <b>residual after
+            adjustment</b> stat, which is the manual's own sensitivity-offset spec.</li>
+          <li>Drag the temperature change down to <b>1.0 °C</b> — a room you would call stable. Is the span
+            error still bigger than the residual?</li>
+          <li>Tick <b>run internal adjustment</b>. Watch the error collapse. Untick it and drag the load
+            down to 10 g: does a drifting span matter for small samples?</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">Since the last adjustment:</span>
+        <button class="scen-btn on" data-widget="adjust" data-scen="morning">same morning</button>
+        <button class="scen-btn" data-widget="adjust" data-scen="afternoon">that afternoon</button>
+        <button class="scen-btn" data-widget="adjust" data-scen="weekend">back after a long weekend</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Temperature change</span> <span id="v-adjust-dt">0.0 C</span></label>
+            <input type="range" id="s-adjust-dt" min="-12" max="12" step="0.1" value="0"></div>
+          <div class="ctrl-group"><label><span>Days since adjustment</span> <span id="v-adjust-days">0</span></label>
+            <input type="range" id="s-adjust-days" min="0" max="30" step="1" value="0"></div>
+          <div class="ctrl-group"><label><span>Load on the pan</span> <span id="v-adjust-m">300.0 g</span></label>
+            <input type="range" id="s-adjust-m" min="1" max="310" step="1" value="300"></div>
+          <label class="chk"><input type="checkbox" id="c-adjust-adj"> Run internal adjustment now</label>
+          <div class="stats" id="st-adjust"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Span error against temperature change</div>
+            <canvas id="cv-adjust" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-adjust" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>Where "Daily" comes from</h3>
+        <p>Sensitivity drift is proportional to both the load and the temperature change:</p>
+        <div class="equation-box"><span class="eqno">eq. 1.4.1</span>
+          $$\Delta m \;=\; m\,\mathrm{TC}\,\Delta T$$</div>
+        <p>with \(m\) the load, \(\Delta T\) the temperature change since the last adjustment in kelvin, and
+          \(\mathrm{TC}\) the sensitivity temperature drift — for the XSR303S, 0.0005 %/°C, which is
+          \(5\times10^{-6}\) per °C. Now put the two published numbers side by side. At nominal load,
+          300 g:</p>
+        <div class="rules">
+          <div class="rule"><b>The best the balance can do</b><span>Sensitivity offset after adjustment with the internal weight: <b>1.2 mg</b> typical at nominal load (6 mg limit value). That is the residual error you cannot adjust away.</span></div>
+          <div class="rule"><b>What one degree costs</b><span>300 g × 5 × 10<sup>−6</sup> × 1 °C = <b>1.5 mg</b>. One single degree of drift already exceeds the residual the adjustment leaves behind.</span></div>
+        </div>
+        <div class="insight"><strong>That is the whole argument for "Daily".</strong> A bench that moves one
+          degree between morning and afternoon has already given back more than an adjustment can buy you.
+          A real lab bench moves three to five. The manual is not being cautious — at nominal load, an
+          un-adjusted balance is out of its own specification by lunchtime.</div>
+        <div class="aside"><span class="lab">Worth knowing</span>
+          <strong>Note from Dr. McGhee.</strong> Notice who this hurts and who it does not. Span drift is a
+          <em>proportional</em> error, so at 300 g it is milligrams and at 100 mg it is
+          \(100\ \mathrm{mg}\times5\times10^{-6}\times5 = 0.0025\) mg — utterly invisible next to the
+          0.5 mg of repeatability. If everything you weigh is a hundred milligrams of powder, a missed
+          adjustment is not what will ruin your day; tab 3's minimum weight is. Run the adjustment anyway,
+          because it costs ninety seconds and because the next person at this balance may be weighing
+          something big — but know which error you are actually fighting.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="4.2" data-title="Which test catches what">4.2 · Adjusting is not testing — and one test is not the others</h2>
+        <p>An <b>adjustment</b> sets the balance. A <b>test</b> tells you whether it is right. They are
+          different operations and the manual lists them on separate rows, with different triggers.</p>
+        <p>There are three routine tests, and Mettler Toledo's recommendation is careful: <i>"METTLER TOLEDO
+          recommends to at least perform a sensitivity test."</i> A floor, not a complete answer. Break the
+          balance in each of the three ways below and see which tests notice.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Drag <b>severity</b> down to zero. That is a healthy balance — all three tests pass. Note how much margin each one has.</li>
+          <li>Put severity back to 1.0. The fault is <em>span drift</em>. Which tests go red? Is the minimum recommendation enough here?</li>
+          <li>Switch to <em>corner load out of spec</em> — a knock, or a worn mechanism. Now which tests
+            go red, and what does the sensitivity test alone tell you?</li>
+          <li>Switch to <em>the bench is shaking</em> and answer the same question. Then raise the
+            <b>test load</b> to 300 g and watch two of the three measured values move while the third does
+            not — and say why that is the correct behaviour, not a bug.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">What is wrong:</span>
+        <button class="scen-btn on" data-widget="tests" data-scen="span">span has drifted</button>
+        <button class="scen-btn" data-widget="tests" data-scen="corner">corner load out of spec</button>
+        <button class="scen-btn" data-widget="tests" data-scen="noisy">the bench is shaking</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>Controls</h3>
+          <div class="ctrl-group"><label><span>Severity of the fault</span> <span id="v-tests-mag">1.0x</span></label>
+            <input type="range" id="s-tests-mag" min="0" max="3" step="0.05" value="1"></div>
+          <div class="ctrl-group"><label><span>Test load</span> <span id="v-tests-m">100.0 g</span></label>
+            <input type="range" id="s-tests-m" min="10" max="310" step="5" value="100"></div>
+          <div class="stats" id="st-tests"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Three routine tests, run against one fault</div>
+            <canvas id="cv-tests" width="660" height="255"></canvas></div>
+          <div class="val-verdict" id="vd-tests" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>What each test actually does</h3>
+        <div class="rules">
+          <div class="rule"><b>Sensitivity test</b><span>One known weight, near nominal load, in the centre of the pan. Compares the reading to the weight's certified value. Catches <b>span drift</b>. Blind to where you put things and blind to noise.</span></div>
+          <div class="rule"><b>Eccentricity test</b><span>One weight, moved to the standard off-centre positions. Compares the readings to the centred one. Catches <b>corner load</b> — a knock, a worn pivot, a pan seated wrong. Blind to span.</span></div>
+          <div class="rule"><b>Repeatability test</b><span>One weight, on and off ten times. Reports the scatter. Catches <b>a bad environment</b> — draughts, vibration, static — and is the only test that gives you the <em>s</em> that tab 3's minimum weight is built from. Blind to span and to corner load.</span></div>
+        </div>
+        <div class="insight"><strong>Each test is blind to the other two faults.</strong> "At least a
+          sensitivity test" protects you from the error that grows quietly on <em>every</em> weighing at
+          <em>every</em> load. It does not tell you your balance is healthy. If a number matters, the
+          repeatability test is the one that tells you whether it can matter — it is the only one that
+          measures the thing your minimum weight depends on.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="4.3" data-title="The schedule, verbatim">4.3 · The schedule, and how to clean the thing</h2>
+        <p>Here is §7.1 of the manual, unedited apart from the layout:</p>
+        <table class="cmp">
+          <tr><th>Maintenance action</th><th>Recommended interval</th></tr>
+          <tr><td><b>Internal adjustment</b></td><td>Daily · after cleaning · after levelling · after changing the location</td></tr>
+          <tr><td><b>Routine tests</b><br><span class="src">eccentricity, repeatability, sensitivity — Mettler Toledo recommends at least a sensitivity test</span></td><td>After cleaning · after assembling the balance · after a software update · depending on your SOP</td></tr>
+          <tr><td><b>Cleaning</b></td><td>After every use · after changing the substance · depending on the degree of pollution · depending on your SOP</td></tr>
+          <tr><td><b>Software update</b></td><td>Depending on your SOP · after a new software release</td></tr>
+        </table>
+        <p>Read the triggers as a dependency graph rather than a calendar. Cleaning, levelling and moving
+          all disturb the mechanism, so all three force a re-adjustment. Adjusting and re-assembling both
+          change what the balance believes, so both force a re-test. Nothing here is arbitrary.</p>
+
+        <h3>Cleaning, without wrecking it</h3>
+        <p>The manual's NOTICE on cleaning is short enough to obey exactly:</p>
+        <div class="rules">
+          <div class="rule"><b>Do not spray or pour</b><span>Liquid entering the housing damages the instrument. Nothing is ever sprayed <em>at</em> a balance.</span></div>
+          <div class="rule"><b>Lightly moistened, lint-free</b><span>A damp cloth or tissue. Not a wet one, not an abrasive one.</span></div>
+          <div class="rule"><b>Only the agents in the table</b><span>The manual carries a per-component compatibility table — the same agent can be fine on the weighing pan and damaging on the housing.</span></div>
+          <div class="rule"><b>Wipe spills immediately</b><span>Especially anything acidic or alkaline; the table's "partially recommended" grade is explicitly about exposure time.</span></div>
+        </div>
+        <p>That compatibility table is per component and per agent, with four grades — best recommendation,
+          <b>R</b> recommended without limitation, <b>PR</b> partially recommended (individual resistance to
+          acid and alkali must be evaluated, including dependence on exposure time), and <b>—</b> not
+          recommended, high risk of damage. It is short, it is in §7.2.1, and it is not reproduced here on
+          purpose: look up <em>your</em> component and <em>your</em> agent in the manual rather than trusting
+          a copy. The one pairing worth memorising is that <b>70% ethanol and 70% isopropanol are
+          recommended without limitation on every part of the balance</b> — so the reflex you already have
+          from the cell-culture bench is the right one here.</p>
+
+        <details class="check">
+          <summary>Check yourself</summary>
+          <div class="check-body">
+            <p><b>1.</b> You spill a little powder, wipe the pan down with 70% ethanol, and go straight back
+              to weighing. What did you skip, and does it matter?</p>
+            <details><summary>Answer</summary><p>An internal adjustment. The manual triggers one <em>after
+              cleaning</em>, because handling the pan and draft shield disturbs the mechanism. Whether it
+              matters depends on your sample: at 300 g it is worth milligrams, at 100 mg it is worth
+              nothing measurable. Run it anyway — it takes ninety seconds and you are not the only person
+              who uses this balance.</p></details>
+            <p><b>2.</b> Your SOP says "run a sensitivity test weekly" and nothing else. You are about to
+              weigh 5 mg of a peptide. Is the SOP sufficient?</p>
+            <details><summary>Answer</summary><p>No. A sensitivity test catches span drift, which at 5 mg is
+              worth about \(5\ \mathrm{mg}\times5\times10^{-6}\times5\ ^\circ\mathrm{C} = 1.3\times10^{-4}\) mg —
+              nothing. What decides whether 5 mg is weighable at all is <em>s</em>, and only the
+              repeatability test measures it. With \(s = 0.5\) mg, eq. 1.3.4 says even 10% accuracy needs
+              10 mg. The SOP is checking the error that does not matter here and ignoring the one that
+              makes the weighing impossible.</p></details>
+          </div>
+        </details>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li><b>One degree</b> of temperature change costs more than the residual an internal adjustment leaves behind. That is why the interval is "Daily".</li>
+          <li>Adjusting sets the balance; testing tells you whether it worked. Cleaning, levelling and moving all force a re-adjustment.</li>
+          <li>The three routine tests catch three <b>different</b> faults and each is blind to the other two.</li>
+          <li>The repeatability test is the only one that measures <b>s</b> — and therefore the only one that tells you your real minimum weight.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next:</strong> every error in this lesson, on one real weigh-out, at the
+        same time — and the question of whether the 2% gel you made was actually 2%.</div>
+    </div>
+
+  </section>
+  <!-- ══════════════════════════ TAB 5 — RECAP & THE REAL JOB ══════════════════════════ -->
+  <section id="tab-recap" class="tab-content">
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="5.1" data-title="Was your 2% gel 2%?">5.1 · Was the 2% gel actually 2%?</h2>
+        <p>The lab's agarose LLS protocol opens with one line of arithmetic and one instruction:</p>
+        <div class="aside"><span class="lab">From the protocol</span>
+          <strong>Agarose LLS — Sieves, steps 1–2.</strong> <i>"Calculate needed agarose. Ex. 5 mLs of 2% wt
+          agarose: 5 mL × 0.02 = 0.1 g agarose. Measure out agarose on analytical balance, add to
+          40 mL conical."</i></div>
+        <p>Everything in the four tabs behind you now lands on that 0.1 g. Set up the weigh-out below —
+          how big a batch, what vessel, whether you levelled, whether you adjusted — and read what comes out
+          the other end. The bars are the error budget: each one is a mechanism from an earlier tab, sized
+          for <em>this</em> weighing.</p>
+      </div>
+
+      <div class="student-task">
+        <ol>
+          <li>Start on <em>done properly</em>. Read the achieved concentration and its band. Which bar in
+            the budget is the tallest?</li>
+          <li>Switch to <em>in a hurry</em> — plastic boat, dry room, not levelled, not adjusted. Read the
+            band again. Which single change did most of the damage?</li>
+          <li>Go back to <em>done properly</em> and switch to <em>a small batch</em>: 2.5 mL instead of 5.
+            The technique is identical and the answer is much worse. Say why, in the language of tab 3.</li>
+          <li>Now leave everything alone and drag <b>volume uncertainty</b> from 0.2% to 3%. Find the point
+            at which the balance stops being the thing limiting your gel.</li>
+        </ol>
+      </div>
+
+      <div class="scenario-bar">
+        <span class="scenario-bar-label">How the weigh-out went:</span>
+        <button class="scen-btn on" data-widget="weigh" data-scen="good">done properly</button>
+        <button class="scen-btn" data-widget="weigh" data-scen="hasty">in a hurry</button>
+        <button class="scen-btn" data-widget="weigh" data-scen="small">a small batch</button>
+      </div>
+
+      <div class="panel compact">
+        <div class="ctrl">
+          <h3>The job</h3>
+          <div class="ctrl-group"><label><span>Batch volume</span> <span id="v-weigh-vol">5.0 mL</span></label>
+            <input type="range" id="s-weigh-vol" min="1" max="20" step="0.5" value="5"></div>
+          <div class="ctrl-group"><label><span>Target concentration</span> <span id="v-weigh-pct">2.00% w/v</span></label>
+            <input type="range" id="s-weigh-pct" min="0.5" max="5" step="0.05" value="2"></div>
+          <div class="ctrl-group"><label><span>Volume uncertainty</span> <span id="v-weigh-verr">1.00%</span></label>
+            <input type="range" id="s-weigh-verr" min="0.2" max="3" step="0.05" value="1"></div>
+          <div class="ctrl-group"><label><span>Relative humidity</span> <span id="v-weigh-rh">20%</span></label>
+            <input type="range" id="s-weigh-rh" min="10" max="70" step="1" value="20"></div>
+          <h3 style="margin-top:14px">What you did</h3>
+          <label class="chk"><input type="checkbox" id="c-weigh-level" checked> Levelled the balance</label>
+          <label class="chk"><input type="checkbox" id="c-weigh-adj" checked> Ran an internal adjustment today</label>
+          <label class="chk"><input type="checkbox" id="c-weigh-metal" checked> Used a metal / antistatic vessel</label>
+          <div class="stats" id="st-weigh"></div>
+        </div>
+        <div class="viz">
+          <div class="canvas-wrap"><div class="canvas-title">Error budget for one agarose weigh-out</div>
+            <canvas id="cv-weigh" width="660" height="300"></canvas></div>
+          <div class="val-verdict" id="vd-weigh" data-tall="1"></div>
+        </div>
+      </div>
+
+      <div class="background-section">
+        <h3>The concentration, and where its uncertainty comes from</h3>
+        <p>The gel you actually made is the mass you actually weighed divided by the volume you actually
+          added, and each of those carries its own uncertainty:</p>
+        <div class="equation-box"><span class="eqno">eq. 1.5.1</span>
+          $$c \;=\; \frac{m}{V} \qquad\Longrightarrow\qquad \frac{\sigma_c}{c} \;=\; \sqrt{\left(\frac{\sigma_m}{m}\right)^{2} + \left(\frac{\sigma_V}{V}\right)^{2}}$$</div>
+        <p>with \(c\) the concentration in % w/v, \(m\) the weighed mass, \(V\) the added volume, and
+          \(\sigma\) the standard uncertainty of each. Errors add <em>in quadrature</em>, which is the
+          single most useful thing to know about combining them: the biggest term dominates, and halving a
+          small term buys you almost nothing.</p>
+        <div class="insight"><strong>At 5 mL and 2%, the balance and the pipette are about evenly matched —
+          and below that the balance loses.</strong> Weighing 0.1 g sits exactly on this balance's 1%
+          minimum weight, so the mass term is around 1%. A serological pipette delivering 5 mL is around 1%
+          too. Halve the batch and the mass term doubles while the volume term barely moves: <b>small
+          batches are limited by the balance, large ones by the pipette.</b></div>
+        <div class="aside"><span class="lab">McGhee Lab practice — confirm before you rely on it</span>
+          <strong>Note from Dr. McGhee.</strong> Two things this sim assumes that you should check against
+          the actual bench. First, the protocol says <i>"analytical balance"</i>, and the manual in the
+          equipment folder is an XSR <em>Precision</em> balance — 1 mg readability, not the 0.1 mg of a
+          true analytical. If the lab has a separate analytical balance, its <em>s</em> is roughly ten times
+          smaller and every minimum-weight number on this page moves with it. <b>Check which balance the
+          protocol means before you use these figures in a notebook.</b> Second, the 1% default volume
+          uncertainty is a plausible figure for a serological pipette, not a measured one for ours — lesson 2
+          measures it properly. The static term assumes a boat carrying 2 nC after a minute on the pan,
+          which is ordinary handling rather than §3.1's deliberately-charged 5 nC; because the force goes as
+          <em>q</em>², that is a quarter of the error that widget shows.</div>
+      </div>
+    </div>
+
+    <div class="lesson-block">
+      <div class="background-section">
+        <h2 data-nav="5.2" data-title="The whole lesson, one card">5.2 · The whole balance, on one card</h2>
+        <div class="rules">
+          <div class="rule"><b>The reading is a current</b><span>m = BIL/g. The pan never moves. Everything that goes wrong either adds a force, or changes BL/g.</span></div>
+          <div class="rule"><b>Readability ≠ repeatability</b><span>d = 1 mg is the display. s = 0.5 mg typical, 0.9 mg limit, is the physics. Every accuracy question uses s.</span></div>
+          <div class="rule"><b>Level, adjust, test, zero</b><span>In that order, every time, because each step invalidates the ones before it.</span></div>
+          <div class="rule"><b>Centre the sample</b><span>Eccentricity costs 3 mg at 100 g in the corner of the pan, and it costs more the heavier the load.</span></div>
+          <div class="rule"><b>m<sub>min</sub> = 2s/RE</b><span>1 g for 0.1% work, 100 mg for 1% work. Below that the balance physically cannot give you the accuracy, no matter how careful you are.</span></div>
+          <div class="rule"><b>Metal, not plastic, in dry air</b><span>A charged boat is worth tens of milligrams and drifts while you watch. Tucson is dry for most of the year.</span></div>
+          <div class="rule"><b>Adjust daily</b><span>One degree of drift at nominal load already exceeds the adjustment's own residual error.</span></div>
+          <div class="rule"><b>Clean after every use</b><span>Damp, lint-free, never sprayed. 70% ethanol is recommended without limitation on every part. Then re-adjust.</span></div>
+          <div class="rule"><b>Big samples, proportional errors</b><span>Tilt, eccentricity, buoyancy and span drift all scale with the sample. They matter at 300 g.</span></div>
+          <div class="rule"><b>Small samples, the noise floor</b><span>Repeatability is a fixed number of milligrams. It matters at 100 mg — which is most of what this lab weighs.</span></div>
+        </div>
+
+        <details class="check">
+          <summary>Check yourself — the competency set</summary>
+          <div class="check-body">
+            <p><b>1.</b> The balance reads a stable 0.1043 g for a sample you believe is about 0.100 g.
+              Name three mechanisms from this lesson that could produce a stable, repeatable, wrong reading,
+              and one that could not.</p>
+            <details><summary>Answer</summary><p>Stable and wrong: a <b>tilt</b> error (proportional,
+              perfectly repeatable), a <b>span</b> error from a missed adjustment (proportional, repeatable),
+              and an <b>eccentric</b> load that you keep putting in the same wrong place. Buoyancy also
+              qualifies, though at 0.1 g it is only 0.05 mg. What could <em>not</em> do it is
+              <b>repeatability</b> — random scatter does not produce a stable offset — and a settled static
+              charge is unlikely to be stable, because it drains. Note that 4.3 mg on 0.1 g is 4.3%, far
+              larger than tilt or span can plausibly manage: the honest first suspicion is that the sample
+              really is 0.104 g.</p></details>
+            <p><b>2.</b> You need to weigh 30 mg of a dye to 2% accuracy. What do you check first, and what
+              are your options if the answer is no?</p>
+            <details><summary>Answer</summary><p>Minimum weight, eq. 1.3.4: with \(s = 0.5\) mg,
+              \(m_{\min} = 2(0.5)/0.02 = 50\) mg. Thirty milligrams is below it — at 30 mg you can only
+              reach \(2(0.5)/30 = 3.3\%\). Options: use a balance with a smaller <em>s</em>; weigh a larger
+              mass and dilute; or measure your own <em>s</em> with the repeatability test, because 0.5 mg is
+              the manual's typical figure and a very good bench may beat it. What is <em>not</em> an option
+              is weighing more carefully — no technique reduces <em>s</em>.</p></details>
+            <p><b>3.</b> A labmate weighs 250 g of buffer salts, gets a number they distrust, and re-runs the
+              internal adjustment. It changes the reading by 4 mg. What did they just learn, and what have
+              they still not checked?</p>
+            <details><summary>Answer</summary><p>They learned the span had drifted — 4 mg on 250 g is
+              \(1.6\times10^{-5}\), which by eq. 1.4.1 is about 3 °C of temperature change since the last
+              adjustment. Perfectly ordinary, and now fixed. Still unchecked: the <b>level</b> (an
+              adjustment does not detect tilt, and at 250 g a 1° tilt is worth 38 mg), and <b>where on the
+              pan</b> the vessel sat (at 250 g in the corner, eccentricity is worth about 10 mg). Both are
+              larger than the error they just corrected.</p></details>
+          </div>
+        </details>
+      </div>
+
+      <div class="key-takeaways">
+        <ul>
+          <li>Errors combine <b>in quadrature</b>. The biggest term dominates; shrinking a small one buys almost nothing.</li>
+          <li>The lab's 0.1 g agarose weigh-out sits <b>exactly on</b> this balance's 1% minimum weight — right at the edge, with no margin.</li>
+          <li>Halve the batch and the mass error doubles. <b>Make the biggest batch the protocol allows.</b></li>
+          <li>At 5 mL the balance and the pipette contribute about equally. Below that the balance limits you; above it, the pipette does.</li>
+        </ul>
+      </div>
+
+      <div class="handoff"><strong>Next lesson — The Pipette.</strong> This lesson ended on a term it could
+        not evaluate: how well do you actually know the 5 mL? That number comes from an instrument with no
+        display, no adjustment routine and no internal weight — and the way you find out what it delivers is
+        to weigh what comes out of it, on this balance, using eq. 1.1.4 and eq. 1.3.4 again.</div>
+    </div>
+
+  </section>
+
+  <div class="sources">
+    <h2>Sources</h2>
+    <ol>
+      <li>Mettler Toledo. <i>XSR Precision Balances — Reference Manual</i>, software version V 2.0.501.
+        §7.1 maintenance tasks; §7.2 cleaning agents and the cleaning NOTICE; §8 troubleshooting;
+        §9.1 general and environmental data; §9.3.1.1 model data for XSR303S / XSR603S / XSR1203S,
+        including the limit and typical value columns and the footnotes <i>"after adjustment with internal
+        weight"</i> and <i>"determined at 5% load, k = 2"</i>. All balance numbers on this page come from here.</li>
+      <li>United States Pharmacopeia. General Chapter <b>&lt;41&gt; Balances</b> and General Chapter
+        <b>&lt;1251&gt; Weighing on an Analytical Balance</b> — the origin of the minimum-weight rule and of
+        the 0.10% tolerance used in eq. 1.3.4.</li>
+      <li>OIML R 76-1, <i>Non-automatic weighing instruments — Part 1: Metrological and technical
+        requirements and tests</i>. The eccentricity test procedure and load positions used in §2.2.</li>
+      <li>International Gravity Formula 1980 (IAG). Used verbatim as eq. 1.1.3 in §1.2.</li>
+      <li>McGhee Lab. <i>Agarose LLS — Sieves</i>, internal protocol, steps 1–2. The weigh-out the capstone
+        in §5.1 is built on.</li>
+    </ol>
+    <p style="font-size:.78rem;color:#94a3b8">Sections marked <b>McGhee Lab practice</b> are house procedure
+      rather than published guidance, and are flagged wherever they appear so you can tell the two apart.
+      Electromagnetic force restoration (§1.1) is presented as general instrument physics — the manual
+      describes how to operate and maintain the balance, not how its transducer is built. All simulations
+      on this page are teaching models: they are calibrated to reproduce the manual's published numbers at
+      the points where the manual gives one, and each states its own limits in an aside. Use the manual's
+      tables, not a number read off a chart here, for anything that goes into a notebook.</p>
+  </div>
+</main>
+<footer>Equipment Foundations · Lesson 1 of 7 · McGhee Lab, University of Arizona</footer>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   CELL CULTURE FOUNDATIONS — shared house layer.
+   Helpers (COL, fmt, niceTicks, clamp, setupCanvas, Chart, drawLine,
+   arrow, setStat, setVerdict, statTick, lsqFit, mulberry32, randn)
+   follow modules/AUTHORING.md §5 and are copied from the BME466
+   week-1 module verbatim. The learning-module framework layer
+   (defWidget / registerAnim / one shared rAF loop / geometric
+   syncVis) is AUTHORING.md §9 item 3; the section rail and Present
+   mode (§9 item 2) are deliberately NOT included in this track.
+   UNITS: length m (µm where stated) · time s · velocity m/s ·
+   viscosity Pa·s, unless a widget states otherwise.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── palette ── */
+const COL = {
+  air:'#38bdf8', clean:'#2563eb', dirty:'#ef4444', warmc:'#f59e0b',
+  cell:'#7c3aed', media:'#e11d48', plastic:'#94a3b8', steel:'#64748b',
+  good:'#10b981', bad:'#ef4444', warn:'#f59e0b', neutral:'#94a3b8',
+  hepa:'#0891b2', flowline:'#60a5fa', particle:'#7c3aed',
+  grid:'#e2e8f0', axis:'#64748b', text:'#1e293b', faint:'#f1f5f9'
+};
+
+/* ── math / canvas / DOM helpers (house pattern, copied verbatim) ── */
+function randn(){ let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function gaussOf(rng){ let u=0,v=0; while(u===0)u=rng(); while(v===0)v=rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function fmt(v,d){ if(!isFinite(v))return '—'; const a=Math.abs(v);
+  if(a>=1000)return v.toLocaleString('en-US',{maximumFractionDigits:d===undefined?0:d});
+  if(a>=1)return v.toFixed(d===undefined?2:d);
+  if(a>=0.001||a===0)return v.toFixed(d===undefined?3:d);
+  return v.toExponential(d===undefined?2:d); }
+function niceTicks(lo,hi,n){ if(hi<=lo)return [lo]; const range=hi-lo, rough=range/Math.max(n,1),
+  mag=Math.pow(10,Math.floor(Math.log10(rough))); let step;
+  if(rough/mag<1.5)step=mag; else if(rough/mag<3.5)step=2*mag; else if(rough/mag<7.5)step=5*mag; else step=10*mag;
+  const t=[]; let x=Math.ceil(lo/step)*step; while(x<=hi+step*1e-3){t.push(x);x+=step;} return t; }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function setupCanvas(canvas){ if(!canvas)return null; const dpr=window.devicePixelRatio||1; const rect=canvas.getBoundingClientRect();
+  const cssW=rect.width||canvas.width;
+  const w=cssW, h=w*(canvas.height/canvas.width);
+  canvas.width=cssW*dpr; canvas.height=h*dpr; canvas.style.width=cssW+'px'; canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h); return {ctx,w,h}; }
+class Chart{
+  constructor(ctx,w,h,m){ this.ctx=ctx;this.W=w;this.H=h;this.m=m||{l:58,r:18,t:14,b:42};
+    this.pw=w-this.m.l-this.m.r; this.ph=h-this.m.t-this.m.b;
+    /* setupCanvas clears only on FIRST allocation and getCv caches the result,
+       so without this every redraw paints on top of the previous curve. */
+    ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h); }
+  setRange(a,b,c,d){ this.xMin=a;this.xMax=b;this.yMin=c;this.yMax=d; }
+  toX(v){ return this.m.l+(v-this.xMin)/(this.xMax-this.xMin)*this.pw; }
+  toY(v){ return this.m.t+this.ph-(v-this.yMin)/(this.yMax-this.yMin)*this.ph; }
+  grid(xt,yt){ const c=this.ctx; c.save();c.strokeStyle=COL.grid;c.lineWidth=1;c.setLineDash([3,3]);
+    for(const t of xt){const x=this.toX(t);c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();}
+    for(const t of yt){const y=this.toY(t);c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();}
+    c.restore(); }
+  axes(xl,yl,xt,yt,dx,dy,xfmt,yfmt){ const c=this.ctx; c.save();c.strokeStyle=COL.axis;c.lineWidth=1.5;c.setLineDash([]);
+    c.beginPath();c.moveTo(this.m.l,this.m.t);c.lineTo(this.m.l,this.m.t+this.ph);c.lineTo(this.m.l+this.pw,this.m.t+this.ph);c.stroke();
+    c.fillStyle=COL.axis;c.font='11px sans-serif';c.textAlign='center';c.textBaseline='top';
+    for(const t of xt){c.fillText(xfmt?xfmt(t):fmt(t,dx===undefined?0:dx),this.toX(t),this.m.t+this.ph+6);}
+    c.textAlign='right';c.textBaseline='middle';
+    for(const t of yt){c.fillText(yfmt?yfmt(t):fmt(t,dy===undefined?1:dy),this.m.l-6,this.toY(t));}
+    c.fillStyle=COL.text;c.font='12px sans-serif';c.textAlign='center';c.textBaseline='top';
+    c.fillText(xl,this.m.l+this.pw/2,this.m.t+this.ph+22);
+    c.save();c.translate(13,this.m.t+this.ph/2);c.rotate(-Math.PI/2);c.textBaseline='middle';c.fillText(yl,0,0);c.restore();
+    c.restore(); }
+  hLine(yv,color,dash){ const c=this.ctx,y=this.toY(yv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(this.m.l,y);c.lineTo(this.m.l+this.pw,y);c.stroke();c.restore(); }
+  vLine(xv,color,dash){ const c=this.ctx,x=this.toX(xv); c.save();c.strokeStyle=color;c.lineWidth=1.2;if(dash)c.setLineDash(dash);
+    c.beginPath();c.moveTo(x,this.m.t);c.lineTo(x,this.m.t+this.ph);c.stroke();c.restore(); }
+  legend(items,x,y){ const c=this.ctx;c.save();c.font='11px sans-serif';let cx=x;
+    for(const it of items){c.fillStyle=it.color;c.fillRect(cx,y-5,12,10);c.fillStyle=COL.text;cx+=16;
+      c.textAlign='left';c.textBaseline='middle';c.fillText(it.label,cx,y);cx+=c.measureText(it.label).width+14;}c.restore(); }
+}
+function drawLine(ctx,pts,color,lw,dash){ if(pts.length<2)return; ctx.save();ctx.strokeStyle=color;ctx.lineWidth=lw||2;
+  if(dash)ctx.setLineDash(dash); ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]); ctx.stroke();ctx.restore(); }
+function arrow(ctx,x0,y0,x1,y1,color,lw){ ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=lw||1.6;
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+  const a=Math.atan2(y1-y0,x1-x0),hh=6.5; ctx.beginPath();ctx.moveTo(x1,y1);
+  ctx.lineTo(x1-hh*Math.cos(a-0.42),y1-hh*Math.sin(a-0.42));ctx.lineTo(x1-hh*Math.cos(a+0.42),y1-hh*Math.sin(a+0.42));
+  ctx.closePath();ctx.fill();ctx.restore(); }
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath(); }
+/* setStat / setVerdict rewrite DOM, so they are the two places that can make
+   the page flicker or jump. Both skip entirely when the rendered text is
+   unchanged, and are rate-limited by statTick(); combined with the reserved
+   heights in the CSS a running sim leaves the rest of the page still. */
+const _domCache={};
+function setStat(id,rows){ const el=document.getElementById(id); if(!el)return;
+  const html=rows.map(r=>`<div class="stat-row${r.hi?' highlight':''}"><span class="label">${r.k}</span><span class="value">${r.v}</span></div>`).join('');
+  if(_domCache[id]===html)return; _domCache[id]=html; el.innerHTML=html; }
+function setVerdict(id,cls,title,body){ const el=document.getElementById(id); if(!el)return;
+  const tall=el.dataset.tall?' tall':'';
+  const html='<strong>'+title+'</strong>'+body, key=cls+'|'+html;
+  if(_domCache['v:'+id]===key)return; _domCache['v:'+id]=key;
+  el.className='val-verdict'+tall+' '+cls; el.innerHTML=html; }
+const _statLast={};
+function statTick(key,ms){
+  /* Rate-limiting only applies to ANIMATED widgets, which redraw next frame
+     anyway. A static widget draws exactly once per input event, so gating it
+     would leave its readouts permanently stale whenever an input happened to
+     land inside the window. */
+  if(!ANIMS[key])return true;
+  const t=(typeof performance!=='undefined'?performance.now():0);
+  if(_statLast[key]&&t-_statLast[key]<(ms||160))return false; _statLast[key]=t; return true; }
+function lsqFit(xs,ys){ const n=xs.length; if(n<2)return null; let sx=0,sy=0,sxx=0,sxy=0;
+  for(let i=0;i<n;i++){sx+=xs[i];sy+=ys[i];sxx+=xs[i]*xs[i];sxy+=xs[i]*ys[i];}
+  const den=n*sxx-sx*sx; if(Math.abs(den)<1e-12)return null;
+  const m=(n*sxy-sx*sy)/den, b=(sy-m*sx)/n; return {m,b}; }
+function mulberry32(a){ return function(){ a|=0;a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+/* ════════ learning-module framework ════════
+   Widgets self-register:
+     defWidget(key, tab, drawFn, fmts, {reset, scenfn, scen0})
+     registerAnim(key, stepFn, minFrameMs)   // animated widgets only
+   Keys are globally unique and hyphen-free; slider ids are s-{key}-{param}
+   so id.split('-')[0] recovers the owning widget. TABW and the initial
+   activeTab are read from the DOM, so this whole block is identical in
+   every lesson of the track. */
+const FMT={}, DRAW={}, RESET={}, SCENFN={}, SCEN={}, WTAB={}, TABW={};
+document.querySelectorAll('.tab-content').forEach(s=>{ TABW[s.id.replace('tab-','')]=[]; });
+let activeTab=(document.querySelector('.tab-content.active')||document.querySelector('.tab-content')).id.replace('tab-','');
+function defWidget(key,tab,drawFn,fmts,opts){
+  if(!TABW[tab])TABW[tab]=[];
+  TABW[tab].push(key); DRAW[key]=drawFn; WTAB[key]=tab;
+  if(fmts)Object.assign(FMT,fmts);
+  if(opts&&opts.reset)RESET[key]=opts.reset;
+  if(opts&&opts.scenfn)SCENFN[key]=opts.scenfn;
+  if(opts&&opts.scen0)SCEN[key]=opts.scen0;
+}
+/* canvas-setup cache: setupCanvas reallocates the bitmap, so animated
+   widgets cache {ctx,w,h}; cache is cleared on resize and tab switch. */
+const CVS={};
+function getCv(id){ if(CVS[id])return CVS[id];
+  const el=document.getElementById(id); if(!el)return null;
+  const s=setupCanvas(el); if(s&&s.w>10)CVS[id]=s; return s; }
+function clearCvCache(){ for(const k in CVS) delete CVS[k]; }
+
+/* shared animation loop + viewport gating */
+const ANIMS={};
+let io=null, rafId=null;
+function registerAnim(key,stepFn,minFrame){
+  ANIMS[key]={step:stepFn,visible:false,last:0,minFrame:minFrame||33};
+  const el=document.getElementById('cv-'+key);
+  if(el){ el.dataset.anim=key; if(io)io.observe(el); else ANIMS[key].visible=true; }
+}
+if('IntersectionObserver' in window){
+  io=new IntersectionObserver(ents=>{
+    for(const en of ents){ const a=ANIMS[en.target.dataset.anim];
+      if(a){ a.visible=en.isIntersecting; if(a.visible)a.last=0; } }
+    kickAnim();
+  },{rootMargin:'120px',threshold:0.05});
+}
+function animLoop(ts){
+  let any=false;
+  for(const k in ANIMS){ const a=ANIMS[k];
+    if(WTAB[k]!==activeTab||!a.visible)continue;
+    any=true;
+    if(!a.last){a.last=ts;continue;}
+    const dt=Math.min(ts-a.last,50);
+    if(dt>=a.minFrame){ a.last=ts;
+      try{ a.step(dt/1000); DRAW[k](); }catch(e){ console.error('anim '+k,e); } }
+  }
+  rafId=any?requestAnimationFrame(animLoop):null;
+}
+function kickAnim(){ if(rafId==null)rafId=requestAnimationFrame(animLoop); }
+/* Visibility fallback: IntersectionObserver delivery is environment-dependent
+   (in some headless builds it never fires at all), so visibility is ALSO
+   recomputed straight from geometry — at boot, on tab switch, on scroll and
+   on resize. IO stays wired as a zero-cost extra wake-up where it works. */
+function syncVis(){
+  const vh=window.innerHeight||800;
+  for(const k in ANIMS){ if(WTAB[k]!==activeTab)continue;
+    const el=document.getElementById('cv-'+k); if(!el)continue;
+    const r=el.getBoundingClientRect();
+    const vis=r.width>0&&r.bottom>-120&&r.top<vh+120;
+    if(vis&&!ANIMS[k].visible)ANIMS[k].last=0;
+    ANIMS[k].visible=vis; }
+  kickAnim();
+}
+let _visPend=false;
+window.addEventListener('scroll',()=>{ if(_visPend)return; _visPend=true;
+  requestAnimationFrame(()=>{ _visPend=false; syncVis(); }); },{passive:true});
+window.__anim={ get running(){ return rafId!=null; },
+  get activeKeys(){ return Object.keys(ANIMS).filter(k=>WTAB[k]===activeTab&&ANIMS[k].visible); } };
+
+/* ════════ slider access + scenario machinery (house, adapted) ════════ */
+function val(id){ const el=document.getElementById('s-'+id); return el?el.value:''; }
+function num(id){ return parseFloat(val(id)); }
+function chk(id){ const el=document.getElementById('c-'+id); return !!(el&&el.checked); }
+function wireAll(){ Object.keys(FMT).forEach(id=>{ const s=document.getElementById('s-'+id),v=document.getElementById('v-'+id);
+  if(!s)return; const upd=()=>{ if(v)v.textContent=FMT[id](parseFloat(s.value));
+    const wk=id.split('-')[0];
+    if(RESET[wk])RESET[wk]();
+    if(DRAW[wk]){ try{DRAW[wk]();}catch(e){console.error('draw '+wk,e);} }
+    kickAnim(); };
+  s.addEventListener('input',upd); if(v)v.textContent=FMT[id](parseFloat(s.value)); });
+  document.querySelectorAll('input[type=checkbox][id^="c-"]').forEach(cb=>{
+    cb.addEventListener('change',()=>{ const wk=cb.id.slice(2).split('-')[0];
+      if(RESET[wk])RESET[wk]();
+      if(DRAW[wk]){ try{DRAW[wk]();}catch(e){console.error('draw '+wk,e);} }
+      kickAnim(); }); }); }
+function presetSlider(id,vv){ const el=document.getElementById('s-'+id); if(el){ el.value=String(vv);
+  const v=document.getElementById('v-'+id); if(v&&FMT[id])v.textContent=FMT[id](parseFloat(vv)); } }
+function presetChk(id,on){ const el=document.getElementById('c-'+id); if(el)el.checked=!!on; }
+function setScen(w,s){ SCEN[w]=s;
+  document.querySelectorAll('.scen-btn[data-widget="'+w+'"]').forEach(b=>b.classList.toggle('on',b.dataset.scen===s));
+  if(SCENFN[w])SCENFN[w](s);
+  if(RESET[w])RESET[w]();
+  if(DRAW[w]){ try{DRAW[w]();}catch(e){console.error('draw '+w,e);} }
+  kickAnim(); }
+
+/* A redraw caused by a CLICK or a DRAG must show its new readouts immediately.
+   statTick rate-limits animated widgets to ~6 Hz, so two interactions inside
+   one window would leave the second one's verdict stale — which is exactly the
+   freeze this framework already had once, in the other direction. */
+function redraw(key){ _statLast[key]=0; if(DRAW[key]){ try{ DRAW[key](); }catch(e){ console.error('draw '+key,e); } } kickAnim(); }
+/* ═══════════════════ WIDGET CODE START ═══════════════════ */
+/* Shared constants for this lesson. Balance figures are XSR303S, from the
+   manual's §9.3.1.1 table; "limit" and "typical" are the manual's own two columns. */
+const G_STD=9.80665, G_TUCSON=9.7928;
+const D_READ=1;                 /* readability, mg */
+const S_TYP=0.5, S_LIM=0.9;     /* repeatability, mg: typical / limit */
+const ECC_LIM=3, ECC_TYP=1;     /* eccentricity deviation at 100 g, mg */
+const K_ECC=3/(44.9*100e3);     /* mm^-1, from 3 mg at 100 g at the r=44.9 mm test position */
+const TC_SENS=5e-6;             /* sensitivity temperature drift, per degC (0.0005 %/degC) */
+const SENS_RESID=4e-6;          /* 1.2 mg at the 300 g nominal load, after internal adjustment */
+const RHO_REF=8000;             /* conventional reference-weight density, kg/m3 */
+const EPS0=8.854e-12;
+const PAN_MM=127;               /* weighing pan, mm square */
+const ELEV_TUCSON=728;
+
+function airDensity(hm,TC){ const p=101325*Math.pow(1-2.25577e-5*hm,5.25588);
+  return p*0.028964/(8.314*(TC+273.15)); }
+function tiltRel(deg){ return 1-Math.cos(deg*Math.PI/180); }
+function staticMass(qnC,dmm){ const q=qnC*1e-9, d=dmm/1000;
+  if(q<=0||d<=0)return 0;
+  return (q*q/(16*Math.PI*EPS0*d*d))/G_STD*1e6; }   /* mg */
+function staticTau(rh){ return 3000*Math.pow(10,-(rh-20)/12); }  /* s */
+
+/* ════════ widget: emfr — the force-restoration loop (Tab 1.1) ════════
+   Model: a third-order servo. The mechanism carries the load, a PI controller
+   drives the compensation coil until the pan deflection returns to zero, and a
+   separate first-order filter produces the displayed number.
+     M x'' = m g - BL(Kp x + Ki INTEGRAL x) - c x'
+   Gains are placed for a triple pole at p, so the loop is critically damped at
+   damping = 1. Numbers are representative of a balance of this class, not
+   quoted from the manual, which does not describe its own transducer. */
+const EMFR_M=0.05, EMFR_BL=20, EMFR_P=300;
+const EMFR={t:0, mech:null, disp:null, tEnd:0.06, dEnd:4.0};
+function emfrState(){
+  const m=num('emfr-m')/1000, dz=num('emfr-damp'), tf=num('emfr-filt');
+  return {m, dz, tf, scen:SCEN.emfr||'place'};
+}
+function emfrBuild(){
+  const s=emfrState();
+  const M=EMFR_M, BL=EMFR_BL, p=EMFR_P;
+  const c=3*p*M*s.dz, KP=3*p*p*M, KI=p*p*p*M;
+  const dt=1e-5, n=Math.round(EMFR.tEnd/dt);
+  let x=0, v=(s.scen==='bump')?0.02:0, u=0;
+  const rng=mulberry32(99);
+  const mech=new Array(n+1), tr=new Array(n+1);
+  const load=s.m;
+  let peak=0, settleT=EMFR.tEnd;
+  /* start from the settled state for bump/draft so only the disturbance shows */
+  if(s.scen!=='place') u=load*G_STD/KI;
+  for(let i=0;i<=n;i++){
+    const t=i*dt;
+    let F=load*G_STD;
+    if(s.scen==='draft') F+= 4e-4*Math.sin(2*Math.PI*37*t)+3e-4*(rng()-0.5);
+    const I=(KP*x+KI*u)/BL;
+    const a=(F-BL*I-c*v)/M;
+    v+=a*dt; x+=v*dt; u+=x*dt;
+    mech[i]={t, x:x*1e6, I:I*1000};              /* micrometres, milliamps */
+    tr[i]=(BL*I)/G_STD;                          /* instantaneous indicated mass, kg */
+    if(Math.abs(x*1e6)>peak)peak=Math.abs(x*1e6);
+    if(Math.abs(x*1e6)>0.05)settleT=t;
+  }
+  /* display: first-order filter fed by the instantaneous indicated mass */
+  const ddt=2e-3, dn=Math.round(EMFR.dEnd/ddt), alpha=ddt/Math.max(s.tf,1e-3);
+  let y=(s.scen==='place')?0:load;
+  const disp=new Array(dn+1); const final=load;
+  let dSettle=EMFR.dEnd;
+  for(let i=0;i<=dn;i++){
+    const t=i*ddt;
+    const idx=Math.min(mech.length-1, Math.round(t/dt));
+    const target=(t<EMFR.tEnd)?tr[idx]:final;
+    y+=alpha*(target-y);
+    disp[i]={t, m:y};
+    if(Math.abs(y-final)*1e6>D_READ/2) dSettle=t;
+  }
+  EMFR.mech=mech; EMFR.disp=disp; EMFR.peak=peak; EMFR.settleT=settleT;
+  EMFR.dSettle=dSettle; EMFR.Ieq=load*G_STD/BL*1000; EMFR.final=final;
+}
+function resetEmfr(){ EMFR.t=0; emfrBuild(); }
+/* animLoop passes dt in SECONDS. One full playhead sweep every 6 s. */
+function stepEmfr(dt){ EMFR.t+=dt/6; if(EMFR.t>1)EMFR.t=0; }
+function drawEmfr(){
+  const cv=getCv('cv-emfr'); if(!cv)return; const {ctx,w,h}=cv;
+  if(!EMFR.mech)emfrBuild();
+  const s=emfrState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ph=EMFR.t;
+  /* ---- top panel: the mechanism, 0-60 ms ---- */
+  const t1={l:56,r:16,t:20,b:24}, H1=Math.round(h*0.5)-8;
+  const pw=w-t1.l-t1.r, ph1=H1-t1.t-t1.b;
+  const xmax=EMFR.tEnd*1000;
+  const ymax=Math.max(EMFR.peak*1.25, 1);
+  const X=v=>t1.l+v/xmax*pw, Y=v=>t1.t+ph1/2-v/ymax*(ph1/2);
+  ctx.strokeStyle=COL.grid; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  for(const gv of [-ymax/2,0,ymax/2]){ ctx.beginPath();ctx.moveTo(t1.l,Y(gv));ctx.lineTo(t1.l+pw,Y(gv));ctx.stroke(); }
+  ctx.setLineDash([]);
+  ctx.strokeStyle=COL.axis; ctx.lineWidth=1.4;
+  ctx.beginPath();ctx.moveTo(t1.l,t1.t);ctx.lineTo(t1.l,t1.t+ph1);ctx.lineTo(t1.l+pw,t1.t+ph1);ctx.stroke();
+  const dpts=[], ipts=[];
+  const Imax=Math.max(EMFR.Ieq*1.35,0.5);
+  const YI=v=>t1.t+ph1-v/Imax*ph1;
+  for(let i=0;i<EMFR.mech.length;i+=8){ const q=EMFR.mech[i];
+    dpts.push([X(q.t*1000),Y(q.x)]); ipts.push([X(q.t*1000),YI(q.I)]); }
+  drawLine(ctx,ipts,COL.warmc,2);
+  drawLine(ctx,dpts,COL.clean,2);
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('THE MECHANISM — 0 to 60 ms',t1.l+4,3);
+  /* left axis: deflection in um (blue).  right axis: coil current in mA (orange). */
+  ctx.textAlign='right'; ctx.textBaseline='middle'; ctx.font='10px sans-serif';
+  ctx.fillStyle=COL.clean; ctx.fillText(fmt(ymax,0),t1.l-5,Y(ymax)); ctx.fillText('0',t1.l-5,Y(0));
+  ctx.textAlign='left'; ctx.fillStyle=COL.warmc;
+  ctx.fillText(fmt(Imax,0),t1.l+pw+5,YI(Imax)); ctx.fillText('0',t1.l+pw+5,YI(0));
+  ctx.fillStyle=COL.axis; ctx.textAlign='center'; ctx.textBaseline='top';
+  for(const t of [0,20,40,60]) ctx.fillText(String(t),X(t),t1.t+ph1+4);
+  ctx.fillText('ms',t1.l+pw/2,t1.t+ph1+15);
+  const phx=X(ph*xmax);
+  ctx.strokeStyle=COL.dirty; ctx.lineWidth=1.4; ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(phx,t1.t);ctx.lineTo(phx,t1.t+ph1);ctx.stroke(); ctx.setLineDash([]);
+  /* legend sits BELOW the zero line, where neither curve goes */
+  ctx.font='10px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='bottom';
+  ctx.fillStyle=COL.clean; ctx.fillText('pan deflection, um',t1.l+pw-8,t1.t+ph1-16);
+  ctx.fillStyle=COL.warmc; ctx.fillText('coil current, mA',t1.l+pw-8,t1.t+ph1-4);
+  /* ---- bottom panel: the display, 0-4 s ---- */
+  const oy=H1+6;
+  const t2={l:56,r:16,t:20,b:26}, H2=h-oy-4;
+  const ph2=H2-t2.t-t2.b;
+  const dmax=Math.max(EMFR.final*1.25,1e-4);
+  const X2=v=>t2.l+v/EMFR.dEnd*pw, Y2=v=>oy+t2.t+ph2-v/dmax*ph2;
+  ctx.strokeStyle=COL.grid; ctx.setLineDash([3,3]); ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(t2.l,Y2(EMFR.final));ctx.lineTo(t2.l+pw,Y2(EMFR.final));ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle=COL.axis; ctx.lineWidth=1.4;
+  ctx.beginPath();ctx.moveTo(t2.l,oy+t2.t);ctx.lineTo(t2.l,oy+t2.t+ph2);ctx.lineTo(t2.l+pw,oy+t2.t+ph2);ctx.stroke();
+  const dd=[]; for(let i=0;i<EMFR.disp.length;i+=2){ const q=EMFR.disp[i]; dd.push([X2(q.t),Y2(q.m)]); }
+  drawLine(ctx,dd,COL.cell,2.2);
+  const phi=Math.min(EMFR.disp.length-1,Math.round(ph*(EMFR.disp.length-1)));
+  const dnow=EMFR.disp[phi].m;
+  ctx.strokeStyle=COL.dirty; ctx.lineWidth=1.4; ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(X2(ph*EMFR.dEnd),oy+t2.t);ctx.lineTo(X2(ph*EMFR.dEnd),oy+t2.t+ph2);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('THE DISPLAY — 0 to 4 s',t2.l+4,oy+3);
+  ctx.font='10px sans-serif'; ctx.fillStyle=COL.axis; ctx.textAlign='center';
+  for(const t of [0,1,2,3,4]) ctx.fillText(String(t),X2(t),oy+t2.t+ph2+4);
+  ctx.fillText('seconds',t2.l+pw/2,oy+t2.t+ph2+15);
+  ctx.textAlign='right'; ctx.textBaseline='middle'; ctx.fillStyle=COL.cell;
+  ctx.fillText(fmt(EMFR.final*1000,EMFR.final<0.01?2:0)+' g',t2.l-5,Y2(EMFR.final));
+  ctx.fillStyle=COL.axis; ctx.fillText('0',t2.l-5,Y2(0));
+  ctx.font='bold 15px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='top';
+  ctx.fillStyle=COL.cell;
+  ctx.fillText((Math.round(dnow*1e6/D_READ)*D_READ/1000).toFixed(3)+' g',t2.l+pw-4,oy+t2.t+2);
+  if(!statTick('emfr'))return;
+  setStat('st-emfr',[
+    {k:'Coil current at rest',v:fmt(EMFR.Ieq,2)+' mA',hi:1},
+    {k:'Peak pan deflection',v:fmt(EMFR.peak,2)+' µm',hi:1},
+    {k:'Mechanism settled in',v:fmt(EMFR.settleT*1000,1)+' ms'},
+    {k:'Display settled in',v:EMFR.dSettle>=EMFR.dEnd-1e-9?'> 4 s':fmt(EMFR.dSettle,2)+' s'}]);
+  const ds=EMFR.dSettle;
+  if(s.scen==='draft')
+    setVerdict('vd-emfr','warn','A draft never lets the loop finish.',
+      ' The mechanism is still doing its job perfectly — the coil is tracking a real force. It just is not <em>your</em> force. This is what an open draft shield looks like from the inside, and no amount of filtering fixes it: a longer filter only averages the wobble, it does not remove the bias while the draft is on.');
+  else if(s.scen==='bump')
+    setVerdict('vd-emfr','good','Disturbed, then back to exactly the same number.',
+      ' Nothing was added to the pan, so the settled coil current is unchanged at <b>'+fmt(EMFR.Ieq,2)+' mA</b>. The knock moved the mechanism and the loop put it back. This is the signature of a healthy servo — and the reason a balance recovers from a bump but not from a draft.');
+  else if(ds<1.0)
+    setVerdict('vd-emfr','warn','Fast, and twitchy.',
+      ' The display reaches its final digit in <b>'+fmt(ds,2)+' s</b>, faster than the manual\'s quoted 1.5 s — but with this little filtering the last digit will chatter on a real bench. Speed here is bought with noise.');
+  else if(ds<2.2)
+    setVerdict('vd-emfr','good','This is the balance the manual describes.',
+      ' The mechanism finished in <b>'+fmt(EMFR.settleT*1000,1)+' ms</b>; the number took <b>'+fmt(ds,2)+' s</b> — close to the 1.5 s settling time in the specification. The gap between those two figures is entirely filtering. The physics was over before you looked up.');
+  else
+    setVerdict('vd-emfr','warn','Calm, and late.',
+      ' <b>'+fmt(ds,2)+' s</b> to settle. Heavy filtering makes a beautifully steady display and tempts you to write the number down before it has arrived. If you take a reading at 2 s here you are reading the filter, not the sample.');
+}
+defWidget('emfr','work',drawEmfr,{
+  'emfr-m':v=>fmt(v,1)+' g','emfr-damp':v=>fmt(v,2),'emfr-filt':v=>fmt(v,2)+' s'},
+  {reset:resetEmfr, scen0:'place', scenfn:s=>{ EMFR.t=0; }});
+registerAnim('emfr',stepEmfr,33);
+
+/* ════════ widget: noise — readability against repeatability (Tab 1.3) ════════
+   Stateless. Draws n repeats of one object from N(0, s), then quantises them to
+   the readability to show what the display was willing to report. */
+const DVALS=[0.1,1,10];
+const NOISESCEN={ typ:{sig:S_TYP}, lim:{sig:S_LIM}, bad:{sig:2.5} };
+function noiseState(){
+  const sig=num('noise-sig'), d=DVALS[clamp(Math.round(num('noise-d')),0,2)], n=Math.round(num('noise-n'));
+  const rng=mulberry32(20260829+n*7);
+  const xs=[], shown=[];
+  for(let i=0;i<n;i++){ const x=gaussOf(rng)*sig; xs.push(x); shown.push(Math.round(x/d)*d); }
+  const mean=xs.reduce((a,b)=>a+b,0)/n;
+  let ss=0; for(const x of xs)ss+=(x-mean)*(x-mean);
+  const s=Math.sqrt(ss/(n-1));
+  const distinct=new Set(shown.map(v=>v.toFixed(4))).size;
+  return {sig,d,n,xs,shown,s,mean,distinct};
+}
+function drawNoise(){
+  const cv=getCv('cv-noise'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=noiseState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const span=Math.max(4*q.sig, 2.2*q.d);
+  const m={l:50,r:16,t:18,b:52}, pw=w-m.l-m.r, phh=h-m.t-m.b;
+  const X=v=>m.l+(v+span)/(2*span)*pw;
+  const nb=41, bw=2*span/nb, bins=new Array(nb).fill(0);
+  for(const x of q.xs){ const i=clamp(Math.floor((x+span)/(2*span)*nb),0,nb-1); bins[i]++; }
+  const bmax=Math.max(1,...bins);
+  const barTop=m.t, barBot=m.t+phh*0.62;
+  for(let i=0;i<nb;i++){ if(!bins[i])continue;
+    const x0=X(-span+i*bw), x1=X(-span+(i+1)*bw);
+    const hh=(bins[i]/bmax)*(barBot-barTop);
+    ctx.fillStyle='rgba(37,99,235,.45)';
+    ctx.fillRect(x0+0.5,barBot-hh,Math.max(1,x1-x0-1),hh); }
+  ctx.strokeStyle=COL.axis; ctx.lineWidth=1.4;
+  ctx.beginPath();ctx.moveTo(m.l,barBot);ctx.lineTo(m.l+pw,barBot);ctx.stroke();
+  ctx.strokeStyle=COL.dirty; ctx.lineWidth=1.6; ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(X(0),barTop);ctx.lineTo(X(0),barBot);ctx.stroke(); ctx.setLineDash([]);
+  /* the display comb */
+  const combY=barBot+30;
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('what the display showed',m.l,combY-14);
+  const counts={};
+  for(const v of q.shown){ const k=v.toFixed(4); counts[k]=(counts[k]||0)+1; }
+  const cmax=Math.max(...Object.values(counts));
+  for(const k in counts){ const v=parseFloat(k); if(Math.abs(v)>span)continue;
+    const x=X(v), hh=6+18*(counts[k]/cmax);
+    ctx.strokeStyle=COL.cell; ctx.lineWidth=5; ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(x,combY);ctx.lineTo(x,combY-hh);ctx.stroke(); }
+  ctx.lineCap='butt';
+  ctx.strokeStyle=COL.axis; ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.moveTo(m.l,combY);ctx.lineTo(m.l+pw,combY);ctx.stroke();
+  ctx.fillStyle=COL.axis; ctx.font='11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  for(const t of [-span,-span/2,0,span/2,span]) ctx.fillText(fmt(t,2),X(t),combY+5);
+  ctx.fillStyle=COL.text; ctx.font='12px sans-serif';
+  ctx.fillText('deviation from the true mass (mg)',m.l+pw/2,combY+20);
+  if(!statTick('noise'))return;
+  setStat('st-noise',[
+    {k:'Scatter you asked for',v:fmt(q.sig,2)+' mg'},
+    {k:'Scatter measured',v:fmt(q.s,2)+' mg',hi:1},
+    {k:'Distinct values displayed',v:String(q.distinct),hi:1},
+    {k:'Scatter ÷ readability',v:fmt(q.s/q.d,2)}]);
+  const r=q.s/q.d;
+  if(r<0.4)
+    setVerdict('vd-noise','good','The display is hiding the noise, not removing it.',
+      ' Scatter is only <b>'+fmt(r,2)+'×</b> the readability, so nearly every repeat lands on the same digit and the balance looks perfect. It is not: the mechanism is still scattering by '+fmt(q.s,2)+' mg. A coarse display makes a noisy balance look calm — which is exactly why accuracy questions use <em>s</em> and never <em>d</em>.');
+  else if(r<1.5)
+    setVerdict('vd-noise','good','Display and mechanism roughly matched.',
+      ' At <b>'+fmt(r,2)+'×</b> the readability, the last digit moves by a step or two between repeats. This is the regime a well-chosen balance is designed for — the display is fine enough to show the real scatter and no finer.');
+  else
+    setVerdict('vd-noise','warn','The last digit is decoration.',
+      ' Scatter is <b>'+fmt(r,1)+'×</b> the readability and the display spread over <b>'+q.distinct+'</b> different values for one unchanging object. Writing down a single reading here records one draw from that spread. Either fix the bench, or average — and if you average, say so in the notebook.');
+}
+defWidget('noise','work',drawNoise,{
+  'noise-sig':v=>fmt(v,2)+' mg','noise-d':v=>fmt(DVALS[clamp(Math.round(v),0,2)],1)+' mg','noise-n':v=>String(Math.round(v))},
+  {scen0:'typ', scenfn:s=>{ presetSlider('noise-sig',NOISESCEN[s].sig); }});
+
+/* ════════ widget: level — tilt error (Tab 2.1) ════════
+   Stateless. Only the vertical component of the load reaches the coil, so the
+   balance reads m cos(theta). Exact, not a model. */
+const LEVELSCEN={ ok:{tx:0,ty:0}, nudge:{tx:0.6,ty:-0.4}, moved:{tx:1.6,ty:1.1} };
+function levelState(){
+  const tx=num('level-tx'), ty=num('level-ty'), m=num('level-m');
+  const th=Math.sqrt(tx*tx+ty*ty);
+  const rel=tiltRel(th), dm=m*rel*1000;      /* mg */
+  return {tx,ty,m,th,rel,dm};
+}
+function drawLevel(){
+  const cv=getCv('cv-level'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=levelState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  /* --- left: the bubble, seen from above --- */
+  const cx=126, cy=h/2, R=82;
+  ctx.fillStyle='#e8eef6'; ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.fill();
+  ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=2; ctx.stroke();
+  ctx.strokeStyle='#94a3b8'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(cx,cy,26,0,7); ctx.stroke();
+  ctx.setLineDash([3,3]); ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(cx-R,cy);ctx.lineTo(cx+R,cy);ctx.moveTo(cx,cy-R);ctx.lineTo(cx,cy+R);ctx.stroke();
+  ctx.setLineDash([]);
+  const scale=R/2.6;
+  const bx=cx+clamp(q.tx,-2.6,2.6)*scale, by=cy-clamp(q.ty,-2.6,2.6)*scale;
+  const inTol=q.th<=0.15;
+  ctx.fillStyle=inTol?'rgba(16,185,129,.85)':'rgba(245,158,11,.85)';
+  ctx.beginPath(); ctx.arc(bx,by,20,0,7); ctx.fill();
+  ctx.strokeStyle=inTol?COL.good:COL.warn; ctx.lineWidth=2.5; ctx.stroke();
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('the bubble',cx,cy+R+8);
+  /* --- right: what it is worth --- */
+  const bl=250, bw=w-bl-24, by0=52;
+  ctx.font='12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillStyle=COL.text; ctx.fillText('Error on a '+fmt(q.m,0)+' g load',bl,20);
+  const emax=Math.max(q.dm*1.3, 5*D_READ);
+  const EX=v=>bl+clamp(v,0,emax)/emax*bw;
+  ctx.fillStyle='#e2e8f0'; roundRect(ctx,bl,by0,bw,26,5); ctx.fill();
+  const col=q.dm<D_READ?COL.good:(q.dm<10*D_READ?COL.warn:COL.bad);
+  ctx.fillStyle=col; roundRect(ctx,bl,by0,Math.max(3,EX(q.dm)-bl),26,5); ctx.fill();
+  ctx.strokeStyle=COL.dirty; ctx.lineWidth=2; ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(EX(D_READ),by0-8);ctx.lineTo(EX(D_READ),by0+34);ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=COL.dirty; ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+  ctx.fillText('1 digit',EX(D_READ),by0-10);
+  ctx.fillStyle=COL.text; ctx.font='bold 20px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText(fmt(q.dm,q.dm<10?2:1)+' mg',bl,by0+40);
+  ctx.font='11px sans-serif'; ctx.fillStyle=COL.axis;
+  ctx.fillText('= '+fmt(q.dm/D_READ,1)+' readability steps low',bl,by0+68);
+  /* the theta-squared curve */
+  const gy=by0+104, gh=h-gy-32;
+  ctx.strokeStyle=COL.axis; ctx.lineWidth=1.3;
+  ctx.beginPath();ctx.moveTo(bl,gy);ctx.lineTo(bl,gy+gh);ctx.lineTo(bl+bw,gy+gh);ctx.stroke();
+  const tmax=2.6, cmax=q.m*tiltRel(tmax)*1000;
+  const pts=[]; for(let i=0;i<=60;i++){ const t=tmax*i/60;
+    pts.push([bl+t/tmax*bw, gy+gh-(q.m*tiltRel(t)*1000)/cmax*gh]); }
+  drawLine(ctx,pts,COL.clean,2);
+  const px=bl+clamp(q.th,0,tmax)/tmax*bw, py=gy+gh-clamp(q.dm,0,cmax)/cmax*gh;
+  ctx.fillStyle=COL.dirty; ctx.beginPath(); ctx.arc(px,py,5,0,7); ctx.fill();
+  ctx.fillStyle=COL.axis; ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  for(const t of [0,1,2]) ctx.fillText(fmt(t,0)+'°',bl+t/tmax*bw,gy+gh+4);
+  ctx.fillText('total tilt, degrees',bl+bw/2,gy+gh+16);
+  ctx.textAlign='right'; ctx.textBaseline='middle';
+  ctx.fillText(fmt(cmax,0)+' mg',bl-5,gy);
+  ctx.fillText('0',bl-5,gy+gh);
+  if(!statTick('level'))return;
+  setStat('st-level',[
+    {k:'Total tilt',v:fmt(q.th,2)+'°',hi:1},
+    {k:'Relative error',v:fmt(q.rel*1e6,1)+' ppm'},
+    {k:'Error on this load',v:fmt(q.dm,q.dm<10?2:1)+' mg',hi:1},
+    {k:'In readability steps',v:fmt(q.dm/D_READ,1)+' × d'}]);
+  if(q.th<0.1)
+    setVerdict('vd-level','good','Level, and it costs you nothing.',
+      ' At <b>'+fmt(q.th,2)+'°</b> the tilt error is '+fmt(q.dm,3)+' mg — far below the '+fmt(S_TYP,1)+' mg of repeatability you cannot avoid. This is what the bubble centred in its ring is worth.');
+  else if(q.dm<D_READ)
+    setVerdict('vd-level','good','Out of level, but under one digit.',
+      ' <b>'+fmt(q.th,2)+'°</b> costs '+fmt(q.dm,2)+' mg on '+fmt(q.m,0)+' g — still smaller than the last displayed digit. Re-level anyway: the same tilt on a 300 g load would cost '+fmt(300*q.rel*1000,1)+' mg, and you will not always be weighing '+fmt(q.m,0)+' g.');
+  else if(q.dm<10*D_READ)
+    setVerdict('vd-level','warn','Now it is real, and it is invisible.',
+      ' <b>'+fmt(q.dm,1)+' mg</b> low — '+fmt(q.dm/D_READ,1)+' readability steps, and '+fmt(q.dm/(S_TYP*Math.SQRT2),1)+' times the noise. Nothing about the reading looks wrong: it is stable and it repeats. Only the bubble can tell you.');
+  else
+    setVerdict('vd-level','bad','Every number from this balance is wrong by the same fraction.',
+      ' <b>'+fmt(q.dm,0)+' mg</b> on '+fmt(q.m,0)+' g, or '+fmt(q.rel*100,3)+'% off <em>everything</em> you weigh until someone levels it. Because it is proportional it will not show up as an odd-looking reading, and it will not average out.');
+}
+defWidget('level','use',drawLevel,{
+  'level-tx':v=>fmt(v,2)+' deg','level-ty':v=>fmt(v,2)+' deg','level-m':v=>fmt(v,1)+' g'},
+  {scen0:'ok', scenfn:s=>{ presetSlider('level-tx',LEVELSCEN[s].tx); presetSlider('level-ty',LEVELSCEN[s].ty); }});
+
+/* ════════ widget: ecc — eccentric loading (Tab 2.2) ════════
+   Model: delta-m = k_e r m, with k_e fixed by the manual's 3 mg limit value at
+   100 g at the r = 44.9 mm standard test position. Real eccentricity is neither
+   linear in r nor isotropic; this is a cartoon calibrated to one published point. */
+const ECCSCEN={ centre:{x:0,y:0}, test:{x:32,y:32}, corner:{x:52,y:52} };
+function eccState(){
+  const x=num('ecc-x'), y=num('ecc-y'), m=num('ecc-m'), tl=num('ecc-tilt');
+  const r=Math.sqrt(x*x+y*y);
+  const dEcc=K_ECC*r*m*1000;          /* mg */
+  const dTilt=m*tiltRel(tl)*1000;     /* mg */
+  return {x,y,m,tl,r,dEcc,dTilt,tot:dEcc+dTilt};
+}
+function drawEcc(){
+  const cv=getCv('cv-ecc'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=eccState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const S=Math.min(h-56,250), cx=140, cy=h/2, px=S/PAN_MM;
+  ctx.fillStyle='#eef2f7'; roundRect(ctx,cx-S/2,cy-S/2,S,S,8); ctx.fill();
+  ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=2; ctx.stroke();
+  for(let i=1;i<=3;i++){ const rr=i*20*px;
+    ctx.strokeStyle='rgba(148,163,184,.5)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.arc(cx,cy,rr,0,7); ctx.stroke(); }
+  ctx.setLineDash([]);
+  ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(cx-S/2,cy);ctx.lineTo(cx+S/2,cy);ctx.moveTo(cx,cy-S/2);ctx.lineTo(cx,cy+S/2);ctx.stroke();
+  /* the standard test position */
+  const tX=cx+31.75*px, tY=cy-31.75*px;
+  ctx.strokeStyle=COL.hepa; ctx.lineWidth=1.6; ctx.setLineDash([3,2]);
+  ctx.beginPath(); ctx.arc(tX,tY,11,0,7); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=COL.hepa; ctx.font='9px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+  ctx.fillText('test position',tX,tY-13);
+  const lx=cx+clamp(q.x,-58,58)*px, ly=cy-clamp(q.y,-58,58)*px;
+  ctx.strokeStyle=COL.neutral; ctx.lineWidth=1.4; ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(lx,ly);ctx.stroke(); ctx.setLineDash([]);
+  const rad=10+Math.sqrt(q.m)/1.6;
+  ctx.fillStyle='rgba(124,58,237,.8)'; ctx.beginPath(); ctx.arc(lx,ly,rad,0,7); ctx.fill();
+  ctx.strokeStyle=COL.cell; ctx.lineWidth=2; ctx.stroke();
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('127 mm pan, from above',cx,cy+S/2+8);
+  /* right: the error stack */
+  const bl=300, bw=w-bl-24;
+  ctx.textAlign='left'; ctx.font='12px sans-serif'; ctx.fillStyle=COL.text;
+  ctx.fillText('Where the error comes from',bl,22);
+  const emax=Math.max(q.tot*1.25, 4*D_READ);
+  const rows=[{k:'off-centre',v:q.dEcc,c:COL.cell},{k:'out of level',v:q.dTilt,c:COL.warmc}];
+  let yy=48;
+  for(const rw of rows){
+    ctx.fillStyle=COL.axis; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+    ctx.fillText(rw.k,bl,yy-4);
+    ctx.fillStyle='#e2e8f0'; roundRect(ctx,bl,yy,bw,18,4); ctx.fill();
+    ctx.fillStyle=rw.c; roundRect(ctx,bl,yy,Math.max(2,rw.v/emax*bw),18,4); ctx.fill();
+    ctx.fillStyle=COL.text; ctx.font='11px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText(fmt(rw.v,2)+' mg',bl+bw-6,yy+9);
+    yy+=46;
+  }
+  ctx.strokeStyle=COL.dirty; ctx.lineWidth=1.8; ctx.setLineDash([4,3]);
+  const dx=bl+clamp(D_READ/emax,0,1)*bw;
+  ctx.beginPath();ctx.moveTo(dx,40);ctx.lineTo(dx,yy-30);ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=COL.dirty; ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('1 digit',dx,yy-28);
+  ctx.fillStyle=COL.text; ctx.font='bold 19px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('total '+fmt(q.tot,2)+' mg',bl,yy);
+  if(!statTick('ecc'))return;
+  setStat('st-ecc',[
+    {k:'Radial offset',v:fmt(q.r,1)+' mm',hi:1},
+    {k:'Eccentricity error',v:fmt(q.dEcc,2)+' mg',hi:1},
+    {k:'Tilt error',v:fmt(q.dTilt,2)+' mg'},
+    {k:'Total, in digits',v:fmt(q.tot/D_READ,1)+' × d'}]);
+  const nearTest=Math.abs(q.r-44.9)<4 && Math.abs(q.m-100)<6;
+  if(nearTest)
+    setVerdict('vd-ecc','good','This is the point the specification is measured at.',
+      ' r = '+fmt(q.r,1)+' mm, load '+fmt(q.m,0)+' g, error <b>'+fmt(q.dEcc,2)+' mg</b> — the manual\'s 3 mg limit value for the XSR303S, reproduced. Everything else this sim draws is that one published number extrapolated by eq. 1.2.2.');
+  else if(q.tot<D_READ)
+    setVerdict('vd-ecc','good','Close enough to centre to ignore.',
+      ' <b>'+fmt(q.tot,2)+' mg</b> in total, under one readability step. Centring by eye is entirely adequate at this load — the noise floor is '+fmt(S_TYP*Math.SQRT2,2)+' mg and you are well inside it.');
+  else if(q.tot<6*D_READ)
+    setVerdict('vd-ecc','warn','Worth centring properly.',
+      ' <b>'+fmt(q.tot,2)+' mg</b>, or '+fmt(q.tot/D_READ,1)+' digits. Moving the vessel to the middle of the pan is free and removes '+fmt(q.dEcc,2)+' mg of it. Note how much faster this grows with load than with distance: the load slider moves the error more than the position sliders do.');
+  else
+    setVerdict('vd-ecc','bad','A heavy load in the corner of the pan.',
+      ' <b>'+fmt(q.tot,1)+' mg</b> — '+fmt(q.tot/D_READ,0)+' readability steps. Eccentricity scales with <em>both</em> radius and load, so this is the combination that hurts: a big vessel shoved to one side because something else was in the way. Move whatever was in the way instead.');
+}
+defWidget('ecc','use',drawEcc,{
+  'ecc-x':v=>fmt(v,0)+' mm','ecc-y':v=>fmt(v,0)+' mm','ecc-m':v=>fmt(v,1)+' g','ecc-tilt':v=>fmt(v,2)+' deg'},
+  {scen0:'centre', scenfn:s=>{ presetSlider('ecc-x',ECCSCEN[s].x); presetSlider('ecc-y',ECCSCEN[s].y); }});
+
+/* ════════ widget: static — electrostatic attraction (Tab 3.1) ════════
+   Model: image-charge attraction to a grounded plane, eq. 1.3.1, with the charge
+   draining exponentially. The decay constant against humidity is an illustrative
+   fit, not a measured curve — the SIZE and the humidity SCALING are the lesson,
+   not any particular time in seconds. */
+const STATICSCEN={ dry:{q:5,rh:20}, humid:{q:5,rh:58}, metal:{q:0,rh:35} };
+const STAT={t:0, tEnd:300};
+function staticState(){
+  const q0=num('static-q'), rh=num('static-rh'), d=num('static-d');
+  const dm0=staticMass(q0,d), tau=staticTau(rh);
+  return {q0,rh,d,dm0,tau, dm60:dm0*Math.exp(-2*60/tau)};
+}
+function resetStatic(){ STAT.t=0; }
+function stepStatic(dt){ STAT.t+=dt/8; if(STAT.t>1)STAT.t=0; }
+function drawStatic(){
+  const cv=getCv('cv-static'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=staticState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const m={l:60,r:150,t:22,b:40}, pw=w-m.l-m.r, phh=h-m.t-m.b;
+  const ymax=Math.max(q.dm0*1.15, 3*D_READ);
+  const X=t=>m.l+t/STAT.tEnd*pw, Y=v=>m.t+phh-clamp(v,0,ymax)/ymax*phh;
+  ctx.strokeStyle=COL.grid; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  for(let i=1;i<=4;i++){ const yv=ymax*i/5; ctx.beginPath();ctx.moveTo(m.l,Y(yv));ctx.lineTo(m.l+pw,Y(yv));ctx.stroke(); }
+  ctx.setLineDash([]);
+  ctx.strokeStyle=COL.axis; ctx.lineWidth=1.4;
+  ctx.beginPath();ctx.moveTo(m.l,m.t);ctx.lineTo(m.l,m.t+phh);ctx.lineTo(m.l+pw,m.t+phh);ctx.stroke();
+  /* the readability line */
+  ctx.strokeStyle=COL.dirty; ctx.lineWidth=1.4; ctx.setLineDash([5,3]);
+  ctx.beginPath();ctx.moveTo(m.l,Y(D_READ));ctx.lineTo(m.l+pw,Y(D_READ));ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=COL.dirty; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('one readability step',m.l+4,Y(D_READ)-3);
+  const pts=[];
+  for(let i=0;i<=120;i++){ const t=STAT.tEnd*i/120;
+    pts.push([X(t),Y(q.dm0*Math.exp(-2*t/q.tau))]); }
+  drawLine(ctx,pts,COL.cell,2.4);
+  const tp=STAT.t*STAT.tEnd, now=q.dm0*Math.exp(-2*tp/q.tau);
+  ctx.strokeStyle=COL.neutral; ctx.lineWidth=1.2; ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(X(tp),m.t);ctx.lineTo(X(tp),m.t+phh);ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=COL.dirty; ctx.beginPath(); ctx.arc(X(tp),Y(now),5,0,7); ctx.fill();
+  ctx.fillStyle=COL.axis; ctx.font='11px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='middle';
+  ctx.fillText(fmt(ymax,0),m.l-5,Y(ymax)); ctx.fillText('0',m.l-5,Y(0));
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  for(const t of [0,100,200,300]) ctx.fillText(String(t),X(t),m.t+phh+5);
+  ctx.fillStyle=COL.text; ctx.font='12px sans-serif';
+  ctx.fillText('seconds since the vessel went on the pan',m.l+pw/2,m.t+phh+20);
+  ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('apparent extra mass (mg)',m.l+2,4);
+  /* the live display panel */
+  const bx=w-m.r+14;
+  ctx.fillStyle='#0f172a'; roundRect(ctx,bx,m.t+16,124,58,7); ctx.fill();
+  ctx.fillStyle='#4ade80'; ctx.font='bold 21px monospace'; ctx.textAlign='right'; ctx.textBaseline='middle';
+  ctx.fillText((Math.round(now/D_READ)*D_READ/1000).toFixed(3),bx+110,m.t+45);
+  ctx.font='11px monospace'; ctx.fillStyle='#94a3b8'; ctx.textAlign='left';
+  ctx.fillText('g',bx+114,m.t+45);
+  ctx.fillStyle=COL.axis; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('the empty pan, reading',bx,m.t+2);
+  ctx.fillStyle=COL.text; ctx.font='11px sans-serif';
+  ctx.fillText('charge left: '+fmt(100*Math.exp(-tp/q.tau),0)+'%',bx,m.t+86);
+  ctx.fillText('t = '+fmt(tp,0)+' s',bx,m.t+102);
+  if(!statTick('static'))return;
+  setStat('st-static',[
+    {k:'Error on landing',v:fmt(q.dm0,q.dm0<10?2:0)+' mg',hi:1},
+    {k:'Charge time constant',v:q.tau>600?'> 10 min':fmt(q.tau,0)+' s',hi:1},
+    {k:'Left after 60 s',v:q.dm60<0.005?'gone':fmt(q.dm60,q.dm60<10?2:0)+' mg'},
+    {k:'Initial error, in digits',v:fmt(q.dm0/D_READ,0)+' × d'}]);
+  if(q.q0<=0)
+    setVerdict('vd-static','good','No charge, no problem.',
+      ' A conductive vessel cannot hold a static charge against a grounded pan — it drains the instant it touches. This is the entire argument for weighing powders in metal or antistatic vessels rather than a plastic boat, and it costs nothing to do.');
+  else if(q.dm0<D_READ)
+    setVerdict('vd-static','good','Below the last digit.',
+      ' <b>'+fmt(q.dm0,2)+' mg</b> of spurious mass — under one readability step, so you would never see it. Small charge, or a big gap: the <em>d</em><sup>−2</sup> in eq. 1.3.1 means moving the vessel away from grounded metal helps quickly.');
+  else if(q.tau<30)
+    setVerdict('vd-static','warn','Real, but it will be gone before you finish.',
+      ' Starts at <b>'+fmt(q.dm0,0)+' mg</b> and decays with a '+fmt(q.tau,0)+' s time constant, so by 60 s it is '+(q.dm60<0.005?'gone entirely':'down to '+fmt(q.dm60,2)+' mg')+'. At this humidity the charge drains faster than you can weigh. Waiting for the reading to stop moving genuinely works here — which is why this problem is invisible in a humid climate and infuriating in a dry one.');
+  else
+    setVerdict('vd-static','bad','This is the drift people blame on the balance.',
+      ' <b>'+fmt(q.dm0,0)+' mg</b> initially — '+fmt(q.dm0/D_READ,0)+' readability steps — draining with a time constant of '+(q.tau>600?'over ten minutes':fmt(q.tau,0)+' s')+'. Still <b>'+fmt(q.dm60,1)+' mg</b> after a full minute of waiting. Nothing is wrong with the instrument: you put a charged insulator next to a grounded plate and the coil is dutifully fighting it. Use a conductive vessel.');
+}
+defWidget('static','care',drawStatic,{
+  'static-q':v=>fmt(v,1)+' nC','static-rh':v=>fmt(v,0)+'%','static-d':v=>fmt(v,0)+' mm'},
+  {reset:resetStatic, scen0:'dry',
+   scenfn:s=>{ STAT.t=0; presetSlider('static-q',STATICSCEN[s].q); presetSlider('static-rh',STATICSCEN[s].rh); }});
+registerAnim('static',stepStatic,50);
+
+/* ════════ widget: buoy — air buoyancy (Tab 3.2) ════════
+   Stateless, and exact within the ideal-gas approximation for air. */
+const BUOYSCEN={ water:{rho:1.00}, agar:{rho:1.60}, steel:{rho:7.85}, foam:{rho:0.05} };
+function buoyState(){
+  const rho=num('buoy-rho')*1000, hm=num('buoy-h'), T=num('buoy-T'), m=num('buoy-m');
+  const ra=airDensity(hm,T);
+  const corr=ra*(1/rho - 1/RHO_REF);
+  return {rho,hm,T,m,ra,corr, dm:m*corr*1000, mtrue:m*(1+corr)};
+}
+function drawBuoy(){
+  const cv=getCv('cv-buoy'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=buoyState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:62,r:20,t:18,b:46});
+  const lo=Math.log10(0.03), hi=Math.log10(12);
+  const cmaxP=q.ra*(1/30 - 1/RHO_REF)*100;
+  ch.setRange(lo,hi,0,cmaxP);
+  const xt=[-1.5,-1,-0.5,0,0.5,1], yt=niceTicks(0,cmaxP,5);
+  ch.grid(xt,yt);
+  ch.axes('sample density (g/cm³)','buoyancy correction (%)',xt,yt,1,2,
+    t=>fmt(Math.pow(10,t),Math.pow(10,t)<1?2:1), t=>fmt(t,2));
+  const pts=[];
+  for(let i=0;i<=140;i++){ const lg=lo+(hi-lo)*i/140, r=Math.pow(10,lg)*1000;
+    pts.push([ch.toX(lg),ch.toY(clamp(q.ra*(1/r-1/RHO_REF)*100,0,cmaxP))]); }
+  drawLine(ctx,pts,COL.clean,2.4);
+  ch.hLine(0,COL.axis);
+  ch.vLine(Math.log10(RHO_REF/1000),COL.steel,[4,3]);
+  ctx.fillStyle=COL.steel; ctx.font='10px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='top';
+  ctx.fillText('reference 8.0',ch.toX(Math.log10(8))-4,ch.m.t+4);
+  const cx=ch.toX(clamp(Math.log10(q.rho/1000),lo,hi)), cy=ch.toY(clamp(q.corr*100,0,cmaxP));
+  ctx.strokeStyle=COL.dirty; ctx.lineWidth=1.2; ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(cx,ch.m.t);ctx.lineTo(cx,ch.m.t+ch.ph);ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=COL.dirty; ctx.beginPath(); ctx.arc(cx,cy,5.5,0,7); ctx.fill();
+  ctx.fillStyle=COL.text; ctx.font='bold 12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  const lbl=fmt(q.corr*100,3)+'%  ·  '+fmt(q.dm,q.dm<10?2:0)+' mg on '+fmt(q.m,0)+' g';
+  ctx.fillText(lbl, Math.min(cx+9, w-20-ctx.measureText(lbl).width), cy-8);
+  if(!statTick('buoy'))return;
+  setStat('st-buoy',[
+    {k:'Air density here',v:fmt(q.ra,3)+' kg/m³',hi:1},
+    {k:'Correction',v:fmt(q.corr*100,3)+'%',hi:1},
+    {k:'On this sample',v:fmt(q.dm,q.dm<10?2:0)+' mg'},
+    {k:'True mass',v:fmt(q.mtrue,q.mtrue<10?4:3)+' g'}]);
+  const dR=q.dm/D_READ;
+  if(Math.abs(q.corr)<2e-5)
+    setVerdict('vd-buoy','good','Nothing to correct — you are weighing the reference.',
+      ' At '+fmt(q.rho/1000,2)+' g/cm³ the sample displaces almost exactly as much air as the adjustment weight does, so the two buoyancies cancel in eq. 1.3.3 and the bracket goes to zero. This is why the 8000 kg/m³ convention exists: it makes steel weights need no correction.');
+  else if(dR<1)
+    setVerdict('vd-buoy','good','Below one digit — ignore it.',
+      ' <b>'+fmt(q.dm,3)+' mg</b> on this sample. Real, computable, and smaller than the last displayed digit. Buoyancy only earns attention when the sample is large, light, or being transferred as an absolute mass.');
+  else if(dR<30)
+    setVerdict('vd-buoy','warn','Bigger than the noise, and completely invisible.',
+      ' <b>'+fmt(q.dm,2)+' mg</b> — '+fmt(dR,0)+' readability steps and '+fmt(q.dm/(S_TYP*Math.SQRT2),1)+'× the repeatability. The balance reads <em>low</em>, stably, every single time. Whether you correct it depends on whether you need an absolute mass or only a ratio; for a percentage solution it largely cancels.');
+  else
+    setVerdict('vd-buoy','bad','The largest systematic error in this lesson.',
+      ' <b>'+fmt(q.dm,0)+' mg</b>, or '+fmt(q.corr*100,2)+'% of the reading. At this density the sample is displacing a serious volume of air. Nobody weighs foam to four figures without correcting for buoyancy — and if you are working with low-density solids or measuring a density yourself, eq. 1.3.3 is not optional.');
+}
+defWidget('buoy','care',drawBuoy,{
+  'buoy-rho':v=>fmt(v,2)+' g/cm3','buoy-h':v=>fmt(v,0)+' m','buoy-T':v=>fmt(v,1)+' C','buoy-m':v=>fmt(v,1)+' g'},
+  {scen0:'water', scenfn:s=>{ presetSlider('buoy-rho',BUOYSCEN[s].rho); }});
+
+/* ════════ widget: minw — minimum weight (Tab 3.3) ════════
+   Stateless, and exact: eq. 1.3.4 with the manual's own k = 2. Reproduces the
+   published minimum weights for the XSR303S at s = 0.5 mg. */
+const MINWSCEN={ usp:{re:0.1}, onepct:{re:1}, agar:{re:1,m:2,s:S_TYP} };
+function minwState(){
+  const s=num('minw-s'), re=num('minw-re')/100, lg=num('minw-m');
+  const m=Math.pow(10,lg);                 /* mg */
+  const mmin=2*s/re;                       /* mg */
+  const ach=2*s/m;                         /* achieved relative uncertainty */
+  return {s,re,lg,m,mmin,ach,ok:m>=mmin};
+}
+function drawMinw(){
+  const cv=getCv('cv-minw'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=minwState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:64,r:20,t:18,b:48});
+  const xlo=0, xhi=4;                      /* log10 mg: 1 mg to 10 g */
+  const ylo=-2, yhi=2;                     /* log10 %: 0.01% to 100% */
+  ch.setRange(xlo,xhi,ylo,yhi);
+  const xt=[0,1,2,3,4], yt=[-2,-1,0,1,2];
+  ch.grid(xt,yt);
+  ch.axes('sample mass','relative uncertainty',xt,yt,0,0,
+    t=>({0:'1 mg',1:'10 mg',2:'100 mg',3:'1 g',4:'10 g'})[t],
+    t=>({'-2':'0.01%','-1':'0.1%','0':'1%','1':'10%','2':'100%'})[String(t)]);
+  const pts=[];
+  for(let i=0;i<=140;i++){ const lg=xlo+(xhi-xlo)*i/140, m=Math.pow(10,lg);
+    const v=Math.log10(clamp(2*q.s/m*100,1e-3,1e3));
+    if(v>=ylo&&v<=yhi)pts.push([ch.toX(lg),ch.toY(v)]); }
+  drawLine(ctx,pts,COL.clean,2.6);
+  const reL=Math.log10(q.re*100);
+  ch.hLine(reL,COL.good,[5,3]);
+  ctx.fillStyle=COL.good; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('what you need: '+fmt(q.re*100,2)+'%',ch.m.l+6,ch.toY(reL)-4);
+  const mminL=clamp(Math.log10(q.mmin),xlo,xhi);
+  ch.vLine(mminL,COL.warn,[5,3]);
+  ctx.save(); ctx.translate(ch.toX(mminL)+4,ch.m.t+8); ctx.fillStyle=COL.warn;
+  ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('minimum weight',0,0);
+  ctx.fillText(q.mmin<1000?fmt(q.mmin,0)+' mg':fmt(q.mmin/1000,2)+' g',0,12); ctx.restore();
+  /* shade the forbidden region */
+  ctx.fillStyle='rgba(239,68,68,.07)';
+  ctx.fillRect(ch.m.l,ch.m.t,Math.max(0,ch.toX(mminL)-ch.m.l),ch.ph);
+  const px=ch.toX(clamp(q.lg,xlo,xhi)), py=ch.toY(clamp(Math.log10(q.ach*100),ylo,yhi));
+  ctx.fillStyle=q.ok?COL.good:COL.bad; ctx.beginPath(); ctx.arc(px,py,6,0,7); ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.6; ctx.stroke();
+  ctx.fillStyle=COL.text; ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+  ctx.fillText('your sample',px,py-10);
+  if(!statTick('minw'))return;
+  setStat('st-minw',[
+    {k:'Minimum weight',v:q.mmin<1000?fmt(q.mmin,0)+' mg':fmt(q.mmin/1000,2)+' g',hi:1},
+    {k:'Your sample',v:q.m<1000?fmt(q.m,0)+' mg':fmt(q.m/1000,2)+' g'},
+    {k:'Uncertainty you get',v:fmt(q.ach*100,q.ach*100<1?3:2)+'%',hi:1},
+    {k:'Uncertainty you need',v:fmt(q.re*100,2)+'%'}]);
+  const ratio=q.m/q.mmin;
+  if(ratio>=3)
+    setVerdict('vd-minw','good','Comfortably above the minimum weight.',
+      ' Your sample is <b>'+fmt(ratio,1)+'×</b> the minimum weight, so the balance delivers '+fmt(q.ach*100,3)+'% against the '+fmt(q.re*100,2)+'% you asked for. There is real margin here — enough that a bad day on the bench will not quietly put you over the line.');
+  else if(ratio>=1)
+    setVerdict('vd-minw','warn','Above the line, but only just.',
+      ' <b>'+fmt(ratio,2)+'×</b> the minimum weight. It passes at the manual\'s '+fmt(q.s,2)+' mg repeatability — but that is a specification, not a measurement of this balance in this room today. Push <em>s</em> to the '+fmt(S_LIM,1)+' mg limit value and the minimum weight becomes '+fmt(2*S_LIM/q.re,0)+' mg. No margin is not the same as pass.');
+  else
+    setVerdict('vd-minw','bad','Below the minimum weight — this weighing cannot be done here.',
+      ' You need '+fmt(q.re*100,2)+'% and the balance can only give <b>'+fmt(q.ach*100,2)+'%</b> at this mass. No amount of care fixes it: <em>s</em> is a property of the mechanism and the room, not of your technique. Weigh at least '+(q.mmin<1000?fmt(q.mmin,0)+' mg':fmt(q.mmin/1000,2)+' g')+', use a balance with a smaller <em>s</em>, or weigh larger and dilute.');
+}
+defWidget('minw','care',drawMinw,{
+  'minw-s':v=>fmt(v,2)+' mg','minw-re':v=>fmt(v,2)+'%',
+  'minw-m':v=>{const m=Math.pow(10,v); return m<1000?fmt(m,0)+' mg':fmt(m/1000,2)+' g';}},
+  {scen0:'usp', scenfn:s=>{ const c=MINWSCEN[s];
+    presetSlider('minw-re',c.re);
+    if(c.m!==undefined)presetSlider('minw-m',c.m);
+    if(c.s!==undefined)presetSlider('minw-s',c.s); }});
+
+/* ════════ widget: adjust — sensitivity drift (Tab 4.1) ════════
+   Model: eq. 1.4.1 with the manual's own 0.0005 %/degC, plus a small illustrative
+   ageing term. The post-adjustment residual is the manual's sensitivity-offset
+   spec, 1.2 mg at the 300 g nominal load, expressed as a relative figure. */
+const AGE_PER_DAY=2e-7;
+const ADJSCEN={ morning:{dt:0,days:0}, afternoon:{dt:3,days:0}, weekend:{dt:8,days:3} };
+function adjustState(){
+  const dT=num('adjust-dt'), days=num('adjust-days'), m=num('adjust-m'), done=chk('adjust-adj');
+  const relDrift=TC_SENS*Math.abs(dT)+AGE_PER_DAY*days;
+  const rel=done?SENS_RESID:Math.max(relDrift,SENS_RESID);
+  return {dT,days,m,done,relDrift,rel, err:m*rel*1000, resid:m*SENS_RESID*1000,
+          errNom:300*rel*1000};
+}
+function drawAdjust(){
+  const cv=getCv('cv-adjust'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=adjustState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const ch=new Chart(ctx,w,h,{l:64,r:20,t:18,b:46});
+  const emax=Math.max(q.m*(TC_SENS*12+AGE_PER_DAY*q.days)*1000*1.1, 4*D_READ);
+  ch.setRange(-12,12,0,emax);
+  const xt=[-12,-8,-4,0,4,8,12], yt=niceTicks(0,emax,5);
+  ch.grid(xt,yt);
+  ch.axes('temperature change since the last adjustment (°C)','span error (mg)',xt,yt,0,1);
+  const pts=[];
+  for(let i=0;i<=120;i++){ const t=-12+24*i/120;
+    const v=q.m*(TC_SENS*Math.abs(t)+AGE_PER_DAY*q.days)*1000;
+    pts.push([ch.toX(t),ch.toY(clamp(v,0,emax))]); }
+  drawLine(ctx,pts,COL.clean,2.4);
+  ch.hLine(clamp(q.resid,0,emax),COL.good,[5,3]);
+  ctx.fillStyle=COL.good; ctx.font='10px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('what an adjustment leaves behind: '+fmt(q.resid,2)+' mg',ch.m.l+6,ch.toY(clamp(q.resid,0,emax))-4);
+  ch.hLine(clamp(D_READ,0,emax),COL.dirty,[3,3]);
+  ctx.fillStyle=COL.dirty; ctx.textBaseline='top';
+  ctx.fillText('one readability step',ch.m.l+6,ch.toY(clamp(D_READ,0,emax))+3);
+  const px=ch.toX(clamp(q.dT,-12,12)), py=ch.toY(clamp(q.err,0,emax));
+  ctx.strokeStyle=COL.neutral; ctx.lineWidth=1.2; ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(px,ch.m.t);ctx.lineTo(px,ch.m.t+ch.ph);ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=q.done?COL.good:(q.err>D_READ?COL.bad:COL.warn);
+  ctx.beginPath(); ctx.arc(px,py,6,0,7); ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.6; ctx.stroke();
+  if(q.done){ ctx.fillStyle=COL.good; ctx.font='bold 12px sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText('adjusted',px,py-10); }
+  if(!statTick('adjust'))return;
+  setStat('st-adjust',[
+    {k:'Temperature change',v:fmt(q.dT,1)+' °C'},
+    {k:'Span error',v:fmt(q.err,2)+' mg',hi:1},
+    {k:'After adjustment',v:fmt(q.resid,2)+' mg',hi:1},
+    {k:'Same, at 300 g',v:fmt(q.errNom,2)+' mg'}]);
+  if(q.done)
+    setVerdict('vd-adjust','good','Adjusted. This is as good as the balance gets.',
+      ' The span error is back to <b>'+fmt(q.resid,2)+' mg</b> on '+fmt(q.m,0)+' g — the sensitivity offset the manual quotes after adjustment with the internal weight. You cannot do better than this by any means available at the bench, and it took ninety seconds.');
+  else if(q.err<0.3*D_READ)
+    setVerdict('vd-adjust','good','Nothing has drifted yet that matters here.',
+      ' <b>'+fmt(q.err,3)+' mg</b> at '+fmt(q.m,0)+' g. Span drift is proportional, so at small loads it stays invisible however long you leave it. Look at the 300 g figure in the stats though — the same drift is '+fmt(q.errNom,2)+' mg for the next person, who may be weighing something big.');
+  else if(q.err<q.resid*1.05)
+    setVerdict('vd-adjust','good','Still inside what an adjustment could fix.',
+      ' The drift is <b>'+fmt(q.err,2)+' mg</b> and an adjustment would leave '+fmt(q.resid,2)+' mg behind — so re-adjusting right now would gain you almost nothing. This is the only regime in which skipping it is defensible.');
+  else
+    setVerdict('vd-adjust','bad','Out of specification, and it is only '+(Math.abs(q.dT)<1.5?'one degree':fmt(Math.abs(q.dT),1)+' degrees')+'.',
+      ' <b>'+fmt(q.err,2)+' mg</b> against a '+fmt(q.resid,2)+' mg residual — the drift is now '+fmt(q.err/q.resid,1)+'× larger than the error an adjustment would leave. This is the arithmetic behind the single word "Daily" in the manual\'s maintenance table. Tick the box.');
+}
+defWidget('adjust','maint',drawAdjust,{
+  'adjust-dt':v=>fmt(v,1)+' C','adjust-days':v=>String(Math.round(v)),'adjust-m':v=>fmt(v,1)+' g'},
+  {scen0:'morning', scenfn:s=>{ presetSlider('adjust-dt',ADJSCEN[s].dt); presetSlider('adjust-days',ADJSCEN[s].days);
+    presetChk('adjust-adj',false); }});
+
+/* ════════ widget: tests — which routine test catches which fault (Tab 4.2) ════════
+   Each test is simulated against the injected fault, and compared with the
+   manual's own limit values scaled to the test load. */
+function testsState(){
+  const mag=num('tests-mag'), m=num('tests-m'), f=(mag<0.05)?'none':(SCEN.tests||'span');
+  const base={span:0.15,corner:0.2,noisy:S_TYP};
+  let spanRel=base.span*TC_SENS*10, eccRel=base.corner*K_ECC*44.9, s=base.noisy;
+  if(f==='span')   spanRel += mag*2.2e-5;
+  if(f==='corner') eccRel  += mag*K_ECC*44.9;
+  if(f==='noisy')  s       += mag*0.9;
+  const sensMeas=m*spanRel*1000, sensTol=m*2e-5*1000;      /* 6 mg at 300 g, the limit value */
+  const eccMeas=m*eccRel*1000,  eccTol=m*3e-5*1000;        /* 3 mg at 100 g, the limit value */
+  const repMeas=s,              repTol=S_LIM;
+  return {mag,m,f,
+    rows:[{k:'sensitivity',meas:sensMeas,tol:sensTol,u:'mg'},
+          {k:'eccentricity',meas:eccMeas,tol:eccTol,u:'mg'},
+          {k:'repeatability',meas:repMeas,tol:repTol,u:'mg'}]};
+}
+function drawTests(){
+  const cv=getCv('cv-tests'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=testsState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const bl=136, bw=w-bl-96;
+  ctx.fillStyle=COL.text; ctx.font='12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('measured  ÷  the manual\'s limit value',bl,10);
+  let yy=40;
+  for(const r of q.rows){
+    const ratio=r.meas/r.tol, fail=ratio>1;
+    ctx.fillStyle=COL.text; ctx.font='12px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText(r.k+' test',bl-12,yy+15);
+    ctx.fillStyle='#e6ebf2'; roundRect(ctx,bl,yy,bw,30,6); ctx.fill();
+    const barW=clamp(ratio,0,2)/2*bw;
+    ctx.fillStyle=fail?COL.bad:COL.good;
+    roundRect(ctx,bl,yy,Math.max(4,barW),30,6); ctx.fill();
+    ctx.strokeStyle=COL.text; ctx.lineWidth=2; ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.moveTo(bl+bw/2,yy-6);ctx.lineTo(bl+bw/2,yy+36);ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle='#fff'; ctx.font='bold 11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+    if(barW>72)ctx.fillText(fmt(r.meas,2)+' '+r.u,bl+8,yy+15);
+    ctx.fillStyle=fail?COL.bad:COL.good; ctx.font='bold 13px sans-serif'; ctx.textAlign='left';
+    ctx.fillText(fail?'FAIL':'pass',bl+bw+12,yy+15);
+    ctx.fillStyle=COL.axis; ctx.font='10px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='top';
+    ctx.fillText('limit '+fmt(r.tol,2)+' '+r.u,bl+bw-4,yy+34);
+    yy+=70;
+  }
+  ctx.fillStyle=COL.text; ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('limit',bl+bw/2,yy-30);
+  if(!statTick('tests'))return;
+  const caught=q.rows.filter(r=>r.meas>r.tol).map(r=>r.k);
+  setStat('st-tests',[
+    {k:'Fault injected',v:({none:'none',span:'span drift',corner:'corner load',noisy:'bench vibration'})[q.f],hi:1},
+    {k:'Sensitivity',v:fmt(q.rows[0].meas,2)+' mg '+(q.rows[0].meas>q.rows[0].tol?'FAIL':'pass')},
+    {k:'Eccentricity',v:fmt(q.rows[1].meas,2)+' mg '+(q.rows[1].meas>q.rows[1].tol?'FAIL':'pass')},
+    {k:'Repeatability',v:fmt(q.rows[2].meas,2)+' mg '+(q.rows[2].meas>q.rows[2].tol?'FAIL':'pass'),hi:1}]);
+  if(q.f==='none'&&!caught.length)
+    setVerdict('vd-tests','good','A healthy balance passes all three.',
+      ' Every measured value sits comfortably inside the manual\'s limit. This is what you are establishing when you run a routine test — not that the balance is perfect, but that it is still inside the envelope its specification promises.');
+  else if(!caught.length)
+    setVerdict('vd-tests','warn','A real fault that no test is catching yet.',
+      ' The fault is injected but still under every limit at this severity and test load. Push the severity up, or raise the test load: sensitivity and eccentricity both scale with load, so a fault invisible at 10 g can fail outright at 300 g. Testing at a load nothing like your working load tells you very little.');
+  else if(q.f==='span')
+    setVerdict('vd-tests','good','Caught — by the one test Mettler Toledo insists on.',
+      ' Span drift shows up in the <b>sensitivity</b> test and nowhere else: the eccentricity test only ever compares readings <em>to each other</em>, and the repeatability test only measures scatter. This is exactly the fault "at least perform a sensitivity test" is aimed at, because it grows on its own, silently, at every load.');
+  else if(q.f==='corner')
+    setVerdict('vd-tests','bad','Caught by eccentricity — and completely missed by sensitivity.',
+      ' The <b>eccentricity</b> test fails while the sensitivity test passes cleanly, because a sensitivity test puts one weight in the middle of the pan and never moves it. If your SOP is a sensitivity test and nothing else, a knocked or worn mechanism passes every check you run, indefinitely.');
+  else
+    setVerdict('vd-tests','bad','Caught by repeatability only — and this is the one that decides small weighings.',
+      ' Scatter has risen to <b>'+fmt(q.rows[2].meas,2)+' mg</b> against the '+fmt(S_LIM,1)+' mg limit. Sensitivity and eccentricity both pass, because both compare <em>averaged</em> readings and average away the noise. The repeatability test is also the only one that hands you the <em>s</em> in eq. 1.3.4 — so a bench that has started shaking silently raises your minimum weight, and only this test will tell you.');
+}
+defWidget('tests','maint',drawTests,{
+  'tests-mag':v=>fmt(v,1)+'x','tests-m':v=>fmt(v,1)+' g'},
+  {scen0:'span'});
+
+/* ════════ widget: weigh — the agarose weigh-out, end to end (Tab 5.1) ════════
+   Every mechanism from tabs 1-4, sized for one real job. Each term is treated as
+   a standard uncertainty and combined in quadrature per eq. 1.5.1. */
+const WEIGHSCEN={
+  good:  {vol:5,   verr:1, rh:20, level:true,  adj:true,  metal:true},
+  hasty: {vol:5,   verr:1, rh:15, level:false, adj:false, metal:false},
+  small: {vol:2.5, verr:1, rh:20, level:true,  adj:true,  metal:true}
+};
+function weighState(){
+  const vol=num('weigh-vol'), pct=num('weigh-pct'), verr=num('weigh-verr')/100, rh=num('weigh-rh');
+  const level=chk('weigh-level'), adj=chk('weigh-adj'), metal=chk('weigh-metal');
+  const mt=vol*pct*10;                                   /* target mass, mg */
+  const terms=[];
+  terms.push({k:'repeatability',v:S_TYP*Math.SQRT2,c:COL.clean});
+  /* 2 nC is a boat handled normally, not the 5 nC worst case of §3.1: the force
+     goes as q^2, so this is a quarter of that widget's headline figure. */
+  terms.push({k:'static charge',v:metal?0:staticMass(2,10)*Math.exp(-2*60/staticTau(rh)),c:COL.cell});
+  terms.push({k:'out of level',v:level?0:mt*tiltRel(0.8),c:COL.warmc});
+  terms.push({k:'span drift',v:adj?mt*SENS_RESID:mt*TC_SENS*4,c:COL.hepa});
+  terms.push({k:'off-centre',v:mt*K_ECC*20,c:COL.steel});
+  terms.push({k:'buoyancy',v:mt*airDensity(ELEV_TUCSON,22)*(1/1600-1/RHO_REF),c:COL.neutral});
+  let ss=0; for(const t of terms)ss+=t.v*t.v;
+  const um=Math.sqrt(ss);                                /* mg */
+  const relM=um/mt, relC=Math.sqrt(relM*relM+verr*verr);
+  const mmin=2*S_TYP/0.01;
+  const top=terms.slice().sort((a,b)=>b.v-a.v)[0];
+  const small=Math.hypot(terms.find(t=>t.k==='out of level').v, terms.find(t=>t.k==='span drift').v);
+  return {vol,pct,verr,rh,level,adj,metal,mt,terms,um,relM,relC,mmin,top,small,
+          lo:pct*(1-relC), hi:pct*(1+relC)};
+}
+function drawWeigh(){
+  const cv=getCv('cv-weigh'); if(!cv)return; const {ctx,w,h}=cv;
+  const q=weighState();
+  ctx.fillStyle='#f8fafc'; ctx.fillRect(0,0,w,h);
+  const bl=118, bw=w-bl-104;
+  ctx.fillStyle=COL.text; ctx.font='12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('error budget on '+fmt(q.mt,1)+' mg of agarose',bl,8);
+  const vmax=Math.max(...q.terms.map(t=>t.v), S_TYP*Math.SQRT2)*1.15;
+  let yy=34;
+  for(const t of q.terms){
+    ctx.fillStyle=COL.axis; ctx.font='10.5px sans-serif'; ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText(t.k,bl-8,yy+8);
+    ctx.fillStyle='#e6ebf2'; roundRect(ctx,bl,yy,bw,16,4); ctx.fill();
+    if(t.v>0){ ctx.fillStyle=t.c; roundRect(ctx,bl,yy,Math.max(3,t.v/vmax*bw),16,4); ctx.fill(); }
+    ctx.fillStyle=t.v>0?COL.text:COL.neutral; ctx.font='10.5px sans-serif';
+    ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText(t.v>0?fmt(t.v,t.v<1?3:2)+' mg':'eliminated',bl+bw+8,yy+8);
+    yy+=25;
+  }
+  yy+=6;
+  ctx.strokeStyle=COL.grid; ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(bl-90,yy-4);ctx.lineTo(bl+bw+70,yy-4);ctx.stroke();
+  /* the concentration band */
+  ctx.fillStyle=COL.text; ctx.font='12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('the gel you actually made',bl-90,yy+4);
+  const cy=yy+42, cxa=bl-90, cw=bw+160;
+  const span=Math.max(q.pct*q.relC*1.6, q.pct*0.012);
+  const CX=v=>cxa+(v-(q.pct-span))/(2*span)*cw;
+  ctx.strokeStyle=COL.axis; ctx.lineWidth=1.3;
+  ctx.beginPath();ctx.moveTo(cxa,cy+14);ctx.lineTo(cxa+cw,cy+14);ctx.stroke();
+  const okBand=q.relC<=0.02;
+  ctx.fillStyle=okBand?'rgba(16,185,129,.28)':'rgba(239,68,68,.22)';
+  ctx.fillRect(CX(q.lo),cy-8,Math.max(3,CX(q.hi)-CX(q.lo)),22);
+  ctx.strokeStyle=okBand?COL.good:COL.bad; ctx.lineWidth=2;
+  ctx.strokeRect(CX(q.lo),cy-8,Math.max(3,CX(q.hi)-CX(q.lo)),22);
+  ctx.strokeStyle=COL.text; ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(CX(q.pct),cy-14);ctx.lineTo(CX(q.pct),cy+20);ctx.stroke();
+  ctx.fillStyle=COL.text; ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+  ctx.fillText('target '+fmt(q.pct,2)+'%',CX(q.pct),cy-16);
+  ctx.font='10.5px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillStyle=COL.axis;
+  ctx.fillText(fmt(q.lo,3)+'%',CX(q.lo),cy+18);
+  ctx.fillText(fmt(q.hi,3)+'%',CX(q.hi),cy+18);
+  if(!statTick('weigh'))return;
+  setStat('st-weigh',[
+    {k:'Agarose to weigh',v:fmt(q.mt,1)+' mg',hi:1},
+    {k:'Biggest term',v:q.top.k},
+    {k:'Uncertainty on the mass',v:fmt(q.relM*100,2)+'%',hi:1},
+    {k:'Uncertainty on the gel',v:fmt(q.relC*100,2)+'%'}]);
+  const massDom=q.relM>q.verr;
+  const skipped=(!q.level?'levelling':'')+((!q.level&&!q.adj)?' and ':'')+(!q.adj?'the daily adjustment':'');
+  const smallNote=skipped
+    ? ' Skipping '+skipped+' cost <b>'+fmt(q.small,3)+' mg</b> — nothing against the '+fmt(S_TYP*Math.SQRT2,2)+' mg noise floor, because both are <em>proportional</em> and this sample is tiny. At 300 g they would be worth '+fmt(q.small*300000/q.mt,0)+' mg.'
+    : ' Levelling and the adjustment contribute '+fmt(q.small,3)+' mg between them — almost nothing at this mass. They are insurance for the big weighings, not this one.';
+  if(q.mt<q.mmin)
+    setVerdict('vd-weigh','bad','This batch is below the balance\'s minimum weight.',
+      ' '+fmt(q.mt,1)+' mg against a '+fmt(q.mmin,0)+' mg minimum for 1% work. The gel comes out at <b>'+fmt(q.lo,3)+'–'+fmt(q.hi,3)+'%</b>, not '+fmt(q.pct,2)+'%, and no care changes it — the mass term alone is '+fmt(q.relM*100,2)+'%. Make a bigger batch: doubling the volume halves this error.'+smallNote);
+  else if(q.relC<=0.015)
+    setVerdict('vd-weigh','good','A gel you can call '+fmt(q.pct,1)+'%.',
+      ' <b>'+fmt(q.lo,3)+'–'+fmt(q.hi,3)+'%</b>, or ±'+fmt(q.relC*100,2)+'%. The '+(massDom?'balance':'volume measurement')+' is the limiting term at '+fmt((massDom?q.relM:q.verr)*100,2)+'%, and the largest single line in the budget is <b>'+q.top.k+'</b> at '+fmt(q.top.v,q.top.v<1?3:2)+' mg.'+smallNote);
+  else if(q.relC<=0.03)
+    setVerdict('vd-weigh','warn','Usable, but not what the protocol says.',
+      ' <b>'+fmt(q.lo,3)+'–'+fmt(q.hi,3)+'%</b> against '+fmt(q.pct,2)+'% — ±'+fmt(q.relC*100,2)+'%. The biggest contributor is <b>'+q.top.k+'</b> at '+fmt(q.top.v,2)+' mg. Fix that term first: errors add in quadrature, so shrinking the smaller lines buys almost nothing.'+smallNote);
+  else
+    setVerdict('vd-weigh','bad','This is not a '+fmt(q.pct,1)+'% gel.',
+      ' <b>'+fmt(q.lo,2)+'–'+fmt(q.hi,2)+'%</b> — ±'+fmt(q.relC*100,1)+'%. The dominant term is <b>'+q.top.k+'</b> at '+fmt(q.top.v,2)+' mg, against only '+fmt(q.mt,1)+' mg of sample. Gel stiffness will not reproduce batch to batch, and the notebook will say 2%.'+smallNote);
+}
+defWidget('weigh','recap',drawWeigh,{
+  'weigh-vol':v=>fmt(v,1)+' mL','weigh-pct':v=>fmt(v,2)+'% w/v',
+  'weigh-verr':v=>fmt(v,2)+'%','weigh-rh':v=>fmt(v,0)+'%'},
+  {scen0:'good', scenfn:s=>{ const c=WEIGHSCEN[s];
+    presetSlider('weigh-vol',c.vol); presetSlider('weigh-verr',c.verr); presetSlider('weigh-rh',c.rh);
+    presetChk('weigh-level',c.level); presetChk('weigh-adj',c.adj); presetChk('weigh-metal',c.metal); }});
+
+/* ════════ dispatch + wiring (house pattern) ════════ */
+function refreshActiveTab(){ for(const k of (TABW[activeTab]||[])){ const f=DRAW[k];
+  if(f){ try{ f(); }catch(e){ console.error('draw '+k,e); } } } }
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active'); activeTab=btn.dataset.tab;
+    const sec=document.getElementById('tab-'+activeTab); if(sec)sec.classList.add('active');
+    window.scrollTo({top:0}); clearCvCache(); refreshActiveTab(); syncVis();
+  });
+});
+window.addEventListener('resize',()=>{ clearCvCache(); refreshActiveTab(); syncVis(); });
+document.querySelectorAll('.scen-btn[data-widget]').forEach(b=>{
+  b.addEventListener('click',()=>setScen(b.dataset.widget,b.dataset.scen)); });
+for(const w in SCEN){ if(SCENFN[w])SCENFN[w](SCEN[w]); if(RESET[w])RESET[w](); }
+wireAll();
+refreshActiveTab();
+syncVis();
+</script>
+</body>
+</html>

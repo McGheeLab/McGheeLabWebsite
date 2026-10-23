@@ -27,6 +27,14 @@
  * Suggested toggle. The resulting task carries paper_ref, which PMR + the
  * sharing page key off to render a paper-aware row + assignee comments.
  *
+ * V3.639 — paper sends NO LONGER go through the marketplace. They write
+ * straight into the recipient's queue for every sender, admin or not, and
+ * surface at the top of the library page (js/library-readings.js). Before
+ * this, a non-admin sharing a paper produced only an `open` handoff post
+ * that the recipient had to accept on the task-market board, so mentee-
+ * shared readings silently never arrived. See the long comment in _submit.
+ * Non-paper sends keep the V3.317 marketplace routing described above.
+ *
  * Public API: window.TASK_ASSIGN.open(opts?) — opens the modal.
  *   opts.paperRef           — { paperId, paperTitle, paperAuthors }
  *   opts.titlePrefill       — initial value of the title input
@@ -198,6 +206,49 @@
     const postId = 'mkt-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
     const assigneeName = (assignee && assignee.name) || '';
 
+    /* V3.639 — paper sends bypass the marketplace entirely.
+     *
+     * Bug this fixes: V3.317 routed EVERY cross-user send through
+     * taskMarket, and only admin senders got the task materialized in the
+     * same flow. A non-admin (i.e. any student/mentee) sharing a paper
+     * therefore wrote an `open` handoff post and NO task doc — the reading
+     * sat waiting for an accept/decline on rm/pages/task-market.html, a
+     * page the recipient never opens. The sender saw a success toast, so
+     * neither side knew it hadn't landed. That is why "papers my mentee
+     * shared with me don't show up."
+     *
+     * Why bypassing is right rather than "post + materialize": a shared
+     * reading is a suggestion, not a work handoff needing negotiation —
+     * the Assigned/Suggested toggle already carries that weight. And a
+     * non-admin cannot create an 'accepted' post anyway (firestore.rules
+     * taskMarket create: status must be 'open' unless isAdmin()), so
+     * skipping the post is the only self-consistent option.
+     *
+     * The direct write is rules-legal for everyone: firestore.rules
+     * userData/{userId}/tasks create requires only isLabMember() +
+     * createdByUid == auth.uid + an existing users/{uid} doc. The
+     * admin-only gate was JS policy, never a security boundary.
+     *
+     * The marketplace still owns real task handoffs (offer / request /
+     * non-paper handoff) — this branch is scoped to paperRef sends.
+     */
+    if (paperRef) {
+      writeTaskFor(assigneeUid, payload)
+        .then(function (written) {
+          console.info('[task-assign] reading ' + taskId + ' written directly to userData/' +
+            assigneeUid + '/tasks (paper send — marketplace bypassed, V3.639)');
+          if (typeof opts.onCreated === 'function') {
+            try { opts.onCreated(written); } catch (cbErr) { console.warn('[task-assign] onCreated failed:', cbErr); }
+          }
+          dismiss();
+          if (window.TOAST) {
+            TOAST.success('Reading sent to ' + (assigneeName || 'teammate'), { ttl: 2500 });
+          }
+        })
+        .catch(function (err) { _sendFailed(err, submitBtn, cancelBtn, status, function () { return writeTaskFor(assigneeUid, payload); }); });
+      return;
+    }
+
     function doSend() {
       const ts = firebase.firestore.FieldValue.serverTimestamp();
       const post = {
@@ -248,30 +299,34 @@
           }
         }
       })
-      .catch(function (err) {
-        console.error('[task-assign] write failed:', err);
-        // V3.199 — keep the modal open with the diagnostic right in the
-        // form so the admin can see it without hunting through toasts.
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Send'; }
-        if (cancelBtn) cancelBtn.disabled = false;
-        let hint = err.message || String(err);
-        if (/permission|denied|insufficient/i.test(hint)) {
-          hint += ' — likely cause: the assignee has no users/{uid} profile doc yet (they need to sign in to RM once so profile-bootstrap creates it), or your account isn\'t a lab member.';
-        }
-        status.style.color = '#991b1b';
-        status.textContent = 'Failed to send: ' + hint;
-        if (window.TOAST) {
-          TOAST.error('Failed to send task', {
-            detail: hint,
-            retry: function () {
-              doSend()
-                .catch(function (err2) {
-                  if (window.TOAST) TOAST.error('Retry failed', { detail: err2.message });
-                });
-            },
+      .catch(function (err) { _sendFailed(err, submitBtn, cancelBtn, status, doSend); });
+  }
+
+  /* V3.199 — keep the modal open with the diagnostic right in the form so
+   * the sender sees it without hunting through toasts. Extracted in V3.639
+   * so the paper-send path (which bypasses the marketplace) reports
+   * failures identically. `retryFn` returns a fresh promise for the write
+   * that failed. */
+  function _sendFailed(err, submitBtn, cancelBtn, status, retryFn) {
+    console.error('[task-assign] write failed:', err);
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Send'; }
+    if (cancelBtn) cancelBtn.disabled = false;
+    let hint = err.message || String(err);
+    if (/permission|denied|insufficient/i.test(hint)) {
+      hint += ' — likely cause: the assignee has no users/{uid} profile doc yet (they need to sign in to RM once so profile-bootstrap creates it), or your account isn\'t a lab member.';
+    }
+    status.style.color = '#991b1b';
+    status.textContent = 'Failed to send: ' + hint;
+    if (window.TOAST) {
+      TOAST.error('Failed to send', {
+        detail: hint,
+        retry: function () {
+          retryFn().catch(function (err2) {
+            if (window.TOAST) TOAST.error('Retry failed', { detail: err2.message });
           });
-        }
+        },
       });
+    }
   }
 
   function _esc(s) {
@@ -362,11 +417,11 @@
             'Importance' +
             '<select class="ta-importance" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:16px;">' +
               '<option value="0">—</option>' +
-              '<option value="1">★</option>' +
-              '<option value="2">★★</option>' +
-              '<option value="3">★★★</option>' +
-              '<option value="4">★★★★</option>' +
-              '<option value="5">★★★★★</option>' +
+              '<option value="1">' + ICON.svg('star') + '</option>' +
+              '<option value="2">' + ICON.svg('star') + ICON.svg('star') + '</option>' +
+              '<option value="3">' + ICON.svg('star') + ICON.svg('star') + ICON.svg('star') + '</option>' +
+              '<option value="4">' + ICON.svg('star') + ICON.svg('star') + ICON.svg('star') + ICON.svg('star') + '</option>' +
+              '<option value="5">' + ICON.svg('star') + ICON.svg('star') + ICON.svg('star') + ICON.svg('star') + ICON.svg('star') + '</option>' +
             '</select>' +
           '</label>' +
         '</div>' +
