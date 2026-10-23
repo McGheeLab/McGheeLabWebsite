@@ -238,6 +238,71 @@ class FirestoreHub {
     await this.ref.update(meta);
     return { ok: true, paired: ids.length - plan.prune.length, blocksUpdated: plan.ops.length, tasksUpdated: plan.patches.length, dropped: plan.prune.length };
   }
+  /* ---- V3.874: reminders + chores → My Week; timer sessions + edits → RM's activity tracker ---- */
+  async syncWhen({ force, who } = {}) {
+    const snap = await this.ref.get(), d = snap.data() || {}, now = Date.now();
+    if (!force && d.whenSyncAt && now - tsMs(d.whenSyncAt) < C.WHEN_MS) return { ok: true, skipped: true };
+    const rowsSnap = await this.rows.where('store', 'in', ['chores', 'reminders']).get();
+    const chores = [], reminders = [];
+    rowsSnap.docs.forEach(x => { const r = rowFromDoc(x); if (!r || r.deleted || !r.rec) return; (r.store === 'chores' ? chores : reminders).push(r.rec); });
+    const tracked = d.rmWhen && typeof d.rmWhen === 'object' ? d.rmWhen : {}, today = C.todayIn(C.LAB_TZ, now);
+    const ids = [...new Set(Object.keys(tracked).concat(C.whenCandidates({ chores, reminders, today }).map(c => c.taskId)))];
+    const tasks = new Map();
+    for (let i = 0; i < ids.length; i += 100) {
+      const part = ids.slice(i, i + 100), snaps = await db().getAll(...part.map(id => this._taskRef(id)));
+      snaps.forEach((s, j) => tasks.set(part[j], s.exists ? Object.assign({ id: part[j] }, s.data()) : null));
+    }
+    const st = stateFromDoc(snap) || await this.loadState();
+    const plan = C.planWhen({ state: st, chores, reminders, tracked, tasks, today, uid: this.uid, name: (who && who.name) || d.ownerName || '', now });
+    if (plan.ops.length) await this.push({ dev: 'rm', conn: null, name: 'RM My Week', ops: plan.ops });
+    for (const doc of plan.creates) {
+      try { await this._taskRef(doc.id).create(Object.assign({}, doc, { createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })); }
+      catch (e) { if (e.code !== 6 && !/already exists/i.test(String(e.message || ''))) throw e; }
+    }
+    for (const { id, patch } of plan.patches) { try { await this._taskRef(id).update(Object.assign({}, patch, { updatedAt: FieldValue.serverTimestamp() })); } catch (e) { /* gone */ } }
+    const meta = { whenSyncAt: FieldValue.serverTimestamp() };
+    if (who && who.name && who.kind === 'browser') meta.ownerName = String(who.name);
+    for (const [id, ref] of Object.entries(plan.track)) meta['rmWhen.' + id] = ref;
+    for (const id of plan.untrack) meta['rmWhen.' + id] = FieldValue.delete();
+    await this.ref.update(meta);
+    return { ok: true, created: plan.creates.length, tasksUpdated: plan.patches.length, notebookUpdated: plan.ops.length, tracked: Object.keys(tracked).length + Object.keys(plan.track).length - plan.untrack.length };
+  }
+  async syncActivity({ force } = {}) {
+    const snap = await this.ref.get(), d = snap.data() || {}, now = Date.now();
+    if (!force && d.actSyncAt && now - tsMs(d.actSyncAt) < C.ACT_MS) return { ok: true, skipped: true };
+    const st = stateFromDoc(snap) || await this.loadState(), today = C.todayIn(C.LAB_TZ, now), from = C.addDays_(today, -C.ACT_DAYS);
+    const cursor = d.actCursor || 0, latest = new Map(); let nextCursor = st.seq;
+    if (cursor && cursor >= (st.minSeq || 0)) {
+      const opsSnap = await this.ops.where('seq', '>', cursor).orderBy('seq').limit(2000).get();
+      opsSnap.docs.forEach(x => { const o = opFromDoc(x.data() || {}); if (o.store === 'sessions' || o.store === 'documents') latest.set(o.store + '/' + o.id, { store: o.store, rec: o.del ? null : o.rec }); });
+      if (opsSnap.size === 2000) nextCursor = opsSnap.docs[opsSnap.size - 1].data().seq;
+    } else {
+      for (const store of ['sessions', 'documents']) { const rs = await this.rows.where('store', '==', store).get(); rs.docs.forEach(x => { const r = rowFromDoc(x); if (r && !r.deleted && r.rec) latest.set(store + '/' + r.id, { store, rec: r.rec }); }); }
+    }
+    const groups = C.activityGroups({ changes: [...latest.values()], today, from });
+    if (!groups.size) { await this.ref.set({ actCursor: nextCursor, actSyncAt: FieldValue.serverTimestamp() }, { merge: true }); return { ok: true, events: 0 }; }
+    const docIds = [...new Set([...groups.values()].map(g => g.docId))], docs = new Map();
+    for (const [k, v] of latest) if (v.store === 'documents' && v.rec) docs.set(String(v.rec.id), v.rec);
+    const need = docIds.filter(id => !docs.has(id));
+    for (let i = 0; i < need.length; i += 100) { const part = need.slice(i, i + 100), snaps = await db().getAll(...part.map(id => this.rows.doc(rowDocId('documents', id)))); snaps.forEach((s, j) => { const r = rowFromDoc(s); if (r && r.rec) docs.set(part[j], r.rec); }); }
+    const entries = db().collection('trackerEntries').doc(this.uid).collection('entries'), ids = [...groups.keys()], existing = new Map();
+    for (let i = 0; i < ids.length; i += 100) { const part = ids.slice(i, i + 100), snaps = await db().getAll(...part.map(id => entries.doc(id))); snaps.forEach((s, j) => existing.set(part[j], s.exists ? s.data() : null)); }
+    const writes = C.planActivity({ groups, docs, existing });
+    for (const w of writes) await entries.doc(w.id).set(Object.assign({}, w.data, { updatedAt: FieldValue.serverTimestamp() }, w.isNew ? { createdAt: FieldValue.serverTimestamp() } : {}), { merge: true });
+    await this.ref.set({ actCursor: nextCursor, actSyncAt: FieldValue.serverTimestamp() }, { merge: true });
+    return { ok: true, events: writes.length };
+  }
+  /** One read of the hub doc decides which throttled syncs are due (every pull calls this). */
+  async quietSyncs(who, { force, only } = {}) {
+    const d = (await this.ref.get()).data() || {}, now = Date.now(), out = {};
+    const due = (name, k, ms) => (!only || only.includes(name)) && (force || !d[k] || now - tsMs(d[k]) >= ms);
+    const run = async (name, fn) => { try { out[name] = await fn(); } catch (e) { out[name] = { ok: false, error: String(e.message || e) }; } };
+    if (due('library', 'mirrorAt', C.MIRROR_MS)) await run('library', () => this.mirrorLibrary({ force: true }));
+    if (due('tasks', 'taskSyncAt', C.TASKSYNC_MS)) await run('tasks', () => this.syncTasks({ force: true }));
+    if (due('when', 'whenSyncAt', C.WHEN_MS)) await run('when', () => this.syncWhen({ force: true, who }));
+    if (due('activity', 'actSyncAt', C.ACT_MS)) await run('activity', () => this.syncActivity({ force: true }));
+    return out;
+  }
   async keyMake(name) {
     const secret = C.token(16), id = C.token(5);
     await this.keys.doc(id).set({ id, name, hash: C.sha(secret), created: FieldValue.serverTimestamp(), lastSeen: null });
@@ -285,7 +350,7 @@ const scientiaHub = onRequest({ cors: false, timeoutSeconds: 300, memory: '512Mi
   res.set('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
   const path = (String(req.path || '/').replace(/^\/scientiaHub(?=\/|$)/, '') || '/').replace(/\/+$/, '') || '/';
-  if (path === '/') { res.status(200).json({ ok: true, service: 'scientiaHub', version: 'V3.869' }); return; }
+  if (path === '/') { res.status(200).json({ ok: true, service: 'scientiaHub', version: 'V3.874' }); return; }
   let who = null;
   try { who = await resolveWho(req); }
   catch (e) { res.status(401).json({ ok: false, error: 'invalid token: ' + e.message }); return; }

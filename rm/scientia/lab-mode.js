@@ -12,6 +12,7 @@
      Data       gone — desktop only (folder handles need the computer).
      Tasks page RM's Tasks + this notebook's task components and their RM state.
      Materials  from RM's inventory (V3.871, section 5); a task component is an RM task (V3.872, section 6).
+     Reminders + chores  dated items in My Week, ticks both ways; the timer and edits go to RM activity (V3.874, section 7 + the hub).
 
    The app's globals (TABS, VIEWS, App, DB, M, LIB, h, …) are top-level consts
    of the classic script that precedes this one: same realm, same lexical
@@ -27,7 +28,7 @@
     activity: '/rm/pages/activity-overview.html?tab=tracker',
     inventory: '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.872', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.874', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -55,7 +56,7 @@
     };
   }
   try {
-    VIEWS.activity = pointer('Activity', 'The lab site', 'Your activity is RM’s: the daily tracker, the year view and the lab’s stats live on the lab site, where your mentor sees them too. The desktop app keeps its own Activity page.', RM.activity, 'Open Activity in RM');
+    VIEWS.activity = pointer('Activity', 'The lab site', 'Your activity is RM’s: the daily tracker, the year view and the lab’s stats live on the lab site, where your mentor sees them too. Every note you work on here — edits and timer sessions, from this browser or your computer — is recorded there as one entry per note per day. The desktop app keeps its own Activity page.', RM.activity, 'Open Activity in RM');
     VIEWS.tasks = pointer('Tasks', 'The lab site', 'Tasks are RM’s: assigned, due, in My Week and on your phone. The task component in a note stays; the Tasks page is RM’s Tasks.', RM.tasks, 'Open Tasks in RM');
     VIEWS.data = pointer('Data', 'Desktop only', 'Data by reference needs the folder on your computer (the microscope’s export, your disk). Bind, rescan and preview datasets in the desktop app; their records sync here.', null, '');
   } catch (e) { warn('pointers', e); }
@@ -362,4 +363,26 @@
     };
     VIEWS.tasks._pointer = oTasksView;
   } catch (e) { warn('tasks page', e); }
+  /* ---- 7. Reminders, chores and the timer reach RM (V3.874) ----
+     The hub turns each chore / reminder occurrence into a dated item in My Week (and brings My Week's ticks back),
+     and turns timer sessions and note edits into RM activity events — on every pull, at most every two minutes.
+     After a change here, ask for those two at once, as soon as this device's change has reached the hub. */
+  var KICK = { t: null, runs: 0, last: null, stores: { chores: 1, reminders: 1 } };
+  LAB.kickRm = kickRm; LAB.kick = KICK;
+  function kickRm() {
+    clearTimeout(KICK.t);
+    KICK.t = setTimeout(async function () {
+      var t0 = Date.now();
+      while (typeof SYNC !== 'undefined' && SYNC.outbox && SYNC.outbox.size && Date.now() - t0 < 15000) await new Promise(function (r) { setTimeout(r, 250); });
+      try { var r = await fetch('api/rm/sync?only=when,activity', { method: 'POST' }); KICK.last = r.ok ? await r.json() : { ok: false, status: r.status }; }
+      catch (e) { KICK.last = { ok: false, error: String(e.message || e) }; }
+      KICK.runs++;
+    }, 1200);
+  }
+  try {
+    var oPut = DB.put;
+    DB.put = function (store) { var r = oPut.apply(this, arguments); try { if (KICK.stores[store] && !(typeof SYNC !== 'undefined' && (SYNC.applying || SYNC.loading))) kickRm(); } catch (e) {} return r; };
+    var oStop = TIMER.stop; TIMER.stop = function () { var r = oStop.apply(TIMER, arguments); kickRm(); return r; };
+    var oPause = TIMER.pause; TIMER.pause = function () { var r = oPause.apply(TIMER, arguments); kickRm(); return r; };
+  } catch (e) { warn('kick', e); }
 })();

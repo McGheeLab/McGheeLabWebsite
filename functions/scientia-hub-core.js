@@ -409,10 +409,174 @@ function planTaskSync({ state, pairs, now }) {
   }
   return { ops, patches, prune };
 }
-async function mirrorQuietly(hub, who) {
-  if (!hub || !who) return;
+/* ───────── Reminders + chores → My Week; timer sessions + edits → RM's activity (V3.874, Phase 1 complete) ─────────
+   WHEN: each upcoming occurrence of a Scientia chore (every N days after last done, or on weekdays) or reminder
+   (deadline / meeting / reminder; one-off or daily / weekly / monthly) becomes a dated item in the person's RM list
+   (userData/{uid}/tasks/sis-<ch|rm>-<id>-<date>, bucket 'assigned', source_ref.kind 'scientia-when' — My Week holds
+   it back until its week, like a lab chore). DONE is reconciled three-way on a boolean: the RM doc keeps `sis_done`,
+   the value both sides last agreed on; whichever side moved away from it wins (a tick in My Week adds the date to the
+   chore's `done` / the reminder's `skip`, or closes a one-off; a tick in Scientia marks the RM item done).
+   ACTIVITY: closed timer segments and note edits become one RM tracker event per note per day
+   (trackerEntries/{uid}/entries/auto-scientia-note-<docId>-<date>, the ActivitySignals.recordWork shape; no hours —
+   minutes ride along as `scientia_minutes` for whoever wants them). Dates are the lab's local days. */
+const LAB_TZ = 'America/Phoenix';
+const WHEN_MS = 2 * 60 * 1000, ACT_MS = 2 * 60 * 1000, WHEN_AHEAD = 13, WHEN_BEHIND = 7, ACT_DAYS = 3;
+const isDay = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
+const dayN = s => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 864e5;
+const dayS = n => new Date(Math.round(n) * 864e5).toISOString().slice(0, 10);
+const addDays_ = (s, k) => dayS(dayN(s) + k);
+const wdayOf = s => new Date(dayN(s) * 864e5).getUTCDay();
+function todayIn(tz, now) { const t = new Date(now == null ? Date.now() : now); try { return t.toLocaleDateString('en-CA', { timeZone: tz || LAB_TZ }); } catch (e) { return t.toISOString().slice(0, 10); } }
+function nowIn(tz, now) { const t = new Date(now == null ? Date.now() : now); try { return t.toLocaleString('sv-SE', { timeZone: tz || LAB_TZ }).replace(' ', 'T'); } catch (e) { return t.toISOString().slice(0, 19); } }
+/** An RM time (ISO with Z, a naive local string, or a day) → the lab's local day. */
+function localDayOf(v, tz) {
+  if (!v) return null; const s = String(v);
+  if (isDay(s) || /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(s)) return s.slice(0, 10);
+  const n = Date.parse(s); return isNaN(n) ? null : todayIn(tz, n);
+}
+const safeIdPart = s => String(s == null ? '' : s).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80);
+
+function choreDone(c) { return (Array.isArray(c && c.done) ? c.done : []).filter(isDay).sort(); }
+/** An interval chore's open occurrence: last done (or its start) + every N days. */
+function choreNext(c) { const d = choreDone(c), base = d.length ? d[d.length - 1] : (isDay(c && c.start) ? c.start : null); return base ? addDays_(base, Math.max(1, Math.round(+c.every || 1))) : null; }
+const isRepeat = r => !!(r && r.repeat && r.repeat !== 'none');
+const remDay = r => (r && typeof r.at === 'string' && isDay(r.at.slice(0, 10))) ? r.at.slice(0, 10) : null;
+function remOccursOn(r, day) {
+  const s = remDay(r); if (!s || day < s) return false;
+  if (!isRepeat(r)) return day === s;
+  if (r.repeat === 'daily') return true;
+  if (r.repeat === 'weekly') return (dayN(day) - dayN(s)) % 7 === 0;
+  if (r.repeat === 'monthly') return day.slice(8, 10) === s.slice(8, 10);
+  return false;
+}
+const isWhenReminder = r => !!(r && r.id && r.kind !== 'task' && !String(r.id).startsWith('rt_'));
+/** Is this occurrence still one, and is it done in Scientia? */
+function whenOcc(store, rec, day) {
+  if (!rec) return { valid: false, done: false };
+  if (store === 'chores') {
+    if (rec.active === false) return { valid: false, done: false };
+    const done = choreDone(rec);
+    if (rec.mode === 'weekdays') return { valid: day >= (rec.start || '0000') && (rec.days || []).includes(wdayOf(day)), done: done.includes(day) };
+    const d = done.some(x => x >= day); return { valid: d || day === choreNext(rec), done: d };
+  }
+  if (!isWhenReminder(rec)) return { valid: false, done: false };
+  if (!remOccursOn(rec, day)) return { valid: false, done: false };
+  return { valid: true, done: !!rec.done || (isRepeat(rec) && (rec.skip || []).includes(day)) };
+}
+const whenTaskId = (store, id, day) => 'sis-' + (store === 'chores' ? 'ch' : 'rm') + '-' + safeIdPart(id) + '-' + day;
+function whenLabel(store, rec) { return store === 'chores' ? 'Chore' : ({ deadline: 'Deadline', meeting: 'Meeting' }[rec && rec.kind] || 'Reminder'); }
+function whenText(store, rec) {
+  if (store === 'chores') return String((rec && rec.title) || 'Chore').trim() || 'Chore';
+  const m = !rec.allDay && typeof rec.at === 'string' ? rec.at.match(/T(\d{2}:\d{2})/) : null, t = String(rec.title || 'Reminder').trim() || 'Reminder';
+  return (rec.kind === 'deadline' ? 'Deadline: ' : rec.kind === 'meeting' ? 'Meeting: ' : '') + t + (m ? ' · ' + m[1] : '');
+}
+/** The occurrences that should exist in RM now (before reconciling). */
+function whenCandidates({ chores, reminders, today }) {
+  const out = [], to = addDays_(today, WHEN_AHEAD), back = addDays_(today, -WHEN_BEHIND);
+  for (const c of chores || []) {
+    if (!c || !c.id || c.active === false) continue;
+    if (c.mode === 'weekdays') { for (let d = today; d <= to; d = addDays_(d, 1)) { const o = whenOcc('chores', c, d); if (o.valid && !o.done) out.push({ store: 'chores', id: String(c.id), date: d }); } }
+    else { const d = choreNext(c); if (d && d <= to) out.push({ store: 'chores', id: String(c.id), date: d }); }
+  }
+  for (const r of reminders || []) {
+    if (!isWhenReminder(r) || r.done) continue;
+    if (!isRepeat(r)) { const d = remDay(r); if (d && d >= back && d <= to) out.push({ store: 'reminders', id: String(r.id), date: d }); continue; }
+    for (let d = today; d <= to; d = addDays_(d, 1)) { const o = whenOcc('reminders', r, d); if (o.valid && !o.done) out.push({ store: 'reminders', id: String(r.id), date: d }); }
+  }
+  return out.map(o => Object.assign(o, { taskId: whenTaskId(o.store, o.id, o.date) }));
+}
+function rmWhenTask({ uid, name, store, rec, date, done, now }) {
+  return { id: whenTaskId(store, rec.id, date), text: whenText(store, rec), bucket: 'assigned', status: 'pending', done: !!done, done_at: done ? nowIn(LAB_TZ, now) : null,
+    due_date: date, hours_estimate: null, self_importance: 0, priority: 'normal', notes: store === 'reminders' ? String(rec.notes || '') : '',
+    assignedToUid: uid, assignedToName: String(name || ''), assigned_by_uid: uid, assigned_by_name: String(name || ''), created_at: nowIn(LAB_TZ, now), source: 'scientia',
+    source_ref: { kind: 'scientia-when', label: whenLabel(store, rec), scientia: { store, id: String(rec.id), date } }, sis_done: !!done };
+}
+/** tracked: {taskId: {store, id, date}}; tasks: Map taskId → RM doc | null (tracked ∪ candidate ids). */
+function planWhen({ state, chores, reminders, tracked, tasks, today, uid, name, now }) {
+  const recs = { chores: new Map((chores || []).filter(Boolean).map(c => [String(c.id), c])), reminders: new Map((reminders || []).filter(Boolean).map(r => [String(r.id), r])) };
+  const work = new Map(), creates = [], patches = [], track = {}, untrack = [], stale = addDays_(today, -WHEN_BEHIND), at = nowIn(LAB_TZ, now);
+  const cur = (store, id) => { const k = store + '/' + id; return work.has(k) ? work.get(k).rec : (recs[store].get(String(id)) || null); };
+  const edit = (store, id) => { const k = store + '/' + id; if (!work.has(k)) { const orig = recs[store].get(String(id)); work.set(k, { store, id: String(id), prev: orig, rec: JSON.parse(JSON.stringify(orig)) }); } return work.get(k).rec; };
+  const applyDone = (ref, done, task) => {
+    const r = edit(ref.store, ref.id);
+    if (ref.store === 'chores') {
+      const list = choreDone(r);
+      if (r.mode === 'weekdays') r.done = done ? [...new Set(list.concat([ref.date]))].sort() : list.filter(x => x !== ref.date);
+      else if (done) { const day = localDayOf(task.done_at, LAB_TZ) || today; r.done = [...new Set(list.concat([day > ref.date ? day : ref.date]))].sort(); }
+      else { const hit = list.find(x => x >= ref.date); r.done = list.filter(x => x !== hit); }
+    } else if (!isRepeat(r)) { if (done) r.done = String(task.done_at || at); else delete r.done; r.modified = at; }
+    else { const sk = Array.isArray(r.skip) ? r.skip.slice() : []; r.skip = done ? [...new Set(sk.concat([ref.date]))].slice(-60) : sk.filter(x => x !== ref.date); r.modified = at; }
+  };
+  for (const [taskId, ref] of Object.entries(tracked || {})) {
+    const task = tasks.get(taskId) || null;
+    if (!task) { untrack.push(taskId); continue; }
+    const occ = whenOcc(ref.store, cur(ref.store, ref.id), ref.date);
+    if (!occ.valid) { if (!task.done && !task.dismissed_at) patches.push({ id: taskId, patch: { dismissed_at: at, dismissed_reason: 'gone from Scientia', updated_at: at } }); untrack.push(taskId); continue; }
+    if (task.dismissed_at) { if (ref.date < stale) untrack.push(taskId); continue; }
+    const s = !!occ.done, r = !!task.done, a = !!task.sis_done;
+    if (s === r) { if (a !== s) patches.push({ id: taskId, patch: { sis_done: s } }); }
+    else if (s !== a) patches.push({ id: taskId, patch: { done: s, done_at: s ? at : null, sis_done: s, updated_at: at } });
+    else { applyDone(ref, r, task); patches.push({ id: taskId, patch: { sis_done: r } }); }
+    if ((s || r) && ref.date < stale) untrack.push(taskId);
+  }
+  // occurrences to create — computed AFTER the edits above (a chore ticked in My Week moves its next occurrence)
+  const after = { chores: [...recs.chores.keys()].map(id => cur('chores', id)), reminders: [...recs.reminders.keys()].map(id => cur('reminders', id)) };
+  for (const c of whenCandidates({ chores: after.chores, reminders: after.reminders, today })) {
+    if ((tracked || {})[c.taskId] || track[c.taskId]) continue;
+    const ex = tasks.get(c.taskId);
+    track[c.taskId] = { store: c.store, id: c.id, date: c.date };
+    if (ex) continue;   // made earlier and lost from the map: tracked again, not rewritten
+    creates.push(rmWhenTask({ uid, name, store: c.store, rec: cur(c.store, c.id), date: c.date, done: false, now }));
+  }
+  const ops = [...work.values()].map(w => ({ store: w.store, id: w.id, rec: w.rec, del: false, prev: w.prev, base: state.seq }));
+  return { creates, patches, ops, track, untrack };
+}
+
+/** {day: seconds} from a session's CLOSED segments (a running one counts when it is paused or stopped). */
+function sessionDaySeconds(s) {
+  const out = {};
+  for (const g of (s && Array.isArray(s.segments) ? s.segments : [])) {
+    if (!g || !g.s || !g.e) continue; const a = Date.parse(g.s), b = Date.parse(g.e);
+    if (isNaN(a) || isNaN(b) || b <= a) continue; const d = String(g.s).slice(0, 10); if (isDay(d)) out[d] = (out[d] || 0) + Math.round((b - a) / 1000);
+  }
+  return out;
+}
+const actEventId = (docId, day) => 'auto-scientia-note-' + safeIdPart(docId) + '-' + safeIdPart(day);
+/** changes: [{store: 'sessions'|'documents', rec}] → Map eventId → {id, docId, date, sessions: {sid: secs}, edited}. */
+function activityGroups({ changes, today, from }) {
+  const out = new Map(), grp = (docId, date) => { const id = actEventId(docId, date); if (!out.has(id)) out.set(id, { id, docId: String(docId), date, sessions: {}, edited: false }); return out.get(id); };
+  for (const ch of changes || []) {
+    const rec = ch && ch.rec; if (!rec) continue;
+    if (ch.store === 'sessions') { if (!rec.docId || !rec.id) continue; for (const [d, secs] of Object.entries(sessionDaySeconds(rec))) if (d >= from && d <= today) grp(rec.docId, d).sessions[rec.id] = secs; }
+    else if (ch.store === 'documents') { const d = String(rec.modified || '').slice(0, 10); if (!rec.id || rec.archived || !isDay(d) || d < from || d > today) continue; grp(rec.id, d).edited = true; }
+  }
+  return out;
+}
+function fmtMinutes(secs) { const m = Math.round(secs / 60); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : ''); }
+/** groups (activityGroups), docs: Map docId → note record (titles), existing: Map eventId → event doc | null → [{id, data, isNew}]. */
+function planActivity({ groups, docs, existing }) {
+  const writes = [];
+  for (const g of groups.values()) {
+    const ex = existing.get(g.id) || null;
+    if (ex && ex.status && ex.status !== 'pending') continue;           // an hours-era decision stays
+    const sessions = Object.assign({}, (ex && ex.scientia_sessions) || {}, g.sessions), secs = Object.values(sessions).reduce((a, b) => a + (+b || 0), 0);
+    const edited = !!(ex && ex.scientia_edited) || g.edited, doc = docs.get(g.docId) || {};
+    const text = 'Scientia: ' + (doc.title || 'a note') + (secs >= 60 ? ' · ' + fmtMinutes(secs) + ' timed' : '');
+    const data = { date: g.date, text: text.slice(0, 500), categoryPath: ['research', 'notebook'], kind: 'work', source: 'scientia',
+      source_ref: { kind: 'scientia-note', id: g.docId, path: '/rm/pages/notebook.html?notebook=scientia&note=' + encodeURIComponent(g.docId) },
+      scheduled_for: null, scientia_sessions: sessions, scientia_minutes: Math.round(secs / 60), scientia_edited: edited, scientia_type: String(doc.type || '') };
+    if (ex && ex.text === data.text && ex.scientia_minutes === data.scientia_minutes && !!ex.scientia_edited === edited && eq(ex.scientia_sessions || {}, sessions)) continue;
+    writes.push({ id: g.id, data, isNew: !ex });
+  }
+  return writes;
+}
+
+async function mirrorQuietly(hub, who, force, only) {
+  if (!hub || !who) return null;
+  if (typeof hub.quietSyncs === 'function') { try { return await hub.quietSyncs(who, { force: !!force, only: only || null }); } catch (e) { return { ok: false, error: String(e.message || e) }; } }
   if (typeof hub.mirrorLibrary === 'function') { try { await hub.mirrorLibrary({}); } catch (e) { /* the library mirror never breaks hello */ } }
   if (typeof hub.syncTasks === 'function') { try { await hub.syncTasks({}); } catch (e) { /* nor does the task sync */ } }
+  return null;
 }
 
 async function route(req, ctx) {
@@ -447,7 +611,16 @@ async function route(req, ctx) {
     if (p === '/api/snapshot' && !st.seq && !st.records) return J(404, { ok: false });
     return J(200, await hub.state('state'));
   }
-  if (p === '/api/sync/pull') return J(200, await hub.pull({ conn: g('conn', ''), since: parseInt(g('since', '0'), 10) || 0, sid: g('sid', '') }));
+  if (p === '/api/sync/pull') {
+    // V3.874: every connected device's long-poll keeps RM and the notebook reconciled (each sync is throttled)
+    await mirrorQuietly(hub, who);
+    return J(200, await hub.pull({ conn: g('conn', ''), since: parseInt(g('since', '0'), 10) || 0, sid: g('sid', '') }));
+  }
+  if (p === '/api/rm/sync' && post) {
+    if (typeof hub.quietSyncs !== 'function') return J(200, { ok: false, error: 'no RM sync on this hub' });
+    const only = g('only', '') ? g('only', '').split(',').map(s => s.trim()).filter(Boolean) : null;
+    return J(200, Object.assign({ ok: true }, await mirrorQuietly(hub, who, true, only)));
+  }
   if (p === '/api/sync/push' && post) {
     const obj = parseBody(req) || {}, st = await hub.loadState();
     if (obj.sid && obj.sid !== st.sid && !obj.anySid) return J(200, { ok: false, reset: true, sid: st.sid });
@@ -552,6 +725,47 @@ MemoryHub.prototype.syncTasks = async function ({ force } = {}) {
   this.taskSyncAt = now; this.taskSyncRuns = (this.taskSyncRuns || 0) + 1;
   return { ok: true, paired: this.rmTasks.size, blocksUpdated: plan.ops.length, tasksUpdated: plan.patches.length, dropped: plan.prune.length };
 };
+/* V3.874 — reminders + chores → RM list (rmTaskDocs, tracked in rmWhen), sessions + edits → `tracker` (Map id → event) */
+MemoryHub.prototype.storeRecs = function (store) { const out = []; for (const row of this.rows.values()) if (row && row.store === store && !row.deleted && row.rec) out.push(row.rec); return out; };
+MemoryHub.prototype.syncWhen = async function ({ force, who, now } = {}) {
+  this._taskStore(); if (!this.rmWhen) this.rmWhen = {};
+  const t = now == null ? Date.now() : now;
+  if (!force && this.whenSyncAt && t - this.whenSyncAt < WHEN_MS) return { ok: true, skipped: true };
+  const chores = this.storeRecs('chores'), reminders = this.storeRecs('reminders'), today = this.today || todayIn(LAB_TZ, t);
+  const ids = [...new Set(Object.keys(this.rmWhen).concat(whenCandidates({ chores, reminders, today }).map(c => c.taskId)))];
+  const tasks = new Map(ids.map(id => [id, this.rmTaskDocs.get(id) || null]));
+  const plan = planWhen({ state: this.st, chores, reminders, tracked: this.rmWhen, tasks, today, uid: (who && who.id) || 'u', name: (who && who.name) || '', now: t });
+  if (plan.ops.length) await this.push({ dev: 'rm', conn: null, name: 'RM My Week', ops: plan.ops });
+  for (const doc of plan.creates) if (!this.rmTaskDocs.has(doc.id)) this.rmTaskDocs.set(doc.id, doc);
+  for (const { id, patch } of plan.patches) if (this.rmTaskDocs.has(id)) this.rmTaskDocs.set(id, Object.assign({}, this.rmTaskDocs.get(id), patch));
+  Object.assign(this.rmWhen, plan.track); for (const id of plan.untrack) delete this.rmWhen[id];
+  this.whenSyncAt = t; this.whenRuns = (this.whenRuns || 0) + 1;
+  return { ok: true, created: plan.creates.length, tasksUpdated: plan.patches.length, notebookUpdated: plan.ops.length, tracked: Object.keys(this.rmWhen).length };
+};
+MemoryHub.prototype.syncActivity = async function ({ force, now } = {}) {
+  if (!this.tracker) this.tracker = new Map();
+  const t = now == null ? Date.now() : now;
+  if (!force && this.actSyncAt && t - this.actSyncAt < ACT_MS) return { ok: true, skipped: true };
+  const today = this.today || todayIn(LAB_TZ, t), from = addDays_(today, -ACT_DAYS), cursor = this.actCursor || 0;
+  const latest = new Map();
+  if (cursor && cursor >= (this.st.minSeq || 0)) { for (const o of this.ops) if (o.seq > cursor && (o.store === 'sessions' || o.store === 'documents')) latest.set(o.store + '/' + o.id, { store: o.store, rec: o.del ? null : o.rec }); }
+  else for (const store of ['sessions', 'documents']) for (const rec of this.storeRecs(store)) latest.set(store + '/' + rec.id, { store, rec });
+  const groups = activityGroups({ changes: [...latest.values()], today, from });
+  const docs = new Map(this.storeRecs('documents').map(d => [String(d.id), d]));
+  const existing = new Map([...groups.keys()].map(id => [id, this.tracker.get(id) || null]));
+  const writes = planActivity({ groups, docs, existing });
+  for (const w of writes) this.tracker.set(w.id, Object.assign({}, this.tracker.get(w.id) || {}, w.data));
+  this.actCursor = this.st.seq; this.actSyncAt = t; this.actRuns = (this.actRuns || 0) + 1;
+  return { ok: true, events: writes.length };
+};
+MemoryHub.prototype.quietSyncs = async function (who, { force, only } = {}) {
+  const out = {}, want = n => !only || only.includes(n);
+  if (want('library') && typeof this.mirrorLibrary === 'function') out.library = await this.mirrorLibrary({ force });
+  if (want('tasks') && typeof this.syncTasks === 'function') out.tasks = await this.syncTasks({ force });
+  if (want('when') && typeof this.syncWhen === 'function') out.when = await this.syncWhen({ force, who });
+  if (want('activity') && typeof this.syncActivity === 'function') out.activity = await this.syncActivity({ force });
+  return out;
+};
 MemoryHub.prototype.inventory = async function ({ q, limit, ids } = {}) {
   let rows = (this.rmInventory || []).map(rmInventoryRow);
   if (ids && ids.length) rows = rows.filter(r => ids.includes(r.id));
@@ -565,4 +779,6 @@ MemoryHub.prototype.libraryRows = function () {
 
 module.exports = { route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA_BYTES, NOSYNC, KEYS, AUTO_MAX, COUNT_SKIP, MAX_OPS, PULL_MAX, MISSING, isoLocal, eq, merge3, emptyState, planPush, pullResult, planResolve, planReplace, exportState, helloResult, keyOf, rowKey, MemoryHub, sha, token,
   MIRROR_MS, MIRROR_FIELDS, rmItemToLibraryRow, planMirror, INVENTORY_MS, INVENTORY_LIMIT, rmInventoryRow, searchInventory,
-  TASKSYNC_MS, PRIO_IMPORTANCE, dueDateOf, taskIdNew, rmTaskFromBlock, rmTaskPatch, planTaskSync };
+  TASKSYNC_MS, PRIO_IMPORTANCE, dueDateOf, taskIdNew, rmTaskFromBlock, rmTaskPatch, planTaskSync,
+  LAB_TZ, WHEN_MS, ACT_MS, WHEN_AHEAD, WHEN_BEHIND, ACT_DAYS, todayIn, nowIn, localDayOf, addDays_, wdayOf, safeIdPart, choreNext, remOccursOn, whenOcc,
+  whenTaskId, whenText, whenCandidates, rmWhenTask, planWhen, sessionDaySeconds, actEventId, activityGroups, planActivity, fmtMinutes };

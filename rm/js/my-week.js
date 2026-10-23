@@ -850,7 +850,8 @@
   function inboxItems(weekMonday) {
     return state.assigned.filter(function (t) {
       var sr = t.source_ref || {};
-      if (sr.kind !== 'lab-chore') return true;
+      // V3.874: a Scientia chore / reminder occurrence is dated work too — held back until its week like a lab chore
+      if (sr.kind !== 'lab-chore' && sr.kind !== 'scientia-when') return true;
       if (/^\d{4}-\d{2}-\d{2}$/.test(t.due_date || '')) return mondayOf(t.due_date) <= weekMonday;
       if (sr.weekId && FA && FA.weekIdFor) return String(sr.weekId) <= FA.weekIdFor(weekMonday);
       return true;
@@ -883,6 +884,8 @@
       var src;
       if (sr.kind === 'meeting-action') src = ICON.svg('megaphone') + ' Lab meeting' + (sr.meetingDate ? ' · ' + esc(fmtDateLabel(sr.meetingDate).full.replace(/^\w+, /, '')) : '');
       else if (sr.kind === 'lab-chore') src = ICON.svg('brush') + ' Chore' + (sr.weekId ? ' · week ' + esc(sr.weekId.split('-W')[1]) : '');
+      else if (sr.kind === 'scientia-when') src = ICON.svg({ Chore: 'brush', Meeting: 'clock', Deadline: 'flag' }[sr.label] || 'bell') + ' Scientia · ' + esc(sr.label || 'Reminder');
+      else if (t.source === 'scientia') src = ICON.svg('book-open') + ' Scientia';
       else if (t.source === 'pmr') src = ICON.svg('pencil-square') + ' PMR';
       else src = ICON.svg('arrow-down-tray') + ' Assigned';
       var due = (t.due_date && t.due_date !== 'TBD') ? '<span class="md-inbox-due' + (t.due_date < today ? ' md-inbox-overdue' : '') + '">due ' + esc(fmtDateLabel(t.due_date).full.replace(/^\w+, /, '')) + '</span>' : '';

@@ -4,6 +4,8 @@
 
 **Prior: V3.873 (inventory: aliquots and lab-made items are ordinary `kind:'item'` docs with `lab_made: true` (`lab_made_type` aliquot | made_in_lab, `made_by_uid/name`, required description + location) added by any member through `addLabMadeItem()` in `rm/js/inventory.js`; every item create — this form and + Add Item — now writes ONE doc via `_invCreateItem` (transaction refuses a taken id) instead of the whole-collection `api.save`; each new lab-made item gets its QR code at save through `INV_LABELS.ensureCode` / `queue` (one label per piece); a Made in Lab tab; `openForm` (`rm/js/forms.js`) gains `suggestions` / `hint`. No backend change. Plan: [CodeLog/ClaudesPlan/V3.873_lab_made_aliquots.md](../ClaudesPlan/V3.873_lab_made_aliquots.md).)**
 
+**Prior: V3.874 (Phase 1 complete — the hub turns Scientia chore / reminder occurrences into dated `userData/{uid}/tasks/sis-…` items (`source_ref.kind 'scientia-when'`, My Week holds them back until their week) with done reconciled three-way on `sis_done`, and turns closed timer segments + note edits into one `trackerEntries` event per note per day (`source 'scientia'`); `quietSyncs` runs on hello, state and every pull, throttled; `lab-mode.js` §7 asks `api/rm/sync?only=when,activity` after a local change reaches the hub.)**
+
 **Prior: V3.872 (a task component in a Scientia note is an RM task, web build — `POST api/rm/tasks` writes the `userData/{uid}/tasks` document `writeTaskFor` would (bucket assigned, source scientia, `source_ref.scientia {docId, blockId}`), the pairing lives on the hub doc as `rmTasks {taskId: blockId}`, and `syncTasks` on every hello reconciles DONE both ways (`planTaskSync`: later change wins; a removed block dismisses the RM task) by pushing block ops as device "RM tasks" — so the desktop sees My Week's ticks through ordinary sync; `lab-mode.js` §6 wraps `TASK.create/save/done/undo/body` and `WIDGETS.task.body`, and `#/tasks` lists the note's task components with their RM state.)**
 
 **Prior: V3.871 (Scientia's materials come from RM's inventory, web build — the hub serves `GET api/rm/inventory?q=` from a per-instance compact copy of the 3,500-doc collection (`rmInventoryRow` / `searchInventory`, nothing written); `lab-mode.js` §5 replaces the note's "+ material" picker (inventory search above Gabe's resource notes; picking finds or makes the resource note with `inventoryId`), adds *The lab inventory* card to the Materials page and an *In the lab inventory* line to the material sheet; usage is logged in RM via `inventory.html?item=`.)**
@@ -91,7 +93,25 @@ every hello / state (≤ once per 2 min) or POST api/rm/tasks/sync:
 ```
 
 The hub reconciles, not the browser, so a tick in My Week reaches Gabe's desktop record through the sync it already
-runs, and a block ticked on the desktop reaches RM on the next hello. `lab-mode.js` §6 wraps `TASK.create / save /
+runs, and a block ticked on the desktop reaches RM on the next hello.
+
+**Reminders, chores and activity (V3.874).** `quietSyncs(who, {force, only})` runs on hello, state and every pull (one
+hub-doc read decides what is due: library 5 min; tasks, when, activity 2 min); `POST api/rm/sync?only=…` forces it.
+
+```
+chores / reminders rows ──whenCandidates (today … +13, lab days, America/Phoenix)──▶ userData/{uid}/tasks/sis-<ch|rm>-<id>-<day>
+                                                                                     bucket assigned · source_ref.kind 'scientia-when'
+                                                                                     → My Week inbox, held back until its week
+done: three-way on the RM doc's sis_done (the last agreed value)
+   Scientia moved  → patch {done, done_at, sis_done}
+   RM moved        → chore.done ± day / reminder.done | skip ± day, pushed as device "RM My Week" → every device pulls it
+   occurrence gone → dismissed_at, untracked                                 tracked on the hub doc: rmWhen {taskId: {store, id, date}}
+sessions (closed segments) + documents (modified), ops since actCursor
+   → trackerEntries/{uid}/entries/auto-scientia-note-<docId>-<day>  {… ActivitySignals shape, source 'scientia', scientia_minutes}
+```
+
+`lab-mode.js` §7 asks for `when` and `activity` as soon as a chore / reminder change or a stopped timer has reached
+the hub; `my-week.js` labels the items *Scientia · Chore / Meeting / Deadline / Reminder*. `lab-mode.js` §6 wraps `TASK.create / save /
 done / undo / body` and re-points `WIDGETS.task.body` (a reference the doc view captured at load).
 
 ## The push gate, the feature registry, git in the Stop hook, two deployers (V3.868)

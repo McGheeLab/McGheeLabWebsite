@@ -4,6 +4,45 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.874] — 2026-10-23 — Phase 1 complete: Scientia's reminders and chores land in My Week, its notes and timer count as RM activity
+
+Alex: *"continue to the rest of phase 1"*. Plan: [V3.874_scientia_reminders_chores_activity.md](../ClaudesPlan/V3.874_scientia_reminders_chores_activity.md).
+`scientia/src` untouched; the hub deployed before the client.
+
+### Added
+- **Reminders + chores → My Week** (`functions/scientia-hub-core.js`): lab-day helpers (`LAB_TZ` America/Phoenix,
+  `todayIn`, `nowIn`, `localDayOf`, `addDays_`, `wdayOf`, `safeIdPart`); occurrence rules `choreNext`, `remOccursOn`,
+  `whenOcc(store, rec, day)` → `{valid, done}` and `whenCandidates({chores, reminders, today})` (weekday chores and
+  repeating reminders today…+13; an interval chore's open occurrence; one-off reminders −7…+13; task reminders and
+  stopped / closed items excluded); `rmWhenTask()` — `userData/{uid}/tasks/sis-<ch|rm>-<id>-<day>`, bucket assigned,
+  `due_date` = the day, `source: 'scientia'`, `source_ref {kind: 'scientia-when', label, scientia {store, id, date}}`,
+  `sis_done`; `planWhen()` — three-way on a boolean with `sis_done` as the ancestor: a Scientia tick patches RM, an RM
+  tick edits the chore (`done` days) / reminder (`done` or `skip`) pushed as device **RM My Week**, gone occurrences
+  dismiss their open items, occurrences offered after the edits. Tracked on the hub doc (`rmWhen`).
+- **Timer + edits → RM activity**: `sessionDaySeconds()` (closed segments by start day), `activityGroups()`,
+  `planActivity()` — one `trackerEntries/{uid}/entries/auto-scientia-note-<docId>-<day>` event per note per day in the
+  ActivitySignals shape (`source 'scientia'`, `categoryPath ['research','notebook']`, `source_ref.kind 'scientia-note'`
+  with the note's Lab Notebook link) plus `scientia_sessions` (merged across devices), `scientia_minutes`,
+  `scientia_edited`, `scientia_type`; no rewrite when unchanged; hours-era decided docs untouched.
+- `functions/scientia-hub.js`: `FirestoreHub.syncWhen()` (`store in [chores, reminders]` rows, `getAll` in 100s,
+  `create()` new items, `rmWhen.<id>` tracking), `syncActivity()` (ops since `actCursor`, scan fallback),
+  `quietSyncs(who, {force, only})` (one hub-doc read decides what is due). `MemoryHub` equivalents (`this.today`
+  override for fixtures, `tracker`, `rmWhen`). Health string V3.874. **Deployed.**
+- Routes: every `api/sync/pull` runs the throttled syncs (library 5 min; tasks, when, activity 2 min) — reconciliation
+  continues while any device is connected; `POST api/rm/sync?only=…` forces named ones.
+- `rm/scientia/lab-mode.js` §7: `DB.put` on chores / reminders (not while applying a pull or loading), `TIMER.stop`,
+  `TIMER.pause` → `kickRm()` (debounced, waits for the outbox, `POST api/rm/sync?only=when,activity`). The Activity
+  pointer page says notes and timer sessions are recorded in RM. `SIS_LAB.version` V3.874.
+- Tests: 7 hub fixtures (49/49), 2 My Week inbox cases (10/10), 6 harness checks (56/56 on the real web build).
+
+### Changed
+- `rm/js/my-week.js` `inboxItems()`: `source_ref.kind === 'scientia-when'` is held back until its week like a lab chore;
+  inbox cards label *Scientia · Chore / Meeting / Deadline / Reminder* and V3.872 task components *Scientia*.
+- `scripts/git_autopush.py`: the commit trailer comes from `deploy/site.json` `autoPushCoAuthor`, defaulting to the
+  current model's line (was hard-coded to an older model).
+- `rm/scientia/scientia.html` rebuilt; `sw.js` CACHE_VERSION 856 → 857; `CodeLog/features.json` notes; the V3.866 plan:
+  Phase 1 complete.
+
 ## [V3.873] — 2026-10-23 — Lab members add aliquots and things we make in the lab, each with its own QR code
 
 Alex: *"in the inventory, i want users to be able to add alliquots and custom inventory that we make in the lab… users

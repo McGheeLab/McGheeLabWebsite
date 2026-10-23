@@ -370,6 +370,137 @@ const dev = (hub, id, conn) => ({
     assert.strictEqual((await call(bare, web, 'POST', '/api/rm/tasks', { body: { blockId: 'x' } })).body.ok, false);
   });
 
+  /* ---- V3.874: reminders + chores → My Week; timer sessions + edits → RM's activity ---- */
+  await test('dates: the lab day (Phoenix), day arithmetic, weekdays, RM times → lab days', () => {
+    assert.strictEqual(C.todayIn('America/Phoenix', Date.parse('2026-10-24T05:30:00Z')), '2026-10-23', '05:30 UTC is 22:30 the day before in Phoenix');
+    assert.strictEqual(C.nowIn('America/Phoenix', Date.parse('2026-10-24T05:30:00Z')), '2026-10-23T22:30:00');
+    assert.strictEqual(C.addDays_('2026-10-30', 3), '2026-11-02'); assert.strictEqual(C.wdayOf('2026-10-26'), 1, 'a Monday');
+    assert.strictEqual(C.localDayOf('2026-10-24T05:30:00.000Z', 'America/Phoenix'), '2026-10-23');
+    assert.strictEqual(C.localDayOf('2026-10-24T08:00:00', 'America/Phoenix'), '2026-10-24', 'a naive local time is already local');
+    assert.strictEqual(C.localDayOf(null), null);
+  });
+  const chore = (id, extra) => Object.assign({ id, title: 'Chore ' + id, mode: 'interval', every: 3, days: [], start: '2026-10-20', done: [], active: true }, extra || {});
+  const rem = (id, extra) => Object.assign({ id, kind: 'reminder', title: 'Rem ' + id, at: '2026-10-28T14:00', allDay: false, repeat: 'none' }, extra || {});
+  await test('occurrences: interval chores (next = last done + N), weekday chores, one-off and repeating reminders; task reminders excluded', () => {
+    assert.strictEqual(C.choreNext(chore('a')), '2026-10-23', 'never done: start + every');
+    assert.strictEqual(C.choreNext(chore('a', { done: ['2026-10-22', '2026-10-24'] })), '2026-10-27');
+    assert.deepStrictEqual(C.whenOcc('chores', chore('a', { done: ['2026-10-24'] }), '2026-10-23'), { valid: true, done: true }, 'a done date on/after the occurrence satisfies it');
+    assert.deepStrictEqual(C.whenOcc('chores', chore('a'), '2026-10-25'), { valid: false, done: false }, 'not the open occurrence');
+    const wk = chore('w', { mode: 'weekdays', days: [1, 3], done: ['2026-10-26'] });
+    assert.deepStrictEqual([C.whenOcc('chores', wk, '2026-10-26'), C.whenOcc('chores', wk, '2026-10-28'), C.whenOcc('chores', wk, '2026-10-27')].map(o => [o.valid, o.done]), [[true, true], [true, false], [false, false]]);
+    assert.strictEqual(C.whenOcc('chores', chore('s', { active: false }), '2026-10-23').valid, false, 'a stopped chore has no occurrences');
+    const weekly = rem('r', { repeat: 'weekly', at: '2026-10-21T09:00', skip: ['2026-10-28'] });
+    assert.deepStrictEqual([C.remOccursOn(weekly, '2026-11-04'), C.remOccursOn(weekly, '2026-11-05'), C.remOccursOn(weekly, '2026-10-14')], [true, false, false]);
+    assert.deepStrictEqual(C.whenOcc('reminders', weekly, '2026-10-28'), { valid: true, done: true }, 'skip = done for that date');
+    const cands = C.whenCandidates({ today: '2026-10-26', chores: [chore('a', { done: ['2026-10-25'] }), wk, chore('s', { active: false })],
+      reminders: [rem('one'), weekly, rem('rt_task1', { kind: 'task' }), rem('old', { at: '2026-10-01T10:00' }), rem('closed', { done: '2026-10-20T10:00' })] });
+    const got = cands.map(c => c.taskId);
+    assert.ok(got.includes('sis-ch-a-2026-10-28'), 'interval chore: its next occurrence');
+    assert.ok(!got.includes('sis-ch-w-2026-10-26') && got.includes('sis-ch-w-2026-10-28') && got.includes('sis-ch-w-2026-11-02') && got.includes('sis-ch-w-2026-11-04'), 'weekday chore: Mon/Wed in the window, done ones skipped');
+    assert.ok(got.includes('sis-rm-one-2026-10-28'), 'one-off reminder in the window');
+    assert.ok(!got.includes('sis-rm-r-2026-10-28') && got.includes('sis-rm-r-2026-11-04'), 'repeating: a skipped (done) date is not offered');
+    assert.ok(!got.some(x => /rt_task1|-old-|-closed-|ch-s-/.test(x)), 'task reminders, old one-offs, closed reminders and stopped chores are not offered');
+    assert.ok(cands.every(c => c.date <= '2026-11-08'), 'two weeks ahead at most');
+  });
+  await test('rmWhenTask: a dated item My Week holds back until its week (source_ref.kind scientia-when)', () => {
+    const t = C.rmWhenTask({ uid: 'u1', name: 'Gabe', store: 'reminders', rec: rem('m', { kind: 'meeting', title: 'Lab meeting' }), date: '2026-10-28', done: false, now: Date.parse('2026-10-26T16:00:00Z') });
+    assert.deepStrictEqual([t.id, t.text, t.bucket, t.due_date, t.done, t.sis_done, t.source, t.source_ref.kind, t.source_ref.label, t.source_ref.scientia.store],
+      ['sis-rm-m-2026-10-28', 'Meeting: Lab meeting · 14:00', 'assigned', '2026-10-28', false, false, 'scientia', 'scientia-when', 'Meeting', 'reminders']);
+    assert.strictEqual(C.rmWhenTask({ uid: 'u1', store: 'chores', rec: chore('p', { title: 'Passage MDCK' }), date: '2026-10-28' }).text, 'Passage MDCK');
+    assert.strictEqual(C.rmWhenTask({ uid: 'u1', store: 'reminders', rec: rem('d', { kind: 'deadline', title: 'Abstract', allDay: true }), date: '2026-10-28' }).text, 'Deadline: Abstract');
+  });
+  await test('planWhen: create; a tick in My Week reaches the chore / reminder; a tick in Scientia reaches RM; agreement; gone → dismissed', () => {
+    const st = { seq: 9 }, today = '2026-10-26', now = Date.parse('2026-10-26T18:00:00Z');
+    const wk = chore('w', { mode: 'weekdays', days: [1, 3] }), iv = chore('a', { done: ['2026-10-23'] }), one = rem('one'), weekly = rem('r', { repeat: 'weekly', at: '2026-10-19T09:00' });
+    // first pass: everything is new
+    let p = C.planWhen({ state: st, chores: [wk, iv], reminders: [one, weekly], tracked: {}, tasks: new Map(), today, uid: 'u1', name: 'Gabe', now });
+    assert.ok(p.creates.length >= 5 && p.ops.length === 0 && Object.keys(p.track).length === p.creates.length);
+    const docs = new Map(p.creates.map(t => [t.id, t])), tracked = Object.assign({}, p.track);
+    // My Week ticks: the weekday chore today, the interval chore's 26th, the one-off, the weekly's 26th
+    const tick = (id, at) => docs.set(id, Object.assign({}, docs.get(id), { done: true, done_at: at }));
+    tick('sis-ch-w-2026-10-26', '2026-10-26T17:00:00.000Z'); tick('sis-ch-a-2026-10-26', '2026-10-27T02:00:00.000Z'); tick('sis-rm-one-2026-10-28', '2026-10-26T17:30:00.000Z'); tick('sis-rm-r-2026-10-26', '2026-10-26T16:00:00.000Z');
+    p = C.planWhen({ state: st, chores: [wk, iv], reminders: [one, weekly], tracked, tasks: docs, today, uid: 'u1', now });
+    const op = id => p.ops.find(o => o.id === id);
+    assert.deepStrictEqual(op('w').rec.done, ['2026-10-26'], 'weekday chore: the occurrence date');
+    assert.deepStrictEqual(op('a').rec.done, ['2026-10-23', '2026-10-26'], 'interval chore: the lab day it was done (02:00Z = 19:00 Phoenix on the 26th)');
+    assert.strictEqual(op('one').rec.done, '2026-10-26T17:30:00.000Z'); assert.deepStrictEqual(op('r').rec.skip, ['2026-10-26']);
+    assert.ok(p.ops.every(o => o.base === 9 && o.prev && !o.del));
+    assert.ok(['sis-ch-w-2026-10-26', 'sis-ch-a-2026-10-26', 'sis-rm-one-2026-10-28', 'sis-rm-r-2026-10-26'].every(id => p.patches.some(x => x.id === id && x.patch.sis_done === true && x.patch.done === undefined)), 'RM-side wins: only the agreed value moves');
+    assert.ok(p.creates.some(t => t.id === 'sis-ch-a-2026-10-29'), 'the interval chore’s NEXT occurrence is offered at once');
+    // Scientia ticks Wednesday's weekday chore → RM done
+    const wk2 = Object.assign({}, wk, { done: ['2026-10-26', '2026-10-28'] });
+    p.patches.forEach(x => docs.set(x.id, Object.assign({}, docs.get(x.id), x.patch)));
+    p = C.planWhen({ state: st, chores: [wk2, iv], reminders: [one, weekly], tracked, tasks: docs, today, uid: 'u1', now });
+    const w28 = p.patches.find(x => x.id === 'sis-ch-w-2026-10-28');
+    assert.ok(w28 && w28.patch.done === true && w28.patch.sis_done === true && w28.patch.done_at, JSON.stringify(p.patches));
+    // the chore is stopped → its open items are dismissed and untracked
+    const stopped = Object.assign({}, wk2, { active: false });
+    p = C.planWhen({ state: st, chores: [stopped, iv], reminders: [one, weekly], tracked, tasks: docs, today, uid: 'u1', now });
+    const nov2 = p.patches.find(x => x.id === 'sis-ch-w-2026-11-02');
+    assert.ok(nov2 && nov2.patch.dismissed_reason === 'gone from Scientia' && p.untrack.includes('sis-ch-w-2026-11-02'));
+    assert.ok(!p.patches.some(x => x.id === 'sis-ch-w-2026-10-26' && x.patch.dismissed_at), 'a done item is not dismissed');
+    // a task deleted in RM is untracked; a task dismissed in RM leaves Scientia alone
+    docs.delete('sis-rm-one-2026-10-28'); docs.set('sis-rm-r-2026-11-02', Object.assign({}, docs.get('sis-rm-r-2026-11-02'), { dismissed_at: '2026-10-26T18:00:00Z' }));
+    p = C.planWhen({ state: st, chores: [wk2, iv], reminders: [one, weekly], tracked, tasks: docs, today, uid: 'u1', now });
+    assert.ok(p.untrack.includes('sis-rm-one-2026-10-28') && !p.ops.some(o => o.id === 'r' && (o.rec.skip || []).includes('2026-11-02')));
+  });
+  await test('when on the hub: a device’s chores reach RM; My Week’s tick comes back through ordinary pull from "RM My Week"', async () => {
+    const hub = new C.MemoryHub(), web = { id: 'u1', kind: 'browser', name: 'Gabe' }; hub.today = '2026-10-26';
+    const d = dev(hub, 'desktop', 'c1'); await d.load();
+    await d.push([d.op('chores', 'ch1', chore('ch1', { title: 'Passage MDCK', mode: 'weekdays', days: [1, 4] })), d.op('reminders', 'r1', rem('r1', { kind: 'deadline', title: 'Abstract', at: '2026-10-30T23:59', allDay: true }))]);
+    const s = await call(hub, web, 'POST', '/api/rm/sync', {});
+    assert.strictEqual(s.body.ok, true); assert.ok(s.body.when.created >= 4, JSON.stringify(s.body.when));
+    assert.ok(hub.rmTaskDocs.has('sis-ch-ch1-2026-10-26') && hub.rmTaskDocs.has('sis-ch-ch1-2026-10-29') && hub.rmTaskDocs.has('sis-rm-r1-2026-10-30'));
+    assert.strictEqual(hub.rmTaskDocs.get('sis-rm-r1-2026-10-30').text, 'Deadline: Abstract');
+    hub.rmTaskDocs.set('sis-ch-ch1-2026-10-26', Object.assign({}, hub.rmTaskDocs.get('sis-ch-ch1-2026-10-26'), { done: true, done_at: '2026-10-26T20:00:00.000Z' }));
+    await call(hub, web, 'POST', '/api/rm/sync', {});
+    const pulled = await d.pull();
+    const chOp = pulled.ops.find(o => o.store === 'chores' && o.id === 'ch1');
+    assert.ok(chOp && chOp.name === 'RM My Week' && chOp.rec.done.includes('2026-10-26'), JSON.stringify(pulled.ops.map(o => [o.store, o.id, o.name])));
+    // the desktop ticks Thursday → RM done on the next sync
+    const c2 = JSON.parse(JSON.stringify(chOp.rec)); c2.done = c2.done.concat(['2026-10-29']); await d.push([d.op('chores', 'ch1', c2)]);
+    await call(hub, web, 'POST', '/api/rm/sync', {});
+    assert.strictEqual(hub.rmTaskDocs.get('sis-ch-ch1-2026-10-29').done, true);
+    // the pull long-poll runs the throttled syncs too
+    const runs = hub.whenRuns; hub.whenSyncAt = 0; await call(hub, web, 'GET', '/api/sync/pull', { query: { since: '0', conn: 'c9' } });
+    assert.strictEqual(hub.whenRuns, runs + 1, 'pull reconciles when a sync is due');
+    await call(hub, web, 'GET', '/api/sync/pull', { query: { since: '0', conn: 'c9' } });
+    assert.strictEqual(hub.whenRuns, runs + 1, '…and is throttled');
+  });
+  await test('activity: closed timer segments per lab day, edits, one event per note per day; merging, hours-era guard', () => {
+    const s1 = { id: 's1', docId: 'd1', segments: [{ s: '2026-10-26T09:00:00', e: '2026-10-26T10:30:00' }, { s: '2026-10-26T13:00:00', e: '2026-10-26T13:20:00' }, { s: '2026-10-26T15:00:00', e: null }] };
+    assert.deepStrictEqual(C.sessionDaySeconds(s1), { '2026-10-26': 6600 }, 'the open segment does not count yet');
+    const groups = C.activityGroups({ today: '2026-10-26', from: '2026-10-23', changes: [
+      { store: 'sessions', rec: s1 }, { store: 'documents', rec: { id: 'd1', title: 'Gel run 3', modified: '2026-10-26T16:00:00' } },
+      { store: 'documents', rec: { id: 'd2', title: 'Old note', modified: '2026-09-01T10:00:00' } }, { store: 'documents', rec: { id: 'd3', title: 'Plan', modified: '2026-10-25T10:00:00' } }] });
+    assert.deepStrictEqual([...groups.keys()].sort(), ['auto-scientia-note-d1-2026-10-26', 'auto-scientia-note-d3-2026-10-25']);
+    const docs = new Map([['d1', { id: 'd1', title: 'Gel run 3', type: 'experiment' }], ['d3', { id: 'd3', title: 'Plan' }]]);
+    let w = C.planActivity({ groups, docs, existing: new Map() });
+    const e1 = w.find(x => x.id === 'auto-scientia-note-d1-2026-10-26');
+    assert.deepStrictEqual([e1.isNew, e1.data.text, e1.data.scientia_minutes, e1.data.scientia_edited, e1.data.source, e1.data.kind, e1.data.categoryPath, e1.data.source_ref.kind],
+      [true, 'Scientia: Gel run 3 · 1 h 50 min timed', 110, true, 'scientia', 'work', ['research', 'notebook'], 'scientia-note']);
+    assert.strictEqual(w.find(x => x.id === 'auto-scientia-note-d3-2026-10-25').data.text, 'Scientia: Plan');
+    // a second session the same day merges; an unchanged event is not rewritten; an hours-era decided doc is left alone
+    const g2 = C.activityGroups({ today: '2026-10-26', from: '2026-10-23', changes: [{ store: 'sessions', rec: { id: 's2', docId: 'd1', segments: [{ s: '2026-10-26T17:00:00', e: '2026-10-26T17:10:00' }] } }] });
+    w = C.planActivity({ groups: g2, docs, existing: new Map([['auto-scientia-note-d1-2026-10-26', e1.data]]) });
+    assert.strictEqual(w[0].data.scientia_minutes, 120); assert.deepStrictEqual(Object.keys(w[0].data.scientia_sessions).sort(), ['s1', 's2']); assert.strictEqual(w[0].isNew, false);
+    assert.strictEqual(C.planActivity({ groups, docs, existing: new Map([['auto-scientia-note-d1-2026-10-26', e1.data]]) }).filter(x => x.id === e1.id).length, 0, 'no change, no write');
+    assert.strictEqual(C.planActivity({ groups, docs, existing: new Map([['auto-scientia-note-d1-2026-10-26', { status: 'confirmed' }]]) }).filter(x => x.id === e1.id).length, 0);
+  });
+  await test('activity on the hub: first pass scans, later passes read only new ops (cursor), both devices count', async () => {
+    const hub = new C.MemoryHub(), web = { id: 'u1', kind: 'browser', name: 'Gabe' }; hub.today = '2026-10-26';
+    const d = dev(hub, 'desktop', 'c1'); await d.load();
+    await d.push([d.op('documents', 'd1', { id: 'd1', type: 'note', title: 'Gel run 3', modified: '2026-10-26T09:00:00' }),
+      d.op('sessions', 's1', { id: 's1', docId: 'd1', state: 'complete', segments: [{ s: '2026-10-26T09:00:00', e: '2026-10-26T09:45:00' }] })]);
+    await call(hub, web, 'POST', '/api/rm/sync', {});
+    assert.strictEqual(hub.tracker.get('auto-scientia-note-d1-2026-10-26').text, 'Scientia: Gel run 3 · 45 min timed');
+    const w = dev(hub, 'web', 'c2'); await w.load();
+    await w.push([w.op('sessions', 's2', { id: 's2', docId: 'd1', state: 'complete', segments: [{ s: '2026-10-26T14:00:00', e: '2026-10-26T14:30:00' }] })]);
+    await call(hub, web, 'POST', '/api/rm/sync', {});
+    assert.strictEqual(hub.tracker.get('auto-scientia-note-d1-2026-10-26').scientia_minutes, 75);
+    assert.strictEqual(hub.tracker.size, 1, 'one event per note per day');
+  });
+
   console.log(`scientia-hub: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 })();

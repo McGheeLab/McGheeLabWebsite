@@ -84,5 +84,19 @@ eq('without FOCUS_AREAS: dated chores still filtered, undated shown',
    noFA('2026-09-14').map(t => t.id).join(','),
    'chore-this,chore-past,chore-undated,action-item,plain-task');
 
+/* V3.874 — a Scientia chore or reminder occurrence is dated work: held back until its week, overdue ones stay;
+ * a Scientia task component (V3.872, source 'scientia' with no kind) is a plain task and never hidden. */
+const SIS = [
+  { id: 'sis-this', source: 'scientia', source_ref: { kind: 'scientia-when', label: 'Chore' }, due_date: '2026-09-16' },
+  { id: 'sis-next', source: 'scientia', source_ref: { kind: 'scientia-when', label: 'Deadline' }, due_date: '2026-09-24' },
+  { id: 'sis-late', source: 'scientia', source_ref: { kind: 'scientia-when', label: 'Reminder' }, due_date: '2026-09-02' },
+  { id: 'sis-task', source: 'scientia', source_ref: { scientia: { docId: 'd1', blockId: 'b1' } }, due_date: '2026-10-30' },
+];
+const sis = make({ assigned: SIS }, FA);
+eq('Scientia occurrences: this week + overdue shown, next week held back, a task component always shown',
+   sis('2026-09-14').map(t => t.id).join(','), 'sis-this,sis-late,sis-task');
+eq('…next week\'s occurrence appears when its week is in view',
+   sis('2026-09-21').some(t => t.id === 'sis-next'), true);
+
 console.log('my-week inbox: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

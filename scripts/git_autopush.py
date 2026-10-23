@@ -174,7 +174,7 @@ def commit_message(n_files, held):
         body.append('Held out of git: ' + ', '.join(p for p, _ in held[:8]) + (' …' if len(held) > 8 else ''))
     if os.environ.get('CLAUDE_PROJECT_DIR') or os.environ.get('CLAUDE_CODE'):
         body.append('')
-        body.append('Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>')
+        body.append('Co-Authored-By: ' + (cfg().get('autoPushCoAuthor') or 'Claude Opus 5.5 <noreply@anthropic.com>'))
     return subject + '\n\n' + '\n'.join(body) + '\n'
 
 

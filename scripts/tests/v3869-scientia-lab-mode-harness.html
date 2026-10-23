@@ -53,7 +53,7 @@
       var u = typeof input === 'string' ? input : input.url;
       if (u.indexOf('cloudfunctions.net/scientiaHub/') < 0) return realFetch(input, init);
       var full = u.split('/scientiaHub/')[1], path = full.split('?')[0], method = (init && init.method) || 'GET', body = init && init.body ? String(init.body) : '';
-      window.__hubCalls.push({ path: path, method: method, auth: !!(init && init.headers && init.headers.Authorization), body: body });
+      window.__hubCalls.push({ path: path, method: method, auth: !!(init && init.headers && init.headers.Authorization), body: body, full: full });
       var res = { ok: true };
       if (path === 'api/sync/hello') res = { ok: true, auth: true, local: false, device: 'Alex', deviceId: 'u1', notebook: true, sid: STATE.sid, seq: STATE.syncSeq, records: 4, savedAt: STATE.savedAt, conflicts: 0 };
       else if (path === 'api/sync/state' || path === 'api/snapshot') res = STATE;
@@ -61,6 +61,7 @@
       else if (path === 'api/sync/push') res = { ok: true, sid: STATE.sid, seq: SEQ, echo: [], conflicts: 0 };
       else if (path === 'api/rm/tasks' && method === 'POST') { var tb = JSON.parse(body || '{}'); window.__taskN += 1; var tid = 'task-h' + window.__taskN; window.__rmTasks[tid] = { id: tid, blockId: tb.blockId, text: tb.text, due: tb.due, prio: tb.prio, done: false }; res = { ok: true, id: tid, task: window.__rmTasks[tid] }; }
       else if (path === 'api/rm/tasks/update' && method === 'POST') { var ub = JSON.parse(body || '{}'); var tk = window.__rmTasks[ub.id]; if (tk) Object.assign(tk, ub); res = { ok: !!tk, id: ub.id, task: tk }; }
+      else if (path === 'api/rm/sync') res = { ok: true, when: { ok: true, created: 0 }, activity: { ok: true, events: 0 } };
       else if (path === 'api/rm/tasks/sync') res = { ok: true, paired: Object.keys(window.__rmTasks).length, blocksUpdated: 0, tasksUpdated: 0, dropped: 0 };
       else if (path === 'api/rm/tasks') res = { ok: true, tasks: Object.keys(window.__rmTasks).map(function (k) { return window.__rmTasks[k]; }) };
       else if (path === 'api/sync/conflicts') res = { ok: true, conflicts: [] };
@@ -105,7 +106,7 @@
     function qa(s) { return Array.from(D.querySelectorAll(s)); }
     function ev(code) { return W.eval(code); }
     function go(hash) { W.location.hash = hash; }
-    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.872', W.SIS_LAB.version);
+    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.874', W.SIS_LAB.version);
     /* 1. the tab row */
     var keys = qa('#tabs a.tab').map(function (a) { return a.dataset.k; });
     check('Activity and Data are not tabs on the web', keys.indexOf('activity') < 0 && keys.indexOf('data') < 0, keys.join(','));
@@ -231,6 +232,27 @@
     go('#/tasks');
     var tpage = await until(function () { var p = q('.lab-tasks'); return p && p.querySelector('.lab-task[data-block="' + tbid + '"]') && p; }, 6000);
     check('#/tasks lists the note\'s task components with their RM state', !!tpage && /in RM/.test(tpage.querySelector('.lab-task[data-block="' + tbid + '"]').textContent) && /Open Tasks in RM/.test(tpage.textContent), tpage ? tpage.textContent.slice(0, 160) : '');
+    /* 11. V3.874: reminders, chores and the timer reach RM */
+    function syncCalls() { return W.__hubCalls.filter(function (c) { return c.path === 'api/rm/sync' && c.method === 'POST'; }); }
+    var k0 = syncCalls().length;
+    ev("DB.put('chores', { id: 'chH', title: 'Passage MDCK', mode: 'weekdays', days: [0,1,2,3,4,5,6], start: '2026-10-01', done: [], active: true }); changed();");
+    var kicked = await until(function () { return syncCalls().length > k0 && syncCalls().slice(-1)[0]; }, 8000);
+    check('adding a chore asks the hub to reconcile (POST api/rm/sync?only=when,activity) once it has been pushed', !!kicked && /only=when,activity/.test(kicked.full) && kicked.auth && ev('SYNC.outbox.size') === 0, kicked ? kicked.full : JSON.stringify(syncCalls()));
+    var k1 = syncCalls().length, todayL = ev('localDate(new Date())');
+    ev("CHORES.tick(DB.get('chores', 'chH'), '" + todayL + "')");
+    check('ticking a chore asks again (debounced, one call)', !!(await until(function () { return syncCalls().length === k1 + 1; }, 8000)), syncCalls().length - k1);
+    var k2 = syncCalls().length;
+    var sid2 = ev("TIMER.start('" + nid + "', true).id"); await sleep(1100); ev("TIMER.stop(DB.get('sessions', '" + sid2 + "'))");
+    check('stopping the timer asks too (the session is a closed segment now)', !!(await until(function () { return syncCalls().length > k2; }, 8000)), syncCalls().length - k2);
+    var chNow = JSON.parse(ev("JSON.stringify(DB.get('chores', 'chH'))")), tomorrowL = ev('localDate(addDays(new Date(), 1))');
+    var chRM = JSON.parse(JSON.stringify(chNow)); chRM.done = (chRM.done || []).concat([tomorrowL]);
+    W.__emit({ store: 'chores', id: 'chH', rec: chRM, del: false, name: 'RM My Week' });
+    var choreBack = await until(function () { return ev("(DB.get('chores', 'chH').done || []).indexOf('" + tomorrowL + "') >= 0"); }, 10000);
+    check('a tick in My Week (a chores op from "RM My Week") reaches the chore through the ordinary pull', !!choreBack, ev("JSON.stringify(DB.get('chores', 'chH').done)"));
+    var kAfter = syncCalls().length; await sleep(1800);
+    check('…and a change that came FROM the hub does not ask for another sync', syncCalls().length === kAfter, syncCalls().length - kAfter);
+    go('#/activity');
+    check('#/activity says notes and timer sessions are recorded in RM', !!(await until(function () { var p = q('.page'); return p && /one entry per note per day/.test(p.textContent) && /timer sessions/.test(p.textContent); }, 6000)));
     check('no browser popups, rejections or console-level failures in the frame', !W.__popups.length && !W.__rej.length, JSON.stringify([W.__popups, W.__rej]));
   } catch (e) { check('harness error', false, (e && e.stack) || e); }
   finish();
