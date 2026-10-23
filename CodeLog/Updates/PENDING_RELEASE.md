@@ -24,14 +24,18 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (4 changes — push at 5+)
+## Pending (0 changes — push at 5+)
 
-- **V3.871 — Scientia's materials come from the lab inventory.** In Scientia on the web, "+ material" on a note and the Materials page now search RM's inventory; picking an item makes (or reuses) its material note, and the note links to the item's page in RM for stock, locations and logging a use. The desktop app is unchanged.
-- Fixed: the Ourlab app closed the moment it opened on iPhones running iOS 27. It opens normally again.
-- **V3.869 — Scientia on the web now uses the lab's library.** Open Scientia inside the Lab Notebook and its Library tab shows the lab's papers from RM (cite them in any note; Read in RM opens the reader with highlights). Papers are added in RM, not in Scientia. The Activity and Data tabs and the Tasks page have left the web version in favour of RM's; the desktop app is unchanged.
-- **V3.868 — Gabe can work in the same code as the lab.** The lab's code repository now updates itself at the end of every change, and every push (ours or Gabe's) is checked before it lands: it must merge cleanly, and a new feature that looks like one the lab already has is flagged so the two get combined instead of living twice. Gabe has Firebase access and can get his own FTP login to ship his part of the site.
+_Nothing pending — next small change starts the new batch._
 
 ## Shipped
+
+### V3.871 · app m-v0.6.0 (TestFlight build 21) — 2026-10-23
+
+- V3.871 — Scientia's materials come from the lab inventory. In Scientia on the web, "+ material" on a note and the Materials page now search RM's inventory; picking an item makes (or reuses) its material note, and the note links to the item's page in RM for stock, locations and logging a use. The desktop app is unchanged.
+- Fixed: the Ourlab app closed the moment it opened on iPhones running iOS 27. It opens normally again.
+- V3.869 — Scientia on the web now uses the lab's library. Open Scientia inside the Lab Notebook and its Library tab shows the lab's papers from RM (cite them in any note; Read in RM opens the reader with highlights). Papers are added in RM, not in Scientia. The Activity and Data tabs and the Tasks page have left the web version in favour of RM's; the desktop app is unchanged.
+- V3.868 — Gabe can work in the same code as the lab. The lab's code repository now updates itself at the end of every change, and every push (ours or Gabe's) is checked before it lands: it must merge cleanly, and a new feature that looks like one the lab already has is flagged so the two get combined instead of living twice. Gabe has Firebase access and can get his own FTP login to ship his part of the site.
 
 ### V3.867 · app m-v0.5.1 (TestFlight build 20) — 2026-10-23
 

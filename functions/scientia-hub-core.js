@@ -350,9 +350,68 @@ function searchInventory(items, q, limit) {
   });
   return { ok: true, total: rows.length, items: rows.slice(0, n) };
 }
+/* ───────── RM tasks for Scientia's task components (V3.872, Phase 1) ─────────
+   A task component in a note (block kind 'task': body.text, task {due, allDay, prio, repeat, subs, done, log}) becomes
+   a task in the person's RM list (userData/{uid}/tasks/{id}, the shape TASK_ASSIGN.writeTaskFor writes, bucket
+   'assigned' so My Week offers it). The hub keeps the pairing in its doc (`rmTasks: {taskId: blockId}`) and, on
+   hello/state (throttled) or on demand, reconciles DONE both ways — the side that changed later wins. Text, due and
+   priority flow Scientia → RM through `api/rm/tasks/update` (the web app posts them as they change). */
+const TASKSYNC_MS = 2 * 60 * 1000;
+const PRIO_IMPORTANCE = { high: 2, normal: 0, low: -1 };
+function dueDateOf(due) { const s = String(due || ''); return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : 'TBD'; }
+function taskIdNew(now) { return 'task-' + (now || Date.now()).toString(36) + '-' + token(4).toLowerCase().replace(/[^a-z0-9]/g, 'x').slice(0, 4); }
+/** The RM task document for a Scientia task block. `b` is what the web app sends: {blockId, docId, text, due, allDay, prio, notes, docTitle, projectName}. */
+function rmTaskFromBlock({ uid, name, b, now, id }) {
+  const t = String((b && b.text) || '').split('\n')[0].trim() || 'Untitled task';
+  const prio = b && PRIO_IMPORTANCE[b.prio] !== undefined ? b.prio : 'normal';
+  return { id: id || taskIdNew(now), text: t, bucket: 'assigned', status: 'pending', done: false, done_at: null, due_date: dueDateOf(b && b.due),
+    hours_estimate: null, self_importance: PRIO_IMPORTANCE[prio], priority: prio, notes: String((b && b.notes) || ''),
+    assignedToUid: uid, assignedToName: String(name || ''), assigned_by_uid: uid, assigned_by_name: String(name || ''),
+    created_at: isoLocal(now), source: 'scientia', source_ref: { scientia: { docId: String((b && b.docId) || ''), blockId: String((b && b.blockId) || '') },
+      docTitle: String((b && b.docTitle) || ''), projectName: String((b && b.projectName) || '') } };
+}
+/** What `api/rm/tasks/update` may change, from {text, due, allDay, prio, notes, done, doneAt}. */
+function rmTaskPatch(u, now) {
+  const p = {};
+  if (u.text !== undefined) p.text = String(u.text).split('\n')[0].trim() || 'Untitled task';
+  if (u.due !== undefined) p.due_date = dueDateOf(u.due);
+  if (u.prio !== undefined && PRIO_IMPORTANCE[u.prio] !== undefined) { p.priority = u.prio; p.self_importance = PRIO_IMPORTANCE[u.prio]; }
+  if (u.notes !== undefined) p.notes = String(u.notes);
+  if (u.done !== undefined) { p.done = !!u.done; p.done_at = u.done ? String(u.doneAt || isoLocal(now)) : null; }
+  p.updated_at = isoLocal(now);
+  return p;
+}
+const timeOf = v => { if (!v) return 0; if (typeof v === 'object' && typeof v.toMillis === 'function') return v.toMillis(); const n = Date.parse(String(v)); return isNaN(n) ? 0 : n; };
+/** Reconcile DONE between paired blocks and RM task docs. pairs: [{taskId, blockId, row (hub block row or undefined), task (RM doc or null)}].
+    Returns block ops (for hub.push), RM patches, and pairings to drop. */
+function planTaskSync({ state, pairs, now }) {
+  const ops = [], patches = [], prune = [];
+  for (const p of pairs || []) {
+    const rec = p.row && isObj(p.row.rec) ? p.row.rec : null, task = p.task || null;
+    if (!rec || rec.kind !== 'task' || rec.status !== 'live') {
+      prune.push(p.taskId);
+      if (task && !task.done && !task.dismissed_at) patches.push({ id: p.taskId, patch: { dismissed_at: isoLocal(now), dismissed_reason: 'removed in the notebook', updated_at: isoLocal(now) } });
+      continue;
+    }
+    if (!task) { prune.push(p.taskId); continue; }
+    const T = isObj(rec.task) ? rec.task : {}, bd = !!T.done, td = !!task.done;
+    if (bd === td) continue;
+    const bTime = timeOf(bd ? T.done : rec.modified), tTime = timeOf(td ? (task.done_at || task.updated_at || task.updatedAt) : (task.updated_at || task.updatedAt));
+    if (bTime >= tTime) {
+      patches.push({ id: p.taskId, patch: { done: bd, done_at: bd ? String(T.done) : null, updated_at: isoLocal(now) } });
+    } else {
+      const nt = Object.assign({}, T, { done: td ? String(task.done_at || isoLocal(now)) : null, rmDoneAt: td ? String(task.done_at || '') : null });
+      if (td) nt.log = (Array.isArray(T.log) ? T.log : []).concat([{ at: nt.done, entryId: null, due: T.due || null, via: 'rm' }]).slice(-200);
+      const next = Object.assign({}, rec, { task: nt, modified: isoLocal(now) });
+      ops.push({ store: 'blocks', id: rec.id, rec: next, del: false, prev: rec, base: state.seq });
+    }
+  }
+  return { ops, patches, prune };
+}
 async function mirrorQuietly(hub, who) {
-  if (!hub || !who || typeof hub.mirrorLibrary !== 'function') return;
-  try { await hub.mirrorLibrary({}); } catch (e) { /* the library mirror never breaks hello */ }
+  if (!hub || !who) return;
+  if (typeof hub.mirrorLibrary === 'function') { try { await hub.mirrorLibrary({}); } catch (e) { /* the library mirror never breaks hello */ } }
+  if (typeof hub.syncTasks === 'function') { try { await hub.syncTasks({}); } catch (e) { /* nor does the task sync */ } }
 }
 
 async function route(req, ctx) {
@@ -368,6 +427,14 @@ async function route(req, ctx) {
   if (p === '/api/rm/library/pdf') {
     if (typeof hub.rmPdfUrl !== 'function') return J(404, { ok: false, error: 'no RM library on this hub' });
     const r = await hub.rmPdfUrl(g('id', '')); return J(r.ok ? 200 : 404, r);
+  }
+  if (p.startsWith('/api/rm/tasks')) {
+    if (typeof hub.createTask !== 'function') return J(200, { ok: false, error: 'no RM tasks on this hub' });
+    if (p === '/api/rm/tasks' && post) { const b = parseBody(req) || {}; if (!b.blockId) return J(400, { ok: false, error: 'blockId required' }); return J(200, await hub.createTask({ who, b })); }
+    if (p === '/api/rm/tasks/update' && post) { const b = parseBody(req) || {}; if (!b.id) return J(400, { ok: false, error: 'id required' }); return J(200, await hub.updateTask({ who, u: b })); }
+    if (p === '/api/rm/tasks/sync' && post) return J(200, await hub.syncTasks({ force: true }));
+    if (p === '/api/rm/tasks' && !post) return J(200, await hub.getTasks({ ids: g('ids', '') ? g('ids', '').split(',').map(s => s.trim()).filter(Boolean) : null }));
+    return J(404, { ok: false });
   }
   if (p === '/api/rm/inventory') {
     if (typeof hub.inventory !== 'function') return J(200, { ok: false, error: 'no RM inventory on this hub', items: [], total: 0 });
@@ -450,6 +517,40 @@ MemoryHub.prototype.mirrorLibrary = async function ({ force } = {}) {
   this.mirrorAt = now; this.mirrorN = plan.total; this.mirrorRuns = (this.mirrorRuns || 0) + 1;
   return { ok: true, total: plan.total, written: plan.ops.length, changed: plan.changed, removed: plan.removed };
 };
+/* the in-memory hub keeps RM task docs in `rmTaskDocs` (Map id → doc) and the pairing in `rmTasks` (Map taskId → blockId) */
+MemoryHub.prototype._taskStore = function () { if (!this.rmTaskDocs) this.rmTaskDocs = new Map(); if (!this.rmTasks) this.rmTasks = new Map(); };
+MemoryHub.prototype.createTask = async function ({ who, b }) {
+  this._taskStore();
+  const existing = [...this.rmTasks].find(([, blockId]) => blockId === String(b.blockId));
+  if (existing && this.rmTaskDocs.has(existing[0])) return { ok: true, id: existing[0], task: this.rmTaskDocs.get(existing[0]), existed: true };
+  const task = rmTaskFromBlock({ uid: who.id, name: who.name, b, now: Date.now() });
+  this.rmTaskDocs.set(task.id, task); this.rmTasks.set(task.id, String(b.blockId));
+  return { ok: true, id: task.id, task };
+};
+MemoryHub.prototype.updateTask = async function ({ u }) {
+  this._taskStore();
+  const id = String(u.id || ''); if (!this.rmTasks.has(id)) return { ok: false, error: 'not a task the notebook made' };
+  const cur = this.rmTaskDocs.get(id); if (!cur) return { ok: false, error: 'the task is gone from RM' };
+  const next = Object.assign({}, cur, rmTaskPatch(u, Date.now())); this.rmTaskDocs.set(id, next);
+  return { ok: true, id, task: next };
+};
+MemoryHub.prototype.getTasks = async function ({ ids } = {}) {
+  this._taskStore();
+  const pick = ids && ids.length ? ids : [...this.rmTasks.keys()];
+  return { ok: true, tasks: pick.map(id => this.rmTaskDocs.get(id)).filter(Boolean).map(t => ({ id: t.id, text: t.text, done: !!t.done, done_at: t.done_at || null, due_date: t.due_date, priority: t.priority, planned_item_id: t.planned_item_id || null, dismissed_at: t.dismissed_at || null })) };
+};
+MemoryHub.prototype.syncTasks = async function ({ force } = {}) {
+  this._taskStore();
+  const now = Date.now();
+  if (!force && this.taskSyncAt && now - this.taskSyncAt < TASKSYNC_MS) return { ok: true, skipped: true };
+  const pairs = [...this.rmTasks].map(([taskId, blockId]) => ({ taskId, blockId, row: this.rows.get(keyOf('blocks', blockId)), task: this.rmTaskDocs.get(taskId) || null }));
+  const plan = planTaskSync({ state: this.st, pairs, now });
+  if (plan.ops.length) await this.push({ dev: 'rm', conn: null, name: 'RM tasks', ops: plan.ops });
+  for (const { id, patch } of plan.patches) if (this.rmTaskDocs.has(id)) this.rmTaskDocs.set(id, Object.assign({}, this.rmTaskDocs.get(id), patch));
+  for (const id of plan.prune) this.rmTasks.delete(id);
+  this.taskSyncAt = now; this.taskSyncRuns = (this.taskSyncRuns || 0) + 1;
+  return { ok: true, paired: this.rmTasks.size, blocksUpdated: plan.ops.length, tasksUpdated: plan.patches.length, dropped: plan.prune.length };
+};
 MemoryHub.prototype.inventory = async function ({ q, limit, ids } = {}) {
   let rows = (this.rmInventory || []).map(rmInventoryRow);
   if (ids && ids.length) rows = rows.filter(r => ids.includes(r.id));
@@ -462,4 +563,5 @@ MemoryHub.prototype.libraryRows = function () {
 };
 
 module.exports = { route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA_BYTES, NOSYNC, KEYS, AUTO_MAX, COUNT_SKIP, MAX_OPS, PULL_MAX, MISSING, isoLocal, eq, merge3, emptyState, planPush, pullResult, planResolve, planReplace, exportState, helloResult, keyOf, rowKey, MemoryHub, sha, token,
-  MIRROR_MS, MIRROR_FIELDS, rmItemToLibraryRow, planMirror, INVENTORY_MS, INVENTORY_LIMIT, rmInventoryRow, searchInventory };
+  MIRROR_MS, MIRROR_FIELDS, rmItemToLibraryRow, planMirror, INVENTORY_MS, INVENTORY_LIMIT, rmInventoryRow, searchInventory,
+  TASKSYNC_MS, PRIO_IMPORTANCE, dueDateOf, taskIdNew, rmTaskFromBlock, rmTaskPatch, planTaskSync };
