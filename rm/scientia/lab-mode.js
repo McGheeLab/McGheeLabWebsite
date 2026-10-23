@@ -13,6 +13,7 @@
      Tasks page RM's Tasks + this notebook's task components and their RM state.
      Materials  from RM's inventory (V3.871, section 5); a task component is an RM task (V3.872, section 6).
      Reminders + chores  dated items in My Week, ticks both ways; the timer and edits go to RM activity (V3.874, section 7 + the hub).
+     Portfolio  what the PI assigned you in RM first, as region cards you move and fold; Quick notes; your own projects (V3.880, section 10).
 
    The app's globals (TABS, VIEWS, App, DB, M, LIB, h, …) are top-level consts
    of the classic script that precedes this one: same realm, same lexical
@@ -28,7 +29,7 @@
     activity: '/rm/pages/activity-overview.html?tab=tracker',
     inventory: '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.878', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.880', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -727,4 +728,294 @@
   } catch (e) { warn('collections', e); }
   LAB.pickRmProtocol = pickRmProtocol; LAB.runRmProtocol = runRmProtocol; LAB.pickAction = pickAction; LAB.placeAction = placeAction; LAB.pickCollection = pickCollection; LAB.placeCollection = placeCollection;
   try { var st9 = document.getElementById('lab-mode-css'); if (st9) st9.textContent += '.rma{line-height:1.4}.rmc-kp{margin:4px 0 4px 18px;padding:0;font-size:12px}.rmc-claim{font-style:italic;margin:4px 0}.lab-proto-line{gap:6px;margin:0 0 6px;flex-wrap:wrap;align-items:center}'; } catch (e) {}
+
+  /* ---- 10. The Portfolio: assigned work from RM, region cards, quick notes (V3.880) ----
+     The hub mirrors what the PI assigned this person in RM (research-map cards and projects, `member_uids`) into
+     Scientia projects (`rm: true`, `rmAssigned`); an aim under an assigned grant is one of its themes. The map is
+     redrawn as REGIONS — assigned first, then Quick notes (Gabe's General notes, 15b), then the person's own projects
+     and earlier assignments. A region's header is its handle: drag to move (edge panning), the arrow folds it to its
+     header. Until the first move the regions flow in a column; the first move pins them all where they are (Tidy up
+     flows them again). Layout and folding are per device (_ls lab:portfolio), like Gabe's own canvas view. A quick
+     note is a General note that starts blank, with a bar offering the templates until something is written. */
+  var PF = { key: 'lab:portfolio', paper: null, world: null, svg: null, els: {}, list: [], moves: 0, status: null };
+  LAB.portfolio = PF;
+  var KIND = { grant: 'Grant', aim: 'Aim', output: 'Output', concept: 'Concept', specialty: 'Specialty', paper: 'Paper', course: 'Course', tool: 'Tool', infrastructure: 'Infrastructure' };
+  var KIND_ORDER = ['grant', 'aim', 'output', 'concept', 'specialty', 'paper', 'course', 'tool', 'infrastructure'];
+  var SHUT = { archived: 1, closed: 1, completed: 1 };
+  function pfState() { var s = _ls.get(PF.key, null); s = s && typeof s === 'object' ? s : {}; s.pos = s.pos || {}; s.open = s.open || {}; return s; }
+  function pfSave(s) { _ls.set(PF.key, s); }
+  function isAssigned(p) { return !!(p && p.rm && p.rmAssigned !== false); }
+  function rank(p) { var i = KIND_ORDER.indexOf(p.rmKind); return i < 0 ? 99 : i; }
+  function words(s) { return String(s || '').replace(/_/g, ' '); }
+  function byModified(a, b) { return String(b.modified || '').localeCompare(String(a.modified || '')); }
+  function generalDocs() {
+    try { if (typeof GENERAL !== 'undefined' && GENERAL.docs) return GENERAL.docs(); } catch (e) {}
+    return DB.where('documents', function (d) { return !d.projectId && !d.deleted && ['day', 'review'].indexOf(d.type) < 0; });
+  }
+  function regionList() {
+    var ps = DB.all('projects'), byName = function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); };
+    var out = ps.filter(isAssigned).sort(function (a, b) { return rank(a) - rank(b) || byName(a, b); }).map(function (p) { return { id: p.id, p: p, group: 'assigned' }; });
+    out.push({ id: 'quick', group: 'quick' });
+    ps.filter(function (p) { return !p.rm; }).sort(function (a, b) { return String(a.created || '').localeCompare(String(b.created || '')); }).forEach(function (p) { out.push({ id: p.id, p: p, group: 'mine' }); });
+    ps.filter(function (p) { return p.rm && p.rmAssigned === false; }).sort(byName).forEach(function (p) { out.push({ id: p.id, p: p, group: 'earlier' }); });
+    return out;
+  }
+  function isOpen(s, r) {
+    if (s.open[r.id] !== undefined) return !!s.open[r.id];
+    return !(r.group === 'earlier' || (r.p && r.p.rm && SHUT[r.p.rmStatus]));
+  }
+  function docsOf(r) { return r.group === 'quick' ? generalDocs() : DB.where('documents', function (d) { return d.projectId === r.id && d.type !== 'review' && !d.deleted; }); }
+
+  function docCard(d, sub) {
+    var items = [], n = 0;
+    try { if (Array.isArray(d.blockIds)) { items = M.docBlocks(d.id).flatMap(function (b) { return IX.itemsOf(b.id); }); n = M.liveBlocks(d.id).length; } } catch (e) { /* a record without its components yet */ }
+    var ob = items.filter(function (i) { return i.kind === 'barrier' && IX.status(i) === 'open'; }).length;
+    return h('div.box.dcard.nopan', { 'data-doc': d.id, on: { click: function () { App.go('#/doc/' + d.id); } } },
+      h('div.row', typechip(d.type), TIMER.activeFor(d.id) ? h('span.live', '●') : null, h('span.spacer'), h('span.mono.tiny.muted', fmtDay(d.modified))), h('div.dn', d.title),
+      h('div.ds', sub != null ? sub : [plural(n, prof(d.type).noun.toLowerCase()), items.length ? ' · ' + plural(items.length, 'structure') : '',
+        ob ? h('span', { style: { color: 'var(--bad)' } }, ' · ' + ob + ' open') : null]));
+  }
+  function touchesLine(d) {
+    try { var T = GENERAL.touches(d); return T.length ? 'touches ' + T.map(function (x) { return x.p.name; }).join(', ') : 'not in a project yet'; } catch (e) { return 'not in a project yet'; }
+  }
+  function projectBody(p) {
+    var themes = DB.where('themes', function (t) { return t.projectId === p.id && t.status === 'active'; }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+    var wide = DB.where('documents', function (d) { return d.projectId === p.id && !d.themeId && d.type !== 'review' && !d.deleted; }), cols = [];
+    if (wide.length || !themes.length) cols.push({ name: themes.length ? 'Project-wide' : 'Notes', docs: wide });
+    themes.forEach(function (t) { cols.push({ t: t, name: t.name, docs: DB.where('documents', function (d) { return d.themeId === t.id && !d.deleted; }) }); });
+    return h('div.lab-reg-b', cols.map(function (c) {
+      var H = c.t ? IX.themeHealth(c.t) : null;
+      return h('div.lab-col',
+        c.t ? h('div.box.tcard.nopan', { on: { click: function () { App.go('#/theme/' + c.t.id); } } }, h('div.tn', c.name),
+          c.t.rm && c.t.question ? h('div.lab-q', snippet(c.t.question, 110)) : null,
+          h('div.ts', H.stalled ? h('span.pill.warn', 'stalled ' + H.days + 'd') : H.aims.length ? h('span.pill.teal', plural(H.aims.length, 'aim')) : h('span.pill', c.t.rm ? 'aim in RM' : 'exploratory'), ' ', fmtDur(H.ms4) + ' / 4 wk',
+            H.openB.length ? h('span', { style: { color: 'var(--bad)' } }, ' · ' + plural(H.openB.length, 'open barrier')) : null),
+          heatmapEl({ weeks: 6, themeId: c.t.id, cell: 7 }))
+          : h('div.lab-col-h.mono.muted', c.name),
+        c.docs.sort(byModified).map(function (d) { return docCard(d); }),
+        c.docs.length ? null : h('div.lab-empty.tiny.muted', c.t ? 'No notes in this theme yet' : 'No notes yet — + Note'));
+    }));
+  }
+  function regionEl(r, s) {
+    var open = isOpen(s, r), p = r.p, head, body = null, acts = [];
+    if (r.group === 'quick') {
+      var G = generalDocs().sort(byModified);
+      head = [h('div.pk', 'Outside projects'), h('div.pn', 'Quick notes'), h('div.ps', plural(G.length, 'note') + ' · a blank page; file it into a project later (⋯ → Project & theme…)')];
+      acts.push(btn('xs pri', '+ Quick note', quickNote, 'A blank page — write, or start from a template'));
+      if (open) body = h('div.lab-reg-b.lab-qbody', G.length ? G.map(function (d) { return docCard(d, touchesLine(d)); }) : h('div.lab-empty.tiny.muted', 'A quick note opens as a blank page: write, or pick a template.'));
+    } else {
+      var themes = DB.where('themes', function (t) { return t.projectId === p.id && t.status === 'active'; }), notes = docsOf(r).length;
+      var kick = p.rm ? [KIND[p.rmKind] || words(p.rmKind) || 'Project', p.rmStatus ? words(p.rmStatus) : null, r.group === 'earlier' ? 'no longer assigned' : 'assigned' + (p.rmRole && p.rmRole !== 'member' ? ' · ' + p.rmRole : '')].filter(Boolean).join(' · ') : 'Project';
+      head = [h('div.pk', kick), h('a.pn', { href: '#/project/' + p.id, title: 'Open the project' }, p.name),
+        h('div.ps', plural(themes.length, 'theme') + ' · ' + plural(notes, 'note') + ' · ' + plural(IX.openBarriers(p.id).length, 'open barrier')),
+        p.rm && (p.rmLine || (p.rmParents || []).length) ? h('div.lab-reg-line', p.rmLine ? h('span.serif', snippet(p.rmLine, 140)) : null,
+          (p.rmParents || []).length ? h('span.tiny.muted', (p.rmLine ? ' · ' : '') + 'builds on ' + p.rmParents.join(', ')) : null) : null];
+      acts.push(btn('xs', '+ Note', function () { App.newDoc({ projectId: p.id }); }, 'A new note in this project'));
+      if (p.rm && p.rmUrl) acts.push(btn('xs', 'Open in RM', function () { openRM(p.rmUrl); }, 'This ' + (KIND[p.rmKind] || 'project').toLowerCase() + ' on the lab site'));
+      if (open) body = projectBody(p);
+    }
+    var tog = h('button.ib.lab-reg-tog', { title: open ? 'Fold to the header' : 'Unfold', 'aria-expanded': String(open), on: { click: function (e) { e.stopPropagation(); toggleRegion(r.id); } } }, open ? '▾' : '▸');
+    var hd = h('div.lab-reg-h', { title: 'Drag to move this region' }, tog, h('div.lab-reg-t', head), h('div.lab-reg-a', acts));
+    var el = h('div.box.nopan.lab-reg.lab-' + r.group + (open ? '' : '.shut'), { 'data-region': r.id }, hd, body);
+    hd.addEventListener('pointerdown', function (e) { dragRegion(e, el, r.id); });
+    return el;
+  }
+  function layout() {
+    var s = pfState(), y = 0, maxB = 0, add = false;
+    if (s.pinned) {
+      PF.list.forEach(function (r) { var q = s.pos[r.id], el = PF.els[r.id]; if (q && el) maxB = Math.max(maxB, q.y + el.offsetHeight); });
+      PF.list.forEach(function (r) { var el = PF.els[r.id], q = s.pos[r.id]; if (!el) return; if (!q) { q = s.pos[r.id] = { x: 0, y: maxB ? maxB + 40 : 0 }; maxB = q.y + el.offsetHeight; add = true; } el.style.left = q.x + 'px'; el.style.top = q.y + 'px'; });
+      if (add) pfSave(s);
+    } else PF.list.forEach(function (r) { var el = PF.els[r.id]; if (!el) return; el.style.left = '0px'; el.style.top = y + 'px'; y += el.offsetHeight + 28; });
+    drawLinks();
+  }
+  function toggleRegion(id) {
+    var s = pfState(), r = PF.list.filter(function (x) { return x.id === id; })[0], old = PF.els[id]; if (!r || !old) return;
+    s.open[id] = !isOpen(s, r); pfSave(s);
+    var nu = regionEl(r, s); nu.style.left = old.style.left; nu.style.top = old.style.top; old.replaceWith(nu); PF.els[id] = nu;
+    requestAnimationFrame(layout);
+  }
+  function dragRegion(e, el, id) {
+    var P = PF.paper; if (!P || e.button !== 0 || e.target.closest('button,a,input,select,textarea')) return;
+    e.preventDefault(); e.stopPropagation();
+    var tgt = e.currentTarget, sx = e.clientX, sy = e.clientY, x0 = parseFloat(el.style.left) || 0, y0 = parseFloat(el.style.top) || 0, ox = 0, oy = 0, moved = 0, raf = 0, last = e;
+    try { tgt.setPointerCapture(e.pointerId); } catch (x) {}
+    function place(ev) { var z = P.view.z; el.style.left = Math.round(x0 + (ev.clientX - sx) / z + ox) + 'px'; el.style.top = Math.round(y0 + (ev.clientY - sy) / z + oy) + 'px';
+      if (!raf) raf = requestAnimationFrame(function () { raf = 0; drawLinks(); }); }
+    function mv(ev) { last = ev; moved = Math.max(moved, Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy)); if (moved < 4) return;
+      el.classList.add('dragging'); place(ev); P.edgePan(ev, function (dx, dy) { ox -= dx / P.view.z; oy -= dy / P.view.z; place(last); }); }
+    function up() {
+      tgt.removeEventListener('pointermove', mv); tgt.removeEventListener('pointerup', up); tgt.removeEventListener('pointercancel', up); P.stopEdgePan(); el.classList.remove('dragging');
+      if (moved < 4) return;
+      var s = pfState();
+      if (!s.pinned) { PF.list.forEach(function (r) { var x = PF.els[r.id]; if (x) s.pos[r.id] = { x: parseFloat(x.style.left) || 0, y: parseFloat(x.style.top) || 0 }; }); s.pinned = true; }
+      s.pos[id] = { x: parseFloat(el.style.left) || 0, y: parseFloat(el.style.top) || 0 }; pfSave(s); PF.moves++; drawLinks();
+    }
+    tgt.addEventListener('pointermove', mv); tgt.addEventListener('pointerup', up); tgt.addEventListener('pointercancel', up);
+  }
+  /* the dashed note-to-note connections of Gabe's map, drawn between cards wherever the regions are; a folded region
+     stands for its notes */
+  function drawLinks() {
+    var P = PF.paper, W = PF.world; if (!P || !W || !W.isConnected || !PF.svg) return;
+    var z = P.view.z, pos = {}, box = function (el) { var r = el.getBoundingClientRect(), a = P.toWorld(r.left, r.top); return { x: a.x, y: a.y, w: r.width / z, h: r.height / z }; };
+    $$('[data-doc]', W).forEach(function (el) { pos[el.dataset.doc] = box(el); });
+    PF.list.forEach(function (r) { var el = PF.els[r.id]; if (!el || !el.classList.contains('shut')) return; var R = box(el); R.region = r.id; docsOf(r).forEach(function (d) { if (!pos[d.id]) pos[d.id] = R; }); });
+    var pairs = new Map(), add = function (a, b, why) {
+      if (!a || !b || a === b || !pos[a] || !pos[b]) return; var ka = pos[a].region || a, kb = pos[b].region || b; if (ka === kb) return;
+      var k = [ka, kb].sort().join('|'); if (!pairs.has(k)) pairs.set(k, { A: pos[a], B: pos[b], why: {} }); pairs.get(k).why[why] = 1; };
+    DB.all('wires').forEach(function (w) { var A = M.block(w.from), B = M.block(w.to); if (A && B && A.docId !== B.docId) add(A.docId, B.docId, (REL[w.rel] || {}).label || w.rel); });
+    DB.all('blocks').forEach(function (b) {
+      if (b.kind === 'ref' && b.status !== 'removed') { var o = M.block(b.refBlockId); if (o) add(o.docId, b.docId, 'pulled in'); }
+      if (b.boundTo) add(b.boundTo.protocolId, b.docId, 'runs protocol');
+      ((b.body && b.body.marks) || []).forEach(function (m) { if (m.type === 'link' && m.ref) { var t = IX.linkTarget(m); if (t) add(b.docId, t.type === 'doc' ? t.d.id : t.b.docId, 'link'); } });
+    });
+    var svg = '';
+    pairs.forEach(function (pr) {
+      var A = pr.A, B = pr.B, x1 = A.x + A.w, y1 = A.y + A.h / 2, x2 = B.x, y2 = B.y + B.h / 2;
+      var p1 = x1 <= x2 ? { x: x1, y: y1 } : { x: B.x + B.w, y: y2 }, p2 = x1 <= x2 ? { x: x2, y: y2 } : { x: A.x, y: y1 }, off = Math.max(40, Math.abs(p2.x - p1.x) / 2);
+      svg += '<path class="pl" d="M' + p1.x + ',' + p1.y + ' C' + (p1.x + off) + ',' + p1.y + ' ' + (p2.x - off) + ',' + p2.y + ' ' + p2.x + ',' + p2.y + '"><title>' + esc(Object.keys(pr.why).join(', ')) + '</title></path>';
+    });
+    PF.svg.innerHTML = svg; PF.links = pairs.size;
+  }
+  function tidy() { var s = pfState(); s.pinned = false; s.pos = {}; pfSave(s); App.refresh(); }
+  async function refreshAssigned() {
+    if (PF.status) PF.status.textContent = 'Asking RM…';
+    try {
+      var r = await fetch('api/rm/sync?only=projects', { method: 'POST' }), j = r.ok ? await r.json() : null, P = j && j.projects;
+      if (PF.status) PF.status.textContent = P && P.ok ? plural(P.projects || 0, 'assigned project') + (P.written ? ' · ' + P.written + ' updated' : ' · up to date') : 'Could not reach the hub';
+      return j;
+    } catch (e) { if (PF.status) PF.status.textContent = String(e.message || e); return null; }
+  }
+  function renderPortfolio() {
+    var s = pfState(), list = PF.list = regionList(), nA = list.filter(function (r) { return r.group === 'assigned'; }).length, nM = list.filter(function (r) { return r.group === 'mine'; }).length;
+    App.setTitle('Portfolio', [h('span', plural(nA, 'assigned project') + ' · ' + plural(nM, 'project') + ' of your own · ' + plural(generalDocs().length, 'quick note'))]);
+    var host = h('div.canvas-host.lab-pf'), P = PF.paper = makePaper(host, { view: _ls.get('view:portfolio', null) || undefined, onView: debounce(function (v) { _ls.set('view:portfolio', v); }, 400), minZ: .2 });
+    var W = PF.world = P.world; PF.els = {};
+    PF.svg = SV('svg', { class: 'wires plinks' }); W.append(PF.svg);
+    list.forEach(function (r, i) { var el = regionEl(r, s), q = s.pinned && s.pos[r.id]; el.style.left = (q ? q.x : 0) + 'px'; el.style.top = (q ? q.y : i * 120) + 'px'; PF.els[r.id] = el; W.append(el); });
+    PF.status = h('span.tiny.mono.muted.lab-pf-st');
+    host.append(h('div.lab-pf-bar.nopan',
+      btn('sm', '+ Project', async function () { var n = await askText('New project', 'Name'); if (n) M.createProject(n); }, 'A project of your own'),
+      btn('sm', '+ Quick note', quickNote, 'A blank page outside any project'),
+      btn('sm ghost', 'Tidy up', tidy, 'Put the regions back in one column'),
+      btn('sm ghost', 'Refresh from RM', refreshAssigned, 'Ask RM for your assigned projects now'), PF.status),
+      h('div.hint', 'Assigned projects come from RM. Drag a region by its header; the arrow folds it. Drag the paper to pan.'));
+    requestAnimationFrame(function () {
+      layout();
+      if (!_ls.get('view:portfolio', null)) { var x1 = 0, y1 = 0; list.forEach(function (r) { var el = PF.els[r.id]; if (el) { x1 = Math.max(x1, el.offsetLeft + el.offsetWidth); y1 = Math.max(y1, el.offsetTop + el.offsetHeight); } }); P.fit({ x0: 0, y0: -40, x1: x1, y1: Math.min(y1, 900) }, false); }
+    });
+    return host;
+  }
+  try { VIEWS.portfolio.render = renderPortfolio; } catch (e) { warn('portfolio', e); }
+  LAB.tidyPortfolio = tidy; LAB.refreshAssigned = refreshAssigned; LAB.drawLinks = drawLinks;
+
+  /* a project the PI assigned: its RM line, and no Rename (the name is RM's) */
+  try {
+    var oProject = VIEWS.project.render;
+    VIEWS.project.render = function (id) {
+      var page = oProject.apply(this, arguments), p = M.project(id);
+      try {
+        if (p && p.rm && page && page.querySelectorAll) {
+          [].forEach.call(page.querySelectorAll('button'), function (b) { if (b.textContent.trim() === 'Rename') b.remove(); });
+          var stand = page.querySelector('p.stand');
+          var info = h('div.callout.lab-rm-proj', h('b.h', (KIND[p.rmKind] || 'Project') + ' in RM' + (p.rmStatus ? ' · ' + words(p.rmStatus) : '') + (p.rmAssigned === false ? ' · no longer assigned to you' : ' · assigned to you')),
+            p.rmLine ? h('div.serif', p.rmLine) : null, (p.rmParents || []).length ? h('div.tiny.muted', 'Builds on ' + p.rmParents.join(', ')) : null,
+            h('div.row', { style: { marginTop: '6px', gap: '6px' } }, p.rmUrl ? btn('xs', 'Open in RM', function () { openRM(p.rmUrl); }) : null,
+              p.rmDraftId && p.rmKind !== 'paper' ? btn('xs', 'Open the draft', function () { openRM('/rm/pages/paper-builder.html?paper=' + encodeURIComponent(p.rmDraftId)); }) : null));
+          if (stand) stand.after(info); else page.prepend(info);
+        }
+      } catch (x) { warn('project view', x); }
+      return page;
+    };
+  } catch (e) { warn('project view', e); }
+
+  /* quick notes: a General note that opens blank, with the templates on offer until something is written */
+  var QN = { title: /^Quick note · /, made: 0 };
+  function quickNote() {
+    var type = (typeof PROFILE !== 'undefined' && PROFILE.note) ? 'note' : userProfiles()[0].type;
+    var d = M.createDoc({ type: type, projectId: null, themeId: null, title: 'Quick note · ' + fmtDay(new Date()) });
+    var cur = M.doc(d.id) || d; cur.quick = true; DB.put('documents', cur); QN.made++;
+    var first = cur.blockIds.map(M.block).filter(Boolean)[0]; DocView.pendingFocus = first ? { focus: first.id, pos: 0 } : null;
+    App.go('#/doc/' + cur.id);
+    return cur;
+  }
+  function blankDoc(d) {
+    var bs = M.liveBlocks(d.id);
+    return bs.length <= 1 && !String((d.synthesis && d.synthesis.text) || '').trim() && bs.every(function (b) {
+      return b.kind === 'component' && !String(b.label || '').trim() && !String((b.body && b.body.text) || '').replace(/￼/g, '').trim() && !(b.fields || []).length; });
+  }
+  function templateRows() {
+    var out = [];
+    userProfiles().forEach(function (p) { M.templatesFor(p.type).forEach(function (t) {
+      if (t.isStandard && !t.enabled) return;   // a standard one switched off in Settings; the person's own are always offered
+      if (!(t.blocks || []).some(function (b) { return String(b.label || '').trim() || String(b.body || '').trim(); })) return;   // an empty template is "continue blank"
+      out.push({ t: t, p: p }); }); });
+    return out;
+  }
+  function applyTemplate(docId, t) {
+    var d = M.doc(docId); if (!d) return null;
+    var p = prof(t.type), rows = (t.blocks || []).length ? t.blocks : [{ label: '', body: '' }], first = M.liveBlocks(d.id).filter(function (b) { return b.kind === 'component'; })[0], after = null;
+    d.type = t.type; d.scope = p.scope; d.themeId = null; d.templateId = t.id; d.quick = false;
+    if (QN.title.test(d.title || '')) d.title = p.label + ' · ' + fmtDay(d.created);
+    rows.forEach(function (r, i) {
+      var at = { label: r.label || '', body: { text: r.body || '', marks: [] }, x: r.x != null ? r.x : null, y: r.y != null ? r.y : null };
+      if (i === 0 && first) { Object.assign(first, at); DB.put('blocks', first); after = first.id; return; }
+      after = M._newBlock(d, at, after).id;
+    });
+    M.autoLayout(d); M.touchDoc(d); $$('.lab-qn').forEach(function (b) { b.remove(); }); changed();
+    var f = M.liveBlocks(d.id)[0]; DocView.pendingFocus = f ? { focus: f.id, pos: 0 } : null;
+    App.refresh(); toast('Started from ' + (t.isStandard ? 'the ' + p.label.toLowerCase() + ' template' : '“' + t.name + '”'));
+    return d;
+  }
+  function dismissQuick(docId, focus) {
+    var d = M.doc(docId); if (d && d.quick) { d.quick = false; DB.put('documents', d); }
+    $$('.lab-qn').forEach(function (b) { b.remove(); });
+    if (focus) { var ed = document.querySelector('.box .ed[contenteditable="true"]') || document.querySelector('.box .ed'); if (ed) try { ed.focus(); } catch (e) {} }
+  }
+  function quickBar(d) {
+    var rows = templateRows();
+    return h('div.lab-qn.nopan', { role: 'group', 'aria-label': 'Start this page' },
+      h('div.lab-qn-h', h('b', 'A blank page'), h('span.tiny.muted', ' — write, or start from a template')),
+      rows.length ? h('div.lab-qn-g', rows.map(function (x) {
+        return h('button.btn.xs.lab-qn-t', { 'data-tpl': x.t.id, title: x.p.label + ': ' + (x.t.blocks || []).map(function (b) { return b.label || '·'; }).join(' → '), on: { click: function () { applyTemplate(d.id, x.t); } } },
+          x.t.isStandard ? x.p.label : x.t.name); })) : h('div.tiny.muted', { style: { margin: '0 0 8px' } }, 'No templates yet — Settings → Templates, or ⋯ → Save structure as template… in any note.'),
+      h('div.row.lab-qn-f', btn('sm pri', 'Continue blank', function () { dismissQuick(d.id, true); }, 'Keep the blank page'), h('span.tiny.muted', 'File it into a project later: ⋯ → Project & theme…')));
+  }
+  try {
+    var oDocRender = DocView.render;
+    DocView.render = function (docId) {
+      var host = oDocRender.apply(this, arguments);
+      try {
+        var d = M.doc(docId);
+        if (d && d.quick && host && host.append) {
+          if (!blankDoc(d)) { d.quick = false; DB.put('documents', d); }
+          else {
+            var bar = quickBar(d); host.append(bar);
+            host.addEventListener('input', function onIn(e) { if (!bar.isConnected) return host.removeEventListener('input', onIn, true); if (e.target && e.target.closest && e.target.closest('.lab-qn')) return; dismissQuick(docId, false); host.removeEventListener('input', onIn, true); }, true);
+          }
+        }
+      } catch (x) { warn('quick note', x); }
+      return host;
+    };
+  } catch (e) { warn('quick note', e); }
+  LAB.quickNote = quickNote; LAB.applyTemplate = applyTemplate; LAB.templateRows = templateRows; LAB.blankDoc = blankDoc;
+
+  try {
+    var st10 = document.getElementById('lab-mode-css');
+    if (st10) st10.textContent += '.lab-reg{min-width:300px;width:max-content;padding:0;background:color-mix(in srgb,var(--surface) 55%,var(--paper));border:1px solid var(--rule-2);border-radius:10px}' +
+      '.lab-reg.lab-assigned{border-top:3px solid var(--teal)}.lab-reg.lab-quick{border-top:3px solid var(--ink-3)}.lab-reg.lab-earlier{opacity:.8}' +
+      '.lab-reg-h{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;cursor:grab;touch-action:none}.lab-reg.dragging .lab-reg-h{cursor:grabbing}' +
+      '.lab-reg-tog{flex:none;width:22px;height:22px;font-size:13px;line-height:1}.lab-reg-t{flex:1 1 auto;min-width:0;max-width:640px}' +
+      '.lab-reg-t .pk{font-family:var(--f-m);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}' +
+      '.lab-reg-t .pn{display:block;font-size:17px;font-weight:700;letter-spacing:-.015em;color:var(--ink);text-decoration:none}.lab-reg-t a.pn:hover{text-decoration:underline}' +
+      '.lab-reg-t .ps{font-family:var(--f-m);font-size:10.5px;color:var(--ink-3)}.lab-reg-line{font-size:12.5px;color:var(--ink-2);margin-top:3px}' +
+      '.lab-reg-a{display:flex;gap:6px;flex:none;flex-wrap:wrap;justify-content:flex-end;max-width:220px}' +
+      '.lab-reg-b{display:flex;gap:16px;align-items:flex-start;padding:4px 12px 12px}.lab-reg-b.lab-qbody{flex-wrap:wrap;max-width:860px;gap:10px}' +
+      '.lab-col{width:240px;display:flex;flex-direction:column;gap:8px}.lab-reg .box{position:relative;left:auto;top:auto}.lab-qbody .dcard{width:260px}' +
+      '.lab-col-h{padding:2px 2px 0;letter-spacing:.1em;text-transform:uppercase;font-size:9.5px}.lab-empty{padding:6px 4px}.lab-q{font-size:11.5px;color:var(--ink-3);margin:-2px 0 6px;line-height:1.35}' +
+      '.lab-pf-bar{position:absolute;top:12px;left:12px;z-index:16;display:flex;gap:6px;flex-wrap:wrap;align-items:center;max-width:calc(100% - 24px)}' +
+      '.lab-qn{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:15;width:min(560px,calc(100% - 24px));box-sizing:border-box;background:var(--surface);border:1px solid var(--rule-2);border-radius:10px;box-shadow:var(--shadow-lg);padding:12px 14px}' +
+      '.lab-qn-h{margin-bottom:8px}.lab-qn-g{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;max-height:40vh;overflow:auto}.lab-qn-f{gap:10px;align-items:center;flex-wrap:wrap}' +
+      '.lab-rm-proj{margin:10px 0}@media (max-width:820px){.lab-qn{top:56px}.lab-reg-a{max-width:150px}}';
+  } catch (e) { warn('css 10', e); }
 })();

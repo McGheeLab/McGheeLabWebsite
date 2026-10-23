@@ -4,6 +4,70 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.881] — 2026-10-23 — Procurement: load receipts and requisition printouts, kept for a later read into the inventory
+
+Alex: *"on the procurement page, we need a way for the person doing the procurement to load in the receipt or
+requisition printout to the site, later we can collect these and use them to auto injest the items into the
+inventory."* Plan: [V3.881_procurement_receipts_requisitions.md](../ClaudesPlan/V3.881_procurement_receipts_requisitions.md).
+
+**Deployed first:** `firestore:rules` from a scratch copy = the LIVE ruleset + only the `procurementDocs` block (diffed:
+35 lines added, none removed; the rules suite run against that copy: 162 ok). The repo file's other undeployed hunks
+stay undeployed: V3.806's `users` self-role guard, the V3.836 comment renames, and V3.835's inventory `use_mode` line.
+That last one must not ship as written: `inventory-use.js` writes `use_mode: 'package'` on a member's first scan of a
+consumable with no mode set, which the line would refuse. No Storage rules change (`procurement/{docId}/**` already
+covers `procurement/docs/…`).
+
+### Added
+- **`procurementDocs/{docId}`**: one record per uploaded file: `kind` (receipt | requisition | invoice | packing_slip
+  | po | quote | other), `fileName`, `contentType`, `size`, `storagePath` (`procurement/docs/{docId}/{name}`), `url`,
+  `ticketIds[]` (≤ 50), `poNumber`, `vendor`, `docDate`, `note`, `source` (upload | order | receive), `uploadedBy`,
+  `uploadedByName`, `uploadedAt`, `updatedAt`, and **`ingestStatus: 'pending'`** with `ingestedAt`,
+  `ingestedItemIds[]`, `ingestNote` reserved for the later step that reads them into the inventory.
+- `firestore.rules` `match /procurementDocs/{docId}`: read any lab member; create `uploadedBy == self`, known kind,
+  path under `procurement/docs/{docId}/`, ≤ 50 requests, `ingestStatus == 'pending'`, and a purchaser / approver /
+  admin, or any member when the file covers a request (the Receive form); update by purchaser / approver / admin or
+  the uploader, only the labels, links and `ingest*` fields; delete by an admin or the uploader. 26 new cases in
+  `procurement-rules.test.mjs` (162 ok).
+- `rm/js/procurement-core.js`: `DOC_KINDS`, `DOC_KIND_IDS`, `DOC_MAX_BYTES`, `DOC_MAX_TICKETS`, `docKindLabel`,
+  `docContentType(name, type)` (a typeless phone HEIC → `image/heic`), `checkDocFile(file)` (PDF or image, non-empty,
+  < 20 MB), `safeFileName`, `docStoragePath`, `orderSiblings(t, tickets)` (same `orderGroupId` or PO #),
+  `docLinkCandidates(tickets, now)` (approved / ordered / arrived + put away in 60 days), `buildDocRecord(o)` (deduped
+  links; a blank PO # / vendor taken from the linked requests when they agree), `docEditPatch`, `docsForTicket`,
+  `legacyAttachments(tickets, docs)` (V3.813 `poUrl` / `receiptUrl` with no record, as read-only rows), `docRows`,
+  `searchDocs`. 22 new checks in `procurement-core.test.mjs` (287).
+- `rm/js/procurement.js`: **a Receipts tab** (`docs`, purchasers / approvers / admins): a drop zone + "choose files"
+  (any number; PDF or photo; each checked before upload, a bad one marked in red and refused), then *What are they?*,
+  PO #, vendor (both with suggestions), date, note and **Which requests do they cover?** (search, tick; ticking fills a
+  blank PO # / vendor); **Upload N files**. Below: every document newest first (kind chip, the file, date · vendor ·
+  PO, *Not yet in inventory*, the requests it covers as links, who uploaded it), the V3.813 request files as legacy
+  rows, the top search box searching them, **Edit** (labels and links, inline) and **Delete** (uploader or admin; asks
+  in the row). `uploadDoc(file, meta)` puts the file with an explicit content type and writes the record; a failed
+  record removes the file unless the caller keeps it.
+- On a request card: **Receipts & documents** (its files, for everyone who sees the request) and, for purchasers /
+  approvers from approved to put away, **Attach receipt / requisition**: inline kind + files + note, ticked by default
+  to link the other requests on the same order.
+- `rm/css/procurement.css`: drop zone, chosen-file rows, the request picker, document rows, the card list.
+- `v3813-procurement-selftest.html` 225 → 227 checks pass, with a new *Receipts & requisitions* section (a student sees
+  a request's files but has no Attach; the purchaser's Receipts tab: a spreadsheet refused, a typeless HEIC filed as
+  `image/heic`, a request linked and its PO # filled, search, edit, delete asked in the row, Attach on a card linking
+  the order's other request).
+
+### Changed
+- The **Order** form's PO and the **Receive** form's receipt go through `uploadDoc` (to `procurement/docs/…`, with a
+  record linked to every request on the order) and still set `poUrl` / `receiptUrl` on the request; if the record cannot
+  be written the request keeps the file and a warning says so. `uploadFile` is gone.
+- The stub in `v3813-procurement-selftest.html` gains `orderBy` / `limit`; its PO-path check expects
+  `procurement/docs/{docId}/…`; the purchaser's actions on an approved request include `attach`; tab lists include
+  `docs`.
+- The documents load is wrapped so even a synchronous throw costs only that list, never the page.
+- `sw.js` CACHE_VERSION 862 → 864 (863 left for the Scientia session's V3.880).
+
+### Known
+- `storage.rules` gives `procurement/**` no delete path, so deleting a document removes its record (and it leaves the
+  list and its requests) but the file stays in Storage. Same for the rare rollback when a record fails to write.
+- Pre-existing: Storage `procurement/**` is readable by any signed-in account, guests included, so anyone holding a
+  file's link can open it.
+
 ## [V3.879] — 2026-10-23 — Inventory: category pills replace the tab bar and the filter dropdowns
 
 Alex: *"on the lab inventory page, i dont like the top row of filters, these are not commonly used. we should have a set

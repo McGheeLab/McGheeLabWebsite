@@ -248,6 +248,38 @@ await mustAllow('member reads a snapshot', () => getDoc(doc(oth, 'priceWatch/w1/
 await mustDeny('member deletes a watch', () => deleteDoc(doc(stu, 'priceWatch/w1')));
 await mustAllow('admin deletes a watch', () => deleteDoc(doc(adm, 'priceWatch/w1')));
 
+console.log('\n── documents (V3.881) ──');
+const DOC = (id, over) => Object.assign({ kind: 'receipt', fileName: 'r.pdf', contentType: 'application/pdf', size: 10, storagePath: 'procurement/docs/' + id + '/r.pdf', url: 'https://u',
+  ticketIds: ['t1'], poNumber: '', vendor: '', docDate: '', note: '', source: 'upload', uploadedBy: 'buy', uploadedByName: 'Bo', uploadedAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  ingestStatus: 'pending', ingestedAt: null, ingestedItemIds: [], ingestNote: '' }, over || {});
+await mustAllow('purchaser files a receipt', () => setDoc(doc(buy, 'procurementDocs/d1'), DOC('d1')));
+await mustAllow('purchaser files a requisition that covers no request yet', () => setDoc(doc(buy, 'procurementDocs/d2'), DOC('d2', { kind: 'requisition', ticketIds: [] })));
+await mustAllow('approver files a document', () => setDoc(doc(app, 'procurementDocs/d3'), DOC('d3', { uploadedBy: 'app' })));
+await mustAllow('a member files a receipt FOR a request (the Receive form)', () => setDoc(doc(stu, 'procurementDocs/d4'), DOC('d4', { uploadedBy: 'stu' })));
+await mustDeny('a member files a document that covers no request', () => setDoc(doc(stu, 'procurementDocs/d5'), DOC('d5', { uploadedBy: 'stu', ticketIds: [] })));
+await mustDeny('filed in someone else’s name', () => setDoc(doc(buy, 'procurementDocs/d6'), DOC('d6', { uploadedBy: 'stu' })));
+await mustDeny('a path outside procurement/docs/{docId}/', () => setDoc(doc(buy, 'procurementDocs/d7'), DOC('d7', { storagePath: 'procurement/other/r.pdf' })));
+await mustDeny('another doc’s folder', () => setDoc(doc(buy, 'procurementDocs/d8'), DOC('d8', { storagePath: 'procurement/docs/d1/r.pdf' })));
+await mustDeny('an unknown kind', () => setDoc(doc(buy, 'procurementDocs/d9'), DOC('d9', { kind: 'selfie' })));
+await mustDeny('born already ingested', () => setDoc(doc(buy, 'procurementDocs/d10'), DOC('d10', { ingestStatus: 'ingested' })));
+await mustDeny('more than 50 requests', () => setDoc(doc(buy, 'procurementDocs/d11'), DOC('d11', { ticketIds: Array.from({ length: 51 }, (_, i) => 'x' + i) })));
+await mustDeny('a guest files', () => setDoc(doc(gst, 'procurementDocs/d12'), DOC('d12', { uploadedBy: 'gst' })));
+await mustAllow('a member reads a document', () => getDoc(doc(oth, 'procurementDocs/d1')));
+await mustAllow('a member lists documents', () => getDocs(collection(oth, 'procurementDocs')));
+await mustDeny('a guest reads', () => getDoc(doc(gst, 'procurementDocs/d1')));
+await mustAllow('purchaser relabels and relinks', () => updateDoc(doc(buy, 'procurementDocs/d1'), { kind: 'invoice', ticketIds: ['t1', 't2'], poNumber: 'PO-1', vendor: 'Fisher', docDate: '2026-10-20', note: 'n', updatedAt: serverTimestamp() }));
+await mustAllow('approver edits a purchaser’s document', () => updateDoc(doc(app, 'procurementDocs/d1'), { note: 'checked' }));
+await mustAllow('the later inventory step marks it ingested', () => updateDoc(doc(buy, 'procurementDocs/d1'), { ingestStatus: 'ingested', ingestedAt: serverTimestamp(), ingestedItemIds: ['inv-1'] }));
+await mustAllow('the member who filed it edits their note', () => updateDoc(doc(stu, 'procurementDocs/d4'), { note: 'box 2' }));
+await mustDeny('another member edits it', () => updateDoc(doc(oth, 'procurementDocs/d4'), { note: 'x' }));
+await mustDeny('the file path is frozen', () => updateDoc(doc(buy, 'procurementDocs/d1'), { storagePath: 'procurement/docs/d1/other.pdf' }));
+await mustDeny('the uploader is frozen', () => updateDoc(doc(buy, 'procurementDocs/d1'), { uploadedBy: 'adm' }));
+await mustDeny('an edit to an unknown kind', () => updateDoc(doc(buy, 'procurementDocs/d1'), { kind: 'selfie' }));
+await mustDeny('another member deletes it', () => deleteDoc(doc(oth, 'procurementDocs/d4')));
+await mustDeny('a purchaser deletes someone else’s', () => deleteDoc(doc(buy, 'procurementDocs/d4')));
+await mustAllow('the uploader deletes their own', () => deleteDoc(doc(stu, 'procurementDocs/d4')));
+await mustAllow('an admin deletes any', () => deleteDoc(doc(adm, 'procurementDocs/d3')));
+
 console.log('\n── admin ──');
 await seed('d1', { status: 'placed' });
 await mustAllow('admin rewinds a placed ticket', () => U.adm('d1', { status: 'received' }));

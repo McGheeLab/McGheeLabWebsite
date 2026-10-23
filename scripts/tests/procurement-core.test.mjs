@@ -527,5 +527,58 @@ eq(C.toMs({ seconds: 10 }), 10000, 'timestamp → ms');
 eq(C.fmtDate('2026-10-19'), '2026-10-19', 'date string round trip');
 eq(C.ageLabel(NOW - 3 * 86400000, NOW), '3d ago', 'age label');
 
+// ── V3.881 — receipts, requisitions and other order documents ──
+console.log('── documents (V3.881) ──');
+eq(C.DOC_KIND_IDS, ['receipt', 'requisition', 'invoice', 'packing_slip', 'po', 'quote', 'other'], 'doc kinds (the rules list the same seven)');
+eq([C.docKindLabel('requisition'), C.docKindLabel('packing_slip'), C.docKindLabel('nope')], ['Requisition', 'Packing slip', 'Other'], 'kind labels; unknown is Other');
+eq([C.docContentType('r.pdf', 'application/pdf'), C.docContentType('IMG_1.HEIC', ''), C.docContentType('scan.jpg', 'application/octet-stream'), C.docContentType('x.docx', ''), C.docContentType('photo', 'image/png')],
+   ['application/pdf', 'image/heic', 'image/jpeg', '', 'image/png'], 'content type: the browser’s for a PDF / image, else from the extension (a phone HEIC often has none), else refused');
+eq(C.checkDocFile({ name: 'r.pdf', type: 'application/pdf', size: 2048 }), { ok: true, contentType: 'application/pdf' }, 'a PDF passes');
+ok(/not a PDF or a photo/.test(C.checkDocFile({ name: 'list.xlsx', type: '', size: 10 }).error), 'a spreadsheet is refused before upload');
+ok(/over 20 MB/.test(C.checkDocFile({ name: 'big.pdf', type: 'application/pdf', size: 21 * 1024 * 1024 }).error), 'over 20 MB is refused (Storage would)');
+ok(/empty/.test(C.checkDocFile({ name: 'e.pdf', type: 'application/pdf', size: 0 }).error), 'an empty file is refused');
+eq([C.safeFileName('Fisher receipt #123 (Oct).pdf'), C.safeFileName('///'), C.docStoragePath('D1', 'a b.pdf')], ['Fisher_receipt_123_Oct_.pdf', 'file', 'procurement/docs/D1/a_b.pdf'], 'safe names and the docs path');
+
+const T = [
+  { id: 't1', status: 'ordered', poNumber: 'PO-77', orderGroupId: 'g1', vendor: 'Fisher', itemDescription: 'Conical tubes', requesterName: 'Sam', updatedAt: NOW - 1000 },
+  { id: 't2', status: 'ordered', poNumber: 'PO-77', orderGroupId: 'g1', vendor: 'Fisher', itemDescription: 'Pipette tips', requesterName: 'Otto', updatedAt: NOW - 2000 },
+  { id: 't3', status: 'received', poNumber: 'po-77', vendor: 'Fisher', itemDescription: 'Gloves', updatedAt: NOW - 3000 },
+  { id: 't4', status: 'approved', vendor: 'Sigma', itemDescription: 'Trypsin', updatedAt: NOW - 500 },
+  { id: 't5', status: 'placed', placedAt: NOW - 10 * 86400000, itemDescription: 'FBS', updatedAt: NOW - 10 * 86400000 },
+  { id: 't6', status: 'placed', placedAt: NOW - 90 * 86400000, itemDescription: 'Old', updatedAt: NOW - 90 * 86400000 },
+  { id: 't7', status: 'requested', itemDescription: 'Not yet approved', updatedAt: NOW },
+  { id: 't8', status: 'received', receiptUrl: 'https://x/receipt-old.pdf', receiptStoragePath: 'procurement/t8/receipt-1-old.pdf', receivedAt: NOW - 5000, receivedByName: 'Bo', poUrl: 'https://x/po.pdf', poStoragePath: 'procurement/t8/po-1.pdf', orderedAt: NOW - 9000, updatedAt: NOW - 5000 },
+];
+eq(C.orderSiblings(T[0], T).map(t => t.id), ['t2', 't3'], 'the other requests on the order: same group, or the same PO # (case-blind)');
+eq(C.orderSiblings(T[3], T), [], 'no PO and no group: no siblings');
+eq(C.docLinkCandidates(T, NOW).map(t => t.id), ['t4', 't1', 't2', 't3', 't8', 't5'], 'linkable: approved / ordered / arrived + put away in the last 60 days, newest first; not requested, not long placed');
+
+const rec = C.buildDocRecord({ id: 'D1', kind: 'receipt', file: { name: 'Fisher receipt.pdf', size: 3000, type: 'application/pdf' }, url: 'https://u', ticketIds: ['t1', 't2', 't1', ''], note: ' boxes 1-2 ', source: 'upload', actor: buyer, stamp: STAMP, tickets: T });
+eq(rec, { kind: 'receipt', fileName: 'Fisher receipt.pdf', contentType: 'application/pdf', size: 3000, storagePath: 'procurement/docs/D1/Fisher_receipt.pdf', url: 'https://u',
+          ticketIds: ['t1', 't2'], poNumber: 'PO-77', vendor: 'Fisher', docDate: '', note: 'boxes 1-2', source: 'upload',
+          uploadedBy: 'buy', uploadedByName: 'Bo Buyer', uploadedAt: STAMP, updatedAt: STAMP, ingestStatus: 'pending', ingestedAt: null, ingestedItemIds: [], ingestNote: '' },
+   'the record: deduped requests, PO # and vendor taken from them when blank, pending for the later inventory read');
+eq(C.buildDocRecord({ id: 'D2', kind: 'requisition', file: { name: 'req.pdf', size: 1 }, ticketIds: ['t1', 't4'], tickets: T, actor: buyer, stamp: STAMP }).vendor, '', 'requests that disagree on the vendor leave it blank');
+eq(C.buildDocRecord({ id: 'D3', kind: 'bogus', file: { name: 'x.jpg', size: 1 }, docDate: '2026-02-30', poNumber: ' 99 ', actor: buyer, stamp: STAMP, source: 'weird' }).kind + '|' +
+   C.buildDocRecord({ id: 'D3', kind: 'bogus', file: { name: 'x.jpg', size: 1 }, docDate: '2026-02-30', poNumber: ' 99 ', actor: buyer, stamp: STAMP }).docDate + '|' +
+   C.buildDocRecord({ id: 'D3', kind: 'po', file: { name: 'x.jpg', size: 1 }, poNumber: ' 99 ', actor: buyer, stamp: STAMP, source: 'order' }).source, 'other||order', 'unknown kind → other; a non-date is dropped; source order kept');
+eq(C.buildDocRecord({ id: 'D4', file: { name: 'a', size: 1 }, ticketIds: Array.from({ length: 60 }, (_, i) => 'x' + i), actor: buyer, stamp: STAMP }).ticketIds.length, 50, 'at most 50 requests (the rules cap)');
+eq(C.docEditPatch({ kind: 'invoice', ticketIds: ['t3', 't3'], poNumber: ' A1 ', vendor: 'VWR', docDate: '2026-10-20', note: 'n', storagePath: 'evil', uploadedBy: 'evil' }, STAMP),
+   { kind: 'invoice', ticketIds: ['t3'], poNumber: 'A1', vendor: 'VWR', docDate: '2026-10-20', note: 'n', updatedAt: STAMP }, 'an edit touches only the editable fields');
+
+const docs = [
+  { id: 'a', kind: 'receipt', ticketIds: ['t1'], uploadedAt: NOW - 100, fileName: 'r1.pdf', storagePath: 'procurement/docs/a/r1.pdf', url: 'https://a', uploadedByName: 'Bo Buyer' },
+  { id: 'b', kind: 'requisition', ticketIds: ['t1', 't2'], uploadedAt: NOW - 10, fileName: 'req.pdf', storagePath: 'procurement/docs/b/req.pdf', url: 'https://b', note: 'department copy' },
+  { id: 'c', kind: 'po', ticketIds: ['t8'], uploadedAt: NOW - 50, fileName: 'po.pdf', storagePath: 'procurement/t8/po-1.pdf', url: 'https://x/po.pdf' },
+];
+eq(C.docsForTicket(docs, 't1').map(d => d.id), ['b', 'a'], 'a request’s documents, newest first');
+const leg = C.legacyAttachments(T, docs);
+eq(leg.map(d => [d.id, d.kind, d.fileName, d.ticketIds[0], d.uploadedByName, d.legacy]), [['legacy-receipt-t8', 'receipt', 'receipt-1-old.pdf', 't8', 'Bo', true]],
+   'the V3.813 request files with no record show as legacy rows (a PO already filed is not repeated)');
+eq(C.docRows(docs, T).map(d => d.id), ['b', 'c', 'a', 'legacy-receipt-t8'], 'the list: records and legacy files, newest first');
+eq(C.searchDocs(C.docRows(docs, T), 'pipette', T).map(d => d.id), ['b'], 'search reaches a linked request’s item');
+eq(C.searchDocs(C.docRows(docs, T), 'requisition department', T).map(d => d.id), ['b'], 'every word must match (kind + note)');
+eq(C.searchDocs(C.docRows(docs, T), '', T).length, 4, 'no search: everything');
+
 console.log(`\nprocurement-core: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -1445,6 +1445,172 @@
     return (tickets || []).filter(function (t) { return t.status === 'received' && toMs(t.receivedAt) && n - toMs(t.receivedAt) > g; });
   }
 
+  /* ─── V3.881 — receipts, requisitions and other order documents ───────
+   * Alex: "a way for the person doing the procurement to load in the receipt
+   * or requisition printout to the site, later we can collect these and use
+   * them to auto injest the items into the inventory."
+   * One procurementDocs/{docId} per file (Storage procurement/docs/{docId}/…),
+   * linked to the requests it covers, ingestStatus 'pending' until a later
+   * step reads it into the inventory. These helpers are the page's and the
+   * tests' shared truth; the rules mirror DOC_KIND_IDS and the field list. */
+  var DOC_KINDS = {
+    receipt:      { label: 'Receipt' },
+    requisition:  { label: 'Requisition' },
+    invoice:      { label: 'Invoice' },
+    packing_slip: { label: 'Packing slip' },
+    po:           { label: 'PO / order confirmation' },
+    quote:        { label: 'Quote' },
+    other:        { label: 'Other' },
+  };
+  var DOC_KIND_IDS = ['receipt', 'requisition', 'invoice', 'packing_slip', 'po', 'quote', 'other'];
+  var DOC_MAX_BYTES = 20 * 1024 * 1024;   // storage.rules procurement/**: size < 20 MB
+  var DOC_MAX_TICKETS = 50;               // firestore.rules procurementDocs: ticketIds.size() <= 50
+  var DOC_EXT_TYPES = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
+                        webp: 'image/webp', heic: 'image/heic', heif: 'image/heif', tif: 'image/tiff', tiff: 'image/tiff' };
+  var DOC_LINKABLE = ['approved', 'ordered', 'received'];
+  var DOC_RECENT_PLACED_DAYS = 60;
+
+  function docKindLabel(kind) { return (DOC_KINDS[kind] || DOC_KINDS.other).label; }
+
+  /** The content type Storage will be told: the browser's when it is a PDF or an image, else from the extension, else ''.
+   * Storage refuses anything else, and a phone's HEIC photo often arrives with an empty type. */
+  function docContentType(name, type) {
+    var t = str(type).toLowerCase();
+    if (t === 'application/pdf' || /^image\//.test(t)) return t;
+    var m = /\.([a-z0-9]+)$/i.exec(str(name));
+    return (m && DOC_EXT_TYPES[m[1].toLowerCase()]) || '';
+  }
+  /** { ok: true, contentType } or { error } for one File-like { name, size, type }. */
+  function checkDocFile(f) {
+    if (!f) return { error: 'Choose a file.' };
+    var ct = docContentType(f.name, f.type);
+    if (!ct) return { error: '“' + str(f.name) + '” is not a PDF or a photo.' };
+    if (!(num(f.size) > 0)) return { error: '“' + str(f.name) + '” is empty.' };
+    if (num(f.size) >= DOC_MAX_BYTES) return { error: '“' + str(f.name) + '” is over 20 MB.' };
+    return { ok: true, contentType: ct };
+  }
+  function safeFileName(name) {
+    var s = str(name).replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^_+|_+$/g, '');
+    return (s || 'file').slice(-120);
+  }
+  function docStoragePath(docId, name) { return 'procurement/docs/' + docId + '/' + safeFileName(name); }
+
+  /** The other requests on the same order: the same orderGroupId (a batch order) or the same PO #. */
+  function orderSiblings(t, tickets) {
+    if (!t) return [];
+    var g = str(t.orderGroupId), po = str(t.poNumber).toLowerCase();
+    if (!g && !po) return [];
+    return (tickets || []).filter(function (x) {
+      return x.id !== t.id && ((g && str(x.orderGroupId) === g) || (po && str(x.poNumber).toLowerCase() === po));
+    });
+  }
+
+  /** Requests a document can be linked to: approved / ordered / arrived, and anything put away in the last 60 days; newest activity first. */
+  function docLinkCandidates(tickets, now) {
+    var n = toMs(now) || Date.now(), win = DOC_RECENT_PLACED_DAYS * 86400000;
+    return (tickets || []).filter(function (t) {
+      if (DOC_LINKABLE.indexOf(t.status) >= 0) return true;
+      return t.status === 'placed' && n - (toMs(t.placedAt) || lastActivityMs(t)) <= win;
+    }).sort(function (a, b) { return lastActivityMs(b) - lastActivityMs(a); });
+  }
+
+  /** The procurementDocs record for one uploaded file.
+   * o: { id, kind, file: {name, size}, contentType, url, ticketIds, poNumber, vendor, docDate, note, source, actor, stamp, tickets } */
+  function buildDocRecord(o) {
+    o = o || {};
+    var ids = [];
+    (o.ticketIds || []).forEach(function (id) { id = str(id); if (id && ids.indexOf(id) < 0) ids.push(id); });
+    ids = ids.slice(0, DOC_MAX_TICKETS);
+    var linked = (o.tickets || []).filter(function (t) { return ids.indexOf(t.id) >= 0; });
+    // A blank PO # / vendor takes the linked requests' one value, when they agree on one.
+    var one = function (key) {
+      var vals = linked.map(function (t) { return str(t[key]); }).filter(Boolean);
+      return vals.length && vals.every(function (v) { return v === vals[0]; }) ? vals[0] : '';
+    };
+    var file = o.file || {};
+    return {
+      kind: DOC_KINDS[o.kind] ? o.kind : 'other',
+      fileName: str(file.name).slice(0, 200) || 'file',
+      contentType: o.contentType || docContentType(file.name, file.type),
+      size: num(file.size),
+      storagePath: docStoragePath(o.id, file.name),
+      url: o.url || '',
+      ticketIds: ids,
+      poNumber: str(o.poNumber) || one('poNumber'),
+      vendor: str(o.vendor) || one('vendor'),
+      docDate: isDateStr(str(o.docDate)) ? str(o.docDate) : '',
+      note: str(o.note).slice(0, 2000),
+      source: o.source === 'order' || o.source === 'receive' ? o.source : 'upload',
+      uploadedBy: (o.actor && o.actor.uid) || '',
+      uploadedByName: (o.actor && o.actor.name) || '',
+      uploadedAt: o.stamp,
+      updatedAt: o.stamp,
+      ingestStatus: 'pending',
+      ingestedAt: null,
+      ingestedItemIds: [],
+      ingestNote: '',
+    };
+  }
+
+  /** The fields an edit may change (the rules' list), cleaned. */
+  function docEditPatch(v, stamp) {
+    v = v || {};
+    var ids = [];
+    (v.ticketIds || []).forEach(function (id) { id = str(id); if (id && ids.indexOf(id) < 0) ids.push(id); });
+    return {
+      kind: DOC_KINDS[v.kind] ? v.kind : 'other',
+      ticketIds: ids.slice(0, DOC_MAX_TICKETS),
+      poNumber: str(v.poNumber),
+      vendor: str(v.vendor),
+      docDate: isDateStr(str(v.docDate)) ? str(v.docDate) : '',
+      note: str(v.note).slice(0, 2000),
+      updatedAt: stamp,
+    };
+  }
+
+  function docsForTicket(docs, ticketId) {
+    return (docs || []).filter(function (d) { return (d.ticketIds || []).indexOf(ticketId) >= 0; })
+      .sort(function (a, b) { return toMs(b.uploadedAt) - toMs(a.uploadedAt); });
+  }
+
+  /** The V3.813 per-request PO / receipt files that have no procurementDocs record, as read-only rows. */
+  function legacyAttachments(tickets, docs) {
+    var have = {};
+    (docs || []).forEach(function (d) { if (d.storagePath) have[d.storagePath] = 1; if (d.url) have[d.url] = 1; });
+    var out = [];
+    (tickets || []).forEach(function (t) {
+      [['po', t.poUrl, t.poStoragePath, t.orderedAt || t.orderDate, t.orderedByName || ''],
+       ['receipt', t.receiptUrl, t.receiptStoragePath, t.receivedAt, t.receivedByName || '']].forEach(function (a) {
+        if (!a[1] || have[a[1]] || (a[2] && have[a[2]])) return;
+        out.push({ id: 'legacy-' + a[0] + '-' + t.id, legacy: true, kind: a[0], url: a[1], storagePath: a[2] || '',
+                   fileName: str(a[2]).split('/').pop() || docKindLabel(a[0]), ticketIds: [t.id],
+                   poNumber: str(t.poNumber), vendor: str(t.vendor), docDate: '', note: '',
+                   uploadedAt: a[3] || null, uploadedByName: a[4], ingestStatus: 'pending' });
+      });
+    });
+    return out;
+  }
+
+  /** Every document the Receipts list shows: records + legacy request files, newest first. */
+  function docRows(docs, tickets) {
+    return (docs || []).concat(legacyAttachments(tickets, docs))
+      .sort(function (a, b) { return toMs(b.uploadedAt) - toMs(a.uploadedAt); });
+  }
+
+  /** Every word must appear in the file name, kind, PO, vendor, note, uploader or a linked request's item / requester. */
+  function searchDocs(rows, q, tickets) {
+    var words = str(q).toLowerCase().split(/\s+/).filter(Boolean);
+    if (!words.length) return rows || [];
+    var byId = {};
+    (tickets || []).forEach(function (t) { byId[t.id] = t; });
+    return (rows || []).filter(function (d) {
+      var hay = [d.fileName, docKindLabel(d.kind), d.poNumber, d.vendor, d.note, d.uploadedByName, d.docDate]
+        .concat((d.ticketIds || []).map(function (id) { var t = byId[id]; return t ? [t.itemDescription, t.requesterName, t.vendor, t.poNumber].join(' ') : ''; }))
+        .join(' ').toLowerCase();
+      return words.every(function (w) { return hay.indexOf(w) >= 0; });
+    });
+  }
+
   return {
     STATUS: STATUS, STATUS_IDS: STATUS_IDS, URGENCY: URGENCY, CATEGORIES: CATEGORIES, METHODS: METHODS,
     PURCHASE_TYPES: PURCHASE_TYPES, RECURRENCE: RECURRENCE, MAX_COMPARISONS: MAX_COMPARISONS, COMPARISON_KEYS: COMPARISON_KEYS,
@@ -1468,5 +1634,9 @@
     methodLabel: methodLabel, categoryLabel: categoryLabel, inventoryCategoryFor: inventoryCategoryFor, requestCategoryFor: requestCategoryFor,
     isActive: isActive, isMine: isMine, lastActivityMs: lastActivityMs, isRequester: isRequester,
     fmtMoney: fmtMoney, fmtDate: fmtDate, fmtDateLong: fmtDateLong, toMs: toMs, ageDays: ageDays, ageLabel: ageLabel, todayStr: todayStr, genId: genId, num: num, str: str,
+    DOC_KINDS: DOC_KINDS, DOC_KIND_IDS: DOC_KIND_IDS, DOC_MAX_BYTES: DOC_MAX_BYTES, DOC_MAX_TICKETS: DOC_MAX_TICKETS,
+    docKindLabel: docKindLabel, docContentType: docContentType, checkDocFile: checkDocFile, safeFileName: safeFileName, docStoragePath: docStoragePath,
+    orderSiblings: orderSiblings, docLinkCandidates: docLinkCandidates, buildDocRecord: buildDocRecord, docEditPatch: docEditPatch,
+    docsForTicket: docsForTicket, legacyAttachments: legacyAttachments, docRows: docRows, searchDocs: searchDocs,
   };
 });

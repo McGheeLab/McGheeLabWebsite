@@ -59,6 +59,7 @@
     { key: 'active',  label: 'Active' },
     { key: 'mine',    label: 'Mine' },
     { key: 'archive', label: 'Archive' },
+    { key: 'docs',    label: 'Receipts', gate: function () { return canFileDocs(); } },   // V3.881
     { key: 'report',  label: 'Report', gate: function () { return S.actor && (S.actor.canApprove || S.actor.canOrder); } },
   ];
 
@@ -79,6 +80,11 @@
     drafts: {},                  // 'ticketId:action' → { values, picked } — typed text survives switching forms
     live: null, deferred: false, loaded: false, loadError: null,
     pendingOpen: null,           // ticket id from ?ticket=
+    docs: [],                    // V3.881 — procurementDocs: receipts, requisitions, invoices… (newest first)
+    docUp: null,                 // V3.881 — the Receipts tab's upload form { files, kind, poNumber, vendor, docDate, note, sel, q, busy, error }
+    docEdit: null,               // V3.881 — { id, values, sel, q, busy, error } while one document is edited
+    docDel: null,                // V3.881 — the document id waiting on "Delete? / Keep it"
+    attach: null,                // V3.881 — { id: ticketId, kind, files, note, linkSiblings, busy, error, progress } on a request card
   };
 
   /* ─── Small helpers ─────────────────────────────────────── */
@@ -106,6 +112,8 @@
   function $$(sel, el) { return Array.prototype.slice.call((el || root).querySelectorAll(sel)); }
   function opt(value, label, selected) { return '<option value="' + esc(value) + '"' + (selected ? ' selected' : '') + '>' + esc(label) + '</option>'; }
   function ticketUrl(id) { return '/rm/pages/procurement.html?ticket=' + encodeURIComponent(id); }
+  /* V3.881 — who files documents from the Receipts tab and a request's Attach: purchasers, approvers, admins. */
+  function canFileDocs() { return !!(S.actor && (S.actor.canOrder || S.actor.canApprove)); }
   function viewAllowed(key) { var v = VIEWS.find(function (x) { return x.key === key; }); return !!v && (!v.gate || v.gate()); }
 
   /* ─── Boot ──────────────────────────────────────────────── */
@@ -168,7 +176,10 @@
       quiet(db().collection('inventoryLocations').get()),
       quiet(capturesRef().get()),   // V3.819 — owner-only subcollection; a guest or a rules refusal just yields none
       quiet(db().collection('priceWatch').get()),   // V3.820 — lab-wide, small (one doc per product page ever priced)
+      // V3.881 — receipts, requisitions… (inside a then, so even a synchronous throw only costs this list, never the page)
+      quiet(Promise.resolve().then(function () { return db().collection('procurementDocs').orderBy('uploadedAt', 'desc').limit(500).get(); })),
     ]);
+    if (res[7]) S.docs = res[7].docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
     S.watches = res[6] ? res[6].docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }) : [];
     S.captures = res[5] ? res[5].docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
       .filter(function (c) { return c.status !== 'used' && c.status !== 'discarded'; })
@@ -368,14 +379,34 @@
     mirrorTicket(t, r, stamp);
   }
 
-  async function uploadFile(ticketId, file, kind) {
+  /* V3.881 — every file the page uploads (Receipts tab, a request's Attach, the
+   * Order form's PO, the Receive form's receipt) goes to procurement/docs/{id}/
+   * and gets a procurementDocs record, the one list a later step reads into the
+   * inventory. The content type is told to Storage explicitly: a phone's HEIC
+   * photo often arrives typeless, and storage.rules accepts only PDF / image/*.
+   * meta: { kind, ticketIds, poNumber, vendor, docDate, note, source, keepFileOnFail }
+   * → { url, path, id } (id null + recordError when the record failed and the file was kept). */
+  async function uploadDoc(file, meta) {
+    meta = meta || {};
+    var chk = C.checkDocFile(file);
+    if (chk.error) throw new Error(chk.error);
     if (typeof firebase === 'undefined' || !firebase.storage) throw new Error('Firebase Storage not loaded');
-    var safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    var path = 'procurement/' + ticketId + '/' + kind + '-' + Date.now() + '-' + safe;
-    var ref = firebase.storage().ref().child(path);
-    var snap = await ref.put(file);
+    var ref = db().collection('procurementDocs').doc();
+    var path = C.docStoragePath(ref.id, file.name);
+    var sref = firebase.storage().ref().child(path);
+    var snap = await sref.put(file, { contentType: chk.contentType });
     var url = await snap.ref.getDownloadURL();
-    return { url: url, path: path };
+    var rec = C.buildDocRecord({ id: ref.id, kind: meta.kind, file: file, contentType: chk.contentType, url: url, ticketIds: meta.ticketIds,
+      poNumber: meta.poNumber, vendor: meta.vendor, docDate: meta.docDate, note: meta.note, source: meta.source, actor: S.actor, stamp: stampNow(), tickets: S.tickets });
+    try { await ref.set(rec); }
+    catch (err) {
+      if (meta.keepFileOnFail) return { url: url, path: path, id: null, recordError: err };
+      try { await sref.delete(); } catch (e) { /* storage.rules has no delete path; the orphan is harmless */ }
+      throw err;
+    }
+    var nowIso = new Date().toISOString();
+    S.docs.unshift(Object.assign({ id: ref.id }, rec, { uploadedAt: nowIso, updatedAt: nowIso }));
+    return { url: url, path: path, id: ref.id };
   }
 
   /* ─── Render: deferral while typing ─────────────────────── */
@@ -838,6 +869,7 @@
   function renderBody() {
     var body = $('#pt-body'); if (!body) return;
     if (S.view === 'report') { renderReport(body); return; }
+    if (S.view === 'docs') { renderDocs(body); return; }   // V3.881 — the top search box searches the documents here
     if (S.view === 'inbox' && !S.q && !S.status) { renderInbox(body); return; }
     // A search or status filter looks across EVERY ticket (the status counts in
     // the dropdown are global), whatever tab is lit; otherwise the tab decides.
@@ -953,10 +985,11 @@
     // not while the ticket is still live before ordering, where it would duplicate).
     var again = (t.status === 'ordered' || t.status === 'received' || t.status === 'placed' || t.status === 'denied' || t.status === 'cancelled')
       ? '<button type="button" class="btn btn-sm" data-act="again">' + icon('arrow-path') + ' Request again</button>' : '';
+    var attachBtn = canAttach(t) ? '<button type="button" class="btn btn-sm" data-act="attach">' + icon('paper-clip') + ' Attach receipt / requisition</button>' : '';   // V3.881
     var buttons = acts.map(function (a) {
       var cls = 'btn btn-sm' + (C.PRIMARY[a] ? ' btn-primary' : '') + (a === 'deny' || a === 'delete' || a === 'cancel' ? ' pt-btn-danger' : '');
       return '<button type="button" class="' + cls + '" data-act="' + a + '">' + esc(C.ACTION_LABEL[a]) + '</button>';
-    }).join('') + again + '<button type="button" class="btn btn-sm pt-btn-ghost" data-act="link">' + icon('link') + ' Copy link</button>';
+    }).join('') + attachBtn + again + '<button type="button" class="btn btn-sm pt-btn-ghost" data-act="link">' + icon('link') + ' Copy link</button>';
     var cmp = comparisonTableHTML(t);
     if (!cmp && (t.status === 'requested' || t.status === 'needs_info') && S.actor.canApprove) cmp = '<div class="pt-hint pt-hint--block">No price comparison was given.</div>';
 
@@ -966,12 +999,13 @@
         '<div class="pt-details">' + d.join('') + '</div>' +
         (t.reason ? '<div class="pt-reason"><span class="pt-dk">Why</span> ' + esc(t.reason) + '</div>' : '') +
         cmp +
+        ticketDocsHTML(t) +
         '<div class="pt-two">' +
           '<div><div class="pt-sub">Timeline</div><ol class="pt-timeline">' + (tl || '<li class="pt-muted">—</li>') + '</ol></div>' +
           '<div><div class="pt-sub">Notes</div><ul class="pt-notes">' + (notes || '<li class="pt-muted">No notes yet.</li>') + '</ul></div>' +
         '</div>' +
         '<div class="pt-actions">' + buttons + '</div>' +
-        '<div class="pt-formwrap">' + ((S.form && S.form.id === t.id) ? formHTML(t) : '') + '</div>' +
+        '<div class="pt-formwrap">' + ((S.form && S.form.id === t.id) ? formHTML(t) : '') + ((S.attach && S.attach.id === t.id) ? attachHTML(t) : '') + '</div>' +
       '</div>'
     );
   }
@@ -985,7 +1019,10 @@
     $$('[data-act]', scope).forEach(function (b) {
       b.addEventListener('click', function () { onAction(b.closest('.pt-row').dataset.id, b.dataset.act); });
     });
-    $$('.pt-row', scope).forEach(function (row) { if (S.form && S.form.id === row.dataset.id) wireForm(row); });
+    $$('.pt-row', scope).forEach(function (row) {
+      if (S.form && S.form.id === row.dataset.id) wireForm(row);
+      if (S.attach && S.attach.id === row.dataset.id) wireAttach(row);   // V3.881
+    });
   }
 
   function draftKey(f) { return f.id + ':' + f.action; }
@@ -1003,8 +1040,17 @@
       return;
     }
     if (act === 'again') { startRepeat(t); return; }   // V3.814 — repeat this request: the composer, prefilled
+    if (act === 'attach') {   // V3.881 — not a transition: files linked to this request (and, ticked, the rest of its order)
+      if (S.attach && S.attach.id === id) { S.attach = null; renderBody(); return; }
+      if (S.form && S.form.id === id) { stashDraft(); S.form = null; }
+      S.attach = { id: id, kind: t.status === 'approved' ? 'requisition' : 'receipt', files: [], note: '', linkSiblings: true, busy: false, error: '', progress: '' };
+      S.expanded[id] = true;
+      renderBody();
+      return;
+    }
     if (!C.can(act, t, S.actor)) { toast('That action isn’t available on this ticket', 'warn'); return; }
     if (S.form && S.form.id === id && S.form.action === act) { stashDraft(); S.form = null; renderBody(); return; }
+    if (S.attach && S.attach.id === id) S.attach = null;   // V3.881 — one inline form per card
     stashDraft();
     var values = {};
     if (act === 'edit') { values = Object.assign({}, C.cleanRequest(t)); if (!values.projectId && values.fundingAccount) { var pm2 = C.projectForAccount(S.fundedProjects, values.fundingAccount); if (pm2) values.projectId = pm2.id; } if (!values.projectId && values.project) { values.projectId = '__other'; values.projectOther = values.project; } }
@@ -1217,8 +1263,21 @@
     setBusy(true);
     var stamp = stampNow();
     try {
-      if ((a === 'order' || a === 'edit_order') && v._poFile) { setBusy(true, 'Uploading PO…'); var up = await uploadFile(t.id, v._poFile, 'po'); v.poUrl = up.url; v.poStoragePath = up.path; }
-      if (a === 'receive' && v._receiptFile) { setBusy(true, 'Uploading receipt…'); var up2 = await uploadFile(t.id, v._receiptFile, 'receipt'); v.receiptUrl = up2.url; v.receiptStoragePath = up2.path; }
+      // V3.881 — the PO / receipt is filed in Receipts too, linked to every request it covers; the request keeps its link as before.
+      if ((a === 'order' || a === 'edit_order') && v._poFile) {
+        setBusy(true, 'Uploading PO…');
+        var poIds = [t.id].concat(Object.keys(v.batch || {}).filter(function (k) { return v.batch[k]; }));
+        var up = await uploadDoc(v._poFile, { kind: 'po', source: 'order', ticketIds: poIds, poNumber: v.poNumber || t.poNumber, keepFileOnFail: true });
+        v.poUrl = up.url; v.poStoragePath = up.path;
+        if (up.recordError) toast('The PO is attached to the request, but it could not be added to Receipts', 'warn', up.recordError.message);
+      }
+      if (a === 'receive' && v._receiptFile) {
+        setBusy(true, 'Uploading receipt…');
+        var rIds = [t.id].concat(C.orderSiblings(t, S.tickets).map(function (x) { return x.id; }));
+        var up2 = await uploadDoc(v._receiptFile, { kind: 'receipt', source: 'receive', ticketIds: rIds, keepFileOnFail: true });
+        v.receiptUrl = up2.url; v.receiptStoragePath = up2.path;
+        if (up2.recordError) toast('The receipt is attached to the request, but it could not be added to Receipts', 'warn', up2.recordError.message);
+      }
       var ledgerNote = '', afterPlace = null;
       // Put-away is ONE batch: the inventory write, the usage row and the ticket
       // move land together or not at all — so two people putting the same box
@@ -1302,6 +1361,318 @@
   }
 
   /* ─── Report ────────────────────────────────────────────── */
+  /* ─── V3.881: receipts, requisitions and other order documents ───────
+   * Alex: "a way for the person doing the procurement to load in the receipt
+   * or requisition printout to the site, later we can collect these and use
+   * them to auto injest the items into the inventory." Three doors, one list:
+   * the Receipts tab (load any number, link them to requests), a request's
+   * Attach, and the Order / Receive forms (uploadDoc above). Every form is
+   * inline; delete asks in the row, never in a browser dialog. */
+  function canAttach(t) { return canFileDocs() && ['approved', 'ordered', 'received', 'placed'].indexOf(t.status) >= 0; }
+  function isImageDoc(d) { return /^image\//.test(d.contentType || '') || /\.(jpe?g|png|gif|webp|heic|heif|tiff?)$/i.test(d.fileName || ''); }
+  function fileSize(n) { n = +n || 0; return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+  function kindOptions(sel) { return C.DOC_KIND_IDS.map(function (k) { return opt(k, C.docKindLabel(k), sel === k); }).join(''); }
+
+  /** The request card's list of its documents (everyone who sees the request sees these). */
+  function ticketDocsHTML(t) {
+    var list = C.docsForTicket(S.docs, t.id);
+    if (!list.length) return '';
+    return '<div class="pt-docs-card"><div class="pt-sub">Receipts &amp; documents</div><ul class="pt-doc-mini">' + list.map(function (d) {
+      return '<li><span class="pt-doc-kind">' + esc(C.docKindLabel(d.kind)) + '</span> <a class="pt-doc-file" href="' + esc(d.url) + '" target="_blank" rel="noopener">' +
+        icon(isImageDoc(d) ? 'photo' : 'document-text') + ' ' + esc(d.fileName) + '</a> <span class="pt-muted">' + esc(C.fmtDateLong(d.uploadedAt)) +
+        (d.uploadedByName ? ' · ' + esc(d.uploadedByName) : '') + (d.note ? ' · ' + esc(d.note) : '') + '</span></li>';
+    }).join('') + '</ul></div>';
+  }
+
+  /** Chosen files, each checked before anything uploads (a red row explains itself). */
+  function filesListHTML(files) {
+    if (!files.length) return '';
+    return '<ul class="pt-doc-files" data-files-list>' + files.map(function (f, i) {
+      var chk = C.checkDocFile(f);
+      return '<li' + (chk.error ? ' class="is-bad"' : '') + '>' + icon(/^image\//.test(chk.contentType || '') ? 'photo' : 'document-text') +
+        '<span class="pt-doc-fname">' + esc(f.name) + '</span><span class="pt-muted">' + esc(chk.error || fileSize(f.size)) + '</span>' +
+        '<button type="button" class="pt-doc-x" data-rm-file="' + i + '" aria-label="Remove ' + esc(f.name) + '" title="Remove">' + icon('x-mark') + '</button></li>';
+    }).join('') + '</ul>';
+  }
+  function firstBadFile(files) { for (var i = 0; i < files.length; i++) { var c = C.checkDocFile(files[i]); if (c.error) return c.error; } return ''; }
+
+  /* ── a request's Attach ── */
+  function attachHTML(t) {
+    var a = S.attach, sib = C.orderSiblings(t, S.tickets);
+    return '<form class="pt-form pt-attach" data-attach-form novalidate>' +
+      '<div class="pt-form-title">Attach a receipt or requisition</div>' +
+      '<div class="pt-grid-3">' +
+        field('kind', 'What is it?', '<select data-a="kind">' + kindOptions(a.kind) + '</select>') +
+        field('files', 'File(s)', '<input type="file" multiple accept="application/pdf,image/*" data-a-files>', 'PDF or a photo, up to 20 MB each') +
+        field('note', 'Note (optional)', '<input type="text" data-a="note" value="' + esc(a.note) + '" placeholder="e.g. box 1 of 2">') +
+      '</div>' +
+      '<div data-files-host>' + filesListHTML(a.files) + '</div>' +
+      (sib.length ? '<label class="pt-check pt-attach-sib"><input type="checkbox" data-a-sib' + (a.linkSiblings ? ' checked' : '') + '> Also link the ' + sib.length + ' other request' + (sib.length === 1 ? '' : 's') +
+        ' on this order: ' + esc(sib.slice(0, 3).map(function (x) { return x.itemDescription; }).join(', ') + (sib.length > 3 ? '…' : '')) + '</label>' : '') +
+      '<div class="pt-form-err"' + (a.error ? '' : ' hidden') + '>' + esc(a.error || '') + '</div>' +
+      '<div class="pt-actions-row">' +
+        '<button type="submit" class="btn btn-sm btn-primary"' + (a.busy ? ' disabled' : '') + '>' + esc(a.busy ? (a.progress || 'Uploading…') : 'Upload') + '</button>' +
+        '<button type="button" class="btn btn-sm" data-a-cancel>Cancel</button>' +
+      '</div>' +
+    '</form>';
+  }
+  function wireAttach(row) {
+    var form = $('[data-attach-form]', row); if (!form || !S.attach) return;
+    var a = S.attach;
+    var paint = function () { $('[data-files-host]', form).innerHTML = filesListHTML(a.files); };
+    $$('[data-a]', form).forEach(function (el) { el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', function () { a[el.dataset.a] = el.value; }); });
+    var fi = $('[data-a-files]', form);
+    fi.addEventListener('change', function () { a.files = a.files.concat(Array.prototype.slice.call(fi.files || [])); fi.value = ''; a.error = ''; paint(); });
+    form.addEventListener('click', function (e) { var rm = e.target.closest('[data-rm-file]'); if (rm) { a.files.splice(+rm.dataset.rmFile, 1); paint(); } });
+    var sb = $('[data-a-sib]', form); if (sb) sb.addEventListener('change', function () { a.linkSiblings = sb.checked; });
+    $('[data-a-cancel]', form).addEventListener('click', function () { S.attach = null; renderBody(); });
+    form.addEventListener('keydown', function (e) { if (e.key === 'Escape') { S.attach = null; renderBody(); } });
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      if (a.busy) return;
+      var t = ticketById(a.id); if (!t) return;
+      var err = !a.files.length ? 'Choose a file to attach.' : firstBadFile(a.files);
+      if (err) { a.error = err; showFieldError(form, null, err); return; }
+      var ids = [t.id].concat(a.linkSiblings ? C.orderSiblings(t, S.tickets).map(function (x) { return x.id; }) : []);
+      var btn = $('button[type=submit]', form), files = a.files.slice(), failed = [], done = 0;
+      a.busy = true; btn.disabled = true;
+      for (var i = 0; i < files.length; i++) {
+        btn.textContent = a.progress = 'Uploading ' + (i + 1) + ' of ' + files.length + '…';
+        try { await uploadDoc(files[i], { kind: a.kind, note: a.note, ticketIds: ids, source: 'upload' }); done++; }
+        catch (x) { failed.push({ file: files[i], msg: (x && x.message) || String(x) }); }
+      }
+      if (failed.length) S.attach = Object.assign(a, { busy: false, progress: '', files: failed.map(function (f) { return f.file; }), error: 'Not uploaded: ' + failed.map(function (f) { return f.file.name + ' (' + f.msg + ')'; }).join('; ') });
+      else S.attach = null;
+      if (done) toast(done + (done === 1 ? ' file' : ' files') + ' attached' + (ids.length > 1 ? ' to ' + ids.length + ' requests' : ''));
+      renderBody();
+    });
+  }
+
+  /* ── the request picker (upload and edit) ── */
+  function matchTicket(t, words) {
+    var hay = [t.itemDescription, t.requesterName, t.vendor, t.poNumber, t.catalogueNumber].join(' ').toLowerCase();
+    return words.every(function (w) { return hay.indexOf(w) >= 0; });
+  }
+  function linkListHTML(st) {
+    var words = String(st.q || '').toLowerCase().split(/\s+/).filter(Boolean);
+    var chosen = Object.keys(st.sel).filter(function (k) { return st.sel[k]; }).map(ticketById).filter(Boolean);
+    var rest = C.docLinkCandidates(S.tickets).filter(function (t) { return !st.sel[t.id] && matchTicket(t, words); });
+    var shown = rest.slice(0, 8);
+    if (!chosen.length && !shown.length) return '<div class="pt-muted">' + (words.length ? 'No request matches.' : 'No approved, ordered or arrived requests.') + '</div>';
+    return chosen.concat(shown).map(function (t) {
+      var meta = [t.requesterName, t.vendor, t.poNumber ? 'PO ' + t.poNumber : '', (C.STATUS[t.status] || {}).short].filter(Boolean).join(' · ');
+      return '<label class="pt-check pt-linkrow"><input type="checkbox" data-link="' + esc(t.id) + '"' + (st.sel[t.id] ? ' checked' : '') + '>' +
+        '<span><strong>' + esc(t.itemDescription || '(no item)') + '</strong> <span class="pt-muted">' + esc(meta) + '</span></span></label>';
+    }).join('') + (rest.length > shown.length ? '<div class="pt-muted">' + (rest.length - shown.length) + ' more; search to narrow.</div>' : '');
+  }
+  function linkPickerHTML(st) {
+    return '<div class="pt-field pt-linkpick" data-field="links"><span class="pt-label">Which requests do they cover? <span class="pt-muted">(optional)</span></span>' +
+      '<input type="search" data-link-q placeholder="Search requests by item, person, vendor or PO…" value="' + esc(st.q || '') + '" aria-label="Search requests to link">' +
+      '<div class="pt-linklist" data-link-list>' + linkListHTML(st) + '</div></div>';
+  }
+  /* Choosing a request fills a blank PO # / vendor from it (inputs carry data-<prefix>="poNumber"/"vendor"). */
+  function wireLinkPicker(scope, st, prefix) {
+    var q = $('[data-link-q]', scope), list = $('[data-link-list]', scope);
+    if (!q || !list) return;
+    q.addEventListener('input', function () { st.q = q.value; list.innerHTML = linkListHTML(st); });
+    list.addEventListener('change', function (e) {
+      var cb = e.target.closest('[data-link]'); if (!cb) return;
+      st.sel[cb.dataset.link] = cb.checked;
+      var t = ticketById(cb.dataset.link);
+      var vals = st.values || st;
+      if (cb.checked && t) {
+        ['poNumber', 'vendor'].forEach(function (k) {
+          if (!C.str(vals[k]) && C.str(t[k])) { vals[k] = t[k]; var inp = $('[data-' + prefix + '="' + k + '"]', scope); if (inp) inp.value = t[k]; }
+        });
+      }
+    });
+  }
+
+  /* ── the Receipts tab ── */
+  function newDocUp() { return { files: [], kind: 'receipt', poNumber: '', vendor: '', docDate: '', note: '', sel: {}, q: '', busy: false, error: '' }; }
+  function knownValues(key) {
+    var seen = {}, out = [];
+    S.tickets.concat(S.docs).forEach(function (x) { var v = C.str(x[key]); if (v && !seen[v.toLowerCase()]) { seen[v.toLowerCase()] = 1; out.push(v); } });
+    return out.sort().slice(0, 300);
+  }
+  function datalist(id, vals) { return '<datalist id="' + id + '">' + vals.map(function (v) { return '<option value="' + esc(v) + '">'; }).join('') + '</datalist>'; }
+  function upFormHTML(u) {
+    var n = u.files.length;
+    return '<form class="pt-form pt-docs-form" data-up-form novalidate>' +
+      '<div data-files-host>' + filesListHTML(u.files) + '</div>' +
+      '<div class="pt-grid-3">' +
+        field('kind', 'What ' + (n === 1 ? 'is it' : 'are they') + '?', '<select data-u="kind">' + kindOptions(u.kind) + '</select>') +
+        field('poNumber', 'PO / order # (optional)', '<input type="text" data-u="poNumber" list="pt-doc-pos" value="' + esc(u.poNumber) + '">' + datalist('pt-doc-pos', knownValues('poNumber'))) +
+        field('vendor', 'Vendor (optional)', '<input type="text" data-u="vendor" list="pt-doc-vendors" value="' + esc(u.vendor) + '">' + datalist('pt-doc-vendors', knownValues('vendor'))) +
+        field('docDate', 'Date on it (optional)', '<input type="date" data-u="docDate" value="' + esc(u.docDate) + '">') +
+        field('note', 'Note (optional)', '<input type="text" data-u="note" value="' + esc(u.note) + '" placeholder="e.g. department requisition copy">') +
+      '</div>' +
+      linkPickerHTML(u) +
+      '<div class="pt-form-err"' + (u.error ? '' : ' hidden') + '>' + esc(u.error || '') + '</div>' +
+      '<div class="pt-actions-row">' +
+        '<button type="submit" class="btn btn-sm btn-primary"' + (u.busy ? ' disabled' : '') + '>' + icon('arrow-up-tray') + ' Upload ' + n + (n === 1 ? ' file' : ' files') + '</button>' +
+        '<button type="button" class="btn btn-sm" data-up-clear>Clear</button>' +
+      '</div>' +
+    '</form>';
+  }
+  function docRowHTML(d) {
+    var linked = (d.ticketIds || []).map(ticketById).filter(Boolean);
+    var meta = [d.docDate ? C.fmtDateLong(d.docDate) : '', d.vendor, d.poNumber ? 'PO ' + d.poNumber : ''].filter(Boolean).join(' · ');
+    var mine = d.uploadedBy && d.uploadedBy === S.actor.uid;
+    var canEdit = !d.legacy && (canFileDocs() || mine);
+    var canDel = !d.legacy && (S.actor.isAdmin || mine);
+    var h = '<div class="pt-doc' + (d.legacy ? ' is-legacy' : '') + '" data-doc="' + esc(d.id) + '">' +
+      '<div class="pt-doc-main">' +
+        '<span class="pt-doc-kind">' + esc(C.docKindLabel(d.kind)) + '</span>' +
+        '<a class="pt-doc-file" href="' + esc(d.url) + '" target="_blank" rel="noopener">' + icon(isImageDoc(d) ? 'photo' : 'document-text') + ' ' + esc(d.fileName) + '</a>' +
+        (meta ? '<span class="pt-muted">' + esc(meta) + '</span>' : '') +
+        (d.ingestStatus === 'pending' ? '<span class="pt-doc-ingest">Not yet in inventory</span>' : '<span class="pt-doc-ingest is-done">In inventory</span>') +
+      '</div>' +
+      (linked.length ? '<div class="pt-doc-links">For ' + linked.map(function (t) {
+        return '<a href="' + esc(ticketUrl(t.id)) + '">' + esc(t.itemDescription || '(no item)') + '</a>' + (t.requesterName ? ' <span class="pt-muted">(' + esc(t.requesterName) + ')</span>' : '');
+      }).join(', ') + '</div>' : '<div class="pt-doc-links pt-muted">Not linked to a request</div>') +
+      (d.note ? '<div class="pt-doc-note">' + esc(d.note) + '</div>' : '') +
+      '<div class="pt-doc-foot"><span class="pt-muted">' + (d.legacy ? 'Attached to the request when it was ' + (d.kind === 'po' ? 'ordered' : 'received') : 'Uploaded') +
+        (d.uploadedByName ? ' by ' + esc(d.uploadedByName) : '') + (C.toMs(d.uploadedAt) ? ' · ' + esc(C.fmtDateLong(d.uploadedAt)) : '') + '</span>' +
+        (canEdit || canDel ? '<span class="pt-doc-btns">' +
+          (canEdit ? '<button type="button" class="btn btn-sm pt-btn-ghost" data-doc-edit>' + icon('pencil-square') + ' Edit</button>' : '') +
+          (canDel ? '<button type="button" class="btn btn-sm pt-btn-ghost" data-doc-del>' + icon('trash') + ' Delete</button>' : '') + '</span>' : '') +
+      '</div>';
+    if (S.docDel === d.id) {
+      h += '<div class="pt-doc-confirm">Delete this document? It leaves this list and its requests.' +
+        '<button type="button" class="btn btn-sm pt-btn-danger-solid" data-doc-del-yes>Delete</button><button type="button" class="btn btn-sm" data-doc-del-no>Keep it</button></div>';
+    }
+    if (S.docEdit && S.docEdit.id === d.id) h += docEditHTML(S.docEdit);
+    return h + '</div>';
+  }
+  function docEditHTML(e) {
+    var v = e.values;
+    return '<form class="pt-form pt-doc-edit" data-doc-edit-form novalidate>' +
+      '<div class="pt-grid-3">' +
+        field('kind', 'What is it?', '<select data-e="kind">' + kindOptions(v.kind) + '</select>') +
+        field('poNumber', 'PO / order #', '<input type="text" data-e="poNumber" list="pt-doc-pos-e" value="' + esc(v.poNumber) + '">' + datalist('pt-doc-pos-e', knownValues('poNumber'))) +
+        field('vendor', 'Vendor', '<input type="text" data-e="vendor" list="pt-doc-vendors-e" value="' + esc(v.vendor) + '">' + datalist('pt-doc-vendors-e', knownValues('vendor'))) +
+        field('docDate', 'Date on it', '<input type="date" data-e="docDate" value="' + esc(v.docDate) + '">') +
+        field('note', 'Note', '<input type="text" data-e="note" value="' + esc(v.note) + '">') +
+      '</div>' +
+      linkPickerHTML(e) +
+      '<div class="pt-form-err"' + (e.error ? '' : ' hidden') + '>' + esc(e.error || '') + '</div>' +
+      '<div class="pt-actions-row"><button type="submit" class="btn btn-sm btn-primary"' + (e.busy ? ' disabled' : '') + '>Save</button><button type="button" class="btn btn-sm" data-doc-edit-cancel>Cancel</button></div>' +
+    '</form>';
+  }
+
+  function renderDocs(body) {
+    if (!S.docUp) S.docUp = newDocUp();
+    var u = S.docUp;
+    var all = C.docRows(S.docs, S.tickets);
+    var rows = C.searchDocs(all, S.q, S.tickets);
+    var pending = all.filter(function (d) { return d.ingestStatus === 'pending'; }).length;
+    body.innerHTML =
+      '<section class="pt-card pt-docs-up">' +
+        '<div class="pt-docs-drop" data-drop>' +
+          '<span class="pt-docs-drop-icon">' + icon('arrow-up-tray') + '</span>' +
+          '<div><strong>Load receipts and requisition printouts</strong>' +
+            '<div class="pt-muted">Drop them here, or <label class="pt-docs-pick">choose files<input type="file" multiple accept="application/pdf,image/*" data-up-files hidden></label>. ' +
+            'PDF or a photo, up to 20 MB each; on a phone you can take the photo now. They are kept here to be read into the inventory later.</div></div>' +
+        '</div>' +
+        (u.files.length ? upFormHTML(u) : '') +
+      '</section>' +
+      '<div class="pt-docs-head"><span class="pt-sub">All documents</span><span class="pt-muted">' + all.length + (all.length === 1 ? ' document' : ' documents') +
+        ' · ' + pending + ' not yet in inventory' + (S.q ? ' · ' + rows.length + ' match “' + esc(S.q) + '”' : '') + '</span></div>' +
+      (rows.length ? '<div class="pt-docs-list">' + rows.map(docRowHTML).join('') + '</div>'
+                   : '<div class="empty-state">' + (S.q ? 'No documents match.' : 'Nothing loaded yet.') + '</div>');
+    wireDocs(body);
+  }
+
+  function wireDocs(body) {
+    var u = S.docUp;
+    var addFiles = function (list) { if (!list || !list.length) return; u.files = u.files.concat(Array.prototype.slice.call(list)); u.error = ''; renderDocs(body); };
+    var pick = $('[data-up-files]', body); if (pick) pick.addEventListener('change', function () { addFiles(pick.files); });
+    var drop = $('[data-drop]', body);
+    if (drop) {
+      ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-over'); }); });
+      drop.addEventListener('dragleave', function () { drop.classList.remove('is-over'); });
+      drop.addEventListener('drop', function (e) { e.preventDefault(); drop.classList.remove('is-over'); addFiles(e.dataTransfer && e.dataTransfer.files); });
+    }
+    var form = $('[data-up-form]', body);
+    if (form) {
+      $$('[data-u]', form).forEach(function (el) { el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', function () { u[el.dataset.u] = el.value; }); });
+      wireLinkPicker(form, u, 'u');
+      form.addEventListener('click', function (e) { var rm = e.target.closest('[data-rm-file]'); if (rm) { u.files.splice(+rm.dataset.rmFile, 1); renderDocs(body); } });
+      $('[data-up-clear]', form).addEventListener('click', function () { S.docUp = newDocUp(); renderDocs(body); });
+      form.addEventListener('submit', function (e) { e.preventDefault(); uploadAll(form, body); });
+    }
+    $$('[data-doc]', body).forEach(function (row) {
+      var id = row.dataset.doc, d = S.docs.find(function (x) { return x.id === id; });
+      var on = function (sel, fn) { var b = $(sel, row); if (b) b.addEventListener('click', fn); };
+      on('[data-doc-edit]', function () {
+        if (S.docEdit && S.docEdit.id === id) { S.docEdit = null; renderDocs(body); return; }
+        var sel = {}; (d.ticketIds || []).forEach(function (t) { sel[t] = true; });
+        S.docEdit = { id: id, values: { kind: d.kind, poNumber: d.poNumber || '', vendor: d.vendor || '', docDate: d.docDate || '', note: d.note || '' }, sel: sel, q: '', busy: false, error: '' };
+        S.docDel = null; renderDocs(body);
+      });
+      on('[data-doc-del]', function () { S.docDel = S.docDel === id ? null : id; S.docEdit = null; renderDocs(body); });
+      on('[data-doc-del-no]', function () { S.docDel = null; renderDocs(body); });
+      on('[data-doc-del-yes]', function () { deleteDoc(d, body); });
+      var ef = $('[data-doc-edit-form]', row);
+      if (ef && S.docEdit) {
+        var ed = S.docEdit;
+        $$('[data-e]', ef).forEach(function (el) { el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', function () { ed.values[el.dataset.e] = el.value; }); });
+        wireLinkPicker(ef, ed, 'e');
+        $('[data-doc-edit-cancel]', ef).addEventListener('click', function () { S.docEdit = null; renderDocs(body); });
+        ef.addEventListener('submit', function (e) { e.preventDefault(); saveDocEdit(d, ef, body); });
+      }
+    });
+  }
+
+  async function uploadAll(form, body) {
+    var u = S.docUp;
+    if (u.busy) return;
+    var err = !u.files.length ? 'Choose a file.' : (firstBadFile(u.files) ? 'Remove the files marked in red first: ' + firstBadFile(u.files) : '');
+    if (err) { u.error = err; showFieldError(form, null, err); return; }
+    var ids = Object.keys(u.sel).filter(function (k) { return u.sel[k]; });
+    var btn = $('button[type=submit]', form), files = u.files.slice(), failed = [], done = 0;
+    u.busy = true; btn.disabled = true;
+    for (var i = 0; i < files.length; i++) {
+      btn.textContent = 'Uploading ' + (i + 1) + ' of ' + files.length + '…';
+      try { await uploadDoc(files[i], { kind: u.kind, poNumber: u.poNumber, vendor: u.vendor, docDate: u.docDate, note: u.note, ticketIds: ids, source: 'upload' }); done++; }
+      catch (x) { failed.push({ file: files[i], msg: (x && x.message) || String(x) }); }
+    }
+    if (failed.length) S.docUp = Object.assign(u, { busy: false, files: failed.map(function (f) { return f.file; }), error: 'Not uploaded: ' + failed.map(function (f) { return f.file.name + ' (' + f.msg + ')'; }).join('; ') });
+    else S.docUp = newDocUp();
+    if (done) toast(done + (done === 1 ? ' document' : ' documents') + ' added' + (ids.length ? ', linked to ' + ids.length + (ids.length === 1 ? ' request' : ' requests') : ''));
+    renderDocs(body);
+  }
+
+  async function saveDocEdit(d, form, body) {
+    var e = S.docEdit; if (!e || e.busy) return;
+    var patch = C.docEditPatch(Object.assign({}, e.values, { ticketIds: Object.keys(e.sel).filter(function (k) { return e.sel[k]; }) }), stampNow());
+    e.busy = true;
+    try {
+      await db().collection('procurementDocs').doc(d.id).update(patch);
+      Object.keys(patch).forEach(function (k) { if (k !== 'updatedAt') d[k] = patch[k]; });
+      S.docEdit = null;
+      toast('Document updated');
+    } catch (x) {
+      e.busy = false; e.error = 'Not saved: ' + ((x && x.message) || x);
+    }
+    renderDocs(body);
+  }
+
+  async function deleteDoc(d, body) {
+    try {
+      await db().collection('procurementDocs').doc(d.id).delete();
+      // The file itself: storage.rules gives procurement/** no delete path, so this usually refuses; the record is what lists it.
+      try { if (firebase.storage && d.storagePath) await firebase.storage().ref().child(d.storagePath).delete(); } catch (e) { /* kept in storage */ }
+      S.docs = S.docs.filter(function (x) { return x.id !== d.id; });
+      S.docDel = null;
+      toast('Document deleted');
+    } catch (x) {
+      toast('Could not delete it', 'error', (x && x.message) || String(x));
+    }
+    renderDocs(body);
+  }
+
   function renderReport(body) {
     if (!S.report.init) { S.report.init = true; S.report.from = C.fiscalYearStart(); S.report.to = C.todayStr(); }
     var inverted = S.report.from && S.report.to && S.report.from > S.report.to;

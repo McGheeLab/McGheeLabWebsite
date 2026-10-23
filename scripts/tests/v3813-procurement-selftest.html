@@ -70,6 +70,8 @@ function collRef(coll) {
     add: function (data) { var id = newId(coll.slice(0, 4) + '_'); STORE[coll] = STORE[coll] || {}; STORE[coll][id] = {}; applyPatch(STORE[coll][id], data); window.__writes.push({ op: 'add', coll: coll, id: id, data: clone(data) }); return Promise.resolve(docRef(coll, id)); },
     get: function () { var docs = Object.keys(STORE[coll] || {}).map(function (id) { return { id: id, data: function () { return clone(STORE[coll][id]); } }; }); return Promise.resolve({ docs: docs, forEach: function (fn) { docs.forEach(fn); } }); },
     where: function () { return this; },
+    orderBy: function () { return this; },   // V3.881 — procurementDocs newest first (the stub keeps insertion order)
+    limit: function () { return this; },
   };
 }
 var dbStub = { collection: collRef, batch: function () { var ops = []; return { update: function (ref, patch) { ops.push(function () { return ref.update(patch); }); }, set: function (ref, data) { ops.push(function () { return ref.set(data); }); }, commit: function () { return ops.reduce(function (p, op) { return p.then(op); }, Promise.resolve()).then(function () { window.__writes.push({ op: 'commit', n: ops.length }); }); } }; } };
@@ -236,7 +238,7 @@ async function run() {
 
     lines.push('\n<b>Ask ⇄ answer</b>');
     become({ uid: 'pi', name: 'The PI', role: 'admin' }); await sleep(20);
-    eq(tabs(), ['inbox*', 'active', 'mine', 'archive', 'report'], 'PI sees Report');
+    eq(tabs(), ['inbox*', 'active', 'mine', 'archive', 'docs', 'report'], 'PI sees Receipts and Report');
     ok($('.pt-section[data-section="approve"]') && /4/.test($('.pt-section[data-section="approve"] h3').textContent), 'inbox: 4 waiting for approval');
     eq(actions(peg), ['approve', 'ask', 'deny', 'edit', 'reassign', 'note', 'delete', 'link'], 'PI actions on a request (incl. Change funding)');
     var form = await clickAct(peg, 'ask');
@@ -270,7 +272,9 @@ async function run() {
     var fileInp = form.querySelector('[data-file="po"]'); fileInp.files = dt.files; fileInp.dispatchEvent(new Event('change', { bubbles: true }));
     await submit(form); await sleep(60);
     var up = lastWrite('upload');
-    ok(up && /^procurement\/.+\/po-\d+-po_confirmation\.pdf$/.test(up.path), 'PO uploaded to procurement/{id}/po-… (' + (up && up.path) + ')');
+    ok(up && /^procurement\/docs\/[^/]+\/po_confirmation\.pdf$/.test(up.path), 'V3.881: PO uploaded to procurement/docs/{docId}/… (' + (up && up.path) + ')');
+    var poDoc = Object.keys(STORE.procurementDocs || {}).map(function (k) { return STORE.procurementDocs[k]; }).find(function (d) { return d.kind === 'po'; }) || {};
+    eq([poDoc.kind, poDoc.source, (poDoc.ticketIds || []).slice().sort(), poDoc.poNumber, poDoc.ingestStatus, poDoc.storagePath === up.path], ['po', 'order', [peg, tips].sort(), 'PO-2026-014', 'pending', true], 'V3.881: the PO is filed in Receipts too, linked to BOTH requests on the order');
     eq([T(peg).status, T(tips).status, T(peg).poNumber, T(tips).poNumber, T(peg).purchaseMethod, !!T(peg).orderGroupId && T(peg).orderGroupId === T(tips).orderGroupId, T(peg).poUrl === T(tips).poUrl && /stub\.storage/.test(T(peg).poUrl)], ['ordered', 'ordered', 'PO-2026-014', 'PO-2026-014', 'buyways', true, true], 'both ordered on one PO, same group, same file');
     ok(lastWrite('commit') && lastWrite('commit').n === 2, 'written as ONE batch of 2');
     ok(!$('.pt-section[data-section="order"]'), 'ordered tickets leave the PI inbox');
@@ -361,9 +365,9 @@ async function run() {
     become({ uid: 'pi', name: 'The PI', role: 'admin' }); await sleep(20);
     form = await clickAct(g, 'approve'); await submit(form);
     become({ uid: 'buy', name: 'Bo Buyer', role: 'contributor', caps: ['procurement:order'] }); await sleep(20);
-    eq(tabs(), ['inbox*', 'active', 'mine', 'archive', 'report'], 'purchaser sees Report');
+    eq(tabs(), ['inbox*', 'active', 'mine', 'archive', 'docs', 'report'], 'purchaser sees Receipts and Report');
     ok($('.pt-section[data-section="order"]') && !$('.pt-section[data-section="approve"]'), 'purchaser inbox: orders, not approvals');
-    eq(actions(g), ['order', 'note', 'link'], 'purchaser can order but not approve');
+    eq(actions(g), ['order', 'note', 'attach', 'link'], 'purchaser can order but not approve (V3.881: and can attach a receipt / requisition)');
     view('active'); await sleep(20);
     $('#pt-q').focus(); typeInto($('#pt-q'), 'gloves'); await sleep(20);
     eq($$('.pt-row').map(function (r) { return r.dataset.id; }), [g], 'search narrows');
@@ -632,6 +636,77 @@ async function run() {
     PROCUREMENT.state().captures = [Object.assign({ id: 'cap2' }, STORE['userData/stu/procurementCaptures'].cap2)]; PROCUREMENT.render(); await sleep(20);
     $('[data-cap-drop="cap2"]').click(); await sleep(30);
     ok(!STORE['userData/stu/procurementCaptures'].cap2 && lastWrite('delete').id === 'cap2' && !$('#pt-captures-card'), 'Discard deletes the capture and the strip goes away when the queue is empty');
+
+    lines.push('\n<b>Receipts & requisitions (V3.881)</b>');
+    var addFiles = function (inp, files) { var d = new DataTransfer(); files.forEach(function (fl) { d.items.add(fl); }); inp.files = d.files; inp.dispatchEvent(new Event('change', { bubbles: true })); };
+    var docsInStore = function () { return Object.keys(STORE.procurementDocs || {}).map(function (k) { return Object.assign({ id: k }, STORE.procurementDocs[k]); }); };
+    var docRowEl = function (re) { return $$('.pt-doc').find(function (el) { return re.test(el.textContent); }); };
+    become({ uid: 'stu', name: 'Sam Student' }); await sleep(20);
+    eq(tabs().indexOf('docs'), -1, 'a student has no Receipts tab');
+    view('archive'); await sleep(20);
+    var pr = await openRow(peg);
+    ok(!!pr.querySelector('.pt-docs-card') && /po confirmation\.pdf/.test(pr.querySelector('.pt-docs-card').textContent), 'a student sees the request\u2019s documents on its card (the PO filed when it was ordered, under its own name)');
+    ok(!pr.querySelector('[data-act="attach"]'), '…and has no Attach (purchasers and approvers file them)');
+
+    become({ uid: 'buy', name: 'Bo Buyer', role: 'contributor', caps: ['procurement:order'] }); await sleep(20);
+    view('docs'); await sleep(20);
+    ok(!!$('[data-drop]') && /Load receipts and requisition printouts/.test($('#pt-body').textContent), 'the Receipts tab opens on a drop zone');
+    var before = docsInStore().length;
+    addFiles($('[data-up-files]'), [new File(['%PDF-1.4 req'], 'Requisition 2026-10-23.pdf', { type: 'application/pdf' }), new File(['x'], 'prices.xlsx', { type: '' }), new File(['jpg'], 'IMG_0042.HEIC', { type: '' })]);
+    await sleep(20);
+    var upf = $('[data-up-form]');
+    ok(!!upf && upf.querySelectorAll('.pt-doc-files li').length === 3, 'three files listed under the drop zone');
+    ok(/not a PDF or a photo/.test((upf.querySelector('.pt-doc-files li.is-bad') || {}).textContent || ''), 'the spreadsheet is marked in red before anything uploads');
+    await submit(upf);
+    ok(/Remove the files marked in red/.test(upf.querySelector('.pt-form-err').textContent) && docsInStore().length === before, 'upload refused while a bad file is listed; nothing written');
+    upf.querySelector('.pt-doc-files li.is-bad [data-rm-file]').click(); await sleep(20);
+    upf = $('[data-up-form]');
+    eq(upf.querySelectorAll('.pt-doc-files li').length, 2, 'the bad file is removed');
+    typeInto(upf.querySelector('[data-u="kind"]'), 'requisition');
+    typeInto(upf.querySelector('[data-link-q]'), 'PO-2026-014'); await sleep(10);
+    var lcb = upf.querySelector('[data-link="' + tips + '"]');
+    ok(!!lcb && !!upf.querySelector('[data-link="' + peg + '"]'), 'searching the PO # finds both requests on that order (put away this week, still linkable)');
+    lcb.click(); await sleep(10);
+    eq(upf.querySelector('[data-u="poNumber"]').value, 'PO-2026-014', 'linking a request fills a blank PO #');
+    await submit(upf); await sleep(120);
+    var nd = docsInStore().filter(function (d) { return d.uploadedBy === 'buy' && d.source === 'upload'; });
+    eq(nd.map(function (d) { return [d.kind, d.ticketIds, d.poNumber, d.ingestStatus, d.contentType]; }).sort(),
+       [['requisition', [tips], 'PO-2026-014', 'pending', 'application/pdf'], ['requisition', [tips], 'PO-2026-014', 'pending', 'image/heic']].sort(),
+       'two documents filed: linked to the request, PO # from it, pending for the inventory; the typeless HEIC photo is told to Storage as image/heic');
+    ok(nd.length === 2 && nd.every(function (d) { return d.storagePath.indexOf('procurement/docs/' + d.id + '/') === 0; }), 'each file in its own procurement/docs/{docId}/ folder');
+    ok(!$('[data-up-form]'), 'the form clears after a clean upload');
+    ok(!!docRowEl(/IMG_0042\.HEIC/) && /Not yet in inventory/.test(docRowEl(/IMG_0042\.HEIC/).textContent) && /For .*Pipette tips/.test(docRowEl(/IMG_0042\.HEIC/).textContent), 'the list shows it: not yet in inventory, for the request');
+    typeInto($('#pt-q'), 'IMG_0042'); await sleep(20);
+    eq($$('.pt-doc').length, 1, 'the top search box searches the documents here');
+    typeInto($('#pt-q'), ''); await sleep(20);
+
+    var hr = docRowEl(/IMG_0042\.HEIC/); hr.querySelector('[data-doc-edit]').click(); await sleep(20);
+    var ef = docRowEl(/IMG_0042\.HEIC/).querySelector('[data-doc-edit-form]');
+    typeInto(ef.querySelector('[data-e="kind"]'), 'receipt'); typeInto(ef.querySelector('[data-e="note"]'), 'photo of the slip');
+    await submit(ef); await sleep(40);
+    var hd = docsInStore().find(function (d) { return d.fileName === 'IMG_0042.HEIC'; }) || {};
+    eq([hd.kind, hd.note, (hd.storagePath || '').indexOf('procurement/docs/') === 0, hd.uploadedBy], ['receipt', 'photo of the slip', true, 'buy'], 'Edit relabels it; the file and who filed it are untouched');
+    docRowEl(/Requisition 2026-10-23\.pdf/).querySelector('[data-doc-del]').click(); await sleep(20);
+    ok(/Delete this document\?/.test(docRowEl(/Requisition 2026-10-23\.pdf/).textContent), 'Delete asks in the row, not in a browser dialog');
+    docRowEl(/Requisition 2026-10-23\.pdf/).querySelector('[data-doc-del-no]').click(); await sleep(20);
+    ok(!$('.pt-doc-confirm') && docsInStore().some(function (d) { return d.fileName === 'Requisition 2026-10-23.pdf'; }), 'Keep it closes the question and keeps it');
+    docRowEl(/Requisition 2026-10-23\.pdf/).querySelector('[data-doc-del]').click(); await sleep(20);
+    docRowEl(/Requisition 2026-10-23\.pdf/).querySelector('[data-doc-del-yes]').click(); await sleep(40);
+    ok(!docsInStore().some(function (d) { return d.fileName === 'Requisition 2026-10-23.pdf'; }) && !docRowEl(/Requisition 2026-10-23\.pdf/), 'Delete removes it');
+
+    view('archive'); await sleep(20);
+    var ar = await openRow(tips);
+    ar.querySelector('[data-act="attach"]').click(); await sleep(20);
+    var af = row(tips).querySelector('[data-attach-form]');
+    ok(!!af && af.querySelector('[data-a="kind"]').value === 'receipt', 'Attach opens inline on the request, starting on Receipt');
+    ok(!!af.querySelector('[data-a-sib]') && af.querySelector('[data-a-sib]').checked, 'it offers (ticked) to link the other request on the same order');
+    await submit(af);
+    ok(/Choose a file/.test(af.querySelector('.pt-form-err').textContent), 'no file chosen: says so in the form');
+    addFiles(af.querySelector('[data-a-files]'), [new File(['%PDF'], 'packing slip.pdf', { type: 'application/pdf' })]); await sleep(10);
+    await submit(af); await sleep(120);
+    var ps = docsInStore().find(function (d) { return d.fileName === 'packing slip.pdf'; }) || {};
+    eq([ps.kind, (ps.ticketIds || []).slice().sort(), ps.source], ['receipt', [peg, tips].sort(), 'upload'], 'attached to the request and the rest of its order');
+    ok(!row(tips).querySelector('[data-attach-form]') && /packing slip\.pdf/.test(row(tips).querySelector('.pt-docs-card').textContent), 'the form closes and the card lists it');
 
     lines.push('\n<b>Hygiene</b>');
     eq(window.__popups, [], 'no window.prompt / confirm / alert, ever');

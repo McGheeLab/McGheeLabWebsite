@@ -315,6 +315,26 @@ class FirestoreHub {
     const items = snap.docs.map(x => C.rmCollectionRow(Object.assign({ id: x.id }, x.data() || {}))).filter(r => r.id).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
     return { ok: true, total: items.length, items };
   }
+  /* ---- V3.880: what the PI assigned this person in RM → this hub's `projects` / `themes` rows, device 'rm' ---- */
+  async syncProjects({ force } = {}) {
+    const d = (await this.ref.get()).data() || {}, now = Date.now();
+    if (!force && d.projSyncAt && now - tsMs(d.projSyncAt) < C.PROJECTS_MS) return { ok: true, skipped: true };
+    const [fociSnap, projSnap] = await Promise.all([
+      db().collection('researchFoci').where('member_uids', 'array-contains', this.uid).get(),
+      db().collection('projects').where('member_uids', 'array-contains', this.uid).get()]);
+    const foci = fociSnap.docs.map(x => Object.assign({}, x.data() || {}, { id: x.id }));
+    const parentIds = [...new Set(foci.flatMap(f => ['specialty_ids', 'concept_ids', 'grant_ids', 'aim_ids'].flatMap(k => (f.links && Array.isArray(f.links[k]) ? f.links[k] : []).map(String))))].filter(id => !foci.some(f => f.id === id));
+    const parents = parentIds.length ? (await Promise.all(parentIds.slice(0, 30).map(id => db().collection('researchFoci').doc(id).get()))).filter(x => x.exists).map(x => ({ id: x.id, title: (x.data() || {}).title || x.id })) : [];
+    const projects = projSnap.docs.map(x => Object.assign({}, x.data() || {}, { id: x.id }));
+    const rows = new Map();
+    const [pr, th] = await Promise.all([this.rows.where('store', '==', 'projects').get(), this.rows.where('store', '==', 'themes').get()]);
+    pr.docs.concat(th.docs).forEach(x => { const r = rowFromDoc(x); if (r && !r.deleted && r.rec) rows.set(C.keyOf(r.store, r.id), r); });
+    const st = await this.loadState();
+    const plan = C.planAssigned({ state: st, rows, assigned: C.rmAssigned({ foci: foci.concat(parents), projects, uid: this.uid }), now });
+    if (plan.ops.length) await this.push({ dev: 'rm', conn: null, name: 'RM projects', ops: plan.ops });
+    await this.ref.set({ projSyncAt: FieldValue.serverTimestamp(), projN: plan.projects, projWritten: plan.ops.length }, { merge: true });
+    return { ok: true, projects: plan.projects, themes: plan.themes, written: plan.ops.length, removed: plan.removed };
+  }
   /** One read of the hub doc decides which throttled syncs are due (every pull calls this). */
   async quietSyncs(who, { force, only } = {}) {
     const d = (await this.ref.get()).data() || {}, now = Date.now(), out = {};
@@ -324,6 +344,7 @@ class FirestoreHub {
     if (due('tasks', 'taskSyncAt', C.TASKSYNC_MS)) await run('tasks', () => this.syncTasks({ force: true }));
     if (due('when', 'whenSyncAt', C.WHEN_MS)) await run('when', () => this.syncWhen({ force: true, who }));
     if (due('activity', 'actSyncAt', C.ACT_MS)) await run('activity', () => this.syncActivity({ force: true }));
+    if (due('projects', 'projSyncAt', C.PROJECTS_MS)) await run('projects', () => this.syncProjects({ force: true }));
     return out;
   }
   async keyMake(name) {
@@ -373,7 +394,7 @@ const scientiaHub = onRequest({ cors: false, timeoutSeconds: 300, memory: '512Mi
   res.set('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
   const path = (String(req.path || '/').replace(/^\/scientiaHub(?=\/|$)/, '') || '/').replace(/\/+$/, '') || '/';
-  if (path === '/') { res.status(200).json({ ok: true, service: 'scientiaHub', version: 'V3.878' }); return; }
+  if (path === '/') { res.status(200).json({ ok: true, service: 'scientiaHub', version: 'V3.880' }); return; }
   let who = null;
   try { who = await resolveWho(req); }
   catch (e) { res.status(401).json({ ok: false, error: 'invalid token: ' + e.message }); return; }

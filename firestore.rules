@@ -2541,6 +2541,41 @@ service cloud.firestore {
       }
     }
 
+    // V3.881 — Procurement documents: one doc per uploaded receipt,
+    // requisition, invoice, packing slip, PO or quote (the file itself is in
+    // Storage at procurement/docs/{docId}/…, storage.rules procurement/**),
+    // linked to the requests it covers and kept with ingestStatus 'pending'
+    // until a later step reads it into the inventory. Readable like the
+    // requests themselves. Purchasers / approvers / admins file anything; any
+    // other member only a file that covers a request (the Receive form, open
+    // to every member, files its receipt this way). Edits touch the labels and
+    // links only; the file, its path and who uploaded it are frozen.
+    // Tested: scripts/tests/procurement-rules.test.mjs (── documents ──).
+    match /procurementDocs/{docId} {
+      function docBuyer() { return isAdmin() || hasCap('procurement:order') || hasCap('procurement:approve'); }
+      function docKindOk() {
+        return request.resource.data.kind in ['receipt', 'requisition', 'invoice', 'packing_slip', 'po', 'quote', 'other'];
+      }
+      function docLinksOk() {
+        return request.resource.data.ticketIds is list && request.resource.data.ticketIds.size() <= 50;
+      }
+      allow read: if isLabMember();
+      allow create: if isLabMember()
+                    && request.resource.data.uploadedBy == request.auth.uid
+                    && docKindOk() && docLinksOk()
+                    && request.resource.data.storagePath is string
+                    && request.resource.data.storagePath.matches('procurement/docs/' + docId + '/.+')
+                    && request.resource.data.ingestStatus == 'pending'
+                    && (docBuyer() || request.resource.data.ticketIds.size() > 0);
+      allow update: if isLabMember()
+                    && (docBuyer() || resource.data.uploadedBy == request.auth.uid)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['kind', 'ticketIds', 'poNumber', 'vendor', 'docDate', 'note', 'updatedAt',
+                                   'ingestStatus', 'ingestedAt', 'ingestedItemIds', 'ingestNote'])
+                    && docKindOk() && docLinksOk();
+      allow delete: if isAdmin() || (isLabMember() && resource.data.uploadedBy == request.auth.uid);
+    }
+
     // Lab Tasks — admin creates, assignee + admin read/update
     match /labTasks/{docId} {
       allow read: if request.auth != null

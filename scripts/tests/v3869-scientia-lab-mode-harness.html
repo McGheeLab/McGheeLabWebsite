@@ -80,7 +80,7 @@
       else if (path === 'api/rm/annotations') res = { ok: true, total: 2, items: [
         { id: 'ann-1', color: 'green', page: 3, exact: 'stiffness rises with packing fraction', comment: '', mine: true, by: 'Gabe', at: '2026-10-20' },
         { id: 'ann-2', color: 'purple', page: 5, exact: 'unclear how granules were sized', comment: '', mine: false, by: 'Mo', at: '2026-10-21' }] };
-      else if (path === 'api/rm/sync') res = { ok: true, when: { ok: true, created: 0 }, activity: { ok: true, events: 0 } };
+      else if (path === 'api/rm/sync') res = /only=projects/.test(full) ? { ok: true, projects: { ok: true, projects: 2, themes: 1, written: 0 } } : { ok: true, when: { ok: true, created: 0 }, activity: { ok: true, events: 0 } };
       else if (path === 'api/rm/tasks/sync') res = { ok: true, paired: Object.keys(window.__rmTasks).length, blocksUpdated: 0, tasksUpdated: 0, dropped: 0 };
       else if (path === 'api/rm/tasks') res = { ok: true, tasks: Object.keys(window.__rmTasks).map(function (k) { return window.__rmTasks[k]; }) };
       else if (path === 'api/sync/conflicts') res = { ok: true, conflicts: [] };
@@ -125,7 +125,7 @@
     function qa(s) { return Array.from(D.querySelectorAll(s)); }
     function ev(code) { return W.eval(code); }
     function go(hash) { W.location.hash = hash; }
-    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.878', W.SIS_LAB.version);
+    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.880', W.SIS_LAB.version);
     /* 1. the tab row */
     var keys = qa('#tabs a.tab').map(function (a) { return a.dataset.k; });
     check('Activity and Data are not tabs on the web', keys.indexOf('activity') < 0 && keys.indexOf('data') < 0, keys.join(','));
@@ -348,6 +348,83 @@
     var nGot2 = __host.got.length; Array.from(ccard.querySelectorAll('.rmp-row')).filter(function (r) { return /stiffness rises/.test(r.textContent); })[0].click();
     check('a quote opens its paper in RM\'s reader', !!(await until(function () { return __host.got.slice(nGot2).filter(function (m) { return m.type === 'rm-read' && m.paper.paperId === 'p-smith-2024'; })[0]; }, 4000)));
     __host.mode = 'none';
+    /* 14. V3.880 — the Portfolio: what the PI assigned (from RM) as region cards; quick notes */
+    W.localStorage.removeItem('sis:lab:portfolio'); W.localStorage.removeItem('sis:view:portfolio');
+    var NOW = '2026-10-23T09:00:00';
+    W.__emit({ store: 'projects', id: 'rm-f-gels-career', del: false, name: 'RM projects', rec: { id: 'rm-f-gels-career', name: 'CAREER: granular microgels', status: 'active', created: NOW, rm: true, rmSource: 'focus', rmId: 'gels-career', rmKind: 'grant', rmStatus: 'submitted', rmRole: 'secondary',
+      rmLine: 'Design rules for cell-driven granular scaffolds', rmParents: ['GELS energy landscape'], rmUrl: '/rm/pages/research.html?id=gels-career', rmDraftId: 'career-draft', rmAssigned: true } });
+    W.__emit({ store: 'themes', id: 'rm-a-aim-1', del: false, name: 'RM projects', rec: { id: 'rm-a-aim-1', projectId: 'rm-f-gels-career', name: 'Aim 1 — Map the landscape', question: 'Size and stiffness set packing', status: 'active', supersedes: [], supersededBy: [], created: NOW, reshapedAt: null, rm: true, rmId: 'gels-career-aim-1', rmKind: 'aim', rmStatus: 'planning', rmAssigned: true } });
+    W.__emit({ store: 'projects', id: 'rm-p-source-and-sink', del: false, name: 'RM projects', rec: { id: 'rm-p-source-and-sink', name: 'Source and sink', status: 'active', created: NOW, rm: true, rmSource: 'project', rmId: 'source-and-sink', rmKind: 'paper', rmStatus: 'drafting', rmRole: 'lead', rmLine: 'For PNAS', rmParents: [], rmUrl: '/rm/pages/paper-builder.html?paper=source-and-sink', rmDraftId: 'source-and-sink', rmAssigned: true } });
+    W.__emit({ store: 'projects', id: 'rm-f-old', del: false, name: 'RM projects', rec: { id: 'rm-f-old', name: 'An old concept', status: 'active', created: NOW, rm: true, rmSource: 'focus', rmId: 'old', rmKind: 'concept', rmStatus: 'active', rmRole: 'member', rmLine: '', rmParents: [], rmUrl: '/rm/pages/research.html?id=old', rmDraftId: '', rmAssigned: false } });
+    check('what the PI assigned arrives from the hub as Scientia projects and an aim theme (device “RM projects”)', !!(await until(function () { return ev("!!M.project('rm-f-gels-career') && !!M.theme('rm-a-aim-1') && !!M.project('rm-p-source-and-sink') && !!M.project('rm-f-old')"); }, 8000)));
+    var an = ev("M.createDoc({ type: 'experiment', projectId: 'rm-f-gels-career', themeId: 'rm-a-aim-1', title: 'Packing sweep 1' }).id");
+    var sn = ev("M.createDoc({ type: 'note', projectId: 'rm-p-source-and-sink', title: 'Figure 2 plan' }).id");
+    ev("M.wire(M.doc('" + an + "').blockIds[0], M.doc('" + sn + "').blockIds[0], 'leads'); changed()");
+    go('#/portfolio');
+    var regs = await until(function () { var r = qa('.lab-reg'); return r.length >= 5 && r; }, 8000);
+    var order = (regs || []).map(function (e) { return e.dataset.region; });
+    check('the Portfolio is regions: assigned first (grant before paper), then Quick notes, then your own projects, then earlier assignments', JSON.stringify(order) === JSON.stringify(['rm-f-gels-career', 'rm-p-source-and-sink', 'quick', 'pj1', 'rm-f-old']), JSON.stringify(order) + (order.length ? '' : ' ' + W.location.hash + ' ' + ev("(function () { try { VIEWS.portfolio.render(); return 'renders'; } catch (e) { return String(e.stack || e).slice(0, 500); } })()")));
+    function reg(id) { return q('.lab-reg[data-region="' + id + '"]'); }
+    var g = reg('rm-f-gels-career');
+    check('an assigned region says what it is in RM, your role, its line and what it builds on', !!g && /Grant · submitted · assigned · secondary/.test(g.textContent) && /Design rules for cell-driven/.test(g.textContent) && /builds on GELS energy landscape/.test(g.textContent), g ? g.querySelector('.lab-reg-h').textContent.slice(0, 200) : 'none');
+    check('…its aim is a column (theme) with the note under it', !!g && !!Array.from(g.querySelectorAll('.lab-col .tcard')).filter(function (t) { return /Aim 1 — Map the landscape/.test(t.textContent) && /Size and stiffness/.test(t.textContent); })[0] && !!g.querySelector('.dcard[data-doc="' + an + '"]'));
+    check('Quick notes lists the notes outside any project', !!reg('quick') && /Quick notes/.test(reg('quick').textContent) && /Plan for coverslips/.test(reg('quick').textContent));
+    check('an earlier assignment is folded and says so', !!reg('rm-f-old') && reg('rm-f-old').classList.contains('shut') && /no longer assigned/.test(reg('rm-f-old').textContent) && !reg('rm-f-old').querySelector('.dcard'));
+    check('the note-to-note connection is drawn between the two regions', !!(await until(function () { return W.SIS_LAB.portfolio.links >= 1 && D.querySelectorAll('.lab-pf svg.plinks path.pl').length >= 1; }, 4000)), W.SIS_LAB.portfolio.links);
+    var flowed = await until(function () { var a = reg('rm-f-gels-career'), b = reg('rm-p-source-and-sink'); return a && b && parseFloat(b.style.top) >= parseFloat(a.style.top) + a.offsetHeight; }, 4000);
+    check('until one is moved, the regions flow in a column', !!flowed);
+    var nOpened = W.__opened.length; Array.from(g.querySelectorAll('.lab-reg-a button')).filter(function (b) { return /Open in RM/.test(b.textContent); })[0].click();
+    check('Open in RM opens the card on the research map', W.__opened.slice(nOpened).indexOf('/rm/pages/research.html?id=gels-career') >= 0, JSON.stringify(W.__opened.slice(nOpened)));
+    var top0 = parseFloat(reg('rm-p-source-and-sink').style.top);
+    g.querySelector('.lab-reg-tog').click();
+    var shut = await until(function () { var x = reg('rm-f-gels-career'); return x && x.classList.contains('shut') && parseFloat(reg('rm-p-source-and-sink').style.top) < top0 && x; }, 4000);
+    var LS = function () { return JSON.parse(W.localStorage.getItem('sis:lab:portfolio') || '{}'); };
+    check('the arrow folds a region to its header (the next one moves up) and remembers it', !!shut && !shut.querySelector('.dcard') && LS().open['rm-f-gels-career'] === false);
+    check('…a folded region stands for its notes in the connections', W.SIS_LAB.portfolio.links >= 1);
+    reg('rm-f-gels-career').querySelector('.lab-reg-tog').click();
+    await until(function () { return !reg('rm-f-gels-career').classList.contains('shut'); }, 4000);
+    var s = reg('rm-p-source-and-sink'), hd = s.querySelector('.lab-reg-h'), x0 = parseFloat(s.style.left), y0 = parseFloat(s.style.top), z = W.SIS_LAB.portfolio.paper.view.z;
+    var pe = function (type, x, y) { hd.dispatchEvent(new W.PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, pointerId: 7, isPrimary: true })); };
+    pe('pointerdown', 200, 200); pe('pointermove', 260, 230); pe('pointermove', 400, 300); pe('pointerup', 400, 300);
+    var moved = await until(function () { return Math.abs(parseFloat(s.style.left) - (x0 + 200 / z)) < 2 && Math.abs(parseFloat(s.style.top) - (y0 + 100 / z)) < 2; }, 3000);
+    check('dragging a region by its header moves it on the canvas', !!moved, [x0, y0, s.style.left, s.style.top, z].join(' '));
+    var st = LS();
+    check('…and the first move pins every region where it is', st.pinned === true && order.every(function (id) { return !!st.pos[id]; }) && Math.abs(st.pos['rm-p-source-and-sink'].x - (x0 + 200 / z)) < 2, JSON.stringify(st.pos));
+    var qTop = parseFloat(reg('quick').style.top);
+    reg('rm-f-gels-career').querySelector('.lab-reg-tog').click();
+    await until(function () { return reg('rm-f-gels-career').classList.contains('shut'); }, 4000); await sleep(120);
+    check('once pinned, folding one leaves the others in place', parseFloat(reg('quick').style.top) === qTop);
+    go('#/home'); await sleep(300); go('#/portfolio');
+    var back = await until(function () { var x = reg('rm-p-source-and-sink'); return x && Math.abs(parseFloat(x.style.left) - st.pos['rm-p-source-and-sink'].x) < 1 && x; }, 6000);
+    check('positions and folding survive leaving and coming back', !!back && reg('rm-f-gels-career').classList.contains('shut'));
+    W.SIS_LAB.tidyPortfolio();
+    check('Tidy up flows them again', !!(await until(function () { return !LS().pinned && reg('rm-p-source-and-sink') && parseFloat(reg('rm-p-source-and-sink').style.left) === 0; }, 6000)));
+    reg('rm-f-gels-career').querySelector('.lab-reg-tog').click();
+    go('#/project/rm-f-gels-career');
+    var pv = await until(function () { return q('.lab-rm-proj'); }, 6000);
+    check('an assigned project\'s page has its RM line and links, and no Rename (the name is RM\'s)', !!pv && /Grant in RM · submitted · assigned to you/.test(pv.textContent) && /Open the draft/.test(pv.textContent) && !qa('.page button').filter(function (b) { return b.textContent.trim() === 'Rename'; }).length);
+    go('#/project/pj1'); await sleep(400);
+    check('…your own project keeps Rename', !!qa('.page button').filter(function (b) { return b.textContent.trim() === 'Rename'; }).length && !q('.lab-rm-proj'));
+    /* quick notes */
+    go('#/portfolio'); await until(function () { return q('.lab-pf-bar'); }, 6000);
+    Array.from(q('.lab-pf-bar').querySelectorAll('button')).filter(function (b) { return /\+ Quick note/.test(b.textContent); })[0].click();
+    var bar = await until(function () { return /^#\/doc\//.test(W.location.hash) && q('.lab-qn'); }, 6000);
+    var qid = W.location.hash.split('/')[2];
+    check('+ Quick note opens a blank page outside any project, offering the templates', !!bar && ev("(function (d) { return !d.projectId && d.quick === true && M.liveBlocks(d.id).length === 1; })(M.doc('" + qid + "'))") && bar.querySelectorAll('.lab-qn-t').length > 0 && /Continue blank/.test(bar.textContent), bar ? bar.textContent.slice(0, 200) : 'no bar');
+    var chip = Array.from(bar.querySelectorAll('.lab-qn-t')).filter(function (b) { return b.textContent === 'Meeting'; })[0] || bar.querySelector('.lab-qn-t');
+    var tplId = chip.dataset.tpl, tplRows = JSON.parse(ev("JSON.stringify(DB.get('templates', '" + tplId + "').blocks.map(function (b) { return b.label; }))")), tplType = ev("DB.get('templates', '" + tplId + "').type");
+    chip.click();
+    var applied = await until(function () { return !q('.lab-qn') && ev("M.doc('" + qid + "').type") === tplType && ev("M.doc('" + qid + "').quick") === false; }, 6000);
+    var labels = JSON.parse(ev("JSON.stringify(M.liveBlocks('" + qid + "').map(function (b) { return b.label; }))"));
+    check('picking a template turns the page into that type in place, with its components; the bar goes', !!applied && JSON.stringify(labels) === JSON.stringify(tplRows) && ev("M.doc('" + qid + "').projectId") == null && !/^Quick note/.test(ev("M.doc('" + qid + "').title")), JSON.stringify([tplType, labels, tplRows, ev("M.doc('" + qid + "').title"), !!q('.lab-qn'), ev("M.doc('" + qid + "').quick"), ev("M.doc('" + qid + "').type"), ev("String(M.doc('" + qid + "').projectId)")]));
+    var qid2 = W.SIS_LAB.quickNote().id; var bar2 = await until(function () { return W.location.hash === '#/doc/' + qid2 && q('.lab-qn'); }, 6000);
+    Array.from(bar2.querySelectorAll('button')).filter(function (b) { return /Continue blank/.test(b.textContent); })[0].click();
+    check('Continue blank keeps the blank page and puts the bar away', !q('.lab-qn') && ev("M.doc('" + qid2 + "').quick") === false && ev("M.doc('" + qid2 + "').type") === 'note', JSON.stringify([!!bar2, !!q('.lab-qn'), ev("M.doc('" + qid2 + "').quick"), ev("M.doc('" + qid2 + "').type")]));
+    var qid3 = W.SIS_LAB.quickNote().id; await until(function () { return W.location.hash === '#/doc/' + qid3 && q('.lab-qn'); }, 6000);
+    var ed = await until(function () { return q('.box .ed'); }, 4000); ed.dispatchEvent(new W.Event('input', { bubbles: true }));
+    check('…and so does starting to write', !q('.lab-qn') && ev("M.doc('" + qid3 + "').quick") === false);
+    go('#/portfolio');
+    check('the quick notes are in the Quick notes region', !!(await until(function () { var r = reg('quick'); return r && r.querySelector('.dcard[data-doc="' + qid + '"]') && r.querySelector('.dcard[data-doc="' + qid2 + '"]'); }, 6000)));
     check('no browser popups, rejections or console-level failures in the frame', !W.__popups.length && !W.__rej.length, JSON.stringify([W.__popups, W.__rej]));
   } catch (e) { check('harness error', false, (e && e.stack) || e); }
   finish();

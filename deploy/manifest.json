@@ -2570,9 +2570,9 @@
    "via": "verify"
   },
   "rm/js/inventory.js": {
-   "deployedAt": "2026-10-23T16:07:05-07:00",
-   "sha256": "f1af785eda5b0dfdb323cde136393b05317fb91ce208ed02f915964ba42f4571",
-   "size": 77636,
+   "deployedAt": "2026-10-23T16:17:16-07:00",
+   "sha256": "52d6a94bf1dff11bfc113ee1c03e26736034a6cfaf127eb5491906aca2005231",
+   "size": 81526,
    "via": "verify"
   },
   "rm/js/item-explorer.js": {
@@ -4040,9 +4040,9 @@
    "via": "verify"
   },
   "rm/pages/inventory.html": {
-   "deployedAt": "2026-10-23T16:07:05-07:00",
-   "sha256": "1e1008564c40486a0bcf2364e01be1d6e8c299aecf214a751e375d848f89ba74",
-   "size": 5296,
+   "deployedAt": "2026-10-23T16:17:16-07:00",
+   "sha256": "c42c0f5ee4ced8beb64d33c50f422d1cd265d5ac436179ab282b7b4512d1d04e",
+   "size": 6303,
    "via": "verify"
   },
   "rm/pages/lab-notebook.html": {
@@ -4874,8 +4874,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-23T16:08:41-07:00",
-   "sha256": "6adfbd83f8f2ea5774ff56e8f7875d754fe5fc506bfad42e3d7326fe09f5b569",
+   "deployedAt": "2026-10-23T16:17:16-07:00",
+   "sha256": "11584b298404e88063bac1dec826512d924ede77067442575d5f257ad3189c75",
    "size": 9016,
    "via": "verify"
   },

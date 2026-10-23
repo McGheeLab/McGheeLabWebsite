@@ -277,3 +277,49 @@
   .pt-cmp-tools { width: 100%; }
   .pt-cmp-tools .btn { flex: 1; }
 }
+
+/* ── V3.881 — receipts, requisitions and other order documents ── */
+.pt-docs-up { margin-bottom: 14px; }
+.pt-docs-drop { display: flex; align-items: center; gap: 14px; padding: 16px; border: 2px dashed var(--border); border-radius: var(--radius); background: var(--bg); }
+.pt-docs-drop.is-over { border-color: var(--primary); background: rgba(37,99,235,.06); }
+.pt-docs-drop-icon { display: inline-flex; flex: 0 0 auto; color: var(--primary); }
+.pt-docs-drop-icon svg { width: 28px; height: 28px; }
+.pt-docs-pick { color: var(--primary); font-weight: 600; cursor: pointer; text-decoration: underline; }
+.pt-docs-form { margin-top: 12px; }
+.pt-doc-files { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.pt-doc-files li { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.pt-doc-files li svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--text-muted); }
+.pt-doc-files li.is-bad { border-color: var(--red); background: var(--red-bg); }
+.pt-doc-files li.is-bad .pt-muted { color: var(--red); }
+.pt-doc-fname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-doc-x { margin-left: auto; border: none; background: none; padding: 2px; cursor: pointer; color: var(--text-muted); line-height: 0; }
+.pt-linkpick input[type=search] { width: 100%; }
+.pt-linklist { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 8px; background: var(--surface); }
+.pt-linkrow { align-items: flex-start; padding: 3px 0; line-height: 1.4; }
+.pt-linkrow input { margin-top: 3px; }
+/* the picker sits inside a .pt-field, whose input rule (full width, padding, border) must not reach its checkboxes */
+.pt-linklist input[type=checkbox] { width: auto; padding: 0; border: none; box-shadow: none; flex: 0 0 auto; }
+.pt-attach-sib { margin: 0 0 8px; }
+.pt-docs-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 6px 0 8px; flex-wrap: wrap; }
+.pt-docs-list { display: flex; flex-direction: column; gap: 8px; }
+.pt-doc { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: 10px 12px; }
+.pt-doc.is-legacy { background: var(--bg); }
+.pt-doc-main { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.pt-doc-kind { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; background: rgba(37,99,235,.12); color: var(--primary); white-space: nowrap; }
+.pt-doc-file { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.pt-doc-file svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.pt-doc-ingest { font-size: 12px; color: var(--amber); }
+.pt-doc-ingest.is-done { color: var(--green); }
+.pt-doc-links, .pt-doc-note { font-size: 13px; margin-top: 4px; }
+.pt-doc-foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.pt-doc-foot > .pt-muted { margin-right: auto; }
+.pt-doc-btns { display: inline-flex; gap: 6px; margin-left: auto; }   /* Edit + Delete together at the right, wrapping as one */
+.pt-doc-foot .pt-btn-ghost { margin-left: 0; }
+.pt-doc-confirm { margin-top: 8px; padding: 8px 10px; border-radius: var(--radius); background: var(--red-bg); font-size: 13px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pt-doc-edit { margin-top: 10px; }
+.pt-docs-card { margin: 10px 0; }
+.pt-doc-mini { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.pt-doc-mini .pt-doc-file { font-weight: 500; }
+@media (max-width: 760px) {
+  .pt-docs-drop { flex-direction: column; align-items: flex-start; }
+}

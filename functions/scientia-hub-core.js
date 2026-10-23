@@ -641,6 +641,82 @@ function rmCollectionFull(doc) {
     claimText: d.claim ? String(d.claim.statement || '') : '', drafts: (Array.isArray(d.drafts) ? d.drafts : []).map(x => ({ id: String(x.id || ''), title: String(x.title || '') })) });
 }
 
+/* ───────── the person's assignments → the Portfolio (V3.880) ─────────
+   What the PI assigns a person in RM — research-map cards (`researchFoci`) and projects (`projects`), both a
+   `member_uids[]` the PI writes — becomes Scientia `projects` rows (id rm-f-<card> / rm-p-<project>), so a note can
+   be filed under the lab's own work on every device. An aim under an assigned grant is a THEME of that grant's
+   project (a line of attack inside it); an RM project an assigned card already stands for (its draft) folds into the
+   card. The mirror owns PROJECT_FIELDS / THEME_FIELDS only. Taking a person off keeps the row (notes point at it):
+   `rmAssigned: false`, and an aim theme is retired with UNASSIGNED_WHY (back to active if they are put back). */
+const PROJECTS_MS = 5 * 60 * 1000;
+const PROJECT_FIELDS = ['name', 'rm', 'rmSource', 'rmId', 'rmKind', 'rmStatus', 'rmRole', 'rmLine', 'rmParents', 'rmUrl', 'rmDraftId', 'rmAssigned'];
+const THEME_FIELDS = ['projectId', 'name', 'rm', 'rmId', 'rmKind', 'rmStatus', 'rmAssigned'];
+const UNASSIGNED_WHY = 'No longer assigned in RM';
+const approvedCard = f => { const a = isObj(f && f.approval) ? f.approval : null; return !a || !a.status || a.status === 'approved'; };
+const memberOf = (d, uid) => Array.isArray(d && d.member_uids) && d.member_uids.map(String).includes(String(uid));
+const linkIds = (f, k) => (isObj(f && f.links) && Array.isArray(f.links[k])) ? f.links[k].map(String) : [];
+const draftRefs = f => (isObj(f && f.links) && Array.isArray(f.links.draft_refs) ? f.links.draft_refs : []).map(r => String((r && r.id) || '')).filter(Boolean);
+function rmAssigned({ foci, projects, uid }) {
+  const all = (foci || []).filter(f => f && f.id != null), byId = new Map(all.map(f => [String(f.id), f]));
+  const title = f => String(f.title || f.name || f.id);
+  const mine = all.filter(f => approvedCard(f) && memberOf(f, uid)), grants = new Set(mine.filter(f => f.level === 'grant').map(f => String(f.id)));
+  const folded = new Set(), out = { projects: [], themes: [] };
+  for (const f of mine) {
+    const id = String(f.id), level = String(f.level || 'concept'), refs = draftRefs(f);
+    const promoted = isObj(f.grant_meta) && f.grant_meta.promoted_draft_id ? String(f.grant_meta.promoted_draft_id) : '';
+    const draft = String(f.source_draft_id || '') || promoted || refs[0] || '';
+    refs.concat([String(f.source_draft_id || ''), promoted]).filter(Boolean).forEach(x => folded.add(x));
+    const grant = level === 'aim' ? linkIds(f, 'grant_ids').find(g => grants.has(g)) : null;
+    if (grant) {
+      out.themes.push({ id: 'rm-a-' + safeIdPart(id), projectId: 'rm-f-' + safeIdPart(grant), name: title(f), question: String(f.one_liner || '').slice(0, 240),
+        rm: true, rmId: id, rmKind: 'aim', rmStatus: String(f.status || ''), rmAssigned: true });
+      continue;
+    }
+    const parents = [...new Set(['specialty_ids', 'concept_ids', 'grant_ids', 'aim_ids'].flatMap(k => linkIds(f, k)))].map(x => byId.get(x)).filter(Boolean).map(title);
+    out.projects.push({ id: 'rm-f-' + safeIdPart(id), name: title(f), rm: true, rmSource: 'focus', rmId: id, rmKind: level, rmStatus: String(f.status || ''),
+      rmRole: isObj(f.member_roles) && f.member_roles[uid] ? String(f.member_roles[uid]) : 'member', rmLine: String(f.one_liner || '').slice(0, 240),
+      rmParents: parents.slice(0, 4), rmUrl: '/rm/pages/research.html?id=' + encodeURIComponent(id), rmDraftId: draft, rmAssigned: true });
+  }
+  for (const p of projects || []) {
+    if (!p || p.id == null || !memberOf(p, uid) || folded.has(String(p.id))) continue;
+    const id = String(p.id), type = String(p.type || 'project');
+    out.projects.push({ id: 'rm-p-' + safeIdPart(id), name: String(p.title || p.name || id), rm: true, rmSource: 'project', rmId: id, rmKind: type, rmStatus: String(p.status || ''),
+      rmRole: String(p.lead_author_uid || '') === String(uid) ? 'lead' : 'member', rmLine: type === 'paper' && p.target_journal ? 'For ' + String(p.target_journal) : String(p.description || '').slice(0, 240),
+      rmParents: [], rmUrl: type === 'paper' ? '/rm/pages/paper-builder.html?paper=' + encodeURIComponent(id) : '/rm/pages/projects.html?item=' + encodeURIComponent(id),
+      rmDraftId: type === 'paper' ? id : '', rmAssigned: true });
+  }
+  return out;
+}
+const sameOn = (cur, row, fields) => fields.every(k => eq(cur[k] === undefined ? null : cur[k], row[k] === undefined ? null : row[k]));
+const pickOn = (row, fields) => { const o = {}; for (const k of fields) if (row[k] !== undefined) o[k] = row[k]; return o; };
+/** rows: Map keyOf(store, id) → {store, rec} for the hub's `projects` and `themes` rows; assigned: rmAssigned(). */
+function planAssigned({ state, rows, assigned, now }) {
+  const ops = [], seen = new Set(), at = isoAt(now);
+  const put = (store, rec, cur) => ops.push({ store, id: rec.id, rec, del: false, prev: cur, base: state.seq });
+  const curOf = key => { const ex = rows.get(key); return ex && isObj(ex.rec) ? ex.rec : null; };
+  for (const row of assigned.projects) {
+    const key = keyOf('projects', row.id), cur = curOf(key); seen.add(key);
+    if (cur && sameOn(cur, row, PROJECT_FIELDS)) continue;
+    put('projects', Object.assign({ id: row.id, status: 'active', created: at }, cur || {}, pickOn(row, PROJECT_FIELDS)), cur);
+  }
+  for (const row of assigned.themes) {
+    const key = keyOf('themes', row.id), cur = curOf(key); seen.add(key);
+    const back = !!(cur && cur.status === 'retired' && cur.retireReason === UNASSIGNED_WHY);
+    if (cur && !back && sameOn(cur, row, THEME_FIELDS)) continue;
+    const rec = Object.assign({ id: row.id, question: row.question, status: 'active', supersedes: [], supersededBy: [], created: at, reshapedAt: null }, cur || {}, pickOn(row, THEME_FIELDS));
+    if (back) { rec.status = 'active'; rec.retireReason = ''; rec.retiredAt = null; }
+    put('themes', rec, cur);
+  }
+  for (const [key, ex] of rows) {
+    const cur = ex && isObj(ex.rec) ? ex.rec : null;
+    if (!cur || !cur.rm || seen.has(key) || cur.rmAssigned === false || (ex.store !== 'projects' && ex.store !== 'themes')) continue;
+    const rec = Object.assign({}, cur, { rmAssigned: false });
+    if (ex.store === 'themes' && cur.status === 'active') { rec.status = 'retired'; rec.retiredAt = at; rec.retireReason = UNASSIGNED_WHY; }
+    put(ex.store, rec, cur);
+  }
+  return { ops, projects: assigned.projects.length, themes: assigned.themes.length, removed: ops.filter(o => o.rec.rmAssigned === false).length };
+}
+
 async function mirrorQuietly(hub, who, force, only) {
   if (!hub || !who) return null;
   if (typeof hub.quietSyncs === 'function') { try { return await hub.quietSyncs(who, { force: !!force, only: only || null }); } catch (e) { return { ok: false, error: String(e.message || e) }; } }
@@ -847,7 +923,19 @@ MemoryHub.prototype.quietSyncs = async function (who, { force, only } = {}) {
   if (want('tasks') && typeof this.syncTasks === 'function') out.tasks = await this.syncTasks({ force });
   if (want('when') && typeof this.syncWhen === 'function') out.when = await this.syncWhen({ force, who });
   if (want('activity') && typeof this.syncActivity === 'function') out.activity = await this.syncActivity({ force });
+  if (want('projects') && typeof this.syncProjects === 'function') out.projects = await this.syncProjects({ force });
   return out;
+};
+/* V3.880 — `rmFoci` / `rmProjects` (arrays of RM docs with id); `uid` is the person the hub belongs to */
+MemoryHub.prototype.syncProjects = async function ({ force, now } = {}) {
+  const t = now == null ? Date.now() : now;
+  if (!force && this.projSyncAt && t - this.projSyncAt < PROJECTS_MS) return { ok: true, skipped: true };
+  const rows = new Map();
+  for (const [key, row] of this.rows) if (row && (row.store === 'projects' || row.store === 'themes') && !row.deleted && row.rec) rows.set(key, row);
+  const plan = planAssigned({ state: this.st, rows, assigned: rmAssigned({ foci: this.rmFoci || [], projects: this.rmProjects || [], uid: this.uid || 'u1' }), now: t });
+  if (plan.ops.length) await this.push({ dev: 'rm', conn: null, name: 'RM projects', ops: plan.ops });
+  this.projSyncAt = t; this.projRuns = (this.projRuns || 0) + 1;
+  return { ok: true, projects: plan.projects, themes: plan.themes, written: plan.ops.length, removed: plan.removed };
 };
 /* V3.875 — `rmAnnotations`: Map paperId → raw annotation docs (with id); `uid` is the person the hub belongs to */
 MemoryHub.prototype.annotations = async function ({ paperId }) {
@@ -882,4 +970,5 @@ module.exports = { route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA
   TASKSYNC_MS, PRIO_IMPORTANCE, dueDateOf, taskIdNew, rmTaskFromBlock, rmTaskPatch, planTaskSync,
   LAB_TZ, WHEN_MS, ACT_MS, WHEN_AHEAD, WHEN_BEHIND, ACT_DAYS, todayIn, nowIn, localDayOf, addDays_, wdayOf, safeIdPart, choreNext, remOccursOn, whenOcc,
   whenTaskId, whenText, whenCandidates, rmWhenTask, planWhen, sessionDaySeconds, actEventId, activityGroups, planActivity, fmtMinutes,
-  rmAnnotationRow, visibleAnnotations, stripTags, varsToText, rmProtocolRow, rmProtocolSteps, searchProtocols, rmCollectionRow, rmCollectionFull };
+  rmAnnotationRow, visibleAnnotations, stripTags, varsToText, rmProtocolRow, rmProtocolSteps, searchProtocols, rmCollectionRow, rmCollectionFull,
+  PROJECTS_MS, PROJECT_FIELDS, THEME_FIELDS, UNASSIGNED_WHY, rmAssigned, planAssigned };

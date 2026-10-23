@@ -550,6 +550,73 @@ const dev = (hub, id, conn) => ({
     assert.strictEqual((await call(hub, web, 'GET', '/api/rm/protocols', { query: { id: 'agarose-lls' } })).body.protocol.list.length, 5);
   });
 
+  /* ---- V3.880: the person's assignments → Portfolio projects ---- */
+  const FOCI = [
+    { id: 'gels-energy-landscape', level: 'concept', title: 'GELS energy landscape', status: 'active', one_liner: 'Bio-inks that behave to plan', member_uids: ['u1', 'u2'], links: { specialty_ids: ['gels'] } },
+    { id: 'gels', level: 'specialty', title: 'GELS', status: 'active', member_uids: [] },
+    { id: 'gels-career', level: 'grant', title: 'CAREER: granular microgels', status: 'submitted', member_uids: ['u1'], member_roles: { u1: 'secondary' },
+      links: { concept_ids: ['gels-energy-landscape'], draft_refs: [{ id: 'career-draft', kind: 'grant' }] }, source_draft_id: 'career-draft' },
+    { id: 'gels-career-aim-1', level: 'aim', title: 'Aim 1 — Map the landscape', status: 'planning', one_liner: 'Size and stiffness set packing', member_uids: ['u1'], links: { grant_ids: ['gels-career'] } },
+    { id: 'lone-aim', level: 'aim', title: 'Aim 2 — elsewhere', status: 'planning', member_uids: ['u1'], links: { grant_ids: ['someone-elses-grant'] } },
+    { id: 'proposed-card', level: 'concept', title: 'My idea', member_uids: ['u1'], approval: { status: 'proposed', proposed_by: 'u1' } },
+    { id: 'not-mine', level: 'grant', title: 'R01', member_uids: ['u2'] }];
+  const RMPROJ = [
+    { id: 'career-draft', type: 'paper', title: 'CAREER: granular microgels', status: 'submitted', member_uids: ['u1'] },
+    { id: 'source-and-sink', type: 'paper', title: 'Source and sink', status: 'drafting', target_journal: 'PNAS', lead_author_uid: 'u1', member_uids: ['u1', 'u3'] },
+    { id: 'confocal', type: 'infrastructure', title: 'Confocal upkeep', member_uids: ['u3'] }];
+  await test('assigned: cards and projects the person is on; aims under an assigned grant are its themes; the grant’s draft folds in; proposals are not assignments', () => {
+    const A = C.rmAssigned({ foci: FOCI, projects: RMPROJ, uid: 'u1' });
+    assert.deepStrictEqual(A.projects.map(p => p.id).sort(), ['rm-f-gels-career', 'rm-f-gels-energy-landscape', 'rm-f-lone-aim', 'rm-p-source-and-sink']);
+    assert.deepStrictEqual(A.themes.map(t => [t.id, t.projectId, t.question]), [['rm-a-gels-career-aim-1', 'rm-f-gels-career', 'Size and stiffness set packing']]);
+    const g = A.projects.find(p => p.id === 'rm-f-gels-career');
+    assert.deepStrictEqual([g.rmKind, g.rmRole, g.rmDraftId, g.rmParents, g.rmUrl], ['grant', 'secondary', 'career-draft', ['GELS energy landscape'], '/rm/pages/research.html?id=gels-career']);
+    const s = A.projects.find(p => p.id === 'rm-p-source-and-sink');
+    assert.deepStrictEqual([s.rmKind, s.rmRole, s.rmLine, s.rmUrl], ['paper', 'lead', 'For PNAS', '/rm/pages/paper-builder.html?paper=source-and-sink']);
+    assert.deepStrictEqual(A.projects.find(p => p.id === 'rm-f-gels-energy-landscape').rmParents, ['GELS']);
+  });
+  await test('assigned: the hub mirrors them as device “RM projects”; a re-run writes nothing; the person’s own fields survive', async () => {
+    const hub = new C.MemoryHub(); hub.uid = 'u1'; hub.rmFoci = FOCI; hub.rmProjects = RMPROJ;
+    const r = await hub.syncProjects({ force: true });
+    assert.deepStrictEqual([r.projects, r.themes, r.written], [4, 1, 5]);
+    const P = id => hub.rows.get(C.keyOf('projects', id)).rec, T = id => hub.rows.get(C.keyOf('themes', id)).rec;
+    assert.strictEqual(P('rm-f-gels-career').status, 'active'); assert.ok(P('rm-f-gels-career').created, 'a project row has created (the map sorts on it)');
+    assert.deepStrictEqual([T('rm-a-gels-career-aim-1').status, T('rm-a-gels-career-aim-1').supersedes], ['active', []]);
+    assert.strictEqual(hub.rows.get(C.keyOf('projects', 'rm-f-gels-career')).name, 'RM projects');
+    assert.strictEqual((await hub.syncProjects({ force: true })).written, 0, 'nothing changed in RM → nothing written');
+    assert.strictEqual((await hub.syncProjects({})).skipped, true, 'throttled');
+    const web = dev(hub, 'web', 'c1'); await web.load();
+    const mine = Object.assign({}, P('rm-f-gels-career'), { pinned: true }); await web.push([web.op('projects', 'rm-f-gels-career', mine)]);
+    const th = Object.assign({}, T('rm-a-gels-career-aim-1'), { question: 'My sharper question' }); await web.push([web.op('themes', th.id, th)]);
+    hub.rmFoci = FOCI.map(f => f.id === 'gels-career' ? Object.assign({}, f, { title: 'CAREER: renamed', status: 'awarded' }) : f);
+    assert.strictEqual((await hub.syncProjects({ force: true })).written, 1);
+    assert.deepStrictEqual([P('rm-f-gels-career').name, P('rm-f-gels-career').rmStatus, P('rm-f-gels-career').pinned], ['CAREER: renamed', 'awarded', true]);
+    assert.strictEqual(T('rm-a-gels-career-aim-1').question, 'My sharper question', 'the question is the person’s after the first mirror');
+  });
+  await test('assigned: taking a person off keeps the project (rmAssigned false) and retires the aim theme; putting them back restores it', async () => {
+    const hub = new C.MemoryHub(); hub.uid = 'u1'; hub.rmFoci = FOCI; hub.rmProjects = RMPROJ;
+    await hub.syncProjects({ force: true });
+    hub.rmFoci = FOCI.map(f => (f.id === 'gels-career' || f.id === 'gels-career-aim-1') ? Object.assign({}, f, { member_uids: ['u2'] }) : f);
+    const r = await hub.syncProjects({ force: true });
+    assert.strictEqual(r.removed, 2);
+    const P = id => hub.rows.get(C.keyOf('projects', id)).rec, T = id => hub.rows.get(C.keyOf('themes', id)).rec;
+    assert.deepStrictEqual([P('rm-f-gels-career').rmAssigned, P('rm-f-gels-career').name], [false, 'CAREER: granular microgels']);
+    assert.deepStrictEqual([T('rm-a-gels-career-aim-1').status, T('rm-a-gels-career-aim-1').retireReason], ['retired', C.UNASSIGNED_WHY]);
+    assert.ok(hub.rows.get(C.keyOf('projects', 'rm-p-career-draft')), 'the grant is no longer assigned, so its draft paper (still assigned) is a project of its own');
+    assert.strictEqual((await hub.syncProjects({ force: true })).written, 0, 'an unassigned row is written once');
+    hub.rmFoci = FOCI;
+    await hub.syncProjects({ force: true });
+    assert.deepStrictEqual([P('rm-f-gels-career').rmAssigned, T('rm-a-gels-career-aim-1').status, T('rm-a-gels-career-aim-1').retireReason], [true, 'active', '']);
+    const re = Object.assign({}, T('rm-a-gels-career-aim-1'), { status: 'superseded' }); const web = dev(hub, 'web', 'c1'); await web.load(); await web.push([web.op('themes', re.id, re)]);
+    hub.rmFoci = FOCI.map(f => f.id === 'gels-career-aim-1' ? Object.assign({}, f, { member_uids: [] }) : f);
+    await hub.syncProjects({ force: true });
+    assert.deepStrictEqual([T('rm-a-gels-career-aim-1').status, T('rm-a-gels-career-aim-1').rmAssigned], ['superseded', false], 'a theme the person re-shaped keeps its own status');
+  });
+  await test('assigned: api/rm/sync?only=projects runs the mirror', async () => {
+    const hub = new C.MemoryHub(); hub.uid = 'u1'; hub.rmFoci = FOCI; hub.rmProjects = RMPROJ;
+    const r = await call(hub, { id: 'u1', kind: 'browser', name: 'Gabe' }, 'POST', '/api/rm/sync', { query: { only: 'projects' } });
+    assert.strictEqual(r.body.projects.written, 5); assert.strictEqual(r.body.library, undefined);
+  });
+
   console.log(`scientia-hub: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 })();

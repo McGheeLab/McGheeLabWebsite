@@ -951,7 +951,7 @@
    "id": "rm.procurement",
    "name": "Procurement, receipts & budget",
    "side": "rm",
-   "summary": "Purchase requests captured by the extension, approval-gated catalogue, price watch, pcard helper, receipts, budgets, travel.",
+   "summary": "Purchase requests captured by the extension, approval-gated catalogue, price watch, pcard helper, receipts and requisition uploads kept for inventory ingestion (procurementDocs, V3.881), budgets, travel.",
    "keywords": [
     "procurement",
     "purchase",
