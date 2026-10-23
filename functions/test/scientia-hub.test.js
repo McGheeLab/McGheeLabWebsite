@@ -302,6 +302,74 @@ const dev = (hub, id, conn) => ({
     assert.strictEqual((await call(bare, web, 'GET', '/api/rm/inventory')).body.ok, false);
   });
 
+  /* ---- V3.872: RM tasks for Scientia's task components ---- */
+  const taskBlock = (id, docId, text, extra) => Object.assign({ id, docId, kind: 'task', status: 'live', body: { text, marks: [] }, task: { due: null, allDay: false, prio: 'normal', repeat: 'none', subs: [], done: null, log: [] }, modified: '2026-10-23T10:00:00' }, extra || {});
+  await test('rmTaskFromBlock: the document TASK_ASSIGN.writeTaskFor would write (bucket assigned, due_date, priority → importance, source scientia)', () => {
+    const t = C.rmTaskFromBlock({ uid: 'u1', name: 'Alex', b: { blockId: 'b1', docId: 'd1', text: 'Order coverslips\nmore', due: '2026-10-30T09:00', prio: 'high', docTitle: 'Plan', projectName: 'GELS' }, now: Date.parse('2026-10-23T10:00:00Z') });
+    assert.ok(/^task-[a-z0-9]+-[a-z0-9]{4}$/.test(t.id), t.id);
+    assert.deepStrictEqual([t.text, t.bucket, t.status, t.done, t.due_date, t.priority, t.self_importance, t.assignedToUid, t.assignedToName, t.source], ['Order coverslips', 'assigned', 'pending', false, '2026-10-30', 'high', 2, 'u1', 'Alex', 'scientia']);
+    assert.deepStrictEqual(t.source_ref, { scientia: { docId: 'd1', blockId: 'b1' }, docTitle: 'Plan', projectName: 'GELS' });
+    assert.strictEqual(C.rmTaskFromBlock({ uid: 'u1', b: { blockId: 'b2' } }).due_date, 'TBD');
+    assert.strictEqual(C.rmTaskFromBlock({ uid: 'u1', b: { blockId: 'b2', text: '' } }).text, 'Untitled task');
+    const p = C.rmTaskPatch({ text: 'New', due: null, prio: 'low', done: true, doneAt: '2026-10-24T08:00:00' }, Date.now());
+    assert.deepStrictEqual([p.text, p.due_date, p.priority, p.self_importance, p.done, p.done_at], ['New', 'TBD', 'low', -1, true, '2026-10-24T08:00:00']);
+  });
+  await test('planTaskSync: done flows both ways, the later change wins; a removed block dismisses the RM task; a gone task is unpaired', () => {
+    const st = { seq: 3 }, now = Date.parse('2026-10-23T12:00:00Z');
+    const row = b => ({ store: 'blocks', id: b.id, rec: b });
+    // 1. done in Scientia (later) → RM gets done
+    let plan = C.planTaskSync({ state: st, now, pairs: [{ taskId: 'ta', blockId: 'b1', row: row(taskBlock('b1', 'd1', 'A', { task: { done: '2026-10-23T11:30:00', log: [] } })), task: { id: 'ta', done: false, updated_at: '2026-10-23T10:00:00' } }] });
+    assert.deepStrictEqual(plan.patches.map(x => [x.id, x.patch.done, x.patch.done_at]), [['ta', true, '2026-10-23T11:30:00']]); assert.strictEqual(plan.ops.length, 0);
+    // 2. done in RM (later) → the block gets done (and a log entry via rm)
+    plan = C.planTaskSync({ state: st, now, pairs: [{ taskId: 'tb', blockId: 'b2', row: row(taskBlock('b2', 'd1', 'B')), task: { id: 'tb', done: true, done_at: '2026-10-23T11:45:00' } }] });
+    assert.strictEqual(plan.patches.length, 0); assert.strictEqual(plan.ops.length, 1);
+    const op = plan.ops[0]; assert.strictEqual(op.store, 'blocks'); assert.strictEqual(op.id, 'b2'); assert.strictEqual(op.base, 3); assert.strictEqual(op.prev.task.done, null);
+    assert.strictEqual(op.rec.task.done, '2026-10-23T11:45:00'); assert.strictEqual(op.rec.task.log.slice(-1)[0].via, 'rm'); assert.strictEqual(op.rec.body.text, 'B');
+    // 3. reopened in RM after the block was done earlier → the block reopens
+    plan = C.planTaskSync({ state: st, now, pairs: [{ taskId: 'tc', blockId: 'b3', row: row(taskBlock('b3', 'd1', 'C', { task: { done: '2026-10-22T09:00:00', log: [] } })), task: { id: 'tc', done: false, updated_at: '2026-10-23T09:00:00' } }] });
+    assert.strictEqual(plan.ops.length, 1); assert.strictEqual(plan.ops[0].rec.task.done, null);
+    // 4. agreement → nothing; a removed block → dismissed + unpaired; a gone task → unpaired
+    plan = C.planTaskSync({ state: st, now, pairs: [
+      { taskId: 'td', blockId: 'b4', row: row(taskBlock('b4', 'd1', 'D')), task: { id: 'td', done: false } },
+      { taskId: 'te', blockId: 'b5', row: row(taskBlock('b5', 'd1', 'E', { status: 'removed' })), task: { id: 'te', done: false } },
+      { taskId: 'tf', blockId: 'b6', row: undefined, task: null }] });
+    assert.strictEqual(plan.ops.length, 0); assert.deepStrictEqual(plan.prune.sort(), ['te', 'tf']);
+    assert.deepStrictEqual(plan.patches.map(x => [x.id, x.patch.dismissed_reason]), [['te', 'removed in the notebook']]);
+  });
+  await test('tasks on the hub: create (idempotent per block), update, list, sync both ways through ordinary pull, a hub without tasks', async () => {
+    const hub = new C.MemoryHub(), web = { id: 'u1', kind: 'browser', name: 'Alex' };
+    const d = dev(hub, 'web', 'c1'); await d.load();
+    await d.push([d.op('documents', 'd1', { id: 'd1', type: 'note', title: 'Plan' }), d.op('blocks', 'b1', taskBlock('b1', 'd1', 'Order coverslips'))]);
+    const c = await call(hub, web, 'POST', '/api/rm/tasks', { body: { blockId: 'b1', docId: 'd1', text: 'Order coverslips', due: '2026-10-30', prio: 'high', docTitle: 'Plan' } });
+    assert.strictEqual(c.body.ok, true); const tid = c.body.id; assert.strictEqual(c.body.task.due_date, '2026-10-30');
+    const again = await call(hub, web, 'POST', '/api/rm/tasks', { body: { blockId: 'b1', docId: 'd1', text: 'Order coverslips' } });
+    assert.strictEqual(again.body.id, tid); assert.strictEqual(again.body.existed, true, 'one RM task per block');
+    assert.strictEqual((await call(hub, web, 'POST', '/api/rm/tasks', { body: {} })).status, 400);
+    const up = await call(hub, web, 'POST', '/api/rm/tasks/update', { body: { id: tid, text: 'Order 500 coverslips', due: null } });
+    assert.strictEqual(up.body.task.text, 'Order 500 coverslips'); assert.strictEqual(up.body.task.due_date, 'TBD');
+    assert.strictEqual((await call(hub, web, 'POST', '/api/rm/tasks/update', { body: { id: 'task-not-ours' } })).body.ok, false);
+    const list = await call(hub, web, 'GET', '/api/rm/tasks', { query: { ids: tid } });
+    assert.deepStrictEqual(list.body.tasks.map(t => [t.id, t.done, t.text]), [[tid, false, 'Order 500 coverslips']]);
+    // RM marks it done (My Week) → hello syncs → the web device pulls the block as done, from device rm
+    hub.rmTaskDocs.set(tid, Object.assign({}, hub.rmTaskDocs.get(tid), { done: true, done_at: '2026-10-24T08:00:00' }));
+    await call(hub, web, 'GET', '/api/sync/hello');
+    const pulled = await d.pull();
+    assert.deepStrictEqual(pulled.ops.map(o => [o.store, o.id, o.name, o.rec.task.done]), [['blocks', 'b1', 'RM tasks', '2026-10-24T08:00:00']]);
+    await call(hub, web, 'GET', '/api/sync/hello');
+    assert.strictEqual(hub.taskSyncRuns, 1, 'throttled');
+    // the notebook reopens it later → forced sync → RM reopened
+    const b = JSON.parse(JSON.stringify(pulled.ops[0].rec)); b.task.done = null; b.modified = '2026-10-25T09:00:00';
+    await d.push([d.op('blocks', 'b1', b)]);
+    const s = await call(hub, web, 'POST', '/api/rm/tasks/sync', {});
+    assert.strictEqual(s.body.tasksUpdated, 1); assert.strictEqual(hub.rmTaskDocs.get(tid).done, false);
+    // the block is removed → the RM task is dismissed and unpaired
+    const gone = Object.assign({}, b, { status: 'removed', modified: '2026-10-26T09:00:00' }); await d.push([d.op('blocks', 'b1', gone)]);
+    const s2 = await call(hub, web, 'POST', '/api/rm/tasks/sync', {});
+    assert.strictEqual(s2.body.dropped, 1); assert.ok(hub.rmTaskDocs.get(tid).dismissed_at); assert.strictEqual(hub.rmTasks.size, 0);
+    const bare = new C.MemoryHub(); bare.createTask = undefined;
+    assert.strictEqual((await call(bare, web, 'POST', '/api/rm/tasks', { body: { blockId: 'x' } })).body.ok, false);
+  });
+
   console.log(`scientia-hub: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 })();

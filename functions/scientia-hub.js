@@ -194,6 +194,50 @@ class FirestoreHub {
     r.cachedAt = new Date(FirestoreHub._inv.at).toISOString(); r.all = FirestoreHub._inv.rows.length;
     return r;
   }
+  /* ---- RM tasks for Scientia's task components (V3.872): userData/{uid}/tasks + the pairing on the hub doc ---- */
+  _taskRef(id) { return db().doc('userData/' + this.uid + '/tasks/' + String(id)); }
+  async _pairs() { const snap = await this.ref.get(); const m = (snap.data() || {}).rmTasks; return m && typeof m === 'object' ? m : {}; }
+  async createTask({ who, b }) {
+    const pairs = await this._pairs(), blockId = String(b.blockId);
+    const had = Object.keys(pairs).find(tid => pairs[tid] === blockId);
+    if (had) { const s = await this._taskRef(had).get(); if (s.exists) return { ok: true, id: had, task: Object.assign({ id: had }, s.data()), existed: true }; }
+    const task = C.rmTaskFromBlock({ uid: this.uid, name: (who && who.name) || '', b, now: Date.now() });
+    await this._taskRef(task.id).set(Object.assign({}, task, { createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }));
+    await this.ref.set({ rmTasks: { [task.id]: blockId } }, { merge: true });
+    return { ok: true, id: task.id, task };
+  }
+  async updateTask({ u }) {
+    const id = String(u.id || ''), pairs = await this._pairs();
+    if (!pairs[id]) return { ok: false, error: 'not a task the notebook made' };
+    const ref = this._taskRef(id), s = await ref.get();
+    if (!s.exists) return { ok: false, error: 'the task is gone from RM' };
+    const patch = Object.assign(C.rmTaskPatch(u, Date.now()), { updatedAt: FieldValue.serverTimestamp() });
+    await ref.update(patch);
+    return { ok: true, id, task: Object.assign({ id }, s.data(), patch, { updatedAt: null }) };
+  }
+  async getTasks({ ids } = {}) {
+    const pairs = await this._pairs(), pick = (ids && ids.length ? ids : Object.keys(pairs)).filter(id => pairs[id]);
+    if (!pick.length) return { ok: true, tasks: [] };
+    const snaps = await db().getAll(...pick.map(id => this._taskRef(id)));
+    return { ok: true, tasks: snaps.filter(s => s.exists).map(s => { const t = s.data() || {}; return { id: s.id, text: t.text, done: !!t.done, done_at: t.done_at || null, due_date: t.due_date, priority: t.priority || 'normal', planned_item_id: t.planned_item_id || null, dismissed_at: t.dismissed_at || null }; }) };
+  }
+  async syncTasks({ force } = {}) {
+    const snap = await this.ref.get(), d = snap.data() || {}, now = Date.now();
+    if (!force && d.taskSyncAt && now - tsMs(d.taskSyncAt) < C.TASKSYNC_MS) return { ok: true, skipped: true };
+    const pairs = d.rmTasks && typeof d.rmTasks === 'object' ? d.rmTasks : {}, ids = Object.keys(pairs);
+    if (!ids.length) { await this.ref.set({ taskSyncAt: FieldValue.serverTimestamp() }, { merge: true }); return { ok: true, paired: 0, blocksUpdated: 0, tasksUpdated: 0, dropped: 0 }; }
+    const taskSnaps = await db().getAll(...ids.map(id => this._taskRef(id)));
+    const rowSnaps = await db().getAll(...ids.map(id => this.rows.doc(rowDocId('blocks', pairs[id]))));
+    const list = ids.map((taskId, i) => ({ taskId, blockId: pairs[taskId], row: rowFromDoc(rowSnaps[i]), task: taskSnaps[i].exists ? Object.assign({ id: taskId }, taskSnaps[i].data()) : null }));
+    const st = await this.loadState();
+    const plan = C.planTaskSync({ state: st, pairs: list, now });
+    if (plan.ops.length) await this.push({ dev: 'rm', conn: null, name: 'RM tasks', ops: plan.ops });
+    for (const { id, patch } of plan.patches) { try { await this._taskRef(id).update(Object.assign({}, patch, { updatedAt: FieldValue.serverTimestamp() })); } catch (e) { /* gone */ } }
+    const meta = { taskSyncAt: FieldValue.serverTimestamp() };
+    for (const id of plan.prune) meta['rmTasks.' + id] = FieldValue.delete();
+    await this.ref.update(meta);
+    return { ok: true, paired: ids.length - plan.prune.length, blocksUpdated: plan.ops.length, tasksUpdated: plan.patches.length, dropped: plan.prune.length };
+  }
   async keyMake(name) {
     const secret = C.token(16), id = C.token(5);
     await this.keys.doc(id).set({ id, name, hash: C.sha(secret), created: FieldValue.serverTimestamp(), lastSeen: null });

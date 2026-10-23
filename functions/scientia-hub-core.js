@@ -357,6 +357,7 @@ function searchInventory(items, q, limit) {
    hello/state (throttled) or on demand, reconciles DONE both ways — the side that changed later wins. Text, due and
    priority flow Scientia → RM through `api/rm/tasks/update` (the web app posts them as they change). */
 const TASKSYNC_MS = 2 * 60 * 1000;
+const isoAt = now => isoLocal(now instanceof Date ? now : new Date(now || Date.now()));
 const PRIO_IMPORTANCE = { high: 2, normal: 0, low: -1 };
 function dueDateOf(due) { const s = String(due || ''); return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : 'TBD'; }
 function taskIdNew(now) { return 'task-' + (now || Date.now()).toString(36) + '-' + token(4).toLowerCase().replace(/[^a-z0-9]/g, 'x').slice(0, 4); }
@@ -367,7 +368,7 @@ function rmTaskFromBlock({ uid, name, b, now, id }) {
   return { id: id || taskIdNew(now), text: t, bucket: 'assigned', status: 'pending', done: false, done_at: null, due_date: dueDateOf(b && b.due),
     hours_estimate: null, self_importance: PRIO_IMPORTANCE[prio], priority: prio, notes: String((b && b.notes) || ''),
     assignedToUid: uid, assignedToName: String(name || ''), assigned_by_uid: uid, assigned_by_name: String(name || ''),
-    created_at: isoLocal(now), source: 'scientia', source_ref: { scientia: { docId: String((b && b.docId) || ''), blockId: String((b && b.blockId) || '') },
+    created_at: isoAt(now), source: 'scientia', source_ref: { scientia: { docId: String((b && b.docId) || ''), blockId: String((b && b.blockId) || '') },
       docTitle: String((b && b.docTitle) || ''), projectName: String((b && b.projectName) || '') } };
 }
 /** What `api/rm/tasks/update` may change, from {text, due, allDay, prio, notes, done, doneAt}. */
@@ -377,8 +378,8 @@ function rmTaskPatch(u, now) {
   if (u.due !== undefined) p.due_date = dueDateOf(u.due);
   if (u.prio !== undefined && PRIO_IMPORTANCE[u.prio] !== undefined) { p.priority = u.prio; p.self_importance = PRIO_IMPORTANCE[u.prio]; }
   if (u.notes !== undefined) p.notes = String(u.notes);
-  if (u.done !== undefined) { p.done = !!u.done; p.done_at = u.done ? String(u.doneAt || isoLocal(now)) : null; }
-  p.updated_at = isoLocal(now);
+  if (u.done !== undefined) { p.done = !!u.done; p.done_at = u.done ? String(u.doneAt || isoAt(now)) : null; }
+  p.updated_at = isoAt(now);
   return p;
 }
 const timeOf = v => { if (!v) return 0; if (typeof v === 'object' && typeof v.toMillis === 'function') return v.toMillis(); const n = Date.parse(String(v)); return isNaN(n) ? 0 : n; };
@@ -390,7 +391,7 @@ function planTaskSync({ state, pairs, now }) {
     const rec = p.row && isObj(p.row.rec) ? p.row.rec : null, task = p.task || null;
     if (!rec || rec.kind !== 'task' || rec.status !== 'live') {
       prune.push(p.taskId);
-      if (task && !task.done && !task.dismissed_at) patches.push({ id: p.taskId, patch: { dismissed_at: isoLocal(now), dismissed_reason: 'removed in the notebook', updated_at: isoLocal(now) } });
+      if (task && !task.done && !task.dismissed_at) patches.push({ id: p.taskId, patch: { dismissed_at: isoAt(now), dismissed_reason: 'removed in the notebook', updated_at: isoAt(now) } });
       continue;
     }
     if (!task) { prune.push(p.taskId); continue; }
@@ -398,11 +399,11 @@ function planTaskSync({ state, pairs, now }) {
     if (bd === td) continue;
     const bTime = timeOf(bd ? T.done : rec.modified), tTime = timeOf(td ? (task.done_at || task.updated_at || task.updatedAt) : (task.updated_at || task.updatedAt));
     if (bTime >= tTime) {
-      patches.push({ id: p.taskId, patch: { done: bd, done_at: bd ? String(T.done) : null, updated_at: isoLocal(now) } });
+      patches.push({ id: p.taskId, patch: { done: bd, done_at: bd ? String(T.done) : null, updated_at: isoAt(now) } });
     } else {
-      const nt = Object.assign({}, T, { done: td ? String(task.done_at || isoLocal(now)) : null, rmDoneAt: td ? String(task.done_at || '') : null });
+      const nt = Object.assign({}, T, { done: td ? String(task.done_at || isoAt(now)) : null, rmDoneAt: td ? String(task.done_at || '') : null });
       if (td) nt.log = (Array.isArray(T.log) ? T.log : []).concat([{ at: nt.done, entryId: null, due: T.due || null, via: 'rm' }]).slice(-200);
-      const next = Object.assign({}, rec, { task: nt, modified: isoLocal(now) });
+      const next = Object.assign({}, rec, { task: nt, modified: isoAt(now) });
       ops.push({ store: 'blocks', id: rec.id, rec: next, del: false, prev: rec, base: state.seq });
     }
   }
