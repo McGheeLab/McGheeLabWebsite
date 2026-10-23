@@ -94,7 +94,7 @@
   "autoPush": true,
   "autoPushMaxFiles": 80,
   "autoPushAllow": [],
-  "autoPushSkip": [".github/workflows/**"],
+  "autoPushSkip": [],
   "_autoPushSkip": "Files the hook leaves for a hand push. GitHub refuses a push that adds or changes a workflow file unless the token has the `workflow` scope (the Keychain credential does not): `gh auth refresh -h github.com -s workflow && gh auth setup-git`, then push .github/workflows yourself and empty this list.",
   "deployBranch": "main",
   "_autoPush": "V3.868: before autodeploy, the Stop hook runs `scripts/git_autopush.py`: commit the turn, rebase onto origin/main, push through the merge checker. A batch above autoPushMaxFiles waits for `--batch`; autoPushAllow lists paths the secret/confidential guard may commit anyway; deployBranch is the only branch deploy.py ships from. Set autoPush false (or MCGHEELAB_AUTOPUSH=0) to pause."
