@@ -273,6 +273,35 @@ const dev = (hub, id, conn) => ({
     assert.strictEqual((await call(hub, web, 'POST', '/api/rm/library/refresh', {})).body.ok, false);
   });
 
+  /* ---- V3.870: RM inventory for Scientia's materials ---- */
+  const inv = (id, extra) => Object.assign({ id, kind: 'item', name: 'Thing ' + id, description: '', category: 'consumable', subcategory: 'tubes', vendor: 'Alkali Scientific (ASi)',
+    catalogue_number: 'C' + id, quantity: 3, stock_status: 'full', condition: 'active', is_consumable: true, locations: [], updatedAt: '2026-04-30T20:27:11.435Z' }, extra || {});
+  await test('rmInventoryRow: a compact row from an RM inventory doc (chemicals, locations as a list or a map)', () => {
+    const r = C.rmInventoryRow(inv('tubes', { locations: [{ name: 'Fridge 2' }, 'Bench'], use_mode: 'package' }));
+    assert.deepStrictEqual([r.id, r.kind, r.name, r.vendor, r.catalogue_number, r.quantity, r.stock_status, r.use_mode, r.locations], ['tubes', 'item', 'Thing tubes', 'Alkali Scientific (ASi)', 'Ctubes', 3, 'full', 'package', ['Fridge 2', 'Bench']]);
+    const c = C.rmInventoryRow(inv('pbs', { kind: 'chemical', is_chemical: true, locations: { 'Shelf A': 2 }, quantity: '7' }));
+    assert.strictEqual(c.kind, 'chemical'); assert.deepStrictEqual(c.locations, ['Shelf A']); assert.strictEqual(c.quantity, 7);
+    assert.strictEqual(C.rmInventoryRow({ id: 'x' }).name, 'x');
+  });
+  await test('searchInventory: every word must match (name, vendor, catalogue, category); name-prefix first; limit', () => {
+    const rows = [inv('a', { name: 'Matrigel Matrix', vendor: 'Corning', category: 'reagent', subcategory: '' }), inv('b', { name: 'Microcentrifuge Tubes 1.7 mL' }), inv('c', { name: 'Tube rack', vendor: 'Fisher' }), inv('d', { name: 'Conical Centrifuge Tubes 50 mL', updatedAt: '2026-05-01' })].map(C.rmInventoryRow);
+    assert.deepStrictEqual(C.searchInventory(rows, 'tubes').items.map(r => r.id), ['d', 'b', 'c']);   // 'Tube rack' matches through its subcategory "tubes"; newest first among equals
+    assert.deepStrictEqual(C.searchInventory(rows, 'tubes alkali').items.map(r => r.id), ['d', 'b']);
+    assert.deepStrictEqual(C.searchInventory(rows, 'matrigel corning').items.map(r => r.id), ['a']);
+    assert.strictEqual(C.searchInventory(rows, 'c', 2).items.length, 2); assert.strictEqual(C.searchInventory(rows, '').total, 4);
+    assert.strictEqual(C.searchInventory(rows, 'nothing here').total, 0);
+  });
+  await test('api/rm/inventory on the hub: q, limit, ids; a hub without an inventory answers ok:false', async () => {
+    const hub = new C.MemoryHub(); hub.rmInventory = [inv('tubes'), inv('pbs', { kind: 'chemical', name: 'PBS 10x' }), inv('tips', { name: 'Pipette tips' })];
+    const web = { id: 'u1', kind: 'browser', name: 'Alex' };
+    const r = await call(hub, web, 'GET', '/api/rm/inventory', { query: { q: 'pbs' } });
+    assert.strictEqual(r.status, 200); assert.deepStrictEqual(r.body.items.map(x => x.id), ['pbs']); assert.strictEqual(r.body.items[0].kind, 'chemical');
+    assert.strictEqual((await call(hub, web, 'GET', '/api/rm/inventory', { query: { limit: '2' } })).body.items.length, 2);
+    assert.deepStrictEqual((await call(hub, web, 'GET', '/api/rm/inventory', { query: { ids: 'tips,tubes' } })).body.items.map(x => x.id).sort(), ['tips', 'tubes']);
+    const bare = new C.MemoryHub(); bare.inventory = undefined;
+    assert.strictEqual((await call(bare, web, 'GET', '/api/rm/inventory')).body.ok, false);
+  });
+
   console.log(`scientia-hub: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 })();

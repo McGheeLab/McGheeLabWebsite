@@ -1525,7 +1525,11 @@
    ],
    "status": "retiring",
    "merges_into": "rm.inventory",
-   "plan": "CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md"
+   "plan": "CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md",
+   "note": "V3.871: in the WEB build the picker and the Materials page search RM’s inventory (`api/rm/inventory`); a picked item becomes a resource note with `inventoryId`; usage is logged in RM. The desktop app keeps its own.",
+   "related": [
+    "rm.inventory"
+   ]
   },
   {
    "id": "scientia.canvas",

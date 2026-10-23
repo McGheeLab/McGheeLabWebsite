@@ -369,6 +369,10 @@ async function route(req, ctx) {
     if (typeof hub.rmPdfUrl !== 'function') return J(404, { ok: false, error: 'no RM library on this hub' });
     const r = await hub.rmPdfUrl(g('id', '')); return J(r.ok ? 200 : 404, r);
   }
+  if (p === '/api/rm/inventory') {
+    if (typeof hub.inventory !== 'function') return J(200, { ok: false, error: 'no RM inventory on this hub', items: [], total: 0 });
+    return J(200, await hub.inventory({ q: g('q', ''), limit: g('limit', ''), ids: g('ids', '') ? g('ids', '').split(',').map(s => s.trim()).filter(Boolean) : null }));
+  }
   if (p === '/api/sync/state' || (p === '/api/snapshot' && !post)) {
     await mirrorQuietly(hub, who);
     const st = await hub.loadState();
@@ -446,6 +450,11 @@ MemoryHub.prototype.mirrorLibrary = async function ({ force } = {}) {
   this.mirrorAt = now; this.mirrorN = plan.total; this.mirrorRuns = (this.mirrorRuns || 0) + 1;
   return { ok: true, total: plan.total, written: plan.ops.length, changed: plan.changed, removed: plan.removed };
 };
+MemoryHub.prototype.inventory = async function ({ q, limit, ids } = {}) {
+  let rows = (this.rmInventory || []).map(rmInventoryRow);
+  if (ids && ids.length) rows = rows.filter(r => ids.includes(r.id));
+  return searchInventory(rows, q, limit);
+};
 MemoryHub.prototype.libraryRows = function () {
   const out = new Map();
   for (const [key, row] of this.rows) if (row && row.store === 'library' && !row.deleted && row.rec) out.set(key, row);
@@ -453,4 +462,4 @@ MemoryHub.prototype.libraryRows = function () {
 };
 
 module.exports = { route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA_BYTES, NOSYNC, KEYS, AUTO_MAX, COUNT_SKIP, MAX_OPS, PULL_MAX, MISSING, isoLocal, eq, merge3, emptyState, planPush, pullResult, planResolve, planReplace, exportState, helloResult, keyOf, rowKey, MemoryHub, sha, token,
-  MIRROR_MS, MIRROR_FIELDS, rmItemToLibraryRow, planMirror };
+  MIRROR_MS, MIRROR_FIELDS, rmItemToLibraryRow, planMirror, INVENTORY_MS, INVENTORY_LIMIT, rmInventoryRow, searchInventory };

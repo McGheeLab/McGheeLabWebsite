@@ -28,7 +28,7 @@
     activity: '/rm/pages/activity-overview.html?tab=tracker',
     inventory: '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.869', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.871', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -139,4 +139,135 @@
       });
     }
   } catch (e) { warn('read', e); }
+
+  /* ---- 5. Materials come from the lab inventory (V3.870) ----
+     A resource note stays Gabe's unit (lot, passage, lineage, barriers); picking an item from RM's inventory finds or
+     makes the resource note for it (`inventoryId`), on the note's "+ material" picker and on the Materials page.
+     Usage is logged in RM (the item's page has the dial and the ledger); the note links there. */
+  var INV = { cache: {}, at: {}, ttl: 2 * 60 * 1000 };
+  LAB.inventory = inventory; LAB.useInventory = useInventory; LAB.kindFor = kindFor; LAB.resourceFor = resourceFor;
+  async function inventory(q) {
+    q = String(q || '').trim();
+    var now = Date.now();
+    if (INV.cache[q] && now - INV.at[q] < INV.ttl) return INV.cache[q];
+    try {
+      var r = await fetch('api/rm/inventory?q=' + encodeURIComponent(q) + '&limit=40');
+      var j = r.ok ? await r.json() : null;
+      var out = j && j.ok ? j : { ok: false, items: [], total: 0, error: (j && j.error) || 'could not reach the hub' };
+      INV.cache[q] = out; INV.at[q] = now; return out;
+    } catch (e) { return { ok: false, items: [], total: 0, error: String(e.message || e) }; }
+  }
+  function kindFor(item) {
+    var s = ((item.category || '') + ' ' + (item.subcategory || '') + ' ' + (item.name || '')).toLowerCase();
+    if (item.kind === 'chemical') return 'chemical';
+    if (/antibod/.test(s)) return 'antibody';
+    if (/cell line|cells\b|cell-line/.test(s)) return 'cell line';
+    if (/plasmid|vector/.test(s)) return 'plasmid';
+    if (/medium|media\b|dmem|serum|fbs/.test(s)) return 'medium';
+    if (/instrument|equipment|microscope|pump|incubator/.test(s)) return 'instrument';
+    if (/gel|hydrogel|matrigel|collagen|alginate/.test(s)) return 'gel batch';
+    if (/reagent|enzyme|buffer|kit|dye|stain/.test(s)) return 'reagent';
+    return 'other';
+  }
+  function resourceFor(item) {
+    return DB.where('documents', function (x) { return x.type === 'resource' && x.inventoryId === item.id && !x.archived; })[0] || null;
+  }
+  function invLine(item) {
+    var bits = [];
+    if (item.vendor) bits.push(item.vendor);
+    if (item.catalogue_number) bits.push('cat. ' + item.catalogue_number);
+    if (item.quantity || item.quantity === 0) bits.push(item.quantity + (item.stock_status ? ' · ' + item.stock_status : ''));
+    if (item.locations && item.locations.length) bits.push(item.locations.join(', '));
+    return bits.join(' · ');
+  }
+  /** Find or make the resource note for an inventory item; link it on the note when one is given. */
+  function useInventory(item, d) {
+    var r = resourceFor(item);
+    if (!r) {
+      r = M.createDoc({ type: 'resource', projectId: d ? d.projectId : undefined, title: item.name,
+        templateId: (M.enabledTemplates && (M.enabledTemplates('resource')[0] || {}).id) || undefined,
+        header: { kind: kindFor(item), supplier: item.vendor || '', catalog: item.catalogue_number || '', location: (item.locations || [])[0] || '' } });
+      r.inventoryId = item.id; r.rm = true; r.inventoryKind = item.kind; DB.put('documents', r);
+    }
+    if (d) { d.materials = Array.from(new Set((d.materials || []).concat([r.id]))); M.touchDoc(d); }
+    changed();
+    return r;
+  }
+  function invRow(item, onUse, useLabel) {
+    var r = resourceFor(item);
+    return h('div.opt.lab-inv', { 'data-inv': item.id },
+      h('div', h('b', item.name), r ? h('span.pill', 'in your materials') : null, h('div.tiny.muted', invLine(item))),
+      h('div.row', { style: { marginTop: '4px', gap: '6px' } },
+        btn('xs pri', useLabel || 'Use in this note', function () { onUse(item); }),
+        btn('xs', 'Open in RM', function () { openRM(RM.inventory + '?item=' + encodeURIComponent(item.id)); }, 'The item’s page on the lab site: stock, locations, log a use')));
+  }
+  /** The inventory search block: a search box and the rows it finds (used by the picker and the Materials page). */
+  function invSearch(onUse, useLabel, opts) {
+    opts = opts || {};
+    var q = h('input.inp', { type: 'search', placeholder: 'Search the lab inventory — name, vendor, catalogue number…', style: { width: '100%' } });
+    var list = h('div.opts.lab-inv-list'), note = h('div.tiny.muted.lab-inv-note', { style: { margin: '4px 0' } }, opts.hint || '');
+    var run = debounce(async function () {
+      var text = q.value.trim();
+      if (!text && !opts.showEmpty) { list.replaceChildren(); note.textContent = opts.hint || ''; return; }
+      note.textContent = 'Searching the lab inventory…';
+      var res = await inventory(text);
+      if (q.value.trim() !== text) return;
+      note.textContent = res.ok ? (res.total ? plural(res.total, 'item') + (res.total > res.items.length ? ', first ' + res.items.length : '') : 'Nothing in the inventory matches') : res.error;
+      list.replaceChildren.apply(list, res.items.map(function (it) { return invRow(it, onUse, useLabel); }));
+    }, 160);
+    q.addEventListener('input', run);
+    var el = h('div.lab-inv-search', q, note, list);
+    el._run = run; el._q = q;
+    return el;
+  }
+  try {
+    var origPick = MATS.pick;
+    MATS.pick = function (d, cb) {
+      var m = modal({ title: 'Materials used in this note', wide: true, actions: [
+        { label: 'Done' },
+        { label: '+ New material (note)', run: function () { App.newDoc({ type: 'resource', projectId: d.projectId }); } },
+        { label: '+ Add to the lab inventory', run: function () { openRM(RM.inventory); return false; } }],
+        body: h('div',
+          h('h3.lab', { style: { marginTop: 0 } }, 'From the lab inventory'),
+          invSearch(function (item) { useInventory(item, d); m.close(); toast('Linked · ' + item.name); cb && cb(); }, 'Use in this note', { hint: 'Type to search RM’s inventory — picking an item makes (or reuses) its material note here.' }),
+          h('h3.lab', 'Your materials'),
+          (function () {
+            var mine = MATS.all().filter(function (r) { return !(d.materials || []).includes(r.id); });
+            return mine.length ? h('div.opts', mine.map(function (r) { return h('div.opt', { on: { mousedown: function (e) { e.preventDefault(); d.materials = Array.from(new Set((d.materials || []).concat([r.id]))); M.touchDoc(d); changed(); m.close(); cb && cb(); } } },
+              h('div', h('b', MATS.label(r)), h('div.tiny.muted', MATS.sub(r)))); })) : h('div.empty', 'No material notes yet — pick one from the inventory above.');
+          })()) });
+      return m;
+    };
+    MATS.pick._orig = origPick;
+  } catch (e) { warn('materials picker', e); }
+  try {
+    var OrigMat = VIEWS.materials;
+    VIEWS.materials = Object.assign({}, OrigMat, {
+      render: function () {
+        var page = OrigMat.render.apply(this, arguments);
+        var card = h('div.card.flat.lab-inv-card', { style: { marginBottom: '12px' } },
+          h('div.row', h('h3.lab', { style: { margin: 0 } }, 'The lab inventory'), h('span.tiny.muted', 'RM’s inventory: stock, locations, lots. A material note here is the lab-notebook side of an item there.')),
+          invSearch(function (item) { var had = resourceFor(item), r = useInventory(item, null); toast((had ? 'Opened' : 'Made') + ' · ' + r.title); App.go('#/mat/' + r.id); }, 'Make a material note', { hint: 'Search, then make (or open) the material note for an item.' }),
+          h('div.row', { style: { marginTop: '8px' } }, btn('', 'Open RM’s inventory', function () { openRM(RM.inventory); })));
+        var stand = page.querySelector && page.querySelector('p.stand');
+        if (stand && stand.parentNode === page) page.insertBefore(card, stand.nextSibling); else page.appendChild(card);
+        return page;
+      }
+    });
+  } catch (e) { warn('materials page', e); }
+  try {
+    var OrigMatSheet = VIEWS.mat;
+    if (OrigMatSheet) VIEWS.mat = Object.assign({}, OrigMatSheet, {
+      render: function (id) {
+        var out = OrigMatSheet.render.apply(this, arguments), d = M.doc(id);
+        if (out && d && d.inventoryId && out.appendChild) {
+          var line = h('div.card.flat.lab-inv-link', h('div.row', h('span', h('b', 'In the lab inventory'), h('span.tiny.muted', ' · stock, locations and the use log live in RM')),
+            btn('xs pri', 'Open in RM', function () { openRM(RM.inventory + '?item=' + encodeURIComponent(d.inventoryId)); }),
+            btn('xs', 'Log a use in RM', function () { openRM(RM.inventory + '?item=' + encodeURIComponent(d.inventoryId)); })));
+          var pw = out.querySelector && out.querySelector('.pagewrap, .page'); (pw || out).insertBefore(line, (pw || out).firstChild);
+        }
+        return out;
+      }
+    });
+  } catch (e) { warn('material sheet', e); }
 })();

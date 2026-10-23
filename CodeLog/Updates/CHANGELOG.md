@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.871] — 2026-10-23 — Scientia's materials come from RM's inventory (Phase 1, step 2, web build)
+
+Alex: *"continue with the next phase"*. Plan: [V3.871_scientia_materials_inventory.md](../ClaudesPlan/V3.871_scientia_materials_inventory.md).
+`scientia/src` untouched; the hub deployed before the client.
+
+### Added
+- `GET api/rm/inventory?q=&limit=&ids=` on the hub (`functions/scientia-hub-core.js` `rmInventoryRow(doc)` — compact
+  row: id, kind item|chemical, name, description, category, subcategory, vendor, catalogue_number, quantity,
+  stock_status, condition, use_mode, is_consumable, locations (list or map keys), updatedAt; `searchInventory(items,
+  q, limit)` — every word must match, name-prefix first then newest, limit ≤ 200 default 40; `MemoryHub.inventory`
+  serves `hub.rmInventory`). `functions/scientia-hub.js` `FirestoreHub.inventory()` reads the ~3,500-doc `inventory`
+  collection once per instance per 10 min (`FirestoreHub._inv`, retired/disposed dropped) and searches server-side.
+  Nothing is written — usage is logged in RM.
+- `rm/scientia/lab-mode.js` section 5 (materials): `inventory(q)` (2-min cache per query), `kindFor(item)` (RM
+  category → Gabe's `MATKIND` key), `resourceFor(item)`, `useInventory(item, d)` (find or `M.createDoc({type:
+  'resource'})` with `inventoryId / rm / inventoryKind`, `header.kind/supplier/catalog/location`; link on
+  `d.materials`), `invSearch()` (the shared search block). `MATS.pick` replaced (original at `MATS.pick._orig`):
+  *From the lab inventory* search + *Your materials*; actions Done / + New material (note) / + Add to the lab
+  inventory. `VIEWS.materials.render` wraps Gabe's page and inserts *The lab inventory* card (search → *Make a
+  material note* → `#/mat/<id>`, *Open in RM*). `VIEWS.mat.render` prepends *In the lab inventory* with *Open in RM*
+  and *Log a use in RM* (`inventory.html?item=<id>`) when the note has an `inventoryId`. `SIS_LAB.version` V3.871;
+  `SIS_LAB.inventory / useInventory / kindFor / resourceFor`.
+- 3 fixtures (hub 39/39) and 10 harness checks (`v3869-scientia-lab-mode-harness.html`, 40/40 on the real build;
+  the stub answers `api/rm/inventory` with three items).
+
+### Changed
+- `rm/scientia/scientia.html` rebuilt; `sw.js` CACHE_VERSION 853 → 854; `CodeLog/features.json` `scientia.materials`
+  note; the V3.866 plan §3 status.
+
 ## [V3.870] — 2026-10-23 — Fix: the phone app crashed at launch on iOS 27 (adopt the UIScene lifecycle)
 
 Gabe's crash log (iPhone 16 Plus, **iOS 27.0.1**, build 18): `EXC_BREAKPOINT (SIGTRAP)` 66 ms after launch in

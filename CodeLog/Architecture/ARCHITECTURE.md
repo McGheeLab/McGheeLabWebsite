@@ -2,6 +2,8 @@
 
 **Version:** V3.854 (✓ at the top-left of every canvas card and region — `whiteboard.js` `opts.report` → `reportBtnHTML` / `wireReportBtn`, filled by `item.myweek[]`; `rm/js/myweek-report.js` `MYWEEK_REPORT.open({anchor, card, onReported})` lists the user's My Week steps (`DAY_DISTRIBUTE.listRange`, needs-a-result first) and reports the card through the V3.853 writer `DAY_DISTRIBUTE.saveOutcome(step, …, {closeAs:'done'})`; hosts `reportToMyWeek` / `markReported`; both canvas pages now load `day-distribute.js`. Plan: [CodeLog/ClaudesPlan/V3.854_canvas_report_to_myweek.md](../ClaudesPlan/V3.854_canvas_report_to_myweek.md).)
 
+**Prior: V3.871 (Scientia's materials come from RM's inventory, web build — the hub serves `GET api/rm/inventory?q=` from a per-instance compact copy of the 3,500-doc collection (`rmInventoryRow` / `searchInventory`, nothing written); `lab-mode.js` §5 replaces the note's "+ material" picker (inventory search above Gabe's resource notes; picking finds or makes the resource note with `inventoryId`), adds *The lab inventory* card to the Materials page and an *In the lab inventory* line to the material sheet; usage is logged in RM via `inventory.html?item=`.)**
+
 **Prior: V3.870 (OurlabMobile runs on the UIScene lifecycle — required on iOS 27: `SceneDelegate.swift` owns the window (from Main.storyboard, root TabShellViewController) and forwards URL / universal-link opens to Capacitor's `ApplicationDelegateProxy`; Info.plist `UIApplicationSceneManifest`, no `UIMainStoryboardFile`.)**
 **Prior: V3.869 (Scientia on the web is RM-native, Phase 1 of V3.866 — the hub mirrors RM's library into each person's `library` rows (`scientia-hub-core.js` `rmItemToLibraryRow` / `planMirror`, `FirestoreHub.mirrorLibrary` on hello/state, `api/rm/library/refresh`, `api/rm/library/pdf`); the web build carries `window.SIS_TARGET = 'web'` and `rm/scientia/lab-mode.js`, which reshapes Gabe's running app from outside: the Library tab = the lab's papers with Read/Open in RM, `#/read/<rm>` = RM's reader, Activity and Data tabs gone, the Tasks page a pointer; `scientia/src` untouched.)**
 
@@ -63,6 +65,13 @@ rm/scientia/lab-mode.js  (web build only; window.SIS_TARGET === 'web'; loaded af
 The mirror writes through the hub's own `push`, so merge rules, seq numbers and tombstones are the ordinary ones, and
 fields the mirror does not own (a desktop-attached `pdf`, notes) survive a re-mirror. `scripts/scientia_build.py`
 injects the target flag and the lab-mode tag; nothing in `scientia/src` branches on the target.
+
+**Materials (V3.871).** RM's inventory is read, never written, from the web app: `GET api/rm/inventory?q=&limit=&ids=`
+answers from a compact per-instance copy (`FirestoreHub._inv`, ten minutes; `rmInventoryRow`, `searchInventory` in the
+core — every word must match, name-prefix first). `lab-mode.js` §5: `MATS.pick` becomes *From the lab inventory* +
+*Your materials*; `useInventory(item, d)` finds or makes the resource note (`inventoryId`, `rm: true`,
+`header.kind` from `kindFor()`) and links it like Gabe's picker; the Materials page gets *The lab inventory* card, the
+material sheet an *In the lab inventory* line. Usage (dial, ledger, attribution) stays RM's: `inventory.html?item=<id>`.
 
 ## The push gate, the feature registry, git in the Stop hook, two deployers (V3.868)
 

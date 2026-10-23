@@ -181,6 +181,19 @@ class FirestoreHub {
     tok = String(tok).split(',')[0];
     return { ok: true, id, path: String(path), url: 'https://firebasestorage.googleapis.com/v0/b/' + bucket().name + '/o/' + encodeURIComponent(f.name) + '?alt=media&token=' + tok };
   }
+  /* ---- RM inventory for Scientia's materials (V3.870): compact rows, cached per instance, searched here ---- */
+  async inventory({ q, limit, ids } = {}) {
+    const now = Date.now();
+    if (!FirestoreHub._inv || now - FirestoreHub._inv.at > C.INVENTORY_MS) {
+      const snap = await db().collection('inventory').get();
+      FirestoreHub._inv = { at: now, rows: snap.docs.map(x => C.rmInventoryRow(Object.assign({ id: x.id }, x.data() || {}))).filter(r => r.condition !== 'retired' && r.condition !== 'disposed') };
+    }
+    let rows = FirestoreHub._inv.rows;
+    if (ids && ids.length) rows = rows.filter(r => ids.includes(r.id));
+    const r = C.searchInventory(rows, q, limit);
+    r.cachedAt = new Date(FirestoreHub._inv.at).toISOString(); r.all = FirestoreHub._inv.rows.length;
+    return r;
+  }
   async keyMake(name) {
     const secret = C.token(16), id = C.token(5);
     await this.keys.doc(id).set({ id, name, hash: C.sha(secret), created: FieldValue.serverTimestamp(), lastSeen: null });
