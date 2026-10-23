@@ -2,6 +2,8 @@
 
 **Version:** V3.854 (✓ at the top-left of every canvas card and region — `whiteboard.js` `opts.report` → `reportBtnHTML` / `wireReportBtn`, filled by `item.myweek[]`; `rm/js/myweek-report.js` `MYWEEK_REPORT.open({anchor, card, onReported})` lists the user's My Week steps (`DAY_DISTRIBUTE.listRange`, needs-a-result first) and reports the card through the V3.853 writer `DAY_DISTRIBUTE.saveOutcome(step, …, {closeAs:'done'})`; hosts `reportToMyWeek` / `markReported`; both canvas pages now load `day-distribute.js`. Plan: [CodeLog/ClaudesPlan/V3.854_canvas_report_to_myweek.md](../ClaudesPlan/V3.854_canvas_report_to_myweek.md).)
 
+**Prior: V3.872 (a task component in a Scientia note is an RM task, web build — `POST api/rm/tasks` writes the `userData/{uid}/tasks` document `writeTaskFor` would (bucket assigned, source scientia, `source_ref.scientia {docId, blockId}`), the pairing lives on the hub doc as `rmTasks {taskId: blockId}`, and `syncTasks` on every hello reconciles DONE both ways (`planTaskSync`: later change wins; a removed block dismisses the RM task) by pushing block ops as device "RM tasks" — so the desktop sees My Week's ticks through ordinary sync; `lab-mode.js` §6 wraps `TASK.create/save/done/undo/body` and `WIDGETS.task.body`, and `#/tasks` lists the note's task components with their RM state.)**
+
 **Prior: V3.871 (Scientia's materials come from RM's inventory, web build — the hub serves `GET api/rm/inventory?q=` from a per-instance compact copy of the 3,500-doc collection (`rmInventoryRow` / `searchInventory`, nothing written); `lab-mode.js` §5 replaces the note's "+ material" picker (inventory search above Gabe's resource notes; picking finds or makes the resource note with `inventoryId`), adds *The lab inventory* card to the Materials page and an *In the lab inventory* line to the material sheet; usage is logged in RM via `inventory.html?item=`.)**
 
 **Prior: V3.870 (OurlabMobile runs on the UIScene lifecycle — required on iOS 27: `SceneDelegate.swift` owns the window (from Main.storyboard, root TabShellViewController) and forwards URL / universal-link opens to Capacitor's `ApplicationDelegateProxy`; Info.plist `UIApplicationSceneManifest`, no `UIMainStoryboardFile`.)**
@@ -72,6 +74,23 @@ core — every word must match, name-prefix first). `lab-mode.js` §5: `MATS.pic
 *Your materials*; `useInventory(item, d)` finds or makes the resource note (`inventoryId`, `rm: true`,
 `header.kind` from `kindFor()`) and links it like Gabe's picker; the Materials page gets *The lab inventory* card, the
 material sheet an *In the lab inventory* line. Usage (dial, ledger, attribution) stays RM's: `inventory.html?item=<id>`.
+
+**Tasks (V3.872).**
+
+```
+a task block in a note (web)  ──TASK.create──▶  POST api/rm/tasks  ──▶  userData/{uid}/tasks/{task-…}  (bucket assigned → My Week, the phone)
+      block.rmTaskId ◀── {id}                                        hub doc  rmTasks: { taskId: blockId }
+      TASK.save / done / undo  ──▶  POST api/rm/tasks/update  (text, due, prio, done + done_at)
+every hello / state (≤ once per 2 min) or POST api/rm/tasks/sync:
+      FirestoreHub.syncTasks  →  planTaskSync(pairs)  →  the later change wins
+          RM done later   → block op {task.done, task.rmDoneAt, log +{via:'rm'}} pushed as device "RM tasks" → every device pulls it
+          block done later → task patch {done, done_at}
+          block removed    → task {dismissed_at, dismissed_reason}, pairing dropped;  task gone → pairing dropped
+```
+
+The hub reconciles, not the browser, so a tick in My Week reaches Gabe's desktop record through the sync it already
+runs, and a block ticked on the desktop reaches RM on the next hello. `lab-mode.js` §6 wraps `TASK.create / save /
+done / undo / body` and re-points `WIDGETS.task.body` (a reference the doc view captured at load).
 
 ## The push gate, the feature registry, git in the Stop hook, two deployers (V3.868)
 

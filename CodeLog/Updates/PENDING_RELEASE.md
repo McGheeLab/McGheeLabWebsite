@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (0 changes — push at 5+)
+## Pending (1 changes — push at 5+)
 
+- **V3.872 — A task you write in a Scientia note is now an RM task.** On the web, a task component in a note goes straight to your RM list (My Week, your phone, your mentor); tick it in either place and the other follows. Removing it from the note dismisses it in RM. The desktop app is unchanged.
 _Nothing pending — next small change starts the new batch._
 
 ## Shipped

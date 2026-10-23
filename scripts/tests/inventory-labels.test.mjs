@@ -28,6 +28,9 @@ const item = { id: 'inv-1', name: '  Anti-β-tubulin antibody,  mouse monoclonal
 const cell = L.cellFor(item, 'mg-a7k2x', { initials: 'am', date: '2026-10-22' });
 eq([cell.reagent, cell.conc, cell.owner, cell.date, cell.storage, cell.notes, cell.tubeId, cell.qr, cell.expiryRule, cell.hazards, cell.meta], ['Anti-β-tubulin antibody, mouse monoclonal', 'Sigma-Aldrich · T4026', 'AM', '2026-10-22', '-20C', 'Freezer B, box 4, shelf-a2', 'MG-A7K2X', { enabled: true, ecc: 'M', payload: 'MCGHEELAB.COM/L/MG-A7K2X', force: true }, '', [], { kind: 'item', itemId: 'inv-1', source: 'inventory' }], 'a cell in emptyCell() shape with the item’s facts');
 eq([L.storageFor({ storage: '4C fridge' }), L.storageFor({ storage_temp: '−80' }), L.storageFor({ notes: 'LN2 dewar', storage: 'LN2' }), L.storageFor({})], ['4C', 'RT', 'LN2', 'RT'], 'storage mapping (a Unicode minus is not a hyphen → RT, deliberately conservative)');
+// V3.873 — a lab-made item has no storage field; where it lives decides, and a storage field still wins.
+eq([L.storageFor({ locations: [{ name: 'fridge/box/001' }] }), L.storageFor({ locations: [{ name: '-80/rack 2/box 7' }] }), L.storageFor({ locations: [{ name: 'bench 3/drawer' }] }), L.storageFor({ storage_temp: '-20', locations: [{ name: 'fridge/box/001' }] })],
+   ['4C', '-80C', 'RT', '-20C'], 'storage from the location when the item has no storage field');
 const many = Array.from({ length: 205 }, (_, i) => ({ id: 'i' + i, name: 'Item ' + i, label_code: 'MG-' + String(i).padStart(5, '0') }));
 const jobs = L.jobsFor(many, L.codeOf, { note: 'bulk' });
 eq([jobs.length, jobs[0].cells.length, jobs[1].cells.length, jobs[0].part, jobs[0].parts, jobs[0].itemIds.length, jobs[1].itemIds[0], jobs[0].status, jobs[0].source], [2, 200, 5, 1, 2, 200, 'i200', 'queued', 'inventory'], 'jobs split at the rules cap of 200 cells, item ids aligned');

@@ -9,7 +9,7 @@ var _data = null; // keep loaded data reference for inline saves
 var _projects = []; // funded projects/grants
 
 var CATEGORY_OPTIONS = [
-  'equipment', 'infrastructure', 'consumable', 'computer', 'lab_furniture', 'office',
+  'equipment', 'infrastructure', 'consumable', 'computer', 'lab_furniture', 'lab_made', 'office',
   'remodel', 'research_analysis', 'research_cells', 'research_chem',
   'research_gas', 'research_gels', 'research_reagents', 'software', 'other'
 ];
@@ -25,6 +25,7 @@ var LOCATION_FIELDS = [
 var TABS = [
   { key: 'all', label: 'All Items', filter: null },
   { key: 'research', label: 'Research', filter: function (i) { return i.category && i.category.indexOf('research_') === 0; }},
+  { key: 'lab_made', label: 'Made in Lab', filter: function (i) { return !!i.lab_made; }},   // V3.873
   { key: 'consumables', label: 'Consumables', filter: function (i) { return i.category === 'consumable'; }},
   { key: 'equipment', label: 'Equipment', filter: function (i) { return i.category === 'equipment'; }},
   { key: 'computers', label: 'Computers & Software', filter: function (i) { return i.category === 'computer' || i.category === 'software'; }},
@@ -54,6 +55,7 @@ var SUBTAB_LABELS = {
   plumbing: 'Plumbing', furniture: 'Furniture', organization: 'Organization',
   electrical: 'Electrical', mounting: 'Mounting', lighting: 'Lighting',
   cable_management: 'Cable Mgmt', hvac: 'HVAC',
+  aliquot: 'Aliquots', made_in_lab: 'Made in lab',
 };
 
 var activeSubtab = 'all';
@@ -89,8 +91,30 @@ function locationsChips(locations) {
   if (!locations || !locations.length) return '<span style="color:var(--text-muted);">\u2014</span>';
   return locations.map(function (loc) {
     var qty = loc.quantity ? ' (' + loc.quantity + ')' : '';
-    return '<span class="chip chip-muted" style="margin:1px;">' + loc.name + qty + '</span>';
+    return '<span class="chip chip-muted" style="margin:1px;">' + escAttr(loc.name) + qty + '</span>';
   }).join(' ');
+}
+
+/* V3.873 — aliquots and things we make in the lab are ordinary items with
+ * lab_made:true, so every surface that reads items sees them unchanged. */
+var LAB_MADE_LABEL = { aliquot: 'Aliquot', made_in_lab: 'Made in lab' };
+
+function labMadeChip(item) {
+  if (!item || !item.lab_made) return '';
+  return ' <span class="chip chip-muted" style="font-size:11px;color:var(--primary);">' + (LAB_MADE_LABEL[item.lab_made_type] || 'Made in lab') + '</span>';
+}
+
+/* V3.873 — a tracked item's Qty is what is LEFT (qty_remaining moves with
+ * every scan); the legacy `quantity` stays at whatever it was entered as. */
+function qtyCell(item) {
+  if (!_invTracked(item)) return item.quantity || '';
+  var unit = item.qty_unit === 'uL' ? 'µL' : (item.qty_unit || '');
+  return INV_QTY.clean(INV_QTY.num(item.qty_remaining)) + (unit ? ' <span style="color:var(--text-muted);font-size:12px;">' + escAttr(unit) + '</span>' : '');
+}
+
+function vendorCell(item) {
+  if (item.lab_made) return '<span style="color:var(--text-muted);">' + (item.made_by_name ? 'made by ' + escAttr(item.made_by_name) : 'made in lab') + '</span>';
+  return item.vendor || '';
 }
 
 /* ---- V3.646 — tracked quantity ----------------------------------------
@@ -261,7 +285,7 @@ function inlineSelect(realIdx, field, currentVal, options) {
 
 function inlineText(realIdx, field, currentVal, placeholder) {
   var val = currentVal || '';
-  return '<input type="text" data-idx="' + realIdx + '" data-field="' + field + '" value="' + val.replace(/"/g, '&quot;') + '" placeholder="' + (placeholder || '') + '" onblur="inlineSave(this)" onkeydown="if(event.key===\'Enter\'){this.blur();}" style="font-size:13px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;width:100%;max-width:300px;background:var(--surface);">';
+  return '<input type="text" data-idx="' + realIdx + '" data-field="' + field + '" value="' + escAttr(val) + '" placeholder="' + (placeholder || '') + '" onblur="inlineSave(this)" onkeydown="if(event.key===\'Enter\'){this.blur();}" style="font-size:13px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;width:100%;max-width:300px;background:var(--surface);">';
 }
 
 /* V3.646 — quantity used inlineText, so inlineSave's else-branch stored the
@@ -282,7 +306,7 @@ function inlineNumber(realIdx, field, currentVal, opts) {
 
 function inlineTextarea(realIdx, field, currentVal, placeholder) {
   var val = currentVal || '';
-  return '<textarea data-idx="' + realIdx + '" data-field="' + field + '" placeholder="' + (placeholder || '') + '" onblur="inlineSave(this)" style="font-size:13px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;width:100%;min-height:50px;background:var(--surface);resize:vertical;">' + val + '</textarea>';
+  return '<textarea data-idx="' + realIdx + '" data-field="' + field + '" placeholder="' + (placeholder || '') + '" onblur="inlineSave(this)" style="font-size:13px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;width:100%;min-height:50px;background:var(--surface);resize:vertical;">' + escAttr(val) + '</textarea>';
 }
 
 function inlineCheckbox(realIdx, field, currentVal) {
@@ -427,7 +451,9 @@ function getFiltered() {
   if (stockFilter !== 'all') items = items.filter(function (i) { return i.stock_status === stockFilter; });
   if (search) {
     items = items.filter(function (i) {
-      return [i.name, i.description, i.vendor, i.catalogue_number, i.account_number, i.subcategory].join(' ').toLowerCase().indexOf(search) >= 0;
+      // V3.873 — location names and the maker too, so "fridge/box/001" lists what is in that box.
+      var locs = (i.locations || []).map(function (l) { return l && l.name; }).join(' ');
+      return [i.name, i.description, i.vendor, i.catalogue_number, i.account_number, i.subcategory, locs, i.made_by_name].join(' ').toLowerCase().indexOf(search) >= 0;
     });
   }
   return items;
@@ -440,7 +466,13 @@ async function loadAndRender() {
   _data = results[0];
   _items = _data.items || [];
   _projects = (results[1].projects || []);
+  _invPaintChrome();
+}
 
+/* Tabs (with counts) + the category filter + the table, from what is already
+ * in memory. V3.873 — split out of loadAndRender so adding one item repaints
+ * the counts without refetching the whole collection. */
+function _invPaintChrome() {
   var tabsEl = document.getElementById('tabs');
   tabsEl.innerHTML = '';
   TABS.forEach(function (t) {
@@ -656,9 +688,17 @@ function itemDetailHtml(item, realIdx) {
   d += '<div><label class="detail-meta-label">Name</label>' + inlineText(realIdx, 'name', item.name, '') + '</div>';
   d += '<div><label class="detail-meta-label">Vendor</label>' + inlineText(realIdx, 'vendor', item.vendor, '') + '</div>';
   d += '</div>';
+  // V3.873 — a lab-made item is only known by its description, so it is always
+  // shown (and editable) for those; a purchased item shows one when it has it.
+  if (item.lab_made || item.description) {
+    d += '<div style="margin-bottom:12px;"><label class="detail-meta-label">Description</label>' + inlineTextarea(realIdx, 'description', item.description, 'What it is, how it was made, what it was aliquoted from') + '</div>';
+  }
   d += '<div style="margin-bottom:12px;"><label class="detail-meta-label">Notes</label>' + inlineTextarea(realIdx, 'notes', item.notes, 'Add notes...') + '</div>';
   d += '<div class="detail-meta" style="margin-bottom:12px;">';
-  if (item.date_acquired) d += '<div class="detail-meta-item"><span class="detail-meta-label">Date Acquired</span><span class="detail-meta-value">' + formatDate(item.date_acquired) + '</span></div>';
+  if (item.lab_made) {
+    d += '<div class="detail-meta-item"><span class="detail-meta-label">' + (item.lab_made_type === 'aliquot' ? 'Aliquoted by' : 'Made by') + '</span><span class="detail-meta-value">' +
+         escAttr(item.made_by_name || 'someone in the lab') + (item.date_acquired ? ' on ' + formatDate(item.date_acquired) : '') + '</span></div>';
+  } else if (item.date_acquired) d += '<div class="detail-meta-item"><span class="detail-meta-label">Date Acquired</span><span class="detail-meta-value">' + formatDate(item.date_acquired) + '</span></div>';
   if (item.catalogue_number) d += '<div class="detail-meta-item"><span class="detail-meta-label">Catalogue #</span><span class="detail-meta-value">' + item.catalogue_number + '</span></div>';
   if (item.funding_source) d += '<div class="detail-meta-item"><span class="detail-meta-label">Funding</span><span class="detail-meta-value">' + item.funding_source + '</span></div>';
   d += '</div>';
@@ -669,7 +709,7 @@ function itemDetailHtml(item, realIdx) {
   if (item.locations && item.locations.length) {
     d += '<table style="width:100%;font-size:13px;"><thead><tr><th style="text-align:left">Location</th><th>Qty</th><th>Notes</th><th></th></tr></thead><tbody>';
     item.locations.forEach(function (loc, li) {
-      d += '<tr><td>' + loc.name + '</td><td style="text-align:center;">' + (loc.quantity || '') + '</td><td style="color:var(--text-muted);">' + (loc.notes || '') + '</td>';
+      d += '<tr><td>' + escAttr(loc.name) + '</td><td style="text-align:center;">' + (loc.quantity || '') + '</td><td style="color:var(--text-muted);">' + escAttr(loc.notes || '') + '</td>';
       d += '<td class="row-actions"><button onclick="event.stopPropagation(); editLocation(' + realIdx + ',' + li + ')">Edit</button><button onclick="event.stopPropagation(); removeLocation(' + realIdx + ',' + li + ')">Del</button></td></tr>';
     });
     d += '</tbody></table>';
@@ -697,7 +737,8 @@ function itemDetailHtml(item, realIdx) {
   // V3.813 — a reorder starts from the item itself: the procurement composer
   // opens prefilled (name, vendor, cat#, link, last price) and, when the box
   // arrives, putting it away restocks THIS item instead of creating a twin.
-  if (item.id) d += '<a class="btn btn-sm" href="/rm/pages/procurement.html?reorder=' + encodeURIComponent(item.id) + '" onclick="event.stopPropagation();" style="margin-right:8px;">Request reorder \u2192</a>';
+  // V3.873 — nobody sells what we made, so a lab-made item has no reorder.
+  if (item.id && !item.lab_made) d += '<a class="btn btn-sm" href="/rm/pages/procurement.html?reorder=' + encodeURIComponent(item.id) + '" onclick="event.stopPropagation();" style="margin-right:8px;">Request reorder \u2192</a>';
   d += '<button class="btn btn-sm" onclick="event.stopPropagation(); addToGroup(' + realIdx + ')" style="margin-right:8px;">Add to Group</button>';
   if (item.product_group) {
     d += '<button class="btn btn-sm" onclick="event.stopPropagation(); removeFromGroup(' + realIdx + ')" style="margin-right:8px;">Remove from Group</button>';
@@ -789,11 +830,11 @@ function render() {
       var realIdx = _items.indexOf(item);
       var rid = 'r' + rowIdx;
 
-      var cells = '<td><strong>' + (item.name || '') + '</strong></td>';
+      var cells = '<td><strong>' + escAttr(item.name || '') + '</strong>' + labMadeChip(item) + '</td>';
       cells += '<td>' + (item.category || '').replace(/_/g, ' ') + '</td>';
-      cells += '<td>' + (item.vendor || '') + '</td>';
+      cells += '<td>' + vendorCell(item) + '</td>';
       cells += '<td style="font-size:12px;">' + (item.catalogue_number || '') + '</td>';
-      cells += '<td>' + (item.quantity || '') + '</td>';
+      cells += '<td>' + qtyCell(item) + '</td>';
       cells += '<td>' + (item.unit_price != null ? '$' + item.unit_price.toFixed(2) : '') + '</td>';
       cells += '<td>' + locationsChips(item.locations) + '</td>';
       cells += '<td>' + stockChip(item.stock_status) + '</td>';
@@ -853,7 +894,7 @@ function render() {
         var vid = gid + 'v' + vi;
         gDetail += '<div class="variant-row" data-item-id="' + (item.id || '') + '" data-gid="' + gid + '" data-vid="' + vid + '" onclick="event.stopPropagation(); toggleVariant(\'' + vid + '\')" style="cursor:pointer;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;background:var(--surface);">';
         gDetail += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-        gDetail += '<div><strong>' + (item.name || '') + '</strong>';
+        gDetail += '<div><strong>' + escAttr(item.name || '') + '</strong>' + labMadeChip(item);
         if (item.catalogue_number) gDetail += ' <span style="color:var(--text-muted);font-size:12px;">Cat# ' + item.catalogue_number + '</span>';
         gDetail += '</div>';
         gDetail += '<div style="display:flex;gap:12px;align-items:center;font-size:13px;">';
@@ -1114,12 +1155,200 @@ document.getElementById('add-item').onclick = function () {
       vals.manual_edit = true;
       vals.parsed_at = '';
       vals.parse_confidence = 0;
-      _data.items.push(vals);
-      await api.save(DATA_PATH, _data);
-      loadAndRender();
+      var item = await _invCreateItem(vals);
+      _invOpenItem(item.id);
     },
   });
 };
+
+/* ---- V3.873 — create ONE item doc ----
+ *
+ * + Add Item used api.save(DATA_PATH, _data): a whole-collection save that
+ * re-set every one of ~3,500 inventory docs to add one (the shape that kept
+ * "+ New paper" from ever working for non-admins, V3.729). This writes only the
+ * new doc, in a transaction that refuses an id already taken — a slug from the
+ * name can collide, and a plain set() would silently overwrite that item. */
+async function _invCreateItem(vals) {
+  var base = String(vals.id || slugify(vals.name || '') || 'item').slice(0, 90).replace(/-+$/, '');
+  if (typeof firebridge === 'undefined' || !firebridge.db) {   // local JSON dev server
+    vals.id = base;
+    _data.items.push(vals);
+    await api.save(DATA_PATH, _data);
+    _items = _data.items;
+    _invPaintChrome();
+    return vals;
+  }
+  var db = firebridge.db();
+  var ts = firebase.firestore.FieldValue.serverTimestamp();
+  var clean = Object.assign({}, vals);
+  delete clean.id;
+  clean.kind = 'item';
+  var taken = {};
+  _data.items.forEach(function (i) { if (i && i.id) taken[i.id] = true; });
+  var id = null;
+  _invLive.suppressUntil = Date.now() + 2500;
+  for (var n = 1; n <= 30 && !id; n++) {
+    var cand = n === 1 ? base : base + '-' + n;
+    if (taken[cand]) continue;
+    var ref = db.collection('inventory').doc(cand);
+    try {
+      await db.runTransaction(async function (t) {
+        var snap = await t.get(ref);
+        if (snap.exists) throw new Error('__taken');
+        t.set(ref, Object.assign({}, clean, { updatedAt: ts }));
+      });
+      id = cand;
+    } catch (e) {
+      if (!e || e.message !== '__taken') throw e;
+    }
+  }
+  if (!id) throw new Error('Could not find a free id for "' + (vals.name || 'this item') + '".');
+  try { if (api.invalidate) await api.invalidate(DATA_PATH); } catch (e) { /* the doc is written */ }
+  vals.id = id;
+  vals.kind = 'item';
+  _data.items.push(vals);
+  _items = _data.items;
+  _invPaintChrome();
+  return vals;
+}
+
+/* ---- V3.873 — aliquots and things we make in the lab ----
+ *
+ * Alex: "users should be able to add alliquots and custom inventory that we
+ * make in the lab… we dont need to make anything custom for these, but users
+ * should describe custom items so we know about them, also they should say
+ * where they live for example fridge/box/001" — and "these custom inventory
+ * items should also get a qr code".
+ *
+ * An ordinary kind:'item' doc with lab_made:true, so the list, search, scan-to-
+ * use, the pickers and Scientia's inventory search all see it unchanged. With a
+ * count it is created TRACKED (qty_made = qty_remaining), which any member may
+ * do at creation (firestore.rules allow create), so a scan asks "how many are
+ * you taking?" and the low-stock alert fires at 20% of the batch. Every one gets
+ * its QR code on save; a counted batch can send one label per piece. */
+var LAB_MADE_UNITS = ['tube', 'vial', 'aliquot', 'plate', 'slide', 'bottle', 'box', 'ea', 'mL', 'uL', 'g', 'mg'];
+var LAB_MADE_MEASURES = ['mL', 'uL', 'g', 'mg'];
+var LAB_MADE_MAX_LABELS = 100;
+
+function _invLocalToday() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+/* "Fridge 2 / Box 001 " -> "Fridge 2/Box 001": one spelling per place, so the
+ * suggestions and the search line up. */
+function _invTidyLocation(s) {
+  return String(s || '').replace(/\s*\/\s*/g, '/').replace(/\s+/g, ' ').trim();
+}
+
+/* Every place already used, so a new tube goes into "fridge/box/001" and not a
+ * fourth spelling of it. */
+function _invLocationSuggestions() {
+  var seen = {}, out = [];
+  (_data && _data.items || []).forEach(function (it) {
+    (it.locations || []).forEach(function (l) {
+      var name = _invTidyLocation(l && l.name);
+      var k = name.toLowerCase();
+      if (name && !seen[k]) { seen[k] = true; out.push(name); }
+    });
+  });
+  return out.sort(function (a, b) { return a.localeCompare(b); }).slice(0, 500);
+}
+
+window.addLabMadeItem = function () {
+  openForm({
+    title: 'Add an aliquot or something we made',
+    fields: [
+      { key: 'lab_made_type', label: 'What is it?', type: 'select', required: true,
+        options: ['aliquot', 'made_in_lab'],
+        optionLabels: { aliquot: 'An aliquot of something we bought', made_in_lab: 'Something we made in the lab' } },
+      { key: 'name', label: 'Name', type: 'text', required: true, placeholder: 'e.g. LLS 100 µm, rhodamine, spheres',
+        hint: 'Name it the way someone would look for it: size, shape, colour, concentration.' },
+      { key: 'description', label: 'Description', type: 'textarea', required: true,
+        placeholder: 'What it is, how it was made or what it was aliquoted from, and anything someone needs to know before using it.' },
+      { key: 'location', label: 'Where it lives', type: 'text', required: true, placeholder: 'e.g. fridge/box/001',
+        suggestions: _invLocationSuggestions(), hint: 'From the outside in, separated by slashes: fridge/box/001.' },
+      { key: 'count', label: 'How many', type: 'number', placeholder: 'e.g. 20',
+        hint: 'Optional. With a count, scanning the label takes some off and the lab is warned when it runs low.' },
+      { key: 'unit', label: 'Of what', type: 'select', options: LAB_MADE_UNITS, optionLabels: { uL: 'µL', ea: 'each' } },
+      { key: 'made_on', label: 'Made on', type: 'date' },
+      { key: 'print_labels', label: 'Send its labels to the lab’s label printer (one per tube, vial or piece)', type: 'checkbox' },
+    ],
+    values: { unit: 'tube', made_on: _invLocalToday(), print_labels: true },
+    onSave: async function (v) {
+      var type = v.lab_made_type === 'made_in_lab' ? 'made_in_lab' : 'aliquot';
+      var name = String(v.name || '').trim();
+      var unit = v.unit || 'ea';
+      var measure = LAB_MADE_MEASURES.indexOf(unit) >= 0;
+      var count = Number(v.count);
+      if (!isFinite(count) || count <= 0) count = 0;
+      else if (!measure) count = Math.round(count);
+      var counted = count > 0;
+      var date = v.made_on || _invLocalToday();
+      var fb = typeof firebridge !== 'undefined' ? firebridge : {};
+      var user = (fb.getUser && fb.getUser()) || {};
+      var prof = (fb.getProfile && fb.getProfile()) || {};
+      var item = {
+        id: slugify((type === 'aliquot' ? 'aliquot-' : 'lab-') + date + '-' + name),
+        name: name,
+        description: String(v.description || '').trim(),
+        category: 'lab_made',
+        subcategory: type,
+        lab_made: true,
+        lab_made_type: type,
+        made_by_uid: user.uid || '',
+        made_by_name: prof.name || prof.displayName || user.displayName || String(user.email || '').split('@')[0],
+        vendor: '',
+        vendor_normalized: '',
+        catalogue_number: '',
+        quantity: counted ? count : null,
+        unit_price: null,
+        date_acquired: date,
+        is_consumable: true,
+        condition: 'active',
+        stock_status: 'full',
+        locations: [{ name: _invTidyLocation(v.location), quantity: counted ? count : null, notes: '' }],
+        locIds: [],
+        price_history: [],
+        tags: [],
+        reorder: null,
+        receipt_ref: null,
+        safety: null,
+        notes: '',
+        manual_edit: true,
+        parsed_at: '',
+        parse_confidence: 0,
+      };
+      if (counted) Object.assign(item, { qty_tracked: true, qty_unit: unit, qty_made: count, qty_remaining: count });
+      item = await _invCreateItem(item);
+      _invOpenItem(item.id);
+      _invLabelNewItem(item, v.print_labels ? (counted && !measure ? Math.min(count, LAB_MADE_MAX_LABELS) : 1) : 0);
+    },
+  });
+};
+
+/* The QR code on save, and the labels if asked. After the form closes: the item
+ * already exists, so a failure here leaves a fixable item (Print label in its
+ * panel), never a lost one. */
+async function _invLabelNewItem(item, labels) {
+  if (typeof INV_LABELS === 'undefined') return;
+  try {
+    if (labels > 0) {
+      var copies = [];
+      for (var i = 0; i < labels; i++) copies.push(item);
+      await INV_LABELS.queue(copies, { note: 'Lab-made — ' + item.name });
+      if (typeof TOAST !== 'undefined') TOAST.success(labels + (labels === 1 ? ' label' : ' labels') + ' for ' + item.name + ' queued at the label printer (its Queue tab prints them)');
+    } else {
+      await INV_LABELS.ensureCode(item);
+      if (typeof TOAST !== 'undefined') TOAST.success(item.name + ' is in the inventory with QR code ' + item.label_code);
+    }
+  } catch (e) {
+    console.warn('[inventory] label for a new item failed:', e);
+    if (typeof TOAST !== 'undefined') TOAST.error('Saved, but the QR label did not go through: ' + (e.message || e) + '. Press Print label in its panel to retry.');
+  }
+  // Repaint so the panel shows the QR — only if it is still the one open.
+  if (document.querySelector('tr.expandable-row.expanded[data-item-id="' + item.id + '"]')) _invOpenItem(item.id);
+}
 
 /* ---- Subtab switcher ---- */
 
@@ -1294,6 +1523,26 @@ function _invAttachQtyListener() {
   });
 }
 
+/* Narrow the list to one item and open its detail panel (?item=, and V3.873 a
+ * just-created item). Filters are cleared so a set category or stock filter
+ * cannot hide it. */
+function _invOpenItem(wantId) {
+  var want = wantId && _items.find(function (i) { return i.id === wantId; });
+  if (!want) return false;
+  var si = document.getElementById('search-input');
+  if (si) si.value = want.name || '';
+  ['category-filter', 'stock-filter'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = 'all'; });
+  activeTab = 'all'; activeSubtab = 'all'; updateTabActive(); render();
+  _expandedRow = ''; _expandedVariant = '';   // render() rebuilt the rows closed; toggleRow would otherwise CLOSE an id it thinks is open
+  var tr = document.querySelector('tr.expandable-row[data-item-id="' + wantId + '"]');
+  if (tr) { toggleRow(tr.dataset.rid); if (tr.scrollIntoView) tr.scrollIntoView({ block: 'center' }); }
+  else {   // a variant inside a product family: open the family, then the variant
+    var vr = document.querySelector('.variant-row[data-item-id="' + wantId + '"]');
+    if (vr) { toggleRow(vr.dataset.gid); toggleVariant(vr.dataset.vid); if (vr.scrollIntoView) vr.scrollIntoView({ block: 'center' }); }
+  }
+  return true;
+}
+
 /* ---- Init ---- */
 
 (async function () {
@@ -1310,21 +1559,8 @@ function _invAttachQtyListener() {
   // V3.813 — ?item=<id> (a procurement ticket's "open in inventory" link)
   // narrows the search to that item and opens its detail panel. The old
   // link used #<id>, which nothing here ever read.
-  try {
-    var wantId = new URLSearchParams(location.search).get('item');
-    var want = wantId && _items.find(function (i) { return i.id === wantId; });
-    if (want) {
-      var si = document.getElementById('search-input');
-      if (si) si.value = want.name || '';
-      activeTab = 'all'; activeSubtab = 'all'; updateTabActive(); render();
-      var tr = document.querySelector('tr.expandable-row[data-item-id="' + wantId + '"]');
-      if (tr) { toggleRow(tr.dataset.rid); if (tr.scrollIntoView) tr.scrollIntoView({ block: 'center' }); }
-      else {   // a variant inside a product family: open the family, then the variant
-        var vr = document.querySelector('.variant-row[data-item-id="' + wantId + '"]');
-        if (vr) { toggleRow(vr.dataset.gid); toggleVariant(vr.dataset.vid); if (vr.scrollIntoView) vr.scrollIntoView({ block: 'center' }); }
-      }
-    }
-  } catch (e) { console.warn('[inventory] ?item= open failed:', e); }
+  try { _invOpenItem(new URLSearchParams(location.search).get('item')); }
+  catch (e) { console.warn('[inventory] ?item= open failed:', e); }
   // V3.834 — a phone camera's visit to /l/CODE lands here with ?code=; the
   // toolbar's Scan / Print labels buttons.
   try {

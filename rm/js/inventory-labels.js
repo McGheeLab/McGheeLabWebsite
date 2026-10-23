@@ -44,6 +44,9 @@
   /** The printer's storage options (batch.js STORAGE_OPTIONS) from whatever the item says. */
   function storageFor(item) {
     var t = str(item && (item.storage_temp || item.storage || item.temp || item.storage_conditions)).toUpperCase();
+    // V3.873 — no storage field (every lab-made item): read where it lives, so a
+    // "fridge/box/001" tube is not printed RT.
+    if (!t && item && Array.isArray(item.locations)) t = item.locations.map(function (l) { return str(l && l.name); }).join(' ').toUpperCase();
     if (/-80/.test(t)) return '-80C';
     if (/-20/.test(t)) return '-20C';
     if (/LN2|LIQUID N/.test(t)) return 'LN2';

@@ -8,6 +8,9 @@
  *       { key: 'role', label: 'Role', type: 'select', options: ['PI','Postdoc','PhD','MS','Undergrad','Staff'] },
  *       { key: 'start', label: 'Start Date', type: 'date' },
  *       { key: 'notes', label: 'Notes', type: 'textarea' },
+ *       // V3.873 — optional on any text field: suggestions (a datalist the
+ *       // user may pick from or ignore) and hint (a muted line under it).
+ *       { key: 'room', label: 'Room', type: 'text', suggestions: ['BSRL 312'], hint: 'Building and number' },
  *     ],
  *     values: {},               // pre-fill for editing
  *     onSave: async (data) => { ... },
@@ -56,6 +59,7 @@ function _buildFormField(f, values) {
     input = document.createElement('textarea');
     input.rows = 3;
     input.value = values[f.key] || '';
+    if (f.placeholder) input.placeholder = f.placeholder;
   } else if (f.type === 'checkbox') {
     input = document.createElement('input');
     input.type = 'checkbox';
@@ -79,10 +83,28 @@ function _buildFormField(f, values) {
     input.type = f.type || 'text';
     input.value = values[f.key] != null ? values[f.key] : '';
     if (f.placeholder) input.placeholder = f.placeholder;
+    if (f.suggestions && f.suggestions.length) {
+      const list = document.createElement('datalist');
+      list.id = 'form-dl-' + f.key + '-' + Math.random().toString(36).slice(2, 8);
+      f.suggestions.forEach(s => {
+        const o = document.createElement('option');
+        o.value = s;
+        list.appendChild(o);
+      });
+      input.setAttribute('list', list.id);
+      group.appendChild(list);
+    }
   }
 
   if (f.required) input.required = true;
   group.appendChild(input);
+  if (f.hint) {
+    const hint = document.createElement('div');
+    hint.className = 'form-hint';
+    hint.style.cssText = 'font-size:12px;color:var(--text-muted);margin-top:4px;';
+    hint.textContent = f.hint;
+    group.appendChild(hint);
+  }
   return { group, input };
 }
 
@@ -101,12 +123,22 @@ function _collectFormData(fields, inputs) {
     } else {
       data[f.key] = inp.value;
     }
-    if (f.required && f.type !== 'stars' && !inp.value) {
+    // V3.873 — whitespace alone does not satisfy a required field.
+    if (f.required && f.type !== 'stars' && f.type !== 'checkbox' && !String(inp.value).trim()) {
       inp.style.borderColor = 'var(--red)';
+      try { inp.focus(); } catch (e) { /* not focusable */ }
       return null;
     }
   }
   return data;
+}
+
+/* V3.873 — a failed save says so in a toast, not a browser alert; the form
+ * stays open so nothing typed is lost. alert() only where TOAST isn't loaded. */
+function _formSaveFailed(e) {
+  const msg = 'Save failed: ' + ((e && e.message) || e);
+  if (window.TOAST && TOAST.error) TOAST.error(msg);
+  else alert(msg);
 }
 
 /* App path: render the form inside the standard fold-up bottom sheet. */
@@ -141,7 +173,7 @@ function _openFormSheet({ title, fields, values, onSave }) {
           await onSave(data);
           api.close();
         } catch (e) {
-          alert('Save failed: ' + e.message);
+          _formSaveFailed(e);
           saveBtn.disabled = false;
           saveBtn.textContent = 'Save';
         }
@@ -202,7 +234,7 @@ function openForm({ title, fields, values = {}, onSave }) {
       await onSave(data);
       overlay.remove();
     } catch (e) {
-      alert('Save failed: ' + e.message);
+      _formSaveFailed(e);
       saveBtn.disabled = false;
       saveBtn.textContent = 'Save';
     }

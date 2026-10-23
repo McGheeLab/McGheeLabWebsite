@@ -1610,7 +1610,7 @@
     "rm.meetings"
    ],
    "plan": "CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md",
-   "note": "Found by the checker (V3.868): Scientia chores (passaging, media changes) overlap RM meeting chores — Phase 1 maps them. V3.869: the Tasks PAGE is gone from the web build (a pointer to RM tasks); the task component stays until V3.871."
+   "note": "Found by the checker (V3.868): Scientia chores (passaging, media changes) overlap RM meeting chores — Phase 1 maps them. V3.872: in the WEB build a task component is an RM task (`api/rm/tasks`, hub-side done reconciliation both ways); the Tasks page is RM’s plus the note’s components. Reminders/chores still Scientia’s (V3.873+)."
   },
   {
    "id": "scientia.protocol-blocks",

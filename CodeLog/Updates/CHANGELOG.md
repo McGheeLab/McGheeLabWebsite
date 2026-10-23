@@ -4,6 +4,47 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.872] — 2026-10-23 — A task component in a Scientia note is an RM task, done flows both ways (Phase 1, step 3, web build)
+
+Alex: *"continue."* Plan: [V3.872_scientia_tasks_rm.md](../ClaudesPlan/V3.872_scientia_tasks_rm.md). `scientia/src` untouched;
+the hub deployed before the client.
+
+### Added
+- **RM tasks on the hub** (`functions/scientia-hub-core.js`): `rmTaskFromBlock({uid, name, b, now})` — the document
+  `TASK_ASSIGN.writeTaskFor` writes (`id 'task-<ts36>-<4>'`, `text`, `bucket: 'assigned'`, `status: 'pending'`,
+  `done`, `done_at`, `due_date` YYYY-MM-DD | TBD, `priority` + `self_importance` high 2 / normal 0 / low −1, `notes`,
+  `assignedToUid/Name`, `assigned_by_uid/name`, `created_at`, `source: 'scientia'`, `source_ref {scientia: {docId,
+  blockId}, docTitle, projectName}`); `rmTaskPatch(u, now)` (text, due, prio, notes, done + done_at, updated_at);
+  `planTaskSync({state, pairs, now})` — pure reconciliation of DONE per pairing: the later timestamp wins (block
+  `task.done` / `modified` vs task `done_at` / `updated_at` / `updatedAt`) → an RM patch or a block op (`task.done`,
+  `task.rmDoneAt`, a log entry `{via: 'rm'}`) pushed as device **RM tasks**; a block no longer a live task → the RM
+  task is dismissed (`dismissed_at`, `dismissed_reason`) and unpaired; a task gone from RM → unpaired. Routes: `POST
+  api/rm/tasks` (400 without `blockId`), `POST api/rm/tasks/update` (paired ids only), `GET api/rm/tasks?ids=`,
+  `POST api/rm/tasks/sync`; `hello` / `state` run `syncTasks` quietly, throttled (`TASKSYNC_MS` 2 min).
+  `MemoryHub` keeps `rmTaskDocs` / `rmTasks`. `isoAt(now)` accepts a Date or ms.
+- `functions/scientia-hub.js` `FirestoreHub`: `_taskRef`, `_pairs` (the hub doc's `rmTasks: {taskId: blockId}`),
+  `createTask` (idempotent per block; set + merge), `updateTask`, `getTasks` (`getAll`), `syncTasks` (`getAll` task
+  docs + block rows, plan, push, patch, prune with `FieldValue.delete()`; `taskSyncAt`). **Deployed.**
+- `rm/scientia/lab-mode.js` §6: `TASK.create` wrapped → `sendTask(b)` (`POST api/rm/tasks`, `b.rmTaskId`, repaint;
+  one in flight per block); `TASK.save` → `updateTask` (text / due / allDay / prio when changed, 800 ms debounce,
+  a signature shadow); `TASK.done` / `TASK.undo` → `update {done, doneAt}` at once; `TASK.body` → an **↗ RM** chip
+  on a paired block (opens RM's Tasks) or **+ RM** on an unpaired one; `WIDGETS.task.body` re-pointed at the wrapper
+  (the doc view had captured the original). `VIEWS.tasks` = RM's Tasks + the notebook's task components with their
+  RM state, *Send N open tasks to RM*, *Open the note* / *Open in RM* / *Send to RM* per row. `SIS_LAB.tasks = {
+  send, update, state, isPaired }`; `SIS_LAB.version` V3.872.
+- 3 fixtures (hub 42/42) and 11 harness checks (`v3869-scientia-lab-mode-harness.html`, **50/50** on the real build;
+  the stub gained the task routes and `__emit(op)` — a hub-doc listener wake + a pull that serves queued ops, so a
+  block op from "RM tasks" is shown reaching the editor through the ordinary pull).
+
+### Changed
+- `rm/scientia/scientia.html` rebuilt; `sw.js` CACHE_VERSION 854 → 855; `CodeLog/features.json` `scientia.tasks`
+  note; the V3.866 plan §3 status.
+
+### Two facts the harness taught
+- The app leaves an incoming op alone while its own change to that record is still in the outbox, and defers it
+  while the block is being typed in — a test must push first (`SYNC.outbox.size === 0`) and blur.
+- `WIDGETS.task.body` is a captured reference: wrapping `TASK.body` alone does not reach the doc view.
+
 ## [V3.871] — 2026-10-23 — Scientia's materials come from RM's inventory (Phase 1, step 2, web build)
 
 Alex: *"continue with the next phase"*. Plan: [V3.871_scientia_materials_inventory.md](../ClaudesPlan/V3.871_scientia_materials_inventory.md).

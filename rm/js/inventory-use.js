@@ -288,7 +288,8 @@
           }
           if (!last) { toast('Nothing recorded — pick an amount.', 'error'); resolve(null); return; }
           var msg = describe(last);
-          if (last.low || last.last) toast(msg, 'success', { actionLabel: 'Request a reorder', retry: function () { goReorder(item); }, ttl: 9000 });
+          // V3.873 — something we made can't be reordered; the lab is told it is low by the alert instead.
+          if ((last.low || last.last) && !item.lab_made) toast(msg, 'success', { actionLabel: 'Request a reorder', retry: function () { goReorder(item); }, ttl: 9000 });
           else toast(msg);
           if (opts.onDone) { try { opts.onDone(last); } catch (e) {} }
           resolve(last);

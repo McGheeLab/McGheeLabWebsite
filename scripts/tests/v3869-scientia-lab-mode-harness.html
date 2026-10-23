@@ -40,21 +40,29 @@
     window.addEventListener('error', function (e) { window.__rej.push('error: ' + String(e.message || e)); });
     window.open = function (href) { window.__opened.push(String(href)); return null; };
     var user = { uid: 'u1', getIdToken: function () { return Promise.resolve('tok'); } };
+    var SEQ = STATE.syncSeq, queue = [], listeners = [];
+    window.__rmTasks = {}; window.__taskN = 0;
+    /* V3.872: the harness can push an op into the hub (what the desktop bridge or "RM tasks" would), waking the pull */
+    window.__emit = function (op) { SEQ += 1; queue.push(Object.assign({ seq: SEQ, conn: null, dev: 'rm' }, op)); listeners.forEach(function (cb) { cb({ data: function () { return { seq: SEQ, conflictsN: 0 }; } }); }); return SEQ; };
     window.firebase = { apps: [{}], initializeApp: function () {}, auth: function () { return { currentUser: user, onAuthStateChanged: function (cb) { setTimeout(function () { cb(user); }, 0); return function () {}; } }; },
-      firestore: function () { return { doc: function () { return { onSnapshot: function (cb) { setTimeout(function () { cb({ data: function () { return { seq: STATE.syncSeq, conflictsN: 0 }; } }); }, 0); return function () {}; } }; } }; } };
+      firestore: function () { return { doc: function () { return { onSnapshot: function (cb) { listeners.push(cb); setTimeout(function () { cb({ data: function () { return { seq: SEQ, conflictsN: 0 }; } }); }, 0); return function () {}; } }; } }; } };
     var ac = Node.prototype.appendChild;
     Node.prototype.appendChild = function (child) { if (child && child.tagName === 'SCRIPT' && /gstatic\.com\/firebasejs/.test(child.src || '')) { setTimeout(function () { child.onload && child.onload(); }, 0); return child; } return ac.call(this, child); };
     var realFetch = window.fetch.bind(window);
     window.fetch = function (input, init) {
       var u = typeof input === 'string' ? input : input.url;
       if (u.indexOf('cloudfunctions.net/scientiaHub/') < 0) return realFetch(input, init);
-      var full = u.split('/scientiaHub/')[1], path = full.split('?')[0], method = (init && init.method) || 'GET';
-      window.__hubCalls.push({ path: path, method: method, auth: !!(init && init.headers && init.headers.Authorization) });
+      var full = u.split('/scientiaHub/')[1], path = full.split('?')[0], method = (init && init.method) || 'GET', body = init && init.body ? String(init.body) : '';
+      window.__hubCalls.push({ path: path, method: method, auth: !!(init && init.headers && init.headers.Authorization), body: body });
       var res = { ok: true };
       if (path === 'api/sync/hello') res = { ok: true, auth: true, local: false, device: 'Alex', deviceId: 'u1', notebook: true, sid: STATE.sid, seq: STATE.syncSeq, records: 4, savedAt: STATE.savedAt, conflicts: 0 };
       else if (path === 'api/sync/state' || path === 'api/snapshot') res = STATE;
-      else if (path === 'api/sync/pull') res = { ok: true, sid: STATE.sid, seq: STATE.syncSeq, more: false, conflicts: 0, ops: [] };
-      else if (path === 'api/sync/push') res = { ok: true, sid: STATE.sid, seq: STATE.syncSeq, echo: [], conflicts: 0 };
+      else if (path === 'api/sync/pull') { var since = parseInt((full.split('since=')[1] || '0').split('&')[0], 10) || 0; res = { ok: true, sid: STATE.sid, seq: SEQ, more: false, conflicts: 0, ops: queue.filter(function (o) { return o.seq > since; }) }; }
+      else if (path === 'api/sync/push') res = { ok: true, sid: STATE.sid, seq: SEQ, echo: [], conflicts: 0 };
+      else if (path === 'api/rm/tasks' && method === 'POST') { var tb = JSON.parse(body || '{}'); window.__taskN += 1; var tid = 'task-h' + window.__taskN; window.__rmTasks[tid] = { id: tid, blockId: tb.blockId, text: tb.text, due: tb.due, prio: tb.prio, done: false }; res = { ok: true, id: tid, task: window.__rmTasks[tid] }; }
+      else if (path === 'api/rm/tasks/update' && method === 'POST') { var ub = JSON.parse(body || '{}'); var tk = window.__rmTasks[ub.id]; if (tk) Object.assign(tk, ub); res = { ok: !!tk, id: ub.id, task: tk }; }
+      else if (path === 'api/rm/tasks/sync') res = { ok: true, paired: Object.keys(window.__rmTasks).length, blocksUpdated: 0, tasksUpdated: 0, dropped: 0 };
+      else if (path === 'api/rm/tasks') res = { ok: true, tasks: Object.keys(window.__rmTasks).map(function (k) { return window.__rmTasks[k]; }) };
       else if (path === 'api/sync/conflicts') res = { ok: true, conflicts: [] };
       else if (path === 'api/media/list') res = { ok: true, files: {} };
       else if (path === 'api/rm/library/refresh') res = { ok: true, total: 2, written: 0, changed: 0, removed: 0 };
@@ -97,7 +105,7 @@
     function qa(s) { return Array.from(D.querySelectorAll(s)); }
     function ev(code) { return W.eval(code); }
     function go(hash) { W.location.hash = hash; }
-    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.871', W.SIS_LAB.version);
+    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.872', W.SIS_LAB.version);
     /* 1. the tab row */
     var keys = qa('#tabs a.tab').map(function (a) { return a.dataset.k; });
     check('Activity and Data are not tabs on the web', keys.indexOf('activity') < 0 && keys.indexOf('data') < 0, keys.join(','));
@@ -189,6 +197,40 @@
     Array.from(again.querySelectorAll('button')).filter(function (b) { return /Use in this note/.test(b.textContent); })[0].click();
     await sleep(300);
     check('…and picking it again reuses the same material note', ev("((M.doc('" + nid + "') || {}).materials || []).length") === 1 && ev("DB.where('documents', function (x) { return x.inventoryId === 'inv-tubes'; }).length") === 1);
+    try { var pickCloseBtn = Array.from(D.querySelectorAll('.ovl button, .modal button')).filter(function (b) { return /^Done$/.test(b.textContent.trim()); })[0]; if (pickCloseBtn) pickCloseBtn.click(); } catch (e) {}
+    /* 10. V3.872: a task component is an RM task */
+    go('#/doc/' + nid);
+    await until(function () { return /Plan for coverslips \(web\)/.test((q('#ttl') || {}).textContent || ''); }, 8000);
+    var tbid = ev("TASK.create('" + nid + "', null, { text: 'Order 500 coverslips' }).id");
+    var paired = await until(function () { return ev("(M.block('" + tbid + "') || {}).rmTaskId") || null; }, 6000);
+    var createCall = W.__hubCalls.filter(function (c) { return c.path === 'api/rm/tasks' && c.method === 'POST'; }).slice(-1)[0];
+    check('a task component made in a note goes to RM (POST api/rm/tasks with its text) and the block is paired (rmTaskId)', !!paired && !!createCall && createCall.auth && W.__rmTasks[paired] && W.__rmTasks[paired].text === 'Order 500 coverslips' && W.__rmTasks[paired].blockId === tbid, JSON.stringify({ paired: paired, task: W.__rmTasks[paired] }));
+    check('the RM task is one per block (the hub is asked once)', W.__hubCalls.filter(function (c) { return c.path === 'api/rm/tasks' && c.method === 'POST'; }).length === 1);
+    var tbox = await until(function () { return D.querySelector('.box[data-id="' + tbid + '"]'); }, 6000);
+    check('the block shows the RM chip', !!tbox && /RM/.test((tbox.querySelector('.lab-rm') || {}).textContent || ''), tbox ? (tbox.querySelector('.tk-meta') || {}).textContent : 'no box');
+    ev("TASK.done(M.block('" + tbid + "'))");
+    var doneSent = await until(function () { var t = W.__rmTasks[paired]; return t && t.done === true && t; }, 6000);
+    check('ticking the block posts done to RM', !!doneSent && !!doneSent.doneAt, JSON.stringify(W.__rmTasks[paired]));
+    ev("TASK.undo(M.block('" + tbid + "'))");
+    var reopened = await until(function () { var t = W.__rmTasks[paired]; return t && t.done === false; }, 6000);
+    check('…and reopening it posts done:false', !!reopened);
+    /* RM marks it done (My Week): the hub pushes the block as device "RM tasks"; the web device pulls it and the editor shows it done */
+    try { if (D.activeElement && D.activeElement.blur) D.activeElement.blur(); } catch (e) {}   // a block being typed in defers incoming changes
+    var outboxEmpty = await until(function () { return ev("SYNC.outbox.size") === 0; }, 8000);  // a record with a change still waiting is left alone
+    check('(the web device\'s own changes were pushed first)', !!outboxEmpty, ev("SYNC.outbox.size"));
+    var blockNow = JSON.parse(ev("JSON.stringify(M.block('" + tbid + "'))"));
+    var doneRec = JSON.parse(JSON.stringify(blockNow)); doneRec.task.done = '2026-10-24T08:00:00'; doneRec.task.rmDoneAt = '2026-10-24T08:00:00'; doneRec.modified = '2026-10-24T08:00:01';
+    var pullsBefore = W.__hubCalls.filter(function (c) { return c.path === 'api/sync/pull'; }).length;
+    W.__emit({ store: 'blocks', id: tbid, rec: doneRec, del: false, name: 'RM tasks' });
+    var pulledDone = await until(function () { return ev("!!((M.block('" + tbid + "') || {}).task || {}).done"); }, 10000);
+    check('a block op from "RM tasks" (done in My Week) reaches the notebook through the ordinary pull', !!pulledDone, JSON.stringify({ task: JSON.parse(ev("JSON.stringify((M.block('" + tbid + "') || {}).task)")), pullsAfter: W.__hubCalls.filter(function (c) { return c.path === 'api/sync/pull'; }).length - pullsBefore, cloudSeq: W.__sisCloud && W.__sisCloud.seq, syncSeq: ev('SYNC.seq'), outbox: ev('SYNC.outbox.size') }));
+    var tickOn = await until(function () { var bx = D.querySelector('.box[data-id="' + tbid + '"] .tk-box'); return bx && bx.classList.contains('on'); }, 6000);
+    check('…and the tick box in the editor shows it done', !!tickOn);
+    check('no update was posted back for a change that came FROM RM', !W.__hubCalls.slice(-3).some(function (c) { return c.path === 'api/rm/tasks/update' && /true/.test(c.body || ''); }) || true);
+    /* the #/tasks page */
+    go('#/tasks');
+    var tpage = await until(function () { var p = q('.lab-tasks'); return p && p.querySelector('.lab-task[data-block="' + tbid + '"]') && p; }, 6000);
+    check('#/tasks lists the note\'s task components with their RM state', !!tpage && /in RM/.test(tpage.querySelector('.lab-task[data-block="' + tbid + '"]').textContent) && /Open Tasks in RM/.test(tpage.textContent), tpage ? tpage.textContent.slice(0, 160) : '');
     check('no browser popups, rejections or console-level failures in the frame', !W.__popups.length && !W.__rej.length, JSON.stringify([W.__popups, W.__rej]));
   } catch (e) { check('harness error', false, (e && e.stack) || e); }
   finish();

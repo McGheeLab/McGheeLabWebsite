@@ -10,9 +10,8 @@
                 working). Read / open → RM's reader. Adding = RM's import.
      Activity   gone — a pointer to RM's activity tracker (desktop keeps its own).
      Data       gone — desktop only (folder handles need the computer).
-     Tasks page gone — a pointer to RM tasks (the task component stays; V3.870
-                makes it an RM task).
-     Materials  untouched in this version (V3.870: the inventory picker).
+     Tasks page RM's Tasks + this notebook's task components and their RM state.
+     Materials  from RM's inventory (V3.871, section 5); a task component is an RM task (V3.872, section 6).
 
    The app's globals (TABS, VIEWS, App, DB, M, LIB, h, …) are top-level consts
    of the classic script that precedes this one: same realm, same lexical
@@ -28,7 +27,7 @@
     activity: '/rm/pages/activity-overview.html?tab=tracker',
     inventory: '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.871', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.872', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -270,4 +269,97 @@
       }
     });
   } catch (e) { warn('material sheet', e); }
+  /* ---- 6. A task component is an RM task (V3.872) ----
+     Gabe's task block (kind 'task': body.text, task {due, allDay, prio, repeat, subs, done, log}) stays the unit in
+     the note; on the web it is paired with a task in your RM list (userData/{uid}/tasks, bucket 'assigned', so My
+     Week offers it). The hub reconciles DONE both ways on every hello (later change wins); text, due and priority go
+     to RM from here as they change. */
+  var TK = { shadow: {}, pending: {}, sent: [] };
+  LAB.tasks = { send: sendTask, update: updateTask, state: TK, isPaired: isPaired };
+  function isPaired(b) { return !!(b && b.rmTaskId); }
+  function taskFields(b) {
+    var t = TASK.t(b), d = M.doc(b.docId), p = d && d.projectId ? M.project(d.projectId) : null;
+    return { text: TASK.text(b), due: t.due || null, allDay: !!t.allDay, prio: t.prio || 'normal', docTitle: (d && d.title) || '', projectName: (p && p.name) || '' };
+  }
+  function sig(f) { return [f.text, f.due || '', f.allDay ? 1 : 0, f.prio].join('|'); }
+  async function sendTask(b) {
+    b = M.block(b.id || b); if (!b || b.kind !== 'task' || b.status !== 'live') return null;
+    if (b.rmTaskId) return b.rmTaskId;
+    if (TK.pending[b.id]) return TK.pending[b.id];
+    var f = taskFields(b);
+    TK.pending[b.id] = (async function () {
+      try {
+        var r = await fetch('api/rm/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ blockId: b.id, docId: b.docId }, f)) });
+        var j = r.ok ? await r.json() : null;
+        if (!j || !j.ok || !j.id) { warn('send task', j && j.error); return null; }
+        var cur = M.block(b.id); if (!cur) return j.id;
+        cur.rmTaskId = j.id; cur.modified = isoLocal(new Date()); DB.put('blocks', cur); TK.shadow[cur.id] = sig(f); TK.sent.push(j.id); changed();
+        try { TASK.repaint(cur); } catch (e) {}
+        return j.id;
+      } catch (e) { warn('send task', e); return null; }
+      finally { delete TK.pending[b.id]; }
+    })();
+    return TK.pending[b.id];
+  }
+  var updateTimers = {};
+  function updateTask(b, extra) {
+    b = M.block(b.id || b); if (!b || !b.rmTaskId) return;
+    var f = taskFields(b), s = sig(f), body = Object.assign({ id: b.rmTaskId }, extra || {});
+    if (TK.shadow[b.id] !== s) { Object.assign(body, f); TK.shadow[b.id] = s; }
+    if (Object.keys(body).length === 1) return;  // nothing changed
+    clearTimeout(updateTimers[b.id]);
+    updateTimers[b.id] = setTimeout(async function () {
+      try { var r = await fetch('api/rm/tasks/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); if (!r.ok) warn('update task', r.status); TK.sent.push('update:' + b.rmTaskId); }
+      catch (e) { warn('update task', e); }
+    }, extra && extra.done !== undefined ? 0 : 800);
+  }
+  try {
+    var oCreate = TASK.create, oSave = TASK.save, oDone = TASK.done, oUndo = TASK.undo, oBody = TASK.body;
+    TASK.create = function () { var b = oCreate.apply(TASK, arguments); if (b) sendTask(b); return b; };
+    TASK.save = function (b) { var r = oSave.apply(TASK, arguments); try { if (b && b.rmTaskId) updateTask(b); } catch (e) { warn('task save', e); } return r; };
+    TASK.done = function (b) { var r = oDone.apply(TASK, arguments); try { var cur = M.block(b.id || b); if (cur && cur.rmTaskId) updateTask(cur, { done: true, doneAt: TASK.t(cur).done || isoLocal(new Date()) }); } catch (e) { warn('task done', e); } return r; };
+    TASK.undo = function (b) { var r = oUndo.apply(TASK, arguments); try { var cur = M.block(b.id || b); if (cur && cur.rmTaskId) updateTask(cur, { done: false }); } catch (e) { warn('task undo', e); } return r; };
+    TASK.body = function (b, d, pane, ro) {
+      var el = oBody.apply(TASK, arguments);
+      try {
+        var meta = el && el.querySelector ? el.querySelector('.tk-meta') : null;
+        if (meta) {
+          var cur = M.block(b.id) || b;
+          meta.appendChild(cur.rmTaskId
+            ? h('button.tk-chip.lab-rm', { title: 'This task is in your RM list (My Week, the phone)', on: { click: function (e) { e.stopPropagation(); openRM(RM.tasks); } } }, '↗ RM')
+            : h('button.tk-chip.lab-rm.none', { title: 'Put this task in your RM list', disabled: !!ro, on: { click: function (e) { e.stopPropagation(); sendTask(cur).then(function () { try { TASK.repaint(M.block(cur.id)); } catch (x) {} }); } } }, '+ RM'));
+        }
+      } catch (e) { warn('task body', e); }
+      return el;
+    };
+    TASK.create._orig = oCreate;
+    // the doc view renders task blocks through WIDGETS.task.body, a reference captured at load — point it at the wrapper
+    try { if (typeof WIDGETS !== 'undefined' && WIDGETS.task && WIDGETS.task.body === oBody) WIDGETS.task.body = TASK.body; } catch (e) { warn('widgets.task', e); }
+  } catch (e) { warn('tasks', e); }
+  /* the #/tasks page: RM's Tasks, plus this notebook's task components and their RM state */
+  try {
+    var oTasksView = VIEWS.tasks;
+    VIEWS.tasks = {
+      title: true,
+      render: function () {
+        var list = TASK.all().slice().sort(function (a, b) { return (TASK.isOpen(a) ? 0 : 1) - (TASK.isOpen(b) ? 0 : 1) || (b.modified || '').localeCompare(a.modified || ''); });
+        var open = list.filter(TASK.isOpen).length, unpaired = list.filter(function (b) { return !b.rmTaskId && TASK.isOpen(b); });
+        App.setTitle('Tasks', [h('span', plural(open, 'open task') + ' in your notes · all in RM')]);
+        return h('div.page.lab-tasks', h('div.eyebrow', 'The lab site'), h('h1.title', 'Tasks'),
+          h('p.stand', 'Tasks are RM’s: a task component you write in a note goes to your RM list, shows in My Week and on your phone, and comes back done. Open the list in RM to plan, assign and finish.'),
+          h('div.card.flat', h('div.row', btn('pri', 'Open Tasks in RM', function () { openRM(RM.tasks); }), btn('', 'Open My Week', function () { openRM('/rm/pages/my-week.html'); }),
+            unpaired.length ? btn('', 'Send ' + plural(unpaired.length, 'open task') + ' to RM', function () { unpaired.forEach(function (b) { sendTask(b); }); setTimeout(function () { App._mounted = false; App.refresh(); }, 1500); }) : null)),
+          h('div.sec'), h('div.sec-h', h('h2', 'Task components in your notes'), h('span.k', list.length)),
+          list.length ? h('div.list', list.map(function (b) {
+            var t = TASK.t(b), d = M.doc(b.docId);
+            return h('div.card.flat.lab-task', { 'data-block': b.id, 'data-rm': b.rmTaskId || '' },
+              h('div.row', h('b', { style: { textDecoration: t.done ? 'line-through' : 'none' } }, TASK.text(b)), h('span.pill', b.rmTaskId ? 'in RM' : 'not in RM'), t.done ? h('span.pill', 'done') : null),
+              h('div.tiny.muted', [d ? d.title : '', t.due ? 'due ' + TASK.fmtDue(t) : '', t.prio !== 'normal' ? t.prio : ''].filter(Boolean).join(' · ')),
+              h('div.row', { style: { marginTop: '4px', gap: '6px' } }, btn('xs', 'Open the note', function () { App.openBlock(b.id); }),
+                b.rmTaskId ? btn('xs', 'Open in RM', function () { openRM(RM.tasks); }) : btn('xs pri', 'Send to RM', function () { sendTask(b).then(function () { App._mounted = false; App.refresh(); }); })));
+          })) : h('div.empty', 'No task components yet — add one in a note with + Insert → Task.'));
+      }
+    };
+    VIEWS.tasks._pointer = oTasksView;
+  } catch (e) { warn('tasks page', e); }
 })();
