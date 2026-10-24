@@ -2,7 +2,7 @@
    01 · Utilities — DOM builder, ids, dates, formatting
    ========================================================================== */
 'use strict';
-const BUILD = '2026-10-22 · structure colours + structure menu on selection in PDF/HTML', DEMO_V = 2;
+const BUILD = '2026-10-24 · PDFs on the canvas draw on demand', DEMO_V = 2;
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

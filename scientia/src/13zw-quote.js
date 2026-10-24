@@ -92,6 +92,8 @@ const QUOTE = {
   /** Scroll the embed to a quote and flash it. */
   goto(q) {
     const src = M.block(q.quote.src); if (!src) return toast('The embedded file is gone'); App.jump(src.id, null);
+    // zoomed far out a PDF card shows its title (13zk): zoom in to read the passage (the jump only zooms when the card is off screen)
+    if (src.kind === 'pdf' && DocView.paper && DocView.docId === src.docId && DocView.paper.view.z < PDFW.MIN_Z) { const r = DocView.rectOf(src.id); if (r) DocView.paper.centerOn(r.x + r.w / 2, r.y + Math.min(r.h, 300) / 2, .8); }
     setTimeout(() => {
       if (src.kind === 'pdf') { const box = $(`.box[data-id="${src.id}"]`); if (!box) return; if (src.view === 'page' && (src.cur || 0) + 1 !== q.quote.page) { PDFW.go(M.block(src.id), q.quote.page - 1); setTimeout(() => QUOTE.goto(q), 700); return; }
         const sl = $(`.pdf-slot[data-p="${q.quote.page}"]`, box) || $('.pdf-one', box), st = $('.pdf-stage', box); if (sl && st && src.view !== 'page') st.scrollTop = sl.offsetTop + (q.quote.rects && q.quote.rects[0] ? q.quote.rects[0][1] * sl.offsetHeight : 0) - 40;
@@ -141,7 +143,7 @@ P.postMessage({sis:'ready'},'*');})();<\/script>`,
     if (d.sis === 'erase' && d.id) QUOTE.erase([d.id]);
     if (d.sis === 'key' && $('.pop')) document.dispatchEvent(new KeyboardEvent('keydown', { key: d.key, bubbles: true, cancelable: true })); });
   // PDF widgets: a text layer on every drawn page
-  const pg = PDFW.page; PDFW.page = async function (m, n, canvas, width) { const r = await pg.call(PDFW, m, n, canvas, width); QUOTE.textLayer(m, n, canvas, width).catch(() => { }); return r; };
+  const pg = PDFW.page; PDFW.page = async function (m, n, canvas, width, res) { const r = await pg.call(PDFW, m, n, canvas, width, res); QUOTE.textLayer(m, n, canvas, width).catch(() => { }); return r; };
   document.addEventListener('mouseup', e => { if (!e.target.closest || !e.target.closest('.q-slot')) return; setTimeout(() => { const s = QUOTE.pdfSel(); if (s) QUOTE.menu(s, s.x, s.y); }, 10); });
   document.addEventListener('keydown', e => { if (!((e.ctrlKey || e.metaKey) && e.key === 'Enter')) return; const s = QUOTE.pdfSel(); if (!s) return; e.preventDefault(); e.stopPropagation(); closePop(); QUOTE.strip(s, s.x, s.y); }, true);
   // selecting text in a PDF widget doesn't drag the box
