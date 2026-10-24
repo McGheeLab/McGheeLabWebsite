@@ -1,0 +1,3975 @@
+[
+ {
+  "file": "pe-ax-01-laser-power.protocol-import.json",
+  "id": "pe-ax-01-laser-power",
+  "title": "PE beads · Exp 01 · Laser power at the sample",
+  "summary": "Measure 561 nm power at the sample through the 10x and 20x against the NIS laser %, and pick the powers that keep PE linear.",
+  "header": "Every later experiment is specified in µW at the sample, never in laser %.",
+  "notes": [
+   {
+    "text": "Pins: peak irradiance at the focus, and from it the PE excitation rate, the saturation level and the bleaching dose per frame. The same laser % gives different power through the 10x and the 20x because the back aperture is filled differently, and the %-to-µW map drifts during a session.",
+    "where": "Overview"
+   },
+   {
+    "text": "≈45 min first time; 5 min at the start and end of each quantitative session.",
+    "where": "Overview"
+   },
+   {
+    "text": "With 3 µW at NA 0.75 the peak irradiance is 1.82 kW/cm² and PE emission is 8.8 % below linear. The power for I/Iₛ = 0.08 is 2.51 µW.",
+    "where": "Calculator"
+   }
+  ],
+  "cautions": [
+   {
+    "text": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+    "where": "Settings"
+   },
+   {
+    "text": "A scanned beam is blanked during flyback, so a scanning reading is lower than the on-time power. Use a stationary spot when you can, and always note which mode you used.",
+    "where": "Procedure"
+   }
+  ],
+  "assumptions": [
+   "Model prediction: with confocal weighting the image is 5 % below linear at I/Iₛ ≈ 0.08, which is ≈2 µW at the sample through the 20x and ≈6–7 µW through the 10x (Iₛ ≈ 19 kW/cm² for R-PE at 561 nm). The beam-centre number in the calculator is the worst case; the whole image is ≈0.6–0.67 of it."
+  ],
+  "tables": [
+   {
+    "caption": "Acquisition settings",
+    "columns": [
+     "Setting",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Laser line",
+      "561 nm"
+     ],
+     [
+      "Objectives",
+      "10x/0.45 Plan Apo λD, then the 20x (read the NA on the barrel)"
+     ],
+     [
+      "Beam",
+      "Stationary spot (point or stimulation mode) if NIS allows; otherwise a 512² scan at maximum zoom, and note that the reading is scan-averaged"
+     ],
+     [
+      "Meter wavelength",
+      "561 nm"
+     ],
+     [
+      "Laser %",
+      "0.1, 0.3, 1, 3, 10, 30, 100"
+     ]
+    ],
+    "where": "Settings"
+   }
+  ],
+  "materials": [
+   "1 ea Slide-format photodiode power sensor (Thorlabs S170C-type) and console",
+   "1 ea Lens tissue",
+   "NIS-Elements with the 561 nm line enabled"
+  ],
+  "calculators": [
+   {
+    "label": "Irradiance and PE saturation at the focus",
+    "inputs": [
+     {
+      "label": "Power at the sample",
+      "value": "3 µW",
+      "hint": ""
+     },
+     {
+      "label": "Objective NA",
+      "value": "0.75",
+      "hint": ""
+     },
+     {
+      "label": "Excitation wavelength",
+      "value": "0.561 µm",
+      "hint": ""
+     },
+     {
+      "label": "PE saturation irradiance",
+      "value": "19 kW/cm²",
+      "hint": "≈19 for R-PE at 561 nm"
+     },
+     {
+      "label": "Target I/Iₛ (0.08 ≈ 5 % image sublinearity)",
+      "value": "0.08",
+      "hint": ""
+     }
+    ],
+    "outputs": [
+     {
+      "label": "Focal spot radius (1/e²)",
+      "value": "0.324 µm"
+     },
+     {
+      "label": "Peak irradiance",
+      "value": "1.82 kW/cm²"
+     },
+     {
+      "label": "I/Iₛ",
+      "value": "0.096"
+     },
+     {
+      "label": "Emission below linear at the beam centre",
+      "value": "8.8 %"
+     },
+     {
+      "label": "Power for the target I/Iₛ",
+      "value": "2.51 µW"
+     }
+    ],
+    "table": null
+   }
+  ],
+  "procedure": [
+   {
+    "heading": "Set up"
+   },
+   {
+    "step": "Switch the 561 nm laser on at least 30 min before measuring, for a stable output."
+   },
+   {
+    "step": "With the laser off, zero the meter. Set its wavelength to 561 nm."
+   },
+   {
+    "step": "Put the sensor on the stage, centred under the 10x, with its active area at the focus (focus on the sensor surface in transmitted light)."
+   },
+   {
+    "heading": "Power ladder"
+   },
+   {
+    "step": "Park the beam (stationary spot) or start a 512² scan at maximum zoom. Read µW at each laser %: 0.1, 0.3, 1, 3, 10, 30, 100."
+   },
+   {
+    "step": "Read 0 % again at the end, to catch meter drift."
+   },
+   {
+    "step": "Swap to the 20x, refocus on the sensor, and repeat the ladder."
+   },
+   {
+    "heading": "Every quantitative session"
+   },
+   {
+    "step": "Read the % you will use (and one higher point) through the objective you will use, at the start and at the end of the session. A change of more than 5 % means the intensities need a drift correction."
+   }
+  ],
+  "analysis": [
+   {
+    "step": "Fit µW = a × (laser %) per objective over the linear part of the ladder; record a and the 20x/10x ratio at the same %."
+   },
+   {
+    "step": "Enter the measured µW in the calculator with each objective's NA, and read the % that gives the target I/Iₛ (0.08)."
+   }
+  ],
+  "decision": [
+   "Decision: the laser % that gives the operating power for each objective (1–2 µW through the 20x, ≈6 µW through the 10x, unless Exp 07 moves them). Record power in µW in every later plate map.",
+   "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7)."
+  ],
+  "record": [
+   {
+    "caption": "Record for every acquisition",
+    "columns": [
+     "Field",
+     "What to write"
+    ],
+    "rows": [
+     [
+      "Date / time",
+      "Start and end of the session"
+     ],
+     [
+      "Objective",
+      "Model and NA from the barrel"
+     ],
+     [
+      "Laser %",
+      "Each rung of the ladder"
+     ],
+     [
+      "Power",
+      "µW at the sample"
+     ],
+     [
+      "Mode",
+      "Stationary spot or scan-averaged"
+     ],
+     [
+      "Meter",
+      "Sensor model, wavelength setting"
+     ]
+    ],
+    "where": "Decision & record"
+   }
+  ],
+  "timeline": null,
+  "plate": null,
+  "builder": null,
+  "values": {
+   "p_uw": {
+    "label": "Power at the sample",
+    "text": "3 µW"
+   },
+   "na": {
+    "label": "Objective NA",
+    "text": "0.75"
+   },
+   "lam_ex": {
+    "label": "Excitation wavelength",
+    "text": "0.561 µm"
+   },
+   "i_sat": {
+    "label": "PE saturation irradiance",
+    "text": "19 kW/cm²"
+   },
+   "target_s": {
+    "label": "Target I/Iₛ (0.08 ≈ 5 % image sublinearity)",
+    "text": "0.08"
+   },
+   "w0_um": {
+    "label": "Focal spot radius (1/e²)",
+    "text": "0.324 µm"
+   },
+   "i0_kw": {
+    "label": "Peak irradiance",
+    "text": "1.82 kW/cm²"
+   },
+   "s_ratio": {
+    "label": "I/Iₛ",
+    "text": "0.096"
+   },
+   "sublin_pct": {
+    "label": "Emission below linear at the beam centre",
+    "text": "8.8 %"
+   },
+   "p_target_uw": {
+    "label": "Power for the target I/Iₛ",
+    "text": "2.51 µW"
+   }
+  }
+ },
+ {
+  "file": "pe-ax-02-photon-transfer.protocol-import.json",
+  "id": "pe-ax-02-photon-transfer",
+  "title": "PE beads · Exp 02 · Detector photon-transfer curve",
+  "summary": "Convert DN to effective photoelectrons for each detector HV with a mean-variance photon-transfer curve, plus offset and read noise.",
+  "header": "Shot-noise SNR, LOD and clipping all need DN converted to photoelectrons.",
+  "notes": [
+   {
+    "text": "Pins: g·F (DN per effective photoelectron) at each HV, the offset and the read noise. g and F cannot be separated this way; their product is exactly what SNR needs.",
+    "where": "Overview"
+   },
+   {
+    "text": "At this HV a pixel reading 5,000 DN holds 240 e⁻ (SNR 15.5); a pixel clips above 3,267 e⁻.",
+    "where": "Calculator"
+   }
+  ],
+  "cautions": [
+   {
+    "text": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+    "where": "Settings"
+   }
+  ],
+  "assumptions": [
+   "Model: variance(DN) = g·F × (mean − offset) + σ²_read; PMT excess-noise factor F ≈ 1.2–1.5."
+  ],
+  "tables": [
+   {
+    "caption": "Acquisition settings",
+    "columns": [
+     "Setting",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Objective",
+      "20x, pinhole 1 AU"
+     ],
+     [
+      "Laser",
+      "561 nm; 8–10 powers from near zero to ≈80 % of full scale on the brightest pixel"
+     ],
+     [
+      "Frames",
+      "Two single frames per power (no averaging), plus 20 dark frames with the laser at 0 %"
+     ],
+     [
+      "Frame",
+      "512², 2 µs dwell, focus 20 µm into the dye (or on the slide)"
+     ],
+     [
+      "HV",
+      "Repeat the whole ladder at 4–5 HV values covering what you will ever use"
+     ]
+    ],
+    "where": "Settings"
+   }
+  ],
+  "materials": [
+   "1 ea Uniform fluorescent sample in the PE band: orange fluorescent plastic slide, or ≈10 µM rhodamine B in water in a sealed thin chamber",
+   "1 ea #1.5 glass-bottom dish or slide + coverslip"
+  ],
+  "calculators": [
+   {
+    "label": "Convert a reading to photoelectrons",
+    "inputs": [
+     {
+      "label": "Fitted slope (g·F)",
+      "value": "20 DN per e⁻",
+      "hint": ""
+     },
+     {
+      "label": "Offset (mean of dark frames)",
+      "value": "200 DN",
+      "hint": ""
+     },
+     {
+      "label": "Read noise (SD of dark frames)",
+      "value": "3 DN",
+      "hint": ""
+     },
+     {
+      "label": "ADC full scale",
+      "value": "65,535 DN",
+      "hint": "4095 in 12-bit mode"
+     },
+     {
+      "label": "A pixel reading",
+      "value": "5,000 DN",
+      "hint": ""
+     }
+    ],
+    "outputs": [
+     {
+      "label": "Effective photoelectrons",
+      "value": "240 e⁻"
+     },
+     {
+      "label": "Pixel SNR",
+      "value": "15.5"
+     },
+     {
+      "label": "Photoelectrons before clipping",
+      "value": "3,267 e⁻"
+     }
+    ],
+    "table": null
+   }
+  ],
+  "procedure": [
+   {
+    "heading": "Dark"
+   },
+   {
+    "step": "Laser at 0 %, same HV and offset you will use: take 20 frames. They give the offset (mean) and read noise (SD)."
+   },
+   {
+    "heading": "Ladder"
+   },
+   {
+    "step": "Laser on. At each of 8–10 powers, take two frames in a row without changing anything."
+   },
+   {
+    "step": "Move the stage 50 µm between powers, so bleaching of a dye slide does not bias the ladder."
+   },
+   {
+    "heading": "Repeat per HV"
+   },
+   {
+    "step": "Repeat steps 01–02 at 4–5 HV values. Keep the offset fixed if NIS allows, or re-measure the dark frames at each HV."
+   }
+  ],
+  "analysis": [
+   {
+    "step": "For each frame pair, in a central 256² ROI: m = mean((I₁ + I₂)/2) − offset, and v = var(I₁ − I₂)/2. Taking the difference removes the illumination pattern."
+   },
+   {
+    "step": "Fit v = slope × m + σ²_read over the unsaturated points. The slope is g·F at that HV. Check that R² is above 0.99."
+   },
+   {
+    "step": "Tabulate slope against HV. PMT gain is steep (≈ a power of HV), so fit log(slope) against log(HV) to interpolate."
+   },
+   {
+    "step": "Detector linearity: at the plate HV, mean signal against laser power must stay within 2 % of a straight line up to the photon rate of the top standard's rim. The highest power where it does is the analog linearity limit."
+   }
+  ],
+  "decision": [
+   "Decision: the HV at which the brightest expected rim pixel stays at or below 60–70 % of full scale (confirmed in Exp 08), and the slope used to convert every later image to photoelectrons.",
+   "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7)."
+  ],
+  "record": [
+   {
+    "caption": "Record for every acquisition",
+    "columns": [
+     "Field",
+     "What to write"
+    ],
+    "rows": [
+     [
+      "HV",
+      "Volts or NIS gain value"
+     ],
+     [
+      "Offset",
+      "DN"
+     ],
+     [
+      "Read noise",
+      "DN"
+     ],
+     [
+      "Slope",
+      "DN per effective e⁻, with R²"
+     ],
+     [
+      "Powers",
+      "µW at the sample for each rung"
+     ]
+    ],
+    "where": "Decision & record"
+   }
+  ],
+  "timeline": null,
+  "plate": null,
+  "builder": null,
+  "values": {
+   "slope": {
+    "label": "Fitted slope (g·F)",
+    "text": "20 DN per e⁻"
+   },
+   "offset_dn": {
+    "label": "Offset (mean of dark frames)",
+    "text": "200 DN"
+   },
+   "read_dn": {
+    "label": "Read noise (SD of dark frames)",
+    "text": "3 DN"
+   },
+   "adc_max": {
+    "label": "ADC full scale",
+    "text": "65,535 DN"
+   },
+   "dn_reading": {
+    "label": "A pixel reading",
+    "text": "5,000 DN"
+   },
+   "e_eff": {
+    "label": "Effective photoelectrons",
+    "text": "240 e⁻"
+   },
+   "snr_px": {
+    "label": "Pixel SNR",
+    "text": "15.5"
+   },
+   "e_max": {
+    "label": "Photoelectrons before clipping",
+    "text": "3,267 e⁻"
+   }
+  }
+ },
+ {
+  "file": "pe-ax-03-flat-field.protocol-import.json",
+  "id": "pe-ax-03-flat-field",
+  "title": "PE beads · Exp 03 · Flat field per objective and scan format",
+  "summary": "Measure the illumination and collection fall-off across the field for each objective, zoom and frame size, every session.",
+  "header": "Bead intensity depends on where the bead sits in the field until this correction is applied.",
+  "notes": [
+   {
+    "text": "Pins: the vignetting map v(x, y). Corner-to-centre fall-off of 10 % or more is typical on point-scanning confocals, and up to 40–60 % at low zoom has been reported.",
+    "where": "Overview"
+   }
+  ],
+  "cautions": [
+   {
+    "text": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+    "where": "Settings"
+   }
+  ],
+  "assumptions": [
+   "Field side assumes the FN 25 field is a square inscribed in a 25 mm circle (17.7 mm at the intermediate image). Check it once with a stage micrometer."
+  ],
+  "tables": [
+   {
+    "caption": "Acquisition settings",
+    "columns": [
+     "Setting",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Combinations",
+      "Every objective × zoom × frame size you will use for beads"
+     ],
+     [
+      "Pinhole / laser / HV",
+      "Exactly the bead settings"
+     ],
+     [
+      "Frames",
+      "8, each after a 50 µm stage move (averages out dust and scratches)"
+     ]
+    ],
+    "where": "Settings"
+   }
+  ],
+  "materials": [
+   "1 ea The uniform sample from Exp 02 (plastic slide or dye chamber)"
+  ],
+  "calculators": [
+   {
+    "label": "Field and pixel size",
+    "inputs": [
+     {
+      "label": "Objective magnification",
+      "value": "10 ×",
+      "hint": ""
+     },
+     {
+      "label": "Scan zoom",
+      "value": "1 ×",
+      "hint": ""
+     },
+     {
+      "label": "Frame size (pixels per side)",
+      "value": "4,096 px",
+      "hint": ""
+     },
+     {
+      "label": "Bead diameter",
+      "value": "8 µm",
+      "hint": ""
+     }
+    ],
+    "outputs": [
+     {
+      "label": "Field side at the sample",
+      "value": "1,770 µm"
+     },
+     {
+      "label": "Pixel size",
+      "value": "0.432 µm"
+     },
+     {
+      "label": "Pixels across a bead",
+      "value": "18.5 px"
+     }
+    ],
+    "table": null
+   }
+  ],
+  "procedure": [
+   {
+    "step": "Focus 20 µm into the dye (or onto the slide) by transmitted light; turn Perfect Focus on."
+   },
+   {
+    "step": "For each combination, take 8 frames with a 50 µm stage move between them."
+   },
+   {
+    "step": "Take 10 dark frames (laser 0 %) with the same settings."
+   }
+  ],
+  "analysis": [
+   {
+    "step": "Median-combine the 8 frames, subtract the dark mean, smooth lightly (Gaussian, 2–3 px) and divide by the mean of the central 10 % of the field. That is the flat field FF(x, y)."
+   },
+   {
+    "step": "Corrected image = (raw − offset) / FF. Report the corner-to-centre ratio."
+   },
+   {
+    "step": "Mark the region where 1/FF is below 1.25; analyse beads only inside it, or report the residual bias."
+   }
+  ],
+  "decision": [
+   "Decision: the analysable region per objective and scan format, and the FF image used for every bead image of that session.",
+   "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7)."
+  ],
+  "record": [
+   {
+    "caption": "Record for every acquisition",
+    "columns": [
+     "Field",
+     "What to write"
+    ],
+    "rows": [
+     [
+      "Combination",
+      "Objective, zoom, frame size"
+     ],
+     [
+      "Corner / centre",
+      "Ratio"
+     ],
+     [
+      "Analysable radius",
+      "Fraction of the half-diagonal"
+     ],
+     [
+      "File",
+      "Name of the saved FF image"
+     ]
+    ],
+    "where": "Decision & record"
+   }
+  ],
+  "timeline": null,
+  "plate": null,
+  "builder": null,
+  "values": {
+   "m_obj": {
+    "label": "Objective magnification",
+    "text": "10 ×"
+   },
+   "zoom": {
+    "label": "Scan zoom",
+    "text": "1 ×"
+   },
+   "n_px": {
+    "label": "Frame size (pixels per side)",
+    "text": "4,096 px"
+   },
+   "bead_d": {
+    "label": "Bead diameter",
+    "text": "8 µm"
+   },
+   "field_um": {
+    "label": "Field side at the sample",
+    "text": "1,770 µm"
+   },
+   "px_um": {
+    "label": "Pixel size",
+    "text": "0.432 µm"
+   },
+   "ppb": {
+    "label": "Pixels across a bead",
+    "text": "18.5 px"
+   }
+  }
+ },
+ {
+  "file": "pe-ax-04-psf-plane-axial.protocol-import.json",
+  "id": "pe-ax-04-psf-plane-axial",
+  "title": "PE beads · Exp 04 · PSF, plane response and axial scaling",
+  "summary": "Measure the point response, the thin-sheet (plane) response H(z) and the dry-to-water focal scaling for each objective and pinhole.",
+  "header": "The integrated bead signal depends on H(z), the response to a thin fluorescent sheet.",
+  "notes": [
+   {
+    "text": "Pins: lateral and on-axis axial FWHM against pinhole (4a); the plane response H(z) and its shape (4b); the focal scaling factor from stage travel to depth in water (4c).",
+    "where": "Overview"
+   },
+   {
+    "text": "At NA 0.75 and 1 AU: the pinhole is 0.94 µm at the sample and the textbook section is 2.32 µm. The bead equator sits 3.01 µm of stage travel above the glass.",
+    "where": "Calculator"
+   }
+  ],
+  "cautions": [
+   {
+    "text": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+    "where": "Settings"
+   }
+  ],
+  "assumptions": [
+   "Model (simulator): 20x/0.75 at 1 AU gives 0.40 µm lateral, 1.5 µm on-axis and 2.6 µm plane-integrated axial FWHM; 10x at 4 AU gives a 28 µm plane response with a flat top. The textbook formula for the 20x at 1 AU gives 2.3 µm (n = 1)."
+  ],
+  "tables": [
+   {
+    "caption": "Acquisition grid",
+    "columns": [
+     "Part",
+     "Objective",
+     "Pinhole",
+     "z range / step",
+     "Pixel"
+    ],
+    "rows": [
+     [
+      "4a point",
+      "20x",
+      "0.5, 1, 2, 4 AU, max",
+      "±6 µm / 0.1 µm",
+      "≤0.1 µm"
+     ],
+     [
+      "4a point",
+      "10x",
+      "0.5, 1, 2, 4 AU, max",
+      "±15 µm / 0.25 µm",
+      "≤0.2 µm"
+     ],
+     [
+      "4b plane",
+      "20x and 10x",
+      "same series",
+      "±3 × section / 0.1 (20x), 0.25 (10x) µm",
+      "any"
+     ],
+     [
+      "4c chamber",
+      "20x",
+      "1 AU",
+      "through both bead layers / 0.2 µm",
+      "0.2 µm"
+     ],
+     [
+      "4d edge",
+      "20x and 10x",
+      "1 AU and largest",
+      "−10 to +30 µm / 0.25 µm",
+      "any"
+     ]
+    ],
+    "where": "Settings"
+   }
+  ],
+  "materials": [
+   "10 µL 100–200 nm orange/red fluorescent beads, diluted 1:1000 in water (4a)",
+   "200 µL PE-detection antibody at ≈10 nM, no beads (4d)",
+   "1 µg/mL PE-detection antibody in PBS, 200 µL per well (4b)",
+   "1 ea Chamber of known height: a calibrated spacer (50–120 µm, measured with a micrometer) between two #1.5 coverslips, sub-resolution beads stuck to both inner surfaces, filled with water (4c)",
+   "1 ea #1.5 glass-bottom plate or dish",
+   "PBS"
+  ],
+  "calculators": [
+   {
+    "label": "Pinhole and optical section",
+    "inputs": [
+     {
+      "label": "Objective NA",
+      "value": "0.75",
+      "hint": ""
+     },
+     {
+      "label": "Immersion index (dry = 1)",
+      "value": "1",
+      "hint": ""
+     },
+     {
+      "label": "Emission wavelength",
+      "value": "0.578 µm",
+      "hint": ""
+     },
+     {
+      "label": "Pinhole",
+      "value": "1 AU",
+      "hint": ""
+     },
+     {
+      "label": "Bead radius",
+      "value": "4 µm",
+      "hint": ""
+     },
+     {
+      "label": "Focal scaling (depth per stage µm)",
+      "value": "1.33",
+      "hint": "replace with the 4c result"
+     },
+     {
+      "label": "z range of a stack",
+      "value": "12 µm",
+      "hint": ""
+     },
+     {
+      "label": "z step",
+      "value": "0.1 µm",
+      "hint": ""
+     }
+    ],
+    "outputs": [
+     {
+      "label": "1 Airy unit at the sample",
+      "value": "0.94 µm"
+     },
+     {
+      "label": "Pinhole at the sample",
+      "value": "0.94 µm"
+     },
+     {
+      "label": "Textbook optical section (PH ≥ 1 AU)",
+      "value": "2.32 µm"
+     },
+     {
+      "label": "Stage travel from glass to bead equator",
+      "value": "3.01 µm"
+     },
+     {
+      "label": "Planes in the stack",
+      "value": "121"
+     }
+    ],
+    "table": null
+   }
+  ],
+  "procedure": [
+   {
+    "heading": "Point response"
+   },
+   {
+    "step": "Dry 10 µL of the diluted sub-resolution beads on the glass, then cover with water."
+   },
+   {
+    "step": "For each objective and pinhole in the grid, z-stack ≥10 isolated beads at low power (1 µW at 20x, 3 µW at 10x)."
+   },
+   {
+    "heading": "Plane response H(z)"
+   },
+   {
+    "step": "Add 200 µL of PE-antibody at 1 µg/mL to an empty glass-bottom well, wait 30 min at room temperature, wash 3× with PBS, leave PBS on."
+   },
+   {
+    "step": "Find the layer at very low power. Then for each objective and pinhole, z-scan through it to ±20 µm (the tails matter) at the steps in the grid. Use a fresh spot for every scan (the layer bleaches)."
+   },
+   {
+    "heading": "Glass-to-solution edge (axial weight and T)"
+   },
+   {
+    "step": "Fill a well with PE-antibody at ≈10 nM (no beads). z-scan from 10 µm below the glass surface to 30 µm into the solution, 0.25 µm steps, for each objective at 1 AU and the largest AU NIS allows. Read the largest AU per objective from NIS and record it."
+   },
+   {
+    "heading": "Axial scaling"
+   },
+   {
+    "step": "In the chamber of known height, at 20x and 1 AU, z-stack from below the bottom bead layer to above the top one, 0.2 µm steps. Do not use the assay beads for this: a polystyrene bead refracts like a weak lens and shifts its own top peak."
+   }
+  ],
+  "analysis": [
+   {
+    "step": "4a: fit Gaussians to the lateral and axial profiles of each bead; report median FWHM against pinhole."
+   },
+   {
+    "step": "4b: mean intensity of the central field against z is H(z). Report its FWHM and its shape: flat-topped, Gaussian, or with 1/z² tails. Send the H(z) table, because the simulator can use it directly."
+   },
+   {
+    "step": "4c: z_scale = (true chamber height) / (nominal stage travel between the two bead layers). Expect ≈1.33 for a dry objective into water."
+   },
+   {
+    "step": "4d: the solution signal rises across the glass edge; its derivative against z is the axial weight w(z). Its integral is ℓ_eff, and T = (∫ of w from −4 to +4 µm) / ℓ_eff is the fraction of the section that falls inside a bead. Expected T ≈ 0.84–0.95 at 20x/0.80, 1 AU."
+   }
+  ],
+  "decision": [
+   "Decision: whether the 10x open-pinhole H(z) is flat across ±4 µm (the focus tolerance of the high-throughput mode), and the Perfect Focus offset to the bead equator.",
+   "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7)."
+  ],
+  "record": [
+   {
+    "caption": "Record for every acquisition",
+    "columns": [
+     "Field",
+     "What to write"
+    ],
+    "rows": [
+     [
+      "Objective / pinhole",
+      "AU and µm from NIS"
+     ],
+     [
+      "FWHM",
+      "Lateral, axial (4a); plane (4b)"
+     ],
+     [
+      "H(z)",
+      "Table of mean intensity against z"
+     ],
+     [
+      "z_scale",
+      "4c result, n beads, SD"
+     ]
+    ],
+    "where": "Decision & record"
+   }
+  ],
+  "timeline": null,
+  "plate": null,
+  "builder": null,
+  "values": {
+   "na": {
+    "label": "Objective NA",
+    "text": "0.75"
+   },
+   "n_imm": {
+    "label": "Immersion index (dry = 1)",
+    "text": "1"
+   },
+   "lam_em": {
+    "label": "Emission wavelength",
+    "text": "0.578 µm"
+   },
+   "ph_au": {
+    "label": "Pinhole",
+    "text": "1 AU"
+   },
+   "r_bead": {
+    "label": "Bead radius",
+    "text": "4 µm"
+   },
+   "z_scale": {
+    "label": "Focal scaling (depth per stage µm)",
+    "text": "1.33"
+   },
+   "z_range": {
+    "label": "z range of a stack",
+    "text": "12 µm"
+   },
+   "z_step": {
+    "label": "z step",
+    "text": "0.1 µm"
+   },
+   "au_um": {
+    "label": "1 Airy unit at the sample",
+    "text": "0.94 µm"
+   },
+   "ph_um": {
+    "label": "Pinhole at the sample",
+    "text": "0.94 µm"
+   },
+   "sect_um": {
+    "label": "Textbook optical section (PH ≥ 1 AU)",
+    "text": "2.32 µm"
+   },
+   "equator_nominal": {
+    "label": "Stage travel from glass to bead equator",
+    "text": "3.01 µm"
+   },
+   "n_planes": {
+    "label": "Planes in the stack",
+    "text": "121"
+   }
+  }
+ },
+ {
+  "file": "pe-ax-05-bead-z-series.protocol-import.json",
+  "id": "pe-ax-05-bead-z-series",
+  "title": "PE beads · Exp 05 · Single-bead z-series in four modes",
+  "summary": "z-stack assay beads in four objective/pinhole modes to measure how integrated, ring and peak metrics change with focus, and confirm a shell label.",
+  "header": "The core test of the image model: what each metric does as focus moves.",
+  "notes": [
+   {
+    "text": "Pins: integrated, ring-mean, rim-peak and ring-radius curves against focal offset in each mode; the peak/centre contrast at the equator (shell versus penetrating label, and the PSF tail model); the bead radius distribution.",
+    "where": "Overview"
+   },
+   {
+    "text": "49 planes at 1 µW and 1 µs remove 0.71 % of the PE. Keep it below 2 %.",
+    "where": "Calculator"
+   }
+  ],
+  "cautions": [
+   {
+    "text": "Bead material comes first. A polystyrene, PMMA or silica bead in water acts as a weak lens: the equatorial signal drops to ≈0.6–0.75 of the index-matched value and the integrated signal against focus becomes asymmetric about the equator. Get the material, density and refractive index from the vendor before this experiment; the z-series is how its effect is measured.",
+    "where": "Overview"
+   },
+   {
+    "text": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+    "where": "Settings"
+   },
+   {
+    "text": "Use a fresh field for every mode. Re-imaging a field adds its whole stack dose to the next measurement.",
+    "where": "Procedure"
+   }
+  ],
+  "assumptions": [],
+  "tables": [
+   {
+    "caption": "Model predictions for an index-matched bead",
+    "columns": [
+     "Mode",
+     "Integrated within 5 %",
+     "Ring-mean loss at 2 µm",
+     "Peak/centre at equator"
+    ],
+    "rows": [
+     [
+      "A · 10x, largest pinhole (3–4 AU)",
+      "±4.5 µm",
+      "7 %",
+      "≈3"
+     ],
+     [
+      "B · 20x, 1 AU",
+      "±1.75 µm (±1.8–2.1 µm with sharper tails)",
+      "27 %",
+      "≈18 (simulator) to >100 (Gaussian section)"
+     ],
+     [
+      "C · 20x, 2 AU",
+      "±1.5 µm",
+      "26 %",
+      "—"
+     ],
+     [
+      "D · 10x, 1 AU",
+      "±1.5 µm",
+      "17 %",
+      "≈5"
+     ]
+    ],
+    "where": "Overview"
+   },
+   {
+    "caption": "Acquisition settings",
+    "columns": [
+     "Setting",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Modes",
+      "A 10x largest pinhole · B 20x 1 AU · C 20x 2 AU · D 10x 1 AU"
+     ],
+     [
+      "z",
+      "From 6 µm below to 6 µm above the equator; 0.25 µm steps at 20x, 0.5 µm at 10x"
+     ],
+     [
+      "Transmitted light",
+      "Recorded at every plane (focus calibration and segmentation)"
+     ],
+     [
+      "Sampling",
+      "20 pixels per bead (0.4 µm pixels)"
+     ],
+     [
+      "Power",
+      "1 µW at the sample (20x), 3 µW (10x)"
+     ],
+     [
+      "Dwell / frames",
+      "1 µs, one frame per plane"
+     ],
+     [
+      "Bleach check",
+      "Re-acquire the first plane after the stack"
+     ]
+    ],
+    "where": "Settings"
+   }
+  ],
+  "materials": [
+   "1 well Assay beads at high coverage (top standard, washed)",
+   "1 well Assay beads at mid coverage (≈10 % of the top signal)",
+   "1 well Core control: volume-stained fluorescent beads of similar size, orange/red",
+   "Vendor certificate for the assay beads: material, density, refractive index, size CV",
+   "1 ea #1.5 glass-bottom plate",
+   "Imaging buffer (PBS)"
+  ],
+  "calculators": [
+   {
+    "label": "Stack plan and bleaching",
+    "inputs": [
+     {
+      "label": "Half-range of the stack",
+      "value": "6 µm",
+      "hint": ""
+     },
+     {
+      "label": "z step",
+      "value": "0.25 µm",
+      "hint": ""
+     },
+     {
+      "label": "Power at the sample",
+      "value": "1 µW",
+      "hint": ""
+     },
+     {
+      "label": "Pixel dwell",
+      "value": "1 µs",
+      "hint": ""
+     },
+     {
+      "label": "Pixel size",
+      "value": "0.4 µm",
+      "hint": ""
+     },
+     {
+      "label": "PE extinction at 561 nm",
+      "value": "1.96×10⁶ M⁻¹cm⁻¹",
+      "hint": ""
+     },
+     {
+      "label": "PE photodestruction yield",
+      "value": "1.1×10⁻⁵ per absorbed photon",
+      "hint": ""
+     },
+     {
+      "label": "Excitation wavelength",
+      "value": "0.561 µm",
+      "hint": ""
+     }
+    ],
+    "outputs": [
+     {
+      "label": "Planes",
+      "value": "49"
+     },
+     {
+      "label": "Photons absorbed per PE per plane",
+      "value": "13.2"
+     },
+     {
+      "label": "PE lost per plane",
+      "value": "0.0145 %"
+     },
+     {
+      "label": "PE lost over the stack",
+      "value": "0.71 %"
+     }
+    ],
+    "table": null
+   }
+  ],
+  "procedure": [
+   {
+    "step": "Settle the beads at least 30 min (or spin the plate briefly)."
+   },
+   {
+    "step": "Focus on the beads in transmitted light. Set Perfect Focus to the equator (Exp 04 gives the stage travel)."
+   },
+   {
+    "step": "Choose a field with ≥10 beads that are at least 10 µm from any neighbour."
+   },
+   {
+    "step": "For each mode, in a fresh field, take the stack. Then re-acquire the first plane."
+   },
+   {
+    "step": "Repeat for the mid-coverage well."
+   }
+  ],
+  "analysis": [
+   {
+    "step": "Convert nominal z to depth with z_scale from Exp 04. The equator is the plane of maximum ring radius."
+   },
+   {
+    "step": "Per bead per plane: integrated intensity in a disk of radius R + 2.5 µm minus the local annulus background; ring-mean in a 1 µm annulus at the rim; rim peak; ring radius; centre mean."
+   },
+   {
+    "step": "Normalize each curve to its equator value and overlay the four modes. Compare with the table above."
+   },
+   {
+    "step": "Symmetry: compare the integrated signal at +z and −z about the equator. An asymmetric curve is the signature of bead refraction. Find the stationary point (where the integrated signal stops changing with z) and record its offset from the equator."
+   },
+   {
+    "step": "Core control: the volume-stained beads should give peak/centre ≈1 and an integrated signal that falls as R² − z₀²."
+   },
+   {
+    "step": "Peak/centre at the equator in mode B decides the PSF tail model. A flat profile (≈1) means the label penetrates the bead."
+   },
+   {
+    "step": "Report the equatorial ring-radius distribution (mean, CV): bead-size spread propagates into the integrated metric."
+   }
+  ],
+  "decision": [
+   "Decision: the default acquisition mode, its real focus tolerance, and the routine focal plane: the measured stationary point, which is the equator only for an index-matched bead.",
+   "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7)."
+  ],
+  "record": [
+   {
+    "caption": "Record for every acquisition",
+    "columns": [
+     "Field",
+     "What to write"
+    ],
+    "rows": [
+     [
+      "Well / coverage",
+      "High or mid"
+     ],
+     [
+      "Mode",
+      "A–D, with pinhole µm"
+     ],
+     [
+      "Bleach check",
+      "First plane before and after (%)"
+     ],
+     [
+      "Beads",
+      "Number analysed per mode"
+     ]
+    ],
+    "where": "Decision & record"
+   }
+  ],
+  "timeline": null,
+  "plate": null,
+  "builder": null,
+  "values": {
+   "z_half": {
+    "label": "Half-range of the stack",
+    "text": "6 µm"
+   },
+   "z_step": {
+    "label": "z step",
+    "text": "0.25 µm"
+   },
+   "p_uw": {
+    "label": "Power at the sample",
+    "text": "1 µW"
+   },
+   "dwell_us": {
+    "label": "Pixel dwell",
+    "text": "1 µs"
+   },
+   "px_um": {
+    "label": "Pixel size",
+    "text": "0.4 µm"
+   },
+   "eps_pe": {
+    "label": "PE extinction at 561 nm",
+    "text": "1.96×10⁶ M⁻¹cm⁻¹"
+   },
+   "phi_b": {
+    "label": "PE photodestruction yield",
+    "text": "1.1×10⁻⁵ per absorbed photon"
+   },
+   "lam_ex": {
+    "label": "Excitation wavelength",
+    "text": "0.561 µm"
+   },
+   "n_planes": {
+    "label": "Planes",
+    "text": "49"
+   },
+   "abs_frame": {
+    "label": "Photons absorbed per PE per plane",
+    "text": "13.2"
+   },
+   "loss_frame_pct": {
+    "label": "PE lost per plane",
+    "text": "0.0145 %"
+   },
+   "loss_stack_pct": {
+    "label": "PE lost over the stack",
+    "text": "0.71 %"
+   }
+  }
+ },
+ {
+  "file": "pe-ax-06-sampling-field.protocol-import.json",
+  "id": "pe-ax-06-sampling-field",
+  "title": "PE beads · Exp 06 · Pixels per bead and position in the field",
+  "summary": "Image the same beads at 8–40 pixels per bead at equal dose, and the same beads at nine positions in the field, to set sampling and the usable field.",
+  "header": "Coarse pixels buy field of view; the question is how coarse the integrated metric tolerates.",
+  "notes": [
+   {
+    "text": "Pins: the scatter of each metric against sampling and sub-pixel position (6a), and what is left of the field-position bias after flat-field correction, i.e. field curvature (6b).",
+    "where": "Overview"
+   },
+   {
+    "text": "At 18.5 px pixels per bead use 2.34 µs (frame 9.8 s). The AX R offers discrete scan speeds: pick the nearest, record the real dwell, and correct by dose in the analysis.",
+    "where": "Calculator"
+   }
+  ],
+  "cautions": [
+   {
+    "text": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+    "where": "Settings"
+   }
+  ],
+  "assumptions": [],
+  "tables": [
+   {
+    "caption": "Model prediction (20x, 1 AU; swing over sub-pixel offsets)",
+    "columns": [
+     "Pixels per bead",
+     "Pixel",
+     "Rim-peak swing",
+     "Ring-mean swing",
+     "Integrated swing"
+    ],
+    "rows": [
+     [
+      "8",
+      "1.00 µm",
+      "28 %",
+      "15 %",
+      "4.6 %"
+     ],
+     [
+      "12",
+      "0.67 µm",
+      "39 %",
+      "14 %",
+      "1.5 %"
+     ],
+     [
+      "20",
+      "0.40 µm",
+      "14 %",
+      "6.7 %",
+      "0.13 %"
+     ],
+     [
+      "40",
+      "0.20 µm",
+      "2.8 %",
+      "2.6 %",
+      "<0.01 %"
+     ]
+    ],
+    "where": "Overview"
+   },
+   {
+    "caption": "Acquisition settings",
+    "columns": [
+     "Setting",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Mode",
+      "Default mode from Exp 05 (repeat in the other leading mode if time allows)"
+     ],
+     [
+      "6a sampling",
+      "8, 12, 20, 40 pixels per bead, dwell from the calculator so the dose per µm² is equal"
+     ],
+     [
+      "6b positions",
+      "Centre, 4 edge midpoints, 4 corners of the field"
+     ],
+     [
+      "Flat field",
+      "From Exp 03, same session"
+     ]
+    ],
+    "where": "Settings"
+   }
+  ],
+  "materials": [
+   "1 well Assay beads at high coverage, at a density giving ≥50 isolated beads per 20x field",
+   "1 ea #1.5 glass-bottom plate"
+  ],
+  "calculators": [
+   {
+    "label": "Scan geometry and equal-dose dwell",
+    "inputs": [
+     {
+      "label": "Objective magnification",
+      "value": "20 ×",
+      "hint": ""
+     },
+     {
+      "label": "Scan zoom",
+      "value": "1 ×",
+      "hint": ""
+     },
+     {
+      "label": "Frame size",
+      "value": "2,048 px",
+      "hint": ""
+     },
+     {
+      "label": "Bead diameter",
+      "value": "8 µm",
+      "hint": ""
+     },
+     {
+      "label": "Reference dwell",
+      "value": "2 µs",
+      "hint": ""
+     },
+     {
+      "label": "Reference pixels per bead",
+      "value": "20 px",
+      "hint": ""
+     }
+    ],
+    "outputs": [
+     {
+      "label": "Field side",
+      "value": "885 µm"
+     },
+     {
+      "label": "Pixel size",
+      "value": "0.432 µm"
+     },
+     {
+      "label": "Pixels per bead",
+      "value": "18.5 px"
+     },
+     {
+      "label": "Dwell for the same dose per µm²",
+      "value": "2.34 µs"
+     },
+     {
+      "label": "Frame time",
+      "value": "9.8 s"
+     }
+    ],
+    "table": null
+   }
+  ],
+  "procedure": [
+   {
+    "heading": "Sampling at equal dose"
+   },
+   {
+    "step": "Pick one field. Image it at 8, 12, 20 and 40 pixels per bead (zoom about the same centre), each at the equal-dose dwell, in random order."
+   },
+   {
+    "step": "Beads land at random sub-pixel positions, so every phase is sampled without any extra work."
+   },
+   {
+    "heading": "Field position"
+   },
+   {
+    "step": "Pick 5 isolated beads. For each, move the stage so the bead sits at the centre, at the 4 edge midpoints and at the 4 corners, imaging each time with the same settings."
+   },
+   {
+    "step": "At each position take a short z-stack (±3 µm, 0.5 µm) as well: the best-focus height against field position gives the field curvature."
+   }
+  ],
+  "analysis": [
+   {
+    "step": "6a: for each bead, every metric at each sampling divided by its 40 px value (paired). Report the SD across beads per sampling, which is the sub-pixel scatter."
+   },
+   {
+    "step": "6b: flat-field correct, then plot each metric against distance from the field centre. What remains is field curvature plus any residual shading."
+   }
+  ],
+  "decision": [
+   "Decision: the coarsest sampling that keeps the integrated-metric scatter below 1 % (the throughput lever), and the usable field radius.",
+   "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7)."
+  ],
+  "record": [
+   {
+    "caption": "Record for every acquisition",
+    "columns": [
+     "Field",
+     "What to write"
+    ],
+    "rows": [
+     [
+      "Sampling",
+      "Pixels per bead, real dwell"
+     ],
+     [
+      "Bead id",
+      "Same id across samplings / positions"
+     ],
+     [
+      "Position",
+      "Field coordinates of the bead"
+     ]
+    ],
+    "where": "Decision & record"
+   }
+  ],
+  "timeline": null,
+  "plate": null,
+  "builder": null,
+  "values": {
+   "m_obj": {
+    "label": "Objective magnification",
+    "text": "20 ×"
+   },
+   "zoom": {
+    "label": "Scan zoom",
+    "text": "1 ×"
+   },
+   "n_px": {
+    "label": "Frame size",
+    "text": "2,048 px"
+   },
+   "bead_d": {
+    "label": "Bead diameter",
+    "text": "8 µm"
+   },
+   "dwell_ref": {
+    "label": "Reference dwell",
+    "text": "2 µs"
+   },
+   "ppb_ref": {
+    "label": "Reference pixels per bead",
+    "text": "20 px"
+   },
+   "field_um": {
+    "label": "Field side",
+    "text": "885 µm"
+   },
+   "px_um": {
+    "label": "Pixel size",
+    "text": "0.432 µm"
+   },
+   "ppb": {
+    "label": "Pixels per bead",
+    "text": "18.5 px"
+   },
+   "dwell_eq": {
+    "label": "Dwell for the same dose per µm²",
+    "text": "2.34 µs"
+   },
+   "frame_s": {
+    "label": "Frame time",
+    "text": "9.8 s"
+   }
+  }
+ },
+ {
+  "file": "pe-ax-07-pe-photophysics.protocol-import.json",
+  "id": "pe-ax-07-pe-photophysics",
+  "title": "PE beads · Exp 07 · Bleaching, saturation and the dark state",
+  "summary": "Measure PE bleaching per frame, saturation, the reversible dark state, dwell-versus-averaging and antifade on the beads themselves.",
+  "header": "Sets the operating power and the scan mode.",
+  "notes": [
+   {
+    "text": "Pins: bleaching per frame against dose and the photodestruction yield on beads (7a), the reversible dark state (7b), the saturation irradiance (7c), signal per dose by scan mode (7d), antifade (7e) and the cost of focusing on PE (7f).",
+    "where": "Overview"
+   },
+   {
+    "text": "At 2 µW (I/Iₛ 0.064) each frame removes 0.058 % of the PE, and 50 frames remove 2.9 %.",
+    "where": "Calculator"
+   }
+  ],
+  "cautions": [
+   {
+    "text": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+    "where": "Settings"
+   }
+  ],
+  "assumptions": [
+   "Literature: R-PE photodestruction yield 1.1 × 10⁻⁵ per absorbed photon, 1.7× better with n-propyl gallate; ROS scavengers, ascorbate, DTT and oxygen removal did not help. Model: 0.06 % lost per frame at 2 µW, 2 µs, 0.4 µm pixels at 20x (0.29 % at 10 µW)."
+  ],
+  "tables": [
+   {
+    "caption": "Acquisition plan",
+    "columns": [
+     "Part",
+     "Acquisition"
+    ],
+    "rows": [
+     [
+      "7a",
+      "50 consecutive frames per power, fresh field each; 2 µs; 20 px per bead. 20x: 0.3, 1, 2, 3, 10, 30 µW. 10x: 1, 3, 6, 10, 30, 100 µW"
+     ],
+     [
+      "7b",
+      "In two 7a fields: pause 60 s after frame 25, then continue"
+     ],
+     [
+      "7c",
+      "First frame only, 6 powers, fresh field each"
+     ],
+     [
+      "7d",
+      "Equal dose three ways: 1 frame at 8 µs; 4 averaged frames at 2 µs; resonant with line integration to match"
+     ],
+     [
+      "7e",
+      "7a at one power, with and without n-propyl gallate"
+     ],
+     [
+      "7f",
+      "Live-scan one field for 10 s as if focusing, then acquire it and an untouched neighbour"
+     ],
+     [
+      "7g",
+      "Density check: saturated beads labelled with PE-antibody diluted into unlabelled detection antibody (100, 50, 25, 10 % PE) at the same total concentration"
+     ],
+     [
+      "7h",
+      "Optional: 488 nm against 561 nm on the same beads at matched absorbed dose"
+     ]
+    ],
+    "where": "Settings"
+   }
+  ],
+  "materials": [
+   "4 well Assay beads at high coverage (fresh fields for every condition)",
+   "4 well Saturated beads labelled with PE-antibody : unlabelled detection antibody at 100, 50, 25, 10 % PE (7g)",
+   "1 well Same beads in imaging buffer with n-propyl gallate (7e)",
+   "1 ea #1.5 glass-bottom plate"
+  ],
+  "calculators": [
+   {
+    "label": "Dose, saturation and bleaching",
+    "inputs": [
+     {
+      "label": "Power at the sample",
+      "value": "2 µW",
+      "hint": ""
+     },
+     {
+      "label": "Objective NA",
+      "value": "0.75",
+      "hint": ""
+     },
+     {
+      "label": "Pixel dwell",
+      "value": "2 µs",
+      "hint": ""
+     },
+     {
+      "label": "Pixel size",
+      "value": "0.4 µm",
+      "hint": ""
+     },
+     {
+      "label": "Frames",
+      "value": "50",
+      "hint": ""
+     },
+     {
+      "label": "PE saturation irradiance",
+      "value": "19 kW/cm²",
+      "hint": ""
+     },
+     {
+      "label": "PE extinction at 561 nm",
+      "value": "1.96×10⁶ M⁻¹cm⁻¹",
+      "hint": ""
+     },
+     {
+      "label": "PE photodestruction yield",
+      "value": "1.1×10⁻⁵ per absorbed photon",
+      "hint": ""
+     },
+     {
+      "label": "Excitation wavelength",
+      "value": "0.561 µm",
+      "hint": ""
+     }
+    ],
+    "outputs": [
+     {
+      "label": "Focal spot radius (1/e²)",
+      "value": "0.324 µm"
+     },
+     {
+      "label": "I/Iₛ at the focus",
+      "value": "0.064"
+     },
+     {
+      "label": "Photons absorbed per PE per frame",
+      "value": "52.9"
+     },
+     {
+      "label": "PE lost per frame",
+      "value": "0.058 %"
+     },
+     {
+      "label": "PE lost over the series",
+      "value": "2.9 %"
+     }
+    ],
+    "table": null
+   }
+  ],
+  "procedure": [
+   {
+    "heading": "Bleaching per frame"
+   },
+   {
+    "step": "For each power, take 50 frames of a fresh field, no pauses."
+   },
+   {
+    "heading": "Dark state"
+   },
+   {
+    "step": "In two of the 7a fields, stop after frame 25, wait 60 s in the dark, then take frames 26–50."
+   },
+   {
+    "heading": "Saturation"
+   },
+   {
+    "step": "For 6 powers, take one frame of a fresh field."
+   },
+   {
+    "heading": "Dwell against averaging"
+   },
+   {
+    "step": "At one power, acquire three fresh fields with the same total dose: one frame at 8 µs; four averaged frames at 2 µs; resonant scanning with enough line integration to match."
+   },
+   {
+    "heading": "Antifade"
+   },
+   {
+    "step": "Repeat 7a at one power in the n-propyl gallate well."
+   },
+   {
+    "heading": "Focus cost"
+   },
+   {
+    "step": "Live-scan one field for 10 s at the focusing settings you would use, then acquire it and its untouched neighbour with the same settings."
+   },
+   {
+    "heading": "PE density"
+   },
+   {
+    "step": "Label four wells of saturated beads with PE-antibody mixed into unlabelled detection antibody at 100, 50, 25 and 10 % PE, same total antibody concentration; image at operating settings."
+   },
+   {
+    "heading": "488 nm (optional)"
+   },
+   {
+    "step": "Image one field at 561 nm and a neighbour at 488 nm with power scaled for equal absorbed dose; compare signal and bleaching."
+   }
+  ],
+  "analysis": [
+   {
+    "step": "7a: integrated intensity per bead against frame n; fit I(n) = I(1)·exp(−k·(n − 1)). The yield is k divided by photons absorbed per frame (calculator). Plot k against dose: a straight line means the one-photon dose law holds."
+   },
+   {
+    "step": "7b: the fraction of the drop that recovers after the pause is the reversible dark state."
+   },
+   {
+    "step": "7c: fit first-frame I = a·P/(1 + P/Pₛ). Pₛ and the Exp 01 spot size give Iₛ."
+   },
+   {
+    "step": "7d: signal per unit dose for each mode, and bead-to-bead CV."
+   },
+   {
+    "step": "7e: ratio of k with and without antifade. 7f: intensity of the focused field divided by its neighbour."
+   },
+   {
+    "step": "7g: the integrated signal should scale linearly with the PE fraction; a shortfall at 100 % means dense PE quenches itself, which caps the top of the standard curve."
+   }
+  ],
+  "decision": [
+   "Decision: the operating power (at most 5 % below linear), the scan mode, whether to use n-propyl gallate, and the focusing rule.",
+   "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7)."
+  ],
+  "record": [
+   {
+    "caption": "Record for every acquisition",
+    "columns": [
+     "Field",
+     "What to write"
+    ],
+    "rows": [
+     [
+      "Part / field",
+      "7a–7f, field id"
+     ],
+     [
+      "Power",
+      "µW at the sample"
+     ],
+     [
+      "Dwell, averages, mode",
+      "Galvano or resonant"
+     ],
+     [
+      "Frame count",
+      "And pause timing for 7b"
+     ]
+    ],
+    "where": "Decision & record"
+   }
+  ],
+  "timeline": null,
+  "plate": null,
+  "builder": null,
+  "values": {
+   "p_uw": {
+    "label": "Power at the sample",
+    "text": "2 µW"
+   },
+   "na": {
+    "label": "Objective NA",
+    "text": "0.75"
+   },
+   "dwell_us": {
+    "label": "Pixel dwell",
+    "text": "2 µs"
+   },
+   "px_um": {
+    "label": "Pixel size",
+    "text": "0.4 µm"
+   },
+   "n_frames": {
+    "label": "Frames",
+    "text": "50"
+   },
+   "i_sat": {
+    "label": "PE saturation irradiance",
+    "text": "19 kW/cm²"
+   },
+   "eps_pe": {
+    "label": "PE extinction at 561 nm",
+    "text": "1.96×10⁶ M⁻¹cm⁻¹"
+   },
+   "phi_b": {
+    "label": "PE photodestruction yield",
+    "text": "1.1×10⁻⁵ per absorbed photon"
+   },
+   "lam_ex": {
+    "label": "Excitation wavelength",
+    "text": "0.561 µm"
+   },
+   "w0_um": {
+    "label": "Focal spot radius (1/e²)",
+    "text": "0.324 µm"
+   },
+   "s_ratio": {
+    "label": "I/Iₛ at the focus",
+    "text": "0.064"
+   },
+   "abs_frame": {
+    "label": "Photons absorbed per PE per frame",
+    "text": "52.9"
+   },
+   "loss_frame_pct": {
+    "label": "PE lost per frame",
+    "text": "0.058 %"
+   },
+   "loss_series_pct": {
+    "label": "PE lost over the series",
+    "text": "2.9 %"
+   }
+  }
+ },
+ {
+  "file": "pe-ax-08-gain-ladder.protocol-import.json",
+  "id": "pe-ax-08-gain-ladder",
+  "title": "PE beads · Exp 08 · Detector gain ladder on real beads",
+  "summary": "Image one field of bright and dim beads at six HV settings to confirm that gain only maps signal onto the ADC, and choose the plate HV.",
+  "header": "Gain multiplies signal and noise together; it buys ADC range, not SNR.",
+  "notes": [
+   {
+    "text": "Pins: that the integrated metric in photoelectrons does not depend on HV until clipping, that bead-to-bead CV does not improve with HV, and the HV for a plate.",
+    "where": "Overview"
+   },
+   {
+    "text": "The brightest rim holds 1,490 e⁻; multiply the gain by 1.53 × to put it at 0.7 of full scale. Use the Exp 02 slope-against-HV fit to find that HV.",
+    "where": "Calculator"
+   }
+  ],
+  "cautions": [
+   {
+    "text": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+    "where": "Settings"
+   }
+  ],
+  "assumptions": [
+   "Model: with a 16-bit ADC, clipping starts at gain ≈20 DN/e⁻ for 3,000 PE/µm² beads and ≈200 DN/e⁻ for 300 PE/µm². In 12-bit mode every threshold is 16× lower."
+  ],
+  "tables": [
+   {
+    "caption": "Acquisition settings",
+    "columns": [
+     "Setting",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Mode",
+      "Default mode from Exp 05"
+     ],
+     [
+      "HV",
+      "6 values, from low to just clipping the brightest rim"
+     ],
+     [
+      "Order",
+      "Low → high → low (repeat the lowest at the end to catch bleaching)"
+     ],
+     [
+      "Power / dwell",
+      "Operating values from Exp 07"
+     ]
+    ],
+    "where": "Settings"
+   }
+  ],
+  "materials": [
+   "1 well Mixed beads: top-standard and low-standard assay beads in one well (or one high-coverage well)",
+   "1 ea #1.5 glass-bottom plate"
+  ],
+  "calculators": [
+   {
+    "label": "Gain headroom",
+    "inputs": [
+     {
+      "label": "ADC full scale",
+      "value": "65,535 DN",
+      "hint": ""
+     },
+     {
+      "label": "Offset",
+      "value": "200 DN",
+      "hint": ""
+     },
+     {
+      "label": "Brightest rim pixel now",
+      "value": "30,000 DN",
+      "hint": ""
+     },
+     {
+      "label": "Target fraction of full scale",
+      "value": "0.7",
+      "hint": ""
+     },
+     {
+      "label": "g·F at this HV (Exp 02)",
+      "value": "20 DN per e⁻",
+      "hint": ""
+     }
+    ],
+    "outputs": [
+     {
+      "label": "Multiply the current gain by",
+      "value": "1.53 ×"
+     },
+     {
+      "label": "Brightest rim in photoelectrons",
+      "value": "1,490 e⁻"
+     }
+    ],
+    "table": null
+   }
+  ],
+  "procedure": [
+   {
+    "step": "Find a field with both bright and dim beads, focus by transmitted light, hold with Perfect Focus."
+   },
+   {
+    "step": "Acquire the same field at 6 HV values, low → high, then the lowest again."
+   }
+  ],
+  "analysis": [
+   {
+    "step": "Convert each image to photoelectrons with the Exp 02 slope for its HV; compute the integrated metric per bead."
+   },
+   {
+    "step": "Plot integrated photoelectrons and bead-to-bead CV against HV. Both should be flat until rim pixels clip."
+   },
+   {
+    "step": "The last-minus-first low-HV image gives the bleaching the ladder caused."
+   }
+  ],
+  "decision": [
+   "Decision: one HV for a whole plate, set on the top standard with its brightest rim pixel at ≈70 % of full scale and inside the linear range found in Exp 02. Never auto-adjust gain.",
+   "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7)."
+  ],
+  "record": [
+   {
+    "caption": "Record for every acquisition",
+    "columns": [
+     "Field",
+     "What to write"
+    ],
+    "rows": [
+     [
+      "HV",
+      "Value"
+     ],
+     [
+      "Offset",
+      "DN"
+     ],
+     [
+      "Saturated pixels",
+      "Count per image"
+     ],
+     [
+      "Bleach check",
+      "First vs last low-HV image"
+     ]
+    ],
+    "where": "Decision & record"
+   }
+  ],
+  "timeline": null,
+  "plate": null,
+  "builder": null,
+  "values": {
+   "adc_max": {
+    "label": "ADC full scale",
+    "text": "65,535 DN"
+   },
+   "offset_dn": {
+    "label": "Offset",
+    "text": "200 DN"
+   },
+   "rim_dn": {
+    "label": "Brightest rim pixel now",
+    "text": "30,000 DN"
+   },
+   "target_frac": {
+    "label": "Target fraction of full scale",
+    "text": "0.7"
+   },
+   "slope": {
+    "label": "g·F at this HV (Exp 02)",
+    "text": "20 DN per e⁻"
+   },
+   "gain_factor": {
+    "label": "Multiply the current gain by",
+    "text": "1.53 ×"
+   },
+   "rim_e": {
+    "label": "Brightest rim in photoelectrons",
+    "text": "1,490 e⁻"
+   }
+  }
+ },
+ {
+  "file": "pe-ax-09-backgrounds.protocol-import.json",
+  "id": "pe-ax-09-backgrounds",
+  "title": "PE beads · Exp 09 · Backgrounds and the real detection floor",
+  "summary": "Measure free PE-antibody background and the bead excluded-volume term, bead autofluorescence, and nonspecific PE binding in each imaging mode.",
+  "header": "Photon noise alone allows ≈65 PE per bead at 2 µW (washed); the real floor is set here.",
+  "notes": [
+   {
+    "text": "Pins: the effective detection volume per mode and the excluded-volume correction for no-wash reads (9a), bead autofluorescence (9b), and nonspecific PE binding with its bead-to-bead SD, the practical LOD (9c).",
+    "where": "Overview"
+   },
+   {
+    "text": "At 1 nM the bead displaces up to 161 PE PE-equivalents of solution. Annulus subtraction removes that much too many, so a blank bead reads negative and a no-wash assay must add it back.",
+    "where": "Calculators"
+   }
+  ],
+  "cautions": [
+   {
+    "text": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+    "where": "Procedure"
+   }
+  ],
+  "assumptions": [],
+  "tables": [
+   {
+    "caption": "Model predictions (10 µW, 2 µs, 20 px per bead)",
+    "columns": [
+     "Mode",
+     "V_eff",
+     "LOD, detector only",
+     "LOD at 1 nM free PE-Ab"
+    ],
+    "rows": [
+     [
+      "20x, 1 AU",
+      "0.53 µm³",
+      "16 PE/bead",
+      "106 PE/bead"
+     ],
+     [
+      "10x, 1 AU",
+      "3.7 µm³",
+      "21 PE/bead",
+      "139 PE/bead"
+     ],
+     [
+      "10x, 4 AU",
+      "11.2 µm³",
+      "14 PE/bead",
+      "158 PE/bead"
+     ]
+    ],
+    "where": "Overview"
+   }
+  ],
+  "materials": [
+   "6 well Blank beads (capture antibody, no analyte) in free PE-antibody: 0, 0.1, 0.3, 1, 3, 10 nM, no wash (9a)",
+   "1 well Uncoated or BSA-blocked beads in PBS (9b)",
+   "24 well Capture beads + PE-antibody, no analyte, full washed protocol, at 0.5, 1, 2 and 5 × K_D2, 6 wells each (9c)",
+   "3 well Same as 9c, unwashed (only if a no-wash format is planned)",
+   "PE-detection antibody stock; PBS; #1.5 glass-bottom plate"
+  ],
+  "calculators": [
+   {
+    "label": "PE-antibody working dilutions",
+    "inputs": [
+     {
+      "label": "Stock concentration",
+      "value": "100 µg/mL",
+      "hint": ""
+     },
+     {
+      "label": "Conjugate molecular weight",
+      "value": "390 kDa",
+      "hint": "R-PE 240 + IgG 150"
+     },
+     {
+      "label": "Working dilution",
+      "value": "10 nM",
+      "hint": ""
+     },
+     {
+      "label": "Working dilution volume",
+      "value": "1,000 µL",
+      "hint": ""
+     },
+     {
+      "label": "Volume per well",
+      "value": "200 µL",
+      "hint": ""
+     }
+    ],
+    "outputs": [
+     {
+      "label": "Stock molarity",
+      "value": "256.4 nM"
+     },
+     {
+      "label": "Stock into the working dilution",
+      "value": "39 µL"
+     }
+    ],
+    "table": null
+   },
+   {
+    "label": "Pipetting table",
+    "inputs": [],
+    "outputs": [],
+    "table": {
+     "dataset": "pe_series",
+     "columns": [
+      {
+       "label": "Free PE-Ab (nM)",
+       "expr": "conc",
+       "align": "right",
+       "mono": true,
+       "decimals": 1
+      },
+      {
+       "label": "From",
+       "expr": "source",
+       "align": "left",
+       "mono": false,
+       "decimals": 0
+      },
+      {
+       "label": "Volume (µL)",
+       "expr": "pipette_ul",
+       "align": "right",
+       "mono": true,
+       "decimals": 2
+      },
+      {
+       "label": "PBS (µL)",
+       "expr": "buffer_ul",
+       "align": "right",
+       "mono": true,
+       "decimals": 1
+      }
+     ]
+    }
+   },
+   {
+    "label": "Excluded-volume term",
+    "inputs": [
+     {
+      "label": "Free PE-antibody",
+      "value": "1 nM",
+      "hint": ""
+     },
+     {
+      "label": "Bead volume inside the section",
+      "value": "268 µm³",
+      "hint": "whole bead = 268 µm³ (upper bound)"
+     }
+    ],
+    "outputs": [
+     {
+      "label": "Solution PE displaced by one bead",
+      "value": "161 PE"
+     }
+    ],
+    "table": null
+   }
+  ],
+  "procedure": [
+   {
+    "heading": "Free PE-antibody"
+   },
+   {
+    "step": "Make the working dilution (39 µL of stock into 1,000 µL), then the six wells from the pipetting table. Add blank beads, settle 30 min."
+   },
+   {
+    "step": "Image each well in modes A–D of Exp 05 at operating settings, 3 fields each."
+   },
+   {
+    "heading": "Autofluorescence"
+   },
+   {
+    "step": "Image ≥100 uncoated or blocked beads in PBS in the default mode."
+   },
+   {
+    "heading": "Nonspecific binding"
+   },
+   {
+    "step": "Run the capture beads with PE-antibody at 0.5, 1, 2 and 5 × K_D2 and no analyte through the full assay (incubation, washes), 6 wells per level. Image ≥100 beads per well."
+   }
+  ],
+  "analysis": [
+   {
+    "step": "9a: background per pixel (photoelectrons, Exp 02) against concentration gives a slope; with the photoelectrons per PE from Exp 10 it gives V_eff per mode. The blank-bead integrated signal against concentration gives the excluded-volume slope (expected negative)."
+   },
+   {
+    "step": "9b: autofluorescence per bead in PE-equivalents (after Exp 10)."
+   },
+   {
+    "step": "9c: PE per bead from nonspecific binding at each antibody level: mean, bead-to-bead SD and well-to-well SD. Practical LOD = blank + 3 SD of the well means. The level where the LOD stops improving sets D₀ (default 1–2 × K_D2)."
+   }
+  ],
+  "decision": [
+   "Decision: washed versus no-wash format, which mode the no-wash read needs, and the detection-antibody concentration (9c).",
+   "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7)."
+  ],
+  "record": [
+   {
+    "caption": "Record for every acquisition",
+    "columns": [
+     "Field",
+     "What to write"
+    ],
+    "rows": [
+     [
+      "Well",
+      "Contents and free PE-Ab nM"
+     ],
+     [
+      "Mode",
+      "A–D"
+     ],
+     [
+      "Washed",
+      "Yes / no"
+     ],
+     [
+      "Beads",
+      "Number analysed"
+     ]
+    ],
+    "where": "Decision & record"
+   }
+  ],
+  "timeline": null,
+  "plate": null,
+  "builder": {
+   "dataset": "pe_series",
+   "rows": [
+    {
+     "conc": 0,
+     "source": "working",
+     "pipette_ul": 0,
+     "buffer_ul": 200
+    },
+    {
+     "conc": 0.1,
+     "source": "working",
+     "pipette_ul": 2,
+     "buffer_ul": 198
+    },
+    {
+     "conc": 0.3,
+     "source": "working",
+     "pipette_ul": 6,
+     "buffer_ul": 194
+    },
+    {
+     "conc": 1,
+     "source": "working",
+     "pipette_ul": 20,
+     "buffer_ul": 180
+    },
+    {
+     "conc": 3,
+     "source": "stock",
+     "pipette_ul": 2.3400936037441498,
+     "buffer_ul": 197.65990639625585
+    },
+    {
+     "conc": 10,
+     "source": "stock",
+     "pipette_ul": 7.8003120124805,
+     "buffer_ul": 192.1996879875195
+    }
+   ]
+  },
+  "values": {
+   "stock_ugml": {
+    "label": "Stock concentration",
+    "text": "100 µg/mL"
+   },
+   "mw_kda": {
+    "label": "Conjugate molecular weight",
+    "text": "390 kDa"
+   },
+   "work_nm": {
+    "label": "Working dilution",
+    "text": "10 nM"
+   },
+   "work_vol_ul": {
+    "label": "Working dilution volume",
+    "text": "1,000 µL"
+   },
+   "final_ul": {
+    "label": "Volume per well",
+    "text": "200 µL"
+   },
+   "c_nm": {
+    "label": "Free PE-antibody",
+    "text": "1 nM"
+   },
+   "v_excl": {
+    "label": "Bead volume inside the section",
+    "text": "268 µm³"
+   },
+   "stock_nm": {
+    "label": "Stock molarity",
+    "text": "256.4 nM"
+   },
+   "work_stock_ul": {
+    "label": "Stock into the working dilution",
+    "text": "39 µL"
+   },
+   "excl_pe": {
+    "label": "Solution PE displaced by one bead",
+    "text": "161 PE"
+   }
+  }
+ },
+ {
+  "file": "pe-ax-10-pe-calibration.protocol-import.json",
+  "id": "pe-ax-10-pe-calibration",
+  "title": "PE beads · Exp 10 · Absolute calibration to PE per bead",
+  "summary": "Calibrate intensity to PE molecules per bead with PE quantitation beads, measure PE per detection antibody, and the capture-site distribution.",
+  "header": "Turns photoelectrons into PE molecules per bead, and PE into analyte.",
+  "notes": [
+   {
+    "text": "Pins: photoelectrons per PE molecule in each mode; the PE:IgG ratio of the conjugate; the capture-site number per bead and its bead-to-bead CV, which sets beads per well.",
+    "where": "Overview"
+   },
+   {
+    "text": "A bead at 50,000 e⁻ is 61,875 PE (307.68 PE/µm²), i.e. 61,875 labelled analyte molecules at 1 PE per IgG. At 5 % CV, analyse 40 beads per well.",
+    "where": "Calculators"
+   }
+  ],
+  "cautions": [
+   {
+    "text": "Calibration beads differ from assay beads in size and label geometry. Simulate both with the model (render with their radius and shell or volume label) to transfer the calibration, or acquire the calibration wells as a 5-plane sum, which removes the geometry dependence.",
+    "where": "Overview"
+   },
+   {
+    "text": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+    "where": "Procedure"
+   }
+  ],
+  "assumptions": [],
+  "tables": [],
+  "materials": [
+   "1 kit PE quantitation beads, 4 levels + blank, lot-specific PE per bead (MESF / Quantibrite type)",
+   "2 well Assay beads at saturating analyte + saturating PE-antibody, 2 h, washed (site distribution)",
+   "1 ea UV-vis spectrophotometer or NanoDrop for the conjugate A565 and A280",
+   "PBS; #1.5 glass-bottom plate"
+  ],
+  "calculators": [
+   {
+    "label": "PE per detection antibody (absorbance)",
+    "inputs": [
+     {
+      "label": "Conjugate A565",
+      "value": "1.96",
+      "hint": ""
+     },
+     {
+      "label": "Conjugate A280",
+      "value": "0.602",
+      "hint": ""
+     },
+     {
+      "label": "R-PE extinction at 565 nm",
+      "value": "1.96×10⁶ M⁻¹cm⁻¹",
+      "hint": ""
+     },
+     {
+      "label": "IgG extinction at 280 nm",
+      "value": "210,000 M⁻¹cm⁻¹",
+      "hint": ""
+     },
+     {
+      "label": "R-PE A280/A565",
+      "value": "0.2",
+      "hint": "from the PE vendor; ≈0.2 assumed"
+     }
+    ],
+    "outputs": [
+     {
+      "label": "PE per IgG",
+      "value": "1"
+     }
+    ],
+    "table": null
+   },
+   {
+    "label": "Intensity to molecules",
+    "inputs": [
+     {
+      "label": "Bead integrated signal",
+      "value": "50,000 e⁻",
+      "hint": ""
+     },
+     {
+      "label": "Blank-bead integrated signal",
+      "value": "500 e⁻",
+      "hint": ""
+     },
+     {
+      "label": "Calibration slope",
+      "value": "0.8 e⁻ per PE",
+      "hint": ""
+     },
+     {
+      "label": "Bead surface area",
+      "value": "201.1 µm²",
+      "hint": ""
+     }
+    ],
+    "outputs": [
+     {
+      "label": "PE per bead",
+      "value": "61,875 PE"
+     },
+     {
+      "label": "PE surface density",
+      "value": "307.68 PE/µm²"
+     },
+     {
+      "label": "Captured, labelled analyte per bead",
+      "value": "61,875"
+     }
+    ],
+    "table": null
+   },
+   {
+    "label": "Beads per well",
+    "inputs": [
+     {
+      "label": "Bead-to-bead CV (saturation wells)",
+      "value": "5 %",
+      "hint": ""
+     },
+     {
+      "label": "Target standard error of the well median",
+      "value": "1 %",
+      "hint": ""
+     }
+    ],
+    "outputs": [
+     {
+      "label": "Beads to analyse per well",
+      "value": "40"
+     }
+    ],
+    "table": null
+   }
+  ],
+  "procedure": [
+   {
+    "step": "Measure A565 and A280 of the PE-antibody conjugate (blank on its buffer)."
+   },
+   {
+    "step": "Resuspend the calibration beads as the kit says; one well per level plus the blank, in PBS."
+   },
+   {
+    "step": "Run two saturation wells: assay beads with analyte at the top of the expected range ×10 and PE-antibody at ≥10× its K_D, 2 h with rotation, washed."
+   },
+   {
+    "step": "Settle 30 min. Image every well in the default mode at operating settings, ≥100 beads per well. Repeat the calibration wells as a 5-plane sum (2 µm steps around the equator)."
+   }
+  ],
+  "analysis": [
+   {
+    "step": "Fit integrated photoelectrons against the lot PE per bead (linear, intercept at the blank). The slope is photoelectrons per PE. Check linearity across the four levels."
+   },
+   {
+    "step": "Transfer to assay-bead geometry with the simulator, or use the 5-plane-sum slope directly."
+   },
+   {
+    "step": "Saturation wells: PE per bead distribution. Subtract the photon-noise variance (≈F × mean, in photoelectrons) from the observed variance. The remainder is the capture-site CV."
+   },
+   {
+    "step": "Second route, a solution reference: σ_s = c × F / (2πR × S_sol × T), with S_sol the signal per pixel of PE-antibody at concentration c in the same mode and T from Exp 04. For a bead that is not index-matched, apply the bead-optics factor from Exp 05."
+   },
+   {
+    "step": "Third route: run the same assay beads and the calibration kit on a flow cytometer. It has no focus, refraction or field effects and gives an independent bead-to-bead CV. The routes should agree within ≈15 %."
+   }
+  ],
+  "decision": [
+   "Decision: the conversion used for every plate, the beads per well, and whether the capture-site CV is acceptable.",
+   "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7)."
+  ],
+  "record": [
+   {
+    "caption": "Record for every acquisition",
+    "columns": [
+     "Field",
+     "What to write"
+    ],
+    "rows": [
+     [
+      "Kit lot",
+      "PE per bead for each level"
+     ],
+     [
+      "Mode",
+      "Single plane or 5-plane sum"
+     ],
+     [
+      "Conjugate",
+      "A565, A280, lot"
+     ],
+     [
+      "Beads",
+      "Number analysed per well"
+     ]
+    ],
+    "where": "Decision & record"
+   }
+  ],
+  "timeline": null,
+  "plate": null,
+  "builder": null,
+  "values": {
+   "a565": {
+    "label": "Conjugate A565",
+    "text": "1.96"
+   },
+   "a280": {
+    "label": "Conjugate A280",
+    "text": "0.602"
+   },
+   "eps_pe": {
+    "label": "R-PE extinction at 565 nm",
+    "text": "1.96×10⁶ M⁻¹cm⁻¹"
+   },
+   "eps_igg": {
+    "label": "IgG extinction at 280 nm",
+    "text": "210,000 M⁻¹cm⁻¹"
+   },
+   "cf_pe": {
+    "label": "R-PE A280/A565",
+    "text": "0.2"
+   },
+   "e_bead": {
+    "label": "Bead integrated signal",
+    "text": "50,000 e⁻"
+   },
+   "e_blank": {
+    "label": "Blank-bead integrated signal",
+    "text": "500 e⁻"
+   },
+   "slope_pe": {
+    "label": "Calibration slope",
+    "text": "0.8 e⁻ per PE"
+   },
+   "bead_area": {
+    "label": "Bead surface area",
+    "text": "201.1 µm²"
+   },
+   "cv_pct": {
+    "label": "Bead-to-bead CV (saturation wells)",
+    "text": "5 %"
+   },
+   "se_pct": {
+    "label": "Target standard error of the well median",
+    "text": "1 %"
+   },
+   "n_pe": {
+    "label": "PE per IgG",
+    "text": "1"
+   },
+   "pe_bead": {
+    "label": "PE per bead",
+    "text": "61,875 PE"
+   },
+   "pe_um2": {
+    "label": "PE surface density",
+    "text": "307.68 PE/µm²"
+   },
+   "analyte_bead": {
+    "label": "Captured, labelled analyte per bead",
+    "text": "61,875"
+   },
+   "n_beads": {
+    "label": "Beads to analyse per well",
+    "text": "40"
+   }
+  }
+ },
+ {
+  "file": "pe-ax-11-binding-kinetics.protocol-import.json",
+  "id": "pe-ax-11-binding-kinetics",
+  "title": "PE beads · Exp 11 · Rate constants, settling and depletion",
+  "summary": "Measure association, post-wash dissociation, delayed detection and a detection-antibody clamp to separate the two off-rates; test settling and bead number.",
+  "header": "PE after the wash decays at k₋₂ + k₋₃; separating the two needs a perturbation.",
+  "notes": [
+   {
+    "text": "Pins: k₁ and k₂ (11a), k₋₂ + k₋₃ and rebinding (11b), k₋₁ (11c), k₋₃ and the k₋₃ ≈ k₋₁ assumption (11d), settling and transport (11e), and analyte depletion by the beads (11f).",
+    "where": "Overview"
+   },
+   {
+    "text": "With k₋₂ + k₋₃ = 0.001 s⁻¹ the PE signal halves every 11.6 min; 45.1 % is gone by the first well and a further 69.9 % by the last. Beads settle 3 mm of liquid in 29 min by gravity or 9 s in a 200 × g plate spin. During a clamp at 10 nM, a fraction 0.8 of captured analyte is labelled.",
+    "where": "Calculators"
+   }
+  ],
+  "cautions": [
+   {
+    "text": "Image every time point in a fresh well or a fresh field, once. Re-imaging a field bleaches the next time point. Keep the wash-to-image time fixed, settle beads by a 1 min plate spin (gravity alone takes longer than the timing window), and log the room temperature: k₋₂ depends on it.",
+    "where": "Overview"
+   },
+   {
+    "text": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+    "where": "Procedure"
+   }
+  ],
+  "assumptions": [],
+  "tables": [],
+  "materials": [
+   "Assay beads at a fixed number per well",
+   "Analyte standard",
+   "PE-detection antibody",
+   "Unlabelled detection antibody, ≈100 nM in the 11b blocking arm",
+   "1 ea Tube rotator (end-over-end) and orbital shaker",
+   "Wash buffer; #1.5 glass-bottom plates"
+  ],
+  "calculators": [
+   {
+    "label": "Signal lost after the wash",
+    "inputs": [
+     {
+      "label": "k₋₂ + k₋₃",
+      "value": "0.001 s⁻¹",
+      "hint": ""
+     },
+     {
+      "label": "Wash-to-image delay",
+      "value": "10 min",
+      "hint": ""
+     },
+     {
+      "label": "Plate scan duration",
+      "value": "20 min",
+      "hint": ""
+     }
+    ],
+    "outputs": [
+     {
+      "label": "Half-life of the PE signal",
+      "value": "11.6 min"
+     },
+     {
+      "label": "Lost before the first well is imaged",
+      "value": "45.1 %"
+     },
+     {
+      "label": "Extra loss by the last well",
+      "value": "69.9 %"
+     }
+    ],
+    "table": null
+   },
+   {
+    "label": "Labelled fraction during a clamp",
+    "inputs": [
+     {
+      "label": "Detection-antibody on-rate",
+      "value": "400,000 M⁻¹s⁻¹",
+      "hint": ""
+     },
+     {
+      "label": "PE-antibody during the clamp",
+      "value": "10 nM",
+      "hint": ""
+     },
+     {
+      "label": "Detection-antibody off-rate k₋₂",
+      "value": "0.001 s⁻¹",
+      "hint": ""
+     }
+    ],
+    "outputs": [
+     {
+      "label": "Labelled fraction f",
+      "value": "0.8"
+     },
+     {
+      "label": "Time to re-label 95 %",
+      "value": "10 min"
+     }
+    ],
+    "table": null
+   },
+   {
+    "label": "Bead settling (Stokes)",
+    "inputs": [
+     {
+      "label": "Bead diameter",
+      "value": "8 µm",
+      "hint": ""
+     },
+     {
+      "label": "Density difference (polystyrene ≈0.05)",
+      "value": "0.05 g/mL",
+      "hint": ""
+     },
+     {
+      "label": "Viscosity",
+      "value": "1 mPa·s",
+      "hint": ""
+     },
+     {
+      "label": "Liquid height",
+      "value": "3 mm",
+      "hint": ""
+     },
+     {
+      "label": "Plate spin",
+      "value": "200 × g",
+      "hint": ""
+     }
+    ],
+    "outputs": [
+     {
+      "label": "Settling speed",
+      "value": "1.74 µm/s"
+     },
+     {
+      "label": "Time to settle by gravity",
+      "value": "29 min"
+     },
+     {
+      "label": "Time to settle in the plate spin",
+      "value": "9 s"
+     }
+    ],
+    "table": null
+   }
+  ],
+  "procedure": [
+   {
+    "heading": "Association, one-step"
+   },
+   {
+    "step": "Analyte at ≈0.1×, 1× and 10× the expected K_D1, PE-antibody at the working D₀, all added together to the beads. Rotate."
+   },
+   {
+    "heading": "Dissociation after the wash (k₋₂ + k₋₃)"
+   },
+   {
+    "step": "Equilibrate one-step at a mid concentration (overnight, rotating). Wash. Split into two arms: plain buffer, and buffer with ≈100 nM unlabelled detection antibody (blocks rebinding)."
+   },
+   {
+    "step": "Image fresh fields at 0, 5, 15, 30 and 60 min, then every 30 min to 4 h, in both arms."
+   },
+   {
+    "heading": "Delayed detection (k₋₁)"
+   },
+   {
+    "step": "Two-step: capture analyte without PE-antibody, wash, hold in buffer for 0, 15, 30, 60, 120, 240 min (separate wells)."
+   },
+   {
+    "step": "At each hold time add saturating PE-antibody for a fixed time (≥ the re-label time in the calculator), wash, image."
+   },
+   {
+    "note": "Same-bead variant: after a one-step incubation and wash, hold, image one set of fields as is (decays at k₋₂ + k₋₃), then relabel the same well and image fresh fields (decays at k₋₁). The ratio cancels bead-to-bead site variation."
+   },
+   {
+    "heading": "Clamp with PE-antibody present (k₋₃)"
+   },
+   {
+    "step": "After a one-step equilibrium, replace the liquid with buffer containing PE-antibody at D₀ and no analyte. Image fresh fields over 2–4 h in the no-wash mode (20x, 1 AU)."
+   },
+   {
+    "heading": "Settling and transport"
+   },
+   {
+    "step": "One mid concentration, 2 h, three arms: static, orbital shaking, end-over-end rotation."
+   },
+   {
+    "heading": "Bead number"
+   },
+   {
+    "step": "A low analyte concentration with 1,000, 5,000 and 20,000 beads in the same volume, 2 h, rotating."
+   }
+  ],
+  "analysis": [
+   {
+    "step": "11a: global fit of the binding model (Research/bead_confocal_sim/binding.py) to all time points and concentrations, with bead number and volume fixed: k₁ and k₂."
+   },
+   {
+    "step": "11b: fit PE(t) = PE(0)·exp(−Λt) in each arm. If the arms agree, rebinding is negligible and Λ = k₋₂ + k₋₃."
+   },
+   {
+    "step": "11c: PE against hold time decays at k₋₁. With k₋₃ ≈ k₋₁, k₋₂ = Λ − k₋₁. If capture is nearly irreversible (≈3 × 10⁻⁶ s⁻¹ has been reported for a PSA capture antibody), 11b alone measures k₋₂ and 11c bounds k₋₁."
+   },
+   {
+    "step": "11d: PE decays at f·k₋₃ + (1 − f)·k₋₁ (f from the calculator); at f near 1 that is k₋₃. Compare with 11c."
+   },
+   {
+    "step": "11e: static versus rotation is the settling effect; shaking versus rotation is per-bead transport (Damköhler number)."
+   },
+   {
+    "step": "11f: PE per bead falling with bead number means analyte depletion; bead number must then be held fixed."
+   }
+  ],
+  "decision": [
+   "Decision: incubation time and mixing, the fixed bead number, the wash-to-image window (or a no-wash read), and the rate constants for the standard-curve model.",
+   "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7)."
+  ],
+  "record": [
+   {
+    "caption": "Record for every acquisition",
+    "columns": [
+     "Field",
+     "What to write"
+    ],
+    "rows": [
+     [
+      "Arm / time point",
+      "Incubation, hold or chase time"
+     ],
+     [
+      "Wash-to-image",
+      "Minutes"
+     ],
+     [
+      "Beads per well",
+      "Count"
+     ],
+     [
+      "Concentrations",
+      "Analyte, PE-antibody, unlabelled antibody"
+     ]
+    ],
+    "where": "Decision & record"
+   }
+  ],
+  "timeline": {
+   "title": "Stop (wash) and image at",
+   "marks": [
+    {
+     "at": "5 min",
+     "label": "5",
+     "sub": "",
+     "included": true
+    },
+    {
+     "at": "15 min",
+     "label": "15",
+     "sub": "",
+     "included": true
+    },
+    {
+     "at": "30 min",
+     "label": "30",
+     "sub": "",
+     "included": true
+    },
+    {
+     "at": "60 min",
+     "label": "60",
+     "sub": "",
+     "included": true
+    },
+    {
+     "at": "120 min",
+     "label": "120",
+     "sub": "",
+     "included": true
+    },
+    {
+     "at": "240 min",
+     "label": "240",
+     "sub": "",
+     "included": true
+    },
+    {
+     "at": "overnight",
+     "label": "≈16 h",
+     "sub": "",
+     "included": true
+    }
+   ]
+  },
+  "plate": null,
+  "builder": null,
+  "values": {
+   "k_sum": {
+    "label": "k₋₂ + k₋₃",
+    "text": "0.001 s⁻¹"
+   },
+   "delay_min": {
+    "label": "Wash-to-image delay",
+    "text": "10 min"
+   },
+   "scan_min": {
+    "label": "Plate scan duration",
+    "text": "20 min"
+   },
+   "k2": {
+    "label": "Detection-antibody on-rate",
+    "text": "400,000 M⁻¹s⁻¹"
+   },
+   "d0_nm": {
+    "label": "PE-antibody during the clamp",
+    "text": "10 nM"
+   },
+   "km2": {
+    "label": "Detection-antibody off-rate k₋₂",
+    "text": "0.001 s⁻¹"
+   },
+   "d_um": {
+    "label": "Bead diameter",
+    "text": "8 µm"
+   },
+   "drho": {
+    "label": "Density difference (polystyrene ≈0.05)",
+    "text": "0.05 g/mL"
+   },
+   "visc": {
+    "label": "Viscosity",
+    "text": "1 mPa·s"
+   },
+   "h_mm": {
+    "label": "Liquid height",
+    "text": "3 mm"
+   },
+   "rcf": {
+    "label": "Plate spin",
+    "text": "200 × g"
+   },
+   "t_half_min": {
+    "label": "Half-life of the PE signal",
+    "text": "11.6 min"
+   },
+   "loss_delay_pct": {
+    "label": "Lost before the first well is imaged",
+    "text": "45.1 %"
+   },
+   "spread_pct": {
+    "label": "Extra loss by the last well",
+    "text": "69.9 %"
+   },
+   "f_lab": {
+    "label": "Labelled fraction f",
+    "text": "0.8"
+   },
+   "t_relabel_min": {
+    "label": "Time to re-label 95 %",
+    "text": "10 min"
+   },
+   "v_ums": {
+    "label": "Settling speed",
+    "text": "1.74 µm/s"
+   },
+   "t_settle_min": {
+    "label": "Time to settle by gravity",
+    "text": "29 min"
+   },
+   "t_spin_s": {
+    "label": "Time to settle in the plate spin",
+    "text": "9 s"
+   }
+  }
+ },
+ {
+  "file": "pe-ax-12-standard-curve.protocol-import.json",
+  "id": "pe-ax-12-standard-curve",
+  "title": "PE beads · Exp 12 · Standard curve and hook",
+  "summary": "A 12-point half-log analyte titration at three detection-antibody levels in duplicate on one 96-well plate, with reference wells, to fit the model and locate the hook.",
+  "header": "One plate: 11 analyte points plus a blank × 3 D₀ levels × duplicate, plus references.",
+  "notes": [
+   {
+    "text": "Pins: S_T, K_D1 and K_D2 by a global fit of the mechanistic model, a routine 5PL, the hook onset, and the working D₀. The PE ceiling is S_T·D₀/(K_D2 + D₀), so a larger D₀ raises the ceiling but also the nonspecific background. The model's default is 1–2 × K_D2; 5 × K_D2 is worth it only if Exp 09 shows nonspecific binding is negligible.",
+    "where": "Overview"
+   },
+   {
+    "text": "Make 1,053 µL of the top standard (100,000 pM). Each next tube holds 720 µL of diluent and receives 333 µL from the tube before; the 11th point is 1 pM.",
+    "where": "Plate"
+   }
+  ],
+  "cautions": [
+   {
+    "text": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+    "where": "Procedure"
+   }
+  ],
+  "assumptions": [],
+  "tables": [
+   {
+    "caption": "Rows G–H",
+    "columns": [
+     "Wells",
+     "Reference contents"
+    ],
+    "rows": [
+     [
+      "G1–G5",
+      "PE calibration beads, blank + 4 levels"
+     ],
+     [
+      "G6–G7",
+      "Saturation wells (top analyte × 10, saturating PE-antibody)"
+     ],
+     [
+      "G8–G10",
+      "Capture beads + PE-antibody, no analyte (nonspecific binding)"
+     ],
+     [
+      "G11",
+      "Uncoated beads in buffer (autofluorescence)"
+     ],
+     [
+      "G12, H1–H12",
+      "Samples at 1× and 10× dilution (hook guard: the two must agree)"
+     ]
+    ],
+    "where": "Plate"
+   }
+  ],
+  "materials": [
+   "Assay beads at the fixed number per well (Exp 11)",
+   "Analyte standard, enough for the top tube",
+   "PE-detection antibody",
+   "PE calibration beads, 4 levels + blank (reference row)",
+   "Assay diluent; wash buffer",
+   "1 ea 96-well #1.5 glass-bottom plate (or incubate in tubes and transfer)",
+   "1 ea Tube rotator"
+  ],
+  "calculators": [
+   {
+    "label": "Dilution series",
+    "inputs": [
+     {
+      "label": "Top analyte concentration",
+      "value": "100,000 pM",
+      "hint": "2–3 points above the expected range, for the hook"
+     },
+     {
+      "label": "Dilution factor (half-log = 3.1623)",
+      "value": "3.1623",
+      "hint": ""
+     },
+     {
+      "label": "Detection-antibody K_D (Exp 11)",
+      "value": "2 nM",
+      "hint": ""
+     },
+     {
+      "label": "Volume per well",
+      "value": "100 µL",
+      "hint": ""
+     },
+     {
+      "label": "Wells per standard (3 D₀ × 2)",
+      "value": "6",
+      "hint": ""
+     },
+     {
+      "label": "Overage",
+      "value": "1.2",
+      "hint": ""
+     }
+    ],
+    "outputs": [
+     {
+      "label": "Lowest standard",
+      "value": "1 pM"
+     },
+     {
+      "label": "Volume of each standard",
+      "value": "720 µL"
+     },
+     {
+      "label": "Transfer between tubes",
+      "value": "333 µL"
+     },
+     {
+      "label": "Top tube volume",
+      "value": "1,053 µL"
+     }
+    ],
+    "table": null
+   }
+  ],
+  "procedure": [
+   {
+    "step": "Prepare the serial dilution in tubes with the volumes above; change tips at every transfer."
+   },
+   {
+    "step": "For each well: beads (fixed number), analyte standard, PE-antibody at d0_nm, added together (one-step). Incubate 2 h with rotation (or the time chosen in Exp 11)."
+   },
+   {
+    "step": "Wash column by column, staggered so each column is imaged at the same fixed delay after its wash (e.g. 5 ± 0.5 min; Exp 11 sets it), or keep unwashed for a no-wash read. Fill the reference wells."
+   },
+   {
+    "step": "Settle each column by a 1 min plate spin (100–300 × g) before imaging."
+   },
+   {
+    "step": "Image every well in the default mode at operating settings with the transmitted-light channel, one field per well, ≥100 beads per well, the timestamp of each well logged."
+   }
+  ],
+  "analysis": [
+   {
+    "step": "Per well: median integrated intensity, converted to PE per bead with the reference calibration beads of this plate."
+   },
+   {
+    "step": "Global fit of the mechanistic model (S_T, K_D1, K_D2; D₀ and bead number known) across all three D₀ levels, weighted by the measured variance. For routine use, fit a 5PL with an explicit hook term; a plain 4PL only where the curve has no depletion or hook."
+   },
+   {
+    "step": "Hook onset: the concentration where signal turns down. LOD: blank mean + 3 SD, read through the curve."
+   }
+  ],
+  "decision": [
+   "Decision: the working D₀, the curve model for routine runs, and the dilution rule for samples near the hook.",
+   "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7)."
+  ],
+  "record": [
+   {
+    "caption": "Record for every acquisition",
+    "columns": [
+     "Field",
+     "What to write"
+    ],
+    "rows": [
+     [
+      "Well",
+      "Plate position"
+     ],
+     [
+      "Analyte",
+      "pM"
+     ],
+     [
+      "D₀",
+      "nM"
+     ],
+     [
+      "Incubation",
+      "Time, mixing"
+     ],
+     [
+      "Wash-to-image",
+      "Minutes"
+     ],
+     [
+      "Beads",
+      "Number analysed per well"
+     ]
+    ],
+    "where": "Decision & record"
+   }
+  ],
+  "timeline": null,
+  "plate": {
+   "label": "96-well plate",
+   "dataset": "plate",
+   "rows": 8,
+   "cols": 12,
+   "cellLabel": "conc_pm",
+   "cellSub": "d0_nm",
+   "colorField": "d0x"
+  },
+  "builder": {
+   "dataset": "plate",
+   "rows": [
+    {
+     "d0x": 1,
+     "rep": "a",
+     "step": 0,
+     "conc_pm": 0,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "a",
+     "step": 1,
+     "conc_pm": 0.9999293579943306,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "a",
+     "step": 2,
+     "conc_pm": 3.1620766087854717,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "a",
+     "step": 3,
+     "conc_pm": 9.999434859962298,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "a",
+     "step": 4,
+     "conc_pm": 31.621212857658772,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "a",
+     "step": 5,
+     "conc_pm": 99.99576141977434,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "a",
+     "step": 6,
+     "conc_pm": 316.21659633775243,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "a",
+     "step": 7,
+     "conc_pm": 999.9717425988745,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "a",
+     "step": 8,
+     "conc_pm": 3162.210641620421,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "a",
+     "step": 9,
+     "conc_pm": 9999.858711996258,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "a",
+     "step": 10,
+     "conc_pm": 31622.553204945765,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "a",
+     "step": 11,
+     "conc_pm": 100000,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "b",
+     "step": 0,
+     "conc_pm": 0,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "b",
+     "step": 1,
+     "conc_pm": 0.9999293579943306,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "b",
+     "step": 2,
+     "conc_pm": 3.1620766087854717,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "b",
+     "step": 3,
+     "conc_pm": 9.999434859962298,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "b",
+     "step": 4,
+     "conc_pm": 31.621212857658772,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "b",
+     "step": 5,
+     "conc_pm": 99.99576141977434,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "b",
+     "step": 6,
+     "conc_pm": 316.21659633775243,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "b",
+     "step": 7,
+     "conc_pm": 999.9717425988745,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "b",
+     "step": 8,
+     "conc_pm": 3162.210641620421,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "b",
+     "step": 9,
+     "conc_pm": 9999.858711996258,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "b",
+     "step": 10,
+     "conc_pm": 31622.553204945765,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 1,
+     "rep": "b",
+     "step": 11,
+     "conc_pm": 100000,
+     "d0_nm": 2
+    },
+    {
+     "d0x": 2,
+     "rep": "a",
+     "step": 0,
+     "conc_pm": 0,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "a",
+     "step": 1,
+     "conc_pm": 0.9999293579943306,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "a",
+     "step": 2,
+     "conc_pm": 3.1620766087854717,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "a",
+     "step": 3,
+     "conc_pm": 9.999434859962298,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "a",
+     "step": 4,
+     "conc_pm": 31.621212857658772,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "a",
+     "step": 5,
+     "conc_pm": 99.99576141977434,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "a",
+     "step": 6,
+     "conc_pm": 316.21659633775243,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "a",
+     "step": 7,
+     "conc_pm": 999.9717425988745,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "a",
+     "step": 8,
+     "conc_pm": 3162.210641620421,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "a",
+     "step": 9,
+     "conc_pm": 9999.858711996258,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "a",
+     "step": 10,
+     "conc_pm": 31622.553204945765,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "a",
+     "step": 11,
+     "conc_pm": 100000,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "b",
+     "step": 0,
+     "conc_pm": 0,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "b",
+     "step": 1,
+     "conc_pm": 0.9999293579943306,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "b",
+     "step": 2,
+     "conc_pm": 3.1620766087854717,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "b",
+     "step": 3,
+     "conc_pm": 9.999434859962298,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "b",
+     "step": 4,
+     "conc_pm": 31.621212857658772,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "b",
+     "step": 5,
+     "conc_pm": 99.99576141977434,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "b",
+     "step": 6,
+     "conc_pm": 316.21659633775243,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "b",
+     "step": 7,
+     "conc_pm": 999.9717425988745,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "b",
+     "step": 8,
+     "conc_pm": 3162.210641620421,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "b",
+     "step": 9,
+     "conc_pm": 9999.858711996258,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "b",
+     "step": 10,
+     "conc_pm": 31622.553204945765,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 2,
+     "rep": "b",
+     "step": 11,
+     "conc_pm": 100000,
+     "d0_nm": 4
+    },
+    {
+     "d0x": 5,
+     "rep": "a",
+     "step": 0,
+     "conc_pm": 0,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "a",
+     "step": 1,
+     "conc_pm": 0.9999293579943306,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "a",
+     "step": 2,
+     "conc_pm": 3.1620766087854717,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "a",
+     "step": 3,
+     "conc_pm": 9.999434859962298,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "a",
+     "step": 4,
+     "conc_pm": 31.621212857658772,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "a",
+     "step": 5,
+     "conc_pm": 99.99576141977434,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "a",
+     "step": 6,
+     "conc_pm": 316.21659633775243,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "a",
+     "step": 7,
+     "conc_pm": 999.9717425988745,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "a",
+     "step": 8,
+     "conc_pm": 3162.210641620421,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "a",
+     "step": 9,
+     "conc_pm": 9999.858711996258,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "a",
+     "step": 10,
+     "conc_pm": 31622.553204945765,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "a",
+     "step": 11,
+     "conc_pm": 100000,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "b",
+     "step": 0,
+     "conc_pm": 0,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "b",
+     "step": 1,
+     "conc_pm": 0.9999293579943306,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "b",
+     "step": 2,
+     "conc_pm": 3.1620766087854717,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "b",
+     "step": 3,
+     "conc_pm": 9.999434859962298,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "b",
+     "step": 4,
+     "conc_pm": 31.621212857658772,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "b",
+     "step": 5,
+     "conc_pm": 99.99576141977434,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "b",
+     "step": 6,
+     "conc_pm": 316.21659633775243,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "b",
+     "step": 7,
+     "conc_pm": 999.9717425988745,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "b",
+     "step": 8,
+     "conc_pm": 3162.210641620421,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "b",
+     "step": 9,
+     "conc_pm": 9999.858711996258,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "b",
+     "step": 10,
+     "conc_pm": 31622.553204945765,
+     "d0_nm": 10
+    },
+    {
+     "d0x": 5,
+     "rep": "b",
+     "step": 11,
+     "conc_pm": 100000,
+     "d0_nm": 10
+    }
+   ]
+  },
+  "values": {
+   "top_pm": {
+    "label": "Top analyte concentration",
+    "text": "100,000 pM"
+   },
+   "factor": {
+    "label": "Dilution factor (half-log = 3.1623)",
+    "text": "3.1623"
+   },
+   "kd2_nm": {
+    "label": "Detection-antibody K_D (Exp 11)",
+    "text": "2 nM"
+   },
+   "well_ul": {
+    "label": "Volume per well",
+    "text": "100 µL"
+   },
+   "wells_per_std": {
+    "label": "Wells per standard (3 D₀ × 2)",
+    "text": "6"
+   },
+   "overage": {
+    "label": "Overage",
+    "text": "1.2"
+   },
+   "low_pm": {
+    "label": "Lowest standard",
+    "text": "1 pM"
+   },
+   "std_vol_ul": {
+    "label": "Volume of each standard",
+    "text": "720 µL"
+   },
+   "transfer_ul": {
+    "label": "Transfer between tubes",
+    "text": "333 µL"
+   },
+   "top_tube_ul": {
+    "label": "Top tube volume",
+    "text": "1,053 µL"
+   }
+  }
+ },
+ {
+  "file": "pe-ax-13-mode-validation.protocol-import.json",
+  "id": "pe-ax-13-mode-validation",
+  "title": "PE beads · Exp 13 · Head-to-head of the measurement modes",
+  "summary": "Image one standard-curve plate in four candidate modes, three times in a day and on three days, and score LOD, CV, slope, throughput, bleaching and repeatability.",
+  "header": "Chooses the default protocol from data, not from the model.",
+  "notes": [
+   {
+    "text": "This mode gives 18.5 px pixels per bead, 627 beads per field and 1,120 beads per minute of acquisition.",
+    "where": "Calculator"
+   }
+  ],
+  "cautions": [
+   {
+    "text": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+    "where": "Procedure"
+   }
+  ],
+  "assumptions": [
+   "Model expectation: mode B (20x, 1 AU) is the default: thinner section, ≈1.5× more photons per bleaching dose and ≈3× less solution background per nM. Mode A is the throughput candidate if NIS reaches 3–4 AU at 10x. Flow cytometry is the reference."
+  ],
+  "tables": [
+   {
+    "caption": "Candidate modes (all single planes at the stationary point from Exp 05)",
+    "columns": [
+     "Mode",
+     "Objective / pinhole",
+     "Planes",
+     "Pixels per bead"
+    ],
+    "rows": [
+     [
+      "A",
+      "10x, pinhole open",
+      "1 (equator)",
+      "12–20"
+     ],
+     [
+      "B",
+      "20x, 1 AU",
+      "1 (equator, Perfect Focus)",
+      "16–25"
+     ],
+     [
+      "C",
+      "20x, 1 AU",
+      "5-plane sum, 2 µm steps (±4 µm)",
+      "16–25"
+     ],
+     [
+      "D",
+      "10x, 1 AU",
+      "1 (equator)",
+      "12–20"
+     ],
+     [
+      "Flow",
+      "Flow cytometer, same beads + PE quantitation beads",
+      "—",
+      "—"
+     ]
+    ],
+    "where": "Overview"
+   },
+   {
+    "caption": "Score sheet, one column per mode",
+    "columns": [
+     "Score",
+     "How"
+    ],
+    "rows": [
+     [
+      "Concentration CV per well-minute",
+      "Propagated through the standard curve at the low, mid and top standards: the single number to optimize"
+     ],
+     [
+      "LOD",
+      "Blank + 3 SD of blank well means, in PE per bead and in pM"
+     ],
+     [
+      "CV per well",
+      "Bead-to-bead CV of the integrated metric, median over wells"
+     ],
+     [
+      "Slope",
+      "Standard-curve slope in its linear range"
+     ],
+     [
+      "Throughput",
+      "Beads measured per minute (calculator)"
+     ],
+     [
+      "Bleaching per pass",
+      "Reference-well signal, pass 1 against pass 3"
+     ],
+     [
+      "Repeatability",
+      "Day-to-day CV after calibration with the reference rows"
+     ]
+    ],
+    "where": "Analysis"
+   }
+  ],
+  "materials": [
+   "1 plate A standard-curve plate made as in Exp 12, with its reference rows"
+  ],
+  "calculators": [
+   {
+    "label": "Throughput per mode",
+    "inputs": [
+     {
+      "label": "Objective magnification",
+      "value": "10 ×",
+      "hint": ""
+     },
+     {
+      "label": "Scan zoom",
+      "value": "1 ×",
+      "hint": ""
+     },
+     {
+      "label": "Frame size",
+      "value": "4,096 px",
+      "hint": ""
+     },
+     {
+      "label": "Pixel dwell",
+      "value": "2 µs",
+      "hint": ""
+     },
+     {
+      "label": "Averages × planes",
+      "value": "1",
+      "hint": ""
+     },
+     {
+      "label": "Bead density on the glass",
+      "value": "200 per mm²",
+      "hint": ""
+     }
+    ],
+    "outputs": [
+     {
+      "label": "Field area",
+      "value": "3.133 mm²"
+     },
+     {
+      "label": "Pixels per bead",
+      "value": "18.5 px"
+     },
+     {
+      "label": "Beads per field",
+      "value": "627"
+     },
+     {
+      "label": "Acquisition per field",
+      "value": "33.6 s"
+     },
+     {
+      "label": "Beads per minute",
+      "value": "1,120"
+     }
+    ],
+    "table": null
+   }
+  ],
+  "procedure": [
+   {
+    "step": "Image the whole plate in modes A–D. Rotate the mode order between passes so no mode always goes first."
+   },
+   {
+    "step": "Day 1: three complete passes. Days 2 and 3: one pass each, with the reference rows and Exp 01/03 session checks."
+   }
+  ],
+  "analysis": [],
+  "decision": [
+   "Decision: the default protocol (mode and settings). It becomes the routine acquisition protocol.",
+   "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7)."
+  ],
+  "record": [
+   {
+    "caption": "Record for every acquisition",
+    "columns": [
+     "Field",
+     "What to write"
+    ],
+    "rows": [
+     [
+      "Pass",
+      "Day and pass number"
+     ],
+     [
+      "Mode",
+      "A–D"
+     ],
+     [
+      "Mode order",
+      "Within the pass"
+     ],
+     [
+      "Wash-to-image",
+      "Per well"
+     ]
+    ],
+    "where": "Decision & record"
+   }
+  ],
+  "timeline": null,
+  "plate": null,
+  "builder": null,
+  "values": {
+   "m_obj": {
+    "label": "Objective magnification",
+    "text": "10 ×"
+   },
+   "zoom": {
+    "label": "Scan zoom",
+    "text": "1 ×"
+   },
+   "n_px": {
+    "label": "Frame size",
+    "text": "4,096 px"
+   },
+   "dwell_us": {
+    "label": "Pixel dwell",
+    "text": "2 µs"
+   },
+   "n_avg": {
+    "label": "Averages × planes",
+    "text": "1"
+   },
+   "density": {
+    "label": "Bead density on the glass",
+    "text": "200 per mm²"
+   },
+   "field_mm2": {
+    "label": "Field area",
+    "text": "3.133 mm²"
+   },
+   "ppb_13": {
+    "label": "Pixels per bead",
+    "text": "18.5 px"
+   },
+   "beads_field": {
+    "label": "Beads per field",
+    "text": "627"
+   },
+   "frame_s": {
+    "label": "Acquisition per field",
+    "text": "33.6 s"
+   },
+   "beads_min": {
+    "label": "Beads per minute",
+    "text": "1,120"
+   }
+  }
+ }
+]

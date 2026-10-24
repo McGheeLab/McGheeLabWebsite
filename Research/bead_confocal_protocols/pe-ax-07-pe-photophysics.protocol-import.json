@@ -54,7 +54,7 @@
       },
       {
        "kind": "callout",
-       "body": "Literature: R-PE photodestruction yield 1.1 × 10⁻⁵ per absorbed photon, 1.7× better with n-propyl gallate; ROS scavengers, ascorbate, DTT and oxygen removal did not help. Model: 0.29 % lost per frame at 10 µW, 2 µs, 0.4 µm pixels at 20x.",
+       "body": "Literature: R-PE photodestruction yield 1.1 × 10⁻⁵ per absorbed photon, 1.7× better with n-propyl gallate; ROS scavengers, ascorbate, DTT and oxygen removal did not help. Model: 0.06 % lost per frame at 2 µW, 2 µs, 0.4 µm pixels at 20x (0.29 % at 10 µW).",
        "attrs": {
         "type": "assume"
        }

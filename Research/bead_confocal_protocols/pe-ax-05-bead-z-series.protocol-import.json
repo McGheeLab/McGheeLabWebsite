@@ -92,20 +92,20 @@
          {
           "mode": "B · 20x, 1 AU",
           "int": "±1.75 µm (±1.8–2.1 µm with sharper tails)",
-          "ring": "22 %",
-          "pc": "≈15 (simulator) to >100 (Gaussian section)"
+          "ring": "27 %",
+          "pc": "≈18 (simulator) to >100 (Gaussian section)"
          },
          {
           "mode": "C · 20x, 2 AU",
           "int": "±1.5 µm",
-          "ring": "25 %",
+          "ring": "26 %",
           "pc": "—"
          },
          {
           "mode": "D · 10x, 1 AU",
           "int": "±1.5 µm",
-          "ring": "18 %",
-          "pc": "≈4.5"
+          "ring": "17 %",
+          "pc": "≈5"
          }
         ]
        }

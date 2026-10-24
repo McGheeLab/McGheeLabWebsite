@@ -434,9 +434,9 @@ PROTOCOLS.append(protocol(
             table([("mode", "Mode"), ("int", "Integrated within 5 %"), ("ring", "Ring-mean loss at 2 µm"),
                    ("pc", "Peak/centre at equator")], [
                 {"mode": "A · 10x, largest pinhole (3–4 AU)", "int": "±4.5 µm", "ring": "7 %", "pc": "≈3"},
-                {"mode": "B · 20x, 1 AU", "int": "±1.75 µm (±1.8–2.1 µm with sharper tails)", "ring": "22 %", "pc": "≈15 (simulator) to >100 (Gaussian section)"},
-                {"mode": "C · 20x, 2 AU", "int": "±1.5 µm", "ring": "25 %", "pc": "—"},
-                {"mode": "D · 10x, 1 AU", "int": "±1.5 µm", "ring": "18 %", "pc": "≈4.5"},
+                {"mode": "B · 20x, 1 AU", "int": "±1.75 µm (±1.8–2.1 µm with sharper tails)", "ring": "27 %", "pc": "≈18 (simulator) to >100 (Gaussian section)"},
+                {"mode": "C · 20x, 2 AU", "int": "±1.5 µm", "ring": "26 %", "pc": "—"},
+                {"mode": "D · 10x, 1 AU", "int": "±1.5 µm", "ring": "17 %", "pc": "≈5"},
             ], "Model predictions for an index-matched bead"),
             callout("critical", "Bead material comes first. A polystyrene, PMMA or silica bead in water acts as a weak lens: the "
                                 "equatorial signal drops to ≈0.6–0.75 of the index-matched value and the integrated signal against "
@@ -517,10 +517,10 @@ PROTOCOLS.append(protocol(
             callout("note", "Pins: the scatter of each metric against sampling and sub-pixel position (6a), and what is left of the "
                             "field-position bias after flat-field correction, i.e. field curvature (6b)."),
             table([("ppb", "Pixels per bead"), ("px", "Pixel"), ("pk", "Rim-peak swing"), ("rm", "Ring-mean swing"), ("int", "Integrated swing")], [
-                {"ppb": "8", "px": "1.00 µm", "pk": "29 %", "rm": "34 %", "int": "2.7 %"},
-                {"ppb": "12", "px": "0.67 µm", "pk": "8.3 %", "rm": "8.1 %", "int": "1.4 %"},
-                {"ppb": "20", "px": "0.40 µm", "pk": "5.2 %", "rm": "4.5 %", "int": "0.13 %"},
-                {"ppb": "40", "px": "0.20 µm", "pk": "2.2 %", "rm": "2.7 %", "int": "<0.01 %"},
+                {"ppb": "8", "px": "1.00 µm", "pk": "28 %", "rm": "15 %", "int": "4.6 %"},
+                {"ppb": "12", "px": "0.67 µm", "pk": "39 %", "rm": "14 %", "int": "1.5 %"},
+                {"ppb": "20", "px": "0.40 µm", "pk": "14 %", "rm": "6.7 %", "int": "0.13 %"},
+                {"ppb": "40", "px": "0.20 µm", "pk": "2.8 %", "rm": "2.6 %", "int": "<0.01 %"},
             ], "Model prediction (20x, 1 AU; swing over sub-pixel offsets)"),
         ]),
         section("Materials", [
@@ -586,8 +586,8 @@ PROTOCOLS.append(protocol(
                             "dark state (7b), the saturation irradiance (7c), signal per dose by scan mode (7d), antifade (7e) and "
                             "the cost of focusing on PE (7f)."),
             callout("assume", "Literature: R-PE photodestruction yield 1.1 × 10⁻⁵ per absorbed photon, 1.7× better with n-propyl gallate; "
-                              "ROS scavengers, ascorbate, DTT and oxygen removal did not help. Model: 0.29 % lost per frame at 10 µW, "
-                              "2 µs, 0.4 µm pixels at 20x."),
+                              "ROS scavengers, ascorbate, DTT and oxygen removal did not help. Model: 0.06 % lost per frame at 2 µW, "
+                              "2 µs, 0.4 µm pixels at 20x (0.29 % at 10 µW)."),
         ]),
         section("Materials", [
             materials([("4", "well", "Assay beads at high coverage (fresh fields for every condition)"),
@@ -727,7 +727,7 @@ PROTOCOLS.append(protocol(
     ["background", "lod", "nonspecific-binding", "autofluorescence"],
     [
         section("Overview", [
-            doc_header("Backgrounds and the detection floor", "Photon noise alone allows ≈15–20 PE per bead; the real floor is set here.",
+            doc_header("Backgrounds and the detection floor", "Photon noise alone allows ≈65 PE per bead at 2 µW (washed); the real floor is set here.",
                        ["Exp 09 of %d" % TOTAL, "≈3 h plus incubation", "Calibration block"]),
             callout("note", "Pins: the effective detection volume per mode and the excluded-volume correction for no-wash reads (9a), "
                             "bead autofluorescence (9b), and nonspecific PE binding with its bead-to-bead SD, the practical LOD (9c)."),

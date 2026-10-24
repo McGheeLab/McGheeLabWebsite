@@ -526,6 +526,43 @@
     check('＋ Insert fans out the most used inserts, with everything else under …', !!comp && !!item('insert', /^Everything that can go/) && !!item('insert', /lab library|paper/i));
     comp.click();
     check('…and places one in the middle of the view', !!(await until(function () { return ev("M.liveBlocks('" + an + "').length") === nb0 + 1; }, 3000)));
+    /* V3.894 — the zoom hand: Alt-tap zooms out; Shift-tap fits the component or region under the pointer, and while Shift
+       is held the edge of what it would fit lights up */
+    W.SIS_LAB.setHand('zoom'); ev('DocView.paper.fit(DocView.bbox(), false)');
+    var ZSKIP = '.lab-pills,.dock,.ctools,.insp,.ink-bar,.ink-selbar,.pop,.hint,button,input,textarea,select,a';
+    var zpe = function (type, x, y, mods) { var o = Object.assign({ bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, pointerId: 14, pointerType: 'mouse', isPrimary: true }, mods || {});
+      (type === 'pointerup' ? W : (D.elementFromPoint(x, y) || paperEl)).dispatchEvent(new W.PointerEvent(type, o)); };
+    var zkey = function (type, shift) { D.body.dispatchEvent(new W.KeyboardEvent(type, { key: 'Shift', shiftKey: shift, bubbles: true })); };
+    var spotOn = function (el) { var r = el.getBoundingClientRect(); for (var yy = r.top + 4; yy < r.bottom - 2; yy += 6) for (var xx = r.left + 4; xx < r.right - 2; xx += 24) { var t = D.elementFromPoint(xx, yy); if (t && t.closest('.box') === el && !t.closest(ZSKIP)) return { x: xx, y: yy }; } return null; };
+    var centred = function (el) { var r = el.getBoundingClientRect(), P = q('.canvas-host .paper').getBoundingClientRect(), z = ev('DocView.paper.view.z');
+      return Math.abs((r.left + r.right) / 2 - (P.left + P.right) / 2) < 2 && (Math.abs(r.width - (P.width - 96)) < 2 || Math.abs(r.height - (P.height - 96)) < 2 || Math.abs(z - ev('DocView.paper.o.maxZ')) < 0.01); };
+    paperEl = q('.canvas-host .paper'); pr = paperEl.getBoundingClientRect();
+    var za =ev('DocView.paper.view.z'); zpe('pointerdown', pr.left + pr.width / 2, pr.top + pr.height / 2, { altKey: true }); zpe('pointerup', pr.left + pr.width / 2, pr.top + pr.height / 2, { altKey: true });
+    check('Zoom: Alt-tap zooms out', Math.abs(ev('DocView.paper.view.z') - Math.max(ev('DocView.paper.o.minZ'), za / 1.5)) < 0.01, [za, ev('DocView.paper.view.z')].join(' → '));
+    ev('DocView.paper.fit(DocView.bbox(), false)');
+    var zbox = qa('.canvas-host .paper .world > .box').filter(function (b) { var r = b.getBoundingClientRect(); return r.width > 40 && r.left > pr.left && r.right < pr.right && r.top > pr.top && r.bottom < pr.bottom && spotOn(b); })[0];
+    var zs = zbox && spotOn(zbox);
+    if (zs) zpe('pointermove', zs.x, zs.y, { shiftKey: true });
+    check('…with Shift held, the component under the pointer lights up its edge', !!zs && zbox.classList.contains('lab-zfit') && W.getComputedStyle(zbox).outlineStyle === 'solid', zbox ? zbox.dataset.id : 'no component on screen');
+    zkey('keyup', false);
+    check('…letting go of Shift puts it out', !!zbox && !zbox.classList.contains('lab-zfit'));
+    zkey('keydown', true);
+    check('…pressing Shift with the pointer still lights it again', !!zbox && zbox.classList.contains('lab-zfit'));
+    if (zs) { zpe('pointerdown', zs.x, zs.y, { shiftKey: true }); zpe('pointerup', zs.x, zs.y, { shiftKey: true }); }
+    var zboxNow = function () { return zbox && q('.canvas-host .paper .world > .box[data-id="' + zbox.dataset.id + '"]'); };   // a re-render replaces the element
+    check('…and Shift-tap fits the view to that component', !!zbox && !!(await until(function () { return zboxNow() && centred(zboxNow()); }, 2000)), zboxNow() && JSON.stringify(zboxNow().getBoundingClientRect()) + ' z ' + ev('DocView.paper.view.z'));
+    zkey('keyup', false);
+    var zid = zbox && zbox.dataset.id, zrg = zid && ev("REGION.create(M.doc('" + an + "'), ['" + zid + "']).id");
+    ev('DocView.paper.fit(DocView.bbox(), false)');
+    var zreg = zrg && await until(function () { var r = q('.canvas-host .paper .world > .region[data-rg="' + zrg + '"]'); return r && r.offsetWidth && r; }, 3000);
+    var rr = zreg && zreg.getBoundingClientRect();
+    if (rr) zpe('pointermove', rr.left + 6, rr.top + rr.height / 2, { shiftKey: true });
+    check('Shift over a region (outside its components) lights the region’s edge', !!zreg && zreg.classList.contains('lab-zfit'), zrg || 'no region');
+    if (rr) { zpe('pointerdown', rr.left + 6, rr.top + rr.height / 2, { shiftKey: true }); zpe('pointerup', rr.left + 6, rr.top + rr.height / 2, { shiftKey: true }); }
+    check('…and Shift-tap fits the view to the region', !!zreg && !!(await until(function () { return centred(zreg); }, 2000)), zreg && JSON.stringify(zreg.getBoundingClientRect()));
+    zkey('keyup', false);
+    if (zrg) ev("REGION.remove(M.doc('" + an + "'), '" + zrg + "')");
+    W.SIS_LAB.setHand('move');
     pill('tools').querySelector('.lab-pill-btn').click(); await until(function () { return fanItems('tools').length >= 4; }, 2000);
     item('tools', /^Start this note’s timer/).click();
     check('✦ Tools starts the note’s timer (and the pill shows it)', !!(await until(function () { return ev("!!TIMER.activeFor('" + an + "')") && pill('tools').querySelector('.lab-pill-live'); }, 3000)));

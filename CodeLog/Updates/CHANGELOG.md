@@ -4,6 +4,57 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.893] — 2026-10-24 — The PE-bead assay as a Scientia project, with three interactive simulators, set-up diagrams, a literature review and the validation plan
+
+Plan: [CodeLog/ClaudesPlan/V3.893_pe_bead_scientia_project.md](../ClaudesPlan/V3.893_pe_bead_scientia_project.md). No site code changed, nothing was added to `deploy/site.json`, and there is no `sw.js` bump. A parallel session's end-of-turn autopush committed the simulator half of this work (pages, diagrams, figures, `params.py`, the report) as `bc534219 V3.892 (cont.)`; the rest lands here. The production writes are listed under "Published".
+
+### Added
+- **`scripts/scientia-project/build-project.js`** (+ README): a project spec → one Scientia project → a hub. It is the sibling of `scripts/litreview/build-note.js` for whole projects.
+  - **Records:** projects, themes, aims (milestone weights must sum to 1), documents with regions, blocks, items, wires and media.
+  - **Item kinds:** text (`**b**`, `*i*`, `$math$`, `$$display$$`, `[[cite:key]]`, `[[note:key|words]]`, list and checkbox lines, an optional structure on the first line, recorded under the project), figure, html, eq, calc, protocol (registered in its own note), plate and noteref.
+  - **Equation legends** are keyed through Scientia's own `TEX` (loaded from `scientia/src/13n-eq.js`).
+  - **Layout:** a column layout from estimated or measured heights (`--heights`).
+  - **Ids:** deterministic, so a re-run updates in place and stale records of the project are deleted. A repeated item key in a note is an error.
+  - **Push:** `--local` (a desktop `serve.py`) and `--cloud <uid> [--commit]` (`FirestoreHub.mediaPut` + `push`; only changed records).
+- **`Research/bead_confocal_scientia/`:**
+  - **`project-spec.js`:** project `p_pebeadaxr0` "PE bead assay on the AX R confocal".
+    - **Themes:** four (binding, image formation, measurement strategy, validation), each with an aim and weighted milestones.
+    - **Notes:** 21 — overview; binding model; image model; simulation results; measurement strategy; two set-up notes; validation approach; and 13 experiment protocol notes.
+    - **Contents:** 62 structures (claims, questions, decisions, a barrier), 33 wires (questions and predictions → the protocol that answers each; equations → calculators), 9 equation blocks, 3 calculators, 22 figures, 3 HTML simulators, the Exp 12 plate, and citation chips to the review's papers.
+  - **`protocols-to-scientia.cjs` → `protocols.json`:** the 13 RM protocol imports turned into note content, with `[!var:]` values computed at the defaults the way `protocol-formulas.js` computes them.
+  - Also `heights.json` (measured on a desktop render), `render-check.mjs`, `library.json` and the README.
+- **`Research/bead_confocal_sim/interactive/` (first committed in `bc534219`):**
+  - **The pages** (self-contained, via `build.py`: shared `src/kit.js`/`kit.css`, `/*INCLUDE:*/`, and refusal of network loads, colour emoji and scripts that fail `node --check`):
+    - `pe-bead-confocal.html` (image, focus, optical section, photons and bleaching);
+    - `pe-bead-binding.html`;
+    - `pe-bead-strategy.html`.
+  - **`src/confocal-engine.js`:** `optics.py` ported, with two additions: saturation solved point by point (h = I/(1 + k₀I)·D) and free PE excluded from the bead's volume.
+  - **Checks:** `tools/check_confocal.py` (PSF, H, F within 0.2 %; rendered F and rim peak within 0.6 %) and `tools/check_binding.py` (the engine block that ships, within 0.05 % over seven cases).
+  - **Tables:** `tools/ray_table.py` (the bead-optics factor c(z) by material and objective) and `tools/strategy/` (the strategy page's PSF and saturation tables).
+- **`Research/bead_confocal_sim/diagrams/` → `figures/setup_*.png`:** five set-up figures (the assay, the optical section through a shell, the AX R light path with settings, the standard-curve plate with the staggered wash, and the validation map), rendered by `render.mjs`.
+- **`Research/bead_confocal_sim/params.py`:** one file for every shared number (R-PE, detection, operating point, detector, binding reference case).
+- **`Research/PE_bead_confocal_litreview.md`:** 27 papers, 60 located quotes, four lanes. It is built with `scripts/litreview` (data in `~/Documents/GitHub/LitReviews/pe-bead-confocal/`), and the note links to the project.
+
+### Changed
+- **The simulator at the revision-2 operating point** (report §C.3 items 1–3):
+  - `optics.py` and `binding.py` read their defaults from `params.py`: 2 µW, τ = 2.7 ns, and the report's binding reference case;
+  - `BeadAssay` gains `D_AD`;
+  - every figure and table was regenerated, and `tables.py` reads the operating point.
+- **The report:**
+  - Appendix S was rewritten to the new numbers (LOD table now matches §B.4.5; saturation solved point by point: F 5 % sublinear at ≈5–6 µW at 20x; the Vorselen 2020 caveat on the ray trace);
+  - §C.3 records what is done.
+- **The 13 RM protocols:** `make_protocols.py` updated the Exp 05, 06, 07 and 09 numbers; all 13 were regenerated, and `validate.cjs` passes all 13.
+- **`PE_bead_confocal_experiments.md`:** the same numbers.
+
+### Published (2026-10-24, Alex's request)
+- **Alex's Scientia hub** (`userData/{uid}/scientia/hub`), two pushes:
+  - **The project:** 17 media files (14 PNG, 3 HTML) and 411 records, hub seq 807 → 1218, 0 conflicts. Read back afterwards: all 411 records are identical to the build checked in the local render, and the three HTML pages are served as `text/html` with no attachment header.
+  - **The literature review** (`d_lr3186c1484a`, linked to `p_pebeadaxr0`): 16 PDFs and 349 records, seq → 1567.
+- **Not run: the lab library.** Adding the review's 26 new papers (+15 PDFs) with `rm-library-add.js --commit` was refused by the auto-mode safety check (shared lab data). Until Alex runs it, citation chips to those papers read "[missing]". The hub mirrors the library when Scientia next opens, so they then resolve with no other step. The command is in `Research/bead_confocal_scientia/README.md`.
+
+### Bug Fixes
+- **`optics.render` registration:** it drew the bead half a pixel away from the centre `metrics()` measured from (pixel i sampled position (i + 0.5)·px). The cx/cy shift now depends on the fast-axis smear, and the rim peak agrees with the JS engine to 0.6 % (it was 10 % off). Integrated F was unaffected; the ring and peak swings in Appendix S changed.
+
 ## [V3.892] — 2026-10-24 — Research: the 13 PE-bead characterization experiments as importable RM protocols; the bead report's revision 2 merged
 
 Plan: [CodeLog/ClaudesPlan/V3.892_pe_bead_experiments_as_rm_protocols.md](../ClaudesPlan/V3.892_pe_bead_experiments_as_rm_protocols.md). Research deliverable only — no site code, nothing in `deploy/site.json`, no `sw.js` bump.

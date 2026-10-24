@@ -28,7 +28,7 @@
      "children": [
       {
        "kind": "docHeader",
-       "body": "Photon noise alone allows ≈15–20 PE per bead; the real floor is set here.",
+       "body": "Photon noise alone allows ≈65 PE per bead at 2 µW (washed); the real floor is set here.",
        "attrs": {
         "brand": "",
         "title": "Backgrounds and the detection floor",

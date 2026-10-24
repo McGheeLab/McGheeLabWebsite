@@ -140,8 +140,8 @@ the absolute calibration and how far the integrated signal stays flat.
 format). Scale the dwell as 1/(px per bead)² so the dose per µm² is the same in every case. The beads are
 identical across conditions, so the comparison is paired. Random bead positions sample every sub-pixel
 phase for free.
-→ Pins the predicted swings (integrated < 0.2 % at ≥ 20 px, 2.7 % at 8 px; ring-mean 4.5 % at 20 px, 34 % at
-8 px). Decides the coarsest sampling the integrated metric tolerates, which is the throughput lever.
+→ Pins the predicted swings (integrated < 0.2 % at ≥ 20 px, 1.5 % at 12 px, 4.6 % at 8 px; ring-mean 6.7 % at
+20 px, 15 % at 8 px; simulator after the 2026-10-24 registration fix). Decides the coarsest sampling the integrated metric tolerates, which is the throughput lever.
 
 **6b · Same beads, different field positions.** Pick 5 isolated beads. Move the stage so each is imaged at
 9 positions (centre, edge midpoints, corners) with the same settings. Repeat after flat-field correction.
@@ -158,7 +158,7 @@ suffer far more than the integrated metric.
 beads, fixed dwell (2 µs), 20 px per bead. 20x: 0.3, 1, 2, 3, 10, 30 µW. 10x: 1, 3, 6, 10, 30, 100 µW.
 → Integrated intensity per bead vs frame gives the fractional loss per frame vs dose. With I₀ from Exp. 1 that
 gives the **photodestruction yield** on the beads (literature R-PE 1.1 × 10⁻⁵ per absorbed photon
-[White & Stryer 1987]). The model predicts 0.29 % per frame at 10 µW, 2 µs, 0.4 µm pixels at 20x.
+[White & Stryer 1987]). The model predicts 0.06 % per frame at 2 µW, 2 µs, 0.4 µm pixels at 20x (0.29 % at 10 µW).
 
 **7b · Reversible dark state.** In two of the 7a fields, pause 60 s after frame 25, then continue.
 → A partial recovery shows the millisecond-scale reversible dark state seen for R-PE [Gaigalas 2006]. Its size
@@ -220,7 +220,7 @@ correction a no-wash assay must add back (≈1 PE/µm² per nM predicted).
 planned), 6 wells per level, ≥ 100 beads each.
 → PE per bead from nonspecific binding, with its bead-to-bead and well-to-well SD, at each antibody level.
 **This, not photon noise, is the practical LOD** (blank + 3 SD of the well means). The model's detector-only LOD is
-≈ 15–20 PE per bead. The level where the LOD stops improving sets D₀; the model's default is 1–2 × K_D2.
+≈ 65 PE per bead at 2 µW (≈ 15–20 at 10 µW). The level where the LOD stops improving sets D₀; the model's default is 1–2 × K_D2.
 
 ### Exp. 10 — Absolute calibration to PE molecules per bead
 - **Do:** the PE quantitation bead kit (4 levels plus blank) in buffer, imaged with the exact settings of the

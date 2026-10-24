@@ -1136,7 +1136,8 @@
      ＋ Insert (the most used of INSERTS; More… = Gabe's whole list), ✦ Tools (timer, calculator, equation, Gabe's ink
      bar, focus mode), ⊕ View (in · 100 % · out · fit, the zoom % under it). The hand IS Gabe's ink state — pen /
      highlighter / lasso / eraser = INK.tool with INK.mouse on; move = INK.mouse off (the paper pans, components drag);
-     zoom = ours (a tap zooms ×1.5 at the point, Alt / Shift: out; a drag up or down zooms smoothly) — read back on every
+     zoom = ours (a tap zooms ×1.5 at the point, Alt: out, Shift: fit the component or region under it, its edge lit
+     while Shift is held; a drag up or down zooms smoothly) — read back on every
      paint, so his ink bar and the pill never disagree. A pill drags anywhere (fractions of the note's area, _ls
      lab:pills); the fan opens away from the nearest edges; a tap outside closes it; a double tap on ✎ = the last mode. */
   var PILL_ICONS = {"magnifying-glass": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z\"/>", "hand": "<path d=\"M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2\" /><path d=\"M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2\" /><path d=\"M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8\" /><path d=\"M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15\" />", "pencil": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125\"/>", "highlighter": "<path d=\"m9 11-6 6v3h9l3-3\" /><path d=\"m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4\" />", "plus": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 4.5v15m7.5-7.5h-15\"/>", "minus": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 12h14\"/>", "home": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25\"/>", "arrow-uturn-left": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3\"/>", "arrow-uturn-right": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m15 15 6-6m0 0-6-6m6 6H9a6 6 0 0 0 0 12h3\"/>", "x-mark": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M6 18 18 6M6 6l12 12\"/>", "calculator": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm2.498-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5v2.25h-7.5V6ZM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0 0 12 2.25Z\"/>", "clock": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z\"/>", "arrows-pointing-out": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z\"/>", "squares-plus": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 0 0 2.25-2.25V6a2.25 2.25 0 0 0-2.25-2.25H6A2.25 2.25 0 0 0 3.75 6v2.25A2.25 2.25 0 0 0 6 10.5Zm0 9.75h2.25A2.25 2.25 0 0 0 10.5 18v-2.25a2.25 2.25 0 0 0-2.25-2.25H6a2.25 2.25 0 0 0-2.25 2.25V18A2.25 2.25 0 0 0 6 20.25Zm9.75-9.75H18a2.25 2.25 0 0 0 2.25-2.25V6A2.25 2.25 0 0 0 18 3.75h-2.25A2.25 2.25 0 0 0 13.5 6v2.25a2.25 2.25 0 0 0 2.25 2.25Z\"/>", "sparkles": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z\"/>", "pause": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15.75 5.25v13.5m-7.5-13.5v13.5\"/>", "play": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z\"/>", "eye": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z\"/><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z\"/>", "variable": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M4.745 3A23.933 23.933 0 0 0 3 12c0 3.183.62 6.22 1.745 9M19.5 3c.967 2.78 1.5 5.817 1.5 9s-.533 6.22-1.5 9M8.25 8.885l1.444-.89a.75.75 0 0 1 1.105.402l2.402 7.206a.75.75 0 0 0 1.104.401l1.445-.889m-8.25.75.213.09a1.687 1.687 0 0 0 2.062-.617l4.45-6.676a1.688 1.688 0 0 1 2.062-.618l.213.09\"/>", "bolt": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z\"/>", "lasso": "<ellipse cx=\"12\" cy=\"10\" rx=\"8\" ry=\"5.5\" stroke-dasharray=\"2.6 2.4\"/><path stroke-linecap=\"round\" d=\"M9.5 15.2c-.6 1.8-.2 3.6 1.4 4.8\"/>"};
@@ -1186,7 +1187,7 @@
     var d = M.doc(pane.docId), items = []; if (!d) return items;
     if (name === 'hand') {
       var g = handGroup();
-      [['zoom', 'magnifying-glass', 'Zoom — tap to zoom in, Alt-tap out, drag up or down'], ['move', 'hand', 'Move — drag the paper to pan, drag a component to move it'], ['pen', 'pencil', 'Pen — draw with the mouse or the pen'],
+      [['zoom', 'magnifying-glass', 'Zoom — tap to zoom in, Alt-tap out, Shift-tap to fit a component or region, drag up or down'], ['move', 'hand', 'Move — drag the paper to pan, drag a component to move it'], ['pen', 'pencil', 'Pen — draw with the mouse or the pen'],
         ['hl', 'highlighter', 'Highlighter — wide and see-through'], ['lasso', 'lasso', 'Lasso — circle strokes to move, recolour, delete or convert']].forEach(function (f) {
         items.push({ icon: pic(f[1]), label: f[2], sel: g === f[0], mode: true, keep: true, run: function () { setHand(f[0]); } }); });
       var undo = function () { items.push({ icon: pic('arrow-uturn-left'), label: 'Undo', keep: true, run: function () { App.undo(); } }); items.push({ icon: pic('arrow-uturn-right'), label: 'Redo', keep: true, run: function () { App.redo(); } }); };
@@ -1309,22 +1310,71 @@
     if (!box) { box = h('div.lab-pills.nopan'); host.append(box); bindZoomHand(pane, host); }
     trackHand();
     host.classList.toggle('lab-hand-zoom', LP.zoom); host.classList.toggle('lab-hand-move', handNow() === 'move');
+    if (!LP.zoom && ZF.el) zfitMark(null);
     box.classList.toggle('fan-open', !!(LP.open && LP.open.doc === pane.docId));
     box.replaceChildren.apply(box, ['insert', 'tools', 'hand', 'view'].map(function (n) { return pillEl(n, pane, host); }));
   }
   function paintAll() { try { App.panes().forEach(paintPills); } catch (e) { warn('pills', e); } }
   LAB.paintPills = paintAll; LAB.setHand = setHand; LAB.handNow = handNow;
-  /* the zoom hand: a tap zooms in ×1.5 at the point (Alt / Shift / right button: out); a drag up or down zooms smoothly */
+  /* the zoom hand: a tap zooms in ×1.5 at the point (Alt / right button: out, with the zoom-out cursor while Alt is
+     held); a drag up or down zooms smoothly. Shift-tap fits the view to the component or region under the pointer
+     (empty paper: the whole note); while Shift is held the edge of what it would fit lights up (.lab-zfit). The click
+     that follows a zoom tap is swallowed, so a tap on a component only zooms. */
+  var ZOOM_SKIP = '.lab-pills,.dock,.ctools,.insp,.ink-bar,.ink-selbar,.pop,.hint,button,input,textarea,select,a';
+  var ZF = { host: null, x: 0, y: 0, shift: false, el: null, swallow: 0 };
+  // a region by its tab, else the component under the pointer, else the smallest region around the point
+  function zfitTarget(host, x, y) {
+    var P = host._dv && host._dv.paper; if (!P) return null;
+    var hits = document.elementsFromPoint(x, y);
+    if (!hits.length || !host.contains(hits[0]) || hits[0].closest(ZOOM_SKIP)) return null;
+    for (var i = 0; i < hits.length; i++) {
+      var rg = hits[i].closest('.region'), bx = hits[i].closest('.box');
+      if (rg && rg.parentNode === P.world) return rg;
+      if (bx && bx.parentNode === P.world) return bx;
+    }
+    var w = P.toWorld(x, y), best = null, area = Infinity;
+    $$(':scope > .region', P.world).forEach(function (r) { var a = r.offsetWidth * r.offsetHeight;
+      if (a && a < area && w.x >= r.offsetLeft && w.x <= r.offsetLeft + r.offsetWidth && w.y >= r.offsetTop && w.y <= r.offsetTop + r.offsetHeight) { best = r; area = a; } });
+    return best;
+  }
+  function zfitWidth(el, z) { el.style.setProperty('--lab-zw', (2 / (z || 1)).toFixed(2) + 'px'); }   // 2 px on screen at any zoom
+  function zfitMark(el) {
+    if (ZF.el && ZF.el !== el) ZF.el.classList.remove('lab-zfit');
+    ZF.el = el || null; if (!el) return;
+    var P = ZF.host && ZF.host._dv && ZF.host._dv.paper; zfitWidth(el, P && P.view.z); el.classList.add('lab-zfit');
+  }
+  function zfitHover() { zfitMark(ZF.shift && LP.zoom && ZF.host && ZF.host.isConnected ? zfitTarget(ZF.host, ZF.x, ZF.y) : null); }
+  function zfit(host, x, y) {
+    var P = host._dv.paper, el = zfitTarget(host, x, y);
+    if (!el) return fitAll(host._dv);
+    P.animateView(P.fitTarget({ x0: el.offsetLeft, y0: el.offsetTop, x1: el.offsetLeft + el.offsetWidth, y1: el.offsetTop + el.offsetHeight }, 48, P.o.maxZ));
+  }
+  function zfitKeys(e) {
+    if (e.key !== 'Shift' && e.key !== 'Alt') return;
+    ZF.shift = e.shiftKey && !e.altKey;
+    $$('.canvas-host').forEach(function (x) { x.classList.toggle('lab-zoom-out', e.altKey); });
+    zfitHover();
+  }
+  addEventListener('keydown', zfitKeys, true); addEventListener('keyup', zfitKeys, true);
+  addEventListener('blur', function () { ZF.shift = false; zfitMark(null); $$('.canvas-host.lab-zoom-out').forEach(function (x) { x.classList.remove('lab-zoom-out'); }); });
   function bindZoomHand(pane, host) {
     host.addEventListener('pointerdown', function (e) {
-      if (!LP.zoom || e.pointerType === 'pen' || e.target.closest('.lab-pills,.dock,.ctools,.insp,.ink-bar,.ink-selbar,.pop,.hint,button,input,textarea,select,a')) return;
+      if (!LP.zoom || e.pointerType === 'pen' || e.target.closest(ZOOM_SKIP)) return;
       var P = host._dv && host._dv.paper; if (!P) return;
       e.preventDefault(); e.stopPropagation();
-      var y0 = e.clientY, x0 = e.clientX, z0 = P.view.z, moved = 0, out = e.altKey || e.shiftKey || e.button === 2;
+      var y0 = e.clientY, x0 = e.clientX, z0 = P.view.z, moved = 0, out = e.altKey || e.button === 2, fit = e.shiftKey && !out;
       function mv(ev) { moved = Math.max(moved, Math.abs(ev.clientY - y0)); if (moved > 4) P.zoomAt(z0 * Math.exp(-(ev.clientY - y0) * 0.01), x0, y0); }
-      function up() { removeEventListener('pointermove', mv, true); removeEventListener('pointerup', up, true); removeEventListener('pointercancel', up, true); if (moved <= 4) P.zoomAt(P.view.z * (out ? 1 / 1.5 : 1.5), x0, y0); }
+      function up() { removeEventListener('pointermove', mv, true); removeEventListener('pointerup', up, true); removeEventListener('pointercancel', up, true); ZF.swallow = Date.now();
+        if (moved <= 4) { if (fit) zfit(host, x0, y0); else P.zoomAt(P.view.z * (out ? 1 / 1.5 : 1.5), x0, y0); } }
       addEventListener('pointermove', mv, true); addEventListener('pointerup', up, true); addEventListener('pointercancel', up, true);
     }, true);
+    host.addEventListener('pointermove', function (e) {
+      if (!LP.zoom || e.pointerType === 'pen') return;
+      ZF.host = host; ZF.x = e.clientX; ZF.y = e.clientY; ZF.shift = e.shiftKey && !e.altKey;
+      host.classList.toggle('lab-zoom-out', e.altKey); zfitHover();
+    }, true);
+    host.addEventListener('pointerleave', function () { if (ZF.host === host) { ZF.host = null; zfitMark(null); } });
+    host.addEventListener('click', function (e) { if (LP.zoom && Date.now() - ZF.swallow < 400 && !e.target.closest(ZOOM_SKIP)) { e.preventDefault(); e.stopPropagation(); } }, true);
     host.addEventListener('contextmenu', function (e) { if (LP.zoom && !e.target.closest('.lab-pills')) e.preventDefault(); }, true);
   }
   try {
@@ -1333,7 +1383,7 @@
     var oPaint = INK.paintBars; INK.paintBars = function () { var r = oPaint.apply(INK, arguments); paintAll(); return r; };
     // the zoom % under ⊕ follows every pan and zoom
     var oApply = Paper.prototype.apply;
-    Paper.prototype.apply = function () { var r = oApply.apply(this, arguments); try { var host = this.el.parentNode, pct = host && host.querySelector && host.querySelector(':scope > .lab-pills .lab-pill-pct'); if (pct) pct.textContent = Math.round(this.view.z * 100) + '%'; } catch (e) {} return r; };
+    Paper.prototype.apply = function () { var r = oApply.apply(this, arguments); try { var host = this.el.parentNode, pct = host && host.querySelector && host.querySelector(':scope > .lab-pills .lab-pill-pct'); if (pct) pct.textContent = Math.round(this.view.z * 100) + '%'; if (ZF.el && ZF.el.parentNode === this.world) zfitWidth(ZF.el, this.view.z); } catch (e) {} return r; };
     document.addEventListener('pointerdown', function (e) { if (LP.open && !(e.target.closest && e.target.closest('.lab-pills'))) { LP.open = null; paintAll(); } }, true);
     var oTimerPaint = TIMERUI.paint; TIMERUI.paint = function () { var r = oTimerPaint.apply(TIMERUI, arguments); if (LP.open && LP.open.name === 'tools') paintAll(); return r; };
   } catch (e) { warn('pills', e); }
@@ -1358,7 +1408,8 @@
       '.lab-pr{font:700 12px/1 var(--f-m,monospace)}' +
       '.lab-fan-cap{position:absolute;left:30px;top:-60px;white-space:nowrap;font:500 11px/18px var(--f-d,system-ui);color:var(--ink-2);background:var(--surface);border:1px solid var(--rule-2);border-radius:999px;padding:0 8px;pointer-events:none}' +
       '.lab-fan-cap:empty{display:none}.lab-pill[data-side="right"] .lab-fan-cap{left:auto;right:30px}.lab-pill[data-vert="down"] .lab-fan-cap{top:30px}' +
-      '.canvas-host.lab-hand-zoom .paper{cursor:zoom-in}' +
+      '.canvas-host.lab-hand-zoom .paper{cursor:zoom-in}.canvas-host.lab-hand-zoom.lab-zoom-out .paper{cursor:zoom-out}' +
+      '.box.lab-zfit,.region.lab-zfit{outline:var(--lab-zw,2px) solid var(--teal);outline-offset:var(--lab-zw,2px)}.region.lab-zfit{border-color:var(--rg)}' +
       '';
   } catch (e) { warn('css 11', e); }
 
@@ -1683,4 +1734,215 @@
       '.lab-lr-chip a{color:inherit;text-decoration:none}.lab-lr-x{border:0;background:none;padding:0 2px;cursor:pointer;color:var(--ink-3);font:inherit}.lab-lr-x:hover{color:var(--bad)}' +
       '.lab-hmeta textarea.hin{width:100%;box-sizing:border-box;resize:vertical;font:inherit}.lab-lr-meta{margin-left:8px}';
   } catch (e) { warn('css 13', e); }
+
+  /* ---- 14. PDF cards draw on demand (V3.894, CodeLog/ClaudesPlan/V3.894_scientia_pdf_cards_on_demand.md) ----
+     Alex: "when there are too many pdf's on the canvas it seems to slow down and the site glitches". Gabe's PDF card
+     (13zk PDFW.body) loads its file and draws the first pages of its own scroll area as soon as the note opens, on
+     screen or not, and every changed() rebuilds every box — so each sync from another device redrew every PDF. The ERK
+     review (28 PDFs) drew 57 pages (4 on screen, 383 MB at 2×) and redrew them all on a sync. Here a card keeps its
+     viewer across a rebuild while it shows the same thing, draws only while on screen and only as sharp as the zoom
+     needs, gives its pages back when it leaves, shows its title when zoomed far out, and fetches only the parts of the
+     file it draws. The maximised view and the phone layout keep Gabe's drawing (they pass no paper). Stands down if his
+     PDFW gains this itself (PDFW.onDemand). */
+  try {
+    if (typeof PDFW !== 'undefined' && !PDFW.onDemand) (function () {
+      var oBody = PDFW.body, oWords = PDFW.words, noop = function () {};
+      var PD = { live: new Map(), cards: new Set(), aspect: new Map(), used: new Map(), pin: {}, q: [], busy: 0, n: 0,
+        minZ: 0.33, margin: '400px', idleMs: 4000, keepDocs: 6, maxJobs: 2 };
+      LAB.pdf = PD;
+      function zoomOf(C) { var p = C.pane && C.pane.paper; return (p && p.view && p.view.z) || 1; }
+      function resOf(C) { var r = zoomOf(C) * (window.devicePixelRatio || 1); return Math.min(3, Math.max(0.5, Math.round(r * 4) / 4)); }
+      function sigOf(b, ro) { return [b.media, b.view || 'scroll', b.view === 'page' ? (b.cur || 0) : '', b.pages || 0, b.w || 616, b.h || 560, ro ? 1 : 0].join('|'); }
+      function widthOf(C) { return Math.max(200, (C.stage.clientWidth || ((C.b.w || 616) - 24)) - 16); }
+      function blank(W, a) { var cv = h('canvas.pdf-page', { style: { width: W + 'px', height: Math.round(W * a) + 'px' } }); cv.width = 0; cv.height = 0; return cv; }
+
+      /* only the parts of the file that get drawn (range requests); otherwise Gabe's load */
+      PDFW.load = function (m) {
+        READER.init(); if (!window.pdfjsLib) return Promise.reject(new Error('PDF support is missing'));
+        if (!PDFW.docs.has(m.id)) PDFW.docs.set(m.id, pdfjsLib.getDocument({ url: MEDIA.url(m), isEvalSupported: false, disableAutoFetch: true, disableStream: true }).promise);
+        PD.used.set(m.id, Date.now());
+        return PDFW.docs.get(m.id);
+      };
+      /* reading a new PDF's words for Search keeps its document loaded until done */
+      PDFW.words = function (b) {
+        var id = b && b.media; PD.pin[id] = (PD.pin[id] || 0) + 1;
+        return Promise.resolve(oWords.apply(this, arguments)).then(function (r) { PD.pin[id]--; return r; }, function (e) { PD.pin[id]--; throw e; });
+      };
+
+      PDFW.body = function (b, d, pane, ro) {
+        if (!b || !pane || pane.maxView || !pane.paper || !MEDIA.get(b.media)) return oBody.apply(this, arguments);
+        var key = (pane._pdk || (pane._pdk = ++PD.n)) + ':' + b.id, hit = PD.live.get(key), sig = sigOf(b, ro);
+        if (hit && hit.b === b && hit.sig === sig && !hit.dead) { want(hit); return hit.el; }   // the same viewer, canvases intact
+        if (hit) drop(hit);
+        var C = card(b, pane, ro, sig); C.key = key; PD.live.set(key, C); return C.el;
+      };
+
+      /* the card: Gabe's bar and stage (13zk PDFW.body), page slots sized but not drawn */
+      function card(b, pane, ro, sig) {
+        var m = MEDIA.get(b.media), n = b.pages || 0, page = b.view === 'page', cur = clamp(b.cur || 0, 0, Math.max(0, n - 1));
+        var set = function (k, v) { var B = M.block(b.id); B[k] = v; DOCS.save(B); DOCS.repaint(B); };
+        var count = h('span.dk-count.mono', n ? (page ? (cur + 1) + ' / ' + n : plural(n, 'page')) : '…');
+        var bar = h('div.dk-bar.pdf-bar', DOCS.seg([['scroll', 'Pages'], ['page', 'One at a time']], b.view || 'scroll', function (v) { set('view', v); }), count,
+          DOCS.btn('⤢', 'Maximise', function () { DOCS.max(M.block(b.id)); }),
+          h('a.btn.xs', { href: MEDIA.url(m), target: '_blank', rel: 'noopener', title: 'Open in a new tab', on: { click: function (e) { e.stopPropagation(); } } }, '↗'),
+          ro ? null : DOCS.btn('Replace', 'Replace the file', function () { PLATE.pickFiles(function (fs) { MEDIA.add(fs[0]).then(function (r) { if (r.kind !== 'pdf') return toast('That is not a PDF'); var B = M.block(b.id); B.media = r.id; B.pages = 0; B.cur = 0; DOCS.save(B); DOCS.repaint(B); PDFW.words(B); }); }, false, '.pdf'); }));
+        var stage = h('div.pdf-stage.scrolly.nopan' + (page ? '.one' : ''), { style: { height: (b.h || 560) + 'px' } });
+        var ph = h('div.lab-pdf-ph', h('b', b.label || 'PDF'), h('span', n ? plural(n, 'page') : ''));
+        var el = h('div.pdfw', bar, stage, ph);
+        if (!ro) el.append(DOCS.grip(b, stage, pane));
+        el.addEventListener('mouseenter', function () { DOCS.hover = b.id; }); el.addEventListener('mouseleave', function () { if (DOCS.hover === b.id) DOCS.hover = null; });
+        var C = { b: b, m: m, pane: pane, el: el, stage: stage, count: count, sig: sig, page: page, cur: cur, n: n, slots: [], one: null, W: 0, vis: false, active: false, pdf: null, idleT: null, gone: 0 };
+        el._pd = C; PD.cards.add(C); sweeping();
+        if (page) {
+          C.one = h('div.dk-stage.pdf-one', blank(200, 1.294),
+            h('button.dk-nav.prev', { disabled: cur === 0, on: { click: function (e) { e.stopPropagation(); PDFW.go(M.block(b.id), cur - 1); } } }, '‹'),
+            h('button.dk-nav.next', { disabled: !!n && cur >= n - 1, on: { click: function (e) { e.stopPropagation(); PDFW.go(M.block(b.id), cur + 1); } } }, '›'));
+          stage.replaceChildren(C.one);
+        } else {
+          if (n) slotsFor(C, n);
+          stage.addEventListener('scroll', debounce(function () {
+            var top = stage.scrollTop, k = C.slots.findIndex(function (s) { return s.offsetTop + s.offsetHeight > top + 20; });
+            if (k >= 0) { var B = M.block(b.id); if (B && B.cur !== k) { B.cur = k; DOCS.save(B); } }
+          }, 300));
+          if (cur) requestAnimationFrame(function () { var s = C.slots[cur]; if (s) stage.scrollTop = s.offsetTop - 4; });
+        }
+        cardIO().observe(el);
+        return C;
+      }
+      function slotsFor(C, n) {
+        var W = C.W = C.W || widthOf(C), a = PD.aspect.get(C.m.id) || 1.294;
+        C.slots = []; for (var i = 1; i <= n; i++) C.slots.push(h('div.pdf-slot', { 'data-p': i }, blank(W, a), h('span.pdf-pn', i)));
+        C.stage.replaceChildren.apply(C.stage, C.slots);
+        C.pio = new IntersectionObserver(function (es) {
+          es.forEach(function (en) { en.target._in = en.isIntersecting; if (!en.isIntersecting && en.target._res) releaseSlot(en.target); });
+          want(C);
+        }, { root: C.stage, rootMargin: '200px 0px' });
+        C.slots.forEach(function (s) { C.pio.observe(s); });
+      }
+      function cardIO() {
+        return PD.io || (PD.io = new IntersectionObserver(function (es) {
+          es.forEach(function (en) { var C = en.target._pd; if (C) { C.vis = en.isIntersecting; want(C); } });
+        }, { rootMargin: PD.margin }));
+      }
+
+      /* on screen (and zoomed in enough) → draw; away for a while → give the pages back */
+      function want(C) { if (C.raf || C.dead) return; C.raf = requestAnimationFrame(function () { C.raf = 0; update(C); }); }
+      function onScreen(C) { return C.vis && C.el.isConnected && zoomOf(C) >= PD.minZ; }
+      function update(C) {
+        if (C.dead) return;
+        C.el.classList.toggle('lab-pdf-far', zoomOf(C) < PD.minZ);
+        if (onScreen(C)) { clearTimeout(C.idleT); C.idleT = null; if (C.active) plan(C); else activate(C); }
+        else if (C.active && !C.idleT) C.idleT = setTimeout(function () { C.idleT = null; if (!onScreen(C)) release(C); }, zoomOf(C) < PD.minZ ? 600 : PD.idleMs);
+      }
+      function activate(C) {
+        C.active = true;
+        PDFW.load(C.m).then(function (pdf) {
+          if (!C.active || C.dead) return;
+          var B = M.block(C.b.id);
+          if (B && (!B.pages || B.pages !== pdf.numPages)) { B.pages = pdf.numPages; DOCS.save(B); C.count.textContent = C.page ? (C.cur + 1) + ' / ' + pdf.numPages : plural(pdf.numPages, 'page'); if (!/Page 1\n/.test((B.body && B.body.text) || '')) PDFW.words(B); }
+          var go = function () {
+            if (!C.active || C.dead) return; C.pdf = pdf;
+            if (!C.page) {
+              var W = widthOf(C);
+              if (!C.slots.length) { C.W = W; slotsFor(C, pdf.numPages); }
+              else if (Math.abs(W - C.W) > 1) { C.W = W; C.slots.forEach(function (s) { releaseSlot(s); s.replaceChild(blank(W, PD.aspect.get(C.m.id) || 1.294), s.querySelector('canvas.pdf-page')); }); }
+            } else C.W = widthOf(C);
+            plan(C);
+          };
+          if (PD.aspect.has(C.m.id)) return go();
+          pdf.getPage(1).then(function (pg) {
+            var v = pg.getViewport({ scale: 1 }), a = v.height / v.width; PD.aspect.set(C.m.id, a);
+            C.slots.forEach(function (s) { if (!s._res) { var cv = s.querySelector('canvas.pdf-page'); if (cv) cv.style.height = Math.round(parseFloat(cv.style.width) * a) + 'px'; } });
+            go();
+          }, go);
+        }).catch(function (e) { if (!C.dead) C.stage.replaceChildren(h('div.embed-missing', 'Could not open the PDF: ' + (e.message || e))); });
+      }
+      function plan(C) {
+        if (!C.active || !C.pdf) return;
+        var res = resOf(C), off = function (s) { return !s._res || s._res < res * 0.8 || s._res > res * 2; };
+        if (C.page) { if (off(C.one)) enqueue(C, C.one, res); }
+        else C.slots.forEach(function (s) { if (s._in && off(s)) enqueue(C, s, res); });
+        pump();
+      }
+      function enqueue(C, s, res) { if (s._job) { s._job.res = res; return; } s._job = { C: C, s: s, res: res }; PD.q.push(s._job); }
+      function pump() {
+        while (PD.busy < PD.maxJobs && PD.q.length) {
+          var j = PD.q.shift(); j.s._job = null;
+          if (!j.C.active || j.C.dead || !j.C.pdf || (!j.C.page && !j.s._in)) continue;
+          PD.busy++;
+          draw(j).catch(noop).then(function () { PD.busy--; pump(); });
+        }
+      }
+      /* a page into a NEW canvas, swapped in when done (a redraw at another zoom never flashes white) */
+      function draw(j) {
+        var C = j.C, s = j.s, n = C.page ? clamp(C.cur, 0, C.pdf.numPages - 1) + 1 : +s.dataset.p;
+        return C.pdf.getPage(n).then(function (pg) {
+          var v0 = pg.getViewport({ scale: 1 }), W = C.W;
+          if (C.page) W = Math.floor(Math.min(C.W, ((C.stage.clientHeight || 500) - 12) * v0.width / v0.height));
+          var sc = W / v0.width, vp = pg.getViewport({ scale: sc * j.res }), cv = h('canvas.pdf-page');
+          cv.width = Math.round(vp.width); cv.height = Math.round(vp.height); cv.style.width = W + 'px'; cv.style.height = Math.round(v0.height * sc) + 'px';
+          return pg.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise.then(function () {
+            try { pg.cleanup(); } catch (e) {}
+            if (!C.active || C.dead || !s.isConnected) { cv.width = 0; cv.height = 0; return; }
+            var old = s.querySelector('canvas.pdf-page'); if (old) { s.replaceChild(cv, old); old.width = 0; old.height = 0; } else s.prepend(cv);
+            var first = !s._res; s._res = j.res;
+            // what Gabe's PDFW.page wrapper (13zw) does after a draw: the text layer and the quotes highlighted on it
+            if ((first || !s.querySelector('.textLayer')) && typeof QUOTE !== 'undefined' && QUOTE.textLayer) QUOTE.textLayer(C.m, n, cv, W).catch(noop);
+          });
+        });
+      }
+      function releaseSlot(s) {
+        if (s._res) { var cv = s.querySelector('canvas.pdf-page'); if (cv) { cv.width = 0; cv.height = 0; } }
+        s._res = 0; $$(':scope > .textLayer, :scope > .q-marks', s).forEach(function (x) { x.remove(); });
+      }
+      function release(C) {
+        C.active = false; C.pdf = null;
+        C.slots.forEach(releaseSlot); if (C.one) releaseSlot(C.one);
+        trimDocs();
+      }
+      function drop(C) {
+        if (C.dead) return; release(C); C.dead = true; clearTimeout(C.idleT);
+        if (PD.io) PD.io.unobserve(C.el); if (C.pio) C.pio.disconnect();
+        PD.cards.delete(C); if (PD.live.get(C.key) === C) PD.live.delete(C.key);
+      }
+      /* keep at most a few parsed PDFs that no card on screen is using */
+      function trimDocs() {
+        var inUse = {}; PD.cards.forEach(function (C) { if (C.active) inUse[C.m.id] = 1; });
+        if (DOCS._max) { var mb = M.block(DOCS._max.id); if (mb) inUse[mb.media] = 1; }
+        var idle = []; PDFW.docs.forEach(function (p, id) { if (!inUse[id] && !PD.pin[id]) idle.push(id); });
+        idle.sort(function (a, b) { return (PD.used.get(a) || 0) - (PD.used.get(b) || 0); });
+        while (idle.length > PD.keepDocs) { var id = idle.shift(), p = PDFW.docs.get(id); PDFW.docs.delete(id); PD.used.delete(id); p.then(function (doc) { doc.destroy(); }, noop); }
+      }
+      /* a card whose note was closed (or that was removed) lets go after ~10 s; a rebuild re-attaches it at once */
+      function sweeping() {
+        if (PD.sweep) return;
+        PD.sweep = setInterval(function () {
+          PD.cards.forEach(function (C) { if (C.el.isConnected) C.gone = 0; else if (++C.gone >= 2) drop(C); });
+          if (!PD.cards.size) { clearInterval(PD.sweep); PD.sweep = null; trimDocs(); }
+        }, 5000);
+      }
+      /* zoom: redraw what is on screen at the new sharpness (and show titles when far out) */
+      if (typeof Paper !== 'undefined' && Paper.prototype.apply) {
+        var oApply = Paper.prototype.apply;
+        Paper.prototype.apply = function () {
+          var r = oApply.apply(this, arguments);
+          if (PD.cards.size) { clearTimeout(PD.zt); PD.zt = setTimeout(function () { PD.cards.forEach(function (C) { if (C.el.isConnected) want(C); }); }, 220); }
+          return r;
+        };
+      }
+      PD.stats = function () {
+        var o = { cards: 0, active: 0, drawn: 0, mb: 0, docs: PDFW.docs.size, queued: PD.q.length };
+        PD.cards.forEach(function (C) { if (C.el.isConnected) { o.cards++; if (C.active) o.active++; } });
+        $$('.pdfw canvas.pdf-page').forEach(function (c) { if (c.width > 0 && c.height > 0) { o.drawn++; o.mb += c.width * c.height * 4; } });
+        o.mb = Math.round(o.mb / 1048576); return o;
+      };
+      PDFW.labOnDemand = true;
+    })();
+  } catch (e) { warn('pdf on demand', e); }
+  try {
+    var st14 = document.getElementById('lab-mode-css');
+    if (st14) st14.textContent += '.pdfw .lab-pdf-ph{display:none;position:absolute;left:10px;right:10px;top:40px;bottom:10px;flex-direction:column;align-items:center;justify-content:center;gap:12px;' +
+      'text-align:center;padding:24px;border-radius:6px;background:var(--surface-2);color:var(--ink-2);font-size:44px;line-height:1.15;pointer-events:none;overflow:hidden}' +
+      '.pdfw.lab-pdf-far .lab-pdf-ph{display:flex}.pdfw .lab-pdf-ph span{font-size:30px;color:var(--ink-3)}';
+  } catch (e) { warn('css 14', e); }
 })();
