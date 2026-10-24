@@ -1007,3 +1007,44 @@ body.linkdrag,body.linkdrag *{cursor:grabbing!important;user-select:none!importa
 html,body{overscroll-behavior:none}
 .rd-pages{overscroll-behavior:contain}
 .rd-pages.pen-near .textLayer span{cursor:crosshair}
+/* tables and plots (13zt) */
+.tbw { position: relative; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
+.tb-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tb-q { flex: 0 1 180px; min-width: 110px; padding: 3px 8px; font-size: 12px; }
+.tb-tabs { display: flex; gap: 2px; flex-wrap: wrap; }
+.tb-tabs button { border: 1px solid var(--rule); background: none; border-radius: 5px 5px 0 0; padding: 2px 8px; font-size: 11.5px; cursor: pointer; color: var(--muted); }
+.tb-tabs button.on { background: var(--surface); color: var(--ink); font-weight: 600; border-bottom-color: transparent; }
+.tb-scroll { max-height: var(--tbh, 360px); overflow: auto; border: 1px solid var(--rule); border-radius: 5px; background: var(--paper); outline: none; touch-action: pan-x pan-y; }
+.tb-scroll:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #4a6cf7) 40%, transparent); }
+.tb { border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
+.tb th, .tb td { border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 2px 7px; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 22px; }
+.tb thead th { position: sticky; top: 0; background: var(--surface); z-index: 2; font-weight: 500; cursor: pointer; text-align: left; vertical-align: bottom; }
+.tb thead th .tb-cl { display: block; font-size: 10px; color: var(--muted); font-family: var(--f-m); }
+.tb thead th .tb-cn { display: block; font-weight: 600; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; }
+.tb thead th.ssa .tb-cl::after { content: ' ▲'; } .tb thead th.ssd .tb-cl::after { content: ' ▼'; }
+.tb th.tb-rn, .tb th.tb-corner { position: sticky; left: 0; background: var(--surface); z-index: 1; color: var(--muted); font-size: 10.5px; font-family: var(--f-m); text-align: right; min-width: 30px; font-weight: 400; cursor: default; }
+.tb th.tb-corner { z-index: 3; }
+.tb thead th { height: 18px; }
+.tb tr.tb-head td, .tb tr.tb-head th { position: sticky; top: 23px; z-index: 2; font-weight: 600; background: color-mix(in srgb, var(--ink) 6%, var(--paper)); }
+.tb tr.tb-head th.tb-rn { z-index: 3; }
+.tb td { cursor: cell; }
+.tb td.n { text-align: right; } .tb td.f { color: color-mix(in srgb, var(--accent, #4a6cf7) 70%, var(--ink)); } .tb td.err { color: var(--bad, #c0392b); }
+.tb td.sel { outline: 2px solid var(--accent, #4a6cf7); outline-offset: -2px; }
+.tb-in { width: 100%; min-width: 80px; border: 0; outline: none; padding: 0; font: inherit; background: transparent; color: inherit; }
+.tb-more { padding: 6px; text-align: center; }
+.tb-fx { display: flex; gap: 8px; align-items: center; font-size: 11.5px; color: var(--muted); min-height: 16px; }
+.tb-fx .tb-at { font-family: var(--f-m); font-weight: 600; } .tb-fx .tb-raw { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-rz { height: 7px; margin: -4px 0 -4px; cursor: ns-resize; border-radius: 3px; }
+.tb-rz:hover { background: color-mix(in srgb, var(--accent, #4a6cf7) 25%, transparent); }
+.plw { display: flex; flex-direction: column; gap: 4px; }
+.pl-bar { display: flex; align-items: center; gap: 6px; }
+.pl-svg { display: block; max-width: 100%; height: auto; font-size: 10.5px; font-family: var(--f-s, system-ui); }
+.pl-svg text { fill: var(--muted); } .pl-svg .pl-t { fill: var(--ink); font-size: 11.5px; } .pl-svg .pl-empty { fill: var(--muted); font-size: 12px; }
+.pl-svg .pl-grid { stroke: var(--rule); stroke-width: .7; } .pl-svg .pl-axl, .pl-svg .pl-tk { stroke: var(--ink-3, #888); stroke-width: 1; }
+.pl-svg .pl-leg text { fill: var(--ink); }
+.pl-pop { min-width: 300px; max-height: 70vh; overflow: auto; }
+.pl-r { display: grid; grid-template-columns: 70px 1fr; align-items: center; gap: 8px; margin: 4px 0; font-size: 12.5px; }
+.pl-r .inp { width: 100%; }
+.pl-lab { margin: 8px 0 2px; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.pl-ys { display: flex; flex-direction: column; gap: 3px; max-height: 220px; overflow: auto; }
+.pl-y { display: flex; align-items: center; gap: 6px; font-size: 12.5px; } .pl-y select { margin-left: auto; max-width: 140px; font-size: 11.5px; }

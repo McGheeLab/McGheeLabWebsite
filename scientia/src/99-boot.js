@@ -4,6 +4,7 @@
    saved in real time from this one file.
    ========================================================================== */
 (async function boot() {
+  if (VIEWER) return VIEWER.boot();   // an exported note (98-viewer)
   await DB.open();
   const demo = /[?&]seed=demo\b/.test(location.search);
   // 1. the notebook folder is the record of truth: a browser that hasn't seen its latest record loads it (and the page starts again)
@@ -22,7 +23,7 @@
   loadProfiles(); ensureStandardTemplates();
   // records from the previous hub: give components a place on the paper lazily (autoLayout on open)
   if (demo && DB.all('projects').length === 0) { _suppress++; DB.quiet = true; try { seedDemo(); } catch (e) { console.error('[seed]', e); } finally { DB.quiet = false; } _suppress--; }
-  applyTheme(); applyKindCSS(); IX.rebuild(); DB.undoStack = []; DB.beginGroup();
+  applyTheme(); applyKindCSS(); IX.rebuild(); DB.undoStack = []; DB.resnap(); DB.beginGroup();
   bootShell();
   document.addEventListener('keydown', e => {
     const DocView_ = App.pane && App.panes().includes(App.pane) ? App.pane : DocView;

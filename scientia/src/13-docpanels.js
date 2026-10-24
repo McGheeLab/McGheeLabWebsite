@@ -31,7 +31,7 @@ Object.assign(DocView, {
       prof(d.type).type === 'protocol' ? { label: 'Run this protocol…', sub: 'New experiment with its steps bound here; starts the timer', run: () => App.newDoc({ type: 'experiment', projectId: d.projectId }) } : null,
       { label: 'Tidy layout', sub: 'Re-flow the boxes in order', run: () => this.tidy() },
       { label: 'View as it stood on…', sub: 'Time travel through the journal', run: () => this.travelDialog(d) },
-      { label: 'Export read-only HTML', run: () => Exporter.doc(d.id) },
+      { label: 'Export canvas (HTML)…', sub: 'One file: the live canvas with its PDFs, pages and recordings, read-only', run: () => Exporter.doc(d.id) },
       { label: 'Save structure as template…', run: async () => { const n = await askText('Save as template', 'Template name', d.title + ' template'); if (n) { M.saveAsTemplate(d, n); toast('Template saved — tick it in Settings to use it'); } } },
       prof(d.type).scope === 'theme' ? { label: 'Move to theme…', run: () => this.moveDoc(d) } : null,
       { label: 'Delete note…', danger: true, sub: 'Ctrl+Z undoes it', run: () => EDIT.confirmDoc(d) },

@@ -1,6 +1,6 @@
 # Scientia In Situ: lab notebook (code export)
 
-*Exported 22 Oct 2026, build `2026-10-22 · structure colours + structure menu on selection in PDF/HTML`.*
+*Exported 22 Oct 2026; updated 24 Oct 2026, build `2026-10-24 · PDFs on demand (from the lab repo); pen mode follows the web pen hand`.*
 
 Scientia In Situ is a lab notebook that runs on your own computer. It holds projects, themes, aims, notes, structures (claims, evidence, barriers…), terms, connections, a paper library with a PDF reader, timers, protocols and runs, well plates, image panels, equations, live views, reminders, tasks, recordings, pen ink, and the weekly review. The whole app is one self-contained HTML file. A small Python server saves your data to a folder you choose and syncs phones and tablets.
 
@@ -174,11 +174,15 @@ Terms/  Library/  Days/  Reminders.md
 | `13zb-move` · `13zi-noteref` · `13zp-links` · `13zr-split` · `13zx-refwidget` | Moving components between notes; note cards; linking by hand (pen dumbbell, cross-pane, per-image ports, embeds); ◫ Split; live embedded widgets |
 | `13zc-sync` · `13zd-devices` · `13ze-mobile` · `13zo-install` | Sync client; pairing UI; phone layout; install as an app + full sync |
 | `13zf-ink` · `13zg-slim` · `13zh-shapes` · `13zm-pen2` · `13zq-pressure` · `13zu-lasso2` · `13zv-fill` | Pen ink, touch, handwriting; slim widget headers; held-pen shapes; pen hover, finger-tap undo/redo, eraser end; pressure feel; barrel-button lasso, transforms, copy/paste; fill tool and palettes |
+| `13zt-table` | Tables from Excel / CSV (sheets copied in, sort, search, edit, paste, formulas) and plots wired to them (scatter, line, bar mean ± SD/SEM, histogram) |
+| `13zz2-pen3` · `13zz3-dash` | Pen mode off = pan and move; drag by name or date; pen-button and right-drag loops (region or select); the ink library; dashed and dotted strokes |
 | `13zk-docs` · `13zn-rec` | Slides (PowerPoint) and PDF widgets; recordings with transcripts |
 | `13zw-quote` · `13zy-reminder` · `13zz-maxhl` | Quotes from embedded PDF/HTML; the Reminder structure (review flag + badges); highlighting maximised PDF/HTML |
 | `14-home` · `15-portfolio` · `15b-general` | Today; Portfolio map; notes outside any project |
+| `17d-libgroups` | Library themes and groups (store `libsets`; a paper in several groups) |
 | `16-lens` · `16b-termforms` | Terms and the term lens; other forms of a term |
 | `17-library` · `17b-reader` · `17c-reader2` | Library; PDF reader; pen highlighting and search in papers |
+| `21b-canvasexport` · `98-viewer` · `21c-labexport` | A note exported as its live canvas (one read-only HTML file, viewer mode); export for the lab website (desktop) |
 | `18-review` · `19-activity` · `20-settings` · `21-export` · `22-seed` · `23-tasks` · `99-boot` | Weekly review; Activity; Settings; JSON + read-only HTML exports; demo seed; Tasks; boot |
 
 ---
@@ -300,6 +304,15 @@ Compiled from Claude's development log in the project doc **"Scientia In Situ ap
 - **Highlighting a maximised PDF/HTML** with a side panel, like a paper in the Library.
 - **Structure colours** for highlights, and a structures-first selection menu.
 
+### 22–24 Oct: after the code export
+- **Pen:** two-finger undo removes one stroke at a time (the journal's previous value is the last-written copy, `DB._snap`); eraser size from the pen's curve (Pressure feel → Eraser) and one erase pass per frame; dashed / dotted strokes; pen mode off pans and moves; drag a component by its name or date, double-click to edit; ink frames hidden while writing; the pen button's loop: region (out of pen mode) or select (in it); right-drag asks Region / Select; the ink library (☆). Pen mode is `INK.writing()` = the ink bar out or the web's pen hand.
+- **Highlighting:** a pen highlight in a paper, a maximised PDF or an HTML page opens the same popover as a mouse selection.
+- **Tables and plots:** Excel / CSV tables with formulas; plots wired to them.
+- **Library:** themes and groups of papers.
+- **Exports:** a note as its live canvas (one HTML file); export for the lab website.
+- **PDF cards on demand** (the lab's V3.894, merged as PR #2 with two fixes) and the V3.900 follow-ups: a failed load is forgotten in `PDFW.load`; a failed card waits for the next redraw.
+- Gabe's own Firebase cloud sync stays on his desktop and is not part of the repo: the lab hub is the one cloud.
+
 ---
 
 ## 9. Known limits
@@ -323,4 +336,4 @@ Compiled from Claude's development log in the project doc **"Scientia In Situ ap
 
 - **App code:** © the author.
 - **Fonts:** Archivo, Source Serif 4 and IBM Plex Mono (SIL Open Font License).
-- **Vendored libraries:** MathLive (MIT), KaTeX fonts (MIT/OFL), PDF.js (Apache-2.0), qrcode-generator (MIT). See `vendor/LICENSE*.txt`.
+- **Vendored libraries:** MathLive (MIT), KaTeX fonts (MIT/OFL), PDF.js (Apache-2.0), qrcode-generator (MIT), SheetJS (Apache-2.0). See `vendor/LICENSE*.txt`.

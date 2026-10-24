@@ -96,7 +96,7 @@ const FILL = {
   // the fill tool
   const st = INK.setTool; INK.setTool = function (t) { if (t === 'pen' || t === 'hl') { INK.lastDraw = t; _ls.set('inkLastDraw', t); } return st.call(this, t); };
   const pd = INK.penDown; INK.penDown = function (paper, e) {
-    if (INK.tool === 'fill' && !(typeof LASSO2 !== 'undefined' && LASSO2.barrel(e)) && !(typeof PENERASE !== 'undefined' && PENERASE.isEraser(e))) { const host = paper.el.closest('.canvas-host'), pane = host && host._dv;
+    if (INK.writing() && INK.tool === 'fill' && !(typeof LASSO2 !== 'undefined' && LASSO2.barrel(e)) && !(typeof PENERASE !== 'undefined' && PENERASE.isEraser(e))) { const host = paper.el.closest('.canvas-host'), pane = host && host._dv;
       if (pane && pane.docId && !pane.travel && !INK.interactive(e.target)) { const box = e.target.closest('.box'); if (!box || box.classList.contains('w-ink')) { if (INK.sel) INK.clearSel(); return FILL.tap(pane, paper, e); } } }
     return pd.call(this, paper, e); };
   // the ink bar: a Fill tool beside the lasso; the palette of the pen or the highlighter, editable, with ⊕

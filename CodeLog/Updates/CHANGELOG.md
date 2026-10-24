@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.901] — 2026-10-24 — Scientia: Gabe's app as of 24 Oct (tables and plots, pen mode, ink library, library groups, canvas export, PDF follow-ups)
+
+Plan: [CodeLog/ClaudesPlan/V3.901_scientia_app_oct24.md](../ClaudesPlan/V3.901_scientia_app_oct24.md). Gabe's PR from `scientia/newer-app-2026-10-24`: `scientia/src` (his app, BUILD '2026-10-24 · PDFs on demand (from the lab repo); pen mode follows the web pen hand'), `scientia/serve.py`, `scientia/vendor/xlsx.core.min.js` (SheetJS 0.18.5, Apache-2.0); lab layer: four + Insert icons in `rm/scientia/lab-mode.js`; registry: `CodeLog/features.json`. His own-Firebase cloud sync (desktop) is left out — the lab hub is the one cloud.
+
+### Added
+- **Tables and plots** (`13zt-table.js`, new feature `scientia.tables`): + Insert → *Table (Excel / CSV)…* copies every sheet into the note (the original kept as media), *Empty table*; sort / search (view only), cell editing, paste from Excel, + row / column, formulas (`=`, refs, ranges, SUM MEAN MEDIAN SD SEM VAR MIN MAX COUNT ABS SQRT LN LOG LOG10 EXP ROUND POWER PI IF); *Plot…* / + Insert → *Plot of a table…*: a `plot` block wired to the table (`c:plotted in`) — scatter, line, bar mean ± SD/SEM with points, histogram; follows edits; SVG download.
+- **Pen** (`13zz2-pen3.js`, `13zz3-dash.js`): pen mode off → the pen pans and moves components; drag a component by its name or date, double-click to edit; ink frames hidden while writing; the pen button's loop makes a region (out of pen mode) or selects (in it); right-drag asks Region / Select; ☆ ink library (store `inklib`); solid / dashed / dotted strokes.
+- **Library themes and groups** (`17d-libgroups.js`, store `libsets`, `DB_VERSION` 9): desktop Library only — on the web the Library tab is RM's (see the plan: a candidate to fold into RM collections).
+- **Exports** (`21b-canvasexport.js`, `98-viewer.js`, `21c-labexport.js`): a note as its live canvas in one read-only HTML file (strips the web layer when run on the site); *Export for the lab website* (desktop only, hidden when `SIS_TARGET === 'web'`).
+
+### Changed
+- **Pen mode = `INK.writing()`** (`INK.shown || INK.mouse`): the desktop's ink bar, or the web's ✎ pen hand (`INK.mouse`); the web's pen-settings cog (`INK.shown`) no longer decides whether the pen writes.
+- **Undo** restores the last-written copy of a record (`DB._snap`), so a stroke added to an existing ink component undoes on its own.
+- **Pen highlights in papers, maximised PDFs and HTML** open the same popover as a mouse selection.
+- **The eraser** works once per frame and no longer bloats strokes; its size range is in Pressure feel.
+- `serve.py` takes spreadsheet files into `images/` (`xlsx xlsm xls ods csv tsv txt`). The hub's `MEDIA_EXTS` does not yet — on the web the original spreadsheet stays in the browser (the table's cells travel in the record).
+- `rm/scientia/lab-mode.js` §11: `INS_PICS` += `table: view-columns`, `table-empty: squares-plus`, `plot: chart-bar`, `inklib: star` (path data from `rm/js/icons.js`).
+
+### Bug Fixes
+- **PDF cards (V3.900 follow-ups)**: `PDFW.load` forgets a load that fails (every caller — card, full view, words — retries next time; the card's `catch` no longer deletes a document that did load); `update()` does not re-`activate` a failed card (no refetch on every pan or zoom; the next redraw makes a new card).
+
+### Tests
+- Gabe's suite (76 Playwright scripts) on the merged tree; t75 (on-demand PDF cards + split panes + late file + no refetch), t76 (web pen hand writes with the bar hidden; the canvas export strips the web layer). `node --check rm/scientia/lab-mode.js`; every INSERTS id (27) has its own icon in `PILL_ICONS`. Not run here: `scripts/merge_check.py`, the lab-mode harness, the hub fixtures.
+
 ## [V3.900] — 2026-10-24 — Scientia: on-demand PDF cards now come from Gabe's app (PR #2 merged, with his two fixes)
 
 Plan: [CodeLog/ClaudesPlan/V3.894_scientia_pdf_cards_on_demand.md](../ClaudesPlan/V3.894_scientia_pdf_cards_on_demand.md) (§ Merged). Gabe's PR #2 (`RTgabrieldeclercq:patch-1`) = PR #1's commit `2cfa57b1` + his `217501d6`; merged as `07d5f26b`, so PR #1 closed with it. `scientia/src` only; the web build picks it up (`PDFW.onDemand` → `rm/scientia/lab-mode.js` §14 stands down).

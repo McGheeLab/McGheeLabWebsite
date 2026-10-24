@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (1 change — push at 5+)
+## Pending (2 changes — push at 5+)
 
+- V3.901 — Scientia: tables from Excel or CSV that you can edit (with formulas) and plot; the pen pans when pen mode is off, keeps a library of saved ink and draws dashed or dotted lines; export a note as a live canvas file. PDFs that couldn't open at first now recover on their own without retrying on every pan.
 - V3.900 — Fixed in Scientia: with the same note open on both sides of split view, the PDFs on the left side disappeared. And a PDF that couldn't open at first (for example while Scientia was still loading, or before the file arrived from another device) now opens on the next redraw instead of keeping its error. Gabe's app and the web version now use the same PDF code.
 
 ## Shipped

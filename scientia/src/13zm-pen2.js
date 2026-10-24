@@ -72,45 +72,65 @@ const PEN2 = {
 /* ---------- the back of the pen: an eraser that takes away only what it passes over ---------- */
 const PENERASE = {
   isEraser: e => e.pointerType === 'pen' && (e.button === 5 || (e.buttons & 32) === 32),
-  /** Eraser radius on screen: pressing harder widens it, live. */
-  radius: e => { const p = e.pressure > 0 ? e.pressure : .5; return 6 + 34 * p; },
+  /** Eraser radius on screen: follows the pen's sensitivity curve between the eraser sizes set in Pressure feel (hovering = smallest). */
+  radius: e => { const C = INK.curve, lo = C.emin ?? 4, hi = Math.max(lo, C.emax ?? 20); return e.pressure > 0 ? lo + (hi - lo) * INK.mapP(e.pressure) : lo; },
   mark(e, on) { let m = PENERASE.el; if (!m) { m = PENERASE.el = h('div.pen-eraser'); document.body.append(m); } if (!on) { m.style.display = 'none'; return; }
     const r = PENERASE.radius(e); Object.assign(m.style, { display: 'block', left: e.clientX + 'px', top: e.clientY + 'px', width: 2 * r + 'px', height: 2 * r + 'px' }); },
   /** Resample a polyline so no gap is wider than `step` (pressure interpolated). */
   dense(P, step) { const out = []; for (let i = 0; i < P.length; i++) { const a = P[i]; out.push(a); const b = P[i + 1]; if (!b) break; const d = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.floor(d / step);
       for (let k = 1; k <= n; k++) { const t = k / (n + 1); out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] == null ? b[2] : a[2] + ((b[2] ?? a[2]) - a[2]) * t]); } } return out; },
-  /** Take a disc out of every stroke it touches; the pieces that are left stay as strokes of their own. */
-  cut(b, cx, cy, r) {
-    const out = []; let changed = false;
+  /** Distance from point q to the segment a–b. */
+  segD(qx, qy, ax, ay, bx, by) { const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy; let t = L ? ((qx - ax) * dx + (qy - ay) * dy) / L : 0; t = t < 0 ? 0 : t > 1 ? 1 : t; return Math.hypot(qx - ax - t * dx, qy - ay - t * dy); },
+  /** Take the eraser's swept path (a → b, radius r, world coordinates) out of every stroke it touches; the pieces that are
+      left stay as strokes of their own. Only the segments near the eraser are subdivided, and only the two new end points of
+      each cut are kept, so erasing never bloats a stroke. Returns true when something changed. */
+  cut(b, ax, ay, bx, by, r) {
+    const out = []; let changed = false; const lax = ax - b.x, lay = ay - b.y, lbx = bx - b.x, lby = by - b.y;
+    const ex0 = Math.min(lax, lbx), ex1 = Math.max(lax, lbx), ey0 = Math.min(lay, lby), ey1 = Math.max(lay, lby), D = PENERASE.segD;
     for (const s of b.ink.strokes) {
-      const pad = (s.w || 2.4) / 2, R = r + pad, lx = cx - b.x, ly = cy - b.y;
-      let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; s.p.forEach(q => { x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); });
-      if (lx < x0 - R || lx > x1 + R || ly < y0 - R || ly > y1 + R) { out.push(s); continue; }
-      // a shape's sub-paths become plain pieces once cut
+      const R = r + (s.w || 2.4) / 2;
+      let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const q of s.p) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < y0) y0 = q[1]; if (q[1] > y1) y1 = q[1]; }
+      if (ex1 < x0 - R || ex0 > x1 + R || ey1 < y0 - R || ey0 > y1 + R) { out.push(s); continue; }
       const subs = []; const br = [0, ...(s.br || []), s.p.length]; for (let i = 0; i < br.length - 1; i++) subs.push(s.p.slice(br[i], br[i + 1]));
       if (s.closed && subs.length === 1) subs[0] = [...subs[0], subs[0][0]];
-      let hit = false; const pieces = [];
-      for (const sub of subs) { const D = PENERASE.dense(sub, Math.max(1, r / 3)); let cur = [];
-        for (const q of D) { if (Math.hypot(q[0] - lx, q[1] - ly) <= R) { hit = true; if (cur.length > 1) pieces.push(cur); cur = []; } else cur.push(q.map(v => typeof v === 'number' ? Math.round(v * 10) / 10 : v)); }
-        if (cur.length > 1) pieces.push(cur); }
+      let hit = false; const pieces = [], step = Math.max(.8, r / 3), r1 = v => Math.round(v * 10) / 10;
+      const inside = q => D(q[0], q[1], lax, lay, lbx, lby) <= R;
+      for (const sub of subs) { let cur = [];
+        const keep = q => { cur.push(q); }, close = () => { if (cur.length > 1) pieces.push(cur.filter((q, i) => !q.ins || i === 0 || i === cur.length - 1).map(q => [r1(q[0]), r1(q[1]), q[2]])); cur = []; };
+        const visit = q => { if (inside(q)) { hit = true; close(); } else keep(q); };
+        for (let i = 0; i < sub.length; i++) { const p0 = sub[i], p1 = sub[i + 1]; visit(p0); if (!p1) break;
+          // subdivide this segment only when it comes near the eraser path
+          const sx0 = Math.min(p0[0], p1[0]) - R, sx1 = Math.max(p0[0], p1[0]) + R, sy0 = Math.min(p0[1], p1[1]) - R, sy1 = Math.max(p0[1], p1[1]) + R;
+          if (ex1 < sx0 || ex0 > sx1 || ey1 < sy0 || ey0 > sy1) continue;
+          const n = Math.floor(Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) / step);
+          for (let k = 1; k <= n; k++) { const t = k / (n + 1), pa = p0[2], pb = p1[2] ?? pa, q = [p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t, pa == null ? pb : Math.round((pa + (pb - pa) * t) * 100) / 100]; q.ins = true; visit(q); } }
+        close(); }
       if (!hit) { out.push(s); continue; }
-      changed = true; pieces.forEach(pc => { const n = Object.assign({}, s, { p: pc }); delete n.br; delete n.closed; delete n.shape; out.push(n); });
+      changed = true; pieces.forEach(pc => { const n = Object.assign({}, s, { p: pc }); delete n.br; delete n.closed; delete n.shape; delete n.fills; delete n.fill; delete n.area; out.push(n); });
     }
     if (changed) b.ink.strokes = out; return changed;
   },
   run(pane, paper, e) {
     INK.drawing = e.pointerId; try { paper.el.setPointerCapture(e.pointerId); } catch { }
-    const touched = new Set(), W = new Map(); // work on copies; the record changes once, at the end
-    const at = ev => { PENERASE.mark(ev, true);  const wp = paper.toWorld(ev.clientX, ev.clientY), r = PENERASE.radius(ev) / paper.view.z;
-      for (const b0 of INK.blocks(pane.docId)) { const b = W.get(b0.id) || b0, R = INK.rect(b); if (wp.x < R.x - r || wp.x > R.x + R.w + r || wp.y < R.y - r || wp.y > R.y + R.h + r) continue;
-        const wb = W.get(b.id) || JSON.parse(JSON.stringify(b)); if (!PENERASE.cut(wb, wp.x, wp.y, r)) continue; W.set(b.id, wb); touched.add(b.id);
-        const el = $(`:scope > .box[data-id="${b.id}"]`, paper.world);
-        if (wb.ink.strokes.length) { INK.fit(wb); if (el) { el.style.left = wb.x + 'px'; el.style.top = wb.y + 'px'; el.style.width = wb.w + 'px'; const old = $('.ink-body', el); if (old) old.replaceWith(INK.body(wb)); } }
-        else if (el) el.style.display = 'none'; } pane.drawWires(); };
-    at(e);
-    const mv = ev => { if (ev.pointerId !== e.pointerId) return; ev.preventDefault(); (ev.getCoalescedEvents && ev.getCoalescedEvents().length ? ev.getCoalescedEvents() : [ev]).forEach(at); };
-    const up = ev => { if (ev.pointerId !== e.pointerId) return; INK.drawing = null; PENERASE.mark(ev, false); paper.el.removeEventListener('pointermove', mv, true); paper.el.removeEventListener('pointerup', up, true); paper.el.removeEventListener('pointercancel', up, true);       // the record is written once, at the end of the pass: one pass = one undo
-      if (touched.size) { DB.beginGroup('erase'); touched.forEach(id => { const b = W.get(id); if (!b) return; if (b.ink.strokes.length) { b.modified = isoLocal(new Date()); DB.put('blocks', b); } else INK.remove(M.block(id)); }); const d = M.doc(pane.docId); if (d) M.touchDoc(d); IX.rebuild(); changed(); } };
+    // Work on copies; the record changes once, at pen-up (one pass = one undo). Samples are queued and handled once per
+    // screen frame: the eraser's path since the last frame is cut as one swept stroke, each touched component is repainted
+    // once, and connections are redrawn only at pen-up.
+    const touched = new Set(), W = new Map(), Q = []; let last = null, raf = 0, lastEv = e;
+    const frame = () => { raf = 0; if (!Q.length) return; const dirty = new Set(); const z = paper.view.z;
+      for (const q of Q.splice(0)) { const a = last || q; last = q; const r = q.r / z;
+        const ex0 = Math.min(a.x, q.x) - r, ex1 = Math.max(a.x, q.x) + r, ey0 = Math.min(a.y, q.y) - r, ey1 = Math.max(a.y, q.y) + r;
+        for (const b0 of INK.blocks(pane.docId)) { const b = W.get(b0.id) || b0, R = INK.rect(b); if (ex1 < R.x || ex0 > R.x + R.w || ey1 < R.y || ey0 > R.y + R.h) continue;
+          if (!b.ink || !b.ink.strokes.length) continue;
+          const wb = W.get(b.id) || JSON.parse(JSON.stringify(b)); if (!PENERASE.cut(wb, a.x, a.y, q.x, q.y, r)) continue; W.set(b.id, wb); touched.add(b.id); dirty.add(b.id); } }
+      dirty.forEach(id => { const wb = W.get(id), el = $(`:scope > .box[data-id="${id}"]`, paper.world); if (!el) return;
+        if (wb.ink.strokes.length) { INK.fit(wb); el.style.left = wb.x + 'px'; el.style.top = wb.y + 'px'; el.style.width = wb.w + 'px'; const old = $('.ink-body', el); if (old) old.replaceWith(INK.body(wb)); }
+        else el.style.display = 'none'; }); };
+    const add = ev => { const wp = paper.toWorld(ev.clientX, ev.clientY); Q.push({ x: wp.x, y: wp.y, r: PENERASE.radius(ev) }); };
+    PENERASE.mark(e, true); add(e); frame();
+    const mv = ev => { if (ev.pointerId !== e.pointerId) return; ev.preventDefault(); lastEv = ev; PENERASE.mark(ev, true); const C = ev.getCoalescedEvents ? ev.getCoalescedEvents() : null; (C && C.length ? C : [ev]).forEach(add); if (!raf) raf = requestAnimationFrame(frame); };
+    const up = ev => { if (ev.pointerId !== e.pointerId) return; if (raf) { cancelAnimationFrame(raf); raf = 0; } frame(); INK.drawing = null; PENERASE.mark(ev, false); paper.el.removeEventListener('pointermove', mv, true); paper.el.removeEventListener('pointerup', up, true); paper.el.removeEventListener('pointercancel', up, true);
+      if (touched.size) { DB.beginGroup('erase'); touched.forEach(id => { const b = W.get(id); if (!b) return; if (b.ink.strokes.length) { b.modified = isoLocal(new Date()); DB.put('blocks', b); } else INK.remove(M.block(id)); }); const d = M.doc(pane.docId); if (d) M.touchDoc(d); IX.rebuild(); changed(); }
+      else pane.drawWires && pane.drawWires(); };
     paper.el.addEventListener('pointermove', mv, true); paper.el.addEventListener('pointerup', up, true); paper.el.addEventListener('pointercancel', up, true);
   },
 };
