@@ -4508,9 +4508,9 @@
    "via": "verify"
   },
   "rm/scientia/lab-mode.js": {
-   "deployedAt": "2026-10-23T23:26:26-07:00",
-   "sha256": "eae1ee6e2a6456d94584ed98f3fb2432c2179c2bbc14e3f2f7e18a525dc9bc36",
-   "size": 149422,
+   "deployedAt": "2026-10-24T09:16:33-07:00",
+   "sha256": "73ef2dd2fdffa83c078094a3f57bf1208a1b928208218efc1d367ab1b10a28bb",
+   "size": 168455,
    "via": "verify"
   },
   "rm/scientia/scientia-cloud.py": {
@@ -4520,8 +4520,8 @@
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-23T23:26:26-07:00",
-   "sha256": "2955ab100c23a216a59b344be110222838a1cffb41db74b2e61f3a19fc4bfec1",
+   "deployedAt": "2026-10-24T09:16:33-07:00",
+   "sha256": "1a7fd6c29e5a14a146314e113908c93bb50e8d0c97be31dab1c5f7f9d5467900",
    "size": 4382355,
    "via": "verify"
   },

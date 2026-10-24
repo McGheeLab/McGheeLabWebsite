@@ -13,11 +13,12 @@ export default async (page) => {
   const DOC = process.env.DOC_ID || 'd_lra1e7c848c1', BASE = new URL(page.url()).origin, SHOT = process.env.SHOT || '/tmp/pdfload'
   const br = page.context().browser()
   const ctx = await br.newContext({ viewport: { width: 1700, height: 1050 }, deviceScaleFactor: +(process.env.DSF || 2) })
-  const p = await ctx.newPage()
+  const p = await ctx.newPage(), errors = []
+  p.on('pageerror', e => errors.push(String(e).slice(0, 300))); p.on('console', m => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)) })
   if (process.env.LAB) {
     await p.route(BASE + '/', async route => {
       const r = await route.fetch(), html = await r.text()
-      await route.fulfill({ response: r, body: html.replace(/<head[^>]*>/i, m => m + "<script>window.SIS_TARGET = 'web';</script>").replace(/<\/body>/i, '<script src="/__lab/lab-mode.js"></script></body>') })
+      await route.fulfill({ response: r, body: html.replace(/<head>/i, m => m + "<script>window.SIS_TARGET = 'web';</script>").replace(/<\/body>/i, '<script src="/__lab/lab-mode.js"></script></body>') })
     })
     await p.route(BASE + '/__lab/lab-mode.js', route => route.fulfill({ body: fs.readFileSync(LAB_JS, 'utf8'), contentType: 'text/javascript' }))
   }
@@ -60,5 +61,6 @@ export default async (page) => {
   await p.mouse.move(8, 500); for (let i = 0; i < 12; i++) { await p.mouse.wheel(0, 400); await p.waitForTimeout(100) }
   await p.waitForTimeout(6000)
   out.pannedAway = await stat()
+  out.errors = errors.slice(0, 10)
   return out
 }
