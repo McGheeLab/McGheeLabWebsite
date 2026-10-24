@@ -131,8 +131,8 @@ const PDFW = {
   body(b, d, pane, ro) {
     if (!MEDIA.get(b.media)) return h('div.pdfw', h('div.embed-missing', 'The PDF is missing.'));
     if (!pane || pane.maxView || !pane.paper) return PDFW.full(b, d, pane, ro);
-    const key = (pane._pdk || (pane._pdk = ++PDFW.n)) + ':' + b.id, hit = PDFW.live.get(key), sig = PDFW.sig(b, ro);
-    if (hit && hit.b === b && hit.sig === sig && !hit.dead) {   // the same viewer, its pages still drawn
+    const key = (Object.prototype.hasOwnProperty.call(pane, '_pdk') ? pane._pdk : (pane._pdk = ++PDFW.n)) + ':' + b.id, hit = PDFW.live.get(key), sig = PDFW.sig(b, ro);
+    if (hit && hit.b === b && hit.sig === sig && !hit.dead && !hit.failed) {   // the same viewer, its pages still drawn
       if (hit.bar.parentNode !== hit.el) hit.el.insertBefore(hit.bar, hit.stage);   // SLIM docked the bar in the old box's header; the new box docks it again
       PDFW.want(hit); return hit.el;
     }
@@ -228,7 +228,7 @@ const PDFW = {
       else if (!C.slots.length) { C.W = W; PDFW.slots(C, pdf.numPages); }
       else if (Math.abs(W - C.W) > 1) { C.W = W; C.slots.forEach(s => { PDFW.releaseSlot(s); s.replaceChild(PDFW.blank(W, PDFW.aspect.get(C.m.id) || 1.294), $('canvas.pdf-page', s)); }); }
       PDFW.plan(C);
-    } catch (e) { if (!C.dead) C.stage.replaceChildren(h('div.embed-missing', 'Could not open the PDF: ' + (e.message || e))); }
+    } catch (e) { PDFW.docs.delete(C.m.id); C.active = false; C.failed = true; if (!C.dead) C.stage.replaceChildren(h('div.embed-missing', 'Could not open the PDF: ' + (e.message || e))); }
   },
   plan(C) {
     if (!C.active || !C.pdf) return;
