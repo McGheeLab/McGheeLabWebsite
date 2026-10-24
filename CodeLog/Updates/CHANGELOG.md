@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.896] — 2026-10-24 — Scientia's wheels: the Quick cast, each wheel in its place, rows and columns when left open, pen settings behind a cog
+
+Plan: [CodeLog/ClaudesPlan/V3.896_scientia_pills_quick_cast_docks.md](../ClaudesPlan/V3.896_scientia_pills_quick_cast_docks.md) (Alex's wishlist items 1–4). Web build only (`rm/scientia/lab-mode.js` §11); `scientia/src` untouched.
+
+### Changed
+- **Places** (defaults; pills still drag anywhere, now `_ls lab:pills2`): ＋ **Quick cast** centred just above the bottom bar (fan: a wide upward arc, `fanPos` side `center`), ⊕ zoom top left (Gabe's ink bar shifts right of it, `.lab-pilled`), ✦ tools top right under his tool buttons, ✎ the hand bottom right (tools and hand step left of an open inspector).
+- **Docking**: a Quick cast / tools / zoom fan left open `LP.dockMs` (10 s) docks (`dock`, `_ls lab:docked`): items roll from fan to strip (`rowPos`; staggered transition, `.lab-dock-rail`) — Quick cast a row either side of its pill, tools a row running left, zoom a column down the left. Stays on outside taps; other wheels still fan; a tap on the pill folds it (`undock`, `.unrolling`). `SIS_LAB.dockPill / undockPill`.
+- **Quick cast** = `_ls lab:quickcast` (INSERTS ids; V3.882's picks by default) + *…*; Gabe's + Insert list (`INSERT.menu` wrapped, `qcDecorate`) gets a bolt toggle per row (`.lab-qc-pin`; `qcToggle`; `SIS_LAB.quickCast`).
+- **Pen settings** left ✦ Tools: the hand's fan = its five modes + a cog toggling Gabe's ink bar (top left; his palettes with their own add-a-colour, widths, eraser, fill, pressure), which stays open. The pill's colour / width / eraser / pressure / undo arcs and its "+ colour" are removed; `lab:inkColors` migrates once into `inkPalette`.
+- `ZFIT_PAD.bottom` 84 → 140 (a Shift-fit clears the Quick cast and the hint line).
+- **Install Scientia at the top** (Alex): Gabe's `#insbanner` (bottom centre, over the bar and the Quick cast) is placed under the header and below the canvas's top row on the web (lab-mode §14: `INSTALL.banner` wrapped → `placeInstall`, header measured; resize-aware).
+
+### Bug Fixes
+- The fit / focus-mode icon drew a question mark (wrong path since V3.882) — now Heroicons `arrows-pointing-out`.
+
+### Tests
+- Lab-mode harness §15 rewritten for the cog, the places, the three docks, the bolt toggles, + the banner's place (207/209; the 2 failures are V3.894's PDF on-demand checks and fail identically on the code before this change). Notebook harness 45/45.
+
 ## [V3.894] — 2026-10-24 — Scientia (web): PDF cards draw on demand — a note with many PDFs stays smooth
 
 Plan: [CodeLog/ClaudesPlan/V3.894_scientia_pdf_cards_on_demand.md](../ClaudesPlan/V3.894_scientia_pdf_cards_on_demand.md). Alex: "when there are too many pdf's on the canvas it seems to slow down and the site glitches and freaks out". Web build only (`rm/scientia/lab-mode.js` §14); `scientia/src` untouched — the same change is Gabe's to review for the desktop: PR #1 `scientia/pdf-on-demand` (https://github.com/McGheeLab/McGheeLabWebsite/pull/1; `PDFW.onDemand` there makes §14 stand down). Numbering: V3.895 (zoom Shift-fit) landed first from a parallel session.

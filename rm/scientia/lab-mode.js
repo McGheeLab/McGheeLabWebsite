@@ -33,7 +33,7 @@
     activity: '/rm/pages/activity-overview.html?tab=tracker',
     inventory: '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.894', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.896', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -1141,25 +1141,65 @@
      zoom = ours (a tap zooms ×1.5 at the point, Alt: out, Shift: fit the component or region under it, its edge lit
      while Shift is held; a drag up or down zooms smoothly) — read back on every
      paint, so his ink bar and the pill never disagree. A pill drags anywhere (fractions of the note's area, _ls
-     lab:pills); the fan opens away from the nearest edges; a tap outside closes it; a double tap on ✎ = the last mode. */
-  var PILL_ICONS = {"magnifying-glass": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z\"/>", "hand": "<path d=\"M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2\" /><path d=\"M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2\" /><path d=\"M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8\" /><path d=\"M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15\" />", "pencil": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125\"/>", "highlighter": "<path d=\"m9 11-6 6v3h9l3-3\" /><path d=\"m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4\" />", "plus": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 4.5v15m7.5-7.5h-15\"/>", "minus": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 12h14\"/>", "home": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25\"/>", "arrow-uturn-left": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3\"/>", "arrow-uturn-right": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m15 15 6-6m0 0-6-6m6 6H9a6 6 0 0 0 0 12h3\"/>", "x-mark": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M6 18 18 6M6 6l12 12\"/>", "calculator": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm2.498-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5v2.25h-7.5V6ZM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0 0 12 2.25Z\"/>", "clock": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z\"/>", "arrows-pointing-out": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z\"/>", "squares-plus": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 0 0 2.25-2.25V6a2.25 2.25 0 0 0-2.25-2.25H6A2.25 2.25 0 0 0 3.75 6v2.25A2.25 2.25 0 0 0 6 10.5Zm0 9.75h2.25A2.25 2.25 0 0 0 10.5 18v-2.25a2.25 2.25 0 0 0-2.25-2.25H6a2.25 2.25 0 0 0-2.25 2.25V18A2.25 2.25 0 0 0 6 20.25Zm9.75-9.75H18a2.25 2.25 0 0 0 2.25-2.25V6A2.25 2.25 0 0 0 18 3.75h-2.25A2.25 2.25 0 0 0 13.5 6v2.25a2.25 2.25 0 0 0 2.25 2.25Z\"/>", "sparkles": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z\"/>", "pause": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15.75 5.25v13.5m-7.5-13.5v13.5\"/>", "play": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z\"/>", "eye": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z\"/><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z\"/>", "variable": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M4.745 3A23.933 23.933 0 0 0 3 12c0 3.183.62 6.22 1.745 9M19.5 3c.967 2.78 1.5 5.817 1.5 9s-.533 6.22-1.5 9M8.25 8.885l1.444-.89a.75.75 0 0 1 1.105.402l2.402 7.206a.75.75 0 0 0 1.104.401l1.445-.889m-8.25.75.213.09a1.687 1.687 0 0 0 2.062-.617l4.45-6.676a1.688 1.688 0 0 1 2.062-.618l.213.09\"/>", "bolt": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z\"/>", "lasso": "<ellipse cx=\"12\" cy=\"10\" rx=\"8\" ry=\"5.5\" stroke-dasharray=\"2.6 2.4\"/><path stroke-linecap=\"round\" d=\"M9.5 15.2c-.6 1.8-.2 3.6 1.4 4.8\"/>"};
+     lab:pills); the fan opens away from the nearest edges; a tap outside closes it; a double tap on ✎ = the last mode.
+     V3.896 (Alex's wishlist, CodeLog/ClaudesPlan/V3.896_scientia_pills_quick_cast_docks.md) — each wheel has its place
+     and a docked form: ＋ is the **Quick cast** (the inserts the person chose — a bolt toggle on every row of Gabe's
+     + Insert list), centred just above the bottom bar; ⊕ zoom top left; ✦ tools top right; ✎ the hand bottom right.
+     A Quick cast / tools / zoom fan LEFT OPEN for 10 s rolls into its docked form — a row above the bottom bar, a row
+     at the top right, a column down the left — and stays (per device, _ls lab:docked) until its pill is tapped. Pen
+     options left the tools wheel: the hand's fan has a cog that opens Gabe's ink bar (top left; his palettes with ⊕,
+     widths, eraser, fill, pressure), which stays open until hidden. Positions moved to _ls lab:pills2. */
+  var PILL_ICONS = {"magnifying-glass": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z\"/>", "hand": "<path d=\"M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2\" /><path d=\"M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2\" /><path d=\"M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8\" /><path d=\"M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15\" />", "pencil": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125\"/>", "highlighter": "<path d=\"m9 11-6 6v3h9l3-3\" /><path d=\"m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4\" />", "plus": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 4.5v15m7.5-7.5h-15\"/>", "minus": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 12h14\"/>", "home": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25\"/>", "arrow-uturn-left": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3\"/>", "arrow-uturn-right": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m15 15 6-6m0 0-6-6m6 6H9a6 6 0 0 0 0 12h3\"/>", "x-mark": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M6 18 18 6M6 6l12 12\"/>", "calculator": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm2.498-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5v2.25h-7.5V6ZM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0 0 12 2.25Z\"/>", "clock": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z\"/>", "arrows-pointing-out": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15\"/>", "squares-plus": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 0 0 2.25-2.25V6a2.25 2.25 0 0 0-2.25-2.25H6A2.25 2.25 0 0 0 3.75 6v2.25A2.25 2.25 0 0 0 6 10.5Zm0 9.75h2.25A2.25 2.25 0 0 0 10.5 18v-2.25a2.25 2.25 0 0 0-2.25-2.25H6a2.25 2.25 0 0 0-2.25 2.25V18A2.25 2.25 0 0 0 6 20.25Zm9.75-9.75H18a2.25 2.25 0 0 0 2.25-2.25V6A2.25 2.25 0 0 0 18 3.75h-2.25A2.25 2.25 0 0 0 13.5 6v2.25a2.25 2.25 0 0 0 2.25 2.25Z\"/>", "sparkles": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z\"/>", "pause": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15.75 5.25v13.5m-7.5-13.5v13.5\"/>", "play": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z\"/>", "eye": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z\"/><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z\"/>", "variable": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M4.745 3A23.933 23.933 0 0 0 3 12c0 3.183.62 6.22 1.745 9M19.5 3c.967 2.78 1.5 5.817 1.5 9s-.533 6.22-1.5 9M8.25 8.885l1.444-.89a.75.75 0 0 1 1.105.402l2.402 7.206a.75.75 0 0 0 1.104.401l1.445-.889m-8.25.75.213.09a1.687 1.687 0 0 0 2.062-.617l4.45-6.676a1.688 1.688 0 0 1 2.062-.618l.213.09\"/>", "bolt": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z\"/>", "cog": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z\"/><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z\"/>", "lasso": "<ellipse cx=\"12\" cy=\"10\" rx=\"8\" ry=\"5.5\" stroke-dasharray=\"2.6 2.4\"/><path stroke-linecap=\"round\" d=\"M9.5 15.2c-.6 1.8-.2 3.6 1.4 4.8\"/>"};
   function pic(name) { var p = PILL_ICONS[name]; return p ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false">' + p + '</svg>' : ''; }
   function picEl(name) { var s = h('span.lab-pic'); s.innerHTML = pic(name); return s; }
-  var LP = { open: null, zoom: false, last: null, seen: null, pos: _ls.get('lab:pills', {}) || {}, tap: null, suppress: 0 };
+  var QC_DEFAULT = ['component', 'rmpaper', 'material', 'rmprotocol', 'run', 'plate', 'task', 'rmaction', 'rmcollection'];
+  var LP = { open: null, zoom: false, last: null, seen: null, pos: _ls.get('lab:pills2', {}) || {}, tap: null, suppress: 0,
+    docked: _ls.get('lab:docked', {}) || {}, dockT: null, dockMs: 10000, rolling: null, qc: _ls.get('lab:quickcast', null) || QC_DEFAULT.slice() };
   LAB.pills = LP;
-  var PILLS = { hand: { icon: '✎', label: 'Zoom · move · pen · highlighter · lasso (double-tap: the last mode)', side: 'left' },
-    insert: { icon: '＋', label: 'Insert into this note', side: 'left' }, tools: { icon: '✦', label: 'Tools', side: 'left' }, view: { icon: '⊕', label: 'View', side: 'right' } };
+  var PILLS = { hand: { icon: '✎', label: 'Zoom · move · pen · highlighter · lasso · pen settings (double-tap: the last mode)', side: 'right', vert: 'up' },
+    insert: { icon: '＋', label: 'Quick cast — what you add most (choose them in + Insert)', side: 'center', vert: 'up', dock: 'a row above the bottom bar' },
+    tools: { icon: '✦', label: 'Tools', side: 'right', vert: 'down', dock: 'a row at the top right' },
+    view: { icon: '⊕', label: 'Zoom', side: 'left', vert: 'down', dock: 'a column down the left' } };
   var HAND_NAMES = { zoom: 'Zoom', move: 'Move', pen: 'Pen', hl: 'Highlighter', lasso: 'Lasso', eraser: 'Eraser' };
   var FAN_RINGS = [[5, 84], [7, 140], [9, 196]];
   function fanPos(i, n, side, vert) {
     var k = i, start = 0, ring = 0;
     while (ring < FAN_RINGS.length - 1 && k >= Math.min(FAN_RINGS[ring][0], n - start)) { var c = Math.min(FAN_RINGS[ring][0], n - start); k -= c; start += c; ring++; }
     var cnt = Math.max(1, Math.min(FAN_RINGS[ring][0], n - start)), r = FAN_RINGS[ring][1];
-    var a0 = side === 'left' ? (vert === 'up' ? 4 : 274) : (vert === 'up' ? 94 : 184), a1 = a0 + 82, a = cnt === 1 ? (a0 + a1) / 2 : a0 + (a1 - a0) * k / (cnt - 1), t = a * Math.PI / 180;
+    var a0 = side === 'center' ? (vert === 'up' ? 22 : 202) : side === 'left' ? (vert === 'up' ? 4 : 274) : (vert === 'up' ? 94 : 184), a1 = a0 + (side === 'center' ? 136 : 82), a = cnt === 1 ? (a0 + a1) / 2 : a0 + (a1 - a0) * k / (cnt - 1), t = a * Math.PI / 180;
     return { x: Math.round(Math.cos(t) * r), y: Math.round(-Math.sin(t) * r) };
   }
-  // a colour the person adds is kept per device and joins Gabe's swatches (a stroke stores its colour, so this is safe)
-  try { (_ls.get('lab:inkColors', []) || []).forEach(function (c) { if (/^#[0-9a-f]{6}$/i.test(c) && INK.COLORS.indexOf(c) < 0 && INK.COLORS.length < 8) INK.COLORS.push(c); }); } catch (e) {}
+  /* V3.896 — the docked form: the Quick cast splits left and right of its pill (more rows above when the screen is
+     narrow), the tools run in a row away from the nearest edge, zoom runs in a column below (or above) its pill */
+  var DOCK_GAP = 46;
+  function rowPos(name, i, n, side, vert, bw) {
+    if (name === 'insert') {
+      var per = Math.max(2, Math.floor((bw / 2 - 34) / DOCK_GAP)), row = Math.floor(i / (2 * per)), k = i % (2 * per), inRow = Math.min(2 * per, n - row * 2 * per), L = Math.ceil(inRow / 2);
+      return { x: k < L ? -(L - k) * DOCK_GAP : (k - L + 1) * DOCK_GAP, y: -row * DOCK_GAP };
+    }
+    if (name === 'view') return { x: 0, y: vert === 'up' ? -(i + 1) * DOCK_GAP : (i + 1) * DOCK_GAP + 14 };   // below the % under the pill
+    return { x: (side === 'left' ? 1 : -1) * (i + 1) * DOCK_GAP, y: 0 };
+  }
+  function dockable(name) { return !!(PILLS[name] && PILLS[name].dock); }
+  function dock(name) { LP.docked[name] = true; _ls.set('lab:docked', LP.docked); LP.open = null; LP.rolling = name; paintAll(); }
+  function undock(name, pill) {
+    if (pill) pill.classList.add('unrolling');
+    setTimeout(function () { LP.docked[name] = false; _ls.set('lab:docked', LP.docked); paintAll(); }, pill ? 280 : 0);
+  }
+  LAB.dockPill = dock; LAB.undockPill = function (name) { undock(name, null); };
+  /* the Quick cast: the inserts the person chose (_ls lab:quickcast, ids of INSERTS), in Gabe's order */
+  function qcRows(d) {
+    var on = {}; (LP.qc || []).forEach(function (id) { on[id] = 1; });
+    return INSERTS.filter(function (x) { return on[x.id] && (!x.when || x.when(d)); });
+  }
+  function qcToggle(id) {
+    var i = LP.qc.indexOf(id); if (i >= 0) LP.qc.splice(i, 1); else LP.qc.push(id);
+    _ls.set('lab:quickcast', LP.qc); paintAll(); return i < 0;
+  }
+  LAB.quickCast = { list: function () { return LP.qc.slice(); }, toggle: qcToggle };
+  // V3.896 — colours added with the old pill (lab:inkColors) move once into Gabe's own pen palette (13zv, inkPalette)
+  try { var oldC = (_ls.get('lab:inkColors', []) || []).filter(function (c) { return /^#[0-9a-f]{6}$/i.test(c) && INK.COLORS.indexOf(c) < 0; });
+    if (oldC.length) { oldC.forEach(function (c) { INK.COLORS.push(c); }); _ls.set('inkPalette', INK.COLORS.slice()); } if (_ls.get('lab:inkColors', null)) _ls.set('lab:inkColors', null); } catch (e) {}
   function handNow() {
     if (LP.zoom) return 'zoom';
     if (!INK.mouse) return 'move';
@@ -1179,12 +1219,6 @@
   function zoomBy(pane, k) { var P = pane.paper; P.zoomAt(P.view.z * k); }
   function zoom100(pane) { var P = pane.paper; P.zoomAt(1); }
   function fitAll(pane) { try { var bb = pane.bbox && pane.bbox(); pane.paper.fit(bb || undefined); } catch (e) { warn('fit', e); } }
-  function insertRows(d) {
-    var rows = INSERTS.filter(function (x) { return !x.when || x.when(d); }), pick = ['component', 'rmpaper', 'material', 'rmprotocol', 'run', 'plate', 'task', 'rmaction', 'rmcollection'], out = [];
-    pick.forEach(function (id) { var x = rows.filter(function (r) { return r.id === id; })[0]; if (x) out.push(x); });
-    rows.forEach(function (x) { if (out.length < 9 && out.indexOf(x) < 0) out.push(x); });
-    return out.slice(0, 9);
-  }
   function pillItems(name, pane) {
     var d = M.doc(pane.docId), items = []; if (!d) return items;
     if (name === 'hand') {
@@ -1192,43 +1226,22 @@
       [['zoom', 'magnifying-glass', 'Zoom — tap to zoom in, Alt-tap out, Shift-tap to fit a component or region, drag up or down'], ['move', 'hand', 'Move — drag the paper to pan, drag a component to move it'], ['pen', 'pencil', 'Pen — draw with the mouse or the pen'],
         ['hl', 'highlighter', 'Highlighter — wide and see-through'], ['lasso', 'lasso', 'Lasso — circle strokes to move, recolour, delete or convert']].forEach(function (f) {
         items.push({ icon: pic(f[1]), label: f[2], sel: g === f[0], mode: true, keep: true, run: function () { setHand(f[0]); } }); });
-      var undo = function () { items.push({ icon: pic('arrow-uturn-left'), label: 'Undo', keep: true, run: function () { App.undo(); } }); items.push({ icon: pic('arrow-uturn-right'), label: 'Redo', keep: true, run: function () { App.redo(); } }); };
-      var colours = function () { INK.COLORS.forEach(function (c, k) { items.push({ dot: INK.swatch(c), hl: g === 'hl', label: c === 'auto' ? 'Ink (black, or white on the dark theme)' : 'Colour ' + c, sel: INK.color === k && INK.tool !== 'eraser', keep: true,
-        run: function () { INK.color = k; _ls.set('inkColor', k); if (INK.tool === 'eraser') INK.setTool('pen'); else INK.paintBars(); paintAll(); } }); }); };
-      var widths = function () { INK.WIDTHS.forEach(function (w, k) { items.push({ bar: Math.max(2, Math.round(w * 1.6)), label: ['Fine', 'Medium', 'Bold'][k] || 'Width', sel: INK.width === k, keep: true, run: function () { INK.width = k; _ls.set('inkWidth', k); INK.paintBars(); paintAll(); } }); }); };
-      if (g === 'pen') {
-        colours();
-        items.push({ eraser: true, label: INK.tool === 'eraser' ? 'Back to the pen' : 'Eraser — touch strokes to remove them', sel: INK.tool === 'eraser', keep: true, run: function () { INK.setTool(INK.tool === 'eraser' ? 'pen' : 'eraser'); paintAll(); } });
-        widths();
-        if (INK.COLORS.length < 8) items.push({ addColour: true, label: 'Add a colour (kept on this device)', keep: true });
-        items.push({ icon: '<span class="lab-pr' + (INK.pressure ? ' on' : '') + '">P</span>', label: INK.pressure ? 'Pressure on — pressing harder draws thicker (tap: off)' : 'Pressure off — even lines (tap: on)', sel: INK.pressure, keep: true,
-          run: function () { INK.pressure = !INK.pressure; _ls.set('inkPressure', INK.pressure); INK.paintBars(); paintAll(); } });
-        undo();
-      } else if (g === 'hl') { colours(); widths(); undo(); }
-      else if (g === 'zoom') {
-        items.push({ icon: pic('plus'), label: 'Zoom in', keep: true, run: function () { zoomBy(pane, 1.25); } });
-        items.push({ icon: pic('minus'), label: 'Zoom out', keep: true, run: function () { zoomBy(pane, 0.8); } });
-        items.push({ icon: '<b class="lab-100">1:1</b>', label: '100 %', keep: true, run: function () { zoom100(pane); } });
-        items.push({ icon: pic('arrows-pointing-out'), label: 'Fit everything on the screen', run: function () { fitAll(pane); } });
-      } else if (g === 'move') {
-        items.push({ icon: '<b class="lab-100">1:1</b>', label: '100 %', keep: true, run: function () { zoom100(pane); } });
-        items.push({ icon: pic('arrows-pointing-out'), label: 'Fit everything on the screen', run: function () { fitAll(pane); } });
-        undo();
-      } else if (g === 'lasso') undo();
+      /* V3.896 — pen settings live in Gabe's ink bar (top left, stays open), behind one cog */
+      items.push({ icon: pic('cog'), label: INK.shown ? 'Pen settings — hide the bar at the top left' : 'Pen settings — colours, widths, eraser, pressure (a bar at the top left; it stays open)', sel: INK.shown, keep: true,
+        run: function () { INK.shown = !INK.shown; _ls.set('inkBar', INK.shown); INK.paintBars(); $$('.ctools .ct-ink').forEach(function (x) { x.classList.toggle('on', INK.shown); }); paintAll(); } });
     } else if (name === 'insert') {
-      insertRows(d).forEach(function (x) { var lab = typeof x.label === 'function' ? x.label(d) : x.label;
+      qcRows(d).forEach(function (x) { var lab = typeof x.label === 'function' ? x.label(d) : x.label;
         items.push({ icon: '<span class="lab-insic">' + esc(x.icon || '•') + '</span>', label: lab + (x.sub ? ' — ' + x.sub : ''), run: function () { x.run(d, centerAt(pane), pane); } }); });
-      items.push({ icon: '<span class="lab-insic">…</span>', label: 'Everything that can go in this note', run: function (el) { INSERT.menu(pane, el); } });
+      items.push({ icon: '<span class="lab-insic">…</span>', label: 'Everything that can go in this note — the bolt on a row puts it in your Quick cast', run: function (el) { INSERT.menu(pane, el); } });
     } else if (name === 'tools') {
       var s = TIMER.activeFor(d.id);
       items.push({ icon: pic(!s ? 'clock' : s.state === 'running' ? 'pause' : 'play'), label: !s ? 'Start this note’s timer' : s.state === 'running' ? 'Pause the timer' : 'Resume the timer', sel: !!s, keep: true,
         run: function () { var cur = TIMER.activeFor(d.id); if (!cur) { if (typeof TCMP !== 'undefined' && TCMP.start) TCMP.start(d.id); else TIMER.start(d.id); } else if (cur.state === 'running') TIMER.pause(cur); else TIMER.resume(cur); paintAll(); } });
       items.push({ icon: pic('calculator'), label: 'A calculator in this note', run: function () { CALC.open(pane); } });
       items.push({ icon: pic('variable'), label: 'An equation — new, or a registered one', run: function (el) { var r = el.getBoundingClientRect(); EQ.newMenu(pane, { clientX: r.left, clientY: r.top, currentTarget: el, target: el, preventDefault: function () {}, stopPropagation: function () {} }); } });
-      items.push({ icon: pic('eye'), label: INK.shown ? 'Hide Gabe’s ink bar' : 'Show the ink bar (pressure feel, convert to text)', sel: INK.shown, keep: true,
-        run: function () { INK.shown = !INK.shown; _ls.set('inkBar', INK.shown); INK.paintBars(); $$('.ctools .ct-ink').forEach(function (b) { b.classList.toggle('on', INK.shown); }); paintAll(); } });
       items.push({ icon: pic('arrows-pointing-out'), label: document.fullscreenElement ? 'Leave focus mode' : 'Focus mode — full screen', run: function () { App.toggleFocus(); } });
-      if (Object.keys(LP.pos).length) items.push({ icon: pic('home'), label: 'Put the pills back in their places', run: function () { LP.pos = {}; _ls.set('lab:pills', {}); paintAll(); } });
+      if (Object.keys(LP.pos).length || Object.keys(LP.docked).some(function (k) { return LP.docked[k]; })) items.push({ icon: pic('home'), label: 'Put the pills back in their places (and fold the docked rows)',
+        run: function () { LP.pos = {}; _ls.set('lab:pills2', {}); LP.docked = {}; _ls.set('lab:docked', {}); paintAll(); } });
     } else if (name === 'view') {
       items.push({ icon: pic('plus'), label: 'Zoom in', keep: true, run: function () { zoomBy(pane, 1.25); } });
       items.push({ icon: '<b class="lab-100">1:1</b>', label: '100 %', keep: true, run: function () { zoom100(pane); } });
@@ -1237,15 +1250,22 @@
     }
     return items;
   }
-  function addColourItem(it, close) {
-    var inp = h('input', { type: 'color', value: '#7c3aed', 'aria-label': 'A new ink colour', on: { change: function (e) { var c = String(e.target.value || '').toLowerCase(); if (!/^#[0-9a-f]{6}$/.test(c)) return;
-      if (INK.COLORS.indexOf(c) < 0) { INK.COLORS.push(c); var keep = (_ls.get('lab:inkColors', []) || []).concat([c]).slice(-3); _ls.set('lab:inkColors', keep); }
-      INK.color = INK.COLORS.indexOf(c); _ls.set('inkColor', INK.color); if (INK.tool === 'eraser' || INK.tool === 'lasso') INK.setTool('pen'); else INK.paintBars(); paintAll(); } } });
-    return h('label.lab-fan-item.lab-addc', { title: it.label, style: it.style }, picEl('plus'), inp);
+  function qcDecorate(pop, d) {
+    var byLabel = {}; INSERTS.forEach(function (x) { var l = typeof x.label === 'function' ? (d ? x.label(d) : '') : x.label; if (l) byLabel[l] = x.id; });
+    var stop = function (e) { e.stopPropagation(); };
+    var pin = function (id) {
+      var on = LP.qc.indexOf(id) >= 0, b = h('button.lab-qc-pin' + (on ? '.on' : ''), { type: 'button', 'data-qc': id, title: on ? 'In your Quick cast — tap to take it out' : 'Put it in your Quick cast',
+        on: { pointerdown: stop, mousedown: stop, click: function (e) { e.stopPropagation(); e.preventDefault(); var now = qcToggle(id); b.classList.toggle('on', now); b.title = now ? 'In your Quick cast — tap to take it out' : 'Put it in your Quick cast'; } } });
+      b.innerHTML = pic('bolt'); return b;
+    };
+    var paint = function () { $$('.insrow', pop).forEach(function (row) { if ($('.lab-qc-pin', row)) return; var t = $('b', row), id = t && byLabel[t.textContent]; if (id) row.append(pin(id)); }); };
+    paint(); new MutationObserver(paint).observe(pop, { childList: true, subtree: true });
+    var hd = $('h5', pop); if (hd && !$('.lab-qc-note', pop)) { var n = h('div.lab-qc-note'); n.innerHTML = pic('bolt') + '<span>puts a row in your Quick cast (＋)</span>'; hd.after(n); }
   }
   function pillEl(name, pane, host) {
-    var def = PILLS[name], open = !!(LP.open && LP.open.name === name && LP.open.doc === pane.docId), items = open ? pillItems(name, pane) : [];
-    var bw = host.clientWidth || 800, bh = host.clientHeight || 600, sz = 44, pp = LP.pos[name], side = def.side, vert = 'up', style = null;
+    var def = PILLS[name], docked = dockable(name) && !!LP.docked[name], rolling = docked && LP.rolling === name, open = !docked && !!(LP.open && LP.open.name === name && LP.open.doc === pane.docId);
+    var items = open || docked ? pillItems(name, pane) : [];
+    var bw = host.clientWidth || 800, bh = host.clientHeight || 600, sz = 44, pp = LP.pos[name], side = def.side, vert = def.vert || 'up', style = null;
     if (pp && isFinite(+pp.fx) && isFinite(+pp.fy)) {
       var left = Math.round(Math.max(0, Math.min(bw - sz, pp.fx * bw - sz / 2))), top = Math.round(Math.max(0, Math.min(bh - sz, pp.fy * bh - sz / 2)));
       style = { left: left + 'px', top: top + 'px', right: 'auto', bottom: 'auto' }; side = left + sz / 2 > bw / 2 ? 'right' : 'left'; vert = top + sz / 2 < Math.min(bh / 2, 240) ? 'down' : 'up';
@@ -1259,21 +1279,35 @@
       + (name === 'view' ? '<span class="lab-pill-pct">' + Math.round((pane.paper ? pane.paper.view.z : 1) * 100) + '%</span>' : '')
       + (name === 'tools' && TIMER.activeFor(pane.docId) ? '<span class="lab-pill-live"></span>' : '');
     var cap = h('span.lab-fan-cap');
+    var rows = items.map(function (it, i) { return rowPos(name, i, items.length, side, vert, bw); });
     var fan = h('div.lab-fan', items.map(function (it, i) {
-      var p = fanPos(i, items.length, side, vert), st = { '--tx': p.x + 'px', '--ty': p.y + 'px', '--d': (i * 14) + 'ms' };
-      if (it.addColour) return addColourItem({ label: it.label, style: st });
+      var p = docked && !rolling ? rows[i] : fanPos(i, items.length, side, vert), st = { '--tx': p.x + 'px', '--ty': p.y + 'px', '--d': (i * (rolling ? 34 : 14)) + 'ms' };
       var el = h('button.lab-fan-item' + (it.sel ? '.sel' : '') + (it.mode ? '.mode' : ''), { type: 'button', title: it.label, 'aria-label': it.label, style: st,
         on: { pointerenter: function () { cap.textContent = it.label; }, pointerleave: function () { cap.textContent = ''; },
-          click: function (e) { e.stopPropagation(); try { it.run(el); } catch (x) { warn('pill', x); } if (!it.keep) { LP.open = null; } paintAll(); } } });
+          click: function (e) { e.stopPropagation(); try { it.run(el); } catch (x) { warn('pill', x); } if (!it.keep && !docked) { LP.open = null; } paintAll(); } } });
       if (it.dot) el.innerHTML = '<span class="lab-fan-dot' + (it.hl ? ' hl' : '') + '" style="background:' + it.dot + '"></span>';
       else if (it.bar) el.innerHTML = '<span class="lab-fan-bar" style="height:' + it.bar + 'px"></span>';
       else if (it.eraser) el.innerHTML = '<span class="lab-fan-eraser"></span>';
       else el.innerHTML = it.icon;
       return el;
-    }), open ? cap : null);
-    var pill = h('div.lab-pill.lab-pill-' + name + (open ? '.open' : '') + (name === 'hand' && /^(zoom|move|lasso|eraser)$/.test(hm) ? '.on' : ''), { 'data-pill': name, 'data-side': side, 'data-vert': vert, style: style || {} }, b, fan);
+    }), open || docked ? cap : null);
+    var rail = null;
+    if (docked && items.length) {   // the strip behind a docked row
+      var x0 = 0, x1 = 0, y0 = 0, y1 = 0; rows.forEach(function (q) { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); });
+      rail = h('div.lab-dock-rail', { style: { left: (22 + x0 - 25) + 'px', top: (22 + y0 - 25) + 'px', width: (x1 - x0 + 50) + 'px', height: (y1 - y0 + 50) + 'px' } });
+    }
+    var pill = h('div.lab-pill.lab-pill-' + name + (open ? '.open' : '') + (docked ? '.docked.fanned' : '') + (rolling ? '.rolling' : '') + (name === 'hand' && /^(zoom|move|lasso|eraser)$/.test(hm) ? '.on' : ''),
+      { 'data-pill': name, 'data-side': side, 'data-vert': vert, style: style || {}, title: docked ? '' : null }, rail, b, fan);
+    if (docked) b.setAttribute('title', def.label + ' — docked as ' + def.dock + '; tap to fold it back into the wheel (drag to move)');
     bindPill(pill, b, name, pane, host);
     if (open) requestAnimationFrame(function () { pill.classList.add('fanned'); });
+    if (rolling) {   // the fan rolls into its row: the items travel from their fan places to the strip's
+      LP.rolling = null;
+      requestAnimationFrame(function () { requestAnimationFrame(function () {
+        [].forEach.call(fan.querySelectorAll('.lab-fan-item'), function (el, i) { if (rows[i]) { el.style.setProperty('--tx', rows[i].x + 'px'); el.style.setProperty('--ty', rows[i].y + 'px'); } });
+        pill.classList.add('rolled'); setTimeout(function () { pill.classList.remove('rolling'); }, 900);
+      }); });
+    }
     return pill;
   }
   function bindPill(pill, b, name, pane, host) {
@@ -1292,7 +1326,7 @@
         if (!dragging) return;
         LP.suppress = Date.now();
         var L = parseFloat(pill.style.left) || 0, T = parseFloat(pill.style.top) || 0;
-        LP.pos[name] = { fx: Math.round((L + pr.width / 2) / r.width * 1000) / 1000, fy: Math.round((T + pr.height / 2) / r.height * 1000) / 1000 }; _ls.set('lab:pills', LP.pos);
+        LP.pos[name] = { fx: Math.round((L + pr.width / 2) / r.width * 1000) / 1000, fy: Math.round((T + pr.height / 2) / r.height * 1000) / 1000 }; _ls.set('lab:pills2', LP.pos);
         paintAll();
       }
       b.addEventListener('pointermove', mv); b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
@@ -1300,7 +1334,12 @@
     b.addEventListener('click', function (e) {
       e.stopPropagation();
       if (Date.now() - LP.suppress < 400) return;
-      var toggle = function () { LP.open = LP.open && LP.open.name === name && LP.open.doc === pane.docId ? null : { name: name, doc: pane.docId }; paintAll(); };   // keyed to the note: a re-render makes a new host
+      if (dockable(name) && LP.docked[name]) { LP.open = null; return undock(name, pill); }   // V3.896 — a docked row folds back into its wheel
+      var toggle = function () {   // keyed to the note: a re-render makes a new host
+        LP.open = LP.open && LP.open.name === name && LP.open.doc === pane.docId ? null : { name: name, doc: pane.docId }; paintAll();
+        clearTimeout(LP.dockT);   // V3.896 — a Quick cast / tools / zoom fan left open for 10 s docks
+        if (LP.open && dockable(name)) { var mine = LP.open; LP.dockT = setTimeout(function () { if (LP.open === mine) dock(name); }, LP.dockMs); }
+      };
       if (name !== 'hand') return toggle();
       if (LP.tap) { clearTimeout(LP.tap); LP.tap = null; LP.open = null; lastHand(); return; }   // a double tap: the last mode
       LP.tap = setTimeout(function () { LP.tap = null; toggle(); }, 230);
@@ -1311,7 +1350,7 @@
     var box = $(':scope > .lab-pills', host);
     if (!box) { box = h('div.lab-pills.nopan'); host.append(box); bindZoomHand(pane, host); }
     trackHand();
-    host.classList.toggle('lab-hand-zoom', LP.zoom); host.classList.toggle('lab-hand-move', handNow() === 'move');
+    host.classList.toggle('lab-hand-zoom', LP.zoom); host.classList.toggle('lab-hand-move', handNow() === 'move'); host.classList.add('lab-pilled');
     if (!LP.zoom && ZF.el) zfitMark(null);
     box.classList.toggle('fan-open', !!(LP.open && LP.open.doc === pane.docId));
     box.replaceChildren.apply(box, ['insert', 'tools', 'hand', 'view'].map(function (n) { return pillEl(n, pane, host); }));
@@ -1348,7 +1387,7 @@
   function zfitHover() { zfitMark(ZF.shift && LP.zoom && ZF.host && ZF.host.isConnected ? zfitTarget(ZF.host, ZF.x, ZF.y) : null); }
   /* Paper.fitTarget keeps a note's top on the screen (y ≥ pad: right for "fit everything", wrong for one thing further
      down), so a component or region is centred here instead, in the room the side pills, the tool row and the dock leave */
-  var ZFIT_PAD = { side: 72, top: 64, bottom: 84, split: 100 };
+  var ZFIT_PAD = { side: 72, top: 64, bottom: 140, split: 100 };   // V3.896: bottom clears the Quick cast above the bar and its hint line
   LAB.zfitPad = ZFIT_PAD;
   function zfit(host, x, y) {
     var P = host._dv.paper, el = zfitTarget(host, x, y);
@@ -1389,6 +1428,13 @@
     var oDocRender11 = DocView.render;
     DocView.render = function (docId) { var r = oDocRender11.apply(this, arguments), pane = this; requestAnimationFrame(function () { paintPills(pane); }); return r; };
     var oPaint = INK.paintBars; INK.paintBars = function () { var r = oPaint.apply(INK, arguments); paintAll(); return r; };
+    /* V3.896 — the + Insert list: a bolt on each row puts it in (or takes it out of) the person's Quick cast */
+    var oInsMenu = INSERT.menu;
+    INSERT.menu = function (pane) {
+      var r = oInsMenu.apply(this, arguments);
+      try { var pops = $$('.pop'), pop = pops[pops.length - 1]; if (pop && pane) qcDecorate(pop, M.doc(pane.docId)); } catch (e) { warn('quick cast', e); }
+      return r;
+    };
     // the zoom % under ⊕ follows every pan and zoom
     var oApply = Paper.prototype.apply;
     Paper.prototype.apply = function () { var r = oApply.apply(this, arguments); try { var host = this.el.parentNode, pct = host && host.querySelector && host.querySelector(':scope > .lab-pills .lab-pill-pct'); if (pct) pct.textContent = Math.round(this.view.z * 100) + '%'; if (ZF.el && ZF.el.parentNode === this.world) zfitWidth(ZF.el, this.view.z); } catch (e) {} return r; };
@@ -1398,8 +1444,18 @@
   try {
     var st11 = document.getElementById('lab-mode-css');
     if (st11) st11.textContent += '.lab-pills{position:absolute;inset:0;pointer-events:none;z-index:18}.lab-pill{position:absolute;width:44px;height:44px;pointer-events:auto}' +
-      '.lab-pill-insert{left:14px;top:calc(50% - 84px)}.lab-pill-tools{left:14px;top:calc(50% - 28px)}.lab-pill-hand{left:14px;top:calc(50% + 28px)}.lab-pill-view{right:14px;top:calc(50% + 28px)}' +
-      '.lab-pills.fan-open .lab-pill:not(.open){opacity:.22;pointer-events:none}.lab-pill.open{z-index:3}.canvas-host .insp.open ~ .lab-pills .lab-pill-view:not([style*="left"]){right:344px}' +
+      '.lab-pill-insert{left:calc(50% - 22px);bottom:84px}.lab-pill-tools{right:14px;top:56px}.lab-pill-hand{right:14px;bottom:16px}.lab-pill-view{left:14px;top:14px}' +
+      'body.mobile .lab-pill-insert{bottom:64px}.canvas-host.lab-pilled > .ink-bar{left:68px}' +
+      '.lab-pills.fan-open .lab-pill:not(.open):not(.docked){opacity:.22;pointer-events:none}.lab-pill.open{z-index:3}' +
+      '.canvas-host .insp.open ~ .lab-pills .lab-pill-tools:not([style*="left"]),.canvas-host .insp.open ~ .lab-pills .lab-pill-hand:not([style*="left"]){right:344px}' +
+      '.lab-pill.docked .lab-fan-item{transform:translate(var(--tx),var(--ty)) scale(1);opacity:1;transition:none}' +
+      '.lab-pill.docked.rolling .lab-fan-item{transition:transform .55s cubic-bezier(.3,.85,.25,1) var(--d,0ms),opacity .2s}' +
+      '.lab-pill.docked.unrolling .lab-fan-item{transform:translate(0,0) scale(.4);opacity:0;transition:transform .26s ease-in,opacity .22s}' +
+      '.lab-dock-rail{position:absolute;border-radius:26px;background:color-mix(in srgb,var(--surface) 88%,transparent);border:1px solid var(--rule-2);box-shadow:0 6px 20px -12px rgba(36,33,28,.45);pointer-events:none;opacity:1;transition:opacity .35s}' +
+      '.lab-pill.docked.rolling:not(.rolled) .lab-dock-rail,.lab-pill.docked.unrolling .lab-dock-rail{opacity:0}.lab-pill.docked .lab-pill-btn{box-shadow:0 0 0 3px color-mix(in srgb,var(--teal) 26%,transparent)}' +
+      '.lab-qc-pin{flex:none;margin-left:auto;width:26px;height:26px;border-radius:50%;border:1px solid transparent;background:none;color:var(--ink-4,#aaa);display:grid;place-items:center;cursor:pointer;padding:0}' +
+      '.lab-qc-pin svg{width:15px;height:15px}.lab-qc-pin:hover{border-color:var(--rule-2);color:var(--ink-2)}.lab-qc-pin.on{color:var(--teal)}.lab-qc-pin.on svg{fill:currentColor}' +
+      '.insrow{display:flex;align-items:center}.lab-qc-note{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink-3);padding:0 10px 6px}.lab-qc-note svg{width:13px;height:13px;color:var(--teal);fill:currentColor}' +
       '.lab-pill-btn{position:relative;z-index:2;width:44px;height:44px;border-radius:50%;border:1px solid var(--rule-2);background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(36,33,28,.08),0 6px 18px -10px rgba(36,33,28,.45);cursor:pointer;display:grid;place-items:center;padding:0;touch-action:none;font:600 19px/1 var(--f-d,system-ui)}' +
       '.lab-pill-btn svg{width:20px;height:20px;pointer-events:none}.lab-pill-glyph{pointer-events:none}.lab-pill.open .lab-pill-btn{background:var(--ink);color:var(--paper);border-color:var(--ink)}' +
       '.lab-pill.on:not(.open) .lab-pill-btn{box-shadow:0 0 0 3px color-mix(in srgb,var(--teal) 30%,transparent)}.lab-pill.dragging .lab-pill-btn{transform:scale(1.06);box-shadow:0 10px 26px -8px rgba(36,33,28,.6)}' +
@@ -1412,7 +1468,7 @@
       '.lab-fan-item.sel{background:var(--ink);color:var(--paper);border-color:var(--ink)}.lab-fan-item.mode{width:38px;height:38px;left:-19px;top:-19px}' +
       '.lab-fan-dot{width:18px;height:18px;border-radius:50%;display:block;border:1px solid rgba(0,0,0,.15)}.lab-fan-dot.hl{opacity:.55}.lab-fan-item.sel .lab-fan-dot{box-shadow:0 0 0 2px var(--paper)}' +
       '.lab-fan-bar{display:block;width:20px;border-radius:3px;background:currentColor}.lab-fan-eraser{display:block;width:16px;height:16px;border-radius:50%;border:1.5px solid currentColor}' +
-      '.lab-addc{overflow:hidden}.lab-addc input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}.lab-insic{font-size:16px;line-height:1}.lab-100{font:700 10px/1 var(--f-m,monospace)}' +
+      '.lab-insic{font-size:16px;line-height:1}.lab-100{font:700 10px/1 var(--f-m,monospace)}' +
       '.lab-pr{font:700 12px/1 var(--f-m,monospace)}' +
       '.lab-fan-cap{position:absolute;left:30px;top:-60px;white-space:nowrap;font:500 11px/18px var(--f-d,system-ui);color:var(--ink-2);background:var(--surface);border:1px solid var(--rule-2);border-radius:999px;padding:0 8px;pointer-events:none}' +
       '.lab-fan-cap:empty{display:none}.lab-pill[data-side="right"] .lab-fan-cap{left:auto;right:30px}.lab-pill[data-vert="down"] .lab-fan-cap{top:30px}' +
@@ -1973,4 +2029,21 @@
       'text-align:center;padding:24px;border-radius:6px;background:var(--surface-2);color:var(--ink-2);font-size:44px;line-height:1.15;pointer-events:none;overflow:hidden}' +
       '.pdfw.pdf-far .pdf-ph{display:flex}.pdfw .pdf-ph span{font-size:30px;color:var(--ink-3)}';
   } catch (e) { warn('css 14', e); }
+
+  /* ---- 14. The install banner at the top (V3.896) ----
+     Alex: "the install scientia should show up at the top of the page" — Gabe's #insbanner (13zo) sits at the bottom
+     centre, over the bottom bar and the Quick cast; on the web it goes to the top: under the header and below the
+     canvas's top row (his ink bar on the left, his tool buttons on the right) — the header is measured, so a phone or
+     focus mode with a shorter header still fits. */
+  function placeInstall() {
+    var b = document.getElementById('insbanner'); if (!b) return;
+    var hd = document.getElementById('hd'), r = hd && hd.offsetParent !== null ? hd.getBoundingClientRect() : null;
+    b.classList.add('lab-top'); b.style.top = Math.round((r && r.height ? r.bottom : 0) + 64) + 'px';   // the canvas's top row is 12 + 46 px
+  }
+  try {
+    if (typeof INSTALL !== 'undefined' && INSTALL.banner) { var oBanner = INSTALL.banner; INSTALL.banner = function () { var r = oBanner.apply(this, arguments); try { placeInstall(); } catch (e) {} return r; }; }
+    addEventListener('resize', debounce(placeInstall, 150)); placeInstall();
+    var st14 = document.getElementById('lab-mode-css');
+    if (st14) st14.textContent += '#insbanner.lab-top{bottom:auto;top:calc(136px + env(safe-area-inset-top))}';
+  } catch (e) { warn('install banner', e); }
 })();
