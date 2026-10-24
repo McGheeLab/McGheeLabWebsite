@@ -51,6 +51,17 @@ Plan: [CodeLog/ClaudesPlan/V3.895_scientia_zoom_shift_fit.md](../ClaudesPlan/V3.
   - Shift over a region's margin lights the region, and Shift-tap fits it.
 - 182/182 headless. Screenshots of both highlights checked by eye.
 
+### Bug Fixes (same day, after Alex tried it: "zooming into the correct magnification but not the right location")
+- **Shift-tap now puts the fitted thing on the screen.**
+  - **The bug:** `zfit` used `Paper.fitTarget`, whose vertical position is `Math.max(pad, …)`. That clamp keeps a note's top on screen, which is right for "fit everything". For one component or region further down the note, it snapped the view back to the top, so the zoom was right and the place was wrong.
+  - **The fix:** `zfit` now computes the view itself. The target is centred in the room the side pills, the tool row and the dock leave (`ZFIT_PAD { side: 72, top: 64, bottom: 84, split: 100 }`, exposed as `SIS_LAB.zfitPad`; sides 12 px under 640 px wide). The zoom is the largest that fits, between the paper's `minZ` and `maxZ`.
+  - Empty paper still uses `fitAll` (the note's top stays on screen).
+- **The harness hid it.** Its component and region sat at the top of the note, where the clamp does nothing.
+  - The test now moves the component to (896, 1400) and points the view at it at 60 %.
+  - `centred()` checks both directions against `zfitPad`; it checked only the horizontal before.
+  - 192/192 headless (10 of those are the parallel V3.894 session's).
+- The fix was committed and deployed in `0b89bd65` (the V3.894 session's end-of-turn autopush).
+
 ## [V3.893] — 2026-10-24 — The PE-bead assay as a Scientia project, with three interactive simulators, set-up diagrams, a literature review and the validation plan
 
 Plan: [CodeLog/ClaudesPlan/V3.893_pe_bead_scientia_project.md](../ClaudesPlan/V3.893_pe_bead_scientia_project.md). No site code changed, nothing was added to `deploy/site.json`, and there is no `sw.js` bump. A parallel session's end-of-turn autopush committed the simulator half of this work (pages, diagrams, figures, `params.py`, the report) as `bc534219 V3.892 (cont.)`; the rest lands here. The production writes are listed under "Published".
