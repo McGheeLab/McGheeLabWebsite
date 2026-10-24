@@ -138,7 +138,7 @@
     function qa(s) { return Array.from(D.querySelectorAll(s)); }
     function ev(code) { return W.eval(code); }
     function go(hash) { W.location.hash = hash; }
-    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.897', W.SIS_LAB.version);
+    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.898', W.SIS_LAB.version);
     /* 1. the tab row */
     var keys = qa('#tabs a.tab').map(function (a) { return a.dataset.k; });
     check('Activity and Data are not tabs on the web', keys.indexOf('activity') < 0 && keys.indexOf('data') < 0, keys.join(','));
@@ -640,12 +640,20 @@
     if (dockIns) dockIns.click(); else ev("INSERT.menu(DocView, document.querySelector('.lab-pill-insert'))");
     var calcPin = await until(function () { return q('.pop .lab-qc-pin[data-qc="calc"]'); }, 3000);
     check('+ Insert’s list has a bolt on every row; the ones in your Quick cast are lit', !!calcPin && !!q('.pop .lab-qc-pin.on[data-qc="component"]') && !calcPin.classList.contains('on') && !!q('.pop .lab-qc-note'));
+    var pinR = [].map.call(D.querySelectorAll('.pop .lab-qc-pin'), function (b) { return Math.round(b.getBoundingClientRect().right); }), optR = q('.pop .opt') ? Math.round(q('.pop .opt').getBoundingClientRect().right) : 0;
+    check('The bolts line up in one column at the right of the list (V3.898)', pinR.length > 3 && pinR.every(function (x) { return x === pinR[0]; }) && optR - pinR[0] <= 12, pinR.slice(0, 6).join(',') + ' / row ends ' + optR);
+    var insIds = W.eval("INSERTS.map(function (x) { return x.id; })"), insMap = W.SIS_LAB.insertIcons, insNames = insIds.map(function (id) { return insMap[id]; });
+    check('Every row of + Insert has its own icon — none missing, none shared (V3.898)', insIds.length > 20 && insNames.every(Boolean) && new Set(insNames).size === insNames.length, insIds.filter(function (id) { return !insMap[id]; }).join(',') || insNames.length + ' icons');
+    var insics = [].map.call(D.querySelectorAll('.pop .insrow .insic'), function (x) { return x.innerHTML; });
+    check('… and the open list draws them: an icon on every row, no two alike', insics.length > 5 && insics.every(function (x) { return /<svg/.test(x); }) && new Set(insics).size === insics.length, insics.length + ' rows');
     var nbIns = ev("M.liveBlocks('" + an + "').length");
     calcPin.click();
     check('…a tap puts it in your Quick cast (and inserts nothing)', W.SIS_LAB.quickCast.list().indexOf('calc') >= 0 && JSON.parse(W.localStorage.getItem('sis:lab:quickcast') || '[]').indexOf('calc') >= 0 && calcPin.classList.contains('on') && ev("M.liveBlocks('" + an + "').length") === nbIns);
     D.body.dispatchEvent(new W.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); ev("typeof closePop === 'function' && closePop()");
     pill('insert').querySelector('.lab-pill-btn').click(); await until(function () { return pill('insert').classList.contains('open'); }, 2000);
     check('…and the Quick cast fans it out', !!item('insert', /^Calculator/));
+    var qcIcons = fanItems('insert').map(function (b) { return b.innerHTML; });
+    check('…each with its own icon (V3.898)', qcIcons.length > 3 && qcIcons.every(function (x) { return /<svg/.test(x); }) && new Set(qcIcons).size === qcIcons.length, qcIcons.length + ' items');
     W.SIS_LAB.quickCast.toggle('calc');
     D.body.dispatchEvent(new W.PointerEvent('pointerdown', { bubbles: true, pointerId: 24 })); await until(function () { return !q('.lab-pill.open'); }, 2000);
     var vb = pill('view').querySelector('.lab-pill-btn'), vr = vb.getBoundingClientRect();

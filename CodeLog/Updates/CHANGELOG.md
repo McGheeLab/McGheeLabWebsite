@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.898] — 2026-10-24 — Scientia: every + Insert row its own icon; the Quick cast bolts in one column
+
+Plan: [CodeLog/ClaudesPlan/V3.898_scientia_insert_icons_bolt_column.md](../ClaudesPlan/V3.898_scientia_insert_icons_bolt_column.md). Web build only (`rm/scientia/lab-mode.js` §11).
+
+### Changed
+- **One icon per insert**: `INS_PICS` maps all 27 INSERTS ids (Gabe's + `rmpaper` / `rmprotocol` / `rmaction` / `rmcollection`) to distinct Heroicons (+ Lucide `flask-conical`, custom `construction` / `books`); path data added to `PILL_ICONS`, `pic()` sets round caps on the root. Drawn in Gabe's + Insert list (`qcDecorate` → `insIcon` swaps each `.insic` glyph), the Quick cast fan and docked row (`pillItems('insert')`; "Everything…" = `ellipsis-horizontal`), and the wire-drop menu (`CHAINDROP.open` wrapped; its own two rows mapped as `_text` / `_other`). Exposed as `SIS_LAB.insertIcons`. A row not mapped keeps Gabe's glyph.
+
+### Bug Fixes
+- **Bolts wandered**: Gabe's `.insrow` was only as wide as its text inside the flex `.opt`, so the Quick cast bolt (`margin-left:auto`) sat right after the words. `.opt > .insrow` and `.insrow > div` now flex to fill the row: every bolt at the same right edge. `SIS_LAB.version` V3.898; `sw.js` 877.
+
+### Tests
+- Lab-mode harness 216/218 (+4: the bolt column, every id mapped and distinct, the open list drawn with distinct icons, the Quick cast's items distinct; the 2 failures are V3.894's PDF on-demand checks, as before).
+
 ## [V3.897] — 2026-10-24 — Scientia: the Quick cast built into the bottom bar; the ✦ wheel replaces the top-right row
 
 Plan: [CodeLog/ClaudesPlan/V3.897_scientia_quick_cast_in_bar_tools_corner.md](../ClaudesPlan/V3.897_scientia_quick_cast_in_bar_tools_corner.md). Web build only (`rm/scientia/lab-mode.js` §11).
