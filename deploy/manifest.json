@@ -4520,9 +4520,9 @@
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-24T12:03:09-07:00",
-   "sha256": "2d6fbbd72c75fd773c8a5e3ade24c02b2f46c8e66d450286334186512083aae4",
-   "size": 4382355,
+   "deployedAt": "2026-10-24T13:02:22-07:00",
+   "sha256": "053077a9ff241aa41167f39fcffa477aac3141f9bd9e750c2e4221df6b37da2e",
+   "size": 4394586,
    "via": "verify"
   },
   "rm/test-fixtures/layout/01-2col-tight.pdf": {
@@ -4898,8 +4898,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-24T12:03:09-07:00",
-   "sha256": "631262887c2bf6b170ff9eb5452144109f3bd9dfd4e958a8c10dfe08900658c9",
+   "deployedAt": "2026-10-24T13:02:22-07:00",
+   "sha256": "11de14b9808ca5df6465dd3c63a4d92d5889cfce828482f8773fc2da97463651",
    "size": 9016,
    "via": "verify"
   },
