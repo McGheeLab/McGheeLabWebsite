@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.899] — 2026-10-24 — Scientia: share or collaborate on a lit review or a project with anyone in the lab
+
+Plan: [CodeLog/ClaudesPlan/V3.899_scientia_share_collaborate.md](../ClaudesPlan/V3.899_scientia_share_collaborate.md). Hub function deployed first (health V3.899); no rules change (the new collection is function-only).
+
+### Added
+- **The relay between hubs** — `functions/scientia-share-core.js` (new): the grant `shareWith {uid: 'read'|'edit'}` on a review's `documents` row or a project's `projects` row; copies marked `sharedFrom {uid, name, role, share}`; `closure` (review: the note, `blockIds`, wires with both ends inside, `items` born in it, `media` any component names (`m_…`); project: + its row, themes, aims, terms and every note filed in it, never someone else's copy); `relayPush(env, uid, commits)` after every push — owner's records → `fanOut` to each member (their row read, pushed with `prev`/`base` so a change they made meanwhile merges); a collaborator's → `inbound` into the owner's hub as device `share:<uid>` (`prev` = the shadow, `base` = its `ownerSeq`; `protect` keeps `shareWith`, `share`, `projectId`, `themeId`, a review's `projectIds`), then the owner's result out to everyone; a reader's → `revert` to the shadow (timestamps-only changes ignored: `sameish` skips `AUTO_MAX`); a changed grant → `sharePass` (lease on the index; collaborators' missed changes in first, closure recomputed, copies made equal, out-of-share and lost-access copies deleted, index rewritten); `relayMedia` copies a file uploaded after its record; `syncShares` = the hourly safety pass. `MemoryShareEnv` runs it all on MemoryHubs.
+- **Its Firestore half** — `functions/scientia-share.js` (new): `firestoreEnv` (hubs through `FirestoreHub`, the index `scientiaShares/{owner}__{d|p}__{id}` written with `mergeFields` so the lease survives, shadows `…/shadow/{uid}__{store}__{id}`, `arrayUnion` id growth, a 3 s per-instance cache of the share lists), `labMembers` (not guest / hidden / collaborator / alumni).
+- **Hub** (`functions/scientia-hub.js`, `scientia-hub-core.js`): `FirestoreHub.push` / `resolve` keep `lastCommits` (MemoryHub too); the handler relays after `api/sync/push`, `api/sync/resolve`, `api/media`; `GET api/rm/members`; `quietSyncs` runs `shares` (every 10 min check, hourly per share; `api/rm/sync?only=shares` forces); `noteLink` skips copies (a shared note is listed in RM once, under its owner).
+- **Web app** (`rm/scientia/lab-mode.js` §15): a people button at the top right of each lit-review card and each Portfolio project header (count badge when shared); its panel (in the page) lists lab members with **Share** / **Collaborate** (tap again to take away) and a search box, or for a copy says who shared it, what you can do and who else has it; `setGrant` writes `shareWith` and kicks `shares`. Copies: "From Alex" / "With Alex" chips, a *Shared with you* section in the tab, a *shared* Portfolio group (+ Note only when collaborating). A read-only copy renders in Gabe's read-only (time-travel) view with the current state (`DocView.fill` wrapped; dock and title line say "Shared … · read only"; only the zoom pill); a collaborator's head block edits title/topic, not filing. `SIS_LAB.version` V3.899; `sw.js` 878.
+
+### Tests
+- `functions/test/scientia-share.test.js` (new) 28/28; `functions/test/scientia-share.emulator.js` (new, Firestore emulator only) 6/6; hub fixtures 61/61; lab-mode harness 232/234 (+18; the 2 failures are V3.894's PDF checks, as before).
+
 ## [V3.898] — 2026-10-24 — Scientia: every + Insert row its own icon; the Quick cast bolts in one column
 
 Plan: [CodeLog/ClaudesPlan/V3.898_scientia_insert_icons_bolt_column.md](../ClaudesPlan/V3.898_scientia_insert_icons_bolt_column.md). Web build only (`rm/scientia/lab-mode.js` §11).

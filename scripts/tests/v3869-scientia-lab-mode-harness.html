@@ -94,6 +94,7 @@
       else if (path === 'api/rm/tasks') res = { ok: true, tasks: Object.keys(window.__rmTasks).map(function (k) { return window.__rmTasks[k]; }) };
       else if (path === 'api/sync/conflicts') res = { ok: true, conflicts: [] };
       else if (path === 'api/media/list') res = { ok: true, files: [1, 2, 3, 4, 5, 6].reduce(function (o, i) { o['images/m_pdf' + i + '.pdf'] = window.parent.location.origin + '/scripts/tests/fixtures/pdf-6pages.pdf'; return o; }, {}) };   // §18's PDF cards (absolute: pdf.js cannot resolve a path against about:srcdoc)
+      else if (path === 'api/rm/members') res = { ok: true, members: [{ uid: 'u-bea', name: 'Bea Lab', category: 'grad' }, { uid: 'u-cy', name: 'Cy Lab', category: 'postdoc' }] };   // V3.899
       else if (path === 'api/rm/library/refresh') res = { ok: true, total: 2, written: 0, changed: 0, removed: 0 };
       else if (path === 'api/rm/library/pdf') res = { ok: true, url: 'https://storage.example/p.pdf' };
       else if (path === 'api/rec/part') { var rq = new URLSearchParams(full.split('?')[1] || ''); res = { ok: true, rid: rq.get('rid'), n: +rq.get('n'), bytes: 2 }; }
@@ -138,7 +139,7 @@
     function qa(s) { return Array.from(D.querySelectorAll(s)); }
     function ev(code) { return W.eval(code); }
     function go(hash) { W.location.hash = hash; }
-    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.898', W.SIS_LAB.version);
+    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.899', W.SIS_LAB.version);
     /* 1. the tab row */
     var keys = qa('#tabs a.tab').map(function (a) { return a.dataset.k; });
     check('Activity and Data are not tabs on the web', keys.indexOf('activity') < 0 && keys.indexOf('data') < 0, keys.join(','));
@@ -830,6 +831,57 @@
     var ibR = ib && ib.getBoundingClientRect(), clear = function (sel) { var e = q(sel); if (!e || !ibR) return true; var r = e.getBoundingClientRect(); return r.bottom <= ibR.top || r.top >= ibR.bottom || r.right <= ibR.left || r.left >= ibR.right; };
     check('the Install Scientia banner shows at the top of the page, under the header and clear of the ink bar and tool buttons', !!ib && ibR.top >= hdR.bottom && ibR.top - hdR.bottom < 80 && ibR.bottom < W.innerHeight / 2 && clear('.canvas-host > .ink-bar') && clear('.canvas-host > .ctools'),
       ib ? JSON.stringify([hdR.bottom, ib.getBoundingClientRect().top, W.innerHeight]) : 'no banner in this run');
+    /* 19. V3.899 — Share (they read) or Collaborate (they edit), from the card's top right; the same for projects */
+    var sh19 = ev("(function () { var d = M.createDoc({ type: 'literature', projectId: null, themeId: null, title: 'Share me', templateId: null }); var c = M.doc(d.id); c.review = { topic: 'Who reads this?', projectIds: [] }; DB.put('documents', c); changed(); return c.id; })()");
+    go('#/litreviews');
+    var c19 = await until(function () { return q('.lab-lrcard[data-doc="' + sh19 + '"]'); }, 6000);
+    var b19 = c19 && c19.querySelector('.lab-sharebtn'), cr19 = c19 && c19.getBoundingClientRect(), br19 = b19 && b19.getBoundingClientRect();
+    check('a lit review card has a people button at its top right', !!b19 && cr19.right - br19.right < 16 && br19.top - cr19.top < 18 && !b19.classList.contains('on'), b19 ? JSON.stringify([cr19.right - br19.right, br19.top - cr19.top]) : 'none');
+    var hash19 = W.location.hash; b19.click();
+    var pop19 = await until(function () { return q('.lab-sharepop .lab-sh-row[data-uid="u-bea"]') && q('.lab-sharepop'); }, 4000);
+    check('…it opens a panel in the page (the card does not open): every lab member with Share and Collaborate', !!pop19 && W.location.hash === hash19 && pop19.querySelectorAll('.lab-sh-row').length === 2 && /Share/.test(pop19.textContent) && /Collaborate/.test(pop19.textContent) && /read it/.test(pop19.textContent));
+    var nOnly19 = W.SIS_LAB.kick.onlys.length;
+    q('.lab-sh-row[data-uid="u-bea"] button[data-role="edit"]').click();
+    check('Collaborate with Bea → the review says so (edit), and the panel shows it', ev("JSON.stringify(M.doc('" + sh19 + "').shareWith)") === '{"u-bea":"edit"}' && /Bea Lab \(edits\)/.test(q('.lab-sharepop').textContent) && q('.lab-sh-row[data-uid="u-bea"]').classList.contains('on'));
+    q('.lab-sh-row[data-uid="u-cy"] button[data-role="read"]').click();
+    check('Share with Cy → read only beside Bea’s edit', ev("JSON.stringify(M.doc('" + sh19 + "').shareWith)") === '{"u-bea":"edit","u-cy":"read"}');
+    q('.lab-sh-row[data-uid="u-cy"] button[data-role="read"]').click();
+    check('…tapping Share again takes it away', ev("JSON.stringify(M.doc('" + sh19 + "').shareWith)") === '{"u-bea":"edit"}' && !q('.lab-sh-row[data-uid="u-cy"]').classList.contains('on'));
+    var qi19 = q('.lab-sh-q'); qi19.value = 'cy'; qi19.dispatchEvent(new W.Event('input', { bubbles: true }));
+    check('…the search box narrows the list', q('.lab-sharepop').querySelectorAll('.lab-sh-row').length === 1 && !!q('.lab-sh-row[data-uid="u-cy"]'));
+    check('…and the hub is asked to pass it on now', !!(await until(function () { return W.SIS_LAB.kick.onlys.slice(nOnly19).some(function (o) { return /shares/.test(o); }); }, 20000)));
+    D.dispatchEvent(new W.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    check('Escape closes it; the card’s button shows how many have it', !q('.lab-sharepop') && !!(await until(function () { var b = q('.lab-lrcard[data-doc="' + sh19 + '"] .lab-sharebtn.on .lab-sharen'); return b && b.textContent === '1'; }, 4000)));
+    /* a copy someone shared with you */
+    var cp19 = ev("(function () { var d = M.createDoc({ type: 'literature', projectId: null, themeId: null, title: 'Their review', templateId: null }); var c = M.doc(d.id); c.review = { topic: 'Theirs', projectIds: ['p_theirs'] }; c.shareWith = { 'u-bea': 'edit' }; c.sharedFrom = { uid: 'u-alex', name: 'Alex McGhee', role: 'read', share: 'u-alex__d__x' }; DB.put('documents', c); M.addBlock(c.id, null, { body: { text: 'Their words', marks: [] } }); changed(); return c.id; })()");
+    go('#/litreviews');
+    var cc19 = await until(function () { return q('.lab-lr-shared .lab-lrcard[data-doc="' + cp19 + '"]'); }, 6000);
+    check('a review shared with you sits under “Shared with you”, marked From Alex', !!cc19 && /Shared with you/.test(q('.lab-lr-h').textContent) && /From Alex/.test(cc19.querySelector('.lab-from').textContent) && !q('.lab-lr-shared .lab-lrcard[data-doc="' + sh19 + '"]'));
+    cc19.querySelector('.lab-sharebtn').click();
+    var pc19 = await until(function () { return q('.lab-sharepop'); }, 3000);
+    check('…its panel says who shared it and what you can do, with no way to share it on', !!pc19 && /Alex McGhee shared it with you to read/.test(pc19.textContent) && /Also with Bea Lab \(edits\)/.test(pc19.textContent) && !pc19.querySelector('.lab-sh-seg'));
+    D.dispatchEvent(new W.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    go('#/doc/' + cp19);
+    var ro19 = await until(function () { var t = ev("(function () { var p = App.pane; return !!(p && p.docId === '" + cp19 + "' && p.travel && p.travel.shared); })()"); return t && q('.canvas-host .dock .lab-ro'); }, 6000);
+    check('a read-only copy opens read only: the dock says whose it is, nothing can be typed, no Quick cast', !!ro19 && /Shared with you by Alex McGhee · read only/.test(ro19.textContent) && !q('.canvas-host [contenteditable="true"]') && !q('.lab-pill-insert') && !!q('.lab-pill-view'), ro19 ? ro19.textContent : 'no dock line');
+    check('…and the title line says it too', !!(await until(function () { var x = q('#meta .lab-ro-pill'); return x && /Shared by Alex McGhee · read only/.test(x.textContent); }, 3000)));
+    ev("(function () { var c = M.doc('" + cp19 + "'); c.sharedFrom = Object.assign({}, c.sharedFrom, { role: 'edit' }); DB.put('documents', c); changed(); })()");
+    var ed19 = await until(function () { return head(cp19) && head(cp19).classList.contains('lab-hcopy') && head(cp19); }, 6000);
+    check('a collaborator’s copy edits: its title and topic, “you edit it together”, but not where it is filed', !!ed19 && !!ed19.querySelector('.lab-h-title') && !!ed19.querySelector('.lab-h-topic') && /you edit it together/.test(ed19.textContent) && !ed19.querySelector('.lab-h-proj') && !ed19.querySelector('.lab-lr-links') && !!q('.lab-pill-insert'),
+      ed19 ? JSON.stringify([!!ed19.querySelector('.lab-h-title'), !!ed19.querySelector('.lab-h-topic'), ed19.textContent.slice(0, 160), !!q('.lab-pill-insert'), ev("!!(App.pane && App.pane.travel)")]) : 'no copy head');
+    /* projects */
+    ev("(function () { DB.put('projects', { id: 'p_shared19', name: 'Their project', status: 'active', created: '2026-10-24T09:00:00', sharedFrom: { uid: 'u-alex', name: 'Alex McGhee', role: 'edit', share: 'u-alex__p__p_shared19' } }); changed(); })()");
+    go('#/portfolio');
+    var pr19 = await until(function () { return reg('pj1') && reg('p_shared19') && reg('pj1'); }, 6000);
+    var pb19 = pr19 && pr19.querySelector('.lab-reg-h .lab-sharebtn'), prr = pr19 && pr19.querySelector('.lab-reg-h').getBoundingClientRect(), pbr = pb19 && pb19.getBoundingClientRect();
+    check('a project region has the same button at the top right of its header', !!pb19 && prr.right - pbr.right < 24 && pbr.top - prr.top < 24, pb19 ? JSON.stringify([prr.right - pbr.right, pbr.top - prr.top]) : 'none');
+    pb19.click();
+    var pp19 = await until(function () { return q('.lab-sharepop[data-share-kind="project"] .lab-sh-row[data-uid="u-cy"]'); }, 4000);
+    pp19.querySelector('button[data-role="read"]').click();
+    check('…sharing the project puts the grant on the project', ev("JSON.stringify(M.project('pj1').shareWith)") === '{"u-cy":"read"}');
+    D.dispatchEvent(new W.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    var sr19 = reg('p_shared19');
+    check('a project shared with you has its own group, says whose it is, and (collaborating) lets you add a note', !!sr19 && sr19.classList.contains('lab-shared') && /Shared by Alex McGhee · you work on it together/.test(sr19.querySelector('.pk').textContent) && /\+ Note/.test(sr19.querySelector('.lab-reg-a').textContent));
     check('no browser popups, rejections or console-level failures in the frame', !W.__popups.length && !W.__rej.length, JSON.stringify([W.__popups, W.__rej]));
   } catch (e) { check('harness error', false, (e && e.stack) || e); }
   finish();

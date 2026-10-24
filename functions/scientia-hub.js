@@ -19,6 +19,7 @@
      …/hub/keys/{id}                        desktop keys (sha-256 hash, name, lastSeen)
      …/hub/media/{encoded path}             path → download-token URL in Storage
      Storage scientia/{uid}/images|recordings|kept/…
+     scientiaShares/{id} (+ /shadow)        V3.899 Share / Collaborate between hubs — scientia-share.js
 
    Deploy: firebase deploy --only functions:scientiaHub
    ================================================================ */
@@ -30,6 +31,8 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
 const crypto = require('crypto');
 const C = require('./scientia-hub-core');
+const SH = require('./scientia-share-core');
+const SHF = require('./scientia-share');
 
 const db = () => getFirestore();
 const bucket = () => getStorage().bucket();
@@ -74,8 +77,9 @@ class FirestoreHub {
   async push({ dev, conn, name, ops }) {
     if (!ops.length) { const st = await this.loadState(); return { ok: true, sid: st.sid, seq: st.seq, echo: [], conflicts: (st.conflicts || []).length }; }
     let result = { ok: true, sid: null, seq: 0, echo: [], conflicts: 0 }, lastState = null;
+    this.lastCommits = [];   // V3.899 — what the share relay looks at
     for (let i = 0; i < ops.length; i += 150) {
-      const chunk = ops.slice(i, i + 150);
+      const chunk = ops.slice(i, i + 150); let chunkCommits = [];
       const r = await db().runTransaction(async t => {
         const st = stateFromDoc(await t.get(this.ref)) || C.emptyState();
         const keys = new Map();
@@ -87,8 +91,9 @@ class FirestoreHub {
         t.set(this.ref, stateToDoc(plan.state), { merge: true });
         for (const w of plan.writes) t.set(this.rows.doc(rowDocId(w.store, w.id)), rowToDoc(w));
         for (const op of plan.commits) t.set(this.ops.doc(opDocId(op.seq)), opToDoc(op));
-        lastState = plan.state; return plan.result;
+        lastState = plan.state; chunkCommits = plan.commits; return plan.result;
       });
+      this.lastCommits.push(...chunkCommits);
       result = { ok: true, sid: r.sid, seq: r.seq, echo: result.echo.concat(r.echo || []), conflicts: r.conflicts };
     }
     if (lastState && lastState.minSeq > 0 && lastState.seq % 200 === 0) this.trimOps(lastState.minSeq).catch(() => {});
@@ -115,6 +120,7 @@ class FirestoreHub {
       t.set(this.ref, stateToDoc(plan.state), { merge: true });
       for (const w of plan.writes) t.set(this.rows.doc(rowDocId(w.store, w.id)), rowToDoc(w));
       for (const op of plan.commits) t.set(this.ops.doc(opDocId(op.seq)), opToDoc(op));
+      this.lastCommits = plan.commits;
       return plan.result;
     });
   }
@@ -415,7 +421,14 @@ class FirestoreHub {
     if (due('activity', 'actSyncAt', C.ACT_MS)) await run('activity', () => this.syncActivity({ force: true }));
     if (due('projects', 'projSyncAt', C.PROJECTS_MS)) await run('projects', () => this.syncProjects({ force: true }));
     if (due('notes', 'noteSyncAt', C.NOTES_MS)) await run('notes', () => this.syncNotes({ force: true }));
+    if (due('shares', 'shareSyncAt', 10 * 60 * 1000)) await run('shares', async () => { await this.ref.set({ shareSyncAt: FieldValue.serverTimestamp() }, { merge: true }); return SH.syncShares(shareEnv(), this.uid, { force: !!(force && only && only.includes('shares')) }); });
     return out;
+  }
+  /* ---- V3.899: who can be given a share (RM's people pickers: not guests, hidden, collaborators or alumni) ---- */
+  async members() {
+    const m = await SHF.labMembers(db), out = [];
+    for (const [uid, x] of m) if (uid !== this.uid) out.push({ uid, name: x.name, category: x.category });
+    return { ok: true, members: out.sort((a, b) => a.name.localeCompare(b.name)) };
   }
   async keyMake(name) {
     const secret = C.token(16), id = C.token(5);
@@ -431,6 +444,10 @@ class FirestoreHub {
     return { id: k.id, name: k.name };
   }
 }
+
+/** V3.899 — the Share / Collaborate relay's storage (scientia-share.js), one per request. */
+function shareEnv() { return SHF.firestoreEnv({ db, FieldValue, FirestoreHub, rowDocId, rowFromDoc }); }
+const RELAY_PATHS = new Set(['/api/sync/push', '/api/sync/resolve', '/api/media']);
 
 async function isLabMember(uid) {
   const d = await db().collection('users').doc(uid).get();
@@ -464,7 +481,7 @@ const scientiaHub = onRequest({ cors: false, timeoutSeconds: 300, memory: '512Mi
   res.set('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
   const path = (String(req.path || '/').replace(/^\/scientiaHub(?=\/|$)/, '') || '/').replace(/\/+$/, '') || '/';
-  if (path === '/') { res.status(200).json({ ok: true, service: 'scientiaHub', version: 'V3.889' }); return; }
+  if (path === '/') { res.status(200).json({ ok: true, service: 'scientiaHub', version: 'V3.899' }); return; }
   let who = null;
   try { who = await resolveWho(req); }
   catch (e) { res.status(401).json({ ok: false, error: 'invalid token: ' + e.message }); return; }
@@ -473,6 +490,13 @@ const scientiaHub = onRequest({ cors: false, timeoutSeconds: 300, memory: '512Mi
   const hub = who ? (who.hub || new FirestoreHub(who.uid)) : null;
   try {
     const out = await C.route({ method: req.method, path, query: req.query || {}, body: req.body, rawBody: req.rawBody || null, headers: req.headers || {} }, { hub, who });
+    // V3.899 — what was just written to this person's hub reaches the people it is shared with (or its owner)
+    if (who && out.status === 200 && RELAY_PATHS.has(path)) {
+      try {
+        if (path === '/api/media') { if (out.body && out.body.path) await SH.relayMedia(shareEnv(), who.uid, out.body.path); }
+        else if (hub.lastCommits && hub.lastCommits.length) await SH.relayPush(shareEnv(), who.uid, hub.lastCommits);
+      } catch (e) { console.error('[scientiaHub] share relay', path, e); }
+    }
     res.status(out.status).json(out.body);
   } catch (e) {
     console.error('[scientiaHub]', path, e);
@@ -480,4 +504,4 @@ const scientiaHub = onRequest({ cors: false, timeoutSeconds: 300, memory: '512Mi
   }
 });
 
-module.exports = { scientiaHub, FirestoreHub, resolveWho };
+module.exports = { scientiaHub, FirestoreHub, resolveWho, shareEnv };

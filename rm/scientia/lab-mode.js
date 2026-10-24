@@ -33,7 +33,7 @@
     activity: '/rm/pages/activity-overview.html?tab=tracker',
     inventory: '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.898', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.899', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -760,10 +760,12 @@
     return DB.where('documents', function (d) { return !d.projectId && !d.deleted && ['day', 'review'].indexOf(d.type) < 0 && !isReview(d); });
   }
   function regionList() {
-    var ps = DB.all('projects'), byName = function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); };
+    var all = DB.all('projects'), byName = function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); };
+    var ps = all.filter(function (p) { return !sharedFrom(p); });   /* V3.899 — a project someone shared with you has its own group */
     var out = ps.filter(isAssigned).sort(function (a, b) { return rank(a) - rank(b) || byName(a, b); }).map(function (p) { return { id: p.id, p: p, group: 'assigned' }; });
     out.push({ id: 'quick', group: 'quick' });
     ps.filter(function (p) { return !p.rm; }).sort(function (a, b) { return String(a.created || '').localeCompare(String(b.created || '')); }).forEach(function (p) { out.push({ id: p.id, p: p, group: 'mine' }); });
+    all.filter(function (p) { return !!sharedFrom(p); }).sort(byName).forEach(function (p) { out.push({ id: p.id, p: p, group: 'shared' }); });
     ps.filter(function (p) { return p.rm && p.rmAssigned === false; }).sort(byName).forEach(function (p) { out.push({ id: p.id, p: p, group: 'earlier' }); });
     return out;
   }
@@ -814,13 +816,15 @@
       if (open) body = h('div.lab-reg-b.lab-qbody', G.length ? G.map(function (d) { return docCard(d, touchesLine(d)); }) : h('div.lab-empty.tiny.muted', 'A quick note opens as a blank page; its first block holds its title, template, project and theme.'));
     } else {
       var themes = DB.where('themes', function (t) { return t.projectId === p.id && t.status === 'active'; }), notes = docsOf(r).length;
-      var kick = p.rm ? [KIND[p.rmKind] || words(p.rmKind) || 'Project', p.rmStatus ? words(p.rmStatus) : null, r.group === 'earlier' ? 'no longer assigned' : 'assigned' + (p.rmRole && p.rmRole !== 'member' ? ' · ' + p.rmRole : '')].filter(Boolean).join(' · ') : 'Project';
+      var from = sharedFrom(p), kick = from ? 'Shared by ' + (from.name || 'a lab member') + (from.role === 'edit' ? ' · you work on it together' : ' · read only')
+        : p.rm ? [KIND[p.rmKind] || words(p.rmKind) || 'Project', p.rmStatus ? words(p.rmStatus) : null, r.group === 'earlier' ? 'no longer assigned' : 'assigned' + (p.rmRole && p.rmRole !== 'member' ? ' · ' + p.rmRole : '')].filter(Boolean).join(' · ') : 'Project';
       head = [h('div.pk', kick), h('a.pn', { href: '#/project/' + p.id, title: 'Open the project' }, p.name),
         h('div.ps', plural(themes.length, 'theme') + ' · ' + plural(notes, 'note') + (reviewsOf(p.id).length ? ' · ' + plural(reviewsOf(p.id).length, 'lit review') : '') + ' · ' + plural(IX.openBarriers(p.id).length, 'open barrier')),
         p.rm && (p.rmLine || (p.rmParents || []).length) ? h('div.lab-reg-line', p.rmLine ? h('span.serif', snippet(p.rmLine, 140)) : null,
           (p.rmParents || []).length ? h('span.tiny.muted', (p.rmLine ? ' · ' : '') + 'builds on ' + p.rmParents.join(', ')) : null) : null];
-      acts.push(btn('xs', '+ Note', function () { App.newDoc({ projectId: p.id }); }, 'A new note in this project'));
+      if (!from || from.role === 'edit') acts.push(btn('xs', '+ Note', function () { App.newDoc({ projectId: p.id }); }, 'A new note in this project'));
       if (p.rm && p.rmUrl) acts.push(btn('xs', 'Open in RM', function () { openRM(p.rmUrl); }, 'This ' + (KIND[p.rmKind] || 'project').toLowerCase() + ' on the lab site'));
+      acts.push(shareBtn('project', p));   /* V3.899 — top right of the card */
       if (open) body = projectBody(p);
     }
     var tog = h('button.ib.lab-reg-tog', { title: open ? 'Fold to the header' : 'Unfold', 'aria-expanded': String(open), on: { click: function (e) { e.stopPropagation(); toggleRegion(r.id); } } }, open ? '▾' : '▸');
@@ -1053,6 +1057,7 @@
   function setTitle(docId, v) { var d = M.doc(docId); v = String(v || '').trim(); if (!d || !v || d.title === v) return; seedSig(d); d.title = v; if (d.chain === d.id && / — /.test(v)) d.chainName = v.replace(/\s+—\s+[^—]+$/, ''); M.touchDoc(d); changed(); }
   LAB.changeTemplate = changeTemplate; LAB.swapTemplate = swapTemplate; LAB.changeType = changeType; LAB.setProject = setProject; LAB.setTheme = setTheme; LAB.setTitle = setTitle; LAB.isEdited = isEdited; LAB.tplItems = tplItems;
   function headFields(d) {
+    if (sharedFrom(d)) return copyFields(d);   /* V3.899 — someone else's note, shared with you */
     if (isReview(d)) return reviewFields(d);   /* V3.889 — a literature review's own first block */
     var byName = function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); };
     var ps = DB.all('projects').filter(function (p) { return !(p.rm && p.rmAssigned === false) || p.id === d.projectId; });
@@ -1404,7 +1409,7 @@
     host.classList.toggle('lab-hand-zoom', LP.zoom); host.classList.toggle('lab-hand-move', handNow() === 'move'); host.classList.add('lab-pilled');
     if (!LP.zoom && ZF.el) zfitMark(null);
     box.classList.toggle('fan-open', !!(LP.open && LP.open.doc === pane.docId));
-    box.replaceChildren.apply(box, ['insert', 'tools', 'hand', 'view'].map(function (n) { return pillEl(n, pane, host); }));
+    box.replaceChildren.apply(box, (pane.travel ? ['view'] : ['insert', 'tools', 'hand', 'view']).map(function (n) { return pillEl(n, pane, host); }));   // V3.899 — nothing to add to a read-only note
   }
   function paintAll() { try { App.panes().forEach(paintPills); } catch (e) { warn('pills', e); } }
   LAB.paintPills = paintAll; LAB.setHand = setHand; LAB.handNow = handNow;
@@ -1805,7 +1810,7 @@
   function reviewCard(d) {
     var st = reviewStats(d), linked = reviewProjects(d);
     return h('div.box.dcard.lab-lrcard.nopan', { 'data-doc': d.id, on: { click: function () { App.go('#/doc/' + d.id); } } },
-      h('div.row', h('span.pill', 'Lit review'), d.share === 'lab' ? h('span.pill.teal', { title: 'Lab members can read it in RM' }, 'lab') : null, h('span.spacer'), h('span.mono.tiny.muted', fmtDay(d.modified))),
+      h('div.row', h('span.pill', 'Lit review'), fromChip(d), d.share === 'lab' ? h('span.pill.teal', { title: 'Lab members can read it in RM' }, 'lab') : null, h('span.spacer'), h('span.mono.tiny.muted', fmtDay(d.modified)), shareBtn('review', d)),
       h('div.dn', d.title),
       d.review.topic ? h('div.lab-q', snippet(d.review.topic, 200)) : null,
       h('div.ds', [plural(st.papers, 'paper'), plural(st.quotes, 'quote'), plural(st.notes, 'note')].join(' · ')),
@@ -1827,7 +1832,7 @@
         h('div.eyebrow', 'Research'), h('h1.title', 'Literature reviews'),
         h('p.stand', 'A review is a canvas for researching one topic: the papers, the quotes that matter, and your notes on them. Link it to every project it serves; it shows there too.'),
         h('div.row.lab-lr-bar', btn('pri', '+ New review', function () { newReview({ projectIds: f ? [f] : [] }); }, 'A blank canvas; its title, topic and projects are in its first block'), filt),
-        list.length ? h('div.lab-lr-grid', list.map(reviewCard))
+        list.length ? reviewSections(list)
           : h('div.empty', all.length ? 'No review is linked to this project yet.' : 'No literature reviews yet. + New review opens a blank canvas; give it a topic and link it to your projects in its first block.'));
     }
   };
@@ -2115,4 +2120,174 @@
     var st14 = document.getElementById('lab-mode-css');
     if (st14) st14.textContent += '#insbanner.lab-top{bottom:auto;top:calc(136px + env(safe-area-inset-top))}';
   } catch (e) { warn('install banner', e); }
+
+  /* ---- 15. Share or collaborate (V3.899, CodeLog/ClaudesPlan/V3.899_scientia_share_collaborate.md) ----
+     Alex: "share is a read only, collaborate means to be able to edit. this action should be accessable on the card at
+     the top right. Also do the same for projects". The grant is `shareWith {uid: 'read' | 'edit'}` on the review note
+     or the project (only the owner's copy counts); the hub function copies it into each person's own Scientia and
+     carries edits both ways (functions/scientia-share-core.js). A copy carries `sharedFrom {uid, name, role, share}`:
+     a read-only copy opens in Gabe's read-only view (his time-travel mode, showing now — every widget already
+     respects it); a collaborator's copy edits like any note, its filing stays the owner's. */
+  Object.assign(PILL_ICONS, {
+    users: '<path d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/>',
+    'lock-closed': '<path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/>'
+  });
+  var SHR = { members: null, loading: null, pop: null, q: '' };
+  LAB.share = SHR;
+  var ROLE_SAY = { read: 'can read it', edit: 'can edit it' }, CAT_SAY = { pi: 'PI', postdoc: 'Postdoc', grad: 'Graduate student', undergrad: 'Undergraduate', highschool: 'High school', teacher: 'Teacher' };
+  function sharedFrom(rec) { return rec && rec.sharedFrom && typeof rec.sharedFrom === 'object' ? rec.sharedFrom : null; }
+  function grantsOn(rec) { var g = rec && rec.shareWith && typeof rec.shareWith === 'object' ? rec.shareWith : {}, o = {}; Object.keys(g).forEach(function (u) { if (g[u] === 'read' || g[u] === 'edit') o[u] = g[u]; }); return o; }
+  function readOnlyCopy(d) { var f = sharedFrom(d); return !!(f && f.role !== 'edit'); }
+  function shareRec(kind, id) { return kind === 'project' ? M.project(id) : M.doc(id); }
+  function firstName(n) { return String(n || 'a lab member').split(/\s+/)[0]; }
+  function loadMembers() {
+    if (SHR.members) return Promise.resolve(SHR.members);
+    if (!SHR.loading) SHR.loading = fetch('api/rm/members').then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      if (!j || !j.ok) { SHR.loading = null; SHR.failed = true; return []; } SHR.failed = false; SHR.members = j.members || []; return SHR.members;
+    }, function () { SHR.loading = null; SHR.failed = true; return []; });
+    return SHR.loading;
+  }
+  function memberName(uid) { var m = (SHR.members || []).filter(function (x) { return x.uid === uid; })[0]; return m ? m.name : null; }
+  /** Give one person read or edit (null takes it away). Only on your own record — a copy can't be shared on. */
+  function setGrant(kind, id, uid, role) {
+    var rec = shareRec(kind, id); if (!rec || sharedFrom(rec) || !uid) return;
+    var g = grantsOn(rec); if (role === 'read' || role === 'edit') g[uid] = role; else delete g[uid];
+    if (Object.keys(g).length) rec.shareWith = g; else delete rec.shareWith;
+    if (kind === 'project') DB.put('projects', rec); else M.touchDoc(rec);
+    changed(); kickRm(['shares']);
+  }
+  LAB.setGrant = setGrant; LAB.loadMembers = loadMembers;
+  function shareBtn(kind, rec) {
+    var from = sharedFrom(rec), n = Object.keys(grantsOn(rec)).length;
+    var tip = from ? 'Shared with you by ' + (from.name || 'a lab member') + ' — you ' + ROLE_SAY[from.role === 'edit' ? 'edit' : 'read']
+      : n ? 'Shared with ' + (n === 1 ? '1 person' : n + ' people') + ' — change who can read or edit it' : 'Share it (they can read it) or collaborate (they can edit it) with lab members';
+    var b = h('button.lab-sharebtn' + (n || from ? '.on' : ''), { type: 'button', title: tip, 'aria-label': tip, 'data-share-kind': kind, 'data-share-id': rec.id,
+      on: { pointerdown: function (e) { e.stopPropagation(); }, click: function (e) { e.stopPropagation(); e.preventDefault(); openShare(b, kind, rec.id); } } });
+    b.innerHTML = pic(from ? (from.role === 'edit' ? 'users' : 'lock-closed') : 'users') + (n ? '<span class="lab-sharen">' + n + '</span>' : '');
+    return b;
+  }
+  function fromChip(rec) {
+    var f = sharedFrom(rec); if (!f) return null;
+    return h('span.pill.lab-from' + (f.role === 'edit' ? '.edit' : ''), { title: 'Shared with you by ' + (f.name || 'a lab member') + (f.role === 'edit' ? ' — you edit it together' : ' — read only') },
+      (f.role === 'edit' ? 'With ' : 'From ') + firstName(f.name));
+  }
+  function reviewSections(list) {
+    var mine = list.filter(function (d) { return !sharedFrom(d); }), theirs = list.filter(function (d) { return !!sharedFrom(d); });
+    return [mine.length ? h('div.lab-lr-grid', mine.map(reviewCard)) : null,
+      theirs.length ? h('h2.lab-lr-h', 'Shared with you') : null, theirs.length ? h('div.lab-lr-grid.lab-lr-shared', theirs.map(reviewCard)) : null];
+  }
+  /* a collaborator's first block: the title (and a review's topic) are theirs to edit; where it is filed stays the owner's */
+  function copyFields(d) {
+    var f = sharedFrom(d), edit = f.role === 'edit', stop = function (e) { e.stopPropagation(); }, rows = [];
+    rows.push(h('label.hf', h('span', 'Title'), edit ? h('input.hin.lab-h-title', { value: d.title || '', on: { pointerdown: stop, keydown: function (e) { e.stopPropagation(); if (e.key === 'Enter') e.target.blur(); }, change: function (e) { setTitle(d.id, e.target.value); } } }) : h('div.lab-h-ro', d.title || '')));
+    if (isReview(d)) { var tp = h('textarea.hin.lab-h-topic', { rows: 2, placeholder: 'The question this review asks', on: { pointerdown: stop, keydown: stop, change: function (e) { setReview(d.id, { topic: e.target.value.trim() }); } } }); tp.value = d.review.topic || ''; rows.push(h('label.hf', h('span', 'Topic'), tp)); }
+    var others = Object.keys(grantsOn(d)).map(memberName).filter(Boolean);
+    rows.push(h('div.hf', h('span', 'Shared'), h('span.lab-h-from', 'by ' + (f.name || 'a lab member') + ' · you edit it together' + (others.length ? ' · also with ' + others.join(', ') : ''))));
+    if (!SHR.members) loadMembers();
+    return h('div.hgrid.lab-hmeta.lab-hcopy', { 'data-doc': d.id }, rows);
+  }
+
+  function closeShare() {
+    if (SHR.pop) { SHR.pop.remove(); SHR.pop = null; }
+    if (SHR.off) document.removeEventListener('pointerdown', SHR.off, true);
+    if (SHR.key) document.removeEventListener('keydown', SHR.key, true);
+    SHR.off = SHR.key = null;
+  }
+  function openShare(anchor, kind, id) {
+    closeShare();
+    var pop = SHR.pop = h('div.lab-sharepop.nopan', { role: 'dialog', 'aria-label': 'Share', 'data-share-kind': kind, 'data-share-id': id });
+    document.body.append(pop); SHR.q = '';
+    var place = function () {
+      if (!anchor.isConnected) { var a2 = $('.lab-sharebtn[data-share-kind="' + kind + '"][data-share-id="' + id + '"]'); if (a2) anchor = a2; }
+      var r = anchor.getBoundingClientRect(), w = pop.offsetWidth || 340, H = pop.offsetHeight || 300, x = Math.max(8, Math.min(innerWidth - w - 8, r.right - w)), y = r.bottom + 6;
+      if (y + H > innerHeight - 8) y = Math.max(8, r.top - H - 6);
+      pop.style.left = x + 'px'; pop.style.top = y + 'px';
+    };
+    var draw = function () { paintShare(pop, kind, id, draw); place(); };
+    draw(); loadMembers().then(function () { if (SHR.pop === pop) draw(); });
+    SHR.off = function (e) { if (!pop.contains(e.target) && !(anchor.contains && anchor.contains(e.target))) closeShare(); };
+    SHR.key = function (e) { if (e.key === 'Escape') { e.stopPropagation(); closeShare(); } };
+    setTimeout(function () { if (SHR.pop !== pop) return; document.addEventListener('pointerdown', SHR.off, true); document.addEventListener('keydown', SHR.key, true); }, 0);
+    return pop;
+  }
+  LAB.openShare = openShare; LAB.closeShare = closeShare;
+  function paintShare(pop, kind, id, redraw) {
+    var rec = shareRec(kind, id); if (!rec) return closeShare();
+    var from = sharedFrom(rec), g = grantsOn(rec), what = kind === 'project' ? 'project' : 'review', title = kind === 'project' ? rec.name : rec.title;
+    var head = h('div.lab-sh-h', h('b', from ? 'Shared with you' : 'Share this ' + what), h('button.lab-sh-x', { type: 'button', title: 'Close', 'aria-label': 'Close', on: { click: closeShare } }, '×'));
+    var sub = h('div.lab-sh-t', snippet(title || '', 90));
+    if (from) {
+      var others = Object.keys(g).map(function (u) { var n = memberName(u); return n ? n + (g[u] === 'edit' ? ' (edits)' : ' (reads)') : null; }).filter(Boolean);
+      pop.replaceChildren(head, sub,
+        h('p.lab-sh-p', h('b', from.name || 'A lab member'), from.role === 'edit' ? ' shared it with you to collaborate: you can edit it, and every change reaches everyone who has it.' : ' shared it with you to read. Changes they make reach you; it opens read only.'),
+        others.length ? h('p.lab-sh-p.muted', 'Also with ' + others.join(', ') + '.') : null,
+        h('p.lab-sh-p.tiny.muted', 'Only ' + firstName(from.name) + ' can change who has it.'));
+      return;
+    }
+    var q = h('input.inp.lab-sh-q', { type: 'search', placeholder: 'Find a lab member…', value: SHR.q, 'aria-label': 'Find a lab member',
+      on: { input: function (e) { SHR.q = e.target.value; paintRows(); }, keydown: function (e) { e.stopPropagation(); } } });
+    var list = h('div.lab-sh-list');
+    function paintRows() {
+      var ms = (SHR.members || []).slice(), t = SHR.q.trim().toLowerCase();
+      ms.sort(function (a, b) { return (g[b.uid] ? 1 : 0) - (g[a.uid] ? 1 : 0) || String(a.name).localeCompare(String(b.name)); });
+      if (t) ms = ms.filter(function (m) { return String(m.name).toLowerCase().indexOf(t) >= 0; });
+      list.replaceChildren.apply(list, !SHR.members ? [h('div.lab-sh-empty.tiny.muted', SHR.failed ? 'Could not reach the lab list — try again in a moment.' : 'Loading lab members…')]
+        : !ms.length ? [h('div.lab-sh-empty.tiny.muted', t ? 'Nobody by that name.' : 'No other lab members yet.')]
+        : ms.map(function (m) {
+          var role = g[m.uid] || '';
+          var seg = h('span.seg.lab-sh-seg', ['read', 'edit'].map(function (r) {
+            return h('button' + (role === r ? '.on' : ''), { type: 'button', 'data-role': r, title: role === r ? 'Tap again to take it away' : (r === 'read' ? m.name + ' can read it' : m.name + ' can edit it'),
+              on: { click: function (e) { e.stopPropagation(); setGrant(kind, id, m.uid, role === r ? null : r); toast(role === r ? m.name + ' no longer has it' : (r === 'read' ? 'Shared with ' : 'Collaborating with ') + m.name); redraw(); } } }, r === 'read' ? 'Share' : 'Collaborate');
+          }));
+          return h('div.lab-sh-row' + (role ? '.on' : ''), { 'data-uid': m.uid }, h('span.lab-sh-av', String(m.name || '?').charAt(0).toUpperCase()),
+            h('span.lab-sh-who', h('span.lab-sh-n', m.name), CAT_SAY[m.category] ? h('span.tiny.muted', CAT_SAY[m.category]) : null), seg);
+        }));
+    }
+    paintRows();
+    var n = Object.keys(g).length;
+    pop.replaceChildren(head, sub, h('p.lab-sh-p.tiny.muted', h('b', 'Share'), ' — they can read it. ', h('b', 'Collaborate'), ' — they can edit it too; everyone’s changes reach everyone.'),
+      q, list, h('div.lab-sh-f.tiny.muted', n ? 'Has it: ' + Object.keys(g).map(function (u) { return (memberName(u) || 'a lab member') + (g[u] === 'edit' ? ' (edits)' : ' (reads)'); }).join(', ') + '. It reaches them within seconds.' : 'Only you have it.'));
+  }
+
+  /* a read-only copy: Gabe's read-only view, showing now, and its dock says whose it is */
+  try {
+    var oFill15 = DocView.fill;
+    DocView.fill = function (d) {
+      var was = !!(this.travel && this.travel.shared), pane = this;
+      if (readOnlyCopy(d)) this.travel = { doc: d, blocks: M.docBlocks(d.id), at: new Date(), shared: sharedFrom(d) };
+      else if (this.travel && this.travel.shared) this.travel = null;
+      var r = oFill15.apply(this, arguments);
+      if (was !== !!(this.travel && this.travel.shared)) requestAnimationFrame(function () { paintPills(pane); });   // read only ↔ editable: the wheels follow
+      try {
+        if (this.travel && this.travel.shared && !this.side) { var f = this.travel.shared; $$('#meta .pill.warn').forEach(function (x) { if (/^as it stood/.test(x.textContent)) { x.textContent = 'Shared by ' + (f.name || 'a lab member') + ' · read only'; x.classList.add('lab-ro-pill'); } }); }
+      } catch (x) {}
+      return r;
+    };
+    var oDock15 = DocView.renderDock;
+    DocView.renderDock = function (d) {
+      var t = this.travel;
+      if (t && t.shared && this.dock) { var who = t.shared.name || 'a lab member'; this.dock.replaceChildren(h('span.dk-l.lab-ro', picEl('lock-closed'), 'Shared with you by ' + who + ' · read only — ask ' + firstName(who) + ' to collaborate if you want to edit it')); return; }
+      return oDock15.apply(this, arguments);
+    };
+  } catch (e) { warn('share read only', e); }
+  try {
+    var st15 = document.getElementById('lab-mode-css');
+    if (st15) st15.textContent += '.lab-sharebtn{flex:none;position:relative;display:inline-grid;place-items:center;width:28px;height:28px;margin:-4px -4px -4px 4px;border-radius:50%;border:1px solid transparent;background:none;color:var(--ink-3);cursor:pointer;padding:0}' +
+      '.lab-sharebtn svg{width:17px;height:17px}.lab-sharebtn:hover{border-color:var(--rule-2);color:var(--ink)}.lab-sharebtn.on{color:var(--teal)}' +
+      '.lab-sharen{position:absolute;right:-3px;top:-3px;min-width:15px;height:15px;padding:0 3px;box-sizing:border-box;border-radius:8px;background:var(--teal);color:var(--paper);font:600 9.5px/15px var(--f-m,monospace);text-align:center}' +
+      '.lab-reg-a .lab-sharebtn{margin:0 0 0 2px}.lab-from{background:color-mix(in srgb,var(--teal) 10%,transparent);color:var(--teal);border-color:color-mix(in srgb,var(--teal) 35%,transparent)}.lab-from:not(.edit){color:var(--ink-2);background:var(--surface-2);border-color:var(--rule-2)}' +
+      '.lab-lr-h{font-size:15px;margin:26px 0 0;color:var(--ink-2)}' +
+      '.lab-sharepop{position:fixed;z-index:9000;width:340px;max-width:calc(100vw - 16px);max-height:min(520px,calc(100vh - 16px));display:flex;flex-direction:column;gap:8px;box-sizing:border-box;padding:12px 12px 10px;' +
+      'background:var(--surface);color:var(--ink);border:1px solid var(--rule-2);border-radius:10px;box-shadow:0 18px 40px -18px rgba(36,33,28,.45)}' +
+      '.lab-sh-h{display:flex;align-items:center;gap:8px}.lab-sh-h b{flex:1;font-size:13.5px}.lab-sh-x{border:0;background:none;font-size:18px;line-height:1;cursor:pointer;color:var(--ink-3);padding:2px 4px}.lab-sh-x:hover{color:var(--ink)}' +
+      '.lab-sh-t{font-family:var(--f-s,Georgia,serif);font-size:14px;color:var(--ink-2);margin-top:-4px}.lab-sh-p{margin:0;font-size:12.5px;line-height:1.45}.lab-sh-q{width:100%;box-sizing:border-box}' +
+      '.lab-sh-list{overflow:auto;min-height:60px;display:flex;flex-direction:column;gap:2px;margin:0 -4px;padding:0 4px}.lab-sh-row{display:flex;align-items:center;gap:8px;padding:5px 4px;border-radius:7px}.lab-sh-row.on{background:var(--surface-2)}' +
+      '.lab-sh-av{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--surface-2);color:var(--ink-2);font:600 12px/1 var(--f-d,system-ui)}.lab-sh-row.on .lab-sh-av{background:var(--teal);color:var(--paper)}' +
+      '.lab-sh-who{flex:1;min-width:0;display:flex;flex-direction:column}.lab-sh-n{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+      '.lab-sh-seg{flex:none;display:inline-flex;border:1px solid var(--rule-2);border-radius:7px;overflow:hidden}.lab-sh-seg button{border:0;background:none;padding:4px 8px;font:500 11.5px/1.2 var(--f-d,system-ui);color:var(--ink-2);cursor:pointer}' +
+      '.lab-sh-seg button+button{border-left:1px solid var(--rule-2)}.lab-sh-seg button:hover{background:var(--surface-2)}.lab-sh-seg button.on{background:var(--ink);color:var(--paper)}.lab-sh-seg button[data-role="edit"].on{background:var(--teal)}' +
+      '.lab-sh-empty{padding:10px 4px}.lab-sh-f{border-top:1px solid var(--rule);padding-top:7px}' +
+      '.dock .lab-ro{display:inline-flex;align-items:center;gap:6px}.dock .lab-ro .lab-pic svg{width:15px;height:15px}.lab-h-ro{padding:3px 0;font-size:13px}.lab-h-from{font-size:12.5px;color:var(--ink-2)}' +
+      'body.mobile .lab-sharepop{left:8px!important;right:8px;width:auto}';
+  } catch (e) { warn('css 15', e); }
 })();

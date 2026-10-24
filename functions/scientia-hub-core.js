@@ -235,6 +235,7 @@ class MemoryHub {
     this.st = plan.state;
     for (const w of plan.writes) this.rows.set(keyOf(w.store, w.id), w);
     for (const op of plan.commits) this.ops.push(op);
+    this.lastCommits = plan.commits;   // V3.899 — what the share relay looks at
     if (this.ops.length > MAX_OPS) this.ops = this.ops.slice(-MAX_OPS);
   }
   async pull({ conn, since, sid }) { return pullResult({ state: this.st, ops: this.ops.filter(o => o.seq > since), since, sid, conn }); }
@@ -762,7 +763,7 @@ function noteProjects(doc, projects) {
  *  project: its own project; projects (V3.889): every RM project it is listed under (a review's links). */
 function noteLink({ uid, ownerName, doc, project, projects, theme, blocks }) {
   const ps = (projects || (project ? [project] : [])).filter(p => p && p.rm && p.rmId);
-  if (!doc || doc.deleted || !ps.length) return null;
+  if (!doc || doc.deleted || doc.sharedFrom || !ps.length) return null;   // V3.899: a shared copy is listed once, under its owner
   const review = isReviewDoc(doc), own = ps.find(p => String(doc.projectId) === String(p.id)) || null;
   if (!own && !review) return null;   // a plain note is listed only under its own project
   const main = own || ps[0], rmIds = [], add = v => { if (v && !rmIds.includes(String(v))) rmIds.push(String(v)); };
@@ -854,6 +855,7 @@ async function route(req, ctx) {
     await mirrorQuietly(hub, who);
     return J(200, await hub.pull({ conn: g('conn', ''), since: parseInt(g('since', '0'), 10) || 0, sid: g('sid', '') }));
   }
+  if (p === '/api/rm/members') return J(200, typeof hub.members === 'function' ? await hub.members() : { ok: true, members: [] });   // V3.899 — who a share can go to
   if (p === '/api/rm/sync' && post) {
     if (typeof hub.quietSyncs !== 'function') return J(200, { ok: false, error: 'no RM sync on this hub' });
     const only = g('only', '') ? g('only', '').split(',').map(s => s.trim()).filter(Boolean) : null;

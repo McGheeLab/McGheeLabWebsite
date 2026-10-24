@@ -1753,6 +1753,9 @@
    "paths": [
     "rm/scientia/**",
     "functions/scientia-hub*.js",
+    "functions/scientia-share*.js",
+    "functions/test/scientia-share.test.js",
+    "functions/test/scientia-share.emulator.js",
     "functions/test/scientia-hub.test.js",
     "rm/js/notebook-scientia.js",
     "rm/css/notebook-scientia.css",
