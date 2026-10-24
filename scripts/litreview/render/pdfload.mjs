@@ -1,7 +1,7 @@
 // What a note with many PDF cards costs, in the real app at Retina density (V3.894).
 //   node <browser-automation>/browser.mjs http://127.0.0.1:PORT/ --script scripts/litreview/render/pdfload.mjs
-// env: DOC_ID (note), LAB=1 (inject rm/scientia/lab-mode.js as the web build does — the desktop page served by serve.py
-// has no lab layer), SHOT=prefix for screenshots. Reports, from the DOM: drawn pages (on screen / total) and their
+// env: DOC_ID (note), LAB=1 (add lab-mode.js §14, PDF cards on demand — only that section: the rest of the lab layer
+// needs the cloud hub, which a desktop page served by serve.py does not have), SHOT=prefix for screenshots. Reports, from the DOM: drawn pages (on screen / total) and their
 // canvas memory after opening; what a sync from "another device" does to the PDF canvases; zoomed far out; zoomed into
 // one paper (quote highlights present); after panning away. Needs a writable local notebook (the sync step adds a note).
 import fs from 'node:fs'
@@ -16,11 +16,15 @@ export default async (page) => {
   const p = await ctx.newPage(), errors = []
   p.on('pageerror', e => errors.push(String(e).slice(0, 300))); p.on('console', m => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)) })
   if (process.env.LAB) {
+    const src = fs.readFileSync(LAB_JS, 'utf8'), at = src.indexOf('/* ---- 14. '), end = src.lastIndexOf('})();')
+    if (at < 0) throw new Error('lab-mode.js has no section 14')
+    const sec14 = "(function(){ var LAB = window.SIS_LAB = window.SIS_LAB || {}; var warn = function () { console.error.apply(console, ['[lab-mode]'].concat([].slice.call(arguments))); };\n" +
+      "if (!document.getElementById('lab-mode-css')) document.head.append(Object.assign(document.createElement('style'), { id: 'lab-mode-css' }));\n" + src.slice(at, end) + '\n})();'
     await p.route(BASE + '/', async route => {
       const r = await route.fetch(), html = await r.text()
-      await route.fulfill({ response: r, body: html.replace(/<head>/i, m => m + "<script>window.SIS_TARGET = 'web';</script>").replace(/<\/body>/i, '<script src="/__lab/lab-mode.js"></script></body>') })
+      await route.fulfill({ status: 200, contentType: 'text/html', body: html.slice(0, html.lastIndexOf('</body>')) + '<script src="/__lab/pdf14.js"></script>' + html.slice(html.lastIndexOf('</body>')) })   // the LAST </body> (the app's code has the string too); not the original Content-Length (it would cut the page short)
     })
-    await p.route(BASE + '/__lab/lab-mode.js', route => route.fulfill({ body: fs.readFileSync(LAB_JS, 'utf8'), contentType: 'text/javascript' }))
+    await p.route(BASE + '/__lab/pdf14.js', route => route.fulfill({ body: sec14, contentType: 'text/javascript' }))
   }
   await p.goto(BASE + '/'); await p.waitForTimeout(4000)
   await p.evaluate(() => { window.__lt = []; try { new PerformanceObserver(l => l.getEntries().forEach(e => window.__lt.push(Math.round(e.duration)))).observe({ type: 'longtask' }) } catch (e) { window.__lt = null } })

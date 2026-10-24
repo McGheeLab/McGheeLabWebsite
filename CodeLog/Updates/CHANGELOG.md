@@ -50,7 +50,7 @@ Plan: [CodeLog/ClaudesPlan/V3.893_pe_bead_scientia_project.md](../ClaudesPlan/V3
 - **Alex's Scientia hub** (`userData/{uid}/scientia/hub`), two pushes:
   - **The project:** 17 media files (14 PNG, 3 HTML) and 411 records, hub seq 807 → 1218, 0 conflicts. Read back afterwards: all 411 records are identical to the build checked in the local render, and the three HTML pages are served as `text/html` with no attachment header.
   - **The literature review** (`d_lr3186c1484a`, linked to `p_pebeadaxr0`): 16 PDFs and 349 records, seq → 1567.
-- **Not run: the lab library.** Adding the review's 26 new papers (+15 PDFs) with `rm-library-add.js --commit` was refused by the auto-mode safety check (shared lab data). Until Alex runs it, citation chips to those papers read "[missing]". The hub mirrors the library when Scientia next opens, so they then resolve with no other step. The command is in `Research/bead_confocal_scientia/README.md`.
+- **The lab library** (run by Alex, after the auto-mode safety check refused it for this session): 26 new items (15 with PDFs), Vorselen 2020 reused, tag `litreview:pe-bead-confocal`; undo list `library-manifest.json` in the review's data folder. The ids match the citation keys exactly. The hub's library mirror was then refreshed (27 written, 301 rows), and all 27 cited papers resolve.
 
 ### Bug Fixes
 - **`optics.render` registration:** it drew the bead half a pixel away from the centre `metrics()` measured from (pixel i sampled position (i + 0.5)·px). The cx/cy shift now depends on the fast-axis smear, and the rim peak agrees with the JS engine to 0.6 % (it was 10 % off). Integrated F was unaffected; the ring and peak swings in Appendix S changed.
