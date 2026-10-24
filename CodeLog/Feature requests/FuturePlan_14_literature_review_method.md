@@ -1,7 +1,8 @@
 # FuturePlan 14 — Hypothesis-driven literature review → a Scientia note
 
 > **Status: method + working prototype (2026-10-23), not built into the app.** First run: *ERK waves as a
-> mechanochemical relay* (35 papers, 28 PDFs on the canvas, 65 located quotes). Report:
+> mechanochemical relay* (35 papers, 28 PDFs on the canvas, 65 located quotes) — published 2026-10-24 (V3.891):
+> papers in the lab library, the note in Alex's Scientia → Lit reviews. Report:
 > [Research/ERK_mechanochemical_waves_litreview.md](../../Research/ERK_mechanochemical_waves_litreview.md).
 > Tooling: [scripts/litreview/](../../scripts/litreview/README.md). Review data (PDFs, spec, records — kept out of
 > git): `~/Documents/GitHub/LitReviews/erk-mechanochemical-waves/`. Version entry: V3.888.
@@ -81,7 +82,8 @@ Collection card, but lands in Scientia, which is where notes live since the unif
      ids and a fixed creation time, so a re-run updates in place and removes only records of this note that the
      spec dropped), PDFs via `mediaPut`, then a forced library mirror.
    In auto mode both writes were refused by the safety classifier (production writes with the service account) —
-   correct for an unattended session; they are one-line commands for Alex (see the tooling README).
+   correct for an unattended session; they are one-line commands for Alex (see the tooling README). The first review
+   was published on Alex's word on 2026-10-24 (V3.891).
 
 ## Record mapping (Scientia)
 
@@ -106,6 +108,10 @@ Collection card, but lands in Scientia, which is where notes live since the unif
 - `FirestoreHub` must be driven with the `firebase-admin` copy in `functions/node_modules` (the one the hub module
   requires), or it has no app.
 - The hub to publish to is the person's: `uid` = their `users/{uid}` doc (the lab Google account).
+- From a home network an 18 MB PDF sent as one request is dropped (`EPIPE`): upload big files resumable and retry
+  (V3.891). The library add is safe to re-run after a failure — it reuses what landed by DOI — but its manifest then
+  lists those as reused, so keep the dry run's manifest as the undo list. Publishing this review took ~25 min for the
+  library add (slow at the time) and ~3 min for the note's 110 MB.
 
 ## What to build (when Alex moves this into production)
 

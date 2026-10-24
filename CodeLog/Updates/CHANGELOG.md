@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.891] — 2026-10-24 — The ERK mechanochemical-waves lit review is published: 35 papers in the lab library, the note in Alex's Scientia Lit reviews tab
+
+Publishes the V3.888 review (Alex: "publish this to the website and create a lit review note"). No site, rules or function change (no sw.js bump).
+
+### Added
+- **Lab library**: 33 new `items` (`captured_via: 'litreview'`, tag `litreview:erk-mechanochemical-waves`, 26 with their PDF at `papers/{id}/{sha256[:16]}.pdf`); the tag added to the 2 papers the lab already had (Mendoza 2015, Samson 2022). Undo list: `library-manifest.json` in the review's data folder.
+- **Alex's Scientia hub** (`userData/{uid}/scientia/hub`): the note `d_lra1e7c848c1` *ERK waves as a mechanochemical relay — lit review* (type `literature`, `review { topic, projectIds: [] }` → the Lit reviews tab), 378 records (hub seq 372 → 750, 0 conflicts), 28 PDFs under `scientia/{uid}/images/`, library mirror refreshed (all 35 cited papers resolve). Checked after the push: every record equals the build verified in the local render; a PDF serves (200, `%PDF`). Not linked to a project yet — link one in the note's first block.
+
+### Bug Fixes
+- `scripts/litreview/rm-library-add.js` (`upload(f, bytes, metadata, tries = 4)`) and `build-note.js` (`putPdf(path, bytes, tries = 4)` in `pushCloud`, the same Storage object + `media` record as `FirestoreHub.mediaPut`): a PDF over 5 MB goes up as a resumable upload, and a dropped connection is tried again (3 s × try). On this network the 18.5 MB Houtekamer 2025 PDF sent in one request died with `EPIPE`, stopping the library add after 13 of 35 papers; the re-run reused those 13 and finished. `FirestoreHub.mediaPut` itself is unchanged (the Cloud Function takes ≤ 30 MB requests on Google's network).
+
 ## [V3.890] — 2026-10-24 — Research: PE bead confocal assay — binding model, shell image simulation, measurement strategy
 
 Plan: [CodeLog/ClaudesPlan/V3.890_pe_bead_confocal_model.md](../ClaudesPlan/V3.890_pe_bead_confocal_model.md). Research deliverable only — no site code, nothing in `deploy/site.json`, no `sw.js` bump.
