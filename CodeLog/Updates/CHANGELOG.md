@@ -18,6 +18,9 @@ Plan: [CodeLog/ClaudesPlan/V3.889_scientia_lit_reviews_tab.md](../ClaudesPlan/V3
 ### Changed
 - `noteSig` includes a review's project ids, so linking one to an RM project asks the hub for RM's notes list; `rmLinked` counts a review's RM links. *Seen by* no longer repeats its label inside the first block.
 
+### Bug Fixes
+- `scripts/litreview/rm-library-add.js` and `build-note.js` named the Storage bucket `mcgheelab-f56cc.appspot.com`, which does not exist (the lab's is `mcgheelab-f56cc.firebasestorage.app`): the first real `--commit` stopped at the first PDF upload (it had only tagged the 3 papers already in the library; nothing created). Both scripts also raise Node's happy-eyeballs attempt timeout to 3 s (`net.setDefaultAutoSelectFamilyAttemptTimeout`): on this network Google's endpoints answer after Node's 250 ms default, which surfaced as `ETIMEDOUT` (and as `firebase deploy` "Failed to make request …"; deployed with `NODE_OPTIONS=--network-family-autoselection-attempt-timeout=3000`).
+
 ### Tests
 - Lab-mode harness 175/175 (+16, §17). Hub tests 61/61 (+1). Real records: the ERK review's 378 records load as one card, *28 papers · 65 quotes · 34 notes*.
 

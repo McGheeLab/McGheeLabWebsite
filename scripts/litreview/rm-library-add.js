@@ -12,10 +12,12 @@
    node rm-library-add.js <spec.json> --by <email> --out libids.json --manifest manifest.json [--commit]
 */
 'use strict';
+/* V3.889: on a slow network Google's endpoints take longer than Node's 250 ms happy-eyeballs attempt (ETIMEDOUT) */
+require('net').setDefaultAutoSelectFamilyAttemptTimeout(3000);
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const ROOT = path.resolve(__dirname, '..', '..');   // the McGheeLabWebsite repo
 const admin = require(ROOT + '/node_modules/firebase-admin');
-admin.initializeApp({ credential: admin.credential.cert(require(ROOT + '/scripts/service-account.json')), storageBucket: 'mcgheelab-f56cc.appspot.com' });
+admin.initializeApp({ credential: admin.credential.cert(require(ROOT + '/scripts/service-account.json')), storageBucket: 'mcgheelab-f56cc.firebasestorage.app' });
 const db = admin.firestore(), bucket = admin.storage().bucket();
 const argv = process.argv.slice(2), opt = k => { const i = argv.indexOf(k); return i < 0 ? null : argv[i + 1]; };
 const COMMIT = argv.includes('--commit');

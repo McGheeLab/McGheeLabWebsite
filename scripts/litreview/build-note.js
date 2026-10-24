@@ -13,6 +13,8 @@
    IDs are deterministic from the spec slug, so a re-run updates the same records instead of adding new ones.
 */
 'use strict';
+/* V3.889: on a slow network Google's endpoints take longer than Node's 250 ms happy-eyeballs attempt (ETIMEDOUT) */
+require('net').setDefaultAutoSelectFamilyAttemptTimeout(3000);
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const ROOT = path.resolve(__dirname, '..', '..');   // the McGheeLabWebsite repo
 
@@ -232,7 +234,7 @@ async function pushLocal(base) {
 async function pushCloud(uid, commit) {
   // the hub module requires firebase-admin from functions/node_modules — initialise THAT copy, or it has no app
   const admin = require(ROOT + '/functions/node_modules/firebase-admin');
-  if (!admin.apps.length) admin.initializeApp({ credential: admin.credential.cert(require(ROOT + '/scripts/service-account.json')), storageBucket: 'mcgheelab-f56cc.appspot.com' });
+  if (!admin.apps.length) admin.initializeApp({ credential: admin.credential.cert(require(ROOT + '/scripts/service-account.json')), storageBucket: 'mcgheelab-f56cc.firebasestorage.app' });
   const { FirestoreHub } = require(ROOT + '/functions/scientia-hub.js');
   const hub = new FirestoreHub(uid), st = await hub.loadState();
   const rows = new Map(); for (const r of await hub.allRows()) rows.set(r.store + '\u0000' + r.id, r.rec);
