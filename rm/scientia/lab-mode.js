@@ -33,7 +33,7 @@
     activity: '/rm/pages/activity-overview.html?tab=tracker',
     inventory: '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.899', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.901', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -2113,6 +2113,9 @@
     var b = document.getElementById('insbanner'); if (!b) return;
     var hd = document.getElementById('hd'), r = hd && hd.offsetParent !== null ? hd.getBoundingClientRect() : null;
     b.classList.add('lab-top'); b.style.top = Math.round((r && r.height ? r.bottom : 0) + 64) + 'px';   // the canvas's top row is 12 + 46 px
+    // V3.901: over the note, not the window — a paper read beside the note (13zzb) takes the other half
+    var v = document.getElementById('view'), vr = v && v.getBoundingClientRect();
+    if (vr && vr.width) { b.style.left = Math.round(vr.left + vr.width / 2) + 'px'; b.style.width = 'min(560px, ' + Math.round(vr.width - 24) + 'px)'; }
   }
   try {
     if (typeof INSTALL !== 'undefined' && INSTALL.banner) { var oBanner = INSTALL.banner; INSTALL.banner = function () { var r = oBanner.apply(this, arguments); try { placeInstall(); } catch (e) {} return r; }; }
@@ -2290,4 +2293,26 @@
       '.dock .lab-ro{display:inline-flex;align-items:center;gap:6px}.dock .lab-ro .lab-pic svg{width:15px;height:15px}.lab-h-ro{padding:3px 0;font-size:13px}.lab-h-from{font-size:12.5px;color:var(--ink-2)}' +
       'body.mobile .lab-sharepop{left:8px!important;right:8px;width:auto}';
   } catch (e) { warn('css 15', e); }
+  /* ---- 16. Equations read from a PDF, the way RM's paper reader reads them (V3.901, CodeLog/ClaudesPlan/V3.901_scientia_clip_figures_read_beside.md) ----
+     Gabe's clip tool (13zza) captures a display equation as RM's equation-capture.js does: the snip goes to the lab's equationOcr
+     function (a vision model → LaTeX), you check it in the equation editor against the picture, and it becomes an equation
+     component. The app asks through CLIP.read; this fills it in (the desktop has no lab sign-in, so there you type it). Probed
+     once, on first use, exactly like the reader's ✨ Auto-read. */
+  try {
+    if (typeof CLIP !== 'undefined') (function () {
+      var OCR = 'https://us-central1-mcgheelab-f56cc.cloudfunctions.net/equationOcr', ok = null;
+      CLIP.read = function (img) {
+        ok = ok || fetch(OCR, { method: 'GET' }).then(function (r) { return r.ok; }, function () { return false; });
+        return ok.then(function (up) {
+          if (!up) throw new Error('the reader is not available');
+          var u = window.firebase && firebase.auth && firebase.auth().currentUser; if (!u) throw new Error('not signed in');
+          return u.getIdToken();
+        }).then(function (tok) {
+          return fetch(OCR, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok }, body: JSON.stringify({ image: img }) });
+        }).then(function (r) {
+          return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || !j.latex) throw new Error(j.error || ('status ' + r.status)); return String(j.latex).trim(); });
+        });
+      };
+    })();
+  } catch (e) { warn('equation read', e); }
 })();

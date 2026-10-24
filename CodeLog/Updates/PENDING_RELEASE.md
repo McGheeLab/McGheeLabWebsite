@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (1 change — push at 5+)
+## Pending (2 changes — push at 5+)
+
+- V3.901 — Read a paper beside your note in Scientia, and clip its figures and equations onto the canvas. The book button on a PDF opens the paper in half the screen, full height, while your note stays usable in the other half: page through it, zoom, highlight, and point at a figure or equation to see "＋ Figure 2" or "＋ Equation 3" on it. One click puts the figure on your canvas as a picture with its caption, or reads the equation into real, editable math for you to check. Each clip says which page it came from and is connected to the paper; those connections stay faint until you're on that page. The scissors button outlines everything and lets you draw a box round anything else.
 
 - V3.900 — Fixed in Scientia: with the same note open on both sides of split view, the PDFs on the left side disappeared. And a PDF that couldn't open at first (for example while Scientia was still loading, or before the file arrived from another device) now opens on the next redraw instead of keeping its error. Gabe's app and the web version now use the same PDF code.
 

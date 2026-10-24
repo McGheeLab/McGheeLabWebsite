@@ -1711,6 +1711,47 @@
    ]
   },
   {
+   "id": "scientia.pdf",
+   "name": "Scientia PDFs: read beside the note, highlight, clip figures and equations",
+   "side": "scientia",
+   "summary": "A PDF on a note: the card on the canvas (on-demand drawing), the maximised reader with its highlights, the paper read beside the note (half the window), and clipping a figure (image panel) or an equation (read to LaTeX, an equation component) onto the canvas, wired to the paper.",
+   "keywords": [
+    "pdf",
+    "reader",
+    "beside",
+    "dock",
+    "clip",
+    "snip",
+    "figure",
+    "equation",
+    "latex",
+    "highlight",
+    "quote",
+    "wire"
+   ],
+   "paths": [
+    "scientia/src/13zk-docs.js",
+    "scientia/src/13zz-maxhl.js",
+    "scientia/src/13zza-clip.js",
+    "scientia/src/13zzb-reader.js",
+    "scientia/vendor/page-layout.js",
+    "scientia/vendor/page-regions.js"
+   ],
+   "related": [
+    "scientia.core",
+    "rm.paper-reader",
+    "scientia.media",
+    "scientia.library",
+    "scientia.calc"
+   ],
+   "distinct_from": {
+    "rm.paper-reader": "A PDF that lives on a Scientia note: its highlights are that note's quote components and its clips land on that note's canvas. It reuses the reader's detectors (page-layout.js / page-regions.js, copied by the build, never forked) and its equation process (equationOcr, through lab-mode §16).",
+    "rm.figure-board": "Clips go onto a Scientia note as Gabe's image panels / equation components, not onto a paper's figure board.",
+    "scientia.reader": "That is the library's paper reader (retiring into RM's); this reads a PDF component on a note, beside the note."
+   },
+   "plan": "CodeLog/ClaudesPlan/V3.901_scientia_clip_figures_read_beside.md"
+  },
+  {
    "id": "scientia.views",
    "name": "Scientia live views",
    "side": "scientia",

@@ -217,7 +217,7 @@ const M = {
     DB.put('wires', w);
     // connecting a fresh component to one whose note has a running timer stamps it against that timer
     [from, to].forEach(id => { const b = M.block(id), other = M.block(id === from ? to : from);
-      if (b && other && !b.stamp.sessionId) { const r = TIMER.runningFor(other.docId); if (r && +new Date(b.created) > Date.now() - 10 * 6e4) { b.stamp = M.stampFor(b.docId, new Date(b.created), other.id); DB.put('blocks', b); } } });
+      if (b && other && !(b.stamp && b.stamp.sessionId)) { const r = TIMER.runningFor(other.docId); if (r && +new Date(b.created) > Date.now() - 10 * 6e4) { b.stamp = M.stampFor(b.docId, new Date(b.created), other.id); DB.put('blocks', b); } } });
     changed(); return w;
   },
   setWire(w, patch) { Object.assign(w, patch); DB.put('wires', w); changed(); },

@@ -14,6 +14,11 @@
 The lab layer is ONE script tag before the app's first source file: rm/scientia/cloud-sync.js (V3.857 — the
 cloud hub + the notebook bridge). Its cache key is the hash of the file, so a changed shim is fetched afresh.
 Both built files are build OUTPUTS (git-ignored): after `git pull`, run this script. Never edit them by hand.
+
+V3.901: RM code the app uses is COPIED into scientia/vendor/ before Gabe's build.py runs (it inlines vendor/*.js into
+both apps): rm/js/page-layout.js + page-regions.js (the figure and equation detectors behind "＋ Figure 2" / "＋ Equation 3"
+on a PDF). The copies are tracked so a plain
+`python3 scientia/build.py` still has it; edit the rm/ original, never the copy — --check fails when they differ.
 """
 import hashlib, os, re, shutil, subprocess, sys
 
@@ -26,6 +31,8 @@ SHIM = os.path.join(WEB, 'cloud-sync.js')
 LAB = os.path.join(WEB, 'lab-mode.js')
 ANCHOR = re.compile(r'<script>\n/\* =+\n   01 · Util')
 COPY = ['MANUAL.md', 'icons']
+VENDOR_COPY = [('rm/js/page-layout.js', 'scientia/vendor/page-layout.js'),     # (the rm/ original, its copy in the app)
+               ('rm/js/page-regions.js', 'scientia/vendor/page-regions.js')]
 
 
 def _h(path):
@@ -71,10 +78,15 @@ def main():
     for need in (SHIM, LAB):
         if not os.path.isfile(need):
             print('missing ' + os.path.relpath(need, ROOT)); sys.exit(1)
+    stale = []
+    for s, d in VENDOR_COPY:
+        s, d = os.path.join(ROOT, s), os.path.join(ROOT, d)
+        if os.path.exists(d) and open(s, 'rb').read() == open(d, 'rb').read(): continue
+        stale.append(os.path.relpath(d, ROOT))
+        if not check: shutil.copy2(s, d)   # before build.py, so both apps carry the current copy
     before = open(DESKTOP_OUT, encoding='utf-8').read() if os.path.exists(DESKTOP_OUT) else None
     desktop = build_desktop()
     web = web_variant(desktop)
-    stale = []
     if before != desktop: stale.append(os.path.relpath(DESKTOP_OUT, ROOT))
     if not same(WEB_OUT, web): stale.append(os.path.relpath(WEB_OUT, ROOT))
     for name in COPY:
