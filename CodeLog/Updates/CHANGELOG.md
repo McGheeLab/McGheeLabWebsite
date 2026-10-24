@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.900] — 2026-10-24 — Scientia: on-demand PDF cards now come from Gabe's app (PR #2 merged, with his two fixes)
+
+Plan: [CodeLog/ClaudesPlan/V3.894_scientia_pdf_cards_on_demand.md](../ClaudesPlan/V3.894_scientia_pdf_cards_on_demand.md) (§ Merged). Gabe's PR #2 (`RTgabrieldeclercq:patch-1`) = PR #1's commit `2cfa57b1` + his `217501d6`; merged as `07d5f26b`, so PR #1 closed with it. `scientia/src` only; the web build picks it up (`PDFW.onDemand` → `rm/scientia/lab-mode.js` §14 stands down).
+
+### Changed
+- **The desktop and the web draw PDF cards with the same code**: `PDFW.card` / `activate` / `plan` / `release` / `trim` in `scientia/src/13zk-docs.js` (V3.894's behaviour: on screen only, as sharp as the zoom, kept across a rebuild, titles below zoom 0.33, range requests). On the web §14 of `lab-mode.js` no longer runs; it is now dead code and can be removed in a later lab-layer change. `BUILD` '2026-10-24 · PDFs on the canvas draw on demand'. `sw.js` 879.
+
+### Bug Fixes (Gabe, `217501d6`)
+- **Same note in both panes of split view lost the left pane's PDF**: `makePane` is `Object.create(DocView)`, so the second pane read the main pane's `_pdk` through the prototype; both panes keyed `PDFW.live` the same and passed one viewer element back and forth. `PDFW.body` now reads `_pdk` only when it is the pane's own (`hasOwnProperty`). This was also live on the web through §14 until this merge.
+- **A card that could not open its file kept the error after the file arrived**: `activate`'s `catch` now drops the cached load (`PDFW.docs.delete`), sets `C.active = false` and `C.failed = true`; `PDFW.body` does not reuse a failed card, so the next redraw retries.
+
+### Tests
+- `scripts/merge_check.py range` on the PR: clean (one warning: `scientia.library` is folding into `rm.library`, bug fixes allowed). Desktop + web build; `node --check`; hub fixtures 61/61.
+- Lab-mode harness 233/234 on main, on main + PR #1 alone, and on main + PR #2, with no console errors. The one failure, §18 "…zoomed back in, it draws again", is the same on all three, so it predates this merge (the CHANGELOG has listed two such failures since V3.896; today there is one).
+- Two follow-ups suggested to Gabe on PR #2 (his side): drop a rejected load inside `PDFW.load` (the `catch` also runs after a load that succeeded, leaving that document undestroyed, and `PDFW.full` / `PDFW.words` still cache a rejection); and skip `activate` in `update()` for a failed card (it refetches on every pan or zoom, and a successful retry draws into slots no longer in the stage).
+
 ## [V3.899] — 2026-10-24 — Scientia: share or collaborate on a lit review or a project with anyone in the lab
 
 Plan: [CodeLog/ClaudesPlan/V3.899_scientia_share_collaborate.md](../ClaudesPlan/V3.899_scientia_share_collaborate.md). Hub function deployed first (health V3.899); no rules change (the new collection is function-only).

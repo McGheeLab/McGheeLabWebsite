@@ -24,9 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (0 changes — push at 5+)
+## Pending (1 change — push at 5+)
 
-_Nothing pending — next small change starts the new batch._
+- V3.900 — Fixed in Scientia: with the same note open on both sides of split view, the PDFs on the left side disappeared. And a PDF that couldn't open at first (for example while Scientia was still loading, or before the file arrived from another device) now opens on the next redraw instead of keeping its error. Gabe's app and the web version now use the same PDF code.
 
 ## Shipped
 
