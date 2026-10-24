@@ -748,18 +748,37 @@ function notePreview(blocks) {
   }
   return out;
 }
-/** blocks: the note's components in order — needed only for a note shared with the lab (its preview). */
-function noteLink({ uid, ownerName, doc, project, theme, blocks }) {
-  if (!doc || doc.deleted || !project || !project.rm || !project.rmId || String(doc.projectId) !== String(project.id)) return null;
-  const inTheme = !!(theme && doc.themeId && String(theme.id) === String(doc.themeId)), rmIds = [String(project.rmId)];
-  if (inTheme && theme.rm && theme.rmId) rmIds.push(String(theme.rmId));
-  if (project.rmDraftId && !rmIds.includes(String(project.rmDraftId))) rmIds.push(String(project.rmDraftId));   // the grant's draft on the Projects page
+/** V3.889 — a literature review (`doc.review { topic, projectIds }`, lab-mode §13) is filed under every project it is linked to. */
+function isReviewDoc(doc) { return !!(doc && doc.review && typeof doc.review === 'object'); }
+/** The RM projects a note is listed under: its own project, and for a review every project it links (projects: Map id → rec). */
+function noteProjects(doc, projects) {
+  if (!doc || doc.deleted) return [];
+  const ids = [];
+  if (doc.projectId) ids.push(String(doc.projectId));
+  if (isReviewDoc(doc)) (Array.isArray(doc.review.projectIds) ? doc.review.projectIds : []).forEach(id => { if (id && !ids.includes(String(id))) ids.push(String(id)); });
+  return ids.map(id => projects.get(id)).filter(p => p && p.rm && p.rmId);
+}
+/** blocks: the note's components in order — needed only for a note shared with the lab (its preview).
+ *  project: its own project; projects (V3.889): every RM project it is listed under (a review's links). */
+function noteLink({ uid, ownerName, doc, project, projects, theme, blocks }) {
+  const ps = (projects || (project ? [project] : [])).filter(p => p && p.rm && p.rmId);
+  if (!doc || doc.deleted || !ps.length) return null;
+  const review = isReviewDoc(doc), own = ps.find(p => String(doc.projectId) === String(p.id)) || null;
+  if (!own && !review) return null;   // a plain note is listed only under its own project
+  const main = own || ps[0], rmIds = [], add = v => { if (v && !rmIds.includes(String(v))) rmIds.push(String(v)); };
+  const inTheme = !!(own && theme && doc.themeId && String(theme.id) === String(doc.themeId));
+  add(main.rmId);
+  if (inTheme && theme.rm && theme.rmId) add(theme.rmId);
+  add(main.rmDraftId);   // the grant's draft on the Projects page
+  ps.forEach(p => { if (p !== main) { add(p.rmId); add(p.rmDraftId); } });
   const lab = doc.share === 'lab', live = Array.isArray(blocks) ? blocks.filter(liveBlock) : null;
-  return { ownerUid: String(uid), ownerName: String(ownerName || ''), docId: String(doc.id), title: String(doc.title || 'Untitled'), type: String(doc.type || 'note'),
-    projectName: String(project.name || ''), themeName: inTheme ? String(theme.name || '') : '', rmIds, rmKind: String(project.rmKind || ''),
+  const out = { ownerUid: String(uid), ownerName: String(ownerName || ''), docId: String(doc.id), title: String(doc.title || 'Untitled'), type: String(doc.type || 'note'),
+    projectName: review ? ps.map(p => String(p.name || '')).filter(Boolean).join(', ') : String(main.name || ''), themeName: inTheme ? String(theme.name || '') : '', rmIds, rmKind: String(main.rmKind || ''),
     visibility: lab ? 'lab' : 'private', created: String(doc.created || ''), modified: String(doc.modified || ''),
     components: live ? live.length : (Array.isArray(doc.blockIds) ? doc.blockIds.length : 0), preview: lab && live ? notePreview(live) : [],
     url: '/rm/pages/notebook.html?notebook=scientia&note=' + encodeURIComponent(String(doc.id)) };
+  if (review) { out.review = true; out.topic = String(doc.review.topic || '').slice(0, 300); }
+  return out;
 }
 /** docs: Map docId → rec (null = gone); existing: Map indexId → the index doc now (or null); blocksOf(doc) → its components. */
 function planNoteLinks({ uid, ownerName, docs, projects, themes, blocksOf, existing }) {
@@ -767,8 +786,8 @@ function planNoteLinks({ uid, ownerName, docs, projects, themes, blocksOf, exist
   let linked = 0;
   for (const [docId, doc] of docs) {
     const id = noteIndexId(uid, docId), cur = existing.get(id) || null;
-    const project = doc && doc.projectId ? projects.get(String(doc.projectId)) : null, theme = doc && doc.themeId ? themes.get(String(doc.themeId)) : null;
-    const link = project && project.rm ? noteLink({ uid, ownerName, doc, project, theme, blocks: doc.share === 'lab' ? blocksOf(doc) : null }) : null;
+    const ps = noteProjects(doc, projects), theme = doc && doc.themeId ? themes.get(String(doc.themeId)) : null;
+    const link = ps.length ? noteLink({ uid, ownerName, doc, projects: ps, theme, blocks: doc.share === 'lab' ? blocksOf(doc) : null }) : null;
     if (!link) { if (cur) dels.push(id); continue; }
     linked++;
     if (cur && sameOn(cur, link, Object.keys(link))) continue;
@@ -1075,4 +1094,4 @@ module.exports = { route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA
   whenTaskId, whenText, whenCandidates, rmWhenTask, planWhen, sessionDaySeconds, actEventId, activityGroups, planActivity, fmtMinutes,
   rmAnnotationRow, visibleAnnotations, stripTags, varsToText, rmProtocolRow, rmProtocolSteps, searchProtocols, rmCollectionRow, rmCollectionFull,
   recPartPath, REC_RID,
-  PROJECTS_MS, PROJECT_FIELDS, THEME_FIELDS, UNASSIGNED_WHY, rmAssigned, planAssigned, NOTES_MS, PREVIEW_BLOCKS, PREVIEW_CHARS, noteIndexId, notePreview, noteLink, planNoteLinks };
+  PROJECTS_MS, PROJECT_FIELDS, THEME_FIELDS, UNASSIGNED_WHY, rmAssigned, planAssigned, NOTES_MS, PREVIEW_BLOCKS, PREVIEW_CHARS, noteIndexId, notePreview, noteLink, planNoteLinks, isReviewDoc, noteProjects };

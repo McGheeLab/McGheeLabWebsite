@@ -2,7 +2,7 @@
 /* build-note.js — a literature review spec → one Scientia note (records + PDFs) → a hub.
 
    node build-note.js <spec.json> <quotes.json> <libids.json> --out records.json [--heights h.json]
-        [--local http://127.0.0.1:PORT] [--cloud <uid> [--commit]]
+        [--local http://127.0.0.1:PORT] [--cloud <uid> [--commit]] [--projects id,id]
 
    Records written (Scientia's own shapes, see scientia/src/04-model.js, 13zk-docs.js, 13zw-quote.js, 13v-region.js):
      documents  the note (type 'literature', citeMode 'author', regions[], layout.head/synth)
@@ -69,7 +69,11 @@ function estH(b) {
 }
 
 /* ---------- build ---------- */
-const doc = { id: DOC_ID, type: 'literature', scope: 'global', projectId: null, themeId: null, title: spec.title, templateId: null,
+/* V3.889 — a review in the Lit reviews tab (lab-mode §13): its topic (spec.topic, else the first line of the question
+   card) and the Scientia projects it is linked to (--projects id,id — e.g. rm-f-<research card id>) */
+const REVIEW = { topic: String(spec.topic || ((spec.cards && spec.cards.question && spec.cards.question.text) || '').split('\n')[0]).replace(/\*\*/g, '').trim(),
+  projectIds: String(opt('--projects') || '').split(',').map(x => x.trim()).filter(Boolean) };
+const doc = { id: DOC_ID, type: 'literature', scope: 'global', projectId: null, themeId: null, title: spec.title, templateId: null, review: REVIEW,
   header: { tags: spec.tags || [] }, blockIds: [], synthesis: { text: spec.synthesis || '', marks: [] }, citeMode: 'author',
   layout: { head: { x: 0, y: 0 }, synth: null }, created: CREATED, modified: CREATED, backdate: null, regions: [] };
 rec.documents.push(doc);

@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.889] — 2026-10-24 — Scientia: a Lit reviews tab — a canvas per topic, linked to any number of projects; the ERK review is its first
+
+Plan: [CodeLog/ClaudesPlan/V3.889_scientia_lit_reviews_tab.md](../ClaudesPlan/V3.889_scientia_lit_reviews_tab.md). Web build only; `scientia/src` untouched. Hub (`scientiaHub`, health `V3.889`) deploys before the client; the client works without it (only RM's lists wait for it).
+
+### Added
+- **Lit reviews tab** (`rm/scientia/lab-mode.js` §13): `TABS` gains `['litreviews', 'Lit reviews']` after Portfolio; `VIEWS.litreviews` lists reviews (`reviewCard`: title, topic, *papers · quotes · notes* from `pdf` / quote / other components, linked-project pills; a project filter; **+ New review**). A review = a `literature` note outside any project with `review { topic, projectIds }` (`isReview`, `reviews`, `reviewsOf`, `newReview`, `setReview`, `linkProject`, `unlinkProject`; `SIS_LAB.reviews`).
+- **The review's first block** (`reviewFields`, via `headFields`): Title, Topic, Projects (chips with ×, *+ Link a project…*, any number), *Seen by* when an RM project is linked.
+- **Where reviews show**: a *Lit reviews* column in every linked project's Portfolio region (header counts them), a *Literature reviews* section on every linked project's page, the tab lit while one is open (`App.renderTabs` wrapped via `TABOF.doc`), meta line *Lit review for …*; never among Quick notes (`GENERAL.docs` wrapped; `generalDocs` too).
+- **Hub**: `noteProjects(doc, projects)`, `isReviewDoc`; `noteLink({ …, projects })` lists a review under every linked RM project's `rmId` (+ drafts) with `review: true`, `topic`, joined `projectName`; plain notes unchanged. `syncNotes`' shared-preview read uses `noteProjects`. RM's lists label it *Lit review* (`rm/js/scientia-notes.js`).
+- `scripts/litreview/build-note.js`: the note carries `review { topic, projectIds }` (`--projects id,id`).
+
+### Changed
+- `noteSig` includes a review's project ids, so linking one to an RM project asks the hub for RM's notes list; `rmLinked` counts a review's RM links. *Seen by* no longer repeats its label inside the first block.
+
+### Tests
+- Lab-mode harness 175/175 (+16, §17). Hub tests 61/61 (+1). Real records: the ERK review's 378 records load as one card, *28 papers · 65 quotes · 34 notes*.
+
 ## [V3.888] — 2026-10-23 — Literature reviews built as Scientia notes: the ERK mechanochemical-wave review + the tooling (prototype)
 
 Plan: [CodeLog/ClaudesPlan/V3.888_litreview_to_scientia_note.md](../ClaudesPlan/V3.888_litreview_to_scientia_note.md) · Method: [FuturePlan 14](../Feature%20requests/FuturePlan_14_literature_review_method.md) · Report: [Research/ERK_mechanochemical_waves_litreview.md](../../Research/ERK_mechanochemical_waves_litreview.md). No site, rules or function change (no sw.js bump).

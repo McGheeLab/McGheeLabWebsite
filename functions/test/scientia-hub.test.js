@@ -645,6 +645,24 @@ const dev = (hub, id, conn) => ({
     r = await hub.syncNotes({ force: true });
     assert.deepStrictEqual([r.removed, hub.noteIndex.size], [1, 0], 'a deleted note leaves the index');
   });
+  await test('notes (V3.889): a literature review is listed under every RM project it is linked to; unlinked, it leaves', async () => {
+    const hub = new C.MemoryHub(); hub.uid = 'u1'; hub.ownerName = 'Alex'; hub.rmFoci = FOCI; hub.rmProjects = RMPROJ;
+    await hub.syncProjects({ force: true });
+    const web = dev(hub, 'web', 'c1'); await web.load();
+    const rv = { id: 'dR', type: 'literature', scope: 'global', title: 'ERK waves — lit review', projectId: null, blockIds: [], created: '2026-10-24T09:00:00', modified: '2026-10-24T09:00:00',
+      review: { topic: 'Does an ERK pulse set off a mechanical chain reaction?', projectIds: ['rm-f-gels-career', 'pMine', 'rm-p-source-and-sink'] } };
+    await web.push([web.op('documents', 'dR', rv), web.op('documents', 'dP', { id: 'dP', type: 'literature', title: 'Reading: a paper', projectId: null, blockIds: [], created: '2026-10-24T09:00:00', modified: '2026-10-24T09:00:00' })]);
+    let r = await hub.syncNotes({ force: true });
+    const x = () => hub.noteIndex.get(C.noteIndexId('u1', 'dR'));
+    assert.strictEqual(r.linked, 1, 'the review only — a plain note outside a project stays off');
+    const nm = id => hub.rows.get(C.keyOf('projects', id)).rec.name;
+    assert.deepStrictEqual([x().rmIds, x().review, x().topic, x().projectName, x().visibility], [['gels-career', 'career-draft', 'source-and-sink'], true, 'Does an ERK pulse set off a mechanical chain reaction?', nm('rm-f-gels-career') + ', ' + nm('rm-p-source-and-sink'), 'private'],
+      'every linked RM project (and the grant’s draft), never the person’s own project; private by default');
+    await web.push([web.op('documents', 'dR', Object.assign({}, rv, { review: { topic: rv.review.topic, projectIds: ['pMine'] } }))]);
+    r = await hub.syncNotes({ force: true });
+    assert.deepStrictEqual([r.removed, hub.noteIndex.has(C.noteIndexId('u1', 'dR'))], [1, false], 'linked only to the person’s own project → off RM');
+    assert.deepStrictEqual(C.noteProjects({ id: 'n', projectId: 'rm-f-gels-career', review: null }, new Map([['rm-f-gels-career', { id: 'rm-f-gels-career', rm: true, rmId: 'g' }]])).length, 1, 'a plain note: its own project');
+  });
   await test('notes: noteLink refuses a note outside an RM project; the preview is capped', () => {
     assert.strictEqual(C.noteLink({ uid: 'u1', doc: { id: 'd', projectId: 'p' }, project: { id: 'p', name: 'Mine' } }), null);
     assert.strictEqual(C.noteLink({ uid: 'u1', doc: { id: 'd', projectId: 'q' }, project: { id: 'p', rm: true, rmId: 'x' } }), null);

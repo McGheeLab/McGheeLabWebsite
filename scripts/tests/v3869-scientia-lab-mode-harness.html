@@ -138,7 +138,7 @@
     function qa(s) { return Array.from(D.querySelectorAll(s)); }
     function ev(code) { return W.eval(code); }
     function go(hash) { W.location.hash = hash; }
-    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.887', W.SIS_LAB.version);
+    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.889', W.SIS_LAB.version);
     /* 1. the tab row */
     var keys = qa('#tabs a.tab').map(function (a) { return a.dataset.k; });
     check('Activity and Data are not tabs on the web', keys.indexOf('activity') < 0 && keys.indexOf('data') < 0, keys.join(','));
@@ -618,6 +618,53 @@
     check('an interrupted recording offers to recover the minutes that reached the cloud', !!recBtn && /2 minutes/.test(q('.box[data-id="' + rid2 + '"] .lab-rc-recover').textContent));
     recBtn.click();
     check('…and recovering joins them into the recording', !!(await until(function () { return ev("REC.r(M.block('" + rid2 + "')).state") === 'saved' && !!ev("REC.r(M.block('" + rid2 + "')).file"); }, 6000)) && W.__hubCalls.some(function (c) { return c.path === 'api/rec/compose' && new RegExp('rid=' + rid2).test(c.full); }));
+    /* 17. V3.889 — Lit reviews: a canvas per topic, linked to any number of projects */
+    var tabKs = [].map.call(D.querySelectorAll('#tabs .tab'), function (a) { return a.dataset.k; });
+    check('a Lit reviews tab sits right after Portfolio', tabKs.indexOf('litreviews') === tabKs.indexOf('portfolio') + 1 && /Lit reviews/.test(q('#tabs .tab[data-k="litreviews"]').textContent), JSON.stringify(tabKs));
+    go('#/litreviews');
+    var newBtn = await until(function () { var b = [].filter.call(D.querySelectorAll('.lab-lr button'), function (x) { return /New review/.test(x.textContent); })[0]; return b; }, 6000);
+    check('…its page: no reviews yet, and one + New review', !!newBtn && /No literature reviews yet/.test(q('.lab-lr').textContent) && q('#tabs .tab[data-k="litreviews"]').classList.contains('on'));
+    newBtn.click();
+    var rvId = await until(function () { var m = /#\/doc\/(.+)$/.exec(W.location.hash); return m && ev("SIS_LAB.reviews.isReview(M.doc('" + m[1] + "'))") && m[1]; }, 6000);
+    var rv = rvId ? JSON.parse(ev("JSON.stringify(M.doc('" + rvId + "'))")) : {};
+    check('+ New review opens a blank canvas at once: a literature note outside any project, marked a review', !!rvId && rv.type === 'literature' && !rv.projectId && rv.review && rv.review.topic === '' && rv.review.projectIds.length === 0 && /^Literature review · /.test(rv.title), JSON.stringify(rv.review));
+    var rh = await until(function () { return head(rvId) && head(rvId).classList.contains('lab-hrev') && head(rvId); }, 6000);
+    check('…its first block holds Title, Topic and Projects (no type or template to pick)', !!rh && !!rh.querySelector('.lab-h-title') && !!rh.querySelector('.lab-h-topic') && !!rh.querySelector('.lab-h-link') && !rh.querySelector('.lab-h-type') && !rh.querySelector('.lab-h-tpl'));
+    check('…and the Lit reviews tab stays lit while it is open', q('#tabs .tab[data-k="litreviews"]').classList.contains('on') && !q('#tabs .tab[data-k="portfolio"]').classList.contains('on'));
+    var tp = rh.querySelector('.lab-h-topic'); tp.value = 'Does an ERK pulse set off a mechanical chain reaction?'; tp.dispatchEvent(new W.Event('change', { bubbles: true }));
+    check('the topic is kept on the review', !!(await until(function () { return ev("M.doc('" + rvId + "').review.topic") === 'Does an ERK pulse set off a mechanical chain reaction?'; }, 3000)));
+    var nOnly3 = W.SIS_LAB.kick.onlys.length;
+    var pick = function (pid) { var sel = head(rvId).querySelector('.lab-h-link'); sel.value = pid; sel.dispatchEvent(new W.Event('change', { bubbles: true })); };
+    pick('rm-f-gels-career');
+    await until(function () { return head(rvId) && head(rvId).querySelector('.lab-lr-chip[data-project="rm-f-gels-career"]'); }, 4000);
+    pick('pj1');
+    var chips = await until(function () { var x = head(rvId); return x && x.querySelectorAll('.lab-lr-chip').length === 2 && x; }, 4000);
+    check('one project, then another: both linked, as chips in the block', !!chips && JSON.stringify(JSON.parse(ev("JSON.stringify(M.doc('" + rvId + "').review.projectIds)"))) === JSON.stringify(['rm-f-gels-career', 'pj1']) && !chips.querySelector('.lab-h-link option[value="rm-f-gels-career"]'), ev("JSON.stringify(M.doc('" + rvId + "').review)"));
+    check('…an RM project linked: Seen by appears, and RM’s notes list is asked for', !!head(rvId).querySelector('.lab-h-share') && !!(await until(function () { return W.SIS_LAB.kick.onlys.slice(nOnly3).some(function (o) { return /notes/.test(o); }); }, 8000)));
+    ev("(function () { var d = M.doc('" + rvId + "'); var mk = function (id, extra) { var b = Object.assign({ id: id, docId: d.id, kind: 'component', label: '', body: { text: 'x', marks: [] }, status: 'live', supersedes: [], supersededBy: [], created: d.created, modified: d.modified, x: 900, y: 0, w: 340 }, extra); DB.put('blocks', b); d.blockIds.push(id); };"
+      + " mk('c_lrpdf1', { kind: 'pdf', label: 'Hino 2020 · PDF', h: 700 }); mk('c_lrq1', { label: 'Quote · p. 3', quote: { src: 'c_lrpdf1', kind: 'pdf', page: 3, exact: 'ERK waves' } }); DB.put('documents', d); changed(); })()");
+    go('#/litreviews');
+    var card = await until(function () { return q('.lab-lrcard[data-doc="' + rvId + '"]'); }, 6000);
+    check('the tab lists it: title, topic, papers · quotes · notes, its projects', !!card && /Does an ERK pulse/.test(card.textContent) && /1 paper · 1 quote · 1 note/.test(card.textContent) && card.querySelectorAll('.lab-lr-ps a.pill').length === 2, card ? card.textContent : 'none');
+    var filt = q('.lab-lr-filter'); filt.value = 'rm-p-source-and-sink';
+    check('…a project filter offers only projects reviews are linked to', !!filt && !filt.querySelector('option[value="rm-p-source-and-sink"]') && !!filt.querySelector('option[value="pj1"]'));
+    filt.value = 'pj1'; filt.dispatchEvent(new W.Event('change', { bubbles: true }));
+    check('…and filtering by one keeps its reviews', !!(await until(function () { return q('.lab-lr-filter') && q('.lab-lr-filter').value === 'pj1' && q('.lab-lrcard[data-doc="' + rvId + '"]'); }, 4000)));
+    W.SIS_LAB.reviewsView.filter = '';
+    go('#/portfolio');
+    var gReg = await until(function () { return reg('rm-f-gels-career') && reg('pj1') && reg('rm-f-gels-career'); }, 6000);
+    var inCol = function (r) { return [].some.call(r.querySelectorAll('.lab-col'), function (c) { return /Lit reviews/.test((c.querySelector('.lab-col-h') || {}).textContent || '') && c.querySelector('.dcard[data-doc="' + rvId + '"]'); }); };
+    check('the Portfolio shows it in every linked project’s region (a Lit reviews column) and counts it', !!gReg && inCol(gReg) && inCol(reg('pj1')) && /1 lit review/.test(gReg.querySelector('.ps').textContent));
+    check('…and never among the Quick notes', !reg('quick').querySelector('.dcard[data-doc="' + rvId + '"]') && !ev("GENERAL.docs().some(function (d) { return d.id === '" + rvId + "'; })"));
+    go('#/project/pj1');
+    var pv = await until(function () { return q('.lab-pv-lr .lab-lrcard[data-doc="' + rvId + '"]'); }, 6000);
+    check('a linked project’s page lists it under Literature reviews', !!pv);
+    go('#/doc/' + rvId);
+    var x1 = await until(function () { var x = head(rvId); return x && x.querySelector('.lab-lr-chip[data-project="pj1"] .lab-lr-x'); }, 6000);
+    x1.click();
+    check('× unlinks a project; the review stays linked to the other', !!(await until(function () { return JSON.stringify(JSON.parse(ev("JSON.stringify(M.doc('" + rvId + "').review.projectIds)"))) === JSON.stringify(['rm-f-gels-career']); }, 4000)));
+    var meta = await until(function () { return q('#meta .lab-lr-meta'); }, 4000);
+    check('the note’s meta line says Lit review and where it is linked (not “General”)', !!meta && /Lit review/.test(meta.textContent) && /CAREER/.test(meta.textContent) && !q('#meta .gen-touch'), meta ? meta.textContent : (q('#meta') || {}).textContent);
     check('no browser popups, rejections or console-level failures in the frame', !W.__popups.length && !W.__rej.length, JSON.stringify([W.__popups, W.__rej]));
   } catch (e) { check('harness error', false, (e && e.stack) || e); }
   finish();

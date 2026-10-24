@@ -45,7 +45,7 @@
     return '<li class="sn-row">' +
       '<button type="button" class="sn-open" data-sn="' + esc(n.id) + '" title="' + (mine ? 'Open in the Lab Notebook' : 'Read this note') + '">' +
         '<span class="sn-t">' + esc(n.title || 'Untitled') + '</span>' +
-        '<span class="sn-s">' + esc([TYPE[n.type] || n.type, mine ? 'you' : n.ownerName, n.themeName, day(n.modified)].filter(Boolean).join(' · ')) + '</span>' +
+        '<span class="sn-s">' + esc([n.review ? 'Lit review' : (TYPE[n.type] || n.type), mine ? 'you' : n.ownerName, n.themeName, day(n.modified)].filter(Boolean).join(' · ')) + '</span>' +
       '</button>' +
       '<span class="sn-vis' + (lab ? ' sn-lab' : '') + '" title="' + (lab ? 'Every lab member can read it' : 'Only you can see it — change it in the note') + '">' +
         icon(lab ? 'user-group' : 'lock-closed') + (lab ? 'Lab' : 'Only you') + '</span>' +
@@ -56,7 +56,7 @@
     var ov = document.createElement('div');
     ov.className = 'sn-ovl';
     ov.innerHTML = '<div class="sn-card" role="dialog" aria-modal="true" aria-label="' + esc(n.title) + '">' +
-      '<div class="sn-card-h"><div><div class="sn-k">' + esc([TYPE[n.type] || n.type, n.projectName, n.themeName].filter(Boolean).join(' · ')) + '</div>' +
+      '<div class="sn-card-h"><div><div class="sn-k">' + esc([n.review ? 'Lit review' : (TYPE[n.type] || n.type), n.projectName, n.themeName].filter(Boolean).join(' · ')) + '</div>' +
         '<h3>' + esc(n.title || 'Untitled') + '</h3><div class="sn-s">' + esc((n.ownerName || 'A lab member') + ' · ' + day(n.modified) + ' · read-only') + '</div></div>' +
         '<button type="button" class="sn-x" data-sn-close title="Close" aria-label="Close">' + icon('x-mark') + '</button></div>' +
       '<div class="sn-body">' + ((n.preview || []).length ? n.preview.map(function (b) {

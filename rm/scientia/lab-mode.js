@@ -31,7 +31,7 @@
     activity: '/rm/pages/activity-overview.html?tab=tracker',
     inventory: '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.887', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.889', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -755,7 +755,7 @@
   function byModified(a, b) { return String(b.modified || '').localeCompare(String(a.modified || '')); }
   function generalDocs() {
     try { if (typeof GENERAL !== 'undefined' && GENERAL.docs) return GENERAL.docs(); } catch (e) {}
-    return DB.where('documents', function (d) { return !d.projectId && !d.deleted && ['day', 'review'].indexOf(d.type) < 0; });
+    return DB.where('documents', function (d) { return !d.projectId && !d.deleted && ['day', 'review'].indexOf(d.type) < 0 && !isReview(d); });
   }
   function regionList() {
     var ps = DB.all('projects'), byName = function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); };
@@ -789,6 +789,7 @@
     var wide = DB.where('documents', function (d) { return d.projectId === p.id && !d.themeId && d.type !== 'review' && !d.deleted; }), cols = [];
     if (wide.length || !themes.length) cols.push({ name: themes.length ? 'Project-wide' : 'Notes', docs: wide });
     themes.forEach(function (t) { cols.push({ t: t, name: t.name, docs: DB.where('documents', function (d) { return d.themeId === t.id && !d.deleted; }) }); });
+    var revs = reviewsOf(p.id); if (revs.length) cols.push({ name: 'Lit reviews', docs: revs, review: true });   /* V3.889 */
     return h('div.lab-reg-b', cols.map(function (c) {
       var H = c.t ? IX.themeHealth(c.t) : null;
       return h('div.lab-col',
@@ -798,7 +799,7 @@
             H.openB.length ? h('span', { style: { color: 'var(--bad)' } }, ' · ' + plural(H.openB.length, 'open barrier')) : null),
           heatmapEl({ weeks: 6, themeId: c.t.id, cell: 7 }))
           : h('div.lab-col-h.mono.muted', c.name),
-        c.docs.sort(byModified).map(function (d) { return docCard(d); }),
+        c.docs.sort(byModified).map(function (d) { return c.review ? docCard(d, reviewLine(d)) : docCard(d); }),
         c.docs.length ? null : h('div.lab-empty.tiny.muted', c.t ? 'No notes in this theme yet' : 'No notes yet — + Note'));
     }));
   }
@@ -813,7 +814,7 @@
       var themes = DB.where('themes', function (t) { return t.projectId === p.id && t.status === 'active'; }), notes = docsOf(r).length;
       var kick = p.rm ? [KIND[p.rmKind] || words(p.rmKind) || 'Project', p.rmStatus ? words(p.rmStatus) : null, r.group === 'earlier' ? 'no longer assigned' : 'assigned' + (p.rmRole && p.rmRole !== 'member' ? ' · ' + p.rmRole : '')].filter(Boolean).join(' · ') : 'Project';
       head = [h('div.pk', kick), h('a.pn', { href: '#/project/' + p.id, title: 'Open the project' }, p.name),
-        h('div.ps', plural(themes.length, 'theme') + ' · ' + plural(notes, 'note') + ' · ' + plural(IX.openBarriers(p.id).length, 'open barrier')),
+        h('div.ps', plural(themes.length, 'theme') + ' · ' + plural(notes, 'note') + (reviewsOf(p.id).length ? ' · ' + plural(reviewsOf(p.id).length, 'lit review') : '') + ' · ' + plural(IX.openBarriers(p.id).length, 'open barrier')),
         p.rm && (p.rmLine || (p.rmParents || []).length) ? h('div.lab-reg-line', p.rmLine ? h('span.serif', snippet(p.rmLine, 140)) : null,
           (p.rmParents || []).length ? h('span.tiny.muted', (p.rmLine ? ' · ' : '') + 'builds on ' + p.rmParents.join(', ')) : null) : null];
       acts.push(btn('xs', '+ Note', function () { App.newDoc({ projectId: p.id }); }, 'A new note in this project'));
@@ -931,6 +932,13 @@
               p.rmDraftId && p.rmKind !== 'paper' ? btn('xs', 'Open the draft', function () { openRM('/rm/pages/paper-builder.html?paper=' + encodeURIComponent(p.rmDraftId)); }) : null));
           if (stand) stand.after(info); else page.prepend(info);
         }
+        var revs = p ? reviewsOf(p.id) : [];   /* V3.889 — the literature reviews linked to it */
+        if (revs.length && page && page.querySelector) {
+          var sec = h('div.lab-pv-lr', h('div.sec-h', h('h2', 'Literature reviews'), h('span.k', plural(revs.length, 'review') + ' linked to this project')),
+            h('div.lab-lr-grid', revs.map(reviewCard)));
+          var anchor = page.querySelector('.lab-rm-proj') || page.querySelector('p.stand');
+          if (anchor) anchor.after(sec); else page.append(sec);
+        }
       } catch (x) { warn('project view', x); }
       return page;
     };
@@ -940,8 +948,8 @@
      card / project in RM accordingly (scientiaNotes, V3.880); a change here asks the hub for that list at once. */
   var NOTE_SIG = {};
   LAB.noteSig = NOTE_SIG;
-  function rmLinked(d) { var p = d && d.projectId && M.project(d.projectId); return !!(p && p.rm); }
-  function noteSig(d) { return [d.projectId || '', d.themeId || '', d.share || '', d.title || '', d.deleted ? 1 : 0].join('|'); }
+  function rmLinked(d) { var p = d && d.projectId && M.project(d.projectId); return !!(p && p.rm) || reviewProjects(d).some(function (x) { return x.rm; }); }
+  function noteSig(d) { return [d.projectId || '', d.themeId || '', d.share || '', d.title || '', d.deleted ? 1 : 0, isReview(d) ? 'R' + (d.review.projectIds || []).join(',') : ''].join('|'); }
   function seedSig(d) { if (d && d.id && NOTE_SIG[d.id] === undefined) NOTE_SIG[d.id] = noteSig(d); }
   try {
     var oPut10 = DB.put;
@@ -951,7 +959,7 @@
         if (store === 'documents' && rec && rec.id && !(typeof SYNC !== 'undefined' && (SYNC.applying || SYNC.loading))) {
           var sig = noteSig(rec), was = NOTE_SIG[rec.id]; NOTE_SIG[rec.id] = sig;
           var fresh = was === undefined && Date.now() - +new Date(rec.created || 0) < 120000;
-          if ((fresh || (was !== undefined && was !== sig)) && (rmLinked(rec) || String(was || '').indexOf('rm-') === 0)) kickRm(['notes']);
+          if ((fresh || (was !== undefined && was !== sig)) && (rmLinked(rec) || /(^|[|,R])rm-/.test(String(was || '')))) kickRm(['notes']);
         }
       } catch (e) {}
       return r;
@@ -1043,6 +1051,7 @@
   function setTitle(docId, v) { var d = M.doc(docId); v = String(v || '').trim(); if (!d || !v || d.title === v) return; seedSig(d); d.title = v; if (d.chain === d.id && / — /.test(v)) d.chainName = v.replace(/\s+—\s+[^—]+$/, ''); M.touchDoc(d); changed(); }
   LAB.changeTemplate = changeTemplate; LAB.swapTemplate = swapTemplate; LAB.changeType = changeType; LAB.setProject = setProject; LAB.setTheme = setTheme; LAB.setTitle = setTitle; LAB.isEdited = isEdited; LAB.tplItems = tplItems;
   function headFields(d) {
+    if (isReview(d)) return reviewFields(d);   /* V3.889 — a literature review's own first block */
     var byName = function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); };
     var ps = DB.all('projects').filter(function (p) { return !(p.rm && p.rmAssigned === false) || p.id === d.projectId; });
     var assigned = ps.filter(function (p) { return p.rm; }).sort(function (a, b) { return rank(a) - rank(b) || byName(a, b); }), own = ps.filter(function (p) { return !p.rm; }).sort(byName);
@@ -1116,7 +1125,7 @@
       '.lab-col-h{padding:2px 2px 0;letter-spacing:.1em;text-transform:uppercase;font-size:9.5px}.lab-empty{padding:6px 4px}.lab-q{font-size:11.5px;color:var(--ink-3);margin:-2px 0 6px;line-height:1.35}' +
       '.lab-pf-bar{position:absolute;top:12px;left:12px;z-index:16;display:flex;gap:6px;flex-wrap:wrap;align-items:center;max-width:calc(100% - 24px)}' +
       '.lab-hmeta{padding-bottom:7px;margin-bottom:4px;border-bottom:1px solid var(--rule)}.lab-hmeta select.hin,.lab-hmeta input.hin{width:100%;box-sizing:border-box}.lab-hmeta select.hin:disabled{color:var(--ink-4)}' +
-      '.lab-h-share{grid-template-columns:86px 1fr}.lab-h-share .lab-share{margin-left:0}' +
+      '.lab-h-share{grid-template-columns:86px 1fr}.lab-h-share .lab-share{margin-left:0}.lab-h-share .lab-share>.tiny{display:none}' +
       '.lab-share{display:inline-flex;align-items:center;gap:6px;margin-left:10px}.lab-share .seg button{height:20px;font-size:11px;padding:0 7px}.lab-file{flex:none}' +
       '.lab-rm-proj{margin:10px 0}@media (max-width:820px){.lab-reg-a{max-width:150px}}';
   } catch (e) { warn('css 10', e); }
@@ -1544,4 +1553,134 @@
       '.rc-prog{position:relative}.lab-rc-band{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--teal) 28%,transparent);border-radius:2px;pointer-events:auto}' +
       '.lab-rc-stt{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0}.lab-rc-stt .rc-pbar{flex:1 1 120px;min-width:80px}.lab-rc-err{color:var(--red,#b42318);font-size:12px}.lab-rc-recover{margin:6px 0}.lab-rc-ink{margin-top:4px}';
   } catch (e) { warn('css 12', e); }
+
+  /* ---- 13. Lit reviews (V3.889, CodeLog/ClaudesPlan/V3.889_scientia_lit_reviews_tab.md) ----
+     Alex: "a tab specifically for researching various topics. these are a canvas of notes that can be linked to one
+     or more projects". A review is one of Gabe's notes (type `literature`, outside any project) carrying
+     `review { topic, projectIds }`: a canvas of papers, quotes and notes on one topic. It lives in its own tab, its
+     first block holds its title, topic and the projects it serves (any number), and it shows in each linked
+     project's region and page — and, through the hub's notes index, on those projects' cards in RM. His desktop
+     sees an ordinary literature note. */
+  function isReview(d) { return !!(d && !d.deleted && d.review && typeof d.review === 'object'); }
+  function reviewProjects(d) { return isReview(d) ? (d.review.projectIds || []).map(function (id) { return M.project(id); }).filter(Boolean) : []; }
+  function reviews() { return DB.where('documents', isReview).sort(byModified); }
+  function reviewsOf(pid) { return reviews().filter(function (d) { return (d.review.projectIds || []).indexOf(pid) >= 0; }); }
+  function reviewStats(d) {
+    var o = { papers: 0, quotes: 0, notes: 0 };
+    try { M.liveBlocks(d.id).forEach(function (b) { if (b.kind === 'pdf') o.papers++; else if (b.quote) o.quotes++; else o.notes++; }); } catch (e) {}
+    return o;
+  }
+  function reviewLine(d) { var st = reviewStats(d); return [plural(st.papers, 'paper'), plural(st.quotes, 'quote'), plural(st.notes, 'note')].join(' · '); }
+  function newReview(pre) {
+    pre = pre || {};
+    var d = M.createDoc({ type: 'literature', projectId: null, themeId: null, title: pre.title || 'Literature review · ' + fmtDay(new Date()), templateId: null });
+    var cur = M.doc(d.id); cur.review = { topic: pre.topic || '', projectIds: (pre.projectIds || []).filter(function (id) { return !!M.project(id); }) };
+    DB.put('documents', cur); seedSig(cur);
+    var f = cur.blockIds.map(M.block).filter(Boolean)[0]; DocView.pendingFocus = f ? { focus: f.id, pos: 0 } : null;
+    App.go('#/doc/' + d.id);
+    return cur;
+  }
+  function setReview(docId, patch) {
+    var d = M.doc(docId); if (!isReview(d)) return; seedSig(d);
+    d.review = Object.assign({}, d.review, patch); M.touchDoc(d); changed();
+  }
+  function linkProject(docId, pid) {
+    var d = M.doc(docId), p = M.project(pid); if (!isReview(d) || !p || (d.review.projectIds || []).indexOf(pid) >= 0) return;
+    setReview(docId, { projectIds: (d.review.projectIds || []).concat([pid]) }); toast('Linked to ' + p.name);
+  }
+  function unlinkProject(docId, pid) {
+    var d = M.doc(docId), p = M.project(pid); if (!isReview(d)) return;
+    setReview(docId, { projectIds: (d.review.projectIds || []).filter(function (x) { return x !== pid; }) }); toast(p ? 'No longer linked to ' + p.name : 'Unlinked');
+  }
+  LAB.reviews = { list: reviews, of: reviewsOf, create: newReview, set: setReview, link: linkProject, unlink: unlinkProject, isReview: isReview };
+
+  /* the review's first block: title, topic, the projects it serves (any number), and who reads it in RM */
+  function reviewFields(d) {
+    var stop = function (e) { e.stopPropagation(); }, rv = d.review || {}, linked = reviewProjects(d), ids = linked.map(function (p) { return p.id; });
+    var byName = function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); };
+    var ps = DB.all('projects').filter(function (p) { return ids.indexOf(p.id) < 0 && !(p.rm && p.rmAssigned === false); });
+    var assigned = ps.filter(function (p) { return p.rm; }).sort(function (a, b) { return rank(a) - rank(b) || byName(a, b); }), own = ps.filter(function (p) { return !p.rm; }).sort(byName);
+    var opt = function (p) { return h('option', { value: p.id }, p.name); };
+    var title = h('input.hin.lab-h-title', { value: d.title || '', placeholder: 'What this review is about', on: { pointerdown: stop, keydown: function (e) { e.stopPropagation(); if (e.key === 'Enter') e.target.blur(); }, change: function (e) { setTitle(d.id, e.target.value); } } });
+    var topic = h('textarea.hin.lab-h-topic', { rows: 2, placeholder: 'The question this review asks', on: { pointerdown: stop, keydown: stop, change: function (e) { setReview(d.id, { topic: e.target.value.trim() }); } } });
+    topic.value = rv.topic || '';
+    var chips = linked.map(function (p) {
+      return h('span.pill.lab-lr-chip', { 'data-project': p.id }, h('a', { href: '#/project/' + p.id, title: 'Open the project' }, p.name),
+        h('button.lab-lr-x', { title: 'Unlink this project', on: { pointerdown: stop, click: function (e) { e.stopPropagation(); unlinkProject(d.id, p.id); } } }, '×'));
+    });
+    var add = h('select.hin.lab-h-link', { on: { pointerdown: stop, change: function (e) { var v = e.target.value; e.target.value = ''; if (v) linkProject(d.id, v); } } },
+      h('option', { value: '' }, linked.length ? '+ Link another project…' : '+ Link a project…'),
+      assigned.length ? h('optgroup', { label: 'Assigned to you' }, assigned.map(opt)) : null, own.length ? h('optgroup', { label: 'Your projects' }, own.map(opt)) : null);
+    return h('div.hgrid.lab-hmeta.lab-hrev', { 'data-doc': d.id },
+      h('label.hf', h('span', 'Title'), title), h('label.hf', h('span', 'Topic'), topic),
+      h('div.hf', h('span', 'Projects'), h('div.lab-lr-links', chips, add)),
+      rmLinked(d) ? h('div.hf.lab-h-share', h('span', 'Seen by'), shareEl(d.id)) : null);
+  }
+
+  /* the tab */
+  function reviewCard(d) {
+    var st = reviewStats(d), linked = reviewProjects(d);
+    return h('div.box.dcard.lab-lrcard.nopan', { 'data-doc': d.id, on: { click: function () { App.go('#/doc/' + d.id); } } },
+      h('div.row', h('span.pill', 'Lit review'), d.share === 'lab' ? h('span.pill.teal', { title: 'Lab members can read it in RM' }, 'lab') : null, h('span.spacer'), h('span.mono.tiny.muted', fmtDay(d.modified))),
+      h('div.dn', d.title),
+      d.review.topic ? h('div.lab-q', snippet(d.review.topic, 200)) : null,
+      h('div.ds', [plural(st.papers, 'paper'), plural(st.quotes, 'quote'), plural(st.notes, 'note')].join(' · ')),
+      h('div.lab-lr-ps', linked.length ? linked.map(function (p) { return h('a.pill' + (p.rm ? '.teal' : ''), { href: '#/project/' + p.id, title: 'Open the project', on: { click: function (e) { e.stopPropagation(); } } }, p.name); })
+        : h('span.tiny.muted', 'Not linked to a project yet')));
+  }
+  var LRV = { filter: '' };
+  LAB.reviewsView = LRV;
+  VIEWS.litreviews = {
+    title: true,
+    render: function () {
+      var all = reviews(), used = {}, f = LRV.filter && M.project(LRV.filter) ? LRV.filter : '';
+      all.forEach(function (d) { reviewProjects(d).forEach(function (p) { used[p.id] = p; }); });
+      var list = f ? all.filter(function (d) { return (d.review.projectIds || []).indexOf(f) >= 0; }) : all, ups = Object.keys(used).map(function (k) { return used[k]; }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+      App.setTitle('Lit reviews', [h('span', plural(all.length, 'review'))]);
+      var filt = ups.length ? h('select.inp.lab-lr-filter', { on: { change: function (e) { LRV.filter = e.target.value; App.refresh(); } } },
+        h('option', { value: '' }, 'Every project'), ups.map(function (p) { return h('option', { value: p.id, selected: p.id === f }, p.name); })) : null;
+      return h('div.page.lab-lr',
+        h('div.eyebrow', 'Research'), h('h1.title', 'Literature reviews'),
+        h('p.stand', 'A review is a canvas for researching one topic: the papers, the quotes that matter, and your notes on them. Link it to every project it serves; it shows there too.'),
+        h('div.row.lab-lr-bar', btn('pri', '+ New review', function () { newReview({ projectIds: f ? [f] : [] }); }, 'A blank canvas; its title, topic and projects are in its first block'), filt),
+        list.length ? h('div.lab-lr-grid', list.map(reviewCard))
+          : h('div.empty', all.length ? 'No review is linked to this project yet.' : 'No literature reviews yet. + New review opens a blank canvas; give it a topic and link it to your projects in its first block.'));
+    }
+  };
+  try {
+    var after = 0; TABS.forEach(function (t, i) { if (t[0] === 'portfolio') after = i + 1; });
+    if (!TABS.some(function (t) { return t[0] === 'litreviews'; })) TABS.splice(after, 0, ['litreviews', 'Lit reviews']);
+    TABOF.litreviews = 'litreviews';
+    /* a review open on screen lights its own tab */
+    var oTabs = App.renderTabs;
+    App.renderTabs = function () {
+      var r = App.route || {}, d = r.name === 'doc' ? M.doc((r.args || [])[0]) : null, was = TABOF.doc;
+      if (isReview(d)) TABOF.doc = 'litreviews';
+      try { return oTabs.apply(this, arguments); } finally { TABOF.doc = was; }
+    };
+    /* reviews are not quick notes */
+    var oGenDocs = GENERAL.docs;
+    GENERAL.docs = function () { return oGenDocs.apply(this, arguments).filter(function (d) { return !isReview(d); }); };
+    /* the note's meta line: a review says what it is and where it is linked (instead of "General · not tied to a project") */
+    var oDocRender13 = DocView.render;
+    DocView.render = function (docId) {
+      var host = oDocRender13.apply(this, arguments), d = M.doc(docId), pane = this;
+      if (isReview(d) && pane === App.pane) setTimeout(function () {
+        var meta = $('#meta'); if (!meta) return; $$('.gen-touch', meta).forEach(function (x) { x.remove(); });
+        if ($('.lab-lr-meta', meta)) return; var ps = reviewProjects(M.doc(docId));
+        meta.append(h('span.lab-lr-meta', h('span.pill', 'Lit review'), ps.length ? [' for ', ps.map(function (p, i) { return [i ? ', ' : '', h('a', { on: { click: function () { App.go('#/project/' + p.id); } } }, p.name)]; })] : ' · not linked to a project yet'));
+      }, 40);
+      return host;
+    };
+  } catch (e) { warn('lit reviews', e); }
+  try {
+    var st13 = document.getElementById('lab-mode-css');
+    if (st13) st13.textContent += '.lab-lr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:14px}' +
+      '.lab-lr .box,.lab-pv-lr .box{position:relative;left:auto;top:auto}.lab-lrcard{height:auto;min-height:120px;display:flex;flex-direction:column;gap:3px;padding:10px 12px}' +
+      '.lab-lrcard .dn{white-space:normal;font-size:14px;line-height:1.3}.lab-lr-ps{display:flex;flex-wrap:wrap;gap:4px;margin-top:auto;padding-top:6px}.lab-lr-ps a.pill{text-decoration:none;cursor:pointer}' +
+      '.lab-lr-bar{gap:8px;align-items:center}.lab-lr-filter{max-width:280px}.lab-pv-lr{margin:16px 0}' +
+      '.lab-lr-links{display:flex;flex-wrap:wrap;gap:5px;align-items:center}.lab-lr-links .lab-h-link{flex:1 1 180px;width:auto}.lab-lr-chip{display:inline-flex;align-items:center;gap:4px}' +
+      '.lab-lr-chip a{color:inherit;text-decoration:none}.lab-lr-x{border:0;background:none;padding:0 2px;cursor:pointer;color:var(--ink-3);font:inherit}.lab-lr-x:hover{color:var(--bad)}' +
+      '.lab-hmeta textarea.hin{width:100%;box-sizing:border-box;resize:vertical;font:inherit}.lab-lr-meta{margin-left:8px}';
+  } catch (e) { warn('css 13', e); }
 })();

@@ -394,7 +394,7 @@ class FirestoreHub {
     pr.docs.forEach(x => { const r = rowFromDoc(x); if (r && !r.deleted && r.rec) projects.set(String(r.id), r.rec); });
     th.docs.forEach(x => { const r = rowFromDoc(x); if (r && !r.deleted && r.rec) themes.set(String(r.id), r.rec); });
     // a shared note's preview needs its components
-    const shared = [...docs.values()].filter(x => x && x.share === 'lab' && x.projectId && (projects.get(String(x.projectId)) || {}).rm);
+    const shared = [...docs.values()].filter(x => x && x.share === 'lab' && C.noteProjects(x, projects).length);   // V3.889: a review's linked projects too
     const blockIds = [...new Set(shared.flatMap(x => (x.blockIds || []).slice(0, 60).map(String)))], blocks = blockIds.length ? await getRows('blocks', blockIds) : new Map();
     let ownerName = d.ownerName || '';
     if (!ownerName) { const u = await db().collection('users').doc(this.uid).get(); const ud = u.exists ? (u.data() || {}) : {}; ownerName = String(ud.name || ud.displayName || ud.email || ''); }
@@ -464,7 +464,7 @@ const scientiaHub = onRequest({ cors: false, timeoutSeconds: 300, memory: '512Mi
   res.set('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
   const path = (String(req.path || '/').replace(/^\/scientiaHub(?=\/|$)/, '') || '/').replace(/\/+$/, '') || '/';
-  if (path === '/') { res.status(200).json({ ok: true, service: 'scientiaHub', version: 'V3.884' }); return; }
+  if (path === '/') { res.status(200).json({ ok: true, service: 'scientiaHub', version: 'V3.889' }); return; }
   let who = null;
   try { who = await resolveWho(req); }
   catch (e) { res.status(401).json({ ok: false, error: 'invalid token: ' + e.message }); return; }

@@ -31,7 +31,9 @@ node $REPO/scripts/litreview/build-note.js spec.json quotes.json libids.json --h
 node $REPO/scripts/litreview/build-note.js spec.json quotes.json libids.json --heights boxes6.json --out records-final.json --cloud "$HUB_UID" --commit
 ```
 
-Then open the Lab Notebook → Scientia → *ERK waves as a mechanochemical relay — lit review*. Re-running step 2 is
+Then open the Lab Notebook → Scientia → **Lit reviews** (V3.889) → *ERK waves as a mechanochemical relay — lit
+review*, and link it to its projects in its first block (or pass `--projects id,id` to step 2 — Scientia project ids,
+e.g. `rm-p-source-and-sink`). The note carries `review { topic, projectIds }`, which is what puts it in that tab. Re-running step 2 is
 safe: ids and timestamps are fixed per spec, so it updates the same records and removes only records of this note
 that the spec no longer has.
 
