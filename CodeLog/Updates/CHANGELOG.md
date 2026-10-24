@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.888] — 2026-10-23 — Literature reviews built as Scientia notes: the ERK mechanochemical-wave review + the tooling (prototype)
+
+Plan: [CodeLog/ClaudesPlan/V3.888_litreview_to_scientia_note.md](../ClaudesPlan/V3.888_litreview_to_scientia_note.md) · Method: [FuturePlan 14](../Feature%20requests/FuturePlan_14_literature_review_method.md) · Report: [Research/ERK_mechanochemical_waves_litreview.md](../../Research/ERK_mechanochemical_waves_litreview.md). No site, rules or function change (no sw.js bump).
+
+### Added
+- **`scripts/litreview/`** (prototype): `resolve.py titles.txt out.json` (Europe PMC `TITLE:` search → DOI/PMID/PMCID/authors/abstract, peer-reviewed record preferred); `fetchpdf.py resolved.json pdfs/` (PMC open data on AWS `metadata/PMCxxxx.N.json` → `pdf_url`, then OpenAlex `locations[].pdf_url`, then bioRxiv `pubs/{server}/{doi}`; every file checked: `%PDF`, opens, ≥ 2 pages, text layer); `locate_quotes.py spec.json quotes.json` (a quote's letters+digits matched as one stream on a page, margin line numbers stepped over → `{page, rects (page fractions), exact, prefix, suffix, pageText}`); `rm-library-add.js spec.json --by <email> --out libids.json --manifest m.json [--commit]` (DOI-dedupe against RM `items`; new items in `buildPaperItem` shape, PDF at `papers/{id}/{sha256[:16]}.pdf` with a download token, tag `litreview:<slug>`); `build-note.js spec quotes libids --out records.json [--heights boxes.json] [--local URL] [--cloud UID [--commit]]` (Scientia records: `documents` type literature with `regions[]`, text `blocks` with `fmt`/`cite`/`struct` marks, `pdf` blocks + `media`, quote blocks `quote {src, page, exact, prefix, suffix, rects}`, `items` claim/question/takeaway/evidence, `wires` `c:quotes`/supports/contradicts/comments/leads; deterministic ids + fixed `createdAt`; `staleOps` removes this note's dropped records; corridor check prints the widest wire loop; cloud = `FirestoreHub.push` + `mediaPut` + `mirrorLibrary`); `render/view.mjs`, `zoom.mjs`, `fit.mjs`, `overlaps.js` (layout checks in the real app via the browser-automation skill against a local `serve.py`).
+- **The first review**: *ERK waves as a mechanochemical relay* — 35 papers (28 open PDFs on the canvas, 65 verbatim located quotes), 3 hypothesis columns, 15 findings, verdicts, revised model, velocity answer, gaps → experiments. Checked in a local Scientia render: 129 boxes at their spec positions, 0 overlaps, no wire across a PDF. Data outside git (`~/Documents/GitHub/LitReviews/erk-mechanochemical-waves/`).
+- `Research/ERK_mechanochemical_waves_litreview.md` (generated from the same spec by the review's `report.js`) and `CodeLog/Feature requests/FuturePlan_14_literature_review_method.md`.
+
+### Not done (needs Alex)
+- Writing the 33 new papers to the lab library and the note + PDFs to Alex's Scientia hub — refused to the unattended session; the two dry-run-first commands are in `scripts/litreview/README.md` and the review folder's README. Read-only dry run of the hub push: 378 new records, 0 updates, 0 removals.
+
 ## [V3.887] — 2026-10-23 — Speech to text, each person's own way: free on the device, or their own OpenAI / Google key; Transcribe in Scientia and in the board replay
 
 Plan: [CodeLog/ClaudesPlan/V3.887_speech_to_text_your_own_way.md](../ClaudesPlan/V3.887_speech_to_text_your_own_way.md) — recorder R3, rewritten by Alex the same day: no lab-paid service; each person chooses and sets up their own way in Settings; still on a button that shows the likely cost first. No backend, rules or Storage change.

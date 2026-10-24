@@ -1808,10 +1808,10 @@
    "via": "baseline"
   },
   "rm/css/settings.css": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "7a566ba4a0de3d1affc924cbfa5642da8de4785f97f5cf64709c74da69bb51c9",
-   "size": 7876,
-   "via": "baseline"
+   "deployedAt": "2026-10-23T19:22:05-07:00",
+   "sha256": "f432d419fec6dfa8b603a6b276a287f4dfb47d9d7065656db90eb1c5a25380fc",
+   "size": 9272,
+   "via": "verify"
   },
   "rm/css/split-view.css": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -3350,9 +3350,9 @@
    "via": "baseline"
   },
   "rm/js/recorder-core.js": {
-   "deployedAt": "2026-10-23T18:45:44-07:00",
-   "sha256": "50050dd50ae52a7dc621eaa69d963878987c994185806b30ac21e3ef87fce994",
-   "size": 7985,
+   "deployedAt": "2026-10-23T19:22:05-07:00",
+   "sha256": "3404e9a5aef2efc1bca30852323a5528854c05038315f198abd12c5feb511c2c",
+   "size": 9545,
    "via": "verify"
   },
   "rm/js/reference-import.js": {
@@ -3512,10 +3512,10 @@
    "via": "baseline"
   },
   "rm/js/settings.js": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "78f8d48745bbddef29015534ba3eaf98e5d4f98bb5621ab2b9f09e9c0bc28de0",
-   "size": 38498,
-   "via": "baseline"
+   "deployedAt": "2026-10-23T19:22:05-07:00",
+   "sha256": "862db97a5755b626d7c64409bf65b935b7cabc5cc4fdecbc717c7950f4728118",
+   "size": 39113,
+   "via": "verify"
   },
   "rm/js/sharing.js": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -3529,6 +3529,12 @@
    "size": 23425,
    "via": "verify"
   },
+  "rm/js/speech-to-text.js": {
+   "deployedAt": "2026-10-23T19:22:05-07:00",
+   "sha256": "1c3c6b362edc2bea375465c7217bca4b6bac55027b60c2439d0f08a0a74537d1",
+   "size": 23245,
+   "via": "verify"
+  },
   "rm/js/split-view.js": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
    "sha256": "a6a365ed62a6a4708309795add8bf2bfd3c495a1bbc0e172551be285f0bd55e8",
@@ -3540,6 +3546,12 @@
    "sha256": "33ab61bf73cd2d00770ce5520a120a2239ea81985eef86a3cc54968edbb9c2e1",
    "size": 17082,
    "via": "baseline"
+  },
+  "rm/js/stt-device-worker.js": {
+   "deployedAt": "2026-10-23T19:22:05-07:00",
+   "sha256": "95c1beab25aaa53b40850c39afca69d6e6bebe7a906bd67cc2d4e3ca57430873",
+   "size": 1938,
+   "via": "verify"
   },
   "rm/js/surface-guide.js": {
    "deployedAt": "2026-10-23T10:34:36-07:00",
@@ -4268,10 +4280,10 @@
    "via": "baseline"
   },
   "rm/pages/settings.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "f5e96568943cf9ad43090289f80bd6f26e23b3b2b17b953651f6a47879d491d7",
-   "size": 2259,
-   "via": "baseline"
+   "deployedAt": "2026-10-23T19:22:05-07:00",
+   "sha256": "e7eadbdde8cf598e12bc36d545dcdaa8f0288983d9031aee6f0caf051b496051",
+   "size": 2475,
+   "via": "verify"
   },
   "rm/pages/sharing.html": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -4496,9 +4508,9 @@
    "via": "verify"
   },
   "rm/scientia/lab-mode.js": {
-   "deployedAt": "2026-10-23T18:45:44-07:00",
-   "sha256": "3c7d87cd7e318d2c34a346a1c9494bb775b4ab3b51263a77b182dc05e66fa7d0",
-   "size": 132707,
+   "deployedAt": "2026-10-23T19:22:05-07:00",
+   "sha256": "3e314aef0216f273f3b52d4cc7eef31c21b3b522240e66b174699706f9c79737",
+   "size": 137187,
    "via": "verify"
   },
   "rm/scientia/scientia-cloud.py": {
@@ -4508,8 +4520,8 @@
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-23T18:45:44-07:00",
-   "sha256": "872d94eafd79388876f0ab1cf12e0d0c094d0a032246e962fe72a6de00955f32",
+   "deployedAt": "2026-10-23T19:22:05-07:00",
+   "sha256": "a4d9f1c36a92ad3221f39e18812949035be4ef98f41a0042be5fc35c29bd529d",
    "size": 4382355,
    "via": "verify"
   },
@@ -4886,8 +4898,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-23T18:45:44-07:00",
-   "sha256": "391782f05a1ebb9a8f9a2e5f00456d286c9ee1c5a68aa832826986542fd8d85b",
+   "deployedAt": "2026-10-23T19:22:05-07:00",
+   "sha256": "da1cbeb0947009bdd48a891f020b222cc83ef496a1d5751e29a154835d9af40c",
    "size": 9016,
    "via": "verify"
   },
@@ -4928,21 +4940,21 @@
    "via": "verify"
   },
   "whiteboard-board.css": {
-   "deployedAt": "2026-10-23T18:45:44-07:00",
-   "sha256": "41349b84d27c2e47318f1ee99be7d59d3a690467158523e837a85452ef94ae24",
-   "size": 54662,
+   "deployedAt": "2026-10-23T19:22:05-07:00",
+   "sha256": "c03bb8b4930615d1629b2f474fb7da03f4f51a817bd034fcd70a223afd416954",
+   "size": 56241,
    "via": "verify"
   },
   "whiteboard-replay.js": {
-   "deployedAt": "2026-10-23T10:34:36-07:00",
-   "sha256": "cb8254fd0554d1d1d7b1e0107f339d6f6a2ce21c79b1db11a94ae3e5ae340691",
-   "size": 26722,
+   "deployedAt": "2026-10-23T19:22:05-07:00",
+   "sha256": "fb6aeadf0979f49c9c2ad69e805340346fb53d5f842b536e25a97e376fc99eba",
+   "size": 32583,
    "via": "verify"
   },
   "whiteboard.js": {
-   "deployedAt": "2026-10-23T18:45:44-07:00",
-   "sha256": "d7c94332a3464bde384dc35bc3758b6f4a9f58467ba9d84e18ba1a6ff932127e",
-   "size": 388446,
+   "deployedAt": "2026-10-23T19:22:05-07:00",
+   "sha256": "0141aec1f0252ab60f758b4924ccbbeba3c4a4ff6510842ee7859c7a8ed2fd67",
+   "size": 391950,
    "via": "verify"
   }
  },
