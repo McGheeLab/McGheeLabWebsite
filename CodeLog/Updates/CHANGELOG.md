@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.885] — 2026-10-23 — Scientia: a note's details live in its first block — nothing asked up front; templates swap in place
+
+Plan: [CodeLog/ClaudesPlan/V3.885_scientia_note_details_in_first_block.md](../ClaudesPlan/V3.885_scientia_note_details_in_first_block.md). Web build only; `scientia/src` untouched; no backend change. Supersedes V3.882's *Save to a project…* form and V3.880's blank-page template bar.
+
+### Changed
+- **The note's first block holds its details** (`lab-mode.js`, `DocView.headBox` wrapped → `headFields`): Title, Type, Template (No template / each type's standard / the person's own, grouped by type), Project (*No project — a quick note* / *Assigned to you* / *Your projects*), Theme (the project's active themes; disabled for a project-wide type), and *Seen by* in an RM project — always editable; Gabe's ✎ dialog stays for the date and delete.
+- **Making a note asks nothing**: `App.newDoc` (+ Note, Ctrl+Alt+N, links, a project's + Note), `CHAIN.start` (+ Experiment) and ＋ Quick note create at once with the type's template (`markTemplate` tags its items) and open the note; `pre.runDef` (running a registered protocol) keeps Gabe's dialog.
+- **Templates swap in place**: template items carry `tpl { id, label0, text0 }` (`isEdited`: label / text / marks changed, or no longer a component). Untouched → `swapTemplate(docId, tplId)` replaces them at once (type follows the template; a default title follows the type). Edited → Gabe's `modal`: **Keep the items I edited** (kept ones lose `tpl` and become the person's; the untouched go; the new template's items are placed beside the kept, `at = right of them`), **Replace everything**, Cancel (the picker is restored, also on Escape — `onClose`). Items the person added are never touched. Changing the Type of an untouched note brings that type's template (`changeType`). `setProject / setTheme / setTitle` write and ask the hub for RM's notes list when it matters (V3.880's `noteSig` kick).
+- *Seen by* moved from the title line into the first block; the Quick notes cards lose *Save to a project…* (the note's own block holds the project).
+
+### Removed
+- `saveForm`, `fileNote`, `fileButton` (V3.882) and `quickBar`, `applyTemplate`, `templateRows`, `blankDoc`, `dismissQuick` (V3.880).
+
+### Tests
+- Lab-mode harness 148/148: + Quick note / + Note / + Experiment open at once with no dialog; the block's five fields; template chosen → items + type; swapped freely while untouched; edited → the question; Cancel restores; Keep places the new items beside the kept one; Replace everything removes edits but never the person's own item; Type brings its template; title / project (RM notes list asked) / theme set in the block; Seen by in the block.
+
+## [V3.884] — 2026-10-23 — One recorder, part 1: marks and pause on the boards, Scientia recordings saved a minute at a time, ink timed with the voice; the My Week report popup always closes
+
+Program plan: [CodeLog/ClaudesPlan/V3.884_one_recorder_program.md](../ClaudesPlan/V3.884_one_recorder_program.md) — RM's board recorder (voice + timed ink + replay) and Scientia's Recording component (marks + transcripts) become one recorder. Decision (Alex): cloud speech-to-text = Google Speech-to-Text, **on a button that shows its likely cost first** (R3). Backend deployed first (`scientiaHub` health `V3.884`; Storage join verified live with a throwaway id, cleaned up).
+
+### Added
+- **`rm/js/recorder-core.js`** (`RECORDER_CORE`, DOM-free, node + browser): mark kinds `important · question · decision · todo` (`MARK_KINDS`, glyphs ◆ ? ◇ ☐), `normMark / addMark / openSection / closeSection / toggleSection / openOf / marksAt / markLabel` (a mark is `{ id, t, kind, label, end? }` — no end = a moment, `null` = an open section); `audioToWall / wallToAudio` around `gap` events; `lineAt(segs, t)`; `stamp / momentOf / strokesAt` (a Scientia stroke's `rt = [recId, t0, t1]`); `sttCost(sec)` (`STT_USD_PER_MIN` 0.016, started minutes, "48¢" / "$1.20"); `partName`, `mmss`. 8 node fixtures `scripts/tests/recorder-core.test.cjs` (in `run-all.sh`).
+- **Board recorder** (`whiteboard.js`): while recording, ✦ Tools offers ❚❚ Pause / ▶ Resume (`recPause / recResume`; a pause is logged as a `gap` event with `reason: 'pause'`, so the replay's audio ↔ wall rule skips it; a paused recording does not time out; the tab-return auto-resume leaves a person's pause alone), four kinds of mark (`recMark(kind)`) and an important section (`recSection`); `Alt+M` marks (Scientia's key), `Alt+P` pauses. Marks are `marks[]` on the recording doc (`marksClock: 'wall'`, seconds since the start), saved 400 ms after a change and at Stop (an open section is closed there). The shared core loads with the first recording (`ensureRecCore`). The pill clock shows ❚❚ while paused. Harness `scripts/tests/v3884-recorder-harness.html` (16, fake microphone).
+- **Scientia recordings on the web** (`rm/scientia/lab-mode.js` §12): the audio goes to the lab's cloud a part a minute while it records (`sendPart` → `POST api/rec/part`), joined at Stop (`api/rec/compose`) — a closed tab loses at most a minute and a recording may pass the 30 MB single-file cap; under a minute it is one file as before; an interrupted recording offers **Recover them** (`recoverParts`). The component gains a row of marks (four kinds + ⟦ Section ⟧, at the moment recording or playing), the marks list shows each kind and a section's span, sections are bands on the progress bar. Ink drawn in the note while it records is stamped with its moment (`INK.penDown / INK.addStroke` wrapped; `stroke.rt`) and the card counts it.
+- **Hub** (`functions/scientia-hub*.js`): `api/rec/part` (Storage `recparts/<rid>/part-NNNN.<ext>`), `api/rec/parts` (count + bytes), `api/rec/compose` (Storage `combine`, 32 at a time through temporaries, a free `recordings/` name, download token, media doc, parts deleted); `MemoryHub` twins; fixture (in order, any length, names, bad input).
+
+### Changed
+- `api/rec/status` on the hub answers `{ ok: true, state: 'saved' }` — a final answer, so the web app stops asking every 3 s (it polled forever while a recording sat at `queued`); the card says "Saved in the lab's cloud" and that cloud speech-to-text will show its cost first. `cloud-sync.js` maps a joined recording's URL at once.
+
+### Bug Fixes
+- **The My Week report popup ("Report as the result of…") would not go away** when it was opened for a Scientia component: it closed only on a click in the host page or Escape, and the next click landed inside the Scientia frame, which the page never hears. It now has a **×**, closes on a click inside any same-origin frame on the page (`watchFrames`), and on the window losing focus to a frame (`onWinBlur`). (`rm/js/myweek-report.js`, `rm/css/canvas-widgets.css`; harness `v3854-canvas-report-harness.html` 36/36 + 34/34 mobile.)
+
+### Tests
+- Hub fixtures 60/60 · recorder core 8/8 · board recorder harness 16/16 · Scientia lab-mode harness 146/146 · notebook host 45/45 · board harnesses unchanged (v3830 26/26 + 9/9, v3839 77/77, v3833 65/65).
+
 ## [V3.883] — 2026-10-23 — Inventory and procurement work together: six seams fixed, tested as journeys across both pages
 
 Alex: *"lets make sure that the inventory and procruement work together well. do multiple tests to ensure that all the

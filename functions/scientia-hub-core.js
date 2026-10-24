@@ -255,6 +255,14 @@ class MemoryHub {
   async keep(name, raw) { this.kept.push({ name, bytes: raw.length }); return { ok: true, kept: 'memory' }; }
   async mediaPut(path, bytes, mime) { this.media.set(path, { bytes, mime }); const url = (this.fileBase || '') + '/files/' + path; return { ok: true, path, url, bytes: bytes.length }; }
   async mediaList() { const files = {}; for (const [p] of this.media) files[p] = (this.fileBase || '') + '/files/' + p; return { ok: true, files }; }
+  /* V3.884 — a recording saved while it runs: parts in order, joined at the end (or after a crash) */
+  async recPart(rid, n, ext, bytes) { if (!this.recparts) this.recparts = new Map(); this.recparts.set(recPartPath(rid, n, ext), { bytes, ext }); return { ok: true, rid, n, bytes: bytes.length }; }
+  async recPartsOf(rid) { const pre = 'recparts/' + rid + '/'; return [...(this.recparts || new Map())].filter(([p]) => p.startsWith(pre)).sort((a, b) => a[0].localeCompare(b[0])).map(([p, v]) => ({ path: p, bytes: v.bytes.length })); }
+  async recCompose(rid, path, mime) {
+    const parts = await this.recPartsOf(rid); if (!parts.length) return { ok: false, error: 'no saved parts for this recording' };
+    const bytes = Buffer.concat(parts.map(p => this.recparts.get(p.path).bytes)); parts.forEach(p => this.recparts.delete(p.path));
+    const r = await this.mediaPut(path, bytes, mime); return Object.assign(r, { parts: parts.length });
+  }
   async keyMake(name) { const secret = token(16), id = token(5); this.keys.set(id, { id, name, hash: sha(secret), created: isoLocal(), lastSeen: null }); return { ok: true, id, name, secret }; }
   async keyList() { return { ok: true, keys: [...this.keys.values()].map(k => ({ id: k.id, name: k.name, created: k.created, lastSeen: k.lastSeen })) }; }
   async keyRemove(id) { return { ok: this.keys.delete(id) }; }
@@ -273,6 +281,9 @@ const MEDIA_MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gi
 const MEDIA_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tif', 'tiff', 'svg', 'mp4', 'webm', 'mov', 'm4v', 'avif', 'html', 'htm', 'pdf']);
 const REC_EXTS = new Set(['webm', 'm4a', 'mp4', 'ogg', 'wav', 'mp3', 'aac']);
 const MAX_MEDIA_BYTES = 30 * 1024 * 1024;
+/* V3.884 — a recording's parts (one a minute while it runs) live beside the media, never in the media list */
+const recPartPath = (rid, n, ext) => 'recparts/' + rid + '/part-' + String(n).padStart(4, '0') + '.' + ext;
+const REC_RID = /^[A-Za-z0-9_-]{1,64}$/;
 const ONLY_LOCAL = { ok: false, error: 'only on the computer that runs the app' };
 
 function parseBody(req) {
@@ -853,17 +864,44 @@ async function route(req, ctx) {
     return J(200, await hub.mediaPut('images/' + id + '.' + ext, bytes, MEDIA_MIME[ext] || 'application/octet-stream'));
   }
   if (p === '/api/media/list') return J(200, await hub.mediaList());
+  const recFileName = async ext => {   // a free name under recordings/ (the desktop's own rule: "name (2).webm")
+    const base = g('name', '').replace(/[^A-Za-z0-9 _.()-]+/g, '').replace(/^[ .]+|[ .]+$/g, '').slice(0, 90) || isoLocal().replace(/[:T]/g, '-');
+    const have = (await hub.mediaList()).files || {}; let name = base + '.' + ext, k = 2;
+    while (have['recordings/' + name]) { name = base + ' (' + k + ').' + ext; k++; }
+    return name;
+  };
   if (p === '/api/rec' && post) {
     const ext = g('ext', '').toLowerCase(); if (!REC_EXTS.has(ext)) return J(400, { ok: false, error: 'not an audio file' });
     const bytes = req.rawBody; if (!bytes || !bytes.length) return J(400, { ok: false, error: 'empty recording' });
     if (bytes.length > MAX_MEDIA_BYTES) return J(413, { ok: false, error: 'over 30 MB — keep this recording on your computer' });
-    const base = g('name', '').replace(/[^A-Za-z0-9 _.()-]+/g, '').replace(/^[ .]+|[ .]+$/g, '').slice(0, 90) || isoLocal().replace(/[:T]/g, '-');
-    const have = (await hub.mediaList()).files || {}; let name = base + '.' + ext, k = 2;
-    while (have['recordings/' + name]) { name = base + ' (' + k + ').' + ext; k++; }
+    const name = await recFileName(ext);
     const r = await hub.mediaPut('recordings/' + name, bytes, MEDIA_MIME[ext] || 'application/octet-stream');
     return J(200, { ok: true, file: name, path: 'recordings/' + name, bytes: bytes.length, job: {}, folder: 'cloud', url: r.url });
   }
-  if (p === '/api/rec/status') return J(200, { ok: false, state: 'none', error: 'transcription runs on your computer' });
+  // V3.884 — the one recorder: a minute of audio at a time while it runs (a closed tab loses at most a minute), joined at Stop
+  if (p === '/api/rec/part' && post) {
+    if (typeof hub.recPart !== 'function') return J(200, { ok: false, error: 'no saved parts on this hub' });
+    const rid = g('rid', ''), n = parseInt(g('n', ''), 10), ext = g('ext', '').toLowerCase();
+    if (!REC_RID.test(rid) || !(n >= 0 && n < 10000) || !REC_EXTS.has(ext)) return J(400, { ok: false, error: 'bad part' });
+    const bytes = req.rawBody; if (!bytes || !bytes.length) return J(400, { ok: false, error: 'empty part' });
+    if (bytes.length > MAX_MEDIA_BYTES) return J(413, { ok: false, error: 'part over 30 MB' });
+    return J(200, await hub.recPart(rid, n, ext, bytes));
+  }
+  if (p === '/api/rec/parts') {
+    if (typeof hub.recPartsOf !== 'function') return J(200, { ok: true, parts: 0, bytes: 0 });
+    const rid = g('rid', ''); if (!REC_RID.test(rid)) return J(400, { ok: false, error: 'bad id' });
+    const parts = await hub.recPartsOf(rid); return J(200, { ok: true, parts: parts.length, bytes: parts.reduce((a, x) => a + (x.bytes || 0), 0) });
+  }
+  if (p === '/api/rec/compose' && post) {
+    if (typeof hub.recCompose !== 'function') return J(200, { ok: false, error: 'no saved parts on this hub' });
+    const rid = g('rid', ''), ext = g('ext', '').toLowerCase();
+    if (!REC_RID.test(rid) || !REC_EXTS.has(ext)) return J(400, { ok: false, error: 'bad recording' });
+    const name = await recFileName(ext), r = await hub.recCompose(rid, 'recordings/' + name, MEDIA_MIME[ext] || 'application/octet-stream');
+    if (!r.ok) return J(200, r);
+    return J(200, { ok: true, file: name, path: 'recordings/' + name, bytes: r.bytes, parts: r.parts, job: {}, folder: 'cloud', url: r.url });
+  }
+  // V3.884 — saved in the cloud; the answer is final, so the app stops asking (it asked every 3 s while 'queued'). Cloud speech-to-text is R3, on a button.
+  if (p === '/api/rec/status') return J(200, { ok: true, state: 'saved', where: 'cloud' });
   if (p === '/api/rec/transcribe') return J(200, { ok: false, error: 'transcription runs on your computer (the desktop app transcribes recordings in its folder)' });
   // desktop sync keys — from the signed-in browser only (never from a key)
   if (p.startsWith('/api/cloud/')) {
@@ -1036,4 +1074,5 @@ module.exports = { route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA
   LAB_TZ, WHEN_MS, ACT_MS, WHEN_AHEAD, WHEN_BEHIND, ACT_DAYS, todayIn, nowIn, localDayOf, addDays_, wdayOf, safeIdPart, choreNext, remOccursOn, whenOcc,
   whenTaskId, whenText, whenCandidates, rmWhenTask, planWhen, sessionDaySeconds, actEventId, activityGroups, planActivity, fmtMinutes,
   rmAnnotationRow, visibleAnnotations, stripTags, varsToText, rmProtocolRow, rmProtocolSteps, searchProtocols, rmCollectionRow, rmCollectionFull,
+  recPartPath, REC_RID,
   PROJECTS_MS, PROJECT_FIELDS, THEME_FIELDS, UNASSIGNED_WHY, rmAssigned, planAssigned, NOTES_MS, PREVIEW_BLOCKS, PREVIEW_CHARS, noteIndexId, notePreview, noteLink, planNoteLinks };

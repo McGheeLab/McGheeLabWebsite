@@ -192,7 +192,7 @@ const dev = (hub, id, conn) => ({
     const r1 = await call(hub, key, 'POST', '/api/rec', { query: { name: 'Lab meeting', ext: 'webm' }, rawBody: Buffer.from('a') }); assert.strictEqual(r1.body.file, 'Lab meeting.webm');
     const r2 = await call(hub, key, 'POST', '/api/rec', { query: { name: 'Lab meeting', ext: 'webm' }, rawBody: Buffer.from('b') }); assert.strictEqual(r2.body.file, 'Lab meeting (2).webm'); assert.strictEqual(r2.body.path, 'recordings/Lab meeting (2).webm');
     const list = await call(hub, web, 'GET', '/api/media/list'); assert.deepStrictEqual(Object.keys(list.body.files).sort(), ['images/m_abc.png', 'recordings/Lab meeting (2).webm', 'recordings/Lab meeting.webm']);
-    assert.strictEqual((await call(hub, web, 'GET', '/api/rec/status', { query: { file: 'x' } })).body.state, 'none');
+    assert.deepStrictEqual([(await call(hub, web, 'GET', '/api/rec/status', { query: { file: 'x' } })).body.ok, (await call(hub, web, 'GET', '/api/rec/status', { query: { file: 'x' } })).body.state], [true, 'saved'], 'V3.884: a final answer, so the web stops asking');
   });
   await test('route: desktop keys — browser makes, lists, removes; a key caller cannot; the secret resolves once stored', async () => {
     const hub = new C.MemoryHub();
@@ -655,6 +655,24 @@ const dev = (hub, id, conn) => ({
     const hub = new C.MemoryHub(); hub.uid = 'u1'; hub.rmFoci = FOCI; hub.rmProjects = RMPROJ;
     const r = await call(hub, { id: 'u1', kind: 'browser', name: 'Gabe' }, 'POST', '/api/rm/sync', { query: { only: 'projects,notes' } });
     assert.deepStrictEqual(Object.keys(r.body).filter(k => k !== 'ok'), ['projects', 'notes']); assert.strictEqual(r.body.notes.ok, true);
+  });
+
+  /* ---- V3.884: the one recorder — a recording saved a part at a time, joined at Stop or after a crash ---- */
+  await test('rec parts: saved while recording, counted, joined in order into recordings/ (any length), parts cleared', async () => {
+    const hub = new C.MemoryHub(), who = { id: 'u1', kind: 'browser', name: 'Gabe' };
+    for (const [n, b] of [[1, 'BB'], [0, 'AA'], [2, 'C']]) { const r = await call(hub, who, 'POST', '/api/rec/part', { query: { rid: 'c_rec1', n: String(n), ext: 'webm' }, rawBody: Buffer.from(b) }); assert.strictEqual(r.body.ok, true); }
+    const st = await call(hub, who, 'GET', '/api/rec/parts', { query: { rid: 'c_rec1' } });
+    assert.deepStrictEqual([st.body.parts, st.body.bytes], [3, 5]);
+    const c = await call(hub, who, 'POST', '/api/rec/compose', { query: { rid: 'c_rec1', ext: 'webm', name: 'Lab meeting' } });
+    assert.deepStrictEqual([c.body.ok, c.body.file, c.body.path, c.body.bytes, c.body.parts], [true, 'Lab meeting.webm', 'recordings/Lab meeting.webm', 5, 3]);
+    assert.strictEqual(hub.media.get('recordings/Lab meeting.webm').bytes.toString(), 'AABBC', 'in part order, not arrival order');
+    assert.strictEqual((await call(hub, who, 'GET', '/api/rec/parts', { query: { rid: 'c_rec1' } })).body.parts, 0);
+    assert.strictEqual((await call(hub, who, 'POST', '/api/rec/compose', { query: { rid: 'c_rec1', ext: 'webm' } })).body.ok, false, 'nothing left to join');
+    assert.strictEqual((await call(hub, who, 'POST', '/api/rec/part', { query: { rid: '../x', n: '0', ext: 'webm' }, rawBody: Buffer.from('a') })).status, 400);
+    assert.strictEqual((await call(hub, who, 'POST', '/api/rec/part', { query: { rid: 'ok', n: '0', ext: 'exe' }, rawBody: Buffer.from('a') })).status, 400);
+    assert.strictEqual((await call(hub, who, 'POST', '/api/rec/compose', { query: { rid: 'c2', ext: 'webm', name: 'Lab meeting' } })).body.ok, false);
+    await call(hub, who, 'POST', '/api/rec/part', { query: { rid: 'c3', n: '0', ext: 'webm' }, rawBody: Buffer.from('z') });
+    assert.strictEqual((await call(hub, who, 'POST', '/api/rec/compose', { query: { rid: 'c3', ext: 'webm', name: 'Lab meeting' } })).body.file, 'Lab meeting (2).webm', 'a free name, like api/rec');
   });
 
   console.log(`scientia-hub: ${passed} passed, ${failed} failed`);

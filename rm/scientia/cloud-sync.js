@@ -142,7 +142,7 @@
         }
       }
     }
-    if ((path === 'api/media' || path === 'api/rec') && r.ok) {
+    if ((path === 'api/media' || path === 'api/rec' || path === 'api/rec/compose') && r.ok) {   // V3.884: a recording joined from its parts
       r.clone().json().then(function (x) { if (x && x.ok && x.path && x.url) { S.media[x.path] = x.url; fixAttrs(document); } }).catch(function () {});
     }
     return r;

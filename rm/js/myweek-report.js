@@ -102,9 +102,23 @@
     if (POP) { POP.remove(); POP = null; }
     document.removeEventListener('pointerdown', onDocDown, true);
     document.removeEventListener('keydown', onDocKey, true);
+    window.removeEventListener('blur', onWinBlur);
+    FRAMES.forEach(function (d) { try { d.removeEventListener('pointerdown', onFrameDown, true); } catch (e) {} }); FRAMES = [];
+  }
+  var FRAMES = [];
+  function onFrameDown() { close(); }
+  /* the same-origin frames on the page (Scientia in the Lab Notebook): a click in one closes the popup too */
+  function watchFrames() {
+    Array.prototype.forEach.call(document.querySelectorAll('iframe'), function (f) {
+      try { var d = f.contentWindow && f.contentWindow.document; if (d && FRAMES.indexOf(d) < 0) { d.addEventListener('pointerdown', onFrameDown, true); FRAMES.push(d); } } catch (e) { /* another origin: the blur covers it */ }
+    });
   }
   function onDocDown(e) { if (POP && !POP.contains(e.target)) close(); }
   function onDocKey(e) { if (e.key === 'Escape') { e.stopPropagation(); close(); } }
+  /* V3.884 — opened for a Scientia component (the Lab Notebook's frame), the person's next click lands INSIDE the
+     frame, which this document never hears: the popup stayed up for good ("this won't go away"). A click into a
+     frame moves the focus there, so this window blurs with the frame as its active element — close then. */
+  function onWinBlur() { setTimeout(function () { var a = document.activeElement; if (POP && a && a.tagName === 'IFRAME') close(); }, 0); }
   function place(pop, anchor, point) {
     document.body.appendChild(pop);
     var r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null;
@@ -118,6 +132,8 @@
     setTimeout(function () {
       document.addEventListener('pointerdown', onDocDown, true);
       document.addEventListener('keydown', onDocKey, true);
+      window.addEventListener('blur', onWinBlur);
+      watchFrames();
     }, 0);
   }
 
@@ -147,7 +163,7 @@
     var pop = document.createElement('div');
     pop.className = 'cw-pop mwr-pop';
     pop.innerHTML =
-      '<div class="cw-pop-head">Report as the result of…</div>' +
+      '<div class="cw-pop-head mwr-head">Report as the result of…<button type="button" class="mwr-x" data-mwr-close title="Close" aria-label="Close">' + ICON.svg('x-mark') + '</button></div>' +
       '<div class="mwr-card">' + (card.thumb ? '<img src="' + esc(card.thumb) + '" alt="">' : '<span class="mwr-glyph">' + ICON.svg(card.kind === 'figure_board_item' ? 'chart-bar' : 'book-open') + '</span>') +
         '<span class="mwr-ctitle">' + esc(card.title || 'this card') + '</span></div>' +
       '<input type="search" class="cw-pop-q" placeholder="Find a step…" autocomplete="off" aria-label="Find a step" hidden>' +
@@ -156,6 +172,7 @@
     place(pop, opts.anchor || null, opts.point || null);
     var list = pop.querySelector('.cw-pop-list');
     var q = pop.querySelector('.cw-pop-q');
+    pop.querySelector('[data-mwr-close]').addEventListener('click', function (e) { e.stopPropagation(); close(); });   /* V3.884 — always a way out */
 
     var steps;
     try { steps = await loadSteps(); }

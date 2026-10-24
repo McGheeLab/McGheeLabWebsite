@@ -63,6 +63,14 @@ printf '   %-44s %s\n' "module-placements.test.mjs" "$(echo "$out" | grep -E 'mo
 echo "$out" | grep -E "^ FAIL " | sed 's/^/   /'
 record $rc "module-placements"
 
+# V3.884 — the one recorder's shared timeline (rm/js/recorder-core.js): marks and
+# sections, wall ↔ audio around gaps, the line being spoken, the ink drawn at a
+# moment, and the speech-to-text cost estimate a person sees before paying.
+out=$(node scripts/tests/recorder-core.test.cjs 2>&1); rc=$?
+printf '   %-44s %s\n' "recorder-core.test.cjs" "$(echo "$out" | grep -E 'recorder-core:' | tail -1)"
+echo "$out" | grep -E "^✗ " | sed 's/^/   /'
+record $rc "recorder-core"
+
 # V3.717 — the research map's card graph (specialty → concept → grant → aim →
 # output). Pure logic over research-data.js, so layer 1. Attribution is DERIVED
 # (a focusArea points at a card; the walk up `links` finds its grant), which

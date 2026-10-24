@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V3.884 — the one recorder on a board: marks, sections, pause</title>
+<link rel="stylesheet" href="/whiteboard-board.css">
+<style>body{font:13px/1.5 system-ui,sans-serif;margin:20px}.ok{color:#15803d}.bad{color:#b91c1c}code{background:#f3f4f6;padding:1px 4px;border-radius:3px}#r{margin:14px 0;padding:10px;border:1px solid #e5e7eb}
+#host{width:960px;height:600px;border:1px solid #ccc;display:flex;flex-direction:column;position:relative}#host .wb-page{height:100%;min-height:0;flex:1;max-width:none;margin:0;width:100%}</style>
+<script>
+window.__popups = [];
+['prompt','alert','confirm'].forEach(function (k) { window[k] = function () { window.__popups.push(k); throw new Error('browser popup ' + k); }; });
+/* ── in-memory Firestore + Storage stub ── */
+(function () {
+  var store = new Map(), listeners = [], touched = [];
+  function snapOf(path) { return { id: path.split('/').pop(), exists: store.has(path), data: function () { return store.has(path) ? JSON.parse(JSON.stringify(store.get(path))) : undefined; }, ref: docRef(path) }; }
+  function docsIn(path) { var out = []; store.forEach(function (v, k) { if (k.slice(0, k.lastIndexOf('/')) === path) out.push(snapOf(k)); }); return out; }
+  function fire(path, type) {
+    var parent = path.slice(0, path.lastIndexOf('/'));
+    listeners.slice().forEach(function (l) {
+      if (l.kind === 'doc' && l.path === path) l.cb(snapOf(path));
+      if (l.kind === 'col' && l.path === parent) l.cb({ docChanges: function () { return [{ type: type, doc: snapOf(path) }]; }, docs: docsIn(parent), size: 1, empty: false });
+    });
+  }
+  function docRef(path) {
+    return {
+      path: path, id: path.split('/').pop(),
+      collection: function (n) { return colRef(path + '/' + n); },
+      get: function () { touched.push('get ' + path); return Promise.resolve(snapOf(path)); },
+      set: function (d, o) { touched.push('set ' + path); var existed = store.has(path); store.set(path, (o && o.merge) ? Object.assign({}, store.get(path) || {}, d) : JSON.parse(JSON.stringify(d))); fire(path, existed ? 'modified' : 'added'); return Promise.resolve(); },
+      update: function (d) { touched.push('update ' + path); var next = Object.assign({}, store.get(path) || {}); Object.keys(d).forEach(function (k) { if (d[k] === '__DEL__') delete next[k]; else if (d[k] && d[k].__arrayUnion) next[k] = (next[k] || []).concat([d[k].__arrayUnion]); else next[k] = d[k]; }); store.set(path, next); fire(path, 'modified'); return Promise.resolve(); },
+      delete: function () { touched.push('delete ' + path); store.delete(path); fire(path, 'removed'); return Promise.resolve(); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'doc', cb: cb }; listeners.push(l); setTimeout(function () { cb(snapOf(path)); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+  }
+  function colRef(path) {
+    var q = { path: path,
+      doc: function (id) { return docRef(path + '/' + (id || ('auto' + Math.random().toString(36).slice(2, 8)))); },
+      orderBy: function () { return q; }, where: function () { return q; }, limit: function () { return q; },
+      get: function () { var d = docsIn(path); return Promise.resolve({ docs: d, size: d.length, empty: !d.length, forEach: function (f) { d.forEach(f); } }); },
+      onSnapshot: function (cb) { touched.push('listen ' + path); var l = { path: path, kind: 'col', cb: cb }; listeners.push(l); var d = docsIn(path); setTimeout(function () { cb({ docChanges: function () { return d.map(function (s) { return { type: 'added', doc: s }; }); }, docs: d, size: d.length, empty: !d.length }); }, 0); return function () { var i = listeners.indexOf(l); if (i >= 0) listeners.splice(i, 1); }; }
+    };
+    return q;
+  }
+  var db = {
+    collection: function (n) { return colRef(n); },
+    batch: function () { var ops = []; return { set: function (ref, d) { ops.push(function () { return ref.set(d); }); }, delete: function (ref) { ops.push(function () { return ref.delete(); }); }, commit: function () { return ops.reduce(function (p, f) { return p.then(f); }, Promise.resolve()); } }; }
+  };
+  window.__stub = { store: store, touched: touched, db: db };
+  window.firebase = {
+    firestore: { FieldValue: { serverTimestamp: function () { return 'TS'; }, delete: function () { return '__DEL__'; }, arrayUnion: function (x) { return { __arrayUnion: x }; } } },
+    storage: function () { return { ref: function () { return { child: function (p) { return { put: function () { touched.push('put ' + p); return Promise.resolve(); }, getDownloadURL: function () { return Promise.resolve('https://storage.example/' + p); }, delete: function () { touched.push('rm ' + p); return Promise.resolve(); } }; } }; } }; }
+  };
+  window.McgheeLab = { db: db, Auth: { currentUser: { uid: 'u1', email: 'a@x.com' }, currentProfile: { role: 'member' }, onChange: function () {}, offChange: function () {} } };
+  store.set('userData/u1/notebookBoards/nb1_u1', { name: 'Sketches', pages: [{ id: 'p1', background: 'blank' }, { id: 'p2', background: 'grid' }], activePageId: 'p1', ownerUid: 'u1' });
+  /* ?class=1 — regression: the CLASS board must be untouched by the notebook family */
+  store.set('schedules/bme466', { title: 'BME466', classAdminEmails: ['a@x.com'], ownerUid: null });
+  store.set('schedules/bme466/whiteboards/b1', { name: 'Week 3', pages: [{ id: 'p1', background: 'grid' }], activePageId: 'p1' });
+  /* synthetic PointerEvent coalescing (harness lesson from V3.727) */
+  if (window.PointerEvent && !PointerEvent.prototype.getCoalescedEvents) PointerEvent.prototype.getCoalescedEvents = function () { return [this]; };
+})();
+</script>
+<script>
+/* a microphone and a MediaRecorder that need no hardware (navigator.mediaDevices needs defineProperty — plain assignment is ignored) */
+(function () {
+  window.__mrLog = [];
+  function FakeMR(stream, opts) { this.state = 'inactive'; this.mimeType = (opts && opts.mimeType) || 'audio/webm'; this.ondataavailable = null; this.onstop = null; this.onerror = null; }
+  FakeMR.isTypeSupported = function (m) { return /webm/.test(m); };
+  FakeMR.prototype.start = function () { this.state = 'recording'; window.__mr = this; window.__mrLog.push('start'); };
+  FakeMR.prototype.pause = function () { this.state = 'paused'; window.__mrLog.push('pause'); };
+  FakeMR.prototype.resume = function () { this.state = 'recording'; window.__mrLog.push('resume'); };
+  FakeMR.prototype.requestData = function () {};
+  FakeMR.prototype.stop = function () { var self = this; this.state = 'inactive'; window.__mrLog.push('stop'); setTimeout(function () { if (self.ondataavailable) self.ondataavailable({ data: new Blob(['abc'], { type: 'audio/webm' }) }); if (self.onstop) self.onstop(); }, 10); };
+  window.MediaRecorder = FakeMR;
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: function () { return Promise.resolve({ getTracks: function () { return [{ stop: function () {} }]; } }); } } });
+})();
+</script>
+<script src="/rm/js/icons.js"></script>
+<script src="/whiteboard.js"></script>
+</head>
+<body>
+<h1>V3.884 — the one recorder on a Lab Notebook board</h1>
+<p>Serve the repo root and open <code>/scripts/tests/v3884-recorder-harness.html</code>. Real <code>whiteboard.js</code> + <code>rm/js/recorder-core.js</code> against a stub Firestore and a fake microphone. Result: <code>#r[data-done]</code>.</p>
+<div id="r">running…</div>
+<div id="host"></div>
+<script>
+(function () {
+  var out = [], pass = 0, fail = 0;
+  function ok(c, m, got) { if (c) pass++; else fail++; out.push('<div class="' + (c ? 'ok' : 'bad') + '">' + (c ? '✓' : '✗') + ' ' + m + (got !== undefined ? '  →  <code>' + String(got).replace(/</g, '&lt;') + '</code>' : '') + '</div>'); }
+  function done() { var r = document.getElementById('r'); r.innerHTML = '<b>' + pass + ' passed, ' + fail + ' failed</b>' + out.join(''); r.dataset.done = '1'; r.dataset.pass = pass; r.dataset.fail = fail; }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function until(fn, ms) { var t0 = Date.now(); while (Date.now() - t0 < (ms || 4000)) { try { var v = fn(); if (v) return v; } catch (e) {} await wait(40); } return null; }
+  var q = function (s) { return document.querySelector(s); }, qa = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  var store = window.__stub.store;
+  function recPath() { var k = null; store.forEach(function (v, key) { if (/\/recordings\/[^/]+$/.test(key)) k = key; }); return k; }
+  function recDoc() { var p = recPath(); return p ? store.get(p) : null; }
+  function events() { var p = recPath(), o = []; store.forEach(function (v, k) { if (p && k.indexOf(p + '/events/') === 0) o.push(v); }); return o; }
+  function openTools() { var b = q('.wb-pill-tools .wb-pill-btn'); if (!q('.wb-pill-tools.wb-open')) b.click(); }
+  function fan(act, kind) { return qa('.wb-pill-tools .wb-fan-item').filter(function (x) { return x.dataset.wbAct === act && (!kind || x.dataset.kind === kind); })[0]; }
+  (async function () {
+    try {
+      var host = document.getElementById('host');
+      host.innerHTML = Whiteboard.boardShellHTML({ classId: 'u1', ids: false, back: false, zoomControls: true, maximize: false });
+      var h = await Whiteboard.mountBoardView(host.querySelector('.wb-page'), { classId: 'u1', boardId: 'nb1_u1', collection: 'notebookBoards', ownerUid: 'u1', boardName: 'Sketches', chrome: 'full', view: { enabled: true }, items: { enabled: true } });
+      await until(function () { return h.getBoard() && q('.wb-pill-tools'); });
+      ok(!!q('.wb-pill-tools'), 'a notebook board has the ✦ Tools pill');
+      var r = await h.startRecording();
+      ok(!!(r && r.recId) && h.isRecording() && window.__mrLog.indexOf('start') >= 0, 'recording starts (the fake microphone)');
+      ok(!!(await until(function () { return window.RECORDER_CORE; })), 'the shared recorder core loads with the first recording');
+      openTools();
+      await until(function () { return fan('rec-pause'); });
+      ok(!!fan('rec-pause') && ['important', 'question', 'decision', 'todo'].every(function (k) { return !!fan('rec-mark', k); }) && !!fan('rec-section'), 'while recording, ✦ Tools offers pause, four kinds of mark and an important section');
+      fan('rec-mark', 'question').click();
+      var m1 = await until(function () { var d = recDoc(); return d && d.marks && d.marks.length === 1 && d.marks; }, 3000);
+      ok(!!m1 && m1[0].kind === 'question' && m1[0].t >= 0 && m1[0].end === undefined && recDoc().marksClock === 'wall', 'a mark lands on the recording doc: kind, the moment (wall seconds), no end', JSON.stringify(m1));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'm', altKey: true, bubbles: true }));
+      ok(!!(await until(function () { var d = recDoc(); return d.marks.length === 2 && d.marks.some(function (x) { return x.kind === 'important'; }); }, 3000)), 'Alt+M marks an important moment (Scientia\'s key)');
+      openTools(); await until(function () { return fan('rec-section'); });
+      fan('rec-section').click();
+      ok(!!(await until(function () { var d = recDoc(); return d.marks.some(function (x) { return x.end === null; }); }, 3000)), 'the section button opens an important section (end: null)');
+      await wait(300); openTools(); await until(function () { return fan('rec-section'); });
+      ok(fan('rec-section').classList.contains('wb-sel'), '…and shows it is open');
+      fan('rec-section').click();
+      var closed = await until(function () { var d = recDoc(); var s = d.marks.filter(function (x) { return typeof x.end === 'number'; })[0]; return s; }, 3000);
+      ok(!!closed && closed.end >= closed.t && !recDoc().marks.some(function (x) { return x.end === null; }), 'a second tap ends it', JSON.stringify(closed));
+      openTools(); await until(function () { return fan('rec-pause'); });
+      fan('rec-pause').click();
+      ok(window.__mrLog.indexOf('pause') >= 0 && !!(await until(function () { return recDoc().paused === true; }, 2000)), 'pause pauses the recorder and says so on the doc');
+      ok(/❚❚/.test((q('.wb-pill-rec') || {}).textContent || ''), 'the Tools pill\'s clock shows it is paused', (q('.wb-pill-rec') || {}).textContent);
+      await wait(700);
+      openTools(); await until(function () { return fan('rec-pause'); });
+      fan('rec-pause').click();
+      ok(window.__mrLog.indexOf('resume') >= 0 && !!(await until(function () { return recDoc().paused === false; }, 2000)), 'resume');
+      ok(!!(await until(function () { return events().some(function (e) { return e.type === 'gap' && e.reason === 'pause' && e.durationMs >= 600; }); }, 4000)), 'the pause is logged as a gap, so the replay skips it', JSON.stringify(events()));
+      openTools(); await until(function () { return fan('rec-section'); });
+      fan('rec-section').click();
+      await until(function () { return recDoc().marks.some(function (x) { return x.end === null; }); }, 2000);
+      await h.stopRecording('stop');
+      var fin = recDoc();
+      ok(fin.status === 'ready' && fin.paused === false && fin.marks.length === 4 && !fin.marks.some(function (x) { return x.end === null; }), 'Stop saves the marks and closes a section still open', JSON.stringify(fin.marks));
+      ok(!h.isRecording() && !fan('rec-pause'), 'after Stop the recording items are gone');
+      ok(window.__popups.length === 0, 'no browser popups');
+      h.destroy();
+    } catch (e) { ok(false, 'harness error', (e && e.stack) || e); }
+    done();
+  })();
+})();
+</script>
+</body>
+</html>

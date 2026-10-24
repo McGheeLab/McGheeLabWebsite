@@ -270,6 +270,19 @@ const firebridge = window.firebridge; delete window.firebridge;</script>
       check('Escape closes it', !pop());
     }
 
+    /* V3.884 — "this won't go away": it always has a ×, and a click into a frame (Scientia in the Lab Notebook) closes it */
+    MYWEEK_REPORT.open({ card: { itemId: 'w2', title: 'To do', kind: 'notebook_item' }, point: { x: 40, y: 40 } }); await until(function () { return pop(); }, 2000); await sleep(30);
+    check('the picker has a × …', !!q('.mwr-pop [data-mwr-close]'));
+    click(q('.mwr-pop [data-mwr-close]')); await sleep(40);
+    check('…that closes it', !pop());
+    var ifr = document.createElement('iframe'); ifr.style.cssText = 'width:120px;height:60px'; ifr.srcdoc = '<button>in the frame</button>'; document.body.appendChild(ifr);
+    await sleep(150);
+    MYWEEK_REPORT.open({ card: { itemId: 'w2', title: 'To do', kind: 'notebook_item' }, point: { x: 40, y: 40 } }); await until(function () { return pop(); }, 2000); await sleep(30);
+    ifr.contentDocument.querySelector('button').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 5 }));
+    await sleep(60);
+    check('a click inside a frame on the page (Scientia in the Lab Notebook) closes it — the page itself never hears that click', !pop());
+    ifr.remove();
+
     check('no browser popups', window.__popups.length === 0);
     check('no toast errors', (window.__toastErr || []).length === 0, window.__toastErr);
     check('no raw SVG markup leaked into text', document.body.innerText.indexOf('<svg') < 0);

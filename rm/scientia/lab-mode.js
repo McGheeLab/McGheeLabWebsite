@@ -15,6 +15,7 @@
      Reminders + chores  dated items in My Week, ticks both ways; the timer and edits go to RM activity (V3.874, section 7 + the hub).
      Portfolio  what the PI assigned you in RM first, as region cards you move and fold; Quick notes; your own projects (V3.880, section 10).
      Pills      the Lab Notebook's movable ✎ ＋ ✦ ⊕ pills on every note, driving Scientia's own ink, inserts and view (V3.882, section 11).
+     Recorder   the one recorder (V3.884, section 12): audio to the cloud a minute at a time, recovery, marks with kinds and sections, timed ink.
 
    The app's globals (TABS, VIEWS, App, DB, M, LIB, h, …) are top-level consts
    of the classic script that precedes this one: same realm, same lexical
@@ -30,7 +31,7 @@
     activity: '/rm/pages/activity-overview.html?tab=tracker',
     inventory: '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.882', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.885', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -768,50 +769,6 @@
     if (s.open[r.id] !== undefined) return !!s.open[r.id];
     return !(r.group === 'earlier' || (r.p && r.p.rm && SHUT[r.p.rmStatus]));
   }
-  /* V3.882 — a quick note is saved somewhere with what it inherits there: the person gives its title, type, project
-     and theme in one form (Gabe's modal), and the note is then stored in that project */
-  function fileNote(docId) { return saveForm(docId); }
-  function fileButton(docId) { return h('button.btn.xs.lab-file', { title: 'Save this note to a project: its title, type, project and theme', on: { click: function (e) { e.preventDefault(); e.stopPropagation(); fileNote(docId); } } }, 'Save to a project…'); }
-  function saveForm(docId) {
-    var d = M.doc(docId); if (!d) return null;
-    var byName = function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); };
-    var ps = DB.all('projects').filter(function (p) { return !(p.rm && p.rmAssigned === false); });
-    var assigned = ps.filter(isAssigned).sort(function (a, b) { return rank(a) - rank(b) || byName(a, b); }), own = ps.filter(function (p) { return !p.rm; }).sort(byName);
-    if (!ps.length) { toast('Make a project first — Portfolio → + Project'); return null; }
-    var opt = function (p) { return h('option', { value: p.id, selected: p.id === d.projectId }, p.name + (p.rm ? ' (' + (KIND[p.rmKind] || 'RM').toLowerCase() + ')' : '')); };
-    var title = h('input.inp.lab-save-title', { placeholder: 'What this note is about', value: QN.title.test(d.title || '') ? '' : (d.title || '') });
-    var typ = h('select.inp.lab-save-type', userProfiles().map(function (p) { return h('option', { value: p.type, selected: p.type === d.type }, p.label); }));
-    var proj = h('select.inp.lab-save-proj', h('option', { value: '' }, 'Choose a project…'),
-      assigned.length ? h('optgroup', { label: 'Assigned to you' }, assigned.map(opt)) : null, own.length ? h('optgroup', { label: 'Your projects' }, own.map(opt)) : null);
-    var th = h('select.inp.lab-save-theme'), err = h('div.tiny.lab-save-err', { role: 'alert' });
-    function fillThemes() {
-      var themes = proj.value ? DB.where('themes', function (t) { return t.projectId === proj.value && t.status === 'active'; }) : [], inTheme = prof(typ.value).scope === 'theme';
-      th.replaceChildren.apply(th, [h('option', { value: '' }, !proj.value ? 'Choose the project first' : !inTheme ? 'This type is project-wide' : themes.length ? '— none (project-wide) —' : 'No themes in this project')]
-        .concat(themes.map(function (t) { return h('option', { value: t.id, selected: t.id === d.themeId }, t.name); })));
-      th.disabled = !proj.value || !inTheme || !themes.length;
-    }
-    proj.onchange = fillThemes; typ.onchange = fillThemes; fillThemes();
-    var m = modal({ title: 'Save this note to a project', body: h('div.lab-save',
-        h('p.tiny.muted', { style: { marginTop: 0 } }, 'A quick note takes on what it is when you save it: its title, its type, and the project (and theme) it belongs to. What you wrote stays as it is.'),
-        h('div.grid2', h('label.f', h('span', 'Title'), title), h('label.f', h('span', 'Type'), typ), h('label.f', h('span', 'Project'), proj), h('label.f', h('span', 'Theme'), th)), err),
-      actions: [{ label: 'Cancel' }, { label: 'Save', pri: true, run: function () {
-        var t = title.value.trim();
-        if (!t) { err.textContent = 'Give the note a title.'; title.focus(); return false; }
-        if (!proj.value) { err.textContent = 'Choose the project it belongs to.'; proj.focus(); return false; }
-        var cur = M.doc(docId); if (!cur) return;
-        var pf = prof(typ.value);
-        seedSig(cur);
-        cur.title = t; cur.type = typ.value; cur.scope = pf.scope; cur.projectId = proj.value; cur.themeId = pf.scope === 'theme' && !th.disabled ? (th.value || null) : null; cur.quick = false;
-        M.touchDoc(cur); changed();
-        $$('.lab-qn, .lab-save-btn').forEach(function (x) { x.remove(); });
-        var P = M.project(cur.projectId), T = cur.themeId && M.theme(cur.themeId);
-        toast('Saved to ' + (P ? P.name : 'the project') + (T ? ' › ' + T.name : ''));
-        LAB.lastSaved = cur.id;
-      } }] });
-    setTimeout(function () { try { (title.value ? proj : title).focus(); } catch (e) {} }, 40);
-    return m;
-  }
-  LAB.saveForm = saveForm;
   function docsOf(r) { return r.group === 'quick' ? generalDocs() : DB.where('documents', function (d) { return d.projectId === r.id && d.type !== 'review' && !d.deleted; }); }
 
   function docCard(d, sub, act) {
@@ -849,9 +806,9 @@
     var open = isOpen(s, r), p = r.p, head, body = null, acts = [];
     if (r.group === 'quick') {
       var G = generalDocs().sort(byModified);
-      head = [h('div.pk', 'Outside projects'), h('div.pn', 'Quick notes'), h('div.ps', plural(G.length, 'note') + ' · a blank page; file it into a project later (⋯ → Project & theme…)')];
+      head = [h('div.pk', 'Outside projects'), h('div.pn', 'Quick notes'), h('div.ps', plural(G.length, 'note') + ' · a blank page; choose its project in its first block when you are ready')];
       acts.push(btn('xs pri', '+ Quick note', quickNote, 'A blank page — write, or start from a template'));
-      if (open) body = h('div.lab-reg-b.lab-qbody', G.length ? G.map(function (d) { return docCard(d, touchesLine(d), fileButton(d.id)); }) : h('div.lab-empty.tiny.muted', 'A quick note opens as a blank page: write, or pick a template.'));
+      if (open) body = h('div.lab-reg-b.lab-qbody', G.length ? G.map(function (d) { return docCard(d, touchesLine(d)); }) : h('div.lab-empty.tiny.muted', 'A quick note opens as a blank page; its first block holds its title, template, project and theme.'));
     } else {
       var themes = DB.where('themes', function (t) { return t.projectId === p.id && t.status === 'active'; }), notes = docsOf(r).length;
       var kick = p.rm ? [KIND[p.rmKind] || words(p.rmKind) || 'Project', p.rmStatus ? words(p.rmStatus) : null, r.group === 'earlier' ? 'no longer assigned' : 'assigned' + (p.rmRole && p.rmRole !== 'member' ? ' · ' + p.rmRole : '')].filter(Boolean).join(' · ') : 'Project';
@@ -1014,80 +971,125 @@
   }
   LAB.setShare = setShare;
 
-  /* quick notes: a General note that opens blank, with the templates on offer until something is written */
-  var QN = { title: /^Quick note · /, made: 0 };
-  function quickNote() {
-    var type = (typeof PROFILE !== 'undefined' && PROFILE.note) ? 'note' : userProfiles()[0].type;
-    var d = M.createDoc({ type: type, projectId: null, themeId: null, title: 'Quick note · ' + fmtDay(new Date()) });
-    var cur = M.doc(d.id) || d; cur.quick = true; DB.put('documents', cur); QN.made++;
-    var first = cur.blockIds.map(M.block).filter(Boolean)[0]; DocView.pendingFocus = first ? { focus: first.id, pos: 0 } : null;
-    App.go('#/doc/' + cur.id);
-    return cur;
+  /* ---- V3.885 — a note's details live in its first block ----
+     Alex: "when a user adds a note page never ask for this information up front, instead it is just in this initial
+     block" — + Note, + Experiment, ＋ Quick note and Ctrl+Alt+N make the note at once; its head block (Gabe's, always
+     there) holds Title · Type · Template · Project · Theme (and *Seen by* in an RM project), always editable. The items
+     a template brings carry `tpl { id, label0, text0 }`: while none is edited, changing the template (or the type)
+     swaps them freely; once one is edited the person chooses — keep the edited ones (the new template goes beside
+     them) or replace everything. Items the person added themselves are never touched by a template change. */
+  var QN = { made: 0 };
+  function quickNote() { QN.made++; return App.newDoc({ type: 'note', projectId: null }); }
+  function defaultTitle(d) { var labs = userProfiles().map(function (p) { return p.label; }).concat(['Quick note', 'Experiment']); return new RegExp('^(' + labs.map(function (l) { return l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ') · ').test(d.title || ''); }
+  function tplItems(d) { return M.liveBlocks(d.id).filter(function (b) { return !!b.tpl; }); }
+  function isEdited(b) {
+    var t = b.tpl || {};
+    return b.kind !== 'component' || String(b.label || '') !== String(t.label0 || '') || String((b.body && b.body.text) || '') !== String(t.text0 || '') || ((b.body && b.body.marks) || []).length > 0;
   }
-  function blankDoc(d) {
-    var bs = M.liveBlocks(d.id);
-    return bs.length <= 1 && !String((d.synthesis && d.synthesis.text) || '').trim() && bs.every(function (b) {
-      return b.kind === 'component' && !String(b.label || '').trim() && !String((b.body && b.body.text) || '').replace(/￼/g, '').trim() && !(b.fields || []).length; });
+  /** The items a new note starts with are its template's: mark them so a template change knows them. */
+  function markTemplate(docId) {
+    var d = M.doc(docId); if (!d) return;
+    M.liveBlocks(d.id).forEach(function (b) { if (b.tpl || b.kind !== 'component') return; DB.put('blocks', Object.assign({}, b, { tpl: { id: d.templateId || null, label0: b.label || '', text0: (b.body && b.body.text) || '' } })); });
   }
-  function templateRows() {
-    var out = [];
-    userProfiles().forEach(function (p) { M.templatesFor(p.type).forEach(function (t) {
-      if (t.isStandard && !t.enabled) return;   // a standard one switched off in Settings; the person's own are always offered
-      if (!(t.blocks || []).some(function (b) { return String(b.label || '').trim() || String(b.body || '').trim(); })) return;   // an empty template is "continue blank"
-      out.push({ t: t, p: p }); }); });
-    return out;
-  }
-  function applyTemplate(docId, t) {
-    var d = M.doc(docId); if (!d) return null;
-    var p = prof(t.type), rows = (t.blocks || []).length ? t.blocks : [{ label: '', body: '' }], first = M.liveBlocks(d.id).filter(function (b) { return b.kind === 'component'; })[0], after = null;
-    d.type = t.type; d.scope = p.scope; d.themeId = null; d.templateId = t.id; d.quick = false;
-    if (QN.title.test(d.title || '')) d.title = p.label + ' · ' + fmtDay(d.created);
+  function loadTemplate(docId, t, at) {
+    var d = M.doc(docId), rows = t && (t.blocks || []).length ? t.blocks : [{ label: '', body: '' }], after = null, made = [];
     rows.forEach(function (r, i) {
-      var at = { label: r.label || '', body: { text: r.body || '', marks: [] }, x: r.x != null ? r.x : null, y: r.y != null ? r.y : null };
-      if (i === 0 && first) { Object.assign(first, at); DB.put('blocks', first); after = first.id; return; }
-      after = M._newBlock(d, at, after).id;
+      var b = M._newBlock(d, { label: r.label || '', body: { text: r.body || '', marks: [] }, x: at ? at.x : (r.x != null ? r.x : null), y: at ? at.y + i * 168 : (r.y != null ? r.y : null),
+        tpl: { id: t ? t.id : null, label0: r.label || '', text0: r.body || '' } }, after);
+      after = b.id; made.push(b.id);
     });
-    M.autoLayout(d); M.touchDoc(d); $$('.lab-qn').forEach(function (b) { b.remove(); }); changed();
-    var f = M.liveBlocks(d.id)[0]; DocView.pendingFocus = f ? { focus: f.id, pos: 0 } : null;
-    App.refresh(); toast('Started from ' + (t.isStandard ? 'the ' + p.label.toLowerCase() + ' template' : '“' + t.name + '”'));
-    return d;
+    M.autoLayout(d); DB.put('documents', d); return made;
   }
-  function dismissQuick(docId, focus) {
-    var d = M.doc(docId); if (d && d.quick) { d.quick = false; DB.put('documents', d); }
-    $$('.lab-qn').forEach(function (b) { b.remove(); });
-    if (focus) { var ed = document.querySelector('.box .ed[contenteditable="true"]') || document.querySelector('.box .ed'); if (ed) try { ed.focus(); } catch (e) {} }
+  /** Swap the template's items: all of them, or (keepEdited) only the untouched ones — the new template goes beside the kept. */
+  function swapTemplate(docId, tplId, keepEdited) {
+    var d = M.doc(docId); if (!d) return;
+    var t = tplId ? DB.get('templates', tplId) : null, items = tplItems(d), keep = keepEdited ? items.filter(isEdited) : [], drop = items.filter(function (b) { return keep.indexOf(b) < 0; }), at = null;
+    keep.forEach(function (b) { var n = Object.assign({}, b); delete n.tpl; DB.put('blocks', n); });   // now the person's own items
+    if (keep.length) { var x1 = -1e9, y0 = 1e9; keep.forEach(function (b) { x1 = Math.max(x1, (b.x || 0) + (b.w || 392)); y0 = Math.min(y0, b.y || 0); }); at = { x: Math.round((x1 + 56) / 14) * 14, y: Math.round(y0 / 14) * 14 }; }
+    if (drop.length) EDIT.deleteBlocks(drop.map(function (b) { return b.id; }), { quiet: true });
+    var cur = M.doc(docId);
+    if (t) { var p = prof(t.type), def = defaultTitle(cur); cur.type = t.type; cur.scope = p.scope; if (p.scope !== 'theme') cur.themeId = null; if (def) cur.title = p.label + ' · ' + fmtDay(cur.created); }
+    cur.templateId = t ? t.id : null; DB.put('documents', cur);
+    loadTemplate(docId, t, at);
+    var nd = M.doc(docId); M.touchDoc(nd); changed();
+    LAB.lastSwap = { docId: docId, tplId: tplId, kept: keep.length, dropped: drop.length };
   }
-  function quickBar(d) {
-    var rows = templateRows();
-    return h('div.lab-qn.nopan', { role: 'group', 'aria-label': 'Start this page' },
-      h('div.lab-qn-h', h('b', 'A blank page'), h('span.tiny.muted', ' — write, or start from a template')),
-      rows.length ? h('div.lab-qn-g', rows.map(function (x) {
-        return h('button.btn.xs.lab-qn-t', { 'data-tpl': x.t.id, title: x.p.label + ': ' + (x.t.blocks || []).map(function (b) { return b.label || '·'; }).join(' → '), on: { click: function () { applyTemplate(d.id, x.t); } } },
-          x.t.isStandard ? x.p.label : x.t.name); })) : h('div.tiny.muted', { style: { margin: '0 0 8px' } }, 'No templates yet — Settings → Templates, or ⋯ → Save structure as template… in any note.'),
-      h('div.row.lab-qn-f', btn('sm pri', 'Continue blank', function () { dismissQuick(d.id, true); }, 'Keep the blank page'),
-        btn('sm', 'Save to a project…', function () { fileNote(d.id); }, 'Give it a title, type and project now'), h('span.tiny.muted', 'or later, from the note’s header')));
+  function changeTemplate(docId, tplId, sel) {
+    var d = M.doc(docId); if (!d || (d.templateId || '') === (tplId || '')) return;
+    var edited = tplItems(d).filter(isEdited), t = tplId ? DB.get('templates', tplId) : null, name = t ? (t.isStandard ? prof(t.type).label : t.name) : 'no template';
+    if (!edited.length) { swapTemplate(docId, tplId, false); toast(t ? 'Template: ' + name : 'No template — a blank page'); return; }
+    var restore = function () { if (sel && sel.isConnected) sel.value = (M.doc(docId) || {}).templateId || ''; };
+    modal({ title: 'Change the template?', onClose: restore, body: h('div',
+        h('p', 'You have edited ' + plural(edited.length, 'item') + ' that came with the current template. Changing to ', h('b', name), ' deletes the template’s items.'),
+        h('p.tiny.muted', 'Keep the items I edited: those stay (and become your own), the untouched ones go, and the new template’s items are placed beside them. Replace everything: all of the template’s items go, your edits too. Items you added yourself always stay.')),
+      actions: [{ label: 'Cancel', run: restore },
+        { label: 'Keep the items I edited', pri: true, run: function () { swapTemplate(docId, tplId, true); toast('Template: ' + name + ' — your edited items kept'); } },
+        { label: 'Replace everything', danger: true, run: function () { swapTemplate(docId, tplId, false); toast('Template: ' + name); } }] });
+  }
+  function changeType(docId, type) {
+    var d = M.doc(docId); if (!d || d.type === type || !PROFILE[type]) return;
+    var std = M.enabledTemplates(type)[0];
+    if (!tplItems(d).filter(isEdited).length && std) { swapTemplate(docId, std.id, false); toast(prof(type).label + ' — with its template'); return; }   // untouched: the type's template comes with it
+    var p = prof(type), def = defaultTitle(d); seedSig(d);
+    d.type = type; d.scope = p.scope; if (p.scope !== 'theme') d.themeId = null; if (def) d.title = p.label + ' · ' + fmtDay(d.created);
+    M.touchDoc(d); changed(); toast(p.label + ' — pick a template to load its items');
+  }
+  function setProject(docId, pid) {
+    var d = M.doc(docId); if (!d || (d.projectId || '') === (pid || '')) return; seedSig(d);
+    d.projectId = pid || null; var th = d.themeId && M.theme(d.themeId); if (!th || th.projectId !== d.projectId) d.themeId = null;
+    M.touchDoc(d); changed(); var P = pid && M.project(pid); toast(P ? 'Stored in ' + P.name : 'Outside any project (a quick note)');
+  }
+  function setTheme(docId, tid) { var d = M.doc(docId); if (!d || (d.themeId || '') === (tid || '')) return; seedSig(d); d.themeId = tid || null; M.touchDoc(d); changed(); }
+  function setTitle(docId, v) { var d = M.doc(docId); v = String(v || '').trim(); if (!d || !v || d.title === v) return; seedSig(d); d.title = v; if (d.chain === d.id && / — /.test(v)) d.chainName = v.replace(/\s+—\s+[^—]+$/, ''); M.touchDoc(d); changed(); }
+  LAB.changeTemplate = changeTemplate; LAB.swapTemplate = swapTemplate; LAB.changeType = changeType; LAB.setProject = setProject; LAB.setTheme = setTheme; LAB.setTitle = setTitle; LAB.isEdited = isEdited; LAB.tplItems = tplItems;
+  function headFields(d) {
+    var byName = function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); };
+    var ps = DB.all('projects').filter(function (p) { return !(p.rm && p.rmAssigned === false) || p.id === d.projectId; });
+    var assigned = ps.filter(function (p) { return p.rm; }).sort(function (a, b) { return rank(a) - rank(b) || byName(a, b); }), own = ps.filter(function (p) { return !p.rm; }).sort(byName);
+    var stop = function (e) { e.stopPropagation(); };
+    var opt = function (p) { return h('option', { value: p.id, selected: p.id === d.projectId }, p.name); };
+    var title = h('input.hin.lab-h-title', { value: d.title || '', placeholder: 'What this note is about', on: { pointerdown: stop, keydown: function (e) { e.stopPropagation(); if (e.key === 'Enter') e.target.blur(); }, change: function (e) { setTitle(d.id, e.target.value); } } });
+    var type = h('select.hin.lab-h-type', { on: { pointerdown: stop, change: function (e) { changeType(d.id, e.target.value); } } }, userProfiles().map(function (p) { return h('option', { value: p.type, selected: p.type === d.type }, p.label); }));
+    var tpl = h('select.hin.lab-h-tpl', { title: 'Change it freely until you edit an item it brought', on: { pointerdown: stop, change: function (e) { changeTemplate(d.id, e.target.value || null, e.target); } } },
+      h('option', { value: '', selected: !d.templateId }, 'No template — a blank page'),
+      userProfiles().map(function (p) { var ts = M.templatesFor(p.type).filter(function (t) { return t.enabled || !t.isStandard || t.id === d.templateId; });
+        return ts.length ? h('optgroup', { label: p.label }, ts.map(function (t) { return h('option', { value: t.id, selected: t.id === d.templateId }, t.isStandard ? p.label + ' (standard)' : t.name); })) : null; }));
+    var proj = h('select.hin.lab-h-proj', { on: { pointerdown: stop, change: function (e) { setProject(d.id, e.target.value); } } }, h('option', { value: '', selected: !d.projectId }, 'No project — a quick note'),
+      assigned.length ? h('optgroup', { label: 'Assigned to you' }, assigned.map(opt)) : null, own.length ? h('optgroup', { label: 'Your projects' }, own.map(opt)) : null);
+    var themes = d.projectId ? DB.where('themes', function (t) { return t.projectId === d.projectId && t.status === 'active'; }) : [], inTheme = prof(d.type).scope === 'theme';
+    var theme = h('select.hin.lab-h-theme', { disabled: !d.projectId || !inTheme || !themes.length, on: { pointerdown: stop, change: function (e) { setTheme(d.id, e.target.value); } } },
+      h('option', { value: '' }, !d.projectId ? 'Choose a project first' : !inTheme ? 'This type is project-wide' : themes.length ? '— none (project-wide) —' : 'No themes in this project'),
+      themes.map(function (t) { return h('option', { value: t.id, selected: t.id === d.themeId }, t.name); }));
+    return h('div.hgrid.lab-hmeta', { 'data-doc': d.id },
+      h('label.hf', h('span', 'Title'), title), h('label.hf', h('span', 'Type'), type), h('label.hf', h('span', 'Template'), tpl),
+      h('label.hf', h('span', 'Project'), proj), h('label.hf', h('span', 'Theme'), theme),
+      rmLinked(d) ? h('div.hf.lab-h-share', h('span', 'Seen by'), shareEl(d.id)) : null);
   }
   try {
-    var oDocRender = DocView.render;
-    DocView.render = function (docId) {
-      var host = oDocRender.apply(this, arguments);
-      try {
-        var d = M.doc(docId), pane = this;
-        seedSig(d);
-        if (d && rmLinked(d) && pane === App.pane) setTimeout(function () { var meta = $('#meta'); if (meta && !$('.lab-share', meta) && App.pane === pane && pane.docId === docId) meta.append(shareEl(docId)); }, 0);
-        if (d && !d.projectId && ['day', 'review'].indexOf(d.type) < 0 && pane === App.pane) setTimeout(function () { var meta = $('#meta'); if (meta && !$('.lab-save-btn', meta) && App.pane === pane && pane.docId === docId) meta.append(h('button.btn.xs.pri.lab-save-btn', { title: 'Give it a title, type and project — it is then stored in that project', on: { click: function () { saveForm(docId); } } }, 'Save to a project…')); }, 0);
-        if (d && d.quick && host && host.append) {
-          if (!blankDoc(d)) { d.quick = false; DB.put('documents', d); }
-          else {
-            var bar = quickBar(d); host.append(bar);
-            host.addEventListener('input', function onIn(e) { if (!bar.isConnected) return host.removeEventListener('input', onIn, true); if (e.target && e.target.closest && e.target.closest('.lab-qn')) return; dismissQuick(docId, false); host.removeEventListener('input', onIn, true); }, true);
-          }
-        }
-      } catch (x) { warn('quick note', x); }
-      return host;
+    var oHeadBox = DocView.headBox;
+    DocView.headBox = function (d) {
+      var el = oHeadBox.apply(this, arguments);
+      try { if (!this.travel && el && el.querySelector) { var g = el.querySelector('.hgrid'); var f = headFields(M.doc(d.id) || d); if (g) g.before(f); else el.append(f); } } catch (x) { warn('note head', x); }
+      return el;
     };
-  } catch (e) { warn('quick note', e); }
-  LAB.quickNote = quickNote; LAB.applyTemplate = applyTemplate; LAB.templateRows = templateRows; LAB.blankDoc = blankDoc;
+    var oNewDoc = App.newDoc;
+    App.newDoc = function (pre) {
+      pre = pre || {};
+      if (pre.runDef) return oNewDoc.apply(App, arguments);   // running a registered protocol: his dialog picks the run
+      var type = pre.type && PROFILE[pre.type] ? pre.type : 'note', d, first0 = CHAIN.firstType();
+      if (type === 'experiment' && first0 !== 'experiment' && CHAIN.precedes(first0, 'experiment')) d = CHAIN.create({ projectId: pre.projectId || null, themeId: pre.themeId || null, name: pre.title || '', date: pre.date });
+      else { var tp = M.enabledTemplates(type)[0] || null; d = M.createDoc({ type: type, projectId: pre.projectId || null, themeId: pre.themeId || null, title: pre.title || '', templateId: tp ? tp.id : null, date: pre.date }); }
+      markTemplate(d.id); seedSig(M.doc(d.id));
+      if (pre.onCreate) try { pre.onCreate(d); } catch (x) { warn('new note', x); }
+      var f = M.doc(d.id).blockIds.map(M.block).filter(Boolean)[0]; DocView.pendingFocus = f ? { focus: f.id, pos: 0 } : null;
+      App.go('#/doc/' + d.id);
+      return d;
+    };
+    CHAIN.start = function (pre) { return App.newDoc(Object.assign({}, pre || {}, { type: 'experiment' })); };
+    var oDocRender = DocView.render;
+    DocView.render = function (docId) { var host = oDocRender.apply(this, arguments); try { seedSig(M.doc(docId)); } catch (x) {} return host; };
+  } catch (e) { warn('note head', e); }
+  LAB.quickNote = quickNote; LAB.markTemplate = markTemplate;
   /* V3.882 — the Lab Notebook's ＋ Quick note (notebook-scientia.js sisCmd 'quick'); a fresh frame may still be loading the record */
   window.addEventListener('message', function (e) {
     if (e.origin !== ORIGIN || e.source !== window.parent || !e.data || e.data.sisCmd !== 'quick') return;
@@ -1113,11 +1115,10 @@
       '.lab-col{width:240px;display:flex;flex-direction:column;gap:8px}.lab-reg .box{position:relative;left:auto;top:auto}.lab-qbody .dcard{width:260px}' +
       '.lab-col-h{padding:2px 2px 0;letter-spacing:.1em;text-transform:uppercase;font-size:9.5px}.lab-empty{padding:6px 4px}.lab-q{font-size:11.5px;color:var(--ink-3);margin:-2px 0 6px;line-height:1.35}' +
       '.lab-pf-bar{position:absolute;top:12px;left:12px;z-index:16;display:flex;gap:6px;flex-wrap:wrap;align-items:center;max-width:calc(100% - 24px)}' +
-      '.lab-qn{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:15;width:min(560px,calc(100% - 24px));box-sizing:border-box;background:var(--surface);border:1px solid var(--rule-2);border-radius:10px;box-shadow:var(--shadow-lg);padding:12px 14px}' +
-      '.lab-qn-h{margin-bottom:8px}.lab-qn-g{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;max-height:40vh;overflow:auto}.lab-qn-f{gap:10px;align-items:center;flex-wrap:wrap}' +
-      '.lab-save-btn{margin-left:10px}.lab-save-err{color:var(--bad);min-height:16px;margin-top:8px}' +
+      '.lab-hmeta{padding-bottom:7px;margin-bottom:4px;border-bottom:1px solid var(--rule)}.lab-hmeta select.hin,.lab-hmeta input.hin{width:100%;box-sizing:border-box}.lab-hmeta select.hin:disabled{color:var(--ink-4)}' +
+      '.lab-h-share{grid-template-columns:86px 1fr}.lab-h-share .lab-share{margin-left:0}' +
       '.lab-share{display:inline-flex;align-items:center;gap:6px;margin-left:10px}.lab-share .seg button{height:20px;font-size:11px;padding:0 7px}.lab-file{flex:none}' +
-      '.lab-rm-proj{margin:10px 0}@media (max-width:820px){.lab-qn{top:56px}.lab-reg-a{max-width:150px}}';
+      '.lab-rm-proj{margin:10px 0}@media (max-width:820px){.lab-reg-a{max-width:150px}}';
   } catch (e) { warn('css 10', e); }
 
   /* ---- 11. The canvas pills in a note (V3.882) ----
@@ -1351,4 +1352,143 @@
       '.canvas-host.lab-hand-zoom .paper{cursor:zoom-in}' +
       '';
   } catch (e) { warn('css 11', e); }
+
+  /* ---- 12. The one recorder in a note (V3.884, R1 of CodeLog/ClaudesPlan/V3.884_one_recorder_program.md) ----
+     Gabe's Recording component (13zn) gains what RM's board recorder has, on the web: the audio goes to the lab's
+     cloud a part a minute while it records (api/rec/part — a closed tab loses at most a minute, and a recording
+     may run past the 30 MB single-file cap), joined at Stop (api/rec/compose); an interrupted one is recovered from
+     its parts. Marks gain kinds (important · question · decision · to do, rm/js/recorder-core.js) and sections, in
+     Gabe's own `marks` list (his ◆ bookmarks read as important). Ink drawn in the note while it records is stamped
+     with its moment (stroke.rt = [recId, t0, t1], audio seconds) for the replay. His desktop keeps its own recorder
+     and Whisper. Speech-to-text in the cloud comes on a button that shows its cost first (R3). */
+  var LR = { cur: null, timer: null, penT0: null, sent: [], stamped: 0 };
+  LAB.recorder = LR;
+  function rcore() { return window.RECORDER_CORE || null; }
+  try { if (!window.RECORDER_CORE) { var rcs = document.createElement('script'); rcs.src = '/rm/js/recorder-core.js?v=' + encodeURIComponent(LAB.version); document.head.appendChild(rcs); } } catch (e) { warn('recorder core', e); }
+  function partsStart(a) {
+    if (!a || (LR.cur && LR.cur.id === a.id)) return;
+    LR.cur = { id: a.id, n: 0, sent: 0, ext: a.ext || 'webm', mime: a.mime || 'audio/webm', q: Promise.resolve(), a: a, failed: 0 };
+    clearInterval(LR.timer); LR.timer = setInterval(function () { sendPart(); }, (rcore() && rcore().PART_MS) || 60000);
+  }
+  /** The audio recorded since the last part, as the next part (one at a time, in order). */
+  function sendPart() {
+    var P = LR.cur; if (!P) return Promise.resolve(false);
+    P.q = P.q.then(async function () {
+      var chunks = P.a.chunks || [], end = chunks.length; if (end <= P.sent) return true;
+      var blob = new Blob(chunks.slice(P.sent, end), { type: P.mime });
+      try {
+        var r = await fetch('api/rec/part?rid=' + encodeURIComponent(P.id) + '&n=' + P.n + '&ext=' + encodeURIComponent(P.ext), { method: 'POST', body: blob, headers: { 'Content-Type': 'application/octet-stream' } });
+        var j = r.ok ? await r.json() : null; if (!j || !j.ok) throw new Error((j && j.error) || ('HTTP ' + r.status));
+        P.sent = end; P.n++; LR.sent.push({ id: P.id, n: P.n - 1, bytes: blob.size });
+        REC.put(P.id, function (rr) { rr.parts = P.n; rr.partsExt = P.ext; });
+        return true;
+      } catch (e) { P.failed++; warn('recording part', e); return false; }
+    });
+    return P.q;
+  }
+  async function composeParts(id, name, ext) {
+    try {
+      var r = await fetch('api/rec/compose?rid=' + encodeURIComponent(id) + '&ext=' + encodeURIComponent(ext) + '&name=' + encodeURIComponent(name), { method: 'POST' });
+      var j = r.ok ? await r.json() : null; return j && j.ok ? j : null;
+    } catch (e) { warn('recording compose', e); return null; }
+  }
+  function savedFromParts(id, j) {
+    REC.put(id, function (rr) { rr.state = 'queued'; rr.file = j.file; rr.path = j.path; rr.bytes = j.bytes; rr.local = false; rr.parts = 0; });
+    try { DB.del('blobs', 'rec:' + id); } catch (e) {}
+    toast('Recording saved · recordings/' + j.file, 3500); REC.watch(id);
+  }
+  try {
+    var oRecStart = REC.start;
+    REC.start = async function (b) { var r = await oRecStart.apply(REC, arguments); try { if (REC.active && b && REC.active.id === b.id) partsStart(REC.active); } catch (e) { warn('recording parts', e); } return r; };
+    var oRecUpload = REC.upload;
+    REC.upload = async function (id, blob) {
+      var P = LR.cur;
+      if (!P || P.id !== id) return oRecUpload.apply(REC, arguments);
+      clearInterval(LR.timer); LR.timer = null;
+      if (!P.n) { LR.cur = null; return oRecUpload.apply(REC, arguments); }      // under a minute: one file, as before
+      await sendPart(); LR.cur = null;                                              // the last part
+      var b = M.block(id), j = P.sent >= (P.a.chunks || []).length ? await composeParts(id, b ? REC.fileBase(b) : 'recording', P.ext) : null;
+      if (!j) return oRecUpload.apply(REC, arguments);                              // the whole file, or kept on this device, as before
+      savedFromParts(id, j); return true;
+    };
+  } catch (e) { warn('recording upload', e); }
+  /** An interrupted recording (a closed tab, a crash): what reached the cloud becomes the recording. */
+  async function recoverParts(id) {
+    var b = M.block(id); if (!b) return null; var r = REC.r(b);
+    var j = await composeParts(id, REC.fileBase(b), r.partsExt || r.ext || 'webm');
+    if (!j) { toast('Nothing could be recovered for this recording'); return null; }
+    REC.put(id, function (rr) { rr.paused = false; rr.dur = rr.dur || (rr.parts || 0) * 60; });
+    savedFromParts(id, j); changed(); return j;
+  }
+  LAB.sendPart = sendPart; LAB.recoverParts = recoverParts;
+
+  /* marks with kinds and sections, at the moment recording or playing */
+  function recNow(id) { var a = REC.active; if (a && a.id === id) return REC.elapsed(); if (REC.player && REC.player.id === id) return REC.player.audio.currentTime; return null; }
+  function markKind(id, kind) {
+    var C = rcore(), t = recNow(id); if (!C) { toast('One moment — try again'); return; } if (t == null) { toast('Play it first, then mark'); return; }
+    REC.put(id, function (r) { r.marks = C.addMark(r.marks, { t: t, kind: kind }); }); changed();
+    toast(C.KIND[C.kindOf(kind)].glyph + ' ' + C.KIND[C.kindOf(kind)].label + ' at ' + C.mmss(t));
+  }
+  function sectionToggle(id) {
+    var C = rcore(), t = recNow(id); if (!C) { toast('One moment — try again'); return; } if (t == null) { toast('Play it first, then mark'); return; }
+    var open = C.openOf(REC.r(M.block(id)).marks || []);
+    REC.put(id, function (r) { r.marks = C.toggleSection(r.marks, t, 'important'); }); changed();
+    toast(open ? 'Section ended — ' + C.mmss(t - open.t) + ' long' : 'Important section started — press again to end it');
+  }
+  LAB.markKind = markKind; LAB.sectionToggle = sectionToggle;
+  function decorateRec(el, b, ro) {
+    var C = rcore(), cur = M.block(b.id) || b, r = REC.r(cur), live = !!(REC.active && REC.active.id === b.id), dur = r.dur || 0, has = r.state !== 'new' && r.state !== 'recording';
+    if (!el || !el.querySelector) return;
+    if (C && !ro && (live || (has && (r.file || r.path || REC.blobs.has(b.id))))) {
+      var open = C.openOf(r.marks || []);
+      var row = h('div.lab-rc-kinds.nopan', { title: live ? 'Mark this moment' : 'Mark the moment playing now' },
+        C.MARK_KINDS.map(function (k) { return h('button.btn.xs', { 'data-kind': k.id, title: 'Mark: ' + k.label + (k.id === 'important' ? ' (Alt+M)' : ''), on: { click: function (e) { e.stopPropagation(); markKind(b.id, k.id); } } }, k.glyph + ' ' + k.label); }),
+        h('button.btn.xs' + (open ? '.on' : ''), { 'data-section': open ? 'open' : '', title: open ? 'End the important section' : 'Start an important section (press again to end it)', on: { click: function (e) { e.stopPropagation(); sectionToggle(b.id); } } }, open ? '⟧ End section' : '⟦ Section'));
+      var bar = el.querySelector('.rc-bar'); if (bar) bar.after(row);
+    }
+    // the marks list says what each one is; a section shows its span
+    if (C) {
+      var ms = r.marks || [];
+      [].forEach.call(el.querySelectorAll('.rc-mk'), function (mk, i) {
+        var m = ms[i]; if (!m) return; var k = C.KIND[C.kindOf(m.kind)], tb = mk.querySelector('.rc-mt');
+        mk.classList.add('lab-k-' + k.id);
+        if (tb) tb.textContent = k.glyph + ' ' + C.mmss(m.t) + (m.end === null ? ' → …' : typeof m.end === 'number' ? ' → ' + C.mmss(m.end) : '');
+      });
+      var prog = el.querySelector('.rc-prog');
+      if (prog && dur && !live) ms.filter(function (m) { return typeof m.end === 'number'; }).forEach(function (m) {
+        prog.append(h('b.lab-rc-band', { style: { left: (100 * m.t / dur) + '%', width: Math.max(0.5, 100 * (m.end - m.t) / dur) + '%' }, title: C.markLabel(m) + ' · ' + C.mmss(m.t) + '–' + C.mmss(m.end) })); });
+    }
+    var st = el.querySelector('.rc-status');
+    if (st && r.state === 'saved') { st.className = 'rc-status lab-rc-saved'; st.replaceChildren(h('span', 'Saved in the lab’s cloud' + (r.bytes ? ' (' + REC.kb(r.bytes) + ')' : '') + '.'), h('span.tiny.muted', ' Speech-to-text in the cloud comes next — it will show its cost before it runs; the desktop app transcribes it for free.')); }
+    if (st && !live && (r.state === 'recording' || r.state === 'saving') && (r.parts || 0) > 0) {
+      st.after(h('div.callout.lab-rc-recover', h('b.h', 'This recording was interrupted'), 'About ' + plural(r.parts, 'minute') + ' reached the lab’s cloud before it stopped. ',
+        ro ? null : h('button.btn.xs.pri', { on: { click: function (e) { e.stopPropagation(); e.currentTarget.disabled = true; recoverParts(b.id); } } }, 'Recover them')));
+    }
+    var n = 0;
+    try { INK.blocks(cur.docId).forEach(function (ib) { ((ib.ink && ib.ink.strokes) || []).forEach(function (s) { if (Array.isArray(s.rt) && s.rt[0] === b.id) n++; }); }); } catch (e) {}
+    if (n) el.append(h('div.lab-rc-ink.tiny.muted', '✎ ' + plural(n, 'stroke') + ' drawn while recording — each one is timed with the voice'));
+  }
+  try {
+    var oRecBody = WIDGETS.rec.body;
+    WIDGETS.rec.body = function (b, d, pane, ro) { var el = oRecBody.apply(this, arguments); try { decorateRec(el, b, ro); } catch (e) { warn('recording card', e); } return el; };
+  } catch (e) { warn('recording card', e); }
+
+  /* ink drawn in the note while it records carries its moment */
+  try {
+    var oPenDown = INK.penDown;
+    INK.penDown = function () { if (REC.active) LR.penT0 = REC.elapsed(); return oPenDown.apply(INK, arguments); };
+    var oAddStroke = INK.addStroke;
+    INK.addStroke = function (pane, s) {
+      var a = REC.active, C = rcore();
+      if (a && C && LR.penT0 != null && s && pane && (M.block(a.id) || {}).docId === pane.docId) { s = C.stamp(s, a.id, LR.penT0, REC.elapsed()); LR.stamped++; }
+      LR.penT0 = null;
+      return oAddStroke.call(INK, pane, s);
+    };
+  } catch (e) { warn('ink moments', e); }
+  try {
+    var st12 = document.getElementById('lab-mode-css');
+    if (st12) st12.textContent += '.lab-rc-kinds{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 2px}.lab-rc-kinds .btn.on{background:var(--teal-soft);color:var(--teal)}' +
+      '.rc-prog{position:relative}.lab-rc-band{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--teal) 28%,transparent);border-radius:2px;pointer-events:auto}' +
+      '.rc-mk.lab-k-question .rc-mt{color:#B5761B}.rc-mk.lab-k-decision .rc-mt{color:#4A5651}.rc-mk.lab-k-todo .rc-mt{color:#1E5E8C}.lab-rc-recover{margin:6px 0}.lab-rc-ink{margin-top:4px}';
+  } catch (e) { warn('css 12', e); }
 })();

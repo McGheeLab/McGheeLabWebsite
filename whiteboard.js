@@ -1402,7 +1402,7 @@ function recBadgeHTML() {
 function recElapsedLabel() {
   if (!REC) return '';
   const s = Math.floor((Date.now() - REC.startedAtMs) / 1000);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  return `${REC.pausedAt ? '❚❚ ' : ''}${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
 /* V3.732 — live + recording controls live in a RIGHT column beside the
@@ -1796,6 +1796,9 @@ async function handleBoardAction(act, btn) {
       else startRecording().then(r => { if (!r) toast('Recording could not start — the microphone is unavailable or was refused.'); else toast('Recording. Write, draw and talk; press ■ to stop.'); renderPills(); });
       break;
     }
+    case 'rec-pause': if (REC?.pausedAt) recResume(); else recPause(); break;
+    case 'rec-mark': recMark(btn.dataset.kind || 'important'); break;
+    case 'rec-section': recSection('important'); break;
     case 'max': {
       if (S.onTool && S.tools.some(t => t.act === 'max')) { try { S.onTool('max', btn); } catch (e) {} }
       else setMaximized(!isMaximized(), true);
@@ -5165,6 +5168,14 @@ function pillItems(name) {
     }
   } else if (name === 'tools') {
     items.push({ act: 'rec', icon: recording() ? '■' : ICON.svg('microphone'), label: recording() ? 'Stop recording' : 'Record voice with the ink', sel: recording() });
+    if (recording()) {
+      /* V3.884 — the one recorder: pause, marks of four kinds, an important section */
+      items.push({ act: 'rec-pause', icon: REC.pausedAt ? wbIcon('play', '>') : wbIcon('pause', '||'), label: REC.pausedAt ? 'Resume recording (Alt+P)' : 'Pause recording — the replay skips the pause (Alt+P)', sel: !!REC.pausedAt, keep: true });
+      [['important', '◆', 'Important (Alt+M)'], ['question', '?', 'Question'], ['decision', '◇', 'Decision'], ['todo', '☐', 'To do']].forEach(([k, g, l]) =>
+        items.push({ act: 'rec-mark', attrs: { 'data-kind': k }, icon: `<span class="wb-fan-glyph">${g}</span>`, label: 'Mark this moment: ' + l, keep: true }));
+      const open = window.RECORDER_CORE && RECORDER_CORE.openOf(REC.marks || []);
+      items.push({ act: 'rec-section', icon: `<span class="wb-fan-glyph">${open ? '⟧' : '⟦'}</span>`, label: open ? 'End the important section' : 'Start an important section (tap again to end it)', sel: !!open, keep: true });
+    }
     items.push({ act: 'arrange', icon: '⤧', label: S.arrange ? 'Done arranging' : 'Arrange cards', sel: !!S.arrange });
     items.push({ act: 'tidy', icon: '⇣', label: 'Tidy this page into a column' });
     if (isNotebook()) {
@@ -6313,6 +6324,72 @@ function recCol() {
 }
 function recording() { return !!(REC && S && REC.boardId === S.boardId); }
 
+/* ================================================================
+   V3.884 — the one recorder (CodeLog/ClaudesPlan/V3.884_one_recorder_program.md):
+   marks and pause, as Scientia's recorder has them. A mark is { id, t, kind,
+   label, end? } (rm/js/recorder-core.js) with t in WALL seconds since the
+   start, like everything else on this timeline (`marksClock: 'wall'` on the
+   doc); kinds important · question · decision · to do; a section has an
+   end (null while open). Pause = MediaRecorder.pause(); resume logs the
+   pause as a `gap` event, so the replay's audio ↔ wall rule already skips it.
+   ================================================================ */
+let _recCoreP = null;
+function ensureRecCore() {
+  if (window.RECORDER_CORE) return Promise.resolve(window.RECORDER_CORE);
+  if (!_recCoreP) _recCoreP = new Promise(res => {
+    const sc = document.createElement('script'); sc.src = '/rm/js/recorder-core.js?v=3884';
+    sc.onload = () => res(window.RECORDER_CORE || null); sc.onerror = () => { _recCoreP = null; res(null); };
+    document.head.appendChild(sc);
+  });
+  return _recCoreP;
+}
+function recColOf(rec) { return boardsCol(rec.classId, rec.coll || 'whiteboards').doc(rec.boardId).collection('recordings').doc(rec.recId); }
+function recNowSec() { return REC ? Math.round((Date.now() - REC.startedAtMs) / 10) / 100 : 0; }
+function recSaveMarks() {
+  const rec = REC; if (!rec) return;
+  clearTimeout(rec.markT);
+  rec.markT = setTimeout(() => recColOf(rec).update({ marks: rec.marks, marksClock: 'wall' }).catch(e => console.warn('[whiteboard] marks not saved', e)), 400);
+}
+async function recMark(kind) {
+  if (!REC) return;
+  const C = await ensureRecCore(); if (!C || !REC) { toast('Marks need a moment to load — try again.'); return; }
+  const t = recNowSec(); REC.marks = C.addMark(REC.marks, { t, kind });
+  recSaveMarks(); recTouch();
+  const k = C.KIND[C.kindOf(kind)];
+  toast(`${k.glyph} ${k.label} — marked at ${C.mmss(t)}`);
+  renderPills();
+}
+async function recSection(kind) {
+  if (!REC) return;
+  const C = await ensureRecCore(); if (!C || !REC) return;
+  const t = recNowSec(), open = C.openOf(REC.marks);
+  REC.marks = C.toggleSection(REC.marks, t, kind || 'important');
+  recSaveMarks(); recTouch();
+  toast(open ? `Section ended — ${C.mmss(t - open.t)} long.` : 'Important section started — tap again to end it.');
+  renderPills();
+}
+function recPause() {
+  const rec = REC; if (!rec?.recorder || rec.pausedAt) return;
+  try { rec.recorder.pause(); } catch (e) {}
+  rec.pausedAt = Date.now(); clearTimeout(rec.idleTimer);   /* a paused recording does not time out */
+  recColOf(rec).update({ paused: true }).catch(() => {});
+  renderPills();
+}
+function recResume() {
+  const rec = REC; if (!rec?.pausedAt) return;
+  const gap = Date.now() - rec.pausedAt; rec.pausedAt = null;
+  try { rec.recorder.resume(); } catch (e) {}
+  if (gap > 500) recEvent('gap', { durationMs: gap, reason: 'pause' });
+  recColOf(rec).update({ paused: false }).catch(() => {});
+  recTouch(); renderPills();
+}
+function recKeys(e) {
+  if (!REC || !recording() || !e.altKey || e.ctrlKey || e.metaKey) return;
+  const k = (e.key || '').toLowerCase();
+  if (k === 'm') { e.preventDefault(); recMark('important'); }     /* Scientia's Alt+M */
+  else if (k === 'p') { e.preventDefault(); if (REC.pausedAt) recResume(); else recPause(); }
+}
+
 /** Ask for the mic and start a recording for the mounted board. Returns
  *  { recId } or null (no mic / denied / unsupported). Never throws. */
 async function startRecording() {
@@ -6348,7 +6425,9 @@ async function startRecording() {
   REC = { recId, classId: S.classId, boardId: S.boardId, coll: S.coll, startedAtMs, mime, stream,
           /* a notebook recording has no live flag to arm against */
           arming: !isNotebook(), recorder: null, n: 0, uploads: Promise.resolve(), pending: [], evTimer: null,
-          idleTimer: null, timerTick: null, wakeLock: null, skew: null, hiddenAt: null };
+          idleTimer: null, timerTick: null, wakeLock: null, skew: null, hiddenAt: null,
+          marks: [], pausedAt: null, markT: null };   /* V3.884 — the one recorder: marks + pause */
+  ensureRecCore();
   try {
     await boardsCol(S.classId, S.coll).doc(S.boardId).collection('recordings').doc(recId).set(doc);
   } catch (e) {
@@ -6382,6 +6461,7 @@ async function startRecording() {
     document.querySelectorAll('[data-wb-rec-timer]').forEach(n => { n.innerHTML = `<span class="wb-live-dot"></span> ${ICON.svg('microphone')} ${recElapsedLabel()}`; });
   }, 1000);
   recWakeLock();
+  document.addEventListener('keydown', recKeys, true);   /* V3.884 — Alt+M mark, Alt+P pause */
   document.addEventListener('visibilitychange', recOnVisibility);
   window.addEventListener('pagehide', recOnPageHide);
   renderTopbarRight(); renderProjectorCtl();
@@ -6481,6 +6561,7 @@ function recOnVisibility() {
   if (!REC) return;
   if (document.hidden) { REC.hiddenAt = Date.now(); return; }
   recWakeLock();
+  if (REC.pausedAt) { REC.hiddenAt = null; return; }   /* V3.884 — paused by the person: their resume logs the gap */
   const r = REC.recorder;
   if (r && r.state === 'paused') {
     const gap = Date.now() - (REC.hiddenAt || Date.now());
@@ -6618,6 +6699,7 @@ async function stopRecording(reason) {
   if (!rec) return;
   REC = null;
   clearTimeout(rec.idleTimer); clearInterval(rec.timerTick); clearTimeout(rec.evTimer);
+  document.removeEventListener('keydown', recKeys, true);
   document.removeEventListener('visibilitychange', recOnVisibility);
   window.removeEventListener('pagehide', recOnPageHide);
   try { rec.wakeLock?.release?.(); } catch (e) {}
@@ -6643,8 +6725,11 @@ async function stopRecording(reason) {
       pending.forEach(ev => batch.set(col.collection('events').doc(newId('e')), ev));
       await batch.commit();
     }
+    clearTimeout(rec.markT);
+    const C = window.RECORDER_CORE, marks = C ? C.closeSection(rec.marks || [], Math.round((endedAtMs - rec.startedAtMs) / 10) / 100) : (rec.marks || []);
     await col.update({ status: 'ready', endedAtMs, durationMs: endedAtMs - rec.startedAtMs,
-                       clockSkewMs: rec.skew === null ? 0 : rec.skew, endReason: reason || 'end-live' });
+                       clockSkewMs: rec.skew === null ? 0 : rec.skew, endReason: reason || 'end-live',
+                       marks, marksClock: 'wall', paused: false });
   } catch (e) { console.warn('[whiteboard] finalize failed', e); }
   if (S) { renderTopbarRight(); renderProjectorCtl(); }
   /* V3.775 — index.html held back a service-worker reload while we recorded */

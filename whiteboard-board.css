@@ -480,6 +480,7 @@ body.wb-max .wb-pagesbar{ min-height: 0; }
 .wb-fan-dot{ width: 18px; height: 18px; border-radius: 50%; display: block; border: 1px solid rgba(0,0,0,.15); }
 .wb-fan-item.wb-sel .wb-fan-dot{ box-shadow: 0 0 0 2px #fff; }
 .wb-fan-bar{ display: block; width: 20px; border-radius: 3px; background: currentColor; }
+.wb-fan-glyph{ font: 700 15px/1 system-ui, -apple-system, sans-serif; pointer-events: none; }   /* V3.884 — recording marks */
 .wb-fan-caption{
   position: absolute; left: 30px; top: -58px; white-space: nowrap; font: 500 11px/18px system-ui, sans-serif; color: var(--wb-ink-2, #4D483F);
   background: var(--wb-surface, #fff); border: 1px solid var(--wb-rule, #cfcac0); border-radius: 999px; padding: 0 8px; pointer-events: none;

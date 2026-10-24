@@ -50,6 +50,15 @@
     window.addEventListener('unhandledrejection', function (e) { window.__rej.push(String((e.reason && e.reason.message) || e.reason)); });
     window.addEventListener('error', function (e) { var msg = String(e.message || e); if (/ResizeObserver loop/.test(msg)) return; window.__rej.push('error: ' + msg); });
     window.open = function (href) { window.__opened.push(String(href)); return null; };
+    /* V3.884 — a microphone and MediaRecorder with no hardware: a chunk every 80 ms */
+    window.__mrLog = [];
+    function FakeMR(stream, opts) { this.state = 'inactive'; this.mimeType = (opts && opts.mimeType) || 'audio/webm;codecs=opus'; }
+    FakeMR.isTypeSupported = function (m) { return /webm/.test(m); };
+    FakeMR.prototype.start = function () { var self = this; this.state = 'recording'; window.__mrLog.push('start'); this._iv = setInterval(function () { if (self.state === 'recording' && self.ondataavailable) self.ondataavailable({ data: new Blob(['ab'], { type: 'audio/webm' }) }); }, 80); };
+    FakeMR.prototype.pause = function () { this.state = 'paused'; }; FakeMR.prototype.resume = function () { this.state = 'recording'; };
+    FakeMR.prototype.stop = function () { var self = this; clearInterval(this._iv); this.state = 'inactive'; setTimeout(function () { if (self.ondataavailable) self.ondataavailable({ data: new Blob(['z'], { type: 'audio/webm' }) }); if (self.onstop) self.onstop(); }, 20); };
+    window.MediaRecorder = FakeMR;
+    try { Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: function () { return Promise.resolve({ getTracks: function () { return [{ stop: function () {} }]; } }); } } }); } catch (e) {}
     var user = { uid: 'u1', getIdToken: function () { return Promise.resolve('tok'); } };
     var SEQ = STATE.syncSeq, queue = [], listeners = [];
     window.__rmTasks = {}; window.__taskN = 0;
@@ -87,6 +96,10 @@
       else if (path === 'api/media/list') res = { ok: true, files: {} };
       else if (path === 'api/rm/library/refresh') res = { ok: true, total: 2, written: 0, changed: 0, removed: 0 };
       else if (path === 'api/rm/library/pdf') res = { ok: true, url: 'https://storage.example/p.pdf' };
+      else if (path === 'api/rec/part') { var rq = new URLSearchParams(full.split('?')[1] || ''); res = { ok: true, rid: rq.get('rid'), n: +rq.get('n'), bytes: 2 }; }
+      else if (path === 'api/rec/compose') { var cq = new URLSearchParams(full.split('?')[1] || ''); res = { ok: true, file: cq.get('name') + '.webm', path: 'recordings/' + cq.get('name') + '.webm', bytes: 40, parts: 2, job: {}, folder: 'cloud', url: 'https://storage.example/r.webm' }; }
+      else if (path === 'api/rec/status') res = { ok: true, state: 'saved', where: 'cloud' };
+      else if (path === 'api/rec') res = { ok: true, file: 'one.webm', path: 'recordings/one.webm', bytes: 3, job: {}, folder: 'cloud', url: 'https://storage.example/one.webm' };
       else if (path === 'api/rm/inventory') {
         var qq = decodeURIComponent((full.split('q=')[1] || '').split('&')[0]).toLowerCase();
         var all = [
@@ -125,7 +138,7 @@
     function qa(s) { return Array.from(D.querySelectorAll(s)); }
     function ev(code) { return W.eval(code); }
     function go(hash) { W.location.hash = hash; }
-    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.882', W.SIS_LAB.version);
+    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.885', W.SIS_LAB.version);
     /* 1. the tab row */
     var keys = qa('#tabs a.tab').map(function (a) { return a.dataset.k; });
     check('Activity and Data are not tabs on the web', keys.indexOf('activity') < 0 && keys.indexOf('data') < 0, keys.join(','));
@@ -405,72 +418,73 @@
     check('an assigned project\'s page has its RM line and links, and no Rename (the name is RM\'s)', !!pv && /Grant in RM · submitted · assigned to you/.test(pv.textContent) && /Open the draft/.test(pv.textContent) && !qa('.page button').filter(function (b) { return b.textContent.trim() === 'Rename'; }).length);
     go('#/project/pj1'); await sleep(400);
     check('…your own project keeps Rename', !!qa('.page button').filter(function (b) { return b.textContent.trim() === 'Rename'; }).length && !q('.lab-rm-proj'));
-    /* quick notes */
+    /* quick notes — V3.885: nothing is asked up front; a note's details live in its first block */
+    function setVal(el, v) { el.value = v; el.dispatchEvent(new W.Event('input', { bubbles: true })); el.dispatchEvent(new W.Event('change', { bubbles: true })); }
+    function head(id) { var x = q('.box.head .lab-hmeta'); return x && (!id || x.dataset.doc === id) ? x : null; }
+    function labelsOf(id) { return JSON.parse(ev("JSON.stringify(M.liveBlocks('" + id + "').map(function (b) { return b.label; }))")); }
+    function tplLabels(id) { return JSON.parse(ev("JSON.stringify(SIS_LAB.tplItems(M.doc('" + id + "')).map(function (b) { return b.label; }))")); }
+    function rowsOf(tid) { return JSON.parse(ev("JSON.stringify(DB.get('templates', '" + tid + "').blocks.map(function (b) { return b.label; }))")); }
+    function stdTpl(type) { return ev("(DB.all('templates').filter(function (t) { return t.type === '" + type + "' && t.isStandard; })[0] || {}).id"); }
+    function btnText(re) { return Array.from(D.querySelectorAll('.ovl button')).filter(function (b) { return re.test(b.textContent); })[0]; }
     go('#/portfolio'); await until(function () { return q('.lab-pf-bar'); }, 6000);
     Array.from(q('.lab-pf-bar').querySelectorAll('button')).filter(function (b) { return /\+ Quick note/.test(b.textContent); })[0].click();
-    var bar = await until(function () { return /^#\/doc\//.test(W.location.hash) && q('.lab-qn'); }, 6000);
+    var hm = await until(function () { return /^#\/doc\//.test(W.location.hash) && head(); }, 6000);
     var qid = W.location.hash.split('/')[2];
-    check('+ Quick note opens a blank page outside any project, offering the templates', !!bar && ev("(function (d) { return !d.projectId && d.quick === true && M.liveBlocks(d.id).length === 1; })(M.doc('" + qid + "'))") && bar.querySelectorAll('.lab-qn-t').length > 0 && /Continue blank/.test(bar.textContent), bar ? bar.textContent.slice(0, 200) : 'no bar');
-    var chip = Array.from(bar.querySelectorAll('.lab-qn-t')).filter(function (b) { return b.textContent === 'Meeting'; })[0] || bar.querySelector('.lab-qn-t');
-    var tplId = chip.dataset.tpl, tplRows = JSON.parse(ev("JSON.stringify(DB.get('templates', '" + tplId + "').blocks.map(function (b) { return b.label; }))")), tplType = ev("DB.get('templates', '" + tplId + "').type");
-    chip.click();
-    var applied = await until(function () { return !q('.lab-qn') && ev("M.doc('" + qid + "').type") === tplType && ev("M.doc('" + qid + "').quick") === false; }, 6000);
-    var labels = JSON.parse(ev("JSON.stringify(M.liveBlocks('" + qid + "').map(function (b) { return b.label; }))"));
-    check('picking a template turns the page into that type in place, with its components; the bar goes', !!applied && JSON.stringify(labels) === JSON.stringify(tplRows) && ev("M.doc('" + qid + "').projectId") == null && !/^Quick note/.test(ev("M.doc('" + qid + "').title")), JSON.stringify([tplType, labels, tplRows, ev("M.doc('" + qid + "').title"), !!q('.lab-qn'), ev("M.doc('" + qid + "').quick"), ev("M.doc('" + qid + "').type"), ev("String(M.doc('" + qid + "').projectId)")]));
-    var qid2 = W.SIS_LAB.quickNote().id; var bar2 = await until(function () { return W.location.hash === '#/doc/' + qid2 && q('.lab-qn'); }, 6000);
-    Array.from(bar2.querySelectorAll('button')).filter(function (b) { return /Continue blank/.test(b.textContent); })[0].click();
-    check('Continue blank keeps the blank page and puts the bar away', !q('.lab-qn') && ev("M.doc('" + qid2 + "').quick") === false && ev("M.doc('" + qid2 + "').type") === 'note', JSON.stringify([!!bar2, !!q('.lab-qn'), ev("M.doc('" + qid2 + "').quick"), ev("M.doc('" + qid2 + "').type")]));
-    var qid3 = W.SIS_LAB.quickNote().id; await until(function () { return W.location.hash === '#/doc/' + qid3 && q('.lab-qn'); }, 6000);
-    var ed = await until(function () { return q('.box .ed'); }, 4000); ed.dispatchEvent(new W.Event('input', { bubbles: true }));
-    check('…and so does starting to write', !q('.lab-qn') && ev("M.doc('" + qid3 + "').quick") === false);
-    go('#/portfolio');
-    check('the quick notes are in the Quick notes region', !!(await until(function () { var r = reg('quick'); return r && r.querySelector('.dcard[data-doc="' + qid + '"]') && r.querySelector('.dcard[data-doc="' + qid2 + '"]'); }, 6000)));
-    /* who reads a note filed under RM work; a quick note goes into a project after the fact */
+    check('+ Quick note opens a note at once — no dialog — outside any project, its details in its first block (title, type, template, project, theme)', !!hm && !q('.ovl') && ev("!M.doc('" + qid + "').projectId") && ['title', 'type', 'tpl', 'proj', 'theme'].every(function (k) { return !!hm.querySelector('.lab-h-' + k); }));
+    check('…it starts as a blank page whose one item came with it', tplLabels(qid).length === 1 && ev("M.doc('" + qid + "').type") === 'note');
+    var meet = stdTpl('meeting'), expt = stdTpl('experiment');
+    setVal(head().querySelector('.lab-h-tpl'), meet);
+    check('choosing a template fills the note with its items, and the type follows', !!(await until(function () { return ev("M.doc('" + qid + "').type") === 'meeting' && JSON.stringify(tplLabels(qid)) === JSON.stringify(rowsOf(meet)); }, 4000)), JSON.stringify(labelsOf(qid)));
+    setVal(head().querySelector('.lab-h-tpl'), expt);
+    check('…while nothing is edited, another template swaps them freely — no question asked', !!(await until(function () { return !q('.ovl') && ev("M.doc('" + qid + "').type") === 'experiment' && JSON.stringify(tplLabels(qid)) === JSON.stringify(rowsOf(expt)) && labelsOf(qid).length === rowsOf(expt).length; }, 4000)), JSON.stringify(labelsOf(qid)));
+    var eid = ev("SIS_LAB.tplItems(M.doc('" + qid + "'))[0].id");
+    ev("(function () { var b = M.block('" + eid + "'); DB.put('blocks', Object.assign({}, b, { body: { text: 'My own words', marks: [] } })); changed(); })()");
+    setVal(head().querySelector('.lab-h-tpl'), meet);
+    var keepBtn = await until(function () { return btnText(/Keep the items I edited/); }, 4000);
+    check('once an item is edited, changing the template asks first: keep the edited items, or replace everything', !!keepBtn && !!btnText(/Replace everything/) && ev("M.doc('" + qid + "').type") === 'experiment');
+    btnText(/^Cancel$/).click(); await sleep(200);
+    check('…Cancel changes nothing, and the template picker says so again', ev("M.doc('" + qid + "').templateId") === expt && ev("M.block('" + eid + "').status") === 'live' && head().querySelector('.lab-h-tpl').value === expt);
+    setVal(head().querySelector('.lab-h-tpl'), meet);
+    (await until(function () { return btnText(/Keep the items I edited/); }, 4000)).click();
+    var kept = await until(function () { return ev("M.doc('" + qid + "').type") === 'meeting' && ev("M.block('" + eid + "').status") === 'live' && ev("!M.block('" + eid + "').tpl") && JSON.stringify(tplLabels(qid)) === JSON.stringify(rowsOf(meet)); }, 4000);
+    var beside = ev("(function () { var k = M.block('" + eid + "'), n = SIS_LAB.tplItems(M.doc('" + qid + "')); return n.every(function (b) { return b.x > k.x; }); })()");
+    check('…keeping: the edited item stays (now your own), the untouched ones go, the new template’s items arrive beside it', !!kept && !!beside, JSON.stringify(labelsOf(qid)));
+    var mid = ev("SIS_LAB.tplItems(M.doc('" + qid + "'))[0].id");
+    ev("(function () { var b = M.block('" + mid + "'); DB.put('blocks', Object.assign({}, b, { label: 'Who came' })); changed(); })()");
+    setVal(head().querySelector('.lab-h-tpl'), '');
+    (await until(function () { return btnText(/Replace everything/); }, 4000)).click();
+    check('…replacing everything: all of the template’s items go, edits too; an item you made your own stays', !!(await until(function () { return ev("(M.block('" + mid + "') || {}).status") !== 'live' && ev("M.block('" + eid + "').status") === 'live' && tplLabels(qid).length === 1 && ev("M.doc('" + qid + "').templateId") == null; }, 4000)), JSON.stringify(labelsOf(qid)));
+    var qid2 = W.SIS_LAB.quickNote().id; await until(function () { return head(qid2); }, 6000);
+    setVal(head(qid2).querySelector('.lab-h-type'), 'meeting');
+    check('changing the type of an untouched note brings that type’s template', !!(await until(function () { return ev("M.doc('" + qid2 + "').type") === 'meeting' && JSON.stringify(tplLabels(qid2)) === JSON.stringify(rowsOf(meet)); }, 4000)));
+    await until(function () { return head(qid2); }, 3000); setVal(head(qid2).querySelector('.lab-h-title'), 'Figure 3 sketch');
+    check('the title is edited in the block', !!(await until(function () { return ev("M.doc('" + qid2 + "').title") === 'Figure 3 sketch'; }, 3000)));
+    var nOnly2 = W.SIS_LAB.kick.onlys.length;
+    await until(function () { return head(qid2); }, 3000); setVal(head(qid2).querySelector('.lab-h-proj'), 'rm-p-source-and-sink');
+    check('the project is chosen in the block — the note is stored there, and RM’s list is asked for', !!(await until(function () { return ev("M.doc('" + qid2 + "').projectId") === 'rm-p-source-and-sink'; }, 3000)) && !!(await until(function () { return W.SIS_LAB.kick.onlys.slice(nOnly2).some(function (o) { return /notes/.test(o); }); }, 8000)));
+    check('…the projects list assigned work first, then your own, and “No project — a quick note”', (function () { var s = head().querySelector('.lab-h-proj'); return s.options[0].value === '' && s.querySelectorAll('optgroup')[0].label === 'Assigned to you'; })());
+    check('…in an RM project the block says who can read it (Seen by)', !!(await until(function () { return head() && head().querySelector('.lab-h-share .lab-share'); }, 3000)));
+    var qid3 = ev("App.newDoc().id"); await until(function () { return head(qid3); }, 6000);
+    check('+ Note (and Ctrl+Alt+N) make the note at once too — no dialog', !q('.ovl') && !!head() && ev("M.doc('" + qid3 + "').type") === 'note');
+    setVal(head(qid3).querySelector('.lab-h-type'), 'experiment');
+    await until(function () { return ev("M.doc('" + qid3 + "').type") === 'experiment' && head(qid3); }, 3000);
+    setVal(head(qid3).querySelector('.lab-h-proj'), 'rm-f-gels-career');
+    await until(function () { return ev("M.doc('" + qid3 + "').projectId") === 'rm-f-gels-career' && head() && !head().querySelector('.lab-h-theme').disabled; }, 3000);
+    check('…a project with themes offers them in the block (the aim from RM)', !!head().querySelector('.lab-h-theme option[value="rm-a-aim-1"]'));
+    setVal(head().querySelector('.lab-h-theme'), 'rm-a-aim-1');
+    check('…and the note is stored in that project and theme', !!(await until(function () { return ev("M.doc('" + qid3 + "').themeId") === 'rm-a-aim-1' && ev("M.doc('" + qid3 + "').projectId") === 'rm-f-gels-career'; }, 4000)));
+    var cid = ev("(function () { var d = CHAIN.start({}); return d && d.id; })()");
+    check('+ Experiment makes its first stage at once — no dialog', !!cid && !!(await until(function () { return head(cid); }, 6000)) && !q('.ovl'));
+    /* who reads a note filed under RM work: in the first block */
     go('#/doc/' + an);
-    var shareCtl = await until(function () { return q('#meta .lab-share'); }, 6000);
-    check('a note in an assigned project says who reads it in RM — only me by default', !!shareCtl && shareCtl.querySelector('button.on') && shareCtl.querySelector('button.on').dataset.share === 'me', shareCtl ? shareCtl.textContent : 'none');
+    var shareCtl = await until(function () { var hh = head(an); return hh && hh.querySelector('.lab-h-share .lab-share'); }, 6000);
+    check('a note in an assigned project says who reads it in RM — only me by default', !!shareCtl && shareCtl.querySelector('button.on') && shareCtl.querySelector('button.on').dataset.share === 'me');
     var nOnly = W.SIS_LAB.kick.onlys.length;
     shareCtl.querySelector('button[data-share="lab"]').click();
-    check('Lab members shares it (the note says so) and asks the hub to update RM’s list', ev("M.doc('" + an + "').share") === 'lab' && q('#meta .lab-share button.on').dataset.share === 'lab' &&
-      !!(await until(function () { return W.SIS_LAB.kick.onlys.slice(nOnly).some(function (o) { return /notes/.test(o); }) && W.__hubCalls.some(function (c) { return c.path === 'api/rm/sync' && /only=notes/.test(c.full); }); }, 8000)), JSON.stringify(W.SIS_LAB.kick.onlys));
-    go('#/doc/' + qid2); await sleep(500);
-    check('a quick note (no project) has no RM sharing to choose', !q('#meta .lab-share'));
+    check('Lab members shares it and asks the hub to update RM’s list', ev("M.doc('" + an + "').share") === 'lab' && !!(await until(function () { return W.SIS_LAB.kick.onlys.slice(nOnly).some(function (o) { return /notes/.test(o); }) && W.__hubCalls.some(function (c) { return c.path === 'api/rm/sync' && /only=notes/.test(c.full); }); }, 8000)));
     go('#/portfolio');
     check('…a shared note is marked on its card', !!(await until(function () { var c = q('.lab-reg[data-region="rm-f-gels-career"] .dcard[data-doc="' + an + '"]'); return c && /lab/.test(c.querySelector('.row').textContent); }, 6000)));
-    var fileBtn = await until(function () { var c = q('.lab-reg[data-region="quick"] .dcard[data-doc="' + qid2 + '"]'); return c && c.querySelector('.lab-file'); }, 6000);
-    var hashBefore = W.location.hash, nOnly2 = W.SIS_LAB.kick.onlys.length;
-    fileBtn.click();
-    var form = await until(function () { return q('.lab-save'); }, 4000);
-    function saveBtnOf(f) { for (var el = f; el && el !== D.body; el = el.parentElement) { var b = Array.from(el.querySelectorAll('button')).filter(function (x) { return x.textContent.trim() === 'Save'; })[0]; if (b) return b; } return null; }
-    function setVal(el, v) { el.value = v; el.dispatchEvent(new W.Event('input', { bubbles: true })); el.dispatchEvent(new W.Event('change', { bubbles: true })); }
-    check('a quick note’s card offers Save to a project… — one form for its title, type, project and theme (the note stays where it is)', !!form && ['title', 'type', 'proj', 'theme'].every(function (k) { return !!form.querySelector('.lab-save-' + k); }) && W.location.hash === hashBefore && form.querySelector('.lab-save-title').value === '');
-    saveBtnOf(form).click(); await sleep(250);
-    check('…it asks for a title before saving', ev("M.doc('" + qid2 + "').projectId") == null && /title/.test(form.querySelector('.lab-save-err').textContent) && !!q('.lab-save'));
-    setVal(form.querySelector('.lab-save-title'), 'Figure 3 sketch');
-    saveBtnOf(form).click(); await sleep(250);
-    check('…and for the project', ev("M.doc('" + qid2 + "').projectId") == null && /project/.test(form.querySelector('.lab-save-err').textContent));
-    var projSel = form.querySelector('.lab-save-proj');
-    check('…assigned projects are listed first, then your own', projSel.querySelectorAll('optgroup').length === 2 && projSel.querySelectorAll('optgroup')[0].label === 'Assigned to you' && !!projSel.querySelector('optgroup option[value="rm-p-source-and-sink"]'));
-    setVal(projSel, 'rm-p-source-and-sink'); setVal(form.querySelector('.lab-save-type'), 'experiment');
-    check('…the theme follows the project (this one has none)', form.querySelector('.lab-save-theme').disabled === true);
-    saveBtnOf(form).click();
-    var filed = await until(function () { return ev("M.doc('" + qid2 + "').projectId") === 'rm-p-source-and-sink'; }, 6000);
-    check('picking a project stores the note in it; it leaves Quick notes for the project’s region, and RM’s list is asked for', !!filed &&
-      !!(await until(function () { return q('.lab-reg[data-region="rm-p-source-and-sink"] .dcard[data-doc="' + qid2 + '"]') && !q('.lab-reg[data-region="quick"] .dcard[data-doc="' + qid2 + '"]'); }, 6000)) &&
-      !!(await until(function () { return W.SIS_LAB.kick.onlys.slice(nOnly2).some(function (o) { return /notes/.test(o); }); }, 8000)));
-    check('…saved, it takes the title and type it was given', ev("M.doc('" + qid2 + "').title") === 'Figure 3 sketch' && ev("M.doc('" + qid2 + "').type") === 'experiment' && ev("M.doc('" + qid2 + "').quick") === false && !q('.lab-save'));
-    /* the note's own header: Save to a project…, into a theme */
-    go('#/doc/' + qid3);
-    var hdr = await until(function () { return q('#meta .lab-save-btn'); }, 6000);
-    check('a note outside any project has Save to a project… in its header', !!hdr);
-    hdr.click();
-    var form2 = await until(function () { return q('.lab-save'); }, 4000);
-    setVal(form2.querySelector('.lab-save-title'), 'Packing sweep 2'); setVal(form2.querySelector('.lab-save-type'), 'experiment'); setVal(form2.querySelector('.lab-save-proj'), 'rm-f-gels-career');
-    var thSel = form2.querySelector('.lab-save-theme');
-    check('…a project with themes offers them (the aim from RM)', thSel.disabled === false && !!thSel.querySelector('option[value="rm-a-aim-1"]'));
-    setVal(thSel, 'rm-a-aim-1');
-    saveBtnOf(form2).click();
-    check('…and the note is stored in that project and theme', !!(await until(function () { return ev("M.doc('" + qid3 + "').themeId") === 'rm-a-aim-1' && ev("M.doc('" + qid3 + "').projectId") === 'rm-f-gels-career'; }, 4000)) && !q('#meta .lab-save-btn'));
+    check('the quick notes are in the Quick notes region; one stored in a project left it for the project’s region', !!(await until(function () { var r = reg('quick'); return r && r.querySelector('.dcard[data-doc="' + qid + '"]') && !r.querySelector('.dcard[data-doc="' + qid2 + '"]') && q('.lab-reg[data-region="rm-p-source-and-sink"] .dcard[data-doc="' + qid2 + '"]'); }, 6000)));
     /* 15. V3.882 — the canvas pills */
     go('#/doc/' + an);
     var pills = await until(function () { var p = qa('.canvas-host .lab-pills .lab-pill'); return p.length === 4 && p; }, 6000);
@@ -529,6 +543,36 @@
     q('#ttl') && q('#ttl').dispatchEvent(new W.PointerEvent('pointerdown', { bubbles: true, pointerId: 12 }));
     D.body.dispatchEvent(new W.PointerEvent('pointerdown', { bubbles: true, pointerId: 13 }));
     check('a tap outside closes the fan', !!(await until(function () { return !q('.lab-pill.open'); }, 2000)));
+    /* 16. V3.884 — the one recorder in a note */
+    go('#/doc/' + an); await until(function () { return q('.canvas-host .lab-pills'); }, 6000);
+    var rid = ev("REC.create('" + an + "', { x: 980, y: 0 }).id");
+    ev("REC.start(M.block('" + rid + "'))");
+    check('a recording starts in the note, and its parts begin', !!(await until(function () { return ev("!!REC.active && REC.active.id === '" + rid + "' && SIS_LAB.recorder.cur && SIS_LAB.recorder.cur.id === '" + rid + "'"); }, 6000)));
+    await sleep(300);
+    ev("SIS_LAB.sendPart()");
+    check('…a part goes to the lab’s cloud while it records (api/rec/part), and the note counts it', !!(await until(function () { return ev("REC.r(M.block('" + rid + "')).parts") === 1 && W.__hubCalls.some(function (c) { return c.path === 'api/rec/part' && /rid=/.test(c.full) && /n=0/.test(c.full); }); }, 6000)));
+    var kinds = await until(function () { return q('.box[data-id="' + rid + '"] .lab-rc-kinds'); }, 6000);
+    check('the recording offers four kinds of mark and a section', !!kinds && ['important', 'question', 'decision', 'todo'].every(function (k) { return !!kinds.querySelector('[data-kind="' + k + '"]'); }) && /Section/.test(kinds.textContent));
+    kinds.querySelector('[data-kind="question"]').click();
+    check('…a question is marked at the moment, in Gabe’s marks list', !!(await until(function () { var m = JSON.parse(ev("JSON.stringify(REC.r(M.block('" + rid + "')).marks)") || '[]'); return m.length === 1 && m[0].kind === 'question' && m[0].t >= 0; }, 4000)));
+    q('.box[data-id="' + rid + '"] .lab-rc-kinds [data-section]').click(); await sleep(250);
+    var secBtn = await until(function () { var b = q('.box[data-id="' + rid + '"] .lab-rc-kinds [data-section]'); return b && b.dataset.section === 'open' && b; }, 4000);
+    check('…the section button starts a section and shows it is open', !!secBtn);
+    secBtn.click();
+    check('…and ends it', !!(await until(function () { var m = JSON.parse(ev("JSON.stringify(REC.r(M.block('" + rid + "')).marks)") || '[]'); return m.some(function (x) { return typeof x.end === 'number' && x.end >= x.t; }) && !m.some(function (x) { return x.end === null; }); }, 4000)));
+    ev("SIS_LAB.recorder.penT0 = REC.elapsed(); INK.addStroke(DocView, { p: [[40, 900, 0.5], [70, 920, 0.5]], c: 'auto', w: 2.4 })");
+    var stampedOk = ev("INK.blocks('" + an + "').some(function (b) { return (b.ink.strokes || []).some(function (s) { return Array.isArray(s.rt) && s.rt[0] === '" + rid + "' && s.rt[2] >= s.rt[1]; }); })");
+    check('ink drawn in the note while it records carries its moment', !!stampedOk);
+    ev("REC.stop()");
+    var savedRec = await until(function () { return ev("REC.r(M.block('" + rid + "')).state") === 'saved' && ev("REC.r(M.block('" + rid + "')).file"); }, 8000);
+    check('Stop sends the last part and joins them in the cloud (api/rec/compose); the answer is final, so the app stops asking', !!savedRec && W.__hubCalls.some(function (c) { return c.path === 'api/rec/compose' && new RegExp('rid=' + rid).test(c.full); }) && !W.__hubCalls.some(function (c) { return c.path === 'api/rec' && c.method === 'POST'; }), savedRec);
+    var card = await until(function () { var c = q('.box[data-id="' + rid + '"]'); return c && /Saved in the lab’s cloud/.test(c.textContent) && /stroke drawn while recording/.test(c.textContent) && c; }, 6000);
+    check('…the card says it is saved in the cloud, that cloud speech-to-text will show its cost first, and how much ink is timed with it', !!card && /cost/.test(card.textContent), card ? card.textContent.slice(0, 240) : 'none');
+    var rid2 = ev("(function () { var b = REC.create('" + an + "', { x: 980, y: 600 }); var n = Object.assign({}, M.block(b.id), { rec: { state: 'recording', started: '2026-10-23T10:00:00', marks: [], pauses: [], segs: [], parts: 2, partsExt: 'webm', ext: 'webm' } }); DB.put('blocks', n); changed(); return b.id; })()");
+    var recBtn = await until(function () { var c = q('.box[data-id="' + rid2 + '"] .lab-rc-recover button'); return c; }, 6000);
+    check('an interrupted recording offers to recover the minutes that reached the cloud', !!recBtn && /2 minutes/.test(q('.box[data-id="' + rid2 + '"] .lab-rc-recover').textContent));
+    recBtn.click();
+    check('…and recovering joins them into the recording', !!(await until(function () { return ev("REC.r(M.block('" + rid2 + "')).state") === 'saved' && !!ev("REC.r(M.block('" + rid2 + "')).file"); }, 6000)) && W.__hubCalls.some(function (c) { return c.path === 'api/rec/compose' && new RegExp('rid=' + rid2).test(c.full); }));
     check('no browser popups, rejections or console-level failures in the frame', !W.__popups.length && !W.__rej.length, JSON.stringify([W.__popups, W.__rej]));
   } catch (e) { check('harness error', false, (e && e.stack) || e); }
   finish();

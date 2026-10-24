@@ -41,6 +41,10 @@
 
 /* ─── V3.854 ✓ Report to My Week — the picker on a card's ✓ ─── */
 .mwr-pop{ min-width: 300px; }
+.mwr-head{ display: flex; align-items: center; gap: 6px; }   /* V3.884 — a × that always closes it */
+.mwr-x{ margin-left: auto; border: 0; background: transparent; color: #6b7280; cursor: pointer; padding: 2px; border-radius: 4px; display: grid; place-items: center; }
+.mwr-x:hover{ background: #f1f5f9; color: #111827; }
+.mwr-x svg{ width: 14px; height: 14px; }
 .mwr-card{ display: flex; align-items: center; gap: 8px; margin: 0 12px 6px; padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f8fafc; font-size: .82em; color: #374151; }
 .mwr-card img{ width: 36px; height: 26px; object-fit: cover; border-radius: 4px; flex: none; }
 .mwr-glyph{ flex: none; }

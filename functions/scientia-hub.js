@@ -148,6 +148,34 @@ class FirestoreHub {
     await this.media.doc(encodeURIComponent(path)).set({ path, url, bytes: bytes.length, mime, created: FieldValue.serverTimestamp() });
     return { ok: true, path, url, bytes: bytes.length };
   }
+  /* ---- V3.884: a recording saved while it runs — a part a minute under recparts/<rid>/, joined at Stop (or after a crash) ---- */
+  async recPart(rid, n, ext, bytes) {
+    await this._file(C.recPartPath(rid, n, ext)).save(bytes, { contentType: C.MEDIA_MIME[ext] || 'application/octet-stream', resumable: false });
+    return { ok: true, rid, n, bytes: bytes.length };
+  }
+  async _recPartFiles(rid) {
+    const [files] = await bucket().getFiles({ prefix: 'scientia/' + this.uid + '/recparts/' + rid + '/' });
+    return files.filter(f => /\/part-\d{4}\.[a-z0-9]+$/.test(f.name)).sort((a, b) => a.name.localeCompare(b.name));
+  }
+  async recPartsOf(rid) { return (await this._recPartFiles(rid)).map(f => ({ path: f.name, bytes: +((f.metadata && f.metadata.size) || 0) })); }
+  async recCompose(rid, path, mime) {
+    const parts = await this._recPartFiles(rid); if (!parts.length) return { ok: false, error: 'no saved parts for this recording' };
+    // Storage joins at most 32 objects a call: join in rounds through temporary objects
+    let srcs = parts, round = 0; const temps = [];
+    while (srcs.length > 32) {
+      const next = [];
+      for (let i = 0; i < srcs.length; i += 32) { const t = this._file('recparts/' + rid + '/tmp-' + round + '-' + String(i).padStart(4, '0')); await bucket().combine(srcs.slice(i, i + 32), t); next.push(t); temps.push(t); }
+      srcs = next; round++;
+    }
+    const dest = this._file(path), tok = crypto.randomUUID();
+    await bucket().combine(srcs, dest);
+    await dest.setMetadata({ contentType: mime, metadata: { firebaseStorageDownloadTokens: tok } });
+    const [meta] = await dest.getMetadata(), bytes = +meta.size || 0;
+    const url = 'https://firebasestorage.googleapis.com/v0/b/' + bucket().name + '/o/' + encodeURIComponent(dest.name) + '?alt=media&token=' + tok;
+    await this.media.doc(encodeURIComponent(path)).set({ path, url, bytes, mime, created: FieldValue.serverTimestamp() });
+    await Promise.all(parts.concat(temps).map(f => f.delete().catch(() => {})));
+    return { ok: true, path, url, bytes, parts: parts.length };
+  }
   async mediaList() { const snap = await this.media.get(); const files = {}; snap.docs.forEach(d => { const x = d.data() || {}; if (x.path && x.url) files[x.path] = x.url; }); return { ok: true, files }; }
 
   /* ---- the RM library mirror (V3.869): RM `items` → this hub's `library` rows, device 'rm' ---- */
@@ -436,7 +464,7 @@ const scientiaHub = onRequest({ cors: false, timeoutSeconds: 300, memory: '512Mi
   res.set('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
   const path = (String(req.path || '/').replace(/^\/scientiaHub(?=\/|$)/, '') || '/').replace(/\/+$/, '') || '/';
-  if (path === '/') { res.status(200).json({ ok: true, service: 'scientiaHub', version: 'V3.880' }); return; }
+  if (path === '/') { res.status(200).json({ ok: true, service: 'scientiaHub', version: 'V3.884' }); return; }
   let who = null;
   try { who = await resolveWho(req); }
   catch (e) { res.status(401).json({ ok: false, error: 'invalid token: ' + e.message }); return; }

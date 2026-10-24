@@ -1736,9 +1736,9 @@
    "via": "verify"
   },
   "rm/css/notebook-scientia.css": {
-   "deployedAt": "2026-10-23T11:17:06-07:00",
-   "sha256": "4a361b9a734dd45970904af445e159ac45ba506ced245883d307b4e65d5af64b",
-   "size": 5032,
+   "deployedAt": "2026-10-23T18:22:55-07:00",
+   "sha256": "7a58b79dedb236ce01c61515515fc40c26221b9b18143b176a026a31f03ba054",
+   "size": 5932,
    "via": "verify"
   },
   "rm/css/paper-doc-view.css": {
@@ -1766,9 +1766,9 @@
    "via": "verify"
   },
   "rm/css/procurement.css": {
-   "deployedAt": "2026-10-23T16:51:02-07:00",
-   "sha256": "6961e040b9a4ca209be6fef81ba659e6520eeb902b7d8b918d6be0f9867ac148",
-   "size": 26453,
+   "deployedAt": "2026-10-23T18:22:55-07:00",
+   "sha256": "554ebd71c0613094c5d90fdcbe99b3408263b3af26644162649c91c6243b3cd0",
+   "size": 26646,
    "via": "verify"
   },
   "rm/css/protocol-cheat.css": {
@@ -2570,9 +2570,9 @@
    "via": "verify"
   },
   "rm/js/inventory.js": {
-   "deployedAt": "2026-10-23T16:17:16-07:00",
-   "sha256": "52d6a94bf1dff11bfc113ee1c03e26736034a6cfaf127eb5491906aca2005231",
-   "size": 81526,
+   "deployedAt": "2026-10-23T18:22:55-07:00",
+   "sha256": "b3463e1e592154b72355506909c20ada01c19922271e2d05180ebf8eadc61221",
+   "size": 83934,
    "via": "verify"
   },
   "rm/js/item-explorer.js": {
@@ -2882,9 +2882,9 @@
    "via": "verify"
   },
   "rm/js/notebook-scientia.js": {
-   "deployedAt": "2026-10-23T16:08:41-07:00",
-   "sha256": "052bd41a48bd3e49ae44a21845f2a7cf498688359bd92a386de0e155da9cabc7",
-   "size": 28568,
+   "deployedAt": "2026-10-23T18:22:55-07:00",
+   "sha256": "f325dbdf1ec42e179952275cd8c3de4f1dfeabb46d6b2ae1f1a6e06f7ae22531",
+   "size": 30804,
    "via": "verify"
   },
   "rm/js/oauth-connections.js": {
@@ -3188,15 +3188,15 @@
    "via": "baseline"
   },
   "rm/js/procurement-core.js": {
-   "deployedAt": "2026-10-23T16:51:02-07:00",
-   "sha256": "6f6e7f72b890f6087fd99b65f4887a47044f77e65b3fedc43c9835290684e930",
-   "size": 99747,
+   "deployedAt": "2026-10-23T18:22:55-07:00",
+   "sha256": "c7680368932bd37af70f1adebff5af0ac6a434a30dc7a97728a758c879c03c54",
+   "size": 102857,
    "via": "verify"
   },
   "rm/js/procurement.js": {
-   "deployedAt": "2026-10-23T16:51:02-07:00",
-   "sha256": "640eb37e372b5b2a5ea5f743158e297217d6514ea50f4c6b0bffd33b953c7008",
-   "size": 136073,
+   "deployedAt": "2026-10-23T18:22:55-07:00",
+   "sha256": "4feb6e315a75f368ebaecb9fe59ff493c02f119a34196062759bb9669e597429",
+   "size": 137588,
    "via": "verify"
   },
   "rm/js/profile-bootstrap.js": {
@@ -4046,9 +4046,9 @@
    "via": "verify"
   },
   "rm/pages/inventory.html": {
-   "deployedAt": "2026-10-23T16:17:16-07:00",
-   "sha256": "c42c0f5ee4ced8beb64d33c50f422d1cd265d5ac436179ab282b7b4512d1d04e",
-   "size": 6303,
+   "deployedAt": "2026-10-23T18:22:55-07:00",
+   "sha256": "c39679df80b92c51b0256daeafc471a8d803d647d1a6c7580bcf3c896a3db3dd",
+   "size": 6483,
    "via": "verify"
   },
   "rm/pages/lab-notebook.html": {
@@ -4490,9 +4490,9 @@
    "via": "verify"
   },
   "rm/scientia/lab-mode.js": {
-   "deployedAt": "2026-10-23T17:03:17-07:00",
-   "sha256": "78861b0cbbeaea7178c3d43e6c1d05bf99597b3a850168439c49f6bdefd16d82",
-   "size": 84885,
+   "deployedAt": "2026-10-23T18:22:55-07:00",
+   "sha256": "a5b24c052ace7f2bb74ae0d6dc4650854676d339882445feba1c7f483cf616b6",
+   "size": 119620,
    "via": "verify"
   },
   "rm/scientia/scientia-cloud.py": {
@@ -4502,8 +4502,8 @@
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-23T17:03:17-07:00",
-   "sha256": "aba8348e1ff6db00e51caa64444b4ebcc880029033fc73bf85977959729f088c",
+   "deployedAt": "2026-10-23T18:22:55-07:00",
+   "sha256": "32c303801124faa07294b2ab4f16af8accd7f0c592901b4a86d4113dfb2b3ea0",
    "size": 4382355,
    "via": "verify"
   },
@@ -4880,8 +4880,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-23T17:03:17-07:00",
-   "sha256": "107caf8ddd9bbb3c3b6c4c03290abd68eb7dcc576ee333210f69d78288cc899a",
+   "deployedAt": "2026-10-23T18:22:55-07:00",
+   "sha256": "33e7b98bf112c76b4aaf07f0cd94bafe061707a077da2afa333457b8bcb1b06d",
    "size": 9016,
    "via": "verify"
   },

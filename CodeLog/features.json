@@ -529,6 +529,9 @@
     "rm/js/wire-router.js",
     "rm/js/canvas-widgets.js",
     "modules/shared/**"
+   ],
+   "related": [
+    "shared.recorder"
    ]
   },
   {
@@ -1703,7 +1706,8 @@
     "scientia/src/13x-figure.js"
    ],
    "related": [
-    "rm.figure-board"
+    "rm.figure-board",
+    "shared.recorder"
    ]
   },
   {
@@ -1773,6 +1777,36 @@
     "rm.projects"
    ],
    "note": "The lab layer bridges Scientia to RM features (Phase 1 V3.869–874; Phase 2 V3.876+): it reads them through the hub or asks the Lab Notebook host to run their UI — it never re-implements them."
+  },
+  {
+   "id": "shared.recorder",
+   "name": "The one recorder (voice · ink · marks · transcript)",
+   "side": "shared",
+   "summary": "One timeline shared by the class whiteboard, the Lab Notebook boards and Scientia notes: chunked audio, ink stamped with its moment, marks with kinds and sections, transcripts, the speech-to-text cost estimate.",
+   "keywords": [
+    "recorder",
+    "recording",
+    "audio",
+    "voice",
+    "transcript",
+    "transcription",
+    "bookmark",
+    "mark",
+    "speech",
+    "replay"
+   ],
+   "paths": [
+    "rm/js/recorder-core.js",
+    "scripts/tests/recorder-core.test.cjs",
+    "scripts/tests/v3884-recorder-harness.html"
+   ],
+   "status": "active",
+   "related": [
+    "rm.canvas-engine",
+    "scientia.media",
+    "scientia.cloud"
+   ],
+   "note": "V3.884 merges RM's lecture / notebook recorder (whiteboard.js, whiteboard-replay.js) with Scientia's Recording component (13zn-rec.js): the hosts keep their own UI; the timeline rules live here. Program: CodeLog/ClaudesPlan/V3.884_one_recorder_program.md."
   }
  ]
 }
