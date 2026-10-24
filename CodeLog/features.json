@@ -1782,7 +1782,7 @@
    "id": "shared.recorder",
    "name": "The one recorder (voice · ink · marks · transcript)",
    "side": "shared",
-   "summary": "One timeline shared by the class whiteboard, the Lab Notebook boards and Scientia notes: chunked audio, ink stamped with its moment, marks with kinds and sections, transcripts, the speech-to-text cost estimate.",
+   "summary": "One timeline shared by the class whiteboard, the Lab Notebook boards and Scientia notes: chunked audio, ink stamped with its moment, marks (one Mark, said what it is once in), transcripts each person makes their own way (free on the device, or their own OpenAI / Google key), the cost estimate.",
    "keywords": [
     "recorder",
     "recording",
@@ -1793,12 +1793,19 @@
     "bookmark",
     "mark",
     "speech",
-    "replay"
+    "replay",
+    "whisper",
+    "speech-to-text",
+    "stt"
    ],
    "paths": [
     "rm/js/recorder-core.js",
     "scripts/tests/recorder-core.test.cjs",
-    "scripts/tests/v3884-recorder-harness.html"
+    "scripts/tests/v3884-recorder-harness.html",
+    "rm/js/speech-to-text.js",
+    "rm/js/stt-device-worker.js",
+    "scripts/tests/v3887-speech-to-text-harness.html",
+    "scripts/tests/fixtures/stt-sample.wav"
    ],
    "status": "active",
    "related": [
@@ -1806,7 +1813,7 @@
     "scientia.media",
     "scientia.cloud"
    ],
-   "note": "V3.884 merges RM's lecture / notebook recorder (whiteboard.js, whiteboard-replay.js) with Scientia's Recording component (13zn-rec.js): the hosts keep their own UI; the timeline rules live here. Program: CodeLog/ClaudesPlan/V3.884_one_recorder_program.md."
+   "note": "V3.884 merges RM's lecture / notebook recorder (whiteboard.js, whiteboard-replay.js) with Scientia's Recording component (13zn-rec.js): the hosts keep their own UI; the timeline rules live here. Program: CodeLog/ClaudesPlan/V3.884_one_recorder_program.md. V3.886: one Mark, changed once in. V3.887: speech-to-text.js — chosen in Settings, keys in the person's browser only, never the lab's."
   }
  ]
 }

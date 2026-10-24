@@ -14,9 +14,16 @@
      marks    { id, t, kind, label, end? } — a moment (no end) or a section
               (end = null while open, then a time); kinds below. Scientia's
               ◆ bookmarks are marks of kind 'important' with no kind field.
+              V3.886 (Alex: "simple up front, then customize later"): one
+              Mark button drops a plain mark; what it is — its kind, its
+              words, how long it lasts — is changed on the mark once it is
+              in (updateMark, spanTo, removeMark).
      words    transcript segments { s, e, text }; lineAt(t) = the one spoken.
-     cost     cloud speech-to-text runs only on a button that shows its
-              likely cost first (Alex, 2026-10-23): sttCost(seconds).
+     cost     speech-to-text runs only on a button that shows its likely
+              cost first (Alex, 2026-10-23): sttCost(seconds, provider).
+              V3.887: the person's own way, chosen in Settings — free on
+              their device, or their own OpenAI / Google key (never the
+              lab's): rm/js/speech-to-text.js.
 
    DOM-free: loaded by whiteboard.js (on demand), the Scientia lab layer,
    and node (scripts/tests/recorder-core.test.cjs).
@@ -24,8 +31,9 @@
 (function (root) {
   'use strict';
 
-  /* Google Speech-to-Text v2 standard rate (Chirp), USD per audio minute — the one place the estimate comes from */
-  var STT_USD_PER_MIN = 0.016;
+  /* USD per audio minute, the one place the estimate comes from (checked 2026-10-23): OpenAI whisper-1 $0.006;
+     Google Speech-to-Text V1 standard $0.024 (its first 60 min a month are free); Whisper on the device costs nothing */
+  var STT_RATES = { device: 0, openai: 0.006, google: 0.024 };
   var PART_MS = 60000;
   var MARK_KINDS = [
     { id: 'important', label: 'Important', glyph: '◆' },
@@ -72,6 +80,20 @@
     near = near == null ? 1.5 : near;
     return (marks || []).filter(function (m) { var moment = m.end === undefined; return moment ? Math.abs(m.t - t) <= near : t >= m.t && (m.end === null || t <= m.end); });
   }
+  /** Change a mark once it is in (its kind, its words). */
+  function updateMark(marks, id, patch) {
+    return normMarks((marks || []).map(function (m) { return m && m.id === id ? Object.assign({}, m, patch || {}, { id: m.id, t: m.t }) : m; }));
+  }
+  /** A mark that lasts: from its moment until t; t null (or not after it) = back to a moment. */
+  function spanTo(marks, id, t) {
+    return normMarks((marks || []).map(function (m) {
+      if (!m || m.id !== id) return m;
+      var o = Object.assign({}, m); delete o.end;
+      if (t != null && num(t) != null && num(t) > m.t) o.end = num(t);
+      return o;
+    }));
+  }
+  function removeMark(marks, id) { return normMarks((marks || []).filter(function (m) { return m && m.id !== id; })); }
   function markLabel(m) { var k = KIND[kindOf(m && m.kind)]; return k.glyph + ' ' + (m && m.label ? m.label : k.label); }
 
   /* ---- voice: wall time (RM boards, ms) ↔ audio time, around recorded gaps { t, durationMs } (t = when it ended) ---- */
@@ -114,11 +136,12 @@
   }
 
   /* ---- cost ---- */
-  /** The likely price of cloud speech-to-text for `sec` seconds of audio (billed per started minute here, to be safe). */
-  function sttCost(sec, rate) {
-    rate = rate == null ? STT_USD_PER_MIN : rate;
+  /** The likely price of speech-to-text for `sec` seconds of audio with a provider (or a rate in USD per minute),
+   *  counted per started minute, to be safe. */
+  function sttCost(sec, provider) {
+    var rate = typeof provider === 'number' ? provider : STT_RATES[provider] != null ? STT_RATES[provider] : STT_RATES.google;
     var minutes = Math.max(1, Math.ceil((num(sec) || 0) / 60)), usd = minutes * rate;
-    var text = usd < 0.01 ? 'under 1¢' : usd < 1 ? Math.max(1, Math.round(usd * 100)) + '¢' : '$' + usd.toFixed(2);
+    var text = !rate ? 'free' : usd < 0.01 ? 'under 1¢' : usd < 1 ? Math.max(1, Math.round(usd * 100)) + '¢' : '$' + usd.toFixed(2);
     return { minutes: minutes, usd: Math.round(usd * 10000) / 10000, text: text, rate: rate };
   }
 
@@ -127,9 +150,9 @@
   function mmss(sec) { sec = Math.max(0, Math.floor(num(sec) || 0)); var h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0'); }
 
   var API = {
-    STT_USD_PER_MIN: STT_USD_PER_MIN, PART_MS: PART_MS, MARK_KINDS: MARK_KINDS, KIND: KIND,
+    STT_RATES: STT_RATES, PART_MS: PART_MS, MARK_KINDS: MARK_KINDS, KIND: KIND,
     kindOf: kindOf, normMark: normMark, normMarks: normMarks, addMark: addMark, openOf: openOf, openSection: openSection, closeSection: closeSection,
-    toggleSection: toggleSection, marksAt: marksAt, markLabel: markLabel, audioToWall: audioToWall, wallToAudio: wallToAudio, lineAt: lineAt,
+    toggleSection: toggleSection, updateMark: updateMark, spanTo: spanTo, removeMark: removeMark, marksAt: marksAt, markLabel: markLabel, audioToWall: audioToWall, wallToAudio: wallToAudio, lineAt: lineAt,
     momentOf: momentOf, strokesAt: strokesAt, stamp: stamp, sttCost: sttCost, partName: partName, mmss: mmss
   };
   if (typeof module === 'object' && module.exports) module.exports = API;

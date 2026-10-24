@@ -76,6 +76,7 @@ window.__popups = [];
 </script>
 <script src="/rm/js/icons.js"></script>
 <script src="/whiteboard.js"></script>
+<script src="/whiteboard-replay.js"></script>
 </head>
 <body>
 <h1>V3.884 — the one recorder on a Lab Notebook board</h1>
@@ -108,20 +109,35 @@ window.__popups = [];
       ok(!!(await until(function () { return window.RECORDER_CORE; })), 'the shared recorder core loads with the first recording');
       openTools();
       await until(function () { return fan('rec-pause'); });
-      ok(!!fan('rec-pause') && ['important', 'question', 'decision', 'todo'].every(function (k) { return !!fan('rec-mark', k); }) && !!fan('rec-section'), 'while recording, ✦ Tools offers pause, four kinds of mark and an important section');
-      fan('rec-mark', 'question').click();
+      ok(!!fan('rec-pause') && !!fan('rec-mark') && !qa('.wb-pill-tools .wb-fan-item[data-kind]').length && !fan('rec-section') && !fan('rec-mark-edit'), 'while recording, ✦ Tools offers pause and ONE Mark — no kinds up front (V3.886)');
+      fan('rec-mark').click();
       var m1 = await until(function () { var d = recDoc(); return d && d.marks && d.marks.length === 1 && d.marks; }, 3000);
-      ok(!!m1 && m1[0].kind === 'question' && m1[0].t >= 0 && m1[0].end === undefined && recDoc().marksClock === 'wall', 'a mark lands on the recording doc: kind, the moment (wall seconds), no end', JSON.stringify(m1));
+      ok(!!m1 && m1[0].kind === 'important' && m1[0].t >= 0 && m1[0].end === undefined && recDoc().marksClock === 'wall', 'a plain mark lands on the recording doc: the moment (wall seconds), no end', JSON.stringify(m1));
+      var ed = await until(function () { return q('.wb-mark-edit'); }, 2000);
+      ok(!!ed && qa('.wb-mark-edit [data-wb-me="kind"]').length === 4 && /Mark at/.test(ed.textContent), 'the mark editor opens on it, beside ✦: what is it?', ed ? ed.textContent : 'none');
+      q('.wb-mark-edit [data-wb-me="kind"][data-v="question"]').click();
+      ok(!!(await until(function () { return recDoc().marks[0].kind === 'question'; }, 3000)) && q('.wb-mark-edit [data-v="question"]').classList.contains('wb-sel'), 'once in, it becomes a question');
+      var lab = q('.wb-mark-edit [data-wb-me-label]'); lab.value = 'why 40 µm?'; lab.dispatchEvent(new Event('input', { bubbles: true }));
+      ok(!!(await until(function () { return recDoc().marks[0].label === 'why 40 µm?'; }, 3000)), '…its words are kept as typed');
+      await wait(1100);
+      q('.wb-mark-edit [data-wb-me="until"]').click();
+      var sp = await until(function () { var x = recDoc().marks[0]; return typeof x.end === 'number' && x; }, 3000);
+      ok(!!sp && sp.end >= sp.t + 1 && /Just the moment/.test(q('.wb-mark-edit').textContent), '"Lasts until now" makes it a span from its moment to now', JSON.stringify(sp));
+      q('.wb-mark-edit [data-wb-me="moment"]').click();
+      ok(!!(await until(function () { return !('end' in recDoc().marks[0]); }, 3000)), '…and "Just the moment" takes it back');
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'm', altKey: true, bubbles: true }));
-      ok(!!(await until(function () { var d = recDoc(); return d.marks.length === 2 && d.marks.some(function (x) { return x.kind === 'important'; }); }, 3000)), 'Alt+M marks an important moment (Scientia\'s key)');
-      openTools(); await until(function () { return fan('rec-section'); });
-      fan('rec-section').click();
-      ok(!!(await until(function () { var d = recDoc(); return d.marks.some(function (x) { return x.end === null; }); }, 3000)), 'the section button opens an important section (end: null)');
-      await wait(300); openTools(); await until(function () { return fan('rec-section'); });
-      ok(fan('rec-section').classList.contains('wb-sel'), '…and shows it is open');
-      fan('rec-section').click();
-      var closed = await until(function () { var d = recDoc(); var s = d.marks.filter(function (x) { return typeof x.end === 'number'; })[0]; return s; }, 3000);
-      ok(!!closed && closed.end >= closed.t && !recDoc().marks.some(function (x) { return x.end === null; }), 'a second tap ends it', JSON.stringify(closed));
+      ok(!!(await until(function () { var d = recDoc(); return d.marks.length === 2 && d.marks[1].kind === 'important'; }, 3000)), 'Alt+M drops a plain mark (Scientia\'s key)');
+      q('.wb-mark-edit [data-wb-me="done"]').click();
+      ok(!q('.wb-mark-edit') && !q('.wb-pill-tools.wb-open'), 'Done closes the editor and the fan');
+      openTools(); await until(function () { return fan('rec-mark-edit'); });
+      fan('rec-mark-edit').click();
+      ed = await until(function () { return q('.wb-mark-edit'); }, 2000);
+      ok(!!ed && /Mark at/.test(ed.textContent), 'with a mark in, ✦ Tools offers "Change the last mark"');
+      var rm = q('.wb-mark-edit [data-wb-me="remove"]'); rm.click();
+      ok(recDoc().marks.length === 2 && /Really/.test(q('.wb-mark-edit [data-wb-me="remove"]').textContent), 'Remove asks for a second tap');
+      q('.wb-mark-edit [data-wb-me="remove"]').click();
+      ok(!!(await until(function () { return recDoc().marks.length === 1 && recDoc().marks[0].kind === 'question'; }, 3000)) && !q('.wb-mark-edit'), '…then removes that mark', JSON.stringify(recDoc().marks));
+      fan('rec-mark').click(); await until(function () { return recDoc().marks.length === 2; }, 3000);
       openTools(); await until(function () { return fan('rec-pause'); });
       fan('rec-pause').click();
       ok(window.__mrLog.indexOf('pause') >= 0 && !!(await until(function () { return recDoc().paused === true; }, 2000)), 'pause pauses the recorder and says so on the doc');
@@ -131,15 +147,47 @@ window.__popups = [];
       fan('rec-pause').click();
       ok(window.__mrLog.indexOf('resume') >= 0 && !!(await until(function () { return recDoc().paused === false; }, 2000)), 'resume');
       ok(!!(await until(function () { return events().some(function (e) { return e.type === 'gap' && e.reason === 'pause' && e.durationMs >= 600; }); }, 4000)), 'the pause is logged as a gap, so the replay skips it', JSON.stringify(events()));
-      openTools(); await until(function () { return fan('rec-section'); });
-      fan('rec-section').click();
-      await until(function () { return recDoc().marks.some(function (x) { return x.end === null; }); }, 2000);
       await h.stopRecording('stop');
       var fin = recDoc();
-      ok(fin.status === 'ready' && fin.paused === false && fin.marks.length === 4 && !fin.marks.some(function (x) { return x.end === null; }), 'Stop saves the marks and closes a section still open', JSON.stringify(fin.marks));
+      ok(fin.status === 'ready' && fin.paused === false && fin.marks.length === 2 && !fin.marks.some(function (x) { return x.end === null; }), 'Stop saves the marks', JSON.stringify(fin.marks));
+      ok(!q('.wb-mark-edit'), 'and the mark editor goes with the recording');
       ok(!h.isRecording() && !fan('rec-pause'), 'after Stop the recording items are gone');
-      ok(window.__popups.length === 0, 'no browser popups');
       h.destroy();
+
+      /* V3.887 — the replay: Transcribe, the person's own way, then the lines with their times */
+      try { Object.keys(localStorage).forEach(function (k) { if (/^rm:stt:/.test(k)) localStorage.removeItem(k); }); } catch (e) {}
+      window.__stub.store.set('userData/u1/notebookBoards/nb1_u1/recordings/rec-stt', { status: 'ready', name: 'Gel talk', startedAtMs: Date.now() - 60000, durationMs: 5600, mime: 'audio/wav', chunks: [{ n: 0, url: '/scripts/tests/fixtures/stt-sample.wav' }] });
+      async function openReplay() {
+        host.innerHTML = Whiteboard.boardShellHTML({ classId: 'u1', ids: false, back: false, zoomControls: false, maximize: false });
+        var inst = await Whiteboard.mountBoardView(host.querySelector('.wb-page'), { classId: 'u1', boardId: 'nb1_u1', collection: 'notebookBoards', ownerUid: 'u1', boardName: 'Sketches', chrome: 'full', replay: 'rec-stt', view: { enabled: false }, items: { enabled: true } });
+        await WhiteboardReplay.mount({ classId: 'u1', boardId: 'nb1_u1', recId: 'rec-stt', handle: inst, coll: 'notebookBoards', isAdmin: true, noHash: true, onExit: function () {} });
+        return inst;
+      }
+      var inst1 = await openReplay();
+      var setup = await until(function () { var a = q('[data-rp-words] a'); return a && /Set up speech to text/.test(a.textContent) && a; }, 6000);
+      ok(!!setup && /settings\.html\?tab=speech/.test(setup.getAttribute('href')) && !q('[data-rp="stt-run"]'), 'the replay offers “Set up speech to text” while nothing is chosen', setup ? setup.outerHTML : (q('[data-rp-words]') || {}).innerHTML);
+      WhiteboardReplay.teardown(); try { inst1.destroy(); } catch (e) {}
+      STT.save({ provider: 'openai', keys: { openai: 'sk-replay' } });
+      var oaCalls = [], ofetch = window.fetch;
+      window.fetch = function (u, o) {
+        if (/api\.openai\.com/.test(String(u))) { oaCalls.push({ auth: o.headers.Authorization, name: o.body.get('file').name, size: o.body.get('file').size });
+          return Promise.resolve(new Response(JSON.stringify({ language: 'english', segments: [{ start: 0, end: 2.4, text: ' The gel set at forty minutes.' }, { start: 2.4, end: 5.6, text: ' Next we stained the cells.' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } })); }
+        return ofetch.apply(this, arguments);
+      };
+      var inst2 = await openReplay();
+      var run = await until(function () { return q('[data-rp="stt-run"]'); }, 6000);
+      ok(!!run && /^Transcribe — under 1¢$/.test(run.textContent) && /OpenAI Whisper, billed to your OpenAI account/.test(q('[data-rp-words]').textContent), 'with OpenAI chosen, the owner sees Transcribe with its likely cost', run ? q('[data-rp-words]').textContent : 'none');
+      run.click();
+      var lines = await until(function () { return qa('.wb-rp-line').length === 2 && qa('.wb-rp-line'); }, 8000);
+      var saved = window.__stub.store.get('userData/u1/notebookBoards/nb1_u1/recordings/rec-stt').transcript;
+      ok(oaCalls.length === 1 && oaCalls[0].auth === 'Bearer sk-replay' && oaCalls[0].name === 'recording.wav' && oaCalls[0].size > 100000, 'the board’s audio went straight to OpenAI with the owner’s key', JSON.stringify(oaCalls));
+      ok(!!lines && !!saved && saved.provider === 'openai' && saved.segs.length === 2 && saved.segs[1].s === 2.4, 'the lines are kept on the recording, with their times, and shown', JSON.stringify(saved));
+      lines[1].click();
+      ok(!!(await until(function () { return qa('.wb-rp-line')[1].classList.contains('on'); }, 3000)) && /0:02/.test(q('[data-rp-time]').textContent), 'a tap on a line plays from there, and that line lights up', q('[data-rp-time]').textContent);
+      q('[data-rp="words-toggle"]').click();
+      ok(!q('.wb-rp-lines') && /Show the transcript \(2 lines\)/.test(q('[data-rp-words]').textContent), 'the transcript folds away');
+      window.fetch = ofetch; WhiteboardReplay.teardown(); try { inst2.destroy(); } catch (e) {}
+      ok(window.__popups.length === 0, 'no browser popups');
     } catch (e) { ok(false, 'harness error', (e && e.stack) || e); }
     done();
   })();

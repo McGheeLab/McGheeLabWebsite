@@ -21,6 +21,17 @@ test('marks: a section opens (end null), a second toggle closes it; opening anot
   assert.deepStrictEqual(m.map(x => [x.t, x.end]), [[10, 25], [30, 40], [40, null]]);
   assert.strictEqual(C.closeSection([{ t: 50, end: null }], 45)[0].end, 50, 'an end never comes before the start');
 });
+test('marks (V3.886): dropped plain, then changed once in — kind, words, how long it lasts, removed', () => {
+  let m = C.addMark([], { t: 8 }), id = m[0].id;
+  assert.strictEqual(m[0].kind, 'important', 'one Mark button: a plain mark');
+  m = C.updateMark(m, id, { kind: 'todo', label: 'order more PDMS', t: 99, id: 'x' });
+  assert.deepStrictEqual([m[0].id, m[0].t, m[0].kind, m[0].label], [id, 8, 'todo', 'order more PDMS'], 'its moment and id never move');
+  m = C.spanTo(m, id, 20); assert.strictEqual(m[0].end, 20);
+  m = C.spanTo(m, id, 5); assert.ok(!('end' in m[0]), 'not after it: back to a moment');
+  m = C.spanTo(C.spanTo(m, id, 30), id, null); assert.ok(!('end' in m[0]));
+  m = C.updateMark(m, id, { kind: 'nonsense' }); assert.strictEqual(m[0].kind, 'important');
+  assert.deepStrictEqual(C.removeMark(C.addMark(m, { t: 1 }), id).map(x => x.t), [1]);
+});
 test('marks: marksAt finds the sections around t and the moments near it', () => {
   const m = C.normMarks([{ id: 'a', t: 5 }, { id: 'b', t: 10, end: 20 }, { id: 'c', t: 30, end: null }]);
   assert.deepStrictEqual(C.marksAt(m, 6).map(x => x.id), ['a']);
@@ -45,10 +56,12 @@ test('ink: a stamped stroke knows its moment; strokesAt finds what was being dra
   assert.deepStrictEqual(C.strokesAt([s1, s2, s3], 11, 'rec1').length, 1);
   assert.deepStrictEqual(C.strokesAt([s1, s2, s3], 13, 'rec1', 0).length, 0);
 });
-test('cost: minutes rounded up × the rate; words a person reads', () => {
-  assert.deepStrictEqual([C.sttCost(30 * 60).minutes, C.sttCost(30 * 60).text], [30, '48¢']);
-  assert.strictEqual(C.sttCost(75 * 60).text, '$1.20');
-  assert.strictEqual(C.sttCost(5).minutes, 1);
+test('cost: minutes rounded up × the provider\'s rate; words a person reads; on the device it is free', () => {
+  assert.deepStrictEqual([C.sttCost(30 * 60, 'openai').minutes, C.sttCost(30 * 60, 'openai').text], [30, '18¢']);
+  assert.deepStrictEqual([C.sttCost(30 * 60, 'google').text, C.sttCost(75 * 60, 'google').text], ['72¢', '$1.80']);
+  assert.strictEqual(C.sttCost(3 * 3600, 'openai').text, '$1.08');
+  assert.deepStrictEqual([C.sttCost(3600, 'device').text, C.sttCost(3600, 'device').usd], ['free', 0]);
+  assert.strictEqual(C.sttCost(5, 'openai').minutes, 1);
   assert.strictEqual(C.sttCost(0, 0.004).text, 'under 1¢');
 });
 test('parts: names sort in order; mm:ss', () => {

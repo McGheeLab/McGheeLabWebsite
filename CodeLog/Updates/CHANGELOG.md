@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.887] — 2026-10-23 — Speech to text, each person's own way: free on the device, or their own OpenAI / Google key; Transcribe in Scientia and in the board replay
+
+Plan: [CodeLog/ClaudesPlan/V3.887_speech_to_text_your_own_way.md](../ClaudesPlan/V3.887_speech_to_text_your_own_way.md) — recorder R3, rewritten by Alex the same day: no lab-paid service; each person chooses and sets up their own way in Settings; still on a button that shows the likely cost first. No backend, rules or Storage change.
+
+### Added
+- **`rm/js/speech-to-text.js`** (`window.STT`): `settings() / save(patch)` (in `localStorage` `rm:stt:<uid>` — this browser, this sign-in; never Firebase), `ready()` → `{ ok, provider, why: 'none' | 'key' }`, `estimate(sec, provider)`, `transcribe(blob, { ext, onProgress, signal })` → `{ segs: [{ s, e, text }], lang, provider, model }`, `check(provider, key)`, `mountSettings(el)`. Engines: **device** (Whisper `onnx-community/whisper-base.en` q8 via transformers.js 3.8.1 in a module worker, 5-minute pieces), **openai** (`whisper-1`, `verbose_json` + segment timestamps; the file as-is ≤ 24 MB, else 10-minute 16 kHz WAV pieces), **google** (V1 `speech:recognize?key=`, 55-second LINEAR16 pieces four at a time, `latest_long`, word times → a sentence a line). `decode16k` (OfflineAudioContext at 16 kHz, channels mixed), `wav`, `sentences`. Errors in plain words (refused key, no credit, API off, billing off, key restricted to other sites).
+- **`rm/js/stt-device-worker.js`**: the module worker (`{type:'load'}`, `{type:'run', pcm}` → chunks with times; download progress posted).
+- **Settings → Speech to text** (`rm/js/settings.js` tab `speech`; `?tab=speech` / `#speech` open a tab directly; `rm/pages/settings.html` loads `recorder-core.js` + `speech-to-text.js`; `.stt-*` in `rm/css/settings.css`): On this device (free, *Download it to this device now*), OpenAI Whisper, Google Speech-to-Text, Off; a minute's and an hour's cost for each; key field (hidden, Show, **Check the key**, Forget it) and the step-by-step setup for each (5 for OpenAI, 6 for Google incl. restricting the key to the API and `https://mcgheelab.com/*`).
+- **Scientia (web)**: a recording saved in the lab's cloud shows **Transcribe — about 18¢** / **Transcribe on this device — free** / **Set up speech to text ↗** (`lab-mode.js` `sttEl`, `transcribeRec`, `recBlob`; progress + Stop in the card); the lines go through Gabe's `REC.apply` like his desktop's; `rec.stt = { provider, model, at }`. `speech-to-text.js` is loaded with the lab layer. `SIS_LAB.version` V3.887.
+- **Board replay** (`whiteboard-replay.js`): the owner's **Transcribe** under the replay bar (`ensureStt`, `renderWords`, `transcribeRec`; the joined audio `R.blob`); the lines are kept on the recording doc as `transcript { segs, provider, model, lang, at }`; a transcript panel (Hide / Show) where a tap plays from that line and the line being spoken lights up (`paintLine` via `lineAt`). CSS `.wb-rp-words / .wb-rp-line / .wb-rp-pbar` in `whiteboard-board.css`.
+
+### Changed
+- `recorder-core.js`: `STT_USD_PER_MIN` → `STT_RATES { device: 0, openai: 0.006, google: 0.024 }` (checked 2026-10-23); `sttCost(sec, provider | rate)`; a zero rate reads "free".
+
+### Tests
+- New `scripts/tests/v3887-speech-to-text-harness.html` 22/22 (25/25 with `?device=1`: the real on-device Whisper heard `scripts/tests/fixtures/stt-sample.wav` — "the gel set at 40 minutes. Next, we stain the cells and image them on the confocal." — in 13 s including the model download). Lab-mode harness 159/159 (+ Set up link, cost on the button, a refused key, OpenAI called with the person's key, lines in Gabe's transcript, nothing to the hub). Board harness 29/29 (+ the replay's Set up link, Transcribe with cost, the owner's key, `transcript` kept, tap a line → plays there and lights it, fold). `recorder-core.test.cjs` 9/9.
+
+## [V3.886] — 2026-10-23 — One Mark: simple up front, then say what it is (both recorders)
+
+Plan: [CodeLog/ClaudesPlan/V3.886_one_mark_then_say_what_it_is.md](../ClaudesPlan/V3.886_one_mark_then_say_what_it_is.md). Alex: "simple up front, then customize later … one thing you drop in, then you can change what it is when its in".
+
+### Changed
+- **Board recorder** (`whiteboard.js`): ✦ Tools while recording = Stop · Pause · **Mark** (`rec-mark`, Alt+M). From the fan a Mark drops a plain mark and opens the **mark editor** beside ✦ (`markEditorHTML`, `markEditorAction`, `S.markEdit`, `recLastMark`; `placePenEditor` now places either editor by `data-pill`): Important / Question / Decision / To do, a few words (`input` kept as typed), **Lasts until now** / **Just the moment**, Remove (two taps), Done. Alt+M drops without opening; **Change the last mark** (`rec-mark-edit`) appears once one exists. CSS `.wb-mark-edit`, `.wb-me-*`.
+- **Scientia** (`lab-mode.js` §12): the row of four kinds and the section button are gone — Gabe's ◆ is the one Mark; each bookmark's glyph in the list is a button (`.lab-mk-k`, a word for any kind but the plain ◆) opening Gabe's `ctxMenu`: the four kinds, *Lasts until now*, *Just the moment* (`markMenu`, `setMark`).
+- `recorder-core.js`: `updateMark`, `spanTo`, `removeMark`.
+
+### Removed
+- Board `recSection` and the `rec-section` action; Scientia `markKind`, `sectionToggle`, `.lab-rc-kinds`.
+
+### Tests
+- `recorder-core.test.cjs` 9/9; board harness (one Mark; the editor end to end); lab-mode harness §16 (no kinds row; the glyph's menu: Question, Lasts until now, Just the moment).
+
 ## [V3.885] — 2026-10-23 — Scientia: a note's details live in its first block — nothing asked up front; templates swap in place
 
 Plan: [CodeLog/ClaudesPlan/V3.885_scientia_note_details_in_first_block.md](../ClaudesPlan/V3.885_scientia_note_details_in_first_block.md). Web build only; `scientia/src` untouched; no backend change. Supersedes V3.882's *Save to a project…* form and V3.880's blank-page template bar.

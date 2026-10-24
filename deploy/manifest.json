@@ -1610,9 +1610,9 @@
    "via": "verify"
   },
   "rm/css/canvas-widgets.css": {
-   "deployedAt": "2026-10-23T07:52:51-07:00",
-   "sha256": "81c87e4131629333715bb46be4d8275eb648a1e75eb294a15a899cebaff68ebd",
-   "size": 4100,
+   "deployedAt": "2026-10-23T18:45:44-07:00",
+   "sha256": "ab8db1be48d50a28c0745451a558a5a3c38e99faff3763661cf834dbf13a6ed2",
+   "size": 4467,
    "via": "verify"
   },
   "rm/css/chat.css": {
@@ -2834,9 +2834,9 @@
    "via": "verify"
   },
   "rm/js/myweek-report.js": {
-   "deployedAt": "2026-10-23T10:34:36-07:00",
-   "sha256": "2c9fc6fbd558de2c354765d48b8d3c3ee8b08b57898c80fff075e24fa75bf6c6",
-   "size": 12138,
+   "deployedAt": "2026-10-23T18:45:44-07:00",
+   "sha256": "c686dedea421b41bde8560bfb834015dffeef52e4e11402b7a6f5e4979997966",
+   "size": 13671,
    "via": "verify"
   },
   "rm/js/nav-palette.js": {
@@ -3348,6 +3348,12 @@
    "sha256": "b79ceaa4342c5cedcedac057eb7a9fda6c1d29f81dcb271bd3326d355369ffe6",
    "size": 48381,
    "via": "baseline"
+  },
+  "rm/js/recorder-core.js": {
+   "deployedAt": "2026-10-23T18:45:44-07:00",
+   "sha256": "50050dd50ae52a7dc621eaa69d963878987c994185806b30ac21e3ef87fce994",
+   "size": 7985,
+   "via": "verify"
   },
   "rm/js/reference-import.js": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -4460,9 +4466,9 @@
    "via": "verify"
   },
   "rm/scientia/cloud-sync.js": {
-   "deployedAt": "2026-10-23T11:12:36-07:00",
-   "sha256": "c153919972b86c9ae3059b7b84ec77201e16ca353cad0a692df8a752804fcd2d",
-   "size": 10898,
+   "deployedAt": "2026-10-23T18:45:44-07:00",
+   "sha256": "5dc2444e409658d83019a4ad7fb53103df867678343ea95fb42f1d2a00328d23",
+   "size": 10975,
    "via": "verify"
   },
   "rm/scientia/icons/icon-180.png": {
@@ -4490,9 +4496,9 @@
    "via": "verify"
   },
   "rm/scientia/lab-mode.js": {
-   "deployedAt": "2026-10-23T18:22:55-07:00",
-   "sha256": "a5b24c052ace7f2bb74ae0d6dc4650854676d339882445feba1c7f483cf616b6",
-   "size": 119620,
+   "deployedAt": "2026-10-23T18:45:44-07:00",
+   "sha256": "3c7d87cd7e318d2c34a346a1c9494bb775b4ab3b51263a77b182dc05e66fa7d0",
+   "size": 132707,
    "via": "verify"
   },
   "rm/scientia/scientia-cloud.py": {
@@ -4502,8 +4508,8 @@
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-23T18:22:55-07:00",
-   "sha256": "32c303801124faa07294b2ab4f16af8accd7f0c592901b4a86d4113dfb2b3ea0",
+   "deployedAt": "2026-10-23T18:45:44-07:00",
+   "sha256": "872d94eafd79388876f0ab1cf12e0d0c094d0a032246e962fe72a6de00955f32",
    "size": 4382355,
    "via": "verify"
   },
@@ -4880,8 +4886,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-23T18:22:55-07:00",
-   "sha256": "33e7b98bf112c76b4aaf07f0cd94bafe061707a077da2afa333457b8bcb1b06d",
+   "deployedAt": "2026-10-23T18:45:44-07:00",
+   "sha256": "391782f05a1ebb9a8f9a2e5f00456d286c9ee1c5a68aa832826986542fd8d85b",
    "size": 9016,
    "via": "verify"
   },
@@ -4922,9 +4928,9 @@
    "via": "verify"
   },
   "whiteboard-board.css": {
-   "deployedAt": "2026-10-23T10:51:18-07:00",
-   "sha256": "177f909f5100df108ba8f6a1e5f6ec4f3fdf3a727210b01714f20e443c910105",
-   "size": 54533,
+   "deployedAt": "2026-10-23T18:45:44-07:00",
+   "sha256": "41349b84d27c2e47318f1ee99be7d59d3a690467158523e837a85452ef94ae24",
+   "size": 54662,
    "via": "verify"
   },
   "whiteboard-replay.js": {
@@ -4934,9 +4940,9 @@
    "via": "verify"
   },
   "whiteboard.js": {
-   "deployedAt": "2026-10-23T10:51:18-07:00",
-   "sha256": "fdbedf2fae478047adf9fbce519882ac932ac01daab6d6477a9c553c6d0dcdac",
-   "size": 383185,
+   "deployedAt": "2026-10-23T18:45:44-07:00",
+   "sha256": "d7c94332a3464bde384dc35bc3758b6f4a9f58467ba9d84e18ba1a6ff932127e",
+   "size": 388446,
    "via": "verify"
   }
  },

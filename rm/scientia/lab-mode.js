@@ -31,7 +31,7 @@
     activity: '/rm/pages/activity-overview.html?tab=tracker',
     inventory: '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.885', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.887', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -1360,11 +1360,14 @@
      its parts. Marks gain kinds (important · question · decision · to do, rm/js/recorder-core.js) and sections, in
      Gabe's own `marks` list (his ◆ bookmarks read as important). Ink drawn in the note while it records is stamped
      with its moment (stroke.rt = [recId, t0, t1], audio seconds) for the replay. His desktop keeps its own recorder
-     and Whisper. Speech-to-text in the cloud comes on a button that shows its cost first (R3). */
+     and Whisper. V3.887 — speech to text each person's own way (rm/js/speech-to-text.js, chosen in RM Settings → Speech
+     to text: free on the device, or their own OpenAI / Google key, never the lab's): a saved recording shows
+     Transcribe with its likely cost, and the lines land in Gabe's transcript (REC.apply), as his desktop's do. */
   var LR = { cur: null, timer: null, penT0: null, sent: [], stamped: 0 };
   LAB.recorder = LR;
   function rcore() { return window.RECORDER_CORE || null; }
   try { if (!window.RECORDER_CORE) { var rcs = document.createElement('script'); rcs.src = '/rm/js/recorder-core.js?v=' + encodeURIComponent(LAB.version); document.head.appendChild(rcs); } } catch (e) { warn('recorder core', e); }
+  try { if (!window.STT) { var sts = document.createElement('script'); sts.src = '/rm/js/speech-to-text.js?v=' + encodeURIComponent(LAB.version); sts.onload = function () { try { changed(); } catch (e) {} }; document.head.appendChild(sts); } } catch (e) { warn('speech to text', e); }
   function partsStart(a) {
     if (!a || (LR.cur && LR.cur.id === a.id)) return;
     LR.cur = { id: a.id, n: 0, sent: 0, ext: a.ext || 'webm', mime: a.mime || 'audio/webm', q: Promise.resolve(), a: a, failed: 0 };
@@ -1422,44 +1425,93 @@
   }
   LAB.sendPart = sendPart; LAB.recoverParts = recoverParts;
 
-  /* marks with kinds and sections, at the moment recording or playing */
+  /* marks: Gabe's ◆ drops one (Alt+M), plain. V3.886 (Alex: "simple up front, then customize later") — what it is
+     (a question, a decision, a to-do; how long it lasts) is changed on the bookmark once it is in: its glyph in the
+     list opens the choices */
   function recNow(id) { var a = REC.active; if (a && a.id === id) return REC.elapsed(); if (REC.player && REC.player.id === id) return REC.player.audio.currentTime; return null; }
-  function markKind(id, kind) {
-    var C = rcore(), t = recNow(id); if (!C) { toast('One moment — try again'); return; } if (t == null) { toast('Play it first, then mark'); return; }
-    REC.put(id, function (r) { r.marks = C.addMark(r.marks, { t: t, kind: kind }); }); changed();
-    toast(C.KIND[C.kindOf(kind)].glyph + ' ' + C.KIND[C.kindOf(kind)].label + ' at ' + C.mmss(t));
+  function setMark(id, fn) { var C = rcore(); if (!C) return; REC.put(id, function (r) { r.marks = fn(C, r.marks || []); }); changed(); }
+  function markMenu(id, mid, ev) {
+    var C = rcore(), m = (REC.r(M.block(id)).marks || []).filter(function (x) { return x.id === mid; })[0]; if (!C || !m) return;
+    var t = recNow(id), span = typeof m.end === 'number', at = ev && ev.clientX != null ? ev : { clientX: innerWidth / 2, clientY: innerHeight / 3 };
+    return ctxMenu(at.clientX, at.clientY + 8, [{ head: 'This bookmark is…' }].concat(
+      C.MARK_KINDS.map(function (k) { return { label: k.glyph + ' ' + k.label, sub: C.kindOf(m.kind) === k.id ? ' — now' : null, run: function () { setMark(id, function (C, ms) { return C.updateMark(ms, mid, { kind: k.id }); }); } }; }),
+      ['sep', t != null && t > m.t + 1 ? { label: (span ? 'Until now' : 'Lasts until now') + ' (' + C.mmss(t) + ')', run: function () { setMark(id, function (C, ms) { return C.spanTo(ms, mid, t); }); } }
+        : { label: 'Lasts until…', sub: ' — play to where it ends, then choose this', disabled: true },
+      span ? { label: 'Just the moment', run: function () { setMark(id, function (C, ms) { return C.spanTo(ms, mid, null); }); } } : null]));
   }
-  function sectionToggle(id) {
-    var C = rcore(), t = recNow(id); if (!C) { toast('One moment — try again'); return; } if (t == null) { toast('Play it first, then mark'); return; }
-    var open = C.openOf(REC.r(M.block(id)).marks || []);
-    REC.put(id, function (r) { r.marks = C.toggleSection(r.marks, t, 'important'); }); changed();
-    toast(open ? 'Section ended — ' + C.mmss(t - open.t) + ' long' : 'Important section started — press again to end it');
+  LAB.markMenu = markMenu;
+
+  /* V3.887 — Transcribe, the person's own way, with its likely cost on the button */
+  var STTRUN = {}, STTERR = {};
+  LAB.stt = { running: STTRUN, errors: STTERR };
+  async function recBlob(b) {
+    var s = REC.src(b); if (!s) throw new Error('This recording isn’t on this device or in the lab’s cloud yet.');
+    if (typeof s !== 'string') return s;
+    var res = await fetch(s); if (!res.ok) throw new Error('Couldn’t load the recording (' + res.status + ').');
+    var bl = await res.blob(); REC.blobs.set(b.id, bl); return bl;
   }
-  LAB.markKind = markKind; LAB.sectionToggle = sectionToggle;
+  function paintStt(id) {
+    var b = M.block(id); if (!b) return;
+    [].forEach.call(document.querySelectorAll('.box[data-id="' + id + '"] .lab-rc-stt'), function (el) { el.replaceWith(sttEl(b)); });
+  }
+  async function transcribeRec(id) {
+    var b = M.block(id); if (!b || STTRUN[id] || !window.STT) return;
+    var ctl = new AbortController(); delete STTERR[id];
+    STTRUN[id] = { text: 'Getting the recording…', frac: 0, ctl: ctl }; paintStt(id);
+    try {
+      var blob = await recBlob(b);
+      var out = await STT.transcribe(blob, { ext: REC.r(b).ext, signal: ctl.signal, onProgress: function (t, f) { if (STTRUN[id]) { STTRUN[id].text = t; STTRUN[id].frac = f; paintStt(id); } } });
+      delete STTRUN[id];
+      if (!out.segs.length) { STTERR[id] = 'No speech was found in this recording.'; paintStt(id); return out; }
+      REC.put(id, function (r) { r.stt = { provider: out.provider, model: out.model, at: new Date().toISOString() }; });
+      REC.apply(id, { segs: out.segs, lang: out.lang });
+      return out;
+    } catch (e) {
+      delete STTRUN[id]; STTERR[id] = ctl.signal.aborted ? 'Stopped. Nothing was kept.' : (e && e.message) || String(e); paintStt(id); return null;
+    }
+  }
+  LAB.transcribe = transcribeRec;
+  function sttEl(b) {
+    var r = REC.r(b), id = b.id, run = STTRUN[id], S = window.STT;
+    var stop = function (e) { e.stopPropagation(); };
+    if (run) return h('div.lab-rc-stt.nopan', h('span', run.text), h('div.rc-pbar', h('i', { style: { width: Math.max(2, Math.round(100 * (run.frac || 0))) + '%' } })),
+      h('button.btn.xs', { on: { pointerdown: stop, click: function (e) { e.stopPropagation(); run.ctl.abort(); } } }, 'Stop'));
+    if (!S) return h('div.lab-rc-stt');
+    var st = S.ready(), err = STTERR[id];
+    var setup = h('button.btn.xs', { title: 'Settings → Speech to text, on the lab site', on: { pointerdown: stop, click: function (e) { e.stopPropagation(); openRM('/rm/pages/settings.html?tab=speech'); } } }, 'Set up speech to text ↗');
+    if (!st.ok) return h('div.lab-rc-stt.nopan', err ? h('span.lab-rc-err', err + ' ') : null, setup,
+      h('span.tiny.muted', st.why === 'key' ? ' Add your ' + S.PROVIDERS[st.provider].name + ' key there.' : ' Free on your device, or your own OpenAI or Google key.'));
+    var cost = S.estimate(r.dur || 0, st.provider), P = S.PROVIDERS[st.provider];
+    var label = st.provider === 'device' ? 'Transcribe on this device — free' : 'Transcribe — ' + (/^under/.test(cost.text) ? '' : 'about ') + cost.text;
+    return h('div.lab-rc-stt.nopan', err ? h('span.lab-rc-err', err + ' ') : null,
+      h('button.btn.xs.pri', { title: P.name + (st.provider === 'device' ? '' : ', billed to ' + P.who), on: { pointerdown: stop, click: function (e) { e.stopPropagation(); transcribeRec(id); } } }, err ? 'Try again' : label),
+      h('span.tiny.muted', ' ' + (st.provider === 'device' ? 'Whisper in this browser; it can take a while.' : (r.dur ? C_mmss(r.dur) + ' with ' + P.name + ', billed to ' + P.who + '.' : 'with ' + P.name + ', billed to ' + P.who + '.'))));
+  }
+  function C_mmss(t) { var C = rcore(); return C ? C.mmss(t) : Math.round(t) + ' s'; }
   function decorateRec(el, b, ro) {
     var C = rcore(), cur = M.block(b.id) || b, r = REC.r(cur), live = !!(REC.active && REC.active.id === b.id), dur = r.dur || 0, has = r.state !== 'new' && r.state !== 'recording';
     if (!el || !el.querySelector) return;
-    if (C && !ro && (live || (has && (r.file || r.path || REC.blobs.has(b.id))))) {
-      var open = C.openOf(r.marks || []);
-      var row = h('div.lab-rc-kinds.nopan', { title: live ? 'Mark this moment' : 'Mark the moment playing now' },
-        C.MARK_KINDS.map(function (k) { return h('button.btn.xs', { 'data-kind': k.id, title: 'Mark: ' + k.label + (k.id === 'important' ? ' (Alt+M)' : ''), on: { click: function (e) { e.stopPropagation(); markKind(b.id, k.id); } } }, k.glyph + ' ' + k.label); }),
-        h('button.btn.xs' + (open ? '.on' : ''), { 'data-section': open ? 'open' : '', title: open ? 'End the important section' : 'Start an important section (press again to end it)', on: { click: function (e) { e.stopPropagation(); sectionToggle(b.id); } } }, open ? '⟧ End section' : '⟦ Section'));
-      var bar = el.querySelector('.rc-bar'); if (bar) bar.after(row);
-    }
-    // the marks list says what each one is; a section shows its span
+    // the marks list says what each one is (its glyph, a word for any but the plain ◆) and its span; the glyph
+    // opens the choices
     if (C) {
       var ms = r.marks || [];
       [].forEach.call(el.querySelectorAll('.rc-mk'), function (mk, i) {
-        var m = ms[i]; if (!m) return; var k = C.KIND[C.kindOf(m.kind)], tb = mk.querySelector('.rc-mt');
+        var m = ms[i]; if (!m) return; var k = C.KIND[C.kindOf(m.kind)], tb = mk.querySelector('.rc-mt'), mid = m.id;
         mk.classList.add('lab-k-' + k.id);
-        if (tb) tb.textContent = k.glyph + ' ' + C.mmss(m.t) + (m.end === null ? ' → …' : typeof m.end === 'number' ? ' → ' + C.mmss(m.end) : '');
+        if (tb) tb.textContent = C.mmss(m.t) + (m.end === null ? ' → …' : typeof m.end === 'number' ? ' → ' + C.mmss(m.end) : '');
+        var txt = k.glyph + (k.id === 'important' ? '' : ' ' + k.label);
+        mk.insertBefore(ro ? h('span.lab-mk-k', { title: k.label }, txt)
+          : h('button.lab-mk-k', { 'data-mark': mid, title: k.label + ' — tap to say what this bookmark is', on: { pointerdown: function (e) { e.stopPropagation(); }, click: function (e) { e.stopPropagation(); markMenu(b.id, mid, e); } } }, txt), mk.firstChild);
       });
       var prog = el.querySelector('.rc-prog');
       if (prog && dur && !live) ms.filter(function (m) { return typeof m.end === 'number'; }).forEach(function (m) {
         prog.append(h('b.lab-rc-band', { style: { left: (100 * m.t / dur) + '%', width: Math.max(0.5, 100 * (m.end - m.t) / dur) + '%' }, title: C.markLabel(m) + ' · ' + C.mmss(m.t) + '–' + C.mmss(m.end) })); });
     }
     var st = el.querySelector('.rc-status');
-    if (st && r.state === 'saved') { st.className = 'rc-status lab-rc-saved'; st.replaceChildren(h('span', 'Saved in the lab’s cloud' + (r.bytes ? ' (' + REC.kb(r.bytes) + ')' : '') + '.'), h('span.tiny.muted', ' Speech-to-text in the cloud comes next — it will show its cost before it runs; the desktop app transcribes it for free.')); }
+    if (st && r.state === 'saved') {
+      st.className = 'rc-status lab-rc-saved'; st.replaceChildren(h('span', 'Saved in the lab’s cloud' + (r.bytes ? ' (' + REC.kb(r.bytes) + ')' : '') + '.'));
+      if (!ro && !(r.segs || []).length) st.after(sttEl(cur));
+    }
     if (st && !live && (r.state === 'recording' || r.state === 'saving') && (r.parts || 0) > 0) {
       st.after(h('div.callout.lab-rc-recover', h('b.h', 'This recording was interrupted'), 'About ' + plural(r.parts, 'minute') + ' reached the lab’s cloud before it stopped. ',
         ro ? null : h('button.btn.xs.pri', { on: { click: function (e) { e.stopPropagation(); e.currentTarget.disabled = true; recoverParts(b.id); } } }, 'Recover them')));
@@ -1487,8 +1539,9 @@
   } catch (e) { warn('ink moments', e); }
   try {
     var st12 = document.getElementById('lab-mode-css');
-    if (st12) st12.textContent += '.lab-rc-kinds{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 2px}.lab-rc-kinds .btn.on{background:var(--teal-soft);color:var(--teal)}' +
+    if (st12) st12.textContent += '.lab-mk-k{border:0;background:none;padding:0 3px 0 0;font:inherit;font-weight:600;color:var(--teal);cursor:pointer}' +
+      '.rc-mk.lab-k-question .lab-mk-k{color:#B5761B}.rc-mk.lab-k-decision .lab-mk-k{color:#4A5651}.rc-mk.lab-k-todo .lab-mk-k{color:#1E5E8C}' +
       '.rc-prog{position:relative}.lab-rc-band{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--teal) 28%,transparent);border-radius:2px;pointer-events:auto}' +
-      '.rc-mk.lab-k-question .rc-mt{color:#B5761B}.rc-mk.lab-k-decision .rc-mt{color:#4A5651}.rc-mk.lab-k-todo .rc-mt{color:#1E5E8C}.lab-rc-recover{margin:6px 0}.lab-rc-ink{margin-top:4px}';
+      '.lab-rc-stt{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0}.lab-rc-stt .rc-pbar{flex:1 1 120px;min-width:80px}.lab-rc-err{color:var(--red,#b42318);font-size:12px}.lab-rc-recover{margin:6px 0}.lab-rc-ink{margin-top:4px}';
   } catch (e) { warn('css 12', e); }
 })();

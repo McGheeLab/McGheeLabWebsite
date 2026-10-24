@@ -300,6 +300,17 @@ body.wb-max .wb-pagesbar{ min-height: 0; }
 .wb-rp-marker{ position: absolute; top: 0; width: 2px; height: 6px; background: #f0be46; transform: translateX(-1px); }
 .wb-rp-marker-add{ background: #dc2626; }
 .wb-rp-msg{ font-size: .8rem; }
+/* V3.887 — the words: Transcribe (the person's own way), then the lines with their times */
+.wb-rp-words{ font-size: .82rem; gap: 8px; }
+.wb-rp-words:empty{ display: none; }
+.wb-rp-lines{ position: relative; flex-basis: 100%; max-height: 168px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; padding: 4px; background: #fff; }
+.wb-rp-line{ display: flex; gap: 10px; width: 100%; text-align: left; border: 0; background: none; padding: 3px 6px; border-radius: 6px; font: inherit; color: #1f2937; cursor: pointer; line-height: 1.4; }
+.wb-rp-line:hover{ background: #f3f4f6; }
+.wb-rp-line.on{ background: #e6f2f0; color: #0d675e; }
+.wb-rp-lt{ flex: none; min-width: 42px; font-variant-numeric: tabular-nums; color: #6b7280; }
+.wb-rp-pbar{ flex: 1 1 120px; min-width: 80px; height: 4px; border-radius: 2px; background: #e5e7eb; overflow: hidden; }
+.wb-rp-pbar i{ display: block; height: 100%; background: #0d675e; transition: width .4s; }
+.wb-rp-err{ color: #b42318; }
 /* recorded lectures under a board row on the class page */
 .wb-rec-list{
   flex-basis: 100%; width: 100%; display: flex; flex-direction: column; gap: 4px;
@@ -481,6 +492,12 @@ body.wb-max .wb-pagesbar{ min-height: 0; }
 .wb-fan-item.wb-sel .wb-fan-dot{ box-shadow: 0 0 0 2px #fff; }
 .wb-fan-bar{ display: block; width: 20px; border-radius: 3px; background: currentColor; }
 .wb-fan-glyph{ font: 700 15px/1 system-ui, -apple-system, sans-serif; pointer-events: none; }   /* V3.884 — recording marks */
+/* V3.886 — the mark editor: a mark is dropped plain, then said what it is */
+.wb-mark-edit .wb-me-kinds{ display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.wb-mark-edit .wb-me-kinds .wb-pe-kind{ white-space: nowrap; padding: 6px 8px; font-size: 12px; }
+.wb-me-label{ flex: 1; min-width: 0; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--wb-rule, #cfcac0); background: transparent; color: inherit; font: 12px system-ui, sans-serif; }
+.wb-me-foot{ flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
+.wb-me-foot .wb-pe-done{ margin-left: auto; }
 .wb-fan-caption{
   position: absolute; left: 30px; top: -58px; white-space: nowrap; font: 500 11px/18px system-ui, sans-serif; color: var(--wb-ink-2, #4D483F);
   background: var(--wb-surface, #fff); border: 1px solid var(--wb-rule, #cfcac0); border-radius: 999px; padding: 0 8px; pointer-events: none;

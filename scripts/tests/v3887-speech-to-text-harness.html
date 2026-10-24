@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>V3.887 — speech to text, each person's own way</title>
+<link rel="stylesheet" href="/rm/css/style.css">
+<link rel="stylesheet" href="/rm/css/settings.css">
+<style>body{font:14px system-ui;margin:16px} #r{white-space:pre-wrap;font:12px ui-monospace,monospace}</style>
+</head>
+<body>
+<!-- Open from a local server: /scripts/tests/v3887-speech-to-text-harness.html (add ?device=1 for the real
+     on-device Whisper run: it downloads the ~80 MB model once, from jsdelivr + Hugging Face). -->
+<div id="panel"></div>
+<pre id="r">running…</pre>
+<script>
+  window.__popups = [];
+  ['alert', 'confirm', 'prompt'].forEach(function (k) { window[k] = function () { window.__popups.push(k); }; });
+  try { Object.keys(localStorage).forEach(function (k) { if (/^rm:stt:/.test(k)) localStorage.removeItem(k); }); } catch (e) {}
+</script>
+<script src="/rm/js/recorder-core.js"></script>
+<script src="/rm/js/speech-to-text.js"></script>
+<script>
+(function () {
+  var out = [], passed = 0, failed = 0;
+  function ok(c, name, info) { if (c) passed++; else failed++; out.push((c ? '✓ ' : '✗ ') + name + (info !== undefined && !c ? ' → ' + (typeof info === 'string' ? info : JSON.stringify(info)) : '')); }
+  function done() { var r = document.getElementById('r'); r.textContent = passed + ' passed, ' + failed + ' failed\n' + out.join('\n'); r.dataset.done = '1'; }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  async function until(fn, ms) { var t0 = Date.now(); while (Date.now() - t0 < (ms || 3000)) { try { var v = fn(); if (v) return v; } catch (e) {} await wait(40); } return null; }
+  var q = function (s) { return document.querySelector(s); }, qa = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  function json(status, body) { return Promise.resolve(new Response(JSON.stringify(body), { status: status, headers: { 'Content-Type': 'application/json' } })); }
+  function silentWav(sec) {   // 16 kHz mono 16-bit silence
+    var n = Math.round(sec * 16000), b = new ArrayBuffer(44 + n * 2), v = new DataView(b), w = function (o, s) { for (var i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, 16000, true); v.setUint32(28, 32000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+    return new Blob([b], { type: 'audio/wav' });
+  }
+  var realFetch = window.fetch, calls = [], route = null;
+  window.fetch = function (u, o) { var url = String(u); if (/api\.openai\.com|speech\.googleapis\.com/.test(url)) { calls.push({ url: url, o: o || {} }); return route(url, o || {}); } return realFetch.apply(this, arguments); };
+
+  (async function () {
+    try {
+      /* 1. nothing chosen */
+      ok(STT.ready().ok === false && STT.ready().why === 'none', 'nothing is chosen at first: no Transcribe anywhere');
+      ok(STT.estimate(1800, 'openai').text === '18¢' && STT.estimate(1800, 'google').text === '72¢' && STT.estimate(3600, 'device').text === 'free', 'the likely cost comes from the one table (Whisper 18¢ / Google 72¢ for 30 min; the device is free)');
+
+      /* 2. Settings → Speech to text */
+      STT.mountSettings(q('#panel'));
+      var radios = qa('#panel input[name="stt-provider"]').map(function (x) { return x.value; });
+      ok(JSON.stringify(radios) === JSON.stringify(['device', 'openai', 'google', '']), 'Settings offers: on this device (free), OpenAI Whisper, Google Speech-to-Text, Off', radios);
+      ok(/0\.6¢ a minute \(36¢ an hour\)/.test(q('[data-stt-opt="openai"] .stt-rate').textContent) && /2\.4¢ a minute \(\$1\.44 an hour\).*first 60 minutes/.test(q('[data-stt-opt="google"] .stt-rate').textContent), 'each one says what it costs, a minute and an hour', q('[data-stt-opt="google"] .stt-rate').textContent);
+      var r1 = q('#panel input[value="openai"]'); r1.checked = true; r1.dispatchEvent(new Event('change', { bubbles: true }));
+      ok(STT.settings().provider === 'openai' && STT.ready().why === 'key', 'choosing OpenAI is saved; it waits for a key');
+      ok(!!q('[data-stt-key="openai"]') && q('[data-stt-key="openai"]').type === 'password' && q('.stt-guide[open]') && q('.stt-guide').querySelectorAll('li').length === 5, 'its key field (hidden) and the five setup steps, open while there is no key');
+      route = function (url, o) { return url.indexOf('/v1/models') > 0 && o.headers.Authorization === 'Bearer sk-good' ? json(200, { data: [] }) : json(401, { error: { message: 'bad' } }); };
+      q('[data-stt-key="openai"]').value = 'sk-bad'; q('[data-stt-check="openai"]').click();
+      ok(!!(await until(function () { var n = q('[data-stt-note]'); return n && /bad/.test(n.className) && /didn’t accept/.test(n.textContent); })), 'Check the key: a refused key says so');
+      q('[data-stt-key="openai"]').value = 'sk-good'; q('[data-stt-check="openai"]').click();
+      ok(!!(await until(function () { var n = q('[data-stt-note]'); return n && /ok/.test(n.className) && /accepted/.test(n.textContent); })) && STT.ready().ok && STT.settings().keys.openai === 'sk-good', 'a good key is accepted and kept; Transcribe is ready');
+      ok(Object.keys(localStorage).some(function (k) { return k === 'rm:stt:anon' && /sk-good/.test(localStorage.getItem(k)); }), 'the key lives in this browser, under the person’s sign-in');
+      window.firebase = { auth: function () { return { currentUser: { uid: 'someone-else' } }; } };
+      ok(STT.settings().provider === '' && !STT.settings().keys.openai, 'someone else signed in on this browser sees none of it');
+      delete window.firebase;
+      q('[data-stt-show]').click();
+      ok(q('[data-stt-key="openai"]').type === 'text', 'Show reveals the key');
+      q('[data-stt-forget="openai"]').click();
+      ok(!STT.settings().keys.openai && STT.ready().why === 'key' && /gone/.test(q('[data-stt-note]').textContent), 'Forget it removes the key from this device');
+
+      var r2 = q('#panel input[value="google"]'); r2.checked = true; r2.dispatchEvent(new Event('change', { bubbles: true }));
+      ok(q('.stt-guide').querySelectorAll('li').length === 6 && /mcgheelab\.com/.test(q('.stt-guide').textContent) && /Cloud Speech-to-Text API/.test(q('.stt-guide').textContent), 'Google: six setup steps, including the API to turn on and restricting the key to the site');
+      route = function () { return json(403, { error: { code: 403, message: 'Cloud Speech-to-Text API has not been used in project 123 before or it is disabled.', status: 'PERMISSION_DENIED' } }); };
+      q('[data-stt-key="google"]').value = 'AIza-test'; q('[data-stt-check="google"]').click();
+      ok(!!(await until(function () { var n = q('[data-stt-note]'); return n && /bad/.test(n.className) && /Turn on the Cloud Speech-to-Text API/.test(n.textContent); })), 'Check the key: an API that is off says which step to do');
+
+      /* 3. Google: decoded here, 55-second pieces, sentences with their times */
+      var gReq = [];
+      route = function (url, o) {
+        var body = JSON.parse(o.body); gReq.push({ url: url, cfg: body.config, len: atob(body.audio.content).length });
+        var k = gReq.length - 1;
+        return json(200, { results: [{ alternatives: [{ transcript: 'Piece ' + k + ' starts. It ends here.', words: [{ startTime: '1s', endTime: '1.4s', word: 'Piece' }, { startTime: '1.4s', endTime: '1.8s', word: String(k) }, { startTime: '1.8s', endTime: '2.5s', word: 'starts.' }, { startTime: '3s', endTime: '3.3s', word: 'It' }, { startTime: '3.3s', endTime: '3.6s', word: 'ends' }, { startTime: '3.6s', endTime: '4s', word: 'here.' }] }], resultEndTime: '4s' }] });
+      };
+      var prog = [];
+      var g = await STT.transcribe(silentWav(120), { onProgress: function (t, f) { prog.push([t, f]); } });
+      ok(gReq.length === 3 && gReq.every(function (x) { return x.cfg.encoding === 'LINEAR16' && x.cfg.sampleRateHertz === 16000 && /key=AIza-test/.test(x.url); }) && gReq[0].len === 55 * 32000 && gReq[2].len === 10 * 32000, 'Google gets 16 kHz pieces of 55 s (120 s → 3), with the person’s key', gReq.map(function (x) { return x.len; }));
+      var starts = g.segs.map(function (x) { return x.s; });
+      ok(g.provider === 'google' && g.segs.length === 6 && JSON.stringify(starts) === JSON.stringify([1, 3, 56, 58, 111, 113]) && g.segs[0].text === 'Piece 0 starts.' && g.segs[1].e === 4, 'its lines are sentences, timed from the start of the recording', g.segs);
+      ok(prog.some(function (p) { return /of 3/.test(p[0]); }) && prog[prog.length - 1][1] === 1, 'progress is reported piece by piece');
+
+      /* 4. OpenAI: the file as it is under 24 MB; a longer one in 10-minute pieces */
+      STT.save({ provider: 'openai', keys: { openai: 'sk-good' } });
+      var oReq = [];
+      route = function (url, o) { var f = o.body; oReq.push({ name: f.get('file').name, size: f.get('file').size, model: f.get('model') }); var k = oReq.length - 1; return json(200, { language: 'english', segments: [{ start: 2, end: 4, text: ' Part ' + k + '.' }] }); };
+      var o1 = await STT.transcribe(new Blob([new Uint8Array(5000)], { type: 'audio/webm;codecs=opus' }), {});
+      ok(oReq.length === 1 && oReq[0].name === 'recording.webm' && oReq[0].size === 5000 && oReq[0].model === 'whisper-1' && o1.segs[0].s === 2 && o1.lang === 'english', 'OpenAI gets the recording as it is (webm), whisper-1', oReq);
+      oReq = [];
+      var big = silentWav(14 * 60);
+      var o2 = await STT.transcribe(big, {});
+      ok(big.size > 24 * 1024 * 1024 && oReq.length === 2 && oReq.every(function (x) { return x.name === 'recording.wav'; }) && o2.segs[1].s === 602, 'past OpenAI’s 25 MB limit it goes in 10-minute pieces, timed from the start', { size: big.size, reqs: oReq, segs: o2.segs });
+      route = function () { return json(429, { error: { message: 'You exceeded your current quota, please check your plan and billing details.', code: 'insufficient_quota' } }); };
+      var e1 = null; try { await STT.transcribe(new Blob([new Uint8Array(10)], { type: 'audio/webm' }), {}); } catch (e) { e1 = e.message; }
+      ok(/no credit left/.test(e1 || ''), 'an account without credit says where to add some', e1);
+
+      /* 5. nothing goes anywhere but the provider */
+      ok(calls.every(function (c) { return /^https:\/\/(api\.openai\.com|speech\.googleapis\.com)\//.test(c.url); }), 'every request went straight to the provider');
+      ok(window.__popups.length === 0, 'no browser popups');
+
+      /* 6. the free way, for real: Whisper in this browser on a spoken sample (?device=1) */
+      if (/device=1/.test(location.search)) {
+        STT.save({ provider: 'device' });
+        var wavBlob = await (await realFetch('/scripts/tests/fixtures/stt-sample.wav')).blob(), dl = [];
+        var t0 = Date.now();
+        var d = await STT.transcribe(wavBlob, { onProgress: function (t) { dl.push(t); } });
+        var text = d.segs.map(function (x) { return x.text; }).join(' ');
+        ok(d.provider === 'device' && /gel/i.test(text) && /(forty|40) minutes/i.test(text) && /confocal/i.test(text), 'on this device, free: Whisper hears the sample (“' + text + '”, ' + Math.round((Date.now() - t0) / 1000) + ' s)', d.segs);
+        ok(d.segs.every(function (x) { return x.e >= x.s && x.s >= 0; }) && STT.settings().deviceReady, '…with times, and the device remembers it has the model', d.segs);
+        ok(dl.some(function (t) { return /Downloading Whisper|Starting Whisper/.test(t); }), '…and it said what it was doing', dl.slice(0, 3));
+      }
+    } catch (e) { ok(false, 'harness error', (e && e.stack) || String(e)); }
+    done();
+  })();
+})();
+</script>
+</body>
+</html>

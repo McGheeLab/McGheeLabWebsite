@@ -857,7 +857,7 @@ async function mountBoardView(rootEl, opts) {
     width: PEN_WIDTHS[1].w,
     /* V3.839 — the pen set (pens + highlighters, this device), the pen in
        hand, highlighter mode, the open pen editor, moved pill positions */
-    pens: loadPenSet(), penId: null, hl: false, penEdit: null,
+    pens: loadPenSet(), penId: null, hl: false, penEdit: null, markEdit: null,
     pillPos: loadPillPos(), pillSuppressClick: null,
     /* V3.841 — the eraser in hand (0 = the default tolerance), a wire being
        dragged from a card's port, the host's drop handler */
@@ -1797,8 +1797,8 @@ async function handleBoardAction(act, btn) {
       break;
     }
     case 'rec-pause': if (REC?.pausedAt) recResume(); else recPause(); break;
-    case 'rec-mark': recMark(btn.dataset.kind || 'important'); break;
-    case 'rec-section': recSection('important'); break;
+    case 'rec-mark': recMark('important', true); break;
+    case 'rec-mark-edit': { const m = recLastMark(); S.markEdit = m && S.markEdit !== m.id ? m.id : null; renderPills(); break; }
     case 'max': {
       if (S.onTool && S.tools.some(t => t.act === 'max')) { try { S.onTool('max', btn); } catch (e) {} }
       else setMaximized(!isMaximized(), true);
@@ -5169,12 +5169,12 @@ function pillItems(name) {
   } else if (name === 'tools') {
     items.push({ act: 'rec', icon: recording() ? '■' : ICON.svg('microphone'), label: recording() ? 'Stop recording' : 'Record voice with the ink', sel: recording() });
     if (recording()) {
-      /* V3.884 — the one recorder: pause, marks of four kinds, an important section */
+      /* V3.884 — the one recorder: pause and marks. V3.886 — simple up front: ONE Mark; what it is (a question, a
+         decision, a to-do, its words, how long it lasts) is said on the mark once it is in — the mark editor */
       items.push({ act: 'rec-pause', icon: REC.pausedAt ? wbIcon('play', '>') : wbIcon('pause', '||'), label: REC.pausedAt ? 'Resume recording (Alt+P)' : 'Pause recording — the replay skips the pause (Alt+P)', sel: !!REC.pausedAt, keep: true });
-      [['important', '◆', 'Important (Alt+M)'], ['question', '?', 'Question'], ['decision', '◇', 'Decision'], ['todo', '☐', 'To do']].forEach(([k, g, l]) =>
-        items.push({ act: 'rec-mark', attrs: { 'data-kind': k }, icon: `<span class="wb-fan-glyph">${g}</span>`, label: 'Mark this moment: ' + l, keep: true }));
-      const open = window.RECORDER_CORE && RECORDER_CORE.openOf(REC.marks || []);
-      items.push({ act: 'rec-section', icon: `<span class="wb-fan-glyph">${open ? '⟧' : '⟦'}</span>`, label: open ? 'End the important section' : 'Start an important section (tap again to end it)', sel: !!open, keep: true });
+      items.push({ act: 'rec-mark', icon: '<span class="wb-fan-glyph">◆</span>', label: 'Mark this moment (Alt+M) — then say what it is', keep: true });
+      const last = recLastMark();
+      if (last) items.push({ act: 'rec-mark-edit', icon: wbIcon('pencil-square', 'E'), label: 'Change the last mark (' + recMmss(last.t) + ')', sel: S.markEdit === last.id, keep: true });
     }
     items.push({ act: 'arrange', icon: '⤧', label: S.arrange ? 'Done arranging' : 'Arrange cards', sel: !!S.arrange });
     items.push({ act: 'tidy', icon: '⇣', label: 'Tidy this page into a column' });
@@ -5417,7 +5417,7 @@ function penEditorHTML() {
 }
 function placePenEditor(box) {
   const ed = box.querySelector('.wb-pen-edit'); if (!ed) return;
-  const pill = box.querySelector('.wb-pill-pens'); if (!pill) return;
+  const pill = box.querySelector('.wb-pill-' + (ed.dataset.pill || 'pens')); if (!pill) return;   /* V3.886 — or the mark editor, beside ✦ */
   const bw = box.clientWidth || 800, bh = box.clientHeight || 600;
   const left = pill.offsetLeft, top = pill.offsetTop, sz = pill.offsetWidth || 46;
   const right = left + sz / 2 > bw / 2;
@@ -5467,9 +5467,10 @@ function renderPills() {
       <div class="wb-fan">${items.map((it, i) => { const p = fanPos(i, items.length, side, vert); const attrs = Object.entries(it.attrs || {}).map(([k, v]) => `${k}="${escAttr(v)}"`).join(' ');
         return `<button type="button" class="wb-fan-item${it.sel ? ' wb-sel' : ''}${it.mode ? ' wb-fan-modeitem' : ''}" data-wb-act="${escAttr(it.act)}" ${attrs} data-keep="${it.keep ? 1 : 0}" title="${escAttr(it.label)}" aria-label="${escAttr(it.label)}" style="--tx:${p.x}px;--ty:${p.y}px;--d:${i * 16}ms">${it.icon}</button>`; }).join('')}${open ? '<span class="wb-fan-caption" data-wb-caption></span>' : ''}</div>
     </div>`;
-  }).join('') + (S.isAdmin && S.penEdit && S.openPill === 'pens' ? penEditorHTML() : '') + (S.isAdmin && mobile() ? modeBarHTML() : '');
+  }).join('') + (S.isAdmin && S.penEdit && S.openPill === 'pens' ? penEditorHTML() : '') + (S.isAdmin && S.markEdit && S.openPill === 'tools' && recording() ? markEditorHTML() : '') + (S.isAdmin && mobile() ? modeBarHTML() : '');
   if (box.innerHTML !== html) box.innerHTML = html;
   if (S.penEdit && S.openPill !== 'pens') S.penEdit = null;
+  if (S.markEdit && (S.openPill !== 'tools' || !recording())) S.markEdit = null;
   placePenEditor(box);
   if (recording() && S.isAdmin) {
     if (!S.pillTimer) S.pillTimer = setInterval(() => { if (!S) return; const n = el('board')?.querySelector('.wb-pill-rec'); if (n) n.lastChild.textContent = recElapsedLabel(); if (!recording()) { clearInterval(S.pillTimer); S.pillTimer = null; renderPills(); } }, 1000);
@@ -5507,6 +5508,9 @@ function bindPills(box) {
     /* V3.839 — the pen editor's controls */
     const pe = e.target.closest('[data-wb-pe]');
     if (pe && S) { e.stopPropagation(); penEditorAction(pe, box); return; }
+    /* V3.886 — the mark editor's controls */
+    const me = e.target.closest('[data-wb-me]');
+    if (me && S) { e.stopPropagation(); markEditorAction(me); return; }
     /* V3.863 — the phone's mode bar: one tap per mode; a tap on the lit one opens its options (the ✎ fan) */
     const mb = e.target.closest('[data-wb-mode]');
     if (mb && S) {
@@ -5543,6 +5547,10 @@ function bindPills(box) {
   /* live edits in the pen editor: patch in place (a re-render would drop the slider mid-drag) */
   box.addEventListener('input', (e) => {
     if (!S) return;
+    if (e.target.matches && e.target.matches('[data-wb-me-label]')) {   /* V3.886 — a mark's words, kept as typed */
+      if (REC && window.RECORDER_CORE && S.markEdit) { REC.marks = RECORDER_CORE.updateMark(REC.marks, S.markEdit, { label: e.target.value }); recSaveMarks(); }
+      return;
+    }
     const p = S.pens.find(x => x.id === S.penEdit); if (!p) return;
     if (e.target.matches('[data-wb-pe-color]')) { if (/^#[0-9a-f]{6}$/i.test(e.target.value)) p.color = e.target.value.toLowerCase(); else return; }
     else if (e.target.matches('[data-wb-pe-w]')) p.w = penRangeToW(e.target.value, p.kind);
@@ -5552,6 +5560,7 @@ function bindPills(box) {
     patchPenPreview(box, p);
   });
   box.addEventListener('change', (e) => { if (S && e.target.matches && e.target.matches('[data-wb-pe-color],[data-wb-pe-w]')) renderPills(); });
+  box.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches && e.target.matches('[data-wb-me-label]')) { e.preventDefault(); e.target.blur(); } });
   /* V3.839 — drag a pill anywhere on the sheet (> 8 px moves it; a tap still opens it) */
   let drag = null;
   box.addEventListener('pointerdown', (e) => {
@@ -5567,7 +5576,7 @@ function bindPills(box) {
       if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 8) return;
       drag.moved = true; drag.pill.classList.add('wb-pill-dragging');
       /* fold without re-rendering: the captured button must stay in the DOM */
-      if (S.openPill) { S.openPill = null; S.penEdit = null; drag.pill.classList.remove('wb-open', 'wb-fanned'); const ed = box.querySelector('.wb-pen-edit'); if (ed) ed.remove(); }
+      if (S.openPill) { S.openPill = null; S.penEdit = null; S.markEdit = null; drag.pill.classList.remove('wb-open', 'wb-fanned'); const ed = box.querySelector('.wb-pen-edit'); if (ed) ed.remove(); }
     }
     e.preventDefault();
     const w = drag.pill.offsetWidth || 46, h = drag.pill.offsetHeight || 46;
@@ -6350,23 +6359,43 @@ function recSaveMarks() {
   clearTimeout(rec.markT);
   rec.markT = setTimeout(() => recColOf(rec).update({ marks: rec.marks, marksClock: 'wall' }).catch(e => console.warn('[whiteboard] marks not saved', e)), 400);
 }
-async function recMark(kind) {
+function recMmss(t) { return window.RECORDER_CORE ? RECORDER_CORE.mmss(t) : Math.round(t) + ' s'; }
+function recLastMark() { const ms = (REC && REC.marks) || []; return ms.find(m => m.id === REC.lastMarkId) || ms[ms.length - 1] || null; }
+/** V3.886 — one Mark: a plain mark at this moment; from the ✦ fan its editor opens on it (Alt+M just drops it). */
+async function recMark(kind, edit) {
   if (!REC) return;
   const C = await ensureRecCore(); if (!C || !REC) { toast('Marks need a moment to load — try again.'); return; }
-  const t = recNowSec(); REC.marks = C.addMark(REC.marks, { t, kind });
+  const t = recNowSec(), id = 'mk' + Date.now().toString(36);
+  REC.marks = C.addMark(REC.marks, { id, t, kind }); REC.lastMarkId = id;
   recSaveMarks(); recTouch();
-  const k = C.KIND[C.kindOf(kind)];
-  toast(`${k.glyph} ${k.label} — marked at ${C.mmss(t)}`);
+  if (S && (edit || S.openPill === 'tools')) S.markEdit = id;
+  else toast(`◆ Marked at ${C.mmss(t)} — say what it is under ✦ Tools.`);
   renderPills();
 }
-async function recSection(kind) {
-  if (!REC) return;
-  const C = await ensureRecCore(); if (!C || !REC) return;
-  const t = recNowSec(), open = C.openOf(REC.marks);
-  REC.marks = C.toggleSection(REC.marks, t, kind || 'important');
-  recSaveMarks(); recTouch();
-  toast(open ? `Section ended — ${C.mmss(t - open.t)} long.` : 'Important section started — tap again to end it.');
-  renderPills();
+/* V3.886 — the mark editor: what a mark is, said once it is in (its kind, its words, how long it lasts). It sits
+   beside the ✦ pill like the pen editor beside ✎; never a browser popup. */
+function markEditorHTML() {
+  const C = window.RECORDER_CORE, m = C && REC && (REC.marks || []).find(x => x.id === S.markEdit); if (!m) return '';
+  const span = typeof m.end === 'number', when = C.mmss(m.t) + (span ? ' – ' + C.mmss(m.end) : m.end === null ? ' – …' : '');
+  const kinds = C.MARK_KINDS.map(k => `<button type="button" class="wb-pe-kind${C.kindOf(m.kind) === k.id ? ' wb-sel' : ''}" data-wb-me="kind" data-v="${k.id}">${k.glyph} ${k.label}</button>`).join('');
+  return `<div class="wb-pen-edit wb-mark-edit" data-wb-markedit data-pill="tools">
+    <div class="wb-pe-row wb-me-head"><span class="wb-pe-lbl">Mark at ${esc(when)}</span><span class="wb-pe-hint">what is it?</span></div>
+    <div class="wb-pe-row wb-pe-kinds wb-me-kinds">${kinds}</div>
+    <div class="wb-pe-row"><input type="text" class="wb-me-label" data-wb-me-label maxlength="200" value="${escAttr(m.label || '')}" placeholder="In a few words (optional)" aria-label="What this mark is about"></div>
+    <div class="wb-pe-row wb-pe-foot wb-me-foot"><button type="button" class="wb-pe-btn" data-wb-me="until" title="It lasts from its moment until now">${span ? 'Until now' : 'Lasts until now'}</button>${span ? '<button type="button" class="wb-pe-btn" data-wb-me="moment">Just the moment</button>' : ''}<button type="button" class="wb-pe-btn wb-pe-remove" data-wb-me="remove">Remove</button><button type="button" class="wb-pe-btn wb-pe-done" data-wb-me="done">Done</button></div>
+  </div>`;
+}
+function markEditorAction(btn) {
+  const C = window.RECORDER_CORE, rec = REC, id = S.markEdit, m = rec && (rec.marks || []).find(x => x.id === id);
+  if (!C || !m) return;
+  const what = btn.dataset.wbMe;
+  if (what === 'kind') rec.marks = C.updateMark(rec.marks, id, { kind: btn.dataset.v });
+  else if (what === 'until') { const t = recNowSec(); if (t - m.t < 1) { toast('Press it when the part that matters is over.'); return; } rec.marks = C.spanTo(rec.marks, id, t); }
+  else if (what === 'moment') rec.marks = C.spanTo(rec.marks, id, null);
+  else if (what === 'remove') { if (!armTwoTap(btn, 'Really remove?')) return; rec.marks = C.removeMark(rec.marks, id); S.markEdit = null; if (rec.lastMarkId === id) rec.lastMarkId = null; }
+  else if (what === 'done') { S.markEdit = null; S.openPill = null; renderPills(); return; }
+  else return;
+  recSaveMarks(); renderPills();
 }
 function recPause() {
   const rec = REC; if (!rec?.recorder || rec.pausedAt) return;

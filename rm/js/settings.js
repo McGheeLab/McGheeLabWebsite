@@ -56,9 +56,14 @@ const TABS = [
   { key: 'profile',       label: 'Profile' },
   { key: 'notifications', label: 'Notifications' },
   { key: 'connections',   label: 'Connections' },
+  { key: 'speech',        label: 'Speech to text' },   // V3.887 — each person's own way to transcribe recordings
 ];
 
-let activeTab = 'profile';
+// V3.887 — ?tab=speech (or #speech) opens a tab directly (the Scientia recording's "Set up speech to text")
+let activeTab = (function () {
+  const want = new URLSearchParams(location.search).get('tab') || location.hash.replace(/^#/, '');
+  return TABS.some(t => t.key === want) ? want : 'profile';
+})();
 
 function _isConnectionTab() {
   return activeTab === 'connections';
@@ -112,6 +117,7 @@ async function loadAndRender() {
   const content = document.getElementById('content');
   if (activeTab === 'notifications') return renderNotifications(content);
   if (activeTab === 'connections') return renderConnectionsTab(content, connections);
+  if (activeTab === 'speech') { content.innerHTML = ''; if (window.STT) STT.mountSettings(content); else content.innerHTML = '<div class="empty-state">Speech to text didn’t load — reload the page.</div>'; return; }
   return renderProfile(content);
 }
 

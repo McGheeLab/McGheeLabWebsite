@@ -55,7 +55,8 @@ async function mount({ classId, boardId, recId, handle, coll, isAdmin, noHash, o
            driven by the audio element when that is playable, else by a
            wall clock (ink-only replay). Play can never be a no-op. */
         pos: 0, wall: null, coll: coll || 'whiteboards', onExit: onExit || null, onDeleted: onDeleted || null,
-        isAdmin: false, keyHandler: null, hashHandler: null, objectUrl: null, mse: null };
+        isAdmin: false, keyHandler: null, hashHandler: null, objectUrl: null, mse: null,
+        blob: null, stt: null, sttErr: null, wordsOpen: true, lineOn: -1 };
 
   if (!noHash) {
     R.hashHandler = () => {
@@ -98,7 +99,9 @@ async function mount({ classId, boardId, recId, handle, coll, isAdmin, noHash, o
   buildBar();
   R.pos = R.trimStart;
   render(audioToWall(R.trimStart), false);
+  if (R.isAdmin) ensureStt().then(() => { if (R) renderWords(); });
   await loadAudio();
+  if (R) renderWords();
 }
 
 /** The doc's durationMs, or — when it is missing/zero (an interrupted or
@@ -242,6 +245,7 @@ async function loadAudio() {
   if (!R) return;
   const mime = (R.rec.mime || 'audio/mp4').split(';')[0];
   const blob = new Blob(blobs, { type: mime });
+  R.blob = blob;   /* V3.887 — what Transcribe sends */
   R.objectUrl = URL.createObjectURL(blob);
   let ok = await probeAudio(audio, R.objectUrl);
   if (!R) return;
@@ -346,8 +350,10 @@ function buildBar() {
         <button type="button" class="btn btn-small btn-ghost" data-rp="trim-reset" title="Remove trim" ${(rec.trimStartMs || rec.trimEndMs) ? '' : 'hidden'}>reset trim</button>
         <button type="button" class="btn btn-small btn-danger" data-rp="delete" title="Delete recording">Delete</button>
       </span>` : ''}
-    </div>`;
+    </div>
+    <div class="wb-rp-row wb-rp-words" data-rp-words></div>`;
   renderMarkers();
+  renderWords();
   R.bar.addEventListener('click', onBarClick);
   const range = R.bar.querySelector('[data-rp-range]');
   range.addEventListener('input', () => seekTo(R.trimStart + Number(range.value), false));
@@ -406,6 +412,75 @@ function updateBar(aMs) {
   const time = R.bar.querySelector('[data-rp-time]');
   if (range && document.activeElement !== range) range.value = String(Math.round(aMs - R.trimStart));
   if (time) time.textContent = `${fmt(aMs - R.trimStart)} / ${fmt(R.trimEnd - R.trimStart)}`;
+  paintLine(aMs);
+}
+
+/* ================================================================
+   V3.887 — the words. The owner transcribes a recording their own way
+   (rm/js/speech-to-text.js, chosen in Settings → Speech to text: free on
+   the device, or their own OpenAI / Google key — never the lab's), on a
+   button that shows the likely cost first. The lines (audio seconds) are
+   kept on the recording doc as `transcript`; a tap on one plays from
+   there, and the line being spoken lights up.
+   ================================================================ */
+let _sttP = null;
+function ensureStt() {
+  if (window.STT && window.RECORDER_CORE) return Promise.resolve(window.STT);
+  const load = (src) => new Promise(res => { const sc = document.createElement('script'); sc.src = src; sc.onload = sc.onerror = () => res(); document.head.appendChild(sc); });
+  if (!_sttP) _sttP = (window.RECORDER_CORE ? Promise.resolve() : load('/rm/js/recorder-core.js?v=3887'))
+    .then(() => window.STT ? null : load('/rm/js/speech-to-text.js?v=3887')).then(() => window.STT || null);
+  return _sttP;
+}
+function renderWords() {
+  const box = R && R.bar.querySelector('[data-rp-words]'); if (!box) return;
+  const esc = WB().esc, segs = (R.rec.transcript && R.rec.transcript.segs) || [];
+  R.lineOn = -1;
+  if (segs.length) {
+    box.innerHTML = `<button type="button" class="btn btn-small btn-ghost" data-rp="words-toggle">${R.wordsOpen ? 'Hide' : 'Show'} the transcript (${segs.length} line${segs.length === 1 ? '' : 's'})</button>` +
+      (R.wordsOpen ? `<div class="wb-rp-lines" data-rp-lines>${segs.map((g, i) => `<button type="button" class="wb-rp-line" data-rp-line="${i}" title="Play from here"><span class="wb-rp-lt">${fmt(g.s * 1000)}</span>${esc(g.text)}</button>`).join('')}</div>` : '');
+    paintLine(current());
+    return;
+  }
+  const S = window.STT;
+  if (!R.isAdmin || !S) { box.innerHTML = ''; return; }
+  if (R.stt) { box.innerHTML = `<span class="wb-rp-sttmsg">${esc(R.stt.text)}</span><span class="wb-rp-pbar"><i style="width:${Math.max(2, Math.round(100 * (R.stt.frac || 0)))}%"></i></span><button type="button" class="btn btn-small" data-rp="stt-stop">Stop</button>`; return; }
+  const st = S.ready(), err = R.sttErr ? `<span class="wb-rp-err">${esc(R.sttErr)}</span>` : '';
+  if (!st.ok) { box.innerHTML = err + `<a class="btn btn-small" href="/rm/pages/settings.html?tab=speech" target="_blank" rel="noopener">Set up speech to text ↗</a><span class="muted-text">${st.why === 'key' ? 'Add your ' + esc(S.PROVIDERS[st.provider].name) + ' key there.' : 'Free on your device, or your own OpenAI or Google key.'}</span>`; return; }
+  if (!R.blob) { box.innerHTML = err; return; }
+  const P = S.PROVIDERS[st.provider], ms = R.audioMs || R.durationMs, cost = S.estimate(ms / 1000, st.provider);
+  box.innerHTML = err + `<button type="button" class="btn btn-small btn-primary" data-rp="stt-run">${R.sttErr ? 'Try again' : st.provider === 'device' ? 'Transcribe on this device — free' : 'Transcribe — ' + (/^under/.test(cost.text) ? '' : 'about ') + esc(cost.text)}</button>` +
+    `<span class="muted-text">${st.provider === 'device' ? 'Whisper in this browser; it can take a while.' : esc(fmt(ms) + ' with ' + P.name + ', billed to ' + P.who + '.')}</span>`;
+}
+function paintLine(aMs) {
+  const lines = R && R.bar.querySelector('[data-rp-lines]'), segs = R && R.rec.transcript && R.rec.transcript.segs;
+  if (!lines || !segs) return;
+  const C = window.RECORDER_CORE, t = aMs / 1000;
+  let i = C ? C.lineAt(segs, t) : -1;
+  if (!C) segs.forEach((g, k) => { if (g.s <= t) i = k; });
+  if (i === R.lineOn) return;
+  R.lineOn = i;
+  lines.querySelectorAll('.wb-rp-line.on').forEach(n => n.classList.remove('on'));
+  const n = lines.querySelector(`[data-rp-line="${i}"]`); if (!n) return;
+  n.classList.add('on');
+  if (n.offsetTop < lines.scrollTop || n.offsetTop + n.offsetHeight > lines.scrollTop + lines.clientHeight) lines.scrollTop = Math.max(0, n.offsetTop - 8);
+}
+async function transcribeRec() {
+  if (!R || R.stt || !R.blob || !window.STT) return;
+  const r = R, ctl = new AbortController();
+  r.sttErr = null; r.stt = { text: 'Starting…', frac: 0, ctl }; renderWords();
+  try {
+    const out = await STT.transcribe(r.blob, { ext: /mp4/.test(r.rec.mime || '') ? 'm4a' : 'webm', signal: ctl.signal,
+      onProgress: (text, frac) => { if (r.stt) { r.stt.text = text; r.stt.frac = frac; if (R === r) renderWords(); } } });
+    r.stt = null;
+    if (!out.segs.length) { r.sttErr = 'No speech was found in this recording.'; if (R === r) renderWords(); return; }
+    const transcript = { segs: out.segs, provider: out.provider, model: out.model || null, lang: out.lang || null, at: new Date().toISOString() };
+    await WB().boardsCol(r.classId, r.coll).doc(r.boardId).collection('recordings').doc(r.recId).update({ transcript });
+    r.rec.transcript = transcript;
+    if (R === r) renderWords();
+  } catch (e) {
+    r.stt = null; r.sttErr = ctl.signal.aborted ? 'Stopped. Nothing was kept.' : ((e && e.message) || String(e));
+    if (R === r) renderWords();
+  }
 }
 
 function setPlaying(on) {
@@ -450,6 +525,8 @@ async function togglePlay() {
 }
 
 async function onBarClick(e) {
+  const ln = e.target.closest('[data-rp-line]');   /* V3.887 — a transcript line: play from there */
+  if (ln && R) { const g = ((R.rec.transcript || {}).segs || [])[+ln.dataset.rpLine]; if (g) { seekTo(Math.max(R.trimStart, g.s * 1000), false); if (!R.playing) togglePlay(); } return; }
   const btn = e.target.closest('[data-rp]');
   if (!btn || !R) return;
   const act = btn.dataset.rp;
@@ -457,6 +534,9 @@ async function onBarClick(e) {
   switch (act) {
     case 'exit': { const fn = R.onExit; teardown(); if (fn) fn(); break; }   /* V3.830 — notebook host */
     case 'play': togglePlay(); break;
+    case 'words-toggle': R.wordsOpen = !R.wordsOpen; renderWords(); break;
+    case 'stt-run': transcribeRec(); break;
+    case 'stt-stop': if (R.stt) R.stt.ctl.abort(); break;
     case 'speed': {
       const pos = current();
       R.speed = SPEEDS[(SPEEDS.indexOf(R.speed) + 1) % SPEEDS.length];
