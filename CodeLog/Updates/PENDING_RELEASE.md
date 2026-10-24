@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (17 changes — push at 5+)
+## Pending (18 changes — push at 5+)
 
+- **V3.890 — A model of the PE bead assay on the confocal (research, not on the site).** A model and simulation of the PE bead confocal assay — how much PE ends up on an 8 µm bead vs analyte concentration, what the AX-R sees when it images that fluorescent shell, and how best to measure it. `Research/PE_bead_confocal_assay_model.md`, a 13-experiment plan for characterizing it on the AX R (`Research/PE_bead_confocal_experiments.md`), and runnable code in `Research/bead_confocal_sim/`.
 - **V3.889 — Scientia has a Lit reviews tab.** A literature review is a canvas for researching one topic — the papers, the quotes that matter and your notes on them. **+ New review** opens one straight away; its first block holds its title, the question it asks, and the projects it serves (link as many as you like). It then shows in each of those projects (Portfolio and the project's page) and, for RM projects, on their cards in RM.
 - **V3.887 — Turn a recording into words, your own way.** Settings now has **Speech to text**: choose **On this device** (free; Whisper runs in your browser and nothing leaves your computer), **OpenAI Whisper** (your own OpenAI key, about 36¢ an hour) or **Google Speech-to-Text** (your own Google key, about $1.44 an hour, first hour a month free). Step-by-step setup is on the page, and **Check the key** tells you it works. Your key stays in your browser; the lab never sees it or pays for it. Then a saved Scientia recording, or a board recording's replay, shows **Transcribe** with the likely cost on the button. In the replay, tap a line of the transcript to hear it.
 - **V3.886 — One Mark button while you record.** On a board (✦ Tools) and in Scientia there is now one **Mark** (Alt+M). Drop it in, then say what it is: Important, Question, Decision or To do, a few words, or "lasts until now" to make it cover a stretch. On a board the choices open right after you mark; in Scientia, tap the mark's symbol in the recording's list.

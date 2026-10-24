@@ -23,6 +23,14 @@ const argv = process.argv.slice(2), opt = k => { const i = argv.indexOf(k); retu
 const COMMIT = argv.includes('--commit');
 const spec = JSON.parse(fs.readFileSync(argv[0], 'utf8'));
 const TAG = 'litreview:' + spec.slug, BY = opt('--by') || process.env.LITREVIEW_BY, TODAY = new Date().toISOString().slice(0, 10);
+/* V3.891: one request for an 18 MB PDF is dropped on a home network (EPIPE): big files go up resumable, and a dropped
+   connection is tried again */
+async function upload(f, bytes, metadata, tries = 4) {
+  for (let i = 1; ; i++) {
+    try { return await f.save(bytes, { contentType: 'application/pdf', resumable: bytes.length > 5e6, metadata: { metadata } }); }
+    catch (e) { if (i >= tries) throw e; console.log(`  upload ${f.name}: ${e.code || e.message} — try ${i + 1} of ${tries}`); await new Promise(r => setTimeout(r, 3000 * i)); }
+  }
+}
 
 const STOP = new Set(['a', 'an', 'the', 'of', 'in', 'on', 'for', 'and', 'or', 'to', 'with', 'from', 'by', 'as', 'at', 'is', 'are', 'be', 'this', 'that', 'using', 'via', 'over', 'under', 'between', 'into']);
 const safeSlug = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
@@ -54,7 +62,7 @@ if (!BY) { console.error('say who is adding the papers: --by <lab Google account
       if (p.pdfVersion && p.pdfVersion !== 'published') pdfInfo.version = p.pdfVersion;   // 'preprint' | 'author manuscript'
       if (COMMIT) {
         const f = bucket.file(path); const [there] = await f.exists();
-        if (!there) await f.save(bytes, { contentType: 'application/pdf', resumable: false, metadata: { metadata: { uploadedBy: BY, fullHash: full, firebaseStorageDownloadTokens: crypto.randomUUID() } } });
+        if (!there) await upload(f, bytes, { uploadedBy: BY, fullHash: full, firebaseStorageDownloadTokens: crypto.randomUUID() });
       }
     }
     if (ex) {

@@ -244,7 +244,19 @@ async function pushCloud(uid, commit) {
     `${libMissing.length} cited papers not yet in this hub's library mirror${libMissing.length ? ' (run rm-library-add.js --commit first)' : ''}`);
   if (!commit) { console.log('dry run — add --commit to write'); return; }
   const have = (await hub.mediaList()).files || {};
-  for (const m of rec.media) { if (have[m.path]) continue; const r = await hub.mediaPut(m.path, fs.readFileSync(m._file), 'application/pdf'); if (!r.ok) throw new Error('media ' + m.id); }
+  /* V3.891: FirestoreHub.mediaPut sends a file in one request, which a home network drops for an 18 MB PDF (EPIPE).
+     The same Storage object + media record it writes, but resumable for big files and tried again on a drop. */
+  const putPdf = async (p, bytes, tries = 4) => {
+    const tok = crypto.randomUUID(), f = hub._file(p);
+    for (let i = 1; ; i++) {
+      try { await f.save(bytes, { contentType: 'application/pdf', resumable: bytes.length > 5e6, metadata: { metadata: { firebaseStorageDownloadTokens: tok } } }); break; }
+      catch (e) { if (i >= tries) throw e; console.log(`  upload ${p}: ${e.code || e.message} — try ${i + 1} of ${tries}`); await new Promise(r => setTimeout(r, 3000 * i)); }
+    }
+    const url = 'https://firebasestorage.googleapis.com/v0/b/' + f.bucket.name + '/o/' + encodeURIComponent(f.name) + '?alt=media&token=' + tok;
+    await hub.media.doc(encodeURIComponent(p)).set({ path: p, url, bytes: bytes.length, mime: 'application/pdf', created: admin.firestore.FieldValue.serverTimestamp() });
+  };
+  let up = 0;
+  for (const m of rec.media) { if (have[m.path]) continue; await putPdf(m.path, fs.readFileSync(m._file)); console.log(`  pdf ${++up}: ${m.path}`); }
   const r = await hub.push({ dev: DEV, conn: null, name: NAME, ops: ops.concat(del).map(o => Object.assign({}, o, { prev: rows.get(o.store + '\u0000' + o.id) || null, base: st.seq })) });
   console.log('cloud push:', JSON.stringify(r).slice(0, 300));
   // the library rows the citation chips point at: the hub's own mirror of RM's library (one writer, device 'rm')

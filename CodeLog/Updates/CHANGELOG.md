@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.890] — 2026-10-24 — Research: PE bead confocal assay — binding model, shell image simulation, measurement strategy
+
+Plan: [CodeLog/ClaudesPlan/V3.890_pe_bead_confocal_model.md](../ClaudesPlan/V3.890_pe_bead_confocal_model.md). Research deliverable only — no site code, nothing in `deploy/site.json`, no `sw.js` bump.
+
+### Added
+- **`Research/PE_bead_confocal_assay_model.md`** — deep-research report (15 sources, 104 claims, 3-lens adversarial verification, all agents on Opus 5.5): one-step sandwich binding model on 8 µm beads with the pre-complex route and both k_off values; image-formation model of a fluorescent spherical shell on the Nikon AX-R (10x/0.45, 20x/0.75) in a single pinhole-set plane; simulation results across pinhole, laser, gain, PE density, bleaching, pixels per bead, dwell, focal offset, field position, objective; measurement strategy and first experiments.
+- **`Research/PE_bead_confocal_experiments.md`** — 13 characterization experiments for the real AX R (power at the sample, photon-transfer gain, flat field, PSF / plane response / axial scaling, single-bead z-series in four modes, sampling and field position, bleaching / dark state / saturation / dwell-vs-averaging / antifade, gain ladder, backgrounds and excluded volume, PE calibration and PE:IgG ratio, association / post-wash dissociation / delayed detection / detection-antibody clamp / settling / bead number, standard curve and hook, head-to-head mode validation), each stating the parameter it pins and the decision it makes; a one-day subset; the plate-map CSV columns.
+- **`Research/bead_confocal_sim/`** — `binding.py` (`BeadAssay(k1, km1, k2, km2, k3, km3, k4, km4, S_T, R_um, n_beads, V_uL, D_A, D_D, transport)`: `incubate()`, `wash()`, `endpoint()`, `curve()`, `sad_eq_excessD()`, `apparent_KD()`, `damkohler()`), `optics.py` (`ConfocalPSF(obj, pinhole_AU)` tabulated Gaussian-beam × pinhole-acceptance PSF with on-axis and plane-integrated z widths and `Veff`; `render(BeadState, ScanSettings)` → image, photon map, metrics; `integrated_analytic()` hat-box check; `bleach_fraction_per_frame()`), `run_figures.py` (9 figures, `results.json`; per-figure CLI), `tables.py`, `README.md`.
+
 ## [V3.889] — 2026-10-24 — Scientia: a Lit reviews tab — a canvas per topic, linked to any number of projects; the ERK review is its first
 
 Plan: [CodeLog/ClaudesPlan/V3.889_scientia_lit_reviews_tab.md](../ClaudesPlan/V3.889_scientia_lit_reviews_tab.md). Web build only; `scientia/src` untouched. Hub (`scientiaHub`, health `V3.889`) deploys before the client; the client works without it (only RM's lists wait for it).
