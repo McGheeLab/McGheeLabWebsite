@@ -335,6 +335,47 @@ class FirestoreHub {
     await this.ref.set({ projSyncAt: FieldValue.serverTimestamp(), projN: plan.projects, projWritten: plan.ops.length }, { merge: true });
     return { ok: true, projects: plan.projects, themes: plan.themes, written: plan.ops.length, removed: plan.removed };
   }
+  /* ---- V3.880: notes filed under RM work → `scientiaNotes/{uid}__{docId}`, read by RM's research and project pages ---- */
+  async syncNotes({ force } = {}) {
+    const snap = await this.ref.get(), d = snap.data() || {}, now = Date.now();
+    if (!force && d.noteSyncAt && now - tsMs(d.noteSyncAt) < C.NOTES_MS) return { ok: true, skipped: true };
+    const st = stateFromDoc(snap) || await this.loadState(), cursor = d.noteCursor || 0, index = db().collection('scientiaNotes');
+    let nextCursor = st.seq, full = !(cursor && cursor >= (st.minSeq || 0));
+    const docs = new Map(), viaBlocks = new Set(), existing = new Map();
+    if (!full) {
+      const opsSnap = await this.ops.where('seq', '>', cursor).orderBy('seq').limit(2000).get();
+      opsSnap.docs.forEach(x => { const o = opFromDoc(x.data() || {});
+        if (o.store === 'projects' || o.store === 'themes') full = true;
+        else if (o.store === 'documents') docs.set(String(o.id), o.del ? null : o.rec);
+        else if (o.store === 'blocks' && o.rec && o.rec.docId) viaBlocks.add(String(o.rec.docId)); });
+      if (opsSnap.size === 2000) nextCursor = opsSnap.docs[opsSnap.size - 1].data().seq;
+    }
+    const getRows = async (store, ids) => { const out = new Map(); for (let i = 0; i < ids.length; i += 100) { const part = ids.slice(i, i + 100), snaps = await db().getAll(...part.map(id => this.rows.doc(rowDocId(store, id)))); snaps.forEach((s, j) => { const r = rowFromDoc(s); out.set(part[j], r && !r.deleted ? r.rec : null); }); } return out; };
+    if (full) {
+      docs.clear(); viaBlocks.clear();
+      (await this.rows.where('store', '==', 'documents').get()).docs.forEach(x => { const r = rowFromDoc(x); if (r && !r.deleted && r.rec) docs.set(String(r.id), r.rec); });
+      (await index.where('ownerUid', '==', this.uid).get()).docs.forEach(x => { const v = x.data() || {}; existing.set(x.id, v); if (v.docId && !docs.has(String(v.docId))) docs.set(String(v.docId), null); });
+    } else {
+      const need = [...viaBlocks].filter(id => !docs.has(id));
+      if (need.length) for (const [id, rec] of await getRows('documents', need)) docs.set(id, rec);
+      const ids = [...docs.keys()];
+      for (let i = 0; i < ids.length; i += 100) { const part = ids.slice(i, i + 100), snaps = await db().getAll(...part.map(id => index.doc(C.noteIndexId(this.uid, id)))); snaps.forEach((s, j) => existing.set(C.noteIndexId(this.uid, part[j]), s.exists ? s.data() : null)); }
+    }
+    const projects = new Map(), themes = new Map();
+    const [pr, th] = await Promise.all([this.rows.where('store', '==', 'projects').get(), this.rows.where('store', '==', 'themes').get()]);
+    pr.docs.forEach(x => { const r = rowFromDoc(x); if (r && !r.deleted && r.rec) projects.set(String(r.id), r.rec); });
+    th.docs.forEach(x => { const r = rowFromDoc(x); if (r && !r.deleted && r.rec) themes.set(String(r.id), r.rec); });
+    // a shared note's preview needs its components
+    const shared = [...docs.values()].filter(x => x && x.share === 'lab' && x.projectId && (projects.get(String(x.projectId)) || {}).rm);
+    const blockIds = [...new Set(shared.flatMap(x => (x.blockIds || []).slice(0, 60).map(String)))], blocks = blockIds.length ? await getRows('blocks', blockIds) : new Map();
+    let ownerName = d.ownerName || '';
+    if (!ownerName) { const u = await db().collection('users').doc(this.uid).get(); const ud = u.exists ? (u.data() || {}) : {}; ownerName = String(ud.name || ud.displayName || ud.email || ''); }
+    const plan = C.planNoteLinks({ uid: this.uid, ownerName, docs, projects, themes, existing, blocksOf: x => (x.blockIds || []).map(id => blocks.get(String(id))).filter(Boolean) });
+    const writes = plan.sets.map(w => ({ ref: index.doc(w.id), data: Object.assign({}, w.data, { updatedAt: FieldValue.serverTimestamp() }) })).concat(plan.dels.map(id => ({ ref: index.doc(id), del: true })));
+    for (let i = 0; i < writes.length; i += 400) { const b = db().batch(); writes.slice(i, i + 400).forEach(w => w.del ? b.delete(w.ref) : b.set(w.ref, w.data)); await b.commit(); }
+    await this.ref.set({ noteCursor: nextCursor, noteSyncAt: FieldValue.serverTimestamp(), ownerName }, { merge: true });
+    return { ok: true, full, linked: plan.linked, written: plan.sets.length, removed: plan.dels.length };
+  }
   /** One read of the hub doc decides which throttled syncs are due (every pull calls this). */
   async quietSyncs(who, { force, only } = {}) {
     const d = (await this.ref.get()).data() || {}, now = Date.now(), out = {};
@@ -345,6 +386,7 @@ class FirestoreHub {
     if (due('when', 'whenSyncAt', C.WHEN_MS)) await run('when', () => this.syncWhen({ force: true, who }));
     if (due('activity', 'actSyncAt', C.ACT_MS)) await run('activity', () => this.syncActivity({ force: true }));
     if (due('projects', 'projSyncAt', C.PROJECTS_MS)) await run('projects', () => this.syncProjects({ force: true }));
+    if (due('notes', 'noteSyncAt', C.NOTES_MS)) await run('notes', () => this.syncNotes({ force: true }));
     return out;
   }
   async keyMake(name) {

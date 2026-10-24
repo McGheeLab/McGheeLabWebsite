@@ -586,6 +586,7 @@
             sectionTheme(f, canEdit) +
             sectionTrainings(f, canEdit) +
             sectionPeople(f, canEdit) +
+            '<section class="rf-sec" data-sis-notes></section>' +   // V3.880 — Scientia notes filed under this card
           '</aside>' +
         '</div>' +
         '<div class="rf-detail-progress" data-progress></div>' +
@@ -602,6 +603,7 @@
     if (window.RESEARCH_ROADMAP) {
       RESEARCH_ROADMAP.hydrateSection(root, f, state);
     }
+    mountNotebooks(f);
   }
 
   /* V3.600 — the experiment → analysis → figure roadmap. Aim and output
@@ -962,6 +964,7 @@
             // "Work under this grant" below, with primary/secondary roles and
             // its own editor; a second list with a second editor for the same
             // member_uids is how the two drift.
+            '<section class="rf-sec" data-sis-notes></section>' +   // V3.880 — Scientia notes filed under this grant
           '</aside>' +
         '</div>' +
       '</div>';
@@ -971,6 +974,13 @@
       if (mc) RESEARCH_MEDIA.renderGallery(mc, f, { editable: canEdit });
     }
     GRANT_REVIEW.render(root.querySelector('[data-grant-review]'), f, state);
+    mountNotebooks(f);
+  }
+
+  /* V3.880 — the Scientia notes people filed under this card (theirs if shared, mine always). */
+  function mountNotebooks(f) {
+    var el = root.querySelector('[data-sis-notes]');
+    if (el && window.SCIENTIA_NOTES) SCIENTIA_NOTES.mount(el, { rmId: f.id, empty: 'hint' });
   }
 
   /* The one source of truth for where a grant stands. Admin gets an inline

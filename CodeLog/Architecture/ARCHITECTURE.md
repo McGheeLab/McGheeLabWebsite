@@ -4,6 +4,8 @@
 
 **Prior: V3.881 (procurement documents: `procurementDocs/{docId}` + Storage `procurement/docs/{docId}/{file}`, one record per receipt / requisition / invoice / packing slip / PO / quote, linked to `ticketIds[]`, `ingestStatus: 'pending'` for a later read into the inventory; `procurement-core.js` doc helpers (`checkDocFile`, `buildDocRecord`, `orderSiblings`, `legacyAttachments`, `searchDocs`…); `procurement.js` `uploadDoc` is the single upload path (Receipts tab, a request's Attach, the Order / Receive forms); rules: members read, purchasers / approvers / admins file, any member files a receipt for a request. Plan: [CodeLog/ClaudesPlan/V3.881_procurement_receipts_requisitions.md](../ClaudesPlan/V3.881_procurement_receipts_requisitions.md).)**
 
+**Prior: V3.880 (Scientia's Portfolio is the lab's on the web — the hub mirrors what the PI assigned a person in RM (`researchFoci` / `projects` with them in `member_uids`) into their Scientia `projects` (`rm-f-` / `rm-p-`; an aim under an assigned grant is a theme `rm-a-`; a card's own draft folds in; unassigned rows stay with `rmAssigned: false`) — `rmAssigned` / `planAssigned` / `syncProjects`, device "RM projects"; `lab-mode.js` §10 redraws the map as movable, foldable regions (assigned → Quick notes → own projects), quick notes open blank with a template bar; notes filed under RM work are indexed in `scientiaNotes/{uid}__{docId}` (`syncNotes`, owner-chosen `visibility` lab | private) and listed on research cards and project items by `rm/js/scientia-notes.js`.)**
+
 **Prior: V3.879 (inventory filtering is category pills: `inventory.js` `INV_PILLS` + `invPillOf(item)` (one group per item, Other catches the rest), any number on, Research + Consumables by default, remembered per viewer in `localStorage` `rm.inventory.pills.v1`; Low or out / Preferred narrow; `_invReveal` turns an opened item's pill on for the visit only; a search names matches hidden in off groups. The tab bar and the category / stock dropdowns are gone. Plan: [CodeLog/ClaudesPlan/V3.879_inventory_category_pills.md](../ClaudesPlan/V3.879_inventory_category_pills.md).)**
 
 **Prior: V3.875 (custom inventory: `rm/js/inventory-made.js` owns the custom-item form and the "made from" planner — `INV_MADE_CORE.planIngredient` subtracts only amounts exact in the ingredient's own `qty_unit` (pieces of a pack, part of a container, cross-family or untracked amounts are a delta-0 `inventoryUsage` row), `unitChoices` puts that safe choice first; takes go through `INV_QTY.consume`, notes and whole-package Qty decrements through its own transaction, all tagged `purpose: 'lab-made:<id>'`; the new item carries `composition[]`, `each_amount/each_unit` for a group, `lab_made_type` aliquot | material | media; `inventory.js` only writes the doc (`_invCreateItem`) and shows it. Plan: [CodeLog/ClaudesPlan/V3.875_custom_inventory_made_from.md](../ClaudesPlan/V3.875_custom_inventory_made_from.md).)**
@@ -144,6 +146,24 @@ Scientia protocol block carrying `rm {protocolId, updated_at, url, skipped}` and
 actions via the host: `rm-actions` → `rm-actions-list`, `rm-action-noted` → `USER_ACTIONS.markNoted`) and
 `rmcollection` (`GET api/rm/collections`, read-only) are cards. Pen input, regions and wires stay each app's own. `lab-mode.js` §6 wraps `TASK.create / save /
 done / undo / body` and re-points `WIDGETS.task.body` (a reference the doc view captured at load).
+
+**V3.880 — the Portfolio and RM's notebooks.** Assignments flow one way, RM → Scientia, as records; notes flow back as
+an index, never as copies:
+
+```
+researchFoci / projects (member_uids ∋ uid)                      scientiaNotes/{uid}__{docId}   (function-written)
+        │ syncProjects (5 min, quietSyncs 'projects')                    ▲ syncNotes (2 min, op-log cursor, 'notes')
+        ▼                                                                │ visibility: 'lab' (preview) | 'private' (owner only)
+hub rows: projects rm-f-/rm-p-, themes rm-a- ── device "RM projects" ──► every device ── a note filed in an rm project
+        │                                                                                    │
+lab-mode §10: regions (drag header · fold · Tidy), Quick notes,            rm/js/scientia-notes.js: research.js card /
+"Seen by" (doc.share), Add to project… (GENERAL.move)                      grant review, projects.js item + chips
+```
+
+The mirror owns `PROJECT_FIELDS` / `THEME_FIELDS` only (a theme's question and status are the person's after the
+first write). Region layout is per device (`_ls` `lab:portfolio`). The rule lets a lab member read a `lab` index doc and
+the owner their own; RM's two queries (`rmIds` ∋ X with `visibility == 'lab'`, or with `ownerUid == me`) are provable
+and indexed.
 
 ## The push gate, the feature registry, git in the Stop hook, two deployers (V3.868)
 

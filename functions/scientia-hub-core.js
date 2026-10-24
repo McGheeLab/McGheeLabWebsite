@@ -717,6 +717,55 @@ function planAssigned({ state, rows, assigned, now }) {
   return { ops, projects: assigned.projects.length, themes: assigned.themes.length, removed: ops.filter(o => o.rec.rmAssigned === false).length };
 }
 
+/* ───────── notes filed under RM work → RM's research and project pages (V3.880) ─────────
+   A note in a project the hub mirrored from RM (or in one of its aim themes) is listed on that card / project in RM,
+   through one lab-readable index doc per note, `scientiaNotes/{uid}__{docId}`, written only by this function. The
+   note's owner chooses who sees it (`doc.share === 'lab'` → every lab member, with a text preview; otherwise only
+   the owner, and no text leaves the hub). rmIds = [the project's RM id] (+ the aim's, for a note in an aim theme). */
+const NOTES_MS = 2 * 60 * 1000, PREVIEW_BLOCKS = 40, PREVIEW_CHARS = 600;
+const noteIndexId = (uid, docId) => safeIdPart(uid) + '__' + safeIdPart(docId);
+const cleanText = s => String(s == null ? '' : s).replace(/￼/g, '').replace(/[ \t]+\n/g, '\n').trim();
+const liveBlock = b => !!b && b.status !== 'removed' && b.status !== 'superseded';
+function notePreview(blocks) {
+  const out = [];
+  for (const b of blocks || []) {
+    if (!liveBlock(b)) continue;
+    const label = cleanText(b.label).slice(0, 120), text = cleanText(b.body && b.body.text).slice(0, PREVIEW_CHARS);
+    if (!label && !text) continue;
+    out.push({ label, text });
+    if (out.length >= PREVIEW_BLOCKS) break;
+  }
+  return out;
+}
+/** blocks: the note's components in order — needed only for a note shared with the lab (its preview). */
+function noteLink({ uid, ownerName, doc, project, theme, blocks }) {
+  if (!doc || doc.deleted || !project || !project.rm || !project.rmId || String(doc.projectId) !== String(project.id)) return null;
+  const inTheme = !!(theme && doc.themeId && String(theme.id) === String(doc.themeId)), rmIds = [String(project.rmId)];
+  if (inTheme && theme.rm && theme.rmId) rmIds.push(String(theme.rmId));
+  if (project.rmDraftId && !rmIds.includes(String(project.rmDraftId))) rmIds.push(String(project.rmDraftId));   // the grant's draft on the Projects page
+  const lab = doc.share === 'lab', live = Array.isArray(blocks) ? blocks.filter(liveBlock) : null;
+  return { ownerUid: String(uid), ownerName: String(ownerName || ''), docId: String(doc.id), title: String(doc.title || 'Untitled'), type: String(doc.type || 'note'),
+    projectName: String(project.name || ''), themeName: inTheme ? String(theme.name || '') : '', rmIds, rmKind: String(project.rmKind || ''),
+    visibility: lab ? 'lab' : 'private', created: String(doc.created || ''), modified: String(doc.modified || ''),
+    components: live ? live.length : (Array.isArray(doc.blockIds) ? doc.blockIds.length : 0), preview: lab && live ? notePreview(live) : [],
+    url: '/rm/pages/notebook.html?notebook=scientia&note=' + encodeURIComponent(String(doc.id)) };
+}
+/** docs: Map docId → rec (null = gone); existing: Map indexId → the index doc now (or null); blocksOf(doc) → its components. */
+function planNoteLinks({ uid, ownerName, docs, projects, themes, blocksOf, existing }) {
+  const sets = [], dels = [];
+  let linked = 0;
+  for (const [docId, doc] of docs) {
+    const id = noteIndexId(uid, docId), cur = existing.get(id) || null;
+    const project = doc && doc.projectId ? projects.get(String(doc.projectId)) : null, theme = doc && doc.themeId ? themes.get(String(doc.themeId)) : null;
+    const link = project && project.rm ? noteLink({ uid, ownerName, doc, project, theme, blocks: doc.share === 'lab' ? blocksOf(doc) : null }) : null;
+    if (!link) { if (cur) dels.push(id); continue; }
+    linked++;
+    if (cur && sameOn(cur, link, Object.keys(link))) continue;
+    sets.push({ id, data: link });
+  }
+  return { sets, dels, linked };
+}
+
 async function mirrorQuietly(hub, who, force, only) {
   if (!hub || !who) return null;
   if (typeof hub.quietSyncs === 'function') { try { return await hub.quietSyncs(who, { force: !!force, only: only || null }); } catch (e) { return { ok: false, error: String(e.message || e) }; } }
@@ -924,7 +973,23 @@ MemoryHub.prototype.quietSyncs = async function (who, { force, only } = {}) {
   if (want('when') && typeof this.syncWhen === 'function') out.when = await this.syncWhen({ force, who });
   if (want('activity') && typeof this.syncActivity === 'function') out.activity = await this.syncActivity({ force });
   if (want('projects') && typeof this.syncProjects === 'function') out.projects = await this.syncProjects({ force });
+  if (want('notes') && typeof this.syncNotes === 'function') out.notes = await this.syncNotes({ force });
   return out;
+};
+/* V3.880 — the notes index lives in `noteIndex` (Map indexId → doc); `ownerName` names the person */
+MemoryHub.prototype.syncNotes = async function ({ force, now } = {}) {
+  const t = now == null ? Date.now() : now, uid = this.uid || 'u1';
+  if (!force && this.noteSyncAt && t - this.noteSyncAt < NOTES_MS) return { ok: true, skipped: true };
+  if (!this.noteIndex) this.noteIndex = new Map();
+  const recs = store => new Map(this.storeRecs(store).map(r => [String(r.id), r]));
+  const projects = recs('projects'), themes = recs('themes'), blocks = recs('blocks'), docs = recs('documents');
+  for (const x of this.noteIndex.values()) if (x.ownerUid === uid && !docs.has(x.docId)) docs.set(x.docId, null);
+  const existing = new Map([...docs.keys()].map(id => [noteIndexId(uid, id), this.noteIndex.get(noteIndexId(uid, id)) || null]));
+  const plan = planNoteLinks({ uid, ownerName: this.ownerName || '', docs, projects, themes, existing, blocksOf: d => (d.blockIds || []).map(id => blocks.get(String(id))).filter(Boolean) });
+  for (const w of plan.sets) this.noteIndex.set(w.id, w.data);
+  for (const id of plan.dels) this.noteIndex.delete(id);
+  this.noteSyncAt = t; this.noteRuns = (this.noteRuns || 0) + 1;
+  return { ok: true, linked: plan.linked, written: plan.sets.length, removed: plan.dels.length };
 };
 /* V3.880 — `rmFoci` / `rmProjects` (arrays of RM docs with id); `uid` is the person the hub belongs to */
 MemoryHub.prototype.syncProjects = async function ({ force, now } = {}) {
@@ -971,4 +1036,4 @@ module.exports = { route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA
   LAB_TZ, WHEN_MS, ACT_MS, WHEN_AHEAD, WHEN_BEHIND, ACT_DAYS, todayIn, nowIn, localDayOf, addDays_, wdayOf, safeIdPart, choreNext, remOccursOn, whenOcc,
   whenTaskId, whenText, whenCandidates, rmWhenTask, planWhen, sessionDaySeconds, actEventId, activityGroups, planActivity, fmtMinutes,
   rmAnnotationRow, visibleAnnotations, stripTags, varsToText, rmProtocolRow, rmProtocolSteps, searchProtocols, rmCollectionRow, rmCollectionFull,
-  PROJECTS_MS, PROJECT_FIELDS, THEME_FIELDS, UNASSIGNED_WHY, rmAssigned, planAssigned };
+  PROJECTS_MS, PROJECT_FIELDS, THEME_FIELDS, UNASSIGNED_WHY, rmAssigned, planAssigned, NOTES_MS, PREVIEW_BLOCKS, PREVIEW_CHARS, noteIndexId, notePreview, noteLink, planNoteLinks };

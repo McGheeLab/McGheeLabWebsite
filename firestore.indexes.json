@@ -664,6 +664,34 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "scientiaNotes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "rmIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "visibility",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "scientiaNotes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "rmIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

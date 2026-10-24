@@ -425,6 +425,27 @@
     check('…and so does starting to write', !q('.lab-qn') && ev("M.doc('" + qid3 + "').quick") === false);
     go('#/portfolio');
     check('the quick notes are in the Quick notes region', !!(await until(function () { var r = reg('quick'); return r && r.querySelector('.dcard[data-doc="' + qid + '"]') && r.querySelector('.dcard[data-doc="' + qid2 + '"]'); }, 6000)));
+    /* who reads a note filed under RM work; a quick note goes into a project after the fact */
+    go('#/doc/' + an);
+    var shareCtl = await until(function () { return q('#meta .lab-share'); }, 6000);
+    check('a note in an assigned project says who reads it in RM — only me by default', !!shareCtl && shareCtl.querySelector('button.on') && shareCtl.querySelector('button.on').dataset.share === 'me', shareCtl ? shareCtl.textContent : 'none');
+    var nOnly = W.SIS_LAB.kick.onlys.length;
+    shareCtl.querySelector('button[data-share="lab"]').click();
+    check('Lab members shares it (the note says so) and asks the hub to update RM’s list', ev("M.doc('" + an + "').share") === 'lab' && q('#meta .lab-share button.on').dataset.share === 'lab' &&
+      !!(await until(function () { return W.SIS_LAB.kick.onlys.slice(nOnly).some(function (o) { return /notes/.test(o); }) && W.__hubCalls.some(function (c) { return c.path === 'api/rm/sync' && /only=notes/.test(c.full); }); }, 8000)), JSON.stringify(W.SIS_LAB.kick.onlys));
+    go('#/doc/' + qid2); await sleep(500);
+    check('a quick note (no project) has no RM sharing to choose', !q('#meta .lab-share'));
+    go('#/portfolio');
+    check('…a shared note is marked on its card', !!(await until(function () { var c = q('.lab-reg[data-region="rm-f-gels-career"] .dcard[data-doc="' + an + '"]'); return c && /lab/.test(c.querySelector('.row').textContent); }, 6000)));
+    var fileBtn = await until(function () { var c = q('.lab-reg[data-region="quick"] .dcard[data-doc="' + qid2 + '"]'); return c && c.querySelector('.lab-file'); }, 6000);
+    var hashBefore = W.location.hash, nOnly2 = W.SIS_LAB.kick.onlys.length;
+    fileBtn.click();
+    check('a quick note’s card offers Add to project… (Gabe’s move, without opening the note)', !!(await until(function () { return pickRow(/^$/) || D.body.textContent.indexOf('No project (general)') >= 0; }, 4000)) && W.location.hash === hashBefore);
+    pickRow(/Source and sinkproject-wide|Source and sink\s*project-wide/);
+    var filed = await until(function () { return ev("M.doc('" + qid2 + "').projectId") === 'rm-p-source-and-sink'; }, 6000);
+    check('picking a project stores the note in it; it leaves Quick notes for the project’s region, and RM’s list is asked for', !!filed &&
+      !!(await until(function () { return q('.lab-reg[data-region="rm-p-source-and-sink"] .dcard[data-doc="' + qid2 + '"]') && !q('.lab-reg[data-region="quick"] .dcard[data-doc="' + qid2 + '"]'); }, 6000)) &&
+      !!(await until(function () { return W.SIS_LAB.kick.onlys.slice(nOnly2).some(function (o) { return /notes/.test(o); }); }, 8000)));
     check('no browser popups, rejections or console-level failures in the frame', !W.__popups.length && !W.__rej.length, JSON.stringify([W.__popups, W.__rej]));
   } catch (e) { check('harness error', false, (e && e.stack) || e); }
   finish();

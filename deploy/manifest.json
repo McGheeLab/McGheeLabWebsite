@@ -1766,9 +1766,9 @@
    "via": "verify"
   },
   "rm/css/procurement.css": {
-   "deployedAt": "2026-10-22T08:29:28-07:00",
-   "sha256": "a985ee62c26840d66d73c335abed16e34ffcb2194018856517439408362b56cf",
-   "size": 22481,
+   "deployedAt": "2026-10-23T16:51:02-07:00",
+   "sha256": "6961e040b9a4ca209be6fef81ba659e6520eeb902b7d8b918d6be0f9867ac148",
+   "size": 26453,
    "via": "verify"
   },
   "rm/css/protocol-cheat.css": {
@@ -3188,15 +3188,15 @@
    "via": "baseline"
   },
   "rm/js/procurement-core.js": {
-   "deployedAt": "2026-10-22T08:29:28-07:00",
-   "sha256": "56dff09e08d32b420ba89ac1ffc3d65972d5a7e6aee32c11b524e9118cb3dc47",
-   "size": 90665,
+   "deployedAt": "2026-10-23T16:51:02-07:00",
+   "sha256": "6f6e7f72b890f6087fd99b65f4887a47044f77e65b3fedc43c9835290684e930",
+   "size": 99747,
    "via": "verify"
   },
   "rm/js/procurement.js": {
-   "deployedAt": "2026-10-22T08:29:28-07:00",
-   "sha256": "b9001e882d2f91c6a0fc041279f177c928330a752bb53e5c6a21180d82fda1a9",
-   "size": 108501,
+   "deployedAt": "2026-10-23T16:51:02-07:00",
+   "sha256": "640eb37e372b5b2a5ea5f743158e297217d6514ea50f4c6b0bffd33b953c7008",
+   "size": 136073,
    "via": "verify"
   },
   "rm/js/profile-bootstrap.js": {
@@ -4484,9 +4484,9 @@
    "via": "verify"
   },
   "rm/scientia/lab-mode.js": {
-   "deployedAt": "2026-10-23T16:08:41-07:00",
-   "sha256": "1902864cfa4c9e448eeaafa7ead671bf61178b1d33dbffe35259b5c8bbd45cfb",
-   "size": 55612,
+   "deployedAt": "2026-10-23T16:51:02-07:00",
+   "sha256": "b6ef08e2974503a6e3d50cc4af8273d5f5c44be7c93f81943a2c2ccd723a662a",
+   "size": 81199,
    "via": "verify"
   },
   "rm/scientia/scientia-cloud.py": {
@@ -4496,8 +4496,8 @@
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-23T16:08:41-07:00",
-   "sha256": "d4b3a4c5b1a2fe9b1a2454471670687c924258db25f2e43dc03c35aafcdd325d",
+   "deployedAt": "2026-10-23T16:51:02-07:00",
+   "sha256": "1a37ea54469e6aad47e7f7576f77e360edb8c99e04fe1d350a55584cd2da0af3",
    "size": 4382355,
    "via": "verify"
   },
@@ -4874,8 +4874,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-23T16:17:16-07:00",
-   "sha256": "11584b298404e88063bac1dec826512d924ede77067442575d5f257ad3189c75",
+   "deployedAt": "2026-10-23T16:51:02-07:00",
+   "sha256": "67744935fbb5db1db50d95423d5eae0264445c416dce235073c8bec6df4d4a90",
    "size": 9016,
    "via": "verify"
   },

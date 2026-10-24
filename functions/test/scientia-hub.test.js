@@ -617,6 +617,46 @@ const dev = (hub, id, conn) => ({
     assert.strictEqual(r.body.projects.written, 5); assert.strictEqual(r.body.library, undefined);
   });
 
+  /* ---- V3.880: notes filed under RM work → the lab-readable index RM's pages list ---- */
+  await test('notes: a note in an assigned project is indexed for RM — only-me by default (no text), the lab with a preview when its owner shares it', async () => {
+    const hub = new C.MemoryHub(); hub.uid = 'u1'; hub.ownerName = 'Gabe'; hub.rmFoci = FOCI; hub.rmProjects = RMPROJ;
+    await hub.syncProjects({ force: true });
+    const web = dev(hub, 'web', 'c1'); await web.load();
+    const blk = (id, docId, label, text, status) => ({ id, docId, kind: 'component', label, body: { text, marks: [] }, status: status || 'live' });
+    await web.push([web.op('blocks', 'c1', blk('c1', 'dA', 'Setup', 'Pack 40 µm granules￼  ')), web.op('blocks', 'c2', blk('c2', 'dA', 'Old', 'gone', 'superseded')), web.op('blocks', 'c3', blk('c3', 'dA', '', '')),
+      web.op('documents', 'dA', { id: 'dA', type: 'experiment', title: 'Packing sweep 1', projectId: 'rm-f-gels-career', themeId: 'rm-a-gels-career-aim-1', blockIds: ['c1', 'c2', 'c3'], created: '2026-10-23T09:00:00', modified: '2026-10-23T10:00:00' }),
+      web.op('documents', 'dB', { id: 'dB', type: 'note', title: 'Mine only', projectId: 'pMine', blockIds: [], created: '2026-10-23T09:00:00', modified: '2026-10-23T09:00:00' }),
+      web.op('documents', 'dQ', { id: 'dQ', type: 'note', title: 'A quick note', projectId: null, blockIds: [], created: '2026-10-23T09:00:00', modified: '2026-10-23T09:00:00' })]);
+    let r = await hub.syncNotes({ force: true });
+    assert.deepStrictEqual([r.linked, r.written, r.removed], [1, 1, 0], 'only the note in an RM project');
+    const id = C.noteIndexId('u1', 'dA'), x = () => hub.noteIndex.get(id);
+    assert.deepStrictEqual([x().visibility, x().preview, x().rmIds, x().themeName, x().ownerName, x().url], ['private', [], ['gels-career', 'gels-career-aim-1', 'career-draft'], 'Aim 1 — Map the landscape', 'Gabe', '/rm/pages/notebook.html?notebook=scientia&note=dA']);
+    assert.strictEqual((await hub.syncNotes({ force: true })).written, 0, 'unchanged → nothing written');
+    const doc = Object.assign({}, hub.rows.get(C.keyOf('documents', 'dA')).rec, { share: 'lab' }); await web.push([web.op('documents', 'dA', doc)]);
+    await hub.syncNotes({ force: true });
+    assert.deepStrictEqual([x().visibility, x().components, x().preview], ['lab', 2, [{ label: 'Setup', text: 'Pack 40 µm granules' }]], 'shared: live components only, object markers and blanks dropped');
+    const quick = Object.assign({}, hub.rows.get(C.keyOf('documents', 'dQ')).rec, { projectId: 'rm-p-source-and-sink' }); await web.push([web.op('documents', 'dQ', quick)]);
+    r = await hub.syncNotes({ force: true });
+    assert.deepStrictEqual([r.linked, hub.noteIndex.get(C.noteIndexId('u1', 'dQ')).rmIds], [2, ['source-and-sink']], 'a quick note filed into an assigned project after the fact is listed there');
+    const moved = Object.assign({}, doc, { projectId: null, themeId: null }); await web.push([web.op('documents', 'dA', moved)]);
+    r = await hub.syncNotes({ force: true });
+    assert.deepStrictEqual([r.removed, hub.noteIndex.has(id)], [1, false], 'out of the project → off the page');
+    await web.push([web.op('documents', 'dQ', null, true)]);
+    r = await hub.syncNotes({ force: true });
+    assert.deepStrictEqual([r.removed, hub.noteIndex.size], [1, 0], 'a deleted note leaves the index');
+  });
+  await test('notes: noteLink refuses a note outside an RM project; the preview is capped', () => {
+    assert.strictEqual(C.noteLink({ uid: 'u1', doc: { id: 'd', projectId: 'p' }, project: { id: 'p', name: 'Mine' } }), null);
+    assert.strictEqual(C.noteLink({ uid: 'u1', doc: { id: 'd', projectId: 'q' }, project: { id: 'p', rm: true, rmId: 'x' } }), null);
+    const many = Array.from({ length: 60 }, (_, i) => ({ id: 'b' + i, label: 'Step ' + i, body: { text: 'x'.repeat(900) } }));
+    const pv = C.notePreview(many); assert.deepStrictEqual([pv.length, pv[0].text.length], [C.PREVIEW_BLOCKS, C.PREVIEW_CHARS]);
+  });
+  await test('notes: api/rm/sync?only=notes runs it, and quiet syncs run projects before notes', async () => {
+    const hub = new C.MemoryHub(); hub.uid = 'u1'; hub.rmFoci = FOCI; hub.rmProjects = RMPROJ;
+    const r = await call(hub, { id: 'u1', kind: 'browser', name: 'Gabe' }, 'POST', '/api/rm/sync', { query: { only: 'projects,notes' } });
+    assert.deepStrictEqual(Object.keys(r.body).filter(k => k !== 'ok'), ['projects', 'notes']); assert.strictEqual(r.body.notes.ok, true);
+  });
+
   console.log(`scientia-hub: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 })();

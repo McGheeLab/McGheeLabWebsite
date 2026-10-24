@@ -1364,11 +1364,12 @@
     "scientia/src/15-portfolio.js",
     "scientia/src/15b-general.js"
    ],
+   "status": "active",
    "related": [
     "rm.projects",
     "rm.research"
    ],
-   "note": "V3.866 plan §6 (Phase 4): decide whether projects/themes/aims mirror RM research foci."
+   "note": "V3.866 §6 decision resolved by V3.880: yes — what the PI assigns in rm.research / rm.projects (member_uids) is mirrored by the hub as Scientia projects (an aim under an assigned grant = a theme); on the web the Portfolio draws them first as movable, foldable region cards (rm/scientia/lab-mode.js §10), then Quick notes (15b's General notes, opening blank with a template bar), then the person's own projects. Notes filed under RM work are listed on that card / project in RM (scientiaNotes; the owner chooses only-me or lab)."
   },
   {
    "id": "scientia.review",
@@ -1754,7 +1755,8 @@
     "rm/pages/scientia.html",
     "scripts/scientia_build.py",
     "scripts/scientia_hub_dev.js",
-    "scientia/CLAUDE.md"
+    "scientia/CLAUDE.md",
+    "rm/js/scientia-notes.js"
    ],
    "related": [
     "rm.activity",
@@ -1766,7 +1768,9 @@
     "rm.platform",
     "rm.protocols",
     "rm.tasks",
-    "scientia.desktop-server"
+    "scientia.desktop-server",
+    "rm.research",
+    "rm.projects"
    ],
    "note": "The lab layer bridges Scientia to RM features (Phase 1 V3.869–874; Phase 2 V3.876+): it reads them through the hub or asks the Lab Notebook host to run their UI — it never re-implements them."
   }

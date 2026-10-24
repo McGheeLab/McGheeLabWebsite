@@ -2576,6 +2576,18 @@ service cloud.firestore {
       allow delete: if isAdmin() || (isLabMember() && resource.data.uploadedBy == request.auth.uid);
     }
 
+    // V3.880 — Scientia notes filed under RM work: one index doc per note
+    // (scientiaNotes/{uid}__{docId}), written ONLY by the scientiaHub function
+    // (admin SDK), listed on research.html cards and projects.html items. The
+    // note's owner chooses who sees it: visibility 'lab' → every lab member
+    // (with a text preview); anything else → only its owner. RM queries with
+    // visibility == 'lab' or ownerUid == me, so each query is provable here.
+    match /scientiaNotes/{noteId} {
+      allow read: if isLabMember()
+                  && (resource.data.visibility == 'lab' || resource.data.ownerUid == request.auth.uid);
+      allow write: if false;
+    }
+
     // Lab Tasks — admin creates, assignee + admin read/update
     match /labTasks/{docId} {
       allow read: if request.auth != null

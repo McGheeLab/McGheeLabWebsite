@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V3.880 — Scientia notes on RM pages</title>
+<style>body{font:14px system-ui,sans-serif;margin:16px;background:#fff;color:#111}.ok{color:#166534}.bad{color:#b91c1c;font-weight:600}#stage{max-width:520px;border:1px dashed #ccc;padding:8px;margin:12px 0}</style>
+</head>
+<body>
+<h1>V3.880 — Scientia notes on RM's research cards and projects</h1>
+<p>Stub firebridge; the real <code>rm/js/scientia-notes.js</code>. Serve the repo root; <code>#r[data-done]</code> carries the verdict.</p>
+<div id="stage"><div id="card"></div><div id="hidden"></div>
+  <div id="grid"><div class="pin-box" data-item-id="career-draft"><div class="pin-box-sub">CAREER draft</div><div class="pin-box-meta"></div></div>
+    <div class="pin-box" data-item-id="nothing-here"><div class="pin-box-sub">No notes</div><div class="pin-box-meta"></div></div></div></div>
+<div id="r">running…</div>
+<script>
+/* the index the hub writes; the stub enforces the rule's two provable queries and refuses anything else */
+var DOCS = [
+  { id: 'u1__dA', ownerUid: 'u1', ownerName: 'Gabe', docId: 'dA', title: 'Packing sweep 1', type: 'experiment', themeName: 'Aim 1', projectName: 'CAREER', rmIds: ['gels-career', 'gels-career-aim-1', 'career-draft'], visibility: 'lab', modified: '2026-10-23T10:00:00', components: 3, preview: [{ label: 'Setup', text: 'Pack 40 µm <granules>' }], url: '#own-dA' },
+  { id: 'u2__dB', ownerUid: 'u2', ownerName: 'Mo', docId: 'dB', title: 'Traction maps', type: 'analysis', themeName: '', projectName: 'CAREER', rmIds: ['gels-career'], visibility: 'lab', modified: '2026-10-22T10:00:00', components: 1, preview: [{ label: '', text: 'Maps from run 4' }], url: '#x' },
+  { id: 'u2__dC', ownerUid: 'u2', ownerName: 'Mo', docId: 'dC', title: 'Mo private', type: 'note', rmIds: ['gels-career'], visibility: 'private', modified: '2026-10-24T10:00:00', components: 0, preview: [], url: '#x' },
+  { id: 'u1__dD', ownerUid: 'u1', ownerName: 'Gabe', docId: 'dD', title: 'My private plan', type: 'planning', rmIds: ['gels-career'], visibility: 'private', modified: '2026-10-21T10:00:00', components: 2, preview: [], url: '#own-dD' }];
+var QUERIES = [];
+function query(filters) {
+  return { where: function (f, op, v) { return query(filters.concat([[f, op, v]])); },
+    get: function () {
+      QUERIES.push(filters.map(function (x) { return x.join(' '); }).join(' & '));
+      var provable = filters.some(function (x) { return (x[0] === 'visibility' && x[2] === 'lab') || (x[0] === 'ownerUid' && x[2] === 'u1'); });
+      if (!provable) return Promise.reject(Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' }));
+      var rows = DOCS.filter(function (d) { return filters.every(function (x) { return x[1] === 'array-contains' ? (d[x[0]] || []).indexOf(x[2]) >= 0 : d[x[0]] === x[2]; }); });
+      return Promise.resolve({ docs: rows.map(function (d) { var c = Object.assign({}, d); delete c.id; return { id: d.id, data: function () { return c; } }; }) });
+    } };
+}
+window.firebridge = { db: function () { return { collection: function (n) { if (n !== 'scientiaNotes') throw new Error('unexpected collection ' + n); return query([]); } }; }, getUser: function () { return { uid: 'u1' }; } };
+</script>
+<script src="/rm/js/scientia-notes.js"></script>
+<script>
+(async function () {
+  var out = [], fails = 0;
+  function check(name, ok, detail) { out.push('<div class="' + (ok ? 'ok' : 'bad') + '">' + (ok ? 'PASS' : 'FAIL') + ' ' + name + (detail !== undefined ? ' <small>' + String(detail).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</small>' : '') + '</div>'); if (!ok) fails++; }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  try {
+    var card = document.getElementById('card');
+    var rows = await SCIENTIA_NOTES.mount(card, { rmId: 'gels-career', empty: 'hint' });
+    var titles = Array.from(card.querySelectorAll('.sn-t')).map(function (x) { return x.textContent; });
+    check('a card lists the lab’s shared notes and my own (private included), newest first — never someone else’s private one', JSON.stringify(titles) === JSON.stringify(['Packing sweep 1', 'Traction maps', 'My private plan']), JSON.stringify(titles));
+    check('…with two queries the rule can prove (visibility == lab; ownerUid == me)', QUERIES.length === 2 && /visibility == lab/.test(QUERIES[0]) && /ownerUid == u1/.test(QUERIES[1]), JSON.stringify(QUERIES));
+    var vis = Array.from(card.querySelectorAll('.sn-vis')).map(function (x) { return x.textContent.trim(); });
+    check('each row says who can read it', JSON.stringify(vis) === JSON.stringify(['Lab', 'Lab', 'Only you']), JSON.stringify(vis));
+    check('my own rows say "you"; others name the owner', /you/.test(card.querySelectorAll('.sn-s')[0].textContent) && /Mo/.test(card.querySelectorAll('.sn-s')[1].textContent));
+    card.querySelectorAll('.sn-open')[1].click();
+    var ov = document.querySelector('.sn-ovl');
+    check('someone else’s shared note opens read-only in place, its text escaped', !!ov && /Traction maps/.test(ov.textContent) && /Maps from run 4/.test(ov.textContent) && /read-only/.test(ov.textContent));
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    check('…Escape closes it', !document.querySelector('.sn-ovl'));
+    card.querySelectorAll('.sn-open')[0].click(); await sleep(50);
+    check('my own note opens in the Lab Notebook (its link)', location.hash === '#own-dA', location.hash);
+    var empty = await SCIENTIA_NOTES.mount(document.getElementById('hidden'), { rmId: 'nothing', empty: 'hide' });
+    check('with nothing filed, a hidden mount stays empty', empty.length === 0 && document.getElementById('hidden').innerHTML === '');
+    await SCIENTIA_NOTES.mount(document.getElementById('hidden'), { rmId: 'nothing', empty: 'hint' });
+    check('…and a hint mount explains what will appear', /appear here/.test(document.getElementById('hidden').textContent));
+    var nQ = QUERIES.length, n = await SCIENTIA_NOTES.decorate(document.getElementById('grid'));
+    var chip = document.querySelector('[data-item-id="career-draft"] .sn-chip');
+    check('a project card with notes filed under it gets a Notebooks chip (count); one without gets none', n === 1 && !!chip && chip.textContent.trim() === '1' && !document.querySelector('[data-item-id="nothing-here"] .sn-chip'));
+    check('…from two collection-wide queries, both provable', QUERIES.length - nQ === 2 && QUERIES.slice(nQ).every(function (x) { return /visibility == lab|ownerUid == u1/.test(x); }), JSON.stringify(QUERIES.slice(nQ)));
+    chip.click();
+    var lo = document.querySelector('.sn-ovl');
+    check('the chip lists them', !!lo && /Packing sweep 1/.test(lo.textContent) && /CAREER draft/.test(lo.textContent));
+    lo.click();
+    check('no stray overlays', !document.querySelector('.sn-ovl'));
+  } catch (e) { check('harness error', false, (e && e.stack) || e); }
+  var r = document.getElementById('r');
+  r.innerHTML = out.join('') + '<div><b>' + (out.length - fails) + '/' + out.length + ' passed</b></div>'; r.dataset.done = '1'; r.dataset.fails = String(fails);
+})();
+</script>
+</body>
+</html>

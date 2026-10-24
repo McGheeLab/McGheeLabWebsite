@@ -433,6 +433,7 @@ function render() {
   filtered.forEach(function (it) { grid.appendChild(renderPinBox(it)); });
   content.innerHTML = '';
   content.appendChild(grid);
+  if (window.SCIENTIA_NOTES) SCIENTIA_NOTES.decorate(grid);   // V3.880 — a Notebooks N chip where Scientia notes are filed
 
   // Click anywhere on the pin-box (except interactive controls / inside the
   // expanded body) toggles focus mode for that card.
@@ -589,8 +590,11 @@ function renderPinBox(item) {
     // detail accordions; mounted via EXTERNAL_LINKS.mount after innerHTML.
     body.innerHTML = renderItemHero(item) +
                      '<div data-ext-links-mount style="padding:0 14px"></div>' +
+                     '<div data-sis-notes-mount style="padding:0 14px"></div>' +   // V3.880 — Scientia notes filed under it
                      renderItemDetailAccordions(item);
     box.appendChild(body);
+    var sisHost = body.querySelector('[data-sis-notes-mount]');
+    if (sisHost && window.SCIENTIA_NOTES) SCIENTIA_NOTES.mount(sisHost, { rmId: item.id, empty: 'hide' });
 
     // Mount the live claims panel into any [data-claims-mount] placeholder
     // (paper items get one). Track the unmount fn so the next render can

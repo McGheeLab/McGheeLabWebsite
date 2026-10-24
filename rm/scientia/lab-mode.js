@@ -368,14 +368,17 @@
      The hub turns each chore / reminder occurrence into a dated item in My Week (and brings My Week's ticks back),
      and turns timer sessions and note edits into RM activity events — on every pull, at most every two minutes.
      After a change here, ask for those two at once, as soon as this device's change has reached the hub. */
-  var KICK = { t: null, runs: 0, last: null, stores: { chores: 1, reminders: 1 } };
+  var KICK = { t: null, runs: 0, last: null, stores: { chores: 1, reminders: 1 }, kinds: {}, onlys: [] };
   LAB.kickRm = kickRm; LAB.kick = KICK;
-  function kickRm() {
+  /* kinds: which hub syncs to ask for (default when + activity; V3.880 adds 'notes' — RM's list of filed notes) */
+  function kickRm(kinds) {
+    (kinds || ['when', 'activity']).forEach(function (k) { KICK.kinds[k] = 1; });
     clearTimeout(KICK.t);
     KICK.t = setTimeout(async function () {
       var t0 = Date.now();
       while (typeof SYNC !== 'undefined' && SYNC.outbox && SYNC.outbox.size && Date.now() - t0 < 15000) await new Promise(function (r) { setTimeout(r, 250); });
-      try { var r = await fetch('api/rm/sync?only=when,activity', { method: 'POST' }); KICK.last = r.ok ? await r.json() : { ok: false, status: r.status }; }
+      var only = Object.keys(KICK.kinds).join(','); KICK.kinds = {}; KICK.onlys.push(only);
+      try { var r = await fetch('api/rm/sync?only=' + only, { method: 'POST' }); KICK.last = r.ok ? await r.json() : { ok: false, status: r.status }; }
       catch (e) { KICK.last = { ok: false, error: String(e.message || e) }; }
       KICK.runs++;
     }, 1200);
@@ -764,14 +767,18 @@
     if (s.open[r.id] !== undefined) return !!s.open[r.id];
     return !(r.group === 'earlier' || (r.p && r.p.rm && SHUT[r.p.rmStatus]));
   }
+  /* a quick note goes into a project after the fact — Gabe's own move (15b), so it is then stored in that project */
+  function fileNote(docId) { var d = M.doc(docId); if (!d) return; try { GENERAL.move(d); } catch (e) { warn('file note', e); } }
+  function fileButton(docId) { return h('button.btn.xs.lab-file', { title: 'Add this note to a project (or one of its themes)', on: { click: function (e) { e.preventDefault(); e.stopPropagation(); fileNote(docId); } } }, 'Add to project…'); }
   function docsOf(r) { return r.group === 'quick' ? generalDocs() : DB.where('documents', function (d) { return d.projectId === r.id && d.type !== 'review' && !d.deleted; }); }
 
-  function docCard(d, sub) {
+  function docCard(d, sub, act) {
     var items = [], n = 0;
     try { if (Array.isArray(d.blockIds)) { items = M.docBlocks(d.id).flatMap(function (b) { return IX.itemsOf(b.id); }); n = M.liveBlocks(d.id).length; } } catch (e) { /* a record without its components yet */ }
     var ob = items.filter(function (i) { return i.kind === 'barrier' && IX.status(i) === 'open'; }).length;
     return h('div.box.dcard.nopan', { 'data-doc': d.id, on: { click: function () { App.go('#/doc/' + d.id); } } },
-      h('div.row', typechip(d.type), TIMER.activeFor(d.id) ? h('span.live', '●') : null, h('span.spacer'), h('span.mono.tiny.muted', fmtDay(d.modified))), h('div.dn', d.title),
+      h('div.row', typechip(d.type), TIMER.activeFor(d.id) ? h('span.live', '●') : null, d.share === 'lab' ? h('span.pill.teal', { title: 'Lab members can read it in RM' }, 'lab') : null,
+        h('span.spacer'), act || null, h('span.mono.tiny.muted', fmtDay(d.modified))), h('div.dn', d.title),
       h('div.ds', sub != null ? sub : [plural(n, prof(d.type).noun.toLowerCase()), items.length ? ' · ' + plural(items.length, 'structure') : '',
         ob ? h('span', { style: { color: 'var(--bad)' } }, ' · ' + ob + ' open') : null]));
   }
@@ -802,7 +809,7 @@
       var G = generalDocs().sort(byModified);
       head = [h('div.pk', 'Outside projects'), h('div.pn', 'Quick notes'), h('div.ps', plural(G.length, 'note') + ' · a blank page; file it into a project later (⋯ → Project & theme…)')];
       acts.push(btn('xs pri', '+ Quick note', quickNote, 'A blank page — write, or start from a template'));
-      if (open) body = h('div.lab-reg-b.lab-qbody', G.length ? G.map(function (d) { return docCard(d, touchesLine(d)); }) : h('div.lab-empty.tiny.muted', 'A quick note opens as a blank page: write, or pick a template.'));
+      if (open) body = h('div.lab-reg-b.lab-qbody', G.length ? G.map(function (d) { return docCard(d, touchesLine(d), fileButton(d.id)); }) : h('div.lab-empty.tiny.muted', 'A quick note opens as a blank page: write, or pick a template.'));
     } else {
       var themes = DB.where('themes', function (t) { return t.projectId === p.id && t.status === 'active'; }), notes = docsOf(r).length;
       var kick = p.rm ? [KIND[p.rmKind] || words(p.rmKind) || 'Project', p.rmStatus ? words(p.rmStatus) : null, r.group === 'earlier' ? 'no longer assigned' : 'assigned' + (p.rmRole && p.rmRole !== 'member' ? ' · ' + p.rmRole : '')].filter(Boolean).join(' · ') : 'Project';
@@ -889,6 +896,7 @@
   function renderPortfolio() {
     var s = pfState(), list = PF.list = regionList(), nA = list.filter(function (r) { return r.group === 'assigned'; }).length, nM = list.filter(function (r) { return r.group === 'mine'; }).length;
     App.setTitle('Portfolio', [h('span', plural(nA, 'assigned project') + ' · ' + plural(nM, 'project') + ' of your own · ' + plural(generalDocs().length, 'quick note'))]);
+    DB.all('documents').forEach(seedSig);
     var host = h('div.canvas-host.lab-pf'), P = PF.paper = makePaper(host, { view: _ls.get('view:portfolio', null) || undefined, onView: debounce(function (v) { _ls.set('view:portfolio', v); }, 400), minZ: .2 });
     var W = PF.world = P.world; PF.els = {};
     PF.svg = SV('svg', { class: 'wires plinks' }); W.append(PF.svg);
@@ -928,6 +936,41 @@
       return page;
     };
   } catch (e) { warn('project view', e); }
+
+  /* who reads a note filed under RM work — only its owner (the default) or every lab member. The hub lists it on its
+     card / project in RM accordingly (scientiaNotes, V3.880); a change here asks the hub for that list at once. */
+  var NOTE_SIG = {};
+  LAB.noteSig = NOTE_SIG;
+  function rmLinked(d) { var p = d && d.projectId && M.project(d.projectId); return !!(p && p.rm); }
+  function noteSig(d) { return [d.projectId || '', d.themeId || '', d.share || '', d.title || '', d.deleted ? 1 : 0].join('|'); }
+  function seedSig(d) { if (d && d.id && NOTE_SIG[d.id] === undefined) NOTE_SIG[d.id] = noteSig(d); }
+  try {
+    var oPut10 = DB.put;
+    DB.put = function (store, rec) {
+      var r = oPut10.apply(this, arguments);
+      try {
+        if (store === 'documents' && rec && rec.id && !(typeof SYNC !== 'undefined' && (SYNC.applying || SYNC.loading))) {
+          var sig = noteSig(rec), was = NOTE_SIG[rec.id]; NOTE_SIG[rec.id] = sig;
+          var fresh = was === undefined && Date.now() - +new Date(rec.created || 0) < 120000;
+          if ((fresh || (was !== undefined && was !== sig)) && (rmLinked(rec) || String(was || '').indexOf('rm-') === 0)) kickRm(['notes']);
+        }
+      } catch (e) {}
+      return r;
+    };
+  } catch (e) { warn('notes kick', e); }
+  function shareEl(docId) {
+    var d = M.doc(docId), lab = !!(d && d.share === 'lab');
+    return h('span.lab-share', { title: 'Who can read this note on its page in RM' }, h('span.tiny.muted', 'Seen by'),
+      h('span.seg.lab-share-seg', h('button' + (lab ? '' : '.on'), { 'data-share': 'me', on: { click: function () { setShare(docId, false); } } }, 'Only me'),
+        h('button' + (lab ? '.on' : ''), { 'data-share': 'lab', on: { click: function () { setShare(docId, true); } } }, 'Lab members')));
+  }
+  function setShare(docId, lab) {
+    var d = M.doc(docId); if (!d || (d.share === 'lab') === lab) return;
+    seedSig(d); d.share = lab ? 'lab' : 'me'; DB.put('documents', d);
+    $$('.lab-share').forEach(function (x) { x.replaceWith(shareEl(docId)); });
+    toast(lab ? 'Lab members can now read this note on its page in RM' : 'Only you can see this note now');
+  }
+  LAB.setShare = setShare;
 
   /* quick notes: a General note that opens blank, with the templates on offer until something is written */
   var QN = { title: /^Quick note · /, made: 0 };
@@ -979,14 +1022,17 @@
       rows.length ? h('div.lab-qn-g', rows.map(function (x) {
         return h('button.btn.xs.lab-qn-t', { 'data-tpl': x.t.id, title: x.p.label + ': ' + (x.t.blocks || []).map(function (b) { return b.label || '·'; }).join(' → '), on: { click: function () { applyTemplate(d.id, x.t); } } },
           x.t.isStandard ? x.p.label : x.t.name); })) : h('div.tiny.muted', { style: { margin: '0 0 8px' } }, 'No templates yet — Settings → Templates, or ⋯ → Save structure as template… in any note.'),
-      h('div.row.lab-qn-f', btn('sm pri', 'Continue blank', function () { dismissQuick(d.id, true); }, 'Keep the blank page'), h('span.tiny.muted', 'File it into a project later: ⋯ → Project & theme…')));
+      h('div.row.lab-qn-f', btn('sm pri', 'Continue blank', function () { dismissQuick(d.id, true); }, 'Keep the blank page'),
+        btn('sm', 'Add to a project…', function () { fileNote(d.id); }, 'Store this note in a project now'), h('span.tiny.muted', 'or later: ⋯ → Project & theme…')));
   }
   try {
     var oDocRender = DocView.render;
     DocView.render = function (docId) {
       var host = oDocRender.apply(this, arguments);
       try {
-        var d = M.doc(docId);
+        var d = M.doc(docId), pane = this;
+        seedSig(d);
+        if (d && rmLinked(d) && pane === App.pane) setTimeout(function () { var meta = $('#meta'); if (meta && !$('.lab-share', meta) && App.pane === pane && pane.docId === docId) meta.append(shareEl(docId)); }, 0);
         if (d && d.quick && host && host.append) {
           if (!blankDoc(d)) { d.quick = false; DB.put('documents', d); }
           else {
@@ -1016,6 +1062,7 @@
       '.lab-pf-bar{position:absolute;top:12px;left:12px;z-index:16;display:flex;gap:6px;flex-wrap:wrap;align-items:center;max-width:calc(100% - 24px)}' +
       '.lab-qn{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:15;width:min(560px,calc(100% - 24px));box-sizing:border-box;background:var(--surface);border:1px solid var(--rule-2);border-radius:10px;box-shadow:var(--shadow-lg);padding:12px 14px}' +
       '.lab-qn-h{margin-bottom:8px}.lab-qn-g{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;max-height:40vh;overflow:auto}.lab-qn-f{gap:10px;align-items:center;flex-wrap:wrap}' +
+      '.lab-share{display:inline-flex;align-items:center;gap:6px;margin-left:10px}.lab-share .seg button{height:20px;font-size:11px;padding:0 7px}.lab-file{flex:none}' +
       '.lab-rm-proj{margin:10px 0}@media (max-width:820px){.lab-qn{top:56px}.lab-reg-a{max-width:150px}}';
   } catch (e) { warn('css 10', e); }
 })();
