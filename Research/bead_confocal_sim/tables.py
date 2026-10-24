@@ -1,5 +1,6 @@
 """Markdown tables of the model numbers, from figures/results.json."""
 import json, os
+from params import OPERATING as OP, BINDING as BD
 R = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'figures', 'results.json'), encoding='utf-8'))
 out = []
 out.append('### PSF / optical section (model vs textbook formula)\n')
@@ -29,9 +30,9 @@ out.append('|---|---|---|---|')
 for k, d in R['budget'].items():
     out.append('| %s uW | %.2g | %.0f | %.3f %% |' % (k, d['k_em'], d['snr_at_2us'], d['bleach_pct_at_2us']))
 h = R['headline']
-out.append('\nHeadline (20x, 1 AU, 10 uW, 2 us, 0.4 um pixels, sigma = 1000 PE/um^2): peak irradiance %.1f kW/cm^2, excitation rate %.2g /s per PE, emission %.2g photons/s per PE, detection efficiency %.3f, photoelectrons in the bead mask per frame %.3g, rim pixel %.0f photoelectrons, bleaching %.2f %% per frame.\n' % (
+out.append('\nHeadline (20x, 1 AU, %g uW, 2 us, 0.4 um pixels, sigma = 1000 PE/um^2):' % OP['laser_uW'] + ' peak irradiance %.1f kW/cm^2, excitation rate %.2g /s per PE, emission %.2g photons/s per PE, detection efficiency %.3f, photoelectrons in the bead mask per frame %.3g, rim pixel %.0f photoelectrons, bleaching %.2f %% per frame.\n' % (
     h['I0_W_m2'] / 1e7, h['k_ex'], h['k_em'], h['eta'], h['photoelectrons_in_mask'], h['peak_pe_per_px'], h['bleach_frac_per_frame'] * 100))
-out.append('### Limit of detection, PE molecules per bead (3 x shot-noise sd of a blank bead, integrated metric, 10 uW, 2 us, 20 px per bead)\n')
+out.append('### Limit of detection, PE molecules per bead (3 x shot-noise sd of a blank bead, integrated metric, %g uW, 2 us, 20 px per bead)\n' % OP['laser_uW'])
 out.append('| Setting | V_eff (um^3) | Detector only | Free PE-Ab 0.1 nM | 1 nM | 10 nM | Bead autofluorescence 0.1 PE-eq/um^3 | 1 | 10 |')
 out.append('|---|---|---|---|---|---|---|---|---|')
 for k, d in R['background'].items():
@@ -39,7 +40,7 @@ for k, d in R['background'].items():
     out.append('| %s | %.1f | %.0f | %.0f | %.0f | %.0f | %.0f | %.0f | %.0f |' % (k, d['Veff_um3'], d['detector_only_LOD_PE_per_bead'], s_['0.1'], s_['1.0'], s_['10.0'], a_['0.1'], a_['1.0'], a_['10.0']))
 b = R['binding']
 out.append('\n### Binding-model defaults\n')
-out.append('K_D1 (analyte to capture) = %.2g nM, K_D2 (detection Ab to analyte) = %.2g nM; 5000 beads of 1e6 sites in 50 uL = capture capacity %.0f pM; diffusion-limited rate per bead: analyte %.2g, detection Ab %.2g M^-1 s^-1; Damkohler (empty bead) %.2f / %.2f; apparent K_D of the PE isotherm at D0 = 0.1 / 1 / 10 nM: %.2f / %.2f / %.3f nM.' % (
-    b['KD1_nM'], b['KD2_nM'], b['capacity_pM'], b['kD_A'], b['kD_D'], b['Da_A'], b['Da_D'], b['apparent_KD_nM']['0.1'], b['apparent_KD_nM']['1'], b['apparent_KD_nM']['10']))
+out.append('Reference case (report A.2.4; params.BINDING). K_D1 (analyte to capture) = %.3g nM, K_D2 (detection Ab to analyte) = %.3g nM; %.3g beads of %.3g sites in %g uL = capture capacity %.0f pM; diffusion-limited rate per bead: analyte %.2g, detection Ab %.2g M^-1 s^-1; Damkohler (empty bead) %.2f / %.2f; apparent K_D of the PE isotherm at D0 = 0.1 / 1 / 10 nM: %.3g / %.3g / %.3g nM.' % (
+    b['KD1_nM'], b['KD2_nM'], BD['n_beads'], BD['S_T'], BD['V_uL'], b['capacity_pM'], b['kD_A'], b['kD_D'], b['Da_A'], b['Da_D'], b['apparent_KD_nM']['0.1'], b['apparent_KD_nM']['1'], b['apparent_KD_nM']['10']))
 open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'figures', 'tables.md'), 'w', encoding='utf-8').write('\n'.join(out) + '\n')
 print('\n'.join(out))

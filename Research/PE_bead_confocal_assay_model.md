@@ -1179,6 +1179,17 @@ Numbering follows `PE_bead_confocal_experiments.md`. Items marked *(extension)* 
 4. **Missing terms.** Add the dose and signal saturation factors of §B.7, the corrected excluded-volume term, bead-size CV, the bead-optics factor $c(z)$, and transmitted-light segmentation.
 5. **Tables.** Add the G/L/repo tail comparison (§B.2.3) to `figures/tables.md`.
 
+**Status, 2026-10-24.**
+- **Done:**
+  - item 1: [`params.py`](bead_confocal_sim/params.py) holds every shared number; `binding.py` defaults are the reference case and gain a separate D_AD; `fig1` was regenerated;
+  - item 2: all figures and tables regenerated at 2 µW, and the LOD table now matches §B.4.5;
+  - item 3: τ = 2.7 ns everywhere.
+- **Done in the interactive engine only** (`interactive/src/confocal-engine.js`, not yet in `optics.py`):
+  - point-by-point signal saturation;
+  - the excluded-volume term for free PE;
+  - the bead-optics factor c(z) from the ray trace, as an option.
+- **Still open:** dose saturation, bead-size CV, an NSB term, transmitted-light segmentation, and the tail comparison table (item 5).
+
 ---
 
 ## Part D: Measurement strategy
@@ -1403,7 +1414,11 @@ In priority order:
 
 ## Appendix S — Repo simulator: what the AX R image looks like, and what each setting does
 
-> **Operating point.** These figures and tables come from the repo simulator at the first-pass operating point: 10 µW at the sample (I/Iₛ ≈ 0.3, already sublinear), 20 px per bead, an index-matched bead, φ = 1.1 × 10⁻⁵. Part B corrects the saturation threshold (≈2 µW at 20x), the PSF tails and the bead optics; Part D's recommendations supersede S.10; §C.3 lists the simulator updates.
+> **Operating point (updated 2026-10-24).** These figures and tables were regenerated at the revision-2 operating point: 2 µW at the sample, 2 µs, 20 px per bead, 20x/0.75 at 1 AU unless stated, an index-matched bead, φ = 1.1 × 10⁻⁵, τ = 2.7 ns. All of these come from one parameter file, [`bead_confocal_sim/params.py`](bead_confocal_sim/params.py). The first pass used 10 µW (I/Iₛ ≈ 0.3, already sublinear) and τ = 2.5 ns.
+>
+> The rerun also fixes a half-pixel registration error in `optics.render`: the bead was drawn half a pixel away from the centre its metrics measured from. Integrated values are unchanged. The ring and peak numbers in S.3 and S.4 moved (they are noted there).
+>
+> **Interactive versions** of this simulator are three pages in [`bead_confocal_sim/interactive/`](bead_confocal_sim/interactive/): the image of one bead (`pe-bead-confocal.html`), the binding model (`pe-bead-binding.html`) and the measurement strategy (`pe-bead-strategy.html`). Their engines are checked against `optics.py` and `binding.py` (`interactive/tools/check_confocal.py`: agreement within 0.6 %).
 
 The simulator lives in [`bead_confocal_sim/`](bead_confocal_sim/) (numpy, scipy, matplotlib; `python3 run_figures.py`
 regenerates every figure below). It is independent of the derivations in Parts A and B and was written in parallel, so
@@ -1416,7 +1431,7 @@ where the two agree the agreement is a real check.
 2. **Object.** The shell is a Fibonacci lattice of 60,000 points carrying σ PE/µm².
 3. **Rendering.** Points are rendered in 0.1 µm z-slabs, each convolved with h(ρ, z_slab − z₀) in Fourier space.
 4. **Scanning.** The image is point-sampled at pixel centres with a one-pixel smear along the fast axis.
-5. **Photons.** Saturable PE emission (ε = 1.96×10⁶ M⁻¹cm⁻¹, Q = 0.82, τ = 2.5 ns). Collection is the solid angle in
+5. **Photons.** Saturable PE emission (ε = 1.96×10⁶ M⁻¹cm⁻¹, Q = 0.82, τ = 2.7 ns). Collection is the solid angle in
    water × 0.4 optics × 0.4 GaAsP QE (*assumption*).
 6. **Detector.** Poisson counting, then PMT excess noise (F = 1.3), offset, read noise and a 16-bit ADC.
 7. **Bleaching.** R-PE destruction yield φ = 1.1×10⁻⁵ per absorbed photon [S3]. A full raster gives every plane the same
@@ -1451,13 +1466,13 @@ Exp. 4 of the [characterization plan](PE_bead_confocal_experiments.md) measures 
 
 ![Gallery](bead_confocal_sim/figures/fig2_gallery.png)
 
-*One bead, σ = 1,000 PE/µm² (≈2×10⁵ PE), 10 µW, 2 µs, 20 px per bead. Columns: focal offset z₀ = 0, 2, 3.5 µm.
+*One bead, σ = 1,000 PE/µm² (≈2×10⁵ PE), 2 µW, 2 µs, 20 px per bead. Columns: focal offset z₀ = 0, 2, 3.5 µm.
 The bottom row is a volume-stained bead carrying the same total PE.*
 
 - **Shell signature.** The rim peak sits at r ≈ 3.8–3.9 µm. Blur pulls it ≈0.1–0.2 µm inside R. The centre is dark,
   not black: the caps leak in through the PSF tails.
-  - Peak/centre at the equator is **15.5 at 20x 1 AU**, 4.5 at 10x 1 AU, 2.7 at 10x 2 AU and 3.3 at 20x 4 AU.
-  - A volume-stained bead with the same PE gives a flat disc (peak/centre ≈ 1.0).
+  - Peak/centre at the equator is **17.6 at 20x 1 AU**, 5.2 at 10x 1 AU, 2.9 at 10x 2 AU and 3.6 at 20x 4 AU (noise-free; 15.5, 4.5, 2.7 and 3.3 before the registration fix).
+  - A volume-stained bead with the same PE gives a flat disc (peak/centre ≈ 1.1).
   - Part B's Gaussian section predicts > 500 at 20x 1 AU. The difference is entirely the tail model. Experiment 5
     measures it, and the answer also fixes how much cap signal a 10x image contains.
 - **Defocus.** The ring dims and broadens. At 20x 1 AU its radius follows √(R² − z₀²) only beyond z₀ ≈ 2.5 µm. Below
@@ -1472,12 +1487,12 @@ The bottom row is a volume-stained bead carrying the same total PE.*
 
 | Setting | Axial FWHM, on-axis / plane (µm) | z₀ range keeping the integrated metric within 5 % | Ring-mean loss at z₀ = 2 µm | Rim-peak loss at z₀ = 2 µm |
 |---|---|---|---|---|
-| 20x, 1 AU | 1.5 / 2.6 | ±1.75 µm | 22 % | 30 % |
-| 20x, 2 AU | 1.6 / 5.3 | ±1.5 µm | 25 % | 30 % |
-| 20x, 4 AU | 1.6 / 10.8 | ±1.5 µm | 18 % | 23 % |
-| 10x, 1 AU | 4.0 / 7.1 | ±1.5 µm | 18 % | 20 % |
-| 10x, 2 AU | 4.4 / 14.5 | ±1.75 µm | 11 % | 12 % |
-| 10x, 4 AU | 4.4 / 28 | **±4.5 µm (−2.2 % at the ends)** | 7 % | 9 % |
+| 20x, 1 AU | 1.5 / 2.6 | ±1.75 µm | 27 % | 30 % |
+| 20x, 2 AU | 1.6 / 5.3 | ±1.5 µm | 26 % | 30 % |
+| 20x, 4 AU | 1.6 / 10.8 | ±1.5 µm | 21 % | 23 % |
+| 10x, 1 AU | 4.0 / 7.1 | ±1.5 µm | 17 % | 21 % |
+| 10x, 2 AU | 4.4 / 14.5 | ±1.75 µm | 9 % | 13 % |
+| 10x, 4 AU | 4.4 / 28 | **±4.5 µm (−2.2 % at the ends)** | 7 % | 10 % |
 
 **Two focus-tolerant regimes.** This reconciles Part B §3.4 with the simulation.
 - **Section thinner than the bead** (20x, 1 AU). The integrated signal has a **plateau** while the section lies inside
@@ -1490,6 +1505,10 @@ The bottom row is a volume-stained bead carrying the same total PE.*
   window.
 - Ring-mean and rim-peak metrics lose 7–30 % at a 2 µm error in every mode. **Use them only for QC, never as the
   quantity.**
+- These are for an index-matched bead. A polystyrene, PMMA or silica bead bends the light and makes the curve lopsided
+  (§B.1.4); the interactive page `pe-bead-confocal.html` overlays the ray-trace estimate. The literature review adds that
+  surface-labelled polystyrene particles lose their far hemisphere in confocal images (Vorselen 2020), so the bright top
+  cap in the geometric ray trace is probably not what a pinhole sees. Experiment 5 measures it.
 
 ### S.4 Pixels per bead and sub-pixel position
 
@@ -1497,13 +1516,15 @@ The bottom row is a volume-stained bead carrying the same total PE.*
 
 | Pixels per bead | Pixel (µm) | Rim-peak swing | Ring-mean swing | Integrated swing |
 |---|---|---|---|---|
-| 8 | 1.00 | 29 % | 34 % | 2.7 % |
-| 12 | 0.67 | 8.3 % | 8.1 % | 1.4 % |
-| 20 | 0.40 | 5.2 % | 4.5 % | 0.13 % |
-| 40 | 0.20 | 2.2 % | 2.7 % | < 0.01 % |
+| 8 | 1.00 | 28 % | 15 % | 4.6 % |
+| 12 | 0.67 | 39 % | 14 % | 1.5 % |
+| 20 | 0.40 | 14 % | 6.7 % | 0.13 % |
+| 40 | 0.20 | 2.8 % | 2.6 % | < 0.01 % |
 
-*20x, 1 AU. Swing = max/min over sub-pixel offsets of 0–0.5 px. Part B's independent 300-offset Monte Carlo agrees:
-integrated CV 0.35 % at 12 px for 20x/0.75.*
+*20x, 1 AU. Swing = max/min over sub-pixel offsets of 0–0.5 px. After the registration fix the bead centre is exact,
+so the rim-peak and ring-mean swings now show what one-pixel radial bins do when the ring falls between bin edges;
+before the fix they were 29/8.3/5.2/2.2 % and 34/8.1/4.5/2.7 %. The integrated swing hardly moved (2.7 % at 8 px before).
+Part B's independent 300-offset Monte Carlo agrees on the integrated metric: CV 0.35 % at 12 px for 20x/0.75.*
 
 - The integrated sum is unbiased at any sampling density and stable from ≈12 px per bead.
 - The rim peak needs ≥ 40 px per bead (the Nyquist 25–42 px of [S10] applies to the rim, not to the whole-bead sum).
@@ -1518,16 +1539,22 @@ integrated CV 0.35 % at 12 px for 20x/0.75.*
 | Power at the sample (20x, 1 AU) | Emission per PE at focus (photons/s) | SNR of integrated metric, one frame, 100 PE/µm², 2 µs | PE lost per frame |
 |---|---|---|---|
 | 1 µW | 1.0×10⁷ | 40 | 0.029 % |
-| 3 µW | 2.9×10⁷ | 67 | 0.087 % |
-| 10 µW | 8.0×10⁷ | 111 | 0.29 % |
-| 30 µW | 1.6×10⁸ | 157 | 0.87 % |
+| 3 µW | 2.9×10⁷ | 66 | 0.087 % |
+| 10 µW | 7.8×10⁷ | 110 | 0.29 % |
+| 30 µW | 1.5×10⁸ | 155 | 0.87 % |
 
 - **The exchange rate.** In the linear regime, SNR vs fraction bleached falls on one line whatever the power/dwell split
-  (Fig. 5c). Detected photons per PE over its lifetime come out at ≈275 at 20x in both the simulator and Part B §4.5.
-  A 5 % bleach budget is ≈14 detected photons per PE.
+  (Fig. 5c). Detected photons per PE over its lifetime come out at ≈340 at 20x/0.75 and 2 µW (≈275 at 10 µW, where
+  saturation wastes absorbed photons), against 347–351 in Part B §4.5. A 5 % bleach budget is ≈17 detected photons per PE.
 - **Saturation** bends the line. At 30 µW the 20x focus reaches I/Iₛ ≈ 1, the same scale as Mathies' B-PE optimum
   [S9], so each % bleached buys less SNR. Iₛ is ≈19 kW/cm² (5×10²² photons cm⁻² s⁻¹), matching [S9].
   **Stay at I/Iₛ ≲ 0.08: ≈2 µW at the sample at 20x, ≈6–7 µW at 10x** (Part B, with confocal weighting). Lengthen dwell or average to get photons.
+- **Saturation solved point by point** (added 2026-10-24, `interactive/src/confocal-engine.js`). Letting each molecule
+  saturate at its own irradiance, h = I/(1 + k₀I)·D, puts the 5 % point at k₀ ≈ 0.10 for an in-focus sheet (2.9 µW at
+  20x/0.75, 2.5 µW at 20x/0.80, 8 µW at 10x), at 3.0–3.3 µW for the shell's rim peak, and at **5.3–5.9 µW (20x) and
+  12 µW (10x) for the integrated F of a shell**, because much of F comes from molecules away from the focal plane. The
+  first-order Gaussian estimate above is therefore conservative for F. The default stays at 1–2 µW, because PE's
+  millisecond dark state and ±30 % on σ and τ are not in the model (Experiment 7 measures the real threshold).
 - **Bleaching is a uniform gain loss in one plane.** It scales every pixel and every metric by the same factor
   (Part B §5.3). It becomes a bias only through repeated exposure: z-stacks, live focusing on PE, and re-imaging the
   same field.
@@ -1538,7 +1565,7 @@ integrated CV 0.35 % at 12 px for 20x/0.75.*
 
 - Gain (DN per photoelectron) leaves the integrated photoelectron count and the bead-to-bead CV unchanged until rim
   pixels clip. Clipping then cuts the integrated value fast.
-- With the 16-bit ADC, clipping starts at **gain ≈ 20 DN/e⁻ for 3,000 PE/µm²** and ≈ 200 DN/e⁻ for 300 PE/µm².
+- At 2 µW and with the 16-bit ADC, clipping starts at **gain ≈ 100 DN/e⁻ for 3,000 PE/µm²** and ≈ 500 DN/e⁻ for 300 PE/µm² (at 10 µW: 20 and 200).
 - In the default 12-bit mode [S5] every threshold is 16× lower.
 - **Choose one gain from the brightest standard (rim ≤ 60–70 % of full scale) and never change it within a plate.**
 
@@ -1548,7 +1575,7 @@ integrated CV 0.35 % at 12 px for 20x/0.75.*
 
 *Assumed 15 % edge vignetting and 1–3 µm of field curvature.*
 - The integrated metric loses only the vignetting plus a little curvature (−16 % at the edge with 1 µm, −30 % with 3 µm).
-- The ring-mean loses up to 50 %.
+- The ring-mean loses up to about half.
 - Real fall-off is ≥ 10 % corner to centre on most systems [S6]. The bead-field example in [S12] was a Nikon 20x/0.75.
 - **Flat-field every session (Experiment 3)** and keep beads inside the region where the correction is < 1.25×.
 
@@ -1556,27 +1583,28 @@ integrated CV 0.35 % at 12 px for 20x/0.75.*
 
 ![Backgrounds](bead_confocal_sim/figures/fig9_backgrounds.png)
 
-*LOD in PE molecules per bead: 3 × shot-noise SD of a blank bead, integrated metric, 10 µW, 2 µs, 20 px per bead.*
+*LOD in PE molecules per bead: 3 × shot-noise SD of a blank bead, integrated metric, 2 µW, 2 µs, 20 px per bead. These match Part B's `lod.py` table (64–66 / 91–93 / 214–220 / 649–666 at 20x).*
 
 | Mode | V_eff (µm³) | Detector only | Free PE-Ab 0.1 nM | 1 nM | 10 nM | Autofluorescence 0.1 PE-eq/µm³ | 1 | 10 |
 |---|---|---|---|---|---|---|---|---|
-| 20x, 1 AU | 0.53 | 16 | 37 | 106 | 331 | 28 | 73 | 227 |
-| 10x, 1 AU | 3.7 | 21 | 49 | 139 | 436 | 32 | 79 | 241 |
-| 10x, 4 AU | 11.2 | 14 | 52 | 158 | 499 | 23 | 60 | 186 |
+| 20x, 1 AU | 0.53 | 66 | 94 | 220 | 668 | 80 | 158 | 460 |
+| 10x, 1 AU | 3.7 | 99 | 136 | 311 | 938 | 111 | 190 | 524 |
+| 10x, 4 AU | 11.2 | 65 | 125 | 344 | 1,071 | 76 | 141 | 402 |
 
-- **Photon noise alone is not the floor.** Fifteen to twenty PE per bead is ≈0.1 PE/µm². In practice the floor will be
+- **Photon noise alone is not the floor.** About 65 PE per bead (≈0.3 PE/µm²) at 2 µW. In practice the floor will be
   non-specific PE binding and bead-to-bead site variation (Experiment 9c).
 - **No-wash reads** pay for every nM of free PE-antibody left in solution. The 20x at 1 AU has the smallest detection
   volume and suffers least. Annulus subtraction also over-subtracts, because the bead excludes solution PE (Part B §4.6).
-- **Bead autofluorescence** of ≈1 PE-equivalent per µm³ of bead volume already costs ≈4× in LOD. Measure it.
+- **Bead autofluorescence** of ≈1 PE-equivalent per µm³ of bead volume already costs ≈2.4× in LOD at 20x. Measure it.
 
 ### S.9 Binding: the coverage that reaches the optics
 
 ![Binding](bead_confocal_sim/figures/fig1_binding.png)
 
-*Defaults are an assumption: K_D1 = 1 nM (k₁ = 10⁵ M⁻¹s⁻¹, k₋₁ = 10⁻⁴ s⁻¹), K_D2 = 10 nM (k₂ = 10⁵, k₋₂ = 10⁻³ s⁻¹),
-k₃ = k₁, k₄ = k₂, 10⁶ sites per bead, 5,000 beads in 50 µL. That is a capture capacity of 166 pM. Part A's reference
-case uses tighter, PSA-like constants; the shapes are the same.*
+*Since 2026-10-24 the defaults are Part A's reference case (`params.BINDING`): K_D1 = 20 pM (k₁ = 5×10⁵ M⁻¹s⁻¹,
+k₋₁ = 10⁻⁵ s⁻¹), K_D2 = 2.15 nM (k₂ = 4×10⁵, k₋₂ = 8.6×10⁻⁴ s⁻¹), k₃ = k₁, k₄ = k₂, 10⁶ sites per bead, 10⁴ beads in
+50 µL (capture capacity 332 pM), diffusion 6, 3.5 and 3 × 10⁻⁷ cm²/s for analyte, antibody and complex. It reproduces
+the A.2.4 table (498 PE per bead at 1 pM after 1 h). The first pass used looser generic constants; the shapes are the same.*
 
 - **(a) The detection antibody sets the ceiling.** The PE coverage ceiling is D₀/(K_D2 + D₀): 0.5 at D₀ = K_D2 and
   only 0.09 at D₀ = K_D2/10. The solid curves fall below the closed form because the beads deplete the analyte.
@@ -1584,22 +1612,24 @@ case uses tighter, PSA-like constants; the shapes are the same.*
   the label in solution and fills the capture sites unlabelled.
 - **(c) After a perfect wash, PE decays as a single exponential** at k₋₂ + k₋₃. Separating the two needs the perturbation
   experiments in Part A §A.4 and Experiment 11.
-- **(d) Transport.** At 10⁶ sites and k_on = 10⁵, the Damköhler number is 0.03 and diffusion is irrelevant. At
-  k_on·N_S ≳ 10¹² M⁻¹s⁻¹ (Da ≳ 0.3) it slows the approach visibly, without moving the equilibrium.
+- **(d) Transport.** At 10⁶ sites the Damköhler number is 0.28 for the analyte and 0.38 for the antibody: diffusion
+  matters a little. At k_on·N_S ≳ 10¹² M⁻¹s⁻¹ (Da ≳ 1) it slows the approach visibly, without moving the equilibrium.
+  After the wash, rebinding slows the PE loss to f₂k₋₂ + f₃k₋₃, a few per cent below k₋₂ + k₋₃ in the reference case
+  (Goldstein 1999; the interactive binding page shows both).
 
 ### S.10 Every setting at a glance
 
 | Setting | Effect on the integrated metric | Effect on ring / peak metrics | Recommendation |
 |---|---|---|---|
 | **Pinhole** | Plane-integrated section grows ∝ AU; focus tolerance is best at ≤ 1 AU (20x) or ≥ 4 AU (10x); signal per dose rises with AU | On-axis section capped by the beam; contrast falls as the caps leak in | 20x: 1 AU. 10x: open (≥ 4 AU), unless free PE is present |
-| **Laser power** | 5 % sublinear at I/Iₛ ≈ 0.08 with confocal weighting; bleaching ∝ dose | Same | Measure µW at the sample. 1–2 µW (20x), ≈6 µW (10x) (Part B) |
+| **Laser power** | 5 % sublinear at ≈5–6 µW (20x) and ≈12 µW (10x) when solved point by point; the Gaussian estimate gives ≈2 / 6–7 µW; bleaching ∝ dose | Rim peak 5 % sublinear at ≈3 µW (20x) | Measure µW at the sample. 1–2 µW (20x), ≈6 µW (10x) (Part B); Exp. 7 sets the cap |
 | **Gain** | No effect on SNR or CV until clipping | Rim clips first | Fixed per plate, set on the brightest standard |
 | **PE surface density** | Linear from the LOD (≈0.1 PE/µm² detector-only) to clipping | Linear | Calibrate PE per DN with PE calibration beads |
-| **Photobleaching** | Uniform gain loss per frame (≈0.3 % at 10 µW, 2 µs, 0.4 µm px, 20x) | Same | One frame per field; focus in transmitted light; n-propyl gallate gives ×1.7 [S3] |
+| **Photobleaching** | Uniform gain loss per frame (≈0.06 % at 2 µW, 2 µs, 0.4 µm px, 20x) | Same | One frame per field; focus in transmitted light; n-propyl gallate gives ×1.7 [S3] |
 | **Pixels per bead** | Stable from 12 px | Needs ≥ 20–40 px | 12–20 px per bead for quantitation |
 | **Dwell time** | SNR ∝ √dwell; dose ∝ dwell | Same | 2–4 µs galvano, or matched-dose averaging (Experiment 7d) |
 | **Focal-plane offset** | Plateau ±1.75 µm (20x 1 AU), ±4.5 µm (10x 4 AU), ±1.5 µm otherwise | −7 to −30 % at 2 µm | Perfect Focus at the equator (≈3 µm nominal above the glass) |
-| **Bead offset in the scan** | Sub-pixel: none at ≥ 12 px. Field: vignetting + curvature | Sub-pixel 5–34 %; field up to −50 % | Flat-field; central region |
+| **Bead offset in the scan** | Sub-pixel: ≤ 1.5 % at ≥ 12 px, < 0.2 % at 20 px. Field: vignetting + curvature | Sub-pixel 3–39 %; field up to about −50 % | Flat-field; central region |
 | **Objective** | 10x: larger field, more cap signal, 1/3 the collection, larger V_eff. 20x: thinner section, best no-wash LOD | 20x gives a crisp ring | 20x at 1 AU by default (Part D); 10x at 3–4 AU as the throughput mode, decided in Exp. 13 |
 
 ---

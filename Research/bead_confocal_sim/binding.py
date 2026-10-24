@@ -19,21 +19,26 @@ thermodynamic cycle consistent (K1*K2 = K3*K4).  Override any of them to model s
 
 Transport: each surface reaction is multiplied by a Berg-Purcell / partial-absorber factor
     f = kD / (kD + kon * sites)   with  kD = 4*pi*D_coef*R*N_A   (diffusion-limited rate per bead, M^-1 s^-1)
-which slows both binding and unbinding (rebinding) without moving the equilibrium.
+which slows both binding and unbinding (rebinding) without moving the equilibrium. Free analyte diffuses with D_A,
+the detection antibody with D_D and the analyte:antibody complex with D_AD (None = D_D, as revision 1 had it).
+Because of rebinding, the post-wash decay runs at f2*km2 + f3*km3, a little slower than km2 + km3.
+
+Defaults are the report's reference case (params.BINDING; report A.2.4).
 
 Depletion: the finite sample volume and bead number are tracked through c_b = N_beads / (N_A * V), the
 concentration (M) equivalent of one molecule per bead.
 """
 import numpy as np
 from scipy.integrate import solve_ivp
+from params import BINDING as _B
 
 N_AVO = 6.02214076e23
 
 
 class BeadAssay:
-    def __init__(self, k1=1e5, km1=1e-4, k2=1e5, km2=1e-3, k3=None, km3=None, k4=None, km4=None,
-                 S_T=1e6, R_um=4.0, n_beads=5000, V_uL=50.0,
-                 D_A=1.0e-10, D_D=4.0e-11, transport=True):
+    def __init__(self, k1=_B['k1'], km1=_B['km1'], k2=_B['k2'], km2=_B['km2'], k3=None, km3=None, k4=None, km4=None,
+                 S_T=_B['S_T'], R_um=_B['R_um'], n_beads=_B['n_beads'], V_uL=_B['V_uL'],
+                 D_A=_B['D_A'], D_D=_B['D_D'], D_AD=_B['D_AD'], transport=True):
         self.k1, self.km1, self.k2, self.km2 = k1, km1, k2, km2
         self.k3 = k1 if k3 is None else k3
         self.km3 = km1 if km3 is None else km3
@@ -41,6 +46,7 @@ class BeadAssay:
         self.km4 = km2 if km4 is None else km4
         self.S_T, self.R_um, self.n_beads, self.V_uL = S_T, R_um, n_beads, V_uL
         self.D_A, self.D_D, self.transport = D_A, D_D, transport
+        self.D_AD = D_D if D_AD is None else D_AD
 
     # ---- derived quantities -------------------------------------------------
     @property
@@ -79,7 +85,7 @@ class BeadAssay:
         if self.transport:
             f1 = self.kD(self.D_A) / (self.kD(self.D_A) + self.k1 * S)
             f2 = self.kD(self.D_D) / (self.kD(self.D_D) + self.k2 * SA)
-            f3 = self.kD(self.D_D) / (self.kD(self.D_D) + self.k3 * S)
+            f3 = self.kD(self.D_AD) / (self.kD(self.D_AD) + self.k3 * S)
         else:
             f1 = f2 = f3 = 1.0
         r1 = f1 * (self.k1 * A * S - self.km1 * SA)        # molecules/bead/s

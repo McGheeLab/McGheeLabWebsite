@@ -1,0 +1,9 @@
+{
+ "ref":       {"k1":5e5,"km1":1e-5,"k2":4e5,"km2":8.6e-4,"NS":1e6,"R_um":4,"nb":1e4,"V_uL":50,"DA":6e-7,"DD":3.5e-7,"transport":true,"DT":2e-9,"tInc":3600,"tw":300},
+ "repo":      {"k1":1e5,"km1":1e-4,"k2":1e5,"km2":1e-3,"NS":1e6,"R_um":4,"nb":5000,"V_uL":50,"DA":1e-6,"DD":4e-7,"transport":true,"DT":1e-9,"tInc":7200,"tw":900},
+ "highDT":    {"k1":5e5,"km1":1e-5,"k2":4e5,"km2":8.6e-4,"NS":1e6,"R_um":4,"nb":1e4,"V_uL":50,"DA":6e-7,"DD":3.5e-7,"transport":true,"DT":1e-7,"tInc":3600,"tw":300},
+ "noTransport":{"k1":5e5,"km1":1e-5,"k2":4e5,"km2":8.6e-4,"NS":1e6,"R_um":4,"nb":1e4,"V_uL":50,"DA":6e-7,"DD":3.5e-7,"transport":false,"DT":2e-9,"tInc":3600,"tw":300},
+ "beads1e5":  {"k1":5e5,"km1":1e-5,"k2":4e5,"km2":8.6e-4,"NS":1e6,"R_um":4,"nb":1e5,"V_uL":50,"DA":6e-7,"DD":3.5e-7,"transport":true,"DT":2e-9,"tInc":3600,"tw":300},
+ "long24h":   {"k1":5e5,"km1":1e-5,"k2":4e5,"km2":8.6e-4,"NS":1e6,"R_um":4,"nb":1e4,"V_uL":50,"DA":6e-7,"DD":3.5e-7,"transport":true,"DT":2e-9,"tInc":86400,"tw":1800},
+ "nonIndep":  {"k1":5e5,"km1":1e-5,"k2":4e5,"km2":8.6e-4,"k3":2e5,"km3":3e-5,"k4":1e6,"km4":0.0006450,"NS":1e6,"R_um":4,"nb":1e4,"V_uL":50,"DA":6e-7,"DD":3.5e-7,"transport":true,"DT":2e-9,"tInc":3600,"tw":300,"independent":false}
+}

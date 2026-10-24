@@ -1,0 +1,880 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PE bead measurement strategy</title>
+<style>
+/* kit.css — shared look of the PE-bead simulators (inlined into each page by build.py).
+   Colour roles follow the dataviz reference palette; text never wears a series colour. */
+:root{
+  color-scheme:light;
+  --bg:#f6f5f2; --surface:#fcfcfb; --surface-2:#f0efec; --line:#dedcd6; --grid:#ebe9e4;
+  --ink:#1b1b1a; --ink-2:#52514e; --ink-3:#7d7c77; --accent:#0e6f66; --accent-ink:#ffffff; --accent-soft:#d9ece9;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
+  --good:#0ca30c; --warn:#b77900; --bad:#d03b3b;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme:dark;
+    --bg:#121211; --surface:#1a1a19; --surface-2:#232321; --line:#383835; --grid:#2a2a28;
+    --ink:#f0efec; --ink-2:#c3c2b7; --ink-3:#8f8e86; --accent:#3fb3a6; --accent-ink:#0b1514; --accent-soft:#16332f;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+    --warn:#fab219; --bad:#e66767;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#121211; --surface:#1a1a19; --surface-2:#232321; --line:#383835; --grid:#2a2a28;
+  --ink:#f0efec; --ink-2:#c3c2b7; --ink-3:#8f8e86; --accent:#3fb3a6; --accent-ink:#0b1514; --accent-soft:#16332f;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  --warn:#fab219; --bad:#e66767;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--sans)}
+body{padding:14px 16px 28px}
+h1{font-size:18px;margin:0 0 2px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:14px;margin:0 0 8px;font-weight:650}
+h3{font-size:12px;margin:12px 0 6px;font-weight:650;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+p{margin:0 0 8px}
+.sub{color:var(--ink-2);margin:0 0 12px;max-width:80ch}
+.tiny{font-size:12px}.muted{color:var(--ink-3)}.mono{font-family:var(--mono)}
+a{color:var(--accent)}
+.app{display:grid;grid-template-columns:300px minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:820px){.app{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 12px 10px}
+.panel+.panel{margin-top:12px}
+.controls{position:sticky;top:8px;max-height:calc(100vh - 16px);overflow:auto}
+@media (max-width:820px){.controls{position:static;max-height:none}}
+.ctl{margin:0 0 10px}
+.ctl-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12.5px;color:var(--ink-2)}
+.ctl-h b{font-weight:600;color:var(--ink)}
+.ctl-v{font-family:var(--mono);font-size:12px;color:var(--ink);white-space:nowrap}
+.ctl-hint{font-size:11.5px;color:var(--ink-3);margin-top:1px}
+input[type=range]{width:100%;margin:4px 0 0;accent-color:var(--accent);height:18px}
+select,input[type=number]{font:13px var(--sans);color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:4px 6px;width:100%}
+.seg{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:4px}
+.seg button{flex:1 1 auto;font:12.5px var(--sans);color:var(--ink-2);background:var(--surface-2);border:0;border-right:1px solid var(--line);padding:5px 8px;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--ink-2);margin:6px 0;cursor:pointer}
+.chk input{margin:2px 0 0;accent-color:var(--accent)}
+.btn{font:12.5px var(--sans);color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:4px 10px;cursor:pointer}
+.btn:hover{border-color:var(--ink-3)}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 10px;border-bottom:1px solid var(--line)}
+.tabs button{font:13px var(--sans);color:var(--ink-2);background:none;border:0;border-bottom:2px solid transparent;padding:6px 10px;margin-bottom:-1px;cursor:pointer}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:0 0 12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.tile .v{font:600 17px/1.2 var(--mono);color:var(--ink)}
+.tile .l{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.tile .s{font-size:11.5px;color:var(--ink-2)}
+.tile.warn{border-color:var(--warn)}.tile.bad{border-color:var(--bad)}.tile.good{border-color:var(--good)}
+.flag{display:inline-flex;align-items:center;gap:5px;font-size:12px;border-radius:999px;padding:1px 8px;border:1px solid var(--line);color:var(--ink-2)}
+.flag i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.flag.good i{background:var(--good)}.flag.warn i{background:#fab219}.flag.bad i{background:var(--bad)}
+.plot{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px 6px;margin:0 0 12px}
+.plot-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:0 0 4px}
+.plot-h .t{font-weight:650;font-size:13.5px}
+.plot-h .spacer{flex:1}
+.plot canvas{display:block;width:100%;touch-action:none}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.legend i{width:16px;height:0;border-top:2px solid;display:inline-block}
+.legend i.dash{border-top-style:dashed}
+.legend i.band{height:8px;border:0;opacity:.35}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.12);padding:6px 8px;font-size:12px;line-height:1.35;color:var(--ink);white-space:nowrap;z-index:5;display:none}
+.tip .k{display:inline-block;width:10px;height:2px;margin-right:5px;vertical-align:middle}
+.tip b{font-weight:600}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:980px){.grid2{grid-template-columns:minmax(0,1fr)}}
+table.t{border-collapse:collapse;width:100%;font-size:12.5px}
+table.t th,table.t td{border-bottom:1px solid var(--grid);padding:4px 6px;text-align:left;vertical-align:top}
+table.t th{color:var(--ink-3);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+table.t td.n{text-align:right;font-family:var(--mono)}
+.note{font-size:12.5px;color:var(--ink-2);background:var(--surface-2);border-left:3px solid var(--accent);border-radius:6px;padding:7px 10px;margin:0 0 10px}
+.note.warn{border-left-color:#fab219}
+.imgwrap{position:relative;display:inline-block;max-width:100%}
+.imgwrap canvas{display:block;max-width:100%;image-rendering:pixelated;border-radius:6px;background:#000}
+.cbar{display:flex;align-items:center;gap:6px;font:11.5px var(--mono);color:var(--ink-3);margin-top:4px}
+.cbar canvas{height:10px;width:140px;border-radius:3px;image-rendering:auto;background:none}
+footer{margin-top:16px;font-size:12px;color:var(--ink-3)}
+
+/* ---- page ---- */
+.rec{display:flex;gap:8px;align-items:center;margin:0 0 10px;flex-wrap:wrap}
+.rec .btn.pri{font-weight:600}
+.plate{display:grid;grid-template-columns:20px repeat(12,minmax(0,1fr));gap:3px;margin:4px 0 6px;max-width:500px}
+.plate .hd{font:11px var(--mono);color:var(--ink-3);text-align:center;align-self:center}
+.plate .w{aspect-ratio:1/1;border-radius:50%;display:flex;align-items:center;justify-content:center;font:600 9.5px/1 var(--mono);cursor:default;border:1px solid transparent;min-width:0}
+.plate .w:hover,.plate .w.on{outline:2px solid var(--ink);outline-offset:1px}
+@media (max-width:560px){.plate .w{font-size:0}}
+.ramp{display:flex;align-items:center;gap:6px;font:11.5px var(--mono);color:var(--ink-3);margin:2px 0 8px}
+.ramp i{display:inline-block;height:10px;width:160px;border-radius:3px}
+.wellread{font-size:12.5px;color:var(--ink-2);min-height:1.5em;margin:0 0 8px}
+.verdict{font-size:12.5px;color:var(--ink-2)}
+.verdict b{color:var(--ink)}
+.tbl-wrap{overflow-x:auto;margin:0 0 12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 8px}
+table.t td.best{font-weight:700}
+table.modes th:first-child,table.modes td:first-child{color:var(--ink-3);font-weight:600;font-size:11.5px;text-transform:none;letter-spacing:0;white-space:normal;min-width:120px}
+table.modes td{white-space:nowrap}
+table.modes thead th{text-transform:none;letter-spacing:0;font-size:12.5px;color:var(--ink)}
+table.modes th .r{display:block;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-3);font-size:11px;white-space:normal}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:12.5px}
+.kv span:nth-child(odd){color:var(--ink-3)}
+.sec{margin:14px 0 6px}
+.panel h2{margin-bottom:6px}
+.hidden{display:none !important}
+</style>
+</head>
+<body>
+<h1>PE bead measurement strategy</h1>
+<p class="sub">Why the default read is 20x at 1 AU, 1–2 µW at the sample, one plane, integrated F per bead, ≥100 beads per well, and a column-staggered wash when the signal decays fast. Change a setting and watch what it costs.</p>
+<div class="app">
+  <aside class="controls" id="aside"></aside>
+  <main id="main"></main>
+</div>
+<footer>
+  Sources: <i>PE-labelled 8 µm sandwich beads on a Nikon AX-R</i> (Research/PE_bead_confocal_assay_model.md), Part B.4–B.6 and Part D;
+  <span class="mono">report_calcs/lod.py</span>, <span class="mono">budget.py</span>, <span class="mono">samp.py</span>, <span class="mono">dt.py</span>;
+  the confocal PSF tabulated from <span class="mono">optics.py</span> (index-matched bead, R = 4 µm).
+  Numbers marked “assumption” are the report's and have to be measured (Experiments 1–13). McGhee Lab · October 2026.
+</footer>
+<script>
+/* kit.js — shared controls, number formatting and canvas plots for the PE-bead simulators.
+   Inlined into each page by build.py, so every published page is one self-contained file
+   (it runs in Scientia's sandboxed frame: no network, no storage it can count on). */
+'use strict';
+const K = (() => {
+  const SUP = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '+': '' };
+  const sup = s => String(s).split('').map(c => SUP[c] ?? c).join('');
+
+  /* ---------- DOM ---------- */
+  function h(tag, attrs, ...kids) {
+    const m = /^([a-z0-9]+)((?:[.#][\w-]+)*)$/i.exec(tag) || [0, tag, ''];
+    const el = document.createElement(m[1]);
+    (m[2].match(/[.#][\w-]+/g) || []).forEach(t => t[0] === '.' ? el.classList.add(t.slice(1)) : (el.id = t.slice(1)));
+    if (attrs && (typeof attrs !== 'object' || attrs instanceof Node || Array.isArray(attrs))) { kids.unshift(attrs); attrs = null; }
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v == null || v === false) continue;
+      if (k === 'on') for (const [e, f] of Object.entries(v)) el.addEventListener(e, f);
+      else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+      else if (k === 'html') el.innerHTML = v;
+      else if (k in el && k !== 'list' && typeof v !== 'string') el[k] = v;
+      else el.setAttribute(k, v === true ? '' : v);
+    }
+    const add = x => { if (x == null || x === false) return; if (Array.isArray(x)) return x.forEach(add); el.append(x instanceof Node ? x : document.createTextNode(String(x))); };
+    kids.forEach(add);
+    return el;
+  }
+  const $ = (s, r) => (r || document).querySelector(s);
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const color = i => css('--s' + (((i % 8) + 8) % 8 + 1));
+
+  /* ---------- numbers ---------- */
+  function fmt(x, sig = 3) {
+    if (x == null || Number.isNaN(x)) return '–';
+    if (!Number.isFinite(x)) return x > 0 ? '∞' : '−∞';
+    if (x === 0) return '0';
+    const a = Math.abs(x), e = Math.floor(Math.log10(a));
+    if (e >= -2 && e < 5) { const d = Math.max(0, sig - 1 - e); return (x < 0 ? '−' : '') + a.toFixed(Math.min(d, 6)).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, ''); }
+    const m = x / Math.pow(10, e); let ms = Math.abs(m).toFixed(Math.max(0, sig - 1)).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+    if (ms === '10') { return fmt(Math.sign(x) * Math.pow(10, e + 1), sig); }
+    return (x < 0 ? '−' : '') + (ms === '1' ? '' : ms + '×') + '10' + sup(e);
+  }
+  const group = n => Math.round(n).toLocaleString('en-US');
+  /** A molar concentration with an SI prefix: 3.2e-12 → "3.2 pM". */
+  function molar(M, sig = 3) {
+    if (!(M > 0)) return M === 0 ? '0 M' : '–';
+    const P = [[1e-15, 'fM'], [1e-12, 'pM'], [1e-9, 'nM'], [1e-6, 'µM'], [1e-3, 'mM'], [1, 'M']];
+    let p = P[0]; for (const q of P) if (M >= q[0] * 0.9995) p = q;
+    return fmt(M / p[0], sig) + ' ' + p[1];
+  }
+  function dur(s) {
+    if (!(s >= 0)) return '–';
+    if (s < 60) return fmt(s, 2) + ' s';
+    if (s < 3600) return fmt(s / 60, 2) + ' min';
+    if (s < 86400 * 2) return fmt(s / 3600, 2) + ' h';
+    return fmt(s / 86400, 2) + ' d';
+  }
+  const pct = (x, d = 1) => (x == null || !Number.isFinite(x)) ? '–' : (x * 100).toFixed(d) + '%';
+
+  /* ---------- controls ---------- */
+  /** A labelled slider. log:true maps the track to decades between min and max. */
+  function slider(o) {
+    const log = !!o.log, N = o.steps || 400;
+    const toPos = v => log ? Math.round(N * (Math.log10(v) - Math.log10(o.min)) / (Math.log10(o.max) - Math.log10(o.min))) : v;
+    const fromPos = p => { if (!log) return +p; const v = Math.pow(10, Math.log10(o.min) + (p / N) * (Math.log10(o.max) - Math.log10(o.min))); const e = Math.floor(Math.log10(v)), q = Math.pow(10, e - 2); return Math.round(v / q) * q; };
+    const show = v => (o.fmt ? o.fmt(v) : fmt(v)) + (o.unit ? ' ' + o.unit : '');
+    const val = h('span.ctl-v'), inp = h('input', { type: 'range', min: log ? 0 : o.min, max: log ? N : o.max, step: log ? 1 : (o.step || 'any'), 'aria-label': o.label });
+    const ctl = { value: o.value, el: null, set(v, quiet) { ctl.value = v; inp.value = toPos(v); val.textContent = show(v); if (!quiet && o.onInput) o.onInput(v); } };
+    inp.addEventListener('input', () => ctl.set(fromPos(+inp.value)));
+    ctl.el = h('div.ctl', h('div.ctl-h', h('span', o.label), val), inp, o.hint ? h('div.ctl-hint', o.hint) : null);
+    ctl.set(o.value, true);
+    return ctl;
+  }
+  /** Segmented buttons: options [[value, label], …]. */
+  function seg(o) {
+    const wrap = h('div.seg', { role: 'group', 'aria-label': o.label || '' });
+    const ctl = { value: o.value, el: null, set(v, quiet) { ctl.value = v; [...wrap.children].forEach(b => b.classList.toggle('on', b.dataset.v === String(v))); if (!quiet && o.onInput) o.onInput(v); } };
+    o.options.forEach(([v, l, t]) => wrap.append(h('button', { 'data-v': String(v), title: t || '', on: { click: () => ctl.set(v) } }, l)));
+    ctl.el = h('div.ctl', o.label ? h('div.ctl-h', h('span', o.label)) : null, wrap, o.hint ? h('div.ctl-hint', o.hint) : null);
+    ctl.set(o.value, true);
+    return ctl;
+  }
+  function check(o) {
+    const inp = h('input', { type: 'checkbox' });
+    const ctl = { value: !!o.value, el: h('label.chk', inp, h('span', o.label, o.hint ? h('div.ctl-hint', o.hint) : null)), set(v, quiet) { ctl.value = !!v; inp.checked = !!v; if (!quiet && o.onInput) o.onInput(!!v); } };
+    inp.addEventListener('change', () => ctl.set(inp.checked));
+    ctl.set(o.value, true);
+    return ctl;
+  }
+  function tabs(host, list, onChange) {
+    const bar = h('div.tabs', { role: 'tablist' }), panes = {};
+    let cur = null;
+    const go = id => { cur = id; [...bar.children].forEach(b => b.classList.toggle('on', b.dataset.id === id)); for (const [k, p] of Object.entries(panes)) p.style.display = k === id ? '' : 'none'; onChange && onChange(id); };
+    list.forEach(t => { bar.append(h('button', { 'data-id': t.id, role: 'tab', on: { click: () => go(t.id) } }, t.label)); panes[t.id] = t.el; });
+    host.append(bar, ...list.map(t => t.el));
+    go(list[0].id);
+    return { go, get current() { return cur; } };
+  }
+  function tiles(host, rows) {
+    host.replaceChildren(...rows.filter(Boolean).map(r => h('div.tile' + (r.state ? '.' + r.state : ''), { title: r.title || '' }, h('div.v', r.value), h('div.l', r.label), r.sub ? h('div.s', r.sub) : null)));
+  }
+  /** Batch redraws into one animation frame. */
+  function scheduler(fn) { let q = false; return () => { if (q) return; q = true; requestAnimationFrame(() => { q = false; fn(); }); }; }
+
+  /* ---------- ticks ---------- */
+  function niceTicks(lo, hi, n = 5) {
+    const span = hi - lo; if (!(span > 0)) return [lo];
+    const raw = span / n, mag = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / mag;
+    const step = (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * mag, out = [];
+    for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + step * 1e-9; v += step) out.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+    return out;
+  }
+  function logTicks(lo, hi) {
+    const a = Math.floor(Math.log10(lo)), b = Math.ceil(Math.log10(hi)), major = [], minor = [];
+    const every = Math.max(1, Math.ceil((b - a) / 7));
+    for (let e = a; e <= b; e++) { const v = Math.pow(10, e); if (v >= lo * 0.999 && v <= hi * 1.001 && (e - a) % every === 0) major.push(v); for (let k = 2; k < 10; k++) { const m = k * v; if (m > lo && m < hi && b - a <= 6) minor.push(m); } }
+    return { major, minor };
+  }
+
+  /* ---------- line plot ---------- */
+  /** new K.Plot(host, {title, xLabel, yLabel, xLog, yLog, height, xFmt, yFmt, yMin, yMax, xMin, xMax, csvName}) */
+  class Plot {
+    constructor(host, o) {
+      this.o = Object.assign({ height: 260, xFmt: fmt, yFmt: fmt }, o);
+      this.series = []; this.marks = []; this.hmarks = []; this.spans = [];
+      this.legend = h('div.legend');
+      this.cv = h('canvas', { role: 'img', 'aria-label': (o.title || 'plot') + ': ' + (o.yLabel || '') + ' against ' + (o.xLabel || '') });
+      this.tip = h('div.tip');
+      const csv = h('button.btn', { title: 'Copy the plotted data as CSV', style: { fontSize: '11.5px', padding: '2px 8px' }, on: { click: () => this.copyCsv(csv) } }, 'CSV');
+      this.el = h('div.plot', h('div.plot-h', o.title ? h('span.t', o.title) : null, this.legend, h('span.spacer'), csv), this.cv, this.tip);
+      host.append(this.el);
+      this.cv.addEventListener('pointermove', e => this.hover(e));
+      this.cv.addEventListener('pointerleave', () => { this.tip.style.display = 'none'; this.hx = null; this.draw(); });
+      if (window.ResizeObserver) new ResizeObserver(() => this.draw()).observe(this.cv);
+      if (window.matchMedia) { const mq = matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener && mq.addEventListener('change', () => this.draw()); }
+    }
+    /** series: [{name, x[], y[], c (palette slot) | color, dash, width, band:{lo[],hi[]}, dots, hidden, legend:false}] */
+    set(series, marks, hmarks, spans) { this.series = series || []; this.marks = marks || []; this.hmarks = hmarks || []; this.spans = spans || []; this.renderLegend(); this.draw(); }
+    renderLegend() {
+      this.legend.replaceChildren(...this.series.filter(s => s.legend !== false && s.name).map(s => {
+        const c = s.color || color(s.c || 0), i = h('i' + (s.dash ? '.dash' : '') + (s.onlyBand ? '.band' : ''));
+        if (s.onlyBand) i.style.background = c; else i.style.borderTopColor = c;
+        return h('span', i, s.name);
+      }));
+    }
+    range() {
+      const o = this.o; let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const s of this.series) {
+        if (s.hidden) continue;
+        const ys = [s.y, s.band && s.band.lo, s.band && s.band.hi].filter(Boolean);
+        s.x.forEach((x, i) => {
+          if (!Number.isFinite(x) || (o.xLog && x <= 0)) return;
+          let any = false;
+          for (const Y of ys) { const y = Y[i]; if (!Number.isFinite(y) || (o.yLog && y <= 0)) continue; any = true; if (s.noRange) continue; y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+          if (any) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); }
+        });
+      }
+      if (o.xMin != null) x0 = o.xMin; if (o.xMax != null) x1 = o.xMax;
+      if (o.yMin != null) y0 = o.yMin; if (o.yMax != null) y1 = o.yMax;
+      if (!Number.isFinite(x0)) { x0 = o.xLog ? 1 : 0; x1 = o.xLog ? 10 : 1; }
+      if (!Number.isFinite(y0)) { y0 = o.yLog ? 1 : 0; y1 = o.yLog ? 10 : 1; }
+      if (o.yLog) { if (y1 / y0 < 10) { const m = Math.sqrt(y0 * y1); y0 = m / 3.2; y1 = m * 3.2; } if (o.yMax == null) y1 *= 1.25; if (o.yMin == null) y0 /= 1.25; }
+      else { if (y1 === y0) { y1 += Math.abs(y1) * 0.1 || 1; y0 -= Math.abs(y0) * 0.1; } const p = (y1 - y0) * 0.06; if (o.yMax == null) y1 += p; if (o.yMin == null && !(o.yZero && y0 >= 0)) y0 -= p; if (o.yZero && o.yMin == null && y0 > 0) y0 = 0; }
+      if (o.xLog && x1 / x0 < 1.0001) { x0 /= 2; x1 *= 2; } if (!o.xLog && x1 === x0) { x0 -= 1; x1 += 1; }
+      return { x0, x1, y0, y1 };
+    }
+    draw() {
+      const cv = this.cv, o = this.o, dpr = window.devicePixelRatio || 1, W = Math.max(200, cv.clientWidth || 600), H = o.height;
+      if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.height = H + 'px'; }
+      const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+      const R = this.R = this.range(), L = 58, Rm = 14, T = 8, B = 40, pw = W - L - Rm, ph = H - T - B;
+      const sx = x => L + pw * (o.xLog ? (Math.log10(x) - Math.log10(R.x0)) / (Math.log10(R.x1) - Math.log10(R.x0)) : (x - R.x0) / (R.x1 - R.x0));
+      const sy = y => T + ph * (1 - (o.yLog ? (Math.log10(y) - Math.log10(R.y0)) / (Math.log10(R.y1) - Math.log10(R.y0)) : (y - R.y0) / (R.y1 - R.y0)));
+      this.map = { sx, sy, L, T, pw, ph, W, H };
+      const ink3 = css('--ink-3'), grid = css('--grid'), ink2 = css('--ink-2'), line = css('--line');
+      g.font = '11px ' + css('--sans'); g.lineWidth = 1;
+      // spans (shaded x-ranges)
+      for (const s of this.spans) { const a = Math.max(L, sx(s.from)), b = Math.min(L + pw, sx(s.to)); if (b > a) { g.fillStyle = s.color || css('--surface-2'); g.globalAlpha = s.alpha ?? 1; g.fillRect(a, T, b - a, ph); g.globalAlpha = 1; if (s.label) { g.fillStyle = ink3; g.textAlign = 'left'; g.fillText(s.label, a + 4, T + 12); } } }
+      // grid + ticks
+      const xt = o.xLog ? logTicks(R.x0, R.x1) : { major: niceTicks(R.x0, R.x1, Math.max(3, Math.round(pw / 90))), minor: [] };
+      const yt = o.yLog ? logTicks(R.y0, R.y1) : { major: niceTicks(R.y0, R.y1, Math.max(3, Math.round(ph / 50))), minor: [] };
+      g.strokeStyle = grid;
+      for (const v of xt.minor) { const x = Math.round(sx(v)) + .5; g.globalAlpha = .5; g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + ph); g.stroke(); g.globalAlpha = 1; }
+      for (const v of yt.minor) { const y = Math.round(sy(v)) + .5; g.globalAlpha = .5; g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.globalAlpha = 1; }
+      g.fillStyle = ink3; g.textAlign = 'center'; g.textBaseline = 'top';
+      for (const v of xt.major) { const x = Math.round(sx(v)) + .5; if (x < L - 1 || x > L + pw + 1) continue; g.strokeStyle = grid; g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + ph); g.stroke(); g.fillText(o.xFmt(v), x, T + ph + 5); }
+      g.textAlign = 'right'; g.textBaseline = 'middle';
+      for (const v of yt.major) { const y = Math.round(sy(v)) + .5; if (y < T - 1 || y > T + ph + 1) continue; g.strokeStyle = grid; g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.fillText(o.yFmt(v), L - 6, y); }
+      g.strokeStyle = line; g.beginPath(); g.moveTo(L + .5, T); g.lineTo(L + .5, T + ph + .5); g.lineTo(L + pw, T + ph + .5); g.stroke();
+      g.fillStyle = ink2; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.font = '12px ' + css('--sans');
+      if (o.xLabel) g.fillText(o.xLabel, L + pw / 2, H - 2);
+      if (o.yLabel) { g.save(); g.translate(13, T + ph / 2); g.rotate(-Math.PI / 2); g.textBaseline = 'middle'; g.fillText(o.yLabel, 0, 0); g.restore(); }
+      g.save(); g.beginPath(); g.rect(L, T - 1, pw + 1, ph + 2); g.clip();
+      // horizontal reference lines
+      for (const m of this.hmarks) { if (!Number.isFinite(m.y) || (o.yLog && m.y <= 0)) continue; const y = Math.round(sy(m.y)) + .5; g.strokeStyle = m.color || ink3; g.setLineDash(m.dash === false ? [] : [4, 4]); g.lineWidth = 1; g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.setLineDash([]); if (m.label) { g.fillStyle = ink3; g.font = '11px ' + css('--sans'); g.textAlign = 'right'; g.textBaseline = 'bottom'; g.fillText(m.label, L + pw - 4, y - 2); } }
+      // series
+      for (const s of this.series) {
+        if (s.hidden) continue;
+        const c = s.color || color(s.c || 0);
+        if (s.band) {
+          g.fillStyle = c; g.globalAlpha = s.bandAlpha ?? .16; g.beginPath(); let started = false;
+          s.x.forEach((x, i) => { const y = s.band.hi[i]; if (!Number.isFinite(y) || (o.yLog && y <= 0) || (o.xLog && x <= 0)) return; const X = sx(x), Y = sy(y); started ? g.lineTo(X, Y) : (g.moveTo(X, Y), started = true); });
+          for (let i = s.x.length - 1; i >= 0; i--) { const x = s.x[i], y = s.band.lo[i]; if (!Number.isFinite(y) || (o.yLog && y <= 0) || (o.xLog && x <= 0)) continue; g.lineTo(sx(x), sy(y)); }
+          g.closePath(); g.fill(); g.globalAlpha = 1;
+        }
+        if (s.onlyBand) continue;
+        g.strokeStyle = c; g.lineWidth = s.width || 2; g.setLineDash(s.dash ? (Array.isArray(s.dash) ? s.dash : [6, 4]) : []); g.lineJoin = 'round';
+        if (!s.dotsOnly) { g.beginPath(); let pen = false; s.x.forEach((x, i) => { const y = s.y[i]; if (!Number.isFinite(y) || !Number.isFinite(x) || (o.yLog && y <= 0) || (o.xLog && x <= 0)) { pen = false; return; } const X = sx(x), Y = sy(y); pen ? g.lineTo(X, Y) : g.moveTo(X, Y); pen = true; }); g.stroke(); }
+        g.setLineDash([]);
+        if (s.dots) { const r = s.dotR || 3.5; g.fillStyle = c; g.strokeStyle = css('--surface'); g.lineWidth = 1.5; s.x.forEach((x, i) => { const y = s.y[i]; if (!Number.isFinite(y) || (o.yLog && y <= 0) || (o.xLog && x <= 0)) return; g.beginPath(); g.arc(sx(x), sy(y), r, 0, 7); g.fill(); g.stroke(); }); }
+      }
+      // vertical marks
+      for (const m of this.marks) { if (!Number.isFinite(m.x) || (o.xLog && m.x <= 0)) continue; const x = Math.round(sx(m.x)) + .5; if (x < L || x > L + pw) continue; g.strokeStyle = m.color || ink3; g.lineWidth = 1; g.setLineDash(m.dash === false ? [] : [4, 4]); g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + ph); g.stroke(); g.setLineDash([]); if (m.label) { g.fillStyle = ink2; g.font = '11px ' + css('--sans'); g.textAlign = x > L + pw * .7 ? 'right' : 'left'; g.textBaseline = 'top'; g.fillText(m.label, x + (x > L + pw * .7 ? -4 : 4), T + 4 + (m.row || 0) * 13); } }
+      // hover crosshair
+      if (this.hx != null) { g.strokeStyle = ink3; g.globalAlpha = .6; g.beginPath(); g.moveTo(this.hx + .5, T); g.lineTo(this.hx + .5, T + ph); g.stroke(); g.globalAlpha = 1;
+        for (const p of this.hpts || []) { g.fillStyle = p.c; g.strokeStyle = css('--surface'); g.lineWidth = 2; g.beginPath(); g.arc(p.X, p.Y, 4, 0, 7); g.fill(); g.stroke(); } }
+      g.restore();
+    }
+    hover(e) {
+      if (!this.map || !this.R) return;
+      const r = this.cv.getBoundingClientRect(), X = e.clientX - r.left, Y = e.clientY - r.top, m = this.map, o = this.o;
+      if (X < m.L || X > m.L + m.pw || Y < m.T || Y > m.T + m.ph) { this.tip.style.display = 'none'; this.hx = null; this.draw(); return; }
+      const fx = (X - m.L) / m.pw, xv = o.xLog ? Math.pow(10, Math.log10(this.R.x0) + fx * (Math.log10(this.R.x1) - Math.log10(this.R.x0))) : this.R.x0 + fx * (this.R.x1 - this.R.x0);
+      const rows = [], pts = [];
+      for (const s of this.series) {
+        if (s.hidden || s.onlyBand || s.noTip || !s.x.length) continue;
+        let bi = -1, bd = Infinity;
+        s.x.forEach((x, i) => { if (!Number.isFinite(s.y[i])) return; const d = Math.abs(o.xLog ? Math.log10(x / xv) : x - xv); if (d < bd) { bd = d; bi = i; } });
+        if (bi < 0) continue;
+        const c = s.color || color(s.c || 0), yv = s.y[bi];
+        if (o.yLog && yv <= 0) continue;
+        pts.push({ X: m.sx(s.x[bi]), Y: m.sy(yv), c });
+        rows.push(h('div', h('span.k', { style: { background: c } }), (s.name || '') + ': ', h('b', (s.tipFmt || o.yFmt)(yv)), s.tipExtra ? ' ' + s.tipExtra(bi) : ''));
+      }
+      this.hx = X; this.hpts = pts; this.draw();
+      if (!rows.length) { this.tip.style.display = 'none'; return; }
+      this.tip.replaceChildren(h('div.muted', (o.xLabel ? o.xLabel.replace(/\s*\(.*\)$/, '') + ' ' : '') + (o.tipX || o.xFmt)(xv)), ...rows);
+      this.tip.style.display = 'block';
+      const tw = this.tip.offsetWidth, cw = this.el.clientWidth, left = this.cv.offsetLeft + X + 14;
+      this.tip.style.left = (left + tw > cw - 4 ? this.cv.offsetLeft + X - tw - 14 : left) + 'px';
+      this.tip.style.top = (this.cv.offsetTop + Math.max(4, Y - 30)) + 'px';
+    }
+    csv() {
+      const ss = this.series.filter(s => !s.onlyBand && !s.hidden && s.name);
+      const lines = [];
+      for (const s of ss) { lines.push('# ' + s.name); lines.push([this.o.xLabel || 'x', this.o.yLabel || 'y'].map(v => '"' + v + '"').join(',')); s.x.forEach((x, i) => lines.push(x + ',' + s.y[i])); lines.push(''); }
+      return lines.join('\n');
+    }
+    copyCsv(btn) {
+      const t = this.csv(), done = ok => { const old = btn.textContent; btn.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(() => { btn.textContent = old; }, 1400); };
+      try { navigator.clipboard.writeText(t).then(() => done(true), () => fallback()); } catch (e) { fallback(); }
+      function fallback() { try { const a = h('textarea', { style: { position: 'fixed', opacity: '0' } }, t); document.body.append(a); a.select(); const ok = document.execCommand('copy'); a.remove(); done(ok); } catch (e) { done(false); } }
+    }
+  }
+
+  /* ---------- image ---------- */
+  const INF = [[0.0002189403691192265, 0.001651004631001012, -0.01948089843709184], [0.1065134194856116, 0.5639564367884091, 3.932712388889277], [11.60249308247187, -3.972853965665698, -15.9423941062914],
+    [-41.70399613139459, 17.43639888205313, 44.35414519872813], [77.162935699427, -33.40235894210092, -81.80730925738993], [-71.31942824499214, 32.62606426397723, 73.20951985803202], [25.13112622477341, -12.24266895238567, -23.07032500287172]];
+  const LUTS = {};
+  function lut(name) {
+    if (LUTS[name]) return LUTS[name];
+    const t = new Uint8ClampedArray(256 * 3);
+    for (let i = 0; i < 256; i++) {
+      const x = i / 255; let r, g, b;
+      if (name === 'inferno') { const c = [0, 1, 2].map(k => { let v = INF[6][k]; for (let j = 5; j >= 0; j--) v = INF[j][k] + x * v; return v; }); [r, g, b] = c; }
+      else if (name === 'pe') { r = Math.min(1, x * 1.6); g = Math.max(0, Math.min(1, (x - 0.25) * 1.25)); b = Math.max(0, (x - 0.7) * 2.2); }
+      else { r = g = b = x; }
+      t[i * 3] = r * 255; t[i * 3 + 1] = g * 255; t[i * 3 + 2] = b * 255;
+    }
+    return (LUTS[name] = t);
+  }
+  /** Draw a float image (row-major, w×h) into a canvas with a LUT; returns nothing. lo/hi set the display range. */
+  function paint(cv, data, w, hgt, lo, hi, name, scale) {
+    const s = scale || 1; cv.width = w * s; cv.height = hgt * s;
+    const g = cv.getContext('2d'), img = g.createImageData(w * s, hgt * s), L = lut(name || 'gray'), d = img.data, span = (hi - lo) || 1;
+    for (let y = 0; y < hgt; y++) for (let x = 0; x < w; x++) {
+      const v = data[y * w + x], k = Math.max(0, Math.min(255, Math.round(255 * (v - lo) / span))) * 3;
+      for (let yy = 0; yy < s; yy++) { let o = ((y * s + yy) * w * s + x * s) * 4; for (let xx = 0; xx < s; xx++, o += 4) { d[o] = L[k]; d[o + 1] = L[k + 1]; d[o + 2] = L[k + 2]; d[o + 3] = 255; } }
+    }
+    g.putImageData(img, 0, 0);
+  }
+  function colorbar(cv, name) { cv.width = 256; cv.height = 1; const g = cv.getContext('2d'), img = g.createImageData(256, 1), L = lut(name); for (let i = 0; i < 256; i++) { img.data[i * 4] = L[i * 3]; img.data[i * 4 + 1] = L[i * 3 + 1]; img.data[i * 4 + 2] = L[i * 3 + 2]; img.data[i * 4 + 3] = 255; } g.putImageData(img, 0, 0); }
+
+  /* ---------- seeded random ---------- */
+  function rng(seed) { let s = (seed >>> 0) || 1; const u = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return (s >>> 0) / 4294967296; }; let spare = null;
+    const normal = () => { if (spare != null) { const v = spare; spare = null; return v; } let a, b, q; do { a = 2 * u() - 1; b = 2 * u() - 1; q = a * a + b * b; } while (q >= 1 || q === 0); const f = Math.sqrt(-2 * Math.log(q) / q); spare = b * f; return a * f; };
+    const poisson = lam => { if (lam <= 0) return 0; if (lam < 30) { const L = Math.exp(-lam); let k = 0, p = 1; do { k++; p *= u(); } while (p > L); return k - 1; } return Math.max(0, Math.round(lam + Math.sqrt(lam) * normal())); };
+    return { u, normal, poisson }; }
+
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
+
+  return { h, $, css, color, fmt, group, molar, dur, pct, sup, slider, seg, check, tabs, tiles, scheduler, niceTicks, logTicks, Plot, lut, paint, colorbar, rng, store };
+})();
+
+/* ======================= MODEL-BEGIN (pure; no DOM) ======================= */
+/* PSF table: generated by psf_table.py from Research/bead_confocal_sim/optics.py (ConfocalPSF, the repo's
+   Gaussian-beam × pinhole-pass model; 561 nm in, 578 nm out, sample n = 1.33, R = 4 µm, index-matched bead).
+   Per "obj|AU": ih[i] = ∫ H(z − z0) dz over the bead for z0 = PSF.z0[i] (µm³); H0 = in-focus plane response (µm²);
+   Veff = 2∫H dz (µm³); leff = Veff/H0 (µm); fz / fzs = on-axis / plane-integrated axial FWHM (µm); fxy lateral FWHM;
+   D00 in-focus pinhole pass; ph pinhole diameter at the sample (µm); w0 beam waist (µm). Saturation, exact for a
+   two-level PE with the repo PSF (each molecule sees its own irradiance, h = I/(1 + k0·I)·D): signal ÷ linear at peak
+   excitation k0 = PSF.k0[j] for an in-focus flat sheet (sub_sheet), the whole shell's integrated F at z0 = 0 (sub_bead),
+   the shell's rim peak (sub_rim, from the confocal engine, confocal-engine.js) and the free-buffer volume (sub_vol). */
+/* Generated by tools/strategy/psf_table.py (optics.py ConfocalPSF) + rim_table.js (confocal-engine.js); do not edit. */
+const PSF = {"z0":[0.0,0.25,0.5,0.75,1.0,1.25,1.5,1.75,2.0,2.25,2.5,2.75,3.0,3.25,3.5,3.75,4.0,4.25,4.5,4.75,5.0,5.25,5.5,5.75,6.0],"k0":[0.001,0.001182,0.001396,0.001649,0.001949,0.002303,0.00272,0.003214,0.003798,0.004487,0.005302,0.006264,0.007401,0.008744,0.010331,0.012207,0.014422,0.01704,0.020134,0.023788,0.028106,0.033208,0.039236,0.046358,0.054772,0.064714,0.076461,0.09034,0.106738,0.126113,0.149005,0.176052,0.208008,0.245765,0.290376,0.343084,0.40536,0.47894,0.565876,0.668592,0.789953,0.933343,1.10276,1.30293,1.539434,1.818868,2.149024,2.539108,3.0],"cfg":{"10x|0.5":{"ih":[0.9272,0.926,0.9225,0.9166,0.9083,0.8973,0.8837,0.8671,0.8475,0.8246,0.7985,0.7689,0.7361,0.7003,0.662,0.6217,0.5802,0.5386,0.4976,0.458,0.4206,0.3856,0.3535,0.3241,0.2975],"H0":0.18303,"Veff":1.275,"leff":6.967,"fz":3.2,"fzs":5.1,"fxy":0.519,"D00":0.629,"ph":0.784,"w0":0.5398,"sub_sheet":[0.99939,0.99928,0.99915,0.99899,0.99881,0.99859,0.99834,0.99803,0.99768,0.99726,0.99676,0.99618,0.99549,0.99467,0.99371,0.99258,0.99125,0.98968,0.98783,0.98566,0.98311,0.98012,0.97661,0.9725,0.96769,0.96209,0.95556,0.94799,0.93921,0.92908,0.91744,0.90411,0.88893,0.87174,0.85239,0.83076,0.80677,0.78039,0.75164,0.72062,0.68749,0.65251,0.61597,0.57826,0.5398,0.50102,0.46239,0.42435,0.38729],"sub_bead":[0.99958,0.9995,0.99941,0.9993,0.99918,0.99903,0.99885,0.99864,0.99839,0.9981,0.99776,0.99736,0.99688,0.99631,0.99565,0.99486,0.99394,0.99285,0.99157,0.99006,0.98828,0.98619,0.98374,0.98086,0.97748,0.97354,0.96893,0.96355,0.9573,0.95004,0.94165,0.93198,0.92088,0.90818,0.89374,0.8774,0.85904,0.83854,0.81582,0.79084,0.76362,0.73424,0.70282,0.66955,0.63471,0.59859,0.56156,0.52399,0.48629],"sub_vol":[0.99967,0.99961,0.99954,0.99946,0.99936,0.99925,0.99911,0.99895,0.99876,0.99853,0.99827,0.99796,0.99759,0.99715,0.99663,0.99603,0.99531,0.99447,0.99348,0.99231,0.99093,0.98931,0.98741,0.98518,0.98256,0.9795,0.97592,0.97175,0.96689,0.96124,0.95471,0.94716,0.93849,0.92855,0.91723,0.90438,0.8899,0.87368,0.85563,0.83569,0.81385,0.79012,0.76455,0.73725,0.70837,0.6781,0.64665,0.61429,0.58127],"sub_rim":[0.99939,0.99928,0.99915,0.999,0.99882,0.9986,0.99835,0.99805,0.9977,0.99728,0.99679,0.99621,0.99552,0.99471,0.99376,0.99264,0.99132,0.98976,0.98792,0.98577,0.98323,0.98026,0.97677,0.97268,0.9679,0.96232,0.95582,0.94827,0.93952,0.92942,0.91779,0.90447,0.88927,0.87209,0.85282,0.83125,0.80728,0.78087,0.75207,0.72109,0.68792,0.65279,0.61621,0.57837,0.53973,0.50081,0.46195,0.42373,0.38643]},"10x|1":{"ih":[2.4124,2.4091,2.3994,2.3831,2.3602,2.3308,2.2947,2.252,2.2027,2.1472,2.0857,2.0187,1.9468,1.8707,1.7912,1.7092,1.6256,1.5411,1.4566,1.373,1.291,1.2114,1.1349,1.0621,0.9932],"H0":0.39831,"Veff":3.695,"leff":9.276,"fz":4.0,"fzs":7.1,"fxy":0.621,"D00":0.9811,"ph":1.567,"w0":0.5398,"sub_sheet":[0.99946,0.99937,0.99925,0.99912,0.99896,0.99877,0.99855,0.99828,0.99797,0.9976,0.99717,0.99666,0.99606,0.99534,0.9945,0.99352,0.99235,0.99098,0.98936,0.98746,0.98523,0.9826,0.97953,0.97592,0.97171,0.96679,0.96106,0.95439,0.94667,0.93774,0.92746,0.91567,0.90221,0.88693,0.86969,0.85035,0.82883,0.80506,0.77903,0.7508,0.72048,0.68824,0.65432,0.61903,0.58271,0.54574,0.50853,0.47148,0.43497],"sub_bead":[0.99964,0.99958,0.9995,0.99941,0.9993,0.99917,0.99903,0.99885,0.99864,0.99839,0.9981,0.99776,0.99735,0.99688,0.99631,0.99565,0.99486,0.99394,0.99285,0.99156,0.99005,0.98828,0.98619,0.98374,0.98087,0.97751,0.97357,0.96898,0.96363,0.95742,0.95021,0.94189,0.93231,0.92133,0.90879,0.89455,0.87848,0.86044,0.84035,0.81812,0.79373,0.76719,0.73858,0.70802,0.6757,0.64185,0.60676,0.57076,0.5342],"sub_vol":[0.99974,0.9997,0.99964,0.99958,0.9995,0.99941,0.9993,0.99917,0.99902,0.99885,0.99864,0.99839,0.9981,0.99776,0.99735,0.99687,0.99631,0.99564,0.99486,0.99393,0.99285,0.99157,0.99007,0.9883,0.98623,0.9838,0.98096,0.97764,0.97377,0.96927,0.96405,0.958,0.95102,0.943,0.93382,0.92336,0.91151,0.89815,0.88318,0.86652,0.84811,0.82792,0.80595,0.78223,0.75682,0.72985,0.70144,0.67177,0.64105],"sub_rim":[0.99947,0.99938,0.99926,0.99913,0.99897,0.99879,0.99857,0.99831,0.998,0.99764,0.99721,0.99671,0.99612,0.99542,0.99459,0.99361,0.99247,0.99111,0.98952,0.98765,0.98544,0.98286,0.97982,0.97626,0.97209,0.96723,0.96155,0.95494,0.94727,0.9384,0.92816,0.91649,0.90318,0.88802,0.87086,0.85159,0.83023,0.80655,0.78059,0.75244,0.72211,0.68988,0.6559,0.62046,0.584,0.54679,0.50927,0.47184,0.43494]},"10x|2":{"ih":[3.5377,3.5346,3.5254,3.5101,3.4891,3.4627,3.4314,3.3955,3.3554,3.3116,3.2644,3.214,3.1608,3.1049,3.0464,2.9856,2.9225,2.8572,2.7898,2.7206,2.6495,2.5768,2.5026,2.427,2.3504],"H0":0.4575,"Veff":7.4,"leff":16.175,"fz":4.4,"fzs":14.5,"fxy":0.636,"D00":1.0,"ph":3.134,"w0":0.5398,"sub_sheet":[0.9995,0.99941,0.9993,0.99918,0.99903,0.99885,0.99864,0.9984,0.99811,0.99776,0.99736,0.99688,0.99632,0.99565,0.99487,0.99395,0.99286,0.99158,0.99007,0.98829,0.9862,0.98375,0.98088,0.97751,0.97357,0.96897,0.96361,0.95738,0.95014,0.94178,0.93215,0.9211,0.90848,0.89414,0.87793,0.85974,0.83947,0.81705,0.79246,0.76573,0.73696,0.7063,0.67395,0.64019,0.60532,0.56971,0.5337,0.49768,0.46201],"sub_bead":[0.9997,0.99965,0.99958,0.99951,0.99942,0.99931,0.99919,0.99904,0.99887,0.99866,0.99842,0.99813,0.99779,0.99739,0.99692,0.99637,0.99571,0.99494,0.99403,0.99296,0.9917,0.99022,0.98847,0.98642,0.98402,0.9812,0.97791,0.97405,0.96956,0.96434,0.95827,0.95125,0.94316,0.93385,0.9232,0.91107,0.89733,0.88185,0.86452,0.84526,0.824,0.80072,0.77544,0.74823,0.7192,0.68852,0.65639,0.62308,0.58885],"sub_vol":[0.99983,0.9998,0.99976,0.99972,0.99966,0.9996,0.99953,0.99945,0.99935,0.99923,0.99909,0.99892,0.99873,0.9985,0.99822,0.9979,0.99752,0.99708,0.99655,0.99593,0.9952,0.99434,0.99333,0.99214,0.99075,0.98911,0.98719,0.98494,0.98232,0.97926,0.97569,0.97156,0.96677,0.96125,0.9549,0.94762,0.93932,0.9299,0.91926,0.90731,0.89397,0.87916,0.86283,0.84495,0.82549,0.80447,0.78191,0.75788,0.73243],"sub_rim":[0.99953,0.99944,0.99934,0.99922,0.99908,0.99892,0.99872,0.99849,0.99821,0.99789,0.99751,0.99706,0.99653,0.9959,0.99516,0.99429,0.99326,0.99205,0.99063,0.98895,0.98698,0.98466,0.98197,0.97882,0.97513,0.97081,0.96578,0.95991,0.95309,0.94519,0.93607,0.92568,0.91378,0.9002,0.88484,0.86764,0.84834,0.82704,0.80355,0.77804,0.75046,0.72097,0.68976,0.65708,0.62317,0.58836,0.55303,0.51748,0.48205]},"10x|3":{"ih":[3.6551,3.6545,3.6525,3.6492,3.6444,3.638,3.63,3.6201,3.6083,3.5944,3.5783,3.56,3.5394,3.5165,3.4912,3.4635,3.4335,3.401,3.3663,3.3293,3.29,3.2485,3.2048,3.1591,3.1113],"H0":0.45761,"Veff":9.724,"leff":21.249,"fz":4.4,"fzs":22.3,"fxy":0.64,"D00":1.0,"ph":4.701,"w0":0.5398,"sub_sheet":[0.9995,0.99941,0.9993,0.99918,0.99903,0.99885,0.99864,0.9984,0.99811,0.99776,0.99736,0.99688,0.99632,0.99565,0.99487,0.99395,0.99286,0.99158,0.99007,0.98829,0.98621,0.98376,0.98089,0.97752,0.97358,0.96898,0.96362,0.95739,0.95016,0.9418,0.93217,0.92113,0.90851,0.89417,0.87797,0.85978,0.83952,0.8171,0.79252,0.7658,0.73704,0.70638,0.67404,0.64029,0.60543,0.56982,0.53383,0.49782,0.46215],"sub_bead":[0.99971,0.99966,0.99959,0.99952,0.99943,0.99933,0.99921,0.99906,0.99889,0.99869,0.99846,0.99818,0.99785,0.99746,0.997,0.99646,0.99582,0.99507,0.99418,0.99314,0.99191,0.99046,0.98876,0.98676,0.98442,0.98167,0.97846,0.9747,0.97032,0.96522,0.9593,0.95246,0.94455,0.93547,0.92508,0.91324,0.89982,0.88469,0.86776,0.84893,0.82813,0.80536,0.78061,0.75395,0.72549,0.69539,0.66383,0.63108,0.59739],"sub_vol":[0.99986,0.99984,0.99981,0.99977,0.99973,0.99968,0.99962,0.99955,0.99947,0.99937,0.99926,0.99913,0.99897,0.99878,0.99856,0.9983,0.998,0.99764,0.99721,0.99671,0.99612,0.99542,0.9946,0.99364,0.99251,0.99118,0.98963,0.9878,0.98567,0.98319,0.98029,0.97693,0.97303,0.96853,0.96334,0.95738,0.95058,0.94284,0.93407,0.92419,0.91313,0.90079,0.88713,0.87209,0.85563,0.83772,0.81837,0.79758,0.77537],"sub_rim":[0.99953,0.99945,0.99935,0.99923,0.99909,0.99892,0.99873,0.9985,0.99823,0.9979,0.99753,0.99708,0.99655,0.99593,0.99519,0.99433,0.99331,0.99212,0.99072,0.98907,0.98714,0.98486,0.98219,0.97906,0.97539,0.9711,0.96609,0.96026,0.95348,0.94562,0.93663,0.92631,0.91448,0.90097,0.88579,0.86869,0.84957,0.82844,0.80519,0.77984,0.75253,0.72329,0.69233,0.65988,0.62625,0.59173,0.55666,0.52135,0.48619]},"10x|4":{"ih":[3.661,3.661,3.6609,3.6606,3.6602,3.6595,3.6584,3.657,3.6549,3.6523,3.6488,3.6444,3.639,3.6324,3.6246,3.6154,3.6048,3.5927,3.5789,3.5635,3.5464,3.5276,3.5069,3.4845,3.4603],"H0":0.4576,"Veff":11.162,"leff":24.393,"fz":4.4,"fzs":28.0,"fxy":0.662,"D00":1.0,"ph":6.268,"w0":0.5398,"sub_sheet":[0.9995,0.99941,0.9993,0.99918,0.99903,0.99885,0.99864,0.9984,0.99811,0.99776,0.99736,0.99688,0.99632,0.99565,0.99487,0.99395,0.99286,0.99158,0.99007,0.98829,0.98621,0.98376,0.98089,0.97752,0.97358,0.96898,0.96362,0.95739,0.95016,0.9418,0.93218,0.92113,0.90851,0.89417,0.87797,0.85979,0.83952,0.8171,0.79252,0.7658,0.73704,0.70638,0.67404,0.64029,0.60543,0.56983,0.53383,0.49782,0.46215],"sub_bead":[0.99971,0.99966,0.99959,0.99952,0.99943,0.99933,0.99921,0.99907,0.9989,0.9987,0.99846,0.99818,0.99785,0.99746,0.99701,0.99647,0.99583,0.99508,0.99419,0.99315,0.99192,0.99048,0.98878,0.98678,0.98444,0.9817,0.97849,0.97474,0.97036,0.96527,0.95936,0.95253,0.94464,0.93557,0.92519,0.91337,0.89996,0.88486,0.86795,0.84915,0.82838,0.80564,0.78092,0.7543,0.72588,0.69582,0.66431,0.63159,0.59795],"sub_vol":[0.99988,0.99985,0.99983,0.9998,0.99976,0.99971,0.99966,0.9996,0.99953,0.99944,0.99934,0.99922,0.99908,0.99892,0.99872,0.99849,0.99822,0.9979,0.99752,0.99707,0.99654,0.99592,0.99519,0.99433,0.99333,0.99214,0.99076,0.98913,0.98723,0.98501,0.98243,0.97943,0.97595,0.97192,0.96728,0.96196,0.95587,0.94893,0.94107,0.93219,0.92224,0.91113,0.8988,0.8852,0.87027,0.854,0.83635,0.81733,0.79694],"sub_rim":[0.99953,0.99945,0.99935,0.99923,0.99909,0.99892,0.99873,0.9985,0.99823,0.99791,0.99753,0.99708,0.99655,0.99593,0.99519,0.99433,0.99331,0.99212,0.99072,0.98907,0.98714,0.98486,0.98219,0.97906,0.97539,0.9711,0.96609,0.96026,0.95348,0.94564,0.93668,0.92636,0.91453,0.90103,0.88586,0.86876,0.84966,0.82853,0.80528,0.77994,0.75262,0.72339,0.69243,0.66001,0.62639,0.59188,0.55682,0.52152,0.48638]},"20x|0.5":{"ih":[0.1599,0.1598,0.1595,0.159,0.1583,0.1573,0.156,0.1544,0.1523,0.1495,0.146,0.1413,0.1351,0.1269,0.116,0.1022,0.0864,0.0705,0.0567,0.0458,0.0374,0.0311,0.0263,0.0226,0.0196],"H0":0.0658,"Veff":0.178,"leff":2.711,"fz":1.2,"fzs":1.9,"fxy":0.319,"D00":0.629,"ph":0.47,"w0":0.3239,"sub_sheet":[0.99939,0.99928,0.99915,0.99899,0.99881,0.99859,0.99834,0.99804,0.99768,0.99726,0.99676,0.99618,0.99549,0.99468,0.99372,0.99259,0.99126,0.98969,0.98784,0.98567,0.98313,0.98013,0.97663,0.97252,0.96772,0.96212,0.9556,0.94803,0.93926,0.92914,0.9175,0.90419,0.88902,0.87183,0.85249,0.83087,0.8069,0.78053,0.75179,0.72078,0.68767,0.65269,0.61616,0.57846,0.54,0.50122,0.46259,0.42454,0.38747],"sub_bead":[0.99966,0.9996,0.99953,0.99944,0.99934,0.99922,0.99908,0.99892,0.99872,0.99849,0.99822,0.99789,0.99751,0.99706,0.99653,0.99591,0.99517,0.9943,0.99328,0.99208,0.99066,0.98899,0.98703,0.98474,0.98204,0.97889,0.9752,0.9709,0.9659,0.96009,0.95335,0.94559,0.93665,0.92642,0.91476,0.90154,0.88663,0.86993,0.85135,0.83084,0.80836,0.78395,0.75765,0.72959,0.69991,0.66882,0.63655,0.60335,0.56952],"sub_vol":[0.9997,0.99964,0.99958,0.9995,0.99941,0.9993,0.99918,0.99903,0.99885,0.99864,0.9984,0.99811,0.99776,0.99736,0.99688,0.99632,0.99566,0.99487,0.99395,0.99287,0.99159,0.99009,0.98833,0.98627,0.98384,0.981,0.97769,0.97382,0.96931,0.96408,0.95802,0.95103,0.94298,0.93377,0.92327,0.91136,0.89792,0.88287,0.86612,0.84762,0.82734,0.8053,0.78154,0.75616,0.72931,0.70113,0.67185,0.64167,0.61086],"sub_rim":[0.99946,0.99936,0.99924,0.99911,0.99895,0.99876,0.99853,0.99826,0.99795,0.99758,0.99714,0.99662,0.99601,0.99529,0.99444,0.99344,0.99227,0.99088,0.98924,0.98732,0.98506,0.98241,0.9793,0.97565,0.97138,0.9664,0.9606,0.95384,0.94601,0.93696,0.92653,0.91457,0.9009,0.88537,0.86784,0.84816,0.82623,0.802,0.7757,0.74714,0.71641,0.68368,0.6492,0.61326,0.57634,0.5389,0.50115,0.46351,0.42638]},"20x|1":{"ih":[0.4581,0.4577,0.4566,0.4548,0.4521,0.4485,0.4437,0.4377,0.43,0.4204,0.4082,0.3929,0.3737,0.3499,0.3214,0.289,0.2544,0.2197,0.1871,0.1584,0.1342,0.1145,0.0986,0.0858,0.0753],"H0":0.14325,"Veff":0.531,"leff":3.708,"fz":1.5,"fzs":2.6,"fxy":0.398,"D00":0.9811,"ph":0.94,"w0":0.3239,"sub_sheet":[0.99947,0.99937,0.99925,0.99912,0.99896,0.99877,0.99855,0.99828,0.99797,0.99761,0.99717,0.99666,0.99606,0.99535,0.99451,0.99352,0.99236,0.99098,0.98937,0.98747,0.98524,0.98262,0.97954,0.97594,0.97173,0.96682,0.96109,0.95443,0.94671,0.93779,0.92751,0.91573,0.90228,0.88701,0.86978,0.85046,0.82894,0.80519,0.77917,0.75095,0.72064,0.68841,0.6545,0.61921,0.58289,0.54593,0.50872,0.47167,0.43515],"sub_bead":[0.99973,0.99968,0.99963,0.99956,0.99948,0.99938,0.99927,0.99914,0.99898,0.9988,0.99858,0.99832,0.99802,0.99766,0.99724,0.99674,0.99616,0.99546,0.99465,0.99369,0.99256,0.99123,0.98966,0.98783,0.98567,0.98315,0.98019,0.97674,0.97271,0.96803,0.96259,0.9563,0.94904,0.9407,0.93115,0.92028,0.90795,0.89406,0.87851,0.8612,0.84208,0.82111,0.7983,0.77369,0.74735,0.7194,0.68999,0.65931,0.62757],"sub_vol":[0.99977,0.99972,0.99968,0.99962,0.99955,0.99946,0.99937,0.99925,0.99912,0.99896,0.99877,0.99855,0.99828,0.99797,0.99761,0.99717,0.99666,0.99606,0.99535,0.99452,0.99354,0.99238,0.99103,0.98943,0.98756,0.98537,0.9828,0.9798,0.9763,0.97223,0.96751,0.96204,0.95574,0.94849,0.94018,0.93073,0.92,0.90791,0.89437,0.87929,0.86262,0.84432,0.8244,0.80288,0.77982,0.75531,0.72948,0.70246,0.67445],"sub_rim":[0.99953,0.99945,0.99935,0.99923,0.99909,0.99893,0.99874,0.99851,0.99824,0.99792,0.99754,0.9971,0.99657,0.99595,0.99522,0.99437,0.99337,0.9922,0.99081,0.98918,0.98726,0.98501,0.98236,0.97926,0.97563,0.97139,0.96643,0.96066,0.95396,0.94619,0.93723,0.92691,0.91509,0.90161,0.88632,0.86909,0.84979,0.82857,0.80519,0.77959,0.75182,0.72198,0.69055,0.65745,0.62292,0.58758,0.55149,0.51506,0.47878]},"20x|2":{"ih":[0.8837,0.8826,0.8792,0.8734,0.8652,0.8543,0.8404,0.8234,0.803,0.7789,0.7511,0.7198,0.6856,0.6494,0.6122,0.5745,0.5367,0.4986,0.4604,0.4222,0.3847,0.3488,0.3153,0.2849,0.2577],"H0":0.16454,"Veff":1.161,"leff":7.058,"fz":1.6,"fzs":5.3,"fxy":0.415,"D00":1.0,"ph":1.88,"w0":0.3239,"sub_sheet":[0.9995,0.99941,0.9993,0.99918,0.99903,0.99885,0.99864,0.9984,0.99811,0.99777,0.99736,0.99688,0.99632,0.99566,0.99487,0.99395,0.99286,0.99158,0.99007,0.9883,0.98622,0.98377,0.9809,0.97753,0.9736,0.969,0.96364,0.95741,0.95019,0.94184,0.93221,0.92117,0.90856,0.89422,0.87803,0.85985,0.83959,0.81718,0.7926,0.76589,0.73713,0.70647,0.67413,0.64038,0.60552,0.56991,0.5339,0.49788,0.46221],"sub_bead":[0.99981,0.99978,0.99974,0.99969,0.99964,0.99957,0.9995,0.9994,0.9993,0.99917,0.99902,0.99884,0.99863,0.99838,0.99809,0.99775,0.99734,0.99686,0.99629,0.99563,0.99484,0.99392,0.99283,0.99156,0.99006,0.9883,0.98623,0.98382,0.981,0.97772,0.97389,0.96945,0.96432,0.95839,0.95157,0.94377,0.93487,0.92477,0.91337,0.90058,0.8863,0.87046,0.85302,0.83393,0.81319,0.79081,0.76684,0.74133,0.7144],"sub_vol":[0.99986,0.99983,0.9998,0.99976,0.99972,0.99967,0.99961,0.99954,0.99945,0.99936,0.99924,0.9991,0.99894,0.99875,0.99852,0.99825,0.99794,0.99757,0.99713,0.99661,0.996,0.99529,0.99445,0.99346,0.99229,0.99093,0.98933,0.98746,0.98527,0.98272,0.97975,0.97631,0.97232,0.96771,0.96241,0.95634,0.94941,0.94154,0.93265,0.92266,0.91149,0.89908,0.88539,0.87038,0.85402,0.83631,0.81728,0.79694,0.77537],"sub_rim":[0.99962,0.99955,0.99947,0.99938,0.99927,0.99913,0.99898,0.99879,0.99857,0.99831,0.99801,0.99765,0.99722,0.99672,0.99613,0.99543,0.9946,0.99363,0.99249,0.99115,0.98956,0.9877,0.98552,0.98295,0.97995,0.9765,0.97248,0.96779,0.96232,0.95598,0.94864,0.94018,0.93045,0.91932,0.90665,0.89246,0.87658,0.85881,0.83906,0.81761,0.79414,0.76867,0.74163,0.71275,0.68261,0.65117,0.61871,0.58563,0.55205]},"20x|3":{"ih":[1.1141,1.1123,1.1072,1.0985,1.0864,1.0709,1.0519,1.0296,1.0044,0.9765,0.9466,0.9153,0.8831,0.8502,0.8169,0.7831,0.7489,0.7143,0.6794,0.6441,0.6086,0.5728,0.5371,0.502,0.4679],"H0":0.16458,"Veff":1.69,"leff":10.268,"fz":1.6,"fzs":8.1,"fxy":0.393,"D00":1.0,"ph":2.821,"w0":0.3239,"sub_sheet":[0.9995,0.99941,0.9993,0.99918,0.99903,0.99885,0.99864,0.9984,0.99811,0.99777,0.99736,0.99688,0.99632,0.99566,0.99488,0.99395,0.99287,0.99159,0.99008,0.98831,0.98622,0.98377,0.9809,0.97754,0.97361,0.96901,0.96366,0.95743,0.95021,0.94186,0.93224,0.9212,0.90859,0.89426,0.87807,0.8599,0.83964,0.81724,0.79267,0.76596,0.73721,0.70657,0.67424,0.64049,0.60564,0.57003,0.53404,0.49803,0.46236],"sub_bead":[0.99984,0.99982,0.99978,0.99974,0.9997,0.99964,0.99958,0.9995,0.99941,0.9993,0.99918,0.99903,0.99885,0.99865,0.9984,0.99811,0.99777,0.99737,0.9969,0.99634,0.99568,0.99491,0.994,0.99292,0.99167,0.99019,0.98846,0.98643,0.98407,0.9813,0.97808,0.97435,0.97002,0.96502,0.95926,0.95265,0.94511,0.93653,0.92683,0.9159,0.90367,0.89006,0.875,0.85845,0.84037,0.82075,0.79959,0.77693,0.7528],"sub_vol":[0.99989,0.99987,0.99985,0.99983,0.99979,0.99976,0.99971,0.99966,0.9996,0.99953,0.99944,0.99934,0.99922,0.99908,0.99891,0.99871,0.99848,0.99821,0.99789,0.9975,0.99706,0.99653,0.99591,0.99518,0.99432,0.99331,0.99213,0.99075,0.98913,0.98724,0.98504,0.98249,0.97952,0.9761,0.97215,0.96762,0.96243,0.95653,0.94984,0.94229,0.93382,0.92437,0.91388,0.90231,0.88962,0.87577,0.86076,0.84457,0.82722],"sub_rim":[0.99965,0.99959,0.99951,0.99943,0.99932,0.9992,0.99905,0.99888,0.99868,0.99844,0.99816,0.99782,0.99743,0.99697,0.99642,0.99577,0.99501,0.99411,0.99306,0.99181,0.99035,0.98863,0.98661,0.98423,0.98145,0.9782,0.97439,0.96995,0.96479,0.95879,0.95185,0.94394,0.93493,0.9246,0.91283,0.89948,0.8845,0.86797,0.84954,0.82929,0.80735,0.78344,0.758,0.73082,0.70239,0.67273,0.64203,0.61054,0.57854]},"20x|4":{"ih":[1.2319,1.2302,1.2249,1.2161,1.2041,1.189,1.1712,1.151,1.1289,1.1052,1.0802,1.0543,1.0275,1.0,0.9717,0.9427,0.9131,0.8829,0.8521,0.8209,0.7891,0.7569,0.7243,0.6913,0.6582],"H0":0.16456,"Veff":2.153,"leff":13.086,"fz":1.6,"fzs":10.8,"fxy":0.409,"D00":1.0,"ph":3.761,"w0":0.3239,"sub_sheet":[0.9995,0.99941,0.9993,0.99918,0.99903,0.99885,0.99864,0.9984,0.99811,0.99777,0.99736,0.99689,0.99632,0.99566,0.99488,0.99395,0.99287,0.99159,0.99008,0.98831,0.98622,0.98378,0.98091,0.97754,0.97361,0.96901,0.96366,0.95743,0.95021,0.94186,0.93224,0.9212,0.9086,0.89427,0.87808,0.85991,0.83966,0.81725,0.79269,0.76598,0.73723,0.70658,0.67426,0.64051,0.60566,0.57006,0.53406,0.49805,0.46238],"sub_bead":[0.99986,0.99983,0.9998,0.99976,0.99972,0.99967,0.99961,0.99954,0.99946,0.99936,0.99924,0.99911,0.99895,0.99876,0.99853,0.99827,0.99795,0.99758,0.99715,0.99663,0.99603,0.99532,0.99448,0.99349,0.99234,0.99098,0.98939,0.98752,0.98534,0.9828,0.97984,0.9764,0.97241,0.9678,0.96249,0.9564,0.94944,0.94152,0.93254,0.92244,0.91111,0.89849,0.88451,0.86912,0.85227,0.83395,0.81416,0.7929,0.7702],"sub_vol":[0.99991,0.9999,0.99988,0.99986,0.99983,0.9998,0.99977,0.99972,0.99968,0.99962,0.99955,0.99946,0.99937,0.99925,0.99912,0.99896,0.99877,0.99855,0.99829,0.99798,0.99762,0.99719,0.99668,0.99609,0.9954,0.99458,0.99362,0.9925,0.99119,0.98966,0.98787,0.9858,0.98339,0.9806,0.97739,0.97369,0.96946,0.96464,0.95917,0.95298,0.94603,0.93825,0.92959,0.92001,0.90947,0.89793,0.88535,0.87173,0.85705],"sub_rim":[0.99966,0.9996,0.99952,0.99944,0.99934,0.99921,0.99907,0.9989,0.99871,0.99847,0.99819,0.99787,0.99748,0.99703,0.99649,0.99586,0.99511,0.99423,0.9932,0.99198,0.99054,0.98886,0.98687,0.98455,0.98182,0.97863,0.9749,0.97055,0.96549,0.95972,0.95306,0.94538,0.93654,0.92641,0.91487,0.90179,0.88733,0.87111,0.85304,0.83344,0.81191,0.78872,0.76381,0.73741,0.70955,0.68055,0.65062,0.61993,0.58869]},"20xD|0.5":{"ih":[0.1259,0.1258,0.1256,0.1253,0.1248,0.1241,0.1232,0.122,0.1205,0.1186,0.116,0.1126,0.108,0.1016,0.0928,0.0812,0.0673,0.0535,0.0418,0.033,0.0265,0.0218,0.0183,0.0157,0.0136],"H0":0.05781,"Veff":0.138,"leff":2.396,"fz":1.1,"fzs":1.6,"fxy":0.301,"D00":0.629,"ph":0.441,"w0":0.3036,"sub_sheet":[0.99939,0.99928,0.99915,0.99899,0.99881,0.99859,0.99834,0.99804,0.99768,0.99726,0.99677,0.99618,0.99549,0.99468,0.99372,0.99259,0.99126,0.98969,0.98785,0.98568,0.98313,0.98014,0.97663,0.97253,0.96773,0.96213,0.95561,0.94804,0.93927,0.92916,0.91752,0.90421,0.88904,0.87186,0.85253,0.83091,0.80694,0.78057,0.75184,0.72084,0.68773,0.65275,0.61623,0.57852,0.54006,0.50129,0.46265,0.4246,0.38753],"sub_bead":[0.99967,0.99961,0.99954,0.99945,0.99936,0.99924,0.9991,0.99894,0.99874,0.99852,0.99825,0.99793,0.99756,0.99712,0.9966,0.99598,0.99526,0.99441,0.9934,0.99222,0.99083,0.98919,0.98727,0.98501,0.98236,0.97927,0.97565,0.97142,0.96651,0.9608,0.95419,0.94656,0.93778,0.92773,0.91627,0.90328,0.88863,0.87222,0.85396,0.83379,0.8117,0.78769,0.76183,0.73422,0.70502,0.67441,0.64262,0.60991,0.57655],"sub_vol":[0.9997,0.99964,0.99958,0.9995,0.99941,0.99931,0.99918,0.99903,0.99886,0.99865,0.9984,0.99812,0.99777,0.99737,0.9969,0.99634,0.99568,0.9949,0.99399,0.99291,0.99164,0.99015,0.9884,0.98634,0.98393,0.98111,0.97781,0.97396,0.96948,0.96427,0.95825,0.95129,0.94329,0.93413,0.92368,0.91183,0.89847,0.8835,0.86683,0.84843,0.82825,0.80632,0.78269,0.75744,0.73072,0.70269,0.67356,0.64354,0.61288],"sub_rim":[0.99946,0.99937,0.99925,0.99912,0.99896,0.99877,0.99854,0.99828,0.99797,0.9976,0.99717,0.99665,0.99605,0.99534,0.99449,0.9935,0.99234,0.99096,0.98934,0.98743,0.9852,0.98257,0.97948,0.97587,0.97164,0.96671,0.96095,0.95426,0.9465,0.93753,0.9272,0.91535,0.90181,0.88654,0.86935,0.85006,0.82855,0.80476,0.77866,0.75031,0.7198,0.6873,0.65305,0.61735,0.58074,0.54351,0.50593,0.46844,0.43142]},"20xD|1":{"ih":[0.363,0.3628,0.362,0.3607,0.3588,0.3563,0.3529,0.3486,0.343,0.336,0.327,0.3154,0.3004,0.2813,0.2574,0.2294,0.1989,0.1684,0.1402,0.1162,0.0968,0.0815,0.0695,0.06,0.0524],"H0":0.12586,"Veff":0.413,"leff":3.282,"fz":1.3,"fzs":2.3,"fxy":0.345,"D00":0.9811,"ph":0.881,"w0":0.3036,"sub_sheet":[0.99947,0.99937,0.99925,0.99912,0.99896,0.99877,0.99855,0.99828,0.99797,0.99761,0.99717,0.99666,0.99606,0.99535,0.99451,0.99352,0.99236,0.99099,0.98937,0.98747,0.98524,0.98262,0.97955,0.97595,0.97174,0.96683,0.9611,0.95444,0.94672,0.9378,0.92753,0.91575,0.90231,0.88704,0.86981,0.85049,0.82898,0.80523,0.77922,0.751,0.72069,0.68846,0.65455,0.61927,0.58296,0.546,0.50879,0.47173,0.43521],"sub_bead":[0.99974,0.99969,0.99963,0.99957,0.99949,0.9994,0.99929,0.99916,0.99901,0.99883,0.99861,0.99836,0.99807,0.99772,0.99731,0.99682,0.99625,0.99557,0.99478,0.99384,0.99273,0.99144,0.98991,0.98811,0.98601,0.98355,0.98066,0.97729,0.97336,0.96878,0.96347,0.95733,0.95024,0.94209,0.93277,0.92214,0.9101,0.89653,0.88132,0.86441,0.84571,0.82521,0.80289,0.77881,0.75302,0.72564,0.69682,0.66673,0.63558],"sub_vol":[0.99977,0.99973,0.99968,0.99962,0.99955,0.99947,0.99937,0.99926,0.99912,0.99896,0.99878,0.99856,0.99829,0.99799,0.99762,0.99719,0.99669,0.99609,0.99539,0.99456,0.99358,0.99244,0.99109,0.98951,0.98765,0.98547,0.98292,0.97994,0.97647,0.97243,0.96774,0.96231,0.95605,0.94885,0.9406,0.93121,0.92056,0.90856,0.8951,0.88013,0.86357,0.8454,0.82562,0.80424,0.78134,0.757,0.73134,0.7045,0.67668],"sub_rim":[0.99955,0.99947,0.99937,0.99926,0.99912,0.99896,0.99877,0.99855,0.99829,0.99798,0.99761,0.99718,0.99667,0.99607,0.99536,0.99452,0.99354,0.99238,0.99101,0.9894,0.98751,0.98529,0.98268,0.97962,0.97603,0.97185,0.96696,0.96126,0.95465,0.94699,0.93814,0.92797,0.9163,0.90301,0.88793,0.87093,0.85188,0.83086,0.8078,0.78254,0.75513,0.72566,0.69443,0.66172,0.62757,0.59229,0.55653,0.52034,0.48409]},"20xD|2":{"ih":[0.7161,0.7153,0.7127,0.7085,0.7023,0.6941,0.6835,0.6705,0.6545,0.6353,0.6126,0.5863,0.5568,0.5249,0.4916,0.4579,0.424,0.39,0.3559,0.322,0.2891,0.2584,0.2306,0.2061,0.1847],"H0":0.14458,"Veff":0.908,"leff":6.282,"fz":1.4,"fzs":4.6,"fxy":0.358,"D00":1.0,"ph":1.763,"w0":0.3036,"sub_sheet":[0.9995,0.99941,0.9993,0.99918,0.99903,0.99885,0.99864,0.9984,0.99811,0.99777,0.99736,0.99688,0.99632,0.99566,0.99488,0.99395,0.99287,0.99159,0.99008,0.9883,0.98622,0.98377,0.9809,0.97754,0.9736,0.96901,0.96365,0.95743,0.9502,0.94185,0.93223,0.92119,0.90858,0.89425,0.87806,0.85989,0.83963,0.81722,0.79265,0.76594,0.73718,0.70653,0.67419,0.64044,0.60558,0.56997,0.53397,0.49795,0.46227],"sub_bead":[0.99982,0.99979,0.99975,0.99971,0.99965,0.99959,0.99952,0.99943,0.99933,0.9992,0.99906,0.99889,0.99869,0.99845,0.99817,0.99784,0.99745,0.99699,0.99645,0.99581,0.99506,0.99417,0.99313,0.99191,0.99047,0.98878,0.98681,0.98449,0.98179,0.97864,0.97498,0.97072,0.96579,0.96011,0.95357,0.94608,0.93754,0.92785,0.9169,0.90461,0.89088,0.87566,0.85888,0.8405,0.82052,0.79893,0.77579,0.75114,0.72507],"sub_vol":[0.99986,0.99983,0.9998,0.99977,0.99972,0.99967,0.99961,0.99954,0.99946,0.99936,0.99925,0.99911,0.99895,0.99876,0.99854,0.99828,0.99796,0.9976,0.99716,0.99665,0.99605,0.99535,0.99452,0.99354,0.99239,0.99104,0.98946,0.98761,0.98545,0.98294,0.98,0.9766,0.97266,0.96811,0.96288,0.95688,0.95004,0.94226,0.93348,0.92361,0.91258,0.90032,0.8868,0.87196,0.8558,0.83831,0.8195,0.79941,0.7781],"sub_rim":[0.99963,0.99957,0.99949,0.99939,0.99928,0.99916,0.999,0.99882,0.99861,0.99836,0.99806,0.99771,0.99729,0.9968,0.99623,0.99555,0.99474,0.9938,0.99268,0.99137,0.98983,0.98802,0.98589,0.98339,0.98047,0.97706,0.97314,0.96857,0.96325,0.95707,0.94993,0.94168,0.93221,0.92136,0.90901,0.89502,0.87953,0.86221,0.84294,0.82168,0.7986,0.77372,0.74691,0.71869,0.68885,0.65794,0.62588,0.59309,0.55979]},"20xD|3":{"ih":[0.9248,0.9235,0.9193,0.9123,0.9024,0.8895,0.8735,0.8546,0.8326,0.8079,0.7809,0.7521,0.7224,0.692,0.6613,0.6303,0.5989,0.5673,0.5355,0.5034,0.4711,0.4388,0.407,0.3762,0.347],"H0":0.1446,"Veff":1.33,"leff":9.198,"fz":1.4,"fzs":7.1,"fxy":0.372,"D00":1.0,"ph":2.644,"w0":0.3036,"sub_sheet":[0.9995,0.99941,0.9993,0.99918,0.99903,0.99885,0.99864,0.9984,0.99811,0.99777,0.99736,0.99689,0.99632,0.99566,0.99488,0.99396,0.99287,0.99159,0.99008,0.98831,0.98623,0.98378,0.98091,0.97755,0.97361,0.96902,0.96367,0.95744,0.95022,0.94187,0.93225,0.92122,0.90861,0.89429,0.8781,0.85993,0.83968,0.81728,0.79272,0.76602,0.73727,0.70663,0.6743,0.64055,0.60571,0.5701,0.53411,0.4981,0.46243],"sub_bead":[0.99985,0.99983,0.9998,0.99976,0.99972,0.99966,0.9996,0.99953,0.99945,0.99935,0.99923,0.99909,0.99892,0.99873,0.9985,0.99823,0.99791,0.99753,0.99709,0.99656,0.99594,0.99522,0.99436,0.99335,0.99217,0.99079,0.98916,0.98726,0.98503,0.98243,0.97941,0.9759,0.97182,0.96712,0.9617,0.95549,0.94839,0.94031,0.93116,0.92086,0.90932,0.89647,0.88224,0.86658,0.84945,0.83084,0.81074,0.78917,0.76616],"sub_vol":[0.9999,0.99988,0.99986,0.99983,0.9998,0.99976,0.99972,0.99967,0.99961,0.99953,0.99945,0.99935,0.99923,0.99909,0.99893,0.99874,0.99851,0.99824,0.99792,0.99755,0.99711,0.99659,0.99598,0.99527,0.99442,0.99344,0.99228,0.99092,0.98933,0.98748,0.98532,0.98281,0.9799,0.97654,0.97267,0.96822,0.96313,0.95734,0.95077,0.94336,0.93504,0.92576,0.91547,0.9041,0.89164,0.87805,0.8633,0.84741,0.83036],"sub_rim":[0.99966,0.9996,0.99953,0.99945,0.99935,0.99923,0.99909,0.99892,0.99873,0.9985,0.99822,0.9979,0.99752,0.99707,0.99655,0.99592,0.99519,0.99432,0.9933,0.9921,0.99069,0.98903,0.98708,0.98479,0.98211,0.97897,0.9753,0.97102,0.96603,0.96025,0.95355,0.94589,0.93719,0.92723,0.91587,0.90298,0.88844,0.87222,0.85443,0.83474,0.81313,0.78999,0.76501,0.73866,0.71076,0.68171,0.65163,0.62064,0.58908]},"20xD|4":{"ih":[1.0447,1.043,1.0382,1.0302,1.0191,1.005,0.9881,0.9688,0.9473,0.9242,0.8999,0.8746,0.8487,0.8222,0.7951,0.7676,0.7396,0.7111,0.6822,0.653,0.6234,0.5935,0.5633,0.533,0.5029],"H0":0.14458,"Veff":1.707,"leff":11.803,"fz":1.4,"fzs":9.5,"fxy":0.385,"D00":1.0,"ph":3.526,"w0":0.3036,"sub_sheet":[0.9995,0.99941,0.9993,0.99918,0.99903,0.99885,0.99864,0.9984,0.99811,0.99777,0.99736,0.99689,0.99632,0.99566,0.99488,0.99396,0.99287,0.99159,0.99008,0.98831,0.98623,0.98378,0.98091,0.97755,0.97362,0.96902,0.96367,0.95745,0.95023,0.94188,0.93226,0.92123,0.90862,0.8943,0.87811,0.85995,0.8397,0.8173,0.79274,0.76603,0.73729,0.70665,0.67432,0.64058,0.60573,0.57013,0.53413,0.49812,0.46245],"sub_bead":[0.99987,0.99984,0.99982,0.99978,0.99974,0.9997,0.99964,0.99958,0.9995,0.99941,0.9993,0.99918,0.99903,0.99885,0.99864,0.9984,0.99811,0.99777,0.99737,0.99689,0.99634,0.99568,0.99491,0.994,0.99293,0.99168,0.99021,0.98849,0.98648,0.98413,0.98139,0.97821,0.97453,0.97027,0.96536,0.95973,0.95328,0.94595,0.93764,0.92826,0.91775,0.90603,0.89302,0.87869,0.86298,0.84586,0.82732,0.80737,0.78601],"sub_vol":[0.99992,0.9999,0.99988,0.99986,0.99984,0.99981,0.99977,0.99973,0.99968,0.99963,0.99956,0.99948,0.99938,0.99927,0.99914,0.99898,0.9988,0.99859,0.99833,0.99803,0.99768,0.99726,0.99677,0.99619,0.99551,0.99472,0.99378,0.99269,0.99141,0.98992,0.98817,0.98615,0.9838,0.98108,0.97795,0.97435,0.97022,0.96552,0.96018,0.95415,0.94737,0.93978,0.93134,0.92199,0.91171,0.90044,0.88818,0.87488,0.86055],"sub_rim":[0.99967,0.99961,0.99954,0.99946,0.99936,0.99925,0.99911,0.99895,0.99876,0.99853,0.99827,0.99796,0.99759,0.99715,0.99664,0.99603,0.99531,0.99447,0.99348,0.99231,0.99093,0.98931,0.98741,0.98518,0.98257,0.97951,0.97593,0.97176,0.96691,0.96133,0.95496,0.94759,0.93912,0.92941,0.91834,0.90578,0.89182,0.87625,0.8589,0.8397,0.81897,0.79641,0.77226,0.74655,0.7196,0.69136,0.66211,0.6321,0.60146]}}};
+
+
+const H_PL = 6.62607015e-34, C_L = 2.99792458e8, NAV = 6.02214076e23, R_UM = 4.0, LAM_EX = 0.561e-6;
+const EHV = H_PL * C_L / LAM_EX;                     // J per 561 nm photon
+const OBJS = {
+  '20xD': { key: '20xD', name: '20x/0.80', M: 20, NA: 0.80 },
+  '20x':  { key: '20x',  name: '20x/0.75', M: 20, NA: 0.75 },
+  '10x':  { key: '10x',  name: '10x/0.45', M: 10, NA: 0.45 },
+};
+/* Two constant sets: the image simulator's (confocal-engine.js: optics.py's ε and detection chain, τ = 2.7 ns from report
+   §B.4.1) and the report's photon budget (§B.4, budget.py). Same τ; ε differs by 3 %, the detection chain by ≈25 %. */
+const CONSTS = {
+  sim:    { label: 'Simulator', eps: 1.96e6, tau: 2.7e-9, Q: 0.82, chain: 0.40 * 0.40, chainTxt: 'collection × 0.40 optics/filters × 0.40 GaAsP QE' },
+  report: { label: 'Report budget', eps: 1.9e6, tau: 2.7e-9, Q: 0.82, chain: 0.85 * 0.55 * 0.8 * 0.8 * 0.42, chainTxt: 'collection × 0.85 × 0.55 × 0.8 × 0.8 × 0.42' },
+};
+const DET = { ENF: 1.3, readDN: 3, gainDN: 20, flyback: 1.10, wellArea: 32 /* mm² of a 96-well bottom */ };
+const PHI_D = { none: 1.1e-5, npg: 6.5e-6 };        // R-PE photodestruction yield, without / with n-propyl gallate [S3]
+
+const MODEL = {
+  cfg(obj, AU) { return PSF.cfg[obj + '|' + AU]; },
+  sigma(cs) { return 3.82e-21 * cs.eps * 1e-4; },                      // m² (ln10·1000/N_A × ε)
+  coll(NA) { const s = Math.min(NA / 1.33, 1); return 0.5 * (1 - Math.sqrt(1 - s * s)); },
+  eta(obj, cs) { return MODEL.coll(OBJS[obj].NA) * cs.chain; },
+  /** Peak irradiance (photons m⁻² s⁻¹), excitation rate and k0 = k_ex·τ for P µW at the sample. */
+  excite(obj, AU, P, cs) {
+    const w0 = MODEL.cfg(obj, AU).w0 * 1e-6, I0 = 2 * P * 1e-6 / (Math.PI * w0 * w0), flux = I0 / EHV, kex = MODEL.sigma(cs) * flux;
+    return { I0, flux, kex, k0: kex * cs.tau, kemLin: cs.Q * kex };
+  },
+  /** µW at which k0 = 1 for this objective. */
+  pSat(obj, AU, cs) { return 1 / MODEL.excite(obj, AU, 1, cs).k0; },
+  interpSub(arr, k) {
+    const K = PSF.k0; if (k <= K[0]) return 1 - (1 - arr[0]) * k / K[0];
+    if (k >= K[K.length - 1]) return arr[arr.length - 1];
+    let i = 1; while (K[i] < k) i++;
+    const t = (Math.log(k) - Math.log(K[i - 1])) / (Math.log(K[i]) - Math.log(K[i - 1])); return arr[i - 1] + t * (arr[i] - arr[i - 1]);
+  },
+  /** Report §B.4.2: a Gaussian beam with a Gaussian detection weight s_d = 1.4 s (β ≈ 0.6) — the report's estimate. */
+  subReport(k, ratio = 1.4) { const m = 1 / (ratio * ratio), N = 400; let a = 0, b = 0; for (let i = 0; i <= N; i++) { const u = i / N, w = (i === 0 || i === N) ? 1 : (i % 2 ? 4 : 2), f = Math.pow(u, m); a += w * f / (1 + k * u); b += w * f; } return a / b; },
+  /** How sublinear is each metric at k0: the report's Gaussian estimate, and exact (repo PSF) for an in-focus sheet, the rim
+      peak, the integrated F (the metric we quantify with) and the free buffer; optics.py's shortcut was 1/(1 + k0). */
+  sub(obj, AU, k0) { const c = MODEL.cfg(obj, AU); return { report: MODEL.subReport(k0), sheet: MODEL.interpSub(c.sub_sheet, k0), rim: MODEL.interpSub(c.sub_rim, k0), bead: MODEL.interpSub(c.sub_bead, k0), vol: MODEL.interpSub(c.sub_vol, k0), peakRate: 1 / (1 + k0) }; },
+  /** k0 (and µW) where a curve reaches 5 % sublinearity. */
+  k5(fn) { let lo = 1e-4, hi = 5; for (let i = 0; i < 60; i++) { const m = Math.sqrt(lo * hi); if (fn(m) > 0.95) lo = m; else hi = m; } return Math.sqrt(lo * hi); },
+  p5(obj, AU, cs) { const ps = MODEL.pSat(obj, AU, cs), c = MODEL.cfg(obj, AU);
+    return { report: ps * MODEL.k5(k => MODEL.subReport(k)), sheet: ps * MODEL.k5(k => MODEL.interpSub(c.sub_sheet, k)), rim: ps * MODEL.k5(k => MODEL.interpSub(c.sub_rim, k)), bead: ps * MODEL.k5(k => MODEL.interpSub(c.sub_bead, k)), pSat: ps }; },
+  /** AX R scan geometry (§B.6.1): square field side 25/(√2·M) mm at zoom 1; pixel = 17.7 mm/(M·zoom·N). */
+  fieldMM(obj, zoom) { return 25 / (Math.SQRT2 * OBJS[obj].M) / zoom; },
+  pixelUM(obj, N, zoom) { return 25000 / Math.SQRT2 / (OBJS[obj].M * zoom * N); },
+  frameS(N, dwell) { return N * N * dwell * 1e-6 * DET.flyback; },
+  /** Mask pixels within R + 2.5 µm of a bead centred on a pixel (lod.py's mask). */
+  maskPx(p) { const r = 6.5 / p, n = Math.ceil(r) + 1; let c = 0; for (let y = -n; y <= n; y++) for (let x = -n; x <= n; x++) if (x * x + y * y <= r * r + 1e-9) c++; return c; },
+  /** The photon budget of one bead (optics.integrated_analytic and report_calcs/lod.py, with exact saturation: the bead's
+      F and the buffer's background each scaled by their own sublinearity at k0, instead of the beam-peak rate for all).
+      Returns photoelectrons per frame per PE, per (PE/µm²), the blank-bead SD in PE, solution background per pixel, … */
+  budget(o) {
+    const cs = CONSTS[o.consts], c = MODEL.cfg(o.obj, o.AU), ex = MODEL.excite(o.obj, o.AU, o.P, cs), eta = MODEL.eta(o.obj, cs);
+    const p = o.px, dw = o.dwell * 1e-6, area = 4 * Math.PI * R_UM * R_UM, ihz = MODEL.ihAt(c, o.z0 || 0);
+    const sat = o.peakRate ? 1 / (1 + ex.k0) : MODEL.interpSub(c.sub_bead, ex.k0), satV = o.peakRate ? 1 / (1 + ex.k0) : MODEL.interpSub(c.sub_vol, ex.k0);
+    const slope = 2 * Math.PI * R_UM * ihz * sat / (p * p) * ex.kemLin * eta * dw;    // photoelectrons per frame per (PE/µm²)
+    const perPE = slope / area;
+    const npx = MODEL.maskPx(p), readVar = Math.pow(DET.readDN / DET.gainDN, 2);
+    const bgPx = (o.freeNM || 0) * 0.6022 * c.Veff * satV * ex.kemLin * eta * dw;      // photoelectrons per pixel from free PE-antibody
+    const blankVar = DET.ENF * npx * bgPx + npx * readVar;                                  // photoelectrons²
+    const sdBlankPE = Math.sqrt(blankVar) / perPE;                                         // in PE per bead
+    return { cs, c, ex, eta, slope, perPE, npx, bgPx, blankVar, sdBlankPE, lodBead: 3 * sdBlankPE, area };
+  },
+  ihAt(c, z0) { const Z = PSF.z0, a = Math.abs(z0); if (a >= Z[Z.length - 1]) return c.ih[c.ih.length - 1]; let i = 1; while (Z[i] < a) i++; const t = (a - Z[i - 1]) / (Z[i] - Z[i - 1]); return c.ih[i - 1] + t * (c.ih[i] - c.ih[i - 1]); },
+  /** Per-bead and per-well precision for N_PE per bead (report §B.4.5, §D.1 item 7). */
+  precision(b, o) {
+    const S = o.nPE * b.perPE, shot = Math.sqrt(DET.ENF * S + b.blankVar) / Math.max(S, 1e-12);
+    const count = 1 / Math.sqrt(Math.max(o.nPE, 1e-12)), beadCV = o.beadCV;
+    const perBead = Math.sqrt(shot * shot + count * count + beadCV * beadCV);
+    const eff = o.median ? Math.sqrt(Math.PI / 2) : 1;
+    const sampling = eff * perBead / Math.sqrt(o.nBeads);                             // what the bead count controls
+    const perWell = Math.sqrt(sampling * sampling + o.wellCV * o.wellCV);              // plus pipetting, timing, bead number
+    const perCond = perWell / Math.sqrt(o.nWells);
+    const needN = Math.ceil(Math.pow(eff * perBead / o.target, 2));
+    return { S, shot, count, beadCV, perBead, sampling, perWell, perCond, needN, eff };
+  },
+  /** Per-well LOD (PE per bead) with non-specific binding (report §B.4.5): 3·sqrt(SD_bead²/n + (c_well·N_SD)²). */
+  lodWell(b, o) {
+    const nsb = o.nsb ? o.nsbMean : 0, sdBead2 = b.sdBlankPE * b.sdBlankPE + nsb + Math.pow(o.beadCV * nsb, 2);
+    const eff2 = o.median ? Math.PI / 2 : 1;
+    return 3 * Math.sqrt(eff2 * sdBead2 / o.nBeads + Math.pow((o.nsb ? o.nsbWellCV : 0) * nsb, 2));
+  },
+  /** Bleaching (§B.5.1): absorptions per PE per frame and the fraction lost. In-focus PE absorb a factor ln(1+k0)/k0 less. */
+  bleach(o) {
+    const cs = CONSTS[o.consts], ex = MODEL.excite(o.obj, o.AU, o.P, cs), p = o.px * 1e-6;
+    const Df = MODEL.sigma(cs) * o.P * 1e-6 * o.dwell * 1e-6 * (o.navg || 1) / (p * p) / EHV;
+    const fsat = ex.k0 > 1e-9 ? Math.log(1 + ex.k0) / ex.k0 : 1, phi = PHI_D[o.antifade ? 'npg' : 'none'];
+    const lostOut = 1 - Math.exp(-phi * Df), lostIn = 1 - Math.exp(-phi * Df * fsat);
+    return { Df, fsat, phi, lostOut, lostIn, frames1: Math.log(1 / 0.99) / (phi * Df), k0: ex.k0 };
+  },
+  /** Detected photons per PE before it bleaches (report §B.4.5): η·Q·(2πR∫H dz)/(4πR²·πw0²/2) per absorption, ÷ φ_d. */
+  lifetimePhotons(obj, AU, cs, phi) { const c = MODEL.cfg(obj, AU), w0 = c.w0, eta = MODEL.eta(obj, cs);
+    const perAbs = eta * cs.Q * 2 * Math.PI * R_UM * c.ih[0] / (4 * Math.PI * R_UM * R_UM * Math.PI * w0 * w0 / 2); return { perAbs, life: perAbs / phi }; },
+  /** Stokes settling of a bead of diameter d (µm) and density difference drho (g/mL) through h (mm). */
+  settle(d, drho, h, rcf, visc = 1.0) { const v = 2 / 9 * drho * 1000 * 9.81 * Math.pow(d / 2 * 1e-6, 2) / (visc * 1e-3) * 1e6; return { v, gravS: h * 1000 / v, spinS: h * 1000 / (v * rcf) }; },
+  /** The plate schedule: per-well time, and each well's time from its wash to its image. Wells are read column by column, A→H. */
+  plate(o) {
+    const frame = MODEL.frameS(o.N, o.dwell), tWell = o.fields * (frame + o.overhead), out = [];
+    const settle = o.settleS, first = settle + o.loadS;
+    for (let col = 0; col < 12; col++) for (let row = 0; row < 8; row++) {
+      const k = col * 8 + row; let delay;
+      if (o.mode === 'single') delay = first + k * tWell;
+      else if (o.mode === 'stagger') delay = Math.max(o.delayS, first) + row * tWell;
+      else delay = first + k * tWell;                                               // no wash: time since the beads went in, signal does not decay
+      const rem = o.mode === 'nowash' ? 1 : Math.exp(-o.lambda * delay);
+      out.push({ row, col, k, delay, rem, imagedAt: o.mode === 'stagger' ? (Math.max(o.delayS, first) + k * tWell) : delay });
+    }
+    const rems = out.map(w => w.rem), dl = out.map(w => w.delay);
+    const total = o.mode === 'stagger' ? Math.max(o.delayS, first) + 96 * tWell : first + 96 * tWell;
+    const maxD = Math.max(...dl), minD = Math.min(...dl);
+    return { frame, tWell, wells: out, total, minRem: Math.min(...rems), maxRem: Math.max(...rems), spread: 1 - Math.min(...rems) / Math.max(...rems),
+      tol2: -Math.log(0.98) / o.lambda, maxDelay: maxD, minDelay: minD, residual: Math.exp(o.lambdaErr * o.lambda * (maxD - minD)) - 1, lamDtMax: o.lambda * maxD, first };
+  },
+};
+/* ======================= MODEL-END ======================= */
+
+/* ======================= UI ======================= */
+const { h } = K;
+const S = {                                                                         // the page state (one place)
+  consts: 'sim', obj: '20xD', AU: 1, P: 2, dwell: 2, N: 2048, zoom: 1,
+  // plate
+  lambda: 8.6e-4, lambdaErr: 0.1, overhead: 4, fields: 1, mode: 'stagger', delayMin: 5, loadS: 60, settleBy: 'spin', material: 'ps', volUL: 50, rcf: 200,
+  // precision
+  nPE: 500, beadCV: 0.10, nBeads: 100, nWells: 2, wellCV: 0.05, median: true, target: 0.03, freeNM: 0, nsb: false, nsbMean: 1000, nsbWellCV: 0.10, pePerPM: 500,
+  // modes
+  modePower: 'report5', beadsPerWell: 1e4, modePE: 1000,
+  // power
+  antifade: false, navg: 1,
+};
+const MATERIAL = { ps: ['Polystyrene', 1.05], pmma: ['PMMA', 1.19], mag: ['Magnetic composite', 1.5], silica: ['Silica', 2.0] };
+const redraw = K.scheduler(render);
+const ctl = {};
+const aside = document.getElementById('aside'), main = document.getElementById('main');
+
+function panel(title, ...kids) { return h('div.panel', h('h2', title), ...kids); }
+function add(key, c) { ctl[key] = c; return c.el; }
+const set = k => v => { S[k] = v; redraw(); };
+
+/* ---- the recommended strategy (report Part D) ---- */
+function recommend() {
+  Object.assign(S, { consts: 'sim', obj: '20xD', AU: 1, P: 2, dwell: 2, N: 2048, zoom: 1, overhead: 4, fields: 1, loadS: 60, settleBy: 'spin', rcf: 200,
+    nBeads: 100, nWells: 2, median: true, freeNM: 0, antifade: false, navg: 1 });
+  S.mode = S.lambda > 1e-3 ? 'nowash' : S.lambda > 2e-4 ? 'stagger' : 'single';
+  S.delayMin = 5;
+  for (const [k, c] of Object.entries(ctl)) if (k in S) c.set(S[k], true);
+  redraw();
+}
+
+/* ---- controls ---- */
+const P_IMG = panel('Imaging settings',
+  add('obj', K.seg({ label: 'Objective', value: S.obj, options: [['20xD', '20x/0.80', 'Plan Apo λD 20x'], ['20x', '20x/0.75', 'Plan Apo λ 20x'], ['10x', '10x/0.45', 'Plan Apo λ 10x']], onInput: set('obj') })),
+  add('AU', K.seg({ label: 'Pinhole (Airy units)', value: S.AU, options: [[0.5, '0.5'], [1, '1'], [2, '2'], [3, '3'], [4, '4']], onInput: set('AU') })),
+  add('P', K.slider({ label: 'Laser at the sample', min: 0.2, max: 30, value: S.P, log: true, unit: 'µW', hint: 'Measured with a slide power meter (Exp 1), never % laser.', onInput: set('P') })),
+  add('dwell', K.seg({ label: 'Pixel dwell (galvano)', value: S.dwell, options: [[0.5, '0.5 µs'], [1, '1 µs'], [2, '2 µs'], [4, '4 µs']], onInput: set('dwell') })),
+  add('N', K.seg({ label: 'Frame', value: S.N, options: [[1024, '1024²'], [2048, '2048²'], [4096, '4096²']], onInput: set('N') })),
+  add('zoom', K.slider({ label: 'Zoom', min: 1, max: 4, step: 0.02, value: S.zoom, fmt: v => v.toFixed(2), onInput: set('zoom') })),
+  h('div.ctl-hint', { id: 'pxline' }));
+const P_PLATE = panel('Plate and wash',
+  add('lambda', K.slider({ label: 'Post-wash decay Λ = k₋₂ + k₋₃', min: 1e-5, max: 3e-3, value: S.lambda, log: true, unit: 's⁻¹', hint: 'Unmeasured until Exp 11. 8.6×10⁻⁴ is the biosensor value; 10⁻⁴ the bead fit [S1].', onInput: set('lambda') })),
+  add('mode', K.seg({ label: 'Wash and read', value: S.mode, options: [['single', 'One wash', 'Wash the whole plate, then read it'], ['stagger', 'Staggered', 'Wash one column at a time, read each at a fixed delay'], ['nowash', 'No wash', 'Read without washing']], onInput: set('mode') })),
+  add('delayMin', K.slider({ label: 'Delay from a column’s wash to its read', min: 1, max: 20, step: 0.5, value: S.delayMin, unit: 'min', onInput: set('delayMin') })),
+  add('overhead', K.slider({ label: 'Stage move + focus per field', min: 1, max: 10, step: 0.5, value: S.overhead, unit: 's', hint: 'Assumption 3–5 s (Perfect Focus).', onInput: set('overhead') })),
+  add('fields', K.seg({ label: 'Fields per well', value: S.fields, options: [[1, '1'], [2, '2'], [4, '4']], onInput: set('fields') })),
+  add('lambdaErr', K.slider({ label: 'Λ known to ±', min: 0.02, max: 0.5, step: 0.01, value: S.lambdaErr, fmt: v => Math.round(v * 100) + '%', hint: 'Sets the error left after a e^(ΛΔt) correction.', onInput: set('lambdaErr') })),
+  h('h3', 'Settling'),
+  add('material', K.seg({ label: 'Bead material (open question 1)', value: S.material, options: Object.entries(MATERIAL).map(([k, [n, r]]) => [k, n.split(' ')[0], n + ', ' + r + ' g/mL']), onInput: set('material') })),
+  add('settleBy', K.seg({ label: 'Settle by', value: S.settleBy, options: [['spin', 'Plate spin'], ['gravity', 'Gravity']], onInput: set('settleBy') })),
+  add('rcf', K.seg({ label: 'Plate spin', value: S.rcf, options: [[100, '100 g'], [200, '200 g'], [300, '300 g']], onInput: set('rcf') })),
+  add('volUL', K.slider({ label: 'Volume per well', min: 20, max: 200, step: 5, value: S.volUL, unit: 'µL', onInput: set('volUL') })),
+  add('loadS', K.slider({ label: 'Load and focus before the first image', min: 0, max: 300, step: 10, value: S.loadS, unit: 's', onInput: set('loadS') })));
+const P_PREC = panel('Beads, wells and background',
+  add('nPE', K.slider({ label: 'Signal: PE per bead', min: 10, max: 1e6, value: S.nPE, log: true, fmt: K.group, hint: '≈500 per pM at 1 h in the reference case.', onInput: set('nPE') })),
+  add('nBeads', K.slider({ label: 'Beads analysed per well', min: 10, max: 2000, value: S.nBeads, log: true, fmt: K.group, onInput: set('nBeads') })),
+  add('nWells', K.seg({ label: 'Wells per condition', value: S.nWells, options: [[1, '1'], [2, '2'], [3, '3'], [4, '4']], onInput: set('nWells') })),
+  add('beadCV', K.slider({ label: 'Bead-to-bead CV (biology, size)', min: 0, max: 0.4, step: 0.01, value: S.beadCV, fmt: v => Math.round(v * 100) + '%', hint: 'Assumption; Exp 13 measures it.', onInput: set('beadCV') })),
+  add('wellCV', K.slider({ label: 'Well-to-well CV (pipetting, timing)', min: 0, max: 0.2, step: 0.005, value: S.wellCV, fmt: v => (v * 100).toFixed(1) + '%', onInput: set('wellCV') })),
+  add('target', K.slider({ label: 'Target CV from bead sampling', min: 0.005, max: 0.2, step: 0.005, value: S.target, fmt: v => (v * 100).toFixed(1) + '%', hint: 'The part of a well’s CV that more beads can buy down.', onInput: set('target') })),
+  add('median', K.check({ label: 'Per-well median (robust; costs √(π/2) in SE)', value: S.median, onInput: set('median') })),
+  add('freeNM', K.seg({ label: 'Free PE-antibody in the imaging buffer', value: S.freeNM, options: [[0, 'Washed'], [0.1, '0.1 nM'], [1, '1 nM'], [10, '10 nM']], onInput: set('freeNM') })),
+  add('nsb', K.check({ label: 'Include non-specific binding', value: S.nsb, hint: 'Unmeasured (Exp 9). Report example: 1,000 PE per bead, 10% between wells.', onInput: set('nsb') })),
+  add('nsbMean', K.slider({ label: 'NSB: mean PE per blank bead', min: 10, max: 2e4, value: S.nsbMean, log: true, fmt: K.group, onInput: set('nsbMean') })),
+  add('nsbWellCV', K.slider({ label: 'NSB: well-to-well CV', min: 0, max: 0.4, step: 0.01, value: S.nsbWellCV, fmt: v => Math.round(v * 100) + '%', onInput: set('nsbWellCV') })),
+  add('pePerPM', K.slider({ label: 'Calibration slope', min: 10, max: 5000, value: S.pePerPM, log: true, unit: 'PE per bead per pM', fmt: K.group, onInput: set('pePerPM') })));
+const P_MODES = panel('Compare modes',
+  add('modePower', K.seg({ label: 'Laser in each mode', value: S.modePower, options: [['fixed', '2 µW', 'The same 2 µW in every mode'], ['report5', '5% (report)', 'Each mode at the report’s Gaussian 5%-sublinear estimate (conservative)'], ['bead5', '5% (exact F)', 'Each mode where its integrated F is exactly 5% below linear (repo PSF)']], onInput: set('modePower') })),
+  add('beadsPerWell', K.slider({ label: 'Beads per well (settled on ≈32 mm²)', min: 1e3, max: 1e5, value: S.beadsPerWell, log: true, fmt: K.group, onInput: set('beadsPerWell') })),
+  add('modePE', K.slider({ label: 'PE per bead (for photon counts)', min: 10, max: 1e6, value: S.modePE, log: true, fmt: K.group, onInput: set('modePE') })),
+  h('div.ctl-hint', 'Every mode is read at 2048² and zoom 1 with the dwell set in Imaging settings.'));
+const P_POWER = panel('Bleaching',
+  add('antifade', K.check({ label: 'n-Propyl gallate (φ_d 6.5×10⁻⁶ instead of 1.1×10⁻⁵, [S3])', value: S.antifade, onInput: set('antifade') })),
+  add('navg', K.seg({ label: 'Frames averaged per field', value: S.navg, options: [[1, '1'], [2, '2'], [4, '4'], [8, '8']], onInput: set('navg') })));
+const P_CONST = panel('Model constants',
+  add('consts', K.seg({ label: 'PE and detection constants', value: S.consts, options: [['sim', 'Image simulator'], ['report', 'Report budget']], onInput: set('consts') })),
+  h('div.ctl-hint', { id: 'constline' }));
+const recBtn = h('div.rec', h('button.btn.pri', { on: { click: recommend }, title: 'Set the report’s default strategy (Part D)' }, 'Recommended'), h('span.tiny.muted', '20x/0.80 · 1 AU · 2 µW · 2 µs · 2048² · 100 beads × 2 wells'));
+aside.append(recBtn, P_IMG, P_PLATE, P_PREC, P_MODES, P_POWER, P_CONST);
+const PANELS = { plate: [P_IMG, P_PLATE], prec: [P_IMG, P_PREC], modes: [P_MODES, P_IMG], power: [P_IMG, P_POWER] };
+/* rows of the imaging panel that matter on each tab */
+const IMG_ROWS = { plate: ['dwell', 'N'], prec: ['obj', 'AU', 'P', 'dwell', 'N', 'zoom'], modes: ['dwell'], power: ['obj', 'AU', 'P', 'dwell', 'N', 'zoom'] };
+
+/* ---- tab panes ---- */
+function pane() { return h('div'); }
+const T = { plate: pane(), prec: pane(), modes: pane(), power: pane() };
+let curTab = 'plate';
+K.tabs(main, [{ id: 'plate', label: 'Plate timing', el: T.plate }, { id: 'prec', label: 'Precision and LOD', el: T.prec }, { id: 'modes', label: 'Modes', el: T.modes }, { id: 'power', label: 'Power and bleaching', el: T.power }], id => {
+  curTab = id;
+  for (const p of [P_IMG, P_PLATE, P_PREC, P_MODES, P_POWER]) p.classList.toggle('hidden', !PANELS[id].includes(p));
+  for (const k of ['obj', 'AU', 'P', 'dwell', 'N', 'zoom']) ctl[k].el.classList.toggle('hidden', !IMG_ROWS[id].includes(k));
+  const pl = document.getElementById('pxline'); if (pl) pl.classList.toggle('hidden', !['prec', 'power'].includes(id));
+  P_MODES.parentNode && P_IMG.parentNode && (id === 'modes' ? P_MODES.after(P_IMG) : recBtn.after(P_IMG));
+  redraw();
+});
+
+/* plate tab */
+const plTiles = h('div.tiles'), plFlag = h('div.note'), plMap = h('div.plate'), plRamp = h('div.ramp'), plRead = h('div.wellread', 'Point at a well.'), plSettle = h('div.tiles');
+T.plate.append(plTiles, plFlag, h('div.panel', h('h2', 'PE left at the moment each well is imaged'), plRamp, plMap, plRead,
+  h('div.tiny.muted', 'Wells are read column by column, A to H. Hover a well for its delay.')));
+const plPlot = new K.Plot(T.plate, { title: 'PE left against time since the wash', xLabel: 'Time since wash (min)', yLabel: 'PE left (%)', height: 230, yMin: 0, yMax: 104, xMin: 0, yFmt: v => K.fmt(v, 3), tipX: v => K.fmt(v, 3) + ' min' });
+T.plate.append(h('div.note', 'The curve is the single exponential e', h('sup', '−Λt'), ' (§A.4). Shaded bands are the times when wells are imaged. One wash spreads them over the whole plate; a staggered wash puts every column in the same short window.'),
+  h('div.sec', h('h2', 'Settling before the read')), plSettle, h('div.note', { id: 'settlenote' }));
+
+/* precision tab */
+const prTiles = h('div.tiles'), prNote = h('div.note');
+T.prec.append(prTiles, prNote);
+const prPlot = new K.Plot(T.prec, { title: 'Per-well CV against beads analysed', xLabel: 'Beads analysed per well', yLabel: 'Per-well CV (%)', xLog: true, yLog: true, height: 240, xMin: 10, xMax: 3000, tipX: v => K.group(v) });
+T.prec.append(h('div.note', 'Thin lines: the CV from bead sampling at three signal levels, falling as 1/√N. Thick line: the current level with the well-to-well CV added, which no bead count removes. Past ≈100 beads the well-to-well part dominates, which is why the plan is ≥100 beads per well and ≥2 wells per condition rather than more beads.'));
+const lodPlot = new K.Plot(T.prec, { title: 'Per-well limit of detection against beads analysed', xLabel: 'Beads analysed per well', yLabel: 'LOD (PE per bead)', xLog: true, yLog: true, height: 230, xMin: 10, xMax: 3000, tipX: v => K.group(v) });
+T.prec.append(h('div.note', 'Optics alone gives a limit that falls as 1/√N. Non-specific binding that varies between wells sets a floor no bead count removes: that floor, not the microscope, sets the assay LOD (§B.4.5).'), h('div', { id: 'lodtable' }));
+
+/* modes tab */
+const moTable = h('div.tbl-wrap'), moVerdict = h('div');
+T.modes.append(h('div.note', 'Four ways to read the same plate. The section, the field and the photons per bleach all trade against each other; the default (first column) keeps F flat with focus and gives the best no-wash limit.'), moTable, moVerdict);
+const moPlot = new K.Plot(T.modes, { title: 'Integrated F against focal offset (index-matched bead; dashed line −2%)', xLabel: 'Focal plane above or below the equator (µm)', yLabel: 'F / F at the equator (%)', height: 240, yMax: 101, xMin: 0, xMax: 6, tipX: v => K.fmt(v, 2) + ' µm' });
+T.modes.append(h('div.note.warn', 'These curves assume a bead that does not bend light. A polystyrene, PMMA or silica bead in water acts as a weak lens: about 0.6–0.75 of this signal and a lopsided curve at 20x (§B.1.4). Experiment 5 measures the real curve and its flattest point.'));
+
+/* power tab */
+const poTiles = h('div.tiles'), poNote = h('div.note');
+T.power.append(poTiles, poNote);
+const poPlot = new K.Plot(T.power, { title: 'Signal against laser power, relative to linear', xLabel: 'Laser at the sample (µW)', yLabel: 'Signal / linear (%)', xLog: true, height: 260, xMin: 0.1, xMax: 100, yMin: 50, yMax: 101, tipX: v => K.fmt(v, 3) + ' µW', yFmt: v => K.fmt(v, 3) });
+T.power.append(h('div.note', 'Solved exactly with the repo PSF, each molecule at its own irradiance. The integrated F we quantify with stays linear longest, because much of it comes from parts of the shell away from the focal plane, where the beam is weak; the rim peak and an in-focus sheet go sublinear sooner. The report’s ≈2 µW (20x) and ≈6–7 µW (10x) are a first-order Gaussian estimate for an in-focus sheet (dashed): conservative, and the default stays 1–2 µW. None of these curves includes the R-PE millisecond dark state or the ±30% on σ and τ; Experiment 7 measures the real curve on our beads. Shaded: the default 1–2 µW.'));
+const blPlot = new K.Plot(T.power, { title: 'PE bleached per frame', xLabel: 'Laser at the sample (µW)', yLabel: 'Lost per frame (%)', xLog: true, yLog: true, height: 230, xMin: 0.1, xMax: 100, tipX: v => K.fmt(v, 3) + ' µW' });
+T.power.append(h('div.note', 'Every PE in the scanned volume gets the same dose per frame, in focus or not (one-photon excitation, §B.5.1), so bleaching is a gain error: fix the power and the number of frames across the plate, and focus in transmitted light.'));
+
+/* ---- render ---- */
+function pxNow(obj) { return MODEL.pixelUM(obj || S.obj, S.N, S.zoom); }
+function blueRamp() {
+  const light = ['#cde2fb', '#b7d3f6', '#9ec5f4', '#86b6ef', '#6da7ec', '#5598e7', '#3987e5', '#2a78d6', '#256abf', '#1c5cab', '#184f95', '#104281', '#0d366b'];
+  const dark = matchMedia && matchMedia('(prefers-color-scheme: dark)').matches && document.documentElement.dataset.theme !== 'light';
+  return dark ? light.slice().reverse() : light;
+}
+function inkOn(hex) { const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255; return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#0b0b0b' : '#ffffff'; }
+
+function renderPlate() {
+  const mat = MATERIAL[S.material], hmm = S.volUL / DET.wellArea, st = MODEL.settle(8, mat[1] - 1.0, hmm, S.rcf);
+  const settleS = S.settleBy === 'spin' ? 60 + st.spinS : st.gravS;
+  const pl = MODEL.plate({ N: S.N, dwell: S.dwell, overhead: S.overhead, fields: S.fields, mode: S.mode, delayS: S.delayMin * 60, loadS: S.loadS, settleS, lambda: S.lambda, lambdaErr: S.lambdaErr });
+  const advice = S.lambda > 1e-3 ? ['bad', 'Λ ≳ 10⁻³ s⁻¹: read without washing (mid and high range), or dry with standards. A wash read cannot hold timing tight enough.']
+    : S.lambda > 2e-4 ? ['warn', 'Λ between 2×10⁻⁴ and 10⁻³ s⁻¹: wash one column at a time and read each at a fixed, logged delay (or read without washing).']
+      : ['good', 'Λ ≲ 2×10⁻⁴ s⁻¹: one wash for the plate is acceptable, with a plate spin, randomised order, and the e^(ΛΔt) correction only where ΛΔt ≤ 0.2.'];
+  K.tiles(plTiles, [
+    { label: 'Per well (' + S.fields + ' field' + (S.fields > 1 ? 's' : '') + ')', value: K.fmt(pl.tWell, 3) + ' s', sub: 'frame ' + K.fmt(pl.frame, 2) + ' s' },
+    { label: 'Whole plate', value: K.fmt(pl.total / 60, 3) + ' min', sub: '96 wells' },
+    { label: S.mode === 'nowash' ? 'PE left at read' : 'Spread, first to last well', value: S.mode === 'nowash' ? '100%' : K.pct(pl.spread, 1), state: S.mode === 'nowash' ? null : pl.spread > 0.1 ? 'bad' : pl.spread > 0.03 ? 'warn' : 'good', sub: S.mode === 'nowash' ? 'background instead: see Precision' : 'PE left ' + K.pct(pl.minRem, 0) + '–' + K.pct(pl.maxRem, 0) },
+    { label: 'Timing for a 2% error', value: '±' + K.dur(pl.tol2), sub: '−ln(0.98)/Λ' },
+    S.mode === 'nowash' ? null : { label: 'Error left after correcting by e^(ΛΔt)', value: '±' + K.pct(pl.residual, 1), state: pl.residual > 0.02 ? 'warn' : null, sub: 'first vs last well with Λ ±' + Math.round(S.lambdaErr * 100) + '%; ΛΔt up to ' + K.fmt(pl.lamDtMax, 2) },
+    { label: 'PE lost at 5 / 15 min', value: K.pct(1 - Math.exp(-S.lambda * 300), 0) + ' / ' + K.pct(1 - Math.exp(-S.lambda * 900), 0) },
+  ]);
+  plFlag.className = 'note' + (advice[0] === 'good' ? '' : ' warn');
+  plFlag.replaceChildren(...[h('span.flag.' + advice[0], h('i'), advice[0] === 'good' ? 'slow decay' : advice[0] === 'warn' ? 'medium decay' : 'fast decay'), ' ', advice[1],
+    S.mode === 'stagger' && S.delayMin * 60 < pl.first ? h('div', h('b', 'The delay is shorter than settling: '), 'beads need ' + K.dur(pl.first) + ' before the first image, so each column is read later than you asked.') : null].filter(Boolean));
+  // well map
+  const ramp = blueRamp(), lo = 0, cells = [h('span.hd', '')];
+  for (let c = 1; c <= 12; c++) cells.push(h('span.hd', String(c)));
+  const byRC = {}; pl.wells.forEach(w => { byRC[w.row + ':' + w.col] = w; });
+  for (let r = 0; r < 8; r++) {
+    cells.push(h('span.hd', 'ABCDEFGH'[r]));
+    for (let c = 0; c < 12; c++) {
+      const w = byRC[r + ':' + c], idx = Math.max(0, Math.min(ramp.length - 1, Math.round((w.rem - lo) / (1 - lo) * (ramp.length - 1)))), col = ramp[idx];
+      const id = 'ABCDEFGH'[r] + (c + 1), txt = id + ': imaged ' + K.dur(w.delay) + ' after ' + (S.mode === 'nowash' ? 'the beads went in' : 'its wash') + ', ' + K.pct(w.rem, 0) + ' of the PE left';
+      cells.push(h('span.w', { title: txt, style: { background: col, color: inkOn(col) }, on: { mouseenter: e => { plRead.textContent = txt; e.target.classList.add('on'); }, mouseleave: e => e.target.classList.remove('on') } }, Math.round(w.rem * 100)));
+    }
+  }
+  plMap.replaceChildren(...cells);
+  plRamp.replaceChildren(h('span', '0%'), h('i', { style: { background: 'linear-gradient(90deg,' + ramp.join(',') + ')' } }), h('span', '100% of the PE left'));
+  // decay curve + imaging windows
+  const tMax = Math.max(pl.maxDelay * 1.15, 900) / 60, xs = [], ys = [];
+  for (let i = 0; i <= 200; i++) { const t = tMax * i / 200; xs.push(t); ys.push(S.mode === 'nowash' ? 100 : 100 * Math.exp(-S.lambda * t * 60)); }
+  const spans = [];
+  if (S.mode === 'stagger') spans.push({ from: pl.minDelay / 60, to: pl.maxDelay / 60, color: K.color(0), alpha: 0.18, label: 'every column' });
+  else for (let c = 0; c < 12; c++) { const ws = pl.wells.filter(w => w.col === c); spans.push({ from: ws[0].delay / 60, to: (ws[7].delay + pl.tWell) / 60, color: K.color(0), alpha: c % 2 ? 0.12 : 0.24, label: c === 0 ? 'col 1' : c === 11 ? '12' : '' }); }
+  plPlot.set([{ name: S.mode === 'nowash' ? 'No wash (bound PE held by free antibody)' : 'PE left, Λ = ' + K.fmt(S.lambda, 2) + ' s⁻¹', x: xs, y: ys, c: 0 }], [], [{ y: 98, label: '2% loss' }], spans);
+  // settling
+  K.tiles(plSettle, [
+    { label: 'Settling speed (' + mat[0] + ')', value: K.fmt(st.v, 3) + ' µm/s', sub: 'Stokes, 8 µm, Δρ ' + K.fmt(mat[1] - 1.0, 2) + ' g/mL' },
+    { label: 'Fill height', value: K.fmt(hmm, 3) + ' mm', sub: S.volUL + ' µL on 32 mm²' },
+    { label: 'By gravity', value: K.dur(st.gravS), state: st.gravS > 600 ? 'warn' : null },
+    { label: 'In a ' + S.rcf + ' g spin', value: K.dur(st.spinS), state: 'good', sub: 'spin 1 min to be safe' },
+  ]);
+  document.getElementById('settlenote').textContent = 'Gravity settling (' + K.dur(st.gravS) + ' for ' + mat[0].toLowerCase() + ') would use up most of a 5–10 min delay window by itself, which is why the protocol settles with a 1 min plate spin. Denser beads settle faster; the material is still open question 1.';
+}
+
+function precOpts() { return { consts: S.consts, obj: S.obj, AU: S.AU, P: S.P, dwell: S.dwell, px: pxNow(), freeNM: S.freeNM }; }
+function renderPrec() {
+  const b = MODEL.budget(precOpts()), o = { nPE: S.nPE, beadCV: S.beadCV, nBeads: S.nBeads, nWells: S.nWells, wellCV: S.wellCV, median: S.median, target: S.target, nsb: S.nsb, nsbMean: S.nsbMean, nsbWellCV: S.nsbWellCV };
+  const pr = MODEL.precision(b, o), lw = MODEL.lodWell(b, o), sub = MODEL.sub(S.obj, S.AU, b.ex.k0);
+  K.tiles(prTiles, [
+    { label: 'Photoelectrons per PE per frame', value: K.fmt(b.perPE, 3), sub: K.fmt(b.slope, 3) + ' per (PE/µm²) for the bead' },
+    { label: 'Signal per bead per frame', value: K.group(pr.S) + ' e⁻', sub: K.group(S.nPE) + ' PE' },
+    { label: 'Per-bead CV', value: K.pct(pr.perBead, 1), sub: 'shot ' + K.pct(pr.shot, 1) + ' · count ' + K.pct(pr.count, 1) + ' · bead ' + K.pct(pr.beadCV, 0) },
+    { label: 'Per-well CV from bead sampling', value: K.pct(pr.sampling, 1), state: pr.sampling > S.target ? 'warn' : 'good', sub: K.group(S.nBeads) + ' beads' + (S.median ? ', median' : ', mean') },
+    { label: 'Per-well CV, all sources', value: K.pct(pr.perWell, 1), sub: 'with ' + K.pct(S.wellCV, 1) + ' between wells' },
+    { label: 'Per-condition CV', value: K.pct(pr.perCond, 1), sub: S.nWells + ' well' + (S.nWells > 1 ? 's' : '') },
+    { label: 'Beads for ' + K.pct(S.target, 1) + ' from sampling', value: K.group(pr.needN), state: pr.needN > S.nBeads ? 'warn' : null, sub: pr.needN > 400 ? 'more than one 20x field holds' : 'one 20x field holds ≈240' },
+    { label: 'Optical LOD, one bead', value: K.group(b.lodBead) + ' PE', sub: S.freeNM ? K.fmt(S.freeNM, 2) + ' nM free PE-Ab' : 'washed' },
+    { label: 'LOD per well', value: K.group(lw) + ' PE/bead', state: S.nsb ? 'warn' : null, sub: '≈ ' + K.fmt(lw / S.pePerPM, 2) + ' pM' + (S.nsb ? ' (NSB-limited)' : ' (optics only)') },
+  ]);
+  prNote.replaceChildren('At ', h('b', K.fmt(S.P, 3) + ' µW'), ' the beam peak excites PE at k', h('sub', '0'), ' = ', h('b', K.fmt(b.ex.k0, 2)), ' of saturation; the integrated F of the bead is ', h('b', K.pct(1 - sub.bead, 1)), ' below linear (exact, repo PSF). The pixel is ', h('b', K.fmt(pxNow(), 3) + ' µm'), ' (' + K.fmt(8 / pxNow(), 3) + ' pixels across the bead) and the bead mask holds ' + b.npx + ' pixels. ',
+    S.freeNM ? 'Free PE-antibody adds ' + K.fmt(b.bgPx, 2) + ' photoelectrons to every pixel; its shot noise cannot be subtracted.' : 'Washed: the blank bead’s noise is read noise only (3 DN at 20 DN per photoelectron, the repo assumption).');
+  // CV vs N
+  const Ns = [], levels = [Math.max(10, S.nPE / 10), S.nPE, S.nPE * 10];
+  for (let i = 0; i <= 60; i++) Ns.push(Math.pow(10, 1 + i / 60 * Math.log10(300)));
+  const series = levels.map((n, j) => ({ name: K.group(n) + ' PE per bead' + (j === 1 ? ' (now)' : ''), x: Ns, y: Ns.map(N => 100 * MODEL.precision(b, Object.assign({}, o, { nPE: n, nBeads: N })).sampling), c: j, width: 1.5, dash: j !== 1 }));
+  series.push({ name: 'Now, with well-to-well', x: Ns, y: Ns.map(N => 100 * MODEL.precision(b, Object.assign({}, o, { nBeads: N })).perWell), c: 6, width: 3 });
+  prPlot.set(series, [{ x: S.nBeads, label: 'now', dash: false }].concat(pr.needN < 3000 && Math.abs(Math.log(pr.needN / S.nBeads)) > 0.3 ? [{ x: pr.needN, label: 'target', row: 1 }] : []),
+    [{ y: S.target * 100, label: 'target ' + K.pct(S.target, 1) }]);
+  // LOD vs N
+  const lodOpt = Ns.map(N => MODEL.lodWell(b, Object.assign({}, o, { nsb: false, nBeads: N })));
+  const lodNsb = Ns.map(N => MODEL.lodWell(b, Object.assign({}, o, { nsb: true, nBeads: N })));
+  lodPlot.set([{ name: 'Optics only', x: Ns, y: lodOpt, c: 0 }, { name: 'With NSB (' + K.group(S.nsbMean) + ' PE, ' + K.pct(S.nsbWellCV, 0) + ' between wells)', x: Ns, y: lodNsb, c: 1, dash: !S.nsb }],
+    [{ x: S.nBeads, label: 'now', dash: false }], []);
+  // the report's LOD table, recomputed
+  const rows = [['20xD', 1], ['20x', 1], ['10x', 1], ['10x', 4]].map(([obj, AU]) => {
+    const vals = [0, 0.1, 1, 10].map(c => MODEL.budget({ consts: S.consts, obj, AU, P: S.P, dwell: S.dwell, px: pxNow(obj), freeNM: c }).lodBead);
+    return h('tr', h('td', OBJS[obj].name + ', ' + AU + ' AU'), ...vals.map(v => h('td.n', K.group(v))));
+  });
+  document.getElementById('lodtable').replaceChildren(h('div.tbl-wrap', h('table.t', h('thead', h('tr', h('th', 'Optical LOD per bead (PE) at ' + K.fmt(S.P, 3) + ' µW, ' + S.dwell + ' µs, ' + S.N + '² zoom ' + S.zoom.toFixed(2)), h('th', 'Washed'), h('th', '0.1 nM'), h('th', '1 nM'), h('th', '10 nM'))), h('tbody', rows)),
+    h('div.tiny.muted', { style: { marginTop: '4px' } }, 'Recipe of report_calcs/lod.py: 3 × the shot-noise SD of a blank bead inside R + 2.5 µm. The report’s table (20x/0.80, 2 µW, 2 µs, 0.40 µm pixels, i.e. zoom 1.08 at 2048²) reads 64, 91, 214 and 649 PE; it applied the beam-peak saturation rate to every molecule (τ 2.5 ns). Exact saturation, as here, gives slightly lower limits.')));
+}
+
+function modeRows() {
+  const cs = CONSTS[S.consts], dens = S.beadsPerWell / DET.wellArea;
+  return [['20xD', 1, 'Default'], ['20x', 1, 'If the 20x is the λ 0.75'], ['10x', 1, 'Throughput, pinhole at 1 AU'], ['10x', 4, 'Throughput, pinhole wide (if the iris reaches 4 AU)']].map(([obj, AU, role]) => {
+    const c = MODEL.cfg(obj, AU), p5 = MODEL.p5(obj, AU, cs), P = S.modePower === 'fixed' ? 2 : S.modePower === 'report5' ? p5.report : p5.bead;
+    const px = MODEL.pixelUM(obj, 2048, 1), field = MODEL.fieldMM(obj, 1), b = MODEL.budget({ consts: S.consts, obj, AU, P, dwell: S.dwell, px, freeNM: 0 });
+    const b1 = MODEL.budget({ consts: S.consts, obj, AU, P, dwell: S.dwell, px, freeNM: 1 }), bl = MODEL.bleach({ consts: S.consts, obj, AU, P, dwell: S.dwell, px, navg: 1 });
+    const life = MODEL.lifetimePhotons(obj, AU, cs, PHI_D.none);
+    return { obj, AU, role, c, P, px, field, beads: dens * field * field, frame: MODEL.frameS(2048, S.dwell), perPE: b.perPE, perBead: b.perPE * S.modePE,
+      dF1: c.ih[4] / c.ih[0] - 1, dF2: c.ih[8] / c.ih[0] - 1, bg: 0.6022 * c.leff, lod0: b.lodBead, lod1: b1.lodBead, bleach: bl.lostOut, life: life.life };
+  });
+}
+function renderModes() {
+  const R = modeRows(), best = (k, f) => { const v = R.map(r => r[k]); const m = f(...v); return r => r[k] === m; };
+  const pc = v => (v < 0 ? '−' : '') + (Math.abs(v) * 100).toFixed(Math.abs(v) < 0.01 ? 2 : 1) + '%';
+  const cols = [
+    ['Field', r => K.fmt(r.field, 3) + ' mm'], ['Pixel / pixels per bead', r => K.fmt(r.px, 2) + ' µm / ' + K.fmt(8 / r.px, 2)],
+    ['Beads per field', r => K.group(r.beads), best('beads', Math.max)], ['Frame', r => K.fmt(r.frame, 2) + ' s'],
+    ['Laser', r => K.fmt(r.P, 2) + ' µW'],
+    ['e⁻ per PE per frame', r => K.fmt(r.perPE, 3), best('perPE', Math.max)], ['e⁻ per bead', r => K.group(r.perBead)],
+    ['Bleach per frame', r => K.pct(r.bleach, 3)], ['e⁻ per PE before it bleaches', r => K.group(r.life), best('life', Math.max)],
+    ['F at 1 / 2 µm off focus', r => pc(r.dF1) + ' / ' + pc(r.dF2)],
+    ['Section FWHM (axis / plane)', r => K.fmt(r.c.fz, 2) + ' / ' + K.fmt(r.c.fzs, 2) + ' µm'],
+    ['Background per nM free PE', r => K.fmt(r.bg, 2) + ' PE/µm²', best('bg', Math.min)],
+    ['LOD per bead, washed / 1 nM', r => K.group(r.lod0) + ' / ' + K.group(r.lod1) + ' PE', best('lod1', Math.min)],
+  ];
+  moTable.replaceChildren(h('table.t.modes', h('thead', h('tr', h('th', ''), R.map(r => h('th', OBJS[r.obj].name + ' · ' + r.AU + ' AU', h('span.r', r.role))))),
+      h('tbody', cols.map(c => h('tr', h('td', c[0]), R.map(r => h('td' + (c[2] && c[2](r) ? '.best' : ''), c[1](r))))))),
+    h('div.tiny.muted', { style: { marginTop: '4px' } }, 'Bold = best in the column. Laser: ' + (S.modePower === 'fixed' ? '2 µW in every mode' : S.modePower === 'report5' ? 'each mode at the report’s 5%-sublinear power' : 'each mode where the whole-bead F is 5% sublinear (repo PSF)') + '. Dwell ' + S.dwell + ' µs; 2048² at zoom 1; F changes are for an index-matched bead.'));
+  const [a, b, c, d] = R;
+  moVerdict.replaceChildren(h('div.panel', h('h2', 'Verdicts'),
+    h('p.verdict', h('b', '20x/0.80, 1 AU (default). '), 'Section ' + K.fmt(a.c.fzs, 2) + ' µm, thinner than the 8 µm bead, so F has a plateau: ' + pc(a.dF1) + ' at 1 µm. Best photons per bleach and the lowest no-wash background. One field gives ' + K.group(a.beads) + ' beads.'),
+    h('p.verdict', h('b', '20x/0.75, 1 AU. '), 'Nearly the same: ' + K.pct(Math.abs(1 - (b.perPE / b.P) / (a.perPE / a.P)), 0) + (b.perPE / b.P < a.perPE / a.P ? ' fewer' : ' more') + ' photons per PE at the same power, and a slightly thicker section. Confirm which 20x is fitted (Part E).'),
+    h('p.verdict', h('b', '10x/0.45, 1 AU. '), 'Four times the field (' + K.group(c.beads) + ' beads) but the least focus-tolerant mode (' + pc(c.dF1) + ' at 1 µm, ' + pc(c.dF2) + ' at 2 µm) and ' + K.fmt(c.bg / a.bg, 2) + '× the background per nM.'),
+    h('p.verdict', h('b', '10x/0.45, 4 AU. '), 'Focus-proof (' + pc(d.dF2) + ' at 2 µm) and bright, but its section (' + K.fmt(d.c.fzs, 2) + ' µm) reaches deep into the buffer, so free PE-antibody gives ' + K.fmt(d.bg / a.bg, 2) + '× the default background: a washed-only mode. Experiment 13 decides whether it earns a place.')));
+  const Z = PSF.z0.map(z => z);
+  moPlot.set(R.map((r, i) => ({ name: OBJS[r.obj].name + ' · ' + r.AU + ' AU', x: Z, y: r.c.ih.map(v => 100 * v / r.c.ih[0]), c: i, width: i === 0 ? 2.5 : 1.8, dash: i === 3 })), [{ x: 1, label: '1 µm' }, { x: 2, label: '2 µm', row: 1 }], [{ y: 98 }]);
+}
+
+function renderPower() {
+  const cs = CONSTS[S.consts], px = pxNow(), ex = MODEL.excite(S.obj, S.AU, S.P, cs), sub = MODEL.sub(S.obj, S.AU, ex.k0), p5 = MODEL.p5(S.obj, S.AU, cs);
+  const bl = MODEL.bleach({ consts: S.consts, obj: S.obj, AU: S.AU, P: S.P, dwell: S.dwell, px, navg: S.navg, antifade: S.antifade });
+  const life = MODEL.lifetimePhotons(S.obj, S.AU, cs, bl.phi);
+  K.tiles(poTiles, [
+    { label: 'Peak irradiance', value: K.fmt(ex.flux * 1e-4, 2), sub: 'photons cm⁻² s⁻¹' },
+    { label: 'k₀ = excitation × lifetime', value: K.fmt(ex.k0, 3), state: ex.k0 > 0.2 ? 'bad' : ex.k0 > 0.1 ? 'warn' : null, sub: 'k₀ = 1 at ' + K.fmt(p5.pSat, 3) + ' µW' },
+    { label: 'Integrated F below linear', value: K.pct(1 - sub.bead, 1), state: sub.bead < 0.95 ? 'warn' : 'good', sub: '5% at ' + K.fmt(p5.bead, 2) + ' µW (exact)' },
+    { label: 'Rim peak below linear', value: K.pct(1 - sub.rim, 1), state: sub.rim < 0.95 ? 'warn' : null, sub: '5% at ' + K.fmt(p5.rim, 2) + ' µW (exact)' },
+    { label: 'In-focus sheet below linear', value: K.pct(1 - sub.sheet, 1), sub: '5% at ' + K.fmt(p5.sheet, 2) + ' µW (exact)' },
+    { label: 'Report estimate below linear', value: K.pct(1 - sub.report, 1), sub: '5% at ' + K.fmt(p5.report, 2) + ' µW (Gaussian, conservative)' },
+    { label: 'Absorptions per PE per frame', value: K.fmt(bl.Df, 3), sub: 'in focus × ' + K.fmt(bl.fsat, 3) + ' (saturation)' },
+    { label: 'Bleached per frame', value: K.pct(bl.lostOut, 3), state: bl.lostOut > 0.005 ? 'warn' : 'good', sub: S.navg + ' frame' + (S.navg > 1 ? 's' : '') + ' averaged' },
+    { label: 'Frames to 1% bleach', value: K.group(bl.frames1), sub: 'φ_d ' + K.fmt(bl.phi, 2) },
+    { label: 'e⁻ per PE before it bleaches', value: K.group(life.life), sub: 'report: 230 (10x) to 350 (20x)' },
+  ]);
+  poNote.replaceChildren('The pixel is ' + K.fmt(px, 3) + ' µm (' + S.N + '² at zoom ' + S.zoom.toFixed(2) + ' on the ' + OBJS[S.obj].name + '). Dose per frame scales with power × dwell × frames ÷ pixel², so a finer pixel costs as much bleaching as a longer dwell. ',
+    h('b', 'Set power in measured µW, never in % laser'), ': at the same %, the 20x passes up to ≈0.7× the 10x power.');
+  const Ps = []; for (let i = 0; i <= 120; i++) Ps.push(Math.pow(10, -1 + 3 * i / 120));
+  const k0of = P => MODEL.excite(S.obj, S.AU, P, cs).k0;
+  const cfg = MODEL.cfg(S.obj, S.AU);
+  poPlot.set([
+    { name: 'Integrated F (exact)', x: Ps, y: Ps.map(P => 100 * MODEL.interpSub(cfg.sub_bead, k0of(P))), c: 0, width: 2.5 },
+    { name: 'Rim peak (exact)', x: Ps, y: Ps.map(P => 100 * MODEL.interpSub(cfg.sub_rim, k0of(P))), c: 1 },
+    { name: 'In-focus sheet (exact)', x: Ps, y: Ps.map(P => 100 * MODEL.interpSub(cfg.sub_sheet, k0of(P))), c: 2 },
+    { name: 'Report estimate (Gaussian)', x: Ps, y: Ps.map(P => 100 * MODEL.subReport(k0of(P))), c: 3, dash: true },
+  ], [{ x: S.P, label: 'now', dash: false, row: 3 }, { x: p5.bead, label: 'F: ' + K.fmt(p5.bead, 2) + ' µW', row: 5 }, { x: p5.report, label: 'report: ' + K.fmt(p5.report, 2) + ' µW', row: 4 }], [{ y: 95, label: '5% below linear' }],
+    [{ from: 1, to: 2, color: K.color(0), alpha: 0.10 }]);
+  const bleachAt = (P, af) => 100 * MODEL.bleach({ consts: S.consts, obj: S.obj, AU: S.AU, P, dwell: S.dwell, px, navg: S.navg, antifade: af }).lostOut;
+  blPlot.set([{ name: 'No antifade (φ_d 1.1×10⁻⁵)', x: Ps, y: Ps.map(P => bleachAt(P, false)), c: 0 }, { name: 'n-Propyl gallate (6.5×10⁻⁶)', x: Ps, y: Ps.map(P => bleachAt(P, true)), c: 1, dash: true }],
+    [{ x: S.P, label: 'now', dash: false }], [{ y: 0.05, label: '0.05% per frame' }]);
+}
+
+function render() {
+  const cs = CONSTS[S.consts];
+  const pl = document.getElementById('pxline'); if (pl) pl.textContent = 'Pixel ' + K.fmt(pxNow(), 3) + ' µm · ' + K.fmt(8 / pxNow(), 3) + ' pixels per bead · field ' + K.fmt(MODEL.fieldMM(S.obj, S.zoom), 3) + ' mm · frame ' + K.fmt(MODEL.frameS(S.N, S.dwell), 2) + ' s';
+  const cl = document.getElementById('constline'); if (cl) cl.textContent = 'ε ' + K.fmt(cs.eps, 3) + ' M⁻¹cm⁻¹ · τ ' + K.fmt(cs.tau * 1e9, 2) + ' ns · Q ' + cs.Q + ' · η = ' + cs.chainTxt + '. ENF 1.3; read noise 3 DN at 20 DN per photoelectron (repo).';
+  ctl.delayMin.el.classList.toggle('hidden', S.mode !== 'stagger');
+  ctl.rcf.el.classList.toggle('hidden', S.settleBy !== 'spin');
+  ctl.lambdaErr.el.classList.toggle('hidden', S.mode === 'nowash');
+  for (const k of ['nsbMean', 'nsbWellCV']) ctl[k].el.classList.toggle('hidden', !S.nsb);
+  if (curTab === 'plate') renderPlate();
+  else if (curTab === 'prec') renderPrec();
+  else if (curTab === 'modes') renderModes();
+  else renderPower();
+}
+if (window.matchMedia) { const mq = matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener && mq.addEventListener('change', redraw); }
+render();
+</script>
+</body>
+</html>

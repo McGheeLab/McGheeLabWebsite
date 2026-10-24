@@ -1,0 +1,51 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Validation map</title>
+<style>html,body{margin:0;background:#fff}svg{display:block;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}</style></head><body>
+<svg id="fig" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 840" width="2400" height="1680"><rect width="1200" height="840" fill="#fff"/></svg>
+<script>
+const NS = 'http://www.w3.org/2000/svg', S = document.getElementById('fig');
+const el = (tag, a, text) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(a)) e.setAttribute(k, v); if (text != null) e.textContent = text; S.appendChild(e); return e; };
+el('text', { x: 40, y: 52, 'font-size': 27, 'font-weight': 700, fill: '#1b1b1a' }, 'Which experiment pins which part of the model');
+el('text', { x: 40, y: 84, 'font-size': 16.5, fill: '#52514e' }, 'Each row is a number or claim the model depends on. A filled dot is the experiment that measures it; a ring is one that');
+el('text', { x: 40, y: 106, 'font-size': 16.5, fill: '#52514e' }, 'checks it independently. The right column is the protocol choice the result sets. Run order: top to bottom.');
+const EXP = ['Power at the sample', 'Photon transfer', 'Flat field', 'PSF and edge scan', 'Bead z-series, 4 modes', 'Sampling and field', 'Bleaching, saturation', 'Gain ladder', 'Backgrounds and NSB', 'PE per bead', 'Rate constants', 'Standard curve, hook', 'Mode head-to-head'];
+const ROWS = [
+  ['Irradiance and k0 at the sample', { 1: 2, 7: 1 }, 'laser set in µW (1–2 µW default)', 'instrument'],
+  ['DN → photoelectrons; linear range', { 2: 2, 8: 2 }, 'HV, offset, bit depth', 'instrument'],
+  ['Illumination fall-off across the field', { 3: 2, 6: 1 }, 'flat-field correction each session', 'instrument'],
+  ['Optical section w(z), its tails, T', { 4: 2, 5: 1 }, 'focal scaling; T for absolute PE', 'optics'],
+  ['F against focus; bead optics', { 5: 2, 4: 1, 13: 1 }, 'focus offset at the flat point of F', 'optics'],
+  ['F against pixel size and field position', { 6: 2, 3: 1 }, 'zoom; usable part of the field', 'optics'],
+  ['PE bleaching, saturation, dark state', { 7: 2, 1: 1 }, 'power cap, frames, antifade', 'PE'],
+  ['F independent of gain', { 8: 2, 2: 1 }, 'HV per plate from the top standard', 'PE'],
+  ['Buffer, glass, NSB backgrounds; LOD', { 9: 2, 12: 1 }, 'wash or no-wash; antibody level; blank rule', 'assay'],
+  ['Absolute PE per bead', { 10: 2, 13: 1 }, 'report PE per bead and per µm²', 'assay'],
+  ['Off-rates: Λ = k−2 + k−3, association', { 11: 2, 12: 1 }, 'wash timing; staggered columns', 'assay'],
+  ['Curve shape, hook, detection-antibody level', { 12: 2, 11: 1 }, 'curve model; 1× / 10× dilution rule', 'assay'],
+  ['20x vs 10x: precision per minute', { 13: 2, 6: 1 }, 'the routine read mode', 'strategy'],
+];
+const GC = { instrument: '#2a78d6', optics: '#1baf7a', PE: '#eda100', assay: '#eb6834', strategy: '#6250d6' };
+const L = 40, labW = 300, cx0 = L + labW + 10, cw = 37, T0 = 250, rh = 38, decX = cx0 + 13 * cw + 18;
+// column headers, rotated
+EXP.forEach((n, i) => { const x = cx0 + i * cw + cw / 2; el('text', { x: 0, y: 0, 'font-size': 12.5, fill: '#52514e', transform: `translate(${x + 4},${T0 - 14}) rotate(-52)` }, String(i + 1).padStart(2, '0') + ' ' + n); });
+el('text', { x: L, y: T0 - 14, 'font-size': 13, 'font-weight': 700, fill: '#1b1b1a' }, 'The model needs');
+el('text', { x: decX, y: T0 - 14, 'font-size': 13, 'font-weight': 700, fill: '#1b1b1a' }, 'The result sets');
+ROWS.forEach(([lab, cells, dec, grp], r) => {
+  const y = T0 + r * rh;
+  if (r % 2 === 0) el('rect', { x: L - 6, y: y, width: 1200 - 2 * L + 12, height: rh, fill: '#f6f5f2' });
+  el('rect', { x: L - 6, y: y + 6, width: 4, height: rh - 12, rx: 2, fill: GC[grp] });
+  el('text', { x: L + 6, y: y + rh / 2 + 5, 'font-size': 13.5, fill: '#1b1b1a' }, lab);
+  for (let c = 1; c <= 13; c++) {
+    const x = cx0 + (c - 1) * cw + cw / 2, v = cells[c];
+    if (v === 2) el('circle', { cx: x, cy: y + rh / 2, r: 8.5, fill: GC[grp] });
+    else if (v === 1) el('circle', { cx: x, cy: y + rh / 2, r: 7.5, fill: '#fff', stroke: GC[grp], 'stroke-width': 2.2 });
+    else el('circle', { cx: x, cy: y + rh / 2, r: 1.6, fill: '#c9c6bf' });
+  }
+  el('text', { x: decX, y: y + rh / 2 + 5, 'font-size': 13, fill: '#52514e' }, dec);
+});
+const ly = T0 + ROWS.length * rh + 28;
+[['instrument', 'instrument'], ['optics', 'optics of the shell'], ['PE', 'PE on this instrument'], ['assay', 'backgrounds and assay'], ['strategy', 'strategy']].forEach(([g, t], i) => {
+  const x = L + i * 190; el('rect', { x, y: ly - 11, width: 12, height: 12, rx: 3, fill: GC[g] }); el('text', { x: x + 18, y: ly, 'font-size': 12.5, fill: '#52514e' }, t); });
+el('circle', { cx: L + 970, cy: ly - 5, r: 7, fill: '#52514e' }); el('text', { x: L + 984, y: ly, 'font-size': 12.5, fill: '#52514e' }, 'measures');
+el('circle', { cx: L + 1060, cy: ly - 5, r: 6.5, fill: '#fff', stroke: '#52514e', 'stroke-width': 2 }); el('text', { x: L + 1074, y: ly, 'font-size': 12.5, fill: '#52514e' }, 'checks');
+el('text', { x: L, y: ly + 30, 'font-size': 13, fill: '#52514e' }, 'One day only: 01, 02, 05, the glass-to-solution edge scan from 04, and the post-wash time course from 11 — they decide the most.');
+</script></body></html>

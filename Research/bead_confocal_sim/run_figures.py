@@ -232,7 +232,7 @@ if want('5'):
         ax[1, 1].axhline(3 * sds[0], color=CAT[i], ls=':', lw=1)
         RESULTS['linearity'][lab] = dict(slope_DN_per_PE_um2=float(slope), blank_sd_DN=float(sds[0]), LOD_PE_um2=float(lod), LOD_PE_per_bead=float(lod * 4 * np.pi * 16),
                                          cv_at_100=float(sds[sig == 100][0] / (means[sig == 100][0] - means[0])), sat_at_5000=None)
-    ax[1, 1].set(title='d  Linearity (8 beads each, 10 uW, 2 us; dotted = 3 sd of blank)', xlabel='PE per um^2', ylabel='integrated DN above blank', xscale='log', yscale='log')
+    ax[1, 1].set(title='d  Linearity (8 beads each, %g uW, 2 us; dotted = 3 sd of blank)' % ScanSettings().laser_uW, xlabel='PE per um^2', ylabel='integrated DN above blank', xscale='log', yscale='log')
     ax[1, 1].legend(fontsize=7)
     fig.savefig(os.path.join(OUT, 'fig5_photon_budget.png'))
     plt.close(fig)

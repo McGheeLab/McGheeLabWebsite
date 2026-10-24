@@ -1,0 +1,91 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Assay schematic</title>
+<style>html,body{margin:0;background:#fff}svg{display:block;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}</style></head><body>
+<svg id="fig" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="2400" height="1400">
+  <defs>
+    <radialGradient id="pe" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ffd166"/><stop offset=".55" stop-color="#f4a300"/><stop offset="1" stop-color="#f4a300" stop-opacity="0"/></radialGradient>
+    <linearGradient id="bead" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9d4ca"/><stop offset="1" stop-color="#efece6"/></linearGradient>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#3d3c39"/></marker>
+    <!-- capture antibody: stem up from (0,0) -->
+    <g id="cap"><path d="M0 0 V-34 M0 -34 L-17 -62 M0 -34 L17 -62" stroke="#5b6b7a" stroke-width="7" stroke-linecap="round" fill="none"/></g>
+    <!-- detection antibody, arms down at (0,0), PE on top of the stem -->
+    <g id="det"><path d="M-16 0 L0 -28 L16 0 M0 -28 V-60" stroke="#2a78d6" stroke-width="7" stroke-linecap="round" fill="none"/><circle cx="0" cy="-74" r="22" fill="url(#pe)"/><circle cx="0" cy="-74" r="9" fill="#e98a00"/></g>
+    <g id="an"><circle r="12" fill="#eb6834" stroke="#b9461b" stroke-width="2"/></g>
+  </defs>
+  <rect width="1200" height="700" fill="#fff"/>
+  <text x="40" y="52" font-size="27" font-weight="700" fill="#1b1b1a">One-step sandwich on an 8 µm capture bead</text>
+  <text x="40" y="84" font-size="16.5" fill="#52514e">Analyte and PE-labelled detection antibody are added together. Two routes put PE on the bead;</text>
+  <text x="40" y="106" font-size="16.5" fill="#52514e">the microscope sees only the PE that ends up on the surface.</text>
+
+  <!-- bead -->
+  <path d="M0 700 L0 676 A2000 2000 0 0 1 1200 676 L1200 700 Z" fill="url(#bead)"/>
+  <path d="M0 676 A2000 2000 0 0 1 1200 676" fill="none" stroke="#b5ab9b" stroke-width="3"/>
+  <text x="40" y="694" font-size="14" fill="#6f6a60">bead surface: about 10⁶ capture antibodies on 201 µm²</text>
+
+  <!-- capture antibodies along the arc: y(x) = 2600 - sqrt(2000^2 - (x-600)^2) -->
+  <g>
+    <use href="#cap" x="110" y="650"/>
+    <use href="#cap" x="250" y="620"/>
+    <use href="#cap" x="400" y="599"/>
+    <use href="#cap" x="545" y="590"/>
+    <use href="#cap" x="690" y="591"/>
+    <use href="#cap" x="835" y="603"/>
+    <use href="#cap" x="975" y="624"/>
+    <use href="#cap" x="1110" y="655"/>
+  </g>
+  <!-- SA at 250 -->
+  <use href="#an" x="250" y="566"/>
+  <!-- SAD (surface route) at 545 -->
+  <use href="#an" x="545" y="536"/><use href="#det" x="545" y="524"/>
+  <!-- SAD (complex route) at 835 -->
+  <use href="#an" x="835" y="549"/><use href="#det" x="835" y="537"/>
+
+  <!-- route 1: capture -->
+  <use href="#an" x="190" y="300"/>
+  <text x="214" y="298" font-size="16" fill="#1b1b1a" font-weight="600">A</text>
+  <text x="214" y="318" font-size="14" fill="#52514e">free analyte</text>
+  <line x1="196" y1="318" x2="240" y2="562" stroke="#3d3c39" stroke-width="2" marker-end="url(#ah)"/>
+  <line x1="262" y1="560" x2="222" y2="330" stroke="#3d3c39" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+  <text x="96" y="430" font-size="15.5" fill="#1b1b1a"><tspan font-style="italic">k</tspan><tspan baseline-shift="sub" font-size="11">1</tspan> capture</text>
+  <text x="252" y="430" font-size="15.5" fill="#1b1b1a"><tspan font-style="italic">k</tspan><tspan baseline-shift="sub" font-size="11">−1</tspan></text>
+  <text x="276" y="580" font-size="14" fill="#52514e">SA (no label yet)</text>
+
+  <!-- route 1b: label on the bead -->
+  <use href="#det" x="470" y="330"/>
+  <text x="402" y="232" font-size="14" fill="#52514e">PE-detection antibody</text>
+  <text x="497" y="300" font-size="16" fill="#1b1b1a" font-weight="600">D</text>
+  <path d="M470 340 C 470 420, 520 470, 540 470" fill="none" stroke="#3d3c39" stroke-width="2" marker-end="url(#ah)"/>
+  <path d="M560 455 C 600 420, 560 370, 505 352" fill="none" stroke="#3d3c39" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+  <text x="372" y="420" font-size="15.5" fill="#1b1b1a"><tspan font-style="italic">k</tspan><tspan baseline-shift="sub" font-size="11">2</tspan> label on the bead</text>
+  <text x="584" y="410" font-size="15.5" fill="#1b1b1a"><tspan font-style="italic">k</tspan><tspan baseline-shift="sub" font-size="11">−2</tspan></text>
+  <text x="522" y="548" font-size="14" fill="#52514e" text-anchor="end">SAD (sandwich)</text>
+
+  <!-- route 2: pre-complex in solution -->
+  <use href="#an" x="790" y="206"/><use href="#det" x="900" y="250"/>
+  <text x="768" y="176" font-size="16" fill="#1b1b1a" font-weight="600">A</text><text x="926" y="222" font-size="16" fill="#1b1b1a" font-weight="600">D</text>
+  <text x="1010" y="200" font-size="15.5" fill="#1b1b1a"><tspan font-style="italic">k</tspan><tspan baseline-shift="sub" font-size="11">4</tspan>, <tspan font-style="italic">k</tspan><tspan baseline-shift="sub" font-size="11">−4</tspan></text>
+  <text x="1010" y="222" font-size="14" fill="#52514e">pre-complex</text>
+  <text x="1010" y="241" font-size="14" fill="#52514e">in solution</text>
+  <path d="M960 260 C 1000 280, 1000 320, 985 340" fill="none" stroke="#3d3c39" stroke-width="2" marker-end="url(#ah)"/>
+  <use href="#an" x="960" y="410"/><use href="#det" x="960" y="396"/>
+  <text x="992" y="404" font-size="16" fill="#1b1b1a" font-weight="600">AD</text>
+  <path d="M945 425 C 900 470, 860 490, 848 515" fill="none" stroke="#3d3c39" stroke-width="2" marker-end="url(#ah)"/>
+  <path d="M868 525 C 900 500, 950 470, 975 432" fill="none" stroke="#3d3c39" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+  <text x="760" y="470" font-size="15.5" fill="#1b1b1a" text-anchor="end"><tspan font-style="italic">k</tspan><tspan baseline-shift="sub" font-size="11">3</tspan> complex captured</text>
+  <text x="980" y="490" font-size="15.5" fill="#1b1b1a"><tspan font-style="italic">k</tspan><tspan baseline-shift="sub" font-size="11">−3</tspan></text>
+
+  <text x="975" y="550" font-size="14" fill="#52514e" text-anchor="middle">empty capture antibody</text>
+  <!-- notes -->
+  <g transform="translate(40,140)">
+    <rect width="300" height="74" rx="10" fill="#f6f5f2" stroke="#dedcd6"/>
+    <text x="14" y="26" font-size="14.5" font-weight="700" fill="#1b1b1a">Transport to the bead</text>
+    <text x="14" y="47" font-size="13.5" fill="#52514e"><tspan font-style="italic">k</tspan><tspan baseline-shift="sub" font-size="10">D</tspan> = 4π<tspan font-style="italic">DR</tspan> ≈ 10¹² M⁻¹ s⁻¹ per bead;</text>
+    <text x="14" y="66" font-size="13.5" fill="#52514e">Damköhler 0.05–3: mixed control</text>
+  </g>
+  <g transform="translate(860,40)">
+    <rect width="300" height="98" rx="10" fill="#fff8e6" stroke="#f0c75e"/>
+    <text x="14" y="26" font-size="14.5" font-weight="700" fill="#1b1b1a">What is measured</text>
+    <text x="14" y="47" font-size="13.5" fill="#52514e">PE on the surface (SAD) only.</text>
+    <text x="14" y="67" font-size="13.5" fill="#52514e">After the wash it leaves at <tspan font-style="italic">k</tspan><tspan baseline-shift="sub" font-size="10">−2</tspan> + <tspan font-style="italic">k</tspan><tspan baseline-shift="sub" font-size="10">−3</tspan>:</text>
+    <text x="14" y="86" font-size="13.5" fill="#52514e">one exponential, two off-rates mixed.</text>
+  </g>
+</svg></body></html>

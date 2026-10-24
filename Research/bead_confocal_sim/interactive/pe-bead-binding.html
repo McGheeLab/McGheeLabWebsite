@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PE bead binding simulator</title>
+<style>/* kit.css — shared look of the PE-bead simulators (inlined into each page by build.py).
+   Colour roles follow the dataviz reference palette; text never wears a series colour. */
+:root{
+  color-scheme:light;
+  --bg:#f6f5f2; --surface:#fcfcfb; --surface-2:#f0efec; --line:#dedcd6; --grid:#ebe9e4;
+  --ink:#1b1b1a; --ink-2:#52514e; --ink-3:#7d7c77; --accent:#0e6f66; --accent-ink:#ffffff; --accent-soft:#d9ece9;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
+  --good:#0ca30c; --warn:#b77900; --bad:#d03b3b;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme:dark;
+    --bg:#121211; --surface:#1a1a19; --surface-2:#232321; --line:#383835; --grid:#2a2a28;
+    --ink:#f0efec; --ink-2:#c3c2b7; --ink-3:#8f8e86; --accent:#3fb3a6; --accent-ink:#0b1514; --accent-soft:#16332f;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+    --warn:#fab219; --bad:#e66767;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#121211; --surface:#1a1a19; --surface-2:#232321; --line:#383835; --grid:#2a2a28;
+  --ink:#f0efec; --ink-2:#c3c2b7; --ink-3:#8f8e86; --accent:#3fb3a6; --accent-ink:#0b1514; --accent-soft:#16332f;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  --warn:#fab219; --bad:#e66767;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--sans)}
+body{padding:14px 16px 28px}
+h1{font-size:18px;margin:0 0 2px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:14px;margin:0 0 8px;font-weight:650}
+h3{font-size:12px;margin:12px 0 6px;font-weight:650;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+p{margin:0 0 8px}
+.sub{color:var(--ink-2);margin:0 0 12px;max-width:80ch}
+.tiny{font-size:12px}.muted{color:var(--ink-3)}.mono{font-family:var(--mono)}
+a{color:var(--accent)}
+.app{display:grid;grid-template-columns:300px minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:820px){.app{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 12px 10px}
+.panel+.panel{margin-top:12px}
+.controls{position:sticky;top:8px;max-height:calc(100vh - 16px);overflow:auto}
+@media (max-width:820px){.controls{position:static;max-height:none}}
+.ctl{margin:0 0 10px}
+.ctl-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12.5px;color:var(--ink-2)}
+.ctl-h b{font-weight:600;color:var(--ink)}
+.ctl-v{font-family:var(--mono);font-size:12px;color:var(--ink);white-space:nowrap}
+.ctl-hint{font-size:11.5px;color:var(--ink-3);margin-top:1px}
+input[type=range]{width:100%;margin:4px 0 0;accent-color:var(--accent);height:18px}
+select,input[type=number]{font:13px var(--sans);color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:4px 6px;width:100%}
+.seg{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:4px}
+.seg button{flex:1 1 auto;font:12.5px var(--sans);color:var(--ink-2);background:var(--surface-2);border:0;border-right:1px solid var(--line);padding:5px 8px;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--ink-2);margin:6px 0;cursor:pointer}
+.chk input{margin:2px 0 0;accent-color:var(--accent)}
+.btn{font:12.5px var(--sans);color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:4px 10px;cursor:pointer}
+.btn:hover{border-color:var(--ink-3)}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 10px;border-bottom:1px solid var(--line)}
+.tabs button{font:13px var(--sans);color:var(--ink-2);background:none;border:0;border-bottom:2px solid transparent;padding:6px 10px;margin-bottom:-1px;cursor:pointer}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:0 0 12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.tile .v{font:600 17px/1.2 var(--mono);color:var(--ink)}
+.tile .l{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.tile .s{font-size:11.5px;color:var(--ink-2)}
+.tile.warn{border-color:var(--warn)}.tile.bad{border-color:var(--bad)}.tile.good{border-color:var(--good)}
+.flag{display:inline-flex;align-items:center;gap:5px;font-size:12px;border-radius:999px;padding:1px 8px;border:1px solid var(--line);color:var(--ink-2)}
+.flag i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.flag.good i{background:var(--good)}.flag.warn i{background:#fab219}.flag.bad i{background:var(--bad)}
+.plot{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px 6px;margin:0 0 12px}
+.plot-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:0 0 4px}
+.plot-h .t{font-weight:650;font-size:13.5px}
+.plot-h .spacer{flex:1}
+.plot canvas{display:block;width:100%;touch-action:none}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.legend i{width:16px;height:0;border-top:2px solid;display:inline-block}
+.legend i.dash{border-top-style:dashed}
+.legend i.band{height:8px;border:0;opacity:.35}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.12);padding:6px 8px;font-size:12px;line-height:1.35;color:var(--ink);white-space:nowrap;z-index:5;display:none}
+.tip .k{display:inline-block;width:10px;height:2px;margin-right:5px;vertical-align:middle}
+.tip b{font-weight:600}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:980px){.grid2{grid-template-columns:minmax(0,1fr)}}
+table.t{border-collapse:collapse;width:100%;font-size:12.5px}
+table.t th,table.t td{border-bottom:1px solid var(--grid);padding:4px 6px;text-align:left;vertical-align:top}
+table.t th{color:var(--ink-3);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+table.t td.n{text-align:right;font-family:var(--mono)}
+.note{font-size:12.5px;color:var(--ink-2);background:var(--surface-2);border-left:3px solid var(--accent);border-radius:6px;padding:7px 10px;margin:0 0 10px}
+.note.warn{border-left-color:#fab219}
+.imgwrap{position:relative;display:inline-block;max-width:100%}
+.imgwrap canvas{display:block;max-width:100%;image-rendering:pixelated;border-radius:6px;background:#000}
+.cbar{display:flex;align-items:center;gap:6px;font:11.5px var(--mono);color:var(--ink-3);margin-top:4px}
+.cbar canvas{height:10px;width:140px;border-radius:3px;image-rendering:auto;background:none}
+footer{margin-top:16px;font-size:12px;color:var(--ink-3)}
+
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.presets .btn{font-size:12px;padding:3px 8px}
+.tabctl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 16px;margin:0 0 10px}
+@media (max-width:620px){.tabctl{grid-template-columns:minmax(0,1fr)}}
+.tabctl .ctl{margin:0}
+.derived{font-size:12px;color:var(--ink-2);margin:4px 0 0}
+.model p,.model li{max-width:78ch}
+.model .eq{font-family:var(--mono);font-size:12.5px;background:var(--surface-2);border-radius:6px;padding:6px 10px;margin:4px 0 10px;overflow-x:auto;white-space:pre}
+.model h2{margin-top:14px}
+.timing{font-size:11.5px;color:var(--ink-3)}
+details.panel>summary{cursor:pointer;list-style:none;font-size:14px;font-weight:650;margin:0}
+details.panel>summary::-webkit-details-marker{display:none}
+details.panel>summary::after{content:'+';float:right;color:var(--ink-3);font-weight:400}
+details.panel[open]>summary::after{content:'\2212'}
+details.panel[open]>summary{margin-bottom:8px}
+</style>
+</head>
+<body>
+<h1>One-step sandwich on an 8 µm bead: how much PE ends up on the surface</h1>
+<p class="sub">Analyte and the PE-labelled detection antibody are added together. Analyte is captured and then labelled on the bead, or labelled in solution and captured as a complex. Only the PE on the bead is measured.</p>
+<div class="app">
+  <aside class="controls" id="ctl"></aside>
+  <main id="main"></main>
+</div>
+<footer>Model: a port of <span class="mono">Research/bead_confocal_sim/binding.py</span> and Part A of <span class="mono">Research/PE_bead_confocal_assay_model.md</span>; checked against binding.py to within 0.06%. McGhee Lab · October 2026. <span class="timing" id="timing"></span></footer>
+<script>/* kit.js — shared controls, number formatting and canvas plots for the PE-bead simulators.
+   Inlined into each page by build.py, so every published page is one self-contained file
+   (it runs in Scientia's sandboxed frame: no network, no storage it can count on). */
+'use strict';
+const K = (() => {
+  const SUP = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '+': '' };
+  const sup = s => String(s).split('').map(c => SUP[c] ?? c).join('');
+
+  /* ---------- DOM ---------- */
+  function h(tag, attrs, ...kids) {
+    const m = /^([a-z0-9]+)((?:[.#][\w-]+)*)$/i.exec(tag) || [0, tag, ''];
+    const el = document.createElement(m[1]);
+    (m[2].match(/[.#][\w-]+/g) || []).forEach(t => t[0] === '.' ? el.classList.add(t.slice(1)) : (el.id = t.slice(1)));
+    if (attrs && (typeof attrs !== 'object' || attrs instanceof Node || Array.isArray(attrs))) { kids.unshift(attrs); attrs = null; }
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v == null || v === false) continue;
+      if (k === 'on') for (const [e, f] of Object.entries(v)) el.addEventListener(e, f);
+      else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+      else if (k === 'html') el.innerHTML = v;
+      else if (k in el && k !== 'list' && typeof v !== 'string') el[k] = v;
+      else el.setAttribute(k, v === true ? '' : v);
+    }
+    const add = x => { if (x == null || x === false) return; if (Array.isArray(x)) return x.forEach(add); el.append(x instanceof Node ? x : document.createTextNode(String(x))); };
+    kids.forEach(add);
+    return el;
+  }
+  const $ = (s, r) => (r || document).querySelector(s);
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const color = i => css('--s' + (((i % 8) + 8) % 8 + 1));
+
+  /* ---------- numbers ---------- */
+  function fmt(x, sig = 3) {
+    if (x == null || Number.isNaN(x)) return '–';
+    if (!Number.isFinite(x)) return x > 0 ? '∞' : '−∞';
+    if (x === 0) return '0';
+    const a = Math.abs(x), e = Math.floor(Math.log10(a));
+    if (e >= -2 && e < 5) { const d = Math.max(0, sig - 1 - e); return (x < 0 ? '−' : '') + a.toFixed(Math.min(d, 6)).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, ''); }
+    const m = x / Math.pow(10, e); let ms = Math.abs(m).toFixed(Math.max(0, sig - 1)).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+    if (ms === '10') { return fmt(Math.sign(x) * Math.pow(10, e + 1), sig); }
+    return (x < 0 ? '−' : '') + (ms === '1' ? '' : ms + '×') + '10' + sup(e);
+  }
+  const group = n => Math.round(n).toLocaleString('en-US');
+  /** A molar concentration with an SI prefix: 3.2e-12 → "3.2 pM". */
+  function molar(M, sig = 3) {
+    if (!(M > 0)) return M === 0 ? '0 M' : '–';
+    const P = [[1e-15, 'fM'], [1e-12, 'pM'], [1e-9, 'nM'], [1e-6, 'µM'], [1e-3, 'mM'], [1, 'M']];
+    let p = P[0]; for (const q of P) if (M >= q[0] * 0.9995) p = q;
+    return fmt(M / p[0], sig) + ' ' + p[1];
+  }
+  function dur(s) {
+    if (!(s >= 0)) return '–';
+    if (s < 60) return fmt(s, 2) + ' s';
+    if (s < 3600) return fmt(s / 60, 2) + ' min';
+    if (s < 86400 * 2) return fmt(s / 3600, 2) + ' h';
+    return fmt(s / 86400, 2) + ' d';
+  }
+  const pct = (x, d = 1) => (x == null || !Number.isFinite(x)) ? '–' : (x * 100).toFixed(d) + '%';
+
+  /* ---------- controls ---------- */
+  /** A labelled slider. log:true maps the track to decades between min and max. */
+  function slider(o) {
+    const log = !!o.log, N = o.steps || 400;
+    const toPos = v => log ? Math.round(N * (Math.log10(v) - Math.log10(o.min)) / (Math.log10(o.max) - Math.log10(o.min))) : v;
+    const fromPos = p => { if (!log) return +p; const v = Math.pow(10, Math.log10(o.min) + (p / N) * (Math.log10(o.max) - Math.log10(o.min))); const e = Math.floor(Math.log10(v)), q = Math.pow(10, e - 2); return Math.round(v / q) * q; };
+    const show = v => (o.fmt ? o.fmt(v) : fmt(v)) + (o.unit ? ' ' + o.unit : '');
+    const val = h('span.ctl-v'), inp = h('input', { type: 'range', min: log ? 0 : o.min, max: log ? N : o.max, step: log ? 1 : (o.step || 'any'), 'aria-label': o.label });
+    const ctl = { value: o.value, el: null, set(v, quiet) { ctl.value = v; inp.value = toPos(v); val.textContent = show(v); if (!quiet && o.onInput) o.onInput(v); } };
+    inp.addEventListener('input', () => ctl.set(fromPos(+inp.value)));
+    ctl.el = h('div.ctl', h('div.ctl-h', h('span', o.label), val), inp, o.hint ? h('div.ctl-hint', o.hint) : null);
+    ctl.set(o.value, true);
+    return ctl;
+  }
+  /** Segmented buttons: options [[value, label], …]. */
+  function seg(o) {
+    const wrap = h('div.seg', { role: 'group', 'aria-label': o.label || '' });
+    const ctl = { value: o.value, el: null, set(v, quiet) { ctl.value = v; [...wrap.children].forEach(b => b.classList.toggle('on', b.dataset.v === String(v))); if (!quiet && o.onInput) o.onInput(v); } };
+    o.options.forEach(([v, l, t]) => wrap.append(h('button', { 'data-v': String(v), title: t || '', on: { click: () => ctl.set(v) } }, l)));
+    ctl.el = h('div.ctl', o.label ? h('div.ctl-h', h('span', o.label)) : null, wrap, o.hint ? h('div.ctl-hint', o.hint) : null);
+    ctl.set(o.value, true);
+    return ctl;
+  }
+  function check(o) {
+    const inp = h('input', { type: 'checkbox' });
+    const ctl = { value: !!o.value, el: h('label.chk', inp, h('span', o.label, o.hint ? h('div.ctl-hint', o.hint) : null)), set(v, quiet) { ctl.value = !!v; inp.checked = !!v; if (!quiet && o.onInput) o.onInput(!!v); } };
+    inp.addEventListener('change', () => ctl.set(inp.checked));
+    ctl.set(o.value, true);
+    return ctl;
+  }
+  function tabs(host, list, onChange) {
+    const bar = h('div.tabs', { role: 'tablist' }), panes = {};
+    let cur = null;
+    const go = id => { cur = id; [...bar.children].forEach(b => b.classList.toggle('on', b.dataset.id === id)); for (const [k, p] of Object.entries(panes)) p.style.display = k === id ? '' : 'none'; onChange && onChange(id); };
+    list.forEach(t => { bar.append(h('button', { 'data-id': t.id, role: 'tab', on: { click: () => go(t.id) } }, t.label)); panes[t.id] = t.el; });
+    host.append(bar, ...list.map(t => t.el));
+    go(list[0].id);
+    return { go, get current() { return cur; } };
+  }
+  function tiles(host, rows) {
+    host.replaceChildren(...rows.filter(Boolean).map(r => h('div.tile' + (r.state ? '.' + r.state : ''), { title: r.title || '' }, h('div.v', r.value), h('div.l', r.label), r.sub ? h('div.s', r.sub) : null)));
+  }
+  /** Batch redraws into one animation frame. */
+  function scheduler(fn) { let q = false; return () => { if (q) return; q = true; requestAnimationFrame(() => { q = false; fn(); }); }; }
+
+  /* ---------- ticks ---------- */
+  function niceTicks(lo, hi, n = 5) {
+    const span = hi - lo; if (!(span > 0)) return [lo];
+    const raw = span / n, mag = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / mag;
+    const step = (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * mag, out = [];
+    for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + step * 1e-9; v += step) out.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+    return out;
+  }
+  function logTicks(lo, hi) {
+    const a = Math.floor(Math.log10(lo)), b = Math.ceil(Math.log10(hi)), major = [], minor = [];
+    const every = Math.max(1, Math.ceil((b - a) / 7));
+    for (let e = a; e <= b; e++) { const v = Math.pow(10, e); if (v >= lo * 0.999 && v <= hi * 1.001 && (e - a) % every === 0) major.push(v); for (let k = 2; k < 10; k++) { const m = k * v; if (m > lo && m < hi && b - a <= 6) minor.push(m); } }
+    return { major, minor };
+  }
+
+  /* ---------- line plot ---------- */
+  /** new K.Plot(host, {title, xLabel, yLabel, xLog, yLog, height, xFmt, yFmt, yMin, yMax, xMin, xMax, csvName}) */
+  class Plot {
+    constructor(host, o) {
+      this.o = Object.assign({ height: 260, xFmt: fmt, yFmt: fmt }, o);
+      this.series = []; this.marks = []; this.hmarks = []; this.spans = [];
+      this.legend = h('div.legend');
+      this.cv = h('canvas', { role: 'img', 'aria-label': (o.title || 'plot') + ': ' + (o.yLabel || '') + ' against ' + (o.xLabel || '') });
+      this.tip = h('div.tip');
+      const csv = h('button.btn', { title: 'Copy the plotted data as CSV', style: { fontSize: '11.5px', padding: '2px 8px' }, on: { click: () => this.copyCsv(csv) } }, 'CSV');
+      this.el = h('div.plot', h('div.plot-h', o.title ? h('span.t', o.title) : null, this.legend, h('span.spacer'), csv), this.cv, this.tip);
+      host.append(this.el);
+      this.cv.addEventListener('pointermove', e => this.hover(e));
+      this.cv.addEventListener('pointerleave', () => { this.tip.style.display = 'none'; this.hx = null; this.draw(); });
+      if (window.ResizeObserver) new ResizeObserver(() => this.draw()).observe(this.cv);
+      if (window.matchMedia) { const mq = matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener && mq.addEventListener('change', () => this.draw()); }
+    }
+    /** series: [{name, x[], y[], c (palette slot) | color, dash, width, band:{lo[],hi[]}, dots, hidden, legend:false}] */
+    set(series, marks, hmarks, spans) { this.series = series || []; this.marks = marks || []; this.hmarks = hmarks || []; this.spans = spans || []; this.renderLegend(); this.draw(); }
+    renderLegend() {
+      this.legend.replaceChildren(...this.series.filter(s => s.legend !== false && s.name).map(s => {
+        const c = s.color || color(s.c || 0), i = h('i' + (s.dash ? '.dash' : '') + (s.onlyBand ? '.band' : ''));
+        if (s.onlyBand) i.style.background = c; else i.style.borderTopColor = c;
+        return h('span', i, s.name);
+      }));
+    }
+    range() {
+      const o = this.o; let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const s of this.series) {
+        if (s.hidden) continue;
+        const ys = [s.y, s.band && s.band.lo, s.band && s.band.hi].filter(Boolean);
+        s.x.forEach((x, i) => {
+          if (!Number.isFinite(x) || (o.xLog && x <= 0)) return;
+          let any = false;
+          for (const Y of ys) { const y = Y[i]; if (!Number.isFinite(y) || (o.yLog && y <= 0)) continue; any = true; if (s.noRange) continue; y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+          if (any) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); }
+        });
+      }
+      if (o.xMin != null) x0 = o.xMin; if (o.xMax != null) x1 = o.xMax;
+      if (o.yMin != null) y0 = o.yMin; if (o.yMax != null) y1 = o.yMax;
+      if (!Number.isFinite(x0)) { x0 = o.xLog ? 1 : 0; x1 = o.xLog ? 10 : 1; }
+      if (!Number.isFinite(y0)) { y0 = o.yLog ? 1 : 0; y1 = o.yLog ? 10 : 1; }
+      if (o.yLog) { if (y1 / y0 < 10) { const m = Math.sqrt(y0 * y1); y0 = m / 3.2; y1 = m * 3.2; } if (o.yMax == null) y1 *= 1.25; if (o.yMin == null) y0 /= 1.25; }
+      else { if (y1 === y0) { y1 += Math.abs(y1) * 0.1 || 1; y0 -= Math.abs(y0) * 0.1; } const p = (y1 - y0) * 0.06; if (o.yMax == null) y1 += p; if (o.yMin == null && !(o.yZero && y0 >= 0)) y0 -= p; if (o.yZero && o.yMin == null && y0 > 0) y0 = 0; }
+      if (o.xLog && x1 / x0 < 1.0001) { x0 /= 2; x1 *= 2; } if (!o.xLog && x1 === x0) { x0 -= 1; x1 += 1; }
+      return { x0, x1, y0, y1 };
+    }
+    draw() {
+      const cv = this.cv, o = this.o, dpr = window.devicePixelRatio || 1, W = Math.max(200, cv.clientWidth || 600), H = o.height;
+      if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.height = H + 'px'; }
+      const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+      const R = this.R = this.range(), L = 58, Rm = 14, T = 8, B = 40, pw = W - L - Rm, ph = H - T - B;
+      const sx = x => L + pw * (o.xLog ? (Math.log10(x) - Math.log10(R.x0)) / (Math.log10(R.x1) - Math.log10(R.x0)) : (x - R.x0) / (R.x1 - R.x0));
+      const sy = y => T + ph * (1 - (o.yLog ? (Math.log10(y) - Math.log10(R.y0)) / (Math.log10(R.y1) - Math.log10(R.y0)) : (y - R.y0) / (R.y1 - R.y0)));
+      this.map = { sx, sy, L, T, pw, ph, W, H };
+      const ink3 = css('--ink-3'), grid = css('--grid'), ink2 = css('--ink-2'), line = css('--line');
+      g.font = '11px ' + css('--sans'); g.lineWidth = 1;
+      // spans (shaded x-ranges)
+      for (const s of this.spans) { const a = Math.max(L, sx(s.from)), b = Math.min(L + pw, sx(s.to)); if (b > a) { g.fillStyle = s.color || css('--surface-2'); g.globalAlpha = s.alpha ?? 1; g.fillRect(a, T, b - a, ph); g.globalAlpha = 1; if (s.label) { g.fillStyle = ink3; g.textAlign = 'left'; g.fillText(s.label, a + 4, T + 12); } } }
+      // grid + ticks
+      const xt = o.xLog ? logTicks(R.x0, R.x1) : { major: niceTicks(R.x0, R.x1, Math.max(3, Math.round(pw / 90))), minor: [] };
+      const yt = o.yLog ? logTicks(R.y0, R.y1) : { major: niceTicks(R.y0, R.y1, Math.max(3, Math.round(ph / 50))), minor: [] };
+      g.strokeStyle = grid;
+      for (const v of xt.minor) { const x = Math.round(sx(v)) + .5; g.globalAlpha = .5; g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + ph); g.stroke(); g.globalAlpha = 1; }
+      for (const v of yt.minor) { const y = Math.round(sy(v)) + .5; g.globalAlpha = .5; g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.globalAlpha = 1; }
+      g.fillStyle = ink3; g.textAlign = 'center'; g.textBaseline = 'top';
+      for (const v of xt.major) { const x = Math.round(sx(v)) + .5; if (x < L - 1 || x > L + pw + 1) continue; g.strokeStyle = grid; g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + ph); g.stroke(); g.fillText(o.xFmt(v), x, T + ph + 5); }
+      g.textAlign = 'right'; g.textBaseline = 'middle';
+      for (const v of yt.major) { const y = Math.round(sy(v)) + .5; if (y < T - 1 || y > T + ph + 1) continue; g.strokeStyle = grid; g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.fillText(o.yFmt(v), L - 6, y); }
+      g.strokeStyle = line; g.beginPath(); g.moveTo(L + .5, T); g.lineTo(L + .5, T + ph + .5); g.lineTo(L + pw, T + ph + .5); g.stroke();
+      g.fillStyle = ink2; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.font = '12px ' + css('--sans');
+      if (o.xLabel) g.fillText(o.xLabel, L + pw / 2, H - 2);
+      if (o.yLabel) { g.save(); g.translate(13, T + ph / 2); g.rotate(-Math.PI / 2); g.textBaseline = 'middle'; g.fillText(o.yLabel, 0, 0); g.restore(); }
+      g.save(); g.beginPath(); g.rect(L, T - 1, pw + 1, ph + 2); g.clip();
+      // horizontal reference lines
+      for (const m of this.hmarks) { if (!Number.isFinite(m.y) || (o.yLog && m.y <= 0)) continue; const y = Math.round(sy(m.y)) + .5; g.strokeStyle = m.color || ink3; g.setLineDash(m.dash === false ? [] : [4, 4]); g.lineWidth = 1; g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.setLineDash([]); if (m.label) { g.fillStyle = ink3; g.font = '11px ' + css('--sans'); g.textAlign = 'right'; g.textBaseline = 'bottom'; g.fillText(m.label, L + pw - 4, y - 2); } }
+      // series
+      for (const s of this.series) {
+        if (s.hidden) continue;
+        const c = s.color || color(s.c || 0);
+        if (s.band) {
+          g.fillStyle = c; g.globalAlpha = s.bandAlpha ?? .16; g.beginPath(); let started = false;
+          s.x.forEach((x, i) => { const y = s.band.hi[i]; if (!Number.isFinite(y) || (o.yLog && y <= 0) || (o.xLog && x <= 0)) return; const X = sx(x), Y = sy(y); started ? g.lineTo(X, Y) : (g.moveTo(X, Y), started = true); });
+          for (let i = s.x.length - 1; i >= 0; i--) { const x = s.x[i], y = s.band.lo[i]; if (!Number.isFinite(y) || (o.yLog && y <= 0) || (o.xLog && x <= 0)) continue; g.lineTo(sx(x), sy(y)); }
+          g.closePath(); g.fill(); g.globalAlpha = 1;
+        }
+        if (s.onlyBand) continue;
+        g.strokeStyle = c; g.lineWidth = s.width || 2; g.setLineDash(s.dash ? (Array.isArray(s.dash) ? s.dash : [6, 4]) : []); g.lineJoin = 'round';
+        if (!s.dotsOnly) { g.beginPath(); let pen = false; s.x.forEach((x, i) => { const y = s.y[i]; if (!Number.isFinite(y) || !Number.isFinite(x) || (o.yLog && y <= 0) || (o.xLog && x <= 0)) { pen = false; return; } const X = sx(x), Y = sy(y); pen ? g.lineTo(X, Y) : g.moveTo(X, Y); pen = true; }); g.stroke(); }
+        g.setLineDash([]);
+        if (s.dots) { const r = s.dotR || 3.5; g.fillStyle = c; g.strokeStyle = css('--surface'); g.lineWidth = 1.5; s.x.forEach((x, i) => { const y = s.y[i]; if (!Number.isFinite(y) || (o.yLog && y <= 0) || (o.xLog && x <= 0)) return; g.beginPath(); g.arc(sx(x), sy(y), r, 0, 7); g.fill(); g.stroke(); }); }
+      }
+      // vertical marks
+      for (const m of this.marks) { if (!Number.isFinite(m.x) || (o.xLog && m.x <= 0)) continue; const x = Math.round(sx(m.x)) + .5; if (x < L || x > L + pw) continue; g.strokeStyle = m.color || ink3; g.lineWidth = 1; g.setLineDash(m.dash === false ? [] : [4, 4]); g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + ph); g.stroke(); g.setLineDash([]); if (m.label) { g.fillStyle = ink2; g.font = '11px ' + css('--sans'); g.textAlign = x > L + pw * .7 ? 'right' : 'left'; g.textBaseline = 'top'; g.fillText(m.label, x + (x > L + pw * .7 ? -4 : 4), T + 4 + (m.row || 0) * 13); } }
+      // hover crosshair
+      if (this.hx != null) { g.strokeStyle = ink3; g.globalAlpha = .6; g.beginPath(); g.moveTo(this.hx + .5, T); g.lineTo(this.hx + .5, T + ph); g.stroke(); g.globalAlpha = 1;
+        for (const p of this.hpts || []) { g.fillStyle = p.c; g.strokeStyle = css('--surface'); g.lineWidth = 2; g.beginPath(); g.arc(p.X, p.Y, 4, 0, 7); g.fill(); g.stroke(); } }
+      g.restore();
+    }
+    hover(e) {
+      if (!this.map || !this.R) return;
+      const r = this.cv.getBoundingClientRect(), X = e.clientX - r.left, Y = e.clientY - r.top, m = this.map, o = this.o;
+      if (X < m.L || X > m.L + m.pw || Y < m.T || Y > m.T + m.ph) { this.tip.style.display = 'none'; this.hx = null; this.draw(); return; }
+      const fx = (X - m.L) / m.pw, xv = o.xLog ? Math.pow(10, Math.log10(this.R.x0) + fx * (Math.log10(this.R.x1) - Math.log10(this.R.x0))) : this.R.x0 + fx * (this.R.x1 - this.R.x0);
+      const rows = [], pts = [];
+      for (const s of this.series) {
+        if (s.hidden || s.onlyBand || s.noTip || !s.x.length) continue;
+        let bi = -1, bd = Infinity;
+        s.x.forEach((x, i) => { if (!Number.isFinite(s.y[i])) return; const d = Math.abs(o.xLog ? Math.log10(x / xv) : x - xv); if (d < bd) { bd = d; bi = i; } });
+        if (bi < 0) continue;
+        const c = s.color || color(s.c || 0), yv = s.y[bi];
+        if (o.yLog && yv <= 0) continue;
+        pts.push({ X: m.sx(s.x[bi]), Y: m.sy(yv), c });
+        rows.push(h('div', h('span.k', { style: { background: c } }), (s.name || '') + ': ', h('b', (s.tipFmt || o.yFmt)(yv)), s.tipExtra ? ' ' + s.tipExtra(bi) : ''));
+      }
+      this.hx = X; this.hpts = pts; this.draw();
+      if (!rows.length) { this.tip.style.display = 'none'; return; }
+      this.tip.replaceChildren(h('div.muted', (o.xLabel ? o.xLabel.replace(/\s*\(.*\)$/, '') + ' ' : '') + (o.tipX || o.xFmt)(xv)), ...rows);
+      this.tip.style.display = 'block';
+      const tw = this.tip.offsetWidth, cw = this.el.clientWidth, left = this.cv.offsetLeft + X + 14;
+      this.tip.style.left = (left + tw > cw - 4 ? this.cv.offsetLeft + X - tw - 14 : left) + 'px';
+      this.tip.style.top = (this.cv.offsetTop + Math.max(4, Y - 30)) + 'px';
+    }
+    csv() {
+      const ss = this.series.filter(s => !s.onlyBand && !s.hidden && s.name);
+      const lines = [];
+      for (const s of ss) { lines.push('# ' + s.name); lines.push([this.o.xLabel || 'x', this.o.yLabel || 'y'].map(v => '"' + v + '"').join(',')); s.x.forEach((x, i) => lines.push(x + ',' + s.y[i])); lines.push(''); }
+      return lines.join('\n');
+    }
+    copyCsv(btn) {
+      const t = this.csv(), done = ok => { const old = btn.textContent; btn.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(() => { btn.textContent = old; }, 1400); };
+      try { navigator.clipboard.writeText(t).then(() => done(true), () => fallback()); } catch (e) { fallback(); }
+      function fallback() { try { const a = h('textarea', { style: { position: 'fixed', opacity: '0' } }, t); document.body.append(a); a.select(); const ok = document.execCommand('copy'); a.remove(); done(ok); } catch (e) { done(false); } }
+    }
+  }
+
+  /* ---------- image ---------- */
+  const INF = [[0.0002189403691192265, 0.001651004631001012, -0.01948089843709184], [0.1065134194856116, 0.5639564367884091, 3.932712388889277], [11.60249308247187, -3.972853965665698, -15.9423941062914],
+    [-41.70399613139459, 17.43639888205313, 44.35414519872813], [77.162935699427, -33.40235894210092, -81.80730925738993], [-71.31942824499214, 32.62606426397723, 73.20951985803202], [25.13112622477341, -12.24266895238567, -23.07032500287172]];
+  const LUTS = {};
+  function lut(name) {
+    if (LUTS[name]) return LUTS[name];
+    const t = new Uint8ClampedArray(256 * 3);
+    for (let i = 0; i < 256; i++) {
+      const x = i / 255; let r, g, b;
+      if (name === 'inferno') { const c = [0, 1, 2].map(k => { let v = INF[6][k]; for (let j = 5; j >= 0; j--) v = INF[j][k] + x * v; return v; }); [r, g, b] = c; }
+      else if (name === 'pe') { r = Math.min(1, x * 1.6); g = Math.max(0, Math.min(1, (x - 0.25) * 1.25)); b = Math.max(0, (x - 0.7) * 2.2); }
+      else { r = g = b = x; }
+      t[i * 3] = r * 255; t[i * 3 + 1] = g * 255; t[i * 3 + 2] = b * 255;
+    }
+    return (LUTS[name] = t);
+  }
+  /** Draw a float image (row-major, w×h) into a canvas with a LUT; returns nothing. lo/hi set the display range. */
+  function paint(cv, data, w, hgt, lo, hi, name, scale) {
+    const s = scale || 1; cv.width = w * s; cv.height = hgt * s;
+    const g = cv.getContext('2d'), img = g.createImageData(w * s, hgt * s), L = lut(name || 'gray'), d = img.data, span = (hi - lo) || 1;
+    for (let y = 0; y < hgt; y++) for (let x = 0; x < w; x++) {
+      const v = data[y * w + x], k = Math.max(0, Math.min(255, Math.round(255 * (v - lo) / span))) * 3;
+      for (let yy = 0; yy < s; yy++) { let o = ((y * s + yy) * w * s + x * s) * 4; for (let xx = 0; xx < s; xx++, o += 4) { d[o] = L[k]; d[o + 1] = L[k + 1]; d[o + 2] = L[k + 2]; d[o + 3] = 255; } }
+    }
+    g.putImageData(img, 0, 0);
+  }
+  function colorbar(cv, name) { cv.width = 256; cv.height = 1; const g = cv.getContext('2d'), img = g.createImageData(256, 1), L = lut(name); for (let i = 0; i < 256; i++) { img.data[i * 4] = L[i * 3]; img.data[i * 4 + 1] = L[i * 3 + 1]; img.data[i * 4 + 2] = L[i * 3 + 2]; img.data[i * 4 + 3] = 255; } g.putImageData(img, 0, 0); }
+
+  /* ---------- seeded random ---------- */
+  function rng(seed) { let s = (seed >>> 0) || 1; const u = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return (s >>> 0) / 4294967296; }; let spare = null;
+    const normal = () => { if (spare != null) { const v = spare; spare = null; return v; } let a, b, q; do { a = 2 * u() - 1; b = 2 * u() - 1; q = a * a + b * b; } while (q >= 1 || q === 0); const f = Math.sqrt(-2 * Math.log(q) / q); spare = b * f; return a * f; };
+    const poisson = lam => { if (lam <= 0) return 0; if (lam < 30) { const L = Math.exp(-lam); let k = 0, p = 1; do { k++; p *= u(); } while (p > L); return k - 1; } return Math.max(0, Math.round(lam + Math.sqrt(lam) * normal())); };
+    return { u, normal, poisson }; }
+
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
+
+  return { h, $, css, color, fmt, group, molar, dur, pct, sup, slider, seg, check, tabs, tiles, scheduler, niceTicks, logTicks, Plot, lut, paint, colorbar, rng, store };
+})();
+
+/*ENGINE-START*/
+/* The binding engine: a port of Research/bead_confocal_sim/binding.py (BeadAssay).
+   State, in molecules per bead: a = A/c_b, d = D/c_b, ad = AD/c_b, sa = SA, sad = SAD, plus c2 and c3, the
+   cumulative SAD formed by labelling on the surface (r2) and by capture of the pre-complex (r3).
+   Solver: the Rosenbrock (2,3) pair of MATLAB's ode23s (Shampine & Reichelt 1997), L-stable, analytic Jacobian. */
+const ENGINE = (() => {
+  const NA = 6.02214076e23, N = 7;
+  function model(p) {
+    const ind = p.independent !== false;
+    const k1 = p.k1, km1 = p.km1, k2 = p.k2, km2 = p.km2;
+    const k3 = ind ? k1 : p.k3, km3 = ind ? km1 : p.km3, k4 = ind ? k2 : p.k4;
+    // detailed balance K1 K2 = K3 K4 fixes k-4 unless it is given
+    const km4 = ind ? km2 : (p.km4 != null ? p.km4 : k4 * (km1 / k1) * (km2 / k2) / (km3 / k3));
+    const NS = p.NS, R = p.R_um * 1e-6, nb = p.nb, V = p.V_uL * 1e-6;
+    const cb = nb / (NA * V), q = cb;
+    const kD = Dcm2 => 4 * Math.PI * (Dcm2 * 1e-4) * R * 1e3 * NA;     // M^-1 s^-1 per bead, D in cm^2/s
+    const kDA = kD(p.DA), kDD = kD(p.DD), kDAD = kD(p.DAD != null ? p.DAD : p.DD);
+    const tr = p.transport !== false;
+    const K1 = km1 / k1, K2 = km2 / k2, K3 = km3 / k3, K4 = km4 / k4;
+
+    function terms(y) {
+      const a = y[0], d = y[1], ad = y[2], sa = y[3], sad = y[4], s = NS - sa - sad;
+      let f1 = 1, f2 = 1, f3 = 1, df1 = 0, df2 = 0, df3 = 0;
+      if (tr) {
+        const g1 = kDA + k1 * s, g2 = kDD + k2 * sa, g3 = kDAD + k3 * s;
+        f1 = kDA / g1; df1 = -k1 * kDA / (g1 * g1);
+        f2 = kDD / g2; df2 = -k2 * kDD / (g2 * g2);
+        f3 = kDAD / g3; df3 = -k3 * kDAD / (g3 * g3);
+      }
+      const u1 = k1 * q * a * s - km1 * sa, u2 = k2 * q * d * sa - km2 * sad, u3 = k3 * q * ad * s - km3 * sad, r4 = k4 * q * a * d - km4 * ad;
+      return { a, d, ad, sa, sad, s, f1, f2, f3, df1, df2, df3, u1, u2, u3, r1: f1 * u1, r2: f2 * u2, r3: f3 * u3, r4 };
+    }
+    function rhs(y, wash, out) {
+      const T = terms(y); out = out || new Float64Array(N);
+      if (wash) { out[0] = out[1] = out[2] = 0; }
+      else { out[0] = -T.r1 - T.r4; out[1] = -T.r2 - T.r4; out[2] = T.r4 - T.r3; }
+      out[3] = T.r1 - T.r2; out[4] = T.r2 + T.r3; out[5] = T.r2; out[6] = T.r3;
+      return out;
+    }
+    function jac(y, wash, J) {
+      const T = terms(y), { a, d, ad, sa, s, f1, f2, f3, df1, df2, df3, u1, u2, u3 } = T;
+      J = J || new Float64Array(N * N); J.fill(0);
+      // partial derivatives of r1..r4 with respect to a, d, ad, sa, sad (s = NS - sa - sad)
+      const dr1 = [f1 * k1 * q * s, 0, 0, f1 * (-k1 * q * a - km1) - u1 * df1, -f1 * k1 * q * a - u1 * df1];
+      const dr2 = [0, f2 * k2 * q * sa, 0, f2 * k2 * q * d + u2 * df2, -f2 * km2];
+      const dr3 = [0, 0, f3 * k3 * q * s, -f3 * k3 * q * ad - u3 * df3, f3 * (-k3 * q * ad - km3) - u3 * df3];
+      const dr4 = [k4 * q * d, k4 * q * a, -km4, 0, 0];
+      for (let j = 0; j < 5; j++) {
+        if (!wash) { J[j] = -dr1[j] - dr4[j]; J[N + j] = -dr2[j] - dr4[j]; J[2 * N + j] = dr4[j] - dr3[j]; }
+        J[3 * N + j] = dr1[j] - dr2[j]; J[4 * N + j] = dr2[j] + dr3[j]; J[5 * N + j] = dr2[j]; J[6 * N + j] = dr3[j];
+      }
+      return J;
+    }
+
+    /* ode23s: W = I - h d J; k1 = W\F0; F1 = f(y + h k1/2); k2 = W\(F1 - k1) + k1; y+ = y + h k2;
+       k3 = W\(F2 - e32 (k2 - F1) - 2 (k1 - F0)); err = h/6 |k1 - 2 k2 + k3| */
+    const DD_ = 1 / (2 + Math.SQRT2), E32 = 6 + Math.SQRT2;
+    function lu(W) {
+      const piv = new Int32Array(N);
+      for (let k = 0; k < N; k++) {
+        let p = k, m = Math.abs(W[k * N + k]);
+        for (let i = k + 1; i < N; i++) { const v = Math.abs(W[i * N + k]); if (v > m) { m = v; p = i; } }
+        piv[k] = p;
+        if (p !== k) for (let j = 0; j < N; j++) { const t = W[k * N + j]; W[k * N + j] = W[p * N + j]; W[p * N + j] = t; }
+        const pk = W[k * N + k] || 1e-300;
+        for (let i = k + 1; i < N; i++) { const f = (W[i * N + k] /= pk); if (f) for (let j = k + 1; j < N; j++) W[i * N + j] -= f * W[k * N + j]; }
+      }
+      return { W, piv };
+    }
+    function luSolve(L, b, x) {
+      const { W, piv } = L; x = x || new Float64Array(N); for (let i = 0; i < N; i++) x[i] = b[i];
+      for (let k = 0; k < N; k++) { const p = piv[k]; if (p !== k) { const t = x[k]; x[k] = x[p]; x[p] = t; } for (let i = k + 1; i < N; i++) x[i] -= W[i * N + k] * x[k]; }
+      for (let i = N - 1; i >= 0; i--) { let s = x[i]; for (let j = i + 1; j < N; j++) s -= W[i * N + j] * x[j]; x[i] = s / W[i * N + i]; }
+      return x;
+    }
+    function solve(y0, t1, wash, o) {
+      o = o || {};
+      const rtol = o.rtol || 1e-6, atol = o.atol;
+      let t = 0, y = Float64Array.from(y0), h = Math.min(t1, o.h0 || 0.05), steps = 0, rej = 0;
+      const rec = o.record ? { t: [0], y: [Array.from(y)] } : null;
+      const F0 = rhs(y, wash), F1 = new Float64Array(N), F2 = new Float64Array(N), J = new Float64Array(N * N), W = new Float64Array(N * N);
+      const ytmp = new Float64Array(N), yn = new Float64Array(N), b = new Float64Array(N), K1v = new Float64Array(N), K2v = new Float64Array(N), K3v = new Float64Array(N);
+      let needJ = true, L = null, hL = -1;
+      if (!(t1 > 0)) return { y, t: 0, steps, rej, rec };
+      while (t < t1) {
+        if (t + h > t1) h = t1 - t;
+        if (needJ) { jac(y, wash, J); needJ = false; hL = -1; }
+        if (h !== hL) { for (let i = 0; i < N * N; i++) W[i] = -h * DD_ * J[i]; for (let i = 0; i < N; i++) W[i * N + i] += 1; L = lu(W); hL = h; }
+        luSolve(L, F0, K1v);
+        for (let i = 0; i < N; i++) ytmp[i] = y[i] + 0.5 * h * K1v[i];
+        rhs(ytmp, wash, F1);
+        for (let i = 0; i < N; i++) b[i] = F1[i] - K1v[i];
+        luSolve(L, b, K2v); for (let i = 0; i < N; i++) K2v[i] += K1v[i];
+        for (let i = 0; i < N; i++) yn[i] = y[i] + h * K2v[i];
+        rhs(yn, wash, F2);
+        for (let i = 0; i < N; i++) b[i] = F2[i] - E32 * (K2v[i] - F1[i]) - 2 * (K1v[i] - F0[i]);
+        luSolve(L, b, K3v);
+        let err = 0;
+        for (let i = 0; i < N; i++) { const e = Math.abs(h / 6 * (K1v[i] - 2 * K2v[i] + K3v[i])), sc = atol[i] + rtol * Math.max(Math.abs(y[i]), Math.abs(yn[i])); err = Math.max(err, e / sc); }
+        if (!Number.isFinite(err)) err = 1e6;
+        if (err <= 1) {
+          t = (t + h >= t1 * (1 - 1e-12)) ? t1 : t + h;
+          y.set(yn); F0.set(F2); needJ = true;
+          if (rec) { rec.t.push(t); rec.y.push(Array.from(y)); }
+          h *= err > 0 ? Math.min(5, Math.max(0.2, 0.9 * Math.pow(err, -1 / 3))) : 5;
+        } else { h *= Math.max(0.2, 0.9 * Math.pow(err, -1 / 3)); rej++; }
+        if (++steps > (o.maxSteps || 50000)) throw new Error('integrator: too many steps');
+      }
+      return { y, t, steps, rej, rec };
+    }
+    function atolFor(AT, DT) {
+      const sA = Math.max(AT / cb, 1e-6), sD = Math.max(DT / cb, 1e-6), sS = Math.max(Math.min(sA, NS), 1e-6);
+      return Float64Array.from([sA, sD, Math.min(sA, sD), sS, sS, sS, sS].map(v => 1e-10 * v + 1e-14));
+    }
+    function incubate(AT, DT, tEnd, o) {
+      o = o || {};
+      return solve([AT / cb, DT / cb, 0, 0, 0, 0, 0], tEnd, false, Object.assign({ atol: atolFor(AT, DT) }, o));
+    }
+    function wash(yEnd, tObs, AT, DT, o) {
+      o = o || {};
+      return solve([0, 0, 0, yEnd[3], yEnd[4], yEnd[5], yEnd[6]], tObs, true, Object.assign({ atol: atolFor(AT, DT) }, o));
+    }
+    /** PE per bead at imaging (t_inc of one-step incubation, then a perfect wash and t_wash in clean buffer). */
+    function endpoint(AT, DT, tInc, tWash, o) {
+      const inc = incubate(AT, DT, tInc, o), yi = inc.y;
+      const img = tWash > 0 ? wash(yi, tWash, AT, DT, o).y : yi;
+      return { inc: yi, img, sad: img[4], steps: inc.steps };
+    }
+    /** Equilibrium with independent epitopes: the capture and label-depletion quadratics (report A.2.3). */
+    function eqClosed(AT, DT) {
+      const ST = NS * cb, bq = K1 + ST + AT;
+      const B = 0.5 * (bq - Math.sqrt(Math.max(0, bq * bq - 4 * ST * AT)));
+      const c = K2 + AT - DT, Df = 0.5 * (-c + Math.sqrt(c * c + 4 * K2 * DT));
+      const fD = Df / (K2 + Df), th = B / ST;
+      return { B, Df, thetaCap: th, fD, N: NS * th * fD };
+    }
+    /** Equilibrium in general: the ODE run to a time far beyond every rate. */
+    function eqODE(AT, DT) { return incubate(AT, DT, 1e10).y[4]; }
+    function eq(AT, DT) { return ind ? eqClosed(AT, DT).N : eqODE(AT, DT); }
+    /** No depletion and excess label (binding.py sad_eq_excessD). */
+    const excessD = (A, DT) => NS * A * DT / (K1 * K2 + K2 * A + A * DT);
+    const kbead = kDA * NS * k1 / (kDA + NS * k1);
+    function transportNow(y) { const T = terms(y); return { f1: T.f1, f2: T.f2, f3: T.f3 }; }
+    return {
+      p, ind, k1, km1, k2, km2, k3, km3, k4, km4, K1, K2, K3, K4, NS, cb, ST: NS * cb, kDA, kDD, kDAD, tr,
+      DaA: k1 * NS / kDA, DaAD: k3 * NS / kDAD, DaDmax: k2 * NS / kDD, kbead, kcap: cb * kbead,
+      appKD: DT => K1 * K2 / (K2 + DT), ceiling: DT => NS * DT / (K2 + DT), hookOnset: DT => Math.max(NS * cb + K1, DT + K2),
+      Lambda: km2 + km3, area: 4 * Math.PI * p.R_um * p.R_um,
+      rhs, jac, solve, incubate, wash, endpoint, eqClosed, eqODE, eq, excessD, transportNow,
+    };
+  }
+  return { model, NA };
+})();
+/*ENGINE-END*/
+
+/* ===================================================================== the page */
+const { h, fmt, molar, dur, pct } = K;
+const MIN = 60;
+/** log-axis ticks: whole decades from 10⁴ up (and 10⁻² down) as powers of ten, the rest as plain numbers */
+const lt = v => { const e = Math.round(Math.log10(v)); return Math.abs(v / Math.pow(10, e) - 1) < 1e-6 && (e >= 4 || e <= -2) ? '10' + K.sup(e) : fmt(v, 3); };
+const PRESETS = {
+  ref: { label: 'Report reference', title: 'Part A reference case: 10⁴ beads in 50 µL, N_S = 10⁶, K₁ = 20 pM, biosensor k₋₂ = 8.6×10⁻⁴ s⁻¹, D_T = 2 nM, 1 h',
+    v: { k1: 5e5, km1: 1e-5, k2: 4e5, km2: 8.6e-4, independent: true, k3: 5e5, km3: 1e-5, k4: 4e5, NS: 1e6, R_um: 4, nb: 1e4, V_uL: 50, DA: 6e-7, DD: 3.5e-7, DAD: 3e-7, transport: true, DT: 2e-9, tIncMin: 60, delayMin: 5 } },
+  beadfit: { label: 'Slow label off-rate', title: 'As the reference, with the bead-fitted k₋₂ = 10⁻⁴ s⁻¹ of Chang 2012',
+    v: { km2: 1e-4 } },
+  depletion: { label: '10⁵ beads', title: 'As the reference, with 10⁵ beads in 50 µL: deep depletion, PE per bead falls as 1/n_b',
+    v: { nb: 1e5 } },
+  label: { label: 'D_T = 20 nM', title: 'As the reference, with 10× more detection antibody: more signal per pM, a later hook, more background',
+    v: { DT: 2e-8 } },
+  repo: { label: 'binding.py defaults', title: 'The defaults in binding.py: K₁ = 1 nM, K₂ = 10 nM, 5,000 beads, D_T = 1 nM, 2 h, imaged at once',
+    v: { k1: 1e5, km1: 1e-4, k2: 1e5, km2: 1e-3, independent: true, k3: 1e5, km3: 1e-4, k4: 1e5, NS: 1e6, R_um: 4, nb: 5000, V_uL: 50, DA: 1e-6, DD: 4e-7, DAD: 4e-7, transport: true, DT: 1e-9, tIncMin: 120, delayMin: 0 } },
+};
+const S = Object.assign({ LOD: 64, Atc: 1e-12, watchMin: 60, Alow: 1e-12 }, PRESETS.ref.v);
+const C = {};   // controls by key
+const redraw = K.scheduler(draw);
+const set = k => v => { S[k] = v; if (k === 'independent') indep.style.display = v ? 'none' : ''; redraw(); };
+
+/* ---------- controls ---------- */
+const ctl = document.getElementById('ctl');
+const panel = (title, ...kids) => h('div.panel', h('h2', title), ...kids);
+/** a panel that folds: open on a wide frame, folded on a narrow one so the charts are not pushed far down */
+const fold = (title, ...kids) => h('details.panel', { open: window.innerWidth > 820 }, h('summary', title), ...kids);
+const rate2 = v => fmt(v, 3);
+C.preset = h('div.presets', Object.entries(PRESETS).map(([k, p]) => h('button.btn', { title: p.title, on: { click: () => applyPreset(k) } }, p.label)));
+C.DT = K.slider({ label: 'Detection antibody, D_T', min: 1e-12, max: 1e-7, log: true, value: S.DT, fmt: molar, onInput: set('DT'), hint: 'PE-antibody added with the sample' });
+C.tIncMin = K.slider({ label: 'Incubation', min: 1, max: 2880, log: true, value: S.tIncMin, fmt: v => dur(v * MIN), onInput: set('tIncMin') });
+C.delayMin = K.slider({ label: 'Wash to image', min: 0, max: 120, step: 0.5, value: S.delayMin, fmt: v => fmt(v, 3) + ' min', onInput: set('delayMin'), hint: '0 = imaged at the end of the incubation' });
+C.nb = K.slider({ label: 'Beads per well, n_b', min: 100, max: 1e6, log: true, value: S.nb, fmt: v => fmt(v, 3), onInput: set('nb') });
+C.V_uL = K.slider({ label: 'Volume, V', min: 10, max: 200, step: 1, value: S.V_uL, unit: 'µL', onInput: set('V_uL') });
+C.LOD = K.slider({ label: 'Optical LOD', min: 1, max: 3000, log: true, value: S.LOD, fmt: v => fmt(v, 3), unit: 'PE per bead', onInput: set('LOD'), hint: '64 PE washed at 2 µW, 20x (report B.4)' });
+C.k1 = K.slider({ label: 'k₁ analyte on capture', min: 1e4, max: 1e7, log: true, value: S.k1, fmt: rate2, unit: 'M⁻¹s⁻¹', onInput: set('k1') });
+C.km1 = K.slider({ label: 'k₋₁ analyte off capture', min: 1e-7, max: 1e-2, log: true, value: S.km1, fmt: rate2, unit: 's⁻¹', onInput: set('km1') });
+C.k2 = K.slider({ label: 'k₂ label on analyte', min: 1e4, max: 1e7, log: true, value: S.k2, fmt: rate2, unit: 'M⁻¹s⁻¹', onInput: set('k2') });
+C.km2 = K.slider({ label: 'k₋₂ label off analyte', min: 1e-6, max: 1e-2, log: true, value: S.km2, fmt: rate2, unit: 's⁻¹', onInput: set('km2') });
+C.independent = K.check({ label: 'Epitopes independent', value: S.independent, onInput: set('independent'), hint: 'k₃ = k₁, k₋₃ = k₋₁, k₄ = k₂, k₋₄ = k₋₂' });
+C.k3 = K.slider({ label: 'k₃ complex on capture', min: 1e4, max: 1e7, log: true, value: S.k3, fmt: rate2, unit: 'M⁻¹s⁻¹', onInput: set('k3') });
+C.km3 = K.slider({ label: 'k₋₃ complex off capture', min: 1e-7, max: 1e-2, log: true, value: S.km3, fmt: rate2, unit: 's⁻¹', onInput: set('km3') });
+C.k4 = K.slider({ label: 'k₄ label on free analyte', min: 1e4, max: 1e7, log: true, value: S.k4, fmt: rate2, unit: 'M⁻¹s⁻¹', onInput: set('k4') });
+const km4Line = h('div.derived');
+const indep = h('div', C.k3.el, C.km3.el, C.k4.el, km4Line);
+indep.style.display = S.independent ? 'none' : '';
+C.NS = K.slider({ label: 'Active capture sites, N_S', min: 1e4, max: 1e7, log: true, value: S.NS, fmt: v => fmt(v, 3), unit: 'per bead', onInput: set('NS') });
+C.R_um = K.slider({ label: 'Bead radius, R', min: 1, max: 10, step: 0.1, value: S.R_um, unit: 'µm', onInput: set('R_um') });
+C.transport = K.check({ label: 'Transport to the bead', value: S.transport, onInput: set('transport'), hint: 'Berg–Purcell factor kD/(kD + k·sites) on each surface reaction' });
+C.DA = K.slider({ label: 'D analyte', min: 1e-7, max: 2e-6, log: true, value: S.DA, fmt: v => fmt(v, 2), unit: 'cm²/s', onInput: set('DA') });
+C.DD = K.slider({ label: 'D detection IgG', min: 1e-7, max: 2e-6, log: true, value: S.DD, fmt: v => fmt(v, 2), unit: 'cm²/s', onInput: set('DD') });
+C.DAD = K.slider({ label: 'D complex (AD)', min: 1e-7, max: 2e-6, log: true, value: S.DAD, fmt: v => fmt(v, 2), unit: 'cm²/s', onInput: set('DAD') });
+ctl.append(
+  panel('Presets', C.preset),
+  panel('Assay', C.DT.el, C.tIncMin.el, C.delayMin.el, C.nb.el, C.V_uL.el, C.LOD.el),
+  fold('Rate constants', C.k1.el, C.km1.el, C.k2.el, C.km2.el, C.independent.el, indep),
+  fold('Bead and transport', C.NS.el, C.R_um.el, C.transport.el, C.DA.el, C.DD.el, C.DAD.el));
+function applyPreset(k) {
+  const base = k === 'repo' ? {} : PRESETS.ref.v;
+  Object.assign(S, base, PRESETS[k].v);
+  for (const [key, c] of Object.entries(C)) if (c && c.set && key in S) c.set(S[key], true);
+  indep.style.display = S.independent ? 'none' : '';
+  redraw();
+}
+
+/* ---------- tabs ---------- */
+const main = document.getElementById('main');
+const tabDose = h('div'), tabTime = h('div'), tabDesign = h('div'), tabModel = h('div.model');
+const tabs = K.tabs(main, [{ id: 'dose', label: 'Dose–response', el: tabDose }, { id: 'time', label: 'Time course', el: tabTime }, { id: 'design', label: 'Design', el: tabDesign }, { id: 'model', label: 'The model', el: tabModel }], () => redraw());
+
+// dose-response
+const doseTiles = h('div.tiles');
+tabDose.append(h('p.note', 'PE per bead at the moment of imaging, against the analyte added. The shaded band is the reportable range: on the rising branch, above the LOD and steep enough (d ln N / d ln A ≥ 0.5) to read a concentration back. Past the peak the same signal means two concentrations, so a sample there needs the 1× / 10× dilution check. Hover for values.'), doseTiles);
+const pDose = new K.Plot(tabDose, { title: 'PE per bead', xLabel: 'Analyte added, A_T (M)', yLabel: 'PE per bead', xLog: true, yLog: true, height: 310, xMin: 6e-16, xMax: 1.7e-5, xFmt: v => molar(v, 2), yFmt: lt, tipX: v => molar(v, 3) });
+tabDose.append(h('p.note', 'Where the analyte ends up after the incubation. In the depletion regime the beads take a fixed share of all analyte, so PE per bead is set by A_T × V / n_b, not by K₁.'));
+const pFrac = new K.Plot(tabDose, { title: 'Shares at the end of the incubation', xLabel: 'Analyte added, A_T (M)', yLabel: 'fraction', xLog: true, yMin: 0, yMax: 1, height: 230, xMin: 6e-16, xMax: 1.7e-5, xFmt: v => molar(v, 2), tipX: v => molar(v, 3), yFmt: v => fmt(v, 2) });
+
+// time course
+const C2 = {};
+C2.Atc = K.slider({ label: 'Analyte for this run, A_T', min: 1e-15, max: 1e-5, log: true, value: S.Atc, fmt: molar, onInput: set('Atc') });
+C2.watchMin = K.slider({ label: 'Follow after the wash', min: 5, max: 1440, log: true, value: S.watchMin, fmt: v => dur(v * MIN), onInput: set('watchMin') });
+const timeTiles = h('div.tiles');
+tabTime.append(h('div.panel.tabctl', C2.Atc.el, C2.watchMin.el), timeTiles);
+const pTime = new K.Plot(tabTime, { title: 'Per bead through the incubation and after the wash', xLabel: 'Time (min)', yLabel: 'molecules per bead', height: 290, yZero: true });
+tabTime.append(h('p.note', 'After a perfect wash nothing rebinds from solution, so PE leaves at k₋₂ (the label lets go) plus k₋₃ (the labelled complex lets go). With transport on, some of those molecules rebind before they escape, so the loss runs at Λ_eff = f₂k₋₂ + f₃k₋₃, a little slower. PE data alone cannot tell k₋₂ from k₋₃ (report A.4).'));
+const pWash = new K.Plot(tabTime, { title: 'PE remaining after the wash', xLabel: 'Time after the wash (min)', yLabel: 'fraction of PE at the wash', height: 230, yMin: 0, yMax: 1.02, yFmt: v => fmt(v, 2) });
+
+// design
+const C3 = {};
+C3.Alow = K.slider({ label: 'Low analyte level for these sweeps', min: 1e-15, max: 1e-9, log: true, value: S.Alow, fmt: molar, onInput: set('Alow') });
+const designTiles = h('div.tiles');
+tabDesign.append(h('div.panel', C3.Alow.el), designTiles);
+tabDesign.append(h('p.note', 'More detection antibody gives more PE per pM, but with diminishing returns once D_T passes K₂. Background from free and non-specifically bound label keeps rising. The report’s default is D_T ≈ 1–2 × K₂ (shaded).'));
+const pDT = new K.Plot(tabDesign, { title: 'Signal at the low analyte level against D_T', xLabel: 'Detection antibody, D_T (M)', yLabel: 'PE per bead', xLog: true, yLog: true, height: 250, xMin: 6e-13, xMax: 1.7e-7, xFmt: v => molar(v, 2), yFmt: lt, tipX: v => molar(v, 3) });
+const pHook = new K.Plot(tabDesign, { title: 'Where the curve peaks and turns over', xLabel: 'Detection antibody, D_T (M)', yLabel: 'analyte, A_T (M)', xLog: true, yLog: true, height: 250, xMin: 6e-13, xMax: 1.7e-7, xFmt: v => molar(v, 2), yFmt: v => molar(v, 2), tipX: v => molar(v, 3) });
+tabDesign.append(h('p.note', 'Two kinds of limit pull D_T in opposite directions. If non-specific binding of the label sets the blank noise, the LOD scales as K₂ + D_T. If photons or Poisson counting set it, the LOD scales as 1/f_D = (K₂ + D_T)/D_T. Both are 1 at D_T = K₂; lower is better.'));
+const pLOD = new K.Plot(tabDesign, { title: 'Relative LOD against D_T', xLabel: 'Detection antibody, D_T (M)', yLabel: 'LOD relative to D_T = K₂', xLog: true, yLog: true, height: 230, xMin: 6e-13, xMax: 1.7e-7, xFmt: v => molar(v, 2), tipX: v => molar(v, 3), yFmt: v => fmt(v, 2) });
+tabDesign.append(h('p.note', 'Bead number sets the capture clock k_cap = c_b·k_bead. With k_cap·t ≪ 1 each bead collects analyte on its own and PE per bead does not depend on n_b. With k_cap·t ≫ 1 the beads share all the analyte and PE per bead falls as 1/n_b. Pick n_b near k_cap·t = 1 and keep it fixed.'));
+const pCap = new K.Plot(tabDesign, { title: 'Analyte captured by the end of the incubation', xLabel: 'Beads in the well, n_b', yLabel: 'fraction captured', xLog: true, yMin: 0, yMax: 1, height: 220, xMin: 80, xMax: 1.6e6, xFmt: lt, yFmt: v => fmt(v, 2) });
+const pNb = new K.Plot(tabDesign, { title: 'PE per bead at the low analyte level', xLabel: 'Beads in the well, n_b', yLabel: 'PE per bead', xLog: true, yLog: true, height: 220, xMin: 80, xMax: 1.6e6, xFmt: lt, yFmt: lt });
+
+// model text
+tabModel.innerHTML = `
+<h2>Species and reactions</h2>
+<p>Free analyte A, free PE-detection antibody D and the solution complex AD are concentrations. Captured analyte SA (dark) and the full sandwich SAD (the only species that carries PE) are counted per bead. Free sites S = N<sub>S</sub> − SA − SAD.</p>
+<div class="eq">(1) A  + S  ⇌ SA     k₁,  k₋₁   capture of free analyte
+(2) D  + SA ⇌ SAD    k₂,  k₋₂   labelling on the bead
+(3) AD + S  ⇌ SAD    k₃,  k₋₃   capture of the pre-formed complex
+(4) A  + D  ⇌ AD     k₄,  k₋₄   labelling in solution</div>
+<p>Independent epitopes means k₃ = k₁, k₋₃ = k₋₁, k₄ = k₂ and k₋₄ = k₋₂. If you break that, k₋₄ is set by detailed balance, K₁K₂ = K₃K₄, so the cycle carries no spurious flux.</p>
+<h2>Transport and depletion</h2>
+<p>Each surface reaction, forward and back, is multiplied by f = k<sub>D</sub>/(k<sub>D</sub> + k<sub>on</sub>·sites), with k<sub>D</sub> = 4πDR·N<sub>A</sub> the diffusion-limited rate to one bead (Berg and Purcell 1977; Goldstein and Dembo 1995). Transport slows binding and unbinding alike, so it changes the time to equilibrium but not the equilibrium. The well is finite: n<sub>b</sub> beads in V, so one molecule per bead is c<sub>b</sub> = n<sub>b</sub>/(N<sub>A</sub>V) in solution.</p>
+<h2>Equilibrium (independent epitopes)</h2>
+<div class="eq">θ_PE = θ_cap · f_D
+B   = ½ [ (K₁ + S_T + A_T) − √((K₁ + S_T + A_T)² − 4 S_T A_T) ]      captured analyte, S_T = N_S c_b
+D_f = ½ [ −(K₂ + A_T − D_T) + √((K₂ + A_T − D_T)² + 4 K₂ D_T) ]     free label
+N_PE = N_S · (B / S_T) · D_f / (K₂ + D_f)</div>
+<p>The route by which PE arrives does not change the equilibrium; it changes only how fast it is reached. The hook follows from the label budget: above A<sub>T</sub> ≈ max(S<sub>T</sub> + K₁, D<sub>T</sub> + K₂) free analyte soaks up the label and the signal falls as N<sub>S</sub>D<sub>T</sub>/(A<sub>T</sub> + K₂).</p>
+<h2>After the wash</h2>
+<div class="eq">dSAD/dt = −(f₂k₋₂ + f₃k₋₃) · SAD        →   N_PE(t) = N_PE(0) · exp(−Λ t)</div>
+<p>PE-only data give N<sub>PE</sub>(0) and Λ, nothing more. Separating k₋₁ from k₋₂ needs a relabel pulse, a detection-antibody clamp or a directly labelled analyte (report A.4; experiment 11).</p>
+<h2>How the numbers are made</h2>
+<p>The ODEs are solved in molecules per bead with a stiff Rosenbrock (2,3) integrator (the method of MATLAB's ode23s) and an exact Jacobian, relative tolerance 10⁻⁶. Against binding.py (scipy LSODA, 10⁻⁸) the page agrees to within 0.06% over seven test cases: the report reference, binding.py's defaults, D<sub>T</sub> = 100 nM, transport off, 10⁵ beads, a 24 h incubation and dependent epitopes, each from 1 fM to 10 µM and through the wash. It matches the report's own reference table (Part A.2.4) to within 0.001%.</p>
+<p>Not modelled here: non-specific binding of the label (reaction 5 in the report; measure it in experiment 9), more than one PE per antibody, a bivalent label bridging two captured analytes, bead-size spread, and the steric ceiling of about 0.35–1.2 × 10⁶ PE per bead.</p>`;
+
+/* ---------- drawing ---------- */
+const params = () => ({ k1: S.k1, km1: S.km1, k2: S.k2, km2: S.km2, k3: S.k3, km3: S.km3, k4: S.k4, independent: S.independent, NS: S.NS, R_um: S.R_um, nb: S.nb, V_uL: S.V_uL, DA: S.DA, DD: S.DD, DAD: S.DAD, transport: S.transport });
+const logGrid = (lo, hi, perDecade) => { const n = Math.round((Math.log10(hi) - Math.log10(lo)) * perDecade), out = []; for (let i = 0; i <= n; i++) out.push(Math.pow(10, Math.log10(lo) + i / perDecade)); return out; };
+const accent = () => K.css('--accent');
+/** log-log interpolation of where y crosses level going up (first crossing) */
+function crossUp(xs, ys, level) { for (let i = 1; i < xs.length; i++) if (ys[i - 1] < level && ys[i] >= level) { const f = (Math.log(level) - Math.log(ys[i - 1])) / (Math.log(ys[i]) - Math.log(ys[i - 1])); return Math.exp(Math.log(xs[i - 1]) + f * (Math.log(xs[i]) - Math.log(xs[i - 1]))); } return null; }
+
+function draw() {
+  const t0 = performance.now();
+  const m = ENGINE.model(params());
+  km4Line.textContent = 'k₋₄ from detailed balance: ' + fmt(m.km4, 3) + ' s⁻¹ (K₄ = ' + molar(m.K4) + ')';
+  const tInc = S.tIncMin * MIN, tW = S.delayMin * MIN;
+  try {
+    if (tabs.current === 'dose') drawDose(m, tInc, tW);
+    else if (tabs.current === 'time') drawTime(m, tInc, tW);
+    else if (tabs.current === 'design') drawDesign(m, tInc, tW);
+  } catch (e) { console.error(e); }
+  const ms = performance.now() - t0; window.__drawMs = ms;
+  document.getElementById('timing').textContent = 'Recomputed in ' + ms.toFixed(0) + ' ms.';
+}
+
+function drawDose(m, tInc, tW) {
+  const A = logGrid(1e-15, 1e-5, 4), img = [], inc = [], cap = [], th = [], g = [], pre = [];
+  for (const a of A) {
+    const r = m.endpoint(a, S.DT, tInc, tW), y = r.inc, bound = y[3] + y[4];
+    img.push(r.sad); inc.push(y[4]);
+    cap.push(Math.min(1, bound * m.cb / a)); th.push(bound / m.NS); g.push(bound > 0 ? y[4] / bound : NaN);
+    const via = y[5] + y[6]; pre.push(via > 0 ? y[6] / via : NaN);
+  }
+  const Ae = logGrid(1e-15, 1e-5, 12), Aq = m.ind ? Ae : A, eq = Aq.map(a => m.eq(a, S.DT)), ex = Ae.map(a => m.excessD(a, S.DT));
+  let ip = 0; img.forEach((v, i) => { if (v > img[ip]) ip = i; });
+  // reportable range: the rising branch, above the LOD and steep enough to read back (d ln N / d ln A >= 0.5).
+  // The falling (hook) branch is never reportable on its own: the 1x / 10x dilution check decides there.
+  const spans = []; let open = null;
+  for (let i = 0; i <= ip; i++) {
+    const i0 = Math.max(0, i - 1), i1 = Math.min(A.length - 1, i + 1);
+    const sl = (Math.log(img[i1]) - Math.log(img[i0])) / (Math.log(A[i1]) - Math.log(A[i0]));
+    const ok = sl >= 0.5 && img[i] >= S.LOD && Number.isFinite(sl);
+    if (ok && open == null) open = A[i]; if ((!ok || i === ip) && open != null) { spans.push({ from: open, to: ok ? A[i] : A[i - 1] }); open = null; }
+  }
+  const hook = m.hookOnset(S.DT), area = m.area, lodA = crossUp(A, img, S.LOD);
+  const per = v => '(' + fmt(v / area, 3) + ' PE/µm²)';
+  pDose.set([
+    { name: tW > 0 ? 'At imaging, ' + fmt(S.delayMin, 3) + ' min after the wash' : 'At the end of the incubation', x: A, y: img, c: 0, dots: false, tipExtra: i => per(img[i]) },
+    { name: 'End of incubation', x: A, y: inc, c: 6, dash: [3, 3], width: 1.5, hidden: !(tW > 0) },
+    { name: 'Equilibrium', x: Aq, y: eq, c: 1, dash: [6, 4] },
+    { name: 'No depletion, excess label', x: Ae, y: ex, c: 2, dash: [2, 3], width: 1.5 },
+  ], [{ x: A[ip], label: 'peak', row: 0 }, { x: hook, label: 'hook starts', row: 1 }],
+  [{ y: S.LOD, label: 'optical LOD ' + fmt(S.LOD, 3) + ' PE' }],
+  spans.map(s => ({ from: s.from, to: s.to, color: accent(), alpha: 0.10, label: 'reportable' })));
+  pFrac.set([
+    { name: 'analyte captured', x: A, y: cap, c: 0 },
+    { name: 'sites holding analyte, θ_cap', x: A, y: th, c: 1 },
+    { name: 'captured analyte labelled, g', x: A, y: g, c: 2 },
+    { name: 'PE that came as complex', x: A, y: pre, c: 6, dash: [6, 4] },
+  ], [{ x: hook, label: 'hook starts' }]);
+  const at1 = m.endpoint(1e-12, S.DT, tInc, tW).sad;
+  const rng = spans.length ? molar(spans[0].from, 2) + ' – ' + molar(spans[spans.length - 1].to, 2) : 'none';
+  K.tiles(doseTiles, [
+    { value: molar(m.K1), label: 'K_D1, capture', sub: 'k₋₁/k₁' },
+    { value: molar(m.K2), label: 'K_D2, label', sub: 'k₋₂/k₂' },
+    { value: molar(m.ST), label: 'Capture capacity, S_T', sub: 'N_S × c_b' },
+    { value: molar(m.appKD(S.DT)), label: 'Apparent K_D', sub: 'K₁K₂/(K₂ + D_T), no depletion' },
+    { value: fmt(m.ceiling(S.DT), 3), label: 'PE ceiling per bead', sub: 'N_S·D_T/(K₂ + D_T); steric limit 0.35–1.2×10⁶' },
+    { value: molar(hook), label: 'Hook starts above', sub: 'max(S_T + K₁, D_T + K₂)' },
+    { value: molar(A[ip], 2), label: 'Peak', sub: fmt(img[ip], 3) + ' PE per bead' },
+    { value: fmt(at1, 3), label: 'PE per bead at 1 pM', sub: per(at1).slice(1, -1) },
+    { value: lodA ? molar(lodA, 2) : '–', label: 'Analyte at the optical LOD', sub: 'one bead, no averaging' },
+    { value: rng, label: 'Reportable range', sub: 'rising branch, slope ≥ 0.5, above LOD', state: spans.length ? null : 'warn' },
+  ]);
+}
+
+function drawTime(m, tInc, tW) {
+  const A = S.Atc, watch = Math.max(S.watchMin * MIN, tW * 1.2);
+  const inc = m.incubate(A, S.DT, tInc, { record: true });
+  const y0 = inc.y, ws = m.wash(y0, watch, A, S.DT, { record: true });
+  const unit = (tInc + watch) > 6 * 3600 ? 3600 : 60, ul = unit === 3600 ? 'h' : 'min';
+  pTime.o.xLabel = 'Time (' + ul + ')';
+  const tx = [], sa = [], sad = [], tot = [];
+  inc.rec.t.forEach((t, i) => { const y = inc.rec.y[i]; tx.push(t / unit); sa.push(y[3]); sad.push(y[4]); tot.push(y[3] + y[4]); });
+  ws.rec.t.forEach((t, i) => { if (i === 0) return; const y = ws.rec.y[i]; tx.push((tInc + t) / unit); sa.push(y[3]); sad.push(y[4]); tot.push(y[3] + y[4]); });
+  const T = m.transportNow(y0), Le = (T.f2 * m.km2 + T.f3 * m.km3), N0 = y0[4];
+  const ext = [], exy = [];
+  for (let i = 0; i <= 80; i++) { const t = watch * i / 80; ext.push((tInc + t) / unit); exy.push(N0 * Math.exp(-Le * t)); }
+  pTime.set([
+    { name: 'SAD: PE on the bead', x: tx, y: sad, c: 0 },
+    { name: 'SA: captured, unlabelled', x: tx, y: sa, c: 1 },
+    { name: 'all captured analyte', x: tx, y: tot, c: 2, dash: [6, 4], width: 1.5 },
+    { name: 'single exponential, Λ_eff', x: ext, y: exy, c: 6, dash: [2, 3], width: 1.5 },
+  ], [{ x: tInc / unit, label: 'wash', dash: false }, tW > 0 ? { x: (tInc + tW) / unit, label: 'image', row: 1 } : null].filter(Boolean));
+  // post-wash fractions
+  const fx = [], fy = [];
+  ws.rec.t.forEach((t, i) => { fx.push(t / MIN); fy.push(ws.rec.y[i][4] / N0); });
+  const gx = [], gn = [], ge = [];
+  for (let i = 0; i <= 100; i++) { const t = watch * i / 100; gx.push(t / MIN); gn.push(Math.exp(-m.Lambda * t)); ge.push(Math.exp(-Le * t)); }
+  pWash.set([
+    { name: 'the ODE', x: fx, y: fy, c: 0 },
+    { name: 'exp(−Λ_eff t)', x: gx, y: ge, c: 6, dash: [2, 3], width: 1.5 },
+    { name: 'exp(−(k₋₂ + k₋₃) t), no rebinding', x: gx, y: gn, c: 1, dash: [6, 4], width: 1.5 },
+  ], tW > 0 ? [{ x: tW / MIN, label: 'image' }] : []);
+  const atImg = tW > 0 ? m.wash(y0, tW, A, S.DT).y[4] : N0, bound = y0[3] + y0[4], via = y0[5] + y0[6];
+  K.tiles(timeTiles, [
+    { value: pct(Math.min(1, bound * m.cb / A)), label: 'Analyte captured', sub: 'by the end of ' + dur(tInc) },
+    { value: pct(bound > 0 ? y0[4] / bound : NaN), label: 'Captured analyte labelled', sub: 'g = SAD/(SA + SAD)' },
+    { value: pct(via > 0 ? y0[6] / via : NaN), label: 'PE that came as complex', sub: 'the rest was labelled on the bead' },
+    { value: fmt(N0, 3), label: 'PE per bead at the wash', sub: fmt(N0 / m.area, 3) + ' PE/µm²' },
+    { value: tW > 0 ? pct(1 - atImg / N0) : '0%', label: 'PE lost before imaging', sub: tW > 0 ? 'in ' + fmt(S.delayMin, 3) + ' min' : 'imaged at the wash', state: tW > 0 && 1 - atImg / N0 > 0.1 ? 'warn' : null },
+    { value: fmt(Le, 3) + ' s⁻¹', label: 'Λ_eff, loss rate', sub: 'k₋₂ + k₋₃ = ' + fmt(m.Lambda, 3) + ' s⁻¹ without rebinding' },
+    { value: dur(Math.LN2 / Le), label: 'Half-life on the bead', sub: 'ln 2 / Λ_eff' },
+    { value: dur(0.02 / Le), label: 'Timing for a 2% bias', sub: 'hold the wash-to-image delay this tightly', state: 0.02 / Le < 60 ? 'warn' : null },
+  ]);
+}
+
+function drawDesign(m, tInc, tW) {
+  const Al = S.Alow;
+  // D_T sweep
+  const D = logGrid(1e-12, 1e-7, 4), sig = D.map(d => m.endpoint(Al, d, tInc, tW).sad), sigEq = m.ind ? D.map(d => m.eq(Al, d)) : null;
+  const K2 = m.K2;
+  pDT.set([
+    { name: 'at imaging', x: D, y: sig, c: 0 },
+    sigEq ? { name: 'equilibrium', x: D, y: sigEq, c: 1, dash: [6, 4] } : null,
+  ].filter(Boolean), [{ x: S.DT, label: 'now', dash: false }, { x: K2, label: 'K₂', row: 1 }], [{ y: S.LOD, label: 'optical LOD' }],
+  [{ from: K2, to: 2 * K2, color: accent(), alpha: 0.12 }]);
+  // peak and half-peak from the equilibrium closed form
+  const Dg = logGrid(1e-12, 1e-7, 4), Ag = logGrid(1e-14, 1e-3, 24), pk = [], half = [], onset = [];
+  for (const d of Dg) {
+    onset.push(m.hookOnset(d));
+    if (!m.ind) continue;
+    let ib = 0; const n = Ag.map(a => m.eqClosed(a, d).N); n.forEach((v, i) => { if (v > n[ib]) ib = i; });
+    // a parabola through log N at the three grid points around the maximum puts the peak between grid points
+    let lp = Math.log(Ag[ib]);
+    if (ib > 0 && ib < Ag.length - 1) { const y0 = Math.log(n[ib - 1]), y1 = Math.log(n[ib]), y2 = Math.log(n[ib + 1]), den = y0 - 2 * y1 + y2, st = Math.log(Ag[ib + 1] / Ag[ib]); if (den < 0) lp += 0.5 * st * (y0 - y2) / den; }
+    pk.push(Math.exp(lp));
+    let hh = NaN; for (let i = ib + 1; i < Ag.length; i++) if (n[i] < 0.5 * n[ib]) { const f = (Math.log(0.5 * n[ib]) - Math.log(n[i - 1])) / (Math.log(n[i]) - Math.log(n[i - 1])); hh = Math.exp(Math.log(Ag[i - 1]) + f * (Math.log(Ag[i]) - Math.log(Ag[i - 1]))); break; }
+    half.push(hh);
+  }
+  pHook.set([
+    { name: 'hook starts, max(S_T + K₁, D_T + K₂)', x: Dg, y: onset, c: 0, dash: [6, 4] },
+    m.ind ? { name: 'equilibrium peak', x: Dg, y: pk, c: 1 } : null,
+    m.ind ? { name: 'falls to half the peak', x: Dg, y: half, c: 2 } : null,
+  ].filter(Boolean), [{ x: S.DT, label: 'now', dash: false }],
+  [], [{ from: K2, to: 2 * K2, color: accent(), alpha: 0.12 }]);
+  // relative LOD
+  const Dl = logGrid(1e-12, 1e-7, 8);
+  pLOD.set([
+    { name: 'blank set by non-specific label, ∝ K₂ + D_T', x: Dl, y: Dl.map(d => (K2 + d) / (2 * K2)), c: 7 },
+    { name: 'photons or counting, ∝ (K₂ + D_T)/D_T', x: Dl, y: Dl.map(d => (K2 + d) / (2 * d)), c: 0 },
+  ], [{ x: S.DT, label: 'now', dash: false }], [{ y: 1, dash: false }], [{ from: K2, to: 2 * K2, color: accent(), alpha: 0.12 }]);
+  // bead number sweep
+  const NB = logGrid(100, 1e6, 4), capf = [], capc = [], pe = [];
+  for (const nb of NB) {
+    const mm = ENGINE.model(Object.assign(params(), { nb })), r = mm.endpoint(Al, S.DT, tInc, tW), y = r.inc;
+    capf.push(Math.min(1, (y[3] + y[4]) * mm.cb / Al)); capc.push(1 - Math.exp(-mm.kcap * tInc)); pe.push(r.sad);
+  }
+  const nbStar = ENGINE.NA * S.V_uL * 1e-6 / (m.kbead * tInc);
+  pCap.set([
+    { name: 'the ODE', x: NB, y: capf, c: 0 },
+    { name: '1 − exp(−k_cap t), Da fixed', x: NB, y: capc, c: 1, dash: [6, 4] },
+  ], [{ x: S.nb, label: 'now', dash: false }, { x: nbStar, label: 'k_cap·t = 1', row: 1 }]);
+  pNb.set([{ name: 'at imaging', x: NB, y: pe, c: 0 }], [{ x: S.nb, label: 'now', dash: false }, { x: nbStar, label: 'k_cap·t = 1', row: 1 }], [{ y: S.LOD, label: 'optical LOD' }]);
+  const fD = S.DT / (K2 + S.DT), inRec = S.DT >= K2 * 0.9 && S.DT <= 2.1 * K2, kt = m.kcap * tInc;
+  K.tiles(designTiles, [
+    { value: fmt(m.DaA, 2), label: 'Da, analyte to an empty bead', sub: m.DaA > 1 ? 'transport-limited' : m.DaA > 0.1 ? 'mixed' : 'reaction-limited', state: m.DaA > 1 ? 'warn' : null },
+    { value: fmt(m.DaAD, 2), label: 'Da, complex to an empty bead', sub: 'k₃N_S/k_D(AD)' },
+    { value: fmt(m.DaDmax, 2), label: 'Da, label to a full bead', sub: 'k₂N_S/k_D(D); ≈ 0 at low analyte' },
+    { value: fmt(m.kDA, 3), label: 'k_D, analyte', sub: 'M⁻¹s⁻¹ per bead, 4πDR·N_A' },
+    { value: fmt(m.kcap, 3) + ' s⁻¹', label: 'Capture clock, k_cap', sub: '1/k_cap = ' + dur(1 / m.kcap) },
+    { value: fmt(kt, 2), label: 'k_cap × incubation', sub: kt < 0.3 ? 'ambient: PE per bead ignores n_b' : kt > 3 ? 'depletion: PE per bead ∝ 1/n_b' : 'in between' },
+    { value: fmt(nbStar, 2), label: 'Beads for k_cap·t = 1', sub: 'in ' + fmt(S.V_uL, 3) + ' µL' },
+    { value: pct(fD), label: 'Label occupancy, f_D', sub: 'D_T/(K₂ + D_T)' },
+    { value: molar(K2, 2) + ' – ' + molar(2 * K2, 2), label: 'Suggested D_T, 1–2 × K₂', sub: 'D_T now is ' + fmt(S.DT / K2, 2) + ' × K₂', state: inRec ? 'good' : null },
+  ]);
+}
+
+if (window.matchMedia) { const mq = matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener && mq.addEventListener('change', redraw); }
+draw();
+</script>
+</body>
+</html>

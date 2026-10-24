@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PE shell bead on the AX R</title>
+<style>
+/*KIT_CSS*/
+.imgrow{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:start;margin-bottom:12px}
+@media (max-width:760px){.imgrow{grid-template-columns:minmax(0,1fr)}}
+.imgbox{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
+.imgbox .imgwrap{width:340px;max-width:100%}
+.imgbox canvas.img{width:340px;height:340px;max-width:100%;height:auto;aspect-ratio:1}
+.imgbox canvas.ov{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;background:none}
+.imgcap{font-size:12px;color:var(--ink-3);margin-top:6px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.pxread{font:12px var(--mono);color:var(--ink-2);min-height:16px;margin-top:4px}
+.flags{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.btnrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.imgrow .plot{margin:0}
+.imgbox .imgwrap{width:300px}
+.imgbox canvas.img{width:300px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:12.5px}
+.kv span:nth-child(odd){color:var(--ink-3)}
+.kv span:nth-child(even){font-family:var(--mono)}
+</style>
+</head>
+<body>
+<h1>Confocal image of a PE shell bead</h1>
+<p class="sub">An 8 µm bead carrying PE only on its surface, imaged on the Nikon AX R in one focal plane whose thickness the pinhole sets.
+Change the microscope, the bead and the background, and watch the image, the ring, and what each way of measuring it does.</p>
+<div class="app">
+  <aside class="controls" id="ctl"></aside>
+  <main id="main"></main>
+</div>
+<footer>Model: <span class="mono">Research/bead_confocal_sim/optics.py</span>, ported to this page and checked against it
+(<span class="mono">interactive/tools/check_confocal.py</span>: PSF, H(z) and integrated F within 0.2 %, rendered F and rim peak within 0.6 %);
+report Part B. Bead material from a geometric ray trace (<span class="mono">report_calcs/ray.py</span>), an estimate only. McGhee Lab · October 2026.</footer>
+<script>
+/*KIT_JS*/
+/*INCLUDE:confocal-engine.js*/
+/*INCLUDE:ray-table.js*/
+(() => {
+const { h, fmt, pct, Plot } = K, C = CONFOCAL;
+const OBJ_OPTS = [['10x', '10x/0.45'], ['20x', '20x/0.75'], ['20xD', '20x/0.80']];
+const MAT_OPTS = [['matched', 'Index-matched'], ['silica', 'Silica'], ['pmma', 'PMMA'], ['ps', 'Polystyrene']];
+const DEF = { obj: '20xD', AU: 1, uW: 2, dwell: 2, ppb: 18.5, gain: 5, bits: 12, offset: 60, read: 2, avg: 1, enf: 1.3, transmission: 0.4, QE: 0.4,
+  sigma: 100, z0: 0, offX: 0, offY: 0, fieldR: 0, vignette: 0.15, curv: 0, kind: 'shell', material: 'matched', excite: false,
+  washed: true, solutionNM: 1, autoOn: false, autofluor: 0.02, framesBefore: 0, antifade: false, noise: true, seed: 7, lut: 'gray', range: 'auto', masks: true };
+const S = Object.assign({}, DEF);
+const ctl = {}, ctlHost = document.getElementById('ctl'), main = document.getElementById('main');
+
+/* ---------------- controls ---------------- */
+function panel(title, ...kids) { const p = h('div.panel', h('h2', title), ...kids); ctlHost.append(p); return p; }
+const upd = K.scheduler(update);
+const set = k => v => { S[k] = v; upd(); };
+ctl.obj = K.seg({ label: 'Objective', options: OBJ_OPTS, value: S.obj, onInput: set('obj'), hint: 'Which 20x is fitted (0.75 or 0.80) is still to be confirmed.' });
+ctl.AU = K.slider({ label: 'Pinhole', min: 0.3, max: 6, step: 0.05, value: S.AU, unit: 'AU', onInput: set('AU'), fmt: v => v.toFixed(2) });
+ctl.uW = K.slider({ label: 'Laser at the sample (561 nm)', min: 0.1, max: 100, log: true, value: S.uW, unit: 'µW', onInput: set('uW'), hint: 'Measured with a power meter at the sample, never % laser.' });
+ctl.dwell = K.slider({ label: 'Pixel dwell', min: 0.2, max: 16, log: true, value: S.dwell, unit: 'µs', onInput: set('dwell') });
+ctl.ppb = K.slider({ label: 'Pixels across the bead', min: 4, max: 48, step: 0.5, value: S.ppb, onInput: set('ppb'), fmt: v => v.toFixed(1) });
+ctl.avg = K.slider({ label: 'Frames averaged', min: 1, max: 8, step: 1, value: S.avg, onInput: set('avg'), fmt: v => String(v) });
+ctl.gain = K.slider({ label: 'Detector gain (HV)', min: 0.5, max: 200, log: true, value: S.gain, unit: 'DN per photoelectron', onInput: set('gain') });
+ctl.bits = K.seg({ label: 'Digitiser', options: [[12, '12-bit'], [16, '16-bit']], value: S.bits, onInput: v => { S.bits = +v; upd(); }, hint: '12-bit is the AX R default; 16-bit needs fine integration.' });
+ctl.offset = K.slider({ label: 'Offset', min: 0, max: 400, step: 1, value: S.offset, unit: 'DN', onInput: set('offset'), fmt: v => String(Math.round(v)) });
+panel('Microscope', ctl.obj.el, ctl.AU.el, ctl.uW.el, ctl.dwell.el, ctl.ppb.el, ctl.avg.el, ctl.gain.el, ctl.bits.el, ctl.offset.el);
+
+ctl.sigma = K.slider({ label: 'PE on the surface', min: 0.3, max: 5000, log: true, value: S.sigma, unit: 'PE/µm²', onInput: set('sigma') });
+ctl.z0 = K.slider({ label: 'Focal plane above the bead centre', min: -7, max: 7, step: 0.05, value: S.z0, unit: 'µm', onInput: set('z0'), fmt: v => (v > 0 ? '+' : '') + v.toFixed(2), hint: 'Positive = towards the top of the bead (away from the coverslip).' });
+ctl.offX = K.slider({ label: 'Bead centre on the pixel grid, x', min: -0.5, max: 0.5, step: 0.01, value: S.offX, unit: 'px', onInput: set('offX'), fmt: v => v.toFixed(2) });
+ctl.offY = K.slider({ label: 'Bead centre on the pixel grid, y', min: -0.5, max: 0.5, step: 0.01, value: S.offY, unit: 'px', onInput: set('offY'), fmt: v => v.toFixed(2) });
+ctl.fieldR = K.slider({ label: 'Position in the field', min: 0, max: 1, step: 0.01, value: S.fieldR, onInput: set('fieldR'), fmt: v => v === 0 ? 'centre' : v === 1 ? 'edge' : v.toFixed(2), hint: 'Brightness falls by the vignetting below; the focal plane shifts by the curvature.' });
+ctl.vignette = K.slider({ label: 'Fall-off at the field edge', min: 0, max: 0.6, step: 0.01, value: S.vignette, onInput: set('vignette'), fmt: v => pct(v, 0) });
+ctl.curv = K.slider({ label: 'Field curvature at the edge', min: -3, max: 3, step: 0.05, value: S.curv, unit: 'µm', onInput: set('curv'), fmt: v => (v > 0 ? '+' : '') + v.toFixed(2) });
+ctl.kind = K.seg({ label: 'Where the PE is', options: [['shell', 'Shell (surface)'], ['core', 'Filled bead']], value: S.kind, onInput: set('kind'), hint: 'A filled bead with the same PE total, for comparison: a volume label has a different signature.' });
+ctl.material = K.seg({ label: 'Bead material (shell only)', options: MAT_OPTS, value: S.material, onInput: set('material'), hint: 'A bead that is not index-matched bends light. Geometric ray-trace estimate.' });
+ctl.excite = K.check({ label: 'Include the excitation path (c² proxy)', value: S.excite, onInput: set('excite'), hint: 'Reciprocity guess; sensitive to the PSF tails. Treat as a range, not a number.' });
+panel('Bead', ctl.sigma.el, ctl.z0.el, ctl.kind.el, ctl.material.el, ctl.excite.el, ctl.offX.el, ctl.offY.el,
+  h('div.btnrow', h('button.btn', { on: { click: () => { ctl.offX.set(Math.round((Math.random() - 0.5) * 100) / 100); ctl.offY.set(Math.round((Math.random() - 0.5) * 100) / 100); } } }, 'Random grid position')),
+  h('h3', 'Field'), ctl.fieldR.el, ctl.vignette.el, ctl.curv.el);
+
+ctl.washed = K.check({ label: 'Washed (no free PE-antibody in the buffer)', value: S.washed, onInput: set('washed') });
+ctl.solutionNM = K.slider({ label: 'Free PE-antibody left in the buffer', min: 0.01, max: 100, log: true, value: S.solutionNM, unit: 'nM', onInput: set('solutionNM'), hint: 'A no-wash read. The bead displaces the buffer, so it shows as a darker hole.' });
+ctl.autoOn = K.check({ label: 'Bead autofluorescence', value: S.autoOn, onInput: set('autoOn') });
+ctl.autofluor = K.slider({ label: 'Autofluorescence of the bead body', min: 0.001, max: 10, log: true, value: S.autofluor, unit: 'PE per µm³', onInput: set('autofluor') });
+ctl.framesBefore = K.slider({ label: 'Frames already taken (focusing in PE)', min: 0, max: 300, step: 1, value: S.framesBefore, onInput: set('framesBefore'), fmt: v => String(v) });
+ctl.antifade = K.check({ label: 'n-Propyl gallate in the buffer (1.7× slower bleaching)', value: S.antifade, onInput: set('antifade') });
+ctl.noise = K.check({ label: 'Photon and detector noise', value: S.noise, onInput: set('noise') });
+panel('Background, bleaching, noise', ctl.washed.el, ctl.solutionNM.el, ctl.autoOn.el, ctl.autofluor.el, ctl.framesBefore.el, ctl.antifade.el, ctl.noise.el,
+  h('div.btnrow', h('button.btn', { on: { click: () => { S.seed = (S.seed * 1103515245 + 12345) % 2147483647; upd(); } } }, 'New noise')));
+
+ctl.lut = K.seg({ label: 'Colour table', options: [['gray', 'Grey'], ['inferno', 'Inferno']], value: S.lut, onInput: set('lut') });
+ctl.range = K.seg({ label: 'Display range', options: [['auto', 'Background to brightest'], ['full', 'Full detector']], value: S.range, onInput: set('range') });
+ctl.masks = K.check({ label: 'Show the measurement masks', value: S.masks, onInput: set('masks'), hint: 'Dashed: the bead edge. Solid: what is summed (R + 2.5 µm). Dotted: where the background starts.' });
+panel('Display', ctl.lut.el, ctl.range.el, ctl.masks.el,
+  h('div.btnrow', h('button.btn.pri', { on: { click: () => applyPreset('rec') } }, 'Recommended settings'), h('button.btn', { on: { click: () => applyPreset('old') } }, 'First-pass settings (10x, 10 µW)')));
+
+function applyPreset(k) {
+  const P = k === 'rec' ? { obj: '20xD', AU: 1, uW: 2, dwell: 2, ppb: 18.5, avg: 1, gain: 5, bits: 12, offset: 60, z0: 0, washed: true, framesBefore: 0 }
+    : { obj: '10x', AU: 4, uW: 10, dwell: 2, ppb: 20, avg: 1, gain: 5, bits: 12, offset: 60, z0: 0, washed: true, framesBefore: 0 };
+  for (const [key, v] of Object.entries(P)) { S[key] = v; if (ctl[key]) ctl[key].set(v, true); }
+  upd();
+}
+
+/* ---------------- main area ---------------- */
+const paneImage = h('div'), paneFocus = h('div'), paneSection = h('div'), panePhot = h('div');
+let tab = 'image';
+K.tabs(main, [{ id: 'image', label: 'Image', el: paneImage }, { id: 'focus', label: 'Focus', el: paneFocus }, { id: 'section', label: 'Optical section', el: paneSection }, { id: 'phot', label: 'Photons and bleaching', el: panePhot }], id => { tab = id; upd(); });
+
+// image tab
+const flags = h('div.flags'), tilesImg = h('div.tiles');
+const cvImg = h('canvas.img'), cvOv = h('canvas.ov'), pxread = h('div.pxread', ' '), cbar = h('canvas'), cbLo = h('span'), cbHi = h('span'), scaleTxt = h('span');
+const profHost = h('div');
+paneImage.append(flags, h('div.imgrow',
+  h('div.imgbox', h('div.imgwrap', cvImg, cvOv), h('div.cbar', cbLo, cbar, cbHi), h('div.imgcap', scaleTxt), pxread),
+  profHost), tilesImg);
+const plotProf = new Plot(profHost, { title: 'Ring profile', xLabel: 'distance from the bead centre (µm)', yLabel: 'above background (DN)', height: 300, yZero: true });
+paneImage.append(h('div.note', 'The ring is the shell seen edge-on: the optical section cuts the surface where it runs steeply, so a rim pixel holds several times more PE than a flat sheet. Quantify with the integrated intensity F (the sum over the solid circle, minus the background ring), not the rim peak: F follows the PE count and barely moves with focus; the peak does.'));
+
+// focus tab
+const tilesFoc = h('div.tiles');
+paneFocus.append(tilesFoc);
+const plotFoc = new Plot(paneFocus, { title: 'What each measure does when the focal plane moves', xLabel: 'focal plane above the bead centre (µm)', yLabel: 'relative to its best value', height: 270, yZero: true });
+paneFocus.append(h('div.note', 'F is the integral over the whole bead image. For a shell, Archimedes’ hat-box theorem makes the shell area in every slice of height dz the same (2πR dz), so F only falls once the optical section runs off the top or bottom of the bead. The rim peak falls as soon as the section leaves the equator.'));
+const plotMat = new Plot(paneFocus, { title: 'F against focus, by bead type and material', xLabel: 'focal plane above the bead centre (µm)', yLabel: 'F ÷ matched shell at the equator', height: 270, yZero: true });
+paneFocus.append(h('div.note.warn', 'Bead material is the largest open question (report Part E, item 1). A polystyrene, PMMA or silica bead in water acts as a weak lens: the ray trace lowers F near the equator and makes the curve lopsided, so the flat part is no longer centred on the equator. The trace counts light that reaches the objective, not light that passes the pinhole: surface-labelled polystyrene particles lose their far hemisphere in confocal images (Vorselen 2020, in the lit review), so the bright top cap here is probably not real. Measure F against focus on our beads (Experiment 5) and focus at the measured flat point.'));
+
+// section tab
+const tilesSec = h('div.tiles');
+paneSection.append(tilesSec);
+const plotSec = new Plot(paneSection, { title: 'The optical section for these settings', xLabel: 'distance of a molecule from the focal plane (µm)', yLabel: 'relative response', height: 250, yZero: true });
+paneSection.append(h('div.note', 'Two widths matter. The on-axis width is what a point on the optical axis sees (the textbook section). The plane-integrated width is what a whole sheet of PE sees, and it is what sets how much of the shell contributes to F. The dotted lines are the bead’s top and bottom.'));
+const plotSecAU = new Plot(paneSection, { title: 'Section width (plane-integrated FWHM) against pinhole', xLabel: 'pinhole (AU)', yLabel: 'FWHM (µm)', height: 240, yZero: true });
+paneSection.append(h('div.note', 'Above the dashed line the section is thicker than the bead, so every part of the shell contributes and F stops depending on focus. The 10x passes that point near 1 AU; above about 3 AU its section is wider than 28 µm, off this chart. The 20x stays thinner than the bead up to about 3 AU.'));
+const secTable = h('div.panel');
+paneSection.append(secTable);
+
+// photons tab
+const tilesPh = h('div.tiles');
+panePhot.append(tilesPh);
+const plotPow = new Plot(panePhot, { title: 'Detected photons per bead per frame against laser power', xLabel: 'laser at the sample (µW)', yLabel: 'photoelectrons per bead per frame', xLog: true, yLog: true, height: 250 });
+panePhot.append(h('div.note', 'Saturation is computed point by point in the focal volume: molecules away from the focal plane see less light and saturate later, so F stays linear to higher power than an in-focus sheet. The report keeps 1–2 µW as the default because the millisecond dark state of PE and ±30 % on its absorption and lifetime are not in this model (Experiment 7 measures the real threshold).'));
+const plotBl = new Plot(panePhot, { title: 'Bleaching per frame against laser power', xLabel: 'laser at the sample (µW)', yLabel: 'PE lost per frame (%)', xLog: true, yLog: true, height: 230 });
+panePhot.append(h('div.note', 'One-photon excitation gives every plane the full beam, so a raster delivers the same dose to every PE on the bead, top to bottom. Bleaching is then a pure gain error: fix the frames and the power, and never focus in PE.'));
+
+/* ---------------- computing ---------------- */
+let last = null, gen = 0;
+function scanOf() { return { obj: S.obj, AU: S.AU, ppb: S.ppb, dwell: S.dwell, uW: S.uW, gain: S.gain, enf: S.enf, offset: S.offset, read: S.read, bits: S.bits, transmission: S.transmission, QE: S.QE, avg: S.avg, antifade: S.antifade, noise: S.noise }; }
+function beadOf() { return { R: 4, sigma: S.sigma, z0: S.z0, offX: S.offX, offY: S.offY, fieldR: S.fieldR, vignette: S.vignette, curv: S.curv, framesBefore: S.framesBefore, kind: S.kind, material: S.material, excite: S.excite, autofluor: S.autoOn ? S.autofluor : 0, solutionNM: S.washed ? 0 : S.solutionNM }; }
+
+function update() {
+  gen++;
+  ctl.material.el.style.opacity = S.kind === 'core' ? .45 : 1; ctl.excite.el.style.opacity = S.kind === 'core' || S.material === 'matched' ? .45 : 1;
+  ctl.solutionNM.el.style.opacity = S.washed ? .45 : 1; ctl.autofluor.el.style.opacity = S.autoOn ? 1 : .45;
+  const r = last = C.render(beadOf(), scanOf(), K.rng(S.seed));
+  drawImage(r);
+  if (tab === 'image') renderImageTab(r);
+  if (tab === 'focus') renderFocusTab(r, gen);
+  if (tab === 'section') renderSectionTab(r, gen);
+  if (tab === 'phot') renderPhotTab(r);
+}
+
+/* ---------------- image ---------------- */
+function drawImage(r) {
+  const lo = S.range === 'full' ? 0 : Math.min(...sample(r.img, 'min')), hi = S.range === 'full' ? r.adc : Math.max(lo + 1, ...sample(r.img, 'max'));
+  K.paint(cvImg, r.img, r.fov, r.fov, lo, hi, S.lut, 1);
+  K.colorbar(cbar, S.lut); cbLo.textContent = Math.round(lo) + ' DN'; cbHi.textContent = Math.round(hi) + ' DN';
+  const fieldUm = r.fov * r.px; scaleTxt.textContent = fmt(fieldUm, 3) + ' µm across · ' + r.fov + ' × ' + r.fov + ' px';
+  // overlay
+  const W = 680; cvOv.width = W; cvOv.height = W; const g = cvOv.getContext('2d'); g.clearRect(0, 0, W, W);
+  if (S.masks) {
+    const k = W / r.fov, cx = (r.cx + 0.5) * k, cy = (r.cy + 0.5) * k, rad = um => um / r.px * k;
+    g.lineWidth = 2; g.strokeStyle = 'rgba(57,135,229,.95)';
+    g.setLineDash([8, 6]); g.beginPath(); g.arc(cx, cy, rad(4), 0, 7); g.stroke();
+    g.setLineDash([]); g.beginPath(); g.arc(cx, cy, rad(6.5), 0, 7); g.stroke();
+    g.setLineDash([2, 5]); g.beginPath(); g.arc(cx, cy, rad(6.5 + r.px), 0, 7); g.stroke(); g.setLineDash([]);
+  }
+  // scale bar: 5 µm
+  { const k = W / r.fov, L = 5 / r.px * k; g.fillStyle = 'rgba(255,255,255,.9)'; g.fillRect(W - 24 - L, W - 30, L, 6); g.font = '22px system-ui'; g.textAlign = 'right'; g.fillText('5 µm', W - 24, W - 40); }
+}
+function sample(a, kind) { let m = kind === 'min' ? Infinity : -Infinity; for (let i = 0; i < a.length; i++) m = kind === 'min' ? Math.min(m, a[i]) : Math.max(m, a[i]); return [m]; }
+cvImg.addEventListener('pointermove', e => {
+  if (!last) return; const b = cvImg.getBoundingClientRect(), i = Math.floor((e.clientX - b.left) / b.width * last.fov), j = Math.floor((e.clientY - b.top) / b.height * last.fov);
+  if (i < 0 || j < 0 || i >= last.fov || j >= last.fov) return;
+  const p = j * last.fov + i, rr = Math.hypot(i - last.cx, j - last.cy) * last.px;
+  pxread.textContent = `pixel (${i}, ${j}) · ${Math.round(last.img[p])} DN · ${fmt(last.lam[p] * S.avg, 3)} photoelectrons expected · ${rr.toFixed(2)} µm from the centre`;
+});
+cvImg.addEventListener('pointerleave', () => { pxread.textContent = ' '; });
+
+function flag(state, text) { return h('span.flag.' + state, h('i'), text); }
+function renderImageTab(r) {
+  const m = r.m, w = r.widths, F0 = sublinearity(r);
+  const fl = [];
+  if (m.satFrac > 0) fl.push(flag('bad', pct(m.satFrac, 1) + ' of bead pixels at the detector ceiling: lower the HV'));
+  if ([...r.img].some(v => v <= 0)) fl.push(flag('warn', 'Some pixels clip at 0: raise the offset'));
+  if (F0 > 0.05) fl.push(flag('warn', 'F is ' + pct(F0, 0) + ' below linear (saturation)'));
+  if (r.bleachPerFrame > 0.001) fl.push(flag('warn', 'Bleaching ' + pct(r.bleachPerFrame, 2) + ' per frame'));
+  if (S.ppb < 12) fl.push(flag('warn', 'Under 12 px per bead, F depends on where the bead falls on the grid'));
+  if (m.peakPe * S.avg < 200 && S.kind === 'shell') fl.push(flag('warn', 'Rim peak ≈ ' + fmt(m.peakPe * S.avg, 2) + ' photoelectrons: too faint to focus or segment on in PE; use transmitted light'));
+  if (!fl.length) fl.push(flag('good', 'No saturation, clipping or bleaching problems at these settings'));
+  flags.replaceChildren(...fl);
+  const pe = m.integratedPe * S.avg;
+  K.tiles(tilesImg, [
+    { value: fmt(m.integrated, 3) + ' DN', label: 'F, integrated over the bead', sub: '≈ ' + fmt(pe, 3) + ' photoelectrons' },
+    { value: fmt(r.Fanalytic * S.avg, 3), label: 'F expected (photoelectrons, no noise)', sub: 'hat-box theorem' },
+    { value: fmt(m.snr, 3), label: 'Signal-to-noise of F', sub: 'shot + excess + read noise', state: m.snr < 10 ? 'warn' : '' },
+    { value: fmt(m.peak, 3) + ' DN', label: 'Rim peak', sub: pct((m.peak + m.bg) / r.adc, 0) + ' of full scale', state: m.satFrac > 0 ? 'bad' : '' },
+    { value: fmt(m.ringR, 3) + ' µm', label: 'Ring radius', sub: 'bead radius 4 µm' },
+    { value: m.contrast === Infinity ? '∞' : fmt(m.contrast, 2) + '×', label: 'Rim / centre', sub: 'centre ' + fmt(m.centre, 2) + ' DN' },
+    { value: fmt(r.totalPE, 3), label: 'PE on the bead', sub: fmt(S.sigma, 3) + ' per µm²' },
+    { value: fmt(r.px, 3) + ' µm', label: 'Pixel size', sub: zoomText(r.px) },
+    { value: pct(r.bleachPerFrame, 3), label: 'Bleached per frame', sub: S.framesBefore ? pct(1 - r.surv0, 1) + ' lost before this frame' : 'no frames before' },
+  ]);
+  const pr = m.profile, model = [], mr = [];
+  const k = r.k1 * S.gain;
+  for (let i = 0; i < r.rs.length; i++) { const rr = r.rs[i]; if (rr > 4 + 2.5) break; mr.push(rr); model.push((r.prof[i] - (S.washed ? 0 : 0)) * k); }
+  const bgModel = r.prof[r.rs.length - 1] * k;
+  plotProf.set([
+    { name: 'this image (1-pixel rings)', x: pr.r, y: pr.v, c: 0, dots: true, width: 1.5 },
+    { name: 'model, no noise', x: mr, y: model.map(v => v - bgModel), c: 1, dash: true },
+  ], [{ x: 4, label: 'bead edge' }, { x: m.ringR, label: 'ring', row: 1 }], [{ y: r.adc - m.bg, label: 'detector ceiling', color: K.css('--bad') }]);
+}
+function zoomText(px) { const M = C.OBJ[S.obj].M, zoom = 17700 / (M * px * 2048); return zoom >= 0.999 ? '2048² at zoom ' + zoom.toFixed(2) : 'needs ' + Math.ceil(17700 / (M * px * 1000)) * 1000 + '+ px per line at zoom 1'; }
+function sublinearity(r) {
+  const P = r.P, R = 4, cz = S.kind === 'core' ? null : C.materialFactor(S.obj, S.material, S.excite), k0 = r.ex.k0;
+  C.setSaturation(P, 0); const lin = S.kind === 'core' ? C.Fcore(P, R, r.z0eff) : C.Fshell(P, R, r.z0eff, cz);
+  C.setSaturation(P, k0); const sat = S.kind === 'core' ? C.Fcore(P, R, r.z0eff) : C.Fshell(P, R, r.z0eff, cz);
+  return 1 - sat / lin;
+}
+
+/* ---------------- focus ---------------- */
+const focusCache = new Map();
+function renderFocusTab(r, g0) {
+  const P = r.P, R = 4, cz = S.kind === 'core' ? null : C.materialFactor(S.obj, S.material, S.excite), zs = [];
+  for (let z = -7; z <= 7.0001; z += 0.1) zs.push(+z.toFixed(2));
+  const Fz = zs.map(z => S.kind === 'core' ? C.Fcore(P, R, z) : C.Fshell(P, R, z, cz)), Fmax = Math.max(...Fz);
+  // the flat part: where F stays within 2 % of its best
+  let iBest = Fz.indexOf(Fmax), a = iBest, b = iBest; while (a > 0 && Fz[a - 1] >= 0.98 * Fmax) a--; while (b < zs.length - 1 && Fz[b + 1] >= 0.98 * Fmax) b++;
+  const at = z => { const i = zs.findIndex(q => Math.abs(q - z) < 0.051); return i < 0 ? NaN : Fz[i] / Fz[zs.indexOf(0)]; };
+  const zBest = zs[iBest];
+  K.tiles(tilesFoc, [
+    { value: (zBest > 0 ? '+' : '') + zBest.toFixed(1) + ' µm', label: 'Where F is highest (flat point)', sub: S.material === 'matched' || S.kind === 'core' ? 'equator for a matched bead' : 'ray-trace estimate', state: Math.abs(zBest) > 0.3 ? 'warn' : '' },
+    { value: zs[a].toFixed(1) + ' to ' + (zs[b] > 0 ? '+' : '') + zs[b].toFixed(1) + ' µm', label: 'F within 2 % of its best' },
+    { value: pct(at(1) - 1, 1) + ' / ' + pct(at(-1) - 1, 1), label: 'F change at +1 / −1 µm', sub: 'from the equator' },
+    { value: pct(at(2) - 1, 1) + ' / ' + pct(at(-2) - 1, 1), label: 'F change at +2 / −2 µm' },
+  ]);
+  const key = [S.obj, S.AU, S.kind, S.material, S.excite, last.ex.k0.toFixed(4)].join('|');
+  const pk = focusCache.get(key) || { z: [], peak: [], centre: [] };
+  const draw = () => {
+    const pmax = Math.max(...pk.peak, 1e-30), cmax = Math.max(...pk.centre, 1e-30);
+    plotFoc.set([
+      { name: 'F (integrated)', x: zs, y: Fz.map(v => v / Fmax), c: 0, width: 2.5 },
+      { name: 'rim peak (fine sampling)', x: pk.z, y: pk.peak.map(v => v / pmax), c: 1 },
+      { name: 'centre (inner 30 %)', x: pk.z, y: pk.centre.map(v => v / cmax), c: 2, dash: true },
+    ], [{ x: S.z0, label: 'this plane' }, { x: -4, color: K.css('--line') }, { x: 4, color: K.css('--line') }], [{ y: 0.98, label: '−2 %' }], [{ from: zs[a], to: zs[b], color: K.css('--accent-soft'), label: 'F flat' }]);
+  };
+  draw();
+  if (pk.z.length < zs.filter((_, i) => i % 3 === 0).length) {
+    const todo = zs.filter((_, i) => i % 3 === 0).filter(z => !pk.z.includes(z));
+    const step = () => {
+      if (gen !== g0 || tab !== 'focus') return;
+      const P2 = C.psf(S.obj, S.AU); C.setSaturation(P2, last.ex.k0);
+      for (let n = 0; n < 3 && todo.length; n++) { const z = todo.shift(), f = C.fineProfile(P2, R, z, cz, S.kind); pk.z.push(z); pk.peak.push(f.peak); pk.centre.push(f.centre); }
+      const o = pk.z.map((z, i) => i).sort((i, j) => pk.z[i] - pk.z[j]); pk.z = o.map(i => pk.z[i]); pk.peak = o.map(i => pk.peak[i]); pk.centre = o.map(i => pk.centre[i]);
+      focusCache.set(key, pk); draw();
+      if (todo.length) setTimeout(step, 0);
+    };
+    setTimeout(step, 0);
+  }
+  // materials
+  C.setSaturation(P, last.ex.k0);
+  const ref = C.Fshell(P, R, 0, null), ser = [];
+  ser.push({ name: 'shell, index-matched', x: zs, y: zs.map(z => C.Fshell(P, R, z, null) / ref), c: 0, width: 2.5 });
+  [['silica', 2], ['pmma', 3], ['ps', 1]].forEach(([m, c]) => { const f = C.materialFactor(S.obj, m, S.excite); ser.push({ name: MAT_OPTS.find(x => x[0] === m)[1].toLowerCase() + (S.excite ? ' (em × ex)' : ' (emission)'), x: zs, y: zs.map(z => C.Fshell(P, R, z, f) / ref), c }); });
+  ser.push({ name: 'filled bead, same PE', x: zs, y: zs.map(z => C.Fcore(P, R, z) * (S.sigma * 4 * Math.PI * 16) / (4 / 3 * Math.PI * 64) / (S.sigma * ref)), c: 6, dash: true });
+  plotMat.set(ser, [{ x: S.z0, label: 'this plane' }]);
+}
+
+/* ---------------- section ---------------- */
+const auCache = {};
+function renderSectionTab(r, g0) {
+  const P = r.P, w = r.widths, z = [];
+  for (let q = -8; q <= 8.0001; q += 0.05) z.push(+q.toFixed(2));
+  const on0 = C.hAt(P, 0, 0), H0 = C.Hat(P, 0);
+  const open = C.psf(S.obj, 6); C.setSaturation(open, 0); const Ho = C.Hat(open, 0);
+  C.setSaturation(P, r.ex.k0);
+  plotSec.set([
+    { name: 'on-axis point', x: z, y: z.map(q => C.hAt(P, 0, Math.abs(q)) / on0), c: 0 },
+    { name: 'whole plane (sheet)', x: z, y: z.map(q => C.Hat(P, q) / H0), c: 1, width: 2.5 },
+    { name: 'whole plane, pinhole open (6 AU)', x: z, y: z.map(q => C.Hat(open, q) / Ho), c: 6, dash: true },
+  ], [{ x: -4, label: 'bead bottom' }, { x: 4, label: 'bead top' }], [{ y: 0.5, label: 'half maximum' }]);
+  const zt = r.zeiss;
+  K.tiles(tilesSec, [
+    { value: fmt(w.zPlane, 3) + ' µm', label: 'Section, plane-integrated FWHM', sub: w.zPlane < 8 ? 'thinner than the bead' : 'as thick as the bead' },
+    { value: fmt(w.zOnAxis, 3) + ' µm', label: 'Section, on-axis FWHM', sub: 'textbook formula ' + fmt(zt.z, 3) + ' µm' },
+    { value: fmt(w.xy, 3) + ' µm', label: 'Lateral FWHM', sub: 'textbook ' + fmt(zt.xy, 3) + ' µm' },
+    { value: fmt(w.pinholeUm, 3) + ' µm', label: 'Pinhole at the sample', sub: fmt(S.AU, 3) + ' AU' },
+    { value: pct(w.D00, 0), label: 'In-focus light through the pinhole' },
+    { value: fmt(P.Veff, 3) + ' µm³', label: 'Effective detection volume', sub: 'free PE background scales with it' },
+  ]);
+  secTable.replaceChildren(h('h2', 'Numbers for this objective and pinhole'), h('div.kv',
+    h('span', 'Beam waist w0'), h('span', fmt(P.w0, 3) + ' µm'), h('span', 'Rayleigh range'), h('span', fmt(P.zR, 3) + ' µm'),
+    h('span', 'Emission spot width'), h('span', fmt(P.sEm, 3) + ' µm (σ)'), h('span', 'Airy unit at the sample'), h('span', fmt(C.airyUm(P.o), 3) + ' µm'),
+    h('span', 'Collection fraction'), h('span', pct(C.collection(P.o), 2) + ' of all emission'), h('span', 'Detection efficiency η'), h('span', pct(r.eta, 2) + ' (collection × 0.4 optics × 0.4 QE)')));
+  // FWHM against pinhole, three objectives (computed once, a few at a time)
+  const AUs = [0.3, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6], keys = ['10x', '20x', '20xD'];
+  // the table stops at ±14 µm, so a width of 28 µm means "at least 28": leave those points off
+  const ok = (k, a) => auCache[k + a] && auCache[k + a] < 27.9;
+  const draw = () => plotSecAU.set(keys.map((k, i) => ({ name: OBJ_OPTS[i][1], x: AUs.filter(a => ok(k, a)), y: AUs.filter(a => ok(k, a)).map(a => auCache[k + a]), c: i, dots: true })), [{ x: S.AU, label: 'this pinhole' }], [{ y: 8, label: 'bead diameter' }]);
+  draw();
+  const todo = []; keys.forEach(k => AUs.forEach(a => { if (!auCache[k + a]) todo.push([k, a]); }));
+  const step = () => { if (gen !== g0 || tab !== 'section') return; for (let n = 0; n < 2 && todo.length; n++) { const [k, a] = todo.shift(), Q = C.psf(k, a); C.setSaturation(Q, 0); auCache[k + a] = C.widths(Q).zPlane; } draw(); if (todo.length) setTimeout(step, 0); };
+  if (todo.length) setTimeout(step, 0);
+}
+
+/* ---------------- photons ---------------- */
+const satCache = {};
+function renderPhotTab(r) {
+  const P = r.P, R = 4, cz = S.kind === 'core' ? null : C.materialFactor(S.obj, S.material, S.excite), ex1 = C.excitation(1, P.w0);
+  const Fl = (k0) => { C.setSaturation(P, k0); return S.kind === 'core' ? C.Fcore(P, R, r.z0eff) : C.Fshell(P, R, r.z0eff, cz); };
+  const lin = Fl(0), pows = [], yF = [], yL = [];
+  for (let e = -1; e <= 2.0001; e += 0.05) { const p = Math.pow(10, e); pows.push(p); yF.push(Fl(ex1.k0 * p)); }
+  const unit = r.k1 / S.uW;   // photoelectrons per PE-equivalent per frame, per µW (linear)
+  const nPE = r.surv * S.sigma / (r.px * r.px);
+  const Fph = pows.map((p, i) => yF[i] * nPE * unit * p * (S.kind === 'core' ? (4 * Math.PI * 16) / (4 / 3 * Math.PI * 64) : 1));
+  const Flin = pows.map((p, i) => lin * nPE * unit * p * (S.kind === 'core' ? (4 * Math.PI * 16) / (4 / 3 * Math.PI * 64) : 1));
+  // 5 %-sublinear power for F (bisection)
+  let lo = 0.01, hi = 1000; for (let i = 0; i < 40; i++) { const m = Math.sqrt(lo * hi); if (Fl(ex1.k0 * m) / lin > 0.95) lo = m; else hi = m; }
+  const p5 = lo;
+  C.setSaturation(P, r.ex.k0);
+  plotPow.set([
+    { name: 'with saturation', x: pows, y: Fph, c: 0, width: 2.5 },
+    { name: 'linear', x: pows, y: Flin, c: 6, dash: true },
+  ], [{ x: S.uW, label: 'now' }, { x: p5, label: 'F 5 % sublinear', row: 1 }, { x: S.obj === '10x' ? 6.5 : 2, label: 'report default', row: 2 }]);
+  const dose1 = C.absorbedPerFrame(1, S.dwell, r.px), phi = S.antifade ? C.PE.phiNPG : C.PE.phi;
+  plotBl.set([
+    { name: 'R-PE in buffer', x: pows, y: pows.map(p => 100 * (1 - Math.exp(-C.PE.phi * dose1 * p))), c: 1 },
+    { name: 'with n-propyl gallate', x: pows, y: pows.map(p => 100 * (1 - Math.exp(-C.PE.phiNPG * dose1 * p))), c: 2, dash: true },
+  ], [{ x: S.uW, label: 'now' }], [{ y: 0.05, label: '0.05 % per frame' }]);
+  const perPEframe = r.Fanalytic / Math.max(1e-30, r.totalPE * r.surv);   // detected photoelectrons per PE per frame
+  const life = perPEframe / Math.max(1e-30, r.bleachPerFrame);
+  K.tiles(tilesPh, [
+    { value: fmt(r.ex.I0 * 1e-7, 3) + ' kW/cm²', label: 'Peak irradiance', sub: fmt(r.ex.flux * 1e-4, 3) + ' photons cm⁻² s⁻¹' },
+    { value: fmt(r.ex.k0, 3), label: 'k0 = excitation rate × lifetime', sub: 'at the beam peak; 1 = saturation' },
+    { value: pct(1 - Fl(r.ex.k0) / lin, 1), label: 'F below linear here', state: 1 - Fl(r.ex.k0) / lin > 0.05 ? 'warn' : '' },
+    { value: fmt(p5, 3) + ' µW', label: 'F 5 % below linear at', sub: 'model only: no dark state' },
+    { value: fmt(perPEframe, 3), label: 'Photoelectrons per PE per frame', sub: 'whole bead, F / PE count' },
+    { value: fmt(r.Fanalytic * S.avg, 3), label: 'Photoelectrons per bead', sub: S.avg > 1 ? S.avg + ' frames' : 'one frame' },
+    { value: pct(r.bleachPerFrame, 3), label: 'Bleached per frame', sub: fmt(r.dose, 3) + ' absorptions per PE' },
+    { value: fmt(Math.log(0.99) / Math.log(1 - r.bleachPerFrame), 3), label: 'Frames to lose 1 %' },
+    { value: fmt(life, 3), label: 'Photons per PE over its life', sub: 'detected, before it bleaches' },
+  ]);
+  C.setSaturation(P, r.ex.k0);
+}
+
+update();
+})();
+</script>
+</body>
+</html>

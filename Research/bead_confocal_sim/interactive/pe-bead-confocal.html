@@ -1,0 +1,1006 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PE shell bead on the AX R</title>
+<style>
+/* kit.css — shared look of the PE-bead simulators (inlined into each page by build.py).
+   Colour roles follow the dataviz reference palette; text never wears a series colour. */
+:root{
+  color-scheme:light;
+  --bg:#f6f5f2; --surface:#fcfcfb; --surface-2:#f0efec; --line:#dedcd6; --grid:#ebe9e4;
+  --ink:#1b1b1a; --ink-2:#52514e; --ink-3:#7d7c77; --accent:#0e6f66; --accent-ink:#ffffff; --accent-soft:#d9ece9;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
+  --good:#0ca30c; --warn:#b77900; --bad:#d03b3b;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme:dark;
+    --bg:#121211; --surface:#1a1a19; --surface-2:#232321; --line:#383835; --grid:#2a2a28;
+    --ink:#f0efec; --ink-2:#c3c2b7; --ink-3:#8f8e86; --accent:#3fb3a6; --accent-ink:#0b1514; --accent-soft:#16332f;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+    --warn:#fab219; --bad:#e66767;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#121211; --surface:#1a1a19; --surface-2:#232321; --line:#383835; --grid:#2a2a28;
+  --ink:#f0efec; --ink-2:#c3c2b7; --ink-3:#8f8e86; --accent:#3fb3a6; --accent-ink:#0b1514; --accent-soft:#16332f;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  --warn:#fab219; --bad:#e66767;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--sans)}
+body{padding:14px 16px 28px}
+h1{font-size:18px;margin:0 0 2px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:14px;margin:0 0 8px;font-weight:650}
+h3{font-size:12px;margin:12px 0 6px;font-weight:650;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+p{margin:0 0 8px}
+.sub{color:var(--ink-2);margin:0 0 12px;max-width:80ch}
+.tiny{font-size:12px}.muted{color:var(--ink-3)}.mono{font-family:var(--mono)}
+a{color:var(--accent)}
+.app{display:grid;grid-template-columns:300px minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:820px){.app{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 12px 10px}
+.panel+.panel{margin-top:12px}
+.controls{position:sticky;top:8px;max-height:calc(100vh - 16px);overflow:auto}
+@media (max-width:820px){.controls{position:static;max-height:none}}
+.ctl{margin:0 0 10px}
+.ctl-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12.5px;color:var(--ink-2)}
+.ctl-h b{font-weight:600;color:var(--ink)}
+.ctl-v{font-family:var(--mono);font-size:12px;color:var(--ink);white-space:nowrap}
+.ctl-hint{font-size:11.5px;color:var(--ink-3);margin-top:1px}
+input[type=range]{width:100%;margin:4px 0 0;accent-color:var(--accent);height:18px}
+select,input[type=number]{font:13px var(--sans);color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:4px 6px;width:100%}
+.seg{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:4px}
+.seg button{flex:1 1 auto;font:12.5px var(--sans);color:var(--ink-2);background:var(--surface-2);border:0;border-right:1px solid var(--line);padding:5px 8px;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--ink-2);margin:6px 0;cursor:pointer}
+.chk input{margin:2px 0 0;accent-color:var(--accent)}
+.btn{font:12.5px var(--sans);color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:4px 10px;cursor:pointer}
+.btn:hover{border-color:var(--ink-3)}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 10px;border-bottom:1px solid var(--line)}
+.tabs button{font:13px var(--sans);color:var(--ink-2);background:none;border:0;border-bottom:2px solid transparent;padding:6px 10px;margin-bottom:-1px;cursor:pointer}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:0 0 12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.tile .v{font:600 17px/1.2 var(--mono);color:var(--ink)}
+.tile .l{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.tile .s{font-size:11.5px;color:var(--ink-2)}
+.tile.warn{border-color:var(--warn)}.tile.bad{border-color:var(--bad)}.tile.good{border-color:var(--good)}
+.flag{display:inline-flex;align-items:center;gap:5px;font-size:12px;border-radius:999px;padding:1px 8px;border:1px solid var(--line);color:var(--ink-2)}
+.flag i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.flag.good i{background:var(--good)}.flag.warn i{background:#fab219}.flag.bad i{background:var(--bad)}
+.plot{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px 6px;margin:0 0 12px}
+.plot-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:0 0 4px}
+.plot-h .t{font-weight:650;font-size:13.5px}
+.plot-h .spacer{flex:1}
+.plot canvas{display:block;width:100%;touch-action:none}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.legend i{width:16px;height:0;border-top:2px solid;display:inline-block}
+.legend i.dash{border-top-style:dashed}
+.legend i.band{height:8px;border:0;opacity:.35}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.12);padding:6px 8px;font-size:12px;line-height:1.35;color:var(--ink);white-space:nowrap;z-index:5;display:none}
+.tip .k{display:inline-block;width:10px;height:2px;margin-right:5px;vertical-align:middle}
+.tip b{font-weight:600}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:980px){.grid2{grid-template-columns:minmax(0,1fr)}}
+table.t{border-collapse:collapse;width:100%;font-size:12.5px}
+table.t th,table.t td{border-bottom:1px solid var(--grid);padding:4px 6px;text-align:left;vertical-align:top}
+table.t th{color:var(--ink-3);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+table.t td.n{text-align:right;font-family:var(--mono)}
+.note{font-size:12.5px;color:var(--ink-2);background:var(--surface-2);border-left:3px solid var(--accent);border-radius:6px;padding:7px 10px;margin:0 0 10px}
+.note.warn{border-left-color:#fab219}
+.imgwrap{position:relative;display:inline-block;max-width:100%}
+.imgwrap canvas{display:block;max-width:100%;image-rendering:pixelated;border-radius:6px;background:#000}
+.cbar{display:flex;align-items:center;gap:6px;font:11.5px var(--mono);color:var(--ink-3);margin-top:4px}
+.cbar canvas{height:10px;width:140px;border-radius:3px;image-rendering:auto;background:none}
+footer{margin-top:16px;font-size:12px;color:var(--ink-3)}
+
+.imgrow{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:start;margin-bottom:12px}
+@media (max-width:760px){.imgrow{grid-template-columns:minmax(0,1fr)}}
+.imgbox{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
+.imgbox .imgwrap{width:340px;max-width:100%}
+.imgbox canvas.img{width:340px;height:340px;max-width:100%;height:auto;aspect-ratio:1}
+.imgbox canvas.ov{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;background:none}
+.imgcap{font-size:12px;color:var(--ink-3);margin-top:6px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.pxread{font:12px var(--mono);color:var(--ink-2);min-height:16px;margin-top:4px}
+.flags{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.btnrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.imgrow .plot{margin:0}
+.imgbox .imgwrap{width:300px}
+.imgbox canvas.img{width:300px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:12.5px}
+.kv span:nth-child(odd){color:var(--ink-3)}
+.kv span:nth-child(even){font-family:var(--mono)}
+</style>
+</head>
+<body>
+<h1>Confocal image of a PE shell bead</h1>
+<p class="sub">An 8 µm bead carrying PE only on its surface, imaged on the Nikon AX R in one focal plane whose thickness the pinhole sets.
+Change the microscope, the bead and the background, and watch the image, the ring, and what each way of measuring it does.</p>
+<div class="app">
+  <aside class="controls" id="ctl"></aside>
+  <main id="main"></main>
+</div>
+<footer>Model: <span class="mono">Research/bead_confocal_sim/optics.py</span>, ported to this page and checked against it
+(<span class="mono">interactive/tools/check_confocal.py</span>: PSF, H(z) and integrated F within 0.2 %, rendered F and rim peak within 0.6 %);
+report Part B. Bead material from a geometric ray trace (<span class="mono">report_calcs/ray.py</span>), an estimate only. McGhee Lab · October 2026.</footer>
+<script>
+/* kit.js — shared controls, number formatting and canvas plots for the PE-bead simulators.
+   Inlined into each page by build.py, so every published page is one self-contained file
+   (it runs in Scientia's sandboxed frame: no network, no storage it can count on). */
+'use strict';
+const K = (() => {
+  const SUP = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '+': '' };
+  const sup = s => String(s).split('').map(c => SUP[c] ?? c).join('');
+
+  /* ---------- DOM ---------- */
+  function h(tag, attrs, ...kids) {
+    const m = /^([a-z0-9]+)((?:[.#][\w-]+)*)$/i.exec(tag) || [0, tag, ''];
+    const el = document.createElement(m[1]);
+    (m[2].match(/[.#][\w-]+/g) || []).forEach(t => t[0] === '.' ? el.classList.add(t.slice(1)) : (el.id = t.slice(1)));
+    if (attrs && (typeof attrs !== 'object' || attrs instanceof Node || Array.isArray(attrs))) { kids.unshift(attrs); attrs = null; }
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v == null || v === false) continue;
+      if (k === 'on') for (const [e, f] of Object.entries(v)) el.addEventListener(e, f);
+      else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+      else if (k === 'html') el.innerHTML = v;
+      else if (k in el && k !== 'list' && typeof v !== 'string') el[k] = v;
+      else el.setAttribute(k, v === true ? '' : v);
+    }
+    const add = x => { if (x == null || x === false) return; if (Array.isArray(x)) return x.forEach(add); el.append(x instanceof Node ? x : document.createTextNode(String(x))); };
+    kids.forEach(add);
+    return el;
+  }
+  const $ = (s, r) => (r || document).querySelector(s);
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const color = i => css('--s' + (((i % 8) + 8) % 8 + 1));
+
+  /* ---------- numbers ---------- */
+  function fmt(x, sig = 3) {
+    if (x == null || Number.isNaN(x)) return '–';
+    if (!Number.isFinite(x)) return x > 0 ? '∞' : '−∞';
+    if (x === 0) return '0';
+    const a = Math.abs(x), e = Math.floor(Math.log10(a));
+    if (e >= -2 && e < 5) { const d = Math.max(0, sig - 1 - e); return (x < 0 ? '−' : '') + a.toFixed(Math.min(d, 6)).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, ''); }
+    const m = x / Math.pow(10, e); let ms = Math.abs(m).toFixed(Math.max(0, sig - 1)).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+    if (ms === '10') { return fmt(Math.sign(x) * Math.pow(10, e + 1), sig); }
+    return (x < 0 ? '−' : '') + (ms === '1' ? '' : ms + '×') + '10' + sup(e);
+  }
+  const group = n => Math.round(n).toLocaleString('en-US');
+  /** A molar concentration with an SI prefix: 3.2e-12 → "3.2 pM". */
+  function molar(M, sig = 3) {
+    if (!(M > 0)) return M === 0 ? '0 M' : '–';
+    const P = [[1e-15, 'fM'], [1e-12, 'pM'], [1e-9, 'nM'], [1e-6, 'µM'], [1e-3, 'mM'], [1, 'M']];
+    let p = P[0]; for (const q of P) if (M >= q[0] * 0.9995) p = q;
+    return fmt(M / p[0], sig) + ' ' + p[1];
+  }
+  function dur(s) {
+    if (!(s >= 0)) return '–';
+    if (s < 60) return fmt(s, 2) + ' s';
+    if (s < 3600) return fmt(s / 60, 2) + ' min';
+    if (s < 86400 * 2) return fmt(s / 3600, 2) + ' h';
+    return fmt(s / 86400, 2) + ' d';
+  }
+  const pct = (x, d = 1) => (x == null || !Number.isFinite(x)) ? '–' : (x * 100).toFixed(d) + '%';
+
+  /* ---------- controls ---------- */
+  /** A labelled slider. log:true maps the track to decades between min and max. */
+  function slider(o) {
+    const log = !!o.log, N = o.steps || 400;
+    const toPos = v => log ? Math.round(N * (Math.log10(v) - Math.log10(o.min)) / (Math.log10(o.max) - Math.log10(o.min))) : v;
+    const fromPos = p => { if (!log) return +p; const v = Math.pow(10, Math.log10(o.min) + (p / N) * (Math.log10(o.max) - Math.log10(o.min))); const e = Math.floor(Math.log10(v)), q = Math.pow(10, e - 2); return Math.round(v / q) * q; };
+    const show = v => (o.fmt ? o.fmt(v) : fmt(v)) + (o.unit ? ' ' + o.unit : '');
+    const val = h('span.ctl-v'), inp = h('input', { type: 'range', min: log ? 0 : o.min, max: log ? N : o.max, step: log ? 1 : (o.step || 'any'), 'aria-label': o.label });
+    const ctl = { value: o.value, el: null, set(v, quiet) { ctl.value = v; inp.value = toPos(v); val.textContent = show(v); if (!quiet && o.onInput) o.onInput(v); } };
+    inp.addEventListener('input', () => ctl.set(fromPos(+inp.value)));
+    ctl.el = h('div.ctl', h('div.ctl-h', h('span', o.label), val), inp, o.hint ? h('div.ctl-hint', o.hint) : null);
+    ctl.set(o.value, true);
+    return ctl;
+  }
+  /** Segmented buttons: options [[value, label], …]. */
+  function seg(o) {
+    const wrap = h('div.seg', { role: 'group', 'aria-label': o.label || '' });
+    const ctl = { value: o.value, el: null, set(v, quiet) { ctl.value = v; [...wrap.children].forEach(b => b.classList.toggle('on', b.dataset.v === String(v))); if (!quiet && o.onInput) o.onInput(v); } };
+    o.options.forEach(([v, l, t]) => wrap.append(h('button', { 'data-v': String(v), title: t || '', on: { click: () => ctl.set(v) } }, l)));
+    ctl.el = h('div.ctl', o.label ? h('div.ctl-h', h('span', o.label)) : null, wrap, o.hint ? h('div.ctl-hint', o.hint) : null);
+    ctl.set(o.value, true);
+    return ctl;
+  }
+  function check(o) {
+    const inp = h('input', { type: 'checkbox' });
+    const ctl = { value: !!o.value, el: h('label.chk', inp, h('span', o.label, o.hint ? h('div.ctl-hint', o.hint) : null)), set(v, quiet) { ctl.value = !!v; inp.checked = !!v; if (!quiet && o.onInput) o.onInput(!!v); } };
+    inp.addEventListener('change', () => ctl.set(inp.checked));
+    ctl.set(o.value, true);
+    return ctl;
+  }
+  function tabs(host, list, onChange) {
+    const bar = h('div.tabs', { role: 'tablist' }), panes = {};
+    let cur = null;
+    const go = id => { cur = id; [...bar.children].forEach(b => b.classList.toggle('on', b.dataset.id === id)); for (const [k, p] of Object.entries(panes)) p.style.display = k === id ? '' : 'none'; onChange && onChange(id); };
+    list.forEach(t => { bar.append(h('button', { 'data-id': t.id, role: 'tab', on: { click: () => go(t.id) } }, t.label)); panes[t.id] = t.el; });
+    host.append(bar, ...list.map(t => t.el));
+    go(list[0].id);
+    return { go, get current() { return cur; } };
+  }
+  function tiles(host, rows) {
+    host.replaceChildren(...rows.filter(Boolean).map(r => h('div.tile' + (r.state ? '.' + r.state : ''), { title: r.title || '' }, h('div.v', r.value), h('div.l', r.label), r.sub ? h('div.s', r.sub) : null)));
+  }
+  /** Batch redraws into one animation frame. */
+  function scheduler(fn) { let q = false; return () => { if (q) return; q = true; requestAnimationFrame(() => { q = false; fn(); }); }; }
+
+  /* ---------- ticks ---------- */
+  function niceTicks(lo, hi, n = 5) {
+    const span = hi - lo; if (!(span > 0)) return [lo];
+    const raw = span / n, mag = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / mag;
+    const step = (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * mag, out = [];
+    for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + step * 1e-9; v += step) out.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+    return out;
+  }
+  function logTicks(lo, hi) {
+    const a = Math.floor(Math.log10(lo)), b = Math.ceil(Math.log10(hi)), major = [], minor = [];
+    const every = Math.max(1, Math.ceil((b - a) / 7));
+    for (let e = a; e <= b; e++) { const v = Math.pow(10, e); if (v >= lo * 0.999 && v <= hi * 1.001 && (e - a) % every === 0) major.push(v); for (let k = 2; k < 10; k++) { const m = k * v; if (m > lo && m < hi && b - a <= 6) minor.push(m); } }
+    return { major, minor };
+  }
+
+  /* ---------- line plot ---------- */
+  /** new K.Plot(host, {title, xLabel, yLabel, xLog, yLog, height, xFmt, yFmt, yMin, yMax, xMin, xMax, csvName}) */
+  class Plot {
+    constructor(host, o) {
+      this.o = Object.assign({ height: 260, xFmt: fmt, yFmt: fmt }, o);
+      this.series = []; this.marks = []; this.hmarks = []; this.spans = [];
+      this.legend = h('div.legend');
+      this.cv = h('canvas', { role: 'img', 'aria-label': (o.title || 'plot') + ': ' + (o.yLabel || '') + ' against ' + (o.xLabel || '') });
+      this.tip = h('div.tip');
+      const csv = h('button.btn', { title: 'Copy the plotted data as CSV', style: { fontSize: '11.5px', padding: '2px 8px' }, on: { click: () => this.copyCsv(csv) } }, 'CSV');
+      this.el = h('div.plot', h('div.plot-h', o.title ? h('span.t', o.title) : null, this.legend, h('span.spacer'), csv), this.cv, this.tip);
+      host.append(this.el);
+      this.cv.addEventListener('pointermove', e => this.hover(e));
+      this.cv.addEventListener('pointerleave', () => { this.tip.style.display = 'none'; this.hx = null; this.draw(); });
+      if (window.ResizeObserver) new ResizeObserver(() => this.draw()).observe(this.cv);
+      if (window.matchMedia) { const mq = matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener && mq.addEventListener('change', () => this.draw()); }
+    }
+    /** series: [{name, x[], y[], c (palette slot) | color, dash, width, band:{lo[],hi[]}, dots, hidden, legend:false}] */
+    set(series, marks, hmarks, spans) { this.series = series || []; this.marks = marks || []; this.hmarks = hmarks || []; this.spans = spans || []; this.renderLegend(); this.draw(); }
+    renderLegend() {
+      this.legend.replaceChildren(...this.series.filter(s => s.legend !== false && s.name).map(s => {
+        const c = s.color || color(s.c || 0), i = h('i' + (s.dash ? '.dash' : '') + (s.onlyBand ? '.band' : ''));
+        if (s.onlyBand) i.style.background = c; else i.style.borderTopColor = c;
+        return h('span', i, s.name);
+      }));
+    }
+    range() {
+      const o = this.o; let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const s of this.series) {
+        if (s.hidden) continue;
+        const ys = [s.y, s.band && s.band.lo, s.band && s.band.hi].filter(Boolean);
+        s.x.forEach((x, i) => {
+          if (!Number.isFinite(x) || (o.xLog && x <= 0)) return;
+          let any = false;
+          for (const Y of ys) { const y = Y[i]; if (!Number.isFinite(y) || (o.yLog && y <= 0)) continue; any = true; if (s.noRange) continue; y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+          if (any) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); }
+        });
+      }
+      if (o.xMin != null) x0 = o.xMin; if (o.xMax != null) x1 = o.xMax;
+      if (o.yMin != null) y0 = o.yMin; if (o.yMax != null) y1 = o.yMax;
+      if (!Number.isFinite(x0)) { x0 = o.xLog ? 1 : 0; x1 = o.xLog ? 10 : 1; }
+      if (!Number.isFinite(y0)) { y0 = o.yLog ? 1 : 0; y1 = o.yLog ? 10 : 1; }
+      if (o.yLog) { if (y1 / y0 < 10) { const m = Math.sqrt(y0 * y1); y0 = m / 3.2; y1 = m * 3.2; } if (o.yMax == null) y1 *= 1.25; if (o.yMin == null) y0 /= 1.25; }
+      else { if (y1 === y0) { y1 += Math.abs(y1) * 0.1 || 1; y0 -= Math.abs(y0) * 0.1; } const p = (y1 - y0) * 0.06; if (o.yMax == null) y1 += p; if (o.yMin == null && !(o.yZero && y0 >= 0)) y0 -= p; if (o.yZero && o.yMin == null && y0 > 0) y0 = 0; }
+      if (o.xLog && x1 / x0 < 1.0001) { x0 /= 2; x1 *= 2; } if (!o.xLog && x1 === x0) { x0 -= 1; x1 += 1; }
+      return { x0, x1, y0, y1 };
+    }
+    draw() {
+      const cv = this.cv, o = this.o, dpr = window.devicePixelRatio || 1, W = Math.max(200, cv.clientWidth || 600), H = o.height;
+      if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.height = H + 'px'; }
+      const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+      const R = this.R = this.range(), L = 58, Rm = 14, T = 8, B = 40, pw = W - L - Rm, ph = H - T - B;
+      const sx = x => L + pw * (o.xLog ? (Math.log10(x) - Math.log10(R.x0)) / (Math.log10(R.x1) - Math.log10(R.x0)) : (x - R.x0) / (R.x1 - R.x0));
+      const sy = y => T + ph * (1 - (o.yLog ? (Math.log10(y) - Math.log10(R.y0)) / (Math.log10(R.y1) - Math.log10(R.y0)) : (y - R.y0) / (R.y1 - R.y0)));
+      this.map = { sx, sy, L, T, pw, ph, W, H };
+      const ink3 = css('--ink-3'), grid = css('--grid'), ink2 = css('--ink-2'), line = css('--line');
+      g.font = '11px ' + css('--sans'); g.lineWidth = 1;
+      // spans (shaded x-ranges)
+      for (const s of this.spans) { const a = Math.max(L, sx(s.from)), b = Math.min(L + pw, sx(s.to)); if (b > a) { g.fillStyle = s.color || css('--surface-2'); g.globalAlpha = s.alpha ?? 1; g.fillRect(a, T, b - a, ph); g.globalAlpha = 1; if (s.label) { g.fillStyle = ink3; g.textAlign = 'left'; g.fillText(s.label, a + 4, T + 12); } } }
+      // grid + ticks
+      const xt = o.xLog ? logTicks(R.x0, R.x1) : { major: niceTicks(R.x0, R.x1, Math.max(3, Math.round(pw / 90))), minor: [] };
+      const yt = o.yLog ? logTicks(R.y0, R.y1) : { major: niceTicks(R.y0, R.y1, Math.max(3, Math.round(ph / 50))), minor: [] };
+      g.strokeStyle = grid;
+      for (const v of xt.minor) { const x = Math.round(sx(v)) + .5; g.globalAlpha = .5; g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + ph); g.stroke(); g.globalAlpha = 1; }
+      for (const v of yt.minor) { const y = Math.round(sy(v)) + .5; g.globalAlpha = .5; g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.globalAlpha = 1; }
+      g.fillStyle = ink3; g.textAlign = 'center'; g.textBaseline = 'top';
+      for (const v of xt.major) { const x = Math.round(sx(v)) + .5; if (x < L - 1 || x > L + pw + 1) continue; g.strokeStyle = grid; g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + ph); g.stroke(); g.fillText(o.xFmt(v), x, T + ph + 5); }
+      g.textAlign = 'right'; g.textBaseline = 'middle';
+      for (const v of yt.major) { const y = Math.round(sy(v)) + .5; if (y < T - 1 || y > T + ph + 1) continue; g.strokeStyle = grid; g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.fillText(o.yFmt(v), L - 6, y); }
+      g.strokeStyle = line; g.beginPath(); g.moveTo(L + .5, T); g.lineTo(L + .5, T + ph + .5); g.lineTo(L + pw, T + ph + .5); g.stroke();
+      g.fillStyle = ink2; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.font = '12px ' + css('--sans');
+      if (o.xLabel) g.fillText(o.xLabel, L + pw / 2, H - 2);
+      if (o.yLabel) { g.save(); g.translate(13, T + ph / 2); g.rotate(-Math.PI / 2); g.textBaseline = 'middle'; g.fillText(o.yLabel, 0, 0); g.restore(); }
+      g.save(); g.beginPath(); g.rect(L, T - 1, pw + 1, ph + 2); g.clip();
+      // horizontal reference lines
+      for (const m of this.hmarks) { if (!Number.isFinite(m.y) || (o.yLog && m.y <= 0)) continue; const y = Math.round(sy(m.y)) + .5; g.strokeStyle = m.color || ink3; g.setLineDash(m.dash === false ? [] : [4, 4]); g.lineWidth = 1; g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.setLineDash([]); if (m.label) { g.fillStyle = ink3; g.font = '11px ' + css('--sans'); g.textAlign = 'right'; g.textBaseline = 'bottom'; g.fillText(m.label, L + pw - 4, y - 2); } }
+      // series
+      for (const s of this.series) {
+        if (s.hidden) continue;
+        const c = s.color || color(s.c || 0);
+        if (s.band) {
+          g.fillStyle = c; g.globalAlpha = s.bandAlpha ?? .16; g.beginPath(); let started = false;
+          s.x.forEach((x, i) => { const y = s.band.hi[i]; if (!Number.isFinite(y) || (o.yLog && y <= 0) || (o.xLog && x <= 0)) return; const X = sx(x), Y = sy(y); started ? g.lineTo(X, Y) : (g.moveTo(X, Y), started = true); });
+          for (let i = s.x.length - 1; i >= 0; i--) { const x = s.x[i], y = s.band.lo[i]; if (!Number.isFinite(y) || (o.yLog && y <= 0) || (o.xLog && x <= 0)) continue; g.lineTo(sx(x), sy(y)); }
+          g.closePath(); g.fill(); g.globalAlpha = 1;
+        }
+        if (s.onlyBand) continue;
+        g.strokeStyle = c; g.lineWidth = s.width || 2; g.setLineDash(s.dash ? (Array.isArray(s.dash) ? s.dash : [6, 4]) : []); g.lineJoin = 'round';
+        if (!s.dotsOnly) { g.beginPath(); let pen = false; s.x.forEach((x, i) => { const y = s.y[i]; if (!Number.isFinite(y) || !Number.isFinite(x) || (o.yLog && y <= 0) || (o.xLog && x <= 0)) { pen = false; return; } const X = sx(x), Y = sy(y); pen ? g.lineTo(X, Y) : g.moveTo(X, Y); pen = true; }); g.stroke(); }
+        g.setLineDash([]);
+        if (s.dots) { const r = s.dotR || 3.5; g.fillStyle = c; g.strokeStyle = css('--surface'); g.lineWidth = 1.5; s.x.forEach((x, i) => { const y = s.y[i]; if (!Number.isFinite(y) || (o.yLog && y <= 0) || (o.xLog && x <= 0)) return; g.beginPath(); g.arc(sx(x), sy(y), r, 0, 7); g.fill(); g.stroke(); }); }
+      }
+      // vertical marks
+      for (const m of this.marks) { if (!Number.isFinite(m.x) || (o.xLog && m.x <= 0)) continue; const x = Math.round(sx(m.x)) + .5; if (x < L || x > L + pw) continue; g.strokeStyle = m.color || ink3; g.lineWidth = 1; g.setLineDash(m.dash === false ? [] : [4, 4]); g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + ph); g.stroke(); g.setLineDash([]); if (m.label) { g.fillStyle = ink2; g.font = '11px ' + css('--sans'); g.textAlign = x > L + pw * .7 ? 'right' : 'left'; g.textBaseline = 'top'; g.fillText(m.label, x + (x > L + pw * .7 ? -4 : 4), T + 4 + (m.row || 0) * 13); } }
+      // hover crosshair
+      if (this.hx != null) { g.strokeStyle = ink3; g.globalAlpha = .6; g.beginPath(); g.moveTo(this.hx + .5, T); g.lineTo(this.hx + .5, T + ph); g.stroke(); g.globalAlpha = 1;
+        for (const p of this.hpts || []) { g.fillStyle = p.c; g.strokeStyle = css('--surface'); g.lineWidth = 2; g.beginPath(); g.arc(p.X, p.Y, 4, 0, 7); g.fill(); g.stroke(); } }
+      g.restore();
+    }
+    hover(e) {
+      if (!this.map || !this.R) return;
+      const r = this.cv.getBoundingClientRect(), X = e.clientX - r.left, Y = e.clientY - r.top, m = this.map, o = this.o;
+      if (X < m.L || X > m.L + m.pw || Y < m.T || Y > m.T + m.ph) { this.tip.style.display = 'none'; this.hx = null; this.draw(); return; }
+      const fx = (X - m.L) / m.pw, xv = o.xLog ? Math.pow(10, Math.log10(this.R.x0) + fx * (Math.log10(this.R.x1) - Math.log10(this.R.x0))) : this.R.x0 + fx * (this.R.x1 - this.R.x0);
+      const rows = [], pts = [];
+      for (const s of this.series) {
+        if (s.hidden || s.onlyBand || s.noTip || !s.x.length) continue;
+        let bi = -1, bd = Infinity;
+        s.x.forEach((x, i) => { if (!Number.isFinite(s.y[i])) return; const d = Math.abs(o.xLog ? Math.log10(x / xv) : x - xv); if (d < bd) { bd = d; bi = i; } });
+        if (bi < 0) continue;
+        const c = s.color || color(s.c || 0), yv = s.y[bi];
+        if (o.yLog && yv <= 0) continue;
+        pts.push({ X: m.sx(s.x[bi]), Y: m.sy(yv), c });
+        rows.push(h('div', h('span.k', { style: { background: c } }), (s.name || '') + ': ', h('b', (s.tipFmt || o.yFmt)(yv)), s.tipExtra ? ' ' + s.tipExtra(bi) : ''));
+      }
+      this.hx = X; this.hpts = pts; this.draw();
+      if (!rows.length) { this.tip.style.display = 'none'; return; }
+      this.tip.replaceChildren(h('div.muted', (o.xLabel ? o.xLabel.replace(/\s*\(.*\)$/, '') + ' ' : '') + (o.tipX || o.xFmt)(xv)), ...rows);
+      this.tip.style.display = 'block';
+      const tw = this.tip.offsetWidth, cw = this.el.clientWidth, left = this.cv.offsetLeft + X + 14;
+      this.tip.style.left = (left + tw > cw - 4 ? this.cv.offsetLeft + X - tw - 14 : left) + 'px';
+      this.tip.style.top = (this.cv.offsetTop + Math.max(4, Y - 30)) + 'px';
+    }
+    csv() {
+      const ss = this.series.filter(s => !s.onlyBand && !s.hidden && s.name);
+      const lines = [];
+      for (const s of ss) { lines.push('# ' + s.name); lines.push([this.o.xLabel || 'x', this.o.yLabel || 'y'].map(v => '"' + v + '"').join(',')); s.x.forEach((x, i) => lines.push(x + ',' + s.y[i])); lines.push(''); }
+      return lines.join('\n');
+    }
+    copyCsv(btn) {
+      const t = this.csv(), done = ok => { const old = btn.textContent; btn.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(() => { btn.textContent = old; }, 1400); };
+      try { navigator.clipboard.writeText(t).then(() => done(true), () => fallback()); } catch (e) { fallback(); }
+      function fallback() { try { const a = h('textarea', { style: { position: 'fixed', opacity: '0' } }, t); document.body.append(a); a.select(); const ok = document.execCommand('copy'); a.remove(); done(ok); } catch (e) { done(false); } }
+    }
+  }
+
+  /* ---------- image ---------- */
+  const INF = [[0.0002189403691192265, 0.001651004631001012, -0.01948089843709184], [0.1065134194856116, 0.5639564367884091, 3.932712388889277], [11.60249308247187, -3.972853965665698, -15.9423941062914],
+    [-41.70399613139459, 17.43639888205313, 44.35414519872813], [77.162935699427, -33.40235894210092, -81.80730925738993], [-71.31942824499214, 32.62606426397723, 73.20951985803202], [25.13112622477341, -12.24266895238567, -23.07032500287172]];
+  const LUTS = {};
+  function lut(name) {
+    if (LUTS[name]) return LUTS[name];
+    const t = new Uint8ClampedArray(256 * 3);
+    for (let i = 0; i < 256; i++) {
+      const x = i / 255; let r, g, b;
+      if (name === 'inferno') { const c = [0, 1, 2].map(k => { let v = INF[6][k]; for (let j = 5; j >= 0; j--) v = INF[j][k] + x * v; return v; }); [r, g, b] = c; }
+      else if (name === 'pe') { r = Math.min(1, x * 1.6); g = Math.max(0, Math.min(1, (x - 0.25) * 1.25)); b = Math.max(0, (x - 0.7) * 2.2); }
+      else { r = g = b = x; }
+      t[i * 3] = r * 255; t[i * 3 + 1] = g * 255; t[i * 3 + 2] = b * 255;
+    }
+    return (LUTS[name] = t);
+  }
+  /** Draw a float image (row-major, w×h) into a canvas with a LUT; returns nothing. lo/hi set the display range. */
+  function paint(cv, data, w, hgt, lo, hi, name, scale) {
+    const s = scale || 1; cv.width = w * s; cv.height = hgt * s;
+    const g = cv.getContext('2d'), img = g.createImageData(w * s, hgt * s), L = lut(name || 'gray'), d = img.data, span = (hi - lo) || 1;
+    for (let y = 0; y < hgt; y++) for (let x = 0; x < w; x++) {
+      const v = data[y * w + x], k = Math.max(0, Math.min(255, Math.round(255 * (v - lo) / span))) * 3;
+      for (let yy = 0; yy < s; yy++) { let o = ((y * s + yy) * w * s + x * s) * 4; for (let xx = 0; xx < s; xx++, o += 4) { d[o] = L[k]; d[o + 1] = L[k + 1]; d[o + 2] = L[k + 2]; d[o + 3] = 255; } }
+    }
+    g.putImageData(img, 0, 0);
+  }
+  function colorbar(cv, name) { cv.width = 256; cv.height = 1; const g = cv.getContext('2d'), img = g.createImageData(256, 1), L = lut(name); for (let i = 0; i < 256; i++) { img.data[i * 4] = L[i * 3]; img.data[i * 4 + 1] = L[i * 3 + 1]; img.data[i * 4 + 2] = L[i * 3 + 2]; img.data[i * 4 + 3] = 255; } g.putImageData(img, 0, 0); }
+
+  /* ---------- seeded random ---------- */
+  function rng(seed) { let s = (seed >>> 0) || 1; const u = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return (s >>> 0) / 4294967296; }; let spare = null;
+    const normal = () => { if (spare != null) { const v = spare; spare = null; return v; } let a, b, q; do { a = 2 * u() - 1; b = 2 * u() - 1; q = a * a + b * b; } while (q >= 1 || q === 0); const f = Math.sqrt(-2 * Math.log(q) / q); spare = b * f; return a * f; };
+    const poisson = lam => { if (lam <= 0) return 0; if (lam < 30) { const L = Math.exp(-lam); let k = 0, p = 1; do { k++; p *= u(); } while (p > L); return k - 1; } return Math.max(0, Math.round(lam + Math.sqrt(lam) * normal())); };
+    return { u, normal, poisson }; }
+
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
+
+  return { h, $, css, color, fmt, group, molar, dur, pct, sup, slider, seg, check, tabs, tiles, scheduler, niceTicks, logTicks, Plot, lut, paint, colorbar, rng, store };
+})();
+
+/* confocal-engine.js — the image of a PE SHELL on an 8 µm bead, one pinhole-set plane, Nikon AX R.
+   A port of Research/bead_confocal_sim/optics.py (checked against it by tools/check_confocal.mjs), with two changes:
+     1. saturation is computed point by point in the focal volume (each molecule sees its own irradiance), not with
+        the beam-peak rate for every molecule; this is what moves the 5 %-sublinear power to ≈ 2 µW at 20x (report B.4.2);
+     2. free PE in the buffer is excluded from the volume the bead occupies (report B.4.6), so a no-wash image shows
+        the bead as a dark hole in a bright background.
+   PSF h(ρ, z) = excitation (Gaussian beam, waist 0.433 λex/NA, Rayleigh range π w0² n/λex) × pinhole pass (the share
+   of the molecule's defocused emission spot, a Gaussian of width s(z), that falls inside the pinhole of radius
+   a = AU · 1.22 λem/NA / 2 at the sample). Normalised so a molecule at the focus behind an open pinhole gives 1. */
+'use strict';
+const CONFOCAL = (() => {
+  const H_PL = 6.62607015e-34, C_L = 2.99792458e8, N_S = 1.33;
+  const OBJ = {
+    '10x': { key: '10x', name: 'Plan Apo λ 10x/0.45', M: 10, NA: 0.45 },
+    '20x': { key: '20x', name: 'Plan Apo λ 20x/0.75', M: 20, NA: 0.75 },
+    '20xD': { key: '20xD', name: 'Plan Apo λD 20x/0.80', M: 20, NA: 0.80 },
+  };
+  /* R-PE: ε at 561 nm, quantum yield, fluorescence lifetime (2.7 ns, report B.4.1), photodestruction quantum yield
+     (White & Stryer 1987: 1.1e-5; 6.5e-6 with n-propyl gallate), emission wavelength used for the pinhole */
+  const PE = { eps: 1.96e6, QY: 0.82, tau: 2.7e-9, phi: 1.1e-5, phiNPG: 6.5e-6, lamEm: 0.578, lamEx: 0.561 };
+  const sigmaM2 = () => 3.82e-21 * PE.eps * 1e-4;
+  const collection = o => { const s = Math.min(o.NA / N_S, 1); return 0.5 * (1 - Math.sqrt(1 - s * s)); };
+  const airyUm = o => 1.22 * PE.lamEm / o.NA;
+
+  /* exp(−x)·I0(x), x ≥ 0 (Abramowitz & Stegun 9.8.1–9.8.2, |ε| < 2e-7) */
+  function i0e(x) {
+    if (x < 3.75) { const t = x / 3.75, q = t * t; return Math.exp(-x) * (1 + q * (3.5156229 + q * (3.0899424 + q * (1.2067492 + q * (0.2659732 + q * (0.0360768 + q * 0.0045813)))))); }
+    const t = 3.75 / x;
+    return (0.39894228 + t * (0.01328592 + t * (0.00225319 + t * (-0.00157565 + t * (0.00916281 + t * (-0.02057706 + t * (0.02635537 + t * (-0.01647633 + t * 0.00392377)))))))) / Math.sqrt(x);
+  }
+  /* 16-point Gauss–Legendre nodes and weights on [−1, 1] */
+  const GL = (() => {
+    const n = 16, x = [], w = [];
+    for (let i = 1; i <= n; i++) {
+      let z = Math.cos(Math.PI * (i - 0.25) / (n + 0.5)), pp = 0;
+      for (let it = 0; it < 50; it++) { let p1 = 1, p2 = 0; for (let j = 1; j <= n; j++) { const p3 = p2; p2 = p1; p1 = ((2 * j - 1) * z * p2 - (j - 1) * p3) / j; } pp = n * (z * p1 - p2) / (z * z - 1); const dz = p1 / pp; z -= dz; if (Math.abs(dz) < 1e-15) break; }
+      x.push(z); w.push(2 / ((1 - z * z) * pp * pp));
+    }
+    return { x, w };
+  })();
+  /* P(|X| ≤ a) for a 2-D Gaussian of width s centred at distance ρ — scipy's ncx2.cdf((a/s)², 2, (ρ/s)²) */
+  function pinholePass(rho, s, a) {
+    const lo = Math.max(0, rho - 8 * s), hi = Math.min(a, rho + 8 * s);
+    if (hi <= lo) return 0;
+    const panels = Math.max(1, Math.ceil((hi - lo) / (2.5 * s))), L = (hi - lo) / panels, s2 = s * s;
+    let sum = 0;
+    for (let p = 0; p < panels; p++) {
+      const a0 = lo + p * L, c = a0 + L / 2, hw = L / 2;
+      for (let i = 0; i < 16; i++) { const r = c + hw * GL.x[i], d = r - rho; sum += GL.w[i] * hw * (r / s2) * Math.exp(-d * d / (2 * s2)) * i0e(r * rho / s2); }
+    }
+    return Math.min(1, sum);
+  }
+
+  /* ---------- the PSF table ---------- */
+  const cache = new Map();
+  function psf(objKey, AU) {
+    const key = objKey + ':' + AU;
+    if (cache.has(key)) return cache.get(key);
+    const o = OBJ[objKey], NA = o.NA, lx = PE.lamEx, lm = PE.lamEm;
+    const w0 = 0.433 * lx / NA, zR = Math.PI * w0 * w0 * N_S / lx;
+    const sEm = 0.51 * lm / NA / 2.3548, zRem = Math.PI * (2 * sEm) ** 2 * N_S / lm;
+    const a = AU * airyUm(o) / 2;
+    const w = z => w0 * Math.sqrt(1 + (z / zR) ** 2), sd = z => sEm * Math.sqrt(1 + (z / zRem) ** 2);
+    const zmax = 14, dz = 0.05, nz = Math.round(zmax / dz) + 1;
+    const rmax = Math.min(2.5 * w(zmax), a + 3.5 * sd(zmax)) + 0.2, nr = 420, dr = rmax / (nr - 1);
+    const Itab = new Float32Array(nr * nz), Dtab = new Float32Array(nr * nz), rk = new Float32Array(nz);
+    for (let iz = 0; iz < nz; iz++) {
+      const z = iz * dz, wz = w(z), s = sd(z), f = (w0 / wz) ** 2;
+      rk[iz] = Math.min(2.5 * wz, a + 3.5 * s) + 0.2;
+      for (let ir = 0; ir < nr; ir++) { const rho = ir * dr, i = iz * nr + ir; Itab[i] = f * Math.exp(-2 * rho * rho / (wz * wz)); Dtab[i] = pinholePass(rho, s, a); }
+    }
+    const P = { o, AU, w0, zR, sEm, zRem, a, w, sd, zmax, dz, nz, rmax, nr, dr, Itab, Dtab, rk, k0: null, htab: new Float32Array(nr * nz), H: new Float64Array(nz), onaxis: new Float64Array(nz), Veff: 0 };
+    setSaturation(P, 0);
+    cache.set(key, P);
+    return P;
+  }
+  /* h = I/(1 + k0·I)·D with k0 = k_ex·τ at the beam peak (0 = linear); H(z) = ∫2πρ h dρ; Veff = 2∫H dz over |z| ≤ 14 µm */
+  function setSaturation(P, k0) {
+    if (P.k0 === k0) return P;
+    P.k0 = k0;
+    const { nr, nz, dr, dz, Itab, Dtab, htab, H, onaxis } = P;
+    for (let i = 0; i < nr * nz; i++) { const I = Itab[i]; htab[i] = I / (1 + k0 * I) * Dtab[i]; }
+    let V = 0;
+    for (let iz = 0; iz < nz; iz++) {
+      let s = 0; const b = iz * nr;
+      for (let ir = 1; ir < nr; ir++) s += 0.5 * dr * (2 * Math.PI) * ((ir - 1) * dr * htab[b + ir - 1] + ir * dr * htab[b + ir]);
+      H[iz] = s; onaxis[iz] = htab[b];
+      if (iz) V += 0.5 * dz * (H[iz - 1] + H[iz]);
+    }
+    P.Veff = 2 * V;
+    return P;
+  }
+  function hAt(P, rho, az) {
+    if (rho >= P.rmax || az >= P.zmax) return 0;
+    const fz = az / P.dz, iz = Math.min(fz | 0, P.nz - 2), tz = fz - iz, fr = rho / P.dr, ir = Math.min(fr | 0, P.nr - 2), tr = fr - ir, n = P.nr, T = P.htab, i = iz * n + ir;
+    return (1 - tz) * ((1 - tr) * T[i] + tr * T[i + 1]) + tz * ((1 - tr) * T[i + n] + tr * T[i + n + 1]);
+  }
+  function Hat(P, z) { const az = Math.abs(z); if (az >= P.zmax) return 0; const f = az / P.dz, i = Math.min(f | 0, P.nz - 2), t = f - i; return (1 - t) * P.H[i] + t * P.H[i + 1]; }
+  function rkAt(P, az) { const i = Math.min(Math.round(az / P.dz), P.nz - 1); return P.rk[i]; }
+  function widths(P) {
+    const half = (arr, step) => { const v0 = arr[0]; for (let i = 1; i < arr.length; i++) if (arr[i] < 0.5 * v0) { const t = (arr[i - 1] - 0.5 * v0) / (arr[i - 1] - arr[i]); return 2 * (i - 1 + t) * step; } return 2 * (arr.length - 1) * step; };
+    const row0 = Array.from(P.htab.subarray(0, P.nr));
+    return { xy: half(row0, P.dr), zOnAxis: half(Array.from(P.onaxis), P.dz), zPlane: half(Array.from(P.H), P.dz), D00: P.Dtab[0], Veff: P.Veff, pinholeUm: 2 * P.a };
+  }
+  /* textbook (Zeiss/Pawley) FWHM estimates, as optics.psf_fwhm_zeiss */
+  function zeiss(objKey, AU) {
+    const o = OBJ[objKey], n = 1.0, NA = o.NA, lb = Math.SQRT2 * PE.lamEx * PE.lamEm / Math.sqrt(PE.lamEx ** 2 + PE.lamEm ** 2), PH = AU * airyUm(o), den = n - Math.sqrt(n * n - NA * NA);
+    if (AU <= 0.25) return { xy: 0.37 * lb / NA, z: 0.64 * lb / den };
+    return { xy: 0.51 * PE.lamEm / NA, z: Math.sqrt((0.88 * PE.lamEm / den) ** 2 + (Math.SQRT2 * n * PH / NA) ** 2) };
+  }
+
+  /* ---------- the bead's own optics (geometric ray trace, tools/ray_table.json) ---------- */
+  let RAY = null;
+  function setRayTable(t) { RAY = t; }
+  function materialFactor(objKey, material, withExcitation) {
+    if (!RAY || !material || material === 'matched') return null;
+    const zs = RAY.zs, c = RAY.c[objKey] && RAY.c[objKey][material]; if (!c) return null;
+    const p = withExcitation ? 2 : 1;
+    return z => { if (z <= zs[0]) return c[0] ** p; if (z >= zs[zs.length - 1]) return c[c.length - 1] ** p; const f = (z - zs[0]) / (zs[1] - zs[0]), i = Math.min(f | 0, zs.length - 2), t = f - i; return ((1 - t) * c[i] + t * c[i + 1]) ** p; };
+  }
+
+  /* ---------- radial profiles (PE-equivalents at the focus, per unit density) ---------- */
+  function ringIntegral(P, r, rp, az, n) {
+    // ∫0^2π h(|r − ρ'|, z) dφ, restricted to where the PSF reaches
+    if (r * rp < 1e-12) return 2 * Math.PI * hAt(P, Math.sqrt(r * r + rp * rp), az);
+    const rk = rkAt(P, az), C = (r * r + rp * rp - rk * rk) / (2 * r * rp);
+    if (C >= 1) return 0;
+    const pm = C <= -1 ? Math.PI : Math.acos(C), hp = pm / n, a = r * r + rp * rp, b = 2 * r * rp;
+    let s = 0;
+    for (let j = 0; j <= n; j++) { const f = hAt(P, Math.sqrt(Math.max(0, a - b * Math.cos(j * hp))), az); s += f * (j === 0 || j === n ? 1 : (j & 1 ? 4 : 2)); }
+    return 2 * s * hp / 3;
+  }
+  /** shell of radius R, unit surface density (1 PE/µm²); cz(z) = optional emission factor by height on the shell */
+  function shellProfile(P, R, z0, rs, cz, nT = 360, nPhi = 24) {
+    const out = new Float64Array(rs.length);
+    for (let it = 0; it < nT; it++) {
+      const th = (it + 0.5) * Math.PI / nT, zp = R * Math.cos(th), rp = R * Math.sin(th), az = Math.abs(zp - z0);
+      if (az >= P.zmax) continue;
+      const wgt = R * R * Math.sin(th) * (Math.PI / nT) * (cz ? cz(zp) : 1);
+      for (let k = 0; k < rs.length; k++) out[k] += wgt * ringIntegral(P, rs[k], rp, az, nPhi);
+    }
+    return out;
+  }
+  /** solid sphere of radius R, unit volume density (1 PE/µm³) — also the bead's excluded volume for the buffer */
+  function coreProfile(P, R, z0, rs, nZ = 72, nRho = 26, nPhi = 16) {
+    const out = new Float64Array(rs.length), dzp = 2 * R / nZ;
+    for (let iz = 0; iz < nZ; iz++) {
+      const zp = -R + (iz + 0.5) * dzp, rm = Math.sqrt(Math.max(0, R * R - zp * zp)), az = Math.abs(zp - z0);
+      if (az >= P.zmax || rm <= 0) continue;
+      const drp = rm / nRho;
+      for (let ir = 0; ir < nRho; ir++) {
+        const rp = (ir + 0.5) * drp, wgt = rp * drp * dzp;
+        for (let k = 0; k < rs.length; k++) out[k] += wgt * ringIntegral(P, rs[k], rp, az, nPhi);
+      }
+    }
+    return out;
+  }
+  /* hat-box: the whole-plane integral of a shell's image = 2πR·σ·∫ H(z − z0)·c(z) dz; a filled bead: ∫ π(R² − z²)·H dz */
+  function Fshell(P, R, z0, cz) { const n = 800, d = 2 * R / n; let s = 0; for (let i = 0; i <= n; i++) { const z = -R + i * d; s += (i === 0 || i === n ? 0.5 : 1) * Hat(P, z - z0) * (cz ? cz(z) : 1); } return 2 * Math.PI * R * s * d; }
+  function Fcore(P, R, z0) { const n = 800, d = 2 * R / n; let s = 0; for (let i = 0; i <= n; i++) { const z = -R + i * d; s += (i === 0 || i === n ? 0.5 : 1) * Math.PI * (R * R - z * z) * Hat(P, z - z0); } return s * d; }
+
+  /* ---------- photons ---------- */
+  function excitation(uW, w0um) {
+    const w0 = w0um * 1e-6, I0 = 2 * uW * 1e-6 / (Math.PI * w0 * w0), eph = H_PL * C_L / (PE.lamEx * 1e-6), kex = sigmaM2() * I0 / eph;
+    return { I0, kex, k0: kex * PE.tau, flux: I0 / eph };
+  }
+  function absorbedPerFrame(uW, dwellUs, pxUm) { const eph = H_PL * C_L / (PE.lamEx * 1e-6); return sigmaM2() * (uW * 1e-6 * dwellUs * 1e-6 / (pxUm * 1e-6) ** 2) / eph; }
+
+  /* ---------- one frame ---------- */
+  function interp(rs, I, r) { const dr = rs[1] - rs[0], f = r / dr, i = f | 0; if (i >= rs.length - 1) return I[rs.length - 1]; const t = f - i; return (1 - t) * I[i] + t * I[i + 1]; }
+  /**
+   * bead: {R, sigma (PE/µm²), z0, offX, offY (px), fieldR (0..1), vignette, curv (µm at the edge), framesBefore, kind 'shell'|'core',
+   *        material 'matched'|'silica'|'pmma'|'ps', excite (bool), autofluor (PE/µm³), solutionNM}
+   * scan: {obj, AU, ppb, dwell (µs), uW, gain (DN per photoelectron), enf, offset (DN), read (DN), bits, transmission, QE, avg, antifade, noise, seed}
+   */
+  function render(bead, scan, RNG) {
+    const P = psf(scan.obj, scan.AU), o = P.o, ex = excitation(scan.uW, P.w0);
+    setSaturation(P, ex.k0);
+    const R = bead.R, px = 2 * R / scan.ppb, half = Math.max(12, Math.min(90, Math.ceil((R + 2.5 + 3 * px + 1.0) / px))), fov = 2 * half;
+    const z0 = bead.z0 + (bead.curv || 0) * (bead.fieldR || 0) ** 2, vig = 1 - (bead.vignette || 0) * (bead.fieldR || 0) ** 2;
+    const dose = absorbedPerFrame(scan.uW, scan.dwell, px), phi = scan.antifade ? PE.phiNPG : PE.phi, N = Math.max(1, scan.avg | 0);
+    const surv0 = Math.exp(-phi * dose * (bead.framesBefore || 0)); let survAvg = 0; for (let k = 0; k < N; k++) survAvg += Math.exp(-phi * dose * k) / N;
+    const surv = surv0 * survAvg;
+    const cx = half + (bead.offX || 0), cy = half + (bead.offY || 0);
+    const rEnd = Math.hypot(half + Math.abs(bead.offX || 0) + 1, half + Math.abs(bead.offY || 0) + 1) * px, dr = Math.min(0.05, px / 5), nR = Math.ceil(rEnd / dr) + 2;
+    const rs = new Float64Array(nR); for (let i = 0; i < nR; i++) rs[i] = i * dr;
+    const cz = bead.kind === 'core' ? null : materialFactor(scan.obj, bead.material, bead.excite);
+    let sig;
+    const needCore = bead.kind === 'core' || bead.solutionNM > 0 || bead.autofluor > 0;
+    const Vb = needCore ? coreProfile(P, R, z0, rs) : null;
+    if (bead.kind === 'core') { const nv = bead.sigma * 4 * Math.PI * R * R / (4 / 3 * Math.PI * R ** 3); sig = Vb.map(v => v * nv); }
+    else { const s = shellProfile(P, R, z0, rs, cz); sig = s.map(v => v * bead.sigma); }
+    const prof = new Float64Array(nR);
+    for (let i = 0; i < nR; i++) prof[i] = sig[i] * surv + (bead.autofluor || 0) * (Vb ? Vb[i] : 0) + (bead.solutionNM || 0) * 0.6022 * (P.Veff - (Vb ? Vb[i] : 0));
+    const eta = collection(o) * scan.transmission * scan.QE, k1 = PE.QY * ex.kex * eta * scan.dwell * 1e-6 * vig;   // photoelectrons per PE-equivalent per frame
+    const lam = new Float64Array(fov * fov), img = new Float64Array(fov * fov), adc = Math.pow(2, scan.bits) - 1;
+    const S = [-3, -2, -1, 0, 1, 2, 3].map(k => k / 7);
+    for (let j = 0; j < fov; j++) for (let i = 0; i < fov; i++) {
+      const y = (j - cy) * px; let s = 0;
+      for (const d of S) { const x = (i - cx + d) * px; s += interp(rs, prof, Math.sqrt(x * x + y * y)); }
+      lam[j * fov + i] = Math.max(0, s / S.length) * k1;
+    }
+    const rnd = RNG || null;
+    for (let p = 0; p < fov * fov; p++) {
+      let dn;
+      if (scan.noise && rnd) {
+        const ne = rnd.poisson(N * lam[p]);
+        const mult = ne * scan.gain + rnd.normal() * scan.gain * Math.sqrt(Math.max(0, ne * (scan.enf - 1)));
+        dn = (N * scan.offset + mult + rnd.normal() * scan.read * Math.sqrt(N)) / N;
+      } else dn = scan.offset + lam[p] * scan.gain;
+      img[p] = Math.max(0, Math.min(adc, Math.round(dn)));
+    }
+    const out = { img, lam, fov, px, cx, cy, rs, prof, sig, Vb, adc, P, ex, eta, k1, dose, surv, survAvg, surv0, z0eff: z0, vig, N,
+      bleachPerFrame: 1 - Math.exp(-phi * dose), widths: widths(P), zeiss: zeiss(scan.obj, scan.AU), totalPE: bead.sigma * 4 * Math.PI * R * R };
+    out.m = metrics(out, bead, scan);
+    out.Fanalytic = (bead.kind === 'core' ? bead.sigma * 4 * Math.PI * R * R / (4 / 3 * Math.PI * R ** 3) * Fcore(P, R, z0) : bead.sigma * Fshell(P, R, z0, cz)) * surv / (px * px) * k1;
+    return out;
+  }
+  /* integrated (bead mask, annulus background subtracted), ring mean, rim peak, centre, SNR — as optics.metrics */
+  function metrics(out, bead, scan) {
+    const { img, lam, fov, px, cx, cy } = out, R = bead.R, margin = 2.5, n = fov * fov, rr = new Float64Array(n);
+    for (let j = 0; j < fov; j++) for (let i = 0; i < fov; i++) rr[j * fov + i] = Math.hypot(i - cx, j - cy) * px;
+    const bgv = []; for (let p = 0; p < n; p++) if (rr[p] >= R + margin + px) bgv.push(img[p]);
+    bgv.sort((a, b) => a - b);
+    const bg = bgv.length ? (bgv.length % 2 ? bgv[(bgv.length - 1) / 2] : 0.5 * (bgv[bgv.length / 2 - 1] + bgv[bgv.length / 2])) : scan.offset;
+    let integ = 0, nm = 0, lsum = 0, sat = 0, cs = 0, cn = 0;
+    for (let p = 0; p < n; p++) if (rr[p] <= R + margin) { integ += img[p] - bg; nm++; lsum += lam[p]; if (img[p] >= out.adc - 1) sat++; if (rr[p] <= 0.3 * R) { cs += img[p] - bg; cn++; } }
+    // radial profile, bins of one pixel
+    const nb = Math.ceil((R + margin) / px) + 1, ps = new Float64Array(nb), pc = new Float64Array(nb);
+    for (let p = 0; p < n; p++) { if (rr[p] > R + margin) continue; const b = Math.floor(rr[p] / px); if (b < nb) { ps[b] += img[p] - bg; pc[b]++; } }
+    const pr = [], pv = [];
+    for (let b = 0; b < nb; b++) if (pc[b]) { pr.push((b + 0.5) * px); pv.push(ps[b] / pc[b]); }
+    let peak = -Infinity; pv.forEach(v => { if (v > peak) peak = v; });
+    // ring radius from a smoothed, finely interpolated profile (as the Python)
+    const M = 400, rf = [], pf = [];
+    for (let i = 0; i < M; i++) { const r = pr[0] + (pr[pr.length - 1] - pr[0]) * i / (M - 1); rf.push(r); let k = 0; while (k < pr.length - 2 && pr[k + 1] < r) k++; const t = (r - pr[k]) / (pr[k + 1] - pr[k] || 1); pf.push((1 - t) * pv[k] + t * pv[k + 1]); }
+    let best = -Infinity, ringR = 0;
+    for (let i = 0; i < M; i++) { let s = 0; for (let k = -10; k <= 10; k++) { const q = i + k; if (q >= 0 && q < M) s += pf[q]; } if (s > best) { best = s; ringR = rf[i]; } }
+    let rsum = 0, rn = 0; for (let p = 0; p < n; p++) if (Math.abs(rr[p] - ringR) <= 0.5 && rr[p] <= R + margin) { rsum += img[p] - bg; rn++; }
+    const N = out.N, varPe = scan.enf * N * lsum + nm * (scan.read / scan.gain) ** 2;   // photoelectrons², N frames summed
+    const centre = cn ? cs / cn : 0;
+    return { bg, integrated: integ, integratedPe: integ / scan.gain, ringR, ringMean: rn ? rsum / rn : 0, peak, peakPe: peak / scan.gain, centre, contrast: centre > 0 ? peak / centre : Infinity,
+      snr: varPe > 0 ? N * lsum / Math.sqrt(varPe) : 0, nMask: nm, photonsInMask: lsum, satFrac: nm ? sat / nm : 0, profile: { r: pr, v: pv } };
+  }
+  /* noise-free rim peak (fine sampling), ring position and centre at one focal offset — for the focus chart */
+  function fineProfile(P, R, z0, cz, kind) {
+    const dr = 0.025, rs = new Float64Array(Math.ceil((R + 1.6) / dr) + 1); for (let i = 0; i < rs.length; i++) rs[i] = i * dr;
+    const I = kind === 'core' ? coreProfile(P, R, z0, rs, 48, 18, 12) : shellProfile(P, R, z0, rs, cz, 300, 20);
+    let pk = 0, pr = 0; for (let i = 0; i < rs.length; i++) if (I[i] > pk) { pk = I[i]; pr = rs[i]; }
+    let c = 0, cn = 0; for (let i = 0; i < rs.length; i++) if (rs[i] <= 0.3 * R) { c += I[i] * rs[i]; cn += rs[i]; }
+    return { peak: pk, ringR: pr, centre: cn ? c / cn : 0 };
+  }
+  return { OBJ, PE, N_S, psf, setSaturation, widths, zeiss, excitation, absorbedPerFrame, collection, airyUm, shellProfile, coreProfile, Fshell, Fcore, Hat, hAt, render, metrics, fineProfile, materialFactor, setRayTable, pinholePass, i0e };
+})();
+if (typeof module !== 'undefined') module.exports = CONFOCAL;
+
+/* Generated by tools/ray_table.py (geometric ray trace, report_calcs/ray.py): collection factor c(z) of an emitter on the shell
+   relative to an index-matched bead, by objective and bead material. Emission only; an estimate, not a measurement. */
+CONFOCAL.setRayTable({"zs":[-3.96,-3.78,-3.6,-3.42,-3.24,-3.06,-2.88,-2.7,-2.52,-2.34,-2.16,-1.98,-1.8,-1.62,-1.44,-1.26,-1.08,-0.9,-0.72,-0.54,-0.36,-0.18,0.0,0.18,0.36,0.54,0.72,0.9,1.08,1.26,1.44,1.62,1.8,1.98,2.16,2.34,2.52,2.7,2.88,3.06,3.24,3.42,3.6,3.78,3.96],"R":4.0,"n_medium":1.33,"note":"geometric ray trace, emission only; relative to an index-matched bead","c":{"10x":{"silica":[1.0149,1.0305,1.0031,0.9981,0.996,1.0157,1.0057,1.0264,1.0093,1.0084,1.0065,0.9997,1.0035,1.0158,1.0111,1.0134,0.9667,0.9008,0.8334,0.7886,0.6853,0.6089,0.5525,0.4422,0.3679,0.2964,0.2073,0.1477,0.0788,0.0296,0.0692,0.3847,0.6941,0.9633,1.244,1.4758,1.706,1.9345,2.1276,2.276,2.3758,2.226,1.6363,1.5135,1.488],"pmma":[0.9875,0.9903,1.0145,1.0099,1.0123,1.0063,1.0039,1.0001,0.9909,0.9952,0.9859,0.9985,1.0036,1.0039,0.9966,1.0006,0.972,0.8932,0.8653,0.7781,0.699,0.6199,0.5403,0.4495,0.3627,0.2896,0.2195,0.1559,0.0837,0.0271,0.0,0.0,0.0954,0.4765,0.8624,1.2074,1.5603,1.8514,2.1685,2.426,2.6606,2.8214,2.6582,1.8393,1.6968],"ps":[0.9808,1.0025,1.0024,0.9985,1.0172,1.012,1.0108,1.0,1.0066,1.0036,1.0036,1.0176,1.0008,1.0154,0.9899,0.9823,0.9639,0.9132,0.8486,0.7737,0.688,0.6118,0.5419,0.4526,0.3741,0.2949,0.2139,0.1477,0.0766,0.0321,0.0,0.0,0.0,0.0,0.0,0.0,0.432,1.0367,1.6548,2.2416,2.8358,3.301,3.9061,4.2277,2.6636]},"20x":{"silica":[1.0,0.9983,0.9978,0.9996,0.9999,1.0014,0.9877,0.9932,0.9952,1.0114,1.0012,0.9726,0.9535,0.9117,0.8791,0.8368,0.8026,0.7506,0.7109,0.6612,0.6172,0.5727,0.5216,0.4773,0.4255,0.4714,0.5461,0.6311,0.6947,0.7487,0.8089,0.8791,0.9516,1.0189,1.0837,1.1832,1.2844,1.4101,1.5062,1.6383,1.7455,1.8866,1.9675,2.0136,1.559],"pmma":[0.9885,0.9905,0.9924,0.9993,0.9998,0.993,0.9866,1.0072,1.0088,0.9996,0.9936,0.9733,0.9444,0.9124,0.885,0.8436,0.7914,0.7582,0.6971,0.6657,0.612,0.5743,0.5197,0.4677,0.4313,0.3796,0.3423,0.3708,0.4786,0.5721,0.6857,0.7665,0.8567,0.9551,1.0344,1.1485,1.3097,1.4221,1.5795,1.6972,1.8723,2.0406,2.2078,2.3806,2.0413],"ps":[1.0036,0.9865,0.9941,0.994,0.9957,1.0085,1.0041,1.0109,0.9867,0.9965,0.9934,0.9736,0.9481,0.9174,0.8841,0.826,0.7885,0.754,0.7134,0.6535,0.6129,0.5692,0.5269,0.4773,0.4339,0.3805,0.3343,0.286,0.2513,0.2043,0.1546,0.2556,0.4255,0.6067,0.7846,0.9835,1.1626,1.3865,1.5885,1.8252,2.0726,2.3317,2.6575,3.0876,4.0629]},"20xD":{"silica":[1.0151,0.9985,0.9994,0.9971,1.004,1.0052,1.006,1.0027,0.9935,0.993,0.9758,0.9622,0.9258,0.8904,0.8531,0.8169,0.7733,0.7486,0.6894,0.6499,0.6014,0.5672,0.5195,0.4824,0.5078,0.5913,0.6466,0.706,0.7663,0.8149,0.8506,0.9167,0.9646,1.0252,1.0859,1.1511,1.2455,1.3407,1.4659,1.5626,1.6782,1.8076,1.9096,1.9968,1.6023],"pmma":[0.9984,0.9893,0.9994,1.0021,0.9978,0.9935,0.9976,1.0059,0.9956,0.9963,0.9819,0.9542,0.9276,0.8816,0.855,0.8161,0.7706,0.7241,0.695,0.6489,0.6063,0.5599,0.5298,0.4746,0.4364,0.3928,0.4221,0.5137,0.5972,0.6858,0.7513,0.8239,0.8996,0.9778,1.0474,1.1365,1.2367,1.3677,1.492,1.6419,1.7933,1.952,2.1024,2.3145,2.3737],"ps":[0.988,1.0025,0.9994,0.9978,0.9908,0.998,0.9839,1.0021,0.9978,0.9957,0.9955,0.9549,0.9235,0.8959,0.8565,0.811,0.7735,0.7287,0.6939,0.6512,0.5983,0.5665,0.5239,0.4773,0.4379,0.3937,0.349,0.3058,0.2686,0.2223,0.2957,0.4335,0.5747,0.7358,0.879,1.0174,1.1876,1.3629,1.541,1.7447,1.9834,2.2435,2.5524,2.978,4.0271]}}});
+
+(() => {
+const { h, fmt, pct, Plot } = K, C = CONFOCAL;
+const OBJ_OPTS = [['10x', '10x/0.45'], ['20x', '20x/0.75'], ['20xD', '20x/0.80']];
+const MAT_OPTS = [['matched', 'Index-matched'], ['silica', 'Silica'], ['pmma', 'PMMA'], ['ps', 'Polystyrene']];
+const DEF = { obj: '20xD', AU: 1, uW: 2, dwell: 2, ppb: 18.5, gain: 5, bits: 12, offset: 60, read: 2, avg: 1, enf: 1.3, transmission: 0.4, QE: 0.4,
+  sigma: 100, z0: 0, offX: 0, offY: 0, fieldR: 0, vignette: 0.15, curv: 0, kind: 'shell', material: 'matched', excite: false,
+  washed: true, solutionNM: 1, autoOn: false, autofluor: 0.02, framesBefore: 0, antifade: false, noise: true, seed: 7, lut: 'gray', range: 'auto', masks: true };
+const S = Object.assign({}, DEF);
+const ctl = {}, ctlHost = document.getElementById('ctl'), main = document.getElementById('main');
+
+/* ---------------- controls ---------------- */
+function panel(title, ...kids) { const p = h('div.panel', h('h2', title), ...kids); ctlHost.append(p); return p; }
+const upd = K.scheduler(update);
+const set = k => v => { S[k] = v; upd(); };
+ctl.obj = K.seg({ label: 'Objective', options: OBJ_OPTS, value: S.obj, onInput: set('obj'), hint: 'Which 20x is fitted (0.75 or 0.80) is still to be confirmed.' });
+ctl.AU = K.slider({ label: 'Pinhole', min: 0.3, max: 6, step: 0.05, value: S.AU, unit: 'AU', onInput: set('AU'), fmt: v => v.toFixed(2) });
+ctl.uW = K.slider({ label: 'Laser at the sample (561 nm)', min: 0.1, max: 100, log: true, value: S.uW, unit: 'µW', onInput: set('uW'), hint: 'Measured with a power meter at the sample, never % laser.' });
+ctl.dwell = K.slider({ label: 'Pixel dwell', min: 0.2, max: 16, log: true, value: S.dwell, unit: 'µs', onInput: set('dwell') });
+ctl.ppb = K.slider({ label: 'Pixels across the bead', min: 4, max: 48, step: 0.5, value: S.ppb, onInput: set('ppb'), fmt: v => v.toFixed(1) });
+ctl.avg = K.slider({ label: 'Frames averaged', min: 1, max: 8, step: 1, value: S.avg, onInput: set('avg'), fmt: v => String(v) });
+ctl.gain = K.slider({ label: 'Detector gain (HV)', min: 0.5, max: 200, log: true, value: S.gain, unit: 'DN per photoelectron', onInput: set('gain') });
+ctl.bits = K.seg({ label: 'Digitiser', options: [[12, '12-bit'], [16, '16-bit']], value: S.bits, onInput: v => { S.bits = +v; upd(); }, hint: '12-bit is the AX R default; 16-bit needs fine integration.' });
+ctl.offset = K.slider({ label: 'Offset', min: 0, max: 400, step: 1, value: S.offset, unit: 'DN', onInput: set('offset'), fmt: v => String(Math.round(v)) });
+panel('Microscope', ctl.obj.el, ctl.AU.el, ctl.uW.el, ctl.dwell.el, ctl.ppb.el, ctl.avg.el, ctl.gain.el, ctl.bits.el, ctl.offset.el);
+
+ctl.sigma = K.slider({ label: 'PE on the surface', min: 0.3, max: 5000, log: true, value: S.sigma, unit: 'PE/µm²', onInput: set('sigma') });
+ctl.z0 = K.slider({ label: 'Focal plane above the bead centre', min: -7, max: 7, step: 0.05, value: S.z0, unit: 'µm', onInput: set('z0'), fmt: v => (v > 0 ? '+' : '') + v.toFixed(2), hint: 'Positive = towards the top of the bead (away from the coverslip).' });
+ctl.offX = K.slider({ label: 'Bead centre on the pixel grid, x', min: -0.5, max: 0.5, step: 0.01, value: S.offX, unit: 'px', onInput: set('offX'), fmt: v => v.toFixed(2) });
+ctl.offY = K.slider({ label: 'Bead centre on the pixel grid, y', min: -0.5, max: 0.5, step: 0.01, value: S.offY, unit: 'px', onInput: set('offY'), fmt: v => v.toFixed(2) });
+ctl.fieldR = K.slider({ label: 'Position in the field', min: 0, max: 1, step: 0.01, value: S.fieldR, onInput: set('fieldR'), fmt: v => v === 0 ? 'centre' : v === 1 ? 'edge' : v.toFixed(2), hint: 'Brightness falls by the vignetting below; the focal plane shifts by the curvature.' });
+ctl.vignette = K.slider({ label: 'Fall-off at the field edge', min: 0, max: 0.6, step: 0.01, value: S.vignette, onInput: set('vignette'), fmt: v => pct(v, 0) });
+ctl.curv = K.slider({ label: 'Field curvature at the edge', min: -3, max: 3, step: 0.05, value: S.curv, unit: 'µm', onInput: set('curv'), fmt: v => (v > 0 ? '+' : '') + v.toFixed(2) });
+ctl.kind = K.seg({ label: 'Where the PE is', options: [['shell', 'Shell (surface)'], ['core', 'Filled bead']], value: S.kind, onInput: set('kind'), hint: 'A filled bead with the same PE total, for comparison: a volume label has a different signature.' });
+ctl.material = K.seg({ label: 'Bead material (shell only)', options: MAT_OPTS, value: S.material, onInput: set('material'), hint: 'A bead that is not index-matched bends light. Geometric ray-trace estimate.' });
+ctl.excite = K.check({ label: 'Include the excitation path (c² proxy)', value: S.excite, onInput: set('excite'), hint: 'Reciprocity guess; sensitive to the PSF tails. Treat as a range, not a number.' });
+panel('Bead', ctl.sigma.el, ctl.z0.el, ctl.kind.el, ctl.material.el, ctl.excite.el, ctl.offX.el, ctl.offY.el,
+  h('div.btnrow', h('button.btn', { on: { click: () => { ctl.offX.set(Math.round((Math.random() - 0.5) * 100) / 100); ctl.offY.set(Math.round((Math.random() - 0.5) * 100) / 100); } } }, 'Random grid position')),
+  h('h3', 'Field'), ctl.fieldR.el, ctl.vignette.el, ctl.curv.el);
+
+ctl.washed = K.check({ label: 'Washed (no free PE-antibody in the buffer)', value: S.washed, onInput: set('washed') });
+ctl.solutionNM = K.slider({ label: 'Free PE-antibody left in the buffer', min: 0.01, max: 100, log: true, value: S.solutionNM, unit: 'nM', onInput: set('solutionNM'), hint: 'A no-wash read. The bead displaces the buffer, so it shows as a darker hole.' });
+ctl.autoOn = K.check({ label: 'Bead autofluorescence', value: S.autoOn, onInput: set('autoOn') });
+ctl.autofluor = K.slider({ label: 'Autofluorescence of the bead body', min: 0.001, max: 10, log: true, value: S.autofluor, unit: 'PE per µm³', onInput: set('autofluor') });
+ctl.framesBefore = K.slider({ label: 'Frames already taken (focusing in PE)', min: 0, max: 300, step: 1, value: S.framesBefore, onInput: set('framesBefore'), fmt: v => String(v) });
+ctl.antifade = K.check({ label: 'n-Propyl gallate in the buffer (1.7× slower bleaching)', value: S.antifade, onInput: set('antifade') });
+ctl.noise = K.check({ label: 'Photon and detector noise', value: S.noise, onInput: set('noise') });
+panel('Background, bleaching, noise', ctl.washed.el, ctl.solutionNM.el, ctl.autoOn.el, ctl.autofluor.el, ctl.framesBefore.el, ctl.antifade.el, ctl.noise.el,
+  h('div.btnrow', h('button.btn', { on: { click: () => { S.seed = (S.seed * 1103515245 + 12345) % 2147483647; upd(); } } }, 'New noise')));
+
+ctl.lut = K.seg({ label: 'Colour table', options: [['gray', 'Grey'], ['inferno', 'Inferno']], value: S.lut, onInput: set('lut') });
+ctl.range = K.seg({ label: 'Display range', options: [['auto', 'Background to brightest'], ['full', 'Full detector']], value: S.range, onInput: set('range') });
+ctl.masks = K.check({ label: 'Show the measurement masks', value: S.masks, onInput: set('masks'), hint: 'Dashed: the bead edge. Solid: what is summed (R + 2.5 µm). Dotted: where the background starts.' });
+panel('Display', ctl.lut.el, ctl.range.el, ctl.masks.el,
+  h('div.btnrow', h('button.btn.pri', { on: { click: () => applyPreset('rec') } }, 'Recommended settings'), h('button.btn', { on: { click: () => applyPreset('old') } }, 'First-pass settings (10x, 10 µW)')));
+
+function applyPreset(k) {
+  const P = k === 'rec' ? { obj: '20xD', AU: 1, uW: 2, dwell: 2, ppb: 18.5, avg: 1, gain: 5, bits: 12, offset: 60, z0: 0, washed: true, framesBefore: 0 }
+    : { obj: '10x', AU: 4, uW: 10, dwell: 2, ppb: 20, avg: 1, gain: 5, bits: 12, offset: 60, z0: 0, washed: true, framesBefore: 0 };
+  for (const [key, v] of Object.entries(P)) { S[key] = v; if (ctl[key]) ctl[key].set(v, true); }
+  upd();
+}
+
+/* ---------------- main area ---------------- */
+const paneImage = h('div'), paneFocus = h('div'), paneSection = h('div'), panePhot = h('div');
+let tab = 'image';
+K.tabs(main, [{ id: 'image', label: 'Image', el: paneImage }, { id: 'focus', label: 'Focus', el: paneFocus }, { id: 'section', label: 'Optical section', el: paneSection }, { id: 'phot', label: 'Photons and bleaching', el: panePhot }], id => { tab = id; upd(); });
+
+// image tab
+const flags = h('div.flags'), tilesImg = h('div.tiles');
+const cvImg = h('canvas.img'), cvOv = h('canvas.ov'), pxread = h('div.pxread', ' '), cbar = h('canvas'), cbLo = h('span'), cbHi = h('span'), scaleTxt = h('span');
+const profHost = h('div');
+paneImage.append(flags, h('div.imgrow',
+  h('div.imgbox', h('div.imgwrap', cvImg, cvOv), h('div.cbar', cbLo, cbar, cbHi), h('div.imgcap', scaleTxt), pxread),
+  profHost), tilesImg);
+const plotProf = new Plot(profHost, { title: 'Ring profile', xLabel: 'distance from the bead centre (µm)', yLabel: 'above background (DN)', height: 300, yZero: true });
+paneImage.append(h('div.note', 'The ring is the shell seen edge-on: the optical section cuts the surface where it runs steeply, so a rim pixel holds several times more PE than a flat sheet. Quantify with the integrated intensity F (the sum over the solid circle, minus the background ring), not the rim peak: F follows the PE count and barely moves with focus; the peak does.'));
+
+// focus tab
+const tilesFoc = h('div.tiles');
+paneFocus.append(tilesFoc);
+const plotFoc = new Plot(paneFocus, { title: 'What each measure does when the focal plane moves', xLabel: 'focal plane above the bead centre (µm)', yLabel: 'relative to its best value', height: 270, yZero: true });
+paneFocus.append(h('div.note', 'F is the integral over the whole bead image. For a shell, Archimedes’ hat-box theorem makes the shell area in every slice of height dz the same (2πR dz), so F only falls once the optical section runs off the top or bottom of the bead. The rim peak falls as soon as the section leaves the equator.'));
+const plotMat = new Plot(paneFocus, { title: 'F against focus, by bead type and material', xLabel: 'focal plane above the bead centre (µm)', yLabel: 'F ÷ matched shell at the equator', height: 270, yZero: true });
+paneFocus.append(h('div.note.warn', 'Bead material is the largest open question (report Part E, item 1). A polystyrene, PMMA or silica bead in water acts as a weak lens: the ray trace lowers F near the equator and makes the curve lopsided, so the flat part is no longer centred on the equator. The trace counts light that reaches the objective, not light that passes the pinhole: surface-labelled polystyrene particles lose their far hemisphere in confocal images (Vorselen 2020, in the lit review), so the bright top cap here is probably not real. Measure F against focus on our beads (Experiment 5) and focus at the measured flat point.'));
+
+// section tab
+const tilesSec = h('div.tiles');
+paneSection.append(tilesSec);
+const plotSec = new Plot(paneSection, { title: 'The optical section for these settings', xLabel: 'distance of a molecule from the focal plane (µm)', yLabel: 'relative response', height: 250, yZero: true });
+paneSection.append(h('div.note', 'Two widths matter. The on-axis width is what a point on the optical axis sees (the textbook section). The plane-integrated width is what a whole sheet of PE sees, and it is what sets how much of the shell contributes to F. The dotted lines are the bead’s top and bottom.'));
+const plotSecAU = new Plot(paneSection, { title: 'Section width (plane-integrated FWHM) against pinhole', xLabel: 'pinhole (AU)', yLabel: 'FWHM (µm)', height: 240, yZero: true });
+paneSection.append(h('div.note', 'Above the dashed line the section is thicker than the bead, so every part of the shell contributes and F stops depending on focus. The 10x passes that point near 1 AU; above about 3 AU its section is wider than 28 µm, off this chart. The 20x stays thinner than the bead up to about 3 AU.'));
+const secTable = h('div.panel');
+paneSection.append(secTable);
+
+// photons tab
+const tilesPh = h('div.tiles');
+panePhot.append(tilesPh);
+const plotPow = new Plot(panePhot, { title: 'Detected photons per bead per frame against laser power', xLabel: 'laser at the sample (µW)', yLabel: 'photoelectrons per bead per frame', xLog: true, yLog: true, height: 250 });
+panePhot.append(h('div.note', 'Saturation is computed point by point in the focal volume: molecules away from the focal plane see less light and saturate later, so F stays linear to higher power than an in-focus sheet. The report keeps 1–2 µW as the default because the millisecond dark state of PE and ±30 % on its absorption and lifetime are not in this model (Experiment 7 measures the real threshold).'));
+const plotBl = new Plot(panePhot, { title: 'Bleaching per frame against laser power', xLabel: 'laser at the sample (µW)', yLabel: 'PE lost per frame (%)', xLog: true, yLog: true, height: 230 });
+panePhot.append(h('div.note', 'One-photon excitation gives every plane the full beam, so a raster delivers the same dose to every PE on the bead, top to bottom. Bleaching is then a pure gain error: fix the frames and the power, and never focus in PE.'));
+
+/* ---------------- computing ---------------- */
+let last = null, gen = 0;
+function scanOf() { return { obj: S.obj, AU: S.AU, ppb: S.ppb, dwell: S.dwell, uW: S.uW, gain: S.gain, enf: S.enf, offset: S.offset, read: S.read, bits: S.bits, transmission: S.transmission, QE: S.QE, avg: S.avg, antifade: S.antifade, noise: S.noise }; }
+function beadOf() { return { R: 4, sigma: S.sigma, z0: S.z0, offX: S.offX, offY: S.offY, fieldR: S.fieldR, vignette: S.vignette, curv: S.curv, framesBefore: S.framesBefore, kind: S.kind, material: S.material, excite: S.excite, autofluor: S.autoOn ? S.autofluor : 0, solutionNM: S.washed ? 0 : S.solutionNM }; }
+
+function update() {
+  gen++;
+  ctl.material.el.style.opacity = S.kind === 'core' ? .45 : 1; ctl.excite.el.style.opacity = S.kind === 'core' || S.material === 'matched' ? .45 : 1;
+  ctl.solutionNM.el.style.opacity = S.washed ? .45 : 1; ctl.autofluor.el.style.opacity = S.autoOn ? 1 : .45;
+  const r = last = C.render(beadOf(), scanOf(), K.rng(S.seed));
+  drawImage(r);
+  if (tab === 'image') renderImageTab(r);
+  if (tab === 'focus') renderFocusTab(r, gen);
+  if (tab === 'section') renderSectionTab(r, gen);
+  if (tab === 'phot') renderPhotTab(r);
+}
+
+/* ---------------- image ---------------- */
+function drawImage(r) {
+  const lo = S.range === 'full' ? 0 : Math.min(...sample(r.img, 'min')), hi = S.range === 'full' ? r.adc : Math.max(lo + 1, ...sample(r.img, 'max'));
+  K.paint(cvImg, r.img, r.fov, r.fov, lo, hi, S.lut, 1);
+  K.colorbar(cbar, S.lut); cbLo.textContent = Math.round(lo) + ' DN'; cbHi.textContent = Math.round(hi) + ' DN';
+  const fieldUm = r.fov * r.px; scaleTxt.textContent = fmt(fieldUm, 3) + ' µm across · ' + r.fov + ' × ' + r.fov + ' px';
+  // overlay
+  const W = 680; cvOv.width = W; cvOv.height = W; const g = cvOv.getContext('2d'); g.clearRect(0, 0, W, W);
+  if (S.masks) {
+    const k = W / r.fov, cx = (r.cx + 0.5) * k, cy = (r.cy + 0.5) * k, rad = um => um / r.px * k;
+    g.lineWidth = 2; g.strokeStyle = 'rgba(57,135,229,.95)';
+    g.setLineDash([8, 6]); g.beginPath(); g.arc(cx, cy, rad(4), 0, 7); g.stroke();
+    g.setLineDash([]); g.beginPath(); g.arc(cx, cy, rad(6.5), 0, 7); g.stroke();
+    g.setLineDash([2, 5]); g.beginPath(); g.arc(cx, cy, rad(6.5 + r.px), 0, 7); g.stroke(); g.setLineDash([]);
+  }
+  // scale bar: 5 µm
+  { const k = W / r.fov, L = 5 / r.px * k; g.fillStyle = 'rgba(255,255,255,.9)'; g.fillRect(W - 24 - L, W - 30, L, 6); g.font = '22px system-ui'; g.textAlign = 'right'; g.fillText('5 µm', W - 24, W - 40); }
+}
+function sample(a, kind) { let m = kind === 'min' ? Infinity : -Infinity; for (let i = 0; i < a.length; i++) m = kind === 'min' ? Math.min(m, a[i]) : Math.max(m, a[i]); return [m]; }
+cvImg.addEventListener('pointermove', e => {
+  if (!last) return; const b = cvImg.getBoundingClientRect(), i = Math.floor((e.clientX - b.left) / b.width * last.fov), j = Math.floor((e.clientY - b.top) / b.height * last.fov);
+  if (i < 0 || j < 0 || i >= last.fov || j >= last.fov) return;
+  const p = j * last.fov + i, rr = Math.hypot(i - last.cx, j - last.cy) * last.px;
+  pxread.textContent = `pixel (${i}, ${j}) · ${Math.round(last.img[p])} DN · ${fmt(last.lam[p] * S.avg, 3)} photoelectrons expected · ${rr.toFixed(2)} µm from the centre`;
+});
+cvImg.addEventListener('pointerleave', () => { pxread.textContent = ' '; });
+
+function flag(state, text) { return h('span.flag.' + state, h('i'), text); }
+function renderImageTab(r) {
+  const m = r.m, w = r.widths, F0 = sublinearity(r);
+  const fl = [];
+  if (m.satFrac > 0) fl.push(flag('bad', pct(m.satFrac, 1) + ' of bead pixels at the detector ceiling: lower the HV'));
+  if ([...r.img].some(v => v <= 0)) fl.push(flag('warn', 'Some pixels clip at 0: raise the offset'));
+  if (F0 > 0.05) fl.push(flag('warn', 'F is ' + pct(F0, 0) + ' below linear (saturation)'));
+  if (r.bleachPerFrame > 0.001) fl.push(flag('warn', 'Bleaching ' + pct(r.bleachPerFrame, 2) + ' per frame'));
+  if (S.ppb < 12) fl.push(flag('warn', 'Under 12 px per bead, F depends on where the bead falls on the grid'));
+  if (m.peakPe * S.avg < 200 && S.kind === 'shell') fl.push(flag('warn', 'Rim peak ≈ ' + fmt(m.peakPe * S.avg, 2) + ' photoelectrons: too faint to focus or segment on in PE; use transmitted light'));
+  if (!fl.length) fl.push(flag('good', 'No saturation, clipping or bleaching problems at these settings'));
+  flags.replaceChildren(...fl);
+  const pe = m.integratedPe * S.avg;
+  K.tiles(tilesImg, [
+    { value: fmt(m.integrated, 3) + ' DN', label: 'F, integrated over the bead', sub: '≈ ' + fmt(pe, 3) + ' photoelectrons' },
+    { value: fmt(r.Fanalytic * S.avg, 3), label: 'F expected (photoelectrons, no noise)', sub: 'hat-box theorem' },
+    { value: fmt(m.snr, 3), label: 'Signal-to-noise of F', sub: 'shot + excess + read noise', state: m.snr < 10 ? 'warn' : '' },
+    { value: fmt(m.peak, 3) + ' DN', label: 'Rim peak', sub: pct((m.peak + m.bg) / r.adc, 0) + ' of full scale', state: m.satFrac > 0 ? 'bad' : '' },
+    { value: fmt(m.ringR, 3) + ' µm', label: 'Ring radius', sub: 'bead radius 4 µm' },
+    { value: m.contrast === Infinity ? '∞' : fmt(m.contrast, 2) + '×', label: 'Rim / centre', sub: 'centre ' + fmt(m.centre, 2) + ' DN' },
+    { value: fmt(r.totalPE, 3), label: 'PE on the bead', sub: fmt(S.sigma, 3) + ' per µm²' },
+    { value: fmt(r.px, 3) + ' µm', label: 'Pixel size', sub: zoomText(r.px) },
+    { value: pct(r.bleachPerFrame, 3), label: 'Bleached per frame', sub: S.framesBefore ? pct(1 - r.surv0, 1) + ' lost before this frame' : 'no frames before' },
+  ]);
+  const pr = m.profile, model = [], mr = [];
+  const k = r.k1 * S.gain;
+  for (let i = 0; i < r.rs.length; i++) { const rr = r.rs[i]; if (rr > 4 + 2.5) break; mr.push(rr); model.push((r.prof[i] - (S.washed ? 0 : 0)) * k); }
+  const bgModel = r.prof[r.rs.length - 1] * k;
+  plotProf.set([
+    { name: 'this image (1-pixel rings)', x: pr.r, y: pr.v, c: 0, dots: true, width: 1.5 },
+    { name: 'model, no noise', x: mr, y: model.map(v => v - bgModel), c: 1, dash: true },
+  ], [{ x: 4, label: 'bead edge' }, { x: m.ringR, label: 'ring', row: 1 }], [{ y: r.adc - m.bg, label: 'detector ceiling', color: K.css('--bad') }]);
+}
+function zoomText(px) { const M = C.OBJ[S.obj].M, zoom = 17700 / (M * px * 2048); return zoom >= 0.999 ? '2048² at zoom ' + zoom.toFixed(2) : 'needs ' + Math.ceil(17700 / (M * px * 1000)) * 1000 + '+ px per line at zoom 1'; }
+function sublinearity(r) {
+  const P = r.P, R = 4, cz = S.kind === 'core' ? null : C.materialFactor(S.obj, S.material, S.excite), k0 = r.ex.k0;
+  C.setSaturation(P, 0); const lin = S.kind === 'core' ? C.Fcore(P, R, r.z0eff) : C.Fshell(P, R, r.z0eff, cz);
+  C.setSaturation(P, k0); const sat = S.kind === 'core' ? C.Fcore(P, R, r.z0eff) : C.Fshell(P, R, r.z0eff, cz);
+  return 1 - sat / lin;
+}
+
+/* ---------------- focus ---------------- */
+const focusCache = new Map();
+function renderFocusTab(r, g0) {
+  const P = r.P, R = 4, cz = S.kind === 'core' ? null : C.materialFactor(S.obj, S.material, S.excite), zs = [];
+  for (let z = -7; z <= 7.0001; z += 0.1) zs.push(+z.toFixed(2));
+  const Fz = zs.map(z => S.kind === 'core' ? C.Fcore(P, R, z) : C.Fshell(P, R, z, cz)), Fmax = Math.max(...Fz);
+  // the flat part: where F stays within 2 % of its best
+  let iBest = Fz.indexOf(Fmax), a = iBest, b = iBest; while (a > 0 && Fz[a - 1] >= 0.98 * Fmax) a--; while (b < zs.length - 1 && Fz[b + 1] >= 0.98 * Fmax) b++;
+  const at = z => { const i = zs.findIndex(q => Math.abs(q - z) < 0.051); return i < 0 ? NaN : Fz[i] / Fz[zs.indexOf(0)]; };
+  const zBest = zs[iBest];
+  K.tiles(tilesFoc, [
+    { value: (zBest > 0 ? '+' : '') + zBest.toFixed(1) + ' µm', label: 'Where F is highest (flat point)', sub: S.material === 'matched' || S.kind === 'core' ? 'equator for a matched bead' : 'ray-trace estimate', state: Math.abs(zBest) > 0.3 ? 'warn' : '' },
+    { value: zs[a].toFixed(1) + ' to ' + (zs[b] > 0 ? '+' : '') + zs[b].toFixed(1) + ' µm', label: 'F within 2 % of its best' },
+    { value: pct(at(1) - 1, 1) + ' / ' + pct(at(-1) - 1, 1), label: 'F change at +1 / −1 µm', sub: 'from the equator' },
+    { value: pct(at(2) - 1, 1) + ' / ' + pct(at(-2) - 1, 1), label: 'F change at +2 / −2 µm' },
+  ]);
+  const key = [S.obj, S.AU, S.kind, S.material, S.excite, last.ex.k0.toFixed(4)].join('|');
+  const pk = focusCache.get(key) || { z: [], peak: [], centre: [] };
+  const draw = () => {
+    const pmax = Math.max(...pk.peak, 1e-30), cmax = Math.max(...pk.centre, 1e-30);
+    plotFoc.set([
+      { name: 'F (integrated)', x: zs, y: Fz.map(v => v / Fmax), c: 0, width: 2.5 },
+      { name: 'rim peak (fine sampling)', x: pk.z, y: pk.peak.map(v => v / pmax), c: 1 },
+      { name: 'centre (inner 30 %)', x: pk.z, y: pk.centre.map(v => v / cmax), c: 2, dash: true },
+    ], [{ x: S.z0, label: 'this plane' }, { x: -4, color: K.css('--line') }, { x: 4, color: K.css('--line') }], [{ y: 0.98, label: '−2 %' }], [{ from: zs[a], to: zs[b], color: K.css('--accent-soft'), label: 'F flat' }]);
+  };
+  draw();
+  if (pk.z.length < zs.filter((_, i) => i % 3 === 0).length) {
+    const todo = zs.filter((_, i) => i % 3 === 0).filter(z => !pk.z.includes(z));
+    const step = () => {
+      if (gen !== g0 || tab !== 'focus') return;
+      const P2 = C.psf(S.obj, S.AU); C.setSaturation(P2, last.ex.k0);
+      for (let n = 0; n < 3 && todo.length; n++) { const z = todo.shift(), f = C.fineProfile(P2, R, z, cz, S.kind); pk.z.push(z); pk.peak.push(f.peak); pk.centre.push(f.centre); }
+      const o = pk.z.map((z, i) => i).sort((i, j) => pk.z[i] - pk.z[j]); pk.z = o.map(i => pk.z[i]); pk.peak = o.map(i => pk.peak[i]); pk.centre = o.map(i => pk.centre[i]);
+      focusCache.set(key, pk); draw();
+      if (todo.length) setTimeout(step, 0);
+    };
+    setTimeout(step, 0);
+  }
+  // materials
+  C.setSaturation(P, last.ex.k0);
+  const ref = C.Fshell(P, R, 0, null), ser = [];
+  ser.push({ name: 'shell, index-matched', x: zs, y: zs.map(z => C.Fshell(P, R, z, null) / ref), c: 0, width: 2.5 });
+  [['silica', 2], ['pmma', 3], ['ps', 1]].forEach(([m, c]) => { const f = C.materialFactor(S.obj, m, S.excite); ser.push({ name: MAT_OPTS.find(x => x[0] === m)[1].toLowerCase() + (S.excite ? ' (em × ex)' : ' (emission)'), x: zs, y: zs.map(z => C.Fshell(P, R, z, f) / ref), c }); });
+  ser.push({ name: 'filled bead, same PE', x: zs, y: zs.map(z => C.Fcore(P, R, z) * (S.sigma * 4 * Math.PI * 16) / (4 / 3 * Math.PI * 64) / (S.sigma * ref)), c: 6, dash: true });
+  plotMat.set(ser, [{ x: S.z0, label: 'this plane' }]);
+}
+
+/* ---------------- section ---------------- */
+const auCache = {};
+function renderSectionTab(r, g0) {
+  const P = r.P, w = r.widths, z = [];
+  for (let q = -8; q <= 8.0001; q += 0.05) z.push(+q.toFixed(2));
+  const on0 = C.hAt(P, 0, 0), H0 = C.Hat(P, 0);
+  const open = C.psf(S.obj, 6); C.setSaturation(open, 0); const Ho = C.Hat(open, 0);
+  C.setSaturation(P, r.ex.k0);
+  plotSec.set([
+    { name: 'on-axis point', x: z, y: z.map(q => C.hAt(P, 0, Math.abs(q)) / on0), c: 0 },
+    { name: 'whole plane (sheet)', x: z, y: z.map(q => C.Hat(P, q) / H0), c: 1, width: 2.5 },
+    { name: 'whole plane, pinhole open (6 AU)', x: z, y: z.map(q => C.Hat(open, q) / Ho), c: 6, dash: true },
+  ], [{ x: -4, label: 'bead bottom' }, { x: 4, label: 'bead top' }], [{ y: 0.5, label: 'half maximum' }]);
+  const zt = r.zeiss;
+  K.tiles(tilesSec, [
+    { value: fmt(w.zPlane, 3) + ' µm', label: 'Section, plane-integrated FWHM', sub: w.zPlane < 8 ? 'thinner than the bead' : 'as thick as the bead' },
+    { value: fmt(w.zOnAxis, 3) + ' µm', label: 'Section, on-axis FWHM', sub: 'textbook formula ' + fmt(zt.z, 3) + ' µm' },
+    { value: fmt(w.xy, 3) + ' µm', label: 'Lateral FWHM', sub: 'textbook ' + fmt(zt.xy, 3) + ' µm' },
+    { value: fmt(w.pinholeUm, 3) + ' µm', label: 'Pinhole at the sample', sub: fmt(S.AU, 3) + ' AU' },
+    { value: pct(w.D00, 0), label: 'In-focus light through the pinhole' },
+    { value: fmt(P.Veff, 3) + ' µm³', label: 'Effective detection volume', sub: 'free PE background scales with it' },
+  ]);
+  secTable.replaceChildren(h('h2', 'Numbers for this objective and pinhole'), h('div.kv',
+    h('span', 'Beam waist w0'), h('span', fmt(P.w0, 3) + ' µm'), h('span', 'Rayleigh range'), h('span', fmt(P.zR, 3) + ' µm'),
+    h('span', 'Emission spot width'), h('span', fmt(P.sEm, 3) + ' µm (σ)'), h('span', 'Airy unit at the sample'), h('span', fmt(C.airyUm(P.o), 3) + ' µm'),
+    h('span', 'Collection fraction'), h('span', pct(C.collection(P.o), 2) + ' of all emission'), h('span', 'Detection efficiency η'), h('span', pct(r.eta, 2) + ' (collection × 0.4 optics × 0.4 QE)')));
+  // FWHM against pinhole, three objectives (computed once, a few at a time)
+  const AUs = [0.3, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6], keys = ['10x', '20x', '20xD'];
+  // the table stops at ±14 µm, so a width of 28 µm means "at least 28": leave those points off
+  const ok = (k, a) => auCache[k + a] && auCache[k + a] < 27.9;
+  const draw = () => plotSecAU.set(keys.map((k, i) => ({ name: OBJ_OPTS[i][1], x: AUs.filter(a => ok(k, a)), y: AUs.filter(a => ok(k, a)).map(a => auCache[k + a]), c: i, dots: true })), [{ x: S.AU, label: 'this pinhole' }], [{ y: 8, label: 'bead diameter' }]);
+  draw();
+  const todo = []; keys.forEach(k => AUs.forEach(a => { if (!auCache[k + a]) todo.push([k, a]); }));
+  const step = () => { if (gen !== g0 || tab !== 'section') return; for (let n = 0; n < 2 && todo.length; n++) { const [k, a] = todo.shift(), Q = C.psf(k, a); C.setSaturation(Q, 0); auCache[k + a] = C.widths(Q).zPlane; } draw(); if (todo.length) setTimeout(step, 0); };
+  if (todo.length) setTimeout(step, 0);
+}
+
+/* ---------------- photons ---------------- */
+const satCache = {};
+function renderPhotTab(r) {
+  const P = r.P, R = 4, cz = S.kind === 'core' ? null : C.materialFactor(S.obj, S.material, S.excite), ex1 = C.excitation(1, P.w0);
+  const Fl = (k0) => { C.setSaturation(P, k0); return S.kind === 'core' ? C.Fcore(P, R, r.z0eff) : C.Fshell(P, R, r.z0eff, cz); };
+  const lin = Fl(0), pows = [], yF = [], yL = [];
+  for (let e = -1; e <= 2.0001; e += 0.05) { const p = Math.pow(10, e); pows.push(p); yF.push(Fl(ex1.k0 * p)); }
+  const unit = r.k1 / S.uW;   // photoelectrons per PE-equivalent per frame, per µW (linear)
+  const nPE = r.surv * S.sigma / (r.px * r.px);
+  const Fph = pows.map((p, i) => yF[i] * nPE * unit * p * (S.kind === 'core' ? (4 * Math.PI * 16) / (4 / 3 * Math.PI * 64) : 1));
+  const Flin = pows.map((p, i) => lin * nPE * unit * p * (S.kind === 'core' ? (4 * Math.PI * 16) / (4 / 3 * Math.PI * 64) : 1));
+  // 5 %-sublinear power for F (bisection)
+  let lo = 0.01, hi = 1000; for (let i = 0; i < 40; i++) { const m = Math.sqrt(lo * hi); if (Fl(ex1.k0 * m) / lin > 0.95) lo = m; else hi = m; }
+  const p5 = lo;
+  C.setSaturation(P, r.ex.k0);
+  plotPow.set([
+    { name: 'with saturation', x: pows, y: Fph, c: 0, width: 2.5 },
+    { name: 'linear', x: pows, y: Flin, c: 6, dash: true },
+  ], [{ x: S.uW, label: 'now' }, { x: p5, label: 'F 5 % sublinear', row: 1 }, { x: S.obj === '10x' ? 6.5 : 2, label: 'report default', row: 2 }]);
+  const dose1 = C.absorbedPerFrame(1, S.dwell, r.px), phi = S.antifade ? C.PE.phiNPG : C.PE.phi;
+  plotBl.set([
+    { name: 'R-PE in buffer', x: pows, y: pows.map(p => 100 * (1 - Math.exp(-C.PE.phi * dose1 * p))), c: 1 },
+    { name: 'with n-propyl gallate', x: pows, y: pows.map(p => 100 * (1 - Math.exp(-C.PE.phiNPG * dose1 * p))), c: 2, dash: true },
+  ], [{ x: S.uW, label: 'now' }], [{ y: 0.05, label: '0.05 % per frame' }]);
+  const perPEframe = r.Fanalytic / Math.max(1e-30, r.totalPE * r.surv);   // detected photoelectrons per PE per frame
+  const life = perPEframe / Math.max(1e-30, r.bleachPerFrame);
+  K.tiles(tilesPh, [
+    { value: fmt(r.ex.I0 * 1e-7, 3) + ' kW/cm²', label: 'Peak irradiance', sub: fmt(r.ex.flux * 1e-4, 3) + ' photons cm⁻² s⁻¹' },
+    { value: fmt(r.ex.k0, 3), label: 'k0 = excitation rate × lifetime', sub: 'at the beam peak; 1 = saturation' },
+    { value: pct(1 - Fl(r.ex.k0) / lin, 1), label: 'F below linear here', state: 1 - Fl(r.ex.k0) / lin > 0.05 ? 'warn' : '' },
+    { value: fmt(p5, 3) + ' µW', label: 'F 5 % below linear at', sub: 'model only: no dark state' },
+    { value: fmt(perPEframe, 3), label: 'Photoelectrons per PE per frame', sub: 'whole bead, F / PE count' },
+    { value: fmt(r.Fanalytic * S.avg, 3), label: 'Photoelectrons per bead', sub: S.avg > 1 ? S.avg + ' frames' : 'one frame' },
+    { value: pct(r.bleachPerFrame, 3), label: 'Bleached per frame', sub: fmt(r.dose, 3) + ' absorptions per PE' },
+    { value: fmt(Math.log(0.99) / Math.log(1 - r.bleachPerFrame), 3), label: 'Frames to lose 1 %' },
+    { value: fmt(life, 3), label: 'Photons per PE over its life', sub: 'detected, before it bleaches' },
+  ]);
+  C.setSaturation(P, r.ex.k0);
+}
+
+update();
+})();
+</script>
+</body>
+</html>

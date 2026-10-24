@@ -1,0 +1,70 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Optical section through a shell</title>
+<style>html,body{margin:0;background:#fff}svg{display:block;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}</style></head><body>
+<!-- scale: 37.5 px per µm (8 µm bead = 300 px). Section widths are the model's plane-integrated FWHM at 1 AU: 20x/0.80 2.3 µm, 10x/0.45 7.1 µm. -->
+<svg id="fig" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="2400" height="1440">
+  <defs>
+    <radialGradient id="body" cx="45%" cy="40%" r="60%"><stop offset="0" stop-color="#f4f2ee"/><stop offset="1" stop-color="#e2ddd3"/></radialGradient>
+    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
+    <filter id="blur2" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter>
+    <clipPath id="band20"><rect x="0" y="367" width="800" height="86"/></clipPath>
+    <clipPath id="slices"><rect x="0" y="288" width="800" height="16"/><rect x="0" y="500" width="800" height="16"/></clipPath>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#3d3c39"/></marker>
+  </defs>
+  <rect width="1200" height="720" fill="#fff"/>
+  <text x="40" y="52" font-size="27" font-weight="700" fill="#1b1b1a">How one confocal plane sees a shell of PE</text>
+  <text x="40" y="84" font-size="16.5" fill="#52514e">The pinhole sets how thick a slice of the bead contributes. The slice cuts the shell where it runs steeply,</text>
+  <text x="40" y="106" font-size="16.5" fill="#52514e">so the image is a bright ring at the bead's radius, and the sum over the whole bead barely depends on focus.</text>
+
+  <text x="40" y="150" font-size="15" font-weight="700" fill="#1b1b1a">Side view, to scale</text>
+  <!-- hat-box note -->
+  <text x="230" y="186" font-size="13.5" fill="#b42b2a">The two red slices have the same height dz and hold the same</text>
+  <text x="230" y="205" font-size="13.5" fill="#b42b2a">shell area, 2πR dz: Archimedes' hat-box theorem. So every</text>
+  <text x="230" y="224" font-size="13.5" fill="#b42b2a">height on the bead carries the same amount of PE.</text>
+  <!-- sections -->
+  <rect x="196" y="277" width="348" height="266" fill="none" stroke="#6250d6" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="552" y="292" font-size="14" fill="#6250d6" font-weight="600">10x/0.45, 1 AU:</text>
+  <text x="552" y="310" font-size="14" fill="#6250d6" font-weight="600">section ≈ 7.1 µm</text>
+  <rect x="196" y="367" width="348" height="86" fill="#1baf7a" fill-opacity=".14" stroke="#1baf7a" stroke-width="1.5"/>
+  <text x="552" y="404" font-size="14" fill="#11734f" font-weight="600">20x/0.80, 1 AU:</text>
+  <text x="552" y="422" font-size="14" fill="#11734f" font-weight="600">section ≈ 2.3 µm</text>
+  <!-- bead and shell -->
+  <circle cx="370" cy="410" r="150" fill="url(#body)"/>
+  <circle cx="370" cy="410" r="150" fill="none" stroke="#f0a400" stroke-width="5" stroke-dasharray="1 7" stroke-linecap="round"/>
+  <g clip-path="url(#band20)"><circle cx="370" cy="410" r="150" fill="none" stroke="#f08c00" stroke-width="9"/></g>
+  <g clip-path="url(#slices)"><circle cx="370" cy="410" r="150" fill="none" stroke="#e34948" stroke-width="7"/></g>
+  <line x1="180" y1="410" x2="560" y2="410" stroke="#1b1b1a" stroke-width="1.6" stroke-dasharray="3 4"/>
+  <!-- left labels -->
+  <text x="40" y="404" font-size="13.5" fill="#1b1b1a">focal plane</text>
+  <text x="40" y="421" font-size="13.5" fill="#1b1b1a">at the equator</text>
+  <text x="40" y="318" font-size="13.5" fill="#52514e">PE only on the</text>
+  <text x="40" y="335" font-size="13.5" fill="#52514e">surface (dotted)</text>
+  <line x1="150" y1="326" x2="236" y2="340" stroke="#3d3c39" stroke-width="1.3" marker-end="url(#ah)"/>
+  <text x="40" y="478" font-size="13.5" fill="#52514e">bright: the shell</text>
+  <text x="40" y="495" font-size="13.5" fill="#52514e">inside the 20x slice</text>
+  <line x1="150" y1="474" x2="217" y2="440" stroke="#3d3c39" stroke-width="1.3" marker-end="url(#ah)"/>
+  <!-- glass and objective -->
+  <rect x="180" y="560" width="380" height="22" fill="#cfe1ea" stroke="#9fbccb"/>
+  <text x="188" y="576" font-size="12.5" fill="#3f5d6b">#1.5H glass bottom</text>
+  <path d="M310 712 L350 600 L390 600 L430 712 Z" fill="#9aa3ab"/>
+  <path d="M350 600 L370 410 L390 600" fill="#1baf7a" fill-opacity=".10" stroke="#1baf7a" stroke-width="1" stroke-dasharray="4 4"/>
+  <text x="440" y="672" font-size="13.5" fill="#52514e">objective below</text>
+  <text x="440" y="690" font-size="13.5" fill="#52514e">(inverted stand)</text>
+  <line x1="470" y1="625" x2="545" y2="625" stroke="#1b1b1a" stroke-width="3"/><text x="507" y="645" font-size="13" fill="#1b1b1a" text-anchor="middle">2 µm</text>
+
+  <!-- top view -->
+  <text x="800" y="150" font-size="15" font-weight="700" fill="#1b1b1a">What the AX R records</text>
+  <rect x="800" y="165" width="300" height="300" rx="6" fill="#0b0b0b"/>
+  <circle cx="950" cy="315" r="112" fill="#2a2018" filter="url(#blur)" opacity=".7"/>
+  <circle cx="950" cy="315" r="112" fill="none" stroke="#ffcf66" stroke-width="11" filter="url(#blur2)"/>
+  <circle cx="950" cy="315" r="112" fill="none" stroke="#fff3cf" stroke-width="3" filter="url(#blur2)" opacity=".8"/>
+  <line x1="1020" y1="445" x2="1076" y2="445" stroke="#fff" stroke-width="4"/><text x="1048" y="437" font-size="12" fill="#fff" text-anchor="middle">2 µm</text>
+  <text x="800" y="490" font-size="13.5" fill="#52514e">A ring at the bead radius, dark inside.</text>
+  <text x="800" y="510" font-size="13.5" fill="#52514e">A rim pixel holds ≈ 5–6× the PE of a flat sheet.</text>
+  <rect x="790" y="530" width="380" height="160" rx="10" fill="#f6f5f2" stroke="#dedcd6"/>
+  <text x="806" y="556" font-size="14.5" font-weight="700" fill="#1b1b1a">Quantify with F, not the rim peak</text>
+  <text x="806" y="580" font-size="13.5" fill="#52514e">F = sum over the bead − background ring</text>
+  <text x="806" y="602" font-size="13.5" fill="#52514e">   = 2π<tspan font-style="italic">R</tspan>σ ∫ <tspan font-style="italic">w</tspan>(<tspan font-style="italic">z</tspan> − <tspan font-style="italic">z</tspan><tspan baseline-shift="sub" font-size="10">0</tspan>) d<tspan font-style="italic">z</tspan> over the bead</text>
+  <text x="806" y="626" font-size="13.5" fill="#52514e">20x: within 2 % of best for ±1.2 µm of focus;</text>
+  <text x="806" y="648" font-size="13.5" fill="#52514e">the rim peak drops 12–18 % at 1 µm.</text>
+  <text x="806" y="674" font-size="12.5" fill="#7d7c77">Index-matched bead. A real bead bends light (Exp. 5).</text>
+</svg></body></html>

@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from scipy import ndimage
 from scipy.stats import ncx2
 from scipy.fft import rfft2, irfft2, next_fast_len
+from params import PE as _PE, DETECTION as _DET, OPERATING as _OP, DETECTOR as _DTR
 
 H_PLANCK = 6.62607015e-34
 C_LIGHT = 2.99792458e8
@@ -55,11 +56,11 @@ OBJ = {
 @dataclass
 class Fluorophore:
     name: str = 'R-PE'
-    eps_M_cm: float = 1.96e6      # M^-1 cm^-1 near the 565 nm peak
-    QY: float = 0.82
-    tau_fl_s: float = 2.5e-9
-    phi_bleach: float = 1.1e-5     # R-PE photodestruction quantum yield (White & Stryer 1987); 6.5e-6 with n-propyl gallate
-    lam_em_um: float = 0.578
+    eps_M_cm: float = _PE['eps_M_cm']      # M^-1 cm^-1 near the 565 nm peak
+    QY: float = _PE['QY']
+    tau_fl_s: float = _PE['tau_fl_s']     # 2.7 ns (report B.4.1); revision 1 used 2.5 ns
+    phi_bleach: float = _PE['phi_bleach']     # R-PE photodestruction quantum yield (White & Stryer 1987); 6.5e-6 with n-propyl gallate
+    lam_em_um: float = _PE['lam_em_um']
 
     @property
     def sigma_abs_cm2(self):
@@ -193,18 +194,18 @@ def bleach_fraction_per_frame(fluo, laser_uW, dwell_us, px_um, lam_ex=0.561):
 
 @dataclass
 class ScanSettings:
-    objective: str = '20x'
-    pinhole_AU: float = 1.0
-    px_per_bead: float = 20.0       # pixels across the bead diameter (sets pixel size = 2R/px_per_bead)
-    dwell_us: float = 2.0
-    laser_uW: float = 10.0          # power at the sample
-    gain: float = 20.0              # DN per photoelectron (PMT HV + amplifier, lumped)
-    excess_noise_F: float = 1.3     # PMT multiplication excess-noise factor
-    offset_DN: float = 200.0
-    read_noise_DN: float = 3.0
-    adc_max: int = 65535
-    transmission: float = 0.4       # optics x filters
-    QE: float = 0.40                # GaAsP at ~580 nm
+    objective: str = _OP['objective']
+    pinhole_AU: float = _OP['pinhole_AU']
+    px_per_bead: float = _OP['px_per_bead']       # pixels across the bead diameter (sets pixel size = 2R/px_per_bead)
+    dwell_us: float = _OP['dwell_us']
+    laser_uW: float = _OP['laser_uW']          # power at the sample (revision 1 used 10 uW)
+    gain: float = _DTR['gain']              # DN per photoelectron (PMT HV + amplifier, lumped)
+    excess_noise_F: float = _DET['excess_noise_F']     # PMT multiplication excess-noise factor
+    offset_DN: float = _DTR['offset_DN']
+    read_noise_DN: float = _DTR['read_noise_DN']
+    adc_max: int = _DTR['adc_max']
+    transmission: float = _DET['transmission']       # optics x filters
+    QE: float = _DET['QE']                # GaAsP at ~580 nm
     lam_ex: float = 0.561
     fast_axis_smear: bool = True
 
@@ -254,8 +255,13 @@ def render(bead, scan, fluo=PE, fov_px=48, oversample=8, n_points=60000, seed=0,
         weights = np.concatenate([weights, np.full(len(u), bead.autofluor_PE_um3 * 4 / 3 * np.pi * bead.R_um ** 3 / len(u))])
     z0 = bead.z0_um + bead.field_curv_um * bead.field_r ** 2
     # --- lateral positions on the fine grid ---------------------------------------------------------
-    cx = (fov_px / 2 + bead.xy_off_px[0]) * px
-    cy = (fov_px / 2 + bead.xy_off_px[1]) * px
+    # Register the image with the metric's centre (fov_px/2 + offset, pixel i at i*px): pixel i samples fine cell
+    # i*oversample + oversample//2, which stands for position (i + 0.5)*px once the one-pixel fast-axis smear is applied
+    # (an even box filter is centred half a fine cell early) and (i + 0.5 + 0.5/oversample)*px without it. Before this
+    # shift the bead sat half a pixel off the centre the metrics measured from, which blunted the binned rim peak.
+    shift = 0.5 + (0.0 if scan.fast_axis_smear else 0.5 / oversample)
+    cx = (fov_px / 2 + bead.xy_off_px[0] + shift) * px
+    cy = (fov_px / 2 + bead.xy_off_px[1] + shift) * px
     ix = np.floor((pts[:, 0] + cx) / fine).astype(int)
     iy = np.floor((pts[:, 1] + cy) / fine).astype(int)
     ok = (ix >= 0) & (ix < N) & (iy >= 0) & (iy < N)
