@@ -121,8 +121,9 @@ def protocol(num, slug, title, summary, tags, sections):
 BEFORE = callout("critical",
     "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band "
     "(e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV "
-    "and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Find focus "
-    "in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.")
+    "and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the "
+    "transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light "
+    "and hold it with Perfect Focus. Never live-scan PE to focus.")
 DATA = callout("note",
     "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. "
     "BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in "
@@ -151,8 +152,9 @@ PROTOCOLS.append(protocol(
             callout("note", "Pins: peak irradiance at the focus, and from it the PE excitation rate, the saturation level and the "
                             "bleaching dose per frame. The same laser % gives different power through the 10x and the 20x "
                             "because the back aperture is filled differently, and the %-to-µW map drifts during a session."),
-            callout("assume", "Model prediction: emission is ≈10 % below linear (I/Iₛ ≈ 0.1) at ≈3 µW through the 20x and "
-                              "≈8 µW through the 10x; Iₛ ≈ 19 kW/cm² for R-PE at 561 nm."),
+            callout("assume", "Model prediction: with confocal weighting the image is 5 % below linear at I/Iₛ ≈ 0.08, which is "
+                              "≈2 µW at the sample through the 20x and ≈6–7 µW through the 10x (Iₛ ≈ 19 kW/cm² for R-PE at 561 nm). "
+                              "The beam-centre number in the calculator is the worst case; the whole image is ≈0.6–0.67 of it."),
             callout("timing", "≈45 min first time; 5 min at the start and end of each quantitative session."),
         ]),
         section("Materials", [
@@ -174,12 +176,12 @@ PROTOCOLS.append(protocol(
                 inp("na", "Objective NA", 0.75, ""),
                 inp("lam_ex", "Excitation wavelength", 0.561, "µm"),
                 inp("i_sat", "PE saturation irradiance", 19, "kW/cm²", hint="≈19 for R-PE at 561 nm"),
-                inp("target_s", "Target I/Iₛ", 0.1, "", "slider", 0.02, 0.5, 0.01),
+                inp("target_s", "Target I/Iₛ (0.08 ≈ 5 % image sublinearity)", 0.08, "", "slider", 0.02, 0.5, 0.01),
             ], [
                 out("w0_um", "Focal spot radius (1/e²)", "0.433 * lam_ex / na", "µm", 3),
                 out("i0_kw", "Peak irradiance", "2 * p_uw * 1e-6 / (pi * (w0_um * 1e-4) ^ 2) / 1000", "kW/cm²", 2),
                 out("s_ratio", "I/Iₛ", "i0_kw / i_sat", "", 3),
-                out("sublin_pct", "Emission below linear", "100 * s_ratio / (1 + s_ratio)", "%", 1),
+                out("sublin_pct", "Emission below linear at the beam centre", "100 * s_ratio / (1 + s_ratio)", "%", 1),
                 out("p_target_uw", "Power for the target I/Iₛ", "target_s * i_sat * 1000 * pi * (w0_um * 1e-4) ^ 2 / 2 / 1e-6", "µW", 2),
             ]),
             callout("note", "With [!var:p_uw] at NA [!var:na] the peak irradiance is [!var:i0_kw] and PE emission is "
@@ -201,11 +203,11 @@ PROTOCOLS.append(protocol(
         ]),
         section("Analysis", [
             step("Fit µW = a × (laser %) per objective over the linear part of the ladder; record a and the 20x/10x ratio at the same %."),
-            step("Enter the measured µW in the calculator with each objective's NA, and read the % that gives the target I/Iₛ (≈0.1)."),
+            step("Enter the measured µW in the calculator with each objective's NA, and read the % that gives the target I/Iₛ (0.08)."),
         ]),
         section("Decision & record", [
-            callout("note", "Decision: the laser % that gives the operating power for each objective (≈3 µW through the 20x, "
-                            "≈8 µW through the 10x, unless Exp 07 moves them). Record power in µW in every later plate map."),
+            callout("note", "Decision: the laser % that gives the operating power for each objective (1–2 µW through the 20x, "
+                            "≈6 µW through the 10x, unless Exp 07 moves them). Record power in µW in every later plate map."),
             record([("Date / time", "Start and end of the session"),
                     ("Objective", "Model and NA from the barrel"),
                     ("Laser %", "Each rung of the ladder"),
@@ -270,6 +272,7 @@ PROTOCOLS.append(protocol(
             step("For each frame pair, in a central 256² ROI: m = mean((I₁ + I₂)/2) − offset, and v = var(I₁ − I₂)/2. Taking the difference removes the illumination pattern."),
             step("Fit v = slope × m + σ²_read over the unsaturated points. The slope is g·F at that HV. Check that R² is above 0.99."),
             step("Tabulate slope against HV. PMT gain is steep (≈ a power of HV), so fit log(slope) against log(HV) to interpolate."),
+            step("Detector linearity: at the plate HV, mean signal against laser power must stay within 2 % of a straight line up to the photon rate of the top standard's rim. The highest power where it does is the analog linearity limit."),
         ]),
         section("Decision & record", [
             callout("note", "Decision: the HV at which the brightest expected rim pixel stays at or below 60–70 % of full scale "
@@ -306,7 +309,7 @@ PROTOCOLS.append(protocol(
             calculator("Field and pixel size", [
                 inp("m_obj", "Objective magnification", 10, "×"),
                 inp("zoom", "Scan zoom", 1, "×"),
-                inp("n_px", "Frame size (pixels per side)", 2048, "px"),
+                inp("n_px", "Frame size (pixels per side)", 4096, "px"),
                 inp("bead_d", "Bead diameter", 8, "µm"),
             ], [
                 out("field_um", "Field side at the sample", "17700 / (m_obj * zoom)", "µm", 0),
@@ -352,8 +355,9 @@ PROTOCOLS.append(protocol(
         ]),
         section("Materials", [
             materials([("10", "µL", "100–200 nm orange/red fluorescent beads, diluted 1:1000 in water (4a)"),
+                       ("200", "µL", "PE-detection antibody at ≈10 nM, no beads (4d)"),
                        ("1", "µg/mL", "PE-detection antibody in PBS, 200 µL per well (4b)"),
-                       ("1", "well", "Assay beads at high coverage (4c)"),
+                       ("1", "ea", "Chamber of known height: a calibrated spacer (50–120 µm, measured with a micrometer) between two #1.5 coverslips, sub-resolution beads stuck to both inner surfaces, filled with water (4c)"),
                        ("1", "ea", "#1.5 glass-bottom plate or dish"),
                        ("", "", "PBS")]),
         ]),
@@ -362,7 +366,8 @@ PROTOCOLS.append(protocol(
                 {"part": "4a point", "obj": "20x", "pinhole": "0.5, 1, 2, 4 AU, max", "z": "±6 µm / 0.1 µm", "px": "≤0.1 µm"},
                 {"part": "4a point", "obj": "10x", "pinhole": "0.5, 1, 2, 4 AU, max", "z": "±15 µm / 0.25 µm", "px": "≤0.2 µm"},
                 {"part": "4b plane", "obj": "20x and 10x", "pinhole": "same series", "z": "±3 × section / 0.1 (20x), 0.25 (10x) µm", "px": "any"},
-                {"part": "4c beads", "obj": "20x", "pinhole": "1 AU", "z": "−6 to +6 µm around the equator / 0.2 µm", "px": "0.2 µm"},
+                {"part": "4c chamber", "obj": "20x", "pinhole": "1 AU", "z": "through both bead layers / 0.2 µm", "px": "0.2 µm"},
+                {"part": "4d edge", "obj": "20x and 10x", "pinhole": "1 AU and largest", "z": "−10 to +30 µm / 0.25 µm", "px": "any"},
             ], "Acquisition grid"),
             BEFORE,
         ]),
@@ -392,14 +397,17 @@ PROTOCOLS.append(protocol(
             step("For each objective and pinhole in the grid, z-stack ≥10 isolated beads at low power (1 µW at 20x, 3 µW at 10x)."),
             heading("4b", "Plane response H(z)"),
             step("Add 200 µL of PE-antibody at 1 µg/mL to an empty glass-bottom well, wait 30 min at room temperature, wash 3× with PBS, leave PBS on."),
-            step("Find the layer at very low power. Then for each objective and pinhole, z-scan through it at the steps in the grid. Use a fresh spot for every scan (the layer bleaches)."),
+            step("Find the layer at very low power. Then for each objective and pinhole, z-scan through it to ±20 µm (the tails matter) at the steps in the grid. Use a fresh spot for every scan (the layer bleaches)."),
+            heading("4d", "Glass-to-solution edge (axial weight and T)"),
+            step("Fill a well with PE-antibody at ≈10 nM (no beads). z-scan from 10 µm below the glass surface to 30 µm into the solution, 0.25 µm steps, for each objective at 1 AU and the largest AU NIS allows. Read the largest AU per objective from NIS and record it."),
             heading("4c", "Axial scaling"),
-            step("Settle high-coverage assay beads (≥30 min). At 20x and 1 AU, z-stack 10 beads from 6 µm below to 6 µm above the equator, 0.2 µm steps, 0.2 µm pixels."),
+            step("In the chamber of known height, at 20x and 1 AU, z-stack from below the bottom bead layer to above the top one, 0.2 µm steps. Do not use the assay beads for this: a polystyrene bead refracts like a weak lens and shifts its own top peak."),
         ]),
         section("Analysis", [
             step("4a: fit Gaussians to the lateral and axial profiles of each bead; report median FWHM against pinhole."),
             step("4b: mean intensity of the central field against z is H(z). Report its FWHM and its shape: flat-topped, Gaussian, or with 1/z² tails. Send the H(z) table, because the simulator can use it directly."),
-            step("4c: z_scale = (bead diameter in x/y) / (top-to-bottom shell peak distance in nominal z). The peak-to-peak distance does not depend on the PSF. Expect ≈1.33."),
+            step("4c: z_scale = (true chamber height) / (nominal stage travel between the two bead layers). Expect ≈1.33 for a dry objective into water."),
+            step("4d: the solution signal rises across the glass edge; its derivative against z is the axial weight w(z). Its integral is ℓ_eff, and T = (∫ of w from −4 to +4 µm) / ℓ_eff is the fraction of the section that falls inside a bead. Expected T ≈ 0.84–0.95 at 20x/0.80, 1 AU."),
         ]),
         section("Decision & record", [
             callout("note", "Decision: whether the 10x open-pinhole H(z) is flat across ±4 µm (the focus tolerance of the high-throughput "
@@ -425,21 +433,28 @@ PROTOCOLS.append(protocol(
                             "bead radius distribution."),
             table([("mode", "Mode"), ("int", "Integrated within 5 %"), ("ring", "Ring-mean loss at 2 µm"),
                    ("pc", "Peak/centre at equator")], [
-                {"mode": "A · 10x, pinhole open (≥4 AU)", "int": "±4.5 µm", "ring": "7 %", "pc": "≈3"},
-                {"mode": "B · 20x, 1 AU", "int": "±1.75 µm", "ring": "22 %", "pc": "≈15 (simulator) to >100 (Gaussian section)"},
-                {"mode": "C · 20x, 4 AU", "int": "±1.5 µm", "ring": "18 %", "pc": "≈3"},
+                {"mode": "A · 10x, largest pinhole (3–4 AU)", "int": "±4.5 µm", "ring": "7 %", "pc": "≈3"},
+                {"mode": "B · 20x, 1 AU", "int": "±1.75 µm (±1.8–2.1 µm with sharper tails)", "ring": "22 %", "pc": "≈15 (simulator) to >100 (Gaussian section)"},
+                {"mode": "C · 20x, 2 AU", "int": "±1.5 µm", "ring": "25 %", "pc": "—"},
                 {"mode": "D · 10x, 1 AU", "int": "±1.5 µm", "ring": "18 %", "pc": "≈4.5"},
-            ], "Model predictions to confirm or reject"),
+            ], "Model predictions for an index-matched bead"),
+            callout("critical", "Bead material comes first. A polystyrene, PMMA or silica bead in water acts as a weak lens: the "
+                                "equatorial signal drops to ≈0.6–0.75 of the index-matched value and the integrated signal against "
+                                "focus becomes asymmetric about the equator. Get the material, density and refractive index from the "
+                                "vendor before this experiment; the z-series is how its effect is measured."),
         ]),
         section("Materials", [
             materials([("1", "well", "Assay beads at high coverage (top standard, washed)"),
                        ("1", "well", "Assay beads at mid coverage (≈10 % of the top signal)"),
+                       ("1", "well", "Core control: volume-stained fluorescent beads of similar size, orange/red"),
+                       ("", "", "Vendor certificate for the assay beads: material, density, refractive index, size CV"),
                        ("1", "ea", "#1.5 glass-bottom plate"),
                        ("", "", "Imaging buffer (PBS)")]),
         ]),
         section("Settings", [
-            settings([("Modes", "A 10x open pinhole · B 20x 1 AU · C 20x 4 AU · D 10x 1 AU"),
-                      ("z", "From 8 µm below to 8 µm above the equator; 0.5 µm steps at 20x, 1 µm at 10x"),
+            settings([("Modes", "A 10x largest pinhole · B 20x 1 AU · C 20x 2 AU · D 10x 1 AU"),
+                      ("z", "From 6 µm below to 6 µm above the equator; 0.25 µm steps at 20x, 0.5 µm at 10x"),
+                      ("Transmitted light", "Recorded at every plane (focus calibration and segmentation)"),
                       ("Sampling", "20 pixels per bead (0.4 µm pixels)"),
                       ("Power", "1 µW at the sample (20x), 3 µW (10x)"),
                       ("Dwell / frames", "1 µs, one frame per plane"),
@@ -448,8 +463,8 @@ PROTOCOLS.append(protocol(
         ]),
         section("Calculator", [
             calculator("Stack plan and bleaching", [
-                inp("z_half", "Half-range of the stack", 8, "µm"),
-                inp("z_step", "z step", 0.5, "µm"),
+                inp("z_half", "Half-range of the stack", 6, "µm"),
+                inp("z_step", "z step", 0.25, "µm"),
                 inp("p_uw", "Power at the sample", 1, "µW", "slider", 0.1, 30, 0.1),
                 inp("dwell_us", "Pixel dwell", 1, "µs"),
                 inp("px_um", "Pixel size", 0.4, "µm"),
@@ -476,11 +491,13 @@ PROTOCOLS.append(protocol(
             step("Convert nominal z to depth with z_scale from Exp 04. The equator is the plane of maximum ring radius."),
             step("Per bead per plane: integrated intensity in a disk of radius R + 2.5 µm minus the local annulus background; ring-mean in a 1 µm annulus at the rim; rim peak; ring radius; centre mean."),
             step("Normalize each curve to its equator value and overlay the four modes. Compare with the table above."),
+            step("Symmetry: compare the integrated signal at +z and −z about the equator. An asymmetric curve is the signature of bead refraction. Find the stationary point (where the integrated signal stops changing with z) and record its offset from the equator."),
+            step("Core control: the volume-stained beads should give peak/centre ≈1 and an integrated signal that falls as R² − z₀²."),
             step("Peak/centre at the equator in mode B decides the PSF tail model. A flat profile (≈1) means the label penetrates the bead."),
             step("Report the equatorial ring-radius distribution (mean, CV): bead-size spread propagates into the integrated metric."),
         ]),
         section("Decision & record", [
-            callout("note", "Decision: the default acquisition mode, and the focus tolerance it actually has on this instrument."),
+            callout("note", "Decision: the default acquisition mode, its real focus tolerance, and the routine focal plane: the measured stationary point, which is the equator only for an index-matched bead."),
             record([("Well / coverage", "High or mid"), ("Mode", "A–D, with pinhole µm"), ("Bleach check", "First plane before and after (%)"),
                     ("Beads", "Number analysed per mode")]),
             DATA,
@@ -521,7 +538,7 @@ PROTOCOLS.append(protocol(
             calculator("Scan geometry and equal-dose dwell", [
                 inp("m_obj", "Objective magnification", 20, "×"),
                 inp("zoom", "Scan zoom", 1, "×"),
-                inp("n_px", "Frame size", 1024, "px"),
+                inp("n_px", "Frame size", 2048, "px"),
                 inp("bead_d", "Bead diameter", 8, "µm"),
                 inp("dwell_ref", "Reference dwell", 2, "µs"),
                 inp("ppb_ref", "Reference pixels per bead", 20, "px"),
@@ -541,6 +558,7 @@ PROTOCOLS.append(protocol(
             step("Beads land at random sub-pixel positions, so every phase is sampled without any extra work."),
             heading("6b", "Field position"),
             step("Pick 5 isolated beads. For each, move the stage so the bead sits at the centre, at the 4 edge midpoints and at the 4 corners, imaging each time with the same settings."),
+            step("At each position take a short z-stack (±3 µm, 0.5 µm) as well: the best-focus height against field position gives the field curvature."),
         ]),
         section("Analysis", [
             step("6a: for each bead, every metric at each sampling divided by its 40 px value (paired). Report the SD across beads per sampling, which is the sub-pixel scatter."),
@@ -573,23 +591,26 @@ PROTOCOLS.append(protocol(
         ]),
         section("Materials", [
             materials([("4", "well", "Assay beads at high coverage (fresh fields for every condition)"),
+                       ("4", "well", "Saturated beads labelled with PE-antibody : unlabelled detection antibody at 100, 50, 25, 10 % PE (7g)"),
                        ("1", "well", "Same beads in imaging buffer with n-propyl gallate (7e)"),
                        ("1", "ea", "#1.5 glass-bottom plate")]),
         ]),
         section("Settings", [
             table([("part", "Part"), ("what", "Acquisition")], [
-                {"part": "7a", "what": "50 consecutive frames per power, fresh field each; 2 µs; 20 px per bead. 20x: 0.3, 1, 3, 10, 30 µW. 10x: 1, 3, 10, 30, 100 µW"},
+                {"part": "7a", "what": "50 consecutive frames per power, fresh field each; 2 µs; 20 px per bead. 20x: 0.3, 1, 2, 3, 10, 30 µW. 10x: 1, 3, 6, 10, 30, 100 µW"},
                 {"part": "7b", "what": "In two 7a fields: pause 60 s after frame 25, then continue"},
                 {"part": "7c", "what": "First frame only, 6 powers, fresh field each"},
                 {"part": "7d", "what": "Equal dose three ways: 1 frame at 8 µs; 4 averaged frames at 2 µs; resonant with line integration to match"},
                 {"part": "7e", "what": "7a at one power, with and without n-propyl gallate"},
                 {"part": "7f", "what": "Live-scan one field for 10 s as if focusing, then acquire it and an untouched neighbour"},
+                {"part": "7g", "what": "Density check: saturated beads labelled with PE-antibody diluted into unlabelled detection antibody (100, 50, 25, 10 % PE) at the same total concentration"},
+                {"part": "7h", "what": "Optional: 488 nm against 561 nm on the same beads at matched absorbed dose"},
             ], "Acquisition plan"),
             BEFORE,
         ]),
         section("Calculator", [
             calculator("Dose, saturation and bleaching", [
-                inp("p_uw", "Power at the sample", 10, "µW", "slider", 0.1, 100, 0.1),
+                inp("p_uw", "Power at the sample", 2, "µW", "slider", 0.1, 100, 0.1),
                 inp("na", "Objective NA", 0.75, ""),
                 inp("dwell_us", "Pixel dwell", 2, "µs"),
                 inp("px_um", "Pixel size", 0.4, "µm"),
@@ -620,6 +641,10 @@ PROTOCOLS.append(protocol(
             step("Repeat 7a at one power in the n-propyl gallate well."),
             heading("7f", "Focus cost"),
             step("Live-scan one field for 10 s at the focusing settings you would use, then acquire it and its untouched neighbour with the same settings."),
+            heading("7g", "PE density"),
+            step("Label four wells of saturated beads with PE-antibody mixed into unlabelled detection antibody at 100, 50, 25 and 10 % PE, same total antibody concentration; image at operating settings."),
+            heading("7h", "488 nm (optional)"),
+            step("Image one field at 561 nm and a neighbour at 488 nm with power scaled for equal absorbed dose; compare signal and bleaching."),
         ]),
         section("Analysis", [
             step("7a: integrated intensity per bead against frame n; fit I(n) = I(1)·exp(−k·(n − 1)). The yield is k divided by photons absorbed per frame (calculator). Plot k against dose: a straight line means the one-photon dose law holds."),
@@ -627,6 +652,7 @@ PROTOCOLS.append(protocol(
             step("7c: fit first-frame I = a·P/(1 + P/Pₛ). Pₛ and the Exp 01 spot size give Iₛ."),
             step("7d: signal per unit dose for each mode, and bead-to-bead CV."),
             step("7e: ratio of k with and without antifade. 7f: intensity of the focused field divided by its neighbour."),
+            step("7g: the integrated signal should scale linearly with the PE fraction; a shortfall at 100 % means dense PE quenches itself, which caps the top of the standard curve."),
         ]),
         section("Decision & record", [
             callout("note", "Decision: the operating power (at most 5 % below linear), the scan mode, whether to use n-propyl gallate, "
@@ -668,7 +694,7 @@ PROTOCOLS.append(protocol(
                 inp("adc_max", "ADC full scale", 65535, "DN"),
                 inp("offset_dn", "Offset", 200, "DN"),
                 inp("rim_dn", "Brightest rim pixel now", 30000, "DN"),
-                inp("target_frac", "Target fraction of full scale", 0.65, ""),
+                inp("target_frac", "Target fraction of full scale", 0.7, ""),
                 inp("slope", "g·F at this HV (Exp 02)", 20, "DN per e⁻"),
             ], [
                 out("gain_factor", "Multiply the current gain by", "(target_frac * adc_max - offset_dn) / (rim_dn - offset_dn)", "×", 2),
@@ -687,7 +713,7 @@ PROTOCOLS.append(protocol(
             step("The last-minus-first low-HV image gives the bleaching the ladder caused."),
         ]),
         section("Decision & record", [
-            callout("note", "Decision: one HV for a whole plate, set on the brightest standard with the rim at 60–70 % of full scale. Never auto-adjust gain."),
+            callout("note", "Decision: one HV for a whole plate, set on the top standard with its brightest rim pixel at ≈70 % of full scale and inside the linear range found in Exp 02. Never auto-adjust gain."),
             record([("HV", "Value"), ("Offset", "DN"), ("Saturated pixels", "Count per image"), ("Bleach check", "First vs last low-HV image")]),
             DATA,
         ]),
@@ -714,7 +740,7 @@ PROTOCOLS.append(protocol(
         section("Materials", [
             materials([("6", "well", "Blank beads (capture antibody, no analyte) in free PE-antibody: 0, 0.1, 0.3, 1, 3, 10 nM, no wash (9a)"),
                        ("1", "well", "Uncoated or BSA-blocked beads in PBS (9b)"),
-                       ("3", "well", "Capture beads + PE-antibody at the working D₀, no analyte, full washed protocol (9c)"),
+                       ("24", "well", "Capture beads + PE-antibody, no analyte, full washed protocol, at 0.5, 1, 2 and 5 × K_D2, 6 wells each (9c)"),
                        ("3", "well", "Same as 9c, unwashed (only if a no-wash format is planned)"),
                        ("", "", "PE-detection antibody stock; PBS; #1.5 glass-bottom plate")]),
         ]),
@@ -765,16 +791,16 @@ PROTOCOLS.append(protocol(
             heading("9b", "Autofluorescence"),
             step("Image ≥100 uncoated or blocked beads in PBS in the default mode."),
             heading("9c", "Nonspecific binding"),
-            step("Run the capture beads with PE-antibody and no analyte through the full assay (incubation, washes). Image ≥100 beads per well."),
+            step("Run the capture beads with PE-antibody at 0.5, 1, 2 and 5 × K_D2 and no analyte through the full assay (incubation, washes), 6 wells per level. Image ≥100 beads per well."),
             BEFORE,
         ]),
         section("Analysis", [
             step("9a: background per pixel (photoelectrons, Exp 02) against concentration gives a slope; with the photoelectrons per PE from Exp 10 it gives V_eff per mode. The blank-bead integrated signal against concentration gives the excluded-volume slope (expected negative)."),
             step("9b: autofluorescence per bead in PE-equivalents (after Exp 10)."),
-            step("9c: PE per bead from nonspecific binding: mean and SD across beads and wells. Practical LOD = mean + 3 SD."),
+            step("9c: PE per bead from nonspecific binding at each antibody level: mean, bead-to-bead SD and well-to-well SD. Practical LOD = blank + 3 SD of the well means. The level where the LOD stops improving sets D₀ (default 1–2 × K_D2)."),
         ]),
         section("Decision & record", [
-            callout("note", "Decision: washed versus no-wash format, and which mode the no-wash read needs. 9c sets the LOD target for the assay."),
+            callout("note", "Decision: washed versus no-wash format, which mode the no-wash read needs, and the detection-antibody concentration (9c)."),
             record([("Well", "Contents and free PE-Ab nM"), ("Mode", "A–D"), ("Washed", "Yes / no"), ("Beads", "Number analysed")]),
             DATA,
         ]),
@@ -842,7 +868,8 @@ PROTOCOLS.append(protocol(
             step("Fit integrated photoelectrons against the lot PE per bead (linear, intercept at the blank). The slope is photoelectrons per PE. Check linearity across the four levels."),
             step("Transfer to assay-bead geometry with the simulator, or use the 5-plane-sum slope directly."),
             step("Saturation wells: PE per bead distribution. Subtract the photon-noise variance (≈F × mean, in photoelectrons) from the observed variance. The remainder is the capture-site CV."),
-            step("Optional cross-check: run the assay beads and the calibration kit on a flow cytometer."),
+            step("Second route, a solution reference: σ_s = c × F / (2πR × S_sol × T), with S_sol the signal per pixel of PE-antibody at concentration c in the same mode and T from Exp 04. For a bead that is not index-matched, apply the bead-optics factor from Exp 05."),
+            step("Third route: run the same assay beads and the calibration kit on a flow cytometer. It has no focus, refraction or field effects and gives an independent bead-to-bead CV. The routes should agree within ≈15 %."),
         ]),
         section("Decision & record", [
             callout("note", "Decision: the conversion used for every plate, the beads per well, and whether the capture-site CV is acceptable."),
@@ -865,7 +892,8 @@ PROTOCOLS.append(protocol(
             callout("note", "Pins: k₁ and k₂ (11a), k₋₂ + k₋₃ and rebinding (11b), k₋₁ (11c), k₋₃ and the k₋₃ ≈ k₋₁ assumption "
                             "(11d), settling and transport (11e), and analyte depletion by the beads (11f)."),
             callout("critical", "Image every time point in a fresh well or a fresh field, once. Re-imaging a field bleaches the next "
-                                "time point. Keep the wash-to-image time fixed."),
+                                "time point. Keep the wash-to-image time fixed, settle beads by a 1 min plate spin (gravity alone takes "
+                                "longer than the timing window), and log the room temperature: k₋₂ depends on it."),
         ]),
         section("Materials", [
             materials([("", "", "Assay beads at a fixed number per well"),
@@ -898,13 +926,16 @@ PROTOCOLS.append(protocol(
                 inp("drho", "Density difference (polystyrene ≈0.05)", 0.05, "g/mL"),
                 inp("visc", "Viscosity", 1.0, "mPa·s"),
                 inp("h_mm", "Liquid height", 3, "mm"),
+                inp("rcf", "Plate spin", 200, "× g"),
             ], [
                 out("v_ums", "Settling speed", "2 / 9 * drho * 1000 * 9.81 * (d_um / 2 * 1e-6) ^ 2 / (visc * 1e-3) * 1e6", "µm/s", 2),
-                out("t_settle_min", "Time to settle the column", "h_mm * 1000 / v_ums / 60", "min", 0),
+                out("t_settle_min", "Time to settle by gravity", "h_mm * 1000 / v_ums / 60", "min", 0),
+                out("t_spin_s", "Time to settle in the plate spin", "h_mm * 1000 / (v_ums * rcf)", "s", 0),
             ]),
             callout("note", "With k₋₂ + k₋₃ = [!var:k_sum] the PE signal halves every [!var:t_half_min]; [!var:loss_delay_pct] is gone "
                             "by the first well and a further [!var:spread_pct] by the last. Beads settle [!var:h_mm] of liquid in "
-                            "[!var:t_settle_min]. During a clamp at [!var:d0_nm], a fraction [!var:f_lab] of captured analyte is labelled."),
+                            "[!var:t_settle_min] by gravity or [!var:t_spin_s] in a [!var:rcf] plate spin. During a clamp at [!var:d0_nm], a fraction "
+                            "[!var:f_lab] of captured analyte is labelled."),
         ]),
         section("Procedure", [
             heading("11a", "Association, one-step"),
@@ -913,7 +944,7 @@ PROTOCOLS.append(protocol(
                                                   ("120 min", "120", ""), ("240 min", "240", ""), ("overnight", "≈16 h", "")]),
             heading("11b", "Dissociation after the wash (k₋₂ + k₋₃)"),
             step("Equilibrate one-step at a mid concentration (overnight, rotating). Wash. Split into two arms: plain buffer, and buffer with ≈100 nM unlabelled detection antibody (blocks rebinding)."),
-            step("Image fresh fields every 5 min for 2–4 h in both arms."),
+            step("Image fresh fields at 0, 5, 15, 30 and 60 min, then every 30 min to 4 h, in both arms."),
             heading("11c", "Delayed detection (k₋₁)"),
             step("Two-step: capture analyte without PE-antibody, wash, hold in buffer for 0, 15, 30, 60, 120, 240 min (separate wells)."),
             step("At each hold time add saturating PE-antibody for a fixed time (≥ the re-label time in the calculator), wash, image."),
@@ -956,9 +987,10 @@ PROTOCOLS.append(protocol(
         section("Overview", [
             doc_header("Standard curve and hook", "One plate: 11 analyte points plus a blank × 3 D₀ levels × duplicate, plus references.",
                        ["Exp 12 of %d" % TOTAL, "≈1 day", "Assay block"]),
-            callout("note", "Pins: S_T, K_D1 and K_D2 by a global fit of the mechanistic model, a routine 4PL/5PL, the hook onset, and "
-                            "the working D₀. The PE ceiling is S_T·D₀/(K_D2 + D₀), so D₀ well above K_D2 is needed to approach "
-                            "saturation, at the cost of more background."),
+            callout("note", "Pins: S_T, K_D1 and K_D2 by a global fit of the mechanistic model, a routine 5PL, the hook onset, and "
+                            "the working D₀. The PE ceiling is S_T·D₀/(K_D2 + D₀), so a larger D₀ raises the ceiling but also the "
+                            "nonspecific background. The model's default is 1–2 × K_D2; 5 × K_D2 is worth it only if Exp 09 shows "
+                            "nonspecific binding is negligible."),
         ]),
         section("Materials", [
             materials([("", "", "Assay beads at the fixed number per well (Exp 11)"),
@@ -991,7 +1023,7 @@ PROTOCOLS.append(protocol(
                 "dataset": "plate",
                 "params": [],
                 "dims": [
-                    {"field": "d0x", "label": "D₀ (× K_D2)", "source": "list", "options": ["0.3", "1", "3"], "editable": True},
+                    {"field": "d0x", "label": "D₀ (× K_D2)", "source": "list", "options": ["1", "2", "5"], "editable": True},
                     {"field": "rep", "label": "Replicate", "source": "list", "options": ["a", "b"], "editable": True},
                     {"field": "step", "label": "Point (0 = blank)", "source": "list", "options": STEPS12, "editable": False},
                 ],
@@ -1009,19 +1041,20 @@ PROTOCOLS.append(protocol(
                 {"well": "G6–G7", "contents": "Saturation wells (top analyte × 10, saturating PE-antibody)"},
                 {"well": "G8–G10", "contents": "Capture beads + PE-antibody, no analyte (nonspecific binding)"},
                 {"well": "G11", "contents": "Uncoated beads in buffer (autofluorescence)"},
-                {"well": "G12, H1–H12", "contents": "Spare: sample duplicates at two dilutions (hook check)"},
+                {"well": "G12, H1–H12", "contents": "Samples at 1× and 10× dilution (hook guard: the two must agree)"},
             ], "Rows G–H"),
         ]),
         section("Procedure", [
             step("Prepare the serial dilution in tubes with the volumes above; change tips at every transfer."),
             step("For each well: beads (fixed number), analyte standard, PE-antibody at d0_nm, added together (one-step). Incubate 2 h with rotation (or the time chosen in Exp 11)."),
-            step("Wash 3× (or keep unwashed for a no-wash read). Fill the reference wells."),
-            step("Settle 30 min. Image every well in the default mode at operating settings, the same order every run, with a fixed wash-to-image time; ≥ the beads-per-well number from Exp 10."),
+            step("Wash column by column, staggered so each column is imaged at the same fixed delay after its wash (e.g. 5 ± 0.5 min; Exp 11 sets it), or keep unwashed for a no-wash read. Fill the reference wells."),
+            step("Settle each column by a 1 min plate spin (100–300 × g) before imaging."),
+            step("Image every well in the default mode at operating settings with the transmitted-light channel, one field per well, ≥100 beads per well, the timestamp of each well logged."),
             BEFORE,
         ]),
         section("Analysis", [
             step("Per well: median integrated intensity, converted to PE per bead with the reference calibration beads of this plate."),
-            step("Global fit of the mechanistic model (S_T, K_D1, K_D2; D₀ and bead number known) across all three D₀ levels. For routine use, fit a 5PL per D₀ level."),
+            step("Global fit of the mechanistic model (S_T, K_D1, K_D2; D₀ and bead number known) across all three D₀ levels, weighted by the measured variance. For routine use, fit a 5PL with an explicit hook term; a plain 4PL only where the curve has no depletion or hook."),
             step("Hook onset: the concentration where signal turns down. LOD: blank mean + 3 SD, read through the curve."),
         ]),
         section("Decision & record", [
@@ -1042,14 +1075,16 @@ PROTOCOLS.append(protocol(
         section("Overview", [
             doc_header("Head-to-head of the measurement modes", "Chooses the default protocol from data, not from the model.",
                        ["Exp 13 of %d" % TOTAL, "≈1 day + 2 short sessions", "Validation block"]),
-            callout("assume", "Model expectation: mode A is the most focus-tolerant and fastest for washed assays; mode B or C wins for "
-                              "no-wash reads and the lowest signals."),
+            callout("assume", "Model expectation: mode B (20x, 1 AU) is the default: thinner section, ≈1.5× more photons per bleaching "
+                              "dose and ≈3× less solution background per nM. Mode A is the throughput candidate if NIS reaches 3–4 AU "
+                              "at 10x. Flow cytometry is the reference."),
             table([("mode", "Mode"), ("obj", "Objective / pinhole"), ("z", "Planes"), ("px", "Pixels per bead")], [
                 {"mode": "A", "obj": "10x, pinhole open", "z": "1 (equator)", "px": "12–20"},
                 {"mode": "B", "obj": "20x, 1 AU", "z": "1 (equator, Perfect Focus)", "px": "16–25"},
                 {"mode": "C", "obj": "20x, 1 AU", "z": "5-plane sum, 2 µm steps (±4 µm)", "px": "16–25"},
                 {"mode": "D", "obj": "10x, 1 AU", "z": "1 (equator)", "px": "12–20"},
-            ], "Candidate modes"),
+                {"mode": "Flow", "obj": "Flow cytometer, same beads + PE quantitation beads", "z": "—", "px": "—"},
+            ], "Candidate modes (all single planes at the stationary point from Exp 05)"),
         ]),
         section("Materials", [
             materials([("1", "plate", "A standard-curve plate made as in Exp 12, with its reference rows")]),
@@ -1078,7 +1113,8 @@ PROTOCOLS.append(protocol(
         ]),
         section("Analysis", [
             table([("metric", "Score"), ("how", "How")], [
-                {"metric": "LOD", "how": "Blank beads mean + 3 SD, in PE per bead and in pM"},
+                {"metric": "Concentration CV per well-minute", "how": "Propagated through the standard curve at the low, mid and top standards: the single number to optimize"},
+                {"metric": "LOD", "how": "Blank + 3 SD of blank well means, in PE per bead and in pM"},
                 {"metric": "CV per well", "how": "Bead-to-bead CV of the integrated metric, median over wells"},
                 {"metric": "Slope", "how": "Standard-curve slope in its linear range"},
                 {"metric": "Throughput", "how": "Beads measured per minute (calculator)"},

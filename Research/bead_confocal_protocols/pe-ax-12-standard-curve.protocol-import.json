@@ -1,0 +1,446 @@
+{
+ "format": "protocol-import-v1",
+ "source": {
+  "kind": "md",
+  "filename": "PE_bead_confocal_experiments.md"
+ },
+ "protocol": {
+  "id": "pe-ax-12-standard-curve",
+  "title": "PE beads · Exp 12 · Standard curve and hook",
+  "summary": "A 12-point half-log analyte titration at three detection-antibody levels in duplicate on one 96-well plate, with reference wells, to fit the model and locate the hook.",
+  "category": "imaging",
+  "tags": [
+   "pe-beads",
+   "confocal",
+   "ax-r",
+   "characterization",
+   "exp-12",
+   "standard-curve",
+   "hook",
+   "dose-response",
+   "plate-layout"
+  ],
+  "tree": {
+   "meta": {},
+   "sections": [
+    {
+     "label": "Overview",
+     "children": [
+      {
+       "kind": "docHeader",
+       "body": "One plate: 11 analyte points plus a blank × 3 D₀ levels × duplicate, plus references.",
+       "attrs": {
+        "brand": "",
+        "title": "Standard curve and hook",
+        "chips": [
+         {
+          "text": "Exp 12 of 13"
+         },
+         {
+          "text": "≈1 day"
+         },
+         {
+          "text": "Assay block"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Pins: S_T, K_D1 and K_D2 by a global fit of the mechanistic model, a routine 5PL, the hook onset, and the working D₀. The PE ceiling is S_T·D₀/(K_D2 + D₀), so a larger D₀ raises the ceiling but also the nonspecific background. The model's default is 1–2 × K_D2; 5 × K_D2 is worth it only if Exp 09 shows nonspecific binding is negligible.",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Materials",
+     "children": [
+      {
+       "kind": "materials",
+       "attrs": {
+        "rows": [
+         {
+          "qty": "",
+          "unit": "",
+          "free_text": "Assay beads at the fixed number per well (Exp 11)",
+          "item_ref": null
+         },
+         {
+          "qty": "",
+          "unit": "",
+          "free_text": "Analyte standard, enough for the top tube",
+          "item_ref": null
+         },
+         {
+          "qty": "",
+          "unit": "",
+          "free_text": "PE-detection antibody",
+          "item_ref": null
+         },
+         {
+          "qty": "",
+          "unit": "",
+          "free_text": "PE calibration beads, 4 levels + blank (reference row)",
+          "item_ref": null
+         },
+         {
+          "qty": "",
+          "unit": "",
+          "free_text": "Assay diluent; wash buffer",
+          "item_ref": null
+         },
+         {
+          "qty": "1",
+          "unit": "ea",
+          "free_text": "96-well #1.5 glass-bottom plate (or incubate in tubes and transfer)",
+          "item_ref": null
+         },
+         {
+          "qty": "1",
+          "unit": "ea",
+          "free_text": "Tube rotator",
+          "item_ref": null
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "label": "Plate",
+     "children": [
+      {
+       "kind": "calculator",
+       "attrs": {
+        "label": "Dilution series",
+        "inputs": [
+         {
+          "name": "top_pm",
+          "label": "Top analyte concentration",
+          "widget": "number",
+          "unit": "pM",
+          "default": 100000,
+          "rangeHint": "2–3 points above the expected range, for the hook"
+         },
+         {
+          "name": "factor",
+          "label": "Dilution factor (half-log = 3.1623)",
+          "widget": "number",
+          "unit": "",
+          "default": 3.1623
+         },
+         {
+          "name": "kd2_nm",
+          "label": "Detection-antibody K_D (Exp 11)",
+          "widget": "number",
+          "unit": "nM",
+          "default": 2
+         },
+         {
+          "name": "well_ul",
+          "label": "Volume per well",
+          "widget": "number",
+          "unit": "µL",
+          "default": 100
+         },
+         {
+          "name": "wells_per_std",
+          "label": "Wells per standard (3 D₀ × 2)",
+          "widget": "number",
+          "unit": "",
+          "default": 6
+         },
+         {
+          "name": "overage",
+          "label": "Overage",
+          "widget": "number",
+          "unit": "",
+          "default": 1.2
+         }
+        ],
+        "outputs": [
+         {
+          "name": "low_pm",
+          "label": "Lowest standard",
+          "expr": "top_pm / factor ^ 10",
+          "unit": "pM",
+          "decimals": 3
+         },
+         {
+          "name": "std_vol_ul",
+          "label": "Volume of each standard",
+          "expr": "well_ul * wells_per_std * overage",
+          "unit": "µL",
+          "decimals": 0
+         },
+         {
+          "name": "transfer_ul",
+          "label": "Transfer between tubes",
+          "expr": "std_vol_ul / (factor - 1)",
+          "unit": "µL",
+          "decimals": 1
+         },
+         {
+          "name": "top_tube_ul",
+          "label": "Top tube volume",
+          "expr": "std_vol_ul + transfer_ul",
+          "unit": "µL",
+          "decimals": 1
+         }
+        ],
+        "table": {
+         "dataset": "",
+         "columns": []
+        }
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Make [!var:top_tube_ul] of the top standard ([!var:top_pm]). Each next tube holds [!var:std_vol_ul] of diluent and receives [!var:transfer_ul] from the tube before; the 11th point is [!var:low_pm].",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "builder",
+       "attrs": {
+        "label": "Plate layout (press Add all)",
+        "description": "Rows A–F: one D₀ level and replicate per row, blank in column 1 then rising analyte. Rows G–H: references.",
+        "dataset": "plate",
+        "params": [],
+        "dims": [
+         {
+          "field": "d0x",
+          "label": "D₀ (× K_D2)",
+          "source": "list",
+          "options": [
+           "1",
+           "2",
+           "5"
+          ],
+          "editable": true
+         },
+         {
+          "field": "rep",
+          "label": "Replicate",
+          "source": "list",
+          "options": [
+           "a",
+           "b"
+          ],
+          "editable": true
+         },
+         {
+          "field": "step",
+          "label": "Point (0 = blank)",
+          "source": "list",
+          "options": [
+           "0",
+           "1",
+           "2",
+           "3",
+           "4",
+           "5",
+           "6",
+           "7",
+           "8",
+           "9",
+           "10",
+           "11"
+          ],
+          "editable": false
+         }
+        ],
+        "derived": [
+         {
+          "field": "conc_pm",
+          "expr": "step == 0 ? 0 : top_pm / factor ^ (11 - step)"
+         },
+         {
+          "field": "d0_nm",
+          "expr": "d0x * kd2_nm"
+         }
+        ],
+        "dedupe": {
+         "when": "",
+         "ignore": []
+        }
+       }
+      },
+      {
+       "kind": "layoutMap",
+       "attrs": {
+        "label": "96-well plate",
+        "dataset": "plate",
+        "rows": 8,
+        "cols": 12,
+        "cellLabel": "conc_pm",
+        "cellSub": "d0_nm",
+        "colorField": "d0x",
+        "spareLabel": "ref"
+       }
+      },
+      {
+       "kind": "table",
+       "body": "Rows G–H",
+       "attrs": {
+        "columns": [
+         {
+          "key": "well",
+          "label": "Wells",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "contents",
+          "label": "Reference contents",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "well": "G1–G5",
+          "contents": "PE calibration beads, blank + 4 levels"
+         },
+         {
+          "well": "G6–G7",
+          "contents": "Saturation wells (top analyte × 10, saturating PE-antibody)"
+         },
+         {
+          "well": "G8–G10",
+          "contents": "Capture beads + PE-antibody, no analyte (nonspecific binding)"
+         },
+         {
+          "well": "G11",
+          "contents": "Uncoated beads in buffer (autofluorescence)"
+         },
+         {
+          "well": "G12, H1–H12",
+          "contents": "Samples at 1× and 10× dilution (hook guard: the two must agree)"
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "label": "Procedure",
+     "children": [
+      {
+       "kind": "step",
+       "body": "Prepare the serial dilution in tubes with the volumes above; change tips at every transfer."
+      },
+      {
+       "kind": "step",
+       "body": "For each well: beads (fixed number), analyte standard, PE-antibody at d0_nm, added together (one-step). Incubate 2 h with rotation (or the time chosen in Exp 11)."
+      },
+      {
+       "kind": "step",
+       "body": "Wash column by column, staggered so each column is imaged at the same fixed delay after its wash (e.g. 5 ± 0.5 min; Exp 11 sets it), or keep unwashed for a no-wash read. Fill the reference wells."
+      },
+      {
+       "kind": "step",
+       "body": "Settle each column by a 1 min plate spin (100–300 × g) before imaging."
+      },
+      {
+       "kind": "step",
+       "body": "Image every well in the default mode at operating settings with the transmitted-light channel, one field per well, ≥100 beads per well, the timestamp of each well logged."
+      },
+      {
+       "kind": "callout",
+       "body": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+       "attrs": {
+        "type": "critical"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Analysis",
+     "children": [
+      {
+       "kind": "step",
+       "body": "Per well: median integrated intensity, converted to PE per bead with the reference calibration beads of this plate."
+      },
+      {
+       "kind": "step",
+       "body": "Global fit of the mechanistic model (S_T, K_D1, K_D2; D₀ and bead number known) across all three D₀ levels, weighted by the measured variance. For routine use, fit a 5PL with an explicit hook term; a plain 4PL only where the curve has no depletion or hook."
+      },
+      {
+       "kind": "step",
+       "body": "Hook onset: the concentration where signal turns down. LOD: blank mean + 3 SD, read through the curve."
+      }
+     ]
+    },
+    {
+     "label": "Decision & record",
+     "children": [
+      {
+       "kind": "callout",
+       "body": "Decision: the working D₀, the curve model for routine runs, and the dilution rule for samples near the hook.",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "table",
+       "body": "Record for every acquisition",
+       "attrs": {
+        "columns": [
+         {
+          "key": "field",
+          "label": "Field",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "note",
+          "label": "What to write",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "field": "Well",
+          "note": "Plate position"
+         },
+         {
+          "field": "Analyte",
+          "note": "pM"
+         },
+         {
+          "field": "D₀",
+          "note": "nM"
+         },
+         {
+          "field": "Incubation",
+          "note": "Time, mixing"
+         },
+         {
+          "field": "Wash-to-image",
+          "note": "Minutes"
+         },
+         {
+          "field": "Beads",
+          "note": "Number analysed per well"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7).",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

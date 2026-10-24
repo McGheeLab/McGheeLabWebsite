@@ -1,6 +1,7 @@
 # PE bead confocal assay — characterization experiments for the real system
 
-*McGhee Lab · 2026-10-24 · companion to [PE_bead_confocal_assay_model.md](PE_bead_confocal_assay_model.md) and the simulator in [bead_confocal_sim/](bead_confocal_sim/).*
+*McGhee Lab · 2026-10-24 · companion to [PE_bead_confocal_assay_model.md](PE_bead_confocal_assay_model.md) and the simulator in [bead_confocal_sim/](bead_confocal_sim/).
+Every experiment is also a runnable RM protocol with live calculators: see [bead_confocal_protocols/](bead_confocal_protocols/README.md).*
 
 **Purpose.** The model has about twenty parameters. Some come from the literature and are good enough
 (R-PE extinction, quantum yield, photodestruction yield). The rest belong to *this* microscope, *these* beads
@@ -27,7 +28,9 @@ report is re-run against the real system rather than against assumed numbers.
 | Focus | Find it in **transmitted light**, then hold it with **Perfect Focus**; never live-scan PE to focus | Live PE scanning is the largest uncontrolled bleaching dose [Waters 2009]. |
 | Vessel | **#1.5 (0.17 mm) glass-bottom** plate or chamber, same type throughout | The 10x and 20x Lambda D lenses have a fixed 0.17 mm correction and no collar. |
 | Objective | Read the **NA on the 20x barrel** (Plan Apo λD 20x is NA 0.80; 0.75 is a different model) and record it | The simulator has both; the section and collection differ by ≈15 %. |
-| Settling | Wait **≥ 30 min** after adding polystyrene beads to a ~3 mm liquid column, or spin the plate briefly | An 8 µm polystyrene bead sinks at ≈1.7 µm/s (Stokes, Δρ = 0.05 g/mL). Denser beads settle faster. |
+| Settling | **Spin the plate 1 min at 100–300 × g** (gravity alone takes ≈30 min for a 3 mm column) | An 8 µm polystyrene bead sinks at ≈1.7 µm/s (Stokes, Δρ = 0.05 g/mL); 30 min would use up the post-wash timing window. |
+| Transmitted light | Record the transmitted-light channel with **every** PE frame | Beads are found and measured (centre, radius) in it, never in PE; PE segmentation fails at low signal and biases the low standards upward. |
+| Bead material | Get the vendor certificate: **material, density, refractive index, size CV** | A polystyrene, PMMA or silica bead in water refracts like a weak lens: ≈0.6–0.75 of the index-matched equatorial signal and an asymmetric focus curve. |
 | Records | Keep the **.nd2** files (NIS stores laser %, HV, offset, pinhole, dwell, zoom, pixel size). Add **one CSV row per well**, with the columns in §6. | Every fit needs the settings. A lost setting loses the image. |
 | Storage | A folder **outside this repo** (the repo is public and the files are large), e.g. `~/Documents/BeadConfocalData/<date>_<exp>/` | |
 | Reference wells | On every assay plate: **PE calibration beads** + one **saturated assay-bead** well | Removes day-to-day laser and detector drift (Exp. 10). |
@@ -52,10 +55,10 @@ solution, a slide-format power meter (Thorlabs S170C-type sensor), and n-propyl 
 - **Decision:** the % settings that give the operating powers below. Every later experiment is specified in
   **µW at the sample**, never in %.
 
-| Objective | Spot waist w₀ (model) | Power for I/Iₛ ≈ 0.1 (≈10 % saturation) | Power for I/Iₛ ≈ 0.3 |
+| Objective | Spot waist w₀ (model) | Power for I/Iₛ ≈ 0.08 (≈5 % image sublinearity) | Power for I/Iₛ ≈ 0.3 |
 |---|---|---|---|
-| 20x/0.75–0.80 | ≈0.30–0.32 µm | ≈3 µW | ≈10 µW |
-| 10x/0.45 | ≈0.54 µm | ≈8 µW | ≈28 µW |
+| 20x/0.75–0.80 | ≈0.30–0.32 µm | **≈2 µW** | ≈10 µW |
+| 10x/0.45 | ≈0.54 µm | **≈6–7 µW** | ≈28 µW |
 
 ### Exp. 2 — Detector photon-transfer curve (gain, offset, read noise)
 - **Do:** a uniform fluorescent sample (dye solution in a thin chamber, or a fluorescent plastic slide), 20x,
@@ -66,7 +69,8 @@ solution, a slide-format power meter (Thorlabs S170C-type sensor), and n-propyl 
 - **Pins:** the conversion **DN → effective photoelectrons** (g·F) per HV, the offset and read noise. Real
   shot-noise SNR can then be computed for every bead [Waters 2009]. g and F cannot be separated this way; the
   product is what SNR needs.
-- **Decision:** the HV at which g·F puts the brightest expected rim pixel at ≤ 60–70 % of 65,535.
+- **Linearity:** at the plate HV, mean signal against laser power must stay within 2 % of a straight line up to the photon rate of the top standard's rim.
+- **Decision:** the HV at which g·F puts the brightest expected rim pixel at ≈ 70 % of full scale, inside that linear range.
 
 ### Exp. 3 — Flat field per objective and scan format
 - **Do:** the uniform sample, every objective × zoom × scan size you will use, 4–8 averaged frames, slightly
@@ -87,24 +91,33 @@ pixels ≤ 0.1 µm (20x) or 0.2 µm (10x).
 0.40 µm / 1.5 µm; 10x 1 AU: 0.62 µm / 4.0 µm).
 
 **4b · Plane response H(z) — the one the integrated metric depends on.** Coat a glass-bottom well with
-PE-antibody (adsorb ~1 µg/mL for 30 min, wash, cover with buffer) so a thin PE layer sits on the glass. z-scan
-through it at the same objective × pinhole grid, 0.25 µm steps, at low power.
+PE-antibody (adsorb ≈1 µg/mL for 30 min, wash, cover with buffer) so a thin PE layer sits on the glass. z-scan
+through it to ±20 µm (the tails matter) at the same objective × pinhole grid, 0.25 µm steps, at low power.
 → The mean intensity vs z **is** the plane-integrated response H(z). Its width (model 20x 1 AU: 2.6 µm;
 10x 4 AU: 28 µm) sets how tolerant the integrated metric is to focus. Zeiss gives a different prefactor for a
 fluorescent plane than for a point [Wilhelm, Zeiss monograph].
 
-**4c · Axial scaling, dry lens into water.** z-stack the assay beads themselves at 20x, 1 AU, 0.2 µm steps. The
-top-to-bottom shell peak distance does not depend on the PSF [Besseling 2015]. So apparent diameter in z
-divided by the diameter in x/y gives the **focal scaling factor**. Expect ≈0.75, i.e. a true focal depth of
-≈1.33 × nominal stage travel (paraxial n_water/n_air).
+**4c · Axial scaling, dry lens into water.** A chamber of known height (a calibrated 50–120 µm spacer between two
+#1.5 coverslips, sub-resolution beads stuck to both inner surfaces, filled with water), z-stacked at 20x, 1 AU,
+0.2 µm steps. True height divided by the nominal stage travel between the two bead layers is the **focal
+scaling factor**, expected ≈1.33 (paraxial n_water/n_air [Besseling 2015]). Do not use the assay beads' own
+shell peaks: a polystyrene bead refracts like a weak lens and shifts its top peak.
 → Pins: how far to set Perfect Focus above the glass to reach the bead equator, which is 4 µm above it
 (≈3 µm nominal). Converts every z0 in the model to stage units.
 
+**4d · Glass-to-solution edge (axial weight and T).** PE-antibody at ≈10 nM in an empty well, z-scanned from 10 µm
+below the glass surface to 30 µm into the solution, 0.25 µm steps, each objective at 1 AU and at the largest AU NIS
+allows (record it).
+→ The derivative of the edge is the axial weight w(z); its integral is ℓ_eff, and T = ∫₋₄⁴ w / ℓ_eff is the
+fraction of the section inside a bead (expected 0.84–0.95 at 20x/0.80, 1 AU). These set the solution background,
+the absolute calibration and how far the integrated signal stays flat.
+
 ### Exp. 5 — Single-bead z-series in all four modes (the core optics validation)
-- **Do:** wells of assay beads at a **high** and a **mid** coverage. For ~10 beads per well, z-stacks from −8 to +8 µm
-  around the equator, 0.25 µm steps, in four modes: **20x 1 AU, 20x 4 AU, 10x 1 AU, 10x max pinhole**. Use 20 px
-  per bead and a low dose (3 µW at 20x, 8 µW at 10x, 1–2 µs dwell). Re-image the first plane at the end to measure
-  the bleaching the stack caused (target < 2 %).
+- **Do:** wells of assay beads at a **high** and a **mid** coverage, plus volume-stained beads of similar size as a
+  core control. For ≈10 beads per well, z-stacks from −6 to +6 µm around the equator (0.25 µm steps at 20x, 0.5 µm
+  at 10x) in four modes: **20x 1 AU, 20x 2 AU, 10x 1 AU, 10x largest pinhole**, with the transmitted-light channel at
+  every plane. Use 20 px per bead and a low dose (1 µW at 20x, 3 µW at 10x, 1 µs dwell). Re-image the first plane
+  at the end to measure the bleaching the stack caused (target < 2 %).
 - **Measure per plane:** integrated intensity in a disk of radius R + 2.5 µm with a local annulus background,
   ring-mean, rim peak, ring radius, peak/centre contrast.
 - **Pins and checks:**
@@ -116,8 +129,11 @@ divided by the diameter in x/y gives the **focal scaling factor**. Expect ≈0.7
     Porous beads that let antibody inside give an intermediate, flatter profile;
   - the bead radius distribution, from the equatorial ring radius. Bead-size CV propagates into the integrated
     metric as σ·R·∫H for thin sections and σ·R² for thick ones.
-- **Decision:** confirms or rejects the predicted focus tolerance of each mode, which picks the default
-  acquisition mode.
+  - **bead optics.** Compare the integrated signal at +z and −z: an asymmetric curve is the signature of bead
+    refraction. Record the **stationary point** (where the integrated signal stops changing with z) and its
+    offset from the equator.
+- **Decision:** the default acquisition mode, its real focus tolerance, and the routine focal plane: the measured
+  stationary point, which is the equator only for an index-matched bead.
 
 ### Exp. 6 — Position effects: sub-pixel phase, pixels per bead, field position
 **6a · Sampling at equal dose.** One field of many beads imaged at **8, 12, 20, 40 px per bead** (zoom or scan
@@ -129,8 +145,9 @@ phase for free.
 
 **6b · Same beads, different field positions.** Pick 5 isolated beads. Move the stage so each is imaged at
 9 positions (centre, edge midpoints, corners) with the same settings. Repeat after flat-field correction.
-→ What remains after correction is field curvature, which defocuses the edge beads. The model predicts
-that ring metrics suffer far more than the integrated metric.
+→ What remains after correction is field curvature, which defocuses the edge beads. A short z-stack (±3 µm) at each
+position gives the best-focus height against field position directly. The model predicts that ring metrics
+suffer far more than the integrated metric.
 
 ---
 
@@ -138,7 +155,7 @@ that ring metrics suffer far more than the integrated metric.
 
 ### Exp. 7 — Bleaching, saturation and the dwell-vs-averaging trade
 **7a · Bleaching per frame.** For each power, **50 consecutive frames** of a *fresh* field of high-coverage
-beads, fixed dwell (2 µs), 20 px per bead. 20x: 0.3, 1, 3, 10, 30 µW. 10x: 1, 3, 10, 30, 100 µW.
+beads, fixed dwell (2 µs), 20 px per bead. 20x: 0.3, 1, 2, 3, 10, 30 µW. 10x: 1, 3, 6, 10, 30, 100 µW.
 → Integrated intensity per bead vs frame gives the fractional loss per frame vs dose. With I₀ from Exp. 1 that
 gives the **photodestruction yield** on the beads (literature R-PE 1.1 × 10⁻⁵ per absorbed photon
 [White & Stryer 1987]). The model predicts 0.29 % per frame at 10 µW, 2 µs, 0.4 µm pixels at 20x.
@@ -150,7 +167,8 @@ long galvano dwell.
 
 **7c · Linearity / saturation.** First-frame integrated intensity vs power on fresh fields, 6 powers.
 → Fit S ∝ I/(1 + I/Iₛ). Expect Iₛ ≈ 18–19 kW/cm² (B-PE optimum ≈ 5 × 10²² photons cm⁻² s⁻¹ [Mathies 1990];
-the model gives 19 kW/cm² from ε and τ). **Decision:** the operating power where the deviation is < 5 %.
+the model gives 19 kW/cm² from ε and τ). With confocal weighting, 5 % sublinearity is expected at ≈2 µW (20x) and
+≈6–7 µW (10x). **Decision:** the operating power where the deviation is < 5 %.
 
 **7d · Same dose, three ways.** Equal total dose: (i) one frame at 8 µs, (ii) 4 averaged frames at 2 µs, (iii)
 resonant with line integration to match. Compare signal per dose and bead-to-bead CV.
@@ -164,13 +182,22 @@ ascorbate and oxygen removal did nothing there, so do not bother with them.
 untouched neighbour field.
 → Puts a number on the cost of focusing on PE.
 
+**7g · PE density.** Saturated beads labelled with PE-antibody mixed into unlabelled detection antibody (100, 50,
+25, 10 % PE) at the same total antibody concentration.
+→ The integrated signal should scale linearly with the PE fraction. A shortfall at 100 % means dense PE quenches
+itself, which caps the top of the standard curve.
+
+**7h · 488 nm (optional).** One field at 561 nm and a neighbour at 488 nm with power scaled for equal absorbed dose.
+→ 488 nm absorbs ≈0.5–0.75 as well but allows a wider emission band; this decides whether it is worth using.
+
 ### Exp. 8 — Gain ladder on real beads
 - **Do:** one field with a mix of bright and dim beads, the same power and dwell, 6 HV settings from low to just
   saturating.
 - **Pins:** confirms with Exp. 2 that the integrated metric in photoelectron units is HV-independent until
   clipping, and that bead-to-bead CV does not improve with HV. The model says gain only maps the signal onto the
   ADC range.
-- **Decision:** the single plate HV, set on the brightest standard.
+- **Decision:** the single plate HV, set on the top standard with its brightest rim pixel at ≈ 70 % of full scale and
+  inside the linear range from Exp. 2.
 
 ---
 
@@ -188,10 +215,12 @@ correction a no-wash assay must add back (≈1 PE/µm² per nM predicted).
 **9b · Bead autofluorescence.** Uncoated or blocked beads in buffer, the chosen mode, ≥ 100 beads.
 → Per-bead autofluorescence in PE-equivalents (after Exp. 10). It can set the LOD before shot noise does.
 
-**9c · Nonspecific PE binding.** Capture beads + PE-antibody, **no analyte**, through the full assay protocol:
-washed, and unwashed if a no-wash format is planned. ≥ 3 wells, ≥ 100 beads each.
-→ PE per bead from nonspecific binding and its bead-to-bead SD. **This, not photon noise, is the practical
-LOD.** The model's detector-only LOD is ≈ 15–20 PE per bead.
+**9c · Nonspecific PE binding against detection-antibody concentration.** Capture beads + PE-antibody at **0.5, 1,
+2 and 5 × K_D2**, **no analyte**, through the full assay protocol (washed, and unwashed if a no-wash format is
+planned), 6 wells per level, ≥ 100 beads each.
+→ PE per bead from nonspecific binding, with its bead-to-bead and well-to-well SD, at each antibody level.
+**This, not photon noise, is the practical LOD** (blank + 3 SD of the well means). The model's detector-only LOD is
+≈ 15–20 PE per bead. The level where the LOD stops improving sets D₀; the model's default is 1–2 × K_D2.
 
 ### Exp. 10 — Absolute calibration to PE molecules per bead
 - **Do:** the PE quantitation bead kit (4 levels plus blank) in buffer, imaged with the exact settings of the
@@ -206,17 +235,20 @@ LOD.** The model's detector-only LOD is ≈ 15–20 PE per bead.
 - **PE per detection antibody:** measure the conjugate's PE:IgG ratio (A565/A280 with the vendor's extinction
   coefficients, or the vendor's lot sheet). Commercial PE conjugates mix 0, 1 and 2 PE per IgG plus free PE, and
   this ratio converts PE per bead into analyte per bead.
-- **Optional cross-check:** run the same assay beads and the same calibration kit on a flow cytometer. It gives PE
-  per bead with no focus, shell geometry or field effects, which makes it the best independent check of the
-  whole imaging chain.
+- **Second route, a solution reference:** σ_s = c·F / (2πR·S_sol·T), with S_sol the signal per pixel of PE-antibody
+  at concentration c in the same mode and T from Exp. 4d. For a bead that is not index-matched, apply the bead-optics
+  factor from Exp. 5.
+- **Third route, flow cytometry:** run the same assay beads and the same calibration kit on a flow cytometer. It
+  gives PE per bead with no focus, shell geometry, refraction or field effects, and an independent bead-to-bead CV.
+  The three routes should agree within ≈ 15 %.
 
 ---
 
 ## 5 · Assay kinetics and the standard curve (two to three sessions)
 
-Every image in this section is taken with the mode chosen in Exps. 5–8, a **fixed wash-to-image time**, and fresh
-fields (each field imaged once). Each time point is its own well or its own fresh field, so imaging never
-bleaches a later time point.
+Every image in this section is taken with the mode chosen in Exps. 5–8, a **fixed wash-to-image time**, beads settled
+by a 1 min plate spin, the room temperature logged (k₋₂ depends on it), and fresh fields (each field imaged once).
+Each time point is its own well or its own fresh field, so imaging never bleaches a later time point.
 
 ### Exp. 11 — Rate constants
 **11a · Association, one-step format.** Analyte at three concentrations (≈ 0.1×, 1× and 10× the expected
@@ -225,8 +257,8 @@ washing.
 → Global fit of `binding.py` gives k₁ and k₂, with depletion fixed by the known bead count and volume.
 
 **11b · Dissociation after the wash (gives k₋₂ + k₋₃).** Equilibrate one-step at a mid concentration, wash,
-then image fresh fields every 5 min for 2–4 h. Run two arms: plain buffer, and buffer with **excess unlabelled
-detection antibody** (≈ 100 nM).
+then image fresh fields at 0, 5, 15, 30 and 60 min and every 30 min to 4 h. Run two arms: plain buffer, and
+buffer with **excess unlabelled detection antibody** (≈ 100 nM).
 → PE on the bead decays as a single exponential at **k₋₂ + k₋₃**, because SA carries no PE. The unlabelled arm
 blocks rebinding of released PE-antibody. If the two arms agree, rebinding is negligible and the plain-buffer
 rate is intrinsic.
@@ -261,14 +293,17 @@ volume.
 bead count, which must be held fixed.
 
 ### Exp. 12 — Standard curve and hook
-- **Do:** a 12-point half-log analyte titration covering the expected range plus two points well above it,
-  at **three D₀ levels** bracketing the K_D2 estimated in Exp. 11 (e.g. 0.3×, 1× and 3× K_D2), in triplicate wells.
-  Use 2 h incubation, the fixed bead number, and reference wells (Exp. 10).
-- **Analysis:** fit the mechanistic model globally (S_T, K_D1, K_D2, with D₀ and depletion known), and a 4PL/5PL
-  for routine use. Locate the hook onset.
-- **Decision:** the working D₀. The PE-coverage ceiling is S_T·D₀/(K_D2 + D₀), so D₀ ≫ K_D2 is needed to approach
-  saturation, but a larger D₀ raises the no-wash background. The fit also gives the dilution rule for samples
-  near the hook.
+- **Do:** a blank plus 11 half-log analyte points covering the expected range and two or three points above it
+  (for the hook), at **three D₀ levels: 1, 2 and 5 × K_D2** from Exp. 11, in duplicate wells: 72 wells, with the
+  reference wells and samples at 1× and 10× dilution in rows G–H. Use 2 h incubation with rotation, the fixed bead
+  number, a **column-staggered wash** so every column is imaged at the same fixed delay after its own wash, a plate
+  spin per column, one field and ≥ 100 beads per well.
+- **Analysis:** fit the mechanistic model globally (S_T, K_D1, K_D2, with D₀ and depletion known), weighted by the
+  measured variance; for routine use a 5PL with an explicit hook term (a plain 4PL only where there is no depletion
+  or hook). Locate the hook onset; LOD = blank + 3 SD of the blank well means, read through the curve.
+- **Decision:** the working D₀. The PE-coverage ceiling is S_T·D₀/(K_D2 + D₀), so a larger D₀ raises the ceiling but
+  also the nonspecific background; 5 × K_D2 is worth it only if Exp. 9c shows nonspecific binding is negligible.
+  The 1× / 10× sample pairs must agree, which is the hook guard.
 
 ---
 
@@ -279,17 +314,22 @@ bead count, which must be held fixed.
   - **A** 10x, max pinhole, one plane, 12–20 px per bead;
   - **B** 20x, 1 AU, one plane at the equator with Perfect Focus;
   - **C** 20x, 1 AU, sum of 5 planes at 2 µm steps (±4 µm);
-  - **D** 10x, 1 AU, one plane.
+  - **D** 10x, 1 AU, one plane;
+  - **Flow** the same beads and PE quantitation beads on a flow cytometer, as the reference.
 
-  Image the plate **three times on one day** and **once on each of three days**, with the reference wells.
-- **Score each mode on:** LOD (3 SD of blank beads in PE per bead), CV per well, the slope of the standard curve,
-  beads measured per minute, bleaching per pass, and day-to-day repeatability after calibration.
-- **Decision:** the default protocol. The simulation's prediction to test: A is most focus-tolerant and fastest
-  for washed assays, and B or C wins for no-wash or very low signals.
+  All single planes sit at the stationary point from Exp. 5. Image the plate **three times on one day** and **once on
+  each of three days**, with the reference wells.
+- **Score each mode on:** the **concentration CV per well-minute** (propagated through the standard curve at the low,
+  mid and top standards), LOD (blank + 3 SD of blank well means), CV per well, the slope of the standard curve, beads
+  per minute, bleaching per pass, and day-to-day repeatability after calibration.
+- **Decision:** the default protocol. The model expects B (20x, 1 AU) to win: thinner section, ≈ 1.5× more photons
+  per bleaching dose and ≈ 3× less solution background per nM. A is the throughput candidate if NIS reaches 3–4 AU
+  at 10x.
 
 ### Beads per well
-Once Exp. 10 gives the capture-site CV, the beads needed for a ±1 % standard error of the well median is
-N ≈ (1.25·CV/0.01)². That is ≈ 40 beads at 5 % CV and ≈ 160 at 10 %. At 10x a field usually holds hundreds.
+Analyse **≥ 100 beads per well and ≥ 2 wells per condition**. Once Exp. 10 gives the capture-site CV, the beads
+needed for a ±1 % standard error of the well median is N ≈ (1.25·CV/0.01)²: ≈ 40 at 5 % CV and ≈ 160 at 10 %.
+One 20x field at 2048² (0.88 mm) usually holds a few hundred.
 
 ---
 
@@ -304,10 +344,10 @@ N ≈ (1.25·CV/0.01)². That is ≈ 40 beads at 5 % CV and ≈ 160 at 10 %. At 
 
 ## 8 · If there is only one day
 
-Run **Exp. 1 → 2 (one HV) → 3 → 5 (two modes: 10x max pinhole and 20x 1 AU) → 7a (two powers) → 9c → 10**.
-That pins the photon conversion, the focus tolerance of the two leading modes, the bleaching rate, the real
-LOD floor and the absolute PE scale. That is enough to choose the acquisition mode before spending antibody on
-kinetics.
+Run **Exp. 1 → 2 (one HV) → 5 (20x and 10x at 1 AU, with transmitted light) → 4d (the glass-to-solution edge)
+→ 11b (post-wash time course at 0, 5, 15, 30, 60 min)**. That answers the questions that change the protocol most:
+the photon conversion, whether the beads' own optics bend the focus curve, the axial weight and T, and how fast
+PE leaves after the wash, which decides the wash and plate timing. Exp. 3, 7a, 9c and 10 come next.
 
 ---
 

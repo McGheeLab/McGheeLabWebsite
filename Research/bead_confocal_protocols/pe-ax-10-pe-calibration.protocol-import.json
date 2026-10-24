@@ -1,0 +1,380 @@
+{
+ "format": "protocol-import-v1",
+ "source": {
+  "kind": "md",
+  "filename": "PE_bead_confocal_experiments.md"
+ },
+ "protocol": {
+  "id": "pe-ax-10-pe-calibration",
+  "title": "PE beads · Exp 10 · Absolute calibration to PE per bead",
+  "summary": "Calibrate intensity to PE molecules per bead with PE quantitation beads, measure PE per detection antibody, and the capture-site distribution.",
+  "category": "imaging",
+  "tags": [
+   "pe-beads",
+   "confocal",
+   "ax-r",
+   "characterization",
+   "exp-10",
+   "calibration",
+   "mesf",
+   "quantibrite",
+   "site-density"
+  ],
+  "tree": {
+   "meta": {},
+   "sections": [
+    {
+     "label": "Overview",
+     "children": [
+      {
+       "kind": "docHeader",
+       "body": "Turns photoelectrons into PE molecules per bead, and PE into analyte.",
+       "attrs": {
+        "brand": "",
+        "title": "Absolute calibration",
+        "chips": [
+         {
+          "text": "Exp 10 of 13"
+         },
+         {
+          "text": "≈2 h; repeat the calibration wells on every plate"
+         },
+         {
+          "text": "Calibration block"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Pins: photoelectrons per PE molecule in each mode; the PE:IgG ratio of the conjugate; the capture-site number per bead and its bead-to-bead CV, which sets beads per well.",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Calibration beads differ from assay beads in size and label geometry. Simulate both with the model (render with their radius and shell or volume label) to transfer the calibration, or acquire the calibration wells as a 5-plane sum, which removes the geometry dependence.",
+       "attrs": {
+        "type": "critical"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Materials",
+     "children": [
+      {
+       "kind": "materials",
+       "attrs": {
+        "rows": [
+         {
+          "qty": "1",
+          "unit": "kit",
+          "free_text": "PE quantitation beads, 4 levels + blank, lot-specific PE per bead (MESF / Quantibrite type)",
+          "item_ref": null
+         },
+         {
+          "qty": "2",
+          "unit": "well",
+          "free_text": "Assay beads at saturating analyte + saturating PE-antibody, 2 h, washed (site distribution)",
+          "item_ref": null
+         },
+         {
+          "qty": "1",
+          "unit": "ea",
+          "free_text": "UV-vis spectrophotometer or NanoDrop for the conjugate A565 and A280",
+          "item_ref": null
+         },
+         {
+          "qty": "",
+          "unit": "",
+          "free_text": "PBS; #1.5 glass-bottom plate",
+          "item_ref": null
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "label": "Calculators",
+     "children": [
+      {
+       "kind": "calculator",
+       "attrs": {
+        "label": "PE per detection antibody (absorbance)",
+        "inputs": [
+         {
+          "name": "a565",
+          "label": "Conjugate A565",
+          "widget": "number",
+          "unit": "",
+          "default": 1.96
+         },
+         {
+          "name": "a280",
+          "label": "Conjugate A280",
+          "widget": "number",
+          "unit": "",
+          "default": 0.602
+         },
+         {
+          "name": "eps_pe",
+          "label": "R-PE extinction at 565 nm",
+          "widget": "number",
+          "unit": "M⁻¹cm⁻¹",
+          "default": 1960000.0
+         },
+         {
+          "name": "eps_igg",
+          "label": "IgG extinction at 280 nm",
+          "widget": "number",
+          "unit": "M⁻¹cm⁻¹",
+          "default": 210000.0
+         },
+         {
+          "name": "cf_pe",
+          "label": "R-PE A280/A565",
+          "widget": "number",
+          "unit": "",
+          "default": 0.2,
+          "rangeHint": "from the PE vendor; ≈0.2 assumed"
+         }
+        ],
+        "outputs": [
+         {
+          "name": "n_pe",
+          "label": "PE per IgG",
+          "expr": "(a565 / eps_pe) / ((a280 - cf_pe * a565) / eps_igg)",
+          "unit": "",
+          "decimals": 2
+         }
+        ],
+        "table": {
+         "dataset": "",
+         "columns": []
+        }
+       }
+      },
+      {
+       "kind": "calculator",
+       "attrs": {
+        "label": "Intensity to molecules",
+        "inputs": [
+         {
+          "name": "e_bead",
+          "label": "Bead integrated signal",
+          "widget": "number",
+          "unit": "e⁻",
+          "default": 50000
+         },
+         {
+          "name": "e_blank",
+          "label": "Blank-bead integrated signal",
+          "widget": "number",
+          "unit": "e⁻",
+          "default": 500
+         },
+         {
+          "name": "slope_pe",
+          "label": "Calibration slope",
+          "widget": "number",
+          "unit": "e⁻ per PE",
+          "default": 0.8
+         },
+         {
+          "name": "bead_area",
+          "label": "Bead surface area",
+          "widget": "number",
+          "unit": "µm²",
+          "default": 201.1
+         }
+        ],
+        "outputs": [
+         {
+          "name": "pe_bead",
+          "label": "PE per bead",
+          "expr": "(e_bead - e_blank) / slope_pe",
+          "unit": "PE",
+          "decimals": 0
+         },
+         {
+          "name": "pe_um2",
+          "label": "PE surface density",
+          "expr": "pe_bead / bead_area",
+          "unit": "PE/µm²",
+          "decimals": 2
+         },
+         {
+          "name": "analyte_bead",
+          "label": "Captured, labelled analyte per bead",
+          "expr": "pe_bead / n_pe",
+          "unit": "",
+          "decimals": 0
+         }
+        ],
+        "table": {
+         "dataset": "",
+         "columns": []
+        }
+       }
+      },
+      {
+       "kind": "calculator",
+       "attrs": {
+        "label": "Beads per well",
+        "inputs": [
+         {
+          "name": "cv_pct",
+          "label": "Bead-to-bead CV (saturation wells)",
+          "widget": "number",
+          "unit": "%",
+          "default": 5
+         },
+         {
+          "name": "se_pct",
+          "label": "Target standard error of the well median",
+          "widget": "number",
+          "unit": "%",
+          "default": 1
+         }
+        ],
+        "outputs": [
+         {
+          "name": "n_beads",
+          "label": "Beads to analyse per well",
+          "expr": "ceil((1.25 * cv_pct / se_pct) ^ 2)",
+          "unit": "",
+          "decimals": 0
+         }
+        ],
+        "table": {
+         "dataset": "",
+         "columns": []
+        }
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "A bead at [!var:e_bead] is [!var:pe_bead] ([!var:pe_um2]), i.e. [!var:analyte_bead] labelled analyte molecules at [!var:n_pe] PE per IgG. At [!var:cv_pct] CV, analyse [!var:n_beads] beads per well.",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Procedure",
+     "children": [
+      {
+       "kind": "step",
+       "body": "Measure A565 and A280 of the PE-antibody conjugate (blank on its buffer)."
+      },
+      {
+       "kind": "step",
+       "body": "Resuspend the calibration beads as the kit says; one well per level plus the blank, in PBS."
+      },
+      {
+       "kind": "step",
+       "body": "Run two saturation wells: assay beads with analyte at the top of the expected range ×10 and PE-antibody at ≥10× its K_D, 2 h with rotation, washed."
+      },
+      {
+       "kind": "step",
+       "body": "Settle 30 min. Image every well in the default mode at operating settings, ≥100 beads per well. Repeat the calibration wells as a 5-plane sum (2 µm steps around the equator)."
+      },
+      {
+       "kind": "callout",
+       "body": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+       "attrs": {
+        "type": "critical"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Analysis",
+     "children": [
+      {
+       "kind": "step",
+       "body": "Fit integrated photoelectrons against the lot PE per bead (linear, intercept at the blank). The slope is photoelectrons per PE. Check linearity across the four levels."
+      },
+      {
+       "kind": "step",
+       "body": "Transfer to assay-bead geometry with the simulator, or use the 5-plane-sum slope directly."
+      },
+      {
+       "kind": "step",
+       "body": "Saturation wells: PE per bead distribution. Subtract the photon-noise variance (≈F × mean, in photoelectrons) from the observed variance. The remainder is the capture-site CV."
+      },
+      {
+       "kind": "step",
+       "body": "Second route, a solution reference: σ_s = c × F / (2πR × S_sol × T), with S_sol the signal per pixel of PE-antibody at concentration c in the same mode and T from Exp 04. For a bead that is not index-matched, apply the bead-optics factor from Exp 05."
+      },
+      {
+       "kind": "step",
+       "body": "Third route: run the same assay beads and the calibration kit on a flow cytometer. It has no focus, refraction or field effects and gives an independent bead-to-bead CV. The routes should agree within ≈15 %."
+      }
+     ]
+    },
+    {
+     "label": "Decision & record",
+     "children": [
+      {
+       "kind": "callout",
+       "body": "Decision: the conversion used for every plate, the beads per well, and whether the capture-site CV is acceptable.",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "table",
+       "body": "Record for every acquisition",
+       "attrs": {
+        "columns": [
+         {
+          "key": "field",
+          "label": "Field",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "note",
+          "label": "What to write",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "field": "Kit lot",
+          "note": "PE per bead for each level"
+         },
+         {
+          "field": "Mode",
+          "note": "Single plane or 5-plane sum"
+         },
+         {
+          "field": "Conjugate",
+          "note": "A565, A280, lot"
+         },
+         {
+          "field": "Beads",
+          "note": "Number analysed per well"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7).",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

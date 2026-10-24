@@ -1,0 +1,355 @@
+{
+ "format": "protocol-import-v1",
+ "source": {
+  "kind": "md",
+  "filename": "PE_bead_confocal_experiments.md"
+ },
+ "protocol": {
+  "id": "pe-ax-02-photon-transfer",
+  "title": "PE beads · Exp 02 · Detector photon-transfer curve",
+  "summary": "Convert DN to effective photoelectrons for each detector HV with a mean-variance photon-transfer curve, plus offset and read noise.",
+  "category": "imaging",
+  "tags": [
+   "pe-beads",
+   "confocal",
+   "ax-r",
+   "characterization",
+   "exp-02",
+   "detector",
+   "gaasp",
+   "photon-transfer",
+   "calibration"
+  ],
+  "tree": {
+   "meta": {},
+   "sections": [
+    {
+     "label": "Overview",
+     "children": [
+      {
+       "kind": "docHeader",
+       "body": "Shot-noise SNR, LOD and clipping all need DN converted to photoelectrons.",
+       "attrs": {
+        "brand": "",
+        "title": "Detector photon-transfer curve",
+        "chips": [
+         {
+          "text": "Exp 02 of 13"
+         },
+         {
+          "text": "≈1.5 h"
+         },
+         {
+          "text": "Instrument block"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Pins: g·F (DN per effective photoelectron) at each HV, the offset and the read noise. g and F cannot be separated this way; their product is exactly what SNR needs.",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Model: variance(DN) = g·F × (mean − offset) + σ²_read; PMT excess-noise factor F ≈ 1.2–1.5.",
+       "attrs": {
+        "type": "assume"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Materials",
+     "children": [
+      {
+       "kind": "materials",
+       "attrs": {
+        "rows": [
+         {
+          "qty": "1",
+          "unit": "ea",
+          "free_text": "Uniform fluorescent sample in the PE band: orange fluorescent plastic slide, or ≈10 µM rhodamine B in water in a sealed thin chamber",
+          "item_ref": null
+         },
+         {
+          "qty": "1",
+          "unit": "ea",
+          "free_text": "#1.5 glass-bottom dish or slide + coverslip",
+          "item_ref": null
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "label": "Settings",
+     "children": [
+      {
+       "kind": "table",
+       "body": "Acquisition settings",
+       "attrs": {
+        "columns": [
+         {
+          "key": "setting",
+          "label": "Setting",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "value",
+          "label": "Value",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "setting": "Objective",
+          "value": "20x, pinhole 1 AU"
+         },
+         {
+          "setting": "Laser",
+          "value": "561 nm; 8–10 powers from near zero to ≈80 % of full scale on the brightest pixel"
+         },
+         {
+          "setting": "Frames",
+          "value": "Two single frames per power (no averaging), plus 20 dark frames with the laser at 0 %"
+         },
+         {
+          "setting": "Frame",
+          "value": "512², 2 µs dwell, focus 20 µm into the dye (or on the slide)"
+         },
+         {
+          "setting": "HV",
+          "value": "Repeat the whole ladder at 4–5 HV values covering what you will ever use"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+       "attrs": {
+        "type": "critical"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Calculator",
+     "children": [
+      {
+       "kind": "calculator",
+       "attrs": {
+        "label": "Convert a reading to photoelectrons",
+        "inputs": [
+         {
+          "name": "slope",
+          "label": "Fitted slope (g·F)",
+          "widget": "number",
+          "unit": "DN per e⁻",
+          "default": 20
+         },
+         {
+          "name": "offset_dn",
+          "label": "Offset (mean of dark frames)",
+          "widget": "number",
+          "unit": "DN",
+          "default": 200
+         },
+         {
+          "name": "read_dn",
+          "label": "Read noise (SD of dark frames)",
+          "widget": "number",
+          "unit": "DN",
+          "default": 3
+         },
+         {
+          "name": "adc_max",
+          "label": "ADC full scale",
+          "widget": "number",
+          "unit": "DN",
+          "default": 65535,
+          "rangeHint": "4095 in 12-bit mode"
+         },
+         {
+          "name": "dn_reading",
+          "label": "A pixel reading",
+          "widget": "number",
+          "unit": "DN",
+          "default": 5000
+         }
+        ],
+        "outputs": [
+         {
+          "name": "e_eff",
+          "label": "Effective photoelectrons",
+          "expr": "(dn_reading - offset_dn) / slope",
+          "unit": "e⁻",
+          "decimals": 1
+         },
+         {
+          "name": "snr_px",
+          "label": "Pixel SNR",
+          "expr": "e_eff / sqrt(e_eff + (read_dn / slope) ^ 2)",
+          "unit": "",
+          "decimals": 1
+         },
+         {
+          "name": "e_max",
+          "label": "Photoelectrons before clipping",
+          "expr": "(adc_max - offset_dn) / slope",
+          "unit": "e⁻",
+          "decimals": 0
+         }
+        ],
+        "table": {
+         "dataset": "",
+         "columns": []
+        }
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "At this HV a pixel reading [!var:dn_reading] holds [!var:e_eff] (SNR [!var:snr_px]); a pixel clips above [!var:e_max].",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Procedure",
+     "children": [
+      {
+       "kind": "heading",
+       "body": "Dark",
+       "attrs": {
+        "code": "01",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "Laser at 0 %, same HV and offset you will use: take 20 frames. They give the offset (mean) and read noise (SD)."
+      },
+      {
+       "kind": "heading",
+       "body": "Ladder",
+       "attrs": {
+        "code": "02",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "Laser on. At each of 8–10 powers, take two frames in a row without changing anything."
+      },
+      {
+       "kind": "step",
+       "body": "Move the stage 50 µm between powers, so bleaching of a dye slide does not bias the ladder."
+      },
+      {
+       "kind": "heading",
+       "body": "Repeat per HV",
+       "attrs": {
+        "code": "03",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "Repeat steps 01–02 at 4–5 HV values. Keep the offset fixed if NIS allows, or re-measure the dark frames at each HV."
+      }
+     ]
+    },
+    {
+     "label": "Analysis",
+     "children": [
+      {
+       "kind": "step",
+       "body": "For each frame pair, in a central 256² ROI: m = mean((I₁ + I₂)/2) − offset, and v = var(I₁ − I₂)/2. Taking the difference removes the illumination pattern."
+      },
+      {
+       "kind": "step",
+       "body": "Fit v = slope × m + σ²_read over the unsaturated points. The slope is g·F at that HV. Check that R² is above 0.99."
+      },
+      {
+       "kind": "step",
+       "body": "Tabulate slope against HV. PMT gain is steep (≈ a power of HV), so fit log(slope) against log(HV) to interpolate."
+      },
+      {
+       "kind": "step",
+       "body": "Detector linearity: at the plate HV, mean signal against laser power must stay within 2 % of a straight line up to the photon rate of the top standard's rim. The highest power where it does is the analog linearity limit."
+      }
+     ]
+    },
+    {
+     "label": "Decision & record",
+     "children": [
+      {
+       "kind": "callout",
+       "body": "Decision: the HV at which the brightest expected rim pixel stays at or below 60–70 % of full scale (confirmed in Exp 08), and the slope used to convert every later image to photoelectrons.",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "table",
+       "body": "Record for every acquisition",
+       "attrs": {
+        "columns": [
+         {
+          "key": "field",
+          "label": "Field",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "note",
+          "label": "What to write",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "field": "HV",
+          "note": "Volts or NIS gain value"
+         },
+         {
+          "field": "Offset",
+          "note": "DN"
+         },
+         {
+          "field": "Read noise",
+          "note": "DN"
+         },
+         {
+          "field": "Slope",
+          "note": "DN per effective e⁻, with R²"
+         },
+         {
+          "field": "Powers",
+          "note": "µW at the sample for each rung"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7).",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

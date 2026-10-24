@@ -1,0 +1,538 @@
+{
+ "format": "protocol-import-v1",
+ "source": {
+  "kind": "md",
+  "filename": "PE_bead_confocal_experiments.md"
+ },
+ "protocol": {
+  "id": "pe-ax-11-binding-kinetics",
+  "title": "PE beads · Exp 11 · Rate constants, settling and depletion",
+  "summary": "Measure association, post-wash dissociation, delayed detection and a detection-antibody clamp to separate the two off-rates; test settling and bead number.",
+  "category": "imaging",
+  "tags": [
+   "pe-beads",
+   "confocal",
+   "ax-r",
+   "characterization",
+   "exp-11",
+   "kinetics",
+   "koff",
+   "kon",
+   "depletion",
+   "settling"
+  ],
+  "tree": {
+   "meta": {},
+   "sections": [
+    {
+     "label": "Overview",
+     "children": [
+      {
+       "kind": "docHeader",
+       "body": "PE after the wash decays at k₋₂ + k₋₃; separating the two needs a perturbation.",
+       "attrs": {
+        "brand": "",
+        "title": "Rate constants, settling and depletion",
+        "chips": [
+         {
+          "text": "Exp 11 of 13"
+         },
+         {
+          "text": "2–3 sessions"
+         },
+         {
+          "text": "Assay block"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Pins: k₁ and k₂ (11a), k₋₂ + k₋₃ and rebinding (11b), k₋₁ (11c), k₋₃ and the k₋₃ ≈ k₋₁ assumption (11d), settling and transport (11e), and analyte depletion by the beads (11f).",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Image every time point in a fresh well or a fresh field, once. Re-imaging a field bleaches the next time point. Keep the wash-to-image time fixed, settle beads by a 1 min plate spin (gravity alone takes longer than the timing window), and log the room temperature: k₋₂ depends on it.",
+       "attrs": {
+        "type": "critical"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Materials",
+     "children": [
+      {
+       "kind": "materials",
+       "attrs": {
+        "rows": [
+         {
+          "qty": "",
+          "unit": "",
+          "free_text": "Assay beads at a fixed number per well",
+          "item_ref": null
+         },
+         {
+          "qty": "",
+          "unit": "",
+          "free_text": "Analyte standard",
+          "item_ref": null
+         },
+         {
+          "qty": "",
+          "unit": "",
+          "free_text": "PE-detection antibody",
+          "item_ref": null
+         },
+         {
+          "qty": "",
+          "unit": "",
+          "free_text": "Unlabelled detection antibody, ≈100 nM in the 11b blocking arm",
+          "item_ref": null
+         },
+         {
+          "qty": "1",
+          "unit": "ea",
+          "free_text": "Tube rotator (end-over-end) and orbital shaker",
+          "item_ref": null
+         },
+         {
+          "qty": "",
+          "unit": "",
+          "free_text": "Wash buffer; #1.5 glass-bottom plates",
+          "item_ref": null
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "label": "Calculators",
+     "children": [
+      {
+       "kind": "calculator",
+       "attrs": {
+        "label": "Signal lost after the wash",
+        "inputs": [
+         {
+          "name": "k_sum",
+          "label": "k₋₂ + k₋₃",
+          "widget": "number",
+          "unit": "s⁻¹",
+          "default": 0.001
+         },
+         {
+          "name": "delay_min",
+          "label": "Wash-to-image delay",
+          "widget": "number",
+          "unit": "min",
+          "default": 10
+         },
+         {
+          "name": "scan_min",
+          "label": "Plate scan duration",
+          "widget": "number",
+          "unit": "min",
+          "default": 20
+         }
+        ],
+        "outputs": [
+         {
+          "name": "t_half_min",
+          "label": "Half-life of the PE signal",
+          "expr": "log(2) / k_sum / 60",
+          "unit": "min",
+          "decimals": 1
+         },
+         {
+          "name": "loss_delay_pct",
+          "label": "Lost before the first well is imaged",
+          "expr": "100 * (1 - exp(-k_sum * delay_min * 60))",
+          "unit": "%",
+          "decimals": 1
+         },
+         {
+          "name": "spread_pct",
+          "label": "Extra loss by the last well",
+          "expr": "100 * (1 - exp(-k_sum * scan_min * 60))",
+          "unit": "%",
+          "decimals": 1
+         }
+        ],
+        "table": {
+         "dataset": "",
+         "columns": []
+        }
+       }
+      },
+      {
+       "kind": "calculator",
+       "attrs": {
+        "label": "Labelled fraction during a clamp",
+        "inputs": [
+         {
+          "name": "k2",
+          "label": "Detection-antibody on-rate",
+          "widget": "number",
+          "unit": "M⁻¹s⁻¹",
+          "default": 400000.0
+         },
+         {
+          "name": "d0_nm",
+          "label": "PE-antibody during the clamp",
+          "widget": "number",
+          "unit": "nM",
+          "default": 10
+         },
+         {
+          "name": "km2",
+          "label": "Detection-antibody off-rate k₋₂",
+          "widget": "number",
+          "unit": "s⁻¹",
+          "default": 0.001
+         }
+        ],
+        "outputs": [
+         {
+          "name": "f_lab",
+          "label": "Labelled fraction f",
+          "expr": "k2 * d0_nm * 1e-9 / (k2 * d0_nm * 1e-9 + km2)",
+          "unit": "",
+          "decimals": 3
+         },
+         {
+          "name": "t_relabel_min",
+          "label": "Time to re-label 95 %",
+          "expr": "3 / (k2 * d0_nm * 1e-9 + km2) / 60",
+          "unit": "min",
+          "decimals": 1
+         }
+        ],
+        "table": {
+         "dataset": "",
+         "columns": []
+        }
+       }
+      },
+      {
+       "kind": "calculator",
+       "attrs": {
+        "label": "Bead settling (Stokes)",
+        "inputs": [
+         {
+          "name": "d_um",
+          "label": "Bead diameter",
+          "widget": "number",
+          "unit": "µm",
+          "default": 8
+         },
+         {
+          "name": "drho",
+          "label": "Density difference (polystyrene ≈0.05)",
+          "widget": "number",
+          "unit": "g/mL",
+          "default": 0.05
+         },
+         {
+          "name": "visc",
+          "label": "Viscosity",
+          "widget": "number",
+          "unit": "mPa·s",
+          "default": 1.0
+         },
+         {
+          "name": "h_mm",
+          "label": "Liquid height",
+          "widget": "number",
+          "unit": "mm",
+          "default": 3
+         },
+         {
+          "name": "rcf",
+          "label": "Plate spin",
+          "widget": "number",
+          "unit": "× g",
+          "default": 200
+         }
+        ],
+        "outputs": [
+         {
+          "name": "v_ums",
+          "label": "Settling speed",
+          "expr": "2 / 9 * drho * 1000 * 9.81 * (d_um / 2 * 1e-6) ^ 2 / (visc * 1e-3) * 1e6",
+          "unit": "µm/s",
+          "decimals": 2
+         },
+         {
+          "name": "t_settle_min",
+          "label": "Time to settle by gravity",
+          "expr": "h_mm * 1000 / v_ums / 60",
+          "unit": "min",
+          "decimals": 0
+         },
+         {
+          "name": "t_spin_s",
+          "label": "Time to settle in the plate spin",
+          "expr": "h_mm * 1000 / (v_ums * rcf)",
+          "unit": "s",
+          "decimals": 0
+         }
+        ],
+        "table": {
+         "dataset": "",
+         "columns": []
+        }
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "With k₋₂ + k₋₃ = [!var:k_sum] the PE signal halves every [!var:t_half_min]; [!var:loss_delay_pct] is gone by the first well and a further [!var:spread_pct] by the last. Beads settle [!var:h_mm] of liquid in [!var:t_settle_min] by gravity or [!var:t_spin_s] in a [!var:rcf] plate spin. During a clamp at [!var:d0_nm], a fraction [!var:f_lab] of captured analyte is labelled.",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Procedure",
+     "children": [
+      {
+       "kind": "heading",
+       "body": "Association, one-step",
+       "attrs": {
+        "code": "11a",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "Analyte at ≈0.1×, 1× and 10× the expected K_D1, PE-antibody at the working D₀, all added together to the beads. Rotate."
+      },
+      {
+       "kind": "timeline",
+       "body": "Stop (wash) and image at",
+       "attrs": {
+        "marks": [
+         {
+          "at": "5 min",
+          "label": "5",
+          "sub": "",
+          "included": true
+         },
+         {
+          "at": "15 min",
+          "label": "15",
+          "sub": "",
+          "included": true
+         },
+         {
+          "at": "30 min",
+          "label": "30",
+          "sub": "",
+          "included": true
+         },
+         {
+          "at": "60 min",
+          "label": "60",
+          "sub": "",
+          "included": true
+         },
+         {
+          "at": "120 min",
+          "label": "120",
+          "sub": "",
+          "included": true
+         },
+         {
+          "at": "240 min",
+          "label": "240",
+          "sub": "",
+          "included": true
+         },
+         {
+          "at": "overnight",
+          "label": "≈16 h",
+          "sub": "",
+          "included": true
+         }
+        ]
+       }
+      },
+      {
+       "kind": "heading",
+       "body": "Dissociation after the wash (k₋₂ + k₋₃)",
+       "attrs": {
+        "code": "11b",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "Equilibrate one-step at a mid concentration (overnight, rotating). Wash. Split into two arms: plain buffer, and buffer with ≈100 nM unlabelled detection antibody (blocks rebinding)."
+      },
+      {
+       "kind": "step",
+       "body": "Image fresh fields at 0, 5, 15, 30 and 60 min, then every 30 min to 4 h, in both arms."
+      },
+      {
+       "kind": "heading",
+       "body": "Delayed detection (k₋₁)",
+       "attrs": {
+        "code": "11c",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "Two-step: capture analyte without PE-antibody, wash, hold in buffer for 0, 15, 30, 60, 120, 240 min (separate wells)."
+      },
+      {
+       "kind": "step",
+       "body": "At each hold time add saturating PE-antibody for a fixed time (≥ the re-label time in the calculator), wash, image."
+      },
+      {
+       "kind": "callout",
+       "body": "Same-bead variant: after a one-step incubation and wash, hold, image one set of fields as is (decays at k₋₂ + k₋₃), then relabel the same well and image fresh fields (decays at k₋₁). The ratio cancels bead-to-bead site variation.",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "heading",
+       "body": "Clamp with PE-antibody present (k₋₃)",
+       "attrs": {
+        "code": "11d",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "After a one-step equilibrium, replace the liquid with buffer containing PE-antibody at D₀ and no analyte. Image fresh fields over 2–4 h in the no-wash mode (20x, 1 AU)."
+      },
+      {
+       "kind": "heading",
+       "body": "Settling and transport",
+       "attrs": {
+        "code": "11e",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "One mid concentration, 2 h, three arms: static, orbital shaking, end-over-end rotation."
+      },
+      {
+       "kind": "heading",
+       "body": "Bead number",
+       "attrs": {
+        "code": "11f",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "A low analyte concentration with 1,000, 5,000 and 20,000 beads in the same volume, 2 h, rotating."
+      },
+      {
+       "kind": "callout",
+       "body": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+       "attrs": {
+        "type": "critical"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Analysis",
+     "children": [
+      {
+       "kind": "step",
+       "body": "11a: global fit of the binding model (Research/bead_confocal_sim/binding.py) to all time points and concentrations, with bead number and volume fixed: k₁ and k₂."
+      },
+      {
+       "kind": "step",
+       "body": "11b: fit PE(t) = PE(0)·exp(−Λt) in each arm. If the arms agree, rebinding is negligible and Λ = k₋₂ + k₋₃."
+      },
+      {
+       "kind": "step",
+       "body": "11c: PE against hold time decays at k₋₁. With k₋₃ ≈ k₋₁, k₋₂ = Λ − k₋₁. If capture is nearly irreversible (≈3 × 10⁻⁶ s⁻¹ has been reported for a PSA capture antibody), 11b alone measures k₋₂ and 11c bounds k₋₁."
+      },
+      {
+       "kind": "step",
+       "body": "11d: PE decays at f·k₋₃ + (1 − f)·k₋₁ (f from the calculator); at f near 1 that is k₋₃. Compare with 11c."
+      },
+      {
+       "kind": "step",
+       "body": "11e: static versus rotation is the settling effect; shaking versus rotation is per-bead transport (Damköhler number)."
+      },
+      {
+       "kind": "step",
+       "body": "11f: PE per bead falling with bead number means analyte depletion; bead number must then be held fixed."
+      }
+     ]
+    },
+    {
+     "label": "Decision & record",
+     "children": [
+      {
+       "kind": "callout",
+       "body": "Decision: incubation time and mixing, the fixed bead number, the wash-to-image window (or a no-wash read), and the rate constants for the standard-curve model.",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "table",
+       "body": "Record for every acquisition",
+       "attrs": {
+        "columns": [
+         {
+          "key": "field",
+          "label": "Field",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "note",
+          "label": "What to write",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "field": "Arm / time point",
+          "note": "Incubation, hold or chase time"
+         },
+         {
+          "field": "Wash-to-image",
+          "note": "Minutes"
+         },
+         {
+          "field": "Beads per well",
+          "note": "Count"
+         },
+         {
+          "field": "Concentrations",
+          "note": "Analyte, PE-antibody, unlabelled antibody"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7).",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,476 @@
+{
+ "format": "protocol-import-v1",
+ "source": {
+  "kind": "md",
+  "filename": "PE_bead_confocal_experiments.md"
+ },
+ "protocol": {
+  "id": "pe-ax-09-backgrounds",
+  "title": "PE beads · Exp 09 · Backgrounds and the real detection floor",
+  "summary": "Measure free PE-antibody background and the bead excluded-volume term, bead autofluorescence, and nonspecific PE binding in each imaging mode.",
+  "category": "imaging",
+  "tags": [
+   "pe-beads",
+   "confocal",
+   "ax-r",
+   "characterization",
+   "exp-09",
+   "background",
+   "lod",
+   "nonspecific-binding",
+   "autofluorescence"
+  ],
+  "tree": {
+   "meta": {},
+   "sections": [
+    {
+     "label": "Overview",
+     "children": [
+      {
+       "kind": "docHeader",
+       "body": "Photon noise alone allows ≈15–20 PE per bead; the real floor is set here.",
+       "attrs": {
+        "brand": "",
+        "title": "Backgrounds and the detection floor",
+        "chips": [
+         {
+          "text": "Exp 09 of 13"
+         },
+         {
+          "text": "≈3 h plus incubation"
+         },
+         {
+          "text": "Calibration block"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Pins: the effective detection volume per mode and the excluded-volume correction for no-wash reads (9a), bead autofluorescence (9b), and nonspecific PE binding with its bead-to-bead SD, the practical LOD (9c).",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "table",
+       "body": "Model predictions (10 µW, 2 µs, 20 px per bead)",
+       "attrs": {
+        "columns": [
+         {
+          "key": "mode",
+          "label": "Mode",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "veff",
+          "label": "V_eff",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "lod0",
+          "label": "LOD, detector only",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "lod1",
+          "label": "LOD at 1 nM free PE-Ab",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "mode": "20x, 1 AU",
+          "veff": "0.53 µm³",
+          "lod0": "16 PE/bead",
+          "lod1": "106 PE/bead"
+         },
+         {
+          "mode": "10x, 1 AU",
+          "veff": "3.7 µm³",
+          "lod0": "21 PE/bead",
+          "lod1": "139 PE/bead"
+         },
+         {
+          "mode": "10x, 4 AU",
+          "veff": "11.2 µm³",
+          "lod0": "14 PE/bead",
+          "lod1": "158 PE/bead"
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "label": "Materials",
+     "children": [
+      {
+       "kind": "materials",
+       "attrs": {
+        "rows": [
+         {
+          "qty": "6",
+          "unit": "well",
+          "free_text": "Blank beads (capture antibody, no analyte) in free PE-antibody: 0, 0.1, 0.3, 1, 3, 10 nM, no wash (9a)",
+          "item_ref": null
+         },
+         {
+          "qty": "1",
+          "unit": "well",
+          "free_text": "Uncoated or BSA-blocked beads in PBS (9b)",
+          "item_ref": null
+         },
+         {
+          "qty": "24",
+          "unit": "well",
+          "free_text": "Capture beads + PE-antibody, no analyte, full washed protocol, at 0.5, 1, 2 and 5 × K_D2, 6 wells each (9c)",
+          "item_ref": null
+         },
+         {
+          "qty": "3",
+          "unit": "well",
+          "free_text": "Same as 9c, unwashed (only if a no-wash format is planned)",
+          "item_ref": null
+         },
+         {
+          "qty": "",
+          "unit": "",
+          "free_text": "PE-detection antibody stock; PBS; #1.5 glass-bottom plate",
+          "item_ref": null
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "label": "Calculators",
+     "children": [
+      {
+       "kind": "calculator",
+       "attrs": {
+        "label": "PE-antibody working dilutions",
+        "inputs": [
+         {
+          "name": "stock_ugml",
+          "label": "Stock concentration",
+          "widget": "number",
+          "unit": "µg/mL",
+          "default": 100
+         },
+         {
+          "name": "mw_kda",
+          "label": "Conjugate molecular weight",
+          "widget": "number",
+          "unit": "kDa",
+          "default": 390,
+          "rangeHint": "R-PE 240 + IgG 150"
+         },
+         {
+          "name": "work_nm",
+          "label": "Working dilution",
+          "widget": "number",
+          "unit": "nM",
+          "default": 10
+         },
+         {
+          "name": "work_vol_ul",
+          "label": "Working dilution volume",
+          "widget": "number",
+          "unit": "µL",
+          "default": 1000
+         },
+         {
+          "name": "final_ul",
+          "label": "Volume per well",
+          "widget": "number",
+          "unit": "µL",
+          "default": 200
+         }
+        ],
+        "outputs": [
+         {
+          "name": "stock_nm",
+          "label": "Stock molarity",
+          "expr": "stock_ugml * 1000 / mw_kda",
+          "unit": "nM",
+          "decimals": 1
+         },
+         {
+          "name": "work_stock_ul",
+          "label": "Stock into the working dilution",
+          "expr": "work_nm * work_vol_ul / stock_nm",
+          "unit": "µL",
+          "decimals": 1
+         }
+        ],
+        "table": {
+         "dataset": "",
+         "columns": []
+        }
+       }
+      },
+      {
+       "kind": "builder",
+       "attrs": {
+        "label": "Free PE-antibody series (press Add all)",
+        "description": "Wells up to 1 nM draw from the [!var:work_nm] working dilution; 3 and 10 nM draw from the stock.",
+        "dataset": "pe_series",
+        "params": [],
+        "dims": [
+         {
+          "field": "conc",
+          "label": "Free PE-Ab (nM)",
+          "source": "list",
+          "options": [
+           "0",
+           "0.1",
+           "0.3",
+           "1",
+           "3",
+           "10"
+          ],
+          "editable": true
+         }
+        ],
+        "derived": [
+         {
+          "field": "source",
+          "expr": "conc <= 1 ? \"working\" : \"stock\""
+         },
+         {
+          "field": "pipette_ul",
+          "expr": "conc <= 1 ? conc * final_ul / work_nm : conc * final_ul / stock_nm"
+         },
+         {
+          "field": "buffer_ul",
+          "expr": "final_ul - pipette_ul"
+         }
+        ],
+        "dedupe": {
+         "when": "",
+         "ignore": []
+        }
+       }
+      },
+      {
+       "kind": "calculator",
+       "attrs": {
+        "label": "Pipetting table",
+        "inputs": [],
+        "outputs": [],
+        "table": {
+         "dataset": "pe_series",
+         "columns": [
+          {
+           "label": "Free PE-Ab (nM)",
+           "expr": "conc",
+           "align": "right",
+           "mono": true,
+           "decimals": 1
+          },
+          {
+           "label": "From",
+           "expr": "source",
+           "align": "left",
+           "mono": false,
+           "decimals": 0
+          },
+          {
+           "label": "Volume (µL)",
+           "expr": "pipette_ul",
+           "align": "right",
+           "mono": true,
+           "decimals": 2
+          },
+          {
+           "label": "PBS (µL)",
+           "expr": "buffer_ul",
+           "align": "right",
+           "mono": true,
+           "decimals": 1
+          }
+         ]
+        }
+       }
+      },
+      {
+       "kind": "calculator",
+       "attrs": {
+        "label": "Excluded-volume term",
+        "inputs": [
+         {
+          "name": "c_nm",
+          "label": "Free PE-antibody",
+          "widget": "number",
+          "unit": "nM",
+          "default": 1
+         },
+         {
+          "name": "v_excl",
+          "label": "Bead volume inside the section",
+          "widget": "number",
+          "unit": "µm³",
+          "default": 268,
+          "rangeHint": "whole bead = 268 µm³ (upper bound)"
+         }
+        ],
+        "outputs": [
+         {
+          "name": "excl_pe",
+          "label": "Solution PE displaced by one bead",
+          "expr": "c_nm * 0.6022 * v_excl",
+          "unit": "PE",
+          "decimals": 0
+         }
+        ],
+        "table": {
+         "dataset": "",
+         "columns": []
+        }
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "At [!var:c_nm] the bead displaces up to [!var:excl_pe] PE-equivalents of solution. Annulus subtraction removes that much too many, so a blank bead reads negative and a no-wash assay must add it back.",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Procedure",
+     "children": [
+      {
+       "kind": "heading",
+       "body": "Free PE-antibody",
+       "attrs": {
+        "code": "9a",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "Make the working dilution ([!var:work_stock_ul] of stock into [!var:work_vol_ul]), then the six wells from the pipetting table. Add blank beads, settle 30 min."
+      },
+      {
+       "kind": "step",
+       "body": "Image each well in modes A–D of Exp 05 at operating settings, 3 fields each."
+      },
+      {
+       "kind": "heading",
+       "body": "Autofluorescence",
+       "attrs": {
+        "code": "9b",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "Image ≥100 uncoated or blocked beads in PBS in the default mode."
+      },
+      {
+       "kind": "heading",
+       "body": "Nonspecific binding",
+       "attrs": {
+        "code": "9c",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "Run the capture beads with PE-antibody at 0.5, 1, 2 and 5 × K_D2 and no analyte through the full assay (incubation, washes), 6 wells per level. Image ≥100 beads per well."
+      },
+      {
+       "kind": "callout",
+       "body": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+       "attrs": {
+        "type": "critical"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Analysis",
+     "children": [
+      {
+       "kind": "step",
+       "body": "9a: background per pixel (photoelectrons, Exp 02) against concentration gives a slope; with the photoelectrons per PE from Exp 10 it gives V_eff per mode. The blank-bead integrated signal against concentration gives the excluded-volume slope (expected negative)."
+      },
+      {
+       "kind": "step",
+       "body": "9b: autofluorescence per bead in PE-equivalents (after Exp 10)."
+      },
+      {
+       "kind": "step",
+       "body": "9c: PE per bead from nonspecific binding at each antibody level: mean, bead-to-bead SD and well-to-well SD. Practical LOD = blank + 3 SD of the well means. The level where the LOD stops improving sets D₀ (default 1–2 × K_D2)."
+      }
+     ]
+    },
+    {
+     "label": "Decision & record",
+     "children": [
+      {
+       "kind": "callout",
+       "body": "Decision: washed versus no-wash format, which mode the no-wash read needs, and the detection-antibody concentration (9c).",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "table",
+       "body": "Record for every acquisition",
+       "attrs": {
+        "columns": [
+         {
+          "key": "field",
+          "label": "Field",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "note",
+          "label": "What to write",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "field": "Well",
+          "note": "Contents and free PE-Ab nM"
+         },
+         {
+          "field": "Mode",
+          "note": "A–D"
+         },
+         {
+          "field": "Washed",
+          "note": "Yes / no"
+         },
+         {
+          "field": "Beads",
+          "note": "Number analysed"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7).",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

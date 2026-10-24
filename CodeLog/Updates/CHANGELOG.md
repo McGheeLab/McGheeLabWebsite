@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.892] — 2026-10-24 — Research: the 13 PE-bead characterization experiments as importable RM protocols; the bead report's revision 2 merged
+
+Plan: [CodeLog/ClaudesPlan/V3.892_pe_bead_experiments_as_rm_protocols.md](../ClaudesPlan/V3.892_pe_bead_experiments_as_rm_protocols.md). Research deliverable only — no site code, nothing in `deploy/site.json`, no `sw.js` bump.
+
+### Added
+- **`Research/bead_confocal_protocols/`** — 13 `pe-ax-NN-*.protocol-import.json` (`protocol-import-v1`) for **Import protocol** on `rm/pages/protocols.html`, one per experiment: docHeader, purpose/prediction callouts, materials (item_ref null), settings tables, `calculator` blocks (irradiance and I/Iₛ; photon-transfer conversion; field/pixel/equal-dose dwell; pinhole and textbook section; stack and series bleaching from ε, φ_d and fluence; gain headroom; PE-antibody dilutions; excluded volume; PE:IgG from A565/A280; intensity → PE per bead → analyte; beads per well; post-wash loss and half-life; clamp labelled fraction and re-label time; Stokes and plate-spin settling; half-log dilution series; throughput), a `builder` + pipetting `calculator.table` (Exp 09, dataset `pe_series`) and a 72-row `builder` (dims `d0x` × `rep` × `step`, derived `conc_pm`, `d0_nm`) + 8×12 `layoutMap` (Exp 12, dataset `plate`), a `timeline` (Exp 11), procedure, analysis, decision and record.
+- `make_protocols.py` (generator; edit it, not the JSON), `validate.cjs` (RM's `PROTOCOL_IMPORT.validate` in a vm sandbox + a symbol-table rebuild matching `protocol-formulas.js` — inputs first, outputs in document order rounded to `decimals`, numeric-string coercion in row scope — builder expansion as **Add all**, duplicate-row and plate-overflow checks, `[!var:]` resolution, no `~`/`^` in prose, no colour emoji; `MATHJS=<path>` selects mathjs 12), `README.md` (import steps, run order, regenerate/validate).
+- `Research/bead_confocal_sim/report_calcs/` — the deep-research workflow's 12 calculation scripts (`tails.py`, `peaks.py`, `peaks2.py`, `lod.py`, `dt.py`, `ray.py`, `ray2.py`, `partA.py`, `shell.py`, `tab.py`, `samp.py`, `budget.py`), moved out of the session scratchpad with imports made relative.
+
+### Changed
+- `Research/PE_bead_confocal_assay_model.md` — replaced by the workflow's critic-revised revision 2 (bead refraction as the leading optical systematic, PSF-tail ranges G/R/L, 5 % sublinearity at ≈2 µW (20x), plate timeline and column-staggered washes, D_T ≈ 1–2 K_D2, transmitted-light segmentation); the simulator results kept as **Appendix S** with an operating-point warning; an editor's note that the excitation-path ray-trace factor drops at 20x but rises at 10x.
+- `Research/PE_bead_confocal_experiments.md` — revision-2 updates: power table (≈2 / 6–7 µW), transmitted-light and bead-material ground rules, plate-spin settling, detector-linearity check, 4b to ±20 µm, 4c by a chamber of known height, new 4d (glass-to-solution edge → w(z), ℓ_eff, T), Exp 5 modes and core/symmetry checks, 6b curvature stacks, 7g PE density and 7h 488 nm, HV at ≈70 % in the linear range, 9c nonspecific binding vs D_T, Exp 10 solution and flow routes, Exp 11 logging and time points, Exp 12 D₀ 1/2/5 × K_D2 with staggered washes and the 1×/10× hook guard, Exp 13 flow reference and concentration CV per well-minute, ≥100 beads per well, a new one-day path; links the protocols.
+
 ## [V3.891] — 2026-10-24 — The ERK mechanochemical-waves lit review is published: 35 papers in the lab library, the note in Alex's Scientia Lit reviews tab
 
 Publishes the V3.888 review (Alex: "publish this to the website and create a lit review note"). No site, rules or function change (no sw.js bump).

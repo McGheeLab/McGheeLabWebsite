@@ -1,0 +1,461 @@
+{
+ "format": "protocol-import-v1",
+ "source": {
+  "kind": "md",
+  "filename": "PE_bead_confocal_experiments.md"
+ },
+ "protocol": {
+  "id": "pe-ax-04-psf-plane-axial",
+  "title": "PE beads · Exp 04 · PSF, plane response and axial scaling",
+  "summary": "Measure the point response, the thin-sheet (plane) response H(z) and the dry-to-water focal scaling for each objective and pinhole.",
+  "category": "imaging",
+  "tags": [
+   "pe-beads",
+   "confocal",
+   "ax-r",
+   "characterization",
+   "exp-04",
+   "psf",
+   "optical-section",
+   "axial-scaling"
+  ],
+  "tree": {
+   "meta": {},
+   "sections": [
+    {
+     "label": "Overview",
+     "children": [
+      {
+       "kind": "docHeader",
+       "body": "The integrated bead signal depends on H(z), the response to a thin fluorescent sheet.",
+       "attrs": {
+        "brand": "",
+        "title": "PSF, plane response and axial scaling",
+        "chips": [
+         {
+          "text": "Exp 04 of 13"
+         },
+         {
+          "text": "≈4 h"
+         },
+         {
+          "text": "Optics block"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Pins: lateral and on-axis axial FWHM against pinhole (4a); the plane response H(z) and its shape (4b); the focal scaling factor from stage travel to depth in water (4c).",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Model (simulator): 20x/0.75 at 1 AU gives 0.40 µm lateral, 1.5 µm on-axis and 2.6 µm plane-integrated axial FWHM; 10x at 4 AU gives a 28 µm plane response with a flat top. The textbook formula for the 20x at 1 AU gives 2.3 µm (n = 1).",
+       "attrs": {
+        "type": "assume"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Materials",
+     "children": [
+      {
+       "kind": "materials",
+       "attrs": {
+        "rows": [
+         {
+          "qty": "10",
+          "unit": "µL",
+          "free_text": "100–200 nm orange/red fluorescent beads, diluted 1:1000 in water (4a)",
+          "item_ref": null
+         },
+         {
+          "qty": "200",
+          "unit": "µL",
+          "free_text": "PE-detection antibody at ≈10 nM, no beads (4d)",
+          "item_ref": null
+         },
+         {
+          "qty": "1",
+          "unit": "µg/mL",
+          "free_text": "PE-detection antibody in PBS, 200 µL per well (4b)",
+          "item_ref": null
+         },
+         {
+          "qty": "1",
+          "unit": "ea",
+          "free_text": "Chamber of known height: a calibrated spacer (50–120 µm, measured with a micrometer) between two #1.5 coverslips, sub-resolution beads stuck to both inner surfaces, filled with water (4c)",
+          "item_ref": null
+         },
+         {
+          "qty": "1",
+          "unit": "ea",
+          "free_text": "#1.5 glass-bottom plate or dish",
+          "item_ref": null
+         },
+         {
+          "qty": "",
+          "unit": "",
+          "free_text": "PBS",
+          "item_ref": null
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "label": "Settings",
+     "children": [
+      {
+       "kind": "table",
+       "body": "Acquisition grid",
+       "attrs": {
+        "columns": [
+         {
+          "key": "part",
+          "label": "Part",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "obj",
+          "label": "Objective",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "pinhole",
+          "label": "Pinhole",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "z",
+          "label": "z range / step",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "px",
+          "label": "Pixel",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "part": "4a point",
+          "obj": "20x",
+          "pinhole": "0.5, 1, 2, 4 AU, max",
+          "z": "±6 µm / 0.1 µm",
+          "px": "≤0.1 µm"
+         },
+         {
+          "part": "4a point",
+          "obj": "10x",
+          "pinhole": "0.5, 1, 2, 4 AU, max",
+          "z": "±15 µm / 0.25 µm",
+          "px": "≤0.2 µm"
+         },
+         {
+          "part": "4b plane",
+          "obj": "20x and 10x",
+          "pinhole": "same series",
+          "z": "±3 × section / 0.1 (20x), 0.25 (10x) µm",
+          "px": "any"
+         },
+         {
+          "part": "4c chamber",
+          "obj": "20x",
+          "pinhole": "1 AU",
+          "z": "through both bead layers / 0.2 µm",
+          "px": "0.2 µm"
+         },
+         {
+          "part": "4d edge",
+          "obj": "20x and 10x",
+          "pinhole": "1 AU and largest",
+          "z": "−10 to +30 µm / 0.25 µm",
+          "px": "any"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+       "attrs": {
+        "type": "critical"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Calculator",
+     "children": [
+      {
+       "kind": "calculator",
+       "attrs": {
+        "label": "Pinhole and optical section",
+        "inputs": [
+         {
+          "name": "na",
+          "label": "Objective NA",
+          "widget": "number",
+          "unit": "",
+          "default": 0.75
+         },
+         {
+          "name": "n_imm",
+          "label": "Immersion index (dry = 1)",
+          "widget": "number",
+          "unit": "",
+          "default": 1
+         },
+         {
+          "name": "lam_em",
+          "label": "Emission wavelength",
+          "widget": "number",
+          "unit": "µm",
+          "default": 0.578
+         },
+         {
+          "name": "ph_au",
+          "label": "Pinhole",
+          "widget": "slider",
+          "unit": "AU",
+          "default": 1,
+          "min": 0.25,
+          "max": 6,
+          "step": 0.05
+         },
+         {
+          "name": "r_bead",
+          "label": "Bead radius",
+          "widget": "number",
+          "unit": "µm",
+          "default": 4
+         },
+         {
+          "name": "z_scale",
+          "label": "Focal scaling (depth per stage µm)",
+          "widget": "number",
+          "unit": "",
+          "default": 1.33,
+          "rangeHint": "replace with the 4c result"
+         },
+         {
+          "name": "z_range",
+          "label": "z range of a stack",
+          "widget": "number",
+          "unit": "µm",
+          "default": 12
+         },
+         {
+          "name": "z_step",
+          "label": "z step",
+          "widget": "number",
+          "unit": "µm",
+          "default": 0.1
+         }
+        ],
+        "outputs": [
+         {
+          "name": "au_um",
+          "label": "1 Airy unit at the sample",
+          "expr": "1.22 * lam_em / na",
+          "unit": "µm",
+          "decimals": 2
+         },
+         {
+          "name": "ph_um",
+          "label": "Pinhole at the sample",
+          "expr": "ph_au * au_um",
+          "unit": "µm",
+          "decimals": 2
+         },
+         {
+          "name": "sect_um",
+          "label": "Textbook optical section (PH ≥ 1 AU)",
+          "expr": "sqrt((0.88 * lam_em / (n_imm - sqrt(n_imm ^ 2 - na ^ 2))) ^ 2 + (sqrt(2) * n_imm * ph_um / na) ^ 2)",
+          "unit": "µm",
+          "decimals": 2
+         },
+         {
+          "name": "equator_nominal",
+          "label": "Stage travel from glass to bead equator",
+          "expr": "r_bead / z_scale",
+          "unit": "µm",
+          "decimals": 2
+         },
+         {
+          "name": "n_planes",
+          "label": "Planes in the stack",
+          "expr": "floor(z_range / z_step) + 1",
+          "unit": "",
+          "decimals": 0
+         }
+        ],
+        "table": {
+         "dataset": "",
+         "columns": []
+        }
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "At NA [!var:na] and [!var:ph_au]: the pinhole is [!var:ph_um] at the sample and the textbook section is [!var:sect_um]. The bead equator sits [!var:equator_nominal] of stage travel above the glass.",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Procedure",
+     "children": [
+      {
+       "kind": "heading",
+       "body": "Point response",
+       "attrs": {
+        "code": "4a",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "Dry 10 µL of the diluted sub-resolution beads on the glass, then cover with water."
+      },
+      {
+       "kind": "step",
+       "body": "For each objective and pinhole in the grid, z-stack ≥10 isolated beads at low power (1 µW at 20x, 3 µW at 10x)."
+      },
+      {
+       "kind": "heading",
+       "body": "Plane response H(z)",
+       "attrs": {
+        "code": "4b",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "Add 200 µL of PE-antibody at 1 µg/mL to an empty glass-bottom well, wait 30 min at room temperature, wash 3× with PBS, leave PBS on."
+      },
+      {
+       "kind": "step",
+       "body": "Find the layer at very low power. Then for each objective and pinhole, z-scan through it to ±20 µm (the tails matter) at the steps in the grid. Use a fresh spot for every scan (the layer bleaches)."
+      },
+      {
+       "kind": "heading",
+       "body": "Glass-to-solution edge (axial weight and T)",
+       "attrs": {
+        "code": "4d",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "Fill a well with PE-antibody at ≈10 nM (no beads). z-scan from 10 µm below the glass surface to 30 µm into the solution, 0.25 µm steps, for each objective at 1 AU and the largest AU NIS allows. Read the largest AU per objective from NIS and record it."
+      },
+      {
+       "kind": "heading",
+       "body": "Axial scaling",
+       "attrs": {
+        "code": "4c",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "In the chamber of known height, at 20x and 1 AU, z-stack from below the bottom bead layer to above the top one, 0.2 µm steps. Do not use the assay beads for this: a polystyrene bead refracts like a weak lens and shifts its own top peak."
+      }
+     ]
+    },
+    {
+     "label": "Analysis",
+     "children": [
+      {
+       "kind": "step",
+       "body": "4a: fit Gaussians to the lateral and axial profiles of each bead; report median FWHM against pinhole."
+      },
+      {
+       "kind": "step",
+       "body": "4b: mean intensity of the central field against z is H(z). Report its FWHM and its shape: flat-topped, Gaussian, or with 1/z² tails. Send the H(z) table, because the simulator can use it directly."
+      },
+      {
+       "kind": "step",
+       "body": "4c: z_scale = (true chamber height) / (nominal stage travel between the two bead layers). Expect ≈1.33 for a dry objective into water."
+      },
+      {
+       "kind": "step",
+       "body": "4d: the solution signal rises across the glass edge; its derivative against z is the axial weight w(z). Its integral is ℓ_eff, and T = (∫ of w from −4 to +4 µm) / ℓ_eff is the fraction of the section that falls inside a bead. Expected T ≈ 0.84–0.95 at 20x/0.80, 1 AU."
+      }
+     ]
+    },
+    {
+     "label": "Decision & record",
+     "children": [
+      {
+       "kind": "callout",
+       "body": "Decision: whether the 10x open-pinhole H(z) is flat across ±4 µm (the focus tolerance of the high-throughput mode), and the Perfect Focus offset to the bead equator.",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "table",
+       "body": "Record for every acquisition",
+       "attrs": {
+        "columns": [
+         {
+          "key": "field",
+          "label": "Field",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "note",
+          "label": "What to write",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "field": "Objective / pinhole",
+          "note": "AU and µm from NIS"
+         },
+         {
+          "field": "FWHM",
+          "note": "Lateral, axial (4a); plane (4b)"
+         },
+         {
+          "field": "H(z)",
+          "note": "Table of mean intensity against z"
+         },
+         {
+          "field": "z_scale",
+          "note": "4c result, n beads, SD"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7).",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

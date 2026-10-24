@@ -1,0 +1,483 @@
+{
+ "format": "protocol-import-v1",
+ "source": {
+  "kind": "md",
+  "filename": "PE_bead_confocal_experiments.md"
+ },
+ "protocol": {
+  "id": "pe-ax-07-pe-photophysics",
+  "title": "PE beads · Exp 07 · Bleaching, saturation and the dark state",
+  "summary": "Measure PE bleaching per frame, saturation, the reversible dark state, dwell-versus-averaging and antifade on the beads themselves.",
+  "category": "imaging",
+  "tags": [
+   "pe-beads",
+   "confocal",
+   "ax-r",
+   "characterization",
+   "exp-07",
+   "photobleaching",
+   "saturation",
+   "dark-state",
+   "antifade"
+  ],
+  "tree": {
+   "meta": {},
+   "sections": [
+    {
+     "label": "Overview",
+     "children": [
+      {
+       "kind": "docHeader",
+       "body": "Sets the operating power and the scan mode.",
+       "attrs": {
+        "brand": "",
+        "title": "PE photophysics on the beads",
+        "chips": [
+         {
+          "text": "Exp 07 of 13"
+         },
+         {
+          "text": "≈4 h"
+         },
+         {
+          "text": "Photophysics block"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Pins: bleaching per frame against dose and the photodestruction yield on beads (7a), the reversible dark state (7b), the saturation irradiance (7c), signal per dose by scan mode (7d), antifade (7e) and the cost of focusing on PE (7f).",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Literature: R-PE photodestruction yield 1.1 × 10⁻⁵ per absorbed photon, 1.7× better with n-propyl gallate; ROS scavengers, ascorbate, DTT and oxygen removal did not help. Model: 0.29 % lost per frame at 10 µW, 2 µs, 0.4 µm pixels at 20x.",
+       "attrs": {
+        "type": "assume"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Materials",
+     "children": [
+      {
+       "kind": "materials",
+       "attrs": {
+        "rows": [
+         {
+          "qty": "4",
+          "unit": "well",
+          "free_text": "Assay beads at high coverage (fresh fields for every condition)",
+          "item_ref": null
+         },
+         {
+          "qty": "4",
+          "unit": "well",
+          "free_text": "Saturated beads labelled with PE-antibody : unlabelled detection antibody at 100, 50, 25, 10 % PE (7g)",
+          "item_ref": null
+         },
+         {
+          "qty": "1",
+          "unit": "well",
+          "free_text": "Same beads in imaging buffer with n-propyl gallate (7e)",
+          "item_ref": null
+         },
+         {
+          "qty": "1",
+          "unit": "ea",
+          "free_text": "#1.5 glass-bottom plate",
+          "item_ref": null
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "label": "Settings",
+     "children": [
+      {
+       "kind": "table",
+       "body": "Acquisition plan",
+       "attrs": {
+        "columns": [
+         {
+          "key": "part",
+          "label": "Part",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "what",
+          "label": "Acquisition",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "part": "7a",
+          "what": "50 consecutive frames per power, fresh field each; 2 µs; 20 px per bead. 20x: 0.3, 1, 2, 3, 10, 30 µW. 10x: 1, 3, 6, 10, 30, 100 µW"
+         },
+         {
+          "part": "7b",
+          "what": "In two 7a fields: pause 60 s after frame 25, then continue"
+         },
+         {
+          "part": "7c",
+          "what": "First frame only, 6 powers, fresh field each"
+         },
+         {
+          "part": "7d",
+          "what": "Equal dose three ways: 1 frame at 8 µs; 4 averaged frames at 2 µs; resonant with line integration to match"
+         },
+         {
+          "part": "7e",
+          "what": "7a at one power, with and without n-propyl gallate"
+         },
+         {
+          "part": "7f",
+          "what": "Live-scan one field for 10 s as if focusing, then acquire it and an untouched neighbour"
+         },
+         {
+          "part": "7g",
+          "what": "Density check: saturated beads labelled with PE-antibody diluted into unlabelled detection antibody (100, 50, 25, 10 % PE) at the same total concentration"
+         },
+         {
+          "part": "7h",
+          "what": "Optional: 488 nm against 561 nm on the same beads at matched absorbed dose"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+       "attrs": {
+        "type": "critical"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Calculator",
+     "children": [
+      {
+       "kind": "calculator",
+       "attrs": {
+        "label": "Dose, saturation and bleaching",
+        "inputs": [
+         {
+          "name": "p_uw",
+          "label": "Power at the sample",
+          "widget": "slider",
+          "unit": "µW",
+          "default": 2,
+          "min": 0.1,
+          "max": 100,
+          "step": 0.1
+         },
+         {
+          "name": "na",
+          "label": "Objective NA",
+          "widget": "number",
+          "unit": "",
+          "default": 0.75
+         },
+         {
+          "name": "dwell_us",
+          "label": "Pixel dwell",
+          "widget": "number",
+          "unit": "µs",
+          "default": 2
+         },
+         {
+          "name": "px_um",
+          "label": "Pixel size",
+          "widget": "number",
+          "unit": "µm",
+          "default": 0.4
+         },
+         {
+          "name": "n_frames",
+          "label": "Frames",
+          "widget": "number",
+          "unit": "",
+          "default": 50
+         },
+         {
+          "name": "i_sat",
+          "label": "PE saturation irradiance",
+          "widget": "number",
+          "unit": "kW/cm²",
+          "default": 19
+         },
+         {
+          "name": "eps_pe",
+          "label": "PE extinction at 561 nm",
+          "widget": "number",
+          "unit": "M⁻¹cm⁻¹",
+          "default": 1960000.0
+         },
+         {
+          "name": "phi_b",
+          "label": "PE photodestruction yield",
+          "widget": "number",
+          "unit": "per absorbed photon",
+          "default": 1.1e-05
+         },
+         {
+          "name": "lam_ex",
+          "label": "Excitation wavelength",
+          "widget": "number",
+          "unit": "µm",
+          "default": 0.561
+         }
+        ],
+        "outputs": [
+         {
+          "name": "w0_um",
+          "label": "Focal spot radius (1/e²)",
+          "expr": "0.433 * lam_ex / na",
+          "unit": "µm",
+          "decimals": 3
+         },
+         {
+          "name": "s_ratio",
+          "label": "I/Iₛ at the focus",
+          "expr": "2 * p_uw * 1e-6 / (pi * (w0_um * 1e-4) ^ 2) / 1000 / i_sat",
+          "unit": "",
+          "decimals": 3
+         },
+         {
+          "name": "abs_frame",
+          "label": "Photons absorbed per PE per frame",
+          "expr": "3.82e-21 * eps_pe * (p_uw * 1e-6 * dwell_us * 1e-6 / (px_um * 1e-4) ^ 2) * (lam_ex * 1e-6 / (6.626e-34 * 2.998e8))",
+          "unit": "",
+          "decimals": 1
+         },
+         {
+          "name": "loss_frame_pct",
+          "label": "PE lost per frame",
+          "expr": "100 * (1 - exp(-phi_b * abs_frame))",
+          "unit": "%",
+          "decimals": 3
+         },
+         {
+          "name": "loss_series_pct",
+          "label": "PE lost over the series",
+          "expr": "100 * (1 - exp(-phi_b * abs_frame * n_frames))",
+          "unit": "%",
+          "decimals": 1
+         }
+        ],
+        "table": {
+         "dataset": "",
+         "columns": []
+        }
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "At [!var:p_uw] (I/Iₛ [!var:s_ratio]) each frame removes [!var:loss_frame_pct] of the PE, and [!var:n_frames] frames remove [!var:loss_series_pct].",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Procedure",
+     "children": [
+      {
+       "kind": "heading",
+       "body": "Bleaching per frame",
+       "attrs": {
+        "code": "7a",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "For each power, take 50 frames of a fresh field, no pauses."
+      },
+      {
+       "kind": "heading",
+       "body": "Dark state",
+       "attrs": {
+        "code": "7b",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "In two of the 7a fields, stop after frame 25, wait 60 s in the dark, then take frames 26–50."
+      },
+      {
+       "kind": "heading",
+       "body": "Saturation",
+       "attrs": {
+        "code": "7c",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "For 6 powers, take one frame of a fresh field."
+      },
+      {
+       "kind": "heading",
+       "body": "Dwell against averaging",
+       "attrs": {
+        "code": "7d",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "At one power, acquire three fresh fields with the same total dose: one frame at 8 µs; four averaged frames at 2 µs; resonant scanning with enough line integration to match."
+      },
+      {
+       "kind": "heading",
+       "body": "Antifade",
+       "attrs": {
+        "code": "7e",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "Repeat 7a at one power in the n-propyl gallate well."
+      },
+      {
+       "kind": "heading",
+       "body": "Focus cost",
+       "attrs": {
+        "code": "7f",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "Live-scan one field for 10 s at the focusing settings you would use, then acquire it and its untouched neighbour with the same settings."
+      },
+      {
+       "kind": "heading",
+       "body": "PE density",
+       "attrs": {
+        "code": "7g",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "Label four wells of saturated beads with PE-antibody mixed into unlabelled detection antibody at 100, 50, 25 and 10 % PE, same total antibody concentration; image at operating settings."
+      },
+      {
+       "kind": "heading",
+       "body": "488 nm (optional)",
+       "attrs": {
+        "code": "7h",
+        "rule": true
+       }
+      },
+      {
+       "kind": "step",
+       "body": "Image one field at 561 nm and a neighbour at 488 nm with power scaled for equal absorbed dose; compare signal and bleaching."
+      }
+     ]
+    },
+    {
+     "label": "Analysis",
+     "children": [
+      {
+       "kind": "step",
+       "body": "7a: integrated intensity per bead against frame n; fit I(n) = I(1)·exp(−k·(n − 1)). The yield is k divided by photons absorbed per frame (calculator). Plot k against dose: a straight line means the one-photon dose law holds."
+      },
+      {
+       "kind": "step",
+       "body": "7b: the fraction of the drop that recovers after the pause is the reversible dark state."
+      },
+      {
+       "kind": "step",
+       "body": "7c: fit first-frame I = a·P/(1 + P/Pₛ). Pₛ and the Exp 01 spot size give Iₛ."
+      },
+      {
+       "kind": "step",
+       "body": "7d: signal per unit dose for each mode, and bead-to-bead CV."
+      },
+      {
+       "kind": "step",
+       "body": "7e: ratio of k with and without antifade. 7f: intensity of the focused field divided by its neighbour."
+      },
+      {
+       "kind": "step",
+       "body": "7g: the integrated signal should scale linearly with the PE fraction; a shortfall at 100 % means dense PE quenches itself, which caps the top of the standard curve."
+      }
+     ]
+    },
+    {
+     "label": "Decision & record",
+     "children": [
+      {
+       "kind": "callout",
+       "body": "Decision: the operating power (at most 5 % below linear), the scan mode, whether to use n-propyl gallate, and the focusing rule.",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "table",
+       "body": "Record for every acquisition",
+       "attrs": {
+        "columns": [
+         {
+          "key": "field",
+          "label": "Field",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "note",
+          "label": "What to write",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "field": "Part / field",
+          "note": "7a–7f, field id"
+         },
+         {
+          "field": "Power",
+          "note": "µW at the sample"
+         },
+         {
+          "field": "Dwell, averages, mode",
+          "note": "Galvano or resonant"
+         },
+         {
+          "field": "Frame count",
+          "note": "And pause timing for 7b"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7).",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

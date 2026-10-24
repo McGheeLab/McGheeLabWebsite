@@ -1,0 +1,302 @@
+{
+ "format": "protocol-import-v1",
+ "source": {
+  "kind": "md",
+  "filename": "PE_bead_confocal_experiments.md"
+ },
+ "protocol": {
+  "id": "pe-ax-08-gain-ladder",
+  "title": "PE beads · Exp 08 · Detector gain ladder on real beads",
+  "summary": "Image one field of bright and dim beads at six HV settings to confirm that gain only maps signal onto the ADC, and choose the plate HV.",
+  "category": "imaging",
+  "tags": [
+   "pe-beads",
+   "confocal",
+   "ax-r",
+   "characterization",
+   "exp-08",
+   "detector",
+   "gain",
+   "dynamic-range"
+  ],
+  "tree": {
+   "meta": {},
+   "sections": [
+    {
+     "label": "Overview",
+     "children": [
+      {
+       "kind": "docHeader",
+       "body": "Gain multiplies signal and noise together; it buys ADC range, not SNR.",
+       "attrs": {
+        "brand": "",
+        "title": "Gain ladder",
+        "chips": [
+         {
+          "text": "Exp 08 of 13"
+         },
+         {
+          "text": "≈45 min"
+         },
+         {
+          "text": "Photophysics block"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Pins: that the integrated metric in photoelectrons does not depend on HV until clipping, that bead-to-bead CV does not improve with HV, and the HV for a plate.",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Model: with a 16-bit ADC, clipping starts at gain ≈20 DN/e⁻ for 3,000 PE/µm² beads and ≈200 DN/e⁻ for 300 PE/µm². In 12-bit mode every threshold is 16× lower.",
+       "attrs": {
+        "type": "assume"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Materials",
+     "children": [
+      {
+       "kind": "materials",
+       "attrs": {
+        "rows": [
+         {
+          "qty": "1",
+          "unit": "well",
+          "free_text": "Mixed beads: top-standard and low-standard assay beads in one well (or one high-coverage well)",
+          "item_ref": null
+         },
+         {
+          "qty": "1",
+          "unit": "ea",
+          "free_text": "#1.5 glass-bottom plate",
+          "item_ref": null
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "label": "Settings",
+     "children": [
+      {
+       "kind": "table",
+       "body": "Acquisition settings",
+       "attrs": {
+        "columns": [
+         {
+          "key": "setting",
+          "label": "Setting",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "value",
+          "label": "Value",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "setting": "Mode",
+          "value": "Default mode from Exp 05"
+         },
+         {
+          "setting": "HV",
+          "value": "6 values, from low to just clipping the brightest rim"
+         },
+         {
+          "setting": "Order",
+          "value": "Low → high → low (repeat the lowest at the end to catch bleaching)"
+         },
+         {
+          "setting": "Power / dwell",
+          "value": "Operating values from Exp 07"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+       "attrs": {
+        "type": "critical"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Calculator",
+     "children": [
+      {
+       "kind": "calculator",
+       "attrs": {
+        "label": "Gain headroom",
+        "inputs": [
+         {
+          "name": "adc_max",
+          "label": "ADC full scale",
+          "widget": "number",
+          "unit": "DN",
+          "default": 65535
+         },
+         {
+          "name": "offset_dn",
+          "label": "Offset",
+          "widget": "number",
+          "unit": "DN",
+          "default": 200
+         },
+         {
+          "name": "rim_dn",
+          "label": "Brightest rim pixel now",
+          "widget": "number",
+          "unit": "DN",
+          "default": 30000
+         },
+         {
+          "name": "target_frac",
+          "label": "Target fraction of full scale",
+          "widget": "number",
+          "unit": "",
+          "default": 0.7
+         },
+         {
+          "name": "slope",
+          "label": "g·F at this HV (Exp 02)",
+          "widget": "number",
+          "unit": "DN per e⁻",
+          "default": 20
+         }
+        ],
+        "outputs": [
+         {
+          "name": "gain_factor",
+          "label": "Multiply the current gain by",
+          "expr": "(target_frac * adc_max - offset_dn) / (rim_dn - offset_dn)",
+          "unit": "×",
+          "decimals": 2
+         },
+         {
+          "name": "rim_e",
+          "label": "Brightest rim in photoelectrons",
+          "expr": "(rim_dn - offset_dn) / slope",
+          "unit": "e⁻",
+          "decimals": 0
+         }
+        ],
+        "table": {
+         "dataset": "",
+         "columns": []
+        }
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "The brightest rim holds [!var:rim_e]; multiply the gain by [!var:gain_factor] to put it at [!var:target_frac] of full scale. Use the Exp 02 slope-against-HV fit to find that HV.",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Procedure",
+     "children": [
+      {
+       "kind": "step",
+       "body": "Find a field with both bright and dim beads, focus by transmitted light, hold with Perfect Focus."
+      },
+      {
+       "kind": "step",
+       "body": "Acquire the same field at 6 HV values, low → high, then the lowest again."
+      }
+     ]
+    },
+    {
+     "label": "Analysis",
+     "children": [
+      {
+       "kind": "step",
+       "body": "Convert each image to photoelectrons with the Exp 02 slope for its HV; compute the integrated metric per bead."
+      },
+      {
+       "kind": "step",
+       "body": "Plot integrated photoelectrons and bead-to-bead CV against HV. Both should be flat until rim pixels clip."
+      },
+      {
+       "kind": "step",
+       "body": "The last-minus-first low-HV image gives the bleaching the ladder caused."
+      }
+     ]
+    },
+    {
+     "label": "Decision & record",
+     "children": [
+      {
+       "kind": "callout",
+       "body": "Decision: one HV for a whole plate, set on the top standard with its brightest rim pixel at ≈70 % of full scale and inside the linear range found in Exp 02. Never auto-adjust gain.",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "table",
+       "body": "Record for every acquisition",
+       "attrs": {
+        "columns": [
+         {
+          "key": "field",
+          "label": "Field",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "note",
+          "label": "What to write",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "field": "HV",
+          "note": "Value"
+         },
+         {
+          "field": "Offset",
+          "note": "DN"
+         },
+         {
+          "field": "Saturated pixels",
+          "note": "Count per image"
+         },
+         {
+          "field": "Bleach check",
+          "note": "First vs last low-HV image"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7).",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

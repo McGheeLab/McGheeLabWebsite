@@ -1,0 +1,470 @@
+{
+ "format": "protocol-import-v1",
+ "source": {
+  "kind": "md",
+  "filename": "PE_bead_confocal_experiments.md"
+ },
+ "protocol": {
+  "id": "pe-ax-05-bead-z-series",
+  "title": "PE beads · Exp 05 · Single-bead z-series in four modes",
+  "summary": "z-stack assay beads in four objective/pinhole modes to measure how integrated, ring and peak metrics change with focus, and confirm a shell label.",
+  "category": "imaging",
+  "tags": [
+   "pe-beads",
+   "confocal",
+   "ax-r",
+   "characterization",
+   "exp-05",
+   "z-stack",
+   "focus",
+   "shell",
+   "metrics"
+  ],
+  "tree": {
+   "meta": {},
+   "sections": [
+    {
+     "label": "Overview",
+     "children": [
+      {
+       "kind": "docHeader",
+       "body": "The core test of the image model: what each metric does as focus moves.",
+       "attrs": {
+        "brand": "",
+        "title": "Single-bead z-series",
+        "chips": [
+         {
+          "text": "Exp 05 of 13"
+         },
+         {
+          "text": "≈3 h"
+         },
+         {
+          "text": "Optics block"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Pins: integrated, ring-mean, rim-peak and ring-radius curves against focal offset in each mode; the peak/centre contrast at the equator (shell versus penetrating label, and the PSF tail model); the bead radius distribution.",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "table",
+       "body": "Model predictions for an index-matched bead",
+       "attrs": {
+        "columns": [
+         {
+          "key": "mode",
+          "label": "Mode",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "int",
+          "label": "Integrated within 5 %",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "ring",
+          "label": "Ring-mean loss at 2 µm",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "pc",
+          "label": "Peak/centre at equator",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "mode": "A · 10x, largest pinhole (3–4 AU)",
+          "int": "±4.5 µm",
+          "ring": "7 %",
+          "pc": "≈3"
+         },
+         {
+          "mode": "B · 20x, 1 AU",
+          "int": "±1.75 µm (±1.8–2.1 µm with sharper tails)",
+          "ring": "22 %",
+          "pc": "≈15 (simulator) to >100 (Gaussian section)"
+         },
+         {
+          "mode": "C · 20x, 2 AU",
+          "int": "±1.5 µm",
+          "ring": "25 %",
+          "pc": "—"
+         },
+         {
+          "mode": "D · 10x, 1 AU",
+          "int": "±1.5 µm",
+          "ring": "18 %",
+          "pc": "≈4.5"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Bead material comes first. A polystyrene, PMMA or silica bead in water acts as a weak lens: the equatorial signal drops to ≈0.6–0.75 of the index-matched value and the integrated signal against focus becomes asymmetric about the equator. Get the material, density and refractive index from the vendor before this experiment; the z-series is how its effect is measured.",
+       "attrs": {
+        "type": "critical"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Materials",
+     "children": [
+      {
+       "kind": "materials",
+       "attrs": {
+        "rows": [
+         {
+          "qty": "1",
+          "unit": "well",
+          "free_text": "Assay beads at high coverage (top standard, washed)",
+          "item_ref": null
+         },
+         {
+          "qty": "1",
+          "unit": "well",
+          "free_text": "Assay beads at mid coverage (≈10 % of the top signal)",
+          "item_ref": null
+         },
+         {
+          "qty": "1",
+          "unit": "well",
+          "free_text": "Core control: volume-stained fluorescent beads of similar size, orange/red",
+          "item_ref": null
+         },
+         {
+          "qty": "",
+          "unit": "",
+          "free_text": "Vendor certificate for the assay beads: material, density, refractive index, size CV",
+          "item_ref": null
+         },
+         {
+          "qty": "1",
+          "unit": "ea",
+          "free_text": "#1.5 glass-bottom plate",
+          "item_ref": null
+         },
+         {
+          "qty": "",
+          "unit": "",
+          "free_text": "Imaging buffer (PBS)",
+          "item_ref": null
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "label": "Settings",
+     "children": [
+      {
+       "kind": "table",
+       "body": "Acquisition settings",
+       "attrs": {
+        "columns": [
+         {
+          "key": "setting",
+          "label": "Setting",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "value",
+          "label": "Value",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "setting": "Modes",
+          "value": "A 10x largest pinhole · B 20x 1 AU · C 20x 2 AU · D 10x 1 AU"
+         },
+         {
+          "setting": "z",
+          "value": "From 6 µm below to 6 µm above the equator; 0.25 µm steps at 20x, 0.5 µm at 10x"
+         },
+         {
+          "setting": "Transmitted light",
+          "value": "Recorded at every plane (focus calibration and segmentation)"
+         },
+         {
+          "setting": "Sampling",
+          "value": "20 pixels per bead (0.4 µm pixels)"
+         },
+         {
+          "setting": "Power",
+          "value": "1 µW at the sample (20x), 3 µW (10x)"
+         },
+         {
+          "setting": "Dwell / frames",
+          "value": "1 µs, one frame per plane"
+         },
+         {
+          "setting": "Bleach check",
+          "value": "Re-acquire the first plane after the stack"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+       "attrs": {
+        "type": "critical"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Calculator",
+     "children": [
+      {
+       "kind": "calculator",
+       "attrs": {
+        "label": "Stack plan and bleaching",
+        "inputs": [
+         {
+          "name": "z_half",
+          "label": "Half-range of the stack",
+          "widget": "number",
+          "unit": "µm",
+          "default": 6
+         },
+         {
+          "name": "z_step",
+          "label": "z step",
+          "widget": "number",
+          "unit": "µm",
+          "default": 0.25
+         },
+         {
+          "name": "p_uw",
+          "label": "Power at the sample",
+          "widget": "slider",
+          "unit": "µW",
+          "default": 1,
+          "min": 0.1,
+          "max": 30,
+          "step": 0.1
+         },
+         {
+          "name": "dwell_us",
+          "label": "Pixel dwell",
+          "widget": "number",
+          "unit": "µs",
+          "default": 1
+         },
+         {
+          "name": "px_um",
+          "label": "Pixel size",
+          "widget": "number",
+          "unit": "µm",
+          "default": 0.4
+         },
+         {
+          "name": "eps_pe",
+          "label": "PE extinction at 561 nm",
+          "widget": "number",
+          "unit": "M⁻¹cm⁻¹",
+          "default": 1960000.0
+         },
+         {
+          "name": "phi_b",
+          "label": "PE photodestruction yield",
+          "widget": "number",
+          "unit": "per absorbed photon",
+          "default": 1.1e-05
+         },
+         {
+          "name": "lam_ex",
+          "label": "Excitation wavelength",
+          "widget": "number",
+          "unit": "µm",
+          "default": 0.561
+         }
+        ],
+        "outputs": [
+         {
+          "name": "n_planes",
+          "label": "Planes",
+          "expr": "2 * z_half / z_step + 1",
+          "unit": "",
+          "decimals": 0
+         },
+         {
+          "name": "abs_frame",
+          "label": "Photons absorbed per PE per plane",
+          "expr": "3.82e-21 * eps_pe * (p_uw * 1e-6 * dwell_us * 1e-6 / (px_um * 1e-4) ^ 2) * (lam_ex * 1e-6 / (6.626e-34 * 2.998e8))",
+          "unit": "",
+          "decimals": 1
+         },
+         {
+          "name": "loss_frame_pct",
+          "label": "PE lost per plane",
+          "expr": "100 * (1 - exp(-phi_b * abs_frame))",
+          "unit": "%",
+          "decimals": 4
+         },
+         {
+          "name": "loss_stack_pct",
+          "label": "PE lost over the stack",
+          "expr": "100 * (1 - exp(-phi_b * abs_frame * n_planes))",
+          "unit": "%",
+          "decimals": 2
+         }
+        ],
+        "table": {
+         "dataset": "",
+         "columns": []
+        }
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "[!var:n_planes] planes at [!var:p_uw] and [!var:dwell_us] remove [!var:loss_stack_pct] of the PE. Keep it below 2 %.",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Procedure",
+     "children": [
+      {
+       "kind": "step",
+       "body": "Settle the beads at least 30 min (or spin the plate briefly)."
+      },
+      {
+       "kind": "step",
+       "body": "Focus on the beads in transmitted light. Set Perfect Focus to the equator (Exp 04 gives the stage travel)."
+      },
+      {
+       "kind": "step",
+       "body": "Choose a field with ≥10 beads that are at least 10 µm from any neighbour."
+      },
+      {
+       "kind": "step",
+       "body": "For each mode, in a fresh field, take the stack. Then re-acquire the first plane."
+      },
+      {
+       "kind": "step",
+       "body": "Repeat for the mid-coverage well."
+      },
+      {
+       "kind": "callout",
+       "body": "Use a fresh field for every mode. Re-imaging a field adds its whole stack dose to the next measurement.",
+       "attrs": {
+        "type": "critical"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Analysis",
+     "children": [
+      {
+       "kind": "step",
+       "body": "Convert nominal z to depth with z_scale from Exp 04. The equator is the plane of maximum ring radius."
+      },
+      {
+       "kind": "step",
+       "body": "Per bead per plane: integrated intensity in a disk of radius R + 2.5 µm minus the local annulus background; ring-mean in a 1 µm annulus at the rim; rim peak; ring radius; centre mean."
+      },
+      {
+       "kind": "step",
+       "body": "Normalize each curve to its equator value and overlay the four modes. Compare with the table above."
+      },
+      {
+       "kind": "step",
+       "body": "Symmetry: compare the integrated signal at +z and −z about the equator. An asymmetric curve is the signature of bead refraction. Find the stationary point (where the integrated signal stops changing with z) and record its offset from the equator."
+      },
+      {
+       "kind": "step",
+       "body": "Core control: the volume-stained beads should give peak/centre ≈1 and an integrated signal that falls as R² − z₀²."
+      },
+      {
+       "kind": "step",
+       "body": "Peak/centre at the equator in mode B decides the PSF tail model. A flat profile (≈1) means the label penetrates the bead."
+      },
+      {
+       "kind": "step",
+       "body": "Report the equatorial ring-radius distribution (mean, CV): bead-size spread propagates into the integrated metric."
+      }
+     ]
+    },
+    {
+     "label": "Decision & record",
+     "children": [
+      {
+       "kind": "callout",
+       "body": "Decision: the default acquisition mode, its real focus tolerance, and the routine focal plane: the measured stationary point, which is the equator only for an index-matched bead.",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "table",
+       "body": "Record for every acquisition",
+       "attrs": {
+        "columns": [
+         {
+          "key": "field",
+          "label": "Field",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "note",
+          "label": "What to write",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "field": "Well / coverage",
+          "note": "High or mid"
+         },
+         {
+          "field": "Mode",
+          "note": "A–D, with pinhole µm"
+         },
+         {
+          "field": "Bleach check",
+          "note": "First plane before and after (%)"
+         },
+         {
+          "field": "Beads",
+          "note": "Number analysed per mode"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7).",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

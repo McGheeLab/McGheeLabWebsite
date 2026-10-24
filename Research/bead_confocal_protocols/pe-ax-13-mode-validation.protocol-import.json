@@ -1,0 +1,377 @@
+{
+ "format": "protocol-import-v1",
+ "source": {
+  "kind": "md",
+  "filename": "PE_bead_confocal_experiments.md"
+ },
+ "protocol": {
+  "id": "pe-ax-13-mode-validation",
+  "title": "PE beads · Exp 13 · Head-to-head of the measurement modes",
+  "summary": "Image one standard-curve plate in four candidate modes, three times in a day and on three days, and score LOD, CV, slope, throughput, bleaching and repeatability.",
+  "category": "imaging",
+  "tags": [
+   "pe-beads",
+   "confocal",
+   "ax-r",
+   "characterization",
+   "exp-13",
+   "validation",
+   "repeatability",
+   "throughput",
+   "method-selection"
+  ],
+  "tree": {
+   "meta": {},
+   "sections": [
+    {
+     "label": "Overview",
+     "children": [
+      {
+       "kind": "docHeader",
+       "body": "Chooses the default protocol from data, not from the model.",
+       "attrs": {
+        "brand": "",
+        "title": "Head-to-head of the measurement modes",
+        "chips": [
+         {
+          "text": "Exp 13 of 13"
+         },
+         {
+          "text": "≈1 day + 2 short sessions"
+         },
+         {
+          "text": "Validation block"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Model expectation: mode B (20x, 1 AU) is the default: thinner section, ≈1.5× more photons per bleaching dose and ≈3× less solution background per nM. Mode A is the throughput candidate if NIS reaches 3–4 AU at 10x. Flow cytometry is the reference.",
+       "attrs": {
+        "type": "assume"
+       }
+      },
+      {
+       "kind": "table",
+       "body": "Candidate modes (all single planes at the stationary point from Exp 05)",
+       "attrs": {
+        "columns": [
+         {
+          "key": "mode",
+          "label": "Mode",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "obj",
+          "label": "Objective / pinhole",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "z",
+          "label": "Planes",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "px",
+          "label": "Pixels per bead",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "mode": "A",
+          "obj": "10x, pinhole open",
+          "z": "1 (equator)",
+          "px": "12–20"
+         },
+         {
+          "mode": "B",
+          "obj": "20x, 1 AU",
+          "z": "1 (equator, Perfect Focus)",
+          "px": "16–25"
+         },
+         {
+          "mode": "C",
+          "obj": "20x, 1 AU",
+          "z": "5-plane sum, 2 µm steps (±4 µm)",
+          "px": "16–25"
+         },
+         {
+          "mode": "D",
+          "obj": "10x, 1 AU",
+          "z": "1 (equator)",
+          "px": "12–20"
+         },
+         {
+          "mode": "Flow",
+          "obj": "Flow cytometer, same beads + PE quantitation beads",
+          "z": "—",
+          "px": "—"
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "label": "Materials",
+     "children": [
+      {
+       "kind": "materials",
+       "attrs": {
+        "rows": [
+         {
+          "qty": "1",
+          "unit": "plate",
+          "free_text": "A standard-curve plate made as in Exp 12, with its reference rows",
+          "item_ref": null
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "label": "Calculator",
+     "children": [
+      {
+       "kind": "calculator",
+       "attrs": {
+        "label": "Throughput per mode",
+        "inputs": [
+         {
+          "name": "m_obj",
+          "label": "Objective magnification",
+          "widget": "number",
+          "unit": "×",
+          "default": 10
+         },
+         {
+          "name": "zoom",
+          "label": "Scan zoom",
+          "widget": "number",
+          "unit": "×",
+          "default": 1
+         },
+         {
+          "name": "n_px",
+          "label": "Frame size",
+          "widget": "number",
+          "unit": "px",
+          "default": 4096
+         },
+         {
+          "name": "dwell_us",
+          "label": "Pixel dwell",
+          "widget": "number",
+          "unit": "µs",
+          "default": 2
+         },
+         {
+          "name": "n_avg",
+          "label": "Averages × planes",
+          "widget": "number",
+          "unit": "",
+          "default": 1
+         },
+         {
+          "name": "density",
+          "label": "Bead density on the glass",
+          "widget": "number",
+          "unit": "per mm²",
+          "default": 200
+         }
+        ],
+        "outputs": [
+         {
+          "name": "field_mm2",
+          "label": "Field area",
+          "expr": "(17.7 / (m_obj * zoom)) ^ 2",
+          "unit": "mm²",
+          "decimals": 3
+         },
+         {
+          "name": "ppb_13",
+          "label": "Pixels per bead",
+          "expr": "8 / (17700 / (m_obj * zoom) / n_px)",
+          "unit": "px",
+          "decimals": 1
+         },
+         {
+          "name": "beads_field",
+          "label": "Beads per field",
+          "expr": "density * field_mm2",
+          "unit": "",
+          "decimals": 0
+         },
+         {
+          "name": "frame_s",
+          "label": "Acquisition per field",
+          "expr": "n_px ^ 2 * dwell_us * n_avg * 1e-6",
+          "unit": "s",
+          "decimals": 1
+         },
+         {
+          "name": "beads_min",
+          "label": "Beads per minute",
+          "expr": "beads_field / frame_s * 60",
+          "unit": "",
+          "decimals": 0
+         }
+        ],
+        "table": {
+         "dataset": "",
+         "columns": []
+        }
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "This mode gives [!var:ppb_13] pixels per bead, [!var:beads_field] beads per field and [!var:beads_min] beads per minute of acquisition.",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Procedure",
+     "children": [
+      {
+       "kind": "step",
+       "body": "Image the whole plate in modes A–D. Rotate the mode order between passes so no mode always goes first."
+      },
+      {
+       "kind": "step",
+       "body": "Day 1: three complete passes. Days 2 and 3: one pass each, with the reference rows and Exp 01/03 session checks."
+      },
+      {
+       "kind": "callout",
+       "body": "Before any quantitative acquisition: stand and lasers on for 2–3 h; 561 nm excitation; the same PE emission band (e.g. 570–620 nm) every time; 16-bit with fine integration (the default is 12-bit, so check the file); one HV and one offset for the whole session; background mode at least 50 DN above zero; no saturated pixels. Record the transmitted-light channel with every PE frame: beads are found in it, never in PE. Find focus in transmitted light and hold it with Perfect Focus. Never live-scan PE to focus.",
+       "attrs": {
+        "type": "critical"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Analysis",
+     "children": [
+      {
+       "kind": "table",
+       "body": "Score sheet, one column per mode",
+       "attrs": {
+        "columns": [
+         {
+          "key": "metric",
+          "label": "Score",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "how",
+          "label": "How",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "metric": "Concentration CV per well-minute",
+          "how": "Propagated through the standard curve at the low, mid and top standards: the single number to optimize"
+         },
+         {
+          "metric": "LOD",
+          "how": "Blank + 3 SD of blank well means, in PE per bead and in pM"
+         },
+         {
+          "metric": "CV per well",
+          "how": "Bead-to-bead CV of the integrated metric, median over wells"
+         },
+         {
+          "metric": "Slope",
+          "how": "Standard-curve slope in its linear range"
+         },
+         {
+          "metric": "Throughput",
+          "how": "Beads measured per minute (calculator)"
+         },
+         {
+          "metric": "Bleaching per pass",
+          "how": "Reference-well signal, pass 1 against pass 3"
+         },
+         {
+          "metric": "Repeatability",
+          "how": "Day-to-day CV after calibration with the reference rows"
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "label": "Decision & record",
+     "children": [
+      {
+       "kind": "callout",
+       "body": "Decision: the default protocol (mode and settings). It becomes the routine acquisition protocol.",
+       "attrs": {
+        "type": "note"
+       }
+      },
+      {
+       "kind": "table",
+       "body": "Record for every acquisition",
+       "attrs": {
+        "columns": [
+         {
+          "key": "field",
+          "label": "Field",
+          "align": "left",
+          "mono": false
+         },
+         {
+          "key": "note",
+          "label": "What to write",
+          "align": "left",
+          "mono": false
+         }
+        ],
+        "rows": [
+         {
+          "field": "Pass",
+          "note": "Day and pass number"
+         },
+         {
+          "field": "Mode",
+          "note": "A–D"
+         },
+         {
+          "field": "Mode order",
+          "note": "Within the pass"
+         },
+         {
+          "field": "Wash-to-image",
+          "note": "Per well"
+         }
+        ]
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "Save the .nd2 files as acquired (no 8-bit export, no LUT) in a folder outside the website repo, e.g. BeadConfocalData/<date>_<exp>/, and fill one plate-map CSV row per well or field (columns are listed in Research/PE_bead_confocal_experiments.md, section 7).",
+       "attrs": {
+        "type": "note"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ }
+}
