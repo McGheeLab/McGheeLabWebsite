@@ -125,7 +125,7 @@
     function qa(s) { return Array.from(D.querySelectorAll(s)); }
     function ev(code) { return W.eval(code); }
     function go(hash) { W.location.hash = hash; }
-    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.880', W.SIS_LAB.version);
+    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.882', W.SIS_LAB.version);
     /* 1. the tab row */
     var keys = qa('#tabs a.tab').map(function (a) { return a.dataset.k; });
     check('Activity and Data are not tabs on the web', keys.indexOf('activity') < 0 && keys.indexOf('data') < 0, keys.join(','));
@@ -440,12 +440,95 @@
     var fileBtn = await until(function () { var c = q('.lab-reg[data-region="quick"] .dcard[data-doc="' + qid2 + '"]'); return c && c.querySelector('.lab-file'); }, 6000);
     var hashBefore = W.location.hash, nOnly2 = W.SIS_LAB.kick.onlys.length;
     fileBtn.click();
-    check('a quick note’s card offers Add to project… (Gabe’s move, without opening the note)', !!(await until(function () { return pickRow(/^$/) || D.body.textContent.indexOf('No project (general)') >= 0; }, 4000)) && W.location.hash === hashBefore);
-    pickRow(/Source and sinkproject-wide|Source and sink\s*project-wide/);
+    var form = await until(function () { return q('.lab-save'); }, 4000);
+    function saveBtnOf(f) { for (var el = f; el && el !== D.body; el = el.parentElement) { var b = Array.from(el.querySelectorAll('button')).filter(function (x) { return x.textContent.trim() === 'Save'; })[0]; if (b) return b; } return null; }
+    function setVal(el, v) { el.value = v; el.dispatchEvent(new W.Event('input', { bubbles: true })); el.dispatchEvent(new W.Event('change', { bubbles: true })); }
+    check('a quick note’s card offers Save to a project… — one form for its title, type, project and theme (the note stays where it is)', !!form && ['title', 'type', 'proj', 'theme'].every(function (k) { return !!form.querySelector('.lab-save-' + k); }) && W.location.hash === hashBefore && form.querySelector('.lab-save-title').value === '');
+    saveBtnOf(form).click(); await sleep(250);
+    check('…it asks for a title before saving', ev("M.doc('" + qid2 + "').projectId") == null && /title/.test(form.querySelector('.lab-save-err').textContent) && !!q('.lab-save'));
+    setVal(form.querySelector('.lab-save-title'), 'Figure 3 sketch');
+    saveBtnOf(form).click(); await sleep(250);
+    check('…and for the project', ev("M.doc('" + qid2 + "').projectId") == null && /project/.test(form.querySelector('.lab-save-err').textContent));
+    var projSel = form.querySelector('.lab-save-proj');
+    check('…assigned projects are listed first, then your own', projSel.querySelectorAll('optgroup').length === 2 && projSel.querySelectorAll('optgroup')[0].label === 'Assigned to you' && !!projSel.querySelector('optgroup option[value="rm-p-source-and-sink"]'));
+    setVal(projSel, 'rm-p-source-and-sink'); setVal(form.querySelector('.lab-save-type'), 'experiment');
+    check('…the theme follows the project (this one has none)', form.querySelector('.lab-save-theme').disabled === true);
+    saveBtnOf(form).click();
     var filed = await until(function () { return ev("M.doc('" + qid2 + "').projectId") === 'rm-p-source-and-sink'; }, 6000);
     check('picking a project stores the note in it; it leaves Quick notes for the project’s region, and RM’s list is asked for', !!filed &&
       !!(await until(function () { return q('.lab-reg[data-region="rm-p-source-and-sink"] .dcard[data-doc="' + qid2 + '"]') && !q('.lab-reg[data-region="quick"] .dcard[data-doc="' + qid2 + '"]'); }, 6000)) &&
       !!(await until(function () { return W.SIS_LAB.kick.onlys.slice(nOnly2).some(function (o) { return /notes/.test(o); }); }, 8000)));
+    check('…saved, it takes the title and type it was given', ev("M.doc('" + qid2 + "').title") === 'Figure 3 sketch' && ev("M.doc('" + qid2 + "').type") === 'experiment' && ev("M.doc('" + qid2 + "').quick") === false && !q('.lab-save'));
+    /* the note's own header: Save to a project…, into a theme */
+    go('#/doc/' + qid3);
+    var hdr = await until(function () { return q('#meta .lab-save-btn'); }, 6000);
+    check('a note outside any project has Save to a project… in its header', !!hdr);
+    hdr.click();
+    var form2 = await until(function () { return q('.lab-save'); }, 4000);
+    setVal(form2.querySelector('.lab-save-title'), 'Packing sweep 2'); setVal(form2.querySelector('.lab-save-type'), 'experiment'); setVal(form2.querySelector('.lab-save-proj'), 'rm-f-gels-career');
+    var thSel = form2.querySelector('.lab-save-theme');
+    check('…a project with themes offers them (the aim from RM)', thSel.disabled === false && !!thSel.querySelector('option[value="rm-a-aim-1"]'));
+    setVal(thSel, 'rm-a-aim-1');
+    saveBtnOf(form2).click();
+    check('…and the note is stored in that project and theme', !!(await until(function () { return ev("M.doc('" + qid3 + "').themeId") === 'rm-a-aim-1' && ev("M.doc('" + qid3 + "').projectId") === 'rm-f-gels-career'; }, 4000)) && !q('#meta .lab-save-btn'));
+    /* 15. V3.882 — the canvas pills */
+    go('#/doc/' + an);
+    var pills = await until(function () { var p = qa('.canvas-host .lab-pills .lab-pill'); return p.length === 4 && p; }, 6000);
+    check('a note has the four pills: ＋ Insert, ✦ Tools, ✎ the hand, ⊕ View', !!pills && JSON.stringify(pills.map(function (p) { return p.dataset.pill; })) === JSON.stringify(['insert', 'tools', 'hand', 'view']));
+    function pill(n) { return q('.lab-pill[data-pill="' + n + '"]'); }
+    function fanItems(n) { return Array.from((pill(n) || D).querySelectorAll('.lab-fan-item')); }
+    function item(n, re) { return fanItems(n).filter(function (b) { return re.test(b.getAttribute('title') || ''); })[0]; }
+    ev("SIS_LAB.setHand('move')");
+    pill('hand').querySelector('.lab-pill-btn').click();
+    var fanned = await until(function () { return fanItems('hand').length >= 5 && pill('hand').classList.contains('open'); }, 3000);
+    check('✎ opens its fan: zoom · move · pen · highlighter · lasso first', !!fanned && fanItems('hand').filter(function (b) { return b.classList.contains('mode'); }).length === 5,
+      ev("JSON.stringify({ open: SIS_LAB.pills.open && SIS_LAB.pills.open.name, items: document.querySelectorAll('.lab-fan-item').length, pills: document.querySelectorAll('.lab-pills').length, route: App.route.name, err: (function () { try { SIS_LAB.paintPills(); return 'ok'; } catch (e) { return String(e); } })() })"));
+    item('hand', /^Pen —/).click();
+    check('…Pen draws with the mouse and the pen (Gabe’s ink)', ev("INK.mouse === true && INK.tool === 'pen'") && !!(await until(function () { return pill('hand').querySelector('.lab-pill-dot') && fanItems('hand').some(function (b) { return /^Eraser/.test(b.title); }); }, 2000)));
+    var dots = fanItems('hand').filter(function (b) { return b.querySelector('.lab-fan-dot'); });
+    dots[2].click();
+    check('…its second arc picks Gabe’s colours', ev('INK.color') === 2);
+    item('hand', /^Bold/).click();
+    check('…and widths', ev('INK.width') === 2);
+    item('hand', /^Highlighter —/).click();
+    check('Highlighter is Gabe’s highlighter', ev("INK.tool") === 'hl' && ev('INK.mouse') === true);
+    var hb = pill('hand').querySelector('.lab-pill-btn'); hb.click(); hb = pill('hand').querySelector('.lab-pill-btn'); hb.click(); await sleep(350);
+    check('a double tap on ✎ goes back to the last mode (the pen)', ev("INK.tool") === 'pen' && ev('INK.mouse') === true, ev('INK.tool'));
+    W.SIS_LAB.setHand('move');
+    check('Move: the paper pans and components drag (the mouse no longer draws)', ev('INK.mouse') === false && W.SIS_LAB.handNow() === 'move');
+    W.SIS_LAB.setHand('zoom');
+    var paperEl = q('.canvas-host .paper'), z0 = ev('DocView.paper.view.z'), pr = paperEl.getBoundingClientRect();
+    var ppe = function (type) { paperEl.dispatchEvent(new W.PointerEvent(type, { bubbles: true, cancelable: true, clientX: pr.left + pr.width / 2, clientY: pr.top + pr.height / 2, button: 0, pointerId: 9, pointerType: 'mouse', isPrimary: true })); };
+    ppe('pointerdown'); W.dispatchEvent(new W.PointerEvent('pointerup', { bubbles: true, clientX: pr.left + pr.width / 2, clientY: pr.top + pr.height / 2, pointerId: 9, pointerType: 'mouse' }));
+    check('Zoom: a tap on the paper zooms in ×1.5 at the point', Math.abs(ev('DocView.paper.view.z') - Math.min(2, z0 * 1.5)) < 0.01, [z0, ev('DocView.paper.view.z')].join(' → '));
+    W.SIS_LAB.setHand('move');
+    pill('view').querySelector('.lab-pill-btn').click(); await until(function () { return fanItems('view').length === 4; }, 2000);
+    var z1 = ev('DocView.paper.view.z'); item('view', /^Zoom out/).click();
+    check('⊕ View zooms out, and the % under it follows', Math.abs(ev('DocView.paper.view.z') - z1 * 0.8) < 0.01 && pill('view').querySelector('.lab-pill-pct').textContent === Math.round(ev('DocView.paper.view.z') * 100) + '%', pill('view').querySelector('.lab-pill-pct').textContent);
+    item('view', /^100 %/).click();
+    check('…100 % is one click', Math.abs(ev('DocView.paper.view.z') - 1) < 0.01);
+    pill('insert').querySelector('.lab-pill-btn').click(); await until(function () { return fanItems('insert').length > 1; }, 2000);
+    var nb0 = ev("M.liveBlocks('" + an + "').length"), comp = item('insert', /^New /);
+    check('＋ Insert fans out the most used inserts, with everything else under …', !!comp && !!item('insert', /^Everything that can go/) && !!item('insert', /lab library|paper/i));
+    comp.click();
+    check('…and places one in the middle of the view', !!(await until(function () { return ev("M.liveBlocks('" + an + "').length") === nb0 + 1; }, 3000)));
+    pill('tools').querySelector('.lab-pill-btn').click(); await until(function () { return fanItems('tools').length >= 4; }, 2000);
+    item('tools', /^Start this note’s timer/).click();
+    check('✦ Tools starts the note’s timer (and the pill shows it)', !!(await until(function () { return ev("!!TIMER.activeFor('" + an + "')") && pill('tools').querySelector('.lab-pill-live'); }, 3000)));
+    item('tools', /^Pause the timer/).click();
+    check('…and pauses it', ev("TIMER.activeFor('" + an + "').state") === 'paused');
+    var vb = pill('view').querySelector('.lab-pill-btn'), vr = vb.getBoundingClientRect();
+    var pd = function (type, dx, dy) { vb.dispatchEvent(new W.PointerEvent(type, { bubbles: true, cancelable: true, clientX: vr.left + 20 + dx, clientY: vr.top + 20 + dy, button: 0, pointerId: 11, pointerType: 'mouse', isPrimary: true })); };
+    pd('pointerdown', 0, 0); pd('pointermove', -60, -40); pd('pointermove', -160, -120); pd('pointerup', -160, -120);
+    var saved = JSON.parse(W.localStorage.getItem('sis:lab:pills') || '{}');
+    check('a pill drags anywhere and keeps its place', !!saved.view && saved.view.fx < 0.95 && !!(await until(function () { return pill('view') && /px/.test(pill('view').style.left || ''); }, 2000)), JSON.stringify(saved));
+    pill('tools').querySelector('.lab-pill-btn').click(); await until(function () { return pill('tools').classList.contains('open'); }, 2000);
+    item('tools', /^Put the pills back/).click();
+    check('✦ Tools puts the pills back', !Object.keys(JSON.parse(W.localStorage.getItem('sis:lab:pills') || '{}')).length && !pill('view').style.left);
+    pill('view').querySelector('.lab-pill-btn').click(); await until(function () { return pill('view').classList.contains('open'); }, 2000);
+    q('#ttl') && q('#ttl').dispatchEvent(new W.PointerEvent('pointerdown', { bubbles: true, pointerId: 12 }));
+    D.body.dispatchEvent(new W.PointerEvent('pointerdown', { bubbles: true, pointerId: 13 }));
+    check('a tap outside closes the fan', !!(await until(function () { return !q('.lab-pill.open'); }, 2000)));
     check('no browser popups, rejections or console-level failures in the frame', !W.__popups.length && !W.__rej.length, JSON.stringify([W.__popups, W.__rej]));
   } catch (e) { check('harness error', false, (e && e.stack) || e); }
   finish();

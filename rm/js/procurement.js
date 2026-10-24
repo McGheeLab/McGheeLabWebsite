@@ -536,6 +536,10 @@
     if (e.recurring) badges += '<span class="pt-pk-badge pt-pk-badge--rec">recurring</span>';
     if (e.stock === 'out_of_stock') badges += '<span class="pt-pk-badge pt-pk-badge--out">out of stock</span>';
     else if (e.stock === 'low') badges += '<span class="pt-pk-badge pt-pk-badge--low">low</span>';
+    // V3.883 — already on its way: say so before a second request is made
+    var openReq = e.kind === 'inventory' ? C.openRequestsFor(S.tickets, { id: e.invId, name: e.name, vendor: e.vendor }) : [];
+    var OPEN_WORD = { requested: 'already requested', needs_info: 'already requested', approved: 'approved to order', ordered: 'on order', received: 'arrived, not put away' };
+    if (openReq.length) badges += '<span class="pt-pk-badge pt-pk-badge--open" title="' + esc(openReq.map(C.requestLine).join('; ')) + '">' + esc(OPEN_WORD[openReq[0].status] || 'already requested') + '</span>';
     if (e.kind === 'ticket') badges += '<span class="pt-pk-badge pt-pk-badge--tkt">not in inventory' + (e.status && e.status !== 'placed' ? ' · ' + esc((C.STATUS[e.status] || {}).label || e.status).toLowerCase() : '') + '</span>';
     var bits = [];
     if (e.vendor) bits.push(esc(e.vendor) + (e.catalogueNumber ? ' · ' + esc(e.catalogueNumber) : ''));
@@ -814,6 +818,12 @@
         (function () { var ws = C.watchSummary(C.watchFor(S.watches, r0.url)); return ws ? 'list ' + esc(C.fmtMoney(ws.price)) + ' (checked ' + esc(C.fmtDateLong(ws.at)) + ')' : ''; })()].filter(Boolean).join(' · ');
       summary = '<div class="pt-reorder-item">' + icon('cube') + '<div><strong>' + esc(it.name) + '</strong><div class="pt-muted">' + line + '</div><div class="pt-muted">When it arrives, putting it away restocks this inventory item.' + (r0.alternatives && r0.alternatives.length ? ' The sources compared last time are under Item details.' : '') + '</div></div></div>';
     }
+    // V3.883 — a reorder of something already requested says so, with the request(s), before anyone submits a second.
+    var openFor = it ? it : (cm.againOf ? { id: cm.againOf.inventoryItemId || '', name: cm.againOf.itemDescription, vendor: cm.againOf.vendor } : null);
+    var openReq = openFor ? C.openRequestsFor(S.tickets, openFor.id ? openFor : Object.assign({}, openFor, { id: '__none' })) : [];
+    var already = openReq.length ? '<div class="pt-banner pt-banner--question pt-already">' + icon('exclamation-triangle') + ' <div><strong>Already requested:</strong> ' +
+      openReq.slice(0, 3).map(function (t) { return '<a href="' + esc(ticketUrl(t.id)) + '">' + esc(C.requestLine(t)) + '</a>'; }).join('; ') +
+      (openReq.length > 3 ? ' and ' + (openReq.length - 3) + ' more' : '') + '. Submit only if the lab needs more on top of ' + (openReq.length === 1 ? 'it' : 'them') + '.</div></div>' : '';
     var cap = cm.captureOf;   // V3.819 — from the browser extension: the full form, with the capture named
     if (cap) {
       var chost = C.str(cap.sourceHost).replace(/^www\./, '');
@@ -823,7 +833,7 @@
       '<form class="pt-card pt-composer" id="pt-composer-form" novalidate data-mode="' + (reorder ? 'reorder' : 'new') + '"' + (cap ? ' data-capture="' + esc(cap.id) + '"' : '') + '>' +
         '<div class="pt-card-head"><h2 class="pt-h2">' + icon(reorder ? 'arrow-path' : 'shopping-cart') + ' ' + (reorder ? 'Reorder: ' + esc(it ? it.name : cm.againOf.itemDescription) : 'New item') + '</h2>' +
           '<button type="button" class="pt-x" id="pt-composer-close" aria-label="Close">' + icon('x-mark') + '</button></div>' +
-        summary +
+        summary + already +
         (cm.againOf ? '<div class="pt-banner pt-banner--info">' + icon('arrow-path') + ' Again: <strong>' + esc(cm.againOf.itemDescription) + '</strong>, copied from the ' + esc(C.fmtDateLong(cm.againOf.createdAt) || 'earlier') + ' request' + (cm.reorderOf ? ' — putting it away will restock the same inventory item' : '') + '. Check the price and the date, then submit.</div>' : '') +
         '<p class="pt-muted">' + (reorder ? 'Confirm the quantity, the project and why; everything else is filled in from last time.' : 'Describe the item in full — vendor, link, price, and a price comparison if there is one — so the approver can decide from the ticket.') + ' The approver gets a notification, you get one at every step after that, and whoever unpacks the box records where it went.</p>' +
         requestFields(v, undefined, { compact: reorder }) +

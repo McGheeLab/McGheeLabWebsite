@@ -14,6 +14,7 @@
      Materials  from RM's inventory (V3.871, section 5); a task component is an RM task (V3.872, section 6).
      Reminders + chores  dated items in My Week, ticks both ways; the timer and edits go to RM activity (V3.874, section 7 + the hub).
      Portfolio  what the PI assigned you in RM first, as region cards you move and fold; Quick notes; your own projects (V3.880, section 10).
+     Pills      the Lab Notebook's movable ✎ ＋ ✦ ⊕ pills on every note, driving Scientia's own ink, inserts and view (V3.882, section 11).
 
    The app's globals (TABS, VIEWS, App, DB, M, LIB, h, …) are top-level consts
    of the classic script that precedes this one: same realm, same lexical
@@ -29,7 +30,7 @@
     activity: '/rm/pages/activity-overview.html?tab=tracker',
     inventory: '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.880', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.882', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -767,9 +768,50 @@
     if (s.open[r.id] !== undefined) return !!s.open[r.id];
     return !(r.group === 'earlier' || (r.p && r.p.rm && SHUT[r.p.rmStatus]));
   }
-  /* a quick note goes into a project after the fact — Gabe's own move (15b), so it is then stored in that project */
-  function fileNote(docId) { var d = M.doc(docId); if (!d) return; try { GENERAL.move(d); } catch (e) { warn('file note', e); } }
-  function fileButton(docId) { return h('button.btn.xs.lab-file', { title: 'Add this note to a project (or one of its themes)', on: { click: function (e) { e.preventDefault(); e.stopPropagation(); fileNote(docId); } } }, 'Add to project…'); }
+  /* V3.882 — a quick note is saved somewhere with what it inherits there: the person gives its title, type, project
+     and theme in one form (Gabe's modal), and the note is then stored in that project */
+  function fileNote(docId) { return saveForm(docId); }
+  function fileButton(docId) { return h('button.btn.xs.lab-file', { title: 'Save this note to a project: its title, type, project and theme', on: { click: function (e) { e.preventDefault(); e.stopPropagation(); fileNote(docId); } } }, 'Save to a project…'); }
+  function saveForm(docId) {
+    var d = M.doc(docId); if (!d) return null;
+    var byName = function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); };
+    var ps = DB.all('projects').filter(function (p) { return !(p.rm && p.rmAssigned === false); });
+    var assigned = ps.filter(isAssigned).sort(function (a, b) { return rank(a) - rank(b) || byName(a, b); }), own = ps.filter(function (p) { return !p.rm; }).sort(byName);
+    if (!ps.length) { toast('Make a project first — Portfolio → + Project'); return null; }
+    var opt = function (p) { return h('option', { value: p.id, selected: p.id === d.projectId }, p.name + (p.rm ? ' (' + (KIND[p.rmKind] || 'RM').toLowerCase() + ')' : '')); };
+    var title = h('input.inp.lab-save-title', { placeholder: 'What this note is about', value: QN.title.test(d.title || '') ? '' : (d.title || '') });
+    var typ = h('select.inp.lab-save-type', userProfiles().map(function (p) { return h('option', { value: p.type, selected: p.type === d.type }, p.label); }));
+    var proj = h('select.inp.lab-save-proj', h('option', { value: '' }, 'Choose a project…'),
+      assigned.length ? h('optgroup', { label: 'Assigned to you' }, assigned.map(opt)) : null, own.length ? h('optgroup', { label: 'Your projects' }, own.map(opt)) : null);
+    var th = h('select.inp.lab-save-theme'), err = h('div.tiny.lab-save-err', { role: 'alert' });
+    function fillThemes() {
+      var themes = proj.value ? DB.where('themes', function (t) { return t.projectId === proj.value && t.status === 'active'; }) : [], inTheme = prof(typ.value).scope === 'theme';
+      th.replaceChildren.apply(th, [h('option', { value: '' }, !proj.value ? 'Choose the project first' : !inTheme ? 'This type is project-wide' : themes.length ? '— none (project-wide) —' : 'No themes in this project')]
+        .concat(themes.map(function (t) { return h('option', { value: t.id, selected: t.id === d.themeId }, t.name); })));
+      th.disabled = !proj.value || !inTheme || !themes.length;
+    }
+    proj.onchange = fillThemes; typ.onchange = fillThemes; fillThemes();
+    var m = modal({ title: 'Save this note to a project', body: h('div.lab-save',
+        h('p.tiny.muted', { style: { marginTop: 0 } }, 'A quick note takes on what it is when you save it: its title, its type, and the project (and theme) it belongs to. What you wrote stays as it is.'),
+        h('div.grid2', h('label.f', h('span', 'Title'), title), h('label.f', h('span', 'Type'), typ), h('label.f', h('span', 'Project'), proj), h('label.f', h('span', 'Theme'), th)), err),
+      actions: [{ label: 'Cancel' }, { label: 'Save', pri: true, run: function () {
+        var t = title.value.trim();
+        if (!t) { err.textContent = 'Give the note a title.'; title.focus(); return false; }
+        if (!proj.value) { err.textContent = 'Choose the project it belongs to.'; proj.focus(); return false; }
+        var cur = M.doc(docId); if (!cur) return;
+        var pf = prof(typ.value);
+        seedSig(cur);
+        cur.title = t; cur.type = typ.value; cur.scope = pf.scope; cur.projectId = proj.value; cur.themeId = pf.scope === 'theme' && !th.disabled ? (th.value || null) : null; cur.quick = false;
+        M.touchDoc(cur); changed();
+        $$('.lab-qn, .lab-save-btn').forEach(function (x) { x.remove(); });
+        var P = M.project(cur.projectId), T = cur.themeId && M.theme(cur.themeId);
+        toast('Saved to ' + (P ? P.name : 'the project') + (T ? ' › ' + T.name : ''));
+        LAB.lastSaved = cur.id;
+      } }] });
+    setTimeout(function () { try { (title.value ? proj : title).focus(); } catch (e) {} }, 40);
+    return m;
+  }
+  LAB.saveForm = saveForm;
   function docsOf(r) { return r.group === 'quick' ? generalDocs() : DB.where('documents', function (d) { return d.projectId === r.id && d.type !== 'review' && !d.deleted; }); }
 
   function docCard(d, sub, act) {
@@ -1023,7 +1065,7 @@
         return h('button.btn.xs.lab-qn-t', { 'data-tpl': x.t.id, title: x.p.label + ': ' + (x.t.blocks || []).map(function (b) { return b.label || '·'; }).join(' → '), on: { click: function () { applyTemplate(d.id, x.t); } } },
           x.t.isStandard ? x.p.label : x.t.name); })) : h('div.tiny.muted', { style: { margin: '0 0 8px' } }, 'No templates yet — Settings → Templates, or ⋯ → Save structure as template… in any note.'),
       h('div.row.lab-qn-f', btn('sm pri', 'Continue blank', function () { dismissQuick(d.id, true); }, 'Keep the blank page'),
-        btn('sm', 'Add to a project…', function () { fileNote(d.id); }, 'Store this note in a project now'), h('span.tiny.muted', 'or later: ⋯ → Project & theme…')));
+        btn('sm', 'Save to a project…', function () { fileNote(d.id); }, 'Give it a title, type and project now'), h('span.tiny.muted', 'or later, from the note’s header')));
   }
   try {
     var oDocRender = DocView.render;
@@ -1033,6 +1075,7 @@
         var d = M.doc(docId), pane = this;
         seedSig(d);
         if (d && rmLinked(d) && pane === App.pane) setTimeout(function () { var meta = $('#meta'); if (meta && !$('.lab-share', meta) && App.pane === pane && pane.docId === docId) meta.append(shareEl(docId)); }, 0);
+        if (d && !d.projectId && ['day', 'review'].indexOf(d.type) < 0 && pane === App.pane) setTimeout(function () { var meta = $('#meta'); if (meta && !$('.lab-save-btn', meta) && App.pane === pane && pane.docId === docId) meta.append(h('button.btn.xs.pri.lab-save-btn', { title: 'Give it a title, type and project — it is then stored in that project', on: { click: function () { saveForm(docId); } } }, 'Save to a project…')); }, 0);
         if (d && d.quick && host && host.append) {
           if (!blankDoc(d)) { d.quick = false; DB.put('documents', d); }
           else {
@@ -1045,6 +1088,16 @@
     };
   } catch (e) { warn('quick note', e); }
   LAB.quickNote = quickNote; LAB.applyTemplate = applyTemplate; LAB.templateRows = templateRows; LAB.blankDoc = blankDoc;
+  /* V3.882 — the Lab Notebook's ＋ Quick note (notebook-scientia.js sisCmd 'quick'); a fresh frame may still be loading the record */
+  window.addEventListener('message', function (e) {
+    if (e.origin !== ORIGIN || e.source !== window.parent || !e.data || e.data.sisCmd !== 'quick') return;
+    var t0 = Date.now();
+    (function tryNow() {
+      var ready = false; try { ready = !!(App._mounted && DB.all('settings').length); } catch (x) {}
+      if (ready || Date.now() - t0 > 15000) { try { quickNote(); } catch (x) { warn('quick note', x); } }
+      else setTimeout(tryNow, 200);
+    })();
+  });
 
   try {
     var st10 = document.getElementById('lab-mode-css');
@@ -1062,7 +1115,240 @@
       '.lab-pf-bar{position:absolute;top:12px;left:12px;z-index:16;display:flex;gap:6px;flex-wrap:wrap;align-items:center;max-width:calc(100% - 24px)}' +
       '.lab-qn{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:15;width:min(560px,calc(100% - 24px));box-sizing:border-box;background:var(--surface);border:1px solid var(--rule-2);border-radius:10px;box-shadow:var(--shadow-lg);padding:12px 14px}' +
       '.lab-qn-h{margin-bottom:8px}.lab-qn-g{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;max-height:40vh;overflow:auto}.lab-qn-f{gap:10px;align-items:center;flex-wrap:wrap}' +
+      '.lab-save-btn{margin-left:10px}.lab-save-err{color:var(--bad);min-height:16px;margin-top:8px}' +
       '.lab-share{display:inline-flex;align-items:center;gap:6px;margin-left:10px}.lab-share .seg button{height:20px;font-size:11px;padding:0 7px}.lab-file{flex:none}' +
       '.lab-rm-proj{margin:10px 0}@media (max-width:820px){.lab-qn{top:56px}.lab-reg-a{max-width:150px}}';
   } catch (e) { warn('css 10', e); }
+
+  /* ---- 11. The canvas pills in a note (V3.882) ----
+     The Lab Notebook's four movable pills (whiteboard.js V3.837–V3.863) on every Scientia note, driving Scientia's own
+     tools — nothing copied: ✎ the hand (zoom · move · pen · highlighter · lasso; the second arc is the mode's options),
+     ＋ Insert (the most used of INSERTS; More… = Gabe's whole list), ✦ Tools (timer, calculator, equation, Gabe's ink
+     bar, focus mode), ⊕ View (in · 100 % · out · fit, the zoom % under it). The hand IS Gabe's ink state — pen /
+     highlighter / lasso / eraser = INK.tool with INK.mouse on; move = INK.mouse off (the paper pans, components drag);
+     zoom = ours (a tap zooms ×1.5 at the point, Alt / Shift: out; a drag up or down zooms smoothly) — read back on every
+     paint, so his ink bar and the pill never disagree. A pill drags anywhere (fractions of the note's area, _ls
+     lab:pills); the fan opens away from the nearest edges; a tap outside closes it; a double tap on ✎ = the last mode. */
+  var PILL_ICONS = {"magnifying-glass": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z\"/>", "hand": "<path d=\"M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2\" /><path d=\"M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2\" /><path d=\"M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8\" /><path d=\"M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15\" />", "pencil": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125\"/>", "highlighter": "<path d=\"m9 11-6 6v3h9l3-3\" /><path d=\"m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4\" />", "plus": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 4.5v15m7.5-7.5h-15\"/>", "minus": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 12h14\"/>", "home": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25\"/>", "arrow-uturn-left": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3\"/>", "arrow-uturn-right": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m15 15 6-6m0 0-6-6m6 6H9a6 6 0 0 0 0 12h3\"/>", "x-mark": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M6 18 18 6M6 6l12 12\"/>", "calculator": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm2.498-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5v2.25h-7.5V6ZM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0 0 12 2.25Z\"/>", "clock": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z\"/>", "arrows-pointing-out": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z\"/>", "squares-plus": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 0 0 2.25-2.25V6a2.25 2.25 0 0 0-2.25-2.25H6A2.25 2.25 0 0 0 3.75 6v2.25A2.25 2.25 0 0 0 6 10.5Zm0 9.75h2.25A2.25 2.25 0 0 0 10.5 18v-2.25a2.25 2.25 0 0 0-2.25-2.25H6a2.25 2.25 0 0 0-2.25 2.25V18A2.25 2.25 0 0 0 6 20.25Zm9.75-9.75H18a2.25 2.25 0 0 0 2.25-2.25V6A2.25 2.25 0 0 0 18 3.75h-2.25A2.25 2.25 0 0 0 13.5 6v2.25a2.25 2.25 0 0 0 2.25 2.25Z\"/>", "sparkles": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z\"/>", "pause": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15.75 5.25v13.5m-7.5-13.5v13.5\"/>", "play": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z\"/>", "eye": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z\"/><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z\"/>", "variable": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M4.745 3A23.933 23.933 0 0 0 3 12c0 3.183.62 6.22 1.745 9M19.5 3c.967 2.78 1.5 5.817 1.5 9s-.533 6.22-1.5 9M8.25 8.885l1.444-.89a.75.75 0 0 1 1.105.402l2.402 7.206a.75.75 0 0 0 1.104.401l1.445-.889m-8.25.75.213.09a1.687 1.687 0 0 0 2.062-.617l4.45-6.676a1.688 1.688 0 0 1 2.062-.618l.213.09\"/>", "bolt": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z\"/>", "lasso": "<ellipse cx=\"12\" cy=\"10\" rx=\"8\" ry=\"5.5\" stroke-dasharray=\"2.6 2.4\"/><path stroke-linecap=\"round\" d=\"M9.5 15.2c-.6 1.8-.2 3.6 1.4 4.8\"/>"};
+  function pic(name) { var p = PILL_ICONS[name]; return p ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false">' + p + '</svg>' : ''; }
+  function picEl(name) { var s = h('span.lab-pic'); s.innerHTML = pic(name); return s; }
+  var LP = { open: null, zoom: false, last: null, seen: null, pos: _ls.get('lab:pills', {}) || {}, tap: null, suppress: 0 };
+  LAB.pills = LP;
+  var PILLS = { hand: { icon: '✎', label: 'Zoom · move · pen · highlighter · lasso (double-tap: the last mode)', side: 'left' },
+    insert: { icon: '＋', label: 'Insert into this note', side: 'left' }, tools: { icon: '✦', label: 'Tools', side: 'left' }, view: { icon: '⊕', label: 'View', side: 'right' } };
+  var HAND_NAMES = { zoom: 'Zoom', move: 'Move', pen: 'Pen', hl: 'Highlighter', lasso: 'Lasso', eraser: 'Eraser' };
+  var FAN_RINGS = [[5, 84], [7, 140], [9, 196]];
+  function fanPos(i, n, side, vert) {
+    var k = i, start = 0, ring = 0;
+    while (ring < FAN_RINGS.length - 1 && k >= Math.min(FAN_RINGS[ring][0], n - start)) { var c = Math.min(FAN_RINGS[ring][0], n - start); k -= c; start += c; ring++; }
+    var cnt = Math.max(1, Math.min(FAN_RINGS[ring][0], n - start)), r = FAN_RINGS[ring][1];
+    var a0 = side === 'left' ? (vert === 'up' ? 4 : 274) : (vert === 'up' ? 94 : 184), a1 = a0 + 82, a = cnt === 1 ? (a0 + a1) / 2 : a0 + (a1 - a0) * k / (cnt - 1), t = a * Math.PI / 180;
+    return { x: Math.round(Math.cos(t) * r), y: Math.round(-Math.sin(t) * r) };
+  }
+  // a colour the person adds is kept per device and joins Gabe's swatches (a stroke stores its colour, so this is safe)
+  try { (_ls.get('lab:inkColors', []) || []).forEach(function (c) { if (/^#[0-9a-f]{6}$/i.test(c) && INK.COLORS.indexOf(c) < 0 && INK.COLORS.length < 8) INK.COLORS.push(c); }); } catch (e) {}
+  function handNow() {
+    if (LP.zoom) return 'zoom';
+    if (!INK.mouse) return 'move';
+    return INK.tool === 'hl' ? 'hl' : INK.tool === 'lasso' ? 'lasso' : INK.tool === 'eraser' ? 'eraser' : 'pen';
+  }
+  function handGroup() { var m = handNow(); return m === 'eraser' ? 'pen' : m; }
+  function setHand(m) {
+    var cur = handNow(); if (cur === m) return;
+    LP.zoom = m === 'zoom';
+    if (m === 'zoom' || m === 'move') { INK.mouse = false; if (INK.sel) INK.clearSel(); INK.paintBars(); }
+    else { INK.mouse = true; INK.setTool(m); }
+    paintAll();
+  }
+  function trackHand() { var m = handNow(); if (LP.seen && LP.seen !== m) LP.last = LP.seen; LP.seen = m; }
+  function lastHand() { var cur = handNow(), t = LP.last; if (!t || t === cur) t = /^(move|zoom)$/.test(cur) ? 'pen' : 'move'; setHand(t); toast(HAND_NAMES[handNow()] + ' — double-tap ✎ to switch back', 1400); }
+  function centerAt(pane) { var r = pane.paper.rect(), c = pane.paper.toWorld(r.left + r.width / 2, r.top + r.height / 2); return { x: Math.round((c.x - 200) / 14) * 14, y: Math.round((c.y - 140) / 14) * 14 }; }
+  function zoomBy(pane, k) { var P = pane.paper; P.zoomAt(P.view.z * k); }
+  function zoom100(pane) { var P = pane.paper; P.zoomAt(1); }
+  function fitAll(pane) { try { var bb = pane.bbox && pane.bbox(); pane.paper.fit(bb || undefined); } catch (e) { warn('fit', e); } }
+  function insertRows(d) {
+    var rows = INSERTS.filter(function (x) { return !x.when || x.when(d); }), pick = ['component', 'rmpaper', 'material', 'rmprotocol', 'run', 'plate', 'task', 'rmaction', 'rmcollection'], out = [];
+    pick.forEach(function (id) { var x = rows.filter(function (r) { return r.id === id; })[0]; if (x) out.push(x); });
+    rows.forEach(function (x) { if (out.length < 9 && out.indexOf(x) < 0) out.push(x); });
+    return out.slice(0, 9);
+  }
+  function pillItems(name, pane) {
+    var d = M.doc(pane.docId), items = []; if (!d) return items;
+    if (name === 'hand') {
+      var g = handGroup();
+      [['zoom', 'magnifying-glass', 'Zoom — tap to zoom in, Alt-tap out, drag up or down'], ['move', 'hand', 'Move — drag the paper to pan, drag a component to move it'], ['pen', 'pencil', 'Pen — draw with the mouse or the pen'],
+        ['hl', 'highlighter', 'Highlighter — wide and see-through'], ['lasso', 'lasso', 'Lasso — circle strokes to move, recolour, delete or convert']].forEach(function (f) {
+        items.push({ icon: pic(f[1]), label: f[2], sel: g === f[0], mode: true, keep: true, run: function () { setHand(f[0]); } }); });
+      var undo = function () { items.push({ icon: pic('arrow-uturn-left'), label: 'Undo', keep: true, run: function () { App.undo(); } }); items.push({ icon: pic('arrow-uturn-right'), label: 'Redo', keep: true, run: function () { App.redo(); } }); };
+      var colours = function () { INK.COLORS.forEach(function (c, k) { items.push({ dot: INK.swatch(c), hl: g === 'hl', label: c === 'auto' ? 'Ink (black, or white on the dark theme)' : 'Colour ' + c, sel: INK.color === k && INK.tool !== 'eraser', keep: true,
+        run: function () { INK.color = k; _ls.set('inkColor', k); if (INK.tool === 'eraser') INK.setTool('pen'); else INK.paintBars(); paintAll(); } }); }); };
+      var widths = function () { INK.WIDTHS.forEach(function (w, k) { items.push({ bar: Math.max(2, Math.round(w * 1.6)), label: ['Fine', 'Medium', 'Bold'][k] || 'Width', sel: INK.width === k, keep: true, run: function () { INK.width = k; _ls.set('inkWidth', k); INK.paintBars(); paintAll(); } }); }); };
+      if (g === 'pen') {
+        colours();
+        items.push({ eraser: true, label: INK.tool === 'eraser' ? 'Back to the pen' : 'Eraser — touch strokes to remove them', sel: INK.tool === 'eraser', keep: true, run: function () { INK.setTool(INK.tool === 'eraser' ? 'pen' : 'eraser'); paintAll(); } });
+        widths();
+        if (INK.COLORS.length < 8) items.push({ addColour: true, label: 'Add a colour (kept on this device)', keep: true });
+        items.push({ icon: '<span class="lab-pr' + (INK.pressure ? ' on' : '') + '">P</span>', label: INK.pressure ? 'Pressure on — pressing harder draws thicker (tap: off)' : 'Pressure off — even lines (tap: on)', sel: INK.pressure, keep: true,
+          run: function () { INK.pressure = !INK.pressure; _ls.set('inkPressure', INK.pressure); INK.paintBars(); paintAll(); } });
+        undo();
+      } else if (g === 'hl') { colours(); widths(); undo(); }
+      else if (g === 'zoom') {
+        items.push({ icon: pic('plus'), label: 'Zoom in', keep: true, run: function () { zoomBy(pane, 1.25); } });
+        items.push({ icon: pic('minus'), label: 'Zoom out', keep: true, run: function () { zoomBy(pane, 0.8); } });
+        items.push({ icon: '<b class="lab-100">1:1</b>', label: '100 %', keep: true, run: function () { zoom100(pane); } });
+        items.push({ icon: pic('arrows-pointing-out'), label: 'Fit everything on the screen', run: function () { fitAll(pane); } });
+      } else if (g === 'move') {
+        items.push({ icon: '<b class="lab-100">1:1</b>', label: '100 %', keep: true, run: function () { zoom100(pane); } });
+        items.push({ icon: pic('arrows-pointing-out'), label: 'Fit everything on the screen', run: function () { fitAll(pane); } });
+        undo();
+      } else if (g === 'lasso') undo();
+    } else if (name === 'insert') {
+      insertRows(d).forEach(function (x) { var lab = typeof x.label === 'function' ? x.label(d) : x.label;
+        items.push({ icon: '<span class="lab-insic">' + esc(x.icon || '•') + '</span>', label: lab + (x.sub ? ' — ' + x.sub : ''), run: function () { x.run(d, centerAt(pane), pane); } }); });
+      items.push({ icon: '<span class="lab-insic">…</span>', label: 'Everything that can go in this note', run: function (el) { INSERT.menu(pane, el); } });
+    } else if (name === 'tools') {
+      var s = TIMER.activeFor(d.id);
+      items.push({ icon: pic(!s ? 'clock' : s.state === 'running' ? 'pause' : 'play'), label: !s ? 'Start this note’s timer' : s.state === 'running' ? 'Pause the timer' : 'Resume the timer', sel: !!s, keep: true,
+        run: function () { var cur = TIMER.activeFor(d.id); if (!cur) { if (typeof TCMP !== 'undefined' && TCMP.start) TCMP.start(d.id); else TIMER.start(d.id); } else if (cur.state === 'running') TIMER.pause(cur); else TIMER.resume(cur); paintAll(); } });
+      items.push({ icon: pic('calculator'), label: 'A calculator in this note', run: function () { CALC.open(pane); } });
+      items.push({ icon: pic('variable'), label: 'An equation — new, or a registered one', run: function (el) { var r = el.getBoundingClientRect(); EQ.newMenu(pane, { clientX: r.left, clientY: r.top, currentTarget: el, target: el, preventDefault: function () {}, stopPropagation: function () {} }); } });
+      items.push({ icon: pic('eye'), label: INK.shown ? 'Hide Gabe’s ink bar' : 'Show the ink bar (pressure feel, convert to text)', sel: INK.shown, keep: true,
+        run: function () { INK.shown = !INK.shown; _ls.set('inkBar', INK.shown); INK.paintBars(); $$('.ctools .ct-ink').forEach(function (b) { b.classList.toggle('on', INK.shown); }); paintAll(); } });
+      items.push({ icon: pic('arrows-pointing-out'), label: document.fullscreenElement ? 'Leave focus mode' : 'Focus mode — full screen', run: function () { App.toggleFocus(); } });
+      if (Object.keys(LP.pos).length) items.push({ icon: pic('home'), label: 'Put the pills back in their places', run: function () { LP.pos = {}; _ls.set('lab:pills', {}); paintAll(); } });
+    } else if (name === 'view') {
+      items.push({ icon: pic('plus'), label: 'Zoom in', keep: true, run: function () { zoomBy(pane, 1.25); } });
+      items.push({ icon: '<b class="lab-100">1:1</b>', label: '100 %', keep: true, run: function () { zoom100(pane); } });
+      items.push({ icon: pic('minus'), label: 'Zoom out', keep: true, run: function () { zoomBy(pane, 0.8); } });
+      items.push({ icon: pic('arrows-pointing-out'), label: 'Fit everything on the screen', run: function () { fitAll(pane); } });
+    }
+    return items;
+  }
+  function addColourItem(it, close) {
+    var inp = h('input', { type: 'color', value: '#7c3aed', 'aria-label': 'A new ink colour', on: { change: function (e) { var c = String(e.target.value || '').toLowerCase(); if (!/^#[0-9a-f]{6}$/.test(c)) return;
+      if (INK.COLORS.indexOf(c) < 0) { INK.COLORS.push(c); var keep = (_ls.get('lab:inkColors', []) || []).concat([c]).slice(-3); _ls.set('lab:inkColors', keep); }
+      INK.color = INK.COLORS.indexOf(c); _ls.set('inkColor', INK.color); if (INK.tool === 'eraser' || INK.tool === 'lasso') INK.setTool('pen'); else INK.paintBars(); paintAll(); } } });
+    return h('label.lab-fan-item.lab-addc', { title: it.label, style: it.style }, picEl('plus'), inp);
+  }
+  function pillEl(name, pane, host) {
+    var def = PILLS[name], open = !!(LP.open && LP.open.name === name && LP.open.doc === pane.docId), items = open ? pillItems(name, pane) : [];
+    var bw = host.clientWidth || 800, bh = host.clientHeight || 600, sz = 44, pp = LP.pos[name], side = def.side, vert = 'up', style = null;
+    if (pp && isFinite(+pp.fx) && isFinite(+pp.fy)) {
+      var left = Math.round(Math.max(0, Math.min(bw - sz, pp.fx * bw - sz / 2))), top = Math.round(Math.max(0, Math.min(bh - sz, pp.fy * bh - sz / 2)));
+      style = { left: left + 'px', top: top + 'px', right: 'auto', bottom: 'auto' }; side = left + sz / 2 > bw / 2 ? 'right' : 'left'; vert = top + sz / 2 < Math.min(bh / 2, 240) ? 'down' : 'up';
+    }
+    var hm = handNow(), face;
+    if (name === 'hand') face = pic(hm === 'zoom' ? 'magnifying-glass' : hm === 'move' ? 'hand' : hm === 'hl' ? 'highlighter' : hm === 'lasso' ? 'lasso' : 'pencil');
+    else if (name === 'view') face = '<span class="lab-pill-glyph">' + def.icon + '</span>';
+    else face = '<span class="lab-pill-glyph">' + def.icon + '</span>';
+    var b = h('button.lab-pill-btn', { type: 'button', title: def.label + ' (drag to move)', 'aria-label': def.label, 'aria-expanded': String(!!open) });
+    b.innerHTML = face + (name === 'hand' && /^(pen|hl|eraser)$/.test(hm) ? '<span class="lab-pill-dot' + (hm === 'hl' ? ' hl' : '') + (hm === 'eraser' ? ' er' : '') + '" style="background:' + (hm === 'eraser' ? '#fff' : INK.swatch(INK.COLORS[INK.color])) + '"></span>' : '')
+      + (name === 'view' ? '<span class="lab-pill-pct">' + Math.round((pane.paper ? pane.paper.view.z : 1) * 100) + '%</span>' : '')
+      + (name === 'tools' && TIMER.activeFor(pane.docId) ? '<span class="lab-pill-live"></span>' : '');
+    var cap = h('span.lab-fan-cap');
+    var fan = h('div.lab-fan', items.map(function (it, i) {
+      var p = fanPos(i, items.length, side, vert), st = { '--tx': p.x + 'px', '--ty': p.y + 'px', '--d': (i * 14) + 'ms' };
+      if (it.addColour) return addColourItem({ label: it.label, style: st });
+      var el = h('button.lab-fan-item' + (it.sel ? '.sel' : '') + (it.mode ? '.mode' : ''), { type: 'button', title: it.label, 'aria-label': it.label, style: st,
+        on: { pointerenter: function () { cap.textContent = it.label; }, pointerleave: function () { cap.textContent = ''; },
+          click: function (e) { e.stopPropagation(); try { it.run(el); } catch (x) { warn('pill', x); } if (!it.keep) { LP.open = null; } paintAll(); } } });
+      if (it.dot) el.innerHTML = '<span class="lab-fan-dot' + (it.hl ? ' hl' : '') + '" style="background:' + it.dot + '"></span>';
+      else if (it.bar) el.innerHTML = '<span class="lab-fan-bar" style="height:' + it.bar + 'px"></span>';
+      else if (it.eraser) el.innerHTML = '<span class="lab-fan-eraser"></span>';
+      else el.innerHTML = it.icon;
+      return el;
+    }), open ? cap : null);
+    var pill = h('div.lab-pill.lab-pill-' + name + (open ? '.open' : '') + (name === 'hand' && /^(zoom|move|lasso|eraser)$/.test(hm) ? '.on' : ''), { 'data-pill': name, 'data-side': side, 'data-vert': vert, style: style || {} }, b, fan);
+    bindPill(pill, b, name, pane, host);
+    if (open) requestAnimationFrame(function () { pill.classList.add('fanned'); });
+    return pill;
+  }
+  function bindPill(pill, b, name, pane, host) {
+    b.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      var r = host.getBoundingClientRect(), pr = pill.getBoundingClientRect(), ox = e.clientX - pr.left, oy = e.clientY - pr.top, sx = e.clientX, sy = e.clientY, dragging = false;
+      try { b.setPointerCapture(e.pointerId); } catch (x) {}
+      function mv(ev) {
+        if (!dragging && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+        dragging = true; pill.classList.add('dragging');
+        pill.style.left = Math.max(0, Math.min(r.width - pr.width, ev.clientX - r.left - ox)) + 'px'; pill.style.top = Math.max(0, Math.min(r.height - pr.height, ev.clientY - r.top - oy)) + 'px'; pill.style.right = 'auto'; pill.style.bottom = 'auto';
+      }
+      function up() {
+        b.removeEventListener('pointermove', mv); b.removeEventListener('pointerup', up); b.removeEventListener('pointercancel', up); pill.classList.remove('dragging');
+        if (!dragging) return;
+        LP.suppress = Date.now();
+        var L = parseFloat(pill.style.left) || 0, T = parseFloat(pill.style.top) || 0;
+        LP.pos[name] = { fx: Math.round((L + pr.width / 2) / r.width * 1000) / 1000, fy: Math.round((T + pr.height / 2) / r.height * 1000) / 1000 }; _ls.set('lab:pills', LP.pos);
+        paintAll();
+      }
+      b.addEventListener('pointermove', mv); b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
+    });
+    b.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (Date.now() - LP.suppress < 400) return;
+      var toggle = function () { LP.open = LP.open && LP.open.name === name && LP.open.doc === pane.docId ? null : { name: name, doc: pane.docId }; paintAll(); };   // keyed to the note: a re-render makes a new host
+      if (name !== 'hand') return toggle();
+      if (LP.tap) { clearTimeout(LP.tap); LP.tap = null; LP.open = null; lastHand(); return; }   // a double tap: the last mode
+      LP.tap = setTimeout(function () { LP.tap = null; toggle(); }, 230);
+    });
+  }
+  function paintPills(pane) {
+    var host = pane && pane.host; if (!host || !host.isConnected || !pane.paper || !M.doc(pane.docId)) return;
+    var box = $(':scope > .lab-pills', host);
+    if (!box) { box = h('div.lab-pills.nopan'); host.append(box); bindZoomHand(pane, host); }
+    trackHand();
+    host.classList.toggle('lab-hand-zoom', LP.zoom); host.classList.toggle('lab-hand-move', handNow() === 'move');
+    box.classList.toggle('fan-open', !!(LP.open && LP.open.doc === pane.docId));
+    box.replaceChildren.apply(box, ['insert', 'tools', 'hand', 'view'].map(function (n) { return pillEl(n, pane, host); }));
+  }
+  function paintAll() { try { App.panes().forEach(paintPills); } catch (e) { warn('pills', e); } }
+  LAB.paintPills = paintAll; LAB.setHand = setHand; LAB.handNow = handNow;
+  /* the zoom hand: a tap zooms in ×1.5 at the point (Alt / Shift / right button: out); a drag up or down zooms smoothly */
+  function bindZoomHand(pane, host) {
+    host.addEventListener('pointerdown', function (e) {
+      if (!LP.zoom || e.pointerType === 'pen' || e.target.closest('.lab-pills,.dock,.ctools,.insp,.ink-bar,.ink-selbar,.pop,.hint,button,input,textarea,select,a')) return;
+      var P = host._dv && host._dv.paper; if (!P) return;
+      e.preventDefault(); e.stopPropagation();
+      var y0 = e.clientY, x0 = e.clientX, z0 = P.view.z, moved = 0, out = e.altKey || e.shiftKey || e.button === 2;
+      function mv(ev) { moved = Math.max(moved, Math.abs(ev.clientY - y0)); if (moved > 4) P.zoomAt(z0 * Math.exp(-(ev.clientY - y0) * 0.01), x0, y0); }
+      function up() { removeEventListener('pointermove', mv, true); removeEventListener('pointerup', up, true); removeEventListener('pointercancel', up, true); if (moved <= 4) P.zoomAt(P.view.z * (out ? 1 / 1.5 : 1.5), x0, y0); }
+      addEventListener('pointermove', mv, true); addEventListener('pointerup', up, true); addEventListener('pointercancel', up, true);
+    }, true);
+    host.addEventListener('contextmenu', function (e) { if (LP.zoom && !e.target.closest('.lab-pills')) e.preventDefault(); }, true);
+  }
+  try {
+    var oDocRender11 = DocView.render;
+    DocView.render = function (docId) { var r = oDocRender11.apply(this, arguments), pane = this; requestAnimationFrame(function () { paintPills(pane); }); return r; };
+    var oPaint = INK.paintBars; INK.paintBars = function () { var r = oPaint.apply(INK, arguments); paintAll(); return r; };
+    // the zoom % under ⊕ follows every pan and zoom
+    var oApply = Paper.prototype.apply;
+    Paper.prototype.apply = function () { var r = oApply.apply(this, arguments); try { var host = this.el.parentNode, pct = host && host.querySelector && host.querySelector(':scope > .lab-pills .lab-pill-pct'); if (pct) pct.textContent = Math.round(this.view.z * 100) + '%'; } catch (e) {} return r; };
+    document.addEventListener('pointerdown', function (e) { if (LP.open && !(e.target.closest && e.target.closest('.lab-pills'))) { LP.open = null; paintAll(); } }, true);
+    var oTimerPaint = TIMERUI.paint; TIMERUI.paint = function () { var r = oTimerPaint.apply(TIMERUI, arguments); if (LP.open && LP.open.name === 'tools') paintAll(); return r; };
+  } catch (e) { warn('pills', e); }
+  try {
+    var st11 = document.getElementById('lab-mode-css');
+    if (st11) st11.textContent += '.lab-pills{position:absolute;inset:0;pointer-events:none;z-index:18}.lab-pill{position:absolute;width:44px;height:44px;pointer-events:auto}' +
+      '.lab-pill-insert{left:14px;top:calc(50% - 84px)}.lab-pill-tools{left:14px;top:calc(50% - 28px)}.lab-pill-hand{left:14px;top:calc(50% + 28px)}.lab-pill-view{right:14px;top:calc(50% + 28px)}' +
+      '.lab-pills.fan-open .lab-pill:not(.open){opacity:.22;pointer-events:none}.lab-pill.open{z-index:3}.canvas-host .insp.open ~ .lab-pills .lab-pill-view:not([style*="left"]){right:344px}' +
+      '.lab-pill-btn{position:relative;z-index:2;width:44px;height:44px;border-radius:50%;border:1px solid var(--rule-2);background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(36,33,28,.08),0 6px 18px -10px rgba(36,33,28,.45);cursor:pointer;display:grid;place-items:center;padding:0;touch-action:none;font:600 19px/1 var(--f-d,system-ui)}' +
+      '.lab-pill-btn svg{width:20px;height:20px;pointer-events:none}.lab-pill-glyph{pointer-events:none}.lab-pill.open .lab-pill-btn{background:var(--ink);color:var(--paper);border-color:var(--ink)}' +
+      '.lab-pill.on:not(.open) .lab-pill-btn{box-shadow:0 0 0 3px color-mix(in srgb,var(--teal) 30%,transparent)}.lab-pill.dragging .lab-pill-btn{transform:scale(1.06);box-shadow:0 10px 26px -8px rgba(36,33,28,.6)}' +
+      '.lab-pill-dot{position:absolute;right:-2px;top:-2px;width:14px;height:14px;border-radius:50%;border:2px solid var(--surface);box-sizing:border-box}.lab-pill-dot.hl{opacity:.6}.lab-pill-dot.er{border-color:var(--ink-3)}' +
+      '.lab-pill-pct{position:absolute;left:50%;bottom:-17px;transform:translateX(-50%);font:600 10px/16px var(--f-m,monospace);color:var(--ink-3);white-space:nowrap;pointer-events:none}' +
+      '.lab-pill-live{position:absolute;right:0;top:0;width:10px;height:10px;border-radius:50%;background:var(--teal);border:2px solid var(--surface)}' +
+      '.lab-fan{position:absolute;left:22px;top:22px;width:0;height:0}' +
+      '.lab-fan-item{position:absolute;left:-18px;top:-18px;width:36px;height:36px;border-radius:50%;border:1px solid var(--rule-2);background:var(--surface);color:var(--ink);box-shadow:0 2px 8px -4px rgba(36,33,28,.5);display:grid;place-items:center;padding:0;cursor:pointer;font:500 15px/1 var(--f-d,system-ui);transform:translate(0,0) scale(.4);opacity:0;transition:transform .22s cubic-bezier(.2,.9,.3,1.2) var(--d,0ms),opacity .16s var(--d,0ms);touch-action:manipulation}' +
+      '.lab-fan-item svg{width:17px;height:17px;pointer-events:none}.lab-pill.fanned .lab-fan-item{transform:translate(var(--tx),var(--ty)) scale(1);opacity:1}.lab-fan-item:hover{border-color:var(--ink-3)}' +
+      '.lab-fan-item.sel{background:var(--ink);color:var(--paper);border-color:var(--ink)}.lab-fan-item.mode{width:38px;height:38px;left:-19px;top:-19px}' +
+      '.lab-fan-dot{width:18px;height:18px;border-radius:50%;display:block;border:1px solid rgba(0,0,0,.15)}.lab-fan-dot.hl{opacity:.55}.lab-fan-item.sel .lab-fan-dot{box-shadow:0 0 0 2px var(--paper)}' +
+      '.lab-fan-bar{display:block;width:20px;border-radius:3px;background:currentColor}.lab-fan-eraser{display:block;width:16px;height:16px;border-radius:50%;border:1.5px solid currentColor}' +
+      '.lab-addc{overflow:hidden}.lab-addc input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}.lab-insic{font-size:16px;line-height:1}.lab-100{font:700 10px/1 var(--f-m,monospace)}' +
+      '.lab-pr{font:700 12px/1 var(--f-m,monospace)}' +
+      '.lab-fan-cap{position:absolute;left:30px;top:-60px;white-space:nowrap;font:500 11px/18px var(--f-d,system-ui);color:var(--ink-2);background:var(--surface);border:1px solid var(--rule-2);border-radius:999px;padding:0 8px;pointer-events:none}' +
+      '.lab-fan-cap:empty{display:none}.lab-pill[data-side="right"] .lab-fan-cap{left:auto;right:30px}.lab-pill[data-vert="down"] .lab-fan-cap{top:30px}' +
+      '.canvas-host.lab-hand-zoom .paper{cursor:zoom-in}' +
+      '';
+  } catch (e) { warn('css 11', e); }
 })();

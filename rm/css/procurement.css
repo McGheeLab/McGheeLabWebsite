@@ -192,6 +192,9 @@
 .pt-pk-badge--out { background: var(--red-bg); color: var(--red); }
 .pt-pk-badge--rec { background: rgba(37,99,235,.1); color: var(--primary); }
 .pt-pk-badge--tkt { border: 1px dashed var(--border); background: transparent; }
+.pt-pk-badge--open { background: rgba(37,99,235,.12); color: var(--primary); }   /* V3.883 — already requested */
+.pt-already { align-items: flex-start; }
+.pt-already a { font-weight: 600; }
 .pt-pk-row .btn { white-space: nowrap; }
 .pt-pk-row .btn svg { width: 14px; height: 14px; vertical-align: -2px; }
 .pt-reorder-item { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; background: rgba(0,0,0,.025); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 12px; font-size: 13px; }

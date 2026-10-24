@@ -35,12 +35,14 @@ const SRC = '/rm/scientia/scientia.html';
 const VIEW_KEY = 'nbc_view';
 const COL_KEY = 'nbc_sis_col';
 const MAX_TABS = 20;
+const OPEN_KEY = 'nbc_sis_open';   /* V3.882 — the notes open as tabs, in the order they were opened */
+const SEED_TABS = 6;
 const LIVE_MS = 3 * 60 * 1000;
 
 const S = {
   uid: null, hooks: {}, active: false, collapsed: false,
   notes: [], sig: '', hub: null, keys: [], unsubs: [],
-  frame: null, route: '', ready: false, queue: [],
+  frame: null, route: '', ready: false, queue: [], open: null,
   panel: false, upload: null, newKey: null, busy: false, tick: null
 };
 
@@ -112,18 +114,40 @@ async function shouldOpen() {
 
 /* ─── the tab group ─── */
 function noteIdOf(hash) { const m = /^#\/(?:doc|split)\/([^/?#]+)/.exec(hash || ''); return m ? decodeURIComponent(m[1]) : null; }
+/* V3.882 — the tabs are the person's OPEN notes: a note joins when it is opened (a tab, the Portfolio, a link) and
+   leaves with its ×; the list is this browser's (localStorage), seeded the first time with the most recent notes. */
+function openIds() {
+  if (!S.open) { let v = null; try { v = JSON.parse(ls(OPEN_KEY) || 'null'); } catch (e) {} S.open = Array.isArray(v) ? v.map(String) : null; }
+  if (!S.open && S.notes.length) { S.open = S.notes.slice(0, SEED_TABS).map(n => n.id); saveOpen(); }
+  return S.open || [];
+}
+function saveOpen() { ls(OPEN_KEY, JSON.stringify(S.open || [])); }
+function openTab(id) {
+  if (!id) return false;
+  const o = openIds().slice(); if (o.includes(id)) return false;
+  o.push(id); if (o.length > MAX_TABS) o.splice(0, o.length - MAX_TABS);
+  S.open = o; saveOpen(); return true;
+}
+function closeTab(id) {
+  const o = openIds(), i = o.indexOf(id); if (i < 0) return;
+  S.open = o.filter(x => x !== id); saveOpen();
+  if (S.active && noteIdOf(S.route) === id) {
+    const live = S.open.filter(x => S.notes.some(n => n.id === x)), next = live[Math.min(i, live.length - 1)];
+    show(next ? '#/doc/' + encodeURIComponent(next) : '#/home');
+  } else if (S.hooks.renderTabs) S.hooks.renderTabs();
+}
 function tabsHtml({ q }) {
-  const query = String(q || '').trim().toLowerCase();
-  const list = S.notes.filter(n => !query || `${n.title} ${n.type}`.toLowerCase().includes(query));
-  const shown = list.slice(0, MAX_TABS), on = S.active, cur = noteIdOf(S.route);
+  const query = String(q || '').trim().toLowerCase(), byId = new Map(S.notes.map(n => [n.id, n]));
+  const list = query ? S.notes.filter(n => `${n.title} ${n.type}`.toLowerCase().includes(query)) : openIds().map(id => byId.get(id)).filter(Boolean);
+  const shown = query ? list.slice(0, MAX_TABS) : list.slice(-MAX_TABS), on = S.active, cur = noteIdOf(S.route);
   const home = on && (!S.route || /^#\/?(home)?$/.test(S.route));
   const col = S.collapsed && !on;
   return `<div class="nbc-group nbc-sis-group${col ? ' nbc-col' : ''}${on ? ' nbc-group-on' : ''}" data-nb="scientia" style="--nbc:#1D1D1B">
     <button type="button" class="nbc-gname" data-t="sis-group" title="Scientia — Gabe's notebook app, the same notebook as the desktop app on your computer${col ? ' (show its notes)' : ''}"><i></i>Scientia<small>${S.notes.length}</small></button>
     ${col ? '' : `<button type="button" class="nbc-tab${home ? ' nbc-tab-on' : ''}" data-t="sis-go" data-hash="#/home" title="Today in Scientia"><span class="nbc-tab-title">Today</span></button>
-    ${shown.map(n => `<button type="button" class="nbc-tab${on && cur === n.id ? ' nbc-tab-on' : ''}" data-t="sis-go" data-hash="#/doc/${esc(encodeURIComponent(n.id))}" title="${esc(n.title)} · ${esc(n.type)}"><span class="nbc-tab-title">${esc(n.title)}</span><span class="nbc-tab-date">${esc(fmtTabDate(n.created))}</span></button>`).join('')}
-    ${list.length > shown.length ? `<button type="button" class="nbc-tab nbc-sis-more" data-t="sis-go" data-hash="#/portfolio" title="Every Scientia note"><span class="nbc-tab-title">All ${list.length}</span></button>` : ''}`}
-    <button type="button" class="nbc-tab-add" data-t="sis-new" title="New note in Scientia">＋</button>
+    ${shown.map(n => `<span class="nbc-sis-tab${on && cur === n.id ? ' nbc-sis-tab-on' : ''}" data-sis-tab="${esc(n.id)}"><button type="button" class="nbc-tab${on && cur === n.id ? ' nbc-tab-on' : ''}" data-t="sis-go" data-hash="#/doc/${esc(encodeURIComponent(n.id))}" title="${esc(n.title)} · ${esc(n.type)}"><span class="nbc-tab-title">${esc(n.title)}</span><span class="nbc-tab-date">${esc(fmtTabDate(n.created))}</span></button>${query ? '' : `<button type="button" class="nbc-tab-x" data-t="sis-close" data-id="${esc(n.id)}" title="Close this tab (the note stays)" aria-label="Close ${esc(n.title)}">${icon('x-mark') || '×'}</button>`}</span>`).join('')}
+    ${S.notes.length > shown.length ? `<button type="button" class="nbc-tab nbc-sis-more" data-t="sis-go" data-hash="#/portfolio" title="Every Scientia note, in the Portfolio"><span class="nbc-tab-title">All ${S.notes.length}</span></button>` : ''}`}
+    <button type="button" class="nbc-tab-add nbc-sis-quick" data-t="sis-quick" title="A quick note — a blank page; give it a title, type and project when you save it">${icon('plus') || '＋'}<span>Quick note</span></button>
   </div>`;
 }
 function onTab(b) {
@@ -134,6 +158,8 @@ function onTab(b) {
     if (!S.collapsed && !S.active) { show(null); return; }
     if (S.hooks.renderTabs) S.hooks.renderTabs();
   } else if (act === 'sis-go') show(b.dataset.hash);
+  else if (act === 'sis-close') closeTab(b.dataset.id);
+  else if (act === 'sis-quick') { show(null).then(() => send({ sisCmd: 'quick' })); }
   else if (act === 'sis-new') { show(null).then(() => send({ sisCmd: 'new' })); }
 }
 
@@ -168,6 +194,7 @@ function onFrameMessage(e) {
   if (e.data.type === 'rm-action-noted') send({ sisCmd: 'rm-ack', reqId: e.data.reqId, ok: noteActionFor(e.data.actionId, e.data.entryId, e.data.cardId) });
   if (typeof e.data.hash === 'string' && e.data.hash !== S.route) {
     S.route = e.data.hash;
+    openTab(noteIdOf(S.route));   /* V3.882 — a note opened anywhere in Scientia becomes a tab */
     if (S.active) { setUrl(); if (S.hooks.renderTabs) S.hooks.renderTabs(); }
   }
 }
@@ -230,7 +257,7 @@ async function show(target) {
   }
   const fresh = ensureFrame(target);
   if (!fresh && target) send({ sisCmd: 'go', hash: target });
-  if (target) S.route = target;
+  if (target) { S.route = target; openTab(noteIdOf(target)); }
   const r = root(); if (r) r.classList.add('nbc-sis-on');
   setUrl();
   if (S.hooks.renderHeader) S.hooks.renderHeader();

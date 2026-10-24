@@ -18,6 +18,16 @@ body.nbc-full .nbc-root.nbc-sis-on .nbc-sis{ border-radius: 0; }
 /* the Scientia group in the tab row */
 .nbc-sis-group .nbc-gname i{ background: #1D1D1B; }
 .nbc-sis-more .nbc-tab-title{ font-style: italic; }
+/* V3.882 — open tabs close with ×; ＋ Quick note after them */
+.nbc-sis-tab{ display: inline-flex; align-items: flex-end; flex: none; position: relative; }
+.nbc-sis-tab .nbc-tab{ padding-right: 22px; }
+.nbc-tab-x{ position: absolute; right: 3px; bottom: 6px; width: 17px; height: 17px; border: 0; border-radius: 4px; background: transparent; color: var(--ink-4, #9a9488); cursor: pointer; display: grid; place-items: center; padding: 0; font: 600 12px/1 var(--f-d); opacity: 0; }
+.nbc-tab-x svg{ width: 12px; height: 12px; }
+.nbc-sis-tab:hover .nbc-tab-x, .nbc-sis-tab-on .nbc-tab-x, .nbc-tab-x:focus-visible{ opacity: 1; }
+.nbc-tab-x:hover{ background: color-mix(in srgb, var(--ink) 10%, transparent); color: var(--ink); }
+@media (hover: none){ .nbc-tab-x{ opacity: .7; } }
+.nbc-sis-quick{ display: inline-flex; align-items: center; gap: 4px; }
+.nbc-sis-quick svg{ width: 13px; height: 13px; }
 
 /* header: the sync dot + status */
 .nbc-sis-meta{ display: flex; align-items: center; gap: 7px; min-width: 0; }

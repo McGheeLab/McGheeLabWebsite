@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>V3.883 inventory ↔ procurement journeys</title>
+<style>
+  body { font: 13px system-ui, sans-serif; margin: 0; }
+  .frames { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; height: 62vh; padding: 6px; }
+  .frames iframe { width: 100%; height: 100%; border: 1px solid #ccc; border-radius: 6px; background: #fff; }
+  .frames .lbl { font-weight: 700; margin: 0 0 2px; }
+  #r { font-family: ui-monospace, Menlo, monospace; font-size: 12px; white-space: pre-wrap; padding: 8px 12px; }
+  #r .bad { color: #b91c1c; font-weight: 700; } #r .ok { color: #15803d; }
+</style>
+<script>
+/* V3.883 — two REAL pages, ONE database.
+ *
+ * The procurement page (fixtures/journey-procurement.html → rm/js/procurement.js)
+ * and the inventory page (fixtures/journey-inventory.html → rm/js/inventory.js,
+ * inventory-qty, -use, -made …) each run in their own iframe; both read and
+ * write the in-memory Firestore below, so what one page writes the other reads.
+ * A persona switch reloads a frame as that person. Every value crosses the
+ * frames as JSON with dates marked, revived with the READING frame's Date, so
+ * instanceof Date holds wherever the page code checks it.
+ *
+ * Serve the repo root (python3 -m http.server) and open
+ * /scripts/tests/v3883-inventory-procurement-journeys.html. Result:
+ * #r[data-done=1] data-pass / data-fail; ?stop=<journey> stops after it. */
+var STORE = {};
+var WRITES = [], POPUPS = [], FULL_SAVES = [], SEQ = 0;
+function now() { return new Date(); }
+function iso(d) { return d.toISOString(); }
+(function seed() {
+  var day = 86400000, t = Date.now();
+  var D = function (ms) { return { __date: iso(new Date(t - ms)) }; };
+  STORE.labConfig = {
+    fundedProjects: { projects: [{ id: 'mcghee-startup', name: 'McGhee Startup', account_number: '1101935', status: 'active', type: 'startup' },
+                                 { id: 'prostate', name: 'Cancer Engineering - Prostate', account_number: '1101917', funding_string: '1101917-MCMI', status: 'active' }] },
+    fundingSources: { sources: [{ id: '1101935', label: 'Startup (1101935)' }] },
+  };
+  STORE.procurementTickets = {};
+  STORE.procurementDocs = {};
+  STORE.inventoryUsage = {};
+  STORE.inventoryLocations = { box1: { name: 'Freezer A/drawer 2', kind: 'box' } };
+  STORE.labels = {}; STORE.labelQueue = {}; STORE.priceWatch = {};
+  STORE.inventory = {
+    INV_TIPS: { kind: 'item', name: 'Pipette tips 200 µL', vendor: 'Fisher', catalogue_number: 'T-200', category: 'consumable', subcategory: 'pipette_tips', is_consumable: true,
+                quantity: 3, unit_price: 70, account_number: '1101935', condition: 'active', stock_status: 'full',
+                locations: [{ name: 'Bench 4/drawer 1', quantity: 3, notes: '' }], reorder: { vendor: 'Fisher', catalogue_number: 'T-200', last_price: 70, url: 'https://fisher.example/t200' } },
+    INV_FBS: { kind: 'item', name: 'FBS, heat inactivated', vendor: 'Gibco', catalogue_number: '10082147', category: 'research_cells', is_consumable: true,
+               qty_tracked: true, qty_unit: 'mL', qty_made: 500, qty_remaining: 50, quantity: 1, unit_price: 600, account_number: '1101935', condition: 'active', stock_status: 'low',
+               locations: [{ name: 'Freezer -20/rack 1', quantity: 1, notes: '' }], reorder: { vendor: 'Gibco', catalogue_number: '10082147', last_price: 600 } },
+    INV_SCOPE: { kind: 'item', name: 'Microscope, inverted', vendor: 'Nikon', category: 'equipment', quantity: 1, condition: 'active', stock_status: 'n/a', locations: [{ name: 'BSRL 312/scope room' }] },
+    LAB_LLS: { kind: 'item', name: 'LLS 100 µm beads', lab_made: true, lab_made_type: 'material', category: 'lab_made', subcategory: 'custom_material', description: 'beads', made_by_name: 'Someone',
+               is_consumable: true, condition: 'active', stock_status: 'full', locations: [{ name: 'fridge/box/001' }] },
+  };
+})();
+var USERS = [
+  { id: 'stu', name: 'Sam Student', role: 'editor' }, { id: 'pi', name: 'The PI', role: 'admin' }, { id: 'buy', name: 'Bo Buyer', role: 'editor' },
+  { id: 'mgr', name: 'Mia Manager', role: 'editor' }, { id: 'oth', name: 'Otto Other', role: 'editor' },
+];
+
+/* ── values across frames ── */
+function enc(data) {
+  return JSON.parse(JSON.stringify(data, function (k, v) {
+    var o = this[k];
+    if (o && Object.prototype.toString.call(o) === '[object Date]') return { __date: o.toISOString() };
+    return v;
+  }));
+}
+function dec(data, win) {
+  if (data == null) return data;
+  var W = win || window;
+  return W.JSON.parse(JSON.stringify(data), function (k, v) { return v && typeof v === 'object' && v.__date ? new W.Date(v.__date) : v; });
+}
+function applyPatch(target, patch) {
+  Object.keys(patch).forEach(function (k) {
+    var v = patch[k];
+    if (v && typeof v === 'object' && v.__stamp === true) target[k] = { __date: iso(now()) };
+    else if (v && typeof v === 'object' && Array.isArray(v.__arrayUnion)) {
+      var cur = Array.isArray(target[k]) ? target[k] : [];
+      v.__arrayUnion.forEach(function (e) { if (!cur.some(function (x) { return JSON.stringify(x) === JSON.stringify(e); })) cur.push(e); });
+      target[k] = cur;
+    } else if (v && typeof v === 'object' && v.__delete === true) delete target[k];
+    else if (v && typeof v === 'object' && typeof v.__inc === 'number') target[k] = (+target[k] || 0) + v.__inc;
+    else if (v && typeof v === 'object' && !Array.isArray(v) && !v.__date && Object.keys(v).some(function (x) { var y = v[x]; return y && typeof y === 'object' && (y.__stamp || y.__arrayUnion); })) {
+      target[k] = target[k] && typeof target[k] === 'object' ? target[k] : {}; applyPatch(target[k], v);
+    } else target[k] = v;
+  });
+}
+
+/* ── the one Firestore ── */
+function makeDb(win, who) {
+  function coll(path) { return STORE[path] || (STORE[path] = {}); }
+  function snap(path, id) { var d = coll(path)[id]; return { exists: !!d, id: id, data: function () { return d ? dec(d, win) : undefined; } }; }
+  function docRef(path, id) {
+    return {
+      id: id, path: path + '/' + id,
+      get: function () { return Promise.resolve(snap(path, id)); },
+      set: function (data, opts) {
+        var e = enc(data), c = coll(path);
+        if (opts && opts.merge && c[id]) applyPatch(c[id], e); else { c[id] = {}; applyPatch(c[id], e); }
+        WRITES.push({ who: who, op: 'set', coll: path, id: id }); return Promise.resolve();
+      },
+      update: function (patch) {
+        var c = coll(path);
+        if (!c[id]) return Promise.reject(new Error('not-found ' + path + '/' + id));
+        applyPatch(c[id], enc(patch)); WRITES.push({ who: who, op: 'update', coll: path, id: id, keys: Object.keys(patch) }); return Promise.resolve();
+      },
+      delete: function () { delete coll(path)[id]; WRITES.push({ who: who, op: 'delete', coll: path, id: id }); return Promise.resolve(); },
+      collection: function (sub) { return collRef(path + '/' + id + '/' + sub); },
+    };
+  }
+  function collRef(path, filters, order, lim) {
+    filters = filters || [];
+    var q = {
+      doc: function (id) { return docRef(path, id || (path.split('/').pop().slice(0, 4) + '_' + (++SEQ))); },
+      add: function (data) { var r = q.doc(); return r.set(data).then(function () { WRITES.push({ who: who, op: 'add', coll: path, id: r.id }); return r; }); },
+      where: function (f, op, v) { return collRef(path, filters.concat([[f, op, v]]), order, lim); },
+      orderBy: function (f, dir) { return collRef(path, filters, [f, dir || 'asc'], lim); },
+      limit: function (n) { return collRef(path, filters, order, n); },
+      get: function () {
+        var c = coll(path);
+        var ids = Object.keys(c).filter(function (id) {
+          return filters.every(function (fl) {
+            var val = c[id][fl[0]];
+            if (fl[1] === '==') return JSON.stringify(val) === JSON.stringify(fl[2]);
+            if (fl[1] === 'array-contains') return Array.isArray(val) && val.indexOf(fl[2]) >= 0;
+            if (fl[1] === 'in') return fl[2].indexOf(val) >= 0;
+            return true;
+          });
+        });
+        if (order) ids.sort(function (a, b) { var x = JSON.stringify(c[a][order[0]] || ''), y = JSON.stringify(c[b][order[0]] || ''); return (x < y ? -1 : x > y ? 1 : 0) * (order[1] === 'desc' ? -1 : 1); });
+        if (lim) ids = ids.slice(0, lim);
+        var docs = ids.map(function (id) { return snap(path, id); });
+        return Promise.resolve({ docs: docs, size: docs.length, empty: !docs.length, forEach: function (fn) { docs.forEach(fn); } });
+      },
+    };
+    return q;
+  }
+  function queue() {
+    var ops = [];
+    return {
+      ops: ops,
+      set: function (ref, d, o) { ops.push(function () { return ref.set(d, o); }); return this; },
+      update: function (ref, p) { ops.push(function () { return ref.update(p); }); return this; },
+      delete: function (ref) { ops.push(function () { return ref.delete(); }); return this; },
+      commit: function () { return ops.reduce(function (p, op) { return p.then(op); }, Promise.resolve()); },
+    };
+  }
+  return {
+    collection: function (path) { return collRef(path); },
+    batch: function () { return queue(); },
+    runTransaction: async function (fn) {
+      var b = queue();
+      var t = { get: function (ref) { return ref.get(); }, set: b.set, update: b.update, delete: b.delete };
+      var out = await fn(t);
+      await b.commit();
+      return out;
+    },
+  };
+}
+function makeStorage(who) {
+  STORE.__files = STORE.__files || {};
+  return { ref: function () { return { child: function (p) { return {
+    put: function (file, meta) { STORE.__files[p] = { name: file.name, size: file.size, contentType: (meta && meta.contentType) || file.type, by: who }; return Promise.resolve({ ref: { getDownloadURL: function () { return Promise.resolve('https://stub.storage/' + p); } } }); },
+    delete: function () { return Promise.reject(new Error('storage.rules: no delete path for procurement/**')); },
+  }; } }; } };
+}
+
+window.JOURNEY = {
+  PERSONAS: {
+    stu: { uid: 'stu', name: 'Sam Student', role: 'editor', caps: [] },
+    pi:  { uid: 'pi',  name: 'The PI', role: 'admin', caps: [] },
+    buy: { uid: 'buy', name: 'Bo Buyer', role: 'editor', caps: ['procurement:order'] },
+    mgr: { uid: 'mgr', name: 'Mia Manager', role: 'editor', caps: ['inventory:manage'] },
+    oth: { uid: 'oth', name: 'Otto Other', role: 'editor', caps: [] },
+  },
+  install: function (win, key) {
+    var p = this.PERSONAS[key] || this.PERSONAS.stu;
+    ['alert', 'prompt', 'confirm'].forEach(function (k) { win[k] = function (m) { POPUPS.push(key + ' ' + k + ': ' + m); return k === 'confirm' ? false : null; }; });
+    var db = makeDb(win, key);
+    win.firebase = {
+      firestore: Object.assign(function () { return db; }, { FieldValue: {
+        serverTimestamp: function () { return { __stamp: true }; },
+        arrayUnion: function () { return { __arrayUnion: Array.prototype.slice.call(arguments) }; },
+        delete: function () { return { __delete: true }; },
+        increment: function (n) { return { __inc: n }; },
+      } }),
+      storage: function () { return makeStorage(key); },
+    };
+    win.firebridge = {
+      requireSignIn: function () { return Promise.resolve({ allowed: true }); },
+      loadAccessGrant: function () { return Promise.resolve({}); },
+      getUser: function () { return { uid: p.uid, email: p.uid + '@x', displayName: p.name }; },
+      getProfile: function () { return { name: p.name, role: p.role }; },
+      isAdmin: function () { return p.role === 'admin'; },
+      hasCapability: function (c) { return p.role === 'admin' || p.caps.indexOf(c) >= 0; },
+      isLabMember: function () { return true; },
+      db: function () { return db; },
+      onAuth: function () {},
+    };
+    win.LIVE_SYNC = { attach: function () { return { suppressUntil: 0 }; } };
+    win.LAB_USERS = { isVisible: function () { return true; } };
+    win.INV_LABELS = {
+      core: { payloadFor: function (c) { return 'MCGHEELAB.COM/L/' + c; } },
+      loadQr: function () { return Promise.resolve({}); },
+      qrSvg: function () { return Promise.resolve('<svg width="96" height="96"></svg>'); },
+      ensureCode: async function (item) {
+        if (item.label_code) return item.label_code;
+        var code = 'MG-J' + (++SEQ);
+        STORE.labels[code] = { code: code, refId: item.id, boundBy: p.uid };
+        await db.collection('inventory').doc(item.id).update({ label_code: code });
+        item.label_code = code; return code;
+      },
+      queue: async function (items) { for (var i = 0; i < items.length; i++) await this.ensureCode(items[i]); STORE.labelQueue['job' + (++SEQ)] = { cells: items.length, by: p.uid }; return { jobs: ['j'], cells: items.length }; },
+    };
+  },
+  patchApi: function (api, win) {
+    var list = function (coll, filter) { return Object.keys(STORE[coll] || {}).filter(function (id) { return !filter || filter(STORE[coll][id]); }).map(function (id) { return Object.assign({ id: id }, dec(STORE[coll][id], win)); }); };
+    api.load = function (path) {
+      switch (path) {
+        case 'procurement/tickets.json': return Promise.resolve({ tickets: list('procurementTickets') });
+        case 'inventory/items.json': return Promise.resolve({ items: list('inventory', function (d) { return (d.kind || 'item') === 'item'; }) });
+        case 'inventory/chemicals.json': return Promise.resolve({ chemicals: list('inventory', function (d) { return d.kind === 'chemical'; }) });
+        case 'lab/users.json': return Promise.resolve({ users: dec(USERS, win) });
+        case 'finance/projects.json': return Promise.resolve({ projects: [] });
+      }
+      return Promise.reject(new Error('no route ' + path));
+    };
+    api.save = function (path) { FULL_SAVES.push(path); return Promise.resolve({}); };
+    api.invalidate = function () { return Promise.resolve(); };
+    api.subscribe = function () { return function () {}; };
+  },
+};
+</script>
+</head>
+<body>
+<div class="frames">
+  <div><div class="lbl">Procurement</div><iframe id="f-proc" title="procurement"></iframe></div>
+  <div><div class="lbl">Inventory</div><iframe id="f-inv" title="inventory"></iframe></div>
+</div>
+<div id="r">running…</div>
+<script>
+(async function () {
+  var out = document.getElementById('r'), lines = [], pass = 0, fail = 0;
+  var stopAt = new URLSearchParams(location.search).get('stop');
+  function ok(c, m) { if (c) { pass++; lines.push('<span class="ok">ok  </span> ' + m); } else { fail++; lines.push('<span class="bad">FAIL ' + m + '</span>'); } paint(); }
+  function eq(a, b, m) { var A = JSON.stringify(a), B = JSON.stringify(b); ok(A === B, m + (A === B ? '' : '  →  got ' + A + '  want ' + B)); }
+  function head(t) { lines.push('\n<b>' + t + '</b>'); paint(); }
+  function paint() { out.innerHTML = lines.join('\n'); }
+  function tick(ms) { return new Promise(function (r) { setTimeout(r, ms || 40); }); }
+  async function until(fn, ms) { var t = Date.now(); while (Date.now() - t < (ms || 3000)) { try { if (fn()) return true; } catch (e) {} await tick(25); } return false; }
+  var frames = { proc: document.getElementById('f-proc'), inv: document.getElementById('f-inv') };
+  var pageCss = null;
+  async function load(which, query) {
+    var fr = frames[which];
+    var url = '/scripts/tests/fixtures/journey-' + (which === 'proc' ? 'procurement' : 'inventory') + '.html?' + query + '&_=' + (++SEQ);
+    await new Promise(function (res) { fr.onload = res; fr.src = url; });
+    var d = fr.contentDocument;
+    var ready = await until(function () { return which === 'proc' ? d.querySelector('.pt-top') : d.querySelector('#inv-pills .inv-pill'); }, 5000);
+    if (!ready) throw new Error(which + ' page did not render for ' + query);
+    if (which === 'inv') {
+      if (pageCss === null) { var html = await (await fetch('/rm/pages/inventory.html')).text(); pageCss = (html.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || ''; }
+      d.getElementById('inv-page-css').textContent = pageCss;
+    }
+    await tick(80);
+    return fr.contentWindow;
+  }
+  var PD = function () { return frames.proc.contentDocument; }, ID = function () { return frames.inv.contentDocument; };
+  var pq = function (s) { return PD().querySelector(s); }, iq = function (s) { return ID().querySelector(s); };
+  function evt(el, type) { var W = el.ownerDocument.defaultView; el.dispatchEvent(new W.Event(type, { bubbles: true, cancelable: true })); }
+  function typeIn(el, v) { if (!el) throw new Error('no field to type "' + v + '" into'); el.value = v; evt(el, 'input'); evt(el, 'change'); }
+  function fld(key, scope) { return (scope || PD()).querySelector('[data-f="' + key + '"]'); }
+  function setFiles(inp, files) { var W = inp.ownerDocument.defaultView, dt = new W.DataTransfer(); files.forEach(function (f) { dt.items.add(new W.File([f[1] || '%PDF-1.4'], f[0], { type: f[2] == null ? 'application/pdf' : f[2] })); }); inp.files = dt.files; evt(inp, 'change'); }
+  async function submit(form) { evt(form, 'submit'); await tick(200); }
+  async function openRow(id) { var r = pq('.pt-row[data-id="' + id + '"]'); if (!r) return null; if (!r.classList.contains('is-open')) { r.querySelector('[data-toggle]').click(); await tick(); } return pq('.pt-row[data-id="' + id + '"]'); }
+  async function act(id, a) { var r = await openRow(id); var b = r && r.querySelector('.pt-actions [data-act="' + a + '"]'); if (!b) return null; b.click(); await tick(); return pq('.pt-row[data-id="' + id + '"] .pt-form'); }
+  function T(id) { return dec(STORE.procurementTickets[id]); }
+  function I(id) { return dec(STORE.inventory[id]); }
+  function ticketWhere(fn) { return Object.keys(STORE.procurementTickets).find(function (id) { return fn(T(id)); }); }
+  function toastText(doc) { var t = doc.getElementById('toast-stack'); return t ? t.textContent : ''; }
+  function invRow(id) { return iq('tr.expandable-row[data-item-id="' + id + '"]'); }
+  function invPanel(id) { var r = invRow(id); return r && r.nextElementSibling; }
+  function pillOn(key) { var b = iq('#inv-pills [data-pill="' + key + '"]'); return b && b.getAttribute('aria-pressed') === 'true'; }
+
+  /* The steps a person takes, as helpers (each reloads the page as that person, at the request). */
+  async function request(as, o) {
+    var before = Object.keys(STORE.procurementTickets);
+    await load('proc', 'as=' + as);
+    pq('#pt-new').click(); await tick();
+    var c = pq('#pt-composer-form');
+    typeIn(fld('itemDescription', c), o.item); typeIn(fld('vendor', c), o.vendor); typeIn(fld('catalogueNumber', c), o.cat || '');
+    typeIn(fld('quantity', c), String(o.qty || 1)); typeIn(fld('unitCost', c), String(o.cost || 10)); typeIn(fld('category', c), o.category || 'consumable');
+    typeIn(fld('reason', c), o.reason || 'for the lab'); typeIn(fld('projectId', c), 'mcghee-startup'); typeIn(fld('purchaseType', c), 'one_time');
+    await submit(c);
+    // the NEW ticket (a repeat request for the same thing must not find the earlier one)
+    return Object.keys(STORE.procurementTickets).find(function (id) { return before.indexOf(id) < 0 && T(id).itemDescription === o.item && T(id).requestedBy === as; });
+  }
+  async function step(as, id, action, fill, files) {
+    await load('proc', 'as=' + as + '&ticket=' + encodeURIComponent(id));
+    var form = await act(id, action);
+    if (!form) throw new Error(as + ' has no "' + action + '" on ' + id + ' (status ' + (T(id) || {}).status + ')');
+    if (fill) await fill(form);
+    if (files) Object.keys(files).forEach(function (k) { setFiles(form.querySelector('[data-file="' + k + '"]'), files[k]); });
+    await submit(pq('.pt-row[data-id="' + id + '"] .pt-form') || form);
+    await tick(120);
+    return form;
+  }
+
+  /* Each journey stands alone: a failure (or a missing button) is recorded and the next journey still runs. */
+  async function journey(title, fn) {
+    head(title);
+    try { await fn(); }
+    catch (e) { if (e === 'stop') throw e; fail++; lines.push('<span class="bad">EXCEPTION in this journey: ' + ((e && e.message) || e) + '</span>'); paint(); }
+  }
+  var peg = null, pegInv = null, tipsT = null;
+  var pickRow = function (name) { return Array.prototype.find.call(PD().querySelectorAll('.pt-pk-row'), function (r) { return r.querySelector('.pt-pk-name').textContent.indexOf(name) === 0; }); };
+  var docsOf = function (tid) { return Object.keys(STORE.procurementDocs).map(function (k) { return dec(STORE.procurementDocs[k]); }).filter(function (d) { return (d.ticketIds || []).indexOf(tid) >= 0; }); };
+  try {
+    /* ═══ 1 ═══ */
+    await journey('1 · A new thing, start to finish (student → PI → purchaser → member → inventory)', async function () {
+    peg = await request('stu', { item: 'PEG 6000, 100 g', vendor: 'Sigma-Aldrich', cat: '81260', qty: 2, cost: 50, category: 'reagent', reason: 'gels for Friday' });
+    ok(!!peg && T(peg).status === 'requested', 'the student’s request is written (requested)');
+    await step('pi', peg, 'approve');
+    eq(T(peg).status, 'approved', 'the PI approves it');
+    await step('buy', peg, 'order', async function (f) { typeIn(fld('purchaseMethod', f), 'buyways'); typeIn(fld('poNumber', f), 'PO-1001'); typeIn(fld('expectedDelivery', f), '2026-10-28'); }, { po: [['PO-1001 confirmation.pdf']] });
+    eq([T(peg).status, T(peg).poNumber], ['ordered', 'PO-1001'], 'the purchaser orders it on PO-1001 with the PO file');
+    eq(docsOf(peg).map(function (d) { return [d.kind, d.source, d.ingestStatus]; }), [['po', 'order', 'pending']], 'the PO file is in Receipts, linked, pending for the inventory');
+    await step('oth', peg, 'receive', async function (f) { typeIn(fld('actualCost', f), '98'); }, { receipt: [['Sigma receipt.pdf']] });
+    eq(T(peg).status, 'received', 'another member receives it, with the receipt');
+    eq(docsOf(peg).map(function (d) { return d.kind; }).sort(), ['po', 'receipt'], 'the receipt is in Receipts too');
+    await step('oth', peg, 'place', async function (f) { typeIn(fld('location', f), '  Freezer A  /  drawer 2 '); });
+    pegInv = T(peg).inventoryItemId;
+    var pi1 = pegInv && I(pegInv);
+    eq([T(peg).status, T(peg).location], ['placed', 'Freezer A/drawer 2'], 'put away; the request records the tidied location');
+    eq(pi1 && [pi1.name, pi1.category, pi1.is_consumable, pi1.condition, pi1.locations[0].name, pi1.vendor, pi1.catalogue_number, pi1.procurementTicketId === peg],
+       ['PEG 6000, 100 g', 'research_reagents', true, 'active', 'Freezer A/drawer 2', 'Sigma-Aldrich', '81260', true], 'the inventory item: a consumable reagent, same name/vendor/cat #, tidied location, linked to its request');
+    // the "open in inventory" link on the request card, followed as written
+    await load('proc', 'as=oth&ticket=' + peg);
+    var openLink = pq('.pt-row[data-id="' + peg + '"] a[href*="inventory.html?item="]');
+    ok(!!openLink, 'the request card links to the inventory item');
+    var invW = await load('inv', 'as=oth&' + openLink.getAttribute('href').split('?')[1]);
+    ok(!!invRow(pegInv) && invRow(pegInv).classList.contains('expanded'), 'following it opens the item in the inventory');
+    ok(pillOn('research'), '…under Research, which is on by default');
+    var pan = invPanel(pegInv);
+    ok(/Bought through a request/.test(pan.textContent) && !!pan.querySelector('a[href="/rm/pages/procurement.html?ticket=' + peg + '"]'), 'the item says it was bought through a request, and links back');
+    var tr1 = invRow(pegInv).querySelectorAll('td');
+    eq([tr1[2].textContent, tr1[6].textContent], ['Sigma-Aldrich', 'Freezer A/drawer 2 (2)'], 'the row: vendor and location (2 put away)');
+    eq([invW.INV_USE.modeOf(Object.assign({}, I(pegInv))), invW.INV_USE.pickerFor(Object.assign({}, I(pegInv))).question], ['package', 'How many packages?'], 'scanning it takes packages, without asking "per use or package?"');
+    var useBtn = Array.prototype.find.call(pan.querySelectorAll('button'), function (b) { return /Use \/ take/.test(b.textContent); });
+    useBtn.click(); await tick(120);
+    ok(!!iq('.qp-bg') && !/per use/i.test((iq('.app-sheet') || {}).textContent || ''), 'Use / take goes straight to the amount dial');
+    var cancel = iq('.qp-cancel'); if (cancel) cancel.click(); await tick(60);
+    });
+    if (stopAt === '1') throw 'stop';
+
+    /* ═══ 5 ═══ receipts are one click from the item */
+    await journey('5 · The receipts are one click from the inventory item', async function () {
+    if (!pegInv) throw new Error('journey 1 did not put the PEG away');
+    await load('inv', 'as=oth&item=' + pegInv);
+    var back = invPanel(pegInv) && invPanel(pegInv).querySelector('a[href^="/rm/pages/procurement.html?ticket="]');
+    ok(!!back, 'the item links to its request');
+    if (!back) return;
+    await load('proc', 'as=oth&' + back.getAttribute('href').split('?')[1]);
+    var card = pq('.pt-row[data-id="' + peg + '"]');
+    ok(card && card.classList.contains('is-open'), 'the link opens the request (in the Archive tab, where put-away requests live)');
+    var dl = card && card.querySelector('.pt-docs-card');
+    ok(!!dl && /PO-1001 confirmation\.pdf/.test(dl.textContent) && /Sigma receipt\.pdf/.test(dl.textContent), 'its card lists the PO and the receipt');
+    });
+
+    /* ═══ 2 ═══ */
+    await journey('2 · Reorder from the inventory panel; nobody asks twice', async function () {
+    await load('inv', 'as=stu&item=INV_TIPS');
+    var rl = invPanel('INV_TIPS').querySelector('a[href*="procurement.html?reorder="]');
+    ok(!!rl, 'the panel has Request reorder');
+    ok(!/Already requested/.test(invPanel('INV_TIPS').textContent), 'nothing is on order yet');
+    await load('proc', 'as=stu&' + rl.getAttribute('href').split('?')[1]);
+    var cf = pq('#pt-composer-form');
+    ok(!!cf && cf.dataset.mode === 'reorder', 'the link opens the reorder form');
+    eq([fld('itemDescription', cf).value, fld('vendor', cf).value, fld('catalogueNumber', cf).value, fld('unitCost', cf).value, fld('projectId', cf).value],
+       ['Pipette tips 200 µL', 'Fisher', 'T-200', '70', 'mcghee-startup'], 'prefilled from the item: name, vendor, cat #, last price, its project');
+    ok(!pq('.pt-already'), 'no "already requested" on the first reorder');
+    typeIn(fld('quantity', cf), '2'); typeIn(fld('reason', cf), 'last box open');
+    await submit(cf);
+    tipsT = ticketWhere(function (t) { return t.inventoryItemId === 'INV_TIPS' && t.requestedBy === 'stu'; });
+    eq(tipsT && [T(tipsT).status, T(tipsT).source, T(tipsT).quantity], ['requested', 'reorder', 2], 'the reorder is a request linked to the item');
+    await load('inv', 'as=oth&item=INV_TIPS');
+    ok(/Already requested:\s*Requested · 2 requested · by Sam Student/.test(invPanel('INV_TIPS').textContent), 'another member opening the item sees it is already requested, by whom');
+    await load('proc', 'as=oth&reorder=INV_TIPS');
+    var al = pq('.pt-already');
+    ok(!!al && /Already requested/.test(al.textContent) && !!al.querySelector('a[href*="ticket=' + tipsT + '"]'), 'Request reorder again: the form says it is already requested, with a link to that request');
+    await load('proc', 'as=oth');
+    pq('#pt-reorder').click(); await tick(80);
+    ok(!!pickRow('Pipette tips') && /already requested/.test(pickRow('Pipette tips').textContent), 'Reorder existing marks the tips "already requested"');
+    });
+    if (stopAt === '2') throw 'stop';
+
+    /* ═══ 3 ═══ */
+    await journey('3 · Reorder existing: bought things only, and "low" means the same on both pages', async function () {
+    await load('proc', 'as=oth');
+    pq('#pt-reorder').click(); await tick(80);
+    ok(!pickRow('LLS 100'), 'the custom beads are not in Reorder existing');
+    ok(!!pickRow('FBS') && !!pickRow('FBS').querySelector('.pt-pk-badge--low'), 'FBS at 50 of 500 mL (10 %) is "low" in Reorder existing…');
+    await load('inv', 'as=oth');
+    var fbsRow = invRow('INV_FBS');
+    ok(!!fbsRow && /low/i.test(fbsRow.querySelectorAll('td')[7].textContent), '…and "low" in the inventory');
+    });
+    if (stopAt === '3') throw 'stop';
+
+    /* ═══ 4 ═══ */
+    await journey('4 · Restock: untracked, tracked by a member, tracked by an inventory manager', async function () {
+    if (!tipsT) throw new Error('journey 2 did not leave a tips reorder');
+    await step('pi', tipsT, 'approve');
+    await step('buy', tipsT, 'order', async function (f) { typeIn(fld('purchaseMethod', f), 'pcard'); typeIn(fld('poNumber', f), 'PC-55'); });
+    await step('oth', tipsT, 'receive');
+    eq(T(tipsT).status, 'received', 'the tips reorder arrives');
+    await load('proc', 'as=oth&ticket=' + tipsT);
+    var pf = await act(tipsT, 'place');
+    ok(pf.querySelector('[data-mode="restock"]').checked, 'putting a reorder away starts on restock');
+    ok(/Pipette tips 200/.test((pq('.pt-row[data-id="' + tipsT + '"] .pt-picked') || {}).textContent || ''), '…of the item it was reordered from');
+    pf = pq('.pt-row[data-id="' + tipsT + '"] .pt-form');
+    typeIn(fld('location', pf), ' bench 4 / drawer 1 ');
+    await submit(pf); await tick(120);
+    var tipsI = I('INV_TIPS');
+    eq([tipsI.quantity, tipsI.locations.length, tipsI.locations[0].quantity, tipsI.last_procurement_ticket_id === tipsT, T(tipsT).status], [5, 1, 5, true, 'placed'],
+       'untracked: 3 + 2 = 5, added to the same (tidied) location, the item remembers the request');
+    await load('inv', 'as=oth&item=INV_TIPS');
+    var tp = invPanel('INV_TIPS').textContent;
+    ok(/Last restocked through a request/.test(tp) && !/Already requested/.test(tp), 'the panel: restocked through a request; no longer "already requested"');
+
+    var fbsA = await request('stu', { item: 'FBS, heat inactivated', vendor: 'Gibco', cat: '10082147', qty: 1, cost: 600, category: 'cells' });
+    // a plain request for something the lab stocks still finds the stocked item on put-away
+    await step('pi', fbsA, 'approve');
+    await step('buy', fbsA, 'order', async function (f) { typeIn(fld('purchaseMethod', f), 'pcard'); });
+    await step('oth', fbsA, 'receive');
+    await load('proc', 'as=oth&ticket=' + fbsA);
+    pf = await act(fbsA, 'place');
+    pf.querySelector('[data-mode="restock"]').click(); await tick(60);
+    pf = pq('.pt-row[data-id="' + fbsA + '"] .pt-form');
+    typeIn(fld('q', pf), 'gibco'); await tick(60);
+    pf = pq('.pt-row[data-id="' + fbsA + '"] .pt-form');
+    ok(!!pf.querySelector('[data-pick="INV_FBS"]') && !pf.querySelector('[data-pick="LAB_LLS"]'), 'the restock search finds the stocked FBS (and never offers a custom item)');
+    pf.querySelector('[data-pick="INV_FBS"]').click(); await tick(60);
+    pf = pq('.pt-row[data-id="' + fbsA + '"] .pt-form');
+    ok(/can only be raised by an inventory manager/.test(pf.textContent), 'a member is told up front that the tracked count is not raised');
+    await submit(pf); await tick(120);
+    eq([I('INV_FBS').qty_remaining, I('INV_FBS').quantity, T(fbsA).status], [50, 2, 'placed'], 'member restock: location and quantity recorded, the tracked count (50 mL) untouched');
+    ok(/tracked count was not raised/.test(toastText(PD())), 'and the toast says to ask an inventory manager');
+
+    var fbsB = await request('stu', { item: 'FBS, heat inactivated', vendor: 'Gibco', cat: '10082147', qty: 1, cost: 600, category: 'cells' });
+    await step('pi', fbsB, 'approve');
+    await step('buy', fbsB, 'order', async function (f) { typeIn(fld('purchaseMethod', f), 'pcard'); });
+    await step('oth', fbsB, 'receive');
+    await load('proc', 'as=mgr&ticket=' + fbsB);
+    pf = await act(fbsB, 'place');
+    pf.querySelector('[data-mode="restock"]').click(); await tick(60);
+    pf = pq('.pt-row[data-id="' + fbsB + '"] .pt-form');
+    typeIn(fld('q', pf), 'gibco'); await tick(60);
+    pq('.pt-row[data-id="' + fbsB + '"] .pt-form [data-pick="INV_FBS"]').click(); await tick(60);
+    await submit(pq('.pt-row[data-id="' + fbsB + '"] .pt-form')); await tick(120);
+    var addRow = Object.keys(STORE.inventoryUsage).map(function (k) { return dec(STORE.inventoryUsage[k]); }).find(function (u) { return u.itemId === 'INV_FBS' && u.event === 'add'; });
+    eq([I('INV_FBS').qty_remaining, !!addRow && addRow.delta, !!addRow && addRow.userUid], [51, 1, 'mgr'], 'an inventory manager’s restock raises the count (with an "add" ledger row)');
+    });
+    if (stopAt === '4') throw 'stop';
+
+    /* ═══ 6 ═══ */
+    await journey('6 · Make something from what was bought', async function () {
+    if (!pegInv) throw new Error('journey 1 did not put the PEG away');
+    var invW6 = await load('inv', 'as=stu');
+    iq('button[onclick="addLabMadeItem()"]').click(); await tick(80);
+    var mf = iq('.imd-modal');
+    ok(!!mf, 'the custom-item form opens');
+    var f6 = function (n) { return mf.querySelector('[name="' + n + '"]'); };
+    typeIn(f6('type'), 'material'); typeIn(f6('name'), 'PEG hydrogel stock 10%'); typeIn(f6('description'), 'PEG 6000 in PBS, 10 % w/v'); typeIn(f6('location'), 'fridge/box/002');
+    typeIn(f6('count'), '1'); typeIn(f6('unit'), 'bottle');
+    var find = f6('find'); evt(find, 'focus'); typeIn(find, 'PEG 6000'); await tick(250);
+    var pick = mf.querySelector('[data-pick="' + pegInv + '"]');
+    ok(!!pick, '"Made from" finds the PEG that was just put away');
+    pick.click(); await tick(60);
+    var unitSel = mf.querySelector('[data-unit="0"]');
+    eq(Array.prototype.map.call(unitSel.options, function (o) { return o.value; }).slice(0, 2), ['piece', 'package'], 'untracked: pieces first, whole packages offered');
+    typeIn(mf.querySelector('[data-amt="0"]'), '1');
+    ok(/^Noted only/.test(mf.querySelector('.imd-ing[data-i="0"] .imd-plan').textContent), 'a piece is only noted');
+    typeIn(unitSel, 'package');
+    ok(/^Takes 1 package off its Qty column · 2 → 1/.test(mf.querySelector('.imd-ing[data-i="0"] .imd-plan').textContent), 'a whole package comes off its Qty column, said before saving');
+    f6('print').checked = false; evt(f6('print'), 'change');
+    mf.querySelector('.imd-save').click();
+    await until(function () { return !iq('.imd-modal') && Object.keys(STORE.inventory).some(function (k) { return I(k).name === 'PEG hydrogel stock 10%'; }); }, 4000);
+    await tick(200);
+    var hydro = Object.keys(STORE.inventory).find(function (k) { return I(k).name === 'PEG hydrogel stock 10%'; });
+    eq([I(pegInv).quantity, hydro && I(hydro).composition[0].taken, hydro && I(hydro).composition[0].itemId === pegInv], [1, true, true], 'saved: the PEG box count 2 → 1, the hydrogel records what it was made from');
+    await load('proc', 'as=stu');
+    pq('#pt-reorder').click(); await tick(80);
+    ok(!pickRow('PEG hydrogel'), 'the new custom item never shows up in Reorder existing');
+    });
+
+    head('Hygiene');
+    eq(POPUPS, [], 'no browser alert / prompt / confirm on either page');
+    eq(FULL_SAVES, [], 'no whole-collection save from either page');
+  } catch (e) {
+    if (e !== 'stop') { fail++; lines.push('<span class="bad">EXCEPTION ' + (e && e.stack || e) + '</span>'); }
+  }
+  lines.push('\n' + pass + ' passed, ' + fail + ' failed');
+  paint();
+  out.dataset.pass = pass; out.dataset.fail = fail; out.dataset.done = '1';
+  out.dataset.detail = lines.filter(function (l) { return /FAIL|EXCEPTION/.test(l); }).map(function (l) { return l.replace(/<[^>]+>/g, ''); }).slice(0, 8).join(' | ');
+  document.title = 'V3883 ' + (fail ? 'FAIL (' + fail + ')' : 'PASS (' + pass + ')');
+})();
+</script>
+</body>
+</html>

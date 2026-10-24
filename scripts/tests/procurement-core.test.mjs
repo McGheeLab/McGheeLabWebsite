@@ -580,5 +580,41 @@ eq(C.searchDocs(C.docRows(docs, T), 'pipette', T).map(d => d.id), ['b'], 'search
 eq(C.searchDocs(C.docRows(docs, T), 'requisition department', T).map(d => d.id), ['b'], 'every word must match (kind + note)');
 eq(C.searchDocs(C.docRows(docs, T), '', T).length, 4, 'no search: everything');
 
+// ── V3.883 — inventory ↔ procurement seams ──
+console.log('── inventory hand-off (V3.883) ──');
+const placedT = { id: 'pt1', itemDescription: 'Pipette tips 200 µL', vendor: 'Fisher', catalogueNumber: 'T200', category: 'consumable', quantity: 2, quantityReceived: 2, actualCost: 40, receivedAt: NOW };
+const ni = C.newInventoryItem(placedT, { location: ' Freezer A  /  drawer 2 ' }, buyer, STAMP);
+eq([ni.is_consumable, ni.condition, ni.subcategory, ni.stock_status, ni.locations[0].name, ni.category], [true, 'active', '', 'full', 'Freezer A/drawer 2', 'consumable'],
+   'a put-away consumable is a consumable (no "per use or package?" on every scan), active, location tidied');
+eq([C.newInventoryItem(Object.assign({}, placedT, { category: 'reagent' }), { location: 'x' }, buyer, STAMP).is_consumable,
+    C.newInventoryItem(Object.assign({}, placedT, { category: 'equipment' }), { location: 'x' }, buyer, STAMP).is_consumable,
+    C.newInventoryItem(Object.assign({}, placedT, { category: 'equipment' }), { location: 'x' }, buyer, STAMP).stock_status], [true, false, 'n/a'],
+   'a reagent (research_*) is consumable; equipment is not, and has no stock status');
+const rs = C.restockPlan({ id: 'i9', quantity: 3, locations: [{ name: 'Freezer A/drawer 2', quantity: 3 }] }, placedT, { location: 'freezer a / drawer 2' }, buyer, STAMP);
+eq([rs.patch.locations.length, rs.patch.locations[0].quantity, rs.patch.quantity], [1, 5, 5], 'a restock to "freezer a / drawer 2" adds to "Freezer A/drawer 2", not beside it');
+eq(C.buildPatch('place', Object.assign({}, placedT, { status: 'received', requestedBy: 'stu' }), { location: 'Bench 4 / shelf', mode: 'new', inventoryItemId: 'inv-new' }, buyer, NOW, STAMP).patch.location, 'Bench 4/shelf', 'the request records the tidied location too');
+eq(C.locationOptions([], [{ location: 'Fridge 1 / box 3' }], [{ locations: [{ name: 'fridge 1/box 3' }] }]), ['Fridge 1/box 3'], 'put-away suggestions: one spelling per place');
+
+const invItems = [
+  { id: 'buy1', kind: 'item', name: 'Pipette tips 200 µL', vendor: 'Fisher', reorder: { vendor: 'Fisher' } },
+  { id: 'lab1', kind: 'item', name: 'LLS 100 µm beads', lab_made: true, category: 'lab_made' },
+  { id: 'trk1', kind: 'item', name: 'FBS', vendor: 'Gibco', qty_tracked: true, qty_made: 500, qty_remaining: 50, qty_unit: 'mL' },
+];
+eq(C.catalogue(invItems, []).map(e => e.invId), ['trk1', 'buy1'], 'Reorder existing: bought things only, no custom items');
+eq(C.searchInventory(invItems, 'l'), [invItems[0], invItems[2]].filter(i => /l/i.test(i.name + i.vendor)), 'the put-away restock search leaves custom items out too');
+eq([C.stockOf(invItems[2]), C.stockOf(Object.assign({}, invItems[2], { qty_remaining: 101 })), C.stockOf(Object.assign({}, invItems[2], { qty_min: 40 })), C.stockOf(Object.assign({}, invItems[2], { qty_remaining: 0 }))],
+   ['low', 'full', 'full', 'out_of_stock'], '"low" = inventory’s rule: ≤ 20 % of what was made, unless an explicit minimum says otherwise');
+
+const openT = [
+  { id: 'o1', status: 'ordered', inventoryItemId: 'buy1', poNumber: 'PO-77', expectedDelivery: '2026-10-26', quantity: 2, requesterName: 'Sam', updatedAt: NOW - 10 },
+  { id: 'o2', status: 'placed', inventoryItemId: 'buy1', updatedAt: NOW - 5 },
+  { id: 'o3', status: 'requested', vendor: 'fisher', itemDescription: 'pipette tips 200 µL', requesterName: 'Otto', updatedAt: NOW },
+  { id: 'o4', status: 'requested', inventoryItemId: 'trk1', updatedAt: NOW },
+  { id: 'o5', status: 'denied', inventoryItemId: 'buy1', updatedAt: NOW },
+];
+eq(C.openRequestsFor(openT, invItems[0]).map(t => t.id), ['o3', 'o1'], 'open requests for an item: linked or matching vendor + name, still live (not placed / denied), newest first');
+eq(C.requestLine(openT[0]), 'Ordered · PO PO-77 · ETA Oct 26, 2026 · 2 requested · by Sam', 'the line both pages show');
+eq(C.openRequestsFor(openT, null), [], 'no item, no requests');
+
 console.log(`\nprocurement-core: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

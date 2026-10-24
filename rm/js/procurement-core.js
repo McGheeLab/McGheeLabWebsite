@@ -553,7 +553,7 @@
         if (note) appends.notes.push(noteEntry(actor, note, nowISO));
         break;
       case 'place': {
-        var loc = str(v.location);
+        var loc = tidyLocation(v.location);   // V3.883 — one spelling per place, as inventory writes it
         if (!loc) return { error: 'Where did it go? A location is required.', field: 'location' };
         var mode = v.mode === 'restock' ? 'restock' : 'new';
         var pq = placeQty(t, v), pp = placePrice(t, v);
@@ -649,6 +649,8 @@
   }
 
   /* ─── Inventory hand-off ──────────────────────────────────── */
+  /** V3.883 — the inventory's spelling of a place (INV_MADE_CORE.tidyLocation): spaces around "/" collapse. */
+  function tidyLocation(s) { return str(s).replace(/\s*\/\s*/g, '/').replace(/\s+/g, ' '); }
   /** How many are being put away: what the form says, else what was RECEIVED
    * (0 received must not fall back to the ordered quantity — adversary Q1/Q2). */
   function placeQty(t, v) {
@@ -678,6 +680,9 @@
     var qty = placeQty(t, v).qty || 1;
     var price = placePrice(t, v).price || 0;
     var cat = str(v.category) || inventoryCategoryFor(t.category);
+    // V3.883 — what inventory's own "+ Add Item" sets: without is_consumable a box of tips
+    // put away from a request made every member's scan ask "per use or package?".
+    var consumable = cat === 'consumable' || /^research_/.test(cat);
     var data = {
       kind: 'item',
       name: t.itemDescription || 'Untitled item',
@@ -690,8 +695,11 @@
       date_acquired: fmtDate(t.receivedAt) || todayStr(),
       account_number: t.fundingAccount || '',
       project_tag: t.projectId || t.project || '',
-      stock_status: 'full',
-      locations: [{ name: str(v.location), quantity: qty, notes: '' }],
+      stock_status: consumable ? 'full' : 'n/a',
+      is_consumable: consumable,
+      condition: 'active',
+      subcategory: '',
+      locations: [{ name: tidyLocation(v.location), quantity: qty, notes: '' }],
       notes: str(v.notes),
       reorder: { url: t.productUrl || '', vendor: t.vendor || '', catalogue_number: t.catalogueNumber || '',
                  last_price: price || null, lead_time_days: leadTimeDays(t), notes: '',
@@ -724,9 +732,10 @@
   function restockPlan(item, t, v, actor, stamp) {
     var qty = placeQty(t, v).qty || 1;
     var price = placePrice(t, v).price || 0;
-    var loc = str(v.location);
+    var loc = tidyLocation(v.location);
     var locations = (item.locations || []).map(function (l) { return Object.assign({}, l); });
-    var hit = locations.find(function (l) { return str(l.name).toLowerCase() === loc.toLowerCase(); });
+    // V3.883 — compared tidied, so "Freezer A / drawer 2" adds to "Freezer A/drawer 2" instead of beside it.
+    var hit = locations.find(function (l) { return tidyLocation(l.name).toLowerCase() === loc.toLowerCase(); });
     if (hit) hit.quantity = num(hit.quantity, 0) + qty;
     else locations.push({ name: loc, quantity: qty, notes: '' });
     var patch = {
@@ -1017,6 +1026,7 @@
     for (var i = 0; i < (items || []).length && out.length < (limit || 8); i++) {
       var it = items[i];
       if (it.kind && it.kind !== 'item') continue;
+      if (it.lab_made) continue;   // V3.883 — a custom aliquot / material / media is never restocked by a purchase
       var hay = ((it.name || '') + ' ' + (it.vendor || '') + ' ' + (it.catalogue_number || '')).toLowerCase();
       if (hay.indexOf(k) >= 0) out.push(it);
     }
@@ -1265,7 +1275,7 @@
   /** Location names for the put-away datalist: boxes + prior placements + item locations. */
   function locationOptions(boxes, tickets, items) {
     var out = [], seen = {};
-    var add = function (s) { s = str(s); if (!s || seen[s.toLowerCase()]) return; seen[s.toLowerCase()] = 1; out.push(s); };
+    var add = function (s) { s = tidyLocation(s); if (!s || seen[s.toLowerCase()]) return; seen[s.toLowerCase()] = 1; out.push(s); };   // V3.883 — spellings collapse
     (tickets || []).forEach(function (t) { add(t.location); });
     (boxes || []).forEach(function (b) { add(b.name); });
     (items || []).forEach(function (it) { (it.locations || []).forEach(function (l) { add(l.name); }); });
@@ -1284,14 +1294,19 @@
   var INV_CATEGORY_ORDER = Object.keys(INV_CATEGORY_LABEL);
   function invCategoryLabel(id) { id = str(id); return INV_CATEGORY_LABEL[id] || (id ? id.replace(/_/g, ' ') : 'Uncategorised'); }
   var STOCK_RANK = { out_of_stock: 0, low: 1, full: 2, 'n/a': 3, '': 3 };
+  var INV_LOW_PCT = 0.20;   // MUST match LOW_PCT in rm/js/inventory-qty.js and functions/helpers/inventory-thresholds.js
   var STOCK_LABEL = { out_of_stock: 'out of stock', low: 'low', full: 'in stock', 'n/a': '' };
   /** A tracked item's count against its minimum, else the inventory stock_status. */
   function stockOf(item) {
     if (!item) return '';
     if (item.qty_tracked === true && typeof item.qty_remaining === 'number') {
+      // V3.883 — the same rule as INV_QTY.severity (inventory-qty.js), so "low" means one thing on
+      // both pages: an explicit qty_min, else at or under 20 % of what was made / counted.
       if (item.qty_remaining <= 0) return 'out_of_stock';
       var min = num(item.qty_min, NaN);
-      if (isFinite(min) && item.qty_remaining <= min) return 'low';
+      if (isFinite(min)) return item.qty_remaining <= min ? 'low' : 'full';
+      var made = num(item.qty_made, 0);
+      if (made > 0 && item.qty_remaining / made <= INV_LOW_PCT) return 'low';
       return 'full';
     }
     var s = str(item.stock_status);
@@ -1316,6 +1331,7 @@
     var nameKey = function (vendor, name) { return normVendor(vendor) + '|' + normName(name); };
     (items || []).forEach(function (it) {
       if (!it || (it.kind && it.kind !== 'item')) return;
+      if (it.lab_made) return;   // V3.883 — custom items are made in the lab; nobody sells them
       var r = it.reorder || {};
       var e = {
         id: 'inv:' + it.id, kind: 'inventory', invId: it.id, ticketId: null,
@@ -1443,6 +1459,30 @@
   function unplacedArrivals(tickets, now, days) {
     var g = (days == null ? 3 : days) * 86400000, n = toMs(now) || Date.now();
     return (tickets || []).filter(function (t) { return t.status === 'received' && toMs(t.receivedAt) && n - toMs(t.receivedAt) > g; });
+  }
+
+  /* ─── V3.883 — is this inventory item already on its way? ──────────────
+   * The same answer on both pages: the reorder composer warns before a second
+   * request, and the inventory panel shows it beside "Request reorder". Linked
+   * by inventoryItemId, else (an unlinked request for a thing the lab stocks)
+   * by vendor + name, the catalogue's own rule. */
+  var OPEN_REQUEST = { requested: 1, needs_info: 1, approved: 1, ordered: 1, received: 1 };
+  function openRequestsFor(tickets, item) {
+    if (!item || !item.id) return [];
+    var r = item.reorder || {};
+    var key = normVendor(r.vendor || item.vendor) + '|' + normName(item.name);
+    return (tickets || []).filter(function (t) {
+      if (!t || !OPEN_REQUEST[t.status]) return false;
+      if (t.inventoryItemId) return t.inventoryItemId === item.id;
+      return normName(t.itemDescription) !== '' && normVendor(t.vendor) + '|' + normName(t.itemDescription) === key;
+    }).sort(function (a, b) { return lastActivityMs(b) - lastActivityMs(a); });
+  }
+  /** "Ordered · PO PO-77 · ETA Oct 26, 2026 · requested by Sam Student" */
+  function requestLine(t) {
+    if (!t) return '';
+    var s = STATUS[t.status] || STATUS.requested;
+    return [s.short, t.poNumber ? 'PO ' + str(t.poNumber) : '', t.status === 'ordered' && t.expectedDelivery ? 'ETA ' + fmtDateLong(t.expectedDelivery) : '',
+            t.quantity ? num(t.quantity) + ' requested' : '', t.requesterName ? 'by ' + str(t.requesterName) : ''].filter(Boolean).join(' · ');
   }
 
   /* ─── V3.881 — receipts, requisitions and other order documents ───────
@@ -1638,5 +1678,6 @@
     docKindLabel: docKindLabel, docContentType: docContentType, checkDocFile: checkDocFile, safeFileName: safeFileName, docStoragePath: docStoragePath,
     orderSiblings: orderSiblings, docLinkCandidates: docLinkCandidates, buildDocRecord: buildDocRecord, docEditPatch: docEditPatch,
     docsForTicket: docsForTicket, legacyAttachments: legacyAttachments, docRows: docRows, searchDocs: searchDocs,
+    tidyLocation: tidyLocation, openRequestsFor: openRequestsFor, requestLine: requestLine,
   };
 });

@@ -4,6 +4,79 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.883] — 2026-10-23 — Inventory and procurement work together: six seams fixed, tested as journeys across both pages
+
+Alex: *"lets make sure that the inventory and procruement work together well. do multiple tests to ensure that all the
+different user workflows will be easy and seemless."* Plan:
+[V3.883_inventory_procurement_together.md](../ClaudesPlan/V3.883_inventory_procurement_together.md). FTP only.
+
+**Baseline first, all green and still green after:** procurement core 287 → 298, custom items 69, labels 20, use
+plans 29, qty dial 25, user actions 18; emulator: inventory rules 59, procurement rules 162, inventory E2E 96,
+procurement E2E 96; browser: procurement 227, custom inventory 54, pills 25, scan-take 48. None of them followed a
+person from one page to the other, which is where every problem below was.
+
+### Added
+- **`scripts/tests/v3883-inventory-procurement-journeys.html`**: the REAL `procurement.js` and the REAL `inventory.js`
+  (with inventory-qty / -use / -made, qty-picker, forms, procurement-core), each in its own iframe
+  (`scripts/tests/fixtures/journey-procurement.html`, `journey-inventory.html`), sharing ONE in-memory Firestore
+  (transactions, batches, merge sets, `where` / `orderBy` / `limit`, server stamps, `arrayUnion`) and Storage. Values
+  cross frames as JSON with dates revived in the reading frame. Personas: student, PI, purchaser, inventory manager,
+  member; a persona switch reloads the frame. Links are followed as written (the card's *open in inventory*, the
+  panel's *Request reorder* and *view it*). Six journeys, **49 checks**, each journey isolated: (1) a new thing from
+  request to inventory, PO and receipt filed, consumable, location tidied, scan goes straight to the dial; (5) the
+  receipts one click from the item; (2) reorder from the inventory panel, prefilled, then *already requested* on the
+  panel, in the form and in Reorder existing; (3) Reorder existing without custom items, "low" the same on both pages;
+  (4) restock untracked (same location), tracked by a member (count kept, warned), by an inventory manager (count raised,
+  `add` row); (6) a custom item made from the item just bought (*whole packages* off its Qty column).
+  **Run against the pre-change code (served from a scratch copy, the repo untouched) it fails 15 checks, one at every
+  seam fixed below**, and passes 49/49 on this build. `?stop=1|2|3|4` stops after a journey for a screenshot.
+- `procurement-core.js` `tidyLocation(s)`, `openRequestsFor(tickets, item)` (live requests linked by `inventoryItemId`,
+  else by vendor + name; newest first), `requestLine(t)` ("Ordered · PO PO-77 · ETA … · 2 requested · by Sam").
+  11 new core checks.
+- **Inventory panel → *Procurement*** (`procurementHtml(item)` in `inventory.js`, bought items only): *Already
+  requested: …* for each open request, *Bought through a request (date) — view it and its receipts*
+  (`procurementTicketId`), *Last restocked through a request on … — view it* (`last_procurement_ticket_id`), each
+  linking `procurement.html?ticket=`. The page loads `procurement/tickets.json` (optional) and `procurement-core.js`.
+- **Procurement:** the reorder composer (from the panel, `?reorder=`, Reorder existing, Request again) shows *Already
+  requested:* with links before anyone submits a second request; Reorder existing badges an inventory row *already
+  requested* / *approved to order* / *on order* / *arrived, not put away*.
+
+### Bug Fixes
+- **A thing put away from a request was not a consumable** (`newInventoryItem` set no `is_consumable`), so every
+  member's scan of it asked "per use or package?". Now consumable for `consumable` and `research_*`, with
+  `condition: 'active'`, `subcategory: ''`, `stock_status` `full` / `n/a`, as inventory's own *+ Add Item* does.
+- **Location spellings split**: put-away kept "Freezer A  /  drawer 2" as typed, and a restock to "freezer a / drawer
+  2" added a second location beside "Freezer A/drawer 2". `tidyLocation` now applies to the new item, the restock
+  match, the request's own `location` and the put-away suggestions.
+- **Custom items were offered for reorder**: `catalogue()` (Reorder existing) and `searchInventory()` (the put-away
+  restock search) now skip `lab_made`.
+- **"Low" disagreed between the pages**: `stockOf()` used only `qty_min`; it now mirrors `INV_QTY.severity` (explicit
+  minimum, else ≤ 20 % of `qty_made`), so FBS at 50 of 500 mL is low in Reorder existing as in the inventory.
+- **Nothing stopped a second request** for an item already on order (the panel, the scan toast's *Request a reorder*,
+  Reorder existing): now said on both pages, with the request.
+- **An item never showed where it came from**, so its request (PO, receipts) was unreachable from the inventory.
+
+### Changed
+- `rm/pages/inventory.html` loads `procurement-core.js`; `rm/css/procurement.css` `.pt-pk-badge--open`,
+  `.pt-already`.
+- `sw.js` CACHE_VERSION 866 → 867.
+
+## [V3.882] — 2026-10-23 — Scientia: a quick note is saved with its title, type, project and theme; open-note tabs close; the Lab Notebook's pills on every note
+
+Plan: [CodeLog/ClaudesPlan/V3.882_scientia_quick_note_save_tabs_pills.md](../ClaudesPlan/V3.882_scientia_quick_note_save_tabs_pills.md). Web build only; `scientia/src` untouched; no backend change.
+
+### Added
+- **Save to a project…** (`rm/scientia/lab-mode.js` §10 `saveForm(docId)`, Gabe's `modal`): Title (required; empty while the quick default), Type (`userProfiles()`), Project (required; optgroups *Assigned to you* / *Your projects*), Theme (the project's active themes; disabled for a project-wide type or a project without themes). Saving sets `title, type, scope, projectId, themeId`, clears `quick`, touches the note. In the note's header (`#meta .lab-save-btn`) for any note outside a project, on every Quick notes card (replaces V3.880's *Add to project…* → `GENERAL.move`) and in the blank-page bar.
+- **Open-note tabs** (`rm/js/notebook-scientia.js`): the Scientia group lists the notes OPEN in this browser (`localStorage nbc_sis_open`, seeded with the 6 most recent; `openIds / openTab / closeTab`) instead of the 20 most recent; a note opened anywhere (tab, Portfolio, a link, inside Scientia) joins; every tab has an × (`.nbc-tab-x`, `data-t="sis-close"`) — closing the note on screen moves to the next open tab or Today; a search still lists every matching note. **＋ Quick note** (`.nbc-sis-quick`, `data-t="sis-quick"`) after the tabs sends `sisCmd: 'quick'`; lab-mode answers it once the app is mounted (`App._mounted`).
+- **The canvas pills** (`lab-mode.js` §11): ✎ the hand (first arc zoom · move · pen · highlighter · lasso; second arc per mode — Gabe's ink colours + *Add a colour* (≤ 3 kept per device, `_ls lab:inkColors`, appended to `INK.COLORS`), eraser, three widths, pressure, undo / redo; zoom in / out / 100 % / fit), ＋ Insert (the most used `INSERTS` — component, lab paper, material, RM protocol, run, plate, task, *Something I did*, collection — placed at the view's centre; *…* = `INSERT.menu`), ✦ Tools (timer start / pause / resume via `TCMP.start` / `TIMER`, `CALC.open`, `EQ.newMenu`, Gabe's ink bar, `App.toggleFocus`, put the pills back), ⊕ View (in · 100 % · out · fit; the zoom % follows every move — `Paper.prototype.apply` wrapped). The hand is read back from `INK` (`handNow()`: `INK.mouse` off = move; on = `INK.tool`); zoom is ours (`bindZoomHand`: a tap ×1.5 at the point, Alt / Shift / right button out, a vertical drag zooms smoothly). Pills drag anywhere (`_ls lab:pills` fractions), the fan uses RM's rings (`fanPos`), other pills fade while one is open, a tap outside closes it, a double tap on ✎ = the last mode (`lastHand`). Monochrome inline SVGs from the site's Heroicons set (+ a drawn lasso). Default column on the left middle — clear of Gabe's timer card, dock and Next button.
+
+### Bug Fixes
+- A pill's open state was keyed to its host element; a note re-render between the tap and the fan's 230 ms open closed it. Keyed to the note id.
+
+### Tests
+- Lab-mode harness 135/135 (save form: validation, project groups, theme follows project, into an aim theme from the header; pills: four pills, ✎ fan, pen / colour / width / highlighter, double tap, move, zoom tap, ⊕ out + %, 100 %, ＋ insert places a component, ✦ timer start / pause, drag + keep, put back, tap outside).
+- Notebook host harness 45/45 + 6/6 (`?start=scientia`): open tabs, the desktop note counted and listed under All until opened, × (remembered; on-screen note → next tab), ＋ Quick note sends `quick`.
+
 ## [V3.881] — 2026-10-23 — Procurement: load receipts and requisition printouts, kept for a later read into the inventory
 
 Alex: *"on the procurement page, we need a way for the person doing the procurement to load in the receipt or

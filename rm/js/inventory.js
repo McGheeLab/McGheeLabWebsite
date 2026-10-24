@@ -6,6 +6,7 @@ var DATA_KEY = 'items';
 var _items = [];
 var _data = null; // keep loaded data reference for inline saves
 var _projects = []; // funded projects/grants
+var _invTickets = []; // V3.883 — procurement requests: "already requested" and "bought through a request" (PROC_CORE)
 
 var CATEGORY_OPTIONS = [
   'equipment', 'infrastructure', 'consumable', 'computer', 'lab_furniture', 'lab_made', 'office',
@@ -234,6 +235,31 @@ function madeFromHtml(item) {
          ' <span style="color:var(--text-muted);">' + (c.taken ? '(' + escAttr(word(c.taken_qty, c.taken_unit)) + ' taken off)' : '(noted, not taken off)') + '</span></li>';
   });
   return d + '</ul></div>';
+}
+
+/* V3.883 — where the item stands with procurement, from the same PROC_CORE
+ * helpers the procurement page uses: an open request for it (so nobody asks
+ * twice), and the request it was bought / last restocked through (whose card
+ * holds the PO and the receipts). Each line links to the request. */
+function procurementHtml(item) {
+  if (!item || item.lab_made || typeof PROC_CORE === 'undefined') return '';
+  var link = function (id, text) { return '<a href="/rm/pages/procurement.html?ticket=' + encodeURIComponent(id) + '" onclick="event.stopPropagation();">' + text + '</a>'; };
+  var byId = function (id) { return _invTickets.find(function (t) { return t.id === id; }); };
+  var lines = [];
+  PROC_CORE.openRequestsFor(_invTickets, item).slice(0, 3).forEach(function (t) {
+    lines.push('<div class="inv-proc-open"><strong>Already requested:</strong> ' + escAttr(PROC_CORE.requestLine(t)) + ' \u2014 ' + link(t.id, 'view it') + '</div>');
+  });
+  if (item.procurementTicketId) {
+    var t0 = byId(item.procurementTicketId);
+    var when = t0 ? PROC_CORE.fmtDateLong(t0.placedAt || t0.receivedAt) : '';
+    lines.push('<div>Bought through a request' + (when ? ' (' + escAttr(when) + ')' : '') + ' \u2014 ' + link(item.procurementTicketId, 'view it and its receipts') + '</div>');
+  }
+  if (item.last_procurement_ticket_id && item.last_procurement_ticket_id !== item.procurementTicketId) {
+    lines.push('<div>Last restocked through a request' + (item.last_restocked_at ? ' on ' + escAttr(PROC_CORE.fmtDateLong(item.last_restocked_at)) : '') + ' \u2014 ' + link(item.last_procurement_ticket_id, 'view it') + '</div>');
+  }
+  if (!lines.length) return '';
+  return '<div class="inv-proc" style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;font-size:13px;line-height:1.6;">' +
+    '<strong style="font-size:12px;text-transform:uppercase;color:var(--text-muted);">Procurement</strong>' + lines.join('') + '</div>';
 }
 
 function vendorCell(item) {
@@ -577,10 +603,13 @@ function getFiltered() {
 /* ---- Main render ---- */
 
 async function loadAndRender() {
-  var results = await Promise.all([api.load(DATA_PATH), api.load(PROJECTS_PATH)]);
+  var results = await Promise.all([api.load(DATA_PATH), api.load(PROJECTS_PATH),
+    // V3.883 — optional: without it the panel just shows no procurement lines
+    api.load('procurement/tickets.json').catch(function (e) { console.warn('[inventory] procurement requests not loaded:', e && e.message); return null; })]);
   _data = results[0];
   _items = _data.items || [];
   _projects = (results[1].projects || []);
+  if (results[2]) _invTickets = results[2].tickets || [];
   _invPaintChrome();
 }
 
@@ -824,6 +853,7 @@ function itemDetailHtml(item, realIdx) {
     if (item.reorder.url) d += ' &middot; <a href="' + item.reorder.url + '" target="_blank" style="color:var(--primary);">Order Link</a>';
     d += '</div></div>';
   }
+  d += procurementHtml(item);   // V3.883
   d += '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:10px;">';
   // V3.813 — a reorder starts from the item itself: the procurement composer
   // opens prefilled (name, vendor, cat#, link, last price) and, when the box

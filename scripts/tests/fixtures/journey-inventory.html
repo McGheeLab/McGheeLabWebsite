@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory (journey frame)</title>
+<!-- V3.883 — the REAL inventory page scripts (the same set and order as
+     rm/pages/inventory.html, minus the camera scanner and the label registry,
+     which the harness stubs as INV_LABELS), inside the journeys harness. -->
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<script src="/rm/js/icons.js"></script>
+<script>parent.JOURNEY.install(window, new URLSearchParams(location.search).get('as') || 'stu');</script>
+<style id="inv-page-css"></style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <h1 class="page-title">Lab Inventory</h1>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input id="search-input" type="text" placeholder="Search items..." style="font-size:14px;padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);width:220px;">
+        <button class="btn" onclick="addLabMadeItem()">+ Custom item</button>
+        <button class="btn btn-primary" id="add-item">+ Add Item</button>
+      </div>
+    </div>
+    <div class="inv-pills" id="inv-pills" role="group" aria-label="Show these categories"></div>
+    <div id="content"></div>
+  </div>
+  <script src="/rm/js/util.js"></script>
+  <script>parent.JOURNEY.patchApi(api, window);</script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/forms.js"></script>
+  <script src="/rm/js/app-sheet.js"></script>
+  <script src="/rm/js/inventory-qty.js"></script>
+  <script src="/rm/js/qty-picker.js"></script>
+  <script src="/rm/js/inventory-use.js"></script>
+  <script src="/rm/js/stock-take.js"></script>
+  <script src="/rm/js/procurement-core.js"></script>
+  <script src="/rm/js/inventory-made.js"></script>
+  <script src="/rm/js/inventory.js"></script>
+</body>
+</html>

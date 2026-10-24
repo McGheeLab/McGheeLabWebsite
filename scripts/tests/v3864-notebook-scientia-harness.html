@@ -193,8 +193,27 @@ const firebridge = window.firebridge; delete window.firebridge;</script>
     /* 4. live: a note made on the desktop appears as a tab */
     var rref = window.__stub.db.collection('userData').doc('u1').collection('scientia').doc('hub').collection('rows').doc('documents__d3');
     await rref.set({ store: 'documents', id: 'd3', recJson: JSON.stringify({ id: 'd3', type: 'note', title: 'Made on the desktop', created: '2026-10-23T11:00:00', modified: '2026-10-23T11:00:00' }), deleted: false, seq: 10 });
-    var t3 = await until(function () { return sisTabs().join('|').indexOf('Made on the desktop') >= 0; }, 4000);
-    check('a note written to the hub (the desktop bridge) appears as a tab at once, first after Today', !!t3 && sisTabs()[1] === 'Made on the desktop', sisTabs().join(' | '));
+    /* V3.882 — the tabs are the OPEN notes: a note made on the desktop is counted at once and listed under All, and becomes a tab when it is opened */
+    var t3 = await until(function () { return /Scientia\s*3/.test(q('.nbc-sis-group .nbc-gname').textContent) && /All 3/.test(q('.nbc-sis-group').textContent); }, 4000);
+    check('a note written to the hub (the desktop bridge) is counted at once and listed under All N (not opened, so not a tab)', !!t3 && sisTabs().indexOf('Made on the desktop') < 0, sisTabs().join(' | '));
+    fr.contentWindow.location.hash = '#/doc/d3';
+    check('…opening it (anywhere in Scientia) makes it a tab', !!(await until(function () { return sisTabs().indexOf('Made on the desktop') >= 0; }, 6000)), sisTabs().join(' | '));
+    /* V3.882 — × closes a tab (the note stays); closing the one on screen moves to the next tab */
+    var xs = qa('.nbc-sis-group .nbc-tab-x');
+    check('every open note tab has an ×', xs.length === 3 && xs.every(function (x) { return !!x.closest('.nbc-sis-tab'); }), xs.length);
+    q('.nbc-sis-group .nbc-tab-x[data-id="d2"]').click();
+    check('× closes that tab, and the list is remembered', sisTabs().indexOf('Plan for coverslips') < 0 && JSON.parse(localStorage.getItem('nbc_sis_open') || '[]').indexOf('d2') < 0 && /Scientia\s*3/.test(q('.nbc-sis-group .nbc-gname').textContent), sisTabs().join(' | '));
+    q('.nbc-sis-group .nbc-tab-x[data-id="d3"]').click();
+    var moved = await until(function () { return /#\/doc\/d1$/.test(frameHash()) && sisTabs().indexOf('Made on the desktop') < 0; }, 6000);
+    check('closing the note on screen goes to the next open tab', !!moved, frameHash() + ' / ' + sisTabs().join(' | '));
+    /* V3.882 — ＋ Quick note after the tabs */
+    var qb = q('.nbc-sis-group .nbc-sis-quick'), gotCmd = [];
+    fr.contentWindow.addEventListener('message', function (e) { if (e.data && e.data.sisCmd) gotCmd.push(e.data.sisCmd); });
+    check('＋ Quick note sits after the tabs', !!qb && /Quick note/.test(qb.textContent) && qb.previousElementSibling && (qb.previousElementSibling.classList.contains('nbc-sis-tab') || qb.previousElementSibling.classList.contains('nbc-sis-more')));
+    qb.click();
+    check('…and asks Scientia for a blank quick note', !!(await until(function () { return gotCmd.indexOf('quick') >= 0; }, 4000)), JSON.stringify(gotCmd));
+    q('.nbc-sis-group [data-hash="#/doc/d2"]') ? null : (fr.contentWindow.location.hash = '#/doc/d2');
+    await until(function () { return sisTabs().indexOf('Plan for coverslips') >= 0; }, 6000);
     /* 5. the sync panel: keys */
     q('[data-h="sis-sync"]').click();
     await until(function () { return q('#nbc-sis-side') && !q('#nbc-sis-side').hidden; });

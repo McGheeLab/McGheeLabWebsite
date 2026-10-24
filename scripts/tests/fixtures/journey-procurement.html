@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Procurement (journey frame)</title>
+<!-- V3.883 — the REAL procurement page scripts, run inside the journeys harness
+     (../v3883-inventory-procurement-journeys.html), which owns the one shared
+     in-memory Firestore. ?as=<persona> plus the page's own params (?reorder=,
+     ?ticket=, ?view=) pass straight through to procurement.js. -->
+<link rel="stylesheet" href="/rm/css/tokens.css">
+<link rel="stylesheet" href="/rm/css/style.css">
+<link rel="stylesheet" href="/rm/css/procurement.css">
+<script src="/rm/js/icons.js"></script>
+<script>parent.JOURNEY.install(window, new URLSearchParams(location.search).get('as') || 'stu');</script>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header"><h1 class="page-title">Procurement</h1></div>
+    <div id="proc-root"><div class="empty-state">Loading…</div></div>
+  </div>
+  <script src="/rm/js/util.js"></script>
+  <script>parent.JOURNEY.patchApi(api, window);</script>
+  <script src="/rm/js/toast.js"></script>
+  <script src="/rm/js/procurement-core.js"></script>
+  <script src="/rm/js/procurement.js"></script>
+</body>
+</html>
