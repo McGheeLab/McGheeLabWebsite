@@ -185,6 +185,9 @@ path.ink-snap{animation:inksnap .26s ease-out}
 .pdf-stage.one{display:flex;justify-content:center;align-items:center} .pdf-one{background:transparent}
 .pdfw.maxed{width:min(96vw,1100px)} .pdfw.maxed .pdf-stage{height:calc(100vh - 150px)}
 .pdfw > .embed-rz{position:absolute;right:2px;bottom:2px}
+/* zoomed far out a PDF card shows its title instead of its pages (13zk PDFW) */
+.pdfw .pdf-ph{display:none;position:absolute;box-sizing:border-box;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px;border-radius:6px;background:var(--surface-2);color:var(--ink-2);font-size:44px;line-height:1.15;pointer-events:none;overflow:hidden}
+.pdfw.pdf-far .pdf-ph{display:flex} .pdfw .pdf-ph span{font-size:30px;color:var(--ink-3)}
 /* ---------- 13zl · tasks ---------- */
 .tk{padding:2px 12px 8px}
 .tk-row{display:flex;gap:8px;align-items:flex-start}
