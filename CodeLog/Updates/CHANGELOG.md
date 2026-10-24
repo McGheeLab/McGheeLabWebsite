@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.897] — 2026-10-24 — Scientia: the Quick cast built into the bottom bar; the ✦ wheel replaces the top-right row
+
+Plan: [CodeLog/ClaudesPlan/V3.897_scientia_quick_cast_in_bar_tools_corner.md](../ClaudesPlan/V3.897_scientia_quick_cast_in_bar_tools_corner.md). Web build only (`rm/scientia/lab-mode.js` §11).
+
+### Changed
+- **✦ replaces Gabe's top-right row**: `.ctools` hidden on the web; ✦ moves to that corner and gains **Split** (`SPLITBTN.menu`) and the timer's **head start** (`HEAD.start` / `HEAD.add`) beside timer, calculator, equation, focus, put back (Pen = ✎'s cog).
+- **The Quick cast inside the bottom bar**: `qcSlot` puts a `span.lab-qc-slot` into Gabe's dock near its middle (by width); the ＋ pill (`.in-bar`, 38 px) is drawn over it (`qcSlotAt`, `placeQuickCast`; `DocView.renderDock` wrapped to restore the slot after each rebuild; ResizeObserver + dock scroll). Docked, it is a centred row above the bar (`rowPos(…, inBar)`), its strip covering the row only. Pills layer z 18 → 21 (above the dock). Dragged out, no slot. `SIS_LAB.version` V3.897.
+
+### Tests
+- Lab-mode harness 212/214 (+6; the 2 failures are V3.894's PDF on-demand checks, failing identically before this change).
+
 ## [V3.896] — 2026-10-24 — Scientia's wheels: the Quick cast, each wheel in its place, rows and columns when left open, pen settings behind a cog
 
 Plan: [CodeLog/ClaudesPlan/V3.896_scientia_pills_quick_cast_docks.md](../ClaudesPlan/V3.896_scientia_pills_quick_cast_docks.md) (Alex's wishlist items 1–4). Web build only (`rm/scientia/lab-mode.js` §11); `scientia/src` untouched.

@@ -138,7 +138,7 @@
     function qa(s) { return Array.from(D.querySelectorAll(s)); }
     function ev(code) { return W.eval(code); }
     function go(hash) { W.location.hash = hash; }
-    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.896', W.SIS_LAB.version);
+    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.897', W.SIS_LAB.version);
     /* 1. the tab row */
     var keys = qa('#tabs a.tab').map(function (a) { return a.dataset.k; });
     check('Activity and Data are not tabs on the web', keys.indexOf('activity') < 0 && keys.indexOf('data') < 0, keys.join(','));
@@ -594,10 +594,22 @@
     D.body.dispatchEvent(new W.PointerEvent('pointerdown', { bubbles: true, pointerId: 22 })); await until(function () { return !q('.lab-pill.open'); }, 2000);
     /* V3.896 — the places: Quick cast centred above the bottom bar, zoom top left, tools top right, the hand bottom right */
     var HR = q('.canvas-host').getBoundingClientRect(), PR = function (n) { return pill(n).getBoundingClientRect(); }, dockR = q('.canvas-host > .dock') && q('.canvas-host > .dock').getBoundingClientRect();
-    check('the wheels have their places: Quick cast centred just above the bottom bar, zoom top left, tools top right, the hand bottom right',
-      Math.abs((PR('insert').left + PR('insert').right) / 2 - (HR.left + HR.right) / 2) < 2 && (!dockR || PR('insert').bottom <= dockR.top) && (!dockR || dockR.top - PR('insert').bottom < 32)
-      && PR('view').left - HR.left < 30 && PR('view').top - HR.top < 30 && HR.right - PR('tools').right < 30 && PR('tools').top - HR.top < 80 && HR.right - PR('hand').right < 30 && HR.bottom - PR('hand').bottom < 30,
-      JSON.stringify({ host: [HR.left, HR.top, HR.right, HR.bottom], insert: PR('insert'), dock: dockR, view: PR('view'), tools: PR('tools'), hand: PR('hand') }));
+    await until(function () { return pill('insert').classList.contains('in-bar'); }, 3000);
+    var slotR = q('.canvas-host > .dock .lab-qc-slot') && q('.canvas-host > .dock .lab-qc-slot').getBoundingClientRect(), mid = function (r) { return [(r.left + r.right) / 2, (r.top + r.bottom) / 2]; };
+    check('the wheels have their places: Quick cast built into the bottom bar (in its middle), zoom top left, tools in the top-right corner, the hand bottom right',
+      !!dockR && !!slotR && pill('insert').classList.contains('in-bar') && Math.abs(mid(PR('insert'))[0] - mid(slotR)[0]) < 2 && Math.abs(mid(PR('insert'))[1] - mid(dockR)[1]) < 3 && Math.abs(mid(slotR)[0] - mid(dockR)[0]) < dockR.width / 4
+      && PR('view').left - HR.left < 30 && PR('view').top - HR.top < 30 && HR.right - PR('tools').right < 30 && PR('tools').top - HR.top < 30 && HR.right - PR('hand').right < 30 && HR.bottom - PR('hand').bottom < 30,
+      JSON.stringify({ host: [HR.left, HR.top, HR.right, HR.bottom], insert: PR('insert'), slot: slotR, dock: dockR, view: PR('view'), tools: PR('tools'), hand: PR('hand') }));
+    check('Gabe’s top-right row (Split, Timer, Pen, Calculator, Equation) gives way to the ✦ wheel', !!q('.canvas-host > .ctools') && W.getComputedStyle(q('.canvas-host > .ctools')).display === 'none');
+    ev("DocView.renderDock(M.doc(DocView.docId))");
+    check('…and when Gabe rebuilds his bar, the Quick cast’s place goes back in and the wheel stays on it', !!(await until(function () { var sl = q('.canvas-host > .dock .lab-qc-slot'); if (!sl) return false; var a = mid(sl.getBoundingClientRect()), b = mid(PR('insert')); return Math.abs(a[0] - b[0]) < 2 && Math.abs(a[1] - b[1]) < 3; }, 3000)));
+    pill('tools').querySelector('.lab-pill-btn').click(); await until(function () { return fanItems('tools').length >= 6; }, 2000);
+    check('✦ holds what that row did: the timer and its head start, calculator, equation, split', !!item('tools', /timer/i) && !!item('tools', /head start/) && !!item('tools', /^A calculator/) && !!item('tools', /^An equation/) && !!item('tools', /^Split/));
+    item('tools', /^Split/).click();
+    var spm = await until(function () { return q('.pop.menu'); }, 2000);
+    check('…Split opens Gabe’s split menu', !!spm && /Side by side/.test(spm.textContent));
+    ev("typeof closePop === 'function' && closePop()");
+    D.body.dispatchEvent(new W.PointerEvent('pointerdown', { bubbles: true, pointerId: 25 })); await until(function () { return !q('.lab-pill.open'); }, 2000);
     /* left open 10 s, a wheel docks (the harness shortens the wait) */
     W.SIS_LAB.pills.dockMs = 400;
     pill('tools').querySelector('.lab-pill-btn').click();
@@ -615,6 +627,8 @@
     pill('insert').querySelector('.lab-pill-btn').click();
     var idock = await until(function () { return pill('insert').classList.contains('docked') && pill('insert'); }, 3000); await sleep(900);
     var ic = (function () { var r = pill('insert').getBoundingClientRect(); return (r.left + r.right) / 2; })(), ipos = fanItems('insert').map(function (b) { var r = b.getBoundingClientRect(); return [(r.left + r.right) / 2, Math.round(r.top)]; });
+    var irail = pill('insert').querySelector('.lab-dock-rail');
+    check('…its strip sits above the bar, not over it', !!irail && (!dockR || irail.getBoundingClientRect().bottom <= dockR.top + 1), irail && JSON.stringify([irail.getBoundingClientRect().bottom, dockR && dockR.top]));
     check('＋ Quick cast left open becomes a row just above the bottom bar, either side of its pill', !!idock && ipos.length > 3 && ipos.every(function (p) { return Math.abs(p[1] - ipos[0][1]) < 2; }) && ipos.some(function (p) { return p[0] < ic; }) && ipos.some(function (p) { return p[0] > ic; }) && (!dockR || ipos[0][1] < dockR.top), JSON.stringify(ipos));
     pill('tools').querySelector('.lab-pill-btn').click();
     check('a tap on a docked pill folds its row back into the wheel', !!(await until(function () { return !pill('tools').classList.contains('docked') && !fanItems('tools').length; }, 2000)) && JSON.parse(W.localStorage.getItem('sis:lab:docked') || '{}').tools === false);

@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (23 changes — push at 5+)
+## Pending (24 changes — push at 5+)
 
+- **V3.897 — Scientia: the Quick cast is part of the bottom bar, and ✦ replaces the top-right buttons.** The ＋ Quick cast now sits inside the bar at the bottom of a note. The Split, Timer, Calculator and Equation buttons at the top right are gone: the ✦ wheel in that corner does all of it (Split, the timer and its head start, calculator, equation, focus mode); the pen lives on the ✎ wheel's cog.
 - **V3.896 — Scientia's wheels have their places, and stay open as rows.** The ＋ wheel is now your **Quick cast**, just above the bottom bar: choose what is in it with the small bolt on any row of **+ Insert**. Zoom sits top left, tools top right, the pen/hand wheel bottom right. Leave the Quick cast, tools or zoom open for 10 seconds and it rolls into a row (or, for zoom, a column down the left) that stays until you tap its button. Pen colours and settings are now one cog in the pen wheel, which opens the pen bar at the top left and leaves it open. The “Install Scientia” notice now shows at the top of the page instead of over the bottom bar.
 - **V3.894 — Notes with lots of PDFs stay smooth in Scientia.** A PDF on a note's canvas now loads and draws only while it's on your screen, and only as sharp as your zoom needs, so a literature review with dozens of papers no longer slows down, flickers or redraws every PDF when something syncs. Zoomed all the way out, each PDF shows its title and page count instead; clicking a quote's "from …" zooms you in to the highlighted passage.
 - **V3.895 — Zoom to fit in Scientia notes.** With the magnifying glass (the ✎ pill) on, a click still zooms in and Alt-click zooms out; now **Shift-click fits the screen to the box or region you clicked**, and while you hold Shift its edge lights up so you can see what it will fit.
