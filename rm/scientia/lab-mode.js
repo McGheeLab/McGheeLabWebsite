@@ -16,6 +16,8 @@
      Portfolio  what the PI assigned you in RM first, as region cards you move and fold; Quick notes; your own projects (V3.880, section 10).
      Pills      the Lab Notebook's movable ✎ ＋ ✦ ⊕ pills on every note, driving Scientia's own ink, inserts and view (V3.882, section 11).
      Recorder   the one recorder (V3.884, section 12): audio to the cloud a minute at a time, recovery, marks with kinds and sections, timed ink.
+     Lit reviews  a tab of review canvases linked to any number of projects (V3.889, section 13).
+     PDFs       a PDF card draws only while on screen, as sharp as the zoom needs, and survives a canvas rebuild (V3.894, section 14).
 
    The app's globals (TABS, VIEWS, App, DB, M, LIB, h, …) are top-level consts
    of the classic script that precedes this one: same realm, same lexical
@@ -31,7 +33,7 @@
     activity: '/rm/pages/activity-overview.html?tab=tracker',
     inventory: '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.889', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.894', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -1344,10 +1346,16 @@
     var P = ZF.host && ZF.host._dv && ZF.host._dv.paper; zfitWidth(el, P && P.view.z); el.classList.add('lab-zfit');
   }
   function zfitHover() { zfitMark(ZF.shift && LP.zoom && ZF.host && ZF.host.isConnected ? zfitTarget(ZF.host, ZF.x, ZF.y) : null); }
+  /* Paper.fitTarget keeps a note's top on the screen (y ≥ pad: right for "fit everything", wrong for one thing further
+     down), so a component or region is centred here instead, in the room the side pills, the tool row and the dock leave */
+  var ZFIT_PAD = { side: 72, top: 64, bottom: 84, split: 100 };
+  LAB.zfitPad = ZFIT_PAD;
   function zfit(host, x, y) {
     var P = host._dv.paper, el = zfitTarget(host, x, y);
     if (!el) return fitAll(host._dv);
-    P.animateView(P.fitTarget({ x0: el.offsetLeft, y0: el.offsetTop, x1: el.offsetLeft + el.offsetWidth, y1: el.offsetTop + el.offsetHeight }, 48, P.o.maxZ));
+    var r = P.rect(), s = r.width < 640 ? 12 : ZFIT_PAD.side, t = host.closest('.split') ? ZFIT_PAD.split : ZFIT_PAD.top, b = ZFIT_PAD.bottom;
+    var w = Math.max(1, el.offsetWidth), ht = Math.max(1, el.offsetHeight), z = clamp(Math.min((r.width - 2 * s) / w, (r.height - t - b) / ht), P.o.minZ, P.o.maxZ);
+    P.animateView({ z: z, x: r.width / 2 - (el.offsetLeft + w / 2) * z, y: t + (r.height - t - b) / 2 - (el.offsetTop + ht / 2) * z });
   }
   function zfitKeys(e) {
     if (e.key !== 'Shift' && e.key !== 'Alt') return;
@@ -1772,7 +1780,10 @@
       PDFW.body = function (b, d, pane, ro) {
         if (!b || !pane || pane.maxView || !pane.paper || !MEDIA.get(b.media)) return oBody.apply(this, arguments);
         var key = (pane._pdk || (pane._pdk = ++PD.n)) + ':' + b.id, hit = PD.live.get(key), sig = sigOf(b, ro);
-        if (hit && hit.b === b && hit.sig === sig && !hit.dead) { want(hit); return hit.el; }   // the same viewer, canvases intact
+        if (hit && hit.b === b && hit.sig === sig && !hit.dead) {   // the same viewer, canvases intact
+          if (hit.bar.parentNode !== hit.el) hit.el.insertBefore(hit.bar, hit.stage);   // Gabe's SLIM moved the bar into the old box's header; the new box docks it again
+          want(hit); return hit.el;
+        }
         if (hit) drop(hit);
         var C = card(b, pane, ro, sig); C.key = key; PD.live.set(key, C); return C.el;
       };
@@ -1792,7 +1803,7 @@
         var el = h('div.pdfw', bar, stage, ph);
         if (!ro) el.append(DOCS.grip(b, stage, pane));
         el.addEventListener('mouseenter', function () { DOCS.hover = b.id; }); el.addEventListener('mouseleave', function () { if (DOCS.hover === b.id) DOCS.hover = null; });
-        var C = { b: b, m: m, pane: pane, el: el, stage: stage, count: count, sig: sig, page: page, cur: cur, n: n, slots: [], one: null, W: 0, vis: false, active: false, pdf: null, idleT: null, gone: 0 };
+        var C = { b: b, m: m, pane: pane, el: el, bar: bar, stage: stage, ph: ph, count: count, sig: sig, page: page, cur: cur, n: n, slots: [], one: null, W: 0, vis: false, active: false, pdf: null, idleT: null, gone: 0 };
         el._pd = C; PD.cards.add(C); sweeping();
         if (page) {
           C.one = h('div.dk-stage.pdf-one', blank(200, 1.294),
@@ -1831,7 +1842,9 @@
       function onScreen(C) { return C.vis && C.el.isConnected && zoomOf(C) >= PD.minZ; }
       function update(C) {
         if (C.dead) return;
-        C.el.classList.toggle('lab-pdf-far', zoomOf(C) < PD.minZ);
+        var far = zoomOf(C) < PD.minZ, st = C.stage;
+        if (far) C.ph.style.cssText = 'top:' + st.offsetTop + 'px;left:' + st.offsetLeft + 'px;width:' + st.offsetWidth + 'px;height:' + st.offsetHeight + 'px';
+        C.el.classList.toggle('lab-pdf-far', far);
         if (onScreen(C)) { clearTimeout(C.idleT); C.idleT = null; if (C.active) plan(C); else activate(C); }
         else if (C.active && !C.idleT) C.idleT = setTimeout(function () { C.idleT = null; if (!onScreen(C)) release(C); }, zoomOf(C) < PD.minZ ? 600 : PD.idleMs);
       }
@@ -1931,6 +1944,19 @@
           return r;
         };
       }
+      /* a quote's "from …" into a PDF while zoomed far out (titles showing): zoom in to read it — Gabe's reveal only
+         zooms when the card is off screen */
+      if (typeof QUOTE !== 'undefined' && QUOTE.goto) {
+        var oGoto = QUOTE.goto;
+        QUOTE.goto = function (q) {
+          var r = oGoto.apply(this, arguments);
+          try {
+            var src = q && q.quote && M.block(q.quote.src), dv = src && src.kind === 'pdf' && DocView.docId === src.docId ? DocView : null, P = dv && dv.paper, rc;
+            if (P && P.view.z < PD.minZ && (rc = dv.rectOf(src.id))) P.centerOn(rc.x + rc.w / 2, rc.y + Math.min(rc.h, 300) / 2, 0.8);
+          } catch (e) {}
+          return r;
+        };
+      }
       PD.stats = function () {
         var o = { cards: 0, active: 0, drawn: 0, mb: 0, docs: PDFW.docs.size, queued: PD.q.length };
         PD.cards.forEach(function (C) { if (C.el.isConnected) { o.cards++; if (C.active) o.active++; } });
@@ -1942,7 +1968,7 @@
   } catch (e) { warn('pdf on demand', e); }
   try {
     var st14 = document.getElementById('lab-mode-css');
-    if (st14) st14.textContent += '.pdfw .lab-pdf-ph{display:none;position:absolute;left:10px;right:10px;top:40px;bottom:10px;flex-direction:column;align-items:center;justify-content:center;gap:12px;' +
+    if (st14) st14.textContent += '.pdfw .lab-pdf-ph{display:none;position:absolute;box-sizing:border-box;flex-direction:column;align-items:center;justify-content:center;gap:12px;' +
       'text-align:center;padding:24px;border-radius:6px;background:var(--surface-2);color:var(--ink-2);font-size:44px;line-height:1.15;pointer-events:none;overflow:hidden}' +
       '.pdfw.lab-pdf-far .lab-pdf-ph{display:flex}.pdfw .lab-pdf-ph span{font-size:30px;color:var(--ink-3)}';
   } catch (e) { warn('css 14', e); }

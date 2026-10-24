@@ -13,7 +13,8 @@ export default async (page) => {
   const DOC = process.env.DOC_ID || 'd_lra1e7c848c1', BASE = new URL(page.url()).origin, SHOT = process.env.SHOT || '/tmp/pdfload'
   const br = page.context().browser()
   const ctx = await br.newContext({ viewport: { width: 1700, height: 1050 }, deviceScaleFactor: +(process.env.DSF || 2) })
-  const p = await ctx.newPage(), errors = []
+  const p = await ctx.newPage(), errors = [], pdfs = new Set()
+  p.on('request', r => { if (/\.pdf(\?|$)/i.test(r.url())) pdfs.add(r.url().replace(/\?.*/, '')) })
   p.on('pageerror', e => errors.push(String(e).slice(0, 300))); p.on('console', m => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)) })
   if (process.env.LAB) {
     const src = fs.readFileSync(LAB_JS, 'utf8'), at = src.indexOf('/* ---- 14. '), end = src.lastIndexOf('})();')
@@ -38,7 +39,6 @@ export default async (page) => {
   })
   const longTasks = () => p.evaluate(() => { const l = window.__lt || []; window.__lt = []; return { n: l.length, totalMs: l.reduce((a, b) => a + b, 0), maxMs: Math.max(0, ...l) } })
   const settle = async (max = 40) => { let last = null, same = 0; for (let i = 0; i < max; i++) { await p.waitForTimeout(1000); const s = await stat(); if (last && s.drawn === last.drawn) same++; else same = 0; last = s; if (same >= 5) break } return last }
-  const zoomAt = async (x, y, steps) => { await p.mouse.move(x, y); for (let i = 0; i < Math.abs(steps); i++) { await p.keyboard.down('Control'); await p.mouse.wheel(0, steps > 0 ? 120 : -120); await p.keyboard.up('Control'); await p.waitForTimeout(120) } }
   const out = {}
 
   await p.evaluate(id => { location.hash = '#/doc/' + id }, DOC)
@@ -54,18 +54,19 @@ export default async (page) => {
   await p.waitForTimeout(3000)
   out.sync = Object.assign(await p.evaluate(() => { const c = [...document.querySelectorAll('.pdfw canvas.pdf-page')]; return { boxesRebuilt: [...document.querySelectorAll('.box[data-id]')].filter(b => !b.dataset.lt).length, pageCanvasesKept: c.filter(x => x.dataset.mark).length, pageCanvasesNew: c.filter(x => !x.dataset.mark).length } }), { longTasks: await longTasks() })
 
-  // zoom far out over bare paper (left edge)
-  await zoomAt(500, 140, 4); await p.waitForTimeout(2500)   // bare paper above the overview band (a wheel over a card does not zoom)
-  out.farOut = await stat(); await p.screenshot({ path: SHOT + '-2-far.png' })
-
-  // zoom back in onto the first paper of the H2 column (Hino 2020)
-  const hino = await p.evaluate(() => { const b = [...document.querySelectorAll('.box.w-pdf')].find(x => /Hino/.test(x.textContent)); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left - 8, y: Math.min(Math.max(r.top + 30, 150), innerHeight - 200) } })
-  if (hino) { await zoomAt(Math.max(5, hino.x), hino.y, -7); out.zoomIn = await settle(15); await p.screenshot({ path: SHOT + '-3-in.png' }) }
-
-  // pan away down the canvas (wheel scrolls the paper when not over a card)
-  await p.mouse.move(8, 500); for (let i = 0; i < 12; i++) { await p.mouse.wheel(0, 400); await p.waitForTimeout(100) }
-  await p.waitForTimeout(6000)
-  out.pannedAway = await stat()
+  // a view placed exactly (the app restores it from localStorage when the note is opened again)
+  const viewAt = async (match, z, dx = 40, dy = 110) => {
+    const at = await p.evaluate(rx => { const b = [...document.querySelectorAll('.box.w-pdf')].find(x => new RegExp(rx).test(x.textContent)); return b && { x: b.offsetLeft, y: b.offsetTop } }, match)
+    if (!at) return null
+    await p.evaluate(([id, v]) => { localStorage.setItem('sis:view:' + id, JSON.stringify(v)); location.hash = '#/home' }, [DOC, { x: dx - at.x * z, y: dy - at.y * z, z }])
+    await p.waitForTimeout(600); await p.evaluate(id => { location.hash = '#/doc/' + id }, DOC)
+    return settle(20)
+  }
+  out.onHinoAt1 = await viewAt('Hino', 1); await p.screenshot({ path: SHOT + '-2-hino.png' })
+  out.onHinoAtHalf = await viewAt('Hino', 0.5); await p.screenshot({ path: SHOT + '-3-half.png' })
+  out.overviewOnPapers = await viewAt('Hino', 0.3, 500, 250); await p.screenshot({ path: SHOT + '-4-overview.png' })
+  out.elsewhereAt1 = await viewAt('Boocock', 1); await p.waitForTimeout(6000); out.elsewhereAfter6s = await stat()
+  out.pdfFilesFetched = pdfs.size
   out.errors = errors.slice(0, 10)
   return out
 }

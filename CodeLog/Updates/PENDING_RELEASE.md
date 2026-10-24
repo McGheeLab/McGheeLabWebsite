@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (21 changes — push at 5+)
+## Pending (22 changes — push at 5+)
 
+- **V3.894 — Notes with lots of PDFs stay smooth in Scientia.** A PDF on a note's canvas now loads and draws only while it's on your screen, and only as sharp as your zoom needs, so a literature review with dozens of papers no longer slows down, flickers or redraws every PDF when something syncs. Zoomed all the way out, each PDF shows its title and page count instead; clicking a quote's "from …" zooms you in to the highlighted passage.
 - **V3.895 — Zoom to fit in Scientia notes.** With the magnifying glass (the ✎ pill) on, a click still zooms in and Alt-click zooms out; now **Shift-click fits the screen to the box or region you clicked**, and while you hold Shift its edge lights up so you can see what it will fit.
 - **V3.893 — The PE bead assay is a Scientia project you can open in the Lab Notebook (research, not on the site).** Alex's Scientia now has a project, "PE bead assay on the AX R confocal", that holds the binding and image models, three interactive simulators you can play with right in the notes, the figures and set-up diagrams, a literature review with the papers on the canvas, the measurement strategy, and the plan for checking the model with 13 experiments.
 - **V3.892 — The PE bead experiments are ready to run in RM (research, not on the site).** The 13 experiments for characterizing the PE bead assay on the AX R are now protocols you can import on the Protocols page, each with live calculators (laser power, bleaching budget, dilutions, settling time, a 96-well standard-curve plate map). Files: `Research/bead_confocal_protocols/`.
