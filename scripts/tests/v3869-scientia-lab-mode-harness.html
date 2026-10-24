@@ -722,8 +722,8 @@
     go('#/doc/' + pdfDoc);
     var drawnIn = function (n) { var b = q('.box[data-id="c_pdf' + n + '"]'); return b ? [].filter.call(b.querySelectorAll('canvas.pdf-page'), function (c) { return c.width > 0 && c.height > 0; }).length : -1; };
     var near = await until(function () { return drawnIn(1) > 0 && drawnIn(1); }, 15000);
-    check('a PDF card on screen draws its pages; one far off screen draws nothing and loads nothing', !!near && drawnIn(3) === 0 && drawnIn(5) === 0 && drawnIn(6) === 0 && !ev("PDFW.docs.has('m_pdf6')"), JSON.stringify([1, 2, 3, 4, 5, 6].map(drawnIn)) + ' ' + ev("JSON.stringify({ lib: typeof pdfjsLib, url: MEDIA.url(MEDIA.get('m_pdf1')), docs: [...PDFW.docs.keys()], st: SIS_LAB.pdf.stats(), q: SIS_LAB.pdf.q.length, busy: SIS_LAB.pdf.busy, readerOk: READER.ok() })"));
-    var st18 = W.SIS_LAB.pdf.stats();
+    check('a PDF card on screen draws its pages; one far off screen draws nothing and loads nothing', !!near && drawnIn(3) === 0 && drawnIn(5) === 0 && drawnIn(6) === 0 && !ev("PDFW.docs.has('m_pdf6')"), JSON.stringify([1, 2, 3, 4, 5, 6].map(drawnIn)) + ' ' + ev("JSON.stringify({ lib: typeof pdfjsLib, url: MEDIA.url(MEDIA.get('m_pdf1')), docs: [...PDFW.docs.keys()], st: PDFW.stats(), readerOk: READER.ok() })"));
+    var st18 = JSON.parse(ev('JSON.stringify(PDFW.stats())'));
     check('…it draws only the pages in its own scroll window, not all six', drawnIn(1) <= 2 && st18.drawn <= 4 && st18.cards === 6, JSON.stringify(st18));
     check('…as sharp as the zoom needs (zoom 1 → the screen’s pixel density)', (function () { var c = [].filter.call(q('.box[data-id="c_pdf1"]').querySelectorAll('canvas.pdf-page'), function (x) { return x.width > 0; })[0]; return !!c && Math.abs(c.width / parseFloat(c.style.width) - Math.min(3, Math.max(0.5, Math.round((W.devicePixelRatio || 1) * 4) / 4))) < 0.05; })());
     var keep = [].filter.call(q('.box[data-id="c_pdf1"]').querySelectorAll('canvas.pdf-page'), function (c) { return c.width > 0; })[0];
@@ -733,10 +733,10 @@
     check('a rebuild of the canvas (a sync) keeps the drawn pages: the same canvas, still drawn', q('.box[data-id="c_pdf1"]') !== box1 && !!keep && keep.isConnected && keep.width > 0 && q('.box[data-id="c_pdf1"]').contains(keep));
     check('…and the card keeps its toolbar (Gabe’s SLIM docks it in the new box’s header)', !!q('.box[data-id="c_pdf1"] .bh .pdf-bar') && /6 pages/.test(q('.box[data-id="c_pdf1"] .pdf-bar').textContent));
     ev("DocView.paper.zoomAt(0.3)");
-    var far18 = await until(function () { var b = q('.box[data-id="c_pdf1"] .pdfw'); return b && b.classList.contains('lab-pdf-far') && drawnIn(1) === 0 && b; }, 5000);
-    check('zoomed far out: the card shows its title and page count and gives its pages back', !!far18 && /Fixture 1/.test(far18.querySelector('.lab-pdf-ph').textContent) && /6 pages/.test(far18.querySelector('.lab-pdf-ph').textContent) && W.getComputedStyle(far18.querySelector('.lab-pdf-ph')).display === 'flex');
+    var far18 = await until(function () { var b = q('.box[data-id="c_pdf1"] .pdfw'); return b && b.classList.contains('pdf-far') && drawnIn(1) === 0 && b; }, 5000);
+    check('zoomed far out: the card shows its title and page count and gives its pages back', !!far18 && /Fixture 1/.test(far18.querySelector('.pdf-ph').textContent) && /6 pages/.test(far18.querySelector('.pdf-ph').textContent) && W.getComputedStyle(far18.querySelector('.pdf-ph')).display === 'flex');
     ev("DocView.paper.view.x = 20; DocView.paper.view.y = 20; DocView.paper.zoomAt(1, DocView.paper.rect().left + 20, DocView.paper.rect().top + 20)");
-    check('…zoomed back in, it draws again', !!(await until(function () { return drawnIn(1) > 0 && !q('.box[data-id="c_pdf1"] .pdfw').classList.contains('lab-pdf-far'); }, 8000)));
+    check('…zoomed back in, it draws again', !!(await until(function () { return drawnIn(1) > 0 && !q('.box[data-id="c_pdf1"] .pdfw').classList.contains('pdf-far'); }, 8000)));
     ev("(function () { var b = M.block('c_pdf1'); b.view = 'page'; DOCS.save(b); DOCS.repaint(b); })()");
     check('One at a time: a single page drawn', !!(await until(function () { return q('.box[data-id="c_pdf1"] .pdf-one') && drawnIn(1) === 1; }, 8000)));
     ev("(function () { var b = M.block('c_pdf1'); b.view = 'scroll'; DOCS.save(b); DOCS.repaint(b); })()");

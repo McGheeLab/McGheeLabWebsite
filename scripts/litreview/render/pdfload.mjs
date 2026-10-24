@@ -34,7 +34,7 @@ export default async (page) => {
     const c = [...document.querySelectorAll('.pdfw canvas.pdf-page')], drawn = c.filter(x => x.width > 0 && x.height > 0 && !(x.width === 300 && x.height === 150))
     return { cards: document.querySelectorAll('.pdfw').length, cardsOnScreen: [...document.querySelectorAll('.pdfw')].filter(vis).length, drawn: drawn.length, drawnOnScreen: drawn.filter(vis).length,
       canvasMB: Math.round(drawn.reduce((s, x) => s + x.width * x.height * 4, 0) / 1048576), highlightsOnScreen: [...document.querySelectorAll('.pdfw .q-hl')].filter(vis).length,
-      titles: [...document.querySelectorAll('.pdfw.lab-pdf-far')].filter(vis).length,
+      titles: [...document.querySelectorAll('.pdfw.pdf-far')].filter(vis).length,
       zoom: +(((document.querySelector('.canvas-host .world') || {}).style || {}).transform || '').replace(/.*scale\(([^)]+)\).*/, '$1') || null }
   })
   const longTasks = () => p.evaluate(() => { const l = window.__lt || []; window.__lt = []; return { n: l.length, totalMs: l.reduce((a, b) => a + b, 0), maxMs: Math.max(0, ...l) } })

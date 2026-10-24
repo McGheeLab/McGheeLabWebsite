@@ -1744,6 +1744,7 @@
   } catch (e) { warn('css 13', e); }
 
   /* ---- 14. PDF cards draw on demand (V3.894, CodeLog/ClaudesPlan/V3.894_scientia_pdf_cards_on_demand.md) ----
+     (class names pdf-ph / pdf-far are the ones the same change in Gabe's 13zk uses, so tests and CSS hold for either)
      Alex: "when there are too many pdf's on the canvas it seems to slow down and the site glitches". Gabe's PDF card
      (13zk PDFW.body) loads its file and draws the first pages of its own scroll area as soon as the note opens, on
      screen or not, and every changed() rebuilds every box — so each sync from another device redrew every PDF. The ERK
@@ -1799,7 +1800,7 @@
           h('a.btn.xs', { href: MEDIA.url(m), target: '_blank', rel: 'noopener', title: 'Open in a new tab', on: { click: function (e) { e.stopPropagation(); } } }, '↗'),
           ro ? null : DOCS.btn('Replace', 'Replace the file', function () { PLATE.pickFiles(function (fs) { MEDIA.add(fs[0]).then(function (r) { if (r.kind !== 'pdf') return toast('That is not a PDF'); var B = M.block(b.id); B.media = r.id; B.pages = 0; B.cur = 0; DOCS.save(B); DOCS.repaint(B); PDFW.words(B); }); }, false, '.pdf'); }));
         var stage = h('div.pdf-stage.scrolly.nopan' + (page ? '.one' : ''), { style: { height: (b.h || 560) + 'px' } });
-        var ph = h('div.lab-pdf-ph', h('b', b.label || 'PDF'), h('span', n ? plural(n, 'page') : ''));
+        var ph = h('div.pdf-ph', h('b', b.label || 'PDF'), h('span', n ? plural(n, 'page') : ''));
         var el = h('div.pdfw', bar, stage, ph);
         if (!ro) el.append(DOCS.grip(b, stage, pane));
         el.addEventListener('mouseenter', function () { DOCS.hover = b.id; }); el.addEventListener('mouseleave', function () { if (DOCS.hover === b.id) DOCS.hover = null; });
@@ -1844,7 +1845,7 @@
         if (C.dead) return;
         var far = zoomOf(C) < PD.minZ, st = C.stage;
         if (far) C.ph.style.cssText = 'top:' + st.offsetTop + 'px;left:' + st.offsetLeft + 'px;width:' + st.offsetWidth + 'px;height:' + st.offsetHeight + 'px';
-        C.el.classList.toggle('lab-pdf-far', far);
+        C.el.classList.toggle('pdf-far', far);
         if (onScreen(C)) { clearTimeout(C.idleT); C.idleT = null; if (C.active) plan(C); else activate(C); }
         else if (C.active && !C.idleT) C.idleT = setTimeout(function () { C.idleT = null; if (!onScreen(C)) release(C); }, zoomOf(C) < PD.minZ ? 600 : PD.idleMs);
       }
@@ -1963,13 +1964,13 @@
         $$('.pdfw canvas.pdf-page').forEach(function (c) { if (c.width > 0 && c.height > 0) { o.drawn++; o.mb += c.width * c.height * 4; } });
         o.mb = Math.round(o.mb / 1048576); return o;
       };
-      PDFW.labOnDemand = true;
+      PDFW.stats = PD.stats; PDFW.labOnDemand = true;   // stats: the same call as Gabe's version (PDFW.onDemand) will offer
     })();
   } catch (e) { warn('pdf on demand', e); }
   try {
     var st14 = document.getElementById('lab-mode-css');
-    if (st14) st14.textContent += '.pdfw .lab-pdf-ph{display:none;position:absolute;box-sizing:border-box;flex-direction:column;align-items:center;justify-content:center;gap:12px;' +
+    if (st14) st14.textContent += '.pdfw .pdf-ph{display:none;position:absolute;box-sizing:border-box;flex-direction:column;align-items:center;justify-content:center;gap:12px;' +
       'text-align:center;padding:24px;border-radius:6px;background:var(--surface-2);color:var(--ink-2);font-size:44px;line-height:1.15;pointer-events:none;overflow:hidden}' +
-      '.pdfw.lab-pdf-far .lab-pdf-ph{display:flex}.pdfw .lab-pdf-ph span{font-size:30px;color:var(--ink-3)}';
+      '.pdfw.pdf-far .pdf-ph{display:flex}.pdfw .pdf-ph span{font-size:30px;color:var(--ink-3)}';
   } catch (e) { warn('css 14', e); }
 })();
