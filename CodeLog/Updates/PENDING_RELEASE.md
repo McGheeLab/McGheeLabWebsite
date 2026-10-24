@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (20 changes — push at 5+)
+## Pending (21 changes — push at 5+)
 
+- **V3.895 — Zoom to fit in Scientia notes.** With the magnifying glass (the ✎ pill) on, a click still zooms in and Alt-click zooms out; now **Shift-click fits the screen to the box or region you clicked**, and while you hold Shift its edge lights up so you can see what it will fit.
 - **V3.893 — The PE bead assay is a Scientia project you can open in the Lab Notebook (research, not on the site).** Alex's Scientia now has a project, "PE bead assay on the AX R confocal", that holds the binding and image models, three interactive simulators you can play with right in the notes, the figures and set-up diagrams, a literature review with the papers on the canvas, the measurement strategy, and the plan for checking the model with 13 experiments.
 - **V3.892 — The PE bead experiments are ready to run in RM (research, not on the site).** The 13 experiments for characterizing the PE bead assay on the AX R are now protocols you can import on the Protocols page, each with live calculators (laser power, bleaching budget, dilutions, settling time, a 96-well standard-curve plate map). Files: `Research/bead_confocal_protocols/`.
 - **V3.890 — A model of the PE bead assay on the confocal (research, not on the site).** A model and simulation of the PE bead confocal assay — how much PE ends up on an 8 µm bead vs analyte concentration, what the AX-R sees when it images that fluorescent shell, and how best to measure it. `Research/PE_bead_confocal_assay_model.md`, a 13-experiment plan for characterizing it on the AX R (`Research/PE_bead_confocal_experiments.md`), and runnable code in `Research/bead_confocal_sim/`.

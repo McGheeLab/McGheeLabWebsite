@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.895] — 2026-10-24 — Scientia: Shift-tap with the zoom hand fits a component or region, its edge lit while Shift is held
+
+Plan: [CodeLog/ClaudesPlan/V3.895_scientia_zoom_shift_fit.md](../ClaudesPlan/V3.895_scientia_zoom_shift_fit.md). The code went out in
+`443f4987` (a parallel session's end-of-turn autopush, labelled V3.893); this entry records it.
+
+### Changed
+- **The ✎ pill's zoom hand** (`rm/scientia/lab-mode.js` §11, `bindZoomHand`, web build only):
+  - **Unchanged:** tap = zoom in ×1.5 at the point, Alt-tap (or the right button) = out, drag up or down = smooth zoom.
+  - **Shift-tap now fits** (Shift used to be a second "out"). It fits the view to what is under the pointer: a region by its name tab or its margin, a component (`.box` in the paper's world), or the whole note on empty paper. The fit is `Paper.fitTarget(bb, 48, P.o.maxZ)` + `animateView`, so a small component fills the screen up to the paper's max zoom.
+  - New helpers `zfitTarget(host, x, y)`, `zfitMark(el)`, `zfitHover()`, `zfit(host, x, y)` and `zfitKeys(e)`, the shared `ZOOM_SKIP` selector, and the state `ZF { host, x, y, shift, el, swallow }`.
+- **The lit edge:** while Shift is held, `.lab-zfit` on the target draws a teal outline. Its width is `--lab-zw` = 2 px ÷ zoom, kept at 2 px on screen by the `Paper.prototype.apply` wrapper.
+  - It follows host `pointermove` and window `keydown`/`keyup` of Shift/Alt, so pressing Shift with a still mouse lights it.
+  - It clears on `pointerleave`, window `blur` and leaving the zoom hand (`paintPills`).
+- **Alt** shows the zoom-out cursor (`.canvas-host.lab-hand-zoom.lab-zoom-out`).
+- **The click after a zoom-hand tap is swallowed** (400 ms, capture on the host), so a tap on a component or a plate header only zooms.
+- The zoom mode's caption: "Zoom — tap to zoom in, Alt-tap out, Shift-tap to fit a component or region, drag up or down".
+
+### Tests
+- `scripts/tests/v3869-scientia-lab-mode-harness.html` §15: 7 new checks.
+  - Alt-tap zooms out.
+  - Shift lights the component under the pointer; releasing and re-pressing Shift turns it off and on.
+  - Shift-tap centres the component and fits it.
+  - Shift over a region's margin lights the region, and Shift-tap fits it.
+- 182/182 headless. Screenshots of both highlights checked by eye.
+
 ## [V3.893] — 2026-10-24 — The PE-bead assay as a Scientia project, with three interactive simulators, set-up diagrams, a literature review and the validation plan
 
 Plan: [CodeLog/ClaudesPlan/V3.893_pe_bead_scientia_project.md](../ClaudesPlan/V3.893_pe_bead_scientia_project.md). No site code changed, nothing was added to `deploy/site.json`, and there is no `sw.js` bump. A parallel session's end-of-turn autopush committed the simulator half of this work (pages, diagrams, figures, `params.py`, the report) as `bc534219 V3.892 (cont.)`; the rest lands here. The production writes are listed under "Published".

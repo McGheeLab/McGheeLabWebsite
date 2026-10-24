@@ -1776,6 +1776,7 @@
         if (hit) drop(hit);
         var C = card(b, pane, ro, sig); C.key = key; PD.live.set(key, C); return C.el;
       };
+      if (typeof WIDGETS !== 'undefined' && WIDGETS.pdf && WIDGETS.pdf.body === oBody) WIDGETS.pdf.body = PDFW.body;   // the box and repaint call it through WIDGETS
 
       /* the card: Gabe's bar and stage (13zk PDFW.body), page slots sized but not drawn */
       function card(b, pane, ro, sig) {

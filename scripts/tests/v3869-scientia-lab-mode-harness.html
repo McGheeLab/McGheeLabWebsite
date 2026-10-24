@@ -526,7 +526,7 @@
     check('＋ Insert fans out the most used inserts, with everything else under …', !!comp && !!item('insert', /^Everything that can go/) && !!item('insert', /lab library|paper/i));
     comp.click();
     check('…and places one in the middle of the view', !!(await until(function () { return ev("M.liveBlocks('" + an + "').length") === nb0 + 1; }, 3000)));
-    /* V3.894 — the zoom hand: Alt-tap zooms out; Shift-tap fits the component or region under the pointer, and while Shift
+    /* V3.895 — the zoom hand: Alt-tap zooms out; Shift-tap fits the component or region under the pointer, and while Shift
        is held the edge of what it would fit lights up */
     W.SIS_LAB.setHand('zoom'); ev('DocView.paper.fit(DocView.bbox(), false)');
     var ZSKIP = '.lab-pills,.dock,.ctools,.insp,.ink-bar,.ink-selbar,.pop,.hint,button,input,textarea,select,a';

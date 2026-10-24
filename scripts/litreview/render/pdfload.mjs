@@ -33,7 +33,8 @@ export default async (page) => {
     const c = [...document.querySelectorAll('.pdfw canvas.pdf-page')], drawn = c.filter(x => x.width > 0 && x.height > 0 && !(x.width === 300 && x.height === 150))
     return { cards: document.querySelectorAll('.pdfw').length, cardsOnScreen: [...document.querySelectorAll('.pdfw')].filter(vis).length, drawn: drawn.length, drawnOnScreen: drawn.filter(vis).length,
       canvasMB: Math.round(drawn.reduce((s, x) => s + x.width * x.height * 4, 0) / 1048576), highlightsOnScreen: [...document.querySelectorAll('.pdfw .q-hl')].filter(vis).length,
-      titles: [...document.querySelectorAll('.pdfw.lab-pdf-far')].filter(vis).length }
+      titles: [...document.querySelectorAll('.pdfw.lab-pdf-far')].filter(vis).length,
+      zoom: +(((document.querySelector('.canvas-host .world') || {}).style || {}).transform || '').replace(/.*scale\(([^)]+)\).*/, '$1') || null }
   })
   const longTasks = () => p.evaluate(() => { const l = window.__lt || []; window.__lt = []; return { n: l.length, totalMs: l.reduce((a, b) => a + b, 0), maxMs: Math.max(0, ...l) } })
   const settle = async (max = 40) => { let last = null, same = 0; for (let i = 0; i < max; i++) { await p.waitForTimeout(1000); const s = await stat(); if (last && s.drawn === last.drawn) same++; else same = 0; last = s; if (same >= 5) break } return last }
@@ -54,12 +55,12 @@ export default async (page) => {
   out.sync = Object.assign(await p.evaluate(() => { const c = [...document.querySelectorAll('.pdfw canvas.pdf-page')]; return { boxesRebuilt: [...document.querySelectorAll('.box[data-id]')].filter(b => !b.dataset.lt).length, pageCanvasesKept: c.filter(x => x.dataset.mark).length, pageCanvasesNew: c.filter(x => !x.dataset.mark).length } }), { longTasks: await longTasks() })
 
   // zoom far out over bare paper (left edge)
-  await zoomAt(20, 700, 9); await p.waitForTimeout(2500)
+  await zoomAt(500, 140, 4); await p.waitForTimeout(2500)   // bare paper above the overview band (a wheel over a card does not zoom)
   out.farOut = await stat(); await p.screenshot({ path: SHOT + '-2-far.png' })
 
   // zoom back in onto the first paper of the H2 column (Hino 2020)
-  const hino = await p.evaluate(() => { const b = [...document.querySelectorAll('.box.w-pdf')].find(x => /Hino/.test(x.textContent)); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left - 6, y: r.top + r.height / 3 } })
-  if (hino) { await zoomAt(Math.max(5, hino.x), hino.y, -9); out.zoomIn = await settle(15); await p.screenshot({ path: SHOT + '-3-in.png' }) }
+  const hino = await p.evaluate(() => { const b = [...document.querySelectorAll('.box.w-pdf')].find(x => /Hino/.test(x.textContent)); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left - 8, y: Math.min(Math.max(r.top + 30, 150), innerHeight - 200) } })
+  if (hino) { await zoomAt(Math.max(5, hino.x), hino.y, -7); out.zoomIn = await settle(15); await p.screenshot({ path: SHOT + '-3-in.png' }) }
 
   // pan away down the canvas (wheel scrolls the paper when not over a card)
   await p.mouse.move(8, 500); for (let i = 0; i < 12; i++) { await p.mouse.wheel(0, 400); await p.waitForTimeout(100) }
