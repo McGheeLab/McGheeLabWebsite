@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.905] — 2026-10-24 — Scientia: type /cite to cite a paper
+
+Plan: [CodeLog/ClaudesPlan/V3.905_scientia_slash_cite.md](../ClaudesPlan/V3.905_scientia_slash_cite.md).
+
+### Added
+- **`/cite` as you write** (`scientia/src/09-editor.js`, Gabe's):
+  - `ED.slashCite(el, b, e)` runs on each box `input`, before the `$…$` conversion. Typing `/cite` (at the start, or after a space or bracket) opens the Ctrl+I citation picker.
+  - `citePicker(el, b, sel, typed)` puts the picked paper's citation in place of the `/cite`. If the text moved while the picker was open, the last `/cite` in the box is used.
+  - Esc leaves what you typed.
+  - The note's hint line reads "Ctrl+I or /cite cite" (`13-docpanels.js`), and the picker's tip mentions it. `BUILD` updated. Ctrl+I and select-then-Ctrl+I are unchanged.
+
+### Tests
+- Lab-mode harness **275/275**. Three new §20 checks:
+  - "As shown /cite" opens the picker on the lab's papers;
+  - the pick leaves "As shown ￼" with the cite mark (9–10, `p-smith-2024`);
+  - Esc leaves "… and /cite".
+- `sw.js` CACHE_VERSION 883 → 884.
+
 ## [V3.904] — 2026-10-24 — Scientia: Shift-click with the move (pan) hand fits the component or region
 
 Plan: [CodeLog/ClaudesPlan/V3.904_scientia_pan_hand_shift_fit.md](../ClaudesPlan/V3.904_scientia_pan_hand_shift_fit.md).

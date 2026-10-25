@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.904 (Scientia web, `rm/scientia/lab-mode.js` §11: the move (pan) hand fits on a Shift-click like the zoom hand's Shift-tap — `fitHand()`, decided on pointerdown (`textBusy()` / `MOVE_SKIP` leave text selection and plate wells their own Shift-click), the click swallowed, a Shift-drag still pans.)
+**Version:** V3.905 (Scientia — `scientia/src/09-editor.js` `ED.slashCite`: typing `/cite` in a box opens the Ctrl+I citation picker, `citePicker(el, b, sel, typed)` puts the picked citation in place of the typed `/cite`.)
+
+**Prior: V3.904 (Scientia web, `rm/scientia/lab-mode.js` §11: the move (pan) hand fits on a Shift-click like the zoom hand's Shift-tap — `fitHand()`, decided on pointerdown (`textBusy()` / `MOVE_SKIP` leave text selection and plate wells their own Shift-click), the click swallowed, a Shift-drag still pans.)
 
 **Prior: V3.903 (Scientia clips — `13zza-clip.js` `CLIP.spot(src, n, r, w)` puts a clip on top of its paper (over the region when the card shows that page) and `CLIP.lift` sets `b.float = {x, y}`; `12-doc.js` `settle()` leaves a box at its `float` spot unpushed (beside ink) until it is moved; the clip-mode box is drawn in the layer's own pixels (`× L.offsetWidth / screen width`, the canvas zoom is a CSS scale); `13h-math.js` `MATH.editor` gains One name (selection → `\mathrm{…}`, one term for `TEX.parse`).)
 

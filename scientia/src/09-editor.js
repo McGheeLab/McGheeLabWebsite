@@ -120,7 +120,7 @@ const ED = {
     const save = debounce(() => { const cur = M.block(b.id); if (!cur || !el.isConnected) return; const body = ED.read(el, cur.body.marks); if (body.text === cur.body.text && JSON.stringify(body.marks) === JSON.stringify(cur.body.marks)) return; M.saveBlockBody(cur, body); IX.rebuild(); DB.beginGroup(); DV(el).softRefresh(b.id); }, 450);
     el._save = save;
     el.addEventListener('beforeinput', e => { ED.markerEscape(el, e); WRITE.colon(el, e); ED.edgeEscape(el, e); });
-    el.addEventListener('input', e => { if (el.contentEditable === 'true') WRITE.autoReplace(el, e); if (!MATH.autoConvert(el, b, e)) save(); });
+    el.addEventListener('input', e => { if (el.contentEditable === 'true') WRITE.autoReplace(el, e); if (ED.slashCite(el, b, e)) return save(); if (!MATH.autoConvert(el, b, e)) save(); });
     el.addEventListener('blur', () => { save(); setTimeout(() => TERMSCAN.afterEdit(b.id), 700); });
     el.addEventListener('paste', e => { e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').replace(/\r/g, '')); });
     el.addEventListener('keydown', e => ED.onKey(e, el, b, save));
@@ -363,14 +363,28 @@ const ED = {
         render: x => h('div', h('span.serif', snippet(x.text, 80)), h('span.s', (M.project(x.projectId) || {}).name + ' · ' + x.stance)), onPick: x => { m.close(); M.relateClaims(it, x); toast('Claims related'); } })) });
   },
 
-  /* ---------------- citations (Ctrl+I) ---------------- */
-  citePicker(el, b, sel) {
-    const r = sel ? sel.rect : el.getBoundingClientRect(), at = sel ? sel.to : ED.read(el, []).text.length;
+  /* ---------------- citations (Ctrl+I, or type /cite) ---------------- */
+  /** Typing /cite (at the start, or after a space or bracket) opens the citation picker; the paper picked takes its place
+      (Esc leaves what you typed). The same picker as Ctrl+I. */
+  slashCite(el, b, e) {
+    if (!e || e.inputType !== 'insertText' || !/e$/i.test(e.data || '') || el.contentEditable !== 'true') return false;
+    const s = getSelection(); if (!s.rangeCount || !s.isCollapsed) return false;
+    const node = s.anchorNode; if (!node || node.nodeType !== 3 || !el.contains(node) || (node.parentElement && node.parentElement.closest('.mx,.ct'))) return false;
+    if (!/(^|[\s(\[{—–])\/cite$/i.test(node.nodeValue.slice(0, s.anchorOffset).replace(/​/g, ''))) return false;
+    const sel = ED.selection(el); if (!sel) return false;
+    ED.citePicker(el, b, sel, '/cite'); return true;
+  },
+  /** `typed`: the text just before the caret that the citation replaces (/cite). */
+  citePicker(el, b, sel, typed) {
+    const r = sel ? sel.rect : el.getBoundingClientRect(), at = (sel ? sel.to : ED.read(el, []).text.length) - (typed ? typed.length : 0);
     if (sel && !sel.collapsed) { const txt = ED.read(el, []).text.slice(sel.from, sel.to); return LibraryView.addDialog(txt); }
     popover(r.left, r.bottom + 8, [h('h5', 'Insert citation'), optionPicker({ placeholder: 'Author, year, journal or title…', items: q => LIB.search(q),
       render: x => h('div.row', { style: { flexWrap: 'nowrap', alignItems: 'flex-start' } }, LIB.sigil(x, 30), h('div', h('span.serif', { style: { fontStyle: 'italic' } }, snippet(x.title, 80)), h('span.s', LIB.shortRef(x) + (x.container ? ' · ' + LIB.journal(x.container) : '')))),
-      onPick: x => { closePop(); ED.commit(el, b, body => { const n = ED.splice(body, at, 0, OBJ); n.marks.push({ id: uid('m'), type: 'cite', from: at, to: at + 1, ref: x.id }); return n; }, at + 1); },
-      emptyText: 'Library is empty — add papers in Library' }), h('div.tiny.muted', { style: { marginTop: '6px' } }, 'Select text first and press Ctrl+I to add it to the library instead.')]);
+      onPick: x => { closePop(); let a = at, del = 0;
+        // the typed /cite goes, wherever it is now (the text may have changed while the picker was open)
+        if (typed) { const t = ED.read(el, []).text.toLowerCase(); if (t.slice(a, a + typed.length) === typed) del = typed.length; else { const i = t.lastIndexOf(typed); if (i >= 0) { a = i; del = typed.length; } } }
+        ED.commit(el, b, body => { const n = ED.splice(body, a, del, OBJ); n.marks.push({ id: uid('m'), type: 'cite', from: a, to: a + 1, ref: x.id }); return n; }, a + 1); },
+      emptyText: 'Library is empty — add papers in Library' }), h('div.tiny.muted', { style: { marginTop: '6px' } }, 'Or type /cite as you write. Select text first and press Ctrl+I to add it to the library instead.')]);
   },
 };
 const keyLabel = s => s.split('+').map(p => p === 'ctrl' ? 'Ctrl' : p === 'alt' ? 'Alt' : p === 'shift' ? 'Shift' : p === 'enter' ? 'Enter' : p.toUpperCase()).join('+');

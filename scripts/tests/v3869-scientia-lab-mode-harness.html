@@ -971,6 +971,23 @@
     check('…M E S F selected, One name: \\mathrm{MESF} — its terms are MESF, C and N, not M, E, S, F', /\\mathrm\{MESF\}/.test(tex20) && terms20 === '["MESF","C","N"]', tex20 + ' → ' + terms20);
     var md20 = me20 && (me20.closest('.ovl') || me20.closest('.modal')), dn20 = md20 && [].find.call(md20.querySelectorAll('button'), function (b) { return b.textContent.trim() === 'Done'; }); if (dn20) dn20.click(); await sleep(150);
     check('…and Done saves it that way', /\\mathrm\{MESF\}/.test(ev('window.__one20 || ""')) && !qa('.meditor').length);
+    // V3.905: type /cite as you write — the citation picker (Ctrl+I's) opens, and the paper picked takes the place of “/cite”
+    var tb20 = ev("(function () { var b = M.addBlock('" + cn + "', null, { x: 700, y: 40, w: 392 }); M.saveBlockBody(b, { text: '', marks: [] }); changed(); return b.id; })()");
+    var ted20 = await until(function () { return q('.box[data-id="' + tb20 + '"] .ed[contenteditable="true"]'); }, 4000);
+    var citeOpt = function () { return [].find.call(qa('.opt'), function (o) { return /Granular hydrogels for printed tissue/.test(o.textContent); }); };
+    if (ted20) { ted20.focus(); ev("document.execCommand('insertText', false, 'As shown /cite')"); }
+    var co20 = await until(citeOpt, 3000);
+    check('typing “/cite” in a box opens the citation picker on the lab’s papers', !!co20);
+    if (co20) co20.dispatchEvent(new W.MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    var tbd20 = await until(function () { var b = JSON.parse(ev("JSON.stringify(M.block('" + tb20 + "').body)")); return b.marks.some(function (m) { return m.type === 'cite'; }) && b; }, 3000);
+    check('…the paper picked is cited where “/cite” was, and “/cite” is gone', !!tbd20 && tbd20.text === 'As shown ￼' && tbd20.marks.some(function (m) { return m.type === 'cite' && m.ref === 'p-smith-2024' && m.from === 9 && m.to === 10; }), JSON.stringify(tbd20 || ev("JSON.stringify(M.block('" + tb20 + "').body)")));
+    await sleep(300);   // the redraw after the pick replaces the box's text element
+    var ted20b = await until(function () { return q('.box[data-id="' + tb20 + '"] .ed[contenteditable="true"]'); }, 3000);
+    if (ted20b) ev("(function () { var el = document.querySelector('.box[data-id=\"" + tb20 + "\"] .ed[contenteditable=\"true\"]'); el.focus(); ED.setCaret(el, ED.read(el, []).text.length); document.execCommand('insertText', false, ' and /cite'); })()");
+    var pk20 = await until(function () { var r = citeOpt(); while (r && !r.querySelector('.pk-q')) r = r.parentElement; return r && r.querySelector('.pk-q'); }, 3000);   // the cite picker's own search box
+    // (§19 leaves its share panel open, and it takes the first Esc to close itself)
+    for (var e20 = 0; e20 < 3 && pk20 && citeOpt(); e20++) { pk20.dispatchEvent(new W.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await sleep(150); } await sleep(800);
+    check('…Esc leaves what you typed', !!pk20 && !citeOpt() && /and \/cite$/.test(ev("M.block('" + tb20 + "').body.text")), (pk20 ? 'picker opened' : 'no picker') + ' · ' + ev("M.block('" + tb20 + "').body.text"));
     var wOn = await until(function () { return qa('svg.wires path.w.pw-on').length >= 3 && qa('svg.wires path.pw-top').length >= 3; }, 5000);
     check('the paper shows page 1: the wires to its page-1 clips are solid and drawn again above the cards', !!wOn, JSON.stringify([qa('svg.wires path.w.pw-on').length, qa('svg.wires path.pw-top').length, qa('svg.wires path.w.pw-dim').length]));
     var stg = q('.box[data-id="c_fig"] .pdf-stage'); stg.scrollTop += cardSlot(2).getBoundingClientRect().top - stg.getBoundingClientRect().top;

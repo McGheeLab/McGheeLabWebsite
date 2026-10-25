@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (2 changes — push at 5+)
+## Pending (3 changes — push at 5+)
+
+- V3.905 — In Scientia, type /cite as you write to cite a paper: the citation picker opens, and the paper you pick replaces /cite. (Ctrl+I still works too.)
 
 - V3.904 — In Scientia, Shift-click with the move (hand) tool now zooms to the item or region you click, just like the zoom tool, or to the whole note on empty paper. Shift-click inside text you are typing still extends your selection.
 

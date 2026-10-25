@@ -21,7 +21,7 @@ Object.assign(DocView, {
       h('button.dk', { title: 'More', on: { click: e => this.docMenu(d, e) } }, '⋯'));
   },
   renderHint(d, live) {
-    const s = settings(); this.hint.replaceChildren(live.length && live.some(b => b.body.text.trim() || b.kind === 'ref') ? h('span', `${keyLabel(s.structKey)} says what a phrase is · Ctrl+W term (Focus) · Ctrl+I cite · drag ● to connect`)
+    const s = settings(); this.hint.replaceChildren(live.length && live.some(b => b.body.text.trim() || b.kind === 'ref') ? h('span', `${keyLabel(s.structKey)} says what a phrase is · Ctrl+W term (Focus) · Ctrl+I or /cite cite · drag ● to connect`)
       : h('span', 'Write in the first box. Double-click the paper for another; right-click to pull in barriers or components from other notes.'));
   },
   docMenu(d, e) {
