@@ -1754,9 +1754,9 @@
    "via": "verify"
   },
   "rm/css/paper-doc-view.css": {
-   "deployedAt": "2026-10-25T13:17:18-07:00",
-   "sha256": "6c29e72e1bdf02d2b4bd1ef54d3c41524d267aa3f574b2ce8c2dc2ad3a9a2321",
-   "size": 39945,
+   "deployedAt": "2026-10-25T15:22:53-07:00",
+   "sha256": "e7b476895c1c41ad7fe309c6945036e628d1ea8d45ee92ff7505d0825379a7d8",
+   "size": 40069,
    "via": "verify"
   },
   "rm/css/paper-editor.css": {
@@ -2984,15 +2984,15 @@
    "via": "baseline"
   },
   "rm/js/paper-doc-view.js": {
-   "deployedAt": "2026-10-25T13:17:18-07:00",
-   "sha256": "83ba6094202c93c49c9aa1c640140797fa583c5908d1bb39e3a644d847150626",
-   "size": 318523,
+   "deployedAt": "2026-10-25T15:22:53-07:00",
+   "sha256": "2f7f313fa57a34f9df39f29bbdb7d1580d01585dab4ee7c7c559ac903a23aa81",
+   "size": 321375,
    "via": "verify"
   },
   "rm/js/paper-editor.js": {
-   "deployedAt": "2026-10-25T13:17:18-07:00",
-   "sha256": "d6ee7e545d750f5e67275bab9574aff6f12b9bf7cfc454b99ea99f8cf7354fa6",
-   "size": 378841,
+   "deployedAt": "2026-10-25T15:22:53-07:00",
+   "sha256": "0fd7f2b05ff4bb1bfedf76b1af950df13c8dc0bb168b7b155770512bb0b359f9",
+   "size": 381744,
    "via": "verify"
   },
   "rm/js/paper-equations.js": {
@@ -3026,9 +3026,9 @@
    "via": "baseline"
   },
   "rm/js/paper-export-tex.js": {
-   "deployedAt": "2026-10-25T13:17:18-07:00",
-   "sha256": "892ee1d56ae86d345865c647be719c30c44a32e5a70f60c6acbec73709717d52",
-   "size": 117954,
+   "deployedAt": "2026-10-25T15:22:53-07:00",
+   "sha256": "ef0531bdad2f4cfa9c056816ff979d0f51158081456ad03ee56d615c3182a683",
+   "size": 122872,
    "via": "verify"
   },
   "rm/js/paper-export.js": {
@@ -3121,6 +3121,12 @@
    "size": 33288,
    "via": "baseline"
   },
+  "rm/js/paper-prose-tex.js": {
+   "deployedAt": "2026-10-25T15:22:53-07:00",
+   "sha256": "56bcc2faac7782308ff23ef7ac0bd69dcbadc6c5b733456c8e823b33299b913d",
+   "size": 27880,
+   "via": "verify"
+  },
   "rm/js/paper-schemas.js": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
    "sha256": "c3960b06de8584438959f78c060ec626950f8449427fafaf0c00b1f51211dba3",
@@ -3158,9 +3164,9 @@
    "via": "baseline"
   },
   "rm/js/paper-typeset.js": {
-   "deployedAt": "2026-10-25T13:17:18-07:00",
-   "sha256": "d12c5fab27825bc847b7e0d251f7e5fa52fa30f0c2bc29310baf4ad524c6770d",
-   "size": 35500,
+   "deployedAt": "2026-10-25T15:22:53-07:00",
+   "sha256": "2badfdd7e1d9994e626c16dc0ab9d94343d26401ef37c6c19a7f814797e53749",
+   "size": 36207,
    "via": "verify"
   },
   "rm/js/paper-values.js": {
@@ -4208,9 +4214,9 @@
    "via": "baseline"
   },
   "rm/pages/paper-builder.html": {
-   "deployedAt": "2026-10-25T13:17:18-07:00",
-   "sha256": "4153eb61282ce2c9ac12ba00f7cd037e2d8dec51c391d3dffe31825691bca2d5",
-   "size": 23179,
+   "deployedAt": "2026-10-25T15:22:53-07:00",
+   "sha256": "2d2d4d67d082276826755aebff9400e0c42ca370917c79c4ffc0ef452d8a3b54",
+   "size": 23366,
    "via": "verify"
   },
   "rm/pages/paper-editor.html": {
@@ -4220,9 +4226,9 @@
    "via": "baseline"
   },
   "rm/pages/paper-export.html": {
-   "deployedAt": "2026-10-25T13:17:18-07:00",
-   "sha256": "c9e47ff29ff7e379630c79b5f8ce143fff0dda834ead64044570f107b3b8ef5a",
-   "size": 15362,
+   "deployedAt": "2026-10-25T15:22:53-07:00",
+   "sha256": "dddb04797eb747a01608a6e26d584f41fe4d4614453cd3db71c1937771ec1705",
+   "size": 15490,
    "via": "verify"
   },
   "rm/pages/pcard-helper.html": {
@@ -5198,8 +5204,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-25T13:17:18-07:00",
-   "sha256": "109f422948eb6749f29ad7ffa721d7a235bb4b6737a571157b694669b823407b",
+   "deployedAt": "2026-10-25T15:22:53-07:00",
+   "sha256": "d03b4230b6634fd6623662b196904a1ba4a960eec9fd64d468987a5a892fa904",
    "size": 9933,
    "via": "verify"
   },
