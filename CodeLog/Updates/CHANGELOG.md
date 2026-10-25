@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.902] — 2026-10-24 — RM and Scientia always load the newest version after a deploy
+
+Plan: [CodeLog/ClaudesPlan/V3.902_rm_files_always_fresh.md](../ClaudesPlan/V3.902_rm_files_always_fresh.md). Found when V3.901 was live on the server but Alex's browser still opened V3.900's Scientia: the host sends no `Cache-Control`, so browsers reused their copies for ~10% of a file's age without asking, and the worker's "network-first" `fetch(request)` went through that cache.
+
+### Bug Fixes
+- **`rm/.htaccess`** (new): `Cache-Control: no-cache` on `html?|js|mjs|css|json|webmanifest` under `/rm/` (`<IfModule mod_headers.c>` + `<FilesMatch>`). Every page, script and stylesheet is checked on each use; an unchanged one is a 304 with no body. Rehearsed in a local Apache with `AllowOverride FileInfo` (the class `l/.htaccess` proves the host allows); live headers checked after upload.
+- **`sw.js` `revalidating(request)`**: `networkFirst` fetches with `cache: 'no-cache'`. Navigations (RM pages, the Scientia iframe) are asked for again by URL (`credentials: 'same-origin'`, `redirect: 'manual'`), since a `navigate` Request can't be re-made with options in every browser. This reaches copies saved before the header existed. CACHE_VERSION 880 → 881.
+- **`scripts/deploy.py`**:
+  - `_verify_set(…, uploaded)` accepts the 403 Apache gives every `.ht*` file once it has just been uploaded. `l/.htaccess` had been re-uploaded and reported "not verified" on every deploy.
+  - `scientia_build_if_stale` also watches `rm/js/page-layout.js` and `rm/js/page-regions.js` (copied into the app since V3.901).
+
+### Tests
+- Local reproduction, with files changed on the server between two loads. Old worker: page and script old. New worker: page new, script old (Chrome's memory cache never asked). With `no-cache` and either worker: both new.
+
 ## [V3.901] — 2026-10-24 — Scientia: read a paper beside the note; clip its figures and equations onto the canvas
 
 Plan: [CodeLog/ClaudesPlan/V3.901_scientia_clip_figures_read_beside.md](../ClaudesPlan/V3.901_scientia_clip_figures_read_beside.md). One PR for Gabe (`scientia/clip-figures`): the app side in `scientia/src`, the lab side in the build script, `lab-mode.js` §16 and the registry. No Firestore, rules or function change. **Merged the same day** (PR #3 → `1f766e8b`, at Alex's request ahead of Gabe's review; Gabe merges main into his copy for the desktop), web build rebuilt and re-tested (harness 263/263), `sw.js` CACHE_VERSION 879 → 880.

@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.901 (Scientia PDFs — `scientia/src/13zza-clip.js` `CLIP`: figures/tables found by RM's `PAGE_LAYOUT.figureRegions` and display equations by `PAGE_REGIONS.detect` (both copied into `scientia/vendor/` by `scripts/scientia_build.py`; pdf.js 3.11's `constructPath` bounds reordered for `collectGraphics`), a hover badge / clip mode on any `.pdf-slot` → a figure clip = Gabe's `FIG` image panel drawn again from the PDF (caption cut off, kept as text), an equation = RM's equation-capture process (snip → `CLIP.read` = the web layer's `equationOcr` (lab-mode §16) → `MATH.editor` → `EQ.create`), each with `clip {src, page, rect}` and a `c:clipped from` wire; a paper's wires to its clips and quotes faint except those from the page it shows (`CLIP.mark`, `data-w` on 12b's paths); `13zzb-reader.js` `RDOCK`: the maximised reader (13zz `MXHL`) docked in `#app`'s grid as half the window, `PDFW.full` with zoom and far-page release; plan [V3.901_scientia_clip_figures_read_beside.md](../ClaudesPlan/V3.901_scientia_clip_figures_read_beside.md).)
+**Version:** V3.902 (freshness after a deploy — `rm/.htaccess` sends `Cache-Control: no-cache` for `/rm/` pages, scripts and styles, so browsers check before reusing them (304 when unchanged); `sw.js` `networkFirst` fetches through `revalidating()` (`cache: 'no-cache'`; navigations re-asked by URL), which also reaches copies saved before the header; `deploy.py` accepts the 403 of a just-uploaded `.ht*` file.)
+
+**Prior: V3.901 (Scientia PDFs — `scientia/src/13zza-clip.js` `CLIP`: figures/tables found by RM's `PAGE_LAYOUT.figureRegions` and display equations by `PAGE_REGIONS.detect` (both copied into `scientia/vendor/` by `scripts/scientia_build.py`; pdf.js 3.11's `constructPath` bounds reordered for `collectGraphics`), a hover badge / clip mode on any `.pdf-slot` → a figure clip = Gabe's `FIG` image panel drawn again from the PDF (caption cut off, kept as text), an equation = RM's equation-capture process (snip → `CLIP.read` = the web layer's `equationOcr` (lab-mode §16) → `MATH.editor` → `EQ.create`), each with `clip {src, page, rect}` and a `c:clipped from` wire; a paper's wires to its clips and quotes faint except those from the page it shows (`CLIP.mark`, `data-w` on 12b's paths); `13zzb-reader.js` `RDOCK`: the maximised reader (13zz `MXHL`) docked in `#app`'s grid as half the window, `PDFW.full` with zoom and far-page release; plan [V3.901_scientia_clip_figures_read_beside.md](../ClaudesPlan/V3.901_scientia_clip_figures_read_beside.md).)
 
 **Prior: V3.895 (Scientia web, `rm/scientia/lab-mode.js` §11: Shift-tap with the zoom hand fits the component or region under the pointer, its edge lit while Shift is held — `zfitTarget` / `zfitMark` / `zfit`. Plan: [CodeLog/ClaudesPlan/V3.895_scientia_zoom_shift_fit.md](../ClaudesPlan/V3.895_scientia_zoom_shift_fit.md).) · previously V3.854 (✓ at the top-left of every canvas card and region — `whiteboard.js` `opts.report` → `reportBtnHTML` / `wireReportBtn`, filled by `item.myweek[]`; `rm/js/myweek-report.js` `MYWEEK_REPORT.open({anchor, card, onReported})` lists the user's My Week steps (`DAY_DISTRIBUTE.listRange`, needs-a-result first) and reports the card through the V3.853 writer `DAY_DISTRIBUTE.saveOutcome(step, …, {closeAs:'done'})`; hosts `reportToMyWeek` / `markReported`; both canvas pages now load `day-distribute.js`. Plan: [CodeLog/ClaudesPlan/V3.854_canvas_report_to_myweek.md](../ClaudesPlan/V3.854_canvas_report_to_myweek.md).)
 
@@ -945,6 +947,17 @@ follower's hand scroll pauses following until the leader's next *page* change, �
 ＋ page in continuous mode only appends to `pages`. Recording: `page` events carry `y`, `scroll {y}` events
 are coalesced by `recScroll()`, recordings store `startViewY`; [whiteboard-replay.js](../../whiteboard-replay.js)
 folds them into `viewY` for `replayApply`. No rules change (the board doc's writers are unchanged).
+
+## Every /rm/ file is checked before reuse (V3.902)
+
+The host sends `Last-Modified`/`ETag` but no `Cache-Control`. Left alone, a browser reuses a copy for ~10% of the file's age
+without asking, so after a deploy RM pages and the notebook's Scientia iframe (`/rm/scientia/scientia.html`, a fixed
+address) could open the previous version for half an hour or more. Two pieces close it:
+[rm/.htaccess](../../rm/.htaccess) marks `html?|js|mjs|css|json|webmanifest` under `/rm/` `no-cache` (every cache, Chrome's
+in-memory one included, revalidates; unchanged = 304), and [sw.js](../../sw.js) `networkFirst` fetches through
+`revalidating()` with `cache: 'no-cache'`, which also reaches copies saved before the header existed. Keep both: the
+worker can't stop Chrome's memory cache reusing a script without the header, and the header only applies to copies
+fetched after it is live.
 
 ## The service worker defers to a lecture recording (V3.775)
 

@@ -1,0 +1,13 @@
+# V3.902 — browsers ask before reusing a page, script or stylesheet under /rm/.
+# The host sends no Cache-Control, so a browser kept its own copy for ~10% of
+# the file's age without asking: after a deploy, RM and the notebook's Scientia
+# iframe could open the previous version for half an hour, or for days when the
+# file had not changed in weeks. "no-cache" = check every time; an unchanged
+# file comes back as a 304 of a few hundred bytes (ETag / Last-Modified).
+# Images, PDFs and fonts keep normal caching. sw.js does the same for its own
+# fetches (revalidating()), which also reaches copies saved before this file.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html?|js|mjs|css|json|webmanifest)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>

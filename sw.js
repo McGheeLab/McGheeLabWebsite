@@ -8,7 +8,7 @@
    - Firebase API calls: network-only (never cached)
    ================================================================ */
 
-const CACHE_VERSION = 880;
+const CACHE_VERSION = 881;
 const SHELL_CACHE  = `mcgheelab-shell-v${CACHE_VERSION}`;
 const IMAGE_CACHE  = `mcgheelab-images-v${CACHE_VERSION}`;
 const CDN_CACHE    = `mcgheelab-cdn-v${CACHE_VERSION}`;
@@ -198,9 +198,25 @@ async function cacheFirst(request, cacheName) {
   return response;
 }
 
+/* V3.902 — "network-first" has to mean the server, not the browser's HTTP
+ * cache. The host sends no Cache-Control, so a plain fetch() let the browser
+ * reuse its copy for ~10% of the file's age without asking (half an hour for a
+ * page that had been up five hours, days for an old one): after the V3.901
+ * deploy the notebook kept opening the previous Scientia. cache: 'no-cache'
+ * asks every time; an unchanged file comes back as a 304 of a few hundred
+ * bytes. A navigation Request (RM pages, the Scientia iframe) cannot be
+ * re-made with options in every browser, so it is asked for again by URL,
+ * keeping the manual redirects a navigation has. */
+function revalidating(request) {
+  if (request.mode === 'navigate') {
+    return new Request(request.url, { cache: 'no-cache', credentials: 'same-origin', redirect: 'manual' });
+  }
+  return new Request(request, { cache: 'no-cache' });
+}
+
 async function networkFirst(request, cacheName) {
   try {
-    const response = await fetchOnceRetried(request);
+    const response = await fetchOnceRetried(revalidating(request));
     if (canCache(response)) {
       const cache = await caches.open(cacheName);
       cache.put(request, response.clone());

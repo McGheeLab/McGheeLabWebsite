@@ -260,7 +260,9 @@ def scientia_build_if_stale():
     if not script.exists() or not src.is_dir():
         return ""
     newest = 0.0
-    for p in list(src.rglob("*")) + [ROOT / "rm" / "scientia" / "cloud-sync.js", ROOT / "scientia" / "build.py"]:
+    # V3.902 — plus the lab's detectors that scientia_build.py copies into scientia/vendor (VENDOR_COPY, V3.901)
+    for p in list(src.rglob("*")) + [ROOT / "rm" / "scientia" / "cloud-sync.js", ROOT / "scientia" / "build.py",
+                                     ROOT / "rm" / "js" / "page-layout.js", ROOT / "rm" / "js" / "page-regions.js"]:
         try:
             if p.is_file():
                 newest = max(newest, p.stat().st_mtime)
@@ -514,13 +516,17 @@ def cmd_stage(args, cfg):
     return 0
 
 
-def _verify_set(cfg, targets, removed, via, man):
-    """targets: rel -> {size, sha256}. Returns (ok, bad, still_there)."""
+def _verify_set(cfg, targets, removed, via, man, uploaded=False):
+    """targets: rel -> {size, sha256}. Returns (ok, bad, still_there). `uploaded`: the targets were just sent
+    (a pending stage/ftp), so a protected file's 403 can stand for "it's there"."""
     base = cfg["baseUrl"]
     res = head_many(base, list(targets), label="verifying")
     ok, bad = [], []
     for rel, (status, size, extra) in res.items():
-        if status == 200 and size == targets[rel]["size"]:
+        # V3.902 — Apache answers 403 for every .ht* file by design, so l/.htaccess and rm/.htaccess could never verify
+        # and were re-uploaded and reported on every deploy. Their effect is checked by the headers they set instead.
+        hidden = uploaded and status == 403 and rel.rsplit("/", 1)[-1].startswith(".ht")
+        if (status == 200 and size == targets[rel]["size"]) or hidden:
             ok.append(rel)
             man["files"][rel] = {"sha256": targets[rel]["sha256"], "size": size,
                                  "deployedAt": now_iso(), "via": via}
@@ -554,7 +560,7 @@ def cmd_verify(args, cfg):
         targets = pending["files"]
         removed = pending.get("removed", [])
         via = "verify"
-    ok, bad, still_there = _verify_set(cfg, targets, removed, via, man)
+    ok, bad, still_there = _verify_set(cfg, targets, removed, via, man, uploaded=(via == "verify"))
     save_json(MANIFEST, man)
     LAST_RESULT["verify"] = {"ok": ok, "bad": [b[0] for b in bad], "still_there": [t[0] for t in still_there]}
     print(f"Live and recorded: {len(ok)}")
