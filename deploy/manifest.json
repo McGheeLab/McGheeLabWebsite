@@ -271,6 +271,12 @@
    "size": 17183,
    "via": "baseline"
   },
+  "l/.htaccess": {
+   "deployedAt": "2026-10-24T19:01:38-07:00",
+   "sha256": "65ebcfefc313053e72bb25c460da999dab57de149ebd1890633147b9afa48a13",
+   "size": -1,
+   "via": "verify"
+  },
   "l/index.html": {
    "deployedAt": "2026-10-22T20:48:10-07:00",
    "sha256": "52abb8642df29f375b03c098824c713092c9bae44362f2118de7385503561b1f",
