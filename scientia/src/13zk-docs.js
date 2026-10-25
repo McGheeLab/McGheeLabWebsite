@@ -139,7 +139,8 @@ const PDFW = {
     if (hit) PDFW.drop(hit);
     const C = PDFW.card(b, pane, ro, sig); C.key = key; PDFW.live.set(key, C); return C.el;
   },
-  /** Every page, drawn as you scroll: the maximised view and the phone. */
+  /** Every page, drawn as you scroll and given back far off screen: the maximised view, the paper beside the note
+      (13zzb, which passes pane.zoom) and the phone. Pages are sized from page 1 until drawn. */
   full(b, d, pane, ro) {
     const m = MEDIA.get(b.media), maxed = pane && pane.maxView, n = b.pages || 0, cur = clamp(b.cur || 0, 0, Math.max(0, n - 1));
     const { bar, count } = PDFW.bar(b, m, n, cur, maxed, ro);
@@ -148,17 +149,18 @@ const PDFW = {
     if (!maxed && !ro) el.append(DOCS.grip(b, stage, pane));
     el.addEventListener('mouseenter', () => { DOCS.hover = b.id; }); el.addEventListener('mouseleave', () => { if (DOCS.hover === b.id) DOCS.hover = null; });
     requestAnimationFrame(async () => {
-      const W = Math.max(200, (stage.clientWidth || (b.w || 616) - 24) - 16);
+      const zoom = (pane && pane.zoom) || 1, W = Math.round(Math.max(200, (stage.clientWidth || (b.w || 616) - 24) - 16) * zoom);
       try {
         const pdf = await PDFW.load(m); if (!b.pages || b.pages !== pdf.numPages) { const B = M.block(b.id); B.pages = pdf.numPages; DOCS.save(B); count.textContent = b.view === 'page' ? `${cur + 1} / ${pdf.numPages}` : plural(pdf.numPages, 'page'); if (!/Page 1\n/.test(B.body.text || '')) PDFW.words(B); }
         if (b.view === 'page') {
-          const H = (stage.clientHeight || 500) - 12, pg = await pdf.getPage(cur + 1), v0 = pg.getViewport({ scale: 1 }), w = Math.min(W, H * v0.width / v0.height), cv = h('canvas.pdf-page');
+          const H = (stage.clientHeight || 500) - 12, pg = await pdf.getPage(cur + 1), v0 = pg.getViewport({ scale: 1 }), w = Math.min(W, H * v0.width / v0.height * zoom), cv = h('canvas.pdf-page');
           stage.replaceChildren(h('div.dk-stage.pdf-one', cv, h('button.dk-nav.prev', { disabled: cur === 0, on: { click: e => { e.stopPropagation(); PDFW.go(M.block(b.id), cur - 1); } } }, '‹'), h('button.dk-nav.next', { disabled: cur >= pdf.numPages - 1, on: { click: e => { e.stopPropagation(); PDFW.go(M.block(b.id), cur + 1); } } }, '›')));
           await PDFW.page(m, cur + 1, cv, Math.floor(w));
         } else {
-          const slots = []; for (let i = 1; i <= pdf.numPages; i++) { const pg = await pdf.getPage(i), v0 = pg.getViewport({ scale: 1 }), cv = h('canvas.pdf-page', { style: { width: W + 'px', height: Math.round(W * v0.height / v0.width) + 'px' } }); slots.push(h('div.pdf-slot', { 'data-p': i }, cv, h('span.pdf-pn', i))); }
+          if (!PDFW.aspect.has(m.id)) { const v = (await pdf.getPage(1)).getViewport({ scale: 1 }); PDFW.aspect.set(m.id, v.height / v.width); }
+          const a = PDFW.aspect.get(m.id), slots = []; for (let i = 1; i <= pdf.numPages; i++) slots.push(h('div.pdf-slot', { 'data-p': i }, h('canvas.pdf-page', { style: { width: W + 'px', height: Math.round(W * a) + 'px' } }), h('span.pdf-pn', i)));
           stage.replaceChildren(...slots);
-          const io = new IntersectionObserver(ents => ents.forEach(en => { if (!en.isIntersecting) return; const sl = en.target; io.unobserve(sl); PDFW.page(m, +sl.dataset.p, $('canvas', sl), W).catch(() => { }); }), { root: stage, rootMargin: '400px' });
+          const io = new IntersectionObserver(ents => ents.forEach(en => { const sl = en.target; if (en.isIntersecting) { if (!sl._res) { sl._res = 1; PDFW.page(m, +sl.dataset.p, $('canvas', sl), W).catch(() => { sl._res = 0; }); } } else if (sl._res) PDFW.releaseSlot(sl); }), { root: stage, rootMargin: '1200px 0px' });
           slots.forEach(s => io.observe(s));
           stage.addEventListener('scroll', debounce(() => { const top = stage.scrollTop, k = slots.findIndex(s => s.offsetTop + s.offsetHeight > top + 20); if (k >= 0) { const B = M.block(b.id); if (B.cur !== k) { B.cur = k; DOCS.save(B); } } }, 300));
           if (cur) requestAnimationFrame(() => { const s = slots[cur]; if (s) stage.scrollTop = s.offsetTop - 4; });
@@ -218,6 +220,7 @@ const PDFW = {
     C.active = true;
     try {
       const pdf = await PDFW.load(C.m); if (!C.active || C.dead) return;
+      if (C.failed) { C.failed = false; const back = C.page ? [C.one] : C.slots; if (back.length && !back[0].isConnected) C.stage.replaceChildren(...back); }   // open after all: the pages back in place of the error
       const B = M.block(C.b.id);
       if (B && (!B.pages || B.pages !== pdf.numPages)) { B.pages = pdf.numPages; DOCS.save(B); C.count.textContent = C.page ? `${C.cur + 1} / ${pdf.numPages}` : plural(pdf.numPages, 'page'); if (!/Page 1\n/.test((B.body && B.body.text) || '')) PDFW.words(B); }
       if (!PDFW.aspect.has(C.m.id)) { const v = (await pdf.getPage(1)).getViewport({ scale: 1 }), a = v.height / v.width; PDFW.aspect.set(C.m.id, a);
@@ -228,7 +231,9 @@ const PDFW = {
       else if (!C.slots.length) { C.W = W; PDFW.slots(C, pdf.numPages); }
       else if (Math.abs(W - C.W) > 1) { C.W = W; C.slots.forEach(s => { PDFW.releaseSlot(s); s.replaceChild(PDFW.blank(W, PDFW.aspect.get(C.m.id) || 1.294), $('canvas.pdf-page', s)); }); }
       PDFW.plan(C);
-    } catch (e) { PDFW.docs.delete(C.m.id); C.active = false; C.failed = true; if (!C.dead) C.stage.replaceChildren(h('div.embed-missing', 'Could not open the PDF: ' + (e.message || e))); }
+    } catch (e) { PDFW.docs.delete(C.m.id); C.active = false; C.failed = true; if (!C.dead) C.stage.replaceChildren(h('div.embed-missing', 'Could not open the PDF: ' + (e.message || e)));
+      // a file that isn't there yet (the web still loading its file list, a file on its way from another device): try again soon
+      if (!C.dead && (C.tries = (C.tries || 0) + 1) < 4) setTimeout(() => { if (!C.dead && !C.active) PDFW.want(C); }, 1500 * C.tries); }
   },
   plan(C) {
     if (!C.active || !C.pdf) return;

@@ -93,7 +93,7 @@
       else if (path === 'api/rm/tasks/sync') res = { ok: true, paired: Object.keys(window.__rmTasks).length, blocksUpdated: 0, tasksUpdated: 0, dropped: 0 };
       else if (path === 'api/rm/tasks') res = { ok: true, tasks: Object.keys(window.__rmTasks).map(function (k) { return window.__rmTasks[k]; }) };
       else if (path === 'api/sync/conflicts') res = { ok: true, conflicts: [] };
-      else if (path === 'api/media/list') res = { ok: true, files: [1, 2, 3, 4, 5, 6].reduce(function (o, i) { o['images/m_pdf' + i + '.pdf'] = window.parent.location.origin + '/scripts/tests/fixtures/pdf-6pages.pdf'; return o; }, {}) };   // §18's PDF cards (absolute: pdf.js cannot resolve a path against about:srcdoc)
+      else if (path === 'api/media/list') res = { ok: true, files: [1, 2, 3, 4, 5, 6].reduce(function (o, i) { o['images/m_pdf' + i + '.pdf'] = window.parent.location.origin + '/scripts/tests/fixtures/pdf-6pages.pdf'; return o; }, { 'images/m_fig.pdf': window.parent.location.origin + '/scripts/tests/fixtures/pdf-figure.pdf' }) };   // §18's PDF cards (absolute: pdf.js cannot resolve a path against about:srcdoc)
       else if (path === 'api/rm/members') res = { ok: true, members: [{ uid: 'u-bea', name: 'Bea Lab', category: 'grad' }, { uid: 'u-cy', name: 'Cy Lab', category: 'postdoc' }] };   // V3.899
       else if (path === 'api/rm/library/refresh') res = { ok: true, total: 2, written: 0, changed: 0, removed: 0 };
       else if (path === 'api/rm/library/pdf') res = { ok: true, url: 'https://storage.example/p.pdf' };
@@ -139,7 +139,7 @@
     function qa(s) { return Array.from(D.querySelectorAll(s)); }
     function ev(code) { return W.eval(code); }
     function go(hash) { W.location.hash = hash; }
-    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.899', W.SIS_LAB.version);
+    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.901', W.SIS_LAB.version);
     /* 1. the tab row */
     var keys = qa('#tabs a.tab').map(function (a) { return a.dataset.k; });
     check('Activity and Data are not tabs on the web', keys.indexOf('activity') < 0 && keys.indexOf('data') < 0, keys.join(','));
@@ -798,7 +798,7 @@
       + "   DB.put('media', { id: m, kind: 'pdf', path: 'images/' + m + '.pdf', name: m + '.pdf', created: d.created });"
       + "   var b = { id: 'c_pdf' + n, docId: d.id, kind: 'pdf', label: 'Fixture ' + n, media: m, w: 616, h: 560, view: 'scroll', cur: 0, pages: 6, x: p[0], y: p[1], body: { text: 'Fixture ' + n, marks: [] }, status: 'live', supersedes: [], supersededBy: [], created: d.created, modified: d.modified };"
       + "   DB.put('blocks', b); d.blockIds.push(b.id); });"
-      + " DB.put('documents', d); localStorage.setItem('sis:view:' + d.id, JSON.stringify({ x: 20, y: 20, z: 1 })); return d.id; })()");
+      + " DB.put('documents', d); localStorage.setItem('sis:view:' + d.id, JSON.stringify({ x: 20, y: -150, z: 1 })); return d.id; })()");   // V3.901: the head box (V3.885) moves card 1 to y 364 — view it whole, not its top 48 px at the frame's edge
     go('#/doc/' + pdfDoc);
     var drawnIn = function (n) { var b = q('.box[data-id="c_pdf' + n + '"]'); return b ? [].filter.call(b.querySelectorAll('canvas.pdf-page'), function (c) { return c.width > 0 && c.height > 0; }).length : -1; };
     var near = await until(function () { return drawnIn(1) > 0 && drawnIn(1); }, 15000);
@@ -815,7 +815,7 @@
     ev("DocView.paper.zoomAt(0.3)");
     var far18 = await until(function () { var b = q('.box[data-id="c_pdf1"] .pdfw'); return b && b.classList.contains('pdf-far') && drawnIn(1) === 0 && b; }, 5000);
     check('zoomed far out: the card shows its title and page count and gives its pages back', !!far18 && /Fixture 1/.test(far18.querySelector('.pdf-ph').textContent) && /6 pages/.test(far18.querySelector('.pdf-ph').textContent) && W.getComputedStyle(far18.querySelector('.pdf-ph')).display === 'flex');
-    ev("DocView.paper.view.x = 20; DocView.paper.view.y = 20; DocView.paper.zoomAt(1, DocView.paper.rect().left + 20, DocView.paper.rect().top + 20)");
+    ev("DocView.paper.view.x = 20; DocView.paper.view.y = -150; DocView.paper.zoomAt(1, DocView.paper.rect().left + 20, DocView.paper.rect().top + 20)");
     check('…zoomed back in, it draws again', !!(await until(function () { return drawnIn(1) > 0 && !q('.box[data-id="c_pdf1"] .pdfw').classList.contains('pdf-far'); }, 8000)));
     ev("(function () { var b = M.block('c_pdf1'); b.view = 'page'; DOCS.save(b); DOCS.repaint(b); })()");
     check('One at a time: a single page drawn', !!(await until(function () { return q('.box[data-id="c_pdf1"] .pdf-one') && drawnIn(1) === 1; }, 8000)));
@@ -882,6 +882,94 @@
     D.dispatchEvent(new W.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     var sr19 = reg('p_shared19');
     check('a project shared with you has its own group, says whose it is, and (collaborating) lets you add a note', !!sr19 && sr19.classList.contains('lab-shared') && /Shared by Alex McGhee · you work on it together/.test(sr19.querySelector('.pk').textContent) && /\+ Note/.test(sr19.querySelector('.lab-reg-a').textContent));
+    /* 20. V3.901 — read a paper beside the note; clip its figures and equations onto the canvas (wired; faint unless on their page) */
+    var cn = ev("(function () { var d = M.createDoc({ type: 'note', projectId: null, themeId: null, title: 'Clip test', templateId: null }); d = M.doc(d.id);"
+      + " DB.put('media', { id: 'm_fig', kind: 'pdf', path: 'images/m_fig.pdf', name: 'pdf-figure.pdf', created: d.created });"
+      + " var b = { id: 'c_fig', docId: d.id, kind: 'pdf', label: 'Granular yield (fixture)', media: 'm_fig', w: 616, h: 760, view: 'scroll', cur: 0, pages: 2, x: 0, y: 0, body: { text: 'fixture', marks: [] }, status: 'live', supersedes: [], supersededBy: [], created: d.created, modified: d.modified };"
+      + " DB.put('blocks', b); d.blockIds.push(b.id); DB.put('documents', d); localStorage.setItem('sis:view:' + d.id, JSON.stringify({ x: 20, y: -250, z: 1 })); return d.id; })()");
+    go('#/doc/' + cn);
+    var cardSlot = function (p) { return q('.box[data-id="c_fig"] .pdf-slot[data-p="' + p + '"]'); };
+    var drawn = function (sl) { var c = sl && sl.querySelector('canvas.pdf-page'); return !!(c && c.width > 0); };
+    var hoverAt = function (sl, fx, fy) { var cv = sl.querySelector('canvas.pdf-page'), r = cv.getBoundingClientRect(); cv.dispatchEvent(new W.PointerEvent('pointermove', { bubbles: true, clientX: r.left + r.width * fx, clientY: r.top + r.height * fy, pointerType: 'mouse' })); };
+    var clips = function (extra) { return JSON.parse(ev("JSON.stringify(DB.where('blocks', function (b) { return b.status === 'live' && b.clip && b.clip.src === 'c_fig'" + (extra || '') + "; }))")); };
+    var wireTo = function (id) { return ev("DB.all('wires').some(function (w) { return w.from === '" + id + "' && w.to === 'c_fig' && w.rel === 'c:clipped from'; })"); };
+    var s1 = await until(function () { var sl = cardSlot(1); return drawn(sl) && sl; }, 15000);
+    check('§20: the fixture PDF card draws page 1, with the scissors and the book on its bar', !!s1 && !!q('.box[data-id="c_fig"] .clip-btn') && !!q('.box[data-id="c_fig"] .rd-open'));
+    check('…the web build gives the clip tool the lab’s equation reader (CLIP.read, RM’s equationOcr)', ev('typeof CLIP.read') === 'function' && ev('typeof PAGE_LAYOUT') === 'object' && ev('typeof PAGE_REGIONS') === 'object');
+    var badge = null; for (var t20 = 0; t20 < 40 && !badge && s1; t20++) { hoverAt(s1, .27, .46); await sleep(150); badge = q('.box[data-id="c_fig"] .pdf-slot[data-p="1"] .clip-badge'); }
+    check('pointing at a figure shows “＋ Figure 1” on it', !!badge && /Figure 1/.test(badge.textContent), badge ? badge.textContent : 'no badge');
+    if (badge) badge.click();
+    var F1 = await until(function () { return clips(" && b.kind === 'figure'")[0]; }, 8000);
+    var rec1 = F1 && JSON.parse(ev("JSON.stringify(MEDIA.get('" + F1.fig.cells[0].media + "') || null)"));
+    check('…one click: an image panel beside the card, “Figure 1”, the paper’s caption under it, from page 1', !!F1 && F1.label === 'Figure 1' && F1.clip.page === 1 && /^Figure 1\. Yield stress/.test(F1.body.text) && F1.x >= 616, JSON.stringify(F1 && { label: F1.label, clip: F1.clip, text: F1.body.text.slice(0, 50), x: F1.x }));
+    check('…the picture is drawn from the PDF, sharp, and holds the chart without its caption', !!rec1 && rec1.w >= 800 && rec1.w / rec1.h > 1.2 && rec1.w / rec1.h < 1.7, JSON.stringify(rec1 && [rec1.w, rec1.h]));
+    check('…it is wired to the paper (“clipped from”)', !!F1 && wireTo(F1.id));
+    var fromBtn = await until(function () { return F1 && q('.box[data-id="' + F1.id + '"] .clip-from'); }, 4000);
+    check('…and says where it is from: “from Granular yield (fixture), p. 1”', !!fromBtn && /from Granular yield \(fixture\), p\. 1/.test(fromBtn.textContent), fromBtn ? fromBtn.textContent : '');
+    q('.box[data-id="c_fig"] .clip-btn').click();
+    var hs20 = await until(function () { var a = qa('.box[data-id="c_fig"] .pdf-slot[data-p="1"] .clip-badge'); return a.length >= 3 && a; }, 8000);
+    check('the scissors: clip mode — every figure and equation on the page outlined', !!q('.box[data-id="c_fig"] .pdfw.clipping') && !!hs20 && hs20.map(function (b) { return b.textContent; }).join('|') === '＋ Figure 1|＋ Equation 1|＋ Equation 2', hs20 ? hs20.map(function (b) { return b.textContent; }).join('|') : 'none');
+    var L1 = q('.box[data-id="c_fig"] .pdf-slot[data-p="1"] .clip-layer'), lr = L1.getBoundingClientRect();
+    var pe = function (type, x, y) { return new W.PointerEvent(type, { bubbles: true, cancelable: true, clientX: lr.left + lr.width * x, clientY: lr.top + lr.height * y, pointerId: 7, pointerType: 'mouse', button: 0, buttons: 1 }); };
+    L1.dispatchEvent(pe('pointerdown', .10, .80)); L1.dispatchEvent(pe('pointermove', .30, .86)); L1.dispatchEvent(pe('pointermove', .45, .92)); L1.dispatchEvent(pe('pointerup', .45, .92));
+    var ask = await until(function () { return q('.clip-ask'); }, 3000);
+    check('…a box drawn round anything asks: Picture or Equation', !!ask && /Picture/.test(ask.textContent) && /Equation/.test(ask.textContent));
+    if (ask) [].find.call(ask.querySelectorAll('button'), function (b) { return b.textContent === 'Picture'; }).click();
+    var two = await until(function () { var a = clips(" && b.kind === 'figure'"); return a.length === 2 && a; }, 8000);
+    check('…Picture: an image panel “Clip” in the same column, below the first', !!two && two.some(function (b) { return b.label === 'Clip'; }) && two[0].x === two[1].x && two[0].y !== two[1].y, JSON.stringify(two && two.map(function (b) { return [b.label, b.x, b.y]; })));
+    ev("CLIP.read = function () { return new Promise(function (res) { setTimeout(function () { res('\\\\sigma_y=G\\\\phi(\\\\phi-\\\\phi_c)^{\\\\beta}'); }, 150); }); }");   // the lab's reader, stood in for
+    var eqb = q('.box[data-id="c_fig"] .pdf-slot[data-p="1"] .clip-hs.eq .clip-badge'); if (eqb) eqb.click();
+    var med = await until(function () { var m = q('.meditor'); return m && m.querySelector('.clip-snip') && m; }, 8000);
+    check('“＋ Equation 1”: the equation editor opens with the snip from the paper above it, as RM’s reader captures one', !!med && /^data:image\/jpeg/.test(med.querySelector('.clip-snip').src));
+    var mf20 = await until(function () { var m = q('.meditor'), f = m && m.querySelector('math-field'); return m && m.querySelector('.clip-ocr.ok') && f && /sigma/.test(f.value) && f; }, 6000);
+    check('…the snip is read to LaTeX and put in the editor to check', !!mf20, med ? ((med.querySelector('.clip-ocr') || {}).textContent || '') : '');
+    var mroot = med && (med.closest('.ovl') || med.closest('.modal') || D.body), doneB = mroot && [].find.call(mroot.querySelectorAll('button'), function (b) { return b.textContent.trim() === 'Done'; }); if (doneB) doneB.click();
+    var E1 = await until(function () { return clips(" && b.kind === 'eq'")[0]; }, 6000);
+    check('…Done: an equation component — real LaTeX, not a picture — beside the paper, “Equation 1”, wired to it', !!E1 && /sigma/.test(E1.eq.tex) && E1.label === 'Equation 1' && E1.clip.page === 1 && wireTo(E1.id), JSON.stringify(E1 && { tex: E1.eq.tex, label: E1.label }));
+    await sleep(200); D.dispatchEvent(new W.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await sleep(150);
+    check('Esc ends clip mode', !q('.box[data-id="c_fig"] .pdfw.clipping'));
+    var wOn = await until(function () { return qa('svg.wires path.w.pw-on').length >= 3 && qa('svg.wires path.pw-top').length >= 3; }, 5000);
+    check('the paper shows page 1: the wires to its page-1 clips are solid and drawn again above the cards', !!wOn, JSON.stringify([qa('svg.wires path.w.pw-on').length, qa('svg.wires path.pw-top').length, qa('svg.wires path.w.pw-dim').length]));
+    var stg = q('.box[data-id="c_fig"] .pdf-stage'); stg.scrollTop += cardSlot(2).getBoundingClientRect().top - stg.getBoundingClientRect().top;
+    var wDim = await until(function () { return qa('svg.wires path.w.pw-dim').length >= 3 && !qa('svg.wires path.pw-top').length; }, 5000);
+    check('…scrolled to page 2: those wires wash out', !!wDim, JSON.stringify([qa('svg.wires path.w.pw-on').length, qa('svg.wires path.w.pw-dim').length]));
+    stg.scrollTop = 0; await sleep(150);
+    q('.box[data-id="c_fig"] .rd-open').click();
+    var rd = await until(function () { return q('.embed-max.rd-docked .pdf-slot canvas.pdf-page') && q('.embed-max.rd-docked'); }, 8000);
+    await sleep(200);
+    var appR = q('#app').getBoundingClientRect(), rdR = rd && rd.getBoundingClientRect(), vwR = q('#view').getBoundingClientRect();
+    check('the book: the paper takes the left half of the window, full height; the note the right half', !!rd && D.body.classList.contains('rd-left') && Math.abs(rdR.width - appR.width / 2) < 4 && Math.abs(vwR.left - appR.width / 2) < 4 && Math.abs(rdR.bottom - vwR.bottom) < 3, JSON.stringify(rd && [rdR.width, appR.width, vwR.left, rdR.bottom, vwR.bottom]));
+    check('…the card on the canvas says the paper is being read beside the note', !!q('.box[data-id="c_fig"] .rd-away') && !q('.box[data-id="c_fig"] .pdf-stage'));
+    var pg20 = await until(function () { var t = (q('.rd-pg') || {}).textContent || ''; return /^1 \/ 2$/.test(t) && t; }, 4000);
+    check('…its bar says page 1 / 2', !!pg20, (q('.rd-pg') || {}).textContent);
+    [].find.call(qa('.rd-bar button'), function (b) { return b.textContent === '+'; }).click();
+    var z20 = await until(function () { return (q('.rd-zl') || {}).textContent === '115%' && q('.embed-max.rd-docked .pdf-slot'); }, 4000);
+    check('…+ makes the pages larger (115%)', !!z20 && ev('RDOCK.st.zoom') === 1.15);
+    [].find.call(qa('.rd-bar button'), function (b) { return b.textContent === '⇄'; }).click(); await sleep(100);
+    check('…⇄ moves it to the right half', D.body.classList.contains('rd-right') && !D.body.classList.contains('rd-left'));
+    var rs = q('.embed-max.rd-docked .pdf-stage'), r2 = q('.embed-max.rd-docked .pdf-slot[data-p="2"]'); rs.scrollTop += r2.getBoundingClientRect().top - rs.getBoundingClientRect().top;
+    var r2d = await until(function () { return drawn(r2) && r2; }, 8000);
+    var b2 = null; for (var t21 = 0; t21 < 40 && !b2 && r2d; t21++) { hoverAt(r2, .5, .22); await sleep(150); b2 = r2.querySelector('.clip-badge'); }
+    check('in the paper beside the note, pointing at Figure 2 shows its badge', !!b2 && /Figure 2/.test(b2.textContent), b2 ? b2.textContent : 'no badge');
+    if (b2) b2.click();
+    var F2 = await until(function () { return clips(" && b.label === 'Figure 2'")[0]; }, 8000);
+    check('…clicked: Figure 2 lands beside the card on the canvas, wired to it', !!F2 && F2.clip.page === 2 && wireTo(F2.id));
+    var w20 = await until(function () { return F2 && q('svg.wires path.w.pw-on[data-w]') && qa('svg.wires path.w.pw-dim').length >= 3; }, 5000);
+    check('…reading page 2 beside the note: its wire is solid, the page-1 wires faint', !!w20, JSON.stringify([qa('svg.wires path.w.pw-on').length, qa('svg.wires path.w.pw-dim').length]));
+    go('#/portfolio'); var gone = await until(function () { return !q('.rd-dock') && !D.body.classList.contains('rd-on'); }, 5000);
+    check('leaving the note closes the paper beside it', !!gone);
+    go('#/doc/' + cn); var back = await until(function () { return q('.embed-max.rd-docked'); }, 8000);
+    check('…coming back, it is beside the note again, on the side you chose', !!back && D.body.classList.contains('rd-right'));
+    if (q('.rd-x')) q('.rd-x').click();
+    var closed = await until(function () { return !q('.rd-dock') && q('.box[data-id="c_fig"] .pdf-stage'); }, 6000);
+    check('Close: the paper goes back into its card, and the note forgets it', !!closed && W.localStorage.getItem('sis:rdock:' + cn) === 'null' && !D.body.classList.contains('rd-on'));
+    var fb2 = F2 && await until(function () { return q('.box[data-id="' + F2.id + '"] .clip-from'); }, 4000); if (fb2) fb2.click();
+    var sc20 = await until(function () { var st = q('.box[data-id="c_fig"] .pdf-stage'), sl = cardSlot(2); return st && sl && q('.box[data-id="c_fig"] .clip-flash') && Math.abs(sl.getBoundingClientRect().top - st.getBoundingClientRect().top) < st.clientHeight; }, 6000);
+    check('“from …, p. 2” on a clip scrolls the card to page 2 and outlines where it came from', !!sc20);
+    ev("DOCS.max(M.block('c_fig'))");
+    var bes = await until(function () { return [].find.call(qa('.embed-max.dk-max .em-bar button'), function (b) { return /Beside/.test(b.textContent); }); }, 5000);
+    check('Gabe’s maximised view offers ◧ Beside, and the scissors on its bar', !!bes && !!q('.embed-max.dk-max .clip-btn'));
+    var mx20 = [].find.call(qa('.embed-max .em-bar button'), function (b) { return /Close/.test(b.textContent); }); if (mx20) mx20.click();
     check('no browser popups, rejections or console-level failures in the frame', !W.__popups.length && !W.__rej.length, JSON.stringify([W.__popups, W.__rej]));
   } catch (e) { check('harness error', false, (e && e.stack) || e); }
   finish();

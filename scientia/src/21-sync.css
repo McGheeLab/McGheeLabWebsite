@@ -349,3 +349,59 @@ body.q-picking .box.cmp:hover{outline:2px solid var(--teal);outline-offset:2px}
 .q-hl{background:color-mix(in srgb,var(--hc,#F6D55C) 50%,transparent)}
 body:has(.embed-max) .pop,body:has(.embed-max) .modal-bg,body:has(.embed-max) .ovl{z-index:1300}.rd-penbar{z-index:1310}
 .q-hl.erasing{opacity:.25;outline:1px dashed #c33}
+/* ---------- 13zza · clip a figure or an equation onto the canvas ---------- */
+.clip-layer{position:absolute;z-index:3;pointer-events:none}
+.clip-hs{position:absolute;box-sizing:border-box;border:2px dashed color-mix(in srgb,var(--teal) 80%,transparent);border-radius:3px;background:color-mix(in srgb,var(--teal) 7%,transparent);animation:tin .12s}
+.clip-hs.eq{border-color:color-mix(in srgb,#0a84c2 80%,transparent);background:color-mix(in srgb,#0a84c2 7%,transparent)}
+.clip-badge{position:absolute;left:6px;top:6px;pointer-events:auto;border:0;border-radius:5px;padding:4px 9px;font:600 11.5px/1.2 var(--f-b);background:var(--teal);color:#fff;cursor:pointer;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.clip-hs.eq .clip-badge{background:#0a84c2}
+.clip-badge:hover{filter:brightness(1.1)}
+.pdfw.clipping .clip-layer{pointer-events:auto;cursor:crosshair;touch-action:none;user-select:none;-webkit-user-select:none}
+.pdfw.clipping .clip-hs{border-style:solid;border-width:1.5px}
+.pdfw.clipping .pdf-stage{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--teal) 50%,transparent)}
+.clip-mq{position:absolute;box-sizing:border-box;border:2px solid var(--teal);background:color-mix(in srgb,var(--teal) 14%,transparent);border-radius:2px;pointer-events:none}
+.clip-btn svg,.rd-open svg{display:block}
+.clip-flash{position:absolute;box-sizing:border-box;border:3px solid #e08a00;border-radius:3px;box-shadow:0 0 0 4px color-mix(in srgb,#e08a00 25%,transparent);animation:rdflash .9s ease-in-out 2;pointer-events:none}
+.box.clip-new{animation:clipnew 1.5s ease-out}
+@keyframes clipnew{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--teal) 70%,transparent)}100%{box-shadow:0 0 0 16px transparent}}
+.clip-hs.eq .clip-badge{top:auto;bottom:calc(100% + 3px);left:-2px}
+.clip-mq.kept{border-style:dashed}
+.clip-ask{position:absolute;z-index:2;display:flex;gap:4px;padding:3px;border-radius:7px;background:var(--surface);box-shadow:var(--shadow-lg);pointer-events:auto}
+.clip-eqhead{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.clip-snip{display:block;max-width:100%;max-height:140px;margin:0 auto;object-fit:contain;background:#fff;border:1px solid var(--rule);border-radius:4px;padding:6px}
+.clip-ocr{font-size:12px;color:var(--ink-3);text-align:center}
+.clip-ocr.busy{color:var(--teal)} .clip-ocr.ok{color:var(--ok)} .clip-ocr.bad{color:var(--bad)}
+/* a paper's wires to its clips and quotes: faint, except those from the page it shows (solid, and drawn again above the cards) */
+svg.wires path.w.pw-dim{opacity:.16} svg.wires path.w.lift.pw-dim{opacity:.08} svg.wires circle.wend.pw-dim{opacity:.2} .wl.pw-dim{opacity:.32}
+svg.wires path.w.pw-on,svg.wires path.w.pw-top{opacity:1;stroke-width:2.2} .wl.pw-on{z-index:4}
+svg.wires path.w,svg.wires circle.wend,.wl{transition:opacity .25s}
+/* ---------- 13zzb · a paper read beside the note (half the window, full height) ---------- */
+body.rd-on #app{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+body.rd-on #hd{grid-column:1/-1}
+body.rd-on.rd-left #view{grid-column:2;grid-row:2} body.rd-on.rd-right #view{grid-column:1;grid-row:2}
+.embed-max.rd-dock{--desk:color-mix(in srgb,var(--ink) 7%,var(--paper))}
+.embed-max.rd-docked{position:relative;inset:auto;z-index:20;grid-row:2;min-width:0;min-height:0;animation:none}
+body.rd-left .embed-max.rd-docked{grid-column:1;border-right:1px solid var(--rule);box-shadow:6px 0 22px -14px rgba(0,0,0,.35)}
+body.rd-right .embed-max.rd-docked{grid-column:2;border-left:1px solid var(--rule);box-shadow:-6px 0 22px -14px rgba(0,0,0,.35)}
+.rd-bar{gap:8px;padding:7px 12px;flex-wrap:wrap;row-gap:6px}
+.rd-ttl{flex:1 1 140px;min-width:0;font:600 14.5px/1.25 var(--f-d);color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rd-grp{display:inline-flex;align-items:center;gap:1px;padding:2px;border-radius:7px;background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.rd-grp .btn.xs{border-color:transparent;background:none;min-width:26px;justify-content:center}
+.rd-grp .btn.xs:hover{background:var(--surface)}
+.rd-pg{min-width:58px;text-align:center;font-size:12px;color:var(--ink-2)}
+.rd-zl{min-width:50px}
+.embed-max.rd-dock .mx-row{position:relative}
+.embed-max.rd-dock .dk-maxc{padding:0;display:flex;background:var(--desk)}
+.embed-max.rd-dock .pdfw.maxed{width:100%;height:100%;display:flex;flex-direction:column;padding:0}
+.embed-max.rd-dock:not(.rd-docked) .pdfw.maxed{width:min(96vw,1100px);margin:0 auto}
+.embed-max.rd-dock .pdfw.maxed > .pdf-bar{display:none}
+.embed-max.rd-dock .pdfw.maxed .pdf-stage{flex:1;height:auto;min-height:0;border-radius:0;padding:24px 8px 56px;background:var(--desk)}
+.embed-max.rd-dock .pdf-slot{margin:0 auto 26px;border-radius:2px;box-shadow:0 1px 2px rgba(0,0,0,.10),0 10px 28px -8px rgba(0,0,0,.20)}
+.embed-max.rd-dock .pdf-page{border-radius:2px}
+.embed-max.rd-dock .pdf-pn{right:auto;left:50%;bottom:-19px;transform:translateX(-50%);font-size:10.5px;color:var(--ink-3)}
+.embed-max.rd-docked .mx-side{display:none;position:absolute;top:0;right:0;bottom:0;width:min(340px,88%);z-index:6;box-shadow:-12px 0 30px rgba(0,0,0,.16)}
+.embed-max.rd-docked.rd-side-on .mx-side{display:block}
+.pdfw.rd-away{display:flex;align-items:center;justify-content:center;box-sizing:border-box;margin:4px 10px 10px;padding:0;border-radius:6px;background:color-mix(in srgb,var(--ink) 4%,var(--surface));border:1px dashed var(--rule-2)}
+.rd-away-in{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;color:var(--ink-3);padding:18px;font-size:12.5px}
+.rd-away-in b{font:600 16px/1.3 var(--f-d);color:var(--ink);max-width:92%}
+.rd-away-ic svg{width:30px;height:30px;color:var(--ink-3)}

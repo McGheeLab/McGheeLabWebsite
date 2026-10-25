@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.901] — 2026-10-24 — Scientia: read a paper beside the note; clip its figures and equations onto the canvas
+
+Plan: [CodeLog/ClaudesPlan/V3.901_scientia_clip_figures_read_beside.md](../ClaudesPlan/V3.901_scientia_clip_figures_read_beside.md). One PR for Gabe (`scientia/clip-figures`): the app side in `scientia/src`, the lab side in the build script, `lab-mode.js` §16 and the registry. No Firestore, rules or function change.
+
+### Added
+- **Clip a figure** (`scientia/src/13zza-clip.js`, `CLIP`): pointing at a figure or table on any PDF page (the card, the maximised view, the paper beside the note) shows "＋ Figure 2"; a click makes Gabe's image panel (`FIG.create` 1×1) in the column right of the card (`CLIP.spot`), drawn again from the PDF (`CLIP.canvas`: one viewport offset to the region, ~1600 px, WebP), titled with the label, the paper's caption as its text (from the page's words; cut off the picture when it sits below the artwork), `clip { src, media, page, rect, label, file }` and "from <paper>, p. N" (`DocView.box` wrapped → `CLIP.show` scrolls the reader / maximised view / card to the page and outlines the region).
+- **Clip mode**: a scissors button on every PDF bar (`PDFW.bar` wrapped): every figure and equation outlined; a drawn box asks **Picture / Equation** (`CLIP.ask`); Esc ends it (window capture, before the maximised view's Esc).
+- **Equations the way RM's paper reader captures them**: "＋ Equation 3" (`PAGE_REGIONS.detect`, the number read from the "(3)" level with it; the box made taller for sub/superscripts) → the snip (`CLIP.snip`, ~1000 px JPEG) → `CLIP.read` → LaTeX in Gabe's equation editor (`MATH.editor`, the snip above it, never over what you typed) → **an equation component** (`EQ.create`) with the same `clip`. `CLIP.read` is set by the web layer (`rm/scientia/lab-mode.js` §16: the lab's `equationOcr`, probed on first use, the user's token — the call `rm/js/equation-capture.js` makes); the desktop types it.
+- **Detection inside Scientia**: `CLIP.detect` builds the page's words as the offline extractor does (`CLIP.items`), the artwork through `PAGE_LAYOUT.collectGraphics` with pdf.js 3.11's `constructPath` bounds reordered (`CLIP.ops`: 3.x writes `[minX, maxX, minY, maxY]`), an ink probe from a small render (`CLIP.probe`), then `figureRegions` and `PAGE_REGIONS.detect`; per media + page, on first hover.
+- **Connections that follow the page**: each clip is wired to its paper (`c:clipped from`); a paper's wires to its clips and quotes are faint except those from the page it shows, which are solid and drawn again above the cards (`CLIP.pageOf`, `CLIP.mark` after every `drawWires` and as a paper scrolls).
+- **Read beside the note** (`scientia/src/13zzb-reader.js`, `RDOCK`): the book on a card's bar (or "◧ Beside" on the maximised view) docks Gabe's maximised reader — its highlight panel, colour menu and pen highlighter (`MXHL.open`) — as **half the window**: `#app` two columns, the header across both, the note live in the other half. Bar: page n / N with ‹ ›, zoom − / % / + (Ctrl/⌘ + scroll), scissors, Highlights (a drawer), ⇄ side, ⤢ full screen, Close. ← → page while the pointer is over it; Esc never closes it. It stays with its note (`_ls rdock:<docId>`): leaving closes it, coming back reopens it. The card shows "Reading beside the note" meanwhile; quotes made in it are revealed in the note, and a quote's "from …" scrolls the reader.
+- `scripts/scientia_build.py`: `VENDOR_COPY` refreshes `scientia/vendor/page-layout.js` + `page-regions.js` from `rm/js/` before Gabe's `build.py`; `--check` fails on a stale copy.
+- `scripts/tests/fixtures/pdf-figure.pdf` + `make-pdf-figure.py` (a two-column page with a bar chart, two numbered equations, a full-width two-panel figure; made-up text).
+- `CodeLog/features.json`: `scientia.pdf` (13zk, 13zz, 13zza, 13zzb, the vendor copies), related to `rm.paper-reader`, distinct from it, from `rm.figure-board` and from `scientia.reader`.
+
+### Changed
+- `PDFW.full` (13zk; the maximised view, the reader beside, the phone): page width × `pane.zoom`; pages sized from page 1 until drawn (no `getPage` per page up front); pages more than 1200 px off screen are given back and redrawn on return.
+- `12b-wires.js`: a wire's path, end dot and lifted copy carry `data-w`. `lab-mode.js` §14: the install banner centres over the note, not the window. `BUILD` '2026-10-24 · Read beside the note, clip figures and equations'; `SIS_LAB.version` V3.901.
+
+### Bug Fixes
+- **A PDF card that could not open at first** (the web build before its file list arrives) tries again at 1.5 / 3 / 4.5 s, and a successful retry puts its pages back in place of the error (completes Gabe's PR #2 fix; before, a retry drew into detached slots).
+- **`M.wire` threw on a block without `stamp`** (blocks written straight to the store: the lab's project builder, fixtures) after saving the wire — guarded (`b.stamp && b.stamp.sessionId`).
+
+### Tests
+- Detection on Alex's labelled pages, Scientia's pdf.js 3.11: figures and tables **78/79 found, 78/79 precise, IoU 0.94** — the same as RM's 4.10 run; without the `constructPath` reorder 63/79, 90 %, 0.90. Equations: 65/150 at IoU ≥ 0.5 (boxes found from the words sit ~4 pt high; short display equations are often missed — the drawn box covers them).
+- Lab-mode harness **263/263** (+26, §20: badge on hover, a figure clip with caption / page / source line / wire, clip mode outlines, a drawn box → Picture, an equation read to LaTeX → an equation component, Esc, wires solid on their page and faint off it, the reader beside at half the window with the card's placeholder, page indicator, zoom, side, clipping from it, closing with the note and reopening on return, Close, "from …" scrolling back, ◧ Beside on the maximised view). §18 now views the six-PDF note whole: the V3.885 head box moves card 1 to y 364, which left only its top 48 px inside the 504-px harness frame — the cause of the "V3.894 PDF checks" failing since V3.896 (all pass now).
+
 ## [V3.900] — 2026-10-24 — Scientia: on-demand PDF cards now come from Gabe's app (PR #2 merged, with his two fixes)
 
 Plan: [CodeLog/ClaudesPlan/V3.894_scientia_pdf_cards_on_demand.md](../ClaudesPlan/V3.894_scientia_pdf_cards_on_demand.md) (§ Merged). Gabe's PR #2 (`RTgabrieldeclercq:patch-1`) = PR #1's commit `2cfa57b1` + his `217501d6`; merged as `07d5f26b`, so PR #1 closed with it. `scientia/src` only; the web build picks it up (`PDFW.onDemand` → `rm/scientia/lab-mode.js` §14 stands down).
