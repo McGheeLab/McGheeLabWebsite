@@ -6,7 +6,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 
 ## [V3.901] — 2026-10-24 — Scientia: read a paper beside the note; clip its figures and equations onto the canvas
 
-Plan: [CodeLog/ClaudesPlan/V3.901_scientia_clip_figures_read_beside.md](../ClaudesPlan/V3.901_scientia_clip_figures_read_beside.md). One PR for Gabe (`scientia/clip-figures`): the app side in `scientia/src`, the lab side in the build script, `lab-mode.js` §16 and the registry. No Firestore, rules or function change.
+Plan: [CodeLog/ClaudesPlan/V3.901_scientia_clip_figures_read_beside.md](../ClaudesPlan/V3.901_scientia_clip_figures_read_beside.md). One PR for Gabe (`scientia/clip-figures`): the app side in `scientia/src`, the lab side in the build script, `lab-mode.js` §16 and the registry. No Firestore, rules or function change. **Merged the same day** (PR #3 → `1f766e8b`, at Alex's request ahead of Gabe's review; Gabe merges main into his copy for the desktop), web build rebuilt and re-tested (harness 263/263), `sw.js` CACHE_VERSION 879 → 880.
 
 ### Added
 - **Clip a figure** (`scientia/src/13zza-clip.js`, `CLIP`): pointing at a figure or table on any PDF page (the card, the maximised view, the paper beside the note) shows "＋ Figure 2"; a click makes Gabe's image panel (`FIG.create` 1×1) in the column right of the card (`CLIP.spot`), drawn again from the PDF (`CLIP.canvas`: one viewport offset to the region, ~1600 px, WebP), titled with the label, the paper's caption as its text (from the page's words; cut off the picture when it sits below the artwork), `clip { src, media, page, rect, label, file }` and "from <paper>, p. N" (`DocView.box` wrapped → `CLIP.show` scrolls the reader / maximised view / card to the page and outlines the region).
