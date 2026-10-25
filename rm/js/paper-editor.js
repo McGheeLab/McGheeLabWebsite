@@ -6048,6 +6048,35 @@
    *
    * Plain characters are HTML-escaped. Newlines become <br>. Math falls
    * back to the raw delimiter-wrapped source on KaTeX error. */
+  /* V3.915 — what LaTeX in prose renders through: the builder's own
+   * reference chips (so \cref{fig:x} numbers like [!fig:x] and takes the
+   * journal's prefix in the Document view), citation and footnote chips. */
+  function _proseTexCtx() {
+    function ref(kind, label, form) {
+      var h;
+      if (kind === 'figure') h = renderFigRefChip(label, '');
+      else if (kind === 'table') h = renderTabRefChip(label);
+      else if (kind === 'equation') h = renderEqRefChip(label);
+      else if (kind === 'section') h = renderSecRefChip(label);
+      else {
+        var tries = [renderFigRefChip(label, ''), renderTabRefChip(label), renderEqRefChip(label)];
+        h = tries.filter(function (x) { return x.indexOf('-unknown') < 0; })[0] || tries[0];
+      }
+      /* \ref prints the number alone */
+      if (form === 'number') h = h.replace(/>(Fig\.|Tab\.|Eq\.)\s*/, '>');
+      return h;
+    }
+    return {
+      render: renderParagraphHtml,
+      ref: ref,
+      cite: function (keys, narrative) {
+        return keys.length ? renderCitationChip((narrative ? '*' : '') + keys.join('; @')) : '';
+      },
+      footnote: function (t) { return renderFootnoteChip(t); },
+      math: function (t) { return _katex ? renderOneMath(t, false, t) : escapeHtmlForCE(t); },
+    };
+  }
+
   function renderParagraphHtml(text) {
     if (!text) return '';
     var out = '';
@@ -6083,6 +6112,22 @@
             : escapeHtmlForCE('\\(' + src2 + '\\)');
           i = k1 + 2;
           continue;
+        }
+      }
+
+      /* V3.915 — LaTeX written in prose (a paper imported from .tex keeps
+       * its \si{\micro\metre}, \cref{fig:x}, \%, \textsubscript{2}): set
+       * the way the PDF sets it (paper-prose-tex.js reads it for both). An
+       * unknown command prints as its source, as it does in the PDF. */
+      if (ch === '\\' && window.PaperProseTex) {
+        var texCmd = window.PaperProseTex.readCommand(text, i);
+        if (texCmd && texCmd.name !== '(' && texCmd.name !== ')') {
+          var texHtml = window.PaperProseTex.toHtml(texCmd, _proseTexCtx());
+          if (texHtml != null) {
+            out += texHtml;
+            i = texCmd.resume != null ? texCmd.resume : texCmd.end;
+            continue;
+          }
         }
       }
 
@@ -6270,8 +6315,18 @@
         }
       }
 
-      // V3.107 — ~sub~
-      if (ch === '~') {
+      // V3.107 — ~sub~. V3.915 — or a LaTeX tie: `5~mm`, `n~=~3` and
+      // `[X]~\si{…} (n~` are no-break spaces, not one long subscript
+      // (paper-prose-tex.js tildeAt, the rule the .tex export uses).
+      if (ch === '~' && window.PaperProseTex) {
+        var tl = window.PaperProseTex.tildeAt(text, i);
+        if (tl.kind === 'sub') {
+          out += '<sub>' + renderParagraphHtml(tl.inner) + '</sub>';
+          i = tl.end + 1;
+          continue;
+        }
+        if (tl.kind === 'tie') { out += ' '; i++; continue; }
+      } else if (ch === '~') {
         var endSub = text.indexOf('~', i + 1);
         if (endSub > i + 1) {
           var subInner = text.slice(i + 1, endSub);
@@ -8155,6 +8210,13 @@
    *                  sequential numbers. Used for [!fig:label] resolution.
    * getNumberedFigureByLabel(label) — lookup by label across numbered figs.
    */
+  /* V3.915 — an imported LaTeX figure / table names itself in its own
+   * \label{} (attrs.raw_tex), which \cref{} and [!tab:…] refer to. */
+  function _rawTexLabel(raw) {
+    var m = /\\label\{([^}]*)\}/.exec(String(raw || ''));
+    return m ? m[1] : '';
+  }
+
   function getAllFigures() {
     if (!state.paperMap) return [];
     var sections = state.paperMap.get('sections');
@@ -8190,7 +8252,7 @@
         }
         out.push({
           blockId: blockId,
-          label: attrs.get('label') || '',
+          label: attrs.get('label') || _rawTexLabel(attrs.get('raw_tex')),   // V3.915
           numbered: numbered,
           num: num,
           captionPreview: captionPreview,
@@ -8247,7 +8309,7 @@
         }
         out.push({
           blockId: blockId,
-          label: attrs.get('label') || '',
+          label: attrs.get('label') || _rawTexLabel(attrs.get('raw_tex')),   // V3.915
           numbered: numbered,
           num: num,
           captionPreview: captionPreview,

@@ -658,7 +658,11 @@
     "pappg",
     "page limit",
     "wrapfig",
-    "fit"
+    "fit",
+    "siunitx",
+    "cleveref",
+    "latex in prose",
+    "imported latex"
    ],
    "paths": [
     "rm/js/paper-*.js",

@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (13 changes — ready to push)
+## Pending (14 changes — ready to push)
 
+- V3.915 — Paper builder: papers brought in from LaTeX now look right in every journal's page preview and PDF — units like µm and µl min⁻¹, “Fig. 3” references, % signs and non-breaking spaces are set properly instead of printing as code or running into the margin, bold and italic run-in headings keep their style, and a table imported as LaTeX shows as a table.
 - V3.914 — Paper builder: in the journal page preview, equations, headings and the reference list are now spaced and set exactly as in the PDF, so pages break where the PDF breaks them more often (the PLOS test paper now previews at its true 13 pages).
 - V3.914 — Grants: the page preview has a Document picker — the Project Description, References Cited, Project Summary, Data Management Plan, Mentoring Plan and the rest each show on their own pages with their own page limit, and the Export page compiles each one to its own PDF.
 - V3.913 — Grants: the Check button now shows your page count against the limit ("16 / 15 pages, 30 lines over"), every NSF formatting rule you meet or break, and a Fit button that finds the gentlest legal settings (tighter paragraphs, smaller captions, line spacing down to NSF's minimum) to bring the grant to its page limit. Nothing changes until you press Keep.

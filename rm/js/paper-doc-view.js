@@ -2135,6 +2135,23 @@
       var booktabs = ta.booktabs !== false &&
         !(tpl.table_environment && tpl.table_environment.use_booktabs === false);
       var headerRow = ta.header_row !== false;
+      /* V3.915 — a table imported as LaTeX (attrs.raw_tex, no cells): the
+       * PDF sets that LaTeX, so the page shows its rows, rules and
+       * caption instead of an empty "Table 1." */
+      var rawTab = (!rows && ta.raw_tex && window.PaperProseTex)
+        ? window.PaperProseTex.parseTabular(ta.raw_tex) : null;
+      if (rawTab && rawTab.rows.length) {
+        rows = rawTab.rows.length;
+        cols = 0;
+        cells = {};
+        rawTab.rows.forEach(function (r, ri) {
+          var cc = 0;
+          r.forEach(function (cell) { cells[ri + '-' + cc] = cell.text; cc += cell.span; });
+          cols = Math.max(cols, cc);
+        });
+        align = rawTab.align;
+        headerRow = rawTab.header;
+      } else rawTab = null;
       /* Tables II — merged cells + per-column widths (scalar attrs,
        * parsed via the shared PaperLayout helpers; absent = legacy). */
       var PLt = window.PaperLayout || {};
@@ -2157,6 +2174,7 @@
           (tSt.zebra ? ' pdv-tbl-zebra' : '') + (tSt.wrap ? ' pdv-tbl-wrap' : '');
         if (tSt.sizeCss !== 1) tStyleAttr = ' style="font-size:' + (tSt.sizeCss * 100).toFixed(0) + '%"';
       }
+      if (rawTab && rawTab.small && !tStyleAttr) tStyleAttr = ' style="font-size:90%"';   // \small
       var html = '<table class="' + tCls + '"' + tStyleAttr + '>';
       /* V3.652 — a wrapping table is table-layout:fixed, which needs a
        * width on every column; the shares match the .tex exactly. */
@@ -2179,6 +2197,7 @@
         if (r === 0) trCls.push('pdv-tbl-r-first');
         if (r === rows - 1) trCls.push('pdv-tbl-r-last');
         if (tSt && tSt.rule_after.indexOf(r) !== -1) trCls.push('pdv-tbl-ruled');
+        if (rawTab && r > 0 && rawTab.rulesAfter.indexOf(r) !== -1) trCls.push('pdv-tbl-ruled');
         if (tSt && tSt.zebra && r % 2 === 1) trCls.push('pdv-tbl-zebrarow');
         var trStyle = '';
         if (tRowExt[r] > 0) {
@@ -2215,7 +2234,7 @@
       }
       html += '</table>';
       var tnum = (ta.numbered !== false && nums.tab[blk.id]) ? nums.tab[blk.id] : null;
-      var tcap = String(ta.caption || '').trim();
+      var tcap = String(ta.caption || '').trim() || (rawTab ? rawTab.caption : '');
       if (tcap || tnum) {
         html += '<div class="pdv-tabcap">' + (tnum ? _captionLabel(geom, 'tab', tnum) : '') +
           _pe().renderParagraphHtml(tcap) + '</div>';
@@ -2380,6 +2399,23 @@
   /* Bibliography per citation family. Numeric families order by
    * PaperCiteStyle first-appearance numbers; author-year alphabetizes
    * (matching what plainnat does at compile time). */
+  /* V3.915 — a copy of a library entry with BibTeX accents decoded in the
+   * fields the bibliography prints (metadata imported from a .bib). */
+  function _decodeEntryAccents(e) {
+    var PT = window.PaperProseTex;
+    if (!PT) return e;
+    var d = PT.decodeAccents;
+    var c = Object.assign({}, e);
+    ['title', 'journal', 'firstAuthor'].forEach(function (k) { if (typeof c[k] === 'string') c[k] = d(c[k]); });
+    if (Array.isArray(c.authors)) c.authors = c.authors.map(function (a) { return typeof a === 'string' ? d(a) : a; });
+    if (Array.isArray(c.authorsFull)) {
+      c.authorsFull = c.authorsFull.map(function (a) {
+        return a ? Object.assign({}, a, { family: d(a.family || ''), given: d(a.given || '') }) : a;
+      });
+    }
+    return c;
+  }
+
   function _buildBibliography(tpl) {
     var pe = _pe();
     var keys = pe.getCitedKeysInPaper() || [];
@@ -2411,6 +2447,7 @@
         return '<div class="pdv-bib-entry pdv-bib-missing">' + _esc(mp) + '@' + _esc(key) +
           ' — not in the lab library</div>';
       }
+      e = _decodeEntryAccents(e);   // V3.915 — Andr{\'e} → André, as the PDF prints it
       var f = bst === 'unsrtnat' && numeric ? _formatUnsrtnat(e, n, family) : _formatBibEntry(e, family, n);
       return '<div class="pdv-bib-entry">' +
         (f.prefix ? '<span class="pdv-bib-num">' + _esc(f.prefix) + '</span>' : '') +
@@ -2445,15 +2482,29 @@
    * "Fig." → "Fig", ieee equations → "(N)"). Cheap text-only rewrite. */
   function _rewriteRefPrefixes(items, tpl) {
     var refs = tpl.refs || {};
+    /* V3.915 — the prefix is tied to the number with a no-break space, as
+     * the PDF's "Fig.~\ref{…}" is (the typesetter never breaks there) */
     function prefixOf(r, fallback) {
       if (!r || !r.prefix) return fallback;
-      return String(r.prefix).replace(/~/g, ' ').trim() + ' ';
+      return String(r.prefix).replace(/~/g, ' ').trim() + '\u00A0';
     }
-    var figPrefix = prefixOf(refs.figure, 'Fig. ');
-    var tabPrefix = prefixOf(refs.table, 'Tab. ');
-    var eqPrefix = prefixOf(refs.equation, 'Eq. ');
+    var figPrefix = prefixOf(refs.figure, 'Fig.\u00A0');
+    var tabPrefix = prefixOf(refs.table, 'Tab.\u00A0');
+    var eqPrefix = prefixOf(refs.equation, 'Eq.\u00A0');
     items.forEach(function (item) {
       if (!item.node.querySelectorAll) return;
+      /* V3.915 — a reference to a label the paper does not have prints
+       * as LaTeX prints it ("Fig. ??"), not the editor's "[?Fig. label]"
+       * marker, which as one unbreakable box wrecked the line it sat on.
+       * The label stays on the tooltip. */
+      item.node.querySelectorAll('.pe-figref-chip-unknown, .pe-tabref-chip-unknown, .pe-eqref-chip-unknown').forEach(function (c) {
+        var bare = !/^\[\?(Fig|Tab|Eq)\./.test(c.textContent);
+        var pre = c.classList.contains('pe-figref-chip-unknown') ? 'Fig.\u00A0'
+          : c.classList.contains('pe-tabref-chip-unknown') ? 'Tab.\u00A0' : 'Eq.\u00A0';
+        var lab = c.dataset.figrefLabel || c.dataset.tabrefLabel || c.dataset.eqrefLabel || '';
+        c.title = 'No numbered item labelled ' + lab;
+        c.textContent = (bare ? '' : pre) + '??';
+      });
       item.node.querySelectorAll('.pe-figref-chip').forEach(function (c) {
         c.textContent = c.textContent.replace(/^Fig\.\s*/, figPrefix);
       });

@@ -1,6 +1,7 @@
 # Architecture
 
-**Version:** V3.914 (Grant formats — `nsf-career.json` carries a spec `look` (the NSF page) and a `grant` block (PAPPG typefaces, limits, required headings, each NSF document); `paper-grant-rules.js` checks a laid-out document against it; the Document view's paginator models wrapfig (`WRAP_TEX` in `_packPages`); the Check panel holds the page budget, the rules, page settings (`paperExports.lookOverrides`, merged by `PaperLook.resolve`) and Fit; the Document picker and the Export page's Grant documents card set each NSF upload on its own pages.)
+**Version:** V3.915 (LaTeX written in prose — `rm/js/paper-prose-tex.js` is the one reader of `\si{}`, `\cref{}`, `\%`, ties and imported `tabular`s for both `renderParagraphHtml` (Document view) and `paragraphTextToTex` (PDF); unknown commands print as text on both sides.)
+**Prior:** V3.914 (Grant formats — `nsf-career.json` carries a spec `look` (the NSF page) and a `grant` block (PAPPG typefaces, limits, required headings, each NSF document); `paper-grant-rules.js` checks a laid-out document against it; the Document view's paginator models wrapfig (`WRAP_TEX` in `_packPages`); the Check panel holds the page budget, the rules, page settings (`paperExports.lookOverrides`, merged by `PaperLook.resolve`) and Fit; the Document picker and the Export page's Grant documents card set each NSF upload on its own pages.)
 **Prior:** V3.910 (Paper builder layout check — `paper-doc-view.js` `_buildLayoutReport` reads `state.tsReport` (per-paragraph Knuth–Plass results incl. `canTighten` from `PaperTypeset.layoutParagraph({probeTighten})`) and the mounted sheets; the Check panel's Tighten / Loosen write `attrs.looseness`, which the line breaker and `paper-export-tex.js` `paragraphToTex` (`\looseness=±1`) both honour.)
 
 **Prior: V3.909 (Paper builder journal looks — `rm/js/paper-look.js` turns a template's `look` into both the LaTeX preamble and the Document view's CSS/geometry (spec looks) or describes a journal class's page (class looks: PNAS, IEEE); `rm/js/paper-typeset.js` sets Document-view text with TeX's Knuth–Plass + hyphenation in the same fonts (`rm/vendor/fonts`, `rm/vendor/hyphen`); `paper-doc-view.js` packs pages with LaTeX's float model incl. float columns; measured against real papers by `scripts/paper-lab/` (corpus outside the repo). Section below.)**
@@ -129,6 +130,11 @@ template.look ──► PaperLook.resolve ──► applyToTemplate ──► Pa
 - **Same vertical space (V3.912–V3.914).** Item heights are exact; adjoining spaces count once (`runEff` / `colEff`, as
   `\addvspace` and CSS margin collapsing do) and the space before an item vanishes at a page or column top; captions
   sit between struts; display equations take TeX's display spacing from KaTeX's strut metrics (`_setDisplays`).
+- **Same words (V3.915).** LaTeX an author wrote in prose (a paper imported from .tex) is read once, by
+  `paper-prose-tex.js`: siunitx, references, citations, formatting and accents render in the Document view and go to
+  LaTeX as written (references and citations per template, missing packages added); a `~` is a tie unless it is a
+  short word-like `~subscript~`; an unknown command prints as text in both. Lines cut by `layoutParagraph` keep the
+  inline elements that wholly contain them.
 - **Paper Lab** (`scripts/paper-lab/`, dev only, not deployed): the real builder on `fake-firebase.js`, `serve.py`
   with local Tectonic, `drive.mjs` (import/preview/compile), `compare.py` / `sync.py` / `calibrate.py` /
   `journal_style.py`. The corpus of published papers is copyrighted and lives in `../PaperLab-corpus/`.

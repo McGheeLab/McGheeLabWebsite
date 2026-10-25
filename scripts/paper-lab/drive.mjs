@@ -116,6 +116,12 @@ async function cmdPreview(paperId, outDir, args) {
       return { i, w: r.width, h: r.height, cls: s.className };
     });
   });
+  // V3.915 — --probe FILE: a JS expression evaluated in the page (main
+  // world) after layout; its JSON result lands in outDir/probe.json
+  if (args.probe) {
+    const res = await page.ev(fs.readFileSync(args.probe, 'utf8'));
+    fs.writeFileSync(path.join(outDir, 'probe.json'), JSON.stringify(res, null, 1));
+  }
   const handles = await page.$$('.pdv-sheet');
   for (let i = 0; i < handles.length; i++) {
     await handles[i].scrollIntoViewIfNeeded();

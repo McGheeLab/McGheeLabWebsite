@@ -824,6 +824,7 @@ ol.pdv-list { list-style: decimal; }
   color: inherit !important;
   cursor: text !important;
   white-space: normal !important;
+  display: inline !important;   /* V3.915 — the editor's inline-block chip padded "(Fig. ??)" apart in justified lines */
 }
 
 /* Superscript citation families (Nature / SLAS-mebp / ACS) must stay a

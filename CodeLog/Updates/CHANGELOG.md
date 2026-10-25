@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.915] — 2026-10-25 — Paper builder: LaTeX written in prose (papers imported from .tex) in the preview and the PDF
+
+Plan: [CodeLog/ClaudesPlan/V3.915_prose_latex_imported_papers.md](../ClaudesPlan/V3.915_prose_latex_imported_papers.md).
+
+### Added
+- `rm/js/paper-prose-tex.js` (`window.PaperProseTex`, pure): `readCommand(s, i)`, `tildeAt(s, i)` (subscript / tie / character), `unitHtml` / `numHtml` (siunitx), `toHtml(cmd, ctx)` (Document view), `toTex(cmd, ctx)` (export: verbatim, references and citations per template, `false` = unknown → text), `packagesFor(tex)` / `preambleLoads(preamble, pkg)`, `parseTabular(raw)`, `decodeAccents(s)`. Loaded by paper-builder.html and paper-export.html before paper-export-tex.js.
+- `scripts/tests/paper-prose-tex.test.mjs` (50 checks, in run-all.sh); `paper-tex-escape.test.mjs` +10 (MEBP phrases, cref, unknown macros, BibTeX accents).
+- `scripts/paper-lab/drive.mjs preview … --probe FILE`: evaluates a JS expression in the page after layout → `probe.json`.
+
+### Changed
+- `paper-editor.js` `renderParagraphHtml`: a `\` starts a LaTeX command read by `PaperProseTex` (`_proseTexCtx`: references through the figure/table/equation/section chips, `\ref` as the bare number, citations and footnotes through their chips); `~` follows `tildeAt` (tie → U+00A0). Display only — focused paragraphs still show their source.
+- `paper-export-tex.js` `paragraphTextToTex`: `_protectProseTex` after the inline-math pass — known commands go to LaTeX as written (the pre-V3.906 behaviour), `\cref`/`\Cref` become the template's prefix + `\ref` unless cleveref is on, unknown commands are escaped as text; the `~x~` regex pass is replaced by `tildeAt`. `buildBundle` adds siunitx / cleveref / booktabs / float / ulem to the preamble when the paper's own LaTeX needs them. `collectCitationKeys` reads `\cite{…}` (prose and `raw_tex`). `bibEscape` decodes BibTeX accents first and escapes `$` and `^`.
+- `paper-doc-view.js`: a table block with only `attrs.raw_tex` is drawn from `PaperProseTex.parseTabular` (rows, alignment, midrules, `\small`, caption); an unknown figure/table/equation reference prints "Fig. ??" (label on the tooltip); the preview bibliography decodes BibTeX accents (`_decodeEntryAccents`).
+- `paper-editor.js` `getAllFigures` / `getAllTables`: `label` falls back to the `\label{}` in `raw_tex` (`_rawTexLabel`).
+
+### Bug Fixes
+- Imported papers printed `\si{\micro\metre}`, `\cref{fig:x}`, `\%` as code in the Document view, and (since V3.906's escaping) in the PDF.
+- `[X]~\si{…} (n~=~[X])` was read as one long `~subscript~`: half a sentence set as a tiny unbreakable box that ran into the margin and overprinted the next line, and `\textsubscript{…}` in the PDF. LaTeX ties are now no-break spaces; `H~2~O` is still a subscript.
+- `paper-typeset.js` `layoutParagraph`: a line lying wholly inside a `<strong>`/`<em>`/`<sub>` lost that element (`Range.cloneContents` keeps only the elements the range cuts through) — bold run-in heads printed plain, the middle lines of a long italic passage upright. Each line is re-wrapped in shallow copies of its ancestors up to the paragraph.
+- An imported LaTeX table previewed as an empty "Table 1."
+- The mebp-journal PDF stopped at the bibliography ("Missing $ inserted") on a BibTeX accent in an author name.
+- Cross-reference chips in the Document view: the editor's `inline-block` survived the sheet flattening, so a justified line padded "(Fig. ??)" apart; chips are `display: inline` on the page now. The journal prefix is tied to the number with a no-break space (`_rewriteRefPrefixes`), so "Fig." and its number never split across lines — the PDF's `Fig.~\ref{…}`.
+
 ## [V3.914] — 2026-10-25 — Grants: each NSF document in the Document view, and written grant documents survive import
 
 Plan: [CodeLog/ClaudesPlan/V3.911_nsf_grant_format.md](../ClaudesPlan/V3.911_nsf_grant_format.md).

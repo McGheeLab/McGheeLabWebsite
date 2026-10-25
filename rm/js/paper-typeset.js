@@ -634,7 +634,21 @@
         var rg = document.createRange();
         setStart(rg, a);
         setEnd(rg, b);
-        div.appendChild(rg.cloneContents());
+        /* V3.915 — cloneContents keeps only the elements the range cuts
+         * through; a line lying wholly inside a <strong>/<em>/<sub> comes
+         * back as bare text (a bold run-in head lost its bold, the middle
+         * lines of a long italic passage their italics). Re-wrap it in
+         * shallow copies of every element between it and the paragraph. */
+        var piece = rg.cloneContents();
+        var anc = rg.commonAncestorContainer;
+        if (anc && anc.nodeType === 3) anc = anc.parentNode;
+        while (anc && anc !== el && el.contains(anc)) {
+          var wrap = anc.cloneNode(false);
+          wrap.appendChild(piece);
+          piece = wrap;
+          anc = anc.parentNode;
+        }
+        div.appendChild(piece);
       }
       if (ln.hy) div.appendChild(document.createTextNode('-'));
       var lineW = widthAt(idx) - (idx === 0 ? indent : 0);

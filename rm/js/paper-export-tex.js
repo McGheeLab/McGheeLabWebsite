@@ -878,6 +878,16 @@
      * prose is a literal dollar sign. */
     out = _protectInlineMath(out, protect);
 
+    /* V3.915 — LaTeX the author wrote in prose (\si{\micro\metre}, \%,
+     * \cref{fig:x}, ties) goes to LaTeX as written again, as before
+     * V3.906; references and citations follow the template like the
+     * builder's own tokens; an unknown command is escaped as text so it
+     * cannot break the compile. Each `~` is resolved here too: a tie
+     * (no-break space) or the builder's ~subscript~ (paper-prose-tex.js,
+     * the rule the Document view uses). */
+    var proseTex = window.PaperProseTex || null;
+    if (proseTex) out = _protectProseTex(out, template, protect, useCref, proseTex);
+
     /* V3.109 — resolve [!eqi:<id>] inline equation references against
      * the paper's equation library, emitting `\(<latex>\)`. Unknown
      * ids fall back to a clearly-broken comment so the .tex still
@@ -1029,8 +1039,9 @@
      * match as two adjacent italics. */
     out = out.replace(/\*\*([^*\n]+)\*\*/g, '\uE101$1\uE102');
     out = out.replace(/\*([^*\n]+)\*/g, '\uE103$1\uE104');
-    // Subscript / superscript (V3.107).
-    out = out.replace(/~([^~\n]+)~/g, '\uE105$1\uE106');
+    // Subscript / superscript (V3.107). V3.915 \u2014 subscripts were marked
+    // with the ties above.
+    if (!proseTex) out = out.replace(/~([^~\n]+)~/g, '\uE105$1\uE106');
     out = out.replace(/\^([^\^\n]+)\^/g, '\uE107$1\uE108');
 
     out = escapeProseTex(out, template);
@@ -1689,6 +1700,14 @@
           if (k && !seen[k]) { seen[k] = true; keys.push(k); }
         });
       }
+      /* V3.915 — \cite{a,b} written in prose or an imported table */
+      var reTex = /\\(?:cite[a-z]*|parencite|textcite)\*?(?:\[[^\]]*\]){0,2}\{([^}]+)\}/g;
+      while ((m = reTex.exec(text))) {
+        m[1].split(',').forEach(function (k) {
+          k = k.trim();
+          if (k && !seen[k]) { seen[k] = true; keys.push(k); }
+        });
+      }
     }
     (tree.sections || []).forEach(function (sec) {
       /* S-α — the MANUSCRIPT bundle excludes submission-doc sections
@@ -1706,6 +1725,7 @@
         if (b.kind === 'table' && b.attrs && b.attrs.caption != null) {
           scan(String(b.attrs.caption));
         }
+        if (b.attrs && b.attrs.raw_tex) scan(String(b.attrs.raw_tex));   // V3.915
       });
     });
     return keys;
@@ -1783,13 +1803,18 @@
   }
   function bibEscape(s) {
     var str = decodeEntities(s);
+    /* V3.915 — metadata imported from a .bib keeps BibTeX accents
+     * (Andr{\'e}); as Unicode they get the accent commands below instead
+     * of a printed backslash and a bare ^ that stopped the compile */
+    if (window.PaperProseTex) str = window.PaperProseTex.decodeAccents(str);
     var out = '';
     for (var i = 0; i < str.length; i++) {
       var c = str[i];
       if (c === '\\') out += '\\textbackslash{}';
-      else if (c === '&' || c === '%' || c === '#' || c === '_') out += '\\' + c;
+      else if (c === '&' || c === '%' || c === '#' || c === '_' || c === '$') out += '\\' + c;
       else if (c === '{' || c === '}') out += '\\' + c;
       else if (c === '~') out += '\\textasciitilde{}';
+      else if (c === '^') out += '\\textasciicircum{}';
       else if (c.charCodeAt(0) > 127) out += uniToTex(c, null);
       else out += c;
     }
@@ -1816,6 +1841,61 @@
         if (k > i) { out += protect('\\(' + text.slice(i + 2, k) + '\\)'); i = k + 2; continue; }
       }
       out += ch; i++;
+    }
+    return out;
+  }
+
+  /* V3.915 — LaTeX written in prose → protected fragments (see the call
+   * in paragraphTextToTex). Runs after the inline math is protected, so a
+   * `\` here is prose. A `~` subscript becomes the markers the markdown
+   * pass uses; a tie becomes a no-break space, which escapeProseTex turns
+   * back into `~`; a `~` beside a space stays a character. */
+  function _protectProseTex(s, template, protect, useCref, PT) {
+    if (s.indexOf('\\') < 0 && s.indexOf('~') < 0) return s;
+    var ctx = {
+      useCref: useCref,
+      ref: function (kind, label, form, capital) {
+        if (kind === 'equation') {
+          var es = refSpecFor(template, 'equation');
+          return (form === 'name' ? (es.prefix || '') : '') + (es.command || '\\eqref') + '{' + label + '}';
+        }
+        if (form === 'number') return '\\ref{' + label + '}';
+        if (kind === 'section') return 'Section~\\ref{' + label + '}';
+        if (kind !== 'figure' && kind !== 'table') return '\\ref{' + label + '}';
+        /* \cref names the float even where the template's own tokens leave
+         * the word to the author (an empty prefix) */
+        var prefix = refSpecFor(template, kind).prefix || (kind === 'figure' ? 'Fig.~' : 'Table~');
+        if (capital && /^Fig\.?~?$/.test(prefix)) prefix = 'Figure~';
+        return prefix + '\\ref{' + label + '}';
+      },
+      cite: function (keys, narrative) {
+        if (!keys.length) return '';
+        var cmd = citeCommandFor(template);
+        if (narrative && keys.length === 1 && template && template.citation && template.citation.narrative_command) {
+          cmd = template.citation.narrative_command;
+        }
+        return cmd + '{' + keys.join(',') + '}';
+      },
+    };
+    var out = '';
+    for (var i = 0; i < s.length; i++) {
+      var c = s.charAt(i);
+      if (c === '\\') {
+        var cmd = PT.readCommand(s, i);
+        if (cmd) {
+          var tex = PT.toTex(cmd, ctx);
+          if (tex !== false) {
+            out += protect(tex == null ? cmd.src : tex);
+            i = cmd.end - 1;
+            continue;
+          }
+        }
+      } else if (c === '~') {
+        var tl = PT.tildeAt(s, i);
+        if (tl.kind === 'sub') { out += '' + tl.inner + ''; i = tl.end; continue; }
+        if (tl.kind === 'tie') { out += ' '; continue; }
+      }
+      out += c;
     }
     return out;
   }
@@ -2228,6 +2308,23 @@
       if (_usedWrapfig) {
         effectiveTemplate.preamble +=
           '\n% --- RM Layout Mode: wrapped figures ---\n\\usepackage{wrapfig}\n';
+      }
+      /* V3.915 — packages the paper's own LaTeX uses (siunitx units in
+       * prose, booktabs rules and [H] in an imported table, \cref in an
+       * imported caption), loaded when the preamble does not load them.
+       * Loading a package again without options never clashes with a
+       * class that loaded it first. */
+      if (window.PaperProseTex) {
+        var _ownTex = sectionFiles.map(function (f) { return f.content; }).join('\n') + '\n' +
+          Object.keys((stash && stash.tokens) || {}).map(function (k) { return stash.tokens[k] || ''; }).join('\n');
+        var _ownPkgs = window.PaperProseTex.packagesFor(_ownTex).filter(function (pkg) {
+          return !(pkg === 'cleveref' && effectiveTemplate._use_cref) &&
+            !window.PaperProseTex.preambleLoads(effectiveTemplate.preamble, pkg);
+        });
+        if (_ownPkgs.length) {
+          effectiveTemplate.preamble += '\n% --- RM: packages the paper\'s own LaTeX uses ---\n' +
+            _ownPkgs.map(function (p) { return '\\usepackage{' + p + '}\n'; }).join('');
+        }
       }
       /* V3.486 — body line density (grant lines-per-inch). Injected here so
        * the clamp warning lands on _layoutWarnings (active now); '' when
