@@ -4,6 +4,183 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.914] — 2026-10-25 — Grants: each NSF document in the Document view, and written grant documents survive import
+
+Plan: [CodeLog/ClaudesPlan/V3.911_nsf_grant_format.md](../ClaudesPlan/V3.911_nsf_grant_format.md).
+
+### Added
+- **Document** picker in the Document view toolbar (`#pdv-doc`, `_syncDocPicker`), shown for a template with a `grant.documents` list: Project Description, References Cited, Project Summary, Data Management and Sharing Plan, Mentoring Plan, Synergistic Activities, Budget Justification, Facilities, Departmental Letter. `state.grantDoc` selects one; `renderDocument` sets it in the grant's look with the title hidden (`PaperLook.merge(look, {title:{show:false}})`), its kinds mapped to `section_star`, the tree filtered to those kinds; References Cited (`references:true`) renders the bibliography alone (`state.subdocRefs` overrides `bib.where:'separate'`). The page meter, the Check panel rules and Fit follow the chosen document's limit. An empty document shows how to add it.
+- **Grant documents** card on the Export page (`_bindGrantDocs`, `PaperSubdocs.grantDocs` / `buildGrantDocBundle`): one row per document with its limit, `.zip` and **Compile**, and the last PDF of that document. Compiles carry `templateId: '<template>#<doc>'` and `docKind: 'grant_<doc>'`; `mainCompiles()` drops `#` templates, so a References Cited compile never stands in for the Project Description (the deployed compile service files unknown docKinds as `main`).
+
+### Changed
+- `paper-import-engine.js`: a grant-document section (`GRANT_ATTACHED_KINDS`) with written text stays a section on import; uploaded PDFs still go to Grant Docs.
+- `functions/paper-compile/server.js` accepts `docKind: 'grant_<doc>'` (takes effect with the next Cloud Run deploy of paper-compile; until then the client's `#` tag keeps these compiles out of the main history).
+- `paper-export-config.js`: a paper whose saved template is not in its type's list (a grant on a journal template, now that grants have their own list) keeps that template selected instead of silently showing the first grant template.
+
+### Bug Fixes
+- The preview bibliography printed the citation key as the author of an author-less reference ("anon2022fda"); now nothing, and the entry starts at its title.
+- Journal looks (found chasing bioRxiv's lost page): the paginator added an item's top and bottom margins in full, but adjoining spaces count once, the larger (CSS collapses them; LaTeX's `\addvspace` does the same), and TeX discards the space before an item at the top of a page or column. `runEff` / `runPut` (one column) and `colEff` / `colPut` (two) now do both, with the margins kept per measured item (`x.mt`, `x.mb`, also in the measure cache). PLOS: 13 / 14 → 13 / 13 pages.
+- Journal looks: display equations were spaced by KaTeX's own 1em margins on top of the look's — about a line and a half too tall each. `_setDisplays` sets each from TeX's display rules (\abovedisplayskip / short skips by the line above, interline glue against KaTeX's strut height and depth at the body size, \belowdisplayskip, an empty line for a display that starts a paragraph) and puts the math on TeX's baseline.
+- Templates that compile with unsrtnat (NSF, preprint-numeric) show their bibliography in unsrtnat's format in the preview (`_formatUnsrtnat`: every author, BibTeX's sentence case, `vol (num):pages, year`, `doi:`); the editor's citation entries now carry up to 80 authors (was 10).
+
+## [V3.913] — 2026-10-25 — Grants: page budget, the PAPPG rules and Fit in the Check panel
+
+Plan: [CodeLog/ClaudesPlan/V3.911_nsf_grant_format.md](../ClaudesPlan/V3.911_nsf_grant_format.md).
+
+### Added
+- Check panel, grant section (`_grantPanelHtml`, `_grantReport`): **pages / limit** with the lines over (content height of the pages past the limit) or to spare; the funder's rules from `PaperGrantRules.check` (problems listed, passes folded); wrapped figures wrapfig could not set beside text (`state.wrapReport`: `collision`, `end`, `held` far from its citation) with what to do; **Page settings** (typeface from the PAPPG list with its minimum, text size, line pitch ≥ 12 pt, paragraph space, caption size, gap beside wrapped figures, tighten paragraphs) written to `paperExports.lookOverrides` (`_saveLookOverrides`); the length of each section in pages and lines.
+- **Fit to N pages** (`_fitLadder`, `_fitToLimit`): a ladder of compliant steps, gentlest first — every paragraph TeX can set a line shorter, captions 9.5 → 9 pt, line pitch 12.4 → 12.2 → 12 pt, text size down to the face's minimum — binary-searched by laying the document out for each candidate; **Keep** saves the overrides, **Undo** restores. Measured on the GELS CAREER Project Description: 16 → 15 pages (tighten, captions 9 pt, pitch 12 pt), and the compiled PDF is 15 pages too.
+- `look.body.looseness` (override `body.looseness`, −1/0): `\AddToHook{para/begin}{\ifnum\looseness=0 \looseness=-1\relax\fi}` in the preamble; the preview applies it to every paragraph TeX's hook reaches, unless the paragraph sets its own (V3.910).
+- Toolbar page count reads **N / limit pages** (red over, green within) on a grant document.
+- Paper Lab: `drive.mjs check … --fit 1 [--keep 1]`, `compiledoc … --doc "<label>"`, `preview … --doc <key>`.
+
+### Changed
+- `paper-typeset.js` `breakLines`: with `\looseness ≠ 0` a pass that misses the asked-for line count hands on to the next (tex.web §873); `chooseFinal` picks TeX's way (nearest without overshooting, §875) and returns `actualLooseness`; candidates are pruned per line number when line numbers matter (`\looseness`, a per-line shape), within `\adjdemerits` of that line's best.
+- Under a look the old lines-per-inch control is hidden and ignored, in the preview and the export (the look's line pitch rules).
+- The layout check no longer calls a paragraph loose just because TeX reached its last pass while honouring a `\looseness`.
+
+## [V3.912] — 2026-10-25 — Grants: wrapped figures set exactly as wrapfig sets them
+
+Plan: [CodeLog/ClaudesPlan/V3.911_nsf_grant_format.md](../ClaudesPlan/V3.911_nsf_grant_format.md).
+
+### Added
+- Document view paginator models wrapfig 3.6 (one-column looks; `WRAP_TEX` in `_packPages`): a wrapped figure waits for the next paragraph start; it is set there when `\WF@size` (depth + 1.5 \baselineskip + 2 \intextsep) fits the room left (`\pagegoal − \pagetotal`), beside ⌊(size + 1.1 \baselineskip) / \baselineskip⌋ − 1 lines of `\linewidth − width − \columnsep`; otherwise it waits (the floating R/L form), unless less than a line is left, when the page breaks. Headings are never a placement point (the look gives them a 1sp hanging indent). A figure still waiting when the next wrapped figure begins is set alone after a `\bigskip` (`\WFclear`, "Collision"), outlined in the preview; one no paragraph took goes to the end. Wrapped paragraphs and headings are set again with per-line widths and offsets at `\tolerance 9999` (`_setWrappedPara`, `_setWrappedHeading`); `PaperTypeset.layoutParagraph` takes `widths` / `offsets` (a `\parshape`).
+- Figures under a grant look are placed from a zero-height `.pdv-wrap-anchor` (`.pdv-wrapfig-tex`), carrying wrapfig's size, line count and room for the Paper Lab (`data-wf-*`).
+
+### Changed
+- `look.rigid_headings` (NSF): `\section`…`\subsubsection` are LaTeX's `\@startsection` with fixed space and a 1sp indent instead of titlesec — measured with Tectonic, titlesec headings break wrapfig (narrow lines carried on with no figure); the preview typesets these headings with Knuth–Plass like body text.
+- The export writes `\begin{wrapfigure}{R|L}{w}` (floating form) under a look.
+- Captions under a spec look are spaced by the caption package's struts: first baseline `\abovecaptionskip + 0.7 × lead` below the artwork, last line 0.3 × lead deep (`.pdv-figcap` margin-top / padding-bottom) — confirmed on wrapfigure boxes (to 0.07 pt) and on ordinary floats (bioRxiv: 15.70 bp).
+- Measured item heights under a look are exact (no whole-pixel ceiling per item, which lost the line TeX fits at the foot of a page); a heading keeps a whole chain of headings plus two lines with it (`\@nobreak`).
+- Paper Lab `sync.py`: a one-column page with a wrapped figure is one column; smaller type beside the text reads after the body.
+
+### Results (GELS CAREER Project Description, Paper Lab)
+- Preview and compiled PDF: 16 / 16 pages, **16 of 16 page starts identical**, 87 % of line ends; with Fit, 15 / 15 pages.
+
+## [V3.911] — 2026-10-25 — Grants: the NSF format (PAPPG 24-1), its rules, and References Cited as its own PDF
+
+Plan: [CodeLog/ClaudesPlan/V3.911_nsf_grant_format.md](../ClaudesPlan/V3.911_nsf_grant_format.md).
+
+### Added
+- `nsf-career.json` **look** (spec): Letter, 1 in margins, one column, no page numbers, Arial-width TeX Gyre Heros 11 / 12.65 bp (Word's single spacing), no indent or paragraph space, bold 11 pt headings at the body pitch with no space, sans 10 / 11.5 captions with a bold "Figure N." label, numeric [1] citations, `authors.show:false`, `abstract.mode:'none'`. Replicates the submitted GELS CAREER Project Description's page (measured: same 50.5 k letters, 82 vs 83 letters a line).
+- `nsf-career.json` **grant** block: PAPPG typefaces with minimum sizes (Arial / Palatino 10 pt, Times / Computer Modern 11 pt), margins, 6 lines an inch, no page numbers, and each NSF document's page limit and required headings (Project Description 15 pp with "Broader Impacts", Results from Prior NSF Support ≤ 5 pp, no URLs; Project Summary 1 p, three labeled parts, 4600 characters; DMSP 2; Mentoring 1; Synergistic Activities 1; Budget Justification 5; Departmental Letter 2).
+- `rm/js/paper-grant-rules.js` (`PaperGrantRules.rules / docRule / typeface / check`): pure, Node-tested (`scripts/tests/paper-grant-rules.test.mjs`, 18 checks).
+- `paper-look.js`: per-paper `lookOverrides` merged after the template's look (`applyOverrides`, a clamped whitelist; headings set at the body size follow it; one face for the document unless the sans face is chosen); `authors.show`, `title.show`; `bib.where:'separate'` (the .bbl is read inside `\setbox0=\vbox{…}` so [n] resolve, nothing printed); TeX Gyre Pagella (Palatino) vendored; `xh` per face; `lineOff` exported.
+- **References Cited** builds as its own document: `\nocite{…}` in the order LaTeX writes the Project Description's citations (`PaperSubdocs.citeOrder`, `\input`s expanded) — verified: 105 of 105 numbers identical.
+- `nsf-career` registered in the export template picker (Grants).
+
+### Bug Fixes
+- Crossref's HTML-escaped names ("ACS Biomaterials Science &amp;amp; Engineering") are decoded before the .bib is written and in the preview's bibliography.
+- A look with no author line no longer spaced the title block as if affiliations followed it.
+
+## [V3.910] — 2026-10-25 — Paper builder: a layout check in the Document view (loose lines, widows, orphans, stray figures, lines to save)
+
+Plan: [CodeLog/ClaudesPlan/V3.906_paper_typesetting_fidelity.md](../ClaudesPlan/V3.906_paper_typesetting_fidelity.md) (P5).
+
+### Added
+- **Check** button in the Document view toolbar (journal looks; count badge) → `.pdv-check-panel` (`_openCheckPanel` / `_renderCheckPanel` / `_closeCheckPanel`). It lists, with page numbers and **Show** (scroll + flash):
+  - loose lines (badness > 500, the emergency pass, overfull);
+  - orphans (a paragraph's first line alone at a column foot) and widows (its last line alone at the next column's head);
+  - figures and tables set ≥ 2 pages after their first mention (a ref chip, or "Fig. 3" / "Table 2" in the text; "Supplementary Fig." ignored);
+  - how full the last page is, with **Tighten N paragraphs** when a few lines run onto it and enough paragraphs can lose one;
+  - paragraphs `\looseness=-1` would set a line shorter, and the paragraphs you adjusted (**Reset**).
+- **Tighten / Loosen** write `attrs.looseness` (−1 / +1) on the paragraph block (`_writeFigAttrs`). The Document view passes it to the line breaker (`_lineBreakParams`, `p.dataset.looseness`), and the exporter writes `\looseness=±1\relax` before the paragraph (`paragraphToTex`), so the PDF makes the same change.
+- `_buildLayoutReport(geom)` after each mount. It reads `state.tsReport` (per-paragraph `lines`, `ratios`, `overfull`, `pass`, `canTighten`, `looseness` from `_typesetParagraphs`) and the mounted sheets (split parts carry their block id).
+- `PaperTypeset.layoutParagraph(el, {probeTighten})` → `canTighten` (a second Knuth–Plass run with `looseness: -1`).
+- Paper Lab: `drive.mjs check <id> <out> [--tighten-last 1 | --tighten 1 | --reset 1]` (panel text → `check.json`, `check.png`).
+
+### Tests
+- `scripts/tests/paper-tex-escape.test.mjs` 18/18 (two new `\looseness` checks); `paper-typeset.test.mjs` 25/25.
+- Lab: PLOS → 3 orphans, 2 paragraphs that can lose a line. Tighten wrote `looseness: -1`, the preview re-set the paragraph, and the compiled section carries `\looseness=-1\relax`; Reset removed it.
+- `sw.js` CACHE_VERSION 888 → 889.
+
+## [V3.909] — 2026-10-25 — Paper builder: PNAS and IEEE pages from their own classes; TeX's vertical spacing in the Document view; a journal labeler
+
+Plan: [CodeLog/ClaudesPlan/V3.906_paper_typesetting_fidelity.md](../ClaudesPlan/V3.906_paper_typesetting_fidelity.md) (results, P2–P4).
+
+### Added
+- **Class looks** (`look.engine: 'class'`, `rm/js/paper-look.js` `applyToTemplate`). The journal's own class sets the page: the template keeps its preamble and skeleton. The look adds `\microtypesetup{protrusion=false}` (when microtype is loaded) and `\AtBeginDocument{\frenchspacing\pretolerance=100 \tolerance=800 \emergencystretch=…}`, and hides the `hide_heading_kinds` headings. A class look describes the class's page for the Document view and never writes its own type into the .tex (`paper-export-tex.js` skips `texSectionOpen` for it).
+  - **PNAS** (`pnas-new.json` `look`): geometry from `pnas-new.cls` (odd-page margins on Letter), LM 9 pt text, Helvetica at the class's 0.95 scale, abstract + keywords in column 1, inline affiliations, the first-page fact box, run-in ACKNOWLEDGMENTS, sans 6/8 bibliography. Every size is the class's TeX pt converted to bp.
+  - **IEEE** (`ieee.json` `look`): IEEEtran [journal] measured from a compile. Times 10/12 with IEEEtran's retuned word spaces (0.35 em, 0.23–0.50; bold 0.375 em), `\hyphenpenalty 750`, `\relpenalty 800`, `\binoppenalty 1000`, Roman/A./1) numbering, small-caps centred heads, indented first paragraphs, run-in "Abstract—" / "Index Terms—" in column 1, the authors' note at the foot of column 1, "Fig. 1." captions, citations as "[2], [3], [4]".
+- **Look options the Document view now draws**: `font_scale` (a family loaded scaled), `glue` per family and `<family>-bold` (`stretch`, `shrink`, `space` as fractions/em; CSS `--pts-stretch` / `--pts-shrink` / `--pts-space`, read per space by the typesetter), `kerning: false`, `body.topskip`, `title.before`, `abstract.mode: 'column'`, `abstract.parbox`, `abstract.first_indent`, `abstract.label_italic` / `label_sep`, `keywords.label` / `label_italic` / `label_sep` / `indent` / `before` / `after` / `family`, `affiliations.inline`, `affiliations.where: 'colnote'` (+ `prefix`, `indent`, `note_skip`), `authors.corresponding: false`, `factbox {specials, col, …}`, `indent_after_heading`, `case: 'smallcaps'`, section styles with `family` and `runin_head {text, family, size, weight, gap}` + `before`, `bib.family`, `cite.style: 'ieee'`, and `linebreak.hyphenpenalty` / `exhyphenpenalty` / `relpenalty` / `binoppenalty`.
+- **Latin Modern optical sizes** `rm/vendor/fonts/lmroman9-*`, `lmroman8-*`, `lmroman7-regular` (GUST licence, from the TeX bundle) and FONTS `lm9` / `lm8` / `lm7`. A class that loads `lmodern` sets 9 pt text in LMRoman9, which is wider than LMRoman10 scaled down.
+- **Journal labeler** (`ResearchManagement/data/figure-training/`, untracked dev tool): `harness.html?set=journals` with 22 region types (title … backmatter); `make_journal_set.py` (33 papers); `propose_journal.py` (run-based gutter/columns, figures, captions, headings, abstract, affiliations, references, footnotes); `scripts/paper-lab/journal_style.py` turns labels into per-journal style profiles and draft looks.
+- **Paper Lab**: `calibrate.py` measures a look from any PDF; `sync.py` scores body and caption lines apart (`caption_line_ends`) and finds the gutter from body-size text only; `drive.mjs` records each typeset line's zone (`body` / `cap` / `front` / `bib`).
+
+### Changed
+- **TeX's vertical rhythm in CSS** (`paper-look.js` `lineOff` / `texGap` / `topGap`). TeX puts baselines `skip + \baselineskip(next)` apart; CSS puts them `(lead − off) + margin + off` apart, where `off` comes from the face's hhea metrics (`asc` / `desc` / `ht` added to every FONTS entry). Front matter, headings and caption skips now convert TeX skips into CSS margins. A box at the page top sits at its glyph height. Keywords follow the abstract (their top margin replaces the abstract's closing skip) and span with it.
+- **Column capacity = TeX's**: `PaperLook.geometry` measures `\textheight + \baselineskip − \topskip`, so a column holds `floor((textheight − topskip)/baselineskip) + 1` lines, as in TeX (IEEE: 58, was 57).
+- **`\sloppy` where LaTeX is sloppy**: captions, float contents, the fact box and a boxed abstract (anything after `\@parboxrestore`) break with tolerance 9999 and 3 em emergency stretch (`_lineBreakParams`).
+- **The typesetter also sets** the abstract, keywords, figure/table captions, fact box and author note (`TYPESET_INNER_SEL`), not just body paragraphs. Centred or ragged captions keep the browser's breaks.
+- **Float columns** (`_packPages` `tryFloatColumn`, `nextCol`). LaTeX's `\@tryfcolumn` at every column start: column floats at the head of the queue that fill ≥ `\floatpagefraction` take the column, centred. Column `[p]` floats wait for one instead of a whole page. A column can be named for a float (`float.col`), and a float can carry its own gap (`float.gapPx`).
+- natbib numeric citations read "(5, 6)" / "[5, 6]" in the Document view (space after the comma).
+
+### Bug Fixes
+- **PNAS exports had no abstract**: `pnas-new.json` `main_template` now calls `\abscontent` after `\maketitle` (the research-article style sets it in column 1 only when asked, as the official template does).
+- **An empty keywords environment** is dropped from main.tex (IEEEtran printed a bare "Index Terms—").
+- **A height-capped figure overflowed its page in the Document view** on first open: it was built before its image's aspect was known. `_measureItems` now starts the render again once the decoded size is cached (once; cached images never wait).
+
+### Tests
+- Paper Lab, preview vs compiled: PNAS 7/7 pages, figures on the same pages (float column + float page as in the PDF), body line ends 60 %. IEEE copy of the Nat Commun paper 18/18 pages, 75 %, captions 66 %. Nat Commun 14/14, JACS 11/11, bioRxiv 13/13 (94 %), PLOS 14/13, Elsevier 13/14 (the last two differ by a few reference lines).
+- `node scripts/tests/paper-tex-escape.test.mjs` 16/16.
+- `sw.js` CACHE_VERSION 887 → 888.
+
+## [V3.908] — 2026-10-25 — Paper builder: the Document view sets text the way TeX does
+
+Plan: [CodeLog/ClaudesPlan/V3.906_paper_typesetting_fidelity.md](../ClaudesPlan/V3.906_paper_typesetting_fidelity.md) (P3).
+
+### Added
+- **`rm/js/paper-typeset.js`** (`window.PaperTypeset`): `setPatterns` / `hyphenate` (Liang, TeX's en-US patterns with lefthyphenmin 2 / righthyphenmin 3), `breakLines(items, widths, params)` (Knuth–Plass with TeX's passes: pretolerance without hyphens, tolerance with them, then emergency stretch; demerits, adjdemerits, double/final hyphen demerits, looseness, an overfull rescue), `layoutParagraph(el, {width, indent, leading, params, atomic})` (measures text with DOM Ranges in the real fonts, builds box/glue/penalty items incl. breakable inline math at relations and binary operators with TeX's math glue, and rebuilds the paragraph as `span.pts-ln` lines justified exactly; baselines of tall lines fixed), `splitMathSource`, `breakableMathText`.
+- **`rm/vendor/hyphen/hyph-en-us.js`**: hyph-utf8's US English patterns + exceptions (notice kept).
+- Document view (`paper-doc-view.js`): `_typesetParagraphs` + `_lineBreakParams` before measuring; `_splitTypeset` splits a typeset paragraph at a line; LaTeX's float model under a look (`[t]` to the top of the current column, `figure*` from the next page, strict float order, float-page-first with the look's fractions, float pages centred, `notBeforePage`); headings keep with the next lines; bibliography as per-entry items; float-only columns never forced.
+- `scripts/paper-lab/sync.py` (line-end, page-start and per-paragraph line-count agreement), `density.py`.
+
+### Changed
+- Looks set `\pretolerance=100 \tolerance=800 \emergencystretch=1.5em` (article's two-column `\sloppy` made line breaks unpredictable); the preview uses the same.
+- Superscripts, subscripts and superscript citations at TeX's 0.7 em; inline KaTeX at the text size.
+
+### Tests
+- Corpus: preview pages = compiled for Nat Commun (14), JACS (11), bioRxiv (13); line-end agreement 71–92 %; no in-column gaps the PDF lacks.
+- `sw.js` CACHE_VERSION 886 → 887.
+
+## [V3.907] — 2026-10-25 — Paper builder: journal looks — the PDF and the Document view from one page description
+
+Plan: [CodeLog/ClaudesPlan/V3.906_paper_typesetting_fidelity.md](../ClaudesPlan/V3.906_paper_typesetting_fidelity.md) (P2).
+
+### Added
+- **`rm/js/paper-look.js`** (`window.PaperLook`). A template's `look` (page, margins, columns, fonts, sizes and leading, title/authors/affiliations/abstract/keywords, h1–h3, captions, bibliography, citations, display skips, float parameters, section styles) is turned into BOTH:
+  - the LaTeX: `texPreamble`, `texCitations`, `texFront`, `texMain`, `texAuthors`, `texSectionOpen` / `Close`, `figureMaxHeight` — fontspec with a pdfLaTeX fallback, geometry in bp, titlesec, caption, natbib;
+  - the Document view's CSS and page geometry: `css(look, scope)`, `geometry(look)`, `fontFaceCss()`.
+  - `resolve(template, {layoutLook})` and `applyToTemplate`.
+- **Looks measured from real papers**: Nature family (Nat Commun), PLOS ONE, ACS (JACS), Elsevier, preprint (numeric / author-year), plus **APS / REVTeX** (`aps-revtex.json`, new template).
+- **`rm/vendor/fonts/`**: TeX Gyre Termes/Heros, Latin Modern, Libertinus, EB Garamond, Source Sans (OTF, licences in `LICENSES.md`) — the same files for LaTeX and the browser.
+- Export page: **Page look** select (`#px-layout-look`: published | submission manuscript).
+
+### Changed
+- Figures in a look are capped to fit the text area with their caption (`figureMaxHeight`, same rule in the preview); unanchored floats `[tbp]`, anchored `[t]` → `[tp]`.
+- Templates' author lines use `{{AUTHOR_BLOCK}}` (nature, plos, science, preprints, nsf-career, mebp-journal).
+
+### Tests
+- Corpus compiles with the published looks: page counts Nat Commun 14/14, JACS 11/11, Elsevier 14/14, PLOS 13/14, bioRxiv 13/14.
+- `sw.js` CACHE_VERSION 885 → 886.
+
+## [V3.906] — 2026-10-25 — Paper builder: Paper Lab (real papers as ground truth) + export correctness
+
+Plan: [CodeLog/ClaudesPlan/V3.906_paper_typesetting_fidelity.md](../ClaudesPlan/V3.906_paper_typesetting_fidelity.md) (P1).
+
+### Added
+- **Paper Lab** (`scripts/paper-lab/`): the real paper builder on a fake in-memory Firebase (`fake-firebase.js`, `lab-hooks.js`) served by `serve.py` (local Tectonic compile at `/paper-lab/api/compile`; refuses a workspace inside the repo), driven headless by `drive.mjs` (import / preview / compile), measured by `compare.py` (ORIGINAL | COMPILED | PREVIEW + ink metrics) and `run.py`; `gt_extract.py` / `gt_crop.py` for corpus PDFs. The corpus (7 published papers rebuilt as bundles) lives in `../PaperLab-corpus/`, outside every repo.
+
+### Bug Fixes
+- **Prose was not escaped** in the .tex (`paper-export-tex.js` `escapeProseTex`): `%` cut the rest of a paragraph, `& # _` broke the compile.
+- **Inline math was not protected** from the markdown passes (`_protectInlineMath`): two `$…^…$` spans in a paragraph paired their carets → compile error.
+- **Characters disappeared from the PDF** (’ – é ń μ …): XeTeX with T1 fonts drops them. Prose, titles, labels, captions and the .bib now carry TeX's ASCII forms (`uniToTex`, `bibEscape`; pages `--`).
+- PLOS "Option clash for package xcolor" (`\PassOptionsToPackage{table}{xcolor}` first); 7 templates printed "Lead Author"; text continuing after a display equation is not a new paragraph (`PaperLayout.blockJoin`); captions span the column unless `caption_fit: 'box'`; table cells/notes go through the paragraph renderer; an equation block without `display` is inline in the Document view too.
+
+### Tests
+- `scripts/tests/paper-tex-escape.test.mjs` (16 checks). Corpus compiles with zero errors and zero missing characters.
+- `sw.js` CACHE_VERSION 884 → 885.
+
 ## [V3.905] — 2026-10-24 — Scientia: type /cite to cite a paper
 
 Plan: [CodeLog/ClaudesPlan/V3.905_scientia_slash_cite.md](../ClaudesPlan/V3.905_scientia_slash_cite.md).

@@ -42,6 +42,15 @@ printf '   %-44s %s\n' "bme466-audience.test.mjs" "$(echo "$out" | grep -E 'chec
 echo "$out" | grep -E "^ FAIL " | sed 's/^/   /'
 record $rc "bme466-audience"
 
+# V3.906 / V3.909 — the paper builder's export and journal-look contracts:
+# prose → LaTeX escaping, and the rules the PDF and the Document view share
+# (TeX hyphenation, Knuth–Plass, class vs spec looks, column capacity).
+for t in paper-tex-escape paper-typeset paper-grant-rules; do
+  out=$(node scripts/tests/$t.test.mjs 2>&1); rc=$?
+  printf '   %-44s %s\n' "$t.test.mjs" "$(echo "$out" | tail -1)"
+  record $rc "$t"
+done
+
 # V3.710 — the advice register. Pure string checks over the module SOURCE, so it
 # belongs in layer 1. It guards the other register: not "is this consistent and
 # numerically right" (everything else does that) but "would a reader who acted on

@@ -62,7 +62,7 @@
     /* Cache element refs once — these are read on nearly every callback. */
     [
       'px-back','px-title','px-status','px-warnings',
-      'px-template','px-template-desc','px-build-target','px-float-spacing','px-column-fill','px-section-numbering','px-paper-type','px-addons','px-lints',
+      'px-template','px-template-desc','px-build-target','px-layout-look','px-layout-look-hint','px-float-spacing','px-column-fill','px-section-numbering','px-paper-type','px-addons','px-lints',
       'px-fig-placement','px-fig-width','px-tab-booktabs','px-tab-placement','px-eq-display',
       'px-run-lints','px-compile','px-download','px-export-portable','px-export-status',
       'px-log','px-log-wrap',
@@ -116,6 +116,7 @@
     await PaperExportConfig.populateTemplateSelect(els['px-template'], state.config.templateId, state.config.paperType);
     _bindTemplateChange();
     _bindBuildTarget();   // V3.395
+    _bindLayoutLook();    // V3.907
     _bindFloatSpacing();  // V3.408
     _bindColumnFill();    // V3.427
     _bindSectionNumbering();
@@ -201,6 +202,25 @@
     var section = document.getElementById('px-subdocs-section');
     var host = document.getElementById('px-subdocs');
     if (!section || !host || !window.PaperSubdocs) return;
+    /* V3.911 — a grant whose template lists its funder's documents (NSF:
+     * References Cited, Project Summary, DMSP, …): each compiles in the
+     * grant's look as its own PDF */
+    if (state.config.paperType === 'grant' && (!state.template || state.template.id !== state.config.templateId)) {
+      // the template says which documents the funder takes; fetch it once
+      if (!state.tplFetching) {
+        state.tplFetching = true;
+        window.PaperExportTex.fetchTemplate(state.config.templateId).then(function (t) {
+          state.tplFetching = false;
+          state.template = t;
+          _bindSubdocs();
+        }).catch(function () { state.tplFetching = false; });
+      }
+      section.hidden = true;
+      return;
+    }
+    var gdocs = (state.config.paperType === 'grant' && state.template && window.PaperSubdocs.grantDocs)
+      ? window.PaperSubdocs.grantDocs(state.template) : [];
+    if (gdocs.length) { _bindGrantDocs(section, host, gdocs); return; }
     if ((state.config.paperType || 'journal') !== 'journal') { section.hidden = true; return; }
     section.hidden = false;
     host.innerHTML = '';
@@ -252,6 +272,84 @@
     });
   }
 
+  /* V3.911 — the funder's documents, one row each: what it holds, its page
+   * limit, .zip, Compile, and the last PDF of that document. */
+  function _bindGrantDocs(section, host, gdocs) {
+    section.hidden = false;
+    var h2 = section.querySelector('h2');
+    if (h2) h2.textContent = 'Grant documents';
+    host.innerHTML = '';
+    var tree = window.PaperExportTex.paperTreeFromYDoc(state.yConn.yDoc);
+    gdocs.forEach(function (doc) {
+      var secs = (tree.sections || []).filter(function (sec) { return doc.kinds.indexOf(sec.kind) >= 0; });
+      var hasContent = doc.references || secs.some(function (sec) {
+        return (sec.children || []).some(function (b) { return String(b.body || '').trim(); });
+      });
+      var row = document.createElement('div');
+      row.className = 'px-subdoc-row';
+      var info = document.createElement('div');
+      info.className = 'px-subdoc-info';
+      var title = document.createElement('div');
+      title.className = 'px-subdoc-title';
+      title.textContent = doc.label + (doc.page_limit ? ' · ' + doc.page_limit + ' page' + (doc.page_limit === 1 ? '' : 's') + ' at most' : '');
+      var hint = document.createElement('div');
+      hint.className = 'px-subdoc-hint';
+      hint.textContent = doc.references
+        ? 'The bibliography alone, numbered in the order the Project Description first cites each reference.'
+        : !secs.length ? 'No "' + doc.label + '" section yet — add it with + Add section in the editor, or upload the PDF on the Grant Docs page.'
+        : hasContent ? (doc.note || 'Set in the grant\'s look (same type and margins as the Project Description).')
+        : 'The section is empty — write it in the editor, or upload the PDF on the Grant Docs page.';
+      info.appendChild(title);
+      info.appendChild(hint);
+      row.appendChild(info);
+      var zipBtn = document.createElement('button');
+      zipBtn.type = 'button'; zipBtn.className = 'btn btn-sm';
+      ICON.label(zipBtn, 'arrow-down-tray', ' .zip');
+      zipBtn.title = 'Download this document\'s LaTeX source';
+      zipBtn.disabled = !hasContent;
+      zipBtn.addEventListener('click', function () { _downloadSubdocZip(doc); });
+      row.appendChild(zipBtn);
+      var compBtn = document.createElement('button');
+      compBtn.type = 'button'; compBtn.className = 'btn btn-sm';
+      compBtn.textContent = 'Compile';
+      compBtn.disabled = !(state.canEdit && hasContent);
+      compBtn.title = hasContent ? 'Compile ' + doc.label + ' to its own PDF' : 'Write the section first';
+      compBtn.addEventListener('click', function () { _compileSubdoc(doc); });
+      row.appendChild(compBtn);
+      var last = (state.compiles || []).filter(function (c) { return c.templateId === doc.templateId; })[0];
+      if (last && last.pdfStoragePath) {
+        var lastLink = document.createElement('button');
+        lastLink.type = 'button'; lastLink.className = 'btn btn-sm';
+        ICON.label(lastLink, 'arrow-top-right-on-square', ' last PDF');
+        lastLink.title = 'Open the most recent ' + doc.label + ' PDF';
+        lastLink.addEventListener('click', function () { _openCompilePdf(last); });
+        row.appendChild(lastLink);
+      }
+      host.appendChild(row);
+    });
+  }
+
+  /* A grant document's bundle (V3.911), or a journal submission document's. */
+  async function _subdocBundle(doc) {
+    {
+      var common = {
+        docKind: doc.docKind,
+        paperId: state.paperId,
+        yDoc: state.yConn.yDoc,
+        authorsCfg: { authors: state.config.authors || [], affiliations: state.config.affiliations || [] },
+        fullItemsByKey: state.fullCitationByKey ||
+          (state.fullCitationByKey = await _loadFullCitations()),
+        leadAuthor: state.meta.lead_author || '',
+      };
+      if (!doc.grant) return window.PaperSubdocs.buildSubdocBundle(common);
+      return window.PaperSubdocs.buildGrantDocBundle(Object.assign(common, {
+        template: state.template,
+        lookOverrides: state.config.lookOverrides || null,
+        sectionNumbering: state.config.sectionNumbering || 'auto',
+      }));
+    }
+  }
+
   /* Gate detection (S-γ/D2): the updated compile service stamps docKind
    * on every compile doc — its presence on ANY compile means the new
    * image is live. */
@@ -268,15 +366,7 @@
   async function _compileSubdoc(doc) {
     try {
       _setStatus('Building ' + doc.label + '…', 'saving');
-      var bundle = await window.PaperSubdocs.buildSubdocBundle({
-        docKind: doc.docKind,
-        paperId: state.paperId,
-        yDoc: state.yConn.yDoc,
-        authorsCfg: { authors: state.config.authors || [], affiliations: state.config.affiliations || [] },
-        fullItemsByKey: state.fullCitationByKey ||
-          (state.fullCitationByKey = await _loadFullCitations()),
-        leadAuthor: state.meta.lead_author || '',
-      });
+      var bundle = await _subdocBundle(doc);
       _setStatus('Compiling ' + doc.label + '…', 'compiling');
       var user = firebridge.getUser();
       var idToken = user ? await user.getIdToken() : null;
@@ -409,15 +499,7 @@
   async function _downloadSubdocZip(doc) {
     try {
       _setStatus('Building ' + doc.label + '…', 'saving');
-      var bundle = await window.PaperSubdocs.buildSubdocBundle({
-        docKind: doc.docKind,
-        paperId: state.paperId,
-        yDoc: state.yConn.yDoc,
-        authorsCfg: { authors: state.config.authors || [], affiliations: state.config.affiliations || [] },
-        fullItemsByKey: state.fullCitationByKey ||
-          (state.fullCitationByKey = await _loadFullCitations()),
-        leadAuthor: state.meta.lead_author || '',
-      });
+      var bundle = await _subdocBundle(doc);
       var zip = new window.JSZip();
       bundle.files.forEach(function (f) { zip.file(f.relpath, f.content); });
       var blob = await zip.generateAsync({ type: 'blob' });
@@ -581,7 +663,9 @@
    * compile can never hijack them. */
   function mainCompiles() {
     return (state.compiles || []).filter(function (c) {
-      return (c.docKind || 'main') === 'main';
+      /* V3.911 — a grant document's compile is tagged '<template>#<doc>'
+       * (the deployed service files an unknown docKind as main) */
+      return (c.docKind || 'main') === 'main' && String(c.templateId || '').indexOf('#') < 0;
     });
   }
 
@@ -816,6 +900,7 @@
       affiliations: [],     // V3.346 — ["Dept, Univ, City, …"]
       buildTarget: 'submission',   // V3.395 — 'submission' | 'preprint'
       floatSpacing: 'normal',      // V3.408 — 'tight' | 'normal' | 'loose'
+      layoutLook: 'published',     // V3.907 — 'published' | 'submission'
       columnFill: 'tight',         // V3.427 — preview column-fill tightness
       sectionNumbering: 'auto',    // 'auto' | 'on' | 'off'
       /* V3.486 — body-text line density (grant lines-per-inch). bodyLpi is
@@ -854,6 +939,8 @@
         affiliations: Array.isArray(data.affiliations) ? data.affiliations : [],  // V3.346
         buildTarget: data.buildTarget === 'preprint' ? 'preprint' : 'submission', // V3.395
         floatSpacing: ['tight', 'loose'].indexOf(data.floatSpacing) >= 0 ? data.floatSpacing : 'normal', // V3.408
+        layoutLook: data.layoutLook === 'submission' ? 'submission' : 'published', // V3.907
+        lookOverrides: (data.lookOverrides && typeof data.lookOverrides === 'object') ? data.lookOverrides : null, // V3.911
         columnFill: ['normal', 'loose'].indexOf(data.columnFill) >= 0 ? data.columnFill : 'tight', // V3.427
         sectionNumbering: ['on', 'off'].indexOf(data.sectionNumbering) >= 0 ? data.sectionNumbering : 'auto',
         bodyLpi: (typeof data.bodyLpi === 'number' && data.bodyLpi > 0) ? data.bodyLpi : null,  // V3.486
@@ -900,6 +987,7 @@
         affiliations: state.config.affiliations || [],   // V3.346
         buildTarget: state.config.buildTarget || 'submission',  // V3.395
         floatSpacing: state.config.floatSpacing || 'normal',     // V3.408
+        layoutLook: state.config.layoutLook || 'published',      // V3.907
         columnFill: state.config.columnFill || 'tight',          // V3.427
         sectionNumbering: state.config.sectionNumbering || 'auto',
         graphicalAbstract: state.config.graphicalAbstract || null,
@@ -924,6 +1012,7 @@
     els['px-template'].addEventListener('change', function () {
       state.config.templateId = els['px-template'].value;
       state.template = null;     // force re-fetch on next build
+      if (state.syncLayoutLook) state.syncLayoutLook();   // V3.907
       _updateTemplateDescription();
       _renderConflictWarnings();
       _scheduleSave();
@@ -939,6 +1028,33 @@
     sel.value = state.config.buildTarget || 'submission';
     sel.addEventListener('change', function () {
       state.config.buildTarget = sel.value === 'preprint' ? 'preprint' : 'submission';
+      _scheduleSave();
+    });
+  }
+
+  /* V3.907 — page look (published journal page | submission manuscript).
+   * Shares paperExports.layoutLook with the Document view's toolbar. A
+   * template without a published look always compiles its own preamble,
+   * so the control says so instead of offering a choice that does nothing. */
+  function _bindLayoutLook() {
+    var sel = els['px-layout-look'];
+    if (!sel) return;
+    sel.value = state.config.layoutLook === 'submission' ? 'submission' : 'published';
+    var hint0 = els['px-layout-look-hint'] ? els['px-layout-look-hint'].textContent : '';
+    function sync() {
+      window.PaperExportTex.fetchTemplate(state.config.templateId).then(function (t) {
+        var has = !!(t && t.look);
+        sel.disabled = !has;
+        if (els['px-layout-look-hint']) {
+          els['px-layout-look-hint'].textContent = has ? hint0
+            : 'This template has one format (its own LaTeX class): the published look and the submission are the same file.';
+        }
+      }).catch(function () { /* offline: leave the control as is */ });
+    }
+    sync();
+    state.syncLayoutLook = sync;
+    sel.addEventListener('change', function () {
+      state.config.layoutLook = sel.value === 'submission' ? 'submission' : 'published';
       _scheduleSave();
     });
   }
@@ -1124,6 +1240,8 @@
       addons: state.config.addons,
       buildTarget: state.config.buildTarget || 'submission',   // V3.395
       floatSpacing: state.config.floatSpacing || 'normal',      // V3.408
+      layoutLook: state.config.layoutLook || 'published',       // V3.907
+      lookOverrides: state.config.lookOverrides || null,        // V3.911 — set in the Document view
       sectionNumbering: state.config.sectionNumbering || 'auto',
       bodyLpi: state.config.bodyLpi || null,                    // V3.486
       bodyFontMin: state.config.bodyFontMin || null,

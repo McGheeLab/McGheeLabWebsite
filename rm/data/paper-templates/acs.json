@@ -113,6 +113,149 @@
       "notes": "ACS: 3.33 in (84.6 mm) single / 7 in (177.8 mm) double column; max height 9.5 in (241 mm)."
     }
   },
+  "look": {
+    "engine": "spec",
+    "name": "ACS journal (published page)",
+    "measured_from": "J. Am. Chem. Soc. 148, 5253 (2026) — 607.4×800.9 bp, two columns",
+    "page": {
+      "w": 607.4,
+      "h": 800.9
+    },
+    "margins": {
+      "top": 60.2,
+      "bottom": 45.7,
+      "left": 51.5,
+      "right": 51.9
+    },
+    "columns": 2,
+    "colsep": 23.9,
+    "fonts": {
+      "text": "garamond",
+      "sans": "source-sans"
+    },
+    "body": {
+      "size": 10,
+      "lead": 11.1,
+      "indent": 10,
+      "parskip": 0,
+      "flushbottom": true
+    },
+    "title": {
+      "family": "sans",
+      "size": 14.5,
+      "lead": 17,
+      "weight": "bold",
+      "align": "left",
+      "after": 6
+    },
+    "authors": {
+      "family": "sans",
+      "size": 10,
+      "lead": 12,
+      "align": "left",
+      "after": 4
+    },
+    "affiliations": {
+      "family": "text",
+      "size": 8,
+      "lead": 9.5,
+      "align": "left",
+      "where": "front",
+      "after": 8
+    },
+    "abstract": {
+      "mode": "span",
+      "family": "text",
+      "size": 9,
+      "lead": 10.6,
+      "label": "ABSTRACT:",
+      "label_style": "runin",
+      "indent": 0,
+      "after": 14,
+      "box": {
+        "bg": 0.93,
+        "pad": 6
+      }
+    },
+    "keywords": {
+      "show": false
+    },
+    "h1": {
+      "family": "sans",
+      "size": 10,
+      "lead": 12,
+      "weight": "bold",
+      "before": 10,
+      "after": 4,
+      "case": "upper",
+      "align": "left"
+    },
+    "h2": {
+      "family": "sans",
+      "size": 10,
+      "lead": 11.1,
+      "weight": "bold",
+      "before": 4,
+      "after": 0,
+      "runin": true,
+      "runin_sep": ".",
+      "align": "left"
+    },
+    "h3": {
+      "family": "text",
+      "size": 10,
+      "lead": 11.1,
+      "style": "italic",
+      "before": 3,
+      "after": 0,
+      "runin": true,
+      "runin_sep": "."
+    },
+    "caption": {
+      "family": "text",
+      "size": 9,
+      "lead": 10.2,
+      "label_fig": "Figure",
+      "label_tab": "Table",
+      "label_weight": "bold",
+      "sep": ". ",
+      "align": "justify",
+      "skip": 6,
+      "table_position": "above"
+    },
+    "bib": {
+      "size": 8.5,
+      "lead": 9.8,
+      "head": "References",
+      "label": "paren",
+      "sep": 0.5
+    },
+    "cite": {
+      "style": "super"
+    },
+    "display": {
+      "above": 6,
+      "below": 6
+    },
+    "floats": {
+      "textfloatsep": 14,
+      "floatsep": 12,
+      "intextsep": 10,
+      "topfraction": 0.9,
+      "bottomfraction": 0.5,
+      "textfraction": 0.08,
+      "floatpagefraction": 0.8,
+      "dbltopfraction": 0.9,
+      "dblfloatpagefraction": 0.8,
+      "topnumber": 3,
+      "bottomnumber": 1,
+      "totalnumber": 4,
+      "dbltopnumber": 2
+    },
+    "footer": {
+      "page_numbers": true
+    }
+  },
   "figure_environment": {
     "compiled_columns": 1,
     "env": "figure",

@@ -160,7 +160,11 @@
       if (anchor === 'float-page') {
         place = 'p';
       } else {
-        place = 't';
+        /* V3.907 — `p` as the safety valve: LaTeX places floats IN ORDER,
+         * so a spanning figure too tall for the top area under [t] alone
+         * holds back every later figure until the end of the paper (found
+         * on a Nat Commun rebuild: Fig. 6 landed behind the references). */
+        place = 'tp';
         if (anchor === 'bottom') {
           warnings.push((isTable ? 'Table' : 'Figure') + ' spans both columns — LaTeX cannot place a spanning float at the bottom; using top.');
         }
@@ -192,9 +196,9 @@
          * placement like 'htbp' merely CONTAINS 't' and must not defeat
          * an explicit top anchor (review finding, V3.395). */
         var tplPlace = String(envCfg.placement || '').trim();
-        place = /^!?t$/.test(tplPlace) ? tplPlace : 't';
+        place = (/^!?t$/.test(tplPlace) ? tplPlace : 't') + 'p';   // V3.907 — p: see the starred case
       } else if (anchor === 'bottom') {
-        place = 'b';
+        place = 'bp';
       } else if (anchor === 'float-page') {
         place = 'p';
       } else {
@@ -597,6 +601,41 @@
     return out;
   }
 
+  /* V3.906 — display equations live INSIDE paragraphs. In LaTeX the text
+   * before an equation runs straight into it (a blank line there would end
+   * the paragraph and add an empty line of space above the display) and the
+   * text after it usually continues the same paragraph — no indent. The
+   * builder stores them as separate blocks, so every renderer asks this
+   * one rule how two neighbouring blocks join:
+   *   'attach'   — prev text runs into this display equation
+   *   'continue' — this paragraph continues the sentence around the display
+   *                above it (no indent, no paragraph space)
+   *   'par'      — an ordinary paragraph break
+   * A paragraph continues when it says so (attrs.continues true/false wins)
+   * or, by default, when it starts in lower case or with punctuation
+   * ("where …", ", which …") — a sentence never starts that way. */
+  function isDisplayEq(b) {
+    // the editor's rule: display only when attrs.display is true
+    return !!(b && b.kind === 'equation' && String(b.body || '').trim() &&
+      b.attrs && b.attrs.display === true);
+  }
+  function isRunningText(b) {
+    return !!(b && (b.kind === 'paragraph' || b.kind === 'list'));
+  }
+  function paragraphContinues(b) {
+    if (!b || b.kind !== 'paragraph') return false;
+    var a = b.attrs || {};
+    if (a.continues === true) return true;
+    if (a.continues === false) return false;
+    var t = String(b.body || '').replace(/^\s+/, '');
+    return /^([a-z]|[,;.:)\]])/.test(t);
+  }
+  function blockJoin(prev, cur) {
+    if (isDisplayEq(cur) && isRunningText(prev)) return 'attach';
+    if (isDisplayEq(prev) && paragraphContinues(cur)) return 'continue';
+    return 'par';
+  }
+
   var api = {
     resolveFloat: resolveFloat,
     resolveWidth: resolveWidth,
@@ -620,6 +659,10 @@
     parseTableCellStyles: parseTableCellStyles,
     shiftTableCellStyles: shiftTableCellStyles,
     shiftTableRuleAfter: shiftTableRuleAfter,
+    /* V3.906 — paragraph / display-equation joins (export + preview). */
+    blockJoin: blockJoin,
+    isDisplayEq: isDisplayEq,
+    paragraphContinues: paragraphContinues,
   };
   if (typeof window !== 'undefined') window.PaperLayout = api;
   /* V3.405 — Node guard so the fit/rules harnesses can require() this

@@ -648,6 +648,14 @@ ol.pdv-list { list-style: decimal; }
   float: left;
   margin: 2px 18px 8px 0;
 }
+/* V3.912 — under a journal / grant look the paginator places a wrapped
+ * figure the way wrapfig does: absolutely, from a zero-height anchor at
+ * the paragraph where it starts, beside the lines it narrows (those lines
+ * are set narrower by the typesetter, so nothing flows around it). */
+.pdv-figure.pdv-wrapfig-tex[data-anchor="wrap"][data-wrap-side] { float: none; margin: 0; }
+.pdv-wrap-anchor { position: relative; height: 0; }
+.pdv-wrap-anchor > .pdv-wrapfig-tex { position: absolute; z-index: 1; }
+.pdv-figure.pdv-wrapfig-tex.pdv-wrap-dumped { outline: 2px dashed #f59e0b; outline-offset: 2px; }
 /* V3.405 — the figure BOX: image + caption sub-blocks in one sized
  * container. Carries the resize handles (position anchor). */
 .pdv-fig-box { position: relative; }
@@ -725,6 +733,11 @@ ol.pdv-list { list-style: decimal; }
   break-inside: avoid;
 }
 .pdv-eq-math { flex: 1; text-align: center; overflow-x: auto; }
+/* V3.914 — under a look the block is TeX's display height and the math sits
+ * on TeX's baseline (set inline by _setDisplays) */
+.pdv-eq.pdv-eq-tex { display: block; margin: 0; }
+.pdv-eq.pdv-eq-tex .pdv-eq-math { position: absolute; left: 0; right: 0; overflow: visible; }
+.pdv-eq.pdv-eq-tex .pdv-eq-num { transform: none; }
 .pdv-eq-num { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
 
 /* ── Footnotes strip + page number ── */
@@ -1055,3 +1068,71 @@ ol.pdv-list { list-style: decimal; }
   font-size: 12px;
 }
 .pdv-fig-pop-close:hover { color: #111827; }
+
+/* V3.908 — lines laid out by paper-typeset.js (Knuth–Plass). Each line is
+ * its own block of exactly one leading; the paragraph's first-line indent is
+ * padding on line 1, so text-indent must not cascade into the lines.
+ * Justification is the per-line word-spacing the typesetter computed — it
+ * must not leak into atomic inline pieces (math, citation chips). */
+.pts-para { text-indent: 0 !important; hyphens: manual; -webkit-hyphens: manual; }
+.pts-ln { display: block; white-space: nowrap; text-indent: 0; text-align: left; overflow: visible; }
+.pts-ln .katex, .pts-ln .pe-cite-group, .pts-ln .pe-ref, .pts-ln .pe-refchip,
+.pts-ln .pe-secref-chip, .pts-ln .pe-eq-inline, .pts-ln sup, .pts-ln sub { word-spacing: normal; }
+/* V3.908 — a page of floats is vertically centred, as LaTeX sets it
+ * (\@fptop / \@fpbot = 0pt plus 1fil). */
+.pdv-look-on .pdv-sheet.pdv-floatpage .pdv-sheet-body { justify-content: center; }
+
+/* V3.910 — Layout check panel (journal looks) */
+.pdv-check-count:not(:empty) {
+  display: inline-block; min-width: 16px; padding: 0 5px; margin-left: 2px; border-radius: 8px;
+  background: #b45309; color: #fff; font-size: 11px; line-height: 16px; text-align: center;
+}
+.pdv-check-panel {
+  position: fixed; top: 58px; right: 14px; width: 360px; max-width: calc(100vw - 28px); max-height: calc(100vh - 80px);
+  overflow: auto; z-index: 30; background: #fff; color: #1f2937; border: 1px solid #d6d3d1; border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18); font: 13px/1.4 system-ui, -apple-system, sans-serif; padding: 10px 12px 12px;
+}
+.pdv-check-head { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 14px; }
+.pdv-check-head svg { width: 16px; height: 16px; }
+.pdv-check-x { margin-left: auto; background: none; border: 0; cursor: pointer; color: #6b7280; padding: 2px; }
+.pdv-check-x svg { width: 16px; height: 16px; }
+.pdv-check-sum { margin: 6px 0 8px; color: #4b5563; }
+.pdv-check-save { margin: 0 0 8px; padding: 8px; border-radius: 6px; background: #fef3c7; }
+.pdv-check-panel h4 { margin: 12px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7280; }
+.pdv-check-n { color: #b45309; }
+.pdv-check-panel ul { list-style: none; margin: 0; padding: 0; }
+.pdv-check-panel li { padding: 6px 0; border-top: 1px solid #f3f4f6; }
+.pdv-check-row { display: flex; gap: 8px; }
+.pdv-check-page { flex: none; color: #6b7280; font-variant-numeric: tabular-nums; }
+.pdv-check-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdv-check-note, .pdv-check-hint { color: #6b7280; font-size: 12px; }
+.pdv-check-acts { display: flex; gap: 4px; margin-top: 4px; }
+.pdv-check-empty { color: #4b5563; display: flex; gap: 6px; align-items: center; }
+.pdv-check-empty svg { width: 16px; height: 16px; }
+.pdv-flash { outline: 2px solid #f59e0b; outline-offset: 2px; transition: outline-color 0.3s; }
+@media (max-width: 640px) {
+  .pdv-check-panel { left: 8px; right: 8px; width: auto; top: auto; bottom: 8px; max-height: 55vh; }
+}
+.pdv-check-panel .btn { padding: 1px 8px; font-size: 12px; min-height: 0; }
+/* V3.913 — a grant document: page budget, the funder's rules, Fit, page settings */
+.pdv-pages-label.pdv-pages-over { color: #b91c1c; font-weight: 600; }
+.pdv-pages-label.pdv-pages-ok { color: #047857; font-weight: 600; }
+.pdv-budget { margin: 8px 0; padding: 8px 10px; border-radius: 6px; background: #ecfdf5; border: 1px solid #a7f3d0; }
+.pdv-budget.pdv-budget-over { background: #fef2f2; border-color: #fecaca; }
+.pdv-budget-n { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pdv-budget .pdv-check-acts { align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.pdv-fit-res { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(0, 0, 0, 0.08); }
+.pdv-rule .pdv-check-row svg { width: 15px; height: 15px; flex: none; margin-top: 1px; }
+.pdv-rule-error .pdv-check-row { color: #b91c1c; }
+.pdv-rule-warn .pdv-check-row { color: #b45309; }
+.pdv-rule-info .pdv-check-row { color: #374151; }
+.pdv-rule-ok, .pdv-sections { margin: 6px 0; }
+.pdv-rule-ok summary, .pdv-sections summary { cursor: pointer; color: #047857; display: flex; align-items: center; gap: 4px; }
+.pdv-sections summary { color: #374151; }
+.pdv-rule-ok summary svg { width: 14px; height: 14px; }
+.pdv-rule-ok li, .pdv-sections li { font-size: 12px; }
+.pdv-ov { display: grid; gap: 6px; }
+.pdv-ov-row { display: grid; grid-template-columns: 9.5em 5.5em 1fr; gap: 6px; align-items: center; font-size: 12px; }
+.pdv-ov-row select { grid-column: 2 / 4; font-size: 12px; }
+.pdv-ov-row input[type="number"] { width: 5.5em; font-size: 12px; }
+.pdv-ov-row input[type="checkbox"] { justify-self: start; }

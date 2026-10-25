@@ -35,6 +35,7 @@
     ADDON_REGISTRY: null,
     /* Exposed for the test doc + future-phase Phase E .md generator. */
     paperTreeFromYDoc: paperTreeFromYDoc,
+    bibEscape: bibEscape,   // V3.906 — for scripts/tests/paper-tex-escape.test.mjs
     /* V3.415 — the Document view mirrors the exporter's section-command
      * resolution (special-first + object vocabulary) through these. */
     normalizeCommand: normalizeCommand,
@@ -418,9 +419,15 @@
     if (cmd.type === 'skip') return '';
 
     var label = sec.label || (template.default_section_label || {})[sec.kind] || '';
-    var inner = (sec.children || []).map(function (b) {
-      return blockToTex(b, template);
-    }).filter(Boolean).join('\n\n');
+    var inner = joinBlocksTex(sec.children || [], template);
+    /* V3.907 — a section the journal look sets in its own type (Nature's
+     * small-print Methods with run-in subheads). */
+    var secStyle = (template._look && window.PaperLook) ? window.PaperLook.sectionStyle(template._look, sec) : null;
+    /* a class look (PNAS) only describes the class's own type — the .tex
+     * is left to the class */
+    if (secStyle && inner && template._look.engine !== 'class') {
+      inner = window.PaperLook.texSectionOpen(template._look, secStyle) + inner + '\n' + window.PaperLook.texSectionClose();
+    }
 
     switch (cmd.type) {
       /* V3.341 — placeholder commands stash the section's content for a
@@ -447,6 +454,9 @@
             cmd.wrap ? (kw ? cmd.wrap.split('%s').join(kw) : '') : kw;
         }
         return '';
+      case 'bare':
+        /* V3.907 — body with no heading (Nature-family introductions). */
+        return inner + '\n';
       case 'env':
         // SLAS-style: \begin{abstract}<text>\end{abstract} (no \section header).
         return '\\begin{' + cmd.name + '}\n' + inner + '\n\\end{' + cmd.name + '}\n';
@@ -471,6 +481,28 @@
     return (sec && sec.ref_label) ? '\\label{' + sec.ref_label + '}\n' : '';
   }
 
+  /* V3.906 — blocks → section body. A blank line (\par) separates
+   * ordinary blocks; a display equation is attached to the text before it
+   * and a continuing paragraph to the equation before it (no blank line),
+   * exactly as an author writes LaTeX — PaperLayout.blockJoin is the one
+   * rule the Document view also follows. */
+  function joinBlocksTex(blocks, template) {
+    var out = '';
+    var prev = null;
+    var PL = window.PaperLayout;
+    blocks.forEach(function (b) {
+      var tex = blockToTex(b, template);
+      if (!tex) return;
+      if (out) {
+        var j = (PL && PL.blockJoin) ? PL.blockJoin(prev, b) : 'par';
+        out += (j === 'par') ? '\n\n' : '\n';
+      }
+      out += tex;
+      prev = b;
+    });
+    return out;
+  }
+
   function blockToTex(block, template) {
     switch (block.kind) {
       case 'paragraph': return paragraphToTex(block, template);
@@ -484,7 +516,12 @@
   }
 
   function paragraphToTex(block, template) {
-    return prefixSkeletonComment(block) + paragraphBodyToTex(block.body || '', template);
+    /* V3.910 — the Document view's Tighten / Loosen: TeX sets this
+     * paragraph one line shorter / longer when it can (\looseness resets
+     * itself after the paragraph); the preview runs the same request */
+    var lz = block.attrs && block.attrs.looseness;
+    var loose = (lz === -1 || lz === 1) ? '\\looseness=' + lz + '\\relax\n' : '';
+    return prefixSkeletonComment(block) + loose + paragraphBodyToTex(block.body || '', template);
   }
 
   /* V3.649 — a paragraph body may contain bullet / numbered lists (see
@@ -669,10 +706,11 @@
                '\\affil[1]{Department, Institution, City, Country}';
       case 'superscript':
       default:
-        return name + '\\textsuperscript{1,*}\n' +
-               '\\\\[6pt]\n' +
-               '\\textsuperscript{1}Department, Institution, City, State, Country \\\\\n' +
-               '\\textsuperscript{*}Corresponding author: email@institution.edu';
+        /* V3.906 — no structured authors: just the lead author's name.
+         * (The old fallback printed a made-up "Department, Institution,
+         * City" affiliation and a fake corresponding address into the
+         * PDF.) */
+        return name;
     }
   }
 
@@ -731,6 +769,19 @@
       var mail = corresponding.length && corresponding[0].email ? ' (e-mail: ' + escapeTex(corresponding[0].email) + ')' : '';
       return '\\author{' + nameRun + '\\thanks{The authors are with ' + thanks + mail + '.}}';
     }
+    if (format === 'revtex') {
+      /* V3.907 — REVTeX 4.2: \author then its \affiliation(s); with the
+       * superscriptaddress option the class numbers them itself. */
+      authors.forEach(function (a) {
+        lines.push('\\author{' + nameTex(a) + '}');
+        var nums = affNums(a);
+        (nums.length ? nums : (affils.length ? [1] : [])).forEach(function (k) {
+          lines.push('\\affiliation{' + escapeTex(affils[k - 1]) + '}');
+        });
+        if (a.corresponding && a.email) lines.push('\\email{' + escapeTex(a.email) + '}');
+      });
+      return lines.join('\n');
+    }
     if (format === 'achemso') {
       authors.forEach(function (a) {
         lines.push('\\author{' + nameTex(a) + '}');
@@ -753,8 +804,6 @@
       affils.forEach(function (aff, i) {
         lines.push('\\textsuperscript{' + (i + 1) + '}' + escapeTex(aff) + ' \\\\');
       });
-    } else {
-      lines.push('\\textsuperscript{1}Department, Institution \\\\');
     }
     if (corresponding.length) {
       var em = corresponding[0].email ? ': ' + escapeTex(corresponding[0].email) : '';
@@ -804,7 +853,7 @@
     function protect(latex) {
       var idx = frags.length;
       frags.push(latex);
-      return '' + idx + '';
+      return '\uE000' + idx + '\uE001';
     }
 
     /* V3.345 — [^text] footnotes → \footnote{…}. FIRST of the token
@@ -818,6 +867,16 @@
     out = out.replace(/\[\^((?:[^\[\]\n]|\[[^\]\n]*\])+)\]/g, function (_m, txt) {
       return protect('\\footnote{' + paragraphTextToTex(txt, template) + '}');
     });
+
+    /* V3.906 — inline math is LaTeX already: protect $…$ and \(…\)
+     * VERBATIM before the markdown + escaping passes, scanning exactly
+     * the way the editor's renderParagraphHtml does (an unescaped $ to
+     * the next unescaped $). Without this a paragraph with two inline
+     * equations that use ^ had the superscript pass pair the carets
+     * ACROSS the spans: $A_0^i$ … $P_0^i$ became
+     * \textsuperscript{i$ … $P_0}, which does not compile. A \$ in
+     * prose is a literal dollar sign. */
+    out = _protectInlineMath(out, protect);
 
     /* V3.109 — resolve [!eqi:<id>] inline equation references against
      * the paper's equation library, emitting `\(<latex>\)`. Unknown
@@ -907,7 +966,7 @@
     out = out.replace(/`([^`\n]+)`/g, function (_m, inner) {
       var idx = codePlaceholders.length;
       codePlaceholders.push(inner);
-      return ' CODE' + idx + ' ';
+      return '\u0000CODE' + idx + '\u0000';
     });
 
     // Citations: [@k1; @k2] → \cite{k1,k2}. V3.341 — the command comes
@@ -961,27 +1020,35 @@
       return protect(cmd + '{' + keys.join(',') + '}');
     });
 
-    // Bold (must come before italic — `**foo**` would otherwise match as
-    // two adjacent italics).
-    out = out.replace(/\*\*([^*\n]+)\*\*/g, '\\textbf{$1}');
-    // Italic.
-    out = out.replace(/\*([^*\n]+)\*/g, '\\emph{$1}');
-    // Subscript (V3.107).
-    out = out.replace(/~([^~\n]+)~/g, '\\textsubscript{$1}');
-    // Superscript (V3.107).
-    out = out.replace(/\^([^\^\n]+)\^/g, '\\textsuperscript{$1}');
+    /* Markdown → private-use MARKERS first (V3.906), so the prose
+     * between them can be escaped as plain text below; the markers turn
+     * into \textbf{ … } etc. only after escaping. (Before V3.906 prose
+     * was never escaped at all: a "50%" commented out the rest of the
+     * paragraph — every paragraph is one source line — and & # _ broke
+     * the compile.) Bold must come before italic, or `**foo**` would
+     * match as two adjacent italics. */
+    out = out.replace(/\*\*([^*\n]+)\*\*/g, '\uE101$1\uE102');
+    out = out.replace(/\*([^*\n]+)\*/g, '\uE103$1\uE104');
+    // Subscript / superscript (V3.107).
+    out = out.replace(/~([^~\n]+)~/g, '\uE105$1\uE106');
+    out = out.replace(/\^([^\^\n]+)\^/g, '\uE107$1\uE108');
+
+    out = escapeProseTex(out, template);
+    out = out.replace(/\uE101/g, '\\textbf{').replace(/\uE103/g, '\\emph{')
+      .replace(/\uE105/g, '\\textsubscript{').replace(/\uE107/g, '\\textsuperscript{')
+      .replace(/[\uE102\uE104\uE106\uE108]/g, '}');
 
     // Reinsert code spans now that all the markdown passes are done.
-    out = out.replace(/ CODE(\d+) /g, function (_m, idx) {
+    out = out.replace(/\u0000CODE(\d+)\u0000/g, function (_m, idx) {
       var inner = codePlaceholders[Number(idx)] || '';
-      return '\\texttt{' + inner + '}';
+      return '\\texttt{' + escapeTex(inner) + '}';
     });
 
     /* V3.341 — reinsert every protected fragment (inline equations, ref
      * tokens, citations) now that the markdown passes are done. The
      * placeholders are private-use code points that markdown never
      * touched. */
-    out = out.replace(/(\d+)/g, function (_m, idx) {
+    out = out.replace(/\uE000(\d+)\uE001/g, function (_m, idx) {
       return frags[Number(idx)] || '';
     });
     return out;
@@ -1121,7 +1188,12 @@
     if (isWrap) {
       _usedWrapfig = true;
       var wGfx = 'width=\\linewidth' + (gfxH ? ', height=' + gfxH + ', keepaspectratio' : '');
-      var wLines = ['\\begin{' + env + '}{' + place + '}{' + width + '}'];
+      /* V3.912 — under a look, wrapfig's floating form (R / L): a figure
+       * that does not fit the rest of the page waits for a later
+       * paragraph instead of hanging into the bottom margin, the rule the
+       * Document view's paginator follows. */
+      var wPlace = template._look ? String(place).toUpperCase() : place;
+      var wLines = ['\\begin{' + env + '}{' + wPlace + '}{' + width + '}'];
       if (centering) wLines.push('  \\centering');
       wLines.push('  \\includegraphics[' + wGfx + ']{' + src + '}');
       if (numbered) {
@@ -1135,10 +1207,22 @@
     }
 
     var boxed = false;
-    if (anchored && (numbered || caption)) {
+    /* V3.906 — only when the author asks for a caption boxed under the
+     * artwork (caption_fit:'box'); by default a journal caption spans the
+     * column like LaTeX's own \caption, and the image alone is narrow. */
+    if (anchored && attrs.caption_fit === 'box' && (numbered || caption)) {
       var mFrac = /^([0-9.]+)\s*\\(linewidth|columnwidth|textwidth)$/.exec(width);
       boxed = !!((mFrac && parseFloat(mFrac[1]) < 0.999) ||
                  /^[0-9.]+\s*(mm|cm|in|pt)$/.test(width));
+    }
+    /* V3.907 — a journal look caps the artwork so artwork + caption fit
+     * the page (else LaTeX can never place the float and defers it past
+     * the references). The tighter of the author's max_h and the cap. */
+    if (template._look && window.PaperLook) {
+      var spanPg = env.charAt(env.length - 1) === '*' || attrs.span === 'page';
+      var capBp = window.PaperLook.figureMaxHeight(template._look, captionRaw, spanPg);
+      var userBp = gfxH ? parseFloat(gfxH) * 72 / 25.4 : null;   // max_h is in mm
+      if (!userBp || capBp < userBp) gfxH = capBp + 'bp';
     }
     var gfxOpts = 'width=' + (boxed ? '\\linewidth' : width) +
                   (gfxH ? ', height=' + gfxH + ', keepaspectratio' : '');
@@ -1167,6 +1251,14 @@
     if (spacingTex && spacingTex.after) lines.push('  ' + spacingTex.after);
     lines.push('\\end{' + env + '}');
     return lines.join('\n');
+  }
+
+  /* V3.906 — a table cell / note is prose: math, citations, cross-refs,
+   * **bold**, *italic*, ~sub~ and ^sup^ work in cells exactly as in a
+   * paragraph (they used to be escaped as plain text, so $n_2/n_1$ or a
+   * [@cite] in a cell printed literally). */
+  function cellTex(v, template) {
+    return paragraphTextToTex(v == null ? '' : String(v), template);
   }
 
   function tableToTex(block, template) {
@@ -1389,7 +1481,7 @@
             if (cover.skip[hKey] || cover.cont[hKey] != null) continue;
             var hCell = cells[hKey];
             if (hCell && typeof hCell.toString === 'function' && hCell !== hCell.toString) hCell = hCell.toString();
-            var hContent = styleCell(escapeTex(hCell || ''), hKey, alignStr[hc] || 'l',
+            var hContent = styleCell(cellTex(hCell, template), hKey, alignStr[hc] || 'l',
               cover.anchors[hKey]);
             var hAnchor = cover.anchors[hKey];
             if (hAnchor && hAnchor.cs > 1) {
@@ -1420,7 +1512,7 @@
             }
             var lCell = cells[lKey];
             if (lCell && typeof lCell.toString === 'function' && lCell !== lCell.toString) lCell = lCell.toString();
-            var lContent = styleCell(escapeTex(lCell || ''), lKey, alignStr[lc] || 'l',
+            var lContent = styleCell(cellTex(lCell, template), lKey, alignStr[lc] || 'l',
               cover.anchors[lKey]);
             var lAnchor = cover.anchors[lKey];
             if (lAnchor) {
@@ -1442,7 +1534,7 @@
         /* Notes inside a longtable: full-width footnotesize rows
          * (threeparttable does not pair with longtable). */
         noteLines.forEach(function (n) {
-          lt.push('  \\multicolumn{' + cols + '}{l}{\\footnotesize ' + escapeTex(n) + '} \\\\');
+          lt.push('  \\multicolumn{' + cols + '}{l}{\\footnotesize ' + cellTex(n, template) + '} \\\\');
         });
         lt.push('\\end{longtable}');
         if (ltGrouped) lt.push('\\endgroup');
@@ -1502,7 +1594,7 @@
           if (cell && typeof cell.toString === 'function' && cell !== cell.toString) {
             cell = cell.toString();
           }
-          var content = escapeTex(cell || '');
+          var content = cellTex(cell, template);
           var anchor = cover.anchors[key];
           if (anchor) {
             var inner = styleCell(content, key, alignStr[c] || 'l', anchor);
@@ -1532,7 +1624,7 @@
       lines.push('  \\end{tabular}');
       if (noteLines.length) {
         lines.push('  \\begin{tablenotes}\\footnotesize');
-        noteLines.forEach(function (n) { lines.push('    \\item ' + escapeTex(n)); });
+        noteLines.forEach(function (n) { lines.push('    \\item ' + cellTex(n, template)); });
         lines.push('  \\end{tablenotes}');
         lines.push('  \\end{threeparttable}');
       }
@@ -1665,22 +1757,158 @@
     if (authors) fields.push('  author    = {' + bibEscape(authors) + '}');
     if (title)   fields.push('  title     = {' + bibEscape(title) + '}');
     if (journal) fields.push('  journal   = {' + bibEscape(journal) + '}');
-    if (year)    fields.push('  year      = {' + year + '}');
-    if (volume)  fields.push('  volume    = {' + volume + '}');
-    if (issue)   fields.push('  number    = {' + issue + '}');
-    if (pages)   fields.push('  pages     = {' + pages + '}');
+    if (year)    fields.push('  year      = {' + bibEscape(year) + '}');
+    if (volume)  fields.push('  volume    = {' + bibEscape(volume) + '}');
+    if (issue)   fields.push('  number    = {' + bibEscape(issue) + '}');
+    // pages: a typed en dash would be dropped by T1 fonts; BibTeX wants --
+    if (pages)   fields.push('  pages     = {' + bibEscape(String(pages).replace(/\s*[\u2013\u2014\u2212-]+\s*/g, '--')) + '}');
     if (doi)     fields.push('  doi       = {' + doi + '}');
     if (url && !doi) fields.push('  url       = {' + url + '}');
     var type = (lib.arxiv_id && !lib.doi) ? 'misc' : 'article';
     return '@' + type + '{' + key + ',\n' + fields.join(',\n') + '\n}\n';
   }
 
+  /* V3.906 — .bib field text: LaTeX specials escaped (an `&` in "Cell
+   * Biology & Toxicology" broke the bibliography) and non-ASCII written
+   * the TeX way (an accented author name was dropped by the T1 fonts).
+   * `$…$` math in titles passes through. */
+  /* V3.911 — Crossref sends some titles and journal names HTML-escaped
+   * ("ACS Biomaterials Science &amp; Engineering"): decode first. */
+  function decodeEntities(s) {
+    return String(s || '').replace(/&(amp|lt|gt|quot|apos|#39|#(\d+)|#x([0-9a-f]+));/gi, function (m, name, dec, hex) {
+      if (dec) return String.fromCharCode(parseInt(dec, 10));
+      if (hex) return String.fromCharCode(parseInt(hex, 16));
+      return { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", '#39': "'" }[name.toLowerCase()];
+    });
+  }
   function bibEscape(s) {
-    return String(s || '')
-      .replace(/[{}\\]/g, function (c) { return '\\' + c; });
+    var str = decodeEntities(s);
+    var out = '';
+    for (var i = 0; i < str.length; i++) {
+      var c = str[i];
+      if (c === '\\') out += '\\textbackslash{}';
+      else if (c === '&' || c === '%' || c === '#' || c === '_') out += '\\' + c;
+      else if (c === '{' || c === '}') out += '\\' + c;
+      else if (c === '~') out += '\\textasciitilde{}';
+      else if (c.charCodeAt(0) > 127) out += uniToTex(c, null);
+      else out += c;
+    }
+    return out;
   }
 
   /* ── Tex escape (for plain text → LaTeX) ── */
+
+  /* V3.906 — $…$ / \(…\) spans → protect() placeholders, verbatim.
+   * Mirrors renderParagraphHtml's scan so the editor, the Document view
+   * and the PDF agree on what is math. \$ → a literal dollar. */
+  function _protectInlineMath(text, protect) {
+    var out = '', i = 0, n = text.length;
+    while (i < n) {
+      var ch = text[i];
+      if (ch === '\\' && text[i + 1] === '$') { out += protect('\\$'); i += 2; continue; }
+      if (ch === '$' && (i === 0 || text[i - 1] !== '\\')) {
+        var j = i + 1;
+        while (j < n && !(text[j] === '$' && text[j - 1] !== '\\')) j++;
+        if (j < n && j > i + 1) { out += protect('$' + text.slice(i + 1, j) + '$'); i = j + 1; continue; }
+      }
+      if (ch === '\\' && text[i + 1] === '(') {
+        var k = text.indexOf('\\)', i + 2);
+        if (k > i) { out += protect('\\(' + text.slice(i + 2, k) + '\\)'); i = k + 2; continue; }
+      }
+      out += ch; i++;
+    }
+    return out;
+  }
+
+  /* V3.906 — symbols the journal text fonts lack (TeX Gyre has no ∼ ≲ ≳
+   * ′ ″ ∝; Latin Modern has no Greek at all) are set as math, which
+   * every font setup has — XeTeX otherwise drops a missing glyph with
+   * only a log line, and pdfLaTeX stops. Greek passes through as text
+   * when the template's font has Greek (template._textGreek). */
+  var TEX_MATH_CHARS = {
+    '∼': '\\sim', '≈': '\\approx', '≲': '\\lesssim', '≳': '\\gtrsim',
+    '≤': '\\leq', '≥': '\\geq', '≠': '\\neq', '≡': '\\equiv',
+    '±': '\\pm', '∓': '\\mp', '×': '\\times', '÷': '\\div',
+    '−': '-', '→': '\\rightarrow', '←': '\\leftarrow', '↔': '\\leftrightarrow',
+    '⇒': '\\Rightarrow', '∞': '\\infty', '∝': '\\propto', '∂': '\\partial',
+    '∇': '\\nabla', '√': '\\surd', '′': '\\prime', '″': '\\prime\\prime',
+    '·': '\\cdot', '…': '\\ldots', '∈': '\\in', '∑': '\\sum', '∫': '\\int',
+    '↑': '\\uparrow', '↓': '\\downarrow', '•': '\\bullet', '°': '^{\\circ}',
+    ' ': '\\,', ' ': '\\,',
+  };
+  var TEX_GREEK = {
+    'α': 'alpha', 'β': 'beta', 'γ': 'gamma', 'δ': 'delta', 'ε': 'epsilon',
+    'ζ': 'zeta', 'η': 'eta', 'θ': 'theta', 'ι': 'iota', 'κ': 'kappa',
+    'λ': 'lambda', 'μ': 'mu', 'µ': 'mu', 'ν': 'nu', 'ξ': 'xi', 'π': 'pi',
+    'ρ': 'rho', 'σ': 'sigma', 'ς': 'varsigma', 'τ': 'tau', 'υ': 'upsilon',
+    'φ': 'phi', 'χ': 'chi', 'ψ': 'psi', 'ω': 'omega', 'Γ': 'Gamma',
+    'Δ': 'Delta', 'Θ': 'Theta', 'Λ': 'Lambda', 'Ξ': 'Xi', 'Π': 'Pi',
+    'Σ': 'Sigma', 'Φ': 'Phi', 'Ψ': 'Psi', 'Ω': 'Omega',
+  };
+  /* Prose → LaTeX: escape the specials, set font-missing symbols as math.
+   * Leaves private-use placeholders/markers (U+E000–U+F8FF) alone. */
+  function escapeProseTex(s, template) {
+    if (!s) return '';
+    var greekText = !!(template && template._textGreek);
+    var out = '';
+    for (var i = 0; i < s.length; i++) {
+      var c = s[i];
+      switch (c) {
+        case '\\': out += '\\textbackslash{}'; continue;
+        case '#': case '$': case '%': case '&': case '_': case '{': case '}':
+          out += '\\' + c; continue;
+        case '~': out += '\\textasciitilde{}'; continue;
+        case '^': out += '\\textasciicircum{}'; continue;
+        case '\u00A0': out += '~'; continue;   // no-break space = TeX's tie
+      }
+      if (c.charCodeAt(0) > 127) { out += uniToTex(c, template); continue; }
+      out += c;
+    }
+    return out;
+  }
+
+  /* V3.906 — one non-ASCII character → LaTeX that compiles in EVERY font
+   * setup: the legacy 8-bit T1 fonts the classes load (XeTeX cannot put a
+   * Unicode code point into them — "200–300 nm" printed "200300 nm") and
+   * fontspec OpenType fonts alike (their TeX ligatures turn -- into –).
+   * Punctuation → TeX ligatures/commands, accented Latin → accent
+   * commands (from the NFD decomposition), symbols the text fonts lack →
+   * math. Private-use placeholders and anything unknown pass through. */
+  var TEX_TEXT_CHARS = {
+    '\u2013': '--', '\u2014': '---', '\u2018': '`', '\u2019': "'", '\u201C': '``', '\u201D': "''",
+    '\u201A': '\\quotesinglbase{}', '\u201E': '\\quotedblbase{}', '\u00AB': '\\guillemotleft{}',
+    '\u00BB': '\\guillemotright{}', '\u2010': '-', '\u2011': '-', '\u2012': '--', '\u2015': '---',
+    '\u00A9': '\\textcopyright{}', '\u00AE': '\\textregistered{}', '\u2122': '\\texttrademark{}',
+    '\u00A7': '\\S{}', '\u00B6': '\\P{}', '\u2020': '\\dag{}', '\u2021': '\\ddag{}',
+    '\u00DF': '\\ss{}', '\u00E6': '\\ae{}', '\u00C6': '\\AE{}', '\u00F8': '\\o{}', '\u00D8': '\\O{}',
+    '\u0153': '\\oe{}', '\u0152': '\\OE{}', '\u0142': '\\l{}', '\u0141': '\\L{}', '\u0131': '\\i{}',
+    '\u0111': '\\dj{}', '\u0110': '\\DJ{}', '\u00E5': '\\aa{}', '\u00C5': '\\AA{}', '\u00F0': '\\dh{}',
+    '\u00FE': '\\th{}', '\u00A3': '\\pounds{}', '\u20AC': '\\texteuro{}', '\u00A1': '!`', '\u00BF': '?`',
+    '\u00B9': '\\textsuperscript{1}', '\u00B2': '\\textsuperscript{2}', '\u00B3': '\\textsuperscript{3}',
+    '\u2009': '\\,', '\u202F': '\\,', '\u200B': '', '\uFEFF': '', '\u00AD': '\\-', '\uFFFD': '?',
+    '\u2030': '\\textperthousand{}', '\u2116': 'No.',
+  };
+  var TEX_ACCENTS = {
+    '\u0300': '`', '\u0301': "'", '\u0302': '^', '\u0303': '~', '\u0304': '=', '\u0306': 'u',
+    '\u0307': '.', '\u0308': '"', '\u030A': 'r', '\u030B': 'H', '\u030C': 'v', '\u0327': 'c',
+    '\u0328': 'k', '\u0323': 'd', '\u0331': 'b',
+  };
+  function uniToTex(c, template) {
+    if (TEX_TEXT_CHARS.hasOwnProperty(c)) return TEX_TEXT_CHARS[c];
+    if (TEX_MATH_CHARS[c]) return '\\ensuremath{' + TEX_MATH_CHARS[c] + '}';
+    if (TEX_GREEK[c]) {
+      return (template && template._textGreek) ? c : '\\ensuremath{\\' + TEX_GREEK[c] + '}';
+    }
+    var code = c.charCodeAt(0);
+    if (code >= 0xE000 && code <= 0xF8FF) return c;          // our placeholders / markers
+    var d = c.normalize ? c.normalize('NFD') : c;
+    if (d.length === 2 && /[A-Za-z]/.test(d[0]) && TEX_ACCENTS[d[1]]) {
+      var base = d[0] === 'i' ? '\\i' : d[0] === 'j' ? '\\j' : d[0];
+      var acc = TEX_ACCENTS[d[1]];
+      return /[a-z]/.test(acc) ? '\\' + acc + '{' + base + '}' : '{\\' + acc + base + '}';
+    }
+    return c;
+  }
 
   function escapeTex(s) {
     if (!s) return '';
@@ -1688,7 +1916,11 @@
       .replace(/\\/g, '\\textbackslash{}')
       .replace(/[#$%&_{}]/g, '\\$&')
       .replace(/~/g, '\\textasciitilde{}')
-      .replace(/\^/g, '\\textasciicircum{}');
+      .replace(/\^/g, '\\textasciicircum{}')
+      /* V3.906 — titles, headings, author names, affiliations: non-ASCII
+       * the TeX way too (an en dash in a title was dropped). */
+      .replace(/\u00A0/g, '~')
+      .replace(/[^\x00-\x7F]/g, function (c) { return uniToTex(c, null); });
   }
 
   /* ── V3.231 Template + addon composition ── */
@@ -1801,6 +2033,10 @@
     return { preamble: preamble, warnings: warnings };
   }
 
+  /* V3.907 — add-ons a published-look build ignores: manuscript
+   * conventions, and layout the look itself decides. */
+  var SUBMISSION_ONLY_ADDONS = ['lineno', 'setspace-double', 'endfloat', 'twocolumn', 'microtype'];
+
   /* ── End-to-end orchestrator ── */
 
   /** Build the paper bundle (no I/O — pure function over a Yjs doc).
@@ -1812,9 +2048,24 @@
    * fetched via api.load). */
   async function buildBundle(opts) {
     var template = opts.template || await fetchTemplate(opts.templateId);
-    var effectiveTemplate = mergeTemplateWithOverrides(template, opts.overrides);
+    /* V3.907 — journal look. A template with a `look` compiles the
+     * journal's PUBLISHED page (fonts, columns, sizes, heading/caption
+     * styles generated by PaperLook — the same numbers the Document view
+     * lays out with) unless the paper is set to the submission manuscript
+     * (paperExports.layoutLook = 'submission' → the template's own
+     * preamble, unchanged). Manuscript-only add-ons (line numbers, double
+     * spacing, figures-at-end) and layout add-ons the look owns
+     * (twocolumn, microtype's protrusion — it moves line breaks the
+     * preview predicts) belong to the submission build only. */
+    var look = (window.PaperLook && window.PaperLook.resolve)
+      ? window.PaperLook.resolve(template, { layoutLook: opts.layoutLook, lookOverrides: opts.lookOverrides }) : null;
+    var baseTemplate = look ? window.PaperLook.applyToTemplate(template, look) : template;
+    var effectiveTemplate = mergeTemplateWithOverrides(baseTemplate, look ? null : opts.overrides);
+    var addonIds = look
+      ? (opts.addons || []).filter(function (id) { return SUBMISSION_ONLY_ADDONS.indexOf(id) < 0; })
+      : opts.addons;
 
-    var addonResult = applyAddons(effectiveTemplate.preamble, opts.addons, effectiveTemplate.id);
+    var addonResult = applyAddons(effectiveTemplate.preamble, addonIds, effectiveTemplate.id);
     effectiveTemplate.preamble = addonResult.preamble;
 
     /* V3.408 — document float-spacing preset (paperExports.floatSpacing):
@@ -1963,8 +2214,13 @@
        * colortbl and gives us \cellcolor / \rowcolors; loading plain
        * xcolor would compile and then fail on the first \cellcolor. */
       if (_usedColortbl) {
-        effectiveTemplate.preamble +=
-          '\n% --- RM tables: cell and row shading ---\n\\usepackage[table]{xcolor}\n';
+        /* V3.906 — \PassOptionsToPackage BEFORE \documentclass, so the
+         * `table` option reaches xcolor however the template or class
+         * loads it. Appending \usepackage[table]{xcolor} clashed ("Option
+         * clash for package xcolor") with every template that already
+         * loads xcolor plainly — PLOS, Nature, mebp, preprints. */
+        effectiveTemplate.preamble = '\\PassOptionsToPackage{table}{xcolor}\n' + effectiveTemplate.preamble +
+          '\n% --- RM tables: cell and row shading ---\n\\usepackage{xcolor}\n';
       }
       /* V3.485 — a corner/side wrap figure was rendered: wrapfig joins the
        * preamble on demand (stock TeX Live; single-column classes only —
@@ -1979,7 +2235,8 @@
       var densityBlock = buildBodyDensityPreamble({
         lpi: opts.bodyLpi, fontMin: opts.bodyFontMin, fontMax: opts.bodyFontMax,
       });
-      if (densityBlock) effectiveTemplate.preamble += densityBlock;
+      // V3.913 — a look sets its own size and pitch (paperExports.lookOverrides)
+      if (densityBlock && !effectiveTemplate._look) effectiveTemplate.preamble += densityBlock;
       /* ORCID — any author carrying an iD pulls in orcidlink (stock TeX
        * Live) for the icon link beside the name. Checked directly on the
        * authors config: renderAuthorBlock runs during the main.tex
@@ -2022,6 +2279,22 @@
     main = sub(main, '{{TITLE}}', escapeTex(tree.title || opts.paperId));
     main = sub(main, '{{LEAD_AUTHOR}}', escapeTex(leadAuthor));
     main = sub(main, '{{AUTHOR_BLOCK}}', renderAuthorBlock(effectiveTemplate, leadAuthor, opts.authorsCfg));
+    /* V3.907 — a look's own front matter (title / authors / affiliations /
+     * abstract / keywords in one box, spanning both columns). */
+    if (effectiveTemplate._look) {
+      var lk = effectiveTemplate._look;
+      var la = window.PaperLook.texAuthors(lk, opts.authorsCfg, escapeTex, leadAuthor);
+      main = sub(main, '{{AUTHORS}}', la.authors);
+      main = sub(main, '{{AFFILIATIONS}}', la.affiliations);
+      main = sub(main, '{{AFFILIATION_NOTES}}', la.notes);
+      var kwText = stash.tokens['{{KEYWORDS}}'] || '';
+      var kwLine = (kwText && lk.keywords && lk.keywords.show)
+        ? '\\par\\vskip 4bp{\\fontsize{' + lk.keywords.size + 'bp}{' + lk.keywords.lead + 'bp}\\selectfont ' +
+          (lk.keywords.label ? '\\textbf{' + escapeTex(lk.keywords.label) + '} ' : '') + kwText + '\\par}'
+        : '';
+      main = sub(main, '{{KEYWORDS_LINE}}', kwLine);
+      main = sub(main, '{{ABSTRACT_COLUMN}}', '');
+    }
     /* Graphical abstract (paperExports.graphicalAbstract) — EXPLICIT sub
      * (an image, so the text-stash sweep doesn't fit): templates carrying
      * the token (elsevier frontmatter) render the env; templates without
@@ -2042,6 +2315,9 @@
     Object.keys(stash.tokens).forEach(function (tok) {
       main = sub(main, tok, stash.tokens[tok]);
     });
+    /* V3.909 — a paper without keywords: no empty keywords environment
+     * (IEEEtran printed a bare "Index Terms—"). */
+    main = main.replace(/\\begin\{(IEEEkeywords|keywords?)\}\s*\\end\{\1\}\n?/g, '');
     main = sub(main, '{{INPUTS}}', inputLines.join('\n'));
     main = sub(main, '{{BIB_BASENAME}}', bibBasename);
 

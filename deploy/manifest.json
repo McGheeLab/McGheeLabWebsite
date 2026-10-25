@@ -1754,10 +1754,10 @@
    "via": "verify"
   },
   "rm/css/paper-doc-view.css": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "049cdb4651f94f7f0a30ebdd3367648ffaa9b1cda9cecfe9a40d044f358e09ca",
-   "size": 34286,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "6c29e72e1bdf02d2b4bd1ef54d3c41524d267aa3f574b2ce8c2dc2ad3a9a2321",
+   "size": 39945,
+   "via": "verify"
   },
   "rm/css/paper-editor.css": {
    "deployedAt": "2026-10-22T23:49:02-07:00",
@@ -1898,64 +1898,70 @@
    "via": "baseline"
   },
   "rm/data/paper-templates/acs.json": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "54b21956e773c0685f6acb2ad5e9047d2295983b58e7e329c11b49e4ab3e6384",
-   "size": 4102,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "89438ca0e1f1d813f763d831b75c001eb75e5bc15354cc96a350e9aab513bb48",
+   "size": 6906,
+   "via": "verify"
+  },
+  "rm/data/paper-templates/aps-revtex.json": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "ca5b5adf67a1477423b28323010253cc3f89318087e9d057f1bb7aa7fda440c8",
+   "size": 6147,
+   "via": "verify"
   },
   "rm/data/paper-templates/elsevier.json": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "157218e000250399b851af813c12e456bda47a7ea9f11cd1fae59aafbba5caa8",
-   "size": 4174,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "547a100f41fc42c50d003349a9830c10eed5efcc7159ccd363a39ae5e113bcd9",
+   "size": 7037,
+   "via": "verify"
   },
   "rm/data/paper-templates/ieee.json": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "fcc6a6daaf19c4df16a2882a2936872e5bc474cd58eb895b8fe0f6aff03ef881",
-   "size": 3758,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "46c427a5877111f973dced1358ee0563e760cdc90802ff507055fcc9137c23fc",
+   "size": 7868,
+   "via": "verify"
   },
   "rm/data/paper-templates/mebp-journal.json": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "6512bd9114661921653dd7dc4fc01a296c812d1c92ceda0b233b62fb74086491",
-   "size": 4180,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "04f7ce6b4be26f1ce0da48a2e1e14de027883d2d34689c26bce31f6cc482fffd",
+   "size": 4005,
+   "via": "verify"
   },
   "rm/data/paper-templates/nature.json": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "d449d72e21e659a0b70ff440452fbe685a22589869e68c59b271bc25cebf8bf1",
-   "size": 5034,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "727451f73d03c3a6f26a9f4158d619e2d8fdc0f098068e8f453390548d49c756",
+   "size": 8702,
+   "via": "verify"
   },
   "rm/data/paper-templates/nsf-career.json": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "26ebc65259c21b4e2cec0d68507e86918c10546b742e6645379c8714f551c409",
-   "size": 3557,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "12067fbcd3015d84908af1c688bb98345f2c4d090b13c2aab55694a9f6b2dd4c",
+   "size": 10358,
+   "via": "verify"
   },
   "rm/data/paper-templates/plos.json": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "64307c7be20b13247cad0ee16c062c3f8bd33140e59f7e83e6aed7c8d6685fba",
-   "size": 45060,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "26a6b2d242f762ee5605d7320fd200025f62f541c8aefb5b31a924cb171f3aae",
+   "size": 47826,
+   "via": "verify"
   },
   "rm/data/paper-templates/pnas-new.json": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "655af4db9c3d6d992e6a954477bffa743ea97a6cf3038bb890b96841cb828d95",
-   "size": 41333,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "fdf402b1b907eb4011f667528924c253fddebc5ce8000f8912c8ed7ba568abd1",
+   "size": 46282,
+   "via": "verify"
   },
   "rm/data/paper-templates/preprint-authoryear.json": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "4c87384eedc331842926e82150fa431a3831325e37e26b01b416f029c43e9810",
-   "size": 3730,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "7c66ecc57a5265c24dca165e9adb5c03ee78fa8262a9280bcac36fa246ec0f3b",
+   "size": 3731,
+   "via": "verify"
   },
   "rm/data/paper-templates/preprint-numeric.json": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "65b1b5ddaa6a7b874ddcd8e6199aedacc1b161b60e4a292ccfe53e2a1abaf0dd",
-   "size": 3764,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "d4755383e8b6e162b23a93ebc0c443ed55d233924e734eb600777beb33f3303b",
+   "size": 6376,
+   "via": "verify"
   },
   "rm/data/paper-templates/rm-cover-letter.json": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -1976,10 +1982,10 @@
    "via": "baseline"
   },
   "rm/data/paper-templates/science.json": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "36e84476d68413dc46734b45a107d1ebd31f599f686647abe704e3196ba7ba93",
-   "size": 56624,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "83386dcfb1f3babca89f104830771717b2fd7dbfaffa8556ef5aab012ddd8f00",
+   "size": 56625,
+   "via": "verify"
   },
   "rm/data/protocol-demos/lesson-1-variables-and-wires.json": {
    "deployedAt": "2026-10-23T10:34:36-07:00",
@@ -2978,15 +2984,15 @@
    "via": "baseline"
   },
   "rm/js/paper-doc-view.js": {
-   "deployedAt": "2026-10-23T10:34:36-07:00",
-   "sha256": "786f0b217904a6bb86e55b15e9bc19e6e198e962f5fb1bbd657b43497ff51bb3",
-   "size": 221726,
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "83ba6094202c93c49c9aa1c640140797fa583c5908d1bb39e3a644d847150626",
+   "size": 318523,
    "via": "verify"
   },
   "rm/js/paper-editor.js": {
-   "deployedAt": "2026-10-23T10:34:36-07:00",
-   "sha256": "b7e940e9f6329768ccad2a3acd0830078bb4295ccd680be6ef7fb31a77bec85e",
-   "size": 378730,
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "d6ee7e545d750f5e67275bab9574aff6f12b9bf7cfc454b99ea99f8cf7354fa6",
+   "size": 378841,
    "via": "verify"
   },
   "rm/js/paper-equations.js": {
@@ -3008,9 +3014,9 @@
    "via": "verify"
   },
   "rm/js/paper-export-config.js": {
-   "deployedAt": "2026-10-23T10:34:36-07:00",
-   "sha256": "9be1057ddc8c30803082a40a925ecd9bf73a0610ba9c2fa33819ae8b991ccf78",
-   "size": 18965,
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "d13aea224940c152bfdee952a06a53e14c1d557a3763125211d1796cd0d3977d",
+   "size": 19385,
    "via": "verify"
   },
   "rm/js/paper-export-lints.js": {
@@ -3020,15 +3026,15 @@
    "via": "baseline"
   },
   "rm/js/paper-export-tex.js": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "8b55420da9d5540e11c3b60a36209b076196312250b5b45f43ad8bbfb8a95d40",
-   "size": 102102,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "892ee1d56ae86d345865c647be719c30c44a32e5a70f60c6acbec73709717d52",
+   "size": 117954,
+   "via": "verify"
   },
   "rm/js/paper-export.js": {
-   "deployedAt": "2026-10-23T10:34:36-07:00",
-   "sha256": "6dc0474091ae1dc2cea2579b23c2a83e83ac1051e900ec75cc3c15023d94a352",
-   "size": 57930,
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "2eeb1261d09129742bdf409476ebda6d0c0b229e1366d8f1fa1e74f7375a0d84",
+   "size": 64373,
    "via": "verify"
   },
   "rm/js/paper-fig-compose.js": {
@@ -3067,11 +3073,17 @@
    "size": 28276,
    "via": "verify"
   },
+  "rm/js/paper-grant-rules.js": {
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "6efd25da8c2d9db1609f4245731c03333ff31f2a1ae0ca18de0b06566dc8cde5",
+   "size": 8710,
+   "via": "verify"
+  },
   "rm/js/paper-import-engine.js": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "baa1a8432423afc418d090bc5623e352bf981d8e577af7b17372e8056d09db2e",
-   "size": 18359,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "28cad17d5821f4f100fa093754326f8e049a556f9d415a420b5cfe6309084291",
+   "size": 18691,
+   "via": "verify"
   },
   "rm/js/paper-label-mode.js": {
    "deployedAt": "2026-10-22T12:47:10-07:00",
@@ -3080,10 +3092,16 @@
    "via": "verify"
   },
   "rm/js/paper-layout-rules.js": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "33bc984b965c9b7da21016855356995b6b45389620be6d0357f0a8cbd12a1df2",
-   "size": 27486,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "499d0caaf1858e58e10904b0b30ea7ad5d7cfe38944c31c014274c260f7ca62b",
+   "size": 29731,
+   "via": "verify"
+  },
+  "rm/js/paper-look.js": {
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "5ec61f1ce323e88d39c832fb152ac761d4f04a14990b953cd0810e799b58262e",
+   "size": 49929,
+   "via": "verify"
   },
   "rm/js/paper-overlay-import.js": {
    "deployedAt": "2026-10-23T10:34:36-07:00",
@@ -3122,10 +3140,10 @@
    "via": "baseline"
   },
   "rm/js/paper-subdocs.js": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "2a64eca45104f376db3ed5a410bc3ea525eb597a1e0bc0d8fee3df51b9abcab4",
-   "size": 6192,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "dfbf58113f64d065feeb86fb06bb15668ad10ae050ea12e914f7889a9837c2ab",
+   "size": 10746,
+   "via": "verify"
   },
   "rm/js/paper-symbols.js": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -3138,6 +3156,12 @@
    "sha256": "650010de1426cecc3a1d35551d1e6d7c10290680bedf457bef47ff5f18d13e28",
    "size": 12095,
    "via": "baseline"
+  },
+  "rm/js/paper-typeset.js": {
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "d12c5fab27825bc847b7e0d251f7e5fa52fa30f0c2bc29310baf4ad524c6770d",
+   "size": 35500,
+   "via": "verify"
   },
   "rm/js/paper-values.js": {
    "deployedAt": "2026-10-23T10:34:36-07:00",
@@ -4184,9 +4208,9 @@
    "via": "baseline"
   },
   "rm/pages/paper-builder.html": {
-   "deployedAt": "2026-10-23T10:34:36-07:00",
-   "sha256": "73a2cb4ffb9c766e28ee5ff20b73b1572deb0de2619beee727699ee833c43b0b",
-   "size": 22511,
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "4153eb61282ce2c9ac12ba00f7cd037e2d8dec51c391d3dffe31825691bca2d5",
+   "size": 23179,
    "via": "verify"
   },
   "rm/pages/paper-editor.html": {
@@ -4196,9 +4220,9 @@
    "via": "baseline"
   },
   "rm/pages/paper-export.html": {
-   "deployedAt": "2026-10-23T10:34:36-07:00",
-   "sha256": "88a00676fd5a8cede93d6e2d1a682e959f3ee3a89c79df84c57160c7302171f4",
-   "size": 14298,
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "c9e47ff29ff7e379630c79b5f8ce143fff0dda834ead64044570f107b3b8ef5a",
+   "size": 15362,
    "via": "verify"
   },
   "rm/pages/pcard-helper.html": {
@@ -4532,9 +4556,9 @@
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-24T19:35:24-07:00",
-   "sha256": "8d24ad7cabf93cd73f65f7070117f9ebb2db4812ac2fc7b6058fe93c6e56758e",
-   "size": 4545520,
+   "deployedAt": "2026-10-24T19:47:31-07:00",
+   "sha256": "50919417c0fabf73c9e73bb62d1001292ebb949c0063f8f437545cd8b4c4d992",
+   "size": 4546873,
    "via": "verify"
   },
   "rm/test-fixtures/layout/01-2col-tight.pdf": {
@@ -4710,6 +4734,270 @@
    "sha256": "107f18e44c935866f5e19039b27022eeb9a319f4dad24544d7354a7c39cf9081",
    "size": 40330,
    "via": "baseline"
+  },
+  "rm/vendor/fonts/EBGaramond-Bold.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "0869f23f5e6b1e2fdae05e82ddf057563b20fec7ce4c80e18be42cb8ccca1b9a",
+   "size": 447000,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/EBGaramond-BoldItalic.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "4e32651612bdc54c0d58b3194a9a3b40694cd60f01248eea540fbde63a036302",
+   "size": 429484,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/EBGaramond-Italic.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "c7cf1bc38604494b9ead748a507b46da18f05fbd655ae023ec22ce1a037ede0b",
+   "size": 398180,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/EBGaramond-Regular.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "0cbf310cddb39bcb66296edc85bc6f8bba522fb394240c6134b6afc34642f78a",
+   "size": 404984,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/LICENSES.md": {
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "281130673d5b4a4ca8a5b39eebf26f26990399c0fdf67b2aa2059fb787ea9f67",
+   "size": 1269,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/LibertinusSans-Bold.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "ba778c3e7d03db1a5ad1c470221529c9c4863a67c403dd8a32a70e2628dd8ba8",
+   "size": 275464,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/LibertinusSans-Italic.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "35ba0114e52aa04769ff178a439e4fcf672532a9b9f13fb70a5cbba6bddc69ae",
+   "size": 289112,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/LibertinusSans-Regular.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "545d8b83afdf6c973c0e3dee7d8af482b6461b411b4ecededd03bd5f602a8fde",
+   "size": 256824,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/LibertinusSerif-Bold.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "e81781521d8a5788d643afa56a8aa30f559f8b3ae51b0d40a9204e9a0b81b235",
+   "size": 279844,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/LibertinusSerif-BoldItalic.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "d26c412af5912a2d4a3cda2b5edf97fc192fd07076f26694c3bb44992358d48a",
+   "size": 238532,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/LibertinusSerif-Italic.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "6061c8b602a313956a85035d1eab44b64311d35e4f9bbfd50bd4f2325a8b7325",
+   "size": 318424,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/LibertinusSerif-Regular.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "37e34c5ac60ef91ba2fc032fafc160d76e3fab3769a3823d17ba250aad41c2fe",
+   "size": 298384,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/SourceSansPro-Bold.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "daccddbe3dd60fe10f6e8a785eda187925da6b611141024dffa43626998dfc7c",
+   "size": 298076,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/SourceSansPro-BoldIt.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "8449c8884ae97ae11b00581cb61eba7141462ffc03000030e6de13ce297f9304",
+   "size": 212380,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/SourceSansPro-Regular.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "7134d229b15cdd0827376d8a24f6f531f616eb1b3fecd16e1cf8a86d0bf6bc51",
+   "size": 293200,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/SourceSansPro-RegularIt.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "d38e0d70cd4f4aa072457c5ae647b987f10c3cea34bff581ee358a7c2a526053",
+   "size": 208408,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/lmroman10-bold.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "102fe06c430a8b681b2bf6876b7cd967ae4d47b4b6b41d915eb7913b726d9fb1",
+   "size": 111240,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/lmroman10-bolditalic.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "c37a28eed7a6e03f792b98b5e5f637b2fcda378bb4855f99284f1a88fe35f124",
+   "size": 118204,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/lmroman10-italic.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "c1fce25075567bb8dbf2151658c3b442690041db17a2d49fc9e55905ea5b7169",
+   "size": 118828,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/lmroman10-regular.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "1aa18cfefa58132c52ce5de70db1fd1154201c19cd2b2cdaffba4906a33e6852",
+   "size": 111536,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/lmroman7-regular.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "48c4b46ab255eec96588fb992fba1ed6102e53d051da480738a61cc6cdb328c3",
+   "size": 110792,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/lmroman8-bold.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "04d4f633c3da31a169f4c54a7fe8c7e63925b39d030381f8d3eab955f16be7b2",
+   "size": 112404,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/lmroman8-italic.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "fb0536b5c3eee5b5622cd827ceb410e6514e36512ebdc51d2cf98a96c06d44e8",
+   "size": 117248,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/lmroman8-regular.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "f73015c3827596586faa380c398501caf9b5bcbb6f40b46af6a51277ca97c9fc",
+   "size": 111948,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/lmroman9-bold.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "f72feac9ea12eb858d8093d6c0ee710a6c25f59b61278c88ec41c0a680838415",
+   "size": 113040,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/lmroman9-italic.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "2106cffcdc9f9cb411d7c3441e34d77a168b998a58b40e727ab5b815437d1975",
+   "size": 118380,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/lmroman9-regular.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "8ab7b017fc67ea0e30cbf9e7ebd940010442ea67b40cf65f87d73f3ca11b0e6f",
+   "size": 112680,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/lmsans10-bold.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "a597b710326c1a8a2c7238d808e5d38711638a72a32383478db4829d63afd687",
+   "size": 107448,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/lmsans10-boldoblique.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "e45673d84754a94f2f053bd4c15950b4b320144fbb622c630a26fd7b68cfabc5",
+   "size": 114984,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/lmsans10-oblique.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "1b38b36efc21f9d3f34edf6a13f9d71f59c41f824e790f5d3ee5ba5b4936f377",
+   "size": 101412,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/lmsans10-regular.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "d431b786b9b603662718e79cfe9b441f47a8b0b3e854dde89d5acb3ed7cfd682",
+   "size": 95128,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/texgyreheros-bold.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "b170162835f4efc288886dd4231406dc47e19b614cf4416836635599d44a7d60",
+   "size": 135204,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/texgyreheros-bolditalic.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "166fc6d068d9c9974281555cb3d730365537a9b676ab269bb5163f5a75496505",
+   "size": 135264,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/texgyreheros-italic.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "6473df7fa107b3fb4be38973710afe22b0640c2ac076d5337cf126bed9aa108c",
+   "size": 139208,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/texgyreheros-regular.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "6ae1a09d5a940367b7aaaa91ee8bd8a2c333bfe193e7096e23f931357d62081f",
+   "size": 133600,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/texgyrepagella-bold.otf": {
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "dd4f9b69f0b24f1fb9be8634abf1fce2009e5c68a30842a3e9f5d6e535900abd",
+   "size": 219564,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/texgyrepagella-bolditalic.otf": {
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "556fd64655a92bd9f5485ae2c03f7b9cdaf745a27a91d7edb3c3abde997206d2",
+   "size": 216296,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/texgyrepagella-italic.otf": {
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "069bb27f48eb98a741715227fc6e4b7baf3639c29fc13925f70d1ed8884ac29a",
+   "size": 221936,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/texgyrepagella-regular.otf": {
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "44e64260716d8f2bbe412baa1ee99b7c995190ac4573177c24def0b9200438c7",
+   "size": 218100,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/texgyretermes-bold.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "2fb3e952065fa153c7e4e64e04b98b9d79225739b6025aa3f0f0782d299ff61e",
+   "size": 139480,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/texgyretermes-bolditalic.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "1bf6af99cb0e26c12951317032d79b96ae009551e59ccf02a5b24f325ecfec87",
+   "size": 144180,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/texgyretermes-italic.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "6dd103a1672e50568cd2f8a706ccd48443d44d7d073a59d2286f4e6f746575d6",
+   "size": 141324,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/texgyretermes-regular.otf": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "cc3fe7c707b81428d23d54df3eadd9228a2bf6a4d43125d94df56f5f63134659",
+   "size": 140932,
+   "via": "verify"
+  },
+  "rm/vendor/hyphen/hyph-en-us.js": {
+   "deployedAt": "2026-10-25T10:55:13-07:00",
+   "sha256": "f51796b519beeb4e0886e52e6905a5388671541ef84e234db8cc1ea3ee5e4b27",
+   "size": 32969,
+   "via": "verify"
   },
   "rm/vendor/jsqr/LICENSE": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -4910,8 +5198,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-24T19:35:24-07:00",
-   "sha256": "af8005acf81b7bd4c9d4dc780029b74a522baf07170d173e873f75c003f165be",
+   "deployedAt": "2026-10-25T13:17:18-07:00",
+   "sha256": "109f422948eb6749f29ad7ffa721d7a235bb4b6737a571157b694669b823407b",
    "size": 9933,
    "via": "verify"
   },

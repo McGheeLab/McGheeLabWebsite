@@ -630,7 +630,7 @@
    "id": "rm.paper-builder",
    "name": "Paper builder",
    "side": "rm",
-   "summary": "Collaborative manuscripts: sections, figures, tables, equations, citations, exports to LaTeX and PDF, bundles, overlays, layout mode.",
+   "summary": "Collaborative manuscripts: sections, figures, tables, equations, citations, exports to LaTeX and PDF, bundles, overlays, layout mode; journal looks (one page description for the PDF and the Document view) and a TeX-faithful typesetter, measured in the Paper Lab; grant formats (NSF PAPPG) with their rules, page budget and Fit.",
    "keywords": [
     "manuscript",
     "draft",
@@ -644,7 +644,21 @@
     "layout",
     "cite",
     "symbol",
-    "evidence"
+    "evidence",
+    "typeset",
+    "hyphenation",
+    "journal",
+    "look",
+    "font",
+    "pagination",
+    "float",
+    "preview",
+    "grant",
+    "nsf",
+    "pappg",
+    "page limit",
+    "wrapfig",
+    "fit"
    ],
    "paths": [
     "rm/js/paper-*.js",
@@ -652,7 +666,10 @@
     "rm/css/paper-*.css",
     "functions/paper-*.js",
     "functions/delete-builder-paper.js",
-    "functions/equation-ocr.js"
+    "functions/equation-ocr.js",
+    "rm/vendor/fonts/*",
+    "rm/vendor/hyphen/*.js",
+    "scripts/paper-lab/*"
    ],
    "related": [
     "rm.library",

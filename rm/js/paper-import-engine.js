@@ -189,7 +189,12 @@
       report('sections', 0, 1, isUpdate ? 'Replacing sections…' : 'Building sections…');
       conn.yDoc.transact(function () {
         window.PaperTreeBuild.buildInto(paperMap, manifest, Y, {
-          sectionFilter: function (s) { return !_isGrantKind(s.kind); },
+          /* V3.914 — a grant document written as text (a Project Summary,
+           * a DMSP) stays a section the Document view and the export set in
+           * the grant's look; an uploaded PDF still goes to Grant Docs */
+          sectionFilter: function (s) {
+            return !_isGrantKind(s.kind) || (s.children || []).some(function (b) { return String(b.body || '').trim(); });
+          },
           replace: isUpdate,
         });
       }, 'import-build');

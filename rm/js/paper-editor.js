@@ -4737,7 +4737,9 @@
            * view's per-journal bibliography (initials, volume/issue/pages/
            * doi). Additive: the flat `authors`/`authorCount` above stay for
            * the other consumers (References-tab rows, cite chips). */
-          authorsFull: (lib.authors || []).slice(0, 10).map(function (a) {
+          /* V3.914 — every author: unsrtnat lists them all (the preview's
+           * References Cited) */
+          authorsFull: (lib.authors || []).slice(0, 80).map(function (a) {
             return { family: (a && a.family) || '', given: (a && a.given) || '' };
           }),
           volume: lib.volume || '',

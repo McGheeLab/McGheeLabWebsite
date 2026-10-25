@@ -52,6 +52,17 @@
             </select>
             <small class="form-hint" style="color:#6b7280;font-size:11px;">Submission follows the journal's float placement conventions (locked figures fall back to floats). Preprint pins locked figures exactly where you placed them ([H]).</small>
           </div>
+          <!-- V3.907 — page look: the journal's published page (fonts,
+               columns, sizes — what the Document view shows) or the
+               template's submission manuscript. -->
+          <div class="px-row">
+            <label for="px-layout-look">Page look</label>
+            <select id="px-layout-look">
+              <option value="published">Journal page — how the published article looks</option>
+              <option value="submission">Submission manuscript — the journal's own submission format</option>
+            </select>
+            <small class="form-hint" id="px-layout-look-hint" style="color:#6b7280;font-size:11px;">Journal page compiles the published two-column look the Document view shows. Submission manuscript is what most journals ask you to upload (single column, often double-spaced with line numbers).</small>
+          </div>
           <!-- V3.408 — document float spacing: gap between floats and
                text (preview + a \setlength preamble block). -->
           <div class="px-row">
@@ -258,6 +269,9 @@
   <script src="/rm/js/paper-subdocs.js"></script>
   <!-- V3.395 — layout intent → LaTeX float rules; before paper-export-tex. -->
   <script src="/rm/js/paper-layout-rules.js"></script>
+  <!-- V3.907 — journal looks (published page) shared with the Document view -->
+  <script src="/rm/js/paper-look.js"></script>
+  <script src="/rm/js/paper-grant-rules.js"></script>
   <script src="/rm/js/paper-export-tex.js"></script>
   <!-- V3.47x — portable paper bundle export (import/export program). -->
   <script src="/rm/js/paper-export-bundle.js"></script>

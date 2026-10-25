@@ -109,6 +109,151 @@
       "notes": "Elsevier: 90 mm single / 140 mm 1.5 / 190 mm double column."
     }
   },
+  "look": {
+    "engine": "spec",
+    "name": "Elsevier (published page)",
+    "measured_from": "Mechanobiology in Medicine 2, 100063 (2024) — 595.3×793.7 bp, two columns",
+    "page": {
+      "w": 595.3,
+      "h": 793.7
+    },
+    "margins": {
+      "top": 52.9,
+      "bottom": 50.4,
+      "left": 37.6,
+      "right": 37.5
+    },
+    "columns": 2,
+    "colsep": 17.8,
+    "fonts": {
+      "text": "termes",
+      "sans": "heros"
+    },
+    "body": {
+      "size": 8,
+      "lead": 10.5,
+      "indent": 8,
+      "parskip": 0,
+      "flushbottom": true
+    },
+    "title": {
+      "family": "text",
+      "size": 14,
+      "lead": 17,
+      "weight": "normal",
+      "align": "left",
+      "after": 8
+    },
+    "authors": {
+      "family": "text",
+      "size": 9.5,
+      "lead": 12,
+      "align": "left",
+      "after": 4
+    },
+    "affiliations": {
+      "family": "text",
+      "size": 6.4,
+      "lead": 8,
+      "style": "italic",
+      "align": "left",
+      "where": "front",
+      "after": 10
+    },
+    "abstract": {
+      "mode": "span",
+      "family": "text",
+      "size": 7.2,
+      "lead": 9.5,
+      "label": "ABSTRACT",
+      "label_style": "heading",
+      "label_size": 6.4,
+      "label_lead": 9,
+      "label_weight": "normal",
+      "indent": 0,
+      "after": 12,
+      "box": {
+        "pad": 5
+      }
+    },
+    "keywords": {
+      "show": true,
+      "label": "Keywords:",
+      "size": 7.2,
+      "lead": 9.5
+    },
+    "h1": {
+      "family": "text",
+      "size": 8,
+      "lead": 10.5,
+      "weight": "bold",
+      "before": 10,
+      "after": 4,
+      "align": "left"
+    },
+    "h2": {
+      "family": "text",
+      "size": 8,
+      "lead": 10.5,
+      "style": "italic",
+      "before": 7,
+      "after": 3,
+      "align": "left"
+    },
+    "h3": {
+      "family": "text",
+      "size": 8,
+      "lead": 10.5,
+      "style": "italic",
+      "before": 5,
+      "after": 2,
+      "align": "left"
+    },
+    "caption": {
+      "family": "text",
+      "size": 6.4,
+      "lead": 8,
+      "label_fig": "Fig.",
+      "label_tab": "Table",
+      "label_weight": "bold",
+      "sep": ". ",
+      "align": "justify",
+      "skip": 5,
+      "table_position": "above"
+    },
+    "bib": {
+      "size": 6.4,
+      "lead": 8,
+      "head": "References",
+      "label": "bracket",
+      "sep": 0.5
+    },
+    "cite": {
+      "style": "bracket"
+    },
+    "display": {
+      "above": 6,
+      "below": 6
+    },
+    "floats": {
+      "textfloatsep": 14,
+      "floatsep": 12,
+      "intextsep": 10,
+      "topfraction": 0.9,
+      "bottomfraction": 0.6,
+      "textfraction": 0.08,
+      "floatpagefraction": 0.8,
+      "dbltopfraction": 0.9,
+      "dblfloatpagefraction": 0.8,
+      "topnumber": 3,
+      "bottomnumber": 2,
+      "totalnumber": 4,
+      "dbltopnumber": 2
+    },
+    "footer": {
+      "page_numbers": true
+    }
+  },
   "figure_environment": {
     "compiled_columns": 1,
     "env": "figure",

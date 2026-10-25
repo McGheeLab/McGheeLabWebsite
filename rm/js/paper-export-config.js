@@ -21,21 +21,23 @@
    * drop a JSON in that directory and add a row here. `group` renders as
    * an <optgroup> in the picker. */
   /* V3.419 — `types` gates the list by the paper's document type
-   * (journal | grant | editorial | book-chapter). Every style today is
-   * a journal style; grant formats are a planned follow-up. A type with
+   * (journal | grant | editorial | book-chapter). Grant formats begin
+   * with NSF (V3.911). A type with
    * NO matching templates falls back to the full list (never a dead
    * picker). */
   var KNOWN_TEMPLATES = [
     { id: 'mebp-journal',        label: 'SLAS Technology (MEBP style)',       group: 'Lab journals', types: ['journal'] },
-    { id: 'nature',              label: 'Nature (submission approx.)',        group: 'Publishers', types: ['journal'] },
+    { id: 'nature',              label: 'Nature family',                      group: 'Publishers', types: ['journal'] },
     { id: 'science',             label: 'Science / AAAS',                     group: 'Publishers', types: ['journal'] },
     { id: 'plos',                label: 'PLOS',                               group: 'Publishers', types: ['journal'] },
-    { id: 'elsevier',            label: 'Elsevier (elsarticle, preprint)',    group: 'Publishers', types: ['journal'] },
+    { id: 'elsevier',            label: 'Elsevier',                           group: 'Publishers', types: ['journal'] },
     { id: 'ieee',                label: 'IEEE journal (IEEEtran)',            group: 'Publishers', types: ['journal'] },
-    { id: 'acs',                 label: 'ACS journal (achemso)',              group: 'Publishers', types: ['journal'] },
+    { id: 'acs',                 label: 'ACS journals',                       group: 'Publishers', types: ['journal'] },
     { id: 'pnas-new',            label: 'PNAS (pnas-new class)',              group: 'Publishers', types: ['journal'] },
+    { id: 'aps-revtex',          label: 'Physical Review / APS (REVTeX)',     group: 'Publishers', types: ['journal'] },   // V3.907
     { id: 'preprint-numeric',    label: 'Preprint — numeric citations',       group: 'Preprints', types: ['journal', 'editorial', 'book-chapter'] },
     { id: 'preprint-authoryear', label: 'Preprint — author-year citations',   group: 'Preprints', types: ['journal', 'editorial', 'book-chapter'] },
+    { id: 'nsf-career',          label: 'NSF proposal (CAREER, PAPPG)',       group: 'Grants', types: ['grant'] },   // V3.911
   ];
 
   /* ── Template select ── */
@@ -72,12 +74,15 @@
       });
       selectEl.appendChild(og);
     });
-    /* If currentId is set but not in KNOWN_TEMPLATES, append it anyway
-     * so the page doesn't silently swap the user's saved choice. */
-    if (currentId && !KNOWN_TEMPLATES.some(function (t) { return t.id === currentId; })) {
+    /* If currentId is set but not in the list shown, append it anyway so
+     * the page doesn't silently swap the user's saved choice (V3.911: a
+     * grant that uses a journal template, now that grants have their own
+     * list). */
+    if (currentId && !pool.some(function (t) { return t.id === currentId; })) {
+      var known = KNOWN_TEMPLATES.filter(function (t) { return t.id === currentId; })[0];
       var opt = document.createElement('option');
       opt.value = currentId;
-      opt.textContent = currentId + ' (unregistered)';
+      opt.textContent = known ? known.label : currentId + ' (unregistered)';
       opt.selected = true;
       selectEl.appendChild(opt);
     }

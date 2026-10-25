@@ -24,7 +24,22 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (3 changes — push at 5+)
+## Pending (13 changes — ready to push)
+
+- V3.914 — Paper builder: in the journal page preview, equations, headings and the reference list are now spaced and set exactly as in the PDF, so pages break where the PDF breaks them more often (the PLOS test paper now previews at its true 13 pages).
+- V3.914 — Grants: the page preview has a Document picker — the Project Description, References Cited, Project Summary, Data Management Plan, Mentoring Plan and the rest each show on their own pages with their own page limit, and the Export page compiles each one to its own PDF.
+- V3.913 — Grants: the Check button now shows your page count against the limit ("16 / 15 pages, 30 lines over"), every NSF formatting rule you meet or break, and a Fit button that finds the gentlest legal settings (tighter paragraphs, smaller captions, line spacing down to NSF's minimum) to bring the grant to its page limit. Nothing changes until you press Keep.
+- V3.912 — Grants: figures that text wraps around now sit exactly where the PDF puts them, so the preview's page count is the PDF's page count.
+- V3.911 — Grants: a new NSF proposal format (Letter, 1 inch margins, an NSF-approved typeface, no page numbers) that looks like the CAREER Project Description we submitted; References Cited is its own PDF, numbered to match the Project Description.
+- V3.910 — Paper builder: the page preview has a Check button that lists loose lines, single lines stranded at the top or bottom of a column, figures placed far from where you cite them, and paragraphs that could be one line shorter. One click tightens or loosens a paragraph (and the PDF follows), or pulls a few stray lines back off the last page.
+
+- V3.909 — Paper builder: PNAS and IEEE papers now preview exactly as their journals' own LaTeX classes set them, page for page (PNAS's abstract also came out missing from exported PDFs — fixed). The page preview also spaces titles, headings and captions the way the PDF does.
+
+- V3.908 — Paper builder: the page preview now breaks lines and hyphenates words exactly the way the PDF compiler does, so its page count and figure placement match the compiled PDF.
+
+- V3.907 — Paper builder: pick a journal and your paper is laid out in that journal's published style (fonts, columns, headings, captions, references) in both the page preview and the compiled PDF. Nature, PLOS, ACS, Elsevier, preprint styles and a new Physical Review (APS) template are included; the Export page has a Page look switch for the plain submission manuscript.
+
+- V3.906 — Paper builder: exported PDFs no longer lose text after a % sign, drop accented letters or dashes, or fail on two superscripts in one paragraph; every journal template now prints the full author list.
 
 - V3.905 — In Scientia, type /cite as you write to cite a paper: the citation picker opens, and the paper you pick replaces /cite. (Ctrl+I still works too.)
 

@@ -364,6 +364,18 @@
         // caption inside the sized box). Before paper-doc-view (block
         // builder + resize drag share PaperFigFit.fit).
         '/rm/js/paper-fig-fit.js',
+        // V3.907 — journal looks: one spec → the LaTeX preamble AND the
+        // Document view's fonts / geometry. Before paper-export-tex and
+        // paper-doc-view (both read window.PaperLook).
+        '/rm/js/paper-look.js',
+        // V3.911 — a funder's formatting rules (NSF PAPPG), checked in the
+        // Document view's Check panel and on the Export page.
+        '/rm/js/paper-grant-rules.js',
+        // V3.908 — TeX's hyphenation patterns + Knuth–Plass line breaking
+        // for the Document view (paper-doc-view.js lays paragraphs out
+        // with it).
+        '/rm/vendor/hyphen/hyph-en-us.js',
+        '/rm/js/paper-typeset.js',
         '/rm/js/paper-export-tex.js',
         // V3.344 — editor-side citation styling (chips follow the export
         // template's render_family). After paper-export-tex (uses its

@@ -80,8 +80,11 @@ app.post('/', verifyToken, async (req, res) => {
    * shared compiles subcollection (clients cannot write these docs —
    * rules are admin-only — so the field MUST pass through here). */
   const DOC_KINDS = ['main', 'diff', 'cover_letter', 'rebuttal'];
+  /* V3.914 — a grant's separate uploads (References Cited, Project
+   * Summary, …) compile as 'grant_<doc>' */
   const docKind = mode === 'diff' ? 'diff'
-    : (DOC_KINDS.indexOf(req.body.docKind) >= 0 ? req.body.docKind : 'main');
+    : (DOC_KINDS.indexOf(req.body.docKind) >= 0 || /^grant_[a-z_]{1,40}$/.test(req.body.docKind || '')
+      ? req.body.docKind : 'main');
 
   const compileId = crypto.randomBytes(8).toString('hex');
   const work = await fsp.mkdtemp(path.join(os.tmpdir(), 'paper-compile-' + compileId + '-'));
@@ -255,7 +258,7 @@ app.post('/', verifyToken, async (req, res) => {
         bundleHash,                    // V3.232 — for client-side staleness detection
         logTail: log.slice(-4000),     // keep doc small; full log lives in the response
         ok: true,
-        docKind,                                        // main | diff | cover_letter | rebuttal
+        docKind,                                        // main | diff | cover_letter | rebuttal | grant_<doc>
         ...(flatStoragePath ? { flatStoragePath } : {}),
         ...(mode === 'diff' ? { baseCompileId } : {}),
       });

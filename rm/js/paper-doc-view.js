@@ -92,6 +92,13 @@
   var FLOAT_GAP_PRESETS = { tight: 7, normal: 10, loose: 16 };
   function baseGapPx() {
     var preset = state.config && state.config.floatSpacing;
+    /* V3.908 — a journal look's \textfloatsep (scaled by the Spacing
+     * preset, as the exporter's preset block scales it). */
+    var lk = state.lastLook;
+    if (lk && lk.floats && lk.floats.textfloatsep) {
+      var sc = preset === 'tight' ? 0.7 : preset === 'loose' ? 1.6 : 1;
+      return Math.round(lk.floats.textfloatsep * (4 / 3) * sc);
+    }
     return FLOAT_GAP_PRESETS[preset] || BLOCK_GAP;
   }
   /* Per-float gap: base preset + the block's own signed `spacing` nudge
@@ -100,6 +107,7 @@
    * on each band row at pack time (`row.gap`) and read by BOTH
    * _recordRects and _mountBand — rects↔DOM alignment by construction. */
   function gapForFloat(f) {
+    if (f && f.float && typeof f.float.gapPx === 'number') return f.float.gapPx;   // V3.909 — a note's own skip
     var mm = (f && f.float && typeof f.float.spacing === 'number') ? f.float.spacing : 0;
     return Math.max(2, baseGapPx() + Math.round(mm * (96 / 25.4)));
   }
@@ -149,7 +157,15 @@
     });
   }
   function _applyBodyDensity() {
-    var d = _resolveBodyDensity();
+    /* V3.913 — under a journal / grant look the look's own size and line
+     * pitch rule (Check panel → Page settings); the older lines-per-inch
+     * control is hidden and ignored, as in the export */
+    var d = state.lastLook ? null : _resolveBodyDensity();
+    var dmSel = state.overlayEl && state.overlayEl.querySelector('#pdv-density-mode');
+    var field = dmSel && dmSel.closest('label');
+    if (field) field.hidden = !!state.lastLook;
+    var dvInp = state.overlayEl && state.overlayEl.querySelector('#pdv-density-value');
+    if (dvInp && dvInp.closest('label') && dvInp.closest('label') !== field) dvInp.closest('label').hidden = !!state.lastLook;
     [state.overlayEl, state.probeEl].forEach(function (el) {
       if (!el) return;
       if (d) {
@@ -277,10 +293,12 @@
       floatSpacing: 'normal',      // V3.408 — 'tight' | 'normal' | 'loose'
       paperType: 'journal',        // V3.419 — gates the journal picker
       columnFill: 'tight',         // V3.427 — 'tight' | 'normal' | 'loose'
+      layoutLook: 'published',     // V3.907 — 'published' | 'submission' (journal look vs manuscript)
       sectionNumbering: 'auto',    // 'auto' | 'on' | 'off'
       bodyLpi: null,               // V3.486 — grant lines-per-inch (null = off)
       bodyDensityMode: 'off',      // 'off' | 'lpi' | 'lpp'
       bodyDensityValue: 6,
+      lookOverrides: null,         // V3.911 — this paper's own look settings (grant fitting knobs)
     };
     try {
       var snap = await firebridge.db().collection('paperExports').doc(state.paperId).get();
@@ -296,11 +314,13 @@
           if (_pt !== 'journal') cfg.paperType = _pt;
         }
         if (COLUMN_FILL_LINES[d.columnFill]) cfg.columnFill = d.columnFill;   // V3.427
+        if (d.layoutLook === 'submission') cfg.layoutLook = 'submission';     // V3.907
         if (['auto', 'on', 'off'].indexOf(d.sectionNumbering) >= 0) cfg.sectionNumbering = d.sectionNumbering;
         /* V3.486 — body line density (grant lines-per-inch). */
         if (typeof d.bodyLpi === 'number' && d.bodyLpi > 0) cfg.bodyLpi = d.bodyLpi;
         if (['lpi', 'lpp'].indexOf(d.bodyDensityMode) >= 0) cfg.bodyDensityMode = d.bodyDensityMode;
         if (typeof d.bodyDensityValue === 'number' && d.bodyDensityValue > 0) cfg.bodyDensityValue = d.bodyDensityValue;
+        if (d.lookOverrides && typeof d.lookOverrides === 'object') cfg.lookOverrides = d.lookOverrides;   // V3.911
       }
     } catch (e) {
       console.warn('[paper-doc-view] paperExports load failed:', e.message || e);
@@ -326,12 +346,66 @@
     var bodyH = size.h - 2 * margin;
     return {
       pageW: size.w, pageH: size.h, margin: margin,
+      mT: margin, mR: margin, mB: margin, mL: margin,   // V3.907 — per-side (looks differ)
       bodyW: bodyW, bodyH: bodyH, cols: cols, colGap: colGap,
       colW: cols === 2 ? Math.floor((bodyW - colGap) / 2) : bodyW,
       fontPt: hints.fontPt || 11,
       abstractRunIn: !!hints.abstractRunIn,
       numbering: hints.numbering || 'arabic',   // section-number format
     };
+  }
+
+  /* V3.907 — the journal look in force (PaperLook), or null for the
+   * legacy hint-based preview (templates without a look, or a paper set
+   * to its submission manuscript). */
+  function _lookFor(tpl) {
+    if (!window.PaperLook || !tpl) return null;
+    return window.PaperLook.resolve(tpl, { layoutLook: state.config && state.config.layoutLook,
+      lookOverrides: state.config && state.config.lookOverrides });
+  }
+  /* Geometry straight from the look's numbers — the same page, margins,
+   * columns and type sizes the .tex export compiles. */
+  function geometryForLook(look) {
+    var G = window.PaperLook.geometry(look);
+    return {
+      pageW: G.pageW, pageH: G.pageH, margin: G.marginLeft,
+      mT: G.marginTop, mR: G.marginRight, mB: G.marginBottom, mL: G.marginLeft,
+      bodyW: G.bodyW, bodyH: G.bodyH, cols: G.cols, colGap: G.colGap, colW: G.colW,
+      fontPt: look.body.size, leadPx: G.leadPx,
+      abstractRunIn: false,
+      numbering: look.numbering || 'arabic',
+      look: look,
+    };
+  }
+  /* Fonts + the look's CSS, once per render, scoped to the overlay and the
+   * measuring probe (both carry .pdv-look-on). Resolves when the look's
+   * font files are loaded — measuring with a fallback font would break
+   * every line differently. */
+  function _applyLookCss(look) {
+    var id = 'pdv-look-css';
+    var el = document.getElementById(id);
+    [state.overlayEl, state.probeEl].forEach(function (x) {
+      if (!x) return;
+      x.classList.toggle('pdv-look-on', !!look);
+      if (look) x.dataset.look = look.id || ''; else delete x.dataset.look;
+    });
+    if (!look) { if (el) el.textContent = ''; return Promise.resolve(); }
+    if (!el) { el = document.createElement('style'); el.id = id; document.head.appendChild(el); }
+    el.textContent = window.PaperLook.fontFaceCss() + '\n' + window.PaperLook.css(look, '.pdv-look-on');
+    if (!document.fonts || !document.fonts.load) return Promise.resolve();
+    var fams = [];
+    ['text', 'sans'].forEach(function (k) {
+      var f = window.PaperLook.FONTS[look.fonts[k]];
+      if (f && fams.indexOf(f.css) < 0) fams.push(f.css);
+    });
+    var loads = [];
+    fams.forEach(function (fam) {
+      ['400 normal', '700 normal', '400 italic', '700 italic'].forEach(function (v) {
+        var parts = v.split(' ');
+        loads.push(document.fonts.load(parts[1] + ' ' + parts[0] + ' 12px "' + fam + '"').catch(function () {}));
+      });
+    });
+    return Promise.race([Promise.all(loads), new Promise(function (r) { setTimeout(r, 6000); })]);
   }
 
   /* ── Section-number formatting ──────────────────────────────
@@ -496,6 +570,7 @@
     _detachLive();
     _closeFigPopover();
     _closeCitePanel();
+    _closeCheckPanel();          // V3.910
     _cancelDrag();               // V3.401
     _closeInsertMenu();          // V3.416
     if (state.onDocClick) { document.removeEventListener('click', state.onDocClick); state.onDocClick = null; }
@@ -523,6 +598,11 @@
       '<label class="pdv-toolbar-field">Journal ' +
       '<select id="pdv-template"' + (editable ? '' : ' disabled title="Read-only — only paper authors can change the journal"') + '></select>' +
       '</label>' +
+      /* V3.914 — a grant's separate uploads (NSF: Project Description,
+       * References Cited, Project Summary, DMSP …), each in the grant's
+       * look with its own page limit */
+      '<label class="pdv-toolbar-field" id="pdv-doc-field" hidden title="The funder\'s separate documents, each with its own page limit">Document ' +
+      '<select id="pdv-doc"></select></label>' +
       '<label class="pdv-toolbar-field">Zoom ' +
       '<select id="pdv-zoom">' +
       '<option value="fit">Fit width</option>' +
@@ -534,6 +614,10 @@
        * areas / text / footnotes), drawn from each page's recorded
        * rects. Viz only in R3; becomes the interactive mode in R4. */
       '<button class="btn btn-sm" id="pdv-layout" title="Show the page\'s layout regions — margins, columns, figure/table areas">⬒ Layout</button>' +
+      /* V3.910 — layout check (journal looks): loose lines, widows and
+       * orphans, figures far from their first mention, lines to save. */
+      '<button class="btn btn-sm" id="pdv-check" hidden title="Check the layout — loose lines, widows and orphans, figures far from where they are cited, and lines you can save">' +
+        ICON.svg('check-circle') + ' Check <span class="pdv-check-count" id="pdv-check-count"></span></button>' +
       /* V3.416 — section styles: insert the current journal's special
        * sections (PNAS Significance…), any other journal's, or a custom
        * style. Editable-gated in open(). */
@@ -616,6 +700,13 @@
     state.statusEl = overlay.querySelector('#pdv-status');
     state.pagesLabelEl = overlay.querySelector('#pdv-pages');
     state.templateSelEl = overlay.querySelector('#pdv-template');
+    var docSel = overlay.querySelector('#pdv-doc');
+    if (docSel) docSel.addEventListener('change', function () {
+      state.grantDoc = docSel.value || 'project_description';
+      state.fitResult = null;
+      state.forceRender = true;
+      renderDocument().catch(function (e) { console.warn('[paper-doc-view] render failed:', e.message || e); });
+    });
 
     var probe = document.createElement('div');
     probe.className = 'pdv-probe';
@@ -676,6 +767,10 @@
     }
     var layoutBtn = overlay.querySelector('#pdv-layout');
     if (layoutBtn) layoutBtn.addEventListener('click', _toggleLayoutViz);
+    var checkBtn = overlay.querySelector('#pdv-check');
+    if (checkBtn) checkBtn.addEventListener('click', function () {
+      if (state.checkPanelEl) _closeCheckPanel(); else _openCheckPanel();
+    });
     /* V3.416 — section-style Insert menu. */
     var insertBtn = overlay.querySelector('#pdv-insert');
     if (insertBtn) insertBtn.addEventListener('click', function (ev) {
@@ -1072,15 +1167,61 @@
 
   /* ── Document rendering ────────────────────────────────────── */
 
+  /* V3.914 — the Document picker: shown for a grant look, listing the
+   * narrative and the funder's other documents */
+  function _syncDocPicker(rawTpl, look) {
+    var field = state.overlayEl && state.overlayEl.querySelector('#pdv-doc-field');
+    var sel = field && field.querySelector('#pdv-doc');
+    if (!field || !sel) return;
+    var docs = (look && rawTpl && rawTpl.grant && rawTpl.grant.documents) || [];
+    field.hidden = !docs.length;
+    if (!docs.length) { state.grantDoc = null; return; }
+    var sig = docs.map(function (d) { return d.key; }).join(',');
+    if (sel.dataset.sig !== sig) {
+      sel.innerHTML = docs.map(function (d) {
+        return '<option value="' + _esc(d.key) + '">' + _esc(d.label) + (d.page_limit ? ' (' + d.page_limit + ' p)' : '') + '</option>';
+      }).join('');
+      sel.dataset.sig = sig;
+    }
+    if (!state.grantDoc || !docs.some(function (d) { return d.key === state.grantDoc; })) state.grantDoc = docs[0].key;
+    sel.value = state.grantDoc;
+  }
+
   async function renderDocument() {
     if (!state.open) return;
     var seq = ++state.renderSeq;
     var pe = _pe();
-    var tpl = state.template || fallbackTemplate(state.config && state.config.templateId);
-    var hints = hintsFor(state.config.templateId, tpl);
-    var geom = geometryFor(hints);
+    var rawTpl = state.template || fallbackTemplate(state.config && state.config.templateId);
+    /* V3.907 — a journal look drives the page (and the template the walker
+     * reads is the look-applied one: abstract/keyword placement, hidden
+     * headings, caption labels), exactly as the exporter sees it. */
+    var look = _lookFor(rawTpl);
+    var tpl = look ? window.PaperLook.applyToTemplate(rawTpl, look) : rawTpl;
+    var hints = hintsFor(state.config.templateId, rawTpl);
+    var geom = look ? geometryForLook(look) : geometryFor(hints);
+    state.lastLook = look;
 
     var tree = window.PaperExportTex.paperTreeFromYDoc(pe.getPaperMap().doc);
+
+    /* V3.914 — a grant document other than the narrative: its own
+     * sections (or, for References Cited, the bibliography alone), set in
+     * the grant's look without the title */
+    _syncDocPicker(rawTpl, look);
+    var gdoc = (look && rawTpl.grant && state.grantDoc && state.grantDoc !== 'project_description')
+      ? (rawTpl.grant.documents || []).filter(function (d) { return d.key === state.grantDoc; })[0] : null;
+    state.subdocRefs = !!(gdoc && gdoc.references);
+    if (gdoc) {
+      look = window.PaperLook.merge(look, { title: { show: false } });
+      tpl = window.PaperLook.applyToTemplate(rawTpl, look);
+      var skd = Object.assign({}, tpl.section_kind_to_command || {});
+      (gdoc.kinds || []).forEach(function (k) { skd[k] = 'section_star'; });
+      tpl.section_kind_to_command = skd;
+      geom = geometryForLook(look);
+      state.lastLook = look;
+      tree = Object.assign({}, tree, { sections: gdoc.references ? [] : (tree.sections || []).filter(function (sec) {
+        return (gdoc.kinds || []).indexOf(sec.kind) >= 0;
+      }) });
+    }
 
     /* Skip the expensive rebuild (KaTeX per paragraph, off-screen measure,
      * full DOM teardown) when nothing that affects the rendered page has
@@ -1099,6 +1240,9 @@
         JSON.stringify(state.config.authors || []),
         JSON.stringify(state.config.affiliations || []),
         state.config.sectionNumbering || 'auto',
+        state.config.layoutLook || 'published',
+        JSON.stringify(state.config.lookOverrides || null),
+        state.grantDoc || '',
         (pe.getCitedKeysInPaper() || []).join(',')
       ].join(D);
     } catch (e) { sig = null; }
@@ -1111,14 +1255,26 @@
     (pe.getNumberedEquations() || []).forEach(function (e) { eqNums[e.blockId] = e.num; });
 
     var items = _buildFlowItems(tree, tpl, geom, { fig: figNums, tab: tabNums, eq: eqNums });
+    /* V3.907 — a stand-alone front page (look.front_page_alone): the body
+     * starts on page 2, like the PDF's \twocolumn after the front matter. */
+    if (geom.look && geom.look.front_page_alone) {
+      for (var bi = 0; bi < items.length; bi++) {
+        var bk = items[bi].blockKind;
+        if (bk !== 'title' && bk !== 'abstract' && bk !== 'keywords') { items[bi].breakBefore = true; break; }
+      }
+    }
     _extractFootnotes(items);
     _rewriteRefPrefixes(items, tpl);
 
+    await _applyLookCss(look);   // V3.907 — look CSS + its fonts loaded BEFORE measuring
+    if (seq !== state.renderSeq || !state.open) return;
     _applySpacingScale();   // V3.454 — before measuring: margins scale with the preset
     _applyBodyDensity();    // V3.486 — before measuring: body font/leading from lines-per-inch
     /* V3.495 — group wrap figures AFTER the probe carries the spacing +
      * density vars, so the figure-clear measurement matches the real layout. */
-    _groupWrapFigures(items, geom);   // V3.485 — corner/side wrap grouping (1-col only)
+    if (!geom.look) _groupWrapFigures(items, geom);   // V3.485 — CSS wrap grouping; a look uses wrapfig's rules (V3.912)
+    state.tsReport = {};   // V3.910 — per-paragraph typesetting results for the layout check
+    state.wrapReport = {};  // V3.912 — where each wrapped figure was set (here / held / collision)
     await _measureItems(items, geom, seq);
     if (seq !== state.renderSeq || !state.open) return;
 
@@ -1129,6 +1285,7 @@
     _resolveSecRefs();   // upgrade [!sec:] chips to their computed numbers
     _joinAdjacentCites();   // V3.453 — fixed-width gaps between adjacent cite groups
     _paintDensityReadout();   // V3.486 — lines/page estimate needs the packed geometry
+    _buildLayoutReport(geom);   // V3.910 — the layout check reads the mounted pages
     /* V3.495 — re-apply the layout selection so a selected figure keeps its
      * resize handles across a re-render. Without this, switching a figure to
      * Wrap (or any attr change that re-renders) rebuilt the DOM and the
@@ -1163,7 +1320,46 @@
       });
     }
 
-    push(_buildTitleBlock(tree.title), 'full', 'title');
+    var lookFront = geom.look ? _buildLookFront(tree.title, geom.look) : null;
+    push(lookFront ? lookFront.block : _buildTitleBlock(tree.title), 'full', 'title');
+    if (lookFront && lookFront.note) {
+      /* affiliations as the first page's foot note (Nature family) — the
+       * packer's page-footnote area, measured like any footnote */
+      items[items.length - 1].footnotes.push({ node: lookFront.note, h: 0 });
+    }
+    if (lookFront && lookFront.colnote) {
+      /* the IEEE author note: a footnote of column 1, page 1, \skip\footins
+       * below the text */
+      var lkA = geom.look, afS = lkA.affiliations;
+      var noteGap = window.PaperLook.texGap(lkA, { family: 'text', size: lkA.body.size, lead: lkA.body.lead },
+        afS, afS.note_skip != null ? afS.note_skip : 9) * 4 / 3;
+      push(lookFront.colnote, 'col', 'factbox', null, null,
+        { region: 'bottom', span: 'column', lock: false, col: 0, gapPx: Math.round(noteGap * 100) / 100 });
+    }
+    var LOOK = geom.look || null;
+    /* V3.909 — a class's first-page fact box (PNAS: Significance,
+     * Author contributions): those specials leave the flow and sit at the
+     * foot of page 1's second column, where the class floats them. */
+    var FACT = (LOOK && LOOK.factbox && Array.isArray(LOOK.factbox.specials)) ? LOOK.factbox : null;
+    var factSecs = FACT ? tree.sections.filter(function (s) { return s.special && FACT.specials.indexOf(s.special) >= 0; }) : [];
+    if (factSecs.length) {
+      var fbox = document.createElement('div');
+      fbox.className = 'pdv-factbox';
+      fbox.innerHTML = factSecs.map(function (s) {
+        var body = s.children
+          .filter(function (b) { return b.kind === 'paragraph' && String(b.body || '').trim(); })
+          .map(function (b) { return '<p class="pdv-para">' + pe.renderParagraphHtml(b.body) + '</p>'; })
+          .join('');
+        if (!body) return '';
+        return specialPreview(s) === 'box'
+          ? '<div class="pdv-significance"><div class="pdv-significance-head">' + _esc(s.label || 'Significance') + '</div>' + body + '</div>'
+          : body;
+      }).join('');
+      if (fbox.innerHTML) {
+        push(fbox, 'col', 'factbox', null, null,
+          { region: 'bottom', span: 'column', lock: false, col: FACT.col != null ? FACT.col : 1 });
+      }
+    }
 
     var secCounter = 0, subCounter = 0, subsubCounter = 0;
     var sectionNumbered = false;   // does the CURRENT section carry a number
@@ -1192,6 +1388,7 @@
       return sec.special_render || 'heading';
     }
     tree.sections.forEach(function (sec) {
+      if (factSecs.indexOf(sec) >= 0) return;
       /* The first section flagged `appendix` opens the appendix zone —
        * section letters switch to A, B, … (reset once at the switch). */
       if (sec.appendix && !inAppendix) {
@@ -1208,6 +1405,7 @@
       if (cmdObj && cmdObj.type) {
         /* Map the object back onto the walker's dispatch vocabulary. */
         if (cmdObj.type === 'skip') cmd = 'skip';
+        else if (cmdObj.type === 'bare') cmd = 'bare';   // V3.907 — body, no heading
         else if (cmdObj.type === 'keywords') cmd = 'keywords_placeholder';
         else if (cmdObj.type === 'env' && cmdObj.name === 'abstract') cmd = 'abstract_env';
         else if (cmdObj.type === 'placeholder' && cmdObj.token === '{{ABSTRACT}}') cmd = 'abstract_placeholder';
@@ -1241,12 +1439,30 @@
           .filter(function (b) { return b.kind === 'paragraph' && String(b.body || '').trim(); })
           .map(function (b) { return '<p class="pdv-para">' + pe.renderParagraphHtml(b.body) + '</p>'; })
           .join('');
+        if (LOOK) {
+          /* V3.907 — the look's abstract: its own label (or none), run-in
+           * or as a heading; width/size from the look CSS. */
+          var la = LOOK.abstract || {};
+          var body0 = absBody || '<p class="pdv-para"><span class="pdv-draft">no abstract yet</span></p>';
+          if (la.label && la.label_style === 'runin') {
+            /* IEEE: "Abstract—" bold italic, run straight into the text */
+            var labHtml = '<b>' + (la.label_italic ? '<i>' + _esc(la.label) + '</i>' : _esc(la.label)) + '</b>' +
+              (la.label_sep != null ? _esc(la.label_sep) : '&ensp;');
+            body0 = body0.replace(/^<p class="pdv-para">/, '<p class="pdv-para">' + labHtml);
+          } else if (la.label) {
+            body0 = '<div class="pdv-abstract-head">' + _esc(la.label) + '</div>' + body0;
+          }
+          abs.innerHTML = body0;
+        } else
         abs.innerHTML = geom.abstractRunIn
           ? '<p class="pdv-para"><i><b>Abstract</b></i>—' + (absBody ? absBody.replace(/^<p class="pdv-para">/, '').replace(/<\/p>$/, '') : '<span class="pdv-draft">no abstract yet</span>') + '</p>'
           : '<div class="pdv-abstract-head">Abstract</div>' + (absBody || '<p class="pdv-para"><span class="pdv-draft">no abstract yet</span></p>');
         /* Published 2-col journals run a full-width abstract above the
          * columns; IEEE keeps its in-column run-in. */
-        push(abs, (geom.cols === 2 && !geom.abstractRunIn) ? 'full' : 'col', 'abstract', sec.id);
+        /* a look may set the abstract in the first column (PNAS) instead
+         * of across both */
+        var absSpan = LOOK ? ((LOOK.abstract || {}).mode !== 'column' && geom.cols === 2) : (geom.cols === 2 && !geom.abstractRunIn);
+        push(abs, absSpan ? 'full' : 'col', 'abstract', sec.id);
         return;
       }
       if (cmd === 'keywords_placeholder') {
@@ -1254,23 +1470,45 @@
           .filter(function (b) { return b.kind === 'paragraph'; })
           .map(function (b) { return String(b.body || '').trim(); })
           .filter(Boolean).join(', ');
-        if (kwText) {
+        if (kwText && !(LOOK && LOOK.keywords && LOOK.keywords.show === false)) {
           var kw = document.createElement('p');
           kw.className = 'pdv-keywords';
-          kw.innerHTML = '<b>Keywords:</b> ' + _esc(kwText);
-          push(kw, 'col', 'keywords', sec.id);
+          /* a look names its own label (none in PNAS) */
+          var kwL = (LOOK && LOOK.keywords) || {};
+          var kwLabel = LOOK ? kwL.label : 'Keywords:';
+          kw.innerHTML = (kwLabel ? '<b>' + (kwL.label_italic ? '<i>' + _esc(kwLabel) + '</i>' : _esc(kwLabel)) + '</b>' +
+            (kwL.label_sep != null ? _esc(kwL.label_sep) : ' ') : '') + _esc(kwText);
+          /* under a look the keywords sit with the abstract (the front box
+           * spans both columns unless the abstract is set in column 1) */
+          var kwSpan = LOOK && geom.cols === 2 && (LOOK.abstract || {}).mode !== 'column';
+          push(kw, kwSpan ? 'full' : 'col', 'keywords', sec.id);
         }
         return;
       }
 
+      /* V3.907 — a section the look sets in its own type (Nature's
+       * small-print Methods): every node of it carries the style class. */
+      var secStyleKey = null;
+      if (LOOK && LOOK.section_styles && window.PaperLook.sectionStyle(LOOK, sec)) {
+        secStyleKey = (sec.special && LOOK.section_styles[sec.special]) ? sec.special : sec.kind;
+      }
+      var pushSec = function (node, type, kind, sid, bid, fl) {
+        if (secStyleKey && node && node.classList && kind !== 'figure' && kind !== 'table') node.classList.add('pdv-secstyle-' + secStyleKey);
+        push(node, type, kind, sid, bid, fl);
+      };
       /* Regular heading — numbered per the sectionNumbering mode + the
        * section's resolved command. Sub-counters reset at each new
        * numbered section. */
       var head = document.createElement('div');
       head.className = 'pdv-heading';
       head.dataset.sectionId = sec.id || '';   // V3.415 — R8 click target
-      sectionNumbered = sectionGetsNumber(cmd);
-      if (sectionNumbered) {
+      sectionNumbered = cmd !== 'bare' && sectionGetsNumber(cmd);
+      /* V3.909 — a section the class opens with a run-in label instead of
+       * a heading (PNAS: "ACKNOWLEDGMENTS." in bold sans, then small text) */
+      var secRunHead = secStyleKey && LOOK.section_styles[secStyleKey].runin_head;
+      if (cmd === 'bare' || secRunHead) {
+        head = null;
+      } else if (sectionNumbered) {
         secCounter++; subCounter = 0; subsubCounter = 0;
         var secNumStr = fmtSectionNum(numStyle, secCounter, inAppendix);
         head.innerHTML = '<span class="pdv-heading-num">' + _esc(secNumStr) + '</span> ' + _esc(label);
@@ -1278,9 +1516,39 @@
       } else {
         head.textContent = label;
       }
-      push(head, 'col', 'heading', sec.id);
+      if (head) push(head, 'col', 'heading', sec.id);
 
+      var prevBlk = null;
+      /* V3.908 — indentation is decided HERE, not by CSS adjacency (the
+       * typesetter measures each paragraph on its own): the first paragraph
+       * after a heading is not indented (titlesec's \titlespacing* — the
+       * exporter's rule), nor is text continuing around a display. */
+      var afterHeading = !!head && !(LOOK && LOOK.indent_after_heading);   // IEEE indents the first paragraph
+      /* A run-in subheading (look h2/h3 `runin`, e.g. Nature's Methods)
+       * opens the first line of the paragraph after it, as in the PDF. */
+      var pendingRunIn = null;
+      var secLook = secStyleKey ? LOOK.section_styles[secStyleKey] : null;
+      var secFirstMargin = null;
+      if (secRunHead) {
+        var rh = secRunHead;
+        pendingRunIn = { html: '<span class="pdv-runin pts-atom" style="' + window.PaperLook.inlineCss(LOOK, rh) +
+          'padding-right:' + ((rh.gap || 0) * 4 / 3).toFixed(2) + 'px">' + _esc(rh.text || label) + '</span>', el: null, blk: null };
+        // the class's \vskip before it, from the last body baseline
+        var bodyS = { family: 'text', size: LOOK.body.size, lead: LOOK.body.lead };
+        var secS = { family: secLook.family || 'text', size: secLook.size || LOOK.body.size, lead: secLook.lead || LOOK.body.lead };
+        secFirstMargin = window.PaperLook.texGap(LOOK, bodyS, secS, secLook.before || 0) * 4 / 3;
+      }
+      function runInStyle(lvl) {
+        if (!LOOK) return null;
+        var h = (secLook && secLook['h' + lvl]) || LOOK['h' + lvl];
+        return h && h.runin ? h : null;
+      }
       sec.children.forEach(function (blk) {
+        /* V3.906 — how this block joins the one before it (shared with the
+         * exporter): text continuing a sentence around a display equation
+         * is not a new paragraph — no indent, no paragraph space. */
+        var join = (window.PaperLayout && window.PaperLayout.blockJoin) ? window.PaperLayout.blockJoin(prevBlk, blk) : 'par';
+        if (String(blk.body || '').trim() || blk.kind === 'figure' || blk.kind === 'table') prevBlk = blk;
         /* Subheadings are headings in the flow (\subsection /
          * \subsubsection), numbered under the current section. */
         if (blk.kind === 'subheading') {
@@ -1296,7 +1564,17 @@
           if (numStr && blk.attrs && blk.attrs.ref_label) secRefNums[blk.attrs.ref_label] = _refNum(numStr);
           subEl.innerHTML = (numStr ? '<span class="pdv-heading-num">' + _esc(numStr) + '</span> ' : '') +
             pe.renderParagraphHtml(blk.body || '');
-          push(subEl, 'col', 'subheading', sec.id, blk.id);
+          var ri = runInStyle(lvl);
+          if (ri) {
+            var sepRi = ri.runin_sep == null ? '.' : ri.runin_sep;
+            var txt = subEl.innerHTML.replace(/\s+$/, '');
+            pendingRunIn = { html: '<span class="pdv-runin" data-block-id="' + _esc(blk.id || '') + '" style="font-weight:' +
+              (ri.weight === 'bold' ? 700 : 400) + ';font-style:' + (ri.style === 'italic' ? 'italic' : 'normal') + '">' +
+              txt + (sepRi && !/[.:?!]$/.test(subEl.textContent.trim()) ? _esc(sepRi) : '') + '</span> ', el: subEl, blk: blk };
+            return;
+          }
+          pushSec(subEl, 'col', 'subheading', sec.id, blk.id);
+          afterHeading = true;
           return;
         }
         /* Lists (itemize / enumerate) — body is one item per line, leading
@@ -1306,23 +1584,61 @@
           listEl.className = 'pdv-list-block pdv-density-body';   // V3.486 — grant line density applies to body lists
           listEl.dataset.blockId = blk.id || '';
           listEl.innerHTML = _listHtml(blk.body || '', (blk.attrs && blk.attrs.list_type) || 'bullet');
-          push(listEl, 'col', 'list', sec.id, blk.id);
+          pushSec(listEl, 'col', 'list', sec.id, blk.id);
           return;
         }
         var node = _buildBlockNode(blk, tpl, geom, nums);
         if (!node) return;
-        push(node.el, node.type, blk.kind, sec.id, blk.id, node.float || null);
+        if (join === 'continue' && node.el.classList) node.el.classList.add('pdv-para-cont', 'pdv-after-display');
+        if (join === 'attach' && node.el.classList) node.el.classList.add('pdv-eq-attached');
+        var isPara = node.el.classList && node.el.classList.contains('pdv-bodypara');
+        if (pendingRunIn) {
+          if (isPara) {
+            node.el.insertAdjacentHTML('afterbegin', pendingRunIn.html);
+            node.el.classList.add('pdv-noindent', 'pdv-has-runin');
+            if (secFirstMargin != null) { node.el.style.marginTop = secFirstMargin.toFixed(2) + 'px'; secFirstMargin = null; }
+          } else if (pendingRunIn.el) {
+            pushSec(pendingRunIn.el, 'col', 'subheading', sec.id, pendingRunIn.blk.id);
+          }
+          pendingRunIn = null;
+        } else if (isPara && afterHeading) {
+          node.el.classList.add('pdv-noindent');
+        }
+        if (blk.kind === 'paragraph' || blk.kind === 'equation' || blk.kind === 'list') afterHeading = false;
+        pushSec(node.el, node.type, blk.kind, sec.id, blk.id, node.float || null);
       });
+      if (pendingRunIn && pendingRunIn.el) pushSec(pendingRunIn.el, 'col', 'subheading', sec.id, pendingRunIn.blk.id);
     });
 
-    /* Bibliography. */
-    var bib = _buildBibliography(tpl);
+    /* Bibliography (V3.911 — not in this document when the look makes the
+     * references their own upload, NSF's References Cited). */
+    var bib = (LOOK && LOOK.bib && LOOK.bib.where === 'separate' && !state.subdocRefs) ? null : _buildBibliography(tpl);
+    /* V3.914 — a grant document with nothing in it yet */
+    if (state.grantDoc && state.grantDoc !== 'project_description' && !state.subdocRefs &&
+        !items.some(function (it) { return it.blockKind && it.blockKind !== 'title'; })) {
+      var none = document.createElement('p');
+      none.className = 'pdv-para pdv-empty-doc';
+      none.textContent = 'This document has no section in the paper yet. Add it with + Add section in the editor, or upload its PDF on the Grant Docs page.';
+      push(none, 'col', 'note');
+    }
     if (bib) {
       var bibHead = document.createElement('div');
       bibHead.className = 'pdv-heading';
-      bibHead.textContent = 'References';
-      push(bibHead, 'col', 'heading');
-      push(bib, 'col', 'bibliography');
+      bibHead.textContent = (LOOK && LOOK.bib && LOOK.bib.head != null) ? LOOK.bib.head : 'References';
+      if (bibHead.textContent) push(bibHead, 'col', 'heading');   // some journals print no heading
+      if (LOOK) {
+        /* V3.908 — one item per reference, so the list flows across columns
+         * and pages the way LaTeX's thebibliography does (one atomic block
+         * jumped whole to the next page and left a hole). */
+        Array.prototype.slice.call(bib.children).forEach(function (entry) {
+          var one = document.createElement('div');
+          one.className = bib.className + ' pdv-bib-one';
+          one.appendChild(entry);
+          push(one, 'col', 'bibentry');
+        });
+      } else {
+        push(bib, 'col', 'bibliography');
+      }
     }
     state.secRefNums = secRefNums;   // consumed by _resolveSecRefs post-mount
     return items;
@@ -1511,6 +1827,88 @@
     return wrap;
   }
 
+  /* "Figure 3." / "Fig. 3 " / "Table 1 |" — the look's caption label and
+   * separator (the .tex sets the same via \figurename + labelsep). */
+  function _captionLabel(geom, kind, num) {
+    var c = geom.look && geom.look.caption;
+    if (!c) return '<b>' + (kind === 'tab' ? 'Table' : 'Figure') + ' ' + num + '.</b> ';
+    var lab = (kind === 'tab' ? c.label_tab : c.label_fig) + ' ' + num;
+    var sep = c.sep == null ? '. ' : c.sep;
+    var html = c.label_weight === 'bold' ? '<b>' + _esc(lab) + '</b>' : _esc(lab);
+    return html + _esc(sep).replace(/ $/, '&#32;').replace(/^ /, '&#32;');
+  }
+
+  /* V3.907 — the journal look's front matter: the same pieces, marks and
+   * order PaperLook.texAuthors writes into the .tex (superscript
+   * affiliation numbers only when there is more than one affiliation, "*"
+   * for the corresponding author, "&" before the last name when the look
+   * says so). Affiliations go in the block, or — `where: 'footnote'` — into
+   * a note the packer sets at the foot of page 1. */
+  function _buildLookFront(title, look) {
+    var cfg = state.config || {};
+    var authors = (Array.isArray(cfg.authors) ? cfg.authors : []).filter(function (a) { return a && a.name; });
+    var affs = Array.isArray(cfg.affiliations) ? cfg.affiliations : [];
+    var many = affs.length > 1;
+    var wrap = document.createElement('div');
+    wrap.className = 'pdv-titleblock pdv-look-front';
+    var html = (look.title && look.title.show === false) ? ''
+      : '<div class="pdv-title">' + _pe().renderParagraphHtml(title || 'Untitled paper') + '</div>';
+    /* V3.911 — a grant narrative names no authors */
+    if (look.authors && look.authors.show === false) {
+      wrap.innerHTML = html;
+      return { block: wrap, note: null, colnote: null };
+    }
+    var names;
+    if (authors.length) {
+      var runs = authors.map(function (a) {
+        var idx = (Array.isArray(a.affiliationIdx) ? a.affiliationIdx : (a.affiliationIdx != null ? [a.affiliationIdx] : []))
+          .filter(function (i) { return affs[i] != null; }).map(function (i) { return i + 1; });
+        var colNote = look.affiliations && look.affiliations.where === 'colnote';
+        var marks = (many && !colNote) ? idx.map(String) : [];
+        if (a.corresponding && !colNote && !(look.authors && look.authors.corresponding === false)) marks.push('*');
+        return _esc(a.name) + (marks.length ? '<sup>' + marks.join(',') + '</sup>' : '');
+      });
+      names = runs.length > 1
+        ? runs.slice(0, -1).join(', ') + ((look.authors && look.authors.and === '&') ? ' &amp; ' : ', and ') + runs[runs.length - 1]
+        : runs[0];
+    } else {
+      var meta = (_pe().getPaperMeta && _pe().getPaperMeta()) || {};
+      names = _esc(meta.lead_author || '');
+    }
+    html += '<div class="pdv-authors">' + names + '</div>';
+    /* a class that prints the corresponding author elsewhere (PNAS's
+     * fact box) says `authors.corresponding: false` */
+    var corr = (look.authors && look.authors.corresponding === false) ? null
+      : authors.filter(function (a) { return a.corresponding && a.email; })[0];
+    var affLines = affs.map(function (t, i) { return (many ? '<sup>' + (i + 1) + '</sup>' : '') + _esc(t); });
+    if (corr) affLines.push('<sup>*</sup>Correspondence: ' + _esc(corr.email));
+    var note = null, colnote = null;
+    var where = (look.affiliations && look.affiliations.where) || 'front';
+    if (where === 'colnote' && affs.length) {
+      /* IEEE: one first-page note at the foot of column 1, worded as the
+       * exporter's \thanks ("The authors are with …; … (e-mail: …).") */
+      var corrN = authors.filter(function (a) { return a.corresponding && a.email; })[0];
+      colnote = document.createElement('div');
+      colnote.className = 'pdv-affils pdv-affil-colnote';
+      colnote.textContent = (look.affiliations.prefix != null ? look.affiliations.prefix : 'The authors are with ') +
+        affs.join('; ') + (corrN ? ' (e-mail: ' + corrN.email + ')' : '') + '.';
+    } else if (affLines.length) {
+      if (where === 'footnote') {
+        note = document.createElement('div');
+        note.className = 'pdv-affils pdv-affil-note';
+        note.innerHTML = affLines.join(' ');
+      } else {
+        /* `affiliations.inline` runs them on as one paragraph with that
+         * separator (authblk's "; " in PNAS) */
+        var inl = look.affiliations && look.affiliations.inline;
+        html += '<div class="pdv-affils">' + (inl ? '<div>' + affLines.join(_esc(inl)) + '</div>'
+          : affLines.map(function (l) { return '<div>' + l + '</div>'; }).join('')) + '</div>';
+      }
+    }
+    wrap.innerHTML = html;
+    return { block: wrap, note: note, colnote: colnote };
+  }
+
   function _buildBlockNode(blk, tpl, geom, nums) {
     var pe = _pe();
     if (blk.kind === 'paragraph') {
@@ -1530,11 +1928,19 @@
        * resolve "insert before this paragraph". */
       p.dataset.blockId = blk.id || '';
       p.dataset.blockKind = 'paragraph';
+      /* V3.910 — Tighten / Loosen from the layout check: \looseness */
+      var lzA = blk.attrs && blk.attrs.looseness;
+      if (lzA === -1 || lzA === 1) p.dataset.looseness = String(lzA);
       /* V3.649 — body lists render here too, or the journal preview would
        * print the raw "- item" lines the editor shows as a list. */
+      /* V3.908 — under a journal look, inline formulas are split at the
+       * points where TeX may break them (PaperTypeset.breakableMathText),
+       * so the typesetter can break there too. */
+      var srcBody = (geom.look && window.PaperTypeset && window.PaperTypeset.breakableMathText)
+        ? window.PaperTypeset.breakableMathText(body) : body;
       p.innerHTML = pe.renderParagraphBodyHtml
-        ? pe.renderParagraphBodyHtml(body)
-        : pe.renderParagraphHtml(body);
+        ? pe.renderParagraphBodyHtml(srcBody)
+        : pe.renderParagraphHtml(srcBody);
       return { el: p, type: 'col' };
     }
 
@@ -1542,7 +1948,11 @@
       var attrs = blk.attrs || {};
       var src = String(blk.body || '').trim();
       if (!src) return null;
-      var display = attrs.display !== false;
+      /* V3.906 — the editor's and exporter's rule (`!!attrs.display`):
+       * an equation block without the flag is INLINE. The preview used
+       * `!== false`, so such a block was a display here and inline math
+       * in the PDF. */
+      var display = !!attrs.display;
       var el = document.createElement('div');
       if (!display) {
         el.className = 'pdv-para';
@@ -1608,6 +2018,13 @@
         ? { region: anchorVal, span: type === 'full' ? 'page' : 'column', lock: fa.lock === true,
             spacing: (typeof fa.spacing === 'number' && isFinite(fa.spacing)) ? fa.spacing : 0 }  // V3.410
         : null;
+      /* V3.908 — under a journal look the PDF floats an unanchored figure
+       * ([tbp]): top of the current column/page, else its bottom, else a
+       * later page. The preview follows instead of drawing it in place. */
+      if (!figFloat && anchorVal === 'flow' && geom.look) {
+        figFloat = { region: 'auto', span: type === 'full' ? 'page' : 'column', lock: false,
+          spacing: (typeof fa.spacing === 'number' && isFinite(fa.spacing)) ? fa.spacing : 0 };
+      }
       var fig = document.createElement('figure');
       fig.className = 'pdv-figure';
       fig.dataset.blockId = blk.id || '';
@@ -1615,6 +2032,9 @@
       fig.dataset.anchor = anchorVal;
       if (isWrap) {
         fig.dataset.wrapSide = (fa.wrap_side === 'left') ? 'left' : 'right';
+        /* V3.912 — under a look the paginator places it the way wrapfig
+         * does (a box beside the next N lines), not a CSS float */
+        if (geom.look) fig.classList.add('pdv-wrapfig-tex');
         /* The floated FIGURE carries the % width so it claims only pct% of
          * the column; the box inside fills it (100%). */
         fig.style.width = pct + '%';
@@ -1631,6 +2051,13 @@
        * When height-bound the image letterboxes (centered, narrower than
        * the box); the caption always spans the box. */
       var maxHCap = (typeof fa.max_h === 'number' && fa.max_h > 0) ? Math.round(fa.max_h) : null;
+      /* V3.907 — the look's page-fit cap (artwork + caption must fit the
+       * text area; PaperLook.figureMaxHeight, the exporter's rule). mm. */
+      if (geom.look && window.PaperLook) {
+        var capBp = window.PaperLook.figureMaxHeight(geom.look, String(blk.body || fa.caption || ''), type === 'full' || geom.cols === 1);
+        var capMm = Math.floor(capBp * 25.4 / 72);
+        if (!maxHCap || capMm < maxHCap) maxHCap = capMm;
+      }
       fig.dataset.h = maxHCap ? String(maxHCap) : '';  // measure-cache discriminator (aliasing bug class)
       var cache = fa.download_url ? state.imgSizeCache[fa.download_url] : null;
       var aspect = (cache && cache.w > 0 && cache.h > 0) ? cache.w / cache.h : null;
@@ -1663,15 +2090,21 @@
        * figure element itself carries the pct% width set above. */
       var boxWidthCss = isWrap ? '100%' : (pct + '%');
       var boxMarginCss = (isWrap || !centered) ? 'margin:0;' : 'margin:0 auto;';
+      var capHtml = (captionSrc || num)
+        ? '<figcaption class="pdv-figcap">' +
+          (num ? _captionLabel(geom, 'fig', num) : '') +
+          pe.renderParagraphHtml(captionSrc) + '</figcaption>'
+        : '';
+      /* V3.906 — journals run a caption across the whole column (or page,
+       * for a spanning figure) however narrow the artwork is; the export
+       * does the same. caption_fit:'box' keeps the old caption-under-the-
+       * image box (a minipage in the .tex). Wrap figures keep it boxed. */
+      var capInBox = isWrap || fa.caption_fit === 'box';
       fig.innerHTML =
         '<div class="pdv-fig-box" style="width:' + boxWidthCss + ';' + boxMarginCss + '">' +
         '<div class="pdv-fig-imgwrap">' + imgHtml + '</div>' +
-        (captionSrc || num
-          ? '<figcaption class="pdv-figcap">' +
-            (num ? '<b>Figure ' + num + '.</b> ' : '') +
-            pe.renderParagraphHtml(captionSrc) + '</figcaption>'
-          : '') +
-        '</div>';
+        (capInBox ? capHtml : '') +
+        '</div>' + (capInBox ? '' : capHtml);
       if (_pe().isEditable()) fig.title = 'Click to adjust layout (anchor / span / width / lock)';
       return { el: fig, type: type, float: figFloat };
     }
@@ -1687,7 +2120,8 @@
       var tFloat = tAnchor !== 'flow'
         ? { region: tAnchor, span: tType === 'full' ? 'page' : 'column', lock: ta.lock === true,
             spacing: (typeof ta.spacing === 'number' && isFinite(ta.spacing)) ? ta.spacing : 0 }  // V3.410
-        : null;
+        : (geom.look ? { region: 'auto', span: tType === 'full' ? 'page' : 'column', lock: false,   // V3.908 — [tbp]
+            spacing: (typeof ta.spacing === 'number' && isFinite(ta.spacing)) ? ta.spacing : 0 } : null);
       var el2 = document.createElement('div');
       el2.className = 'pdv-table-wrap';
       el2.dataset.blockId = blk.id || '';
@@ -1772,8 +2206,10 @@
             tdCss += ';background:' + tFills[cSt.bg].css;
             tdCls = ' class="pdv-cell-filled"';
           }
+          /* V3.906 — cells are prose (math, citations, refs, **bold**),
+           * the same inline contract the .tex export now applies. */
           html += '<td' + spanAttrs + tdCls + ' style="' + tdCss + '">' +
-            _esc(v == null ? '' : String(v)) + '</td>';
+            (v == null || v === '' ? '' : _pe().renderParagraphHtml(String(v))) + '</td>';
         }
         html += '</tr>';
       }
@@ -1781,7 +2217,7 @@
       var tnum = (ta.numbered !== false && nums.tab[blk.id]) ? nums.tab[blk.id] : null;
       var tcap = String(ta.caption || '').trim();
       if (tcap || tnum) {
-        html += '<div class="pdv-tabcap">' + (tnum ? '<b>Table ' + tnum + '.</b> ' : '') +
+        html += '<div class="pdv-tabcap">' + (tnum ? _captionLabel(geom, 'tab', tnum) : '') +
           _pe().renderParagraphHtml(tcap) + '</div>';
       }
       /* Tables II — table notes under the caption (threeparttable look). */
@@ -1789,7 +2225,7 @@
         .map(function (s) { return s.trim(); }).filter(Boolean);
       if (tNotes.length) {
         html += '<div class="pdv-tabnotes">' + tNotes.map(function (n) {
-          return '<div>' + _esc(n) + '</div>';
+          return '<div>' + _pe().renderParagraphHtml(n) + '</div>';
         }).join('') + '</div>';
       }
       el2.innerHTML = html;
@@ -1819,13 +2255,55 @@
     var list = (entry.authorsFull && entry.authorsFull.length)
       ? entry.authorsFull
       : (entry.authors || []).map(function (n) { return { family: n, given: '' }; });
-    if (!list.length) return _esc(entry.firstAuthor || entry.key || '');
+    /* V3.911 — no authors (a statute, a web page): BibTeX prints none,
+     * never the citation key */
+    if (!list.length) return _esc(entry.firstAuthor || '');
     var total = entry.authorCount || list.length;
     var cap = opts.etAlAfter || 99;
     var shown = list.slice(0, cap).map(function (a) { return _esc(_authorName(a, opts.initialsFirst)); });
     if (total > shown.length) return shown.join(', ') + ', et al.';
     if (shown.length === 1) return shown[0];
     return shown.slice(0, -1).join(', ') + ' ' + (opts.lastSep || '&') + ' ' + shown[shown.length - 1];
+  }
+
+  /* V3.914 — natbib's unsrtnat.bst, as the PDF sets it: every author as
+   * stored ("A, B, and C"), the title in BibTeX's sentence case, the
+   * journal in italics with volume (number):pages and year, then the DOI. */
+  function _sentenceCase(t) {
+    var out = '', after = true;
+    for (var i = 0; i < t.length; i++) {
+      var c = t.charAt(i);
+      out += after ? c : c.toLowerCase();
+      if (/[A-Za-z0-9]/.test(c)) after = false;
+      if (c === ':' && t.charAt(i + 1) === ' ') {   // BibTeX keeps the letter after ": "
+        out += ' '; i++;
+        after = true;
+      }
+    }
+    return out;
+  }
+  function _formatUnsrtnat(entry, number, family) {
+    function dec(x) { var t = document.createElement('textarea'); t.innerHTML = String(x || ''); return t.value; }
+    var list = (entry.authorsFull && entry.authorsFull.length) ? entry.authorsFull
+      : (entry.authors || []).map(function (n) { return { family: n, given: '' }; });
+    var names = list.map(function (a) { return _esc(((a.given ? a.given + ' ' : '') + (a.family || '')).trim()); }).filter(Boolean);
+    var au = names.length > 2 ? names.slice(0, -1).join(', ') + ', and ' + names[names.length - 1]
+      : names.join(' and ');
+    var blocks = [];
+    if (au) blocks.push(au);
+    var title = dec(entry.title).trim().replace(/\.$/, '');
+    if (title) blocks.push(_esc(_sentenceCase(title)));
+    var j = dec(entry.journal).trim();
+    var vol = String(entry.volume || '').trim(), iss = String(entry.issue || '').trim();
+    var pages = String(entry.pages || '').trim().replace(/-+/g, '\u2013');
+    var vnp = vol + (iss ? ' (' + iss + ')' : '') + (pages ? (vol || iss ? ':' : 'pages ') + pages : '');
+    var pub = [j ? '<i>' + _esc(j) + '</i>' : '', _esc(vnp), _esc(entry.year ? String(entry.year) : '')].filter(Boolean).join(', ');
+    if (pub) blocks.push(pub);
+    if (entry.doi) blocks.push('doi: ' + _esc(entry.doi));
+    var html = blocks.map(function (b) { return /[.?!]$/.test(b.replace(/<[^>]+>/g, '')) ? b : b + '.'; }).join(' ');
+    var lab = ((state.lastLook || {}).bib || {}).label || (family === 'numeric-bracket' ? 'bracket' : 'dot');
+    var prefix = lab === 'bracket' ? '[' + number + '] ' : lab === 'paren' ? '(' + number + ') ' : lab === 'plain' ? number + ' ' : number + '. ';
+    return { prefix: prefix, html: html };
   }
 
   /* Format one reference the way the target family's .bst roughly would.
@@ -1836,8 +2314,15 @@
     var iss = String(entry.issue || '').trim();
     var pages = String(entry.pages || '').trim();
     var year = entry.year ? String(entry.year) : '';
-    var title = String(entry.title || '').trim();
-    var journal = String(entry.journal || '').trim();
+    /* V3.911 — Crossref's HTML-escaped names ("Science &amp; Engineering"),
+     * decoded as the .bib writer does */
+    function dec(x) {
+      var t = document.createElement('textarea');
+      t.innerHTML = String(x || '');
+      return t.value;
+    }
+    var title = dec(entry.title).trim();
+    var journal = dec(entry.journal).trim();
     var prefix, html;
 
     if (family === 'numeric-bracket') {
@@ -1888,6 +2373,7 @@
         html += '.';
       }
     }
+    html = html.replace(/^\s*[,.]\s*/, '');   // an entry with no authors starts at its title
     return { prefix: prefix, html: html };
   }
 
@@ -1912,6 +2398,9 @@
         return String((ea && ea.firstAuthor) || a).localeCompare(String((eb && eb.firstAuthor) || b));
       });
     }
+    /* V3.914 — under a look the bibliography is set the way the template's
+     * .bst writes it, where the preview knows that style (unsrtnat) */
+    var bst = state.lastLook ? ((tpl.citation || {}).bibliography_style || '') : '';
     var wrap = document.createElement('div');
     wrap.className = 'pdv-bib pdv-bib-' + family;
     wrap.innerHTML = ordered.map(function (key, i) {
@@ -1922,7 +2411,7 @@
         return '<div class="pdv-bib-entry pdv-bib-missing">' + _esc(mp) + '@' + _esc(key) +
           ' — not in the lab library</div>';
       }
-      var f = _formatBibEntry(e, family, n);
+      var f = bst === 'unsrtnat' && numeric ? _formatUnsrtnat(e, n, family) : _formatBibEntry(e, family, n);
       return '<div class="pdv-bib-entry">' +
         (f.prefix ? '<span class="pdv-bib-num">' + _esc(f.prefix) + '</span>' : '') +
         f.html + '</div>';
@@ -1987,11 +2476,13 @@
     /* First render ever: wait for unknown images so heights are real.
      * Afterwards the aspect-ratio style makes measurement synchronous. */
     var pending = [];
+    var refit = false;   // a figure built before its aspect was known
     items.forEach(function (item) {
       if (!item.node.querySelectorAll) return;
       item.node.querySelectorAll('img').forEach(function (img) {
         var url = img.getAttribute('src');
         if (!url || state.imgSizeCache[url]) return;
+        var figEl = img.closest('.pdv-figure');
         pending.push(
           Promise.race([
             (img.decode ? img.decode() : Promise.resolve()),
@@ -2000,6 +2491,7 @@
             if (img.naturalWidth && img.naturalHeight) {
               state.imgSizeCache[url] = { w: img.naturalWidth, h: img.naturalHeight };
               img.style.aspectRatio = img.naturalWidth + '/' + img.naturalHeight;
+              if (figEl && figEl.dataset.h) refit = true;
             }
           }).catch(function () { /* broken image — CSS placeholder height */ })
         );
@@ -2025,7 +2517,11 @@
           mt = parseFloat(cs.marginTop) || 0;
           mb = parseFloat(cs.marginBottom) || 0;
         } catch (e) { /* ignore */ }
-        x.h = Math.ceil(rect.height + mt + mb);
+        /* V3.912 — under a look heights are exact (lines × leading); a
+         * whole-pixel ceiling per item added ~2 px a page and lost the
+         * line TeX fits exactly at the foot */
+        x.h = state.lastLook ? Math.round((rect.height + mt + mb) * 1000) / 1000 : Math.ceil(rect.height + mt + mb);
+        x.mt = mt; x.mb = mb;   // V3.912 — the paginator collapses adjoining margins as CSS (and \addvspace) do
       });
       probe.innerHTML = '';
     }
@@ -2060,12 +2556,12 @@
       var misses = [];
       list.forEach(function (x) {
         var k = cacheKey(x, width);
-        if (cache[k] != null) x.h = cache[k];
+        if (cache[k] != null) { x.h = cache[k].h; x.mt = cache[k].mt; x.mb = cache[k].mb; }
         else misses.push(x);
       });
       if (misses.length) {
         measureBatch(misses, width);
-        misses.forEach(function (x) { cache[cacheKey(x, width)] = x.h; });
+        misses.forEach(function (x) { cache[cacheKey(x, width)] = { h: x.h, mt: x.mt, mb: x.mb }; });
       }
     }
 
@@ -2080,11 +2576,347 @@
        * before touching the shared probe further so the two don't collide. */
       if (typeof seq === 'number' && (seq !== state.renderSeq || !state.open)) { probe.innerHTML = ''; return; }
       probe.innerHTML = '';
+      /* V3.909 — a height-capped figure (fa.max_h, a look's page-fit cap)
+       * can only be fitted once its aspect is known: it was built
+       * width-bound, so start the render again now that every decoded
+       * image is in the cache (once — cached images never wait). The
+       * superseded render bails at its next sequence check. */
+      if (refit && typeof seq === 'number') {
+        state.forceRender = true;
+        renderDocument().catch(function (e) { console.warn('[paper-doc-view] render failed:', e.message || e); });
+        return;
+      }
     }
 
+    /* V3.908 — under a journal look, body paragraphs are set the way TeX
+     * sets them (Knuth–Plass + TeX hyphenation, same fonts) BEFORE their
+     * height is read, so each one has exactly the PDF's line count, its
+     * height is lines × leading, and a column/page split is a clean cut
+     * between two lines. Every render, cache or not — the mounted node
+     * must be the laid-out one. */
+    if (geom.look && window.PaperTypeset) {
+      _typesetParagraphs(colItems, geom.colW);
+      _typesetParagraphs(fullItems, geom.bodyW);
+    }
     measureCached(colItems, geom.colW);
     measureCached(fullItems, geom.bodyW);
     if (noteLines.length) measureBatch(noteLines, geom.bodyW);
+    if (geom.look) _setDisplays(colItems, geom);   // V3.914 — TeX's display spacing
+    /* V3.912 — a wrapped figure's box (width, height): wrapfig's sums
+     * start from it */
+    if (geom.look && geom.cols === 1) {
+      var wr = colItems.filter(function (x) { return x.node && x.node.classList && x.node.classList.contains('pdv-wrapfig-tex'); });
+      if (wr.length) {
+        probe.innerHTML = '';
+        probe.style.width = geom.colW + 'px';
+        wr.forEach(function (x) { probe.appendChild(x.node); });
+        void probe.offsetHeight;
+        wr.forEach(function (x) {
+          var rc = x.node.getBoundingClientRect();
+          x.wrapFig = true; x.figW = rc.width; x.figH = rc.height;
+          x.side = x.node.dataset.wrapSide === 'left' ? 'left' : 'right';
+        });
+        probe.innerHTML = '';
+      }
+    }
+  }
+
+  /* V3.914 — a display equation, spaced the way TeX spaces it (TeXbook
+   * ch. 19, tex.web §1199–1206): from the baseline above to the baseline
+   * below, the line's depth, \abovedisplayskip, interline glue against the
+   * equation box's height (\baselineskip − depth − height, or \lineskip
+   * when that is negative), the box, \belowdisplayskip, interline glue
+   * against its depth, the next line's height. The short skips apply when
+   * the equation starts right of where the line above ends (+2em), and a
+   * display that starts a paragraph (after a heading) sits under an empty
+   * line. The box's height and depth are KaTeX's struts (TeX's own metrics)
+   * at the body size; XeTeX gives each text line the face's ascender and
+   * descender. Replaces KaTeX's 1em display margins, which overstated
+   * every equation by about a line and a half. */
+  function _setDisplays(list, geom) {
+    var look = geom.look, probe = state.probeEl;
+    if (!look || !probe || !window.PaperLook) return;
+    var PXb = 4 / 3;
+    var fnt = window.PaperLook.FONTS[look.fonts.text] || {};
+    var size = look.body.size, bs = look.body.lead;
+    var pd = (fnt.desc || 0.25) * size, htNext = (fnt.ht || 0.7) * size, lsk = 0.99626;
+    var lineOff = window.PaperLook.lineOff(look, { family: 'text', size: size, lead: bs });
+    var A = (look.display || {}).above || 0, B = (look.display || {}).below || 0;
+    function glue(x) { return x >= 0 ? x : lsk; }
+    list.forEach(function (x, i) {
+      var node = x.node;
+      if (!node || !node.classList || !node.classList.contains('pdv-eq')) return;
+      var prev = list[i - 1];
+      var attached = node.classList.contains('pdv-eq-attached') && prev && prev.node &&
+        prev.node.classList && prev.node.classList.contains('pts-para');
+      probe.innerHTML = '';
+      probe.style.width = geom.colW + 'px';
+      if (attached) probe.appendChild(prev.node);
+      probe.appendChild(node);
+      void probe.offsetHeight;
+      var kx = node.querySelector('.katex');
+      var html = node.querySelector('.katex-html');
+      if (!kx || !html) { probe.innerHTML = ''; return; }
+      var kfs = parseFloat(getComputedStyle(kx).fontSize) || 16;
+      var h = 0, d = 0;
+      html.querySelectorAll('.strut').forEach(function (st) {
+        var H = parseFloat(st.style.height) || 0;
+        var D = -(parseFloat(st.style.verticalAlign) || 0);
+        if (H - D > h) h = H - D;
+        if (D > d) d = D;
+      });
+      h *= size; d *= size;                                   // em → bp at the body size
+      var bodyPx = size * PXb;
+      // the formula's own width: KaTeX makes .katex-html a full-width block in display mode
+      var bl = Infinity, br = -Infinity;
+      Array.prototype.forEach.call(html.children, function (b) {
+        if (!b.classList || !b.classList.contains('base')) return;
+        var r = b.getBoundingClientRect();
+        if (r.left < bl) bl = r.left;
+        if (r.right > br) br = r.right;
+      });
+      var wPx = br > bl ? br - bl : html.getBoundingClientRect().width;
+      var w = wPx * bodyPx / kfs / PXb;   // bp, at TeX's math size
+      var short = true, emptyLine = !attached;
+      if (attached) {
+        var lns = prev.node.querySelectorAll('.pts-ln');
+        var last = lns[lns.length - 1];
+        var lw = 0;
+        if (last) {
+          var rg = document.createRange();
+          rg.selectNodeContents(last);
+          var rr = rg.getBoundingClientRect(), lr = last.getBoundingClientRect();
+          lw = (rr.right - lr.left) / PXb;
+        }
+        var shift = (geom.colW / PXb - w) / 2;
+        short = shift > lw + 2 * size;                        // \predisplaysize = line width + 2em
+      }
+      var above = short ? 0 : A, below = short ? 0.6 * B : B;
+      var p0 = emptyLine ? 0 : pd;
+      var top = (emptyLine ? bs : 0) + p0 + above + glue(bs - p0 - h);   // baseline above → box top
+      var D = top + h + d + below + glue(bs - d - htNext) + htNext;      // → baseline below
+      var blockH = (D - bs) * PXb;
+      var baseY = (top + h - (bs - lineOff)) * PXb;           // the equation's baseline, from the block top
+      // where KaTeX's baseline sits in its container
+      var math = node.querySelector('.pdv-eq-math');
+      var mk = document.createElement('span');
+      mk.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline';
+      kx.appendChild(mk);
+      var mTop = mk.getBoundingClientRect().top - math.getBoundingClientRect().top;
+      mk.remove();
+      probe.innerHTML = '';
+      node.classList.add('pdv-eq-tex');
+      node.style.margin = '0';   // the look's .pdv-eq margins are TeX's skips, now inside the height
+      node.style.height = blockH.toFixed(2) + 'px';
+      math.style.top = (baseY - mTop).toFixed(2) + 'px';
+      var num = node.querySelector('.pdv-eq-num');
+      if (num) num.style.top = (baseY - 0.75 * size * PXb).toFixed(2) + 'px';
+      x.h = blockH; x.mt = 0; x.mb = 0;
+    });
+    probe.innerHTML = '';
+  }
+
+  /* V3.912 — set a body paragraph again with its first n lines `narrow`
+   * px wide, shifted `offset` px when the figure is on the left: wrapfig's
+   * \parshape, at its \tolerance 9999 (wrapfig sets every paragraph that
+   * starts while it wraps that sloppily). Returns the paragraph's lines. */
+  function _setWrappedPara(item, n, narrow, offset, geom, isHead) {
+    var el = item.node, probe = state.probeEl;
+    var lead = isHead ? (parseFloat(window.getComputedStyle(el).lineHeight) || geom.leadPx) : geom.leadPx;
+    var old = parseInt(el.dataset.ptsLines || '0', 10) || Math.round(item.h / lead);
+    if (!probe || el._ptsSrc == null || !window.PaperTypeset) return old;
+    el.innerHTML = el._ptsSrc;
+    el.classList.remove('pts-para');
+    probe.innerHTML = '';
+    probe.style.width = geom.colW + 'px';
+    probe.appendChild(el);
+    void probe.offsetHeight;
+    var widths = [], offs = [];
+    for (var i = 0; i < n; i++) { widths.push(narrow); offs.push(offset); }
+    widths.push(geom.colW); offs.push(0);
+    var r = null;
+    try {
+      r = window.PaperTypeset.layoutParagraph(el, { width: geom.colW, widths: widths, offsets: offs,
+        params: Object.assign(_lineBreakParams(el), { tolerance: 9999 }) });
+    } catch (e) {
+      console.warn('[paper-doc-view] wrap typeset failed', e);
+    }
+    probe.innerHTML = '';
+    if (!r) return old;
+    item.h += (r.lines - old) * lead;
+    el.classList.add('pdv-wrapped');
+    var bid = el.dataset && el.dataset.blockId;
+    if (bid && state.tsReport && state.tsReport[bid]) {
+      state.tsReport[bid].lines = r.lines;
+      state.tsReport[bid].ratios = r.ratios || [];
+      state.tsReport[bid].overfull = !!r.overfull;
+      state.tsReport[bid].pass = r.pass;
+      state.tsReport[bid].wrapped = true;
+    }
+    return r.lines;
+  }
+  /* A heading beside a wrapped figure: set at the narrow measure (a
+   * titlesec heading is a paragraph, so the \parshape reaches it too). */
+  function _setWrappedHeading(item, n, narrow, offset, geom) {
+    var el = item.node, probe = state.probeEl;
+    if (!probe || !el) return 1;
+    if (el._ptsSrc != null && window.PaperTypeset) return _setWrappedPara(item, n, narrow, offset, geom, true);
+    el.style.width = narrow + 'px';
+    if (offset) el.style.marginLeft = offset + 'px';
+    probe.innerHTML = '';
+    probe.style.width = geom.colW + 'px';
+    probe.appendChild(el);
+    void probe.offsetHeight;
+    var rc = el.getBoundingClientRect();
+    var cs = window.getComputedStyle(el);
+    var lead = parseFloat(cs.lineHeight) || geom.leadPx;
+    item.h = Math.round((rc.height + (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0)) * 1000) / 1000;
+    probe.innerHTML = '';
+    return Math.max(1, Math.round(rc.height / lead));
+  }
+
+  /* The look's line-breaking settings (the .tex sets the same). The
+   * emergency stretch is in em of THIS paragraph's font (small-print
+   * sections have a smaller em). */
+  function _lineBreakParams(node) {
+    var look = state.lastLook;
+    var lb = (look && look.linebreak) || {};
+    var em = parseFloat(getComputedStyle(node).fontSize) || 12;
+    /* V3.909 — LaTeX sets everything inside a float or a \parbox after
+     * \@parboxrestore, which ends in \sloppy (tolerance 9999, emergency
+     * stretch 3em): captions, the fact box, a boxed abstract (a look's
+     * `abstract.parbox`, or a shaded box) set their lines that way. */
+    var ab = (look && look.abstract) || {};
+    var sloppy = !!(node.closest && (node.closest('.pdv-figure, .pdv-table-wrap, .pdv-factbox, .pdv-figcap, .pdv-tabcap') ||
+      ((ab.parbox || (ab.box && ab.box.bg)) && node.closest('.pdv-abstract'))));
+    // a class's own penalties (IEEEtran raises the hyphen and math ones)
+    var pen = {};
+    ['hyphenpenalty', 'exhyphenpenalty', 'relpenalty', 'binoppenalty'].forEach(function (k) {
+      if (lb[k] != null) pen[k] = lb[k];
+    });
+    /* V3.913 — a look's document-wide \looseness (Fit), unless the
+     * paragraph sets its own */
+    var lz = node.dataset ? parseInt(node.dataset.looseness || '0', 10) : 0;
+    var glz = look && look.body && look.body.looseness ? Math.round(look.body.looseness) : 0;
+    if (lz) pen.looseness = lz;   // V3.910 — the paragraph's \looseness
+    else if (glz) pen.looseness = glz;
+    if (sloppy) {
+      return Object.assign(pen, { pretolerance: lb.pretolerance != null ? lb.pretolerance : 100, tolerance: 9999, emergencystretch: 3 * em });
+    }
+    return Object.assign(pen, {
+      pretolerance: lb.pretolerance != null ? lb.pretolerance : 100,
+      tolerance: lb.tolerance != null ? lb.tolerance : 800,
+      emergencystretch: (lb.emergency || 0) * em,
+    });
+  }
+
+  /* Knuth–Plass every body paragraph of `list` at `width` (CSS px), in the
+   * probe so the look's CSS (font, size, indent) applies. The abstract,
+   * keywords and figure/table captions inside an item are set the same
+   * way at their own measure, so the boxes they make are the PDF's
+   * height too. */
+  var TYPESET_SEL = '.pdv-bodypara';
+  var TYPESET_INNER_SEL = '.pdv-abstract .pdv-para, .pdv-keywords, .pdv-figcap, .pdv-tabcap, .pdv-factbox .pdv-para, .pdv-affil-colnote';
+  function _typesetParagraphs(list, width) {
+    var probe = state.probeEl;
+    var jobs = [];
+    /* natbib's numeric styles print "(5, 6)" / "[5, 6]" — a space after
+     * each comma (only its superscript style packs "5,6") */
+    var citeSt = ((state.lastLook || {}).cite || {}).style;
+    if (citeSt === 'ieee') {
+      /* IEEEtran's \cite: every reference in its own brackets, "[2], [3],
+       * [4]", never compressed to a range — separate boxes a line may
+       * break between */
+      list.forEach(function (x) {
+        if (!x.node || !x.node.querySelectorAll) return;
+        x.node.querySelectorAll('.pe-cite-group.pe-cite-family-numeric-bracket').forEach(function (g) {
+          var m = /^\[(.*)\]$/.exec(g.textContent.trim());
+          if (!m) return;
+          var nums = [];
+          m[1].split(',').forEach(function (part) {
+            var r = /^\s*(\d+)\s*[\u2013-]\s*(\d+)\s*$/.exec(part);
+            if (r) { for (var k = +r[1]; k <= +r[2] && nums.length < 200; k++) nums.push(k); }
+            else if (part.trim()) nums.push(part.trim());
+          });
+          if (nums.length < 2 && !/[\u2013-]/.test(m[1])) return;
+          var frag = document.createDocumentFragment();
+          nums.forEach(function (nm, i) {
+            if (i) frag.appendChild(document.createTextNode(', '));
+            var one = g.cloneNode(false);
+            one.textContent = '[' + nm + ']';
+            frag.appendChild(one);
+          });
+          g.parentNode.replaceChild(frag, g);
+        });
+      });
+    }
+    if (citeSt === 'paren' || citeSt === 'bracket') {
+      list.forEach(function (x) {
+        if (!x.node || !x.node.querySelectorAll) return;
+        x.node.querySelectorAll('.pe-cite-family-numeric-paren .pe-cite-sep, .pe-cite-family-numeric-bracket .pe-cite-sep')
+          .forEach(function (sp) { if (sp.textContent === ',') sp.textContent = ', '; });
+      });
+    }
+    /* V3.912 — a grant look's headings are LaTeX's own \@startsection
+     * paragraphs: justified, broken by TeX like body text (and narrowed,
+     * line by line, beside a wrapped figure) */
+    var headsTex = !!(state.lastLook && state.lastLook.rigid_headings);
+    list.forEach(function (x) {
+      var node = x.node;
+      if (!node || !node.matches) return;
+      if (node.matches(TYPESET_SEL)) {
+        if (!node.classList.contains('pts-para')) jobs.push({ el: node, item: x });
+        return;
+      }
+      if (headsTex && node.matches('.pdv-heading, .pdv-subheading')) {
+        if (!node.classList.contains('pts-para')) jobs.push({ el: node, item: null, head: x });
+        return;
+      }
+      var inner = node.matches(TYPESET_INNER_SEL) ? [node] : Array.prototype.slice.call(node.querySelectorAll(TYPESET_INNER_SEL));
+      /* the typesetter justifies; a centred or ragged caption keeps the
+       * browser's line breaking */
+      var capAlign = ((state.lastLook || {}).caption || {}).align;
+      var capJustified = !capAlign || capAlign === 'justify';
+      inner.forEach(function (el) {
+        if (el.classList.contains('pts-para')) return;
+        if (!capJustified && el.matches('.pdv-figcap, .pdv-tabcap')) return;
+        jobs.push({ el: el, item: null });
+      });
+    });
+    if (!jobs.length) return;
+    probe.innerHTML = '';
+    probe.style.width = width + 'px';
+    list.forEach(function (x) { if (x.node) probe.appendChild(x.node); });
+    void probe.offsetHeight;
+    jobs.forEach(function (j) {
+      try {
+        var w = width;
+        if (!j.item) {
+          var cs = getComputedStyle(j.el);
+          w = j.el.getBoundingClientRect().width - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0) -
+            (parseFloat(cs.borderLeftWidth) || 0) - (parseFloat(cs.borderRightWidth) || 0);
+        }
+        /* V3.912 — the paragraph's own HTML, kept so the paginator can set
+         * it again at other widths (the lines beside a wrapped figure) */
+        if (j.item || j.head) j.el._ptsSrc = j.el.innerHTML;
+        if (j.head) w = width;
+        var lbp = _lineBreakParams(j.el);
+        var r = window.PaperTypeset.layoutParagraph(j.el, { width: w, params: lbp,
+          probeTighten: !!j.item && j.el.dataset.looseness !== '-1' && !lbp.looseness });
+        if (r && j.item) {
+          j.item.typeset = r;
+          var bidT = j.el.dataset && j.el.dataset.blockId;
+          if (bidT && state.tsReport) {
+            state.tsReport[bidT] = { lines: r.lines, ratios: r.ratios || [], overfull: !!r.overfull, pass: r.pass,
+              canTighten: !!r.canTighten, looseness: parseInt(j.el.dataset.looseness || '0', 10) || 0,
+              lz: lbp.looseness || 0 };
+          }
+        }
+      } catch (e) {
+        console.warn('[paper-doc-view] typeset failed — browser line breaking for this paragraph', e);
+      }
+    });
+    probe.innerHTML = '';
   }
 
   /* V3.419 — split a paragraph item at a LINE boundary so text flows
@@ -2104,6 +2936,7 @@
     var probe = state.probeEl;
     if (!probe || !node || typeof node.cloneNode !== 'function') return null;
     if (!(availPx > 0)) return null;
+    if (node.classList && node.classList.contains('pts-para')) return _splitTypeset(item, availPx);
     probe.style.width = geom.colW + 'px';
     probe.innerHTML = '';
     var meas = node.cloneNode(true);
@@ -2214,6 +3047,36 @@
     }
   }
 
+  /* V3.908 — a paragraph the typesetter laid out is a stack of fixed-
+   * height lines: the split is a count, no Range surgery. Part A keeps the
+   * first k lines that fit (k ≥ the Column-fill minimum), part B the rest
+   * (no indent — it continues a sentence; the first line's indent lives on
+   * line 1 of part A as padding, so it stays put). */
+  function _splitTypeset(item, availPx) {
+    var node = item.node;
+    var lines = Array.prototype.slice.call(node.children).filter(function (c) { return c.classList.contains('pts-ln'); });
+    if (lines.length < 2) return null;
+    var lead = lines[0].getBoundingClientRect ? parseFloat(lines[0].style.height) : 0;
+    if (!(lead > 0)) return null;
+    var k = Math.floor((availPx + 0.5) / lead);
+    if (k < fillMinLines()) return null;
+    if (k >= lines.length) return null;
+    var a = node.cloneNode(false), b = node.cloneNode(false);
+    lines.forEach(function (ln, i) { (i < k ? a : b).appendChild(ln.cloneNode(true)); });
+    b.classList.add('pdv-para-cont');
+    if (a.dataset) a.dataset.blockPart = '1';
+    if (b.dataset) b.dataset.blockPart = '2';
+    function mk(n, nl, part) {
+      return {
+        node: n, type: 'col', h: nl * lead,
+        footnotes: part === 1 ? (item.footnotes || []) : [],
+        blockKind: item.blockKind, sectionId: item.sectionId,
+        blockId: item.blockId, float: null, part: part, keepNext: false,
+      };
+    }
+    return [mk(a, k, 1), mk(b, lines.length - k, 2)];
+  }
+
   /* ── Pagination (block-atomic greedy packing; paragraphs split at
    * line boundaries since V3.419) ──────────────── */
 
@@ -2227,7 +3090,9 @@
    * pages. Every page records `rects` (page-local px) for the R3
    * region overlay. */
   function _packPages(items, geom) {
-    var cap = Math.floor(geom.bodyH * FILL_FACTOR);
+    /* V3.908 — under a journal look every height is exact (typeset lines),
+     * so a column holds exactly its text height, as in the PDF. */
+    var cap = geom.look ? geom.bodyH : Math.floor(geom.bodyH * FILL_FACTOR);
     var cols = geom.cols;
     var pages = [];
     var page = null;
@@ -2240,6 +3105,17 @@
                isFloatPage: false, rects: null, firstFlow: null };
     }
     function remaining() { return cap - page.usedH - page.footH - page.topH - page.bottomH; }
+    /* V3.908 — the share of a page floats may take: the look's LaTeX
+     * fractions (\topfraction, \dbltopfraction for spanning floats in two
+     * columns, \bottomfraction; never more than 1 − \textfraction), else
+     * the legacy fixed budget. */
+    function floatFrac(f) {
+      if (!geom.look) return FLOAT_MAX_FRAC;
+      var fl = geom.look.floats || {};
+      var fr = f.float.region === 'bottom' ? (fl.bottomfraction || 0.3)
+        : (cols === 2 && f.float.span === 'page') ? (fl.dbltopfraction || 0.7) : (fl.topfraction || 0.7);
+      return Math.min(fr, 1 - (fl.textfraction || 0.2));
+    }
 
     /* ── V3.421 — per-column flow (2-col) ────────────────────────
      * The 2-col analogue of the 1-col run: a COLGRID holds two
@@ -2269,6 +3145,39 @@
       return a;
     }
     function ensureGrid() { if (!page.grid) page.grid = newGrid(); }
+    /* V3.909 — LaTeX's float column (\@tryfcolumn at every \@startcolumn
+     * in two-column mode): the column floats waiting at the head of the
+     * queue that together fill at least \floatpagefraction of a column
+     * get that column to themselves, centred vertically. Journal looks
+     * only. `atEnd` (the trailing drain, LaTeX's \clearpage) drops the
+     * fraction test so a short [p] float still lands. */
+    var atEnd = false;
+    function tryFloatColumn(c) {
+      if (!geom.look || cols !== 2 || c.items.length || c.floatTop || c.floatBottom) return false;
+      var fl = geom.look.floats || {};
+      var sep = Math.round((fl.floatsep || 12) * (4 / 3));
+      var take = [], hsum = 0;
+      for (var qi = 0; qi < pending.length; qi++) {
+        var pf = pending[qi];
+        if (pf.float.span === 'page' || pf.float.lock) break;
+        if (pf.notBeforePage != null && pages.length - 1 < pf.notBeforePage) break;
+        var add = pf.h + (take.length ? sep : 0);
+        if (hsum + add > cap) break;
+        take.push(pf); hsum += add;
+      }
+      if (!take.length || (!atEnd && hsum < (fl.floatpagefraction || 0.5) * cap)) return false;
+      pending.splice(0, take.length);
+      c.floatTop = { items: take, span: 'column', h: hsum, gap: 0, fcol: true, sep: sep };
+      c.floatOnly = true;
+      take.forEach(addFootnotes);
+      return true;
+    }
+    /* move the fill to column 1 — a column start, so a float column may
+     * claim it first */
+    function nextCol(g) {
+      g.fillCol = 1;
+      tryFloatColumn(g.cols[1]);
+    }
 
     /* Projected height of the OPEN flow (1-col run OR 2-col grid) — a
      * float placed mid-page must reserve it, or text already admitted
@@ -2279,8 +3188,31 @@
     }
     /* Close the open flow: dispatch to the grid closer (2-col) or the
      * 1-col run closer (unchanged accounting). */
+    /* V3.912 — the one-column analogue of colEff / colPut: the space
+     * before an item is dropped at the top of a page, and collapses with
+     * the space after whatever precedes it (in this run, or the full-width
+     * block above it) */
+    function runEff(item) {
+      if (!geom.look || !(item.mt > 0)) return item.h;
+      var r = page.run;
+      var first = !r || !r.items.length;
+      if (first && page.usedH === 0) return item.h - item.mt;
+      var prevMb = first ? (page.lastMb || 0) : (r.items[r.items.length - 1].mb || 0);
+      return item.h - Math.min(prevMb, item.mt);
+    }
+    function runPut(item) {
+      if (!page.run) page.run = { items: [], sumH: 0 };
+      var e = runEff(item);
+      if (geom.look && item.mt > 0 && !page.run.items.length && page.usedH === 0 && item.node && item.node.style) {
+        item.node.style.marginTop = '0px';
+      }
+      page.run.items.push(item);
+      page.run.sumH += e;
+      return e;
+    }
     function closeRun() {
       if (cols === 2) { closeGrid(false); return; }
+      if (page.run && page.run.items.length) page.lastMb = page.run.items[page.run.items.length - 1].mb || 0;
       if (!page.run || !page.run.items.length) { page.run = null; return; }
       var h = openFlowH();   // = sumH for 1-col
       page.segments.push({ type: 'cols', nodes: page.run.items.map(function (i) { return i.node; }), height: h });
@@ -2305,6 +3237,23 @@
       if (natural > avail + 1) page.overflow = true;
     }
     function colTextCap(c, targetH) { return targetH - fTopH(c) - fBotH(c); }
+    /* V3.912 — under a look an item's height in the flow: TeX discards the
+     * space before it at the top of a column, and two adjoining spaces
+     * count once, the larger (\addvspace; CSS collapses margins the same
+     * way). Without this a heading after spaced content over-counted its
+     * space and lost the line TeX fits at the foot. */
+    function colEff(c, item) {
+      if (!geom.look || !(item.mt > 0)) return item.h;
+      if (c.itemsH === 0) return item.h - item.mt;
+      return item.h - Math.min(c.lastMb || 0, item.mt);
+    }
+    function colPut(c, item) {
+      var e = colEff(c, item);
+      if (geom.look && item.mt > 0 && c.itemsH === 0 && item.node && item.node.style) item.node.style.marginTop = '0px';
+      c.items.push(item.node); c.itemsH += e; c.lastMb = item.mb || 0;
+      addFootnotes(item);
+      return e;
+    }
     /* Place one column flow item into the open grid. Fills column 0 then
      * column 1; splits a crossing paragraph at the column boundary and
      * returns {split: partB} for the caller to splice back into the work
@@ -2318,7 +3267,24 @@
       if (item.blockId && !page.firstFlow) {
         page.firstFlow = { sectionId: item.sectionId, blockId: item.blockId };
       }
+      if (c.floatOnly) {
+        if (g.fillCol === 0) { nextCol(g); return addColItem(item); }
+        closeGrid(true);
+        newPage();
+        return addColItem(item);
+      }
       var capC = colTextCap(c, targetH);
+      /* V3.908 — a column that holds only a float is not "empty": an item
+       * (or a heading + its first lines) that does not fit moves on to the
+       * next column / page instead of being forced in and overflowing. The
+       * forced placement stays for a truly empty column (progress). */
+      if (c.itemsH === 0 && (c.floatTop || c.floatBottom) &&
+          item.h + (item.keepNextH || 0) > capC && !(item.blockKind === 'paragraph' && capC >= 2 * (geom.leadPx || 14))) {
+        if (g.fillCol === 0) { nextCol(g); return addColItem(item); }
+        closeGrid(true);
+        newPage();
+        return addColItem(item);
+      }
       if (c.itemsH === 0) {
         /* A paragraph taller than the whole column still splits — fill
          * this column, carry the rest to the next — instead of being
@@ -2326,26 +3292,28 @@
         if (item.blockKind === 'paragraph' && item.h > capC) {
           var partsE = _splitColItem(item, capC, geom);
           if (partsE) {
-            c.items.push(partsE[0].node); c.itemsH += partsE[0].h; addFootnotes(partsE[0]);
+            colPut(c, partsE[0]);
             return { split: partsE[1] };
           }
         }
-        c.items.push(item.node); c.itemsH += item.h; addFootnotes(item);
-        if (item.h > capC) page.overflow = true;
+        if (colPut(c, item) > capC) page.overflow = true;
         return null;
       }
-      if (c.itemsH + item.h <= capC) {
-        c.items.push(item.node); c.itemsH += item.h; addFootnotes(item);
+      /* V3.908 — a heading never ends a column: it needs room for itself
+       * AND the start of what follows (LaTeX's \@afterheading nobreak). */
+      var keepH = item.keepNextH || 0;
+      if (c.itemsH + colEff(c, item) + keepH <= capC) {
+        colPut(c, item);
         return null;
       }
       if (item.blockKind === 'paragraph') {
         var parts = _splitColItem(item, capC - c.itemsH, geom);
         if (parts) {
-          c.items.push(parts[0].node); c.itemsH += parts[0].h; addFootnotes(parts[0]);
+          colPut(c, parts[0]);
           return { split: parts[1] };
         }
       }
-      if (g.fillCol === 0) { g.fillCol = 1; return addColItem(item); }
+      if (g.fillCol === 0) { nextCol(g); return addColItem(item); }
       closeGrid(true);
       newPage();
       return addColItem(item);
@@ -2361,13 +3329,14 @@
       var gap = gapForFloat(f);
       var forced = f.float.lock || (pageIsEmpty() && gridIsEmpty(g));
       for (var ci = 0; ci < 2; ci++) {
+        if (f.float.col != null && ci !== f.float.col) continue;   // a fixed column (the PNAS fact box)
         var c = g.cols[ci];
         if (region === 'bottom' ? c.floatBottom : c.floatTop) continue;
         var otherH = region === 'bottom' ? fTopH(c) : fBotH(c);
         var need = c.itemsH + otherH + f.h + gap;
         if (!forced) {
           if (need > targetH) continue;
-          if (gridFloatArea(g) + f.h + gap > cap * FLOAT_MAX_FRAC) continue;
+          if (gridFloatArea(g) + f.h + gap > cap * floatFrac(f)) continue;
         }
         var slot = { items: [f], span: 'column', h: f.h, gap: gap };
         if (region === 'bottom') c.floatBottom = slot; else c.floatTop = slot;
@@ -2399,6 +3368,7 @@
      * or a float opening an EMPTY page places regardless (guaranteed
      * progress for the trailing drain). */
     function tryPlaceFloat(f) {
+      if (f.notBeforePage != null && pages.length - 1 < f.notBeforePage) return false;
       var rows = f.float.region === 'bottom' ? page.bottomFloats : page.topFloats;
       var fH = noteH(f);
       var last = rows[rows.length - 1];
@@ -2414,7 +3384,7 @@
         : f.h + gap;
       var forced = f.float.lock || pageIsEmpty();
       if (!forced) {
-        if (page.topH + page.bottomH + delta > cap * FLOAT_MAX_FRAC) return false;
+        if (page.topH + page.bottomH + delta > cap * floatFrac(f)) return false;
         if (delta + fH > remaining() - openFlowH()) return false;
       }
       if (join) {
@@ -2437,6 +3407,18 @@
       return true;
     }
     function placeFloat(f) {
+      /* V3.908 — a float-page float is never set in a band; it waits in
+       * the ordered queue until a page break turns it into its own page. */
+      if (f.float.region === 'float-page') return false;
+      /* V3.908 — [tbp]: top of the current column/page, else its bottom. */
+      if (f.float.region === 'auto') {
+        f.float.region = 'top';
+        if (placeFloat(f)) return true;
+        f.float.region = 'bottom';
+        if (placeFloat(f)) return true;
+        f.float.region = 'auto';
+        return false;
+      }
       /* V3.421 — route: single-column floats in a 2-col layout flow
        * INTO a column (in-column float); spanning starred floats and
        * every 1-col float claim a full-width top/bottom band. */
@@ -2454,6 +3436,46 @@
       }
     }
     function flushFloatPages() {
+      /* V3.908 — LaTeX keeps floats IN ORDER: a [p] float becomes a float
+       * page only when it reaches the head of the queue (an earlier figure
+       * still waiting holds it back), and never on the page where it
+       * occurs. */
+      while (pending.length && pending[0].float.region === 'float-page' &&
+             !(geom.look && cols === 2 && pending[0].float.span === 'column') &&   // V3.909 — a float COLUMN instead
+             (pending[0].notBeforePage == null || pages.length >= pending[0].notBeforePage)) {
+        floatPageQueue.push(pending.shift());
+      }
+      /* V3.908 — LaTeX's \@tryfcolumn: at the start of every page, waiting
+       * floats that together fill at least the float-page fraction of the
+       * page (\dblfloatpagefraction for spanning floats in two columns,
+       * \floatpagefraction otherwise) are set as a page of floats, before
+       * any of them is tried at the top of the new page. Journal looks
+       * only (the legacy preview keeps its band behaviour). */
+      if (geom.look) {
+        var fl = geom.look.floats || {};
+        for (;;) {
+          var take = [], hsum = 0;
+          for (var qi = 0; qi < pending.length; qi++) {
+            var pf = pending[qi];
+            if (pf.notBeforePage != null && pages.length < pf.notBeforePage) break;
+            if (cols === 2 && pf.float.span !== 'page' && pf.float.region !== 'float-page') break;
+            var add = pf.h + (take.length ? gapForFloat(pf) : 0);
+            if (hsum + add > cap) break;
+            take.push(pf); hsum += add;
+          }
+          var frac = cols === 2 ? (fl.dblfloatpagefraction || 0.5) : (fl.floatpagefraction || 0.5);
+          if (!take.length || hsum < frac * cap) break;
+          pending.splice(0, take.length);
+          var fpg = makePage();
+          fpg.isFloatPage = true;
+          take.forEach(function (tf) {
+            fpg.topFloats.push({ span: (tf.float.span === 'page' || cols === 1) ? 'page' : 'column', items: [tf], h: tf.h, gap: gapForFloat(tf) });
+            fpg.topH += tf.h + gapForFloat(tf);
+            tf.footnotes.forEach(function (nn) { fpg.footnotes.push(nn.node); fpg.footH += nn.h; });
+          });
+          pages.push(fpg);
+        }
+      }
       while (floatPageQueue.length) {
         var f = floatPageQueue.shift();
         var fp = makePage();
@@ -2482,7 +3504,114 @@
       flushFloatPages();     // dedicated float sheets slot between text pages
       page = makePage();
       pages.push(page);
+      if (geom.look && cols === 2) {
+        ensureGrid();
+        if (tryFloatColumn(page.grid.cols[0])) nextCol(page.grid);
+        if (gridIsEmpty(page.grid)) page.grid = null;
+      }
       drainFloats();         // deferred floats land at the fresh page's bands
+    }
+
+    /* ── V3.912 — wrapped figures, set the way wrapfig 3.6 sets them
+     * (one-column looks; the .tex writes \begin{wrapfigure}{R|L}{w}):
+     * the figure waits for the next paragraph start; there, if its box
+     * (depth + 1.5\baselineskip + 2\intextsep) fits the room left on the
+     * page it is set beside the next ⌊(size + 1.1\baselineskip) /
+     * \baselineskip⌋ − 1 lines, each \linewidth − width − \columnsep
+     * wide, across paragraphs and headings; if not, it waits for a later
+     * paragraph start, unless less than a line is left, when the page
+     * breaks and it opens the next one. */
+    var WRAP_TEX = !!(geom.look && cols === 1 && window.PaperLook && window.PaperLook.lineOff);
+    var wrapQ = [], wrapAct = null;
+    var PAR_START = { paragraph: 1, heading: 1, subheading: 1, list: 1, equation: 1 };
+    function wrapGeom() {
+      var lk = geom.look, PXb = 4 / 3;
+      var fnt = window.PaperLook.FONTS[lk.fonts.text] || {};
+      return {
+        lead: geom.leadPx,
+        is: ((lk.floats || {}).intextsep || 0) * PXb,
+        ex14: 1.4 * (fnt.xh || 0.45) * lk.body.size * PXb,
+        gap: (lk.colsep != null ? lk.colsep : 10) * PXb,
+        base: window.PaperLook.lineOff(lk, { family: 'text', size: lk.body.size, lead: lk.body.lead }) * PXb,
+        dp: (fnt.desc || 0.25) * lk.body.size * PXb,
+        ht: (fnt.ht || 0.7) * lk.body.size * PXb,
+      };
+    }
+    /* \WFclear: a figure still waiting when the next wrapped figure begins
+     * is set where it is, as a plain box after a \bigskip, with no text
+     * beside it (wrapfig's "Collision between wrapping environments") */
+    function wrapDump(f, atEndDoc) {
+      var W = wrapGeom();
+      f.node.classList.add('pdv-wrap-dumped');
+      /* between the line boxes around it: \bigskip, \baselineskip less
+       * the last line's depth, the box's depth (height − 1.4ex),
+       * \lineskip, the next line's height, less one \baselineskip (XeTeX
+       * gives every line the face's descender as depth and ascender as
+       * height — measured: 283.84 bp for this sum on a Tectonic compile) */
+      var big = 12 * 0.99626 * 4 / 3;
+      var dumpH = big - W.dp + (f.figH - W.ex14) + 0.99626 * 4 / 3 + W.ht;
+      var mt = big - W.dp - W.ex14 + W.base;
+      /* a box like any other: one that does not fit starts the next page,
+       * where the \bigskip before it is discarded */
+      if (dumpH > remaining() - page.run.sumH + 0.01 && (page.run.sumH > 0 || page.usedH > 0)) {
+        closeRun(); newPage(); page.run = { items: [], sumH: 0 };
+      }
+      if (page.run.sumH === 0 && page.usedH === 0) { dumpH -= big; mt = Math.max(0, mt - big); }
+      f.node.style.marginTop = mt.toFixed(2) + 'px';
+      f.node.style.marginBottom = (dumpH - mt - f.figH).toFixed(2) + 'px';   // may be negative: the next line box overlaps
+      page.run.items.push({ node: f.node, type: 'col', h: dumpH, footnotes: [], blockKind: 'wrapfig',
+        sectionId: f.sectionId, blockId: f.blockId, float: null });
+      page.run.sumH += dumpH;
+      addFootnotes(f);
+      if (state.wrapReport && f.blockId) state.wrapReport[f.blockId] = { state: atEndDoc ? 'end' : 'collision', page: pages.length };
+    }
+    function wrapTryPlace() {
+      if (!wrapQ.length || wrapAct) return;
+      var W = wrapGeom();
+      var f = wrapQ[0];
+      var size = f.figH - W.ex14 + 1.5 * W.lead + 2 * W.is;            // \WF@size
+      var room = remaining() - page.run.sumH;                           // \pagegoal − \pagetotal
+      if (size > room + 0.01) {
+        if (room >= W.lead) { f.held = true; return; }                  // floats on (R/L)
+        closeRun(); newPage(); page.run = { items: [], sumH: 0 };       // \pagebreak, then here
+      }
+      var atTop = page.usedH === 0 && page.run.sumH === 0;
+      if (atTop) size -= W.is;
+      var count = Math.floor((size + 1.1 * W.lead) / W.lead + 1e-6);   // \c@WF@wrappedlines
+      var anchor = document.createElement('div');
+      anchor.className = 'pdv-wrap-anchor';
+      // wrapfig's numbers, in bp (read by the Paper Lab against the .log)
+      anchor.dataset.wfSize = (size * 0.75).toFixed(2);
+      anchor.dataset.wfLines = String(count - 1);
+      anchor.dataset.wfRoom = (room * 0.75).toFixed(2);
+      f.node.style.top = ((atTop ? 0 : W.is) + W.base - W.ex14).toFixed(2) + 'px';
+      f.node.style.left = f.side === 'left' ? '0px' : '';
+      f.node.style.right = f.side === 'left' ? '' : '0px';
+      anchor.appendChild(f.node);
+      page.run.items.push({ node: anchor, type: 'col', h: 0, footnotes: [], blockKind: 'wrapfig',
+        sectionId: f.sectionId, blockId: f.blockId, float: null });
+      addFootnotes(f);
+      wrapQ.shift();
+      if (state.wrapReport && f.blockId) {
+        state.wrapReport[f.blockId] = { state: f.held ? 'held' : 'here', page: pages.length, lines: count - 1 };
+      }
+      if (count > 1) {
+        wrapAct = { left: count - 1, narrow: geom.colW - f.figW - W.gap,
+          offset: f.side === 'left' ? f.figW + W.gap : 0 };
+      }
+    }
+    function wrapApply(item) {
+      if (!wrapAct) return;
+      var lines;
+      if (item.blockKind === 'paragraph' && item.node && item.node._ptsSrc != null) {
+        lines = _setWrappedPara(item, wrapAct.left, wrapAct.narrow, wrapAct.offset, geom);
+      } else if (item.blockKind === 'heading' || item.blockKind === 'subheading') {
+        lines = _setWrappedHeading(item, wrapAct.left, wrapAct.narrow, wrapAct.offset, geom);
+      } else {
+        lines = Math.max(1, Math.round(item.h / geom.leadPx));
+      }
+      wrapAct.left -= lines;                                            // \c@WF@wrappedlines − \prevgraf
+      if (wrapAct.left < 1) wrapAct = null;                             // \WF@finale
     }
 
     newPage();
@@ -2491,11 +3620,47 @@
      * flow — including splitting AGAIN when it exceeds the next page
      * (multi-page paragraphs). */
     var work = items.slice();
+    var leadPx = geom.leadPx || 0;
     for (var wi = 0; wi < work.length; wi++) {
       var item = work[wi];
       if (pages.length > MAX_SHEETS) continue;
+      /* V3.908 — a stand-alone front page (Nature family): the first body
+       * item starts a new page. */
+      if (item.breakBefore && !pageIsEmpty()) { closeRun(); newPage(); }
+      if ((item.blockKind === 'heading' || item.blockKind === 'subheading') && leadPx) {
+        var nx = work[wi + 1];
+        item.keepNextH = nx && !nx.float ? Math.min(nx.h, 2 * leadPx) : 0;
+        /* V3.912 — headings in a row never break between them (LaTeX's
+         * \@nobreak), so a heading keeps the whole chain and the first two
+         * lines after it */
+        if (geom.look && nx && (nx.blockKind === 'heading' || nx.blockKind === 'subheading')) {
+          var chainH = 0, cj = wi + 1;
+          while (work[cj] && !work[cj].float && (work[cj].blockKind === 'heading' || work[cj].blockKind === 'subheading')) {
+            chainH += work[cj].h; cj++;
+          }
+          item.keepNextH = chainH + (work[cj] && !work[cj].float ? Math.min(work[cj].h, 2 * leadPx) : 0);
+        }
+        /* V3.912 — wrapfig: a waiting figure that finds less than a line
+         * left at the paragraph after this heading forces \pagebreak there,
+         * which overrides keep-with-next — the heading ends this page */
+        if (WRAP_TEX && wrapQ.length && !wrapAct && nx && nx.blockKind === 'paragraph' && page.run) {
+          var roomAfter = remaining() - page.run.sumH - item.h;
+          var Wk = wrapGeom();
+          if (roomAfter >= 0 && roomAfter < Wk.lead &&
+              wrapQ[0].figH - Wk.ex14 + 1.5 * Wk.lead + 2 * Wk.is > roomAfter) item.keepNextH = 0;
+        }
+      }
       if (item.float) {
-        if (item.float.region === 'float-page') { floatPageQueue.push(item); continue; }
+        if (item.float.region === 'float-page') {
+          item.notBeforePage = pages.length;   // V3.908 — next page at the earliest, in order
+          pending.push(item);
+          continue;
+        }
+        /* V3.908 — LaTeX never sets a page-wide float (figure*) on the
+         * page where it occurs: the top of the NEXT page at the earliest.
+         * The queue stays in strict order, so later floats wait too (the
+         * kernel's two-column float ordering since 2015). */
+        if (cols === 2 && item.float.span === 'page') item.notBeforePage = pages.length;
         pending.push(item);
         /* May land on the CURRENT page — LaTeX [t] floats backward to
          * the top of the page containing their source, [b] to its
@@ -2519,6 +3684,7 @@
         }
         page.segments.push({ type: 'full', node: item.node, height: item.h });
         page.usedH += item.h;
+        page.lastMb = item.mb || 0;
         /* Band-aware: a full item landing under a fresh page's drained
          * band can overflow even when the item alone fits the cap. */
         if (item.h + fH > cap ||
@@ -2535,8 +3701,22 @@
         if (resC && resC.split) work.splice(wi + 1, 0, resC.split);
       } else {
         if (!page.run) page.run = { items: [], sumH: 0 };
+        /* V3.912 — wrapfig: a wrapped figure waits for a paragraph start;
+         * a paragraph that starts while it wraps is set narrower */
+        if (WRAP_TEX && item.wrapFig) {
+          while (wrapQ.length) wrapDump(wrapQ.shift());
+          wrapQ.push(item);
+          continue;
+        }
+        if (WRAP_TEX && PAR_START[item.blockKind] && item.part !== 2) {
+          /* a heading is never where a figure is placed (the look gives
+           * headings a 1sp hanging indent, which wrapfig refuses) */
+          if (item.blockKind !== 'heading' && item.blockKind !== 'subheading') wrapTryPlace();
+          wrapApply(item);
+        }
         var runCap = cols * (remaining() - fH);
-        var fits = (page.run.sumH + item.h) <= runCap;
+        var hEff = runEff(item);   // V3.912 — page-top space discarded, adjoining spaces collapsed
+        var fits = (page.run.sumH + hEff + (item.keepNextH || 0)) <= runCap;   // V3.908 — headings keep with next
         var pageEmpty = pageIsEmpty();
         /* V3.419 — CONTINUOUS FLOW. A paragraph that crosses the page
          * boundary splits at a line break: the first lines fill this
@@ -2546,28 +3726,33 @@
         if (!fits && item.blockKind === 'paragraph') {
           var parts = _splitColItem(item, runCap - page.run.sumH, geom);
           if (parts) {
-            page.run.items.push(parts[0]);
-            page.run.sumH += parts[0].h;
+            runPut(parts[0]);
             addFootnotes(parts[0]);
             work.splice(wi + 1, 0, parts[1]);
             continue;
           }
         }
         if (fits || pageEmpty) {
-          page.run.items.push(item);
-          page.run.sumH += item.h;
+          runPut(item);
           addFootnotes(item);
           if (pageEmpty && item.h > cols * cap) page.overflow = true;
         } else {
           closeRun();
           newPage();
-          page.run = { items: [item], sumH: item.h };
+          page.run = { items: [], sumH: 0 };
+          runPut(item);
           addFootnotes(item);
           if (item.h > cols * cap) page.overflow = true;
         }
       }
     }
+    /* a wrapped figure no paragraph followed: \AtEndDocument{\WFclear} */
+    while (WRAP_TEX && wrapQ.length) {
+      if (!page.run) page.run = { items: [], sumH: 0 };
+      wrapDump(wrapQ.shift(), true);
+    }
     closeRun();
+    atEnd = true;
 
     /* Trailing floats: keep opening pages until everything lands.
      * tryPlaceFloat force-places on an empty page, so every iteration
@@ -2607,7 +3792,9 @@
    * estimate — cosmetic for the overlay). Consumed by the R3 overlay
    * with zero re-measurement. */
   function _recordRects(pages, geom) {
-    var m = geom.margin;
+    var m = geom.mL != null ? geom.mL : geom.margin;      // x origin (left margin)
+    var mt = geom.mT != null ? geom.mT : geom.margin;     // y origin (top margin)
+    var mb = geom.mB != null ? geom.mB : geom.margin;
     pages.forEach(function (page) {
       var floats = [];
       function rowRects(rows, startY) {
@@ -2627,8 +3814,8 @@
         });
         return y;
       }
-      var topEnd = rowRects(page.topFloats, m);
-      var footTop = geom.pageH - m - page.footH;
+      var topEnd = rowRects(page.topFloats, mt);
+      var footTop = geom.pageH - mb - page.footH;
       var bottomH2 = page.bottomFloats.reduce(function (s, r) { return s + r.h + (r.gap != null ? r.gap : BLOCK_GAP); }, 0);
       rowRects(page.bottomFloats, footTop - bottomH2);
       var textY = topEnd;
@@ -2658,7 +3845,7 @@
         segY += h;
       });
       page.rects = {
-        margin: { x: m, y: m, w: geom.bodyW, h: geom.bodyH },
+        margin: { x: m, y: mt, w: geom.bodyW, h: geom.bodyH },
         cols: geom.cols === 2
           ? [{ x: m, y: textY, w: geom.colW, h: textH },
              { x: m + geom.colW + geom.colGap, y: textY, w: geom.colW, h: textH }]
@@ -3546,6 +4733,7 @@
       var col = document.createElement('div');
       col.className = 'pdv-col';
       col.style.width = geom.colW + 'px';
+      if (c.floatOnly) col.style.justifyContent = 'center';   // V3.909 — a float column
       if (c.floatTop) col.appendChild(_mountColFloat(c.floatTop, 'top'));
       var flow = document.createElement('div');
       flow.className = 'pdv-col-flow';
@@ -3569,6 +4757,13 @@
     if (region === 'top') wrap.style.marginBottom = slot.gap + 'px';
     else { wrap.style.marginTop = 'auto'; wrap.style.paddingTop = slot.gap + 'px'; }
     wrap.appendChild(f.node);
+    /* a float column stacks every float it took, \floatsep apart */
+    if (slot.fcol) {
+      slot.items.slice(1).forEach(function (g) {
+        g.node.style.marginTop = slot.sep + 'px';
+        wrap.appendChild(g.node);
+      });
+    }
     return wrap;
   }
 
@@ -3580,11 +4775,17 @@
 
     pages.forEach(function (page, idx) {
       var sheet = document.createElement('div');
-      sheet.className = 'pdv-sheet';
+      sheet.className = 'pdv-sheet' + (page.isFloatPage ? ' pdv-floatpage' : '');
       sheet.dataset.pageIdx = String(idx);   // V3.401 — drop-target resolution
+      /* V3.912 — the paginator's accounting for this page, in px (read by the
+       * Paper Lab when a page breaks differently from the PDF) */
+      sheet.dataset.acct = JSON.stringify({ used: page.usedH, top: page.topH, bottom: page.bottomH, foot: page.footH,
+        cap: geom.look ? geom.bodyH : null, segs: page.segments.map(function (sg) { return Math.round((sg.height || 0) * 100) / 100; }) });
       sheet.style.width = geom.pageW + 'px';
       sheet.style.height = geom.pageH + 'px';
-      sheet.style.padding = geom.margin + 'px';
+      sheet.style.padding = (geom.mT != null)   // V3.907 — per-side margins (journal looks)
+        ? geom.mT + 'px ' + geom.mR + 'px ' + geom.mB + 'px ' + geom.mL + 'px'
+        : geom.margin + 'px';
       sheet.style.fontSize = (geom.fontPt * 1.333) + 'px';
       var body = document.createElement('div');
       body.className = 'pdv-sheet-body';
@@ -3637,8 +4838,8 @@
       var dz = document.createElement('div');
       dz.className = 'pdv-dropzones';
       dz.innerHTML =
-        '<div class="pdv-dropzone pdv-dropzone-top" data-region="top" style="left:' + geom.margin + 'px;top:' + geom.margin + 'px;width:' + geom.bodyW + 'px;"></div>' +
-        '<div class="pdv-dropzone pdv-dropzone-bottom" data-region="bottom" style="left:' + geom.margin + 'px;bottom:' + geom.margin + 'px;width:' + geom.bodyW + 'px;"></div>';
+        '<div class="pdv-dropzone pdv-dropzone-top" data-region="top" style="left:' + (geom.mL != null ? geom.mL : geom.margin) + 'px;top:' + (geom.mT != null ? geom.mT : geom.margin) + 'px;width:' + geom.bodyW + 'px;"></div>' +
+        '<div class="pdv-dropzone pdv-dropzone-bottom" data-region="bottom" style="left:' + (geom.mL != null ? geom.mL : geom.margin) + 'px;bottom:' + (geom.mB != null ? geom.mB : geom.margin) + 'px;width:' + geom.bodyW + 'px;"></div>';
       sheet.appendChild(dz);
       frag.appendChild(sheet);
     });
@@ -3663,6 +4864,15 @@
     scale.style.width = geom.pageW + 'px';
     if (state.pagesLabelEl) {
       state.pagesLabelEl.textContent = '≈ ' + total + ' page' + (total === 1 ? '' : 's');
+      /* V3.913 — a grant document shows its limit */
+      var lim = null;
+      if (geom.look && state.template && state.template.grant && window.PaperGrantRules) {
+        var dr = window.PaperGrantRules.docRule(state.template, state.grantDoc || 'project_description');
+        lim = dr && dr.page_limit;
+      }
+      state.pagesLabelEl.classList.toggle('pdv-pages-over', !!(lim && total > lim));
+      state.pagesLabelEl.classList.toggle('pdv-pages-ok', !!(lim && total <= lim));
+      if (lim) state.pagesLabelEl.textContent = total + ' / ' + lim + ' pages';
     }
     _applyZoom();
 
@@ -4336,6 +5546,488 @@
 
   /* V3.395 — multi-key variant: one transact for writes that must stay
    * atomic (e.g. placement + its derived anchor/lock). */
+  /* ── V3.910 — Layout check ──────────────────────────────────────
+   * Under a journal look every paragraph is set by the TeX line breaker,
+   * so the Document view knows the PDF line by line. The check reads that
+   * (state.tsReport, filled by _typesetParagraphs) and the mounted pages:
+   *   loose      a line stretched past badness 500, the emergency pass, or
+   *              an overfull line;
+   *   orphan     a paragraph's first line alone at a column foot;
+   *   widow      its last line alone at the head of the next column;
+   *   far        a figure or table two or more pages after its first
+   *              mention (a chip, or "Fig. 3" / "Table 2" in the text);
+   *   last page  how full the last page is;
+   *   save       paragraphs \looseness=-1 would set one line shorter.
+   * Tighten / Loosen write attrs.looseness (−1 / +1) on the block. The
+   * exporter writes the same \looseness, so the PDF follows. */
+  function _buildLayoutReport(geom) {
+    var btn = state.overlayEl && state.overlayEl.querySelector('#pdv-check');
+    if (!btn) return;
+    if (!geom.look || !state.scaleEl) {
+      btn.hidden = true;
+      state.layoutReport = null;
+      if (state.checkPanelEl) _closeCheckPanel();
+      return;
+    }
+    btn.hidden = false;
+    var pe = _pe();
+    var sheets = Array.prototype.slice.call(state.scaleEl.querySelectorAll('.pdv-sheet'));
+    var ts = state.tsReport || {};
+    var rep = { pages: sheets.length, loose: [], orphans: [], widows: [], far: [], save: [], adjusted: [], lastFrac: 0, lastLines: 0 };
+    function snippet(el) { return (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 90); }
+    var frags = {}, order = [];
+    sheets.forEach(function (sh, pi) {
+      sh.querySelectorAll('.pts-para[data-block-id]').forEach(function (el) {
+        if (el.closest('.pdv-figure, .pdv-table-wrap, .pdv-abstract, .pdv-factbox')) return;
+        var id = el.dataset.blockId;
+        var n = 0;
+        for (var c = el.firstChild; c; c = c.nextSibling) if (c.classList && c.classList.contains('pts-ln')) n++;
+        if (!frags[id]) { frags[id] = []; order.push(id); }
+        frags[id].push({ page: pi, lines: n, el: el });
+      });
+    });
+    order.forEach(function (id) {
+      var f = frags[id], r = ts[id], first = f[0];
+      var item = { id: id, page: first.page, text: snippet(first.el) };
+      if (f.length > 1) {
+        if (first.lines === 1) rep.orphans.push(item);
+        if (f[f.length - 1].lines === 1) rep.widows.push({ id: id, page: f[f.length - 1].page, text: item.text });
+      }
+      if (!r) return;
+      var worst = 0;
+      (r.ratios || []).slice(0, -1).forEach(function (x) { if (x > worst) worst = x; });   // a short last line is fine
+      var bad = Math.round(100 * Math.pow(Math.max(0, worst), 3));
+      /* with a \looseness TeX runs on to its last pass to reach the line
+       * count, so the pass says nothing about the spacing then (V3.913) */
+      if (r.overfull || bad > 500 || (r.pass === 3 && !r.lz)) {
+        rep.loose.push({ id: id, page: item.page, text: item.text, badness: bad, overfull: r.overfull, emergency: r.pass === 3 });
+      }
+      if (r.canTighten) rep.save.push(item);
+      if (r.looseness) rep.adjusted.push({ id: id, page: item.page, text: item.text, looseness: r.looseness });
+    });
+    /* figures and tables far from where they are first cited */
+    var byNum = {}, labelOf = {};
+    (pe.getNumberedFigures ? pe.getNumberedFigures() : []).forEach(function (x) { byNum['F' + x.num] = x.blockId; labelOf[x.blockId] = 'Fig. ' + x.num; });
+    (pe.getNumberedTables ? pe.getNumberedTables() : []).forEach(function (x) { byNum['T' + x.num] = x.blockId; labelOf[x.blockId] = 'Table ' + x.num; });
+    var floatPage = {}, mention = {};
+    var refRe = /(Supplementary\s+)?\b(Fig(?:ure)?s?\.?|Tables?)\s*(\d+)/g;
+    sheets.forEach(function (sh, pi) {
+      sh.querySelectorAll('.pdv-figure[data-block-id], .pdv-table-wrap[data-block-id]').forEach(function (el) {
+        if (floatPage[el.dataset.blockId] == null) floatPage[el.dataset.blockId] = pi;
+      });
+      sh.querySelectorAll('.pe-figref-chip[data-block-id], .pe-tabref-chip[data-block-id]').forEach(function (el) {
+        if (mention[el.dataset.blockId] == null) mention[el.dataset.blockId] = pi;
+      });
+      sh.querySelectorAll('.pts-para').forEach(function (el) {
+        if (el.closest('.pdv-figure, .pdv-table-wrap')) return;
+        var t = el.textContent || '', m;
+        refRe.lastIndex = 0;
+        while ((m = refRe.exec(t))) {
+          if (m[1]) continue;   // "Supplementary Fig. 2" is not this paper's figure
+          var b = byNum[(m[2].charAt(0) === 'T' ? 'T' : 'F') + m[3]];
+          if (b && mention[b] == null) mention[b] = pi;
+        }
+      });
+    });
+    Object.keys(floatPage).forEach(function (b) {
+      if (mention[b] == null || !labelOf[b]) return;
+      if (floatPage[b] - mention[b] >= 2) rep.far.push({ id: b, page: floatPage[b], mention: mention[b], label: labelOf[b] });
+    });
+    /* how full the last page is */
+    var pages = state.lastPages || [];
+    var last = pages[pages.length - 1];
+    if (last && !last.isFloatPage) {
+      var used = (last.usedH || 0) + (last.topH || 0) + (last.bottomH || 0) + (last.footH || 0);
+      rep.lastFrac = Math.min(1, used / (geom.bodyH * (geom.cols === 2 ? 1 : 1)));
+      rep.lastLines = Math.ceil(used / (geom.leadPx || 14));
+    }
+    /* V3.912 — wrapped figures wrapfig could not set beside text */
+    rep.wraps = [];
+    Object.keys(state.wrapReport || {}).forEach(function (b) {
+      var w = state.wrapReport[b];
+      if (w.state === 'collision' || w.state === 'end') rep.wraps.push({ id: b, page: w.page - 1, label: labelOf[b] || 'A figure', kind: w.state });
+      else if (w.state === 'held' && mention[b] != null && w.page - 1 > mention[b]) {
+        rep.wraps.push({ id: b, page: w.page - 1, label: labelOf[b] || 'A figure', kind: 'held', mention: mention[b] });
+      }
+    });
+    rep.grant = _grantReport(geom, sheets, rep);
+    state.layoutReport = rep;
+    var count = rep.loose.length + rep.orphans.length + rep.widows.length + rep.far.length +
+      rep.wraps.length + (rep.grant ? rep.grant.errors : 0);
+    var cEl = state.overlayEl.querySelector('#pdv-check-count');
+    if (cEl) cEl.textContent = count ? String(count) : '';
+    if (state.checkPanelEl) _renderCheckPanel();
+  }
+
+  /* V3.913 — a grant document against its funder's rules
+   * (PaperGrantRules) and its page limit, measured on the laid-out pages. */
+  function _grantReport(geom, sheets, rep) {
+    var tpl = state.template;
+    if (!window.PaperGrantRules || !tpl || !tpl.grant || !geom.look) return null;
+    var key = state.grantDoc || 'project_description';
+    var rule = window.PaperGrantRules.docRule(tpl, key) || {};
+    var pages = state.lastPages || [];
+    var lead = geom.leadPx || 16;
+    var perPage = Math.floor(geom.bodyH / lead + 1e-6);
+    function lines(pg) { return pg ? ((pg.usedH || 0) + (pg.topH || 0) + (pg.bottomH || 0) + (pg.footH || 0)) / lead : 0; }
+    var limit = rule.page_limit || null;
+    var over = 0;
+    if (limit && pages.length > limit) {
+      for (var i = limit; i < pages.length; i++) over += Math.ceil(lines(pages[i]) - 0.05);
+    }
+    var lastLines = Math.ceil(lines(pages[pages.length - 1]) - 0.05);
+    var spare = limit && pages.length <= limit ? (limit - pages.length) * perPage + Math.max(0, perPage - lastLines) : 0;
+    // headings, where they fall, and how many pages each section spans
+    var heads = [], tops = [];
+    sheets.forEach(function (sh, pi) {
+      var body = sh.querySelector('.pdv-sheet-body');
+      var top0 = body ? body.getBoundingClientRect().top : sh.getBoundingClientRect().top;
+      sh.querySelectorAll('.pdv-heading, .pdv-subheading').forEach(function (h) {
+        var t = (h.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!t) return;
+        var z = state.zoomK || 1;
+        var at = pi + (h.getBoundingClientRect().top - top0) / z / geom.bodyH;
+        var lvl = h.classList.contains('pdv-heading') ? 1 : (h.classList.contains('pdv-subheading-l3') ? 3 : 2);
+        heads.push({ text: t, page: pi + 1, level: lvl, at: at });
+      });
+    });
+    var endAt = (pages.length - 1) + Math.min(1, lines(pages[pages.length - 1]) / perPage);
+    var sectionPages = {}, sections = [];
+    heads.forEach(function (h, i) {
+      var nx = null;
+      for (var j = i + 1; j < heads.length; j++) if (heads[j].level <= h.level) { nx = heads[j]; break; }
+      var span = (nx ? nx.at : endAt) - h.at;
+      sectionPages[h.text] = Math.round(span * 100) / 100;
+      if (h.level === 1) sections.push({ text: h.text, pages: Math.round(span * 10) / 10, lines: Math.round(span * perPage) });
+    });
+    var text = '';
+    sheets.forEach(function (sh) {
+      sh.querySelectorAll('.pdv-bodypara, .pdv-figcap, .pdv-tabcap').forEach(function (p) { text += ' ' + (p.textContent || ''); });
+    });
+    var checks = window.PaperGrantRules.check({ template: tpl, look: geom.look,
+      doc: { key: key, pages: pages.length, linesOver: over, lastPageLines: lastLines, linesPerPage: perPage,
+        headings: heads, text: text, sectionPages: sectionPages } });
+    var errors = checks.filter(function (c) { return c.level === 'error'; }).length;
+    return { key: key, rule: rule, limit: limit, pages: pages.length, over: over, spare: spare, perPage: perPage,
+      checks: checks, errors: errors, sections: sections, guide: tpl.grant.guide || '' };
+  }
+
+  /* V3.913 — this paper's own look settings (paperExports.lookOverrides):
+   * the PDF and the preview both read them. */
+  async function _saveLookOverrides(ov) {
+    var prev = state.config.lookOverrides || null;
+    state.config.lookOverrides = ov && Object.keys(ov).length ? ov : null;
+    state.forceRender = true;
+    scheduleRender(30);
+    try {
+      await firebridge.db().collection('paperExports').doc(state.paperId).set({
+        lookOverrides: state.config.lookOverrides,
+        updatedBy: (firebridge.getUser() || {}).uid || null,
+      }, { merge: true });
+    } catch (e) {
+      state.config.lookOverrides = prev;
+      state.forceRender = true;
+      scheduleRender(30);
+      _status('Could not save the page settings: ' + (e.message || e));
+    }
+  }
+
+  /* V3.913 — Fit to the page limit. The steps, gentlest first, each
+   * adding to the last: paragraphs TeX can set a line shorter; captions
+   * 9.5 then 9 pt; the line pitch down to the PAPPG's 12 pt; the text
+   * size down to the typeface's minimum. Every step stays inside the
+   * rules. Lays the document out for each candidate (a binary search over
+   * the ladder) and stops at the first that fits; nothing is saved until
+   * Keep. */
+  function _fitLadder(look, ov, tf) {
+    var steps = [], cur = Object.assign({}, ov || {});
+    function push(label, patch) { cur = Object.assign({}, cur, patch); steps.push({ label: label, cat: Object.keys(patch)[0], ov: Object.assign({}, cur) }); }
+    if (!cur['body.looseness']) push('tighten every paragraph TeX can set a line shorter', { 'body.looseness': -1 });
+    [9.5, 9].forEach(function (s) {
+      if (look.caption.size > s + 0.01) push('captions ' + s + ' pt', { 'caption.size': s, 'caption.lead': Math.round(s * 1.15 * 100) / 100 });
+    });
+    [12.4, 12.2, 12].forEach(function (l) {
+      if (look.body.lead > l + 0.01) push('line pitch ' + l + ' pt', { 'body.lead': l });
+    });
+    var min = tf ? tf.min_size : look.body.size;
+    for (var s = look.body.size - 0.5; s >= min - 0.01; s -= 0.5) push('text ' + s + ' pt', { 'body.size': s });
+    return steps;
+  }
+  async function _fitToLimit() {
+    var g = state.layoutReport && state.layoutReport.grant;
+    if (!g || !g.limit || state.fitting) return;
+    var look = state.lastLook;
+    var tf = window.PaperGrantRules.typeface(state.template, look.fonts.text);
+    var orig = state.config.lookOverrides || {};
+    var steps = _fitLadder(look, orig, tf);
+    state.fitting = { status: 'Laying out…', orig: orig };
+    _renderCheckPanel();
+    async function pagesWith(ov) {
+      state.config.lookOverrides = ov;
+      state.forceRender = true;
+      await renderDocument();
+      return (state.lastPages || []).length;
+    }
+    var lo = 0, hi = steps.length - 1, best = -1, tries = 0;
+    if (!steps.length) hi = -1;
+    while (lo <= hi && tries < 8) {
+      var mid = (lo + hi) >> 1;
+      state.fitting.status = 'Trying: ' + steps.slice(0, mid + 1).map(function (x) { return x.label; }).join(', ') + '…';
+      _renderCheckPanel();
+      var n = await pagesWith(steps[mid].ov);
+      tries++;
+      if (n <= g.limit) { best = mid; hi = mid - 1; } else lo = mid + 1;
+    }
+    var result;
+    if (best >= 0) {
+      await pagesWith(steps[best].ov);
+      var g2 = state.layoutReport && state.layoutReport.grant;
+      // one label per setting: the last step of each kind says its final value
+      var labels = [];
+      steps.slice(0, best + 1).forEach(function (x, i, arr) {
+        if (!arr.slice(i + 1).some(function (y) { return y.cat === x.cat; })) labels.push(x.label);
+      });
+      result = { ok: true, ov: steps[best].ov, labels: labels, spare: g2 ? g2.spare : 0 };
+    } else {
+      // even the last step does not fit: show how far it is, then go back
+      var last = steps.length ? steps[steps.length - 1].ov : orig;
+      await pagesWith(last);
+      var g3 = state.layoutReport && state.layoutReport.grant;
+      result = { ok: false, over: g3 ? g3.over : null, pages: g3 ? g3.pages : null };
+      await pagesWith(orig);
+    }
+    state.fitting = null;
+    state.fitResult = result;
+    _renderCheckPanel();
+  }
+  function _fitKeep() {
+    var r = state.fitResult;
+    state.fitResult = null;
+    if (r && r.ok) _saveLookOverrides(r.ov);
+    else _renderCheckPanel();
+  }
+  function _fitUndo() {
+    state.fitResult = null;
+    state.config.lookOverrides = (state.fitting && state.fitting.orig) || state.savedOverrides || state.config.lookOverrides;
+    _reloadOverrides();
+  }
+  async function _reloadOverrides() {
+    try {
+      var snap = await firebridge.db().collection('paperExports').doc(state.paperId).get();
+      var d = snap.exists ? (snap.data() || {}) : {};
+      state.config.lookOverrides = d.lookOverrides && typeof d.lookOverrides === 'object' ? d.lookOverrides : null;
+    } catch (e) { /* keep what we have */ }
+    state.forceRender = true;
+    scheduleRender(30);
+  }
+
+  /* The grant part of the Check panel: the page budget, Fit, the
+   * funder's rules, wrapped-figure trouble, the page settings and the
+   * length of each section. */
+  function _grantPanelHtml(rep, editable) {
+    var g = rep.grant;
+    if (!g) return '';
+    var look = state.lastLook || {};
+    var ov = state.config.lookOverrides || {};
+    var tpl = state.template || {};
+    var h = '';
+    var label = (g.rule && g.rule.label) || 'Document';
+    if (g.limit) {
+      var overCls = g.pages > g.limit ? ' pdv-budget-over' : '';
+      h += '<div class="pdv-budget' + overCls + '"><div class="pdv-budget-n">' + g.pages + ' / ' + g.limit + ' pages</div><div>' + _esc(label) + ' · ' +
+        (g.pages > g.limit ? 'about ' + g.over + ' line' + (g.over === 1 ? '' : 's') + ' over the limit'
+          : g.spare + ' line' + (g.spare === 1 ? '' : 's') + ' to spare') + '</div>';
+      if (editable && state.fitting) h += '<div class="pdv-check-hint">' + _esc(state.fitting.status) + '</div>';
+      else if (editable && state.fitResult) {
+        var r = state.fitResult;
+        h += r.ok
+          ? '<div class="pdv-fit-res">Fits in ' + g.limit + ' pages with: ' + _esc(r.labels.join('; ')) + '. ' + r.spare + ' line' + (r.spare === 1 ? '' : 's') +
+            ' to spare.<div class="pdv-check-acts"><button class="btn btn-sm btn-primary" data-pdv-check="fit-keep">Keep</button>' +
+            '<button class="btn btn-sm" data-pdv-check="fit-undo">Undo</button></div></div>'
+          : '<div class="pdv-fit-res">Even at the smallest type the rules allow it runs ' + r.pages + ' pages, about ' + r.over +
+            ' lines over: shorten the text by that much (the section lengths are below).' +
+            '<div class="pdv-check-acts"><button class="btn btn-sm" data-pdv-check="fit-dismiss">OK</button></div></div>';
+      } else if (editable && g.pages > g.limit) {
+        h += '<div class="pdv-check-acts"><button class="btn btn-sm btn-primary" data-pdv-check="fit">Fit to ' + g.limit + ' pages</button>' +
+          '<span class="pdv-check-hint">tries the gentlest settings first; nothing is kept until you say so</span></div>';
+      }
+      h += '</div>';
+    }
+    // the funder's rules: problems listed, passes counted
+    var bad = g.checks.filter(function (c) { return c.level === 'error' || c.level === 'warn'; });
+    var info = g.checks.filter(function (c) { return c.level === 'info'; });
+    var good = g.checks.filter(function (c) { return c.level === 'ok'; });
+    h += '<h4>' + _esc(tpl.grant.agency || 'Funder') + ' rules <span class="pdv-check-hint">' + _esc(g.guide) + '</span></h4><ul>';
+    bad.concat(info).forEach(function (c) {
+      h += '<li class="pdv-rule pdv-rule-' + c.level + '"><div class="pdv-check-row">' + ICON.svg(c.level === 'error' ? 'x-circle' : c.level === 'warn' ? 'exclamation-triangle' : 'information-circle') +
+        '<span>' + _esc(c.title) + '</span></div>' + (c.detail ? '<div class="pdv-check-note">' + _esc(c.detail) + '</div>' : '') +
+        (c.fix ? '<div class="pdv-check-note">' + _esc(c.fix) + '</div>' : '') + '</li>';
+    });
+    h += '</ul><details class="pdv-rule-ok"><summary>' + ICON.svg('check') + ' ' + good.length + ' rule' + (good.length === 1 ? '' : 's') + ' met</summary><ul>' +
+      good.map(function (c) { return '<li>' + _esc(c.title) + (c.detail ? ' <span class="pdv-check-hint">' + _esc(c.detail) + '</span>' : '') + '</li>'; }).join('') +
+      '</ul></details>';
+    // wrapped figures
+    if (rep.wraps.length) {
+      h += '<h4>Wrapped figures <span class="pdv-check-n">' + rep.wraps.length + '</span></h4><ul>' + rep.wraps.map(function (w) {
+        var note = w.kind === 'collision'
+          ? 'It was still waiting for room beside text when the next wrapped figure began, so it is set alone (outlined). Move it earlier, make it smaller, or move the next wrapped figure further on.'
+          : w.kind === 'end'
+          ? 'No paragraph after it had room beside it (or the figure before was still wrapping), so it is set alone at the end. Move it earlier, or give it a paragraph to sit beside.'
+          : 'No room beside text where it is placed, so it waited until page ' + (w.page + 1) + ' (cited on page ' + (w.mention + 1) + '). A smaller figure or an earlier position keeps it with its text.';
+        return '<li><div class="pdv-check-row"><span class="pdv-check-page">p. ' + (w.page + 1) + '</span><span class="pdv-check-text">' + _esc(w.label) +
+          '</span></div><div class="pdv-check-note">' + note + '</div><div class="pdv-check-acts"><button class="btn btn-sm" data-pdv-check="show" data-id="' +
+          _esc(w.id) + '">Show</button></div></li>';
+      }).join('') + '</ul>';
+    }
+    // page settings: the knobs, each inside the rules
+    if (editable) {
+      var tfs = (tpl.grant.typefaces || []);
+      var curFont = look.fonts && look.fonts.text;
+      var tf = window.PaperGrantRules.typeface(tpl, curFont);
+      function num(key, lab, val, min, max, step, hint) {
+        return '<label class="pdv-ov-row"><span>' + lab + '</span><input type="number" data-pdv-ov="' + key + '" value="' + (Math.round(val * 100) / 100) +
+          '" min="' + min + '" max="' + max + '" step="' + step + '"><span class="pdv-check-hint">' + hint + '</span></label>';
+      }
+      h += '<h4>Page settings</h4><div class="pdv-ov">' +
+        '<label class="pdv-ov-row"><span>Typeface</span><select data-pdv-ov="fonts.text">' + tfs.map(function (t) {
+          return '<option value="' + _esc(t.font) + '"' + (t.font === curFont ? ' selected' : '') + '>' + _esc(t.label) + ' (' + t.min_size + ' pt+)</option>';
+        }).join('') + '</select></label>' +
+        num('body.size', 'Text size', look.body.size, tf ? tf.min_size : 8, 14, 0.5, 'pt, ' + (tf ? tf.min_size : '') + ' or more') +
+        num('body.lead', 'Line pitch', look.body.lead, 12, 20, 0.05, 'pt, 12 or more (6 lines an inch)') +
+        num('body.parskip', 'Paragraph space', look.body.parskip || 0, 0, 12, 1, 'pt between paragraphs') +
+        num('caption.size', 'Caption size', look.caption.size, 7, 12, 0.5, 'pt (smaller is allowed)') +
+        num('colsep', 'Gap beside wrapped figures', look.colsep, 4, 24, 1, 'pt') +
+        '<label class="pdv-ov-row"><span>Tighten paragraphs</span><input type="checkbox" data-pdv-ov="body.looseness"' + (look.body.looseness ? ' checked' : '') +
+        '><span class="pdv-check-hint">one line shorter wherever TeX can</span></label>' +
+        (Object.keys(ov).length ? '<div class="pdv-check-acts"><button class="btn btn-sm" data-pdv-check="ov-reset">Back to the ' + _esc(look.name || 'template') + ' settings</button></div>' : '') +
+        '</div>';
+    }
+    if (g.sections.length) {
+      h += '<details class="pdv-sections"><summary>Length of each section</summary><ul>' + g.sections.map(function (s) {
+        return '<li><div class="pdv-check-row"><span class="pdv-check-text">' + _esc(s.text) + '</span><span class="pdv-check-page">' + s.pages + ' p · ' + s.lines + ' lines</span></div></li>';
+      }).join('') + '</ul></details>';
+    }
+    return h;
+  }
+
+  function _closeCheckPanel() {
+    if (state.checkPanelEl && state.checkPanelEl.parentNode) state.checkPanelEl.parentNode.removeChild(state.checkPanelEl);
+    state.checkPanelEl = null;
+  }
+  function _openCheckPanel() {
+    if (!state.overlayEl) return;
+    var el = document.createElement('div');
+    el.className = 'pdv-check-panel';
+    state.overlayEl.appendChild(el);
+    state.checkPanelEl = el;
+    /* V3.913 — page settings: each change is this paper's look */
+    el.addEventListener('change', function (ev) {
+      var inp = ev.target.closest('[data-pdv-ov]');
+      if (!inp || !_pe().isEditable()) return;
+      var key = inp.dataset.pdvOv;
+      var ov = Object.assign({}, state.config.lookOverrides || {});
+      if (inp.type === 'checkbox') { if (inp.checked) ov[key] = -1; else delete ov[key]; }
+      else if (inp.tagName === 'SELECT') {
+        ov[key] = inp.value;
+        var tf = window.PaperGrantRules && window.PaperGrantRules.typeface(state.template, inp.value);
+        var cur = state.lastLook && state.lastLook.body.size;
+        if (tf && cur < tf.min_size) ov['body.size'] = tf.min_size;   // keep the text legal for the new face
+      } else {
+        var v = parseFloat(inp.value);
+        if (!isFinite(v)) return;
+        ov[key] = v;
+        if (key === 'caption.size') ov['caption.lead'] = Math.round(v * 1.15 * 100) / 100;
+      }
+      _saveLookOverrides(ov);
+    });
+    el.addEventListener('click', function (ev) {
+      var t = ev.target.closest('[data-pdv-check]');
+      if (!t) return;
+      var act = t.dataset.pdvCheck, id = t.dataset.id;
+      if (act === 'close') { _closeCheckPanel(); return; }
+      if (act === 'show') { _showBlock(id); return; }
+      if (!_pe().isEditable()) return;
+      if (act === 'fit') { _fitToLimit(); return; }
+      if (act === 'fit-keep') { _fitKeep(); return; }
+      if (act === 'fit-undo') { _fitUndo(); return; }
+      if (act === 'fit-dismiss') { state.fitResult = null; _renderCheckPanel(); return; }
+      if (act === 'ov-reset') { _saveLookOverrides(null); return; }
+      if (act === 'tighten') _writeFigAttrs(id, { looseness: -1 }, 'looseness');
+      else if (act === 'loosen') _writeFigAttrs(id, { looseness: 1 }, 'looseness');
+      else if (act === 'reset') _writeFigAttrs(id, { looseness: null }, 'looseness');
+      else if (act === 'save-page') {
+        var rep = state.layoutReport || {};
+        var n = parseInt(t.dataset.n || '0', 10);
+        /* the paragraphs nearest the end move the last lines first */
+        (rep.save || []).slice(-n).forEach(function (s) { _writeFigAttrs(s.id, { looseness: -1 }, 'looseness'); });
+      }
+    });
+    _renderCheckPanel();
+  }
+  function _showBlock(id) {
+    var el = state.scaleEl && state.scaleEl.querySelector('.pdv-sheet [data-block-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.classList.add('pdv-flash');
+    setTimeout(function () { el.classList.remove('pdv-flash'); }, 1600);
+  }
+  function _renderCheckPanel() {
+    var el = state.checkPanelEl, rep = state.layoutReport;
+    if (!el) return;
+    var editable = _pe().isEditable();
+    function row(it, extra, actions) {
+      return '<li><div class="pdv-check-row"><span class="pdv-check-page">p. ' + (it.page + 1) + '</span>' +
+        '<span class="pdv-check-text">' + _esc(it.text || it.label || '') + '</span></div>' +
+        (extra ? '<div class="pdv-check-note">' + extra + '</div>' : '') +
+        '<div class="pdv-check-acts"><button class="btn btn-sm" data-pdv-check="show" data-id="' + _esc(it.id) + '">Show</button>' +
+        (editable ? (actions || []).map(function (a) {
+          return '<button class="btn btn-sm" data-pdv-check="' + a[0] + '" data-id="' + _esc(it.id) + '" title="' + _esc(a[2]) + '">' + a[1] + '</button>';
+        }).join('') : '') + '</div></li>';
+    }
+    var TIGHT = ['tighten', 'Tighten', 'Set this paragraph one line shorter (\\looseness=-1), when TeX can'];
+    var LOOSE = ['loosen', 'Loosen', 'Set this paragraph one line longer (\\looseness=1)'];
+    var h = '<div class="pdv-check-head">' + ICON.svg('check-circle') + ' Layout check' +
+      '<button class="pdv-check-x" data-pdv-check="close" title="Close">' + ICON.svg('x-mark') + '</button></div>';
+    if (!rep) {
+      el.innerHTML = h + '<p class="pdv-check-empty">Pick a journal with a published look to check its layout.</p>';
+      return;
+    }
+    var fill = Math.round(rep.lastFrac * 100);
+    h += _grantPanelHtml(rep, editable);   // V3.913 — a grant: page budget, rules, Fit
+    h += '<p class="pdv-check-sum">' + rep.pages + ' pages · the last page is ' + fill + '% full' +
+      (rep.save.length ? ' · ' + rep.save.length + ' paragraph' + (rep.save.length === 1 ? '' : 's') + ' could lose a line' : '') + '</p>';
+    if (editable && rep.lastFrac > 0 && rep.lastFrac < 0.25 && rep.save.length >= rep.lastLines && rep.lastLines > 0) {
+      h += '<div class="pdv-check-save">About ' + rep.lastLines + ' line' + (rep.lastLines === 1 ? '' : 's') + ' run onto the last page. ' +
+        '<button class="btn btn-sm btn-primary" data-pdv-check="save-page" data-n="' + rep.lastLines + '">Tighten ' + rep.lastLines +
+        ' paragraph' + (rep.lastLines === 1 ? '' : 's') + '</button> <span class="pdv-check-hint">the ones nearest the end; undo with Reset below</span></div>';
+    }
+    function section(title, list, fmt, cap) {
+      if (!list.length) return '';
+      var shown = cap ? list.slice(-cap) : list;   // capped lists keep the ones nearest the end
+      return '<h4>' + title + ' <span class="pdv-check-n">' + list.length + '</span></h4><ul>' + shown.map(fmt).join('') + '</ul>' +
+        (shown.length < list.length ? '<p class="pdv-check-hint">' + (list.length - shown.length) + ' more earlier in the paper.</p>' : '');
+    }
+    var body =
+      section('Loose lines', rep.loose, function (it) {
+        return row(it, it.overfull ? 'A line runs into the margin.' : it.emergency ? 'TeX needed its emergency stretch here.' : 'Widest spacing: badness ' + it.badness + '.',
+          [TIGHT, LOOSE]);
+      }) +
+      section('Orphans', rep.orphans, function (it) {
+        return row(it, 'The first line sits alone at the foot of a column.', [TIGHT, LOOSE]);
+      }) +
+      section('Widows', rep.widows, function (it) {
+        return row(it, 'The last line sits alone at the top of a column.', [TIGHT, LOOSE]);
+      }) +
+      section('Figures and tables far from their citation', rep.far, function (it) {
+        return row({ id: it.id, page: it.page, text: it.label }, 'First cited on page ' + (it.mention + 1) + ', set ' + (it.page - it.mention) + ' pages later.', []);
+      }) +
+      section('Paragraphs you adjusted', rep.adjusted, function (it) {
+        return row(it, it.looseness < 0 ? 'Set one line shorter.' : 'Set one line longer.', [['reset', 'Reset', 'Let TeX choose the lines again']]);
+      }) +
+      section('Could lose a line', rep.save, function (it) { return row(it, '', [TIGHT]); }, 10);
+    el.innerHTML = h + (body || '<p class="pdv-check-empty">' + ICON.svg('check') + ' Nothing to fix: no loose lines, widows, orphans or stray figures.</p>');
+  }
+
   function _writeFigAttrs(blockId, kv, origin) {
     var blk = _findLiveBlock(blockId);
     if (!blk) return;

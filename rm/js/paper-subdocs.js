@@ -125,6 +125,89 @@
     });
   }
 
+  /* ── V3.911 / V3.914 — a funder's documents, set in the grant's look ──
+   * A grant template with a `grant` block (nsf-career) lists the
+   * documents NSF takes as separate uploads. Each compiles from the
+   * paper's own template — same look, fonts, margins, the paper's
+   * lookOverrides — with only its sections, the title hidden, and the
+   * section label as its heading. References Cited is the bibliography
+   * alone, numbered in the order the Project Description first cites. */
+  function grantDocs(template) {
+    var g = template && template.grant;
+    if (!g || !Array.isArray(g.documents)) return [];
+    return g.documents.filter(function (d) { return !d.narrative; }).map(function (d) {
+      return { docKind: 'grant_' + d.key, key: d.key, label: d.label, kinds: d.kinds || [], references: !!d.references,
+        page_limit: d.page_limit || null, note: d.note || '', grant: true, templateId: template.id + '#' + d.key };
+    });
+  }
+  function _clone(o) { return JSON.parse(JSON.stringify(o)); }
+  /* the citation keys in the order LaTeX writes them to the .aux: main.tex
+   * with each \input{sections/…} expanded where it stands */
+  function citeOrder(files) {
+    var byPath = {};
+    files.forEach(function (f) { byPath[f.relpath] = f.content; });
+    var keys = [], seen = {};
+    function scan(text, depth) {
+      if (depth > 4) return;
+      var re = /\\input\{([^}]+)\}|\\(?:cite[a-z]*|nocite)\*?(?:\[[^\]]*\])*\{([^}]*)\}/g, m;
+      while ((m = re.exec(text))) {
+        if (m[1]) {
+          var pth = m[1].replace(/\.tex$/, '') + '.tex';
+          if (byPath[pth] != null) scan(byPath[pth], depth + 1);
+        } else {
+          m[2].split(',').forEach(function (k) {
+            k = k.trim();
+            if (k && !seen[k]) { seen[k] = true; keys.push(k); }
+          });
+        }
+      }
+    }
+    var main = files.filter(function (f) { return /(^|\/)main\.tex$/.test(f.relpath); })[0] || files[0];
+    var body = main.content;
+    var b = body.indexOf('\\begin{document}');
+    scan(b >= 0 ? body.slice(b) : body, 0);
+    return keys;
+  }
+  function buildGrantDocBundle(opts) {
+    var template = opts.template;
+    var doc = grantDocs(template).filter(function (d) { return d.docKind === opts.docKind || d.key === opts.docKind; })[0];
+    if (!doc) return Promise.reject(new Error('Unknown grant document: ' + opts.docKind));
+    var common = {
+      paperId: opts.paperId, overrides: {}, addons: [], buildTarget: 'submission',
+      yDoc: opts.yDoc, authorsCfg: opts.authorsCfg || null, fullItemsByKey: opts.fullItemsByKey || null,
+      leadAuthor: opts.leadAuthor || '', layoutLook: 'published', lookOverrides: opts.lookOverrides || null,
+      sectionNumbering: opts.sectionNumbering || 'auto',
+    };
+    if (doc.references) {
+      return window.PaperExportTex.buildBundle(Object.assign({ template: template }, common)).then(function (bundle) {
+        var keys = citeOrder(bundle.files);
+        var main = bundle.files.filter(function (f) { return /(^|\/)main\.tex$/.test(f.relpath); })[0];
+        var pre = main.content.slice(0, main.content.indexOf('\\begin{document}'));
+        var bst = (template.citation && template.citation.bibliography_style) || 'unsrtnat';
+        var bibBase = (template.bib_filename || 'references.bib').replace(/\.bib$/, '');
+        main.content = pre + '\\begin{document}\n' +
+          '% References Cited: the Project Description\'s citations, in the order it first cites them\n' +
+          '\\nocite{' + keys.join(',') + '}\n\\bibliographystyle{' + bst + '}\n\\bibliography{' + bibBase + '}\n\\end{document}\n';
+        bundle.files = bundle.files.filter(function (f) { return !/^sections\//.test(f.relpath); });
+        bundle.figureAssets = [];
+        bundle.citeKeys = keys;
+        bundle.doc = doc;
+        return bundle;
+      });
+    }
+    var t = _clone(template);
+    t.look = t.look || {};
+    t.look.title = Object.assign({}, t.look.title || {}, { show: false });
+    var skc = t.section_kind_to_command || {};
+    doc.kinds.forEach(function (k) { skc[k] = 'section_star'; });
+    t.section_kind_to_command = skc;
+    return window.PaperExportTex.buildBundle(Object.assign({ template: t, titleOverride: opts.titleOverride,
+      sectionFilter: function (sec) { return doc.kinds.indexOf(sec.kind) >= 0; } }, common)).then(function (bundle) {
+      bundle.doc = doc;
+      return bundle;
+    });
+  }
+
   /* Subdocs available for a paper_type (Grant Docs page / Export page
    * each render their own). A doc with no `types` defaults to journal. */
   function docsForType(type) {
@@ -136,6 +219,9 @@
   window.PaperSubdocs = {
     DOCS: DOCS,
     docsForType: docsForType,
+    grantDocs: grantDocs,                     // V3.911
+    buildGrantDocBundle: buildGrantDocBundle, // V3.911
+    citeOrder: citeOrder,
     sectionsPresent: sectionsPresent,
     buildSubdocBundle: buildSubdocBundle,
   };

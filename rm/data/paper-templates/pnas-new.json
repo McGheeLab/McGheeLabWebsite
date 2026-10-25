@@ -32,7 +32,7 @@
     "format": "authblk"
   },
   "preamble": "\\documentclass[9pt,twocolumn,twoside]{pnas-new}\n\\templatetype{pnasresearcharticle}\n% RM: the class draft watermark is AtBeginDocument-gated — disable it.\n\\setboolean{displaywatermark}{false}\n",
-  "main_template": "{{PREAMBLE}}\n\n\\title{ {{TITLE}} }\n\n{{AUTHOR_BLOCK}}\n\n{{SIGNIFICANCE_BLOCK}}\n{{AUTHORCONTRIB_BLOCK}}\n{{KEYWORDS_BLOCK}}\n\n\\begin{abstract}\n{{ABSTRACT}}\n\\end{abstract}\n\n\\begin{document}\n\n\\maketitle\n\\thispagestyle{firststyle}\n\n{{INPUTS}}\n\n{{MATMETHODS_BLOCK}}\n{{ACKNOW_BLOCK}}\n\n\\bibliography{{{BIB_BASENAME}}}\n\n\\end{document}\n",
+  "main_template": "{{PREAMBLE}}\n\n\\title{ {{TITLE}} }\n\n{{AUTHOR_BLOCK}}\n\n{{SIGNIFICANCE_BLOCK}}\n{{AUTHORCONTRIB_BLOCK}}\n{{KEYWORDS_BLOCK}}\n\n\\begin{abstract}\n{{ABSTRACT}}\n\\end{abstract}\n\n\\begin{document}\n\n\\maketitle\n\\thispagestyle{firststyle}\n% the research-article style sets the abstract in the first column; the class prints it only when asked (as the official PNAS template does)\n\\ifthenelse{\\boolean{shortarticle}}{\\ifthenelse{\\boolean{singlecolumn}}{\\abscontentformatted}{\\abscontent}}{}\n\n{{INPUTS}}\n\n{{MATMETHODS_BLOCK}}\n{{ACKNOW_BLOCK}}\n\n\\bibliography{{{BIB_BASENAME}}}\n\n\\end{document}\n",
   "section_kind_to_command": {
     "abstract": "abstract_placeholder",
     "keywords": {
@@ -138,6 +138,216 @@
       "default_placement": "tbp",
       "allow_here": false,
       "notes": "PNAS: 8.7 cm single / 11.4 cm 1.5-col / 17.8 cm double; two-column; floats top or own page."
+    }
+  },
+  "look": {
+    "engine": "class",
+    "name": "PNAS (pnas-new class page)",
+    "measured_from": "pnas-new.cls v1.44: 8.125x10.875 in layout on US Letter, hoffset 0.1875 in, voffset 0.0625 in, odd-page margins (geometry from the class; sizes from a compile)",
+    "page": {
+      "w": 612,
+      "h": 792
+    },
+    "margins": {
+      "top": 57.3,
+      "bottom": 61.3,
+      "left": 51.86,
+      "right": 56.34
+    },
+    "columns": 2,
+    "colsep": 13.45,
+    "fonts": {
+      "text": "lm9",
+      "sans": "heros"
+    },
+    "body": {
+      "size": 8.966,
+      "lead": 10.959,
+      "indent": 11.955,
+      "parskip": 0,
+      "flushbottom": true,
+      "topskip": 8.966
+    },
+    "title": {
+      "family": "lm-sans",
+      "size": 21.918,
+      "lead": 23.91,
+      "weight": "bold",
+      "align": "left",
+      "after": 10.04
+    },
+    "authors": {
+      "family": "sans",
+      "size": 8.966,
+      "lead": 10.959,
+      "weight": "bold",
+      "align": "left",
+      "after": 9.53,
+      "corresponding": false
+    },
+    "affiliations": {
+      "family": "sans",
+      "size": 6.974,
+      "lead": 7.97,
+      "align": "left",
+      "where": "front",
+      "after": 17.44,
+      "inline": "; "
+    },
+    "abstract": {
+      "mode": "column",
+      "family": "sans",
+      "size": 7.97,
+      "lead": 10.959,
+      "weight": "bold",
+      "label": null,
+      "indent": 0,
+      "after": 18.24,
+      "before": 0,
+      "parbox": true
+    },
+    "keywords": {
+      "show": true,
+      "label": null,
+      "family": "lm7",
+      "size": 6.974,
+      "lead": 9.963,
+      "after": 13.74,
+      "before": 18.24
+    },
+    "h1": {
+      "family": "sans",
+      "size": 10.95,
+      "lead": 13,
+      "weight": "bold",
+      "before": 12,
+      "after": 5,
+      "align": "left"
+    },
+    "h2": {
+      "family": "sans",
+      "size": 8.966,
+      "lead": 10.959,
+      "weight": "bold",
+      "before": 9,
+      "after": 0,
+      "runin": true,
+      "runin_sep": ".",
+      "align": "left"
+    },
+    "h3": {
+      "family": "sans",
+      "size": 8,
+      "lead": 10,
+      "weight": "bold",
+      "style": "italic",
+      "before": 6,
+      "after": 0,
+      "runin": true,
+      "runin_sep": "."
+    },
+    "caption": {
+      "family": "sans",
+      "size": 6.974,
+      "lead": 8.966,
+      "label_fig": "Fig.",
+      "label_tab": "Table",
+      "label_weight": "bold",
+      "sep": ". ",
+      "align": "justify",
+      "skip": 6,
+      "table_position": "above"
+    },
+    "bib": {
+      "size": 5.978,
+      "lead": 7.97,
+      "head": "",
+      "label": "dot",
+      "sep": 0,
+      "family": "sans"
+    },
+    "cite": {
+      "style": "paren"
+    },
+    "display": {
+      "above": 7.97,
+      "below": 7.97
+    },
+    "floats": {
+      "textfloatsep": 17.93,
+      "floatsep": 11.96,
+      "intextsep": 11.96,
+      "topfraction": 0.7,
+      "bottomfraction": 0.3,
+      "textfraction": 0.2,
+      "floatpagefraction": 0.5,
+      "dbltopfraction": 0.7,
+      "dblfloatpagefraction": 0.5,
+      "topnumber": 2,
+      "bottomnumber": 1,
+      "totalnumber": 3,
+      "dbltopnumber": 2
+    },
+    "footer": {
+      "page_numbers": true
+    },
+    "hide_heading_kinds": [
+      "introduction"
+    ],
+    "font_scale": {
+      "sans": 0.95
+    },
+    "factbox": {
+      "specials": [
+        "significance",
+        "author_contributions"
+      ],
+      "col": 1,
+      "family": "sans",
+      "size": 5.978,
+      "lead": 6.974,
+      "align": "justify",
+      "pad_bottom": 14.944,
+      "parskip": 0
+    },
+    "units_note": "sizes are the class's TeX points converted to bp (1pt = 72/72.27 bp)",
+    "glue": {
+      "sans": {
+        "stretch": 0.597,
+        "shrink": 0.237
+      }
+    },
+    "glue_note": "inter-word stretch/shrink as fractions of the space, from the class fonts' TFM fontdimens (phv*8t); lmr9 is TeX's 1/2, 1/3 (the default)",
+    "front_note": "front skips are TeX skips (baseline distance = skip + the next baselineskip), measured from a pnas-new compile",
+    "section_styles": {
+      "acknowledgments": {
+        "family": "lm8",
+        "size": 7.97,
+        "lead": 8.966,
+        "indent": 0,
+        "before": 12.56,
+        "runin_head": {
+          "text": "ACKNOWLEDGMENTS.",
+          "family": "sans",
+          "size": 8.966,
+          "weight": "bold",
+          "gap": 6.68
+        }
+      },
+      "acknowledgements": {
+        "family": "lm8",
+        "size": 7.97,
+        "lead": 8.966,
+        "indent": 0,
+        "before": 12.56,
+        "runin_head": {
+          "text": "ACKNOWLEDGMENTS.",
+          "family": "sans",
+          "size": 8.966,
+          "weight": "bold",
+          "gap": 6.68
+        }
+      }
     }
   },
   "figure_environment": {
