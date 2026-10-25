@@ -33,7 +33,7 @@
     activity: '/rm/pages/activity-overview.html?tab=tracker',
     inventory: '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.901', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.904', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -1245,7 +1245,7 @@
     var d = M.doc(pane.docId), items = []; if (!d) return items;
     if (name === 'hand') {
       var g = handGroup();
-      [['zoom', 'magnifying-glass', 'Zoom — tap to zoom in, Alt-tap out, Shift-tap to fit a component or region, drag up or down'], ['move', 'hand', 'Move — drag the paper to pan, drag a component to move it'], ['pen', 'pencil', 'Pen — draw with the mouse or the pen'],
+      [['zoom', 'magnifying-glass', 'Zoom — tap to zoom in, Alt-tap out, Shift-tap to fit a component or region, drag up or down'], ['move', 'hand', 'Move — drag the paper to pan, drag a component to move it, Shift-click to fit a component or region'], ['pen', 'pencil', 'Pen — draw with the mouse or the pen'],
         ['hl', 'highlighter', 'Highlighter — wide and see-through'], ['lasso', 'lasso', 'Lasso — circle strokes to move, recolour, delete or convert']].forEach(function (f) {
         items.push({ icon: pic(f[1]), label: f[2], sel: g === f[0], mode: true, keep: true, run: function () { setHand(f[0]); } }); });
       /* V3.896 — pen settings live in Gabe's ink bar (top left, stays open), behind one cog */
@@ -1407,7 +1407,7 @@
       try { if (pane.dock && typeof ResizeObserver !== 'undefined') { new ResizeObserver(function () { placeQuickCast(pane); }).observe(pane.dock); pane.dock.addEventListener('scroll', function () { placeQuickCast(pane); }, { passive: true }); } } catch (e) {} }
     trackHand();
     host.classList.toggle('lab-hand-zoom', LP.zoom); host.classList.toggle('lab-hand-move', handNow() === 'move'); host.classList.add('lab-pilled');
-    if (!LP.zoom && ZF.el) zfitMark(null);
+    if (!fitHand() && ZF.el) zfitMark(null);
     box.classList.toggle('fan-open', !!(LP.open && LP.open.doc === pane.docId));
     box.replaceChildren.apply(box, (pane.travel ? ['view'] : ['insert', 'tools', 'hand', 'view']).map(function (n) { return pillEl(n, pane, host); }));   // V3.899 — nothing to add to a read-only note
   }
@@ -1416,9 +1416,22 @@
   /* the zoom hand: a tap zooms in ×1.5 at the point (Alt / right button: out, with the zoom-out cursor while Alt is
      held); a drag up or down zooms smoothly. Shift-tap fits the view to the component or region under the pointer
      (empty paper: the whole note); while Shift is held the edge of what it would fit lights up (.lab-zfit). The click
-     that follows a zoom tap is swallowed, so a tap on a component only zooms. */
+     that follows a zoom tap is swallowed, so a tap on a component only zooms.
+     V3.904 — the move (pan) hand does the same on a Shift-click, except where Shift-click already means something: the
+     text you are typing in or have selected (a PDF's words for a quote) extends its selection, a plate's wells select a
+     range; a Shift-drag still pans or moves. */
   var ZOOM_SKIP = '.lab-pills,.dock,.ctools,.insp,.ink-bar,.ink-selbar,.pop,.hint,button,input,textarea,select,a';
+  var MOVE_SKIP = ZOOM_SKIP + ',.wplate,math-field,.clip-layer';
   var ZF = { host: null, x: 0, y: 0, shift: false, el: null, swallow: 0 };
+  function fitHand() { return LP.zoom || handNow() === 'move'; }
+  function typing() { var a = document.activeElement; return !!a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT|MATH-FIELD)$/.test(a.tagName)); }
+  // a Shift-click that extends a selection: inside what you are typing in, or in text that holds the selection
+  function textBusy(t) {
+    var a = document.activeElement; if (a && a !== document.body && (a.isContentEditable || /^(INPUT|TEXTAREA)$/.test(a.tagName)) && a.contains(t)) return true;
+    var s = getSelection(), n = s && !s.isCollapsed && s.anchorNode; if (!n) return false; if (n.nodeType !== 1) n = n.parentNode;
+    var z = n && n.closest && n.closest('.textLayer,[contenteditable="true"]'); return !!z && z.contains(t);
+  }
+  function moveBlocked(t) { return !t || !!t.closest(MOVE_SKIP) || textBusy(t); }
   // a region by its tab, else the component under the pointer, else the smallest region around the point
   function zfitTarget(host, x, y) {
     var P = host._dv && host._dv.paper; if (!P) return null;
@@ -1440,7 +1453,10 @@
     ZF.el = el || null; if (!el) return;
     var P = ZF.host && ZF.host._dv && ZF.host._dv.paper; zfitWidth(el, P && P.view.z); el.classList.add('lab-zfit');
   }
-  function zfitHover() { zfitMark(ZF.shift && LP.zoom && ZF.host && ZF.host.isConnected ? zfitTarget(ZF.host, ZF.x, ZF.y) : null); }
+  function zfitHover() {   // with the move hand, not while typing (a capital letter is a Shift too)
+    var on = ZF.shift && ZF.host && ZF.host.isConnected && (LP.zoom || (handNow() === 'move' && !typing() && !moveBlocked(document.elementFromPoint(ZF.x, ZF.y))));
+    zfitMark(on ? zfitTarget(ZF.host, ZF.x, ZF.y) : null);
+  }
   /* Paper.fitTarget keeps a note's top on the screen (y ≥ pad: right for "fit everything", wrong for one thing further
      down), so a component or region is centred here instead, in the room the side pills, the tool row and the dock leave */
   var ZFIT_PAD = { side: 72, top: 64, bottom: 140, split: 100 };   // V3.896: bottom clears the Quick cast above the bar and its hint line
@@ -1462,7 +1478,17 @@
   addEventListener('blur', function () { ZF.shift = false; zfitMark(null); $$('.canvas-host.lab-zoom-out').forEach(function (x) { x.classList.remove('lab-zoom-out'); }); });
   function bindZoomHand(pane, host) {
     host.addEventListener('pointerdown', function (e) {
-      if (!LP.zoom || e.pointerType === 'pen' || e.target.closest(ZOOM_SKIP)) return;
+      if (!LP.zoom) {   // the move hand: a Shift-click fits; the press still reaches the canvas, so a Shift-drag pans or moves as ever
+        if (handNow() !== 'move' || !e.shiftKey || e.altKey || e.button > 0 || e.pointerType === 'pen' || moveBlocked(e.target) || !(host._dv && host._dv.paper)) return;
+        e.preventDefault();   // decided before the browser puts a caret in the box or starts selecting
+        var sx = e.clientX, sy = e.clientY, far = 0;
+        var smv = function (ev) { far = Math.max(far, Math.abs(ev.clientX - sx), Math.abs(ev.clientY - sy)); };
+        var sup = function (ev) { removeEventListener('pointermove', smv, true); removeEventListener('pointerup', sup, true); removeEventListener('pointercancel', sup, true);
+          if (ev.type === 'pointerup' && far <= 4) { ZF.swallow = Date.now(); zfit(host, sx, sy); } };
+        addEventListener('pointermove', smv, true); addEventListener('pointerup', sup, true); addEventListener('pointercancel', sup, true);
+        return;
+      }
+      if (e.pointerType === 'pen' || e.target.closest(ZOOM_SKIP)) return;
       var P = host._dv && host._dv.paper; if (!P) return;
       e.preventDefault(); e.stopPropagation();
       var y0 = e.clientY, x0 = e.clientX, z0 = P.view.z, moved = 0, out = e.altKey || e.button === 2, fit = e.shiftKey && !out;
@@ -1472,12 +1498,12 @@
       addEventListener('pointermove', mv, true); addEventListener('pointerup', up, true); addEventListener('pointercancel', up, true);
     }, true);
     host.addEventListener('pointermove', function (e) {
-      if (!LP.zoom || e.pointerType === 'pen') return;
+      if (!fitHand() || e.pointerType === 'pen') return;
       ZF.host = host; ZF.x = e.clientX; ZF.y = e.clientY; ZF.shift = e.shiftKey && !e.altKey;
-      host.classList.toggle('lab-zoom-out', e.altKey); zfitHover();
+      if (LP.zoom) host.classList.toggle('lab-zoom-out', e.altKey); zfitHover();
     }, true);
     host.addEventListener('pointerleave', function () { if (ZF.host === host) { ZF.host = null; zfitMark(null); } });
-    host.addEventListener('click', function (e) { if (LP.zoom && Date.now() - ZF.swallow < 400 && !e.target.closest(ZOOM_SKIP)) { e.preventDefault(); e.stopPropagation(); } }, true);
+    host.addEventListener('click', function (e) { if (fitHand() && Date.now() - ZF.swallow < 400 && !e.target.closest(ZOOM_SKIP)) { e.preventDefault(); e.stopPropagation(); } }, true);
     host.addEventListener('contextmenu', function (e) { if (LP.zoom && !e.target.closest('.lab-pills')) e.preventDefault(); }, true);
   }
   try {

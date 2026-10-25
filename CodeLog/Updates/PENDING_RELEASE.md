@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (1 change — push at 5+)
+## Pending (2 changes — push at 5+)
+
+- V3.904 — In Scientia, Shift-click with the move (hand) tool now zooms to the item or region you click, just like the zoom tool, or to the whole note on empty paper. Shift-click inside text you are typing still extends your selection.
 
 - V3.903 — Scientia clips: a box you draw round something now appears right under your mouse at any zoom. A clipped figure or equation now lands on top of the paper (where it was on the page) for you to drag where you want it. And when letters in an equation are one name (like MESF), select them and press One name in the equation editor so it is treated as one term.
 

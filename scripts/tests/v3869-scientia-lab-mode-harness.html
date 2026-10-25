@@ -139,7 +139,7 @@
     function qa(s) { return Array.from(D.querySelectorAll(s)); }
     function ev(code) { return W.eval(code); }
     function go(hash) { W.location.hash = hash; }
-    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.901', W.SIS_LAB.version);
+    check('SIS_TARGET is web and lab mode is on', W.SIS_TARGET === 'web' && W.SIS_LAB.version === 'V3.904', W.SIS_LAB.version);
     /* 1. the tab row */
     var keys = qa('#tabs a.tab').map(function (a) { return a.dataset.k; });
     check('Activity and Data are not tabs on the web', keys.indexOf('activity') < 0 && keys.indexOf('data') < 0, keys.join(','));
@@ -585,6 +585,20 @@
     check('…and Shift-tap fits the view to the region', !!zreg && !!(await until(function () { return centred(zreg); }, 2000)), zreg && JSON.stringify(zreg.getBoundingClientRect()));
     zkey('keyup', false);
     if (zrg) ev("REGION.remove(M.doc('" + an + "'), '" + zrg + "')");
+    /* V3.904 — the move (pan) hand: a Shift-click fits too, but not in the text you are typing in (it extends the selection there) */
+    W.SIS_LAB.setHand('move'); ev('(function () { getSelection().removeAllRanges(); var a = document.activeElement; if (a && a.blur) a.blur(); })()');
+    look(896 + 196, 1400 + 30, 0.6); await sleep(200);
+    var mbox = zboxNow(), ms = mbox && spotOn(mbox);
+    if (ms) zpe('pointermove', ms.x, ms.y, { shiftKey: true });
+    check('Move hand: with Shift held, the component under the pointer lights up its edge too', !!ms && !!zboxNow() && zboxNow().classList.contains('lab-zfit'), ms ? JSON.stringify(ms) : 'no spot');
+    if (ms) { zpe('pointerdown', ms.x, ms.y, { shiftKey: true }); zpe('pointerup', ms.x, ms.y, { shiftKey: true }); }
+    check('…and a Shift-click fits the view to it', !!ms && !!(await until(function () { return zboxNow() && centred(zboxNow()); }, 2000)), zboxNow() && JSON.stringify(zboxNow().getBoundingClientRect()) + ' z ' + ev('DocView.paper.view.z'));
+    zkey('keyup', false);
+    look(896 + 196, 1400 + 30, 0.6); await sleep(200);
+    var med = zboxNow() && zboxNow().querySelector('.ed[contenteditable="true"]'), mz = null;
+    if (med) { med.focus(); var mr = med.getBoundingClientRect(), mx = mr.left + Math.min(12, mr.width / 2), my = mr.top + Math.min(8, mr.height / 2); zpe('pointerdown', mx, my, { shiftKey: true }); zpe('pointerup', mx, my, { shiftKey: true }); await sleep(600); mz = ev('DocView.paper.view.z'); }
+    check('…but a Shift-click in the text being typed in extends the selection there: no zoom', !!med && Math.abs(mz - 0.6) < 0.001, med ? 'z ' + mz : 'no editable text');
+    ev('(function () { var a = document.activeElement; if (a && a.blur) a.blur(); })()');
     W.SIS_LAB.setHand('move');
     pill('tools').querySelector('.lab-pill-btn').click(); await until(function () { return fanItems('tools').length >= 4; }, 2000);
     item('tools', /^Start this note’s timer/).click();

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.904] — 2026-10-24 — Scientia: Shift-click with the move (pan) hand fits the component or region
+
+Plan: [CodeLog/ClaudesPlan/V3.904_scientia_pan_hand_shift_fit.md](../ClaudesPlan/V3.904_scientia_pan_hand_shift_fit.md).
+
+### Added
+- **The move hand fits on a Shift-click**, as the zoom hand's Shift-tap does (V3.895): the component or region under the pointer, or the whole note on empty paper. The edge of what it would fit lights up while Shift is held (`rm/scientia/lab-mode.js` §11).
+  - `fitHand()` covers both hands; on `pointerdown` the move hand with Shift calls `preventDefault()` but does not stop the press. On pointerup within 4 px it runs `zfit()` and swallows the click, so a Shift-drag still pans or moves.
+  - **Kept as they were**: Shift-click in the text you are typing in, or in text holding the selection (a PDF's words for a quote), extends the selection. `textBusy()` decides this at pointerdown, before the browser focuses the box. Shift-click on a plate's wells (`.wplate`), an equation field, buttons and inputs is unchanged (`MOVE_SKIP`).
+  - The lit edge is not shown while typing, since a capital letter is a Shift.
+  - The Move tooltip says so. `LAB.version` V3.904.
+
+### Tests
+- Lab-mode harness **272/272**. Three new checks: the move hand lights the edge under Shift; a Shift-click fits the component; a Shift-click inside the focused text does not zoom.
+- `sw.js` CACHE_VERSION 882 → 883.
+
 ## [V3.903] — 2026-10-24 — Scientia clips: the box drawn at the pointer, clips lie on the paper, One name for multi-letter terms
 
 Plan: [CodeLog/ClaudesPlan/V3.903_scientia_clip_on_paper_one_name.md](../ClaudesPlan/V3.903_scientia_clip_on_paper_one_name.md). Alex's three notes after using V3.901's clip tool.
