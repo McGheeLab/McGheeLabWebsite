@@ -297,7 +297,10 @@ const DocView = {
   /** Boxes placed automatically are nudged apart once their real heights are known. */
   settle() {
     const d = M.doc(this.docId); if (!d || this.travel || !this.paper) return false;
-    const live = M.liveBlocks(d.id).filter(b => b.x != null && b.kind !== 'ink'), auto = live.filter(b => b.auto); // ink floats where it was written
+    // ink floats where it was written; so does a box put on top of another on purpose (`float` = that spot: a clip on its paper,
+    // 13zza) until it is moved
+    const floats = b => b.float && b.float.x === b.x && b.float.y === b.y;
+    const live = M.liveBlocks(d.id).filter(b => b.x != null && b.kind !== 'ink' && !floats(b)), auto = live.filter(b => b.auto);
     const head = this.rectOf('_head'); let moved = false;
     // boxes never overlap: a box that grew (or was placed automatically) pushes the ones below it down
     const R = live.map(b => ({ b, r: this.rectOf(b.id) })).filter(x => x.r).sort((a, c) => a.b.y - c.b.y || d.blockIds.indexOf(a.b.id) - d.blockIds.indexOf(c.b.id));

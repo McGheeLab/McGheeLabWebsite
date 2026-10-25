@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.903] — 2026-10-24 — Scientia clips: the box drawn at the pointer, clips lie on the paper, One name for multi-letter terms
+
+Plan: [CodeLog/ClaudesPlan/V3.903_scientia_clip_on_paper_one_name.md](../ClaudesPlan/V3.903_scientia_clip_on_paper_one_name.md). Alex's three notes after using V3.901's clip tool.
+
+### Added
+- **One name** in the equation editor (`scientia/src/13h-math.js` `MATH.editor`, Gabe's): select letters that are one name and press it, and they become `\mathrm{…}`, which `TEX.parse` reads as one term. An OCR's `MESF = C N` then has the terms MESF, C and N rather than M, E, S, F, C, N.
+  - Works on a selection in the LaTeX box too.
+  - `isName()` refuses anything but letters, digits and Greek letters, with a line saying so. The field selects the whole equation when it opens; wrapping that would make `MESF=CN` a single name.
+  - Has a shortcut-legend row; the clip capture's note points to it after a read.
+
+### Changed
+- **A clip lies on top of the paper** (`13zza-clip.js` `CLIP.spot(src, n, r, w)`). It goes over the place it came from when the card shows that page, lifted 14 px. Otherwise it goes over the part of the card in view, or the middle of the note in view (paper beside the note or maximised, card scrolled away). You then drag it where you want it. The equation's spot is taken before its editor opens.
+- **It floats there until moved**: `CLIP.lift(b)` sets `b.float = {x, y}`, and `settle()` (`12-doc.js`, Gabe's) leaves alone a box still at its `float` spot (beside the ink exemption) instead of pushing it below the card. Moved, it is an ordinary box. While floating it has `.box.clip-float` (z-index 5, lifted shadow), dropped on the `pointerup` that moves it.
+- Badge, Picture / Equation titles and toasts say "on top of the paper". `BUILD` updated.
+
+### Bug Fixes
+- **The box drawn in clip mode was not at the pointer** whenever the canvas was zoomed. It was measured in screen pixels and drawn in the layer's own pixels, which the zoom (`10-paper.js` `scale()`) scales again; the region selected was right. `CLIP.drag` now draws the marquee, the kept box and the Picture / Equation bar in `box × (L.offsetWidth / screen width)`.
+
+### Tests
+- Lab-mode harness **269/269**. Six new §20 checks:
+  - at 60% zoom, the drawn box and the kept box are under the pointer (within 2 px);
+  - the region drawn is right and the clip lies where it was drawn;
+  - a clip survives `settle()` above the card, and is ordinary once moved;
+  - One name refuses the whole equation, turns M E S F into `\mathrm{MESF}` (terms MESF, C, N), and Done saves it.
+- The old "beside the card" checks now check "on the paper", measured against the card's drawn rectangle (`rectOf`), not its stored `h`.
+- `sw.js` CACHE_VERSION 881 → 882.
+
 ## [V3.902] — 2026-10-24 — RM and Scientia always load the newest version after a deploy
 
 Plan: [CodeLog/ClaudesPlan/V3.902_rm_files_always_fresh.md](../ClaudesPlan/V3.902_rm_files_always_fresh.md). Found when V3.901 was live on the server but Alex's browser still opened V3.900's Scientia: the host sends no `Cache-Control`, so browsers reused their copies for ~10% of a file's age without asking, and the worker's "network-first" `fetch(request)` went through that cache.

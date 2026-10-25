@@ -363,6 +363,7 @@ body:has(.embed-max) .pop,body:has(.embed-max) .modal-bg,body:has(.embed-max) .o
 .clip-btn svg,.rd-open svg{display:block}
 .clip-flash{position:absolute;box-sizing:border-box;border:3px solid #e08a00;border-radius:3px;box-shadow:0 0 0 4px color-mix(in srgb,#e08a00 25%,transparent);animation:rdflash .9s ease-in-out 2;pointer-events:none}
 .box.clip-new{animation:clipnew 1.5s ease-out}
+.box.clip-float{z-index:5;box-shadow:0 14px 34px -8px rgba(36,33,28,.38),0 2px 6px rgba(36,33,28,.12)}   /* a clip lying on its paper until it is moved */
 @keyframes clipnew{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--teal) 70%,transparent)}100%{box-shadow:0 0 0 16px transparent}}
 .clip-hs.eq .clip-badge{top:auto;bottom:calc(100% + 3px);left:-2px}
 .clip-mq.kept{border-style:dashed}

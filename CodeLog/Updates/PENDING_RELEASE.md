@@ -24,9 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (0 changes — push at 5+)
+## Pending (1 change — push at 5+)
 
-_Nothing pending — next small change starts the new batch._
+- V3.903 — Scientia clips: a box you draw round something now appears right under your mouse at any zoom. A clipped figure or equation now lands on top of the paper (where it was on the page) for you to drag where you want it. And when letters in an equation are one name (like MESF), select them and press One name in the equation editor so it is treated as one term.
 
 ## Shipped
 
