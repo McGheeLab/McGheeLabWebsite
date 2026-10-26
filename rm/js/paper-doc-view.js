@@ -398,6 +398,9 @@
       var f = window.PaperLook.FONTS[look.fonts[k]];
       if (f && fams.indexOf(f.css) < 0) fams.push(f.css);
     });
+    // V3.921 — the first-page sidebar's own face (PLOS: Helvetica Condensed)
+    var sideF = look.sidebar && window.PaperLook.FONTS[look.fonts[look.sidebar.font] || look.sidebar.font];
+    if (sideF && fams.indexOf(sideF.css) < 0) fams.push(sideF.css);
     var loads = [];
     fams.forEach(function (fam) {
       ['400 normal', '700 normal', '400 italic', '700 italic'].forEach(function (v) {
@@ -1327,6 +1330,16 @@
       });
     }
 
+    /* V3.921 — a look with a first-page sidebar (PLOS) prints the data,
+     * funding and competing-interests statements there, not in the body;
+     * _mountSheets reads what was taken out (and the title, for the
+     * running head) */
+    state.lookPage = geom.look ? { title: tree.title || '', found: {} } : null;
+    if (geom.look && geom.look.sidebar && window.PaperLook.sidebarSplit) {
+      var sideSplit = window.PaperLook.sidebarSplit(geom.look, tree.sections);
+      tree = Object.assign({}, tree, { sections: sideSplit.sections });
+      state.lookPage.found = sideSplit.found;
+    }
     var lookFront = geom.look ? _buildLookFront(tree.title, geom.look) : null;
     push(lookFront ? lookFront.block : _buildTitleBlock(tree.title), 'full', 'title');
     if (lookFront && lookFront.note) {
@@ -2568,6 +2581,38 @@
     return { prefix: '(' + n + ') ', html: html + '.' };
   }
 
+  /* V3.921 — plos2015.bst (Vancouver), as the PDF prints it: "Surname
+   * Initials" (BibTeX's {vv~}{ll}{ f{}}, dots removed), six then "et al.",
+   * the title as stored, the journal without dots, "Year;Vol(Num):pages"
+   * — or ";p. pages" without a volume — no DOI (adddoiresolver 0), a URL
+   * after "Available from:". The .bib writes every entry as @article. */
+  function _formatPlos(e) {
+    function dec(x) { var t = document.createElement('textarea'); t.innerHTML = String(x || ''); return t.value; }
+    var list = (e.authorsFull && e.authorsFull.length) ? e.authorsFull
+      : (e.authors || []).map(function (a) { return { family: a, given: '' }; });
+    var names = list.map(function (a) {
+      var ini = String(a.given || '').replace(/\./g, ' ').trim().split(/\s+/).filter(Boolean).map(function (g) {
+        return g.split('-').map(function (h) { return h.charAt(0).toUpperCase(); }).join('-');
+      }).join('');
+      return (String(a.family || '').trim() + (ini ? ' ' + ini : '')).replace(/\./g, '');
+    }).filter(Boolean);
+    if (names.length > 6) names = names.slice(0, 6).concat(['et al']);
+    var blocks = [];
+    if (names.length) blocks.push(names.join(', ').replace(/, et al$/, ', et al.'));
+    var title = dec(e.title).trim();
+    if (title) blocks.push(title);
+    var j = dec(e.journal).replace(/\./g, '').trim();
+    var vol = String(e.volume || '').trim(), num = String(e.issue || '').trim();
+    var pages = String(e.pages || '').trim().replace(/\s*[–—-]+\s*/g, '–');
+    var vn = vol + (num ? '(' + num + ')' : '');
+    var tail = (e.year ? String(e.year) : '') + ';' + (pages ? (vn ? vn + ':' + pages : 'p. ' + pages) : vn);
+    blocks.push((j ? j + '. ' : '') + tail);
+    var html = blocks.map(function (b) { return _esc(b); })
+      .map(function (b, i, all) { return i < all.length - 1 && /[.?!]$/.test(b) ? b : b + '.'; }).join(' ');
+    if (e.url && !e.doi) html += ' Available from: ' + _esc(e.url) + '.';
+    return { prefix: '. ', html: html };
+  }
+
   /* One author → "A. B. Surname" (initials-first, IEEE/Science) or
    * "Surname, A. B." (surname-first, Nature/APA), from {family, given}. */
   function _authorName(a, initialsFirst) {
@@ -2770,7 +2815,8 @@
       }
       e = _decodeEntryAccents(e);   // V3.915 — Andr{\'e} → André, as the PDF prints it
       var f = bst === 'unsrtnat' && numeric ? _formatUnsrtnat(e, n, family)
-        : bst === 'achemso' && numeric ? _formatAchemso(e, n) : _formatBibEntry(e, family, n);
+        : bst === 'achemso' && numeric ? _formatAchemso(e, n)
+        : bst === 'plos2015' && numeric ? _formatPlos(e) : _formatBibEntry(e, family, n);
       if (lab && numeric && f.prefix) f.prefix = labelFor(n);
       return '<div class="pdv-bib-entry">' +
         (f.prefix ? '<span class="pdv-bib-num">' + _esc(f.prefix) + '</span>' : '') +
@@ -3320,14 +3366,19 @@
     probe.style.width = width + 'px';
     list.forEach(function (x) { if (x.node) probe.appendChild(x.node); });
     void probe.offsetHeight;
+    /* V3.921 — every inner box's width read BEFORE any is set: a typeset
+     * table cell reflows its table, and the rows after it were measured
+     * wider (the same "[PI verify: hardware license]" broke in rows 1–2
+     * and stayed whole below, where the PDF breaks it in every row) */
+    jobs.forEach(function (j) {
+      if (j.item) return;
+      var cs = getComputedStyle(j.el);
+      j.w = j.el.getBoundingClientRect().width - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0) -
+        (parseFloat(cs.borderLeftWidth) || 0) - (parseFloat(cs.borderRightWidth) || 0);
+    });
     jobs.forEach(function (j) {
       try {
-        var w = width;
-        if (!j.item) {
-          var cs = getComputedStyle(j.el);
-          w = j.el.getBoundingClientRect().width - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0) -
-            (parseFloat(cs.borderLeftWidth) || 0) - (parseFloat(cs.borderRightWidth) || 0);
-        }
+        var w = j.item ? width : j.w;
         /* V3.912 — the paragraph's own HTML, kept so the paginator can set
          * it again at other widths (the lines beside a wrapped figure) */
         if (j.item || j.head) j.el._ptsSrc = j.el.innerHTML;
@@ -3658,6 +3709,47 @@
      * so a column holds exactly its text height, as in the PDF. */
     var cap = geom.look ? geom.bodyH : Math.floor(geom.bodyH * FILL_FACTOR);
     var cols = geom.cols;
+    /* V3.921 — TeX shrinks glue to fit: a block that overshoots the column
+     * by no more than the shrink already on it (and its own) still fits —
+     * titlesec's heading skip `minus 1bp`, a display's skips `\@minus 3bp`
+     * above and below, a list's \topsep `\@minus1bp`, an in-text float's
+     * \intextsep `minus 2bp`. A 7-line paragraph 0.46 px too tall moved to
+     * the next page and left six lines of room behind (PLOS p. 11). None
+     * for a grant look's rigid headings or without a look; _flushBottoms
+     * takes the overshoot back out of the same gaps. */
+    var SHRINK_BP = geom.look ? { heading: geom.look.rigid_headings ? 0 : 1, subheading: geom.look.rigid_headings ? 0 : 1,
+      equation: 6, list: 2, figure: 4, table: 4 } : {};
+    function shrinkOf(item, atTop, prev) {
+      var hd = item.blockKind === 'heading' || item.blockKind === 'subheading';
+      if (hd && atTop) return 0;   // its skip is discarded there
+      // \addvspace keeps the larger skip: after the front's fixed skip a heading's skip has no shrink
+      if (hd && prev && prev.blockKind !== 'paragraph' && prev.blockKind !== 'list') return 0;
+      return (SHRINK_BP[item.blockKind] || 0) * 4 / 3;
+    }
+    /* and stretches it (\flushbottom): \parskip plus 1bp, a heading plus
+     * 2 + 1, a display plus 2 each side, a list's skips, an in-text float's */
+    var STRETCH_BP = geom.look ? { paragraph: 1, heading: geom.look.rigid_headings ? 0 : 3, subheading: geom.look.rigid_headings ? 0 : 3,
+      equation: 4, list: 3, figure: 4, table: 4 } : {};
+    function stretchOf(item) { return (STRETCH_BP[item.blockKind] || 0) * 4 / 3; }
+    /* TeX's page builder between two breaks: `over` px past the column with
+     * `shr` shrink, or `under` px short with `str` stretch — the lower
+     * badness, 100·(amount/glue)³ (10000 without glue), the later break on
+     * a tie */
+    function prefersOver(over, shr, under, str) {
+      if (!(over > 0)) return true;
+      if (!(shr > 0) || over > shr) return false;
+      var bo = 100 * Math.pow(over / shr, 3);
+      var bu = under <= 0.01 ? 0 : (str > 0 ? Math.min(10000, 100 * Math.pow(under / str, 3)) : 10000);
+      return bo <= bu;
+    }
+    /* the room a paragraph split may use: one line more than fits, when
+     * TeX would rather shrink the column than stretch it */
+    function splitRoom(avail, shr, str, item) {
+      var L = geom.leadPx || 0;
+      if (!L || !(shr > 0) || item.blockKind !== 'paragraph') return avail;
+      var k0 = Math.floor((avail + 0.5) / L);
+      return prefersOver((k0 + 1) * L - avail, shr, avail - k0 * L, str) ? (k0 + 1) * L : avail;
+    }
     var pages = [];
     var page = null;
     var pending = [];        // top/bottom floats awaiting a page with room
@@ -3776,6 +3868,8 @@
       if (geom.look && item.mt > 0 && !page.run.items.length && page.usedH === 0 && item.node && item.node.style) {
         item.node.style.marginTop = '0px';
       }
+      page.run.shrink = (page.run.shrink || 0) + shrinkOf(item, !page.run.items.length && page.usedH === 0, page.run.items[page.run.items.length - 1]);
+      page.run.stretch = (page.run.stretch || 0) + stretchOf(item);
       page.run.items.push(item);
       page.run.sumH += e;
       return e;
@@ -3819,6 +3913,9 @@
     }
     function colPut(c, item) {
       var e = colEff(c, item);
+      c.shrink = (c.shrink || 0) + shrinkOf(item, c.itemsH === 0, c.lastItem);
+      c.stretch = (c.stretch || 0) + stretchOf(item);
+      c.lastItem = item;
       if (geom.look && item.mt > 0 && c.itemsH === 0 && item.node && item.node.style) item.node.style.marginTop = '0px';
       c.items.push(item.node); c.itemsH += e; c.lastMb = item.mb || 0;
       if (colNotes) {
@@ -3886,12 +3983,14 @@
       /* V3.908 — a heading never ends a column: it needs room for itself
        * AND the start of what follows (LaTeX's \@afterheading nobreak). */
       var keepH = item.keepNextH || 0;
-      if (c.itemsH + colEff(c, item) + keepH + itemNotes <= capC) {
+      var shr = (c.shrink || 0) + shrinkOf(item, false, c.lastItem);   // V3.921
+      var overC = c.itemsH + colEff(c, item) + keepH + itemNotes - capC;
+      if (overC <= 0 || prefersOver(overC, shr, capC - c.itemsH, c.stretch || 0)) {
         colPut(c, item);
         return null;
       }
       if (_splits(item)) {
-        var parts = splitHere(capC - c.itemsH);
+        var parts = splitHere(splitRoom(capC - c.itemsH, c.shrink || 0, c.stretch || 0, item));
         if (parts) {
           colPut(c, parts[0]);
           return { split: parts[1] };
@@ -4225,7 +4324,13 @@
       if (item.breakBefore && !pageIsEmpty()) { page.noFlush = true; closeRun(); newPage(); }   // V3.919 — a forced break is not stretched
       if ((item.blockKind === 'heading' || item.blockKind === 'subheading') && leadPx) {
         var nx = work[wi + 1];
-        item.keepNextH = nx && !nx.float ? Math.min(nx.h, 2 * leadPx) : 0;
+        /* V3.921 — a block TeX cannot break (a table set in the text, a
+         * display) goes with its heading whole; a paragraph or list keeps
+         * its first two lines */
+        var keepOf = function (x) {
+          return (_splits(x) || x.h > (geom.bodyH || Infinity) / 2) ? Math.min(x.h, 2 * leadPx) : x.h;
+        };
+        item.keepNextH = nx && !nx.float ? keepOf(nx) : 0;
         /* V3.912 — headings in a row never break between them (LaTeX's
          * \@nobreak), so a heading keeps the whole chain and the first two
          * lines after it */
@@ -4234,7 +4339,7 @@
           while (work[cj] && !work[cj].float && (work[cj].blockKind === 'heading' || work[cj].blockKind === 'subheading')) {
             chainH += work[cj].h; cj++;
           }
-          item.keepNextH = chainH + (work[cj] && !work[cj].float ? Math.min(work[cj].h, 2 * leadPx) : 0);
+          item.keepNextH = chainH + (work[cj] && !work[cj].float ? keepOf(work[cj]) : 0);
         }
         /* V3.912 — wrapfig: a waiting figure that finds less than a line
          * left at the paragraph after this heading forces \pagebreak there,
@@ -4312,7 +4417,9 @@
         }
         var runCap = cols * (remaining() - fH);
         var hEff = runEff(item);   // V3.912 — page-top space discarded, adjoining spaces collapsed
-        var fits = (page.run.sumH + hEff + (item.keepNextH || 0)) <= runCap;   // V3.908 — headings keep with next
+        var runShr = (page.run.shrink || 0) + shrinkOf(item, !page.run.items.length && page.usedH === 0, page.run.items[page.run.items.length - 1]);   // V3.921
+        var runOver = page.run.sumH + hEff + (item.keepNextH || 0) - runCap;
+        var fits = runOver <= 0 || prefersOver(runOver, runShr, runCap - page.run.sumH, page.run.stretch || 0);   // V3.908 — headings keep with next
         var pageEmpty = pageIsEmpty();
         /* V3.419 — CONTINUOUS FLOW. A paragraph that crosses the page
          * boundary splits at a line break: the first lines fill this
@@ -4320,7 +4427,7 @@
          * the next work item (block-atomic packing stranded white space
          * at every page end — this is LaTeX's own page-break model). */
         if (!fits && _splits(item)) {
-          var parts = _splitFlow(item, runCap - page.run.sumH, geom);
+          var parts = _splitFlow(item, splitRoom(runCap - page.run.sumH, page.run.shrink || 0, page.run.stretch || 0, item), geom);
           if (parts) {
             runPut(parts[0]);
             addFootnotes(parts[0]);
@@ -5366,8 +5473,28 @@
     }
     var BEFORE = { h: rigid ? 1 : 3, eq: 2, list: 3, float: 2, p: 1, pcont: 0 };
     var AFTER = { h: rigid ? 0 : 1, eq: 2, list: 2, float: 2, p: 0, pcont: 0 };
+    /* V3.921 — and the shrink the packer counted on (a column a fraction
+     * over): out of the same gaps, by TeX's shrink (bp) — heading skip 1,
+     * display skips 3 each side, list \topsep 1, in-text float 2. Taken
+     * from whichever of the two adjoining margins sets the gap. */
+    var SBEFORE = { h: rigid ? 0 : 1, eq: 3, list: 1, float: 2, p: 0, pcont: 0 };
+    var SAFTER = { h: 0, eq: 3, list: 1, float: 2, p: 0, pcont: 0 };
+    function shrinkGaps(kids, over) {
+      var ws = kids.map(function (k, i) { return i === 0 ? 0 : SAFTER[kind(kids[i - 1])] + SBEFORE[kind(k)]; });
+      var total = ws.reduce(function (a, b) { return a + b; }, 0);
+      if (!(total > 0)) return;
+      kids.forEach(function (k, i) {
+        if (!ws[i]) return;
+        var take = over * ws[i] / total;
+        var prev = kids[i - 1];
+        var mt = parseFloat(getComputedStyle(k).marginTop) || 0, mb = parseFloat(getComputedStyle(prev).marginBottom) || 0;
+        if (mt >= mb) k.style.marginTop = Math.max(0, mt - take).toFixed(2) + 'px';
+        else prev.style.marginBottom = Math.max(0, mb - take).toFixed(2) + 'px';
+      });
+    }
     function spread(container, room, headW, tailW) {
       var kids = Array.prototype.slice.call(container.children);
+      if (room < -0.25 && kids.length > 1) { shrinkGaps(kids, -room); return; }
       if (room < 1 || !kids.length) return;
       var ws = kids.map(function (k, i) { return i === 0 ? headW : AFTER[kind(kids[i - 1])] + BEFORE[kind(k)]; });
       var total = ws.reduce(function (a, b) { return a + b; }, 0) + tailW;
@@ -5390,7 +5517,7 @@
       var room = foot - (region.offsetTop + region.offsetHeight);
       var tail = region.lastElementChild;
       if (tail.classList.contains('pdv-cols')) {
-        if (!last) spread(tail, room, (topBand && tail === region.firstElementChild) ? 2 : 0, band ? 2 : 0);
+        if (!last || room < 0) spread(tail, room, (topBand && tail === region.firstElementChild) ? 2 : 0, band ? 2 : 0);
         return;
       }
       if (!tail.classList.contains('pdv-cols-strip')) return;
@@ -5468,6 +5595,114 @@
     return wrap;
   }
 
+  /* V3.921 — what the journal prints around the page (PLOS: the masthead
+   * and "RESEARCH ARTICLE" on page 1, the journal and short title on the
+   * others, "n / N" at every foot), at the baselines the PDF's shipout
+   * hook draws them on (PaperLook.texFurniture) */
+  function _lookPageCtx(look) {
+    var PL = window.PaperLook;
+    var meta = (_pe().getPaperMeta && _pe().getPaperMeta()) || {};
+    return { PL: PL, meta: meta, journal: PL.journalName(look, meta.target_journal),
+      title: (state.lookPage && state.lookPage.title) || '' };
+  }
+  function _mountFurniture(sheet, idx, total, look) {
+    var F = look.furniture;
+    var c = _lookPageCtx(look), PL = c.PL, PXr = PL.PX;
+    var ctx = { journal: c.journal, shortTitle: _pe().renderParagraphHtml(PL.shortTitle(c.title)), page: idx + 1, pages: total };
+    ((idx === 0 ? F.first : F.head) || []).concat(F.foot || []).forEach(function (it) {
+      var fam = it.family || 'sans', size = it.size || 8;
+      var st = { family: fam, size: size, lead: size * 1.2 };
+      var el = document.createElement('div');
+      el.className = 'pdv-furn';
+      el.style.fontFamily = PL.cssFam(look, fam);
+      el.style.fontSize = size * PXr + 'px';
+      el.style.lineHeight = st.lead * PXr + 'px';
+      el.style.fontWeight = it.weight === 'bold' ? '700' : '400';
+      el.style.top = (it.y * PXr - PL.lineOff(look, st) * PXr) + 'px';
+      if (it.right != null) { el.style.right = (look.page.w - it.right) * PXr + 'px'; el.style.textAlign = 'right'; }
+      else el.style.left = it.x * PXr + 'px';
+      el.innerHTML = PL.furnitureText(it, ctx, _esc);
+      el.dataset.base = String(it.y * PXr);
+      if (String(it.text).indexOf('{page}') >= 0) sheet.classList.add('pdv-has-folio');
+      sheet.appendChild(el);
+    });
+  }
+  /* Where the browser put a box's first baseline (layout px from its top):
+   * Chrome snaps baselines to whole pixels, so the font-metric estimate
+   * can be a pixel out — an absolutely placed line is set by measurement */
+  function _baselineIn(el) {
+    var m = document.createElement('span');
+    m.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline;';
+    el.insertBefore(m, el.firstChild);
+    var y = m.offsetTop;
+    for (var p = m.offsetParent; p && p !== el && el.contains(p); p = p.offsetParent) y += p.offsetTop;
+    m.remove();
+    return y;
+  }
+  function _alignFurniture() {
+    if (!state.scaleEl) return;
+    state.scaleEl.querySelectorAll('.pdv-furn[data-base]').forEach(function (el) {
+      el.style.top = (parseFloat(el.dataset.base) - _baselineIn(el)) + 'px';
+    });
+  }
+
+  /* V3.921 — the first-page sidebar (PLOS's article information): the
+   * same paragraphs as the PDF's \vbox, split at the last line whose
+   * baseline fits page 1's span (TeX's \vsplit with no penalties takes
+   * that line). Page 1 shows the lines that fit, bottom-aligned; page 2
+   * the rest from the top. Both are clipped copies of one column. */
+  function _mountSidebar(look) {
+    var S = look.sidebar;
+    var sheets = state.scaleEl ? state.scaleEl.querySelectorAll('.pdv-sheet') : [];
+    if (!S || !sheets.length) return;
+    var c = _lookPageCtx(look), PL = c.PL, PXr = PL.PX, pe = _pe();
+    var cfg = state.config || {};
+    var items = PL.sidebarItems(look, {
+      authors: cfg.authors || [], leadAuthor: c.meta.lead_author || '', title: c.title, journal: c.journal,
+      year: new Date().getFullYear(), found: (state.lookPage && state.lookPage.found) || {},
+    });
+    var html = (S.head ? '<p class="pdv-side-p pdv-side-head">' + _esc(S.head) + '</p>' : '') +
+      items.map(function (t) { return '<p class="pdv-side-p">' + pe.renderParagraphHtml(t) + '</p>'; }).join('');
+    function column() {
+      var el = document.createElement('div');
+      el.className = 'pdv-sidebar';
+      el.innerHTML = html;
+      return el;
+    }
+    var probe = column();
+    probe.style.visibility = 'hidden';
+    sheets[0].appendChild(probe);
+    var lead = S.lead * PXr;
+    var lines = [];
+    Array.prototype.forEach.call(probe.children, function (p) {
+      var nL = Math.max(1, Math.round(p.offsetHeight / lead));
+      var off = _baselineIn(p) - p.offsetTop;   // the column is the marker's offsetParent
+      for (var j = 0; j < nL; j++) lines.push({ top: p.offsetTop + j * lead, base: p.offsetTop + j * lead + off, off: off });
+    });
+    var fullH = probe.offsetHeight;
+    probe.remove();
+    if (!lines.length) return;
+    var span = (S.bottom - S.top) * PXr;
+    var k = lines.length - 1;
+    while (k > 0 && lines[k].base - lines[0].base > span + 0.01) k--;
+    function clip(sheet, top, from, height) {
+      var box = document.createElement('div');
+      box.className = 'pdv-sidebar-clip';
+      box.style.left = S.x * PXr + 'px';
+      box.style.top = top + 'px';
+      box.style.height = height + 'px';
+      var col = column();
+      col.style.top = -from + 'px';
+      box.appendChild(col);
+      sheet.appendChild(box);
+    }
+    clip(sheets[0], S.bottom * PXr - lines[k].base, 0, lines[k].top + lead);
+    if (k < lines.length - 1 && sheets[1]) {
+      var from = lines[k + 1].top;
+      clip(sheets[1], S.cont_top * PXr - lines[k + 1].off, from, fullH - from);
+    }
+  }
+
   function _mountSheets(pages, geom, hints) {
     var scale = state.scaleEl;
     if (!scale) return;
@@ -5537,6 +5772,7 @@
       pn.className = 'pdv-pageno';
       pn.textContent = (idx + 1) + ' / ≈' + total;
       sheet.appendChild(pn);
+      if (geom.look && geom.look.furniture) _mountFurniture(sheet, idx, total, geom.look);   // V3.921
       /* V3.399 — layout-region overlay layer (topmost; pointer-events
        * none; shown only while .pdv-regions-on is set on the scale). */
       sheet.appendChild(_buildRegionLayer(page, geom));
@@ -5569,6 +5805,8 @@
     scale.innerHTML = '';
     scale.appendChild(frag);
     scale.style.width = geom.pageW + 'px';
+    if (geom.look && geom.look.sidebar) _mountSidebar(geom.look);   // V3.921 — measured, so once the sheets are in the page
+    if (geom.look && geom.look.furniture) _alignFurniture();
     if (state.pagesLabelEl) {
       state.pagesLabelEl.textContent = '≈ ' + total + ' page' + (total === 1 ? '' : 's');
       /* V3.913 — a grant document shows its limit */

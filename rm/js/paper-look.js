@@ -59,6 +59,14 @@
       files: { r: 'LibertinusSerif-Regular.otf', b: 'LibertinusSerif-Bold.otf', i: 'LibertinusSerif-Italic.otf', bi: 'LibertinusSerif-BoldItalic.otf' },
       pdftex: '\\usepackage{libertinus}',
     },
+    /* V3.921 — Helvetica Condensed's metrics: PLOS sets its first-page
+     * article-information sidebar in it */
+    'heros-cn': {
+      label: 'Helvetica Condensed (TeX Gyre Heros Cn)', css: 'PL Heros Cn', greek: true,
+      asc: 1.089, desc: 0.282, ht: 0.718, xh: 0.523,
+      files: { r: 'texgyreheroscn-regular.otf', b: 'texgyreheroscn-bold.otf', i: 'texgyreheroscn-italic.otf', bi: 'texgyreheroscn-bolditalic.otf' },
+      pdftex: '\\usepackage{tgheros}',
+    },
     'libertinus-sans': {
       label: 'Libertinus Sans', css: 'PL Libertinus Sans', greek: true,
       asc: 0.894, desc: 0.246, ht: 0.698,
@@ -417,6 +425,24 @@
     L.push('\\renewcommand\\tablename{' + texEsc(c.label_tab) + '}');
     // footer
     L.push('\\pagestyle{' + (look.footer.page_numbers ? 'plain' : 'empty') + '}');
+    /* V3.921 — what the journal prints around the page and in the margin
+     * (PLOS: masthead, running head and foot, the first-page sidebar),
+     * drawn at fixed positions by the shipout hook so the text flow is
+     * untouched. \rmPageFurniture itself is written by buildBundle
+     * (texFurniture: it holds the paper's journal name and short title). */
+    if (look.sidebar || look.furniture) {
+      if (look.sidebar) {
+        var sf = font(look, look.sidebar.font || 'sans');
+        L.push('\\ifXeTeX');
+        L.push('  ' + fontspecLine('newfontfamily\\rmSideFont', sf));
+        L.push('\\else');
+        L.push('  \\let\\rmSideFont\\sffamily');
+        L.push('\\fi');
+        L.push('\\newbox\\rmSideBox \\newbox\\rmSideA');
+      }
+      if (furnitureUses(look, 'pages')) L.push('\\usepackage{lastpage}');
+      L.push('\\AddToHook{shipout/background}{\\rmPageFurniture}');
+    }
     if (!/\\usepackage(\[[^\]]*\])?\{cuted\}/.test(L.join('\n')) && twocol) L.push('\\usepackage{cuted}');
     return L.join('\n') + '\n';
   }
@@ -462,17 +488,36 @@
     function al(x) { return x === 'center' ? '\\centering' : x === 'right' ? '\\raggedleft' : '\\raggedright'; }
     var B = [];
     B.push('\\newcommand\\rmfront{%');
+    /* V3.921 — the front matter is rigid: a first page cut short (the block
+     * after the abstract went on) keeps its space below the abstract, as
+     * the journal prints it and as the Document view sets it, instead of
+     * \flushbottom pulling the title, authors and abstract apart through
+     * their \parskip stretch */
+    B.push('  \\begingroup\\parskip=0pt\\relax');
+    /* and the title, author and affiliation lines are \baselineskip apart
+     * even where an author's superscript meets a title descender (TeX's
+     * \lineskip would add ~2 bp there; the Document view spaces them by
+     * \baselineskip). Text lines only: a boxed abstract keeps \lineskip,
+     * or negative glue would pull it up over the affiliations. */
+    var tight = '\\lineskiplimit=-\\maxdimen ';
+    /* V3.921 — the front starts lower on page 1 (PLOS: under its masthead
+     * and "RESEARCH ARTICLE"). \vspace* adds \topskip above its rule, so
+     * less \topskip moves the title down by exactly `before` — the
+     * Document view's .pdv-titleblock margin. (\vspace* puts the page's
+     * \prevdepth back: without \nointerlineskip the title gains a line's
+     * interline glue.) */
+    if (t.before && look.engine !== 'class') B.push('  \\vspace*{\\dimexpr' + bp(t.before) + '-\\topskip\\relax}\\nointerlineskip');
     if (t.show !== false) {
-      B.push('  {' + al(t.align) + styleCmds(look, t) + caseWrap(t.case) + '{{{TITLE}}}\\par}');
+      B.push('  {' + al(t.align) + styleCmds(look, t) + tight + caseWrap(t.case) + '{{{TITLE}}}\\par}');
       B.push('  \\vskip ' + bp(t.after));
     }
     /* V3.911 — a grant narrative names no authors (`authors.show: false`) */
     if (a.show !== false) {
-      B.push('  {' + al(a.align) + styleCmds(look, a) + '{{AUTHORS}}\\par}');
+      B.push('  {' + al(a.align) + styleCmds(look, a) + tight + '{{AUTHORS}}\\par}');
       B.push('  \\vskip ' + bp(a.after));
     }
     if (af.where === 'front' && a.show !== false) {
-      B.push('  {' + al(af.align) + styleCmds(look, af) + '{{AFFILIATIONS}}\\par}');
+      B.push('  {' + al(af.align) + styleCmds(look, af) + tight + '{{AFFILIATIONS}}\\par}');
       B.push('  \\vskip ' + bp(af.after));
     }
     if (ab.mode === 'span') {
@@ -483,7 +528,11 @@
           lead: ab.label_lead || ab.lead, family: ab.label_family || ab.family })) + texEsc(ab.label) + '\\par}\\vskip 3bp';
       }
       if (ab.label && ab.label_style === 'runin') head = '';
-      var absInner = '{' + styleCmds(look, ab) + (ab.label && ab.label_style === 'runin' ? '\\textbf{' + texEsc(ab.label) + '}\\enspace ' : '') +
+      /* V3.921 — abstract paragraphs start flush, as the Document view sets
+       * them (.pdv-abstract .pdv-para text-indent 0) and PLOS prints them:
+       * under a heading label the text began with \parindent, a line longer */
+      var absInner = '{' + styleCmds(look, ab) + '\\parindent=' + bp(ab.first_indent || 0) + '\\relax ' +
+        (ab.label && ab.label_style === 'runin' ? '\\textbf{' + texEsc(ab.label) + '}\\enspace ' : '') +
         '{{ABSTRACT}}\\par}';
       if (ab.box) {
         /* a shaded / ruled abstract box (JACS grey panel, Elsevier rules) */
@@ -499,6 +548,7 @@
       if (kw.show) B.push('  {{KEYWORDS_LINE}}');
       B.push('  \\vskip ' + bp(ab.after));
     }
+    B.push('  \\endgroup');
     B.push('}');
     return B.join('\n') + '\n';
   }
@@ -508,8 +558,10 @@
     var bst = ((template && template.citation) || {}).bibliography_style || 'unsrtnat';
     var M = [];
     M.push('{{PREAMBLE}}');
+    if (look.sidebar || look.furniture) M.push('{{RM_PAGE_FURNITURE}}');
     M.push('');
     M.push('\\begin{document}');
+    if (look.sidebar) M.push('{{RM_SIDEBAR}}');
     if (look.front_page_alone) {
       /* The first page is the front matter alone (Nature family): set it
        * one-column, affiliations at the foot across the full width, then
@@ -671,6 +723,216 @@
         bp(look.affiliations.lead) + '}\\selectfont ' + affLines.join(' ') + '}\\endgroup';
     }
     return { authors: joined, affiliations: affLines.join(sepFront), notes: notes };
+  }
+
+  /* ── Page furniture + first-page sidebar (V3.921, PLOS) ─────────
+   * look.furniture = { first: [item], head: [item], foot: [item] } — first
+   * on page 1, head on every later page, foot on every page. An item is
+   * { text, x | right, y (baseline, bp from the page top), size,
+   * weight, family }; its text may hold {journal}, {short_title},
+   * {page}, {pages}.
+   * look.sidebar = { font, size, lead, parskip, x, width, top, bottom,
+   * cont_top, head, head_gap, license } — the article-information column
+   * PLOS prints in the left margin: bottom-aligned on page 1 (last
+   * baseline `bottom`, first no higher than `top`), the rest continued
+   * on page 2 (first baseline `cont_top`). */
+  function furnitureUses(look, token) {
+    var F = look.furniture || {};
+    return ['first', 'head', 'foot'].some(function (k) {
+      return (F[k] || []).some(function (it) { return String(it.text || '').indexOf('{' + token + '}') >= 0; });
+    });
+  }
+
+  /* The journal named on the page: the paper's target journal when it is
+   * one of this look's family (PLOS Biology, PLOS Computational
+   * Biology …), else the look's own default */
+  function journalName(look, target) {
+    var t = String(target || '').trim();
+    var fam = look.journal_family ? new RegExp(look.journal_family, 'i') : null;
+    if (t && fam && fam.test(t)) return t;
+    return look.journal_default || t || '';
+  }
+
+  /* A running head: the title, the part before its colon, or the first
+   * words up to ~55 characters (PLOS asks authors for a short title) */
+  function shortTitle(title) {
+    var t = String(title || '').replace(/\*+/g, '').replace(/\s+/g, ' ').trim();
+    if (t.length <= 60) return t;
+    var head = t.split(/:\s/)[0];
+    if (head.length <= 60 && head.length >= 12) return head;
+    var cut = t.slice(0, 56);
+    cut = cut.slice(0, cut.lastIndexOf(' ') > 20 ? cut.lastIndexOf(' ') : cut.length).replace(/[,;:.\s]+$/, '');
+    if ((cut.match(/\$/g) || []).length % 2) cut = cut.slice(0, cut.lastIndexOf('$')).trim();
+    return cut + '…';
+  }
+
+  /* "Rafael D. González-Cruz" → "González-Cruz RD" */
+  function citeName(name) {
+    var parts = String(name || '').replace(/\./g, ' ').trim().split(/\s+/).filter(Boolean);
+    if (parts.length < 2) return parts[0] || '';
+    var last = parts.pop();
+    return last + ' ' + parts.map(function (p) {
+      return p.split('-').map(function (q) { return q.charAt(0).toUpperCase(); }).join('');
+    }).join('');
+  }
+
+  /* The statements PLOS prints in the sidebar, matched by a section's
+   * special key or name, or by a back-matter paragraph's bold run-in
+   * label ("**Funding.** …", Elsevier-style declarations) */
+  var SIDE_STATEMENTS = [
+    { key: 'data', label: 'Data Availability Statement', specials: ['data_availability'],
+      re: /^(data\b[^.:]{0,40}\bavailability|availability of data\b[^.:]{0,30}|data access(ibility)?)( statement)?$/i,
+      missing: 'add the data availability statement before submission.' },
+    { key: 'funding', label: 'Funding', specials: ['funding'],
+      re: /^(funding( information| sources?| statement)?|financial (support|disclosure)|sources? of funding)$/i,
+      missing: 'add the funding statement before submission.' },
+    { key: 'competing', label: 'Competing interests', specials: ['competing_interests', 'conflict_of_interest'],
+      re: /^(competing (financial )?interests?( statement)?|conflicts? of interests?( statement)?|declaration of (competing )?interests?|declarations? of competing (financial )?interests?|disclosures?)$/i,
+      missing: 'add the competing-interests statement before submission.' },
+  ];
+  function sideKeyFor(sec, label) {
+    var name = String(label || '').replace(/[.:\s]+$/, '').trim();
+    for (var i = 0; i < SIDE_STATEMENTS.length; i++) {
+      var st = SIDE_STATEMENTS[i];
+      if (sec && sec.special && st.specials.indexOf(sec.special) >= 0) return st.key;
+      if (name && st.re.test(name)) return st.key;
+    }
+    return null;
+  }
+  var RUNIN_RE = /^\s*\*\*([^*\n]{2,70}?)[.:]?\*\*[.:]?\s*/;
+
+  /* The tree without the sidebar's statements, and the statements: the
+   * body text (prose) of each, keyed data | funding | competing. Shared by
+   * the exporter and the Document view so both move the same text. */
+  function sidebarSplit(look, sections) {
+    var found = {};
+    if (!look || !look.sidebar) return { sections: sections, found: found };
+    function add(key, text) {
+      text = String(text || '').replace(/\s*\n\s*/g, ' ').trim();   // a source line break is a space
+      if (!text) return;
+      found[key] = found[key] ? found[key] + ' ' + text : text;
+    }
+    var out = [];
+    (sections || []).forEach(function (sec) {
+      var key = sideKeyFor(sec, sec.label);
+      if (key) {
+        if (!found[key]) found[key] = '';
+        (sec.children || []).forEach(function (b) { if (b.kind === 'paragraph') add(key, b.body); });
+        return;
+      }
+      var kids = sec.children || [];
+      var keep = kids.filter(function (b) {
+        if (b.kind !== 'paragraph') return true;
+        var m = RUNIN_RE.exec(String(b.body || ''));
+        var k = m && sideKeyFor(null, m[1]);
+        if (!k) return true;
+        if (!found[k]) found[k] = '';
+        add(k, String(b.body).slice(m[0].length));
+        return false;
+      });
+      if (keep.length === kids.length) { out.push(sec); return; }
+      var copy = {};
+      Object.keys(sec).forEach(function (k) { copy[k] = sec[k]; });
+      copy.children = keep;
+      out.push(copy);
+    });
+    return { sections: out, found: found };
+  }
+
+  /* The sidebar's paragraphs as prose (the paper's own markup), in
+   * PLOS's order. info: { authors:[{name}], leadAuthor, title, journal,
+   * year, found } */
+  function sidebarItems(look, info) {
+    var S = look.sidebar || {};
+    var names = (info.authors || []).map(function (a) { return a && a.name; }).filter(Boolean);
+    if (!names.length && info.leadAuthor) names = [info.leadAuthor];
+    var cites = names.map(citeName);
+    var who = cites.length > 6 ? cites.slice(0, 6).join(', ') + ', et al.' : cites.join(', ');
+    var title = String(info.title || '').trim().replace(/[.\s]+$/, '');
+    var items = [];
+    items.push('**Citation:** ' + (who ? who + ' ' : '') + '(' + info.year + ') ' + title + '. ' + info.journal + '.');
+    var surnames = names.map(function (nm) { return citeName(nm).split(' ')[0]; });
+    var holder = surnames.length > 2 ? surnames[0] + ' et al.' : surnames.join(', ');
+    items.push('**Copyright:** © ' + info.year + (holder ? ' ' + holder + (/\.$/.test(holder) ? '' : '.') : '') + ' ' +
+      (S.license || 'This is an open access article distributed under the terms of the Creative Commons Attribution License, which permits unrestricted use, distribution, and reproduction in any medium, provided the original author and source are credited.'));
+    SIDE_STATEMENTS.forEach(function (st) {
+      var txt = (info.found || {})[st.key];
+      items.push('**' + st.label + ':** ' + (txt ? txt : st.missing));
+    });
+    return items;
+  }
+
+  /* The furniture item's text with its tokens filled. esc: how plain
+   * text is written for this renderer (escapeTex / HTML escaping). */
+  function furnitureText(it, ctx, esc) {
+    return String(it.text || '').split(/(\{[a-z_]+\})/).map(function (part) {
+      if (part === '{journal}') return esc(ctx.journal || '');
+      if (part === '{short_title}') return ctx.shortTitle != null ? ctx.shortTitle : '';
+      if (part === '{page}') return ctx.page;
+      if (part === '{pages}') return ctx.pages;
+      return esc(part);
+    }).join('');
+  }
+
+  /* \rmPageFurniture: every item and both sidebar parts, by the shipout
+   * hook, in bp from the page's top-left corner. ctx.shortTitle is TeX. */
+  function texFurniture(look, ctx, esc) {
+    var F = look.furniture || {};
+    var c = { journal: ctx.journal, shortTitle: ctx.shortTitle, page: '\\thepage{}', pages: '\\pageref*{LastPage}' };
+    function put(it) {
+      var s = '\\fontsize{' + bp(it.size || 8) + '}{' + bp((it.size || 8) * 1.2) + '}\\selectfont ';
+      var face = (it.family === 'text' ? '\\rmfamily' : '\\sffamily') + (it.weight === 'bold' ? '\\bfseries' : '') + s;
+      var txt = furnitureText(it, c, esc);
+      return it.right != null
+        ? '\\put(' + n(it.right) + ',' + n(-it.y) + '){\\llap{' + face + txt + '}}%'
+        : '\\put(' + n(it.x) + ',' + n(-it.y) + '){' + face + txt + '}%';
+    }
+    var L = ['\\makeatletter', '\\def\\rmPageFurniture{\\begingroup\\setlength\\unitlength{1bp}\\normalcolor'];
+    L.push('  \\ifnum\\value{page}=1 %');
+    (F.first || []).forEach(function (it) { L.push('    ' + put(it)); });
+    if (look.sidebar) L.push('    \\ifvoid\\rmSideA\\else\\put(' + n(look.sidebar.x) + ',' + n(-look.sidebar.bottom) + '){\\box\\rmSideA}\\fi');
+    L.push('  \\else');
+    (F.head || []).forEach(function (it) { L.push('    ' + put(it)); });
+    L.push('  \\fi');
+    if (look.sidebar) {
+      // the continuation: its top \splittopskip (one line) above the first baseline
+      L.push('  \\ifnum\\value{page}=2 \\ifvoid\\rmSideBox\\else\\put(' + n(look.sidebar.x) + ',' +
+        n(-(look.sidebar.cont_top - look.sidebar.lead)) + '){\\vtop{\\kern\\z@\\unvbox\\rmSideBox}}\\fi\\fi');
+    }
+    (F.foot || []).forEach(function (it) { L.push('  ' + put(it)); });
+    L.push('\\endgroup}');
+    L.push('\\makeatother');
+    return L.join('\n') + '\n';
+  }
+
+  /* The sidebar box, set right after \begin{document}: its first baseline
+   * one \baselineskip below its top (\prevdepth 0), no penalties (a break
+   * after a hyphen costs nothing, as in the browser) and no interword
+   * shrink, ragged right with fil glue — so a paragraph takes as many
+   * lines as the browser's greedy breaking — then split at the
+   * last line that fits page 1's span. paras: TeX, one per item. */
+  function texSidebar(look, paras) {
+    var S = look.sidebar;
+    var span = S.bottom - S.top;
+    var L = [];
+    L.push('\\setbox\\rmSideBox=\\vbox{\\hsize=' + bp(S.width) + '\\rmSideFont\\fontsize{' + bp(S.size) + '}{' + bp(S.lead) + '}\\selectfont');
+    L.push('  \\spaceskip=\\fontdimen2\\font\\relax \\rightskip=0pt plus 1fil\\relax \\parfillskip=0pt plus 1fil\\relax \\parindent=0pt');
+    L.push('  \\parskip=' + bp(S.parskip) + '\\relax \\clubpenalty=0 \\widowpenalty=0 \\interlinepenalty=0 \\brokenpenalty=0 \\exhyphenpenalty=0 ');
+    L.push('  \\prevdepth=0pt');
+    if (S.head) {
+      L.push('  {\\sffamily ' + texEsc(S.head) + '\\par}');
+      if (S.head_gap) L.push('  \\vskip' + bp(S.head_gap - S.lead - S.parskip) + '\\relax');
+    }
+    paras.forEach(function (p) { L.push('  ' + p + '\\par'); });
+    L.push('}');
+    L.push('\\splittopskip=' + bp(S.lead) + '\\relax \\splitmaxdepth=\\maxdimen');
+    L.push('\\ifdim\\ht\\rmSideBox>' + bp(span + S.lead) + '\\relax');
+    L.push('  \\setbox\\rmSideA=\\vsplit\\rmSideBox to ' + bp(span + S.lead) + '\\relax');
+    L.push('  \\setbox\\rmSideA=\\vbox{\\unvbox\\rmSideA}%');
+    L.push('\\else');
+    L.push('  \\setbox\\rmSideA=\\box\\rmSideBox');
+    L.push('\\fi');
+    return L.join('\n') + '\n';
   }
 
   /* Tallest a figure's ARTWORK may be (bp) so that artwork + caption fit
@@ -839,6 +1101,23 @@
     if (af.where === 'colnote') {
       R.push(S + ' .pdv-affil-colnote{' + cssBlock(look, merge(af, { align: 'justify' })) + 'text-indent:' + n((af.indent || 0) * PX) + 'px;}');
     }
+    /* V3.921 — the first-page sidebar (fil-ragged, no hyphenation, no
+     * interword shrink: the lines TeX's \vbox sets) and the furniture */
+    if (look.sidebar) {
+      var sd = look.sidebar;
+      R.push(S + ' .pdv-sidebar{position:absolute;left:0;top:0;width:' + n(sd.width * PX) + 'px;' +
+        cssBlock(look, { family: sd.font || 'sans', size: sd.size, lead: sd.lead, align: 'left' }) +
+        'hyphens:manual;overflow-wrap:normal;white-space:normal;color:#000;}');
+      R.push(S + ' .pdv-sidebar .pdv-side-p{margin:0 0 ' + n(sd.parskip * PX) + 'px;text-indent:0;}');
+      R.push(S + ' .pdv-sidebar .pdv-side-p:last-child{margin-bottom:0;}');
+      R.push(S + ' .pdv-sidebar .pdv-side-head{font-family:' + cssFam(look, 'sans') + ';margin-bottom:' +
+        n(((sd.head_gap || sd.lead + sd.parskip) - sd.lead) * PX) + 'px;}');
+      R.push(S + ' .pdv-sidebar-clip{position:absolute;overflow:hidden;width:' + n(sd.width * PX) + 'px;}');
+    }
+    if (look.furniture) {
+      R.push(S + ' .pdv-furn{position:absolute;white-space:nowrap;color:#000;margin:0;padding:0;}');
+      R.push(S + ' .pdv-sheet.pdv-has-folio .pdv-pageno{display:none;}');
+    }
     if (look.factbox) {
       R.push(S + ' .pdv-factbox{' + cssBlock(look, look.factbox) + 'padding-bottom:' + n((look.factbox.pad_bottom || 0) * PX) + 'px;}');
       R.push(S + ' .pdv-factbox .pdv-para{font-size:inherit;line-height:inherit;text-indent:0;margin:0 0 ' +
@@ -969,6 +1248,9 @@
     sectionStyle: sectionStyle, texSectionOpen: texSectionOpen, texSectionClose: texSectionClose,
     texGap: texGap, inlineCss: inlineCss, lineOff: lineOff,
     figureMaxHeight: figureMaxHeight,
+    journalName: journalName, shortTitle: shortTitle, citeName: citeName,
+    sidebarSplit: sidebarSplit, sidebarItems: sidebarItems, furnitureText: furnitureText,
+    texFurniture: texFurniture, texSidebar: texSidebar, furnitureUses: furnitureUses, cssFam: cssFam,
     geometry: geometry, css: css, fontFaceCss: fontFaceCss,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

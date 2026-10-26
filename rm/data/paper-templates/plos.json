@@ -110,7 +110,7 @@
   "look": {
     "engine": "spec",
     "name": "PLOS (published page)",
-    "measured_from": "PLOS ONE 10(8):e0134616 (2015) — US Letter, one column with a wide left margin",
+    "measured_from": "PLOS ONE 10(8):e0134616 (2015) — US Letter, one column with a wide left margin; sidebar, masthead, running head and foot measured from 25 PLOS ONE / Biology / Computational Biology PDFs (2015-2024)",
     "page": {
       "w": 612,
       "h": 792
@@ -139,7 +139,8 @@
       "lead": 21,
       "weight": "normal",
       "align": "left",
-      "after": 10
+      "after": 10,
+      "before": 36
     },
     "authors": {
       "family": "sans",
@@ -244,7 +245,68 @@
       "dbltopnumber": 2
     },
     "footer": {
-      "page_numbers": true
+      "page_numbers": false
+    },
+    "journal_family": "^PLO[Ss]\\b",
+    "journal_default": "PLOS ONE",
+    "furniture": {
+      "first": [
+        {
+          "text": "{journal}",
+          "x": 35,
+          "y": 48.3,
+          "size": 20.6,
+          "weight": "bold"
+        },
+        {
+          "text": "RESEARCH ARTICLE",
+          "x": 200,
+          "y": 101.4,
+          "size": 8
+        }
+      ],
+      "head": [
+        {
+          "text": "{journal}",
+          "x": 35,
+          "y": 46.2,
+          "size": 11,
+          "weight": "bold"
+        },
+        {
+          "text": "{short_title}",
+          "right": 576,
+          "y": 46.2,
+          "size": 8
+        }
+      ],
+      "foot": [
+        {
+          "text": "{journal}",
+          "x": 36,
+          "y": 756,
+          "size": 8
+        },
+        {
+          "text": "{page} / {pages}",
+          "right": 576,
+          "y": 756,
+          "size": 8
+        }
+      ]
+    },
+    "sidebar": {
+      "font": "heros-cn",
+      "size": 8,
+      "lead": 11,
+      "parskip": 6,
+      "x": 36,
+      "width": 148,
+      "top": 353.6,
+      "bottom": 709,
+      "cont_top": 83.3,
+      "head": "OPEN ACCESS",
+      "head_gap": 16.4
     }
   },
   "figure_environment": {

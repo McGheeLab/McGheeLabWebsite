@@ -2436,6 +2436,14 @@
     if (typeof opts.sectionFilter === 'function') {
       tree.sections = tree.sections.filter(opts.sectionFilter);
     }
+    /* V3.921 — a look with a first-page sidebar (PLOS) prints the data,
+     * funding and competing-interests statements there, not in the body */
+    var sideFound = null;
+    if (look && look.sidebar && window.PaperLook.sidebarSplit) {
+      var sideSplit = window.PaperLook.sidebarSplit(look, tree.sections);
+      tree.sections = sideSplit.sections;
+      sideFound = sideSplit.found;
+    }
 
     /* V3.109 — make the equation library available to paragraphTextToTex
      * so it can resolve [!eqi:<id>] tokens. Module-level set/clear
@@ -2496,6 +2504,20 @@
       });
       stash = _placeholderStash;
       layoutWarnings = _layoutWarnings;
+      /* V3.921 — the page furniture and the sidebar, written while the
+       * prose renderer still has this paper's libraries */
+      if (look && (look.sidebar || look.furniture)) {
+        var journal = window.PaperLook.journalName(look, opts.targetJournal);
+        var stTex = paragraphTextToTex(window.PaperLook.shortTitle(tree.title || ''), effectiveTemplate);
+        var furnTex = window.PaperLook.texFurniture(look, { journal: journal, shortTitle: stTex }, escapeTex);
+        var sideTex = '';
+        if (look.sidebar) {
+          sideTex = window.PaperLook.texSidebar(look, window.PaperLook.sidebarItems(look, {
+            authors: (opts.authorsCfg && opts.authorsCfg.authors) || [], leadAuthor: opts.leadAuthor || '',
+            title: tree.title || '', journal: journal, year: new Date().getFullYear(), found: sideFound || {},
+          }).map(function (p) { return paragraphTextToTex(p, effectiveTemplate); }));
+        }
+      }
       /* V3.412 — a spanning equation was rendered: cuted joins the
        * preamble now (the {{PREAMBLE}} substitution happens below, so
        * a flag raised during section rendering still lands). */
@@ -2646,6 +2668,8 @@
         : '';
       main = sub(main, '{{KEYWORDS_LINE}}', kwLine);
       main = sub(main, '{{ABSTRACT_COLUMN}}', '');
+      main = sub(main, '{{RM_PAGE_FURNITURE}}', furnTex || '');   // V3.921
+      main = sub(main, '{{RM_SIDEBAR}}', sideTex || '');
     }
     /* Graphical abstract (paperExports.graphicalAbstract) — EXPLICIT sub
      * (an image, so the text-stash sweep doesn't fit): templates carrying

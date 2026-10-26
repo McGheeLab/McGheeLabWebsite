@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.921] — 2026-10-26 — Paper builder: PLOS pages as PLOS prints them — the first-page article-information sidebar, masthead, running head and foot
+
+Plan: [CodeLog/ClaudesPlan/V3.921_plos_sidebar_furniture.md](../ClaudesPlan/V3.921_plos_sidebar_furniture.md).
+
+Asked why every PLOS page has its text "shifted over". Measured 25 PLOS ONE / Biology / Computational Biology PDFs (2015–2024): PLOS sets the body at x = 200 bp on every page (the look already did); what was missing is what PLOS prints in that margin and around the page.
+
+### Added
+- `look.sidebar` (`rm/js/paper-look.js`): the first-page article-information column — "OPEN ACCESS", Citation, Copyright, Data Availability Statement, Funding, Competing interests — Helvetica Condensed 8/11 bp at x 36–184, bottom-aligned on page 1 (last baseline 709, first no higher than 353.6), continued at the top of page 2 (first baseline 83.3). `PaperLook.sidebarSplit(look, sections)` takes the three statements OUT of the body (a section by name or special key — `data_availability`, `funding`, `competing_interests` — or a back-matter paragraph opening with that bold run-in label); `PaperLook.sidebarItems(look, info)` writes the Citation ("Surname Initials", six names then "et al.", year, title, journal) and Copyright (CC-BY) paragraphs; a statement the paper lacks says to add it before submission.
+- PDF: `PaperLook.texSidebar` sets the column in one `\vbox` (first baseline one `\baselineskip` below its top, no penalties, `\exhyphenpenalty=0`, no interword shrink, fil ragged right — the browser's greedy line count) and `\vsplit`s it at page 1's span; `PaperLook.texFurniture` writes `\rmPageFurniture`, drawn by `\AddToHook{shipout/background}` at absolute positions (body flow untouched). Tokens `{{RM_PAGE_FURNITURE}}` / `{{RM_SIDEBAR}}` in a look's main.tex.
+- `look.furniture` `{first, head, foot}`: items `{text, x | right, y (baseline), size, weight}` with `{journal}`, `{short_title}`, `{page}`, `{pages}` (lastpage). PLOS: masthead (20.6 bp, baseline 48.3) and "RESEARCH ARTICLE" (101.4) on page 1; journal + short title (46.2) on later pages; journal and "n / N" at every foot (756). `PaperLook.journalName(look, target)` — the paper's target journal when it matches `look.journal_family`, else `journal_default`; `PaperLook.shortTitle(title)`.
+- Document view: `_mountFurniture` / `_alignFurniture` (each line placed on its measured baseline — Chrome snaps baselines to whole pixels) and `_mountSidebar` (same paragraphs, split at the last line whose baseline fits, clipped copies on pages 1 and 2); the grey "n / ≈N" counter hides on a sheet that prints its own folio.
+- Font: TeX Gyre Heros Condensed (`rm/vendor/fonts/texgyreheroscn-*.otf`, GUST licence, from the Tectonic bundle) as `PaperLook.FONTS['heros-cn']`.
+- `paper-export.js` passes `targetJournal` to `buildBundle`.
+- `scripts/tests/paper-look-furniture.test.mjs` (50 checks).
+
+### Changed
+- PLOS look: `title.before: 36` — page 1's front starts under the masthead and "RESEARCH ARTICLE" (title baseline 125.4; PLOS 124–126); `footer.page_numbers: false` (the furniture prints the folio). `texFront` writes `title.before` as `\vspace*{before − \topskip}\nointerlineskip` (exactly `before`, as the view's margin).
+- Every spec look's front matter is rigid in the PDF (`\parskip=0pt` inside `\rmfront`; `\lineskiplimit=-\maxdimen` in the title, author and affiliation lines only — a boxed abstract keeps `\lineskip`, or it rides up over the affiliations): a first page cut short no longer has `\flushbottom` pull the title, authors and abstract apart, and an author superscript under a title descender no longer adds TeX's `\lineskip` (~2 bp the view did not have). Case study page 1: abstract 6.1 bp → 0.3 bp from the view.
+- Document view packer models TeX's shrink (`_packPages`: `shrinkOf`, `stretchOf`, `prefersOver`, `splitRoom`): a block or one more line that overshoots the column fits when the page's shrinkable glue covers it (heading skip `minus 1bp` — none after a fixed skip, `\addvspace` keeps the larger — display skips 3 bp each side, list `\topsep` 1 bp, in-text float 2 bp) AND TeX's page builder would rather shrink than stretch (badness 100·(amount/glue)³ either way). `_flushBottoms` takes the overshoot back out of the same gaps (`shrinkGaps`). A 7-line paragraph 0.46 px too tall had moved to the next page leaving six lines of room (PLOS ground truth p. 11).
+- Document view: the PLOS bibliography as plos2015.bst sets it (`_formatPlos`: "Surname Initials", six then "et al.", journal without dots, "Year;Vol(Num):pages" / ";p. pages", no DOI) instead of the generic numeric format, which ran longer and added a page.
+
+### Bug Fixes
+- PDF: under a heading-style abstract label (PLOS) the abstract's first line was indented by `\parindent` (the view sets it flush, as PLOS prints it) and could run a line longer; abstract paragraphs are flush (`\parindent` = `abstract.first_indent`, 0).
+- Document view: a table cell's typesetting width was read just before that cell was set — a typeset cell reflows its table, so later rows were measured wider and the same text stayed on one line there while it broke in rows 1–2 (and in every row of the PDF). All widths are read first (`_typesetParagraphs`).
+- `scripts/paper-lab/sync.py` crashed (KeyError) when a matched line's first character did not map (running head / sidebar text beside it).
+- Document view: a heading kept only two lines of a following block it could not break (a table set in the text) and stood alone at the foot of a page while the PDF carried both over; `keepNextH` is now the whole block when TeX cannot break it (`_splits` false and shorter than half a page).
+
 ## [V3.920] — 2026-10-26 — Paper builder: a full case-study paper set cleanly — equations, lists, footnotes, tables, references, in page view and PDF
 
 Plan: [CodeLog/ClaudesPlan/V3.920_case_study_formatting.md](../ClaudesPlan/V3.920_case_study_formatting.md).

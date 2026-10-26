@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (21 changes — ready to push)
+## Pending (22 changes — ready to push)
 
+- V3.921 — Paper builder: the PLOS format now looks like a published PLOS article — the article information (citation, copyright, data availability, funding, competing interests) fills the left margin of the first page, carrying on to page 2 when it is long, with the journal name at the top and page numbers "n / N" at the foot. Your data availability, funding and competing-interests statements move there automatically.
 - V3.920 — Paper builder: papers with equations, lists, footnotes, tables and references now come out clean in the page preview and the PDF — equations no longer overlap the text above them, long lists and long tables continue onto the next column or page instead of leaving gaps, footnotes sit under their own column, figure references to a panel ("Fig. 2C") resolve, and the reference list numbers match the PDF.
 - V3.919 — Paper builder: pages are always filled to the bottom — in the page preview and in the PDF, the text never stops partway down a page above empty space. When a heading or a table has to move to the next page, the leftover room is spread evenly through the page instead.
 - V3.918 — Paper builder: tables now sit the way journals set them. A table that is too wide for one column runs across the whole page (instead of being squeezed into a column with words broken letter by letter), small tables stay in the column, and a table longer than a page continues on the next page as "Table 2 (continued)" with its header repeated — in the page preview and in the PDF. You can still pin a table to one column or the full page in its Table layout menu.

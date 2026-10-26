@@ -1254,6 +1254,7 @@
       yDoc: state.yConn.yDoc,
       fullItemsByKey: state.fullCitationByKey,
       leadAuthor: state.meta.lead_author || '',
+      targetJournal: state.meta.target_journal || '',   // V3.921 — the journal a look's masthead names
       authorsCfg: {                                     // V3.346
         authors: state.config.authors || [],
         affiliations: state.config.affiliations || [],

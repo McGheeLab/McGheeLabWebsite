@@ -141,7 +141,9 @@ def main():
         pl = pstarts[i]
         if not cl or not pl:
             continue
-        c0 = cmap[cl[0][0]]
+        # the line's first character that maps (its very first may not:
+        # a running head or sidebar text set beside it in the PDF, V3.921)
+        c0 = next(cmap[k] for k in range(*cl[0]) if k in cmap)
         ok = abs(c0 - pl[0][0]) <= 3
         starts_ok += ok
         if not ok:
