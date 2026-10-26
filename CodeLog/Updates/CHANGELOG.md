@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.917] — 2026-10-25 — Paper builder: lists inside paragraphs and hard-wrapped text set correctly in journal looks
+
+Plan: [CodeLog/ClaudesPlan/V3.917_lists_and_soft_breaks.md](../ClaudesPlan/V3.917_lists_and_soft_breaks.md).
+
+### Bug Fixes
+- A paragraph holding "- item" lines (lead-in sentence + list, the ME3B paper's Design requirements) printed its items over each other with stray "- •" markers under a journal look: the typesetter set the whole paragraph, list included, as one run of text, cutting lines through the `<ul>` so every cut line became its own bullet and the hyphen it appends at a break landed beside it. `paper-doc-view.js` `_buildBlockNode` now returns such a paragraph as consecutive page items (`more`): prose → typeset paragraph, list → `.pdv-list-block` (`_listItemsHtml`, shared with list blocks), prose after a list → `pdv-noindent pdv-para-cont` (the PDF's continuation after `itemize`). The page may break between them.
+- Words ran together where the source had a line break inside a paragraph ("adding the" / "ME3B" → "theME3B", "compatiblecondenser", "workingdistance"): the Document view rendered `\n` as `<br>`. LaTeX reads a single newline as a space, so the page view does too now (`softBreaks`; a blank line still breaks, list lines keep theirs).
+- `paper-typeset.js` `breakLines`: a forced break inside a paragraph (`<br>`, EJECT) ended the pass, dropping every word after it; only the paragraph's final EJECT ends it now. New test in `paper-typeset.test.mjs` (fails on the old code).
+- `paper-typeset.js`: U+2028/U+2029, vertical tab and NEL (pasted text) are word spaces; they glued neighbouring words together.
+- PDF export: bold text holding an *italic* span ("**S1 Dataset. … along *z* …**") printed stray asterisks in every journal format — the bold pattern refused any `*` inside. `paragraphTextToTex` now allows whole italic spans inside bold (`/\*\*((?:[^*\n]|\*[^*\n]+\*)+)\*\*/`); 2 tests in `paper-tex-escape.test.mjs`. Found in the PLOS corpus paper's supporting-information captions.
+
+### Changed
+- List items (list blocks and paragraph lists) are typeset under a journal look — justified, hyphenated and broken by Knuth–Plass like the PDF's `itemize` (`TYPESET_INNER_SEL` gains `.pdv-list-block li`; an item holding a nested list keeps browser layout). They were ragged right.
+
 ## [V3.916] — 2026-10-25 — Open RM tabs follow each deploy; compiles show their wait and (after a redeploy) start warm
 
 Plan: [CodeLog/ClaudesPlan/V3.916_stale_tabs_and_compile_wait.md](../ClaudesPlan/V3.916_stale_tabs_and_compile_wait.md).

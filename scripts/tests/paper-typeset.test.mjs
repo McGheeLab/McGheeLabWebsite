@@ -43,6 +43,14 @@ function words(ws, w, sp) {
   const r = T.breakLines(words([12, 12], 10, 6), 100, {});
   ok(r.lines >= 1 && r.overfull, 'too-wide word → overfull, still laid out');
 }
+{
+  // V3.917 — a forced break inside the paragraph (a <br>) ends a LINE, not
+  // the paragraph: everything after it is still set
+  const a = words([3, 3], 10, 6).slice(0, -3), b = words([3, 3, 3], 10, 6);
+  const items = a.concat([{ t: 'glue', w: 0, y: 0, z: 0, fil: true }, { t: 'pen', w: 0, p: -10000 }], b);
+  const r = T.breakLines(items, 100, {});
+  ok(r && r.lines === 2 && r.breaks[1] === items.length - 1, 'br mid-paragraph → 2 lines, the last at the end (got ' + (r && r.lines) + ')');
+}
 
 // ── inline math breaks only at top-level relations and binary operators
 {

@@ -32,6 +32,8 @@ eq(tex('cost \\$5 and $x$'), 'cost \\$5 and $x$', 'escaped dollar');
 eq(tex('inline \\(a^2\\) ok'), 'inline \\(a^2\\) ok', '\\( \\)');
 // markdown still works, with escaped content inside
 eq(tex('**50% bold** and *it_al*'), '\\textbf{50\\% bold} and \\emph{it\\_al}', 'markdown + escapes');
+eq(tex('**S1 Field along *z* here.** Rest'), '\\textbf{S1 Field along \\emph{z} here.} Rest', 'italic inside bold (PLOS SI captions)');
+eq(tex('**bold *it***'), '\\textbf{bold \\emph{it}}', 'italic closing a bold run');
 eq(tex('CO~2~ and cm^-1^'), 'CO\\textsubscript{2} and cm\\textsuperscript{-1}', 'sub/sup');
 eq(tex('a ~ lone tilde'), 'a \\textasciitilde{} lone tilde', 'lone tilde');
 // Unicode → TeX that compiles with T1 and fontspec alike

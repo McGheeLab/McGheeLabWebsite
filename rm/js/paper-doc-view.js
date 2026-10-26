@@ -442,8 +442,6 @@
    * nested <ul>/<ol>. Each item runs through the paragraph contract so
    * inline cites/math/formatting render. */
   function _listHtml(body, listType) {
-    var pe = _pe();
-    var tag = listType === 'number' ? 'ol' : 'ul';
     var items = [];
     String(body || '').split('\n').forEach(function (line) {
       var m = line.match(/^(\s*)(.*)$/);
@@ -451,6 +449,13 @@
       if (!text) return;
       items.push({ depth: Math.min(3, Math.floor(m[1].replace(/\t/g, '  ').length / 2)), text: text });
     });
+    return _listItemsHtml(items, listType);
+  }
+  /* V3.917 — [{depth, text}] → the same nested list (a list block's lines,
+   * or a paragraph's "- item" run from PaperSchemas.parseBodyRuns) */
+  function _listItemsHtml(items, listType) {
+    var pe = _pe();
+    var tag = listType === 'number' ? 'ol' : 'ul';
     if (!items.length) return '<' + tag + ' class="pdv-list"><li><span class="pdv-draft">empty list</span></li></' + tag + '>';
     var html = '<' + tag + ' class="pdv-list">', depth = 0;
     items.forEach(function (it) {
@@ -1606,6 +1611,7 @@
         }
         if (blk.kind === 'paragraph' || blk.kind === 'equation' || blk.kind === 'list') afterHeading = false;
         pushSec(node.el, node.type, blk.kind, sec.id, blk.id, node.float || null);
+        (node.more || []).forEach(function (m) { pushSec(m.el, m.type, m.kind, sec.id, blk.id); });   // V3.917
       });
       if (pendingRunIn && pendingRunIn.el) pushSec(pendingRunIn.el, 'col', 'subheading', sec.id, pendingRunIn.blk.id);
     });
@@ -1938,9 +1944,42 @@
        * so the typesetter can break there too. */
       var srcBody = (geom.look && window.PaperTypeset && window.PaperTypeset.breakableMathText)
         ? window.PaperTypeset.breakableMathText(body) : body;
-      p.innerHTML = pe.renderParagraphBodyHtml
+      /* V3.917 — a single line break inside a paragraph (hard-wrapped text
+       * from a .tex or .md import) is a space, as LaTeX reads it in the
+       * PDF; it was a <br> here, which the typesetter set as a line end with
+       * no space ("adding the" / "ME3B" → "theME3B"). A blank line stays a
+       * break. List lines keep their newlines (parseBodyRuns needs them). */
+      function softBreaks(t) { return String(t).replace(/([^\n])\n(?=[^\n])/g, '$1 '); }
+      /* V3.917 — a body with "- item" lines is prose, list, prose: each its
+       * own page item, so the typesetter sets the prose like any paragraph
+       * and never cuts lines through a list (it did: every cut line became
+       * a bullet of its own, drawn over the next, with a stray hyphen), and
+       * the page may break between them as LaTeX's itemize allows. Prose
+       * after a list continues the paragraph — no indent, as in the PDF. */
+      var PSr = window.PaperSchemas;
+      if (PSr && PSr.bodyHasList && PSr.parseBodyRuns && PSr.bodyHasList(srcBody)) {
+        var parts = PSr.parseBodyRuns(srcBody).map(function (run, ri) {
+          if (run.type === 'list') {
+            var lw = document.createElement('div');
+            lw.className = 'pdv-list-block pdv-density-body';
+            lw.dataset.blockId = blk.id || '';
+            lw.innerHTML = _listItemsHtml(run.items, run.listType);
+            return { el: lw, type: 'col', kind: 'list' };
+          }
+          var pp = ri === 0 ? p : document.createElement('p');
+          if (ri) {
+            pp.className = 'pdv-para pdv-bodypara pdv-density-body pdv-noindent pdv-para-cont';
+            pp.dataset.blockId = blk.id || '';
+            pp.dataset.blockKind = 'paragraph';
+          }
+          pp.innerHTML = pe.renderParagraphHtml(softBreaks(run.text));
+          return { el: pp, type: 'col', kind: 'paragraph' };
+        });
+        if (parts.length) return { el: parts[0].el, type: 'col', more: parts.slice(1) };
+      }
+      p.innerHTML = (!PSr && pe.renderParagraphBodyHtml)   // no list parser loaded: the old renderer
         ? pe.renderParagraphBodyHtml(srcBody)
-        : pe.renderParagraphHtml(srcBody);
+        : pe.renderParagraphHtml(softBreaks(srcBody));
       return { el: p, type: 'col' };
     }
 
@@ -2867,7 +2906,9 @@
    * way at their own measure, so the boxes they make are the PDF's
    * height too. */
   var TYPESET_SEL = '.pdv-bodypara';
-  var TYPESET_INNER_SEL = '.pdv-abstract .pdv-para, .pdv-keywords, .pdv-figcap, .pdv-tabcap, .pdv-factbox .pdv-para, .pdv-affil-colnote';
+  /* V3.917 — list items too (justified and broken as the PDF's itemize sets
+   * them); an item holding a nested list is left to the browser */
+  var TYPESET_INNER_SEL = '.pdv-abstract .pdv-para, .pdv-keywords, .pdv-figcap, .pdv-tabcap, .pdv-factbox .pdv-para, .pdv-affil-colnote, .pdv-list-block li';
   function _typesetParagraphs(list, width) {
     var probe = state.probeEl;
     var jobs = [];
@@ -2930,6 +2971,7 @@
       var capJustified = !capAlign || capAlign === 'justify';
       inner.forEach(function (el) {
         if (el.classList.contains('pts-para')) return;
+        if (el.tagName === 'LI' && el.querySelector('ul, ol')) return;
         if (!capJustified && el.matches('.pdv-figcap, .pdv-tabcap')) return;
         jobs.push({ el: el, item: null });
       });

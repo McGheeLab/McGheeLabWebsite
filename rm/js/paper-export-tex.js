@@ -1038,7 +1038,10 @@
      * paragraph — every paragraph is one source line — and & # _ broke
      * the compile.) Bold must come before italic, or `**foo**` would
      * match as two adjacent italics. */
-    out = out.replace(/\*\*([^*\n]+)\*\*/g, '\uE101$1\uE102');
+    /* V3.917 — bold may hold whole *italic* spans ("**S1 Dataset. Field
+     * along *z*.**"); excluding every `*` printed such a run as stray
+     * asterisks in the PDF. The italic pass below then sets the inner span. */
+    out = out.replace(/\*\*((?:[^*\n]|\*[^*\n]+\*)+)\*\*/g, '\uE101$1\uE102');
     out = out.replace(/\*([^*\n]+)\*/g, '\uE103$1\uE104');
     // Subscript / superscript (V3.107). V3.915 \u2014 subscripts were marked
     // with the ties above.

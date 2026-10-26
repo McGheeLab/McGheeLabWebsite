@@ -1591,6 +1591,12 @@
    "size": -1,
    "via": "verify"
   },
+  "rm/build.json": {
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "18e2588e22f32eb82cc71c59df6583be95b075737c5ae0e1a2cfb9215099f889",
+   "size": 83,
+   "via": "verify"
+  },
   "rm/css/activity-overview.css": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
    "sha256": "d626ee0c13d4719552dafbd58c9547dd840a4a520f31f9ec24805706d1445844",
@@ -2172,6 +2178,12 @@
    "sha256": "782f7b6b5b24b9178ee9c9dd8023b6675e3fec8acda23c819df9b3125cac9d80",
    "size": 17349,
    "via": "baseline"
+  },
+  "rm/js/build-check.js": {
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "7a86119155be11a70070f1cf45def6ed5a2eae5d3d133c22af3b5ed4bbaeeedf",
+   "size": 7032,
+   "via": "verify"
   },
   "rm/js/calendar-service.js": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -2984,9 +2996,9 @@
    "via": "baseline"
   },
   "rm/js/paper-doc-view.js": {
-   "deployedAt": "2026-10-25T15:22:53-07:00",
-   "sha256": "2f7f313fa57a34f9df39f29bbdb7d1580d01585dab4ee7c7c559ac903a23aa81",
-   "size": 321375,
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "4478cb107e5cec89204eeb14892d045abb398c4e3a449d40e949ea77e9e08b1c",
+   "size": 321411,
    "via": "verify"
   },
   "rm/js/paper-editor.js": {
@@ -3014,9 +3026,9 @@
    "via": "verify"
   },
   "rm/js/paper-export-config.js": {
-   "deployedAt": "2026-10-25T13:17:18-07:00",
-   "sha256": "d13aea224940c152bfdee952a06a53e14c1d557a3763125211d1796cd0d3977d",
-   "size": 19385,
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "3b750446e046e48e8fd3f9378e02bd422e9d44b8888899a30367686897862bf6",
+   "size": 19599,
    "via": "verify"
   },
   "rm/js/paper-export-lints.js": {
@@ -3026,15 +3038,15 @@
    "via": "baseline"
   },
   "rm/js/paper-export-tex.js": {
-   "deployedAt": "2026-10-25T15:22:53-07:00",
-   "sha256": "ef0531bdad2f4cfa9c056816ff979d0f51158081456ad03ee56d615c3182a683",
-   "size": 122872,
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "d506b832b96d5ad11df40f1c3e24f50000de01d57bc375e3b5bb1ac047d8b82e",
+   "size": 122959,
    "via": "verify"
   },
   "rm/js/paper-export.js": {
-   "deployedAt": "2026-10-25T13:17:18-07:00",
-   "sha256": "2eeb1261d09129742bdf409476ebda6d0c0b229e1366d8f1fa1e74f7375a0d84",
-   "size": 64373,
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "e2fe9715e07717432240e45d8c96b4a91dae2b9d15fc4ad369e6b866e248e9ca",
+   "size": 66750,
    "via": "verify"
   },
   "rm/js/paper-fig-compose.js": {
@@ -3098,9 +3110,9 @@
    "via": "verify"
   },
   "rm/js/paper-look.js": {
-   "deployedAt": "2026-10-25T13:17:18-07:00",
-   "sha256": "5ec61f1ce323e88d39c832fb152ac761d4f04a14990b953cd0810e799b58262e",
-   "size": 49929,
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "1baee60d880070f31e4773f7799f6231e7caac38cd928196c6f37e3b3a8b0657",
+   "size": 50449,
    "via": "verify"
   },
   "rm/js/paper-overlay-import.js": {
@@ -3494,10 +3506,10 @@
    "via": "verify"
   },
   "rm/js/runtime-mode.js": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "14538d7aa084536e6b8540bfc20f75587ac3ebbda1bfadd5609ae52e3a128ec6",
-   "size": 1724,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "1354d0ef443216ca45e129c2cb0e104c5152e3b9129f4ba3621f878ce5eeeced",
+   "size": 2090,
+   "via": "verify"
   },
   "rm/js/scan-resolve.js": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -3890,16 +3902,16 @@
    "via": "baseline"
   },
   "rm/pages/activity-summary.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "b80f54aa3d0f005ff8b98519d81365f540851ee32b223080e610ca63a3553f5d",
-   "size": 358,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "8acca866b0f222f6ec43d46702e74c24cc2770837f12815046d9d27eb4687aea",
+   "size": 463,
+   "via": "verify"
   },
   "rm/pages/activity-tracker.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "9d37c919814abe369811d07df73ecb6947aeeb7b089c7a2f3f350c3baba98f77",
-   "size": 350,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "848f6607cdcedd0c6ce758619ec428bff1e703d1451297b03f7374fc0eb151d4",
+   "size": 455,
+   "via": "verify"
   },
   "rm/pages/admin-guests.html": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -4016,16 +4028,16 @@
    "via": "baseline"
   },
   "rm/pages/cv-overview.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "e378ce553342172fa9607a7f71fafc83f48f91079cc2bb4623e001984e478457",
-   "size": 324,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "799759b1ae0885ed8d4fabd41267b0e9dff3a2c60d5ba5584c060448b2180dca",
+   "size": 429,
+   "via": "verify"
   },
   "rm/pages/email-review.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "22f65818189e44d42013d057e9bd00f5da77c05c1861552dc0c94a603d330f07",
-   "size": 356,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "b9eef18fd63b56cdfb5663be84264fc26287f4243275d5159285045613ce5acb",
+   "size": 461,
+   "via": "verify"
   },
   "rm/pages/equipment.html": {
    "deployedAt": "2026-10-22T23:38:05-07:00",
@@ -4052,10 +4064,10 @@
    "via": "baseline"
   },
   "rm/pages/funding.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "1275302418dd50ba99bc6d3a3c5ba9a6b7267017c10d94a876fd6819d1fe3e56",
-   "size": 276,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "79f67004f04670e36dfb59e6325f71c85efaca9a5c8d6eb03ac4d1bd273e41f6",
+   "size": 381,
+   "via": "verify"
   },
   "rm/pages/grant-biosketch.html": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -4094,10 +4106,10 @@
    "via": "verify"
   },
   "rm/pages/important-people.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "7f3e1cc9da293001e0bed15a5fc5dc35df3fa51abe4d87ea47f5a6403d10da88",
-   "size": 332,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "81c8379fdaf27272cd16b90e9ff24079e1aac7cfc15a1290e5badd34ed6d0078",
+   "size": 437,
+   "via": "verify"
   },
   "rm/pages/inventory-labels.html": {
    "deployedAt": "2026-10-23T16:07:05-07:00",
@@ -4112,9 +4124,9 @@
    "via": "verify"
   },
   "rm/pages/lab-notebook.html": {
-   "deployedAt": "2026-10-22T21:34:52-07:00",
-   "sha256": "d4c4a1f637fa372b1b563f740fe5223187dc55dad6854a00c12f64f0be240806",
-   "size": 721,
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "1141bb42e589b63d9a51ef8917f9af4deec65fdc4e860eaa48b9f9da9709deeb",
+   "size": 826,
    "via": "verify"
   },
   "rm/pages/lab-overview.html": {
@@ -4136,10 +4148,10 @@
    "via": "verify"
   },
   "rm/pages/library-comments.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "a44d0fef401812e4871b7af84f1de5ee3d8eebc03c57292d81ddcf629cd160d4",
-   "size": 332,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "3d0b5d9cfd48d9716a872d5cd2fcaeb4847170e32a77f1cca4f9ae64267d2bfa",
+   "size": 437,
+   "via": "verify"
   },
   "rm/pages/library-mobile-paper.html": {
    "deployedAt": "2026-10-23T10:34:36-07:00",
@@ -4160,10 +4172,10 @@
    "via": "verify"
   },
   "rm/pages/library-public.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "120190e22a0938f3a6c6a138814a2b5ccaa1c2e7503a87b796812c70cfe58e68",
-   "size": 4046,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "6587b9ff8d20f684d7cb4f72799940ae6445b9741ca57083e9a697020ac00c03",
+   "size": 4151,
+   "via": "verify"
   },
   "rm/pages/library.html": {
    "deployedAt": "2026-10-23T10:34:36-07:00",
@@ -4178,10 +4190,10 @@
    "via": "baseline"
   },
   "rm/pages/my-day.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "5b51618bbff0fd7bbc678b104bdd901d73e9e34c0a3c0a3303f7751bbcf0370f",
-   "size": 1329,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "bef0039ed6bcd38fbe77d0aa1e6ef4d03b69189016d43d7f4f08481dd187e2d2",
+   "size": 1434,
+   "via": "verify"
   },
   "rm/pages/my-week.html": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -4190,9 +4202,9 @@
    "via": "baseline"
   },
   "rm/pages/notebook-blocks.html": {
-   "deployedAt": "2026-10-22T21:34:52-07:00",
-   "sha256": "d4c4a1f637fa372b1b563f740fe5223187dc55dad6854a00c12f64f0be240806",
-   "size": 721,
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "1141bb42e589b63d9a51ef8917f9af4deec65fdc4e860eaa48b9f9da9709deeb",
+   "size": 826,
    "via": "verify"
   },
   "rm/pages/notebook-board.html": {
@@ -4220,10 +4232,10 @@
    "via": "verify"
   },
   "rm/pages/paper-editor.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "8e160f64acc6ffc36dc36d6eaeeb8bd7fbcbcfc213996df1826cc432cff04234",
-   "size": 795,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "6c22fa1331ad5d04dc1d3765bafda512b3d27f399eff7b91b8e4164efc661809",
+   "size": 900,
+   "via": "verify"
   },
   "rm/pages/paper-export.html": {
    "deployedAt": "2026-10-25T15:22:53-07:00",
@@ -4280,10 +4292,10 @@
    "via": "verify"
   },
   "rm/pages/purchase-requests.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "6559f23d93c418a4be6fabb44f8ea930e6321605f2ff84693ac6e6690ebcad5d",
-   "size": 296,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "636a2770e37791c24b6cff87668e44458f86fcbfaee373c45f59d095cf51ca6c",
+   "size": 401,
+   "via": "verify"
   },
   "rm/pages/receipts.html": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -4310,9 +4322,9 @@
    "via": "baseline"
   },
   "rm/pages/scientia.html": {
-   "deployedAt": "2026-10-23T11:12:36-07:00",
-   "sha256": "35e8983029f5ba4ba1a7c0bd86133aeb093266772ebecf48ffdc7eb8bdb61cda",
-   "size": 764,
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "91df744fb7ce3e131f59925eb55f8f56b60dcbc36aef0ce33d26dfc1293bb809",
+   "size": 869,
    "via": "verify"
   },
   "rm/pages/service.html": {
@@ -4328,10 +4340,10 @@
    "via": "verify"
   },
   "rm/pages/sharing.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "05735fb38723102e274db622a7860f3fdb5b4e3385e82f21dbb9c1636de70769",
-   "size": 916,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "4d087b099425c34a274a60ddb957ad89997dae2e2eaee4bea8aff54f3722769c",
+   "size": 1021,
+   "via": "verify"
   },
   "rm/pages/split-view.html": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -4340,28 +4352,28 @@
    "via": "baseline"
   },
   "rm/pages/task-market.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "047a57d460a0b55572195a7570b8079a7dc2d55be068a165f32414013735d331",
-   "size": 997,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "b549f8b71aac0497946cc57a1d961ae3e9e6879a6b3770cc66d8a20d809a50a3",
+   "size": 1102,
+   "via": "verify"
   },
   "rm/pages/tasks-add.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "5812450fb4a9b9579ca9293d58344d864b547a25014416c04fb32d68383fd144",
-   "size": 304,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "ddf43972833e765a1f653ff600fa91fcbb273555d9fafb187efba96db77464ea",
+   "size": 409,
+   "via": "verify"
   },
   "rm/pages/tasks-archive.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "f7eb8b9f1365f722fccf223da179dc41cc76a6113fc0102cfa97406a96cb832c",
-   "size": 324,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "bf7c47bc5d9e02fcb558a2be11cd320d6bcfa4ba8b5d93d26b4edfd8a20df4b2",
+   "size": 429,
+   "via": "verify"
   },
   "rm/pages/tasks-inbox.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "e79eb31d7c991352f3da38ce5d42a14f644c6e95f1e4b3dc1924987649d4d9ee",
-   "size": 310,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "2d4280c84ce7e9d808143dab00cf15d41c20365f39342b6d6c5fb2191f9bf2b2",
+   "size": 415,
+   "via": "verify"
   },
   "rm/pages/tasks.html": {
    "deployedAt": "2026-10-23T10:34:36-07:00",
@@ -4508,10 +4520,10 @@
    "via": "baseline"
   },
   "rm/pages/year-review.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "88f7fcbbbc08f9f7e7fe1520874c490e802620aa6f0b6190387906e1f2556383",
-   "size": 364,
-   "via": "baseline"
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "f1ca5c86094a3a6a4d1e3aee156eba9bcd5653214f285ffe048a133edc9075c0",
+   "size": 469,
+   "via": "verify"
   },
   "rm/scientia/MANUAL.md": {
    "deployedAt": "2026-10-22T20:35:44-07:00",
@@ -5204,8 +5216,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-25T15:22:53-07:00",
-   "sha256": "d03b4230b6634fd6623662b196904a1ba4a960eec9fd64d468987a5a892fa904",
+   "deployedAt": "2026-10-25T18:10:10-07:00",
+   "sha256": "a708cbf34b0f6f5a6684b5c03cbb995092b08977f6e29634c6c9a96977ab255c",
    "size": 9933,
    "via": "verify"
   },

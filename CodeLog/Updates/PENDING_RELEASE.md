@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (17 changes — ready to push)
+## Pending (18 changes — ready to push)
 
+- V3.917 — Paper builder: in the journal page preview, a bulleted list written inside a paragraph no longer prints its lines on top of each other, and words split across lines in your text ("the" / "ME3B") are no longer glued together. In the PDF, a bold phrase with an italic word inside no longer prints stray asterisks.
 - V3.916 — RM pages now pick up a new version on their own: a tab left open across an update reloads itself the next time you come back to it (never while you are typing or recording), or shows a small Reload bar — no more seeing yesterday's version until you think to refresh.
 - V3.916 — Paper builder: Compile PDF now counts the seconds while the server works, shows an Open PDF link the moment the PDF exists, and tells you plainly if the server does not answer. (After the compile service is redeployed, compiles take a few seconds instead of most of a minute.)
 - V3.916 — Paper builder: fixed the Export page failing to open for a paper whose author had a single affiliation number, and Physical Review (APS) papers with an Acknowledgements section failing to compile.

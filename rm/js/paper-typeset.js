@@ -231,7 +231,10 @@
           if (c.dem <= minBy[byLine ? c.line : 0] + P.adjdemerits) nextActive.push(c);
         });
         active = nextActive;
-        if (item.t === 'pen' && item.p === EJECT) {
+        /* the paragraph's own end; a forced break inside it (a <br>) is a
+         * line end the next line starts after (V3.917 — this ended the
+         * whole paragraph there and dropped the rest of its text) */
+        if (item.t === 'pen' && item.p === EJECT && b === items.length - 1) {
           var finals = active.filter(function (n) { return n.pos === b; });
           if (finals.length) { bestFinal = chooseFinal(finals, P.looseness); actualLoose = bestFinal._loose || 0; }
           break;
@@ -371,7 +374,10 @@
       for (var c = n.firstChild; c; c = c.nextSibling) {
         if (c.nodeType === 3) {
           var s = c.nodeValue;
-          var re = /([ \t\r\n]+)|(\u00A0)|([\uE120\uE121])|([^ \t\r\n\u00A0\uE120\uE121]+)/g, m;
+          /* V3.917 — Unicode's line / paragraph separators, vertical tab and
+           * NEL (pasted text carries them) are word spaces, as in the PDF;
+           * outside this class they glued the words either side together */
+          var re = /([ \t\r\n\u000B\u0085\u2028\u2029]+)|(\u00A0)|([\uE120\uE121])|([^ \t\r\n\u000B\u0085\u2028\u2029\u00A0\uE120\uE121]+)/g, m;
           while ((m = re.exec(s))) {
             segs.push({ k: m[1] ? 'space' : m[2] ? 'nbsp' : m[3] ? (m[3] === REL_MARK ? 'mrel' : 'mbin') : 'text',
               node: c, a: m.index, b: m.index + m[0].length });
