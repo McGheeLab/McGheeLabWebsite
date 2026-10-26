@@ -37,14 +37,11 @@ const tableLines = tb => {
   if (tb.columns.length === 2) return head + tb.rows.map(r => '• ' + (r[0] ? r[0] + ': ' : '') + r[1]).join('\n');
   return head + tb.rows.map(r => '• ' + r[0] + ' — ' + tb.columns.slice(1).map((c, i) => c + ': ' + r[i + 1]).join('; ')).join('\n');
 };
-/* which parameter group each experiment tests (section 3) */
-const TESTS = { 1: 'pOptics', 2: 'pRead', 3: 'pOptics', 4: 'pOptics', 5: 'pOptics', 6: 'pOptics', 7: 'pOptics', 8: 'pRead', 9: 'pAssay', 10: 'pRead', 11: 'pAssay', 12: 'pAssay', 13: 'pRead' };
 const LAYER = { 1: 'Instrument', 2: 'Instrument', 3: 'Instrument', 4: 'Optics of the shell', 5: 'Optics of the shell', 6: 'Optics of the shell', 7: 'PE on this instrument', 8: 'PE on this instrument',
   9: 'Backgrounds and the assay', 10: 'Backgrounds and the assay', 11: 'Backgrounds and the assay', 12: 'Backgrounds and the assay', 13: 'The read itself' };
-const EXP_SECTIONS = [], EXP_FIRST = {};
+const EXP_SECTIONS = [];
 function expSection(p) {
   const num = +(p.id.match(/pe-ax-(\d+)/) || [])[1], k = 'e' + String(num).padStart(2, '0'), short = p.title.replace(/^PE beads · Exp \d+ · /, '');
-  EXP_FIRST[num] = k + '_purpose';
   const purpose = [p.header ? '**' + p.header + '**' : '', ...p.notes.filter(n => n.where === 'Overview').map(n => n.text), ...p.assumptions.map(a => 'Assumption: ' + a)].filter(Boolean).join('\n\n');
   const predict = p.tables.filter(t => t.where === 'Overview').map(tableLines).join('\n\n');
   const settings = p.tables.filter(t => t.where === 'Settings' || t.where === 'Plate').map(tableLines).join('\n\n');
@@ -64,7 +61,7 @@ function expSection(p) {
     p.materials.length ? T(p.materials.map(m => '• ' + m).join('\n'), { key: k + '_mat', label: 'Materials', col: 0 }) : null,
     p.cautions.length ? T(p.cautions.map(c => '• ' + c.text).join('\n'), { key: k + '_caution', label: 'Before you start', col: 0 }) : null,
     { kind: 'protocol', key: k + '_run', label: 'Exp ' + String(num).padStart(2, '0') + ' · ' + short, steps, keep: true, col: 1 },
-    settings ? T(settings, { key: k + '_settings', label: 'Settings (from the parameter set)', col: 2 }) : null,
+    settings ? T(settings, { key: k + '_settings', label: 'Settings for this run', col: 2 }) : null,
     calcs ? T(calcs, { key: k + '_calc', label: 'Numbers', col: 2 }) : null,
     p.timeline ? T('**' + (p.timeline.title || 'Timeline') + '**\n' + p.timeline.marks.map(m => '• ' + m.at + ' — ' + m.label + (m.sub ? ' (' + m.sub + ')' : '') + (m.included ? '' : ' [optional]')).join('\n'), { key: k + '_time', label: 'Timeline', col: 2 }) : null,
     analysis ? T(analysis + (scores ? '\n\n' + scores : ''), { key: k + '_analysis', label: 'Analysis', col: 2 }) : null,
@@ -142,7 +139,7 @@ module.exports = {
 
       /* ---------------------------------------------------------------- 1 · literature */
       { name: '1 · What the literature sets', color: '#eb6834', items: [
-        T('The review checked every assumption the model rests on against 27 papers. Its verdicts: binding holds, but the wash must be read as an effective rate (A); PE’s constants hold, but it is not a two-level dye (B); one calibrated confocal plane is quantitative (C); and the index-matched shell is the exception, not the rule (D). Each card below turns one verdict into a constraint on the design. Wires come in from the review’s own cards; wires go out to the parameter set (section 3).', { key: 'l_intro', label: 'How the review steers the plan', col: 'full', w: 1760 }),
+        T('The review checked every assumption the model rests on against 27 papers. Its verdicts: binding holds, but the wash must be read as an effective rate (A); PE’s constants hold, but it is not a two-level dye (B); one calibrated confocal plane is quantitative (C); and the index-matched shell is the exception, not the rule (D). Each card below turns one verdict into a constraint on the design and says what it changes; its links at the foot open the review’s own findings. The parameter set (section 3) marks each value the review set with “review A–D”.', { key: 'l_intro', label: 'How the review steers the plan', col: 'full', w: 1760 }),
         T('**The wash is an effective rate.** After the wash, PE leaving one bond can rebind, so the loss Λ is slower than k₋₂ + k₋₃, about $k_{-2} + k_{-3}/(1+Da_3)$, and its tail need not be exponential [[cite:goldstein1999]].\n→ Fit Exp 11 with rebinding and run two capture densities. The wash plan (one wash or column-staggered) is chosen from the measured Λ, not the intrinsic rates.', { key: 'l_wash', label: 'A · binding → the wash plan', col: 0 }),
         T('**Bead number is a calibration parameter.** Beads × capture sites set the capture clock, and a 1 h incubation is far from equilibrium (≈35 % captured at 10⁴ beads in 50 µL) [[cite:rissin2010]] [[cite:chang2012]].\n→ Count the beads (≤ 5 % CV) and fix beads per volume in every well.', { key: 'l_clock', label: 'A · binding → beads per well', col: 0 }),
         T('**Guard the hook.** In a one-step assay free analyte competes with the labelled complex; capacity and the detection-antibody level move the hook [[cite:fernandowilson1992]] [[cite:saateh2026]].\n→ Keep the 1× / 10× dilution check (Exp 12); standards must span the hook.', { key: 'l_hook', label: 'A · binding → standards and dilutions', col: 0 }),
@@ -207,9 +204,6 @@ const W = module.exports.wires, from = k => '#' + lr(k);
 [['fA2', 'l_wash'], ['vA', 'l_wash'], ['fA3', 'l_clock'], ['fA4', 'l_hook'], ['vB', 'l_pe'], ['fB3', 'l_pe'], ['fB4', 'l_bright'], ['vC', 'l_cal'],
   ['fC2', 'l_cal'], ['fC3', 'l_cal'], ['fC4', 'l_cal'], ['fC6', 'l_cal'], ['fC5', 'l_focus'], ['vD', 'l_optics'], ['fD2', 'l_optics'], ['fD1', 'l_optics'],
   ['fD4', 'l_mesf'], ['open', 'l_open'], ['qA', 'l_open'], ['qD', 'l_open']].forEach(([c, to]) => W.push({ from: from(c), to: 'plan:' + to, rel: 'c:informs' }));
-/* constraints and simulations → the parameter set */
-[['l_wash', 'pAssay'], ['l_clock', 'pAssay'], ['l_hook', 'pAssay'], ['l_pe', 'pOptics'], ['l_cal', 'pOptics'], ['l_focus', 'pOptics'], ['l_optics', 'pOptics'], ['l_bright', 'pRead'], ['l_mesf', 'pRead'],
-  ['s_bind_sets', 'pAssay'], ['s_conf_sets', 'pOptics'], ['s_conf_sets', 'pRead'], ['s_strat_sets', 'pRead'], ['s_strat_sets', 'pAssay']].forEach(([a, b]) => W.push({ from: 'plan:' + a, to: 'plan:' + b, rel: 'c:sets' }));
-/* the parameter set → the experiment that measures it; the open questions → theirs */
-for (const [num, group] of Object.entries(TESTS)) W.push({ from: 'plan:' + group, to: 'plan:' + EXP_FIRST[num], rel: 'c:tested in' });
-W.push({ from: 'plan:q1', to: 'plan:' + EXP_FIRST[5], rel: 'needs' }, { from: 'plan:q2', to: 'plan:' + EXP_FIRST[4], rel: 'needs' }, { from: 'plan:l_open', to: 'plan:' + EXP_FIRST[11], rel: 'needs' });
+/* No wires inside this note: Scientia loops a vertical wire out to the side by its span, and the parameter set sits
+   thousands of pixels from the cards that set it and the experiments that test it. Each parameter line names its source
+   (sim 2a–2c, review A–D) and its experiment instead. */
