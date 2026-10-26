@@ -8,7 +8,7 @@ const DocView = {
   canvas: true, title: true, docId: null, paper: null, sel: null, pendingFocus: null, inspOpen: _ls.get('insp', false), openGhosts: new Set(), travel: null,
 
   render(docId) {
-    const d = M.doc(docId); this.docId = docId; this.sel = null; this.travel = null;
+    const d = M.doc(docId); this.docId = docId; this.sel = null; this.travel = VIEWER && d && docId === VIEWER.X.docId ? { at: VIEWER.X.at, viewer: true, doc: d, blocks: M.docBlocks(d.id) } : null;
     if (!d) return h('div.canvas-host', h('div.empty-c', 'Note not found'));
     const host = h('div.canvas-host'); host._dv = this; this.host = host;
     host.addEventListener('pointerdown', () => { App.pane = this; }, true); host.addEventListener('focusin', () => { App.pane = this; });
@@ -45,7 +45,7 @@ const DocView = {
     d.layout = d.layout || { head: { x: 0, y: 0 } };
     if (M.liveBlocks(d.id).some(b => b.x == null)) { M.autoLayout(d); }
     $$(':scope > .nextbtn', this.host).forEach(x => x.remove()); { const nb = CHAIN.button(d, this); if (nb) this.host.append(nb); }
-    if (!this.side) App.setTitle(d.title, [typechip(d.type), CHAIN.strip(d), h('span', M.docPath(d).replace(/ › [^›]*$/, '')), h('span', 'edited ' + fmtWhen(d.modified)), this.travel ? h('span.pill.warn', 'as it stood ' + fmtWhen(this.travel.at)) : null],
+    if (!this.side) App.setTitle(d.title, [typechip(d.type), CHAIN.strip(d), h('span', M.docPath(d).replace(/ › [^›]*$/, '')), h('span', 'edited ' + fmtWhen(d.modified)), this.travel && !this.travel.viewer ? h('span.pill.warn', 'as it stood ' + fmtWhen(this.travel.at)) : null],
       { editable: !this.travel, onEdit: v => { if (v && v !== d.title) { d.title = v; M.touchDoc(d); changed(); } } });
     $$(':scope > .box, :scope > .wl, :scope > .obsbox', w).forEach(x => x.remove());
     const src = this.travel || { doc: d, blocks: M.docBlocks(d.id) };

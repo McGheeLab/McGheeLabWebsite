@@ -44,18 +44,22 @@ const DB = {
   all(store) { return Array.from(S[store].values()); },
   where(store, f) { const o = []; for (const v of S[store].values()) if (f(v)) o.push(v); return o; },
 
+  /** Last-written copies of authored records, so undo restores what was saved even when a record object was changed in place. */
+  _snap: new Map(), SNAP: new Set(['blocks', 'documents', 'wires', 'inklib', 'libsets', 'reminders', 'projects', 'themes', 'aims', 'items', 'terms', 'library', 'views', 'canvases', 'equations', 'chores', 'flags', 'templates']),
+  resnap() { this._snap = new Map(); for (const n of this.SNAP) if (S[n]) for (const [id, r] of S[n]) this._snap.set(n + '\u0001' + id, JSON.stringify(r)); },
   /** Start a new undo group — one user gesture = one group. */
   beginGroup(label) { this.group++; this._label = label || ''; },
   put(store, rec, op = 'put') {
-    const key = rec[STORES[store].key], prev = S[store].get(key);
-    const prevCopy = prev ? JSON.parse(JSON.stringify(prev)) : null;
-    S[store].set(key, rec);
+    const key = rec[STORES[store].key], prev = S[store].get(key), sk = store + '\u0001' + key, snap = this._snap.get(sk);
+    // the record as last written (a record changed in place before put() would otherwise undo to itself)
+    const prevCopy = snap != null ? JSON.parse(snap) : prev ? JSON.parse(JSON.stringify(prev)) : null;
+    S[store].set(key, rec); if (this.SNAP.has(store)) this._snap.set(sk, JSON.stringify(rec));
     this._write(store, w => w.put(rec));
     if (store !== 'settings' && store !== 'journal' && !this.quiet) this._journal(store, key, prev ? op : 'create', prevCopy);
     return rec;
   },
   del(store, id) {
-    const prev = S[store].get(id); S[store].delete(id);
+    const sk = store + '\u0001' + id, snap = this._snap.get(sk), live = S[store].get(id), prev = snap != null ? JSON.parse(snap) : live; S[store].delete(id); this._snap.delete(sk);
     this._write(store, w => w.delete(id));
     this._journal(store, id, 'delete', prev ? JSON.parse(JSON.stringify(prev)) : null);
   },
@@ -110,7 +114,7 @@ const DB = {
       if (!STORES[n]) continue;
       report.push({ store: n, expected: data.counts[n], got: after.counts[n] || 0, ok: (after.counts[n] || 0) === data.counts[n] });
     }
-    this.undoStack = []; this.redoStack = [];
+    this.undoStack = []; this.redoStack = []; this.resnap();
     return { report, unknown, ok: report.every(r => r.ok) };
   },
   async wipe() {
@@ -118,6 +122,7 @@ const DB = {
       S[n].clear();
       if (this.mode === 'idb') await new Promise(res => { const tx = this.idb.transaction(n, 'readwrite'); tx.objectStore(n).clear(); tx.oncomplete = res; tx.onerror = res; });
     }
+    this._snap = new Map();
   },
 };
 

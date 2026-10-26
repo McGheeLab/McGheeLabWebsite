@@ -19,7 +19,9 @@ const INK = {
   PAD: 14, NEAR: 44, COLORS: ['auto', '#2557c7', '#c0392b', '#1f8a70', '#d98e04'], WIDTHS: [1.4, 2.4, 4],
   pressure: _ls.get('inkPressure', true), _lastP: 0,
   /** Pressure feel, per device: sens 0 (firm: you must press) … 1 (light: a light touch is already full); widths as × the pen width; fade = how much lighter strokes fade. */
-  curve: Object.assign({ sens: .5, min: .15, max: 2.2, fade: .6 }, _ls.get('inkCurve', {})),
+  curve: Object.assign({ sens: .5, min: .15, max: 2.2, fade: .6, emin: 4, emax: 20 }, _ls.get('inkCurve', {})),
+  /** Pen mode: the pen writes. On the desktop that is the ink bar being out; the lab's web pills turn it on with the pen hand (INK.mouse) and use the bar for settings only. */
+  writing: () => !!(INK.shown || INK.mouse),
   mapP(v) { const g = Math.pow(2, (.5 - INK.curve.sens) * 3.2); return clamp(Math.pow(clamp(v, 0, 1), g), .01, 1); },
   /** The little gauge in the ink bar shows the pen's pressure as you write (so you can see it is felt). */
   meter(v) { INK._lastP = v || 0; $$('.ink-gauge > i').forEach(g => g.style.height = Math.round((v || 0) * 100) + '%'); },
@@ -94,7 +96,7 @@ const INK = {
   interactive: t => t.closest('button,input,textarea,select,a,label,.port,.rz,.ed,[contenteditable="true"],.pop,.ink-bar,.bh,.chips,.wl,.region .rg-tab'),
   penDown(paper, e) {
     const host = paper.el.closest('.canvas-host'), pane = host && host._dv; if (!pane || !pane.docId || pane.travel || !M.doc(pane.docId)) return false;
-    if (e.pointerType === 'pen' && !INK.shown) { INK.shown = true; _ls.set('inkBar', true); INK.bar(pane); }
+    if (!INK.writing()) return false; // pen mode off: the pen pans the paper and moves components (13zz2)
     if (INK.interactive(e.target)) return false;
     const box = e.target.closest('.box'); if (box && !box.classList.contains('w-ink')) return false;
     const wp = paper.toWorld(e.clientX, e.clientY);

@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.926] — 2026-10-26 — Scientia: the desktop's features join the lab's copy
+
+Plan: [CodeLog/ClaudesPlan/V3.926_scientia_desktop_merge.md](../ClaudesPlan/V3.926_scientia_desktop_merge.md). A three-way merge of Gabe's desktop app against the lab's V3.901 (see the plan).
+
+### Added
+- **Scientia modules from the desktop** (`scientia/src/`, Gabe's): `13zt-table.js` (Excel / CSV tables with formulas, and plots wired to a table; `vendor/xlsx.core.min.js` + licence), `13zz2-pen3.js` (pen off pans; a component moves by dragging its name or date, double-click edits the name or the time; saved-ink library, `+ Insert → Saved ink`), `13zz3-dash.js` (solid / dashed / dotted strokes), `13zz4-inksplit.js` (an ink component is split before it passes the 1 MB cloud record), `17d-libgroups.js` (library themes and groups, store `libsets`), `21b-canvasexport.js` + `98-viewer.js` (a note as one read-only HTML file), `21c-labexport.js` (JSON for the site's Upload from desktop).
+- **`CodeLog/features.json`**: `scientia.tables`, `scientia.canvas-export`; `scientia.canvas`, `scientia.library`, `scientia.settings` list the new modules.
+- **`rm/scientia/lab-mode.js`**: icons `chart-bar`, `table`, `table-2`, `star` and `INS_PICS` entries `table`, `table-empty`, `plot`, `inklib`, so each new + Insert row has its own icon.
+
+### Changed
+- Desktop edits to `02-schema.js`, `03-db.js`, `12-doc.js`, `13-docpanels.js`, `13d-media.js`, `13l-day.js`, `13zf-ink.js`, `13zk-docs.js`, `13zm-pen2.js`, `13zn-rec.js`, `13zq-pressure.js`, `13zv-fill.js`, `13zz-maxhl.js`, `17-library.js`, `17c-reader2.js`, `20-canvas.css`, `20-settings.js`, `21-sync.css`, `99-boot.js`, `serve.py`.
+- `01-util.js` `BUILD` is the desktop's label (Gabe's choice).
+- `scientia/README.md`: the app's own Firebase sync section is removed — the lab hub is the one cloud.
+
+### Bug Fixes
+- `scripts/gen-icons.mjs`: file paths are normalised to `/` (`.split('\\').join('/')` at the three `ROOT.length + 1` slices) so the emoji gate's skip patterns for `icons.js`, `vendor/` and `rm/scientia/` also work on Windows. Before, the gate reported 432 colour emoji on a clean `main` (511 with a built web Scientia), and `merge_check.py` HELD every push from a Windows computer.
+
+### Tests
+- Lab-mode harness **271/275**; the same four checks fail on a clean build of `origin/main` (V3.925) in headless Chrome — PDF cards drawing pages (three) and the Install banner layout — and none relates to this change. The Insert-icon checks pass.
+- `scientia_build.py --check` current; `node --check` on every module; `gen-icons.mjs --check --scan --emoji` 0 colour emoji across 707 files.
+- `sw.js` CACHE_VERSION 897 → 898.
+
 ## [V3.925] — 2026-10-26 — Deploys are encrypted: FTP over verified TLS, never a plain-FTP fallback
 
 Found by Gabe's Claude on his first FTP setup: the GoDaddy FTP server (Pure-FTPd, 198.12.245.91) presents a valid certificate for `*.prod.phx3.secureserver.net`, never for mcgheelab.com, so the TLS handshake failed on the hostname check and `ftp_connect` (`"tls": "auto"`) fell back to **plain FTP — on every deploy, the lab's included, with the password in the clear**. Reproduced here: `mcgheelab.com` → `SSLCertVerificationError: Hostname mismatch`. The server's own name, `p3plzcpnl504220.prod.phx3.secureserver.net` (cPanel Server Name; also the Exim banner on 587), resolves to the same IP and verifies fully (TLS 1.3).

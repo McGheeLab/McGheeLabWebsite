@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (26 changes — ready to push)
+## Pending (27 changes — ready to push)
 
+- V3.926 — Scientia on the website now has what Gabe's desktop has: drag a component by its name or date (double-click to rename it or change its time), tables and plots from Excel or CSV, library themes and groups, saved ink, dashed lines, and exporting a note as one HTML file.
 - V3.925 — Behind the scenes: updates to the lab website are now always sent to the server encrypted.
 - V3.924 — Gabe can work on his own branch and have it saved to GitHub automatically, like the lab's own changes, and there is a step-by-step setup page for working on the lab's code from a Windows computer.
 - V3.923 — Scientia: sharing a project or lit review to collaborate is safe again — someone you share with can no longer delete your notes by syncing their desktop; only what they added themselves can be removed by them. The confocal bead ELISA plan is rebuilt as one note in Source and sink, with the MESF beads as both the calibration standard and the laser-power check (no power meter needed).

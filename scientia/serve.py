@@ -17,7 +17,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 APP_IMAGES = os.path.join(ROOT, 'images')
 APP_RECORDINGS = os.path.join(ROOT, 'recordings')
 REC_EXTS = {'webm', 'm4a', 'mp4', 'ogg', 'wav', 'mp3', 'aac'}
-EXTS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tif', 'tiff', 'svg', 'mp4', 'webm', 'mov', 'm4v', 'avif', 'html', 'htm', 'pdf'}
+EXTS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tif', 'tiff', 'svg', 'mp4', 'webm', 'mov', 'm4v', 'avif', 'html', 'htm', 'pdf', 'xlsx', 'xlsm', 'xls', 'ods', 'csv', 'tsv', 'txt'}
 if os.environ.get('SIS_CONFIG'): CONFIG = os.environ['SIS_CONFIG']
 elif os.name == 'nt': CONFIG = os.path.join(os.environ.get('APPDATA') or os.path.expanduser('~'), 'ScientiaInSitu', 'config.json')
 else: CONFIG = os.path.join(os.path.expanduser('~'), '.config', 'scientia-in-situ', 'config.json')

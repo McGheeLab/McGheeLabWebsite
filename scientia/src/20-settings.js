@@ -47,6 +47,7 @@ const SettingsView = {
       h('dt', 'origin'), h('dd', location.protocol === 'file:' ? h('span', { style: { color: 'var(--warn)' } }, 'file:// — serve on localhost (launch.bat) for persistence and DOI lookup') : location.origin),
       h('dt', 'authored stores'), h('dd', AUTHORED.map(n => `${n} ${n === 'journal' ? '' : S[n].size}`).join(' · '))),
       h('div.row', h('button.btn.pri', { on: { click: () => Exporter.json() } }, 'Export everything (JSON)'),
+        window.SIS_TARGET === 'web' ? null : h('button.btn', { title: 'The notebook as the McGhee Lab website takes it, with what it can’t show yet', on: { click: () => LABX.export() } }, 'Export for the lab website'),
         h('label.btn', 'Import…', h('input', { type: 'file', accept: '.json,application/json', style: { display: 'none' }, on: { change: e => SettingsView.importFile(e.target.files[0]) } })),
         h('button.btn', { on: { click: () => { IX.rebuild(); toast(`Re-indexed in ${IX.ms.toFixed(1)} ms`); App.refresh(); } } }, 'Re-index'),
         h('button.btn', { on: { click: () => SettingsView.roundTrip() } }, 'Test export round-trip')),

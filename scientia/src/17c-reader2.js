@@ -49,20 +49,20 @@ const RD2 = {
     const mv = ev => { if (ev.pointerId !== e.pointerId) return; ev.preventDefault();
       ((ev.getCoalescedEvents && ev.getCoalescedEvents().length) ? ev.getCoalescedEvents() : [ev]).forEach(q => { pts.push([q.clientX - pr.left, q.clientY - pr.top]); const k = RD2.hit(el, q.clientX, q.clientY); if (k >= 0) { if (first < 0) first = k; last = k; } });
       if (Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) > 5) moved = true; paint(); };
-    const up = ev => { if (ev.pointerId !== e.pointerId) return; removeEventListener('pointermove', mv, true); removeEventListener('pointerup', up, true); removeEventListener('pointercancel', up, true); live.remove(); prev.remove();
-      if (!moved || ev.type === 'pointercancel' || first < 0 || last < 0) { if (!moved) { const hl = document.elementsFromPoint(ev.clientX, ev.clientY).find(x => x.classList && x.classList.contains('rd-hl') && x.dataset.id); if (hl) { const b = M.block(hl.dataset.id); b && view.markMenu(b, ev); } } return; }
-      RD2.save(view, el, Math.min(first, last), Math.max(first, last), ev); };
+    const up = ev => { if (ev.pointerId !== e.pointerId) return; removeEventListener('pointermove', mv, true); removeEventListener('pointerup', up, true); removeEventListener('pointercancel', up, true); live.remove();
+      if (!moved || ev.type === 'pointercancel' || first < 0 || last < 0) { prev.remove(); if (!moved) { const hl = document.elementsFromPoint(ev.clientX, ev.clientY).find(x => x.classList && x.classList.contains('rd-hl') && x.dataset.id); if (hl) { const b = M.block(hl.dataset.id); b && view.markMenu(b, ev); } } return; }
+      RD2.save(view, el, Math.min(first, last), Math.max(first, last), ev, prev); };
     addEventListener('pointermove', mv, true); addEventListener('pointerup', up, true); addEventListener('pointercancel', up, true);
   },
-  save(view, el, i, j, ev) {
-    const W = RD2.words(el), exact = W.slice(i, j + 1).map(w => w.t).join(' ').replace(/\s+/g, ' ').trim(); if (exact.length < 2) return;
+  /** The pen's stroke → the same choices as a mouse selection (colour, or make it a structure); the pen's mark stays until you pick or close. */
+  save(view, el, i, j, ev, prev) {
+    const W = RD2.words(el), exact = W.slice(i, j + 1).map(w => w.t).join(' ').replace(/\s+/g, ' ').trim(); if (exact.length < 2) { prev && prev.remove(); return; }
     const full = (el._text || '').replace(/\s+/g, ' '), at = full.indexOf(exact);
     view.pending = { page: el._n, exact, prefix: at > 0 ? full.slice(Math.max(0, at - 32), at) : '', suffix: at >= 0 ? full.slice(at + exact.length, at + exact.length + 32) : '', rects: RD2.rects(el, i, j) };
-    const before = new Set(READER.annotations(view.libId).map(b => b.id)); view.save(null, RD2.color());
-    const b = READER.annotations(view.libId).find(x => !before.has(x.id)); if (!b) return;
-    TERMSCAN.block(M.block(b.id)); IX.rebuild();
-    RD2.bar(view, b, ev.clientX, ev.clientY);
+    view.selPop(ev.clientX, ev.clientY + 12); RD2.keepPrev(prev);
   },
+  /** keep the pen's preview mark while the choice popover is open */
+  keepPrev(prev) { if (!prev) return; const pop = _pop; if (!pop) return prev.remove(); const t = setInterval(() => { if (!document.body.contains(pop)) { clearInterval(t); setTimeout(() => prev.remove(), 120); } }, 150); },
   bar(view, b, x, y) {
     $$('.rd-penbar').forEach(n => n.remove());
     const bar = h('div.rd-penbar', { style: { left: Math.min(innerWidth - 330, x + 10) + 'px', top: Math.min(innerHeight - 60, y + 14) + 'px' } },

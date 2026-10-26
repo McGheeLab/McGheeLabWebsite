@@ -29,7 +29,8 @@
     if (pop && pop.classList) pop.classList.add('q-menu'); else setTimeout(() => { const p = [...$$('.pop')].pop(); p && p.classList.add('q-menu'); }, 0);
     setTimeout(() => document.addEventListener('keydown', key, true), 0);
   };
-  QUOTE.penSave = function (sel, x, y) { const b = QUOTE.make(Object.assign({}, sel, { color: last() })); QUOTE.clearSel(sel); if (b) QUOTE.bar(b, x, y); };
+  // the pen's highlight offers the same choices as a mouse selection (structures first, colours, quote, connect)
+  QUOTE.penSave = function (sel, x, y, prev) { QUOTE.menu(sel, x, y); RD2.keepPrev(prev); };
   QUOTE.bar = function (b, x, y) {
     $$('.rd-penbar').forEach(n => n.remove());
     const bar = h('div.rd-penbar', { style: { left: Math.min(innerWidth - 330, x + 10) + 'px', top: Math.min(innerHeight - 60, y + 14) + 'px' } },
@@ -90,10 +91,10 @@
     P._words = null; let first = RD2.hit(P, e.clientX, e.clientY), lastW = first, moved = false; const prev = h('div.rd-prev'); slot.append(prev); Object.assign(prev.style, { left: P._tl.style.left, top: P._tl.style.top, width: P._tl.style.width, height: P._tl.style.height, position: 'absolute' });
     const paint = () => { prev.replaceChildren(); if (first < 0 || lastW < 0) return; RD2.rects(P, Math.min(first, lastW), Math.max(first, lastW)).forEach(r => prev.append(h('div.rd-hl.pv', { style: { left: r[0] * 100 + '%', top: r[1] * 100 + '%', width: r[2] * 100 + '%', height: r[3] * 100 + '%', '--hc': C()[last()] } }))); };
     const mv = ev => { if (ev.pointerId !== e.pointerId) return; ev.preventDefault(); ((ev.getCoalescedEvents && ev.getCoalescedEvents().length) ? ev.getCoalescedEvents() : [ev]).forEach(q => { const k = RD2.hit(P, q.clientX, q.clientY); if (k >= 0) { if (first < 0) first = k; lastW = k; } }); if (Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) > 5) moved = true; paint(); };
-    const up = ev => { if (ev.pointerId !== e.pointerId) return; removeEventListener('pointermove', mv, true); removeEventListener('pointerup', up, true); prev.remove();
-      if (!moved || first < 0 || lastW < 0) return; const i = Math.min(first, lastW), j = Math.max(first, lastW), W = RD2.words(P), exact = W.slice(i, j + 1).map(w => w.t).join(' ').replace(/\s+/g, ' ').trim(); if (exact.length < 2) return;
+    const up = ev => { if (ev.pointerId !== e.pointerId) return; removeEventListener('pointermove', mv, true); removeEventListener('pointerup', up, true);
+      if (!moved || first < 0 || lastW < 0) return prev.remove(); const i = Math.min(first, lastW), j = Math.max(first, lastW), W = RD2.words(P), exact = W.slice(i, j + 1).map(w => w.t).join(' ').replace(/\s+/g, ' ').trim(); if (exact.length < 2) return prev.remove();
       const full = slot._text || '', at = full.indexOf(exact);
-      QUOTE.penSave({ src, page: +slot.dataset.p, exact, prefix: at > 0 ? full.slice(Math.max(0, at - 32), at) : '', suffix: at >= 0 ? full.slice(at + exact.length, at + exact.length + 32) : '', rects: RD2.rects(P, i, j) }, ev.clientX, ev.clientY); };
+      QUOTE.penSave({ src, page: +slot.dataset.p, exact, prefix: at > 0 ? full.slice(Math.max(0, at - 32), at) : '', suffix: at >= 0 ? full.slice(at + exact.length, at + exact.length + 32) : '', rects: RD2.rects(P, i, j) }, ev.clientX, ev.clientY + 12, prev); };
     addEventListener('pointermove', mv, true); addEventListener('pointerup', up, true);
   }, true);
   // a pen hovering over a maximised file's pages doesn't scroll it (fingers do)

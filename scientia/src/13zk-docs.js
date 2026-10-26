@@ -101,7 +101,10 @@ INSERTS.push({ id: 'deck', group: 'Widgets', icon: '▭', label: 'Slides (PowerP
 const PDFW = {
   docs: new Map(), used: new Map(), pin: {}, live: new Map(), cards: new Set(), aspect: new Map(), q: [], busy: 0, n: 0,
   onDemand: true, MIN_Z: .33, IDLE: 4000, KEEP: 6, JOBS: 2,
-  load(m) { READER.init(); if (!window.pdfjsLib) return Promise.reject(new Error('PDF support is missing')); if (!PDFW.docs.has(m.id)) PDFW.docs.set(m.id, pdfjsLib.getDocument({ url: MEDIA.url(m), isEvalSupported: false, disableAutoFetch: true, disableStream: true }).promise); PDFW.used.set(m.id, Date.now()); return PDFW.docs.get(m.id); },
+  load(m) { READER.init(); if (!window.pdfjsLib) return Promise.reject(new Error('PDF support is missing')); if (!PDFW.docs.has(m.id)) {   // a load that fails is forgotten here, so every caller (card, full view, words) tries again next time
+      let pr; try { pr = pdfjsLib.getDocument({ url: MEDIA.url(m), isEvalSupported: false, disableAutoFetch: true, disableStream: true }).promise; } catch (e) { return Promise.reject(e); }
+      pr.catch(() => { if (PDFW.docs.get(m.id) === pr) PDFW.docs.delete(m.id); }); PDFW.docs.set(m.id, pr); }
+    PDFW.used.set(m.id, Date.now()); return PDFW.docs.get(m.id); },
   async insert(d, p) {
     PLATE.pickFiles(async files => {
       const f = files[0]; if (!f) return; toast('Adding ' + f.name + '…'); const rec = await MEDIA.add(f); if (rec.kind !== 'pdf') return toast('That is not a PDF');
@@ -213,7 +216,7 @@ const PDFW = {
     const far = PDFW.zoom(C) < PDFW.MIN_Z, st = C.stage;
     if (far) C.ph.style.cssText = `top:${st.offsetTop}px;left:${st.offsetLeft}px;width:${st.offsetWidth}px;height:${st.offsetHeight}px`;
     C.el.classList.toggle('pdf-far', far);
-    if (PDFW.shown(C)) { clearTimeout(C.idleT); C.idleT = null; if (C.active) PDFW.plan(C); else PDFW.activate(C); }
+    if (PDFW.shown(C)) { clearTimeout(C.idleT); C.idleT = null; if (C.active) PDFW.plan(C); else if (!C.failed || C.retry) { C.retry = false; PDFW.activate(C); } }   // a failed card waits for its retry timer (C.retry) or the next redraw
     else if (C.active && !C.idleT) C.idleT = setTimeout(() => { C.idleT = null; if (!PDFW.shown(C)) PDFW.release(C); }, far ? 600 : PDFW.IDLE);
   },
   async activate(C) {
@@ -231,9 +234,10 @@ const PDFW = {
       else if (!C.slots.length) { C.W = W; PDFW.slots(C, pdf.numPages); }
       else if (Math.abs(W - C.W) > 1) { C.W = W; C.slots.forEach(s => { PDFW.releaseSlot(s); s.replaceChild(PDFW.blank(W, PDFW.aspect.get(C.m.id) || 1.294), $('canvas.pdf-page', s)); }); }
       PDFW.plan(C);
-    } catch (e) { PDFW.docs.delete(C.m.id); C.active = false; C.failed = true; if (!C.dead) C.stage.replaceChildren(h('div.embed-missing', 'Could not open the PDF: ' + (e.message || e)));
-      // a file that isn't there yet (the web still loading its file list, a file on its way from another device): try again soon
-      if (!C.dead && (C.tries = (C.tries || 0) + 1) < 4) setTimeout(() => { if (!C.dead && !C.active) PDFW.want(C); }, 1500 * C.tries); }
+    } catch (e) { C.active = false; C.failed = true; if (!C.dead) C.stage.replaceChildren(h('div.embed-missing', 'Could not open the PDF: ' + (e.message || e)));
+      // a file that isn't there yet (the web still loading its file list, a file on its way from another device): try again soon —
+      // only on this timer (C.retry): a failed card is not re-activated by every pan or zoom (update); PDFW.load has already forgotten the failure
+      if (!C.dead && (C.tries = (C.tries || 0) + 1) < 4) setTimeout(() => { if (!C.dead && !C.active) { C.retry = true; PDFW.want(C); } }, 1500 * C.tries); }
   },
   plan(C) {
     if (!C.active || !C.pdf) return;
