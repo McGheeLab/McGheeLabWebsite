@@ -48,7 +48,8 @@ const REC = {
   resume() { const a = REC.active; if (!a || !a.paused) return; try { a.mr.resume(); } catch { } a.t0 = performance.now(); a.paused = false;
     const len = (Date.now() - a.pausedAt) / 1000; REC.put(a.id, r => { const p = r.pauses[r.pauses.length - 1]; if (p && p.len == null) p.len = +len.toFixed(2); r.paused = false; }); changed(); },
   mark(id) { const a = REC.active, t = a && (!id || a.id === id) ? REC.elapsed() : REC.player && REC.player.id === id ? REC.player.audio.currentTime : null; const bid = id || (a && a.id);
-    if (t == null || !bid) return; REC.put(bid, r => { r.marks.push({ id: uid('k'), t: +t.toFixed(2), label: '' }); r.marks.sort((x, y) => x.t - y.t); }); toast('◆ Bookmark at ' + REC.mmss(t)); changed(); },
+    if (t == null || !bid) return; REC.put(bid, r => { r.marks.push({ id: REC._newMark = uid('k'), t: +t.toFixed(2), label: '' }); r.marks.sort((x, y) => x.t - y.t); }); toast('◆ Bookmark at ' + REC.mmss(t) + ' — type its label'); changed();
+    const k = REC._newMark; setTimeout(() => { const inp = document.querySelector(`.rc-ml[data-k="${k}"]`); if (inp) { inp.focus({ preventScroll: true }); inp.select(); } }, 120); },
   stop() { const a = REC.active; if (!a) return; if (a.paused) REC.resume(); a.acc += performance.now() - a.t0; a.paused = true; a.stopping = true;
     REC.put(a.id, r => { r.state = 'saving'; r.dur = +(a.acc / 1000).toFixed(2); r.paused = false; }); try { a.mr.stop(); } catch { REC.saved(a); } changed(); },
   async saved(a) {
@@ -188,7 +189,7 @@ const REC = {
       !live && dur ? (r.pauses || []).filter(p => p.len).map(p => h('b.rc-ptick', { style: { left: (100 * p.at / dur) + '%' }, title: 'paused ' + fmtDur(p.len * 1000, true) })) : null);
     const marks = (r.marks || []).length ? h('div.rc-marks', r.marks.map(m => h('span.rc-mk',
       h('button.rc-mt.mono', { title: 'Play from this bookmark' + (REC.clockAt(r, m.t) ? ' · ' + REC.clockStr(REC.clockAt(r, m.t)) : ''), on: { click: e => { e.stopPropagation(); if (!live) REC.seek(M.block(b.id), Math.max(0, m.t - 1)); } } }, '◆ ' + REC.mmss(m.t)),
-      h('input.rc-ml', { value: m.label || '', placeholder: 'label…', readOnly: ro, size: Math.max(6, (m.label || '').length + 1), on: { pointerdown: e => e.stopPropagation(), keydown: e => { e.stopPropagation(); if (e.key === 'Enter') e.target.blur(); }, input: e => { e.target.size = Math.max(6, e.target.value.length + 1); }, change: e => { REC.put(b.id, r => { const x = r.marks.find(k => k.id === m.id); if (x) x.label = e.target.value.trim(); }); changed(); } } }),
+      h('input.rc-ml', { 'data-k': m.id, value: m.label || '', placeholder: 'label…', readOnly: ro, size: Math.max(6, (m.label || '').length + 1), on: { pointerdown: e => e.stopPropagation(), keydown: e => { e.stopPropagation(); if (e.key === 'Enter') e.target.blur(); }, input: e => { e.target.size = Math.max(6, e.target.value.length + 1); }, change: e => { REC.put(b.id, r => { const x = r.marks.find(k => k.id === m.id); if (x) x.label = e.target.value.trim(); }); changed(); } } }),
       ro ? null : h('button.rc-mx', { title: 'Remove this bookmark', on: { click: e => { e.stopPropagation(); REC.put(b.id, r => { r.marks = r.marks.filter(k => k.id !== m.id); }); changed(); } } }, '×')))) : null;
     const ed = h('div.ed.rc-ed', { 'data-ph': r.state === 'done' ? 'Nothing was heard in this recording — or write notes here.' : 'The transcript appears here when the computer has read the recording. You can write notes meanwhile.' });
     if (ro) { ED.render(ed, b, d); ed.contentEditable = 'false'; } else ED.attach(ed, b);

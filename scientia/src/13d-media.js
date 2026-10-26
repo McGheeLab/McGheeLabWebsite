@@ -8,7 +8,7 @@ const MEDIA = {
   server: null, _urls: new Map(),
   async ping() { try { const r = await fetch('api/ping', { cache: 'no-store' }); const j = r.ok ? await r.json() : null; this.server = !!(j && j.ok); } catch { this.server = false; } return this.server; },
   get: id => DB.get('media', id),
-  kindOf(file) { const t = (file.type || '').toLowerCase(), n = (file.name || '').toLowerCase(); if (t === 'text/html' || /\.html?$/.test(n)) return 'html'; if (t === 'application/pdf' || n.endsWith('.pdf')) return 'pdf'; if (t === 'image/gif' || n.endsWith('.gif')) return 'gif'; if (t.startsWith('video/') || /\.(mp4|webm|mov|m4v)$/.test(n)) return 'video'; return 'image'; },
+  kindOf(file) { const t = (file.type || '').toLowerCase(), n = (file.name || '').toLowerCase(); if (t === 'text/html' || /\.html?$/.test(n)) return 'html'; if (t === 'application/pdf' || n.endsWith('.pdf')) return 'pdf'; if (t === 'image/gif' || n.endsWith('.gif')) return 'gif'; if (t.startsWith('video/') || /\.(mp4|webm|mov|m4v)$/.test(n)) return 'video'; if (/\.(xlsx|xlsm|xls|ods|csv|tsv|txt)$/.test(n) || /spreadsheet|ms-excel|text\/csv|text\/plain/.test(t)) return 'sheet'; return 'image'; },
   extOf(file) { const m = (file.name || '').toLowerCase().match(/\.([a-z0-9]{2,5})$/); if (m) return m[1]; return ({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/webm': 'webm' })[file.type] || 'bin'; },
   /** Measure the file (width, height, duration) before it is stored. */
   measure(file, kind) {
@@ -18,7 +18,7 @@ const MEDIA = {
   },
   async add(file) {
     if (this.server == null) await this.ping();
-    const kind = this.kindOf(file), ext = this.extOf(file), id = uid('m'), dims = kind === 'html' || kind === 'pdf' ? { w: 0, h: 0 } : await this.measure(file, kind);
+    const kind = this.kindOf(file), ext = this.extOf(file), id = uid('m'), dims = kind === 'html' || kind === 'pdf' || kind === 'sheet' ? { w: 0, h: 0 } : await this.measure(file, kind);
     const rec = { id, kind, ext, name: file.name || id + '.' + ext, mime: file.type, size: file.size, w: dims.w, h: dims.h, dur: dims.dur || null, created: isoLocal(new Date()), fileDate: file.lastModified ? isoLocal(new Date(file.lastModified)) : null, path: null, local: false };
     if (this.server && await this.upload(id, ext, file)) rec.path = `images/${id}.${ext}`;
     else { rec.local = true; DB.put('blobs', { id: 'media:' + id, blob: file }); }

@@ -161,7 +161,7 @@ function scan() {
 
   {
     for (const full of scanFiles()) {
-      const f = full.slice(ROOT.length + 1);
+      const f = full.slice(ROOT.length + 1).split('\\').join('/');
       // icons.js documents example calls in its banner; icon-audit.html
       // deliberately requests a missing icon to prove the fallback renders.
       if (/(^|\/)icons\.js$/.test(f) || /icon-audit\.html$/.test(f)) continue;
@@ -226,7 +226,7 @@ function shippedFiles() {
     for (const e of readdirSync(d, { withFileTypes: true })) {
       const p = join(d, e.name);
       if (e.isDirectory()) { if (!/^(\.|node_modules|__pycache__)/.test(e.name)) walk(p); }
-      else if (ok(p.slice(ROOT.length + 1))) out.push(p);
+      else if (ok(p.slice(ROOT.length + 1).split('\\').join('/'))) out.push(p);
     }
   };
   for (const inc of site.include) {
@@ -254,7 +254,7 @@ function emojiGate() {
   const RE = /\p{Extended_Pictographic}\uFE0F?/gu;
   const hits = [];
   for (const full of files) {
-    const rel = full.slice(ROOT.length + 1);
+    const rel = full.slice(ROOT.length + 1).split('\\').join('/');
     if (/(^|\/)icons\.js$/.test(rel)) continue;          // the reverse map IS emoji
     let inBlock = false, inHtml = false;
     readFileSync(full, 'utf8').split('\n').forEach((ln, i) => {

@@ -1463,7 +1463,7 @@
    "id": "scientia.library",
    "name": "Scientia Library",
    "side": "scientia",
-   "summary": "The in-app paper list with CSL metadata and PDFs; cites and reference widgets.",
+   "summary": "The in-app paper list with CSL metadata and PDFs; cites and reference widgets; library themes and groups (a paper can sit in several groups).",
    "keywords": [
     "library",
     "paper",
@@ -1472,14 +1472,18 @@
     "pdf",
     "cite",
     "reference",
-    "quote"
+    "quote",
+    "group",
+    "theme",
+    "libset"
    ],
    "paths": [
     "scientia/src/07-library.js",
     "scientia/src/17-library.js",
     "scientia/src/13zx-refwidget.js",
     "scientia/src/13zw-quote.js",
-    "scientia/src/10-paper.js"
+    "scientia/src/10-paper.js",
+    "scientia/src/17d-libgroups.js"
    ],
    "status": "retiring",
    "merges_into": "rm.library",
@@ -1564,7 +1568,7 @@
    "id": "scientia.canvas",
    "name": "Scientia Canvas & ink",
    "side": "scientia",
-   "summary": "Spatial canvases, regions, shapes, pen, pressure, lasso, fill.",
+   "summary": "Spatial canvases, regions, shapes, pen, pressure, lasso, fill; pen round three (pen pans when pen mode is off, a component moves by dragging its name or date, double-click edits the name or the time), dashed / dotted strokes, and ink components split before they pass the 1 MB cloud record.",
    "keywords": [
     "canvas",
     "ink",
@@ -1574,7 +1578,11 @@
     "lasso",
     "fill",
     "pressure",
-    "spatial"
+    "spatial",
+    "dash",
+    "dotted",
+    "drag-title",
+    "pan"
    ],
    "paths": [
     "scientia/src/13m-canvas.js",
@@ -1585,7 +1593,10 @@
     "scientia/src/13zm-pen2.js",
     "scientia/src/13zu-lasso2.js",
     "scientia/src/13zv-fill.js",
-    "scientia/src/13zq-pressure.js"
+    "scientia/src/13zq-pressure.js",
+    "scientia/src/13zz2-pen3.js",
+    "scientia/src/13zz3-dash.js",
+    "scientia/src/13zz4-inksplit.js"
    ],
    "related": [
     "rm.canvas-engine"
@@ -1596,18 +1607,20 @@
    "id": "scientia.settings",
    "name": "Scientia Settings, export & seed",
    "side": "scientia",
-   "summary": "Settings, export, demo seed.",
+   "summary": "Settings, export (including the JSON the lab site's Upload from desktop takes), demo seed.",
    "keywords": [
     "settings",
     "export",
     "seed",
     "demo",
-    "backup"
+    "backup",
+    "lab-export"
    ],
    "paths": [
     "scientia/src/20-settings.js",
     "scientia/src/21-export.js",
-    "scientia/src/22-seed.js"
+    "scientia/src/22-seed.js",
+    "scientia/src/21c-labexport.js"
    ],
    "distinct_from": {
     "rm.admin": "the app's own preferences (notebook folder, pens, citation style); RM settings are site roles and workflows"
@@ -1883,6 +1896,61 @@
     "scientia.cloud"
    ],
    "note": "V3.884 merges RM's lecture / notebook recorder (whiteboard.js, whiteboard-replay.js) with Scientia's Recording component (13zn-rec.js): the hosts keep their own UI; the timeline rules live here. Program: CodeLog/ClaudesPlan/V3.884_one_recorder_program.md. V3.886: one Mark, changed once in. V3.887: speech-to-text.js — chosen in Settings, keys in the person's browser only, never the lab's."
+  },
+  {
+   "id": "scientia.tables",
+   "name": "Scientia tables & plots",
+   "side": "scientia",
+   "summary": "Excel / CSV sheets copied into a note as a table component (sort, search, edit, paste, formulas with = and stats functions) and plot components wired to a table (scatter, line, bar mean ± SD/SEM, histogram) that follow it live.",
+   "keywords": [
+    "spreadsheet",
+    "excel",
+    "csv",
+    "xlsx",
+    "sheet",
+    "formula",
+    "plot",
+    "chart",
+    "histogram",
+    "scatter"
+   ],
+   "paths": [
+    "scientia/src/13zt-table.js",
+    "scientia/vendor/xlsx.core.min.js"
+   ],
+   "related": [
+    "scientia.views",
+    "scientia.calc",
+    "scientia.data"
+   ],
+   "distinct_from": {
+    "rm.paper-builder": "a manuscript's typeset tables; this is a notebook's working data sheet with formulas and live plots"
+   }
+  },
+  {
+   "id": "scientia.canvas-export",
+   "name": "Scientia canvas export & viewer",
+   "side": "scientia",
+   "summary": "Export a note as one self-contained read-only HTML file: the app in viewer mode with only that note's components, connections, files and recordings; references to other notes are listed, not followed.",
+   "keywords": [
+    "export",
+    "viewer",
+    "read-only",
+    "snapshot",
+    "self-contained",
+    "html",
+    "canvas",
+    "references"
+   ],
+   "paths": [
+    "scientia/src/21b-canvasexport.js",
+    "scientia/src/98-viewer.js"
+   ],
+   "extends": "scientia.settings",
+   "related": [
+    "scientia.canvas",
+    "scientia.media"
+   ]
   }
  ]
 }
