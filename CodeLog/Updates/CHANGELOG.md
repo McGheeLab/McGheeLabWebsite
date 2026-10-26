@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.925] — 2026-10-26 — Deploys are encrypted: FTP over verified TLS, never a plain-FTP fallback
+
+Found by Gabe's Claude on his first FTP setup: the GoDaddy FTP server (Pure-FTPd, 198.12.245.91) presents a valid certificate for `*.prod.phx3.secureserver.net`, never for mcgheelab.com, so the TLS handshake failed on the hostname check and `ftp_connect` (`"tls": "auto"`) fell back to **plain FTP — on every deploy, the lab's included, with the password in the clear**. Reproduced here: `mcgheelab.com` → `SSLCertVerificationError: Hostname mismatch`. The server's own name, `p3plzcpnl504220.prod.phx3.secureserver.net` (cPanel Server Name; also the Exim banner on 587), resolves to the same IP and verifies fully (TLS 1.3).
+
+### Bug Fixes
+- `scripts/deploy.py` `ftp_connect`: connects by `tls_host(f)` — `ftp.tlsHost` when set, after checking it resolves to the same address as `ftp.host` (a server move raises "the site has moved servers… set tlsHost", instead of logging in to another machine); `host` stays the site's name because the macOS Keychain entry is filed under it. With `"tls": "always"` a TLS failure raises `RuntimeError("TLS failed and plain FTP is off …")` (plus a certifi hint for "self-signed certificate in certificate chain" / "local issuer") and nothing is sent.
+- `deploy/site.json` `ftp`: `"tls": "always"`, `"tlsHost": "p3plzcpnl504220.prod.phx3.secureserver.net"`.
+- `ssl_context()`: certifi's roots are added whenever certifi is installed, not only when the default store is empty — Windows fills its root store lazily, so Python there can lack GoDaddy's root (Gabe's "self-signed certificate in certificate chain").
+
+### Added
+- `python3 scripts/deploy.py check` (`cmd_check`): log in, `NLST` the remote root over the data channel, print the transport and whether the login lands on the web root (`index.html`, `rm`, `sw.js`); uploads nothing. Run here: `McGheeLab@mcgheelab.com at p3plzcpnl504220… via FTPS (explicit TLS)`, `OK: / is the web root`. With `tlsHost` removed it refuses (hostname mismatch) and with `tlsHost` on another machine it refuses (moved), both before any login. An upload (`STOR`) over TLS was not exercised here; the next site change's auto-deploy is the first.
+
+### Changed
+- `deploy/README.md` (the `check` row; TLS only, `tlsHost`, Cyberduck), `scientia/SETUP.md` (certifi in the tools; step 5 uses `deploy.py check`, TLS only, the two errors and what they mean), `scientia/CLAUDE.md` FTP row.
+
 ## [V3.924] — 2026-10-26 — The end-of-turn auto-push pushes a new branch; a setup page for Gabe's Windows PC
 
 ### Bug Fixes

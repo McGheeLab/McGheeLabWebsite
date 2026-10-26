@@ -27,6 +27,7 @@ to mcgheelab.com…" in the Claude window.
 |---|---|
 | Upload what changed, no Cyberduck | `python3 scripts/deploy.py ftp` |
 | See what would be uploaded | `python3 scripts/deploy.py status` |
+| Test the login (TLS, web root), upload nothing | `python3 scripts/deploy.py check` |
 | Use Cyberduck anyway | `python3 scripts/deploy.py stage` → drag the contents of `deploy/upload/` onto `/` → `python3 scripts/deploy.py verify` |
 | Check the server for files that should not be public | `python3 scripts/deploy.py audit` |
 | Make Finder show folders as recently modified | `python3 scripts/touch_folders.py` (runs automatically after every Claude edit) |
@@ -35,6 +36,16 @@ to mcgheelab.com…" in the Claude window.
 HTTPS and records it in `manifest.json`. The password comes from the macOS
 Keychain entry Cyberduck already saved (macOS asks you to allow it the first
 time), or from `MCGHEELAB_FTP_PASSWORD`, or a prompt.
+
+**TLS only (V3.925).** GoDaddy's FTP certificate is issued to the server's own
+name (`*.prod.phx3.secureserver.net`), never to mcgheelab.com, so until V3.925
+every deploy failed TLS and quietly fell back to plain FTP, password included.
+`site.json` now names the server (`ftp.tlsHost`, from cPanel → Server
+Information → Server Name), `deploy.py` connects by it after checking that it is
+still the machine mcgheelab.com points at, and `"tls": "always"` stops a deploy
+rather than fall back. If GoDaddy moves the site, the error says so: put the new
+Server Name in `tlsHost`. In Cyberduck, connect to that same name with
+"FTP-SSL (Explicit AUTH TLS)".
 
 Add `--delete` to also remove files that were deployed earlier but no longer
 exist in the repo. Add `--only rm/` to limit any command to one folder.

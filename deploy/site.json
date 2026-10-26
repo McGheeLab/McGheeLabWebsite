@@ -6,7 +6,9 @@
     "port": 21,
     "user": "McGheeLab@mcgheelab.com",
     "remoteRoot": "/",
-    "tls": "auto"
+    "tls": "always",
+    "tlsHost": "p3plzcpnl504220.prod.phx3.secureserver.net",
+    "_tlsHost": "V3.925: GoDaddy's FTP certificate is *.prod.phx3.secureserver.net, never mcgheelab.com, so TLS verifies only by the server's own name (cPanel → Server Information → Server Name; also the mail banner on port 587). deploy.py connects by it after checking it is still the machine `host` points at. `host` stays the site's name: the macOS Keychain entry is filed under it. tls 'always': a TLS failure stops the deploy; until V3.925 'auto' fell back to plain FTP on every deploy, password included."
   },
   "include": [
     "index.html",

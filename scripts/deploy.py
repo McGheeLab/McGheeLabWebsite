@@ -26,6 +26,8 @@ Commands
                                               #   is live (HTTP HEAD) and record it as deployed
     python3 scripts/deploy.py baseline        # first run / after a full manual upload: ask the
                                               #   live site which files already match
+    python3 scripts/deploy.py check           # log in, list the web root over TLS, say how (V3.925);
+                                              #   uploads nothing
     python3 scripts/deploy.py audit           # repo files that are NOT the site but ARE public
                                               #   on the server (keys, rosters, docs...) → delete
     python3 scripts/deploy.py touch-folders   # bubble newest file dates up to parent folders
@@ -401,19 +403,21 @@ _SSL_CTX = None
 def ssl_context():
     """A verifying TLS context that works on python.org macOS builds, which ship
     with NO root certificates until 'Install Certificates.command' is run.
-    Order: default store → certifi → the macOS system root keychain."""
+    Order: default store + certifi → the macOS system root keychain. certifi is added even when the default store
+    has roots (V3.925): Windows fills its root store lazily, so Python there can lack GoDaddy's root and refuse the
+    FTP server's chain ("self-signed certificate in certificate chain")."""
     global _SSL_CTX
     if _SSL_CTX is not None:
         return _SSL_CTX
     ctx = ssl.create_default_context()
+    loaded = False
+    try:
+        import certifi  # type: ignore
+        ctx.load_verify_locations(cafile=certifi.where())
+        loaded = True
+    except Exception:
+        pass
     if ctx.cert_store_stats().get("x509_ca", 0) == 0:
-        loaded = False
-        try:
-            import certifi  # type: ignore
-            ctx.load_verify_locations(cafile=certifi.where())
-            loaded = True
-        except Exception:
-            pass
         if not loaded and sys.platform == "darwin":
             try:
                 pem = subprocess.run(
@@ -755,6 +759,21 @@ def get_password(cfg, args):
     return pw, "prompt"
 
 
+def tls_host(f):
+    """The name to open the TLS connection by (V3.925). GoDaddy's FTP certificate is for *.prod.phx3.secureserver.net,
+    never mcgheelab.com, so it verifies only when we connect by the server's own name: `ftp.tlsHost` (cPanel → Server
+    Information → Server Name). That name must still be the machine `host` points at; after a server move this fails
+    by name instead of logging in somewhere else."""
+    th = f.get("tlsHost")
+    if not th or th == f["host"]:
+        return f["host"]
+    a, b = socket.gethostbyname(th), socket.gethostbyname(f["host"])
+    if a != b:
+        raise RuntimeError(f"ftp.tlsHost {th} is {a} but {f['host']} is {b}: the site has moved servers. Set tlsHost in "
+                           f"deploy/site.json to the new Server Name (cPanel → Server Information)")
+    return th
+
+
 def ftp_connect(cfg, password):
     f = cfg["ftp"]
     host, port, user = f["host"], int(f.get("port", 21)), f["user"]
@@ -762,15 +781,18 @@ def ftp_connect(cfg, password):
     if mode in ("auto", "always"):
         try:
             c = FTPS(timeout=40, context=ssl_context())
-            c.connect(host, port)
+            c.connect(tls_host(f), port)
             c.auth()
             c.login(user, password)
             c.prot_p()
             c.set_pasv(True)
             return c, "FTPS (explicit TLS)"
         except Exception as e:
-            if mode == "always":
-                raise
+            if mode == "always":  # never fall back: plain FTP sends the password in the clear
+                why = f"{e.__class__.__name__}: {e}"
+                if "local issuer" in why or "self-signed" in why:
+                    why += " (this computer does not trust GoDaddy's root: python3 -m pip install certifi)"
+                raise RuntimeError("TLS failed and plain FTP is off (ftp.tls = always): " + why) from e
             print(f"  TLS not available ({e.__class__.__name__}: {e}) — using plain FTP.")
     c = ftplib.FTP(timeout=40)
     c.connect(host, port)
@@ -947,6 +969,34 @@ def sw_warning(changed):
     return ""
 
 
+def cmd_check(args, cfg):
+    """Log in, list the remote root over the data channel, and say how (V3.925). Proves the login, TLS on the control
+    AND data channel, and that the login lands on the web root. Uploads nothing."""
+    f = cfg["ftp"]
+    try:
+        password, src = get_password(cfg, args)
+        conn, how = ftp_connect(cfg, password)
+    except Exception as e:
+        print(f"Could not connect as {f['user']}: {e.__class__.__name__}: {e}")
+        return 1
+    root = f.get("remoteRoot", "/")
+    try:
+        names = {posixpath.basename(n.rstrip("/")) for n in conn.nlst(root)}
+    finally:
+        try:
+            conn.quit()
+        except Exception:
+            conn.close()
+    print(f"{f['user']} at {conn.host} via {how} (password from {src})")
+    if not how.startswith("FTPS"):
+        print("WARNING: the password went over plain FTP.")
+    if {"index.html", "rm", "sw.js"} <= names:
+        print(f"OK: {root} is the web root.")
+        return 0
+    print(f"WRONG FOLDER: {root} holds {sorted(names)[:20]}. The account's directory in cPanel must be the web root.")
+    return 1
+
+
 def cmd_autodeploy(args, cfg):
     """Stop-hook entry point: no prompts, no TTY. Everything the sub-commands print goes to
     stderr; stdout carries ONE JSON line with a systemMessage for Claude Code (or nothing)."""
@@ -1038,6 +1088,8 @@ def main(argv=None):
     p.add_argument("--force-all", action="store_true", help="upload every site file regardless of the manifest")
     p.add_argument("--purge-audit", action="store_true", help="delete the paths listed by the last `audit`")
     p.add_argument("--any-branch", action="store_true", help="deploy even when not on main / behind origin (V3.868 guard)")
+    p = sub.add_parser("check", parents=[common], help="log in and list the web root over TLS; uploads nothing")
+    p.add_argument("--no-keychain", action="store_true", help="never read the macOS Keychain")
     p = sub.add_parser("merge-manifest", help="git merge driver for deploy/manifest.json (base ours theirs)")
     p.add_argument("base"); p.add_argument("ours"); p.add_argument("theirs")
     sub.add_parser("verify", parents=[common], help="confirm staged files are live; record them")
@@ -1054,7 +1106,7 @@ def main(argv=None):
     return {
         "status": cmd_status, "stage": cmd_stage, "ftp": cmd_ftp, "verify": cmd_verify,
         "baseline": cmd_baseline, "audit": cmd_audit, "touch-folders": cmd_touch,
-        "autodeploy": cmd_autodeploy, "merge-manifest": cmd_merge_manifest,
+        "autodeploy": cmd_autodeploy, "merge-manifest": cmd_merge_manifest, "check": cmd_check,
     }[args.cmd](args, cfg)
 
 

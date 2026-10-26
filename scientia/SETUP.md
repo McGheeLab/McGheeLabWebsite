@@ -25,6 +25,9 @@ Nothing is done by hand per turn. The steps below make the same thing work on Ga
   turn off the python.exe and python3.exe entries under Settings → Apps → Advanced app settings → App execution
   aliases, then copy `python.exe` to `python3.exe` in the same folder
   (`py -3 -c "import sys; print(sys.executable)"` shows which folder).
+- **certifi**: `python3 -m pip install certifi`. Windows fills its root-certificate store lazily, so Python there
+  may not trust the FTP server's GoDaddy chain ("self-signed certificate in certificate chain"); `deploy.py` adds
+  certifi's roots when it is installed.
 
 ## 2. Git settings, before cloning
 
@@ -86,25 +89,18 @@ the lab account uses. Never use the lab's login.
    MCGHEELAB_FTP_PASSWORD=<Gabe types this>
    ```
 
-2. Test the connection. This uploads nothing:
+2. Test the connection with `python3 scripts/deploy.py check`. It logs in, lists the web root, and uploads
+   nothing. It should print `gabe@mcgheelab.com at p3plzcpnl504220.prod.phx3.secureserver.net via FTPS (explicit
+   TLS)` and `OK: / is the web root.`
 
-   ```bash
-   python3 - <<'EOF'
-   import os, sys, posixpath
-   sys.path.insert(0, "scripts")
-   import deploy
-   cfg = deploy.load_config()            # reads scripts/.env
-   conn, how = deploy.ftp_connect(cfg, os.environ["MCGHEELAB_FTP_PASSWORD"])
-   names = {posixpath.basename(n) for n in conn.nlst()}
-   conn.quit()
-   print(cfg["ftp"]["user"], "connected via", how)
-   print("OK: landed on the web root" if {"index.html", "rm", "sw.js"} <= names
-         else f"WRONG FOLDER, saw: {sorted(names)[:20]}")
-   EOF
-   ```
-
-   If it prints WRONG FOLDER, stop: the account's directory in cPanel must be the web root, not a folder inside it.
-   Ask Alex to fix it.
+   - **The connection is TLS only** (`"tls": "always"` in `deploy/site.json`, V3.925). GoDaddy's FTP certificate is
+     issued to the server's own name, not mcgheelab.com, so `deploy.py` connects by that name (`ftp.tlsHost`) and
+     verifies it fully. If TLS fails, the deploy stops; it never falls back to plain FTP, which would send the
+     password in the clear. Don't change `tls` back to `auto` and don't turn verification off. A
+     "self-signed certificate in certificate chain" error means certifi is missing (step 1). A "site has moved
+     servers" error means `tlsHost` needs the new Server Name from cPanel: ask Alex.
+   - **WRONG FOLDER**: the account's directory in cPanel must be the web root, not a folder inside it. Ask Alex to
+     fix it.
 
 3. **Deploy only from an up-to-date `main`.** `deploy.py` refuses to run on a side branch or on a tree behind
    `origin/main`, because a stale tree would put older files over newer ones; don't override that with

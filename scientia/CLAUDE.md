@@ -87,7 +87,7 @@ python3 scripts/scientia_build.py          # the two built files (git-ignored)
 |---|---|---|
 | **GitHub** write on `McGheeLab/McGheeLabWebsite` | Alex invited `RTgabrieldeclercq` (2026-10-23) | accept the invitation, clone, run the two once-per-clone commands above |
 | **Firebase** (deploy `functions/scientia-hub*.js`, rules; read the console) | Alex made `gabrieldeclercq0@gmail.com` an Editor on `mcgheelab-f56cc` (2026-10-23) | `npm i -g firebase-tools`, `firebase login`, `firebase use mcgheelab-f56cc`; `cd functions && npm i`; `firebase deploy --only functions:scientiaHub` |
-| **FTP** (ship the web build and lab-layer files yourself) | Alex made `gabe@mcgheelab.com` in the host's cPanel (2026-10-26), rooted at the same web root the lab account uses — never the lab's own login | [SETUP.md](SETUP.md) step 5: `scripts/.env` (git-ignored) with `MCGHEELAB_FTP_USER=gabe@mcgheelab.com` and `MCGHEELAB_FTP_PASSWORD=…`, the connection test, then `python3 scripts/deploy.py status` / `ftp` from `main` |
+| **FTP** (ship the web build and lab-layer files yourself) | Alex made `gabe@mcgheelab.com` in the host's cPanel (2026-10-26), rooted at the same web root the lab account uses — never the lab's own login | [SETUP.md](SETUP.md) step 5: `scripts/.env` (git-ignored) with `MCGHEELAB_FTP_USER=gabe@mcgheelab.com` and `MCGHEELAB_FTP_PASSWORD=…`, `python3 scripts/deploy.py check` (TLS only, V3.925), then `status` / `ftp` from `main` |
 
 The Firebase client side needs nothing: the web app signs in with the lab account like every RM page, and the hub
 function checks the lab-member role.

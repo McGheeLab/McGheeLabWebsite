@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (25 changes — ready to push)
+## Pending (26 changes — ready to push)
 
+- V3.925 — Behind the scenes: updates to the lab website are now always sent to the server encrypted.
 - V3.924 — Gabe can work on his own branch and have it saved to GitHub automatically, like the lab's own changes, and there is a step-by-step setup page for working on the lab's code from a Windows computer.
 - V3.923 — Scientia: sharing a project or lit review to collaborate is safe again — someone you share with can no longer delete your notes by syncing their desktop; only what they added themselves can be removed by them. The confocal bead ELISA plan is rebuilt as one note in Source and sink, with the MESF beads as both the calibration standard and the laser-power check (no power meter needed).
 - V3.922 — Fixed: the lab's code can be downloaded (cloned) on a Windows computer again — two stray empty files with names Windows does not allow stopped the download part-way, and a name like that can no longer be added.
