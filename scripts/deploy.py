@@ -743,7 +743,9 @@ def get_password(cfg, args):
         return env, "env"
     f = cfg["ftp"]
     if sys.platform == "darwin" and not args.no_keychain:
-        for extra in (["-r", "ftp "], []):
+        # FTPS entry first (V3.925): deploys are TLS only, and an older plain-"ftp " entry Cyberduck saved for the
+        # same login can hold a stale password (it did after the 2026-10-26 password change)
+        for extra in (["-r", "ftps"], ["-r", "ftp "], []):
             try:
                 out = subprocess.run(
                     ["security", "find-internet-password", "-s", f["host"], "-a", f["user"], *extra, "-w"],
