@@ -1592,8 +1592,8 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-10-25T23:13:45-07:00",
-   "sha256": "c83b1ad6171dd797f44edfb177791583c5679c18dac5169935fb72b00f3e13c6",
+   "deployedAt": "2026-10-26T08:26:51-07:00",
+   "sha256": "9c9904a2ede5ca1db1ef16f0ff7c0b73e0eef9ef5dd744a57bb391d108a26f56",
    "size": 82,
    "via": "verify"
   },
@@ -1760,9 +1760,9 @@
    "via": "verify"
   },
   "rm/css/paper-doc-view.css": {
-   "deployedAt": "2026-10-25T23:13:45-07:00",
-   "sha256": "73d98c41d6e5c956507acaad860556f02eed0b7fe42435c43aa358ab58a321a8",
-   "size": 41142,
+   "deployedAt": "2026-10-26T08:26:51-07:00",
+   "sha256": "5b654bf96f851fcf3941bf5023f8df5416f2f6760c5b80e4bde81247efeb2913",
+   "size": 41879,
    "via": "verify"
   },
   "rm/css/paper-editor.css": {
@@ -1922,9 +1922,9 @@
    "via": "verify"
   },
   "rm/data/paper-templates/ieee.json": {
-   "deployedAt": "2026-10-25T10:55:13-07:00",
-   "sha256": "46c427a5877111f973dced1358ee0563e760cdc90802ff507055fcc9137c23fc",
-   "size": 7868,
+   "deployedAt": "2026-10-26T08:26:51-07:00",
+   "sha256": "9ed3e5417f3fec2300e24c4f59e4d713b6c079c4c3276a968686fe96a93a041e",
+   "size": 8126,
    "via": "verify"
   },
   "rm/data/paper-templates/mebp-journal.json": {
@@ -2984,10 +2984,10 @@
    "via": "verify"
   },
   "rm/js/paper-cite-style.js": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "ee0670d1a9e58780c3edd4dea74bb3c9c5b1096dc2c73fbbfe73ae9cc90640aa",
-   "size": 9203,
-   "via": "baseline"
+   "deployedAt": "2026-10-26T08:26:51-07:00",
+   "sha256": "7f5d96a0dd691d8447fa9a575a9deeed2908761b18e3faeb5be516bc43ca4380",
+   "size": 9936,
+   "via": "verify"
   },
   "rm/js/paper-cited-by.js": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -2996,15 +2996,15 @@
    "via": "baseline"
   },
   "rm/js/paper-doc-view.js": {
-   "deployedAt": "2026-10-25T23:13:45-07:00",
-   "sha256": "5b42b537a45031c03f5de84db356002b7475bbbaeff05d38e2d4568a5d8e6b2c",
-   "size": 340088,
+   "deployedAt": "2026-10-26T08:26:51-07:00",
+   "sha256": "765aacddf35e6d94e5fbe8753a1429bd0d97e082735bfccf0846cc693c7531ab",
+   "size": 359473,
    "via": "verify"
   },
   "rm/js/paper-editor.js": {
-   "deployedAt": "2026-10-25T23:13:45-07:00",
-   "sha256": "a3416911e382ec24d5164d76f92e883cab622b2e2e20016c80037f6c7a4da2ac",
-   "size": 382117,
+   "deployedAt": "2026-10-26T08:26:51-07:00",
+   "sha256": "8dd15090b09190cd40a401cdadf987a062bacc6ea0ebfd48b8c5ec8a1b76fd15",
+   "size": 382571,
    "via": "verify"
   },
   "rm/js/paper-equations.js": {
@@ -3038,9 +3038,9 @@
    "via": "baseline"
   },
   "rm/js/paper-export-tex.js": {
-   "deployedAt": "2026-10-25T23:13:45-07:00",
-   "sha256": "1cf32d7e1679c18361a71aeee12a93ce962cea184c4d34db2b907a945b83d365",
-   "size": 135984,
+   "deployedAt": "2026-10-26T08:26:51-07:00",
+   "sha256": "e805eb3b20b3b039c37e74bc768e17791622a6ed32c83a4b1c4e436b075b7e14",
+   "size": 137524,
    "via": "verify"
   },
   "rm/js/paper-export.js": {
@@ -3110,9 +3110,9 @@
    "via": "verify"
   },
   "rm/js/paper-look.js": {
-   "deployedAt": "2026-10-25T23:13:45-07:00",
-   "sha256": "e653b5f39c7db5c570175c6579ebc8dfa2d925fda326416c35cabbd6d6e3ce60",
-   "size": 53298,
+   "deployedAt": "2026-10-26T08:26:51-07:00",
+   "sha256": "044344bb0affe65b86c61b8f644b308bd44e2d3caeeb5d91a47f8cc494fc9f4f",
+   "size": 56238,
    "via": "verify"
   },
   "rm/js/paper-overlay-import.js": {
@@ -3134,9 +3134,9 @@
    "via": "baseline"
   },
   "rm/js/paper-prose-tex.js": {
-   "deployedAt": "2026-10-25T23:13:45-07:00",
-   "sha256": "0097a71f10b5369e16ba44a4f6b7a59af690c908ebeaf3b5dd001c832aa22d1d",
-   "size": 38236,
+   "deployedAt": "2026-10-26T08:26:51-07:00",
+   "sha256": "b41ba29cc9cb5dd48603beb85682a710178f93e82f2182a23fb97dea7f6d2244",
+   "size": 38823,
    "via": "verify"
   },
   "rm/js/paper-schemas.js": {
@@ -5216,8 +5216,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-25T23:13:45-07:00",
-   "sha256": "5711b87a1e7628337b6e0ba0520145f5b87f7816cd0573c95a19aee522eb123e",
+   "deployedAt": "2026-10-26T08:26:51-07:00",
+   "sha256": "691f9e587031bba82c4f705f82f7a6ecb24bb856e1feceb047ad563f75de4542",
    "size": 9933,
    "via": "verify"
   },
