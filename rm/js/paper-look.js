@@ -262,6 +262,14 @@
 
   /* The full preamble for a spec look (template-specific citation setup is
    * appended by applyToTemplate). */
+  /* V3.920 — a look's list spacing (bp; indent in em): its own `list`
+   * block, else compact journal defaults */
+  function listSpacing(look) {
+    var l = look.list || {};
+    return { topsep: l.topsep != null ? l.topsep : 3, itemsep: l.itemsep != null ? l.itemsep : 1,
+      indent: l.indent != null ? l.indent : 1.5 };
+  }
+
   function texPreamble(look) {
     var L = [];
     var twocol = look.columns === 2;
@@ -310,6 +318,15 @@
     L.push(sz('Large', 1.44));
     L.push(sz('LARGE', 1.73));
     L.push(sz('huge', 2.07));
+    /* V3.920 — lists set compactly, as journals set them (article's
+     * 8pt between items read as a loose draft): \topsep above and below,
+     * \itemsep between items, no \partopsep / \parsep; the Document view
+     * reads the same numbers (lsp below) */
+    var ls = listSpacing(look);
+    L.push('\\def\\@listi{\\leftmargin\\leftmargini \\topsep ' + bp(ls.topsep) + ' \\@plus1bp \\@minus1bp \\partopsep\\z@' +
+      ' \\parsep\\z@ \\@plus1bp \\itemsep ' + bp(ls.itemsep) + ' \\@plus1bp}\\let\\@listI\\@listi');
+    L.push('\\def\\@listii{\\leftmargin\\leftmarginii \\topsep ' + bp(ls.itemsep) + ' \\@plus1bp \\partopsep\\z@ \\parsep\\z@ \\itemsep\\z@ \\@plus1bp}');
+    L.push('\\setlength\\leftmargini{' + ls.indent + 'em}\\setlength\\leftmarginii{' + ls.indent + 'em}');
     L.push('\\makeatother');
     L.push('\\normalsize');
     L.push('\\setlength\\parindent{' + bp(b.indent) + '}');
@@ -873,6 +890,24 @@
      * it), \tabcolsep 6pt each side, each row one \baselineskip with no
      * padding (\arraystretch's strut adds 0.7/0.3 of the extra above and
      * below), booktabs spacing (0.65ex under a rule, 0.4ex over one) */
+    /* V3.920 — footnotes: \footnotesize at the look's leading, under
+     * \skip\footins (9pt) with a 0.4pt rule 40% of the column wide, 3pt
+     * above the first note (\footnoterule) */
+    R.push(S + ' .pdv-footnotes{font-size:0.8em;line-height:' + n(look.body.lead / look.body.size) + ';border-top:none;margin-top:0;padding-top:' +
+      n(9 * PX) + 'px;position:relative;}');
+    R.push(S + ' .pdv-footnotes::before{content:"";position:absolute;left:0;top:' + n(6 * PX) + 'px;width:40%;border-top:' + n(0.4 * PX) + 'px solid currentColor;}');
+    R.push(S + ' .pdv-fn-line{margin:0;}');
+    // V3.920 — lists: \topsep above and below, \itemsep between items
+    var lsp = listSpacing(look);
+    R.push(S + ' .pdv-list-block{margin:' + n(lsp.topsep * PX) + 'px 0;}');
+    R.push(S + ' .pdv-list{padding-left:' + lsp.indent + 'em;}');
+    R.push(S + ' .pdv-list li{margin:0;}');
+    R.push(S + ' .pdv-list > li + li{margin-top:' + n(lsp.itemsep * PX) + 'px;}');
+    R.push(S + ' .pdv-list .pdv-list{margin:' + n(lsp.itemsep * PX) + 'px 0 0;}');
+    if ((look.list || {}).enum === 'paren') {   // IEEEtran's "1)" labels
+      R.push('@counter-style rm-paren{system:extends decimal;suffix:") ";}');
+      R.push(S + ' ol.pdv-list{list-style-type:rm-paren;}');
+    }
     R.push(S + ' .pdv-table{font-size:1em;}');
     R.push(S + ' .pdv-booktabs tr.pdv-thead td{font-weight:inherit;}');   // a header row is plain unless styled
     // a word too long for its p{} column sticks out (TeX's overfull box);
@@ -881,7 +916,17 @@
     // caption package, position=top: the skip goes between caption and table
     R.push(S + ' .pdv-tabcap.pdv-tabcap-above{margin-top:0;margin-bottom:' + n(c.skip * PX) + 'px;}');
     var tabLead = n(look.body.lead / look.body.size);   // the look's \normalsize leading, as a ratio
+    /* V3.920 — a class that sets its tables in a smaller size (IEEEtran:
+     * \footnotesize in every table float) */
+    if (look.table && look.table.size) {
+      R.push(S + ' .pdv-table-wrap .pdv-table{font-size:' + n(look.table.size / look.body.size) + 'em;}');
+      tabLead = n((look.table.lead || look.table.size * 1.2) / look.table.size);
+    }
     R.push(S + ' .pdv-table td{padding:0 ' + n(6 * PX) + 'px;line-height:' + tabLead + ';}');
+    if (c.table_style === 'ieee') {
+      R.push(S + ' .pdv-tabcap.pdv-tabcap-ieee{text-align:center;}');
+      R.push(S + ' .pdv-tabcap-ieee .pdv-tabcap-text{font-variant:small-caps;}');
+    }
     [['compact', 0.9], ['roomy', 1.25], ['airy', 1.5]].forEach(function (d) {
       var x = Math.max(0, d[1] - 1) * tabLead;
       R.push(S + ' .pdv-table.pdv-tbl-dens-' + d[0] + ' td{padding:' + n(0.7 * x) + 'em ' + n(6 * PX) + 'px ' + n(0.3 * x) + 'em;}');

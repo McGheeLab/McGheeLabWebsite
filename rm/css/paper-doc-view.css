@@ -604,6 +604,7 @@ ul.pdv-list { list-style: disc; }
 ol.pdv-list { list-style: decimal; }
 .pdv-list .pdv-list { margin: 1px 0 1px; }
 .pdv-list li { margin: 1px 0; }
+.pdv-list li.pdv-li-cont { list-style: none; }   /* V3.920 — an item continued from the previous column */
 
 /* Title block */
 .pdv-titleblock { text-align: center; margin: 0 0 calc(18px * var(--pdv-gapscale, 1)); }
@@ -764,6 +765,9 @@ ol.pdv-list { list-style: decimal; }
   line-height: 1.4;
 }
 .pdv-fn-line { margin-bottom: 2px; }
+/* V3.920 — a two-column look's footnotes sit at the foot of their column */
+.pdv-col-notes { margin-top: auto; }
+.pdv-footnotes.pdv-fn-measure { margin: 0 !important; padding: 0 !important; border: 0 !important; }
 .pdv-fn-mark { color: inherit; }
 
 .pdv-pageno {
@@ -1096,6 +1100,10 @@ ol.pdv-list { list-style: decimal; }
 /* V3.908 — a page of floats is vertically centred, as LaTeX sets it
  * (\@fptop / \@fpbot = 0pt plus 1fil). */
 .pdv-look-on .pdv-sheet.pdv-floatpage .pdv-sheet-body { justify-content: center; }
+/* V3.920 — and spread apart: \@fpsep is 2fil between floats against 1fil
+ * above and below (space-around), not stacked in the middle */
+.pdv-look-on .pdv-sheet.pdv-floatpage .pdv-float-band-top { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-around; row-gap: 11px; }
+.pdv-look-on .pdv-sheet.pdv-floatpage .pdv-float-band-top > .pdv-float-row { margin-bottom: 0 !important; }
 
 /* V3.910 — Layout check panel (journal looks) */
 .pdv-check-count:not(:empty) {

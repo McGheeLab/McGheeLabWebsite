@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.920] — 2026-10-26 — Paper builder: a full case-study paper set cleanly — equations, lists, footnotes, tables, references, in page view and PDF
+
+Plan: [CodeLog/ClaudesPlan/V3.920_case_study_formatting.md](../ClaudesPlan/V3.920_case_study_formatting.md).
+
+### Bug Fixes
+- Document view: display equations were drawn about 1.5 lines too high, over the text above (`_setDisplays` measured KaTeX's baseline with a marker that fell below `.katex-html`, a block in display mode; now inside the first `.base`, after `.pdv-eq-tex` applies). A display that would run into its number shifts left or sets the number on its own line (amsmath).
+- PDF: panel references with an unprefixed label (`[!fig:system:C]`, the paper-bundle format) compiled to `\ref{system:C}` — "Fig. ??". Math inside the paper's own `\textbf{…}` / `\emph{…}` printed "0" (nested placeholders were reinserted in one pass). A list item opening with "[" became `\item`'s optional label (`\item {}[`).
+- PDF: a reference missing from the library printed "% @misc … data/items.json …"; it is now a real entry reading "Reference not in the lab library: KEY — add it before submission" (same words in the Document view).
+- Document view: footnotes in a two-column look sit at the foot of the column holding their mark, with their room reserved (`c.notes`, split parts keep the notes whose marks they hold, `_notesIn`); notes are read from the `[^…]` source and set as prose ("(click to edit)" printed before); `\footnotesize` at the look's leading under a 40% rule.
+- Document view: lists break across columns and pages between items or typeset lines (`_splitList`; numbering continues via `start`, a cut item has no second marker); a longtable in the text breaks between rows (`_splitTableRows`), also when it is taller than a fresh page.
+- Document view: a waiting page-wide table no longer holds back a figure (or a figure a table) — floats keep order per type, as LaTeX does. A run-in heading waits over a float for the paragraph that follows. In one column, an imported `tabular` / `longtable` outside a `table` float sits in the text, as in the PDF.
+- Tables: the natural width (column or page) is measured on the body rows — a header may wrap — in `\rmTnat` and `_tableNaturalW`. Math and the text touching it ("(µm)") never break apart in cells (`_nowrapCellMath`); a source newline in a cell is a space; a bare `p{}` column of an imported table is justified and hyphenated (`parseTabular().justify`).
+- References: `PaperCiteStyle` numbering and `getCitedKeysInPaper` read `\cite{…}` written in the paper's own LaTeX, list blocks and imported tables, so the Document view's numbers and list match the PDF; the look's label ("(1)" ACS, "[1]", "1."), and achemso's entry format for ACS (`_formatAchemso`).
+- Float pages spread their floats (`\@fpsep`) instead of stacking them in the middle.
+
+### Changed
+- Lists in every spec look are set compactly, as journals set them: `\@listi` / `\@listii` with `\topsep` 3bp, `\itemsep` 1bp, no `\partopsep`, 1.5em indent (`PaperLook.listSpacing`; `look.list` overrides), and the Document view's list CSS reads the same numbers.
+- IEEE look: tables in `\footnotesize` as IEEEtran sets them (`look.table`; `\rmTable` measures at that size), "TABLE II" with the caption in small caps centred under it (`caption.table_style: 'ieee'`, `table_numbering: 'Roman'`, also in "(continued)" lines and reference chips), "1)" enumerate labels and IEEEtran's list spacing (`look.list`).
+- 3 tests in `paper-tex-escape.test.mjs` (panel refs), 3 more (math in `\textbf`, `\emph`, an item opening with "[") — 57 checks.
+
 ## [V3.919] — 2026-10-25 — Paper builder: every page filled to the foot — no text hanging over white space
 
 Plan: [CodeLog/ClaudesPlan/V3.919_pages_filled_to_the_foot.md](../ClaudesPlan/V3.919_pages_filled_to_the_foot.md).

@@ -240,7 +240,9 @@
       "sep": ".  ",
       "align": "justify",
       "skip": 20.8,
-      "table_position": "above"
+      "table_position": "above",
+      "table_style": "ieee",
+      "table_numbering": "Roman"
     },
     "bib": {
       "size": 7.97,
@@ -278,7 +280,18 @@
       "relpenalty": 800,
       "binoppenalty": 1000
     },
-    "front_note": "front skips are TeX skips (baseline distance = skip + next baselineskip), measured from an IEEEtran compile"
+    "front_note": "front skips are TeX skips (baseline distance = skip + next baselineskip), measured from an IEEEtran compile",
+    "table": {
+      "font": "footnotesize",
+      "size": 7.97,
+      "lead": 8.966
+    },
+    "list": {
+      "topsep": 2,
+      "itemsep": 0,
+      "indent": 1.5,
+      "enum": "paren"
+    }
   },
   "figure_environment": {
     "compiled_columns": 2,

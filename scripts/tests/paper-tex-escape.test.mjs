@@ -89,4 +89,12 @@ eq(T.blockToTex({ kind: 'figure', id: 'f1', attrs: { raw_tex: FIGH } }, LOOKT), 
 eq(T.blockToTex({ kind: 'figure', id: 'f1', attrs: { raw_tex: FIGH } }, ONE), FIGH, 'no look: as written');
 eq(T.blockToTex({ kind: 'figure', id: 'f1', attrs: { raw_tex: FIGH.replace('figure}[H]', 'figure*}[h!]') } }, LOOKT).indexOf('\\begin{figure*}[tp]'), 0, 'starred → [tp]');
 eq(T.blockToTex({ kind: 'table', id: 't9', attrs: { raw_tex: '\\begin{table}[t]x\\end{table}' } }, LOOKT), '\\begin{table}[t]x\\end{table}', '[t] stays [t]');
+// V3.920 — panel references with or without the label's fig: prefix
+eq(tex('see [!fig:fig:setup:A]'), 'see \\ref{fig:setup}\\,(A)', 'prefixed label + panel');
+eq(tex('see [!fig:system:C]'), 'see \\ref{system}\\,(C)', 'unprefixed label + panel (bundle format)');
+eq(tex('see [!fig:fig:setup]'), 'see \\ref{fig:setup}', 'prefixed label, no panel');
+// V3.920 — math inside the paper's own \textbf{…}; an item opening with [
+eq(tex('\\textbf{Plunger seat ($\\times$3).} Bolts'), '\\textbf{Plunger seat ($\\times$3).} Bolts', 'math inside \\textbf{} survives');
+eq(tex('\\emph{a $x$ b}'), '\\emph{a $x$ b}', 'math inside \\emph{}');
+ok(T.blockToTex({ kind: 'list', id: 'l1', body: '[DATA: counts]\nsecond', attrs: { list_type: 'bullet' } }, {}).indexOf('\\item {}[DATA: counts]') >= 0, 'an item opening with [ is not an optional label');
 console.log('paper-tex-escape: ' + n + ' checks passed');

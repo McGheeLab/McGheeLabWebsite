@@ -1599,6 +1599,15 @@
         if (join === 'continue' && node.el.classList) node.el.classList.add('pdv-para-cont', 'pdv-after-display');
         if (join === 'attach' && node.el.classList) node.el.classList.add('pdv-eq-attached');
         var isPara = node.el.classList && node.el.classList.contains('pdv-bodypara');
+        /* V3.920 — a float does not start a paragraph: a run-in heading
+         * waits over it for the paragraph that follows (TeX's \@svsechd) —
+         * "3.1 Overview" sat on a line of its own above its text when the
+         * section's figure came first */
+        if (pendingRunIn && node.float) {
+          pushSec(node.el, node.type, blk.kind, sec.id, blk.id, node.float);
+          (node.more || []).forEach(function (m) { pushSec(m.el, m.type, m.kind, sec.id, blk.id, m.float || null); });
+          return;
+        }
         if (pendingRunIn) {
           if (isPara) {
             node.el.insertAdjacentHTML('afterbegin', pendingRunIn.html);
@@ -1837,6 +1846,18 @@
 
   /* "Figure 3." / "Fig. 3 " / "Table 1 |" — the look's caption label and
    * separator (the .tex sets the same via \figurename + labelsep). */
+  /* V3.920 — a table's number as the journal prints it (IEEE: Roman) */
+  function _roman(n) {
+    var v = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
+    var out = '', x = parseInt(n, 10) || 0;
+    v.forEach(function (p) { while (x >= p[0]) { out += p[1]; x -= p[0]; } });
+    return out || String(n);
+  }
+  function _tabNumText(geom, num) {
+    var c = geom && geom.look && geom.look.caption;
+    return c && c.table_numbering === 'Roman' ? _roman(num) : String(num);
+  }
+
   function _captionLabel(geom, kind, num) {
     var c = geom.look && geom.look.caption;
     if (!c) return '<b>' + (kind === 'tab' ? 'Table' : 'Figure') + ' ' + num + '.</b> ';
@@ -1917,6 +1938,10 @@
     return { block: wrap, note: note, colnote: colnote };
   }
 
+  /* V3.917 — a single newline in prose is a space (LaTeX reads it so);
+   * a blank line still breaks. Paragraphs and (V3.920) table cells. */
+  function _softBreaks(t) { return String(t).replace(/([^\n])\n(?=[^\n])/g, '$1 '); }
+
   function _buildBlockNode(blk, tpl, geom, nums) {
     var pe = _pe();
     if (blk.kind === 'paragraph') {
@@ -1951,7 +1976,6 @@
        * PDF; it was a <br> here, which the typesetter set as a line end with
        * no space ("adding the" / "ME3B" → "theME3B"). A blank line stays a
        * break. List lines keep their newlines (parseBodyRuns needs them). */
-      function softBreaks(t) { return String(t).replace(/([^\n])\n(?=[^\n])/g, '$1 '); }
       /* V3.917 — a body with "- item" lines is prose, list, prose: each its
        * own page item, so the typesetter sets the prose like any paragraph
        * and never cuts lines through a list (it did: every cut line became
@@ -1974,14 +1998,14 @@
             pp.dataset.blockId = blk.id || '';
             pp.dataset.blockKind = 'paragraph';
           }
-          pp.innerHTML = pe.renderParagraphHtml(softBreaks(run.text));
+          pp.innerHTML = pe.renderParagraphHtml(_softBreaks(run.text));
           return { el: pp, type: 'col', kind: 'paragraph' };
         });
         if (parts.length) return { el: parts[0].el, type: 'col', more: parts.slice(1) };
       }
       p.innerHTML = (!PSr && pe.renderParagraphBodyHtml)   // no list parser loaded: the old renderer
         ? pe.renderParagraphBodyHtml(srcBody)
-        : pe.renderParagraphHtml(softBreaks(srcBody));
+        : pe.renderParagraphHtml(_softBreaks(srcBody));
       return { el: p, type: 'col' };
     }
 
@@ -2163,7 +2187,15 @@
         ? window.PaperLayout.tableSpan(ta) : (ta.span === 'page' ? 'page' : 'auto');
       if (!parseInt(ta.rows, 10) && /^\s*\\begin\{table\*\}/.test(String(ta.raw_tex || ''))) tSpan = 'page';
       var tType = (tSpan === 'page' && geom.cols === 2) ? 'full' : 'col';
+      /* V3.920 — in one column, an imported tabular outside a table
+       * environment and a longtable sit in the text, as TeX sets them (no
+       * float); a longtable breaks between rows with its header again */
+      var rawSrcT = String(ta.raw_tex || '');
+      var isLongT = /\\begin\{longtable\}/.test(rawSrcT) || ta.longtable === true;
+      var inFlowT = geom.cols !== 2 && tAnchor === 'flow' &&
+        ((!parseInt(ta.rows, 10) && rawSrcT && !/^\s*\\begin\{table\*?\}/.test(rawSrcT)) || ta.longtable === true);
       function tFloatFor(type) {
+        if (inFlowT) return null;
         return tAnchor !== 'flow'
           ? { region: tAnchor, span: type === 'full' ? 'page' : 'column', lock: ta.lock === true,
               spacing: (typeof ta.spacing === 'number' && isFinite(ta.spacing)) ? ta.spacing : 0 }  // V3.410
@@ -2246,7 +2278,7 @@
         html += '<colgroup>';
         for (var rc = 0; rc < cols; rc++) {
           var rw = rawTab.widths[rc];
-          if (rw) fixedCol[rc] = true;
+          if (rw) fixedCol[rc] = (rawTab.justify || [])[rc] ? 'just' : true;
           if (!rw) html += '<col>';
           else if (rw.mode === 'mm') html += '<col class="pdv-col-fixed" style="width:' + (rw.v * 96 / 25.4 + tPad).toFixed(1) + 'px">';
           else if (rw.mode === 'text') html += '<col class="pdv-col-fixed" style="width:' + (rw.v * geom.bodyW + tPad).toFixed(1) + 'px">';
@@ -2296,11 +2328,15 @@
           if (cSt.bg && tFills[cSt.bg]) {
             tdCss += ';background:' + tFills[cSt.bg].css;
             tdCls = ' class="pdv-cell-filled' + (fixedCol[c] && !(anchor && anchor.cs > 1) ? ' pdv-td-fixed' : '') + '"';
-          } else if (fixedCol[c] && !(anchor && anchor.cs > 1)) tdCls = ' class="pdv-td-fixed"';
+          } else if (fixedCol[c] && !(anchor && anchor.cs > 1)) {
+            /* V3.920 — a bare p{} column is justified and hyphenated by TeX:
+             * the typesetter sets it (TYPESET_INNER_SEL) */
+            tdCls = ' class="pdv-td-fixed' + (fixedCol[c] === 'just' ? ' pdv-td-just' : '') + '"';
+          }
           /* V3.906 — cells are prose (math, citations, refs, **bold**),
            * the same inline contract the .tex export now applies. */
           html += '<td data-c="' + c + '"' + spanAttrs + tdCls + ' style="' + tdCss + '">' +
-            (v == null || v === '' ? '' : _pe().renderParagraphHtml(String(v))) + '</td>';
+            (v == null || v === '' ? '' : _pe().renderParagraphHtml(_softBreaks(String(v)))) + '</td>';   // V3.920 — a source newline in a cell is a space, as in TeX
         }
         html += '</tr>';
       }
@@ -2316,8 +2352,15 @@
           : (typeof ta.anchor === 'string' && !!ta.anchor &&
              (geom.look ? geom.look.caption && geom.look.caption.table_position !== 'below'
                : !!(tpl.table_environment && tpl.table_environment.caption_position === 'above')));
-        var capHtml = '<div class="pdv-tabcap' + (capTop ? ' pdv-tabcap-above' : '') + '">' +
-          (tnum ? _captionLabel(geom, 'tab', tnum) : '') + _pe().renderParagraphHtml(tcap) + '</div>';
+        var lkCap = (geom.look && geom.look.caption) || {};
+        var capHtml = lkCap.table_style === 'ieee'
+          /* V3.920 — IEEEtran: "TABLE II" centred, the caption in small caps
+           * on the line under it */
+          ? '<div class="pdv-tabcap pdv-tabcap-ieee' + (capTop ? ' pdv-tabcap-above' : '') + '">' +
+            (tnum ? '<div>' + _esc(lkCap.label_tab || 'TABLE') + '\u00A0' + _esc(_tabNumText(geom, tnum)) + '</div>' : '') +
+            '<div class="pdv-tabcap-text">' + _pe().renderParagraphHtml(tcap) + '</div></div>'
+          : '<div class="pdv-tabcap' + (capTop ? ' pdv-tabcap-above' : '') + '">' +
+            (tnum ? _captionLabel(geom, 'tab', tnum) : '') + _pe().renderParagraphHtml(tcap) + '</div>';
         html = capTop ? capHtml + html : html + capHtml;
       }
       /* Tables II — table notes under the caption (threeparttable look). */
@@ -2329,17 +2372,47 @@
         }).join('') + '</div>';
       }
       el2.innerHTML = html;
+      _nowrapCellMath(el2);
       /* V3.918 — the width ('auto' is decided by _layoutTables once the
        * look's CSS and fonts are in, from what TeX would measure) and what
        * a continued piece needs */
       el2.dataset.tspan = tSpan;
       el2.dataset.nhead = headerRow ? '1' : '0';
+      if (inFlowT) el2.dataset.inflow = '1';
+      if (isLongT) el2.dataset.longtable = '1';
       if (tnum) el2.dataset.tnum = String(tnum);
       _tableLineWidths(el2, tType === 'full' ? geom.bodyW : geom.colW);
       el2.dataset.span = tType === 'full' ? 'page' : 'column';
       return { el: el2, type: tType, float: tFloatFor(tType) };
     }
     return null;
+  }
+
+  /* V3.920 — in a table cell, a formula and the text touching it ("(µm)",
+   * "2×") stay on one line, as in TeX: a browser breaks after any inline
+   * box, a word joiner notwithstanding */
+  function _nowrapCellMath(root) {
+    root.querySelectorAll('td .katex').forEach(function (kx) {
+      var box = kx;
+      while (box.parentNode && box.parentNode.tagName !== 'TD' && box.parentNode.childNodes.length === 1) box = box.parentNode;
+      var prev = box.previousSibling, next = box.nextSibling;
+      var pre = prev && prev.nodeType === 3 ? /\S+$/.exec(prev.nodeValue) : null;
+      var post = next && next.nodeType === 3 ? /^\S+/.exec(next.nodeValue) : null;
+      if (!pre && !post) return;
+      var span = document.createElement('span');
+      span.className = 'pdv-nobr';
+      span.style.whiteSpace = 'nowrap';
+      box.parentNode.insertBefore(span, box);
+      if (pre) {
+        prev.nodeValue = prev.nodeValue.slice(0, -pre[0].length);
+        span.appendChild(document.createTextNode(pre[0]));
+      }
+      span.appendChild(box);
+      if (post) {
+        next.nodeValue = next.nodeValue.slice(post[0].length);
+        span.appendChild(document.createTextNode(post[0]));
+      }
+    });
   }
 
   /* V3.918 — the journal rules for tables, as \rmTable applies them in
@@ -2362,6 +2435,7 @@
       if (it.float) it.float.span = tType === 'full' ? 'page' : 'column';
       el.dataset.span = tType === 'full' ? 'page' : 'column';
       _tableLineWidths(el, tType === 'full' ? geom.bodyW : geom.colW);
+      if (el.dataset.inflow) continue;   // V3.920 — the packer breaks an in-text longtable where the page ends
       var pieces = _tablePieces(el, geom, tType, parseInt(el.dataset.nhead, 10) || 0, el.dataset.tnum || null);
       if (!pieces) continue;
       var repl = pieces.map(function (pc, k) {
@@ -2386,6 +2460,10 @@
     var t = tableEl.cloneNode(true);
     t.classList.remove('pdv-tbl-wrap');
     t.classList.add('pdv-tbl-natural');
+    /* the body rows: a header may wrap, as journals set one (V3.920; a
+     * four-column numeric table went across the page for "Repeatability
+     * (µm)" set on one line) */
+    if (t.rows.length > 1) Array.prototype.slice.call(t.querySelectorAll('tr.pdv-thead')).forEach(function (tr) { tr.remove(); });
     probe.innerHTML = '';
     probe.style.fontSize = (geom.fontPt * 1.333) + 'px';
     probe.style.width = Math.ceil(geom.bodyW * 4) + 'px';
@@ -2463,12 +2541,31 @@
         piece.querySelectorAll('.pdv-tabcap').forEach(function (n) { n.remove(); });
         var cont = document.createElement('div');
         cont.className = 'pdv-tabcont';
-        cont.textContent = (tnum ? word + ' ' + tnum + ' ' : '') + '(continued)';
+        cont.textContent = (tnum ? word + ' ' + _tabNumText(geom, tnum) + ' ' : '') + '(continued)';
         piece.insertBefore(cont, piece.firstChild);
       }
       if (gi < groups.length - 1) piece.querySelectorAll('.pdv-tabnotes').forEach(function (n) { n.remove(); });
       return piece;
     });
+  }
+
+  /* V3.920 — achemso.bst (ACS) as it prints an article: "Surname, A. B.;
+   * Surname, C. Title. <i>Journal</i> <b>Year</b>, <i>Vol</i>, Pages." —
+   * every author (achemso's maxauthors is 15) separated by semicolons. */
+  function _formatAchemso(e, n) {
+    var list = (e.authorsFull && e.authorsFull.length) ? e.authorsFull
+      : (e.authors || []).map(function (a) { return { family: a, given: '' }; });
+    var names = list.map(function (a) { return _esc(_authorName(a, false)); });
+    if (names.length > 15) names = names.slice(0, 15).concat(['et al']);
+    var html = names.join('; ');
+    if (html && !/\.$/.test(html)) html += '.';
+    var title = String(e.title || '').trim(), journal = String(e.journal || '').trim();
+    if (title) html += ' ' + _esc(title) + (/[.?!]$/.test(title) ? '' : '.');
+    if (journal) html += ' <i>' + _esc(journal) + '</i>';
+    if (e.year) html += ' <b>' + _esc(String(e.year)) + '</b>';
+    if (e.volume) html += ', <i>' + _esc(String(e.volume)) + '</i>';
+    if (e.pages) html += ', ' + _esc(String(e.pages).replace(/-+/g, '\u2013'));
+    return { prefix: '(' + n + ') ', html: html + '.' };
   }
 
   /* One author → "A. B. Surname" (initials-first, IEEE/Science) or
@@ -2655,6 +2752,11 @@
     /* V3.914 — under a look the bibliography is set the way the template's
      * .bst writes it, where the preview knows that style (unsrtnat) */
     var bst = state.lastLook ? ((tpl.citation || {}).bibliography_style || '') : '';
+    /* V3.920 — the look's label: "(n)" ACS, "[n]" IEEE, "n." Nature … */
+    var lab = state.lastLook && state.lastLook.bib && state.lastLook.bib.label;
+    function labelFor(n) {
+      return lab === 'bracket' ? '[' + n + '] ' : lab === 'paren' ? '(' + n + ') ' : lab === 'plain' ? n + ' ' : n + '. ';
+    }
     var wrap = document.createElement('div');
     wrap.className = 'pdv-bib pdv-bib-' + family;
     wrap.innerHTML = ordered.map(function (key, i) {
@@ -2662,11 +2764,14 @@
       var n = numeric ? ((PCS && PCS.getNumber && PCS.getNumber(key)) || (i + 1)) : null;
       if (!e) {
         var mp = family === 'numeric-bracket' ? '[' + n + '] ' : (numeric ? n + '. ' : '');
-        return '<div class="pdv-bib-entry pdv-bib-missing">' + _esc(mp) + '@' + _esc(key) +
-          ' — not in the lab library</div>';
+        if (lab && numeric) mp = labelFor(n);
+        return '<div class="pdv-bib-entry pdv-bib-missing">' + (mp ? '<span class="pdv-bib-num">' + _esc(mp) + '</span>' : '') +
+          'Reference not in the lab library: ' + _esc(key) + ' \u2014 add it before submission.</div>';
       }
       e = _decodeEntryAccents(e);   // V3.915 — Andr{\'e} → André, as the PDF prints it
-      var f = bst === 'unsrtnat' && numeric ? _formatUnsrtnat(e, n, family) : _formatBibEntry(e, family, n);
+      var f = bst === 'unsrtnat' && numeric ? _formatUnsrtnat(e, n, family)
+        : bst === 'achemso' && numeric ? _formatAchemso(e, n) : _formatBibEntry(e, family, n);
+      if (lab && numeric && f.prefix) f.prefix = labelFor(n);
       return '<div class="pdv-bib-entry">' +
         (f.prefix ? '<span class="pdv-bib-num">' + _esc(f.prefix) + '</span>' : '') +
         f.html + '</div>';
@@ -2682,15 +2787,20 @@
       var chips = item.node.querySelectorAll ? item.node.querySelectorAll('.pe-footnote-chip') : [];
       Array.prototype.forEach.call(chips, function (chip) {
         counter++;
-        var text = chip.getAttribute('title') || chip.getAttribute('data-note') || chip.textContent || '';
-        text = text.replace(/^footnote:?\s*/i, '').trim();
+        /* V3.920 — the note as written ([^…] in data-src), set as prose like
+         * the PDF's \footnote{} — the chip's tooltip ends "(click to edit)" */
+        var src = chip.getAttribute('data-src') || '';
+        var m = /^\[\^([\s\S]*)\]$/.exec(src);
+        var text = m ? m[1] : (chip.getAttribute('title') || chip.getAttribute('data-note') || chip.textContent || '')
+          .replace(/^footnote:?\s*/i, '').replace(/\s*\(click to edit\)\s*$/, '');
+        text = text.trim();
         var sup = document.createElement('sup');
         sup.className = 'pdv-fn-mark';
         sup.textContent = String(counter);
         chip.replaceWith(sup);
         var line = document.createElement('div');
         line.className = 'pdv-fn-line';
-        line.innerHTML = '<sup>' + counter + '</sup> ' + _esc(text || '(footnote)');
+        line.innerHTML = '<sup>' + counter + '</sup> ' + (text ? _pe().renderParagraphHtml(text) : '(footnote)');
         item.footnotes.push({ node: line, h: 0 });
       });
     });
@@ -2709,6 +2819,8 @@
     var figPrefix = prefixOf(refs.figure, 'Fig.\u00A0');
     var tabPrefix = prefixOf(refs.table, 'Tab.\u00A0');
     var eqPrefix = prefixOf(refs.equation, 'Eq.\u00A0');
+    var lkR = _lookFor(tpl);
+    var romanTabs = !!(lkR && lkR.caption && lkR.caption.table_numbering === 'Roman');
     items.forEach(function (item) {
       if (!item.node.querySelectorAll) return;
       /* V3.915 — a reference to a label the paper does not have prints
@@ -2728,6 +2840,7 @@
       });
       item.node.querySelectorAll('.pe-tabref-chip').forEach(function (c) {
         c.textContent = c.textContent.replace(/^Tab\.\s*/, tabPrefix);
+        if (romanTabs) c.textContent = c.textContent.replace(/(\d+)\s*$/, function (m, d) { return _roman(d); });   // V3.920 — IEEE
       });
       item.node.querySelectorAll('.pe-eqref-chip').forEach(function (c) {
         c.textContent = c.textContent.replace(/^Eq\.\s*/, eqPrefix);
@@ -2797,8 +2910,11 @@
 
     var colItems = items.filter(function (i) { return i.type === 'col'; });
     var fullItems = items.filter(function (i) { return i.type === 'full'; });
-    var noteLines = [];
-    items.forEach(function (i) { i.footnotes.forEach(function (f) { noteLines.push(f); }); });
+    var noteLines = [], colNoteLines = [];
+    var perCol = !!(geom.look && geom.cols === 2);   // V3.920 — column footnotes (see _packPages)
+    items.forEach(function (i) {
+      i.footnotes.forEach(function (f) { (perCol && i.type === 'col' ? colNoteLines : noteLines).push(f); });
+    });
 
     /* V3.401 — layout-session height memo. During a session, document
      * CONTENT is frozen (our own writes touch only layout attrs; remote
@@ -2870,7 +2986,25 @@
     }
     measureCached(colItems, geom.colW);
     measureCached(fullItems, geom.bodyW);
-    if (noteLines.length) measureBatch(noteLines, geom.bodyW);
+    /* V3.920 — a note is measured inside a footnote box (its \footnotesize
+     * and leading), at the width it is set: a column's width in two columns */
+    function measureNotes(list, width) {
+      if (!list.length) return;
+      probe.innerHTML = '';
+      probe.style.width = width + 'px';
+      var box = document.createElement('div');
+      box.className = 'pdv-footnotes pdv-fn-measure' + (perCol ? ' pdv-col-notes' : '');
+      probe.appendChild(box);
+      list.forEach(function (x) { box.appendChild(x.node); });
+      void probe.offsetHeight;
+      list.forEach(function (x) {
+        var r = x.node.getBoundingClientRect(), cs = getComputedStyle(x.node);
+        x.h = r.height + (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0);
+      });
+      probe.innerHTML = '';
+    }
+    measureNotes(noteLines, geom.bodyW);
+    measureNotes(colNoteLines, geom.colW);
     if (geom.look) _setDisplays(colItems, geom);   // V3.914 — TeX's display spacing
     /* V3.912 — a wrapped figure's box (width, height): wrapfig's sums
      * start from it */
@@ -2947,6 +3081,17 @@
       });
       var wPx = br > bl ? br - bl : html.getBoundingClientRect().width;
       var w = wPx * bodyPx / kfs / PXb;   // bp, at TeX's math size
+      /* V3.920 — amsmath and the tag: a display that would run into its
+       * number shifts left toward it; one still too wide sets the number
+       * on a line of its own under it */
+      var numEl0 = node.querySelector('.pdv-eq-num');
+      var lineW = node.getBoundingClientRect().width || geom.colW;
+      var tagRoom = numEl0 ? numEl0.getBoundingClientRect().width + size * PXb : 0;   // number + a quad
+      var shiftPx = 0, tagBelow = false;
+      if (numEl0 && (lineW + wPx) / 2 > lineW - tagRoom) {
+        shiftPx = (lineW + wPx) / 2 - (lineW - tagRoom);
+        if (shiftPx > (lineW - wPx) / 2) { shiftPx = 0; tagBelow = true; }
+      }
       var short = true, emptyLine = !attached;
       if (attached) {
         var lns = prev.node.querySelectorAll('.pts-ln');
@@ -2965,13 +3110,25 @@
       var p0 = emptyLine ? 0 : pd;
       var top = (emptyLine ? bs : 0) + p0 + above + glue(bs - p0 - h);   // baseline above → box top
       var D = top + h + d + below + glue(bs - d - htNext) + htNext;      // → baseline below
+      if (tagBelow) D += bs;                                              // the number's own line
       var blockH = (D - bs) * PXb;
       var baseY = (top + h - (bs - lineOff)) * PXb;           // the equation's baseline, from the block top
-      // where KaTeX's baseline sits in its container
+      // where KaTeX's baseline sits in its container — measured as it will
+      // be mounted (V3.920: measured before .pdv-eq-tex, KaTeX's display
+      // margins were still in play and a tall formula — a fraction, an
+      // aligned block — was drawn over the line above it)
       var math = node.querySelector('.pdv-eq-math');
+      node.classList.add('pdv-eq-tex');
+      node.style.margin = '0';
+      math.style.top = '0px';
+      void probe.offsetHeight;
       var mk = document.createElement('span');
       mk.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline';
-      kx.appendChild(mk);
+      /* inside the formula's first .base (an inline box on the baseline):
+       * after .katex-html — a block in display mode — the marker fell to
+       * a new line under the formula, so every display sat ~1.5 lines too
+       * high, over the text above it (V3.920) */
+      (html.querySelector('.base') || kx).appendChild(mk);
       var mTop = mk.getBoundingClientRect().top - math.getBoundingClientRect().top;
       mk.remove();
       probe.innerHTML = '';
@@ -2980,7 +3137,8 @@
       node.style.height = blockH.toFixed(2) + 'px';
       math.style.top = (baseY - mTop).toFixed(2) + 'px';
       var num = node.querySelector('.pdv-eq-num');
-      if (num) num.style.top = (baseY - 0.75 * size * PXb).toFixed(2) + 'px';
+      if (num) num.style.top = (baseY + (tagBelow ? (d + bs) * PXb : 0) - 0.75 * size * PXb).toFixed(2) + 'px';
+      if (shiftPx) math.style.transform = 'translateX(' + (-shiftPx).toFixed(2) + 'px)';
       x.h = blockH; x.mt = 0; x.mb = 0;
     });
     probe.innerHTML = '';
@@ -3088,7 +3246,7 @@
   var TYPESET_SEL = '.pdv-bodypara';
   /* V3.917 — list items too (justified and broken as the PDF's itemize sets
    * them); an item holding a nested list is left to the browser */
-  var TYPESET_INNER_SEL = '.pdv-abstract .pdv-para, .pdv-keywords, .pdv-figcap, .pdv-tabcap, .pdv-factbox .pdv-para, .pdv-affil-colnote, .pdv-list-block li';
+  var TYPESET_INNER_SEL = '.pdv-abstract .pdv-para, .pdv-keywords, .pdv-figcap, .pdv-tabcap, .pdv-factbox .pdv-para, .pdv-affil-colnote, .pdv-list-block li, .pdv-tbl-tex td.pdv-td-just';
   function _typesetParagraphs(list, width) {
     var probe = state.probeEl;
     var jobs = [];
@@ -3153,6 +3311,7 @@
         if (el.classList.contains('pts-para')) return;
         if (el.tagName === 'LI' && el.querySelector('ul, ol')) return;
         if (!capJustified && el.matches('.pdv-figcap, .pdv-tabcap')) return;
+        if (el.matches('.pdv-tabcap-ieee')) return;   // V3.920 — centred, as IEEEtran sets it
         jobs.push({ el: el, item: null });
       });
     });
@@ -3305,10 +3464,11 @@
       }
       probe.innerHTML = '';                       // detach; references stay valid
       if (hA > availPx + 1) return null;          // rounding pushed A over — bail
+      var notesA = _notesIn(item, meas);
       function mk(n, h, part) {
         return {
           node: n, type: 'col', h: h,
-          footnotes: part === 1 ? (item.footnotes || []) : [],
+          footnotes: part === 1 ? notesA[0] : notesA[1],
           blockKind: item.blockKind, sectionId: item.sectionId,
           blockId: item.blockId, float: null, part: part,
         };
@@ -3325,6 +3485,136 @@
    * first k lines that fit (k ≥ the Column-fill minimum), part B the rest
    * (no indent — it continues a sentence; the first line's indent lives on
    * line 1 of part A as padding, so it stays put). */
+  /* V3.920 — a list breaks across a column or page the way TeX breaks an
+   * itemize / enumerate (one vertical list of item paragraphs): after the
+   * last item that fits, or between the typeset lines of the item that
+   * crosses the foot. Part B continues the numbering (`start`), an item cut
+   * in two carries on without a second marker (.pdv-li-cont), and the
+   * list's space is dropped at the break (TeX discards glue there). Moving
+   * the whole list on left the column's foot empty. */
+  function _splitList(item, availPx, geom) {
+    var node = item.node, probe = state.probeEl;
+    if (!probe || !node || !node.querySelector || !(availPx > 0)) return null;
+    probe.innerHTML = '';
+    probe.style.width = geom.colW + 'px';
+    var meas = node.cloneNode(true);
+    probe.appendChild(meas);
+    var mlst = meas.querySelector(':scope > ul, :scope > ol');
+    if (!mlst) { probe.innerHTML = ''; return null; }
+    var lis = Array.prototype.filter.call(mlst.children, function (c) { return c.tagName === 'LI'; });
+    var mt = parseFloat(getComputedStyle(meas).marginTop) || 0;
+    var top = meas.getBoundingClientRect().top;
+    var budget = availPx - mt + 0.5;
+    var k = 0, cut = 0;
+    for (var i = 0; i < lis.length; i++) {
+      if (lis[i].getBoundingClientRect().bottom - top <= budget) k = i + 1; else break;
+    }
+    if (k < lis.length) {
+      var lines = Array.prototype.filter.call(lis[k].children, function (c) { return c.classList.contains('pts-ln'); });
+      lines.forEach(function (ln) { if (ln.getBoundingClientRect().bottom - top <= budget) cut++; });
+      if (cut >= lines.length || cut < fillMinLines()) cut = 0;
+    }
+    probe.innerHTML = '';
+    if ((k === 0 && !cut) || k >= lis.length) return null;
+    function part(first) {
+      var n = node.cloneNode(true);
+      var l = n.querySelector(':scope > ul, :scope > ol');
+      var its = Array.prototype.filter.call(l.children, function (c) { return c.tagName === 'LI'; });
+      its.forEach(function (li, j) {
+        if (first ? (j > k || (j === k && !cut)) : (j < k)) { li.remove(); return; }
+        if (j === k && cut) {
+          var lns = Array.prototype.filter.call(li.children, function (c) { return c.classList.contains('pts-ln'); });
+          lns.forEach(function (ln, q) { if (first ? q >= cut : q < cut) ln.remove(); });
+          if (!first) li.classList.add('pdv-li-cont');
+        }
+      });
+      if (!first && l.tagName === 'OL') l.setAttribute('start', String((parseInt(l.getAttribute('start'), 10) || 1) + k));
+      n.style[first ? 'marginBottom' : 'marginTop'] = '0px';
+      if (n.dataset) n.dataset.blockPart = first ? '1' : '2';
+      return n;
+    }
+    var a = part(true), b = part(false);
+    probe.appendChild(a); probe.appendChild(b);
+    function hOf(n) {
+      var c = getComputedStyle(n);
+      return n.getBoundingClientRect().height + (parseFloat(c.marginTop) || 0) + (parseFloat(c.marginBottom) || 0);
+    }
+    var hA = hOf(a), hB = hOf(b);
+    probe.innerHTML = '';
+    var notesL = _notesIn(item, a);
+    function mk(n, h, pt) {
+      return { node: n, type: 'col', h: h, mt: pt === 1 ? mt : 0, mb: pt === 2 ? (item.mb || 0) : 0,
+        footnotes: pt === 1 ? notesL[0] : notesL[1], blockKind: item.blockKind, sectionId: item.sectionId,
+        blockId: item.blockId, float: null, part: pt, keepNext: false };
+    }
+    return [mk(a, hA, 1), mk(b, hB, 2)];
+  }
+  /* V3.920 — a split block's footnotes go with the part that holds their
+   * marks (in order): part A takes as many as it has marks, part B the
+   * rest — the note belongs at the foot of the column its mark is in */
+  function _notesIn(item, nodeA) {
+    var all = item.footnotes || [];
+    var n = nodeA && nodeA.querySelectorAll ? nodeA.querySelectorAll('.pdv-fn-mark').length : all.length;
+    return [all.slice(0, n), all.slice(n)];
+  }
+  /* V3.920 — a longtable in the text breaks between rows where the page
+   * ends; the next part starts with the header rows again (\endhead). The
+   * caption stays with the first part, notes go with the last. */
+  function _splitTableRows(item, availPx, geom) {
+    var node = item.node, probe = state.probeEl;
+    if (!probe || !node || !node.querySelector || !(availPx > 0)) return null;
+    var nHead = parseInt(node.dataset.nhead, 10) || 0;
+    probe.innerHTML = '';
+    probe.style.width = geom.colW + 'px';
+    var meas = node.cloneNode(true);
+    probe.appendChild(meas);
+    var t = meas.querySelector('table');
+    if (!t) { probe.innerHTML = ''; return null; }
+    var top = meas.getBoundingClientRect().top;
+    var trs = Array.prototype.slice.call(t.rows);
+    var k = 0;
+    for (var r = nHead; r < trs.length; r++) {
+      if (trs[r].getBoundingClientRect().bottom - top + 2 <= availPx) k = r + 1; else break;
+    }
+    probe.innerHTML = '';
+    if (k <= nHead || k >= trs.length) return null;
+    function part(first) {
+      var n = node.cloneNode(true);
+      n.dataset.piece = first ? '0' : '1';
+      var rows = Array.prototype.slice.call(n.querySelector('table').rows);
+      rows.forEach(function (tr, i) { if (i >= nHead && (first ? i >= k : i < k)) tr.remove(); });
+      var left = n.querySelector('table').rows;
+      if (first && left.length) { left[left.length - 1].classList.remove('pdv-tbl-ruled'); left[left.length - 1].classList.add('pdv-tbl-r-last'); }
+      if (first) n.querySelectorAll('.pdv-tabnotes').forEach(function (x) { x.remove(); });
+      else n.querySelectorAll('.pdv-tabcap').forEach(function (x) { x.remove(); });
+      return n;
+    }
+    var a = part(true), b = part(false);
+    probe.appendChild(a); probe.appendChild(b);
+    function hOf(n) {
+      var c = getComputedStyle(n);
+      return n.getBoundingClientRect().height + (parseFloat(c.marginTop) || 0) + (parseFloat(c.marginBottom) || 0);
+    }
+    var hA = hOf(a), hB = hOf(b);
+    probe.innerHTML = '';
+    function mk(n, h, pt) {
+      return { node: n, type: 'col', h: h, mt: 0, mb: 0, footnotes: pt === 1 ? (item.footnotes || []) : [],
+        blockKind: item.blockKind, sectionId: item.sectionId, blockId: item.blockId, float: null, part: pt, keepNext: false };
+    }
+    return [mk(a, hA, 1), mk(b, hB, 2)];
+  }
+
+  /* the flow items that break across a column or page: paragraphs at a
+   * line, lists between items or lines (V3.920) */
+  function _splitFlow(item, availPx, geom) {
+    if (item.blockKind === 'table') return _splitTableRows(item, availPx, geom);
+    return item.blockKind === 'list' ? _splitList(item, availPx, geom) : _splitColItem(item, availPx, geom);
+  }
+  function _splits(item) {
+    return item.blockKind === 'paragraph' || item.blockKind === 'list' ||
+      (item.blockKind === 'table' && !item.float && item.node && item.node.dataset && item.node.dataset.longtable === '1');
+  }
+
   function _splitTypeset(item, availPx) {
     var node = item.node;
     var lines = Array.prototype.slice.call(node.children).filter(function (c) { return c.classList.contains('pts-ln'); });
@@ -3339,10 +3629,11 @@
     b.classList.add('pdv-para-cont');
     if (a.dataset) a.dataset.blockPart = '1';
     if (b.dataset) b.dataset.blockPart = '2';
+    var notesT = _notesIn(item, a);
     function mk(n, nl, part) {
       return {
         node: n, type: 'col', h: nl * lead,
-        footnotes: part === 1 ? (item.footnotes || []) : [],
+        footnotes: part === 1 ? notesT[0] : notesT[1],
         blockKind: item.blockKind, sectionId: item.sectionId,
         blockId: item.blockId, float: null, part: part, keepNext: false,
       };
@@ -3400,11 +3691,17 @@
      * boundary instead of stranding a full-width band's worth of white
      * space. Spanning floats (starred figures/tables, and every float in
      * 1-col) keep their full-width top/bottom bands — they truly span. */
-    function colObj() { return { items: [], itemsH: 0, floatTop: null, floatBottom: null }; }
+    function colObj() { return { items: [], itemsH: 0, floatTop: null, floatBottom: null, notes: [], noteH: 0 }; }
+    /* V3.920 — two-column LaTeX sets a footnote at the foot of the column
+     * that holds its mark (above a bottom float), and only that column
+     * gives up the room: \skip\footins + the rule, then the notes */
+    var colNotes = !!(geom.look && cols === 2);
+    var FN_SEP = geom.look ? 9 * (4 / 3) : 12;
+    function colNoteH(c) { return c.noteH ? c.noteH + FN_SEP : 0; }
     function newGrid() { return { cols: [colObj(), colObj()], fillCol: 0 }; }
     function fTopH(c) { return c.floatTop ? c.floatTop.h + c.floatTop.gap : 0; }
     function fBotH(c) { return c.floatBottom ? c.floatBottom.h + c.floatBottom.gap : 0; }
-    function colContentH(c) { return fTopH(c) + c.itemsH + fBotH(c); }
+    function colContentH(c) { return fTopH(c) + c.itemsH + colNoteH(c) + fBotH(c); }
     function gridProjH() {
       if (!page.grid) return 0;
       return Math.max(colContentH(page.grid.cols[0]), colContentH(page.grid.cols[1]));
@@ -3509,7 +3806,7 @@
       page.usedH += height;
       if (natural > avail + 1) page.overflow = true;
     }
-    function colTextCap(c, targetH) { return targetH - fTopH(c) - fBotH(c); }
+    function colTextCap(c, targetH) { return targetH - fTopH(c) - fBotH(c) - colNoteH(c); }
     /* V3.912 — under a look an item's height in the flow: TeX discards the
      * space before it at the top of a column, and two adjoining spaces
      * count once, the larger (\addvspace; CSS collapses margins the same
@@ -3524,7 +3821,9 @@
       var e = colEff(c, item);
       if (geom.look && item.mt > 0 && c.itemsH === 0 && item.node && item.node.style) item.node.style.marginTop = '0px';
       c.items.push(item.node); c.itemsH += e; c.lastMb = item.mb || 0;
-      addFootnotes(item);
+      if (colNotes) {
+        item.footnotes.forEach(function (f) { c.notes.push(f.node); c.noteH += f.h; });
+      } else addFootnotes(item);
       return e;
     }
     /* Place one column flow item into the open grid. Fills column 0 then
@@ -3535,7 +3834,7 @@
     function addColItem(item) {
       ensureGrid();
       var g = page.grid;
-      var targetH = remaining() - noteH(item);
+      var targetH = remaining() - (colNotes ? 0 : noteH(item));
       var c = g.cols[g.fillCol];
       if (item.blockId && !page.firstFlow) {
         page.firstFlow = { sectionId: item.sectionId, blockId: item.blockId };
@@ -3547,12 +3846,24 @@
         return addColItem(item);
       }
       var capC = colTextCap(c, targetH);
+      /* V3.920 — a note takes room in the column its mark lands in: the
+       * whole item's notes when it is set whole here, part A's when split */
+      function notesRoom(list) {
+        if (!colNotes || !list || !list.length) return 0;
+        return list.reduce(function (t, f) { return t + f.h; }, 0) + (c.noteH ? 0 : FN_SEP);
+      }
+      function splitHere(budget) {
+        var pr = _splitFlow(item, budget, geom);
+        if (pr && notesRoom(pr[0].footnotes)) pr = _splitFlow(item, budget - notesRoom(pr[0].footnotes), geom);
+        return pr;
+      }
+      var itemNotes = notesRoom(item.footnotes);
       /* V3.908 — a column that holds only a float is not "empty": an item
        * (or a heading + its first lines) that does not fit moves on to the
        * next column / page instead of being forced in and overflowing. The
        * forced placement stays for a truly empty column (progress). */
       if (c.itemsH === 0 && (c.floatTop || c.floatBottom) &&
-          item.h + (item.keepNextH || 0) > capC && !(item.blockKind === 'paragraph' && capC >= 2 * (geom.leadPx || 14))) {
+          item.h + (item.keepNextH || 0) + itemNotes > capC && !(_splits(item) && capC >= 2 * (geom.leadPx || 14))) {
         if (g.fillCol === 0) { nextCol(g); return addColItem(item); }
         closeGrid(true);
         newPage();
@@ -3562,8 +3873,8 @@
         /* A paragraph taller than the whole column still splits — fill
          * this column, carry the rest to the next — instead of being
          * dropped in whole and overflowing (clip) or stranding space. */
-        if (item.blockKind === 'paragraph' && item.h > capC) {
-          var partsE = _splitColItem(item, capC, geom);
+        if (_splits(item) && item.h + itemNotes > capC) {
+          var partsE = splitHere(capC);
           if (partsE) {
             colPut(c, partsE[0]);
             return { split: partsE[1] };
@@ -3575,12 +3886,12 @@
       /* V3.908 — a heading never ends a column: it needs room for itself
        * AND the start of what follows (LaTeX's \@afterheading nobreak). */
       var keepH = item.keepNextH || 0;
-      if (c.itemsH + colEff(c, item) + keepH <= capC) {
+      if (c.itemsH + colEff(c, item) + keepH + itemNotes <= capC) {
         colPut(c, item);
         return null;
       }
-      if (item.blockKind === 'paragraph') {
-        var parts = _splitColItem(item, capC - c.itemsH, geom);
+      if (_splits(item)) {
+        var parts = splitHere(capC - c.itemsH);
         if (parts) {
           colPut(c, parts[0]);
           return { split: parts[1] };
@@ -3621,12 +3932,14 @@
     }
     function addFootnotes(item) {
       item.footnotes.forEach(function (f) {
+        if (!page.footnotes.length) page.footH += FN_SEP;   // V3.920 — the space and rule above the first note
         page.footnotes.push(f.node);
         page.footH += f.h;
       });
     }
     function noteH(item) {
-      return item.footnotes.reduce(function (s, f) { return s + f.h; }, 0);
+      var h = item.footnotes.reduce(function (s, f) { return s + f.h; }, 0);
+      return (h && !colNotes && !page.footnotes.length) ? h + FN_SEP : h;
     }
     function pageIsEmpty() {
       return page.usedH === 0 && (!page.run || !page.run.items.length) &&
@@ -3699,13 +4012,23 @@
         ? tryPlaceColFloat(f) : tryPlaceFloat(f);
     }
     function drainFloats() {
-      /* STRICT source order (LaTeX's float queue): stop at the first
-       * float that doesn't fit, so a page can never show Figure 3 in a
-       * band while Figure 2 is still deferred. Progress stays
-       * guaranteed — a fresh page force-places its first pending. */
-      while (pending.length) {
-        if (!placeFloat(pending[0])) break;
-        pending.shift();
+      /* Source order per float TYPE (LaTeX keeps figures in order and
+       * tables in order, each in its own sequence): a float that doesn't
+       * fit holds back the later floats of its type, so a page can never
+       * show Figure 3 while Figure 2 is still deferred — but (V3.920) a
+       * waiting table no longer holds back a figure, nor a figure a table
+       * (the case study's page-wide specifications table, which can only
+       * go to page 2, kept Figure 1 off page 1, where LaTeX sets it).
+       * Progress stays guaranteed — a fresh page force-places its first
+       * pending. */
+      var held = {};
+      for (var i = 0; i < pending.length;) {
+        var pf = pending[i];
+        var kind = pf.blockKind === 'table' ? 'table' : pf.blockKind === 'figure' ? 'figure' : 'other';
+        if (held[kind] || held.other || (kind === 'other' && Object.keys(held).length)) { i++; continue; }
+        if (placeFloat(pf)) { pending.splice(i, 1); continue; }
+        held[kind] = true;
+        i++;
       }
     }
     function flushFloatPages() {
@@ -3996,8 +4319,8 @@
          * page's remaining run capacity, the remainder splices in as
          * the next work item (block-atomic packing stranded white space
          * at every page end — this is LaTeX's own page-break model). */
-        if (!fits && item.blockKind === 'paragraph') {
-          var parts = _splitColItem(item, runCap - page.run.sumH, geom);
+        if (!fits && _splits(item)) {
+          var parts = _splitFlow(item, runCap - page.run.sumH, geom);
           if (parts) {
             runPut(parts[0]);
             addFootnotes(parts[0]);
@@ -4013,6 +4336,18 @@
           closeRun();
           newPage();
           page.run = { items: [], sumH: 0 };
+          /* V3.920 — a breakable block taller than the fresh page breaks
+           * again there (a long longtable runs over several pages) */
+          var runCapN = cols * (remaining() - fH);
+          if (_splits(item) && item.h > runCapN) {
+            var partsN = _splitFlow(item, runCapN, geom);
+            if (partsN) {
+              runPut(partsN[0]);
+              addFootnotes(partsN[0]);
+              work.splice(wi + 1, 0, partsN[1]);
+              continue;
+            }
+          }
           runPut(item);
           addFootnotes(item);
           if (item.h > cols * cap) page.overflow = true;
@@ -5071,8 +5406,9 @@
         if (!flow || !flow.children.length) return;
         var bslot = col.querySelector(':scope > .pdv-col-float-bottom');
         var tslot = col.querySelector(':scope > .pdv-col-float-top');
-        var colFoot = bslot ? bslot.offsetTop : col.offsetTop + col.offsetHeight;
-        spread(flow, colFoot - (flow.offsetTop + flow.offsetHeight), tslot ? 2 : 0, bslot ? 2 : 0);
+        var notes = col.querySelector(':scope > .pdv-col-notes');
+        var colFoot = notes ? notes.offsetTop : bslot ? bslot.offsetTop : col.offsetTop + col.offsetHeight;
+        spread(flow, colFoot - (flow.offsetTop + flow.offsetHeight), tslot ? 2 : 0, (bslot && !notes) ? 2 : 0);
       });
     });
   }
@@ -5092,7 +5428,19 @@
       flow.className = 'pdv-col-flow';
       c.items.forEach(function (n) { flow.appendChild(n); });
       col.appendChild(flow);
-      if (c.floatBottom) col.appendChild(_mountColFloat(c.floatBottom, 'bottom'));
+      /* V3.920 — this column's footnotes at its foot, above a bottom
+       * float (LaTeX's \@makecol: text, footnotes, then \@cflb) */
+      if (c.notes && c.notes.length) {
+        var fns = document.createElement('div');
+        fns.className = 'pdv-footnotes pdv-col-notes';
+        c.notes.forEach(function (n) { fns.appendChild(n); });
+        col.appendChild(fns);
+      }
+      if (c.floatBottom) {
+        var bs = _mountColFloat(c.floatBottom, 'bottom');
+        if (c.notes && c.notes.length) bs.style.marginTop = '0px';
+        col.appendChild(bs);
+      }
       strip.appendChild(col);
     });
     return strip;

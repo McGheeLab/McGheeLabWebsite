@@ -557,7 +557,10 @@
     items.forEach(function (it) {
       while (depth < it.depth) { depth++; out += ind(depth) + '\\begin{' + env + '}\n'; }
       while (depth > it.depth) { out += ind(depth) + '\\end{' + env + '}\n'; depth--; }
-      out += ind(depth + 1) + '\\item ' + paragraphTextToTex(it.text, template) + '\n';
+      /* V3.920 — an item that opens with "[" ("[DATA: …]") would be read as
+       * \item's optional label and hang into the margin as the marker */
+      var itx = paragraphTextToTex(it.text, template);
+      out += ind(depth + 1) + '\\item ' + (/^\s*\[/.test(itx) ? '{}' : '') + itx + '\n';
     });
     while (depth > 0) { out += ind(depth) + '\\end{' + env + '}\n'; depth--; }
     return out + '\\end{' + env + '}\n';
@@ -665,8 +668,9 @@
   var _usedRmTable = false;    // V3.918 — \rmTable (two-column tables)
 
   /* V3.918 — tables in a two-column layout, the way journals set them.
-   * TeX measures the table set without wrapping (\rmTnat; a column that
-   * wraps when printed counts at most a third of the column): wider than a
+   * TeX measures the table set without wrapping (\rmTnat, its body rows —
+   * a header wraps, as journals set one; a column that wraps when printed
+   * counts at most a third of the column): wider than a
    * column → table*, across the page; otherwise it stays in the column.
    * Then it measures each row at the width it will print and starts a new
    * float when the page is full, headed "Table N (continued)" with the
@@ -703,7 +707,7 @@
     '  \\else\\ifx\\rmTspan\\rmT@colkw \\rmT@widefalse',
     '  \\else',
     '    \\setbox\\rmT@box\\hbox{\\rmTsetup\\let\\rmTR\\rmT@plain',
-    '      \\rmT@tab\\rmTnat{\\rmTtop\\rmThead\\the\\rmT@all\\rmTbottom}}%',
+    '      \\rmT@tab\\rmTnat{\\rmTtop\\the\\rmT@all\\rmTbottom}}%',   // the body rows: a header may wrap
     '    \\ifdim\\wd\\rmT@box>\\columnwidth \\rmT@widetrue \\else \\rmT@widefalse \\fi',
     '  \\fi\\fi',
     '  \\rmT@max=\\textheight',
@@ -747,8 +751,13 @@
   /* One table as \rmTable input (see RM_TABLE_TEX). t: {span, place,
    * placeStar, nat, spec, setup, top, head, bottom, caption, capMeasure,
    * capAbove, numbered, notes, before, after, rows: [{lead, tex}]}. */
-  function _rmTableTex(t) {
+  function _rmTableTex(t, template) {
     _usedRmTable = true;
+    /* V3.920 — the size the class sets its table floats in (IEEEtran:
+     * \footnotesize), so the width test and the row heights are measured
+     * in the type that prints */
+    var lkT = template && template._look && template._look.table;
+    if (lkT && lkT.font) t.setup = '\\' + lkT.font + (t.setup || '');
     function d(name, v) { return '\\def\\' + name + '{' + (v || '') + '}'; }   // one per line (vertical mode)
     var out = ['\\begingroup',
       d('rmTspan', t.span), d('rmTplace', t.place), d('rmTplaceStar', t.placeStar),
@@ -1056,7 +1065,11 @@
        * is a panel only when stripping it leaves a valid `prefix:slug`
        * label (i.e. the remainder still contains a colon). */
       var label = inner, panel = null;
-      var mm = inner.match(/^(.+:[^:]+):([A-Za-z]+(?:-[A-Za-z]+)?)$/);
+      var mm = inner.match(/^(.+:[^:]+):([A-Za-z]+(?:-[A-Za-z]+)?)$/) ||
+        /* V3.920 — a label without its prefix (the paper-bundle format:
+         * `label: "system"`, `[!fig:system:C]`) takes a one- or two-letter
+         * panel too; it compiled to \ref{system:C}, "Figure ??" */
+        inner.match(/^([^:]+):([A-Za-z]{1,2}(?:-[A-Za-z]{1,2})?)$/);
       if (mm) { label = mm[1]; panel = mm[2]; }
       /* template.refs.figure.prefix puts the "Fig.~" word in the PDF
        * (the editor chip always showed it; export used to drop it, so
@@ -1174,9 +1187,15 @@
      * tokens, citations) now that the markdown passes are done. The
      * placeholders are private-use code points that markdown never
      * touched. */
-    out = out.replace(/\uE000(\d+)\uE001/g, function (_m, idx) {
-      return frags[Number(idx)] || '';
-    });
+    /* V3.920 \u2014 a fragment can hold placeholders of its own (math inside a
+     * \textbf{\u2026} written in the paper's LaTeX: the command is protected
+     * whole after its $\u2026$ was), so reinsert until none is left; one pass
+     * left "\textbf{Plunger seat (0)}" in the PDF */
+    for (var pass = 0; pass < 6 && /\uE000\d+\uE001/.test(out); pass++) {
+      out = out.replace(/\uE000(\d+)\uE001/g, function (_m, idx) {
+        return frags[Number(idx)] || '';
+      });
+    }
     return out;
   }
 
@@ -1775,7 +1794,7 @@
             noteLines.map(function (n) { return cellTex(n, template); }).join('\\par ') + '\\par}' : '',
           before: tabSpacingTex && tabSpacingTex.before, after: tabSpacingTex && tabSpacingTex.after,
           rows: bodyRows,
-        });
+        }, template);
       }
 
       var lines = [];
@@ -1871,7 +1890,7 @@
           caption: capR, capMeasure: parts.captionText ? 'Table 99. ' + parts.captionText : '',
           capAbove: parts.captionAbove, numbered: !!parts.caption && !/^\\caption\*/.test(parts.caption),
           notes: '', before: '', after: '', rows: parts.rows,
-        });
+        }, template);
       }
       return _floatRawTex(attrs.raw_tex, template);
     }
@@ -1964,7 +1983,10 @@
     keys.forEach(function (key) {
       var entry = citationByKey ? citationByKey[key] : null;
       if (!entry) {
-        lines.push('% @misc{' + key + ', note = "MISSING from data/items.json paper-library — add it before submission" }');
+        /* V3.920 — a real entry (BibTeX has no % comments: the old "% @misc"
+         * line was read as an entry anyway and printed an internal file
+         * path); the Document view prints the same words */
+        lines.push('@misc{' + key + ', note = {Reference not in the lab library: ' + bibEscape(key) + ' --- add it before submission} }');
         lines.push('');
         return;
       }

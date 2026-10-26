@@ -8416,6 +8416,12 @@
   function getCitedKeysInPaper() {
     var keys = Object.create(null);
     walkProseTexts(function (text) {
+      /* V3.920 — \cite{a,b} in the paper's own LaTeX counts too (the PDF
+       * cites it; the Document view's References left it out) */
+      var rc = /\\(?:cite|citep|citet|citealp|citealt|citeauthor|citeyear|parencite|textcite|autocite)\*?(?:\[[^\]]*\]){0,2}\{([^}]*)\}/g, mc;
+      while ((mc = rc.exec(text))) {
+        mc[1].split(',').forEach(function (k) { k = (k || '').trim(); if (k && /^[\w:.\-+/]+$/.test(k)) keys[k] = true; });
+      }
       var re = /\[@([^\]\n]+)\]/g;
       var m;
       while ((m = re.exec(text))) {

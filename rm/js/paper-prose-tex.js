@@ -466,28 +466,39 @@
     /* column alignments: l c r, p{…}/m{…}/b{…}/X → l, ignore | @{} >{} <{}
      * V3.918 — and each column's width: p{3cm} is fixed, an l/c/r column
      * is as wide as its widest cell (null) */
-    var al = '', widths = [];
+    var al = '', widths = [], justify = [], pre = '';
     for (var k = 0; k < spec.length; k++) {
       var ch = spec.charAt(k);
       if (ch === '{') { var ge = matchGroup(spec, k, '{', '}'); k = ge < 0 ? k : ge; continue; }
       if (ch === '@' || ch === '>' || ch === '<' || ch === '!') {
         var ne = spec.indexOf('{', k);
-        if (ne >= 0) { var ge2 = matchGroup(spec, ne, '{', '}'); k = ge2 < 0 ? k : ge2; }
+        if (ne >= 0) {
+          var ge2 = matchGroup(spec, ne, '{', '}');
+          if (ch === '>' && ge2 > 0) pre = spec.slice(ne + 1, ge2);
+          k = ge2 < 0 ? k : ge2;
+        }
         continue;
       }
-      if (/[lcr]/.test(ch)) { al += ch; widths.push(null); }
+      if (/[lcr]/.test(ch)) { al += ch; widths.push(null); justify.push(false); pre = ''; }
       else if (/[pmbXLCRS]/.test(ch)) {
-        al += ch === 'C' ? 'c' : ch === 'R' || ch === 'S' ? 'r' : 'l';
+        /* V3.918/920 — >{\centering} / >{\raggedleft} / >{\raggedright}
+         * set a p{} column's alignment; a bare p{} is justified (TeX) */
+        var ragged = /\\(raggedright|RaggedRight|centering|raggedleft|RaggedLeft)\b/.exec(pre);
+        al += ch === 'C' ? 'c' : ch === 'R' || ch === 'S' ? 'r'
+          : ragged ? (/centering/.test(ragged[1]) ? 'c' : /left/i.test(ragged[1]) ? 'r' : 'l') : 'l';
         var wd = null;
         if (/[pmb]/.test(ch) && spec.charAt(k + 1) === '{') {
           var we = matchGroup(spec, k + 1, '{', '}');
           if (we > 0) { wd = texWidth(spec.slice(k + 2, we)); k = we; }
         }
         widths.push(wd);
+        justify.push(/[pmb]/.test(ch) && !ragged);
+        pre = '';
       }
     }
     out.align = al;
     out.widths = widths;
+    out.justify = justify;
     /* rows: split on \\ at brace depth 0, cells on & at depth 0 */
     var rowsSrc = [], cur = '', depth = 0;
     for (var p = 0; p < body.length; p++) {

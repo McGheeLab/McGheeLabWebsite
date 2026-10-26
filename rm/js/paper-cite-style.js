@@ -61,8 +61,18 @@
 
     function scan(text) {
       if (!text) return;
-      var re = /\[@([^\]\n]+)\]/g, m;
+      /* V3.920 — and \cite{a,b} written in the paper's own LaTeX (an
+       * imported paper): the PDF numbers those in the same text order,
+       * so skipping them shifted every later number */
+      var re = /\[@([^\]\n]+)\]|\\(?:cite|citep|citet|citealp|citealt|citeauthor|citeyear|parencite|textcite|autocite)\*?(?:\[[^\]]*\]){0,2}\{([^}]*)\}/g, m;
       while ((m = re.exec(text))) {
+        if (m[2] != null) {
+          m[2].split(',').forEach(function (k) {
+            k = (k || '').trim();
+            if (k && /^[\w:.\-+/]+$/.test(k) && !(k in numbers)) numbers[k] = ++counter;
+          });
+          continue;
+        }
         /* V3.645 — skip `[@item:KEY]` inventory references. Without
          * this they consume citation numbers, shifting every real
          * citation in the paper by one. */
@@ -82,7 +92,7 @@
       children.forEach(function (blk) {
         if (!blk || typeof blk.get !== 'function') return;
         var kind = blk.get('kind');
-        if (kind === 'paragraph' || kind === 'figure') scan(_yStr(blk.get('body')));
+        if (kind === 'paragraph' || kind === 'figure' || kind === 'list') scan(_yStr(blk.get('body')));   // V3.920 — lists cite too
         if (kind === 'paragraph') {
           var sk = blk.get('skeleton_items');
           if (sk && typeof sk.forEach === 'function') {
@@ -91,7 +101,10 @@
         }
         if (kind === 'table') {
           var attrs = blk.get('attrs');
-          if (attrs && typeof attrs.get === 'function') scan(_yStr(attrs.get('caption')));
+          if (attrs && typeof attrs.get === 'function') {
+            scan(_yStr(attrs.get('caption')));
+            scan(_yStr(attrs.get('raw_tex')));   // V3.920 — an imported table's own \cite
+          }
         }
       });
     });
