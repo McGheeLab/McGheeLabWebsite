@@ -7,7 +7,9 @@
    change reaching the owner and everyone, two edits merging, a clash
    landing in the owner's conflicts, the owner's fields kept, access
    taken away, a project with its themes and notes, a member's own
-   project of the same id left alone, files following their records.
+   project of the same id left alone, files following their records,
+   and (V3.921) a collaborator's side losing its copies never deleting
+   the owner's originals.
    Run: node functions/test/scientia-share.test.js
    ================================================================ */
 'use strict';
@@ -197,6 +199,33 @@ function review(env, uid, extra) {
   await test('Alex adds a theme → Bea gets it', async () => {
     await push(P, 'A', [put('themes', { id: 't_2', projectId: 'p_1', name: 'Direction', status: 'active' })]);
     assert.ok(rowOf(P, 'B', 'themes', 't_2'));
+  });
+
+  /* ---- V3.921: a collaborator's side losing its copies never deletes the owner's originals ---- */
+  await test('Bea’s hub loses the shared notes (her desktop replaced it) → Alex keeps them, Bea gets them back', async () => {
+    const lost = ['n_1', 'nb_1'].map(id => ({ store: id.startsWith('nb') ? 'blocks' : 'documents', id, del: true, rec: null }));
+    const r = await push(P, 'B', lost, 'desk');
+    assert.ok(rowOf(P, 'A', 'documents', 'n_1'), 'Alex’s note stays'); assert.ok(rowOf(P, 'A', 'blocks', 'nb_1'), 'and its component');
+    assert.ok(rowOf(P, 'B', 'documents', 'n_1'), 'Bea’s copy is back'); assert.ok(rowOf(P, 'B', 'blocks', 'nb_1'));
+    assert.strictEqual(r.in, 0);
+  });
+  await test('Bea deletes the shared project itself → Alex keeps it; her copy comes back', async () => {
+    await push(P, 'B', [{ store: 'projects', id: 'p_1', del: true, rec: null }], 'desk');
+    assert.ok(rowOf(P, 'A', 'projects', 'p_1')); assert.ok(rowOf(P, 'B', 'projects', 'p_1'));
+  });
+  await test('…and the hourly pass does not delete them either when her copies vanish without a relay', async () => {
+    const hb = P.memoryHub('B');
+    await hb.push({ dev: 'desk', name: 'Desktop', ops: ['n_1', 'n_bea'].map(id => ({ store: 'documents', id, rec: null, del: true, prev: null, base: 1e15 })) });
+    P.t += S.SHARES_MS + 1;
+    await S.syncShares(P, 'A');
+    assert.ok(rowOf(P, 'A', 'documents', 'n_1'), 'Alex’s own note stays');
+    assert.ok(rowOf(P, 'B', 'documents', 'n_1'), 'and is back in Bea’s Scientia');
+  });
+  await test('Bea deletes a note she wrote herself → it leaves Alex’s project too', async () => {
+    await push(P, 'B', [put('documents', { id: 'n_bea2', projectId: 'p_1', themeId: 't_1', title: 'Scratch', blockIds: [] })]);
+    assert.ok(rowOf(P, 'A', 'documents', 'n_bea2'));
+    await push(P, 'B', [{ store: 'documents', id: 'n_bea2', del: true, rec: null }]);
+    assert.strictEqual(rowOf(P, 'A', 'documents', 'n_bea2'), null);
   });
 
   /* ---- the same RM project assigned to both ---- */

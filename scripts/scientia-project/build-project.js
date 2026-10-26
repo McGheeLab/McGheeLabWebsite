@@ -10,7 +10,8 @@
    *italic*, $math$, $$display math$$, [[cite:key]], [[note:key|words]], "• " and "1. " lines), figure (images in a
    grid), html (a self-contained page, shown in Scientia's sandboxed frame), eq (LaTeX + term legend, parsed by
    Scientia's own TEX so the legend keys match), calc, protocol (a registered protocol: its own protocol note), plate,
-   noteref. A text item can carry a structure on its first line (claim, question, decision, barrier, result,
+   noteref (V3.922: a protocol can be `keep: true`, kept in its note; a wire end '#<blockId>' is a component of another
+   note; `project.existing` builds into a project the hub already has). A text item can carry a structure on its first line (claim, question, decision, barrier, result,
    takeaway…), recorded under the project so it shows on the project page.
 
    Records follow Scientia's own shapes (scientia/src/04-model.js, 13x-figure.js, 13g-embed.js, 13n-eq.js,
@@ -51,7 +52,9 @@ const TEX = (() => { const src = fs.readFileSync(path.join(ROOT, 'scientia/src/1
 /* ---------- records ---------- */
 const rec = { projects: [], themes: [], aims: [], documents: [], blocks: [], items: [], wires: [], media: [] };
 const P = spec.project;
-rec.projects.push({ id: P.id, name: P.name, status: 'active', created: CREATED });
+/* V3.922 — `project.existing`: the notes go into a project the hub already has (an RM project the hub mirrors,
+   rm-p-…), whose record belongs to the mirror; never written or removed here */
+if (!P.existing) rec.projects.push({ id: P.id, name: P.name, status: 'active', created: CREATED });
 for (const t of spec.themes) rec.themes.push({ id: t.id, projectId: P.id, name: t.name, question: t.question || '', status: 'active', supersedes: [], supersededBy: [], created: CREATED, reshapedAt: null });
 for (const a of spec.aims || []) {
   const sum = a.milestones.reduce((s, m) => s + m.weight, 0);
@@ -161,7 +164,10 @@ function makeItem(doc, nk, it, w) {
     b.body = { text: b.label, marks: [] };
   } else if (it.kind === 'protocol') {
     const steps = it.steps.map((t, i) => ({ id: hid('st', doc.id + ':' + key + ':' + i), text: t, created: CREATED, status: 'live', supersedes: [], supersededBy: [] }));
-    b = base(doc, key, { kind: 'protocol', label: it.label, w, registered: { docId: doc.id, projectId: P.id, themeId: doc.themeId || null, at: CREATED }, localOnly: false, log: [], steps });
+    /* V3.922 — `keep: true`: kept in its note (Scientia's localOnly), runnable where it sits, so several procedures
+       can live in one planning note; a registered protocol gets a protocol note of its own */
+    b = base(doc, key, { kind: 'protocol', label: it.label, w, registered: it.keep ? null : { docId: doc.id, projectId: P.id, themeId: doc.themeId || null, at: CREATED },
+      localOnly: !!it.keep, log: [], steps });
     b.body = { text: [b.label, ...steps.map((s, i) => `${i + 1}. ${s.text}`)].join('\n'), marks: [] };
   } else if (it.kind === 'plate') {
     b = base(doc, key, { kind: 'plate', label: it.label || 'Plate', fmt: it.fmt || 96, mode: 'color', infoShow: !!it.infoShow, wells: it.wells, legend: it.legend || {}, stage: 'plan', w: w || 616 });
@@ -208,8 +214,9 @@ for (const n of spec.notes) {
 }
 
 /* wires: 'noteKey:itemKey' ends */
+const wireEnd = k => String(k).startsWith('#') ? { id: String(k).slice(1) } : BLOCK[k];   // '#<blockId>': a component of another note (V3.922)
 for (const w of spec.wires || []) {
-  const A = BLOCK[w.from], Z = BLOCK[w.to];
+  const A = wireEnd(w.from), Z = wireEnd(w.to);
   if (!A || !Z) throw new Error('wire end missing ' + JSON.stringify(w));
   rec.wires.push({ id: hid('w', w.from + '>' + w.to + ':' + w.rel), from: A.id, to: Z.id, rel: w.rel, directed: w.rel !== 'related' && w.directed !== false, created: CREATED });
 }
@@ -240,6 +247,21 @@ function staleOps(cur) {
   return out;
 }
 const DEV = spec.device || { id: 'dv_project_builder', name: 'Project builder' };
+/* V3.922 — `reviews: [{ docId, addProjectIds, removeProjectIds }]`: re-link a literature review to this project by changing
+   ONLY its review.projectIds on the record the hub holds now (anything else the person changed in the review stays) */
+function reviewOps(cur) {
+  const out = [];
+  for (const r of spec.reviews || []) {
+    const doc = cur.get('documents\u0000' + r.docId);
+    if (!doc || !doc.review) { console.log('review ' + r.docId + ': not in this hub — skipped'); continue; }
+    const ids = (doc.review.projectIds || []).filter(x => !(r.removeProjectIds || []).includes(x));
+    for (const x of r.addProjectIds || []) if (!ids.includes(x)) ids.push(x);
+    if (JSON.stringify(ids) === JSON.stringify(doc.review.projectIds || [])) continue;
+    out.push({ store: 'documents', id: doc.id, rec: Object.assign({}, doc, { review: Object.assign({}, doc.review, { projectIds: ids }) }), del: false });
+    console.log('review ' + r.docId + ': projects ' + JSON.stringify(doc.review.projectIds || []) + ' → ' + JSON.stringify(ids));
+  }
+  return out;
+}
 async function pushLocal(base) {
   for (const m of rec.media) {
     const r = await fetch(`${base}/api/media?id=${m.id}&ext=${m.ext}`, { method: 'POST', body: fs.readFileSync(m._file), headers: { 'Content-Type': 'application/octet-stream' } });
@@ -247,7 +269,7 @@ async function pushLocal(base) {
   }
   const st = await (await fetch(`${base}/api/sync/state`)).json();
   const cur = new Map(); for (const [store, rows] of Object.entries(st.stores || {})) for (const r of rows || []) cur.set(store + '\u0000' + r.id, r);
-  const del = staleOps(cur); if (del.length) console.log('removing ' + del.length + ' records the spec no longer has');
+  const del = staleOps(cur).concat(reviewOps(cur)); if (del.length) console.log('removing / re-linking ' + del.length + ' records');
   const body = { anySid: true, dev: DEV.id, name: DEV.name, ops: ops.concat(del).map(o => Object.assign({}, o, { prev: cur.get(o.store + '\u0000' + o.id) || null, base: st.syncSeq || 0 })) };
   const r = await (await fetch(`${base}/api/sync/push`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
   console.log('local push:', JSON.stringify(r).slice(0, 300));
@@ -259,7 +281,7 @@ async function pushCloud(uid, commit) {
   const hub = new FirestoreHub(uid), st = await hub.loadState();
   const rows = new Map(); for (const r of await hub.allRows()) rows.set(r.store + '\u0000' + r.id, r.rec);
   const same = o => JSON.stringify(rows.get(o.store + '\u0000' + o.id)) === JSON.stringify(o.rec);
-  const fresh = ops.filter(o => !rows.has(o.store + '\u0000' + o.id)).length, changed = ops.filter(o => rows.has(o.store + '\u0000' + o.id) && !same(o)).length, del = staleOps(rows);
+  const fresh = ops.filter(o => !rows.has(o.store + '\u0000' + o.id)).length, changed = ops.filter(o => rows.has(o.store + '\u0000' + o.id) && !same(o)).length, del = staleOps(rows), relink = reviewOps(rows);
   const cites = [...new Set(Object.values(LIB))], libMissing = cites.filter(id => !rows.has('library\u0000' + id));
   const have = (await hub.mediaList()).files || {};
   const upload = rec.media.filter(m => !have[m.path]);
@@ -272,7 +294,7 @@ async function pushCloud(uid, commit) {
     for (let i = 1; ; i++) { try { await hub.mediaPut(m.path, bytes, m.mime); break; } catch (e) { if (i >= 4) throw e; console.log(`  upload ${m.path}: ${e.code || e.message} — try ${i + 1} of 4`); await new Promise(r => setTimeout(r, 3000 * i)); } }
     console.log(`  media ${++up}/${upload.length}: ${m.path} (${m.name})`);
   }
-  const push = ops.filter(o => !same(o)).concat(del);
+  const push = ops.filter(o => !same(o)).concat(del, relink);
   const r = await hub.push({ dev: DEV.id, conn: null, name: DEV.name, ops: push.map(o => Object.assign({}, o, { prev: rows.get(o.store + '\u0000' + o.id) || null, base: st.seq })) });
   console.log('cloud push:', JSON.stringify(r).slice(0, 300));
   if (libMissing.length && typeof hub.mirrorLibrary === 'function') console.log('library mirror:', JSON.stringify(await hub.mirrorLibrary({ force: true })).slice(0, 200));

@@ -1592,9 +1592,9 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-10-26T08:26:51-07:00",
-   "sha256": "9c9904a2ede5ca1db1ef16f0ff7c0b73e0eef9ef5dd744a57bb391d108a26f56",
-   "size": 82,
+   "deployedAt": "2026-10-26T11:38:39-07:00",
+   "sha256": "0e4d0d1f8d8762ddba22f29c70cc87eebe84d520fc5f590f8d546a495660bb7e",
+   "size": 83,
    "via": "verify"
   },
   "rm/css/activity-overview.css": {
@@ -1946,9 +1946,9 @@
    "via": "verify"
   },
   "rm/data/paper-templates/plos.json": {
-   "deployedAt": "2026-10-25T10:55:13-07:00",
-   "sha256": "26a6b2d242f762ee5605d7320fd200025f62f541c8aefb5b31a924cb171f3aae",
-   "size": 47826,
+   "deployedAt": "2026-10-26T11:38:39-07:00",
+   "sha256": "2a687de1ad105e682432c42c4f8889c93929b409f1c82eb7f7c6cffcaac7db39",
+   "size": 49153,
    "via": "verify"
   },
   "rm/data/paper-templates/pnas-new.json": {
@@ -2996,9 +2996,9 @@
    "via": "baseline"
   },
   "rm/js/paper-doc-view.js": {
-   "deployedAt": "2026-10-26T08:26:51-07:00",
-   "sha256": "765aacddf35e6d94e5fbe8753a1429bd0d97e082735bfccf0846cc693c7531ab",
-   "size": 359473,
+   "deployedAt": "2026-10-26T11:38:39-07:00",
+   "sha256": "ed54a34a85a360588c96aed89138daee4c396e6878891859f0ca07cbe7d03713",
+   "size": 373348,
    "via": "verify"
   },
   "rm/js/paper-editor.js": {
@@ -3038,15 +3038,15 @@
    "via": "baseline"
   },
   "rm/js/paper-export-tex.js": {
-   "deployedAt": "2026-10-26T08:26:51-07:00",
-   "sha256": "e805eb3b20b3b039c37e74bc768e17791622a6ed32c83a4b1c4e436b075b7e14",
-   "size": 137524,
+   "deployedAt": "2026-10-26T11:38:39-07:00",
+   "sha256": "969521ad0e2cae27142d905063a6d94e518bb7cb5e1f8b95a3bcacd88b890772",
+   "size": 139008,
    "via": "verify"
   },
   "rm/js/paper-export.js": {
-   "deployedAt": "2026-10-25T18:10:10-07:00",
-   "sha256": "e2fe9715e07717432240e45d8c96b4a91dae2b9d15fc4ad369e6b866e248e9ca",
-   "size": 66750,
+   "deployedAt": "2026-10-26T11:38:39-07:00",
+   "sha256": "734e0366619b60f557ec96fc1213bcb822151346d7ae7855c67690d202b10fef",
+   "size": 66856,
    "via": "verify"
   },
   "rm/js/paper-fig-compose.js": {
@@ -3110,9 +3110,9 @@
    "via": "verify"
   },
   "rm/js/paper-look.js": {
-   "deployedAt": "2026-10-26T08:26:51-07:00",
-   "sha256": "044344bb0affe65b86c61b8f644b308bd44e2d3caeeb5d91a47f8cc494fc9f4f",
-   "size": 56238,
+   "deployedAt": "2026-10-26T11:38:39-07:00",
+   "sha256": "a1fbea2732d1898eb1c29db93c5dc111a1238c733b397612f2930ae2af4a071b",
+   "size": 71981,
    "via": "verify"
   },
   "rm/js/paper-overlay-import.js": {
@@ -4778,9 +4778,9 @@
    "via": "verify"
   },
   "rm/vendor/fonts/LICENSES.md": {
-   "deployedAt": "2026-10-25T13:17:18-07:00",
-   "sha256": "281130673d5b4a4ca8a5b39eebf26f26990399c0fdf67b2aa2059fb787ea9f67",
-   "size": 1269,
+   "deployedAt": "2026-10-26T11:38:39-07:00",
+   "sha256": "8576a0db729187d4d7ef0e46e826d1ff8ea1bd7d8c1e3d897eed2632969bb058",
+   "size": 1430,
    "via": "verify"
   },
   "rm/vendor/fonts/LibertinusSans-Bold.otf": {
@@ -4961,6 +4961,30 @@
    "deployedAt": "2026-10-25T10:55:13-07:00",
    "sha256": "6ae1a09d5a940367b7aaaa91ee8bd8a2c333bfe193e7096e23f931357d62081f",
    "size": 133600,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/texgyreheroscn-bold.otf": {
+   "deployedAt": "2026-10-26T11:38:39-07:00",
+   "sha256": "ba3b1a5915994b4186d0debe81ed0a45f482fde1750a7bc59b4649f505e4c627",
+   "size": 133220,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/texgyreheroscn-bolditalic.otf": {
+   "deployedAt": "2026-10-26T11:38:39-07:00",
+   "sha256": "af68d9d2e51c756a7b3ea05bbfc8501d561cbab7efd1c57da4202daf92b693e9",
+   "size": 138876,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/texgyreheroscn-italic.otf": {
+   "deployedAt": "2026-10-26T11:38:39-07:00",
+   "sha256": "bbafd5028dd4631d5320ee8c3caafccf34548dff79496f5373596ef164ada288",
+   "size": 138940,
+   "via": "verify"
+  },
+  "rm/vendor/fonts/texgyreheroscn-regular.otf": {
+   "deployedAt": "2026-10-26T11:38:39-07:00",
+   "sha256": "1ecf653e4245d8e95e913fa43e3cf7cc8f25e2ff03ba16df7db1a9e83a401a7a",
+   "size": 132372,
    "via": "verify"
   },
   "rm/vendor/fonts/texgyrepagella-bold.otf": {
@@ -5216,8 +5240,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-26T08:26:51-07:00",
-   "sha256": "691f9e587031bba82c4f705f82f7a6ecb24bb856e1feceb047ad563f75de4542",
+   "deployedAt": "2026-10-26T11:38:39-07:00",
+   "sha256": "bde50b7fe4100e6a35cda4eba9c1423a075e74783f563bed56d1bb84c6f9f093",
    "size": 9933,
    "via": "verify"
   },

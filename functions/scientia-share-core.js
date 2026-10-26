@@ -190,22 +190,34 @@ async function inbound(env, idx, uid, ops, { fan = true } = {}) {
   if (!ops.length) return { pushed: 0 };
   const keys = ops.map(o => ({ store: o.store, id: String(o.id) })), ownerHub = env.hub(idx.ownerUid);
   const [sh, cur] = await Promise.all([env.index.shadowsGet(idx.id, uid, keys), ownerHub.rowsGet(keys)]);
-  const out = [];
+  const out = [], restore = [];
   for (const o of ops) {
     const k = keyOf(o.store, o.id), s = sh.get(k), orow = cur.get(k), ocur = orow && isObj(orow.rec) ? orow.rec : undefined;
     const prev = s ? stripMark(s.rec) : null, base = s ? (s.ownerSeq || 0) : (orow ? (orow.seq || 0) : 0);
-    if (o.del || !isObj(o.rec)) { if (s && ocur !== undefined) out.push({ store: o.store, id: String(o.id), del: true, prev, base }); continue; }
+    if (o.del || !isObj(o.rec)) {
+      /* V3.921 — a collaborator removes only what came from them: the owner's row last written through this
+       * collaborator's relay device, never the shared project or review itself. Anything else missing on their side
+       * (a desktop that replaced their hub never had the copies — Alex's shared PE-bead project was deleted that way)
+       * is put back in their hub, and the owner's record stays. */
+      if (s && ocur !== undefined) {
+        const root = o.store === rootStore(idx.kind) && String(o.id) === String(idx.recId);
+        if (!root && orow.dev === ownerDev(uid)) out.push({ store: o.store, id: String(o.id), del: true, prev, base });
+        else restore.push({ store: o.store, id: String(o.id), rec: ocur, seq: orow.seq || 0 });
+      }
+      continue;
+    }
     if (s && sameish(o.rec, s.rec)) continue;   // only a timestamp moved
     out.push({ store: o.store, id: String(o.id), rec: protect(o.store, stripMark(o.rec), ocur, idx), prev, base });
   }
-  if (!out.length) return { pushed: 0 };
+  if (restore.length && idx.members && idx.members[uid]) await fanOut(env, Object.assign({}, idx, { members: { [uid]: idx.members[uid] } }), restore);
+  if (!out.length) return { pushed: 0, restored: restore.length };
   const names = idx.names || {};
   await ownerHub.push({ dev: ownerDev(uid), name: (names[uid] || 'A collaborator') + ' (shared)', ops: out });
   if (fan) {   // everyone, the collaborator too: a merge may have changed what they sent
     const now = await ownerHub.rowsGet(out.map(o => ({ store: o.store, id: o.id })));
     await fanOut(env, idx, out.map(o => { const r = now.get(keyOf(o.store, o.id)); return { store: o.store, id: o.id, rec: r && isObj(r.rec) ? r.rec : null, seq: r ? r.seq : 0 }; }));
   }
-  return { pushed: out.length };
+  return { pushed: out.length, restored: restore.length };
 }
 
 /** A read-only member changed a copy: it goes back to what was shared (their new records are left alone). */
