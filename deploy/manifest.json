@@ -1592,8 +1592,8 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-10-25T19:03:08-07:00",
-   "sha256": "8ab75f182e558a76f7cb834a864d123b57dabf75fc0a9c5c6864e176299717e9",
+   "deployedAt": "2026-10-25T23:13:45-07:00",
+   "sha256": "c83b1ad6171dd797f44edfb177791583c5679c18dac5169935fb72b00f3e13c6",
    "size": 82,
    "via": "verify"
   },
@@ -1760,9 +1760,9 @@
    "via": "verify"
   },
   "rm/css/paper-doc-view.css": {
-   "deployedAt": "2026-10-25T15:22:53-07:00",
-   "sha256": "e7b476895c1c41ad7fe309c6945036e628d1ea8d45ee92ff7505d0825379a7d8",
-   "size": 40069,
+   "deployedAt": "2026-10-25T23:13:45-07:00",
+   "sha256": "73d98c41d6e5c956507acaad860556f02eed0b7fe42435c43aa358ab58a321a8",
+   "size": 41142,
    "via": "verify"
   },
   "rm/css/paper-editor.css": {
@@ -2996,15 +2996,15 @@
    "via": "baseline"
   },
   "rm/js/paper-doc-view.js": {
-   "deployedAt": "2026-10-25T19:03:08-07:00",
-   "sha256": "1e690cab8a5979f481b50a107e8c4d804ddf24f7312a79b65f407e7e30ca3cf5",
-   "size": 324064,
+   "deployedAt": "2026-10-25T23:13:45-07:00",
+   "sha256": "5b42b537a45031c03f5de84db356002b7475bbbaeff05d38e2d4568a5d8e6b2c",
+   "size": 340088,
    "via": "verify"
   },
   "rm/js/paper-editor.js": {
-   "deployedAt": "2026-10-25T15:22:53-07:00",
-   "sha256": "0fd7f2b05ff4bb1bfedf76b1af950df13c8dc0bb168b7b155770512bb0b359f9",
-   "size": 381744,
+   "deployedAt": "2026-10-25T23:13:45-07:00",
+   "sha256": "a3416911e382ec24d5164d76f92e883cab622b2e2e20016c80037f6c7a4da2ac",
+   "size": 382117,
    "via": "verify"
   },
   "rm/js/paper-equations.js": {
@@ -3038,9 +3038,9 @@
    "via": "baseline"
   },
   "rm/js/paper-export-tex.js": {
-   "deployedAt": "2026-10-25T19:03:08-07:00",
-   "sha256": "0ee973674b3d5c7680339e7e8943a43cdc99af2bb3da0433b5e32808493bfd38",
-   "size": 123201,
+   "deployedAt": "2026-10-25T23:13:45-07:00",
+   "sha256": "1cf32d7e1679c18361a71aeee12a93ce962cea184c4d34db2b907a945b83d365",
+   "size": 135984,
    "via": "verify"
   },
   "rm/js/paper-export.js": {
@@ -3104,15 +3104,15 @@
    "via": "verify"
   },
   "rm/js/paper-layout-rules.js": {
-   "deployedAt": "2026-10-25T10:55:13-07:00",
-   "sha256": "499d0caaf1858e58e10904b0b30ea7ad5d7cfe38944c31c014274c260f7ca62b",
-   "size": 29731,
+   "deployedAt": "2026-10-25T23:13:45-07:00",
+   "sha256": "2dd730b37dcecefd748cb11a6c29548e646871eb393f0fd31d5bdc3404f9a9fc",
+   "size": 30437,
    "via": "verify"
   },
   "rm/js/paper-look.js": {
-   "deployedAt": "2026-10-25T18:10:10-07:00",
-   "sha256": "1baee60d880070f31e4773f7799f6231e7caac38cd928196c6f37e3b3a8b0657",
-   "size": 50449,
+   "deployedAt": "2026-10-25T23:13:45-07:00",
+   "sha256": "e653b5f39c7db5c570175c6579ebc8dfa2d925fda326416c35cabbd6d6e3ce60",
+   "size": 53298,
    "via": "verify"
   },
   "rm/js/paper-overlay-import.js": {
@@ -3134,9 +3134,9 @@
    "via": "baseline"
   },
   "rm/js/paper-prose-tex.js": {
-   "deployedAt": "2026-10-25T15:22:53-07:00",
-   "sha256": "56bcc2faac7782308ff23ef7ac0bd69dcbadc6c5b733456c8e823b33299b913d",
-   "size": 27880,
+   "deployedAt": "2026-10-25T23:13:45-07:00",
+   "sha256": "0097a71f10b5369e16ba44a4f6b7a59af690c908ebeaf3b5dd001c832aa22d1d",
+   "size": 38236,
    "via": "verify"
   },
   "rm/js/paper-schemas.js": {
@@ -5216,8 +5216,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-25T19:03:08-07:00",
-   "sha256": "f7aae9b9ade4d3927c0487d83fdf8295e796e89e6ba7f83b0364022f2e3bd05c",
+   "deployedAt": "2026-10-25T23:13:45-07:00",
+   "sha256": "5711b87a1e7628337b6e0ba0520145f5b87f7816cd0573c95a19aee522eb123e",
    "size": 9933,
    "via": "verify"
   },
