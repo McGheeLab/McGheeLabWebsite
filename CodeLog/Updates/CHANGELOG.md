@@ -11,6 +11,7 @@ Found by Gabe's Claude on his first FTP setup: the GoDaddy FTP server (Pure-FTPd
 ### Bug Fixes
 - `scripts/deploy.py` `ftp_connect`: connects by `tls_host(f)` — `ftp.tlsHost` when set, after checking it resolves to the same address as `ftp.host` (a server move raises "the site has moved servers… set tlsHost", instead of logging in to another machine); `host` stays the site's name because the macOS Keychain entry is filed under it. With `"tls": "always"` a TLS failure raises `RuntimeError("TLS failed and plain FTP is off …")` (plus a certifi hint for "self-signed certificate in certificate chain" / "local issuer") and nothing is sent.
 - `deploy/site.json` `ftp`: `"tls": "always"`, `"tlsHost": "p3plzcpnl504220.prod.phx3.secureserver.net"`.
+- (cont.) A `530` at login (TLS fine, password refused) raises "login refused for <user> … the saved password is wrong or out of date (macOS Keychain, MCGHEELAB_FTP_PASSWORD or scripts/.env)" in any `tls` mode: it was reported as "TLS failed", and under `auto` the refused password was retried over plain FTP. Seen after Alex changed the McGheeLab@ password (2026-10-26) while the Keychain still held the old one.
 - `ssl_context()`: certifi's roots are added whenever certifi is installed, not only when the default store is empty — Windows fills its root store lazily, so Python there can lack GoDaddy's root (Gabe's "self-signed certificate in certificate chain").
 
 ### Added

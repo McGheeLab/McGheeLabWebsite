@@ -788,6 +788,10 @@ def ftp_connect(cfg, password):
             c.set_pasv(True)
             return c, "FTPS (explicit TLS)"
         except Exception as e:
+            # TLS worked and the password did not: say so, and never retry that password over plain FTP
+            if isinstance(e, ftplib.error_perm) and str(e).startswith("530"):
+                raise RuntimeError(f"login refused for {user} ({e}): the saved password is wrong or out of date "
+                                   "(macOS Keychain, MCGHEELAB_FTP_PASSWORD or scripts/.env)") from e
             if mode == "always":  # never fall back: plain FTP sends the password in the clear
                 why = f"{e.__class__.__name__}: {e}"
                 if "local issuer" in why or "self-signed" in why:
