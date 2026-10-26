@@ -15,7 +15,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/)
 ### Changed
 - `scientia/CLAUDE.md`: links SETUP.md from the Git workflow section; the FTP access row says the account exists; the hook pushes Gabe's branch every turn, a new one included.
 
-## [V3.923] — 2026-10-26 — Scientia: the confocal bead ELISA rebuilt as one note in Source and sink; a collaborator's sync can no longer delete what you shared
+## [V3.923] — 2026-10-26 — Scientia: the confocal bead ELISA rebuilt as one note in Source and sink, calibrated on MESF beads; a collaborator's sync can no longer delete what you shared
 
 Plan: [CodeLog/ClaudesPlan/V3.923_confocal_bead_elisa_plan_relay_guard.md](../ClaudesPlan/V3.923_confocal_bead_elisa_plan_relay_guard.md).
 
@@ -26,6 +26,12 @@ Plan: [CodeLog/ClaudesPlan/V3.923_confocal_bead_elisa_plan_relay_guard.md](../Cl
 - `Research/bead_confocal_scientia/plan-spec.js` + `plan-heights.json`: the confocal bead ELISA as ONE planning note, *Confocal bead ELISA: simulations and experimental plan*, in the theme Confocal bead ELISA of `rm-p-source-and-sink` — Start here; 1 · What the literature sets (ten constraint cards, 20 wires in from the review's findings); 2a–2c · Simulations (binding, confocal image, plate read: the interactive simulator, what it models, what it decides); 3 · The parameter set (every value with its source and the experiment that measures it); Exp 01–13 as sections with their procedures kept in the note; Run order and data back. The review `d_lr3186c1484a` is re-linked from the deleted project to Source and sink.
 - `scripts/scientia-project/build-project.js`: `project.existing` (build into a hub project the RM mirror owns, never writing its record), protocol `keep: true` (Scientia `localOnly`), wire ends `'#<blockId>'` in another note, `reviews[]` (change only a review's `review.projectIds`).
 - `scripts/scientia-project/hub-deletions.js` (read only): which device deleted which records of a hub, and when, from the row tombstones.
+
+### Changed (Alex, mid-turn: "the goal is to take the MESF beads as the calibration beads for the ELISA bead standard … we dont have [a power meter], we do have MESF which we can calibrate for a power sensor proxy")
+- `Research/bead_confocal_protocols/make_protocols.py` (regenerated, `validate.cjs` 13/13): **Exp 01 · Laser power from the MESF beads** replaces the slide power meter — a laser-% ladder (0.1–20 %, fresh field per rung) on the Quantum R-PE MESF levels gives PE's linearity limit per objective, the responsivity k (DN per MESF per %), and with Exp 02's DN per photoelectron and the simulator's ≈0.09 photoelectrons per PE per frame per µW a µW-equivalent per % (calculator `k_dn`, `g_dn`, `e_uw`, `target_uw` → `uw_pct`, `pct_op`); the MESF wells at the start and end of every session are the power check. **Exp 10 · MESF calibration of the bead standard** makes the MESF beads the calibration (signal → MESF per bead per plate, the same read mode and plate; geometry transfer or 5-plane sum; flow cytometry as a cross-check), replacing the solution-PE reference route. Exp 02, 04, 05, 07 state power as the Exp 01 laser % and its µW-equivalent; Exp 12 reports the standard curve in MESF per bead; Exp 13's flow reference uses the MESF beads.
+- `Research/bead_confocal_scientia/protocols.json` regenerated; `plan-spec.js`: the literature constraints, sim 2b's decision, the parameter set (laser %, MESF wells on every plate, calibration line, standards in MESF), the run order and the aim milestones say MESF; `plan-heights.json` re-measured (143 boxes, 0 overlaps).
+- Simulator hints (`interactive/src/pe-bead-confocal.html`, `pe-bead-strategy.html`; pages rebuilt, checks within 0.53 % / 0.005 %) and the set-up diagrams (`setup_axr`, `setup_validation`; re-rendered) no longer mention a power meter.
+- `Research/PE_bead_confocal_experiments.md`, `PE_bead_confocal_assay_model.md`, `bead_confocal_protocols/README.md`: a dated note that µW means the MESF µW-equivalent and that MESF is the calibration standard.
 
 ### Changed
 - `Research/bead_confocal_scientia/README.md` describes the note, the publish order (deploy the relay fix, optional read-only check, dry run, commit) and the cause.

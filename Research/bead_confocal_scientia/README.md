@@ -39,7 +39,9 @@ node scripts/scientia-project/build-project.js Research/bead_confocal_scientia/p
 The dry run should report 1 theme, 1 aim, 1 note, 143 components, 6 structures, 20 wires, 14 media; the review re-link
 `["p_pebeadaxr0"] → ["rm-p-source-and-sink"]`. The 27 cited papers should already be in the library mirror (Alex added them on 24 Oct); any it lists missing show as "[missing]" chips until they are. Re-running is
 safe: ids and timestamps are fixed, so it updates in place and removes only records of this note the spec no longer has
-(id tag `cbe`). It never writes the Source and sink project record. Share it with Gabe again only after step 1.
+(id tag `cbe`). It never writes the Source and sink project record, and if the hub has no `rm-p-source-and-sink` it
+stops with "is not in hub … nothing written" (the id was taken from the hub's test fixtures; give the real one in
+`plan-spec.js` → `project.id`). Share it with Gabe again only after step 1.
 
 ## What deleted the old project
 

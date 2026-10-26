@@ -2,6 +2,8 @@
 
 *McGhee Lab deep-research report, October 2026 (revision 2).*
 
+> **Update 2026-10-26 (V3.923).** The lab has **no laser power meter**, and the **Quantum R-PE MESF beads are the calibration beads of the ELISA bead standard**. Exp 1 is now *Laser power from the MESF beads*: a laser-% ladder on the MESF levels gives PE's linearity limit, the signal per MESF per %, and (with Exp 2 and the simulator's photon budget) a µW-equivalent for each %; every µW in this document means that µW-equivalent. Exp 10 is now *MESF calibration of the bead standard*: each plate's MESF wells turn signal into MESF per bead, Exp 12 reports the standard curve in MESF per bead, and flow cytometry is a cross-check. The protocols in [bead_confocal_protocols/](bead_confocal_protocols/README.md) and the Scientia note are current; the text below is the 24 Oct version.
+
 **Conventions.**
 - Citations are [S1]–[S15], listed at the end.
 - **Derived** marks this report's own calculation from cited formulas.

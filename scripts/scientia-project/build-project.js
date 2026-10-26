@@ -280,6 +280,7 @@ async function pushCloud(uid, commit) {
   const { FirestoreHub } = require(ROOT + '/functions/scientia-hub.js');
   const hub = new FirestoreHub(uid), st = await hub.loadState();
   const rows = new Map(); for (const r of await hub.allRows()) rows.set(r.store + '\u0000' + r.id, r.rec);
+  if (P.existing && !rows.has('projects\u0000' + P.id)) { console.log(`project ${P.id} is not in hub ${uid}: nothing written (check the project id)`); return; }   // V3.923
   const same = o => JSON.stringify(rows.get(o.store + '\u0000' + o.id)) === JSON.stringify(o.rec);
   const fresh = ops.filter(o => !rows.has(o.store + '\u0000' + o.id)).length, changed = ops.filter(o => rows.has(o.store + '\u0000' + o.id) && !same(o)).length, del = staleOps(rows), relink = reviewOps(rows);
   const cites = [...new Set(Object.values(LIB))], libMissing = cites.filter(id => !rows.has('library\u0000' + id));

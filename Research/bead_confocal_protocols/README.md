@@ -5,6 +5,10 @@ importable protocol for the RM Protocols Builder. Every protocol has the purpose
 acquisition settings, live calculators for the numbers you would otherwise work out by hand, the procedure, the analysis, the
 decision it feeds and what to record. They follow revision 2 of [../PE_bead_confocal_assay_model.md](../PE_bead_confocal_assay_model.md).
 
+**V3.923 (2026-10-26):** no power meter in the lab. Exp 01 reads laser power from the Quantum R-PE MESF beads (a laser-% ladder
+gives PE's linearity limit and a µW-equivalent per %), and Exp 10 makes the MESF beads the calibration standard of the bead
+assay (MESF wells on every plate; the standard curve in MESF per bead). Every "µW" in the protocols is that µW-equivalent.
+
 ## Import
 
 1. Open `mcgheelab.com/rm/pages/protocols.html` and click **Import protocol**.
