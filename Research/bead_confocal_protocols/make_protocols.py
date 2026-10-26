@@ -140,80 +140,91 @@ def absorbed_expr(p, dwell, px, eps, lam):
 PROTOCOLS = []
 
 # ════════════════════════════════════════════════════════════════════════════════════════════════════
-# 01 — Laser power at the sample
+# 01 — Laser power from the MESF beads (V3.923: the lab has no power meter)
 PROTOCOLS.append(protocol(
-    1, "pe-ax-01-laser-power", "PE beads · Exp 01 · Laser power at the sample",
-    "Measure 561 nm power at the sample through the 10x and 20x against the NIS laser %, and pick the powers that keep PE linear.",
-    ["laser", "power-meter", "calibration"],
+    1, "pe-ax-01-laser-power", "PE beads · Exp 01 · Laser power from the MESF beads",
+    "No power meter: the Quantum R-PE MESF beads are the power sensor. A laser-% ladder gives where PE stays linear, the signal per MESF per % for each objective, and (with Exp 02 and the simulator) the µW-equivalent of each %.",
+    ["laser", "mesf", "power-proxy", "calibration"],
     [
         section("Overview", [
-            doc_header("Laser power at the sample", "Every later experiment is specified in µW at the sample, never in laser %.",
-                       ["Exp 01 of %d" % TOTAL, "≈45 min first time, 5 min per session after", "Instrument block"]),
-            callout("note", "Pins: peak irradiance at the focus, and from it the PE excitation rate, the saturation level and the "
-                            "bleaching dose per frame. The same laser % gives different power through the 10x and the 20x "
-                            "because the back aperture is filled differently, and the %-to-µW map drifts during a session."),
-            callout("assume", "Model prediction: with confocal weighting the image is 5 % below linear at I/Iₛ ≈ 0.08, which is "
-                              "≈2 µW at the sample through the 20x and ≈6–7 µW through the 10x (Iₛ ≈ 19 kW/cm² for R-PE at 561 nm). "
-                              "The beam-centre number in the calculator is the worst case; the whole image is ≈0.6–0.67 of it."),
-            callout("timing", "≈45 min first time; 5 min at the start and end of each quantitative session."),
+            doc_header("Laser power from the MESF beads", "There is no power meter: the MESF beads are the power sensor, and the same read calibrates every plate.",
+                       ["Exp 01 of %d" % TOTAL, "≈1 h first time, 5 min per session after", "Instrument block"]),
+            callout("note", "Pins: where PE emission stops being linear in laser % (measured on PE itself at the real dwell, which is "
+                            "what the 1–2 µW rule stands in for); the signal per MESF per laser % for each objective (laser power and "
+                            "detection together, tracked every session); and, with DN per photoelectron from Exp 02 and the "
+                            "simulator's photon budget, the µW-equivalent of each laser %."),
+            callout("assume", "Model: in the linear regime the integrated signal F = k × MESF × (laser %). The simulator predicts ≈0.18 "
+                              "photoelectrons per PE per frame at 2 µW, 2 µs and 0.43 µm pixels through the 20x/0.80 (≈0.09 per µW), "
+                              "and F 5 % below linear near 5–6 µW; the review caps the operating point at 1–2 µW until Exp 07. One "
+                              "MESF is the emission of one R-PE molecule in solution, so the MESF beads read like PE on a bead, with "
+                              "the environment caveats of the MESF method."),
+            callout("critical", "Check on the Bangs certificate the bead size and whether the R-PE sits on the surface (a shell, like "
+                                "the capture beads) or through the bead (a disc). Image the MESF beads in the same mode and with the "
+                                "same plane rule as the capture beads; Exp 05 measures both focus curves."),
+            callout("timing", "≈1 h first time per objective; 5 min at the start and end of each quantitative session."),
         ]),
         section("Materials", [
-            materials([("1", "ea", "Slide-format photodiode power sensor (Thorlabs S170C-type) and console"),
-                       ("1", "ea", "Lens tissue"),
+            materials([("1", "kit", "Quantum R-PE MESF beads (Bangs): blank + 4 levels, lot MESF values from the certificate"),
+                       ("", "", "PBS or the kit buffer; #1.5 glass-bottom plate"),
                        ("", "", "NIS-Elements with the 561 nm line enabled")]),
         ]),
         section("Settings", [
             settings([("Laser line", "561 nm"),
-                      ("Objectives", "10x/0.45 Plan Apo λD, then the 20x (read the NA on the barrel)"),
-                      ("Beam", "Stationary spot (point or stimulation mode) if NIS allows; otherwise a 512² scan at maximum zoom, and note that the reading is scan-averaged"),
-                      ("Meter wavelength", "561 nm"),
-                      ("Laser %", "0.1, 0.3, 1, 3, 10, 30, 100")]),
+                      ("Objectives", "20x (read the NA on the barrel), then the 10x/0.45 Plan Apo λD"),
+                      ("Pinhole", "1 AU"),
+                      ("Detector", "One HV and offset for the whole ladder: the brightest level at the top rung below 80 % of full scale (stop the ladder lower rather than change the HV)"),
+                      ("Scan", "Galvano, 2 µs, 2048² at zoom 1, one frame per field"),
+                      ("Laser %", "0.1, 0.2, 0.5, 1, 2, 5, 10, 20, each on a fresh field")]),
             BEFORE,
         ]),
         section("Calculator", [
-            calculator("Irradiance and PE saturation at the focus", [
-                inp("p_uw", "Power at the sample", 3, "µW", "slider", 0.1, 100, 0.1),
-                inp("na", "Objective NA", 0.75, ""),
-                inp("lam_ex", "Excitation wavelength", 0.561, "µm"),
-                inp("i_sat", "PE saturation irradiance", 19, "kW/cm²", hint="≈19 for R-PE at 561 nm"),
-                inp("target_s", "Target I/Iₛ (0.08 ≈ 5 % image sublinearity)", 0.08, "", "slider", 0.02, 0.5, 0.01),
+            calculator("From the MESF signal to a µW-equivalent", [
+                inp("k_dn", "Signal per MESF per laser % (fit of the ladder)", 0.12, "DN"),
+                inp("g_dn", "DN per photoelectron at this HV (Exp 02)", 2, "DN"),
+                inp("e_uw", "Simulator: photoelectrons per PE per frame per µW", 0.09, "", hint="0.09 for 20x/0.80, 2 µs, 0.43 µm pixels"),
+                inp("target_uw", "Operating point the simulations ask for", 1.5, "µW", "slider", 0.2, 10, 0.1),
             ], [
-                out("w0_um", "Focal spot radius (1/e²)", "0.433 * lam_ex / na", "µm", 3),
-                out("i0_kw", "Peak irradiance", "2 * p_uw * 1e-6 / (pi * (w0_um * 1e-4) ^ 2) / 1000", "kW/cm²", 2),
-                out("s_ratio", "I/Iₛ", "i0_kw / i_sat", "", 3),
-                out("sublin_pct", "Emission below linear at the beam centre", "100 * s_ratio / (1 + s_ratio)", "%", 1),
-                out("p_target_uw", "Power for the target I/Iₛ", "target_s * i_sat * 1000 * pi * (w0_um * 1e-4) ^ 2 / 2 / 1e-6", "µW", 2),
+                out("e_mesf", "Photoelectrons per MESF per laser %", "k_dn / g_dn", "e⁻", 4),
+                out("uw_pct", "µW-equivalent of 1 % laser", "e_mesf / e_uw", "µW", 3),
+                out("pct_op", "Laser % for the operating point", "target_uw / uw_pct", "%", 2),
             ]),
-            callout("note", "With [!var:p_uw] at NA [!var:na] the peak irradiance is [!var:i0_kw] and PE emission is "
-                            "[!var:sublin_pct] below linear. The power for I/Iₛ = [!var:target_s] is [!var:p_target_uw]."),
+            callout("note", "At [!var:k_dn] per MESF per % and [!var:g_dn] per photoelectron, 1 % laser is [!var:uw_pct] equivalent, so "
+                            "[!var:target_uw] needs [!var:pct_op] laser. The µW-equivalent rests on the simulator's collection and "
+                            "detector constants (±30–50 %); the linearity limit from the ladder is measured."),
         ]),
         section("Procedure", [
             heading("01", "Set up"),
-            step("Switch the 561 nm laser on at least 30 min before measuring, for a stable output."),
-            step("With the laser off, zero the meter. Set its wavelength to 561 nm."),
-            step("Put the sensor on the stage, centred under the 10x, with its active area at the focus (focus on the sensor surface in transmitted light)."),
-            heading("02", "Power ladder"),
-            step("Park the beam (stationary spot) or start a 512² scan at maximum zoom. Read µW at each laser %: 0.1, 0.3, 1, 3, 10, 30, 100."),
-            step("Read 0 % again at the end, to catch meter drift."),
-            step("Swap to the 20x, refocus on the sensor, and repeat the ladder."),
-            callout("critical", "A scanned beam is blanked during flyback, so a scanning reading is lower than the on-time "
-                                "power. Use a stationary spot when you can, and always note which mode you used."),
+            step("Laser on with the stand (the session's 2–3 h warm-up covers it). Vortex the MESF beads; one well per level plus the blank, as the kit says."),
+            step("Settle the beads with a 1 min plate spin at 100–300 g. Find them and focus in transmitted light; hold focus with Perfect Focus at the capture beads' plane rule (the equator until Exp 05 gives the flat point)."),
+            heading("02", "Laser-% ladder (once per objective)"),
+            step("Set the HV and offset once, on the brightest level at the top rung (below 80 % of full scale). Do not change them during the ladder."),
+            step("At each laser % (0.1, 0.2, 0.5, 1, 2, 5, 10, 20), take one frame of a fresh field of every level and of the blank, ≥ 30 beads per level."),
+            step("Repeat the 1 % rung at the end, to catch laser drift during the ladder."),
+            step("Swap to the 10x and repeat."),
+            callout("critical", "A fresh field for every rung: a second frame on the same beads carries the first frame's bleaching "
+                                "(≈0.05 % per frame at 2 µW-equivalent, far more at the top rungs)."),
             heading("03", "Every quantitative session"),
-            step("Read the % you will use (and one higher point) through the objective you will use, at the start and at the end of the session. A change of more than 5 % means the intensities need a drift correction."),
+            step("At the start and end of the session, image the MESF levels at the operating laser % (≥ 30 beads per level). The signal per MESF must stay within 5 % of this experiment's value; a larger change is laser or detector drift, and the plate is corrected with its own MESF slope. This read is also the plate's MESF calibration (Exp 10)."),
         ]),
         section("Analysis", [
-            step("Fit µW = a × (laser %) per objective over the linear part of the ladder; record a and the 20x/10x ratio at the same %."),
-            step("Enter the measured µW in the calculator with each objective's NA, and read the % that gives the target I/Iₛ (0.08)."),
+            step("Per bead: integrated signal within R + 2.5 µm minus the background ring; median per level per rung; subtract the blank."),
+            step("Linearity: signal against laser % on log–log axes, one line per level; fit the low rungs (slope 1). The rung where the signal falls 5 % below the line is PE's linearity limit through this objective. It should be the same % at every level; a level-dependent limit is detector non-linearity (check Exp 02)."),
+            step("Responsivity: over the linear rungs, fit signal = k × MESF × % across the levels (intercept at the blank). Record k, in DN per MESF per %, per objective with the HV used."),
+            step("µW-equivalent: enter k, the DN per photoelectron at this HV (Exp 02) and the simulator's photoelectrons per PE per frame per µW in the calculator. Read the µW-equivalent of 1 % and the % for the operating point."),
+            step("The 10x/20x ratio of k at the same % (back-aperture filling and collection together)."),
         ]),
         section("Decision & record", [
-            callout("note", "Decision: the laser % that gives the operating power for each objective (1–2 µW through the 20x, "
-                            "≈6 µW through the 10x, unless Exp 07 moves them). Record power in µW in every later plate map."),
+            callout("note", "Decision: the operating laser % for each objective: at most half the linearity limit, and near the µW-equivalent "
+                            "the simulations ask for (1–2 through the 20x, ≈6 through the 10x), unless Exp 07 moves it. Every later "
+                            "protocol states power as this laser % with its µW-equivalent."),
             record([("Date / time", "Start and end of the session"),
                     ("Objective", "Model and NA from the barrel"),
+                    ("MESF kit", "Lot and MESF per level"),
+                    ("Detector", "HV, offset, dwell, pixel size"),
                     ("Laser %", "Each rung of the ladder"),
-                    ("Power", "µW at the sample"),
-                    ("Mode", "Stationary spot or scan-averaged"),
-                    ("Meter", "Sensor model, wavelength setting")]),
+                    ("Signal", "Median per level per rung, beads analysed"),
+                    ("k", "DN per MESF per %, and the linearity limit (%)"),
+                    ("µW-equivalent", "Per 1 % laser, with the DN per photoelectron used")]),
             DATA,
         ]),
     ]))
@@ -278,7 +289,7 @@ PROTOCOLS.append(protocol(
             callout("note", "Decision: the HV at which the brightest expected rim pixel stays at or below 60–70 % of full scale "
                             "(confirmed in Exp 08), and the slope used to convert every later image to photoelectrons."),
             record([("HV", "Volts or NIS gain value"), ("Offset", "DN"), ("Read noise", "DN"),
-                    ("Slope", "DN per effective e⁻, with R²"), ("Powers", "µW at the sample for each rung")]),
+                    ("Slope", "DN per effective e⁻, with R²"), ("Powers", "Laser % for each rung (µW-equivalent from Exp 01)")]),
             DATA,
         ]),
     ]))
@@ -394,7 +405,7 @@ PROTOCOLS.append(protocol(
         section("Procedure", [
             heading("4a", "Point response"),
             step("Dry 10 µL of the diluted sub-resolution beads on the glass, then cover with water."),
-            step("For each objective and pinhole in the grid, z-stack ≥10 isolated beads at low power (1 µW at 20x, 3 µW at 10x)."),
+            step("For each objective and pinhole in the grid, z-stack ≥10 isolated beads at low power (the Exp 01 laser % for ≈1 µW-equivalent at 20x, ≈3 at 10x)."),
             heading("4b", "Plane response H(z)"),
             step("Add 200 µL of PE-antibody at 1 µg/mL to an empty glass-bottom well, wait 30 min at room temperature, wash 3× with PBS, leave PBS on."),
             step("Find the layer at very low power. Then for each objective and pinhole, z-scan through it to ±20 µm (the tails matter) at the steps in the grid. Use a fresh spot for every scan (the layer bleaches)."),
@@ -456,7 +467,7 @@ PROTOCOLS.append(protocol(
                       ("z", "From 6 µm below to 6 µm above the equator; 0.25 µm steps at 20x, 0.5 µm at 10x"),
                       ("Transmitted light", "Recorded at every plane (focus calibration and segmentation)"),
                       ("Sampling", "20 pixels per bead (0.4 µm pixels)"),
-                      ("Power", "1 µW at the sample (20x), 3 µW (10x)"),
+                      ("Power", "Exp 01 laser % for ≈1 µW-equivalent (20x), ≈3 (10x)"),
                       ("Dwell / frames", "1 µs, one frame per plane"),
                       ("Bleach check", "Re-acquire the first plane after the stack")]),
             BEFORE,
@@ -465,7 +476,7 @@ PROTOCOLS.append(protocol(
             calculator("Stack plan and bleaching", [
                 inp("z_half", "Half-range of the stack", 6, "µm"),
                 inp("z_step", "z step", 0.25, "µm"),
-                inp("p_uw", "Power at the sample", 1, "µW", "slider", 0.1, 30, 0.1),
+                inp("p_uw", "Power (µW-equivalent, Exp 01)", 1, "µW", "slider", 0.1, 30, 0.1),
                 inp("dwell_us", "Pixel dwell", 1, "µs"),
                 inp("px_um", "Pixel size", 0.4, "µm"),
                 inp("eps_pe", "PE extinction at 561 nm", 1.96e6, "M⁻¹cm⁻¹"),
@@ -597,7 +608,7 @@ PROTOCOLS.append(protocol(
         ]),
         section("Settings", [
             table([("part", "Part"), ("what", "Acquisition")], [
-                {"part": "7a", "what": "50 consecutive frames per power, fresh field each; 2 µs; 20 px per bead. 20x: 0.3, 1, 2, 3, 10, 30 µW. 10x: 1, 3, 6, 10, 30, 100 µW"},
+                {"part": "7a", "what": "50 consecutive frames per power, fresh field each; 2 µs; 20 px per bead. 20x: 0.3, 1, 2, 3, 10, 30 µW-equivalent. 10x: 1, 3, 6, 10, 30, 100 µW-equivalent (laser % from Exp 01)"},
                 {"part": "7b", "what": "In two 7a fields: pause 60 s after frame 25, then continue"},
                 {"part": "7c", "what": "First frame only, 6 powers, fresh field each"},
                 {"part": "7d", "what": "Equal dose three ways: 1 frame at 8 µs; 4 averaged frames at 2 µs; resonant with line integration to match"},
@@ -610,7 +621,7 @@ PROTOCOLS.append(protocol(
         ]),
         section("Calculator", [
             calculator("Dose, saturation and bleaching", [
-                inp("p_uw", "Power at the sample", 2, "µW", "slider", 0.1, 100, 0.1),
+                inp("p_uw", "Power (µW-equivalent, Exp 01)", 2, "µW", "slider", 0.1, 100, 0.1),
                 inp("na", "Objective NA", 0.75, ""),
                 inp("dwell_us", "Pixel dwell", 2, "µs"),
                 inp("px_um", "Pixel size", 0.4, "µm"),
@@ -649,7 +660,7 @@ PROTOCOLS.append(protocol(
         section("Analysis", [
             step("7a: integrated intensity per bead against frame n; fit I(n) = I(1)·exp(−k·(n − 1)). The yield is k divided by photons absorbed per frame (calculator). Plot k against dose: a straight line means the one-photon dose law holds."),
             step("7b: the fraction of the drop that recovers after the pause is the reversible dark state."),
-            step("7c: fit first-frame I = a·P/(1 + P/Pₛ). Pₛ and the Exp 01 spot size give Iₛ."),
+            step("7c: fit first-frame I = a·P/(1 + P/Pₛ), P in µW-equivalent (Exp 01). Pₛ and the focal spot size give Iₛ; run the MESF beads beside the capture beads in 7c, since they share the ladder of Exp 01."),
             step("7d: signal per unit dose for each mode, and bead-to-bead CV."),
             step("7e: ratio of k with and without antifade. 7f: intensity of the focused field divided by its neighbour."),
             step("7g: the integrated signal should scale linearly with the PE fraction; a shortfall at 100 % means dense PE quenches itself, which caps the top of the standard curve."),
@@ -657,7 +668,7 @@ PROTOCOLS.append(protocol(
         section("Decision & record", [
             callout("note", "Decision: the operating power (at most 5 % below linear), the scan mode, whether to use n-propyl gallate, "
                             "and the focusing rule."),
-            record([("Part / field", "7a–7f, field id"), ("Power", "µW at the sample"), ("Dwell, averages, mode", "Galvano or resonant"),
+            record([("Part / field", "7a–7f, field id"), ("Power", "Laser % and µW-equivalent (Exp 01)"), ("Dwell, averages, mode", "Galvano or resonant"),
                     ("Frame count", "And pause timing for 7b")]),
             DATA,
         ]),
@@ -807,25 +818,29 @@ PROTOCOLS.append(protocol(
     ]))
 
 # ════════════════════════════════════════════════════════════════════════════════════════════════════
-# 10 — Absolute calibration
+# 10 — MESF calibration of the bead standard (V3.923: the MESF beads are THE calibration beads)
 PROTOCOLS.append(protocol(
-    10, "pe-ax-10-pe-calibration", "PE beads · Exp 10 · Absolute calibration to PE per bead",
-    "Calibrate intensity to PE molecules per bead with PE quantitation beads, measure PE per detection antibody, and the capture-site distribution.",
-    ["calibration", "mesf", "quantibrite", "site-density"],
+    10, "pe-ax-10-pe-calibration", "PE beads · Exp 10 · MESF calibration of the bead standard",
+    "Put every capture bead on the MESF scale: the Quantum R-PE MESF beads, read in the same mode on the same plate, give MESF per unit of signal; the conjugate's PE per antibody turns MESF into captured analyte; saturation wells give the capture-site spread.",
+    ["calibration", "mesf", "site-density"],
     [
         section("Overview", [
-            doc_header("Absolute calibration", "Turns photoelectrons into PE molecules per bead, and PE into analyte.",
-                       ["Exp 10 of %d" % TOTAL, "≈2 h; repeat the calibration wells on every plate", "Calibration block"]),
-            callout("note", "Pins: photoelectrons per PE molecule in each mode; the PE:IgG ratio of the conjugate; the capture-site "
-                            "number per bead and its bead-to-bead CV, which sets beads per well."),
-            callout("critical", "Calibration beads differ from assay beads in size and label geometry. Simulate both with the "
-                                "model (render with their radius and shell or volume label) to transfer the calibration, or "
-                                "acquire the calibration wells as a 5-plane sum, which removes the geometry dependence."),
+            doc_header("MESF calibration of the bead standard", "The MESF beads are the calibration beads of the ELISA bead standard: one MESF scale for every plate and session.",
+                       ["Exp 10 of %d" % TOTAL, "≈2 h first time; the MESF wells on every plate", "Calibration block"]),
+            callout("note", "Pins: MESF per unit of integrated signal in each mode (the session calibration, signal → MESF); MESF per capture "
+                            "bead along the standard curve (Exp 12 then fixes concentration → MESF once per analyte and lot, and its "
+                            "inverse reads samples); PE per detection antibody; the capture-site number per bead and its bead-to-bead CV, "
+                            "which sets beads per well."),
+            callout("critical", "Read the MESF beads exactly as the capture beads: the same objective, pinhole, laser %, HV, dwell, pixel and "
+                                "plane rule, on the same plate. If they differ in size or in where the PE sits (a surface shell or the whole "
+                                "volume), transfer the calibration with the simulator (render both with their radius and label geometry) or "
+                                "read the MESF wells as a 5-plane sum, which removes the geometry dependence. MESF assumes a bead and a "
+                                "solution behave alike; keep a flow-cytometry cross-check when one is available."),
         ]),
         section("Materials", [
-            materials([("1", "kit", "PE quantitation beads, 4 levels + blank, lot-specific PE per bead (MESF / Quantibrite type)"),
-                       ("2", "well", "Assay beads at saturating analyte + saturating PE-antibody, 2 h, washed (site distribution)"),
-                       ("1", "ea", "UV-vis spectrophotometer or NanoDrop for the conjugate A565 and A280"),
+            materials([("1", "kit", "Quantum R-PE MESF beads (Bangs): blank + 4 levels, lot MESF values from the certificate"),
+                       ("2", "well", "Capture beads at saturating analyte + saturating PE-detection antibody, 2 h, washed (site distribution)"),
+                       ("1", "ea", "UV-vis spectrophotometer or NanoDrop for the conjugate A565 and A280 (or the reagent lot's F/P ratio)"),
                        ("", "", "PBS; #1.5 glass-bottom plate")]),
         ]),
         section("Calculators", [
@@ -838,15 +853,15 @@ PROTOCOLS.append(protocol(
             ], [
                 out("n_pe", "PE per IgG", "(a565 / eps_pe) / ((a280 - cf_pe * a565) / eps_igg)", "", 2),
             ]),
-            calculator("Intensity to molecules", [
-                inp("e_bead", "Bead integrated signal", 50000, "e⁻"),
-                inp("e_blank", "Blank-bead integrated signal", 500, "e⁻"),
-                inp("slope_pe", "Calibration slope", 0.8, "e⁻ per PE"),
+            calculator("Signal to MESF per bead", [
+                inp("f_bead", "Capture-bead integrated signal", 50000, "DN"),
+                inp("f_blank", "Blank-bead integrated signal", 500, "DN"),
+                inp("k_mesf", "MESF slope of this plate", 0.8, "DN per MESF"),
                 inp("bead_area", "Bead surface area", 201.1, "µm²"),
             ], [
-                out("pe_bead", "PE per bead", "(e_bead - e_blank) / slope_pe", "PE", 0),
-                out("pe_um2", "PE surface density", "pe_bead / bead_area", "PE/µm²", 2),
-                out("analyte_bead", "Captured, labelled analyte per bead", "pe_bead / n_pe", "", 0),
+                out("mesf_bead", "MESF per bead", "(f_bead - f_blank) / k_mesf", "MESF", 0),
+                out("mesf_um2", "MESF surface density", "mesf_bead / bead_area", "MESF/µm²", 2),
+                out("analyte_bead", "Captured, labelled analyte per bead (one MESF ≈ one PE)", "mesf_bead / n_pe", "", 0),
             ]),
             calculator("Beads per well", [
                 inp("cv_pct", "Bead-to-bead CV (saturation wells)", 5, "%"),
@@ -854,27 +869,30 @@ PROTOCOLS.append(protocol(
             ], [
                 out("n_beads", "Beads to analyse per well", "ceil((1.25 * cv_pct / se_pct) ^ 2)", "", 0),
             ]),
-            callout("note", "A bead at [!var:e_bead] is [!var:pe_bead] ([!var:pe_um2]), i.e. [!var:analyte_bead] labelled analyte "
+            callout("note", "A bead at [!var:f_bead] is [!var:mesf_bead] ([!var:mesf_um2]), i.e. [!var:analyte_bead] labelled analyte "
                             "molecules at [!var:n_pe] PE per IgG. At [!var:cv_pct] CV, analyse [!var:n_beads] beads per well."),
         ]),
         section("Procedure", [
-            step("Measure A565 and A280 of the PE-antibody conjugate (blank on its buffer)."),
-            step("Resuspend the calibration beads as the kit says; one well per level plus the blank, in PBS."),
-            step("Run two saturation wells: assay beads with analyte at the top of the expected range ×10 and PE-antibody at ≥10× its K_D, 2 h with rotation, washed."),
-            step("Settle 30 min. Image every well in the default mode at operating settings, ≥100 beads per well. Repeat the calibration wells as a 5-plane sum (2 µm steps around the equator)."),
+            step("Measure A565 and A280 of the PE-antibody conjugate (blank on its buffer), or take the F/P ratio from the reagent lot sheet."),
+            step("Resuspend the MESF beads as the kit says; one well per level plus the blank, on the same plate as the capture beads."),
+            step("Run two saturation wells: capture beads with analyte at the top of the expected range × 10 and PE-antibody at ≥ 10× its K_D, 2 h with mixing, washed."),
+            step("Settle with a 1 min plate spin. Image every well in the default mode at the Exp 01 laser %, ≥ 100 beads per well. Repeat the MESF wells as a 5-plane sum (2 µm steps around the equator)."),
+            step("On every later plate: the MESF wells (≥ 30 beads per level) at the start and the end. They are the plate's calibration and the Exp 01 power check in one read."),
             BEFORE,
         ]),
         section("Analysis", [
-            step("Fit integrated photoelectrons against the lot PE per bead (linear, intercept at the blank). The slope is photoelectrons per PE. Check linearity across the four levels."),
-            step("Transfer to assay-bead geometry with the simulator, or use the 5-plane-sum slope directly."),
-            step("Saturation wells: PE per bead distribution. Subtract the photon-noise variance (≈F × mean, in photoelectrons) from the observed variance. The remainder is the capture-site CV."),
-            step("Second route, a solution reference: σ_s = c × F / (2πR × S_sol × T), with S_sol the signal per pixel of PE-antibody at concentration c in the same mode and T from Exp 04. For a bead that is not index-matched, apply the bead-optics factor from Exp 05."),
-            step("Third route: run the same assay beads and the calibration kit on a flow cytometer. It has no focus, refraction or field effects and gives an independent bead-to-bead CV. The routes should agree within ≈15 %."),
+            step("Fit integrated signal against the lot MESF per level (linear, intercept at the blank). The slope is DN per MESF for this mode and plate. Check linearity across the four levels."),
+            step("If the MESF beads and the capture beads differ in size or label geometry, transfer with the simulator, or use the 5-plane-sum slope."),
+            step("Capture beads: MESF per bead; with PE per antibody (one MESF ≈ one PE on the bead), labelled analyte per bead."),
+            step("Saturation wells: the MESF-per-bead distribution. Subtract the photon-noise variance (≈ mean in photoelectrons, Exp 02) from the observed variance; the remainder is the capture-site CV."),
+            step("Cross-check when a flow cytometer is available: the same MESF beads and capture beads, with no focus, refraction or field effects. The two MESF scales should agree within ≈15 %."),
         ]),
         section("Decision & record", [
-            callout("note", "Decision: the conversion used for every plate, the beads per well, and whether the capture-site CV is acceptable."),
-            record([("Kit lot", "PE per bead for each level"), ("Mode", "Single plane or 5-plane sum"),
-                    ("Conjugate", "A565, A280, lot"), ("Beads", "Number analysed per well")]),
+            callout("note", "Decision: each plate is converted with its own MESF wells; the beads per well; whether the capture-site CV is "
+                            "acceptable. Exp 12 reports the standard curve in MESF per bead, so one curve per analyte and lot serves every plate."),
+            record([("MESF kit", "Lot and MESF per level"), ("Mode", "Single plane or 5-plane sum"),
+                    ("Plate slope", "DN per MESF at the start and the end"),
+                    ("Conjugate", "A565, A280 or F/P, lot"), ("Beads", "Number analysed per well")]),
             DATA,
         ]),
     ]))
@@ -1053,7 +1071,7 @@ PROTOCOLS.append(protocol(
             BEFORE,
         ]),
         section("Analysis", [
-            step("Per well: median integrated intensity, converted to PE per bead with the reference calibration beads of this plate."),
+            step("Per well: median integrated intensity, converted to MESF per bead with the MESF wells of this plate (Exp 10); the standard curve is reported in MESF per bead."),
             step("Global fit of the mechanistic model (S_T, K_D1, K_D2; D₀ and bead number known) across all three D₀ levels, weighted by the measured variance. For routine use, fit a 5PL with an explicit hook term; a plain 4PL only where the curve has no depletion or hook."),
             step("Hook onset: the concentration where signal turns down. LOD: blank mean + 3 SD, read through the curve."),
         ]),
@@ -1083,7 +1101,7 @@ PROTOCOLS.append(protocol(
                 {"mode": "B", "obj": "20x, 1 AU", "z": "1 (equator, Perfect Focus)", "px": "16–25"},
                 {"mode": "C", "obj": "20x, 1 AU", "z": "5-plane sum, 2 µm steps (±4 µm)", "px": "16–25"},
                 {"mode": "D", "obj": "10x, 1 AU", "z": "1 (equator)", "px": "12–20"},
-                {"mode": "Flow", "obj": "Flow cytometer, same beads + PE quantitation beads", "z": "—", "px": "—"},
+                {"mode": "Flow", "obj": "Flow cytometer, same beads + the MESF beads", "z": "—", "px": "—"},
             ], "Candidate modes (all single planes at the stationary point from Exp 05)"),
         ]),
         section("Materials", [

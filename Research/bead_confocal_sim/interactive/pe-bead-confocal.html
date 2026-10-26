@@ -702,7 +702,7 @@ const upd = K.scheduler(update);
 const set = k => v => { S[k] = v; upd(); };
 ctl.obj = K.seg({ label: 'Objective', options: OBJ_OPTS, value: S.obj, onInput: set('obj'), hint: 'Which 20x is fitted (0.75 or 0.80) is still to be confirmed.' });
 ctl.AU = K.slider({ label: 'Pinhole', min: 0.3, max: 6, step: 0.05, value: S.AU, unit: 'AU', onInput: set('AU'), fmt: v => v.toFixed(2) });
-ctl.uW = K.slider({ label: 'Laser at the sample (561 nm)', min: 0.1, max: 100, log: true, value: S.uW, unit: 'µW', onInput: set('uW'), hint: 'Measured with a power meter at the sample, never % laser.' });
+ctl.uW = K.slider({ label: 'Laser at the sample (561 nm)', min: 0.1, max: 100, log: true, value: S.uW, unit: 'µW', onInput: set('uW'), hint: 'µW-equivalent: the laser % that gives it is read on the MESF beads (Exp 1); never % laser alone.' });
 ctl.dwell = K.slider({ label: 'Pixel dwell', min: 0.2, max: 16, log: true, value: S.dwell, unit: 'µs', onInput: set('dwell') });
 ctl.ppb = K.slider({ label: 'Pixels across the bead', min: 4, max: 48, step: 0.5, value: S.ppb, onInput: set('ppb'), fmt: v => v.toFixed(1) });
 ctl.avg = K.slider({ label: 'Frames averaged', min: 1, max: 8, step: 1, value: S.avg, onInput: set('avg'), fmt: v => String(v) });

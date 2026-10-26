@@ -7,9 +7,9 @@ const el = (tag, a, text) => { const e = document.createElementNS(NS, tag); for 
 el('text', { x: 40, y: 52, 'font-size': 27, 'font-weight': 700, fill: '#1b1b1a' }, 'Which experiment pins which part of the model');
 el('text', { x: 40, y: 84, 'font-size': 16.5, fill: '#52514e' }, 'Each row is a number or claim the model depends on. A filled dot is the experiment that measures it; a ring is one that');
 el('text', { x: 40, y: 106, 'font-size': 16.5, fill: '#52514e' }, 'checks it independently. The right column is the protocol choice the result sets. Run order: top to bottom.');
-const EXP = ['Power at the sample', 'Photon transfer', 'Flat field', 'PSF and edge scan', 'Bead z-series, 4 modes', 'Sampling and field', 'Bleaching, saturation', 'Gain ladder', 'Backgrounds and NSB', 'PE per bead', 'Rate constants', 'Standard curve, hook', 'Mode head-to-head'];
+const EXP = ['MESF power ladder', 'Photon transfer', 'Flat field', 'PSF and edge scan', 'Bead z-series, 4 modes', 'Sampling and field', 'Bleaching, saturation', 'Gain ladder', 'Backgrounds and NSB', 'MESF calibration', 'Rate constants', 'Standard curve, hook', 'Mode head-to-head'];
 const ROWS = [
-  ['Irradiance and k0 at the sample', { 1: 2, 7: 1 }, 'laser set in µW (1–2 µW default)', 'instrument'],
+  ['Irradiance at the sample (via MESF beads)', { 1: 2, 7: 1 }, 'laser % for 1–2 µW-equivalent', 'instrument'],
   ['DN → photoelectrons; linear range', { 2: 2, 8: 2 }, 'HV, offset, bit depth', 'instrument'],
   ['Illumination fall-off across the field', { 3: 2, 6: 1 }, 'flat-field correction each session', 'instrument'],
   ['Optical section w(z), its tails, T', { 4: 2, 5: 1 }, 'focal scaling; T for absolute PE', 'optics'],
@@ -18,7 +18,7 @@ const ROWS = [
   ['PE bleaching, saturation, dark state', { 7: 2, 1: 1 }, 'power cap, frames, antifade', 'PE'],
   ['F independent of gain', { 8: 2, 2: 1 }, 'HV per plate from the top standard', 'PE'],
   ['Buffer, glass, NSB backgrounds; LOD', { 9: 2, 12: 1 }, 'wash or no-wash; antibody level; blank rule', 'assay'],
-  ['Absolute PE per bead', { 10: 2, 13: 1 }, 'report PE per bead and per µm²', 'assay'],
+  ['MESF per bead (the calibration scale)', { 10: 2, 12: 1, 13: 1 }, 'MESF wells on every plate', 'assay'],
   ['Off-rates: Λ = k−2 + k−3, association', { 11: 2, 12: 1 }, 'wash timing; staggered columns', 'assay'],
   ['Curve shape, hook, detection-antibody level', { 12: 2, 11: 1 }, 'curve model; 1× / 10× dilution rule', 'assay'],
   ['20x vs 10x: precision per minute', { 13: 2, 6: 1 }, 'the routine read mode', 'strategy'],

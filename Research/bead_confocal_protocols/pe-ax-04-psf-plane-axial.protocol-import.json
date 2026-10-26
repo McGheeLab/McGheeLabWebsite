@@ -333,7 +333,7 @@
       },
       {
        "kind": "step",
-       "body": "For each objective and pinhole in the grid, z-stack ≥10 isolated beads at low power (1 µW at 20x, 3 µW at 10x)."
+       "body": "For each objective and pinhole in the grid, z-stack ≥10 isolated beads at low power (the Exp 01 laser % for ≈1 µW-equivalent at 20x, ≈3 at 10x)."
       },
       {
        "kind": "heading",

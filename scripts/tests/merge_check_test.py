@@ -280,6 +280,28 @@ def test_autopush():
         msg = json.loads(r.stdout.strip().splitlines()[-1])['systemMessage']
         ok('pulled 1 commit(s) from origin' in msg and 'pushed' in msg, 'rebased onto the other person\'s push, then pushed', msg + r.stderr)
         ok(sh(repo, 'git', 'rev-list', '--count', 'origin/main..HEAD').stdout.strip() == '0', 'in sync with origin')
+        # f) a branch origin has never seen (V3.924): its first turn pushes it and sets the upstream
+        sh(repo, 'git', 'switch', '-q', '-c', 'scientia/new-topic')
+        write(repo, 'rm/js/tasks.js', "function renderTasks(){ return 3; }\n")
+        r = sh(repo, PY, AP, env=env, check=False)
+        msg = json.loads(r.stdout.strip().splitlines()[-1])['systemMessage'] if r.stdout.strip() else ''
+        ok('pushed 1 commit(s) to origin/scientia/new-topic (new branch)' in msg, 'a new branch is pushed on its first turn', msg + r.stderr)
+        head = sh(repo, 'git', 'rev-parse', 'HEAD').stdout.strip()
+        ok(sh(repo, 'git', 'rev-parse', 'origin/scientia/new-topic', check=False).stdout.strip() == head, 'origin has the new branch')
+        up = sh(repo, 'git', 'rev-parse', '--abbrev-ref', '@{u}', check=False).stdout.strip()
+        ok(up == 'origin/scientia/new-topic', 'and the branch tracks it', up)
+        write(repo, 'rm/js/tasks.js', "function renderTasks(){ return 4; }\n")
+        r = sh(repo, PY, AP, env=env, check=False)
+        msg = json.loads(r.stdout.strip().splitlines()[-1])['systemMessage'] if r.stdout.strip() else ''
+        ok('pushed 1 commit(s) to origin/scientia/new-topic (' in msg and 'new branch' not in msg, 'its next turn is an ordinary push', msg + r.stderr)
+        # g) origin unreachable: still "could not reach origin", never mistaken for a new branch
+        sh(repo, 'git', 'remote', 'set-url', 'origin', os.path.join(tmp, 'missing.git'))
+        write(repo, 'rm/js/tasks.js', "function renderTasks(){ return 5; }\n")
+        r = sh(repo, PY, AP, env=env, check=False)
+        msg = json.loads(r.stdout.strip().splitlines()[-1])['systemMessage'] if r.stdout.strip() else ''
+        ok('could not reach origin' in msg and 'new branch' not in msg, 'an unreachable origin keeps the commit local', msg + r.stderr)
+        sh(repo, 'git', 'remote', 'set-url', 'origin', origin)
+        sh(repo, 'git', 'switch', '-q', 'main')
         # e) paused
         write(repo, 'deploy/site.json', json.dumps({"autoPush": False}))
         r = sh(repo, PY, AP, env=env, check=False)

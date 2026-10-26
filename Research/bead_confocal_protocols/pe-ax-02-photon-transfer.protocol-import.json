@@ -335,7 +335,7 @@
          },
          {
           "field": "Powers",
-          "note": "µW at the sample for each rung"
+          "note": "Laser % for each rung (µW-equivalent from Exp 01)"
          }
         ]
        }

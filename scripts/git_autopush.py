@@ -8,6 +8,9 @@ the next deploy) without anyone remembering to pull:
     commit everything the turn changed  →  fetch  →  rebase onto origin/<branch>  →  push (through the
     pre-push gate, scripts/merge_check.py)  →  rebuild Scientia if the rebase brought changes to it
 
+A branch origin does not have yet (Gabe's `scientia/<topic>`) is pushed on its first turn with -u, its gate run
+from where it left origin/main and against origin/main (V3.924).
+
 Nothing here asks a question. Everything it prints goes to stderr; stdout carries ONE JSON line with a
 `systemMessage` for Claude Code (the same convention as deploy.py autodeploy).
 
@@ -266,10 +269,18 @@ def main(argv):
         # bring origin in, then push
         pulled = ''
         rebuilt = ''
+        new_branch = False
         try:
-            git('fetch', '--quiet', 'origin', branch, timeout=60)
+            try:
+                git('fetch', '--quiet', 'origin', branch, timeout=60)
+            except RuntimeError:
+                # V3.924: origin answers but has no such branch (ls-remote exit 2) → a new branch, pushed below with -u.
+                # Anything else (offline, auth) is still "could not reach origin".
+                if git('ls-remote', '--exit-code', '--heads', 'origin', branch, ok=None, timeout=60).returncode != 2:
+                    raise
+                new_branch = True
             upstream = 'origin/' + branch
-            if subprocess.run(['git', 'rev-parse', '--verify', '-q', upstream], cwd=ROOT, capture_output=True).returncode == 0:
+            if not new_branch and subprocess.run(['git', 'rev-parse', '--verify', '-q', upstream], cwd=ROOT, capture_output=True).returncode == 0:
                 behind = git('rev-list', '--count', 'HEAD..' + upstream).stdout.strip()
                 if behind != '0':
                     old = git('rev-parse', 'HEAD').stdout.strip()
@@ -288,17 +299,26 @@ def main(argv):
         except Exception as e:
             notes.append('could not reach origin (%s) — commit kept locally' % str(e)[:120])
             return ('git: ' + (pushed_note or 'nothing to commit') + '; ' + '; '.join(notes))
-        ahead = git('rev-list', '--count', 'origin/%s..HEAD' % branch, ok=None).stdout.strip() or '0'
+        if new_branch:  # what origin has on no branch at all
+            ahead = git('rev-list', '--count', 'HEAD', '--not', '--remotes=origin', ok=None).stdout.strip() or '0'
+        else:
+            ahead = git('rev-list', '--count', 'origin/%s..HEAD' % branch, ok=None).stdout.strip() or '0'
         if ahead == '0':
             parts = [p for p in (pushed_note, pulled, rebuilt) if p] + notes
             return ('git: ' + '; '.join(parts)) if parts else None
         # the push gate, run here so its report lands in this message (the pre-push hook then skips: MERGE_CHECK_DONE)
         mc = os.path.join(ROOT, 'scripts', 'merge_check.py')
         if os.path.isfile(mc):
-            base = 'origin/' + branch
-            if subprocess.run(['git', 'rev-parse', '--verify', '-q', base], cwd=ROOT, capture_output=True).returncode != 0:
+            target = 'origin/' + branch
+            if new_branch:  # checked from where it left main, against main — what its pull request will merge into
+                target = 'origin/' + (c.get('deployBranch') or 'main')
+                r = git('merge-base', 'HEAD', target, ok=None)
+                base = r.stdout.strip() if r.returncode == 0 else ''
+            else:
+                base = target
+            if not base or subprocess.run(['git', 'rev-parse', '--verify', '-q', base], cwd=ROOT, capture_output=True).returncode != 0:
                 base = git('rev-list', '--max-parents=0', 'HEAD').stdout.strip().splitlines()[-1]
-            g = subprocess.run([sys.executable, mc, 'range', base, 'HEAD', '--no-fetch', '--target', 'origin/' + branch],
+            g = subprocess.run([sys.executable, mc, 'range', base, 'HEAD', '--no-fetch', '--target', target],
                                cwd=ROOT, capture_output=True, text=True, timeout=600, errors='replace')
             if g.returncode != 0:
                 lines = [l for l in (g.stdout + g.stderr).splitlines() if l.strip()]
@@ -312,7 +332,8 @@ def main(argv):
             return 'git push FAILED: ' + out[-500:] + ('; ' + '; '.join(notes) if notes else '')
         sha = git('rev-parse', '--short', 'HEAD').stdout.strip()
         subject = git('log', '-1', '--format=%s').stdout.strip()
-        parts = ['pushed %s commit(s) to origin/%s (%s): %s' % (ahead, branch, sha, subject)] + [p for p in (pulled, rebuilt) if p] + notes
+        parts = ['pushed %s commit(s) to origin/%s%s (%s): %s' % (ahead, branch, ' (new branch)' if new_branch else '', sha, subject)] \
+            + [p for p in (pulled, rebuilt) if p] + notes
         return 'git: ' + '; '.join(parts)
     except Exception as e:
         return 'git autopush error: %s: %s' % (e.__class__.__name__, str(e)[:400])

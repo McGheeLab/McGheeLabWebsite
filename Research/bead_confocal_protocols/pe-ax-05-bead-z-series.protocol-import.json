@@ -207,7 +207,7 @@
          },
          {
           "setting": "Power",
-          "value": "1 µW at the sample (20x), 3 µW (10x)"
+          "value": "Exp 01 laser % for ≈1 µW-equivalent (20x), ≈3 (10x)"
          },
          {
           "setting": "Dwell / frames",
@@ -253,7 +253,7 @@
          },
          {
           "name": "p_uw",
-          "label": "Power at the sample",
+          "label": "Power (µW-equivalent, Exp 01)",
           "widget": "slider",
           "unit": "µW",
           "default": 1,

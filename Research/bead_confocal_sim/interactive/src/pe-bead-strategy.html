@@ -211,7 +211,7 @@ function recommend() {
 const P_IMG = panel('Imaging settings',
   add('obj', K.seg({ label: 'Objective', value: S.obj, options: [['20xD', '20x/0.80', 'Plan Apo λD 20x'], ['20x', '20x/0.75', 'Plan Apo λ 20x'], ['10x', '10x/0.45', 'Plan Apo λ 10x']], onInput: set('obj') })),
   add('AU', K.seg({ label: 'Pinhole (Airy units)', value: S.AU, options: [[0.5, '0.5'], [1, '1'], [2, '2'], [3, '3'], [4, '4']], onInput: set('AU') })),
-  add('P', K.slider({ label: 'Laser at the sample', min: 0.2, max: 30, value: S.P, log: true, unit: 'µW', hint: 'Measured with a slide power meter (Exp 1), never % laser.', onInput: set('P') })),
+  add('P', K.slider({ label: 'Laser at the sample', min: 0.2, max: 30, value: S.P, log: true, unit: 'µW', hint: 'µW-equivalent from the MESF beads (Exp 1), never % laser alone.', onInput: set('P') })),
   add('dwell', K.seg({ label: 'Pixel dwell (galvano)', value: S.dwell, options: [[0.5, '0.5 µs'], [1, '1 µs'], [2, '2 µs'], [4, '4 µs']], onInput: set('dwell') })),
   add('N', K.seg({ label: 'Frame', value: S.N, options: [[1024, '1024²'], [2048, '2048²'], [4096, '4096²']], onInput: set('N') })),
   add('zoom', K.slider({ label: 'Zoom', min: 1, max: 4, step: 0.02, value: S.zoom, fmt: v => v.toFixed(2), onInput: set('zoom') })),

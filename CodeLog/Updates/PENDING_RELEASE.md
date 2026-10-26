@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (24 changes — ready to push)
+## Pending (25 changes — ready to push)
 
+- V3.924 — Gabe can work on his own branch and have it saved to GitHub automatically, like the lab's own changes, and there is a step-by-step setup page for working on the lab's code from a Windows computer.
 - V3.923 — Scientia: sharing a project or lit review to collaborate is safe again — someone you share with can no longer delete your notes by syncing their desktop; only what they added themselves can be removed by them. (The confocal bead ELISA plan is being rebuilt as one note in Source and sink.)
 - V3.922 — Fixed: the lab's code can be downloaded (cloned) on a Windows computer again — two stray empty files with names Windows does not allow stopped the download part-way, and a name like that can no longer be added.
 - V3.921 — Paper builder: the PLOS format now looks like a published PLOS article — the article information (citation, copyright, data availability, funding, competing interests) fills the left margin of the first page, carrying on to page 2 when it is long, with the journal name at the top and page numbers "n / N" at the foot. Your data availability, funding and competing-interests statements move there automatically.

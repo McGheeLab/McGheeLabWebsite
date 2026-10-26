@@ -121,7 +121,7 @@
         "rows": [
          {
           "part": "7a",
-          "what": "50 consecutive frames per power, fresh field each; 2 µs; 20 px per bead. 20x: 0.3, 1, 2, 3, 10, 30 µW. 10x: 1, 3, 6, 10, 30, 100 µW"
+          "what": "50 consecutive frames per power, fresh field each; 2 µs; 20 px per bead. 20x: 0.3, 1, 2, 3, 10, 30 µW-equivalent. 10x: 1, 3, 6, 10, 30, 100 µW-equivalent (laser % from Exp 01)"
          },
          {
           "part": "7b",
@@ -173,7 +173,7 @@
         "inputs": [
          {
           "name": "p_uw",
-          "label": "Power at the sample",
+          "label": "Power (µW-equivalent, Exp 01)",
           "widget": "slider",
           "unit": "µW",
           "default": 2,
@@ -404,7 +404,7 @@
       },
       {
        "kind": "step",
-       "body": "7c: fit first-frame I = a·P/(1 + P/Pₛ). Pₛ and the Exp 01 spot size give Iₛ."
+       "body": "7c: fit first-frame I = a·P/(1 + P/Pₛ), P in µW-equivalent (Exp 01). Pₛ and the focal spot size give Iₛ; run the MESF beads beside the capture beads in 7c, since they share the ladder of Exp 01."
       },
       {
        "kind": "step",
@@ -455,7 +455,7 @@
          },
          {
           "field": "Power",
-          "note": "µW at the sample"
+          "note": "Laser % and µW-equivalent (Exp 01)"
          },
          {
           "field": "Dwell, averages, mode",

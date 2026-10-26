@@ -363,7 +363,7 @@
      "children": [
       {
        "kind": "step",
-       "body": "Per well: median integrated intensity, converted to PE per bead with the reference calibration beads of this plate."
+       "body": "Per well: median integrated intensity, converted to MESF per bead with the MESF wells of this plate (Exp 10); the standard curve is reported in MESF per bead."
       },
       {
        "kind": "step",

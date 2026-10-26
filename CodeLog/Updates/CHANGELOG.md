@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.924] — 2026-10-26 — The end-of-turn auto-push pushes a new branch; a setup page for Gabe's Windows PC
+
+### Bug Fixes
+- `scripts/git_autopush.py` never pushed a branch origin did not have yet: `git fetch origin <branch>` failed ("couldn't find remote ref") and the turn ended "could not reach origin — commit kept locally", every turn, so Gabe's `scientia/<topic>` branches (scientia/CLAUDE.md, V3.868) reached GitHub only by a hand push. Now a failed fetch asks `git ls-remote --exit-code --heads origin <branch>`: exit 2 (origin answers, no such branch) sets `new_branch`, skips the rebase, counts what origin has on no branch (`rev-list HEAD --not --remotes=origin`), runs the push gate from `merge-base HEAD origin/<deployBranch>` against `origin/<deployBranch>` (what the pull request merges into; before, a missing `origin/<branch>` fell back to the root commit, i.e. the whole history), and pushes with `-u` ("pushed … (new branch)"). Any other failure (offline, auth) is still "could not reach origin". `scripts/tests/merge_check_test.py`: 5 new fixtures (36/36) — a new branch pushed on its first turn, origin has it, it tracks it, its next turn is an ordinary push, an unreachable origin keeps the commit local; the first four fail on the old script.
+
+### Added
+- `scientia/SETUP.md`: setting up the repo on Gabe's Windows PC the way Alex's Mac works — tools (Python reachable as `python3`, since the Stop hooks, pre-push hook and manifest merge driver call it by that name and the hooks swallow a failure), `core.autocrlf false` before cloning (a CRLF checkout differs byte for byte from `deploy/manifest.json` and the first auto-deploy would re-upload most of the site) + `files.eol`, `gh auth login` / `setup-git`, the once-per-clone steps with a CRLF check and a `deploy.py status` sanity check, how the hook pushes a branch, and FTP: `scripts/.env` with his own login (`gabe@mcgheelab.com`, made 2026-10-26), a connection test that confirms the login lands on the web root, deploy only from `main`.
+
+### Changed
+- `scientia/CLAUDE.md`: links SETUP.md from the Git workflow section; the FTP access row says the account exists; the hook pushes Gabe's branch every turn, a new one included.
+
 ## [V3.923] — 2026-10-26 — Scientia: the confocal bead ELISA rebuilt as one note in Source and sink; a collaborator's sync can no longer delete what you shared
 
 Plan: [CodeLog/ClaudesPlan/V3.923_confocal_bead_elisa_plan_relay_guard.md](../ClaudesPlan/V3.923_confocal_bead_elisa_plan_relay_guard.md).

@@ -6,8 +6,8 @@
  },
  "protocol": {
   "id": "pe-ax-01-laser-power",
-  "title": "PE beads · Exp 01 · Laser power at the sample",
-  "summary": "Measure 561 nm power at the sample through the 10x and 20x against the NIS laser %, and pick the powers that keep PE linear.",
+  "title": "PE beads · Exp 01 · Laser power from the MESF beads",
+  "summary": "No power meter: the Quantum R-PE MESF beads are the power sensor. A laser-% ladder gives where PE stays linear, the signal per MESF per % for each objective, and (with Exp 02 and the simulator) the µW-equivalent of each %.",
   "category": "imaging",
   "tags": [
    "pe-beads",
@@ -16,7 +16,8 @@
    "characterization",
    "exp-01",
    "laser",
-   "power-meter",
+   "mesf",
+   "power-proxy",
    "calibration"
   ],
   "tree": {
@@ -27,16 +28,16 @@
      "children": [
       {
        "kind": "docHeader",
-       "body": "Every later experiment is specified in µW at the sample, never in laser %.",
+       "body": "There is no power meter: the MESF beads are the power sensor, and the same read calibrates every plate.",
        "attrs": {
         "brand": "",
-        "title": "Laser power at the sample",
+        "title": "Laser power from the MESF beads",
         "chips": [
          {
           "text": "Exp 01 of 13"
          },
          {
-          "text": "≈45 min first time, 5 min per session after"
+          "text": "≈1 h first time, 5 min per session after"
          },
          {
           "text": "Instrument block"
@@ -46,21 +47,28 @@
       },
       {
        "kind": "callout",
-       "body": "Pins: peak irradiance at the focus, and from it the PE excitation rate, the saturation level and the bleaching dose per frame. The same laser % gives different power through the 10x and the 20x because the back aperture is filled differently, and the %-to-µW map drifts during a session.",
+       "body": "Pins: where PE emission stops being linear in laser % (measured on PE itself at the real dwell, which is what the 1–2 µW rule stands in for); the signal per MESF per laser % for each objective (laser power and detection together, tracked every session); and, with DN per photoelectron from Exp 02 and the simulator's photon budget, the µW-equivalent of each laser %.",
        "attrs": {
         "type": "note"
        }
       },
       {
        "kind": "callout",
-       "body": "Model prediction: with confocal weighting the image is 5 % below linear at I/Iₛ ≈ 0.08, which is ≈2 µW at the sample through the 20x and ≈6–7 µW through the 10x (Iₛ ≈ 19 kW/cm² for R-PE at 561 nm). The beam-centre number in the calculator is the worst case; the whole image is ≈0.6–0.67 of it.",
+       "body": "Model: in the linear regime the integrated signal F = k × MESF × (laser %). The simulator predicts ≈0.18 photoelectrons per PE per frame at 2 µW, 2 µs and 0.43 µm pixels through the 20x/0.80 (≈0.09 per µW), and F 5 % below linear near 5–6 µW; the review caps the operating point at 1–2 µW until Exp 07. One MESF is the emission of one R-PE molecule in solution, so the MESF beads read like PE on a bead, with the environment caveats of the MESF method.",
        "attrs": {
         "type": "assume"
        }
       },
       {
        "kind": "callout",
-       "body": "≈45 min first time; 5 min at the start and end of each quantitative session.",
+       "body": "Check on the Bangs certificate the bead size and whether the R-PE sits on the surface (a shell, like the capture beads) or through the bead (a disc). Image the MESF beads in the same mode and with the same plane rule as the capture beads; Exp 05 measures both focus curves.",
+       "attrs": {
+        "type": "critical"
+       }
+      },
+      {
+       "kind": "callout",
+       "body": "≈1 h first time per objective; 5 min at the start and end of each quantitative session.",
        "attrs": {
         "type": "timing"
        }
@@ -76,14 +84,14 @@
         "rows": [
          {
           "qty": "1",
-          "unit": "ea",
-          "free_text": "Slide-format photodiode power sensor (Thorlabs S170C-type) and console",
+          "unit": "kit",
+          "free_text": "Quantum R-PE MESF beads (Bangs): blank + 4 levels, lot MESF values from the certificate",
           "item_ref": null
          },
          {
-          "qty": "1",
-          "unit": "ea",
-          "free_text": "Lens tissue",
+          "qty": "",
+          "unit": "",
+          "free_text": "PBS or the kit buffer; #1.5 glass-bottom plate",
           "item_ref": null
          },
          {
@@ -125,19 +133,23 @@
          },
          {
           "setting": "Objectives",
-          "value": "10x/0.45 Plan Apo λD, then the 20x (read the NA on the barrel)"
+          "value": "20x (read the NA on the barrel), then the 10x/0.45 Plan Apo λD"
          },
          {
-          "setting": "Beam",
-          "value": "Stationary spot (point or stimulation mode) if NIS allows; otherwise a 512² scan at maximum zoom, and note that the reading is scan-averaged"
+          "setting": "Pinhole",
+          "value": "1 AU"
          },
          {
-          "setting": "Meter wavelength",
-          "value": "561 nm"
+          "setting": "Detector",
+          "value": "One HV and offset for the whole ladder: the brightest level at the top rung below 80 % of full scale (stop the ladder lower rather than change the HV)"
+         },
+         {
+          "setting": "Scan",
+          "value": "Galvano, 2 µs, 2048² at zoom 1, one frame per field"
          },
          {
           "setting": "Laser %",
-          "value": "0.1, 0.3, 1, 3, 10, 30, 100"
+          "value": "0.1, 0.2, 0.5, 1, 2, 5, 10, 20, each on a fresh field"
          }
         ]
        }
@@ -157,85 +169,61 @@
       {
        "kind": "calculator",
        "attrs": {
-        "label": "Irradiance and PE saturation at the focus",
+        "label": "From the MESF signal to a µW-equivalent",
         "inputs": [
          {
-          "name": "p_uw",
-          "label": "Power at the sample",
+          "name": "k_dn",
+          "label": "Signal per MESF per laser % (fit of the ladder)",
+          "widget": "number",
+          "unit": "DN",
+          "default": 0.12
+         },
+         {
+          "name": "g_dn",
+          "label": "DN per photoelectron at this HV (Exp 02)",
+          "widget": "number",
+          "unit": "DN",
+          "default": 2
+         },
+         {
+          "name": "e_uw",
+          "label": "Simulator: photoelectrons per PE per frame per µW",
+          "widget": "number",
+          "unit": "",
+          "default": 0.09,
+          "rangeHint": "0.09 for 20x/0.80, 2 µs, 0.43 µm pixels"
+         },
+         {
+          "name": "target_uw",
+          "label": "Operating point the simulations ask for",
           "widget": "slider",
           "unit": "µW",
-          "default": 3,
-          "min": 0.1,
-          "max": 100,
+          "default": 1.5,
+          "min": 0.2,
+          "max": 10,
           "step": 0.1
-         },
-         {
-          "name": "na",
-          "label": "Objective NA",
-          "widget": "number",
-          "unit": "",
-          "default": 0.75
-         },
-         {
-          "name": "lam_ex",
-          "label": "Excitation wavelength",
-          "widget": "number",
-          "unit": "µm",
-          "default": 0.561
-         },
-         {
-          "name": "i_sat",
-          "label": "PE saturation irradiance",
-          "widget": "number",
-          "unit": "kW/cm²",
-          "default": 19,
-          "rangeHint": "≈19 for R-PE at 561 nm"
-         },
-         {
-          "name": "target_s",
-          "label": "Target I/Iₛ (0.08 ≈ 5 % image sublinearity)",
-          "widget": "slider",
-          "unit": "",
-          "default": 0.08,
-          "min": 0.02,
-          "max": 0.5,
-          "step": 0.01
          }
         ],
         "outputs": [
          {
-          "name": "w0_um",
-          "label": "Focal spot radius (1/e²)",
-          "expr": "0.433 * lam_ex / na",
-          "unit": "µm",
-          "decimals": 3
+          "name": "e_mesf",
+          "label": "Photoelectrons per MESF per laser %",
+          "expr": "k_dn / g_dn",
+          "unit": "e⁻",
+          "decimals": 4
          },
          {
-          "name": "i0_kw",
-          "label": "Peak irradiance",
-          "expr": "2 * p_uw * 1e-6 / (pi * (w0_um * 1e-4) ^ 2) / 1000",
-          "unit": "kW/cm²",
-          "decimals": 2
-         },
-         {
-          "name": "s_ratio",
-          "label": "I/Iₛ",
-          "expr": "i0_kw / i_sat",
-          "unit": "",
-          "decimals": 3
-         },
-         {
-          "name": "sublin_pct",
-          "label": "Emission below linear at the beam centre",
-          "expr": "100 * s_ratio / (1 + s_ratio)",
-          "unit": "%",
-          "decimals": 1
-         },
-         {
-          "name": "p_target_uw",
-          "label": "Power for the target I/Iₛ",
-          "expr": "target_s * i_sat * 1000 * pi * (w0_um * 1e-4) ^ 2 / 2 / 1e-6",
+          "name": "uw_pct",
+          "label": "µW-equivalent of 1 % laser",
+          "expr": "e_mesf / e_uw",
           "unit": "µW",
+          "decimals": 3
+         },
+         {
+          "name": "pct_op",
+          "label": "Laser % for the operating point",
+          "expr": "target_uw / uw_pct",
+          "unit": "%",
           "decimals": 2
          }
         ],
@@ -247,7 +235,7 @@
       },
       {
        "kind": "callout",
-       "body": "With [!var:p_uw] at NA [!var:na] the peak irradiance is [!var:i0_kw] and PE emission is [!var:sublin_pct] below linear. The power for I/Iₛ = [!var:target_s] is [!var:p_target_uw].",
+       "body": "At [!var:k_dn] per MESF per % and [!var:g_dn] per photoelectron, 1 % laser is [!var:uw_pct] equivalent, so [!var:target_uw] needs [!var:pct_op] laser. The µW-equivalent rests on the simulator's collection and detector constants (±30–50 %); the linearity limit from the ladder is measured.",
        "attrs": {
         "type": "note"
        }
@@ -267,19 +255,15 @@
       },
       {
        "kind": "step",
-       "body": "Switch the 561 nm laser on at least 30 min before measuring, for a stable output."
+       "body": "Laser on with the stand (the session's 2–3 h warm-up covers it). Vortex the MESF beads; one well per level plus the blank, as the kit says."
       },
       {
        "kind": "step",
-       "body": "With the laser off, zero the meter. Set its wavelength to 561 nm."
-      },
-      {
-       "kind": "step",
-       "body": "Put the sensor on the stage, centred under the 10x, with its active area at the focus (focus on the sensor surface in transmitted light)."
+       "body": "Settle the beads with a 1 min plate spin at 100–300 g. Find them and focus in transmitted light; hold focus with Perfect Focus at the capture beads' plane rule (the equator until Exp 05 gives the flat point)."
       },
       {
        "kind": "heading",
-       "body": "Power ladder",
+       "body": "Laser-% ladder (once per objective)",
        "attrs": {
         "code": "02",
         "rule": true
@@ -287,19 +271,23 @@
       },
       {
        "kind": "step",
-       "body": "Park the beam (stationary spot) or start a 512² scan at maximum zoom. Read µW at each laser %: 0.1, 0.3, 1, 3, 10, 30, 100."
+       "body": "Set the HV and offset once, on the brightest level at the top rung (below 80 % of full scale). Do not change them during the ladder."
       },
       {
        "kind": "step",
-       "body": "Read 0 % again at the end, to catch meter drift."
+       "body": "At each laser % (0.1, 0.2, 0.5, 1, 2, 5, 10, 20), take one frame of a fresh field of every level and of the blank, ≥ 30 beads per level."
       },
       {
        "kind": "step",
-       "body": "Swap to the 20x, refocus on the sensor, and repeat the ladder."
+       "body": "Repeat the 1 % rung at the end, to catch laser drift during the ladder."
+      },
+      {
+       "kind": "step",
+       "body": "Swap to the 10x and repeat."
       },
       {
        "kind": "callout",
-       "body": "A scanned beam is blanked during flyback, so a scanning reading is lower than the on-time power. Use a stationary spot when you can, and always note which mode you used.",
+       "body": "A fresh field for every rung: a second frame on the same beads carries the first frame's bleaching (≈0.05 % per frame at 2 µW-equivalent, far more at the top rungs).",
        "attrs": {
         "type": "critical"
        }
@@ -314,7 +302,7 @@
       },
       {
        "kind": "step",
-       "body": "Read the % you will use (and one higher point) through the objective you will use, at the start and at the end of the session. A change of more than 5 % means the intensities need a drift correction."
+       "body": "At the start and end of the session, image the MESF levels at the operating laser % (≥ 30 beads per level). The signal per MESF must stay within 5 % of this experiment's value; a larger change is laser or detector drift, and the plate is corrected with its own MESF slope. This read is also the plate's MESF calibration (Exp 10)."
       }
      ]
     },
@@ -323,11 +311,23 @@
      "children": [
       {
        "kind": "step",
-       "body": "Fit µW = a × (laser %) per objective over the linear part of the ladder; record a and the 20x/10x ratio at the same %."
+       "body": "Per bead: integrated signal within R + 2.5 µm minus the background ring; median per level per rung; subtract the blank."
       },
       {
        "kind": "step",
-       "body": "Enter the measured µW in the calculator with each objective's NA, and read the % that gives the target I/Iₛ (0.08)."
+       "body": "Linearity: signal against laser % on log–log axes, one line per level; fit the low rungs (slope 1). The rung where the signal falls 5 % below the line is PE's linearity limit through this objective. It should be the same % at every level; a level-dependent limit is detector non-linearity (check Exp 02)."
+      },
+      {
+       "kind": "step",
+       "body": "Responsivity: over the linear rungs, fit signal = k × MESF × % across the levels (intercept at the blank). Record k, in DN per MESF per %, per objective with the HV used."
+      },
+      {
+       "kind": "step",
+       "body": "µW-equivalent: enter k, the DN per photoelectron at this HV (Exp 02) and the simulator's photoelectrons per PE per frame per µW in the calculator. Read the µW-equivalent of 1 % and the % for the operating point."
+      },
+      {
+       "kind": "step",
+       "body": "The 10x/20x ratio of k at the same % (back-aperture filling and collection together)."
       }
      ]
     },
@@ -336,7 +336,7 @@
      "children": [
       {
        "kind": "callout",
-       "body": "Decision: the laser % that gives the operating power for each objective (1–2 µW through the 20x, ≈6 µW through the 10x, unless Exp 07 moves them). Record power in µW in every later plate map.",
+       "body": "Decision: the operating laser % for each objective: at most half the linearity limit, and near the µW-equivalent the simulations ask for (1–2 through the 20x, ≈6 through the 10x), unless Exp 07 moves it. Every later protocol states power as this laser % with its µW-equivalent.",
        "attrs": {
         "type": "note"
        }
@@ -369,20 +369,28 @@
           "note": "Model and NA from the barrel"
          },
          {
+          "field": "MESF kit",
+          "note": "Lot and MESF per level"
+         },
+         {
+          "field": "Detector",
+          "note": "HV, offset, dwell, pixel size"
+         },
+         {
           "field": "Laser %",
           "note": "Each rung of the ladder"
          },
          {
-          "field": "Power",
-          "note": "µW at the sample"
+          "field": "Signal",
+          "note": "Median per level per rung, beads analysed"
          },
          {
-          "field": "Mode",
-          "note": "Stationary spot or scan-averaged"
+          "field": "k",
+          "note": "DN per MESF per %, and the linearity limit (%)"
          },
          {
-          "field": "Meter",
-          "note": "Sensor model, wavelength setting"
+          "field": "µW-equivalent",
+          "note": "Per 1 % laser, with the DN per photoelectron used"
          }
         ]
        }

@@ -41,6 +41,8 @@ Changes to the app (`src/`) are Gabe's domain; changes to the lab layer are ours
 
 ## Git workflow (Gabe + the lab in one repo) — V3.868
 
+Setting up a Windows PC (Python as `python3`, line endings, GitHub sign-in, FTP): [SETUP.md](SETUP.md).
+
 Once per clone:
 
 ```bash
@@ -50,7 +52,8 @@ python3 scripts/scientia_build.py          # the two built files (git-ignored)
 
 1. **Branch per change**: `scientia/<topic>` for app work, `rm/<topic>` for lab work, from `main`. Gabe's work reaches
    `main` by pull request; the lab's own turns land on `main` through the end-of-turn auto-push
-   (`scripts/git_autopush.py`, which runs the same gate).
+   (`scripts/git_autopush.py`, which runs the same gate). The same hook pushes Gabe's branch every turn, a new one
+   included (V3.924).
 2. **Every `git push` runs the gate** — `scripts/merge_check.py` (plan
    [V3.868](../CodeLog/ClaudesPlan/V3.868_git_push_hook_merge_checker.md)). It refuses the push when:
    - a **new module** (`scientia/src/*.js`, `rm/js/*.js`, `rm/pages/*.html`, `functions/*.js`) is not in
@@ -84,7 +87,7 @@ python3 scripts/scientia_build.py          # the two built files (git-ignored)
 |---|---|---|
 | **GitHub** write on `McGheeLab/McGheeLabWebsite` | Alex invited `RTgabrieldeclercq` (2026-10-23) | accept the invitation, clone, run the two once-per-clone commands above |
 | **Firebase** (deploy `functions/scientia-hub*.js`, rules; read the console) | Alex made `gabrieldeclercq0@gmail.com` an Editor on `mcgheelab-f56cc` (2026-10-23) | `npm i -g firebase-tools`, `firebase login`, `firebase use mcgheelab-f56cc`; `cd functions && npm i`; `firebase deploy --only functions:scientiaHub` |
-| **FTP** (ship the web build and lab-layer files yourself) | Alex creates a second FTP account in the host's cPanel (FTP Accounts → add user, directory = the same web root the lab account uses, strong password) — never the lab's own login | create `scripts/.env` (git-ignored) with `MCGHEELAB_FTP_USER=<user>@mcgheelab.com` and `MCGHEELAB_FTP_PASSWORD=…`; then `python3 scripts/deploy.py status` / `ftp` |
+| **FTP** (ship the web build and lab-layer files yourself) | Alex made `gabe@mcgheelab.com` in the host's cPanel (2026-10-26), rooted at the same web root the lab account uses — never the lab's own login | [SETUP.md](SETUP.md) step 5: `scripts/.env` (git-ignored) with `MCGHEELAB_FTP_USER=gabe@mcgheelab.com` and `MCGHEELAB_FTP_PASSWORD=…`, the connection test, then `python3 scripts/deploy.py status` / `ftp` from `main` |
 
 The Firebase client side needs nothing: the web app signs in with the lab account like every RM page, and the hub
 function checks the lab-member role.

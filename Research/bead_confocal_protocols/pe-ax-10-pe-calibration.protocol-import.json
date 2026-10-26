@@ -6,8 +6,8 @@
  },
  "protocol": {
   "id": "pe-ax-10-pe-calibration",
-  "title": "PE beads · Exp 10 · Absolute calibration to PE per bead",
-  "summary": "Calibrate intensity to PE molecules per bead with PE quantitation beads, measure PE per detection antibody, and the capture-site distribution.",
+  "title": "PE beads · Exp 10 · MESF calibration of the bead standard",
+  "summary": "Put every capture bead on the MESF scale: the Quantum R-PE MESF beads, read in the same mode on the same plate, give MESF per unit of signal; the conjugate's PE per antibody turns MESF into captured analyte; saturation wells give the capture-site spread.",
   "category": "imaging",
   "tags": [
    "pe-beads",
@@ -17,7 +17,6 @@
    "exp-10",
    "calibration",
    "mesf",
-   "quantibrite",
    "site-density"
   ],
   "tree": {
@@ -28,16 +27,16 @@
      "children": [
       {
        "kind": "docHeader",
-       "body": "Turns photoelectrons into PE molecules per bead, and PE into analyte.",
+       "body": "The MESF beads are the calibration beads of the ELISA bead standard: one MESF scale for every plate and session.",
        "attrs": {
         "brand": "",
-        "title": "Absolute calibration",
+        "title": "MESF calibration of the bead standard",
         "chips": [
          {
           "text": "Exp 10 of 13"
          },
          {
-          "text": "≈2 h; repeat the calibration wells on every plate"
+          "text": "≈2 h first time; the MESF wells on every plate"
          },
          {
           "text": "Calibration block"
@@ -47,14 +46,14 @@
       },
       {
        "kind": "callout",
-       "body": "Pins: photoelectrons per PE molecule in each mode; the PE:IgG ratio of the conjugate; the capture-site number per bead and its bead-to-bead CV, which sets beads per well.",
+       "body": "Pins: MESF per unit of integrated signal in each mode (the session calibration, signal → MESF); MESF per capture bead along the standard curve (Exp 12 then fixes concentration → MESF once per analyte and lot, and its inverse reads samples); PE per detection antibody; the capture-site number per bead and its bead-to-bead CV, which sets beads per well.",
        "attrs": {
         "type": "note"
        }
       },
       {
        "kind": "callout",
-       "body": "Calibration beads differ from assay beads in size and label geometry. Simulate both with the model (render with their radius and shell or volume label) to transfer the calibration, or acquire the calibration wells as a 5-plane sum, which removes the geometry dependence.",
+       "body": "Read the MESF beads exactly as the capture beads: the same objective, pinhole, laser %, HV, dwell, pixel and plane rule, on the same plate. If they differ in size or in where the PE sits (a surface shell or the whole volume), transfer the calibration with the simulator (render both with their radius and label geometry) or read the MESF wells as a 5-plane sum, which removes the geometry dependence. MESF assumes a bead and a solution behave alike; keep a flow-cytometry cross-check when one is available.",
        "attrs": {
         "type": "critical"
        }
@@ -71,19 +70,19 @@
          {
           "qty": "1",
           "unit": "kit",
-          "free_text": "PE quantitation beads, 4 levels + blank, lot-specific PE per bead (MESF / Quantibrite type)",
+          "free_text": "Quantum R-PE MESF beads (Bangs): blank + 4 levels, lot MESF values from the certificate",
           "item_ref": null
          },
          {
           "qty": "2",
           "unit": "well",
-          "free_text": "Assay beads at saturating analyte + saturating PE-antibody, 2 h, washed (site distribution)",
+          "free_text": "Capture beads at saturating analyte + saturating PE-detection antibody, 2 h, washed (site distribution)",
           "item_ref": null
          },
          {
           "qty": "1",
           "unit": "ea",
-          "free_text": "UV-vis spectrophotometer or NanoDrop for the conjugate A565 and A280",
+          "free_text": "UV-vis spectrophotometer or NanoDrop for the conjugate A565 and A280 (or the reagent lot's F/P ratio)",
           "item_ref": null
          },
          {
@@ -160,27 +159,27 @@
       {
        "kind": "calculator",
        "attrs": {
-        "label": "Intensity to molecules",
+        "label": "Signal to MESF per bead",
         "inputs": [
          {
-          "name": "e_bead",
-          "label": "Bead integrated signal",
+          "name": "f_bead",
+          "label": "Capture-bead integrated signal",
           "widget": "number",
-          "unit": "e⁻",
+          "unit": "DN",
           "default": 50000
          },
          {
-          "name": "e_blank",
+          "name": "f_blank",
           "label": "Blank-bead integrated signal",
           "widget": "number",
-          "unit": "e⁻",
+          "unit": "DN",
           "default": 500
          },
          {
-          "name": "slope_pe",
-          "label": "Calibration slope",
+          "name": "k_mesf",
+          "label": "MESF slope of this plate",
           "widget": "number",
-          "unit": "e⁻ per PE",
+          "unit": "DN per MESF",
           "default": 0.8
          },
          {
@@ -193,23 +192,23 @@
         ],
         "outputs": [
          {
-          "name": "pe_bead",
-          "label": "PE per bead",
-          "expr": "(e_bead - e_blank) / slope_pe",
-          "unit": "PE",
+          "name": "mesf_bead",
+          "label": "MESF per bead",
+          "expr": "(f_bead - f_blank) / k_mesf",
+          "unit": "MESF",
           "decimals": 0
          },
          {
-          "name": "pe_um2",
-          "label": "PE surface density",
-          "expr": "pe_bead / bead_area",
-          "unit": "PE/µm²",
+          "name": "mesf_um2",
+          "label": "MESF surface density",
+          "expr": "mesf_bead / bead_area",
+          "unit": "MESF/µm²",
           "decimals": 2
          },
          {
           "name": "analyte_bead",
-          "label": "Captured, labelled analyte per bead",
-          "expr": "pe_bead / n_pe",
+          "label": "Captured, labelled analyte per bead (one MESF ≈ one PE)",
+          "expr": "mesf_bead / n_pe",
           "unit": "",
           "decimals": 0
          }
@@ -257,7 +256,7 @@
       },
       {
        "kind": "callout",
-       "body": "A bead at [!var:e_bead] is [!var:pe_bead] ([!var:pe_um2]), i.e. [!var:analyte_bead] labelled analyte molecules at [!var:n_pe] PE per IgG. At [!var:cv_pct] CV, analyse [!var:n_beads] beads per well.",
+       "body": "A bead at [!var:f_bead] is [!var:mesf_bead] ([!var:mesf_um2]), i.e. [!var:analyte_bead] labelled analyte molecules at [!var:n_pe] PE per IgG. At [!var:cv_pct] CV, analyse [!var:n_beads] beads per well.",
        "attrs": {
         "type": "note"
        }
@@ -269,19 +268,23 @@
      "children": [
       {
        "kind": "step",
-       "body": "Measure A565 and A280 of the PE-antibody conjugate (blank on its buffer)."
+       "body": "Measure A565 and A280 of the PE-antibody conjugate (blank on its buffer), or take the F/P ratio from the reagent lot sheet."
       },
       {
        "kind": "step",
-       "body": "Resuspend the calibration beads as the kit says; one well per level plus the blank, in PBS."
+       "body": "Resuspend the MESF beads as the kit says; one well per level plus the blank, on the same plate as the capture beads."
       },
       {
        "kind": "step",
-       "body": "Run two saturation wells: assay beads with analyte at the top of the expected range ×10 and PE-antibody at ≥10× its K_D, 2 h with rotation, washed."
+       "body": "Run two saturation wells: capture beads with analyte at the top of the expected range × 10 and PE-antibody at ≥ 10× its K_D, 2 h with mixing, washed."
       },
       {
        "kind": "step",
-       "body": "Settle 30 min. Image every well in the default mode at operating settings, ≥100 beads per well. Repeat the calibration wells as a 5-plane sum (2 µm steps around the equator)."
+       "body": "Settle with a 1 min plate spin. Image every well in the default mode at the Exp 01 laser %, ≥ 100 beads per well. Repeat the MESF wells as a 5-plane sum (2 µm steps around the equator)."
+      },
+      {
+       "kind": "step",
+       "body": "On every later plate: the MESF wells (≥ 30 beads per level) at the start and the end. They are the plate's calibration and the Exp 01 power check in one read."
       },
       {
        "kind": "callout",
@@ -297,23 +300,23 @@
      "children": [
       {
        "kind": "step",
-       "body": "Fit integrated photoelectrons against the lot PE per bead (linear, intercept at the blank). The slope is photoelectrons per PE. Check linearity across the four levels."
+       "body": "Fit integrated signal against the lot MESF per level (linear, intercept at the blank). The slope is DN per MESF for this mode and plate. Check linearity across the four levels."
       },
       {
        "kind": "step",
-       "body": "Transfer to assay-bead geometry with the simulator, or use the 5-plane-sum slope directly."
+       "body": "If the MESF beads and the capture beads differ in size or label geometry, transfer with the simulator, or use the 5-plane-sum slope."
       },
       {
        "kind": "step",
-       "body": "Saturation wells: PE per bead distribution. Subtract the photon-noise variance (≈F × mean, in photoelectrons) from the observed variance. The remainder is the capture-site CV."
+       "body": "Capture beads: MESF per bead; with PE per antibody (one MESF ≈ one PE on the bead), labelled analyte per bead."
       },
       {
        "kind": "step",
-       "body": "Second route, a solution reference: σ_s = c × F / (2πR × S_sol × T), with S_sol the signal per pixel of PE-antibody at concentration c in the same mode and T from Exp 04. For a bead that is not index-matched, apply the bead-optics factor from Exp 05."
+       "body": "Saturation wells: the MESF-per-bead distribution. Subtract the photon-noise variance (≈ mean in photoelectrons, Exp 02) from the observed variance; the remainder is the capture-site CV."
       },
       {
        "kind": "step",
-       "body": "Third route: run the same assay beads and the calibration kit on a flow cytometer. It has no focus, refraction or field effects and gives an independent bead-to-bead CV. The routes should agree within ≈15 %."
+       "body": "Cross-check when a flow cytometer is available: the same MESF beads and capture beads, with no focus, refraction or field effects. The two MESF scales should agree within ≈15 %."
       }
      ]
     },
@@ -322,7 +325,7 @@
      "children": [
       {
        "kind": "callout",
-       "body": "Decision: the conversion used for every plate, the beads per well, and whether the capture-site CV is acceptable.",
+       "body": "Decision: each plate is converted with its own MESF wells; the beads per well; whether the capture-site CV is acceptable. Exp 12 reports the standard curve in MESF per bead, so one curve per analyte and lot serves every plate.",
        "attrs": {
         "type": "note"
        }
@@ -347,16 +350,20 @@
         ],
         "rows": [
          {
-          "field": "Kit lot",
-          "note": "PE per bead for each level"
+          "field": "MESF kit",
+          "note": "Lot and MESF per level"
          },
          {
           "field": "Mode",
           "note": "Single plane or 5-plane sum"
          },
          {
+          "field": "Plate slope",
+          "note": "DN per MESF at the start and the end"
+         },
+         {
           "field": "Conjugate",
-          "note": "A565, A280, lot"
+          "note": "A565, A280 or F/P, lot"
          },
          {
           "field": "Beads",
