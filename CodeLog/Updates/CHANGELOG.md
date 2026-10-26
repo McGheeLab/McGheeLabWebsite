@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.919] — 2026-10-25 — Paper builder: every page filled to the foot — no text hanging over white space
+
+Plan: [CodeLog/ClaudesPlan/V3.919_pages_filled_to_the_foot.md](../ClaudesPlan/V3.919_pages_filled_to_the_foot.md).
+
+### Changed
+- PDF: every page is filled to the bottom margin (`\flushbottom`) in every journal look (`paper-look.js` `texPreamble`: was `\raggedbottom` for PLOS, NSF and the numeric preprint; class looks set it at `\AtBeginDocument`) and in templates without a look (`paper-export-tex.js` appends it to the preamble). Room a page cannot use — a heading kept with its first lines, a float that went on — is spread through the page's glue instead of being left at the foot. Spec looks write `\parskip … plus 1bp` (LaTeX's own default; it was fixed): a column of plain paragraphs had nothing to stretch, so the room stayed at the foot, or all of it went into the one float gap on the page (NSF p. 7 under Figure 4). Grant looks keep their rigid headings (wrapfig).
+- PDF: an imported figure or table written to stay "here" (`[H]`, `[h]`, `[h!]`) floats under a journal look (`_floatRawTex` → `[tbp]`, starred `[tp]`); `[H]` ended the page early whenever the float did not fit. Built figures and tables already float under a look; an explicit Lock keeps its place.
+- Document view: `_flushBottoms()` after mounting does what `\flushbottom` does — the room under each column's (or one-column page's) text goes into the gaps between its blocks in proportion to TeX's stretch there — what follows the block above plus what precedes the block below (`\parskip` 1, titlesec heading 2 + 1 (+ parskip), rigid grant headings 0, display 2 / 2, list 2 + parskip / 2, in-text float 2 / 2, none after a display); a float at the foot keeps its `\textfloatsep` share, as `padding-top` so collapsing margins cannot absorb it. Not on the last text page (except a full left column) nor before a forced break (`page.noFlush`, a stand-alone front page). Sheets carry `data-flush`.
+- Document view tables under a look: a wrapping or `p{}` cell gets 1 pt more on its right (TeX shrinks interword space to keep a line a hair too long; "Numerical Aperture", 82.1 pt in an 82 pt column, is one line in the PDF and wrapped here, which cost the PLOS paper a page).
+
+## [V3.918] — 2026-10-25 — Paper builder: tables set the way journals set them — across the page when too wide for a column, continued when longer than a page
+
+Plan: [CodeLog/ClaudesPlan/V3.918_tables_journal_width.md](../ClaudesPlan/V3.918_tables_journal_width.md).
+
+### Changed
+- Tables in a two-column layout follow the journal rule (Alex: "journals … do full width for tables unless the table is small enough to fit within a column"). A table stays in one column only when its **natural width** — set without wrapping, each column as wide as its widest cell, fixed columns (`p{3cm}`, a width in mm) at their width, and a column that wraps when printed counted at most a third of the column (prose may wrap: the JACS abbreviation list, one long meaning, stays in its column as in the published article) — fits one; otherwise it is set across the page. Every table used to be created with `span:'column'`, so that stored value now means "decide" (`PaperLayout.tableSpan(attrs)` → `'auto' | 'column' | 'page'`); the Table layout popover offers Fit / One column (`span:'one-column'`) / Full page width, and new tables store `span:'auto'`.
+- A table taller than the page continues on the next page(s), headed "Table N (continued)" with its header rows repeated; the caption stays on the first piece, notes on the last (longtable cannot run in two columns).
+- PDF export (`paper-export-tex.js`): in two-column layouts every table goes through `\rmTable` (new preamble macros, `RM_TABLE_TEX`, injected on use). TeX measures the natural form (`\rmTnat`; a wrapping column's cells clipped to `\columnwidth/3` by `\rmTcellA`/`\rmTcellB`, an `lrbox`) against `\columnwidth` to choose `table` / `table*`, then measures each row at the printed width and starts a new float when `\textheight` less the caption and header is full. A table that fits makes one float exactly as before. `tableToTex`'s per-row cell code is now `rowCellsTex(r)`, shared by both paths (one-column output byte-identical).
+- Imported LaTeX tables (`attrs.raw_tex`) in two-column layouts are taken apart by `PaperProseTex.splitTable(raw)` (env, spec, size/spacing setup, caption + label + position, outer rules, header rows, each body row with the rules above it; a longtable's `\endfirsthead` / `\endhead` give the header and its footers are dropped) and set by `\rmTable` — so an imported longtable now compiles in two columns. Anything else (`tabularx`, `\resizebox`, threeparttable, a `#`) stays verbatim.
+- Document view (`paper-doc-view.js`): `_layoutTables(items, geom)` runs once the look's CSS and fonts are on the probe (before `_measureItems`): `_tableNaturalW` measures the natural width (`.pdv-tbl-natural`), `_tablePieces` cuts a too-tall table at row boundaries with TeX's limit; pieces are separate floats (`data-piece`, part of the measure-cache key).
+- Document view tables under a journal look are set as TeX sets a tabular, so they break where the PDF breaks them (`paper-look.js` CSS): body size, `\tabcolsep` padding, one look leading per row, booktabs rule spacing, density as `\arraystretch`, plain header row, whole words (an unbreakable word sticks out like TeX's overfull box instead of adding lines), the caption above the table when the look says so (`.pdv-tabcap-above`; imported tables keep their source's position). Cells top-aligned everywhere (`\multirow` centred).
+- Imported tables in the Document view keep LaTeX's columns: `p{…}` widths (with the cell padding TeX adds outside them), `l/c/r` unwrapped (`.pdv-tbl-tex`), `\multicolumn` spans as merged cells, the source's size step (`\scriptsize` 70 %, was a flat 90 %).
+
+### Bug Fixes
+- `parseTabular`: `\multicolumn{7}{@{}l}{…}` (braces in the alignment) printed as source in the Document view; a longtable printed its `\endhead` / repeated header / footer rows as data.
+- An imported table without a `\caption` took a table number in the builder and the Document view; TeX does not number it, so every later table was off by one (`getAllTables`).
+- An imported `longtable` in a one-column template failed to compile ("Environment longtable undefined"): `packagesFor` loads `longtable` (and `array` for `>{\raggedright\arraybackslash}`) when the paper's LaTeX uses them.
+
 ## [V3.917] — 2026-10-25 — Paper builder: lists inside paragraphs and hard-wrapped text set correctly in journal looks
 
 Plan: [CodeLog/ClaudesPlan/V3.917_lists_and_soft_breaks.md](../ClaudesPlan/V3.917_lists_and_soft_breaks.md).

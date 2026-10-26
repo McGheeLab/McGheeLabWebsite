@@ -24,8 +24,10 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (18 changes — ready to push)
+## Pending (20 changes — ready to push)
 
+- V3.919 — Paper builder: pages are always filled to the bottom — in the page preview and in the PDF, the text never stops partway down a page above empty space. When a heading or a table has to move to the next page, the leftover room is spread evenly through the page instead.
+- V3.918 — Paper builder: tables now sit the way journals set them. A table that is too wide for one column runs across the whole page (instead of being squeezed into a column with words broken letter by letter), small tables stay in the column, and a table longer than a page continues on the next page as "Table 2 (continued)" with its header repeated — in the page preview and in the PDF. You can still pin a table to one column or the full page in its Table layout menu.
 - V3.917 — Paper builder: in the journal page preview, a bulleted list written inside a paragraph no longer prints its lines on top of each other, and words split across lines in your text ("the" / "ME3B") are no longer glued together. In the PDF, a bold phrase with an italic word inside no longer prints stray asterisks.
 - V3.916 — RM pages now pick up a new version on their own: a tab left open across an update reloads itself the next time you come back to it (never while you are typing or recording), or shows a small Reload bar — no more seeing yesterday's version until you think to refresh.
 - V3.916 — Paper builder: Compile PDF now counts the seconds while the server works, shows an Open PDF link the moment the PDF exists, and tells you plainly if the server does not answer. (After the compile service is redeployed, compiles take a few seconds instead of most of a minute.)

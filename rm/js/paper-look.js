@@ -313,7 +313,11 @@
     L.push('\\makeatother');
     L.push('\\normalsize');
     L.push('\\setlength\\parindent{' + bp(b.indent) + '}');
-    L.push('\\setlength\\parskip{' + bp(b.parskip || 0) + '}');
+    /* V3.919 — LaTeX's own 1pt of stretch between paragraphs (article's
+     * \parskip 0pt plus 1pt): without it a column of plain paragraphs has
+     * nothing \flushbottom can stretch and the room stays at the foot, or
+     * all of it lands in the one float gap on the page */
+    L.push('\\setlength\\parskip{' + bp(b.parskip || 0) + ' plus 1bp}');
     L.push('\\frenchspacing');
     var lb = look.linebreak || {};
     L.push('\\pretolerance=' + (lb.pretolerance != null ? lb.pretolerance : 100) + ' \\tolerance=' +
@@ -322,7 +326,12 @@
      * shorter within the tolerance is (LaTeX's paragraph hook; a paragraph
      * that sets its own \\looseness keeps it) */
     if (b.looseness) L.push('\\AddToHook{para/begin}{\\ifnum\\looseness=0 \\looseness=' + Math.round(b.looseness) + '\\relax\\fi}');
-    L.push(b.flushbottom || twocol ? '\\flushbottom' : '\\raggedbottom');
+    /* V3.919 — every page filled to the foot (Alex: "we should never have
+     * the text hanging with a bunch of white space"): space a page cannot
+     * use — a heading kept with its text, a float that went on — is spread
+     * through the page's glue, never left at the bottom. The Document view
+     * does the same (_flushBottoms). */
+    L.push('\\flushbottom');
     L.push('\\clubpenalty=150 \\widowpenalty=150');
     // floats
     var f = look.floats;
@@ -556,7 +565,7 @@
       t.preamble = (template.preamble || '') +
         '\n% --- RM journal look: predictable line breaking (the Document view uses the same settings) ---\n' +
         '\\makeatletter\\@ifpackageloaded{microtype}{\\microtypesetup{protrusion=false}}{}\\makeatother\n' +
-        '\\AtBeginDocument{\\frenchspacing\\pretolerance=' + (lb.pretolerance != null ? lb.pretolerance : 100) +
+        '\\AtBeginDocument{\\flushbottom\\frenchspacing\\pretolerance=' + (lb.pretolerance != null ? lb.pretolerance : 100) +   // V3.919 — pages filled to the foot
         ' \\tolerance=' + (lb.tolerance != null ? lb.tolerance : 800) +
         ' \\emergencystretch=' + n((lb.emergency || 0) * look.body.size) + 'bp}\n' + (look.preamble_extra || '');
       var skc = merge(template.section_kind_to_command || {}, {});
@@ -859,6 +868,33 @@
     // a float's separation from the text is the band gap (\textfloatsep),
     // not a margin of its own
     R.push(S + ' .pdv-figure, ' + S + ' .pdv-table-wrap{margin:0;}');
+    /* V3.918 — a table as TeX sets a tabular, so a long one breaks where
+     * the PDF breaks it: the body size (a table's own \small etc. scales
+     * it), \tabcolsep 6pt each side, each row one \baselineskip with no
+     * padding (\arraystretch's strut adds 0.7/0.3 of the extra above and
+     * below), booktabs spacing (0.65ex under a rule, 0.4ex over one) */
+    R.push(S + ' .pdv-table{font-size:1em;}');
+    R.push(S + ' .pdv-booktabs tr.pdv-thead td{font-weight:inherit;}');   // a header row is plain unless styled
+    // a word too long for its p{} column sticks out (TeX's overfull box);
+    // breaking it would add lines TeX does not set
+    R.push(S + ' .pdv-table.pdv-tbl-wrap td{overflow-wrap:normal;}');
+    // caption package, position=top: the skip goes between caption and table
+    R.push(S + ' .pdv-tabcap.pdv-tabcap-above{margin-top:0;margin-bottom:' + n(c.skip * PX) + 'px;}');
+    var tabLead = n(look.body.lead / look.body.size);   // the look's \normalsize leading, as a ratio
+    R.push(S + ' .pdv-table td{padding:0 ' + n(6 * PX) + 'px;line-height:' + tabLead + ';}');
+    [['compact', 0.9], ['roomy', 1.25], ['airy', 1.5]].forEach(function (d) {
+      var x = Math.max(0, d[1] - 1) * tabLead;
+      R.push(S + ' .pdv-table.pdv-tbl-dens-' + d[0] + ' td{padding:' + n(0.7 * x) + 'em ' + n(6 * PX) + 'px ' + n(0.3 * x) + 'em;}');
+    });
+    R.push(S + ' .pdv-booktabs tr.pdv-tbl-r-first td{padding-top:0.65ex;}');
+    R.push(S + ' .pdv-booktabs tr.pdv-thead td, ' + S + ' .pdv-booktabs tr.pdv-tbl-ruled td, ' +
+      S + ' .pdv-booktabs tr.pdv-tbl-r-last td{padding-bottom:0.4ex;}');
+    R.push(S + ' .pdv-booktabs tr.pdv-thead + tr td, ' + S + ' .pdv-booktabs tr.pdv-tbl-ruled + tr td{padding-top:0.65ex;}');
+    // TeX shrinks interword space (≈1/9 em a space) to keep a line that is
+    // a hair too long ("Numerical Aperture" 82.1 pt in an 82 pt p{} column
+    // stays one line in the PDF); a browser never does, so a wrapping cell
+    // gets that point back on its right
+    R.push(S + ' .pdv-table.pdv-tbl-wrap td, ' + S + ' .pdv-table td.pdv-td-fixed, ' + S + ' .pdv-table.pdv-tbl-wrap[class*="pdv-tbl-dens-"] td{padding-right:' + n(5 * PX) + 'px;}');
     // \textsuperscript / \textsubscript and natbib's superscript citations
     // are set at TeX's script size (0.7 × the text size)
     R.push(S + ' sup, ' + S + ' sub{font-size:0.7em;line-height:0;}');

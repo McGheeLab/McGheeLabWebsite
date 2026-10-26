@@ -1278,6 +1278,7 @@
     /* V3.495 — group wrap figures AFTER the probe carries the spacing +
      * density vars, so the figure-clear measurement matches the real layout. */
     if (!geom.look) _groupWrapFigures(items, geom);   // V3.485 — CSS wrap grouping; a look uses wrapfig's rules (V3.912)
+    _layoutTables(items, geom);   // V3.918 — column or page, continued pieces (with the look's CSS on the probe)
     state.tsReport = {};   // V3.910 — per-paragraph typesetting results for the layout check
     state.wrapReport = {};  // V3.912 — where each wrapped figure was set (here / held / collision)
     await _measureItems(items, geom, seq);
@@ -1289,6 +1290,7 @@
     _mountSheets(pages, geom, hints);
     _resolveSecRefs();   // upgrade [!sec:] chips to their computed numbers
     _joinAdjacentCites();   // V3.453 — fixed-width gaps between adjacent cite groups
+    _flushBottoms();        // V3.919 — every text page filled to the foot, as \flushbottom does
     _paintDensityReadout();   // V3.486 — lines/page estimate needs the packed geometry
     _buildLayoutReport(geom);   // V3.910 — the layout check reads the mounted pages
     /* V3.495 — re-apply the layout selection so a selected figure keeps its
@@ -1611,7 +1613,7 @@
         }
         if (blk.kind === 'paragraph' || blk.kind === 'equation' || blk.kind === 'list') afterHeading = false;
         pushSec(node.el, node.type, blk.kind, sec.id, blk.id, node.float || null);
-        (node.more || []).forEach(function (m) { pushSec(m.el, m.type, m.kind, sec.id, blk.id); });   // V3.917
+        (node.more || []).forEach(function (m) { pushSec(m.el, m.type, m.kind, sec.id, blk.id, m.float || null); });   // V3.917 / V3.918 table pieces
       });
       if (pendingRunIn && pendingRunIn.el) pushSec(pendingRunIn.el, 'col', 'subheading', sec.id, pendingRunIn.blk.id);
     });
@@ -2155,18 +2157,24 @@
        * journal measures at body width like other 'full' items. */
       var tAnchor = (typeof ta.anchor === 'string' && ta.anchor) ? ta.anchor : 'flow';
       if (!FLOAT_REGIONS[tAnchor]) tAnchor = 'flow';       // unknown value → in-flow
-      var tType = (ta.span === 'page' && geom.cols === 2) ? 'full' : 'col';
-      var tFloat = tAnchor !== 'flow'
-        ? { region: tAnchor, span: tType === 'full' ? 'page' : 'column', lock: ta.lock === true,
-            spacing: (typeof ta.spacing === 'number' && isFinite(ta.spacing)) ? ta.spacing : 0 }  // V3.410
-        : (geom.look ? { region: 'auto', span: tType === 'full' ? 'page' : 'column', lock: false,   // V3.908 — [tbp]
-            spacing: (typeof ta.spacing === 'number' && isFinite(ta.spacing)) ? ta.spacing : 0 } : null);
+      /* V3.918 — 'page' / 'column' when the writer chose one, else 'auto':
+       * decided below from the table's natural width (PaperLayout.tableSpan) */
+      var tSpan = (window.PaperLayout && window.PaperLayout.tableSpan)
+        ? window.PaperLayout.tableSpan(ta) : (ta.span === 'page' ? 'page' : 'auto');
+      if (!parseInt(ta.rows, 10) && /^\s*\\begin\{table\*\}/.test(String(ta.raw_tex || ''))) tSpan = 'page';
+      var tType = (tSpan === 'page' && geom.cols === 2) ? 'full' : 'col';
+      function tFloatFor(type) {
+        return tAnchor !== 'flow'
+          ? { region: tAnchor, span: type === 'full' ? 'page' : 'column', lock: ta.lock === true,
+              spacing: (typeof ta.spacing === 'number' && isFinite(ta.spacing)) ? ta.spacing : 0 }  // V3.410
+          : (geom.look ? { region: 'auto', span: type === 'full' ? 'page' : 'column', lock: false,   // V3.908 — [tbp]
+              spacing: (typeof ta.spacing === 'number' && isFinite(ta.spacing)) ? ta.spacing : 0 } : null);
+      }
       var el2 = document.createElement('div');
       el2.className = 'pdv-table-wrap';
       el2.dataset.blockId = blk.id || '';
       el2.dataset.blockKind = 'table';
       el2.dataset.anchor = tAnchor;
-      el2.dataset.span = tType === 'full' ? 'page' : 'column';
       var rows = parseInt(ta.rows, 10) || 0;
       var cols = parseInt(ta.cols, 10) || 0;
       var cells = ta.cells || {};
@@ -2179,13 +2187,18 @@
        * caption instead of an empty "Table 1." */
       var rawTab = (!rows && ta.raw_tex && window.PaperProseTex)
         ? window.PaperProseTex.parseTabular(ta.raw_tex) : null;
+      var rawMerges = {};
       if (rawTab && rawTab.rows.length) {
         rows = rawTab.rows.length;
         cols = 0;
         cells = {};
         rawTab.rows.forEach(function (r, ri) {
           var cc = 0;
-          r.forEach(function (cell) { cells[ri + '-' + cc] = cell.text; cc += cell.span; });
+          r.forEach(function (cell) {
+            cells[ri + '-' + cc] = cell.text;
+            if (cell.span > 1) rawMerges[ri + '-' + cc] = { rs: 1, cs: cell.span };   // V3.918 — \multicolumn
+            cc += cell.span;
+          });
           cols = Math.max(cols, cc);
         });
         align = rawTab.align;
@@ -2194,7 +2207,7 @@
       /* Tables II — merged cells + per-column widths (scalar attrs,
        * parsed via the shared PaperLayout helpers; absent = legacy). */
       var PLt = window.PaperLayout || {};
-      var tMerges = PLt.parseTableMerges ? PLt.parseTableMerges(ta.merges_json) : {};
+      var tMerges = rawTab ? rawMerges : PLt.parseTableMerges ? PLt.parseTableMerges(ta.merges_json) : {};
       var tCover = PLt.tableCoverMap ? PLt.tableCoverMap(tMerges, rows, cols) : { anchors: {}, skip: {}, cont: {} };
       var tWidths = PLt.parseTableWidths ? PLt.parseTableWidths(ta.widths_json, cols) : null;
       /* V3.651 — table styling, from the same shared parse the editor and
@@ -2213,19 +2226,39 @@
           (tSt.zebra ? ' pdv-tbl-zebra' : '') + (tSt.wrap ? ' pdv-tbl-wrap' : '');
         if (tSt.sizeCss !== 1) tStyleAttr = ' style="font-size:' + (tSt.sizeCss * 100).toFixed(0) + '%"';
       }
-      if (rawTab && rawTab.small && !tStyleAttr) tStyleAttr = ' style="font-size:90%"';   // \small
+      if (rawTab && rawTab.size !== 1 && !tStyleAttr) tStyleAttr = ' style="font-size:' + Math.round(rawTab.size * 100) + '%"';   // \small, \scriptsize … (V3.918)
+      /* V3.918 — an imported table keeps LaTeX's columns: l/c/r never
+       * wrap, p{…} wraps at its width (pdv-tbl-tex) */
+      if (rawTab) tCls = tCls.replace(' pdv-tbl-wrap', '') + ' pdv-tbl-tex';
       var html = '<table class="' + tCls + '"' + tStyleAttr + '>';
       /* V3.652 — a wrapping table is table-layout:fixed, which needs a
-       * width on every column; the shares match the .tex exactly. */
-      var tShares = (tSt && tSt.wrap && PLt.tableColShares)
+       * width on every column; the shares match the .tex exactly.
+       * V3.918 — a share (pdv-col-share) is let go when the natural width
+       * is measured; a fixed width (pdv-col-fixed: mm, p{3cm}) is kept. */
+      var tShares = rawTab ? null : (tSt && tSt.wrap && PLt.tableColShares)
         ? PLt.tableColShares(tWidths, cols) : tWidths;
       var anyWidth = tShares && tShares.some(function (w) { return w.mode !== 'auto'; });
-      if (anyWidth) {
+      var fixedCol = {};
+      /* a p{3cm} column is 3cm of text with \tabcolsep either side; a
+       * <col> width counts the cell's padding, so add it */
+      var tPad = geom.look ? 16 : 20;
+      if (rawTab && (rawTab.widths || []).some(Boolean)) {
+        html += '<colgroup>';
+        for (var rc = 0; rc < cols; rc++) {
+          var rw = rawTab.widths[rc];
+          if (rw) fixedCol[rc] = true;
+          if (!rw) html += '<col>';
+          else if (rw.mode === 'mm') html += '<col class="pdv-col-fixed" style="width:' + (rw.v * 96 / 25.4 + tPad).toFixed(1) + 'px">';
+          else if (rw.mode === 'text') html += '<col class="pdv-col-fixed" style="width:' + (rw.v * geom.bodyW + tPad).toFixed(1) + 'px">';
+          else html += '<col class="pdv-col-fixed" data-line="' + rw.v + '" data-pad="' + tPad + '">';   // \linewidth: set once the span is known
+        }
+        html += '</colgroup>';
+      } else if (anyWidth) {
         html += '<colgroup>';
         for (var wc = 0; wc < cols; wc++) {
           var w = tShares[wc];
-          if (w.mode === 'frac') html += '<col style="width:' + (w.v * 100).toFixed(1) + '%">';
-          else if (w.mode === 'mm') html += '<col style="width:' + (w.v * 96 / 25.4).toFixed(0) + 'px">';
+          if (w.mode === 'frac') html += '<col class="pdv-col-share" style="width:' + (w.v * 100).toFixed(1) + '%">';
+          else if (w.mode === 'mm') { fixedCol[wc] = true; html += '<col class="pdv-col-fixed" style="width:' + (w.v * 96 / 25.4 + tPad).toFixed(0) + 'px">'; }
           else html += '<col>';
         }
         html += '</colgroup>';
@@ -2262,11 +2295,11 @@
           var tdCls = '';
           if (cSt.bg && tFills[cSt.bg]) {
             tdCss += ';background:' + tFills[cSt.bg].css;
-            tdCls = ' class="pdv-cell-filled"';
-          }
+            tdCls = ' class="pdv-cell-filled' + (fixedCol[c] && !(anchor && anchor.cs > 1) ? ' pdv-td-fixed' : '') + '"';
+          } else if (fixedCol[c] && !(anchor && anchor.cs > 1)) tdCls = ' class="pdv-td-fixed"';
           /* V3.906 — cells are prose (math, citations, refs, **bold**),
            * the same inline contract the .tex export now applies. */
-          html += '<td' + spanAttrs + tdCls + ' style="' + tdCss + '">' +
+          html += '<td data-c="' + c + '"' + spanAttrs + tdCls + ' style="' + tdCss + '">' +
             (v == null || v === '' ? '' : _pe().renderParagraphHtml(String(v))) + '</td>';
         }
         html += '</tr>';
@@ -2275,8 +2308,17 @@
       var tnum = (ta.numbered !== false && nums.tab[blk.id]) ? nums.tab[blk.id] : null;
       var tcap = String(ta.caption || '').trim() || (rawTab ? rawTab.caption : '');
       if (tcap || tnum) {
-        html += '<div class="pdv-tabcap">' + (tnum ? _captionLabel(geom, 'tab', tnum) : '') +
-          _pe().renderParagraphHtml(tcap) + '</div>';
+        /* V3.918 — above the table where the PDF puts it: an imported
+         * table where its LaTeX wrote it; a built one when it carries a
+         * layout anchor and the journal sets table captions on top (the
+         * export's PaperLayout.resolveFloat captionAbove) */
+        var capTop = rawTab ? !!rawTab.captionAbove
+          : (typeof ta.anchor === 'string' && !!ta.anchor &&
+             (geom.look ? geom.look.caption && geom.look.caption.table_position !== 'below'
+               : !!(tpl.table_environment && tpl.table_environment.caption_position === 'above')));
+        var capHtml = '<div class="pdv-tabcap' + (capTop ? ' pdv-tabcap-above' : '') + '">' +
+          (tnum ? _captionLabel(geom, 'tab', tnum) : '') + _pe().renderParagraphHtml(tcap) + '</div>';
+        html = capTop ? capHtml + html : html + capHtml;
       }
       /* Tables II — table notes under the caption (threeparttable look). */
       var tNotes = String(ta.notes || '').split('\n')
@@ -2287,9 +2329,146 @@
         }).join('') + '</div>';
       }
       el2.innerHTML = html;
-      return { el: el2, type: tType, float: tFloat };
+      /* V3.918 — the width ('auto' is decided by _layoutTables once the
+       * look's CSS and fonts are in, from what TeX would measure) and what
+       * a continued piece needs */
+      el2.dataset.tspan = tSpan;
+      el2.dataset.nhead = headerRow ? '1' : '0';
+      if (tnum) el2.dataset.tnum = String(tnum);
+      _tableLineWidths(el2, tType === 'full' ? geom.bodyW : geom.colW);
+      el2.dataset.span = tType === 'full' ? 'page' : 'column';
+      return { el: el2, type: tType, float: tFloatFor(tType) };
     }
     return null;
+  }
+
+  /* V3.918 — the journal rules for tables, as \rmTable applies them in
+   * the PDF. Runs after the look's CSS and fonts are on the probe (they
+   * are what TeX measures with). In two columns a table whose span is
+   * 'auto' is set across the page when its natural width (no wrapping,
+   * fixed columns at their width) is wider than a column; then a table
+   * taller than the page is cut into pieces that continue on the next. */
+  function _layoutTables(items, geom) {
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      var el = it.node;
+      if (!el || !el.classList || !el.classList.contains('pdv-table-wrap') || !el.dataset.tspan) continue;
+      var tType = it.type;
+      var tbl = el.querySelector('table');
+      if (geom.cols === 2 && el.dataset.tspan === 'auto' && tbl) {
+        tType = _tableNaturalW(tbl, geom) > geom.colW + 0.5 ? 'full' : 'col';
+      }
+      it.type = tType;
+      if (it.float) it.float.span = tType === 'full' ? 'page' : 'column';
+      el.dataset.span = tType === 'full' ? 'page' : 'column';
+      _tableLineWidths(el, tType === 'full' ? geom.bodyW : geom.colW);
+      var pieces = _tablePieces(el, geom, tType, parseInt(el.dataset.nhead, 10) || 0, el.dataset.tnum || null);
+      if (!pieces) continue;
+      var repl = pieces.map(function (pc, k) {
+        return Object.assign({}, it, { node: pc, footnotes: k ? [] : it.footnotes,
+          float: it.float ? Object.assign({}, it.float) : null });
+      });
+      items.splice.apply(items, [i, 1].concat(repl));
+      i += repl.length - 1;
+    }
+  }
+
+  /* V3.918 — a table's natural width (px): set without wrapping, each
+   * column as wide as its widest cell, a fixed column (p{3cm}, a width in
+   * mm) at its width — what TeX measures as \rmTnat. A column that wraps
+   * when printed (a share of a wrapping table) counts at most a third of
+   * the column: prose may wrap, so an abbreviation list with one long
+   * meaning still fits a column, as journals set it (\rmTcellA/B). */
+  function _tableNaturalW(tableEl, geom) {
+    var probe = state.probeEl;
+    if (!probe) return 0;
+    var wraps = tableEl.classList.contains('pdv-tbl-wrap');
+    var t = tableEl.cloneNode(true);
+    t.classList.remove('pdv-tbl-wrap');
+    t.classList.add('pdv-tbl-natural');
+    probe.innerHTML = '';
+    probe.style.fontSize = (geom.fontPt * 1.333) + 'px';
+    probe.style.width = Math.ceil(geom.bodyW * 4) + 'px';
+    probe.appendChild(t);
+    _tableLineWidths(t, geom.colW);
+    var w = t.getBoundingClientRect().width;
+    if (wraps) {
+      var shareCol = {};
+      Array.prototype.forEach.call(t.querySelectorAll('col'), function (c, i) { shareCol[i] = c.classList.contains('pdv-col-share'); });
+      var colW = {};
+      t.querySelectorAll('td[data-c]').forEach(function (td) {
+        if (td.colSpan > 1) return;
+        var c = td.dataset.c;
+        colW[c] = Math.max(colW[c] || 0, td.getBoundingClientRect().width);
+      });
+      var pad = geom.look ? 16 : 20, cap = geom.colW / 3 + pad, sum = 0;
+      Object.keys(colW).forEach(function (c) { sum += shareCol[c] ? Math.min(colW[c], cap) : colW[c]; });
+      w = Math.min(w, sum);
+    }
+    probe.innerHTML = '';
+    return w;
+  }
+  /* p{0.3\linewidth} in an imported table: a share of the line it is set
+   * on, the column or the page */
+  function _tableLineWidths(el, lineW) {
+    el.querySelectorAll('col[data-line]').forEach(function (c) {
+      c.style.width = (parseFloat(c.dataset.line) * lineW + (parseFloat(c.dataset.pad) || 0)).toFixed(1) + 'px';
+    });
+  }
+  /* V3.918 — a table taller than the page, cut into pieces at row
+   * boundaries the way \rmTable cuts it: rows measured at the printed
+   * width, a piece holds what fits under the caption and the header (and
+   * two lines' slack), every later piece starts "Table N (continued)" with
+   * the header rows again. The caption stays on the first piece, notes on
+   * the last. Returns null when the table fits on a page. */
+  function _tablePieces(el2, geom, tType, nHead, tnum) {
+    var probe = state.probeEl;
+    if (!probe) return null;
+    var lead = geom.leadPx || geom.fontPt * 1.2 * 4 / 3;
+    probe.innerHTML = '';
+    probe.style.fontSize = (geom.fontPt * 1.333) + 'px';
+    probe.style.width = (tType === 'full' ? geom.bodyW : geom.colW) + 'px';
+    probe.appendChild(el2);
+    var total = el2.getBoundingClientRect().height;
+    var table = el2.querySelector('table');
+    if (!table || total <= geom.bodyH - 2 * lead) { probe.innerHTML = ''; return null; }
+    var trs = Array.prototype.slice.call(table.rows);
+    var cap = el2.querySelector('.pdv-tabcap');
+    var headH = 0;
+    for (var i = 0; i < nHead && i < trs.length; i++) headH += trs[i].getBoundingClientRect().height;
+    var limit = geom.bodyH - (cap ? cap.getBoundingClientRect().height : 0) - 2 * lead - headH;
+    var rowH = trs.map(function (tr) { return tr.getBoundingClientRect().height; });
+    probe.innerHTML = '';
+    var groups = [], cur = [], acc = 0;
+    for (var r = nHead; r < trs.length; r++) {
+      if (cur.length && acc + rowH[r] > limit) { groups.push(cur); cur = []; acc = 0; }
+      cur.push(r); acc += rowH[r];
+    }
+    if (cur.length) groups.push(cur);
+    if (groups.length < 2) return null;
+    var word = (geom.look && geom.look.caption && geom.look.caption.label_tab) || 'Table';
+    return groups.map(function (g, gi) {
+      var piece = el2.cloneNode(true);
+      piece.dataset.piece = String(gi);
+      var keep = {};
+      g.forEach(function (ri) { keep[ri] = true; });
+      var prs = Array.prototype.slice.call(piece.querySelector('table').rows);
+      prs.forEach(function (tr, ri) { if (ri >= nHead && !keep[ri]) tr.remove(); });
+      var left = piece.querySelector('table').rows;
+      if (left.length) {
+        left[left.length - 1].classList.remove('pdv-tbl-ruled');   // the next piece's rule, dropped at a cut
+        left[left.length - 1].classList.add('pdv-tbl-r-last');
+      }
+      if (gi > 0) {
+        piece.querySelectorAll('.pdv-tabcap').forEach(function (n) { n.remove(); });
+        var cont = document.createElement('div');
+        cont.className = 'pdv-tabcont';
+        cont.textContent = (tnum ? word + ' ' + tnum + ' ' : '') + '(continued)';
+        piece.insertBefore(cont, piece.firstChild);
+      }
+      if (gi < groups.length - 1) piece.querySelectorAll('.pdv-tabnotes').forEach(function (n) { n.remove(); });
+      return piece;
+    });
   }
 
   /* One author → "A. B. Surname" (initials-first, IEEE/Science) or
@@ -2638,8 +2817,9 @@
       /* dataset.h (image height cap, mm) is the V3.405 discriminator —
        * a cap change alters the box height with identical innerHTML. */
       var hcap = (x.node.dataset && x.node.dataset.h) || '';
+      var piece = (x.node.dataset && x.node.dataset.piece) || '';   // V3.918 — one table, several pieces
       return (x.blockId || x.blockKind || 'i') + '|' + x.type + '|' + width +
-             '|' + w + '|' + hcap + '|' + (x.node.innerHTML ? x.node.innerHTML.length : 0);
+             '|' + w + '|' + hcap + '|' + piece + '|' + (x.node.innerHTML ? x.node.innerHTML.length : 0);
     }
     function measureCached(list, width) {
       if (!cache) { measureBatch(list, width); return; }
@@ -3719,7 +3899,7 @@
       if (pages.length > MAX_SHEETS) continue;
       /* V3.908 — a stand-alone front page (Nature family): the first body
        * item starts a new page. */
-      if (item.breakBefore && !pageIsEmpty()) { closeRun(); newPage(); }
+      if (item.breakBefore && !pageIsEmpty()) { page.noFlush = true; closeRun(); newPage(); }   // V3.919 — a forced break is not stretched
       if ((item.blockKind === 'heading' || item.blockKind === 'subheading') && leadPx) {
         var nx = work[wi + 1];
         item.keepNextH = nx && !nx.float ? Math.min(nx.h, 2 * leadPx) : 0;
@@ -4817,6 +4997,86 @@
    * text runs from the top down to the float; the other column flows its
    * full height independently. The strip's fixed height lets the bottom
    * floats align to the page's text-region foot. */
+  /* V3.919 — \flushbottom in the page view (Alex: "ensure that the text
+   * always fills out the page … never the text hanging with a bunch of
+   * white space"). Where a column or a one-column page ends early — a
+   * heading kept with its first lines, a paragraph that could not split, a
+   * float that went on — TeX's \flushbottom spreads the room through the
+   * page's glue, so the last line sits on the foot. Same here: the room
+   * left under each column's text goes into the gaps between its blocks in
+   * proportion to TeX's stretch there (below); a float at the foot keeps
+   * its own share (\textfloatsep plus 2). Padding, not margin, so collapsing margins cannot eat
+   * it. The last text page is not stretched (TeX's closing \clearpage),
+   * except a full left column; nor a page before a forced break. */
+  function _flushBottoms() {
+    var scale = state.scaleEl;
+    if (!scale) return;
+    var g = state.lastGeom;
+    if (g && !g.look && g.cols === 2) return;   // CSS columns balance themselves (no template uses them today)
+    /* TeX's stretch in the gap between two blocks: what follows the one
+     * above plus what precedes the one below (bp) — \parskip plus 1, a
+     * titlesec heading plus 2 before / plus 1 after (a grant look's rigid
+     * headings: none), displays and lists plus 2 each side, an in-text
+     * float \intextsep plus 2; a paragraph resuming after a display has
+     * no \parskip */
+    var rigid = !!(g && g.look && g.look.rigid_headings);
+    function kind(el) {
+      var c = el.classList;
+      if (!c) return 'p';
+      if (c.contains('pdv-heading') || c.contains('pdv-subheading')) return 'h';
+      if (c.contains('pdv-eq')) return 'eq';
+      if (c.contains('pdv-list-block')) return 'list';
+      if (c.contains('pdv-figure') || c.contains('pdv-table-wrap') || c.contains('pdv-wrapfig-tex')) return 'float';
+      return c.contains('pdv-after-display') ? 'pcont' : 'p';
+    }
+    var BEFORE = { h: rigid ? 1 : 3, eq: 2, list: 3, float: 2, p: 1, pcont: 0 };
+    var AFTER = { h: rigid ? 0 : 1, eq: 2, list: 2, float: 2, p: 0, pcont: 0 };
+    function spread(container, room, headW, tailW) {
+      var kids = Array.prototype.slice.call(container.children);
+      if (room < 1 || !kids.length) return;
+      var ws = kids.map(function (k, i) { return i === 0 ? headW : AFTER[kind(kids[i - 1])] + BEFORE[kind(k)]; });
+      var total = ws.reduce(function (a, b) { return a + b; }, 0) + tailW;
+      if (!(total > 0) || total === tailW) return;
+      kids.forEach(function (k, i) {
+        if (!ws[i]) return;
+        var add = room * ws[i] / total;
+        var cur = parseFloat(k.style.paddingTop) || 0;
+        k.style.paddingTop = (cur + add).toFixed(2) + 'px';
+      });
+    }
+    scale.querySelectorAll('.pdv-sheet[data-flush]').forEach(function (sheet) {
+      var last = sheet.dataset.flush === 'last';
+      var body = sheet.querySelector('.pdv-sheet-body');
+      var region = body && body.querySelector('.pdv-textregion');
+      if (!region || !region.lastElementChild) return;
+      var band = body.querySelector('.pdv-float-band-bottom');
+      var topBand = body.querySelector('.pdv-float-band-top');
+      var foot = band ? band.offsetTop : body.offsetTop + body.clientHeight;
+      var room = foot - (region.offsetTop + region.offsetHeight);
+      var tail = region.lastElementChild;
+      if (tail.classList.contains('pdv-cols')) {
+        if (!last) spread(tail, room, (topBand && tail === region.firstElementChild) ? 2 : 0, band ? 2 : 0);
+        return;
+      }
+      if (!tail.classList.contains('pdv-cols-strip')) return;
+      if (room > 0.5 && !last) tail.style.minHeight = ((parseFloat(tail.style.minHeight) || tail.offsetHeight) + room).toFixed(2) + 'px';
+      var colsEl = Array.prototype.slice.call(tail.querySelectorAll(':scope > .pdv-col'));
+      /* on the last text page only a column with text after it is full */
+      var lastFilled = -1;
+      colsEl.forEach(function (c, i) { var f = c.querySelector('.pdv-col-flow'); if (f && f.children.length) lastFilled = i; });
+      colsEl.forEach(function (col, i) {
+        if (last && i >= lastFilled) return;
+        if (col.style.justifyContent === 'center') return;   // a float column
+        var flow = col.querySelector('.pdv-col-flow');
+        if (!flow || !flow.children.length) return;
+        var bslot = col.querySelector(':scope > .pdv-col-float-bottom');
+        var tslot = col.querySelector(':scope > .pdv-col-float-top');
+        var colFoot = bslot ? bslot.offsetTop : col.offsetTop + col.offsetHeight;
+        spread(flow, colFoot - (flow.offsetTop + flow.offsetHeight), tslot ? 2 : 0, bslot ? 2 : 0);
+      });
+    });
+  }
+
   function _mountColGrid(seg, geom) {
     var strip = document.createElement('div');
     strip.className = 'pdv-cols-strip';
@@ -4866,10 +5126,16 @@
     var frag = document.createDocumentFragment();
     var total = pages.length;
 
+    /* V3.919 — the last page holding text ends where the text ends (TeX's
+     * closing \clearpage); every other text page is filled to the foot */
+    var lastText = -1;
+    pages.forEach(function (page, idx) { if (!page.isFloatPage && page.segments.length) lastText = idx; });
+
     pages.forEach(function (page, idx) {
       var sheet = document.createElement('div');
       sheet.className = 'pdv-sheet' + (page.isFloatPage ? ' pdv-floatpage' : '');
       sheet.dataset.pageIdx = String(idx);   // V3.401 — drop-target resolution
+      if (!page.isFloatPage && !page.overflow && !page.noFlush) sheet.dataset.flush = idx === lastText ? 'last' : '1';
       /* V3.912 — the paginator's accounting for this page, in px (read by the
        * Paper Lab when a page breaks differently from the PDF) */
       sheet.dataset.acct = JSON.stringify({ used: page.usedH, top: page.topH, bottom: page.bottomH, foot: page.footH,
@@ -5361,6 +5627,18 @@
       curLock = derived.lock;
     }
     var curSpan = attrs.get('span') === 'page' ? 'page' : 'column';
+    /* V3.918 — a table's span: Fit (the journal rule: across the page
+     * only when it does not fit a column), one column, or the page. */
+    var SPAN_OPTS = [['column', 'One column'], ['page', 'Full page width']];
+    if (isTable) {
+      curSpan = window.PaperLayout && window.PaperLayout.tableSpan
+        ? { auto: 'auto', column: 'one-column', page: 'page' }[window.PaperLayout.tableSpan({ span: attrs.get('span') })] : curSpan;
+      SPAN_OPTS = [['auto', 'Fit (page width only if too wide for a column)'], ['one-column', 'One column'], ['page', 'Full page width']];
+    }
+    function _spanValue(v) {
+      if (isTable) return v === 'page' || v === 'one-column' ? v : 'auto';
+      return v === 'page' ? 'page' : 'column';
+    }
     /* V3.410 — per-float spacing / nudge (signed mm, 0 = default). */
     var curSpacing = attrs.get('spacing');
     if (typeof curSpacing !== 'number' || !isFinite(curSpacing)) curSpacing = 0;
@@ -5408,8 +5686,9 @@
       '<option value="left"' + (curWrapSide === 'left' ? ' selected' : '') + '>Left</option>' +
       '</select></label>') +
       '<label>Span <select data-pdv-span>' +
-      '<option value="column"' + (curSpan === 'column' ? ' selected' : '') + '>One column</option>' +
-      '<option value="page"' + (curSpan === 'page' ? ' selected' : '') + '>Full page width</option>' +
+      SPAN_OPTS.map(function (o) {
+        return '<option value="' + o[0] + '"' + (curSpan === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+      }).join('') +
       '</select></label>' +
       /* V3.410 — spacing / nudge stepper: signed mm on the float's
        * text-facing side, additive over the document Spacing preset.
@@ -5474,7 +5753,7 @@
       var anchorVal = pop.querySelector('[data-pdv-anchor]').value;
       var kv = {
         anchor: anchorVal,
-        span: pop.querySelector('[data-pdv-span]').value === 'page' ? 'page' : 'column',
+        span: _spanValue(pop.querySelector('[data-pdv-span]').value),
         lock: !!pop.querySelector('[data-pdv-lock]').checked,
       };
       /* V3.485 — carry the wrap side whenever the block is wrapped. */

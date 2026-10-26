@@ -14,6 +14,7 @@
  *
  *   anchor  'flow' | 'top' | 'bottom' | 'float-page'   default 'flow'
  *   span    'column' | 'page'                           default 'column'
+ *           (tables, V3.918: 'auto' | 'one-column' | 'page' — tableSpan)
  *   lock    bool                                        default false
  *   size_key 'single'|'oneAndHalf'|'double'|'custom'    figures only (R5)
  *
@@ -101,6 +102,19 @@
     if (attrs.span === 'page') return '\\textwidth';
     var fe = (template && template.figure_environment) || {};
     return attrs.width || fe.default_width || '\\linewidth';
+  }
+
+  /* V3.918 — a table's width in a two-column layout: 'page' (across both
+   * columns), 'column' (kept in one) or 'auto' — across the page when the
+   * table, set without wrapping, is wider than a column, as journals do.
+   * Every table used to be created with span:'column', so that stored
+   * value means "nobody chose"; a writer who picks one column in the
+   * Table layout popover stores 'one-column'. */
+  function tableSpan(attrs) {
+    var s = attrs && attrs.span;
+    if (s === 'page') return 'page';
+    if (s === 'one-column') return 'column';
+    return 'auto';
   }
 
   /* The core mapping: layout intent → concrete LaTeX float parameters.
@@ -639,6 +653,7 @@
   var api = {
     resolveFloat: resolveFloat,
     resolveWidth: resolveWidth,
+    tableSpan: tableSpan,        // V3.918
     resolveBodyDensity: resolveBodyDensity,
     placementToAnchor: placementToAnchor,
     anchorToPlacement: anchorToPlacement,

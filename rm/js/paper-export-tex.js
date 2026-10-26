@@ -662,6 +662,117 @@
   var _usedArray = false;
   var _usedLongtable = false;
   var _usedThreeparttable = false;
+  var _usedRmTable = false;    // V3.918 — \rmTable (two-column tables)
+
+  /* V3.918 — tables in a two-column layout, the way journals set them.
+   * TeX measures the table set without wrapping (\rmTnat; a column that
+   * wraps when printed counts at most a third of the column): wider than a
+   * column → table*, across the page; otherwise it stays in the column.
+   * Then it measures each row at the width it will print and starts a new
+   * float when the page is full, headed "Table N (continued)" with the
+   * header rows repeated (longtable cannot run in two columns). A table
+   * that fits makes exactly one float. The Document view applies the same
+   * two rules to what it measures in the browser. Per table the export
+   * writes \def\rmTspan{auto|page|column}, \rmTplace / \rmTplaceStar,
+   * \rmTnat / \rmTspec (natural and printed column specs), \rmTsetup,
+   * \rmTtop / \rmThead / \rmTbottom, \rmTcaption, \rmTcapmeasure,
+   * \rmTcapAbove, \rmTnumbered, \rmTnotes, \rmTbefore / \rmTafter, then
+   * \rmTable{\rmTR{<rules above>}{<row \\>}…} inside a group. */
+  var RM_TABLE_TEX = [
+    '\\makeatletter',
+    '\\newbox\\rmT@box',
+    '\\newdimen\\rmT@acc \\newdimen\\rmT@max \\newdimen\\rmT@rowh',
+    '\\newtoks\\rmT@all \\newtoks\\rmT@cur',
+    '\\newif\\ifrmT@wide \\newif\\ifrmT@first \\newif\\ifrmT@empty \\newif\\ifrmT@last',
+    '\\def\\rmT@pagekw{page}\\def\\rmT@colkw{column}\\def\\rmT@yes{1}',
+    '\\providecommand\\tablename{Table}',
+    '\\providecommand\\rmTcontname{continued}',
+    '\\providecommand\\rmTcontfont{\\small}',
+    '\\@ifundefined{abovecaptionskip}{\\def\\rmT@capskip{\\z@}}{\\def\\rmT@capskip{\\abovecaptionskip}}',
+    // a wrapping column counts at most a third of the column in \\rmTnat
+    '\\newsavebox\\rmTcellbox',
+    '\\def\\rmTcellA{\\begin{lrbox}{\\rmTcellbox}}',
+    '\\def\\rmTcellB{\\end{lrbox}\\ifdim\\wd\\rmTcellbox>\\dimexpr\\columnwidth/3\\relax\\hbox to\\dimexpr\\columnwidth/3\\relax{}\\else\\usebox\\rmTcellbox\\fi}',
+    '\\def\\rmT@plain#1#2{#1#2}',
+    '\\long\\def\\rmT@tabx#1#2{\\begin{tabular}{#1}#2\\end{tabular}}',
+    '\\long\\def\\rmT@tab#1#2{\\expandafter\\rmT@tabx\\expandafter{#1}{#2}}',
+    '\\def\\rmT@width{\\ifrmT@wide\\textwidth\\else\\columnwidth\\fi}',
+    '\\long\\def\\rmTable#1{%',
+    '  \\rmT@all={#1}%',
+    '  \\ifx\\rmTspan\\rmT@pagekw \\rmT@widetrue',
+    '  \\else\\ifx\\rmTspan\\rmT@colkw \\rmT@widefalse',
+    '  \\else',
+    '    \\setbox\\rmT@box\\hbox{\\rmTsetup\\let\\rmTR\\rmT@plain',
+    '      \\rmT@tab\\rmTnat{\\rmTtop\\rmThead\\the\\rmT@all\\rmTbottom}}%',
+    '    \\ifdim\\wd\\rmT@box>\\columnwidth \\rmT@widetrue \\else \\rmT@widefalse \\fi',
+    '  \\fi\\fi',
+    '  \\rmT@max=\\textheight',
+    '  \\setbox\\rmT@box\\vbox{\\hsize\\rmT@width \\linewidth\\hsize \\rmTcapmeasure\\par}%',
+    '  \\advance\\rmT@max by -\\ht\\rmT@box \\advance\\rmT@max by -\\dp\\rmT@box',
+    '  \\advance\\rmT@max by -\\rmT@capskip \\advance\\rmT@max by -2\\baselineskip',
+    '  \\setbox\\rmT@box\\hbox{\\linewidth\\rmT@width',
+    '    \\rmTsetup\\rmT@tab\\rmTspec{\\rmTtop\\rmThead\\rmTbottom}}%',
+    '  \\advance\\rmT@max by -\\ht\\rmT@box \\advance\\rmT@max by -\\dp\\rmT@box',
+    '  \\rmT@acc=\\z@ \\rmT@cur={}\\rmT@firsttrue \\rmT@emptytrue \\rmT@lastfalse',
+    '  \\let\\rmTR\\rmT@add',
+    '  \\the\\rmT@all',
+    '  \\rmT@lasttrue \\rmT@flush}',
+    '\\long\\def\\rmT@add#1#2{%',
+    '  \\setbox\\rmT@box\\hbox{\\linewidth\\rmT@width \\rmTsetup\\rmT@tab\\rmTspec{#1#2}}%',
+    '  \\rmT@rowh=\\ht\\rmT@box \\advance\\rmT@rowh by \\dp\\rmT@box',
+    '  \\ifrmT@empty\\else',
+    '    \\ifdim\\dimexpr\\rmT@acc+\\rmT@rowh\\relax>\\rmT@max \\rmT@flush \\fi',
+    '  \\fi',
+    '  \\advance\\rmT@acc by \\rmT@rowh',
+    '  \\ifrmT@empty \\rmT@cur=\\expandafter{\\the\\rmT@cur #2}%',
+    '  \\else \\rmT@cur=\\expandafter{\\the\\rmT@cur #1#2}\\fi',
+    '  \\rmT@emptyfalse}',
+    '\\def\\rmT@flush{%',
+    '  \\edef\\rmT@go{\\noexpand\\begin{\\ifrmT@wide table*\\else table\\fi}[\\ifrmT@wide\\rmTplaceStar\\else\\rmTplace\\fi]}%',
+    '  \\rmT@go',
+    '  \\rmTbefore\\centering',
+    '  \\ifrmT@first \\ifx\\rmTcapAbove\\rmT@yes \\rmTcaption\\fi',
+    '  \\else {\\rmTcontfont\\ifx\\rmTnumbered\\rmT@yes\\tablename~\\thetable\\ \\fi(\\rmTcontname)\\par}\\vskip\\rmT@capskip',
+    '  \\fi',
+    '  {\\rmTsetup\\rmT@tab\\rmTspec{\\rmTtop\\rmThead\\the\\rmT@cur\\rmTbottom}\\par}%',
+    '  \\ifrmT@last \\rmTnotes \\fi',
+    '  \\ifrmT@first \\ifx\\rmTcapAbove\\rmT@yes\\else \\rmTcaption\\fi \\fi',
+    '  \\rmTafter',
+    '  \\edef\\rmT@go{\\noexpand\\end{\\ifrmT@wide table*\\else table\\fi}}%',
+    '  \\rmT@go',
+    '  \\rmT@firstfalse \\rmT@acc=\\z@ \\rmT@cur={}\\rmT@emptytrue}',
+    '\\makeatother',
+  ].join('\n');
+
+  /* One table as \rmTable input (see RM_TABLE_TEX). t: {span, place,
+   * placeStar, nat, spec, setup, top, head, bottom, caption, capMeasure,
+   * capAbove, numbered, notes, before, after, rows: [{lead, tex}]}. */
+  function _rmTableTex(t) {
+    _usedRmTable = true;
+    function d(name, v) { return '\\def\\' + name + '{' + (v || '') + '}'; }   // one per line (vertical mode)
+    var out = ['\\begingroup',
+      d('rmTspan', t.span), d('rmTplace', t.place), d('rmTplaceStar', t.placeStar),
+      d('rmTnat', t.nat), d('rmTspec', t.spec), d('rmTsetup', t.setup),
+      d('rmTtop', t.top), d('rmThead', t.head), d('rmTbottom', t.bottom),
+      d('rmTcaption', t.caption), d('rmTcapmeasure', t.capMeasure),
+      d('rmTcapAbove', t.capAbove ? '1' : '0'), d('rmTnumbered', t.numbered ? '1' : '0'),
+      d('rmTnotes', t.notes), d('rmTbefore', t.before), d('rmTafter', t.after),
+      '\\rmTable{%'];
+    t.rows.forEach(function (r) { out.push('  \\rmTR{' + (r.lead || '') + '}{' + r.tex + '}'); });
+    out.push('}%', '\\endgroup');
+    return out.join('\n');
+  }
+
+  /* Placement for the two floats a \rmTable may become: the column float
+   * keeps what layout resolved; across the page LaTeX takes [t] / [p]
+   * only (V3.907: p as the safety valve). */
+  function _rmTablePlaces(env, place) {
+    var star = env.charAt(env.length - 1) === '*';
+    return {
+      place: star ? 'tbp' : place,
+      placeStar: star ? place : (place === 'p' ? 'p' : 'tp'),
+    };
+  }
 
   /* V3.485 — per-run flag: a corner/side wrap figure was emitted
    * (\begin{wrapfigure}), so \usepackage{wrapfig} (stock TeX Live) joins
@@ -1121,12 +1232,25 @@
     return spanning ? '\\begin{strip}\n' + body + '\n\\end{strip}' : body;
   }
 
+  /* V3.919 — an imported figure or table written to stay "here" ([H],
+   * [h], [h!]) floats under a journal look: [H] ends the page early when
+   * it does not fit, leaving the text hanging above white space; [tbp]
+   * ([tp] when starred) lets the text fill the page and sets the float
+   * at a top or bottom, where the Document view puts it too. */
+  function _floatRawTex(raw, template) {
+    if (!template || !template._look) return raw;
+    return String(raw).replace(/\\begin\{(figure|table)(\*?)\}\s*\[([^\]]*)\]/g, function (m, env, star, pl) {
+      if (!/[hH]/.test(pl)) return m;
+      return '\\begin{' + env + star + '}[' + (star ? 'tp' : 'tbp') + ']';
+    });
+  }
+
   function figureToTex(block, template) {
     var attrs = block.attrs || {};
     // Imported figures (Phase C predecessor) keep the full
     // \begin{figure}...\end{figure} in attrs.raw_tex. Until the user
     // re-uploads via the V3.102 figure block, emit the preserved source.
-    if (attrs.raw_tex) return attrs.raw_tex;
+    if (attrs.raw_tex) return _floatRawTex(attrs.raw_tex, template);
 
     var env = (template.figure_environment && template.figure_environment.env) || 'figure';
     var defaultPlace = (template.figure_environment && template.figure_environment.placement) || 'H';
@@ -1456,7 +1580,7 @@
         longtable = false;
         if (_layoutWarnings) {
           _layoutWarnings.push('Table "' + (captionRaw || block.id) +
-            '": longtable is not available in two-column layouts — rendered as a regular table.');
+            '": longtable is not available in two-column layouts — set as a table that continues on the next page (Table N, continued).');   // V3.918
         }
       }
 
@@ -1556,40 +1680,9 @@
         return lt.join('\n');
       }
 
-      var lines = [];
-      lines.push('\\begin{' + env + '}[' + place + ']');
-      /* V3.410 — spacing nudge on the text-facing side (see figureToTex). */
-      if (tabSpacingTex && tabSpacingTex.before) lines.push('  ' + tabSpacingTex.before);
-      lines.push('  \\centering');
-      if (captionAbove) {
-        if (numbered) {
-          if (captionTex) lines.push('  \\caption{' + captionTex + '}');
-          lines.push('  \\label{' + label + '}');
-        } else if (captionTex) {
-          lines.push('  \\caption*{' + captionTex + '}');
-        }
-      }
-      if (noteLines.length) {
-        _usedThreeparttable = true;
-        lines.push('  \\begin{threeparttable}');
-      }
-      /* V3.651 — table-level styling, emitted inside the float so it
-       * cannot leak into the body text. */
-      if (tstyle.sizeTex) lines.push('  ' + tstyle.sizeTex);
-      if (tstyle.stretch !== 1) {
-        lines.push('  \\renewcommand{\\arraystretch}{' + tstyle.stretch + '}');
-      }
-      if (tstyle.zebra) {
-        /* \rowcolors{n}{odd}{even} counts from the first BODY row, so a
-         * header row shifts the start by one — otherwise the header takes
-         * the tint and the striping reads off by one. */
-        _usedColortbl = true;
-        lines.push('  \\rowcolors{' + (headerRow ? 2 : 1) + '}{}{black!4}');
-      }
-      lines.push('  \\begin{tabular}{' + colspec + '}');
-      if (booktabs) lines.push('    \\toprule');
-      else if (gridRules) lines.push('    \\hline');
-      for (var r = 0; r < rows; r++) {
+      /* One row's cells as LaTeX (merges, per-cell styling) — the float
+       * below and the two-column path share it. */
+      function rowCellsTex(r) {
         var rowCells = [];
         for (var c = 0; c < cols; c++) {
           var key = r + '-' + c;
@@ -1626,7 +1719,100 @@
             rowCells.push(styleCell(content, key, alignStr[c] || 'l', null));
           }
         }
-        lines.push('    ' + rowCells.join(' & ') + rowEnd(r));
+        return rowCells.join(' & ');
+      }
+
+      /* V3.918 — two-column layout: \rmTable decides column or page from
+       * the table's natural width and continues a table taller than a
+       * page. The natural spec drops the wrap shares (a column then is as
+       * wide as its widest cell) and keeps widths set in mm. */
+      if (twoColT) {
+        var natSpec = '';
+        for (var nc = 0; nc < cols; nc++) {
+          var nw = widths && widths[nc];
+          /* a column that wraps when printed may wrap here too, down to a
+           * third of the column (\rmTcellA/B clip its widest cell) — an
+           * abbreviation list with one long meaning stays in the column,
+           * as journals set it */
+          natSpec += (gridRules ? '|' : '') + ((nw && nw.mode === 'mm') ? 'p{' + nw.v + 'mm}'
+            : wrapCols ? (_usedArray = true, '>{\\rmTcellA}l<{\\rmTcellB}') : (alignStr[nc] || 'l'));
+        }
+        if (gridRules) natSpec += '|';
+        var setupT = (tstyle.sizeTex || '') +
+          (tstyle.stretch !== 1 ? '\\renewcommand{\\arraystretch}{' + tstyle.stretch + '}' : '');
+        if (tstyle.zebra) {
+          _usedColortbl = true;
+          setupT += '\\rowcolors{' + (headerRow ? 2 : 1) + '}{}{black!4}';
+        }
+        var bodyRule = booktabs ? '\\midrule' : gridRules ? '\\hline' : '';
+        var headT = '';
+        var firstBody = 0;
+        if (headerRow && rows > 0) {
+          headT = rowCellsTex(0) + rowEnd(0) + ' ' + (bodyRule || (ruleAfterTex(0, '') || '').trim());
+          firstBody = 1;
+        }
+        var bodyRows = [];
+        for (var br = firstBody; br < rows; br++) {
+          var leadT = '';
+          if (br > firstBody) leadT = (ruleAfterTex(br - 1, '') || '').trim() || (gridRules ? '\\hline' : '');
+          bodyRows.push({ lead: leadT, tex: rowCellsTex(br) + rowEnd(br) });
+        }
+        var spanT = (window.PaperLayout && window.PaperLayout.tableSpan) ? window.PaperLayout.tableSpan(attrs) : 'auto';
+        if (env.charAt(env.length - 1) === '*') spanT = 'page';
+        var placesT = _rmTablePlaces(env, place);
+        var capT = numbered
+          ? (captionTex ? '\\caption{' + captionTex + '}' : '') + '\\label{' + label + '}'
+          : (captionTex ? '\\caption*{' + captionTex + '}' : '');
+        return _rmTableTex({
+          span: spanT, place: placesT.place, placeStar: placesT.placeStar,
+          nat: natSpec, spec: colspec, setup: setupT,
+          top: booktabs ? '\\toprule' : gridRules ? '\\hline' : '',
+          head: headT,
+          bottom: booktabs ? '\\bottomrule' : gridRules ? '\\hline' : (ruleAfterTex(rows - 1, '') || '').trim(),
+          caption: capT, capMeasure: captionTex ? 'Table 99. ' + captionTex : '',
+          capAbove: captionAbove, numbered: numbered && !!captionTex,
+          notes: noteLines.length ? '\\par\\vspace{2pt}{\\footnotesize\\raggedright ' +
+            noteLines.map(function (n) { return cellTex(n, template); }).join('\\par ') + '\\par}' : '',
+          before: tabSpacingTex && tabSpacingTex.before, after: tabSpacingTex && tabSpacingTex.after,
+          rows: bodyRows,
+        });
+      }
+
+      var lines = [];
+      lines.push('\\begin{' + env + '}[' + place + ']');
+      /* V3.410 — spacing nudge on the text-facing side (see figureToTex). */
+      if (tabSpacingTex && tabSpacingTex.before) lines.push('  ' + tabSpacingTex.before);
+      lines.push('  \\centering');
+      if (captionAbove) {
+        if (numbered) {
+          if (captionTex) lines.push('  \\caption{' + captionTex + '}');
+          lines.push('  \\label{' + label + '}');
+        } else if (captionTex) {
+          lines.push('  \\caption*{' + captionTex + '}');
+        }
+      }
+      if (noteLines.length) {
+        _usedThreeparttable = true;
+        lines.push('  \\begin{threeparttable}');
+      }
+      /* V3.651 — table-level styling, emitted inside the float so it
+       * cannot leak into the body text. */
+      if (tstyle.sizeTex) lines.push('  ' + tstyle.sizeTex);
+      if (tstyle.stretch !== 1) {
+        lines.push('  \\renewcommand{\\arraystretch}{' + tstyle.stretch + '}');
+      }
+      if (tstyle.zebra) {
+        /* \rowcolors{n}{odd}{even} counts from the first BODY row, so a
+         * header row shifts the start by one — otherwise the header takes
+         * the tint and the striping reads off by one. */
+        _usedColortbl = true;
+        lines.push('  \\rowcolors{' + (headerRow ? 2 : 1) + '}{}{black!4}');
+      }
+      lines.push('  \\begin{tabular}{' + colspec + '}');
+      if (booktabs) lines.push('    \\toprule');
+      else if (gridRules) lines.push('    \\hline');
+      for (var r = 0; r < rows; r++) {
+        lines.push('    ' + rowCellsTex(r) + rowEnd(r));
         if (r === 0 && booktabs && headerRow) lines.push('    \\midrule');
         else {
           var extra = ruleAfterTex(r, '    ');
@@ -1658,7 +1844,37 @@
       return lines.join('\n');
     }
     // Imported tables fall back to raw_tex.
-    if (attrs.raw_tex) return attrs.raw_tex;
+    if (attrs.raw_tex) {
+      /* V3.918 — in a two-column layout an imported table is set again by
+       * \rmTable (column or page by its natural width, continued pages; a
+       * longtable — which cannot run in two columns — becomes the same).
+       * Its rows, rules, spec and size commands are kept as written;
+       * anything splitTable cannot take apart stays verbatim. */
+      var fe2 = template.figure_environment || {};
+      var PTx = window.PaperProseTex;
+      var parts = (fe2.compiled_columns === 2 && PTx && PTx.splitTable) ? PTx.splitTable(attrs.raw_tex) : null;
+      if (parts) {
+        var envR = 'table', placeR = 'tbp';
+        if (typeof attrs.anchor === 'string' && attrs.anchor && window.PaperLayout && window.PaperLayout.resolveFloat) {
+          var resR = window.PaperLayout.resolveFloat(attrs, template, 'table');
+          envR = resR.env; placeR = resR.place;
+        }
+        var spanR = parts.env === 'table*' ? 'page'
+          : (window.PaperLayout && window.PaperLayout.tableSpan) ? window.PaperLayout.tableSpan(attrs) : 'auto';
+        if (envR.charAt(envR.length - 1) === '*') spanR = 'page';
+        var placesR = _rmTablePlaces(envR, placeR);
+        var capR = parts.caption + (parts.label && parts.caption.indexOf('\\label') < 0 ? '\\label{' + parts.label + '}' : '');
+        return _rmTableTex({
+          span: spanR, place: placesR.place, placeStar: placesR.placeStar,
+          nat: parts.spec, spec: parts.spec, setup: parts.setup,
+          top: parts.top, head: parts.head, bottom: parts.bottom,
+          caption: capR, capMeasure: parts.captionText ? 'Table 99. ' + parts.captionText : '',
+          capAbove: parts.captionAbove, numbered: !!parts.caption && !/^\\caption\*/.test(parts.caption),
+          notes: '', before: '', after: '', rows: parts.rows,
+        });
+      }
+      return _floatRawTex(attrs.raw_tex, template);
+    }
     return '% [table block ' + block.id + ' — populate via the grid editor when available]';
   }
 
@@ -2229,6 +2445,7 @@
     _usedArray = false;    // Tables II — width+align colspec flag
     _usedLongtable = false;      // Tables II — multi-page table flag
     _usedThreeparttable = false; // Tables II — table-notes flag
+    _usedRmTable = false;        // V3.918 — \rmTable flag
     _usedColortbl = false;       // V3.651 — cell/row shading flag
     _usedWrapfig = false;        // V3.485 — wrapped-figure flag
 
@@ -2294,6 +2511,11 @@
         effectiveTemplate.preamble +=
           '\n% --- RM tables: table notes ---\n\\usepackage{threeparttable}\n';
       }
+      if (_usedRmTable) {
+        effectiveTemplate.preamble +=
+          '\n% --- RM tables: across the page when wider than a column, continued when taller than a page ---\n' +
+          RM_TABLE_TEX + '\n';
+      }
       /* V3.651 — cell/row shading. The `table` option is what pulls in
        * colortbl and gives us \cellcolor / \rowcolors; loading plain
        * xcolor would compile and then fail on the first \cellcolor. */
@@ -2330,6 +2552,12 @@
             _ownPkgs.map(function (p) { return '\\usepackage{' + p + '}\n'; }).join('');
         }
       }
+      /* V3.919 — every page filled to the foot, whatever the template (a
+       * look's preamble says so itself): space a page cannot use is spread
+       * through its glue, never left hanging at the bottom */
+      if (!effectiveTemplate._look) {
+        effectiveTemplate.preamble += '\n% --- RM: pages filled to the foot ---\n\\flushbottom\n';
+      }
       /* V3.486 — body line density (grant lines-per-inch). Injected here so
        * the clamp warning lands on _layoutWarnings (active now); '' when
        * off. */
@@ -2359,6 +2587,7 @@
       _usedArray = false;
       _usedLongtable = false;
       _usedThreeparttable = false;
+      _usedRmTable = false;
       _usedColortbl = false;
       _usedWrapfig = false;
     }

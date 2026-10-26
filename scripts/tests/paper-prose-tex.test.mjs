@@ -81,6 +81,40 @@ eq(tab.rows.length, 4, 'four rows');
 eq(tab.rows[2][0].text, 'Syringes ($\\times$3)', 'cell keeps its LaTeX');
 eq(tab.rulesAfter, [0, 2], 'midrules after the header and before the total');
 eq(tab.header, true, 'header row');
+// V3.918 — column widths, size, caption position, nested \multicolumn alignments
+eq(tab.widths, [{ mode: 'mm', v: 30 }, { mode: 'mm', v: 35 }, null], 'p{3cm} p{3.5cm} r → widths');
+eq(tab.size, 0.9, '\\small → 0.9');
+eq(tab.captionAbove, true, 'caption written above the tabular');
+eq(P.texWidth('0.115\\textwidth'), { mode: 'text', v: 0.115 }, 'share of the text block');
+eq(P.texWidth('\\dimexpr 0.3\\linewidth-2\\tabcolsep\\relax'), { mode: 'line', v: 0.3 }, '\\dimexpr reads its first term');
+eq(P.texWidth('\\columnwidth'), { mode: 'line', v: 1 }, 'bare \\columnwidth');
+eq(P.texWidth('1in'), { mode: 'mm', v: 25.4 }, 'inches');
+eq(P.texWidth('\\widthof{x}'), null, 'unreadable width');
+const mc = P.parseTabular('\\begin{tabular}{ll}\\multicolumn{2}{@{}l}{\\textit{Motion}} \\\\ a & b \\\\\\end{tabular}');
+eq(mc.rows[0][0], { text: '\\textit{Motion}', span: 2 }, '\\multicolumn with {@{}l}');
+const LT = '\\begin{center}\\scriptsize\\begin{longtable}{@{}p{0.2\\textwidth}l@{}}\n\\caption{Long.}\\label{tab:l} \\\\\n' +
+  '\\toprule\nA & B \\\\\n\\midrule\n\\endfirsthead\n\\toprule\nA & B \\\\\n\\midrule\n\\endhead\n' +
+  '\\midrule \\multicolumn{2}{r}{continued} \\\\\n\\endfoot\n\\bottomrule\n\\endlastfoot\n' +
+  '\\multicolumn{2}{@{}l}{\\textit{Motion}} \\\\\nZ motor & 1 \\\\\n\\midrule\nPump & 3 \\\\\n\\end{longtable}\\end{center}';
+const ltp = P.parseTabular(LT);
+eq(ltp.rows.map((r) => r[0].text), ['A', '\\textit{Motion}', 'Z motor', 'Pump'], 'longtable: header once, no footers');
+eq(ltp.caption, 'Long.', 'longtable caption row');
+eq(ltp.size, 0.7, '\\scriptsize → 0.7');
+// splitTable: the parts the export re-sets with \rmTable
+const sp = P.splitTable('\\begin{table}[H]\n\\centering\n\\caption{Bill.}\n\\label{tab:bom}\n\\small\n' +
+  '\\begin{tabular}{p{3cm}r}\n\\toprule\nPart & Cost \\\\\n\\midrule\nA & 1 \\\\\nB & 2 \\\\[2pt]\n\\midrule\nTotal & 3 \\\\\n\\bottomrule\n\\end{tabular}\n\\end{table}');
+eq([sp.env, sp.spec, sp.setup, sp.caption, sp.label, sp.captionAbove], ['table', 'p{3cm}r', '\\small', '\\caption{Bill.}', 'tab:bom', true], 'table parts');
+eq([sp.top, sp.head, sp.bottom], ['\\toprule', 'Part & Cost \\\\\\midrule', '\\bottomrule'], 'rules and header');
+eq(sp.rows, [{ lead: '', tex: 'A & 1 \\\\' }, { lead: '', tex: 'B & 2 \\\\[2pt]' }, { lead: '\\midrule', tex: 'Total & 3 \\\\' }], 'rows keep their rules and [len]');
+const spl = P.splitTable(LT);
+eq([spl.env, spl.setup, spl.caption, spl.label, spl.top, spl.head, spl.bottom], ['', '\\scriptsize', '\\caption{Long.}', 'tab:l', '\\toprule', 'A & B \\\\\\midrule', '\\bottomrule'], 'longtable parts (closing rule from the last footer)');
+eq(spl.rows.map((r) => r.lead + '|' + r.tex), ['|\\multicolumn{2}{@{}l}{\\textit{Motion}} \\\\', '|Z motor & 1 \\\\', '\\midrule|Pump & 3 \\\\'], 'longtable body rows');
+eq(P.splitTable('\\begin{table*}\\caption*{X}\\begin{tabular}{ll}a & b\\\\\\end{tabular}\\end{table*}').env, 'table*', 'table* kept');
+eq(P.splitTable('\\begin{table}\\begin{tabularx}{\\textwidth}{lX}a&b\\\\\\end{tabularx}\\end{table}'), null, 'tabularx → verbatim');
+eq(P.splitTable('\\begin{table}\\resizebox{\\linewidth}{!}{\\begin{tabular}{ll}a&b\\\\\\end{tabular}}\\end{table}'), null, '\\resizebox → verbatim');
+eq(P.splitTable('\\begin{table}\\begin{tabular}{ll}a&#1\\\\\\end{tabular}\\end{table}'), null, 'a # → verbatim');
+eq(P.packagesFor('>{\\raggedright\\arraybackslash}p{2cm} \\begin{longtable}{l}'), ['array', 'longtable'], 'array + longtable');
+eq(P.packagesFor('\\def\\rmTplace{H}'), ['float'], '[H] through \\rmTable');
 // BibTeX accents in library metadata
 eq(P.decodeAccents("Andr{\\'e} and J\\'{e}r\\^{o}me V\\\"or\\\"os"), 'Andr\u00E9 and J\u00E9r\u00F4me V\u00F6r\u00F6s', 'accents');
 eq(P.decodeAccents('Stra{\\ss}e \\o{}ster'), 'Stra\u00DFe \u00F8ster', 'letter commands');

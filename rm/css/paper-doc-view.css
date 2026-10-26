@@ -697,7 +697,8 @@ ol.pdv-list { list-style: decimal; }
   margin: 0 auto;
   font-size: 0.88em;
 }
-.pdv-table td { padding: 3px 10px; }
+.pdv-table td { padding: 3px 10px; vertical-align: top; }   /* V3.918 — TeX tops a row's cells */
+.pdv-table td[rowspan] { vertical-align: middle; }          /* \multirow centres */
 .pdv-booktabs { border-top: 1.5px solid #111; border-bottom: 1.5px solid #111; }
 .pdv-booktabs tr.pdv-thead td { border-bottom: 1px solid #111; font-weight: 600; }
 .pdv-grid td { border: 1px solid #6b7280; }
@@ -717,9 +718,22 @@ ol.pdv-list { list-style: decimal; }
  * the p{...\linewidth} colspec the export emits. */
 .pdv-table.pdv-tbl-wrap { table-layout: fixed; width: 100%; }
 .pdv-table.pdv-tbl-wrap td { overflow-wrap: anywhere; }
+/* V3.918 — an imported table keeps LaTeX's columns: l/c/r never wrap,
+ * a p{…} column (pdv-td-fixed) wraps at its width. */
+.pdv-table.pdv-tbl-tex td { white-space: nowrap; }
+.pdv-table.pdv-tbl-tex td.pdv-td-fixed { white-space: normal; }
+/* V3.918 — natural width (measured, never shown): no wrapping, shares
+ * let go, fixed widths kept — what \rmTnat measures in the PDF. */
+.pdv-table.pdv-tbl-natural { width: max-content !important; table-layout: auto !important; }
+.pdv-table.pdv-tbl-natural td { white-space: nowrap; overflow-wrap: normal; }
+.pdv-table.pdv-tbl-natural td.pdv-td-fixed { white-space: normal; }
+.pdv-table.pdv-tbl-natural col.pdv-col-share { width: auto !important; }
+/* V3.918 — "Table N (continued)" over a table's later pieces */
+.pdv-tabcont { font-size: 0.88em; text-align: center; margin-bottom: 4px; }
 /* V3.654 — per-row extra height, mirroring \[dim] after that row. */
 .pdv-table tr.pdv-tbl-rowext > td { padding-bottom: var(--pdv-row-extra, 0); }
 .pdv-tabcap { font-size: 0.88em; line-height: 1.4; margin-top: 6px; text-align: left; }
+.pdv-tabcap.pdv-tabcap-above { margin-top: 0; margin-bottom: 6px; }   /* V3.918 */
 .pdv-tabcap .pdv-para { display: inline; }
 
 /* ── Display equations ── */

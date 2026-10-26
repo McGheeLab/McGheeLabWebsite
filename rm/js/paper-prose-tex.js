@@ -22,6 +22,8 @@
  *   packagesFor(tex)   → packages the authored LaTeX needs (siunitx,
  *                        cleveref, booktabs, float)
  *   parseTabular(raw)  → an imported `\begin{tabular}` as rows of cells
+ *   splitTable(raw)    → the same table as parts the export re-sets
+ *                        (V3.918: across the page / continued pages)
  *
  * Pure: no DOM. Loaded by paper-builder.html and paper-export.html before
  * paper-editor.js / paper-export-tex.js; Node-tested by
@@ -403,7 +405,9 @@
     if (/\\(si|SI|num|qty|unit|ang|SIrange|qtyrange|numrange|SIlist|qtylist|numlist|tablenum)\s*[\[{]/.test(s)) need.push('siunitx');
     if (/\\(cref|Cref|crefrange|Crefrange)\s*\{/.test(s)) need.push('cleveref');
     if (/\\(toprule|midrule|bottomrule|cmidrule)\b/.test(s)) need.push('booktabs');
-    if (/\\begin\{(table|figure)\*?\}\s*\[[^\]]*H/.test(s)) need.push('float');
+    if (/\\arraybackslash\b|[><]\{\\(raggedright|raggedleft|centering)\b/.test(s)) need.push('array');   // V3.918
+    if (/\\begin\{longtable\}/.test(s)) need.push('longtable');   // V3.918 — an imported longtable, one column
+    if (/\\begin\{(table|figure)\*?\}\s*\[[^\]]*H|\\def\\rmTplace\{[^}]*H/.test(s)) need.push('float');
     if (/\\(uline|sout)\s*\{/.test(s)) need.push('ulem');
     return need;
   }
@@ -423,6 +427,10 @@
   function parseTabular(raw) {
     var s = String(raw || '');
     var out = { caption: '', label: '', align: '', rows: [], rulesAfter: [], header: false, small: /\\(small|footnotesize|scriptsize)\b/.test(s) };
+    /* V3.918 — the size the table is set in, as a share of the body size
+     * (LaTeX's steps at 10pt) */
+    var sz = /\\(tiny|scriptsize|footnotesize|small|normalsize|large)\b/.exec(s);
+    out.size = sz ? { tiny: 0.5, scriptsize: 0.7, footnotesize: 0.8, small: 0.9, normalsize: 1, large: 1.2 }[sz[1]] : 1;
     var cap = s.indexOf('\\caption');
     if (cap >= 0) {
       var cc = readCommand(s, cap);
@@ -432,6 +440,7 @@
     if (lab) out.label = lab[1];
     var b = /\\begin\{(tabular\*?|tabularx|longtable|tabulary)\}/.exec(s);
     if (!b) return null;
+    out.captionAbove = cap >= 0 && cap < b.index;   // V3.918 — where the source puts it
     var j = b.index + b[0].length;
     if (b[1] === 'tabular*' || b[1] === 'tabularx' || b[1] === 'tabulary') {      // width argument
       var w = matchGroup(s, j, '{', '}');
@@ -444,8 +453,20 @@
     }
     var end = s.indexOf('\\end{' + b[1] + '}', j);
     var body = s.slice(j, end < 0 ? s.length : end);
-    /* column alignments: l c r, p{…}/m{…}/b{…}/X → l, ignore | @{} >{} <{} */
-    var al = '';
+    /* V3.918 — a longtable's \endhead / \endfoot parts: read through
+     * splitTable, so the page shows the header once and no footers */
+    if (b[1] === 'longtable') {
+      var lp = splitTable(s);
+      if (lp) {
+        body = lp.top + ' ' + lp.head + ' ' + lp.rows.map(function (r) { return r.lead + ' ' + r.tex; }).join(' ') + ' ' + lp.bottom;
+        if (!out.caption && lp.captionText) out.caption = lp.captionText;
+        if (!out.label && lp.label) out.label = lp.label;
+      }
+    }
+    /* column alignments: l c r, p{…}/m{…}/b{…}/X → l, ignore | @{} >{} <{}
+     * V3.918 — and each column's width: p{3cm} is fixed, an l/c/r column
+     * is as wide as its widest cell (null) */
+    var al = '', widths = [];
     for (var k = 0; k < spec.length; k++) {
       var ch = spec.charAt(k);
       if (ch === '{') { var ge = matchGroup(spec, k, '{', '}'); k = ge < 0 ? k : ge; continue; }
@@ -454,10 +475,19 @@
         if (ne >= 0) { var ge2 = matchGroup(spec, ne, '{', '}'); k = ge2 < 0 ? k : ge2; }
         continue;
       }
-      if (/[lcr]/.test(ch)) al += ch;
-      else if (/[pmbXLCRS]/.test(ch)) al += ch === 'C' ? 'c' : ch === 'R' || ch === 'S' ? 'r' : 'l';
+      if (/[lcr]/.test(ch)) { al += ch; widths.push(null); }
+      else if (/[pmbXLCRS]/.test(ch)) {
+        al += ch === 'C' ? 'c' : ch === 'R' || ch === 'S' ? 'r' : 'l';
+        var wd = null;
+        if (/[pmb]/.test(ch) && spec.charAt(k + 1) === '{') {
+          var we = matchGroup(spec, k + 1, '{', '}');
+          if (we > 0) { wd = texWidth(spec.slice(k + 2, we)); k = we; }
+        }
+        widths.push(wd);
+      }
     }
     out.align = al;
+    out.widths = widths;
     /* rows: split on \\ at brace depth 0, cells on & at depth 0 */
     var rowsSrc = [], cur = '', depth = 0;
     for (var p = 0; p < body.length; p++) {
@@ -491,12 +521,178 @@
       }
       cells.push(cell.trim());
       out.rows.push(cells.map(function (x) {
-        /* \multicolumn{n}{a}{text} → its text (span recorded) */
-        var m = /^\\multicolumn\{(\d+)\}\{[^}]*\}\{([\s\S]*)\}$/.exec(x);
-        return m ? { text: m[2], span: parseInt(m[1], 10) } : { text: x, span: 1 };
+        /* \multicolumn{n}{a}{text} → its text (span recorded); the
+         * alignment may hold braces of its own ({@{}l}) */
+        var mc = /^\\multicolumn\b/.test(x) ? readCommand(x, 0) : null;
+        if (mc && mc.args.length >= 3 && /^\d+$/.test(mc.args[0].trim()) && mc.end === x.length) {
+          return { text: mc.args[2], span: parseInt(mc.args[0], 10) };
+        }
+        return { text: x, span: 1 };
       }));
     });
     out.header = out.rulesAfter.indexOf(0) >= 0;
+    return out;
+  }
+
+  /* A column width as LaTeX writes it → {mode:'mm', v} (3cm, 25mm, 1.5in,
+   * 72pt) | {mode:'text', v} (0.2\textwidth: the page's text block) |
+   * {mode:'line', v} (0.3\linewidth, \columnwidth, \hsize: whatever line
+   * the table is set on), or null when it cannot be read. A \dimexpr
+   * reads its first term. */
+  var MM_PER = { mm: 1, cm: 10, in: 25.4, pt: 25.4 / 72.27, bp: 25.4 / 72, pc: 12 * 25.4 / 72.27, em: 10 * 25.4 / 72.27, ex: 4.3 * 25.4 / 72.27 };
+  function texWidth(w) {
+    var s = String(w || '').replace(/\\dimexpr|\\relax/g, ' ').trim();
+    var m = /^([0-9]*\.?[0-9]*)\s*\\(textwidth|linewidth|columnwidth|hsize)\b/.exec(s);
+    if (m) return { mode: m[2] === 'textwidth' ? 'text' : 'line', v: m[1] ? parseFloat(m[1]) : 1 };
+    m = /^([0-9]*\.?[0-9]+)\s*(mm|cm|in|pt|bp|pc|em|ex)\b/.exec(s);
+    if (m) return { mode: 'mm', v: parseFloat(m[1]) * MM_PER[m[2]] };
+    return null;
+  }
+
+  /* V3.918 — an imported table taken apart, so the export can set it again
+   * under the journal rules (\rmTable: across the page when it does not fit
+   * one column, continued on the next page when it is taller than one):
+   *   {env: 'table'|'table*'|'', spec, setup, caption, captionText, label,
+   *    captionAbove, top, head, rows: [{lead, tex}], bottom}
+   * `caption` is the \caption command as written, `setup` the size and
+   * spacing commands before the tabular, `top`/`bottom` the outer rules,
+   * `head` the header rows with the rule under them, and each row keeps
+   * the rules written above it in `lead`. A longtable's \endfirsthead /
+   * \endhead parts give the header; its footers are dropped (the export
+   * writes its own "(continued)"). Returns null for anything else — a
+   * tabularx, a \resizebox, threeparttable notes, a `#` — and the export
+   * keeps that LaTeX exactly as written. */
+  var TAB_SETUP = { tiny: 1, scriptsize: 1, footnotesize: 1, small: 1, normalsize: 1, large: 1,
+    setlength: 1, renewcommand: 1, rowcolors: 1, arrayrulecolor: 1, tabcolsep: 1, arraystretch: 1,
+    extrarowheight: 1 };
+  var TAB_RULE = /^\s*\\(toprule|midrule|bottomrule|hline|cline\{[^}]*\}|cmidrule(\([^)]*\))?\{[^}]*\}|addlinespace(\[[^\]]*\])?|specialrule\{[^}]*\}\{[^}]*\}\{[^}]*\}|morecmidrules|endfirsthead|endhead|endfoot|endlastfoot)(?![A-Za-z])/;
+  function splitTable(raw) {
+    var s = String(raw || '').replace(/(^|[^\\])%[^\n]*/g, '$1').trim();
+    if (/(^|[^\\])#/.test(s)) return null;
+    var out = { env: '', spec: '', setup: '', caption: '', captionText: '', label: '',
+      captionAbove: false, top: '', head: '', rows: [], bottom: '' };
+    var outer = /^\\begin\{(table\*?|center)\}(\[[^\]]*\])?/.exec(s);
+    if (outer) {
+      var close = '\\end{' + outer[1] + '}';
+      if (s.slice(-close.length) !== close) return null;
+      if (outer[1] !== 'center') out.env = outer[1];
+      s = s.slice(outer[0].length, s.length - close.length);
+    }
+    var b = /\\begin\{(tabular|longtable)\}/.exec(s);
+    if (!b) return null;
+    var e = s.indexOf('\\end{' + b[1] + '}', b.index);
+    if (e < 0 || s.indexOf('\\begin{', b.index + 1) >= 0 && s.indexOf('\\begin{', b.index + 1) < e) return null;
+    var j = b.index + b[0].length;
+    if (s.charAt(j) === '[') { var oe = matchGroup(s, j, '[', ']'); if (oe < 0) return null; j = oe + 1; }
+    if (s.charAt(j) !== '{') return null;
+    var se = matchGroup(s, j, '{', '}');
+    if (se < 0) return null;
+    out.spec = s.slice(j + 1, se);
+    var setup = [];
+    /* what may sit around the tabular: size and spacing (kept), \centering
+     * and \vspace (the export writes its own), one caption and one label */
+    function around(src, before) {
+      var i = 0;
+      while (i < src.length) {
+        if (/\s/.test(src.charAt(i))) { i++; continue; }
+        if (src.charAt(i) !== '\\') return false;
+        var c = readCommand(src, i);
+        if (!c || c.symbol) return false;
+        var end = c.end;
+        if (c.name === 'caption') {
+          end = i + 1 + c.name.length + (c.star ? 1 : 0);   // read [short]{long} here
+          if (src.charAt(end) === '[') { var ce = matchGroup(src, end, '[', ']'); if (ce < 0) return false; end = ce + 1; }
+          if (src.charAt(end) !== '{') return false;
+          var cg = matchGroup(src, end, '{', '}');
+          if (cg < 0) return false;
+          out.caption = src.slice(i, cg + 1);
+          out.captionText = src.slice(end + 1, cg);
+          out.captionAbove = before;
+          end = cg + 1;
+        } else if (c.name === 'label') out.label = c.args[0] || '';
+        else if (TAB_SETUP[c.name]) setup.push(src.slice(i, end));
+        else if (c.name !== 'centering' && c.name !== 'vspace' && c.name !== 'noindent' && c.name !== 'par') return false;
+        i = end;
+      }
+      return true;
+    }
+    if (!around(s.slice(0, b.index), true) || !around(s.slice(e + ('\\end{' + b[1] + '}').length), false)) return null;
+    out.setup = setup.join('');
+    /* rows: split on \\ (and its [len]) at brace depth 0 */
+    var body = s.slice(se + 1, e), segs = [], cur = '', depth = 0;
+    for (var p = 0; p < body.length; p++) {
+      var ch = body.charAt(p);
+      if (ch === '\\' && body.charAt(p + 1) === '\\' && depth === 0) {
+        var q = p + 2;
+        if (body.charAt(q) === '*') q++;
+        if (body.charAt(q) === '[') { var le = matchGroup(body, q, '[', ']'); if (le > 0) q = le + 1; }
+        segs.push({ text: cur, end: body.slice(p, q) }); cur = ''; p = q - 1;
+        continue;
+      }
+      if (ch === '\\') { cur += ch + body.charAt(p + 1); p++; continue; }
+      if (ch === '{') depth++;
+      if (ch === '}') depth--;
+      cur += ch;
+    }
+    segs.push({ text: cur, end: '' });
+    /* a longtable marks its parts: what comes before the first \endhead
+     * (or \endfirsthead) is the header; what comes between two markers
+     * after that is a repeated header or a footer, dropped */
+    var rows = [], head = null, headRule = '';
+    segs.forEach(function (sg) {
+      var t = sg.text, lead = [], m;
+      while ((m = TAB_RULE.exec(t))) {
+        var r = m[0].trim();
+        t = t.slice(m[0].length);
+        if (/^\\end(firsthead|head|foot|lastfoot)$/.test(r)) {
+          if (!head) { head = /head$/.test(r) ? rows : []; headRule = /head$/.test(r) ? lead.join('') : ''; }
+          rows = []; lead = [];
+        } else lead.push(r);
+      }
+      t = t.trim();
+      if (t) rows.push({ lead: lead.join(''), tex: t + ' ' + (sg.end || '\\\\') });
+      else if (lead.length) rows.push({ lead: lead.join(''), tex: '' });   // rules after the last row
+    });
+    /* a longtable's caption is a row of its own */
+    function noCaption(r) {
+      var c = /^\\caption\b/.test(r.tex) ? readCommand(r.tex, 0) : null;
+      if (!c) return true;
+      var ci = 1 + c.name.length + (c.star ? 1 : 0);   // read [short]{long} here
+      if (r.tex.charAt(ci) === '[') ci = matchGroup(r.tex, ci, '[', ']') + 1;
+      var cg = matchGroup(r.tex, ci, '{', '}');
+      if (cg < 0) return true;
+      out.caption = r.tex.slice(0, cg + 1);
+      out.captionText = r.tex.slice(ci + 1, cg);
+      out.captionAbove = true;
+      var lab = /\\label\{([^}]*)\}/.exec(r.tex);
+      if (lab) out.label = lab[1];
+      return false;
+    }
+    rows = rows.filter(noCaption);
+    /* trailing rules → bottom */
+    while (rows.length && !rows[rows.length - 1].tex) out.bottom = rows.pop().lead + out.bottom;
+    if (head) {
+      head = head.filter(noCaption);
+      if (head.length) { out.top = head[0].lead; head[0].lead = ''; }
+      out.head = head.map(function (r) { return r.lead + r.tex; }).join(' ') + headRule;
+    }
+    if (!rows.length) return null;
+    if (!head) {
+      /* the first row's rules → top; the header is the rows above the
+       * first rule within the first three rows */
+      out.top = rows[0].lead; rows[0].lead = '';
+      for (var h = 1; h < Math.min(rows.length, 4); h++) {
+        if (/\\(midrule|hline|cmidrule)/.test(rows[h].lead)) {
+          out.head = rows.slice(0, h).map(function (r) { return r.lead + r.tex; }).join(' ') + rows[h].lead;
+          rows = rows.slice(h);
+          break;
+        }
+      }
+    }
+    rows[0].lead = '';
+    out.rows = rows;
+    /* a longtable's closing rule lives in its (dropped) last footer */
+    if (!out.bottom) out.bottom = /\\toprule/.test(out.top) ? '\\bottomrule' : /\\hline/.test(out.top) ? '\\hline' : '';
     return out;
   }
 
@@ -526,6 +722,7 @@
     readCommand: readCommand, tildeAt: tildeAt, unitHtml: unitHtml, numHtml: numHtml,
     toHtml: toHtml, toTex: toTex, refKind: refKind, packagesFor: packagesFor,
     preambleLoads: preambleLoads, parseTabular: parseTabular, SIUNITX: SIUNITX,
+    texWidth: texWidth, splitTable: splitTable,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.PaperProseTex = API;

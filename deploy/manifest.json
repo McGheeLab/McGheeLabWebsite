@@ -1592,9 +1592,9 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-10-25T18:10:10-07:00",
-   "sha256": "18e2588e22f32eb82cc71c59df6583be95b075737c5ae0e1a2cfb9215099f889",
-   "size": 83,
+   "deployedAt": "2026-10-25T19:03:08-07:00",
+   "sha256": "8ab75f182e558a76f7cb834a864d123b57dabf75fc0a9c5c6864e176299717e9",
+   "size": 82,
    "via": "verify"
   },
   "rm/css/activity-overview.css": {
@@ -2996,9 +2996,9 @@
    "via": "baseline"
   },
   "rm/js/paper-doc-view.js": {
-   "deployedAt": "2026-10-25T18:10:10-07:00",
-   "sha256": "4478cb107e5cec89204eeb14892d045abb398c4e3a449d40e949ea77e9e08b1c",
-   "size": 321411,
+   "deployedAt": "2026-10-25T19:03:08-07:00",
+   "sha256": "1e690cab8a5979f481b50a107e8c4d804ddf24f7312a79b65f407e7e30ca3cf5",
+   "size": 324064,
    "via": "verify"
   },
   "rm/js/paper-editor.js": {
@@ -3038,9 +3038,9 @@
    "via": "baseline"
   },
   "rm/js/paper-export-tex.js": {
-   "deployedAt": "2026-10-25T18:10:10-07:00",
-   "sha256": "d506b832b96d5ad11df40f1c3e24f50000de01d57bc375e3b5bb1ac047d8b82e",
-   "size": 122959,
+   "deployedAt": "2026-10-25T19:03:08-07:00",
+   "sha256": "0ee973674b3d5c7680339e7e8943a43cdc99af2bb3da0433b5e32808493bfd38",
+   "size": 123201,
    "via": "verify"
   },
   "rm/js/paper-export.js": {
@@ -3176,9 +3176,9 @@
    "via": "baseline"
   },
   "rm/js/paper-typeset.js": {
-   "deployedAt": "2026-10-25T15:22:53-07:00",
-   "sha256": "2badfdd7e1d9994e626c16dc0ab9d94343d26401ef37c6c19a7f814797e53749",
-   "size": 36207,
+   "deployedAt": "2026-10-25T19:03:08-07:00",
+   "sha256": "f4c33e564ef9178f94a302361f8c3a796e83b7236db5cdf91fbdcfa7c09d9ffe",
+   "size": 36733,
    "via": "verify"
   },
   "rm/js/paper-values.js": {
@@ -5216,8 +5216,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-25T18:10:10-07:00",
-   "sha256": "a708cbf34b0f6f5a6684b5c03cbb995092b08977f6e29634c6c9a96977ab255c",
+   "deployedAt": "2026-10-25T19:03:08-07:00",
+   "sha256": "f7aae9b9ade4d3927c0487d83fdf8295e796e89e6ba7f83b0364022f2e3bd05c",
    "size": 9933,
    "via": "verify"
   },

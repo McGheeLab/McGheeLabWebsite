@@ -1621,7 +1621,7 @@
     attrs.set('header_row', true);
     attrs.set('align', 'll');
     attrs.set('anchor', 'flow');        // V3.395 — layout intent
-    attrs.set('span', 'column');
+    attrs.set('span', 'auto');          // V3.918 — page width only when too wide for a column
     attrs.set('lock', false);
   }
 
@@ -8297,6 +8297,10 @@
         if (!attrs || typeof attrs.get !== 'function') return;
         var blockId = blk.get('id');
         var numbered = attrs.get('numbered') !== false;
+        /* V3.918 — an imported table with no \caption has no number in
+         * the PDF (TeX numbers captions), so it takes none here either */
+        var rawT = attrs.get('raw_tex');
+        if (numbered && rawT && !attrs.get('rows') && !/\\caption(?!\*)\s*[\[{]/.test(String(rawT))) numbered = false;
         var num = numbered ? (++numCounter) : null;
         var captionY = attrs.get('caption');
         var captionPreview = '';
