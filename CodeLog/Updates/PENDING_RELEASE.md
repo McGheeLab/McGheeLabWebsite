@@ -24,8 +24,11 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (14 changes — ready to push)
+## Pending (17 changes — ready to push)
 
+- V3.916 — RM pages now pick up a new version on their own: a tab left open across an update reloads itself the next time you come back to it (never while you are typing or recording), or shows a small Reload bar — no more seeing yesterday's version until you think to refresh.
+- V3.916 — Paper builder: Compile PDF now counts the seconds while the server works, shows an Open PDF link the moment the PDF exists, and tells you plainly if the server does not answer. (After the compile service is redeployed, compiles take a few seconds instead of most of a minute.)
+- V3.916 — Paper builder: fixed the Export page failing to open for a paper whose author had a single affiliation number, and Physical Review (APS) papers with an Acknowledgements section failing to compile.
 - V3.915 — Paper builder: papers brought in from LaTeX now look right in every journal's page preview and PDF — units like µm and µl min⁻¹, “Fig. 3” references, % signs and non-breaking spaces are set properly instead of printing as code or running into the margin, bold and italic run-in headings keep their style, and a table imported as LaTeX shows as a table.
 - V3.914 — Paper builder: in the journal page preview, equations, headings and the reference list are now spaced and set exactly as in the PDF, so pages break where the PDF breaks them more often (the PLOS test paper now previews at its true 13 pages).
 - V3.914 — Grants: the page preview has a Document picker — the Project Description, References Cited, Project Summary, Data Management Plan, Mentoring Plan and the rest each show on their own pages with their own page limit, and the Export page compiles each one to its own PDF.

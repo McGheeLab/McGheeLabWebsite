@@ -568,6 +568,15 @@
     t.main_template = texMain(look, template);
     t.addon_defaults = [];
     var sk = merge(template.section_kind_to_command || {}, {});
+    /* V3.916 — a class's own environment (REVTeX's acknowledgments) does not
+     * exist under the look's preamble: an unnumbered section, the rule the
+     * special sections below follow (an APS paper with Acknowledgements
+     * stopped with "Environment acknowledgments undefined"). */
+    Object.keys(sk).forEach(function (k) {
+      var c = sk[k];
+      var type = c && typeof c === 'object' ? c.type : c;
+      if (type === 'env' || type === 'macro' || type === 'placeholder') sk[k] = 'section_star';
+    });
     sk.abstract = { type: 'placeholder', token: '{{ABSTRACT}}' };
     sk.keywords = { type: 'keywords', token: '{{KEYWORDS}}', sep: ', ' };
     (look.hide_heading_kinds || []).forEach(function (k) { sk[k] = { type: 'bare' }; });

@@ -17,7 +17,7 @@
     "addons": [],
     "overrides": {},
     "authors": [
-      { "name": "Alex McGhee", "affiliationIdx": 0, "corresponding": true, "email": "mcgheealex@arizona.edu" }
+      { "name": "Alex McGhee", "affiliationIdx": [0], "corresponding": true, "email": "mcgheealex@arizona.edu" }
     ],
     "affiliations": [
       "Department of Biomedical Engineering, University of Arizona, Tucson, AZ, USA"

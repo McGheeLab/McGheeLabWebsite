@@ -1798,7 +1798,7 @@
     var affs = Array.isArray(cfg.affiliations) ? cfg.affiliations : [];
     if (authors.length) {
       html += '<div class="pdv-authors">' + authors.map(function (a) {
-        var idx = (Array.isArray(a.affiliationIdx) ? a.affiliationIdx : [])
+        var idx = [].concat(a.affiliationIdx != null ? a.affiliationIdx : [])   // V3.916 — a lone number too
           .map(function (i) { return i + 1; }).join(',');
         return _esc(a.name || '') +
           (idx ? '<sup>' + _esc(idx) + '</sup>' : '') +

@@ -186,9 +186,24 @@ async function cmdCompile(paperId, outDir) {
   if (res.ok && res.dir) {
     fs.copyFileSync(path.join(res.dir, 'main.pdf'), path.join(outDir, 'compiled.pdf'));
   }
+  /* V3.916 — what the person sees after the response: the PDF mounted in
+   * the viewer, or the status line (the old run stopped at the response) */
+  let after = null;
+  try {
+    after = await page.waitMain(() => {
+      const st = (document.getElementById('px-status') || document.querySelector('.px-status') || {}).textContent || '';
+      const canv = document.querySelectorAll('#px-viewer canvas, #px-viewer .pdfv-page, #px-viewer .page').length;
+      if (canv || /fail|error|no PDF/i.test(st) || /Compiled/.test(st)) return { status: st.trim(), viewerPages: canv };
+      return null;
+    }, null, 60000);
+  } catch (e) {
+    after = await page.ev(() => ({ status: ((document.getElementById('px-status') || {}).textContent || '').trim(),
+      viewerHtml: ((document.getElementById('px-viewer') || {}).innerHTML || '').slice(0, 300), timedOut: true }));
+  }
+  fs.writeFileSync(path.join(outDir, 'compile-after.json'), JSON.stringify(after, null, 1));
   await page.waitForTimeout(500);
   await browser.close();
-  console.log(JSON.stringify({ ok: res.ok, seconds: res.seconds, dir: res.dir, missing: res.missing,
+  console.log(JSON.stringify({ ok: res.ok, seconds: res.seconds, dir: res.dir, missing: res.missing, after,
     tail: res.ok ? '' : (res.log || '').slice(-3000), logs: logs.filter(l => !/404/.test(l)).slice(0, 15) }, null, 1));
 }
 

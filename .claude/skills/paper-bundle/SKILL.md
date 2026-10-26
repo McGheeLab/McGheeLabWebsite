@@ -163,7 +163,7 @@ object to accept `mebp-journal` defaults.
   "templateId": "mebp-journal",   // mebp-journal|nih-r01|nih-r21|nsf-standard|nsf-career|blank
   "paperType": "journal",
   "addons": [], "overrides": {},
-  "authors": [ { "name": "Alex McGhee", "affiliationIdx": 0, "corresponding": true, "email": "…" } ],
+  "authors": [ { "name": "Alex McGhee", "affiliationIdx": [0], "corresponding": true, "email": "…" } ],
   "affiliations": [ "Department …, University of Arizona, Tucson, AZ, USA" ],
   "buildTarget": "submission",    // submission|preprint
   "sectionNumbering": "auto",     // auto|on|off

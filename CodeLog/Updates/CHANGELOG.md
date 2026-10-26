@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.916] — 2026-10-25 — Open RM tabs follow each deploy; compiles show their wait and (after a redeploy) start warm
+
+Plan: [CodeLog/ClaudesPlan/V3.916_stale_tabs_and_compile_wait.md](../ClaudesPlan/V3.916_stale_tabs_and_compile_wait.md).
+
+### Added
+- `rm/js/build-check.js` (`window.RM_BUILD`): compares `/rm/build.json` with the stamp the page started with — at start, on visibility → visible, focus, `online`, every 5 min. New stamp → `location.reload()` when the tab is hidden or was just brought back and nothing is held, else a bottom bar (Reload / Later). Held: focused input/textarea/select/contenteditable, a live `MediaRecorder` or `getUserMedia` stream (both wrapped to watch), `window.RM_HOLD_RELOAD`. Off on localhost/`*.local` and in frames. Loaded by `runtime-mode.js` (deploy mode) and a direct tag on the 20 RM pages without it.
+- `scripts/deploy.py` `stamp_build(changed, files, idx)`: an upload that changes site files rewrites `rm/build.json` (`{build, head, sw, files}`) and sends it last (`ftp`, `stage`, `autodeploy`). Git-ignored.
+- `scripts/paper-lab/warmup.py`: a synthetic paper compiled through the real Export page for every template and page look → `functions/paper-compile/warmup/papers.tar.gz`; the names of every bundle file fetched compiling that set and every Paper Lab paper → `warmup/tex-files.txt` (485 files, 27 MB of cache). `--list-only` rebuilds the list.
+- `scripts/paper-lab/drive.mjs compile` records what the page shows after the response (`compile-after.json`: status, viewer pages).
+
+### Changed
+- `functions/paper-compile/Dockerfile`: `TECTONIC_CACHE_DIR=/opt/tectonic-cache`, filled at build time (`tectonic -X bundle cat` over `tex-files.txt`, then the warm-up papers compiled once). Needs a Cloud Run redeploy; README carries the command (`--timeout 120`, the live service had 90).
+- `paper-export.js` `_compileAction`: elapsed-seconds status, a cold-server note in the log, `_pdfLink(url)` (Open PDF) as soon as the response arrives, `AbortController` at `COMPILE_TIMEOUT_MS` (180 s) with a message.
+
+### Bug Fixes
+- An RM tab opened before a deploy kept running the old build until reloaded by hand (the root SPA reloads on the worker's `controllerchange`; RM pages never listened) — the "still wrong after the fix went live" reports.
+- Compile PDF showed nothing between "Sending bundle…" and the PDF — 47 s on a cold Cloud Run instance, which read as a hang.
+- The Export page failed to open ("`(a.affiliationIdx || []).map is not a function`") for an author with one affiliation stored as a number (the paper-bundle skill's example format); the PDF and the Document view dropped that affiliation. All readers accept a number or a list (`paper-export-config.js`, `paper-export-tex.js`, `paper-doc-view.js`); the skill example writes `[0]`.
+- `paper-look.js` `applyToTemplate`: under a published look a class environment in `section_kind_to_command` (APS's `acknowledgments`) is an unnumbered section, as special sections already were — APS papers with Acknowledgements failed to compile.
+
 ## [V3.915] — 2026-10-25 — Paper builder: LaTeX written in prose (papers imported from .tex) in the preview and the PDF
 
 Plan: [CodeLog/ClaudesPlan/V3.915_prose_latex_imported_papers.md](../ClaudesPlan/V3.915_prose_latex_imported_papers.md).

@@ -30,6 +30,9 @@
    * working public-ingress wiring. */
   var PAPER_COMPILE_URL = window.PAPER_COMPILE_URL ||
     'https://us-central1-mcgheelab-f56cc.cloudfunctions.net/paperCompile';
+  /* V3.916 — the proxy and the service each stop at 120 s; past this the
+   * page stops waiting and says so. */
+  var COMPILE_TIMEOUT_MS = 180 * 1000;
 
   var state = {
     paperId: null,
@@ -1307,34 +1310,59 @@
 
       _setStatus('Compiling…', 'compiling');
       els['px-log-wrap'].hidden = false;
-      els['px-log'].textContent = 'Sending bundle to ' + PAPER_COMPILE_URL + '…\n';
+      _pdfLink(null);
+      els['px-log'].textContent = 'Sending bundle to ' + PAPER_COMPILE_URL + '…\n' +
+        'The compile runs on the server. After a quiet spell the first one starts the server and fetches its\n' +
+        'TeX packages, which can take about a minute; later ones take seconds.\n';
+      /* V3.916 — a compile used to show nothing between "Sending bundle" and
+       * the PDF (47 s on a cold server): count the seconds, and give up with a
+       * clear message instead of waiting forever. */
+      var t0 = Date.now();
+      var ticker = setInterval(function () {
+        _setStatus('Compiling on the server… ' + Math.round((Date.now() - t0) / 1000) + ' s', 'compiling');
+      }, 1000);
+      var abort = (typeof AbortController === 'function') ? new AbortController() : null;
+      var abortTimer = abort ? setTimeout(function () { abort.abort(); }, COMPILE_TIMEOUT_MS) : null;
 
       var user = firebridge.getUser();
       var idToken = user ? await user.getIdToken() : null;
-      var resp = await fetch(PAPER_COMPILE_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + (idToken || ''),
-        },
-        body: JSON.stringify({
-          paperId: state.paperId,
-          templateId: state.config.templateId,
-          addons: state.config.addons,
-          buildTarget: state.config.buildTarget || 'submission',  // V3.395 — history/debug only
-          files: bundle.files,
-          figureAssets: bundle.figureAssets || [],   // V3.347
-          /* D1 — extra fields for the coming latexdiff/subdoc service
-           * update: the FLATTENED single .tex (the service stores it per
-           * compile so future marked-up diffs have a base) + this
-           * compile's document kind. The current service ignores unknown
-           * fields, so shipping these ahead of the server deploy is
-           * safe — and history starts accumulating the moment the new
-           * image goes live. */
-          flatSource: _flattenBundle(bundle),
-          docKind: 'main',
-        }),
-      });
+      var resp;
+      try {
+        resp = await fetch(PAPER_COMPILE_URL, {
+          signal: abort ? abort.signal : undefined,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + (idToken || ''),
+          },
+          body: JSON.stringify({
+            paperId: state.paperId,
+            templateId: state.config.templateId,
+            addons: state.config.addons,
+            buildTarget: state.config.buildTarget || 'submission',  // V3.395 — history/debug only
+            files: bundle.files,
+            figureAssets: bundle.figureAssets || [],   // V3.347
+            /* D1 — extra fields for the coming latexdiff/subdoc service
+             * update: the FLATTENED single .tex (the service stores it per
+             * compile so future marked-up diffs have a base) + this
+             * compile's document kind. The current service ignores unknown
+             * fields, so shipping these ahead of the server deploy is
+             * safe — and history starts accumulating the moment the new
+             * image goes live. */
+            flatSource: _flattenBundle(bundle),
+            docKind: 'main',
+          }),
+        });
+      } catch (fetchErr) {
+        if (fetchErr && fetchErr.name === 'AbortError') {
+          throw new Error('The compile service did not answer within ' + Math.round(COMPILE_TIMEOUT_MS / 1000) +
+            ' s. The PDF may still appear under Compile history below; otherwise try again (the server is warm now).');
+        }
+        throw fetchErr;
+      } finally {
+        clearInterval(ticker);
+        if (abortTimer) clearTimeout(abortTimer);
+      }
       if (!resp.ok) {
         var body = await resp.text();
         throw new Error('Compile service ' + resp.status + ': ' + body.slice(0, 400));
@@ -1347,6 +1375,8 @@
         : '';
       els['px-log'].textContent = warnHead + (result.log || '(no log returned)');
       if (result.pdfUrl) {
+        _pdfLink(result.pdfUrl);   // V3.916 — the PDF is there even if the viewer is slow or fails
+        _setStatus('Opening the PDF… (compiled in ' + Math.round((Date.now() - t0) / 1000) + ' s)', 'compiling');
         await _mountPdf(result.pdfUrl);
         _setStatus('Compiled', 'saved');
       } else {
@@ -1358,6 +1388,25 @@
       els['px-log-wrap'].hidden = false;
       els['px-log'].textContent = (els['px-log'].textContent || '') + '\n\nERROR: ' + err.message;
     }
+  }
+
+  /* V3.916 — "Open PDF" beside the compile log: the signed link the service
+   * returned (valid an hour). null clears it. */
+  function _pdfLink(url) {
+    var wrap = els['px-log-wrap'];
+    if (!wrap) return;
+    var a = wrap.querySelector('.px-pdf-link');
+    if (!url) { if (a) a.remove(); return; }
+    if (!a) {
+      a = document.createElement('a');
+      a.className = 'btn btn-sm px-pdf-link';
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = 'Open PDF';
+      a.style.margin = '6px 0';
+      wrap.insertBefore(a, els['px-log']);
+    }
+    a.href = url;
   }
 
   async function _mountPdf(pdfUrl) {

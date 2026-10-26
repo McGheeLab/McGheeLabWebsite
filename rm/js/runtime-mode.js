@@ -37,4 +37,13 @@
   }
   if (document.body) apply();
   else document.addEventListener('DOMContentLoaded', apply, { once: true });
+
+  /* V3.916 — an open page follows each deploy (rm/js/build-check.js):
+   * loaded from here because nearly every RM page loads this file first. */
+  if (mode === 'deploy' && !window.__rmBuildCheck && document.head) {
+    var bc = document.createElement('script');
+    bc.src = '/rm/js/build-check.js';
+    bc.async = true;
+    document.head.appendChild(bc);
+  }
 })();

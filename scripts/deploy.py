@@ -222,6 +222,31 @@ def now_iso():
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
 
 
+# ───────────────────────── build stamp (V3.916) ─────────────────────────
+
+BUILD_STAMP = "rm/build.json"
+
+
+def stamp_build(changed, files, idx):
+    """V3.916 — an upload that changes the site also replaces rm/build.json, sent LAST: an open RM page
+    (rm/js/build-check.js) compares it with the stamp it loaded with and reloads into the new code, and it
+    only sees a new stamp once every new file is on the server. Git-ignored; the manifest tracks it."""
+    others = [r for r in changed if r != BUILD_STAMP]
+    if not others:
+        return changed
+    rc, head = _git("rev-parse", "--short", "HEAD")
+    m = re.search(r"CACHE_VERSION\s*=\s*(\d+)", (ROOT / "sw.js").read_text(errors="replace"))
+    data = {"build": now_iso(), "head": head if rc == 0 else "", "sw": int(m.group(1)) if m else None,
+            "files": len(others)}
+    p = ROOT / BUILD_STAMP
+    tmp = p.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data) + "\n")
+    os.replace(tmp, p)
+    files[BUILD_STAMP] = p
+    idx.update(local_index({BUILD_STAMP: p}))
+    return others + [BUILD_STAMP]
+
+
 # ───────────────────────── two deployers (V3.868) ─────────────────────────
 
 def _git(*args, timeout=60):
@@ -490,6 +515,7 @@ def cmd_stage(args, cfg):
     if not changed and not removed:
         print("Nothing to stage — the live site matches the repo.")
         return 0
+    changed = stamp_build(changed, files, idx)   # V3.916
     if UPLOAD_DIR.exists():
         shutil.rmtree(UPLOAD_DIR)
     UPLOAD_DIR.mkdir(parents=True)
@@ -790,6 +816,8 @@ def cmd_ftp(args, cfg):
         changed, removed = diff(idx, man["files"], args.only)
     if args.force_all:
         changed = list(idx)
+    if changed and not args.dry_run:
+        changed = stamp_build(changed, files, idx)   # V3.916 — last in the upload order
     audit_purge = []
     if args.purge_audit:
         reports = sorted(DEPLOY_DIR.glob("audit-*.txt"))

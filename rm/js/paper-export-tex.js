@@ -718,7 +718,8 @@
    * indices are 0-based in storage, rendered 1-based. */
   function renderStructuredAuthors(format, authors, affils) {
     function affNums(a) {
-      var idxs = Array.isArray(a.affiliationIdx) ? a.affiliationIdx.filter(function (i) { return affils[i] != null; }) : [];
+      // V3.916 — a lone number is one affiliation (it was dropped from the PDF)
+      var idxs = [].concat(a.affiliationIdx != null ? a.affiliationIdx : []).filter(function (i) { return affils[i] != null; });
       return idxs.map(function (i) { return i + 1; });
     }
     /* Author name + optional ORCID icon link (orcidlink package — pulled

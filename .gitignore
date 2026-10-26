@@ -95,3 +95,6 @@ modules/**/*roster*
 
 # Gabe's raw source archives (the source itself lives in scientia/)
 *scientia-notebook-code*.zip
+
+# V3.916 — written by scripts/deploy.py at each upload (rm/js/build-check.js reads it)
+rm/build.json

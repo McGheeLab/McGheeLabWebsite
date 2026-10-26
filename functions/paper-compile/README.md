@@ -58,10 +58,13 @@ gcloud run deploy paper-compile \
   --port=8080 \
   --no-allow-unauthenticated \
   --memory 1Gi \
-  --timeout 90 \
+  --timeout 120 \
   --max-instances 3 \
   --set-env-vars FIREBASE_STORAGE_BUCKET=mcgheelab-f56cc.firebasestorage.app
 ```
+
+The build takes about five minutes longer than it used to (V3.916): it
+fills Tectonic's package cache from `warmup/` (see below).
 
 Important:
 
@@ -141,3 +144,24 @@ useful when testing via `gcloud run services proxy` directly.
 - **No retention policy.** Compiled PDFs accumulate at
   `paperExports/{paperId}/compiles/`. Add a scheduled cleanup
   function once retention becomes a concern (Phase 2 plan).
+
+## Warm cache (V3.916)
+
+A Cloud Run instance used to start with an empty Tectonic cache and fetch
+every package and font on its first compile — 47 s for a journal look in
+production, where most compiles after a quiet spell land on a fresh instance.
+The image now ships the cache full:
+
+- `warmup/tex-files.txt` — every bundle file a real compile has needed
+  (names only). The build fetches each with `tectonic -X bundle cat`.
+- `warmup/<template>[-submission]/` — one synthetic paper (invented text, a
+  generated figure) as the Export page sends it for each template and page
+  look; the build compiles each once, which also writes the format file.
+
+Both are written by `python3 scripts/paper-lab/warmup.py` (Paper Lab
+running). Re-run it after adding a template or a package to a journal look,
+then redeploy. Measured on this machine: a real paper 38 s from an empty
+cache, 2.8 s from the warm one; after the build step every corpus paper and
+the NSF proposal compile with `--only-cached`. Anything a future paper needs
+that is not in the cache is still fetched on demand.
+

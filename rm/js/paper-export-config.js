@@ -235,7 +235,7 @@
             affils.splice(i, 1);
             /* Re-point author affiliation indices past the removed one. */
             authors.forEach(function (a) {
-              a.affiliationIdx = (a.affiliationIdx || [])
+              a.affiliationIdx = [].concat(a.affiliationIdx != null ? a.affiliationIdx : [])   // V3.916 — a lone number too
                 .filter(function (x) { return x !== i; })
                 .map(function (x) { return x > i ? x - 1 : x; });
             });
@@ -274,7 +274,8 @@
         row.appendChild(name);
         var affIn = document.createElement('input');
         affIn.type = 'text'; affIn.className = 'px-author-affnums';
-        affIn.value = (a.affiliationIdx || []).map(function (x) { return x + 1; }).join(',');
+        /* V3.916 — one affiliation stored as a number (a bundle written that way) killed the whole page */
+        affIn.value = [].concat(a.affiliationIdx != null ? a.affiliationIdx : []).map(function (x) { return x + 1; }).join(',');
         affIn.placeholder = '1,2';
         affIn.title = 'Affiliation numbers (comma-separated, from the list above)';
         affIn.disabled = !!readOnly;

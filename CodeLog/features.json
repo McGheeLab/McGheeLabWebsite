@@ -40,7 +40,10 @@
     "split",
     "mobile",
     "tabs",
-    "sheet"
+    "sheet",
+    "new version",
+    "reload",
+    "stale tab"
    ],
    "paths": [
     "rm/index.html",
@@ -57,6 +60,7 @@
     "rm/js/tab-lifecycle.js",
     "rm/js/desktop-only-guard.js",
     "rm/js/runtime-mode.js",
+    "rm/js/build-check.js",
     "rm/js/surface-guide.js",
     "rm/pages/app-shell.html",
     "rm/pages/split-view.html",
