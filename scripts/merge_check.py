@@ -2,7 +2,8 @@
 """merge_check.py — the push gate (V3.868): will this merge, and does it duplicate a feature we already have?
 
 Runs from the git `pre-push` hook (.githooks/pre-push, installed by `install`), from the end-of-turn
-`scripts/git_autopush.py`, and from GitHub Actions on every pull request. One report, four questions:
+`scripts/git_autopush.py`, and from GitHub Actions on every pull request. One report, four questions (plus one rule:
+a new file name a Windows clone cannot check out — `?`, `:`, `CON`, a trailing dot, a case-only twin — is HELD):
 
   1. REGISTRY    CodeLog/features.json lists every feature-sized thing in RM, the site and Scientia, with the
                  files that make it. A NEW module (rm/js/*.js, rm/pages/*.html, functions/*.js, scientia/src/*.js …)
@@ -29,7 +30,7 @@ Runs from the git `pre-push` hook (.githooks/pre-push, installed by `install`), 
 
 Exit 1 when anything is HELD. Warnings never block. No third-party packages; Python 3.9+.
 """
-import fnmatch, json, os, re, shutil, subprocess, sys, time
+import codecs, fnmatch, json, os, re, shutil, subprocess, sys, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -523,6 +524,53 @@ def check_merge(rep, target, head, fetch=True):
     rep.warn('merge test could not run', [(r.stderr or r.stdout).strip()[:300]])
 
 
+# Windows refuses these in a file name; a clone there stops at the first one and leaves no working tree (V3.922)
+WIN_BAD_CHARS = set('<>:"\\|?*') | {chr(c) for c in range(32)}
+WIN_RESERVED = {'con', 'prn', 'aux', 'nul'} | {'com%d' % i for i in range(1, 10)} | {'lpt%d' % i for i in range(1, 10)}
+
+
+def unquote(path):
+    """git C-quotes a path holding '"', '\\', a control character or non-ASCII; undo it so the real name is checked."""
+    if len(path) > 1 and path[0] == path[-1] == '"':
+        return codecs.escape_decode(path[1:-1].encode())[0].decode('utf-8', 'replace')
+    return path
+
+
+def windows_problem(path):
+    for part in path.split('/'):
+        bad = sorted({c for c in part if c in WIN_BAD_CHARS})
+        if bad:
+            return 'has %s' % ' '.join(repr(c) for c in bad)
+        if part.endswith(('.', ' ')):
+            return '%r ends in a dot or space' % part
+        if part.split('.')[0].rstrip(' ').lower() in WIN_RESERVED:
+            return '%r is a reserved device name' % part
+    return None
+
+
+def check_paths(rep, head, files):
+    new = [unquote(p) for s, p in files if s == 'A']
+    if not new:
+        return
+    bad = ['%s  — %s' % (p, why) for p in new for why in [windows_problem(p)] if why]
+    if head == WORKTREE:
+        tree = git('ls-files', '-z').split('\0') + git('ls-files', '-z', '-o', '--exclude-standard').split('\0')
+    else:
+        tree = git('ls-tree', '-r', '-z', '--name-only', head).split('\0')
+    folded = {}
+    for p in tree:
+        if p:
+            folded.setdefault(p.lower(), set()).add(p)
+    for p in new:
+        twins = sorted(folded.get(p.lower(), set()) - {p})
+        if twins:
+            bad.append('%s  — differs only in case from %s (Windows and macOS keep one)' % (p, ', '.join(twins)))
+    if bad:
+        rep.hold('file names a Windows clone cannot check out (Gabe works on Windows)',
+                 bad[:20] + ['→ rename: none of < > : " \\ | ? * or control characters, no name ending in a dot or space,',
+                             '  no CON / PRN / AUX / NUL / COM1-9 / LPT1-9, no two paths that differ only in case'])
+
+
 def run_cmd(cmd, timeout=180):
     try:
         r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=timeout, errors='replace')
@@ -584,6 +632,7 @@ def run_range(base, head, opts):
     check_registry(reg, rep)
     if not reg['_errors']:
         check_files(reg, rep, base, head, files)
+    check_paths(rep, head, files)
     if not opts.get('no_merge'):
         check_merge(rep, opts.get('target', 'origin/main'), head, fetch=not opts.get('no_fetch'))
     if not opts.get('no_gates'):

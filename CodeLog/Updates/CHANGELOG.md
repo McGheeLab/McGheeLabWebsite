@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.922] — 2026-10-26 — The repo clones on Windows again: two junk file names removed, and the push gate refuses a name Windows cannot check out
+
+Gabe's clone on Windows (GitHub Desktop) stopped with `error: invalid path '~65ZT?2WlbSZ copy.txt'` / `fatal: unable to checkout working tree`: Windows forbids `?` in a file name, and git stops the checkout at the first such path, leaving no working tree.
+
+### Changed
+- `scripts/merge_check.py`: `check_paths(rep, head, files)` runs on every range (pre-push hook, `git_autopush.py`, the GitHub Action) and HOLDs a new path a Windows clone cannot check out. `windows_problem(path)`: a component holding `< > : " \ | ? *` or a control character, ending in a dot or space, or named `CON` / `PRN` / `AUX` / `NUL` / `COM1-9` / `LPT1-9` (with or without an extension); plus a path that differs only in case from another in the tree (`git ls-tree -r` at the head, `git ls-files` for `worktree`). `unquote(path)` undoes git's C-quoting first, so a quoted non-ASCII name is not mistaken for one containing `"` or `\`. Checked against `791bda16` (it adds `~65ZT?2WlbSZ copy.txt`): HELD.
+
+### Bug Fixes
+- Removed `~65ZT?2WlbSZ.txt` (added in "repo moved") and `~65ZT?2WlbSZ copy.txt` (V3.868) from the repo root: both empty, referenced nowhere. They were the only tracked paths Windows rejects (no reserved names, case collisions or long paths; the longest path is 82 characters).
+
 ## [V3.921] — 2026-10-26 — Paper builder: PLOS pages as PLOS prints them — the first-page article-information sidebar, masthead, running head and foot
 
 Plan: [CodeLog/ClaudesPlan/V3.921_plos_sidebar_furniture.md](../ClaudesPlan/V3.921_plos_sidebar_furniture.md).
