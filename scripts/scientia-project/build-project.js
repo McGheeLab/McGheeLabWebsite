@@ -10,7 +10,7 @@
    *italic*, $math$, $$display math$$, [[cite:key]], [[note:key|words]], "• " and "1. " lines), figure (images in a
    grid), html (a self-contained page, shown in Scientia's sandboxed frame), eq (LaTeX + term legend, parsed by
    Scientia's own TEX so the legend keys match), calc, protocol (a registered protocol: its own protocol note), plate,
-   noteref (V3.922: a protocol can be `keep: true`, kept in its note; a wire end '#<blockId>' is a component of another
+   noteref (V3.923: a protocol can be `keep: true`, kept in its note; a wire end '#<blockId>' is a component of another
    note; `project.existing` builds into a project the hub already has). A text item can carry a structure on its first line (claim, question, decision, barrier, result,
    takeaway…), recorded under the project so it shows on the project page.
 
@@ -52,7 +52,7 @@ const TEX = (() => { const src = fs.readFileSync(path.join(ROOT, 'scientia/src/1
 /* ---------- records ---------- */
 const rec = { projects: [], themes: [], aims: [], documents: [], blocks: [], items: [], wires: [], media: [] };
 const P = spec.project;
-/* V3.922 — `project.existing`: the notes go into a project the hub already has (an RM project the hub mirrors,
+/* V3.923 — `project.existing`: the notes go into a project the hub already has (an RM project the hub mirrors,
    rm-p-…), whose record belongs to the mirror; never written or removed here */
 if (!P.existing) rec.projects.push({ id: P.id, name: P.name, status: 'active', created: CREATED });
 for (const t of spec.themes) rec.themes.push({ id: t.id, projectId: P.id, name: t.name, question: t.question || '', status: 'active', supersedes: [], supersededBy: [], created: CREATED, reshapedAt: null });
@@ -164,7 +164,7 @@ function makeItem(doc, nk, it, w) {
     b.body = { text: b.label, marks: [] };
   } else if (it.kind === 'protocol') {
     const steps = it.steps.map((t, i) => ({ id: hid('st', doc.id + ':' + key + ':' + i), text: t, created: CREATED, status: 'live', supersedes: [], supersededBy: [] }));
-    /* V3.922 — `keep: true`: kept in its note (Scientia's localOnly), runnable where it sits, so several procedures
+    /* V3.923 — `keep: true`: kept in its note (Scientia's localOnly), runnable where it sits, so several procedures
        can live in one planning note; a registered protocol gets a protocol note of its own */
     b = base(doc, key, { kind: 'protocol', label: it.label, w, registered: it.keep ? null : { docId: doc.id, projectId: P.id, themeId: doc.themeId || null, at: CREATED },
       localOnly: !!it.keep, log: [], steps });
@@ -214,7 +214,7 @@ for (const n of spec.notes) {
 }
 
 /* wires: 'noteKey:itemKey' ends */
-const wireEnd = k => String(k).startsWith('#') ? { id: String(k).slice(1) } : BLOCK[k];   // '#<blockId>': a component of another note (V3.922)
+const wireEnd = k => String(k).startsWith('#') ? { id: String(k).slice(1) } : BLOCK[k];   // '#<blockId>': a component of another note (V3.923)
 for (const w of spec.wires || []) {
   const A = wireEnd(w.from), Z = wireEnd(w.to);
   if (!A || !Z) throw new Error('wire end missing ' + JSON.stringify(w));
@@ -247,7 +247,7 @@ function staleOps(cur) {
   return out;
 }
 const DEV = spec.device || { id: 'dv_project_builder', name: 'Project builder' };
-/* V3.922 — `reviews: [{ docId, addProjectIds, removeProjectIds }]`: re-link a literature review to this project by changing
+/* V3.923 — `reviews: [{ docId, addProjectIds, removeProjectIds }]`: re-link a literature review to this project by changing
    ONLY its review.projectIds on the record the hub holds now (anything else the person changed in the review stays) */
 function reviewOps(cur) {
   const out = [];

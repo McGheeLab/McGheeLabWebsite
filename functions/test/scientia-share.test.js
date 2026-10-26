@@ -8,7 +8,7 @@
    landing in the owner's conflicts, the owner's fields kept, access
    taken away, a project with its themes and notes, a member's own
    project of the same id left alone, files following their records,
-   and (V3.921) a collaborator's side losing its copies never deleting
+   and (V3.923) a collaborator's side losing its copies never deleting
    the owner's originals.
    Run: node functions/test/scientia-share.test.js
    ================================================================ */
@@ -201,7 +201,7 @@ function review(env, uid, extra) {
     assert.ok(rowOf(P, 'B', 'themes', 't_2'));
   });
 
-  /* ---- V3.921: a collaborator's side losing its copies never deletes the owner's originals ---- */
+  /* ---- V3.923: a collaborator's side losing its copies never deletes the owner's originals ---- */
   await test('Bea’s hub loses the shared notes (her desktop replaced it) → Alex keeps them, Bea gets them back', async () => {
     const lost = ['n_1', 'nb_1'].map(id => ({ store: id.startsWith('nb') ? 'blocks' : 'documents', id, del: true, rec: null }));
     const r = await push(P, 'B', lost, 'desk');

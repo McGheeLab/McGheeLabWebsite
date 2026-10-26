@@ -195,7 +195,7 @@ async function inbound(env, idx, uid, ops, { fan = true } = {}) {
     const k = keyOf(o.store, o.id), s = sh.get(k), orow = cur.get(k), ocur = orow && isObj(orow.rec) ? orow.rec : undefined;
     const prev = s ? stripMark(s.rec) : null, base = s ? (s.ownerSeq || 0) : (orow ? (orow.seq || 0) : 0);
     if (o.del || !isObj(o.rec)) {
-      /* V3.921 — a collaborator removes only what came from them: the owner's row last written through this
+      /* V3.923 — a collaborator removes only what came from them: the owner's row last written through this
        * collaborator's relay device, never the shared project or review itself. Anything else missing on their side
        * (a desktop that replaced their hub never had the copies — Alex's shared PE-bead project was deleted that way)
        * is put back in their hub, and the owner's record stays. */

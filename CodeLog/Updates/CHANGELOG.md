@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.923] — 2026-10-26 — Scientia: the confocal bead ELISA rebuilt as one note in Source and sink; a collaborator's sync can no longer delete what you shared
+
+Plan: [CodeLog/ClaudesPlan/V3.923_confocal_bead_elisa_plan_relay_guard.md](../ClaudesPlan/V3.923_confocal_bead_elisa_plan_relay_guard.md).
+
+### Bug Fixes
+- Scientia share relay (`functions/scientia-share-core.js` `inbound`): a shared record missing from a collaborator's hub was taken as their deletion and removed from the owner's hub, on a live push and in the hourly `sharePass` — so a desktop sync that replaced the collaborator's hub (which never had the copies) deleted the owner's project. Alex's PE-bead project (`p_pebeadaxr0`, shared with Gabe) went this way; its lit review, not part of the share, survived. Now a collaborator removes only records that came from them (the owner's row last written by `share:<uid>`), never the shared project or review itself, and anything else is put back in their hub. 4 new fixtures (32/32; they fail on the old relay). scientiaHub health `V3.923` — needs `firebase deploy --only functions:scientiaHub`.
+
+### Added
+- `Research/bead_confocal_scientia/plan-spec.js` + `plan-heights.json`: the confocal bead ELISA as ONE planning note, *Confocal bead ELISA: simulations and experimental plan*, in the theme Confocal bead ELISA of `rm-p-source-and-sink` — Start here; 1 · What the literature sets (ten constraint cards, 20 wires in from the review's findings); 2a–2c · Simulations (binding, confocal image, plate read: the interactive simulator, what it models, what it decides); 3 · The parameter set (every value with its source and the experiment that measures it); Exp 01–13 as sections with their procedures kept in the note; Run order and data back. The review `d_lr3186c1484a` is re-linked from the deleted project to Source and sink.
+- `scripts/scientia-project/build-project.js`: `project.existing` (build into a hub project the RM mirror owns, never writing its record), protocol `keep: true` (Scientia `localOnly`), wire ends `'#<blockId>'` in another note, `reviews[]` (change only a review's `review.projectIds`).
+- `scripts/scientia-project/hub-deletions.js` (read only): which device deleted which records of a hub, and when, from the row tombstones.
+
+### Changed
+- `Research/bead_confocal_scientia/README.md` describes the note, the publish order (deploy the relay fix, optional read-only check, dry run, commit) and the cause.
+- The V3.923 files reached `origin/main` early inside a parallel session's "V3.922 (cont.)" auto-commits (shared working tree); this entry is their record.
+
 ## [V3.922] — 2026-10-26 — The repo clones on Windows again: two junk file names removed, and the push gate refuses a name Windows cannot check out
 
 Gabe's clone on Windows (GitHub Desktop) stopped with `error: invalid path '~65ZT?2WlbSZ copy.txt'` / `fatal: unable to checkout working tree`: Windows forbids `?` in a file name, and git stops the checkout at the first such path, leaving no working tree.

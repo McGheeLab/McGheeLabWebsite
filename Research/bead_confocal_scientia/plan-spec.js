@@ -1,4 +1,4 @@
-/* The confocal bead ELISA as ONE Scientia note in the Source and sink project (V3.922): the content spec for
+/* The confocal bead ELISA as ONE Scientia note in the Source and sink project (V3.923): the content spec for
    scripts/scientia-project/build-project.js.
 
    node scripts/scientia-project/build-project.js Research/bead_confocal_scientia/plan-spec.js --out <records.json> [--local URL | --cloud UID [--commit]]

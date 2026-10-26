@@ -2,7 +2,8 @@
 
 `build-project.js` turns a content spec into a whole Scientia project and pushes it to a hub. It is the sibling of
 `scripts/litreview/build-note.js`, which builds one literature-review note. The first project built with it is the PE-bead
-assay (`Research/bead_confocal_scientia/project-spec.js`, V3.893).
+assay (`Research/bead_confocal_scientia/project-spec.js`, V3.893); since V3.923 that work is one note inside Source and sink
+(`plan-spec.js`).
 
 ```bash
 node scripts/scientia-project/build-project.js <spec.js> --out records.json [--heights h.json]
@@ -22,6 +23,8 @@ A CommonJS module exporting:
 | `library` | Citation keys → lab-library ids, for `[[cite:key]]` chips. The papers must already be in the lab library, which the hub mirrors. |
 | `notes[]` | `{ key, type, themeId, title, synthesis, tags, columns, sections: [{ name, color, items }] }`. Each section becomes a region. Each item sits in a column (`col`), across columns (`span: [a, b]`), or across all of them (`col: 'full'`). |
 | `wires[]` | `{ from: 'noteKey:itemKey', to, rel }`. These include wires between notes, which show on the Portfolio map. |
+| `project.existing` (V3.923) | Build into a project the hub already has, such as an RM project the hub mirrors (`rm-p-…`). Its record is never written or removed. Give the spec its own `idTag`: re-runs remove only records carrying it. |
+| `reviews[]` (V3.923) | `{ docId, addProjectIds, removeProjectIds }`. Re-link an existing literature review to this project by changing only its `review.projectIds` on the record the hub holds now. |
 
 **Item kinds:**
 - **`text`.** Supports `**bold**`, `*italic*`, `$math$` and `$$display$$` (MathLive), `[[cite:key]]`, `[[note:key|words]]`, and `• ` / `1. ` / `☐ ` lines. Add `struct: 'claim' | 'question' | 'decision' | 'barrier' | …` to make the first line a structure, recorded under the project so it shows on the project page.
@@ -29,9 +32,11 @@ A CommonJS module exporting:
 - **`html`.** Give it a size with `h` and `w`.
 - **`eq`.** LaTeX plus a legend. The legend is keyed through Scientia's own TEX reader, so every term must have an entry.
 - **`calc`.** A calculator. Wire equations to it with `rel: 'related', directed: false`.
-- **`protocol`.** A registered protocol whose home is the note it is in, so put it in a `protocol`-type note.
+- **`protocol`.** A registered protocol whose home is the note it is in, so put it in a `protocol`-type note. With `keep: true` (V3.923) it is kept in its note instead (Scientia's "kept in its note", `localOnly`): runnable where it sits, so one planning note can hold several procedures.
 - **`plate`.**
 - **`noteref`.** By note key, or by `docId` with an optional `focusId`.
+
+A wire end written `'#<blockId>'` (V3.923) is a component of another note, such as a literature review's finding; it shows as a link at the foot of the card in this note.
 
 **Note types:**
 - `note`, `analysis` and `planning` are canvases.

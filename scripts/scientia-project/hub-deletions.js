@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* hub-deletions.js — READ ONLY: who removed a project (or any records) from a person's Scientia hub, and when (V3.922).
+/* hub-deletions.js — READ ONLY: who removed a project (or any records) from a person's Scientia hub, and when (V3.923).
 
    node scripts/scientia-project/hub-deletions.js <uid> [--project <projectId>] [--ids <prefix,prefix>] [--limit N]
 
