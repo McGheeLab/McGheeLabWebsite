@@ -23,6 +23,12 @@
    time) the lines both hold are the common version, so nothing is lost.
    Marks (structures, terms, cites, formatting: {id, type, from, to})
    follow their lines; one either side removed stays removed.
+   V3.933 — Alex: "if this happens color the variations per user". Lines
+   kept side by side, and an edit moved to the end, get a formatting mark
+   {type: 'fmt', s: 'by0'…'by5', who: '<name>'}: one colour per person
+   (by name, so each person keeps theirs on every card), the two sides
+   never the same colour. The editor keeps the mark like any other
+   (span.fby<n>); lab-mode §17 colours it and names who wrote it.
    ================================================================ */
 'use strict';
 
@@ -76,7 +82,7 @@ function mergeLines(baseText, mineText, curText, opts) {
     const meets = g && (h.s < g.e || (h.s === g.s && h.e === h.s && g.e === g.s) || (h.s === g.e && h.e === h.s && g.hs.some(x => x.e === x.s && x.s === h.s)));
     if (meets) { g.e = Math.max(g.e, h.e); g.hs.push(h); } else groups.push({ s: h.s, e: h.e, hs: [h] });
   }
-  const out = [], atEnd = [], stat = { placed: 0, together: 0, atEnd: 0 };
+  const out = [], atEnd = [], stat = { placed: 0, together: 0, atEnd: 0 }, tint = [];   // tint: [out index, 'mine' | 'cur'] — a variation
   const take = (who, from, to) => { const src = who === 'mine' ? mine : cur; for (let k = from; k < to; k++) out.push({ t: src[k], side: who, i: k }); };
   const sideOf = (g, who) => {   // the side's lines for the group's base span [g.s, g.e)
     const hs = g.hs.filter(h => h.who === who), map = who === 'mine' ? M.map : C.map, src = who === 'mine' ? mine : cur, res = [];
@@ -98,9 +104,9 @@ function mergeLines(baseText, mineText, curText, opts) {
         const changed = kept.filter(x => !base0.includes(x.t));
         if (changed.length) { atEnd.push(...kept); stat.atEnd += kept.length; }
       } else {   // both changed the same place: both, side by side — what is already there first, then the other's new lines
-        const seen = new Set(c.map(x => x.t));
-        for (const x of c) out.push(x);
-        for (const x of m) if (!seen.has(x.t)) out.push(x);
+        const seen = new Set(c.map(x => x.t)), mt = new Set(m.map(x => x.t));
+        for (const x of c) { if (!mt.has(x.t)) tint.push([out.length, 'cur']); out.push(x); }
+        for (const x of m) if (!seen.has(x.t)) { tint.push([out.length, 'mine']); out.push(x); }
         stat.together++;
       }
     }
@@ -110,10 +116,10 @@ function mergeLines(baseText, mineText, curText, opts) {
   if (atEnd.length) {
     while (out.length && out[out.length - 1].t === '' && out.length > 1) out.pop();
     out.push({ t: '', side: 'note', i: -1 }, { t: o.endLabel || ((o.mineName || 'The other copy') + '’s edit (its place was removed):'), side: 'note', i: -1 });
-    for (const x of atEnd) out.push(x);
+    for (const x of atEnd) { tint.push([out.length, x.side === 'cur' ? 'cur' : 'mine']); out.push(x); }
   }
   const baseToMine = M.map, baseToCur = C.map;
-  return { text: out.map(x => x.t).join('\n'), lines: out, baseToMine, baseToCur, placed: stat.placed, together: stat.together, atEnd: stat.atEnd, clean: !stat.together && !stat.atEnd };
+  return { text: out.map(x => x.t).join('\n'), lines: out, tint, baseToMine, baseToCur, placed: stat.placed, together: stat.together, atEnd: stat.atEnd, clean: !stat.together && !stat.atEnd };
 }
 
 /** Offset → [line, column] in a text. */
@@ -154,11 +160,22 @@ function mergeBody(base, mine, cur, opts) {
     if (id) seen.add(id); else if (marks.some(y => y.type === x.type && y.ref === x.ref && y.from === x.from && y.to === x.to)) continue;
     marks.push(x);
   }
+  const o = opts || {};
+  if (r.tint.length && (o.mineName || o.curName)) {
+    const hue = byColours(o.curName || 'the other copy', o.mineName || 'the other copy'), salt = Math.random().toString(36).slice(2, 7);
+    r.tint.forEach(([k, side], n) => { const t = r.lines[k].t; if (!t.trim()) return;
+      marks.push({ id: 'mv' + salt + n, type: 'fmt', s: 'by' + hue[side], who: side === 'cur' ? (o.curName || 'the other copy') : (o.mineName || 'the other copy'), from: starts[k], to: starts[k] + t.length }); });
+  }
   marks.sort((x, y) => x.from - y.from || x.to - y.to);
   const body = Object.assign({}, Cu, Mn, { text: r.text, marks });
   for (const k of Object.keys(body)) if (k !== 'text' && k !== 'marks') { const v = mergeValue(B ? B[k] : undefined, Mn[k], Cu[k]); if (v.ok) body[k] = v.v; else body[k] = Cu[k]; }
   return { body, clean: r.clean, together: r.together, atEnd: r.atEnd };
 }
+
+/** One colour per person (6 hues, by name), the two sides never the same. → { cur: n, mine: n } */
+const BY_HUES = 6;
+function hueOf(name) { let x = 0; for (const ch of String(name || '').trim().toLowerCase()) x = (x * 31 + ch.charCodeAt(0)) >>> 0; return x % BY_HUES; }
+function byColours(curName, mineName) { const c = hueOf(curName); let m = hueOf(mineName); if (m === c) m = (m + 1) % BY_HUES; return { cur: c, mine: m }; }
 
 const isBody = v => isObj(v) && typeof v.text === 'string' && (v.marks === undefined || Array.isArray(v.marks));
 const MISSING = undefined;
@@ -201,4 +218,4 @@ function settle(store, prev, mine, cur, merged, bad, opts) {
   return { merged: out, bad: left };
 }
 
-module.exports = { lcs, hunks, mergeLines, mergeBody, mergeValue, settle, LAYOUT };
+module.exports = { hueOf, byColours, BY_HUES, lcs, hunks, mergeLines, mergeBody, mergeValue, settle, LAYOUT };

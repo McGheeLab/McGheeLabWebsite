@@ -21,8 +21,9 @@ require('net').setDefaultAutoSelectFamilyAttemptTimeout(3000);
 const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const argv = process.argv.slice(2), opt = k => { const i = argv.indexOf(k); return i < 0 ? null : argv[i + 1]; };
-const NAME = opt('--name'), PID = opt('--project'), COMMIT = argv.includes('--commit');
-if (!NAME && !PID) { console.error('usage: restore-share.js --name "<project name>" | --project <id> [--commit]'); process.exit(2); }
+const LIST = argv.includes('--list') || (argv.includes('--name') && !(opt('--name') || '').trim() || (opt('--name') || '').startsWith('--'));
+const NAME = LIST ? '\u0000list' : opt('--name'), PID = opt('--project'), COMMIT = argv.includes('--commit') && !LIST;
+if (!NAME && !PID) { console.error('usage: restore-share.js --name "<project name>" | --project <id> [--commit]   (--list: every project name it can find)'); process.exit(2); }
 const admin = require(ROOT + '/functions/node_modules/firebase-admin');
 if (!admin.apps.length) admin.initializeApp({ credential: admin.credential.cert(require(ROOT + '/scripts/service-account.json')), storageBucket: 'mcgheelab-f56cc.firebasestorage.app' });
 const { FirestoreHub, shareEnv } = require(ROOT + '/functions/scientia-hub.js');
@@ -31,7 +32,7 @@ const db = admin.firestore(), bucket = admin.storage().bucket();
 const iso = v => v && v.toDate ? v.toDate().toISOString() : (typeof v === 'number' ? new Date(v).toISOString() : (v || '?'));
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');   // "Our lab development" = "Ourlab Development"
-const like = t => { const a = norm(t), b = norm(NAME); return !!a && !!b && (a === b || a.includes(b) || b.includes(a)); };
+const like = t => { if (LIST) return false; const a = norm(t), b = norm(NAME); return !!a && !!b && (a === b || a.includes(b) || b.includes(a)); };
 const matches = rec => isObj(rec) && (PID ? String(rec.id) === PID : like(rec.name || rec.title));
 const allNames = new Map();   // every project name seen anywhere → where (printed when nothing matches)
 const saw = (rec, where) => { if (isObj(rec) && (rec.name || rec.title)) { const n = String(rec.name || rec.title); if (!allNames.has(n)) allNames.set(n, new Set()); allNames.get(n).add(where); } };
@@ -68,7 +69,7 @@ const saw = (rec, where) => { if (isObj(rec) && (rec.name || rec.title)) { const
   const own = seen.find(s => s.rec && !s.rec.sharedFrom), copy = seen.find(s => s.rec && isObj(s.rec.sharedFrom));
   const owner = (shares[0] && shares[0].ownerUid) || (own && own.uid) || (copy && copy.rec.sharedFrom.uid);
   if (!id || !owner) {
-    console.log('No project matching "' + (NAME || PID) + '" in any hub, op log, kept copy or share index. Every project name found:');
+    console.log(LIST ? 'Every project name found:' : 'No project matching "' + (NAME || PID) + '" in any hub, op log, kept copy or share index. Every project name found:');
     for (const [n, w] of [...allNames].sort((a, b) => a[0].localeCompare(b[0]))) console.log('  ' + n + '   — ' + [...w].slice(0, 3).join('; ') + (w.size > 3 ? ' …' : ''));
     console.log('Run again with --name "<one of these>" or --project <id>. A project none of these name is only on a computer now: its notebook folder (.scientia/record.json, backup/).');
     process.exit(1);

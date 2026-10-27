@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.933] — 2026-10-27 — Scientia: merged changes to review, each person's version in their colour until you have looked
+
+Plan: [CodeLog/ClaudesPlan/V3.933_scientia_merge_review.md](../ClaudesPlan/V3.933_scientia_merge_review.md).
+
+### Added
+- **`functions/scientia-merge.js`**: lines kept side by side, and an edit moved to the end of the card, carry a formatting mark `{type: 'fmt', s: 'by0'…'by5', who}`.
+  - `hueOf(name)` gives each person one of six colours, by name, the same on every card. `byColours(cur, mine)` never gives the two sides the same colour.
+  - `mergeBody` adds the marks when `opts.mineName` / `opts.curName` are given; edits that land in different places are not coloured.
+- `functions/scientia-hub-core.js` `personOf(dev, name, ownerName)`: the person behind a write.
+  - A collaborator through the relay (`share:<uid>` → "Gabe", `share` → "Alex"); otherwise the hub's owner (any of their devices).
+  - `planPush({…, ownerName})` names both sides with it. `FirestoreHub.push` passes the owner's name (`ownerNameOf(uid)`, `users/{uid}`, cached 30 min).
+- **`rm/scientia/lab-mode.js` §18 — Review merged changes**:
+  - The six colours (`.fby0…5`; on a list line the bullet takes only the colour). On hover, whose version it is.
+  - A chip "N merged changes to review" in a top row shared with §17's deletions chip (`LAB.topChips`, moved below the tabs under 1100 px).
+  - The bar takes you to each AREA (a card with marks you haven't reviewed, note by note in card order) and outlines it: **Accept** (the colour goes), **Comment** (a comment card beside it, wired `comments`, then reviewed), **Next →**, **Accept all (N)**.
+  - In a note only you have, accepting removes the marks from the card. In a shared note it is yours alone: the ids go in `settings.reviewedMerges` (synced to your devices, pruned to marks that still exist) and a generated rule (`#lab-review-css`) hides their colour, so a collaborator keeps their colours until they review.
+
+### Changed
+- `scripts/scientia-project/restore-share.js`: `--list`, or `--name` with nothing after it, prints every project name it can find (hubs, op logs, kept copies, share index). Before, a bare `--name` printed the usage line.
+- `scientiaHub` health `V3.933`; `sw.js` CACHE_VERSION 903 → 904.
+
+### Tests
+- `functions/test/scientia-merge.test.js` **14 passed** (4 new):
+  - both versions coloured as their writers', never the same colour, edits elsewhere uncoloured;
+  - one colour per person across cards;
+  - the moved edit is coloured;
+  - through `planPush`, a collaborator's line and the owner's are named by person ("Gabe", "Alex McGhee"), not device.
+- `scientia-share.test.js` 44, `scientia-hub.test.js` 68.
+- The desktop app in headless Chrome with two merged cards (one in a shared note):
+  - the chip ("2 merged changes to review"); the bar on the first area, with each name in its colour;
+  - Next opens the other note; Accept removes the marks of the unshared card;
+  - Comment adds a wired comment card;
+  - Accept all leaves 0 coloured lines; the shared card keeps its 3 marks on the server, with their ids in `reviewedMerges`;
+  - 0 console errors; the narrow-window layout checked.
+
 ## [V3.932] — 2026-10-27 — Scientia: two people's edits to one card kept together in context; a shared deletion waits for the other person; computer and cloud merge instead of replacing
 
 Plan: [CodeLog/ClaudesPlan/V3.932_scientia_contextual_merge.md](../ClaudesPlan/V3.932_scientia_contextual_merge.md).

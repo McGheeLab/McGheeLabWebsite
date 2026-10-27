@@ -83,6 +83,34 @@ const L = (...a) => a.join('\n');
     assert.strictEqual(r.conflicts, 0); assert.strictEqual(rec.label, 'Buffers (Alex)'); assert.strictEqual(rec.body.text, L('PBS', '', 'Gabe’s name for this card: Buffers (Gabe)'));
   });
 
+  /* ---- V3.933: each person's version in their colour ---- */
+  const byMarks = body => body.marks.filter(m => m.type === 'fmt' && /^by\d$/.test(m.s));
+  await test('both change the same item → each version coloured as its writer’s, never the same colour', () => {
+    const base = { text: list, marks: [] }, mine = { text: list.replace('Tris 50 mM', 'Tris 20 mM'), marks: [] }, cur = { text: list.replace('Tris 50 mM', 'Tris 100 mM'), marks: [] };
+    const r = G.mergeBody(base, mine, cur, { mineName: 'Gabe', curName: 'Alex' }), t = r.body.text, by = byMarks(r.body);
+    assert.strictEqual(by.length, 2);
+    const a = by.find(m => m.who === 'Alex'), g = by.find(m => m.who === 'Gabe');
+    assert.strictEqual(t.slice(a.from, a.to), '• Tris 100 mM'); assert.strictEqual(t.slice(g.from, g.to), '• Tris 20 mM');
+    assert.notStrictEqual(a.s, g.s); assert.strictEqual(a.s, 'by' + G.hueOf('Alex'));
+    assert.ok(!byMarks(G.mergeBody(base, mine, { text: list.replace('PBS 1x', 'PBS 2x'), marks: [] }, { mineName: 'Gabe', curName: 'Alex' }).body).length, 'edits in different places are not coloured');
+  });
+  await test('a person keeps one colour across cards; two people never share one on a card', () => {
+    for (const [x, y] of [['Alex', 'Gabe'], ['Gabe', 'Alex'], ['Bea', 'Bea'], ['Online', 'This computer']]) { const c = G.byColours(x, y); assert.notStrictEqual(c.cur, c.mine); }
+    assert.strictEqual(G.byColours('Alex', 'Gabe').cur, G.byColours('Alex', 'Bea').cur);
+  });
+  await test('an edit moved to the end of the card is coloured as its writer’s', () => {
+    const r = G.mergeBody({ text: list, marks: [] }, { text: list.replace('Done by Friday', 'Done by Monday'), marks: [] }, { text: L('Buffers', '• PBS 1x', '• Tris 50 mM', '• EDTA 1 mM'), marks: [] }, { mineName: 'Gabe', curName: 'Alex' });
+    const g = byMarks(r.body); assert.strictEqual(g.length, 1); assert.strictEqual(g[0].who, 'Gabe'); assert.strictEqual(r.body.text.slice(g[0].from, g[0].to), 'Done by Monday');
+  });
+  await test('through the hub: a collaborator’s line and the owner’s are named by person, not device', () => {
+    const b0 = { id: 'b1', body: { text: list, marks: [] } }, curRec = { id: 'b1', body: { text: list.replace('Tris 50 mM', 'Tris 100 mM'), marks: [] } };
+    const rows = new Map([[C.keyOf('blocks', 'b1'), { rec: curRec, seq: 5, dev: 'web_ab12', name: 'Online' }]]);
+    const plan = C.planPush({ state: Object.assign(C.emptyState(), { seq: 5 }), rows, dev: 'share:G', name: 'Gabe (shared)', ownerName: 'Alex McGhee',
+      ops: [{ store: 'blocks', id: 'b1', base: 2, prev: b0, rec: { id: 'b1', body: { text: list.replace('Tris 50 mM', 'Tris 20 mM'), marks: [] } } }] });
+    const rec = plan.writes[0].rec, who = byMarks(rec.body).map(m => m.who).sort();
+    assert.deepStrictEqual(who, ['Alex McGhee', 'Gabe']); assert.strictEqual(plan.state.conflicts.length, 0);
+  });
+
   console.log('scientia-merge: ' + passed + ' passed, ' + failed + ' failed');
   if (failed) process.exit(1);
 })();

@@ -2363,7 +2363,7 @@
   function delPaint() {
     var n = DEL.data.decide.length, w = DEL.data.waiting.length;
     if (!n && !w) { if (DEL.chip) { DEL.chip.remove(); DEL.chip = null; } delClose(); return; }
-    if (!DEL.chip) { DEL.chip = h('button.lab-delchip.nopan', { type: 'button', on: { pointerdown: function (e) { e.stopPropagation(); }, click: function (e) { e.stopPropagation(); DEL.pop ? delClose() : delOpen(); } } }); document.body.append(DEL.chip); }
+    if (!DEL.chip) { DEL.chip = h('button.lab-delchip.nopan', { type: 'button', on: { pointerdown: function (e) { e.stopPropagation(); }, click: function (e) { e.stopPropagation(); DEL.pop ? delClose() : delOpen(); } } }); (LAB.topChips ? LAB.topChips() : document.body).append(DEL.chip); }
     var say = n ? (n === 1 ? '1 deletion to approve' : n + ' deletions to approve') : (w === 1 ? '1 deletion waiting for approval' : w + ' deletions waiting for approval');
     DEL.chip.className = 'lab-delchip nopan' + (n ? ' ask' : '');
     DEL.chip.title = say; DEL.chip.setAttribute('aria-label', say);
@@ -2423,4 +2423,143 @@
       '.lab-del-row.mine{background:var(--surface-2)}.lab-del-t{font-size:13px;line-height:1.4}.lab-del-f{display:flex;align-items:center;gap:8px}.lab-del-b{margin-left:auto;display:inline-flex;gap:6px}.lab-del-gap{margin-top:6px}' +
       'body.mobile .lab-delchip{top:calc(6px + env(safe-area-inset-top))}';
   } catch (e) { warn('deletions', e); }
+  /* ---- 18. Merged changes to review: each person's version in their colour, until you have looked (V3.933) ----
+     Alex: "If you both change the same line differently, both versions stay there, one after the other. if this happens
+     color the variations per user" — then: "the colors can go to normal. this color variation should be for quick review
+     scans only not persistent for all time. after a user reviews the change it should not be colored any more. users can
+     accept all changes, or run through a group of changes at a time (with a next button). changes need not be super
+     granular, we can cluster them by area. and just bring the user to the next area of change to accept or comment on."
+     The hub's merge (functions/scientia-merge.js) marks each version {type:'fmt', s:'by0'…'by5', who}; the editor draws it
+     as span.fby<n>. An AREA is a card with such marks. Review: a chip ("3 merged changes to review") opens a bar that
+     takes you to each area in turn — Accept (the colour goes), Comment (a comment card wired to it; reviewed too),
+     Next, Accept all. In a note only you have, accepting removes the marks; in a shared one it is yours alone: the ids
+     you reviewed are kept in your settings (reviewedMerges, synced to your devices) and hidden by a generated rule, so
+     your collaborator still sees their colours until they review. */
+  try {
+    var BY_HUE = ['#0E6F66', '#2F6FB0', '#9E2A62', '#A8571A', '#1B7A43', '#6B4FA3'], css18 = '';
+    BY_HUE.forEach(function (c, i) {
+      css18 += '.fby' + i + '{color:color-mix(in srgb,' + c + ' 78%,var(--ink));background:color-mix(in srgb,' + c + ' 12%,transparent);' +
+        'box-shadow:inset 2px 0 0 color-mix(in srgb,' + c + ' 70%,transparent);border-radius:2px;padding-left:3px}';
+    });
+    css18 += '.li-mk [class*="fby"]{box-shadow:none;background:none;padding-left:0}';   // a list line: the bullet takes the colour, the bar and tint go with the text
+    css18 += '.lab-topchips{position:fixed;z-index:8990;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:none}' +
+      '.lab-topchips>*{pointer-events:auto}.lab-topchips .lab-delchip{position:static;transform:none}' +
+      '.lab-rvchip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px 5px 9px;border-radius:16px;border:1px solid color-mix(in srgb,#6B4FA3 45%,transparent);background:var(--surface);color:color-mix(in srgb,#6B4FA3 80%,var(--ink));font:500 12.5px/1.2 var(--f-d,system-ui);cursor:pointer;box-shadow:0 6px 18px -10px rgba(36,33,28,.45)}' +
+      '.lab-rvchip svg{width:16px;height:16px}' +
+      '.lab-rvbar{position:fixed;z-index:8991;top:calc(48px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:min(560px,calc(100vw - 16px));box-sizing:border-box;display:flex;flex-direction:column;gap:7px;padding:9px 12px;' +
+      'background:var(--surface);color:var(--ink);border:1px solid var(--rule-2);border-radius:10px;box-shadow:0 18px 40px -18px rgba(36,33,28,.45);font-size:13px}' +
+      '.lab-rv-top{display:flex;align-items:center;gap:8px}.lab-rv-top b{font-size:12.5px}.lab-rv-n{color:var(--ink-3);font:500 11.5px/1 var(--f-m,monospace)}.lab-rv-x{margin-left:auto;border:0;background:none;font-size:18px;line-height:1;cursor:pointer;color:var(--ink-3)}' +
+      '.lab-rv-what{line-height:1.4}.lab-rv-who i{font-style:normal;padding:0 4px;border-radius:3px}.lab-rv-acts{display:flex;gap:6px;flex-wrap:wrap}.lab-rv-acts .sp{flex:1}' +
+      '.lab-rv-c{width:100%;box-sizing:border-box;min-height:54px;font:inherit;resize:vertical}' +
+      '.lab-rv-who i{box-shadow:none;padding:0 4px}' +
+      '@media (max-width:1100px){.lab-topchips{top:calc(82px + env(safe-area-inset-top))}.lab-rvbar{top:calc(120px + env(safe-area-inset-top))}}' +   /* the header has no room in the middle: below the tabs */
+      'body.mobile .lab-rvbar{top:calc(44px + env(safe-area-inset-top))}';
+    var st18 = document.getElementById('lab-mode-css'); if (st18) st18.textContent += css18;
+    PILL_ICONS['arrows-right-left'] = '<path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/>';
+
+    var RV = { areas: [], i: 0, bar: null, chip: null, style: null, commenting: false };
+    LAB.review = RV;
+    var BY = /^by\d$/;
+    function topChips() { var c = document.querySelector('.lab-topchips'); if (!c) { c = h('div.lab-topchips.nopan'); document.body.append(c); } return c; }
+    LAB.topChips = topChips;
+    function reviewed() { var st = (typeof settings === 'function' ? settings() : {}) || {}; return new Set(Array.isArray(st.reviewedMerges) ? st.reviewedMerges : []); }
+    function byMarks(b) { return ((b && b.body && b.body.marks) || []).filter(function (m) { return m && m.type === 'fmt' && BY.test(m.s); }); }
+    function sharedNote(d) {
+      if (!d) return false; if (d.sharedFrom || (d.shareWith && Object.keys(d.shareWith).length)) return true;
+      var p = d.projectId && M.project(d.projectId); return !!(p && (p.sharedFrom || (p.shareWith && Object.keys(p.shareWith).length)));
+    }
+    /** The areas still to review, note by note, in each note's card order. */
+    function scan() {
+      var seen = reviewed(), out = [];
+      (DB.all('blocks') || []).forEach(function (b) {
+        if (b.status === 'removed') return;
+        var ms = byMarks(b).filter(function (m) { return !seen.has(m.id); }); if (!ms.length) return;
+        var d = M.doc(b.docId); if (!d) return;
+        var who = [], hue = {}; ms.forEach(function (m) { if (m.who && who.indexOf(m.who) < 0) { who.push(m.who); hue[m.who] = m.s; } });
+        out.push({ blockId: b.id, docId: d.id, ids: ms.map(function (m) { return m.id; }), who: who, hue: hue,
+          title: d.title || 'Untitled note', name: (typeof M.blockName === 'function' ? M.blockName(b) : b.label) || 'a card', order: (d.blockIds || []).indexOf(b.id), modified: d.modified || '' });
+      });
+      out.sort(function (x, y) { return x.docId === y.docId ? x.order - y.order : String(y.modified).localeCompare(String(x.modified)); });
+      return out;
+    }
+    /** Colours you have reviewed go, the area you are on is outlined: one generated rule, so re-renders keep it. */
+    function paintStyle() {
+      if (!RV.style) { RV.style = h('style', { id: 'lab-review-css' }); document.head.append(RV.style); }
+      var ids = [...reviewed()], cur = RV.bar && RV.areas[RV.i];
+      RV.style.textContent = (ids.length ? ids.map(function (id) { return '[data-m="' + String(id).replace(/"/g, '') + '"]'; }).join(',') + '{color:inherit!important;background:none!important;box-shadow:none!important;padding-left:0!important}' : '') +
+        (cur ? '[data-id="' + cur.blockId + '"]{outline:2px solid color-mix(in srgb,#6B4FA3 60%,transparent);outline-offset:4px;border-radius:6px}' : '');
+    }
+    /** Reviewed: in a note only you have, the marks go from the card; in a shared one, you remember the ids (yours alone). */
+    function markReviewed(areas) {
+      var seen = reviewed(), shared = false;
+      areas.forEach(function (a) {
+        var b = M.block(a.blockId), d = M.doc(a.docId); if (!b) return;
+        if (sharedNote(d)) { shared = true; a.ids.forEach(function (id) { seen.add(id); }); return; }
+        var keep = (b.body.marks || []).filter(function (m) { return a.ids.indexOf(m.id) < 0; });
+        M.saveBlockBody(b, Object.assign({}, b.body, { marks: keep }));
+      });
+      if (shared) {   // keep only ids that still exist somewhere, so the list doesn't grow without end
+        var live = new Set(); (DB.all('blocks') || []).forEach(function (b) { byMarks(b).forEach(function (m) { live.add(m.id); }); });
+        var st = Object.assign({}, DB.get('settings', 'main') || DEFAULT_SETTINGS, { reviewedMerges: [...seen].filter(function (id) { return live.has(id); }) });
+        DB.put('settings', st);
+      }
+      if (typeof changed === 'function') changed();
+    }
+    function chipPaint() {
+      var n = RV.bar ? RV.areas.length : scan().length;
+      if (!n) { if (RV.chip) { RV.chip.remove(); RV.chip = null; } paintStyle(); return; }
+      var say = n === 1 ? '1 merged change to review' : n + ' merged changes to review';
+      if (!RV.chip) { RV.chip = h('button.lab-rvchip', { type: 'button', on: { pointerdown: function (e) { e.stopPropagation(); }, click: function (e) { e.stopPropagation(); RV.bar ? closeBar() : start(); } } }); topChips().prepend(RV.chip); }
+      RV.chip.title = say + ' — two people changed the same lines; each version is in its writer’s colour until you have looked';
+      RV.chip.innerHTML = pic('arrows-right-left') + '<span></span>'; RV.chip.lastChild.textContent = say;
+      paintStyle();
+    }
+    LAB.reviewRefresh = chipPaint;
+    function start() { RV.areas = scan(); RV.i = 0; RV.commenting = false; if (!RV.areas.length) return chipPaint(); go(); }
+    function go() {
+      if (!RV.areas.length) { closeBar(); toast('All merged changes reviewed'); return; }
+      if (RV.i >= RV.areas.length) RV.i = 0;
+      App.openBlock(RV.areas[RV.i].blockId); RV.commenting = false; barPaint();
+    }
+    function closeBar() { if (RV.bar) { RV.bar.remove(); RV.bar = null; } RV.areas = []; chipPaint(); }
+    function done(list, said) { markReviewed(list); var gone = new Set(list.map(function (a) { return a.blockId; })); RV.areas = RV.areas.filter(function (a) { return !gone.has(a.blockId); }); if (said) toast(said); go(); }
+    function barPaint() {
+      var a = RV.areas[RV.i]; if (!a) return closeBar();
+      if (!RV.bar) { RV.bar = h('div.lab-rvbar.nopan', { role: 'dialog', 'aria-label': 'Review merged changes', on: { pointerdown: function (e) { e.stopPropagation(); }, keydown: function (e) { e.stopPropagation(); } } }); document.body.append(RV.bar); }
+      var who = a.who.map(function (w) { return h('i.f' + (a.hue[w] || 'by0'), w); });
+      var whoLine = h('span.lab-rv-who'); who.forEach(function (x, k) { if (k) whoLine.append(k === who.length - 1 ? ' and ' : ', '); whoLine.append(x); });
+      var rows = [h('div.lab-rv-top', h('b', 'Merged changes'), h('span.lab-rv-n', (RV.i + 1) + ' of ' + RV.areas.length), h('button.lab-rv-x', { type: 'button', title: 'Close (they stay to review)', 'aria-label': 'Close', on: { click: closeBar } }, '×')),
+        h('div.lab-rv-what', '“' + snippet(a.name, 50) + '” in ' + snippet(a.title, 50) + ' — ', whoLine, a.who.length > 1 ? ' both changed the same lines; each version is in its writer’s colour.' : ' changed lines whose place was removed; they are at the end of the card.')];
+      if (RV.commenting) {
+        var ta = h('textarea.inp.lab-rv-c', { placeholder: 'Your comment on this change (it goes beside the card, wired to it)' });
+        rows.push(ta, h('div.lab-rv-acts', h('span.sp'), h('button.btn.sm', { type: 'button', on: { click: function () { RV.commenting = false; barPaint(); } } }, 'Cancel'),
+          h('button.btn.sm.pri', { type: 'button', on: { click: function () {
+            var t = ta.value.trim(); if (!t) return ta.focus();
+            var b = M.block(a.blockId); if (!b) return done([a]);
+            var c = M.addBlock(a.docId, a.blockId, { label: 'Comment on the merge', body: { text: t, marks: [] } });
+            if (c) { if (b.x != null) { c.x = b.x + (b.w || 392) + 60; c.y = b.y; DB.put('blocks', c); } M.wire(c.id, a.blockId, 'comments'); }
+            done([a], 'Comment added');
+          } } }, 'Add comment')));
+        RV.bar.replaceChildren.apply(RV.bar, rows); setTimeout(function () { ta.focus(); }, 0);
+      } else {
+        rows.push(h('div.lab-rv-acts',
+          h('button.btn.sm.pri', { type: 'button', title: 'Keep the card as it is now and take the colour off', on: { click: function () { done([a]); } } }, 'Accept'),
+          h('button.btn.sm', { type: 'button', on: { click: function () { RV.commenting = true; barPaint(); } } }, 'Comment'),
+          h('button.btn.sm', { type: 'button', disabled: RV.areas.length < 2, on: { click: function () { RV.i = (RV.i + 1) % RV.areas.length; go(); } } }, 'Next →'),
+          h('span.sp'),
+          h('button.btn.sm', { type: 'button', title: 'Take the colour off every merged change', on: { click: function () { done(RV.areas.slice(), 'All merged changes accepted'); } } }, 'Accept all (' + RV.areas.length + ')')));
+        RV.bar.replaceChildren.apply(RV.bar, rows);
+      }
+      paintStyle();
+    }
+    setTimeout(chipPaint, 2000);
+    setInterval(function () { if (!document.hidden && !RV.bar) chipPaint(); }, 20000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && !RV.bar) chipPaint(); });
+    document.addEventListener('pointerover', function (e) {
+      var sp = e.target && e.target.closest && e.target.closest('[class*="fby"][data-m]'); if (!sp || sp.title) return;
+      var host = sp.closest('[data-id]'), b = host && M.block(host.getAttribute('data-id'));
+      var m = b && b.body && (b.body.marks || []).filter(function (x) { return x.id === sp.getAttribute('data-m'); })[0];
+      if (m && m.who && !reviewed().has(m.id)) sp.title = m.who + '’s version — review merged changes from the chip at the top';
+    }, true);
+  } catch (e) { warn('merged changes', e); }
 })();

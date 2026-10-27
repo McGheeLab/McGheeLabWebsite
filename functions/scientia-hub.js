@@ -57,6 +57,13 @@ function rowFromDoc(snap) {
   let rec = null; if (!d.deleted && d.recJson) { try { rec = JSON.parse(d.recJson); } catch (e) { rec = null; } }
   return { store: d.store, id: d.id, rec, deleted: !!d.deleted || rec === null, seq: d.seq || 0, dev: d.dev || null, name: d.name || null };
 }
+/** V3.933 — a hub owner's name (users/{uid}), cached per instance: the merge names their side of a line by it. */
+const OWNER_NAMES = new Map();
+async function ownerNameOf(uid) {
+  const c = OWNER_NAMES.get(uid); if (c && Date.now() - c.at < 30 * 60 * 1000) return c.name;
+  let name = null; try { const d = (await db().collection('users').doc(uid).get()).data() || {}; name = String(d.name || d.displayName || '').trim() || null; } catch (e) { name = c ? c.name : null; }
+  OWNER_NAMES.set(uid, { at: Date.now(), name }); return name;
+}
 const rowToDoc = w => ({ store: w.store, id: String(w.id), recJson: w.deleted || w.rec == null ? null : JSON.stringify(w.rec), deleted: !!w.deleted || w.rec == null, seq: w.seq || 0, dev: w.dev || null, name: w.name || null, updated: FieldValue.serverTimestamp() });
 const opToDoc = op => ({ seq: op.seq, sid: op.sid, store: op.store, id: String(op.id), recJson: op.rec == null ? null : JSON.stringify(op.rec), del: !!op.del, dev: op.dev || null, conn: op.conn || null, name: op.name || null, ts: op.ts });
 function opFromDoc(d) { let rec = null; if (d.recJson) { try { rec = JSON.parse(d.recJson); } catch (e) { rec = null; } } return { seq: d.seq, sid: d.sid, store: d.store, id: d.id, rec, del: !!d.del, dev: d.dev, conn: d.conn, name: d.name, ts: d.ts }; }
@@ -78,6 +85,7 @@ class FirestoreHub {
     if (!ops.length) { const st = await this.loadState(); return { ok: true, sid: st.sid, seq: st.seq, echo: [], conflicts: (st.conflicts || []).length }; }
     let result = { ok: true, sid: null, seq: 0, echo: [], conflicts: 0 }, lastState = null;
     this.lastCommits = [];   // V3.899 — what the share relay looks at
+    const ownerName = await ownerNameOf(this.uid);   // V3.933: whose version of a line, by person
     for (let i = 0; i < ops.length; i += 150) {
       const chunk = ops.slice(i, i + 150); let chunkCommits = [];
       const r = await db().runTransaction(async t => {
@@ -87,7 +95,7 @@ class FirestoreHub {
         const refs = [...keys.values()], snaps = refs.length ? await t.getAll(...refs) : [];
         const rows = new Map(); let j = 0;
         for (const k of keys.keys()) { const row = rowFromDoc(snaps[j++]); if (row) rows.set(k, row); }
-        const plan = C.planPush({ state: st, rows, dev, conn, name, ops: chunk });
+        const plan = C.planPush({ state: st, rows, dev, conn, name, ops: chunk, ownerName });
         t.set(this.ref, stateToDoc(plan.state), { merge: true });
         for (const w of plan.writes) t.set(this.rows.doc(rowDocId(w.store, w.id)), rowToDoc(w));
         for (const op of plan.commits) t.set(this.ops.doc(opDocId(op.seq)), opToDoc(op));
@@ -601,7 +609,7 @@ const scientiaHub = onRequest({ cors: false, timeoutSeconds: 300, memory: '512Mi
   res.set('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
   const path = (String(req.path || '/').replace(/^\/scientiaHub(?=\/|$)/, '') || '/').replace(/\/+$/, '') || '/';
-  if (path === '/') { res.status(200).json({ ok: true, service: 'scientiaHub', version: 'V3.932' }); return; }
+  if (path === '/') { res.status(200).json({ ok: true, service: 'scientiaHub', version: 'V3.933' }); return; }
   let who = null;
   try { who = await resolveWho(req); }
   catch (e) { res.status(401).json({ ok: false, error: 'invalid token: ' + e.message }); return; }

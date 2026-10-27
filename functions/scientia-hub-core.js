@@ -103,7 +103,16 @@ function emptyState() {
  * ops touch (null rec = tombstone, keeps the version). Returns the new state, the row
  * writes, the op docs to append, the merged echo and n (ops committed).
  */
-function planPush({ state, rows, dev, conn, name, ops, now }) {
+/** V3.933 — the person behind a write, for colouring two people's versions of a line: a collaborator through the share
+ *  relay ("Gabe (shared)" from share:<uid>, "Shared by Alex" on a member's copy), otherwise the hub's owner (any of their
+ *  devices), or the device's name when the owner's name isn't known (one person, two devices). */
+function personOf(dev, name, ownerName) {
+  const d = String(dev || ''), n = String(name || '');
+  if (d.startsWith('share:')) return n.replace(/ \(shared\).*$/, '') || 'A collaborator';
+  if (d === 'share') return n.replace(/^Shared by /, '').replace(/ \(read only\)$/, '') || 'The owner';
+  return ownerName || n.replace(/ \((shared|read only)\)$/, '') || null;
+}
+function planPush({ state, rows, dev, conn, name, ops, now, ownerName }) {
   const st = Object.assign({}, state, { conflicts: (state.conflicts || []).slice() });
   const ts = isoLocal(now);
   const writes = new Map(), commits = [], echo = [];
@@ -141,7 +150,7 @@ function planPush({ state, rows, dev, conn, name, ops, now }) {
     if (!others) { commit(store, id, rec, false); n++; continue; }
     if (cur === undefined) { conflict('deleted', store, id, [], null, rec); continue; }
     let { merged, bad } = merge3(prev, rec, cur);
-    if (bad.length) ({ merged, bad } = MERGE.settle(store, prev, rec, cur, merged, bad, { mineName: String(name || '').replace(/ \((shared|read only)\)$/, '') || null }));
+    if (bad.length) { const last = rows.get(key); ({ merged, bad } = MERGE.settle(store, prev, rec, cur, merged, bad, { mineName: personOf(dev, name, ownerName), curName: last ? personOf(last.dev, last.name, ownerName) : null })); }
     if (bad.length) conflict('fields', store, id, bad.sort(), cur, rec);
     if (!eq(merged, cur)) { commit(store, id, merged, false); n++; }
     if (!eq(merged, rec)) echo.push({ store, id, rec: merged, del: false });
@@ -1367,7 +1376,7 @@ MemoryHub.prototype.libraryRows = function () {
   return out;
 };
 
-module.exports = { route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA_BYTES, NOSYNC, KEYS, AUTO_MAX, COUNT_SKIP, MAX_OPS, PULL_MAX, MISSING, isoLocal, eq, merge3, emptyState, planPush, pullResult, planResolve, planReplace, exportState, helloResult, keyOf, rowKey, MemoryHub, sha, token,
+module.exports = { personOf, route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA_BYTES, NOSYNC, KEYS, AUTO_MAX, COUNT_SKIP, MAX_OPS, PULL_MAX, MISSING, isoLocal, eq, merge3, emptyState, planPush, pullResult, planResolve, planReplace, exportState, helloResult, keyOf, rowKey, MemoryHub, sha, token,
   MIRROR_MS, MIRROR_FIELDS, rmItemToLibraryRow, planMirror, INVENTORY_MS, INVENTORY_LIMIT, rmInventoryRow, searchInventory,
   TASKSYNC_MS, PRIO_IMPORTANCE, dueDateOf, taskIdNew, rmTaskFromBlock, rmTaskPatch, planTaskSync,
   UPSYNC_MS, UPSYNC_MAX, normTitle, taskPayload, planTaskPairing, patchOp, libAuthors, paperItemFromRow, libraryUpCandidates, planLibraryUp,
