@@ -1592,9 +1592,9 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-10-26T11:38:39-07:00",
-   "sha256": "0e4d0d1f8d8762ddba22f29c70cc87eebe84d520fc5f590f8d546a495660bb7e",
-   "size": 83,
+   "deployedAt": "2026-10-26T22:02:40-07:00",
+   "sha256": "0e1d5fbfe6b7669b7d87a6a7791876209af3b21e7a079d9cf6c63cf6a55d3930",
+   "size": 82,
    "via": "verify"
   },
   "rm/css/activity-overview.css": {
@@ -4574,9 +4574,9 @@
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-24T19:47:31-07:00",
-   "sha256": "50919417c0fabf73c9e73bb62d1001292ebb949c0063f8f437545cd8b4c4d992",
-   "size": 4546873,
+   "deployedAt": "2026-10-26T22:02:40-07:00",
+   "sha256": "4a4622baffbac0f850174d262a5c90594a85945654f2d69cfd2ecd9811e0569d",
+   "size": 5136348,
    "via": "verify"
   },
   "rm/test-fixtures/layout/01-2col-tight.pdf": {
@@ -5240,8 +5240,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-26T11:38:39-07:00",
-   "sha256": "bde50b7fe4100e6a35cda4eba9c1423a075e74783f563bed56d1bb84c6f9f093",
+   "deployedAt": "2026-10-26T22:02:22-07:00",
+   "sha256": "5ba6a5df83dccbc056135334d92f8c69cf30d01618a5820e885be352f2b894d3",
    "size": 9933,
    "via": "verify"
   },

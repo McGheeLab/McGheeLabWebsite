@@ -26,8 +26,10 @@ Plan: [CodeLog/ClaudesPlan/V3.927_scientia_offline_rm_sync.md](../ClaudesPlan/V3
 - Lab-mode harness (web) **271/275**, the same four failures as V3.925 (headless Chrome: PDF cards, install banner).
 - `sw.js` CACHE_VERSION 898 → 899.
 
-### Not deployed
-- The hub change needs `firebase deploy --only functions:scientiaHub`; the web Scientia changes need the site deploy.
+- `scripts/deploy.py` `_ReusedSslSocket.unwrap`: an upload ends with the TLS close_notify again (errors from a server that already closed the data channel are ignored). The no-op unwrap cut every FTPS upload short, and pure-ftpd refused each file with "451 Error during read from data connection" — found on Gabe's first deploy from Windows; listings and `deploy.py check` were unaffected.
+
+### Deployed
+- 2026-10-26, from Gabe's computer: `rm/scientia/scientia.html` and `sw.js` (`deploy.py ftp --only`). `rm/scientia/lab-mode.js` (the V3.926 + Insert icons) was left for the lab to ship; until then the four new rows show Gabe's glyphs. The hub change still needs `firebase deploy --only functions:scientiaHub`.
 
 ## [V3.926] — 2026-10-26 — Scientia: the desktop's features join the lab's copy
 

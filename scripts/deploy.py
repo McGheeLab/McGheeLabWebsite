@@ -721,8 +721,14 @@ def cmd_audit(args, cfg):
 # ───────────────────────── FTP ─────────────────────────
 
 class _ReusedSslSocket(ssl.SSLSocket):
-    def unwrap(self):  # some servers close the data channel before TLS shutdown
-        pass
+    def unwrap(self):
+        # An upload must end with the TLS close_notify, or pure-ftpd counts the file as cut short ("451 Error during
+        # read from data connection"). Some servers close the data channel before TLS shutdown (listings, downloads):
+        # that error is expected and ignored.
+        try:
+            return ssl.SSLSocket.unwrap(self)
+        except (OSError, ValueError):
+            return None
 
 
 class FTPS(ftplib.FTP_TLS):
