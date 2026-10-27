@@ -13,6 +13,7 @@ Plan: [CodeLog/ClaudesPlan/V3.929_scientia_desktop_lab_layer_fast_sync.md](../Cl
 - **`scientia/serve.py`**: `rm_proxy` (`/api/rm/*` → the hub as this computer's key); `rec_part`, `rec_compose`, `/api/rec/parts` (the lab recorder, saved in the notebook folder); `rm_asset` (bundled `/rm/js/recorder-core.js`, `speech-to-text.js`, `stt-device-worker.js`; other `/rm/…` → the site).
 - **`scientia/src/23d-desktoplab.js`**: keeps the Activity and Data tabs and views on the computer (`SIS_DESKTOP_AFTER_LAB`).
 - `scientia/vendor/rm/` (copies `scientia_build.py` refreshes, in the download).
+- **Updates for installed computers**: the build stamps the app's version in the download (`app/VERSION.txt`) and in `version.json` (`app`); the installed server checks the site's `version.json` every 6 h (`check_update`, `update_info`), Settings → The lab shows "A newer Scientia is ready" with the download, and the site's button says so when the computer's copy (`/api/lab/ping` `version`) is older. Updating = running the new installer (it replaces the app and keeps notes, folder and connection).
 
 ### Changed
 - `23b-labsync.js` `LABSYNC.ownTick()`: the app's ✓ on the computer even with the lab layer; `.sis-desktop .lab-mw` hidden. `21b-canvasexport.js` strips the `<!--sis-desktop-->` blocks.

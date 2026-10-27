@@ -37,6 +37,14 @@ const THISPC = {
     try { await fetch(THISPC.local() + '/api/lab/offer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: j.code, account: j.account }) }); } catch (e) {}
     return j;
   },
+  /** the copy on this computer is older than the one this site offers: say so (it updates by running the installer again) */
+  async checkUpdate(p) {
+    try {
+      if (!p || !p.version) return;
+      const v = await (await fetch(THISPC.DL.win.replace(/[^/]+$/, 'version.json'), { cache: 'no-store' })).json();
+      if (v && v.app && v.app !== p.version) toast('A newer Scientia is ready for this computer — Settings → The lab → Download the update', 7000);
+    } catch (e) {}
+  },
   target() { const hsh = location.hash || ''; return /^#\/(doc|project|theme|mat|read|litreviews|portfolio)\b/.test(hsh) ? hsh : ''; },
   waiting(tab, text) {
     try { tab.document.title = 'Scientia In Situ'; tab.document.body.style.cssText = 'font:16px system-ui,sans-serif;padding:48px;background:#16140f;color:#ddd'; tab.document.body.textContent = text; } catch (e) {}
@@ -47,7 +55,7 @@ const THISPC = {
     const want = THISPC.target(), tab = window.open('', '_blank');   // opened in the click, so no popup blocker
     if (tab) THISPC.waiting(tab, 'Opening Scientia on this computer…');
     let p = await THISPC.ping();
-    if (p && p.connected) { THISPC.installed(true); if (tab) tab.location.href = THISPC.local() + '/scientia.html' + want; else location.href = THISPC.local() + '/scientia.html' + want; return; }
+    if (p && p.connected) { THISPC.installed(true); THISPC.checkUpdate(p); if (tab) tab.location.href = THISPC.local() + '/scientia.html' + want; else location.href = THISPC.local() + '/scientia.html' + want; return; }
     if (!p && THISPC.installed()) {
       if (tab) { THISPC.waiting(tab, 'Starting Scientia on this computer…'); tab.location.href = 'scientia://start'; }
       for (let i = 0; i < 25 && !p; i++) { await new Promise(r => setTimeout(r, 1000)); p = await THISPC.ping(900); }
@@ -114,6 +122,8 @@ const THISPC = {
       act('Use the notes online (they replace this computer’s)', () => THISPC.post('api/lab/choose', { prefer: 'cloud' })),
       act('Use this computer’s notes (they replace the online ones)', () => THISPC.post('api/lab/choose', { prefer: 'local' })), h('div.tiny.muted', 'The replaced side keeps a copy first.')));
     if (s.state !== 'syncing' && s.state !== 'not-connected' && s.message) out.push(h('div.tiny.muted', s.message));
+    if (s.update && s.update.available) out.push(h('div.pc-update', h('b', 'A newer Scientia is ready. '), 'Download it and run "Install Scientia" again — it replaces the app and keeps your notes, notebook folder and connection. ',
+      h('a.btn.sm.pri', { href: s.update.download, target: '_blank', rel: 'noopener' }, 'Download the update')));
     if (s.connected) out.push(h('div.row', { style: { gap: '6px', marginTop: '8px' } },
       act('Sync now', () => THISPC.post('api/lab/sync-now')),
       act('Disconnect this computer', async () => { if (await THISPC.ask('Disconnect this computer from the lab cloud? Its notes stay in the notebook folder; the lab keeps its copy.')) await THISPC.post('api/lab/disconnect'); })));
