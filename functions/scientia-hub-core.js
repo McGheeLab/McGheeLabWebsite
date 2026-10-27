@@ -501,6 +501,102 @@ function planLibraryUp({ state, rows, items, today, uid, now, max }) {
   return { create, ops };
 }
 
+/* ───────── My Week from a component's ✓, offline too (V3.927) ─────────
+   STEPS — the person's My Week steps in the window RM's report picker offers (4 weeks before this week's Monday to this
+   Sunday, LAB_TZ; not cancelled) are mirrored into the record as read-only `mwsteps` rows, so the desktop's ✓ can offer
+   the same picker without a connection. TICKS — a ✓ made in the app is a `block.myweek` entry with `pending: true`; the hub
+   reports the component onto that step as RM's myweek-report `pick` → DAY_DISTRIBUTE.saveOutcome does (the outcome and its
+   links, the step closed as done, confirmed_at, the "done" work event, and the step's task and tracker copies), then writes
+   the entry back without `pending`. The website's own ✓ reports at once and writes no `pending`, so nothing goes twice.
+   Not reproduced: a step's huddle, notebook, equipment and PMR copies (RM updates those when the step is edited there). */
+const MWSTEPS_MS = 10 * 60 * 1000;
+const mondayOf = day => addDays_(day, -((wdayOf(day) + 6) % 7));
+function weekWindow(today) { const mon = mondayOf(today); return { from: addDays_(mon, -28), to: addDays_(mon, 6) }; }
+/** a step as the app's picker needs it (rm/js/myweek-report.js shows title, date, time, whether it has an outcome) */
+function mwStepRow(step) {
+  const o = isObj(step.outcome) ? step.outcome : null;
+  return { id: String(step.id), rm: true, date: String(step.date || ''), title: String(step.title || ''), notes: String(step.notes || '').slice(0, 200),
+    type: String(step.type || ''), status: String(step.status || 'planned'), startTime: step.startTime || null, endTime: step.endTime || null,
+    hasOutcome: !!o, linked: o && Array.isArray(o.links) ? o.links.map(l => l && l.itemId).filter(Boolean).map(String) : [] };
+}
+function planWeekSteps({ state, rows, steps }) {
+  const ops = [], seen = new Set();
+  for (const st of steps || []) {
+    if (!st || !st.id || st.id === '_prefs' || st.status === 'cancelled') continue;
+    const row = mwStepRow(st), key = keyOf('mwsteps', row.id), ex = rows.get(key), cur = ex && isObj(ex.rec) ? ex.rec : null; seen.add(key);
+    if (cur && eq(cur, row)) continue;
+    ops.push({ store: 'mwsteps', id: row.id, rec: row, del: false, prev: cur, base: state.seq });
+  }
+  for (const [key, ex] of rows) { const cur = ex && isObj(ex.rec) ? ex.rec : null; if (cur && !seen.has(key)) ops.push({ store: 'mwsteps', id: cur.id, rec: null, del: true, prev: cur, base: state.seq }); }
+  return ops;
+}
+/** RM's day-distribute.js closedStatusFor (785-792) */
+function closedStatusFor(status, kind, closeAs) {
+  if (status === 'planned') { if (kind === 'result') return 'done'; return closeAs === 'done' ? 'done' : 'skipped'; }
+  if (status === 'skipped' && kind === 'result') return 'done';
+  return status;
+}
+/** RM's day-distribute.js cleanLink (798-810) */
+function cleanLink(l) {
+  const out = { kind: String(l.kind || 'link').slice(0, 40), id: String(l.id || l.itemId || '').slice(0, 200), title: String(l.title || '').slice(0, 200), url: String(l.url || '').slice(0, 600) };
+  for (const k of ['boardId', 'itemId', 'paperId', 'entryId', 'boardTitle', 'item_kind']) if (l[k]) out[k] = String(l[k]).slice(0, 200);
+  if (l.thumb) out.thumb = String(l.thumb).slice(0, 1000);
+  return out;
+}
+/** the card the website's ✓ sends for a component (rm/scientia/lab-mode.js §8), built from the stored block */
+function tickLink(rec) {
+  const text = String((isObj(rec.body) && rec.body.text) || '').split('\n')[0].trim(), title = (String(rec.label || '').trim() || text || ('A ' + (rec.kind || 'component'))).slice(0, 140);
+  return { kind: 'scientia_block', boardId: '', itemId: String(rec.id), paperId: rec.kind === 'rmpaper' ? String(rec.paperId || '') : '', entryId: String(rec.docId || ''), boardTitle: '',
+    item_kind: 'scientia-' + (rec.kind || 'text'), title, url: '/rm/pages/notebook.html?notebook=scientia&note=' + encodeURIComponent(String(rec.docId || '')), thumb: '' };
+}
+/** what saveOutcome writes for that card on that step (myweek-report.js pick + day-distribute.js saveOutcome) */
+function planTickReport({ step, link, uid, nowIso }) {
+  const ex = isObj(step.outcome) ? step.outcome : null;
+  const links = (ex && Array.isArray(ex.links) ? ex.links : []).filter(l => !(l && l.itemId === link.itemId && (l.boardId || '') === (link.boardId || ''))).concat([link]);
+  const outcome = { kind: 'result', summary: ex ? String(ex.summary || '') : '',
+    image: ex && isObj(ex.image) && ex.image.storage_path ? { storage_path: ex.image.storage_path, download_url: ex.image.download_url || '' } : null,
+    notebook_entry_ids: ex && Array.isArray(ex.notebook_entry_ids) ? ex.notebook_entry_ids : [],
+    links: links.filter(l => isObj(l) && (l.url || l.id)).map(cleanLink), follow_up_item_id: (ex && ex.follow_up_item_id) || null, recorded_at: nowIso, recorded_by: String(uid || '') };
+  const patch = { outcome, updated_at: nowIso }, next = closedStatusFor(step.status, 'result', 'done');
+  const becameDone = next === 'done' && step.status !== 'done', becameSkipped = next === 'skipped' && step.status !== 'skipped';
+  if (becameDone) patch.confirmed_at = nowIso;
+  if (becameDone || becameSkipped) patch.status = next;
+  return { patch, becameDone, becameSkipped, status: next };
+}
+/** ActivitySignals.recordWork / recordSchedule for a step (rm/js/activity-signals.js): the tracker doc id and fields */
+function stepTrackerEntry({ step, uid, scheduled }) {
+  const sourceRef = { kind: 'dayplan', id: String(step.id), path: 'userData/' + uid + '/dayPlans/' + step.id };
+  const base = 'auto-' + safeIdPart(sourceRef.kind) + '-' + safeIdPart(sourceRef.id), id = scheduled ? base : base + '-' + safeIdPart(step.date);
+  return { id, data: { date: String(step.date), text: String(step.title || '').slice(0, 500), categoryPath: Array.isArray(step.categoryPath) ? step.categoryPath.slice() : [],
+    kind: scheduled ? 'schedule' : 'work', source: 'my-day', source_ref: sourceRef, scheduled_for: scheduled ? String(step.date) : null } };
+}
+/** the task copy's update when the step is done (day-distribute.js task adapter 584-589) */
+function stepTaskCopyPatch(step, nowIso, done) {
+  const p = { text: String(step.title || ''), notes: String(step.notes || ''), due_date: String(step.date || '') };
+  if (done) { p.done = true; p.done_at = nowIso; }
+  return p;
+}
+/** ✓ entries the app made that still wait for the hub */
+function pendingTicks(blocks) {
+  const out = [];
+  for (const rec of blocks || []) {
+    if (!isObj(rec) || rec.deleted || !Array.isArray(rec.myweek)) continue;
+    for (const en of rec.myweek) if (isObj(en) && en.pending && en.stepId) out.push({ rec, entry: en });
+  }
+  return out;
+}
+/** the block with its entries for these steps answered: sent (no longer pending) or failed (with why) */
+function tickAnsweredOp({ state, rec, results }) {
+  const myweek = rec.myweek.map(en => {
+    const r = isObj(en) && en.pending ? results.get(String(en.stepId)) : null;
+    if (!r) return en;
+    const next = Object.assign({}, en); delete next.pending;
+    if (r.ok) { next.sent = r.at; delete next.error; if (r.title) next.title = r.title; if (r.date) next.date = r.date; } else { next.error = r.error; next.pending = !r.final; }
+    return next;
+  });
+  return patchOp({ state, store: 'blocks', rec, patch: { myweek } });
+}
+
 /* ───────── Reminders + chores → My Week; timer sessions + edits → RM's activity (V3.874, Phase 1 complete) ─────────
    WHEN: each upcoming occurrence of a Scientia chore (every N days after last done, or on weekdays) or reminder
    (deadline / meeting / reminder; one-off or daily / weekly / monthly) becomes a dated item in the person's RM list
@@ -947,7 +1043,12 @@ async function route(req, ctx) {
     const ops = Array.isArray(obj.ops) ? obj.ops : [];
     const res = await hub.push({ dev: String(obj.dev || who.id), conn: obj.conn || null, name: String(obj.name || who.name || 'a device'), ops });
     // V3.927 — an offline notebook's tasks and papers reach RM as soon as they arrive (syncUp is throttled to UPSYNC_MS)
-    if (res && res.ok && ops.some(o => o && (o.store === 'blocks' || o.store === 'library'))) await mirrorQuietly(hub, who, false, ['up', 'tasks']);
+    if (res && res.ok) {
+      const only = [];
+      if (ops.some(o => o && ((o.store === 'blocks' && isObj(o.rec) && o.rec.kind === 'task') || o.store === 'library'))) only.push('up', 'tasks');
+      if (ops.some(o => o && o.store === 'blocks' && isObj(o.rec) && Array.isArray(o.rec.myweek) && o.rec.myweek.some(e => isObj(e) && e.pending))) only.push('ticks');
+      if (only.length) await mirrorQuietly(hub, who, only.includes('ticks'), only);   // a waiting ✓ goes at once; the rest is throttled
+    }
     return J(200, res);
   }
   if (p === '/api/sync/conflicts') return J(200, await hub.conflicts());
@@ -1130,8 +1231,43 @@ MemoryHub.prototype.syncUp = async function ({ force, who, now } = {}) {
   if (ops.length) await this.push({ dev: 'rm', conn: null, name: 'RM sync', ops });
   return out;
 };
+/* V3.927 — My Week: steps in `dayPlans` (Map id → step), the tracker in `tracker`, the steps' task copies in rmTaskDocs */
+MemoryHub.prototype.syncWeekSteps = async function ({ force, now } = {}) {
+  const t = now == null ? Date.now() : now;
+  if (!force && this.weekAt && t - this.weekAt < MWSTEPS_MS) return { ok: true, skipped: true };
+  this.weekAt = t;
+  const { from, to } = weekWindow(this.today || todayIn(LAB_TZ, t)), steps = [...(this.dayPlans || new Map()).values()].filter(s => s.date >= from && s.date <= to);
+  const rows = new Map(); for (const [k, r] of this.rows) if (r && r.store === 'mwsteps' && r.rec) rows.set(k, r);
+  const ops = planWeekSteps({ state: this.st, rows, steps });
+  if (ops.length) await this.push({ dev: 'rm', conn: null, name: 'My Week', ops });
+  return { ok: true, steps: steps.length, written: ops.length };
+};
+MemoryHub.prototype.syncTicks = async function ({ force, who, now } = {}) {
+  this._taskStore(); if (!this.dayPlans) this.dayPlans = new Map(); if (!this.tracker) this.tracker = new Map();
+  const t = now == null ? Date.now() : now, nowIso = new Date(t).toISOString(), uid = (who && who.id) || 'u';
+  const pend = pendingTicks(this.storeRecs('blocks')); if (!pend.length) return { ok: true, sent: 0 };
+  const byBlock = new Map(), out = { ok: true, sent: 0, failed: 0 };
+  for (const { rec, entry } of pend) {
+    const step = this.dayPlans.get(String(entry.stepId)), res = byBlock.get(rec.id) || new Map(); byBlock.set(rec.id, res);
+    if (!step || step.status === 'cancelled') { res.set(String(entry.stepId), { ok: false, final: true, error: 'That step is no longer in your My Week' }); out.failed++; continue; }
+    const plan = planTickReport({ step, link: tickLink(rec), uid, nowIso });
+    Object.assign(step, plan.patch);
+    if (plan.becameDone) { const w = stepTrackerEntry({ step, uid, scheduled: false }); const ex = this.tracker.get(w.id); if (!ex || !ex.status || ex.status === 'pending') this.tracker.set(w.id, Object.assign({}, ex || {}, w.data)); }
+    if (plan.becameDone || plan.becameSkipped) {
+      const d = step.distributions || {};
+      if (d.task && d.task.status === 'created' && this.rmTaskDocs.has(d.task.docId)) this.rmTaskDocs.set(d.task.docId, Object.assign({}, this.rmTaskDocs.get(d.task.docId), stepTaskCopyPatch(step, nowIso, plan.status === 'done')));
+      if (d.tracker && d.tracker.status === 'created' && !(d.tracker.meta && d.tracker.meta.native)) { const sch = stepTrackerEntry({ step, uid, scheduled: true }); this.tracker.set(sch.id, Object.assign({}, this.tracker.get(sch.id) || {}, sch.data)); }
+    }
+    res.set(String(entry.stepId), { ok: true, at: nowIso, title: step.title, date: step.date }); out.sent++;
+  }
+  const ops = []; for (const [id, results] of byBlock) { const rec = this.rows.get(keyOf('blocks', id)).rec; ops.push(tickAnsweredOp({ state: this.st, rec, results })); }
+  if (ops.length) await this.push({ dev: 'rm', conn: null, name: 'My Week', ops });
+  return out;
+};
 MemoryHub.prototype.quietSyncs = async function (who, { force, only } = {}) {
   const out = {}, want = n => !only || only.includes(n);
+  if (want('week') && typeof this.syncWeekSteps === 'function') out.week = await this.syncWeekSteps({ force });
+  if (want('ticks') && typeof this.syncTicks === 'function') out.ticks = await this.syncTicks({ force, who });
   if (want('up') && typeof this.syncUp === 'function') out.up = await this.syncUp({ force, who });
   if (want('library') && typeof this.mirrorLibrary === 'function') out.library = await this.mirrorLibrary({ force });
   if (want('tasks') && typeof this.syncTasks === 'function') out.tasks = await this.syncTasks({ force });
@@ -1199,6 +1335,7 @@ module.exports = { route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA
   MIRROR_MS, MIRROR_FIELDS, rmItemToLibraryRow, planMirror, INVENTORY_MS, INVENTORY_LIMIT, rmInventoryRow, searchInventory,
   TASKSYNC_MS, PRIO_IMPORTANCE, dueDateOf, taskIdNew, rmTaskFromBlock, rmTaskPatch, planTaskSync,
   UPSYNC_MS, UPSYNC_MAX, normTitle, taskPayload, planTaskPairing, patchOp, libAuthors, paperItemFromRow, libraryUpCandidates, planLibraryUp,
+  MWSTEPS_MS, mondayOf, weekWindow, mwStepRow, planWeekSteps, closedStatusFor, cleanLink, tickLink, planTickReport, stepTrackerEntry, stepTaskCopyPatch, pendingTicks, tickAnsweredOp,
   LAB_TZ, WHEN_MS, ACT_MS, WHEN_AHEAD, WHEN_BEHIND, ACT_DAYS, todayIn, nowIn, localDayOf, addDays_, wdayOf, safeIdPart, choreNext, remOccursOn, whenOcc,
   whenTaskId, whenText, whenCandidates, rmWhenTask, planWhen, sessionDaySeconds, actEventId, activityGroups, planActivity, fmtMinutes,
   rmAnnotationRow, visibleAnnotations, stripTags, varsToText, rmProtocolRow, rmProtocolSteps, searchProtocols, rmCollectionRow, rmCollectionFull,
