@@ -125,7 +125,7 @@ def desktop_bundle(desktop_html):
             zi = zipfile.ZipInfo('Scientia In Situ/' + name, date_time=(2026, 1, 1, 0, 0, 0)); zi.external_attr = 0o644 << 16
             z.writestr(zi, data)
     data = buf.getvalue()
-    ver = json.dumps({'version': hashlib.sha256(data).hexdigest()[:16], 'app': app_version, 'bytes': len(data), 'files': len(files),
+    ver = json.dumps({'version': hashlib.sha256(data).hexdigest()[:16], 'app': app_version, 'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data), 'files': len(files),
                       'download': 'ScientiaInSitu-Windows.zip'}, indent=1) + '\n'
     return data, ver
 

@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.929 (the desktop build carries the lab layer: `lab-mode.js` inline and unchanged with `SIS_TARGET = 'web'` + `SIS_DESKTOP`; `serve.py` answers what it expects — `/api/rm/*` to the hub as the computer's key, the recorder's parts in the notebook folder, bundled `/rm/js/` scripts, other `/rm/` to the site; `23d-desktoplab.js` keeps Activity and Data; `labsync.HubConn` keeps one HTTPS connection to the hub.)
+**Version:** V3.935 (the installed Scientia updates itself: `service.py` reads the site's `version.json`, downloads and verifies the new download, stops the server through `/api/lab/quit` (which saves first), replaces the app and restarts; `deploy.py` rebuilds the download whenever its sources change, so it never lags the site.)
+
+**Prior:** V3.929 (the desktop build carries the lab layer: `lab-mode.js` inline and unchanged with `SIS_TARGET = 'web'` + `SIS_DESKTOP`; `serve.py` answers what it expects — `/api/rm/*` to the hub as the computer's key, the recorder's parts in the notebook folder, bundled `/rm/js/` scripts, other `/rm/` to the site; `23d-desktoplab.js` keeps Activity and Data; `labsync.HubConn` keeps one HTTPS connection to the hub.)
 
 **Prior:** V3.928 (Scientia on this computer: `serve.py` runs `labsync.py` (the lab's bridge, vendored, paced 1.5 s / 15 s / 60 s, `realign()` from `shadow.json`) and answers the lab site on `/api/lab/ping|offer` (CORS for mcgheelab.com); the hub pairs a computer by a one-time code (`/api/cloud/pair/new|claim`, `scientiaPairs`); `23c-thiscomputer.js` is the site's "Open on my computer" and `#/connect`; `scientia_build.py` packs `rm/scientia/desktop/ScientiaInSitu-Windows.zip` (install.ps1, service.py, open_local.py).)
 

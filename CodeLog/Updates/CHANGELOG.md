@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.935] — 2026-10-27 — The installed Scientia updates itself
+
+Plan: [CodeLog/ClaudesPlan/V3.935_scientia_self_update.md](../ClaudesPlan/V3.935_scientia_self_update.md). (Opened as V3.930 in PR #11; renumbered.)
+
+### Added
+- **`scientia/service.py` updates the installed app**: `check` (the site's `version.json`, 2 min after start, then hourly, or on `update-now`), `download` (verified against `sha256`, unpacked in `update/`, version checked), `stop_server` (through `/api/lab/quit`), `put_in_place` (the app folder's `images` / `recordings` / `backup` kept), `restart_self`; `update.json` reports it. After a failure it tries again in ten minutes.
+- **`scientia/serve.py`**: `shutdown()` saves a pending change before Quit / Remove / an update stops the server; `/api/lab/update-check`; `update_info()` reads `update.json`.
+- **`23c-thiscomputer.js`**: Settings → The lab shows the version, the last check and **Check for updates now**; `THISPC.watch` reloads the tab after an update (at once in the background, else a Reload bar).
+- `scripts/scientia_build.py`: `version.json` carries the download's full `sha256`.
+
+### Changed
+- `scripts/deploy.py` `scientia_build_if_stale`: rebuilds when the lab layer, the bridge, RM's recorder scripts or the app's server / installer / icons are newer than the web build or the desktop download — so installed computers follow every deploy (V3.932's bridge, for one, reaches them without a new download by hand).
+
+### Tests
+- Self-update end to end (scratch install of this build, stand-in site, the real `service.py`): updated in 5.7 s; a note written just before survived; the app's `images` kept; a wrong checksum refused, the app unchanged. Lab-mode harness (web) 271/275 (the four known); hub tests 68, share 44, merge 14 passed — all after merging `main` (V3.931–V3.934).
+- `sw.js` CACHE_VERSION 904 → 905.
+
 ## [V3.934] — 2026-10-27 — Cloud Functions on Node.js 22 (Node 20 stops deploying on 30 Oct)
 
 Plan: [CodeLog/ClaudesPlan/V3.934_functions_node22.md](../ClaudesPlan/V3.934_functions_node22.md).

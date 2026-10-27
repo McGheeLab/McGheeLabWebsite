@@ -33,20 +33,23 @@ APP_SEEN = [0.0]          # when a window of this app last asked this server for
 SITE = os.environ.get('SIS_SITE', 'https://mcgheelab.com')
 RM_BUNDLED = {'/rm/js/recorder-core.js', '/rm/js/speech-to-text.js', '/rm/js/stt-device-worker.js'}
 REC_RID = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
-# V3.929: an installed copy knows its version (VERSION.txt, written by the build) and looks for a newer one on the site
+# V3.929/935: an installed copy knows its version (VERSION.txt, written by the build); service.py keeps it up to date and
+# says what it is doing in update.json next to the app folder (Settings → The lab shows it; "Check now" leaves update-now)
 APP_VERSION = (open(os.path.join(ROOT, 'VERSION.txt'), encoding='utf-8').read().strip() if os.path.isfile(os.path.join(ROOT, 'VERSION.txt')) else None)
-UPDATE = {'at': 0.0, 'latest': None}
-def check_update():
-    if not APP_VERSION or time.time() - UPDATE['at'] < 6 * 3600: return
-    UPDATE['at'] = time.time()
-    def run():
-        try:
-            with urllib.request.urlopen(SITE + '/rm/scientia/desktop/version.json', timeout=20) as r: UPDATE['latest'] = json.loads(r.read() or b'{}')
-        except Exception: UPDATE['at'] = time.time() - 6 * 3600 + 600   # try again in ten minutes
-    threading.Thread(target=run, daemon=True).start()
+UPDATE_STATUS = os.path.join(os.path.dirname(ROOT), 'update.json')
 def update_info():
-    v = UPDATE['latest'] or {}
-    return {'version': APP_VERSION, 'available': bool(APP_VERSION and v.get('app') and v['app'] != APP_VERSION), 'download': SITE + '/rm/scientia/desktop/' + (v.get('download') or 'ScientiaInSitu-Windows.zip')}
+    s = load_json(UPDATE_STATUS, None) if APP_VERSION else None
+    out = {'version': APP_VERSION, 'auto': bool(s), 'download': SITE + '/rm/scientia/desktop/ScientiaInSitu-Windows.zip'}
+    if s: out.update(state=s.get('state'), latest=s.get('latest'), checked=s.get('checked'), updatedAt=s.get('updatedAt'), message=s.get('message') or '')
+    out['available'] = bool(s and s.get('latest') and s['latest'] != APP_VERSION)
+    return out
+def shutdown(code=0):
+    """Stop now, after saving what is waiting to be saved (a change is saved 3 s after the last one)."""
+    try:
+        t = SYNC.timer
+        if t and t.is_alive(): t.cancel(); SYNC.save_now()
+    except Exception: pass
+    os._exit(code)
 OFFER = {}                # a pairing code the lab site handed over, waiting for the person to confirm here
 os.makedirs(APP_IMAGES, exist_ok=True)
 LOCK = threading.Lock()
@@ -280,7 +283,6 @@ class H(http.server.SimpleHTTPRequestHandler):
         if p == '/api/lab/status':
             if not self.is_local(): return self._json(403, {'ok': False})
             off = OFFER if OFFER and time.time() < OFFER.get('until', 0) else None
-            check_update()
             return self._json(200, dict(LABSYNC.snapshot(), ok=True, notebook=notebook(), offer={'account': off['account'], 'from': off['origin']} if off else None, update=update_info()))
         return None
     def lab_post(self, p):
@@ -302,9 +304,12 @@ class H(http.server.SimpleHTTPRequestHandler):
             un = os.environ.get('SIS_UNINSTALL') or os.path.join(os.path.dirname(ROOT), 'uninstall.ps1')
             if not os.path.isfile(un): return self._json(200, {'ok': False, 'error': 'this copy of the app was not installed (no uninstaller next to it)'})
             subprocess.Popen(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', un, '-FromApp'], creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0) | getattr(subprocess, 'DETACHED_PROCESS', 0), close_fds=True)
-            threading.Timer(1.0, lambda: os._exit(0)).start()
+            threading.Timer(1.0, shutdown).start()
             return self._json(200, dict(r, ok=True, uninstalling=True))
-        if p == '/api/lab/quit': threading.Timer(0.5, lambda: os._exit(0)).start(); return self._json(200, {'ok': True})
+        if p == '/api/lab/quit': threading.Timer(0.5, shutdown).start(); return self._json(200, {'ok': True})
+        if p == '/api/lab/update-check':   # service.py looks at once
+            if not APP_VERSION: return self._json(200, {'ok': False, 'error': 'this copy is not installed — it is not updated on its own'})
+            atomic(os.path.join(os.path.dirname(ROOT), 'update-now'), b'1'); return self._json(200, {'ok': True})
         return self._json(404, {'ok': False})
 
     def rm_asset(self, p, query):

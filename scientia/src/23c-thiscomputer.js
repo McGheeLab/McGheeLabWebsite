@@ -122,8 +122,13 @@ const THISPC = {
       act('Use the notes online (they replace this computer’s)', () => THISPC.post('api/lab/choose', { prefer: 'cloud' })),
       act('Use this computer’s notes (they replace the online ones)', () => THISPC.post('api/lab/choose', { prefer: 'local' })), h('div.tiny.muted', 'The replaced side keeps a copy first.')));
     if (s.state !== 'syncing' && s.state !== 'not-connected' && s.message) out.push(h('div.tiny.muted', s.message));
-    if (s.update && s.update.available) out.push(h('div.pc-update', h('b', 'A newer Scientia is ready. '), 'Download it and run "Install Scientia" again — it replaces the app and keeps your notes, notebook folder and connection. ',
-      h('a.btn.sm.pri', { href: s.update.download, target: '_blank', rel: 'noopener' }, 'Download the update')));
+    const u = s.update;   // V3.935: the installed app keeps itself up to date (service.py); a copy that cannot says where to get the new one
+    if (u && u.auto) out.push(h('div.pc-update.' + (u.state || ''),
+      h('span', u.state === 'downloading' || u.state === 'installing' ? (u.message || 'Updating…') : u.state === 'error' ? 'Updates: ' + (u.message || 'the last try failed') + ' — it tries again within the hour' : 'Up to date — it updates itself when the lab changes Scientia'),
+      h('span.tiny.muted', ' · version ' + (u.version || '?') + (u.checked ? ' · checked ' + fmtWhen(u.checked) : '')),
+      act('Check for updates now', async () => { await THISPC.post('api/lab/update-check'); toast('Looking for a newer Scientia…'); })));
+    else if (u && u.available) out.push(h('div.pc-update', h('b', 'A newer Scientia is ready. '), 'Download it and run "Install Scientia" again — it replaces the app and keeps your notes, notebook folder and connection. From then on it updates itself. ',
+      h('a.btn.sm.pri', { href: u.download, target: '_blank', rel: 'noopener' }, 'Download the update')));
     if (s.connected) out.push(h('div.row', { style: { gap: '6px', marginTop: '8px' } },
       act('Sync now', () => THISPC.post('api/lab/sync-now')),
       act('Disconnect this computer', async () => { if (await THISPC.ask('Disconnect this computer from the lab cloud? Its notes stay in the notebook folder; the lab keeps its copy.')) await THISPC.post('api/lab/disconnect'); })));
@@ -140,6 +145,23 @@ const THISPC = {
     redraw(); return host;
   }
 };
+
+/* V3.935 — the app here, after its server updated itself: reload (at once when this tab is in the background, else on a click) */
+THISPC.watch = () => {
+  if (!THISPC.isLocalApp()) return;
+  let mine = null;
+  const look = async () => {
+    let p = null; try { p = await (await fetch('api/lab/ping', { cache: 'no-store' })).json(); } catch (e) { return; }
+    if (!p || !p.version) return;
+    if (!mine) { mine = p.version; return; }
+    if (p.version === mine || $('#pc-reload')) return;
+    if (document.hidden) return location.reload();
+    document.body.append(h('div.pc-reload#pc-reload', 'Scientia was updated on this computer. ', h('button.btn.sm.pri', { on: { click: () => location.reload() } }, 'Reload'), h('span.tiny.muted', ' (it reloads by itself when you switch away)')));
+    document.addEventListener('visibilitychange', () => { if (document.hidden) location.reload(); });
+  };
+  look(); setInterval(look, 60000);
+};
+setTimeout(THISPC.watch, 3000);
 
 VIEWS.connect = {
   title: true,
