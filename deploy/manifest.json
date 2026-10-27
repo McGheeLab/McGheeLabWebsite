@@ -1592,8 +1592,8 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-10-27T08:35:27-07:00",
-   "sha256": "0c0deff642c78f685da75a1a6ddda3f247cb4c4b242f755de6ea4061922487d6",
+   "deployedAt": "2026-10-27T09:12:56-07:00",
+   "sha256": "2f1c6768bd698707f17a4e6f966b7d279b56cc3e377ce335c1f17ed2ccabfded",
    "size": 82,
    "via": "verify"
   },
@@ -4538,15 +4538,15 @@
    "via": "verify"
   },
   "rm/scientia/desktop/ScientiaInSitu-Windows.zip": {
-   "deployedAt": "2026-10-27T08:35:27-07:00",
-   "sha256": "c9679eef98bd6bb13d3b4b172dc6e255644488daff9a881c543b367865ccf6e3",
-   "size": 5383601,
+   "deployedAt": "2026-10-27T09:12:56-07:00",
+   "sha256": "0db5ae60fa7d542e589d2aba2b4bb059e2b583575ce1c06532d860854cdf9f75",
+   "size": 5650424,
    "via": "verify"
   },
   "rm/scientia/desktop/version.json": {
-   "deployedAt": "2026-10-27T08:35:27-07:00",
-   "sha256": "87fd83fa7707fa8ac0effe358a7e5fafda7e1ad8989fb39ab338b1ac79ca5d3d",
-   "size": 111,
+   "deployedAt": "2026-10-27T09:12:56-07:00",
+   "sha256": "021f975e54595b96abb744655cc0a205f5012190bc82da061043dbf05d44ec6d",
+   "size": 135,
    "via": "verify"
   },
   "rm/scientia/icons/icon-180.png": {
@@ -4586,9 +4586,9 @@
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-27T08:35:27-07:00",
-   "sha256": "404ac830d724e3b3f7f6dc9f619d60b985f4edce4c5381ada0d1456b6d1304b6",
-   "size": 5150237,
+   "deployedAt": "2026-10-27T09:12:56-07:00",
+   "sha256": "8a11758e276dfffb797cf4ef95341530250fac1640d31547bd545eaab984d40d",
+   "size": 5153596,
    "via": "verify"
   },
   "rm/test-fixtures/layout/01-2col-tight.pdf": {
@@ -5252,8 +5252,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-27T08:35:27-07:00",
-   "sha256": "198e45627e06f400fa0e8c1bb7b38f3853c919d4a29259dd02420287718adc1a",
+   "deployedAt": "2026-10-27T09:12:56-07:00",
+   "sha256": "8f1d9ba745e4bef64dd220afb51779aed41823fdf76d7a227794098bb67ee7ae",
    "size": 9933,
    "via": "verify"
   },
