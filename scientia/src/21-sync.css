@@ -496,3 +496,17 @@ body.viewer #brand { pointer-events: none; }
 .lab-wait { display: inline-block; margin: 4px 0 0; font-size: 11px; color: var(--ink-3); border: 1px dashed var(--rule-2); border-radius: 10px; padding: 0 7px; }
 .inv-line { margin-top: 6px; }
 .inv-ro .mc-log { display: none; }
+/* ✓ → My Week (23b) */
+.wk-btn { opacity: .45; }
+.box:hover .wk-btn, .wk-btn.on { opacity: 1; }
+.wk-btn.on { color: var(--teal); }
+.wk-btn.wait { color: var(--ink-2); text-decoration: underline dotted; }
+.wk-btn.bad { color: var(--bad); }
+.wk-pop { width: 340px; max-height: 60vh; overflow: auto; padding: 8px; }
+.wk-h { font-weight: 600; margin: 2px 4px 6px; }
+.wk-q { width: 100%; box-sizing: border-box; margin-bottom: 6px; }
+.wk-g { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 8px 4px 4px; }
+.wk-row { display: flex; gap: 8px; align-items: baseline; width: 100%; text-align: left; border: 0; background: none; padding: 5px 6px; border-radius: 6px; cursor: pointer; font: inherit; color: inherit; }
+.wk-row:hover:not(:disabled) { background: var(--surface-2, rgba(127,127,127,.1)); }
+.wk-row:disabled { opacity: .5; cursor: default; }
+.wk-t { flex: 1; }

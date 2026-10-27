@@ -1976,22 +1976,27 @@
    "id": "scientia.offline-lab-sync",
    "name": "Scientia offline: what waits for the lab",
    "side": "scientia",
-   "summary": "The desktop works offline and never calls RM: a task not yet in RM is marked until the hub makes its RM task on sync; a material from the lab inventory is a fixed, read-only card whose use is logged in RM.",
+   "summary": "The desktop works offline and never calls RM: the ✓ on a component reports it to a My Week step picked from the steps the hub mirrors (mwsteps), sent by the hub on sync; a task not yet in RM is marked until the hub makes its RM task; a material from the lab inventory is a fixed, read-only card whose use is logged in RM.",
    "keywords": [
     "offline",
     "waiting",
     "inventory",
     "read-only",
     "sync",
-    "rm"
+    "rm",
+    "my week",
+    "step",
+    "report",
+    "tick"
    ],
    "paths": [
     "scientia/src/23b-labsync.js"
    ],
    "related": [
+    "rm.my-week",
     "scientia.cloud",
-    "scientia.tasks",
-    "scientia.materials"
+    "scientia.materials",
+    "scientia.tasks"
    ],
    "distinct_from": {
     "scientia.canvas-export": "one lab-inventory material shown as a fixed card inside the app; canvas export writes a whole note to a read-only HTML file"

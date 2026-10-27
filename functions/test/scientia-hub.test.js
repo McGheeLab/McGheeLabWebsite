@@ -738,6 +738,48 @@ const dev = (hub, id, conn) => ({
     assert.strictEqual(hub.rmTaskDocs.get(blk.rmTaskId).done, true, 'ticked offline → done in RM');
   });
 
+  /* ---- V3.927: My Week from a component's ✓, offline ---- */
+  await test('planTickReport: a planned step closes as done with the card in its links, keeping what the step already said', () => {
+    const step = { id: 's1', status: 'planned', outcome: { summary: 'ran it', links: [{ kind: 'scientia_block', itemId: 'b1', boardId: '', url: 'old' }, { kind: 'link', id: 'x', url: 'u' }] } };
+    const link = C.tickLink({ id: 'b1', docId: 'd1', kind: 'text', label: '', body: { text: 'Beads washed\nthree times' } });
+    const r = C.planTickReport({ step, link, uid: 'u1', nowIso: '2026-10-27T10:00:00.000Z' });
+    assert.deepStrictEqual([r.status, r.becameDone, r.patch.status, r.patch.confirmed_at, r.patch.outcome.kind, r.patch.outcome.summary, r.patch.outcome.recorded_by],
+      ['done', true, 'done', '2026-10-27T10:00:00.000Z', 'result', 'ran it', 'u1']);
+    assert.deepStrictEqual(r.patch.outcome.links.map(l => [l.id, l.itemId || null, l.title || null]), [['x', null, null], ['b1', 'b1', 'Beads washed']], 'the same component is replaced, not doubled');
+    assert.strictEqual(r.patch.outcome.links[1].url, '/rm/pages/notebook.html?notebook=scientia&note=d1');
+    const again = C.planTickReport({ step: { id: 's2', status: 'done' }, link, uid: 'u1', nowIso: 'z' });
+    assert.deepStrictEqual([again.becameDone, 'status' in again.patch, 'confirmed_at' in again.patch], [false, false, false], 'a done step only gains the link');
+    assert.deepStrictEqual([C.closedStatusFor('skipped', 'result', 'done'), C.closedStatusFor('cancelled', 'result', 'done')], ['done', 'cancelled']);
+  });
+  await test('planWeekSteps: steps become read-only mwsteps rows; cancelled and _prefs are left out; a step gone from the window is removed', () => {
+    const st = C.emptyState(), rows = new Map([[C.keyOf('mwsteps', 'old'), { store: 'mwsteps', id: 'old', rec: { id: 'old', rm: true } }]]);
+    const ops = C.planWeekSteps({ state: st, rows, steps: [{ id: 's1', date: '2026-10-27', title: 'Run ELISA', status: 'planned' }, { id: 's2', status: 'cancelled' }, { id: '_prefs' }] });
+    assert.deepStrictEqual(ops.map(o => [o.id, o.del]), [['s1', false], ['old', true]]);
+    assert.deepStrictEqual([ops[0].rec.rm, ops[0].rec.title, ops[0].rec.hasOutcome], [true, 'Run ELISA', false]);
+    assert.deepStrictEqual(C.weekWindow('2026-10-28'), { from: '2026-09-28', to: '2026-11-01' }, 'Wednesday → 4 weeks before Monday … Sunday');
+  });
+  await test('My Week end to end: the steps reach the app; an offline ✓ reports onto its step on push, once, with the work event and the task copy', async () => {
+    const hub = new C.MemoryHub(), who = { id: 'u1', kind: 'key', name: 'Gabe desktop' };
+    hub.today = '2026-10-28'; hub._taskStore();
+    hub.dayPlans = new Map([['s1', { id: 's1', date: '2026-10-27', title: 'Run ELISA', status: 'planned', distributions: { task: { surface: 'task', docId: 'tk1', status: 'created' } } }],
+      ['s9', { id: 's9', date: '2026-08-01', title: 'Long ago', status: 'planned' }]]);
+    hub.rmTaskDocs.set('tk1', { id: 'tk1', text: 'Run ELISA', done: false });
+    await hub.syncWeekSteps({ force: true });
+    assert.deepStrictEqual([...hub.rows.values()].filter(r => r.store === 'mwsteps' && r.rec).map(r => r.id), ['s1'], 'only the picker\'s window');
+    const push = ops => call(hub, who, 'POST', '/api/sync/push', { body: { dev: 'desk', conn: 'c1', name: 'This computer', ops } });
+    const blk = { id: 'b1', docId: 'd1', kind: 'text', status: 'live', label: '', body: { text: 'Beads washed', marks: [] }, myweek: [{ stepId: 's1', title: 'Run ELISA', date: '2026-10-27', at: '2026-10-27T15:00', pending: true }] };
+    await push([{ store: 'blocks', id: 'b1', rec: blk, del: false, prev: null, base: 0 }]);
+    const step = hub.dayPlans.get('s1'), en = hub.rows.get(C.keyOf('blocks', 'b1')).rec.myweek[0];
+    assert.deepStrictEqual([step.status, step.outcome.links.map(l => l.itemId), !!step.confirmed_at], ['done', ['b1'], true]);
+    assert.ok(hub.tracker.has('auto-dayplan-s1-2026-10-27'), 'the done work event (recordDoneWork)');
+    assert.deepStrictEqual([hub.rmTaskDocs.get('tk1').done, hub.rmTaskDocs.get('tk1').due_date], [true, '2026-10-27'], 'the step\'s task copy is done');
+    assert.deepStrictEqual(['pending' in en, !!en.sent], [false, true], 'the entry is answered');
+    assert.strictEqual((await hub.syncTicks({ who })).sent, 0, 'nothing goes twice');
+    await push([{ store: 'blocks', id: 'b2', rec: Object.assign({}, blk, { id: 'b2', myweek: [{ stepId: 'gone', pending: true }] }), del: false, prev: null, base: hub.st.seq }]);
+    const e2 = hub.rows.get(C.keyOf('blocks', 'b2')).rec.myweek[0];
+    assert.deepStrictEqual([e2.pending, /no longer/.test(e2.error)], [false, true], 'a step that is gone says so and stops waiting');
+  });
+
   console.log(`scientia-hub: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 })();

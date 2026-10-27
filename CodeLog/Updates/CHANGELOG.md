@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.927] — 2026-10-26 — Offline Scientia: tasks, papers and My Week reach RM when the notebook syncs
+
+Plan: [CodeLog/ClaudesPlan/V3.927_scientia_offline_rm_sync.md](../ClaudesPlan/V3.927_scientia_offline_rm_sync.md). The desktop never calls RM and the shared lab layer is unchanged; the hub acts on what the notebook carries when it reaches the lab cloud.
+
+### Added
+- **Hub** (`functions/scientia-hub-core.js`, `scientia-hub.js`):
+  - `syncUp`: every live task component without an RM task gets one (`planTaskPairing`, `createTask`, `rmTaskId` written back); a desktop paper RM lacks is added to the lab library as `items/{rowId}` (`planLibraryUp`, `paperItemFromRow`), and one RM already has (DOI, or title + year) is recorded as `rmSync.state: 'matched'`.
+  - `syncWeekSteps`: My Week steps in the report picker's window → read-only `mwsteps` rows (`planWeekSteps`, `weekWindow`).
+  - `syncTicks`: a pending ✓ entry on a block is reported onto its step as RM's `saveOutcome` does (`planTickReport`, `closedStatusFor`, `cleanLink`, `tickLink`), with the done work event (`stepTrackerEntry`) and the step's task and tracker copies; the entry is answered (`tickAnsweredOp`).
+  - All three run in `quietSyncs`; after `/api/sync/push`, only the jobs the pushed rows need.
+- **App** (Gabe's): `15c-litreviews.js` — the Lit reviews tab; `23b-labsync.js` — the ✓ → My Week step picker (offline), "waiting for the lab" on tasks, lab-inventory materials as fixed read-only cards; store `mwsteps` (`DB_VERSION` 10).
+- `CodeLog/features.json`: `scientia.lit-reviews`, `scientia.offline-lab-sync`.
+
+### Bug Fixes
+- `scientia/serve.py` `H.copyfile`: every chunk is sent with `sendall`. The stock copy ignored a short write on the unbuffered socket, so the ~5 MB app page could stop loading part-way in Chrome / Edge (any change to the build moved where).
+
+### Tests
+- `functions/test/scientia-hub.test.js` **67 passed**: `planTaskPairing`, `planLibraryUp`, `syncUp` end to end (push → RM task + library item, once; the mirror lands on the same row; done offline → done in RM), `planTickReport`, `planWeekSteps`, My Week end to end (steps mirrored; an offline ✓ closes its step with the link, the work event and the task copy, once; a gone step stops waiting).
+- Desktop app in headless Chrome on a throwaway notebook: Lit reviews tab, head box and list; the ✓ picker and its pending entry; the task mark; the read-only inventory card and sheet, local materials still editable; no console errors.
+- Lab-mode harness (web) **271/275**, the same four failures as V3.925 (headless Chrome: PDF cards, install banner).
+- `sw.js` CACHE_VERSION 898 → 899.
+
+### Not deployed
+- The hub change needs `firebase deploy --only functions:scientiaHub`; the web Scientia changes need the site deploy.
+
 ## [V3.926] — 2026-10-26 — Scientia: the desktop's features join the lab's copy
 
 Plan: [CodeLog/ClaudesPlan/V3.926_scientia_desktop_merge.md](../ClaudesPlan/V3.926_scientia_desktop_merge.md). A three-way merge of Gabe's desktop app against the lab's V3.901 (see the plan).

@@ -304,6 +304,66 @@ class FirestoreHub {
     if (ops.length) await this.push({ dev: 'rm', conn: null, name: 'RM sync', ops });
     return out;
   }
+  /* ---- V3.927: My Week from a component's ✓ — the steps mirrored for the app's picker; offline ticks reported (core: planWeekSteps, planTickReport) ---- */
+  _dayPlans() { return db().collection('userData').doc(this.uid).collection('dayPlans'); }
+  _trackerRef(id) { return db().collection('trackerEntries').doc(this.uid).collection('entries').doc(String(id)); }
+  async _trackerUpsert({ id, data }) {   // ActivitySignals.upsert: a confirmed or dismissed entry is left alone
+    const ref = this._trackerRef(id), snap = await ref.get(), ex = snap.exists ? snap.data() : null;
+    if (ex && ex.status && ex.status !== 'pending') return false;
+    const entry = Object.assign({}, data, { updatedAt: FieldValue.serverTimestamp() });
+    if (ex && ex.status === 'pending') { entry.status = FieldValue.delete(); entry.duration = FieldValue.delete(); entry.auto_hours_estimate = FieldValue.delete(); }
+    if (!ex) entry.createdAt = FieldValue.serverTimestamp();
+    await ref.set(entry, { merge: true }); return true;
+  }
+  async syncWeekSteps({ force } = {}) {
+    const snap = await this.ref.get(), d = snap.data() || {}, now = Date.now();
+    if (!force && d.weekAt && now - tsMs(d.weekAt) < C.MWSTEPS_MS) return { ok: true, skipped: true };
+    await this.ref.set({ weekAt: FieldValue.serverTimestamp() }, { merge: true });
+    const { from, to } = C.weekWindow(C.todayIn(C.LAB_TZ, now));
+    const stepsSnap = await this._dayPlans().where('date', '>=', from).where('date', '<=', to).get();
+    const steps = stepsSnap.docs.filter(x => x.id !== '_prefs').map(x => Object.assign({ id: x.id }, x.data() || {}));
+    const rowsSnap = await this.rows.where('store', '==', 'mwsteps').get(), rows = new Map();
+    rowsSnap.docs.forEach(x => { const r = rowFromDoc(x); if (r && !r.deleted && r.rec) rows.set(C.keyOf('mwsteps', r.id), r); });
+    const ops = C.planWeekSteps({ state: await this.loadState(), rows, steps });
+    if (ops.length) await this.push({ dev: 'rm', conn: null, name: 'My Week', ops });
+    return { ok: true, steps: steps.length, written: ops.length };
+  }
+  async syncTicks({ who } = {}) {
+    const rowsSnap = await this.rows.where('store', '==', 'blocks').get(), blocks = [];
+    rowsSnap.docs.forEach(x => { const r = rowFromDoc(x); if (r && !r.deleted && r.rec) blocks.push(r.rec); });
+    const pend = C.pendingTicks(blocks); if (!pend.length) return { ok: true, sent: 0 };
+    const st = await this.loadState(), byBlock = new Map(), out = { ok: true, sent: 0, failed: 0 }, uid = this.uid;
+    for (const { rec, entry } of pend) {
+      const res = byBlock.get(rec.id) || new Map(); byBlock.set(rec.id, res);
+      const sid = String(entry.stepId), nowIso = new Date().toISOString();
+      try {
+        const ref = this._dayPlans().doc(sid), ss = await ref.get(), step = ss.exists ? Object.assign({ id: sid }, ss.data()) : null;
+        if (!step || step.status === 'cancelled') { res.set(sid, { ok: false, final: true, error: 'That step is no longer in your My Week' }); out.failed++; continue; }
+        const plan = C.planTickReport({ step, link: C.tickLink(rec), uid, nowIso });
+        await ref.update(plan.patch);
+        Object.assign(step, plan.patch);
+        if (plan.becameDone) await this._trackerUpsert(C.stepTrackerEntry({ step, uid, scheduled: false }));   // recordDoneWork
+        if (plan.becameDone || plan.becameSkipped) {   // cascadeUpdate: the copies RM keeps of the step (task, tracker)
+          const dists = Object.assign({}, step.distributions || {});
+          if (dists.task && dists.task.status === 'created' && dists.task.docId) {
+            try { await db().doc('userData/' + uid + '/tasks/' + dists.task.docId).update(C.stepTaskCopyPatch(step, nowIso, plan.status === 'done')); dists.task = Object.assign({}, dists.task, { status: 'created', lastSyncedAt: nowIso, error: null }); }
+            catch (e) { dists.task = Object.assign({}, dists.task, { status: 'failed', error: String(e.message || e) }); }
+          }
+          if (dists.tracker && dists.tracker.status === 'created' && !(dists.tracker.meta && dists.tracker.meta.native)) {
+            try { await this._trackerUpsert(C.stepTrackerEntry({ step, uid, scheduled: true })); dists.tracker = Object.assign({}, dists.tracker, { lastSyncedAt: nowIso, error: null }); }
+            catch (e) { dists.tracker = Object.assign({}, dists.tracker, { status: 'failed', error: String(e.message || e) }); }
+          }
+          if (Object.keys(dists).length) await ref.update({ distributions: dists, updated_at: nowIso });
+        }
+        res.set(sid, { ok: true, at: nowIso, title: step.title, date: step.date }); out.sent++;
+      } catch (e) { res.set(sid, { ok: false, final: false, error: String(e.message || e) }); out.failed++; }
+    }
+    const ops = [];
+    for (const [id, results] of byBlock) { const rec = blocks.find(b => String(b.id) === String(id)); if (rec) ops.push(C.tickAnsweredOp({ state: st, rec, results })); }
+    if (ops.length) await this.push({ dev: 'rm', conn: null, name: 'My Week', ops });
+    if (out.sent) await this.syncWeekSteps({ force: true });   // the picker shows the steps as they are now
+    return out;
+  }
   /* ---- V3.874: reminders + chores → My Week; timer sessions + edits → RM's activity tracker ---- */
   async syncWhen({ force, who } = {}) {
     const snap = await this.ref.get(), d = snap.data() || {}, now = Date.now();
@@ -449,6 +509,8 @@ class FirestoreHub {
     const run = async (name, fn) => { try { out[name] = await fn(); } catch (e) { out[name] = { ok: false, error: String(e.message || e) }; } };
     if (due('library', 'mirrorAt', C.MIRROR_MS)) await run('library', () => this.mirrorLibrary({ force: true }));
     if (due('up', 'upSyncAt', C.UPSYNC_MS)) await run('up', () => this.syncUp({ force: true, who }));   // V3.927, before the task reconcile
+    if (due('week', 'weekAt', C.MWSTEPS_MS)) await run('week', () => this.syncWeekSteps({ force: true }));   // V3.927
+    if (due('ticks', 'tickAt', 5 * 60 * 1000)) await run('ticks', async () => { await this.ref.set({ tickAt: FieldValue.serverTimestamp() }, { merge: true }); return this.syncTicks({ who }); });   // V3.927
     if (due('tasks', 'taskSyncAt', C.TASKSYNC_MS)) await run('tasks', () => this.syncTasks({ force: true }));
     if (due('when', 'whenSyncAt', C.WHEN_MS)) await run('when', () => this.syncWhen({ force: true, who }));
     if (due('activity', 'actSyncAt', C.ACT_MS)) await run('activity', () => this.syncActivity({ force: true }));
