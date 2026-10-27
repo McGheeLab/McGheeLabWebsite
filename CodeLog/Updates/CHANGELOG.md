@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.934] — 2026-10-27 — Cloud Functions on Node.js 22 (Node 20 stops deploying on 30 Oct)
+
+Plan: [CodeLog/ClaudesPlan/V3.934_functions_node22.md](../ClaudesPlan/V3.934_functions_node22.md).
+
+### Changed
+- `functions/package.json` `engines.node` "20" → "22". Every function moves to Cloud Functions' Node 22 runtime on its next deploy (`firebase deploy --only functions`). Google deprecated Node 20 on 2026-04-30 and decommissions it on 2026-10-30, after which a Node 20 function cannot be deployed. `firebase-functions` 5.1.1 and `firebase-admin` 12.7.0 stay (their next majors change the default import); there are no native dependencies.
+
+### Tests
+- On Node 22.23.4 (`npx -p node@22`): `functions/index.js` loads all 60 exports. Every unit test file passes: auth-alias 10, equipment-adjacency 46, inventory-thresholds 19, meetings 56, presence 35, procurement-notify 61, research-foci-notify 18, scientia-hub 68, scientia-merge 14, scientia-share 44, equipment-reminders and equipment-watches green. engage-guest needs the Firestore emulator and was not run.
+
 ## [V3.933] — 2026-10-27 — Scientia: merged changes to review, each person's version in their colour until you have looked
 
 Plan: [CodeLog/ClaudesPlan/V3.933_scientia_merge_review.md](../ClaudesPlan/V3.933_scientia_merge_review.md).

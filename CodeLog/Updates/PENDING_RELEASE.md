@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (34 changes — ready to push)
+## Pending (35 changes — ready to push)
 
+- V3.934 — Behind the scenes: the lab's cloud functions move to a newer Node.js version before the old one is switched off on 30 October.
 - V3.933 — Scientia: when two of you changed the same lines, each version shows in its writer's colour so you can scan it quickly. A "merged changes to review" chip takes you to each changed area: Accept it (the colour goes), add a comment, go to the next one, or accept them all.
 - V3.932 — Scientia: when two of you edit the same card, both edits are kept where you made them (a new item in a list stays in that list); an edit whose place the other person removed goes at the end of the card. Deleting something from a shared project now asks the other person first: a chip at the top shows what is waiting for you, with Keep it / Delete it. And connecting a computer now joins its notes with the online ones instead of replacing either.
 - V3.931 — Fixed: a project you share in Scientia no longer disappears for everyone when one of you connects a computer and lets that computer's notebook replace the online one. The shared project now comes back on its own.
