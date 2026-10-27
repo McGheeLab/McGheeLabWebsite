@@ -41,7 +41,12 @@ app from `rm/scientia/desktop/ScientiaInSitu-Windows.zip` (built by `scripts/sci
 `install/`) to `%LOCALAPPDATA%\ScientiaInSitu`, starting at login (`service.py` → `serve.py`). `serve.py` then keeps the
 notebook folder and the lab cloud in step on its own (`labsync.py`, running `vendor/scientia_cloud.py` — the lab's
 `scientia-cloud.py`, copied, never edited here), so `scientia-cloud.py` is no longer run by hand; do not run both on one
-computer. A computer is paired from the site with a one-time code (hub `/api/cloud/pair/*`), each with its own key.
+computer. A computer is paired from the site with a one-time code (hub `/api/cloud/pair/*`), each with its own key. Since
+V3.929 the desktop build also carries the lab layer (`lab-mode.js` inline, unchanged, `SIS_TARGET = 'web'` +
+`SIS_DESKTOP`): `serve.py` answers its `api/rm/*` (to the hub as the computer's key), its recorder parts (into the
+notebook folder) and its `/rm/js/` scripts (bundled in `vendor/rm/`). So a lab-layer change reaches the installed app too:
+a new `api/rm/…` call needs nothing here; a new `/rm/…` script it loads needs a line in `VENDOR_COPY` and `RM_BUNDLED`;
+anything that needs the Lab Notebook around it must fall back (as `rm-read` / `rm-report` do).
 
 Changes to the app (`src/`) are Gabe's domain; changes to the lab layer are ours. A change that needs both
 (a new RM-backed tab, a ported notebook feature) is one branch and one PR that touches both, reviewed by both.

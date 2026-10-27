@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.929] — 2026-10-27 — Scientia on this computer is the lab's, and in step within seconds
+
+Plan: [CodeLog/ClaudesPlan/V3.929_scientia_desktop_lab_layer_fast_sync.md](../ClaudesPlan/V3.929_scientia_desktop_lab_layer_fast_sync.md). The shared lab layer (`lab-mode.js`, `cloud-sync.js`, `scientia-cloud.py`) is unchanged.
+
+### Added
+- **The installed app runs the lab layer** (`scripts/scientia_build.py` `desktop_variant`): `lab-mode.js` inline and unchanged, with `window.SIS_TARGET = 'web'` and `window.SIS_DESKTOP = true`, between `<!--sis-desktop-->` markers. The pills and Quick cast, Portfolio, Lit reviews, RM's library, materials and tasks, the one recorder.
+- **`scientia/serve.py`**: `rm_proxy` (`/api/rm/*` → the hub as this computer's key); `rec_part`, `rec_compose`, `/api/rec/parts` (the lab recorder, saved in the notebook folder); `rm_asset` (bundled `/rm/js/recorder-core.js`, `speech-to-text.js`, `stt-device-worker.js`; other `/rm/…` → the site).
+- **`scientia/src/23d-desktoplab.js`**: keeps the Activity and Data tabs and views on the computer (`SIS_DESKTOP_AFTER_LAB`).
+- `scientia/vendor/rm/` (copies `scientia_build.py` refreshes, in the download).
+
+### Changed
+- `23b-labsync.js` `LABSYNC.ownTick()`: the app's ✓ on the computer even with the lab layer; `.sis-desktop .lab-mw` hidden. `21b-canvasexport.js` strips the `<!--sis-desktop-->` blocks.
+
+### Bug Fixes
+- **Slow sync** (`scientia/labsync.py` `HubConn`, `keep_alive`): the bridge's cloud requests share one kept-open HTTPS connection (6 s connect, one retry). A new connection per request hung about one time in eight on Gabe's network, stalling the sync for up to 30 s each time; now 0 / 40 failed against the lab cloud, 0.17 s each.
+- `serve.py`: a browser closing a request it was waiting on no longer leaves a traceback in `service.log`.
+
+### Tests
+- Desktop app with the lab layer, dev hub as the cloud (headless Chrome): the lab layer runs; tabs keep Activity and Data; 4 pills and the Quick cast slot on a note; one ✓ (the app's), the lab's hidden; RM calls through the hub (and "not connected yet" before pairing); `RECORDER_CORE` and `STT` load from the bundled copies; a two-part recording joined into `recordings/Lab meeting.webm`; `/rm/pages/…` → mcgheelab.com; Portfolio, Lit reviews, Library, Activity, Data, Materials, Tasks render; no console errors.
+- Lab-mode harness (web) 271/275 (the four known failures); `functions/test/scientia-hub.test.js` 68 passed.
+- `sw.js` CACHE_VERSION 900 → 901.
+
 ## [V3.928] — 2026-10-27 — Scientia on this computer: one button on the lab site, always in step
 
 Plan: [CodeLog/ClaudesPlan/V3.928_scientia_one_click_local.md](../ClaudesPlan/V3.928_scientia_one_click_local.md). The shared lab layer is unchanged.

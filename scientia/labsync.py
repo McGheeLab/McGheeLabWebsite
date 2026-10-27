@@ -14,26 +14,77 @@ Offline: it keeps trying (backing off to a minute) and catches up when the conne
 history no longer reaches back to the last sync (offline for a very long time), it realigns from the record both sides
 agreed on last (shadow.json), three-way, instead of asking which side wins.
 """
-import importlib.util, json, os, threading, time, urllib.error
+import http.client, importlib.util, json, os, ssl, threading, time, urllib.error, urllib.parse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FAST, SLOW, IDLE = 1.5, 15.0, 60.0
 RECENT, QUIET = 120.0, 1800.0          # "changed lately" / "half an hour of quiet"
 
 
-def load_bridge(port, cloud_cfg):
-    """The lab's bridge module, pointed at this server and this computer's cloud.json."""
+class HubConn:
+    """One kept-open HTTPS connection to the lab cloud. A fresh connection for every request (what urllib does) failed
+    to connect about one time in eight on Gabe's network and then hung until its timeout — syncing stalled for up to
+    half a minute each time. Kept open: none failed, 0.1 s a request. A request that fails is tried once more on a new
+    connection, with a short connect timeout."""
+    CONNECT = 6.0
+
+    def __init__(self, base):
+        u = urllib.parse.urlsplit(base); self.host, self.prefix = u.netloc, u.path.rstrip('/'); self.conn = None
+        self.lock = threading.Lock()
+
+    def request(self, method, path, data=None, headers=None, timeout=60):
+        """(status, raw bytes) for `path` (with its query) under the hub's base."""
+        with self.lock:
+            for attempt in (0, 1):
+                try:
+                    if self.conn is None:
+                        self.conn = http.client.HTTPSConnection(self.host, timeout=self.CONNECT, context=ssl.create_default_context()); self.conn.connect()
+                    self.conn.sock.settimeout(timeout)
+                    self.conn.request(method, self.prefix + '/' + path.lstrip('/'), body=data, headers=headers or {})
+                    r = self.conn.getresponse(); raw = r.read()
+                    if r.getheader('Connection', '').lower() == 'close': self.close()
+                    return r.status, raw, r.getheader('Content-Type') or 'application/json'
+                except (OSError, http.client.HTTPException) as e:
+                    self.close()
+                    if attempt: raise urllib.error.URLError(e)
+
+    def close(self):
+        try:
+            if self.conn: self.conn.close()
+        except Exception: pass
+        self.conn = None
+
+
+def keep_alive(sc, hub):
+    """The bridge's requests to the cloud go through `hub` (a HubConn); its requests to this server stay as they are."""
+    orig = sc.Side._req
+
+    def _req(self, method, path, body=None, raw=None, q=None, timeout=60):
+        if not self.base.startswith('https://'): return orig(self, method, path, body, raw, q, timeout)
+        data = raw if raw is not None else (json.dumps(body).encode('utf-8') if body is not None else None)
+        headers = dict(self.headers)
+        if raw is not None: headers['Content-Type'] = 'application/octet-stream'
+        elif body is not None: headers['Content-Type'] = 'application/json'
+        status, out, _ = hub.request(method, path + ('?' + urllib.parse.urlencode(q) if q else ''), data, headers, timeout)
+        try: return status, json.loads(out.decode('utf-8') or '{}')
+        except Exception: return status, {'ok': False, 'error': 'HTTP %s' % status}
+    sc.Side._req = _req
+
+
+def load_bridge(port, cloud_cfg, hub=None):
+    """The lab's bridge module, pointed at this server and this computer's cloud.json (cloud requests through `hub`)."""
     os.environ['SIS_URL'] = 'http://127.0.0.1:%d' % port
     os.environ['SIS_CLOUD_CONFIG'] = cloud_cfg
     spec = importlib.util.spec_from_file_location('scientia_cloud', os.path.join(HERE, 'vendor', 'scientia_cloud.py'))
     m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    if hub is not None: keep_alive(m, hub)
     return m
 
 
 class LabSync(threading.Thread):
-    def __init__(self, port, cloud_cfg, app_active, local_state):
+    def __init__(self, port, cloud_cfg, app_active, local_state, hub=None):
         super().__init__(name='labsync', daemon=True)
-        self.port, self.cloud_cfg, self.app_active, self.local_state = port, cloud_cfg, app_active, local_state
+        self.port, self.cloud_cfg, self.app_active, self.local_state, self.hub = port, cloud_cfg, app_active, local_state, hub
         self.sc = None; self.bridge = None; self.prefer = None
         self.wake = threading.Event(); self.halt = threading.Event()
         self.status = {'state': 'starting', 'message': '', 'lastSync': None, 'lastChange': None, 'choice': None}
@@ -72,7 +123,7 @@ class LabSync(threading.Thread):
                 self._set('not-connected', 'This computer is not connected to the lab yet'); self._sleep(5); continue
             try:
                 if self.sc is None:
-                    self.sc = load_bridge(self.port, self.cloud_cfg); self.sc.log = self._log
+                    self.sc = load_bridge(self.port, self.cloud_cfg, self.hub); self.sc.log = self._log
                 b = self.bridge = self.sc.Bridge(self.cfg(), prefer=self.prefer, interval=FAST)
                 self.prefer = None
                 self._set('aligning', 'Connecting to the lab cloud…')

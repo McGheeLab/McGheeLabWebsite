@@ -28,6 +28,11 @@ HUB = os.environ.get('SIS_CLOUD_HUB', 'https://us-central1-mcgheelab-f56cc.cloud
 CLOUD_CFG = os.path.join(os.path.dirname(CONFIG), 'cloud.json')
 LAB_ORIGINS = {'https://mcgheelab.com', 'https://www.mcgheelab.com'} | {o.strip() for o in os.environ.get('SIS_LAB_ORIGINS', '').split(',') if o.strip()}
 APP_SEEN = [0.0]          # when a window of this app last asked this server for news (labsync paces by it)
+# V3.929: the lab layer (rm/scientia/lab-mode.js, unchanged) runs in this app too. What it loads from the site: three RM
+# scripts are bundled (vendor/rm/, copied by scripts/scientia_build.py); every other /rm/ address opens on the site.
+SITE = os.environ.get('SIS_SITE', 'https://mcgheelab.com')
+RM_BUNDLED = {'/rm/js/recorder-core.js', '/rm/js/speech-to-text.js', '/rm/js/stt-device-worker.js'}
+REC_RID = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
 OFFER = {}                # a pairing code the lab site handed over, waiting for the person to confirm here
 os.makedirs(APP_IMAGES, exist_ok=True)
 LOCK = threading.Lock()
@@ -287,8 +292,58 @@ class H(http.server.SimpleHTTPRequestHandler):
         if p == '/api/lab/quit': threading.Timer(0.5, lambda: os._exit(0)).start(); return self._json(200, {'ok': True})
         return self._json(404, {'ok': False})
 
+    def rm_asset(self, p, query):
+        if p in RM_BUNDLED:
+            f = os.path.join(ROOT, 'vendor', 'rm', os.path.basename(p))
+            if os.path.isfile(f): return self._text(open(f, encoding='utf-8').read(), 'text/javascript; charset=utf-8')
+        self.send_response(302); self.send_header('Location', SITE + p + ('?' + query if query else '')); self.send_header('Content-Length', '0'); self.end_headers()
+    def rm_proxy(self, method, u):
+        """V3.928/929: the lab layer's RM calls (inventory, tasks, members, protocols, …) go to the lab hub as this computer's key."""
+        if not self.is_local(): return self._json(403, {'ok': False, 'error': 'only from the computer that runs the app'})
+        key = (load_json(CLOUD_CFG, {}) or {}).get('key')
+        if not str(key or '').startswith('sck_'): return self._json(200, {'ok': False, 'offline': True, 'error': 'this computer is not connected to the lab yet (Settings → The lab)'})
+        body = self._body(64 * 1024 ** 2) if method == 'POST' else None
+        hdr = {'X-Scientia-Key': key}
+        if body is not None: hdr['Content-Type'] = self.headers.get('Content-Type') or 'application/json'
+        try: code, data, ctype = hub_request(method, u.path + ('?' + u.query if u.query else ''), body, hdr, 120)
+        except Exception as e: return self._json(200, {'ok': False, 'offline': True, 'error': 'the lab cloud did not answer (%s)' % (getattr(e, 'reason', None) or e)})
+        self.send_response(code); self.send_header('Content-Type', ctype); self.send_header('Content-Length', str(len(data))); self.end_headers(); self.connection.sendall(data)
+    def rec_part(self, q):
+        g = lambda k: (q.get(k) or [''])[0]
+        rid, n, ext = g('rid'), g('n'), g('ext').lower()
+        if not REC_RID.match(rid) or not n.isdigit() or int(n) >= 10000 or ext not in REC_EXTS: return self._json(400, {'ok': False, 'error': 'bad part'})
+        raw = self._body(64 * 1024 ** 2)
+        if not raw: return self._json(400, {'ok': False, 'error': 'empty part'})
+        d = os.path.join(rec_dir(), '.parts', rid); os.makedirs(d, exist_ok=True)
+        atomic(os.path.join(d, '%05d.%s' % (int(n), ext)), raw)
+        return self._json(200, {'ok': True, 'rid': rid, 'n': int(n), 'bytes': len(raw)})
+    def rec_parts_of(self, rid):
+        d = os.path.join(rec_dir(), '.parts', rid)
+        return sorted(os.path.join(d, f) for f in os.listdir(d) if not f.endswith('.part')) if REC_RID.match(rid) and os.path.isdir(d) else []
+    def rec_compose(self, q):
+        """The parts of a recording, in order, joined into recordings/<name>.<ext> (named as the app's own recorder names them)."""
+        g = lambda k: (q.get(k) or [''])[0]
+        rid, ext = g('rid'), g('ext').lower()
+        if not REC_RID.match(rid) or ext not in REC_EXTS: return self._json(400, {'ok': False, 'error': 'bad recording'})
+        parts = self.rec_parts_of(rid)
+        if not parts: return self._json(200, {'ok': False, 'error': 'nothing left to join'})
+        base = re.sub(r'[^A-Za-z0-9 _.()-]+', '', g('name')).strip(' .')[:90] or stamp()
+        d = rec_dir(); name = f'{base}.{ext}'; k = 2
+        while os.path.exists(os.path.join(d, name)): name = f'{base} ({k}).{ext}'; k += 1
+        total = 0
+        with open(os.path.join(d, name + '.part'), 'wb') as out:
+            for f in parts:
+                with open(f, 'rb') as x: b = x.read(); out.write(b); total += len(b)
+        os.replace(os.path.join(d, name + '.part'), os.path.join(d, name))
+        shutil.rmtree(os.path.join(d, '.parts', rid), ignore_errors=True)
+        return self._json(200, {'ok': True, 'file': name, 'path': 'recordings/' + name, 'bytes': total, 'parts': len(parts), 'job': {}, 'folder': d, 'url': 'recordings/' + name})
+
     def do_GET(self):
         u = urlparse(self.path); p = u.path; q = parse_qs(u.query)
+        if p.startswith('/rm/') and self.is_local(): return self.rm_asset(p, u.query)
+        if p.startswith('/api/rm/'): return self.rm_proxy('GET', u)
+        if p == '/api/rec/parts' and self.is_local():
+            parts = self.rec_parts_of((q.get('rid') or [''])[0]); return self._json(200, {'ok': True, 'parts': len(parts), 'bytes': sum(os.path.getsize(f) for f in parts)})
         if p.startswith('/api/lab/') and self.is_local():
             r = self.lab_get(p)
             if r is not None or p in ('/api/lab/ping', '/api/lab/status'): return
@@ -342,6 +397,9 @@ class H(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         u = urlparse(self.path); q = parse_qs(u.query)
         if u.path.startswith('/api/lab/'): return self.lab_post(u.path) if self.is_local() else self._json(403, {'ok': False})
+        if u.path.startswith('/api/rm/'): return self.rm_proxy('POST', u)
+        if u.path == '/api/rec/part' and self.gate(u.path, True): return self.rec_part(q)
+        if u.path == '/api/rec/compose' and self.gate(u.path, True): return self.rec_compose(q)
         if not self.gate(u.path, True): return
         if u.path == '/api/sync/push':
             if not SYNC.ensure(): return self._json(409, {'ok': False, 'error': 'no notebook folder'})
@@ -477,14 +535,24 @@ class H(http.server.SimpleHTTPRequestHandler):
             atomic(mf, json.dumps(man).encode('utf-8'))
         return self._json(200, {'ok': True, 'wrote': wrote, 'removed': removed})
 
-def lab_call(path, body, key=None, timeout=30):
-    req = urllib.request.Request(HUB + path, data=json.dumps(body).encode('utf-8'), method='POST', headers={'Content-Type': 'application/json'})
-    if key: req.add_header('X-Scientia-Key', key)
+import labsync
+HUB_CONN = labsync.HubConn(HUB) if HUB.startswith('https://') else None   # V3.929: kept open (a fresh one often hung here)
+
+def hub_request(method, path, data=None, headers=None, timeout=60):
+    """(status, bytes, content type) from the lab hub."""
+    if HUB_CONN: return HUB_CONN.request(method, path, data, headers or {}, timeout)
+    req = urllib.request.Request(HUB + path, data=data, method=method, headers=headers or {})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r: return json.loads(r.read().decode('utf-8') or '{}')
-    except urllib.error.HTTPError as e:
-        try: return json.loads(e.read().decode('utf-8') or '{}')
-        except Exception: return {'ok': False, 'error': 'HTTP %s' % e.code}
+        with urllib.request.urlopen(req, timeout=timeout) as r: return r.status, r.read(), r.headers.get('Content-Type') or 'application/json'
+    except urllib.error.HTTPError as e: return e.code, e.read(), e.headers.get('Content-Type') or 'application/json'
+
+def lab_call(path, body, key=None, timeout=30):
+    hdr = {'Content-Type': 'application/json'}
+    if key: hdr['X-Scientia-Key'] = key
+    try:
+        code, data, _ = hub_request('POST', path, json.dumps(body).encode('utf-8'), hdr, timeout)
+        return json.loads(data.decode('utf-8') or '{}')
+    except ValueError: return {'ok': False, 'error': 'HTTP %s' % code}
     except Exception as e: return {'ok': False, 'error': 'the lab cloud did not answer (%s)' % (getattr(e, 'reason', None) or e)}
 
 def lab_connect(code):
@@ -516,12 +584,16 @@ def lab_disconnect():
     LABSYNC.kick()
     return {'ok': True, 'revoked': bool(res.get('ok'))}
 
-import labsync
 def _local_state():
     with SYNC.lock: return SYNC.export('state')
-LABSYNC = labsync.LabSync(PORT, CLOUD_CFG, lambda: time.time() - APP_SEEN[0] < 45, _local_state)
+LABSYNC = labsync.LabSync(PORT, CLOUD_CFG, lambda: time.time() - APP_SEEN[0] < 45, _local_state, HUB_CONN)
 
-srv = http.server.ThreadingHTTPServer(('', PORT), H)
+class Server(http.server.ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        if isinstance(sys.exc_info()[1], (ConnectionAbortedError, ConnectionResetError, BrokenPipeError)): return
+        super().handle_error(request, client_address)
+
+srv = Server(('', PORT), H)
 if not os.environ.get('SIS_NOBROWSER'): threading.Timer(0.6, lambda: webbrowser.open(f'http://localhost:{PORT}/scientia.html')).start()
 print(f'Scientia In Situ on http://localhost:{PORT}/scientia.html  (close this window to stop)')
 print(f'Notebook folder: {notebook() or "not chosen yet — Settings → Notebook folder"}')
