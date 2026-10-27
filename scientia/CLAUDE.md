@@ -22,6 +22,16 @@ The web file is the desktop file plus one line — `<script src="cloud-sync.js?v
 makes the untouched app a *device* of the cloud hub and lets the Lab Notebook drive it (`rm/scientia/cloud-sync.js`).
 `rm/scientia/icons/` and `MANUAL.md` are copies the build script refreshes. **Edit `src/`, never a built file.**
 
+**The desktop runs the lab layer too (V3.927).** `scientia/scientia.html` is Gabe's build plus `rm/scientia/lab-mode.js`
+inline, with `window.SIS_TARGET = 'desktop'` and `window.SIS_LAB_SECTIONS` set from `DESKTOP_LAB` in
+`scripts/scientia_build.py`. `lab-mode.js` `on(name)` is always true on the web; on the desktop only the listed sections
+run (Lit reviews, Portfolio, pills and Quick cast, Share, inventory, tasks, reminders, RM cards, protocols). His Activity,
+Data, Library and reader, his recorder, his PDF cards and the equation reader stay his own. A new lab-layer section guards its
+effectful top-level statements with `if (on('name'))` and says in the plan whether it belongs on the desktop. `serve.py`
+forwards `/api/rm/*` to the lab hub with the sync key `scientia-cloud.py` saved (only for this computer), so a new
+`api/rm/…` call needs no desktop change; RM's pages open on the live site. Without a key those calls answer
+`{ok: false, offline: true}`.
+
 ## What lives where
 
 | Path | Owner | Notes |

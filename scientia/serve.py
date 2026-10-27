@@ -8,7 +8,7 @@ Your notebook folder (chosen in Settings → Notebook folder) holds everything y
   <Project>/<Theme>/<Note>/<NN component>.md   one Markdown file per component, for Obsidian (written by the app)
 The folder is remembered outside the app (in your user profile), so replacing the app never touches it.
 """
-import http.server, json, os, re, shutil, socket, subprocess, sys, threading, time, webbrowser
+import http.server, json, os, re, shutil, socket, subprocess, sys, threading, time, urllib.error, urllib.request, webbrowser
 from http.cookies import SimpleCookie
 from urllib.parse import urlparse, parse_qs, unquote
 
@@ -22,6 +22,10 @@ if os.environ.get('SIS_CONFIG'): CONFIG = os.environ['SIS_CONFIG']
 elif os.name == 'nt': CONFIG = os.path.join(os.environ.get('APPDATA') or os.path.expanduser('~'), 'ScientiaInSitu', 'config.json')
 else: CONFIG = os.path.join(os.path.expanduser('~'), '.config', 'scientia-in-situ', 'config.json')
 os.chdir(ROOT)
+# V3.927: the lab layer in this app asks RM (inventory, tasks, members, ...) through the lab hub as this computer's sync key
+# (the one scientia-cloud.py saves next to the config). The key stays here; the browser only talks to this server.
+HUB = os.environ.get('SIS_CLOUD_HUB', 'https://us-central1-mcgheelab-f56cc.cloudfunctions.net/scientiaHub')
+CLOUD_CFG = os.path.join(os.path.dirname(CONFIG), 'cloud.json')
 os.makedirs(APP_IMAGES, exist_ok=True)
 LOCK = threading.Lock()
 
@@ -226,9 +230,29 @@ class H(http.server.SimpleHTTPRequestHandler):
         try: return raw, json.loads(raw)
         except Exception: return raw, None
 
+    def lab_key(self):
+        k = (load_json(CLOUD_CFG, {}) or {}).get('key')
+        return k if isinstance(k, str) and k.startswith('sck_') else None
+    def lab_proxy(self, method, u):
+        """Forward /api/rm/* to the lab hub as this computer's key. Only the computer that runs the app may ask."""
+        if not self.is_local(): return self._json(403, {'ok': False, 'error': 'only from the computer that runs the app'})
+        key = self.lab_key()
+        if not key: return self._json(200, {'ok': False, 'offline': True, 'error': 'this computer is not connected to the lab cloud yet (run scientia-cloud.py --key ...)'})
+        body = self._body(64 * 1024 ** 2) if method == 'POST' else None
+        req = urllib.request.Request(HUB + u.path + ('?' + u.query if u.query else ''), data=body, method=method)
+        req.add_header('X-Scientia-Key', key)
+        if body is not None: req.add_header('Content-Type', self.headers.get('Content-Type') or 'application/json')
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r: code, data, ctype = r.status, r.read(), r.headers.get('Content-Type') or 'application/json'
+        except urllib.error.HTTPError as e: code, data, ctype = e.code, e.read(), e.headers.get('Content-Type') or 'application/json'
+        except Exception as e: return self._json(502, {'ok': False, 'offline': True, 'error': 'the lab cloud did not answer: %s' % (getattr(e, 'reason', None) or e)})
+        self.send_response(code); self.send_header('Content-Type', ctype); self.send_header('Content-Length', str(len(data))); self.send_header('Cache-Control', 'no-store'); self.end_headers(); self.wfile.write(data)
+
     def do_GET(self):
         u = urlparse(self.path); p = u.path; q = parse_qs(u.query)
         if not self.gate(p, False): return
+        if p.startswith('/api/rm/'): return self.lab_proxy('GET', u)
+        if p == '/api/lab/status': return self._json(200, {'ok': True, 'connected': bool(self.lab_key())})
         if p == '/': self.path = '/scientia.html'; return super().do_GET()
         if p == '/sw.js': return self._text(SW, 'text/javascript')
         if p == '/manifest.webmanifest': return self._text(MANIFEST, 'application/manifest+json')
@@ -277,6 +301,7 @@ class H(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         u = urlparse(self.path); q = parse_qs(u.query)
         if not self.gate(u.path, True): return
+        if u.path.startswith('/api/rm/'): return self.lab_proxy('POST', u)
         if u.path == '/api/sync/push':
             if not SYNC.ensure(): return self._json(409, {'ok': False, 'error': 'no notebook folder'})
             _, obj = self._obj(512 * 1024 ** 2); obj = obj or {}; w = self.who() or {}

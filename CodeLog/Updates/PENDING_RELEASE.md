@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (27 changes — ready to push)
+## Pending (28 changes — ready to push)
 
+- V3.927 — Scientia on Gabe's desktop now has the lab's features too: the Lit reviews tab, Portfolio, the note pills and Quick cast, sharing, and the lab's inventory, tasks and protocols — all reached through the lab cloud once the computer is linked to it.
 - V3.926 — Scientia on the website now has what Gabe's desktop has: drag a component by its name or date (double-click to rename it or change its time), tables and plots from Excel or CSV, library themes and groups, saved ink, dashed lines, and exporting a note as one HTML file.
 - V3.925 — Behind the scenes: updates to the lab website are now always sent to the server encrypted.
 - V3.924 — Gabe can work on his own branch and have it saved to GitHub automatically, like the lab's own changes, and there is a step-by-step setup page for working on the lab's code from a Windows computer.

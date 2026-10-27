@@ -6,7 +6,8 @@
 
   scientia/src/**  +  scientia/vendor/**  +  scientia/fonts.css
         │
-        ├─ Gabe's build.py ─────────▶  scientia/scientia.html        the DESKTOP app (serve.py / launch.bat run it)
+        ├─ Gabe's build.py ─────────▶  scientia/scientia.html        the DESKTOP app (serve.py / launch.bat run it),
+        │                                                           + the lab layer inline, only the DESKTOP_LAB sections (V3.927)
         │
         └─ + the lab layer ─────────▶  rm/scientia/scientia.html     the WEB app at mcgheelab.com/rm/scientia/
                                        rm/scientia/icons/, MANUAL.md  (copied from scientia/)
@@ -31,6 +32,8 @@ SHIM = os.path.join(WEB, 'cloud-sync.js')
 LAB = os.path.join(WEB, 'lab-mode.js')
 ANCHOR = re.compile(r'<script>\n/\* =+\n   01 · Util')
 COPY = ['MANUAL.md', 'icons']
+# V3.927: the lab-mode.js sections the desktop runs (lab-mode.js `on(name)`); every other section stays Gabe's own there
+DESKTOP_LAB = ['portfolio', 'pills', 'litreviews', 'share', 'inventory', 'tasks', 'myweek', 'rmcards', 'protocols']
 VENDOR_COPY = [('rm/js/page-layout.js', 'scientia/vendor/page-layout.js'),     # (the rm/ original, its copy in the app)
                ('rm/js/page-regions.js', 'scientia/vendor/page-regions.js')]
 
@@ -54,6 +57,16 @@ def build_desktop():
     if r.returncode:
         print(r.stdout + r.stderr); sys.exit(1)
     return open(DESKTOP_OUT, encoding='utf-8').read()
+
+
+def desktop_variant(raw):
+    """Gabe's desktop build + the lab layer inline (V3.927): the target flag and the section list, then lab-mode.js."""
+    end = raw.rfind('</body>')
+    if end < 0:
+        print('no </body> in the build — the shell changed shape; fix desktop_variant'); sys.exit(1)
+    flags = '<script>window.SIS_TARGET = %r; window.SIS_LAB_SECTIONS = {%s};</script>' % ('desktop', ', '.join('%s: 1' % n for n in DESKTOP_LAB))
+    lab = open(LAB, encoding='utf-8').read().replace('</script', '<' + chr(92) + '/script')   # a literal </script> would end the inline tag
+    return raw[:end] + flags + chr(10) + '<script>' + chr(10) + lab + chr(10) + '</script>' + chr(10) + raw[end:]
 
 
 def web_variant(desktop_html):
@@ -85,8 +98,9 @@ def main():
         stale.append(os.path.relpath(d, ROOT))
         if not check: shutil.copy2(s, d)   # before build.py, so both apps carry the current copy
     before = open(DESKTOP_OUT, encoding='utf-8').read() if os.path.exists(DESKTOP_OUT) else None
-    desktop = build_desktop()
-    web = web_variant(desktop)
+    raw = build_desktop()
+    desktop = desktop_variant(raw)
+    web = web_variant(raw)
     if before != desktop: stale.append(os.path.relpath(DESKTOP_OUT, ROOT))
     if not same(WEB_OUT, web): stale.append(os.path.relpath(WEB_OUT, ROOT))
     for name in COPY:
@@ -96,10 +110,11 @@ def main():
                 if not os.path.exists(os.path.join(d, f)) or open(os.path.join(s, f), 'rb').read() != open(os.path.join(d, f), 'rb').read(): stale.append(os.path.relpath(os.path.join(d, f), ROOT))
         elif not os.path.exists(d) or open(s, 'rb').read() != open(d, 'rb').read(): stale.append(os.path.relpath(d, ROOT))
     if check:
-        if before != desktop: open(DESKTOP_OUT, 'w', encoding='utf-8').write(before if before is not None else desktop)  # --check leaves the desktop file as it was
+        if before is not None: open(DESKTOP_OUT, 'w', encoding='utf-8').write(before)  # --check leaves the desktop file as it was
         if stale: print('STALE (run scripts/scientia_build.py):\n  ' + '\n  '.join(stale)); sys.exit(1)
         print('scientia builds are current'); return
     os.makedirs(WEB, exist_ok=True)
+    open(DESKTOP_OUT, 'w', encoding='utf-8').write(desktop)   # build.py wrote the plain app; the desktop gets the lab layer on top
     open(WEB_OUT, 'w', encoding='utf-8').write(web)
     for name in COPY:
         s, d = os.path.join(SRC, name), os.path.join(WEB, name)

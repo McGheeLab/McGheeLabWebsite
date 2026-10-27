@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.926 (Scientia: the desktop's modules are in `scientia/src/` — `13zt-table` tables and plots, `13zz2-pen3` pen round three and ink library, `13zz3-dash`, `13zz4-inksplit`, `17d-libgroups` (store `libsets`), `21b-canvasexport` + `98-viewer`, `21c-labexport`; registered in `features.json` (`scientia.tables`, `scientia.canvas-export`); `lab-mode.js` `INS_PICS` icons for the new + Insert rows; `gen-icons.mjs` normalises Windows paths.)
+**Version:** V3.927 (Scientia desktop runs the lab layer: `scientia_build.py` `desktop_variant` inlines `lab-mode.js` with `SIS_TARGET = 'desktop'` and `SIS_LAB_SECTIONS` (`DESKTOP_LAB`); `lab-mode.js` `on(name)` gates the sections the desktop leaves alone; `serve.py` `lab_proxy` forwards `/api/rm/*` to the hub as the saved sync key.)
+
+**Prior:** V3.926 (Scientia: the desktop's modules are in `scientia/src/` — `13zt-table` tables and plots, `13zz2-pen3` pen round three and ink library, `13zz3-dash`, `13zz4-inksplit`, `17d-libgroups` (store `libsets`), `21b-canvasexport` + `98-viewer`, `21c-labexport`; registered in `features.json` (`scientia.tables`, `scientia.canvas-export`); `lab-mode.js` `INS_PICS` icons for the new + Insert rows; `gen-icons.mjs` normalises Windows paths.)
 
 **Prior:** V3.925 (deploys are FTP over verified TLS only: `site.json` `ftp.tlsHost` = the GoDaddy server's own name (its certificate never covers mcgheelab.com), checked to resolve like `ftp.host`; `"tls": "always"`, no plain-FTP fallback; certifi roots always added; `deploy.py check` logs in and lists the web root, uploading nothing.)
 **Prior:** V3.924 (`git_autopush.py` pushes a branch origin does not have yet — `ls-remote` exit 2 → `new_branch`: no rebase, gate from `merge-base HEAD origin/main` against `origin/main`, `push -u`; `scientia/SETUP.md` sets up Gabe's Windows PC: `python3`, `core.autocrlf false`, `gh` sign-in, his own FTP login.)

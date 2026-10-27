@@ -25,15 +25,24 @@
    ================================================================ */
 (function () {
   'use strict';
-  if (window.SIS_TARGET !== 'web') return;
+  /* V3.927 — two targets. The web build runs every section. The DESKTOP build (SIS_TARGET 'desktop', set by
+     scripts/scientia_build.py) runs only the sections the build lists in SIS_LAB_SECTIONS; the rest stay Gabe's own
+     (his Activity and Data tabs, his library and reader, his recorder). on('name') is always true on the web, so a
+     section guarded with it behaves exactly as before there. The desktop reaches RM through serve.py (/api/rm/* is
+     forwarded to the lab hub with the sync key), and RM's pages open on the live site. */
+  var DESK = window.SIS_TARGET === 'desktop';
+  if (window.SIS_TARGET !== 'web' && !DESK) return;
+  var SECS = window.SIS_LAB_SECTIONS || {};
+  function on(name) { return !DESK || !!SECS[name]; }
+  var SITE = DESK ? 'https://mcgheelab.com' : '';
   var RM = {
-    library: '/rm/pages/library.html',
-    paper: function (id) { return '/rm/pages/library-paper.html?id=' + encodeURIComponent(id); },
-    tasks: '/rm/pages/tasks.html',
-    activity: '/rm/pages/activity-overview.html?tab=tracker',
-    inventory: '/rm/pages/inventory.html'
+    library: SITE + '/rm/pages/library.html',
+    paper: function (id) { return SITE + '/rm/pages/library-paper.html?id=' + encodeURIComponent(id); },
+    tasks: SITE + '/rm/pages/tasks.html',
+    activity: SITE + '/rm/pages/activity-overview.html?tab=tracker',
+    inventory: SITE + '/rm/pages/inventory.html'
   };
-  var LAB = { version: 'V3.904', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
+  var LAB = { version: 'V3.927', target: DESK ? 'desktop' : 'web', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
 
   function openRM(href) {
@@ -45,7 +54,7 @@
   function btn(cls, label, run, title) { return h('button.btn' + (cls ? '.' + cls.split(' ').join('.') : ''), { title: title || '', on: { click: function (e) { e.preventDefault(); run(); } } }, label); }
 
   /* ---- 1. the tab row: Activity and Data leave the web app ---- */
-  try {
+  if (on('tabs')) try {
     var drop = { activity: 1, data: 1 };
     for (var i = TABS.length - 1; i >= 0; i--) if (drop[TABS[i][0]]) TABS.splice(i, 1);
   } catch (e) { warn('tabs', e); }
@@ -60,7 +69,7 @@
       }
     };
   }
-  try {
+  if (on('tabs')) try {
     VIEWS.activity = pointer('Activity', 'The lab site', 'Your activity is RM’s: the daily tracker, the year view and the lab’s stats live on the lab site, where your mentor sees them too. Every note you work on here — edits and timer sessions, from this browser or your computer — is recorded there as one entry per note per day. The desktop app keeps its own Activity page.', RM.activity, 'Open Activity in RM');
     VIEWS.tasks = pointer('Tasks', 'The lab site', 'Tasks are RM’s: assigned, due, in My Week and on your phone. The task component in a note stays; the Tasks page is RM’s Tasks.', RM.tasks, 'Open Tasks in RM');
     VIEWS.data = pointer('Data', 'Desktop only', 'Data by reference needs the folder on your computer (the microscope’s export, your disk). Bind, rescan and preview datasets in the desktop app; their records sync here.', null, '');
@@ -123,10 +132,10 @@
         mine.length ? mineList : null);
     }
   };
-  try { VIEWS.library = LabLibrary; } catch (e) { warn('library', e); }
+  if (on('library')) try { VIEWS.library = LabLibrary; } catch (e) { warn('library', e); }
 
   /* ---- 4. #/read/<rm paper>: RM's reader, not the in-app one ---- */
-  try {
+  if (on('library')) try {
     if (OrigRead) {
       VIEWS.read = Object.assign({}, OrigRead, {
         render: function (id) {
@@ -225,7 +234,7 @@
     el._run = run; el._q = q;
     return el;
   }
-  try {
+  if (on('inventory')) try {
     var origPick = MATS.pick;
     MATS.pick = function (d, cb) {
       var m = modal({ title: 'Materials used in this note', wide: true, actions: [
@@ -245,7 +254,7 @@
     };
     MATS.pick._orig = origPick;
   } catch (e) { warn('materials picker', e); }
-  try {
+  if (on('inventory')) try {
     var OrigMat = VIEWS.materials;
     VIEWS.materials = Object.assign({}, OrigMat, {
       render: function () {
@@ -260,7 +269,7 @@
       }
     });
   } catch (e) { warn('materials page', e); }
-  try {
+  if (on('inventory')) try {
     var OrigMatSheet = VIEWS.mat;
     if (OrigMatSheet) VIEWS.mat = Object.assign({}, OrigMatSheet, {
       render: function (id) {
@@ -319,7 +328,7 @@
       catch (e) { warn('update task', e); }
     }, extra && extra.done !== undefined ? 0 : 800);
   }
-  try {
+  if (on('tasks')) try {
     var oCreate = TASK.create, oSave = TASK.save, oDone = TASK.done, oUndo = TASK.undo, oBody = TASK.body;
     TASK.create = function () { var b = oCreate.apply(TASK, arguments); if (b) sendTask(b); return b; };
     TASK.save = function (b) { var r = oSave.apply(TASK, arguments); try { if (b && b.rmTaskId) updateTask(b); } catch (e) { warn('task save', e); } return r; };
@@ -343,7 +352,7 @@
     try { if (typeof WIDGETS !== 'undefined' && WIDGETS.task && WIDGETS.task.body === oBody) WIDGETS.task.body = TASK.body; } catch (e) { warn('widgets.task', e); }
   } catch (e) { warn('tasks', e); }
   /* the #/tasks page: RM's Tasks, plus this notebook's task components and their RM state */
-  try {
+  if (on('tasks')) try {
     var oTasksView = VIEWS.tasks;
     VIEWS.tasks = {
       title: true,
@@ -387,7 +396,7 @@
       KICK.runs++;
     }, 1200);
   }
-  try {
+  if (on('myweek')) try {
     var oPut = DB.put;
     DB.put = function (store) { var r = oPut.apply(this, arguments); try { if (KICK.stores[store] && !(typeof SYNC !== 'undefined' && (SYNC.applying || SYNC.loading))) kickRm(); } catch (e) {} return r; };
     var oStop = TIMER.stop; TIMER.stop = function () { var r = oStop.apply(TIMER, arguments); kickRm(); return r; };
@@ -415,7 +424,7 @@
     HOST.sent = HOST.sent.concat([{ id: id, type: type }]).slice(-30);
     return { id: id, ack: ack };
   }
-  window.addEventListener('message', function (e) {
+  if (on('rmcards')) window.addEventListener('message', function (e) {
     if (e.origin !== ORIGIN || e.source !== window.parent || !e.data || !e.data.sisCmd) return;
     var m = e.data;
     if (m.sisCmd === 'rm-ack' && HOST.waits[m.reqId]) { var w = HOST.waits[m.reqId]; delete HOST.waits[m.reqId]; w(m); }
@@ -494,7 +503,7 @@
     return m;
   }
   LAB.placePaper = placePaper; LAB.pickPaper = pickPaper;
-  try {
+  if (on('rmcards')) try {
     WIDGETS.rmpaper = { label: 'paper', w: 420, icon: '\u25a4', body: paperBody, menu: function (b) {
       var r = M.lib(b.paperId);
       return [r && r.rm ? { label: 'Read', sub: 'RM\u2019s reader, with your highlights', run: function () { readPaper(r); } } : null,
@@ -520,7 +529,7 @@
     var ack = await q.ack;
     if (!ack || !ack.ok) { delete HOST.onReported[q.id]; toast('Open Scientia inside the Lab Notebook to report to My Week'); }
   }
-  try {
+  if (on('rmcards')) try {
     var oBox = DocView.box;
     DocView.box = function (b) {
       var el = oBox.apply(this, arguments);
@@ -544,7 +553,7 @@
     return m;
   }
   LAB.materialFromInventory = materialFromInventory;
-  try {
+  if (on('rmcards')) try {
     var oCard = MATS2.cardBody;
     MATS2.cardBody = function (b) {
       var el = oCard.apply(this, arguments);
@@ -562,7 +571,7 @@
   } catch (e) { warn('material insert', e); }
 
   /* the few styles the lab cards need (Gabe's tokens where they exist) */
-  try {
+  if (on('rmcards')) try {
     var css = '.rmp-h{display:flex;gap:8px;align-items:flex-start}.rmp-t{min-width:0}.rmp-act{gap:6px;margin-top:6px;flex-wrap:wrap}' +
       '.rmp-hl{margin-top:6px;display:flex;flex-direction:column;gap:3px}.rmp-row{display:flex;gap:6px;align-items:baseline;cursor:pointer;font-size:12px;line-height:1.35}' +
       '.rmp-row i{flex:none;width:8px;height:12px;border-radius:2px;display:inline-block;transform:translateY(2px)}.rmp-row:hover>span:first-of-type{text-decoration:underline}' +
@@ -577,7 +586,7 @@
      stay in RM (the def says so and links there). SOMETHING I DID: your recorded actions, listed and marked noted by
      RM's own code in the notebook (rm-actions / rm-action-noted). COLLECTIONS: a Lab Notebook collection, read-only. */
   var LISTS = { actions: {} };
-  window.addEventListener('message', function (e) {
+  if (on('protocols')) window.addEventListener('message', function (e) {
     if (e.origin !== ORIGIN || e.source !== window.parent || !e.data || e.data.sisCmd !== 'rm-actions-list') return;
     var f = LISTS.actions[e.data.reqId]; if (f) { delete LISTS.actions[e.data.reqId]; f(e.data); }
   });
@@ -625,7 +634,7 @@
       section: function (x) { return rmDefFor(x.r.id, null) ? 'Imported before' : 'The lab’s protocols'; },
       onPick: function (x) { runRmProtocol(d, p, x.r); } });
   }
-  try {
+  if (on('protocols')) try {
     var oPBody = PROTO.body;
     PROTO.body = function (b) {
       var el = oPBody.apply(this, arguments);
@@ -678,7 +687,7 @@
         a.equipmentId ? btn('xs', 'Equipment in RM', function () { openRM('/rm/pages/equipment.html'); }) : null,
         btn('xs', 'My actions in RM', function () { openRM('/rm/pages/actions.html'); })));
   }
-  try {
+  if (on('protocols')) try {
     WIDGETS.rmaction = { label: 'something I did', w: 392, icon: '•', body: actionBody, menu: function (b) {
       return [{ label: 'Pick a different action…', run: function () { pickAction(M.doc(b.docId), { x: b.x || 0, y: b.y || 0 }, function (a) {
         var cur = M.block(b.id); cur.action = actionRec(a); cur.label = String(a.text || '').slice(0, 80); cur.body = { text: actionText(a), marks: [] }; cur.modified = isoLocal(new Date());
@@ -725,7 +734,7 @@
         btn('xs', 'Refresh', function () { fillCollection(el, b, true); })));
   }
   function collectionBody(b) { var el = h('div.rmc', { 'data-col': b.collectionId }, h('div.tiny.muted', 'Loading the collection…')); fillCollection(el, b, false); return el; }
-  try {
+  if (on('protocols')) try {
     WIDGETS.rmcollection = { label: 'collection', w: 420, icon: '≡', body: collectionBody, menu: function (b) {
       return [b.entryId ? { label: 'Open its entry in the Lab Notebook', run: function () { openRM('/rm/pages/notebook.html?entry=' + encodeURIComponent(b.entryId)); } } : null,
         { label: 'Change the collection…', run: function () { pickCollection(M.doc(b.docId), { x: b.x || 0, y: b.y || 0 }, function (r) {
@@ -1593,8 +1602,8 @@
   var LR = { cur: null, timer: null, penT0: null, sent: [], stamped: 0 };
   LAB.recorder = LR;
   function rcore() { return window.RECORDER_CORE || null; }
-  try { if (!window.RECORDER_CORE) { var rcs = document.createElement('script'); rcs.src = '/rm/js/recorder-core.js?v=' + encodeURIComponent(LAB.version); document.head.appendChild(rcs); } } catch (e) { warn('recorder core', e); }
-  try { if (!window.STT) { var sts = document.createElement('script'); sts.src = '/rm/js/speech-to-text.js?v=' + encodeURIComponent(LAB.version); sts.onload = function () { try { changed(); } catch (e) {} }; document.head.appendChild(sts); } } catch (e) { warn('speech to text', e); }
+  if (on('recorder')) try { if (!window.RECORDER_CORE) { var rcs = document.createElement('script'); rcs.src = '/rm/js/recorder-core.js?v=' + encodeURIComponent(LAB.version); document.head.appendChild(rcs); } } catch (e) { warn('recorder core', e); }
+  if (on('recorder')) try { if (!window.STT) { var sts = document.createElement('script'); sts.src = '/rm/js/speech-to-text.js?v=' + encodeURIComponent(LAB.version); sts.onload = function () { try { changed(); } catch (e) {} }; document.head.appendChild(sts); } } catch (e) { warn('speech to text', e); }
   function partsStart(a) {
     if (!a || (LR.cur && LR.cur.id === a.id)) return;
     LR.cur = { id: a.id, n: 0, sent: 0, ext: a.ext || 'webm', mime: a.mime || 'audio/webm', q: Promise.resolve(), a: a, failed: 0 };
@@ -1627,7 +1636,7 @@
     try { DB.del('blobs', 'rec:' + id); } catch (e) {}
     toast('Recording saved · recordings/' + j.file, 3500); REC.watch(id);
   }
-  try {
+  if (on('recorder')) try {
     var oRecStart = REC.start;
     REC.start = async function (b) { var r = await oRecStart.apply(REC, arguments); try { if (REC.active && b && REC.active.id === b.id) partsStart(REC.active); } catch (e) { warn('recording parts', e); } return r; };
     var oRecUpload = REC.upload;
@@ -1747,13 +1756,13 @@
     try { INK.blocks(cur.docId).forEach(function (ib) { ((ib.ink && ib.ink.strokes) || []).forEach(function (s) { if (Array.isArray(s.rt) && s.rt[0] === b.id) n++; }); }); } catch (e) {}
     if (n) el.append(h('div.lab-rc-ink.tiny.muted', '✎ ' + plural(n, 'stroke') + ' drawn while recording — each one is timed with the voice'));
   }
-  try {
+  if (on('recorder')) try {
     var oRecBody = WIDGETS.rec.body;
     WIDGETS.rec.body = function (b, d, pane, ro) { var el = oRecBody.apply(this, arguments); try { decorateRec(el, b, ro); } catch (e) { warn('recording card', e); } return el; };
   } catch (e) { warn('recording card', e); }
 
   /* ink drawn in the note while it records carries its moment */
-  try {
+  if (on('recorder')) try {
     var oPenDown = INK.penDown;
     INK.penDown = function () { if (REC.active) LR.penT0 = REC.elapsed(); return oPenDown.apply(INK, arguments); };
     var oAddStroke = INK.addStroke;
@@ -1764,7 +1773,7 @@
       return oAddStroke.call(INK, pane, s);
     };
   } catch (e) { warn('ink moments', e); }
-  try {
+  if (on('recorder')) try {
     var st12 = document.getElementById('lab-mode-css');
     if (st12) st12.textContent += '.lab-mk-k{border:0;background:none;padding:0 3px 0 0;font:inherit;font-weight:600;color:var(--teal);cursor:pointer}' +
       '.rc-mk.lab-k-question .lab-mk-k{color:#B5761B}.rc-mk.lab-k-decision .lab-mk-k{color:#4A5651}.rc-mk.lab-k-todo .lab-mk-k{color:#1E5E8C}' +
@@ -1912,7 +1921,7 @@
      needs, gives its pages back when it leaves, shows its title when zoomed far out, and fetches only the parts of the
      file it draws. The maximised view and the phone layout keep Gabe's drawing (they pass no paper). Stands down if his
      PDFW gains this itself (PDFW.onDemand). */
-  try {
+  if (on('pdf')) try {
     if (typeof PDFW !== 'undefined' && !PDFW.onDemand) (function () {
       var oBody = PDFW.body, oWords = PDFW.words, noop = function () {};
       var PD = { live: new Map(), cards: new Set(), aspect: new Map(), used: new Map(), pin: {}, q: [], busy: 0, n: 0,
@@ -2126,7 +2135,7 @@
       PDFW.stats = PD.stats; PDFW.labOnDemand = true;   // stats: the same call as Gabe's version (PDFW.onDemand) will offer
     })();
   } catch (e) { warn('pdf on demand', e); }
-  try {
+  if (on('pdf')) try {
     var st14 = document.getElementById('lab-mode-css');
     if (st14) st14.textContent += '.pdfw .pdf-ph{display:none;position:absolute;box-sizing:border-box;flex-direction:column;align-items:center;justify-content:center;gap:12px;' +
       'text-align:center;padding:24px;border-radius:6px;background:var(--surface-2);color:var(--ink-2);font-size:44px;line-height:1.15;pointer-events:none;overflow:hidden}' +
@@ -2146,7 +2155,7 @@
     var v = document.getElementById('view'), vr = v && v.getBoundingClientRect();
     if (vr && vr.width) { b.style.left = Math.round(vr.left + vr.width / 2) + 'px'; b.style.width = 'min(560px, ' + Math.round(vr.width - 24) + 'px)'; }
   }
-  try {
+  if (on('banner')) try {
     if (typeof INSTALL !== 'undefined' && INSTALL.banner) { var oBanner = INSTALL.banner; INSTALL.banner = function () { var r = oBanner.apply(this, arguments); try { placeInstall(); } catch (e) {} return r; }; }
     addEventListener('resize', debounce(placeInstall, 150)); placeInstall();
     var st14 = document.getElementById('lab-mode-css');
@@ -2327,7 +2336,7 @@
      function (a vision model → LaTeX), you check it in the equation editor against the picture, and it becomes an equation
      component. The app asks through CLIP.read; this fills it in (the desktop has no lab sign-in, so there you type it). Probed
      once, on first use, exactly like the reader's ✨ Auto-read. */
-  try {
+  if (on('equations')) try {
     if (typeof CLIP !== 'undefined') (function () {
       var OCR = 'https://us-central1-mcgheelab-f56cc.cloudfunctions.net/equationOcr', ok = null;
       CLIP.read = function (img) {

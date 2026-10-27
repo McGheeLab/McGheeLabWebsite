@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.927] — 2026-10-26 — Scientia: the desktop app runs the lab layer
+
+Plan: [CodeLog/ClaudesPlan/V3.927_scientia_desktop_lab_layer.md](../ClaudesPlan/V3.927_scientia_desktop_lab_layer.md).
+
+### Added
+- **The desktop build carries the lab layer** (`scripts/scientia_build.py` `desktop_variant`, `DESKTOP_LAB`): `window.SIS_TARGET = 'desktop'`, `window.SIS_LAB_SECTIONS` and `lab-mode.js` inline before `</body>`. On the desktop: the Lit reviews tab, Portfolio (assigned work, region cards, quick notes), the note pills and Quick cast, Share / Collaborate, inventory-backed Materials, RM tasks, reminders and chores in My Week, RM cards in notes and RM protocols.
+- **`scientia/serve.py`**: `lab_proxy` forwards `/api/rm/*` to the lab hub with the saved sync key (`cloud.json`, `lab_key()`), only for the computer that runs the app; `GET /api/lab/status` → `{connected}`. Without a key: `{ok: false, offline: true}`.
+- `window.SIS_LAB.target` (`'web'` | `'desktop'`).
+
+### Changed
+- `rm/scientia/lab-mode.js`: the guard accepts `SIS_TARGET === 'desktop'`; `on(name)` gates the effectful statements of the sections the desktop leaves to Gabe's own app (tab row, pointer pages, library, reader, recorder, PDF cards, install banner, equations from a PDF) — always true on the web; `RM` links use `SITE` (`https://mcgheelab.com` on the desktop). Version `V3.927`.
+- The web build is unchanged in behaviour.
+
+### Tests
+- Lab-mode harness (web) **271/275** with its version check at `V3.927` and `target === 'web'`; the other four failures are the ones on a clean build of V3.925 (headless Chrome: PDF cards, install banner).
+- Desktop flavor, headless Chrome on a throwaway notebook (port 8777): tabs `… portfolio, litreviews, review, activity, … library, data …` (his Activity / Data / Library kept), a review creates and its note shows Title / Topic / Projects, the Lit reviews and Tasks / Materials / Portfolio pages render, pills and the Quick cast slot draw on a note; with the real key the proxy returned 9 members, 775 inventory items (35 for "tube") and 11 protocols; no console errors or warnings.
+- `sw.js` CACHE_VERSION 898 → 899.
+
 ## [V3.926] — 2026-10-26 — Scientia: the desktop's features join the lab's copy
 
 Plan: [CodeLog/ClaudesPlan/V3.926_scientia_desktop_merge.md](../ClaudesPlan/V3.926_scientia_desktop_merge.md). A three-way merge of Gabe's desktop app against the lab's V3.901 (see the plan).
