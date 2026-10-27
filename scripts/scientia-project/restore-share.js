@@ -87,7 +87,8 @@ const saw = (rec, where) => { if (isObj(rec) && (rec.name || rec.title)) { const
     for (const k of (await h.ref.collection('keys').get()).docs) { const d = k.data() || {}; console.log(`  computer key "${d.name}": created ${iso(d.created)}, last seen ${iso(d.lastSeen)}`); }
     for (const k of keptOf.get(uid) || []) console.log(`  kept copy ${k.name}${(k.stores.projects || []).some(r => String(r.id) === id) ? ' — holds the project' : ''}`);
     for (const s of seen.filter(x => x.uid === uid).sort((a, b) => (a.seq || 0) - (b.seq || 0))) console.log(`  ${s.from} seq ${s.seq}: ${s.deleted ? 'DELETED' : 'live'} by ${s.name || '-'} [${s.dev || '-'}] at ${s.at}${s.rec && s.rec.sharedFrom ? ' (a copy)' : ''}`);
-    if (!seen.some(x => x.uid === uid && x.from === 'row')) console.log('  no row at all now (a replace removes rows without a tombstone)');
+    if (!seen.some(x => x.uid === uid && x.from === 'row')) { const t = (await h.ref.collection('rows').doc('projects__' + encodeURIComponent(id).replace(/\./g, '%2E')).get()).data();
+      console.log(t ? `  row now: deleted at seq ${t.seq} by ${t.name || '-'} [${t.dev || '-'}] at ${iso(t.updated)}` : '  no row at all now (a replace removes rows without a tombstone)'); }
   }
 
   // 3. the source: the owner's newest kept copy holding the project, then shadows, then op logs

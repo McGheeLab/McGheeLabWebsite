@@ -1622,8 +1622,8 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-10-27T11:36:23-07:00",
-   "sha256": "b11ee1144203cde829f21981b7776f83fd8cd7d117fece3e038d99f862073b7a",
+   "deployedAt": "2026-10-27T11:50:55-07:00",
+   "sha256": "e996763d677ce83df230db0ac4a99dd097c491fb6ede7f26880a801baffbf875",
    "size": 82,
    "via": "verify"
   },
@@ -4568,14 +4568,14 @@
    "via": "verify"
   },
   "rm/scientia/desktop/ScientiaInSitu-Windows.zip": {
-   "deployedAt": "2026-10-27T11:36:23-07:00",
-   "sha256": "27521bc09f885721282a5dd338e985c4ccc8868c4529e478b80aad8e4882d890",
-   "size": 5660297,
+   "deployedAt": "2026-10-27T11:50:55-07:00",
+   "sha256": "e93ec58f112ed2e061c431527a788fc452e3c3bd88289a8a3ae6c91b0532d24c",
+   "size": 5673588,
    "via": "verify"
   },
   "rm/scientia/desktop/version.json": {
-   "deployedAt": "2026-10-27T11:36:23-07:00",
-   "sha256": "1c411e10782670d2afe715748065b15294c46325445b2de960eaf47a642020dd",
+   "deployedAt": "2026-10-27T11:50:55-07:00",
+   "sha256": "9c04fa65de9551b0db1f09c13c555c73aaa15966e9f52a927526b453e468c70f",
    "size": 135,
    "via": "verify"
   },
@@ -4604,9 +4604,9 @@
    "via": "verify"
   },
   "rm/scientia/lab-mode.js": {
-   "deployedAt": "2026-10-27T11:36:23-07:00",
-   "sha256": "1044e08f9a2d5756d0ff947b863b57b7f70c9c740bc44f13c8751502d7e500fa",
-   "size": 225870,
+   "deployedAt": "2026-10-27T11:50:55-07:00",
+   "sha256": "660c899edf0169fd2f6376e974135b233fd152b352c2241349dc75151031f8ad",
+   "size": 239161,
    "via": "verify"
   },
   "rm/scientia/scientia-cloud.py": {
@@ -4616,8 +4616,8 @@
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-27T11:36:23-07:00",
-   "sha256": "cf3710df2d3543001116c01870de99354941c57e509d08d44936f3d00c5c1bca",
+   "deployedAt": "2026-10-27T11:50:55-07:00",
+   "sha256": "86a4bfb070ce23c07f61d76b19ee7432c9bb1877ca819dffd4c9cf06bc918198",
    "size": 5130612,
    "via": "verify"
   },
@@ -5282,8 +5282,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-27T11:36:23-07:00",
-   "sha256": "33be470064d97c4cadfbf9aad515aae0aafd906a34ab53e410915a579ba13bb8",
+   "deployedAt": "2026-10-27T11:50:55-07:00",
+   "sha256": "8b3a277dbfa0c661ad54a5a010cd0254032ae28302a5045c1d595408b3df0bc8",
    "size": 9933,
    "via": "verify"
   },
