@@ -33,6 +33,20 @@ APP_SEEN = [0.0]          # when a window of this app last asked this server for
 SITE = os.environ.get('SIS_SITE', 'https://mcgheelab.com')
 RM_BUNDLED = {'/rm/js/recorder-core.js', '/rm/js/speech-to-text.js', '/rm/js/stt-device-worker.js'}
 REC_RID = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
+# V3.929: an installed copy knows its version (VERSION.txt, written by the build) and looks for a newer one on the site
+APP_VERSION = (open(os.path.join(ROOT, 'VERSION.txt'), encoding='utf-8').read().strip() if os.path.isfile(os.path.join(ROOT, 'VERSION.txt')) else None)
+UPDATE = {'at': 0.0, 'latest': None}
+def check_update():
+    if not APP_VERSION or time.time() - UPDATE['at'] < 6 * 3600: return
+    UPDATE['at'] = time.time()
+    def run():
+        try:
+            with urllib.request.urlopen(SITE + '/rm/scientia/desktop/version.json', timeout=20) as r: UPDATE['latest'] = json.loads(r.read() or b'{}')
+        except Exception: UPDATE['at'] = time.time() - 6 * 3600 + 600   # try again in ten minutes
+    threading.Thread(target=run, daemon=True).start()
+def update_info():
+    v = UPDATE['latest'] or {}
+    return {'version': APP_VERSION, 'available': bool(APP_VERSION and v.get('app') and v['app'] != APP_VERSION), 'download': SITE + '/rm/scientia/desktop/' + (v.get('download') or 'ScientiaInSitu-Windows.zip')}
 OFFER = {}                # a pairing code the lab site handed over, waiting for the person to confirm here
 os.makedirs(APP_IMAGES, exist_ok=True)
 LOCK = threading.Lock()
@@ -262,11 +276,12 @@ class H(http.server.SimpleHTTPRequestHandler):
     def lab_get(self, p):
         if p == '/api/lab/ping':
             self._cors = self.lab_origin(); st = LABSYNC.snapshot()
-            return self._json(200, {'ok': True, 'app': 'scientia-in-situ', 'port': PORT, 'notebook': bool(notebook()), 'connected': st['connected'], 'state': st['state']})
+            return self._json(200, {'ok': True, 'app': 'scientia-in-situ', 'version': APP_VERSION, 'port': PORT, 'notebook': bool(notebook()), 'connected': st['connected'], 'state': st['state']})
         if p == '/api/lab/status':
             if not self.is_local(): return self._json(403, {'ok': False})
             off = OFFER if OFFER and time.time() < OFFER.get('until', 0) else None
-            return self._json(200, dict(LABSYNC.snapshot(), ok=True, notebook=notebook(), offer={'account': off['account'], 'from': off['origin']} if off else None))
+            check_update()
+            return self._json(200, dict(LABSYNC.snapshot(), ok=True, notebook=notebook(), offer={'account': off['account'], 'from': off['origin']} if off else None, update=update_info()))
         return None
     def lab_post(self, p):
         if p == '/api/lab/offer':   # the lab site, signed in, hands over a pairing code; nothing happens until the person confirms here

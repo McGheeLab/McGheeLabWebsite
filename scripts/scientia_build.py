@@ -111,6 +111,8 @@ def desktop_bundle(desktop_html):
         files.append(('app/' + rel, open(os.path.join(SRC, *rel.split('/')), 'rb').read()))
     for f in sorted(os.listdir(os.path.join(SRC, 'icons'))):
         files.append(('app/icons/' + f, open(os.path.join(SRC, 'icons', f), 'rb').read()))
+    app_version = hashlib.sha256(b''.join(n.encode() + b'\0' + d for n, d in sorted(files))).hexdigest()[:12]   # what the app is, before packing
+    files.append(('app/VERSION.txt', (app_version + '\n').encode()))
     inst = os.path.join(SRC, 'install')
     for f in sorted(os.listdir(inst)):
         b = open(os.path.join(inst, f), 'rb').read().replace(b'\r\n', b'\n')
@@ -123,7 +125,7 @@ def desktop_bundle(desktop_html):
             zi = zipfile.ZipInfo('Scientia In Situ/' + name, date_time=(2026, 1, 1, 0, 0, 0)); zi.external_attr = 0o644 << 16
             z.writestr(zi, data)
     data = buf.getvalue()
-    ver = json.dumps({'version': hashlib.sha256(data).hexdigest()[:16], 'bytes': len(data), 'files': len(files),
+    ver = json.dumps({'version': hashlib.sha256(data).hexdigest()[:16], 'app': app_version, 'bytes': len(data), 'files': len(files),
                       'download': 'ScientiaInSitu-Windows.zip'}, indent=1) + '\n'
     return data, ver
 
