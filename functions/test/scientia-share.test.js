@@ -228,6 +228,54 @@ function review(env, uid, extra) {
     assert.strictEqual(rowOf(P, 'A', 'documents', 'n_bea2'), null);
   });
 
+  /* ---- V3.931: a whole hub replaced (a desktop's "this computer wins") never ends a share ---- */
+  const Q = new S.MemoryShareEnv(MEMBERS);
+  await push(Q, 'A', [put('projects', { id: 'p_q', name: 'Our lab development', shareWith: { B: 'edit' } }), put('themes', { id: 't_q', projectId: 'p_q', name: 'App', status: 'active' }),
+    put('documents', { id: 'q_1', projectId: 'p_q', themeId: 't_q', title: 'Sync plan', blockIds: ['qb_1'] }), put('blocks', { id: 'qb_1', docId: 'q_1', kind: 'component', body: { text: 'one hub' } })]);
+  await push(Q, 'B', [put('documents', Object.assign({}, rowOf(Q, 'B', 'documents', 'q_1'), { title: 'Sync plan (Bea)' }))]);   // Bea edits: Alex's row is now hers
+  await push(Q, 'B', [put('documents', { id: 'q_bea', projectId: 'p_q', themeId: 't_q', title: 'Bea’s note', blockIds: [] })]);
+  await test('Bea’s hub is replaced by her computer’s notebook (no shared copies) → Alex keeps every note, even ones she edited', async () => {
+    await Q.memoryHub('B').replace({ stores: { documents: [{ id: 'own', title: 'Bea’s desk note', blockIds: [] }] } });
+    Q.t += S.SHARES_MS + 1;
+    await S.syncShares(Q, 'A');
+    for (const id of ['q_1', 'q_bea']) assert.ok(rowOf(Q, 'A', 'documents', id), 'Alex keeps ' + id);
+    assert.strictEqual(rowOf(Q, 'A', 'documents', 'q_1').title, 'Sync plan (Bea)');
+    for (const [s, id] of [['projects', 'p_q'], ['documents', 'q_1'], ['documents', 'q_bea'], ['blocks', 'qb_1']]) assert.ok(rowOf(Q, 'B', s, id), 'Bea has ' + s + '/' + id + ' again');
+  });
+  await test('…and an old copy in her computer’s notebook is not taken as her edit', async () => {
+    const stale = Object.assign({}, rowOf(Q, 'B', 'documents', 'q_1'), { title: 'Sync plan (old)' });
+    await Q.memoryHub('B').replace({ stores: { documents: [stale] } });
+    Q.t += S.SHARES_MS + 1;
+    await S.syncShares(Q, 'A');
+    assert.strictEqual(rowOf(Q, 'A', 'documents', 'q_1').title, 'Sync plan (Bea)');
+    assert.strictEqual(rowOf(Q, 'B', 'documents', 'q_1').title, 'Sync plan (Bea)');
+  });
+  await test('Alex’s hub is replaced by a notebook without the project → it comes back to him from the share, and Bea keeps it', async () => {
+    await Q.memoryHub('A').replace({ stores: { documents: [{ id: 'mine', title: 'Alex’s desk note', blockIds: [] }] } });
+    Q.t += S.SHARES_MS + 1;
+    const r = await S.syncShares(Q, 'B');
+    assert.ok(r.results[0].healed, 'the pass says what it put back');
+    const p = rowOf(Q, 'A', 'projects', 'p_q'); assert.ok(p && !p.sharedFrom); assert.deepStrictEqual(p.shareWith, { B: 'edit' });
+    for (const [s, id] of [['themes', 't_q'], ['documents', 'q_1'], ['documents', 'q_bea'], ['blocks', 'qb_1']]) { assert.ok(rowOf(Q, 'A', s, id), 'Alex has ' + s + '/' + id); assert.ok(!rowOf(Q, 'A', s, id).sharedFrom); }
+    assert.ok(rowOf(Q, 'A', 'documents', 'mine'));
+    for (const [s, id] of [['projects', 'p_q'], ['documents', 'q_1'], ['blocks', 'qb_1']]) assert.ok(rowOf(Q, 'B', s, id), 'Bea keeps ' + s + '/' + id);
+    assert.ok(Q.idx.get('A__p__p_q'), 'the share stays');
+  });
+  await test('Alex’s hub is replaced by an old notebook holding the project before it was shared → still shared', async () => {
+    const old = Object.assign({}, rowOf(Q, 'A', 'projects', 'p_q')); delete old.shareWith;
+    await Q.memoryHub('A').replace({ stores: { projects: [old], themes: [rowOf(Q, 'A', 'themes', 't_q')] } });
+    Q.t += S.SHARES_MS + 1;
+    await S.syncShares(Q, 'A');
+    assert.deepStrictEqual(rowOf(Q, 'A', 'projects', 'p_q').shareWith, { B: 'edit' });
+    assert.ok(rowOf(Q, 'A', 'documents', 'q_1') && rowOf(Q, 'B', 'documents', 'q_1'));
+  });
+  await test('Alex unshares on purpose (an edit, not a replace) → Bea’s copies go, as before', async () => {
+    const p = Object.assign({}, rowOf(Q, 'A', 'projects', 'p_q')); delete p.shareWith;
+    await push(Q, 'A', [put('projects', p)]);
+    assert.strictEqual(rowOf(Q, 'B', 'projects', 'p_q'), null); assert.strictEqual(rowOf(Q, 'B', 'documents', 'q_1'), null);
+    assert.ok(rowOf(Q, 'A', 'documents', 'q_1'));
+  });
+
   /* ---- the same RM project assigned to both ---- */
   const R = new S.MemoryShareEnv(MEMBERS);
   await push(R, 'B', [put('projects', { id: 'rm-p-9', name: 'Grant (Bea’s view)', rm: true }), put('documents', { id: 'n_beaown', projectId: 'rm-p-9', title: 'Bea’s own', blockIds: [] })]);

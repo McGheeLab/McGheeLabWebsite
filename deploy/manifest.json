@@ -499,6 +499,12 @@
    "size": 666175,
    "via": "verify"
   },
+  "modules/bme466/07-the-river.html": {
+   "deployedAt": "2026-10-27T09:31:54-07:00",
+   "sha256": "6d509595135e09e336e24eb66f46aef62cdc4289c0180af5464924baae1c7783",
+   "size": 271100,
+   "via": "verify"
+  },
   "modules/bme466/HW1-student-key.html": {
    "deployedAt": "2026-10-23T10:34:36-07:00",
    "sha256": "6ac82beb88abc51af462285a6e02e16cc6c4a7f9ab59a5eea8932ffb222ed536",
@@ -1087,11 +1093,35 @@
    "size": 1454,
    "via": "baseline"
   },
+  "modules/bme466/simulations/7.1.1.html": {
+   "deployedAt": "2026-10-27T09:31:54-07:00",
+   "sha256": "993ae942c078218eef329a11d36d90cc62516b360fd3a1c50210cfa92bbeb4da",
+   "size": 1407,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/7.1.2.html": {
+   "deployedAt": "2026-10-27T09:31:54-07:00",
+   "sha256": "03620a69f1210acce70b30b99c8c5132830ca467767c593bd68f30a0a6caf776",
+   "size": 1428,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/7.1.3.html": {
+   "deployedAt": "2026-10-27T09:31:54-07:00",
+   "sha256": "e72cb022189165db875ae578b90b1a2470167f67144d3181b4ac3e1f15725030",
+   "size": 1434,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/7.1.4.html": {
+   "deployedAt": "2026-10-27T09:31:54-07:00",
+   "sha256": "a66b96a77b91c7327ba02829e21e89d7e05cb954d618b4e63406a90378616612",
+   "size": 1434,
+   "via": "verify"
+  },
   "modules/bme466/simulations/index.json": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "57532ad6a450479c56ba40789eb798064bdcd8b3e5d1c9fffbeb9afba7a910c7",
-   "size": 21096,
-   "via": "baseline"
+   "deployedAt": "2026-10-27T09:31:54-07:00",
+   "sha256": "8d22fe484cd090f967a279ead3059eea59b2b31fb0149b825d12ca14eeb25203",
+   "size": 22109,
+   "via": "verify"
   },
   "modules/bme466/w01-instructor-notes.html": {
    "deployedAt": "2026-10-23T10:34:36-07:00",
@@ -1274,10 +1304,10 @@
    "via": "baseline"
   },
   "modules/manifest.json": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "5857c41603b01c4843bb2760f822aa7aa868ece99ce62cf2457a51eea9fe66a9",
-   "size": 14248,
-   "via": "baseline"
+   "deployedAt": "2026-10-27T09:31:54-07:00",
+   "sha256": "9d71f92f74201bb65d31e7616a6ddc818d31e1764ce29637c22b9a2dc46b3af6",
+   "size": 14414,
+   "via": "verify"
   },
   "modules/optics/01-light-and-matter.html": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -1592,8 +1622,8 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-10-27T08:35:27-07:00",
-   "sha256": "0c0deff642c78f685da75a1a6ddda3f247cb4c4b242f755de6ea4061922487d6",
+   "deployedAt": "2026-10-27T09:31:54-07:00",
+   "sha256": "dd6f8f298135a5373cd9a07333b36f970c1d6287100cbfcc268d4269c53e3ad6",
    "size": 82,
    "via": "verify"
   },
@@ -5252,8 +5282,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-27T08:35:27-07:00",
-   "sha256": "198e45627e06f400fa0e8c1bb7b38f3853c919d4a29259dd02420287718adc1a",
+   "deployedAt": "2026-10-27T09:31:54-07:00",
+   "sha256": "5ba5b38d526d7ef28ba944f184d70d5a059e13b5cf83b25f2b5e8a88905fe750",
    "size": 9933,
    "via": "verify"
   },

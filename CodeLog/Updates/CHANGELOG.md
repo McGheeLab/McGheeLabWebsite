@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.931] — 2026-10-27 — Scientia: a hub replaced by a computer's notebook never ends a share
+
+Plan: [CodeLog/ClaudesPlan/V3.931_scientia_share_survives_replace.md](../ClaudesPlan/V3.931_scientia_share_survives_replace.md). "Our lab development", shared by Alex and Gabe, disappeared.
+
+### Bug Fixes
+- **`functions/scientia-share-core.js`**: a hub *replaced* (a desktop connecting with "this computer's notebook wins": `scientia-cloud.py --prefer local`, the installed app's choice since V3.928) rewrites every row with seq 0 and no device, and removes the rest with no tombstone. The share pass read that as an edit:
+  - **owner replaced** → the project looked deleted or unshared → `sharePass` steps 4–5 removed every member's copies and dropped the index with its shadows. Now `heal(env, old)` runs first: when the root is missing or written by a replace (`fromReplace(row) = !row || (!row.seq && !row.dev)`), the owner's missing records are pushed back from the members' shadows (device `share-restore`) and the index's grants put back on the root. An unshare or delete the owner actually made (a row with a seq) still stands.
+  - **collaborator replaced** → step 1 sent "deleted" for each missing copy, and V3.923's guard let it through for every record whose owner row was last written by that collaborator (anything they had edited), and took a stale copy from their computer as their edit. Step 1 now skips rows that are missing or written by a replace; step 3 gives the copies back.
+- `scientiaHub` health reports `V3.931`.
+
+### Added
+- `scripts/scientia-project/restore-share.js --name "<project>" [--commit]`: the trace (share index, each hub's `replacedAt`, paired computers, kept copies, the project's rows and op-log entries) and the restore (from the owner's kept before-replace copy → share shadows → op logs; writes to the owner as device `restore`, then runs the share pass).
+
+### Tests
+- `functions/test/scientia-share.test.js` **37 passed** (5 new: the collaborator's hub replaced keeps the owner's notes, edited ones included; a stale copy is not an edit; the owner's hub replaced without the project → back from the share, still shared; replaced with a pre-share copy → still shared; a real unshare still removes copies). All 5 fail on the V3.923 code. `scientia-hub.test.js` 68 passed.
+
+## [V3.930] — 2026-10-27 — BME 466 Module 7 · The River, Tab 1 only, live on the site
+
+### Added
+- `modules/bme466/07-the-river.html` — Module 7, Tab 1 (§1.1–1.4: friction/viscosity, Poiseuille, Bingham, rouleaux/DVT). Tabs 2–5 are held back: the page is the course repo's `build/staged/07-the-river.html` (`assemble.mjs --tabs 1`), byte-identical. Course CHANGELOG V3.71.
+- `modules/bme466/simulations/7.1.1–7.1.4.html` + `index.json`; `modules/manifest.json` lists the file.
+
+### Changed
+- `sw.js` CACHE_VERSION 901 → 902 (pulled V3.926–V3.929 first; this machine was 8 commits behind).
+
+### Verification
+Website-root QA: whole-page (1 tab, 4 rail entries, math, details), bench DOM checks 127 + 70 + 76 + 84 all pass, `qa_deployed_sims` 4/4 pages inked, 0 console errors, 0 failed requests; screenshots read (page top, 7.1.2, 7.1.4 × 3 views). Uploaded with `deploy.py ftp --only modules/ --only sw.js` (9 files incl. `rm/build.json`); the live page `cmp`-identical. Unrelated pending `rm/scientia/*` changes were not uploaded.
+
+### Still manual
+Class page: `#/classes/bme466` → + Add Module → `modules/bme466/07-the-river.html` → order → Visible.
+
 ## [V3.929] — 2026-10-27 — Scientia on this computer is the lab's, and in step within seconds
 
 Plan: [CodeLog/ClaudesPlan/V3.929_scientia_desktop_lab_layer_fast_sync.md](../ClaudesPlan/V3.929_scientia_desktop_lab_layer_fast_sync.md). The shared lab layer (`lab-mode.js`, `cloud-sync.js`, `scientia-cloud.py`) is unchanged.

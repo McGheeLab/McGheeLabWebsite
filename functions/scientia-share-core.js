@@ -340,6 +340,7 @@ async function sharePass(env, a) {
       res.rounds++;
       const old = (await env.index.get(id)) || null, ownerUid = a.ownerUid || (old && old.ownerUid), kind = a.kind || (old && old.kind), recId = String(a.recId || (old && old.recId));
       const ownerHub = env.hub(ownerUid), members = await env.members();
+      if (old && Object.keys(old.members || {}).length) { const h = await heal(env, old); if (h) res.healed = (res.healed || 0) + h; }
       let { rows, seqs } = await loadRows(ownerHub, SMALL);
       const root = rows[rootStore(kind)].get(recId), grants = grantsOf(root, ownerUid, members), had = (old && old.members) || {};
       const ownerName = (await env.nameOf(ownerUid)) || (old && old.ownerName) || '';
@@ -354,6 +355,7 @@ async function sharePass(env, a) {
         const idx0 = idxSets(Object.assign({}, old, base));
         for (const s of sh.values()) {
           const row = cur.get(keyOf(s.store, s.id)), have = row && isObj(row.rec) ? row.rec : null;
+          if (fromReplace(row)) continue;   // V3.931: not their change — their hub was replaced; step 3 gives the copy back
           if (!have) ops.push({ store: s.store, id: s.id, rec: null, del: true, seq: row ? row.seq : 0 });
           else if (!sameish(have, s.rec)) ops.push({ store: s.store, id: s.id, rec: have, seq: row.seq || 0 });
           // their new components in a shared note
@@ -393,6 +395,38 @@ async function sharePass(env, a) {
     }
   } catch (e) { await env.index.release(id); throw e; }
   return res;
+}
+
+/* V3.931 — A whole hub replaced is nobody's edit. A desktop that connects and is told "this computer's notebook wins"
+ * (scientia-cloud.py --prefer local; the installed app's choice since V3.928) REPLACES its owner's hub: every row is
+ * rewritten from the computer's record (seq 0, no device) and the rest are gone without a tombstone. To the pass that
+ * looked like (owner) the shared project deleted or unshared — so every member lost their copies and the index with its
+ * shadows was dropped ("Our lab development", 27 Oct 2026) — or (collaborator) every copy they had edited deleted,
+ * which V3.923's "only what came from them" let through. A row missing outright, or written by a replace, is neither:
+ * the collaborator's copy is simply given back (step 3), and the owner's records come back from the shadows. */
+const fromReplace = row => !row || (!row.seq && !row.dev);
+/** The owner's records a replace took away, put back from the members' shadows (the copies last given out), and the
+ *  grants the index holds put back on a root the replace wrote without them. Returns how many records were written. */
+async function heal(env, old) {
+  const ownerHub = env.hub(old.ownerUid), rk = { store: rootStore(old.kind), id: String(old.recId) };
+  const root = (await ownerHub.rowsGet([rk])).get(keyOf(rk.store, rk.id));
+  if (!fromReplace(root)) return 0;   // the owner's own edit (an unshare, a delete) stands
+  const uids = Object.keys(old.members).sort((a, b) => (old.members[b] === 'edit') - (old.members[a] === 'edit'));
+  const want = new Map();
+  for (const uid of uids) for (const [k, s] of await env.index.shadows(old.id, uid)) if (!want.has(k) && isObj(s.rec)) want.set(k, s);
+  if (!want.size) return 0;
+  const keys = [...want.values()].map(s => ({ store: s.store, id: s.id })), cur = await ownerHub.rowsGet(keys), ops = [];
+  for (const [k, s] of want) {
+    const row = cur.get(k), isRoot = k === keyOf(rk.store, rk.id);
+    if (row && !isRoot) continue;   // the owner has it (theirs wins)
+    if (row && isObj(row.rec) && !fromReplace(row)) continue;
+    let rec = stripMark(row && isObj(row.rec) ? row.rec : s.rec);
+    if (isRoot) rec = Object.assign({}, rec, { shareWith: Object.assign({}, old.asked || old.members, isObj(rec.shareWith) ? rec.shareWith : {}) });
+    if (row && isObj(row.rec) && sameish(rec, row.rec)) continue;
+    ops.push({ store: s.store, id: s.id, rec, prev: row && isObj(row.rec) ? row.rec : null, base: row ? (row.seq || 0) : 0 });
+  }
+  if (ops.length) await ownerHub.push({ dev: 'share-restore', name: 'Put back from the share (the hub was replaced)', ops });
+  return ops.length;
 }
 
 /** The safety pass: every share this person owns or is in whose last pass is older than SHARES_MS (or all, forced). */
