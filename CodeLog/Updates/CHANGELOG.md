@@ -90,6 +90,11 @@ Plan: [CodeLog/ClaudesPlan/V3.931_scientia_share_survives_replace.md](../Claudes
   - **collaborator replaced** → step 1 sent "deleted" for each missing copy, and V3.923's guard let it through for every record whose owner row was last written by that collaborator (anything they had edited), and took a stale copy from their computer as their edit. Step 1 now skips rows that are missing or written by a replace; step 3 gives the copies back.
 - `scientiaHub` health reports `V3.931`.
 
+### Restored (2026-10-27, Alex ran `restore-share.js --commit`)
+- "OurLab Development" (`p_2548ynflw1h`, Gabe's, shared with Alex to edit).
+  - The trace: Gabe's new computer "Surface Pro" was paired at 07:32 (Arizona). His online notebook was replaced by its notebook at 08:49–08:51, which removed the project with no tombstone. At 09:36 the share pass took it as unshared and deleted Alex's copy (seq 4189, device `share`) and the index.
+  - Restore: the 14 records (project, 2 themes, 1 aim, 3 notes, 6 cards, 1 image) went back to Gabe's hub from the copy kept before the replace (seq 3446 → 3460). The share pass sent all 14 to Alex.
+
 ### Added
 - `scripts/scientia-project/restore-share.js --name "<project>" [--commit]`: the trace (share index, each hub's `replacedAt`, paired computers, kept copies, the project's rows and op-log entries) and the restore (from the owner's kept before-replace copy → share shadows → op logs; writes to the owner as device `restore`, then runs the share pass).
 
