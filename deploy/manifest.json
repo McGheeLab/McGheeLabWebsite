@@ -1622,8 +1622,8 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-10-27T09:31:54-07:00",
-   "sha256": "dd6f8f298135a5373cd9a07333b36f970c1d6287100cbfcc268d4269c53e3ad6",
+   "deployedAt": "2026-10-27T11:18:06-07:00",
+   "sha256": "ef19a973c2bac86a2603ee6450a6f0e53892a0ee1f1b8b672f880f612a1fc3da",
    "size": 82,
    "via": "verify"
   },
@@ -4568,15 +4568,15 @@
    "via": "verify"
   },
   "rm/scientia/desktop/ScientiaInSitu-Windows.zip": {
-   "deployedAt": "2026-10-27T08:35:27-07:00",
-   "sha256": "c9679eef98bd6bb13d3b4b172dc6e255644488daff9a881c543b367865ccf6e3",
-   "size": 5383601,
+   "deployedAt": "2026-10-27T11:18:06-07:00",
+   "sha256": "89680b1980c9f9445398fb8bc220ed05fc02161600016ad1f6b51db65215af47",
+   "size": 5650424,
    "via": "verify"
   },
   "rm/scientia/desktop/version.json": {
-   "deployedAt": "2026-10-27T08:35:27-07:00",
-   "sha256": "87fd83fa7707fa8ac0effe358a7e5fafda7e1ad8989fb39ab338b1ac79ca5d3d",
-   "size": 111,
+   "deployedAt": "2026-10-27T11:18:06-07:00",
+   "sha256": "ca670f11ce10d7501bdb5ec9d2a6a4c66dc93bc3c634881a59aeeb2a344075e7",
+   "size": 135,
    "via": "verify"
   },
   "rm/scientia/icons/icon-180.png": {
@@ -4604,9 +4604,9 @@
    "via": "verify"
   },
   "rm/scientia/lab-mode.js": {
-   "deployedAt": "2026-10-24T19:35:24-07:00",
-   "sha256": "9b74032926a68cb3398bcd42b3d79cb406ce8da245f8dca85c3b24da326e729e",
-   "size": 216779,
+   "deployedAt": "2026-10-27T11:18:06-07:00",
+   "sha256": "911e8464df63182782aa3bfd55457a6d586e457594fd5ce87c1e3b8274c02304",
+   "size": 218270,
    "via": "verify"
   },
   "rm/scientia/scientia-cloud.py": {
@@ -4616,9 +4616,9 @@
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-27T08:35:27-07:00",
-   "sha256": "404ac830d724e3b3f7f6dc9f619d60b985f4edce4c5381ada0d1456b6d1304b6",
-   "size": 5150237,
+   "deployedAt": "2026-10-27T11:18:06-07:00",
+   "sha256": "2abae59e96ed5c537a2bc146a535b48db3573999df6f54d2334217c66bedf379",
+   "size": 5130612,
    "via": "verify"
   },
   "rm/test-fixtures/layout/01-2col-tight.pdf": {

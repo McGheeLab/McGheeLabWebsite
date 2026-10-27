@@ -2344,4 +2344,83 @@
       };
     })();
   } catch (e) { warn('equation read', e); }
+  /* ---- 17. A deletion in a share waits for the other person (V3.932, CodeLog/ClaudesPlan/V3.932_scientia_contextual_merge.md) ----
+     Alex: "if one user deleted something, the other has to approve it". The hub holds a note, card, theme, aim or
+     structure someone removed from a shared project (functions/scientia-share-core.js holdDeletes): everyone else keeps
+     it until someone else who edits it decides here. Each person sees what waits for them (Delete it / Keep it) and
+     what of theirs waits for someone else. The same on the website and the installed app (api/rm/* reaches the hub). */
+  PILL_ICONS.trash = '<path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>';
+  var DEL = { data: { decide: [], waiting: [] }, chip: null, pop: null, busy: {}, timer: null };
+  LAB.deletions = DEL;
+  function delSay(p) { return 'the ' + ((p.root && p.root.what) || 'record') + (p.root && p.root.title ? ' “' + snippet(p.root.title, 60) + '”' : '') + (p.parts > 1 ? ' (with ' + (p.parts - 1) + ' part' + (p.parts > 2 ? 's' : '') + ')' : ''); }
+  function delWhen(at) { var m = Math.round((Date.now() - (at || Date.now())) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; }
+  async function delLoad() {
+    try { var r = await fetch('api/rm/shares/pending', { cache: 'no-store' }); var j = r.ok ? await r.json() : null; if (j && j.ok) DEL.data = { decide: j.decide || [], waiting: j.waiting || [] }; }
+    catch (e) { /* offline: keep what we had */ }
+    delPaint();
+  }
+  LAB.loadDeletions = delLoad;
+  function delPaint() {
+    var n = DEL.data.decide.length, w = DEL.data.waiting.length;
+    if (!n && !w) { if (DEL.chip) { DEL.chip.remove(); DEL.chip = null; } delClose(); return; }
+    if (!DEL.chip) { DEL.chip = h('button.lab-delchip.nopan', { type: 'button', on: { pointerdown: function (e) { e.stopPropagation(); }, click: function (e) { e.stopPropagation(); DEL.pop ? delClose() : delOpen(); } } }); document.body.append(DEL.chip); }
+    var say = n ? (n === 1 ? '1 deletion to approve' : n + ' deletions to approve') : (w === 1 ? '1 deletion waiting for approval' : w + ' deletions waiting for approval');
+    DEL.chip.className = 'lab-delchip nopan' + (n ? ' ask' : '');
+    DEL.chip.title = say; DEL.chip.setAttribute('aria-label', say);
+    DEL.chip.innerHTML = pic('trash') + '<span></span>'; DEL.chip.lastChild.textContent = say;
+    if (DEL.pop) delFill();
+  }
+  function delClose() { if (DEL.pop) { DEL.pop.remove(); DEL.pop = null; } if (DEL.off) document.removeEventListener('pointerdown', DEL.off, true); DEL.off = null; }
+  function delOpen() {
+    delClose();
+    DEL.pop = h('div.lab-sharepop.lab-delpop.nopan', { role: 'dialog', 'aria-label': 'Deletions in shared projects' });
+    document.body.append(DEL.pop); delFill();
+    DEL.off = function (e) { if (DEL.pop && !DEL.pop.contains(e.target) && !(DEL.chip && DEL.chip.contains(e.target))) delClose(); };
+    setTimeout(function () { if (DEL.pop) document.addEventListener('pointerdown', DEL.off, true); }, 0);
+  }
+  async function delDecide(p, pick) {
+    if (DEL.busy[p.pid]) return; DEL.busy[p.pid] = true; delFill();
+    try {
+      var r = await fetch('api/rm/shares/decide', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ share: p.shareId, pid: p.pid, pick: pick }) });
+      var j = r.ok ? await r.json() : { ok: false, error: 'status ' + r.status };
+      if (!j.ok) toast('Could not decide: ' + (j.error || 'try again'), 4000);
+      else toast(pick === 'delete' ? 'Deleted for everyone' : 'Kept — it is back for ' + firstName(p.byName), 3000);
+    } catch (e) { toast('The lab cloud did not answer — try again in a moment', 4000); }
+    delete DEL.busy[p.pid];
+    await delLoad();
+  }
+  function delFill() {
+    var pop = DEL.pop; if (!pop) return;
+    var d = DEL.data.decide, w = DEL.data.waiting, rows = [];
+    var head = h('div.lab-sh-h', h('b', 'Deletions in shared projects'), h('button.lab-sh-x', { type: 'button', title: 'Close', 'aria-label': 'Close', on: { click: delClose } }, '×'));
+    if (d.length) rows.push(h('p.lab-sh-p.tiny.muted', 'Someone removed these from a project you share. Everyone else still has them until you decide.'));
+    d.forEach(function (p) {
+      var busy = !!DEL.busy[p.pid];
+      rows.push(h('div.lab-del-row', { 'data-pid': p.pid },
+        h('div.lab-del-t', h('b', p.byName || 'A lab member'), ' deleted ' + delSay(p) + (p.shareTitle ? ' from ' + p.shareTitle : '')),
+        h('div.lab-del-f', h('span.tiny.muted', delWhen(p.at)), h('span.lab-del-b',
+          h('button.btn.sm', { type: 'button', disabled: busy, on: { click: function () { delDecide(p, 'keep'); } } }, 'Keep it'),
+          h('button.btn.sm.pri', { type: 'button', disabled: busy, on: { click: function () { delDecide(p, 'delete'); } } }, 'Delete it')))));
+    });
+    if (w.length) rows.push(h('p.lab-sh-p.tiny.muted' + (d.length ? '.lab-del-gap' : ''), 'Waiting for someone else to approve:'));
+    w.forEach(function (p) {
+      var who = (p.approverNames || []).map(firstName).join(' or ') || 'the others';
+      rows.push(h('div.lab-del-row.mine', h('div.lab-del-t', 'You deleted ' + delSay(p) + (p.shareTitle ? ' from ' + p.shareTitle : '')), h('div.lab-del-f', h('span.tiny.muted', delWhen(p.at) + ' · ' + who + ' will decide'))));
+    });
+    pop.replaceChildren(head, h('div.lab-del-list', rows));
+    var c = DEL.chip && DEL.chip.getBoundingClientRect(), W = pop.offsetWidth || 360;
+    if (c) { pop.style.left = Math.max(8, Math.min(innerWidth - W - 8, c.left + c.width / 2 - W / 2)) + 'px'; pop.style.top = (c.bottom + 6) + 'px'; }
+  }
+  try {
+    setTimeout(delLoad, 2500);
+    DEL.timer = setInterval(function () { if (!document.hidden) delLoad(); }, 60000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) delLoad(); });
+    var st17 = document.getElementById('lab-mode-css');
+    if (st17) st17.textContent += '.lab-delchip{position:fixed;z-index:8990;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:6px;' +
+      'padding:5px 12px 5px 9px;border-radius:16px;border:1px solid var(--rule-2);background:var(--surface);color:var(--ink-2);font:500 12.5px/1.2 var(--f-d,system-ui);cursor:pointer;box-shadow:0 6px 18px -10px rgba(36,33,28,.45)}' +
+      '.lab-delchip svg{width:16px;height:16px}.lab-delchip.ask{border-color:color-mix(in srgb,var(--teal) 55%,transparent);color:var(--teal)}.lab-delchip:hover{color:var(--ink)}' +
+      '.lab-delpop{width:380px}.lab-del-list{overflow:auto;display:flex;flex-direction:column;gap:8px}.lab-del-row{border:1px solid var(--rule);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}' +
+      '.lab-del-row.mine{background:var(--surface-2)}.lab-del-t{font-size:13px;line-height:1.4}.lab-del-f{display:flex;align-items:center;gap:8px}.lab-del-b{margin-left:auto;display:inline-flex;gap:6px}.lab-del-gap{margin-top:6px}' +
+      'body.mobile .lab-delchip{top:calc(6px + env(safe-area-inset-top))}';
+  } catch (e) { warn('deletions', e); }
 })();

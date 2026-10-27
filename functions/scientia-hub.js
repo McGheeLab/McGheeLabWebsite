@@ -525,6 +525,9 @@ class FirestoreHub {
     for (const [uid, x] of m) if (uid !== this.uid) out.push({ uid, name: x.name, category: x.category });
     return { ok: true, members: out.sort((a, b) => a.name.localeCompare(b.name)) };
   }
+  /* ---- V3.932: deletions in a share waiting for a person (scientia-share-core.js holdDeletes / decide) ---- */
+  async sharesPending() { return SH.pendingFor(shareEnv(), this.uid); }
+  async sharesDecide({ share, pid, pick }) { return SH.decide(shareEnv(), this.uid, String(share || ''), String(pid || ''), pick); }
   async keyMake(name) {
     const secret = C.token(16), id = C.token(5);
     await this.keys.doc(id).set({ id, name, hash: C.sha(secret), created: FieldValue.serverTimestamp(), lastSeen: null });
@@ -598,7 +601,7 @@ const scientiaHub = onRequest({ cors: false, timeoutSeconds: 300, memory: '512Mi
   res.set('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
   const path = (String(req.path || '/').replace(/^\/scientiaHub(?=\/|$)/, '') || '/').replace(/\/+$/, '') || '/';
-  if (path === '/') { res.status(200).json({ ok: true, service: 'scientiaHub', version: 'V3.931' }); return; }
+  if (path === '/') { res.status(200).json({ ok: true, service: 'scientiaHub', version: 'V3.932' }); return; }
   let who = null;
   try { who = await resolveWho(req); }
   catch (e) { res.status(401).json({ ok: false, error: 'invalid token: ' + e.message }); return; }

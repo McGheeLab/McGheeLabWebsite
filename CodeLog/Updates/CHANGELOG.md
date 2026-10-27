@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.932] — 2026-10-27 — Scientia: two people's edits to one card kept together in context; a shared deletion waits for the other person; computer and cloud merge instead of replacing
+
+Plan: [CodeLog/ClaudesPlan/V3.932_scientia_contextual_merge.md](../ClaudesPlan/V3.932_scientia_contextual_merge.md).
+
+### Added
+- **`functions/scientia-merge.js`** — `mergeLines(base, mine, cur, {mineName})`: diff3 on lines.
+  - An edit one side made lands in place. Both adding at one place keeps both. Both changing the same lines keeps both versions side by side.
+  - An edit whose place was removed goes to the end of the card under "<name>’s edit (its place was removed):".
+  - With `base == null`, the common lines stand in for the common version.
+  - `mergeBody` carries `{text, marks}`: marks are remapped by line, and one either side removed stays removed. `mergeValue` recurses into plain objects. `settle(store, prev, mine, cur, merged, bad, opts)` runs after `merge3`: text merges; a card's `x/y/w/h/z/collapsed` stays put; both renaming a card puts the other name at the end of the card.
+- **Shared deletions wait for approval** (`functions/scientia-share-core.js`):
+  - `holdDeletes(env, idx, uid, role, dels)` holds a note, card, theme, aim, structure or project someone removed. A collaborator's waits for the owner or another collaborator; the owner's waits for a collaborator.
+  - Grouped per note (its cards, structures and wires) or per card. Not held: empty cards, and records only the deleter wrote (`who/` authorship: `authored()`).
+  - `holdOf` / `held` / `loadHold`: `fanOut` leaves held copies alone (the deleter's stays gone; everyone else keeps theirs). `sharePass` neither re-asks nor tears down a share whose root deletion is waiting.
+  - `pendingFor(env, uid)` → `{decide, waiting}`. `decide(env, uid, share, pid, 'delete'|'keep')` applies the decision to the owner's hub, then runs the pass.
+- Storage: `scientiaShares/{id}/pending/{pid}` and `/who/{row}` (`functions/scientia-share.js` `pendingList/Put/Del`, `whoGet/Put`; MemoryShareEnv the same).
+- Hub routes: `GET /api/rm/shares/pending`, `POST /api/rm/shares/decide` (FirestoreHub `sharesPending`, `sharesDecide`).
+- **`rm/scientia/lab-mode.js` §17**: a chip at the top ("2 deletions to approve" / "…waiting for approval") and a panel with *Keep it* / *Delete it* and your own deletions waiting. Polled at start, every minute and on return. Web and installed app (via `rm_proxy`). Icon `trash`.
+
+### Changed
+- `functions/scientia-hub-core.js` `planPush`: fields `merge3` can't settle go through `MERGE.settle` before becoming a conflict. A push with `base 0, prev null` onto an existing row (two notebooks meeting) merges instead of overwriting.
+- **`rm/scientia/scientia-cloud.py`** (and `scientia/vendor/scientia_cloud.py`):
+  - `Bridge.exchange()`: the computer's changes go to the cloud first, so a row both changed merges in the cloud; the computer takes the result.
+  - `Bridge.unite()`: two notebooks with no shared history become one, nothing removed. Used by `align()` unless `--prefer` is given; the "which notes win" question no longer comes up.
+- `scientia/labsync.py` `realign()` uses `exchange()`.
+- `scientiaHub` health `V3.932`; `CodeLog/features.json` lists `scientia-merge.js` and its test; `sw.js` CACHE_VERSION 902 → 903.
+
+### Tests
+- `functions/test/scientia-merge.test.js` **10 passed**: list edits in place; two additions to one list; an edit plus an addition; same item changed both ways; an edit whose place was removed; a removal against an untouched edit; no common version; marks following lines; through the hub (one card, both edits, no decision; both renamed).
+- `functions/test/scientia-share.test.js` **44 passed**:
+  - a collaborator's deletion waits (one per note); the pass leaves it waiting; keep restores; approve removes it everywhere;
+  - an empty card goes; the owner's deletion waits; a record only its deleter wrote goes; owner deletes a pre-share theme and it is kept;
+  - the owner deletes the whole project: nobody loses it, and keeping it brings it back, still shared.
+- `functions/test/scientia-hub.test.js` **68 passed**: the two conflict tests now use a field that can't merge (`status`); a card's text no longer conflicts.
+- End to end with `scientia/serve.py` and the dev hub:
+  - first connect with different notes on both sides → one notebook, the shared project and both computer-only and cloud-only notes on both;
+  - a card edited on both sides within one pass → identical merged text on both, 0 conflicts.
+- The approvals panel rendered in the desktop app (headless Chrome, routed data): chip, two decisions, one waiting; 0 console errors.
+- `merge_check.py worktree` clean.
+
 ## [V3.931] — 2026-10-27 — Scientia: a hub replaced by a computer's notebook never ends a share
 
 Plan: [CodeLog/ClaudesPlan/V3.931_scientia_share_survives_replace.md](../ClaudesPlan/V3.931_scientia_share_survives_replace.md). "Our lab development", shared by Alex and Gabe, disappeared.

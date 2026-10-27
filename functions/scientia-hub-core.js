@@ -25,6 +25,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const MERGE = require('./scientia-merge');   // V3.932 — a card's text merged by line, in context
 
 const NOSYNC = new Set(['journal', 'blobs', 'datasets']);
 const KEYS = { profiles: 'type', journal: 'seq' };
@@ -128,7 +129,8 @@ function planPush({ state, rows, dev, conn, name, ops, now }) {
     if (!store || id === undefined || id === null || NOSYNC.has(store)) continue;
     const key = keyOf(store, id), v = rows.get(key), cur = cur_(key), base = Number(o.base || 0);
     const prev = o.prev === undefined ? null : o.prev;
-    const others = !!(v && v.seq > base && v.dev !== dev) || (base < st.minSeq && prev !== null && !eq(cur === undefined ? MISSING : cur, prev));
+    const others = !!(v && v.seq > base && v.dev !== dev) || (base < st.minSeq && prev !== null && !eq(cur === undefined ? MISSING : cur, prev))
+      || (base === 0 && prev === null && cur !== undefined && !o.del);   // V3.932: two notebooks meeting (no common version) — merge, never overwrite
     if (o.del) {
       if (cur === undefined) continue;
       if (others && !eq(cur, prev)) { conflict('delete', store, id, [], cur, null); continue; }
@@ -138,7 +140,8 @@ function planPush({ state, rows, dev, conn, name, ops, now }) {
     if (!isObj(rec) || (cur !== undefined && eq(rec, cur))) continue;
     if (!others) { commit(store, id, rec, false); n++; continue; }
     if (cur === undefined) { conflict('deleted', store, id, [], null, rec); continue; }
-    const { merged, bad } = merge3(prev, rec, cur);
+    let { merged, bad } = merge3(prev, rec, cur);
+    if (bad.length) ({ merged, bad } = MERGE.settle(store, prev, rec, cur, merged, bad, { mineName: String(name || '').replace(/ \((shared|read only)\)$/, '') || null }));
     if (bad.length) conflict('fields', store, id, bad.sort(), cur, rec);
     if (!eq(merged, cur)) { commit(store, id, merged, false); n++; }
     if (!eq(merged, rec)) echo.push({ store, id, rec: merged, del: false });
@@ -1061,6 +1064,8 @@ async function route(req, ctx) {
     await mirrorQuietly(hub, who);
     return J(200, await hub.pull({ conn: g('conn', ''), since: parseInt(g('since', '0'), 10) || 0, sid: g('sid', '') }));
   }
+  if (p === '/api/rm/shares/pending') return J(200, typeof hub.sharesPending === 'function' ? await hub.sharesPending() : { ok: true, decide: [], waiting: [] });   // V3.932
+  if (p === '/api/rm/shares/decide' && post) { if (typeof hub.sharesDecide !== 'function') return J(200, { ok: false, error: 'no shares here' }); const b = parseBody(req) || {}; return J(200, await hub.sharesDecide(b)); }
   if (p === '/api/rm/members') return J(200, typeof hub.members === 'function' ? await hub.members() : { ok: true, members: [] });   // V3.899 — who a share can go to
   if (p === '/api/rm/sync' && post) {
     if (typeof hub.quietSyncs !== 'function') return J(200, { ok: false, error: 'no RM sync on this hub' });

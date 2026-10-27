@@ -148,6 +148,122 @@ const markOf = (idx, role) => ({ uid: idx.ownerUid, name: idx.ownerName || '', r
 const ownerDev = uid => 'share:' + uid;
 const isCopyOf = (rec, idx) => isObj(rec) && isObj(rec.sharedFrom) && rec.sharedFrom.share === idx.id;
 
+/* ---- V3.932: a deletion in a share waits for the other person ----
+   Alex: "if one user deleted something, the other has to approve it." A note, card, theme, aim or structure one person
+   removes from a shared project stays with everyone else — and with the owner — until someone else who edits it
+   decides (the owner for a collaborator's deletion; a collaborator for the owner's). The deleter's copy stays gone
+   meanwhile. Not held: an empty card (the app tidies those), and anything only the deleter ever wrote (who/: the
+   one author of each record since it was shared, '*' once someone else changed it). Wires, media and terms are not
+   decided on by themselves; they wait with the note or card they belong to. */
+const DECIDED = new Set(['documents', 'blocks', 'themes', 'aims', 'items', 'projects']);
+const emptyCard = (store, rec) => store === 'blocks' && isObj(rec) && (!rec.kind || rec.kind === 'component') && !String((rec.body && rec.body.text) || '').replace(/￼/g, '').trim() && !((rec.body && rec.body.marks) || []).length;
+function titleOf(store, rec) {
+  if (!isObj(rec)) return '';
+  const t = store === 'documents' ? rec.title : store === 'blocks' ? (rec.label || String((rec.body && rec.body.text) || '').split('\n')[0]) : store === 'aims' ? rec.text : (rec.name || rec.text || rec.label || rec.kind);
+  return String(t || '').replace(/￼/g, '').trim().slice(0, 90);
+}
+const STORE_SAY = { documents: 'note', blocks: 'card', themes: 'theme', aims: 'aim', items: 'structure', projects: 'project' };
+/** key → Set of members whose copy is left as it is ('*' = everyone's) while a deletion waits. */
+function holdOf(pending) {
+  const m = new Map(), add = (k, u) => { if (!m.has(k)) m.set(k, new Set()); m.get(k).add(u); };
+  for (const p of pending || []) for (const r of p.recs || []) add(keyOf(r.store, r.id), p.kind === 'owner' ? '*' : p.by);
+  return m;
+}
+function held(idx, k, uid) { const h = idx && idx.hold && idx.hold.get(k); return !!(h && (h.has('*') || h.has(uid))); }
+async function loadHold(env, idx) { idx.pending = await env.index.pendingList(idx.id); idx.hold = holdOf(idx.pending); return idx; }
+/** Who wrote each record: list [{store, id, made}] written by uid (made = new to the share). */
+async function authored(env, idx, uid, list) {
+  const w = list.filter(o => !o.del && isObj(o.rec !== undefined ? o.rec : {}));
+  if (!w.length) return;
+  const was = await env.index.whoGet(idx.id, w.map(o => ({ store: o.store, id: o.id }))), put = [];
+  for (const o of w) { const k = keyOf(o.store, o.id), cur = was.get(k);
+    if (cur === undefined) { if (o.made) put.push({ store: o.store, id: o.id, who: uid }); }
+    else if (cur !== uid && cur !== '*') put.push({ store: o.store, id: o.id, who: '*' }); }
+  if (put.length) await env.index.whoPut(idx.id, put);
+}
+/**
+ * Split deletions into those that go through now and those that wait. dels: [{store, id, rec (as it was), …}].
+ * role: 'member' (a collaborator removed them from their copy) | 'owner'. Writes a pending entry per note or card.
+ */
+async function holdDeletes(env, idx, uid, role, dels) {
+  const approvers = role === 'owner' ? Object.keys(idx.members || {}).filter(u => idx.members[u] === 'edit')
+    : [idx.ownerUid].concat(Object.keys(idx.members || {}).filter(u => u !== uid && idx.members[u] === 'edit'));
+  if (!approvers.length) return { free: dels, held: [] };
+  const pend = idx.pending || await env.index.pendingList(idx.id), waiting = holdOf(pend);
+  const who = await env.index.whoGet(idx.id, dels.map(d => ({ store: d.store, id: d.id })));
+  const free = [], hold = [];
+  for (const d of dels) {
+    const k = keyOf(d.store, d.id);
+    if (waiting.has(k)) continue;                                   // already waiting for a person
+    if (!DECIDED.has(d.store) || emptyCard(d.store, d.rec) || who.get(k) === uid) free.push(d); else hold.push(d);
+  }
+  if (!hold.length) return { free, held: [] };
+  // one decision per note (its cards, structures and wires with it), per card otherwise
+  const notes = new Set(hold.filter(d => d.store === 'documents').map(d => d.id)), groups = new Map();
+  const blockNote = d => d.store === 'blocks' && isObj(d.rec) && notes.has(String(d.rec.docId)) ? String(d.rec.docId) : null;
+  for (const d of hold) { const g = d.store === 'documents' ? d.id : blockNote(d) || (d.store === 'items' && isObj(d.rec) && notes.has(String(d.rec.originDocId)) ? String(d.rec.originDocId) : null) || keyOf(d.store, d.id);
+    if (!groups.has(g)) groups.set(g, []); groups.get(g).push(d); }
+  const heldBlocks = new Set(hold.filter(d => d.store === 'blocks').map(d => d.id)), rest = [];
+  for (const d of free) {   // a wire or a file of something held waits with it
+    const w = d.store === 'wires' && isObj(d.rec) ? [String(d.rec.from), String(d.rec.to)].find(b => heldBlocks.has(b)) : null;
+    const g = w ? [...groups.entries()].find(([, ds]) => ds.some(x => x.store === 'blocks' && x.id === w)) : null;
+    if (g) g[1].push(d); else rest.push(d);
+  }
+  const names = idx.names || {}, byName = role === 'owner' ? (idx.ownerName || '') : (names[uid] || '');
+  for (const ds of groups.values()) {
+    const root = ds.find(d => d.store === 'documents') || ds.find(d => DECIDED.has(d.store)) || ds[0];
+    const p = { pid: 'del_' + H.token(8).toLowerCase().replace(/[^a-z0-9]/g, 'x'), shareId: idx.id, shareTitle: idx.title || '', ownerUid: idx.ownerUid, kind: role, by: uid, byName,
+      at: env.now(), approvers, root: { store: root.store, id: root.id, title: titleOf(root.store, root.rec), what: STORE_SAY[root.store] || 'record' },
+      recs: ds.map(d => ({ store: d.store, id: d.id })), parts: ds.length };
+    await env.index.pendingPut(idx.id, p);
+    (idx.pending = idx.pending || pend).push(p);
+  }
+  idx.hold = holdOf(idx.pending || pend);
+  return { free: rest, held: hold };
+}
+
+/** The deletions waiting for this person, and theirs waiting for someone else. */
+async function pendingFor(env, uid) {
+  const [owned, member] = await Promise.all([env.index.owned(uid), env.index.memberOf(uid)]), decide = [], waiting = [];
+  for (const ix of owned.concat(member)) for (const p of await env.index.pendingList(ix.id)) {
+    const x = Object.assign({}, p, { shareTitle: ix.title || p.shareTitle || '', approverNames: (p.approvers || []).map(u => u === ix.ownerUid ? ix.ownerName : (ix.names || {})[u]).filter(Boolean) });
+    if (p.by === uid) waiting.push(x); else if ((p.approvers || []).includes(uid)) decide.push(x);
+  }
+  const at = (a, b) => (a.at || 0) - (b.at || 0);
+  return { ok: true, decide: decide.sort(at), waiting: waiting.sort(at) };
+}
+
+/** Decide a waiting deletion: pick 'delete' (it goes from everyone) or 'keep' (it comes back for everyone). */
+async function decide(env, uid, shareId, pid, pick) {
+  if (pick !== 'delete' && pick !== 'keep') return { ok: false, error: 'pick is delete or keep' };
+  const ix = await env.index.get(shareId); if (!ix) return { ok: false, error: 'that share is gone' };
+  const p = (await env.index.pendingList(shareId)).find(x => x.pid === pid); if (!p) return { ok: false, error: 'already decided' };
+  if (!(p.approvers || []).includes(uid)) return { ok: false, error: 'not yours to decide' };
+  const ownerHub = env.hub(ix.ownerUid), keys = p.recs.map(r => ({ store: r.store, id: r.id })), names = ix.names || {};
+  const whoName = uid === ix.ownerUid ? (ix.ownerName || 'the owner') : (names[uid] || 'a collaborator');
+  if (p.kind === 'member' && pick === 'delete') {
+    const cur = await ownerHub.rowsGet(keys), ops = [];
+    for (const r of keys) { const row = cur.get(keyOf(r.store, r.id)); if (row && isObj(row.rec)) ops.push({ store: r.store, id: r.id, del: true, prev: row.rec, base: row.seq || 0 }); }
+    if (ops.length) await ownerHub.push({ dev: ownerDev(p.by), name: (p.byName || 'A collaborator') + ' (shared) · approved by ' + whoName, ops });
+  }
+  if (p.kind === 'owner' && pick === 'keep') {   // back to the owner from the copy of the one who kept it
+    const [mine, sh, cur] = await Promise.all([env.hub(uid).rowsGet(keys), env.index.shadowsGet(shareId, uid, keys), ownerHub.rowsGet(keys)]), ops = [];
+    for (const r of keys) {
+      const k = keyOf(r.store, r.id), m = mine.get(k), rec = m && isObj(m.rec) ? m.rec : (sh.get(k) || {}).rec, row = cur.get(k);
+      if (isObj(rec) && !(row && isObj(row.rec))) ops.push({ store: r.store, id: r.id, rec: stripMark(rec), prev: null, base: row ? (row.seq || 0) : 0 });
+    }
+    if (ops.length) await ownerHub.push({ dev: ownerDev(uid), name: whoName + ' (shared) · kept', ops });
+  }
+  if (p.kind === 'member' && pick === 'keep' && (ix.members || {})[p.by]) {   // the deleter's copy back first, so the pass doesn't read its absence as theirs to decide again
+    const cur = await ownerHub.rowsGet(keys), items = [];
+    for (const r of keys) { const row = cur.get(keyOf(r.store, r.id)); if (row && isObj(row.rec)) items.push({ store: r.store, id: r.id, rec: row.rec, seq: row.seq || 0 }); }
+    await fanOut(env, Object.assign(idxSets(ix), { hold: new Map(), members: { [p.by]: ix.members[p.by] } }), items);
+  }
+  await env.index.pendingDel(shareId, pid);
+  const pass = await sharePass(env, ix);   // everyone's copy follows the decision
+  return { ok: true, pick, pass };
+}
+
 /**
  * Make each member's copy of these records equal to the owner's. items: [{store, id, rec|null (gone), seq}] — the
  * owner's rows. A member's row changed since it was read merges (prev = what was read, base = its seq), never lost.
@@ -162,6 +278,7 @@ async function fanOut(env, idx, items) {
     const ops = [], puts = [], dels = [], paths = [];
     for (const x of items) {
       const k = keyOf(x.store, x.id), row = cur.get(k), have = row && isObj(row.rec) ? row.rec : undefined, s = sh.get(k);
+      if (held(idx, k, uid)) continue;   // V3.932: a deletion waiting for a person — this member's copy stays as it is
       if (!isObj(x.rec)) {   // gone at the owner, or out of the share: remove the copy (never the member's own record)
         if (s) { if (have !== undefined && (!MARKED.has(x.store) || isCopyOf(have, idx))) ops.push({ store: x.store, id: x.id, del: true, prev: have, base: row.seq || 0 }); dels.push({ store: x.store, id: x.id }); }
         continue;
@@ -190,29 +307,29 @@ async function inbound(env, idx, uid, ops, { fan = true } = {}) {
   if (!ops.length) return { pushed: 0 };
   const keys = ops.map(o => ({ store: o.store, id: String(o.id) })), ownerHub = env.hub(idx.ownerUid);
   const [sh, cur] = await Promise.all([env.index.shadowsGet(idx.id, uid, keys), ownerHub.rowsGet(keys)]);
-  const out = [], restore = [];
+  const out = [], restore = [], dels = [];
   for (const o of ops) {
     const k = keyOf(o.store, o.id), s = sh.get(k), orow = cur.get(k), ocur = orow && isObj(orow.rec) ? orow.rec : undefined;
     const prev = s ? stripMark(s.rec) : null, base = s ? (s.ownerSeq || 0) : (orow ? (orow.seq || 0) : 0);
     if (o.del || !isObj(o.rec)) {
-      /* V3.923 — a collaborator removes only what came from them: the owner's row last written through this
-       * collaborator's relay device, never the shared project or review itself. Anything else missing on their side
-       * (a desktop that replaced their hub never had the copies — Alex's shared PE-bead project was deleted that way)
-       * is put back in their hub, and the owner's record stays. */
+      /* V3.923 — never the shared project or review itself: it goes back in their hub. V3.932 — anything else they
+       * removed waits for the owner (or another collaborator) to approve, unless only they ever wrote it. */
       if (s && ocur !== undefined) {
         const root = o.store === rootStore(idx.kind) && String(o.id) === String(idx.recId);
-        if (!root && orow.dev === ownerDev(uid)) out.push({ store: o.store, id: String(o.id), del: true, prev, base });
-        else restore.push({ store: o.store, id: String(o.id), rec: ocur, seq: orow.seq || 0 });
+        if (root) restore.push({ store: o.store, id: String(o.id), rec: ocur, seq: orow.seq || 0 });
+        else dels.push({ store: o.store, id: String(o.id), rec: ocur, del: true, prev, base });
       }
       continue;
     }
     if (s && sameish(o.rec, s.rec)) continue;   // only a timestamp moved
-    out.push({ store: o.store, id: String(o.id), rec: protect(o.store, stripMark(o.rec), ocur, idx), prev, base });
+    out.push({ store: o.store, id: String(o.id), rec: protect(o.store, stripMark(o.rec), ocur, idx), prev, base, made: ocur === undefined });
   }
+  if (dels.length) { const h = await holdDeletes(env, idx, uid, 'member', dels); for (const d of h.free) out.push({ store: d.store, id: d.id, del: true, prev: d.prev, base: d.base }); }
   if (restore.length && idx.members && idx.members[uid]) await fanOut(env, Object.assign({}, idx, { members: { [uid]: idx.members[uid] } }), restore);
   if (!out.length) return { pushed: 0, restored: restore.length };
   const names = idx.names || {};
-  await ownerHub.push({ dev: ownerDev(uid), name: (names[uid] || 'A collaborator') + ' (shared)', ops: out });
+  await authored(env, idx, uid, out);
+  await ownerHub.push({ dev: ownerDev(uid), name: (names[uid] || 'A collaborator') + ' (shared)', ops: out.map(o => { const x = Object.assign({}, o); delete x.made; return x; }) });
   if (fan) {   // everyone, the collaborator too: a merge may have changed what they sent
     const now = await ownerHub.rowsGet(out.map(o => ({ store: o.store, id: o.id })));
     await fanOut(env, idx, out.map(o => { const r = now.get(keyOf(o.store, o.id)); return { store: o.store, id: o.id, rec: r && isObj(r.rec) ? r.rec : null, seq: r ? r.seq : 0 }; }));
@@ -271,13 +388,24 @@ async function relayPush(env, uid, commits) {
   }
   for (const ix0 of owned) {
     if (pass.has(ix0.id)) continue;
-    const idx = idxSets(ix0), before = new Set(idx.docIds), mine = await pick(env, idx, ops, { role: 'owner' }, uid);
+    const idx = idxSets(ix0), before = new Set(idx.docIds), known = { documents: before, blocks: new Set(idx.blockIds), themes: new Set(idx.themeIds) };
+    let mine = await pick(env, idx, ops, { role: 'owner' }, uid);
     // a note moved out of the shared project, or turned into someone else's copy: the pass works out what leaves
     if (mine.some(o => o.store === 'documents' && isObj(o.rec) && before.has(String(o.id)) && ((idx.projectId && String(o.rec.projectId) !== idx.projectId) || o.rec.sharedFrom))) {
       pass.set(ix0.id, { id: ix0.id, ownerUid: uid, kind: ix0.kind, recId: ix0.recId }); continue;
     }
     if (!mine.length) continue;
     await addIds(env, ix0, idx);
+    // V3.932: what the owner removed waits for a collaborator to approve (their copies stay until then)
+    const gone = mine.filter(o => o.del || !isObj(o.rec));
+    if (gone.length) {
+      const some = Object.keys(idx.members || {})[0], was = some ? await env.index.shadowsGet(idx.id, some, gone.map(o => ({ store: o.store, id: String(o.id) }))) : new Map();
+      const h = await holdDeletes(env, idx, uid, 'owner', gone.map(o => ({ store: o.store, id: String(o.id), rec: (was.get(keyOf(o.store, o.id)) || {}).rec || null })));
+      const keep = new Set(h.free.map(d => keyOf(d.store, d.id)));
+      mine = mine.filter(o => !(o.del || !isObj(o.rec)) || keep.has(keyOf(o.store, o.id)));
+    }
+    await authored(env, idx, uid, mine.filter(o => isObj(o.rec)).map(o => ({ store: o.store, id: String(o.id), made: !!(known[o.store] && !known[o.store].has(String(o.id))) })));
+    await loadHold(env, idx);
     const r = await fanOut(env, idx, mine.map(o => ({ store: o.store, id: String(o.id), rec: isObj(o.rec) ? o.rec : null, seq: o.seq || 0 })));
     out.out += r.pushed;
   }
@@ -292,7 +420,7 @@ async function relayPush(env, uid, commits) {
     const mine = await pick(env, idx, ops, { role, projectCopy }, uid);
     if (!mine.length) continue;
     if (role === 'edit') {
-      await addIds(env, ix0, idx);
+      await addIds(env, ix0, idx); await loadHold(env, idx);
       const files = mine.filter(o => o.store === 'media' && isObj(o.rec) && o.rec.path).map(o => String(o.rec.path));   // their new files go with their records
       if (files.length) { const docs = [...(await env.hub(uid).mediaFiles(files)).values()]; if (docs.length) await env.hub(idx.ownerUid).mediaCopy(docs); }
       const r = await inbound(env, idx, uid, mine); out.in += r.pushed;
@@ -342,7 +470,10 @@ async function sharePass(env, a) {
       const ownerHub = env.hub(ownerUid), members = await env.members();
       if (old && Object.keys(old.members || {}).length) { const h = await heal(env, old); if (h) res.healed = (res.healed || 0) + h; }
       let { rows, seqs } = await loadRows(ownerHub, SMALL);
-      const root = rows[rootStore(kind)].get(recId), grants = grantsOf(root, ownerUid, members), had = (old && old.members) || {};
+      const root = rows[rootStore(kind)].get(recId), had = (old && old.members) || {};
+      const hold = old ? holdOf(await env.index.pendingList(id)) : new Map();
+      if (!root && hold.has(keyOf(rootStore(kind), recId))) { res.waiting = true; await env.index.release(id); break; }   // V3.932: the owner removed it; a collaborator decides
+      const grants = grantsOf(root, ownerUid, members);
       const ownerName = (await env.nameOf(ownerUid)) || (old && old.ownerName) || '';
       const names = {}; for (const u of Object.keys(grants)) names[u] = (members.get(u) || {}).name || '';
       const base = { id, ownerUid, ownerName, kind, recId, members: grants, names, asked: grantsOf(root, ownerUid, null) };
@@ -352,7 +483,7 @@ async function sharePass(env, a) {
         if (role !== 'edit' || had[uid] !== 'edit') continue;
         const sh = await env.index.shadows(id, uid); if (!sh.size) continue;
         const keys = [...sh.values()].map(s => ({ store: s.store, id: s.id })), cur = await env.hub(uid).rowsGet(keys), ops = [];
-        const idx0 = idxSets(Object.assign({}, old, base));
+        const idx0 = Object.assign(idxSets(Object.assign({}, old, base)), { hold });
         for (const s of sh.values()) {
           const row = cur.get(keyOf(s.store, s.id)), have = row && isObj(row.rec) ? row.rec : null;
           if (fromReplace(row)) continue;   // V3.931: not their change — their hub was replaced; step 3 gives the copy back
@@ -370,7 +501,7 @@ async function sharePass(env, a) {
       rows.blocks = new Map();
       if (bIds.length) for (const [k, r] of await ownerHub.rowsGet(bIds.map(b => ({ store: 'blocks', id: b })))) if (r && isObj(r.rec)) { rows.blocks.set(String(r.rec.id), r.rec); seqs.set(k, r.seq || 0); }
       const c = Object.keys(grants).length ? closure({ kind, recId, rows }) : { recs: new Map(), docIds: new Set(), blockIds: new Set(), themeIds: new Set(), mediaIds: new Set(), projectId: null };
-      const idx = Object.assign({}, base, { docIds: c.docIds, blockIds: c.blockIds, themeIds: c.themeIds, mediaIds: c.mediaIds, projectId: c.projectId });
+      const idx = Object.assign({}, base, { docIds: c.docIds, blockIds: c.blockIds, themeIds: c.themeIds, mediaIds: c.mediaIds, projectId: c.projectId, hold });
       // 3. every member's copy equal to it; what left the share leaves their copy
       for (const uid of Object.keys(grants)) {
         const sh = await env.index.shadows(id, uid), items = [];
@@ -384,7 +515,7 @@ async function sharePass(env, a) {
         const sh = await env.index.shadows(id, uid); if (!sh.size) continue;
         const items = [...sh.values()].map(s => ({ store: s.store, id: s.id, rec: null, seq: 0 }));
         res.removed += items.length;
-        await fanOut(env, Object.assign({}, idx, { members: { [uid]: had[uid] } }), items);
+        await fanOut(env, Object.assign({}, idx, { hold: new Map(), members: { [uid]: had[uid] } }), items);
       }
       // 5. the index
       if (!Object.keys(grants).length) await env.index.del(id);
@@ -441,7 +572,7 @@ async function syncShares(env, uid, { force } = {}) {
 
 /* ---------------- in memory: the fixtures (MemoryHubs, one per person) ---------------- */
 class MemoryShareEnv {
-  constructor(members) { this.hubs = new Map(); this.idx = new Map(); this.sh = new Map(); this.mem = new Map(Object.entries(members || {})); this.t = 1e12; this.files = new Map(); }
+  constructor(members) { this.hubs = new Map(); this.idx = new Map(); this.sh = new Map(); this.pend = new Map(); this.who = new Map(); this.mem = new Map(Object.entries(members || {})); this.t = 1e12; this.files = new Map(); }
   now() { return this.t; }
   async members() { return this.mem; }
   async nameOf(uid) { return (this.mem.get(uid) || {}).name || ''; }
@@ -466,7 +597,7 @@ class MemoryShareEnv {
     return {
       get: async id => E.idx.has(id) ? JSON.parse(JSON.stringify(E.idx.get(id))) : null,
       put: async (id, d) => { const cur = E.idx.get(id) || {}; E.idx.set(id, Object.assign({}, cur, JSON.parse(JSON.stringify(d)))); },
-      del: async id => { E.idx.delete(id); for (const k of [...E.sh.keys()]) if (k.startsWith(id + '|')) E.sh.delete(k); },
+      del: async id => { E.idx.delete(id); for (const m of [E.sh, E.who]) for (const k of [...m.keys()]) if (k.startsWith(id + '|')) m.delete(k); },
       owned: async uid => [...E.idx.values()].filter(x => x.ownerUid === uid).map(x => JSON.parse(JSON.stringify(x))),
       memberOf: async uid => [...E.idx.values()].filter(x => (x.memberUids || []).includes(uid)).map(x => JSON.parse(JSON.stringify(x))),
       lease: async id => { const x = E.idx.get(id) || {}; if (x.lockUntil && x.lockUntil > E.t) { x.dirty = true; E.idx.set(id, x); return false; } E.idx.set(id, Object.assign(x, { lockUntil: E.t + LEASE_MS, dirty: false })); return true; },
@@ -476,10 +607,15 @@ class MemoryShareEnv {
       shadowsGet: async (id, uid, keys) => { const m = new Map(); for (const k of keys) { const v = E.sh.get(skey(id, uid, k.store, k.id)); if (v) m.set(keyOf(k.store, k.id), JSON.parse(JSON.stringify(v))); } return m; },
       shadowPut: async (id, uid, list) => { for (const s of list) E.sh.set(skey(id, uid, s.store, s.id), JSON.parse(JSON.stringify({ uid, store: s.store, id: String(s.id), rec: s.rec, ownerSeq: s.ownerSeq || 0 }))); },
       shadowDel: async (id, uid, keys) => { for (const k of keys) E.sh.delete(skey(id, uid, k.store, k.id)); },
+      pendingList: async id => [...(E.pend.get(id) || new Map()).values()].map(x => JSON.parse(JSON.stringify(x))),
+      pendingPut: async (id, p) => { if (!E.pend.has(id)) E.pend.set(id, new Map()); E.pend.get(id).set(p.pid, JSON.parse(JSON.stringify(p))); },
+      pendingDel: async (id, pid) => { if (E.pend.has(id)) E.pend.get(id).delete(pid); },
+      whoGet: async (id, keys) => { const m = new Map(); for (const k of keys) { const v = E.who.get(id + '|' + keyOf(k.store, k.id)); if (v !== undefined) m.set(keyOf(k.store, k.id), v); } return m; },
+      whoPut: async (id, list) => { for (const x of list) E.who.set(id + '|' + keyOf(x.store, x.id), x.who); },
       shadowHas: async (id, store, rid) => [...E.sh.keys()].some(k => k.startsWith(id + '|') && k.endsWith('|' + keyOf(store, rid))),
     };
   }
 }
 
-module.exports = { SHARES_MS, LEASE_MS, ROLES, MARKED, STORES, MEDIA_ID, shareIdOf, rootStore, grantsOf, sameish, withMark, stripMark, protect, mediaRefs,
+module.exports = { holdDeletes, pendingFor, decide, holdOf, SHARES_MS, LEASE_MS, ROLES, MARKED, STORES, MEDIA_ID, shareIdOf, rootStore, grantsOf, sameish, withMark, stripMark, protect, mediaRefs,
   closureDocs, wantBlocks, closure, idxSets, belongs, fanOut, inbound, revert, relayPush, relayMedia, sharePass, syncShares, MemoryShareEnv };
