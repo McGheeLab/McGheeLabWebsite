@@ -421,6 +421,86 @@ function planTaskSync({ state, pairs, now }) {
   }
   return { ops, patches, prune };
 }
+/* ───────── Offline Scientia: what the desktop did reaches RM when the notebook syncs (V3.927) ─────────
+   The desktop never calls RM; it works offline and its notebook reaches this hub through the bridge. `syncUp` (in
+   quietSyncs: on hello, and after a push) acts on what arrived:
+   • TASKS — every live task component without an RM task gets one (createTask, the V3.872 pairing) and the block learns
+     its rmTaskId; done then flows both ways through planTaskSync, as for a task made on the website.
+   • PAPERS — a paper the person added to their library (no `rm`) whose metadata RM does not have is added to the lab
+     library as an `items` doc with the ROW's id, so the V3.857 mirror lands on that same row (cites keep working) instead
+     of adding a second one. A paper RM already has (same DOI, or same title and year) is not added; the row records the
+     match (`rmSync.state: 'matched'`). Without a title and a DOI or authors, a paper stays on the desktop. */
+const UPSYNC_MS = 60 * 1000, UPSYNC_MAX = 40;
+function normTitle(t) { return String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+/** the `b` createTask takes, built from a stored task block the way the web app's taskFields builds it */
+function taskPayload(rec, docs, projects) {
+  const d = docs.get(String(rec.docId)) || null, p = d && d.projectId ? projects.get(String(d.projectId)) : null, t = isObj(rec.task) ? rec.task : {};
+  return { blockId: String(rec.id), docId: String(rec.docId || ''), text: String((isObj(rec.body) && rec.body.text) || '').split('\n')[0].trim(),
+    due: t.due || null, allDay: !!t.allDay, prio: t.prio || 'normal', docTitle: String((d && d.title) || ''), projectName: String((p && p.name) || '') };
+}
+/** live task blocks that have no RM task yet (neither an rmTaskId on the block nor a pairing on the hub) */
+function planTaskPairing({ blocks, docs, projects, paired, max }) {
+  const out = [], have = paired instanceof Set ? paired : new Set(paired || []);
+  for (const rec of blocks || []) {
+    if (!isObj(rec) || rec.kind !== 'task' || rec.status !== 'live' || rec.deleted || rec.rmTaskId || have.has(String(rec.id))) continue;
+    out.push(taskPayload(rec, docs || new Map(), projects || new Map()));
+    if (out.length >= (max || UPSYNC_MAX)) break;
+  }
+  return out;
+}
+/** an op that writes `patch` onto a record the hub just read (prev = that record, so a concurrent edit merges) */
+function patchOp({ state, store, rec, patch }) { return { store, id: rec.id, rec: Object.assign({}, rec, patch), del: false, prev: rec, base: state.seq }; }
+function libAuthors(rec) {
+  const a = Array.isArray(rec.authors) && rec.authors.length ? rec.authors : (isObj(rec.csl) && Array.isArray(rec.csl.author) ? rec.csl.author : []);
+  return a.map(x => typeof x === 'string' ? { family: x, given: '' } : { family: String((x && (x.family || x.literal)) || ''), given: String((x && x.given) || '') })
+    .filter(x => x.family || x.given);
+}
+/** the RM `items` doc for a desktop paper — the fields RM's own buildPaperItem writes (rm/js/library-metadata.js), and its inverse is rmItemToLibraryRow */
+function paperItemFromRow({ rec, today, uid }) {
+  const authors = libAuthors(rec), first = authors[0] || null, doi = String(rec.doi || '').toLowerCase().trim(), year = rec.year ? String(rec.year) : '';
+  const container = String(rec.container || ''), title = String(rec.title || '').trim(), words = normTitle(title).split(' ').filter(Boolean);
+  const key = String((first && first.family) || 'anon').toLowerCase().replace(/[^a-z]/g, '') + year + (words.find(w => w.length > 3) || words[0] || '');
+  return { id: String(rec.id), type: 'paper', category: 'research', title, status: 'published', description: '', related_ids: [], repo_path: '', repo_org: '',
+    repo_parsed: null, repo_parsed_at: '', personnel: [], funding_account_ids: [], tags: [], subtasks: [], notes: '', created_at: today, updated_at: today,
+    meta: { target_journal: container, lead_author: first ? (first.given + ' ' + first.family).trim() : '', submission_target: '', projected_submission_date: '',
+      library: { is_library_entry: true, is_lab_draft: false, citation_key: key, doi, pmid: '', arxiv_id: '', authors, year, journal: container, journal_iso: '',
+        issn: String(rec.issn || ''), volume: String(rec.volume || ''), issue: String(rec.issue || ''), pages: String(rec.page || ''),
+        abstract: String((isObj(rec.csl) && rec.csl.abstract) || ''), url: String(rec.url || (doi ? 'https://doi.org/' + doi : '')), source: 'scientia', pdf: null,
+        folders: [], labels: [], tags: [], starred: false, date_added: today, annotation_count: 0, evidence_count: 0, cited_in_drafts: [],
+        public: false, public_url: '', shared_at_iso: '', shared_by: '' } },
+    source_ref: { scientia: { uid: String(uid || ''), rowId: String(rec.id) } } };
+}
+/** desktop papers worth a look: the person's own (no rm), not yet sent or matched, with enough metadata */
+function libraryUpCandidates(rows) {
+  const out = [];
+  for (const row of (rows && rows.values ? rows.values() : rows || [])) {
+    const rec = row && isObj(row.rec) ? row.rec : null;
+    if (!rec || rec.rm || rec.rmId || rec.deleted || (rec.kind && rec.kind !== 'paper')) continue;
+    if (isObj(rec.rmSync) && (rec.rmSync.state === 'done' || rec.rmSync.state === 'matched')) continue;
+    if (!String(rec.title || '').trim() || !(String(rec.doi || '').trim() || libAuthors(rec).length)) continue;
+    out.push(rec);
+  }
+  return out;
+}
+/** which candidates RM already has (→ an op recording the match) and which to add (→ items docs) */
+function planLibraryUp({ state, rows, items, today, uid, now, max }) {
+  const byDoi = new Map(), byTitle = new Map(), ids = new Set(), at = isoAt(now);
+  for (const it of items || []) {
+    if (!it || it.id == null) continue; ids.add(String(it.id));
+    const L = isObj(it.meta) && isObj(it.meta.library) ? it.meta.library : {}, doi = String(L.doi || '').toLowerCase().trim(), nt = normTitle(it.title);
+    if (doi) byDoi.set(doi, String(it.id));
+    if (nt) byTitle.set(nt + '|' + String(L.year || ''), String(it.id));
+  }
+  const create = [], ops = [];
+  for (const rec of libraryUpCandidates(rows)) {
+    const doi = String(rec.doi || '').toLowerCase().trim(), match = (doi && byDoi.get(doi)) || byTitle.get(normTitle(rec.title) + '|' + String(rec.year || ''));
+    if (match) { ops.push(patchOp({ state, store: 'library', rec, patch: { rmSync: { state: 'matched', rmId: match, at } } })); continue; }
+    if (ids.has(String(rec.id)) || create.length >= (max || UPSYNC_MAX)) continue;   // an RM item with this id is the mirror's; the rest wait for the next run
+    create.push({ rec, doc: paperItemFromRow({ rec, today, uid }) });
+  }
+  return { create, ops };
+}
+
 /* ───────── Reminders + chores → My Week; timer sessions + edits → RM's activity (V3.874, Phase 1 complete) ─────────
    WHEN: each upcoming occurrence of a Scientia chore (every N days after last done, or on weekdays) or reminder
    (deadline / meeting / reminder; one-off or daily / weekly / monthly) becomes a dated item in the person's RM list
@@ -864,7 +944,11 @@ async function route(req, ctx) {
   if (p === '/api/sync/push' && post) {
     const obj = parseBody(req) || {}, st = await hub.loadState();
     if (obj.sid && obj.sid !== st.sid && !obj.anySid) return J(200, { ok: false, reset: true, sid: st.sid });
-    return J(200, await hub.push({ dev: String(obj.dev || who.id), conn: obj.conn || null, name: String(obj.name || who.name || 'a device'), ops: Array.isArray(obj.ops) ? obj.ops : [] }));
+    const ops = Array.isArray(obj.ops) ? obj.ops : [];
+    const res = await hub.push({ dev: String(obj.dev || who.id), conn: obj.conn || null, name: String(obj.name || who.name || 'a device'), ops });
+    // V3.927 — an offline notebook's tasks and papers reach RM as soon as they arrive (syncUp is throttled to UPSYNC_MS)
+    if (res && res.ok && ops.some(o => o && (o.store === 'blocks' || o.store === 'library'))) await mirrorQuietly(hub, who, false, ['up', 'tasks']);
+    return J(200, res);
   }
   if (p === '/api/sync/conflicts') return J(200, await hub.conflicts());
   if (p === '/api/sync/resolve' && post) { const obj = parseBody(req) || {}; return J(200, await hub.resolve({ cid: obj.cid, pick: obj.pick, dev: String(obj.dev || who.id), name: String(obj.name || who.name || 'a device') })); }
@@ -1025,8 +1109,30 @@ MemoryHub.prototype.syncActivity = async function ({ force, now } = {}) {
   this.actCursor = this.st.seq; this.actSyncAt = t; this.actRuns = (this.actRuns || 0) + 1;
   return { ok: true, events: writes.length };
 };
+/* V3.927 — syncUp: task components → RM tasks, desktop papers → the lab library (rmItems); runs before the task reconcile */
+MemoryHub.prototype.syncUp = async function ({ force, who, now } = {}) {
+  this._taskStore();
+  const t = now == null ? Date.now() : now;
+  if (!force && this.upSyncAt && t - this.upSyncAt < UPSYNC_MS) return { ok: true, skipped: true };
+  this.upSyncAt = t;
+  const st = this.st, ops = [], out = { ok: true, tasks: 0, papers: 0, matched: 0, errors: [] }, recs = store => new Map(this.storeRecs(store).map(r => [String(r.id), r]));
+  const blocks = this.storeRecs('blocks'), want = planTaskPairing({ blocks, docs: recs('documents'), projects: recs('projects'), paired: new Set(this.rmTasks.values()) });
+  for (const b of want) {
+    const r = await this.createTask({ who, b }), rec = blocks.find(x => String(x.id) === b.blockId);
+    if (r && r.ok && rec) { ops.push(patchOp({ state: st, store: 'blocks', rec, patch: { rmTaskId: r.id } })); out.tasks++; } else out.errors.push('task ' + b.blockId);
+  }
+  if (libraryUpCandidates(this.libraryRows()).length) {
+    if (!this.rmItems) this.rmItems = [];
+    const plan = planLibraryUp({ state: st, rows: this.libraryRows(), items: this.rmItems, today: todayIn(LAB_TZ, t), uid: who && who.id, now: t });
+    for (const { rec, doc } of plan.create) { this.rmItems.push(doc); ops.push(patchOp({ state: st, store: 'library', rec, patch: { rmSync: { state: 'done', rmId: doc.id, at: isoAt(t) } } })); out.papers++; }
+    ops.push(...plan.ops); out.matched = plan.ops.length;
+  }
+  if (ops.length) await this.push({ dev: 'rm', conn: null, name: 'RM sync', ops });
+  return out;
+};
 MemoryHub.prototype.quietSyncs = async function (who, { force, only } = {}) {
   const out = {}, want = n => !only || only.includes(n);
+  if (want('up') && typeof this.syncUp === 'function') out.up = await this.syncUp({ force, who });
   if (want('library') && typeof this.mirrorLibrary === 'function') out.library = await this.mirrorLibrary({ force });
   if (want('tasks') && typeof this.syncTasks === 'function') out.tasks = await this.syncTasks({ force });
   if (want('when') && typeof this.syncWhen === 'function') out.when = await this.syncWhen({ force, who });
@@ -1092,6 +1198,7 @@ MemoryHub.prototype.libraryRows = function () {
 module.exports = { route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA_BYTES, NOSYNC, KEYS, AUTO_MAX, COUNT_SKIP, MAX_OPS, PULL_MAX, MISSING, isoLocal, eq, merge3, emptyState, planPush, pullResult, planResolve, planReplace, exportState, helloResult, keyOf, rowKey, MemoryHub, sha, token,
   MIRROR_MS, MIRROR_FIELDS, rmItemToLibraryRow, planMirror, INVENTORY_MS, INVENTORY_LIMIT, rmInventoryRow, searchInventory,
   TASKSYNC_MS, PRIO_IMPORTANCE, dueDateOf, taskIdNew, rmTaskFromBlock, rmTaskPatch, planTaskSync,
+  UPSYNC_MS, UPSYNC_MAX, normTitle, taskPayload, planTaskPairing, patchOp, libAuthors, paperItemFromRow, libraryUpCandidates, planLibraryUp,
   LAB_TZ, WHEN_MS, ACT_MS, WHEN_AHEAD, WHEN_BEHIND, ACT_DAYS, todayIn, nowIn, localDayOf, addDays_, wdayOf, safeIdPart, choreNext, remOccursOn, whenOcc,
   whenTaskId, whenText, whenCandidates, rmWhenTask, planWhen, sessionDaySeconds, actEventId, activityGroups, planActivity, fmtMinutes,
   rmAnnotationRow, visibleAnnotations, stripTags, varsToText, rmProtocolRow, rmProtocolSteps, searchProtocols, rmCollectionRow, rmCollectionFull,

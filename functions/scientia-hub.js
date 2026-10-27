@@ -272,6 +272,38 @@ class FirestoreHub {
     await this.ref.update(meta);
     return { ok: true, paired: ids.length - plan.prune.length, blocksUpdated: plan.ops.length, tasksUpdated: plan.patches.length, dropped: plan.prune.length };
   }
+  /* ---- V3.927: offline Scientia — task components become RM tasks, desktop papers join the lab library (core: planTaskPairing, planLibraryUp) ---- */
+  async syncUp({ force, who } = {}) {
+    const snap = await this.ref.get(), d = snap.data() || {}, now = Date.now();
+    if (!force && d.upSyncAt && now - tsMs(d.upSyncAt) < C.UPSYNC_MS) return { ok: true, skipped: true };
+    await this.ref.set({ upSyncAt: FieldValue.serverTimestamp() }, { merge: true });
+    const st = await this.loadState(), ops = [], out = { ok: true, tasks: 0, papers: 0, matched: 0, errors: [] };
+    const rowsSnap = await this.rows.where('store', 'in', ['blocks', 'documents', 'projects', 'library']).get();
+    const blocks = [], docs = new Map(), projects = new Map(), lib = new Map();
+    rowsSnap.docs.forEach(x => { const r = rowFromDoc(x); if (!r || r.deleted || !r.rec) return;
+      if (r.store === 'blocks') blocks.push(r.rec); else if (r.store === 'documents') docs.set(String(r.id), r.rec); else if (r.store === 'projects') projects.set(String(r.id), r.rec); else lib.set(C.keyOf('library', r.id), r); });
+    const pairs = d.rmTasks && typeof d.rmTasks === 'object' ? d.rmTasks : {};
+    for (const b of C.planTaskPairing({ blocks, docs, projects, paired: new Set(Object.values(pairs).map(String)) })) {
+      try {
+        const r = await this.createTask({ who, b }), rec = blocks.find(x => String(x.id) === b.blockId);
+        if (r && r.ok && rec) { ops.push(C.patchOp({ state: st, store: 'blocks', rec, patch: { rmTaskId: r.id } })); out.tasks++; }
+      } catch (e) { out.errors.push('task ' + b.blockId + ': ' + (e.message || e)); }
+    }
+    if (C.libraryUpCandidates(lib).length) {   // the lab library is read only when there is a desktop paper to compare
+      const itemsSnap = await db().collection('items').where('type', '==', 'paper').where('meta.library.is_library_entry', '==', true).get();
+      const items = itemsSnap.docs.map(x => Object.assign({ id: x.id }, x.data() || {}));
+      const plan = C.planLibraryUp({ state: st, rows: lib, items, today: C.todayIn(C.LAB_TZ, now), uid: this.uid, now });
+      for (const { rec, doc } of plan.create) {
+        try {
+          await db().collection('items').doc(doc.id).create(Object.assign({}, doc, { updatedAt: FieldValue.serverTimestamp() }));   // create(): never over an RM paper
+          ops.push(C.patchOp({ state: st, store: 'library', rec, patch: { rmSync: { state: 'done', rmId: doc.id, at: C.isoLocal(new Date(now)) } } })); out.papers++;
+        } catch (e) { out.errors.push('paper ' + doc.id + ': ' + (e.message || e)); }
+      }
+      ops.push(...plan.ops); out.matched = plan.ops.length;
+    }
+    if (ops.length) await this.push({ dev: 'rm', conn: null, name: 'RM sync', ops });
+    return out;
+  }
   /* ---- V3.874: reminders + chores → My Week; timer sessions + edits → RM's activity tracker ---- */
   async syncWhen({ force, who } = {}) {
     const snap = await this.ref.get(), d = snap.data() || {}, now = Date.now();
@@ -416,6 +448,7 @@ class FirestoreHub {
     const due = (name, k, ms) => (!only || only.includes(name)) && (force || !d[k] || now - tsMs(d[k]) >= ms);
     const run = async (name, fn) => { try { out[name] = await fn(); } catch (e) { out[name] = { ok: false, error: String(e.message || e) }; } };
     if (due('library', 'mirrorAt', C.MIRROR_MS)) await run('library', () => this.mirrorLibrary({ force: true }));
+    if (due('up', 'upSyncAt', C.UPSYNC_MS)) await run('up', () => this.syncUp({ force: true, who }));   // V3.927, before the task reconcile
     if (due('tasks', 'taskSyncAt', C.TASKSYNC_MS)) await run('tasks', () => this.syncTasks({ force: true }));
     if (due('when', 'whenSyncAt', C.WHEN_MS)) await run('when', () => this.syncWhen({ force: true, who }));
     if (due('activity', 'actSyncAt', C.ACT_MS)) await run('activity', () => this.syncActivity({ force: true }));

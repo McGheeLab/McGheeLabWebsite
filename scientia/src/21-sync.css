@@ -475,3 +475,24 @@ body.viewer #brand { pointer-events: none; }
 .lx-steps code { font-size: 12px; }
 .lx-list { padding-left: 18px; font-size: 13px; display: grid; gap: 3px; }
 .lx-warn { padding: 8px 10px; border-radius: 6px; background: color-mix(in srgb, var(--warn, #c9a227) 16%, transparent); font-size: 13px; }
+/* literature reviews (15c) */
+.lr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 14px; }
+.lr-card { border: 1px solid var(--rule-2); border-radius: 10px; padding: 10px 12px; background: var(--surface); cursor: pointer; display: flex; flex-direction: column; gap: 3px; min-height: 120px; }
+.lr-card:hover { border-color: var(--teal); }
+.lr-name { font-size: 14px; line-height: 1.3; font-weight: 600; }
+.lr-q { font-size: 13px; color: var(--ink-2); }
+.lr-ps { display: flex; flex-wrap: wrap; gap: 4px; margin-top: auto; padding-top: 6px; }
+.lr-ps a.pill { text-decoration: none; cursor: pointer; }
+.lr-bar { gap: 8px; align-items: center; }
+.lr-filter { max-width: 280px; }
+.lr-head textarea.hin { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; }
+.lr-links { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.lr-links .lr-link { flex: 1 1 180px; width: auto; }
+.lr-chip { display: inline-flex; align-items: center; gap: 4px; }
+.lr-chip a { color: inherit; text-decoration: none; cursor: pointer; }
+.lr-x { border: 0; background: none; padding: 0 2px; cursor: pointer; color: var(--ink-3); font: inherit; }
+.lr-x:hover { color: var(--bad); }
+/* waits for the lab; lab inventory materials are fixed (23b) */
+.lab-wait { display: inline-block; margin: 4px 0 0; font-size: 11px; color: var(--ink-3); border: 1px dashed var(--rule-2); border-radius: 10px; padding: 0 7px; }
+.inv-line { margin-top: 6px; }
+.inv-ro .mc-log { display: none; }

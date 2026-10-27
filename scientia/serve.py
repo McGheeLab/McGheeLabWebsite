@@ -167,6 +167,13 @@ def browse():
         return {'error': str(e)}
 
 class H(http.server.SimpleHTTPRequestHandler):
+    def copyfile(self, source, outputfile):
+        # every byte, even when the browser reads slowly: the unbuffered socket file can write less than it is given,
+        # and the stock copy drops the rest — a ~5 MB app page then never finishes loading
+        while True:
+            buf = source.read(1 << 16)
+            if not buf: break
+            self.connection.sendall(buf)
     def end_headers(self):
         self.send_header('Cache-Control', 'no-store, must-revalidate')
         super().end_headers()

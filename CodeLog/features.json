@@ -1951,6 +1951,51 @@
     "scientia.canvas",
     "scientia.media"
    ]
+  },
+  {
+   "id": "scientia.lit-reviews",
+   "name": "Scientia literature reviews (in the app)",
+   "side": "scientia",
+   "summary": "The Lit reviews tab in the app itself: literature notes carrying review {topic, projectIds}, their topic and projects in the head box, kept out of quick notes. The same data the website's lab layer draws its own tab over, so the desktop has it offline.",
+   "keywords": [
+    "literature",
+    "review",
+    "topic",
+    "canvas",
+    "projects"
+   ],
+   "paths": [
+    "scientia/src/15c-litreviews.js"
+   ],
+   "related": [
+    "scientia.cloud",
+    "scientia.portfolio"
+   ]
+  },
+  {
+   "id": "scientia.offline-lab-sync",
+   "name": "Scientia offline: what waits for the lab",
+   "side": "scientia",
+   "summary": "The desktop works offline and never calls RM: a task not yet in RM is marked until the hub makes its RM task on sync; a material from the lab inventory is a fixed, read-only card whose use is logged in RM.",
+   "keywords": [
+    "offline",
+    "waiting",
+    "inventory",
+    "read-only",
+    "sync",
+    "rm"
+   ],
+   "paths": [
+    "scientia/src/23b-labsync.js"
+   ],
+   "related": [
+    "scientia.cloud",
+    "scientia.tasks",
+    "scientia.materials"
+   ],
+   "distinct_from": {
+    "scientia.canvas-export": "one lab-inventory material shown as a fixed card inside the app; canvas export writes a whole note to a read-only HTML file"
+   }
   }
  ]
 }
