@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (30 changes — ready to push)
+## Pending (31 changes — ready to push)
 
+- V3.930 — Scientia on your computer now updates itself: when the lab changes Scientia, your computer gets the new version within the hour (or at once with Settings → The lab → Check for updates now), without downloading anything.
 - V3.929 — Scientia on your own computer now has everything the lab site's Scientia has — the pills, Quick cast, Portfolio, Lit reviews, the lab's library, materials, tasks and recorder — and stays in step within a second or two instead of stalling.
 - V3.928 — Scientia: "Open on my computer" on the lab site opens your notebook running on your own computer, always in step with the lab — what you write there shows on the site and your tablet within seconds, and the other way round. The first click walks you through a one-time install; after that it starts with your computer.
 - V3.927 — Scientia works offline on Gabe's computer and catches up with the lab when it syncs: its tasks become RM tasks, papers he adds reach the lab library, and the ✓ on a component reports it to a My Week step — even when ticked offline. The app also has a Lit reviews tab, and lab inventory materials show there as fixed cards.

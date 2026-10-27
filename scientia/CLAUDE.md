@@ -46,7 +46,9 @@ V3.929 the desktop build also carries the lab layer (`lab-mode.js` inline, uncha
 `SIS_DESKTOP`): `serve.py` answers its `api/rm/*` (to the hub as the computer's key), its recorder parts (into the
 notebook folder) and its `/rm/js/` scripts (bundled in `vendor/rm/`). So a lab-layer change reaches the installed app too:
 a new `api/rm/…` call needs nothing here; a new `/rm/…` script it loads needs a line in `VENDOR_COPY` and `RM_BUNDLED`;
-anything that needs the Lab Notebook around it must fall back (as `rm-read` / `rm-report` do).
+anything that needs the Lab Notebook around it must fall back (as `rm-read` / `rm-report` do). Installed
+computers update themselves from the site's download within the hour (V3.930, `service.py`), and `deploy.py` rebuilds that
+download whenever its sources change — so a deploy is all it takes.
 
 Changes to the app (`src/`) are Gabe's domain; changes to the lab layer are ours. A change that needs both
 (a new RM-backed tab, a ported notebook feature) is one branch and one PR that touches both, reviewed by both.

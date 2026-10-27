@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.930] — 2026-10-27 — The installed Scientia updates itself
+
+Plan: [CodeLog/ClaudesPlan/V3.930_scientia_self_update.md](../ClaudesPlan/V3.930_scientia_self_update.md).
+
+### Added
+- **`scientia/service.py` updates the installed app**: `check` (the site's `version.json`, 2 min after start, then hourly, or on `update-now`), `download` (verified against `sha256`, unpacked in `update/`, version checked), `stop_server` (through `/api/lab/quit`), `put_in_place` (the app folder's `images` / `recordings` / `backup` kept), `restart_self`; `update.json` reports it. After a failure it tries again in ten minutes.
+- **`scientia/serve.py`**: `shutdown()` saves a pending change before Quit / Remove / an update stops the server; `/api/lab/update-check`; `update_info()` reads `update.json`.
+- **`23c-thiscomputer.js`**: Settings → The lab shows the version, the last check and **Check for updates now**; `THISPC.watch` reloads the tab after an update (at once in the background, else a Reload bar).
+- `scripts/scientia_build.py`: `version.json` carries the download's full `sha256`.
+
+### Changed
+- `scripts/deploy.py` `scientia_build_if_stale`: rebuilds when the lab layer, the bridge, RM's recorder scripts or the app's server / installer / icons are newer than the web build or the desktop download — so installed computers follow every deploy.
+
+### Tests
+- Self-update end to end (scratch install, stand-in site, the real `service.py`): updated in 5.7 s; a note written just before survived; the app's `images` kept; a wrong checksum refused, the app unchanged. Lab-mode harness (web) 271/275 (the four known); hub tests 68 passed.
+- `sw.js` CACHE_VERSION 901 → 902.
+
 ## [V3.929] — 2026-10-27 — Scientia on this computer is the lab's, and in step within seconds
 
 Plan: [CodeLog/ClaudesPlan/V3.929_scientia_desktop_lab_layer_fast_sync.md](../ClaudesPlan/V3.929_scientia_desktop_lab_layer_fast_sync.md). The shared lab layer (`lab-mode.js`, `cloud-sync.js`, `scientia-cloud.py`) is unchanged.
