@@ -4,9 +4,9 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
-## [V3.930] — 2026-10-27 — The installed Scientia updates itself
+## [V3.935] — 2026-10-27 — The installed Scientia updates itself
 
-Plan: [CodeLog/ClaudesPlan/V3.930_scientia_self_update.md](../ClaudesPlan/V3.930_scientia_self_update.md).
+Plan: [CodeLog/ClaudesPlan/V3.935_scientia_self_update.md](../ClaudesPlan/V3.935_scientia_self_update.md). (Opened as V3.930 in PR #11; renumbered.)
 
 ### Added
 - **`scientia/service.py` updates the installed app**: `check` (the site's `version.json`, 2 min after start, then hourly, or on `update-now`), `download` (verified against `sha256`, unpacked in `update/`, version checked), `stop_server` (through `/api/lab/quit`), `put_in_place` (the app folder's `images` / `recordings` / `backup` kept), `restart_self`; `update.json` reports it. After a failure it tries again in ten minutes.
@@ -15,11 +15,133 @@ Plan: [CodeLog/ClaudesPlan/V3.930_scientia_self_update.md](../ClaudesPlan/V3.930
 - `scripts/scientia_build.py`: `version.json` carries the download's full `sha256`.
 
 ### Changed
-- `scripts/deploy.py` `scientia_build_if_stale`: rebuilds when the lab layer, the bridge, RM's recorder scripts or the app's server / installer / icons are newer than the web build or the desktop download — so installed computers follow every deploy.
+- `scripts/deploy.py` `scientia_build_if_stale`: rebuilds when the lab layer, the bridge, RM's recorder scripts or the app's server / installer / icons are newer than the web build or the desktop download — so installed computers follow every deploy (V3.932's bridge, for one, reaches them without a new download by hand).
 
 ### Tests
-- Self-update end to end (scratch install, stand-in site, the real `service.py`): updated in 5.7 s; a note written just before survived; the app's `images` kept; a wrong checksum refused, the app unchanged. Lab-mode harness (web) 271/275 (the four known); hub tests 68 passed.
-- `sw.js` CACHE_VERSION 901 → 902.
+- Self-update end to end (scratch install of this build, stand-in site, the real `service.py`): updated in 5.7 s; a note written just before survived; the app's `images` kept; a wrong checksum refused, the app unchanged. Lab-mode harness (web) 271/275 (the four known); hub tests 68, share 44, merge 14 passed — all after merging `main` (V3.931–V3.934).
+- `sw.js` CACHE_VERSION 904 → 905.
+
+## [V3.934] — 2026-10-27 — Cloud Functions on Node.js 22 (Node 20 stops deploying on 30 Oct)
+
+Plan: [CodeLog/ClaudesPlan/V3.934_functions_node22.md](../ClaudesPlan/V3.934_functions_node22.md).
+
+### Changed
+- `functions/package.json` `engines.node` "20" → "22". Every function moves to Cloud Functions' Node 22 runtime on its next deploy (`firebase deploy --only functions`). Google deprecated Node 20 on 2026-04-30 and decommissions it on 2026-10-30, after which a Node 20 function cannot be deployed. `firebase-functions` 5.1.1 and `firebase-admin` 12.7.0 stay (their next majors change the default import); there are no native dependencies.
+
+### Tests
+- On Node 22.23.4 (`npx -p node@22`): `functions/index.js` loads all 60 exports. Every unit test file passes: auth-alias 10, equipment-adjacency 46, inventory-thresholds 19, meetings 56, presence 35, procurement-notify 61, research-foci-notify 18, scientia-hub 68, scientia-merge 14, scientia-share 44, equipment-reminders and equipment-watches green. engage-guest needs the Firestore emulator and was not run.
+
+## [V3.933] — 2026-10-27 — Scientia: merged changes to review, each person's version in their colour until you have looked
+
+Plan: [CodeLog/ClaudesPlan/V3.933_scientia_merge_review.md](../ClaudesPlan/V3.933_scientia_merge_review.md).
+
+### Added
+- **`functions/scientia-merge.js`**: lines kept side by side, and an edit moved to the end of the card, carry a formatting mark `{type: 'fmt', s: 'by0'…'by5', who}`.
+  - `hueOf(name)` gives each person one of six colours, by name, the same on every card. `byColours(cur, mine)` never gives the two sides the same colour.
+  - `mergeBody` adds the marks when `opts.mineName` / `opts.curName` are given; edits that land in different places are not coloured.
+- `functions/scientia-hub-core.js` `personOf(dev, name, ownerName)`: the person behind a write.
+  - A collaborator through the relay (`share:<uid>` → "Gabe", `share` → "Alex"); otherwise the hub's owner (any of their devices).
+  - `planPush({…, ownerName})` names both sides with it. `FirestoreHub.push` passes the owner's name (`ownerNameOf(uid)`, `users/{uid}`, cached 30 min).
+- **`rm/scientia/lab-mode.js` §18 — Review merged changes**:
+  - The six colours (`.fby0…5`; on a list line the bullet takes only the colour). On hover, whose version it is.
+  - A chip "N merged changes to review" in a top row shared with §17's deletions chip (`LAB.topChips`, moved below the tabs under 1100 px).
+  - The bar takes you to each AREA (a card with marks you haven't reviewed, note by note in card order) and outlines it: **Accept** (the colour goes), **Comment** (a comment card beside it, wired `comments`, then reviewed), **Next →**, **Accept all (N)**.
+  - In a note only you have, accepting removes the marks from the card. In a shared note it is yours alone: the ids go in `settings.reviewedMerges` (synced to your devices, pruned to marks that still exist) and a generated rule (`#lab-review-css`) hides their colour, so a collaborator keeps their colours until they review.
+
+### Changed
+- `scripts/scientia-project/restore-share.js`: `--list`, or `--name` with nothing after it, prints every project name it can find (hubs, op logs, kept copies, share index). Before, a bare `--name` printed the usage line.
+- `scientiaHub` health `V3.933`; `sw.js` CACHE_VERSION 903 → 904.
+
+### Tests
+- `functions/test/scientia-merge.test.js` **14 passed** (4 new):
+  - both versions coloured as their writers', never the same colour, edits elsewhere uncoloured;
+  - one colour per person across cards;
+  - the moved edit is coloured;
+  - through `planPush`, a collaborator's line and the owner's are named by person ("Gabe", "Alex McGhee"), not device.
+- `scientia-share.test.js` 44, `scientia-hub.test.js` 68.
+- The desktop app in headless Chrome with two merged cards (one in a shared note):
+  - the chip ("2 merged changes to review"); the bar on the first area, with each name in its colour;
+  - Next opens the other note; Accept removes the marks of the unshared card;
+  - Comment adds a wired comment card;
+  - Accept all leaves 0 coloured lines; the shared card keeps its 3 marks on the server, with their ids in `reviewedMerges`;
+  - 0 console errors; the narrow-window layout checked.
+
+## [V3.932] — 2026-10-27 — Scientia: two people's edits to one card kept together in context; a shared deletion waits for the other person; computer and cloud merge instead of replacing
+
+Plan: [CodeLog/ClaudesPlan/V3.932_scientia_contextual_merge.md](../ClaudesPlan/V3.932_scientia_contextual_merge.md).
+
+### Added
+- **`functions/scientia-merge.js`** — `mergeLines(base, mine, cur, {mineName})`: diff3 on lines.
+  - An edit one side made lands in place. Both adding at one place keeps both. Both changing the same lines keeps both versions side by side.
+  - An edit whose place was removed goes to the end of the card under "<name>’s edit (its place was removed):".
+  - With `base == null`, the common lines stand in for the common version.
+  - `mergeBody` carries `{text, marks}`: marks are remapped by line, and one either side removed stays removed. `mergeValue` recurses into plain objects. `settle(store, prev, mine, cur, merged, bad, opts)` runs after `merge3`: text merges; a card's `x/y/w/h/z/collapsed` stays put; both renaming a card puts the other name at the end of the card.
+- **Shared deletions wait for approval** (`functions/scientia-share-core.js`):
+  - `holdDeletes(env, idx, uid, role, dels)` holds a note, card, theme, aim, structure or project someone removed. A collaborator's waits for the owner or another collaborator; the owner's waits for a collaborator.
+  - Grouped per note (its cards, structures and wires) or per card. Not held: empty cards, and records only the deleter wrote (`who/` authorship: `authored()`).
+  - `holdOf` / `held` / `loadHold`: `fanOut` leaves held copies alone (the deleter's stays gone; everyone else keeps theirs). `sharePass` neither re-asks nor tears down a share whose root deletion is waiting.
+  - `pendingFor(env, uid)` → `{decide, waiting}`. `decide(env, uid, share, pid, 'delete'|'keep')` applies the decision to the owner's hub, then runs the pass.
+- Storage: `scientiaShares/{id}/pending/{pid}` and `/who/{row}` (`functions/scientia-share.js` `pendingList/Put/Del`, `whoGet/Put`; MemoryShareEnv the same).
+- Hub routes: `GET /api/rm/shares/pending`, `POST /api/rm/shares/decide` (FirestoreHub `sharesPending`, `sharesDecide`).
+- **`rm/scientia/lab-mode.js` §17**: a chip at the top ("2 deletions to approve" / "…waiting for approval") and a panel with *Keep it* / *Delete it* and your own deletions waiting. Polled at start, every minute and on return. Web and installed app (via `rm_proxy`). Icon `trash`.
+
+### Changed
+- `functions/scientia-hub-core.js` `planPush`: fields `merge3` can't settle go through `MERGE.settle` before becoming a conflict. A push with `base 0, prev null` onto an existing row (two notebooks meeting) merges instead of overwriting.
+- **`rm/scientia/scientia-cloud.py`** (and `scientia/vendor/scientia_cloud.py`):
+  - `Bridge.exchange()`: the computer's changes go to the cloud first, so a row both changed merges in the cloud; the computer takes the result.
+  - `Bridge.unite()`: two notebooks with no shared history become one, nothing removed. Used by `align()` unless `--prefer` is given; the "which notes win" question no longer comes up.
+- `scientia/labsync.py` `realign()` uses `exchange()`.
+- `scripts/scientia-project/restore-share.js` (V3.931): it matched the name exactly, so "Our lab development" found nothing. Names now match loosely (case, spaces and punctuation ignored; either contains the other). The copies kept before each replace, in every hub, are searched for the project too, not only once it was found elsewhere. Several matches list their ids for `--project`. No match lists every project name seen, and where.
+- `scientiaHub` deployed by Alex 2026-10-27 (V3.932 live). `CodeLog/features.json` lists `scientia-merge.js` and its test; `sw.js` CACHE_VERSION 902 → 903.
+
+### Tests
+- `functions/test/scientia-merge.test.js` **10 passed**: list edits in place; two additions to one list; an edit plus an addition; same item changed both ways; an edit whose place was removed; a removal against an untouched edit; no common version; marks following lines; through the hub (one card, both edits, no decision; both renamed).
+- `functions/test/scientia-share.test.js` **44 passed**:
+  - a collaborator's deletion waits (one per note); the pass leaves it waiting; keep restores; approve removes it everywhere;
+  - an empty card goes; the owner's deletion waits; a record only its deleter wrote goes; owner deletes a pre-share theme and it is kept;
+  - the owner deletes the whole project: nobody loses it, and keeping it brings it back, still shared.
+- `functions/test/scientia-hub.test.js` **68 passed**: the two conflict tests now use a field that can't merge (`status`); a card's text no longer conflicts.
+- End to end with `scientia/serve.py` and the dev hub:
+  - first connect with different notes on both sides → one notebook, the shared project and both computer-only and cloud-only notes on both;
+  - a card edited on both sides within one pass → identical merged text on both, 0 conflicts.
+- The approvals panel rendered in the desktop app (headless Chrome, routed data): chip, two decisions, one waiting; 0 console errors.
+- `merge_check.py worktree` clean.
+
+## [V3.931] — 2026-10-27 — Scientia: a hub replaced by a computer's notebook never ends a share
+
+Plan: [CodeLog/ClaudesPlan/V3.931_scientia_share_survives_replace.md](../ClaudesPlan/V3.931_scientia_share_survives_replace.md). "Our lab development", shared by Alex and Gabe, disappeared.
+
+### Bug Fixes
+- **`functions/scientia-share-core.js`**: a hub *replaced* (a desktop connecting with "this computer's notebook wins": `scientia-cloud.py --prefer local`, the installed app's choice since V3.928) rewrites every row with seq 0 and no device, and removes the rest with no tombstone. The share pass read that as an edit:
+  - **owner replaced** → the project looked deleted or unshared → `sharePass` steps 4–5 removed every member's copies and dropped the index with its shadows. Now `heal(env, old)` runs first: when the root is missing or written by a replace (`fromReplace(row) = !row || (!row.seq && !row.dev)`), the owner's missing records are pushed back from the members' shadows (device `share-restore`) and the index's grants put back on the root. An unshare or delete the owner actually made (a row with a seq) still stands.
+  - **collaborator replaced** → step 1 sent "deleted" for each missing copy, and V3.923's guard let it through for every record whose owner row was last written by that collaborator (anything they had edited), and took a stale copy from their computer as their edit. Step 1 now skips rows that are missing or written by a replace; step 3 gives the copies back.
+- `scientiaHub` health reports `V3.931`.
+
+### Restored (2026-10-27, Alex ran `restore-share.js --commit`)
+- "OurLab Development" (`p_2548ynflw1h`, Gabe's, shared with Alex to edit).
+  - The trace: Gabe's new computer "Surface Pro" was paired at 07:32 (Arizona). His online notebook was replaced by its notebook at 08:49–08:51, which removed the project with no tombstone. At 09:36 the share pass took it as unshared and deleted Alex's copy (seq 4189, device `share`) and the index.
+  - Restore: the 14 records (project, 2 themes, 1 aim, 3 notes, 6 cards, 1 image) went back to Gabe's hub from the copy kept before the replace (seq 3446 → 3460). The share pass sent all 14 to Alex.
+
+### Added
+- `scripts/scientia-project/restore-share.js --name "<project>" [--commit]`: the trace (share index, each hub's `replacedAt`, paired computers, kept copies, the project's rows and op-log entries) and the restore (from the owner's kept before-replace copy → share shadows → op logs; writes to the owner as device `restore`, then runs the share pass).
+
+### Tests
+- `functions/test/scientia-share.test.js` **37 passed** (5 new: the collaborator's hub replaced keeps the owner's notes, edited ones included; a stale copy is not an edit; the owner's hub replaced without the project → back from the share, still shared; replaced with a pre-share copy → still shared; a real unshare still removes copies). All 5 fail on the V3.923 code. `scientia-hub.test.js` 68 passed.
+
+## [V3.930] — 2026-10-27 — BME 466 Module 7 · The River, Tab 1 only, live on the site
+
+### Added
+- `modules/bme466/07-the-river.html` — Module 7, Tab 1 (§1.1–1.4: friction/viscosity, Poiseuille, Bingham, rouleaux/DVT). Tabs 2–5 are held back: the page is the course repo's `build/staged/07-the-river.html` (`assemble.mjs --tabs 1`), byte-identical. Course CHANGELOG V3.71.
+- `modules/bme466/simulations/7.1.1–7.1.4.html` + `index.json`; `modules/manifest.json` lists the file.
+
+### Changed
+- `sw.js` CACHE_VERSION 901 → 902 (pulled V3.926–V3.929 first; this machine was 8 commits behind).
+
+### Verification
+Website-root QA: whole-page (1 tab, 4 rail entries, math, details), bench DOM checks 127 + 70 + 76 + 84 all pass, `qa_deployed_sims` 4/4 pages inked, 0 console errors, 0 failed requests; screenshots read (page top, 7.1.2, 7.1.4 × 3 views). Uploaded with `deploy.py ftp --only modules/ --only sw.js` (9 files incl. `rm/build.json`); the live page `cmp`-identical. Unrelated pending `rm/scientia/*` changes were not uploaded.
+
+### Still manual
+Class page: `#/classes/bme466` → + Add Module → `modules/bme466/07-the-river.html` → order → Visible.
 
 ## [V3.929] — 2026-10-27 — Scientia on this computer is the lab's, and in step within seconds
 

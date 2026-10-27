@@ -122,7 +122,7 @@ const THISPC = {
       act('Use the notes online (they replace this computer’s)', () => THISPC.post('api/lab/choose', { prefer: 'cloud' })),
       act('Use this computer’s notes (they replace the online ones)', () => THISPC.post('api/lab/choose', { prefer: 'local' })), h('div.tiny.muted', 'The replaced side keeps a copy first.')));
     if (s.state !== 'syncing' && s.state !== 'not-connected' && s.message) out.push(h('div.tiny.muted', s.message));
-    const u = s.update;   // V3.930: the installed app keeps itself up to date (service.py); a copy that cannot says where to get the new one
+    const u = s.update;   // V3.935: the installed app keeps itself up to date (service.py); a copy that cannot says where to get the new one
     if (u && u.auto) out.push(h('div.pc-update.' + (u.state || ''),
       h('span', u.state === 'downloading' || u.state === 'installing' ? (u.message || 'Updating…') : u.state === 'error' ? 'Updates: ' + (u.message || 'the last try failed') + ' — it tries again within the hour' : 'Up to date — it updates itself when the lab changes Scientia'),
       h('span.tiny.muted', ' · version ' + (u.version || '?') + (u.checked ? ' · checked ' + fmtWhen(u.checked) : '')),
@@ -146,7 +146,7 @@ const THISPC = {
   }
 };
 
-/* V3.930 — the app here, after its server updated itself: reload (at once when this tab is in the background, else on a click) */
+/* V3.935 — the app here, after its server updated itself: reload (at once when this tab is in the background, else on a click) */
 THISPC.watch = () => {
   if (!THISPC.isLocalApp()) return;
   let mine = null;

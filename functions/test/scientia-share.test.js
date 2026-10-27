@@ -202,30 +202,126 @@ function review(env, uid, extra) {
   });
 
   /* ---- V3.923: a collaborator's side losing its copies never deletes the owner's originals ---- */
-  await test('Bea’s hub loses the shared notes (her desktop replaced it) → Alex keeps them, Bea gets them back', async () => {
+  await test('Bea deletes a shared note → Alex keeps it, her copy stays gone, and Alex is asked', async () => {
     const lost = ['n_1', 'nb_1'].map(id => ({ store: id.startsWith('nb') ? 'blocks' : 'documents', id, del: true, rec: null }));
     const r = await push(P, 'B', lost, 'desk');
     assert.ok(rowOf(P, 'A', 'documents', 'n_1'), 'Alex’s note stays'); assert.ok(rowOf(P, 'A', 'blocks', 'nb_1'), 'and its component');
-    assert.ok(rowOf(P, 'B', 'documents', 'n_1'), 'Bea’s copy is back'); assert.ok(rowOf(P, 'B', 'blocks', 'nb_1'));
-    assert.strictEqual(r.in, 0);
+    assert.strictEqual(rowOf(P, 'B', 'documents', 'n_1'), null, 'gone from Bea while it waits'); assert.strictEqual(r.in, 0);
+    const a = await S.pendingFor(P, 'A'), b = await S.pendingFor(P, 'B');
+    assert.strictEqual(a.decide.length, 1, 'one decision for the note and its card'); assert.strictEqual(a.decide[0].root.title, 'Day 1'); assert.strictEqual(a.decide[0].byName, 'Bea');
+    assert.deepStrictEqual(a.decide[0].recs.map(x => x.id).sort(), ['n_1', 'nb_1']); assert.strictEqual(b.waiting.length, 1); assert.strictEqual(b.decide.length, 0);
+  });
+  await test('…the hourly pass leaves it waiting (no second request, nothing given back)', async () => {
+    P.t += S.SHARES_MS + 1;
+    await S.syncShares(P, 'A');
+    assert.strictEqual((await S.pendingFor(P, 'A')).decide.length, 1);
+    assert.ok(rowOf(P, 'A', 'documents', 'n_1')); assert.strictEqual(rowOf(P, 'B', 'documents', 'n_1'), null);
+  });
+  await test('…Alex keeps it → it is back in Bea’s Scientia', async () => {
+    const p = (await S.pendingFor(P, 'A')).decide[0];
+    assert.strictEqual((await S.decide(P, 'B', p.shareId, p.pid, 'keep')).ok, false, 'not the deleter’s to decide');
+    const r = await S.decide(P, 'A', p.shareId, p.pid, 'keep'); assert.ok(r.ok);
+    assert.ok(rowOf(P, 'B', 'documents', 'n_1')); assert.ok(rowOf(P, 'B', 'blocks', 'nb_1')); assert.ok(rowOf(P, 'A', 'documents', 'n_1'));
+    assert.strictEqual((await S.pendingFor(P, 'A')).decide.length, 0);
   });
   await test('Bea deletes the shared project itself → Alex keeps it; her copy comes back', async () => {
     await push(P, 'B', [{ store: 'projects', id: 'p_1', del: true, rec: null }], 'desk');
     assert.ok(rowOf(P, 'A', 'projects', 'p_1')); assert.ok(rowOf(P, 'B', 'projects', 'p_1'));
   });
-  await test('…and the hourly pass does not delete them either when her copies vanish without a relay', async () => {
-    const hb = P.memoryHub('B');
-    await hb.push({ dev: 'desk', name: 'Desktop', ops: ['n_1', 'n_bea'].map(id => ({ store: 'documents', id, rec: null, del: true, prev: null, base: 1e15 })) });
-    P.t += S.SHARES_MS + 1;
-    await S.syncShares(P, 'A');
-    assert.ok(rowOf(P, 'A', 'documents', 'n_1'), 'Alex’s own note stays');
-    assert.ok(rowOf(P, 'B', 'documents', 'n_1'), 'and is back in Bea’s Scientia');
+  await test('Bea deletes a card again → Alex approves → it leaves Alex and Bea', async () => {
+    await push(P, 'B', [{ store: 'blocks', id: 'nb_1', del: true, rec: null }]);
+    const p = (await S.pendingFor(P, 'A')).decide[0]; assert.strictEqual(p.root.what, 'card');
+    await S.decide(P, 'A', p.shareId, p.pid, 'delete');
+    assert.strictEqual(rowOf(P, 'A', 'blocks', 'nb_1'), null); assert.strictEqual(rowOf(P, 'B', 'blocks', 'nb_1'), null);
+    assert.ok(rowOf(P, 'A', 'documents', 'n_1'), 'only the card');
+  });
+  await test('An empty card goes without asking', async () => {
+    await push(P, 'A', [put('blocks', { id: 'nb_empty', docId: 'n_1', kind: 'component', body: { text: '  ', marks: [] } }), put('documents', Object.assign({}, rowOf(P, 'A', 'documents', 'n_1'), { blockIds: ['nb_empty'] }))]);
+    assert.ok(rowOf(P, 'B', 'blocks', 'nb_empty'));
+    await push(P, 'B', [{ store: 'blocks', id: 'nb_empty', del: true, rec: null }]);
+    assert.strictEqual(rowOf(P, 'A', 'blocks', 'nb_empty'), null); assert.strictEqual((await S.pendingFor(P, 'A')).decide.length, 0);
+  });
+  await test('Alex deletes a shared note → Bea keeps her copy and is asked; she approves → it leaves her too', async () => {
+    await push(P, 'A', [{ store: 'documents', id: 'n_bea', del: true, rec: null }]);
+    assert.strictEqual(rowOf(P, 'A', 'documents', 'n_bea'), null); assert.ok(rowOf(P, 'B', 'documents', 'n_bea'), 'Bea still has it');
+    const p = (await S.pendingFor(P, 'B')).decide[0]; assert.ok(p); assert.strictEqual(p.kind, 'owner'); assert.strictEqual(p.byName, 'Alex');
+    P.t += S.SHARES_MS + 1; await S.syncShares(P, 'A'); assert.ok(rowOf(P, 'B', 'documents', 'n_bea'), 'the pass waits too');
+    await S.decide(P, 'B', p.shareId, p.pid, 'delete');
+    assert.strictEqual(rowOf(P, 'B', 'documents', 'n_bea'), null);
+  });
+  await test('Alex deletes a theme only he ever wrote → it goes without asking', async () => {
+    await push(P, 'A', [{ store: 'themes', id: 't_2', del: true, rec: null }]);
+    assert.strictEqual(rowOf(P, 'B', 'themes', 't_2'), null); assert.strictEqual((await S.pendingFor(P, 'B')).decide.length, 0);
+  });
+  await test('Alex deletes a theme from before the share → Bea keeps it → it is back for Alex', async () => {
+    await push(P, 'A', [{ store: 'themes', id: 't_1', del: true, rec: null }]);
+    assert.ok(rowOf(P, 'B', 'themes', 't_1'));
+    const p = (await S.pendingFor(P, 'B')).decide[0]; assert.strictEqual(p.root.what, 'theme');
+    await S.decide(P, 'B', p.shareId, p.pid, 'keep');
+    const t = rowOf(P, 'A', 'themes', 't_1'); assert.ok(t && !t.sharedFrom); assert.ok(rowOf(P, 'B', 'themes', 't_1'));
+  });
+  await test('Alex deletes the whole shared project → nobody loses it until Bea decides; she keeps it → back for Alex, still shared', async () => {
+    await push(P, 'A', [{ store: 'projects', id: 'p_1', del: true, rec: null }]);
+    assert.strictEqual(rowOf(P, 'A', 'projects', 'p_1'), null); assert.ok(rowOf(P, 'B', 'projects', 'p_1')); assert.ok(rowOf(P, 'B', 'documents', 'n_1'));
+    P.t += S.SHARES_MS + 1; await S.syncShares(P, 'A'); assert.ok(rowOf(P, 'B', 'documents', 'n_1'), 'the pass does not end the share meanwhile');
+    const p = (await S.pendingFor(P, 'B')).decide.find(x => x.root.store === 'projects');
+    await S.decide(P, 'B', p.shareId, p.pid, 'keep');
+    assert.ok(rowOf(P, 'A', 'projects', 'p_1')); assert.deepStrictEqual(rowOf(P, 'A', 'projects', 'p_1').shareWith, { B: 'edit' });
+    assert.ok(rowOf(P, 'B', 'documents', 'n_1'));
   });
   await test('Bea deletes a note she wrote herself → it leaves Alex’s project too', async () => {
     await push(P, 'B', [put('documents', { id: 'n_bea2', projectId: 'p_1', themeId: 't_1', title: 'Scratch', blockIds: [] })]);
     assert.ok(rowOf(P, 'A', 'documents', 'n_bea2'));
     await push(P, 'B', [{ store: 'documents', id: 'n_bea2', del: true, rec: null }]);
     assert.strictEqual(rowOf(P, 'A', 'documents', 'n_bea2'), null);
+  });
+
+  /* ---- V3.931: a whole hub replaced (a desktop's "this computer wins") never ends a share ---- */
+  const Q = new S.MemoryShareEnv(MEMBERS);
+  await push(Q, 'A', [put('projects', { id: 'p_q', name: 'Our lab development', shareWith: { B: 'edit' } }), put('themes', { id: 't_q', projectId: 'p_q', name: 'App', status: 'active' }),
+    put('documents', { id: 'q_1', projectId: 'p_q', themeId: 't_q', title: 'Sync plan', blockIds: ['qb_1'] }), put('blocks', { id: 'qb_1', docId: 'q_1', kind: 'component', body: { text: 'one hub' } })]);
+  await push(Q, 'B', [put('documents', Object.assign({}, rowOf(Q, 'B', 'documents', 'q_1'), { title: 'Sync plan (Bea)' }))]);   // Bea edits: Alex's row is now hers
+  await push(Q, 'B', [put('documents', { id: 'q_bea', projectId: 'p_q', themeId: 't_q', title: 'Bea’s note', blockIds: [] })]);
+  await test('Bea’s hub is replaced by her computer’s notebook (no shared copies) → Alex keeps every note, even ones she edited', async () => {
+    await Q.memoryHub('B').replace({ stores: { documents: [{ id: 'own', title: 'Bea’s desk note', blockIds: [] }] } });
+    Q.t += S.SHARES_MS + 1;
+    await S.syncShares(Q, 'A');
+    for (const id of ['q_1', 'q_bea']) assert.ok(rowOf(Q, 'A', 'documents', id), 'Alex keeps ' + id);
+    assert.strictEqual(rowOf(Q, 'A', 'documents', 'q_1').title, 'Sync plan (Bea)');
+    for (const [s, id] of [['projects', 'p_q'], ['documents', 'q_1'], ['documents', 'q_bea'], ['blocks', 'qb_1']]) assert.ok(rowOf(Q, 'B', s, id), 'Bea has ' + s + '/' + id + ' again');
+  });
+  await test('…and an old copy in her computer’s notebook is not taken as her edit', async () => {
+    const stale = Object.assign({}, rowOf(Q, 'B', 'documents', 'q_1'), { title: 'Sync plan (old)' });
+    await Q.memoryHub('B').replace({ stores: { documents: [stale] } });
+    Q.t += S.SHARES_MS + 1;
+    await S.syncShares(Q, 'A');
+    assert.strictEqual(rowOf(Q, 'A', 'documents', 'q_1').title, 'Sync plan (Bea)');
+    assert.strictEqual(rowOf(Q, 'B', 'documents', 'q_1').title, 'Sync plan (Bea)');
+  });
+  await test('Alex’s hub is replaced by a notebook without the project → it comes back to him from the share, and Bea keeps it', async () => {
+    await Q.memoryHub('A').replace({ stores: { documents: [{ id: 'mine', title: 'Alex’s desk note', blockIds: [] }] } });
+    Q.t += S.SHARES_MS + 1;
+    const r = await S.syncShares(Q, 'B');
+    assert.ok(r.results[0].healed, 'the pass says what it put back');
+    const p = rowOf(Q, 'A', 'projects', 'p_q'); assert.ok(p && !p.sharedFrom); assert.deepStrictEqual(p.shareWith, { B: 'edit' });
+    for (const [s, id] of [['themes', 't_q'], ['documents', 'q_1'], ['documents', 'q_bea'], ['blocks', 'qb_1']]) { assert.ok(rowOf(Q, 'A', s, id), 'Alex has ' + s + '/' + id); assert.ok(!rowOf(Q, 'A', s, id).sharedFrom); }
+    assert.ok(rowOf(Q, 'A', 'documents', 'mine'));
+    for (const [s, id] of [['projects', 'p_q'], ['documents', 'q_1'], ['blocks', 'qb_1']]) assert.ok(rowOf(Q, 'B', s, id), 'Bea keeps ' + s + '/' + id);
+    assert.ok(Q.idx.get('A__p__p_q'), 'the share stays');
+  });
+  await test('Alex’s hub is replaced by an old notebook holding the project before it was shared → still shared', async () => {
+    const old = Object.assign({}, rowOf(Q, 'A', 'projects', 'p_q')); delete old.shareWith;
+    await Q.memoryHub('A').replace({ stores: { projects: [old], themes: [rowOf(Q, 'A', 'themes', 't_q')] } });
+    Q.t += S.SHARES_MS + 1;
+    await S.syncShares(Q, 'A');
+    assert.deepStrictEqual(rowOf(Q, 'A', 'projects', 'p_q').shareWith, { B: 'edit' });
+    assert.ok(rowOf(Q, 'A', 'documents', 'q_1') && rowOf(Q, 'B', 'documents', 'q_1'));
+  });
+  await test('Alex unshares on purpose (an edit, not a replace) → Bea’s copies go, as before', async () => {
+    const p = Object.assign({}, rowOf(Q, 'A', 'projects', 'p_q')); delete p.shareWith;
+    await push(Q, 'A', [put('projects', p)]);
+    assert.strictEqual(rowOf(Q, 'B', 'projects', 'p_q'), null); assert.strictEqual(rowOf(Q, 'B', 'documents', 'q_1'), null);
+    assert.ok(rowOf(Q, 'A', 'documents', 'q_1'));
   });
 
   /* ---- the same RM project assigned to both ---- */

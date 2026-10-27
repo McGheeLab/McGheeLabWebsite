@@ -56,3 +56,11 @@ The PE-bead project's render script is described in its README.
 ## Publishing
 
 `--cloud <uid>` is a dry run. It prints what is new, what changed, what would be removed, the media to upload, and the cited papers missing from the hub's library mirror. Adding `--commit` uploads the media through `FirestoreHub.mediaPut`, pushes only the changed records, and refreshes the library mirror when a citation needs it. It writes to a person's hub, so run it only when that person asks.
+
+## A shared project that disappeared (V3.931)
+
+`node scripts/scientia-project/restore-share.js --name "<project name>"` is read only: it finds the project in every hub
+(live rows, tombstones, the op log), prints the share index, each involved hub's `replacedAt`, its paired computers and the
+copies kept before each replace, then the best surviving copy (the owner's kept copy → the share's shadows → the op logs)
+and what the owner's hub lacks. `--commit` writes those records back to the owner as device "restore", with the grants on
+the project, and runs the share pass so every member has their copy again.

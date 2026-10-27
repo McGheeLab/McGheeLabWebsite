@@ -25,6 +25,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const MERGE = require('./scientia-merge');   // V3.932 — a card's text merged by line, in context
 
 const NOSYNC = new Set(['journal', 'blobs', 'datasets']);
 const KEYS = { profiles: 'type', journal: 'seq' };
@@ -102,7 +103,16 @@ function emptyState() {
  * ops touch (null rec = tombstone, keeps the version). Returns the new state, the row
  * writes, the op docs to append, the merged echo and n (ops committed).
  */
-function planPush({ state, rows, dev, conn, name, ops, now }) {
+/** V3.933 — the person behind a write, for colouring two people's versions of a line: a collaborator through the share
+ *  relay ("Gabe (shared)" from share:<uid>, "Shared by Alex" on a member's copy), otherwise the hub's owner (any of their
+ *  devices), or the device's name when the owner's name isn't known (one person, two devices). */
+function personOf(dev, name, ownerName) {
+  const d = String(dev || ''), n = String(name || '');
+  if (d.startsWith('share:')) return n.replace(/ \(shared\).*$/, '') || 'A collaborator';
+  if (d === 'share') return n.replace(/^Shared by /, '').replace(/ \(read only\)$/, '') || 'The owner';
+  return ownerName || n.replace(/ \((shared|read only)\)$/, '') || null;
+}
+function planPush({ state, rows, dev, conn, name, ops, now, ownerName }) {
   const st = Object.assign({}, state, { conflicts: (state.conflicts || []).slice() });
   const ts = isoLocal(now);
   const writes = new Map(), commits = [], echo = [];
@@ -128,7 +138,8 @@ function planPush({ state, rows, dev, conn, name, ops, now }) {
     if (!store || id === undefined || id === null || NOSYNC.has(store)) continue;
     const key = keyOf(store, id), v = rows.get(key), cur = cur_(key), base = Number(o.base || 0);
     const prev = o.prev === undefined ? null : o.prev;
-    const others = !!(v && v.seq > base && v.dev !== dev) || (base < st.minSeq && prev !== null && !eq(cur === undefined ? MISSING : cur, prev));
+    const others = !!(v && v.seq > base && v.dev !== dev) || (base < st.minSeq && prev !== null && !eq(cur === undefined ? MISSING : cur, prev))
+      || (base === 0 && prev === null && cur !== undefined && !o.del);   // V3.932: two notebooks meeting (no common version) — merge, never overwrite
     if (o.del) {
       if (cur === undefined) continue;
       if (others && !eq(cur, prev)) { conflict('delete', store, id, [], cur, null); continue; }
@@ -138,7 +149,8 @@ function planPush({ state, rows, dev, conn, name, ops, now }) {
     if (!isObj(rec) || (cur !== undefined && eq(rec, cur))) continue;
     if (!others) { commit(store, id, rec, false); n++; continue; }
     if (cur === undefined) { conflict('deleted', store, id, [], null, rec); continue; }
-    const { merged, bad } = merge3(prev, rec, cur);
+    let { merged, bad } = merge3(prev, rec, cur);
+    if (bad.length) { const last = rows.get(key); ({ merged, bad } = MERGE.settle(store, prev, rec, cur, merged, bad, { mineName: personOf(dev, name, ownerName), curName: last ? personOf(last.dev, last.name, ownerName) : null })); }
     if (bad.length) conflict('fields', store, id, bad.sort(), cur, rec);
     if (!eq(merged, cur)) { commit(store, id, merged, false); n++; }
     if (!eq(merged, rec)) echo.push({ store, id, rec: merged, del: false });
@@ -1061,6 +1073,8 @@ async function route(req, ctx) {
     await mirrorQuietly(hub, who);
     return J(200, await hub.pull({ conn: g('conn', ''), since: parseInt(g('since', '0'), 10) || 0, sid: g('sid', '') }));
   }
+  if (p === '/api/rm/shares/pending') return J(200, typeof hub.sharesPending === 'function' ? await hub.sharesPending() : { ok: true, decide: [], waiting: [] });   // V3.932
+  if (p === '/api/rm/shares/decide' && post) { if (typeof hub.sharesDecide !== 'function') return J(200, { ok: false, error: 'no shares here' }); const b = parseBody(req) || {}; return J(200, await hub.sharesDecide(b)); }
   if (p === '/api/rm/members') return J(200, typeof hub.members === 'function' ? await hub.members() : { ok: true, members: [] });   // V3.899 — who a share can go to
   if (p === '/api/rm/sync' && post) {
     if (typeof hub.quietSyncs !== 'function') return J(200, { ok: false, error: 'no RM sync on this hub' });
@@ -1362,7 +1376,7 @@ MemoryHub.prototype.libraryRows = function () {
   return out;
 };
 
-module.exports = { route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA_BYTES, NOSYNC, KEYS, AUTO_MAX, COUNT_SKIP, MAX_OPS, PULL_MAX, MISSING, isoLocal, eq, merge3, emptyState, planPush, pullResult, planResolve, planReplace, exportState, helloResult, keyOf, rowKey, MemoryHub, sha, token,
+module.exports = { personOf, route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA_BYTES, NOSYNC, KEYS, AUTO_MAX, COUNT_SKIP, MAX_OPS, PULL_MAX, MISSING, isoLocal, eq, merge3, emptyState, planPush, pullResult, planResolve, planReplace, exportState, helloResult, keyOf, rowKey, MemoryHub, sha, token,
   MIRROR_MS, MIRROR_FIELDS, rmItemToLibraryRow, planMirror, INVENTORY_MS, INVENTORY_LIMIT, rmInventoryRow, searchInventory,
   TASKSYNC_MS, PRIO_IMPORTANCE, dueDateOf, taskIdNew, rmTaskFromBlock, rmTaskPatch, planTaskSync,
   UPSYNC_MS, UPSYNC_MAX, normTitle, taskPayload, planTaskPairing, patchOp, libAuthors, paperItemFromRow, libraryUpCandidates, planLibraryUp,

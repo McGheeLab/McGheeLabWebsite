@@ -64,8 +64,9 @@ function firestoreEnv(deps) {
         cacheClear();
       },
       async del(id) {
-        const ref = coll().doc(id), sh = await ref.collection('shadow').listDocuments();
-        await batched(sh, (b, r) => b.delete(r)); await ref.delete(); cacheClear();
+        const ref = coll().doc(id);
+        for (const sub of ['shadow', 'who']) { const docs = await ref.collection(sub).listDocuments(); await batched(docs, (b, r) => b.delete(r)); }
+        await ref.delete(); cacheClear();   // pending deletions stay: a share that ends still holds what waits for a person
       },
       owned: uid => cached('o' + uid, async () => (await coll().where('ownerUid', '==', uid).get()).docs.map(s => Object.assign({}, s.data(), { id: s.id }))),
       memberOf: uid => cached('m' + uid, async () => (await coll().where('memberUids', 'array-contains', uid).get()).docs.map(s => Object.assign({}, s.data(), { id: s.id }))),
@@ -102,6 +103,17 @@ function firestoreEnv(deps) {
         await batched(list, (b, x) => b.set(c.doc(shadowId(uid, x.store, x.id)), { uid, store: x.store, id: String(x.id), recJson: JSON.stringify(x.rec), ownerSeq: x.ownerSeq || 0 }));
       },
       async shadowDel(id, uid, keys) { const c = coll().doc(id).collection('shadow'); await batched(keys, (b, k) => b.delete(c.doc(shadowId(uid, k.store, k.id)))); },
+      /* V3.932 — deletions waiting for the other person (scientiaShares/{id}/pending/{pid}) and who wrote each record
+         (scientiaShares/{id}/who/{row}: the one author, or '*' once someone else changed it) */
+      async pendingList(id) { return (await coll().doc(id).collection('pending').get()).docs.map(s => Object.assign({}, s.data(), { pid: s.id })); },
+      async pendingPut(id, p) { await coll().doc(id).collection('pending').doc(p.pid).set(JSON.parse(JSON.stringify(p))); },
+      async pendingDel(id, pid) { await coll().doc(id).collection('pending').doc(pid).delete(); },
+      async whoGet(id, keys) {
+        const m = new Map(), c = coll().doc(id).collection('who'), snaps = keys.length ? await getAll(keys.map(k => c.doc(rowDocId(k.store, k.id)))) : [];
+        snaps.forEach((s, i) => { if (s.exists) m.set(keyOf(keys[i].store, keys[i].id), (s.data() || {}).who); });
+        return m;
+      },
+      async whoPut(id, list) { const c = coll().doc(id).collection('who'); await batched(list, (b, x) => b.set(c.doc(rowDocId(x.store, x.id)), { store: x.store, id: String(x.id), who: x.who })); },
       async shadowHas(id, store, rid) { return !(await coll().doc(id).collection('shadow').where('store', '==', store).where('id', '==', String(rid)).limit(1).get()).empty; },
     },
   };

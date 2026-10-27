@@ -37,6 +37,10 @@
           "title": "The Ground Gives \u2014 Stiffness, Viscoelasticity & Traction (Week 6, BME 466/566)"
         },
         {
+          "name": "07-the-river.html",
+          "title": "The River \u2014 Why Blood Moves, and Where the T Cell Rides (Module 7, BME 466/566)"
+        },
+        {
           "name": "HW1-student-key.html",
           "title": "HW1 \u2014 Worked solutions"
         },
@@ -393,5 +397,5 @@
       ]
     }
   },
-  "generated": "2026-10-20T08:09:29"
+  "generated": "2026-10-27T09:07:00"
 }

@@ -33,7 +33,7 @@ APP_SEEN = [0.0]          # when a window of this app last asked this server for
 SITE = os.environ.get('SIS_SITE', 'https://mcgheelab.com')
 RM_BUNDLED = {'/rm/js/recorder-core.js', '/rm/js/speech-to-text.js', '/rm/js/stt-device-worker.js'}
 REC_RID = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
-# V3.929/930: an installed copy knows its version (VERSION.txt, written by the build); service.py keeps it up to date and
+# V3.929/935: an installed copy knows its version (VERSION.txt, written by the build); service.py keeps it up to date and
 # says what it is doing in update.json next to the app folder (Settings → The lab shows it; "Check now" leaves update-now)
 APP_VERSION = (open(os.path.join(ROOT, 'VERSION.txt'), encoding='utf-8').read().strip() if os.path.isfile(os.path.join(ROOT, 'VERSION.txt')) else None)
 UPDATE_STATUS = os.path.join(os.path.dirname(ROOT), 'update.json')

@@ -72,31 +72,31 @@ const dev = (hub, id, conn) => ({
     assert.deepStrictEqual(hub.rows.get(C.keyOf('documents', 'd1')).rec, { id: 'd1', title: 'Day one', synthesis: { text: 'it worked' } });
     const pa = await A.pull(); assert.strictEqual(pa.ops.length, 1); assert.strictEqual(pa.ops[0].rec.synthesis.text, 'it worked');
   });
-  await test('concurrent edits of the same field → a fields conflict, other fields still merge', async () => {
+  await test('concurrent edits of the same field (one that can’t merge) → a fields conflict, other fields still merge', async () => {
     const hub = new C.MemoryHub(); const A = dev(hub, 'A', 'ka'), B = dev(hub, 'B', 'kb'); await A.load();
-    await A.push([A.op('blocks', 'b1', { id: 'b1', label: 'L', body: { text: 'one' } })]); await B.load(); await A.pull();
-    await A.push([A.op('blocks', 'b1', { id: 'b1', label: 'L', body: { text: 'two' } })]);
-    const r = await B.push([B.op('blocks', 'b1', { id: 'b1', label: 'Mine', body: { text: 'three' } })]);
+    await A.push([A.op('blocks', 'b1', { id: 'b1', label: 'L', status: 'one' })]); await B.load(); await A.pull();
+    await A.push([A.op('blocks', 'b1', { id: 'b1', label: 'L', status: 'two' })]);
+    const r = await B.push([B.op('blocks', 'b1', { id: 'b1', label: 'Mine', status: 'three' })]);
     assert.strictEqual(r.conflicts, 1);
-    const c = hub.st.conflicts[0]; assert.strictEqual(c.type, 'fields'); assert.deepStrictEqual(c.fields, ['body']); assert.strictEqual(c.theirsName, 'A'); assert.strictEqual(c.mineName, 'B');
-    assert.deepStrictEqual(hub.rows.get(C.keyOf('blocks', 'b1')).rec, { id: 'b1', label: 'Mine', body: { text: 'two' } });
-    assert.strictEqual(r.echo.length, 1); assert.strictEqual(r.echo[0].rec.body.text, 'two');
+    const c = hub.st.conflicts[0]; assert.strictEqual(c.type, 'fields'); assert.deepStrictEqual(c.fields, ['status']); assert.strictEqual(c.theirsName, 'A'); assert.strictEqual(c.mineName, 'B');
+    assert.deepStrictEqual(hub.rows.get(C.keyOf('blocks', 'b1')).rec, { id: 'b1', label: 'Mine', status: 'two' });
+    assert.strictEqual(r.echo.length, 1); assert.strictEqual(r.echo[0].rec.status, 'two');
   });
   await test('resolve "mine" applies the losing side\'s fields; "theirs" just closes it; twice → already decided', async () => {
     const hub = new C.MemoryHub(); const A = dev(hub, 'A', 'ka'), B = dev(hub, 'B', 'kb'); await A.load();
-    await A.push([A.op('blocks', 'b1', { id: 'b1', body: { text: 'one' } })]); await B.load(); await A.pull();
-    await A.push([A.op('blocks', 'b1', { id: 'b1', body: { text: 'two' } })]);
-    await B.push([B.op('blocks', 'b1', { id: 'b1', body: { text: 'three' } })]);
+    await A.push([A.op('blocks', 'b1', { id: 'b1', status: 'one' })]); await B.load(); await A.pull();
+    await A.push([A.op('blocks', 'b1', { id: 'b1', status: 'two' })]);
+    await B.push([B.op('blocks', 'b1', { id: 'b1', status: 'three' })]);
     const cid = hub.st.conflicts[0].cid;
     const r = await hub.resolve({ cid, pick: 'mine', dev: 'B', name: 'B' }); assert.strictEqual(r.ok, true); assert.strictEqual(r.conflicts, 0);
-    assert.strictEqual(hub.rows.get(C.keyOf('blocks', 'b1')).rec.body.text, 'three');
+    assert.strictEqual(hub.rows.get(C.keyOf('blocks', 'b1')).rec.status, 'three');
     const again = await hub.resolve({ cid, pick: 'mine', dev: 'B', name: 'B' }); assert.strictEqual(again.ok, false);
     // theirs
-    await A.pull(); await A.push([A.op('blocks', 'b1', { id: 'b1', body: { text: 'four' } })]);
-    await B.push([B.op('blocks', 'b1', { id: 'b1', body: { text: 'five' } })]);
+    await A.pull(); await A.push([A.op('blocks', 'b1', { id: 'b1', status: 'four' })]);
+    await B.push([B.op('blocks', 'b1', { id: 'b1', status: 'five' })]);
     const cid2 = hub.st.conflicts[0].cid; const seqBefore = hub.st.seq;
     await hub.resolve({ cid: cid2, pick: 'theirs', dev: 'B', name: 'B' });
-    assert.strictEqual(hub.st.conflicts.length, 0); assert.strictEqual(hub.st.seq, seqBefore); assert.strictEqual(hub.rows.get(C.keyOf('blocks', 'b1')).rec.body.text, 'four');
+    assert.strictEqual(hub.st.conflicts.length, 0); assert.strictEqual(hub.st.seq, seqBefore); assert.strictEqual(hub.rows.get(C.keyOf('blocks', 'b1')).rec.status, 'four');
   });
   await test('delete after someone changed it → "delete" conflict; resolve mine deletes', async () => {
     const hub = new C.MemoryHub(); const A = dev(hub, 'A', 'ka'), B = dev(hub, 'B', 'kb'); await A.load();

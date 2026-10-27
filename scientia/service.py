@@ -1,10 +1,10 @@
-"""service.py — keeps this app's server running in the background, from login to shutdown, and up to date (V3.928, V3.930).
+"""service.py — keeps this app's server running in the background, from login to shutdown, and up to date (V3.928, V3.935).
 
 The installer starts it at login (HKCU Run) with pythonw, so there is no window. It runs serve.py with no browser and
 restarts it if it stops on an error (waiting longer each time, up to a minute). serve.py ending normally (exit 0: the
 app's Quit or Remove…) ends this too. A second copy finds the first one answering on the port and leaves.
 
-Updates (V3.930), so a change to Scientia on the lab site reaches this computer on its own: two minutes after it starts,
+Updates (V3.935), so a change to Scientia on the lab site reaches this computer on its own: two minutes after it starts,
 then every hour (or at once when Settings → The lab asks), it reads the site's version.json. When the site has another
 version of the app, it downloads the download (checked against its sha256), unpacks it beside the app, checks it is that
 version, stops the server (which saves first), puts the new files in place and starts again from them — a few seconds.

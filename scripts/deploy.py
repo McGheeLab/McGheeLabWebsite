@@ -288,7 +288,7 @@ def scientia_build_if_stale():
         return ""
     newest = 0.0
     # V3.902 — plus the lab's detectors that scientia_build.py copies into scientia/vendor (VENDOR_COPY, V3.901)
-    # V3.930 — plus what the desktop download carries (the lab layer, the bridge, RM's recorder scripts, the app's server and
+    # V3.935 — plus what the desktop download carries (the lab layer, the bridge, RM's recorder scripts, the app's server and
     # installer): installed computers update themselves from that download, so it must not lag behind the site
     extra = ([ROOT / "rm" / "scientia" / n for n in ("cloud-sync.js", "lab-mode.js", "scientia-cloud.py")]
              + [ROOT / "rm" / "js" / n for n in ("page-layout.js", "page-regions.js", "recorder-core.js", "speech-to-text.js", "stt-device-worker.js")]

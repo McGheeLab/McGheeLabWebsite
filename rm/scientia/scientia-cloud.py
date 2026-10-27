@@ -6,16 +6,16 @@ Run it on the computer that runs Scientia (launch.bat / serve.py), with the app'
     python3 scientia-cloud.py --key sck_...      once: saves the key made on the lab site (Desktop sync...)
     python3 scientia-cloud.py                    then: keeps syncing until you close this window
     python3 scientia-cloud.py --once             one pass and exit
-    python3 scientia-cloud.py --prefer local     first run when BOTH sides already hold notes: this
+    python3 scientia-cloud.py --prefer local     only if you want one side to REPLACE the other: this
     python3 scientia-cloud.py --prefer cloud       computer's notebook wins / the online notebook wins
 
 What it does: it is a *device* of both hubs - the app's own serve.py here and the lab's cloud hub.
 It pulls each side's changes and pushes them to the other with the same prev/base bookkeeping the
 app's browser uses, so fields merge the same way and anything both sides changed waits under the
 app's warning triangle, on whichever side you open. Images and recordings are copied both ways.
-If one side's record is replaced (a file uploaded online; another notebook folder chosen here), that
-side becomes the source and the other side follows - the replaced side keeps a copy first
-(.scientia/kept/ here, a kept/ folder in the cloud).
+When the two sides meet without a shared history (the first run, another notebook folder chosen here,
+a file uploaded online) they are brought together into one notebook, nothing removed (V3.932); a row
+both hold differently is merged in the cloud, a card's text line by line. --prefer replaces instead.
 
 Standard library only (Python 3.8+). Windows: `py scientia-cloud.py`. Stop with Ctrl+C.
 """
@@ -184,14 +184,13 @@ class Bridge:
                 if s.pull(0).get('reset'): raise SystemExit('%s no longer has the changes since the last sync (its history was trimmed). Run once with --prefer local or --prefer cloud.' % s.name)
             return
         lr, cr = int(hl.get('records') or 0), int(hc.get('records') or 0)
-        if not kl and not kc:
-            if cr == 0 and lr > 0: src, dst = self.L, self.C
-            elif lr == 0 and cr > 0: src, dst = self.C, self.L
-            elif lr == 0 and cr == 0: src = dst = None
-            else: src, dst = self.pick(lr, cr)
-        elif l_changed and not c_changed: src, dst = self.L, self.C
-        elif c_changed and not l_changed: src, dst = self.C, self.L
-        else: src, dst = self.pick(lr, cr)
+        if cr == 0 and lr > 0: src, dst = self.L, self.C
+        elif lr == 0 and cr > 0: src, dst = self.C, self.L
+        elif lr == 0 and cr == 0: src = dst = None
+        elif self.prefer: src, dst = self.pick(lr, cr)          # asked for by name: one side replaces the other
+        else:                                                     # V3.932: both hold notes -> one notebook from the two
+            self.unite(hl, hc); self.remember()
+            log('in step: this computer %s (seq %s) / the cloud %s (seq %s)' % (self.L.sid, self.L.seq, self.C.sid, self.C.seq)); return
         if src is None:
             self.L.sid, self.C.sid = hl['sid'], hc['sid']; self.L.seq, self.C.seq = int(hl.get('seq') or 0), int(hc.get('seq') or 0)
             self.set_shadow_from({'stores': {}})
@@ -250,28 +249,68 @@ class Bridge:
         baseL, baseC = self.L.seq, self.C.seq
         newL, newC = self.drain(self.L), self.drain(self.C)
         if not newL and not newC: return
+        self.exchange(newL, newC, baseL, baseC)
+
+    def exchange(self, newL, newC, baseL, baseC):
+        """Each side's changes to the other, three-way against the record both agreed on last (V3.932: the cloud first).
+        A row both sides changed is merged IN THE CLOUD, by the lab's merge (a card's text line by line, each edit where
+        it was made, both people's together; scientia-merge.js), and this computer takes the result as it is. Before
+        V3.932 this computer merged first (the app's own field-by-field merge), so a card both edited waited under its
+        warning triangle as one side's text or the other's."""
         anc = self.shadow.get
-        # 1. the cloud's changes -> this computer, three-way against the record both sides agreed on last:
-        #    a row both sides changed is merged HERE, and a field both changed waits under this computer's warning triangle
-        resL = self.push_batch(self.L, newC, baseL, prev=anc, name='Online copy')
-        # 2. this computer's changes, and what it made of the cloud's, -> the cloud, on top of what the cloud holds
-        toC = {k: v for k, v in newL.items() if k not in newC}
-        toC.update({k: resL[k] for k in newC if k in newL or resL[k] != newC[k]})
-        resC = self.push_batch(self.C, toC, baseC, prev=lambda k: newC[k] if k in newC else anc(k), name='This computer')
-        # 3. anything the cloud merged differently (it changed again meanwhile) -> back, once more each way at most
-        toL2 = {k: resC[k] for k in toC if resC[k] != toC[k]}
-        resL2 = self.push_batch(self.L, toL2, baseL, prev=lambda k: resL[k] if k in resL else newL.get(k, anc(k)), name='Online copy') if toL2 else {}
-        toC2 = {k: resL2[k] for k in toL2 if resL2[k] != toL2[k]}
-        resC2 = self.push_batch(self.C, toC2, baseC, prev=lambda k: resC.get(k), name='This computer') if toC2 else {}
+        # 1. this computer's changes -> the cloud, on top of what the cloud holds (rows both changed merge there)
+        resC = self.push_batch(self.C, newL, baseC, prev=anc, name='This computer')
+        # 2. the cloud's changes, and what it made of rows both changed -> this computer, as the cloud now holds them
+        toL = {k: v for k, v in newC.items() if k not in newL}
+        toL.update({k: resC[k] for k in newL if k in newC or resC[k] != newL[k]})
+        resL = self.push_batch(self.L, toL, baseL, prev=lambda k: newL[k] if k in newL else anc(k), name='Online copy')
+        # 3. anything this computer changed again meanwhile -> the cloud, once more each way at most
+        toC2 = {k: resL[k] for k in toL if resL[k] != toL[k]}
+        resC2 = self.push_batch(self.C, toC2, baseC, prev=lambda k: resC[k] if k in resC else newC.get(k, anc(k)), name='This computer') if toC2 else {}
+        toL2 = {k: resC2[k] for k in toC2 if resC2[k] != toC2[k]}
+        resL2 = self.push_batch(self.L, toL2, baseL, prev=lambda k: resL.get(k), name='Online copy') if toL2 else {}
         # the record both sides hold now
         final = {}
-        for d in (newC, resL, newL, toC, resC, toL2, resL2, toC2, resC2): final.update(d)
+        for d in (newL, newC, resC, toL, resL, toC2, resC2, toL2, resL2): final.update(d)
         for k, v in final.items():
             if v is DEL: self.shadow.pop(k, None)
             else: self.shadow[k] = v
         self.save_shadow(); self.remember()
         if newC: log('%d change%s the cloud -> this computer' % (len(newC), '' if len(newC) == 1 else 's'))
-        if toC: log('%d change%s this computer -> the cloud' % (len(toC), '' if len(toC) == 1 else 's'))
+        if newL: log('%d change%s this computer -> the cloud' % (len(newL), '' if len(newL) == 1 else 's'))
+        return final
+
+    def unite(self, hl, hc):
+        """Both sides hold notes and share no history (V3.932): ONE notebook from the two, nothing removed. What only
+        one side has goes to the other; a row both hold differently goes to the cloud with no common version, which
+        merges it (a card's text keeps both sides' lines; a field that can't merge waits under the warning triangle),
+        and this computer takes the result. Before V3.932 one side replaced the other, and everything only the losing
+        side held was gone - shared projects included (V3.931)."""
+        ls, cs = self.L.state(), self.C.state()
+        def rows(state):
+            out = {}
+            for store, rs in (state.get('stores') or {}).items():
+                if store in NOSYNC: continue
+                k = KEYS.get(store, 'id')
+                for r in rs:
+                    if isinstance(r, dict) and r.get(k) is not None: out[key_of(store, r[k])] = r
+            return out
+        rl, rc = rows(ls), rows(cs)
+        self.L.sid, self.C.sid = hl['sid'], hc['sid']
+        self.L.seq, self.C.seq = int(hl.get('seq') or 0), int(hc.get('seq') or 0)
+        baseL, baseC = self.L.seq, self.C.seq
+        toC = {k: v for k, v in rl.items() if rc.get(k) != v}
+        resC = self.push_batch(self.C, toC, 0, prev=lambda k: None, name='This computer')
+        toL = {k: v for k, v in rc.items() if k not in rl}
+        toL.update({k: resC[k] for k in toC if k in rc and resC[k] != rl[k]})
+        resL = self.push_batch(self.L, toL, baseL, prev=lambda k: rl.get(k), name='Online copy')
+        self.shadow = {}
+        for d in (rc, rl, resC, toL, resL): self.shadow.update(d)
+        self.shadow = {k: v for k, v in self.shadow.items() if v is not DEL}
+        # our own pushes come back on the next pull with our conn and are skipped; start from before them
+        self.L.seq, self.C.seq = baseL, baseC
+        self.save_shadow()
+        log('brought together: %d to the cloud, %d to this computer, nothing removed' % (len(toC), len(toL)))
 
     # ---------------- media ----------------
     def folder(self):

@@ -499,6 +499,12 @@
    "size": 666175,
    "via": "verify"
   },
+  "modules/bme466/07-the-river.html": {
+   "deployedAt": "2026-10-27T09:31:54-07:00",
+   "sha256": "6d509595135e09e336e24eb66f46aef62cdc4289c0180af5464924baae1c7783",
+   "size": 271100,
+   "via": "verify"
+  },
   "modules/bme466/HW1-student-key.html": {
    "deployedAt": "2026-10-23T10:34:36-07:00",
    "sha256": "6ac82beb88abc51af462285a6e02e16cc6c4a7f9ab59a5eea8932ffb222ed536",
@@ -1087,11 +1093,35 @@
    "size": 1454,
    "via": "baseline"
   },
+  "modules/bme466/simulations/7.1.1.html": {
+   "deployedAt": "2026-10-27T09:31:54-07:00",
+   "sha256": "993ae942c078218eef329a11d36d90cc62516b360fd3a1c50210cfa92bbeb4da",
+   "size": 1407,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/7.1.2.html": {
+   "deployedAt": "2026-10-27T09:31:54-07:00",
+   "sha256": "03620a69f1210acce70b30b99c8c5132830ca467767c593bd68f30a0a6caf776",
+   "size": 1428,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/7.1.3.html": {
+   "deployedAt": "2026-10-27T09:31:54-07:00",
+   "sha256": "e72cb022189165db875ae578b90b1a2470167f67144d3181b4ac3e1f15725030",
+   "size": 1434,
+   "via": "verify"
+  },
+  "modules/bme466/simulations/7.1.4.html": {
+   "deployedAt": "2026-10-27T09:31:54-07:00",
+   "sha256": "a66b96a77b91c7327ba02829e21e89d7e05cb954d618b4e63406a90378616612",
+   "size": 1434,
+   "via": "verify"
+  },
   "modules/bme466/simulations/index.json": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "57532ad6a450479c56ba40789eb798064bdcd8b3e5d1c9fffbeb9afba7a910c7",
-   "size": 21096,
-   "via": "baseline"
+   "deployedAt": "2026-10-27T09:31:54-07:00",
+   "sha256": "8d22fe484cd090f967a279ead3059eea59b2b31fb0149b825d12ca14eeb25203",
+   "size": 22109,
+   "via": "verify"
   },
   "modules/bme466/w01-instructor-notes.html": {
    "deployedAt": "2026-10-23T10:34:36-07:00",
@@ -1274,10 +1304,10 @@
    "via": "baseline"
   },
   "modules/manifest.json": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "5857c41603b01c4843bb2760f822aa7aa868ece99ce62cf2457a51eea9fe66a9",
-   "size": 14248,
-   "via": "baseline"
+   "deployedAt": "2026-10-27T09:31:54-07:00",
+   "sha256": "9d71f92f74201bb65d31e7616a6ddc818d31e1764ce29637c22b9a2dc46b3af6",
+   "size": 14414,
+   "via": "verify"
   },
   "modules/optics/01-light-and-matter.html": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -1592,8 +1622,8 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-10-27T09:12:56-07:00",
-   "sha256": "2f1c6768bd698707f17a4e6f966b7d279b56cc3e377ce335c1f17ed2ccabfded",
+   "deployedAt": "2026-10-27T11:50:55-07:00",
+   "sha256": "e996763d677ce83df230db0ac4a99dd097c491fb6ede7f26880a801baffbf875",
    "size": 82,
    "via": "verify"
   },
@@ -4538,14 +4568,14 @@
    "via": "verify"
   },
   "rm/scientia/desktop/ScientiaInSitu-Windows.zip": {
-   "deployedAt": "2026-10-27T09:12:56-07:00",
-   "sha256": "0db5ae60fa7d542e589d2aba2b4bb059e2b583575ce1c06532d860854cdf9f75",
-   "size": 5650424,
+   "deployedAt": "2026-10-27T11:50:55-07:00",
+   "sha256": "e93ec58f112ed2e061c431527a788fc452e3c3bd88289a8a3ae6c91b0532d24c",
+   "size": 5673588,
    "via": "verify"
   },
   "rm/scientia/desktop/version.json": {
-   "deployedAt": "2026-10-27T09:12:56-07:00",
-   "sha256": "021f975e54595b96abb744655cc0a205f5012190bc82da061043dbf05d44ec6d",
+   "deployedAt": "2026-10-27T11:50:55-07:00",
+   "sha256": "9c04fa65de9551b0db1f09c13c555c73aaa15966e9f52a927526b453e468c70f",
    "size": 135,
    "via": "verify"
   },
@@ -4574,21 +4604,21 @@
    "via": "verify"
   },
   "rm/scientia/lab-mode.js": {
-   "deployedAt": "2026-10-24T19:35:24-07:00",
-   "sha256": "9b74032926a68cb3398bcd42b3d79cb406ce8da245f8dca85c3b24da326e729e",
-   "size": 216779,
+   "deployedAt": "2026-10-27T11:50:55-07:00",
+   "sha256": "660c899edf0169fd2f6376e974135b233fd152b352c2241349dc75151031f8ad",
+   "size": 239161,
    "via": "verify"
   },
   "rm/scientia/scientia-cloud.py": {
-   "deployedAt": "2026-10-23T08:18:56-07:00",
-   "sha256": "042e2505b8beca27798bef6181984c69f72d8a7ef62482168a6a1dd00ccd862b",
-   "size": 20406,
+   "deployedAt": "2026-10-27T11:36:23-07:00",
+   "sha256": "76a8c109a8946040fd0a3545ef265fd4f08a99927e6627f9d573f64b100aeb36",
+   "size": 23178,
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-27T09:12:56-07:00",
-   "sha256": "8a11758e276dfffb797cf4ef95341530250fac1640d31547bd545eaab984d40d",
-   "size": 5153596,
+   "deployedAt": "2026-10-27T11:50:55-07:00",
+   "sha256": "86a4bfb070ce23c07f61d76b19ee7432c9bb1877ca819dffd4c9cf06bc918198",
+   "size": 5130612,
    "via": "verify"
   },
   "rm/test-fixtures/layout/01-2col-tight.pdf": {
@@ -5252,8 +5282,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-27T09:12:56-07:00",
-   "sha256": "8f1d9ba745e4bef64dd220afb51779aed41823fdf76d7a227794098bb67ee7ae",
+   "deployedAt": "2026-10-27T11:50:55-07:00",
+   "sha256": "8b3a277dbfa0c661ad54a5a010cd0254032ae28302a5045c1d595408b3df0bc8",
    "size": 9933,
    "via": "verify"
   },

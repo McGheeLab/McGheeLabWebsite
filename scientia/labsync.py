@@ -173,8 +173,7 @@ class LabSync(threading.Thread):
     # ---- catching up when this computer's history no longer reaches the last sync ----
     def realign(self):
         """Diff both full records against the last agreed one (shadow.json) and send each side's changes as the bridge's
-        step() does, so each hub runs its own three-way merge (a field changed on both sides waits under the warning
-        triangle). Only when neither side was replaced (same sids); otherwise align() decides as usual."""
+        step() does (Bridge.exchange: the cloud merges a row both sides changed, a card's text line by line). Only when neither side was replaced (same sids); otherwise align() decides as usual."""
         sc = self.sc; cfg = self.cfg(); b = sc.Bridge(cfg)
         known_l, known_c = cfg['sides']['local'], cfg['sides']['cloud']
         hl, hc = b.L.hello(), b.C.hello()
@@ -202,16 +201,7 @@ class LabSync(threading.Thread):
         baseL, baseC = int(known_l.get('seq') or 0), int(known_c.get('seq') or 0)
         b.L.seq, b.C.seq = int(hl.get('seq') or 0), int(hc.get('seq') or 0)
         b.shadow = {k: v for k, v in anc.items() if v is not None}
-        get = b.shadow.get
-        resL = b.push_batch(b.L, newC, baseL, prev=get, name='Online copy')
-        toC = {k: v for k, v in newL.items() if k not in newC}
-        toC.update({k: resL[k] for k in newC if k in newL or resL[k] != newC[k]})
-        resC = b.push_batch(b.C, toC, baseC, prev=lambda k: newC[k] if k in newC else get(k), name='This computer')
-        final = {}
-        for d in (newC, resL, newL, toC, resC): final.update(d)
-        for k, v in final.items():
-            if v is sc.DEL: b.shadow.pop(k, None)
-            else: b.shadow[k] = v
-        b.save_shadow(); b.remember()
+        b.exchange(newL, newC, baseL, baseC)   # V3.932: the cloud merges rows both changed, as every pass does
+        toC = newL
         self.last_change = time.time()
         self._log('caught up: %d change(s) the cloud -> this computer, %d this computer -> the cloud' % (len(newC), len(toC)))
