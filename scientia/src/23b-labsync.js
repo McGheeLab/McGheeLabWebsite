@@ -11,6 +11,8 @@
    ========================================================================== */
 const LABSYNC = {
   lab: () => !!window.SIS_LAB,
+  /* the ✓ is this app's own wherever there is no Lab Notebook around it: the computer (with or without the lab layer) */
+  ownTick: () => !window.SIS_LAB || !!window.SIS_DESKTOP,
   isInventory: r => !!(r && r.inventoryId),
   waitMark: (title) => h('span.lab-wait', { title }, 'waiting for the lab'),
   invLine: () => h('div.tiny.muted.inv-line', 'From the lab inventory · its use is logged on the lab website')
@@ -59,7 +61,7 @@ LABSYNC.week = {
   const box = DocView.box;
   DocView.box = function (b) {
     const el = box.apply(this, arguments);
-    if (!LABSYNC.lab() && !this.travel && b && b.kind !== 'ref') { const bh = $('.bh', el), more = bh && $('.bmore', bh); if (bh) bh.insertBefore(LABSYNC.week.button(b), more || null); }
+    if (LABSYNC.ownTick() && !this.travel && b && b.kind !== 'ref') { const bh = $('.bh', el), more = bh && $('.bmore', bh); if (bh) bh.insertBefore(LABSYNC.week.button(b), more || null); }
     return el;
   };
 }

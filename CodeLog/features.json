@@ -2006,7 +2006,7 @@
    "id": "scientia.this-computer",
    "name": "Scientia on this computer (install, always-on sync, pairing)",
    "side": "scientia",
-   "summary": "One button on the lab site opens Scientia running on the person's computer from its notebook folder. The installed server starts at login (service.py) and keeps the folder and the lab cloud in step all the time (labsync.py runs the lab's bridge, paced for seconds); the first click walks through install and pairs the computer by a one-time code (its own key; several computers and the website on one account).",
+   "summary": "One button on the lab site opens Scientia running on the person's computer from its notebook folder. The installed server starts at login (service.py) and keeps the folder and the lab cloud in step all the time (labsync.py runs the lab's bridge, paced for seconds); the first click walks through install and pairs the computer by a one-time code (its own key; several computers and the website on one account). The installed app also runs the website's lab layer (lab-mode.js, unchanged): its RM calls go through the app's server to the hub, its recorder saves in the notebook folder; the computer keeps its Activity and Data tabs and its own ✓.",
    "keywords": [
     "install",
     "installer",
@@ -2019,14 +2019,19 @@
     "protocol",
     "this computer",
     "open on my computer",
-    "always on"
+    "always on",
+    "lab layer",
+    "pills",
+    "recorder"
    ],
    "paths": [
     "scientia/src/23c-thiscomputer.js",
     "scientia/labsync.py",
     "scientia/service.py",
     "scientia/open_local.py",
-    "scientia/install/*"
+    "scientia/install/*",
+    "scientia/src/23d-desktoplab.js",
+    "scientia/vendor/rm/*"
    ],
    "related": [
     "scientia.cloud",

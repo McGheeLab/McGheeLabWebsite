@@ -15,6 +15,10 @@ V3.928: the desktop download — rm/scientia/desktop/ScientiaInSitu-Windows.zip 
 lab's sync bridge, with the Windows installer) and version.json beside it. Stored, not compressed, with fixed dates, so
 the same sources give the same bytes on every computer. A build output like the two apps (git-ignored, deployed).
 
+V3.929: the DESKTOP app carries the lab layer too — rm/scientia/lab-mode.js, unchanged, inline, with the website's
+target flag and window.SIS_DESKTOP, all between <!--sis-desktop--> markers (the canvas export strips them). Its RM calls
+and recorder go to the app's own server (scientia/serve.py); the RM scripts it loads are copied into scientia/vendor/rm/.
+
 The lab layer is ONE script tag before the app's first source file: rm/scientia/cloud-sync.js (V3.857 — the
 cloud hub + the notebook bridge). Its cache key is the hash of the file, so a changed shim is fetched afresh.
 Both built files are build OUTPUTS (git-ignored): after `git pull`, run this script. Never edit them by hand.
@@ -39,10 +43,14 @@ DESK_DIR = os.path.join(WEB, 'desktop')
 BUNDLE = os.path.join(DESK_DIR, 'ScientiaInSitu-Windows.zip')
 BUNDLE_VERSION = os.path.join(DESK_DIR, 'version.json')
 BUNDLE_APP = ['serve.py', 'sisync.py', 'labsync.py', 'service.py', 'open_local.py', 'hwread.py', 'slides.py', 'sttread.py', 'winink.py',
+              'vendor/rm/recorder-core.js', 'vendor/rm/speech-to-text.js', 'vendor/rm/stt-device-worker.js',
               'launch.bat', 'MANUAL.md', 'diagnose-pairing.bat', 'diagnose-pairing.ps1', 'vendor/scientia_cloud.py']
 VENDOR_COPY = [('rm/js/page-layout.js', 'scientia/vendor/page-layout.js'),     # (the rm/ original, its copy in the app)
                ('rm/js/page-regions.js', 'scientia/vendor/page-regions.js'),
-               ('rm/scientia/scientia-cloud.py', 'scientia/vendor/scientia_cloud.py')]   # V3.928: the bridge the app runs (labsync.py)
+               ('rm/scientia/scientia-cloud.py', 'scientia/vendor/scientia_cloud.py'),
+               ('rm/js/recorder-core.js', 'scientia/vendor/rm/recorder-core.js'),        # V3.929: what lab-mode.js loads, served by serve.py
+               ('rm/js/speech-to-text.js', 'scientia/vendor/rm/speech-to-text.js'),
+               ('rm/js/stt-device-worker.js', 'scientia/vendor/rm/stt-device-worker.js')]   # V3.928: the bridge the app runs (labsync.py)
 
 
 def _h(path):
@@ -64,6 +72,23 @@ def build_desktop():
     if r.returncode:
         print(r.stdout + r.stderr); sys.exit(1)
     return open(DESKTOP_OUT, encoding='utf-8').read()
+
+
+def desktop_variant(raw):
+    """Gabe's desktop build + the lab layer (V3.929): the flags before the app's first source file, lab-mode.js inline
+    after the app, then the app's own hook for what the computer keeps (23d-desktoplab.js). Marked for the canvas export."""
+    m = list(ANCHOR.finditer(raw))
+    if len(m) != 1:
+        print('anchor found %d times (expected 1) — fix ANCHOR' % len(m)); sys.exit(1)
+    end = raw.rfind('</body>')
+    if end < 0:
+        print('no </body> in the build — the shell changed shape; fix desktop_variant'); sys.exit(1)
+    flags = "<!--sis-desktop--><script>window.SIS_TARGET = 'web'; window.SIS_DESKTOP = true;</script><!--/sis-desktop-->" + chr(10)
+    lab = open(LAB, encoding='utf-8').read().replace('</script', '<' + chr(92) + '/script')   # a literal </script> would end the inline tag
+    tail = ('<!--sis-desktop--><script>' + chr(10) + lab + chr(10) + '</script>' + chr(10)
+            + '<script>window.SIS_DESKTOP_AFTER_LAB && window.SIS_DESKTOP_AFTER_LAB();</script><!--/sis-desktop-->' + chr(10))
+    a, e = m[0].start(), end
+    return raw[:a] + flags + raw[a:e] + tail + raw[e:]
 
 
 def web_variant(desktop_html):
@@ -117,10 +142,11 @@ def main():
         s, d = os.path.join(ROOT, s), os.path.join(ROOT, d)
         if os.path.exists(d) and open(s, 'rb').read() == open(d, 'rb').read(): continue
         stale.append(os.path.relpath(d, ROOT))
-        if not check: shutil.copy2(s, d)   # before build.py, so both apps carry the current copy
+        if not check: os.makedirs(os.path.dirname(d), exist_ok=True); shutil.copy2(s, d)   # before build.py, so both apps carry the current copy
     before = open(DESKTOP_OUT, encoding='utf-8').read() if os.path.exists(DESKTOP_OUT) else None
-    desktop = build_desktop()
-    web = web_variant(desktop)
+    raw = build_desktop()
+    desktop = desktop_variant(raw)   # V3.929: the desktop runs the lab layer too
+    web = web_variant(raw)
     if before != desktop: stale.append(os.path.relpath(DESKTOP_OUT, ROOT))
     bundle, bundle_ver = desktop_bundle(desktop)
     if not (os.path.exists(BUNDLE) and open(BUNDLE, 'rb').read() == bundle): stale.append(os.path.relpath(BUNDLE, ROOT))
@@ -132,10 +158,11 @@ def main():
                 if not os.path.exists(os.path.join(d, f)) or open(os.path.join(s, f), 'rb').read() != open(os.path.join(d, f), 'rb').read(): stale.append(os.path.relpath(os.path.join(d, f), ROOT))
         elif not os.path.exists(d) or open(s, 'rb').read() != open(d, 'rb').read(): stale.append(os.path.relpath(d, ROOT))
     if check:
-        if before != desktop: open(DESKTOP_OUT, 'w', encoding='utf-8').write(before if before is not None else desktop)  # --check leaves the desktop file as it was
+        if before is not None: open(DESKTOP_OUT, 'w', encoding='utf-8').write(before)  # --check leaves the desktop file as it was
         if stale: print('STALE (run scripts/scientia_build.py):\n  ' + '\n  '.join(stale)); sys.exit(1)
         print('scientia builds are current'); return
     os.makedirs(WEB, exist_ok=True)
+    open(DESKTOP_OUT, 'w', encoding='utf-8').write(desktop)   # build.py wrote the plain app; the desktop's has the lab layer
     open(WEB_OUT, 'w', encoding='utf-8').write(web)
     os.makedirs(DESK_DIR, exist_ok=True)
     open(BUNDLE, 'wb').write(bundle); open(BUNDLE_VERSION, 'w', encoding='utf-8', newline='\n').write(bundle_ver)

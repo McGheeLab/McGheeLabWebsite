@@ -522,3 +522,5 @@ body.viewer #brand { pointer-events: none; }
 .pc-state.offline b, .pc-state.needs-choice b, .pc-state.key-refused b, .pc-state.error b { color: var(--bad); }
 .pc-offer { border: 1px solid var(--teal); border-radius: 10px; padding: 10px 12px; }
 .pc-choice { display: grid; gap: 6px; justify-items: start; }
+/* the lab layer on this computer: the ✓ is the app's own (23b, 23d) */
+.sis-desktop .lab-mw { display: none !important; }
