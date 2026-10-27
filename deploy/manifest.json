@@ -1592,8 +1592,8 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-10-26T22:02:40-07:00",
-   "sha256": "0e1d5fbfe6b7669b7d87a6a7791876209af3b21e7a079d9cf6c63cf6a55d3930",
+   "deployedAt": "2026-10-27T08:35:27-07:00",
+   "sha256": "0c0deff642c78f685da75a1a6ddda3f247cb4c4b242f755de6ea4061922487d6",
    "size": 82,
    "via": "verify"
   },
@@ -4537,6 +4537,18 @@
    "size": 10975,
    "via": "verify"
   },
+  "rm/scientia/desktop/ScientiaInSitu-Windows.zip": {
+   "deployedAt": "2026-10-27T08:35:27-07:00",
+   "sha256": "c9679eef98bd6bb13d3b4b172dc6e255644488daff9a881c543b367865ccf6e3",
+   "size": 5383601,
+   "via": "verify"
+  },
+  "rm/scientia/desktop/version.json": {
+   "deployedAt": "2026-10-27T08:35:27-07:00",
+   "sha256": "87fd83fa7707fa8ac0effe358a7e5fafda7e1ad8989fb39ab338b1ac79ca5d3d",
+   "size": 111,
+   "via": "verify"
+  },
   "rm/scientia/icons/icon-180.png": {
    "deployedAt": "2026-10-22T20:35:44-07:00",
    "sha256": "24ff618fea863ac4f4d69a627faa2b7ff62390bf5b504b694914c714bb71512d",
@@ -4574,9 +4586,9 @@
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-26T22:02:40-07:00",
-   "sha256": "4a4622baffbac0f850174d262a5c90594a85945654f2d69cfd2ecd9811e0569d",
-   "size": 5136348,
+   "deployedAt": "2026-10-27T08:35:27-07:00",
+   "sha256": "404ac830d724e3b3f7f6dc9f619d60b985f4edce4c5381ada0d1456b6d1304b6",
+   "size": 5150237,
    "via": "verify"
   },
   "rm/test-fixtures/layout/01-2col-tight.pdf": {
@@ -5240,8 +5252,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-26T22:02:22-07:00",
-   "sha256": "5ba6a5df83dccbc056135334d92f8c69cf30d01618a5820e885be352f2b894d3",
+   "deployedAt": "2026-10-27T08:35:27-07:00",
+   "sha256": "198e45627e06f400fa0e8c1bb7b38f3853c919d4a29259dd02420287718adc1a",
    "size": 9933,
    "via": "verify"
   },
