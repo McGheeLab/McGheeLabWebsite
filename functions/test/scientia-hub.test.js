@@ -693,6 +693,51 @@ const dev = (hub, id, conn) => ({
     assert.strictEqual((await call(hub, who, 'POST', '/api/rec/compose', { query: { rid: 'c3', ext: 'webm', name: 'Lab meeting' } })).body.file, 'Lab meeting (2).webm', 'a free name, like api/rec');
   });
 
+  /* ---- V3.927: offline Scientia — tasks and papers reach RM when the notebook syncs ---- */
+  const tBlock = (id, docId, text, extra) => Object.assign({ id, docId, kind: 'task', status: 'live', body: { text, marks: [] }, task: { due: '2026-10-30T00:00', allDay: true, prio: 'high', repeat: 'none', subs: [], done: null, log: [] } }, extra || {});
+  const paper = (id, extra) => Object.assign({ id, kind: 'paper', title: 'Bead ELISA on a chip', doi: '10.1/ABC', year: 2024, container: 'Lab Chip', authors: [{ family: 'Smith', given: 'Ana' }], page: '1-9' }, extra || {});
+  await test('planTaskPairing: live unpaired task blocks only, with the fields the web app sends', () => {
+    const docs = new Map([['d1', { id: 'd1', title: 'Day note', projectId: 'p1' }]]), projects = new Map([['p1', { id: 'p1', name: 'GELS' }]]);
+    const out = C.planTaskPairing({ docs, projects, paired: new Set(['b4']), blocks: [
+      tBlock('b1', 'd1', 'Order beads\nfrom the usual vendor'), tBlock('b2', 'd1', 'x', { rmTaskId: 'task-1' }), tBlock('b3', 'd1', 'x', { status: 'trash' }),
+      tBlock('b4', 'd1', 'x'), { id: 'b5', docId: 'd1', kind: 'text', status: 'live', body: { text: 'not a task' } }] });
+    assert.deepStrictEqual(out, [{ blockId: 'b1', docId: 'd1', text: 'Order beads', due: '2026-10-30T00:00', allDay: true, prio: 'high', docTitle: 'Day note', projectName: 'GELS' }]);
+  });
+  await test('planLibraryUp: a new paper is added under its row id; RM\'s own (DOI or title + year) is matched, not added; thin or done rows are left', () => {
+    const st = C.emptyState(), rows = new Map(), put = r => rows.set(C.keyOf('library', r.id), { store: 'library', id: r.id, rec: r });
+    put(paper('L1')); put(paper('L2', { doi: '10.9/IN-RM', title: 'Other' })); put(paper('L3', { doi: '', title: 'Same Title!', year: 2020 }));
+    put(paper('L4', { doi: '', authors: [] })); put(paper('L5', { rmSync: { state: 'done', rmId: 'L5' } })); put(paper('rm1', { rm: true, rmId: 'rm1' }));
+    const items = [{ id: 'rmA', title: 'x', meta: { library: { doi: '10.9/in-rm' } } }, { id: 'rmB', title: 'same title', meta: { library: { year: '2020' } } }];
+    const plan = C.planLibraryUp({ state: st, rows, items, today: '2026-10-26', uid: 'u1', now: Date.parse('2026-10-26T12:00:00Z') });
+    assert.deepStrictEqual(plan.create.map(c => c.doc.id), ['L1']);
+    const doc = plan.create[0].doc, L = doc.meta.library;
+    assert.deepStrictEqual([doc.type, doc.title, L.is_library_entry, L.doi, L.journal, L.pages, L.year, L.source, L.authors[0].family, doc.created_at, doc.source_ref.scientia.rowId],
+      ['paper', 'Bead ELISA on a chip', true, '10.1/abc', 'Lab Chip', '1-9', '2024', 'scientia', 'Smith', '2026-10-26', 'L1']);
+    assert.deepStrictEqual(plan.ops.map(o => [o.id, o.rec.rmSync.state, o.rec.rmSync.rmId]), [['L2', 'matched', 'rmA'], ['L3', 'matched', 'rmB']]);
+    assert.strictEqual(C.rmItemToLibraryRow(doc).doi, '10.1/abc', 'the mirror reads back what was written');
+  });
+  await test('syncUp end to end: an offline notebook\'s task and paper reach RM on push, once; the mirror lands on the same row; done flows to RM', async () => {
+    const hub = new C.MemoryHub(), who = { id: 'u1', kind: 'key', name: 'Gabe desktop' };
+    const push = ops => call(hub, who, 'POST', '/api/sync/push', { body: { dev: 'desk', conn: 'c1', name: 'This computer', ops } });
+    const r = await push([{ store: 'documents', id: 'd1', rec: { id: 'd1', title: 'Day note' }, del: false, prev: null, base: 0 },
+      { store: 'blocks', id: 'b1', rec: tBlock('b1', 'd1', 'Order beads'), del: false, prev: null, base: 0 },
+      { store: 'library', id: 'L1', rec: paper('L1'), del: false, prev: null, base: 0 }]);
+    assert.strictEqual(r.body.ok, true);
+    const blk = hub.rows.get(C.keyOf('blocks', 'b1')).rec, lib = hub.rows.get(C.keyOf('library', 'L1')).rec;
+    assert.ok(blk.rmTaskId && hub.rmTaskDocs.has(blk.rmTaskId), 'the task component became an RM task and knows it');
+    assert.strictEqual(hub.rmTaskDocs.get(blk.rmTaskId).text, 'Order beads');
+    assert.deepStrictEqual([lib.rmSync.state, hub.rmItems.map(i => i.id)], ['done', ['L1']]);
+    const again = await hub.syncUp({ force: true, who });
+    assert.deepStrictEqual([again.tasks, again.papers, hub.rmTaskDocs.size, hub.rmItems.length], [0, 0, 1, 1], 'a second sync writes nothing');
+    await hub.mirrorLibrary({ force: true });
+    const libRows = [...hub.rows.values()].filter(x => x.store === 'library' && x.rec);
+    assert.deepStrictEqual([libRows.length, libRows[0].rec.rm, libRows[0].rec.rmId], [1, true, 'L1'], 'one row, now the lab\'s');
+    const cur = hub.rows.get(C.keyOf('blocks', 'b1')).rec;
+    await push([{ store: 'blocks', id: 'b1', rec: Object.assign({}, cur, { task: Object.assign({}, cur.task, { done: '2026-10-27T09:00' }) }), del: false, prev: cur, base: hub.st.seq }]);
+    await hub.syncTasks({ force: true });
+    assert.strictEqual(hub.rmTaskDocs.get(blk.rmTaskId).done, true, 'ticked offline → done in RM');
+  });
+
   console.log(`scientia-hub: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 })();
