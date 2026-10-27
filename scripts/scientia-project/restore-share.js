@@ -30,8 +30,11 @@ const C = require(ROOT + '/functions/scientia-hub-core.js'), S = require(ROOT + 
 const db = admin.firestore(), bucket = admin.storage().bucket();
 const iso = v => v && v.toDate ? v.toDate().toISOString() : (typeof v === 'number' ? new Date(v).toISOString() : (v || '?'));
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
-const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-const matches = rec => isObj(rec) && (PID ? String(rec.id) === PID : norm(rec.name || rec.title) === norm(NAME));
+const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');   // "Our lab development" = "Ourlab Development"
+const like = t => { const a = norm(t), b = norm(NAME); return !!a && !!b && (a === b || a.includes(b) || b.includes(a)); };
+const matches = rec => isObj(rec) && (PID ? String(rec.id) === PID : like(rec.name || rec.title));
+const allNames = new Map();   // every project name seen anywhere → where (printed when nothing matches)
+const saw = (rec, where) => { if (isObj(rec) && (rec.name || rec.title)) { const n = String(rec.name || rec.title); if (!allNames.has(n)) allNames.set(n, new Set()); allNames.get(n).add(where); } };
 
 (async () => {
   // 1. every hub; the project wherever it shows (live rows, then the op log for what is gone)
@@ -40,17 +43,36 @@ const matches = rec => isObj(rec) && (PID ? String(rec.id) === PID : norm(rec.na
   const who = uid => (names.get(uid) || '?') + ' (' + uid + ')';
   const seen = [];   // {uid, rec, from: 'row'|'op', seq, dev, name, at}
   for (const h of hubs) {
-    for (const s of (await h.ref.collection('rows').where('store', '==', 'projects').get()).docs) { const r = s.data(); let rec = null; try { rec = r.recJson ? JSON.parse(r.recJson) : null; } catch (e) { /* skip */ }
+    for (const s of (await h.ref.collection('rows').where('store', '==', 'projects').get()).docs) { const r = s.data(); let rec = null; try { rec = r.recJson ? JSON.parse(r.recJson) : null; } catch (e) { /* skip */ } saw(rec, 'hub ' + h.uid);
       if (matches(rec) || (PID && r.id === PID)) seen.push({ uid: h.uid, rec, from: 'row', deleted: !!r.deleted, seq: r.seq, dev: r.dev, name: r.name, at: iso(r.updated), id: r.id }); }
-    for (const s of (await h.ref.collection('ops').where('store', '==', 'projects').get()).docs) { const o = s.data(); let rec = null; try { rec = o.recJson ? JSON.parse(o.recJson) : null; } catch (e) { /* skip */ }
+    for (const s of (await h.ref.collection('ops').where('store', '==', 'projects').get()).docs) { const o = s.data(); let rec = null; try { rec = o.recJson ? JSON.parse(o.recJson) : null; } catch (e) { /* skip */ } saw(rec, 'op log ' + h.uid);
       if (matches(rec) || (PID && o.id === PID)) seen.push({ uid: h.uid, rec, from: 'op', deleted: !!o.del, seq: o.seq, dev: o.dev, name: o.name, at: iso(o.ts), id: o.id }); }
   }
-  const shares = (await db.collection('scientiaShares').where('kind', '==', 'project').get()).docs.map(d => Object.assign({ id: d.id }, d.data())).filter(x => norm(x.title) === norm(NAME) || (PID && x.recId === PID) || seen.some(s => s.id === x.recId));
+  // the copies each hub kept before it was replaced (a replace wipes rows AND the op log, so these may be all that is left)
+  const keptOf = new Map();   // uid → [{name, file, stores}]
+  for (const h of hubs) {
+    const [files] = await bucket.getFiles({ prefix: 'scientia/' + h.uid + '/kept/' }), list = [];
+    for (const f of files.sort((a, b) => b.name.localeCompare(a.name))) {
+      let st; try { st = JSON.parse((await f.download())[0].toString('utf8')); } catch (e) { continue; }
+      list.push({ name: path.basename(f.name), stores: st.stores || {} });
+      for (const rec of (st.stores || {}).projects || []) { saw(rec, 'kept copy ' + h.uid + ' ' + path.basename(f.name)); if (matches(rec)) seen.push({ uid: h.uid, rec, from: 'kept ' + path.basename(f.name), deleted: false, seq: '-', dev: null, name: null, at: path.basename(f.name), id: String(rec.id) }); }
+    }
+    keptOf.set(h.uid, list);
+  }
+  const shares = (await db.collection('scientiaShares').where('kind', '==', 'project').get()).docs.map(d => Object.assign({ id: d.id }, d.data())).filter(x => like(x.title) || (PID && x.recId === PID) || seen.some(s => s.id === x.recId));
+  for (const x of (await db.collection('scientiaShares').get()).docs) saw({ name: x.data().title }, 'share index ' + x.id);
+  const ids = [...new Set(seen.map(s => s.id))];
+  if (!PID && ids.length > 1) { console.log('More than one project matches "' + NAME + '":'); for (const i of ids) { const s = seen.find(x => x.id === i && x.rec); console.log('  ' + i + '  ' + (s ? (s.rec.name || s.rec.title) : '?') + '  (' + [...new Set(seen.filter(x => x.id === i).map(x => x.from + ' ' + who(x.uid)))].join('; ') + ')'); } console.log('Run again with --project <id>.'); process.exit(1); }
   const id = PID || (seen.find(s => s.rec) || {}).id || (shares[0] || {}).recId;
   // the owner: the hub whose copy carries no sharedFrom; else the one a copy names
   const own = seen.find(s => s.rec && !s.rec.sharedFrom), copy = seen.find(s => s.rec && isObj(s.rec.sharedFrom));
   const owner = (shares[0] && shares[0].ownerUid) || (own && own.uid) || (copy && copy.rec.sharedFrom.uid);
-  if (!id || !owner) { console.log('No project matching', NAME || PID, 'in any hub, op log or share index.'); process.exit(1); }
+  if (!id || !owner) {
+    console.log('No project matching "' + (NAME || PID) + '" in any hub, op log, kept copy or share index. Every project name found:');
+    for (const [n, w] of [...allNames].sort((a, b) => a[0].localeCompare(b[0]))) console.log('  ' + n + '   — ' + [...w].slice(0, 3).join('; ') + (w.size > 3 ? ' …' : ''));
+    console.log('Run again with --name "<one of these>" or --project <id>. A project none of these name is only on a computer now: its notebook folder (.scientia/record.json, backup/).');
+    process.exit(1);
+  }
   console.log(`project ${id}; owner ${who(owner)}`);
 
   // 2. the trace
@@ -62,20 +84,20 @@ const matches = rec => isObj(rec) && (PID ? String(rec.id) === PID : norm(rec.na
     const h = hubs.find(x => x.uid === uid); if (!h) continue;
     console.log(`\n${who(uid)}${uid === owner ? ' — OWNER' : ''}: hub seq ${h.st.seq}, ${h.st.records} records, replacedAt ${iso(h.st.replacedAt)}, sid ${h.st.sid}`);
     for (const k of (await h.ref.collection('keys').get()).docs) { const d = k.data() || {}; console.log(`  computer key "${d.name}": created ${iso(d.created)}, last seen ${iso(d.lastSeen)}`); }
-    const [files] = await bucket.getFiles({ prefix: 'scientia/' + uid + '/kept/' });
-    for (const f of files) console.log(`  kept copy ${path.basename(f.name)} (${f.metadata.size} bytes)`);
+    for (const k of keptOf.get(uid) || []) console.log(`  kept copy ${k.name}${(k.stores.projects || []).some(r => String(r.id) === id) ? ' — holds the project' : ''}`);
     for (const s of seen.filter(x => x.uid === uid).sort((a, b) => (a.seq || 0) - (b.seq || 0))) console.log(`  ${s.from} seq ${s.seq}: ${s.deleted ? 'DELETED' : 'live'} by ${s.name || '-'} [${s.dev || '-'}] at ${s.at}${s.rec && s.rec.sharedFrom ? ' (a copy)' : ''}`);
     if (!seen.some(x => x.uid === uid && x.from === 'row')) console.log('  no row at all now (a replace removes rows without a tombstone)');
   }
 
   // 3. the source: the owner's newest kept copy holding the project, then shadows, then op logs
   let rows = null, source = '';
-  const [kept] = await bucket.getFiles({ prefix: 'scientia/' + owner + '/kept/' });
-  for (const f of kept.sort((a, b) => b.name.localeCompare(a.name))) {
-    let st; try { st = JSON.parse((await f.download())[0].toString('utf8')); } catch (e) { continue; }
-    const r = {}; for (const [store, list] of Object.entries(st.stores || {})) { const m = new Map(); for (const rec of list || []) if (isObj(rec) && rec.id != null && !rec.deleted) m.set(String(rec.id), rec); r[store] = m; }
-    if (r.projects && r.projects.get(id)) { rows = r; source = 'kept copy ' + path.basename(f.name); break; }
+  for (const k of keptOf.get(owner) || []) {   // newest first
+    const r = {}; for (const [store, list] of Object.entries(k.stores)) { const m = new Map(); for (const rec of list || []) if (isObj(rec) && rec.id != null && !rec.deleted) m.set(String(rec.id), rec); r[store] = m; }
+    if (r.projects && r.projects.get(id) && !r.projects.get(id).sharedFrom) { rows = r; source = 'kept copy ' + k.name; break; }
   }
+  if (!rows) for (const [uid, list] of keptOf) { if (uid === owner) continue; for (const k of list) {   // a member's kept copy: their copy of the share
+    const r = {}; for (const [store, l] of Object.entries(k.stores)) { const m = new Map(); for (const rec of l || []) if (isObj(rec) && rec.id != null && !rec.deleted) m.set(String(rec.id), S.stripMark(rec)); r[store] = m; }
+    if (r.projects && r.projects.get(id)) { rows = r; source = 'kept copy of ' + who(uid) + ' ' + k.name; break; } } if (rows) break; }
   const fromList = (list, label) => { const r = {}; for (const x of list) { if (!isObj(x.rec)) continue; (r[x.store] = r[x.store] || new Map()).set(String(x.id), S.stripMark(x.rec)); } if (r.projects && r.projects.get(id)) { rows = r; source = label; } };
   if (!rows) for (const x of shares) { const sh = await db.collection('scientiaShares').doc(x.id).collection('shadow').get(); const list = sh.docs.map(d => { const v = d.data(); let rec = null; try { rec = JSON.parse(v.recJson); } catch (e) { /* skip */ } return { store: v.store, id: v.id, rec }; }); fromList(list, 'share shadows'); if (rows) break; }
   if (!rows) {   // the op logs: the last version of each record any involved hub saw

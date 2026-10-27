@@ -29,7 +29,8 @@ Plan: [CodeLog/ClaudesPlan/V3.932_scientia_contextual_merge.md](../ClaudesPlan/V
   - `Bridge.exchange()`: the computer's changes go to the cloud first, so a row both changed merges in the cloud; the computer takes the result.
   - `Bridge.unite()`: two notebooks with no shared history become one, nothing removed. Used by `align()` unless `--prefer` is given; the "which notes win" question no longer comes up.
 - `scientia/labsync.py` `realign()` uses `exchange()`.
-- `scientiaHub` health `V3.932`; `CodeLog/features.json` lists `scientia-merge.js` and its test; `sw.js` CACHE_VERSION 902 → 903.
+- `scripts/scientia-project/restore-share.js` (V3.931): it matched the name exactly, so "Our lab development" found nothing. Names now match loosely (case, spaces and punctuation ignored; either contains the other). The copies kept before each replace, in every hub, are searched for the project too, not only once it was found elsewhere. Several matches list their ids for `--project`. No match lists every project name seen, and where.
+- `scientiaHub` deployed by Alex 2026-10-27 (V3.932 live). `CodeLog/features.json` lists `scientia-merge.js` and its test; `sw.js` CACHE_VERSION 902 → 903.
 
 ### Tests
 - `functions/test/scientia-merge.test.js` **10 passed**: list edits in place; two additions to one list; an edit plus an addition; same item changed both ways; an edit whose place was removed; a removal against an untouched edit; no common version; marks following lines; through the hub (one card, both edits, no decision; both renamed).
