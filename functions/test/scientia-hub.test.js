@@ -780,6 +780,30 @@ const dev = (hub, id, conn) => ({
     assert.deepStrictEqual([e2.pending, /no longer/.test(e2.error)], [false, true], 'a step that is gone says so and stops waiting');
   });
 
+  /* ---- V3.928: pairing a computer from the lab site ---- */
+  await test('pairing: the site makes a one-time code; a computer redeems it (no sign-in) for its own key; reuse, expiry and others\' keys are refused', async () => {
+    const hub = new C.MemoryHub(), web = { uid: 'u1', id: 'web', name: 'Gabe', kind: 'browser' };
+    const made = await call(hub, web, 'POST', '/api/cloud/pair/new', { body: {} });
+    assert.ok(/^[2-9A-Z]{4}-[2-9A-Z]{4}-[2-9A-Z]{4}$/.test(made.body.code), made.body.code);
+    assert.strictEqual(made.body.account.name, 'Gabe');
+    const a = await call(hub, null, 'POST', '/api/cloud/pair/claim', { body: { code: made.body.code.toLowerCase().replace(/-/g, ' '), name: 'Lab PC' } });
+    assert.deepStrictEqual([a.status, a.body.ok, a.body.account.name], [200, true, 'Gabe'], 'typed in any case, any spacing');
+    const m = /^sck_u1_([0-9a-f]{32})$/.exec(a.body.key); assert.ok(m, a.body.key);
+    assert.strictEqual((await hub.keyFind(m[1])).name, 'Lab PC', 'the computer has its own working key');
+    assert.match((await call(hub, null, 'POST', '/api/cloud/pair/claim', { body: { code: made.body.code, name: 'x' } })).body.error, /already used/);
+    assert.match((await call(hub, null, 'POST', '/api/cloud/pair/claim', { body: { code: 'AAAA-BBBB-CCCC', name: 'x' } })).body.error, /not valid/);
+    const late = await call(hub, web, 'POST', '/api/cloud/pair/new', { body: {} });
+    hub._pairs.get(C.sha(C.normPairCode(late.body.code))).exp = Date.now() - 1;
+    assert.match((await call(hub, null, 'POST', '/api/cloud/pair/claim', { body: { code: late.body.code, name: 'x' } })).body.error, /expired/);
+    assert.strictEqual(hub.keys.size, 1, 'refused claims make no key');
+    const b = await call(hub, web, 'POST', '/api/cloud/pair/new', { body: {} }), b2 = await call(hub, null, 'POST', '/api/cloud/pair/claim', { body: { code: b.body.code, name: 'Laptop' } });
+    assert.deepStrictEqual([b2.body.ok, hub.keys.size], [true, 2], 'a second computer pairs alongside the first');
+    const laptop = await hub.keyFind(/_([0-9a-f]{32})$/.exec(b2.body.key)[1]);
+    assert.strictEqual((await call(hub, web, 'POST', '/api/cloud/key/self/remove', { body: {} })).status, 403, 'the website cannot use the leaving route');
+    await call(hub, { uid: 'u1', id: laptop.id, name: 'Laptop', kind: 'key' }, 'POST', '/api/cloud/key/self/remove', { body: {} });
+    assert.deepStrictEqual([hub.keys.size, [...hub.keys.values()][0].name], [1, 'Lab PC'], 'a computer removes only its own key');
+  });
+
   console.log(`scientia-hub: ${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 })();

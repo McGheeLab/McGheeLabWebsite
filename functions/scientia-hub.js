@@ -540,6 +540,28 @@ class FirestoreHub {
   }
 }
 
+/** V3.928 — pairing codes (core: pairCode, pairRefusal): scientiaPairs/{sha(code)} = { uid, account, exp, used }. A claim
+ *  marks its code used in a transaction, so a code makes at most one key. */
+const firestorePairs = {
+  async make({ uid }) {
+    const code = C.pairCode(), exp = Date.now() + C.PAIR_MS, u = (await db().doc('users/' + uid).get()).data() || {};
+    const account = { name: String(u.name || u.displayName || ''), email: String(u.email || '') };
+    await db().collection('scientiaPairs').doc(C.sha(C.normPairCode(code))).set({ uid, account, exp, used: false, created: FieldValue.serverTimestamp() });
+    return { ok: true, code, exp, account };
+  },
+  async claim({ code, name }) {
+    const ref = db().collection('scientiaPairs').doc(C.sha(C.normPairCode(code)));
+    const rec = await db().runTransaction(async t => {
+      const snap = await t.get(ref), r = snap.exists ? snap.data() : null;
+      if (C.pairRefusal(r, Date.now())) return { refused: C.pairRefusal(r, Date.now()) };
+      t.update(ref, { used: true, usedAt: FieldValue.serverTimestamp() }); return r;
+    });
+    if (rec.refused) return { ok: false, error: rec.refused };
+    const k = await new FirestoreHub(rec.uid).keyMake(String(name || 'My computer').slice(0, 40));
+    return { ok: true, key: 'sck_' + rec.uid + '_' + k.secret, keyId: k.id, account: rec.account };
+  }
+};
+
 /** V3.899 — the Share / Collaborate relay's storage (scientia-share.js), one per request. */
 function shareEnv() { return SHF.firestoreEnv({ db, FieldValue, FirestoreHub, rowDocId, rowFromDoc }); }
 const RELAY_PATHS = new Set(['/api/sync/push', '/api/sync/resolve', '/api/media']);
@@ -581,10 +603,10 @@ const scientiaHub = onRequest({ cors: false, timeoutSeconds: 300, memory: '512Mi
   try { who = await resolveWho(req); }
   catch (e) { res.status(401).json({ ok: false, error: 'invalid token: ' + e.message }); return; }
   if (who && who.error) { res.status(who.error).json({ ok: false, error: who.msg }); return; }
-  if (!who && path !== '/api/sync/hello') { res.status(401).json({ ok: false, error: 'not signed in' }); return; }
+  if (!who && path !== '/api/sync/hello' && path !== '/api/cloud/pair/claim') { res.status(401).json({ ok: false, error: 'not signed in' }); return; }
   const hub = who ? (who.hub || new FirestoreHub(who.uid)) : null;
   try {
-    const out = await C.route({ method: req.method, path, query: req.query || {}, body: req.body, rawBody: req.rawBody || null, headers: req.headers || {} }, { hub, who });
+    const out = await C.route({ method: req.method, path, query: req.query || {}, body: req.body, rawBody: req.rawBody || null, headers: req.headers || {} }, { hub, who, pairs: firestorePairs });
     // V3.899 — what was just written to this person's hub reaches the people it is shared with (or its owner)
     if (who && out.status === 200 && RELAY_PATHS.has(path)) {
       try {

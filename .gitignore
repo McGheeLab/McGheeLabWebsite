@@ -73,6 +73,7 @@ deploy/audit-*.txt
 # Gabe's desktop data never belongs in git.
 scientia/scientia.html
 rm/scientia/scientia.html
+rm/scientia/desktop/
 scientia/images/
 scientia/recordings/
 scientia/backup/

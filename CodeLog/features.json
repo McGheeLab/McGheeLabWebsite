@@ -2001,6 +2001,41 @@
    "distinct_from": {
     "scientia.canvas-export": "one lab-inventory material shown as a fixed card inside the app; canvas export writes a whole note to a read-only HTML file"
    }
+  },
+  {
+   "id": "scientia.this-computer",
+   "name": "Scientia on this computer (install, always-on sync, pairing)",
+   "side": "scientia",
+   "summary": "One button on the lab site opens Scientia running on the person's computer from its notebook folder. The installed server starts at login (service.py) and keeps the folder and the lab cloud in step all the time (labsync.py runs the lab's bridge, paced for seconds); the first click walks through install and pairs the computer by a one-time code (its own key; several computers and the website on one account).",
+   "keywords": [
+    "install",
+    "installer",
+    "pairing",
+    "pair",
+    "code",
+    "service",
+    "autostart",
+    "launch",
+    "protocol",
+    "this computer",
+    "open on my computer",
+    "always on"
+   ],
+   "paths": [
+    "scientia/src/23c-thiscomputer.js",
+    "scientia/labsync.py",
+    "scientia/service.py",
+    "scientia/open_local.py",
+    "scientia/install/*"
+   ],
+   "related": [
+    "scientia.cloud",
+    "scientia.desktop-server",
+    "scientia.settings"
+   ],
+   "distinct_from": {
+    "rm.teaching-service": "a background process (Windows service-like) that keeps the app running; nothing to do with teaching or service records"
+   }
   }
  ]
 }

@@ -36,6 +36,13 @@ makes the untouched app a *device* of the cloud hub and lets the Lab Notebook dr
 | `rm/js/notebook-scientia.js`, `rm/css/notebook-scientia.css` | the lab | Scientia as a notebook of the Lab Notebook |
 | `rm/js/scientia-notes.js` | the lab | the notes filed under a research card / project, listed in RM (V3.880) |
 
+**On a lab member's computer (V3.928).** The lab site's "Open on my computer" (`src/23c-thiscomputer.js`) installs this
+app from `rm/scientia/desktop/ScientiaInSitu-Windows.zip` (built by `scripts/scientia_build.py` from this folder and
+`install/`) to `%LOCALAPPDATA%\ScientiaInSitu`, starting at login (`service.py` → `serve.py`). `serve.py` then keeps the
+notebook folder and the lab cloud in step on its own (`labsync.py`, running `vendor/scientia_cloud.py` — the lab's
+`scientia-cloud.py`, copied, never edited here), so `scientia-cloud.py` is no longer run by hand; do not run both on one
+computer. A computer is paired from the site with a one-time code (hub `/api/cloud/pair/*`), each with its own key.
+
 Changes to the app (`src/`) are Gabe's domain; changes to the lab layer are ours. A change that needs both
 (a new RM-backed tab, a ported notebook feature) is one branch and one PR that touches both, reviewed by both.
 

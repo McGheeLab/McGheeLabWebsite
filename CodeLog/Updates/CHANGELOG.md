@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.928] — 2026-10-27 — Scientia on this computer: one button on the lab site, always in step
+
+Plan: [CodeLog/ClaudesPlan/V3.928_scientia_one_click_local.md](../ClaudesPlan/V3.928_scientia_one_click_local.md). The shared lab layer is unchanged.
+
+### Added
+- **"Open on my computer"** in the website's Scientia (`scientia/src/23c-thiscomputer.js`, on mcgheelab.com only): opens the app running on this computer (same note), starts it when it is installed but stopped (`scientia://start`), and the first time walks through download, install and connecting this computer. `#/connect` and Settings → **The lab**: state, Connect (or a typed code), Sync now, Disconnect, Remove from this computer.
+- **Always-on sync** (`scientia/labsync.py`, started by `serve.py`): the lab's bridge (`scientia/vendor/scientia_cloud.py`, a copy `scientia_build.py` keeps) paced FAST 1.5 s / SLOW 15 s / IDLE 60 s, woken at once by a change here; offline back-off; `realign()` catches up three-way from `shadow.json` when this computer's history no longer reaches the last sync; a new account with notes on both sides waits for the person's choice.
+- **Pairing** (hub): `POST /api/cloud/pair/new` (signed in) → a one-time code (`pairCode`, 10 min, `scientiaPairs/{sha}`); `POST /api/cloud/pair/claim` (no sign-in) → the computer's own key; `POST /api/cloud/key/self/remove`. `firestorePairs` claims in a transaction.
+- **`serve.py`**: `/api/lab/ping` + `/api/lab/offer` for `https://mcgheelab.com` only (CORS, private-network preflight); `/api/lab/status|connect|choose|sync-now|disconnect|uninstall|quit` for this computer only (another page is refused); `lab_connect`, `lab_disconnect`.
+- **The Windows download** (`scripts/scientia_build.py` `desktop_bundle` → `rm/scientia/desktop/ScientiaInSitu-Windows.zip`, `version.json`): `scientia/install/Install Scientia.cmd`, `install.ps1`, `uninstall.ps1`; `scientia/service.py` (starts with Windows, restarts the server on a crash), `scientia/open_local.py` (`scientia://`).
+- `CodeLog/features.json`: `scientia.this-computer`.
+
+### Bug Fixes
+- `scientia/serve.py`: JSON, state and status replies are sent with `sendall` — the stock write could cut a large reply short (the full-record download reset after ~19 s).
+
+### Tests
+- `functions/test/scientia-hub.test.js` **68 passed** (pairing: code, claim, reuse / expiry / unknown refused, a second computer, a key removing only itself).
+- With the dev hub as the cloud and a scratch notebook (`e2e_*` in the session's scratchpad): pairing through the routes (another site refused for offer and connect); computer → cloud 0.45 s, tablet → computer 1.6 s over 3 trials; a second computer pairs; disconnect revokes only this key. The site's button in headless Chrome: first click → walkthrough, code handed over, `#/connect` opened, "Connected." after the confirm; second click → straight to the app on the same page. The download, extracted and run: the service starts the server, a second copy leaves, a killed server comes back, Quit ends both, `scientia://start` brings it back. Catch-up after a restart with changes on both sides: both changes on both sides, no question asked.
+- Lab-mode harness (web) 271/275 (the four V3.925 failures; one run showed a flaky fifth).
+- `sw.js` CACHE_VERSION 899 → 900.
+
 ## [V3.927] — 2026-10-26 — Offline Scientia: tasks, papers and My Week reach RM when the notebook syncs
 
 Plan: [CodeLog/ClaudesPlan/V3.927_scientia_offline_rm_sync.md](../ClaudesPlan/V3.927_scientia_offline_rm_sync.md). The desktop never calls RM and the shared lab layer is unchanged; the hub acts on what the notebook carries when it reaches the lab cloud.

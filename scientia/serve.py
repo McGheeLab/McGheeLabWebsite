@@ -8,7 +8,7 @@ Your notebook folder (chosen in Settings → Notebook folder) holds everything y
   <Project>/<Theme>/<Note>/<NN component>.md   one Markdown file per component, for Obsidian (written by the app)
 The folder is remembered outside the app (in your user profile), so replacing the app never touches it.
 """
-import http.server, json, os, re, shutil, socket, subprocess, sys, threading, time, webbrowser
+import http.server, json, os, re, shutil, socket, subprocess, sys, threading, time, urllib.error, urllib.request, webbrowser
 from http.cookies import SimpleCookie
 from urllib.parse import urlparse, parse_qs, unquote
 
@@ -22,6 +22,13 @@ if os.environ.get('SIS_CONFIG'): CONFIG = os.environ['SIS_CONFIG']
 elif os.name == 'nt': CONFIG = os.path.join(os.environ.get('APPDATA') or os.path.expanduser('~'), 'ScientiaInSitu', 'config.json')
 else: CONFIG = os.path.join(os.path.expanduser('~'), '.config', 'scientia-in-situ', 'config.json')
 os.chdir(ROOT)
+# V3.928: this computer and the lab cloud. The lab site may ask whether this app runs here (and hand over a pairing code);
+# only these pages may. The key the pairing gives this computer lives in cloud.json next to the config.
+HUB = os.environ.get('SIS_CLOUD_HUB', 'https://us-central1-mcgheelab-f56cc.cloudfunctions.net/scientiaHub')
+CLOUD_CFG = os.path.join(os.path.dirname(CONFIG), 'cloud.json')
+LAB_ORIGINS = {'https://mcgheelab.com', 'https://www.mcgheelab.com'} | {o.strip() for o in os.environ.get('SIS_LAB_ORIGINS', '').split(',') if o.strip()}
+APP_SEEN = [0.0]          # when a window of this app last asked this server for news (labsync paces by it)
+OFFER = {}                # a pairing code the lab site handed over, waiting for the person to confirm here
 os.makedirs(APP_IMAGES, exist_ok=True)
 LOCK = threading.Lock()
 
@@ -175,6 +182,8 @@ class H(http.server.SimpleHTTPRequestHandler):
             if not buf: break
             self.connection.sendall(buf)
     def end_headers(self):
+        if getattr(self, '_cors', None):   # V3.928: the lab site's own pages, on the two routes they call
+            self.send_header('Access-Control-Allow-Origin', self._cors); self.send_header('Vary', 'Origin')
         self.send_header('Cache-Control', 'no-store, must-revalidate')
         super().end_headers()
     def log_message(self, *a): pass
@@ -203,7 +212,7 @@ class H(http.server.SimpleHTTPRequestHandler):
         else: self.send_response(401); self.send_header('Content-Length', '0'); self.end_headers()
         return False
     def _text(self, body, ctype):
-        b = body.encode('utf-8'); self.send_response(200); self.send_header('Content-Type', ctype); self.send_header('Content-Length', str(len(b))); self.end_headers(); self.wfile.write(b)
+        b = body.encode('utf-8'); self.send_response(200); self.send_header('Content-Type', ctype); self.send_header('Content-Length', str(len(b))); self.end_headers(); self.connection.sendall(b)
     def translate_path(self, path):
         u = unquote(urlparse(path).path)
         if u.startswith('/recordings/'):
@@ -217,7 +226,7 @@ class H(http.server.SimpleHTTPRequestHandler):
         return super().translate_path(path)
     def _json(self, code, obj):
         body = json.dumps(obj).encode()
-        self.send_response(code); self.send_header('Content-Type', 'application/json'); self.send_header('Content-Length', str(len(body))); self.end_headers(); self.wfile.write(body)
+        self.send_response(code); self.send_header('Content-Type', 'application/json'); self.send_header('Content-Length', str(len(body))); self.end_headers(); self.connection.sendall(body)   # whole, even when large
     def _body(self, limit=2 * 1024 ** 3):
         n = int(self.headers.get('Content-Length') or 0)
         if n <= 0 or n > limit: return None
@@ -233,8 +242,56 @@ class H(http.server.SimpleHTTPRequestHandler):
         try: return raw, json.loads(raw)
         except Exception: return raw, None
 
+    # ---- V3.928: the lab site ↔ this computer ----
+    def lab_origin(self):
+        o = self.headers.get('Origin'); return o if o in LAB_ORIGINS else None
+    def same_origin(self):
+        o = self.headers.get('Origin'); return o is None or o in ('http://localhost:%d' % PORT, 'http://127.0.0.1:%d' % PORT)
+    def do_OPTIONS(self):
+        u = urlparse(self.path); o = self.lab_origin()
+        if u.path not in ('/api/lab/ping', '/api/lab/offer') or not o or not self.is_local():
+            self.send_response(403); self.send_header('Content-Length', '0'); self.end_headers(); return
+        self._cors = o; self.send_response(204)
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Private-Network', 'true'); self.send_header('Access-Control-Max-Age', '600'); self.send_header('Content-Length', '0'); self.end_headers()
+    def lab_get(self, p):
+        if p == '/api/lab/ping':
+            self._cors = self.lab_origin(); st = LABSYNC.snapshot()
+            return self._json(200, {'ok': True, 'app': 'scientia-in-situ', 'port': PORT, 'notebook': bool(notebook()), 'connected': st['connected'], 'state': st['state']})
+        if p == '/api/lab/status':
+            if not self.is_local(): return self._json(403, {'ok': False})
+            off = OFFER if OFFER and time.time() < OFFER.get('until', 0) else None
+            return self._json(200, dict(LABSYNC.snapshot(), ok=True, notebook=notebook(), offer={'account': off['account'], 'from': off['origin']} if off else None))
+        return None
+    def lab_post(self, p):
+        if p == '/api/lab/offer':   # the lab site, signed in, hands over a pairing code; nothing happens until the person confirms here
+            o = self.lab_origin()
+            if not o or not self.is_local(): return self._json(403, {'ok': False, 'error': 'only from the lab site'})
+            self._cors = o; _, obj = self._obj(1 << 16); obj = obj or {}
+            if not str(obj.get('code') or '').strip(): return self._json(400, {'ok': False, 'error': 'no code'})
+            OFFER.clear(); OFFER.update(code=str(obj['code']), account=obj.get('account') or {}, origin=o, until=time.time() + 600)
+            return self._json(200, {'ok': True})
+        if not self.is_local() or not self.same_origin(): return self._json(403, {'ok': False, 'error': 'only from this app, on this computer'})
+        _, obj = self._obj(1 << 16); obj = obj or {}
+        if p == '/api/lab/connect': return self._json(200, lab_connect(str(obj.get('code') or OFFER.get('code') or '')))
+        if p == '/api/lab/choose': LABSYNC.choose(obj.get('prefer')); return self._json(200, {'ok': True})
+        if p == '/api/lab/sync-now': LABSYNC.kick(); return self._json(200, {'ok': True})
+        if p == '/api/lab/disconnect': return self._json(200, lab_disconnect())
+        if p == '/api/lab/uninstall':
+            r = lab_disconnect() if obj.get('forget', True) else {'ok': True}
+            un = os.environ.get('SIS_UNINSTALL') or os.path.join(os.path.dirname(ROOT), 'uninstall.ps1')
+            if not os.path.isfile(un): return self._json(200, {'ok': False, 'error': 'this copy of the app was not installed (no uninstaller next to it)'})
+            subprocess.Popen(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', un, '-FromApp'], creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0) | getattr(subprocess, 'DETACHED_PROCESS', 0), close_fds=True)
+            threading.Timer(1.0, lambda: os._exit(0)).start()
+            return self._json(200, dict(r, ok=True, uninstalling=True))
+        if p == '/api/lab/quit': threading.Timer(0.5, lambda: os._exit(0)).start(); return self._json(200, {'ok': True})
+        return self._json(404, {'ok': False})
+
     def do_GET(self):
         u = urlparse(self.path); p = u.path; q = parse_qs(u.query)
+        if p.startswith('/api/lab/') and self.is_local():
+            r = self.lab_get(p)
+            if r is not None or p in ('/api/lab/ping', '/api/lab/status'): return
         if not self.gate(p, False): return
         if p == '/': self.path = '/scientia.html'; return super().do_GET()
         if p == '/sw.js': return self._text(SW, 'text/javascript')
@@ -250,10 +307,11 @@ class H(http.server.SimpleHTTPRequestHandler):
                 data = SYNC.export('state')
                 if (q.get('journal') or [''])[0] == '0': data['stores'].pop('journal', None); data['counts'].pop('journal', None)
                 body = json.dumps(data).encode('utf-8')
-            self.send_response(200); self.send_header('Content-Type', 'application/json'); self.send_header('Content-Length', str(len(body))); self.end_headers(); self.wfile.write(body); return
+            self.send_response(200); self.send_header('Content-Type', 'application/json'); self.send_header('Content-Length', str(len(body))); self.end_headers(); self.connection.sendall(body); return
         if p == '/api/sync/pull':
             if not SYNC.ensure(): return self._json(409, {'ok': False, 'error': 'no notebook folder'})
             g = lambda k, d='': (q.get(k) or [d])[0]
+            if g('conn') and g('conn') != LABSYNC.local_conn(): APP_SEEN[0] = time.time()
             return self._json(200, SYNC.pull(g('conn'), int(g('since', '0') or 0), g('sid'), float(g('wait', '0') or 0), int(g('c', '-1') or -1)))
         if p == '/api/sync/conflicts': SYNC.ensure(); return self._json(200, {'ok': True, 'conflicts': SYNC.conflicts})
         if p == '/api/pair/status':
@@ -261,7 +319,7 @@ class H(http.server.SimpleHTTPRequestHandler):
             body = json.dumps(dict(st, ok=True)).encode()
             self.send_response(200); self.send_header('Content-Type', 'application/json'); self.send_header('Content-Length', str(len(body)))
             if tok: self.send_header('Set-Cookie', f'sis_tok={tok}; Path=/; Max-Age=315360000; HttpOnly; SameSite=Lax')
-            self.end_headers(); self.wfile.write(body); return
+            self.end_headers(); self.connection.sendall(body); return
         if p == '/api/pair/pending': return self._json(200, {'ok': True, 'pending': SYNC.pending()})
         if p == '/api/devices': return self._json(200, {'ok': True, 'devices': SYNC.devices()})
         if p == '/api/net': return self._json(200, net())
@@ -276,13 +334,14 @@ class H(http.server.SimpleHTTPRequestHandler):
         if p == '/api/snapshot':
             if not SYNC.ensure() or not SYNC.has_record: return self._json(404, {'ok': False})
             with SYNC.lock: body = json.dumps(SYNC.export('state')).encode('utf-8')
-            self.send_response(200); self.send_header('Content-Type', 'application/json'); self.send_header('Content-Length', str(len(body))); self.end_headers(); self.wfile.write(body); return
+            self.send_response(200); self.send_header('Content-Type', 'application/json'); self.send_header('Content-Length', str(len(body))); self.end_headers(); self.connection.sendall(body); return
         if p == '/api/vault':
             return self._json(200, {'ok': True, 'files': list((load_json(nb('.scientia', 'manifest.json') or '', {}) or {}).items())})
         return super().do_GET()
 
     def do_POST(self):
         u = urlparse(self.path); q = parse_qs(u.query)
+        if u.path.startswith('/api/lab/'): return self.lab_post(u.path) if self.is_local() else self._json(403, {'ok': False})
         if not self.gate(u.path, True): return
         if u.path == '/api/sync/push':
             if not SYNC.ensure(): return self._json(409, {'ok': False, 'error': 'no notebook folder'})
@@ -418,10 +477,55 @@ class H(http.server.SimpleHTTPRequestHandler):
             atomic(mf, json.dumps(man).encode('utf-8'))
         return self._json(200, {'ok': True, 'wrote': wrote, 'removed': removed})
 
+def lab_call(path, body, key=None, timeout=30):
+    req = urllib.request.Request(HUB + path, data=json.dumps(body).encode('utf-8'), method='POST', headers={'Content-Type': 'application/json'})
+    if key: req.add_header('X-Scientia-Key', key)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r: return json.loads(r.read().decode('utf-8') or '{}')
+    except urllib.error.HTTPError as e:
+        try: return json.loads(e.read().decode('utf-8') or '{}')
+        except Exception: return {'ok': False, 'error': 'HTTP %s' % e.code}
+    except Exception as e: return {'ok': False, 'error': 'the lab cloud did not answer (%s)' % (getattr(e, 'reason', None) or e)}
+
+def lab_connect(code):
+    """Redeem a pairing code for this computer's own key. Same account as before: the sync memory stays. Another account:
+    it starts afresh (and asks which notes win if both sides hold some)."""
+    if not code: return {'ok': False, 'error': 'no pairing code — open Scientia from the lab site, or type the code shown there'}
+    name = ('%s (%s)' % (socket.gethostname(), 'Windows' if os.name == 'nt' else sys.platform))[:40]
+    r = lab_call('/api/cloud/pair/claim', {'code': code, 'name': name})
+    if not r.get('ok') or not str(r.get('key') or '').startswith('sck_'): return {'ok': False, 'error': r.get('error') or 'the lab cloud refused the code'}
+    cfg = load_json(CLOUD_CFG, {}) or {}
+    uid = lambda k: (str(k or '').split('_') + ['', ''])[1]
+    if uid(cfg.get('key')) != uid(r['key']):
+        cfg = {}
+        try: os.remove(os.path.join(os.path.dirname(CLOUD_CFG), 'shadow.json'))
+        except FileNotFoundError: pass
+    cfg.update(key=r['key'], account=r.get('account') or {}, computer=name, keyId=r.get('keyId'))
+    atomic(CLOUD_CFG, json.dumps(cfg, indent=1).encode('utf-8'))
+    OFFER.clear(); LABSYNC.kick()
+    return {'ok': True, 'account': cfg['account'], 'computer': name}
+
+def lab_disconnect():
+    """This computer leaves the lab cloud: its key is removed there (best effort) and here. Notes stay in the folder."""
+    cfg = load_json(CLOUD_CFG, {}) or {}
+    key = cfg.get('key'); res = lab_call('/api/cloud/key/self/remove', {}, key=key) if key else {'ok': True}
+    for k in ('key', 'keyId', 'sides', 'dev'): cfg.pop(k, None)
+    atomic(CLOUD_CFG, json.dumps(cfg, indent=1).encode('utf-8'))
+    try: os.remove(os.path.join(os.path.dirname(CLOUD_CFG), 'shadow.json'))
+    except FileNotFoundError: pass
+    LABSYNC.kick()
+    return {'ok': True, 'revoked': bool(res.get('ok'))}
+
+import labsync
+def _local_state():
+    with SYNC.lock: return SYNC.export('state')
+LABSYNC = labsync.LabSync(PORT, CLOUD_CFG, lambda: time.time() - APP_SEEN[0] < 45, _local_state)
+
 srv = http.server.ThreadingHTTPServer(('', PORT), H)
 if not os.environ.get('SIS_NOBROWSER'): threading.Timer(0.6, lambda: webbrowser.open(f'http://localhost:{PORT}/scientia.html')).start()
 print(f'Scientia In Situ on http://localhost:{PORT}/scientia.html  (close this window to stop)')
 print(f'Notebook folder: {notebook() or "not chosen yet — Settings → Notebook folder"}')
 print('Other devices: Settings → Devices (phones and tablets pair with this computer)')
 SYNC.ensure()
+LABSYNC.start()   # V3.928: in step with the lab cloud for as long as this server runs
 srv.serve_forever()

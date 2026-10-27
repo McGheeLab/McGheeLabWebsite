@@ -28,7 +28,7 @@ http.createServer(async (req, res) => {
     if (bearer) who = { uid: 'dev', id: 'web', name: 'Online', kind: 'browser' };
     else if (key) { const m = /^sck_dev_([0-9a-f]{32})$/.exec(String(key)); const k = m && await hub.keyFind(m[1]); if (k) who = { uid: 'dev', id: k.id, name: k.name, kind: 'key' }; else return json(401, { ok: false, error: 'this key is not valid any more' }); }
     else if (process.env.DEV_OPEN) who = { uid: 'dev', id: 'web', name: 'Online', kind: 'browser' };
-    if (!who && u.pathname !== '/api/sync/hello') return json(401, { ok: false, error: 'not signed in' });
+    if (!who && u.pathname !== '/api/sync/hello' && u.pathname !== '/api/cloud/pair/claim') return json(401, { ok: false, error: 'not signed in' });   // V3.928: the code is the proof
     let body; const ct = String(req.headers['content-type'] || '');
     if (raw.length && ct.includes('json')) { try { body = JSON.parse(raw.toString('utf8')); } catch (e) { body = null; } }
     const query = {}; u.searchParams.forEach((v, k) => { query[k] = v; });
