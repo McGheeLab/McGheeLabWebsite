@@ -62,6 +62,7 @@ const SettingsView = {
     return h('div.page.narrow', h('div.eyebrow', 'System'), h('h1.title', 'Settings'),
       h('div.sec-h', h('h2', 'Notebook folder'), h('span.k', 'where your data lives')), notebook, h('div.sec'),
       h('div.sec-h', h('h2', 'Devices'), h('span.k', 'your phone and tablet, in sync')), DEVICES.settings(), h('div.sec'),
+      h('div.sec-h', h('h2', 'The lab'), h('span.k', 'this computer and the lab cloud, always in step')), THISPC.settings(), h('div.sec'),
       h('div.sec-h', h('h2', 'Handwriting'), h('span.k', 'pen ink → text, read on this computer')), HWUI.settings(), h('div.sec'),
       h('div.sec-h', h('h2', 'Recordings'), h('span.k', 'microphone → audio file + transcript, on this computer')), STTUI.settings(), h('div.sec'),
       h('div.sec-h', h('h2', 'Structures'), h('span.k', 'colour & style per kind')),

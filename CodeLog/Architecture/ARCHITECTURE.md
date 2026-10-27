@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.927 (offline Scientia: the hub's `quietSyncs` gains `syncUp` (task components → RM tasks; desktop papers → `items/{rowId}`, matched or added), `syncWeekSteps` (`dayPlans` → read-only `mwsteps`) and `syncTicks` (a pending `block.myweek` ✓ → `saveOutcome` on its step, the work event, the task and tracker copies); after a push only the jobs its rows need. App: `15c-litreviews.js`, `23b-labsync.js`, store `mwsteps`; `serve.py` sends large pages whole.)
+**Version:** V3.928 (Scientia on this computer: `serve.py` runs `labsync.py` (the lab's bridge, vendored, paced 1.5 s / 15 s / 60 s, `realign()` from `shadow.json`) and answers the lab site on `/api/lab/ping|offer` (CORS for mcgheelab.com); the hub pairs a computer by a one-time code (`/api/cloud/pair/new|claim`, `scientiaPairs`); `23c-thiscomputer.js` is the site's "Open on my computer" and `#/connect`; `scientia_build.py` packs `rm/scientia/desktop/ScientiaInSitu-Windows.zip` (install.ps1, service.py, open_local.py).)
+
+**Prior:** V3.927 (offline Scientia: the hub's `quietSyncs` gains `syncUp` (task components → RM tasks; desktop papers → `items/{rowId}`, matched or added), `syncWeekSteps` (`dayPlans` → read-only `mwsteps`) and `syncTicks` (a pending `block.myweek` ✓ → `saveOutcome` on its step, the work event, the task and tracker copies); after a push only the jobs its rows need. App: `15c-litreviews.js`, `23b-labsync.js`, store `mwsteps`; `serve.py` sends large pages whole.)
 
 **Prior:** V3.926 (Scientia: the desktop's modules are in `scientia/src/` — `13zt-table` tables and plots, `13zz2-pen3` pen round three and ink library, `13zz3-dash`, `13zz4-inksplit`, `17d-libgroups` (store `libsets`), `21b-canvasexport` + `98-viewer`, `21c-labexport`; registered in `features.json` (`scientia.tables`, `scientia.canvas-export`); `lab-mode.js` `INS_PICS` icons for the new + Insert rows; `gen-icons.mjs` normalises Windows paths.)
 

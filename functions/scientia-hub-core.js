@@ -981,12 +981,42 @@ async function mirrorQuietly(hub, who, force, only) {
   return null;
 }
 
+/* ───────── Pairing a computer from the lab site (V3.928) ─────────
+   The website's Scientia (signed in) asks for a one-time code; the person's computer redeems it without a sign-in — the
+   code is the proof — and gets its OWN key (one per computer, so several computers and the website all work on the one
+   account). Codes: 12 characters (~59 bits), 10 minutes, once; only their hash is kept. A key can remove itself (a
+   computer disconnecting or uninstalling). `ctx.pairs` is the store (Firestore in scientia-hub.js); without one, the
+   hub's memory (tests, the dev hub). */
+const PAIR_MS = 10 * 60 * 1000, PAIR_ABC = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+function pairCode() { let s = ''; for (const x of crypto.randomBytes(12)) s += PAIR_ABC[x % PAIR_ABC.length]; return s.slice(0, 4) + '-' + s.slice(4, 8) + '-' + s.slice(8); }
+const normPairCode = c => String(c || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+/** what a claim says about a stored code: null when it may be used */
+function pairRefusal(rec, now) {
+  if (!rec) return 'That code is not valid — make a new one on the lab site';
+  if (rec.used) return 'That code was already used — make a new one on the lab site';
+  if (now > rec.exp) return 'That code has expired — make a new one on the lab site';
+  return null;
+}
+function memPairs(hub) {
+  if (!hub._pairs) hub._pairs = new Map();
+  return {
+    async make({ uid, who }) { const code = pairCode(), exp = Date.now() + PAIR_MS, account = { name: (who && who.name) || '', email: '' }; hub._pairs.set(sha(normPairCode(code)), { uid, account, exp, used: false }); return { ok: true, code, exp, account }; },
+    async claim({ code, name }) {
+      const rec = hub._pairs.get(sha(normPairCode(code))), why = pairRefusal(rec, Date.now()); if (why) return { ok: false, error: why };
+      rec.used = true; const k = await hub.keyMake(String(name || 'My computer').slice(0, 40));
+      return { ok: true, key: 'sck_' + rec.uid + '_' + k.secret, keyId: k.id, account: rec.account };
+    }
+  };
+}
+
 async function route(req, ctx) {
   const { hub, who } = ctx, q = req.query || {}, p = String(req.path || '/').replace(/\/+$/, '') || '/', post = req.method === 'POST';
   const J = (status, body) => ({ status, body });
   const g = (k, d) => (q[k] === undefined ? d : String(q[k]));
   if (p === '/api/sync/hello') { await mirrorQuietly(hub, who); return J(200, helloResult({ state: who && hub ? await hub.loadState() : emptyState(), who })); }
+  if (p === '/api/cloud/pair/claim' && post) { const obj = parseBody(req) || {}; return J(200, await (ctx.pairs || memPairs(hub)).claim({ code: obj.code, name: obj.name })); }   // V3.928: no sign-in, the code is the proof
   if (!who) return J(401, { ok: false, error: 'not signed in' });
+  if (p === '/api/cloud/key/self/remove' && post) return who.kind === 'key' ? J(200, await hub.keyRemove(who.id)) : J(403, { ok: false, error: 'only with the key of the computer that is leaving' });   // V3.928
   if (p === '/api/rm/library/refresh' && post) {
     if (typeof hub.mirrorLibrary !== 'function') return J(200, { ok: false, error: 'no RM library on this hub' });
     return J(200, await hub.mirrorLibrary({ force: true }));
@@ -1115,6 +1145,7 @@ async function route(req, ctx) {
     if (p === '/api/cloud/keys') return J(200, await hub.keyList());
     if (p === '/api/cloud/key' && post) { const obj = parseBody(req) || {}; const r = await hub.keyMake(String(obj.name || 'My computer').slice(0, 40)); return J(200, { ok: true, id: r.id, name: r.name, key: 'sck_' + who.uid + '_' + r.secret }); }
     if (p === '/api/cloud/key/remove' && post) { const obj = parseBody(req) || {}; return J(200, await hub.keyRemove(String(obj.id || ''))); }
+    if (p === '/api/cloud/pair/new' && post) return J(200, await (ctx.pairs || memPairs(hub)).make({ uid: who.uid, who }));   // V3.928
     return J(404, { ok: false });
   }
   // the desktop-only endpoints answer like a computer that has none of it
@@ -1335,6 +1366,7 @@ module.exports = { route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA
   MIRROR_MS, MIRROR_FIELDS, rmItemToLibraryRow, planMirror, INVENTORY_MS, INVENTORY_LIMIT, rmInventoryRow, searchInventory,
   TASKSYNC_MS, PRIO_IMPORTANCE, dueDateOf, taskIdNew, rmTaskFromBlock, rmTaskPatch, planTaskSync,
   UPSYNC_MS, UPSYNC_MAX, normTitle, taskPayload, planTaskPairing, patchOp, libAuthors, paperItemFromRow, libraryUpCandidates, planLibraryUp,
+  PAIR_MS, pairCode, normPairCode, pairRefusal, memPairs,
   MWSTEPS_MS, mondayOf, weekWindow, mwStepRow, planWeekSteps, closedStatusFor, cleanLink, tickLink, planTickReport, stepTrackerEntry, stepTaskCopyPatch, pendingTicks, tickAnsweredOp,
   LAB_TZ, WHEN_MS, ACT_MS, WHEN_AHEAD, WHEN_BEHIND, ACT_DAYS, todayIn, nowIn, localDayOf, addDays_, wdayOf, safeIdPart, choreNext, remOccursOn, whenOcc,
   whenTaskId, whenText, whenCandidates, rmWhenTask, planWhen, sessionDaySeconds, actEventId, activityGroups, planActivity, fmtMinutes,
