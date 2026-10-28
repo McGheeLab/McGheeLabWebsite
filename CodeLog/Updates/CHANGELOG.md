@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.936] — 2026-10-27 — Scientia: HTML pages keep their state and take notes; regions fold, nest and connect; Tab between steps; steps tied to protocols; ink on images; the lab's whiteboard in image panels
+
+Plan: [CodeLog/ClaudesPlan/V3.936_scientia_notebook_wishlist.md](../ClaudesPlan/V3.936_scientia_notebook_wishlist.md). Gabe's list of eight; the shared lab layer is not edited.
+
+### Added
+- **`scientia/src/13zze-html.js` `HTMLX`** — an HTML page keeps what it was left at: the page's copy gets a second script (`QUOTE.more`) that reports trusted changes of form fields and `<details>` (`{sis:'state'}`); kept as `block.htmlState = {media, v}` (saved quietly, not an undo step), written into every new copy and applied after `load` with `input` + `change` dispatched; `hello` → `restore` for a reloaded frame; the card and the maximised view in step; ⋯ → *Back to how the page starts*. **Notes in the page**: ✎ Note in the maximised bar (`HTMLX.pick` → `{sis:'spot', at:{path, fx, fy, px, py}}`) or ✎ Note on a selected passage → `HTMLX.make(srcId, where, text)`: a component beside the page with `quote: {src, note: true, at | exact, prefix, suffix}`, wired `comments`; pinned in the page (card and maximised), re-placed on resize; a pin opens `HTMLX.write` (edit, remove, on the paper); listed as a note in the side panel (`13zz-maxhl`).
+- **`scientia/src/13zzc-glue.js` `GLUE`** — ink written on an image panel is glued to it (`ink.glue = {to, dx, dy}`): `follow(docId)` in `DocView.fill` and `drawWires` (every drag), `offset(b)` after `INK.fit`, `reglue(pane, b)` when the ink itself is dragged, `MOVE.expand` takes it along; drawn over the image (`.on-img`, z-index 5, only its strokes take the pointer); a stroke on an image doesn't also click it.
+- **`scientia/src/13zzd-board.js` `BOARD`** — ✎ Whiteboard in an empty image of a panel: `cell.board = {lab: 'nb…_<uid>', owner, title}`, a board of the Lab Notebook's whiteboard (`/rm/pages/notebook-board.html`, `userData/{uid}/notebookBoards`); `preview(bd)` in the cell, `open(b, i)` full-window, `remove`; made where Scientia is signed in to the lab (`BOARD.can()`: the website), opened on mcgheelab.com from the desktop app.
+- **Protocols (`13b-protocol.js`)**: Tab / Shift+Tab in a step (`tabFrom(def, sid, dir)` — a new step after the last), in a run's temporary steps (`tabRun`), `focusStep`; a step tied to another protocol (`step.sub`; `tie`, `tieDialog` with the loop guard `reaches`, `subRow`, `subList`), kept by a new wording or a split; ▶ *Run it here* (`runSub`: a run below, `parentStep {runId, stepId}`, wired `needs`; `subRunOf`); `parentCheck` — a finished sub-run checks its step, and the note's timer runs on for the parent run. `pickProtocol(title, cb, skip)`.
+- **Regions (`13v-region.js`)**: nesting (`members` may hold region ids; `blocksOf`, `subRegions`, `ancestors`, `within`, `depth`, `hider`, `tidy`, `at(pane, d, x, y, skip)`, `droppedRegion`); `fold(pane, d, r)` (`r.collapsed`, `r.at`; a folded region is its title card, its contents hidden, connections to them drawn to it — `REGION.shown`); a region is a connection end (its ● `.rg-port`, a drop on its title — `LINKS.regionAt`); `copyDialog` / `copyTo(d, r, destId, pos)` — *Embed in another note…*, also a plain drag of its title into another pane (13zb; Alt moves it as before); deleting a region leaves its contents in the region around it and removes its connections.
+- **`M.end(id)` / `M.endName(id)`** (`04-model.js`): a connection's end, a component or a region.
+- **Components fold** — ▾ left of the title (`b.collapsed`, `12-doc.js` `.cfold`).
+
+### Changed
+- `99-boot.js`: the lab layer's pills roll into their bar after 3 s untouched (`SIS_LAB.pills.dockMs = 3000`, set from the app; the lab layer's default stays 10 s).
+- `12b-wires.js` `DocView.drawWires`: ends through `M.end`, ends hidden in a folded region drawn to it (`w.f` / `w.t`, `WIRES.fa` / `fb`); `12-doc.js` `rectOf`, `wireMenu`, `relationPopover`, `crossWire`, `chipsFor`, `bbox`; `13-docpanels.js` connections list; `13t-chaindrop.js` names a region start.
+- `13zf-ink.js`: the pen starts on an image panel's images (`INK.onImage`, `INK.imageAt`); `addStroke` glues ink written on a panel and keeps glued and loose ink apart.
+- `13x-figure.js`: whiteboard cells (`aspect`, `syncText`, `addFiles`, `layoutMenu`, the cell, its caption and label).
+- `13zb-move.js`: a moved region takes its inner regions (new ids, connections kept); `MOVE.region` uses every component inside.
+- `13zw-quote.js`: `fill` adds `QUOTE.more(srcId)` (replacement by function, so a `$` in a value is safe); `paintMarks` sends only quotes with a passage.
+
+### Tests
+- Headless Chrome, desktop build, demo data, real keys and mouse: protocol Tab / Shift+Tab, ties, sub-run checks its step; nested regions, region connections, fold / unfold, component fold, embed a nested region in another note; ink over an image glued and following a drag by the panel's name; the whiteboard (website and desktop); HTML state kept and restored, notes placed by a click, on a passage, opened from the pin, edited, reset. Lab-mode harness 271/275 (the four known failures), notes harness 13/13, notebook-Scientia harness 45/45.
+- `sw.js` CACHE_VERSION 905 → 906.
+
 ## [V3.935] — 2026-10-27 — The installed Scientia updates itself
 
 Plan: [CodeLog/ClaudesPlan/V3.935_scientia_self_update.md](../ClaudesPlan/V3.935_scientia_self_update.md). (Opened as V3.930 in PR #11; renumbered.)

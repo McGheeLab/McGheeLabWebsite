@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (36 changes — ready to push)
+## Pending (37 changes — ready to push)
 
+- V3.936 — Scientia: an HTML page you open stays as you left it (sliders, ticks, choices) and you can pin notes in it; regions fold up with the arrow by their name, sit inside each other, connect like components and can be embedded in another note; components fold too; Tab moves to the next protocol step (and makes one after the last), Shift+Tab back; a step can be tied to another protocol and run from there; the pen writes on images and that ink moves with them; an empty image can be the lab's whiteboard; the tool pills fold into their bar after 3 seconds.
 - V3.935 — Scientia on your computer now updates itself: when the lab changes Scientia, your computer gets the new version within the hour (or at once with Settings → The lab → Check for updates now), without downloading anything.
 - V3.934 — Behind the scenes: the lab's cloud functions move to a newer Node.js version before the old one is switched off on 30 October.
 - V3.933 — Scientia: when two of you changed the same lines, each version shows in its writer's colour so you can scan it quickly. A "merged changes to review" chip takes you to each changed area: Accept it (the colour goes), add a comment, go to the next one, or accept them all.
