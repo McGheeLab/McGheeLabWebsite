@@ -3,6 +3,11 @@
    Everything (projects, notes, terms, reviews, the library) is loaded and
    saved in real time from this one file.
    ========================================================================== */
+/* the lab layer's pills (rm/scientia/lab-mode.js, loaded after this script): a Quick cast / tools / zoom fan left
+   untouched for 3 s rolls into its bar (the lab's default is 10 s) — set through its LAB.pills, the file unchanged */
+const PILL_DOCK_MS = 3000;
+const pillDock = () => { const p = window.SIS_LAB && SIS_LAB.pills; if (p) p.dockMs = PILL_DOCK_MS; };
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', pillDock); else pillDock();
 (async function boot() {
   if (VIEWER) return VIEWER.boot();   // an exported note (98-viewer)
   await DB.open();
