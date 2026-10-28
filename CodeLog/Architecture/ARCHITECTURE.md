@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.936 (Scientia: `13zze-html.js` (an HTML page's state kept on its block and put back in every copy; notes pinned in the page and beside it as quote-like components), `13zzc-glue.js` (ink written on an image panel glued to it), `13zzd-board.js` (an empty image can be a board of the Lab Notebook's whiteboard), regions nest / fold / connect / embed (`13v-region.js`, `M.end` — a connection's end may be a region), components fold, protocol steps tied to other protocols and Tab between steps (`13b-protocol.js`).)
+**Version:** V3.937 (Scientia: `board.html`, built by `scripts/scientia_build.py` from the Lab Notebook's board page with the lab's whiteboard scripts inlined unchanged, on `scientia/board/store.js` (a Firestore of its own; the board kept in the note's new `boards` store) — image-panel whiteboards on the desktop and the website, offline.)
+
+**Prior:** V3.936 (Scientia: `13zze-html.js` (an HTML page's state kept on its block and put back in every copy; notes pinned in the page and beside it as quote-like components), `13zzc-glue.js` (ink written on an image panel glued to it), `13zzd-board.js` (an empty image can be a board of the Lab Notebook's whiteboard), regions nest / fold / connect / embed (`13v-region.js`, `M.end` — a connection's end may be a region), components fold, protocol steps tied to other protocols and Tab between steps (`13b-protocol.js`).)
 
 **Prior:** V3.935 (the installed Scientia updates itself: `service.py` reads the site's `version.json`, downloads and verifies the new download, stops the server through `/api/lab/quit` (which saves first), replaces the app and restarts; `deploy.py` rebuilds the download whenever its sources change, so it never lags the site.)
 

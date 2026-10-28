@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.937] — 2026-10-28 — Scientia: the lab's whiteboard is part of the app (the desktop has it too, offline)
+
+Plan: [CodeLog/ClaudesPlan/V3.937_scientia_whiteboard_port.md](../ClaudesPlan/V3.937_scientia_whiteboard_port.md). Gabe: "Have the whiteboard be a standalone port from the website into Scientia (as a duplicate for the local desktop to have it too)." The shared lab layer is not edited; the lab's board code is used unchanged.
+
+### Added
+- **`board.html`** (built, git-ignored, both targets and the desktop download) — `scripts/scientia_build.py` `build_board()`: `rm/pages/notebook-board.html` with every stylesheet and script it loads from the repo inlined unchanged (`rm/css/tokens.css`, `style.css`, `whiteboard-board.css`, `rm/css/notebook-board.css`, `rm/js/icons.js`, `whiteboard.js`, `whiteboard-replay.js`, `rm/js/notebook-board.js`); `BOARD_SKIP` leaves out the PDF picker (＋ From paper), the lab's Firebase sign-in and the RM deploy check. `window.SIS_BOARD_V` (the built board's hash) in both apps' flags; `board.html?v=<it>`.
+- **`scientia/board/store.js`** — the first script of `board.html`: a Firestore of its own for the engine (`collection` / `doc` / `get` / `set` (merge) / `update` (field paths) / `delete` / `add` / `where` / `orderBy` / `limit` / `onSnapshot` + `docChanges()` / `batch` / `runTransaction`; `FieldValue.serverTimestamp | delete | arrayUnion | arrayRemove | increment`; timestamps), documents in memory, loaded from and saved to the note through `window.parent.SIS_BOARDS` (600 ms after the last change, `pagehide`, `SIS_BOARD_FLUSH()`); `firebase.auth()` / `McgheeLab.Auth` = the board's owner `me` (`?view=1`: a viewer — nothing drawn or saved); `firebase.storage()` → the note's media, kept in the documents as `sis-media:<id>`. **`scientia/board/board.css`** hides ＋ From paper and the duplicate title; `view=1` hides the chrome.
+- **Store `boards`** (`02-schema.js`, `DB_VERSION` 11): row `<id>` = `{docs: {path: document}, parts, title, docId}`, a large board continuing in rows `<id>~1…` of ≤ 450,000 characters, ordered so a new stroke rewrites only the last row.
+
+### Changed
+- `13zzd-board.js` `BOARD`: whiteboards are the app's own (`cell.board = {id: 'wb…_me', title}`) on the website and the desktop; `preview` (`board.html?…&view=1`), `open` (full-window; Remove whiteboard, Done — flushes the board, refreshes the cell), `make` (the board's row with its first document, one undo step with the cell), `remove` (rows deleted unless another panel shows the board; Ctrl+Z restores both), `host` = `window.SIS_BOARDS` `{load, save, media}` (`save` quiet, not undo steps; a recording's `.m4a` minute saved as `.mp4`). V3.936 boards kept in the lab (`cell.board.lab`) still open there.
+- `13d-media.js` `MEDIA.add(file, {quiet, extra})` — a file kept without an undo step, with extra fields (`board`).
+- `13x-figure.js`: ✎ Whiteboard on every empty image (not only on the signed-in website).
+- `scripts/scientia_build.py`: `build_board`, `desktop_bundle(desktop_html, board_html)` (`app/board.html`), staleness of both `board.html`; `scripts/deploy.py` `scientia_build_if_stale`: the board's sources (the lab's page, scripts and styles, `scientia/board/`).
+
+### Tests
+- Headless Chrome, the desktop build with demo data and a fake microphone, static and through `serve.py` (throwaway config): ✎ Whiteboard → the lab's board as its owner; mouse strokes saved into the note (not undo steps); Record → Stop → a ready recording, its minute in `images/` as `.mp4`; Done → the cell shows the strokes read-only; kept in IndexedDB without `blob:` addresses; reopened → strokes, recording, audio loads; ▶ replay plays to 0:04 and draws the stroke; a 400-stroke board → 5 rows ≤ 450 KB, read back whole, a new stroke changes only the last row; Remove → rows gone, Ctrl+Z → back. Lab-mode harness 271/275 (the four known), notes harness 13/13; notebook harness v3864 0/4 here and identically on `main` 4a28507 (not this change).
+- `sw.js` CACHE_VERSION 906 → 907.
+
 ## [V3.936] — 2026-10-27 — Scientia: HTML pages keep their state and take notes; regions fold, nest and connect; Tab between steps; steps tied to protocols; ink on images; the lab's whiteboard in image panels
 
 Plan: [CodeLog/ClaudesPlan/V3.936_scientia_notebook_wishlist.md](../ClaudesPlan/V3.936_scientia_notebook_wishlist.md). Gabe's list of eight; the shared lab layer is not edited.

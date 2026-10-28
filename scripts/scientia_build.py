@@ -27,6 +27,11 @@ V3.901: RM code the app uses is COPIED into scientia/vendor/ before Gabe's build
 both apps): rm/js/page-layout.js + page-regions.js (the figure and equation detectors behind "＋ Figure 2" / "＋ Equation 3"
 on a PDF). The copies are tracked so a plain
 `python3 scientia/build.py` still has it; edit the rm/ original, never the copy — --check fails when they differ.
+
+V3.937: the lab's whiteboard as a page of the app — board.html beside scientia.html in both targets (and in the desktop
+download): the Lab Notebook's board page (rm/pages/notebook-board.html) with its stylesheets and scripts inlined from the
+lab's files, unchanged, on scientia/board/store.js (a small Firestore of its own; the board lives in the note, 13zzd-board.js),
+so the desktop has the same board offline. A build output like the two apps (git-ignored, deployed).
 """
 import hashlib, io, json, os, re, shutil, subprocess, sys, zipfile
 
@@ -51,15 +56,46 @@ VENDOR_COPY = [('rm/js/page-layout.js', 'scientia/vendor/page-layout.js'),     #
                ('rm/js/recorder-core.js', 'scientia/vendor/rm/recorder-core.js'),        # V3.929: what lab-mode.js loads, served by serve.py
                ('rm/js/speech-to-text.js', 'scientia/vendor/rm/speech-to-text.js'),
                ('rm/js/stt-device-worker.js', 'scientia/vendor/rm/stt-device-worker.js')]   # V3.928: the bridge the app runs (labsync.py)
+BOARD_PAGE = os.path.join(ROOT, 'rm', 'pages', 'notebook-board.html')
+BOARD_DIR = os.path.join(SRC, 'board')
+BOARD_OUTS = [os.path.join(SRC, 'board.html'), os.path.join(WEB, 'board.html')]
+# what the lab's board page loads that the port leaves out: the PDF picker behind ＋ From paper (it reads the lab's library),
+# the lab's sign-in, and the deploy check that reloads an RM page
+BOARD_SKIP = {'/rm/vendor/pdfjs/pdf_viewer.css', '/rm/js/runtime-mode.js', '/firebase-config.js', '/rm/js/page-layout.js', '/rm/js/pdf-viewer.js'}
+BOARD_V = ['']   # the built board's hash: the app opens board.html?v=<it>, so a new board is never an old cached one
 
 
 def _h(path):
     return hashlib.sha1(open(path, 'rb').read()).hexdigest()[:10]
 
 
+def build_board():
+    """V3.937: board.html — the lab's board page with what it loads inlined (unchanged), store.js first."""
+    page = open(BOARD_PAGE, encoding='utf-8').read()
+    css, js = [], []
+    def take(m):
+        tag, kind, href = m.group(0), m.group(1), m.group(2)
+        if kind == 'link' and 'stylesheet' not in tag: return tag
+        if href.startswith('http') or href in BOARD_SKIP: return ''
+        f = os.path.join(ROOT, *href.lstrip('/').split('?')[0].split('/'))
+        if not os.path.isfile(f):
+            print('board.html: %s loads %s, which is not in the repo — add it to BOARD_SKIP or fix the page' % (os.path.relpath(BOARD_PAGE, ROOT), href)); sys.exit(1)
+        (css if kind == 'link' else js).append(open(f, encoding='utf-8').read())
+        return ''
+    page = re.sub(r'<(link)\b[^>]*\bhref="([^"]+)"[^>]*>[ \t]*\n?', take, page)
+    page = re.sub(r'<(script)\b[^>]*\bsrc="([^"]+)"[^>]*>\s*</script>[ \t]*\n?', take, page)
+    if page.count('</head>') != 1 or page.count('</body>') != 1:
+        print('board.html: %s changed shape (one </head> and one </body> expected)' % os.path.relpath(BOARD_PAGE, ROOT)); sys.exit(1)
+    own = lambda n: open(os.path.join(BOARD_DIR, n), encoding='utf-8').read()
+    sc = lambda t: '<script>\n' + t.replace('</script', '<' + chr(92) + '/script') + '\n</script>\n'
+    style = '<style>\n' + '\n'.join(css + [own('board.css')]).replace('</style', '<' + chr(92) + '/style') + '\n</style>\n'
+    note = '<!-- Scientia (V3.937): built by scripts/scientia_build.py from rm/pages/notebook-board.html and scientia/board/; edit those, never this file -->\n'
+    return page.replace('</head>', note + style + '</head>').replace('</body>', sc(own('store.js')) + ''.join(sc(t) for t in js) + '</body>')
+
+
 def shim_tag():
     # V3.869: the target flag first (lab-mode.js reads it), then the cloud layer
-    return "<script>window.SIS_TARGET = 'web';</script>\n<script src=\"cloud-sync.js?v=%s\"></script>\n" % _h(SHIM)
+    return "<script>window.SIS_TARGET = 'web'; window.SIS_BOARD_V = '%s';</script>\n<script src=\"cloud-sync.js?v=%s\"></script>\n" % (BOARD_V[0], _h(SHIM))
 
 
 def lab_tag():
@@ -83,7 +119,7 @@ def desktop_variant(raw):
     end = raw.rfind('</body>')
     if end < 0:
         print('no </body> in the build — the shell changed shape; fix desktop_variant'); sys.exit(1)
-    flags = "<!--sis-desktop--><script>window.SIS_TARGET = 'web'; window.SIS_DESKTOP = true;</script><!--/sis-desktop-->" + chr(10)
+    flags = "<!--sis-desktop--><script>window.SIS_TARGET = 'web'; window.SIS_DESKTOP = true; window.SIS_BOARD_V = '%s';</script><!--/sis-desktop-->" % BOARD_V[0] + chr(10)
     lab = open(LAB, encoding='utf-8').read().replace('</script', '<' + chr(92) + '/script')   # a literal </script> would end the inline tag
     tail = ('<!--sis-desktop--><script>' + chr(10) + lab + chr(10) + '</script>' + chr(10)
             + '<script>window.SIS_DESKTOP_AFTER_LAB && window.SIS_DESKTOP_AFTER_LAB();</script><!--/sis-desktop-->' + chr(10))
@@ -104,9 +140,9 @@ def web_variant(desktop_html):
     return html[:end] + lab_tag() + html[end:]
 
 
-def desktop_bundle(desktop_html):
+def desktop_bundle(desktop_html, board_html):
     """The Windows download: Install Scientia.cmd, install.ps1, uninstall.ps1 at the top; the app in app/."""
-    files = [('app/scientia.html', desktop_html.encode('utf-8'))]
+    files = [('app/scientia.html', desktop_html.encode('utf-8')), ('app/board.html', board_html.encode('utf-8'))]
     for rel in BUNDLE_APP:
         files.append(('app/' + rel, open(os.path.join(SRC, *rel.split('/')), 'rb').read()))
     for f in sorted(os.listdir(os.path.join(SRC, 'icons'))):
@@ -146,11 +182,14 @@ def main():
         stale.append(os.path.relpath(d, ROOT))
         if not check: os.makedirs(os.path.dirname(d), exist_ok=True); shutil.copy2(s, d)   # before build.py, so both apps carry the current copy
     before = open(DESKTOP_OUT, encoding='utf-8').read() if os.path.exists(DESKTOP_OUT) else None
+    board = build_board()   # V3.937: first, so both apps carry its hash
+    BOARD_V[0] = hashlib.sha1(board.encode('utf-8')).hexdigest()[:10]
+    stale += [os.path.relpath(p, ROOT) for p in BOARD_OUTS if not same(p, board)]
     raw = build_desktop()
     desktop = desktop_variant(raw)   # V3.929: the desktop runs the lab layer too
     web = web_variant(raw)
     if before != desktop: stale.append(os.path.relpath(DESKTOP_OUT, ROOT))
-    bundle, bundle_ver = desktop_bundle(desktop)
+    bundle, bundle_ver = desktop_bundle(desktop, board)
     if not (os.path.exists(BUNDLE) and open(BUNDLE, 'rb').read() == bundle): stale.append(os.path.relpath(BUNDLE, ROOT))
     if not same(WEB_OUT, web): stale.append(os.path.relpath(WEB_OUT, ROOT))
     for name in COPY:
@@ -166,6 +205,7 @@ def main():
     os.makedirs(WEB, exist_ok=True)
     open(DESKTOP_OUT, 'w', encoding='utf-8').write(desktop)   # build.py wrote the plain app; the desktop's has the lab layer
     open(WEB_OUT, 'w', encoding='utf-8').write(web)
+    for p in BOARD_OUTS: open(p, 'w', encoding='utf-8').write(board)
     os.makedirs(DESK_DIR, exist_ok=True)
     open(BUNDLE, 'wb').write(bundle); open(BUNDLE_VERSION, 'w', encoding='utf-8', newline='\n').write(bundle_ver)
     for name in COPY:
