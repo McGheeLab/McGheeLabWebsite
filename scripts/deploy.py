@@ -293,7 +293,11 @@ def scientia_build_if_stale():
     extra = ([ROOT / "rm" / "scientia" / n for n in ("cloud-sync.js", "lab-mode.js", "scientia-cloud.py")]
              + [ROOT / "rm" / "js" / n for n in ("page-layout.js", "page-regions.js", "recorder-core.js", "speech-to-text.js", "stt-device-worker.js")]
              + [ROOT / "scientia" / "build.py", ROOT / "scripts" / "scientia_build.py"] + list((ROOT / "scientia").glob("*.py"))
-             + list((ROOT / "scientia" / "install").glob("*")) + list((ROOT / "scientia" / "icons").glob("*")))
+             + list((ROOT / "scientia" / "install").glob("*")) + list((ROOT / "scientia" / "icons").glob("*"))
+             # V3.937 — plus the lab's board page and what it loads, which board.html (the app's whiteboard) is built from
+             + [ROOT / n for n in ("whiteboard.js", "whiteboard-replay.js", "whiteboard-board.css")]
+             + [ROOT / "rm" / n for n in ("pages/notebook-board.html", "js/notebook-board.js", "js/icons.js", "css/notebook-board.css", "css/tokens.css", "css/style.css")]
+             + list((ROOT / "scientia" / "board").glob("*")))
     for p in list(src.rglob("*")) + extra:
         try:
             if p.is_file():
