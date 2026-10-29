@@ -607,17 +607,19 @@
     check('…and pauses it', ev("TIMER.activeFor('" + an + "').state") === 'paused');
     check('✦ Tools no longer holds pen settings', !item('tools', /ink bar|Pen settings/));
     D.body.dispatchEvent(new W.PointerEvent('pointerdown', { bubbles: true, pointerId: 22 })); await until(function () { return !q('.lab-pill.open'); }, 2000);
-    /* V3.896 — the places: Quick cast centred above the bottom bar, zoom top left, tools top right, the hand bottom right */
-    var HR = q('.canvas-host').getBoundingClientRect(), PR = function (n) { return pill(n).getBoundingClientRect(); }, dockR = q('.canvas-host > .dock') && q('.canvas-host > .dock').getBoundingClientRect();
-    await until(function () { return pill('insert').classList.contains('in-bar'); }, 3000);
-    var slotR = q('.canvas-host > .dock .lab-qc-slot') && q('.canvas-host > .dock .lab-qc-slot').getBoundingClientRect(), mid = function (r) { return [(r.left + r.right) / 2, (r.top + r.bottom) / 2]; };
-    check('the wheels have their places: Quick cast built into the bottom bar (in its middle), zoom top left, tools in the top-right corner, the hand bottom right',
-      !!dockR && !!slotR && pill('insert').classList.contains('in-bar') && Math.abs(mid(PR('insert'))[0] - mid(slotR)[0]) < 2 && Math.abs(mid(PR('insert'))[1] - mid(dockR)[1]) < 3 && Math.abs(mid(slotR)[0] - mid(dockR)[0]) < dockR.width / 4
+    /* V3.896 — the places: zoom top left, tools top right, the hand bottom right. V3.941 — the Quick cast REPLACES the
+       bottom bar: Gabe's dock is hidden in a note with pills, ＋ sits in its place at the bottom centre */
+    var HR = q('.canvas-host').getBoundingClientRect(), PR = function (n) { return pill(n).getBoundingClientRect(); }, mid = function (r) { return [(r.left + r.right) / 2, (r.top + r.bottom) / 2]; };
+    var LPS = function () { return W.eval('settings().labPills') || {}; };
+    check('the wheels have their places: the Quick cast where the bottom bar was (bottom centre), zoom top left, tools in the top-right corner, the hand bottom right',
+      Math.abs(mid(PR('insert'))[0] - (HR.left + HR.right) / 2) < 3 && HR.bottom - PR('insert').bottom < 30
       && PR('view').left - HR.left < 30 && PR('view').top - HR.top < 30 && HR.right - PR('tools').right < 30 && PR('tools').top - HR.top < 30 && HR.right - PR('hand').right < 30 && HR.bottom - PR('hand').bottom < 30,
-      JSON.stringify({ host: [HR.left, HR.top, HR.right, HR.bottom], insert: PR('insert'), slot: slotR, dock: dockR, view: PR('view'), tools: PR('tools'), hand: PR('hand') }));
+      JSON.stringify({ host: [HR.left, HR.top, HR.right, HR.bottom], insert: PR('insert'), view: PR('view'), tools: PR('tools'), hand: PR('hand') }));
+    check('…Gabe’s bottom bar is hidden, the Quick cast is it (V3.941)', !!q('.canvas-host > .dock') && W.getComputedStyle(q('.canvas-host > .dock')).display === 'none');
     check('Gabe’s top-right row (Split, Timer, Pen, Calculator, Equation) gives way to the ✦ wheel', !!q('.canvas-host > .ctools') && W.getComputedStyle(q('.canvas-host > .ctools')).display === 'none');
-    ev("DocView.renderDock(M.doc(DocView.docId))");
-    check('…and when Gabe rebuilds his bar, the Quick cast’s place goes back in and the wheel stays on it', !!(await until(function () { var sl = q('.canvas-host > .dock .lab-qc-slot'); if (!sl) return false; var a = mid(sl.getBoundingClientRect()), b = mid(PR('insert')); return Math.abs(a[0] - b[0]) < 2 && Math.abs(a[1] - b[1]) < 3; }, 3000)));
+    pill('insert').querySelector('.lab-pill-btn').click(); await until(function () { return fanItems('insert').length >= 3; }, 2000);
+    check('…the Quick cast keeps the bar’s Pull in and Flag, first (V3.941)', /^Pull in/.test(fanItems('insert')[0].getAttribute('aria-label')) && /Flag/.test(fanItems('insert')[1].getAttribute('aria-label')));
+    D.body.dispatchEvent(new W.PointerEvent('pointerdown', { bubbles: true, pointerId: 26 })); await until(function () { return !q('.lab-pill.open'); }, 2000);
     pill('tools').querySelector('.lab-pill-btn').click(); await until(function () { return fanItems('tools').length >= 6; }, 2000);
     check('✦ holds what that row did: the timer and its head start, calculator, equation, split', !!item('tools', /timer/i) && !!item('tools', /head start/) && !!item('tools', /^A calculator/) && !!item('tools', /^An equation/) && !!item('tools', /^Split/));
     item('tools', /^Split/).click();
@@ -631,7 +633,7 @@
     var tdock = await until(function () { return pill('tools').classList.contains('docked') && pill('tools'); }, 3000);
     await sleep(950);
     var tpos = fanItems('tools').map(function (b) { var r = b.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; });
-    check('✦ Tools left open rolls into a row at the top right: one line, running left from the pill, on a strip', !!tdock && tpos.length >= 4 && tpos.every(function (p) { return Math.abs(p[1] - tpos[0][1]) < 2; }) && tpos.every(function (p, i) { return !i || p[0] < tpos[i - 1][0]; }) && !!pill('tools').querySelector('.lab-dock-rail') && JSON.parse(W.localStorage.getItem('sis:lab:docked') || '{}').tools === true, JSON.stringify(tpos));
+    check('✦ Tools left open rolls into a row at the top right: one line, running left from the pill, on a strip', !!tdock && tpos.length >= 4 && tpos.every(function (p) { return Math.abs(p[1] - tpos[0][1]) < 2; }) && tpos.every(function (p, i) { return !i || p[0] < tpos[i - 1][0]; }) && !!pill('tools').querySelector('.lab-dock-rail') && (LPS().docked || {}).tools === true, JSON.stringify(tpos));
     D.body.dispatchEvent(new W.PointerEvent('pointerdown', { bubbles: true, pointerId: 23 })); await sleep(150);
     check('…it stays when you tap elsewhere, and its tools still work', pill('tools').classList.contains('docked') && !!item('tools', /timer/i));
     pill('view').querySelector('.lab-pill-btn').click();
@@ -642,12 +644,16 @@
     pill('insert').querySelector('.lab-pill-btn').click();
     var idock = await until(function () { return pill('insert').classList.contains('docked') && pill('insert'); }, 3000); await sleep(900);
     var ic = (function () { var r = pill('insert').getBoundingClientRect(); return (r.left + r.right) / 2; })(), ipos = fanItems('insert').map(function (b) { var r = b.getBoundingClientRect(); return [(r.left + r.right) / 2, Math.round(r.top)]; });
-    var irail = pill('insert').querySelector('.lab-dock-rail');
-    check('…its strip sits above the bar, not over it', !!irail && (!dockR || irail.getBoundingClientRect().bottom <= dockR.top + 1), irail && JSON.stringify([irail.getBoundingClientRect().bottom, dockR && dockR.top]));
-    check('＋ Quick cast left open becomes a row just above the bottom bar, either side of its pill', !!idock && ipos.length > 3 && ipos.every(function (p) { return Math.abs(p[1] - ipos[0][1]) < 2; }) && ipos.some(function (p) { return p[0] < ic; }) && ipos.some(function (p) { return p[0] > ic; }) && (!dockR || ipos[0][1] < dockR.top), JSON.stringify(ipos));
+    var irail = pill('insert').querySelector('.lab-dock-rail'), iy = mid(PR('insert'))[1];
+    check('＋ Quick cast left open becomes a row where the bar was, either side of its pill, on a strip', !!idock && !!irail && ipos.length > 3 && ipos.every(function (p) { return Math.abs(p[1] - ipos[0][1]) < 2; }) && ipos.some(function (p) { return p[0] < ic; }) && ipos.some(function (p) { return p[0] > ic; }) && Math.abs(ipos[0][1] + 18 - iy) < 6, JSON.stringify(ipos));
+    pill('hand').querySelector('.lab-pill-btn').click();
+    var hdock = await until(function () { return pill('hand').classList.contains('docked') && pill('hand'); }, 3000); await sleep(900);
+    var hpos = fanItems('hand').map(function (b) { var r = b.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; });
+    var col1 = hpos.filter(function (p) { return Math.abs(p[0] - hpos[0][0]) < 2; });
+    check('✎ left open docks too (V3.941): a column up from the bottom right (another column to its left when the screen is short)', !!hdock && hpos.length >= 5 && col1.length >= 3 && col1.every(function (p, i) { return !i || p[1] < col1[i - 1][1]; }) && hpos.every(function (p) { return p[0] <= hpos[0][0] + 1; }) && (LPS().docked || {}).hand === true, JSON.stringify(hpos));
     pill('tools').querySelector('.lab-pill-btn').click();
-    check('a tap on a docked pill folds its row back into the wheel', !!(await until(function () { return !pill('tools').classList.contains('docked') && !fanItems('tools').length; }, 2000)) && JSON.parse(W.localStorage.getItem('sis:lab:docked') || '{}').tools === false);
-    W.SIS_LAB.undockPill('view'); W.SIS_LAB.undockPill('insert'); W.SIS_LAB.pills.dockMs = 10000; await sleep(100);
+    check('a tap on a docked pill folds its row back into the wheel', !!(await until(function () { return !pill('tools').classList.contains('docked') && !fanItems('tools').length; }, 2000)) && (LPS().docked || {}).tools === false);
+    W.SIS_LAB.undockPill('view'); W.SIS_LAB.undockPill('insert'); W.SIS_LAB.undockPill('hand'); W.SIS_LAB.pills.dockMs = 10000; await sleep(400);
     /* the Quick cast is chosen in Gabe's + Insert list */
     var qc0 = W.SIS_LAB.quickCast.list();
     check('the Quick cast starts with the most used inserts', qc0.indexOf('component') === 0 && qc0.indexOf('calc') < 0, JSON.stringify(qc0));
@@ -663,7 +669,7 @@
     check('… and the open list draws them: an icon on every row, no two alike', insics.length > 5 && insics.every(function (x) { return /<svg/.test(x); }) && new Set(insics).size === insics.length, insics.length + ' rows');
     var nbIns = ev("M.liveBlocks('" + an + "').length");
     calcPin.click();
-    check('…a tap puts it in your Quick cast (and inserts nothing)', W.SIS_LAB.quickCast.list().indexOf('calc') >= 0 && JSON.parse(W.localStorage.getItem('sis:lab:quickcast') || '[]').indexOf('calc') >= 0 && calcPin.classList.contains('on') && ev("M.liveBlocks('" + an + "').length") === nbIns);
+    check('…a tap puts it in your Quick cast (and inserts nothing)', W.SIS_LAB.quickCast.list().indexOf('calc') >= 0 && (LPS().qc || []).indexOf('calc') >= 0 && calcPin.classList.contains('on') && ev("M.liveBlocks('" + an + "').length") === nbIns);
     D.body.dispatchEvent(new W.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); ev("typeof closePop === 'function' && closePop()");
     pill('insert').querySelector('.lab-pill-btn').click(); await until(function () { return pill('insert').classList.contains('open'); }, 2000);
     check('…and the Quick cast fans it out', !!item('insert', /^Calculator/));
@@ -674,12 +680,23 @@
     var vb = pill('view').querySelector('.lab-pill-btn'), vr = vb.getBoundingClientRect();
     var pd = function (type, dx, dy) { vb.dispatchEvent(new W.PointerEvent(type, { bubbles: true, cancelable: true, clientX: vr.left + 20 + dx, clientY: vr.top + 20 + dy, button: 0, pointerId: 11, pointerType: 'mouse', isPrimary: true })); };
     pd('pointerdown', 0, 0); pd('pointermove', -60, -40); pd('pointermove', -160, -120); pd('pointerup', -160, -120);
-    var saved = JSON.parse(W.localStorage.getItem('sis:lab:pills2') || '{}');
-    check('a pill drags anywhere and keeps its place', !!saved.view && saved.view.fx < 0.95 && !!(await until(function () { return pill('view') && /px/.test(pill('view').style.left || ''); }, 2000)), JSON.stringify(saved));
+    var saved = LPS().pos || {};
+    check('a pill drags anywhere and keeps its place — in the notebook’s settings, the same in every note and on every computer (V3.941)', !!saved.view && saved.view.fx < 0.95 && !!(await until(function () { return pill('view') && /px/.test(pill('view').style.left || ''); }, 2000)), JSON.stringify(saved));
+    /* V3.941 — dropped against the left edge a pill docks as a column; against the top, as a row */
+    await sleep(450);
+    var tb = pill('tools').querySelector('.lab-pill-btn'), tr = tb.getBoundingClientRect(), H2 = q('.canvas-host').getBoundingClientRect();
+    var td = function (type, x, y) { tb.dispatchEvent(new W.PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, pointerId: 14, pointerType: 'mouse', isPrimary: true })); };
+    var hy = H2.top + H2.height / 2;   // half way down: the left edge only, not a corner
+    td('pointerdown', tr.left + 20, tr.top + 20); td('pointermove', tr.left - 200, hy); td('pointermove', H2.left - 50, hy); td('pointerup', H2.left - 50, hy);
+    check('…dropped against the left edge, ✦ docks as a column', W.SIS_LAB.pills.orient.tools === 'v' && (LPS().orient || {}).tools === 'v', JSON.stringify(LPS().orient));
+    await sleep(450); tb = pill('tools').querySelector('.lab-pill-btn'); tr = tb.getBoundingClientRect();   // repainted: a new button
+    var hx = H2.left + H2.width / 2;
+    td('pointerdown', tr.left + 20, tr.top + 20); td('pointermove', hx, tr.top - 100); td('pointermove', hx, H2.top - 50); td('pointerup', hx, H2.top - 50);
+    check('…against the top, as a row again', W.SIS_LAB.pills.orient.tools === 'h', JSON.stringify(LPS().orient));
     await sleep(450);   // a click right after a drag is the drag's own, and is ignored
     pill('tools').querySelector('.lab-pill-btn').click(); await until(function () { return pill('tools').classList.contains('open'); }, 2000);
     item('tools', /^Put the pills back/).click();
-    check('✦ Tools puts the pills back', !Object.keys(JSON.parse(W.localStorage.getItem('sis:lab:pills2') || '{}')).length && !pill('view').style.left);
+    check('✦ Tools puts the pills back', !Object.keys(LPS().pos || {}).length && !Object.keys(LPS().orient || {}).length && !pill('view').style.left);
     pill('view').querySelector('.lab-pill-btn').click(); await until(function () { return pill('view').classList.contains('open'); }, 2000);
     q('#ttl') && q('#ttl').dispatchEvent(new W.PointerEvent('pointerdown', { bubbles: true, pointerId: 12 }));
     D.body.dispatchEvent(new W.PointerEvent('pointerdown', { bubbles: true, pointerId: 13 }));

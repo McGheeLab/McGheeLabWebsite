@@ -5,7 +5,7 @@
    Superseded wordings stay inside the box that replaced them (§5).
    ========================================================================== */
 const DocView = {
-  canvas: true, title: true, docId: null, paper: null, sel: null, pendingFocus: null, inspOpen: _ls.get('insp', false), openGhosts: new Set(), travel: null,
+  canvas: true, title: true, docId: null, paper: null, sel: null, pendingFocus: null, openGhosts: new Set(), travel: null,
 
   render(docId) {
     const d = M.doc(docId); this.docId = docId; this.sel = null; this.travel = VIEWER && d && docId === VIEWER.X.docId ? { at: VIEWER.X.at, viewer: true, doc: d, blocks: M.docBlocks(d.id) } : null;
@@ -18,10 +18,10 @@ const DocView = {
       onDouble: (e, p) => this.newAt(p.x - 20, p.y - 20),
       onContext: (e, p) => this.menu(e, p) });
     this.svg = SV('svg', { class: 'wires' }); this.paper.world.append(this.svg);
-    this.dock = h('div.dock.nopan'); this.insp = h('aside.insp.nopan.scrolly'); this.hint = h('div.hint');
+    this.dock = h('div.dock.nopan'); this.hint = h('div.hint');
     this.ctools = h('div.ctools.nopan', h('button', { title: 'Open a calculator in this note (as many as you like)', on: { click: () => CALC.open(this) } }, h('span', { style: { fontSize: '14px' } }, '🖩'), 'Calculator'),
       h('button', { title: 'New equation, or insert a registered one', on: { click: e => EQ.newMenu(this, e) } }, h('span', { style: { fontSize: '14px' } }, '∑'), 'Equation'));
-    host.append(this.dock, this.insp, this.hint, this.ctools);
+    host.append(this.dock, this.hint, this.ctools);
     this.paper.el.addEventListener('pointerdown', e => this.pointer(e));
     this.fill(d);
     if (!_ls.get('view:' + docId, null)) requestAnimationFrame(() => { this.settle(); const bb = this.bbox(); if (bb) this.paper.fit({ x0: bb.x0, y0: bb.y0, x1: bb.x1, y1: Math.min(bb.y1, bb.y0 + 1100) }, false); });
@@ -46,7 +46,7 @@ const DocView = {
     if (M.liveBlocks(d.id).some(b => b.x == null)) { M.autoLayout(d); }
     $$(':scope > .nextbtn', this.host).forEach(x => x.remove()); { const nb = CHAIN.button(d, this); if (nb) this.host.append(nb); }
     if (!this.side) App.setTitle(d.title, [typechip(d.type), CHAIN.strip(d), h('span', M.docPath(d).replace(/ › [^›]*$/, '')), h('span', 'edited ' + fmtWhen(d.modified)), this.travel && !this.travel.viewer ? h('span.pill.warn', 'as it stood ' + fmtWhen(this.travel.at)) : null],
-      { editable: !this.travel, onEdit: v => { if (v && v !== d.title) { d.title = v; M.touchDoc(d); changed(); } } });
+      { editable: !this.travel, onEdit: v => { if (v && v !== d.title) { d.title = v; M.touchDoc(d); changed(); } }, more: this.travel ? null : e => this.docMenu(d, e) });
     $$(':scope > .box, :scope > .wl, :scope > .obsbox', w).forEach(x => x.remove());
     const src = this.travel || { doc: d, blocks: M.docBlocks(d.id) };
     w.append(this.headBox(src.doc));
@@ -54,7 +54,7 @@ const DocView = {
     for (const b of live) w.append(this.box(b, src.doc, p));
     PROTO.obsLayer(this, src.doc);
     w.append(this.synthBox(src.doc, live));
-    this.drawWires(); this.renderDock(d); this.renderInsp(); this.renderHint(d, live);
+    this.drawWires(); this.renderDock(d); this.renderHint(d, live);
     requestAnimationFrame(() => { this.settle(); this.drawWires(); });
     this.focusPending();
   },
@@ -280,7 +280,6 @@ const DocView = {
   /* ---------------- selection, layout helpers ---------------- */
   select(id, quiet) {
     this.sel = id; $$('.box.sel', this.paper && this.paper.world).forEach(x => x.classList.toggle('sel', x.dataset.id === id)); if (id) { const el = $(`.box[data-id="${id}"]`, this.paper.world); el && el.classList.add('sel'); }
-    this.renderInsp();
   },
   reveal(id) { const r = this.rectOf(id); if (!r) return; const P = this.paper, s = P.toScreen(r.x, r.y), pr = P.rect(); const inView = s.x > pr.left + 20 && s.y > pr.top + 20 && s.x + r.w * P.view.z < pr.right - 20 && s.y + Math.min(r.h, 300) * P.view.z < pr.bottom - 20;
     if (!inView) P.centerOn(r.x + r.w / 2, r.y + Math.min(r.h, 300) / 2, Math.max(P.view.z, .8)); },
@@ -320,7 +319,7 @@ const DocView = {
     const sy = $('.box.synth', this.paper.world); if (sy && !d.layout.synth) { const bb = this.bboxOf(live); if (bb) sy.style.left = (bb.x1 + 80) + 'px'; }
     this.drawWires(); return moved;
   },
-  softRefresh(blockId) { const el = blockId && $(`.box[data-id="${blockId}"]`, this.paper && this.paper.world); requestAnimationFrame(() => { if (this.settle()) this.drawWires(); }); if (el) { const b = M.block(blockId), d = M.doc(b.docId); const c = $(':scope > .chips', el); c && c.replaceWith(this.chipsFor(b, d)); const k = IX.kindsOf(b)[0]; el.style.setProperty('--kc', k ? `var(--k-${k})` : null); } this.renderInsp(); this.drawWires(); },
+  softRefresh(blockId) { const el = blockId && $(`.box[data-id="${blockId}"]`, this.paper && this.paper.world); requestAnimationFrame(() => { if (this.settle()) this.drawWires(); }); if (el) { const b = M.block(blockId), d = M.doc(b.docId); const c = $(':scope > .chips', el); c && c.replaceWith(this.chipsFor(b, d)); const k = IX.kindsOf(b)[0]; el.style.setProperty('--kc', k ? `var(--k-${k})` : null); } this.drawWires(); },
   anchorOf(g) { const q = [...(g.supersededBy || [])], seen = new Set(); while (q.length) { const id = q.shift(); if (seen.has(id)) continue; seen.add(id); const x = M.block(id); if (!x) continue; if (x.status === 'live') return x.id; q.push(...(x.supersededBy || [])); } return null; },
   ancestors(b) { const out = [], seen = new Set(); const walk = (x, g) => { for (const id of x.supersedes || []) { if (seen.has(id)) continue; seen.add(id); const a = M.block(id); if (a) { out.push(Object.assign(a, { _gen: g })); walk(a, g + 1); } } }; walk(b, 1); return out; },
 };

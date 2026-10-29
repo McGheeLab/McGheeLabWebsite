@@ -908,6 +908,9 @@ body.rg-drawing{cursor:crosshair}
 .fg-cell.wb > .wb-card{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;color:var(--ink-3)}
 .fg-cell.wb > .fg-letter{color:var(--ink-3);text-shadow:none}
 .wb-max .wb-full{flex:1;width:100%;border:0;background:var(--surface)}
+/* V3.941 — the notebook's ink bar in the whiteboard window, on its own row under the title */
+.wb-inkrow{display:flex;padding:4px 10px;border-bottom:1px solid var(--rule);background:var(--surface);overflow-x:auto}
+.wb-inkrow > .ink-bar{position:static;max-width:none;flex-wrap:nowrap;box-shadow:none;border:0;background:transparent;padding:0}
 .fg-letter{position:absolute;left:5px;top:4px;font:700 13px/1 var(--f-b);color:#fff;text-shadow:0 0 3px rgba(0,0,0,.8),0 0 1px #000;pointer-events:none}
 .fg-kind{position:absolute;right:4px;top:4px;border:0;background:transparent;padding:0;cursor:pointer}
 .fg-kind.add{font-size:10.5px;color:#fff;background:rgba(0,0,0,.45);border-radius:9px;padding:1px 7px;opacity:0;transition:opacity .15s}

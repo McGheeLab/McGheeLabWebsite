@@ -4,6 +4,47 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.941] — 2026-10-29 — Scientia: one pen (the whiteboard's writing in notes, the notebook's pen on the whiteboard), the palm ignored, the Quick cast is the bar
+
+Plan: [CodeLog/ClaudesPlan/V3.941_scientia_one_pen_pills.md](../ClaudesPlan/V3.941_scientia_one_pen_pills.md). Gabe: "The whiteboard's way of writing should become the way of writing in the lab notebook as well. However, everything else that the notebook pen has (color palette, fill, ink width, eraser via button detection on the Slim Pen, double tap means undo, triple tap means redo, etc...) needs to become the way the whiteboard functions. All whiteboard talk is the whiteboard in the notebook only, not the website." — plus the palm, the pills, the bottom bar, More and the provenance panel. **The lab layer:** `rm/scientia/lab-mode.js` §11 (the pills) changes here at Gabe's choice (asked 2026-10-29), for Alex to review; nothing else in the lab layer. `whiteboard.js` is not edited.
+
+### Added
+- **`scientia/vendor/wb-ink.js`** (generated, tracked like the other vendor copies) — `scripts/scientia_build.py` `wb_ink()` cuts the V3.727 stroke outline out of `whiteboard.js` by name (`pressF`, `crControls`, `FLATTEN_STEP_PX`, `WIDTH_SMOOTH_PX`, `JOIN_ANGLE`, `flattenStroke`, `smoothHalfWidths`, `traceOutline`, `fillStrokeOutline`), unchanged, as `WBINK`; `--check` fails when it differs, the build stops when a name is gone.
+- **`scientia/board/pen.js`** (inlined into `board.html` after the lab's scripts) — the notebook's pen on Scientia's whiteboard: the engine's pens are the notebook's (`setPens` / `usePen` through `NOTEBOOK_BOARD._state.inst`; a notebook width in px = that many thousandths of the board's width; `'auto'` ink = `#1d1d1b`), synced on every `INK.paintBars`; each pen sample's pressure mapped through the notebook's curve before the engine reads it (`INK.curve`, `mapP`; pressure off = even); the Slim Pen eraser end (`button 5` / `buttons & 32`) = the eraser for that stroke; ◧ fill: a transparent probe tap placed by the engine (`#fffffe`, removed at once), the smallest closed stroke around it (`closedLoop`, even-odd) filled by zig-zag fill strokes just under it (`fillOf`, `seq − ½`; solid replaces, highlighter layers add, ≤ 8), a stroke's fill going with it; two-finger tap = undo, three = redo, Ctrl+Z / Ctrl+Y, the board's own "Undo my last stroke"; the board's ✎ fan's width / eraser / add-a-pen / pen items act on the notebook's pen; palm touches never reach the engine (window capture; a touch the engine had is cancelled with a synthetic `pointercancel`).
+- **`board/store.js`** — a journal (`J`): what each pointer session changed in `strokes/`, `items/`, `wires/` (per path: first before, last after), `undo` / `redo`; a stroke brought back gets a new id (`J.moved`, `J.at`; the engine never re-erases an id it erased), a fill follows its shape's id (`J.fix`); write hooks (`onWrite(changes, replay)`); `window.SIS_STORE`; the engine's `wb_*` localStorage keys under `sis-board:` (the website's boards on the same origin keep theirs).
+- **`PALM`** (13zf, `window.SIS_PALM`): `GAP` 70, `SIZE` 90 (css px), `QUIET` 600 ms; `palm(e)` = a contact wider/taller than `SIZE` or the pen near the glass; `apart(points)`.
+
+### Changed
+- **`INK.path`** (13zf) — a pen stroke is `WBINK.fillStrokeOutline` on a path recorder (`INK.pathRec`: a 2D-context stand-in writing SVG path data, canvas arcs as ≤ 90° SVG arcs): Catmull-Rom through every sample, half-widths smoothed ±6 px, round joins and caps, no taper. Pressure strokes keep the notebook's feel (`INK.wmul`: `wr0 + (wr1 − wr0)·p`, carried into `pressF`'s 0.3–1.8 by one scale per stroke); others use `pressF`. The highlighter's band follows the same smoothed centre line (`INK.centreLine`); dashed strokes too, at `DASH.width` = the outline's own width.
+- **Fingers on a note's paper** (13zf `makePaper`): a palm touch (`PALM.palm`), any touch while a palm is down, and a second contact closer than `GAP` to a finger already down (the palm: both stop) are no gesture; a pen coming near or down ends a finger pan or pinch (`T.drop`). **Two- and three-finger taps** (13zm): void for a palm-sized contact, the pen near, or fingers closer than `GAP`; `#touchlog` shows each contact's size and the gaps.
+- **lab-mode §11** — the Quick cast replaces the bottom bar: `.canvas-host.lab-pilled:not(.lab-ro) > .dock` hidden (a read-only note keeps its bar), ＋ at the bottom centre (`bottom:16px`), the in-bar slot code (`qcSlot`, `qcSlotAt`, `placeQuickCast`, the `renderDock` wrapper) removed; Pull in… (`pane.pullMenu`) and Flag (`M.toggleFlag`) are its first entries; ✎ is dockable (`LP.dockMs`); `rowPos(name, i, n, side, vert, bw, bh, o, cx, cy)` lays a docked row along `LP.orient` (`'h'` / `'v'`; defaults ＋ ✦ rows, ⊕ ✎ columns), set when a pill is dropped against a side (column) or the top / bottom (row); the layout lives in `settings().labPills {pos, docked, orient, qc}` (`layoutLoad` on every paint, `layoutSave` on every change; the `_ls lab:pills2 / lab:docked / lab:quickcast` keys read once); the zoom hand ignores a palm.
+- **The note's chrome** — ⋯ More beside the title (`App.setTitle(text, meta, {more})`, `#ttlmore`; a split pane's head too); `docMenu` gains Log time… and the citation style (they were in the bar); the dock loses ⓘ and ⋯.
+- **13zzd** — the whiteboard window shows the notes' ink bar under its title (`INK.bar` on a pane of its own, minus the lasso, ink library, mouse switch and hide; ↶ ↷ undo the board); `SIS_BOARDS.pen` (`ink`, `tool`, `width`, `add`, `paint`, `toast`) for `pen.js`; an `INK.paintBars` wrapper re-syncs the open board.
+- `99-boot.js` — the pills' 3 s now include ✎.
+
+### Removed
+- The provenance panel in notes (`renderInsp`, `blockInsp`, `docInsp`, `inspOpen`, the ⓘ button, the I key). `PROV`, Export provenance…, the `.insp` styles and the Terms maps' panel stay.
+
+### Tests
+- Headless Chrome, the desktop build with demo data (real touch contacts with a size and pen strokes with pressure over CDP):
+  - **Notes:** a pen stroke is the whiteboard's outline (round arcs, no quadratics) with the pressure range and fade kept.
+  - **Taps and pinch:** two fingers far apart undo; three redo; fingers 30 px apart, a palm-sized contact, or a pen hovering do nothing. Pinch 160 px apart zooms ×2; 40 px apart does nothing.
+  - **Pen near:** a pen coming near stops a finger pan.
+  - **Pills:** ✎ docks as a column; dropped on the left edge ✦ docks as a column, on the top as a row; the layout is back after a reload.
+  - **Note chrome:** the Quick cast sits at the bottom centre with Pull in and Flag first, and the bar is hidden; ⋯ More holds Log time and the citations; I opens nothing.
+  - **Whiteboard:**
+    - The board's pen is the notebook's colour and width and follows the bar.
+    - ◧ fills a circle under it with the pen colour, and the tap's mark is removed.
+    - ↶ ↷, two- and three-finger taps undo and redo; close fingers and a palm do nothing.
+    - The eraser end erases and gives the pen back, taking the fill with it.
+    - Pressures follow the notebook's curve.
+    - Only `sis-board:wb_*` keys are written.
+  - The V3.937 board test still passes in full.
+- Harnesses:
+  - **Lab-mode:** 274/278 (the four known failures). Its Quick cast checks were rewritten: bar hidden, bottom centre, Pull in and Flag, ✎ docks, edge orientation, layout in settings.
+  - **Notes:** 13/13. **Notebook (v3864):** 45/45.
+- `sw.js` CACHE_VERSION 910 → 911.
+
 ## [V3.940] — 2026-10-29 — One-on-ones: unique slots (one week at a time, every week once the host approves) and back-to-back slots joined into one meeting
 
 Plan: [CodeLog/ClaudesPlan/V3.940_one_on_one_unique_joined.md](../ClaudesPlan/V3.940_one_on_one_unique_joined.md). Alex: *"a toggle for make unique … a person signs up for that slot for just that week. The student can request for that slot to become recurring, and does upon my approval. this can be changed after the fact as well. also if a student take two slots in a row they are combined to an hour."*

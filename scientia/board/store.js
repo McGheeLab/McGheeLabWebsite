@@ -11,6 +11,9 @@
    desktop app has the same board offline.
    ?board=<id>&owner=me&title=<name>[&view=1] — view=1: the board in its
    image cell, seen and never saved.
+   V3.941: a journal of what each touch of the board changed (strokes, cards,
+   wires) for undo and redo, and window.SIS_STORE for board/pen.js — the
+   notebook's pen on this board.
    ========================================================================== */
 (function () {
 'use strict';
@@ -19,6 +22,13 @@ const BOARD = qs.get('board') || '', OWNER = qs.get('owner') || 'me';
 const HOST = (() => { try { return (window.parent !== window && window.parent.SIS_BOARDS) || null; } catch (e) { return null; } })();
 const VIEW = qs.get('view') === '1' || !HOST;
 const ROOT = 'userData/' + OWNER + '/notebookBoards/' + BOARD;
+
+/* V3.941 — the port keeps its own browser settings (the engine's wb_* keys: pens, pill places, views) under sis-board:,
+   so the website's boards on the same address (mcgheelab.com) keep theirs */
+try {
+  const SP = Storage.prototype, g = SP.getItem, s = SP.setItem, r = SP.removeItem, k = n => (typeof n === 'string' && n.startsWith('wb_')) ? 'sis-board:' + n : n;
+  SP.getItem = function (n) { return g.call(this, k(n)); }; SP.setItem = function (n, v) { return s.call(this, k(n), v); }; SP.removeItem = function (n) { return r.call(this, k(n)); };
+} catch (e) { }
 
 /* ─── values: timestamps, the FieldValue sentinels ─── */
 class Stamp {
@@ -83,18 +93,59 @@ let VER = 0;
 const LS = new Set();
 let firing = false;
 function write(ops) {
-  const touched = [];
+  const touched = [], changes = [];
   for (const o of ops) {
     const cur = DOCS.get(o.path);
-    if (o.op === 'del') { if (cur) { DOCS.delete(o.path); touched.push(o.path); } continue; }
+    if (o.op === 'del') { if (cur) { DOCS.delete(o.path); touched.push(o.path); changes.push({ path: o.path, before: cur.data, after: null }); } continue; }
     if (o.op === 'update' && !cur) continue;
     const data = o.op === 'update' ? applyUpdate(cur.data, o.data) : o.merge && cur ? mergeDeep(cur.data, o.data) : resolve(o.data);
-    DOCS.set(o.path, { data, v: ++VER }); touched.push(o.path);
+    DOCS.set(o.path, { data, v: ++VER }); touched.push(o.path); changes.push({ path: o.path, before: cur ? cur.data : null, after: data });
   }
   if (!touched.length) return;
   if (!firing) { firing = true; Promise.resolve().then(() => { firing = false; LS.forEach(L => { try { fire(L); } catch (e) { console.warn('[board] listener', e); } }); }); }
   if (touched.some(p => p === ROOT || p.startsWith(ROOT + '/'))) Save.soon();
+  const replay = J.mute > 0;   // an undo or a redo: hooks leave it as it is
+  J.note(changes); HOOKS.forEach(fn => { try { fn(changes, replay); } catch (e) { console.warn('[board] hook', e); } });
 }
+
+/* ─── V3.941 — the journal: what each touch of the board changed (strokes, cards, wires), one undo step per touch.
+       board/pen.js opens a step on every pointerdown; the engine's writes until the next one belong to it. A stroke
+       brought back comes back under a new id (the engine never erases an id it has erased once; cards and wires keep
+       theirs — wires name their cards); J.at follows a document to where it lives now. ─── */
+const HOOKS = [];
+const J = {
+  undo: [], redo: [], cur: null, mute: 0, skip: null, moved: {},
+  kept: p => p.startsWith(ROOT + '/') && /^(strokes|items|wires)\/[^/]+$/.test(p.slice(ROOT.length + 1)),
+  at(p) { let n = 0; while (J.moved[p] && n++ < 64) p = J.moved[p]; return p; },
+  step() { J.cur = { ops: new Map(), pushed: false }; },
+  note(changes) {
+    const g = J.cur; if (J.mute || !g || VIEW) return;
+    for (const c of changes) {
+      if (!J.kept(c.path) || (J.skip && J.skip(c))) continue;
+      const o = g.ops.get(c.path); if (o) o.after = c.after; else g.ops.set(c.path, { before: c.before, after: c.after });
+      if (!g.pushed) { g.pushed = true; J.undo.push(g); if (J.undo.length > 200) J.undo.shift(); J.redo.length = 0; }
+    }
+  },
+  /** a fill points at its shape where the shape lives now */
+  fix(d) { if (!d || !d.fillOf) return d; const p = J.at(ROOT + '/strokes/' + d.fillOf), id = p.slice(p.lastIndexOf('/') + 1); return id === d.fillOf ? d : Object.assign({}, d, { fillOf: id }); },
+  run(ops) { J.mute++; try { write(ops); } finally { J.mute--; } },
+  back() {
+    const g = J.undo.pop(); if (!g) return false; const ops = [];
+    [...g.ops].reverse().forEach(([p, o]) => {
+      const at = J.at(p);
+      if (!o.before) ops.push({ op: 'del', path: at });
+      else if (p.includes('/strokes/') && (!o.after || (o.after.erasedAt && !o.before.erasedAt))) { const np = p.slice(0, p.lastIndexOf('/') + 1) + autoId(); J.moved[at] = np; ops.push({ op: 'set', path: np, data: o.before }); }
+      else ops.push({ op: 'set', path: at, data: o.before });
+    });
+    ops.forEach(x => { if (x.op === 'set') x.data = J.fix(x.data); });
+    J.run(ops); J.redo.push(g); return true;
+  },
+  again() {
+    const g = J.redo.pop(); if (!g) return false;
+    J.run([...g.ops].map(([p, o]) => o.after ? { op: 'set', path: J.at(p), data: J.fix(o.after) } : { op: 'del', path: J.at(p) }));
+    J.undo.push(g); return true;
+  },
+};
 const docSnap = (path, e) => ({ id: path.slice(path.lastIndexOf('/') + 1), ref: new DocRef(path), exists: !!e,
   data: () => e ? clone(e.data) : undefined, get: f => e ? clone(field(e.data, f)) : undefined, metadata: { hasPendingWrites: false, fromCache: false } });
 
@@ -244,6 +295,13 @@ const auth = { currentUser: user, onAuthStateChanged(fn) { setTimeout(() => fn(u
 const firestore = () => db;
 firestore.FieldValue = FieldValue; firestore.Timestamp = Stamp;
 window.firebase = { firestore, auth: () => auth, storage: () => storage, apps: [{}], app: () => ({}), initializeApp: () => ({}) };
+
+/* V3.941 — what board/pen.js (the notebook's pen on this board) works with */
+window.SIS_STORE = {
+  view: VIEW, host: HOST, root: ROOT, write, newId: () => autoId(),
+  step: () => J.step(), undo: () => J.back(), redo: () => J.again(), skip: fn => { J.skip = fn; }, onWrite: fn => HOOKS.push(fn),
+  list: col => { const pre = ROOT + '/' + col + '/', out = []; for (const [p, e] of DOCS) if (p.startsWith(pre) && p.indexOf('/', pre.length) < 0) out.push({ path: p, id: p.slice(pre.length), data: e.data }); return out; },
+};
 
 document.documentElement.classList.add('sis-board');
 if (VIEW) document.documentElement.classList.add('sis-view');
