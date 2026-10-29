@@ -309,8 +309,51 @@
 .mtg-live-ai-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .mtg-live-ai-row select { flex: 1 1 140px; min-width: 0; }
 
+/* ── one-on-ones (V3.935) ───────────────────────────────────── */
+.oo-monthnav button.on { min-width: 160px; }
+.oo-monthnav button i { display: inline-flex; }
+.oo-cal { padding: 12px 12px 10px; }
+.oo-dow, .oo-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.oo-dow span { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); text-align: center; padding: 2px 0 6px; }
+.oo-day { min-height: 76px; padding: 4px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.oo-day-out { opacity: .45; background: var(--bg); }
+.oo-day-past { background: var(--bg); }
+.oo-day-today { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.oo-day-n { font-size: .75rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.oo-day-today .oo-day-n { color: var(--primary); font-weight: 700; }
+.oo-chip { display: block; width: 100%; text-align: left; padding: 2px 6px; border: 1px solid #93c5fd; border-radius: 5px; background: #dbeafe; color: #1e40af; font: inherit; font-size: .72rem; line-height: 1.3; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oo-chip:hover { filter: brightness(.95); }
+.oo-chip-open { border-style: dashed; border-color: var(--border); background: var(--surface); color: var(--text-muted); }
+.oo-chip-me { background: var(--primary); border-color: var(--primary); color: #fff; }
+.oo-chip-skip { text-decoration: line-through; opacity: .6; }
+.oo-wd { margin: 12px 0 2px; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+.oo-wd:first-of-type { margin-top: 0; }
+.oo-row { display: grid; grid-template-columns: 170px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--border); }
+.oo-row-time { display: flex; flex-direction: column; }
+.oo-row-time small { color: var(--text-muted); font-size: .76rem; }
+.oo-row-who { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.oo-arrow { display: inline-flex; color: var(--text-muted); }
+.oo-row-loc { display: inline-flex; align-items: center; gap: 4px; color: var(--text-muted); font-size: .85rem; white-space: nowrap; }
+.oo-row-tools { display: inline-flex; gap: 4px; align-items: center; justify-content: flex-end; }
+.oo-row-me { background: linear-gradient(90deg, #eff6ff, transparent); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 6px; }
+.oo-mine { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--border); }
+.oo-mine:first-of-type { border-top: 0; }
+.oo-mine > div:first-child { flex: 1 1 260px; min-width: 0; }
+.oo-dates { list-style: none; margin: 6px 0 0; padding: 0; }
+.oo-dates li { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-top: 1px solid var(--border); font-size: .9rem; }
+.oo-dates li:first-child { border-top: 0; }
+.oo-dates li .mtg-btn { margin-left: auto; }
+.oo-date-skip > span:first-child { text-decoration: line-through; color: var(--text-muted); }
+
 /* ── mobile ─────────────────────────────────────────────────── */
 @media (max-width: 760px) {
+  .oo-day { min-height: 58px; padding: 3px; }
+  .oo-chip { font-size: .62rem; padding: 1px 4px; }
+  .oo-row { grid-template-columns: 1fr auto; }
+  .oo-row-who { grid-column: 1 / -1; }
+  .oo-row-loc { grid-column: 1; white-space: normal; }
+  .oo-row-tools { grid-column: 2; }
+  .oo-monthnav button.on { min-width: 0; }
   .mtg-card { padding: 12px; }
   .mtg-brow { grid-template-columns: 1fr; gap: 8px; }
   .mtg-brow-tools { justify-content: flex-end; }

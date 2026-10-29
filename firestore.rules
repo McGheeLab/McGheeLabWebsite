@@ -2028,6 +2028,34 @@ service cloud.firestore {
       );
     }
 
+    // One-on-ones (V3.935) — a recurring time the PI or a mentor offers, which
+    // one student subscribes to. The host (or an admin) writes anything on
+    // their own slot. Any lab member may CLAIM an open, active slot by writing
+    // their OWN uid into subscriberUid, and the current subscriber may release
+    // it or mark a week skipped — nothing else (no moving the time, no ending
+    // it, no claiming it for someone else). Same shape as `presenters` /
+    // `completions`: the rule knows "this is yours" with no second read.
+    match /oneOnOneSlots/{slotId} {
+      allow read:   if isLabMember();
+      allow create: if isAdmin() || (isLabMember() && request.resource.data.hostUid == request.auth.uid);
+      allow delete: if isAdmin() || (isLabMember() && resource.data.hostUid == request.auth.uid);
+      allow update: if isAdmin()
+                    || (isLabMember() && resource.data.hostUid == request.auth.uid)
+                    || (isLabMember()
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['subscriberUid', 'subscriberName', 'subscribedAt', 'subscribedBy', 'skips', 'updatedBy', 'updatedAt'])
+                        && (
+                          // claim an open, active slot for yourself
+                          (resource.data.get('subscriberUid', null) == null
+                           && resource.data.get('active', true) == true
+                           && request.resource.data.get('subscriberUid', null) == request.auth.uid)
+                          // the current subscriber: release it, or skip / un-skip a week
+                          || (resource.data.get('subscriberUid', null) == request.auth.uid
+                              && (request.resource.data.get('subscriberUid', null) == null
+                                  || request.resource.data.get('subscriberUid', null) == request.auth.uid))
+                        ));
+    }
+
     // Activity tracker data — owner-only (private by default)
     match /trackerData/{userId} {
       allow read, write: if request.auth != null

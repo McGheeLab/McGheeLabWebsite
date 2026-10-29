@@ -274,6 +274,13 @@
     scope: 'lab', collection: 'labChores', wrapKey: 'chores',
     cache: SHORT,
   });
+  // V3.935 — recurring one-on-one times (PI / mentor ↔ student). One doc per
+  // recurring time; a student subscribes by writing their own uid. Hydrated by
+  // api.subscribe on the meetings page like the routes above.
+  api.registerRoute('meetings/one-on-ones.json', {
+    scope: 'lab', collection: 'oneOnOneSlots', wrapKey: 'slots',
+    cache: SHORT,
+  });
 
   // Protocols (V3.113) — protocols.io-style lab protocol authoring. New
   // top-level `protocols` collection; no JSON shadow (born in Firestore).

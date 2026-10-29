@@ -790,7 +790,7 @@
    "id": "rm.meetings",
    "name": "Lab meetings",
    "side": "rm",
-   "summary": "Lab meeting schedule, presenters, agenda, chores, live meeting view.",
+   "summary": "Lab meeting schedule, presenters, agenda, chores, live meeting view, recurring one-on-ones with the PI or a mentor.",
    "keywords": [
     "meeting",
     "presenter",
@@ -798,7 +798,11 @@
     "chore",
     "roster",
     "journal-club",
-    "live"
+    "live",
+    "one-on-one",
+    "1:1",
+    "mentor meeting",
+    "subscribe"
    ],
    "paths": [
     "rm/js/meetings*.js",

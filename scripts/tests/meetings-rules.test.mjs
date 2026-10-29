@@ -36,7 +36,9 @@ import {
 
 setLogLevel('silent');
 
-const RULES = new URL('../../firestore.rules', import.meta.url).pathname;
+// RULES_FILE=<path> runs the suite against another copy (V3.935: the scratch
+// deploy file = live ruleset + one hunk, before `firebase deploy --config`).
+const RULES = process.env.RULES_FILE || new URL('../../firestore.rules', import.meta.url).pathname;
 const env = await initializeTestEnvironment({
   projectId: 'demo-mcgheelab-mtg',
   firestore: { rules: readFileSync(RULES, 'utf8'), host: '127.0.0.1', port: 8199 }
@@ -81,7 +83,7 @@ async function seed() {
     await setDoc(doc(d, 'users/admin'), { role: 'admin', category: 'pi' });
     await setDoc(doc(d, 'users/coord'), { role: 'editor', category: 'grad' });
     await setDoc(doc(d, 'users/gabe'),  { role: 'editor', category: 'grad' });
-    await setDoc(doc(d, 'users/zeke'),  { role: 'contributor', category: 'undergrad' });
+    await setDoc(doc(d, 'users/zeke'),  { role: 'contributor', category: 'undergrad', mentor_uids: ['coord'] });
     await setDoc(doc(d, 'users/ally'),  { role: 'contributor', category: 'undergrad' });
     await setDoc(doc(d, 'users/guest'), { role: 'guest' });
     await setDoc(doc(d, 'meetingConfig/settings'), {
@@ -106,7 +108,21 @@ async function seed() {
       },
       completions: {},
     });
+    // V3.935 — one-on-one slots: the PI's two open times, Cason's time booked by
+    // his mentee Zeke, and one the PI ended.
+    await setDoc(doc(d, 'oneOnOneSlots/oo-open'),   SLOT({ hostUid: 'admin', hostName: 'Alex' }));
+    await setDoc(doc(d, 'oneOnOneSlots/oo-open2'),  SLOT({ hostUid: 'admin', hostName: 'Alex' }));
+    await setDoc(doc(d, 'oneOnOneSlots/oo-booked'), SLOT({ hostUid: 'coord', hostName: 'Cason', subscriberUid: 'zeke', subscriberName: 'Zeke', subscribedBy: 'self', subscribedAt: '2026-10-29T00:00:00Z' }));
+    await setDoc(doc(d, 'oneOnOneSlots/oo-ended'),  SLOT({ hostUid: 'admin', hostName: 'Alex', active: false }));
   });
+}
+function SLOT(extra) {
+  return Object.assign({
+    weekday: 2, time: '14:00', duration: 30, cadence: 'weekly', location: 'Office', note: '',
+    startDate: '2026-11-03', endDate: '2026-12-18', active: true,
+    subscriberUid: null, subscriberName: '', subscribedAt: null, subscribedBy: null, skips: {},
+    updatedBy: extra.hostUid, createdBy: extra.hostUid,
+  }, extra);
 }
 await seed();
 
@@ -311,6 +327,66 @@ await mustDeny('accepting student writes both presenter keys across two meetings
   b.update(doc(zeke, 'meetingSwaps/s1'), { status: 'accepted' });
   await b.commit();
 });
+
+/* ═══════════ 10. one-on-ones (V3.935) — the student writes only their own uid ═══════════ */
+console.log('\n── one-on-ones: claim an open slot for YOURSELF, release / skip your own, the host does the rest ──');
+await seed();
+const CLAIM = (uid) => ({ subscriberUid: uid, subscriberName: uid, subscribedAt: '2026-10-29T00:00:00Z', subscribedBy: 'self', updatedBy: uid, updatedAt: new Date() });
+await mustDeny ('guest reads a slot',                       () => getDoc(doc(guest, 'oneOnOneSlots/oo-open')));
+await mustAllow('member reads a slot',                      () => getDoc(doc(gabe, 'oneOnOneSlots/oo-open')));
+await mustAllow('member lists slots',                       () => getDocs(collection(gabe, 'oneOnOneSlots')));
+await mustAllow('a member offers a time as THEMSELF (hostUid = own uid)',
+  () => setDoc(doc(gabe, 'oneOnOneSlots/oo-gabe'), SLOT({ hostUid: 'gabe', hostName: 'Gabe' })));
+await mustDeny ('a member creates a slot in the PI\'s name',
+  () => setDoc(doc(gabe, 'oneOnOneSlots/oo-fake'), SLOT({ hostUid: 'admin', hostName: 'Alex' })));
+await mustDeny ('guest offers a time',
+  () => setDoc(doc(guest, 'oneOnOneSlots/oo-guest'), SLOT({ hostUid: 'guest' })));
+await mustAllow('zeke claims an open PI slot for himself',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-open'), CLAIM('zeke')));
+await mustDeny ('ally claims the slot zeke just took',
+  () => updateDoc(doc(ally, 'oneOnOneSlots/oo-open'), CLAIM('ally')));
+await mustDeny ('ally puts ZEKE on an open slot (claim for someone else)',
+  () => updateDoc(doc(ally, 'oneOnOneSlots/oo-open2'), CLAIM('zeke')));
+await mustDeny ('zeke claims an ENDED slot',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-ended'), CLAIM('zeke')));
+await mustDeny ('zeke claims a slot AND moves its time in the same write',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-open2'), Object.assign(CLAIM('zeke'), { time: '09:00' })));
+await mustAllow('the subscriber marks a week skipped on his own slot',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-booked'), { 'skips.2026-11-10': { by: 'zeke', name: 'Zeke', reason: 'conference', at: 'x' }, updatedBy: 'zeke', updatedAt: new Date() }));
+await mustAllow('the subscriber un-skips it',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-booked'), { 'skips.2026-11-10': deleteField(), updatedBy: 'zeke', updatedAt: new Date() }));
+await mustDeny ('a bystander writes a skip on someone else\'s slot',
+  () => updateDoc(doc(ally, 'oneOnOneSlots/oo-booked'), { 'skips.2026-11-10': { by: 'ally' }, updatedBy: 'ally' }));
+await mustDeny ('a bystander writes a skip on an OPEN slot',
+  () => updateDoc(doc(ally, 'oneOnOneSlots/oo-open2'), { 'skips.2026-11-10': { by: 'ally' }, updatedBy: 'ally' }));
+await mustDeny ('the subscriber moves the time',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-booked'), { time: '15:00', updatedBy: 'zeke' }));
+await mustDeny ('the subscriber ends the slot',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-booked'), { active: false, updatedBy: 'zeke' }));
+await mustDeny ('the subscriber hands the slot to ally',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-booked'), CLAIM('ally')));
+await mustDeny ('the subscriber deletes the slot',
+  () => deleteDoc(doc(zeke, 'oneOnOneSlots/oo-booked')));
+await mustDeny ('the subscriber stamps the reminder field (function-only)',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-booked'), { lastReminded: '2026-11-10', updatedBy: 'zeke' }));
+await mustAllow('the subscriber releases his slot',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-booked'), { subscriberUid: null, subscriberName: '', subscribedAt: null, subscribedBy: null, updatedBy: 'zeke', updatedAt: new Date() }));
+await mustAllow('the host (a non-admin mentor) reserves his slot for ally',
+  () => updateDoc(doc(coord, 'oneOnOneSlots/oo-booked'), { subscriberUid: 'ally', subscriberName: 'Ally', subscribedBy: 'host', subscribedAt: 'x', updatedBy: 'coord', updatedAt: new Date() }));
+await mustAllow('the host moves the time',
+  () => updateDoc(doc(coord, 'oneOnOneSlots/oo-booked'), { time: '15:00', weekday: 3, updatedBy: 'coord', updatedAt: new Date() }));
+await mustAllow('the host ends it',
+  () => updateDoc(doc(coord, 'oneOnOneSlots/oo-booked'), { active: false, endDate: '2026-10-29', updatedBy: 'coord', updatedAt: new Date() }));
+await mustDeny ('the host (coordinator, not admin) edits the PI\'s slot',
+  () => updateDoc(doc(coord, 'oneOnOneSlots/oo-open2'), { time: '09:00', updatedBy: 'coord' }));
+await mustDeny ('a member deletes the PI\'s slot',
+  () => deleteDoc(doc(gabe, 'oneOnOneSlots/oo-open2')));
+await mustAllow('the host deletes his own slot',
+  () => deleteDoc(doc(coord, 'oneOnOneSlots/oo-booked')));
+await mustAllow('admin rewrites anyone\'s slot',
+  () => updateDoc(doc(admin, 'oneOnOneSlots/oo-gabe'), { subscriberUid: 'zeke', time: '10:00', updatedBy: 'admin' }));
+await mustAllow('admin deletes anyone\'s slot',
+  () => deleteDoc(doc(admin, 'oneOnOneSlots/oo-gabe')));
 
 console.log(`\nMeetings rules — ${ok} ok, ${holes} HOLE, ${breaks} BREAK`);
 await env.cleanup();

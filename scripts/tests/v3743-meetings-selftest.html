@@ -39,7 +39,7 @@
 
   /* ── in-memory Firestore ── */
   var DELETE = { __fsDelete: true };
-  var STORE = { users: {}, meetings: {}, meetingConfig: {}, meetingTopics: {}, meetingSwaps: {}, labChores: {}, userData: {} };
+  var STORE = { users: {}, meetings: {}, meetingConfig: {}, meetingTopics: {}, meetingSwaps: {}, labChores: {}, oneOnOneSlots: {}, userData: {} };
   var SUBS = {};   // path → [cb]
   function clone(x) { return JSON.parse(JSON.stringify(x)); }
   function setPath(o, path, val) {
@@ -49,7 +49,7 @@
   }
   function stamp(v) { return (v && v.__fsTs) ? new Date().toISOString() : v; }
   function applyPatch(doc, patch) { Object.keys(patch).forEach(function (k) { setPath(doc, k, stamp(patch[k])); }); }
-  var ROUTE = { 'meetings/list.json': ['meetings', 'meetings'], 'meetings/config.json': ['meetingConfig', null], 'meetings/topics.json': ['meetingTopics', 'topics'], 'meetings/swaps.json': ['meetingSwaps', 'swaps'], 'meetings/chores.json': ['labChores', 'chores'] };
+  var ROUTE = { 'meetings/list.json': ['meetings', 'meetings'], 'meetings/config.json': ['meetingConfig', null], 'meetings/topics.json': ['meetingTopics', 'topics'], 'meetings/swaps.json': ['meetingSwaps', 'swaps'], 'meetings/chores.json': ['labChores', 'chores'], 'meetings/one-on-ones.json': ['oneOnOneSlots', 'slots'] };
   function snapshotFor(path) {
     var r = ROUTE[path]; if (!r) return {};
     var coll = STORE[r[0]] || {};
@@ -103,7 +103,7 @@
     'u-pi':    { name: 'Alexander McGhee', email: 'pi@x.com', role: 'admin', category: 'pi' },
     'u-cason': { name: 'Cason Hancock', email: 'c@x.com', role: 'editor', category: 'grad' },
     'u-gabe':  { name: 'Gabriel Declercq', email: 'g@x.com', role: 'editor', category: 'grad' },
-    'u-zeke':  { name: 'Zeke Pangelinan', email: 'z@x.com', role: 'contributor', category: 'undergrad' },
+    'u-zeke':  { name: 'Zeke Pangelinan', email: 'z@x.com', role: 'contributor', category: 'undergrad', mentor_uids: ['u-cason'] },   // V3.935: Cason mentors Zeke
     'u-ally':  { name: 'Allison Friedholm', email: 'a@x.com', role: 'contributor', category: 'undergrad' },
     'u-guest': { name: 'Guest', email: 'guest@x.com', role: 'guest' },
     'u-alum':  { name: 'Old Grad', email: 'o@x.com', role: 'contributor', category: 'alumni' },
@@ -169,6 +169,7 @@
 <script src="/rm/js/drive-link.js"></script>
 <script src="/rm/js/meetings-live.js"></script>
 <script src="/rm/js/meetings-chores.js"></script>
+<script src="/rm/js/meetings-one-on-one.js"></script>
 <script src="/rm/js/meetings.js"></script>
 
 <script>
@@ -194,7 +195,7 @@
   /* ═══ header + tabs ═══ */
   ok('header names the coordinator', /meeting coordinator/i.test(text()) && /Cason Hancock/.test(text()));   // innerText honours text-transform
   ok('header shows Fridays/day 11:00 AM – 12:00 PM · BSRL 100', /11:00 AM – 12:00 PM/.test(text()) && /BSRL 100/.test(text()));
-  ok('7 tabs', qa('.mtg-tab').length === 7);
+  ok('8 tabs (V3.935 added One-on-ones)', qa('.mtg-tab').length === 8, String(qa('.mtg-tab').length));
   ok('coordinator role chip', !!q('.mtg-role-coord'));
 
   /* ═══ Next meeting ═══ */
@@ -401,6 +402,49 @@
   ok('seed did not clobber existing coordinators', cfgNow.coordinatorUids.indexOf(U.cason) >= 0);
   ok('seed did not clobber the saved roster', cfgNow.presenterPoolUids.indexOf('u-ally') < 0 && cfgNow.attendeeUids.indexOf('u-alum') >= 0);
 
+  /* ═══ One-on-ones (V3.935) — as Cason, Zeke's mentor ═══ */
+  tab('oneonone');
+  await sleep(50);
+  var OO = window.MEETINGS_ONE_ON_ONE;
+  ok('one-on-ones module published', !!OO);
+  ok('month grid renders (Monday-first, whole weeks)', !!q('.oo-cal') && qa('.oo-day').length >= 28 && qa('.oo-day').length % 7 === 0, String(qa('.oo-day').length));
+  ok('a mentor (not PI, not admin) can host → Offer a time', !!q('[data-act="oo-offer"]') && OO.canHost(U.cason));
+  ok('Cason’s hosts = the PI only (reviewerUids)', OO.myHosts().join() === U.pi, OO.myHosts().join());
+  ok('empty state names the PI as the only host with no times', /No one-on-one times offered yet|haven’t offered/.test(text()));
+  click('[data-act="oo-offer"]');
+  await sleep(50);
+  var of = sheet() && sheet().querySelector('#oo-offer-form');
+  ok('offer sheet opens with the form', !!of);
+  if (of) {
+    var reserveOpts = Array.from(of.reserveUid ? of.reserveUid.options : []).map(function (o) { return o.value; });
+    ok('Reserve-for lists only the mentor’s mentees (open + Zeke)', reserveOpts.join() === ',' + U.zeke, reserveOpts.join());
+    var wdTomorrow = new Date(plus(1) + 'T12:00:00').getDay();
+    of.weekday.value = String(wdTomorrow); of.time.value = '14:00'; of.duration.value = '30'; of.count.value = '2'; of.location.value = 'Office 210'; of.endDate.value = plus(60);
+    of.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await sleep(250);
+  }
+  var slotsNow = Object.keys(STORE.oneOnOneSlots).map(function (id) { return Object.assign({ id: id }, STORE.oneOnOneSlots[id]); });
+  ok('two back-to-back slots written, hosted by Cason, 14:00 and 14:30', slotsNow.length === 2 && slotsNow.every(function (s) { return s.hostUid === U.cason && s.active === true && s.subscriberUid === null; }) && slotsNow.map(function (s) { return s.time; }).sort().join('|') === '14:00|14:30', JSON.stringify(slotsNow.map(function (s) { return [s.hostUid, s.time]; })));
+  ok('startDate = tomorrow (first matching weekday on/after today) with the weekday stored', slotsNow.every(function (s) { return s.startDate === plus(1) && s.weekday === new Date(plus(1) + 'T12:00:00').getDay(); }), JSON.stringify(slotsNow.map(function (s) { return [s.startDate, s.weekday]; })));
+  ok('calendar shows the open chips (dashed) on tomorrow’s cell', qa('.oo-day[data-date="' + plus(1) + '"] .oo-chip-open').length === 2, String(qa('.oo-chip-open').length));
+  ok('weekly pattern: two rows, host Cason → open, Reserve for… offered', qa('.oo-row').length === 2 && qa('[data-act="oo-reserve"]').length === 2);
+  ok('My one-on-ones card says Cason hosts 2 times, 2 open', /You host 2 recurring times/.test(text()) && /2 open/.test(text()));
+  // reserve the 14:30 for Zeke via the member picker
+  var slot1430 = slotsNow.find(function (s) { return s.time === '14:30'; });
+  click('[data-act="oo-reserve"][data-id="' + slot1430.id + '"]');
+  await sleep(50);
+  var pickRow = document.querySelector('.mtg-picker-row[data-uid="u-zeke"]');
+  ok('reserve picker lists Zeke (and nobody outside the mentees)', !!pickRow && !document.querySelector('.mtg-picker-row[data-uid="u-ally"]'));
+  if (pickRow) { pickRow.click(); await sleep(200); }
+  ok('reserve writes subscriberUid = zeke, subscribedBy host, updatedBy cason', STORE.oneOnOneSlots[slot1430.id].subscriberUid === U.zeke && STORE.oneOnOneSlots[slot1430.id].subscribedBy === 'host' && STORE.oneOnOneSlots[slot1430.id].updatedBy === U.cason, JSON.stringify(STORE.oneOnOneSlots[slot1430.id]));
+  ok('the booked chip is solid and names Zeke', qa('.oo-day[data-date="' + plus(1) + '"] .oo-chip:not(.oo-chip-open)').length === 1 && /Zeke/.test(q('.oo-day[data-date="' + plus(1) + '"] .oo-chip:not(.oo-chip-open)').textContent));
+  // month navigation
+  var monthBefore = q('.oo-monthnav .on').textContent;
+  click('[data-act="oo-month"][data-dir="1"]'); await sleep(30);
+  ok('next month navigates', q('.oo-monthnav .on').textContent !== monthBefore);
+  click('[data-act="oo-month"][data-dir="0"]'); await sleep(30);
+  ok('month button returns to this month', q('.oo-monthnav .on').textContent === monthBefore);
+
   /* ═══ flip to Zeke — plain member ═══ */
   ME = { uid: U.zeke, displayName: 'Zeke Pangelinan', email: 'z@x.com' }; PROFILE = { name: 'Zeke Pangelinan', role: 'contributor' };
   M.state.user = ME; M.state.profile = PROFILE;
@@ -414,7 +458,10 @@
   ok('member: Swap on someone else’s slot', !!q('[data-act="request-swap"]'));
   ok('member: Release on own slot', !!q('[data-act="release"][data-uid="u-zeke"]'));
   ok('member: no delete/edit tools', !q('[data-act="delete-meeting"]') && !q('[data-act="edit-meeting"]'));
-  var claim = q('[data-act="claim"]');
+  // V3.935 — claim a slot that is NOT on the next meeting: the Fall 2026 seed can put a meeting between today and
+  // m-next (it did on 2026-10-29), and claiming THAT one made Zeke its presenter, so he no longer owed round-robin
+  // slides in the "next" checks below (4 date-dependent failures).
+  var claim = qa('[data-act="claim"]').find(function (b) { var mm = M.meeting(b.dataset.id); var nx = M.nextMeeting(); return mm && (!nx || mm.date !== nx.date); }) || q('[data-act="claim"]');
   if (claim) { var mid = claim.dataset.id; claim.click(); await sleep(200); ok('claim writes presenters.<me>', !!STORE.meetings[mid].presenters['u-zeke']); }
   click('[data-act="request-swap"]'); await sleep(50);
   ok('swap sheet opens for a member with a slot to offer', !!sheet() && /Which of your slots/.test(sheet().innerText));
@@ -438,6 +485,53 @@
   ok('submission stored under updates.submissions.<me> with parsed fileId', nm && STORE.meetings[nm.id].updates.submissions['u-zeke'] && STORE.meetings[nm.id].updates.submissions['u-zeke'].link.fileId === '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456', nm ? JSON.stringify(STORE.meetings[nm.id].updates.submissions) : 'no next');
   ok('member: Run meeting hidden before the day', !q('[data-act="run"]') || M.daysUntil(nm.date) <= 0);
   ok('Drive parse: file/d, open?id, folders', DRIVE_LINK.parse('https://drive.google.com/file/d/1abcdefghijklmnopqrstuv/view').fileId === '1abcdefghijklmnopqrstuv' && DRIVE_LINK.parse('https://drive.google.com/open?id=1abcdefghijklmnopqrstuv').kind === 'file' && DRIVE_LINK.parse('https://drive.google.com/drive/u/0/folders/1abcdefghijklmnopqrstuv').kind === 'folder' && DRIVE_LINK.parse('https://example.com/x') === null);
+
+  /* ═══ One-on-ones (V3.935) — as Zeke, Cason's mentee ═══ */
+  M.state.section = 'oneonone'; M.render(); await sleep(30);
+  ok('mentee: no Offer a time', !q('[data-act="oo-offer"]') && !OO.canHost(U.zeke));
+  ok('mentee’s hosts = PI + mentor Cason', OO.myHosts().slice().sort().join() === [U.cason, U.pi].sort().join(), OO.myHosts().join());
+  ok('mentee sees Cason’s open 14:00 with Subscribe, and his reserved 14:30 as his', qa('[data-act="oo-subscribe"]').length === 1 && !!q('.oo-row-me'));
+  ok('My one-on-ones lists the reserved meeting with Cason (your mentor)', /with Cason Hancock/.test(text()) && /your mentor/.test(text()));
+  ok('no badge: he already has a time with his only host offering', !q('.mtg-tab[data-id="oneonone"] .mtg-badge'));
+  // release the reserved one, then the badge should appear (Cason has an open time, Zeke has none)
+  click('[data-act="oo-unsubscribe"]'); await sleep(50);
+  ok('Unsubscribe asks first (sheet, not confirm())', !!sheet() && /Stop meeting Cason/.test(sheet().innerText));
+  if (sheet()) { sheet().querySelector('.mtg-yes').click(); await sleep(200); }
+  ok('release clears subscriberUid + stamps updatedBy zeke', STORE.oneOnOneSlots[slot1430.id].subscriberUid === null && STORE.oneOnOneSlots[slot1430.id].updatedBy === U.zeke);
+  ok('badge appears: a host of his has open times and he has none', !!q('.mtg-tab[data-id="oneonone"] .mtg-badge'));
+  ok('both of Cason’s times now offer Subscribe', qa('[data-act="oo-subscribe"]').length === 2);
+  // subscribe to the 14:00 via the sheet
+  var slot1400 = slotsNow.find(function (s) { return s.time === '14:00'; });
+  click('[data-act="oo-subscribe"][data-id="' + slot1400.id + '"]'); await sleep(50);
+  ok('subscribe sheet names Cason as your mentor and the first date', !!sheet() && /your mentor/.test(sheet().innerText) && /First one/.test(sheet().innerText));
+  if (sheet()) { sheet().querySelector('.oo-yes').click(); await sleep(250); }
+  var booked = STORE.oneOnOneSlots[slot1400.id];
+  ok('subscription written: subscriberUid zeke, subscribedBy self, updatedBy zeke, name kept', booked.subscriberUid === U.zeke && booked.subscribedBy === 'self' && booked.updatedBy === U.zeke && booked.subscriberName === 'Zeke Pangelinan', JSON.stringify(booked));
+  ok('success state offers Add to my calendar', !!sheet() && !!sheet().querySelector('.oo-ics'));
+  if (sheet()) { sheet().querySelector('.mtg-cancel').click(); await sleep(30); }
+  ok('badge gone after subscribing', !q('.mtg-tab[data-id="oneonone"] .mtg-badge'));
+  ok('his chip is the highlighted one on tomorrow’s cell', qa('.oo-day[data-date="' + plus(1) + '"] .oo-chip-me').length === 1);
+  var ics = OO.icsFor(Object.assign({ id: slot1400.id }, booked));
+  ok('ics: weekly RRULE on the slot weekday, UNTIL from endDate, Phoenix DTSTART at 14:00', new RegExp('RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=' + ['SU','MO','TU','WE','TH','FR','SA'][booked.weekday] + ';UNTIL=\\d{8}T065959Z').test(ics) && /DTSTART;TZID=America\/Phoenix:\d{8}T140000/.test(ics) && /SUMMARY:One-on-one: Zeke & Cason/.test(ics), ics);
+  // skip a week from the details sheet
+  click('[data-act="oo-open"][data-id="' + slot1400.id + '"]'); await sleep(50);
+  var skipBtn = sheet() && sheet().querySelector('[data-oo="skip"]');
+  ok('details sheet lists upcoming dates with Skip', !!skipBtn);
+  if (skipBtn) {
+    var skipDate = skipBtn.dataset.date;
+    sheet().querySelector('#oo-skip-reason').value = 'conference';
+    skipBtn.click(); await sleep(200);
+    ok('skip lands at skips.<date> with reason + by', booked.skips && booked.skips[skipDate] && booked.skips[skipDate].reason === 'conference' && booked.skips[skipDate].by === U.zeke, JSON.stringify(booked.skips));
+    ok('sheet re-renders the date as skipped with Back on', !!sheet().querySelector('[data-oo="unskip"][data-date="' + skipDate + '"]'));
+    ok('occursOn reads skipped; ics carries EXDATE', OO.occursOn(Object.assign({ id: 'x' }, booked), skipDate) === 'skipped' && /EXDATE;TZID=America\/Phoenix:/.test(OO.icsFor(Object.assign({ id: 'x' }, booked))));
+    ok('calendar chip struck through on the skipped date', !!q('.oo-day[data-date="' + skipDate + '"] .oo-chip-skip'));
+  }
+  APP_SHEET.close(); await sleep(30);
+  ok('mentee cannot see Reserve / End / Delete on his mentor’s slots', !q('[data-act="oo-reserve"]') && !q('[data-act="oo-end"]') && !q('[data-act="oo-delete"]'));
+  // My items shows the block too
+  M.state.section = 'mine'; M.render(); await sleep(20);
+  ok('My items carries the My one-on-ones block', /My one-on-ones/.test(text()) && /with Cason Hancock/.test(text()));
+  M.state.section = 'next'; M.render(); await sleep(20);
 
   ok('no window.confirm/alert/prompt anywhere', window.__errs.every(function (e) { return e.indexOf('BLOCKED') < 0; }));
   ok('no runtime errors overall', window.__errs.length === 0, window.__errs.join('; '));

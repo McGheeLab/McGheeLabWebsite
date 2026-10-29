@@ -6,9 +6,10 @@
      rotation → slide submissions → PI review → run the timed meeting
      → minutes → action items + chores that land on people's My Week
 
-   Sections (tab strip): Next meeting · Schedule · Chores · Topics ·
-   History · My items · Settings. The Run-meeting view lives in
-   meetings-live.js; the chore board in meetings-chores.js; Drive-link
+   Sections (tab strip): Next meeting · Schedule · One-on-ones · Chores ·
+   Topics · History · My items · Settings. The Run-meeting view lives in
+   meetings-live.js; the chore board in meetings-chores.js; the one-on-one
+   calendar (V3.935) in meetings-one-on-one.js; Drive-link
    parsing/verification in drive-link.js. Those modules read the
    `window.MEETINGS` surface published at the bottom of this file.
 
@@ -24,6 +25,9 @@
      meetingSwaps/{id}        peer-accept slot swaps; the move itself is done
                               by functions/meetings.js once status='accepted'.
      labChores/{weekId}       assignments (coordinator) + completions (own key).
+     oneOnOneSlots/{id}       V3.935 — a recurring one-on-one time offered by
+                              the PI / a mentor; a student subscribes by
+                              writing their own uid (see meetings-one-on-one.js).
 
    Live sync: api.subscribe on every route, state hydrated from the
    snapshot itself. NOT the LIVE_SYNC refresh→api.load pattern — that
@@ -45,12 +49,14 @@
     topics: 'meetings/topics.json',
     swaps:  'meetings/swaps.json',
     chores: 'meetings/chores.json',
+    slots:  'meetings/one-on-ones.json',   // V3.935 — recurring one-on-one times
     users:  'lab/users.json',
   };
 
   const SECTIONS = [
     { id: 'next',     label: 'Next meeting', icon: 'megaphone' },
     { id: 'schedule', label: 'Schedule',     icon: 'calendar-days' },
+    { id: 'oneonone', label: 'One-on-ones',  icon: 'user-group' },      // V3.935 — meetings-one-on-one.js
     { id: 'chores',   label: 'Chores',       icon: 'sparkles' },
     { id: 'topics',   label: 'Topics',       icon: 'light-bulb' },
     { id: 'history',  label: 'History',      icon: 'archive-box' },
@@ -142,11 +148,13 @@
   /* ─── state ─────────────────────────────────────────────────── */
   const state = {
     user: null, profile: null,
-    config: null, meetings: [], topics: [], swaps: [], chores: [], members: [],
-    loaded: { list: false, config: false, topics: false, swaps: false, chores: false, users: false },
+    config: null, meetings: [], topics: [], swaps: [], chores: [], slots: [], members: [],
+    loaded: { list: false, config: false, topics: false, swaps: false, chores: false, slots: false, users: false },
     section: 'next',
     ui: {
       schedFilter: 'upcoming',      // 'upcoming' | 'all'
+      ooMonth: null,                // 'YYYY-MM' shown on the One-on-ones calendar | null → this month
+      ooFilter: 'mine',             // 'mine' | 'all' (admin: every host's slots)
       histSearch: '', histPresenter: '', histOpen: null,
       topicsShowClosed: false,
       choreWeek: null,              // 'YYYY-Wnn' | null → this week's meeting week
@@ -460,6 +468,7 @@
     sub(PATHS.topics, d => { state.topics = d.topics || []; state.loaded.topics = true; });
     sub(PATHS.swaps,  d => { state.swaps = d.swaps || []; state.loaded.swaps = true; });
     sub(PATHS.chores, d => { state.chores = d.chores || []; state.loaded.chores = true; });
+    sub(PATHS.slots,  d => { state.slots = d.slots || []; state.loaded.slots = true; });
   }
 
   async function loadMembers() {
@@ -1094,6 +1103,7 @@
       switch (state.section) {
         case 'schedule': body = renderSchedule(); break;
         case 'chores':   body = window.MEETINGS_CHORES ? MEETINGS_CHORES.render(choreWeekId()) : '<div class="mtg-empty">meetings-chores.js not loaded</div>'; break;
+        case 'oneonone': body = window.MEETINGS_ONE_ON_ONE ? MEETINGS_ONE_ON_ONE.render() : '<div class="mtg-empty">meetings-one-on-one.js not loaded</div>'; break;
         case 'topics':   body = renderTopics(); break;
         case 'history':  body = renderHistory(); break;
         case 'mine':     body = renderMine(); break;
@@ -1136,7 +1146,9 @@
     const nm = nextMeeting();
     let slides = 0;
     if (nm && kindOf(nm) === 'standard' && submittersFor(nm).some(u => u.uid === me()) && !updatesOf(nm).submissions[me()]) slides = 1;
-    return { schedule: sw.incoming.length, chores, mine: sw.incoming.length + chores + slides };
+    // V3.935 — a host of yours offered a one-on-one time and you have none with them
+    const oneonone = window.MEETINGS_ONE_ON_ONE ? MEETINGS_ONE_ON_ONE.badge() : 0;
+    return { schedule: sw.incoming.length, chores, oneonone, mine: sw.incoming.length + chores + slides + oneonone };
   }
 
   function renderTabs() {
@@ -1594,6 +1606,7 @@
         (myActions.length ? '<ul class="mtg-actions">' + myActions.map(({ m, a }) => '<li class="mtg-ai"><label class="mtg-check"><input type="checkbox" data-act="ai-toggle" data-id="' + m.id + '" data-item="' + esc(a.id) + '"><span></span></label><span class="mtg-ai-text">' + esc(a.text) + ' <span class="mtg-muted mtg-tiny">from ' + esc(fmtDateShort(m.date)) + '</span></span>' + (a.deadline ? '<span class="mtg-ai-due' + (a.deadline < t ? ' mtg-over' : '') + '">' + esc(fmtDateShort(a.deadline)) + '</span>' : '') + '</li>').join('') + '</ul>'
                           : '<p class="mtg-muted">Nothing open. Items assigned in a meeting also appear at the top of your <a href="/rm/pages/my-week.html">My Week</a>.</p>') +
       '</section>' +
+      (window.MEETINGS_ONE_ON_ONE ? MEETINGS_ONE_ON_ONE.renderMine(false) : '') +     // V3.935
       (sw.incoming.length || sw.outgoing.length ? '<section class="mtg-card"><h3 class="mtg-h3">' + icon('arrows-right-left', { size: 'sm' }) + ' Swap requests</h3>' + renderSwapBanners(sw) + '</section>' : '');
   }
 
@@ -2030,6 +2043,7 @@
     try {
       if (window.MEETINGS_LIVE && act.startsWith('live-')) { await MEETINGS_LIVE.onAct(act, btn, ev); return; }
       if (window.MEETINGS_CHORES && act.startsWith('chore-') && act !== 'chore-tick' && act !== 'chore-add-row') { await MEETINGS_CHORES.onAct(act, btn, ev); return; }
+      if (window.MEETINGS_ONE_ON_ONE && act.startsWith('oo-')) { await MEETINGS_ONE_ON_ONE.onAct(act, btn, ev); return; }
       switch (act) {
         case 'tab': state.section = id; state.ui.live = null; render(); break;
         case 'run': state.ui.live = id; render(); break;
@@ -2272,7 +2286,8 @@
 
   /* ─── surface for meetings-live.js / meetings-chores.js ─────── */
   window.MEETINGS = {
-    state, cfg, SECTIONS, AGENDA_TYPE_LABEL, KIND_LABEL, REACTIONS,
+    state, cfg, SECTIONS, AGENDA_TYPE_LABEL, KIND_LABEL, REACTIONS, PATHS,
+    db, FV, invalidate, setPath, DEL, toFirestore, parseDate, toDateStr, dowName, busyAttr,   // V3.935 — for meetings-one-on-one.js
     esc, icon, toast, avatar, me, myName, memberName, firstName, member,
     isAdmin, isCoordinator, isReviewer, reviewerUids, rosterMembers, presenterPool, canPresent, assignees, attends,
     todayStr, fmtDate, fmtDateLong, fmtDateShort, fmtTime, fmtRange, addMinutes, addDays, daysUntil, weekIdFor, mondayOfWeekId, weekStart, isoNow, newId,

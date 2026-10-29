@@ -28,6 +28,12 @@
       cannot legally write the requester's entry. Then tell the requester
       and the coordinators. Declined / cancelled → tell the other party.
 
+   4. onOneOnOneSlotWritten — oneOnOneSlots/{id} (V3.935). A student
+      subscribed / left (→ the host), the host reserved / unbooked / moved /
+      ended / deleted the time (→ the student), a week skipped or un-skipped
+      (→ the other party). The 16:00 reminder pass also sends tomorrow's
+      one-on-ones: one notice per student, ONE per host listing them all.
+
    3. onMeetingWritten — meetings/{id}. EARLY-EXIT GUARD FIRST: this fires on
       every debounced minutes keystroke during a live meeting, so it must
       return after two field compares unless something notification-worthy
@@ -239,6 +245,100 @@ function meetingTransition(before, after, today) {
   return out;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   One-on-ones (V3.935)
+   oneOnOneSlots/{id}: a recurring time the PI / a mentor offers; one student
+   subscribes by writing their own uid. Occurrence math is mirrored in
+   rm/js/meetings-one-on-one.js — keep the two in step.
+   ═══════════════════════════════════════════════════════════════ */
+const DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const SLOT_TIME_KEYS = ['weekday', 'time', 'duration', 'location', 'cadence', 'startDate', 'endDate'];
+
+function weekdayOf(dateStr) {
+  const p = String(dateStr).split('-');
+  return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])).getUTCDay();
+}
+/* the first date on/after dateStr that falls on weekday — the fortnight anchor */
+function firstOnOrAfter(dateStr, weekday) { return shiftDateStr(dateStr, (weekday - weekdayOf(dateStr) + 7) % 7); }
+function addMinutes(hhmm, mins) {
+  const [h, m] = String(hhmm || '00:00').split(':').map(Number);
+  const t = (((h || 0) * 60 + (m || 0) + (+mins || 0)) % 1440 + 1440) % 1440;
+  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+}
+function cadenceWord(s) { return s && s.cadence === 'biweekly' ? 'Every other week' : 'Every week'; }
+
+/* PURE: null (no meeting that day) · 'on' · 'skipped' */
+function slotOccursOn(s, dateStr) {
+  if (!s || s.active === false || !s.startDate || s.weekday == null || !dateStr) return null;
+  if (dateStr < s.startDate) return null;
+  if (s.endDate && dateStr > s.endDate) return null;
+  if (weekdayOf(dateStr) !== +s.weekday) return null;
+  if (s.cadence === 'biweekly' && (daysBetween(firstOnOrAfter(s.startDate, +s.weekday), dateStr) / 7) % 2) return null;
+  return (s.skips && s.skips[dateStr]) ? 'skipped' : 'on';
+}
+
+/* PURE: what changed on a slot write that someone must hear about.
+ * [] for a reminder stamp, a note edit on an open slot, a no-op write. */
+function slotTransition(before, after) {
+  const out = [];
+  if (!before && !after) return out;
+  if (!before) {
+    if (after.subscriberUid) out.push({ type: 'assigned', uid: after.subscriberUid });
+    return out;
+  }
+  if (!after) {
+    if (before.subscriberUid && before.active !== false) out.push({ type: 'deleted', uid: before.subscriberUid });
+    return out;
+  }
+  const bs = before.subscriberUid || null, as = after.subscriberUid || null;
+  if (bs !== as) {
+    if (bs) out.push({ type: after.updatedBy === bs ? 'left' : 'removed', uid: bs });
+    if (as) out.push({ type: (after.subscribedBy === 'host' || after.updatedBy !== as) ? 'assigned' : 'subscribed', uid: as });
+  }
+  if (before.active !== false && after.active === false && as) out.push({ type: 'ended', uid: as });
+  const bsk = before.skips || {}, ask = after.skips || {};
+  Object.keys(ask).forEach((d) => { if (!bsk[d]) out.push({ type: 'skipped', date: d, by: (ask[d] && ask[d].by) || after.updatedBy || null, reason: (ask[d] && ask[d].reason) || '' }); });
+  Object.keys(bsk).forEach((d) => { if (!ask[d]) out.push({ type: 'unskipped', date: d, by: after.updatedBy || null }); });
+  if (as && bs === as && after.active !== false
+      && SLOT_TIME_KEYS.some((k) => (before[k] == null ? null : before[k]) !== (after[k] == null ? null : after[k]))) {
+    out.push({ type: 'changed', uid: as });
+  }
+  return out;
+}
+
+/* PURE: the afternoon-before reminders. One notice per subscriber, and ONE
+ * per host listing all of tomorrow's one-on-ones (the PI with six students
+ * gets one push, not six). ctx = { today, minutes, names(uid, fallback) }.
+ * Each entry carries the slotIds to stamp `lastReminded = date` on. */
+function planOneOnOneReminders(slots, ctx) {
+  if (!ctx || ctx.minutes < AFTERNOON_MIN) return [];
+  const tomorrow = shiftDateStr(ctx.today, 1);
+  const due = (slots || [])
+    .filter((s) => s.subscriberUid && s.lastReminded !== tomorrow && slotOccursOn(s, tomorrow) === 'on')
+    .sort((a, b) => String(a.time).localeCompare(String(b.time)));
+  const out = [];
+  const byHost = {};
+  due.forEach((s) => {
+    const host = firstName(ctx.names(s.hostUid, s.hostName));
+    out.push({ uids: [s.subscriberUid], slotIds: [s.id], date: tomorrow, kind: 'reminder',
+      title: `One-on-one with ${host} tomorrow at ${fmtTime(s.time)}`,
+      body: `${DOW[+s.weekday]} ${fmtTime(s.time)}–${fmtTime(addMinutes(s.time, s.duration))}${s.location ? ' in ' + s.location : ''}.${s.note ? ' ' + s.note : ''}` });
+    (byHost[s.hostUid] = byHost[s.hostUid] || []).push(s);
+  });
+  Object.keys(byHost).forEach((hostUid) => {
+    const list = byHost[hostUid];
+    const one = list[0];
+    out.push({ uids: [hostUid], slotIds: list.map((s) => s.id), date: tomorrow, kind: 'reminder',
+      title: list.length === 1
+        ? `One-on-one with ${firstName(ctx.names(one.subscriberUid, one.subscriberName))} tomorrow at ${fmtTime(one.time)}`
+        : `${list.length} one-on-ones tomorrow`,
+      body: list.length === 1
+        ? `${DOW[+one.weekday]} ${fmtTime(one.time)}–${fmtTime(addMinutes(one.time, one.duration))}${one.location ? ' in ' + one.location : ''}.`
+        : list.map((s) => `${firstName(ctx.names(s.subscriberUid, s.subscriberName))} ${fmtTime(s.time)}`).join(' · ') });
+  });
+  return out;
+}
+
 /* ─── Firestore plumbing ─────────────────────────────────────── */
 async function loadContext(db) {
   const [cfgSnap, usersSnap] = await Promise.all([
@@ -287,7 +387,23 @@ const meetingReminders = onSchedule(
         await doc.ref.update({ [`reminded.${step.flag}`]: true });
       }
     }
-    console.log(`[MeetingReminders] ${now.dateStr} ${now.minutes >= AFTERNOON_MIN ? 'pm' : 'am'} — ${snap.size} meeting(s) scanned, ${sent} notice(s).`);
+    // V3.935 — one-on-ones: the afternoon-before pass, grouped per host
+    let ooSent = 0;
+    if (now.minutes >= AFTERNOON_MIN) {
+      const slotsSnap = await db.collection('oneOnOneSlots').where('active', '==', true).get();
+      const slots = slotsSnap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+      const stamped = new Set();
+      for (const step of planOneOnOneReminders(slots, ctx)) {
+        await notifyUsers(db, messaging, step.uids, { title: step.title, body: step.body, url: PAGE + '#oneonone', tag: `oo-remind-${step.date}-${step.uids[0]}` }, APP_KEY, step.kind);
+        ooSent += step.uids.length;
+        for (const id of step.slotIds) {
+          if (stamped.has(id)) continue;
+          stamped.add(id);
+          await db.collection('oneOnOneSlots').doc(id).update({ lastReminded: step.date });
+        }
+      }
+    }
+    console.log(`[MeetingReminders] ${now.dateStr} ${now.minutes >= AFTERNOON_MIN ? 'pm' : 'am'} — ${snap.size} meeting(s) scanned, ${sent} notice(s); ${ooSent} one-on-one reminder(s).`);
   }
 );
 
@@ -411,10 +527,74 @@ const onMeetingWritten = onDocumentWritten('meetings/{meetingId}', async (event)
   }
 });
 
+/* ================================================================
+   4. One-on-one slot — subscribed / left / reserved / moved / skipped (V3.935)
+   ================================================================ */
+const onOneOnOneSlotWritten = onDocumentWritten('oneOnOneSlots/{slotId}', async (event) => {
+  const before = event.data && event.data.before && event.data.before.exists ? event.data.before.data() : null;
+  const after = event.data && event.data.after && event.data.after.exists ? event.data.after.data() : null;
+  const events = slotTransition(before, after);
+  if (!events.length) return;                        // reminder stamps, note edits on an open slot
+  const db = getFirestore();
+  const messaging = getMessaging();
+  const ctx = await loadContext(db);
+  const s = after || before;
+  const host = s.hostUid;
+  const hostName = firstName(ctx.names(host, s.hostName));
+  const url = PAGE + '#oneonone';
+  const tag = `oo-${event.params.slotId}`;
+  const when = `${DOW[+s.weekday] || 'the'}s at ${fmtTime(s.time)}`;
+  const where = s.location ? ` in ${s.location}` : '';
+  const nameOf = (uid) => firstName(ctx.names(uid, (after && after.subscriberUid === uid && after.subscriberName) || (before && before.subscriberUid === uid && before.subscriberName) || ''));
+  const send = (uids, title, body, kind) => notifyUsers(db, messaging, uids.filter(Boolean), { title, body, url, tag }, APP_KEY, kind || 'confirmed');
+
+  for (const e of events) {
+    switch (e.type) {
+      case 'assigned':
+        await send([e.uid], `${hostName} set up a one-on-one with you`,
+          `${cadenceWord(s)} on ${when}${where}, from ${fmtShort(s.startDate)}.${s.note ? ' ' + s.note : ''} Details on the meetings page.`);
+        break;
+      case 'subscribed':
+        await send([host], `${nameOf(e.uid)} subscribed to your ${when} one-on-one`, `${cadenceWord(s)}${where}, from ${fmtShort(s.startDate)}.`);
+        break;
+      case 'left':
+        await send([host], `${nameOf(e.uid)} left your ${when} one-on-one`, 'The time is open again for someone else.');
+        break;
+      case 'removed':
+        await send([e.uid], `${hostName} took you off the ${when} one-on-one`, 'Pick another open time on the meetings page if you still need one.', 'displaced');
+        break;
+      case 'ended':
+        await send([e.uid], `${hostName} ended the ${when} one-on-one`, 'No more meetings at that time from today.', 'displaced');
+        break;
+      case 'deleted':
+        await send([e.uid], `${hostName} cancelled the ${when} one-on-one`, 'It is off the calendar. Pick another open time if you still need one.', 'displaced');
+        break;
+      case 'changed':
+        await send([e.uid], `Your one-on-one with ${hostName} moved`, `Now ${cadenceWord(s).toLowerCase()} on ${when}${where}. Re-add it to your calendar from the meetings page.`, 'reminder');
+        break;
+      case 'skipped': {
+        const other = e.by === host ? s.subscriberUid : host;
+        if (!other || !s.subscriberUid) break;
+        await send([other], `No one-on-one on ${fmtShort(e.date)}`, `${firstName(ctx.names(e.by))} skipped that week${e.reason ? ': ' + e.reason : ''}.`, 'reminder');
+        break;
+      }
+      case 'unskipped': {
+        const other = e.by === host ? s.subscriberUid : host;
+        if (!other || !s.subscriberUid) break;
+        await send([other], `One-on-one on ${fmtShort(e.date)} is back on`, `${firstName(ctx.names(e.by))} un-skipped it — ${fmtTime(s.time)}${where}.`, 'reminder');
+        break;
+      }
+      default: break;
+    }
+  }
+});
+
 module.exports = {
   meetingReminders,
   onMeetingSwapWritten,
   onMeetingWritten,
+  onOneOnOneSlotWritten,
   _internal: { phoenixNow, shiftDateStr, daysBetween, presentersOf, submittersFor, applyRoster, attendees, planReminders, swapTransition, meetingTransition,
+               weekdayOf, firstOnOrAfter, slotOccursOn, slotTransition, planOneOnOneReminders,
                PRESENTER_DAYS, SUBMIT_DAYS, DECK_DAYS, AFTERNOON_MIN, NEW_DOC_NOTIFY_DAYS },
 };

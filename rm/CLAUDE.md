@@ -295,6 +295,8 @@ items and chores that land on people's My Week. Modules:
 [js/meetings.js](js/meetings.js) (state, tabs, sheets, `window.MEETINGS`),
 [js/meetings-live.js](js/meetings-live.js) (Run-meeting view),
 [js/meetings-chores.js](js/meetings-chores.js) (weekly board),
+[js/meetings-one-on-one.js](js/meetings-one-on-one.js) (V3.935 — the One-on-ones
+calendar: recurring PI / mentor ↔ student times),
 [js/drive-link.js](js/drive-link.js) (shared Drive-link parse/verify/card),
 `../functions/meetings.js` (reminders 09:00/16:00 Phoenix, swap execution,
 deck/review notices). Plan: `CodeLog/ClaudesPlan/V3.743_lab_meetings_remodel.md`.
@@ -331,6 +333,19 @@ Things that are load-bearing and easy to break:
   is ASSIGNED, but the My Week card is held back until its week is the one on
   screen** (V3.768, `inboxItems()` in my-week.js) — the board is filled a
   semester ahead. Filter chores at the render seam; never defer the write.
+- **One-on-ones (V3.935)**: `oneOnOneSlots/{id}` is ONE RECURRING TIME (host,
+  weekday, time, cadence weekly|biweekly, startDate = first occurrence and the
+  fortnight anchor, endDate, `skips{date}`), never a list of dates — the
+  calendar and the `.ics` (RRULE + EXDATE) derive from it. A student
+  subscribes by writing THEIR OWN uid into `subscriberUid`; the rule lets a
+  member claim an open active slot for themself, or release / skip their own,
+  and nothing else — the host and admins write anything. Hosts =
+  `category:'pi'` ∪ `reviewerUids` ∪ admins ∪ anyone in somebody's
+  `users/{uid}.mentor_uids`; a student sees only slots from THEIR hosts.
+  Occurrence math lives twice (`occursOn` in the module, `slotOccursOn` in
+  `functions/meetings.js`) — change both. The reminder is the 16:00 pass, one
+  notice per student and ONE per host; `lastReminded` is the dedupe and is
+  function-only.
 - Tests: `scripts/tests/meetings-rules.test.mjs`,
   `scripts/tests/v3743-meetings-selftest.html`, `functions/test/meetings.test.js`,
   `scripts/tests/myweek-inbox.test.mjs`.

@@ -195,6 +195,95 @@ check('presentersOf tolerates legacy presenterId', I.presentersOf({ presenterId:
   check('deleted meeting → null', I.meetingTransition(base, null) === null);
 }
 
+/* ── V3.935 one-on-ones: occurrence math ── */
+{
+  // 2026-11-03 is a Tuesday
+  const weekly = { id: 's1', hostUid: 'pi', weekday: 2, time: '14:00', duration: 30, cadence: 'weekly', startDate: '2026-11-03', endDate: '2026-12-15', active: true, subscriberUid: 'gabe', skips: { '2026-11-24': { by: 'gabe', reason: 'conference' } } };
+  check('weekday math: 2026-11-03 is Tuesday (2)', I.weekdayOf('2026-11-03') === 2);
+  check('occurs on the first date', I.slotOccursOn(weekly, '2026-11-03') === 'on');
+  check('occurs a week later', I.slotOccursOn(weekly, '2026-11-10') === 'on');
+  check('not on a Wednesday', I.slotOccursOn(weekly, '2026-11-04') === null);
+  check('not before startDate', I.slotOccursOn(weekly, '2026-10-27') === null);
+  check('on the end date itself', I.slotOccursOn(weekly, '2026-12-15') === 'on');
+  check('not after endDate', I.slotOccursOn(weekly, '2026-12-22') === null);
+  check('a skipped week reads skipped', I.slotOccursOn(weekly, '2026-11-24') === 'skipped');
+  check('an ended slot never occurs', I.slotOccursOn(Object.assign({}, weekly, { active: false }), '2026-11-10') === null);
+  check('no endDate = open-ended', I.slotOccursOn(Object.assign({}, weekly, { endDate: null }), '2027-03-02') === 'on');
+  const biweekly = Object.assign({}, weekly, { cadence: 'biweekly' });
+  check('biweekly: anchor week on', I.slotOccursOn(biweekly, '2026-11-03') === 'on');
+  check('biweekly: next week off', I.slotOccursOn(biweekly, '2026-11-10') === null);
+  check('biweekly: two weeks later on', I.slotOccursOn(biweekly, '2026-11-17') === 'on');
+  check('biweekly: three weeks later off', I.slotOccursOn(biweekly, '2026-11-24') === null);
+  check('biweekly: anchored on the FIRST OCCURRENCE on/after startDate (a Sunday start → Tuesday the 3rd is week 0)',
+    I.slotOccursOn(Object.assign({}, biweekly, { startDate: '2026-11-01', weekday: 2 }), '2026-11-03') === 'on'
+    && I.slotOccursOn(Object.assign({}, biweekly, { startDate: '2026-11-01', weekday: 2 }), '2026-11-10') === null
+    && I.slotOccursOn(Object.assign({}, biweekly, { startDate: '2026-11-01', weekday: 2 }), '2026-11-17') === 'on');
+  check('firstOnOrAfter: Sunday Nov 1 → Tuesday Nov 3; Tuesday Nov 3 → itself', I.firstOnOrAfter('2026-11-01', 2) === '2026-11-03' && I.firstOnOrAfter('2026-11-03', 2) === '2026-11-03');
+}
+
+/* ── V3.935 one-on-ones: slot transitions ── */
+{
+  const open = { hostUid: 'pi', hostName: 'Alex McGhee', weekday: 2, time: '14:00', duration: 30, cadence: 'weekly', startDate: '2026-11-03', endDate: null, active: true, subscriberUid: null, subscriberName: '', subscribedBy: null, skips: {}, updatedBy: 'pi' };
+  const types = (ev) => ev.map((e) => e.type).join(',');
+  check('creating an OPEN slot notifies nobody', types(I.slotTransition(null, open)) === '');
+  check('creating a RESERVED slot → assigned', types(I.slotTransition(null, Object.assign({}, open, { subscriberUid: 'gabe', subscribedBy: 'host' }))) === 'assigned');
+  const booked = Object.assign({}, open, { subscriberUid: 'gabe', subscriberName: 'Gabriel Declercq', subscribedBy: 'self', updatedBy: 'gabe' });
+  const t1 = I.slotTransition(open, booked);
+  check('student writes own uid → subscribed (to the host)', types(t1) === 'subscribed' && t1[0].uid === 'gabe', JSON.stringify(t1));
+  const reserved = Object.assign({}, open, { subscriberUid: 'gabe', subscribedBy: 'host', updatedBy: 'pi' });
+  check('host books a student → assigned (to the student)', types(I.slotTransition(open, reserved)) === 'assigned');
+  const left = Object.assign({}, booked, { subscriberUid: null, subscriberName: '', subscribedBy: null, updatedBy: 'gabe' });
+  check('student releases → left (to the host)', types(I.slotTransition(booked, left)) === 'left');
+  const removed = Object.assign({}, booked, { subscriberUid: null, subscribedBy: null, updatedBy: 'pi' });
+  check('host unbooks → removed (to the student)', types(I.slotTransition(booked, removed)) === 'removed');
+  const swapped = Object.assign({}, booked, { subscriberUid: 'zeke', subscriberName: 'Zeke', subscribedBy: 'host', updatedBy: 'pi' });
+  const t2 = I.slotTransition(booked, swapped);
+  check('host swaps the student → removed(gabe) + assigned(zeke)', types(t2) === 'removed,assigned' && t2[0].uid === 'gabe' && t2[1].uid === 'zeke', JSON.stringify(t2));
+  check('ending a booked slot → ended', types(I.slotTransition(booked, Object.assign({}, booked, { active: false, updatedBy: 'pi' }))) === 'ended');
+  check('ending an OPEN slot → nothing', types(I.slotTransition(open, Object.assign({}, open, { active: false }))) === '');
+  check('deleting a booked slot → deleted', types(I.slotTransition(booked, null)) === 'deleted');
+  check('deleting an open slot → nothing', types(I.slotTransition(open, null)) === '');
+  const skipped = Object.assign({}, booked, { skips: { '2026-11-24': { by: 'gabe', reason: 'conference' } }, updatedBy: 'gabe' });
+  const t3 = I.slotTransition(booked, skipped);
+  check('a new skip → skipped with date, by and reason', types(t3) === 'skipped' && t3[0].date === '2026-11-24' && t3[0].by === 'gabe' && t3[0].reason === 'conference', JSON.stringify(t3));
+  const t4 = I.slotTransition(skipped, Object.assign({}, booked, { updatedBy: 'pi' }));
+  check('removing a skip → unskipped, by whoever wrote', types(t4) === 'unskipped' && t4[0].by === 'pi', JSON.stringify(t4));
+  check('host moves the time of a booked slot → changed', types(I.slotTransition(booked, Object.assign({}, booked, { time: '15:00', updatedBy: 'pi' }))) === 'changed');
+  check('host moves the time of an OPEN slot → nothing', types(I.slotTransition(open, Object.assign({}, open, { time: '15:00' }))) === '');
+  check('a note edit on a booked slot → nothing (not a time field)', types(I.slotTransition(booked, Object.assign({}, booked, { note: 'bring figures' }))) === '');
+  check('the reminder stamp → nothing (the trigger must exit)', types(I.slotTransition(booked, Object.assign({}, booked, { lastReminded: '2026-11-10' }))) === '');
+  check('changing the time AND the student → removed + assigned, not changed', types(I.slotTransition(booked, Object.assign({}, swapped, { time: '15:00' }))) === 'removed,assigned');
+}
+
+/* ── V3.935 one-on-ones: the afternoon-before reminder plan ── */
+{
+  const n = (uid, fb) => ({ pi: 'Alex McGhee', gabe: 'Gabriel Declercq', zeke: 'Zeke Pangelinan', cason: 'Cason Hancock' }[uid] || fb || '');
+  // today Monday 2026-11-09 → tomorrow Tuesday 2026-11-10
+  const base = { hostUid: 'pi', weekday: 2, time: '14:00', duration: 30, cadence: 'weekly', startDate: '2026-11-03', endDate: null, active: true, skips: {} };
+  const slots = [
+    Object.assign({}, base, { id: 'a', subscriberUid: 'gabe', location: 'Office' }),
+    Object.assign({}, base, { id: 'b', subscriberUid: 'zeke', time: '14:30' }),
+    Object.assign({}, base, { id: 'c', subscriberUid: null }),                                   // open — nobody to remind
+    Object.assign({}, base, { id: 'd', subscriberUid: 'gabe', hostUid: 'cason', weekday: 3 }),   // Wednesday — not tomorrow
+    Object.assign({}, base, { id: 'e', subscriberUid: 'zeke', hostUid: 'cason', lastReminded: '2026-11-10' }),   // already reminded
+    Object.assign({}, base, { id: 'f', subscriberUid: 'zeke', hostUid: 'cason', time: '09:00', skips: { '2026-11-10': { by: 'cason' } } }),   // skipped tomorrow
+  ];
+  check('morning pass sends nothing', I.planOneOnOneReminders(slots, { today: '2026-11-09', minutes: 9 * 60, names: n }).length === 0);
+  const plan = I.planOneOnOneReminders(slots, { today: '2026-11-09', minutes: 16 * 60, names: n });
+  const to = (uid) => plan.filter((p) => p.uids.includes(uid));
+  check('afternoon pass: 3 notices — gabe, zeke, and ONE for the PI', plan.length === 3, JSON.stringify(plan.map((p) => [p.uids, p.title])));
+  check('gabe is told about tomorrow 2:00 with Alex', to('gabe').length === 1 && /Alex/.test(to('gabe')[0].title) && /2:00 PM/.test(to('gabe')[0].title) && /Office/.test(to('gabe')[0].body));
+  check('zeke is told once (the skipped and already-reminded slots are out)', to('zeke').length === 1 && /2:30 PM/.test(to('zeke')[0].title));
+  check('the PI gets ONE grouped notice naming both students in time order', to('pi').length === 1 && /2 one-on-ones tomorrow/.test(to('pi')[0].title) && /Gabriel 2:00 PM · Zeke 2:30 PM/.test(to('pi')[0].body), to('pi')[0] && to('pi')[0].body);
+  check('the grouped host notice stamps both slots', to('pi')[0].slotIds.join() === 'a,b');
+  check('cason (no live slot tomorrow) is not notified', to('cason').length === 0);
+  check('every notice carries the date to stamp', plan.every((p) => p.date === '2026-11-10'));
+  const single = I.planOneOnOneReminders([slots[0]], { today: '2026-11-09', minutes: 16 * 60, names: n });
+  check('a host with one meeting gets a named title, not "1 one-on-ones"', single.length === 2 && single.some((p) => p.uids[0] === 'pi' && /One-on-one with Gabriel tomorrow at 2:00 PM/.test(p.title)), JSON.stringify(single.map((p) => p.title)));
+  check('biweekly off-week: nothing tomorrow', I.planOneOnOneReminders([Object.assign({}, slots[0], { cadence: 'biweekly' })], { today: '2026-11-09', minutes: 16 * 60, names: n }).length === 0);
+  check('biweekly on-week: reminded', I.planOneOnOneReminders([Object.assign({}, slots[0], { cadence: 'biweekly' })], { today: '2026-11-16', minutes: 16 * 60, names: n }).length === 2);
+}
+
 /* ── verdict ── */
 console.log(`meetings.test.js: ${pass} passed, ${fail} failed`);
 if (failures.length) { console.log(failures.map((f) => '  FAIL ' + f).join('\n')); }

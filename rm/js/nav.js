@@ -192,7 +192,7 @@ const NAV_PAGE_DESCRIPTIONS = {
   /* Operations */
   'chat':                               'Lab chat — channels, DMs, huddles, voice calls, file uploads via Drive.',
   'huddle':                             'Daily huddle planning + help requests + rundown.',
-  'meetings':                           'Lab meetings — rotation, slides pipeline, timed agenda, minutes, chores.',
+  'meetings':                           'Lab meetings — rotation, slides pipeline, timed agenda, minutes, chores, one-on-ones with the PI or your mentor.',
   'scheduler':                          'Public scheduling pages for talks + your personal calendar.',
   'equipment':                          'Lab equipment — bookings, training sign-off, calendar overlays, reminders.',
   'training':                           'Self-paced training modules — RM workflows, microscopy, paper writing, cell culture.',

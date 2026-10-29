@@ -46,7 +46,9 @@ const { onMarketPostCreated, onMarketPostUpdated } = require('./task-market');
 // Phoenix), peer-accept slot swaps executed server-side, deck-posted /
 // review-decided / presenter-added notices. First consumer of the
 // `notifications.apps.meetings.push` user toggle.
-const { meetingReminders, onMeetingSwapWritten, onMeetingWritten } = require('./meetings');
+// V3.935 — one-on-ones: subscribed / reserved / moved / skipped notices, and
+// the afternoon-before reminder inside meetingReminders.
+const { meetingReminders, onMeetingSwapWritten, onMeetingWritten, onOneOnOneSlotWritten } = require('./meetings');
 
 // Per-user Gmail / Calendar OAuth + scrape (Phase 7)
 const { exchangeOAuthCode } = require('./oauth');
@@ -179,6 +181,7 @@ module.exports = {
   meetingReminders,
   onMeetingSwapWritten,
   onMeetingWritten,
+  onOneOnOneSlotWritten,
   exchangeOAuthCode,
   scrapeGmailForAllUsers,
   scrapeCalendarForAllUsers,
