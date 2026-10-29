@@ -3,8 +3,9 @@
    Everything (projects, notes, terms, reviews, the library) is loaded and
    saved in real time from this one file.
    ========================================================================== */
-/* the lab layer's pills (rm/scientia/lab-mode.js, loaded after this script): a Quick cast / tools / zoom fan left
-   untouched for 3 s rolls into its bar (the lab's default is 10 s) — set through its LAB.pills, the file unchanged */
+/* the lab layer's pills (rm/scientia/lab-mode.js, loaded after this script): a Quick cast / tools / zoom fan — and
+   since V3.941 the ✎ pan · pen fan — left untouched for 3 s rolls into its bar (the lab's default is 10 s), set through
+   its LAB.pills */
 const PILL_DOCK_MS = 3000;
 const pillDock = () => { const p = window.SIS_LAB && SIS_LAB.pills; if (p) p.dockMs = PILL_DOCK_MS; };
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', pillDock); else pillDock();
@@ -35,7 +36,6 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
     if (!App.panes().length || $('.ovl') || (e.target.closest && e.target.closest('input,textarea,select,[contenteditable="true"]'))) return;
     const k = (e.key || '').toLowerCase(), mod = e.ctrlKey || e.metaKey;
     if (mod && k === '0') { e.preventDefault(); DocView_.paper.fit(DocView_.bbox()); }
-    else if (!mod && k === 'i') { DocView_.inspOpen = !DocView_.inspOpen; _ls.set('insp', DocView_.inspOpen); DocView_.renderInsp(); DocView_.renderDock(M.doc(DocView_.docId)); }
     else if (!mod && (k === 'delete' || k === 'backspace') && DocView_.sel) { const b = M.block(DocView_.sel); if (b && b.kind === 'ref') M.removeRef(b); else if (b && !M.removeEmptyBlock(b)) EDIT.confirmBlock(b); }
     else if (!mod && k === 'enter' && DocView_.sel) { e.preventDefault(); const ed = $(`.box[data-id="${DocView_.sel}"] .ed`); if (ed && ed.contentEditable === 'true') { ed.focus(); ED.setCaret(ed, ED.read(ed, []).text.length); } }
     else if (!mod && k === 'n') { e.preventDefault(); const P = DocView_.paper, r = P.rect(), p = P.toWorld(r.left + r.width / 2, r.top + r.height / 2); DocView_.newAt(p.x - 180, p.y - 40); }

@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (41 changes — ready to push)
+## Pending (42 changes — ready to push)
 
+- V3.941 — Scientia: the pen in your notes now writes like the whiteboard (smooth, round-ended lines that ease with pressure), and the whiteboard in an image panel has your notebook's pen — its colours, widths, fill, pressure, the back of the Slim Pen, and two- and three-finger taps for undo and redo. A palm on the glass no longer zooms, pans or undoes. The ＋ Quick cast takes the bottom bar's place (with Pull in and Flag), ✎ unfolds too, pills stand up against a side and lie flat against the top or bottom, and your pill layout follows you to every note and computer. ⋯ More sits beside the note's title; the provenance panel is gone (the Terms maps keep it).
 - V3.940 — One-on-ones: Alex and mentors can offer a time as **unique** — you sign up for just that week, and can ask to make it every week (it becomes every week once they approve). If you take two slots in a row, they show as one longer meeting — on the calendar, in your reminder and in your calendar file.
 - V3.939 — Signing in with your arizona.edu address now says so: the account menu shows the address you used and "Same account as …" your other one. The capture extension accepts either address too and files what you capture in the same account (re-download the extension from the Library page).
 - V3.938 — Lab Meetings has a new **One-on-ones** tab: a calendar where Alex (or your mentor) offers recurring meeting times and you subscribe to one — the same time every week (or every other week) until the semester ends. Tap a dashed slot to take it, add it to your own calendar with one click, mark a week you can't make, and get a reminder the afternoon before. Mentors and the PI can offer several back-to-back times at once and reserve one for a particular student.

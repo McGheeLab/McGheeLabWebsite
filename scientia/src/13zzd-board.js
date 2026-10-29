@@ -15,6 +15,10 @@
    not undo steps (the board has its own undo). Files it makes (images, a
    recording's minutes) are the note's media.
    V3.936 boards kept in the lab (cell.board.lab) still open there.
+   V3.941 — the notebook's pen on the board: the notes' own ink bar (INK.bar
+   on a pane of its own: palettes, widths, eraser, fill, pressure, ↶ ↷) under
+   the whiteboard window's title; every change reaches the board, and
+   board/pen.js asks the pen here for a width, a tool, a new colour.
    ========================================================================== */
 const BOARD = {
   ME: 'me', ROW: 450000,
@@ -83,8 +87,32 @@ const BOARD = {
       const rec = await MEDIA.add(new File([buf], name, { type: type || 'application/octet-stream' }), { quiet: true, extra: { board: id } });
       return { id: rec.id, url: MEDIA.url(rec) };
     },
+    /** V3.941 — what board/pen.js asks of the notebook's pen (its ✎ fan's width, eraser, add-a-colour; ◧'s paint) */
+    pen: {
+      ink: () => INK,   // the app's top-level consts are not on window
+      tool: t => INK.setTool(t),
+      width(k) { INK.width = clamp(k, 0, INK.WIDTHS.length - 1); _ls.set('inkWidth', INK.width); if (INK.tool === 'pen' || INK.tool === 'hl') INK.paintBars(); else INK.setTool(INK.lastDraw === 'hl' ? 'hl' : 'pen'); },
+      add(k, x, y) { const f = BOARD.pen.frame, r = f ? f.getBoundingClientRect() : { left: 0, top: 0 }; FILL.editor(k, null, r.left + x, r.top + y); },
+      paint: () => FILL.paint(),
+      toast: m => toast(m),
+    },
   },
   _last: new Map(),
+  /** V3.941 — the whiteboard window's ink bar: the notes' own, minus what the board does its own way (the lasso — it has
+      cards and its own selection —, the ink library, the mouse switch: the mouse draws there, hiding the bar) */
+  pen: { pane: null, frame: null },
+  paintPen() {
+    const P = BOARD.pen; if (!P.pane || !P.pane.host.isConnected) return;
+    const was = INK.shown; INK.shown = true; try { INK.bar(P.pane); } finally { INK.shown = was; }
+    const el = $(':scope > .ink-bar', P.pane.host);
+    if (el) {
+      $$('.ib-t', el).forEach(b => { if (/^(Lasso|Draw with the mouse|Hide the ink bar)/.test(b.title)) b.remove(); });
+      $$('.ink-libb', el).forEach(b => b.remove());
+      $$('.ink-ur', el).forEach((b, k) => b.replaceWith(h('button.ib-t.ink-ur', { title: k ? 'Redo (three-finger tap)' : 'Undo (two-finger tap)', on: { click: () => BOARD.penDo(k ? 'redo' : 'undo') } }, k ? '↷' : '↶')));
+    }
+    BOARD.penDo('sync');
+  },
+  penDo(what) { try { const w = BOARD.pen.frame && BOARD.pen.frame.contentWindow; if (w && w.SIS_PEN) w.SIS_PEN[what](); } catch { } },
   /** The board filling the window. */
   open(b, i) {
     const c = b && FIG.cells(b)[i], bd = c && c.board; if (!bd || !(bd.id || bd.lab)) return;
@@ -92,16 +120,21 @@ const BOARD = {
     let sure = false;
     const drop = h('button.btn.sm.ghost', { title: 'An empty image again', on: { click: () => { if (!sure) { sure = true; drop.textContent = 'Remove — sure?'; setTimeout(() => { sure = false; drop.textContent = 'Remove whiteboard'; }, 3000); return; } close(); BOARD.remove(b, i); } } }, 'Remove whiteboard');
     const fr = h('iframe.wb-full', { src: BOARD.src(bd), allow: 'microphone; fullscreen', title: bd.title || 'Whiteboard' });
+    const inkRow = bd.lab ? null : h('div.wb-inkrow.nopan');   // V3.941 — the notebook's pen
     const ov = h('div.embed-max.wb-max', h('div.em-bar', h('b', bd.title || 'Whiteboard'), h('span.tiny.muted', bd.lab ? 'The lab’s whiteboard' : 'Whiteboard'), h('span.spacer'),
-        bd.lab ? h('a.btn.sm', { href: BOARD.lab.url(bd), target: '_blank', rel: 'noopener' }, 'Open in a new tab ↗') : null, drop, h('button.btn.sm.pri', { on: { click: () => close() } }, 'Done')), fr);
+        bd.lab ? h('a.btn.sm', { href: BOARD.lab.url(bd), target: '_blank', rel: 'noopener' }, 'Open in a new tab ↗') : null, drop, h('button.btn.sm.pri', { on: { click: () => close() } }, 'Done')), inkRow, fr);
     const key = e => { if (e.key === 'Escape' && !$('.ovl')) { e.stopPropagation(); close(); } };
     const close = () => {
       try { fr.contentWindow && fr.contentWindow.SIS_BOARD_FLUSH && fr.contentWindow.SIS_BOARD_FLUSH(); } catch { }
+      if (BOARD.pen.frame === fr) { BOARD.pen.pane = null; BOARD.pen.frame = null; }
       ov.remove(); document.removeEventListener('keydown', key, true);
       $$('iframe.wb-frame').forEach(f => { if (f.dataset.board === (bd.id || bd.lab)) f.src = BOARD.src(bd, true); });
     };
     document.body.append(ov); document.addEventListener('keydown', key, true);
+    if (inkRow) { if (INK.tool === 'lasso') INK.tool = 'pen'; BOARD.pen.pane = { host: inkRow, sel: null }; BOARD.pen.frame = fr; BOARD.paintPen(); }
     return ov;
   },
 };
 window.SIS_BOARDS = BOARD.host;
+// V3.941 — a change of pen anywhere (a colour, a width, a tool, pressure) reaches the open whiteboard
+{ const pb = INK.paintBars; INK.paintBars = function () { const r = pb.apply(this, arguments); if (BOARD.pen.pane) BOARD.paintPen(); return r; }; }

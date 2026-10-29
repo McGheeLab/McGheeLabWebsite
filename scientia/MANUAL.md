@@ -116,6 +116,9 @@ Every note is an infinite sheet of graph paper.
 
 A note has a **header box** (title, type, profile fields, tags, ✎ for note details), its **components**, and a **synthesis box**. The synthesis box is your summary; it saves as you type.
 
+- **⋯ beside the note's title** (top of the window) is the note's menu: note details, **Log time…**, time entries, tidy layout, **citations** (Title · Author–year · [1]), time travel, export, delete…
+- **The pills:** ＋ **Quick cast** at the bottom (where a bar used to be — Pull in…, Flag and the inserts you chose), ⊕ zoom, ✦ tools, ✎ pan · pen · highlighter · lasso. Drag a pill anywhere. Left open 3 s, a pill unfolds into a row or column and stays; against the left or right edge it stands as a column, against the top or bottom it lies as a row. Your layout is kept with your notebook: the same in every note, every session, every computer.
+
 ### Components
 - **Select:** click. Then click again, or press Enter, to type.
 - **Move:** drag by the header. Boxes snap to 14 px and never overlap.
@@ -125,7 +128,7 @@ A note has a **header box** (title, type, profile fields, tags, ✎ for note det
 - **⋯ menu:** edit, label as a structure, Data, materials & code…, Move to another note…, Delete component…
 - **Delete:** select the component and press **Delete**, or use ⋯ → Delete component…. The confirmation lists what goes with it.
 - **Undo:** **Ctrl+Z** outside a text box undoes deletions and other changes.
-- **Tidy layout** (bottom bar ⋯) repacks boxes after big changes.
+- **Tidy layout** (⋯ beside the title) repacks boxes after big changes.
 
 ### Editing the note itself
 - **Note details** (✎ on the header box, or ⋯ → Note details…): title, type, project, theme, date. Changing the date moves every component's stamp with it, unless you untick that option.
@@ -301,7 +304,7 @@ A protocol is one box, with its steps on a rail.
 
 ## 10. + Insert: everything that can go in a note
 
-Open it with **+ Insert** in the bottom bar, or right-click the paper → **Insert…**, which places the item at that spot.
+Open it with the ＋ **Quick cast** → **⋯** (everything that can go in this note), or right-click the paper → **Insert…**, which places the item at that spot. The bolt on a row puts it in your Quick cast.
 
 | Insert | What you get |
 |---|---|
@@ -397,7 +400,7 @@ Open it with **+ Insert** in the bottom bar, or right-click the paper → **Inse
 
 ### Time entries
 - **⋯ → Time entries…** edits a note's sessions: start, end, duration and day. You can also delete an entry.
-- **+ Time** adds manual time. Any component can carry a manual duration.
+- **⋯ (beside the note's title) → Log time…** adds manual time. Any component can carry a manual duration.
 - The app also handles:
   - open entries;
   - a 4 h cap, with recovery;
@@ -506,8 +509,8 @@ Your raw files stay where they are.
 
 ### Provenance
 - ⋯ → **Data, materials & code…** binds a component to datasets, materials, upstream components ("made from") and a code version.
-- **ⓘ** shows the chain: figure ← analysis ← dataset ← experiment step, with materials at each step.
-- ⋯ → **Export provenance…** writes the chain as read-only HTML.
+- ⋯ → **Export provenance…** writes the chain (figure ← analysis ← dataset ← experiment step, with materials at each step) as read-only HTML.
+- The **Terms** maps show what the wiring says about a term. (Notes no longer have a provenance panel.)
 
 ---
 
@@ -540,9 +543,11 @@ A view is a saved query that updates as your notes change.
 - **Tap** selects a component; tap its text to type. **Press and hold** (½ s) to drag a component.
 - **Two-finger tap = undo; three-finger tap = redo.**
   - On Windows, first switch off Settings → Bluetooth & devices → Touch → "Three- and four-finger touch gestures".
+- **Not your palm:** two or three fingers count (pinch, the taps) only when they are a clear gap apart, about 1.5 cm. A palm — a wide contact, contacts close together, or a hand on the glass while the pen is near or just lifted — pans, zooms, undoes nothing, and a pen coming near stops a finger pan. (Add `#touchlog` to the address to see each contact's size and the gaps.)
 
 ### The pen and the ink bar
-- **The pen writes ink.** Strokes written close together gather into one **ink component**. It moves, connects, takes timers and labels like any component.
+- **The pen writes ink** the way the lab's whiteboard does: a smooth line through every point, its width easing with pressure, round ends. Strokes written close together gather into one **ink component**. It moves, connects, takes timers and labels like any component.
+- **On a whiteboard** (an image panel's ✎ Whiteboard) the pen is the same pen: the ink bar sits under the whiteboard's title, and its colours, widths, ◧ fill, pressure, ↶ ↷, the back of the pen (it erases whole strokes there) and two- and three-finger taps all work on the board. Shapes, the lasso and the ink library stay in notes; the board has its own cards and pan · zoom.
 - **In a component's text,** the iPad's Scribble turns handwriting straight into typed text.
 - **Your palm is ignored** while the pen writes.
 - **The ink bar** (top left; **✎ Pen** turns it on):

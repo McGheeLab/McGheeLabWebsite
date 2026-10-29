@@ -1157,11 +1157,21 @@
      V3.897 (Alex): the Quick cast is built INTO the bottom bar — a slot in the middle of Gabe's dock (re-added after
      every renderDock) with the pill drawn over it (the dock scrolls sideways, so the fan cannot live inside it); left
      open it docks as a row above the bar. ✦ replaces Gabe's top-right row (Split, Timer + head start, Calculator,
-     Equation — Pen is ✎'s cog), which is hidden; ✦ takes that corner. */
+     Equation — Pen is ✎'s cog), which is hidden; ✦ takes that corner.
+     V3.941 (Gabe, CodeLog/ClaudesPlan/V3.941_scientia_one_pen_pills.md; reviewed by Alex): the Quick cast REPLACES the
+     bottom bar — Gabe's dock is hidden in a note with pills (a read-only note keeps its "Back to now"), ＋ sits in its
+     place at the bottom centre and drags anywhere; Pull in… and Flag are its first two entries. ✎ docks too, like the
+     others (LP.dockMs — 3 s in Scientia, 99-boot). A docked row turns with its place: a pill dropped against the left or
+     right edge docks as a column, against the top or bottom as a row (LP.orient; ＋ ✦ rows, ⊕ ✎ columns at first). The
+     layout — places, docked, orientation, the Quick cast's list — is the person's own, kept in the notebook's settings
+     (settings().labPills, synced): saved on every change, read on every paint, the same in every note, session and
+     computer (the per-device keys before it are read once). The zoom hand's tap is not the palm's (13zf PALM). */
   var PILL_ICONS = {"magnifying-glass": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z\"/>", "hand": "<path d=\"M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2\" /><path d=\"M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2\" /><path d=\"M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8\" /><path d=\"M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15\" />", "pencil": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125\"/>", "highlighter": "<path d=\"m9 11-6 6v3h9l3-3\" /><path d=\"m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4\" />", "plus": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 4.5v15m7.5-7.5h-15\"/>", "minus": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5 12h14\"/>", "home": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25\"/>", "arrow-uturn-left": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3\"/>", "arrow-uturn-right": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m15 15 6-6m0 0-6-6m6 6H9a6 6 0 0 0 0 12h3\"/>", "x-mark": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M6 18 18 6M6 6l12 12\"/>", "calculator": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm2.498-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5v2.25h-7.5V6ZM12 2.25c-1.892 0-3.758.11-5.593.322C5.307 2.7 4.5 3.65 4.5 4.757V19.5a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25V4.757c0-1.108-.806-2.057-1.907-2.185A48.507 48.507 0 0 0 12 2.25Z\"/>", "clock": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z\"/>", "arrows-pointing-out": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15\"/>", "squares-plus": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 0 0 2.25-2.25V6a2.25 2.25 0 0 0-2.25-2.25H6A2.25 2.25 0 0 0 3.75 6v2.25A2.25 2.25 0 0 0 6 10.5Zm0 9.75h2.25A2.25 2.25 0 0 0 10.5 18v-2.25a2.25 2.25 0 0 0-2.25-2.25H6a2.25 2.25 0 0 0-2.25 2.25V18A2.25 2.25 0 0 0 6 20.25Zm9.75-9.75H18a2.25 2.25 0 0 0 2.25-2.25V6A2.25 2.25 0 0 0 18 3.75h-2.25A2.25 2.25 0 0 0 13.5 6v2.25a2.25 2.25 0 0 0 2.25 2.25Z\"/>", "sparkles": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z\"/>", "pause": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15.75 5.25v13.5m-7.5-13.5v13.5\"/>", "play": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z\"/>", "eye": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z\"/><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z\"/>", "variable": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M4.745 3A23.933 23.933 0 0 0 3 12c0 3.183.62 6.22 1.745 9M19.5 3c.967 2.78 1.5 5.817 1.5 9s-.533 6.22-1.5 9M8.25 8.885l1.444-.89a.75.75 0 0 1 1.105.402l2.402 7.206a.75.75 0 0 0 1.104.401l1.445-.889m-8.25.75.213.09a1.687 1.687 0 0 0 2.062-.617l4.45-6.676a1.688 1.688 0 0 1 2.062-.618l.213.09\"/>", "bolt": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z\"/>", "cog": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z\"/><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z\"/>", "split": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M3.75 5.25h16.5v13.5H3.75zM12 5.25v13.5\"/>", "lasso": "<ellipse cx=\"12\" cy=\"10\" rx=\"8\" ry=\"5.5\" stroke-dasharray=\"2.6 2.4\"/><path stroke-linecap=\"round\" d=\"M9.5 15.2c-.6 1.8-.2 3.6 1.4 4.8\"/>"};
   /* V3.898 — every row of + Insert its own icon: Gabe's glyphs repeat (◍ ◍, ⤓ ⤓ ⤓, ∑ ∑, ▤ ▤ ▤, ▦ ▦, ▶ ▶). Used in his list,
      the Quick cast and the wire-drop menu; a row not named here keeps his glyph */
   Object.assign(PILL_ICONS, {"construction": "<path d=\"M3.75 7.5h16.5v5.25H3.75z\"/><path d=\"M6 12.75v7.5\"/><path d=\"M18 12.75v7.5\"/><path d=\"M8.25 7.5l-3 5.25\"/><path d=\"M13.5 7.5l-3 5.25\"/><path d=\"M18.75 7.5l-3 5.25\"/>", "books": "<path d=\"M3.75 20.25h16.5\"/><path d=\"M6.75 20.25V7.5a1.5 1.5 0 0 1 1.5-1.5h1.5a1.5 1.5 0 0 1 1.5 1.5v12.75\"/><path d=\"M6.75 9.75h4.5\"/><path d=\"M14.03 20.25 16.6 8.4a1.5 1.5 0 0 0-1.15-1.78l-1.1-.24\"/><path d=\"M13.2 10.2l3.6.78\"/>", "flask-conical": "<path d=\"M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2\"/><path d=\"M6.453 15h11.094\"/><path d=\"M8.5 2h7\"/>", "squares-2x2": "<path d=\"M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z\"/>", "square-2-stack": "<path d=\"M16.5 8.25V6a2.25 2.25 0 0 0-2.25-2.25H6A2.25 2.25 0 0 0 3.75 6v8.25A2.25 2.25 0 0 0 6 16.5h2.25m8.25-8.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-7.5A2.25 2.25 0 0 1 8.25 18v-1.5m8.25-8.25h-6a2.25 2.25 0 0 0-2.25 2.25v6\"/>", "clipboard-document-list": "<path d=\"M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z\"/>", "play-circle": "<path d=\"M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z\"/><path d=\"M15.91 11.672a.375.375 0 0 1 0 .656l-5.603 3.113a.375.375 0 0 1-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112Z\"/>", "pencil-square": "<path d=\"m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10\"/>", "puzzle-piece": "<path d=\"M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 0 1-.657.643 48.39 48.39 0 0 1-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 0 1-.658.663v0c-.355 0-.676-.186-.959-.401a1.647 1.647 0 0 0-1.003-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401v0c.31 0 .555.26.532.57a48.039 48.039 0 0 1-.642 5.056c1.518.19 3.058.309 4.616.354a.64.64 0 0 0 .657-.643v0c0-.355-.186-.676-.401-.959a1.647 1.647 0 0 1-.349-1.003c0-1.035 1.008-1.875 2.25-1.875 1.243 0 2.25.84 2.25 1.875 0 .369-.128.713-.349 1.003-.215.283-.4.604-.4.959v0c0 .333.277.599.61.58a48.1 48.1 0 0 0 5.427-.63 48.05 48.05 0 0 0 .582-4.717.532.532 0 0 0-.533-.57v0c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.37 0 .713.128 1.003.349.283.215.604.401.96.401v0a.656.656 0 0 0 .658-.663 48.422 48.422 0 0 0-.37-5.36c-1.886.342-3.81.574-5.766.689a.578.578 0 0 1-.61-.58v0Z\"/>", "arrow-down-on-square": "<path d=\"M9 8.25H7.5a2.25 2.25 0 0 0-2.25 2.25v9a2.25 2.25 0 0 0 2.25 2.25h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25H15M9 12l3 3m0 0 3-3m-3 3V2.25\"/>", "book-open": "<path d=\"M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25\"/>", "code-bracket-square": "<path d=\"M14.25 9.75 16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z\"/>", "table-cells": "<path d=\"M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M13.125 12h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125M20.625 12c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5M12 14.625v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 14.625c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 1.5v-1.5m0 0c0-.621.504-1.125 1.125-1.125m0 0h7.5\"/>", "paper-airplane": "<path d=\"M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5\"/>", "bell": "<path d=\"M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0\"/>", "beaker": "<path d=\"M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0 1 12 15a9.065 9.065 0 0 0-6.23-.693L5 14.5m14.8.8 1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0 1 12 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5\"/>", "photo": "<path d=\"m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z\"/>", "link": "<path d=\"M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244\"/>", "presentation-chart-bar": "<path d=\"M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6\"/>", "document-text": "<path d=\"M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z\"/>", "microphone": "<path d=\"M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z\"/>", "check-circle": "<path d=\"M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z\"/>", "clipboard-document-check": "<path d=\"M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0 1 18 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3 1.5 1.5 3-3.75\"/>", "cube": "<path d=\"m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9\"/>", "rectangle-stack": "<path d=\"M6 6.878V6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 6v.878m-12 0c.235-.083.487-.128.75-.128h10.5c.263 0 .515.045.75.128m-12 0A2.25 2.25 0 0 0 4.5 9v.878m13.5-3A2.25 2.25 0 0 1 19.5 9v.878m0 0a2.246 2.246 0 0 0-.75-.128H5.25c-.263 0-.515.045-.75.128m15 0A2.25 2.25 0 0 1 21 12v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6c0-.98.626-1.813 1.5-2.122\"/>", "ellipsis-horizontal": "<path d=\"M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z\"/>", "arrows-right-left": "<path d=\"M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5\"/>", "bars-3-bottom-left": "<path d=\"M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12\"/>"});
+  /* V3.941 — the Quick cast's Flag (the bottom bar's ⚐) */
+  PILL_ICONS.flag = "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5\"/>";
   /* V3.926 — icons for the desktop's new + Insert rows: tables, plots of a table, saved ink (Heroicons v2 / Lucide, monochrome) */
   Object.assign(PILL_ICONS, {"chart-bar": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z\"/>", "table": "<path d=\"M12 3v18\"/><rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/>", "table-2": "<path d=\"M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18\"/>", "star": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z\"/>"});
   var INS_PICS = { plate: 'squares-2x2', 'plate-carry': 'square-2-stack', protocol: 'clipboard-document-list', run: 'play-circle', component: 'pencil-square',
@@ -1174,13 +1184,28 @@
   function pic(name) { var p = PILL_ICONS[name]; return p ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + p + '</svg>' : ''; }
   function picEl(name) { var s = h('span.lab-pic'); s.innerHTML = pic(name); return s; }
   var QC_DEFAULT = ['component', 'rmpaper', 'material', 'rmprotocol', 'run', 'plate', 'task', 'rmaction', 'rmcollection'];
-  var LP = { open: null, zoom: false, last: null, seen: null, pos: _ls.get('lab:pills2', {}) || {}, tap: null, suppress: 0,
-    docked: _ls.get('lab:docked', {}) || {}, dockT: null, dockMs: 10000, rolling: null, qc: _ls.get('lab:quickcast', null) || QC_DEFAULT.slice() };
+  var LP = { open: null, zoom: false, last: null, seen: null, pos: {}, tap: null, suppress: 0, docked: {}, orient: {}, dockT: null, dockMs: 10000, rolling: null, qc: QC_DEFAULT.slice(), saved: '' };
   LAB.pills = LP;
-  var PILLS = { hand: { icon: '✎', label: 'Zoom · move · pen · highlighter · lasso · pen settings (double-tap: the last mode)', side: 'right', vert: 'up' },
-    insert: { icon: '＋', label: 'Quick cast — what you add most (choose them in + Insert)', side: 'center', vert: 'up', dock: 'a row above the bottom bar' },
-    tools: { icon: '✦', label: 'Tools', side: 'right', vert: 'down', dock: 'a row at the top right' },
-    view: { icon: '⊕', label: 'Zoom', side: 'left', vert: 'down', dock: 'a column down the left' } };
+  /* V3.941 — the layout is the person's, everywhere: the notebook's settings (labPills), read on every paint (another
+     computer's change arrives with the sync), saved on every change; the per-device keys of V3.882–V3.896 read once */
+  function layoutLoad() {
+    var s = null; try { s = settings().labPills; } catch (e) {}
+    if (!s || typeof s !== 'object') s = { pos: _ls.get('lab:pills2', {}) || {}, docked: _ls.get('lab:docked', {}) || {}, orient: {}, qc: _ls.get('lab:quickcast', null) || QC_DEFAULT };
+    var key = JSON.stringify(s); if (key === LP.saved) return; LP.saved = key;
+    LP.pos = Object.assign({}, s.pos || {}); LP.docked = Object.assign({}, s.docked || {}); LP.orient = Object.assign({}, s.orient || {}); LP.qc = Array.isArray(s.qc) ? s.qc.slice() : QC_DEFAULT.slice();
+  }
+  function layoutSave() {
+    LP.saved = JSON.stringify({ pos: LP.pos, docked: LP.docked, orient: LP.orient, qc: LP.qc });
+    try { saveSettings({ labPills: JSON.parse(LP.saved) }); } catch (e) { warn('pills layout', e); }
+  }
+  layoutLoad();
+  LAB.pillLayout = { load: layoutLoad, save: layoutSave };
+  /* at: where a pill sits until it is moved (its centre in the host, w × h); orient: its docked form until it is dropped
+     against an edge ('h' a row, 'v' a column) */
+  var PILLS = { hand: { icon: '✎', label: 'Zoom · move · pen · highlighter · lasso · pen settings (double-tap: the last mode)', side: 'right', vert: 'up', dock: true, orient: 'v', at: function (w, h) { return [w - 36, h - 38]; } },
+    insert: { icon: '＋', label: 'Quick cast — what you add most (choose them in + Insert), Pull in and Flag', side: 'center', vert: 'up', dock: true, orient: 'h', at: function (w, h) { return [w / 2, h - 38]; } },
+    tools: { icon: '✦', label: 'Tools', side: 'right', vert: 'down', dock: true, orient: 'h', at: function (w) { return [w - 36, 36]; } },
+    view: { icon: '⊕', label: 'Zoom', side: 'left', vert: 'down', dock: true, orient: 'v', at: function () { return [36, 36]; } } };
   var HAND_NAMES = { zoom: 'Zoom', move: 'Move', pen: 'Pen', hl: 'Highlighter', lasso: 'Lasso', eraser: 'Eraser' };
   var FAN_RINGS = [[5, 84], [7, 140], [9, 196]];
   function fanPos(i, n, side, vert) {
@@ -1190,36 +1215,40 @@
     var a0 = side === 'center' ? (vert === 'up' ? 22 : 202) : side === 'left' ? (vert === 'up' ? 4 : 274) : (vert === 'up' ? 94 : 184), a1 = a0 + (side === 'center' ? 136 : 82), a = cnt === 1 ? (a0 + a1) / 2 : a0 + (a1 - a0) * k / (cnt - 1), t = a * Math.PI / 180;
     return { x: Math.round(Math.cos(t) * r), y: Math.round(-Math.sin(t) * r) };
   }
-  /* V3.896 — the docked form: the Quick cast splits left and right of its pill (more rows above when the screen is
-     narrow), the tools run in a row away from the nearest edge, zoom runs in a column below (or above) its pill */
+  /* V3.896 — the docked form. V3.941 — it runs along the pill's orientation, away from the nearest edges: 'h' a row
+     from the pill toward the open side (the Quick cast near the middle splits left and right), more rows away from the
+     nearer of top and bottom; 'v' a column down from a pill in the upper part (up from one lower down), more columns
+     away from the nearer side. (cx, cy): the pill's centre in the host, bw × bh the host */
   var DOCK_GAP = 46;
-  function rowPos(name, i, n, side, vert, bw, inBar) {
-    if (name === 'insert' && inBar) {   // V3.897 — a row above the bar, centred on the pill
-      var per2 = Math.max(3, Math.floor((bw - 40) / DOCK_GAP)), r2 = Math.floor(i / per2), k2 = i % per2, in2 = Math.min(per2, n - r2 * per2);
-      return { x: Math.round((k2 - (in2 - 1) / 2) * DOCK_GAP), y: -(52 + r2 * DOCK_GAP) };
+  function rowPos(name, i, n, side, vert, bw, bh, o, cx, cy) {
+    var sy = vert === 'down' ? 1 : -1, sx = side === 'left' ? 1 : -1, per, r, k;
+    if (o === 'v') {
+      per = Math.max(2, Math.floor(((sy > 0 ? bh - cy : cy) - 34) / DOCK_GAP)); r = Math.floor(i / per); k = i % per;
+      return { x: (side === 'center' ? 1 : sx) * r * DOCK_GAP, y: sy * ((k + 1) * DOCK_GAP + (name === 'view' && sy > 0 ? 14 : 0)) };   // below the % under ⊕
     }
-    if (name === 'insert') {
-      var per = Math.max(2, Math.floor((bw / 2 - 34) / DOCK_GAP)), row = Math.floor(i / (2 * per)), k = i % (2 * per), inRow = Math.min(2 * per, n - row * 2 * per), L = Math.ceil(inRow / 2);
-      return { x: k < L ? -(L - k) * DOCK_GAP : (k - L + 1) * DOCK_GAP, y: -row * DOCK_GAP };
+    if (side === 'center') {
+      per = Math.max(2, Math.floor((Math.min(cx, bw - cx) - 34) / DOCK_GAP)); r = Math.floor(i / (2 * per)); k = i % (2 * per);
+      var inRow = Math.min(2 * per, n - r * 2 * per), L = Math.ceil(inRow / 2);
+      return { x: k < L ? -(L - k) * DOCK_GAP : (k - L + 1) * DOCK_GAP, y: sy * r * DOCK_GAP };
     }
-    if (name === 'view') return { x: 0, y: vert === 'up' ? -(i + 1) * DOCK_GAP : (i + 1) * DOCK_GAP + 14 };   // below the % under the pill
-    return { x: (side === 'left' ? 1 : -1) * (i + 1) * DOCK_GAP, y: 0 };
+    per = Math.max(2, Math.floor(((sx > 0 ? bw - cx : cx) - 34) / DOCK_GAP)); r = Math.floor(i / per); k = i % per;
+    return { x: sx * (k + 1) * DOCK_GAP, y: sy * r * DOCK_GAP };
   }
   function dockable(name) { return !!(PILLS[name] && PILLS[name].dock); }
-  function dock(name) { LP.docked[name] = true; _ls.set('lab:docked', LP.docked); LP.open = null; LP.rolling = name; paintAll(); }
+  function dock(name) { LP.docked[name] = true; layoutSave(); LP.open = null; LP.rolling = name; paintAll(); }
   function undock(name, pill) {
     if (pill) pill.classList.add('unrolling');
-    setTimeout(function () { LP.docked[name] = false; _ls.set('lab:docked', LP.docked); paintAll(); }, pill ? 280 : 0);
+    setTimeout(function () { LP.docked[name] = false; layoutSave(); paintAll(); }, pill ? 280 : 0);
   }
   LAB.dockPill = dock; LAB.undockPill = function (name) { undock(name, null); };
-  /* the Quick cast: the inserts the person chose (_ls lab:quickcast, ids of INSERTS), in Gabe's order */
+  /* the Quick cast: the inserts the person chose (LP.qc, ids of INSERTS — V3.941 in settings().labPills), in Gabe's order */
   function qcRows(d) {
     var on = {}; (LP.qc || []).forEach(function (id) { on[id] = 1; });
     return INSERTS.filter(function (x) { return on[x.id] && (!x.when || x.when(d)); });
   }
   function qcToggle(id) {
     var i = LP.qc.indexOf(id); if (i >= 0) LP.qc.splice(i, 1); else LP.qc.push(id);
-    _ls.set('lab:quickcast', LP.qc); paintAll(); return i < 0;
+    layoutSave(); paintAll(); return i < 0;
   }
   LAB.quickCast = { list: function () { return LP.qc.slice(); }, toggle: qcToggle };
   // V3.896 — colours added with the old pill (lab:inkColors) move once into Gabe's own pen palette (13zv, inkPalette)
@@ -1255,6 +1284,11 @@
       items.push({ icon: pic('cog'), label: INK.shown ? 'Pen settings — hide the bar at the top left' : 'Pen settings — colours, widths, eraser, pressure (a bar at the top left; it stays open)', sel: INK.shown, keep: true,
         run: function () { INK.shown = !INK.shown; _ls.set('inkBar', INK.shown); INK.paintBars(); $$('.ctools .ct-ink').forEach(function (x) { x.classList.toggle('on', INK.shown); }); paintAll(); } });
     } else if (name === 'insert') {
+      /* V3.941 — the Quick cast took the bottom bar's place: its Pull in and Flag come first */
+      items.push({ icon: pic('arrow-down-on-square'), label: 'Pull in — an unresolved barrier, a structure or a component from another note', run: function () { pane.pullMenu(d); } });
+      var flagged = M.flagFor('doc', d.id);
+      items.push({ icon: pic('flag'), label: flagged ? 'Flagged for the weekly review — tap to clear it' : 'Flag this note for the weekly review', sel: !!flagged,
+        run: function () { Promise.resolve(M.toggleFlag('doc', d.id)).then(paintAll, paintAll); } });
       qcRows(d).forEach(function (x) { var lab = typeof x.label === 'function' ? x.label(d) : x.label;
         items.push({ icon: INS_PICS[x.id] && PILL_ICONS[INS_PICS[x.id]] ? pic(INS_PICS[x.id]) : '<span class="lab-insic">' + esc(x.icon || '•') + '</span>', label: lab + (x.sub ? ' — ' + x.sub : ''), run: function () { x.run(d, centerAt(pane), pane); } }); });
       items.push({ icon: pic('ellipsis-horizontal'), label: 'Everything that can go in this note — the bolt on a row puts it in your Quick cast', run: function (el) { INSERT.menu(pane, el); } });
@@ -1267,8 +1301,8 @@
       items.push({ icon: pic('variable'), label: 'An equation — new, or a registered one', run: function (el) { var r = el.getBoundingClientRect(); EQ.newMenu(pane, { clientX: r.left, clientY: r.top, currentTarget: el, target: el, preventDefault: function () {}, stopPropagation: function () {} }); } });
       if (typeof SPLITBTN !== 'undefined') items.push({ icon: pic('split'), label: 'Split — side by side, or a quadrant', run: function (el) { var r = el.getBoundingClientRect(); SPLITBTN.menu(pane, { clientX: r.left, clientY: r.bottom, currentTarget: el, target: el, preventDefault: function () {}, stopPropagation: function () {} }); } });
       items.push({ icon: pic('arrows-pointing-out'), label: document.fullscreenElement ? 'Leave focus mode' : 'Focus mode — full screen', run: function () { App.toggleFocus(); } });
-      if (Object.keys(LP.pos).length || Object.keys(LP.docked).some(function (k) { return LP.docked[k]; })) items.push({ icon: pic('home'), label: 'Put the pills back in their places (and fold the docked rows)',
-        run: function () { LP.pos = {}; _ls.set('lab:pills2', {}); LP.docked = {}; _ls.set('lab:docked', {}); paintAll(); } });
+      if (Object.keys(LP.pos).length || Object.keys(LP.orient).length || Object.keys(LP.docked).some(function (k) { return LP.docked[k]; })) items.push({ icon: pic('home'), label: 'Put the pills back in their places (and fold the docked rows)',
+        run: function () { LP.pos = {}; LP.docked = {}; LP.orient = {}; layoutSave(); paintAll(); } });
     } else if (name === 'view') {
       items.push({ icon: pic('plus'), label: 'Zoom in', keep: true, run: function () { zoomBy(pane, 1.25); } });
       items.push({ icon: '<b class="lab-100">1:1</b>', label: '100 %', keep: true, run: function () { zoom100(pane); } });
@@ -1293,14 +1327,15 @@
   }
   function pillEl(name, pane, host) {
     var def = PILLS[name], docked = dockable(name) && !!LP.docked[name], rolling = docked && LP.rolling === name, open = !docked && !!(LP.open && LP.open.name === name && LP.open.doc === pane.docId);
-    var slot = name === 'insert' && !LP.pos.insert ? qcSlotAt(pane) : null, inBar = !!slot, C = inBar ? 19 : 22;   // V3.897 — in the bottom bar
+    var C = 22;
     var items = open || docked ? pillItems(name, pane) : [];
-    var bw = host.clientWidth || 800, bh = host.clientHeight || 600, sz = 44, pp = LP.pos[name], side = def.side, vert = def.vert || 'up', style = null;
-    if (slot) style = { left: Math.round(slot.x - C) + 'px', top: Math.round(slot.y - C) + 'px', right: 'auto', bottom: 'auto' };
-    else if (pp && isFinite(+pp.fx) && isFinite(+pp.fy)) {
+    var bw = host.clientWidth || 800, bh = host.clientHeight || 600, sz = 44, pp = LP.pos[name], side = def.side, vert = def.vert || 'up', style = null, at = def.at(bw, bh);
+    if (pp && isFinite(+pp.fx) && isFinite(+pp.fy)) {
       var left = Math.round(Math.max(0, Math.min(bw - sz, pp.fx * bw - sz / 2))), top = Math.round(Math.max(0, Math.min(bh - sz, pp.fy * bh - sz / 2)));
-      style = { left: left + 'px', top: top + 'px', right: 'auto', bottom: 'auto' }; side = left + sz / 2 > bw / 2 ? 'right' : 'left'; vert = top + sz / 2 < Math.min(bh / 2, 240) ? 'down' : 'up';
+      style = { left: left + 'px', top: top + 'px', right: 'auto', bottom: 'auto' }; at = [left + sz / 2, top + sz / 2];
+      side = name === 'insert' && Math.abs(at[0] - bw / 2) < bw / 6 ? 'center' : at[0] > bw / 2 ? 'right' : 'left'; vert = at[1] < Math.min(bh / 2, 240) ? 'down' : 'up';
     }
+    var orient = LP.orient[name] || def.orient;   // V3.941
     var hm = handNow(), face;
     if (name === 'hand') face = pic(hm === 'zoom' ? 'magnifying-glass' : hm === 'move' ? 'hand' : hm === 'hl' ? 'highlighter' : hm === 'lasso' ? 'lasso' : 'pencil');
     else if (name === 'view') face = '<span class="lab-pill-glyph">' + def.icon + '</span>';
@@ -1310,7 +1345,7 @@
       + (name === 'view' ? '<span class="lab-pill-pct">' + Math.round((pane.paper ? pane.paper.view.z : 1) * 100) + '%</span>' : '')
       + (name === 'tools' && TIMER.activeFor(pane.docId) ? '<span class="lab-pill-live"></span>' : '');
     var cap = h('span.lab-fan-cap');
-    var rows = items.map(function (it, i) { return rowPos(name, i, items.length, side, vert, bw, inBar); });
+    var rows = items.map(function (it, i) { return rowPos(name, i, items.length, side, vert, bw, bh, orient, at[0], at[1]); });
     var fan = h('div.lab-fan', items.map(function (it, i) {
       var p = docked && !rolling ? rows[i] : fanPos(i, items.length, side, vert), st = { '--tx': p.x + 'px', '--ty': p.y + 'px', '--d': (i * (rolling ? 34 : 14)) + 'ms' };
       var el = h('button.lab-fan-item' + (it.sel ? '.sel' : '') + (it.mode ? '.mode' : ''), { type: 'button', title: it.label, 'aria-label': it.label, style: st,
@@ -1324,13 +1359,13 @@
     }), open || docked ? cap : null);
     var rail = null;
     if (docked && items.length) {   // the strip behind a docked row
-      var o = inBar ? rows[0] : { x: 0, y: 0 }, x0 = o.x, x1 = o.x, y0 = o.y, y1 = o.y;   // the pill's own spot too — unless it sits in the bar
+      var x0 = 0, x1 = 0, y0 = 0, y1 = 0;   // the pill's own spot too
       rows.forEach(function (q) { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); });
       rail = h('div.lab-dock-rail', { style: { left: (C + x0 - 25) + 'px', top: (C + y0 - 25) + 'px', width: (x1 - x0 + 50) + 'px', height: (y1 - y0 + 50) + 'px' } });
     }
-    var pill = h('div.lab-pill.lab-pill-' + name + (inBar ? '.in-bar' : '') + (open ? '.open' : '') + (docked ? '.docked.fanned' : '') + (rolling ? '.rolling' : '') + (name === 'hand' && /^(zoom|move|lasso|eraser)$/.test(hm) ? '.on' : ''),
-      { 'data-pill': name, 'data-side': side, 'data-vert': vert, style: style || {}, title: docked ? '' : null }, rail, b, fan);
-    if (docked) b.setAttribute('title', def.label + ' — docked as ' + def.dock + '; tap to fold it back into the wheel (drag to move)');
+    var pill = h('div.lab-pill.lab-pill-' + name + (open ? '.open' : '') + (docked ? '.docked.fanned' : '') + (rolling ? '.rolling' : '') + (name === 'hand' && /^(zoom|move|lasso|eraser)$/.test(hm) ? '.on' : ''),
+      { 'data-pill': name, 'data-side': side, 'data-vert': vert, 'data-orient': orient, style: style || {}, title: docked ? '' : null }, rail, b, fan);
+    if (docked) b.setAttribute('title', def.label + ' — docked as a ' + (orient === 'v' ? 'column' : 'row') + ' (against a side it stands, against the top or bottom it lies); tap to fold it back into the wheel (drag to move)');
     bindPill(pill, b, name, pane, host);
     if (open) requestAnimationFrame(function () { pill.classList.add('fanned'); });
     if (rolling) {   // the fan rolls into its row: the items travel from their fan places to the strip's
@@ -1358,18 +1393,21 @@
         if (!dragging) return;
         LP.suppress = Date.now();
         var L = parseFloat(pill.style.left) || 0, T = parseFloat(pill.style.top) || 0;
-        LP.pos[name] = { fx: Math.round((L + pr.width / 2) / r.width * 1000) / 1000, fy: Math.round((T + pr.height / 2) / r.height * 1000) / 1000 }; _ls.set('lab:pills2', LP.pos);
-        paintAll();
+        LP.pos[name] = { fx: Math.round((L + pr.width / 2) / r.width * 1000) / 1000, fy: Math.round((T + pr.height / 2) / r.height * 1000) / 1000 };
+        // V3.941 — dropped against the left or right edge it docks as a column; the top or bottom, a row (a corner keeps it)
+        var E = 6, side = L <= E || L + pr.width >= r.width - E, end = T <= E || T + pr.height >= r.height - E;
+        if (side !== end) LP.orient[name] = side ? 'v' : 'h';
+        layoutSave(); paintAll();
       }
       b.addEventListener('pointermove', mv); b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
     });
     b.addEventListener('click', function (e) {
       e.stopPropagation();
       if (Date.now() - LP.suppress < 400) return;
-      if (dockable(name) && LP.docked[name]) { LP.open = null; return undock(name, pill); }   // V3.896 — a docked row folds back into its wheel
       var toggle = function () {   // keyed to the note: a re-render makes a new host
+        if (dockable(name) && LP.docked[name]) { LP.open = null; return undock(name, pill); }   // V3.896 — a docked row folds back into its wheel
         LP.open = LP.open && LP.open.name === name && LP.open.doc === pane.docId ? null : { name: name, doc: pane.docId }; paintAll();
-        clearTimeout(LP.dockT);   // V3.896 — a Quick cast / tools / zoom fan left open for 10 s docks
+        clearTimeout(LP.dockT);   // V3.896 — a fan left open docks (LP.dockMs); V3.941 — ✎'s too
         if (LP.open && dockable(name)) { var mine = LP.open; LP.dockT = setTimeout(function () { if (LP.open === mine) dock(name); }, LP.dockMs); }
       };
       if (name !== 'hand') return toggle();
@@ -1377,39 +1415,14 @@
       LP.tap = setTimeout(function () { LP.tap = null; toggle(); }, 230);
     });
   }
-  /* V3.897 — the Quick cast's place in Gabe's bottom bar: a slot near the middle of the dock (by width), its centre in
-     the host's coordinates; the pill is drawn over it */
-  function qcSlot(pane) {
-    var dk = pane && pane.dock; if (!dk || !dk.isConnected || pane.travel || LP.pos.insert) { if (dk) $$('.lab-qc-slot', dk).forEach(function (x) { x.remove(); }); return null; }
-    var sl = $('.lab-qc-slot', dk);
-    if (!sl) {
-      sl = h('span.lab-qc-slot', { 'aria-hidden': 'true' });
-      var kids = [].slice.call(dk.children), tot = kids.reduce(function (a, k) { return a + k.offsetWidth; }, 0), acc = 0, at = kids.length;
-      for (var i = 0; i < kids.length; i++) { if (acc + kids[i].offsetWidth / 2 >= tot / 2) { at = i; break; } acc += kids[i].offsetWidth; }
-      if (kids[at]) dk.insertBefore(sl, kids[at]); else dk.append(sl);
-    }
-    return sl;
-  }
-  function qcSlotAt(pane) {
-    var sl = qcSlot(pane), host = pane && pane.host; if (!sl || !host) return null;
-    var r = sl.getBoundingClientRect(), hr = host.getBoundingClientRect(); if (!r.width) return null;
-    return { x: r.left + r.width / 2 - hr.left, y: r.top + r.height / 2 - hr.top };
-  }
-  function placeQuickCast(pane) {
-    var host = pane && pane.host, pill = host && $(':scope > .lab-pills > .lab-pill-insert', host); if (!pill) return;
-    var at = qcSlotAt(pane);
-    if (!at) { if (pill.classList.contains('in-bar')) paintPills(pane); return; }
-    if (!pill.classList.contains('in-bar')) return paintPills(pane);
-    pill.style.left = Math.round(at.x - 19) + 'px'; pill.style.top = Math.round(at.y - 19) + 'px';
-  }
-  LAB.placeQuickCast = function () { App.panes().forEach(placeQuickCast); };
   function paintPills(pane) {
     var host = pane && pane.host; if (!host || !host.isConnected || !pane.paper || !M.doc(pane.docId)) return;
+    layoutLoad();   // V3.941 — the layout another computer saved arrives with the sync
     var box = $(':scope > .lab-pills', host);
-    if (!box) { box = h('div.lab-pills.nopan'); host.append(box); bindZoomHand(pane, host);
-      try { if (pane.dock && typeof ResizeObserver !== 'undefined') { new ResizeObserver(function () { placeQuickCast(pane); }).observe(pane.dock); pane.dock.addEventListener('scroll', function () { placeQuickCast(pane); }, { passive: true }); } } catch (e) {} }
+    if (!box) { box = h('div.lab-pills.nopan'); host.append(box); bindZoomHand(pane, host); }
     trackHand();
     host.classList.toggle('lab-hand-zoom', LP.zoom); host.classList.toggle('lab-hand-move', handNow() === 'move'); host.classList.add('lab-pilled');
+    host.classList.toggle('lab-ro', !!pane.travel);   // V3.941 — a read-only note keeps Gabe's bar ("Back to now"); otherwise the Quick cast is it
     if (!fitHand() && ZF.el) zfitMark(null);
     box.classList.toggle('fan-open', !!(LP.open && LP.open.doc === pane.docId));
     box.replaceChildren.apply(box, (pane.travel ? ['view'] : ['insert', 'tools', 'hand', 'view']).map(function (n) { return pillEl(n, pane, host); }));   // V3.899 — nothing to add to a read-only note
@@ -1492,6 +1505,7 @@
         return;
       }
       if (e.pointerType === 'pen' || e.target.closest(ZOOM_SKIP)) return;
+      if (e.pointerType === 'touch' && typeof PALM !== 'undefined' && PALM.palm(e)) return;   // V3.941 — a palm is no zoom tap (13zf)
       var P = host._dv && host._dv.paper; if (!P) return;
       e.preventDefault(); e.stopPropagation();
       var y0 = e.clientY, x0 = e.clientX, z0 = P.view.z, moved = 0, out = e.altKey || e.button === 2, fit = e.shiftKey && !out;
@@ -1513,9 +1527,6 @@
     var oDocRender11 = DocView.render;
     DocView.render = function (docId) { var r = oDocRender11.apply(this, arguments), pane = this; requestAnimationFrame(function () { paintPills(pane); }); return r; };
     var oPaint = INK.paintBars; INK.paintBars = function () { var r = oPaint.apply(INK, arguments); paintAll(); return r; };
-    /* V3.897 — Gabe rebuilds his bottom bar on every update: the Quick cast's slot goes back in, the pill follows */
-    var oRenderDock = DocView.renderDock;
-    DocView.renderDock = function () { var r = oRenderDock.apply(this, arguments), pane = this; try { qcSlot(pane); requestAnimationFrame(function () { placeQuickCast(pane); }); } catch (e) { warn('quick cast slot', e); } return r; };
     /* V3.896 — the + Insert list: a bolt on each row puts it in (or takes it out of) the person's Quick cast */
     var oInsMenu = INSERT.menu;
     INSERT.menu = function (pane) {
@@ -1545,9 +1556,9 @@
   try {
     var st11 = document.getElementById('lab-mode-css');
     if (st11) st11.textContent += '.lab-pills{position:absolute;inset:0;pointer-events:none;z-index:21}.lab-pill{position:absolute;width:44px;height:44px;pointer-events:auto}' +
-      '.lab-pill-insert{left:calc(50% - 22px);bottom:84px}.lab-pill-tools{right:14px;top:14px}.canvas-host.lab-pilled > .ctools{display:none}' +
-      '.lab-qc-slot{flex:none;display:inline-block;width:46px;height:38px}.lab-pill.in-bar{width:38px;height:38px}.lab-pill.in-bar .lab-pill-btn{width:38px;height:38px;box-shadow:none;background:var(--ink);color:var(--paper);border-color:var(--ink);font-size:18px}' +
-      '.lab-pill.in-bar .lab-fan{left:19px;top:19px}.lab-pill.in-bar.open .lab-pill-btn{background:var(--teal,#0d675e);border-color:var(--teal,#0d675e)}.lab-pill-hand{right:14px;bottom:16px}.lab-pill-view{left:14px;top:14px}' +
+      '.lab-pill-insert{left:calc(50% - 22px);bottom:16px}.lab-pill-tools{right:14px;top:14px}.canvas-host.lab-pilled > .ctools{display:none}' +
+      '.canvas-host.lab-pilled:not(.lab-ro) > .dock{display:none}.lab-pill-insert:not(.open):not(.docked) .lab-pill-btn{background:var(--ink);color:var(--paper);border-color:var(--ink)}' +   // V3.941 — the Quick cast is the bar
+      '.lab-pill-hand{right:14px;bottom:16px}.lab-pill-view{left:14px;top:14px}' +
       'body.mobile .lab-pill-insert{bottom:64px}.canvas-host.lab-pilled > .ink-bar{left:68px}' +
       '.lab-pills.fan-open .lab-pill:not(.open):not(.docked){opacity:.22;pointer-events:none}.lab-pill.open{z-index:3}' +
       '.canvas-host .insp.open ~ .lab-pills .lab-pill-tools:not([style*="left"]),.canvas-host .insp.open ~ .lab-pills .lab-pill-hand:not([style*="left"]){right:344px}' +

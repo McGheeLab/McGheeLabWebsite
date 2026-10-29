@@ -1750,6 +1750,7 @@
     "scientia/src/13x-figure.js",
     "scientia/src/13zzd-board.js",
     "scientia/board/store.js",
+    "scientia/board/pen.js",
     "scientia/board/board.css"
    ],
    "related": [
