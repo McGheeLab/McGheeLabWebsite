@@ -284,6 +284,84 @@ check('presentersOf tolerates legacy presenterId', I.presentersOf({ presenterId:
   check('biweekly on-week: reminded', I.planOneOnOneReminders([Object.assign({}, slots[0], { cadence: 'biweekly' })], { today: '2026-11-16', minutes: 16 * 60, names: n }).length === 2);
 }
 
+/* ── V3.940 unique slots: who holds a date ── */
+{
+  // Tuesdays from 2026-11-03, one week at a time
+  const u = { id: 'u1', hostUid: 'pi', weekday: 2, time: '14:00', duration: 30, cadence: 'weekly', startDate: '2026-11-03', endDate: null, active: true, mode: 'unique',
+    subscriberUid: null, bookings: { gabe: { '2026-11-03': { name: 'Gabe', at: '2026-10-29T10:00:00Z' } }, zeke: { '2026-11-10': { name: 'Zeke', at: 'x' } } }, skips: {} };
+  const h = (s, d) => I.slotHolderOn(s, d);
+  check('a booked week → that student, "week"', h(u, '2026-11-03').state === 'week' && h(u, '2026-11-03').uid === 'gabe');
+  check('another week → another student', h(u, '2026-11-10').uid === 'zeke');
+  check('an unbooked week → open', h(u, '2026-11-17').state === 'open');
+  check('not a meeting day → null', h(u, '2026-11-04') === null);
+  const clash = Object.assign({}, u, { bookings: { gabe: { '2026-11-03': { at: '2026-10-29T10:00:00Z' } }, ally: { '2026-11-03': { at: '2026-10-29T09:00:00Z' } } } });
+  check('two bookings on one date (a race) → the earlier wins', h(clash, '2026-11-03').uid === 'ally');
+  const approved = Object.assign({}, u, { subscriberUid: 'gabe', subscribedFrom: '2026-11-17', bookings: { zeke: { '2026-11-24': { at: 'x' } } } });
+  check('every week only from subscribedFrom', h(approved, '2026-11-10').state === 'open' && h(approved, '2026-11-17').state === 'standing' && h(approved, '2026-11-17').uid === 'gabe');
+  check('someone else’s booked week beats the every-week holder', h(approved, '2026-11-24').state === 'week' && h(approved, '2026-11-24').uid === 'zeke');
+  const sk = Object.assign({}, approved, { skips: { '2026-12-01': { by: 'gabe' } } });
+  check('the holder’s skipped week reads skipped', h(sk, '2026-12-01').state === 'skipped');
+}
+
+/* ── V3.940 unique slots: transitions ── */
+{
+  const types = (ev) => ev.map((e) => e.type).join(',');
+  const base = { hostUid: 'pi', weekday: 2, time: '14:00', duration: 30, cadence: 'weekly', startDate: '2026-11-03', active: true, mode: 'unique', subscriberUid: null, bookings: {}, recurRequests: {}, skips: {}, updatedBy: 'pi' };
+  const T = (b, a) => I.slotTransition(b, a, '2026-10-29');
+  const booked = Object.assign({}, base, { bookings: { gabe: { '2026-11-03': { name: 'Gabe', by: 'self', at: 'x' } } }, updatedBy: 'gabe' });
+  let t = T(base, booked);
+  check('student books a week → booked (by self → host is told)', types(t) === 'booked' && t[0].uid === 'gabe' && t[0].date === '2026-11-03' && t[0].by === 'self', JSON.stringify(t));
+  const hostBooked = Object.assign({}, base, { bookings: { zeke: { '2026-11-10': { by: 'host', at: 'x' } } }, updatedBy: 'pi' });
+  check('host books a student → booked by host', T(base, hostBooked)[0].by === 'host');
+  const cancelled = Object.assign({}, booked, { bookings: { gabe: {} }, updatedBy: 'gabe' });
+  t = T(booked, cancelled);
+  check('student cancels → unbooked by self', types(t) === 'unbooked' && t[0].by === 'gabe');
+  check('host cancels → unbooked by host', T(booked, Object.assign({}, cancelled, { updatedBy: 'pi' }))[0].by === 'pi');
+  const asked = Object.assign({}, booked, { recurRequests: { gabe: { name: 'Gabe', from: '2026-11-03', at: 'x' } }, updatedBy: 'gabe' });
+  t = T(booked, asked);
+  check('student asks for every week → recurRequested (→ host) with from', types(t) === 'recurRequested' && t[0].from === '2026-11-03');
+  check('book + ask in one write → booked + recurRequested', types(T(base, asked)) === 'booked,recurRequested');
+  const approvedW = Object.assign({}, base, { subscriberUid: 'gabe', subscriberName: 'Gabe', subscribedBy: 'approved', subscribedFrom: '2026-11-03', bookings: { gabe: {} }, recurRequests: {}, updatedBy: 'pi' });
+  t = T(asked, approvedW);
+  check('host approves → ONE recurApproved — not "assigned", and the folded week is not "cancelled"', types(t) === 'recurApproved' && t[0].from === '2026-11-03', JSON.stringify(t));
+  const declined = Object.assign({}, booked, { recurRequests: {}, updatedBy: 'pi' });
+  check('host declines → recurDeclined, the booked week stays', types(T(asked, declined)) === 'recurDeclined');
+  check('student withdraws → recurWithdrawn (quiet)', types(T(asked, Object.assign({}, declined, { updatedBy: 'gabe' }))) === 'recurWithdrawn');
+  const madeEvery = Object.assign({}, base, { subscriberUid: 'gabe', subscribedBy: 'host', subscribedFrom: '2026-11-03', bookings: { gabe: {} }, updatedBy: 'pi' });
+  check('host makes a booked week every week (no request) → assigned, no unbooked', types(T(booked, madeEvery)) === 'assigned');
+  const backToOne = Object.assign({}, base, { subscriberUid: null, bookings: { gabe: { '2026-11-10': { by: 'host', at: 'y' } } }, updatedBy: 'pi' });
+  t = T(madeEvery, backToOne);
+  check('host turns every week back into one week → ONE madeOneWeek with the kept date', types(t) === 'madeOneWeek' && t[0].date === '2026-11-10', JSON.stringify(t));
+  const withFuture = Object.assign({}, base, { bookings: { zeke: { '2026-11-10': { at: 'x' } }, ally: { '2026-10-20': { at: 'x' } } } });
+  check('ending a slot tells the future bookers (not a past one)', types(T(withFuture, Object.assign({}, withFuture, { active: false }))) === 'ended' && T(withFuture, Object.assign({}, withFuture, { active: false }))[0].uid === 'zeke');
+  check('deleting a slot tells the future bookers', types(T(withFuture, null)) === 'deleted');
+  check('moving the time tells a future booker (they hold a week, not every week)', types(T(withFuture, Object.assign({}, withFuture, { time: '15:00' }))) === 'changed');
+  check('switching mode alone → nothing', types(T(base, Object.assign({}, base, { mode: 'recurring' }))) === '');
+}
+
+/* ── V3.940 joined slots in the reminder ── */
+{
+  const n = (uid, fb) => ({ pi: 'Alex McGhee', gabe: 'Gabriel Declercq', zeke: 'Zeke Pangelinan' }[uid] || fb || '');
+  const ctx = { today: '2026-11-09', minutes: 16 * 60, names: n };       // tomorrow = Tue 2026-11-10
+  const base = { hostUid: 'pi', weekday: 2, duration: 30, cadence: 'weekly', startDate: '2026-11-03', endDate: null, active: true, skips: {}, location: 'Office' };
+  const slots = [
+    Object.assign({}, base, { id: 'a', time: '14:00', subscriberUid: 'gabe' }),
+    Object.assign({}, base, { id: 'b', time: '14:30', subscriberUid: 'gabe' }),
+    Object.assign({}, base, { id: 'c', time: '15:00', mode: 'unique', subscriberUid: null, bookings: { zeke: { '2026-11-10': { at: 'x' } } } }),
+    Object.assign({}, base, { id: 'd', time: '15:30', mode: 'unique', subscriberUid: null, bookings: { zeke: { '2026-11-17': { at: 'x' } } } }),   // next week, not tomorrow
+  ];
+  const plan = I.planOneOnOneReminders(slots, ctx);
+  const to = (uid) => plan.filter((p) => p.uids.includes(uid));
+  check('gabe’s two back-to-back slots → ONE notice for 2:00–3:00 (1 hour)', to('gabe').length === 1 && /2:00 PM–3:00 PM \(1 hour\)/.test(to('gabe')[0].body) && to('gabe')[0].slotIds.join() === 'a,b', JSON.stringify(to('gabe')));
+  check('zeke’s one-week booking tomorrow is reminded', to('zeke').length === 1 && /3:00 PM/.test(to('zeke')[0].title));
+  check('the host’s notice lists the joined block as one: "Gabriel 2:00 PM–3:00 PM · Zeke 3:00 PM"', to('pi').length === 1 && /2 one-on-ones tomorrow/.test(to('pi')[0].title) && /Gabriel 2:00 PM–3:00 PM · Zeke 3:00 PM/.test(to('pi')[0].body), to('pi')[0] && to('pi')[0].body);
+  check('the host notice stamps a, b and c (not next week’s d)', to('pi')[0].slotIds.slice().sort().join() === 'a,b,c');
+  const split = I.planOneOnOneReminders([slots[0], Object.assign({}, slots[1], { subscriberUid: 'zeke' })], ctx);
+  check('back-to-back but DIFFERENT people → two blocks, not joined', split.filter((p) => p.uids[0] !== 'pi').length === 2);
+  const gap = I.planOneOnOneReminders([slots[0], Object.assign({}, slots[1], { time: '15:00' })], ctx);
+  check('same person with a gap → two blocks', gap.filter((p) => p.uids[0] === 'gabe').length === 2);
+}
+
 /* ── verdict ── */
 console.log(`meetings.test.js: ${pass} passed, ${fail} failed`);
 if (failures.length) { console.log(failures.map((f) => '  FAIL ' + f).join('\n')); }

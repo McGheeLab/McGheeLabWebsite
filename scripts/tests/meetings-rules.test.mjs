@@ -114,6 +114,10 @@ async function seed() {
     await setDoc(doc(d, 'oneOnOneSlots/oo-open2'),  SLOT({ hostUid: 'admin', hostName: 'Alex' }));
     await setDoc(doc(d, 'oneOnOneSlots/oo-booked'), SLOT({ hostUid: 'coord', hostName: 'Cason', subscriberUid: 'zeke', subscriberName: 'Zeke', subscribedBy: 'self', subscribedAt: '2026-10-29T00:00:00Z' }));
     await setDoc(doc(d, 'oneOnOneSlots/oo-ended'),  SLOT({ hostUid: 'admin', hostName: 'Alex', active: false }));
+    // V3.940 — unique slots: one week at a time; gabe already holds Nov 3
+    await setDoc(doc(d, 'oneOnOneSlots/oo-unique'), SLOT({ hostUid: 'coord', hostName: 'Cason', mode: 'unique',
+      bookings: { gabe: { '2026-11-03': { name: 'Gabe', at: 'x', by: 'self' } } }, recurRequests: {} }));
+    await setDoc(doc(d, 'oneOnOneSlots/oo-unique-ended'), SLOT({ hostUid: 'coord', hostName: 'Cason', mode: 'unique', active: false, bookings: {} }));
   });
 }
 function SLOT(extra) {
@@ -387,6 +391,52 @@ await mustAllow('admin rewrites anyone\'s slot',
   () => updateDoc(doc(admin, 'oneOnOneSlots/oo-gabe'), { subscriberUid: 'zeke', time: '10:00', updatedBy: 'admin' }));
 await mustAllow('admin deletes anyone\'s slot',
   () => deleteDoc(doc(admin, 'oneOnOneSlots/oo-gabe')));
+
+/* ═══════════ 11. unique slots (V3.940) — one week at a time, every week only by approval ═══════════ */
+console.log('\n── unique slots: book YOUR week, ask for every week, the host approves ──');
+await seed();
+const WK = (uid, d, extra) => Object.assign({ ['bookings.' + uid + '.' + d]: { name: uid, at: 'x', by: 'self' }, updatedBy: uid, updatedAt: new Date() }, extra || {});
+await mustAllow('zeke books an open week for himself',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-unique'), WK('zeke', '2026-11-10')));
+await mustAllow('zeke books a week AND asks for every week in one write',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-unique'), WK('zeke', '2026-11-17', { 'recurRequests.zeke': { name: 'Zeke', at: 'x', from: '2026-11-17' } })));
+await mustDeny ('zeke books a week for ALLY',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-unique'), WK('ally', '2026-11-24', { updatedBy: 'zeke' })));
+await mustDeny ('zeke cancels GABE\'s week',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-unique'), { 'bookings.gabe.2026-11-03': deleteField(), updatedBy: 'zeke' }));
+await mustAllow('gabe cancels his own week',
+  () => updateDoc(doc(gabe, 'oneOnOneSlots/oo-unique'), { 'bookings.gabe.2026-11-03': deleteField(), updatedBy: 'gabe', updatedAt: new Date() }));
+await mustDeny ('zeke rewrites the whole bookings map (would drop others)',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-unique'), { bookings: { zeke: { '2026-12-01': { at: 'x' } } }, updatedBy: 'zeke' }));
+await mustDeny ('zeke books a week on an ENDED unique slot',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-unique-ended'), WK('zeke', '2026-11-10')));
+await mustDeny ('zeke files an every-week request in ALLY\'s name',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-unique'), { 'recurRequests.ally': { from: '2026-11-10' }, updatedBy: 'zeke' }));
+await mustDeny ('zeke takes a UNIQUE slot every week himself (that is the host\'s approval)',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-unique'), { subscriberUid: 'zeke', subscriberName: 'Zeke', subscribedAt: 'x', subscribedBy: 'self', updatedBy: 'zeke' }));
+await mustDeny ('zeke flips the slot to every-week mode',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-unique'), { mode: 'recurring', updatedBy: 'zeke' }));
+await mustAllow('zeke withdraws his own request',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-unique'), { 'recurRequests.zeke': deleteField(), updatedBy: 'zeke', updatedAt: new Date() }));
+await mustAllow('zeke asks again',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-unique'), { 'recurRequests.zeke': { name: 'Zeke', at: 'y', from: '2026-11-10' }, updatedBy: 'zeke', updatedAt: new Date() }));
+await mustAllow('the host (a non-admin mentor) approves: every week from Nov 10, request cleared, his weeks folded in',
+  () => updateDoc(doc(coord, 'oneOnOneSlots/oo-unique'), {
+    subscriberUid: 'zeke', subscriberName: 'Zeke', subscribedAt: 'x', subscribedBy: 'approved', subscribedFrom: '2026-11-10',
+    'recurRequests.zeke': deleteField(), 'bookings.zeke.2026-11-10': deleteField(), 'bookings.zeke.2026-11-17': deleteField(),
+    updatedBy: 'coord', updatedAt: new Date() }));
+await mustAllow('the every-week holder of a unique slot may still skip a week',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-unique'), { 'skips.2026-11-24': { by: 'zeke', reason: 'conference' }, updatedBy: 'zeke', updatedAt: new Date() }));
+await mustAllow('… and another student may book that skipped week for herself',
+  () => updateDoc(doc(ally, 'oneOnOneSlots/oo-unique'), WK('ally', '2026-11-24')));
+await mustAllow('the host flips the slot back to every-week mode',
+  () => updateDoc(doc(coord, 'oneOnOneSlots/oo-unique'), { mode: 'recurring', updatedBy: 'coord', updatedAt: new Date() }));
+await mustAllow('the host books a week for a student',
+  () => updateDoc(doc(coord, 'oneOnOneSlots/oo-unique'), { 'bookings.gabe.2026-12-08': { name: 'Gabe', at: 'x', by: 'host' }, updatedBy: 'coord' }));
+await mustDeny ('guest books a week',
+  () => updateDoc(doc(guest, 'oneOnOneSlots/oo-unique'), WK('guest', '2026-12-15')));
+await mustAllow('V3.938 still holds: zeke claims an open EVERY-WEEK slot for himself',
+  () => updateDoc(doc(zeke, 'oneOnOneSlots/oo-open'), { subscriberUid: 'zeke', subscriberName: 'Zeke', subscribedAt: 'x', subscribedBy: 'self', updatedBy: 'zeke', updatedAt: new Date() }));
 
 console.log(`\nMeetings rules — ${ok} ok, ${holes} HOLE, ${breaks} BREAK`);
 await env.cleanup();

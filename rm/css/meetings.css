@@ -326,6 +326,19 @@
 .oo-chip-open { border-style: dashed; border-color: var(--border); background: var(--surface); color: var(--text-muted); }
 .oo-chip-me { background: var(--primary); border-color: var(--primary); color: #fff; }
 .oo-chip-skip { text-decoration: line-through; opacity: .6; }
+/* V3.940 — this week only (outlined), open one-week-at-a-time, joined back-to-back block */
+.oo-chip-week { background: var(--surface); border-color: #60a5fa; border-width: 1.5px; color: #1e40af; }
+.oo-chip-week.oo-chip-me { background: #eff6ff; color: #1e40af; border-color: var(--primary); }
+.oo-chip-unique { border-style: dotted; }
+.oo-chip-joined { font-weight: 600; }
+.oo-joined { margin: 4px -8px; padding: 0 8px; border-left: 3px solid #93c5fd; border-radius: 6px; background: linear-gradient(90deg, #eff6ff, transparent 60%); }
+.oo-joined-head { display: flex; align-items: center; gap: 6px; padding: 6px 0 0; font-size: .82rem; font-weight: 600; color: #1e40af; }
+.oo-joined .oo-row:first-of-type { border-top: 0; }
+.oo-mine-week > div:first-child b:first-child { white-space: nowrap; }
+.oo-mine-req { background: var(--amber-bg); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 6px; }
+.oo-date-who { flex: 1; min-width: 0; }
+.oo-unique-toggle { align-items: flex-start !important; line-height: 1.4; font-size: .88rem; }
+.oo-unique-toggle input { margin-top: 3px; }
 .oo-wd { margin: 12px 0 2px; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
 .oo-wd:first-of-type { margin-top: 0; }
 .oo-row { display: grid; grid-template-columns: 170px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--border); }

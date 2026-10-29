@@ -83,6 +83,16 @@
   }
   var fsStub = {
     collection: function (name) { return collRef(name); },
+    /* V3.940 — one-week bookings commit in a transaction (reads, then writes) */
+    runTransaction: async function (fn) {
+      var ops = [];
+      var t = { get: function (ref) { return ref.get(); },
+                update: function (ref, patch) { ops.push(function () { return ref.update(patch); }); },
+                set: function (ref, data, opts) { ops.push(function () { return ref.set(data, opts); }); } };
+      var r = await fn(t);
+      for (var i = 0; i < ops.length; i++) await ops[i]();
+      return r;
+    },
     doc: function (path) { var p = path.split('/'); return docRef(p[0], p[1]); },
     batch: function () {
       var ops = [];
@@ -532,6 +542,83 @@
   M.state.section = 'mine'; M.render(); await sleep(20);
   ok('My items carries the My one-on-ones block', /My one-on-ones/.test(text()) && /with Cason Hancock/.test(text()));
   M.state.section = 'next'; M.render(); await sleep(20);
+
+  /* ═══ One-on-ones V3.940 — unique slots, every-week requests, joined slots ═══ */
+  function asUser(uid, name, role) { ME = { uid: uid, displayName: name, email: uid + '@x.com' }; PROFILE = { name: name, role: role }; M.state.user = ME; M.state.profile = PROFILE; }
+  var D2 = plus(2), WD2 = new Date(D2 + 'T12:00:00').getDay();
+  asUser(U.cason, 'Cason Hancock', 'editor');
+  M.state.section = 'oneonone'; M.state.ui.ooMonth = D2.slice(0, 7); M.render(); await sleep(30);
+  click('[data-act="oo-offer"]'); await sleep(50);
+  var uf = sheet() && sheet().querySelector('#oo-offer-form');
+  ok('offer sheet has the Make unique toggle', !!uf && !!uf.unique && /Make unique/.test(sheet().innerText));
+  if (uf) {
+    uf.weekday.value = String(WD2); uf.time.value = '10:00'; uf.duration.value = '30'; uf.count.value = '2'; uf.location.value = 'Office 210'; uf.endDate.value = plus(60);
+    uf.unique.checked = true;
+    uf.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await sleep(250);
+  }
+  var uniq = Object.keys(STORE.oneOnOneSlots).map(function (id) { return Object.assign({ id: id }, STORE.oneOnOneSlots[id]); }).filter(function (x) { return x.mode === 'unique'; })
+    .sort(function (a, b) { return a.time.localeCompare(b.time); });
+  ok('two unique back-to-back slots written (10:00, 10:30, mode unique, empty bookings)', uniq.length === 2 && uniq[0].time === '10:00' && uniq[1].time === '10:30' && uniq.every(function (x) { return x.subscriberUid === null && x.bookings && !Object.keys(x.bookings).length; }), JSON.stringify(uniq.map(function (x) { return [x.time, x.mode]; })));
+  var u1 = uniq[0] && uniq[0].id, u2 = uniq[1] && uniq[1].id;
+
+  // Zeke books ONE week, takes both slots, and asks for every week
+  asUser(U.zeke, 'Zeke Pangelinan', 'contributor'); M.render(); await sleep(30);
+  ok('unique open chips are dashed-dotted on ' + D2, qa('.oo-day[data-date="' + D2 + '"] .oo-chip-open.oo-chip-unique').length === 2);
+  ok('no every-week Subscribe on a unique slot', !q('[data-act="oo-subscribe"][data-id="' + u1 + '"]'));
+  click('.oo-chip[data-id="' + u1 + '"][data-date="' + D2 + '"]'); await sleep(50);
+  ok('tapping an open unique chip opens the ONE-WEEK sheet', !!sheet() && /this week only/.test(sheet().innerText) && !!sheet().querySelector('.oo-also-next') && !!sheet().querySelector('.oo-ask-every'), sheet() && sheet().innerText);
+  ok('"also take" offers the 10:30 slot as a one-hour meeting', !!sheet() && /Also take 10:30 AM – 11:00 AM — a one-hour meeting/.test(sheet().innerText));
+  if (sheet()) {
+    sheet().querySelector('.oo-also-next').checked = true;
+    sheet().querySelector('.oo-yes').click(); await sleep(250);
+  }
+  ok('one transaction booked BOTH slots for that week only', (STORE.oneOnOneSlots[u1].bookings[U.zeke] || {})[D2] && (STORE.oneOnOneSlots[u2].bookings[U.zeke] || {})[D2] && STORE.oneOnOneSlots[u1].bookings[U.zeke][D2].by === 'self' && STORE.oneOnOneSlots[u1].subscriberUid === null, JSON.stringify([STORE.oneOnOneSlots[u1].bookings, STORE.oneOnOneSlots[u2].bookings]));
+  ok('no every-week request when the box was left unticked', !Object.keys(STORE.oneOnOneSlots[u1].recurRequests || {}).length);
+  if (sheet()) { sheet().querySelector('.mtg-cancel').click(); await sleep(30); }
+  var dayChips = qa('.oo-day[data-date="' + D2 + '"] .oo-chip');
+  var joinedChip = q('.oo-day[data-date="' + D2 + '"] .oo-chip.oo-chip-joined');
+  ok('the two slots show as ONE chip, 10a–11a, outlined (this week only), mine', !!joinedChip && /10a–11a/.test(joinedChip.textContent) && joinedChip.classList.contains('oo-chip-week') && joinedChip.classList.contains('oo-chip-me') && !q('.oo-day[data-date="' + D2 + '"] .oo-chip[data-id="' + u2 + '"]'), dayChips.map(function (c) { return c.textContent; }).join(' | '));
+  ok('My one-on-ones: one entry, 10:00 AM – 11:00 AM, this week only, a one-hour meeting', /10:00 AM – 11:00 AM/.test(text()) && /this week only/.test(text()) && /2 back-to-back slots, a one-hour meeting/.test(text()));
+  var wk = OO.myWeekEntries()[0];
+  var wkIcs = wk ? OO.icsWrap(OO.icsWeekEvent(wk)) : '';
+  ok('the week .ics is ONE event 10:00–11:00 with no RRULE', /DTSTART;TZID=America\/Phoenix:\d{8}T100000/.test(wkIcs) && /DTEND;TZID=America\/Phoenix:\d{8}T110000/.test(wkIcs) && !/RRULE/.test(wkIcs), wkIcs);
+  var ask = q('[data-act="oo-request"]');
+  ok('"Ask to make it every week" covers both slots', !!ask && ask.dataset.ids === u1 + ',' + u2, ask && ask.dataset.ids);
+  if (ask) { ask.click(); await sleep(200); }
+  ok('request lands on both slots, from that date, in Zeke’s own key', !!STORE.oneOnOneSlots[u1].recurRequests[U.zeke] && STORE.oneOnOneSlots[u1].recurRequests[U.zeke].from === D2 && !!STORE.oneOnOneSlots[u2].recurRequests[U.zeke], JSON.stringify(STORE.oneOnOneSlots[u1].recurRequests));
+  ok('Zeke sees "waiting … to approve every week" and a Withdraw button', /waiting for Cason to approve every week/.test(text()) && !!q('[data-act="oo-withdraw"]'));
+
+  // Cason approves; the block becomes every week; then one week only; then mode flips
+  asUser(U.cason, 'Cason Hancock', 'editor'); M.render(); await sleep(30);
+  var badgeEl = q('.mtg-tab[data-id="oneonone"] .mtg-badge');
+  ok('host badge counts the waiting request (one, for the joined pair)', !!badgeEl && badgeEl.textContent.trim() === '1', badgeEl && badgeEl.textContent);
+  ok('host sees "Zeke Pangelinan asks to make … 10:00 AM – 11:00 AM every week"', /Zeke Pangelinan asks to make/.test(text()) && /10:00 AM – 11:00 AM every week/.test(text()));
+  var ap = q('[data-act="oo-approve"]');
+  ok('one Approve for the pair', qa('[data-act="oo-approve"]').length === 1 && !!ap && ap.dataset.ids === u1 + ',' + u2 && ap.dataset.date === D2);
+  if (ap) { ap.click(); await sleep(250); }
+  var a1 = STORE.oneOnOneSlots[u1], a2 = STORE.oneOnOneSlots[u2];
+  ok('approved: Zeke every week from ' + D2 + ' on both; request cleared; his week folded in', a1.subscriberUid === U.zeke && a2.subscriberUid === U.zeke && a1.subscribedFrom === D2 && a1.subscribedBy === 'approved' && !a1.recurRequests[U.zeke] && !(a1.bookings[U.zeke] || {})[D2] && !(a2.bookings[U.zeke] || {})[D2], JSON.stringify([a1.subscriberUid, a1.subscribedFrom, a1.recurRequests, a1.bookings]));
+  ok('pattern brackets the pair as one meeting', !!q('.oo-joined') && /10:00 AM – 11:00 AM — a one-hour meeting with Zeke Pangelinan \(2 slots\)/.test(q('.oo-joined-head').textContent), q('.oo-joined-head') && q('.oo-joined-head').textContent);
+  var g = OO.standingGroups([a1, a2].map(function (x, i) { return Object.assign({ id: [u1, u2][i] }, x); }))[0];
+  var stIcs = OO.icsWrap(OO.icsStandingEvent(g));
+  ok('the every-week .ics is ONE recurring 10:00–11:00 event', (stIcs.match(/BEGIN:VEVENT/g) || []).length === 1 && /T100000/.test(stIcs) && /DTEND;TZID=America\/Phoenix:\d{8}T110000/.test(stIcs) && /RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=/.test(stIcs), stIcs);
+  ok('badge cleared after approval', !q('.mtg-tab[data-id="oneonone"] .mtg-badge'));
+  // after the fact: back to one week only (keeps the next date)
+  click('[data-act="oo-open"][data-id="' + u1 + '"]'); await sleep(50);
+  var ow = sheet() && sheet().querySelector('[data-oo="oneweek"]');
+  ok('details offer "Make it one week only" to the host', !!ow);
+  if (ow) { ow.click(); await sleep(60); if (sheet() && sheet().querySelector('.mtg-yes')) { sheet().querySelector('.mtg-yes').click(); await sleep(250); } }
+  ok('one week only: every-week holder cleared on BOTH, Zeke keeps ' + D2 + ' as a one-week booking', STORE.oneOnOneSlots[u1].subscriberUid === null && STORE.oneOnOneSlots[u2].subscriberUid === null && (STORE.oneOnOneSlots[u1].bookings[U.zeke] || {})[D2] && (STORE.oneOnOneSlots[u2].bookings[U.zeke] || {})[D2] && STORE.oneOnOneSlots[u1].bookings[U.zeke][D2].by === 'host', JSON.stringify([STORE.oneOnOneSlots[u1].subscriberUid, STORE.oneOnOneSlots[u1].bookings]));
+  // after the fact: the slot's mode flips in Edit
+  click('[data-act="oo-open"][data-id="' + u1 + '"]'); await sleep(50);
+  var ed = sheet() && sheet().querySelector('[data-oo="edit"]');
+  if (ed) { ed.click(); await sleep(60); }
+  var ef = sheet() && sheet().querySelector('#oo-offer-form');
+  ok('Edit shows Make unique ticked', !!ef && ef.unique.checked === true);
+  if (ef) { ef.unique.checked = false; ef.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); await sleep(250); }
+  ok('mode flipped to every week; Zeke’s booked week is untouched', STORE.oneOnOneSlots[u1].mode === 'recurring' && !!(STORE.oneOnOneSlots[u1].bookings[U.zeke] || {})[D2]);
+  M.state.ui.ooMonth = null; M.state.section = 'next'; M.render(); await sleep(20);
 
   ok('no window.confirm/alert/prompt anywhere', window.__errs.every(function (e) { return e.indexOf('BLOCKED') < 0; }));
   ok('no runtime errors overall', window.__errs.length === 0, window.__errs.join('; '));

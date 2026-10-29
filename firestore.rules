@@ -2028,32 +2028,51 @@ service cloud.firestore {
       );
     }
 
-    // One-on-ones (V3.938) — a recurring time the PI or a mentor offers, which
-    // one student subscribes to. The host (or an admin) writes anything on
-    // their own slot. Any lab member may CLAIM an open, active slot by writing
-    // their OWN uid into subscriberUid, and the current subscriber may release
-    // it or mark a week skipped — nothing else (no moving the time, no ending
-    // it, no claiming it for someone else). Same shape as `presenters` /
-    // `completions`: the rule knows "this is yours" with no second read.
+    // One-on-ones (V3.938) — a recurring time the PI or a mentor offers. The
+    // host (or an admin) writes anything on their own slot. Any lab member may
+    // CLAIM an open, active slot every week by writing their OWN uid into
+    // subscriberUid, and the every-week holder may release it or mark a week
+    // skipped. Same shape as `presenters` / `completions`: the rule knows
+    // "this is yours" with no second read.
+    //
+    // V3.940 — unique slots (mode 'unique'): a sign-up is ONE week —
+    // bookings.<uid>.<date> — and "make it every week" is a request,
+    // recurRequests.<uid>, that only the host turns into subscriberUid. Both
+    // maps are keyed by uid, so a member can only ever touch their own entry;
+    // booking needs an active slot, and the every-week claim is refused on a
+    // unique slot (that is the host's approval). Two students racing for one
+    // week is settled by the client's transaction, not here.
     match /oneOnOneSlots/{slotId} {
+      function oooMemberUpdate() {
+        let keys = request.resource.data.diff(resource.data).affectedKeys();
+        let uid = request.auth.uid;
+        let was = resource.data;
+        let now = request.resource.data;
+        return keys.hasOnly(['subscriberUid', 'subscriberName', 'subscribedAt', 'subscribedBy', 'subscribedFrom', 'skips',
+                             'bookings', 'recurRequests', 'updatedBy', 'updatedAt'])
+          && (!keys.hasAny(['bookings'])
+              || (was.get('active', true) == true
+                  && now.get('bookings', {}).diff(was.get('bookings', {})).affectedKeys().hasOnly([uid])))
+          && (!keys.hasAny(['recurRequests'])
+              || now.get('recurRequests', {}).diff(was.get('recurRequests', {})).affectedKeys().hasOnly([uid]))
+          && (!keys.hasAny(['subscriberUid', 'subscriberName', 'subscribedAt', 'subscribedBy', 'subscribedFrom', 'skips'])
+              || (
+                // claim an open, active, every-week slot for yourself
+                (was.get('subscriberUid', null) == null
+                 && was.get('active', true) == true
+                 && was.get('mode', 'recurring') != 'unique'
+                 && now.get('subscriberUid', null) == uid)
+                // the every-week holder: release it, or skip / un-skip a week
+                || (was.get('subscriberUid', null) == uid
+                    && (now.get('subscriberUid', null) == null
+                        || now.get('subscriberUid', null) == uid))));
+      }
       allow read:   if isLabMember();
       allow create: if isAdmin() || (isLabMember() && request.resource.data.hostUid == request.auth.uid);
       allow delete: if isAdmin() || (isLabMember() && resource.data.hostUid == request.auth.uid);
       allow update: if isAdmin()
                     || (isLabMember() && resource.data.hostUid == request.auth.uid)
-                    || (isLabMember()
-                        && request.resource.data.diff(resource.data).affectedKeys()
-                             .hasOnly(['subscriberUid', 'subscriberName', 'subscribedAt', 'subscribedBy', 'skips', 'updatedBy', 'updatedAt'])
-                        && (
-                          // claim an open, active slot for yourself
-                          (resource.data.get('subscriberUid', null) == null
-                           && resource.data.get('active', true) == true
-                           && request.resource.data.get('subscriberUid', null) == request.auth.uid)
-                          // the current subscriber: release it, or skip / un-skip a week
-                          || (resource.data.get('subscriberUid', null) == request.auth.uid
-                              && (request.resource.data.get('subscriberUid', null) == null
-                                  || request.resource.data.get('subscriberUid', null) == request.auth.uid))
-                        ));
+                    || (isLabMember() && oooMemberUpdate());
     }
 
     // Activity tracker data — owner-only (private by default)

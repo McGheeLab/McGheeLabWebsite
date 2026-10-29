@@ -346,6 +346,15 @@ Things that are load-bearing and easy to break:
   `functions/meetings.js`) — change both. The reminder is the 16:00 pass, one
   notice per student and ONE per host; `lastReminded` is the dedupe and is
   function-only.
+- **Unique slots + joined slots (V3.940)**: `mode: 'unique'` → a sign-up is
+  `bookings.<uid>.<date>` (one week; `bookWeek` runs a TRANSACTION), "every
+  week" is `recurRequests.<uid>` the host approves (`subscriberUid` +
+  `subscribedFrom`). Who holds a date = `holderOn()` (booking → every-week
+  holder → open) — mirrored as `slotHolderOn()` in the function; change both.
+  Back-to-back slots one person holds with one host are ONE meeting in the
+  calendar (`entriesOn`), lists / `.ics` (`standingGroups`) and the reminder;
+  actions on a joined block (request, approve, skip, unsubscribe) act on all
+  its slots. Rules key `bookings` / `recurRequests` by uid.
 - Tests: `scripts/tests/meetings-rules.test.mjs`,
   `scripts/tests/v3743-meetings-selftest.html`, `functions/test/meetings.test.js`,
   `scripts/tests/myweek-inbox.test.mjs`.
