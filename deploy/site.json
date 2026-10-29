@@ -91,7 +91,7 @@
     "Data",
     "vendor"
   ],
-  "autoDeploy": false,
+  "autoDeploy": true,
   "_autoDeploy": "V3.818: the Claude Code Stop hook runs `deploy.py autodeploy` at the end of every turn. Set false (or MCGHEELAB_AUTODEPLOY=0) to pause, e.g. during a live lecture.",
   "autoPush": true,
   "autoPushMaxFiles": 80,
