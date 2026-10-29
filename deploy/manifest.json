@@ -1622,9 +1622,9 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-10-29T13:36:39-07:00",
-   "sha256": "3cf6f8a0ebee957446795e1d828ca00127d37766563596e897ec725f70e292f6",
-   "size": 83,
+   "deployedAt": "2026-10-29T13:46:03-07:00",
+   "sha256": "162a40af941b35818492afa238294f587aac97f644ad0bae044cdf9b4d1d0dcf",
+   "size": 82,
    "via": "verify"
   },
   "rm/css/activity-overview.css": {
@@ -2048,9 +2048,9 @@
    "via": "verify"
   },
   "rm/downloads/mcgheelab-capture-extension.zip": {
-   "deployedAt": "2026-10-23T08:59:47-07:00",
-   "sha256": "1c89b9ec3f359da30ab1fa616959482c2fa0341b44cc9410249169dc86d64ab1",
-   "size": 99919,
+   "deployedAt": "2026-10-29T13:46:03-07:00",
+   "sha256": "db23f2f905bd5147136528430ab63eb3b43ddf6ba8e10ee80ceff0e022df04a7",
+   "size": 101156,
    "via": "verify"
   },
   "rm/index.html": {
@@ -2480,9 +2480,9 @@
    "via": "baseline"
   },
   "rm/js/firebase-bridge.js": {
-   "deployedAt": "2026-10-22T14:02:50-07:00",
-   "sha256": "fc1817a96a57b4c1e656e2a031fe707a9ce981fa73841ada8cbded105415ac3c",
-   "size": 64178,
+   "deployedAt": "2026-10-29T13:46:03-07:00",
+   "sha256": "8892b5bfda16a20abd88fd39ffd0140998bc4815fccffbbb317c5c54f9947fc3",
+   "size": 67645,
    "via": "verify"
   },
   "rm/js/focus-areas.js": {
@@ -5294,8 +5294,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-29T13:36:39-07:00",
-   "sha256": "9391d39a24cc2932cf2025d694ee6d63a4a3ccfb237993ef9b6ab75949243dbe",
+   "deployedAt": "2026-10-29T13:46:03-07:00",
+   "sha256": "455ec345e068fc09946becae852ae73300ec21fc692205dffdd62f1254212f69",
    "size": 9933,
    "via": "verify"
   },
@@ -5330,9 +5330,9 @@
    "via": "baseline"
   },
   "user-system.js": {
-   "deployedAt": "2026-10-23T10:34:36-07:00",
-   "sha256": "7e28cab89f87b265f5c5a7ce85d98606467447b23cb6753ac2702113929a4321",
-   "size": 266320,
+   "deployedAt": "2026-10-29T13:46:03-07:00",
+   "sha256": "ad2b8442dadc3dd8ea3f7b5702f1d7bb24c0fea42df0dfcc072fe018dfacd7a3",
+   "size": 267472,
    "via": "verify"
   },
   "whiteboard-board.css": {
