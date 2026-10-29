@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.939] — 2026-10-29 — arizona.edu is an equal way into the PI's account: the panel says which login you used, and the capture extension swaps too
+
+Plan: [CodeLog/ClaudesPlan/V3.939_alias_login_equal.md](../ClaudesPlan/V3.939_alias_login_equal.md). Alex, signing in with mcgheealex@arizona.edu once `aliasSignIn` went live: *"i land with … mcgheealex@gmail.com · admin. I should be able to also sign in as mcgheealex@arizona.edu as an equal and equivalent method."* The two logins were already the same account (V3.806); what still made arizona.edu second-class was the label, the extension, and the main site's guest bootstrap.
+
+### Changed
+- `rm/js/firebase-bridge.js`:
+  - `_aliasSwap` writes `localStorage['mcghee-signin-via'] = {email, uid}` **before** `signInWithCustomToken` (the SDK fires `onAuthStateChanged` for the account before that promise resolves), `uid` from the custom token's payload (`_customTokenUid`); a failed swap clears it (`_forgetVia`).
+  - `_resolveVia(user)` on every auth change: trusts the note only for the same uid, and drops it once `getIdTokenResult().signInProvider !== 'custom'` (a later direct gmail sign-in), then re-renders. `signOut()` clears it.
+  - Account panel: `getSignInEmail() · role` and a second line from `_otherSignInLine()` — "Same account as mcgheealex@gmail.com" when you came in with the alias, "Also signs in with mcgheealex@arizona.edu" when you came in with gmail (`_ALIASES` alias → the account's own address; display only, `functions/auth-alias.js` stays the authority). Panel name / email / role are now HTML-escaped. Public `firebridge.getSignInEmail()`.
+- `user-system.js`: the main-site `_aliasSwap` writes the same note (same key, same shape); `logout()` clears it; `Auth._isAlias(user)` skips `_ensureGuestDoc` in `googleLogin()` and on the redirect return leg, so an arizona.edu sign-in no longer re-creates the orphan alias guest profile.
+- **Capture extension 0.4.2 → 0.4.3** (`../ResearchManagement/extension`): `firebase-rest.js` `swapAliasSession(idToken)` = `aliasSignIn` → `accounts:signInWithCustomToken` → `accounts:lookup`, called from `signInWithGoogle()` when Chrome's Google account is an alias, so the cached session (and its refresh token) is the account's and captures / `captureLog` / `procurementCaptures` land under the account's uid. `profile.signedInAs` keeps the address Chrome used (popup tooltip "Signed in with … — same account as …"). A failed swap throws a plain message instead of caching the alias's guest session. `rm/downloads/mcgheelab-capture-extension.zip` rebuilt (it was already stale at 0.4.2 by a README-only edit, which ships with it).
+- `sw.js` CACHE_VERSION 908 → 909.
+
+### Tests
+- **`scripts/tests/v3939-alias-signin-selftest.html` (new, layer 6): 18 passed, 0 failed.** Boots the REAL `firebase-bridge.js` against an in-page Firebase compat stub and drives its auth listener like the SDK: alias Google sign-in → `aliasSignIn` called with the alias's token → custom-token session on the account uid → panel "mcgheealex@arizona.edu · admin" + "Same account as mcgheealex@gmail.com", never "gmail · admin"; a reload of that session keeps it; sign-out clears it; a direct gmail sign-in → "gmail · admin" + "Also signs in with mcgheealex@arizona.edu" and no swap; a stale note on a direct Google session is dropped; a note for another uid is ignored; a failed swap stays on the alias (V3.806 behaviour) with no note left.
+- **`extension/test/alias-swap.test.mjs` (new): 14 passed** — the real `signInWithGoogle()` against fake `chrome.*` + fetch: alias → account uid / email / name / photo, call order idp → aliasSignIn → custom token → lookup, the cached refresh token is the account's; the account's own login and a student's arizona.edu login make one call and no swap; a 403 from the function throws with the server's reason and caches nothing. Existing extension tests unchanged: capture-ladder 32, price-watch-core 27.
+- Checked and deliberately left alone: email → person lookups (class rosters, BME 466 staff) use the gmail address or don't involve the PI; the homework modules sign in with `hd: 'arizona.edu'` and key datasets by NetID, so they must not swap.
+
+### Deploy
+- Site files (`rm/js/firebase-bridge.js`, `user-system.js`, the extension zip, `sw.js`) by the end-of-turn auto-deploy. No rules or functions change. The phone app picks up the panel with the next TestFlight build. Lab members re-download the extension zip from the Library install card (or `chrome://extensions` → reload for an unpacked copy of `../ResearchManagement/extension`).
+
 ## [V3.938] — 2026-10-29 — One-on-ones: a calendar tab on Lab Meetings where a student subscribes to a recurring meeting with the PI or their mentor
 
 Plan: [CodeLog/ClaudesPlan/V3.938_one_on_one_meetings.md](../ClaudesPlan/V3.938_one_on_one_meetings.md). Alex: *"a tab for setting up one-on-one meetings with the PI or their mentor … just a calendar, and students can subscribe to a recurring meeting."*

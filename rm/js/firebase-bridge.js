@@ -119,6 +119,7 @@ const firebridge = (function () {
         // V3.806 — an alias login is swapped for its primary account; this
         // listener re-fires with that account, so skip the alias entirely.
         if (user && await _aliasSwap(user)) return;
+        _resolveVia(user);   // V3.939 — which login opened this session
         if (user) {
           _user = user;
           // Ourlab app: synchronous "a session exists" paint hint so the
@@ -159,7 +160,11 @@ const firebridge = (function () {
    * functions/auth-alias.js is authoritative; this list only spares every
    * other sign-in the round-trip. Keep in sync with user-system.js. On any
    * failure we stay signed in as the alias (a plain guest), as before. */
-  var _ALIAS_EMAILS = ['mcgheealex@arizona.edu'];
+  // V3.939 — each alias → the account's own Google address. Only used to SAY
+  // so ("Same account as …" / "Also signs in with …"); functions/auth-alias.js
+  // stays the authority on who an alias signs in as.
+  var _ALIASES = { 'mcgheealex@arizona.edu': 'mcgheealex@gmail.com' };
+  var _ALIAS_EMAILS = Object.keys(_ALIASES);
   var _ALIAS_FN_URL = 'https://us-central1-mcgheelab-f56cc.cloudfunctions.net/aliasSignIn';
   var _aliasSwapping = false;
   async function _aliasSwap(user) {
@@ -174,14 +179,65 @@ const firebridge = (function () {
       });
       var body = await r.json().catch(function () { return {}; });
       if (!r.ok || !body.token) throw new Error(body.error || ('HTTP ' + r.status));
+      // V3.939 — remember which login opened this session BEFORE signing in:
+      // onAuthStateChanged fires for the account before signInWithCustomToken
+      // resolves, and the panel should already say "arizona.edu" then.
+      _rememberVia(email, _customTokenUid(body.token));
       await firebase.auth().signInWithCustomToken(body.token);
       return true;
     } catch (err) {
+      _forgetVia();
       console.warn('[firebridge] alias sign-in failed; staying signed in as ' + email + ':', err.message);
       return false;
     } finally {
       _aliasSwapping = false;
     }
+  }
+
+  /* V3.939 — the alias login is an EQUAL way in, so show the address the
+   * person actually signed in with. A swapped session carries the account's
+   * own email (gmail); the alias it came from is kept in localStorage (shared
+   * with the main site's user-system.js, same key) together with the uid it
+   * opened, and trusted only while the CURRENT session is that uid AND was
+   * opened by a custom token — a later direct gmail sign-in clears it. */
+  var _VIA_KEY = 'mcghee-signin-via';
+  var _signinVia = null;
+  function _customTokenUid(token) {
+    try {
+      var p = String(token).split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      return JSON.parse(atob(p + '==='.slice((p.length + 3) % 4))).uid || null;
+    } catch (e) { return null; }
+  }
+  function _rememberVia(email, uid) {
+    _signinVia = email;
+    try { localStorage.setItem(_VIA_KEY, JSON.stringify({ email: email, uid: uid || null })); } catch (e) { /* private mode */ }
+  }
+  function _forgetVia() {
+    _signinVia = null;
+    try { localStorage.removeItem(_VIA_KEY); } catch (e) { /* */ }
+  }
+  function _resolveVia(user) {
+    var stash = null;
+    try { stash = JSON.parse(localStorage.getItem(_VIA_KEY) || 'null'); } catch (e) { stash = null; }
+    if (!user || !stash || !stash.email || (stash.uid && stash.uid !== user.uid)) {
+      if (user) _forgetVia(); else _signinVia = null;
+      return;
+    }
+    _signinVia = stash.email;
+    // confirm off the critical path: only a custom-token session came from the alias
+    user.getIdTokenResult().then(function (t) {
+      if (t && t.signInProvider !== 'custom' && _signinVia) { _forgetVia(); _updateIndicator(); }
+    }).catch(function () { /* keep the label; it is display only */ });
+  }
+  /* the address this session was opened with — the alias, or the account's own */
+  function getSignInEmail() { return _signinVia || (_user && _user.email) || ''; }
+  /* the account's other way(s) in, for "Same account as …" / "Also signs in with …" */
+  function _otherSignInLine() {
+    if (!_user) return '';
+    var own = String(_user.email || '').toLowerCase();
+    if (_signinVia) return own ? 'Same account as ' + own : '';
+    var also = _ALIAS_EMAILS.filter(function (a) { return _ALIASES[a] === own; });
+    return also.length ? 'Also signs in with ' + also.join(', ') : '';
   }
 
   // V3.338 — set when every _loadProfile attempt failed (transient network /
@@ -297,6 +353,7 @@ const firebridge = (function () {
     // never optimistically skips the sign-in gate. Covers all sign-out call
     // sites (nav dropdown, pending overlay, mobile-shell More sheet).
     try { localStorage.removeItem('ourlab-authed'); } catch (e) {}
+    _forgetVia();   // V3.939
     return firebase.auth().signOut();
   }
 
@@ -837,8 +894,10 @@ const firebridge = (function () {
         '<div class="fb-panel-header">' +
           '<div class="fb-panel-avatar fb-profile-connected">' + _initials() + '</div>' +
           '<div>' +
-            '<div class="fb-panel-name">' + (_profile.name || _user.email) + '</div>' +
-            '<div class="fb-panel-sub">' + _user.email + ' · ' + (_profile.role || 'member') + '</div>' +
+            '<div class="fb-panel-name">' + _escapeHtml(_profile.name || getSignInEmail()) + '</div>' +
+            // V3.939 — the address you signed in with (an alias is an equal way in), then the account's other one
+            '<div class="fb-panel-sub">' + _escapeHtml(getSignInEmail()) + ' · ' + _escapeHtml(_profile.role || 'member') + '</div>' +
+            (_otherSignInLine() ? '<div class="fb-panel-sub fb-panel-also" style="opacity:.75;font-size:.85em;">' + _escapeHtml(_otherSignInLine()) + '</div>' : '') +
           '</div>' +
         '</div>' +
         '<div class="fb-panel-actions">' +
@@ -1356,6 +1415,7 @@ const firebridge = (function () {
     isReady: isReady,
     getUser: getUser,
     getProfile: getProfile,
+    getSignInEmail: getSignInEmail,   // V3.939 — the address this session was opened with (alias or own)
     isAdmin: isAdmin,
     isLabMember: isLabMember,
     canEditPaper: canEditPaper,

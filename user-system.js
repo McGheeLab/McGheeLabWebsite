@@ -767,7 +767,7 @@ const Auth = {
       sessionStorage.removeItem('mcghee_google_redirect_pending');
       McgheeLab.auth.getRedirectResult()
         .then(async (cred) => {
-          if (cred?.user) {
+          if (cred?.user && !Auth._isAlias(cred.user)) {   // V3.939 — the alias becomes its account; no guest doc
             await Auth._ensureGuestDoc(cred.user);
             Auth.currentProfile = await DB.getUser(cred.user.uid).catch(() => Auth.currentProfile);
             Auth.updateNavigation();
@@ -813,6 +813,7 @@ const Auth = {
      keep in sync with rm/js/firebase-bridge.js). On failure we stay signed in
      as the alias, as before. */
   _ALIAS_EMAILS: ['mcgheealex@arizona.edu'],
+  _isAlias(user) { return !!user && Auth._ALIAS_EMAILS.includes(String(user.email || '').toLowerCase()); },
   _aliasSwapping: false,
   async _aliasSwap(user) {
     const email = String(user.email || '').toLowerCase();
@@ -826,9 +827,18 @@ const Auth = {
       });
       const body = await r.json().catch(() => ({}));
       if (!r.ok || !body.token) throw new Error(body.error || ('HTTP ' + r.status));
+      // V3.939 — which login opened this session, for RM's account panel
+      // ("mcgheealex@arizona.edu · admin — Same account as …"). Same key and
+      // shape as rm/js/firebase-bridge.js; set BEFORE the swap fires onAuth.
+      try {
+        let uid = null;
+        try { const p = String(body.token).split('.')[1].replace(/-/g, '+').replace(/_/g, '/'); uid = JSON.parse(atob(p + '==='.slice((p.length + 3) % 4))).uid || null; } catch (e) { /* */ }
+        localStorage.setItem('mcghee-signin-via', JSON.stringify({ email, uid }));
+      } catch (e) { /* private mode — display only */ }
       await McgheeLab.auth.signInWithCustomToken(body.token);
       return true;
     } catch (err) {
+      try { localStorage.removeItem('mcghee-signin-via'); } catch (e) { /* */ }
       console.warn('[auth] alias sign-in failed; staying signed in as ' + email + ':', err.message);
       return false;
     } finally {
@@ -1033,7 +1043,9 @@ const Auth = {
     const provider = new firebase.auth.GoogleAuthProvider();
     try {
       const cred = await McgheeLab.auth.signInWithPopup(provider);
-      await Auth._ensureGuestDoc(cred.user);
+      // V3.939 — an alias login is about to become its account (onAuth swaps
+      // it); never bootstrap a separate guest profile for the alias uid.
+      if (!Auth._isAlias(cred.user)) await Auth._ensureGuestDoc(cred.user);
       return cred.user;
     } catch (err) {
       // V3.332 — popup blocked: fall back to a full-page redirect. The
@@ -1058,6 +1070,7 @@ const Auth = {
   },
 
   async logout() {
+    try { localStorage.removeItem('mcghee-signin-via'); } catch (e) { /* V3.939 */ }
     await McgheeLab.auth.signOut();
     window.location.hash = '#/';
   },

@@ -237,7 +237,7 @@ if [ -f "$BROWSER" ]; then
   # v3743-meetings-selftest drives the real Lab Meetings modules against an
   # in-page Firestore stub: derived agenda times, debounced minutes writes,
   # action item → My Week task hand-off, chore fill, swap accept, seed math.
-  for page in v3646-selftest v3646-ui-journey v3647-selftest v3647-caret v3649-selftest v3724-selftest v3743-meetings-selftest v3813-procurement-selftest; do
+  for page in v3646-selftest v3646-ui-journey v3647-selftest v3647-caret v3649-selftest v3724-selftest v3743-meetings-selftest v3813-procurement-selftest v3939-alias-signin-selftest; do
     res=$(node "$BROWSER" "http://localhost:8777/scripts/tests/$page.html" \
           --wait "#r[data-done='1']" \
           --eval "(()=>{const e=document.getElementById('r');return e.dataset.pass+' passed, '+e.dataset.fail+' failed'+(e.dataset.detail?' | '+e.dataset.detail:'');})()" 2>&1)

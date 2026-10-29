@@ -1,0 +1,181 @@
+<!-- V3.939 selftest — arizona.edu is an EQUAL way into the PI's account.
+     Boots the REAL rm/js/firebase-bridge.js against an in-page Firebase
+     compat stub and drives its auth listener the way the SDK does:
+
+       Google popup as mcgheealex@arizona.edu → onAuthStateChanged(alias)
+       → _aliasSwap POSTs aliasSignIn (stubbed fetch) → signInWithCustomToken
+       → onAuthStateChanged(account, signInProvider 'custom')
+
+     and reads the account panel a person sees. What it pins:
+       • the panel says the address you SIGNED IN WITH ("mcgheealex@arizona.edu
+         · admin") and "Same account as mcgheealex@gmail.com" — the bug Alex saw
+         was the gmail address only, which read as "you were moved to gmail";
+       • a direct gmail sign-in says gmail and "Also signs in with …arizona.edu";
+       • the note is remembered across a reload of the same session, cleared by
+         sign-out, ignored for another uid, and dropped when the session turns
+         out NOT to be a custom-token one (a later direct gmail sign-in);
+       • a failed swap leaves no note behind.
+
+     Run:
+       python3 -m http.server 8777
+       node ~/.claude/skills/browser-automation/browser.mjs \
+         "http://localhost:8777/scripts/tests/v3939-alias-signin-selftest.html?v=$(date +%s)" \
+         --wait "#r[data-done='1']" --eval "(()=>{const e=document.getElementById('r');return e.dataset.pass+' passed, '+e.dataset.fail+' failed'+(e.dataset.detail?' | '+e.dataset.detail:'');})()" -->
+<!doctype html><html><head><meta charset="utf-8"><title>V3.939 selftest</title></head><body>
+<h1>V3.939 selftest — alias sign-in is an equal way in</h1>
+<pre id="r" data-pass="0" data-fail="0" data-done="0" data-detail="">running…</pre>
+<nav class="top-nav"></nav>
+
+<script>
+  window.__errs = [];
+  addEventListener('error', function (e) { window.__errs.push(e.message + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno); });
+  addEventListener('unhandledrejection', function (e) { window.__errs.push('unhandled: ' + (e.reason && e.reason.message || e.reason)); });
+  try { localStorage.removeItem('mcghee-signin-via'); } catch (e) {}
+
+  function b64url(o) { return btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  var PROFILES = { 'u-gmail': { name: 'Alexander McGhee', role: 'admin', email: 'mcgheealex@gmail.com' } };
+  function mkUser(uid, email, provider) {
+    return { uid: uid, email: email, displayName: '', photoURL: '',
+      getIdToken: async function () { return 'idtok-' + uid; },
+      getIdTokenResult: async function () { return { signInProvider: provider, claims: {} }; } };
+  }
+  var AUTH_CBS = [], CURRENT = null;
+  window.__fire = async function (u) { CURRENT = u; for (var i = 0; i < AUTH_CBS.length; i++) await AUTH_CBS[i](u); };
+  var docRef = function (coll, id) {
+    return {
+      get: async function () { var d = coll === 'users' ? PROFILES[id] : null; return { exists: !!d, id: id, data: function () { return d; } }; },
+      onSnapshot: function (cb) { var d = coll === 'users' ? PROFILES[id] : null; setTimeout(function () { cb({ exists: !!d, id: id, data: function () { return d; } }); }, 0); return function () {}; },
+      set: async function () {}, update: async function () {},
+      collection: function (c) { return collRef(c); },
+    };
+  };
+  var collRef = function (name) {
+    return { doc: function (id) { return docRef(name, id); }, where: function () { return this; }, orderBy: function () { return this; }, limit: function () { return this; },
+             get: async function () { return { docs: [], empty: true, forEach: function () {} }; }, onSnapshot: function () { return function () {}; } };
+  };
+  var fsStub = { settings: function () {}, enablePersistence: function () { return Promise.resolve(); }, collection: collRef, doc: function (p) { var s = p.split('/'); return docRef(s[0], s[1]); } };
+  window.__customSignIns = [];
+  var authStub = {
+    onAuthStateChanged: function (cb) { AUTH_CBS.push(cb); return function () {}; },
+    get currentUser() { return CURRENT; },
+    signInWithCustomToken: async function (token) {
+      window.__customSignIns.push(token);
+      var uid = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).uid;
+      var u = mkUser(uid, PROFILES[uid].email, 'custom');
+      await window.__fire(u);              // the SDK notifies listeners before this resolves
+      return { user: u };
+    },
+    signOut: async function () { await window.__fire(null); },
+  };
+  window.firebase = {
+    apps: [], initializeApp: function () { window.firebase.apps.push({}); },
+    auth: function () { return authStub; },
+    firestore: function () { return fsStub; },
+  };
+  window.firebase.auth.GoogleAuthProvider = function () {};
+  window.firebase.firestore.FieldValue = { serverTimestamp: function () { return {}; }, delete: function () { return {}; } };
+
+  /* aliasSignIn — answers like functions/auth-alias.js; FN_FAIL flips it */
+  window.FN_FAIL = false; window.__fnCalls = [];
+  var realFetch = window.fetch;
+  window.fetch = async function (url, init) {
+    if (String(url).indexOf('aliasSignIn') >= 0) {
+      window.__fnCalls.push((init && init.headers && init.headers.Authorization) || '');
+      if (window.FN_FAIL) return new Response(JSON.stringify({ error: 'Primary account is disabled.' }), { status: 403 });
+      return new Response(JSON.stringify({ token: 'h.' + b64url({ uid: 'u-gmail', iss: 'x' }) + '.sig' }), { status: 200 });
+    }
+    return realFetch.apply(this, arguments);
+  };
+</script>
+<script src="/rm/js/icons.js"></script>   <!-- every RM page loads it; the signed-out button draws an icon -->
+<script src="/rm/js/firebase-bridge.js"></script>
+<script>
+(async function () {
+  var out = document.getElementById('r'), pass = 0, fail = 0, detail = [];
+  var step = 'boot';
+  setTimeout(function () { if (out.dataset.done !== '1') { out.dataset.fail = String(fail + 1); out.dataset.pass = String(pass); out.dataset.detail = detail.concat(['HUNG at step ' + step + ' | errs: ' + window.__errs.join('; ')]).join(' · '); out.dataset.done = '1'; } }, 8000);
+  try {
+  function ok(name, cond, extra) { if (cond) pass++; else { fail++; detail.push(name + (extra ? ' (' + extra + ')' : '')); } }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function panelText() {
+    var wrap = document.getElementById('fb-profile-wrap');
+    if (!wrap) return '';
+    if (!wrap.classList.contains('open')) document.getElementById('fb-profile-btn').click();
+    return document.getElementById('fb-profile-panel').innerText.replace(/\s+/g, ' ');
+  }
+  function closePanel() { var w = document.getElementById('fb-profile-wrap'); if (w) w.classList.remove('open'); }
+  function stash() { try { return JSON.parse(localStorage.getItem('mcghee-signin-via') || 'null'); } catch (e) { return 'unreadable'; } }
+
+  await sleep(50);   // DOMContentLoaded → injectIndicator
+  ok('bridge booted and injected the account button', !!document.getElementById('fb-profile-btn') && typeof firebridge.getSignInEmail === 'function');
+
+  step = '1';
+  /* 1 — sign in with the alias */
+  await window.__fire(mkUser('u-alias', 'mcgheealex@arizona.edu', 'google.com'));
+  await sleep(80);
+  ok('the alias login was swapped (aliasSignIn called with the ALIAS id token)', window.__fnCalls.length === 1 && window.__fnCalls[0] === 'Bearer idtok-u-alias', JSON.stringify(window.__fnCalls));
+  ok('signed in to the account uid', firebridge.getUser() && firebridge.getUser().uid === 'u-gmail');
+  ok('getSignInEmail() = the address used', firebridge.getSignInEmail() === 'mcgheealex@arizona.edu', firebridge.getSignInEmail());
+  var t = panelText();
+  ok('panel: "mcgheealex@arizona.edu · admin"', /mcgheealex@arizona\.edu · admin/.test(t), t);
+  ok('panel: "Same account as mcgheealex@gmail.com"', /Same account as mcgheealex@gmail\.com/.test(t), t);
+  ok('panel no longer leads with gmail', !/mcgheealex@gmail\.com · admin/.test(t), t);
+  ok('stash remembers alias + the uid it opened', stash() && stash().email === 'mcgheealex@arizona.edu' && stash().uid === 'u-gmail', JSON.stringify(stash()));
+  closePanel();
+
+  step = '2';
+  /* 2 — a reload of the same session: the SDK restores the custom-token session */
+  await window.__fire(mkUser('u-gmail', 'mcgheealex@gmail.com', 'custom'));
+  await sleep(40);
+  ok('after a reload the panel still says arizona.edu', firebridge.getSignInEmail() === 'mcgheealex@arizona.edu' && /mcgheealex@arizona\.edu · admin/.test(panelText()));
+  closePanel();
+
+  step = '3';
+  /* 3 — sign out clears it */
+  await firebridge.signOut();
+  await sleep(30);
+  ok('sign-out clears the note', stash() === null && firebridge.getSignInEmail() === '', JSON.stringify(stash()));
+
+  step = '4';
+  /* 4 — sign in with gmail directly */
+  await window.__fire(mkUser('u-gmail', 'mcgheealex@gmail.com', 'google.com'));
+  await sleep(40);
+  t = panelText();
+  ok('direct gmail sign-in: "mcgheealex@gmail.com · admin"', /mcgheealex@gmail\.com · admin/.test(t), t);
+  ok('direct gmail sign-in: "Also signs in with mcgheealex@arizona.edu"', /Also signs in with mcgheealex@arizona\.edu/.test(t), t);
+  ok('no swap for the account’s own login', window.__fnCalls.length === 1);
+  closePanel();
+
+  step = '5';
+  /* 5 — a stale note (no sign-out between) for the SAME uid but a google.com session → dropped */
+  localStorage.setItem('mcghee-signin-via', JSON.stringify({ email: 'mcgheealex@arizona.edu', uid: 'u-gmail' }));
+  await window.__fire(mkUser('u-gmail', 'mcgheealex@gmail.com', 'google.com'));
+  await sleep(60);
+  ok('stale note dropped once the session proves to be a direct Google one', stash() === null && firebridge.getSignInEmail() === 'mcgheealex@gmail.com', JSON.stringify(stash()) + ' / ' + firebridge.getSignInEmail());
+  ok('panel follows', /mcgheealex@gmail\.com · admin/.test(panelText()));
+  closePanel();
+
+  step = '6';
+  /* 6 — a note for a DIFFERENT uid is ignored and cleared at once */
+  localStorage.setItem('mcghee-signin-via', JSON.stringify({ email: 'mcgheealex@arizona.edu', uid: 'u-someone-else' }));
+  await window.__fire(mkUser('u-gmail', 'mcgheealex@gmail.com', 'custom'));
+  await sleep(20);
+  ok('note for another uid ignored + cleared', stash() === null && firebridge.getSignInEmail() === 'mcgheealex@gmail.com');
+
+  step = '7';
+  /* 7 — the swap fails → stays the alias, no note left */
+  await firebridge.signOut(); await sleep(20);
+  window.FN_FAIL = true; PROFILES['u-alias'] = { name: '', role: 'guest', email: 'mcgheealex@arizona.edu' };
+  await window.__fire(mkUser('u-alias', 'mcgheealex@arizona.edu', 'google.com'));
+  await sleep(60);
+  ok('failed swap: still the alias uid (as V3.806 intended), and no note', firebridge.getUser() && firebridge.getUser().uid === 'u-alias' && stash() === null, JSON.stringify(stash()));
+  var ov = document.getElementById('fb-pending-overlay') || document.querySelector('[id*="pending"]');
+
+  } catch (e) { fail++; detail.push('THREW at ' + step + ': ' + (e && e.stack || e)); }
+  ok('no runtime errors', window.__errs.length === 0, window.__errs.join('; '));
+  out.dataset.pass = pass; out.dataset.fail = fail; out.dataset.detail = detail.join(' · ');
+  out.textContent = pass + ' passed, ' + fail + ' failed' + (detail.length ? '\n' + detail.join('\n') : '');
+  out.dataset.done = '1';
+})();
+</script>
+</body></html>
