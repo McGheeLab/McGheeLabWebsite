@@ -36,7 +36,7 @@ import {
 
 setLogLevel('silent');
 
-// RULES_FILE=<path> runs the suite against another copy (V3.935: the scratch
+// RULES_FILE=<path> runs the suite against another copy (V3.938: the scratch
 // deploy file = live ruleset + one hunk, before `firebase deploy --config`).
 const RULES = process.env.RULES_FILE || new URL('../../firestore.rules', import.meta.url).pathname;
 const env = await initializeTestEnvironment({
@@ -108,7 +108,7 @@ async function seed() {
       },
       completions: {},
     });
-    // V3.935 — one-on-one slots: the PI's two open times, Cason's time booked by
+    // V3.938 — one-on-one slots: the PI's two open times, Cason's time booked by
     // his mentee Zeke, and one the PI ended.
     await setDoc(doc(d, 'oneOnOneSlots/oo-open'),   SLOT({ hostUid: 'admin', hostName: 'Alex' }));
     await setDoc(doc(d, 'oneOnOneSlots/oo-open2'),  SLOT({ hostUid: 'admin', hostName: 'Alex' }));
@@ -328,7 +328,7 @@ await mustDeny('accepting student writes both presenter keys across two meetings
   await b.commit();
 });
 
-/* ═══════════ 10. one-on-ones (V3.935) — the student writes only their own uid ═══════════ */
+/* ═══════════ 10. one-on-ones (V3.938) — the student writes only their own uid ═══════════ */
 console.log('\n── one-on-ones: claim an open slot for YOURSELF, release / skip your own, the host does the rest ──');
 await seed();
 const CLAIM = (uid) => ({ subscriberUid: uid, subscriberName: uid, subscribedAt: '2026-10-29T00:00:00Z', subscribedBy: 'self', updatedBy: uid, updatedAt: new Date() });

@@ -195,7 +195,7 @@ check('presentersOf tolerates legacy presenterId', I.presentersOf({ presenterId:
   check('deleted meeting → null', I.meetingTransition(base, null) === null);
 }
 
-/* ── V3.935 one-on-ones: occurrence math ── */
+/* ── V3.938 one-on-ones: occurrence math ── */
 {
   // 2026-11-03 is a Tuesday
   const weekly = { id: 's1', hostUid: 'pi', weekday: 2, time: '14:00', duration: 30, cadence: 'weekly', startDate: '2026-11-03', endDate: '2026-12-15', active: true, subscriberUid: 'gabe', skips: { '2026-11-24': { by: 'gabe', reason: 'conference' } } };
@@ -221,7 +221,7 @@ check('presentersOf tolerates legacy presenterId', I.presentersOf({ presenterId:
   check('firstOnOrAfter: Sunday Nov 1 → Tuesday Nov 3; Tuesday Nov 3 → itself', I.firstOnOrAfter('2026-11-01', 2) === '2026-11-03' && I.firstOnOrAfter('2026-11-03', 2) === '2026-11-03');
 }
 
-/* ── V3.935 one-on-ones: slot transitions ── */
+/* ── V3.938 one-on-ones: slot transitions ── */
 {
   const open = { hostUid: 'pi', hostName: 'Alex McGhee', weekday: 2, time: '14:00', duration: 30, cadence: 'weekly', startDate: '2026-11-03', endDate: null, active: true, subscriberUid: null, subscriberName: '', subscribedBy: null, skips: {}, updatedBy: 'pi' };
   const types = (ev) => ev.map((e) => e.type).join(',');
@@ -255,7 +255,7 @@ check('presentersOf tolerates legacy presenterId', I.presentersOf({ presenterId:
   check('changing the time AND the student → removed + assigned, not changed', types(I.slotTransition(booked, Object.assign({}, swapped, { time: '15:00' }))) === 'removed,assigned');
 }
 
-/* ── V3.935 one-on-ones: the afternoon-before reminder plan ── */
+/* ── V3.938 one-on-ones: the afternoon-before reminder plan ── */
 {
   const n = (uid, fb) => ({ pi: 'Alex McGhee', gabe: 'Gabriel Declercq', zeke: 'Zeke Pangelinan', cason: 'Cason Hancock' }[uid] || fb || '');
   // today Monday 2026-11-09 → tomorrow Tuesday 2026-11-10

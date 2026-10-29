@@ -28,7 +28,7 @@
       cannot legally write the requester's entry. Then tell the requester
       and the coordinators. Declined / cancelled → tell the other party.
 
-   4. onOneOnOneSlotWritten — oneOnOneSlots/{id} (V3.935). A student
+   4. onOneOnOneSlotWritten — oneOnOneSlots/{id} (V3.938). A student
       subscribed / left (→ the host), the host reserved / unbooked / moved /
       ended / deleted the time (→ the student), a week skipped or un-skipped
       (→ the other party). The 16:00 reminder pass also sends tomorrow's
@@ -246,7 +246,7 @@ function meetingTransition(before, after, today) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   One-on-ones (V3.935)
+   One-on-ones (V3.938)
    oneOnOneSlots/{id}: a recurring time the PI / a mentor offers; one student
    subscribes by writing their own uid. Occurrence math is mirrored in
    rm/js/meetings-one-on-one.js — keep the two in step.
@@ -387,7 +387,7 @@ const meetingReminders = onSchedule(
         await doc.ref.update({ [`reminded.${step.flag}`]: true });
       }
     }
-    // V3.935 — one-on-ones: the afternoon-before pass, grouped per host
+    // V3.938 — one-on-ones: the afternoon-before pass, grouped per host
     let ooSent = 0;
     if (now.minutes >= AFTERNOON_MIN) {
       const slotsSnap = await db.collection('oneOnOneSlots').where('active', '==', true).get();
@@ -528,7 +528,7 @@ const onMeetingWritten = onDocumentWritten('meetings/{meetingId}', async (event)
 });
 
 /* ================================================================
-   4. One-on-one slot — subscribed / left / reserved / moved / skipped (V3.935)
+   4. One-on-one slot — subscribed / left / reserved / moved / skipped (V3.938)
    ================================================================ */
 const onOneOnOneSlotWritten = onDocumentWritten('oneOnOneSlots/{slotId}', async (event) => {
   const before = event.data && event.data.before && event.data.before.exists ? event.data.before.data() : null;

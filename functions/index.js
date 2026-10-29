@@ -46,7 +46,7 @@ const { onMarketPostCreated, onMarketPostUpdated } = require('./task-market');
 // Phoenix), peer-accept slot swaps executed server-side, deck-posted /
 // review-decided / presenter-added notices. First consumer of the
 // `notifications.apps.meetings.push` user toggle.
-// V3.935 — one-on-ones: subscribed / reserved / moved / skipped notices, and
+// V3.938 — one-on-ones: subscribed / reserved / moved / skipped notices, and
 // the afternoon-before reminder inside meetingReminders.
 const { meetingReminders, onMeetingSwapWritten, onMeetingWritten, onOneOnOneSlotWritten } = require('./meetings');
 

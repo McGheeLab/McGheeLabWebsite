@@ -2028,7 +2028,7 @@ service cloud.firestore {
       );
     }
 
-    // One-on-ones (V3.935) — a recurring time the PI or a mentor offers, which
+    // One-on-ones (V3.938) — a recurring time the PI or a mentor offers, which
     // one student subscribes to. The host (or an admin) writes anything on
     // their own slot. Any lab member may CLAIM an open, active slot by writing
     // their OWN uid into subscriberUid, and the current subscriber may release

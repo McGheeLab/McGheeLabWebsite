@@ -309,7 +309,7 @@
 .mtg-live-ai-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .mtg-live-ai-row select { flex: 1 1 140px; min-width: 0; }
 
-/* ── one-on-ones (V3.935) ───────────────────────────────────── */
+/* ── one-on-ones (V3.938) ───────────────────────────────────── */
 .oo-monthnav button.on { min-width: 160px; }
 .oo-monthnav button i { display: inline-flex; }
 .oo-cal { padding: 12px 12px 10px; }

@@ -16,7 +16,7 @@ const CHAINDROP = {
     const own = h('input.inp.cd-own', { placeholder: 'Your own connection…', maxlength: 40, value: rel.startsWith('c:') ? REL[rel].label : '', on: { mousedown: e => e.stopPropagation(), input: () => { const v = customRel(own.value); rel = v || _ls.get('chainRel', 'leads'); drawRels(true); }, keydown: e => { e.stopPropagation(); if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); q.focus(); } if (e.key === 'Escape') CHAINDROP.close(); } } });
     const ownW = h('div.cd-ownw', own);
     const drawRels = keep => (ownW.classList.toggle('on', rel.startsWith('c:')), relList.replaceChildren(...RELATIONS.map((r, i) => h('button.cd-rel' + (r.id === rel ? '.on' : ''), { on: { mousedown: e => e.preventDefault(), click: () => { rel = r.id; _ls.set('chainRel', rel); own.value = ''; drawRels(); q.focus(); } } },
-      h('kbd', i + 1), h('span', h('b', rev ? r.inv : r.label), h('span.s', `“${snippet(M.blockName(from), 22)}” ${rev ? 'is ' + r.inv + ' the new one' : r.verb + ' the new one'}`)))),
+      h('kbd', i + 1), h('span', h('b', rev ? r.inv : r.label), h('span.s', `“${snippet(from ? M.blockName(from) : M.endName(fromId), 22)}” ${rev ? 'is ' + r.inv + ' the new one' : r.verb + ' the new one'}`)))),
       h('button.cd-rev', { on: { mousedown: e => e.preventDefault(), click: () => { rev = !rev; drawRels(); q.focus(); } } }, '⇄ ' + (rev ? 'New one → this' : 'This → new one'))));
     let shown = [];
     const drawItems = () => { const s = q.value.trim().toLowerCase(); shown = items().filter(x => !s || (x.label + ' ' + (x.sub || '') + ' ' + (x.ins ? x.ins.group : '')).toLowerCase().includes(s)); sel = Math.min(sel, Math.max(0, shown.length - 1));

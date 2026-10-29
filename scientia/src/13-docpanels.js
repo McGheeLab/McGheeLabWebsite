@@ -222,7 +222,7 @@ Object.assign(DocView, {
         h('div.serif', snippet(it.text, 120)))) : h('div.tiny.muted', `Select text and press ${keyLabel(settings().structKey)}.`)),
       h('div.ins-s', h('h6', 'Connections', h('span.muted', wires.length)),
         wires.map(w => { const out = w.from === b.id, o = M.block(out ? w.to : w.from), rel = REL[w.rel] || REL.related; return h('div.ins-w', h('span.mono', (w.directed ? (out ? '→ ' : '← ') : '↔ ') + (out ? rel.label : rel.inv)),
-          h('a', { title: 'Alt+click: open beside', on: { click: e => o && App.jump(o.id, e) } }, o ? M.blockName(o) : '—'), h('button.ib', { title: 'Remove connection', on: { click: () => M.unwire(w.id) } }, '×')); }),
+          h('a', { title: 'Alt+click: open beside', on: { click: e => o && App.jump(o.id, e) } }, M.endName(out ? w.to : w.from)), h('button.ib', { title: 'Remove connection', on: { click: () => M.unwire(w.id) } }, '×')); }),
         h('div.tiny.muted', { style: { marginTop: '4px' } }, 'Drag the ● on a box to connect.')),
       PROV.has(b) || (d.materials || []).length ? h('div.ins-s', h('h6', 'Provenance chain'), PROV.tree(PROV.chain(b.id)), h('button.btn.xs', { style: { marginTop: '6px' }, on: { click: () => PROV.export(b.id) } }, 'Export')) : null,
       terms.length ? h('div.ins-s', h('h6', 'Terms'), h('div.row', terms.map(t => h('a.btn.xs', { href: '#/lens/' + t.id }, h('span.term-demo', t.label))))) : null,

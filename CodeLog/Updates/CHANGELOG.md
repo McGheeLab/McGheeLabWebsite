@@ -4,9 +4,9 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
-## [V3.935] — 2026-10-29 — One-on-ones: a calendar tab on Lab Meetings where a student subscribes to a recurring meeting with the PI or their mentor
+## [V3.938] — 2026-10-29 — One-on-ones: a calendar tab on Lab Meetings where a student subscribes to a recurring meeting with the PI or their mentor
 
-Plan: [CodeLog/ClaudesPlan/V3.935_one_on_one_meetings.md](../ClaudesPlan/V3.935_one_on_one_meetings.md). Alex: *"a tab for setting up one-on-one meetings with the PI or their mentor … just a calendar, and students can subscribe to a recurring meeting."*
+Plan: [CodeLog/ClaudesPlan/V3.938_one_on_one_meetings.md](../ClaudesPlan/V3.938_one_on_one_meetings.md). Alex: *"a tab for setting up one-on-one meetings with the PI or their mentor … just a calendar, and students can subscribe to a recurring meeting."*
 
 ### Added
 - **`rm/js/meetings-one-on-one.js`** (new; loaded by `rm/pages/meetings.html`, reads `window.MEETINGS` like the live / chores modules): the **One-on-ones** tab (`#oneonone`, between Schedule and Chores).
@@ -32,7 +32,7 @@ Plan: [CodeLog/ClaudesPlan/V3.935_one_on_one_meetings.md](../ClaudesPlan/V3.935_
 - `rm/css/meetings.css`: `.oo-*` — month nav, 7-column grid, day cells (today / past / other month), chips (open / mine / skipped), weekday headings, pattern rows, summary rows, the upcoming-dates list; mobile: shorter cells, two-column rows.
 - `rm/js/nav.js` meetings blurb names one-on-ones; `CodeLog/features.json` `rm.meetings` summary + keywords (`one-on-one`, `1:1`, `mentor meeting`, `subscribe`).
 - `scripts/tests/meetings-rules.test.mjs` honours `RULES_FILE=<path>` so the suite can run against the scratch deploy copy.
-- `sw.js` CACHE_VERSION 904 → 905.
+- `sw.js` CACHE_VERSION 907 → **908** (first claimed as V3.935 / 905; renumbered to V3.938 when merging Gabe's V3.935–937, which landed first).
 
 ### Tests
 - `functions/test/meetings.test.js` 56 → **101 passed**: occurrence math (weekly, first / last date, before / after, skips, ended, open-ended, biweekly parity, a Sunday `startDate` anchoring on the Tuesday after it, `firstOnOrAfter`), 19 transition cases (open create / open edit / note edit / reminder stamp = nothing; reserved create = assigned; subscribe, left, removed, swap = removed + assigned, ended, deleted, skipped with reason, unskipped, changed; time + student change = removed + assigned, not changed), and the reminder plan (morning pass empty; grouped host notice in time order stamping both slots; skipped / already-reminded / open / other-weekday slots excluded; a single meeting gets a named title; biweekly off / on weeks).
@@ -46,8 +46,69 @@ Plan: [CodeLog/ClaudesPlan/V3.935_one_on_one_meetings.md](../ClaudesPlan/V3.935_
   - **Functions** `meetingReminders` (updated) and `onOneOnOneSlotWritten` (created) — both now on **Node.js 22**; the other 58 are still on Node 20 until their next deploy.
   - Then `autoDeploy` back to `true`; the 7 site files (`rm/js/meetings-one-on-one.js`, `rm/js/meetings.js`, `rm/js/api-routes.js`, `rm/js/nav.js`, `rm/css/meetings.css`, `rm/pages/meetings.html`, `sw.js`) ship by the end-of-turn auto-deploy (V3.818).
   - The follow-up full `firebase deploy --only functions` (the V3.934 Node 22 move for the other 58) **aborted in pre-flight**: `onBme466MessageCreated` and `onBme466AssignmentWrite` are live as 2nd-gen **`https`** functions with no memory setting — a half-created deploy whose Firestore (Eventarc) trigger never attached — while the code (V3.681) has always declared them `onDocumentCreated` / `onDocumentWritten`, and GCP refuses to change a function's trigger type in place. They have never fired, so nothing is lost by `firebase functions:delete onBme466MessageCreated onBme466AssignmentWrite --region us-central1 --force` followed by the full deploy, which recreates them as real Firestore triggers.
-  - **Alex ran both, 2026-10-29: done.** `functions:list` now shows **61 functions on nodejs22, 0 on nodejs20** — the V3.934 move is complete. `onBme466MessageCreated` / `onBme466AssignmentWrite` are real Firestore triggers (`document.v1.created` / `.written`, 256 MiB) for the first time since V3.681, so BME 466 thread replies and published assignments notify from now on. The deploy also **created `aliasSignIn`** (V3.806, never deployed until now): `GET` → `aliasSignIn ok`, a `POST` without a token → 401. The V3.806 client swap (`firebase-bridge.js` / `user-system.js` `_aliasSwap`) was already live, so an arizona.edu sign-in now lands on the gmail account. That clears the prerequisite for V3.806's `users` self-role rules guard, the last undeployed hunk besides V3.835's `use_mode`. The FULL repo `firestore.rules` (V3.806 + V3.835 + V3.935) passes every suite that covers them in the emulator: `profile-bootstrap-rules` 15 ok (incl. the self-role guard), `teacher-rules` 84 / 84 as intended, `inventory-rules` 59 ok (incl. `use_mode`), `meetings-rules` 114 ok. So the next rules deploy can be a plain `firebase deploy --only firestore:rules` from the repo file — no scratch copy needed any more.
+  - **Alex ran both, 2026-10-29: done.** `functions:list` now shows **61 functions on nodejs22, 0 on nodejs20** — the V3.934 move is complete. `onBme466MessageCreated` / `onBme466AssignmentWrite` are real Firestore triggers (`document.v1.created` / `.written`, 256 MiB) for the first time since V3.681, so BME 466 thread replies and published assignments notify from now on. The deploy also **created `aliasSignIn`** (V3.806, never deployed until now): `GET` → `aliasSignIn ok`, a `POST` without a token → 401. The V3.806 client swap (`firebase-bridge.js` / `user-system.js` `_aliasSwap`) was already live, so an arizona.edu sign-in now lands on the gmail account. That clears the prerequisite for V3.806's `users` self-role rules guard, the last undeployed hunk besides V3.835's `use_mode`. The FULL repo `firestore.rules` (V3.806 + V3.835 + V3.938) passes every suite that covers them in the emulator: `profile-bootstrap-rules` 15 ok (incl. the self-role guard), `teacher-rules` 84 / 84 as intended, `inventory-rules` 59 ok (incl. `use_mode`), `meetings-rules` 114 ok. So the next rules deploy can be a plain `firebase deploy --only firestore:rules` from the repo file — no scratch copy needed any more.
   - **Alex shipped it, 2026-10-29:** `firebase deploy --only firestore:rules` from the repo file, released. Live now equals `firestore.rules` for the first time since V3.806 — the V3.806 `users` self-role guard and the V3.835 `use_mode` designation are live, and no session has an undeployed rules hunk left. Remaining V3.806 check is a person's: sign in to RM with mcgheealex@arizona.edu and land as Alexander McGhee (admin).
+
+## [V3.937] — 2026-10-28 — Scientia: the lab's whiteboard is part of the app (the desktop has it too, offline)
+
+Plan: [CodeLog/ClaudesPlan/V3.937_scientia_whiteboard_port.md](../ClaudesPlan/V3.937_scientia_whiteboard_port.md). Gabe: "Have the whiteboard be a standalone port from the website into Scientia (as a duplicate for the local desktop to have it too)." The shared lab layer is not edited; the lab's board code is used unchanged.
+
+### Added
+- **`board.html`** (built, git-ignored, both targets and the desktop download) — `scripts/scientia_build.py` `build_board()`: `rm/pages/notebook-board.html` with every stylesheet and script it loads from the repo inlined unchanged (`rm/css/tokens.css`, `style.css`, `whiteboard-board.css`, `rm/css/notebook-board.css`, `rm/js/icons.js`, `whiteboard.js`, `whiteboard-replay.js`, `rm/js/notebook-board.js`); `BOARD_SKIP` leaves out the PDF picker (＋ From paper), the lab's Firebase sign-in and the RM deploy check. `window.SIS_BOARD_V` (the built board's hash) in both apps' flags; `board.html?v=<it>`.
+- **`scientia/board/store.js`** — the first script of `board.html`: a Firestore of its own for the engine (`collection` / `doc` / `get` / `set` (merge) / `update` (field paths) / `delete` / `add` / `where` / `orderBy` / `limit` / `onSnapshot` + `docChanges()` / `batch` / `runTransaction`; `FieldValue.serverTimestamp | delete | arrayUnion | arrayRemove | increment`; timestamps), documents in memory, loaded from and saved to the note through `window.parent.SIS_BOARDS` (600 ms after the last change, `pagehide`, `SIS_BOARD_FLUSH()`); `firebase.auth()` / `McgheeLab.Auth` = the board's owner `me` (`?view=1`: a viewer — nothing drawn or saved); `firebase.storage()` → the note's media, kept in the documents as `sis-media:<id>`. **`scientia/board/board.css`** hides ＋ From paper and the duplicate title; `view=1` hides the chrome.
+- **Store `boards`** (`02-schema.js`, `DB_VERSION` 11): row `<id>` = `{docs: {path: document}, parts, title, docId}`, a large board continuing in rows `<id>~1…` of ≤ 450,000 characters, ordered so a new stroke rewrites only the last row.
+
+### Changed
+- `13zzd-board.js` `BOARD`: whiteboards are the app's own (`cell.board = {id: 'wb…_me', title}`) on the website and the desktop; `preview` (`board.html?…&view=1`), `open` (full-window; Remove whiteboard, Done — flushes the board, refreshes the cell), `make` (the board's row with its first document, one undo step with the cell), `remove` (rows deleted unless another panel shows the board; Ctrl+Z restores both), `host` = `window.SIS_BOARDS` `{load, save, media}` (`save` quiet, not undo steps; a recording's `.m4a` minute saved as `.mp4`). V3.936 boards kept in the lab (`cell.board.lab`) still open there.
+- `13d-media.js` `MEDIA.add(file, {quiet, extra})` — a file kept without an undo step, with extra fields (`board`).
+- `13x-figure.js`: ✎ Whiteboard on every empty image (not only on the signed-in website).
+- `scripts/scientia_build.py`: `build_board`, `desktop_bundle(desktop_html, board_html)` (`app/board.html`), staleness of both `board.html`; `scripts/deploy.py` `scientia_build_if_stale`: the board's sources (the lab's page, scripts and styles, `scientia/board/`).
+
+### Tests
+- Headless Chrome, the desktop build with demo data and a fake microphone, static and through `serve.py` (throwaway config): ✎ Whiteboard → the lab's board as its owner; mouse strokes saved into the note (not undo steps); Record → Stop → a ready recording, its minute in `images/` as `.mp4`; Done → the cell shows the strokes read-only; kept in IndexedDB without `blob:` addresses; reopened → strokes, recording, audio loads; ▶ replay plays to 0:04 and draws the stroke; a 400-stroke board → 5 rows ≤ 450 KB, read back whole, a new stroke changes only the last row; Remove → rows gone, Ctrl+Z → back. Lab-mode harness 271/275 (the four known), notes harness 13/13; notebook harness v3864 0/4 here and identically on `main` 4a28507 (not this change).
+- `sw.js` CACHE_VERSION 906 → 907.
+
+## [V3.936] — 2026-10-27 — Scientia: HTML pages keep their state and take notes; regions fold, nest and connect; Tab between steps; steps tied to protocols; ink on images; the lab's whiteboard in image panels
+
+Plan: [CodeLog/ClaudesPlan/V3.936_scientia_notebook_wishlist.md](../ClaudesPlan/V3.936_scientia_notebook_wishlist.md). Gabe's list of eight; the shared lab layer is not edited.
+
+### Added
+- **`scientia/src/13zze-html.js` `HTMLX`** — an HTML page keeps what it was left at: the page's copy gets a second script (`QUOTE.more`) that reports trusted changes of form fields and `<details>` (`{sis:'state'}`); kept as `block.htmlState = {media, v}` (saved quietly, not an undo step), written into every new copy and applied after `load` with `input` + `change` dispatched; `hello` → `restore` for a reloaded frame; the card and the maximised view in step; ⋯ → *Back to how the page starts*. **Notes in the page**: ✎ Note in the maximised bar (`HTMLX.pick` → `{sis:'spot', at:{path, fx, fy, px, py}}`) or ✎ Note on a selected passage → `HTMLX.make(srcId, where, text)`: a component beside the page with `quote: {src, note: true, at | exact, prefix, suffix}`, wired `comments`; pinned in the page (card and maximised), re-placed on resize; a pin opens `HTMLX.write` (edit, remove, on the paper); listed as a note in the side panel (`13zz-maxhl`).
+- **`scientia/src/13zzc-glue.js` `GLUE`** — ink written on an image panel is glued to it (`ink.glue = {to, dx, dy}`): `follow(docId)` in `DocView.fill` and `drawWires` (every drag), `offset(b)` after `INK.fit`, `reglue(pane, b)` when the ink itself is dragged, `MOVE.expand` takes it along; drawn over the image (`.on-img`, z-index 5, only its strokes take the pointer); a stroke on an image doesn't also click it.
+- **`scientia/src/13zzd-board.js` `BOARD`** — ✎ Whiteboard in an empty image of a panel: `cell.board = {lab: 'nb…_<uid>', owner, title}`, a board of the Lab Notebook's whiteboard (`/rm/pages/notebook-board.html`, `userData/{uid}/notebookBoards`); `preview(bd)` in the cell, `open(b, i)` full-window, `remove`; made where Scientia is signed in to the lab (`BOARD.can()`: the website), opened on mcgheelab.com from the desktop app.
+- **Protocols (`13b-protocol.js`)**: Tab / Shift+Tab in a step (`tabFrom(def, sid, dir)` — a new step after the last), in a run's temporary steps (`tabRun`), `focusStep`; a step tied to another protocol (`step.sub`; `tie`, `tieDialog` with the loop guard `reaches`, `subRow`, `subList`), kept by a new wording or a split; ▶ *Run it here* (`runSub`: a run below, `parentStep {runId, stepId}`, wired `needs`; `subRunOf`); `parentCheck` — a finished sub-run checks its step, and the note's timer runs on for the parent run. `pickProtocol(title, cb, skip)`.
+- **Regions (`13v-region.js`)**: nesting (`members` may hold region ids; `blocksOf`, `subRegions`, `ancestors`, `within`, `depth`, `hider`, `tidy`, `at(pane, d, x, y, skip)`, `droppedRegion`); `fold(pane, d, r)` (`r.collapsed`, `r.at`; a folded region is its title card, its contents hidden, connections to them drawn to it — `REGION.shown`); a region is a connection end (its ● `.rg-port`, a drop on its title — `LINKS.regionAt`); `copyDialog` / `copyTo(d, r, destId, pos)` — *Embed in another note…*, also a plain drag of its title into another pane (13zb; Alt moves it as before); deleting a region leaves its contents in the region around it and removes its connections.
+- **`M.end(id)` / `M.endName(id)`** (`04-model.js`): a connection's end, a component or a region.
+- **Components fold** — ▾ left of the title (`b.collapsed`, `12-doc.js` `.cfold`).
+
+### Changed
+- `99-boot.js`: the lab layer's pills roll into their bar after 3 s untouched (`SIS_LAB.pills.dockMs = 3000`, set from the app; the lab layer's default stays 10 s).
+- `12b-wires.js` `DocView.drawWires`: ends through `M.end`, ends hidden in a folded region drawn to it (`w.f` / `w.t`, `WIRES.fa` / `fb`); `12-doc.js` `rectOf`, `wireMenu`, `relationPopover`, `crossWire`, `chipsFor`, `bbox`; `13-docpanels.js` connections list; `13t-chaindrop.js` names a region start.
+- `13zf-ink.js`: the pen starts on an image panel's images (`INK.onImage`, `INK.imageAt`); `addStroke` glues ink written on a panel and keeps glued and loose ink apart.
+- `13x-figure.js`: whiteboard cells (`aspect`, `syncText`, `addFiles`, `layoutMenu`, the cell, its caption and label).
+- `13zb-move.js`: a moved region takes its inner regions (new ids, connections kept); `MOVE.region` uses every component inside.
+- `13zw-quote.js`: `fill` adds `QUOTE.more(srcId)` (replacement by function, so a `$` in a value is safe); `paintMarks` sends only quotes with a passage.
+
+### Tests
+- Headless Chrome, desktop build, demo data, real keys and mouse: protocol Tab / Shift+Tab, ties, sub-run checks its step; nested regions, region connections, fold / unfold, component fold, embed a nested region in another note; ink over an image glued and following a drag by the panel's name; the whiteboard (website and desktop); HTML state kept and restored, notes placed by a click, on a passage, opened from the pin, edited, reset. Lab-mode harness 271/275 (the four known failures), notes harness 13/13, notebook-Scientia harness 45/45.
+- `sw.js` CACHE_VERSION 905 → 906.
+
+## [V3.935] — 2026-10-27 — The installed Scientia updates itself
+
+Plan: [CodeLog/ClaudesPlan/V3.935_scientia_self_update.md](../ClaudesPlan/V3.935_scientia_self_update.md). (Opened as V3.930 in PR #11; renumbered.)
+
+### Added
+- **`scientia/service.py` updates the installed app**: `check` (the site's `version.json`, 2 min after start, then hourly, or on `update-now`), `download` (verified against `sha256`, unpacked in `update/`, version checked), `stop_server` (through `/api/lab/quit`), `put_in_place` (the app folder's `images` / `recordings` / `backup` kept), `restart_self`; `update.json` reports it. After a failure it tries again in ten minutes.
+- **`scientia/serve.py`**: `shutdown()` saves a pending change before Quit / Remove / an update stops the server; `/api/lab/update-check`; `update_info()` reads `update.json`.
+- **`23c-thiscomputer.js`**: Settings → The lab shows the version, the last check and **Check for updates now**; `THISPC.watch` reloads the tab after an update (at once in the background, else a Reload bar).
+- `scripts/scientia_build.py`: `version.json` carries the download's full `sha256`.
+
+### Changed
+- `scripts/deploy.py` `scientia_build_if_stale`: rebuilds when the lab layer, the bridge, RM's recorder scripts or the app's server / installer / icons are newer than the web build or the desktop download — so installed computers follow every deploy (V3.932's bridge, for one, reaches them without a new download by hand).
+
+### Tests
+- Self-update end to end (scratch install of this build, stand-in site, the real `service.py`): updated in 5.7 s; a note written just before survived; the app's `images` kept; a wrong checksum refused, the app unchanged. Lab-mode harness (web) 271/275 (the four known); hub tests 68, share 44, merge 14 passed — all after merging `main` (V3.931–V3.934).
+- `sw.js` CACHE_VERSION 904 → 905.
 
 ## [V3.934] — 2026-10-27 — Cloud Functions on Node.js 22 (Node 20 stops deploying on 30 Oct)
 

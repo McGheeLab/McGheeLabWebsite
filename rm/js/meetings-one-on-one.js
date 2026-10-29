@@ -1,4 +1,4 @@
-/* meetings-one-on-one.js — One-on-ones tab on Lab Meetings (V3.935).
+/* meetings-one-on-one.js — One-on-ones tab on Lab Meetings (V3.938).
  *
  * The PI (or anyone who is somebody's mentor — users/{uid}.mentor_uids)
  * OFFERS recurring times; a student SUBSCRIBES to one and has it every week

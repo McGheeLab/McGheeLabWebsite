@@ -7,6 +7,8 @@
      pen     — writes ink straight onto the paper. Strokes written close
                together gather into one ink component (it moves, wires, joins
                regions, takes timers and structure labels like any component).
+               On an image panel's images it writes on top of them, and that
+               ink is glued to the image (13zzc).
                In a component's text the pen is the iPad's own Scribble.
    The ink bar (top left; ✎ Pen beside Timer) picks the pen, highlighter,
    eraser or lasso, the colour and the width. The lasso selects strokes to
@@ -84,8 +86,10 @@ const INK = {
   },
   addStroke(pane, s) {
     const d = M.doc(pane.docId); if (!d) return; DB.beginGroup('ink');
-    let b = INK.target(pane, { x: s.p[0][0], y: s.p[0][1] });
-    if (!b) { _suppress++; b = M.addBlock(d.id, null, { kind: 'ink', label: '', x: s.p[0][0] - INK.PAD, y: s.p[0][1] - INK.PAD, w: 60, inkH: 60, ink: { strokes: [] } }); _suppress--; b.body = { text: '', marks: [] }; b._new = true; }
+    // written on an image: the ink is glued to it (it moves with it, 13zzc) and gathers only with ink on the same image
+    const img = INK.imageAt(pane, s.p[0][0], s.p[0][1]);
+    let b = INK.target(pane, { x: s.p[0][0], y: s.p[0][1] }); if (b && ((b.glue && b.glue.to) || null) !== img) b = null;
+    if (!b) { _suppress++; b = M.addBlock(d.id, null, { kind: 'ink', label: '', x: s.p[0][0] - INK.PAD, y: s.p[0][1] - INK.PAD, w: 60, inkH: 60, ink: { strokes: [] }, glue: img ? { to: img, dx: 0, dy: 0 } : undefined }); _suppress--; b.body = { text: '', marks: [] }; b._new = true; }
     b.ink = b.ink || { strokes: [] };
     b.ink.strokes.push(Object.assign({}, s, { p: s.p.map(p => [INK.r1(p[0] - b.x), INK.r1(p[1] - b.y), Math.round((p[2] == null ? .5 : p[2]) * 100) / 100]) }));
     INK.fit(b); INK._last = b.id; const isNew = b._new; delete b._new;
@@ -93,12 +97,16 @@ const INK = {
   },
 
   /* ---------- pen input on a note's paper ---------- */
-  interactive: t => t.closest('button,input,textarea,select,a,label,.port,.rz,.ed,[contenteditable="true"],.pop,.ink-bar,.bh,.chips,.wl,.region .rg-tab'),
+  interactive: t => t.closest('button,input,textarea,select,a,label,.port,.rz,.ed,[contenteditable="true"],.pop,.ink-bar,.bh,.chips,.wl,.region .rg-tab,.region .rg-port'),
+  /** The pen writes on the images of an image panel too (the ink goes on top, glued to it). */
+  onImage: (box, t) => box.classList.contains('w-figure') && !!(t.closest && t.closest('.fg-grid')),
+  /** The image panel at a point of the paper (the topmost), or null. */
+  imageAt(pane, x, y) { const el = $$(':scope > .box.w-figure', pane.paper.world).reverse().find(el => el.offsetWidth && x >= el.offsetLeft && x <= el.offsetLeft + el.offsetWidth && y >= el.offsetTop && y <= el.offsetTop + el.offsetHeight); return el ? el.dataset.id : null; },
   penDown(paper, e) {
     const host = paper.el.closest('.canvas-host'), pane = host && host._dv; if (!pane || !pane.docId || pane.travel || !M.doc(pane.docId)) return false;
     if (!INK.writing()) return false; // pen mode off: the pen pans the paper and moves components (13zz2)
     if (INK.interactive(e.target)) return false;
-    const box = e.target.closest('.box'); if (box && !box.classList.contains('w-ink')) return false;
+    const box = e.target.closest('.box'); if (box && !box.classList.contains('w-ink') && !INK.onImage(box, e.target)) return false;
     const wp = paper.toWorld(e.clientX, e.clientY);
     if (INK.sel && INK.sel.docId === pane.docId && INK.inSel(wp)) return INK.moveSel(pane, paper, e, wp), true;
     if (INK.sel) INK.clearSel();

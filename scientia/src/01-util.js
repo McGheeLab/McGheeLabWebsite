@@ -2,7 +2,7 @@
    01 · Utilities — DOM builder, ids, dates, formatting
    ========================================================================== */
 'use strict';
-const BUILD = '2026-10-26 · reconciled with the lab (V3.903 clips at the pointer, V3.905 /cite, One name); Firebase sync retired', DEMO_V = 2;
+const BUILD = '2026-10-28 · the lab’s whiteboard is part of the app: image-panel whiteboards on the desktop too, offline, kept in the note', DEMO_V = 2;
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

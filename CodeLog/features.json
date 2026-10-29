@@ -1316,7 +1316,8 @@
     "scientia/icons/**",
     "scientia/docs/**",
     "scientia/README.md",
-    "scientia/MANUAL.md"
+    "scientia/MANUAL.md",
+    "scientia/src/13zze-html.js"
    ],
    "distinct_from": {
     "rm.people": "Scientia's 'profiles' store holds note TYPES as data, not people"
@@ -1600,7 +1601,8 @@
     "scientia/src/13zq-pressure.js",
     "scientia/src/13zz2-pen3.js",
     "scientia/src/13zz3-dash.js",
-    "scientia/src/13zz4-inksplit.js"
+    "scientia/src/13zz4-inksplit.js",
+    "scientia/src/13zzc-glue.js"
    ],
    "related": [
     "rm.canvas-engine"
@@ -1745,11 +1747,15 @@
     "scientia/src/13d-media.js",
     "scientia/src/13zn-rec.js",
     "scientia/src/13o-vault.js",
-    "scientia/src/13x-figure.js"
+    "scientia/src/13x-figure.js",
+    "scientia/src/13zzd-board.js",
+    "scientia/board/store.js",
+    "scientia/board/board.css"
    ],
    "related": [
     "rm.figure-board",
-    "shared.recorder"
+    "shared.recorder",
+    "rm.canvas-engine"
    ]
   },
   {
