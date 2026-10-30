@@ -15,6 +15,12 @@
      the board's journal (store.js);
    • the palm (13zf PALM): a touch the size of a palm, made while the pen is
      near, or close to another touch never reaches the engine.
+   V3.942 — the lasso (13zu): ◌ in the bar, or the Slim Pen's barrel button
+   held, whatever tool is on. Loop around ink and cards to select them; drag
+   inside to move, a corner to scale; its bar: Copy, Duplicate, ⇋ ⇵, Pen ↔
+   Highlighter, ◧ Fill / Unfill, Delete, Done. A colour or width picked in
+   the ink bar restyles the selection; a barrel tap on it copies it, a
+   barrel tap elsewhere pastes; Ctrl+C / Ctrl+V, Delete, Esc.
    ========================================================================== */
 (function () {
 'use strict';
@@ -30,14 +36,18 @@ const PEN = 'sis-pen', HL = 'sis-hl', PROBE = 'sis-probe', PROBE_C = '#fffffe';
 /* ─── the pen in hand: the notebook's ─── */
 const cx = document.createElement('canvas').getContext('2d');
 const hex = c => { if (!c || c === 'auto') return '#1d1d1b'; cx.fillStyle = '#000000'; cx.fillStyle = c; const v = String(cx.fillStyle); return /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : '#1d1d1b'; };
-let lastKey = '', lastInst = null;
+let lastKey = '', lastInst = null, lastLook = null;
 function sync() {
   const I = INK(), b = board(); if (!I || !b) return;
-  const fill = I.tool === 'fill';
-  const pens = [{ id: PEN, kind: 'pen', color: hex(I.COLORS[I.color]), w: (I.WIDTHS[I.width] || 2.4) / REF }, { id: HL, kind: 'hl', color: hex(I.HL[I.hlColor] || I.HL[0]), w: .014 }];
-  if (fill) pens.push({ id: PROBE, kind: 'pen', color: PROBE_C, w: .001 });   // ◧: the engine places the tap for us
+  const probe = I.tool === 'fill' || I.tool === 'lasso';   // ◧ and ◌: the engine places the tap or the loop for us
+  const pens = [{ id: PEN, kind: 'pen', color: hex(I.COLORS[I.color]), w: (I.WIDTHS[I.width] || 2.4) / REF }, { id: HL, kind: 'hl', color: hex(I.HL[I.hlColor] || I.HL[0]), w: .014 },
+    { id: PROBE, kind: 'pen', color: PROBE_C, w: .001 }];
   const key = JSON.stringify(pens); if (key !== lastKey || b !== lastInst) { lastKey = key; lastInst = b; b.setPens(pens); }
-  if (I.tool === 'eraser') b.setTool('eraser'); else b.usePen(fill ? PROBE : I.tool === 'hl' ? HL : PEN);
+  if (I.tool === 'eraser') b.setTool('eraser'); else b.usePen(probe ? PROBE : I.tool === 'hl' ? HL : PEN);
+  // V3.942 — a colour or a width picked with a selection on the board restyles it
+  const look = { c: pens[0].color, w: pens[0].w, hc: pens[1].color };
+  if (SEL && lastLook && (look.c !== lastLook.c || look.w !== lastLook.w || look.hc !== lastLook.hc)) restyle(look, lastLook);
+  lastLook = look;
 }
 const ready = () => { const b = board(); if (b && b !== lastInst) sync(); return b; };   // replay and back-to-live make a new engine
 const boot = setInterval(() => { if (board()) { clearInterval(boot); sync(); } }, 120); setTimeout(() => clearInterval(boot), 30000);
@@ -83,9 +93,14 @@ addEventListener('pointerdown', e => {
   if (e.__sis) return;
   if (e.pointerType !== 'touch' || !DOWN.size) ST.step();   // each stroke its own undo step (a resting hand never joins them)
   DOWN.add(e.pointerId); ready();
+  // V3.942 — the lasso: a tap elsewhere lets the selection go; a stroke's samples are kept (its loop, where the board is)
+  const onSel = !!(OV && OV.contains(e.target));
+  if (SEL && !onSel && !(e.target.closest && e.target.closest('.wb-pills'))) clearSel();
+  if (!onSel && e.pointerType !== 'touch') CUR = { id: e.pointerId, pts: [[e.clientX, e.clientY]], lasso: lassoNow() || barrel(e) };
   if (e.pointerType === 'pen') {
     penAt = performance.now(); [...TOUCH.keys()].forEach(cancel); feelPen(e);
     if (isEraser(e)) { const b = board(); if (b && b.getTool() !== 'eraser') { ER = { id: e.pointerId, prev: b.currentPen() }; b.setTool('eraser'); } }
+    else if (!onSel && barrel(e)) { const b = board(); if (b) { ONCE = { id: e.pointerId, prev: b.currentPen(), until: performance.now() + 2500 }; b.usePen(PROBE); } }   // the barrel button: a lasso, whatever tool is on
     return;
   }
   if (e.pointerType !== 'touch') return;
@@ -99,8 +114,8 @@ addEventListener('pointerdown', e => {
 }, true);
 addEventListener('pointermove', e => {
   if (e.__sis) return;
-  if (e.pointerType === 'pen') { penAt = performance.now(); if (TOUCH.size) [...TOUCH.keys()].forEach(cancel); feelPen(e); return; }
-  if (e.pointerType !== 'touch') return;
+  if (e.pointerType === 'pen') { penAt = performance.now(); if (TOUCH.size) [...TOUCH.keys()].forEach(cancel); feelPen(e); track(e); return; }
+  if (e.pointerType !== 'touch') { track(e); return; }
   if (G && G.ids.has(e.pointerId)) { const [x, y] = G.ids.get(e.pointerId); if (Math.hypot(e.clientX - x, e.clientY - y) > 18) G.moved = true; }
   if (PALMS.has(e.pointerId)) { e.stopImmediatePropagation(); return; }
   const t = TOUCH.get(e.pointerId); if (t) { t.x = e.clientX; t.y = e.clientY; }
@@ -108,9 +123,12 @@ addEventListener('pointermove', e => {
 const up = e => {
   if (e.__sis) return;
   DOWN.delete(e.pointerId);
+  if (CUR && CUR.id === e.pointerId) { LAST = { pts: CUR.pts, t: performance.now(), lasso: CUR.lasso }; CUR = null; loop(null); }
+  const back = p => setTimeout(() => { const b = board(); if (!b || !p) return; if (p.tool === 'pen') b.usePen(p.id); else b.setTool(p.tool); }, 0);
   if (e.pointerType === 'pen') {
     penAt = performance.now(); feelPen(e);
-    if (ER && ER.id === e.pointerId) { const p = ER.prev; ER = null; setTimeout(() => { const b = board(); if (!b || !p) return; if (p.tool === 'pen') b.usePen(p.id); else b.setTool(p.tool); }, 0); }
+    if (ER && ER.id === e.pointerId) { const p = ER.prev; ER = null; back(p); }
+    if (ONCE && ONCE.id === e.pointerId) { const p = ONCE.prev; ONCE.id = null; back(p); }
     return;
   }
   if (e.pointerType !== 'touch') return;
@@ -182,22 +200,28 @@ function fillAt(probe) {
     if (s.pageId !== page || s.erasedAt || s.hiddenBy || s.fillOf || s.hl || s.color === PROBE_C || !Array.isArray(s.pts) || !closedLoop(s.pts) || !inside(x, y, s.pts)) return;
     const q = box(s.pts), a = (q.x1 - q.x0) * (q.y1 - q.y0); if (a < area) { area = a; best = r; } });
   if (!best) return HOST.pen.toast('Tap inside a closed shape to fill it');
-  const f = HOST.pen.paint(), ops = [], mine = ST.list('strokes').filter(r => r.data.fillOf === best.id && !r.data.erasedAt);
+  ST.write(fillOps(best, HOST.pen.paint()));
+}
+/** The writes that fill one closed stroke {id, data} with paint f {c, hl}. */
+function fillOps(best, f) {
+  const page = best.data.pageId, ops = [], mine = ST.list('strokes').filter(r => r.data.fillOf === best.id && !r.data.erasedAt);
   if (!f.hl) mine.forEach(r => ops.push({ op: 'del', path: r.path }));
   else { const layers = mine.filter(r => r.data.hl); if (layers.length >= 8) ops.push({ op: 'del', path: layers[0].path }); }
   const now = Date.now(), seq = (+best.data.seq || now) - .5;
   scan(best.data.pts).forEach((pts, k) => ops.push({ op: 'set', path: ST.root + '/strokes/' + ST.newId(),
     data: Object.assign({ pageId: page, seq: seq - k / 1000, color: hex(f.c), w: STEP * 2.2, pts, done: true, t0: now, t1: now, fillOf: best.id }, f.hl ? { hl: true } : {}) }));
-  ST.write(ops);
+  return ops;
 }
 ST.skip(c => { const d = c.after || c.before; return !!d && d.color === PROBE_C; });   // the tap's mark is no undo step
 ST.onWrite((changes, replay) => {
+  if (SEL) SEL.bb = null;   // V3.942 — the selection's box is measured again
   if (replay) return;
   const gone = [], pre = ST.root + '/strokes/';
   changes.forEach(c => {
     if (!c.path.startsWith(pre)) return;
     const a = c.after, b = c.before;
-    if (a && a.color === PROBE_C) { if (a.done) Promise.resolve().then(() => { ST.write([{ op: 'del', path: c.path }]); fillAt(a); }); return; }
+    if (a && a.color === PROBE_C) { if (a.done) Promise.resolve().then(() => { ST.write([{ op: 'del', path: c.path }]); probeDone(a); }); return; }
+    if (a && a.done && (!b || !b.done) && !a.fillOf && LAST && performance.now() - LAST.t < 1500 && Array.isArray(a.pts)) learn(LAST.pts, a.pts);   // a stroke drawn here: where the board is on the screen
     if (b && !b.fillOf && (!a || (a.erasedAt && !b.erasedAt))) gone.push([c.path.slice(pre.length), a && a.erasedAt]);
   });
   if (gone.length) Promise.resolve().then(() => {   // a stroke's fill goes with it
@@ -206,5 +230,149 @@ ST.onWrite((changes, replay) => {
   });
 });
 
-window.SIS_PEN = { sync, undo, redo };
+/* ─── V3.942 · where a board point is on the screen. The engine keeps its view to itself; on its plane a point is
+       u = A·(x − left)/scale + originX + kx (v likewise) — the scale and origin from the engine's handle, A and k fixed
+       for the board's width, learnt from each stroke drawn here (its samples on the screen against its points). ─── */
+const MAP = { A: 0, kx: 0, ky: 0 };
+const inkEl = () => document.querySelector('.wb-canvas-ink');
+const view = () => { const b = board(), v = (b && b.getView()) || {}, o = (b && b.getOrigin()) || {}; return { s: v.scale || 1, ox: o.x || 0, oy: o.y || 0 }; };
+const corners = P => { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; P.forEach(([x, y]) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }); return { x0, y0, x1, y1 }; };
+function learn(client, pts) {
+  const el = inkEl(); if (!el || !client || client.length < 2 || pts.length < 6) return;
+  const c = corners(client), p = box(pts), cw = c.x1 - c.x0, ch = c.y1 - c.y0;
+  const k = cw > 24 && ch > 24 ? ((p.x1 - p.x0) / cw + (p.y1 - p.y0) / ch) / 2 : cw > 24 ? (p.x1 - p.x0) / cw : ch > 24 ? (p.y1 - p.y0) / ch : 0; if (!(k > 0)) return;
+  const R = el.getBoundingClientRect(), V = view(); MAP.A = k * V.s;
+  MAP.kx = p.x0 - MAP.A * (c.x0 - R.left) / V.s - V.ox; MAP.ky = p.y0 - MAP.A * (c.y0 - R.top) / V.s - V.oy;
+}
+const toBoard = (x, y) => { const R = inkEl().getBoundingClientRect(), V = view(); return [MAP.A * (x - R.left) / V.s + V.ox + MAP.kx, MAP.A * (y - R.top) / V.s + V.oy + MAP.ky]; };
+const toScreen = (u, v) => { const R = inkEl().getBoundingClientRect(), V = view(); return [R.left + (u - V.ox - MAP.kx) * V.s / MAP.A, R.top + (v - V.oy - MAP.ky) * V.s / MAP.A]; };
+
+/* ─── the lasso ─── */
+const barrel = e => e.pointerType === 'pen' && ((e.buttons & 2) === 2 || e.button === 2);
+let ONCE = null, CUR = null, LAST = null, SEL = null, OV = null, CLIP = null, LOOP = null;
+const lassoNow = () => !!(ONCE && ONCE.until > performance.now()) || (INK() && INK().tool === 'lasso');
+/** the loop as it is drawn (on the screen, over the board) */
+function loop(pts) {
+  if (!pts) { if (LOOP) LOOP.remove(); LOOP = null; return; }
+  if (!LOOP) { LOOP = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); LOOP.id = 'sis-loop'; LOOP.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'path')); document.body.append(LOOP); }
+  LOOP.firstChild.setAttribute('d', 'M' + pts.map(p => p[0] + ',' + p[1]).join('L') + 'Z');
+}
+function track(e) {
+  if (!CUR || CUR.id !== e.pointerId) return;
+  const C = e.getCoalescedEvents ? e.getCoalescedEvents() : null; (C && C.length ? C : [e]).forEach(q => CUR.pts.push([q.clientX, q.clientY]));
+  if (CUR.lasso) loop(CUR.pts);
+}
+/** ◧ or ◌ placed its mark: a lasso loop selects; a tap with the lasso pastes; otherwise it is a fill tap */
+function probeDone(a) {
+  const lasso = LAST && LAST.lasso && performance.now() - LAST.t < 2500;
+  if (!lasso) return fillAt(a);
+  const P = a.pts || [], pb = box(P);
+  if (pb.x1 - pb.x0 < 12 / REF && pb.y1 - pb.y0 < 12 / REF) { if (CLIP) paste(P[0], P[1], a.pageId); return; }
+  learn(LAST.pts, P);
+  const ids = [], cards = [];
+  ST.list('strokes').forEach(r => { const d = r.data; if (d.fillOf || d.erasedAt || d.hiddenBy || d.color === PROBE_C || d.pageId !== a.pageId || !Array.isArray(d.pts)) return;
+    const n = d.pts.length / 3; let k = 0; for (let i = 0; i < d.pts.length; i += 3) if (inside(d.pts[i], d.pts[i + 1], P)) k++; if (k >= Math.max(1, n * .6)) ids.push(r.id); });
+  ST.list('items').forEach(r => { const d = r.data; if (d.type === 'region' || d.x == null || (d.pageId && d.pageId !== a.pageId)) return; const w = +d.w || .4, hh = +d.h || w / (+d.ar || 1.6); if (inside(+d.x + w / 2, (+d.y || 0) + hh / 2, P)) cards.push(r.id); });
+  if (!ids.length && !cards.length) return HOST.pen.toast('Nothing inside the lasso');
+  select(ids, cards, a.pageId);
+}
+const strokesBy = () => new Map(ST.list('strokes').map(r => [r.id, r]));
+const itemsBy = () => new Map(ST.list('items').map(r => [r.id, r]));
+function select(ids, cards, page) {
+  const S = strokesBy(), all = new Set(ids); S.forEach((r, id) => { if (r.data.fillOf && all.has(r.data.fillOf) && !r.data.erasedAt) all.add(id); });   // a shape's fill goes with it
+  SEL = { ids: [...all], shapes: ids.slice(), cards: cards.slice(), page, bb: null }; paintSel();
+}
+function clearSel() { SEL = null; if (OV) { OV.remove(); OV = null; } }
+function selBounds() {
+  if (!SEL) return null; if (SEL.bb) return SEL.bb;
+  const S = strokesBy(), I = itemsBy(); let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  SEL.ids = SEL.ids.filter(id => S.has(id) && !S.get(id).data.erasedAt); SEL.shapes = SEL.shapes.filter(id => S.has(id)); SEL.cards = SEL.cards.filter(id => I.has(id));
+  SEL.ids.forEach(id => { const d = S.get(id).data, b = box(d.pts || []), m = (+d.w || .004) / 2; x0 = Math.min(x0, b.x0 - m); y0 = Math.min(y0, b.y0 - m); x1 = Math.max(x1, b.x1 + m); y1 = Math.max(y1, b.y1 + m); });
+  SEL.cards.forEach(id => { const d = I.get(id).data, w = +d.w || .4, hh = +d.h || w / (+d.ar || 1.6); x0 = Math.min(x0, +d.x); y0 = Math.min(y0, +d.y || 0); x1 = Math.max(x1, +d.x + w); y1 = Math.max(y1, (+d.y || 0) + hh); });
+  if (!(x1 > x0)) return null; return (SEL.bb = { x0, y0, x1, y1 });
+}
+const ACTS = [['copy', 'Copy', 'Copy (Ctrl+C) — a barrel tap elsewhere pastes'], ['dup', 'Duplicate', 'A copy beside it'], ['flipx', '⇋', 'Flip left ↔ right'], ['flipy', '⇵', 'Flip up ↕ down'],
+  ['kind', 'Pen ↔ Highlighter', 'Pen strokes become highlighter, or back'], ['fill', '◧ Fill', 'Fill the closed strokes with the last pen or highlighter colour'], ['unfill', 'Unfill', 'Take their fills away'], ['del', 'Delete', 'Delete (Del)'], ['done', 'Done', 'Let go (Esc)']];
+function paintSel() {
+  const bb = selBounds(); if (!SEL || !bb || !MAP.A) { if (!bb && SEL) clearSel(); return; }
+  if (!OV) {
+    OV = document.createElement('div'); OV.className = 'sis-sel';
+    ['nw', 'ne', 'sw', 'se'].forEach(k => { const i = document.createElement('i'); i.className = 'sis-h'; i.dataset.h = k; OV.append(i); });
+    const bar = document.createElement('div'); bar.className = 'sis-selbar'; const n = document.createElement('span'); n.className = 'n'; bar.append(n);
+    ACTS.forEach(([a, t, title]) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.a = a; b.textContent = t; b.title = title; if (a === 'del') b.className = 'danger'; bar.append(b); });
+    bar.addEventListener('pointerdown', e => e.stopPropagation()); bar.addEventListener('click', e => { const b = e.target.closest('button'); if (b) act(b.dataset.a); });
+    OV.append(bar); OV.addEventListener('pointerdown', e => { if (e.target.closest('.sis-selbar')) return; drag(e, (e.target.dataset && e.target.dataset.h) || 'move'); });
+    document.body.append(OV); requestAnimationFrame(follow);
+  }
+  const [x0, y0] = toScreen(bb.x0, bb.y0), [x1, y1] = toScreen(bb.x1, bb.y1);
+  Object.assign(OV.style, { left: (x0 - 6) + 'px', top: (y0 - 6) + 'px', width: (x1 - x0 + 12) + 'px', height: (y1 - y0 + 12) + 'px' });
+  OV.classList.toggle('up', y1 > innerHeight - 70);
+  const k = SEL.shapes.length, c = SEL.cards.length; OV.querySelector('.n').textContent = [k ? k + ' stroke' + (k > 1 ? 's' : '') : '', c ? c + ' card' + (c > 1 ? 's' : '') : ''].filter(Boolean).join(' · ');
+}
+function follow() { if (!OV) return; paintSel(); requestAnimationFrame(follow); }   // the view moves: the box follows
+/** the selection's documents as they are now, to transform from */
+function snap() { const S = strokesBy(), I = itemsBy(); return { s: SEL.ids.map(id => S.get(id)).filter(Boolean).map(r => ({ path: r.path, data: Object.assign({}, r.data, { pts: (r.data.pts || []).slice() }) })), c: SEL.cards.map(id => I.get(id)).filter(Boolean).map(r => ({ path: r.path, data: r.data })) }; }
+/** writes that put the snapshot through T(x, y) → [x, y] (cards keep their size: their centre moves) */
+function moved(o, T) {
+  const ops = o.s.map(r => { const p = r.data.pts.slice(); for (let i = 0; i + 1 < p.length; i += 3) { const q = T(p[i], p[i + 1]); p[i] = Math.round(q[0] * 1e5) / 1e5; p[i + 1] = Math.round(q[1] * 1e5) / 1e5; } return { op: 'set', path: r.path, data: Object.assign({}, r.data, { pts: p }) }; });
+  o.c.forEach(r => { const d = r.data, w = +d.w || .4, hh = +d.h || w / (+d.ar || 1.6), q = T(+d.x + w / 2, (+d.y || 0) + hh / 2); ops.push({ op: 'update', path: r.path, data: { x: Math.round((q[0] - w / 2) * 1e5) / 1e5, y: Math.round((q[1] - hh / 2) * 1e5) / 1e5 } }); });
+  return ops;
+}
+function drag(e, how) {
+  e.preventDefault(); e.stopPropagation(); if (!SEL || !MAP.A) return;
+  const o = snap(), b0 = selBounds(), p0 = toBoard(e.clientX, e.clientY), cop = barrel(e); let raf = 0, last = null, went = false;
+  const anchor = how === 'move' ? null : [how.includes('w') ? b0.x1 : b0.x0, how.includes('n') ? b0.y1 : b0.y0];
+  const apply = () => { raf = 0; if (!last) return; const p = toBoard(last.clientX, last.clientY); let T;
+    if (!anchor) { const du = p[0] - p0[0], dv = p[1] - p0[1]; T = (x, y) => [x + du, y + dv]; }
+    else { const d0 = Math.hypot(p0[0] - anchor[0], p0[1] - anchor[1]) || 1e-6, f = Math.max(.05, Math.hypot(p[0] - anchor[0], p[1] - anchor[1]) / d0); T = (x, y) => [anchor[0] + (x - anchor[0]) * f, anchor[1] + (y - anchor[1]) * f]; }
+    ST.write(moved(o, T)); };
+  const mv = ev => { if (ev.pointerId !== e.pointerId) return; if (Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) > 4) went = true; last = ev; if (went && !raf) raf = requestAnimationFrame(apply); };
+  const up = ev => { if (ev.pointerId !== e.pointerId) return; removeEventListener('pointermove', mv, true); removeEventListener('pointerup', up, true); removeEventListener('pointercancel', up, true);
+    if (raf) { cancelAnimationFrame(raf); apply(); } if (!went && cop) copy(); };
+  addEventListener('pointermove', mv, true); addEventListener('pointerup', up, true); addEventListener('pointercancel', up, true);
+}
+function copy(quiet) { if (!SEL) return; const o = snap(), bb = selBounds(); CLIP = { s: o.s.map(r => ({ id: r.path.slice(r.path.lastIndexOf('/') + 1), data: r.data })), x: bb.x0, y: bb.y0 }; if (!quiet) HOST.pen.toast('Copied — a barrel tap (or Ctrl+V) pastes'); }
+/** the copied strokes with their top-left at (u, v); a fill keeps to its shape's copy */
+function paste(u, v, page) {
+  if (!CLIP || !CLIP.s.length) return; const du = u - CLIP.x, dv = v - CLIP.y, ids = {}, now = Date.now(), ops = [];
+  CLIP.s.forEach(r => { ids[r.id] = ST.newId(); });
+  CLIP.s.forEach((r, k) => { const d = r.data, p = (d.pts || []).slice(); for (let i = 0; i + 1 < p.length; i += 3) { p[i] = Math.round((p[i] + du) * 1e5) / 1e5; p[i + 1] = Math.round((p[i + 1] + dv) * 1e5) / 1e5; }
+    const nd = Object.assign({}, d, { pts: p, pageId: page || d.pageId, seq: d.fillOf ? now + k / 1000 - .5 : now + k / 1000, t0: now, t1: now }); delete nd.erasedAt; if (d.fillOf) nd.fillOf = ids[d.fillOf] || d.fillOf;
+    ops.push({ op: 'set', path: ST.root + '/strokes/' + ids[r.id], data: nd }); });
+  ST.write(ops); select(CLIP.s.filter(r => !r.data.fillOf).map(r => ids[r.id]), [], page);
+}
+function act(a) {
+  if (!SEL) return; ST.step(); const o = snap(), bb = selBounds(), I = INK();
+  if (a === 'done') return clearSel();
+  if (a === 'copy') return copy();
+  if (a === 'dup') { const keep = CLIP; copy(true); paste(CLIP.x + .02, CLIP.y + .02, SEL.page); CLIP = keep || CLIP; return; }
+  if (a === 'flipx') return ST.write(moved(o, (x, y) => [bb.x0 + bb.x1 - x, y]));
+  if (a === 'flipy') return ST.write(moved(o, (x, y) => [x, bb.y0 + bb.y1 - y]));
+  if (a === 'del') { ST.write(o.s.map(r => ({ op: 'del', path: r.path }))); const b = board(); SEL.cards.forEach(id => { try { b && b.removeItem(id); } catch (e) { } }); return clearSel(); }
+  const shapes = o.s.filter(r => !r.data.fillOf);
+  if (a === 'kind') { const toPen = shapes.length && shapes.every(r => r.data.hl), pw = (I.WIDTHS[I.width] || 2.4) / REF;
+    return ST.write(shapes.map(r => { const d = Object.assign({}, r.data); if (toPen) { delete d.hl; d.w = pw; } else { d.hl = true; d.w = .014; } return { op: 'set', path: r.path, data: d }; })); }
+  if (a === 'unfill') return ST.write(o.s.filter(r => r.data.fillOf).map(r => ({ op: 'del', path: r.path })));
+  if (a === 'fill') { const f = HOST.pen.paint(), ops = []; let n = 0; shapes.forEach(r => { if (!r.data.hl && closedLoop(r.data.pts || [])) { n++; ops.push(...fillOps({ id: r.path.slice(r.path.lastIndexOf('/') + 1), data: r.data }, f)); } });
+    if (!n) return HOST.pen.toast('No closed strokes to fill'); ST.write(ops); const S = strokesBy(); SEL.ids = [...new Set([...SEL.ids, ...[...S.keys()].filter(id => SEL.shapes.includes(S.get(id).data.fillOf))])]; SEL.bb = null; }
+}
+/** a colour or width from the ink bar, onto the selection: the pen's colour to its pen strokes, the highlighter's to its highlighter strokes */
+function restyle(look, was) {
+  const o = snap(), ops = []; ST.step();
+  o.s.filter(r => !r.data.fillOf).forEach(r => { const d = Object.assign({}, r.data); let ch = false;
+    if (d.hl) { if (look.hc !== was.hc) { d.color = look.hc; ch = true; } }
+    else { if (look.c !== was.c) { d.color = look.c; ch = true; } if (look.w !== was.w) { d.w = look.w; ch = true; } }
+    if (ch) ops.push({ op: 'set', path: r.path, data: d }); });
+  if (ops.length) ST.write(ops);
+}
+addEventListener('keydown', e => {
+  const t = e.target; if (t && t.closest && t.closest('input,textarea,[contenteditable="true"]')) return;
+  const k = (e.key || '').toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  if (SEL && !mod && (k === 'delete' || k === 'backspace')) { e.preventDefault(); e.stopImmediatePropagation(); act('del'); }
+  else if (SEL && k === 'escape') { e.preventDefault(); e.stopImmediatePropagation(); clearSel(); }
+  else if (SEL && mod && k === 'c') { e.preventDefault(); copy(); }
+  else if (mod && k === 'v' && CLIP) { e.preventDefault(); if (!MAP.A || !LAST) return HOST.pen.toast('Tap with the lasso (or the barrel button) where it goes'); const p = LAST.pts[LAST.pts.length - 1], q = toBoard(p[0], p[1]); ST.step(); paste(q[0], q[1], SEL ? SEL.page : 'p1'); }
+}, true);
+
+window.SIS_PEN = { sync, undo, redo, lasso: { get sel() { return SEL; }, map: MAP, toBoard, toScreen, act } };
 })();

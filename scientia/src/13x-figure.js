@@ -14,7 +14,7 @@ const FIG = {
   GAP: 4, PRESETS: [[1, 1], [1, 2], [1, 3], [1, 4], [2, 1], [2, 2], [2, 3], [3, 2], [3, 3], [4, 1]],
   cells(b) { const F = b.fig; const n = F.rows * F.cols; F.cells = F.cells || []; while (F.cells.length < n) F.cells.push({ id: uid('fc') }); return F.cells.slice(0, n); },
   letter: i => String.fromCharCode(65 + (i % 26)) + (i >= 26 ? Math.floor(i / 26) : ''),
-  aspect(c) { if (c.board && !c.media) return (c.board.w || 4) / (c.board.h || 3); const m = c.media && MEDIA.get(c.media); if (!m || !m.w || !m.h) return 4 / 3; const k = c.crop || { x: 0, y: 0, w: 1, h: 1 }; return (k.w * m.w) / (k.h * m.h); },
+  aspect(c) { if (c.board && !c.media) { const e = BOARD.crop(c.board); return e ? clamp(e.w / e.h, .25, 4) : (c.board.w || 4) / (c.board.h || 3); } const m = c.media && MEDIA.get(c.media); if (!m || !m.w || !m.h) return 4 / 3; const k = c.crop || { x: 0, y: 0, w: 1, h: 1 }; return (k.w * m.w) / (k.h * m.h); },
   /** Sizes for every cell: a row's images share a height and fill the width exactly. */
   layout(b, W) {
     const F = b.fig, cells = FIG.cells(b), out = [];
@@ -67,6 +67,9 @@ const FIG = {
           else if (wb) frame.append(BOARD.preview(c.board));
           else frame.append(h('div.fg-empty', h('span.fg-add', '+ image'), ro ? null : h('button.fg-wb', { title: 'A whiteboard instead of an image (the lab’s board) — it fills the window to draw on', on: { click: e => { e.stopPropagation(); BOARD.make(M.block(b.id), i); } } }, '✎ Whiteboard')));
           if (F.letters !== false && (m || wb)) frame.append(h('span.fg-letter', FIG.letter(i)));
+          // V3.942 — a whiteboard crops to its drawing, like an image (a click still opens all of it); or shows the whole page
+          if (wb && !ro && !wb.lab) { const on = wb.crop !== false; frame.append(h('button.fg-wbcrop', { title: on ? 'Cropped to the drawing — show the whole page instead' : 'Crop to the drawing, like an image (the board stays whole: a click opens it)',
+            on: { click: e => { e.stopPropagation(); const cur = M.block(b.id), cc = FIG.cells(cur)[i]; if (!cc || !cc.board) return; if (on) cc.board.crop = false; else delete cc.board.crop; FIG.save(cur); changed(); } } }, on ? 'Whole page' : 'Crop to the drawing')); }
           if (it) frame.append(h('button.fg-kind' + (w < 96 ? '.dot' : ''), { title: 'Change or remove the label', on: { click: e => { e.stopPropagation(); if (ro) return; FIG.kindMenu(e, 'Image ' + FIG.letter(i), k => FIG.labelCell(M.block(b.id), FIG.cells(M.block(b.id))[i], i, k), it.kind, () => { const cur = M.block(b.id), cc = FIG.cells(cur)[i]; cc.itemId = null; FIG.save(cur); IX.rebuild(); changed(); }); } } }, kchip(it.kind)));
           else if ((m || wb) && !ro) frame.append(h('button.fg-kind.add', { title: 'Label this image as a structure', on: { click: e => { e.stopPropagation(); FIG.kindMenu(e, 'Image ' + FIG.letter(i) + ' is…', k => FIG.labelCell(M.block(b.id), FIG.cells(M.block(b.id))[i], i, k)); } } }, '+ label'));
           if (!ro) {

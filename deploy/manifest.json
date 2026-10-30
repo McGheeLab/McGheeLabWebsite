@@ -1622,8 +1622,8 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-10-29T14:09:44-07:00",
-   "sha256": "987c1b624dc61e45df0522bed36f68b05dcc616ccc3184485b0cfe8c9c618b8a",
+   "deployedAt": "2026-10-29T17:15:58-07:00",
+   "sha256": "fe8421f10d1856f48463c387ce08b0da03e8f97ed80e9c165d165239c76bdbe6",
    "size": 82,
    "via": "verify"
   },
@@ -4562,15 +4562,15 @@
    "via": "verify"
   },
   "rm/scientia/MANUAL.md": {
-   "deployedAt": "2026-10-22T20:35:44-07:00",
-   "sha256": "c911babbd6037bde270d34604c376a63294a158eb6e2e9e686366d9a0133cd2e",
-   "size": 42850,
+   "deployedAt": "2026-10-29T17:15:58-07:00",
+   "sha256": "381d8a2d117389fd9b6cee01769efc8da1ce57c6c8cd2f6e5eba717452103339",
+   "size": 44611,
    "via": "verify"
   },
   "rm/scientia/board.html": {
-   "deployedAt": "2026-10-29T13:36:39-07:00",
-   "sha256": "d4ca8ba5b29afc5e4c98ba0b7bd76e23d885af04ec3f3dd0200ceb04735ea222",
-   "size": 817537,
+   "deployedAt": "2026-10-29T17:15:58-07:00",
+   "sha256": "c2b637a72ab15859261ec02662f2ae5dcd518b86d71ba94730d1cfb761fd73b2",
+   "size": 851320,
    "via": "verify"
   },
   "rm/scientia/cloud-sync.js": {
@@ -4580,14 +4580,14 @@
    "via": "verify"
   },
   "rm/scientia/desktop/ScientiaInSitu-Windows.zip": {
-   "deployedAt": "2026-10-29T13:36:39-07:00",
-   "sha256": "2d7a528f4138c7f91fa54e9ced2516ab0fa085aafed59344e346b4a53890a37a",
-   "size": 6560137,
+   "deployedAt": "2026-10-29T17:15:58-07:00",
+   "sha256": "37d47c729ca28b3a0b8b79850146a8d44080ef92a53f659933866acca90cea6e",
+   "size": 6592712,
    "via": "verify"
   },
   "rm/scientia/desktop/version.json": {
-   "deployedAt": "2026-10-29T13:36:39-07:00",
-   "sha256": "ea8f2d622b17afe3db927b77f6c3728976e6bdbee3b49533588848325d3f9787",
+   "deployedAt": "2026-10-29T17:15:58-07:00",
+   "sha256": "de32df3d6133f3bdf3bbc6a6e17bcc44e88331255a14f2171f33f70057092f50",
    "size": 214,
    "via": "verify"
   },
@@ -4616,9 +4616,9 @@
    "via": "verify"
   },
   "rm/scientia/lab-mode.js": {
-   "deployedAt": "2026-10-27T11:50:55-07:00",
-   "sha256": "660c899edf0169fd2f6376e974135b233fd152b352c2241349dc75151031f8ad",
-   "size": 239161,
+   "deployedAt": "2026-10-29T17:15:58-07:00",
+   "sha256": "1ad46a465095b4a8f1e455e15ef0508aba9e1c21f1a722c9faf66aab761f07b6",
+   "size": 240797,
    "via": "verify"
   },
   "rm/scientia/scientia-cloud.py": {
@@ -4628,9 +4628,9 @@
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-29T13:36:39-07:00",
-   "sha256": "64d6e70314f9ab2a452e079dd07e58847ed7186b62f517957e23d174c7b4c2ec",
-   "size": 5192795,
+   "deployedAt": "2026-10-29T17:15:58-07:00",
+   "sha256": "7a1dbb25c552d867e80c165e7b829b9e678fab522468c6c8c869913039805304",
+   "size": 5225455,
    "via": "verify"
   },
   "rm/test-fixtures/layout/01-2col-tight.pdf": {
@@ -5294,8 +5294,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-29T14:09:44-07:00",
-   "sha256": "a1bd8a87b7c195d27ff0533036c4a912e83ccc17f3276bb5a79b82fe9a9a6f42",
+   "deployedAt": "2026-10-29T17:15:58-07:00",
+   "sha256": "1712c69ffedf0758fe1faf7412e4bfd913d653caecc7ddede4305d4d390ed6f9",
    "size": 9933,
    "via": "verify"
   },

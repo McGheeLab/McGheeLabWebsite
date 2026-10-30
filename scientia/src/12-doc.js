@@ -9,7 +9,7 @@ const DocView = {
 
   render(docId) {
     const d = M.doc(docId); this.docId = docId; this.sel = null; this.travel = VIEWER && d && docId === VIEWER.X.docId ? { at: VIEWER.X.at, viewer: true, doc: d, blocks: M.docBlocks(d.id) } : null;
-    if (!d) return h('div.canvas-host', h('div.empty-c', 'Note not found'));
+    if (!d) { this.paper = null; this.host = null; return h('div.canvas-host', h('div.empty-c', 'Note not found')); }   // V3.942 — no paper: update() draws it whole when the note arrives
     const host = h('div.canvas-host'); host._dv = this; this.host = host;
     host.addEventListener('pointerdown', () => { App.pane = this; }, true); host.addEventListener('focusin', () => { App.pane = this; });
     this.paper = makePaper(host, { view: (_ls.get('view:' + docId, null)) || undefined,
@@ -29,6 +29,9 @@ const DocView = {
   },
   update(docId) {
     const d = M.doc(docId); if (!d) return App.refresh();
+    // V3.942 — the note was opened before it had arrived (a reload while the notebook loads, a note that came with the
+    // sync): there is no paper to update yet, so it is drawn whole
+    if (!this.paper || !this.host || !this.host.isConnected) { App._mounted = false; return App.refresh(); }
     const ae = document.activeElement, box = ae && ae.closest && ae.closest('.box'), ed = ae && ae.classList && ae.classList.contains('ed') ? ae : null;
     let keep = null; if (ed && box) { const s = ED.selection(ed); keep = { id: box.dataset.id, pos: s ? s.from : 0, label: false }; }
     else if (ae && ae.classList && ae.classList.contains('blab') && box) keep = { id: box.dataset.id, label: true };
@@ -135,6 +138,7 @@ const DocView = {
     }
     if (!ro) el.append(h('div.port', { title: 'Drag to another component to connect them' }));
     if (!ro) el.append(h('div.rz', { title: 'Drag to resize' }));
+    if (!ro && b.kind === 'deck') el.append(h('div.rz.rz-corner', { title: 'Drag to resize — the slides keep their shape' }));   // V3.942 — slides grow downwards too
     return el;
   },
   chipsFor(b, d) {
@@ -239,9 +243,13 @@ const DocView = {
     const box = e.target.closest('.box'); if (!box) return;
     const id = box.dataset.id, P = this.paper;
     if (e.target.closest('.port')) { e.preventDefault(); e.stopPropagation(); this.wireDrag(id, e); return; }
-    if (e.target.closest('.rz')) { e.preventDefault(); const b = M.block(id); if (!b) return; const x0 = e.clientX, w0 = box.offsetWidth;
-      const mv = ev => { b.w = clamp(Math.round(w0 + (ev.clientX - x0) / P.view.z), 240, WIDGETS[b.kind] ? 1600 : 900); box.style.width = b.w + 'px'; this.drawWires(); };
-      const up = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); b.w = Math.round(b.w / 14) * 14; box.style.width = b.w + 'px'; DB.put('blocks', b); DB.beginGroup(); this.drawWires(); };
+    // V3.942 — no largest size: a component grows as wide as you drag it. A corner grip on a component whose height
+    // follows its width (an image panel, slides) follows a drag down too: the larger of the two pulls.
+    if (e.target.closest('.rz')) { e.preventDefault(); const b = M.block(id); if (!b) return; const x0 = e.clientX, y0 = e.clientY, w0 = box.offsetWidth, h0 = Math.max(1, box.offsetHeight), corner = !!e.target.closest('.rz-corner');
+      document.body.classList.add('resizing');
+      const mv = ev => { const z = P.view.z, wx = w0 + (ev.clientX - x0) / z, wy = w0 * (h0 + (ev.clientY - y0) / z) / h0;
+        b.w = Math.max(240, Math.round(corner && Math.abs(wy - w0) > Math.abs(wx - w0) ? wy : wx)); box.style.width = b.w + 'px'; this.drawWires(); };
+      const up = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); document.body.classList.remove('resizing'); b.w = Math.round(b.w / 14) * 14; box.style.width = b.w + 'px'; DB.put('blocks', b); DB.beginGroup(); this.drawWires(); };
       addEventListener('pointermove', mv); addEventListener('pointerup', up); return; }
     if (e.target.closest('.ed,input,textarea,select,button,a,label,.chips,.ghosts,.refs,.tags,.ptext.edit,.obsn,.itdot,.wplate,.wlegend,.fg-cell')) { if (id[0] !== '_') this.select(id, true); return; }
     // drag the box by its frame or header
