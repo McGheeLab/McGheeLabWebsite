@@ -10,7 +10,7 @@ The folder is remembered outside the app (in your user profile), so replacing th
 """
 import http.server, json, os, re, shutil, socket, subprocess, sys, threading, time, urllib.error, urllib.request, webbrowser
 from http.cookies import SimpleCookie
-from urllib.parse import urlparse, parse_qs, unquote
+from urllib.parse import urlparse, parse_qs, unquote, quote
 
 PORT = int(os.environ.get('SIS_PORT', 8766))  # storage belongs to the origin http://localhost:8766: never change it
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -32,6 +32,10 @@ APP_SEEN = [0.0]          # when a window of this app last asked this server for
 # scripts are bundled (vendor/rm/, copied by scripts/scientia_build.py); every other /rm/ address opens on the site.
 SITE = os.environ.get('SIS_SITE', 'https://mcgheelab.com')
 RM_BUNDLED = {'/rm/js/recorder-core.js', '/rm/js/speech-to-text.js', '/rm/js/stt-device-worker.js'}
+# V3.944: a lab paper's PDF for the reader here comes from the lab's Storage through this server (the bucket answers
+# pages on the lab site's address, not this one); only from there, and no bigger than this
+RM_PDF_HOST = 'https://firebasestorage.googleapis.com/'
+RM_PDF_MAX = 200 * 1024 ** 2
 REC_RID = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
 # V3.929/935: an installed copy knows its version (VERSION.txt, written by the build); service.py keeps it up to date and
 # says what it is doing in update.json next to the app folder (Settings → The lab shows it; "Check now" leaves update-now)
@@ -328,6 +332,29 @@ class H(http.server.SimpleHTTPRequestHandler):
         try: code, data, ctype = hub_request(method, u.path + ('?' + u.query if u.query else ''), body, hdr, 120)
         except Exception as e: return self._json(200, {'ok': False, 'offline': True, 'error': 'the lab cloud did not answer (%s)' % (getattr(e, 'reason', None) or e)})
         self.send_response(code); self.send_header('Content-Type', ctype); self.send_header('Content-Length', str(len(data))); self.end_headers(); self.connection.sendall(data)
+    def rm_pdf(self, q):
+        """V3.944: an RM paper's PDF for Scientia's reader (23d): the hub says where it is, as this computer's key; this
+        server fetches the file. The answer is the PDF itself, or {ok: false, error} saying why not."""
+        if not self.is_local(): return self._json(403, {'ok': False, 'error': 'only from the computer that runs the app'})
+        pid = (q.get('id') or [''])[0].strip()
+        if not pid or len(pid) > 200: return self._json(400, {'ok': False, 'error': 'which paper?'})
+        key = (load_json(CLOUD_CFG, {}) or {}).get('key')
+        if not str(key or '').startswith('sck_'): return self._json(200, {'ok': False, 'offline': True, 'error': 'this computer is not connected to the lab yet (Settings → The lab)'})
+        code = 0
+        try:
+            code, data, _ = hub_request('GET', '/api/rm/library/pdf?id=' + quote(pid, safe=''), None, {'X-Scientia-Key': key}, 60)
+            r = json.loads(data.decode('utf-8') or '{}')
+        except ValueError: return self._json(200, {'ok': False, 'error': 'the lab cloud answered HTTP %s' % code})
+        except Exception as e: return self._json(200, {'ok': False, 'offline': True, 'error': 'the lab cloud did not answer (%s)' % (getattr(e, 'reason', None) or e)})
+        url = str(r.get('url') or '')
+        if not r.get('ok') or not url.startswith(RM_PDF_HOST): return self._json(200, {'ok': False, 'error': r.get('error') or 'no PDF in RM for this paper'})
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url), timeout=120) as f: body = f.read(RM_PDF_MAX + 1)
+        except urllib.error.HTTPError as e: return self._json(200, {'ok': False, 'error': 'the PDF did not download (HTTP %s)' % e.code})
+        except Exception as e: return self._json(200, {'ok': False, 'offline': True, 'error': 'the PDF did not download (%s)' % (getattr(e, 'reason', None) or getattr(e, 'code', None) or e)})
+        if len(body) > RM_PDF_MAX: return self._json(200, {'ok': False, 'error': 'the PDF is larger than 200 MB'})
+        if b'%PDF' not in body[:1024]: return self._json(200, {'ok': False, 'error': 'what RM keeps for this paper is not a PDF'})
+        self.send_response(200); self.send_header('Content-Type', 'application/pdf'); self.send_header('Content-Length', str(len(body))); self.end_headers(); self.connection.sendall(body)
     def rec_part(self, q):
         g = lambda k: (q.get(k) or [''])[0]
         rid, n, ext = g('rid'), g('n'), g('ext').lower()
@@ -361,6 +388,7 @@ class H(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         u = urlparse(self.path); p = u.path; q = parse_qs(u.query)
         if p.startswith('/rm/') and self.is_local(): return self.rm_asset(p, u.query)
+        if p == '/api/rm-pdf': return self.rm_pdf(q)
         if p.startswith('/api/rm/'): return self.rm_proxy('GET', u)
         if p == '/api/rec/parts' and self.is_local():
             parts = self.rec_parts_of((q.get('rid') or [''])[0]); return self._json(200, {'ok': True, 'parts': len(parts), 'bytes': sum(os.path.getsize(f) for f in parts)})

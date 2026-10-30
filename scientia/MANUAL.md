@@ -483,6 +483,14 @@ Open it with the ＋ **Quick cast** → **⋯** (everything that can go in this 
 - Searching a term also finds its other forms.
 - **All papers** searches every PDF in the library.
 
+### The lab's papers on the desktop
+- **Read** on a lab paper (the paper card, one of its highlights, the card's ⋯ menu, a collection, or the paper's page in the Library) opens it in this app's reader, beside the note. On the website it opens in RM's reader instead.
+  - The first time, the PDF comes from RM into a PDF card beside the paper card. It stays there: the next **Read** opens that card, and another note reuses the same file, so it works offline afterwards.
+  - With no note open (the Library), the paper's **Reading:** note opens with the reader beside it.
+- **Your highlights from RM** (and the lab's) are marked on the pages in RM's colours, underlined so they stand apart from your quotes. The reader's side panel lists them under **From RM**; click one to go there. A highlight clicked on the paper card opens the paper at that highlight.
+- What you highlight in this reader is a quote in the note, as in any PDF. It stays in Scientia and does not go to RM.
+- **Open in RM** still opens the paper's page on the lab site. So does **Read** when RM has no PDF of the paper yet, or the computer can't reach the lab; a message says why.
+
 ---
 
 ## 15. Data, materials and provenance

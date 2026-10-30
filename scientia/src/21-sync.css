@@ -356,6 +356,10 @@ body.q-picking .box.cmp:hover{outline:2px solid var(--teal);outline-offset:2px}
 .q-hl{background:color-mix(in srgb,var(--hc,#F6D55C) 50%,transparent)}
 body:has(.embed-max) .pop,body:has(.embed-max) .modal-bg,body:has(.embed-max) .ovl{z-index:1300}.rd-penbar{z-index:1310}
 .q-hl.erasing{opacity:.25;outline:1px dashed #c33}
+/* V3.944 · 23d · a lab paper's highlights from RM, on its pages (an underline in RM's colour tells them from the note's quotes) and in the reader's panel */
+.rm-hl{position:absolute;border-radius:2px;mix-blend-mode:multiply;background:color-mix(in srgb,var(--hc,#facc15) 32%,transparent);box-shadow:inset 0 -2px 0 var(--hc,#facc15)}
+.rm-hl.flash{animation:rdflash .9s ease-in-out 2;outline:2px solid #e08a00}
+.mx-side>.rm-side{margin-top:14px;padding-bottom:14px;border-top:1px solid var(--rule)}
 /* ---------- 13zza · clip a figure or an equation onto the canvas ---------- */
 .clip-layer{position:absolute;z-index:3;pointer-events:none}
 .clip-hs{position:absolute;box-sizing:border-box;border:2px dashed color-mix(in srgb,var(--teal) 80%,transparent);border-radius:3px;background:color-mix(in srgb,var(--teal) 7%,transparent);animation:tin .12s}

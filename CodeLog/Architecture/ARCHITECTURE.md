@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.943 (Scientia: Ctrl+click feeds the lasso's selection (13zu); ink in HTML pages — `HTMLX.INKSCRIPT` in the page, `block.htmlInk`, Export ink labels via a frozen copy drawn by html2canvas (`vendor/workers/`) in a script-free frame; component deletion without confirmation or record copy; `CLIP.read` unset on the desktop.)
+**Version:** V3.944 (Scientia desktop: a lab paper's Read opens in Scientia's reader beside the note (`RMREAD`, 23d). It is told from Open in RM by a fresh `rm-read` in `SIS_LAB.host.sent`. The PDF comes via `serve.py` `GET /api/rm-pdf` (hub `/api/rm/library/pdf` → Storage) into the notebook's media. RM's highlights (`api/rm/annotations`) are drawn by their words and listed under From RM.)
+
+**Prior:** V3.943 (Scientia: Ctrl+click feeds the lasso's selection (13zu); ink in HTML pages — `HTMLX.INKSCRIPT` in the page, `block.htmlInk`, Export ink labels via a frozen copy drawn by html2canvas (`vendor/workers/`) in a script-free frame; component deletion without confirmation or record copy; `CLIP.read` unset on the desktop.)
 
 **Prior:** V3.942 (Scientia: the whiteboard's lasso in `scientia/board/pen.js` (a learnt board→screen mapping from the engine's `getView` / `getOrigin`); image cells crop a whiteboard to `row.ext` (`BOARD.extent`, `board.html?crop=` → `zoomToRect`); no largest size for any resizable component; pen mode shows no hover outlines; `DocView.update` draws a note that arrived late; `deploy.py` writes LF on Windows.)
 

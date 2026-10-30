@@ -4,6 +4,48 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.944] — 2026-10-30 — Scientia: on the desktop, a lab paper's Read opens in Scientia's reader beside the note, with your highlights from RM
+
+Plan: [CodeLog/ClaudesPlan/V3.944_scientia_rm_paper_reader_desktop.md](../ClaudesPlan/V3.944_scientia_rm_paper_reader_desktop.md). Gabe chose this ("Incorporate 2") from the list of lab features that work on the website but not on the desktop.
+
+No lab-layer change.
+
+### Added
+- **Reading a lab paper on the desktop** (`RMREAD`, 23d, wired in `SIS_DESKTOP_AFTER_LAB`): Read on a paper card, one of its highlights, the card's ⋯ menu, a collection, or the Library's page of the paper opens it in Scientia's reader beside the note (`RDOCK`, 13zzb), no longer the paper's page on mcgheelab.com.
+  - **Telling a Read from Open in RM** (both open `/rm/pages/library-paper.html?id=`):
+    - `window.open` is wrapped. A read is that address while the newest entry in `SIS_LAB.host.sent` is an `rm-read` not yet taken, because `readPaper` asks its host first and Open in RM asks nothing.
+    - A document capture click notes the card (`.box[data-id]`) and the RM highlight (`[data-ann]`) it came from.
+    - The rmpaper ⋯ "Read" is wrapped (its subtitle: "Beside the note, with your highlights from RM").
+  - **The PDF:**
+    - It comes from RM through `serve.py` (`GET /api/rm-pdf?id=`) into the notebook's media (`rmPaper` on the media record).
+    - It becomes a PDF card beside the paper card, else in the note on screen (`rmPaper` on the block). With no note open, it goes in the paper's Reading: note (`READER.litDoc`), which opens.
+    - The next Read opens the same card, and another note reuses the file.
+  - **RM's highlights** (`api/rm/annotations`, read-only, a minute's cache; `RMREAD.load`):
+    - They are found on each drawn page by their words (`RMREAD.index` / `find`, letters and digits case-folded → `RD2.rects`, measured once per drawn page).
+    - They are drawn after the note's quotes (`QUOTE.paintMarks` wrapper) as `.rm-hl`, in RM's colours with an underline.
+    - They are listed under **From RM** in the reader's side panel (`MXHL.open` wrapper + a MutationObserver that keeps the list through redraws). A row scrolls to its highlight and flashes it (`RMREAD.goto`).
+    - The Highlights button counts them (`· RM n`). A highlight clicked on the card opens the paper there.
+  - **Falls back to the site, with a message**, when RM has no PDF (`rmPdf` false), the download fails, or the window is phone-sized.
+- **`serve.py` `rm_pdf`** (`GET /api/rm-pdf?id=`):
+  - It accepts this computer only, asks the hub's `/api/rm/library/pdf` as the computer's key, and downloads from `firebasestorage.googleapis.com` only (`RM_PDF_HOST`). The lab's bucket lets only the site's origins fetch.
+  - It refuses more than 200 MB (`RM_PDF_MAX`) and checks for `%PDF`.
+  - It answers with the PDF, or `{ok: false, error}`.
+
+### Changed
+- `scientia/MANUAL.md` §14 gains "The lab's papers on the desktop". Highlights made in this reader are quotes in the note; they don't go to RM.
+
+### Tests
+- **Headless Chrome, the desktop build, RM stubbed** (`pdf-figure.pdf` and three highlights, one with words not in the paper):
+  - **Read** (a real click): one PDF card was placed 56 px right of the paper card, and the reader opened with its panel. From RM listed 3, and the 2 on page 1 were drawn. Nothing opened on the site.
+  - **Open in RM** opened the site.
+  - **A highlight row** reopened the same card and flashed that highlight.
+  - **A card whose file was missing** was linked to the copy already on the computer (no second download), and the same card opened.
+  - **No PDF in RM** opened the site with a message.
+  - **The Library page** (no note open) made the Reading: note and opened the reader there.
+- **`serve.py` alone** (temp config, a stand-in hub): not connected, hub error, a non-Storage URL refused, a Storage 404, a missing id. The key went with every hub call.
+- **Harnesses:** lab-mode 274/278 (the four known), notes 13/13, notebook 45/45.
+- `sw.js` CACHE_VERSION 913 → 914.
+
 ## [V3.943] — 2026-10-30 — Scientia: Ctrl+click selects components, ink in HTML pages exported with a crop of the page, deleting is instant, snapping on the desktop
 
 Plan: [CodeLog/ClaudesPlan/V3.943_scientia_multiselect_html_ink_delete.md](../ClaudesPlan/V3.943_scientia_multiselect_html_ink_delete.md). Gabe:
