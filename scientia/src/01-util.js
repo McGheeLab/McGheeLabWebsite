@@ -2,7 +2,7 @@
    01 · Utilities — DOM builder, ids, dates, formatting
    ========================================================================== */
 'use strict';
-const BUILD = '2026-10-29 · the lasso on the whiteboard; resize anything as large as you like; whiteboards crop to their drawing; no outlines in pen mode', DEMO_V = 2;
+const BUILD = '2026-10-30 · Ctrl+click selects components; write on HTML pages and export the ink with a crop of the page; deleting is instant', DEMO_V = 2;
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

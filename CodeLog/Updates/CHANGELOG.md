@@ -4,6 +4,57 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.943] — 2026-10-30 — Scientia: Ctrl+click selects components, ink in HTML pages exported with a crop of the page, deleting is instant, snapping on the desktop
+
+Plan: [CodeLog/ClaudesPlan/V3.943_scientia_multiselect_html_ink_delete.md](../ClaudesPlan/V3.943_scientia_multiselect_html_ink_delete.md). Gabe:
+
+> "Ctrl + Clicking components selects them all for movement or actions (such as deleting). You should be able to pen write in an HTML with that ink coming out of the HTML as a component the user can associate the HTML with. When ink is exported out of the HTML after the user clicks export ink label(s), it will ask the user to crop an image out of the HTML that comes out with the ink label to relate the two. You should be able to snap a figure or equation in the local desktop version of the notebook just like you can in the RM website."
+
+He also asked that deleting components "should not freeze the screen or take much time, and not ask for confirmation (only for a project)".
+
+No lab-layer change. For equation reading on the desktop Gabe chose to type it for now, over a route in the lab's hub.
+
+### Added
+- **Ctrl+click (⌘) components** (13zu): adds a component to the lasso's selection, or takes it out (`LASSO2.toggleBox`); an ink component brings its strokes.
+  - A drag on any selected component moves them all (a `DocView.pointer` wrapper → `LASSO2.move`).
+  - Delete / Backspace removes them all (`INK.deleteSel`).
+  - A Ctrl+click on a link or a term still follows it; a Ctrl+drag over text still holds the text (13z).
+- **Ink in HTML pages** (13zze):
+  - **Writing:**
+    - Pen mode reaches each page (`HTMLX.inkOn` / `inkMode`, on every `INK.paintBars` and `inkready`).
+    - The page's own script (`HTMLX.INKSCRIPT`, on `window` so it runs before the quote script's pen) draws the stroke live and pins it to the element it starts on (path + fraction).
+    - It posts the stroke (`inkstroke`), which the app keeps in `block.htmlInk {media, strokes}` (one undo step each, with the pressure feel), and sends every stroke back drawn by `INK.path` (`inks`).
+    - The eraser and the pen's back post `inkerase`.
+    - Strokes within 60 px are one ink label (`HTMLX.labelFor`).
+  - **Export ink labels** (⋯, and the maximised page's bar), for each label:
+    - The page's boxes come from `inkbox`.
+    - The page sends a frozen copy (`freeze` → `frozen`: canvases as pictures, typed values, no scripts, no ink).
+    - `HTMLX.render` draws the copy at 2× in a hidden `sandbox="allow-same-origin"` frame (no scripts), with html2canvas.
+    - `HTMLX.cropDialog` lets you move, size or redraw the box: Skip / Stop / Export.
+    - Out comes an image panel of the crop ("Ink label") with the ink glued on it (13zzc) and wired to the page as `c:cropped from`. The label leaves the page.
+- `scientia/vendor/workers/html2canvas.js` (html2canvas 1.4.1, MIT; shipped as text in `#wk-html2canvas`, loaded only when exporting) + `vendor/LICENSE-html2canvas.txt`.
+
+### Changed
+- **Deleting a component is immediate** (`EDIT.deleteBlocks` / `confirmBlock`):
+  - No question, and no `DISK.keep('before-delete-component')`, a copy of the whole record that froze large notebooks. Ctrl+Z undoes.
+  - The box leaves the screen at once; the clean-up, the index and `changed()` run a frame later; the toast says what went with it.
+  - "Delete component…" is now "Delete component". Notes still ask.
+- **Snapping on the desktop:**
+  - Figure and equation detection already works there. Checked on `pdf-figure.pdf`: Figure 1 and both equations are found.
+  - `CLIP.read` is unset on the desktop (`23d`, after the lab layer), so the equation editor asks for the LaTeX at once instead of failing on the lab sign-in.
+
+### Tests
+- **Headless Chrome, the desktop build with demo data:**
+  - **Ctrl+click:** two components were selected and marked ("2 components"). A drag moved both (+126 px) and left the third. Delete removed both, and undo brought them back.
+  - **Instant delete:** a component with text was off the screen in 3 ms, with no dialog, and undo restored it.
+  - **HTML ink:**
+    - A pen stroke written on the page was kept.
+    - The crop step showed the drawn page with the ink over it.
+    - Export made an image panel with the crop, the ink glued on it in black, and the wire to the page. The page was left with 0 strokes.
+  - **Snap:** the desktop flags were set, detection found Figure 1 and equations (1) and (2), and `CLIP.read` was unset.
+- **Harnesses:** lab-mode 274/278 (the four known), notes 13/13, notebook 45/45.
+- `sw.js` CACHE_VERSION 912 → 913.
+
 ## [V3.942] — 2026-10-29 — Scientia: the lasso on the whiteboard, no limit to resizing, whiteboards crop to their drawing, no outlines in pen mode
 
 Plan: [CodeLog/ClaudesPlan/V3.942_scientia_lasso_resize_crop.md](../ClaudesPlan/V3.942_scientia_lasso_resize_crop.md). Gabe: "The lasso function and shortcut is not in the whiteboard, when it should. Image panels, PDFs, HTMLs, and anything that should be resizable, should have no limit to resizing both in horizontal and vertical length … The whiteboard should also have the auto-crop option that an image [has], while still being able to access and edit it. There is still an issue when you are in pen mode, where some component's outlines show up, which should never be the case, unless pan is on." — and the note-opened-too-early bug. No lab-layer change; `whiteboard.js` is not edited.
