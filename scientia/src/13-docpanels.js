@@ -94,7 +94,7 @@ Object.assign(DocView, {
       { label: 'Stamp & manual duration…', run: () => this.stampPopover(b, e) },
       { label: flag ? 'Clear flag' : 'Flag for weekly review', run: () => M.toggleFlag('block', b.id) },
       b.kind === 'ref' ? { label: 'Remove from this note', sub: 'The original stays where it was written', run: () => M.removeRef(b) } : null,
-      b.kind !== 'ref' ? { label: 'Delete component…', danger: true, sub: 'With its structures and connections · Ctrl+Z undoes it', run: () => EDIT.confirmBlock(b) } : null]);
+      b.kind !== 'ref' ? { label: 'Delete component', danger: true, sub: 'With its structures and connections · Ctrl+Z undoes it', run: () => EDIT.confirmBlock(b) } : null]);
   },
   stampPopover(b, e) {
     const st = b.stamp, dt = h('input.inp.mono', { type: 'datetime-local', value: toInputDT(st.at) });

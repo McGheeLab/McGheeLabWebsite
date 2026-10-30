@@ -29,6 +29,10 @@ if (DESKLAB.on()) {
         for (let j = i - 1; j >= 0; j--) { const k = TABS.findIndex(t => t[0] === orig[j][0]); if (k >= 0) { at = k + 1; break; } }
         TABS.splice(at, 0, orig[i].slice());
       }
+      // V3.943 — a snapped equation (13zza): the lab's reader needs the lab sign-in, which this computer has not got, so the
+      // equation editor asks you to type it against the snip at once instead of trying and failing (Gabe chose this over a
+      // route in the lab's hub, 2026-10-30)
+      if (typeof CLIP !== 'undefined') CLIP.read = null;
     } catch (e) { console.warn('[desktop lab]', e); }
   };
 }

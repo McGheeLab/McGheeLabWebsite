@@ -126,7 +126,8 @@ A note has a **header box** (title, type, profile fields, tags, ✎ for note det
 - **Title:** each component has a title line. **Tab** or **Enter** in the title moves to the text.
 - **Stamp:** each component shows its full date and time (e.g. 16 Oct 2026 14:32). Click the stamp to move it to any date and time.
 - **⋯ menu:** edit, label as a structure, Data, materials & code…, Move to another note…, Delete component…
-- **Delete:** select the component and press **Delete**, or use ⋯ → Delete component…. The confirmation lists what goes with it.
+- **Delete:** select the component and press **Delete**, or use ⋯ → Delete component. It goes at once, with no question — Ctrl+Z brings it back (the note says what went with it).
+- **Several at once:** **Ctrl+click** components (⌘ on a Mac) to select them together; Ctrl+click again takes one out. Drag any of them to move them all; Delete removes them all; the bar under them copies or duplicates. Esc lets go.
 - **Undo:** **Ctrl+Z** outside a text box undoes deletions and other changes.
 - **Tidy layout** (⋯ beside the title) repacks boxes after big changes.
 
@@ -370,6 +371,9 @@ Open it with the ＋ **Quick cast** → **⋯** (everything that can go in this 
 - **Maximised** (⤢ / ⛶), a PDF or HTML page works like a paper in the reader:
   - a side panel lists its highlights, with notes and search;
   - the pen highlights whole words.
+- **Writing on an HTML page:** in pen mode (the ✎ pill on pen or highlighter) the pen writes on the page itself — on the paper and maximised; the eraser (or the pen's back) takes strokes away. The ink stays with the page, pinned to what it was written on. In pan mode the pen selects text for quotes, as before.
+  - **Export ink labels** (the page's ⋯, or the maximised page's bar): ink written close together is one label. For each, you crop the part of the page around it; out comes an image panel of that crop with the ink on it, connected to the page ("cropped from"). The label leaves the page; Ctrl+Z undoes.
+- **Snapping a figure or an equation** out of a PDF (the scissors, or "＋ Figure 2" / "＋ Equation 3" on the page) works on the desktop too. On the website an equation is read into LaTeX for you; on the desktop you type it against the snip.
 
 ### Slides
 - **Browse:** ‹ › or ← → (with the mouse over the deck) go slide by slide. **Grid** shows them all.
