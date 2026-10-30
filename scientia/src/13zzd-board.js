@@ -19,10 +19,32 @@
    on a pane of its own: palettes, widths, eraser, fill, pressure, ↶ ↷) under
    the whiteboard window's title; every change reaches the board, and
    board/pen.js asks the pen here for a width, a tool, a new colour.
+   V3.942 — crop to the drawing, like an image: the cell takes the shape of
+   what is drawn (strokes and cards, row.ext, worked out on every save) and
+   shows just that (board.html?crop=…); a click still opens the whole board.
+   "Whole page" on the cell turns it off (cell.board.crop = false).
    ========================================================================== */
 const BOARD = {
   ME: 'me', ROW: 450000,
-  url(bd, view) { return 'board.html?board=' + encodeURIComponent(bd.id) + '&owner=' + BOARD.ME + '&title=' + encodeURIComponent(bd.title || 'Whiteboard') + (view ? '&view=1' : '') + '&v=' + encodeURIComponent(window.SIS_BOARD_V || BUILD.slice(0, 10)); },
+  url(bd, view) { const e = view && BOARD.crop(bd);
+    return 'board.html?board=' + encodeURIComponent(bd.id) + '&owner=' + BOARD.ME + '&title=' + encodeURIComponent(bd.title || 'Whiteboard') + (view ? '&view=1' : '') + (e ? '&crop=' + [e.x, e.y, e.w, e.h, e.pageId].map(encodeURIComponent).join(',') : '') + '&v=' + encodeURIComponent(window.SIS_BOARD_V || BUILD.slice(0, 10)); },
+  /** V3.942 — what is drawn on a board (strokes and cards), in board units with a small margin; null on an empty board */
+  extent(docs) {
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9, page = null;
+    for (const k of Object.keys(docs || {})) { const d = docs[k] || {};
+      if (/^strokes\/[^/]+$/.test(k) && Array.isArray(d.pts) && !d.erasedAt && !d.hiddenBy && d.color !== '#fffffe') { const m = (+d.w || .004) / 2; for (let i = 0; i + 1 < d.pts.length; i += 3) { x0 = Math.min(x0, d.pts[i] - m); x1 = Math.max(x1, d.pts[i] + m); y0 = Math.min(y0, d.pts[i + 1] - m); y1 = Math.max(y1, d.pts[i + 1] + m); } page = page || d.pageId; }
+      else if (/^items\/[^/]+$/.test(k) && d.type !== 'region' && d.x != null) { const w = +d.w || .4, hh = +d.h || w / (+d.ar || 1.6); x0 = Math.min(x0, +d.x); x1 = Math.max(x1, +d.x + w); y0 = Math.min(y0, +d.y || 0); y1 = Math.max(y1, (+d.y || 0) + hh); page = page || d.pageId; } }
+    if (!(x1 > x0 && y1 > y0)) return null;
+    const p = .02, r = v => Math.round(v * 1e4) / 1e4; return { pageId: page || 'p1', x: r(x0 - p), y: r(y0 - p), w: r(x1 - x0 + 2 * p), h: r(y1 - y0 + 2 * p) };
+  },
+  _ext: new Map(),
+  /** The cell's crop: the drawing's extent, unless the cell shows the whole page (a board saved before V3.942 is measured once) */
+  crop(bd) {
+    if (!bd || bd.lab || bd.crop === false || !bd.id) return null; const main = DB.get('boards', bd.id); if (!main) return null;
+    if (main.ext !== undefined) return main.ext;
+    const k = bd.id + '|' + (main.modified || ''); if (!BOARD._ext.has(k)) { const docs = {}; BOARD.rows(bd.id).forEach(r => Object.assign(docs, r.docs || {})); BOARD._ext.set(k, BOARD.extent(docs)); }
+    return BOARD._ext.get(k);
+  },
   /** V3.936: a board kept in the lab (userData/{uid}/notebookBoards) — shown where Scientia is signed in to it. */
   lab: { can: () => !window.SIS_DESKTOP && !!(window.__sisCloud && window.__sisCloud.user),
     url: (bd, site) => (site ? 'https://mcgheelab.com' : '') + '/rm/pages/notebook-board.html?board=' + encodeURIComponent(bd.lab) + '&owner=' + encodeURIComponent(bd.owner) + '&title=' + encodeURIComponent(bd.title || 'Whiteboard') },
@@ -69,14 +91,14 @@ const BOARD = {
       const keys = Object.keys(docs).map(k => [k, rank(k, docs[k] || {})]).sort((a, b) => a[1][0] - b[1][0] || a[1][1] - b[1][1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)).map(x => x[0]);
       const groups = [{}]; let size = 0;
       for (const k of keys) { const n = k.length + JSON.stringify(docs[k]).length + 6; if (size + n > BOARD.ROW && size) { groups.push({}); size = 0; } groups[groups.length - 1][k] = docs[k]; size += n; }
-      const name = docs[''] && docs[''].name;
+      const name = docs[''] && docs[''].name, ext = BOARD.extent(docs), extSame = JSON.stringify(ext) === JSON.stringify(main.ext === undefined ? null : main.ext) && main.ext !== undefined;
       DB.quiet = true;
       try {
         groups.forEach((g, n) => {
           const rid = n ? id + '~' + n : id, cur = DB.get('boards', rid), s = JSON.stringify(g);
-          if (cur && BOARD._last.get(rid) === s && (n || (cur.parts === groups.length && cur.title === (name || cur.title)))) return;
+          if (cur && BOARD._last.get(rid) === s && (n || (cur.parts === groups.length && cur.title === (name || cur.title) && extSame))) return;
           BOARD._last.set(rid, s);
-          DB.put('boards', n ? { id: rid, kind: 'board-part', board: id, docs: g } : Object.assign({}, main, { title: name || main.title, parts: groups.length, docs: g, modified: isoLocal(new Date()) }));
+          DB.put('boards', n ? { id: rid, kind: 'board-part', board: id, docs: g } : Object.assign({}, main, { title: name || main.title, parts: groups.length, docs: g, ext, modified: isoLocal(new Date()) }));
         });
         for (let n = groups.length; n < (main.parts || 1); n++) { const rid = id + '~' + n, cur = DB.get('boards', rid); if (cur && Object.keys(cur.docs || {}).length) { BOARD._last.delete(rid); DB.put('boards', { id: rid, kind: 'board-part', board: id, docs: {} }); } }
       } finally { DB.quiet = false; }
@@ -98,15 +120,15 @@ const BOARD = {
     },
   },
   _last: new Map(),
-  /** V3.941 — the whiteboard window's ink bar: the notes' own, minus what the board does its own way (the lasso — it has
-      cards and its own selection —, the ink library, the mouse switch: the mouse draws there, hiding the bar) */
+  /** V3.941 — the whiteboard window's ink bar: the notes' own, minus what the board does its own way (the ink library,
+      the mouse switch: the mouse draws there, hiding the bar). V3.942: the lasso is back (board/pen.js) */
   pen: { pane: null, frame: null },
   paintPen() {
     const P = BOARD.pen; if (!P.pane || !P.pane.host.isConnected) return;
     const was = INK.shown; INK.shown = true; try { INK.bar(P.pane); } finally { INK.shown = was; }
     const el = $(':scope > .ink-bar', P.pane.host);
     if (el) {
-      $$('.ib-t', el).forEach(b => { if (/^(Lasso|Draw with the mouse|Hide the ink bar)/.test(b.title)) b.remove(); });
+      $$('.ib-t', el).forEach(b => { if (/^(Draw with the mouse|Hide the ink bar)/.test(b.title)) b.remove(); });
       $$('.ink-libb', el).forEach(b => b.remove());
       $$('.ink-ur', el).forEach((b, k) => b.replaceWith(h('button.ib-t.ink-ur', { title: k ? 'Redo (three-finger tap)' : 'Undo (two-finger tap)', on: { click: () => BOARD.penDo(k ? 'redo' : 'undo') } }, k ? '↷' : '↶')));
     }
@@ -129,6 +151,7 @@ const BOARD = {
       if (BOARD.pen.frame === fr) { BOARD.pen.pane = null; BOARD.pen.frame = null; }
       ov.remove(); document.removeEventListener('keydown', key, true);
       $$('iframe.wb-frame').forEach(f => { if (f.dataset.board === (bd.id || bd.lab)) f.src = BOARD.src(bd, true); });
+      if (!bd.lab) changed();   // V3.942 — the cell takes the drawing's new shape
     };
     document.body.append(ov); document.addEventListener('keydown', key, true);
     if (inkRow) { if (INK.tool === 'lasso') INK.tool = 'pen'; BOARD.pen.pane = { host: inkRow, sel: null }; BOARD.pen.frame = fr; BOARD.paintPen(); }

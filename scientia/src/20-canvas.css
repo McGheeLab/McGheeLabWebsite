@@ -434,7 +434,7 @@ svg.wires circle.owd{fill:var(--ink-3)}
 .winfo{z-index:20}
 .well.sel{z-index:21}
 .well:hover{z-index:30}
-.wplate-wrap[data-fmt="1"] .wplate{width:min(100%,300px);margin:0 auto;border-radius:50%;aspect-ratio:1;grid-template-columns:0 1fr;padding:18px;gap:0}
+.wplate-wrap[data-fmt="1"] .wplate{width:100%;margin:0 auto;border-radius:50%;aspect-ratio:1;grid-template-columns:0 1fr;padding:18px;gap:0}
 .wplate-wrap[data-fmt="1"] .wcol,.wplate-wrap[data-fmt="1"] .wrow,.wplate-wrap[data-fmt="1"] .wcorner{display:none}
 .wplate-wrap[data-fmt="1"] .wid{font-size:22px}
 /* calculator */
@@ -907,6 +907,8 @@ body.rg-drawing{cursor:crosshair}
 .fg-cell.wb > .wb-frame{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none;background:var(--surface)}
 .fg-cell.wb > .wb-card{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;color:var(--ink-3)}
 .fg-cell.wb > .fg-letter{color:var(--ink-3);text-shadow:none}
+.fg-cell.wb > .fg-wbcrop{position:absolute;left:6px;bottom:6px;z-index:2;font-size:10.5px;color:#fff;background:rgba(0,0,0,.45);border:0;border-radius:9px;padding:1px 7px;cursor:pointer;opacity:0;transition:opacity .15s}
+.fg-cell.wb:hover > .fg-wbcrop{opacity:1}
 .wb-max .wb-full{flex:1;width:100%;border:0;background:var(--surface)}
 /* V3.941 — the notebook's ink bar in the whiteboard window, on its own row under the title */
 .wb-inkrow{display:flex;padding:4px 10px;border-bottom:1px solid var(--rule);background:var(--surface);overflow-x:auto}

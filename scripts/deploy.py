@@ -210,7 +210,7 @@ def load_json(path, default):
 def save_json(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(data, indent=1, sort_keys=True) + "\n")
+    tmp.write_text(json.dumps(data, indent=1, sort_keys=True) + "\n", encoding="utf-8", newline="\n")   # V3.942: LF on Windows too (CRLF rewrote every line of the manifest)
     os.replace(tmp, path)
 
 
@@ -242,7 +242,7 @@ def stamp_build(changed, files, idx):
             "files": len(others)}
     p = ROOT / BUILD_STAMP
     tmp = p.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(data) + "\n")
+    tmp.write_text(json.dumps(data) + "\n", encoding="utf-8", newline="\n")
     os.replace(tmp, p)
     files[BUILD_STAMP] = p
     idx.update(local_index({BUILD_STAMP: p}))
@@ -345,7 +345,7 @@ def cmd_merge_manifest(args, cfg):
     for k, v in theirs.items():
         if k != "files" and k not in merged:
             merged[k] = v
-    Path(args.ours).write_text(json.dumps(merged, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    Path(args.ours).write_text(json.dumps(merged, indent=1, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
     print(f"merge-manifest: {len(out)} files recorded (ours {len(of)}, theirs {len(tf)})")
     return 0
 

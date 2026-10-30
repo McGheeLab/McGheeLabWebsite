@@ -4,6 +4,50 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.942] — 2026-10-29 — Scientia: the lasso on the whiteboard, no limit to resizing, whiteboards crop to their drawing, no outlines in pen mode
+
+Plan: [CodeLog/ClaudesPlan/V3.942_scientia_lasso_resize_crop.md](../ClaudesPlan/V3.942_scientia_lasso_resize_crop.md). Gabe: "The lasso function and shortcut is not in the whiteboard, when it should. Image panels, PDFs, HTMLs, and anything that should be resizable, should have no limit to resizing both in horizontal and vertical length … The whiteboard should also have the auto-crop option that an image [has], while still being able to access and edit it. There is still an issue when you are in pen mode, where some component's outlines show up, which should never be the case, unless pan is on." — and the note-opened-too-early bug. No lab-layer change; `whiteboard.js` is not edited.
+
+### Added
+- **The lasso on Scientia's whiteboard** (`scientia/board/pen.js`) — ◌ in the board's ink bar (back from V3.941) or the Slim Pen's barrel button (`buttons & 2`) whatever tool is on:
+  - **Selecting:** the loop is the engine's own probe stroke. It selects strokes with ≥ 60 % of their points inside and cards whose centre is inside; a shape's fill strokes go with it.
+  - **Screen position:** where the board is on the screen is learnt from every stroke drawn (`learn`: `u = A·(x − left)/scale + originX + kx`, the scale and origin from the engine's `getView` / `getOrigin`). The selection's box follows pan and zoom.
+  - **Editing:** drag to move; a corner scales; the bar has Copy, Duplicate, ⇋ ⇵, Pen ↔ Highlighter, ◧ Fill / Unfill, Delete, Done. A colour or width from the ink bar restyles it (`restyle`).
+  - **Copy and paste:** a barrel tap on it copies; a lasso tap elsewhere pastes. Ctrl+C / Ctrl+V, Delete, Esc.
+  - **Undo:** all of it goes through the board's journal.
+- **Whiteboards crop to their drawing** (13zzd, 13x):
+  - `BOARD.extent(docs)` (strokes and cards + a margin) is kept as `row.ext` on every save; a board saved before is measured once (`BOARD.crop`).
+  - `FIG.aspect` gives the cell that shape, and the preview frames just that: `board.html?…&crop=x,y,w,h,page` → `zoomToRect` in `store.js`.
+  - Done re-crops. *Whole page* / *Crop to the drawing* on the cell set `cell.board.crop`.
+
+### Changed
+- **No largest size:**
+  - The shared side grip (`DocView.pointer`; was 900, 1600 for widgets).
+  - HTML pages (2400 × 2400), PDF cards (2400 × 3000; their height snaps to 14 too), tables (2000 high), plots (1600 high).
+  - The single dish (`.wplate-wrap[data-fmt="1"]`, was ≤ 300 px).
+- **Corner grip on shape-locked components:** an image panel's corner (and a new corner on slides) follows a drag down; the larger of the two pulls. `body.resizing` while any grip drags, so an HTML frame never takes the drag.
+- **Large PDFs:** `PDFW.res` keeps a page's canvas ≤ 3600 px a side, so a huge PDF card still draws.
+- **Pen mode** (any hand but pan; lab-mode marks the host `lab-pilled` / `lab-hand-move`): nothing reacts to the pen hovering — no hover border, ink frame or header, corner grip, ⋯, port, embed tools, "+ label" or crop button (21-sync). A component being edited keeps its frame.
+
+### Bug Fixes
+- A note opened before it had arrived (a reload while the notebook loads, a note that came with the sync) failed with "Cannot read properties of null (reading 'world')" when it arrived. `DocView.render` now clears its paper for a missing note, and `update` draws the note whole when there is no paper.
+- `scripts/deploy.py` wrote `deploy/manifest.json` and `rm/build.json` with CRLF on Windows, so every one of Gabe's deploys rewrote all 5,358 lines of the manifest. They are written with LF now (`save_json`, the build stamp, the merge driver); the manifest is back to LF with the V3.941 deploy's records.
+
+### Tests
+- **Headless Chrome, the desktop build with demo data:**
+  - **Reload:** a note opened before it existed is drawn whole when it arrives, with no error.
+  - **Resizing:** a component widened to 1694 px (was capped at 900); an image panel dragged straight down by its corner reached 2086 px wide (was capped at 1600).
+  - **Pen mode:** hovering an ink component shows no frame and no header. With the pan hand, both show.
+  - **Whiteboard lasso:**
+    - ◌ loops a circle and selects it, with its box, handles and bar.
+    - Dragging moves it.
+    - A pen colour from the bar recolours it.
+    - Duplicate, Delete and undo work.
+    - The barrel button loops and selects with the pen tool on, and the pen comes back.
+  - **Whiteboard crop:** after Done the cell is 507×278, the drawing's shape, and its address carries the crop. Whole page gives 4:3 again.
+- **Harnesses:** lab-mode 274/278 (the four known), notes 13/13, notebook 45/45.
+- `sw.js` CACHE_VERSION 911 → 912.
+
 ## [V3.941] — 2026-10-29 — Scientia: one pen (the whiteboard's writing in notes, the notebook's pen on the whiteboard), the palm ignored, the Quick cast is the bar
 
 Plan: [CodeLog/ClaudesPlan/V3.941_scientia_one_pen_pills.md](../ClaudesPlan/V3.941_scientia_one_pen_pills.md). Gabe: "The whiteboard's way of writing should become the way of writing in the lab notebook as well. However, everything else that the notebook pen has (color palette, fill, ink width, eraser via button detection on the Slim Pen, double tap means undo, triple tap means redo, etc...) needs to become the way the whiteboard functions. All whiteboard talk is the whiteboard in the notebook only, not the website." — plus the palm, the pills, the bottom bar, More and the provenance panel. **The lab layer:** `rm/scientia/lab-mode.js` §11 (the pills) changes here at Gabe's choice (asked 2026-10-29), for Alex to review; nothing else in the lab layer. `whiteboard.js` is not edited.

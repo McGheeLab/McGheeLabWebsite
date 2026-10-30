@@ -416,6 +416,17 @@ body.rd-right .embed-max.rd-docked{grid-column:2;border-left:1px solid var(--rul
 /* 13zz2 · pen round three */
 body.ink-writing .box.w-ink{border-color:transparent!important;box-shadow:none!important;background:transparent!important}
 body.ink-writing .box.w-ink > .bh,body.ink-writing .box.w-ink > .chips,body.ink-writing .box.w-ink > .port{visibility:hidden}
+/* V3.942 — with the pen (any hand but pan) nothing on the paper answers the pen hovering over it: no frame, header, grip,
+   ⋯, port or tool shows up (Gabe: outlines only "when pan is on"). The lab's pills mark the note with its hand
+   (lab-mode §11: lab-pilled, lab-hand-move). A component being edited (selected, or its text focused) keeps its frame. */
+.canvas-host.lab-pilled:not(.lab-hand-move) .box:not(.w-ink):hover:not(.sel):not(:focus-within){border-color:var(--rule)}
+.canvas-host.lab-pilled:not(.lab-hand-move) .box.w-ink:hover,.canvas-host.lab-pilled:not(.lab-hand-move) .box.w-ink.sel{border-color:transparent}
+.canvas-host.lab-pilled:not(.lab-hand-move) .box.w-ink > .bh,.canvas-host.lab-pilled:not(.lab-hand-move) .box.w-ink > .chips,.canvas-host.lab-pilled:not(.lab-hand-move) .box.w-ink > .port{opacity:0!important;pointer-events:none!important}
+.canvas-host.lab-pilled:not(.lab-hand-move) .box:hover:not(.sel) .bmore,.canvas-host.lab-pilled:not(.lab-hand-move) .box:hover:not(.sel) .tk-chip.none,.canvas-host.lab-pilled:not(.lab-hand-move) .box:hover:not(.sel) .wk-btn:not(.on),
+.canvas-host.lab-pilled:not(.lab-hand-move) .box:not(.sel) .embed:hover .embed-tools,.canvas-host.lab-pilled:not(.lab-hand-move) .box .fg-cell:hover .port.fg-port,
+.canvas-host.lab-pilled:not(.lab-hand-move) .box:not(.sel) .fg-cell:hover .fg-kind.add,.canvas-host.lab-pilled:not(.lab-hand-move) .box:not(.sel) .fg-cell.wb:hover > .fg-wbcrop{opacity:0}
+.canvas-host.lab-pilled:not(.lab-hand-move) .box:hover > .rz.rz-corner{opacity:.7}
+body:not(.wiring) .canvas-host.lab-pilled:not(.lab-hand-move) .region:hover > .rg-port{opacity:0}
 .box > .bh .blab:not(:focus),.box > .bh .stampbtn{cursor:grab}
 .il-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .il-item{border:1px solid var(--rule-2);border-radius:10px;padding:8px;cursor:pointer;background:var(--surface);position:relative}

@@ -303,6 +303,14 @@ window.SIS_STORE = {
   list: col => { const pre = ROOT + '/' + col + '/', out = []; for (const [p, e] of DOCS) if (p.startsWith(pre) && p.indexOf('/', pre.length) < 0) out.push({ path: p, id: p.slice(pre.length), data: e.data }); return out; },
 };
 
+/* V3.942 — the cell crops to the drawing (?crop=x,y,w,h,page, 13zzd): once the board is up, the view frames just that */
+const crop = (qs.get('crop') || '').split(',');
+if (VIEW && crop.length >= 4 && crop.slice(0, 4).every(v => isFinite(+v) && v !== '')) {
+  const [x, y, w, hh] = crop.slice(0, 4).map(Number), pageId = crop[4] || 'p1'; let n = 0;
+  const t = setInterval(() => { const nb = window.NOTEBOOK_BOARD, inst = nb && nb._state && nb._state.inst;
+    if (inst && inst.zoomToRect) { clearInterval(t); setTimeout(() => { try { inst.zoomToRect({ pageId, x, y, w, h: hh }); } catch (e) { console.warn('[board] crop', e); } }, 80); } else if (++n > 150) clearInterval(t); }, 100);
+}
+
 document.documentElement.classList.add('sis-board');
 if (VIEW) document.documentElement.classList.add('sis-view');
 if (!HOST) addEventListener('DOMContentLoaded', () => setTimeout(() => {
