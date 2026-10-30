@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.944 (Scientia desktop: a lab paper's Read opens in Scientia's reader beside the note (`RMREAD`, 23d). It is told from Open in RM by a fresh `rm-read` in `SIS_LAB.host.sent`. The PDF comes via `serve.py` `GET /api/rm-pdf` (hub `/api/rm/library/pdf` → Storage) into the notebook's media. RM's highlights (`api/rm/annotations`) are drawn by their words and listed under From RM.)
+**Version:** V3.945 (Scientia: `RDOCK` (13zzb) reads HTML pages beside the note too (`KINDS`, `RDOCK.card`). `HTMLX.lift` (13zze) lifts the note's own ✎ pill (`.mx-pills`) over a page that fills the window. `INKSCRIPT` scrolls the page with a finger in pen mode, with the palm ignored (`SIS_PALM` thresholds).)
+
+**Prior:** V3.944 (Scientia desktop: a lab paper's Read opens in Scientia's reader beside the note (`RMREAD`, 23d). It is told from Open in RM by a fresh `rm-read` in `SIS_LAB.host.sent`. The PDF comes via `serve.py` `GET /api/rm-pdf` (hub `/api/rm/library/pdf` → Storage) into the notebook's media. RM's highlights (`api/rm/annotations`) are drawn by their words and listed under From RM.)
 
 **Prior:** V3.943 (Scientia: Ctrl+click feeds the lasso's selection (13zu); ink in HTML pages — `HTMLX.INKSCRIPT` in the page, `block.htmlInk`, Export ink labels via a frozen copy drawn by html2canvas (`vendor/workers/`) in a script-free frame; component deletion without confirmation or record copy; `CLIP.read` unset on the desktop.)
 

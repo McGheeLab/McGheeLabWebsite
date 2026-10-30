@@ -1622,8 +1622,8 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-10-29T18:43:00-07:00",
-   "sha256": "8b7485ecdc907c6b0b64b8e8d74c77eda5cff26c1b75e73dd6278549788dbd58",
+   "deployedAt": "2026-10-30T14:33:11-07:00",
+   "sha256": "7b734ab9fd018ca863cad39ee17e9a4d95c41b3e100a309efab74a1daac4f2c5",
    "size": 81,
    "via": "verify"
   },
@@ -4562,9 +4562,9 @@
    "via": "verify"
   },
   "rm/scientia/MANUAL.md": {
-   "deployedAt": "2026-10-29T18:43:00-07:00",
-   "sha256": "f8e6cd0019be7a9eb7a771e1aa1fb848593f0d6febced308ffab3462cd6eba7b",
-   "size": 45571,
+   "deployedAt": "2026-10-30T14:33:11-07:00",
+   "sha256": "8b7168f2e583d4a7f1045880cc64de6d2d90a9a7ec5b72ecde7b570b8d2cea1b",
+   "size": 47872,
    "via": "verify"
   },
   "rm/scientia/board.html": {
@@ -4580,14 +4580,14 @@
    "via": "verify"
   },
   "rm/scientia/desktop/ScientiaInSitu-Windows.zip": {
-   "deployedAt": "2026-10-29T18:43:00-07:00",
-   "sha256": "132b879d4ac8ab2ebe87630aaf5fa01e5d2d0496fdc83a4e65bb5390cef7b430",
-   "size": 6618762,
+   "deployedAt": "2026-10-30T14:33:11-07:00",
+   "sha256": "efc30965725cfcdc777999576cb99d000df4f3866e600b0e7aa4626a76bb7105",
+   "size": 6863732,
    "via": "verify"
   },
   "rm/scientia/desktop/version.json": {
-   "deployedAt": "2026-10-29T18:43:00-07:00",
-   "sha256": "6dc4e27974972acfcfaaf0629209ac2b499e577f134e0b2a24b6ae67aa314a01",
+   "deployedAt": "2026-10-30T14:33:11-07:00",
+   "sha256": "9c8b7dde8cf80bc04dc1ea4c8966dd674f8616fbd96e0e0bdc5fc9b10f27da6c",
    "size": 214,
    "via": "verify"
   },
@@ -4628,9 +4628,9 @@
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-29T18:43:00-07:00",
-   "sha256": "1900612121f606381193e66b1104207e2ae390e6f3b500202d66b014c669855b",
-   "size": 5231953,
+   "deployedAt": "2026-10-30T14:33:11-07:00",
+   "sha256": "7c1214037aa5ae581355c1359dea7fa49d61275f2ef3a518d0e0b533283df5f0",
+   "size": 5472309,
    "via": "verify"
   },
   "rm/test-fixtures/layout/01-2col-tight.pdf": {
@@ -5294,8 +5294,8 @@
    "via": "baseline"
   },
   "sw.js": {
-   "deployedAt": "2026-10-29T18:43:00-07:00",
-   "sha256": "bd14bb0087e114eacdcbc205b20c729c5a7a3beae4e90b271d8e1ef57958115f",
+   "deployedAt": "2026-10-30T14:33:11-07:00",
+   "sha256": "3c17608ad7b051465607f4f310034ea40b9a710e14fe083701b353dd87069e86",
    "size": 9933,
    "via": "verify"
   },

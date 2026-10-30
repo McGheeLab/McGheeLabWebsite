@@ -371,7 +371,12 @@ Open it with the ＋ **Quick cast** → **⋯** (everything that can go in this 
 - **Maximised** (⤢ / ⛶), a PDF or HTML page works like a paper in the reader:
   - a side panel lists its highlights, with notes and search;
   - the pen highlights whole words.
-- **Writing on an HTML page:** in pen mode (the ✎ pill on pen or highlighter) the pen writes on the page itself — on the paper and maximised; the eraser (or the pen's back) takes strokes away. The ink stays with the page, pinned to what it was written on. In pan mode the pen selects text for quotes, as before.
+- **Writing on an HTML page:** in pen mode (the ✎ pill on pen or highlighter) the pen writes on the page itself — on the paper, maximised and beside the note; the eraser (or the pen's back) takes strokes away. The ink stays with the page, pinned to what it was written on. In pan mode the pen selects text for quotes, as before.
+  - While the pen writes, a finger scrolls the page. A palm resting on it does nothing.
+  - **The ✎ pill comes with the page.** When an HTML page fills the window (maximised, or beside the note at full screen), the note's ✎ pill sits over the page, inside it. Switch to **Move** to scroll and select text, or back to **Pen** to write, without leaving the page.
+- **Reading an HTML page beside the note:** the book on the page's card (next to ⛶), or **◧ Beside** on the maximised page, puts the page in half the window and the note in the other half, as for a PDF.
+  - Its bar has **✎ Note**, **Export ink labels**, **Highlights**, ⇄ (the other side), ⤢ (full screen) and **Close**.
+  - The card in the note says "Reading beside the note" until you close it. Leave the note and it closes; come back and it is there again.
   - **Export ink labels** (the page's ⋯, or the maximised page's bar): ink written close together is one label. For each, you crop the part of the page around it; out comes an image panel of that crop with the ink on it, connected to the page ("cropped from"). The label leaves the page; Ctrl+Z undoes.
 - **Snapping a figure or an equation** out of a PDF (the scissors, or "＋ Figure 2" / "＋ Equation 3" on the page) works on the desktop too. On the website an equation is read into LaTeX for you; on the desktop you type it against the snip.
 

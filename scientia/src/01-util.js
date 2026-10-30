@@ -2,7 +2,7 @@
    01 · Utilities — DOM builder, ids, dates, formatting
    ========================================================================== */
 'use strict';
-const BUILD = '2026-10-30 · on the desktop a lab paper’s Read opens in this app’s reader beside the note, with your highlights from RM', DEMO_V = 2;
+const BUILD = '2026-10-30 · the ✎ pill over a maximised HTML page; fingers scroll it while the pen writes; HTML pages read beside the note', DEMO_V = 2;
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
