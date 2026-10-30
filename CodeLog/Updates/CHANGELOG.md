@@ -4,6 +4,49 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.945] — 2026-10-30 — Scientia: the ✎ pill over a maximised HTML page; fingers scroll it while the pen writes; HTML pages read beside the note
+
+Plan: [CodeLog/ClaudesPlan/V3.945_scientia_html_pill_beside.md](../ClaudesPlan/V3.945_scientia_html_pill_beside.md). Gabe:
+
+> "The pill should be inside the maximized HTML rather than from the outside, since now, you can't scroll through an HTML, or select text unless you go out of maximizing. Also allow the user to read the HTML beside the note."
+
+No lab-layer change.
+
+### Added
+- **HTML pages read beside the note** (13zzb `RDOCK`, `KINDS` pdf + html):
+  - The book in the card's tools (after ⛶), or "◧ Beside" on the maximised page, opens it.
+  - The page is put in once (`RDOCK.draw` → `EMBED.frame` with `EMBED._maxId`, filled by 13zw). It is put in again only when its file changes.
+  - The bar has ✎ Note and Export ink labels (13zze wraps `RDOCK.open`), Highlights, ⇄, ⤢ and Close.
+  - The card says "Reading beside the note" (`.embed.rd-away`, `RDOCK.card`).
+  - Paging, zoom and ← → stay PDF-only.
+- **The ✎ pill over a page that fills the window** (`HTMLX.lift`, 13zze; CSS `.mx-pills`):
+  - This applies to a maximised page, or the beside-reader at full screen.
+  - The note's own ✎ pill (lab-mode §11, unchanged) is lifted above the page (z-index 1250, under popovers at 1300), alone, with the pen settings bar it opens.
+  - If it would sit on the highlights panel, it is moved inside the page (`--mx-dx` / `--mx-dy`).
+  - It is redone on open, full screen, close, an overlay leaving, resize, and a pill drop.
+- **A finger scrolls an HTML page in pen mode** (`HTMLX.INKSCRIPT`): one finger scrolls the nearest scrolling element under it.
+  - A palm is ignored: a contact larger than `SIS_PALM.SIZE`, a touch within `QUIET` ms of the pen, or a second finger.
+  - `inkOn()` passes `palm: [SIZE, QUIET]`.
+
+### Changed
+- `scientia/MANUAL.md` "PDF and HTML pages": the pill with the page, finger scrolling, reading a page beside the note.
+
+### Tests
+- **Headless Chrome, the desktop build:**
+  - **Maximised in pen mode:** the ✎ pill was on top, inside the page (moved from x 1324 to 996, off the highlights panel), and the other pills were hidden.
+  - **Fingers:** a finger drag scrolled the page 300 px, and a palm-sized touch didn't. The page's scroll was read through an isolated world.
+  - **Move from the pill:** the pill tapped for real, then Move, turned the page's pen off.
+  - **◧ Beside, clicked for real:**
+    - the reader opened with the page;
+    - the card said "Reading beside";
+    - the bar had ✎ Note, Export ink labels, Highlights, ⇄, ⤢ and Close;
+    - a pen stroke there was kept.
+  - **Full screen:** the pill was lifted. Back beside the note, it wasn't.
+  - **Redraw and Close:** a redraw kept the reader, and Close put the page back in its card with the book after ⛶.
+- **Unchanged:** the V3.944 PDF reader test still passes. Harnesses: lab-mode 274/278 (the four known), notes 13/13, notebook 45/45.
+- `sw.js` CACHE_VERSION 914 → 915.
+- `deploy/manifest.json`: the record of the V3.943 + V3.944 upload that the end-of-turn deploy made on 2026-10-30.
+
 ## [V3.944] — 2026-10-30 — Scientia: on the desktop, a lab paper's Read opens in Scientia's reader beside the note, with your highlights from RM
 
 Plan: [CodeLog/ClaudesPlan/V3.944_scientia_rm_paper_reader_desktop.md](../ClaudesPlan/V3.944_scientia_rm_paper_reader_desktop.md). Gabe chose this ("Incorporate 2") from the list of lab features that work on the website but not on the desktop.

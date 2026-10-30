@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (45 changes — ready to push)
+## Pending (46 changes — ready to push)
 
+- V3.945 — Scientia: when an HTML page is maximised, the ✎ pill is on the page. Switch to Move to scroll and select text, or back to Pen to write, without leaving it. While the pen writes, a finger scrolls the page. An HTML page can now be read beside the note, like a PDF: the book on its card, or ◧ Beside.
 - V3.944 — Scientia on the desktop: **Read** on a lab paper now opens it in Scientia's reader beside your note, with your highlights from RM marked on the pages and listed in the side panel. It no longer opens the paper's page on the website. The PDF is kept in a card beside the paper, so it opens again offline. Open in RM still goes to the site.
 - V3.943 — Scientia: Ctrl+click components to select several, then drag them together or delete them all. Write on an HTML page with the pen; "Export ink labels" brings each piece of ink out as an image panel of that part of the page with the ink on it, connected to the page. Deleting a component is instant and no longer asks (Ctrl+Z brings it back). Snapping a figure or equation from a PDF works on the desktop too.
 - V3.942 — Scientia: the whiteboard has the lasso — ◌ in its ink bar or the pen's barrel button — to move, scale, copy, recolour, fill or delete what you loop around. Anything you can resize (image panels, PDFs, HTML pages, tables, slides) now grows as large as you drag it. A whiteboard in an image panel is cropped to its drawing, like an image (a click still opens all of it; "Whole page" shows the page). In pen mode no outlines or buttons pop up as the pen passes over components. Fixed: a note opened while the notebook is still loading now appears when it arrives.

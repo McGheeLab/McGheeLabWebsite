@@ -102,7 +102,7 @@ if(document.readyState==='complete')setTimeout(start,0);else window.addEventList
       stroke is pinned to the element it starts on (path + fraction, as the notes are) and drawn over the page in one SVG
       layer. Asked, it sends a frozen copy of itself (its HTML as it is now: canvases as pictures, the values typed, no
       scripts, no ink) for the app to draw — a sandboxed page cannot draw itself (html2canvas needs a frame it can reach). */
-  INKSCRIPT: `<script>(function(){var P=window.parent,NS='http://www.w3.org/2000/svg',ON=false,M={},INKS=[],cur=null,svg=null,live=null,gone={},eat=false;
+  INKSCRIPT: `<script>(function(){var P=window.parent,NS='http://www.w3.org/2000/svg',ON=false,M={},INKS=[],cur=null,svg=null,live=null,gone={},eat=false,TS=null,penAt=0;
 function kids(p){return [].filter.call(p.children,function(c){return !(c.tagName==='MARK'&&c.classList.contains('sis-q'));});}
 function pathOf(el){var a=[];while(el&&el.parentElement&&el!==document.body){a.unshift(kids(el.parentElement).indexOf(el));el=el.parentElement;}return a.join('/');}
 function byPath(s){var el=document.body;if(!s)return el;var a=String(s).split('/');for(var i=0;i<a.length&&el;i++)el=kids(el)[+a[i]];return el||null;}
@@ -116,7 +116,7 @@ function samples(e){var L=e.getCoalescedEvents?e.getCoalescedEvents():null;retur
 function move(e){samples(e).forEach(function(q){var x=q.clientX+scrollX,y=q.clientY+scrollY;if(cur.er){var ids=hit(x,y).filter(function(i){return !gone[i];});if(ids.length){ids.forEach(function(i){gone[i]=1;var el=layer().querySelector('path[data-id="'+i+'"]');if(el)el.remove();});P.postMessage({sis:'inkerase',ids:ids},'*');}return;}
 var l=cur.p[cur.p.length-1],dx=x-cur.x0,dy=y-cur.y0;if(l&&Math.hypot(dx-l[0],dy-l[1])<.6)return;cur.p.push([Math.round(dx*10)/10,Math.round(dy*10)/10,q.pointerType==='pen'&&q.pressure>0?Math.round(q.pressure*100)/100:.5]);cur.b=[Math.min(cur.b[0],x),Math.min(cur.b[1],y),Math.max(cur.b[2],x),Math.max(cur.b[3],y)];});
 if(live)live.setAttribute('d','M'+cur.p.map(function(p){return p[0]+','+p[1];}).join('L'));}
-window.addEventListener('pointerdown',function(e){if(!ON)return;var pen=e.pointerType==='pen',ms=e.pointerType==='mouse'&&M.mouse&&e.button===0;if(!pen&&!ms)return;if(e.target.closest&&e.target.closest('.sis-note'))return;e.preventDefault();e.stopImmediatePropagation();
+window.addEventListener('pointerdown',function(e){if(e.pointerType==='pen')penAt=Date.now();if(!ON)return;var pen=e.pointerType==='pen',ms=e.pointerType==='mouse'&&M.mouse&&e.button===0;if(!pen&&!ms)return;if(e.target.closest&&e.target.closest('.sis-note'))return;e.preventDefault();e.stopImmediatePropagation();
 var x=e.clientX+scrollX,y=e.clientY+scrollY;cur={id:e.pointerId,er:!!M.erase||(pen&&(e.button===5||(e.buttons&32)===32)),at:spot(e.clientX,e.clientY),x0:x,y0:y,p:[],b:[x,y,x,y]};
 if(!cur.er){live=document.createElementNS(NS,'path');live.setAttribute('class','live');live.setAttribute('fill','none');live.setAttribute('stroke',M.c||'#1d1d1b');live.setAttribute('stroke-width',M.hl?14:(M.w||2.4));live.setAttribute('stroke-linecap','round');live.setAttribute('stroke-linejoin','round');if(M.hl)live.setAttribute('opacity','.35');live.setAttribute('transform','translate('+x+','+y+')');layer().appendChild(live);}
 move(e);},true);
@@ -125,6 +125,10 @@ window.addEventListener('pointerup',function(e){if(!cur||e.pointerId!==cur.id)re
 P.postMessage({sis:'inkstroke',s:{at:c.at,p:c.p,c:M.c||'#1d1d1b',w:M.hl?14:(M.w||2.4),hl:!!M.hl},abs:c.b},'*');},true);
 window.addEventListener('pointercancel',function(e){if(cur&&e.pointerId===cur.id){cur=null;if(live){live.remove();live=null;}}},true);
 window.addEventListener('click',function(e){if(eat){e.preventDefault();e.stopImmediatePropagation();}},true);
+function scroller(n){for(;n&&n!==document.body&&n!==document.documentElement;n=n.parentElement){var cs=getComputedStyle(n);if(/(auto|scroll|overlay)/.test(cs.overflowY+' '+cs.overflowX)&&(n.scrollHeight>n.clientHeight+1||n.scrollWidth>n.clientWidth+1))return n;}return document.scrollingElement||document.documentElement;}
+window.addEventListener('pointerdown',function(e){if(!ON||e.pointerType!=='touch')return;var pl=M.palm||[90,600],sz=Math.max(e.width||0,e.height||0);if(TS||cur||Date.now()-penAt<pl[1]||sz>pl[0])return;TS={id:e.pointerId,x:e.clientX,y:e.clientY,el:scroller(e.target)};},true);
+window.addEventListener('pointermove',function(e){if(e.pointerType==='pen'){penAt=Date.now();TS=null;return;}if(!TS||e.pointerId!==TS.id)return;e.preventDefault();TS.el.scrollBy(TS.x-e.clientX,TS.y-e.clientY);TS.x=e.clientX;TS.y=e.clientY;},true);
+window.addEventListener('pointerup',function(e){if(TS&&e.pointerId===TS.id)TS=null;},true);window.addEventListener('pointercancel',function(e){if(TS&&e.pointerId===TS.id)TS=null;},true);
 window.addEventListener('message',function(e){var d=e.data||{};
 if(d.sis==='ink'){ON=!!d.on;M=d;document.documentElement.classList.toggle('sis-inking',ON);}
 else if(d.sis==='inks'){INKS=d.list||[];gone={};if(live){live.remove();live=null;}paint();}
@@ -149,7 +153,22 @@ P.postMessage({sis:'inkready'},'*');})();<\/script>`,
   /** Pen mode for the pages: on with any hand but pan (and zoom), for the pen, the highlighter and the eraser. */
   inkOn() {
     const hand = window.SIS_LAB && SIS_LAB.handNow ? SIS_LAB.handNow() : (INK.writing() ? INK.tool : 'move'), hl = INK.tool === 'hl', c = hl ? (INK.HL[INK.hlColor] || INK.HL[0]) : (INK.COLORS[INK.color] || 'auto');
-    return { sis: 'ink', on: INK.writing() && /^(pen|hl|eraser)$/.test(hand) && /^(pen|hl|eraser)$/.test(INK.tool), c: !c || c === 'auto' ? HTMLX.AUTO : c, w: INK.WIDTHS[INK.width] || 2.4, hl, erase: INK.tool === 'eraser', mouse: !!INK.mouse };
+    return { sis: 'ink', on: INK.writing() && /^(pen|hl|eraser)$/.test(hand) && /^(pen|hl|eraser)$/.test(INK.tool), c: !c || c === 'auto' ? HTMLX.AUTO : c, w: INK.WIDTHS[INK.width] || 2.4, hl, erase: INK.tool === 'eraser', mouse: !!INK.mouse,
+      palm: window.SIS_PALM ? [SIS_PALM.SIZE, SIS_PALM.QUIET] : [90, 600] };   // V3.945 — a finger scrolls the page while the pen writes; a palm does neither (13zf PALM)
+  },
+  /** V3.945 — a page that fills the window (maximised, or beside the note at full screen) keeps the note's ✎ pill: that
+      note's pill (lab-mode §11) is lifted above the page, alone, and moved inside it if it would sit outside the page
+      (on the highlights panel); the pen settings it opens come too. Move to scroll and select; pen to write. */
+  lift() {
+    const ov = [...$$('.embed-max')].filter(x => !x.classList.contains('rd-docked')).pop(), b = ov && M.block(ov.dataset.src);
+    const pane = b && b.kind === 'html' ? App.panes().find(p => p.docId === b.docId) || App.panes()[0] : null, host = pane && pane.host;
+    $$('.mx-pills').forEach(x => { if (x !== host) { x.classList.remove('mx-pills'); x.style.removeProperty('--mx-dx'); x.style.removeProperty('--mx-dy'); } });
+    if (!host) return;
+    host.classList.add('mx-pills'); host.style.setProperty('--mx-dx', '0px'); host.style.setProperty('--mx-dy', '0px');
+    const pill = $(':scope > .lab-pills > .lab-pill-hand', host), main = $('.mx-main', ov) || ov; if (!pill) return;
+    const r = pill.getBoundingClientRect(), m = main.getBoundingClientRect(), g = 12;
+    const dx = r.right > m.right - g ? m.right - g - r.right : r.left < m.left + g ? m.left + g - r.left : 0, dy = r.bottom > m.bottom - g ? m.bottom - g - r.bottom : r.top < m.top + g ? m.top + g - r.top : 0;
+    host.style.setProperty('--mx-dx', Math.round(dx) + 'px'); host.style.setProperty('--mx-dy', Math.round(dy) + 'px');
   },
   inkMode() { const m = HTMLX.inkOn(); $$('iframe').forEach(fr => { const b = fr._qsrc && M.block(fr._qsrc); if (b && b.kind === 'html' && fr.contentWindow) fr.contentWindow.postMessage(m, '*'); }); },
   /** Strokes written close together are one ink label (in this session: each label's box on the page as it was written). */
@@ -270,7 +289,19 @@ QUOTE.more = HTMLX.more;
   const em = EMBED.max; EMBED.max = function (b) { const r = em.call(EMBED, b), ov = [...$$('.embed-max')].pop(), bar = ov && $(':scope > .em-bar', ov);
     if (bar) { const btn = h('button.btn.sm', { title: 'Write a note in the page: click where it goes (or select text, then ✎ Note)', on: { click: () => HTMLX._pick ? HTMLX._pick.off() : HTMLX.pick(ov, b.id) } }, '✎ Note'), a = $('a.btn', bar); a ? a.before(btn) : bar.append(btn);
       const ex = h('button.btn.sm', { title: 'The ink written on the page comes out: each ink label with a crop of the page under it, as an image panel connected to the page', on: { click: () => HTMLX.exportInk(b.id) } }, 'Export ink labels'); btn.after(ex); }
-    return r; };
+    lift(); return r; };
+  // V3.945 — the same two in the bar of a page read beside the note (13zzb)
+  const ro = RDOCK.open; RDOCK.open = function (b) { const r = ro.apply(this, arguments), st = RDOCK.st;
+    if (st && b && st.id === b.id && b.kind === 'html') { const ov = st.ov, xs = (label, title, fn) => h('button.btn.xs', { title, on: { click: e => { e.stopPropagation(); fn(); } } }, label);
+      st.hl.before(xs('✎ Note', 'Write a note in the page: click where it goes (or select text, then ✎ Note)', () => HTMLX._pick ? HTMLX._pick.off() : HTMLX.pick(ov, b.id)),
+        xs('Export ink labels', 'The ink written on the page comes out: each ink label with a crop of the page under it, as an image panel connected to the page', () => HTMLX.exportInk(b.id))); }
+    lift(); return r; };
+  // V3.945 — the ✎ pill over a page that fills the window: when one opens, goes, or changes size, or the pill is dropped
+  function lift() { cancelAnimationFrame(HTMLX._lr); HTMLX._lr = requestAnimationFrame(() => { try { HTMLX.lift(); } catch (e) { console.warn('[html pill]', e); } }); }
+  ['full', 'close'].forEach(k => { const f = RDOCK[k]; RDOCK[k] = function () { const r = f.apply(this, arguments); lift(); return r; }; });
+  new MutationObserver(lift).observe(document.body, { childList: true });
+  addEventListener('resize', lift);
+  document.addEventListener('pointerup', e => { if (e.target.closest && e.target.closest('.mx-pills > .lab-pills')) setTimeout(lift, 60); }, true);
   // ✎ Note on a selected passage
   const qm = QUOTE.menu; QUOTE.menu = function (sel, x, y) { const r = qm.call(QUOTE, sel, x, y), src = M.block(sel.src);
     if (src && src.kind === 'html' && sel.frame) { const pop = $('.pop.q-menu') || [...$$('.pop')].pop(), row = pop && $('.q-cols', pop);
