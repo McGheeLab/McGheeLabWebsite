@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.951 (Scientia: `CKINDS` (13zzi) kinds on components (`b.ckind`, targets first in pickers, first relation seeded); `KINDX` wires with `toItem` drawn to the structure's mark; `AUTHORS` library authors as `person` terms.)
+**Version:** V3.952 (Scientia: `ATLAS` (14b) the Atlas tab — graph from the stores and `IX`, a force layout on canvas, lenses in `settings().lenses`, search lit, actions for the note you came from; `Search.open` routed to it (Ctrl+K) unless `labs.atlas` is off.)
+
+**Prior:** V3.951 (Scientia: `CKINDS` (13zzi) kinds on components (`b.ckind`, targets first in pickers, first relation seeded); `KINDX` wires with `toItem` drawn to the structure's mark; `AUTHORS` library authors as `person` terms.)
 
 **Prior:** V3.950 (Scientia: `BULK` (13zu2) the selection's actions, connect-all via `BULK.multi` on `M.wire`, `settings().relDefaults` first in the relation popover; `CLIPX` copy/paste with `application/x-scientia+json`, quotes from the last PDF/HTML selection.)
 

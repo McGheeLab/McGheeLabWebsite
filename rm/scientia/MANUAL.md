@@ -79,6 +79,7 @@ This manual covers everything the notebook can do, from first launch to the pen 
 | **Review** | The weekly review (it opens on the weekend). |
 | **Activity** | Heatmap, theme small multiples, weekly numbers, the Done list. |
 | **Terms** | Every term, with its forms and lens. |
+| **Atlas** | The notebook as one map: notes, components, structures, terms, people and papers, and how they link. Search lives here. |
 | **Library** | Papers and links. Open a paper's PDF in the reader. |
 | **Data** | Raw-data folders and datasets. |
 | **Materials** | Cell lines, antibodies, gels, reagents… |
@@ -98,6 +99,13 @@ This manual covers everything the notebook can do, from first launch to the pen 
 | Red pill | A recording in progress; click it to go there. |
 
 ---
+
+### The Atlas
+- **What it shows:** every note, component (with its kind), structure, term, person and paper under the lens, as dots sized by how connected they are; wires (with their relation), structures in a component, terms in the text, citations, note cards, pull-ins, @names and which note a component is in, as lines. Components with a kind keep the kind's colour.
+- **The lens** (top left): the whole notebook, one project, or a lens of your own: **+ Lens**, name it, pick the notes. The chips show or hide each kind; **Days** adds the day notes and reviews.
+- **Moving around:** drag to pan, wheel to zoom. **Hover** a dot and its neighbours stay lit while the rest fades. **Click** it: it is focused, its neighbours settle in a ring around it, and the side panel lists its edges (click one to walk there). **Double-click** opens it. **Shift+click** a second dot: the shortest path between the two lights up. The slider at the bottom replays the map growing by date.
+- **Search lives here.** Ctrl+K (or `/find`) opens the Atlas with your words lit, for the note you came from; the box at the top filters as you type, Enter focuses the first match. The **Quick** chip (or Ctrl+Shift+K, `/quick`) is the list search as before. Settings → Atlas turns the Ctrl+K routing off if you prefer the list.
+- **The action chips** say what a pick (double-click, or the button in the panel) does for the note you came from: **Open** · **Reference the note** (a note card there) · **Reference the component** / **Pull in** (a reference there) · **Connect** (a wire from the component you had selected to the one you pick).
 
 ## 4. Notes and the paper
 
