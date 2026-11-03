@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.950] — 2026-11-03 — Scientia: the selection does more — bulk actions, one drop wires them all, the last relation first, paste that pulls in or quotes
+
+Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase E. Gabe's "Bulk Action on Components" ("draw region, embed in another note, tidy/organize … If dragging from one of the sockets of a component, all components selected have their premature links drawn out of their socket as well which all create the same connection type to the same block it goes to") and "QoL Copy/Paste" ("Copying text from a note, and pasting it into another note automatically pulls it in … If it comes from an HTML or PDF component, it appears as a quoted component"); my #5 (the last relation first) and #8 (Move to note… with a stub).
+
+No lab-layer change.
+
+### Added
+- **`13zu2-bulk.js` `BULK`** — in the selection's bar (`INK.paintSel` wrapped), when components are selected: **Region** (`REGION.create`), **Move to…** (`MOVE.ask`; a stub "Moved to <note>" with a link to the first moved component stays where they were), **Pull into…** (references in the note you pick), **Tidy ▾** (align left · stack · grid, one undo step, animated), **Connect all…** (one relation from every selected component to one you pick), **Make them…** (each one, whole, a structure of the kind you pick), **Fold / Unfold**.
+- **Connect all from one socket:** a wire dragged from a selected component (`DocView.wireDrag` wrapped) sets `BULK.multi`; the relation chosen in the popover makes a wire from every selected component (`M.wire` wrapped; reversed drops fan out too).
+- **The last relation first:** `M.wire` records the relation per source kind in `settings().relDefaults` (`ckind` later, else the widget kind); `DocView.relationPopover` wrapped puts that relation first and lit, and Enter with nothing typed takes it.
+- **`CLIPX`:** a copy inside a component's editor sets `text/plain` and `application/x-scientia+json` ({blockId, docId, from, to, text}); a copy of a PDF's text layer and an HTML page's selection ('sel' message) are remembered as the last quote. A paste outside a text, on a note with no dialog open: the x-scientia copy from another note → a pull-in reference (`kind: 'ref'`); from the same note → a copy with the structures, terms and styles over the copied range; text equal to the last quote → a quote component wired to the file (`QUOTE.REL`), drawn where the pointer last was on the paper; any other text → a new component. Inside a text, paste stays plain text.
+
+### Not in this phase
+- Flag, Glue and Export-as-image on a selection (flags are per note or structure; glue and the canvas export don't take a subset yet).
+
+### Changed
+- `scientia/MANUAL.md` §4 "Components" (the selection's bar), "Linking by hand" (one drop for all, the last relation), §5 (copy and paste).
+
+### Tests
+- **Headless Chrome, the desktop build:** two components selected → the bar offered Region, Move to…, Pull into…, Tidy ▾, Connect all…, Make them…, Fold. Tidy → Stack (real clicks) put B under A at A's x. Connect all… → the target picked → "supports" chosen once → A:supports and B:supports to C, and `relDefaults.component = supports`. The relation popover then offered "supports" first and lit; Enter with nothing typed wired A→B with it. A drag from A's socket (both selected) onto C → "leads to" chosen once → A and B both wired. Make them… → Claim → both carry a claim. Fold / Unfold both. Region "Pair" holds A and B. A copy of A's first words pasted on the same note → a copy with its structure; on the second note → a reference to A; the last quote pasted → a quote wired to C; outside text → a new component. Move to… moved B and left "Moved to Second note" with a link to B.
+- **Harnesses:** lab-mode 278/278, notes 13/13.
+- `sw.js` CACHE_VERSION 919 → 920.
+
 ## [V3.949] — 2026-11-03 — Scientia: pen settings follow the hand, Pen zooms in, P pans, the edge pans faster the harder you push, zoom to 1 %, the pen's button
 
 Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase D. Gabe's "Major Update for Search + Other Upgrades" (pen features, pan view upgrade) and "Zoom Pill Changes", with his answers of 2026-11-03: the pen's button pressed again in Pen goes to the other mode; the edge pan is faster the harder you push.
