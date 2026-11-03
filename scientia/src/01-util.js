@@ -2,7 +2,7 @@
    01 · Utilities — DOM builder, ids, dates, formatting
    ========================================================================== */
 'use strict';
-const BUILD = '2026-11-03 · pen settings follow the hand, Pen zooms to 200 %, P pans, the edge pans faster the harder you push, zoom to 1 %, the pen’s button', DEMO_V = 2;
+const BUILD = '2026-11-03 · the selection: region, move with a stub, pull into, tidy, connect all, make them…; one drop wires every selected component; paste pulls in or quotes', DEMO_V = 2;
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
