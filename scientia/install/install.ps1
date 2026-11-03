@@ -36,6 +36,14 @@ New-Item -ItemType Directory -Force $App | Out-Null
 Get-ChildItem $App -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -notin @('images', 'recordings', 'backup') } | Remove-Item -Recurse -Force
 Copy-Item (Join-Path $From 'app\*') $App -Recurse -Force
 Copy-Item (Join-Path $From 'uninstall.ps1') (Join-Path $Root 'uninstall.ps1') -Force
+# 2b. the pen's button (V3.949): pen-button\ScientiaPen.exe, built here with the C# compiler Windows ships (when it is there)
+$csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+if (-not (Test-Path $csc)) { $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
+$penDir = Join-Path $App 'pen-button'
+if ((Test-Path $csc) -and (Test-Path (Join-Path $penDir 'ScientiaPen.cs'))) {
+  try { & $csc /nologo /target:winexe "/out:$(Join-Path $penDir 'ScientiaPen.exe')" (Join-Path $penDir 'ScientiaPen.cs') | Out-Null; Say "the pen's button: pen-button\ScientiaPen.exe (assign it in Windows Settings > Pen)" }
+  catch { Say "the pen's button was not built; pen-button\Build ScientiaPen.cmd does it later" }
+}
 Get-ChildItem $Root -Recurse -File | Unblock-File -ErrorAction SilentlyContinue
 
 # 3. Python
