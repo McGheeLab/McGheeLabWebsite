@@ -599,3 +599,8 @@ body.mobile .nav{display:none} body:has(.nav:not(.asleep)) #toasts{bottom:34px}
 .cmd-settings .li code{margin-right:10px;font-size:12px} .cmd-settings .li .s{display:block;font-size:11.5px;color:var(--ink-3)}
 /* ---------- 12d · Tidy by links, 13vb · fold reflow (V3.948): the boxes glide to their places ---------- */
 .tidying > .box{transition:left .26s ease,top .26s ease}
+/* ---------- 13zzh · hands (V3.949): the ink bar beside the ✎ pill glides; below 10 % the boxes are flat tiles ---------- */
+.canvas-host > .ink-bar{transition:left .2s ease,top .2s ease}
+.canvas-host.far .box > .ed,.canvas-host.far .box .embed,.canvas-host.far .box .pdfw,.canvas-host.far .box .dk{visibility:hidden}
+.canvas-host.far .box{min-height:48px;background:color-mix(in srgb,var(--ink) 6%,var(--surface))}
+.pen-settings .pill.ok{background:var(--ok);color:#fff}

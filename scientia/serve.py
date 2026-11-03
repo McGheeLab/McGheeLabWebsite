@@ -28,6 +28,7 @@ HUB = os.environ.get('SIS_CLOUD_HUB', 'https://us-central1-mcgheelab-f56cc.cloud
 CLOUD_CFG = os.path.join(os.path.dirname(CONFIG), 'cloud.json')
 LAB_ORIGINS = {'https://mcgheelab.com', 'https://www.mcgheelab.com'} | {o.strip() for o in os.environ.get('SIS_LAB_ORIGINS', '').split(',') if o.strip()}
 APP_SEEN = [0.0]          # when a window of this app last asked this server for news (labsync paces by it)
+PEN = [0.0]               # V3.949: when the pen's button was last pressed (pen-button/ScientiaPen.exe → /api/pen-button?press=1)
 # V3.929: the lab layer (rm/scientia/lab-mode.js, unchanged) runs in this app too. What it loads from the site: three RM
 # scripts are bundled (vendor/rm/, copied by scripts/scientia_build.py); every other /rm/ address opens on the site.
 SITE = os.environ.get('SIS_SITE', 'https://mcgheelab.com')
@@ -355,6 +356,18 @@ class H(http.server.SimpleHTTPRequestHandler):
         if len(body) > RM_PDF_MAX: return self._json(200, {'ok': False, 'error': 'the PDF is larger than 200 MB'})
         if b'%PDF' not in body[:1024]: return self._json(200, {'ok': False, 'error': 'what RM keeps for this paper is not a PDF'})
         self.send_response(200); self.send_header('Content-Type', 'application/pdf'); self.send_header('Content-Length', str(len(body))); self.end_headers(); self.connection.sendall(body)
+    def pen_button(self, q):
+        """V3.949: the pen's tail button (pen-button/ScientiaPen.exe, assigned in Windows Settings → Pen) says ?press=1; the app
+        waits here (?wait=1&since=<last>, up to 25 s) for the next press."""
+        g = lambda k: (q.get(k) or [''])[0]
+        if g('press'): PEN[0] = time.time(); return self._json(200, {'ok': True, 'pressed': PEN[0]})
+        if g('wait'):
+            try: since = float(g('since') or 0)
+            except ValueError: since = 0
+            t0 = time.time()
+            while PEN[0] <= since and time.time() - t0 < 25: time.sleep(0.1)
+            return self._json(200, {'ok': True, 'pressed': PEN[0] if PEN[0] > since else 0})
+        return self._json(200, {'ok': True, 'pressed': PEN[0]})
     def macros(self, q):
         """V3.947: macro files (.sis-macro.json) in the notebook folder's macros/ — the list, or one by name (Settings → Commands imports them)."""
         d = nb('macros'); name = (q.get('name') or [''])[0]
@@ -398,6 +411,7 @@ class H(http.server.SimpleHTTPRequestHandler):
         if p.startswith('/rm/') and self.is_local(): return self.rm_asset(p, u.query)
         if p == '/api/rm-pdf': return self.rm_pdf(q)
         if p == '/api/macros' and self.is_local(): return self.macros(q)
+        if p == '/api/pen-button' and self.is_local(): return self.pen_button(q)
         if p.startswith('/api/rm/'): return self.rm_proxy('GET', u)
         if p == '/api/rec/parts' and self.is_local():
             parts = self.rec_parts_of((q.get('rid') or [''])[0]); return self._json(200, {'ok': True, 'parts': len(parts), 'bytes': sum(os.path.getsize(f) for f in parts)})

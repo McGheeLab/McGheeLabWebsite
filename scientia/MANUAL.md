@@ -574,6 +574,15 @@ A view is a saved query that updates as your notes change.
 
 ## 17. Pen, touch and handwriting
 
+### The hand, the pen and the view
+- **Pen settings follow the hand.** Choosing Pen or Highlighter on the ✎ pill opens the pen settings (colours, widths, eraser, fill, pressure); Move, Zoom or Lasso closes them. With the pill expanded, the settings sit beside it.
+- **Pen zooms in.** Switching to Pen or Highlighter goes to 200 % if the note was under it; leaving them comes back to 100 % (only if that switch changed it).
+- **P** switches to Move (outside a text). `/pen`, `/hl`, `/lasso`, `/erase` and `/pan` do the rest.
+- **The edge pans.** In Move, push the mouse (or the hovering pen) into the window's edge and the note pans that way: gently near the edge of the zone, fast against the border. Fingers don't.
+- **Zoom** reaches 1 % (⊕, Ctrl+scroll, `/zoom 1`); below 10 % the components show as flat tiles.
+- **The pen's button** (desktop). The Slim Pen's tail button is a Windows setting (it opens OneNote by default). Settings → The pen's button shows the steps: Windows Settings → Pen & Windows Ink → Pen shortcut button → "Launch a classic app" → the app folder's `pen-button\ScientiaPen.exe` (the installer builds it; `pen-button\Build ScientiaPen.cmd` does if it is missing). Then one press switches to the pen, and a press in Pen goes to the other mode, what a double tap on ✎ does.
+- **Esc** puts the navigation bar to sleep first, then closes a popover; dialogs, the maximised views and the reader's full screen answer their own Esc.
+
 ### Fingers (iPad, Surface, any touch screen)
 - **Drag** pans the paper, even over components. **Pinch** zooms.
 - **Tap** selects a component; tap its text to type. **Press and hold** (½ s) to drag a component.

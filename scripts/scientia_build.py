@@ -54,7 +54,8 @@ BUNDLE = os.path.join(DESK_DIR, 'ScientiaInSitu-Windows.zip')
 BUNDLE_VERSION = os.path.join(DESK_DIR, 'version.json')
 BUNDLE_APP = ['serve.py', 'sisync.py', 'labsync.py', 'service.py', 'open_local.py', 'hwread.py', 'slides.py', 'sttread.py', 'winink.py',
               'vendor/rm/recorder-core.js', 'vendor/rm/speech-to-text.js', 'vendor/rm/stt-device-worker.js',
-              'launch.bat', 'MANUAL.md', 'diagnose-pairing.bat', 'diagnose-pairing.ps1', 'vendor/scientia_cloud.py']
+              'launch.bat', 'MANUAL.md', 'diagnose-pairing.bat', 'diagnose-pairing.ps1', 'vendor/scientia_cloud.py',
+              'pen-button/ScientiaPen.cs', 'pen-button/Build ScientiaPen.cmd']   # V3.949: the pen's button (the installer builds the exe)
 VENDOR_COPY = [('rm/js/page-layout.js', 'scientia/vendor/page-layout.js'),     # (the rm/ original, its copy in the app)
                ('rm/js/page-regions.js', 'scientia/vendor/page-regions.js'),
                ('rm/scientia/scientia-cloud.py', 'scientia/vendor/scientia_cloud.py'),

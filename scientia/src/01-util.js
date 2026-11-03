@@ -2,7 +2,7 @@
    01 · Utilities — DOM builder, ids, dates, formatting
    ========================================================================== */
 'use strict';
-const BUILD = '2026-11-03 · Tidy by links; folding brings the neighbours up and unfolding pushes them back; the Portfolio layout follows you', DEMO_V = 2;
+const BUILD = '2026-11-03 · pen settings follow the hand, Pen zooms to 200 %, P pans, the edge pans faster the harder you push, zoom to 1 %, the pen’s button', DEMO_V = 2;
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
