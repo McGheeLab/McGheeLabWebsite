@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (52 changes — ready to push)
+## Pending (53 changes — ready to push)
 
+- V3.952 — Scientia: a new **Atlas** tab: the notebook as one map — notes, components, structures, terms, people and papers, and every link between them — under a lens (a project, everything, or notes you pick). Hover, click, double-click, Shift+click for the path between two; a slider replays it by date. Ctrl+K now opens the Atlas with your words lit (Ctrl+Shift+K is the list as before; a setting swaps them), and the chips say what a pick does for the note you came from: open, reference, pull in, connect.
 - V3.951 — Scientia: double-click the small label left of a component's title to make it a Hypothesis, a Verdict, an Aim, a Method, a Meeting or Feedback (or a kind of your own). The kind colours its edge, puts what it links to first in every picker (a hypothesis: papers, notes, observations) and offers its relation first. A wire dropped on a claim or an observation inside a component ends on that structure. The library's authors are terms now, marked in your text.
 - V3.950 — Scientia: select several components (lasso or Ctrl+click) and the bar offers Region, Move to another note (a note stays behind saying where they went), Pull into another note, Tidy, Connect all to one component, Make them all a claim/barrier/…, Fold. A wire dragged from one selected socket wires every selected component with the one relation you pick; the relation you used last comes first. Copy text in a component and paste it on another note's canvas: it is pulled in; copied from a PDF or an HTML page: a quote.
 - V3.949 — Scientia: choosing Pen or Highlighter opens the pen settings (and zooms to 200 %); Move, Zoom or Lasso closes them (and comes back to 100 %). P pans. In Move, pushing the mouse into the window's edge pans the note, faster the harder you push. Zoom reaches 1 %. On the desktop the pen's tail button can switch to the pen (and back to the other mode): Settings → The pen's button.

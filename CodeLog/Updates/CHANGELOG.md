@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.952] — 2026-11-03 — Scientia: the Atlas — the notebook as one map, with a lens, and the search that lights it up
+
+Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase G (both parts in one version). Gabe (2026-11-03): "Create an Atlas tab that shows this in an interactive, complex, but easy to navigate way that is extremely modern in its animation and quality with the power of what an HTML can represent. Atlas search should live within this tab as well for navigating complex pathways of terms, structures, and kinds all linked in specific ways with the lens of a project, the whole notebook, or a set of experiments." And my #3: one search box, Atlas as the default.
+
+No lab-layer change.
+
+### Added
+- **The Atlas tab** (`14b-atlas.js` `ATLAS`, `22-atlas.css`; `TABS` gains `atlas` after Terms, `VIEWS.atlas`):
+  - `ATLAS.graph()`: nodes for the lens's notes, components (`ck` and colour from `CKINDS`), structures, terms, people (person terms and @names) and papers; edges for wires (the relation as label; `toItem` goes to the structure), structures in a component, terms in the text, citations and paper cards, note cards and pull-ins, @names, and the note a component is in. The lens: `all`, a project id, or `set:<lens id>` (`settings().lenses`, made with + Lens and the note picker); chips per kind; Days.
+  - The layout: a force simulation on the canvas's rAF — repulsion (O(n²) up to 400 nodes, bucketed by 90 px cells above), springs along edges (shorter for "in"), a centre pull, with `alpha` decaying to a settle; positions kept across rebuilds; a dragged node is pinned while dragged.
+  - Drawing on a `<canvas>`: edges by kind and state, dots sized by degree, labels for the focused, hovered, lit and nearby nodes (at most 60), light and dark aware.
+  - Hover lifts a node and its neighbours; click focuses (its neighbours set in a ring of 120 px, the view centred, the side panel lists its edges and walks); double-click opens; Shift+click a second node draws the shortest path (BFS); drag pans or moves a node; wheel zooms at the pointer; the slider at the bottom replays the map growing by date.
+  - **Search:** the box lights every node whose label (or note) contains the words; Enter focuses the first. `Search.open` is wrapped: Ctrl+K and `/find` open the Atlas (`ATLAS.openWith(q, from)`) with the words lit, the lens set to the note's project, and `from` = the note on screen (and its selected component); `Search.open({quick: true})`, Ctrl+Shift+K, the Quick chip and `/quick` are the list as before. Settings → Atlas turns the routing off.
+  - **The action chips** (`ATLAS.act`): Open · Reference the note (a `noteref` card in the note you came from) · Reference the component / Pull in (a `ref` there) · Connect (the relation popover from the selected component to the pick).
+
+### Not in this phase
+- The Portfolio as a searchable horizontal strip (`/find in:portfolio`): the Portfolio is lab-mode's render; left for the lab-layer PR.
+
+### Changed
+- `scientia/MANUAL.md` §3: the Atlas tab and "The Atlas".
+
+### Tests
+- **Headless Chrome, the desktop build:** two notes, a term, an observation, two wires. Ctrl+K from a note opened `#/atlas` with 7 nodes of 5 kinds, "stiff" in the box and lit, `from` = that note, the canvas drawn. A click on A focused it: the panel listed its edges (B's observation and the term "stiffness"); Shift+click on C drew the 2-step path A–C. Action Pull in on C put a reference to C in the note we came from and opened it. Ctrl+Shift+K opened the list; with the setting off, Ctrl+K opened the list. A lens of one note showed only that note and its component. Settings showed the Atlas section.
+- **Harnesses:** lab-mode 278/278, notes 13/13.
+- `sw.js` CACHE_VERSION 921 → 922.
+
 ## [V3.951] — 2026-11-03 — Scientia: kinds of component (Hypothesis, Verdict…), wires that end on a structure, authors as terms
 
 Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase F. Gabe: "Note components can be assigned as Hypothesis, Verdict, etc… which causes them to have unique linking patterns. For example, Hypothesis can link to a paper, a note, observations, etc… Verdicts can link to a Figure Board, a claim, etc…", and (2026-11-03) "the user double clicks the note component type/kind (left to the component title) to change the type, otherwise, the component itself is just a standard name for non-user-defined kind. KINDS are superposed with structures to give nested interactions between hypotheses (kind) stemming from observations (structure)." Also "Authors scraped and included into Terms".
