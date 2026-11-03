@@ -38,6 +38,7 @@ const ED = {
       for (const m of cov.filter(m => m.type === 'fmt')) node = h('span.f' + m.s, { 'data-m': m.id }, node);
       for (const m of cov.filter(m => m.type === 'link')) { const tg = IX.linkTarget(m); node = h('span.ln' + (tg ? '' : '.open') + (m.to === z ? '.end' : ''), { 'data-m': m.id, 'data-link': m.ref || '', 'data-title': m.title || '' }, node); }
       for (const m of cov.filter(m => m.type === 'term')) node = h('span.tm', { 'data-m': m.id, 'data-term': m.ref }, node);
+      for (const m of cov.filter(m => m.type === 'person')) node = h('span.mn', { 'data-m': m.id, 'data-uid': m.uid || '', title: (m.name || '') + (m.uid ? ' · a lab member' : '') }, node);   // V3.947: @Name (13zzg)
       for (const m of cov.filter(m => m.type === 'struct')) {
         const it = M.item(m.ref), k = it ? it.kind : 'observation', st = IX.status(it);
         node = h('span.st.st-' + k + (st === 'closed' ? '.closed' : '') + (it && it.originBlockId !== b.id ? '.mention' : '') + (it && it.correctedBy ? '.corrected' : ''), { 'data-m': m.id, 'data-item': m.ref }, node);
@@ -120,7 +121,7 @@ const ED = {
     const save = debounce(() => { const cur = M.block(b.id); if (!cur || !el.isConnected) return; const body = ED.read(el, cur.body.marks); if (body.text === cur.body.text && JSON.stringify(body.marks) === JSON.stringify(cur.body.marks)) return; M.saveBlockBody(cur, body); IX.rebuild(); DB.beginGroup(); DV(el).softRefresh(b.id); }, 450);
     el._save = save;
     el.addEventListener('beforeinput', e => { ED.markerEscape(el, e); WRITE.colon(el, e); ED.edgeEscape(el, e); });
-    el.addEventListener('input', e => { if (el.contentEditable === 'true') WRITE.autoReplace(el, e); if (ED.slashCite(el, b, e)) return save(); if (!MATH.autoConvert(el, b, e)) save(); });
+    el.addEventListener('input', e => { if (el.contentEditable === 'true') WRITE.autoReplace(el, e); if (typeof SLASH !== 'undefined' ? SLASH.onInput(el, b, e) : ED.slashCite(el, b, e)) return save(); if (!MATH.autoConvert(el, b, e)) save(); });   // V3.947: / and @ (13zzg)
     el.addEventListener('blur', () => { save(); setTimeout(() => TERMSCAN.afterEdit(b.id), 700); });
     el.addEventListener('paste', e => { e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').replace(/\r/g, '')); });
     el.addEventListener('keydown', e => ED.onKey(e, el, b, save));
@@ -159,13 +160,13 @@ const ED = {
     if (!/^insert(Text|ReplacementText|FromPaste|CompositionText)$/.test(e.inputType)) return;
     const s = getSelection(); if (!s.rangeCount || !s.isCollapsed) return;
     const n = s.anchorNode, start = n && (n.nodeType === 3 ? n.parentElement : n); if (!start || !el.contains(start)) return;
-    let span = start.closest('.tm,.ln'); if (!span || !el.contains(span)) return;
+    let span = start.closest('.tm,.ln,.mn'); if (!span || !el.contains(span)) return;
     const tail = document.createRange(); tail.setStart(s.anchorNode, s.anchorOffset); tail.setEnd(span, span.childNodes.length);
     const head = document.createRange(); head.setStart(span, 0); head.setEnd(s.anchorNode, s.anchorOffset);
     const atEnd = !tail.toString().replace(/​/g, ''), atStart = !head.toString().replace(/​/g, '');
     if (!atEnd && !atStart) return;
     // climb out of nested term/link spans that share this edge
-    for (let p = span.parentElement; p && p !== el && p.matches('.tm,.ln'); p = p.parentElement) {
+    for (let p = span.parentElement; p && p !== el && p.matches('.tm,.ln,.mn'); p = p.parentElement) {
       const r = document.createRange(); if (atEnd) { r.setStartAfter(span); r.setEnd(p, p.childNodes.length); } else { r.setStart(p, 0); r.setEndBefore(span); }
       if (r.toString().replace(/​/g, '')) break; span = p; }
     const z = document.createTextNode('​'); if (atEnd) span.after(z); else span.before(z);

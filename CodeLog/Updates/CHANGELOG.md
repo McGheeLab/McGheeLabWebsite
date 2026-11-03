@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.947] — 2026-11-03 — Scientia: /commands in the text and in a navigation bar, @Name, macros, your own commands, and the macro skill
+
+Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase B. Gabe's "UI features" component ("/commands that add connections or quick actions for text also @Name links a user to the text") and his additions of 2026-11-03: custom /commands bound to anything quick-castable, a slim navigation bar at the bottom that is nearly invisible until clicked or `/` is pressed on the canvas, with a comprehensive command set, and a skill that writes macros as importable files.
+
+No lab-layer change.
+
+### Added
+- **One command registry** (`11b-commands.js` `CMD`): `CMD.add({slash, alias, label, args, scope, group, run})`; arguments have a kind with its own finder (`CMD.KINDS`: note, project, theme, component, structure, term, paper, material, choice, text, number, date). `CMD.run(slash, args, ctx)` resolves a string argument by its kind — the exact name, the one match, or a prefiltered picker (`CMD.picker`) — and asks for a missing one. `CMD.all()` = the built-ins + every `+ Insert` row (`/insert <row>` and an alias: `/paper`, `/protocol`, `/material`, …) + the person's commands (`settings().commands`) + the macros. 73 built-ins in groups Go, Find, Text, Note, Hand & view, Notebook, Insert — one per line, which `scripts/scientia_macro.py` reads.
+  - `HIST`: the notes opened (50), `/back` `/forward`, Alt+← Alt+→.
+  - `MACRO`: `check` (format, slash, steps, arguments, placeholders), `import`, `save`, `remove`, `file` (export), `run` (params asked or taken from the line, `{param}` `{date}` `{time}` `{note}` `{project}`, `pick` prefilling a picker and waiting (`CMD.prefill`, `CMD.settle`), `when: "{ask: …}"` yes/no, a failing step stops it). `askYes(title, text)`.
+  - Settings → Commands (`CMD.settingsUI`): your commands (an insert row, a built-in with preset arguments, or a macro; `+ Command`, Edit, ×, Import…, Export all as `sis-commands/1`), the macros (Run, Export, ×, Import a macro…), and on the desktop the files in the notebook folder's `macros/` (`serve.py` `GET /api/macros`, local only).
+- **`/` and `@` in the text** (`13zzg-slash.js` `SLASH`, from `ED.attach`'s input): `/` at a word start opens the menu at the caret (the text commands and the insert rows, a typed prefix of the slash first), ↑ ↓ Enter/Tab Esc; the typed `/word` is deleted in place (no re-render) and the command runs on the component: `/claim /barrier /question …` mark the sentence before the caret (`SLASH.sentence`), `/term` the word, `/link` the word (picker), `/cite`, `/mention` (existing structure), `/sym` (the editor bar's symbols), `/date` `/time`, `/connect` (a component picker, then the relation), `/paper /protocol …` insert below the component (`CMD.insert` with `ctx.block`).
+  - `@` lists the lab's members (`api/rm/members` once per session → `settings().members`; names already used in `settings().people`; typing a new name and Enter names them); the pick is a `person` mark `{uid, name}` drawn as a chip (`.mn`, 09 render; edge-escaped like terms). `SLASH.people(d)` (⋯ → People mentioned…, `/people`) lists who is named and where.
+- **The navigation bar** (`11c-navbar.js` `NAV`): 24 px along the bottom of `#app`, 22 % opacity asleep (the crumb project › theme › note, what the last command said, ← to the previous note), woken by a click or `/` outside a text with no component selected; a command line with completion (commands as the slash is typed; a note, a component, a term… for each argument; Enter on a command that takes arguments completes it, on an argument picks it — by value, so two notes of one name are told apart; Tab completes), ↑ ↓ history (`settings().navHistory`, 50), `?` or `/help` (every command grouped, with its signature), `/macros`. Esc sleeps it. Not on the phone.
+- **The vocabulary and the check** (`scripts/scientia_macro.py`): `list` (`--json`) reads the built-ins from `11b-commands.js` and the insert ids from `scientia/src` and `lab-mode.js`; `check FILE` reports what is wrong with a `.sis-macro.json` (exit 1).
+- **The skill** `.claude/skills/scientia-macro/SKILL.md`: how a macro is written (read the vocabulary with `list`, write `<slash>.sis-macro.json` in the notebook folder's `macros/`, `check` it, say how to import it), the format, the rules (no destructive step without `{ask}`), three examples.
+
+### Changed
+- `09-editor.js`: `person` marks rendered; `/` goes to `SLASH.onInput` (`slashCite` kept as the fallback); `.mn` edge-escaped.
+- `/term <term>` (the lens) is now `/lens`; `/term` in the text marks the word.
+- `scientia/MANUAL.md` §5: "/ and @ in a component", "The navigation bar". `CodeLog/features.json`: the three modules.
+
+### Tests
+- **Headless Chrome, the desktop build:** the bar mounted asleep with the crumb. `/cla` listed `/claim` first; Enter made a claim of "Second sentence here" and removed the typed word. `/date` typed "Tue 3 Nov 2026". `@Ale` listed Alex McGhee; Enter wrote the chip with uid u1; People mentioned listed him. `/` on the canvas woke the bar with `/`; `go` listed `/go` first; Enter completed to `/go ` with the notes; `Other` + Enter opened "Other note", the bar slept, said "Opened Other note", and remembered `/go "Other note"`. `/back` returned; `/zoom 50` → 50 %; `/pen` → the pen; `/flag` asked for the reason (the app's own dialog) and flagged; `/version` said the build; `/help` listed 101 commands. `/` with a component selected did not wake the bar. A command of your own (`/half` → `/zoom 50`) ran and was listed; a macro of three steps (timer start, flag, rename with `{date}`) imported, ran, and `check` refused an unknown command and an unknown argument. Settings showed the Commands section.
+- `python scripts/scientia_macro.py list` prints 73 commands and 31 insert rows; `check` on the example passes.
+- **Harnesses:** lab-mode 278/278, notes 13/13, notebook 45/45.
+- `sw.js` CACHE_VERSION 916 → 917.
+
 ## [V3.946] — 2026-11-03 — Scientia: the editor bar above a component, ∑ symbols with favourites, one look for every floating bar
 
 Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase A. Gabe's "Text Editor Bar" component of the SiS Shaping note:

@@ -2,7 +2,7 @@
    01 · Utilities — DOM builder, ids, dates, formatting
    ========================================================================== */
 'use strict';
-const BUILD = '2026-11-03 · the editor bar above a component: styles, lists, Make it…, ∑ symbols with favourites, + more; one look for every floating bar', DEMO_V = 2;
+const BUILD = '2026-11-03 · /commands in the text and in the navigation bar at the bottom, @Name, macros, your own commands', DEMO_V = 2;
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
