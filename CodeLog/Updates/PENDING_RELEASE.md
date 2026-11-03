@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (53 changes — ready to push)
+## Pending (54 changes — ready to push)
 
+- V3.953 — Scientia: a small dot in the header says how the notebook stands with the lab (green in step, amber working, grey not connected, red with a plain sentence); click it for Sync now. The hint line at the bottom of a note can be closed for good (⋯ → Shortcuts… lists the keys). Notes with over a hundred components pan smoothly. The reader's panel has Mine · RM · Notes chips. + Insert lists this note's rows first, then what you used last.
 - V3.952 — Scientia: a new **Atlas** tab: the notebook as one map — notes, components, structures, terms, people and papers, and every link between them — under a lens (a project, everything, or notes you pick). Hover, click, double-click, Shift+click for the path between two; a slider replays it by date. Ctrl+K now opens the Atlas with your words lit (Ctrl+Shift+K is the list as before; a setting swaps them), and the chips say what a pick does for the note you came from: open, reference, pull in, connect.
 - V3.951 — Scientia: double-click the small label left of a component's title to make it a Hypothesis, a Verdict, an Aim, a Method, a Meeting or Feedback (or a kind of your own). The kind colours its edge, puts what it links to first in every picker (a hypothesis: papers, notes, observations) and offers its relation first. A wire dropped on a claim or an observation inside a component ends on that structure. The library's authors are terms now, marked in your text.
 - V3.950 — Scientia: select several components (lasso or Ctrl+click) and the bar offers Region, Move to another note (a note stays behind saying where they went), Pull into another note, Tidy, Connect all to one component, Make them all a claim/barrier/…, Fold. A wire dragged from one selected socket wires every selected component with the one relation you pick; the relation you used last comes first. Copy text in a component and paste it on another note's canvas: it is pulled in; copied from a PDF or an HTML page: a quote.
