@@ -100,6 +100,9 @@ This manual covers everything the notebook can do, from first launch to the pen 
 
 ---
 
+### The sync dot
+A small dot in the header, left of Search, says how the notebook stands with the lab: green in step, amber while it works or waits, grey when this computer is not connected, red with one plain sentence when something failed. Click it for the details, Sync now, and Settings → The lab.
+
 ### The Atlas
 - **What it shows:** every note, component (with its kind), structure, term, person and paper under the lens, as dots sized by how connected they are; wires (with their relation), structures in a component, terms in the text, citations, note cards, pull-ins, @names and which note a component is in, as lines. Components with a kind keep the kind's colour.
 - **The lens** (top left): the whole notebook, one project, or a lens of your own: **+ Lens**, name it, pick the notes. The chips show or hide each kind; **Days** adds the day notes and reviews.
@@ -137,6 +140,7 @@ A note has a **header box** (title, type, profile fields, tags, ✎ for note det
 - **Delete:** select the component and press **Delete**, or use ⋯ → Delete component. It goes at once, with no question — Ctrl+Z brings it back (the note says what went with it).
 - **Several at once:** **Ctrl+click** components (⌘ on a Mac) to select them together; Ctrl+click again takes one out. Drag any of them to move them all; Delete removes them all; the bar under them copies or duplicates. Esc lets go.
 - **Undo:** **Ctrl+Z** outside a text box undoes deletions and other changes.
+- **The hint line** at the bottom of a note has a ×: close it and it stays closed; ⋯ → **Shortcuts…** lists the keys instead. A note with more than a hundred components lets the browser skip the boxes far off screen, so it pans smoothly.
 - **Tidy layout** (⋯ beside the title, or `/tidy`) lays the note out by its connections: each chain of wired components from its origin downwards, rows ordered so the wires cross as little as they can, neighbours far enough apart to read the arrow and its label, regions as pieces of their own, everything packed to fit the highest zoom. Components with no connections flow in columns on the right. Ctrl+Z undoes it. **Flow in order** (⋯) is the old tidy: the boxes in order, two columns.
 - **Folding moves the neighbours.** ▾ on a component (or a region's fold) brings what sits below it up by the height that went, and what sits to its right left by the width that went; unfolding pushes them back. A box you moved in between stays where you put it. Ink never moves.
 - **The Portfolio's layout is yours:** where you put its cards, and which are folded, follows you to every computer.
@@ -345,6 +349,8 @@ A protocol is one box, with its steps on a rail.
 
 ## 10. + Insert: everything that can go in a note
 
+The list puts the rows made for this note's type first, then the ones you inserted last, then the rest.
+
 Open it with the ＋ **Quick cast** → **⋯** (everything that can go in this note), or right-click the paper → **Insert…**, which places the item at that spot. The bolt on a row puts it in your Quick cast.
 
 | Insert | What you get |
@@ -514,6 +520,7 @@ Open it with the ＋ **Quick cast** → **⋯** (everything that can go in this 
 - **Authors are terms.** Every author of a paper in the library becomes a term of its own kind (a person, with their papers), and their name is marked in your text like any term, so Terms shows where they come up.
 
 ### Highlighting
+- **The reader's panel** has chips: **Mine** (this note's highlights), **RM** (the lab's, on a lab paper), **Notes** (the notes written under highlights). Switch any off to see the rest.
 - **With the mouse:** select text, then pick a colour, or press Ctrl+B (or your structure key) and a letter to make it a claim, evidence, barrier…. The source (paper and page) is filled in.
 - **With the pen,** the pen *is* a highlighter that takes whole words, from the first word touched to the last.
   - The highlight is saved in the last colour you used.
