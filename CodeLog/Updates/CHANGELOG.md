@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.946] — 2026-11-03 — Scientia: the editor bar above a component, ∑ symbols with favourites, one look for every floating bar
+
+Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase A. Gabe's "Text Editor Bar" component of the SiS Shaping note:
+
+> "Text components when being edited, have a medium popup as a header above the block's border with text editor components, such as bold, italic, underline, bullet point, numbered list, etc… At the end of this tab is a dotted + button which allows the user to add more to the text editor. … The symbols button should be the Riemann sum symbol … You can add symbols to a favorites list … You can also quick cast each of these preferred symbols to appear as their own button in the text editor bar. The text editor bar cannot be wider than the block itself, so it needs to grow vertically. All buttons should be drawn at a reasonable scale and be the same size."
+
+No lab-layer change.
+
+### Added
+- **The floating bar** (`08b-bar.js` `FBAR`): `FBAR.btn` (28 × 28, swallows mousedown so the editor keeps its caret), `FBAR.sep`, `FBAR.make`, `FBAR.place(bar, rect, {min, max, top})` (fixed, above a screen rect, below it when there is no room, never wider than the rect), `FBAR.svg` (monochrome stroke glyphs). CSS `.fbar`, `.fbar-b`, `.fbar-sep` (21-sync). The lasso's `.ink-selbar` and the Ctrl+Enter `.strip` take the same surface, radius, button height and shadow (CSS only; their behaviour is unchanged).
+- **The text editor bar** (`13zzf-editbar.js` `EBAR`): shown while a text component's editor has the caret (`focusin`, `selectionchange`), placed above the box's top border by `FBAR.place` (its width = the box's on screen, so it wraps; repositioned on `Paper.prototype.apply` and resize), hidden on blur (unless its own popover is open or the pointer is on it), on a phone, and while the Ctrl+Enter strip is open (back when the strip goes).
+  - **Always:** Bold · Italic · Underline (`WRITE.toggle`), Bulleted · Numbered · Checkbox list (`WRITE.setList`, new: every line the selection touches joins the list at its own level, or leaves it when all are in it), Make it… (`ED.openStrip` on the selection), ∑ Symbols, the quick-cast symbols, and the dotted **+**.
+  - **Behind +** (`settings().editorBar.extra`, synced): Link to a note, Citation, Term, Equation, Existing structure, Strikethrough. Settings → Writing → Editor bar offers the same, plus the favourite symbols in order.
+  - **Lit buttons:** `EBAR.sync` marks the styles the caret or the whole selection is in (`WRITE.hasStyle`) and the list the caret's line is in (`WRITE.listKindAt`).
+  - **∑ Symbols:** a popover (`pop.symp`) with Favourites first, then Greek, Mathematics, Science, Arrows, Typography (`SYMBOLS.CATS`, 162 symbols); a click types the symbol at the caret (`execCommand('insertText')`, so auto-replace and the save run as for typing); ☆ makes a favourite (`editorBar.symFav`); the bolt on a favourite makes it a button of its own in the bar (`editorBar.symQuick`).
+  - **Equation:** the equation editor (13h), and the result is an equation component embedded in the text: the inline atom's mark carries `eqId` → a record in `equations` (`MATH.record`: `inline: true`, `vars` from `EQ.terms`), so it can be registered, inserted elsewhere and wired like an Equation box; editing the atom follows into the record (`MATH.recordPut`), taking it back to plain text drops an unused inline record (`MATH.recordDrop`).
+- **Strikethrough** as a fourth `fmt` style `s` (13u `STYLE`, `fmtSpansAtCaret`, `typeStyle`; CSS `.ed .fs`).
+
+### Changed
+- `scientia/MANUAL.md` §4 "Components": the editor bar.
+- `CodeLog/features.json`: `08b-bar.js` and `13zzf-editbar.js` in `scientia.core`.
+
+### Tests
+- **Headless Chrome, the desktop build, real clicks:** the bar appeared 6 px above the box, as wide as the box (448 px), 9 buttons all 28 × 28. Bold on a selection made `fmt:b 0–5` and lit B with the caret inside. Bulleted on line 2 → `• …` (lit), Numbered replaced it → `1. …` (lit), Numbered again took it off. ∑ listed the five categories (162 cells); α was typed at the caret and saved; ☆ put α in Favourites (first); the bolt made it a bar button, which typed α at the end. + → Equation turned the ƒx button on; `E = m c^2` became an atom with `eqId`, a record named `E = m c^2` with vars E, m, c, `inline: true`, drawn in the text. At 196 px wide the bar wrapped to 2 rows (68 px) at the box's width. Ctrl+Enter showed the strip and hid the bar; a click back in the text closed the strip and the bar returned; blur hid it. Settings → Writing showed the section with the favourite and Equation ticked.
+- **Harnesses:** lab-mode 278/278, notes 13/13, notebook 45/45.
+- `sw.js` CACHE_VERSION 915 → 916.
+
 ## [V3.945] — 2026-10-30 — Scientia: the ✎ pill over a maximised HTML page; fingers scroll it while the pen writes; HTML pages read beside the note
 
 Plan: [CodeLog/ClaudesPlan/V3.945_scientia_html_pill_beside.md](../ClaudesPlan/V3.945_scientia_html_pill_beside.md). Gabe:

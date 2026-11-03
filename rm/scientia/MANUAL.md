@@ -141,6 +141,12 @@ A note has a **header box** (title, type, profile fields, tags, ✎ for note det
 
 ## 5. Writing in a component
 
+**The editor bar.** While you write in a component, a bar sits just above its top border. It is never wider than the component (it wraps), and every button is the same size.
+- **Bold · Italic · Underline**, the **three lists** (bullet, numbered, checkbox: the line, or every line you selected), **Make it…** (what the selected phrase is: a claim, a barrier, a question…), **∑ Symbols**, your quick-cast symbols, and a dotted **+**.
+- A button lights up when the caret or the selection is already in that style or list.
+- **+** adds more: **Link to a note**, **Citation**, **Term**, **Equation** (an equation here in the text, as an equation component: its terms can be wired and solved like an Equation box), **Existing structure**, **Strikethrough**. Settings → Writing → Editor bar offers the same.
+- **∑ Symbols:** Greek letters, mathematics, science (°C, µ, superscripts…), arrows and typography. Click one to type it. **☆** makes it a favourite, shown first next time; the **bolt** on a favourite makes it a button of its own in the bar.
+
 | To get | Type |
 |---|---|
 | • bullet | `*` or `-` then Space |
