@@ -147,6 +147,17 @@ A note has a **header box** (title, type, profile fields, tags, ✎ for note det
 - **+** adds more: **Link to a note**, **Citation**, **Term**, **Equation** (an equation here in the text, as an equation component: its terms can be wired and solved like an Equation box), **Existing structure**, **Strikethrough**. Settings → Writing → Editor bar offers the same.
 - **∑ Symbols:** Greek letters, mathematics, science (°C, µ, superscripts…), arrows and typography. Click one to type it. **☆** makes it a favourite, shown first next time; the **bolt** on a favourite makes it a button of its own in the bar.
 
+**/ and @ in a component.** Type `/` at the start of a word and a menu opens at the caret; keep typing to filter it, ↑ ↓ to choose, Enter runs, Esc leaves what you typed. The typed word goes.
+- `/claim`, `/barrier`, `/question`, `/result`… make the sentence before the caret that structure. `/term` marks the word at the caret; `/link` links it to a note; `/cite` inserts a citation; `/mention` points the words at a structure recorded elsewhere; `/sym` opens the symbols; `/date` and `/time` type the day and the hour; `/connect` connects this component to one you pick.
+- `/paper`, `/protocol`, `/material`, `/task`, `/figure`, `/pdf`… (every row of + Insert) insert below the component.
+- Type `@` and the lab's members are listed (offline too, once seen); pick one and the name becomes a chip. A name that isn't a member is kept for next time. ⋯ → **People mentioned…** (or `/people`) lists who is named in the note and where. Nobody is notified.
+
+### The navigation bar
+A slim grey bar lies along the bottom of the window. It shows where you are (project › theme › note), what the last command said, and **←** to go back to the previous note (Alt+←; Alt+→ forward). It is nearly invisible until you click it, or press `/` on the canvas with no text focused and no component selected.
+- Awake, it is a command line for the whole notebook: `/go <note>`, `/today`, `/day yesterday`, `/split <note>`, `/tab library`, `/read <paper>`, `/beside <component>`, `/find <text>`, `/new experiment <title>`, `/rename`, `/move`, `/connect`, `/flag`, `/tidy`, `/fold all`, `/region`, `/timer start`, `/pen` `/hl` `/lasso` `/erase` `/pan`, `/zoom 50` `/zoom fit`, `/colour`, `/width`, `/sync`, `/settings`, `/macro`, `/close`, and every + Insert row. `?` or `/help` lists them all with their arguments.
+- As you type, the commands are offered; Enter on one that takes arguments completes it and offers them (a note by its title, a component, a term…); Tab completes; Enter runs. ↑ ↓ recall what you ran before. Esc puts the bar back to sleep.
+- **Commands of your own** (Settings → Commands): a slash that inserts a row, runs a built-in with preset arguments (`/half` → `/zoom 50`), or runs a **macro** — steps behind one slash, from a `.sis-macro.json` file you import there (on the desktop, files in the notebook folder's `macros/` are listed). The `scientia-macro` skill writes such files; `python scripts/scientia_macro.py list` prints every command, `check <file>` says what is wrong with a macro.
+
 | To get | Type |
 |---|---|
 | • bullet | `*` or `-` then Space |

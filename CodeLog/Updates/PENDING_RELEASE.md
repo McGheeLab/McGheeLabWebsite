@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (47 changes — ready to push)
+## Pending (48 changes — ready to push)
 
+- V3.947 — Scientia: type / in a component for commands on the text (/claim, /term, /cite, /date, /paper…) and @ to name a lab member; press / on the canvas (nothing selected) for the navigation bar at the bottom, a command line for the whole notebook (/go, /back, /today, /zoom, /pen, /timer, /flag, /help…). Settings → Commands: your own /commands and macros (steps behind one slash, from a file the scientia-macro skill writes).
 - V3.946 — Scientia: while you write in a component, a bar sits above it: bold, italic, underline, the three lists, Make it…, ∑ symbols (Greek, maths, science, arrows; ☆ favourites, and a bolt to make a favourite its own button), and a + that adds Link to a note, Citation, Term, Equation (embedded in the text), Existing structure or Strikethrough. The bar is never wider than the component. The lasso's bar and the Ctrl+Enter strip now look the same.
 - V3.945 — Scientia: when an HTML page is maximised, the ✎ pill is on the page. Switch to Move to scroll and select text, or back to Pen to write, without leaving it. While the pen writes, a finger scrolls the page. An HTML page can now be read beside the note, like a PDF: the book on its card, or ◧ Beside.
 - V3.944 — Scientia on the desktop: **Read** on a lab paper now opens it in Scientia's reader beside your note, with your highlights from RM marked on the pages and listed in the side panel. It no longer opens the paper's page on the website. The PDF is kept in a card beside the paper, so it opens again offline. Open in RM still goes to the site.
