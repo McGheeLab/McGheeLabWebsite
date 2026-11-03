@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.951] — 2026-11-03 — Scientia: kinds of component (Hypothesis, Verdict…), wires that end on a structure, authors as terms
+
+Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase F. Gabe: "Note components can be assigned as Hypothesis, Verdict, etc… which causes them to have unique linking patterns. For example, Hypothesis can link to a paper, a note, observations, etc… Verdicts can link to a Figure Board, a claim, etc…", and (2026-11-03) "the user double clicks the note component type/kind (left to the component title) to change the type, otherwise, the component itself is just a standard name for non-user-defined kind. KINDS are superposed with structures to give nested interactions between hypotheses (kind) stemming from observations (structure)." Also "Authors scraped and included into Terms".
+
+No lab-layer change.
+
+### Added
+- **`13zzi-kinds.js` `CKINDS`:** `b.ckind` on a component (the widget kind stays `b.kind`). The first set: Hypothesis (→ papers, notes, observations; first relation *supports*), Verdict (→ figures, claims; *resolves*), Aim (→ hypotheses, questions; *needs*), Method (→ runs, protocols, materials; *follows*), Meeting (→ people, decisions, tasks), Feedback (→ claims, barriers, figures; *comments*); yours in `settings().ckinds` (Settings → Component kinds, + Kind).
+  - **Double-click the label** left of a component's title (`DocView.box` wrapped) → a menu: Standard, the kinds, Settings. The kind names the label and colours the box's left edge (`.box.ck`, `--ck`).
+  - **Targets first:** `CKINDS.fits(kind, candidate)` scores what a candidate is (a paper card, a PDF, a note card, a figure, a run, a task), its own kind, and the structures or people it carries; `CMD.KINDS.component.list` wrapped puts the best first in every picker opened from a component of that kind (`/connect`, Connect all…, Move…). The kind's first relation is seeded into `settings().relDefaults` (so the relation popover offers it first, V3.950).
+- **Wires that end on a structure** (`KINDX`): a wire dropped on a claim, an observation… inside a component (`DocView.relationPopover` wrapped reads the mark under the drop) records `wire.toItem`; `DocView.geom` wrapped draws it to the mark's rect (`KINDX.markRect`); the structure's hover card (`ED.itemCard` wrapped) lists what ends there.
+- **Authors as terms** (`AUTHORS`): the library's authors (full names) become terms of kind `person` (`auto: true`, `papers: [ids]`), under the first project; new ones are marked in every note's text (`TERMSCAN.block(b, made)`); rescanned when the library changes (`changed` wrapped, debounced).
+- `/select kind:<kind>` (11b).
+
+### Changed
+- `scientia/MANUAL.md` §4 "Kinds of component", §14 authors.
+
+### Tests
+- **Headless Chrome, the desktop build:** a double-click on the label opened the menu (Standard, Hypothesis, Verdict, Aim…); Hypothesis set `ckind`, the label read "Hypothesis", the box had the edge, and `relDefaults.hypothesis = supports`. For that hypothesis the component picker put B (carrying an observation) before C and A. A wire from A dropped on B's observation: `supports`, `toItem` = the observation; the drawn path ended 12 px from the mark (247 vs 235), and the observation's hover card said what ends there. Two library records with authors made two person terms (A. Example with 2 papers, B. Sample with 1); "As A. Example showed" was marked with the person term. `/select kind:hypothesis` selected A. Settings listed the six kinds.
+- **Harnesses:** lab-mode 278/278, notes 13/13.
+- `sw.js` CACHE_VERSION 920 → 921.
+
 ## [V3.950] — 2026-11-03 — Scientia: the selection does more — bulk actions, one drop wires them all, the last relation first, paste that pulls in or quotes
 
 Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase E. Gabe's "Bulk Action on Components" ("draw region, embed in another note, tidy/organize … If dragging from one of the sockets of a component, all components selected have their premature links drawn out of their socket as well which all create the same connection type to the same block it goes to") and "QoL Copy/Paste" ("Copying text from a note, and pasting it into another note automatically pulls it in … If it comes from an HTML or PDF component, it appears as a quoted component"); my #5 (the last relation first) and #8 (Move to note… with a stub).

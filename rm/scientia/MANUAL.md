@@ -272,6 +272,11 @@ The same strip has three more keys: `/` reuses an existing structure, **W** mark
 - **Membership:** drop a component inside to add it; **Alt+drag** it out to remove it. A component belongs to one region at a time.
 - **Deleting a region** keeps its components.
 
+### Kinds of component
+- **Double-click the small label** left of a component's title (it reads "Block") to make the component a **Hypothesis**, a **Verdict**, an **Aim**, a **Method**, a **Meeting** or **Feedback** (or a kind of your own, Settings → Component kinds). Standard means no kind.
+- The kind colours the component's left edge and names its label. It also says what the component links to first: a Hypothesis to papers, notes and observations; a Verdict to figures and claims; an Aim to hypotheses… Those come first in every picker you open from it (`/connect`, Connect all…), and the kind's own relation (a hypothesis *supports*, a verdict *resolves*) is offered first on a drop.
+- **Kinds sit on top of structures.** Drag a wire and drop it on a claim, an observation or a question *inside* a component: the wire ends on that structure, not on the whole component, and the structure's hover card says what ends there. So a hypothesis stems from this observation, not from the whole meeting note.
+
 ### Several at once
 Select components with the lasso or Ctrl+click and their bar offers, besides Copy, Duplicate and Delete:
 - **Region** around them · **Move to…** another note (a small note stays behind: "Moved to …", linked to them) · **Pull into…** another note (references there) · **Tidy ▾** (align left, stack, grid) · **Connect all…** to one component you pick, with one relation · **Make them…** all a claim, a barrier, a question… (each one, whole) · **Fold / Unfold**.
@@ -498,6 +503,7 @@ Open it with the ＋ **Quick cast** → **⋯** (everything that can go in this 
 - **DOI lookup** (cached), or paste **BibTeX / RIS / CSL-JSON** offline.
 - Citation display (title, author–year or numbered) is set per note.
 - **+ PDF** attaches a paper's PDF; **📄 Read** opens it in the reader.
+- **Authors are terms.** Every author of a paper in the library becomes a term of its own kind (a person, with their papers), and their name is marked in your text like any term, so Terms shows where they come up.
 
 ### Highlighting
 - **With the mouse:** select text, then pick a colour, or press Ctrl+B (or your structure key) and a letter to make it a claim, evidence, barrier…. The source (paper and page) is filled in.

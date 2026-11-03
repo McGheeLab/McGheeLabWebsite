@@ -606,3 +606,6 @@ body.mobile .nav{display:none} body:has(.nav:not(.asleep)) #toasts{bottom:34px}
 .pen-settings .pill.ok{background:var(--ok);color:#fff}
 /* ---------- 13zu2 · the selection's bar (V3.950) ---------- */
 .ink-selbar .bulk-g{display:inline-flex;gap:3px;flex-wrap:wrap}
+/* ---------- 13zzi · component kinds (V3.951): the kind colours the edge and names the label ---------- */
+.box.cmp.ck{border-left:3px solid var(--ck,var(--teal))} .box.cmp.ck > .bh > .num{color:var(--ck,var(--teal));font-weight:700;letter-spacing:.06em}
+.ck-settings .pill{font-weight:600}
