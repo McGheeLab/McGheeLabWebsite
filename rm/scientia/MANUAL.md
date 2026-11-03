@@ -129,7 +129,9 @@ A note has a **header box** (title, type, profile fields, tags, ✎ for note det
 - **Delete:** select the component and press **Delete**, or use ⋯ → Delete component. It goes at once, with no question — Ctrl+Z brings it back (the note says what went with it).
 - **Several at once:** **Ctrl+click** components (⌘ on a Mac) to select them together; Ctrl+click again takes one out. Drag any of them to move them all; Delete removes them all; the bar under them copies or duplicates. Esc lets go.
 - **Undo:** **Ctrl+Z** outside a text box undoes deletions and other changes.
-- **Tidy layout** (⋯ beside the title) repacks boxes after big changes.
+- **Tidy layout** (⋯ beside the title, or `/tidy`) lays the note out by its connections: each chain of wired components from its origin downwards, rows ordered so the wires cross as little as they can, neighbours far enough apart to read the arrow and its label, regions as pieces of their own, everything packed to fit the highest zoom. Components with no connections flow in columns on the right. Ctrl+Z undoes it. **Flow in order** (⋯) is the old tidy: the boxes in order, two columns.
+- **Folding moves the neighbours.** ▾ on a component (or a region's fold) brings what sits below it up by the height that went, and what sits to its right left by the width that went; unfolding pushes them back. A box you moved in between stays where you put it. Ink never moves.
+- **The Portfolio's layout is yours:** where you put its cards, and which are folded, follows you to every computer.
 
 ### Editing the note itself
 - **Note details** (✎ on the header box, or ⋯ → Note details…): title, type, project, theme, date. Changing the date moves every component's stamp with it, unless you untick that option.
