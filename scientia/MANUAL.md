@@ -149,6 +149,8 @@ A note has a **header box** (title, type, profile fields, tags, ✎ for note det
 - **+** adds more: **Link to a note**, **Citation**, **Term**, **Equation** (an equation here in the text, as an equation component: its terms can be wired and solved like an Equation box), **Existing structure**, **Strikethrough**. Settings → Writing → Editor bar offers the same.
 - **∑ Symbols:** Greek letters, mathematics, science (°C, µ, superscripts…), arrows and typography. Click one to type it. **☆** makes it a favourite, shown first next time; the **bolt** on a favourite makes it a button of its own in the bar.
 
+**Copy and paste.** Text copied inside a component remembers where it came from. Paste it on another note's canvas (click the paper, then Ctrl+V) and it is pulled in: a reference to that component. Paste it on the same note and it is a copy, with its structures, terms and styles. Text copied from a PDF or an HTML page, pasted on a canvas, becomes a quote wired to the file. Any other text pasted on a canvas becomes a new component, where the pointer last was. Inside a text, paste is plain text, as before.
+
 **/ and @ in a component.** Type `/` at the start of a word and a menu opens at the caret; keep typing to filter it, ↑ ↓ to choose, Enter runs, Esc leaves what you typed. The typed word goes.
 - `/claim`, `/barrier`, `/question`, `/result`… make the sentence before the caret that structure. `/term` marks the word at the caret; `/link` links it to a note; `/cite` inserts a citation; `/mention` points the words at a structure recorded elsewhere; `/sym` opens the symbols; `/date` and `/time` type the day and the hour; `/connect` connects this component to one you pick.
 - `/paper`, `/protocol`, `/material`, `/task`, `/figure`, `/pdf`… (every row of + Insert) insert below the component.
@@ -270,7 +272,13 @@ The same strip has three more keys: `/` reuses an existing structure, **W** mark
 - **Membership:** drop a component inside to add it; **Alt+drag** it out to remove it. A component belongs to one region at a time.
 - **Deleting a region** keeps its components.
 
+### Several at once
+Select components with the lasso or Ctrl+click and their bar offers, besides Copy, Duplicate and Delete:
+- **Region** around them · **Move to…** another note (a small note stays behind: "Moved to …", linked to them) · **Pull into…** another note (references there) · **Tidy ▾** (align left, stack, grid) · **Connect all…** to one component you pick, with one relation · **Make them…** all a claim, a barrier, a question… (each one, whole) · **Fold / Unfold**.
+- **One drop wires them all:** drag a wire from the socket of any selected component onto another; the relation you choose makes a wire from every selected one.
+
 ### Linking by hand
+- **The relation you used last comes first.** On a drop, the popover offers first (lit) the relation you last used from that kind of component; Enter with nothing typed takes it.
 - **Pen dumbbell:** draw a line with a small circle at each end. The two ink components nearest the circles are connected, and you pick the type.
 - **Across notes:** with notes side by side, drag a ● into the other pane.
   - Drop it on a component there to connect them.

@@ -604,3 +604,5 @@ body.mobile .nav{display:none} body:has(.nav:not(.asleep)) #toasts{bottom:34px}
 .canvas-host.far .box > .ed,.canvas-host.far .box .embed,.canvas-host.far .box .pdfw,.canvas-host.far .box .dk{visibility:hidden}
 .canvas-host.far .box{min-height:48px;background:color-mix(in srgb,var(--ink) 6%,var(--surface))}
 .pen-settings .pill.ok{background:var(--ok);color:#fff}
+/* ---------- 13zu2 · the selection's bar (V3.950) ---------- */
+.ink-selbar .bulk-g{display:inline-flex;gap:3px;flex-wrap:wrap}
