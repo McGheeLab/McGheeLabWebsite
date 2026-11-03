@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.952 (Scientia: `ATLAS` (14b) the Atlas tab — graph from the stores and `IX`, a force layout on canvas, lenses in `settings().lenses`, search lit, actions for the note you came from; `Search.open` routed to it (Ctrl+K) unless `labs.atlas` is off.)
+**Version:** V3.953 (Scientia: `POLISH` (13zzj) — the header's sync dot from `api/lab/status` / `__sisCloud`, the hint's × (`settings().hintOff`), `.big` hosts with `content-visibility`, the reader's chips, `INSERT.menu` ordered with `settings().insertRecent`.)
+
+**Prior:** V3.952 (Scientia: `ATLAS` (14b) the Atlas tab — graph from the stores and `IX`, a force layout on canvas, lenses in `settings().lenses`, search lit, actions for the note you came from; `Search.open` routed to it (Ctrl+K) unless `labs.atlas` is off.)
 
 **Prior:** V3.951 (Scientia: `CKINDS` (13zzi) kinds on components (`b.ckind`, targets first in pickers, first relation seeded); `KINDX` wires with `toItem` drawn to the structure's mark; `AUTHORS` library authors as `person` terms.)
 
