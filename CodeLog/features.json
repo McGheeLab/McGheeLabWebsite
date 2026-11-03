@@ -1332,10 +1332,13 @@
     "scientia/src/14b-atlas.js",
     "scientia/src/13zzj-polish.js",
     "scientia/src/22-atlas.css",
+    "scientia/src/13zzk-presence.js",
+    "scientia/src/23-presence.css",
     "scientia/pen-button/**"
    ],
    "distinct_from": {
-    "rm.people": "Scientia's 'profiles' store holds note TYPES as data, not people"
+    "rm.people": "Scientia's 'profiles' store holds note TYPES as data, not people",
+    "rm.chat": "the chat's presence is who is online in the lab; Scientia's (13zzk) is who is in this note and which component they hold, fed by the hub's presence/lock routes"
    }
   },
   {

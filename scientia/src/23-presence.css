@@ -1,0 +1,10 @@
+/* 23 · working together (V3.954): the header's avatar row, a component someone else holds */
+#hd .hd-people{display:flex;align-items:center;gap:4px;margin-right:6px} #hd .hd-people[hidden]{display:none}
+#hd .hd-people .av{width:24px;height:24px;border-radius:50%;border:2px solid var(--pc);background:color-mix(in srgb,var(--pc) 88%,var(--paper));color:#fff;font:700 9.5px var(--f-m);letter-spacing:.02em;display:grid;place-items:center;padding:0;cursor:pointer;transition:background .3s,border-color .3s,color .3s}
+#hd .hd-people .av.elsewhere{background:color-mix(in srgb,var(--pc) 22%,var(--paper));color:var(--pc)}
+#hd .hd-people .av.away{background:var(--rule);border-color:var(--rule-2);color:var(--ink-3)}
+.box.cmp.locked{box-shadow:inset 0 0 0 999px color-mix(in srgb,var(--pc) 12%,transparent);border-color:color-mix(in srgb,var(--pc) 50%,var(--rule))}
+.box.cmp.locked > .ed,.box.cmp.locked > .bh input.blab{cursor:not-allowed;color:var(--ink-2)}
+.box.cmp.locked > .lockby{display:flex;align-items:center;gap:8px;padding:4px 10px;font:600 11px var(--f-m);color:var(--pc);border-top:1px dashed color-mix(in srgb,var(--pc) 40%,transparent)}
+.box.cmp.locked > .lockby .who::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--pc);margin-right:6px;vertical-align:1px}
+.box.cmp.locked > .lockby .btn{margin-left:auto}

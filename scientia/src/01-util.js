@@ -2,7 +2,7 @@
    01 · Utilities — DOM builder, ids, dates, formatting
    ========================================================================== */
 'use strict';
-const BUILD = '2026-11-03 · a sync dot in the header, the hint line closes, big notes pan smoothly, the reader’s chips, + Insert in your order', DEMO_V = 2;
+const BUILD = '2026-11-03 · working together: who is here in the header, one person at a time in a component (the lab’s side to come)', DEMO_V = 2;
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
