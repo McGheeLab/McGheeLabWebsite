@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (48 changes — ready to push)
+## Pending (49 changes — ready to push)
 
+- V3.948 — Scientia: Tidy now lays a note out by its connections — each chain from its origin, rows ordered so wires don't cross, labels readable, packed to fit the highest zoom ("Flow in order" is the old tidy). Folding a component or a region brings what is below it up by what went, and unfolding pushes it back (unless you moved it). The Portfolio's layout is yours on every computer.
 - V3.947 — Scientia: type / in a component for commands on the text (/claim, /term, /cite, /date, /paper…) and @ to name a lab member; press / on the canvas (nothing selected) for the navigation bar at the bottom, a command line for the whole notebook (/go, /back, /today, /zoom, /pen, /timer, /flag, /help…). Settings → Commands: your own /commands and macros (steps behind one slash, from a file the scientia-macro skill writes).
 - V3.946 — Scientia: while you write in a component, a bar sits above it: bold, italic, underline, the three lists, Make it…, ∑ symbols (Greek, maths, science, arrows; ☆ favourites, and a bolt to make a favourite its own button), and a + that adds Link to a note, Citation, Term, Equation (embedded in the text), Existing structure or Strikethrough. The bar is never wider than the component. The lasso's bar and the Ctrl+Enter strip now look the same.
 - V3.945 — Scientia: when an HTML page is maximised, the ✎ pill is on the page. Switch to Move to scroll and select text, or back to Pen to write, without leaving it. While the pen writes, a finger scrolls the page. An HTML page can now be read beside the note, like a PDF: the book on its card, or ◧ Beside.
