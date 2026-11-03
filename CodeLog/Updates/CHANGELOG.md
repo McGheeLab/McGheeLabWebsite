@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.953] — 2026-11-03 — Scientia: a sync dot in the header, the hint line closes, big notes pan smoothly, the reader's chips, + Insert in your order
+
+Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase H — the items of my list Gabe accepted (#4, #6, #9, #10, #12; #7 came with the navigation bar in V3.947, #2 and #11 with V3.949).
+
+No lab-layer change.
+
+### Added
+- **`13zzj-polish.js` `POLISH`:**
+  - **The sync dot** in the header, left of Search (`#hd .syncdot`): on the desktop it reads `api/lab/status` every 30 s (and on online/offline): green in step (`connected`, a quiet state), amber while syncing or waiting, grey when not connected, red with the server's own sentence on an error, red "did not answer" when the app on this computer is down; on the web it reads `__sisCloud.user` and `navigator.onLine`. Click: the sentence, Sync now, How it stands, Settings → The lab, Check again.
+  - **The hint line's ×** (`POLISH.hint`, from `DocView.render`; a MutationObserver puts it back after each repaint): closing it sets `settings().hintOff` for good; ⋯ → **Shortcuts…** (`POLISH.shortcuts`) lists the keys.
+  - **Big notes:** a note with more than 100 live components gets `.big` on its canvas host; its `.box.cmp` use `content-visibility: auto` with an intrinsic size, so the browser skips the boxes far off screen.
+  - **The reader's chips** (`POLISH.chips`, from `MXHL.open`): Mine · RM · Notes on the side panel, per reader, kept through the panel's redraws.
+  - **+ Insert in your order:** `INSERT.menu` wrapped — the rows with a `when` (made for this note's type) first, then the ones used last (`settings().insertRecent`, 8, recorded by wrapping each row's `run` once), then the rest; `INSERTS` is reordered only for the call and restored, so the Quick cast keeps its order.
+
+### Changed
+- `scientia/MANUAL.md`: the sync dot, the hint line, + Insert's order, the reader's chips.
+
+### Tests
+- **Headless Chrome, the desktop build** (a static server, so the app's own server is "down"): the dot showed red with "The app on this computer did not answer" and its menu (Sync now, How it stands, Settings → The lab, Check again). The hint line had a ×; closing it hid the line, set `hintOff`, and it stayed hidden after a redraw. ⋯ listed Shortcuts…, which showed 13 keys. A note of 102 components got `.big` and its boxes `content-visibility: auto`. A PDF read beside the note had the chips Mine · RM · Notes; Mine off hid the note's highlights. After an Empty table was remembered, + Insert listed it first.
+- **Harnesses:** lab-mode 278/278, notes 13/13.
+- `sw.js` CACHE_VERSION 922 → 923.
+
 ## [V3.952] — 2026-11-03 — Scientia: the Atlas — the notebook as one map, with a lens, and the search that lights it up
 
 Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase G (both parts in one version). Gabe (2026-11-03): "Create an Atlas tab that shows this in an interactive, complex, but easy to navigate way that is extremely modern in its animation and quality with the power of what an HTML can represent. Atlas search should live within this tab as well for navigating complex pathways of terms, structures, and kinds all linked in specific ways with the lens of a project, the whole notebook, or a set of experiments." And my #3: one search box, Atlas as the default.

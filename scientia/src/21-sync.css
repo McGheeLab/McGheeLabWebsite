@@ -609,3 +609,10 @@ body.mobile .nav{display:none} body:has(.nav:not(.asleep)) #toasts{bottom:34px}
 /* ---------- 13zzi · component kinds (V3.951): the kind colours the edge and names the label ---------- */
 .box.cmp.ck{border-left:3px solid var(--ck,var(--teal))} .box.cmp.ck > .bh > .num{color:var(--ck,var(--teal));font-weight:700;letter-spacing:.06em}
 .ck-settings .pill{font-weight:600}
+/* ---------- 13zzj · the polish (V3.953): the sync dot, the hint's ×, big notes, the reader's chips ---------- */
+#hd .syncdot{width:26px;display:grid;place-items:center} #hd .syncdot i{width:10px;height:10px;border-radius:50%;background:var(--ink-3);box-shadow:0 0 0 2px color-mix(in srgb,var(--ink-3) 25%,transparent);transition:background .3s}
+#hd .syncdot[data-tone=green] i{background:var(--ok);box-shadow:0 0 0 2px color-mix(in srgb,var(--ok) 25%,transparent)} #hd .syncdot[data-tone=amber] i{background:var(--warn);box-shadow:0 0 0 2px color-mix(in srgb,var(--warn) 25%,transparent);animation:sdpulse 1.6s ease-in-out infinite} #hd .syncdot[data-tone=red] i{background:var(--bad);box-shadow:0 0 0 2px color-mix(in srgb,var(--bad) 25%,transparent)}
+@keyframes sdpulse{50%{opacity:.4}}
+.hint{position:relative} .hint .hint-x{position:absolute;right:-18px;top:-2px;border:0;background:transparent;color:inherit;cursor:pointer;font-size:14px;line-height:1;opacity:.6;padding:2px 4px} .hint .hint-x:hover{opacity:1}
+.canvas-host.big > .paper > .world > .box.cmp{content-visibility:auto;contain-intrinsic-size:auto 392px auto 160px}
+.mx-side .rd-chips{display:flex;gap:4px;padding:8px 12px 0} .mx-side.no-mine > .rd-ann:not(.rm-ann),.mx-side.no-mine > div > .rd-ann:not(.rm-ann){display:none} .mx-side.no-rm > .rm-side{display:none} .mx-side.no-notes .rd-note,.mx-side.no-notes .rd-ni{display:none}
