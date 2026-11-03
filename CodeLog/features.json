@@ -1325,7 +1325,9 @@
     "scientia/src/13zzg-slash.js",
     "scientia/src/13vb-reflow.js",
     "scientia/src/12d-layout.js",
-    "scientia/src/15c-portfolio-sync.js"
+    "scientia/src/15c-portfolio-sync.js",
+    "scientia/src/13zzh-hands.js",
+    "scientia/pen-button/**"
    ],
    "distinct_from": {
     "rm.people": "Scientia's 'profiles' store holds note TYPES as data, not people"

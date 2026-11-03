@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.948 (Scientia: `LAYOUT` (12d) Tidy by links — layers, barycenter order, label-aware spacing, shelf packing; `REFLOW` (13vb) fold reflow with `b.shift` records; `PFSYNC` (15c) the Portfolio layout mirrored into `settings().portfolio`.)
+**Version:** V3.949 (Scientia: `HANDS` (13zzh) — pen settings follow the hand, Pen → 200 %, P = Move, edge hover-pan, 1 % zoom with `.far` tiles, the pen's button via `serve.py` `/api/pen-button` and `scientia/pen-button/ScientiaPen.cs`, the Esc stack.)
+
+**Prior:** V3.948 (Scientia: `LAYOUT` (12d) Tidy by links — layers, barycenter order, label-aware spacing, shelf packing; `REFLOW` (13vb) fold reflow with `b.shift` records; `PFSYNC` (15c) the Portfolio layout mirrored into `settings().portfolio`.)
 
 **Prior:** V3.947 (Scientia: `CMD` (11b) one command registry with kinds, finders and pickers, `HIST`, `MACRO`; `NAV` (11c) the navigation bar; `SLASH` (13zzg) `/` and `@` in the text, `person` marks; `scripts/scientia_macro.py` and the `scientia-macro` skill; `serve.py` `/api/macros`.)
 

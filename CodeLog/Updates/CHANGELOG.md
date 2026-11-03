@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.949] — 2026-11-03 — Scientia: pen settings follow the hand, Pen zooms in, P pans, the edge pans faster the harder you push, zoom to 1 %, the pen's button
+
+Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase D. Gabe's "Major Update for Search + Other Upgrades" (pen features, pan view upgrade) and "Zoom Pill Changes", with his answers of 2026-11-03: the pen's button pressed again in Pen goes to the other mode; the edge pan is faster the harder you push.
+
+No lab-layer change.
+
+### Added
+- **`13zzh-hands.js` `HANDS`:**
+  - **Pen settings follow the hand** (`INK.paintBars` wrapped → `HANDS.follow`): Pen or Highlighter opens the ink bar; Move, Zoom or Lasso closes it when this opened it (`HANDS.autoBar`). With the ✎ pill expanded, the bar sits beside the pill (`HANDS.placeBar`, back to its corner when the pill closes).
+  - **Pen zooms in:** switching to Pen or Highlighter from another hand goes to 200 % when the note was under it (`HANDS.zoomBefore`); leaving them returns to 100 % only if that switch changed it.
+  - **P = Move** (keydown, outside a text, no dialog or popover, a note on screen).
+  - **Edge hover-pan** (`HANDS.hover` / `step`, pointermove capture): in Move, a mouse or a hovering pen within 48 px of the paper's edge pans it at 2 + 22·e² px a frame (e = how far into the zone), eased in over 150 ms; it stops on a press, a drag, leaving the window, a popover or a dialog, or over the pills, the bars, the reader. Not fingers.
+  - **Zoom to 1 %** in notes (`makePaper` wrapped: `minZ` .01 for a canvas host that sets none; the Portfolio keeps its .2); below 10 % the host gets `.far` (`Paper.prototype.apply` wrapped) and the boxes are flat tiles (CSS).
+  - **The pen's button** (desktop): `HANDS.watchPen` long-polls `api/pen-button?wait=1&since=`; a press → `HANDS.penButton`: not in Pen → Pen; in Pen or Highlighter → the other mode (`SIS_LAB.pills.last`, else Move). Settings → "The pen's button" (desktop): the Windows steps and a light that says "Pressed" on the next press.
+  - **Esc, one stack:** the navigation bar sleeps, then a popover closes; dialogs, the strip, the maximised views, the slash menu, the reader and the note-pin picker keep their own.
+- **`serve.py` `GET /api/pen-button`** (local only): `?press=1` records a press (`PEN[0]`); `?wait=1&since=<t>` holds up to 25 s for the next one.
+- **`scientia/pen-button/`:** `ScientiaPen.cs` (a 10-line launcher that calls the server) and `Build ScientiaPen.cmd` (builds it with the `csc.exe` of the .NET Framework every Windows ships). Shipped in the desktop app under `app/pen-button/`; the installer builds the exe when the compiler is there.
+
+### Changed
+- `scientia/MANUAL.md` §17: the pen's button, Pen zooming, P, the edge pan, 1 %.
+
+### Tests
+- **Headless Chrome, the desktop build:** Pen → the ink bar opened and the zoom went 100 → 200 %; Move → the bar closed and the zoom returned to 100 %. P outside a text → Move; P in a text typed a p. In Move, the mouse pushed into the right edge panned the note (view.x fell, 20 frames), nearer the zone's inner edge it panned less per frame, and it stopped in the middle. Zoom to 1 % set `.far`, back to 100 % cleared it. The pen's button from Move → Pen; again → Move. Esc put the bar to sleep; Esc closed a popover.
+- **Harnesses:** lab-mode 278/278, notes 13/13.
+- `sw.js` CACHE_VERSION 918 → 919.
+
 ## [V3.948] — 2026-11-03 — Scientia: Tidy by links, folding reflows the neighbours, the Portfolio layout follows you
 
 Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase C. Gabe (2026-11-03): "Do a major overhaul of the Tidy layout, where they are organized by links so that the links are minimally intertwined and as close to their origin as possible without being too close that the arrow or link name cannot be seen, while thinking about how everything is organized to fit in the highest zoom % possible. Collapsing a region or component should dynamically rearrange the layout … Do the same for horizontal space collapsed, including a push back of components if expanded." and "Sync Portfolio layout and remember where you place them." Also his "block displacement and hide" component.
