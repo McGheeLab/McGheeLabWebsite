@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.950 (Scientia: `BULK` (13zu2) the selection's actions, connect-all via `BULK.multi` on `M.wire`, `settings().relDefaults` first in the relation popover; `CLIPX` copy/paste with `application/x-scientia+json`, quotes from the last PDF/HTML selection.)
+**Version:** V3.951 (Scientia: `CKINDS` (13zzi) kinds on components (`b.ckind`, targets first in pickers, first relation seeded); `KINDX` wires with `toItem` drawn to the structure's mark; `AUTHORS` library authors as `person` terms.)
+
+**Prior:** V3.950 (Scientia: `BULK` (13zu2) the selection's actions, connect-all via `BULK.multi` on `M.wire`, `settings().relDefaults` first in the relation popover; `CLIPX` copy/paste with `application/x-scientia+json`, quotes from the last PDF/HTML selection.)
 
 **Prior:** V3.949 (Scientia: `HANDS` (13zzh) — pen settings follow the hand, Pen → 200 %, P = Move, edge hover-pan, 1 % zoom with `.far` tiles, the pen's button via `serve.py` `/api/pen-button` and `scientia/pen-button/ScientiaPen.cs`, the Esc stack.)
 
