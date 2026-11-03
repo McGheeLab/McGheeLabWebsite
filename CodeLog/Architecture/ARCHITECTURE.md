@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.953 (Scientia: `POLISH` (13zzj) — the header's sync dot from `api/lab/status` / `__sisCloud`, the hint's × (`settings().hintOff`), `.big` hosts with `content-visibility`, the reader's chips, `INSERT.menu` ordered with `settings().insertRecent`.)
+**Version:** V3.954 (Scientia: `PRESENCE` (13zzk) — the app's side of working together: a heartbeat to `SIS_LAB.presence` or `api/rm/presence` / `api/rm/lock`, the header's avatar row, locks on components (`.box.cmp.locked`, `ED.commit` refused); quiet until the lab's side exists — contract in `CodeLog/ClaudesPlan/V3.954_scientia_presence_for_the_lab.md`.)
+
+**Prior:** V3.953 (Scientia: `POLISH` (13zzj) — the header's sync dot from `api/lab/status` / `__sisCloud`, the hint's × (`settings().hintOff`), `.big` hosts with `content-visibility`, the reader's chips, `INSERT.menu` ordered with `settings().insertRecent`.)
 
 **Prior:** V3.952 (Scientia: `ATLAS` (14b) the Atlas tab — graph from the stores and `IX`, a force layout on canvas, lenses in `settings().lenses`, search lit, actions for the note you came from; `Search.open` routed to it (Ctrl+K) unless `labs.atlas` is off.)
 
