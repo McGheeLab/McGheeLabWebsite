@@ -355,6 +355,14 @@ class H(http.server.SimpleHTTPRequestHandler):
         if len(body) > RM_PDF_MAX: return self._json(200, {'ok': False, 'error': 'the PDF is larger than 200 MB'})
         if b'%PDF' not in body[:1024]: return self._json(200, {'ok': False, 'error': 'what RM keeps for this paper is not a PDF'})
         self.send_response(200); self.send_header('Content-Type', 'application/pdf'); self.send_header('Content-Length', str(len(body))); self.end_headers(); self.connection.sendall(body)
+    def macros(self, q):
+        """V3.947: macro files (.sis-macro.json) in the notebook folder's macros/ — the list, or one by name (Settings → Commands imports them)."""
+        d = nb('macros'); name = (q.get('name') or [''])[0]
+        if not d or not os.path.isdir(d): return self._json(200, {'ok': True, 'files': [], 'folder': d})
+        files = sorted(f for f in os.listdir(d) if f.lower().endswith('.json') and not f.startswith('.'))
+        if not name: return self._json(200, {'ok': True, 'files': files, 'folder': d})
+        if name not in files: return self._json(404, {'ok': False, 'error': 'no such macro file'})
+        return self._text(open(os.path.join(d, name), encoding='utf-8').read(), 'application/json; charset=utf-8')
     def rec_part(self, q):
         g = lambda k: (q.get(k) or [''])[0]
         rid, n, ext = g('rid'), g('n'), g('ext').lower()
@@ -389,6 +397,7 @@ class H(http.server.SimpleHTTPRequestHandler):
         u = urlparse(self.path); p = u.path; q = parse_qs(u.query)
         if p.startswith('/rm/') and self.is_local(): return self.rm_asset(p, u.query)
         if p == '/api/rm-pdf': return self.rm_pdf(q)
+        if p == '/api/macros' and self.is_local(): return self.macros(q)
         if p.startswith('/api/rm/'): return self.rm_proxy('GET', u)
         if p == '/api/rec/parts' and self.is_local():
             parts = self.rec_parts_of((q.get('rid') or [''])[0]); return self._json(200, {'ok': True, 'parts': len(parts), 'bytes': sum(os.path.getsize(f) for f in parts)})
