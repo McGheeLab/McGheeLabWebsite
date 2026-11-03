@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.948] — 2026-11-03 — Scientia: Tidy by links, folding reflows the neighbours, the Portfolio layout follows you
+
+Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase C. Gabe (2026-11-03): "Do a major overhaul of the Tidy layout, where they are organized by links so that the links are minimally intertwined and as close to their origin as possible without being too close that the arrow or link name cannot be seen, while thinking about how everything is organized to fit in the highest zoom % possible. Collapsing a region or component should dynamically rearrange the layout … Do the same for horizontal space collapsed, including a push back of components if expanded." and "Sync Portfolio layout and remember where you place them." Also his "block displacement and hide" component.
+
+No lab-layer change.
+
+### Added
+- **Tidy by links** (`12d-layout.js` `LAYOUT`, now `DocView.tidy`; the old re-flow is "Flow in order", `DocView.tidyFlow`):
+  - `LAYOUT.graph`: the live components (ink floats), their wires within the note (directed by `wire.directed`, else the relation's `dir`), and which region each is in.
+  - `LAYOUT.pack`: longest path from the origin (the earliest among those with the most outgoing relations; a cycle's back edge is dropped) gives the rows; four barycenter sweeps order each row; neighbours sit `GAPX` 56 px + 7 px per character of the relation label between them apart; rows are `GAPY` 42 + 24 px apart for the label; each row is centred on the widest.
+  - An unfolded region is packed as a piece of its own (its members inside, padded for its header); connected groups are pieces; `LAYOUT.shelve` packs the pieces by height, widest first, into shelves of at least 1100 px; the loose components flow in up to three columns to the right.
+  - Positions snap to the grid; the move is one undo step (`DB.beginGroup('tidy')`), animated (`.tidying > .box`); then Fit. Ordered notes (protocols) keep the old flow.
+- **Fold reflow** (`13vb-reflow.js` `REFLOW`): ▾ on a component (a capture click on `.cfold`) and a region's fold (`REGION.fold` wrapped) are measured before and, once redrawn, after.
+  - Folding: what is below (top under the folded box's bottom, overlapping sideways) comes up by the height that went; what is to the right (overlapping up and down) comes left by the width that went. Each moved box records `{by, dx, dy, at}` in `b.shift` (kept with the note; several folds stack).
+  - Unfolding: a box this source pulled goes back by as much; one moved since (its `at` no longer matches) is left alone and forgets the record; a box with no record that is now in the way is pushed out. Ink never moves; read-only notes don't reflow; members hidden by a folded region are skipped. One undo step with the fold, animated.
+- **The Portfolio layout synced** (`15c-portfolio-sync.js` `PFSYNC`): the lab's per-device key `_ls lab:portfolio` (lab-mode §10) is mirrored into `settings().portfolio` on every save (`_ls.set` wrapped) and written back before the Portfolio draws (`App.refresh` wrapped), so cards sit where you put them on every computer. No lab-layer change.
+
+### Changed
+- ⋯ on a note: "Tidy layout" is by links; "Flow in order" is the old tidy.
+- `scientia/MANUAL.md`: Tidy, folding, the Portfolio.
+
+### Tests
+- **Headless Chrome, the desktop build:** A→B→C with F→B (supports) and two loose: Tidy put A and F in one row (294), B below (434), C below that (560), A and F 56 px+ apart, no overlaps among the six, the loose two in a column to the right of the group, and Fit at 71 %; undo put A back.
+- **Fold:** a 261 px component over a neighbour: ▾ brought the neighbour up by 229 px (exactly the height that went; `shift` recorded) and left the component beside it alone; ▾ again put it back and cleared the record; folded again, moved aside meanwhile, unfolding left it where it was put.
+- **Portfolio:** a save of the lab's key reached `settings().portfolio`; a changed settings copy was in the key when the Portfolio opened.
+- **Harnesses:** lab-mode 278/278, notes 13/13.
+- `sw.js` CACHE_VERSION 917 → 918.
+
 ## [V3.947] — 2026-11-03 — Scientia: /commands in the text and in a navigation bar, @Name, macros, your own commands, and the macro skill
 
 Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase B. Gabe's "UI features" component ("/commands that add connections or quick actions for text also @Name links a user to the text") and his additions of 2026-11-03: custom /commands bound to anything quick-castable, a slim navigation bar at the bottom that is nearly invisible until clicked or `/` is pressed on the canvas, with a comprehensive command set, and a skill that writes macros as importable files.

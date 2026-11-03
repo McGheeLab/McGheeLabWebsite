@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.947 (Scientia: `CMD` (11b) one command registry with kinds, finders and pickers, `HIST`, `MACRO`; `NAV` (11c) the navigation bar; `SLASH` (13zzg) `/` and `@` in the text, `person` marks; `scripts/scientia_macro.py` and the `scientia-macro` skill; `serve.py` `/api/macros`.)
+**Version:** V3.948 (Scientia: `LAYOUT` (12d) Tidy by links — layers, barycenter order, label-aware spacing, shelf packing; `REFLOW` (13vb) fold reflow with `b.shift` records; `PFSYNC` (15c) the Portfolio layout mirrored into `settings().portfolio`.)
+
+**Prior:** V3.947 (Scientia: `CMD` (11b) one command registry with kinds, finders and pickers, `HIST`, `MACRO`; `NAV` (11c) the navigation bar; `SLASH` (13zzg) `/` and `@` in the text, `person` marks; `scripts/scientia_macro.py` and the `scientia-macro` skill; `serve.py` `/api/macros`.)
 
 **Prior:** V3.946 (Scientia: `FBAR` (08b) the floating bar; `EBAR` (13zzf) the text editor bar above a component with ∑ symbols, favourites and quick-cast symbols in `settings().editorBar`; `WRITE.setList` / `hasStyle` / `listKindAt` and the strikethrough style (13u); equations embedded in text as `equations` records (`MATH.record`, 13h).)
 
