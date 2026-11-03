@@ -103,6 +103,11 @@ This manual covers everything the notebook can do, from first launch to the pen 
 ### The sync dot
 A small dot in the header, left of Search, says how the notebook stands with the lab: green in step, amber while it works or waits, grey when this computer is not connected, red with one plain sentence when something failed. Click it for the details, Sync now, and Settings → The lab.
 
+### Working together
+When the lab carries it (the lab's part — the notebook asks and stays quiet until it is there), a row of small avatars left of the sync dot shows who else is in this note or on this project: filled while they work, grey after five minutes away, outlined when they are in another note. Hover for what they are editing; click to go there.
+
+One person at a time in a component: whoever is writing in it (the caret in it, or a drag of it) holds it. To everyone else it is shaded in that person's colour and read-only, with "Alex is editing" and **Ask to take over**. Leave the component (click elsewhere, close the note) and it is free again. If someone took a component over while you were away from it, a note says so; what you wrote is kept and the lab merges the two.
+
 ### The Atlas
 - **What it shows:** every note, component (with its kind), structure, term, person and paper under the lens, as dots sized by how connected they are; wires (with their relation), structures in a component, terms in the text, citations, note cards, pull-ins, @names and which note a component is in, as lines. Components with a kind keep the kind's colour.
 - **The lens** (top left): the whole notebook, one project, or a lens of your own: **+ Lens**, name it, pick the notes. The chips show or hide each kind; **Days** adds the day notes and reviews.

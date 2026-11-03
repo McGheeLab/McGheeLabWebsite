@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.954] — 2026-11-03 — Scientia: working together — who is here, one person at a time in a component (the app's side; the lab's to come)
+
+Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase I. The contract for the lab's side: [CodeLog/ClaudesPlan/V3.954_scientia_presence_for_the_lab.md](../ClaudesPlan/V3.954_scientia_presence_for_the_lab.md).
+
+No lab-layer change. The module is silent until the lab's transport exists; the app standalone never asks.
+
+### Added
+- **`13zzk-presence.js` `PRESENCE`:**
+  - **The transport** (`PRESENCE.transport`): `SIS_LAB.presence` when the lab layer sets it, else the hub routes behind the proxy (`POST api/rm/presence`, `POST api/rm/lock`); a 404 / `no such route` / `offline` answer puts the module to sleep for the session (`PRESENCE.quiet`). `PRESENCE.use(t)` installs another (a test's).
+  - **The heartbeat** (`PRESENCE.beat`, every 20 s, on a note change, when the tab comes back): `{docId, docTitle, projectId, uid, name, hue, blockId, blockName, away, at}`; `away` after five minutes without input. The answer (`PRESENCE.take`): `people` (everyone else), `locks` (by block id), `asks`.
+  - **Who I am** (`PRESENCE.who`): the transport's `me()`, else the web sign-in (`__sisCloud.user`), else the desktop's paired account (`api/lab/status`.account), else a per-device id; `hue = hashHue(uid)`.
+  - **The header's row** (`#hd .hd-people`, left of the sync dot): one `.av` per person — initials in their colour, `.away` grey, `.elsewhere` outlined for another note of the project; title "Alex · editing Claim 2"; click → Go to what they are editing / Open their note.
+  - **Holding a component** (`PRESENCE.hold/letGo/release`): the caret in a box's editor or label, or a drag of its header, takes the lock (`T.lock`); a refusal (`{ok:false, by}`) shades the box and blurs; released 1.5 s after the caret leaves, on a note change, on `pagehide`.
+  - **A held component** (`PRESENCE.deco`, from `DocView.box` and after each answer): `.box.cmp.locked` with `--pc` the holder's colour, the editor `contentEditable=false`, the label read-only, a `.lockby` ribbon "Alex is editing" + **Ask to take over** (`T.ask`); a pointerdown on it is swallowed with a toast; `ED.commit` into it is refused; a lock taken over while held blurs the editor and says what you wrote is kept.
+  - **The ▤ Note pill**: when `SIS_LAB.registerPill` exists (the lab's, to come) the app registers it — Note references, Pull in, Collection from the Lab Notebook, Flag, Atlas search.
+- `23-presence.css`: the row, the avatars, the shaded box and its ribbon.
+
+### Changed
+- `scientia/MANUAL.md` §3: "Working together".
+
+### Tests
+- **Headless Chrome, the desktop build on a static server:** the module went quiet (`api/rm/presence` → 404), no row. With a stand-in transport: three avatars (Alex editing Beta, Sam away, Kim in another note; the viewer filtered out), Beta shaded and read-only with "Alex McGhee is editing"; a pointerdown on it was swallowed and the caret refused; the caret in Alpha took its lock and the next heartbeat carried `blockId` + `blockName`; Ask to take over reached the transport with the holder's uid; the lock gone from the answer freed Beta (editable, no ribbon); Alpha taken over while held blurred the editor, held became null, a save into it was refused; the avatar's menu offered "Go to what they are editing".
+- **Harnesses:** lab-mode 278/278, notes 13/13.
+- `sw.js` CACHE_VERSION 923 → 924.
+
 ## [V3.953] — 2026-11-03 — Scientia: a sync dot in the header, the hint line closes, big notes pan smoothly, the reader's chips, + Insert in your order
 
 Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase H — the items of my list Gabe accepted (#4, #6, #9, #10, #12; #7 came with the navigation bar in V3.947, #2 and #11 with V3.949).
