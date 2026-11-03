@@ -49,9 +49,20 @@ const MATH = {
     const cur = M.block(b.id), mk = cur && (cur.body.marks || []).find(m => m.id === markId); if (!mk) return;
     const ro = el.contentEditable === 'false';
     MATH.editor({ tex: mk.tex, display: mk.display, ro, title: 'Equation',
-      onSave: (tex, display) => ED.commit(el, b, bd => { const x = bd.marks.find(m => m.id === markId); if (x) { x.tex = tex; x.display = display; } return bd; }, mk.to),
-      onRemove: () => ED.commit(el, b, bd => { const x = bd.marks.find(m => m.id === markId); if (!x) return bd; const n = ED.splice(bd, x.from, 1, x.tex); n.marks = n.marks.filter(m => m.id !== markId); return n; }, mk.from) });
+      onSave: (tex, display) => ED.commit(el, b, bd => { const x = bd.marks.find(m => m.id === markId); if (x) { x.tex = tex; x.display = display; MATH.recordPut(x.eqId, tex); } return bd; }, mk.to),
+      onRemove: () => ED.commit(el, b, bd => { const x = bd.marks.find(m => m.id === markId); if (!x) return bd; const n = ED.splice(bd, x.from, 1, x.tex); n.marks = n.marks.filter(m => m.id !== markId); MATH.recordDrop(x.eqId); return n; }, mk.from) });
   },
+  /** V3.946 — an equation written from the editor bar (13zzf) is an equation component embedded in the text: the atom's
+      mark carries `eqId`, a registry record (13n `equations`) with the equation's terms, so it can be registered, inserted
+      elsewhere and wired to a calculator like an Equation box. Edits to the atom follow into the record; taking the
+      atom back to plain text drops a record nothing else uses. */
+  record(tex) {
+    const now = isoLocal(new Date()), rec = { id: uid('eq'), name: snippet(tex, 40), tex, vars: {}, inline: true, uses: 1, created: now, modified: now };
+    try { if (typeof EQ !== 'undefined') EQ.terms(tex).forEach(v => { rec.vars[v.k] = { name: '', unit: '' }; }); } catch { }
+    DB.put('equations', rec); return rec;
+  },
+  recordPut(eqId, tex) { const r = eqId && DB.get('equations', eqId); if (!r) return; r.tex = tex; if (r.inline) r.name = snippet(tex, 40); r.modified = isoLocal(new Date()); try { if (typeof EQ !== 'undefined') { const vars = {}; EQ.terms(tex).forEach(v => { vars[v.k] = (r.vars || {})[v.k] || { name: '', unit: '' }; }); r.vars = vars; } } catch { } DB.put('equations', r); },
+  recordDrop(eqId) { const r = eqId && DB.get('equations', eqId); if (r && r.inline && !DB.where('blocks', x => x.eqId === eqId).length) DB.del('equations', eqId); },
   /** The equation editor: a MathLive field, its LaTeX, display/inline, the symbol keyboard and the shortcut legend. */
   editor({ tex = '', display = false, ro = false, title = 'Equation', onSave, onRemove }) {
     if (!MATH.ok()) { askText(title + ' (LaTeX)', 'LaTeX', tex, { multiline: true }).then(t => { if (t != null && onSave) onSave(t.trim(), display); }); return; }
