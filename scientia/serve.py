@@ -29,6 +29,7 @@ CLOUD_CFG = os.path.join(os.path.dirname(CONFIG), 'cloud.json')
 LAB_ORIGINS = {'https://mcgheelab.com', 'https://www.mcgheelab.com'} | {o.strip() for o in os.environ.get('SIS_LAB_ORIGINS', '').split(',') if o.strip()}
 APP_SEEN = [0.0]          # when a window of this app last asked this server for news (labsync paces by it)
 PEN = [0.0]               # V3.949: when the pen's button was last pressed (pen-button/ScientiaPen.exe → /api/pen-button?press=1)
+PEN_CV = threading.Condition()   # V3.957: a press wakes the app's waiting request at once (no polling)
 # V3.929: the lab layer (rm/scientia/lab-mode.js, unchanged) runs in this app too. What it loads from the site: three RM
 # scripts are bundled (vendor/rm/, copied by scripts/scientia_build.py); every other /rm/ address opens on the site.
 SITE = os.environ.get('SIS_SITE', 'https://mcgheelab.com')
@@ -360,12 +361,18 @@ class H(http.server.SimpleHTTPRequestHandler):
         """V3.949: the pen's tail button (pen-button/ScientiaPen.exe, assigned in Windows Settings → Pen) says ?press=1; the app
         waits here (?wait=1&since=<last>, up to 25 s) for the next press."""
         g = lambda k: (q.get(k) or [''])[0]
-        if g('press'): PEN[0] = time.time(); return self._json(200, {'ok': True, 'pressed': PEN[0]})
+        if g('press'):
+            with PEN_CV: PEN[0] = time.time(); PEN_CV.notify_all()
+            return self._json(200, {'ok': True, 'pressed': PEN[0]})
         if g('wait'):
             try: since = float(g('since') or 0)
             except ValueError: since = 0
-            t0 = time.time()
-            while PEN[0] <= since and time.time() - t0 < 25: time.sleep(0.1)
+            deadline = time.time() + 25
+            with PEN_CV:
+                while PEN[0] <= since:
+                    left = deadline - time.time()
+                    if left <= 0: break
+                    PEN_CV.wait(left)   # V3.957: woken by the press itself, not a tenth of a second later
             return self._json(200, {'ok': True, 'pressed': PEN[0] if PEN[0] > since else 0})
         return self._json(200, {'ok': True, 'pressed': PEN[0]})
     def macros(self, q):

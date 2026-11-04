@@ -41,7 +41,7 @@ $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (-not (Test-Path $csc)) { $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
 $penDir = Join-Path $App 'pen-button'
 if ((Test-Path $csc) -and (Test-Path (Join-Path $penDir 'ScientiaPen.cs'))) {
-  try { & $csc /nologo /target:winexe "/out:$(Join-Path $penDir 'ScientiaPen.exe')" (Join-Path $penDir 'ScientiaPen.cs') | Out-Null; Say "the pen's button: pen-button\ScientiaPen.exe (assign it in Windows Settings > Pen)" }
+  try { & $csc /nologo /optimize+ /target:winexe "/out:$(Join-Path $penDir 'ScientiaPen.exe')" (Join-Path $penDir 'ScientiaPen.cs') | Out-Null; Say "the pen's button: pen-button\ScientiaPen.exe (assign it in Windows Settings > Pen)" }
   catch { Say "the pen's button was not built; pen-button\Build ScientiaPen.cmd does it later" }
 }
 Get-ChildItem $Root -Recurse -File | Unblock-File -ErrorAction SilentlyContinue
