@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (56 changes — ready to push)
+## Pending (57 changes — ready to push)
 
+- V3.956 — Scientia: Tidy now packs everything — the chains and the single components alike — into the smallest near-square area that fits your window, with room between the pieces.
 - V3.955 — Scientia: a component's kind now says the only ways it links — a Hypothesis fuels a question, evidence supports or contradicts it, a Method tests it…; drop a wire between two components and you get just those ways (one way connects at once; none, and the toast says what the kind links to). Aim is gone; Question and Story are in. A Story beat has a complexity (1–10) and a + Whiteboard beneath it; drag its ● onto empty paper for the next beat (a bare arrow), and the arc beside the first beat shows complexity by beat. Fixed: kinded components had been flattened to a strip since V3.951; they have their full shape again, with the header in the kind's colour.
 - V3.954 — Scientia: working together. Once the lab carries it, a row of avatars in the header shows who else is in the note or on the project (grey after five minutes away), and a component someone is writing in is theirs for the moment: shaded in their colour, read-only, with “Ask to take over”. The notebook's side is built; the lab's part (the hub's presence and lock routes) is written up for Alex.
 - V3.953 — Scientia: a small dot in the header says how the notebook stands with the lab (green in step, amber working, grey not connected, red with a plain sentence); click it for Sync now. The hint line at the bottom of a note can be closed for good (⋯ → Shortcuts… lists the keys). Notes with over a hundred components pan smoothly. The reader's panel has Mine · RM · Notes chips. + Insert lists this note's rows first, then what you used last.

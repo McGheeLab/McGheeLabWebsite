@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.956] — 2026-11-04 — Scientia: Tidy packs everything into the smallest near-square area
+
+Plan: [CodeLog/ClaudesPlan/V3.955_scientia_kinds_links_story.md](../ClaudesPlan/V3.955_scientia_kinds_links_story.md) — Gabe's round after the SiS Shaping program (V3.946–V3.954, PR #29) went live.
+
+No lab-layer change.
+
+### Changed
+- **`12d-layout.js`:** `LAYOUT.skyline(pieces, W)` — every piece (an unfolded region, a connected group laid out by `pack`, and now each single component as a piece of its own) is placed tallest first where it sits lowest along a skyline, leftmost there, so a short piece goes under a shorter neighbour rather than on a new row; `PGX` / `PGY` (70 / 56) between pieces. `LAYOUT.square(pieces, aspect)` tries eight widths around √(area · aspect) and keeps the box that fits the window (its own shape, `pane.paper.rect()`, clamped square to 1.6 : 1) at the highest zoom — never narrower than the widest piece. The single components no longer go to columns to the right of an 1100-wide strip. A story's first beat keeps room for its arc (`node.dx`, V3.955). The toast says the packed size.
+- `scientia/MANUAL.md`: the Tidy line.
+
+### Tests
+- **Headless:** twelve components (a chain with a side branch, a chain of three, six singles) tidied: no overlaps, the nearest neighbours 56 px apart, the chain top-down, the two groups side by side and the singles beneath, packed into 1316 × 613 in a 1400 × 900 window, Fit at 59 % (the shelf packing it replaces: 1302 × 741 at 52 %).
+- `sw.js` CACHE_VERSION 925 → 926.
+
 ## [V3.955] — 2026-11-04 — Scientia: a kind says the only ways it links; a Story with its arc
 
 Plan: [CodeLog/ClaudesPlan/V3.955_scientia_kinds_links_story.md](../ClaudesPlan/V3.955_scientia_kinds_links_story.md) — Gabe's round after the SiS Shaping program (V3.946–V3.954, PR #29) went live.
