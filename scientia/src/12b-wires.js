@@ -117,7 +117,8 @@ DocView.drawWires = function (temp) {
     html += `<path class="w${dir ? '' : ' und'}${sel ? ' sel' : ''}${L.lifted ? ' arch' : ''}" data-w="${x.id}" style="stroke:${c}" d="${d}" ${dir ? `marker-end="url(#${mid(c)}-${this.uid})"` : ''}/><circle class="wend" data-w="${x.id}" cx="${L.p1.x.toFixed(1)}" cy="${L.p1.y.toFixed(1)}" r="2.6" fill="${c}"/>`;
     if (L.crossed.length) { const cid = `wc-${this.uid}-${k}`; clips.push(`<clipPath id="${cid}">${L.crossed.map(r => `<rect x="${r.x - 1}" y="${r.y - 1}" width="${r.w + 2}" height="${r.h + 2}" rx="7"/>`).join('')}</clipPath>`);
       over += `<g clip-path="url(#${cid})"><path class="w lift${dir ? '' : ' und'}${sel ? ' sel' : ''}" data-w="${x.id}" style="stroke:${c}" filter="url(#wlift-${this.uid})" d="${d}"/></g>`; }
-    const lab = (REL[x.rel] || { label: x.rel }).label, p = WIRES.labelAt(L, placed, R, String(lab || ''));
+    const lab = (REL[x.rel] || { label: x.rel }).label; if (lab === '') return;   // V3.955 — a bare arrow (the story's `next`) has no label
+    const p = WIRES.labelAt(L, placed, R, String(lab || ''));
     labels.push(h('button.wl.nopan' + (sel ? '.sel' : '') + (p.over ? '.lift' : ''), { 'data-w': x.id, style: { left: p.x + 'px', top: p.y + 'px', '--wc': c }, title: `${M.endName(x.from)}${x.fromCell ? ' (one image)' : ''} ${(REL[x.rel] || REL.related).verb} ${M.endName(x.to)}${x.toCell ? ' (one image)' : ''}`, on: { click: e => this.wireMenu(x, e) } }, lab)); });
   over = over.replace('</defs>', clips.join('') + '</defs>');
   html += PROTO.obsWires(this);
