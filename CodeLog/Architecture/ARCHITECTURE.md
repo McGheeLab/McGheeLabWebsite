@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.954 (Scientia: `PRESENCE` (13zzk) — the app's side of working together: a heartbeat to `SIS_LAB.presence` or `api/rm/presence` / `api/rm/lock`, the header's avatar row, locks on components (`.box.cmp.locked`, `ED.commit` refused); quiet until the lab's side exists — contract in `CodeLog/ClaudesPlan/V3.954_scientia_presence_for_the_lab.md`.)
+**Version:** V3.955 (Scientia: a kind is its links — `CKINDS.BASE[].links`, `CKINDS.between` → the drop offers only those ways (one at once, none refused), `13t` lists them, the wire's menu keeps to them; `STORY` (13zzl): complexity 1–10, + Whiteboard beneath, the ● makes the next beat with the bare arrow `next`, the arc beside the first beat; `.kinded` — the `.ck` clash with the calculator's key fixed.)
+
+**Prior:** V3.954 (Scientia: `PRESENCE` (13zzk) — the app's side of working together: a heartbeat to `SIS_LAB.presence` or `api/rm/presence` / `api/rm/lock`, the header's avatar row, locks on components (`.box.cmp.locked`, `ED.commit` refused); quiet until the lab's side exists — contract in `CodeLog/ClaudesPlan/V3.954_scientia_presence_for_the_lab.md`.)
 
 **Prior:** V3.953 (Scientia: `POLISH` (13zzj) — the header's sync dot from `api/lab/status` / `__sisCloud`, the hint's × (`settings().hintOff`), `.big` hosts with `content-visibility`, the reader's chips, `INSERT.menu` ordered with `settings().insertRecent`.)
 

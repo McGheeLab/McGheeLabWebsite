@@ -55,14 +55,14 @@ const BOARD = {
     if (!bd.lab && !bd.id) return h('div.wb-card', 'Whiteboard');
     return h('iframe.wb-frame', { src: BOARD.src(bd, true), loading: 'lazy', tabindex: '-1', title: bd.title || 'Whiteboard', 'data-board': bd.id || bd.lab });
   },
-  make(b, i) {
+  make(b, i, quiet) {   // V3.955 — `quiet`: made, not opened (the story's whiteboard, 13zzl)
     const c = b && FIG.cells(b)[i]; if (!c || c.media) return;
     const id = 'wb' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) + '_' + BOARD.ME, title = (b.label || 'Image panel') + ' · ' + FIG.letter(i), now = { __ts: Date.now() };
     c.board = { id, title };
     DB.beginGroup('board');
     DB.put('boards', { id, kind: 'board', docId: b.docId, title, parts: 1, modified: isoLocal(new Date()),
       docs: { '': { name: title, pages: [{ id: 'p1', background: 'blank' }], activePageId: 'p1', ownerUid: BOARD.ME, moduleKey: '', sharedWithUids: [], createdAt: now, updatedAt: now } } });
-    FIG.save(b); changed(); setTimeout(() => BOARD.open(M.block(b.id), i), 60);
+    FIG.save(b); changed(); if (!quiet) setTimeout(() => BOARD.open(M.block(b.id), i), 60);
   },
   /** The rows of a board, in order. */
   rows(id) { const main = DB.get('boards', id); if (!main) return []; const out = [main]; for (let k = 1; k < (main.parts || 1); k++) { const p = DB.get('boards', id + '~' + k); if (p) out.push(p); } return out; },

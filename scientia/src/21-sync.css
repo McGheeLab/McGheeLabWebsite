@@ -607,7 +607,7 @@ body.mobile .nav{display:none} body:has(.nav:not(.asleep)) #toasts{bottom:34px}
 /* ---------- 13zu2 · the selection's bar (V3.950) ---------- */
 .ink-selbar .bulk-g{display:inline-flex;gap:3px;flex-wrap:wrap}
 /* ---------- 13zzi · component kinds (V3.951): the kind colours the edge and names the label ---------- */
-.box.cmp.ck{border-left:3px solid var(--ck,var(--teal))} .box.cmp.ck > .bh > .num{color:var(--ck,var(--teal));font-weight:700;letter-spacing:.06em}
+.box.cmp.kinded{border-left:3px solid var(--ck,var(--teal))} .box.cmp.kinded > .bh > .num{color:var(--ck,var(--teal));font-weight:700;letter-spacing:.06em}
 .ck-settings .pill{font-weight:600}
 /* ---------- 13zzj · the polish (V3.953): the sync dot, the hint's ×, big notes, the reader's chips ---------- */
 #hd .syncdot{width:26px;display:grid;place-items:center} #hd .syncdot i{width:10px;height:10px;border-radius:50%;background:var(--ink-3);box-shadow:0 0 0 2px color-mix(in srgb,var(--ink-3) 25%,transparent);transition:background .3s}

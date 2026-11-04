@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.955] — 2026-11-04 — Scientia: a kind says the only ways it links; a Story with its arc
+
+Plan: [CodeLog/ClaudesPlan/V3.955_scientia_kinds_links_story.md](../ClaudesPlan/V3.955_scientia_kinds_links_story.md) — Gabe's round after the SiS Shaping program (V3.946–V3.954, PR #29) went live.
+
+No lab-layer change.
+
+### Added
+- **`13zzi-kinds.js` rebuilt — a kind is its links.** `CKINDS.BASE[].links = [{rel, with: [classes], in?}]` for Hypothesis, Question (new), Verdict, Method, Meeting, Feedback, Story (new); Aim is gone. `KREL` (fuels, tests, predicts, refines, answers, produces, illustrates, and `next` — the bare arrow, label `''`, `arrow: true`) joins `REL` and `WIRECOL`, not `RELATIONS`. `CKINDS.is(b, class)`: a kind id, a structure the component carries, `question` also by a `?` in the text, `evidence` by an observation / result / evidence structure or an image panel, plate, table, plot, run, recording, canvas or paper, `paper`, `person`, `material`, `figure`, `note`, `data`, `any`. `CKINDS.between(A, B)`: the ways two components can be wired (null when neither has a kind; one entry a relation, the dragged-from end's direction first, the relation last used from that kind first). `CKINDS.chainLinks`, `CKINDS.ways(K)` in words, `CKINDS.parseLinks` ("→ fuels: question" / "← supports: evidence") for your own kinds; a kind made before V3.955 with `targets` reads as links.
+- **The drop** (`DocView.relationPopover` wrapped): one way → wired at once, the toast says which; several → `CKINDS.popover` lists just those (1–9, Enter the first, `.ck-why`); none → `CKINDS.refuse`: nothing made, the toast says the kind's ways. **The wire's menu** (`DocView.wireMenu` wrapped): "Make it" only another of their ways. **The drop on empty paper** (`13t-chaindrop.js`): from a kinded component the left panel lists the kind's ways (`→` it does, `←` done to it; no "your own", no Tab flip), and the new text component takes the kind the way names (`ckind`).
+- **The header in the kind's colour** (`24-kinds.css`): `.box.cmp.kinded > .bh` a 12 % tint of `--ck`; the left edge and the label as before; the box keeps its shape and fill.
+- **`13zzl-story.js` `STORY`** — the Story kind. `block.complexity` 1–10 (`.story-foot`: a row of ten, `STORY.set`). **+ Whiteboard** (`STORY.addBoard`): `FIG.create` 1×1 at the beat's x and width right beneath it (`auto`, so it settles under), `BOARD.make(F, 0, quiet)`, wired `illustrates` panel → beat; afterwards ✎ Whiteboard ↓ opens it. **The ● onto empty paper makes the next beat** (`CHAINDROP.open` wrapped → `STORY.next`): a story component with the previous beat's complexity, wired `next`, the caret in it. **The arc** (`STORY.paint`, with `drawWires`): one `.story-plot` left of each first beat (a story no story leads into) — x the beat's links from the first (`STORY.chain`), y its complexity, grid at 1 / 5 / 10, the line along the wires, the area beneath the main line, the top and the last beat labelled, a point's title names the beat and a click goes to it; redrawn only when its `data-key` changes; `DocView.bbox` counts it so Fit shows it.
+
+### Changed
+- `12b-wires.js`: no label for a relation whose label is empty (the bare arrow).
+- `13zzd-board.js`: `BOARD.make(b, i, quiet)` — made, not opened.
+- Feedback is orange (`#C2571A`) now that Question has the amber.
+- `scientia/MANUAL.md`: "Kinds of component" rewritten, "Stories" added.
+
+### Bug Fixes
+- A kinded component had lost its shape and fill since V3.951: the box's class `ck` was also the calculator's key (`.ck{height:34px;…}` in 20-canvas.css), so every Hypothesis was a 34 px strip with the key's gradient and its text spilled out beneath. The class is `kinded` now.
+
+### Tests
+- **Headless Chrome, the desktop build on a static server (`t_955.mjs`):** seven kinds, no Aim (a block still marked `aim` reads "Block"). A Hypothesis → a component with a `?` offers `fuels` only and wires at once, no popover; an observation-marked component → a Hypothesis offers supports, contradicts (and predicts the other way), contradicts picked; a Hypothesis → a plain component is refused (no wire; the toast names the ways); two standard components get the old popover. The wire's menu offers "Make it: supports" and "predicts (the other way)" and no other relation. The drop on empty paper from a Hypothesis lists its seven ways, no "your own"; Enter makes a Question wired `fuels`. The header's background is the kind's colour at 12 % and the box has its full height. A Story: ten complexity buttons, 5 lit, 8 after a click; the arc beside it (left of the box, at its top, one point). A real drag of its ● onto empty paper made a story component wired `next` with complexity 8 — no panels, no label, the caret in it — and the arc has two points and a line. + Whiteboard made a 1×1 panel with its board row right beneath at the beat's x and width, wired `illustrates`, not opened; the button reads ✎ Whiteboard ↓. Settings lists the seven kinds; `parseLinks` reads → / ← lines and keeps an unknown relation as your own word.
+- **Harnesses:** lab-mode 278/278, notes 13/13.
+- `sw.js` CACHE_VERSION 924 → 925.
+
 ## [V3.954] — 2026-11-03 — Scientia: working together — who is here, one person at a time in a component (the app's side; the lab's to come)
 
 Plan: [CodeLog/ClaudesPlan/V3.946_scientia_sis_shaping_program.md](../ClaudesPlan/V3.946_scientia_sis_shaping_program.md), Phase I. The contract for the lab's side: [CodeLog/ClaudesPlan/V3.954_scientia_presence_for_the_lab.md](../ClaudesPlan/V3.954_scientia_presence_for_the_lab.md).
