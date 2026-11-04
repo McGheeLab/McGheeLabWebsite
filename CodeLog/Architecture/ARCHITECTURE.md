@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.956 (Scientia: Tidy — `LAYOUT.skyline` + `LAYOUT.square`: every piece packed into the smallest near-square area that fits the window at the highest zoom.)
+**Version:** V3.957 (Scientia desktop: the pen's button at once — `ScientiaPen.cs` on a raw `TcpClient` instead of `WebClient` (no proxy lookup), `serve.py` wakes the waiting request with `PEN_CV`.)
+
+**Prior:** V3.956 (Scientia: Tidy — `LAYOUT.skyline` + `LAYOUT.square`: every piece packed into the smallest near-square area that fits the window at the highest zoom.)
 
 **Prior:** V3.955 (Scientia: a kind is its links — `CKINDS.BASE[].links`, `CKINDS.between` → the drop offers only those ways (one at once, none refused), `13t` lists them, the wire's menu keeps to them; `STORY` (13zzl): complexity 1–10, + Whiteboard beneath, the ● makes the next beat with the bare arrow `next`, the arc beside the first beat; `.kinded` — the `.ck` clash with the calculator's key fixed.)
 

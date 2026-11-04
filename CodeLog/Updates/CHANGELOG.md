@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.957] — 2026-11-04 — Scientia desktop: the pen's button switches at once
+
+Plan: [CodeLog/ClaudesPlan/V3.955_scientia_kinds_links_story.md](../ClaudesPlan/V3.955_scientia_kinds_links_story.md) — Gabe's round after the SiS Shaping program (V3.946–V3.954, PR #29) went live.
+
+Desktop only (`scientia/serve.py`, `scientia/pen-button/`); the site carries the rebuilt installer download.
+
+### Bug Fixes
+- **`pen-button/ScientiaPen.cs`:** the helper the pen's button launches spoke through `WebClient`, whose first request after a start looks for a proxy (WPAD) and warms the whole HTTP stack — measured 47 s from the press to the request on this computer, 0.13 s once that lookup was cached. It now opens one `TcpClient` to 127.0.0.1 and writes the request itself (1.5 s connect and read timeouts): 0.66 s cold, 0.11 s warm. Built with `/optimize+` (`Build ScientiaPen.cmd`, `install/install.ps1`).
+- **`serve.py` `pen_button`:** the app's waiting request (`?wait=1`) is woken by the press through a `threading.Condition` (`PEN_CV`) instead of polling every 100 ms.
+- `scientia/MANUAL.md`: the pen's button.
+
+### Tests
+- The old and the new helper built with csc and run three times each against a stand-in server that logs arrivals (`pen_sink.py`): old 47.5 s, 0.13 s, 0.14 s; new 0.66 s, 0.12 s, 0.11 s. `serve.py` compiles.
+- `sw.js` CACHE_VERSION 926 → 927.
+
 ## [V3.956] — 2026-11-04 — Scientia: Tidy packs everything into the smallest near-square area
 
 Plan: [CodeLog/ClaudesPlan/V3.955_scientia_kinds_links_story.md](../ClaudesPlan/V3.955_scientia_kinds_links_story.md) — Gabe's round after the SiS Shaping program (V3.946–V3.954, PR #29) went live.
