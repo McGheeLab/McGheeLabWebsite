@@ -121,6 +121,11 @@ from sttread import Transcriber
 HW = Reader()
 from winink import WinInk
 INKR = WinInk()
+try:   # V3.960: the mouse's own movement while the edge pan pushes against the screen's edge (Windows; see rawmouse.py)
+    from rawmouse import RawMouse
+    RAWM = RawMouse()
+except Exception as e:
+    RAWM = None; RAWM_ERR = 'raw mouse input is unavailable: %s' % e
 STT = Transcriber(rec_dir)
 SYNC = Sync(nb, atomic, lambda p, d=None: load_json(p, d) if p else d, os.path.dirname(CONFIG))
 
@@ -419,6 +424,7 @@ class H(http.server.SimpleHTTPRequestHandler):
         if p == '/api/rm-pdf': return self.rm_pdf(q)
         if p == '/api/macros' and self.is_local(): return self.macros(q)
         if p == '/api/pen-button' and self.is_local(): return self.pen_button(q)
+        if p == '/api/edge-push' and self.is_local(): return self._json(200, RAWM.read() if RAWM else {'ok': False, 'error': RAWM_ERR})
         if p.startswith('/api/rm/'): return self.rm_proxy('GET', u)
         if p == '/api/rec/parts' and self.is_local():
             parts = self.rec_parts_of((q.get('rid') or [''])[0]); return self._json(200, {'ok': True, 'parts': len(parts), 'bytes': sum(os.path.getsize(f) for f in parts)})

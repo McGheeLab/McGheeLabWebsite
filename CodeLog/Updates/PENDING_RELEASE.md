@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (60 changes — ready to push)
+## Pending (61 changes — ready to push)
 
+- V3.960 — Scientia: panning by pushing against the edge of a note now starts right at the edge and keeps speeding up as you keep moving the mouse past it. On the desktop app this works even when the cursor is already stopped at the edge of the screen. Holding still keeps the speed; moving back stops it at once.
 - V3.959 — Scientia: panning by pushing against the edge of a note now starts only when you reach a dashed border line near the edge, moves slowly just past it and faster the further you push, keeps its speed while you hold still, and stops the moment you move back inside the line.
 - V3.958 — Scientia: papers from PLOS Computational Biology, The EMBO Journal, JAMA, BMJ and npj journals are named with their own casing in references, and a pasted BibTeX reference keeps its accents (Kortüm, not Kort\"um).
 - V3.957 — Scientia on this computer: the pen's button switches at once (the first press after a start could take up to a minute).
