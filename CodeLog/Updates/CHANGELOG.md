@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.958] — 2026-11-05 — Scientia: the DOI lookup's module complete from the demo it came from, with the demo's tests
+
+Gabe: "Reintroduce the DOI lookup from C:\\Users\\gabri\\Scientia In Situ\\doi-lookup." The app's `LIB` (07-library.js) was ported from that demo (normaliser, CSL-JSON from doi.org by content negotiation, sigil, APA 7, BibTeX / RIS / CSL parsers) but left out part of its journal tables, and the demo's test suite ran on a `pure.js` that is gone. Both are back here.
+
+**The Library page is unchanged.** Under the lab layer the Library tab is RM's and papers are added in RM — the lab-mode harness checks exactly that ("no DOI lookup or paste box: papers are added in RM"), so the DOI box is not put back on that page. It is on the app's own Library page (`LibraryView`), which is what Gabe's standalone Scientia In Situ shows. No lab-layer change.
+
+### Added
+- **`07-library.js`:** the demo's journal tables in full — sigil `plos computational biology` → PLOS; display names PLOS Computational Biology, EMBO Journal, The EMBO Journal, JAMA, BMJ, npj Systems Biology and Applications (also used by the lab's Library page, which draws RM's papers with `LIB.sigil` and `LIB.apa`).
+- **`scripts/tests/scientia-doi-lookup.test.mjs`:** the demo's `test.js` run against the app's own `07-library.js` in a `vm` (with `hashHue` lifted from `01-util.js`): normalisation, sigils, preprints, APA authors and strings, αPIX / mTOR / pH casing, journal casing, hue determinism, BibTeX, RIS, autodetect — plus the new journals, and the lookup itself (one request to doi.org with `Accept: application/vnd.citationstyles.csl+json`, the library as the cache, a non-DOI refused).
+
+### Tests
+- `node scripts/tests/scientia-doi-lookup.test.mjs`: 63 passed, 0 failed.
+- **Harnesses:** lab-mode 278/278, notes 13/13.
+- `sw.js` CACHE_VERSION 927 → 928.
+
 ## [V3.957] — 2026-11-04 — Scientia desktop: the pen's button switches at once
 
 Plan: [CodeLog/ClaudesPlan/V3.955_scientia_kinds_links_story.md](../ClaudesPlan/V3.955_scientia_kinds_links_story.md) — Gabe's round after the SiS Shaping program (V3.946–V3.954, PR #29) went live.

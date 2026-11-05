@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.957 (Scientia desktop: the pen's button at once — `ScientiaPen.cs` on a raw `TcpClient` instead of `WebClient` (no proxy lookup), `serve.py` wakes the waiting request with `PEN_CV`.)
+**Version:** V3.958 (Scientia: `LIB` (07-library.js) has the doi-lookup demo's journal tables in full; the demo's tests run on it — `scripts/tests/scientia-doi-lookup.test.mjs`.)
+
+**Prior:** V3.957 (Scientia desktop: the pen's button at once — `ScientiaPen.cs` on a raw `TcpClient` instead of `WebClient` (no proxy lookup), `serve.py` wakes the waiting request with `PEN_CV`.)
 
 **Prior:** V3.956 (Scientia: Tidy — `LAYOUT.skyline` + `LAYOUT.square`: every piece packed into the smallest near-square area that fits the window at the highest zoom.)
 

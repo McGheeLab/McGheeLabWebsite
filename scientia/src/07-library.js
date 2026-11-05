@@ -2,6 +2,9 @@
    07 · Library — ported from doi-lookup-demo (normaliser, sigil, APA rules,
    BibTeX/RIS/CSL parsers). Paste path works offline; DOI lookup is the
    one narrow, user-triggered outbound request, cached forever.
+   V3.958: the demo's journal tables in full (PLOS Computational Biology,
+   EMBO, JAMA, BMJ, npj…), and its test suite runs against this module
+   (scripts/tests/scientia-doi-lookup.test.mjs).
    ========================================================================== */
 const LIB = {
   CSL_ACCEPT: 'application/vnd.citationstyles.csl+json',
@@ -61,7 +64,7 @@ const LIB = {
   },
 
   /* ---------- sigil ---------- */
-  KNOWN: { 'proceedings of the national academy of sciences': 'PNAS', 'proceedings of the national academy of sciences of the united states of america': 'PNAS', 'plos one': 'PLOS', 'plos biology': 'PLOS',
+  KNOWN: { 'proceedings of the national academy of sciences': 'PNAS', 'proceedings of the national academy of sciences of the united states of america': 'PNAS', 'plos one': 'PLOS', 'plos biology': 'PLOS', 'plos computational biology': 'PLOS',
     'journal of biological chemistry': 'JBC', 'the journal of biological chemistry': 'JBC', 'journal of cell biology': 'JCB', 'the journal of cell biology': 'JCB', 'biophysical journal': 'BpJ', 'biochemistry': 'Bchm',
     'nature': 'Nature', 'science': 'Science', 'cell': 'Cell', 'nature methods': 'NatMe', 'nature communications': 'NatCo', 'molecular biology of the cell': 'MBoC', 'elife': 'eLife', 'scientific reports': 'SciRp', 'bioinformatics': 'Binf' },
   STOP: new Set(['of', 'the', 'and', 'for', 'in', 'on', 'a', 'an', 'de', 'des', 'la', 'le']),
@@ -94,7 +97,9 @@ const LIB = {
     return list.slice(0, 19).map(f).join(', ') + ', … ' + f(list[list.length - 1]);
   },
   sentenceCase(t) { if (!t) return ''; const fw = t.split(/\s+/)[0] || ''; if (/[A-Z]/.test(fw)) return t; if (!/^[a-z]/.test(t)) return t; return t.charAt(0).toUpperCase() + t.slice(1); },
-  JD: { 'plos one': 'PLOS One', 'plos biology': 'PLOS Biology', 'elife': 'eLife', 'journal of biological chemistry': 'Journal of Biological Chemistry', 'proceedings of the national academy of sciences': 'Proceedings of the National Academy of Sciences', 'acs nano': 'ACS Nano', 'mbio': 'mBio' },
+  JD: { 'plos one': 'PLOS One', 'plos biology': 'PLOS Biology', 'plos computational biology': 'PLOS Computational Biology', 'elife': 'eLife', 'embo journal': 'EMBO Journal', 'the embo journal': 'The EMBO Journal',
+    'journal of biological chemistry': 'Journal of Biological Chemistry', 'proceedings of the national academy of sciences': 'Proceedings of the National Academy of Sciences', 'acs nano': 'ACS Nano', 'jama': 'JAMA', 'bmj': 'BMJ', 'mbio': 'mBio',
+    'npj systems biology and applications': 'npj Systems Biology and Applications' },
   journal(j) { const k = String(j || '').toLowerCase().replace(/\s+/g, ' ').trim(); if (LIB.JD[k]) return LIB.JD[k];
     return String(j || '').replace(/\S+/g, (w, i) => /[A-Z]{2,}/.test(w) ? w : (i > 0 && LIB.STOP.has(w.toLowerCase()) ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1))); },
   apa(r) {
