@@ -24,8 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (59 changes — ready to push)
+## Pending (60 changes — ready to push)
 
+- V3.959 — Scientia: panning by pushing against the edge of a note now starts only when you reach a dashed border line near the edge, moves slowly just past it and faster the further you push, keeps its speed while you hold still, and stops the moment you move back inside the line.
 - V3.958 — Scientia: papers from PLOS Computational Biology, The EMBO Journal, JAMA, BMJ and npj journals are named with their own casing in references, and a pasted BibTeX reference keeps its accents (Kortüm, not Kort\"um).
 - V3.957 — Scientia on this computer: the pen's button switches at once (the first press after a start could take up to a minute).
 - V3.956 — Scientia: Tidy now packs everything — the chains and the single components alike — into the smallest near-square area that fits your window, with room between the pieces.

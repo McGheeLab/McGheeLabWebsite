@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.959] — 2026-11-05 — Scientia: the edge pan starts at a border you can see and speeds up the further you push past it
+
+Gabe: "Pushing on the boundary should accelerate more as you keep going past the border, and the movement should only start when you actually hit the border. If I were to barely touch the border, it would advance slowly, and the more I continue the cursor traveling in that direction, the displacement gets faster and faster. When the position is maintained, the speed is maintained. Backing out instantly stops the movement."
+
+V3.949's hover pan started anywhere in an invisible 48 px zone (2 px a frame at its inner edge), eased in over 150 ms and reached only 24 px a frame at the edge. A browser gets no pointer movement once the cursor is held at the screen's edge, so "going past the border" has to happen inside the window: the border is now a line 48 px in from each edge of the note, drawn as the pointer nears it, and the depth past it sets the speed.
+
+No lab-layer change.
+
+### Changed
+- **`13zzh-hands.js` `HANDS.hover` / `step` / `speed` / `border` / `quiet`:** `BORDER` 48, `NEAR` 40, `VMIN` 30, `VMAX` 2400, `POW` 2.6. Nothing moves until the pointer is past the line; speed = `VMIN + (VMAX − VMIN) · (depth / BORDER)^POW` px a second on each axis (corners both); no pointer movement → the speed holds; a move back inside the line → `stopPan()` at once (no ease-out). `step` moves by the clock (`dt`, capped at 50 ms), so a 120 Hz screen pans no faster than a 60 Hz one. The pane being pushed stays the one pushed while the pointer is up to 48 px beyond its edge (the header, the other pane) at the top speed — unless it is over a control (`button, a, input, select, textarea, label, [contenteditable], [role=tab]`), which stops it. Leaving the window, a press, a blur or a hand other than Move → `HANDS.quiet()` (no pan, no border).
+- **The border** (`HANDS.border`, `21-sync.css` `.edge-border`): a `div.edge-border` in the note's `.paper` (z 6, no pointer events) with a dashed line and a band per side; the line on the nearer side(s) fades in over the last 40 px before it and is solid past it; the band from the line to the edge tints with the depth.
+- `scientia/MANUAL.md` §17 "The edge pans".
+
+### Tests
+- **Headless Chrome, the desktop build (lab layer on), real mouse moves (CDP), the note's right edge:** 120 px in: no pan, no border; 66 px in (18 px before the line): the line at 0.55, no pan; past the line by 2 / 12 / 24 / 36 / 47 px: 31 / 94 / 421 / 1159 / 2234 px/s, the band at 0.04 / 0.25 / 0.5 / 0.75 / 0.98; held at 24 px past for three 450 ms windows: 424 / 422 / 421 px/s; back to 60 px in: no movement within 40 ms, the loop stopped. The top edge 42 px past: 1672 px/s down; over a tab 18 px above the note: stopped; 120 px above: stopped. Pen hand at the edge: nothing.
+- **Harnesses:** lab-mode 278/278, notes 13/13.
+- `sw.js` CACHE_VERSION 928 → 929.
+
 ## [V3.958] — 2026-11-05 — Scientia: the DOI lookup's module complete from the demo it came from, with the demo's tests
 
 Gabe: "Reintroduce the DOI lookup from C:\\Users\\gabri\\Scientia In Situ\\doi-lookup." The app's `LIB` (07-library.js) was ported from that demo (normaliser, CSL-JSON from doi.org by content negotiation, sigil, APA 7, BibTeX / RIS / CSL parsers) but left out part of its journal tables, and the demo's test suite ran on a `pure.js` that is gone. Both are back here.
