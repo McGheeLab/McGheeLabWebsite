@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.959 (Scientia: the edge hover-pan (`HANDS.hover`, 13zzh) starts at a visible border 48 px in from the note's edge; speed by depth past it, by the clock; `.edge-border` in the paper.)
+**Version:** V3.960 (Scientia: the edge hover-pan (13zzh) starts at the note's edge; past it the pointer's travel adds push, and where the cursor is stopped (the screen's edge) or has left the window the desktop server reads the mouse's own movement from Windows — new `scientia/rawmouse.py`, `GET /api/edge-push` in `serve.py`, shipped in the desktop zip.)
+
+**Prior:** V3.959 (Scientia: the edge hover-pan (`HANDS.hover`, 13zzh) starts at a visible border 48 px in from the note's edge; speed by depth past it, by the clock; `.edge-border` in the paper.)
 
 **Prior:** V3.958 (Scientia: `LIB` (07-library.js) has the doi-lookup demo's journal tables in full; the demo's tests run on it — `scripts/tests/scientia-doi-lookup.test.mjs`.)
 

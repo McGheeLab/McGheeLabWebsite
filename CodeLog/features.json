@@ -1364,6 +1364,7 @@
     "scientia/serve.py",
     "scientia/sisync.py",
     "scientia/winink.py",
+    "scientia/rawmouse.py",
     "scientia/sttread.py",
     "scientia/slides.py",
     "scientia/hwread.py",
