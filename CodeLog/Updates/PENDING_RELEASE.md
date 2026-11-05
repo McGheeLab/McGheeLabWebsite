@@ -26,7 +26,7 @@
 
 ## Pending (59 changes — ready to push)
 
-- V3.958 — Scientia: papers from PLOS Computational Biology, The EMBO Journal, JAMA, BMJ and npj journals are named with their own casing in references.
+- V3.958 — Scientia: papers from PLOS Computational Biology, The EMBO Journal, JAMA, BMJ and npj journals are named with their own casing in references, and a pasted BibTeX reference keeps its accents (Kortüm, not Kort\"um).
 - V3.957 — Scientia on this computer: the pen's button switches at once (the first press after a start could take up to a minute).
 - V3.956 — Scientia: Tidy now packs everything — the chains and the single components alike — into the smallest near-square area that fits your window, with room between the pieces.
 - V3.955 — Scientia: a component's kind now says the only ways it links — a Hypothesis fuels a question, evidence supports or contradicts it, a Method tests it…; drop a wire between two components and you get just those ways (one way connects at once; none, and the toast says what the kind links to). Aim is gone; Question and Story are in. A Story beat has a complexity (1–10) and a + Whiteboard beneath it; drag its ● onto empty paper for the next beat (a bare arrow), and the arc beside the first beat shows complexity by beat. Fixed: kinded components had been flattened to a strip since V3.951; they have their full shape again, with the header in the kind's colour.

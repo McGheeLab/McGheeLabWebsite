@@ -109,6 +109,12 @@ eq('bibtex issue<-number', pb.issue, '7');
 eq('bibtex authors', pb.authors.length, 3);
 eq('bibtex family', pb.authors[1].family, 'Harms');
 eq('bibtex not preprint', pb.isPreprint, false);
+eq('bibtex accent decoded (the demo kept Kort\\"um)', pb.authors[0].family, 'Kortüm');
+const field = s => LIB.tex(s).replace(/[{}]/g, '');   // as parseBibtex reads a field: accents first, then the braces go
+eq('tex: acute, cedilla, slashed o, eszett', field("Gr\\'{e}goire Fran\\c{c}ois S{\\o}ren Stra\\ss e"), 'Grégoire François Søren Straße');
+eq('tex: grave and caron, the space kept', field('\\`a \\v{s} \\"o'), 'à š ö');
+eq('tex: escaped ampersand', LIB.tex('Smith \\& Jones'), 'Smith & Jones');
+eq('tex: a plain title is untouched', LIB.tex('mTOR and pH in αPIX'), 'mTOR and pH in αPIX');
 
 console.log('\n--- local RIS parse ---');
 const ris = 'TY  - JOUR\nAU  - Baldys, Aleksander\nAU  - Raymond, John R.\nTI  - Critical Role of ESCRT Machinery in EGFR Recycling\nJO  - Biochemistry\nPY  - 2009\nVL  - 48\nIS  - 40\nSP  - 9321\nEP  - 9323\nDO  - 10.1021/bi900865u\n';

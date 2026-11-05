@@ -33,13 +33,22 @@ const LIB = {
       if (open === '{') { let depth = 1; while (i < body.length && depth > 0) { const c = body[i]; if (c === '{') depth++; else if (c === '}') { depth--; if (!depth) break; } val += c; i++; } }
       else if (open === '"') { while (i < body.length && body[i] !== '"') { val += body[i]; i++; } }
       else { while (i < body.length && !/[,\n}]/.test(body[i])) { val += body[i]; i++; } }
-      re.lastIndex = i + 1; fields[key] = val.replace(/[{}]/g, '').replace(/\s+/g, ' ').trim();
+      re.lastIndex = i + 1; fields[key] = LIB.tex(val).replace(/[{}]/g, '').replace(/\s+/g, ' ').trim();
     }
     const authors = (fields.author || '').split(/\s+and\s+/).filter(Boolean).map(a => { if (a.includes(',')) { const [f, g] = a.split(','); return { family: f.trim(), given: (g || '').trim() }; } const p = a.trim().split(/\s+/); return { family: p.pop() || '', given: p.join(' ') }; });
     const container = fields.journal || fields.booktitle || '';
     return { doi: fields.doi || '', cslType: head[1].toLowerCase(), title: fields.title || '', authors, container, publisher: fields.publisher || '', year: parseInt(fields.year, 10) || null,
       volume: fields.volume || '', issue: fields.number || fields.issue || '', page: (fields.pages || '').replace(/--/g, '-'), issn: fields.issn || '', url: fields.url || '', isPreprint: !container, csl: { _source: 'bibtex', fields } };
   },
+  /** V3.958 — BibTeX's accents as letters: Kort{\"u}m → Kortüm, \'{e} → é, \c{c} → ç, {\o} → ø, \ss → ß (the demo kept the
+      backslash: "Kort\"um"). */
+  TEXACC: { '"': '̈', "'": '́', '`': '̀', '^': '̂', '~': '̃', '=': '̄', '.': '̇', u: '̆', v: '̌', H: '̋', c: '̧', k: '̨', r: '̊' },
+  TEXSYM: { ss: 'ß', ae: 'æ', AE: 'Æ', oe: 'œ', OE: 'Œ', o: 'ø', O: 'Ø', aa: 'å', AA: 'Å', l: 'ł', L: 'Ł', i: 'ı', j: 'ȷ' },
+  tex: s => String(s || '')
+    .replace(/\\(["'`^~=.])(?:\{\s*([A-Za-z])\s*\}|\s*([A-Za-z]))/g, (m, a, x, y) => ((x || y) + LIB.TEXACC[a]).normalize('NFC'))
+    .replace(/\\([uvHckr])(?:\{\s*([A-Za-z])\s*\}|\s+([A-Za-z]))/g, (m, a, x, y) => ((x || y) + LIB.TEXACC[a]).normalize('NFC'))
+    .replace(/\\(ss|ae|AE|oe|OE|aa|AA|o|O|l|L|i|j)(?![A-Za-z])\s*(\{\})?/g, (m, w) => LIB.TEXSYM[w])
+    .replace(/\\([&%$#_])/g, '$1'),
   parseRis(src) {
     const f = {}, authors = [];
     src.split(/\r?\n/).forEach(line => { const m = line.match(/^([A-Z][A-Z0-9])\s+-\s*(.*)$/); if (!m) return; const [, tag, val] = m;

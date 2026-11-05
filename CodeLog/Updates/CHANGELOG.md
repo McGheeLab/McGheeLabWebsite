@@ -12,10 +12,13 @@ Gabe: "Reintroduce the DOI lookup from C:\\Users\\gabri\\Scientia In Situ\\doi-l
 
 ### Added
 - **`07-library.js`:** the demo's journal tables in full — sigil `plos computational biology` → PLOS; display names PLOS Computational Biology, EMBO Journal, The EMBO Journal, JAMA, BMJ, npj Systems Biology and Applications (also used by the lab's Library page, which draws RM's papers with `LIB.sigil` and `LIB.apa`).
-- **`scripts/tests/scientia-doi-lookup.test.mjs`:** the demo's `test.js` run against the app's own `07-library.js` in a `vm` (with `hashHue` lifted from `01-util.js`): normalisation, sigils, preprints, APA authors and strings, αPIX / mTOR / pH casing, journal casing, hue determinism, BibTeX, RIS, autodetect — plus the new journals, and the lookup itself (one request to doi.org with `Accept: application/vnd.citationstyles.csl+json`, the library as the cache, a non-DOI refused).
+- **`scripts/tests/scientia-doi-lookup.test.mjs`:** the demo's `test.js` run against the app's own `07-library.js` in a `vm` (with `hashHue` lifted from `01-util.js`): normalisation, sigils, preprints, APA authors and strings, αPIX / mTOR / pH casing, journal casing, hue determinism, BibTeX, RIS, autodetect — plus the new journals, BibTeX accents, and the lookup itself (one request to doi.org with `Accept: application/vnd.citationstyles.csl+json`, the library as the cache, a non-DOI refused).
+
+### Bug Fixes
+- **A pasted BibTeX reference kept LaTeX's accents as backslashes** — the demo's own sample gave "Kort\"um, F." (`parseBibtex` stripped the braces only). `LIB.tex(s)` turns accent commands into letters before the braces go: `\"u` / `{\"u}` → ü, `\'{e}` → é, `` \` ``, `\^`, `\~`, `\=`, `\.`, `\u`, `\v`, `\H`, `\c`, `\k`, `\r` (combined and NFC-normalised), `\ss \ae \oe \o \aa \l \i` → ß æ œ ø å ł ı, `\&` → &.
 
 ### Tests
-- `node scripts/tests/scientia-doi-lookup.test.mjs`: 63 passed, 0 failed.
+- `node scripts/tests/scientia-doi-lookup.test.mjs`: 68 passed, 0 failed.
 - **Harnesses:** lab-mode 278/278, notes 13/13.
 - `sw.js` CACHE_VERSION 927 → 928.
 
