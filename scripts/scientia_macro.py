@@ -20,7 +20,7 @@ import json, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'scientia', 'src')
-ALIAS = {'rmpaper': 'paper', 'rmprotocol': 'protocol', 'rmaction': 'action', 'rmcollection': 'collection', 'material-new': 'newmaterial',
+ALIAS = {'rmpaper': 'paper', 'rmprotocol': 'protocol', 'rmaction': 'action', 'rmcollection': 'labcollection', 'material-new': 'newmaterial',
          'equation-reg': 'registered', 'table-empty': 'emptytable', 'canvas-add': 'canvas', 'pull-barrier': 'barrier', 'pull-item': 'structure', 'pull-comp': 'component'}
 BUILTIN_VARS = {'date', 'time', 'note', 'project'}
 LINE = re.compile(r"^\s*C\('([a-z][a-z0-9-]*)', '((?:[^'\\]|\\.)*)', \[(.*?)\], ")
