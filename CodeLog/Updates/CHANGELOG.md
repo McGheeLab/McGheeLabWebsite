@@ -4,6 +4,98 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.961] — 2026-11-09 — Scientia: snip figures out of HTML pages, /collection in the Atlas, paste from outside and between notes
+
+Gabe: "I want you to add the snip figure from PDFs to HTMLs (adapt it to HTMLs however you need to to make it work). Add a /collection command which brings you to the atlas to see just the components listed after this command … List out all possible things to add to /collection and typing this command brings up suggestions in a list format that you can click to add to the line, like how video games do (look at Minecraft). Also, copying and pasting from outside of the notebook to the notebook should work … Also, copying a, or multiple components from a note and pasting in another note should default as pulling in those components." His examples: three exported reports whose figures are drawn by their own scripts (SVG charts in `div.panel` cards, canvas plots in `div.plot` cards, tables, pictures).
+
+No lab-layer change. The lab's "Collection from the Lab Notebook" insert row (`rmcollection`, web) is now `/labcollection`, so `/collection` is the Atlas's.
+
+### Added
+- **`scientia/src/13zzm-htmlsnip.js` `HSNIP`** — the PDF clip (13zza) for an HTML page:
+  - `HSNIP.SCRIPT`, added to the page's sandboxed copy after 13zze's (13zw `QUOTE.more` chain), finds the drawings: `svg` (outermost), `canvas`, `img`, `video`, `table` (under 2400 px), `figure`, and display equations (`.katex-display`, `mjx-container[display]`, `math[display=block]`), at least 72 × 56.
+  - Each drawing's frame (`frameOf`) is the largest box around it that holds no other drawing, is at most 3.2× its area, 340 px taller and 1.8× wider, and has under 700 characters of text besides.
+  - `describe` sorts the frame's children:
+    - text-only children before the drawing give the label (else a bold or heading line inside, `aria-label`, `title`, the SVG's `<title>`, `alt`, or the heading before it);
+    - the other text-only children give the caption;
+    - the rest is the art.
+  - The target to draw is the single art element (its parent for a replaced element, cropped to it), or the frame with its text-only children hidden (`hide`). KaTeX's `annotation[encoding=application/x-tex]` becomes `tex`; a `.tag` gives the number.
+  - The page outlines the figure under the pointer with **＋ Figure · its title** (or **＋ Figure 2** / **＋ Table** / **＋ Equation 3**). Clip mode (`snipset` mode) outlines all and lays a capture layer that stays put while a box is drawn. A box asks **Picture · Equation · ✕** and names the smallest element holding it (`holder`), so only that part is drawn. Esc ends it. `snipgoto` scrolls to an element (path) or rect and flashes it.
+  - Messages: page → app `snipready`, `snip` {fig}, `snipbox` {as, rect, target, crop}, `snipoff`; app → page `snipset` {ok, mode}, `snipgoto`.
+  - App side:
+    - `HSNIP.editable` / `ok`: live, not in a travel pane or an exported note.
+    - `HSNIP.btn` / `toggle`: the scissors on the card's `.embed-tools` (after ⛶), on the maximised bar as **Snip**, and on the beside bar.
+    - `HSNIP.canvas`: `freeze` with `mark` / `hide`, then `HTMLX.render` of that element. The scale is about 1600 px wide (1.5–3×), at most 6000 px a side and 30 MP; the result is cropped.
+    - `HSNIP.picture`: WebP, `MEDIA.add`, `FIG.create` at `HSNIP.spot` (over the place it came from when the card shows it, else `CLIP.spot`), `CLIP.lift`, `clip` { src, media, kind: 'html', at, rect, label, file }, caption → text, a `c:clipped from` wire.
+    - `HSNIP.equation`: the KaTeX LaTeX, or a 1000 px JPEG snip, through `CLIP.eqEdit`.
+    - `HSNIP.show`: back to the page, maximised if open, else the card.
+- **`/collection <kinds…>`** (11b, alias `/collect`, group Find): the Atlas with just those types.
+  - A new argument kind `collect` (list without the types already on the line, with counts; resolve tolerates plurals and other words for a type, and names unknown words). A new argument flag `many` (`CMD.resolve`: every word left, as a list).
+  - With no types (or typed in a component) it wakes the bar on `/collection `.
+- **The Atlas collection** (14b):
+  - `ATLAS.COLL`: 23 types (html, pdf, image, snip, whiteboard, table, plot, equation, slides, recording, ink, quote, text, protocol, run, task, material, plate, timer, calculator, view, notecard, pulled), each with the words it answers to. `items()` adds any other widget the build carries (the web build's `rmpaper`…) and the component kinds (`CKINDS.all()`).
+  - `itemFor` (a word, plural, alias or name), `counts`, `collect(ids)` (saves the chips, shows only components, lens = the whole notebook), `uncollect`.
+  - `st.only`: `graph()` keeps the components of those types (coloured by type, `CCOL`), and only the notes that hold them. Every node is labelled up to 90.
+  - `collRow()`: the row with each type's colour, count and ×, **+ Add**, **Show everything**, and the command. Ctrl+K / `/find` leave the collection.
+- **Paste from outside and between notes** (13zu2 `CLIPX`, 13zu-lasso2):
+  - `CLIPX.keyCopy` (Ctrl+C with components selected — the lasso, Ctrl+click, or the one clicked — and no text highlighted) makes the clip with `LASSO2.copy({ sys: false })` and arms the copy event. A `beforecopy` listener cancels it, which enables Copy with nothing selected. `CLIPX.copy` then writes the text and `application/x-scientia+json` `{ kind: 'boxes', docId, ids }`; with no copy event, `navigator.clipboard.writeText` after 150 ms.
+  - `CLIPX.copied` recognises the copy (our type, or the text the copy wrote).
+  - `CLIPX.pull`: in another note a `ref` for each component (its original for a ref; skipped when already in that note), placed as they sat; strokes copied; in their own note, or with Ctrl+Shift+V (`shiftAt`), `LASSO2.drop` copies. The pen's paste (`LASSO2.paste`) pulls in too.
+  - `CLIPX.files` / `sort` / `addFiles`:
+    - pictures and videos go in one image panel (lettered when several; a screenshot is named `Pasted <day> <time>`);
+    - PDF, HTML, spreadsheet and slides go through `PDFW.insert` / `EMBED.insert` / `TABLE.insert` / `DECK.insert`, with `CLIPX.through` standing the files in for `PLATE.pickFiles`;
+    - other files are named in a toast;
+    - pictures pasted while writing in a component go under it;
+    - a rich copy (text and HTML with a picture of itself) pastes its text.
+  - The paste lands on the pane under the pointer.
+
+### Changed
+- **13zze `INKSCRIPT` freeze**: each SVG element carries its computed styles (`SVP`: fill, stroke…, font…), boxes scrolled carry `data-sis-sx` / `-sy`, `mark` marks the element to draw (`data-sis-snip`) and `hide` the ones to leave out (`data-sis-hide`); `.sis-snip` is left out of the copy. Export ink labels gets the SVG colours too.
+- **13zze `HTMLX.render(fz, rect, o)`**: waits for the page's fonts (2.5 s at most), scrolls the boxes back, hides `data-sis-hide`; `o.mark` draws the marked element alone on the colour behind it (`HTMLX.bg`, read as pixels so any colour syntax works), `o.scale`, `o.canvas`.
+- **13zza**:
+  - `CLIP.eqEdit(src, { snip, tex, at, name, title, clip, ready })` is the editor half of `CLIP.equation`, shared with the HTML snip;
+  - a clip's "from …" leaves out "p." for a page;
+  - `CLIP.show` hands an HTML clip to `HSNIP.show`.
+- **11c navigation bar**:
+  - `NAV.place`: the list over the word being completed, the rest of the highlighted completion in grey after the text (`.nav-ghost`; Tab takes it);
+  - a `many` argument keeps the list open after each pick (`NAV.take`) and shows up to 80 rows;
+  - `K.list` gets the parse.
+- **13zu-lasso2 `LASSO2.copy(o)`** keeps every selected component (`refs`, protocols and timers too: a copy still leaves them) and its note; its own Ctrl+C handler gave way to `CLIPX.keyCopy`.
+- `scripts/scientia_macro.py` `ALIAS`: `rmcollection` → `labcollection`.
+- `scientia/MANUAL.md`:
+  - §3 The Atlas: a collection;
+  - §5 Copy and paste, and The navigation bar;
+  - §10 PDF and HTML pages: snipping;
+  - §17 the pen's paste;
+  - §24 the shortcut card.
+
+### Tests
+- **Headless Chrome, the desktop build (lab layer on), real mouse and keys over the debugging connection, Gabe's three report files:**
+  - HTML snip, 22 checks:
+    - the MESF page pasted as a file becomes an HTML page;
+    - in the maximised page, hovering "Well B2" outlines it with **＋ Figure · Well B2**, and its badge gives an image panel labelled "Well B2" (1023 × 1488, the page's own dark background, SVG colours kept), wired `c:clipped from`, with `clip` { kind html, at, rect };
+    - "from …" scrolls the page back (scrollY 9 964) and flashes it;
+    - a panel of heading, legend, caption and chart gives legend and chart (1657 × 885), label = the heading, text = the caption;
+    - the scissors (**Snip**) outline 95 figures; a box asks Picture / Equation; Picture gives 960 × 540 = the box at 3×; Equation opens the editor over the snip; Esc ends it (page and button);
+    - a canvas plot (Bead page) gives an image panel titled with its header (1083 × 1002);
+    - on the card itself the badge comes in Move, not with the pen, and the panel lands on top of the card where the plot was, floating.
+  - Paste and pull-in, 19 checks:
+    - a screenshot becomes an image panel 640 × 400 named "Pasted 2026-11-09 09.33.png"; three pictures make one panel of three, lettered;
+    - a PDF and an HTML file copied together become a PDF and an HTML page, and `PLATE.pickFiles` is itself again;
+    - text becomes a component; a Word-like copy (text, HTML and its picture) pastes its text;
+    - a picture pasted into a component's text goes under it, the text unchanged;
+    - Ctrl+C on the clicked component: beforecopy, then copy; the clipboard holds its text;
+    - Ctrl+V in note B pulls it in; two Ctrl+clicked components are pulled in together, placed as they sat (within 14 px);
+    - Ctrl+Shift+V (one paste event) gives two copies; pasted in their own note they are copied;
+    - text highlighted in a component: Ctrl+C copies "Beads".
+  - `/collection`, 19 checks:
+    - `/colle` offers `/collection` with "ction" in grey; Tab, then a space lists all 33 types with counts ("HTML pages · 2");
+    - `ht` gives `html` with "ml" in grey and the list over the word; Tab adds it and keeps the list without it; a click adds `image`; `pdfs` counts as `pdf`;
+    - Enter opens the Atlas with exactly the 2 HTML pages, 2 image panels and 1 PDF and their wire; the row reads "HTML pages 2 · Image panels 2 · PDFs 1" and `/collection html image pdf`;
+    - × takes PDFs out; the Notes chip brings back just the two notes that hold them; Show everything restores the chips;
+    - `gizmo` is named in a toast; typed in a component, `/collection` opens the bar with every type and leaves no text; a macro step `{ kinds: "table text" }` works.
+- **Harnesses:** lab-mode 278/278, notes 13/13. `node scripts/tests/scientia-doi-lookup.test.mjs`: 68 passed.
+- `sw.js` CACHE_VERSION 930 → 931.
+
 ## [V3.960] — 2026-11-05 — Scientia: the edge pan starts at the edge, and the mouse's movement past it speeds it up (on the desktop, past the screen's edge too)
 
 Gabe, after V3.959: "The edge pan is not working how I want it to. At the edge should be the start of the pan speed, and continuing to register mouse movement beyond that increases the speed."

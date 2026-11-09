@@ -1782,9 +1782,9 @@
   },
   {
    "id": "scientia.pdf",
-   "name": "Scientia PDFs: read beside the note, highlight, clip figures and equations",
+   "name": "Scientia PDFs and HTML pages: read beside the note, highlight, clip figures and equations",
    "side": "scientia",
-   "summary": "A PDF on a note: the card on the canvas (on-demand drawing), the maximised reader with its highlights, the paper read beside the note (half the window), and clipping a figure (image panel) or an equation (read to LaTeX, an equation component) onto the canvas, wired to the paper.",
+   "summary": "A PDF on a note: the card on the canvas (on-demand drawing), the maximised reader with its highlights, the paper read beside the note (half the window), and clipping a figure (image panel) or an equation (read to LaTeX, an equation component) onto the canvas, wired to the paper. V3.961: the same clip from an HTML page (13zzm): its figures, tables and display equations found in the page (the box that holds one drawing), drawn from the page's frozen copy by html2canvas.",
    "keywords": [
     "pdf",
     "reader",
@@ -1797,12 +1797,15 @@
     "latex",
     "highlight",
     "quote",
-    "wire"
+    "wire",
+    "html",
+    "page"
    ],
    "paths": [
     "scientia/src/13zk-docs.js",
     "scientia/src/13zz-maxhl.js",
     "scientia/src/13zza-clip.js",
+    "scientia/src/13zzm-htmlsnip.js",
     "scientia/src/13zzb-reader.js",
     "scientia/vendor/page-layout.js",
     "scientia/vendor/page-regions.js"
