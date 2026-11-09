@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.962] — 2026-11-09 — Scientia: menus keep out of each other's way, "Snip figure" on the HTML card, Iteration
+
+Gabe: "Some menus start to overlap with each other (text editor bar with Alt+Click options, or Ctrl selection of components clicking on their text box, etc...). The snip figure for HTMLs should be a button outside of the maximized HTML as well and snipping a figure automatically brings you out of the HTML. When a figure is snipped, it should deselect the snip figure. Make a new Iteration component kind that links to a new version of that same component, creating a blank component that version 1 is, asking for an explanation of how it improved (just like an image panel caption underneath the component)."
+
+No lab-layer change.
+
+### Added
+- **`scientia/src/13zzn-layers.js` `LAYERS`**: what floats over the paper keeps out of its own way.
+  - `popover` (wrapped) puts the hover card away (`hideHover`); `hoverCard` (wrapped) opens nothing while a menu or the Ctrl+Enter strip is open, unless the anchor is inside it.
+  - `LAYERS.ebar()`: the text editor bar takes `.yield` (hidden, no pointer) while a `.pop` that is not its own, a `.hovercard`, the `.ink-selbar` or a `.wselbar` overlaps it, or while its component is in `INK.sel.boxes`. It is checked from `EBAR.place`, a `MutationObserver` on `body`, `INK.paintSel` and `INK.clearSel`.
+  - `LAYERS.own(pop)`: the bar's own menus (`.symp`, `.ebmore`) go under the bar, else over it, never beneath it.
+  - `LAYERS.selbar()`: the selection's bar goes under the selection, else right, left or above, at the first place that covers no unselected `.box` and is on screen (else the first free one, else under).
+  - `LASSO2.toggleBox` (wrapped): the Ctrl+click that selects a component blurs a component's text and drops the caret.
+- **`scientia/src/13zzo-iterate.js` `ITER`**: Iteration.
+  - `ITER.make(from)`: the next version, made blank by `ITER.blank` (text: `M.addBlock` with the same `ckind`; image panel: `FIG.create` with the same rows and columns; table: `TABLE.empty`; equation: `EQ.create` with no TeX; plate: `PLATE.insert` with the same format; else the + Insert row of that kind, so an HTML page, a PDF or slides ask for the file). It goes at `ITER.spot`, right of the component and past whatever is there.
+  - The component made while `ITER.pending` is set (same note and kind, `M.addBlock` wrapped) becomes the version (`ITER.attach`): `iter` { of, root, v, why }, the same `ckind`, label (a file keeps its own), `w`/`h` and image-panel letters, and a wire `iterates` from the version before. A file dialog disarms the pending version until a file is chosen.
+  - The version is moved to the spot planned for it (a plot's insert makes it where its table is).
+  - `KREL` `iterates` ("next version", "is improved in" / "improves on"), colour `#0e7490`.
+  - `VAULT.component` (wrapped): the notebook folder's Markdown of a version ends with `## Iteration` (version, the one it improves on as a wikilink, how it improved).
+  - The header shows `button.iter-v` (v1, v2…; version 1 once it has a next); a click lists the versions (`ITER.menu`) and makes the next. Under a version, `div.iter-why`: "How v2 improved on v1 ↑" and a contenteditable caption (`iter.why`, saved after typing stops and when it loses focus; `DocView.update` wrapped to keep the words and the caret through a redraw).
+  - `CKINDS.BASE` gains `iteration` (`act: true`): in the kind label's list and Settings it says what it does (`CKINDS.ways` wrapped); choosing it (`CKINDS.set` wrapped) runs `ITER.make` instead of setting a kind.
+  - The component's ⋯ gains **New iteration** (`DocView.boxMenu` wrapped).
+- **`/iteration [component]`** (11b, alias `/iterate`, `/version`, group Note): the selected (or named) component's next version.
+- **`/collection iteration`** (14b `ATLAS.COLL`): every version of a component that has more than one.
+
+### Changed
+- **HTML snip (13zzm)**:
+  - The card's scissors are **Snip figure** in the card's header (`.hs-bar`, docked by 13zg `SLIM.BARS.html`), outside the page. V3.961 wrapped `EMBED.body`, which the card does not call (`WIDGETS.html.body` holds the original), so the card had no scissors; the wrapper is now on `WIDGETS.html.body`.
+  - `HSNIP.after(src, fr)`: a picture snipped ends clip mode (`HSNIP.toggle(id, false)`) and closes the maximised page it came from (`MXHL.close`, not the page read beside). An equation ends clip mode when its editor opens, and closes the maximised page on Done (`CLIP.eqEdit` takes `done`).
+- **The selection's bar** (21-sync.css): `width: max-content`. With the layer it sits in 0 px wide, its wrapping row shrank to a column of buttons that covered the next component, so a Ctrl+click on that component's text hit the bar.
+
 ## [V3.961] — 2026-11-09 — Scientia: snip figures out of HTML pages, /collection in the Atlas, paste from outside and between notes
 
 Gabe: "I want you to add the snip figure from PDFs to HTMLs (adapt it to HTMLs however you need to to make it work). Add a /collection command which brings you to the atlas to see just the components listed after this command … List out all possible things to add to /collection and typing this command brings up suggestions in a list format that you can click to add to the line, like how video games do (look at Minecraft). Also, copying and pasting from outside of the notebook to the notebook should work … Also, copying a, or multiple components from a note and pasting in another note should default as pulling in those components." His examples: three exported reports whose figures are drawn by their own scripts (SVG charts in `div.panel` cards, canvas plots in `div.plot` cards, tables, pictures).

@@ -1336,6 +1336,8 @@
     "scientia/src/23-presence.css",
     "scientia/src/13zzl-story.js",
     "scientia/src/24-kinds.css",
+    "scientia/src/13zzn-layers.js",
+    "scientia/src/13zzo-iterate.js",
     "scientia/pen-button/**"
    ],
    "distinct_from": {
