@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.968] — 2026-11-10 — Scientia: Export canvas (HTML) works again
+
+Gabe: "Export HTML stopped working." The exported file opened blank: the export's own pattern for the desktop build's `<!--sis-desktop-->` blocks was written with a whole opening marker, which is itself in the page, so since V3.929 (the lab layer inline at the end of the desktop build) the match ran from that line to the last marker and cut the viewer and the boot out of the file.
+
+### Bug Fixes
+- **`scientia/src/21b-canvasexport.js` (`CANVASX.export`):** the markers (`OPEN`, `SHUT`) and the web flag are built from pieces so the app's own text never matches; the flag pattern takes the whole `<script>window.SIS_TARGET = 'web'; …</script>` line (it carries `SIS_BOARD_V` since V3.937); before the download the file must still hold `const VIEWER = window.SIS_EXPORT` and `(async function boot()` and no marker or flag, else a toast and nothing saved.
+
 ## [V3.967] — 2026-11-10 — Scientia: Iteration as a deck, a Troubleshooting kind, the Synthesis at the end of an experiment
 
 Gabe: "Iteration should stack as a deck of cards with an easy right or left swipe through iterations. Make a troubleshooting kind that also contains this feature. Reflection at the end of an experiment becomes synthesis… All claims, evidence, results, takeaways, barriers, resolutions, and a panel of the rest of the components in a scrollable list for you to pick any more, get transferred to the synthesis note automatically, and you build/rearrange the note." Plan: `CodeLog/ClaudesPlan/V3.967_scientia_deck_synthesis.md`. On `scientia/atlas-nests` (V3.966).
