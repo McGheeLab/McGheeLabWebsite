@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (66 changes — ready to push)
+## Pending (67 changes — ready to push)
+
+- **The Atlas is now a set of nests in 3D (V3.966):** the notebook is a sphere holding your projects, each project holds its notes, each note holds its components; terms, papers and people orbit the note or project they belong to most. Click a nest to fly into it, click outside to fly out, drag to turn, scroll to come closer, hover anything to see its threads. The lens, the chips, the search, the action chips and `/collection` work as before.
 
 - **Scientia uses far less power at rest (V3.965):** the desktop app no longer re-sends the whole notebook after every edit (sync already carries it), the pulsing dots stop when nobody has touched the app for three minutes, the periodic sweeps and the backup only run when something changed, and the lab sync slows down while you are away and speeds up at your first touch. Nothing you see while working is slower.
 
