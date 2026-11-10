@@ -273,6 +273,42 @@ const dev = (hub, id, conn) => ({
     assert.strictEqual((await call(hub, web, 'POST', '/api/rm/library/refresh', {})).body.ok, false);
   });
 
+  /* ---- V3.963: shelves from RM (groups → foci) and a paper's PDF up to RM ---- */
+  await test('rmGroupsPlan: manual groups as they are, draft groups as the papers linked today, smart ones left in RM and counted', () => {
+    const items = [rmItem('p1', { linked_drafts: ['d1'] }), rmItem('p2', { linked_drafts: ['d1', 'd2'] }), rmItem('p3')];
+    const plan = C.rmGroupsPlan({ mine: [{ id: 'g1', name: ' Gels ', kind: 'manual', paper_ids: ['p1', 'p3', 'p1'] }, { id: 'g2', name: 'Draft A', kind: 'draft', draft_id: 'd1' }, { id: 'g3', name: 'Recent soft', kind: 'smart', query: 'soft' }, { id: 'g4', name: '' }, null],
+      lab: [{ id: 's1', name: 'Lab reading', paper_ids: ['p2'] }], items });
+    assert.deepStrictEqual(plan.mine, [{ id: 'g1', name: 'Gels', kind: 'manual', from: 'mine', paperIds: ['p1', 'p3'] }, { id: 'g2', name: 'Draft A', kind: 'draft', from: 'mine', paperIds: ['p1', 'p2'] }]);
+    assert.deepStrictEqual(plan.lab, [{ id: 's1', name: 'Lab reading', kind: 'manual', from: 'lab', paperIds: ['p2'] }]);
+    assert.strictEqual(plan.smart, 1);
+  });
+  await test('pdfUpPlan: only a library entry without a PDF takes one; RM’s own record and path (sha256[:16])', () => {
+    assert.strictEqual(C.pdfUpPlan({ item: null }).ok, false);
+    assert.match(C.pdfUpPlan({ item: rmItem('p1', { pdf: { storage_path: 'papers/p1/x.pdf' } }) }).error, /already has a PDF/);
+    assert.strictEqual(C.pdfUpPlan({ item: rmItem('p1', { is_library_entry: false }) }).ok, false);
+    assert.deepStrictEqual(C.pdfUpPlan({ item: rmItem('p1') }), { ok: true }, 'without bytes it only checks the paper');
+    assert.match(C.pdfUpPlan({ item: rmItem('p1'), bytes: Buffer.from('hello, not a pdf at all') }).error, /not a PDF/);
+    const bytes = Buffer.from('%PDF-1.7\n' + 'x'.repeat(2000)), hex = require('crypto').createHash('sha256').update(bytes).digest('hex');
+    const plan = C.pdfUpPlan({ item: rmItem('p1'), bytes, by: 'gabe@x', now: new Date('2026-11-09T10:00:00') });
+    assert.strictEqual(plan.dest, 'papers/p1/' + hex.slice(0, 16) + '.pdf');
+    assert.deepStrictEqual(plan.pdf, { storage_path: plan.dest, hash: hex.slice(0, 16), full_hash: hex, filename_safe: 'p1.pdf', size_bytes: bytes.length, uploaded_at: '2026-11-09', uploaded_by: 'gabe@x', source: 'scientia' });
+  });
+  await test('routes: /api/rm/library/groups lists them; /api/rm/library/pdf-up copies the hub’s media into RM and the mirror says RM has the PDF', async () => {
+    const hub = new C.MemoryHub(), web = { uid: 'u1', id: 'u1', kind: 'browser', name: 'Gabe' };
+    hub.rmItems = [rmItem('p1'), rmItem('p2', { pdf: { storage_path: 'papers/p2/y.pdf' } })]; hub.rmPaperGroups = [{ id: 'g1', name: 'Gels', paper_ids: ['p1'] }]; hub.rmSharedGroups = [{ id: 's1', name: 'Lab', paper_ids: ['p2'] }];
+    const g = (await call(hub, web, 'GET', '/api/rm/library/groups')).body;
+    assert.deepStrictEqual([g.ok, g.mine.map(x => x.name), g.lab.map(x => x.name), g.smart], [true, ['Gels'], ['Lab'], 0]);
+    assert.strictEqual((await call(hub, web, 'POST', '/api/rm/library/pdf-up', { body: { id: 'p1', media: '../secret.pdf' } })).status, 400, 'only a file of the hub’s images/');
+    assert.strictEqual((await call(hub, web, 'POST', '/api/rm/library/pdf-up', { body: { id: 'a/b', media: 'images/m1.pdf' } })).status, 400);
+    assert.match((await call(hub, web, 'POST', '/api/rm/library/pdf-up', { body: { id: 'p1', media: 'images/m1.pdf' } })).body.error, /not reached the lab cloud/);
+    await hub.mediaPut('images/m1.pdf', Buffer.from('%PDF-1.4\n' + 'y'.repeat(1500)), 'application/pdf');
+    assert.match((await call(hub, web, 'POST', '/api/rm/library/pdf-up', { body: { id: 'p2', media: 'images/m1.pdf' } })).body.error, /already has a PDF/);
+    const up = (await call(hub, web, 'POST', '/api/rm/library/pdf-up', { body: { id: 'p1', media: 'images/m1.pdf' } })).body;
+    assert.strictEqual(up.ok, true); assert.ok(hub.rmPdfs.has(up.path)); assert.strictEqual(hub.rmItems[0].meta.library.pdf.source, 'scientia');
+    const row = [...hub.libraryRows().values()].find(r => r.id === 'p1');
+    assert.ok(row && row.rec.rmPdf === true && row.rec.pdf === 'rm:p1', 'the mirror ran: the row says RM has the PDF');
+  });
+
   /* ---- V3.870: RM inventory for Scientia's materials ---- */
   const inv = (id, extra) => Object.assign({ id, kind: 'item', name: 'Thing ' + id, description: '', category: 'consumable', subcategory: 'tubes', vendor: 'Alkali Scientific (ASi)',
     catalogue_number: 'C' + id, quantity: 3, stock_status: 'full', condition: 'active', is_consumable: true, locations: [], updatedAt: '2026-04-30T20:27:11.435Z' }, extra || {});

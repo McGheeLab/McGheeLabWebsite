@@ -223,6 +223,25 @@ class FirestoreHub {
     tok = String(tok).split(',')[0];
     return { ok: true, id, path: String(path), url: 'https://firebasestorage.googleapis.com/v0/b/' + bucket().name + '/o/' + encodeURIComponent(f.name) + '?alt=media&token=' + tok };
   }
+  /* ---- V3.963: your RM paper groups and the lab's (to import as foci), and a paper's PDF up to RM (core: rmGroupsPlan, pdfUpPlan) ---- */
+  async rmGroups() {
+    const [us, shared, items] = await Promise.all([db().collection('userSettings').doc(this.uid).get(), db().collection('librarySharedGroups').get(),
+      db().collection('items').where('type', '==', 'paper').where('meta.library.is_library_entry', '==', true).get()]);
+    const lib = us.exists && (us.data() || {}).library, mine = lib && Array.isArray(lib.paper_groups) ? lib.paper_groups : [];
+    const plan = C.rmGroupsPlan({ mine, lab: shared.docs.map(x => Object.assign({ id: x.id }, x.data() || {})), items: items.docs.map(x => Object.assign({ id: x.id }, x.data() || {})) });
+    return Object.assign({ ok: true }, plan);
+  }
+  async rmPdfUp({ id, path, by }) {
+    const ref = db().collection('items').doc(String(id)), snap = await ref.get(), item = snap.exists ? Object.assign({ id: String(id) }, snap.data() || {}) : null;
+    const first = C.pdfUpPlan({ item }); if (!first.ok) return first;
+    let bytes = null; try { [bytes] = await this._file(path).download(); } catch (e) { bytes = null; }
+    if (!bytes) return { ok: false, error: 'the PDF has not reached the lab cloud yet — it goes with this notebook’s next sync; try again in a minute' };
+    const plan = C.pdfUpPlan({ item, bytes, by, now: Date.now() }); if (!plan.ok) return plan;
+    await bucket().file(plan.dest).save(bytes, { contentType: 'application/pdf', resumable: false, metadata: { metadata: { uploadedBy: String(by || this.uid), fullHash: plan.pdf.full_hash } } });
+    await ref.update({ 'meta.library.pdf': plan.pdf, updated_at: plan.pdf.uploaded_at });
+    try { await this.mirrorLibrary({ force: true }); } catch (e) { /* the next mirror brings it */ }
+    return { ok: true, id: String(id), path: plan.dest, bytes: bytes.length };
+  }
   /* ---- RM inventory for Scientia's materials (V3.870): compact rows, cached per instance, searched here ---- */
   async inventory({ q, limit, ids } = {}) {
     const now = Date.now();

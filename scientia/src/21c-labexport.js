@@ -26,7 +26,6 @@ const LABX = {
     const later = [
       [B.filter(b => live(b) && b.kind === 'table').length, 'table', 'tables show as their name and first rows (the cells stay in the record)'],
       [B.filter(b => live(b) && b.kind === 'plot').length, 'plot', 'plots show as their name'],
-      [(data.stores.libsets || []).length, 'library theme or group', 'kept in the record, not shown in the online Library', 'library themes and groups'],
       [(data.stores.inklib || []).length, 'saved ink drawing', 'the ink library isn’t online yet'],
       [B.reduce((n, b) => n + ((b.ink && b.ink.strokes) || []).filter(s => s.dash).length, 0), 'dashed or dotted stroke', 'drawn solid online'],
     ].filter(x => x[0]);

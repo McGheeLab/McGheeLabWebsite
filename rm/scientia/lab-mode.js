@@ -7,7 +7,10 @@
 
      Library    the lab's library, mirrored from RM by the hub (`library` rows
                 with rm:true, id = the RM item id, so cites and M.lib() keep
-                working). Read / open → RM's reader. Adding = RM's import.
+                working). Read / open → RM's reader. V3.963: papers are added here
+                again (DOI, pasted citation) and pushed to RM with their PDFs; Pull
+                brings an RM paper's PDF into the notebook; shelves and foci, and
+                your RM groups imported as foci (section 3).
      Activity   gone — a pointer to RM's activity tracker (desktop keeps its own).
      Data       gone — desktop only (folder handles need the computer).
      Tasks page RM's Tasks + this notebook's task components and their RM state.
@@ -66,61 +69,163 @@
     VIEWS.data = pointer('Data', 'Desktop only', 'Data by reference needs the folder on your computer (the microscope’s export, your disk). Bind, rescan and preview datasets in the desktop app; their records sync here.', null, '');
   } catch (e) { warn('pointers', e); }
 
-  /* ---- 3. the Library: the lab's papers, from RM ---- */
+  /* ---- 3. the Library: the lab's papers, from RM, and your own ----
+     V3.963 (Gabe's request; Alex reviews): the page adds papers again — by DOI or a pasted citation, the app's own cards
+     (LibraryView.adders) — and they go up to RM's library: on their own with the next sync (the hub's V3.927 syncUp,
+     details only), or now with Push, which sends the PDF too (api/rm/library/pdf-up: the file already in the hub's media
+     is copied into RM's storage). Pull brings an RM paper's PDF into this notebook (a PDF media record with rmPaper, the
+     one RMREAD reads), so it reads here — in this app's reader, with your own highlights — on the website and offline on
+     the computer. The app's shelves and foci (17d, LGROUP) are the tree on the left for both lists; Import from RM makes
+     each of your RM groups and the lab's a focus, on the shelves "My RM groups" and "Lab groups" (api/rm/library/groups;
+     an import again updates them where you put them). */
   var Orig = null, OrigRead = null;
   try { Orig = VIEWS.library; OrigRead = VIEWS.read; } catch (e) { warn('views', e); }
 
   function isRm(r) { return !!(r && r.rm && r.rmId); }
   function hay(r) { return [r.title, r.container, r.year, (r.authors || []).map(function (a) { return a.family + ' ' + a.given; }).join(' '), r.doi].join(' ').toLowerCase(); }
   function matches(q, r) { if (!q) return true; var H = hay(r); return q.toLowerCase().split(/\s+/).filter(Boolean).every(function (w) { return H.indexOf(w) >= 0; }); }
+  function rmIdOf(r) { return String(r.rmId || (r.rmSync && r.rmSync.rmId) || ''); }
+  /** The PDF of a paper kept in this notebook: its own file, or one pulled from RM. */
+  function localPdf(r) {
+    if (r.pdf && String(r.pdf).indexOf('rm:') !== 0 && MEDIA.get(r.pdf)) return MEDIA.get(r.pdf);
+    var ids = [String(r.id), rmIdOf(r)].filter(Boolean);
+    return DB.where('media', function (m) { return m.kind === 'pdf' && m.rmPaper && ids.indexOf(String(m.rmPaper)) >= 0; })[0] || null;
+  }
+  var busy = {};
+  async function pullPaper(r) {
+    var pid = String(r.rmId || r.id); if (busy[pid]) return; if (localPdf(r)) return toast('Already in your notebook');
+    busy[pid] = true; toast('Fetching the PDF from RM…');
+    try {
+      var blob = null, err = '', res, j;
+      if (window.SIS_DESKTOP) {   // this computer's server fetches it (V3.944; the site's storage takes no other origin)
+        res = await fetch('api/rm-pdf?id=' + encodeURIComponent(pid), { cache: 'no-store' });
+        if (res.ok && /pdf/.test(res.headers.get('Content-Type') || '')) blob = await res.blob(); else { j = await res.json().catch(function () { return null; }); err = (j && j.error) || 'HTTP ' + res.status; }
+      } else {
+        res = await fetch('api/rm/library/pdf?id=' + encodeURIComponent(pid), { cache: 'no-store' }); j = await res.json().catch(function () { return null; });
+        if (j && j.ok && j.url) { var f = await fetch(j.url); if (f.ok) blob = await f.blob(); else err = 'HTTP ' + f.status; } else err = (j && j.error) || 'HTTP ' + res.status;
+      }
+      if (!blob) return toast('The PDF did not come from RM (' + err + ')', 5000);
+      var name = String(r.title || 'Paper').replace(/[\\/:*?"<>|\s]+/g, ' ').trim().slice(0, 80) + '.pdf';
+      await MEDIA.add(new File([blob], name, { type: 'application/pdf' }), { extra: { rmPaper: pid } });
+      toast('In your notebook — Read here opens it in this app, with your own highlights'); App.refresh();
+    } catch (e) { toast('The PDF did not come from RM (' + (e.message || e) + ')', 5000); }
+    finally { delete busy[pid]; }
+  }
+  function readHere(r) {
+    var pid = String(r.rmId || r.id);
+    if (typeof RMREAD !== 'undefined' && RMREAD.read) return RMREAD.read(pid, RM.paper(pid)).catch(function (e) { warn('read here', e); });
+    App.go('#/read/' + r.id);
+  }
+  /** Push: the paper to RM now (its details, by the hub's own syncUp), then its PDF when it has one and RM has none. */
+  async function pushPaper(r) {
+    if (busy[r.id]) return; busy[r.id] = true; sayText = 'Sending “' + (r.title || 'the paper') + '” to RM…'; if (status) status.textContent = sayText;
+    try {
+      var rid = rmIdOf(r);
+      if (!isRm(r) && !(r.rmSync && (r.rmSync.state === 'done' || r.rmSync.state === 'matched'))) {
+        var j = await (await fetch('api/rm/sync?only=up', { method: 'POST' })).json().catch(function () { return null; });
+        if (!j || !j.ok) return say('RM did not answer (' + ((j && j.error) || 'no connection') + '). It goes up with the next sync.');
+        for (var k = 0; k < 20 && !rid; k++) { await new Promise(function (ok) { setTimeout(ok, 500); }); var cur = M.lib(r.id) || r; rid = isRm(cur) ? cur.rmId : (cur.rmSync && (cur.rmSync.state === 'done' || cur.rmSync.state === 'matched')) ? (cur.rmSync.rmId || cur.id) : ''; }
+        if (!rid) return say('Not in RM yet: it goes when this notebook next syncs, if it has a title and a DOI or authors. Push again then for its PDF.');
+      }
+      var rec = localPdf(M.lib(r.id) || r);
+      if (rec) {
+        var u = await (await fetch('api/rm/library/pdf-up', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: rid, media: 'images/' + rec.id + '.pdf' }) })).json().catch(function () { return null; });
+        if (u && u.ok) { if (!rec.rmPaper) { rec.rmPaper = rid; DB.put('media', rec); } say('Sent to RM with its PDF.'); }
+        else if (u && u.has) say('In RM — RM already had its PDF, so yours stays here.');
+        else return say('In RM, but the PDF did not go: ' + ((u && u.error) || 'no answer'));
+      } else say('Sent to RM (no PDF: attach one with + PDF, then Push again).');
+      refreshLibrary();
+    } catch (e) { say(String(e.message || e)); }
+    finally { delete busy[r.id]; }
+  }
+  function say(t) { sayText = t; if (status) status.textContent = t; toast(t, 4000); }
 
-  function card(r) {
-    var pdf = !!r.rmPdf;
-    return h('div.card.flat.lab-paper', { 'data-rm': r.rmId, style: { display: 'flex', gap: '10px', alignItems: 'flex-start' } },
-      LIB.sigil ? LIB.sigil(r, 36) : null,
-      h('div', { style: { flex: '1 1 auto', minWidth: 0 } }, h('div', h('b', r.title || r.url || 'Untitled')), h('div.tiny.muted', LIB.apa(r))),
-      h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' } },
-        h('span.pill', pdf ? 'pdf in RM' : 'no pdf'),
-        pdf ? btn('xs pri', 'Read in RM', function () { readPaper(r); }, 'Read and highlight in RM’s reader') : null,
-        btn('xs', 'Open in RM', function () { openRM(RM.paper(r.rmId)); }, 'The paper’s page on the lab site')));
+  /* Import from RM: each group a focus (LGROUP: kind 'group' with rmGroup), on a shelf of its source (kind 'theme' with rmShelf) */
+  async function importGroups() {
+    say('Asking RM for your groups…');
+    var j = await (await fetch('api/rm/library/groups', { cache: 'no-store' })).json().catch(function () { return null; });
+    if (!j || !j.ok) return say('RM did not answer (' + ((j && j.error) || 'no connection') + ')');
+    var made = 0, kept = 0, now = isoLocal(new Date()), shelf = {};
+    DB.beginGroup('library');
+    function shelfOf(from) {
+      if (shelf[from]) return shelf[from];
+      var t = DB.where('libsets', function (x) { return x.kind === 'theme' && x.rmShelf === from; })[0];
+      if (!t) t = LGROUP.save({ id: uid('lt'), kind: 'theme', name: from === 'lab' ? 'Lab groups' : 'My RM groups', rmShelf: from, created: now });
+      if (LGROUP.open) { LGROUP.open.add(t.id); _ls.set('libOpen', Array.from(LGROUP.open)); }   // unfolded, so what came is in sight
+      return (shelf[from] = t);
+    }
+    (j.mine || []).concat(j.lab || []).forEach(function (g) {
+      var have = DB.where('libsets', function (x) { return x.kind === 'group' && x.rmGroup && x.rmGroup.id === g.id && x.rmGroup.from === g.from; })[0];
+      var info = { id: g.id, from: g.from, kind: g.kind, at: now };
+      if (have) { kept++; LGROUP.save(Object.assign({}, have, { name: g.name, paperIds: Array.from(new Set((have.paperIds || []).concat(g.paperIds))), rmGroup: info })); }
+      else { made++; LGROUP.save({ id: uid('lg'), kind: 'group', name: g.name, themeId: shelfOf(g.from).id, paperIds: g.paperIds.slice(), rmGroup: info, created: now }); }
+    });
+    say(!made && !kept ? 'No groups in RM to bring' : (made ? plural(made, 'focus', 'foci') + ' from RM' : '') + (made && kept ? ' · ' : '') + (kept ? plural(kept, 'focus', 'foci') + ' brought up to date' : '') + (j.smart ? ' · ' + plural(j.smart, 'smart group') + ' stay in RM (saved searches)' : ''));
   }
 
-  var status = null;
+  function card(r) {
+    var pdf = !!r.rmPdf, here = localPdf(r);
+    return h('div.card.flat.lab-paper', { 'data-rm': r.rmId, draggable: 'true', style: { display: 'flex', gap: '10px', alignItems: 'flex-start' },
+      on: { dragstart: function (e) { e.dataTransfer.setData('text/x-sis-paper', r.id); e.dataTransfer.effectAllowed = 'copy'; } } },
+      LIB.sigil ? LIB.sigil(r, 36) : null,
+      h('div', { style: { flex: '1 1 auto', minWidth: 0 } }, LGROUP.chips ? LGROUP.chips(r) : null, h('div', h('b', r.title || r.url || 'Untitled')), h('div.tiny.muted', LIB.apa(r))),
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' } },
+        h('span.pill', here ? 'pdf in your notebook' : pdf ? 'pdf in RM' : 'no pdf'),
+        here ? btn('xs pri', 'Read here', function () { readHere(r); }, 'In this app’s reader, with your own highlights (and RM’s)') : null,
+        pdf ? btn('xs' + (here ? '' : ' pri'), 'Read in RM', function () { readPaper(r); }, 'Read and highlight in RM’s reader') : null,
+        pdf && !here ? btn('xs', 'Pull into my notebook', function () { pullPaper(r); }, 'Download its PDF into this notebook: it reads here, and offline on your computer') : null,
+        !pdf && here ? btn('xs', 'Send the PDF to RM', function () { pushPaper(r); }, 'RM has no PDF of this paper: yours goes up') : null,
+        btn('xs', 'Open in RM', function () { openRM(RM.paper(r.rmId)); }, 'The paper’s page on the lab site')));
+  }
+  /** One of your own papers: the app's card, and where it stands with RM. */
+  function mineCard(r) {
+    var c = Orig && Orig.card ? Orig.card(r) : card(r), st = r.rmSync && r.rmSync.state, col = c.lastElementChild;
+    var tag = st === 'matched' ? h('span.pill', { title: 'RM already had it (same DOI, or same title and year)' }, 'in RM') : st === 'done' ? h('span.pill', 'sent to RM')
+      : r.kind === 'link' ? null : btn('xs', 'Push to RM', function () { pushPaper(r); }, 'Add it to the lab’s library now, with its PDF when it has one');
+    if (tag && col) col.insertBefore(tag, col.firstChild.nextSibling);
+    if (st === 'matched' && localPdf(r) && col) col.append(btn('xs ghost', 'Send the PDF to RM', function () { pushPaper(r); }, 'When RM has no PDF of it yet'));
+    return c;
+  }
+
+  var status = null, sayText = '';   // the line under RM's buttons; its words outlive a redraw of the page
   async function refreshLibrary() {
-    if (status) status.textContent = 'Asking RM…';
+    if (!/Sent|In RM/.test(sayText)) { sayText = 'Asking RM…'; if (status) status.textContent = sayText; }
     try {
       var r = await fetch('api/rm/library/refresh', { method: 'POST' });
       var j = r.ok ? await r.json() : null;
-      if (status) status.textContent = j && j.ok ? ('RM library mirrored: ' + (j.total || 0) + ' papers, ' + (j.written || 0) + ' changed') : 'Could not reach the hub';
+      if (!/Sent|In RM/.test(sayText)) { sayText = j && j.ok ? ('RM library mirrored: ' + (j.total || 0) + ' papers, ' + (j.written || 0) + ' changed') : 'Could not reach the hub'; if (status) status.textContent = sayText; }
       setTimeout(function () { try { App.refresh(); } catch (e) {} }, 1500);
       return j;
-    } catch (e) { if (status) status.textContent = String(e.message || e); return null; }
+    } catch (e) { sayText = String(e.message || e); if (status) status.textContent = sayText; return null; }
   }
 
   var LabLibrary = {
     q: '', title: true,   // title: true — the view sets its own title line; App.refresh() leaves the meta alone
     render: function () {
-      var rows = DB.all('library'), rm = rows.filter(isRm), mine = rows.filter(function (r) { return !isRm(r); });
+      var rows = DB.all('library'), rm = rows.filter(isRm), mine = rows.filter(function (r) { return !isRm(r); }), keep = function (r) { return !LGROUP.keep || LGROUP.keep(r); };
       var q = h('input.inp', { placeholder: 'Filter by author, year, journal, title…', value: LabLibrary.q, style: { width: '100%' },
         on: { input: debounce(function (e) { LabLibrary.q = e.target.value; draw(); }, 120) } });
       var list = h('div.list.lab-papers'), mineList = h('div.list.lab-mine');
       function draw() {
-        var rs = rm.filter(function (r) { return matches(LabLibrary.q, r); });
+        var rs = rm.filter(function (r) { return keep(r) && matches(LabLibrary.q, r); });
         list.replaceChildren.apply(list, rs.length ? rs.map(card) : [h('div.empty', rm.length ? 'Nothing matches' : 'The lab library has not arrived yet — Refresh from RM')]);
-        var ms = mine.filter(function (r) { return matches(LabLibrary.q, r); });
-        mineList.replaceChildren.apply(mineList, ms.length ? ms.map(function (r) { return Orig && Orig.card ? Orig.card(r) : card(r); }) : [h('div.empty', 'Nothing matches')]);
+        var ms = mine.filter(function (r) { return keep(r) && matches(LabLibrary.q, r); });
+        mineList.replaceChildren.apply(mineList, ms.length ? ms.map(mineCard) : [h('div.empty', mine.length ? 'Nothing matches' : 'None yet — add one by DOI or a pasted citation above')]);
       }
       draw();
-      App.setTitle('Library', [h('span', plural(rm.length, 'lab paper', 'lab papers') + ' · from RM')]);
-      status = h('div.tiny.mono.muted', { style: { minHeight: '18px', marginTop: '6px' } });
+      App.setTitle('Library', [h('span', plural(rm.length, 'lab paper', 'lab papers') + ' · from RM' + (mine.length ? ' · ' + mine.length + ' of your own' : ''))]);
+      status = h('div.tiny.mono.muted.lab-lib-status', { style: { minHeight: '18px', marginTop: '6px' } }, sayText);
+      var sel = LGROUP.selLabel && LGROUP.selLabel();
       return h('div.page', h('div.eyebrow', 'The lab'), h('h1.title', 'Library'),
-        h('p.stand', 'The lab’s library, from RM. Cite any of these papers from any note; read and highlight them in RM’s reader. Papers are added in RM — by DOI, PDF or the capture extension — and arrive here within minutes.'),
-        h('div.card.flat', h('h3.lab', { style: { marginTop: 0 } }, 'Add a paper · in RM'),
-          h('div.row', btn('pri', 'Open RM’s Library', function () { openRM(RM.library); }), btn('', 'Refresh from RM', refreshLibrary, 'Ask the hub to mirror the lab library now')), status),
-        h('div.sec'), h('div.sec-h', h('h2', 'Lab papers'), h('span.k', rm.length)), q, h('div', { style: { height: '10px' } }), list,
-        mine.length ? h('div.sec') : null,
-        mine.length ? h('div.sec-h', h('h2', 'Only in this notebook'), h('span.k', mine.length), h('span.r.tiny.muted', 'added on the desktop or by DOI here')) : null,
-        mine.length ? mineList : null);
+        h('p.stand', 'The lab’s library, from RM, and your own papers. Cite any of them from any note. Add a paper by DOI or a pasted citation: it goes up to RM’s library with the next sync, or now with Push, its PDF too. Pull brings an RM paper’s PDF into your notebook to read here, with your own highlights. Shelves hold foci, foci hold papers — yours, and your RM groups with Import from RM.'),
+        Orig && Orig.adders ? Orig.adders() : null,
+        h('div.card.flat', { style: { marginTop: '10px' } }, h('h3.lab', { style: { marginTop: 0 } }, 'RM'),
+          h('div.row', btn('pri', 'Open RM’s Library', function () { openRM(RM.library); }), btn('', 'Refresh from RM', refreshLibrary, 'Ask the hub to mirror the lab library now'),
+            btn('', 'Import from RM', importGroups, 'Your RM groups and the lab’s, as foci on the shelves “My RM groups” and “Lab groups”')), status),
+        h('div.sec'),
+        h('div.lib-wrap', LGROUP.side ? LGROUP.side() : null, h('div.lib-main',
+          h('div.sec-h', h('h2', sel || 'Lab papers'), h('span.k', rm.filter(keep).length), sel ? btn('xs ghost', 'Show all', function () { LGROUP.select(null); }) : null), q, h('div', { style: { height: '10px' } }), list,
+          h('div.sec'), h('div.sec-h', h('h2', 'In your notebook'), h('span.k', mine.filter(keep).length), h('span.r.tiny.muted', 'added here or on your computer · Push sends one to RM')), mineList)));
     }
   };
   try { VIEWS.library = LabLibrary; } catch (e) { warn('library', e); }
@@ -134,7 +239,9 @@
           if (isRm(r)) {
             App.setTitle(r.title || 'Paper', [h('span', 'from RM')]);
             return h('div.page.lab-read', h('div.eyebrow', 'The lab'), h('h1.title', r.title || 'Paper'), h('p.stand', LIB.apa(r)),
-              h('div.card.flat', h('div.row', r.rmPdf ? btn('pri', 'Read in RM', function () { readPaper(r); }) : h('span.muted', 'No PDF in RM yet — attach one on the paper’s page.'),
+              h('div.card.flat', h('div.row', localPdf(r) ? btn('pri', 'Read here', function () { readHere(r); }, 'In this app’s reader, with your own highlights') : null,
+                r.rmPdf ? btn(localPdf(r) ? '' : 'pri', 'Read in RM', function () { readPaper(r); }) : localPdf(r) ? null : h('span.muted', 'No PDF in RM yet — attach one on the paper’s page.'),
+                r.rmPdf && !localPdf(r) ? btn('', 'Pull into my notebook', function () { pullPaper(r); }, 'Download its PDF into this notebook') : null,
                 btn('', 'Open in RM', function () { openRM(RM.paper(r.rmId)); }))));
           }
           return OrigRead.render.apply(this, arguments);
@@ -1171,12 +1278,13 @@
      the Quick cast and the wire-drop menu; a row not named here keeps his glyph */
   Object.assign(PILL_ICONS, {"construction": "<path d=\"M3.75 7.5h16.5v5.25H3.75z\"/><path d=\"M6 12.75v7.5\"/><path d=\"M18 12.75v7.5\"/><path d=\"M8.25 7.5l-3 5.25\"/><path d=\"M13.5 7.5l-3 5.25\"/><path d=\"M18.75 7.5l-3 5.25\"/>", "books": "<path d=\"M3.75 20.25h16.5\"/><path d=\"M6.75 20.25V7.5a1.5 1.5 0 0 1 1.5-1.5h1.5a1.5 1.5 0 0 1 1.5 1.5v12.75\"/><path d=\"M6.75 9.75h4.5\"/><path d=\"M14.03 20.25 16.6 8.4a1.5 1.5 0 0 0-1.15-1.78l-1.1-.24\"/><path d=\"M13.2 10.2l3.6.78\"/>", "flask-conical": "<path d=\"M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2\"/><path d=\"M6.453 15h11.094\"/><path d=\"M8.5 2h7\"/>", "squares-2x2": "<path d=\"M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z\"/>", "square-2-stack": "<path d=\"M16.5 8.25V6a2.25 2.25 0 0 0-2.25-2.25H6A2.25 2.25 0 0 0 3.75 6v8.25A2.25 2.25 0 0 0 6 16.5h2.25m8.25-8.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-7.5A2.25 2.25 0 0 1 8.25 18v-1.5m8.25-8.25h-6a2.25 2.25 0 0 0-2.25 2.25v6\"/>", "clipboard-document-list": "<path d=\"M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z\"/>", "play-circle": "<path d=\"M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z\"/><path d=\"M15.91 11.672a.375.375 0 0 1 0 .656l-5.603 3.113a.375.375 0 0 1-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112Z\"/>", "pencil-square": "<path d=\"m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10\"/>", "puzzle-piece": "<path d=\"M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 0 1-.657.643 48.39 48.39 0 0 1-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 0 1-.658.663v0c-.355 0-.676-.186-.959-.401a1.647 1.647 0 0 0-1.003-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401v0c.31 0 .555.26.532.57a48.039 48.039 0 0 1-.642 5.056c1.518.19 3.058.309 4.616.354a.64.64 0 0 0 .657-.643v0c0-.355-.186-.676-.401-.959a1.647 1.647 0 0 1-.349-1.003c0-1.035 1.008-1.875 2.25-1.875 1.243 0 2.25.84 2.25 1.875 0 .369-.128.713-.349 1.003-.215.283-.4.604-.4.959v0c0 .333.277.599.61.58a48.1 48.1 0 0 0 5.427-.63 48.05 48.05 0 0 0 .582-4.717.532.532 0 0 0-.533-.57v0c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.37 0 .713.128 1.003.349.283.215.604.401.96.401v0a.656.656 0 0 0 .658-.663 48.422 48.422 0 0 0-.37-5.36c-1.886.342-3.81.574-5.766.689a.578.578 0 0 1-.61-.58v0Z\"/>", "arrow-down-on-square": "<path d=\"M9 8.25H7.5a2.25 2.25 0 0 0-2.25 2.25v9a2.25 2.25 0 0 0 2.25 2.25h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25H15M9 12l3 3m0 0 3-3m-3 3V2.25\"/>", "book-open": "<path d=\"M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25\"/>", "code-bracket-square": "<path d=\"M14.25 9.75 16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z\"/>", "table-cells": "<path d=\"M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M13.125 12h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125M20.625 12c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5M12 14.625v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 14.625c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 1.5v-1.5m0 0c0-.621.504-1.125 1.125-1.125m0 0h7.5\"/>", "paper-airplane": "<path d=\"M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5\"/>", "bell": "<path d=\"M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0\"/>", "beaker": "<path d=\"M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0 1 12 15a9.065 9.065 0 0 0-6.23-.693L5 14.5m14.8.8 1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0 1 12 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5\"/>", "photo": "<path d=\"m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z\"/>", "link": "<path d=\"M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244\"/>", "presentation-chart-bar": "<path d=\"M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6\"/>", "document-text": "<path d=\"M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z\"/>", "microphone": "<path d=\"M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z\"/>", "check-circle": "<path d=\"M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z\"/>", "clipboard-document-check": "<path d=\"M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0 1 18 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3 1.5 1.5 3-3.75\"/>", "cube": "<path d=\"m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9\"/>", "rectangle-stack": "<path d=\"M6 6.878V6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 6v.878m-12 0c.235-.083.487-.128.75-.128h10.5c.263 0 .515.045.75.128m-12 0A2.25 2.25 0 0 0 4.5 9v.878m13.5-3A2.25 2.25 0 0 1 19.5 9v.878m0 0a2.246 2.246 0 0 0-.75-.128H5.25c-.263 0-.515.045-.75.128m15 0A2.25 2.25 0 0 1 21 12v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6c0-.98.626-1.813 1.5-2.122\"/>", "ellipsis-horizontal": "<path d=\"M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z\"/>", "arrows-right-left": "<path d=\"M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5\"/>", "bars-3-bottom-left": "<path d=\"M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12\"/>"});
   /* V3.941 — the Quick cast's Flag (the bottom bar's ⚐) */
+  PILL_ICONS.map = "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z\"/>";   // V3.963 — a term in this note (14c)
   PILL_ICONS.flag = "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5\"/>";
   /* V3.926 — icons for the desktop's new + Insert rows: tables, plots of a table, saved ink (Heroicons v2 / Lucide, monochrome) */
   Object.assign(PILL_ICONS, {"chart-bar": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z\"/>", "table": "<path d=\"M12 3v18\"/><rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/>", "table-2": "<path d=\"M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18\"/>", "star": "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z\"/>"});
   var INS_PICS = { plate: 'squares-2x2', 'plate-carry': 'square-2-stack', protocol: 'clipboard-document-list', run: 'play-circle', component: 'pencil-square',
     'pull-barrier': 'construction', 'pull-item': 'puzzle-piece', 'pull-comp': 'arrow-down-on-square', calc: 'calculator', equation: 'variable', 'equation-reg': 'book-open',
-    html: 'code-bracket-square', view: 'table-cells', 'canvas-add': 'paper-airplane', reminder: 'bell', material: 'beaker', 'material-new': 'flask-conical', figure: 'photo',
+    html: 'code-bracket-square', noteterm: 'map', view: 'table-cells', 'canvas-add': 'paper-airplane', reminder: 'bell', material: 'beaker', 'material-new': 'flask-conical', figure: 'photo',
     noteref: 'link', deck: 'presentation-chart-bar', pdf: 'document-text', rec: 'microphone', task: 'check-circle',
     rmpaper: 'books', rmprotocol: 'clipboard-document-check', rmaction: 'cube', rmcollection: 'rectangle-stack', table: 'table', 'table-empty': 'table-2', plot: 'chart-bar', inklib: 'star',
     _text: 'bars-3-bottom-left', _other: 'arrows-right-left' };

@@ -63,7 +63,7 @@ const RMREAD = {
     if (!q || q.type !== 'rm-read' || q.id === RMREAD.seen) return false;
     RMREAD.seen = q.id; return true;
   },
-  site(href, why) { if (why) toast(why + ' — opening its page on the lab site', 4000); try { RMREAD.open0.call(window, href, '_blank', 'noopener'); } catch (e) { } },
+  site(href, why) { if (why) toast(why + ' — opening its page on the lab site', 4000); try { (RMREAD.open0 || window.open).call(window, href, '_blank', 'noopener'); } catch (e) { } },   // V3.963: Read here (lab-mode §3) uses read() on the website too, where nothing is wired
   /** The note it opens beside: the paper card's, else the one on screen (null: none). */
   pane(card) { const ps = App.panes(); return (card && ps.find(p => p.docId === card.docId)) || (ps.includes(App.pane) ? App.pane : ps[0]) || null; },
   async read(pid, href) {
