@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (67 changes — ready to push)
+## Pending (68 changes — ready to push)
+
+- **Iterations are a deck, Troubleshooting is a kind, and an experiment ends in a Synthesis (V3.967):** the versions of a component now stack at one spot — swipe the strip under the header, or press ‹ ›, to go through them. A Troubleshooting component starts with Problem / Tried / Outcome and each attempt is a new card on its deck. The last stage of an experiment is now the Synthesis: it gathers every claim, evidence, result, takeaway, barrier and resolution from the Planning, Run and Analysis notes on its own, and ☰ The rest lets you pull in anything else.
 
 - **The Atlas is now a set of nests in 3D (V3.966):** the notebook is a sphere holding your projects, each project holds its notes, each note holds its components; terms, papers and people orbit the note or project they belong to most. Click a nest to fly into it, click outside to fly out, drag to turn, scroll to come closer, hover anything to see its threads. The lens, the chips, the search, the action chips and `/collection` work as before.
 
