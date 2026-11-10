@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.969] — 2026-11-10 — Scientia: the term lens and the note terms are nests too
+
+Gabe: "The Atlas reshaping should apply to terms and temporary terms." The term lens and a term in one note now open as the Atlas's nests: the term is the outer sphere, its themes (or projects) inside, the notes inside those with the components that use it as dots, the other terms and papers orbiting the note they belong to, and the connections between components drawn.
+
+### Changed
+- **`scientia/src/14d-nest.js` (`NEST`):** a map made anywhere — `NEST.make(o)` (own camera, nest, pick, hover; options `center`, `rootLabel`, `group`, `groupWord`, `sel`, `lit`, `links`; hooks `pick`, `panel`, `open`, `moved`, `say`), `NEST.mount(I, host, inset)`, every function takes the map; `NEST.graph`, `NEST.path`, `NEST.GROUP.project` / `.theme`, `NEST.start` (inside the only group), `NEST.show`; edges may carry `col`, `dash`, `dir` (arrows); the outer sphere is drawn and named when it is the term. The Atlas page is `NEST.page`, kept between visits. A satellite takes a click only when it orbits the open nest, one just inside it or one around it; the second click of a double-click does nothing of its own and the double-click acts on what the first click hit.
+- **`14b-atlas.js`:** the 2D force engine is gone (`start`, `tick`, `fit`, `sx`/`sy`, `state`, `draw`, `hit`, `wire`, its `render`/`size`/`rebuild`/`search`/`focusOn`, `shortest`); 14d defines `render`, `rebuild`, `search`, `focusOn`.
+- **`14c-noteterm.js` (`NTERM`):** the box's map and the whole window's are NEST maps; the view is `{ nest, focus }`, shared by both; the side panel lists the notes of the nest you are in, or the note's components; Fetch keeps no layout; `as`, `wire`, `crumb`, `size`, `draw` removed.
+- **`16-lens.js` (`LensView`):** `nests(G, st, t)` (the lens's graph on a NEST map, the lens's inks: explicit, pulled in, via dotted, suggested dashed), `card(I, el)` (a component's words and connections, a suggested one opens Accept / Dismiss, Open; a term's lens; a paper), `hl` lights an insight's components; **Nests · Chain** in the lens bar (`st.view`), Chain is the board as before.
+- **`22-atlas.css`:** `.nest-host`, `.nest-cv` standalone, `.lens-nest`, `.lens-card`, `.lens-foot`, the small map's crumbs and tools; `.nt-crumb`, `.nt-cb`, `.nt-cv`, `.nt-hint` removed. **`MANUAL.md`:** the term lens (Nests, Chain), Terms in one note.
+
 ## [V3.968] — 2026-11-10 — Scientia: Export canvas (HTML) works again
 
 Gabe: "Export HTML stopped working." The exported file opened blank: the export's own pattern for the desktop build's `<!--sis-desktop-->` blocks was written with a whole opening marker, which is itself in the page, so since V3.929 (the lab layer inline at the end of the desktop build) the match ran from that line to the last marker and cut the viewer and the boot out of the file.
