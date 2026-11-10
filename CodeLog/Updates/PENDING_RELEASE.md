@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (64 changes — ready to push)
+## Pending (65 changes — ready to push)
+
+- **Scientia, one copy per computer (V3.964):** only one Scientia can hold port 8766 now; a second one says so and quits instead of silently sharing the port. A notebook folder locked by the private app is refused with a clear sentence rather than read as empty, a tablet never replaces its notes with an empty record, and the lab cloud has room to answer a whole notebook (deploy needed).
 
 - V3.963 — Scientia: you can now make a term that lives in one note (+ Insert → Term in this note…): type the ways it is written, choose the note's theme, project or the whole notebook, and Fetch draws everything that uses it as a small map you can dive into; it changes only when you fetch again. The lab's Library adds papers by DOI or a pasted citation again, Push to RM sends one (with its PDF) to the lab library, and Pull into my notebook brings an RM paper's PDF in to read with your own highlights. Papers can be put in foci grouped on shelves, and Import from RM turns your RM groups into foci.
 - V3.962 — Scientia: menus no longer cover each other. An Alt+click menu puts the hover card away and the text editor bar steps aside for it. Ctrl+click on a component's text selects it cleanly, and the selection's bar is one row that sits clear of other components. An HTML page's card now has a "Snip figure" button in its header. A snip turns clip mode off, and one made in the maximised page brings you back to the note. New: Iteration. A component's ⋯ → New iteration (or /iteration) makes its next version beside it: blank, the same type, linked "next version", with "How did v2 improve on v1?" under it to fill in.

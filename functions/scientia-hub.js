@@ -27,7 +27,7 @@
 
 const { onRequest } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue, FieldPath } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
 const crypto = require('crypto');
 const C = require('./scientia-hub-core');
@@ -78,7 +78,18 @@ class FirestoreHub {
     if (!st) { st = C.emptyState(); await this.ref.set(Object.assign(stateToDoc(st), { created: FieldValue.serverTimestamp() })); }
     return st;
   }
-  async allRows() { const snap = await this.rows.get(); return snap.docs.map(rowFromDoc).filter(r => r && !r.deleted); }
+  /** V3.964: page by page. One get() of a big notebook decoded every row at once and ran the function out of memory (512 MiB) —
+   *  the desktop bridge asks for the whole record after each restart, and got a torn answer back, forever. */
+  async allRows() {
+    const out = []; let last = null;
+    for (;;) {
+      let q = this.rows.orderBy(FieldPath.documentId()).limit(400); if (last) q = q.startAfter(last);
+      const snap = await q.get(); if (snap.empty) break;
+      for (const d of snap.docs) { const r = rowFromDoc(d); if (r && !r.deleted) out.push(r); }
+      last = snap.docs[snap.docs.length - 1]; if (snap.size < 400) break;
+    }
+    return out;
+  }
   async state(reason) { const st = await this.loadState(); return C.exportState({ state: st, rows: await this.allRows(), reason }); }
 
   async push({ dev, conn, name, ops }) {
@@ -620,7 +631,7 @@ async function resolveWho(req) {
   return null;
 }
 
-const scientiaHub = onRequest({ cors: false, timeoutSeconds: 300, memory: '512MiB', maxInstances: 4 }, async (req, res) => {
+const scientiaHub = onRequest({ cors: false, timeoutSeconds: 300, memory: '1GiB', maxInstances: 4 }, async (req, res) => {   // V3.964: 1 GiB — a whole notebook in one answer
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Scientia-Key');
@@ -636,7 +647,9 @@ const scientiaHub = onRequest({ cors: false, timeoutSeconds: 300, memory: '512Mi
   if (!who && path !== '/api/sync/hello' && path !== '/api/cloud/pair/claim') { res.status(401).json({ ok: false, error: 'not signed in' }); return; }
   const hub = who ? (who.hub || new FirestoreHub(who.uid)) : null;
   try {
+    const t0 = Date.now();
     const out = await C.route({ method: req.method, path, query: req.query || {}, body: req.body, rawBody: req.rawBody || null, headers: req.headers || {} }, { hub, who, pairs: firestorePairs });
+    if (path === '/api/sync/state' || path === '/api/sync/push') console.log('[scientiaHub]', path, out.status, (Date.now() - t0) + 'ms', Math.round(process.memoryUsage().rss / 1048576) + 'MiB rss');   // V3.964: the two heavy calls, so a stall can be read in the log
     // V3.899 — what was just written to this person's hub reaches the people it is shared with (or its owner)
     if (who && out.status === 200 && RELAY_PATHS.has(path)) {
       try {

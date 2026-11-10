@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.964] — 2026-11-09 — Scientia: one copy per port, a sealed notebook refused, a device keeps its notes, the hub gets room
+
+Gabe: "on my tablet, I have been adding many notes or components to shared projects and they don't sync through to the website" / "when trying to set up my computer from website to open locally, it said there was an error". Found on his computer: four servers sharing port 8766 (his standalone, two copies of the installed lab app and the fresh install — Windows lets a second socket bind over a listening one), a notebook folder sealed by the standalone's lock that the lab app read as empty, and the hub function dying of `JavaScript heap out of memory` on `api/sync/state` after every restart of the bridge. Plan: `CodeLog/ClaudesPlan/V3.964_scientia_sync_safety.md`.
+
+### Changed
+- **`scientia/serve.py`:** `Server.allow_reuse_address = False` + `SO_EXCLUSIVEADDRUSE` (Windows) — one Scientia per port; a second prints "Port 8766 is already in use: another Scientia In Situ is running…" and exits 3. A sealed notebook (`SYNC.sealed`): `api/sync/*`, `api/snapshot`, `api/vault` answer 423 `{ok:false, sealed:true, error}`; `api/lab/status` → `state:'sealed'`.
+- **`scientia/sisync.py`:** `load()` sets `self.sealed` when `record.json` cannot be parsed and starts with `SiSLock1`; nothing is loaded, `sync.json` is not written, `save_now()` returns at once.
+- **`scientia/service.py`:** exit code 3 → ten minutes between restarts.
+- **`scientia/install/install.ps1`:** step 1 stops every python process running `ScientiaInSitu\app\…` (the supervisor included) before the port listener.
+- **`scientia/src/13zc-sync.js`:** `reset()` pushes the whole outbox (loop, ≤50 batches) before `fullLoad()`, and stops if a push fails; `fullLoad()` refuses an empty record when this device holds notes (`SYNC.held`, sync paused, the dot red with the sentence).
+- **`scientia/src/13zzj-polish.js`:** the dot is red for `sealed`.
+- **`functions/scientia-hub.js`** (Alex reviews; deploy `functions:scientiaHub`): `memory: '1GiB'`; `allRows()` paged by 400 (`FieldPath.documentId()`); a log line for `state` and `push` with ms and rss.
+
 ## [V3.963] — 2026-11-09 — Scientia: terms in one note (a small Atlas), the lab's Library adds and pushes papers again, Pull into my notebook, paper shelves and foci
 
 Gabe: "You should have the ability to create temporary terms inside a note, which appears like an atlas inside the note that you can dive into. You type a set of ways the term is represented it and pull it from the theme, the project, or your notebook scope-wise. This term lives within the note and is not updated automatically, you have to do a manual fetch on the component in the note. Reload brings the atlas back to its original state. For the RM library, allow papers to be downloaded/pulled into your lab notebook, and allow papers to be pushed to RM library via local downloads (therefore, reintroduce the DOI lookup in the McGheeLab Website version). Also, you should be able to create paper shelves, import them from the RM website, and create paper foci (paper focus) that can get grouped in shelves (a two-layer system)."
