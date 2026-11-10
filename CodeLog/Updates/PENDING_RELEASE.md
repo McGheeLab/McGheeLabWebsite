@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (69 changes — ready to push)
+## Pending (70 changes — ready to push)
+
+- **Terms open as nests too (V3.969):** a term's lens and a term in one note now look like the Atlas — the term is the outer sphere with its themes, notes and components inside, the other terms and papers orbiting; click to fly in, click outside to fly out. The lens's box board is one click away (Chain).
 
 - **Fixed: Export canvas (HTML) in Scientia (V3.968):** the exported file opened blank on the computer app; it opens again as the read-only canvas, from the computer and from the website.
 
