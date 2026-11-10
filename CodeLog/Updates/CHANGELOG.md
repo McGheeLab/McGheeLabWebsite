@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.965] — 2026-11-09 — Scientia at rest: no whole-record snapshot after each edit, quiet mode, sweeps only after a change
+
+Gabe: "Scientia In Situ is consuming a lot of battery… especially on a local computer that runs it 24/7. Do not compromise on app performance." Plan (with the inventory of what ran at rest): `CodeLog/ClaudesPlan/V3.965_scientia_quiet_power.md`. On `scientia/sync-safety` (V3.964).
+
+### Changed
+- **`13o-vault.js`:** `DISK.touch(store)` — with sync on and local, the whole record is no longer serialised and POSTed to `api/snapshot` after every edit (25 MB each time on Gabe's computer, the old file copied to `kept/` each time); the Markdown mirror follows only a change to a store it shows, 8 s later.
+- **`sisync.py`:** `JOURNAL_KEEP = 4000`, `_trim_journal()` at load and every 200 commits.
+- **New `13zzp-quiet.js` (`QUIET`):** `body.quiet` / `QUIET.is()` after three minutes without input or while hidden; `sis-quiet` / `sis-awake`.
+- **CSS:** `beat`, `regpulse` on opacity/transform only; `body.quiet` pauses the decorative pulses.
+- **`13zzj-polish.js`:** the steady `syncing` state ("In step…") is green and still.
+- **`13zc-sync.js`, `serve.py`:** the pull carries `active`; `APP_SEEN` only from an active window, so the lab bridge paces SLOW/IDLE while the person is away. `serve_forever(poll_interval=2.0)`.
+- **`03-db.js`:** `DB.rev`, `DB.revOf[store]`; `BACKUP.snapshot()` skips an unchanged record.
+- **`99-boot.js`, `11-shell.js`, `06-index.js`:** `App.tick` only with a running timer and no identical text writes; `IX.daysStale()`.
+- **`23-tasks.js`, `13w-termscan.js`:** sweeps only after a block changed. **`13zn-rec.js`, `sttread.py`:** a minute / a doubling wait while Whisper is missing. **`rawmouse.py`:** the timer killed while idle.
+
 ## [V3.964] — 2026-11-09 — Scientia: one copy per port, a sealed notebook refused, a device keeps its notes, the hub gets room
 
 Gabe: "on my tablet, I have been adding many notes or components to shared projects and they don't sync through to the website" / "when trying to set up my computer from website to open locally, it said there was an error". Found on his computer: four servers sharing port 8766 (his standalone, two copies of the installed lab app and the fresh install — Windows lets a second socket bind over a listening one), a notebook folder sealed by the standalone's lock that the lab app read as empty, and the hub function dying of `JavaScript heap out of memory` on `api/sync/state` after every restart of the bridge. Plan: `CodeLog/ClaudesPlan/V3.964_scientia_sync_safety.md`.
