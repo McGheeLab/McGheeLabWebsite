@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.966] — 2026-11-09 — Scientia: the Atlas in 3D — nests, with terms and papers orbiting the nest they belong to
+
+Gabe, after three clickable shapes: "I like nested, let's do that, except that the nest is in 3D with orbit of terms or papers around the most closely related nest to make the whole atlas more compact at large scale while very navigatable when focusing on individual nests." Plan: `CodeLog/ClaudesPlan/V3.966_scientia_atlas_nests.md`. On `scientia/quiet-power` (V3.965).
+
+### Added
+- **`scientia/src/14d-nest.js` (`NEST`):** the Atlas page as nests in three dimensions — the notebook a sphere, projects packed inside, notes packed inside their project, components and structures as dots inside their note (`NEST.pack`, greedy in 3D); terms, papers and people orbit the nest they are most tied to (`NEST.build`: the note with ≥ half of the mentions, else the project, else the notebook) on a tilted ring (`NEST.orbit`). A camera (`NEST.cam`: target, zoom, yaw, pitch; perspective `PF`); `flyTo` one level at a time (`step`), `out`; drag turns, wheel/pinch zooms, hover shows threads, double-click opens, Esc unfocuses then flies out; crumbs and ⤢ / + / − tools. Drawn on input and during a flight only.
+
+### Changed
+- **`14b-atlas.js`:** `render()` split into `bar()` (the lens, chips, search, Quick, action chips, "for <note>") and `render()`; 14d overrides `render`, and on the Atlas page `rebuild`, `search`, `focusOn`, `size`. The 2D engine stays for the note-term maps (14c).
+- **`22-atlas.css`:** `.nest-crumbs`, `.nest-crumb`, `.nest-tools`, `.nest-cv`.
+- **`MANUAL.md`:** The Atlas — what it shows and moving around, rewritten for the nests.
+
 ## [V3.965] — 2026-11-09 — Scientia at rest: no whole-record snapshot after each edit, quiet mode, sweeps only after a change
 
 Gabe: "Scientia In Situ is consuming a lot of battery… especially on a local computer that runs it 24/7. Do not compromise on app performance." Plan (with the inventory of what ran at rest): `CodeLog/ClaudesPlan/V3.965_scientia_quiet_power.md`. On `scientia/sync-safety` (V3.964).
