@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.967] — 2026-11-10 — Scientia: Iteration as a deck, a Troubleshooting kind, the Synthesis at the end of an experiment
+
+Gabe: "Iteration should stack as a deck of cards with an easy right or left swipe through iterations. Make a troubleshooting kind that also contains this feature. Reflection at the end of an experiment becomes synthesis… All claims, evidence, results, takeaways, barriers, resolutions, and a panel of the rest of the components in a scrollable list for you to pick any more, get transferred to the synthesis note automatically, and you build/rearrange the note." Plan: `CodeLog/ClaudesPlan/V3.967_scientia_deck_synthesis.md`. On `scientia/atlas-nests` (V3.966).
+
+### Added
+- **`scientia/src/13zzq-deck.js` (`IDECK`):** the versions of a component stack at one spot, the newest on top; a strip under the header (‹ ›, dots, "v2 of 3", +) with a swipe, and ← → with the card selected; a new version lands on the deck; the "next version" wires inside a deck are not drawn; Spread out / Stack as a deck in the version tag's menu (`root.iterSpread`). **Troubleshooting**, a component kind (`attempts`, `skeleton` Problem / Tried / Outcome; resolves a barrier, leads to a resolution, decision or method).
+- **`scientia/src/13zzr-synth.js` (`SYNTH`):** the Synthesis note gathers the experiment's claims, evidence, results, takeaways, barriers and resolutions as references in a column per kind (`gather`, on creation and from ⟲ Gather), with each stage's "adds up to"; ☰ The rest lists the other components, each with Pull in (`panel`).
+
+### Changed
+- **`02-schema.js`:** the `reflection` profile is labelled Synthesis (stage too; an old saved row takes the new name); its template is Summary / What to change next time.
+- **`24-kinds.css`:** `.iter-deck`, `.deck-top`, `.deck-under`, `.synth-rest`. **`MANUAL.md`:** Iterations (the deck, Troubleshooting), Experiment stages, a Synthesis section.
+
 ## [V3.966] — 2026-11-09 — Scientia: the Atlas in 3D — nests, with terms and papers orbiting the nest they belong to
 
 Gabe, after three clickable shapes: "I like nested, let's do that, except that the nest is in 3D with orbit of terms or papers around the most closely related nest to make the whole atlas more compact at large scale while very navigatable when focusing on individual nests." Plan: `CodeLog/ClaudesPlan/V3.966_scientia_atlas_nests.md`. On `scientia/quiet-power` (V3.965).
@@ -145,7 +157,7 @@ No lab-layer change. The lab's "Collection from the Lab Notebook" insert row (`r
   - `CLIPX.pull`: in another note a `ref` for each component (its original for a ref; skipped when already in that note), placed as they sat; strokes copied; in their own note, or with Ctrl+Shift+V (`shiftAt`), `LASSO2.drop` copies. The pen's paste (`LASSO2.paste`) pulls in too.
   - `CLIPX.files` / `sort` / `addFiles`:
     - pictures and videos go in one image panel (lettered when several; a screenshot is named `Pasted <day> <time>`);
-    - PDF, HTML, spreadsheet and slides go through `PDFW.insert` / `EMBED.insert` / `TABLE.insert` / `DECK.insert`, with `CLIPX.through` standing the files in for `PLATE.pickFiles`;
+    - PDF, HTML, spreadsheet and slides go through `PDFW.insert` / `EMBED.insert` / `TABLE.insert` / `IDECK.insert`, with `CLIPX.through` standing the files in for `PLATE.pickFiles`;
     - other files are named in a toast;
     - pictures pasted while writing in a component go under it;
     - a rich copy (text and HTML with a picture of itself) pastes its text.
