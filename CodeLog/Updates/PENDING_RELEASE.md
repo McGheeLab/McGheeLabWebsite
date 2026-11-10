@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (68 changes — ready to push)
+## Pending (69 changes — ready to push)
+
+- **Fixed: Export canvas (HTML) in Scientia (V3.968):** the exported file opened blank on the computer app; it opens again as the read-only canvas, from the computer and from the website.
 
 - **Iterations are a deck, Troubleshooting is a kind, and an experiment ends in a Synthesis (V3.967):** the versions of a component now stack at one spot — swipe the strip under the header, or press ‹ ›, to go through them. A Troubleshooting component starts with Problem / Tried / Outcome and each attempt is a new card on its deck. The last stage of an experiment is now the Synthesis: it gathers every claim, evidence, result, takeaway, barrier and resolution from the Planning, Run and Analysis notes on its own, and ☰ The rest lets you pull in anything else.
 
