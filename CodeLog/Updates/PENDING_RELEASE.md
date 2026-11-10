@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (65 changes — ready to push)
+## Pending (66 changes — ready to push)
+
+- **Scientia uses far less power at rest (V3.965):** the desktop app no longer re-sends the whole notebook after every edit (sync already carries it), the pulsing dots stop when nobody has touched the app for three minutes, the periodic sweeps and the backup only run when something changed, and the lab sync slows down while you are away and speeds up at your first touch. Nothing you see while working is slower.
 
 - **Scientia, one copy per computer (V3.964):** only one Scientia can hold port 8766 now; a second one says so and quits instead of silently sharing the port. A notebook folder locked by the private app is refused with a clear sentence rather than read as empty, a tablet never replaces its notes with an empty record, and the lab cloud has room to answer a whole notebook (deploy needed).
 
