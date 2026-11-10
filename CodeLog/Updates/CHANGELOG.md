@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.963] — 2026-11-09 — Scientia: terms in one note (a small Atlas), the lab's Library adds and pushes papers again, Pull into my notebook, paper shelves and foci
+
+Gabe: "You should have the ability to create temporary terms inside a note, which appears like an atlas inside the note that you can dive into. You type a set of ways the term is represented it and pull it from the theme, the project, or your notebook scope-wise. This term lives within the note and is not updated automatically, you have to do a manual fetch on the component in the note. Reload brings the atlas back to its original state. For the RM library, allow papers to be downloaded/pulled into your lab notebook, and allow papers to be pushed to RM library via local downloads (therefore, reintroduce the DOI lookup in the McGheeLab Website version). Also, you should be able to create paper shelves, import them from the RM website, and create paper foci (paper focus) that can get grouped in shelves (a two-layer system)."
+
+Gabe's choices, asked: the lab layer and the hub change in this PR (**Alex reviews the lab part**: `rm/scientia/lab-mode.js` §3/§4 and the insert icon, `functions/scientia-hub*.js`, the lab-mode harness); an RM group becomes a focus on a shelf named for its source; Reload = how the last Fetch left the map; Pull brings the PDF in and the paper stays RM's (no copy). **The hub routes need `firebase deploy --only functions:scientiaHub`** (not done); until then Import from RM and the PDF push say the lab cloud does not offer them yet.
+
+### Added
+- **`scientia/src/14c-noteterm.js` `NTERM`**: a term that lives in one note (widget `nterm`, + Insert row `noteterm` → `/noteterm`).
+  - `b.nterm = { name, forms[], scope: 'theme'|'project'|'notebook', snap }`. `NTERM.scope(d, scope)` → the notes of the note's theme / project / the notebook (not deleted or archived); a scope the note has not got is disabled.
+  - `NTERM.fetch(b)`: every live block of those notes (not itself, another note term or a pull-in) whose `body.text` matches a form (`TFORMS.rx`, smart case, as term forms), the 150 that use it most. The snapshot holds the nodes (the term `T`, components with their kind colour, use count, forms found and the words around the first match `s {t, at}`, their notes, the 24 terms and 24 papers they carry most) and edges (`[a, b, kind, rel]`: uses · in · mentions · cites · wires between them), laid out once by the Atlas's own force layout (`ATLAS.tick`, the term pinned in the middle) and kept, with `at`, `scopeName`, `forms`, `total`, `notes`. A redraw never reads the notebook again.
+  - The map draws with the Atlas unchanged: `NTERM.as(I, fn)` swaps `ATLAS.{G, cv, ctx, T, alpha, st, lit}` for the map's own for `fit` / `draw` / `hit` / `tick`; the term is drawn on top, ringed, its name over it.
+  - The view (`NTERM.views`: dive, focus, dragged dots) survives redraws; `NTERM.reload` (↺ Reload) and a new Fetch clear it, as does a reload of the app. Click: focus (`NTERM.panel`: a component's words with the form lit, Open, Pull in here — a `ref` beside the term); double-click: dive into a note (`NTERM.dive`), open a component, a term's lens, a paper; drag pans, drags a dot; the wheel zooms. Nothing reaches the paper underneath (`.nopan.scrolly`, events stopped). ⤢ `NTERM.max`: the map on the whole window.
+  - `NTERM.stale(T)`: the forms or the scope changed since the snapshot (the component says so, Fetch lights up).
+  - `NTERM.paint`: its forms underlined in this note's text with a CSS highlight (`::highlight(nterm)`), nothing saved, no mark made; after `DocView.render` / `update` (wrapped) and when a component's text loses focus.
+- **The lab's Library** (`rm/scientia/lab-mode.js` §3, rewritten):
+  - The app's add cards again (`LibraryView.adders()`, new: DOI lookup, paste a citation, add a link); the harness check "no DOI lookup or paste box" becomes "the DOI lookup and the paste box are back".
+  - The app's shelves and foci tree beside both lists (`LGROUP.side`, `.keep`, `.chips` on RM cards, cards draggable onto a focus).
+  - **Pull into my notebook** (`pullPaper`): an RM paper's PDF into a media record with `rmPaper` — on the website through `api/rm/library/pdf` (its download URL; the storage CORS takes mcgheelab.com), on the computer through `api/rm-pdf` (serve.py, V3.944). **Read here** (`readHere`) opens it with `RMREAD.read` (23d), which now runs on the website too: this app's reader, RM's highlights listed beside your own. §4's `#/read/<RM paper>` offers both.
+  - **Push to RM** (`pushPaper`) on your own paper: `POST api/rm/sync?only=up` (the hub's V3.927 syncUp adds it to `items`, or records RM's match), waits for the row to learn its RM id, then `POST api/rm/library/pdf-up {id, media: 'images/<media id>.pdf'}` when it has a PDF; the media record gains `rmPaper`. **Send the PDF to RM** when RM has the paper but no PDF.
+  - **Import from RM** (`importGroups`): `GET api/rm/library/groups`; each group a focus (`libsets` group with `rmGroup {id, from, kind, at}`) on the shelf `rmShelf: 'mine'` "My RM groups" or `'lab'` "Lab groups" (made once, unfolded); an import again updates a focus's name and adds its papers where you put it.
+  - The status line keeps its words through a redraw (`sayText`, `.lab-lib-status`).
+- **The hub** (`functions/scientia-hub-core.js`, `scientia-hub.js`):
+  - `GET /api/rm/library/groups` → `hub.rmGroups()`: `userSettings/{uid}.library.paper_groups` and `librarySharedGroups`, through `rmGroupsPlan({mine, lab, items})` — manual groups as they are, draft groups as the items whose `meta.library.linked_drafts` holds the draft (RM's rule), smart groups counted and left.
+  - `POST /api/rm/library/pdf-up {id, media}` → `hub.rmPdfUp()`: the file already in the hub's media (`PDF_UP_PATH` = `images/<id>.pdf` only) is copied to `papers/<item>/<sha256[:16]>.pdf` (RM's `uploadPdf` path) and `meta.library.pdf` is written as RM writes it (`pdfUpPlan`: a library entry with no PDF only; `source: 'scientia'`), then the mirror runs.
+  - The in-memory hub has both (tests, the dev hub). `functions/test/scientia-hub.test.js`: 3 new tests (71 pass).
+
+### Changed
+- **Paper shelves and foci** (`scientia/src/17d-libgroups.js`): the library's "themes" and "groups" are called shelves and foci in every word the app shows (records unchanged: `libsets` kind `theme` = a shelf, `group` = a focus). `21c-labexport.js` no longer lists them as something the online Library cannot show.
+- `LibraryView.render` uses `LibraryView.adders()` (17-library).
+- `RMREAD.site` falls back to `window.open` where the desktop's wiring is not there (the website).
+- + Insert's icons (lab-mode): `noteterm` → `map` (added to `PILL_ICONS`), so every row keeps its own icon.
+
 ## [V3.962] — 2026-11-09 — Scientia: menus keep out of each other's way, "Snip figure" on the HTML card, Iteration
 
 Gabe: "Some menus start to overlap with each other (text editor bar with Alt+Click options, or Ctrl selection of components clicking on their text box, etc...). The snip figure for HTMLs should be a button outside of the maximized HTML as well and snipping a figure automatically brings you out of the HTML. When a figure is snipped, it should deselect the snip figure. Make a new Iteration component kind that links to a new version of that same component, creating a blank component that version 1 is, asking for an explanation of how it improved (just like an image panel caption underneath the component)."

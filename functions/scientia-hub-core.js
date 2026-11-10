@@ -513,6 +513,48 @@ function planLibraryUp({ state, rows, items, today, uid, now, max }) {
   return { create, ops };
 }
 
+/* ───────── Shelves from RM, and a paper's PDF up to RM (V3.963, Gabe's request; Alex reviews) ─────────
+   GROUPS — RM keeps no shelves: its Library's "Shelves" block holds flat groups of papers, a person's own in
+   userSettings/{uid}.library.paper_groups and the lab's in librarySharedGroups. Scientia imports each one as a focus on a
+   shelf named after where it came from (lab-mode §3). `rmGroupsPlan` turns what RM holds into that list: a manual group
+   as it is, a draft group as the papers linked to its draft today (meta.library.linked_drafts, RM's own rule), a smart
+   group (a saved search in RM's grammar) left in RM and counted.
+   PDF UP — a paper pushed with its PDF: the file is already in this hub's media (images/<id>.pdf, put there by the web
+   app or by the computer's sync), so nothing is uploaded twice. `pdfUpPlan` says whether RM takes it (a library entry
+   with no PDF yet) and writes RM's own record of it; the hub copies the bytes to papers/<item>/<sha256[:16]>.pdf, the
+   path RM's uploadPdf uses (rm/js/library-upload.js). */
+function rmGroupsPlan({ mine, lab, items }) {
+  const linked = new Map();
+  for (const it of items || []) {
+    const L = it && isObj(it.meta) && isObj(it.meta.library) ? it.meta.library : {};
+    (Array.isArray(L.linked_drafts) ? L.linked_drafts : []).forEach(d => { const k = String(d || ''); if (k) (linked.get(k) || linked.set(k, []).get(k)).push(String(it.id)); });
+  }
+  let smart = 0;
+  const one = from => g => {
+    if (!isObj(g) || !g.id || !String(g.name || '').trim()) return null;
+    const kind = String(g.kind || 'manual');
+    if (kind === 'smart') { smart++; return null; }
+    const ids = kind === 'draft' ? (linked.get(String(g.draft_id || '')) || []) : (Array.isArray(g.paper_ids) ? g.paper_ids : []);
+    return { id: String(g.id), name: String(g.name).trim(), kind, from, paperIds: [...new Set(ids.map(String))] };
+  };
+  return { mine: (mine || []).map(one('mine')).filter(Boolean), lab: (lab || []).map(one('lab')).filter(Boolean), smart };
+}
+const PDF_UP_PATH = /^images\/[A-Za-z0-9_-]{1,64}\.pdf$/;
+/** item: the RM items doc (with id) or null; bytes: the file (omit to check the item alone); by: who uploads */
+function pdfUpPlan({ item, bytes, by, now }) {
+  const L = item && isObj(item.meta) && isObj(item.meta.library) ? item.meta.library : null;
+  if (!item) return { ok: false, error: 'RM does not have this paper yet — it goes up with the notebook’s next sync' };
+  if (!L || !L.is_library_entry) return { ok: false, error: 'that is not a paper of the lab library' };
+  if (isObj(L.pdf) && L.pdf.storage_path) return { ok: false, has: true, error: 'RM already has a PDF of this paper' };
+  if (bytes === undefined) return { ok: true };
+  if (!bytes || !bytes.length) return { ok: false, error: 'the PDF is empty' };
+  if (bytes.length > MAX_MEDIA_BYTES) return { ok: false, error: 'over 30 MB — add it in RM’s Library' };
+  if (bytes.slice(0, 1024).indexOf('%PDF') < 0) return { ok: false, error: 'that file is not a PDF' };
+  const full = crypto.createHash('sha256').update(bytes).digest('hex'), hash = full.slice(0, 16), dest = 'papers/' + item.id + '/' + hash + '.pdf';
+  const slug = String(item.id).replace(/[^A-Za-z0-9_-]+/g, '-').slice(0, 80) || 'paper';
+  return { ok: true, dest, pdf: { storage_path: dest, hash, full_hash: full, filename_safe: slug + '.pdf', size_bytes: bytes.length, uploaded_at: isoAt(now).slice(0, 10), uploaded_by: String(by || ''), source: 'scientia' } };
+}
+
 /* ───────── My Week from a component's ✓, offline too (V3.927) ─────────
    STEPS — the person's My Week steps in the window RM's report picker offers (4 weeks before this week's Monday to this
    Sunday, LAB_TZ; not cancelled) are mirrored into the record as read-only `mwsteps` rows, so the desktop's ✓ can offer
@@ -1037,6 +1079,17 @@ async function route(req, ctx) {
     if (typeof hub.rmPdfUrl !== 'function') return J(404, { ok: false, error: 'no RM library on this hub' });
     const r = await hub.rmPdfUrl(g('id', '')); return J(r.ok ? 200 : 404, r);
   }
+  if (p === '/api/rm/library/groups') {   // V3.963 — your RM groups and the lab's, to import as foci
+    if (typeof hub.rmGroups !== 'function') return J(200, { ok: false, error: 'no RM library on this hub' });
+    return J(200, await hub.rmGroups());
+  }
+  if (p === '/api/rm/library/pdf-up' && post) {   // V3.963 — a paper's PDF, already in this hub's media, into RM's library
+    if (typeof hub.rmPdfUp !== 'function') return J(200, { ok: false, error: 'no RM library on this hub' });
+    const b = parseBody(req) || {}, id = String(b.id || '').trim(), media = String(b.media || '');
+    if (!id || id.length > 200 || /[/]/.test(id)) return J(400, { ok: false, error: 'which paper?' });
+    if (!PDF_UP_PATH.test(media)) return J(400, { ok: false, error: 'which file? (images/<id>.pdf)' });
+    return J(200, await hub.rmPdfUp({ id, path: media, by: who.email || who.uid || '' }));
+  }
   if (p.startsWith('/api/rm/tasks')) {
     if (typeof hub.createTask !== 'function') return J(200, { ok: false, error: 'no RM tasks on this hub' });
     if (p === '/api/rm/tasks' && post) { const b = parseBody(req) || {}; if (!b.blockId) return J(400, { ok: false, error: 'blockId required' }); return J(200, await hub.createTask({ who, b })); }
@@ -1176,6 +1229,21 @@ async function route(req, ctx) {
     '/api/ink/read', '/api/ink/lang', '/api/hw/read', '/api/slides', '/api/notebook', '/api/notebook/browse'].includes(p)) return J(200, ONLY_LOCAL);
   return J(404, { ok: false, error: 'no such route' });
 }
+
+/* V3.963 — the in-memory hub's RM groups (hub.rmPaperGroups, hub.rmSharedGroups) and PDF up (from hub.media into hub.rmPdfs) */
+MemoryHub.prototype.rmGroups = async function () {
+  return Object.assign({ ok: true }, rmGroupsPlan({ mine: this.rmPaperGroups || [], lab: this.rmSharedGroups || [], items: this.rmItems || [] }));
+};
+MemoryHub.prototype.rmPdfUp = async function ({ id, path, by }) {
+  const item = (this.rmItems || []).find(it => String(it.id) === String(id)) || null, first = pdfUpPlan({ item });
+  if (!first.ok) return first;
+  const f = this.media.get(path); if (!f) return { ok: false, error: 'the PDF has not reached the lab cloud yet — it goes with this notebook’s next sync; try again in a minute' };
+  const plan = pdfUpPlan({ item, bytes: Buffer.from(f.bytes), by, now: Date.now() }); if (!plan.ok) return plan;
+  if (!this.rmPdfs) this.rmPdfs = new Map(); this.rmPdfs.set(plan.dest, f.bytes);
+  item.meta.library.pdf = plan.pdf; item.updated_at = isoAt(Date.now()).slice(0, 10);
+  await this.mirrorLibrary({ force: true });
+  return { ok: true, id: String(id), path: plan.dest, bytes: f.bytes.length };
+};
 
 /* the in-memory hub mirrors whatever `hub.rmItems` holds (tests, the dev hub) */
 MemoryHub.prototype.mirrorLibrary = async function ({ force } = {}) {
@@ -1384,6 +1452,6 @@ module.exports = { personOf, route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS,
   MWSTEPS_MS, mondayOf, weekWindow, mwStepRow, planWeekSteps, closedStatusFor, cleanLink, tickLink, planTickReport, stepTrackerEntry, stepTaskCopyPatch, pendingTicks, tickAnsweredOp,
   LAB_TZ, WHEN_MS, ACT_MS, WHEN_AHEAD, WHEN_BEHIND, ACT_DAYS, todayIn, nowIn, localDayOf, addDays_, wdayOf, safeIdPart, choreNext, remOccursOn, whenOcc,
   whenTaskId, whenText, whenCandidates, rmWhenTask, planWhen, sessionDaySeconds, actEventId, activityGroups, planActivity, fmtMinutes,
-  rmAnnotationRow, visibleAnnotations, stripTags, varsToText, rmProtocolRow, rmProtocolSteps, searchProtocols, rmCollectionRow, rmCollectionFull,
+  rmGroupsPlan, PDF_UP_PATH, pdfUpPlan, rmAnnotationRow, visibleAnnotations, stripTags, varsToText, rmProtocolRow, rmProtocolSteps, searchProtocols, rmCollectionRow, rmCollectionFull,
   recPartPath, REC_RID,
   PROJECTS_MS, PROJECT_FIELDS, THEME_FIELDS, UNASSIGNED_WHY, rmAssigned, planAssigned, NOTES_MS, PREVIEW_BLOCKS, PREVIEW_CHARS, noteIndexId, notePreview, noteLink, planNoteLinks, isReviewDoc, noteProjects };

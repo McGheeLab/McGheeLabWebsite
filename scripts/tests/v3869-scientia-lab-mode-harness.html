@@ -96,7 +96,9 @@
       else if (path === 'api/media/list') res = { ok: true, files: [1, 2, 3, 4, 5, 6].reduce(function (o, i) { o['images/m_pdf' + i + '.pdf'] = window.parent.location.origin + '/scripts/tests/fixtures/pdf-6pages.pdf'; return o; }, { 'images/m_fig.pdf': window.parent.location.origin + '/scripts/tests/fixtures/pdf-figure.pdf' }) };   // §18's PDF cards (absolute: pdf.js cannot resolve a path against about:srcdoc)
       else if (path === 'api/rm/members') res = { ok: true, members: [{ uid: 'u-bea', name: 'Bea Lab', category: 'grad' }, { uid: 'u-cy', name: 'Cy Lab', category: 'postdoc' }] };   // V3.899
       else if (path === 'api/rm/library/refresh') res = { ok: true, total: 2, written: 0, changed: 0, removed: 0 };
-      else if (path === 'api/rm/library/pdf') res = { ok: true, url: 'https://storage.example/p.pdf' };
+      else if (path === 'api/rm/library/pdf') res = { ok: true, url: window.parent.location.origin + '/scripts/tests/fixtures/pdf-6pages.pdf' };   // V3.963: Pull downloads it
+      else if (path === 'api/rm/library/groups') res = { ok: true, mine: [{ id: 'g1', name: 'Gels', kind: 'manual', from: 'mine', paperIds: ['p-smith-2024'] }], lab: [{ id: 's1', name: 'Lab reading', kind: 'manual', from: 'lab', paperIds: ['p-lee-2023', 'p-smith-2024'] }], smart: 1 };
+      else if (path === 'api/rm/library/pdf-up') { var pu = JSON.parse(body || '{}'); res = { ok: true, id: pu.id, path: 'papers/' + pu.id + '/abc.pdf', bytes: 9 }; }
       else if (path === 'api/rec/part') { var rq = new URLSearchParams(full.split('?')[1] || ''); res = { ok: true, rid: rq.get('rid'), n: +rq.get('n'), bytes: 2 }; }
       else if (path === 'api/rec/compose') { var cq = new URLSearchParams(full.split('?')[1] || ''); res = { ok: true, file: cq.get('name') + '.webm', path: 'recordings/' + cq.get('name') + '.webm', bytes: 40, parts: 2, job: {}, folder: 'cloud', url: 'https://storage.example/r.webm' }; }
       else if (path === 'api/rec/status') res = { ok: true, state: 'saved', where: 'cloud' };
@@ -156,8 +158,10 @@
     var smith = q('.lab-paper[data-rm="p-smith-2024"]'), lee = q('.lab-paper[data-rm="p-lee-2023"]');
     check('a paper with a PDF in RM offers Read in RM; one without does not', !!(smith && smith.textContent.indexOf('Read in RM') >= 0) && !!(lee && lee.textContent.indexOf('Read in RM') < 0 && lee.textContent.indexOf('no pdf') >= 0), (smith || {}).textContent);
     check('every RM paper offers Open in RM', qa('.lab-paper').every(function (c) { return c.textContent.indexOf('Open in RM') >= 0; }));
-    check('the desktop-only paper sits under "Only in this notebook" with Gabe\'s own card', !!q('.lab-mine') && /desktop-only preprint/.test(q('.lab-mine').textContent) && !q('.lab-mine .lab-paper'), (q('.lab-mine') || {}).textContent);
-    check('no DOI lookup or paste box: papers are added in RM', !q('input.inp.mono') && !q('textarea.inp') && /Add a paper/.test(q('.page').textContent) && /Open RM/.test(q('.page').textContent));
+    check('the desktop-only paper sits under "In your notebook" with Gabe\'s own card', !!q('.lab-mine') && /desktop-only preprint/.test(q('.lab-mine').textContent) && !q('.lab-mine .lab-paper'), (q('.lab-mine') || {}).textContent);
+    check('the DOI lookup and the paste box are back (V3.963, Gabe’s request): papers are added here and go to RM', !!q('input.inp.mono') && !!q('textarea.inp') && /Look up/.test(q('.page').textContent) && /Open RM/.test(q('.page').textContent));
+    check('…an RM paper with a PDF offers Pull into my notebook, one without does not; your own paper offers Push to RM', /Pull into my notebook/.test(smith.textContent) && !/Pull into my notebook/.test(lee.textContent) && /Push to RM/.test(q('.lab-mine').textContent));
+    check('…and the shelves and foci are the tree beside the lists', !!q('.lib-wrap .lg-side') && /Shelves/.test(q('.lg-side').textContent) && /Foci on no shelf/.test(q('.lg-side').textContent));
     /* 4. reading and opening go to RM */
     Array.from(smith.querySelectorAll('button')).filter(function (b) { return /Read in RM/.test(b.textContent); })[0].click();
     var readTab = await until(function () { return W.__opened.slice(-1)[0] === '/rm/pages/library-paper.html?id=p-smith-2024'; }, 4000);
@@ -165,15 +169,41 @@
     var lib = qa('.page button').filter(function (b) { return /Open RM/.test(b.textContent); })[0]; lib.click();
     check('Open RM\'s Library opens the library page', W.__opened.slice(-1)[0] === '/rm/pages/library.html', JSON.stringify(W.__opened));
     /* 5. the filter + refresh */
-    var filt = q('.page input.inp'); filt.value = 'lee'; filt.dispatchEvent(new W.Event('input', { bubbles: true }));
+    var filt = qa('.page input.inp').filter(function (i) { return /Filter by author/.test(i.placeholder); })[0]; filt.value = 'lee'; filt.dispatchEvent(new W.Event('input', { bubbles: true }));
     var one = await until(function () { return qa('.lab-papers .lab-paper').length === 1 && qa('.lab-papers .lab-paper')[0].dataset.rm === 'p-lee-2023'; }, 3000);
     check('the filter narrows the lab papers (and the desktop-only list)', !!one && /Nothing matches/.test(q('.lab-mine').textContent), qa('.lab-papers .lab-paper').length);
     var before = W.__hubCalls.length;
     qa('.page button').filter(function (b) { return /Refresh from RM/.test(b.textContent); })[0].click();
     var refreshed = await until(function () { return W.__hubCalls.slice(before).some(function (c) { return c.path === 'api/rm/library/refresh' && c.method === 'POST' && c.auth; }); }, 4000);
     check('Refresh from RM asks the hub (POST api/rm/library/refresh, signed)', !!refreshed, JSON.stringify(W.__hubCalls.slice(before)));
-    var st = await until(function () { var s = q('.page .tiny.mono.muted'); return s && /mirrored: 2 papers/.test(s.textContent) && s.textContent; }, 4000);
+    var st = await until(function () { var s = q('.page .lab-lib-status'); return s && /mirrored: 2 papers/.test(s.textContent) && s.textContent; }, 4000);
     check('and reports what the hub said', !!st, st);
+    /* 5b. V3.963 — Import from RM, Pull, Push */
+    filt = qa('.page input.inp').filter(function (i) { return /Filter by author/.test(i.placeholder); })[0]; filt.value = ''; filt.dispatchEvent(new W.Event('input', { bubbles: true }));
+    function pageBtn(rx, root) { return Array.from((root || D).querySelectorAll('.page button')).filter(function (b) { return rx.test(b.textContent); })[0]; }
+    pageBtn(/Import from RM/).click();
+    var imp = await until(function () { return ev("DB.where('libsets', function (x) { return x.rmGroup; }).length") === 2 && W.__hubCalls.some(function (c) { return c.path === 'api/rm/library/groups' && c.auth; }); }, 4000);
+    var sets = ev("JSON.stringify(DB.all('libsets').map(function (x) { var t = x.themeId && DB.get('libsets', x.themeId); return [x.kind, x.name, t ? t.name : null, (x.paperIds || []).join('+')]; }).sort())");
+    check('Import from RM: each RM group is a focus on a shelf of its source (GET api/rm/library/groups, signed)', !!imp && sets === JSON.stringify([['group', 'Gels', 'My RM groups', 'p-smith-2024'], ['group', 'Lab reading', 'Lab groups', 'p-lee-2023+p-smith-2024'], ['theme', 'Lab groups', null, ''], ['theme', 'My RM groups', null, '']]), sets);
+    check('…and says the smart group stays in RM', /1 smart group stay in RM/.test(q('.page .lab-lib-status').textContent), q('.page .lab-lib-status').textContent);
+    pageBtn(/Import from RM/).click(); await until(function () { return /brought up to date/.test(q('.page .lab-lib-status').textContent); }, 4000);
+    check('…an import again updates them, no second copies', ev("DB.where('libsets', function (x) { return x.rmGroup; }).length") === 2 && ev("DB.all('libsets').length") === 4);
+    smith = await until(function () { var c = q('.lab-paper[data-rm="p-smith-2024"]'); return c && /Gels/.test(c.textContent) && /Lab reading/.test(c.textContent) && c; }, 4000);
+    check('…the RM paper carries its foci as chips', !!smith, (q('.lab-paper[data-rm="p-smith-2024"]') || { textContent: 'no card' }).textContent.slice(0, 120));
+    if (!smith) smith = q('.lab-paper[data-rm="p-smith-2024"]') || D.body;
+    pageBtn(/Pull into my notebook/, smith).click();
+    var pulled = await until(function () { return ev("DB.where('media', function (m) { return m.kind === 'pdf' && m.rmPaper === 'p-smith-2024'; }).length") === 1; }, 8000);
+    check('Pull into my notebook: the PDF comes from RM (api/rm/library/pdf, then the file) into this notebook, marked as that paper’s', !!pulled && W.__hubCalls.some(function (c) { return c.path === 'api/rm/library/pdf' && /id=p-smith-2024/.test(c.full); }), ev("JSON.stringify(DB.all('media').map(function (m) { return [m.kind, m.rmPaper]; }))"));
+    var here = await until(function () { var c = q('.lab-paper[data-rm="p-smith-2024"]'); return c && /pdf in your notebook/.test(c.textContent) && /Read here/.test(c.textContent) && !/Pull into my notebook/.test(c.textContent) && c; }, 4000);
+    check('…the card then says so and offers Read here (this app’s reader)', !!here, (q('.lab-paper[data-rm="p-smith-2024"]') || {}).textContent);
+    ev("DB.put('media', { id: 'm_up', kind: 'pdf', ext: 'pdf', name: 'preprint.pdf', mime: 'application/pdf', size: 9, created: '2026-11-09T10:00:00', path: 'images/m_up.pdf' }); var L = M.lib('l-local-1'); L.pdf = 'm_up'; DB.put('library', L); changed()");
+    await until(function () { return /Push to RM/.test(q('.lab-mine').textContent) && ev('SYNC.outbox.size') === 0; }, 6000);
+    var nUp = W.__hubCalls.length; pageBtn(/Push to RM/, q('.lab-mine')).click();
+    var asked = await until(function () { return W.__hubCalls.slice(nUp).some(function (c) { return c.path === 'api/rm/sync' && c.method === 'POST' && /only=up/.test(c.full) && c.auth; }); }, 4000);
+    W.__emit({ store: 'library', id: 'l-local-1', rec: Object.assign({}, ev("M.lib('l-local-1')"), { rmSync: { state: 'done', rmId: 'l-local-1', at: '2026-11-09T10:00:00' } }), del: false });   // what the hub's syncUp writes back
+    var up = await until(function () { return W.__hubCalls.slice(nUp).filter(function (c) { return c.path === 'api/rm/library/pdf-up' && c.method === 'POST'; })[0]; }, 8000);
+    check('Push to RM: the hub sends it up now (POST api/rm/sync?only=up), then its PDF (POST api/rm/library/pdf-up with the file the hub holds)', !!asked && !!up && JSON.parse(up.body).id === 'l-local-1' && JSON.parse(up.body).media === 'images/m_up.pdf', up ? up.body : JSON.stringify(W.__hubCalls.slice(nUp).map(function (c) { return c.full; })));
+    check('…and says it went with its PDF', !!(await until(function () { return /Sent to RM with its PDF/.test(q('.page .lab-lib-status').textContent); }, 4000)), q('.page .lab-lib-status').textContent);
     /* 6. #/read/<RM paper> is RM's reader, not the in-app one */
     go('#/read/p-smith-2024');
     var rd = await until(function () { return q('.lab-read'); }, 6000);
