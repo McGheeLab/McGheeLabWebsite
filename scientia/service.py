@@ -171,7 +171,8 @@ def main():
         if code == 0: return                            # asked to stop (Quit, Remove…)
         if time.time() - t0 > 300: wait = 2.0           # it ran a while: a fresh failure, not a loop
         if running(): return                            # someone else serves the port now
-        time.sleep(wait); wait = min(60.0, wait * 2)
+        if code == 3: wait = 600.0                      # V3.964: the port is held by another program (an older copy, a launch.bat): again in ten minutes
+        time.sleep(wait); wait = min(60.0 if code != 3 else 600.0, wait * 2)
 
 
 if __name__ == '__main__':

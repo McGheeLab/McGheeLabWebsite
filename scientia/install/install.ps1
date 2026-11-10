@@ -26,9 +26,12 @@ if (-not (Test-Path (Join-Path $From 'app\serve.py'))) {
   exit 2
 }
 
-# 1. stop a copy of the app that is already running (this one, or an older launch.bat)
+# 1. stop a copy of the app that is already running (this one, or an older launch.bat) — and its supervisor (service.py),
+#    which would otherwise start the old copy again under the new one (V3.964)
 try { Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:$Port/api/lab/quit" -TimeoutSec 3 | Out-Null; Start-Sleep -Seconds 1 } catch {}
+Get-CimInstance Win32_Process -Filter "Name='pythonw.exe' OR Name='python.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*ScientiaInSitu\app\*" } | ForEach-Object { try { Stop-Process -Id $_.ProcessId -Force } catch {} }
 Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | ForEach-Object { try { Stop-Process -Id $_.OwningProcess -Force } catch {} }
+Start-Sleep -Milliseconds 800
 
 # 2. the app
 Say 'Copying the app…'
