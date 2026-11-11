@@ -870,8 +870,8 @@
     var keep = [].filter.call(q('.box[data-id="c_pdf1"]').querySelectorAll('canvas.pdf-page'), function (c) { return c.width > 0; })[0];
     var box1 = q('.box[data-id="c_pdf1"]');
     ev("(function () { var o = M.doc('d1'); o.title = 'Plan for coverslips (renamed elsewhere)'; DB.put('documents', o); changed(); })()");   // what a sync from another device does
-    await until(function () { return q('.box[data-id="c_pdf1"]') && q('.box[data-id="c_pdf1"]') !== box1; }, 4000);
-    check('a rebuild of the canvas (a sync) keeps the drawn pages: the same canvas, still drawn', q('.box[data-id="c_pdf1"]') !== box1 && !!keep && keep.isConnected && keep.width > 0 && q('.box[data-id="c_pdf1"]').contains(keep));
+    await sleep(300);   // V3.980: the app keeps a PDF's box that would be drawn the same (12 fill), so the box may be the one already there; the redraw is done within a frame
+    check('a rebuild of the canvas (a sync) keeps the drawn pages: the same canvas, still drawn', !!q('.box[data-id="c_pdf1"]') && !!keep && keep.isConnected && keep.width > 0 && q('.box[data-id="c_pdf1"]').contains(keep), (q('.box[data-id="c_pdf1"]') === box1 ? 'the box kept' : 'a new box') + ' ' + JSON.stringify([!!keep, keep && keep.isConnected, keep && keep.width, !!q('.box[data-id="c_pdf1"]') && q('.box[data-id="c_pdf1"]').contains(keep), drawnIn(1)]));
     check('…and the card keeps its toolbar (Gabe’s SLIM docks it in the new box’s header)', !!q('.box[data-id="c_pdf1"] .bh .pdf-bar') && /6 pages/.test(q('.box[data-id="c_pdf1"] .pdf-bar').textContent));
     ev("DocView.paper.zoomAt(0.3)");
     var far18 = await until(function () { var b = q('.box[data-id="c_pdf1"] .pdfw'); return b && b.classList.contains('pdf-far') && drawnIn(1) === 0 && b; }, 5000);
