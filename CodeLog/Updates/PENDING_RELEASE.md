@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (80 changes — ready to push)
+## Pending (81 changes — ready to push)
+
+- Fixed: changing something in a note no longer reloads its web pages, PDFs and whiteboards (a PDF stays where you scrolled it); crowded notes no longer push their components apart or flicker when zoomed out; and the edge pan now works only in full screen (Ctrl+. or F11), starting after a short rest at the screen's edge.
 
 - A website that will not let the app in (most journals) now opens in your own browser: if it asks, answer it there, press Ctrl+S and save it as "Webpage, Single File", and the page comes into your note by itself — no dragging.
 
