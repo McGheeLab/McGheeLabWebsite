@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.970] — 2026-11-10 — Scientia: the deck answers clicks, and has one size
+
+Gabe: "you cannot go back and forth between versions or create a third iteration as of now. Also, resizing one of the components resizes all other equally to keep that card deck feel." The deck's strip captured the pointer on press for its swipe, so Chrome sent every mouse or pen click on ‹ › a dot or + to the strip instead of the button.
+
+### Bug Fixes
+- **`scientia/src/13zzq-deck.js` (`IDECK.strip`):** the pointer is captured only once the drag has gone 8 px sideways (a swipe); a click on ‹ › a dot or + reaches its button.
+- **`ITER.go` wrapped:** a version picked in the version tag's menu (or "on v1 ↑") goes on top of its deck.
+
+### Changed
+- **One size for a stacked deck:** `DB.put` wrapped — saving a version gives its `w` (and `h` when it has one) to the other versions (`IDECK.size`; not while `SYNC.applying`, not a spread-out deck); `IDECK.watch` / `IDECK.fit` keep the cards beneath the top card's size on screen while it is resized; `IDECK.stack` gives every version the top card's spot and size. **`MANUAL.md`:** Iterations (the version menu, one size).
+
 ## [V3.969] — 2026-11-10 — Scientia: the term lens and the note terms are nests too
 
 Gabe: "The Atlas reshaping should apply to terms and temporary terms." The term lens and a term in one note now open as the Atlas's nests: the term is the outer sphere, its themes (or projects) inside, the notes inside those with the components that use it as dots, the other terms and papers orbiting the note they belong to, and the connections between components drawn.
