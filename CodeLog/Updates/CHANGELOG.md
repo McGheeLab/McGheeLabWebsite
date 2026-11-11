@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.974] — 2026-11-11 — Scientia: the versions of a component as slides on its left
+
+Gabe: "The iteration cards should actually reside not as a deck, but a set of 'slides' that you can scroll through vertical of the component on the left, like PowerPoint. Just click on the version you want and brings it up in the component window."
+
+### Changed
+- **`scientia/src/13zzq-deck.js` (`IDECK`):** the component shows one version; `slides(b, ro)` is a column inside its left edge (`.iter-slides`, scrolling) with a slide per version (`thumb(x)`: an image panel's first picture, a file's name, a text's first words; "v2" or "attempt 2") — a click brings it up (`IDECK.to`), + at its foot makes the next; the other versions are not drawn (`deck-hid`). `widen(b, ±1)`: a line shown as slides is `SLW` (104 px) wider so the content keeps its room (`root.iterSlides`; Spread out narrows it, Show as slides widens it); `after` widens a deck from before once. ↑ ↓ as well as ← →. The horizontal strip, the swipe, the stacked cards and `fit`/`watch` are gone. The version menu says **Show as slides**.
+- **`13zzo-iterate.js`:** the toast says the new version is up with the earlier ones on its slides. **`24-kinds.css`:** `.has-slides`, `.iter-slides`, `.isl…`; the deck strip's rules removed. **`MANUAL.md`:** Iterations.
+
 ## [V3.973] — 2026-11-10 — Scientia: a Synthesis of the notes you choose, outside an experiment
 
 Gabe: "I want to be able to create a synthesis note outside of an experiment. In doing so, I can add a list of notes that get synthesized as a synthesis note for an experiment would. For example, if there is a takeaway from a couple of lines inside a giant text component, then only that takeaway gets synthesized."
