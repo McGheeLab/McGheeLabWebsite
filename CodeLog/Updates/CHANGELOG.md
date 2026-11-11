@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.971] — 2026-11-10 — Scientia: websites as a component, saved as they are
+
+Gabe: "I want to be able to add websites as a component, and should behave like a PDF/HTML viewer. The website should not be visited, but instead saved as a mere copy of what that webpage is, so that if it ever gets taken down, then it will remain in the note as it was the moment it was captured."
+
+### Added
+- **`scientia/webcap.py`:** `capture(url, allow_private)` fetches the page once and builds one self-contained HTML file (stylesheets with their `@import`s, images, icons and fonts inlined as `data:` URLs; scripts, frames, embeds, media sources, `on*` attributes, `<base>`, refresh and preload links taken out; `<noscript>` unwrapped; lazy images' real address; links absolute, `target=_blank`); a `Content-Security-Policy` meta forbids any network request when the copy is shown (inline scripts allowed for the app's own quoting and ink scripts). A PDF comes back as the PDF; a picture or plain text wrapped in a page. Only http(s); loopback, link-local and multicast refused always, private and other non-global addresses unless the request is from this computer; every redirect re-checked (`_Guard`). Limits: page 15 MB, PDF 80 MB, resource 8 MB, 25 MB in all, 400 resources, 120 s.
+- **`scientia/serve.py`:** `POST /api/capture {url, id}` (the computer and its paired devices): saves the copy as `images/<id>.<html|pdf>` and answers with its title, address, time, size, what did not come and the page's icon — a small answer (a large one was reset now and then by this server on Windows).
+- **`scientia/src/13zzs-webcap.js` (`WEBCAP`):** + Insert → Website… (`/website`); the media record and an `html` or `pdf` component with `web { url, final, title, at, size, missing, icon }`; the strip under the header (`WEBCAP.strip`: saved when and from where, ↗ Live page, ⟳ Capture again — the next version via `ITER.attach`, its "how it improved" filled with the time); the Markdown says where and when it came from.
+- **`14b-atlas.js`:** `/collection website`. **`24-kinds.css`:** `.web-strip`. **`rm/scientia/lab-mode.js`** (Alex reviews; the lab harness asks every + Insert row for its own icon): `website: 'globe-alt'` and the icon's path, as `rm/js/icons.js` has it. **`scripts/scientia_build.py`:** `webcap.py` in the desktop download.
+
 ## [V3.970] — 2026-11-10 — Scientia: the deck answers clicks, and has one size
 
 Gabe: "you cannot go back and forth between versions or create a third iteration as of now. Also, resizing one of the components resizes all other equally to keep that card deck feel." The deck's strip captured the pointer on press for its swipe, so Chrome sent every mouse or pen click on ‹ › a dot or + to the strip instead of the button.

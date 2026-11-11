@@ -54,6 +54,7 @@ BUNDLE = os.path.join(DESK_DIR, 'ScientiaInSitu-Windows.zip')
 BUNDLE_VERSION = os.path.join(DESK_DIR, 'version.json')
 BUNDLE_APP = ['serve.py', 'sisync.py', 'labsync.py', 'service.py', 'open_local.py', 'hwread.py', 'slides.py', 'sttread.py', 'winink.py',
               'rawmouse.py',   # V3.960: the mouse's own movement for the edge pan
+              'webcap.py',    # V3.971: a website kept as it was
               'vendor/rm/recorder-core.js', 'vendor/rm/speech-to-text.js', 'vendor/rm/stt-device-worker.js',
               'launch.bat', 'MANUAL.md', 'diagnose-pairing.bat', 'diagnose-pairing.ps1', 'vendor/scientia_cloud.py',
               'pen-button/ScientiaPen.cs', 'pen-button/Build ScientiaPen.cmd']   # V3.949: the pen's button (the installer builds the exe)
