@@ -1344,6 +1344,7 @@
     "scientia/src/13zzq-deck.js",
     "scientia/src/13zzr-synth.js",
     "scientia/src/13zzs-webcap.js",
+    "scientia/src/13zzt-excerpt.js",
     "scientia/pen-button/**"
    ],
    "distinct_from": {

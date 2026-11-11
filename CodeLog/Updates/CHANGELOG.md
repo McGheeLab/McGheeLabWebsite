@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.972] — 2026-11-10 — Scientia: copied words pulled in as a live excerpt
+
+Gabe: "text inside a component that is selected, can be copied and pasted to pull in just that part of the component in whichever note you paste it in." Until now the paste in another note pulled in the whole component.
+
+### Added
+- **`scientia/src/13zzt-excerpt.js` (`EXCERPT`):** a pulled-in component (`kind: 'ref'`) with `refSpan { from, to, exact, prefix, suffix }`. `locate` finds the passage again: at its place, else by its words (the words around it decide between repeats), else between the words that were around it (the passage edited inside); `view` gives the passage with the original's marks over it; the card (`DocView.refCard` wrapped) shows only that, with an "excerpt" pill and "from …"; a passage gone from the original shows as it read, with a note. `pull` makes it from the clipboard's `{ blockId, from, to, text }`; the whole text still pulls in the whole component.
+
+### Changed
+- **`13zu2-bulk.js` (`CLIPX.paste`):** text from a component, pasted in another note → `EXCERPT.pull`; Ctrl+Shift+V → a copy. **`13o-vault.js`:** the Markdown says "a part of" with the passage. **`21-export.js`:** the read-only HTML carries just the passage. **`MANUAL.md`:** Copy and paste.
+
 ## [V3.971] — 2026-11-10 — Scientia: websites as a component, saved as they are
 
 Gabe: "I want to be able to add websites as a component, and should behave like a PDF/HTML viewer. The website should not be visited, but instead saved as a mere copy of what that webpage is, so that if it ever gets taken down, then it will remain in the note as it was the moment it was captured."

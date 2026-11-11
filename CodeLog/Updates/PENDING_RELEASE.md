@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (72 changes — ready to push)
+## Pending (73 changes — ready to push)
+
+- **Copy a few words, paste a live excerpt (V3.972):** select words in a component, copy, and paste in another note: only those words come in, linked to the original and following its changes. Ctrl+Shift+V still pastes a plain copy.
 
 - **Websites in notes (V3.971):** + Insert → Website… saves a web page in the note as it is right now — text, pictures and all — so it stays even if the site changes or disappears; opening the note never loads the live site. "Capture again" keeps a new copy beside the old one. Works on your computer and the devices paired with it.
 
