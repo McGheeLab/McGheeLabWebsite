@@ -61,3 +61,8 @@
 .pf-expg{display:flex;flex-direction:column;gap:6px} .pf-exp-in{display:flex;flex-direction:column;gap:6px;padding-left:10px;border-left:2px solid var(--rule-2);margin-left:8px}
 .pf-sort{white-space:nowrap}
 .pf-proj{position:absolute;display:flex;flex-direction:column;gap:14px} .pf-proj .box{position:relative;left:auto;top:auto} .pf-cols{display:flex;align-items:flex-start} .pf-col{display:flex;flex-direction:column;gap:12px;flex:none}
+/* V3.976 · 13zzr the Synthesis's "notes to synthesize" component */
+.synth-of{padding:10px 12px;display:flex;flex-direction:column;gap:6px} .synth-of .sy-h{font:600 13px/1.3 var(--f-d)} .synth-of .sy-ask{margin:0;font:12.5px/1.45 var(--f-s,serif);color:var(--ink-2)}
+.synth-of .sy-list{display:flex;flex-direction:column;gap:3px} .synth-of .sy-row{display:flex;align-items:center;gap:6px;font-size:12.5px;min-width:0}
+.synth-of .sy-t{font-weight:600;color:var(--ink);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0} .synth-of .sy-t:hover{text-decoration:underline}
+.synth-of .sy-x{width:20px;height:20px;padding:0;font-size:13px} .synth-of .sy-acts{display:flex;gap:6px;margin-top:2px}
