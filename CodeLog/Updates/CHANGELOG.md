@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.978] — 2026-11-11 — Scientia: slides show each version and delete it; delete a project from its page; a theme's page shows activity
+
+Gabe: "The slide deck format of the iteration should have a preview in the slides to the left. Versions can be deleted from an iteration panel." · "You should be able to delete a project on the project main page." · "Project health based on activity should apply to the internal look of themes as well."
+
+### Added
+- **Previews on the slides (`scientia/src/13zzq-deck.js`):** `IDECK.previews(pane)` after each drawing of a note (`DocView.fill`, a frame and 80 ms later so an image panel has laid out its pictures): each slide's text thumbnail is replaced by `IDECK.preview(src, x)`, a copy of that version's own box (the one on screen, or the `deck-hid` one) that does nothing — the header, link circles, grips and "how it improved" out, no `id` or `data-id` (the app finds a box by it), nothing editable, `inert`, canvases copied, a page's or PDF's frame as its name — drawn at its width (text at 240 px, so its words show larger) and scaled to the slide (`IDECK.fit`, 30–150 px tall).
+- **Delete a version (`IDECK.drop(id)`):** × on each slide (`.isl-x`; a touch with a pen hand does nothing, `NAV.palmOff`) and the slide's right-click menu (Bring it up · Delete). At once, as a component is deleted, one undo step (the group held open): the line closes up — a version that improved on the deleted one improves on the one before it (its `iterates` wire written), the second becomes the first when the first goes (`iter` dropped, the root's `iterSlides`/`iterSpread` carried, the others' `iter.root`), every version numbered again (`iter.v`); with one left it is a component again, narrowed back by the slides' width (`IDECK.widen(-1)`). `EDIT.purge(EDIT.footprint([id]))` takes its structures, wires and pulled-in copies, as Delete does.
+- **Delete a project (`scientia/src/13p-edit.js`, `15-portfolio.js`):** **Delete project…** on the project page (not for `p.rm` or `p.sharedFrom`; a project with `shareWith` asks to stop sharing first). `EDIT.confirmProject(p)`: keep its notes, or delete them too. `EDIT.deleteProject(p, 'keep' | 'delete')`, one undo step (`DB.beginGroup` held, the index rebuilt once): notes kept lose `projectId`/`themeId` (their structures, terms, sessions, datasets and reminders unlinked with them) or go by `EDIT.deleteDoc` (a running protocol's runs block it, `EDIT.blocker`); themes and their aims deleted; lit reviews' `review.projectIds` drop it; `DISK.keep('before-delete-project')` first; then the Portfolio.
+- **A theme's page shows activity (`15-portfolio.js`, `15d-pfkit.js`):** the first tile is "activity · 4 wk" (`H.act`, from `IX.themeHealth` as wrapped in V3.975) instead of time recorded; the eight-week map is the activity map (`PFKIT.activity(docs, 28, 56)` — `mapDays`, new, default 42 — through `PFKIT.heat`); each note in its list shows its own activity, "open" while its two weeks run (`PFKIT.noteAct(d)`).
+
+### Bug Fixes
+- **`ITER.ix()` (`13zzo-iterate.js`)** was cleared only by `changed()`, which Ctrl+Z does not call, so after an undo the versions read from a stale index (found while testing undo of a deleted version). It is made again whenever the blocks store has changed (`DB.revOf.blocks`).
+
+### Tests
+| Test | Result |
+|---|---|
+| `t_977deck`: each slide shows its version (its words; an image panel's two pictures); scaled, 30–150 px; inert, no `data-id`, nothing editable; the app finds each version by its id; × deletes v2 at once (v3 improves on v1, its wire written, the toast); one Ctrl+Z brings it back numbered 1, 2, 3; the slide's menu deletes the first (the second becomes the first); a palm on × with a pen hand deletes nothing; down to one: a component again, its width back | 15/15 |
+| `t_977proj`: the theme page's tiles, its 56-day map and each note's activity; Delete project… shown, not for an RM or a shared-with-me project; keep the notes (all unlinked, lit review unlinked, Portfolio) and one Ctrl+Z; delete them too (structures and terms go; the lit review and other projects stay) and one Ctrl+Z | 11/11 |
+| Earlier: slides (its thumbnail check now reads the preview), portfolio (lab), Synthesis component, website capture, excerpts | 13/13, 14/14, 16/16, 12/12, 11/11 |
+| `v3869` lab-mode harness · `v3880` notes harness | 288/288 · 13/13 |
+
 ## [V3.977] — 2026-11-11 — Scientia: websites from a page saved in the browser; the Synthesis's notes component at once; pulled-in labelled images show their picture; the command bar ignores the palm
 
 Gabe: "Website capturing is not working." · "If an image panel or an image from a panel is pulled in to a note, it should appear there as well, which it currently doesn't." · "The Notes to synthesize component does not appear until you exit the note and re-enter it." · "The command bar gets hit by my palm when I write, so deactivate it in pen mode, unless the actual pen hits it."

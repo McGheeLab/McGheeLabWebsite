@@ -64,6 +64,7 @@ This manual covers everything the notebook can do, from first launch to the pen 
 
 - A note belongs to one project and one theme. It can also be **General** (no project): use + Note → Project: *No project (general)*. General notes sit at the top of the Portfolio, and their header lists the projects they touch.
 - To move a note, use ⋯ → **Project & theme…**.
+- **Delete a project:** **Delete project…** on the project's page. Choose **keep its notes** (they stay, with everything in them, outside any project; move each where you like) or **delete its notes too**. Its themes and aims go either way, and a lit review that served it serves it no more. **Ctrl+Z** brings everything back; with a notebook folder a copy is kept first. Not offered for a project assigned in RM or one shared with you; a project you share: stop sharing it first.
 
 ---
 
@@ -158,7 +159,7 @@ A note has a **header box** (title, type, profile fields, tags, ✎ for note det
   - **An experiment as one card**: its name and its stages (Planning, Run, Analysis, Synthesis; a stage opens its note). **▸** unfolds it into its notes, and it stays unfolded on this computer until **▾** folds it.
   - **Notes in the order of their date**, the day a note is about, newest first. **⇅** on the project changes it: oldest first, recent changes, most active, or title.
   - **Dots on each note** for its **takeaways**, **open barriers** and **evidence**, in their colours from Settings, with the count inside. Hover a dot (or tap it) and it opens onto the words marked.
-- **Health is activity**, not time recorded. A note earns activity only in the **two weeks from its date**: a component made scores 1, a structure marked 3, a **takeaway** or a **result** 10. Lit reviews earn none. A theme card and the project's header say "activity N · 4 wk" (the last four weeks), the heatmap shows each day's activity, and a theme with none for three weeks is *stalled*.
+- **Health is activity**, not time recorded. A note earns activity only in the **two weeks from its date**: a component made scores 1, a structure marked 3, a **takeaway** or a **result** 10. Lit reviews earn none. A theme card and the project's header say "activity N · 4 wk" (the last four weeks), the heatmap shows each day's activity, and a theme with none for three weeks is *stalled*. A theme's own page shows the same: activity over four weeks, the eight-week activity map, and each note's activity ("open" while its two weeks run).
 
 ### Editing the note itself
 - **Note details** (✎ on the header box, or ⋯ → Note details…): title, type, project, theme, date. Changing the date moves every component's stamp with it, unless you untick that option.
@@ -346,7 +347,8 @@ A **Story** is a kind of component for telling — a talk, a paper's thread, a l
 An **Iteration** is the next version of a component: Run 2 of a report, the figure redone, the hypothesis reworded.
 - **Make one:** the component's ⋯ → **New iteration**, or Iteration in the kind label's list (double-click it), or `/iteration` with the component selected.
 - **What you get:** a blank component of the same type and kind, and the component now shows **one version at a time**, with all of them as **slides** in a column inside its left edge, like PowerPoint. It has the same size and label: an image panel keeps its grid, a table starts empty. An HTML page, a PDF or slides ask for the new version's file, and that file keeps its own name.
-- **The slides:** each shows its version's first words, a picture's thumbnail or a file's name, with v1, v2… above it. **Click a slide** to bring that version up; the column scrolls when there are many. **+** at its foot makes the next version. With the component selected, **↑ ↓** (or ← →) go through them. Picking a version in the version tag's menu brings it up too. The component is the slides' width wider, so the text keeps its room.
+- **The slides:** each shows a small picture of its version as it looks (its words, its images; a page or a PDF by its name), with v1, v2… above it. **Click a slide** to bring that version up; the column scrolls when there are many. **+** at its foot makes the next version. With the component selected, **↑ ↓** (or ← →) go through them. Picking a version in the version tag's menu brings it up too. The component is the slides' width wider, so the text keeps its room.
+- **Delete a version:** **×** on its slide, or right-click the slide → **Delete**. It goes at once and the others close up, numbered again: delete the first and the second becomes the first; with one left it is an ordinary component again. **Ctrl+Z** brings it back. With a pen hand, a touch on × does nothing (the palm).
 - **One size:** resize the component and every version takes the same width (and height, for a page or a PDF).
 - The version tag's menu offers **Spread out** (every version beside the one before, wired **next version**, each keeping its own size) and **Show as slides** to bring them back.
 - **How it improved:** under the new version, like an image panel's caption, is the question "How did v2 improve on v1?"; the caret waits there. What you write is kept with that version.
