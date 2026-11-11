@@ -400,6 +400,9 @@ The last stage of an experiment is its **Synthesis**: one note in the project th
 - **A synthesis of any notes**, outside an experiment: `/synthesis`, or **A synthesis of this note and others…** in a note's ⋯ menu. Pick the notes one after another (Cancel when done); a Synthesis note is made in the first note's project and gathers them as above. Only what is **marked** in them comes in: a takeaway marked in two lines of a long component arrives as that takeaway alone, not the component around it.
 - **± Notes** (the dock, or the Synthesis note's ⋯ menu) lists the notes it synthesizes: **+ Add notes…** brings more in and gathers them; click one to take it out of the list (what it already gave stays). An experiment's Synthesis can take more notes this way too.
 - In a note with the lab's pills the dock is hidden: ± Notes, ⟲ Gather and ☰ The rest are in the note's ⋯ menu as well.
+- **Notes to synthesize:** every Synthesis note has a component that lists the notes it synthesizes (an experiment's are marked "the experiment"), with **+ Add notes…**, **⟲ Gather**, and × to take one out. A new Synthesis note opens with it, asking which notes you would like to synthesize.
+- **Flag for synthesis:** in a note that a Synthesis synthesizes, right-click a component → **Flag for synthesis**, or right-click words you selected, or a marked passage (a highlighted takeaway, claim…), → **Flag these words for synthesis**. It is pulled into the Synthesis under **Flagged for synthesis**: the component, or a live excerpt of just the words.
+- **Lit reviews give only what you flag.** Their claims, evidence, results and takeaways are not gathered, and ☰ The rest leaves them out: flag what should come in.
 
 ### Protocols
 A protocol is one box, with its steps on a rail.

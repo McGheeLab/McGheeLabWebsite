@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.976] — 2026-11-11 — Scientia: the Synthesis asks for its notes; Flag for synthesis; lit reviews by flags only
+
+Gabe: "Synthesis notes, when created, have a component in them that ask you to add notes you'd like to synthesize. Additionally, you can right click a component or a highlighted text in those notes to flag for synthesis, which automatically ports them into that synthesis note, like a pulled in component would. For Lit Reviews, only the information that is flagged for synthesis may appear in a synthesis note, not the usual takeaways, results, etc..."
+
+### Added
+- **`scientia/src/13zzr-synth.js` (`SYNTH`):** `WIDGETS.synthof` ("notes to synthesize": the notes, an experiment's marked as such, a lit review "flagged only"; + Add notes…, ⟲ Gather, ×) made by `ensureAsk(d)` with the note (`create`, an experiment's Synthesis from the Analysis) or the first time a Synthesis note is opened (`d.synthAsked`); `addNotes`, `drop`; `of(docId)` (the Synthesis notes that synthesize a note); `flag(s, b, span)` — a pulled-in component, or a live excerpt (`refSpan`, 13zzt) of the words, with `synthFlag`, under a "Flagged for synthesis" heading (`synthHead: 'flagged'`); `DocView.menu` wrapped: **Flag for synthesis**, and with selected words or a marked passage under the pointer **Flag these words for synthesis** (what a right-click began on is kept: the press can collapse the selection before the menu opens); `lit(x)`.
+
+### Changed
+- **`SYNTH.gather` / `rest`:** a literature note gives none of its structures or "what it adds up to", and is not in ☰ The rest — only what is flagged. **`24-kinds.css`:** `.synth-of`. **`MANUAL.md`:** Synthesis.
+
 ## [V3.975] — 2026-11-11 — Scientia: the portfolio — lit reviews in their column, experiments as one card, note-date order and a sort button, structure dots, health as activity
 
 Gabe: "All Lit Reviews are in the Lit Reviews panel of the project, and should not be in the project-wide. All expermiment note sets … should appear under one item card with a dropdown … Experiments are listed in terms of the note date … Add a sort button to each project … takeaways as a dot of the same color set in the settings with a number inside … Do the same for barrier (open only) and evidence. Project health should be denoted as activity rather than time recorded …"
