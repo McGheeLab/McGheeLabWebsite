@@ -428,6 +428,7 @@ Open it with the ＋ **Quick cast** → **⋯** (everything that can go in this 
 | **Calculator** | Also via the **Calculator** button at the top right of every canvas. |
 | **Equation** | Also via **∑ Equation**. An equation box with a legend of its terms. |
 | **HTML file…** | An exported plot, report or page, sandboxed. |
+| **Website…** | A web page saved in the note as it is now, kept even if the site goes away (see Websites, below). |
 | **PDF…** | Pages drawn by the app; text is selectable and searchable. |
 | **Slides (PowerPoint)…** | One picture per slide, with speaker notes. Needs PowerPoint on Windows. |
 | **Recording** | Microphone + transcript (§18). |
@@ -496,6 +497,14 @@ Open it with the ＋ **Quick cast** → **⋯** (everything that can go in this 
   - On an HTML page a snip ends clip mode, and a snip made in the maximised page brings you back to the note, where the new panel is. (An equation brings you back once you press Done in the equation editor.)
   - On an HTML page a figure is a chart (SVG or canvas), a picture, a table or a `<figure>`, with its legend. Its heading becomes the label and its caption the text. A page that draws its charts with its own scripts (an exported report or plot) works once they are drawn. A display equation written with KaTeX goes into the equation editor as its own LaTeX.
   - An equation becomes an equation component, checked by you first. On the website it is read into LaTeX for you; on the desktop you type it against the snip.
+
+### Websites
+- **+ Insert → Website…** (or `/website`) asks for an address. The page is saved **once, as it is now**, in your notebook folder: its text, styles, pictures and fonts in one file, with the site's scripts and frames left out. It becomes a page component like an HTML page (quoting, snips and ink labels work the same). An address that is a PDF becomes a PDF component.
+- **The site is never visited again.** Opening the note shows the saved copy, and the copy is not allowed to load anything from the internet. If the site changes or goes away, the note still shows the page as it was when you saved it.
+- **The strip under the header** says when and from where it was saved. **↗ Live page** opens the site in your browser, only when you click it. **⟳ Capture again** saves the page anew as the next version, on top of the deck, with the earlier copy kept beneath.
+- **Where it works:** on the computer that runs the app, and on the devices paired with it (the computer fetches the page). On the lab website it says so and does nothing; a page saved on the computer reaches the website with the sync. A site that lets only a browser in (it answers "403") cannot be captured: save the page from your browser (Ctrl+S) and drop the file in the note.
+- Pages built by scripts in the browser come as the HTML the site sends, which can be bare for some sites.
+- `/collection website` shows every saved page in the Atlas.
 
 ### Slides
 - **Browse:** ‹ › or ← → (with the mouse over the deck) go slide by slide. **Grid** shows them all.

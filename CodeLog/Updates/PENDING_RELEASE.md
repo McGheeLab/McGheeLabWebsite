@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (71 changes — ready to push)
+## Pending (72 changes — ready to push)
+
+- **Websites in notes (V3.971):** + Insert → Website… saves a web page in the note as it is right now — text, pictures and all — so it stays even if the site changes or disappears; opening the note never loads the live site. "Capture again" keeps a new copy beside the old one. Works on your computer and the devices paired with it.
 
 - **Fixed: going through the versions of an iteration (V3.970):** ‹ › the dots and + on a deck answer a mouse or pen click again, so you can go back and forth and make a third version; a version picked in its menu comes to the top, and resizing the card on top resizes the whole deck.
 

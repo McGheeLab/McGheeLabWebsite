@@ -1343,6 +1343,7 @@
     "scientia/src/13zzo-iterate.js",
     "scientia/src/13zzq-deck.js",
     "scientia/src/13zzr-synth.js",
+    "scientia/src/13zzs-webcap.js",
     "scientia/pen-button/**"
    ],
    "distinct_from": {
@@ -1373,6 +1374,7 @@
     "scientia/winink.py",
     "scientia/rawmouse.py",
     "scientia/sttread.py",
+    "scientia/webcap.py",
     "scientia/slides.py",
     "scientia/hwread.py",
     "scientia/launch.bat",
