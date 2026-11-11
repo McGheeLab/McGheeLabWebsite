@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (73 changes — ready to push)
+## Pending (74 changes — ready to push)
+
+- **A Synthesis of any notes (V3.973):** /synthesis — or "A synthesis of this note and others…" in a note's ⋯ menu — makes a Synthesis note from the notes you pick, outside an experiment; it gathers only what you marked in them (a takeaway, a claim, a result), not the whole components. Add or remove notes later with ± Notes.
 
 - **Copy a few words, paste a live excerpt (V3.972):** select words in a component, copy, and paste in another note: only those words come in, linked to the original and following its changes. Ctrl+Shift+V still pastes a plain copy.
 
