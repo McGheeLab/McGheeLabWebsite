@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (75 changes — ready to push)
+## Pending (76 changes — ready to push)
+
+- **The Portfolio, reorganised (V3.975):** lit reviews have their own column; an experiment's notes are one card that unfolds (and stays unfolded) with ▸; notes are in the order of their date, with a sort button per project; each note shows its takeaways, open barriers and evidence as coloured dots you can hover to read; and project health now measures activity in new notes, not time recorded.
 
 - **Versions as slides (V3.974):** a component with several versions now shows one at a time, with every version as a slide in a column on its left, like PowerPoint — click a slide to bring that version up; + under the slides makes the next.
 

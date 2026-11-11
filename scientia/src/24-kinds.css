@@ -48,3 +48,16 @@
 .isl-file{font:600 10px/1.3 var(--f-d)} .isl-file span{display:block;font-weight:400;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .isl-new{flex:none;border:1px dashed var(--rule-2);background:transparent;border-radius:6px;color:var(--it,#0e7490);font:600 15px/1 var(--f-d);padding:6px;cursor:pointer} .isl-new:hover{background:var(--surface-2)}
 .box.folded.has-slides{padding-left:0;min-height:0} .box.folded > .iter-slides{display:none}
+/* V3.975 · 15d the portfolio: structure dots, experiments as one card, the sort button */
+.pfdots{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.pfdot{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:var(--c);color:#fff;font:700 10.5px/1 var(--f-m);cursor:default;box-shadow:0 0 0 2px color-mix(in srgb,var(--c) 25%,transparent);transition:transform .12s}
+.pfdot:hover{transform:scale(1.15)}
+.pfdot-pop{position:fixed;z-index:3000;max-width:330px;min-width:200px;background:var(--surface);border:2px solid var(--c);border-radius:14px;box-shadow:var(--shadow-lg);padding:8px 11px 9px;font-size:12.5px;animation:pfgrow .14s ease-out;transform-origin:12px 12px}
+.pfdot-pop .pp-h{font:600 11px/1.4 var(--f-m);color:var(--c);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px} .pfdot-pop .pp-h b{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:var(--c);color:#fff;margin-right:2px}
+.pfdot-pop .pp-i{font:13px/1.4 var(--f-s,serif);color:var(--ink);padding:3px 0;border-top:1px solid var(--rule)} .pfdot-pop .pp-i:first-of-type{border-top:0} .pfdot-pop .pp-more{font-size:11px;color:var(--ink-3);margin-top:3px}
+@keyframes pfgrow{from{transform:scale(.3);opacity:.2}to{transform:none;opacity:1}}
+.pf-exp{cursor:pointer} .pf-exp.open{border-color:var(--teal,#0e7490)} .pf-exp .pf-exp-tog{font-size:13px;width:22px;height:20px;padding:0;margin-right:2px}
+.pf-stages{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px} .pf-stage{font:600 10px/1.2 var(--f-m);letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:5px;background:var(--surface-2);color:var(--ink-2);text-decoration:none} .pf-stage:hover{background:var(--rule)}
+.pf-expg{display:flex;flex-direction:column;gap:6px} .pf-exp-in{display:flex;flex-direction:column;gap:6px;padding-left:10px;border-left:2px solid var(--rule-2);margin-left:8px}
+.pf-sort{white-space:nowrap}
+.pf-proj{position:absolute;display:flex;flex-direction:column;gap:14px} .pf-proj .box{position:relative;left:auto;top:auto} .pf-cols{display:flex;align-items:flex-start} .pf-col{display:flex;flex-direction:column;gap:12px;flex:none}
