@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (79 changes — ready to push)
+## Pending (80 changes — ready to push)
+
+- A website that will not let the app in (most journals) now opens in your own browser: if it asks, answer it there, press Ctrl+S and save it as "Webpage, Single File", and the page comes into your note by itself — no dragging.
 
 - You can now see a small preview of each version on its slide, delete a version from its slide (× — Ctrl+Z brings it back), delete a project from its page (keeping its notes or not), and a theme's page shows activity like the portfolio does.
 
