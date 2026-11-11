@@ -153,6 +153,12 @@ A note has a **header box** (title, type, profile fields, tags, ✎ for note det
 - **Tidy layout** (⋯ beside the title, or `/tidy`) lays the note out by its connections: each chain of wired components from its origin downwards, rows ordered so the wires cross as little as they can, neighbours far enough apart to read the arrow and its label, regions as pieces of their own. Then everything — the chains and the components with no connections alike — is packed into the smallest near-square area (a little wider than tall, like the window, so Fit gives the highest zoom), with room between the pieces to read and to move about. Ctrl+Z undoes it. **Flow in order** (⋯) is the old tidy: the boxes in order, two columns.
 - **Folding moves the neighbours.** ▾ on a component (or a region's fold) brings what sits below it up by the height that went, and what sits to its right left by the width that went; unfolding pushes them back. A box you moved in between stays where you put it. Ink never moves.
 - **The Portfolio's layout is yours:** where you put its cards, and which are folded, follows you to every computer.
+- **In a project, the Portfolio shows:**
+  - **Lit reviews** in their own column, every literature note of the project (and the reviews linked to it), never under Project-wide or a theme.
+  - **An experiment as one card**: its name and its stages (Planning, Run, Analysis, Synthesis; a stage opens its note). **▸** unfolds it into its notes, and it stays unfolded on this computer until **▾** folds it.
+  - **Notes in the order of their date**, the day a note is about, newest first. **⇅** on the project changes it: oldest first, recent changes, most active, or title.
+  - **Dots on each note** for its **takeaways**, **open barriers** and **evidence**, in their colours from Settings, with the count inside. Hover a dot (or tap it) and it opens onto the words marked.
+- **Health is activity**, not time recorded. A note earns activity only in the **two weeks from its date**: a component made scores 1, a structure marked 3, a **takeaway** or a **result** 10. Lit reviews earn none. A theme card and the project's header say "activity N · 4 wk" (the last four weeks), the heatmap shows each day's activity, and a theme with none for three weeks is *stalled*.
 
 ### Editing the note itself
 - **Note details** (✎ on the header box, or ⋯ → Note details…): title, type, project, theme, date. Changing the date moves every component's stamp with it, unless you untick that option.

@@ -888,29 +888,35 @@
     var ob = items.filter(function (i) { return i.kind === 'barrier' && IX.status(i) === 'open'; }).length;
     return h('div.box.dcard.nopan', { 'data-doc': d.id, on: { click: function () { App.go('#/doc/' + d.id); } } },
       h('div.row', typechip(d.type), TIMER.activeFor(d.id) ? h('span.live', '●') : null, d.share === 'lab' ? h('span.pill.teal', { title: 'Lab members can read it in RM' }, 'lab') : null,
-        h('span.spacer'), act || null, h('span.mono.tiny.muted', fmtDay(d.modified))), h('div.dn', d.title),
+        h('span.spacer'), act || null, h('span.mono.tiny.muted', { title: 'edited ' + fmtWhen(d.modified) }, fmtDay(d.created))), h('div.dn', d.title),
       h('div.ds', sub != null ? sub : [plural(n, prof(d.type).noun.toLowerCase()), items.length ? ' · ' + plural(items.length, 'structure') : '',
-        ob ? h('span', { style: { color: 'var(--bad)' } }, ' · ' + ob + ' open') : null]));
+        ob ? h('span', { style: { color: 'var(--bad)' } }, ' · ' + ob + ' open') : null]),
+      typeof PFKIT !== 'undefined' ? PFKIT.dots([d]) : null);   /* V3.975 — the note's date; its takeaways, open barriers, evidence as dots */
   }
   function touchesLine(d) {
     try { var T = GENERAL.touches(d); return T.length ? 'touches ' + T.map(function (x) { return x.p.name; }).join(', ') : 'not in a project yet'; } catch (e) { return 'not in a project yet'; }
   }
   function projectBody(p) {
     var themes = DB.where('themes', function (t) { return t.projectId === p.id && t.status === 'active'; }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
-    var wide = DB.where('documents', function (d) { return d.projectId === p.id && !d.themeId && d.type !== 'review' && !d.deleted; }), cols = [];
+    var lit = function (d) { return typeof PFKIT !== 'undefined' && PFKIT.isLit(d); };   /* V3.975 — every lit review in the Lit reviews column, none in Project-wide or a theme */
+    var wide = DB.where('documents', function (d) { return d.projectId === p.id && !d.themeId && d.type !== 'review' && !d.deleted && !lit(d); }), cols = [];
     if (wide.length || !themes.length) cols.push({ name: themes.length ? 'Project-wide' : 'Notes', docs: wide });
-    themes.forEach(function (t) { cols.push({ t: t, name: t.name, docs: DB.where('documents', function (d) { return d.themeId === t.id && !d.deleted; }) }); });
-    var revs = reviewsOf(p.id); if (revs.length) cols.push({ name: 'Lit reviews', docs: revs, review: true });   /* V3.889 */
+    themes.forEach(function (t) { cols.push({ t: t, name: t.name, docs: DB.where('documents', function (d) { return d.themeId === t.id && !d.deleted && !lit(d); }) }); });
+    var revs = reviewsOf(p.id).concat(DB.where('documents', function (d) { return d.projectId === p.id && !d.deleted && lit(d) && !isReview(d); }));
+    if (revs.length) cols.push({ name: 'Lit reviews', docs: revs, review: true });   /* V3.889 */
+    var order = typeof PFKIT !== 'undefined' ? PFKIT.sortOf(p.id) : 'date', redraw = function () { redrawRegion(p.id); };
+    var card = function (c, d) { return c.review && isReview(d) ? docCard(d, reviewLine(d)) : docCard(d); };
     return h('div.lab-reg-b', cols.map(function (c) {
       var H = c.t ? IX.themeHealth(c.t) : null;
       return h('div.lab-col',
         c.t ? h('div.box.tcard.nopan', { on: { click: function () { App.go('#/theme/' + c.t.id); } } }, h('div.tn', c.name),
           c.t.rm && c.t.question ? h('div.lab-q', snippet(c.t.question, 110)) : null,
-          h('div.ts', H.stalled ? h('span.pill.warn', 'stalled ' + H.days + 'd') : H.aims.length ? h('span.pill.teal', plural(H.aims.length, 'aim')) : h('span.pill', c.t.rm ? 'aim in RM' : 'exploratory'), ' ', fmtDur(H.ms4) + ' / 4 wk',
+          h('div.ts', H.stalled ? h('span.pill.warn', 'stalled ' + H.days + 'd') : H.aims.length ? h('span.pill.teal', plural(H.aims.length, 'aim')) : h('span.pill', c.t.rm ? 'aim in RM' : 'exploratory'), ' ', H.act != null && typeof PFKIT !== 'undefined' ? PFKIT.say(H) : fmtDur(H.ms4) + ' / 4 wk',
             H.openB.length ? h('span', { style: { color: 'var(--bad)' } }, ' · ' + plural(H.openB.length, 'open barrier')) : null),
-          heatmapEl({ weeks: 6, themeId: c.t.id, cell: 7 }))
+          H.actMap && typeof PFKIT !== 'undefined' ? PFKIT.heat(H.actMap, { weeks: 6, cell: 7 }) : heatmapEl({ weeks: 6, themeId: c.t.id, cell: 7 }))   /* V3.975 — health is activity */
           : h('div.lab-col-h.mono.muted', c.name),
-        c.docs.sort(byModified).map(function (d) { return c.review ? docCard(d, reviewLine(d)) : docCard(d); }),
+        typeof PFKIT !== 'undefined' ? PFKIT.entries(c.docs, order).map(function (e) { return e.doc ? card(c, e.doc) : PFKIT.expCard(e, function (d) { return card(c, d); }, redraw); })   /* V3.975 */
+          : c.docs.sort(byModified).map(function (d) { return card(c, d); }),
         c.docs.length ? null : h('div.lab-empty.tiny.muted', c.t ? 'No notes in this theme yet' : 'No notes yet — + Note'));
     }));
   }
@@ -926,9 +932,11 @@
       var from = sharedFrom(p), kick = from ? 'Shared by ' + (from.name || 'a lab member') + (from.role === 'edit' ? ' · you work on it together' : ' · read only')
         : p.rm ? [KIND[p.rmKind] || words(p.rmKind) || 'Project', p.rmStatus ? words(p.rmStatus) : null, r.group === 'earlier' ? 'no longer assigned' : 'assigned' + (p.rmRole && p.rmRole !== 'member' ? ' · ' + p.rmRole : '')].filter(Boolean).join(' · ') : 'Project';
       head = [h('div.pk', kick), h('a.pn', { href: '#/project/' + p.id, title: 'Open the project' }, p.name),
-        h('div.ps', plural(themes.length, 'theme') + ' · ' + plural(notes, 'note') + (reviewsOf(p.id).length ? ' · ' + plural(reviewsOf(p.id).length, 'lit review') : '') + ' · ' + plural(IX.openBarriers(p.id).length, 'open barrier')),
+        h('div.ps', plural(themes.length, 'theme') + ' · ' + plural(notes, 'note') + (reviewsOf(p.id).length ? ' · ' + plural(reviewsOf(p.id).length, 'lit review') : '') + ' · ' + plural(IX.openBarriers(p.id).length, 'open barrier')
+          + (typeof PFKIT !== 'undefined' ? ' · ' + PFKIT.say({ act: PFKIT.ofProject(p.id).score }) : '')),
         p.rm && (p.rmLine || (p.rmParents || []).length) ? h('div.lab-reg-line', p.rmLine ? h('span.serif', snippet(p.rmLine, 140)) : null,
           (p.rmParents || []).length ? h('span.tiny.muted', (p.rmLine ? ' · ' : '') + 'builds on ' + p.rmParents.join(', ')) : null) : null];
+      if (open && typeof PFKIT !== 'undefined') acts.push(PFKIT.sortBtn(p.id, function () { redrawRegion(r.id); }));   /* V3.975 — the order of its notes */
       if (!from || from.role === 'edit') acts.push(btn('xs', '+ Note', function () { App.newDoc({ projectId: p.id }); }, 'A new note in this project'));
       if (p.rm && p.rmUrl) acts.push(btn('xs', 'Open in RM', function () { openRM(p.rmUrl); }, 'This ' + (KIND[p.rmKind] || 'project').toLowerCase() + ' on the lab site'));
       acts.push(shareBtn('project', p));   /* V3.899 — top right of the card */
@@ -950,8 +958,11 @@
     drawLinks();
   }
   function toggleRegion(id) {
+    var s = pfState(), r = PF.list.filter(function (x) { return x.id === id; })[0]; if (!r || !PF.els[id]) return;
+    s.open[id] = !isOpen(s, r); pfSave(s); redrawRegion(id);
+  }
+  function redrawRegion(id) {   /* V3.975 — also after the order changes or an experiment unfolds */
     var s = pfState(), r = PF.list.filter(function (x) { return x.id === id; })[0], old = PF.els[id]; if (!r || !old) return;
-    s.open[id] = !isOpen(s, r); pfSave(s);
     var nu = regionEl(r, s); nu.style.left = old.style.left; nu.style.top = old.style.top; old.replaceWith(nu); PF.els[id] = nu;
     requestAnimationFrame(layout);
   }

@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.975] — 2026-11-11 — Scientia: the portfolio — lit reviews in their column, experiments as one card, note-date order and a sort button, structure dots, health as activity
+
+Gabe: "All Lit Reviews are in the Lit Reviews panel of the project, and should not be in the project-wide. All expermiment note sets … should appear under one item card with a dropdown … Experiments are listed in terms of the note date … Add a sort button to each project … takeaways as a dot of the same color set in the settings with a number inside … Do the same for barrier (open only) and evidence. Project health should be denoted as activity rather than time recorded …"
+
+### Added
+- **`scientia/src/15d-pfkit.js` (`PFKIT`)** — the parts both portfolios draw with: `isLit`; `entries(docs, key)` (an experiment's chain as one entry; the order: note date, oldest, recent changes, most active, title); `sortBtn(pid, redraw)` and `sortOf` (per project, on this device, `pf:kit`); `expCard(g, card, redraw)` (▸/▾, kept unfolded until folded); `dots(docs)` with `pop`/`unpop` (takeaways, open barriers, evidence in `settings().kinds` colours, the count inside, the words on hover or tap); `events(d)`, `activity(docs)`, `ofProject`, `heat`, `say` (a note scores only within 14 days of its date: component +1, structure +3, takeaway or result +10; lit reviews none). `IX.themeHealth` gains `act`, `actDays`, `actMap`, and `stalled` follows activity.
+
+### Changed
+- **`rm/scientia/lab-mode.js`** (the lab's portfolio; Alex reviews): literature notes to the Lit reviews column; columns drawn with `PFKIT.entries` / `expCard`; the card shows the note's date and its dots; the sort button in a project's header; "activity N · 4 wk" and the activity heatmap on theme cards and in the header; `redrawRegion` (a fold, the order, an experiment).
+- **`15-portfolio.js`** (the app's own portfolio, the standalone): each project a block of flowing columns placed once drawn (cards grow to their dots and stages); the same columns, cards, order, sort button and activity; the project page: a Lit reviews section, Project-wide without them, themes' health as activity.
+- **`04-model.js`:** a component records `made`, when it was really made (a backdated note stamps `created` with its own date). **`20-canvas.css`:** `.dcard` grows to its content. **`24-kinds.css`:** the dots, the experiment card, the flow. **`MANUAL.md`.**
+
 ## [V3.974] — 2026-11-11 — Scientia: the versions of a component as slides on its left
 
 Gabe: "The iteration cards should actually reside not as a deck, but a set of 'slides' that you can scroll through vertical of the component on the left, like PowerPoint. Just click on the version you want and brings it up in the component window."
