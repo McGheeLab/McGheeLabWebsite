@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (81 changes — ready to push)
+## Pending (82 changes — ready to push)
+
+- **Node bridges (V3.981):** copy and paste a component, or some words of one, into another note (or right-click → Bridge to another note…, Ctrl+Enter → N, /bridge) and it shows there live, with a caption saying why; in its own note the words are underlined in green (Settings → Structures → Bridges) and other components say "bridged" — double-click to go there or open it beside.
 
 - Fixed: changing something in a note no longer reloads its web pages, PDFs and whiteboards (a PDF stays where you scrolled it); crowded notes no longer push their components apart or flicker when zoomed out; and the edge pan now works only in full screen (Ctrl+. or F11), starting after a short rest at the screen's edge.
 
