@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (77 changes — ready to push)
+## Pending (78 changes — ready to push)
+
+- Fixed: a website that will not let the app in (most journals) can now be added as the page you saved in your browser — in Chrome or Edge press Ctrl+S, choose "Webpage, Single File", and drop that .mhtml file on the note (it works on the lab website too); the "notes to synthesize" box shows as soon as a note becomes a Synthesis; a labelled image or image panel pulled into another note shows its picture; and while you write with the pen, your hand resting on the bottom command bar no longer opens it.
 
 - **The Synthesis asks for its notes; flag what belongs in it (V3.976):** a Synthesis note opens with a box asking which notes to synthesize; in those notes, right-click a component or selected words and choose Flag for synthesis to pull just that in. From lit reviews, only what you flag comes in.
 
