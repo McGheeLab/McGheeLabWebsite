@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (70 changes — ready to push)
+## Pending (71 changes — ready to push)
+
+- **Fixed: going through the versions of an iteration (V3.970):** ‹ › the dots and + on a deck answer a mouse or pen click again, so you can go back and forth and make a third version; a version picked in its menu comes to the top, and resizing the card on top resizes the whole deck.
 
 - **Terms open as nests too (V3.969):** a term's lens and a term in one note now look like the Atlas — the term is the outer sphere with its themes, notes and components inside, the other terms and papers orbiting; click to fly in, click outside to fly out. The lens's box board is one click away (Chain).
 
