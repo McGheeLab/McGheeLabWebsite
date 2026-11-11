@@ -391,6 +391,9 @@ The last stage of an experiment is its **Synthesis**: one note in the project th
 - **⟲ Gather** (the dock) pulls in what the notes have gained since.
 - **☰ The rest** (the dock) opens a scrollable panel of every other component of the experiment, by stage, each with **Pull in**, so you can bring anything else across. Then build and rearrange the note as you like.
 - A Reflection note made before is a Synthesis too: open it and press ⟲ Gather.
+- **A synthesis of any notes**, outside an experiment: `/synthesis`, or **A synthesis of this note and others…** in a note's ⋯ menu. Pick the notes one after another (Cancel when done); a Synthesis note is made in the first note's project and gathers them as above. Only what is **marked** in them comes in: a takeaway marked in two lines of a long component arrives as that takeaway alone, not the component around it.
+- **± Notes** (the dock, or the Synthesis note's ⋯ menu) lists the notes it synthesizes: **+ Add notes…** brings more in and gathers them; click one to take it out of the list (what it already gave stays). An experiment's Synthesis can take more notes this way too.
+- In a note with the lab's pills the dock is hidden: ± Notes, ⟲ Gather and ☰ The rest are in the note's ⋯ menu as well.
 
 ### Protocols
 A protocol is one box, with its steps on a rail.

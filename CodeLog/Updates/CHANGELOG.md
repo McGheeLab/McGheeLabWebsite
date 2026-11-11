@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.973] — 2026-11-10 — Scientia: a Synthesis of the notes you choose, outside an experiment
+
+Gabe: "I want to be able to create a synthesis note outside of an experiment. In doing so, I can add a list of notes that get synthesized as a synthesis note for an experiment would. For example, if there is a takeaway from a couple of lines inside a giant text component, then only that takeaway gets synthesized."
+
+### Added
+- **`scientia/src/13zzr-synth.js` (`SYNTH`):** `d.synthOf` (the notes chosen); `others(d)` = the experiment's other notes ∪ `synthOf`; `create(first)` (a new Synthesis note in the first note's project, with the Synthesis template, gathered, opened); `pick(ids, title)` (the note picker until Cancel); `notes(pane, d, e)` (± Notes: the list, take one out, + Add notes… then gather); `/synthesis` (alias `/synthesize`).
+
+### Changed
+- **`SYNTH.is`:** any Synthesis note (not only an experiment's last stage); the dock gains **± Notes (n)**; gathering with no notes asks for them; ☰ The rest says "its notes" outside an experiment. **The note's ⋯ menu** (`DocView.docMenu` wrapped): a Synthesis note's ± Notes, ⟲ Gather and ☰ The rest — the lab's pills hide the dock, so in the lab build they were not reachable — and on any other note "A synthesis of this note and others…". **`MANUAL.md`:** Synthesis.
+
 ## [V3.972] — 2026-11-10 — Scientia: copied words pulled in as a live excerpt
 
 Gabe: "text inside a component that is selected, can be copied and pasted to pull in just that part of the component in whichever note you paste it in." Until now the paste in another note pulled in the whole component.
