@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.979] — 2026-11-11 — Scientia: a link a site keeps from the app opens in your browser, and the page you save there comes into the note by itself
+
+Gabe (on V3.977's saved-page route): "If given a website link, it should do that pipeline automatically." He chose this way among three: a window the app drives was stopped as getting past the sites' checks for robots; this one leaves the browser entirely the person's — the app opens a link (as a click would) and reads the file the person saves.
+
+### Added
+- **`scientia/webcap.py`:** `Blocked(Refused)` for a site that lets only a person at a browser in (401, 403, 429, 503, a check for robots). `saved_page(path)`: the `capture()` answer for an `.mhtml` a browser saved — `Snapshot-Content-Location` and `Date:` from its headers, the copy by `from_mhtml(data, final)`: the capture's own `_Capture.page` rules with `_Parts` (every resource from the file's MIME parts, by address and `cid:`; nothing fetched) and `_Capture.has`, so the picture the browser showed is the one used (any `srcset` candidate or `<picture>` source; `_cands`). The watch: `saved_folders()` (Windows' own Downloads folder from the registry, Desktop, Documents; `SIS_SAVED_DIRS` instead), `watch_start(id, url)`, `watch_poll(id)` (a `.mhtml`/`.mht` saved since the wait began, settled for a second, not taken before; its `Snapshot-Content-Location` host matching the link's, or — with one wait — the page saved meanwhile, for a link that went elsewhere like doi.org; 20 minutes), `watch_stop(id)`. The file the person saved is left where it is.
+- **`scientia/serve.py`:** `/api/capture` answers `blocked: true` for `Blocked`; **`/api/capture/watch`** `{id, op: start | poll | stop, url}` — `start` opens the link in this computer's default browser for a request from this computer (`webbrowser.open`, not under `SIS_NOBROWSER`; a paired device's person is not at it) and answers the folders watched; `poll` answers `waiting`, or the copy written as `images/<id>.html` by `keep_capture` (now shared with `/api/capture`: the answer stays small).
+- **`scientia/src/13zzs-webcap.js`:** a capture answered `blocked` goes to `WEBCAP.waitSaved(d, p, url, from, why)`: a card in the corner (`.webcap-wait`, not a dialog — the note stays usable): it opened in your browser (or a link to open it), answer the site there, Ctrl+S → "Webpage, Single File", it comes in by itself; × stops waiting. Polled every 1.5 s; the page comes as a website component (`web.via = 'saved'`), or the next version when it was ⟳ Capture again (`WEBCAP.keep`, shared with `capture`). The Website… dialog says so. Without the app's server (the lab website) a refusal still offers the saved file.
+
+### Tests
+| Test | Result |
+|---|---|
+| `t_979py` (webcap against a local site): a 403 and a check for robots are `Blocked` with the saved-page sentence; an open page captured as before; a page Chrome saved (`Page.captureSnapshot`) → the copy: address, time, title, nothing missing (the `<picture>` source shown), no script/frame/handler, the CSP, pictures, background and `@import` inside, links, é ü, what the page's script had made; the watch: only `SIS_SAVED_DIRS`, an older file not taken, the matching host taken once, a link that went elsewhere, two waits kept apart, stop, a file still being written waits a second, the files stay | 19/19 |
+| `t_979` (through `serve.py`, its own port, a temporary notebook and Downloads): the card (no dialog, the link offered since no browser opens under `SIS_NOBROWSER`); nothing made until a page is saved; an older one ignored; saved → the component by itself, with where, when, title, "in the browser", the card gone, the copy in the notebook, shown with pictures and styles and no script; the saved file stays; × stops waiting and a later file is not taken; a refused Capture again → the next version | 16/16 |
+| Earlier: saved pages dropped (V3.977), capture through `serve.py` | 21/21, 12/12 |
+| `v3869` lab-mode harness · `v3880` notes harness | 288/288 · 13/13 |
+
 ## [V3.978] — 2026-11-11 — Scientia: slides show each version and delete it; delete a project from its page; a theme's page shows activity
 
 Gabe: "The slide deck format of the iteration should have a preview in the slides to the left. Versions can be deleted from an iteration panel." · "You should be able to delete a project on the project main page." · "Project health based on activity should apply to the internal look of themes as well."
