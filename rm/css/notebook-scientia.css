@@ -74,3 +74,44 @@ body.nbc-full .nbc-root.nbc-sis-on .nbc-sis{ border-radius: 0; }
   .nbc-sis-side{ position: absolute; inset: 0; width: 100%; max-width: none; max-height: none; border-top: 0; z-index: 5; }
   .nbc-sis-status{ font-size: .72rem; }
 }
+
+/* ── V3.983 — the Lab Notebook's menu: the simple notebook or Scientia ── */
+.nbc-root{ position: relative; }
+.nbc-menu{ position: absolute; inset: 0; z-index: 40; display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: clamp(18px, 6vh, 64px) 16px 24px; background: var(--paper, #E6E1D7); }
+.nbc-menu-in{ width: 100%; max-width: 900px; }
+.nbc-menu-h h1{ margin: 0 0 4px; font-family: var(--f-b); font-size: 26px; font-weight: 600; letter-spacing: -.01em; color: var(--ink); }
+.nbc-menu-h p{ margin: 0 0 22px; max-width: 640px; font-family: var(--f-b); font-size: 14.5px; color: var(--ink-3); }
+.nbc-choices{ display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; }
+.nbc-choice{ position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; text-align: left; padding: 22px 22px 18px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.nbc-choice:hover, .nbc-choice:focus-visible{ border-color: var(--ink-3); box-shadow: 0 6px 22px rgba(36,33,28,.09); outline: 0; transform: translateY(-1px); }
+.nbc-choice.ch-on{ border-color: color-mix(in srgb, var(--teal) 55%, var(--rule)); }
+.nbc-choice h2{ display: flex; align-items: center; gap: 8px; margin: 0; font-size: 19px; font-weight: 650; }
+.nbc-choice h2 svg{ width: 22px; height: 22px; color: var(--teal); flex: none; }
+.nbc-choice .ch-sub{ margin: 0; font-family: var(--f-b); font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+.nbc-choice ul{ margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.65; color: var(--ink-3); }
+.nbc-choice .ch-stat{ font-family: var(--f-m); font-size: 10.5px; color: var(--ink-4); }
+.nbc-choice .ch-go{ margin-top: 4px; font-weight: 650; font-size: 14px; color: var(--teal); }
+.nbc-choice .ch-last{ position: absolute; top: 14px; right: 16px; font-family: var(--f-m); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--teal); }
+.nbc-menu-old{ margin: 18px 2px 0; font-size: 12.5px; color: var(--ink-3); }
+.nbc-linkb{ border: 0; background: none; padding: 0; font: inherit; color: var(--teal); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+
+/* ── V3.983 — in the simple notebook or Scientia the app has the whole page under RM's bar ── */
+.nbc-root.nbc-max > .nbc-header, .nbc-root.nbc-max > .nbc-tabs{ display: none; }
+body.nbc-maxpage .nbc-page.nbc-page{ padding: 0; }
+.nbc-root.nbc-max .nbc-sis{ border-radius: 0; }
+.nbc-root.nbc-max > .nbc-stage{ padding: 0; }
+.nbc-root.nbc-max .nbc-sis-main{ flex-direction: column; }
+.nbc-fab{ position: absolute; left: 10px; bottom: 10px; z-index: 6; }
+.nbc-fab-b{ display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 11px 0 9px; border: 1px solid var(--rule-2); border-radius: 14px; background: color-mix(in srgb, var(--surface) 92%, transparent); color: var(--ink-2); font: 600 11.5px/1 var(--f-d); cursor: pointer; opacity: .78; box-shadow: 0 1px 4px rgba(36,33,28,.08); transition: opacity .15s; }
+.nbc-fab-b:hover, .nbc-fab-b:focus-visible{ opacity: 1; outline: 0; border-color: var(--ink-3); }
+.nbc-simple-bar{ display: flex; align-items: center; gap: 6px; flex: none; min-height: 40px; padding: 0 10px; border-bottom: 1px solid var(--rule); background: var(--surface); overflow-x: auto; scrollbar-width: none; }
+.nbc-simple-bar .spacer{ flex: 1 1 8px; }
+.nbc-sb-home{ display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font: 650 13px/1 var(--f-d); cursor: pointer; white-space: nowrap; }
+.nbc-sb-home svg{ width: 17px; height: 17px; color: var(--teal); }
+.nbc-sb-home:hover{ background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.nbc-sb-sep{ width: 1px; height: 20px; background: var(--rule); margin: 0 4px; flex: none; }
+.nbc-sb-step:disabled{ opacity: .3; cursor: default; }
+.nbc-sb-week{ height: 28px; max-width: 240px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); font: 600 13px/1 var(--f-d); padding: 0 6px; cursor: pointer; }
+.nbc-sb-b{ height: 28px; padding: 0 10px; border: 1px solid var(--rule-2); border-radius: 6px; background: transparent; color: var(--ink-2); font: 600 12px/1 var(--f-d); cursor: pointer; white-space: nowrap; }
+.nbc-sb-b:hover:not(:disabled){ background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); }
+.nbc-sb-b:disabled{ opacity: .4; cursor: default; }

@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (83 changes — ready to push)
+## Pending (84 changes — ready to push)
+
+- **The Lab Notebook is a menu (V3.983):** choose the **Simple notebook** — a fresh canvas every week with the pen, text, pictures, PDFs and web pages, nothing else to learn — or **Scientia**, the full notebook synced with your computer, now filling the whole page under RM's bar.
 
 - **Wires take the shortest way round, and lit reviews stop flickering (V3.982):** connections now go through the empty paper around components instead of arching over them, with rounded corners and their ends spread out; and a note no longer flashes its faint wires (or jumps its image panels' headers) every time you click or type — which is what made lit reviews flicker.
 

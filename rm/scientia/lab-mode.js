@@ -21,6 +21,7 @@
      Recorder   the one recorder (V3.884, section 12): audio to the cloud a minute at a time, recovery, marks with kinds and sections, timed ink.
      Lit reviews  a tab of review canvases linked to any number of projects (V3.889, section 13).
      PDFs       a PDF card draws only while on screen, as sharp as the zoom needs, and survives a canvas rebuild (V3.894, section 14).
+     Simple     ?simple=1: the Lab Notebook's simple notebook — a canvas a week, writing, pictures, PDFs and pages only (V3.983, section 19).
 
    The app's globals (TABS, VIEWS, App, DB, M, LIB, h, …) are top-level consts
    of the classic script that precedes this one: same realm, same lexical
@@ -38,6 +39,9 @@
   };
   var LAB = { version: 'V3.904', RM: RM, opened: [], openRM: openRM, refresh: refreshLibrary };
   window.SIS_LAB = LAB;
+  /* V3.983 — loaded by the Lab Notebook's Simple notebook (rm/js/notebook-scientia.js): section 19 */
+  LAB.simple = /[?&]simple=1(&|$)/.test(location.search);
+  LAB.simpleIns = ['component', 'figure', 'pdf', 'html', 'website'];
 
   function openRM(href) {
     LAB.opened.push(href);
@@ -1404,6 +1408,10 @@
       /* V3.896 — pen settings live in Gabe's ink bar (top left, stays open), behind one cog */
       items.push({ icon: pic('cog'), label: INK.shown ? 'Pen settings — hide the bar at the top left' : 'Pen settings — colours, widths, eraser, pressure (a bar at the top left; it stays open)', sel: INK.shown, keep: true,
         run: function () { INK.shown = !INK.shown; _ls.set('inkBar', INK.shown); INK.paintBars(); $$('.ctools .ct-ink').forEach(function (x) { x.classList.toggle('on', INK.shown); }); paintAll(); } });
+    } else if (name === 'insert' && LAB.simple) {
+      /* V3.983 — the simple notebook: text, an image panel, a PDF, an HTML page, a saved website; nothing else */
+      INSERTS.filter(function (x) { return LAB.simpleIns.indexOf(x.id) >= 0 && (!x.when || x.when(d)); }).forEach(function (x) { var lab = typeof x.label === 'function' ? x.label(d) : x.label;
+        items.push({ icon: INS_PICS[x.id] && PILL_ICONS[INS_PICS[x.id]] ? pic(INS_PICS[x.id]) : '<span class="lab-insic">' + esc(x.icon || '•') + '</span>', label: lab + (x.sub ? ' — ' + x.sub : ''), run: function () { x.run(d, centerAt(pane), pane); } }); });
     } else if (name === 'insert') {
       /* V3.941 — the Quick cast took the bottom bar's place: its Pull in and Flag come first */
       items.push({ icon: pic('arrow-down-on-square'), label: 'Pull in — an unresolved barrier, a structure or a component from another note', run: function () { pane.pullMenu(d); } });
@@ -1546,7 +1554,7 @@
     host.classList.toggle('lab-ro', !!pane.travel);   // V3.941 — a read-only note keeps Gabe's bar ("Back to now"); otherwise the Quick cast is it
     if (!fitHand() && ZF.el) zfitMark(null);
     box.classList.toggle('fan-open', !!(LP.open && LP.open.doc === pane.docId));
-    box.replaceChildren.apply(box, (pane.travel ? ['view'] : ['insert', 'tools', 'hand', 'view']).map(function (n) { return pillEl(n, pane, host); }));   // V3.899 — nothing to add to a read-only note
+    box.replaceChildren.apply(box, (pane.travel ? ['view'] : LAB.simple ? ['insert', 'hand', 'view'] : ['insert', 'tools', 'hand', 'view']).map(function (n) { return pillEl(n, pane, host); }));   // V3.983 — no ✦ in the simple notebook   // V3.899 — nothing to add to a read-only note
   }
   function paintAll() { try { App.panes().forEach(paintPills); } catch (e) { warn('pills', e); } }
   LAB.paintPills = paintAll; LAB.setHand = setHand; LAB.handNow = handNow;
@@ -2694,4 +2702,108 @@
       if (m && m.who && !reviewed().has(m.id)) sp.title = m.who + '’s version — review merged changes from the chip at the top';
     }, true);
   } catch (e) { warn('merged changes', e); }
+  /* ---- 19. The simple notebook (V3.983, CodeLog/ClaudesPlan/V3.983_lab_notebook_simple_or_scientia.md) ----
+     Gabe: "Have the lab notebook in RM be two options: an empty note canvases that get created each week with minimal
+     features: pills, image panels, PDFs, HTMLs, but no other tabs, terms, etc... The minimalist stable version are for people
+     to pick up slowly or for minimal work." The Lab Notebook's Simple notebook loads this app with ?simple=1:
+     • a canvas a week: the note `wk<YYYYMMDD>` of that week's Monday (`simpleWeek`), outside any project, made when the
+       week is first opened here — the same id on every device, so a week is never made twice (and it is made only once
+       this browser has caught up with the cloud). The full Scientia shows these as ordinary notes;
+     • nothing but the canvas: no header, tabs, navigation bar, note head or Synthesis; any other place goes back to the week;
+     • writing (text, pen, highlighter), image panels, PDFs, HTML pages, saved websites: ＋ lists those (section 11), ✦ is
+       gone; right-click and ⋯ keep only what they need; no connections, structures (Ctrl+Enter), terms, slash commands or
+       bridges (a pasted component is a copy);
+     • the notebook page shows the weeks (`simple-weeks`) and moves between them (`simple-week`, a Monday or 'today'). */
+  try { if (LAB.simple) (function () {
+    var root = document.documentElement; root.classList.add('sis-simple');
+    var css = document.createElement('style'); css.id = 'lab-simple-css';
+    css.textContent = '.sis-simple #hd,.sis-simple #nav,.sis-simple .hint,.sis-simple .dock,.sis-simple .ctools,.sis-simple .box.head,.sis-simple .box.synth,.sis-simple .box .port,.sis-simple .ghostbar,.sis-simple .lab-sync-dot{display:none!important}' +
+      '.sis-simple #app{grid-template-rows:minmax(0,1fr)}' +
+      '.sis-simple .bulk-g button[title^="A region"],.sis-simple .bulk-g button[title^="Move them"],.sis-simple .bulk-g button[title^="Bridge them"],.sis-simple .bulk-g button[title^="One relation"],.sis-simple .bulk-g button[title^="Each one"]{display:none!important}' +   // the selection's bar: copy, cut, duplicate, tidy, fold, delete
+      '.sis-simple:not(.sis-simple-on) #view{visibility:hidden}' +
+      '.sis-simple .lab-simple-wait{position:fixed;inset:0;display:grid;place-items:center;font:500 13px/1.4 var(--f-d,system-ui);color:var(--ink-3,#766f63);pointer-events:none}' +
+      '.sis-simple.sis-simple-on .lab-simple-wait{display:none}';
+    document.head.appendChild(css);
+    var wait = document.createElement('div'); wait.className = 'lab-simple-wait'; wait.textContent = 'Opening this week…'; document.body.appendChild(wait);
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    function monday(dt) { var d = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+    function idOf(wk) { return 'wk' + String(wk).replace(/-/g, ''); }
+    function titleOf(wk) { var p = String(wk).split('-').map(Number), d = new Date(p[0], p[1] - 1, p[2]); try { return 'Week of ' + d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); } catch (e) { return 'Week of ' + wk; } }
+    function weeks() { return DB.where('documents', function (d) { return !d.deleted && !!d.simpleWeek; }).sort(function (a, b) { return String(a.simpleWeek).localeCompare(String(b.simpleWeek)); }); }
+    /** This week's canvas (or wk's): the one there is, or a new, empty one */
+    function make(wk) {
+      var id = idOf(wk), d = M.doc(id);
+      if (d) { if (d.deleted) { d.deleted = false; d.modified = isoLocal(new Date()); DB.put('documents', d); } return d; }
+      var p = prof('note'), now = new Date();
+      d = { id: id, type: 'note', scope: p ? p.scope : 'note', projectId: null, themeId: null, title: titleOf(wk), templateId: null, header: { tags: [] }, blockIds: [], synthesis: { text: '', marks: [] },
+        citeMode: settings().citeMode, layout: { head: { x: 0, y: 0 }, synth: null }, created: isoLocal(now), modified: isoLocal(now), backdate: null, simpleWeek: wk };
+      DB.put('documents', d); try { changed(); } catch (e) {}
+      return d;
+    }
+    function post(msg) { try { if (window.parent && window.parent !== window) window.parent.postMessage(Object.assign({ sis: true }, msg), location.origin); } catch (e) {} }
+    var cur = null, sig = '';
+    function report() {
+      var W = weeks().map(function (d) { return { week: d.simpleWeek, id: d.id, title: d.title, n: M.liveBlocks(d.id).length }; }), k = JSON.stringify(W) + '|' + cur;
+      if (k === sig) return; sig = k; post({ type: 'simple-weeks', weeks: W, week: cur, today: monday(new Date()) });
+    }
+    LAB.simpleReport = function () { sig = ''; report(); };
+    function show(wk) {
+      if (wk === 'today' || !/^\d{4}-\d{2}-\d{2}$/.test(String(wk || ''))) wk = monday(new Date());
+      var d = wk === monday(new Date()) ? make(wk) : M.doc(idOf(wk)); if (!d || d.deleted) d = make(monday(new Date())), wk = d.simpleWeek;
+      cur = wk; root.classList.add('sis-simple-on');
+      var hash = '#/doc/' + encodeURIComponent(d.id); if (location.hash !== hash) location.hash = hash; else App.refresh();
+      report();
+    }
+    LAB.simpleShow = show;
+    // any other place in the app goes back to the week shown; another week's note becomes the week shown
+    var oRefresh = App.refresh;
+    App.refresh = function () {
+      try { if (cur) { var r = App.parse(), w = r.name === 'doc' && M.doc(r.args[0]);
+        if (!(w && w.simpleWeek && !w.deleted)) { location.replace('#/doc/' + encodeURIComponent(idOf(cur))); return; }
+        if (w.simpleWeek !== cur) { cur = w.simpleWeek; setTimeout(report, 0); } } } catch (e) { warn('simple route', e); }
+      return oRefresh.apply(this, arguments);
+    };
+    window.addEventListener('message', function (e) {
+      if (e.origin !== location.origin || e.source !== window.parent || !e.data || e.data.sisCmd !== 'simple-week') return;
+      if (!cur) { want = String(e.data.week || 'today'); return; }   // not started yet: the week it opens on
+      try { show(String(e.data.week || 'today')); } catch (err) { warn('simple week', err); }
+    });
+    // what stays: right-click and ⋯ keep what a canvas of text, pictures, PDFs and pages needs
+    var KEEP = /^(Maximise|Layout|Add images|Replace|Crop|Rotate|Open|Download|Fit|Fold|Unfold)/i;
+    DocView.boxMenu = function (b, e) {
+      if (!b) return; this.select(b.id); var self = this, W = WIDGETS[b.kind], d = M.doc(b.docId), rows = [{ head: b.label || (W ? W.label : M.blockName(b)) }];
+      ((W && W.menu ? W.menu(b) : []) || []).filter(function (x) { return x && x !== 'sep' && KEEP.test(String(x.label || '')); }).forEach(function (x) { rows.push(x); });
+      rows.push({ label: b.collapsed ? 'Unfold' : 'Fold it up', sub: b.collapsed ? null : 'Only its title shows', run: function () { var cur = M.block(b.id); cur.collapsed = !cur.collapsed || undefined; DB.put('blocks', cur); changed(); } });
+      rows.push('sep', { label: 'Delete', danger: true, sub: 'Ctrl+Z undoes it', run: function () { if (b.kind === 'ref') M.removeRef(b); else EDIT.confirmBlock(b); } });
+      ctxMenu(e.clientX, e.clientY + 6, rows); void self; void d;
+    };
+    DocView.menu = function (e, p) {
+      if (this.travel) return; var box = e.target.closest && e.target.closest('.box.cmp'); if (box) return this.boxMenu(M.block(box.dataset.id), e);
+      if (e.target.closest && e.target.closest('.ed')) return;
+      var self = this, d = M.doc(this.docId), at = { x: Math.round(p.x / 14) * 14, y: Math.round(p.y / 14) * 14 };
+      ctxMenu(e.clientX, e.clientY + 6, [{ head: d ? d.title : 'This week' }].concat(INSERTS.filter(function (x) { return LAB.simpleIns.indexOf(x.id) >= 0 && (!x.when || x.when(d)); }).map(function (x) {
+        return { label: typeof x.label === 'function' ? x.label(d) : x.label, sub: x.sub || '', run: function () { x.run(d, at, self); } }; }), ['sep', { label: 'Fit', key: 'Ctrl+0', run: function () { self.paper.fit(self.bbox()); } }]));
+    };
+    // no structures, terms, slash commands or connections; a pasted component is a copy (not a bridge)
+    ED.openStrip = function () {}; ED.markTerm = function () {};
+    if (typeof SLASH !== 'undefined') SLASH.open = function () {};
+    if (typeof EBAR !== 'undefined' && EBAR.items) { var oItems = EBAR.items; EBAR.items = function () { return oItems.apply(this, arguments).filter(function (el) { var t = el && el.getAttribute ? el.getAttribute('title') || '' : ''; return !/^(Make it|Bridge to a note|Citation|Term —|Equation —|Existing structure)/.test(t); }); }; }
+    if (typeof DocView.wireDrag === 'function') DocView.wireDrag = function () {};
+    document.addEventListener('keydown', function (e) { if ((e.ctrlKey || e.metaKey) && (e.key || '').toLowerCase() === 'v' && typeof CLIPX !== 'undefined') CLIPX.shiftAt = Date.now(); }, true);
+    // open the week once the app has started and caught up with the cloud (so a week made elsewhere is found, not made again)
+    var t0 = Date.now(), want = new URLSearchParams(location.search).get('week') || 'today';
+    (function start() {
+      if (window.__ready !== true) return setTimeout(start, Date.now() - t0 < 20000 ? 120 : 1000);   // the app first (a week is never shown in an app that hasn't started)
+      t0 = Date.now(); var seqWanted = null;
+      Promise.resolve().then(function () { return fetch('api/sync/hello', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); }).then(function (hi) {
+        seqWanted = hi && hi.seq ? hi.seq : 0;
+        (function caught() {
+          var done = typeof SYNC === 'undefined' || !SYNC.on || SYNC.loading === false && (SYNC.seq || 0) >= seqWanted;
+          if (!done && Date.now() - t0 < 25000) return setTimeout(caught, 150);
+          try { show(want); } catch (e) { warn('simple start', e); root.classList.add('sis-simple-on'); }
+          setInterval(function () { try { report(); } catch (e) {} }, 2000);
+        })();
+      });
+    })();
+  })(); } catch (e) { warn('simple notebook', e); }
 })();

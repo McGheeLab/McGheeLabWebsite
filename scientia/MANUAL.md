@@ -45,6 +45,10 @@ This manual covers everything the notebook can do, from first launch to the pen 
    - **Settings → Start empty** clears the browser.
 4. **Updating the app** never touches your data. Replace `scientia.html` or the whole app folder. To check which build you're running, hover the **SiS** logo.
 5. **Reload** with ⟳ in the header, or with Ctrl+R / F5.
+6. **On the lab site** (RM → **Lab Notebook**) the notebook opens on a menu with two ways in. Both keep the same notes in your account:
+   - **Simple notebook:** a fresh, empty canvas every week, made for you. Pen, highlighter, text, image panels, PDFs, HTML pages and saved websites, and nothing else (no tabs, structures, terms or connections). The bar above it moves between your weeks (‹ ›, the list, **This week**) and **Open in Scientia** opens the week in the full app.
+   - **Scientia:** this whole app, filling the page under RM's bar, in step with Scientia on your computer. The small **Lab Notebook** button at its bottom left opens the menu, the simple notebook and **Sync with your computer…**.
+   - The canvas notebook you kept before stays one link away on the menu.
 
 > **Moving from the old hub (port 8765):** in the old hub, use Settings → Export everything (JSON). Then in this app, use Settings → Import… and pick that file.
 
