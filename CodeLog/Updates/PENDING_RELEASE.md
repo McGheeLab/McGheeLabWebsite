@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (82 changes — ready to push)
+## Pending (83 changes — ready to push)
+
+- **Wires take the shortest way round, and lit reviews stop flickering (V3.982):** connections now go through the empty paper around components instead of arching over them, with rounded corners and their ends spread out; and a note no longer flashes its faint wires (or jumps its image panels' headers) every time you click or type — which is what made lit reviews flicker.
 
 - **Node bridges (V3.981):** copy and paste a component, or some words of one, into another note (or right-click → Bridge to another note…, Ctrl+Enter → N, /bridge) and it shows there live, with a caption saying why; in its own note the words are underlined in green (Settings → Structures → Bridges) and other components say "bridged" — double-click to go there or open it beside.
 
