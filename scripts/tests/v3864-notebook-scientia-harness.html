@@ -5,7 +5,8 @@
 <title>V3.864 — Scientia is a notebook of the Lab Notebook</title>
 <!-- The V3.852 stub (in-memory Firestore + firebridge) plus a Scientia hub: notes in hub/rows, a desktop key, the hub doc.
      The REAL notebook-canvas.js + notebook-scientia.js run on it, and Gabe's REAL build (with cloud-sync.js) loads in the
-     notebook's sheet area. fetch() to the scientiaHub function is answered here. ?start=scientia boots on ?notebook=scientia. -->
+     notebook's sheet area. fetch() to the scientiaHub function is answered here. ?start=scientia boots on ?notebook=scientia.
+     V3.983: ?start=menu boots on the plain page: the menu (the simple notebook or Scientia), the full view, the simple notebook. -->
 <link rel="stylesheet" href="/whiteboard-board.css">
 <link rel="stylesheet" href="/rm/css/notebook-blocks.css">
 <link rel="stylesheet" href="/rm/css/canvas-widgets.css">
@@ -118,8 +119,8 @@ const firebridge = window.firebridge; delete window.firebridge;</script>
     return Promise.resolve(new Response(JSON.stringify(res), { status: 200, headers: { 'Content-Type': 'application/json' } }));
   };
   var start = new URLSearchParams(location.search).get('start');
-  try { localStorage.removeItem('nbc_view'); localStorage.removeItem('nbc_sis_col'); } catch (e) {}
-  history.replaceState(null, '', location.pathname + (start === 'scientia' ? '?start=scientia&notebook=scientia&note=d2' : '?entry=nb-m'));
+  try { localStorage.removeItem('nbc_view'); localStorage.removeItem('nbc_sis_col'); localStorage.removeItem('nbc_mode'); } catch (e) {}
+  history.replaceState(null, '', location.pathname + (start === 'scientia' ? '?start=scientia&notebook=scientia&note=d2' : start === 'menu' ? '?start=menu' : '?entry=nb-m'));
 })();
 </script>
 <script src="/rm/js/notebook-schemas.js"></script>
@@ -158,6 +159,64 @@ const firebridge = window.firebridge; delete window.firebridge;</script>
       check('no canvas entry was mounted', !q('#nbb-mount .wb-stage'), q('#nbb-mount').innerHTML.slice(0, 80));
       check('its tab is lit', !!(await until(function () { var on = q('.nbc-sis-group .nbc-tab-on'); return on && /coverslips/.test(on.textContent); })));
       check('the header is Scientia\'s', /Scientia/.test(q('#nbc-header').textContent) && !!q('[data-h="sis-sync"]'));
+      check('no browser popups, rejections or error toasts', !window.__popups.length && !window.__rej.length && !(window.__toastErr || []).length, JSON.stringify([window.__popups, window.__rej, window.__toastErr]));
+      finish(); return;
+    }
+    if (start === 'menu') {
+      /* V3.983 — the Lab Notebook is a menu: the simple notebook or Scientia; either fills the page under RM's bar */
+      var menu = await until(function () { return q('#nbc-menu .nbc-choice[data-m="simple"]') && q('#nbc-menu'); }, 10000);
+      check('the plain page opens on the menu: the Simple notebook and Scientia', !!menu && !!q('#nbc-menu .nbc-choice[data-m="full"]') && /Simple notebook/.test(menu.textContent) && /Scientia/.test(menu.textContent));
+      check('nothing opened behind it (no canvas entry, no Scientia)', !q('#nbb-mount .wb-stage') && !q('#nbc-sis-frame') && !root().classList.contains('nbc-sis-on'));
+      check('the Scientia choice says how it stands with the computer', !!(await until(function () { var t = (q('#nbc-menu-stat') || {}).textContent || ''; return /3 records/.test(t) && /Office PC/.test(t); })), (q('#nbc-menu-stat') || {}).textContent);
+      check('the canvas notebook of before is one link away (it has entries)', !!q('#nbc-menu [data-m="canvas"]') && /earlier canvas notebook/.test(q('#nbc-menu').textContent));
+      /* Scientia: the whole page */
+      q('#nbc-menu .nbc-choice[data-m="full"]').click();
+      var fr = await until(function () { return q('#nbc-sis-frame'); });
+      check('Scientia: the menu goes and the app opens', !q('#nbc-menu') && !!fr && root().classList.contains('nbc-sis-on') && root().classList.contains('nbc-max'));
+      check('…its address is the full app (no ?simple)', /\/rm\/scientia\/scientia\.html(#|$)/.test(fr.getAttribute('src') || ''), fr.getAttribute('src'));
+      check('…the notebook\'s own title line and tab row are put away', getComputedStyle(q('#nbc-header')).display === 'none' && getComputedStyle(q('#nbc-tabs')).display === 'none');
+      check('…so the app fills the page from the top', Math.abs(fr.getBoundingClientRect().top - root().getBoundingClientRect().top) < 2 && fr.getBoundingClientRect().height > root().getBoundingClientRect().height - 4, fr.getBoundingClientRect().top + ' / ' + root().getBoundingClientRect().top);
+      check('…the URL says ?notebook=scientia and the choice is remembered', /^\?notebook=scientia/.test(location.search) && localStorage.getItem('nbc_mode') === 'full', location.search);
+      var fab = q('#nbc-fab .nbc-fab-b');
+      check('…a small Lab Notebook button at its bottom left, with the sync dot', !!fab && !!q('#nbc-fab .nbc-fdot'));
+      fab.click(); var am = await until(function () { var m = q('.cw-pop'); return m && /Notebook menu/.test(m.textContent) && m; }, 3000);
+      check('…it offers the menu, the simple notebook and the sync with the computer', !!am && /Simple notebook/.test(am.textContent) && /Sync with your computer/.test(am.textContent), am ? am.textContent.slice(0, 120) : 'no menu');
+      var back = am && Array.from(am.querySelectorAll('button, [role="menuitem"], .cw-item')).find(function (b) { return /Notebook menu/.test(b.textContent); }); if (back) back.click();
+      check('“Notebook menu” goes back to the menu, Scientia marked as last used', !!(await until(function () { var c = q('#nbc-menu .nbc-choice[data-m="full"]'); return c && /Last used/.test(c.textContent); }, 3000)));
+      /* the simple notebook */
+      q('#nbc-menu .nbc-choice[data-m="simple"]').click();
+      var sfr = await until(function () { var f = q('#nbc-sis-frame'); return f && /\?simple=1/.test(f.getAttribute('src') || '') && f; }, 5000);
+      check('Simple notebook: the same app with ?simple=1, under a slim bar of its own', !!sfr && !!q('#nbc-simple-bar') && root().classList.contains('nbc-max') && root().classList.contains('nbc-simple'), sfr ? sfr.getAttribute('src') : 'no frame');
+      check('…no Lab Notebook button (the bar has the way back)', !q('#nbc-fab') && /Lab Notebook/.test(q('#nbc-simple-bar').textContent));
+      /* the frame reports its weeks and takes the bar's commands (the app's own side is tested on the build: t_983) */
+      var W = function () { return sfr.contentWindow; }, cmds = [];
+      await until(function () { try { return W().document.readyState === 'complete'; } catch (e) { return false; } }, 8000);
+      W().addEventListener('message', function (e) { if (e.data && e.data.sisCmd) cmds.push(e.data); });
+      var weeksMsg = function (wk) { W().eval('parent.postMessage(' + JSON.stringify({ sis: true, type: 'simple-weeks', week: wk, today: '2026-11-09', weeks: [{ week: '2026-11-02', id: 'wk20261102', title: 'Week of 2 Nov 2026', n: 3 }, { week: '2026-11-09', id: 'wk20261109', title: 'Week of 9 Nov 2026', n: 0 }] }) + ', location.origin)'); };
+      weeksMsg('2026-11-09');
+      var opt = await until(function () { var o = q('#nbc-simple-bar .nbc-sb-week option:checked'); return o && /9 Nov 2026 · this week/.test(o.textContent) && o; }, 4000);
+      check('…the bar names the week shown, this week marked', !!opt, (q('#nbc-simple-bar') || {}).textContent);
+      check('…and lists the weeks there are, newest first', JSON.stringify(Array.from(document.querySelectorAll('#nbc-simple-bar .nbc-sb-week option')).map(function (o) { return o.value; })) === '["2026-11-09","2026-11-02"]');
+      check('…the URL names the week', /notebook=simple&week=2026-11-09/.test(location.search), location.search);
+      var prev = q('#nbc-simple-bar [data-s="go"]:not([disabled])');
+      check('‹ is the week before; › is off on the newest', !!prev && prev.dataset.w === '2026-11-02' && !!q('#nbc-simple-bar [data-s="go"][disabled]'));
+      prev.click();
+      check('…‹ asks the app for that week', !!(await until(function () { return cmds.some(function (c) { return c.sisCmd === 'simple-week' && c.week === '2026-11-02'; }); }, 3000)), JSON.stringify(cmds));
+      weeksMsg('2026-11-02');
+      var today = await until(function () { return q('#nbc-simple-bar [data-s="today"]'); }, 3000);
+      check('…an earlier week shown: This week is offered', !!today); if (today) today.click();
+      check('…This week asks for this week', !!(await until(function () { return cmds.some(function (c) { return c.sisCmd === 'simple-week' && c.week === 'today'; }); }, 3000)));
+      var sel = q('#nbc-simple-bar .nbc-sb-week'); sel.value = '2026-11-09'; sel.dispatchEvent(new Event('change', { bubbles: true }));
+      check('picking a week in the list asks for it', !!(await until(function () { return cmds.some(function (c) { return c.sisCmd === 'simple-week' && c.week === '2026-11-09'; }); }, 3000)));
+      weeksMsg('2026-11-02');
+      await until(function () { var o = q('#nbc-simple-bar .nbc-sb-week option:checked'); return o && o.value === '2026-11-02'; }, 3000);
+      q('#nbc-simple-bar [data-s="full"]').click();
+      var ffr = await until(function () { var f = q('#nbc-sis-frame'); return f && !/simple=1/.test(f.getAttribute('src') || '') && f; }, 4000);
+      check('“Open in Scientia” opens the week shown in the full app', !!ffr && /#\/doc\/wk20261102$/.test(ffr.getAttribute('src') || '') && !!q('#nbc-fab') && localStorage.getItem('nbc_mode') === 'full', ffr ? ffr.getAttribute('src') : '');
+      /* the canvas notebook of before */
+      NOTEBOOK_SCIENTIA.menu(); await until(function () { return q('#nbc-menu [data-m="canvas"]'); }, 3000);
+      q('#nbc-menu [data-m="canvas"]').click();
+      check('the earlier canvas notebook opens as it was (title line and tab row back)', !!(await until(function () { return q('#nbb-mount .wb-stage'); }, 8000)) && !q('#nbc-menu') && getComputedStyle(q('#nbc-header')).display !== 'none' && !root().classList.contains('nbc-max'));
       check('no browser popups, rejections or error toasts', !window.__popups.length && !window.__rej.length && !(window.__toastErr || []).length, JSON.stringify([window.__popups, window.__rej, window.__toastErr]));
       finish(); return;
     }

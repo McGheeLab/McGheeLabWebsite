@@ -26,6 +26,22 @@
    init / tabsHtml / onTab / show / hide / active / renderHeader /
    shouldOpen. Data and the protocol are V3.857's (functions/scientia-hub.js).
    No browser popups: inline forms, two-tap removes, toasts.
+
+   V3.983 (Gabe: "Have the lab notebook in RM be two options … It should be a
+   menu interface that allows you to enter either or. The Scientia page, if
+   you choose to enter it, takes as much space as possible with the RM tabs
+   just above it.") — opening the Lab Notebook shows a MENU (menu()): the
+   Simple notebook or Scientia, the last one used marked; the earlier canvas
+   notebook stays one link away for whoever has entries in it. Either way
+   the app fills everything under RM's bar (.nbc-max: the notebook's own
+   title line and tab row are put away):
+     - Scientia: the full app; a small "Lab Notebook" button at its bottom
+       left opens the menu, the simple notebook and the sync panel;
+     - Simple notebook: the same app with ?simple=1 (lab-mode.js §19): a
+       canvas a week and nothing but writing, pictures, PDFs and pages; a
+       slim bar above it moves between the weeks (simple-weeks /
+       simple-week messages) and opens the week in full Scientia.
+   ?notebook=scientia[&note=] and ?notebook=simple[&week=] go straight in.
    ================================================================ */
 (function () {
 'use strict';
@@ -38,12 +54,14 @@ const MAX_TABS = 20;
 const OPEN_KEY = 'nbc_sis_open';   /* V3.882 — the notes open as tabs, in the order they were opened */
 const SEED_TABS = 6;
 const LIVE_MS = 3 * 60 * 1000;
+const MODE_KEY = 'nbc_mode';   /* V3.983 — the last way in: 'simple' | 'full' */
 
 const S = {
   uid: null, hooks: {}, active: false, collapsed: false,
   notes: [], sig: '', hub: null, keys: [], unsubs: [],
   frame: null, route: '', ready: false, queue: [], open: null,
-  panel: false, upload: null, newKey: null, busy: false, tick: null
+  panel: false, upload: null, newKey: null, busy: false, tick: null,
+  mode: 'full', frameMode: null, weeks: [], week: null, today: null, menuOpen: false, menuOpts: null   /* V3.983 */
 };
 
 /* ─── helpers ─── */
@@ -86,12 +104,12 @@ function init(opts) {
         const x = d.data() || {}; if (x.store !== 'documents' || x.deleted || !x.recJson) return;
         let r = null; try { r = JSON.parse(x.recJson); } catch (e) { return; }
         if (!r || !r.id || r.type === 'review') return;
-        notes.push({ id: String(r.id), title: r.title || 'Untitled note', type: r.type || 'note', created: r.created || '', modified: r.modified || r.created || '' });
+        notes.push({ id: String(r.id), title: r.title || 'Untitled note', type: r.type || 'note', created: r.created || '', modified: r.modified || r.created || '', week: r.simpleWeek || null });
       });
       notes.sort((a, b) => String(b.modified).localeCompare(String(a.modified)));
       const sig = notes.map(n => n.id + '|' + n.title + '|' + n.created).join('\n');
       S.notes = notes;
-      if (sig !== S.sig) { S.sig = sig; if (S.hooks.renderTabs) S.hooks.renderTabs(); }
+      if (sig !== S.sig) { S.sig = sig; if (S.hooks.renderTabs) S.hooks.renderTabs(); if (S.menuOpen) paintMenu(); }
     }, e => console.warn('[scientia] notes', e && e.message)));
     S.unsubs.push(hubRef().collection('keys').onSnapshot(snap => {
       S.keys = snap.docs.map(d => Object.assign({ id: d.id }, d.data() || {})).map(k => ({ id: k.id, name: k.name || 'Computer', created: tsMs(k.created), lastSeen: tsMs(k.lastSeen) }));
@@ -166,13 +184,17 @@ function onTab(b) {
 /* ─── the embedded app ─── */
 function host() { return $('nbc-sis'); }
 function root() { return $('nbc-content'); }
-function ensureFrame(target) {
+/* V3.983 — the app's address: the simple notebook is the same app with ?simple=1 (and &week= to open one week) */
+function srcFor(target, week) { return SRC + (S.mode === 'simple' ? '?simple=1' + (week ? '&week=' + encodeURIComponent(week) : '') : '') + (S.mode === 'simple' ? '' : (target || '')); }
+function ensureFrame(target, week) {
   const h = host(); if (!h) return;
-  if (S.frame && S.frame.isConnected) return false;
-  h.innerHTML = `<div class="nbc-sis-main"><iframe class="nbc-sis-frame" id="nbc-sis-frame" title="Scientia In Situ" allow="microphone; fullscreen; clipboard-read; clipboard-write"></iframe></div><aside class="nbc-side nbc-sis-side" id="nbc-sis-side" hidden></aside>`;
+  if (S.frame && S.frame.isConnected && S.frameMode === S.mode) return false;
+  S.frameMode = S.mode; S.weeks = []; S.week = null; S.queue = [];
+  h.innerHTML = `<div class="nbc-sis-main">${S.mode === 'simple' ? '<div class="nbc-simple-bar" id="nbc-simple-bar"></div>' : ''}<iframe class="nbc-sis-frame" id="nbc-sis-frame" title="${S.mode === 'simple' ? 'Simple notebook' : 'Scientia In Situ'}" allow="microphone; fullscreen; clipboard-read; clipboard-write"></iframe></div><aside class="nbc-side nbc-sis-side" id="nbc-sis-side" hidden></aside>${S.mode === 'full' ? '<div class="nbc-fab" id="nbc-fab"></div>' : ''}`;
   S.frame = $('nbc-sis-frame'); S.ready = false;
-  S.frame.src = SRC + (target || '');
+  S.frame.src = srcFor(target, week);
   S.frame.addEventListener('load', () => { S.ready = true; flush(); });
+  paintBar(); paintFab(); if (S.panel) renderPanel();
   return true;
 }
 function send(msg) { if (S.ready && S.frame && S.frame.contentWindow) { try { S.frame.contentWindow.postMessage(msg, location.origin); } catch (e) {} } else S.queue.push(msg); }
@@ -192,6 +214,8 @@ function onFrameMessage(e) {
   // V3.878 — "Something I did": your recorded actions (USER_ACTIONS, V3.844), listed and marked noted by RM's own code
   if (e.data.type === 'rm-actions') send({ sisCmd: 'rm-ack', reqId: e.data.reqId, ok: listActionsFor(e.data.reqId) });
   if (e.data.type === 'rm-action-noted') send({ sisCmd: 'rm-ack', reqId: e.data.reqId, ok: noteActionFor(e.data.actionId, e.data.entryId, e.data.cardId) });
+  if (e.data.type === 'simple-weeks') { S.weeks = Array.isArray(e.data.weeks) ? e.data.weeks : []; S.week = e.data.week || null; S.today = e.data.today || null; paintBar(); setUrl(); return; }
+  if (S.mode === 'simple') return;   /* V3.983 — the simple notebook's notes are not Scientia tabs */
   if (typeof e.data.hash === 'string' && e.data.hash !== S.route) {
     S.route = e.data.hash;
     openTab(noteIdOf(S.route));   /* V3.882 — a note opened anywhere in Scientia becomes a tab */
@@ -247,18 +271,23 @@ function noteActionFor(actionId, entryId, cardId) {
   return true;
 }
 function setUrl() {
+  if (!S.active) return;
+  if (S.mode === 'simple') { try { history.replaceState(null, '', '?notebook=simple' + (S.week ? '&week=' + encodeURIComponent(S.week) : '')); } catch (e) {} return; }
   const id = noteIdOf(S.route);
   try { history.replaceState(null, '', '?notebook=scientia' + (id ? '&note=' + encodeURIComponent(id) : '')); } catch (e) {}
 }
-async function show(target) {
+/* show(target, mode, week): mode 'simple' is the simple notebook (week: the Monday to open), anything else the full Scientia at target */
+async function show(target, mode, week) {
+  S.mode = mode === 'simple' ? 'simple' : 'full'; ls(MODE_KEY, S.mode); closeMenu();
   if (!S.active) {
     if (S.hooks.park) { try { await S.hooks.park(); } catch (e) { console.warn('[scientia] park', e); } }
     S.active = true; ls(VIEW_KEY, 'scientia');
   }
-  const fresh = ensureFrame(target);
-  if (!fresh && target) send({ sisCmd: 'go', hash: target });
-  if (target) { S.route = target; openTab(noteIdOf(target)); }
-  const r = root(); if (r) r.classList.add('nbc-sis-on');
+  const fresh = ensureFrame(target, week);
+  if (S.mode === 'full') { if (!fresh && target) send({ sisCmd: 'go', hash: target }); if (target) { S.route = target; openTab(noteIdOf(target)); } }
+  else if (!fresh && week) send({ sisCmd: 'simple-week', week });
+  const r = root(); if (r) { r.classList.add('nbc-sis-on', 'nbc-max'); r.classList.toggle('nbc-simple', S.mode === 'simple'); }
+  document.body.classList.add('nbc-maxpage');
   setUrl();
   if (S.hooks.renderHeader) S.hooks.renderHeader();
   if (S.hooks.renderTabs) S.hooks.renderTabs();
@@ -268,7 +297,8 @@ async function show(target) {
 function hide() {
   if (!S.active) return;
   S.active = false; ls(VIEW_KEY, 'canvas');
-  const r = root(); if (r) r.classList.remove('nbc-sis-on');
+  const r = root(); if (r) r.classList.remove('nbc-sis-on', 'nbc-max', 'nbc-simple');
+  document.body.classList.remove('nbc-maxpage');
   clearInterval(S.tick); S.tick = null;
 }
 function active() { return S.active; }
@@ -290,12 +320,14 @@ function statusText() {
 }
 function paintStatus() {
   const t = $('nbc-sis-status'); if (t) t.textContent = statusText();
-  const d = $('nbc-sis-dot'); if (d) { const p = statusParts(); d.className = 'nbc-sis-dot nbc-sis-' + p.dot; d.title = p.conf ? `${p.conf} change${p.conf === 1 ? '' : 's'} to decide — the warning triangle in Scientia's header` : p.live ? 'In step with your computer' : S.keys.length ? 'Your computer is not syncing right now' : 'No computer connected'; }
+  const p = statusParts(), tip = p.conf ? `${p.conf} change${p.conf === 1 ? '' : 's'} to decide — the warning triangle in Scientia's header` : p.live ? 'In step with your computer' : S.keys.length ? 'Your computer is not syncing right now' : 'No computer connected';
+  [$('nbc-sis-dot')].concat(Array.from(document.querySelectorAll('.nbc-fdot'))).forEach(d => { if (d) { d.className = 'nbc-sis-dot nbc-sis-' + p.dot + (d.classList.contains('nbc-fdot') ? ' nbc-fdot' : ''); d.title = tip; } });
+  const ms = $('nbc-menu-stat'); if (ms) ms.textContent = statusText();
   if (S.panel) { const s = $('nbc-sis-panel-status'); if (s) s.innerHTML = panelStatusHtml(); }
 }
 function renderHeader(h, { full, searchOpen }) {
   h.innerHTML = `
-    <a class="nbc-brand" href="/rm/" title="Lab notebook — back to RM">NB</a>
+    <a class="nbc-brand" href="/rm/pages/notebook.html" title="Lab Notebook — the menu">NB</a>
     <span class="nbc-title nbc-title-empty nbc-sis-title">Scientia</span>
     <div class="nbc-meta nbc-sis-meta"><span class="nbc-sis-dot" id="nbc-sis-dot"></span><span class="nbc-status nbc-sis-status" id="nbc-sis-status"></span></div>
     <span class="spacer"></span>
@@ -421,7 +453,7 @@ async function doUpload() {
     const j = await call('api/snapshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
     S.upload = null; S.busy = false; renderPanel();
     toast('success', `Notebook replaced — ${(j.meta && j.meta.records) || 0} records online.`);
-    if (S.frame) { S.ready = false; S.frame.src = SRC; }
+    if (S.frame) { S.ready = false; S.frame.src = srcFor(''); }
   } catch (err) { S.busy = false; renderPanel(); if (msg()) { msg().textContent = 'Could not upload: ' + (err.message || err); msg().classList.add('nbc-sis-err'); } }
 }
 async function download() {
@@ -434,5 +466,95 @@ async function download() {
   } catch (err) { toast('error', 'Could not download: ' + (err.message || err)); }
 }
 
-window.NOTEBOOK_SCIENTIA = { init, shouldOpen, tabsHtml, onTab, show, hide, active, renderHeader, togglePanel, _state: S };
+/* ─── V3.983 — the menu: the Simple notebook or Scientia ─── */
+function lastMode() { const m = ls(MODE_KEY); return m === 'simple' || m === 'full' ? m : ls(VIEW_KEY) === 'scientia' ? 'full' : ''; }
+/* menu({ canvasEntries, openCanvas }): over the whole notebook; the canvas notebook of before is a link for whoever has entries in it */
+function menu(opts) {
+  if (opts) S.menuOpts = opts;
+  const r = root(); if (!r) return;
+  if (S.active) hide();
+  let m = $('nbc-menu');
+  if (!m) { m = document.createElement('div'); m.id = 'nbc-menu'; m.className = 'nbc-menu'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-label', 'Lab Notebook'); r.appendChild(m); m.addEventListener('click', onMenuClick); }
+  S.menuOpen = true; paintMenu();
+  try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  setTimeout(() => { const b = m.querySelector(`.nbc-choice[data-m="${lastMode() || 'simple'}"]`); if (b) b.focus({ preventScroll: true }); }, 0);
+}
+function closeMenu() { S.menuOpen = false; const m = $('nbc-menu'); if (m) m.remove(); }
+function paintMenu() {
+  const m = $('nbc-menu'); if (!m || !S.menuOpen) return;
+  const last = lastMode(), weeks = S.notes.filter(n => n.week).length, o = S.menuOpts || {}, n = o.canvasEntries || 0;
+  const tag = k => last === k ? '<span class="ch-last">Last used</span>' : '';
+  m.innerHTML = `<div class="nbc-menu-in">
+    <div class="nbc-menu-h"><h1>Lab Notebook</h1><p>Two ways to keep it. Both are saved to your account, and their notes are the same notes: move from one to the other whenever you like.</p></div>
+    <div class="nbc-choices">
+      <button type="button" class="nbc-choice${last === 'simple' ? ' ch-on' : ''}" data-m="simple">
+        ${tag('simple')}<h2>${icon('pencil-square')}<span>Simple notebook</span></h2>
+        <p class="ch-sub">A fresh, empty canvas every week. Write, draw, and drop in pictures, PDFs and web pages — nothing else to learn.</p>
+        <ul><li>One canvas a week, made for you</li><li>Pen, highlighter and text</li><li>Image panels, PDFs, HTML pages and saved websites</li></ul>
+        <span class="ch-stat">${weeks ? `${weeks} week${weeks === 1 ? '' : 's'} so far` : 'Your first week starts when you open it'}</span>
+        <span class="ch-go">Open this week →</span>
+      </button>
+      <button type="button" class="nbc-choice${last === 'full' ? ' ch-on' : ''}" data-m="full">
+        ${tag('full')}<h2>${icon('book-open')}<span>Scientia</span></h2>
+        <p class="ch-sub">The full notebook: projects and experiments, protocols, structures and terms, the Atlas — the same notebook as Scientia on your computer, kept in step through the cloud.</p>
+        <ul><li>Everything Scientia does</li><li>In step with the desktop app</li><li>The whole page under RM's bar</li></ul>
+        <span class="ch-stat" id="nbc-menu-stat">${esc(statusText())}</span>
+        <span class="ch-go">Open Scientia →</span>
+      </button>
+    </div>
+    ${n ? `<p class="nbc-menu-old">Your earlier canvas notebook (${n} entr${n === 1 ? 'y' : 'ies'}) is kept as it was: <button type="button" class="nbc-linkb" data-m="canvas">open it</button></p>` : ''}
+  </div>`;
+}
+function onMenuClick(e) {
+  const b = e.target.closest('[data-m]'); if (!b) return;
+  const k = b.dataset.m;
+  if (k === 'simple') show(null, 'simple');
+  else if (k === 'full') show(S.route || null, 'full');
+  else if (k === 'canvas') { closeMenu(); const o = S.menuOpts || {}; if (o.openCanvas) Promise.resolve(o.openCanvas()).catch(err => console.warn('[notebook] canvas', err)); }
+}
+function backToMenu() { menu(); }
+/* the full Scientia: a small button at its bottom left — the menu, the simple notebook, sync with your computer */
+function paintFab() {
+  const f = $('nbc-fab'); if (!f) return;
+  f.innerHTML = `<button type="button" class="nbc-fab-b" data-f="menu" title="Lab Notebook — the menu, the simple notebook, sync with your computer"><span class="nbc-sis-dot nbc-fdot"></span><span>Lab Notebook</span></button>`;
+  const b = f.querySelector('[data-f="menu"]');
+  b.addEventListener('click', () => {
+    const items = [
+      { label: 'Notebook menu', sub: 'The simple notebook or Scientia', run: backToMenu },
+      { label: 'Simple notebook', sub: 'This week’s canvas', run: () => show(null, 'simple') },
+      { label: 'Sync with your computer…', sub: 'Connect the desktop app, upload or download the notebook', run: () => togglePanel(true) },
+      { label: 'Download (JSON)', sub: 'Everything, as the desktop app imports it', run: download },
+      { label: 'Open on its own', sub: 'Scientia in a tab of its own', run: () => window.open(SRC + (S.route || ''), '_blank', 'noopener') }];
+    if (window.CANVAS_WIDGETS && CANVAS_WIDGETS.actionMenu) CANVAS_WIDGETS.actionMenu({ anchor: b, title: 'Lab Notebook', items });
+    else backToMenu();
+  });
+  paintStatus();
+}
+/* the simple notebook's bar: the menu · ‹ the week ›, This week · the week in full Scientia */
+function paintBar() {
+  const b = $('nbc-simple-bar'); if (!b) return;
+  const W = S.weeks.slice().sort((x, y) => String(y.week).localeCompare(String(x.week))), i = W.findIndex(w => w.week === S.week), cur = i >= 0 ? W[i] : null;
+  const older = i >= 0 && i < W.length - 1 ? W[i + 1] : null, newer = i > 0 ? W[i - 1] : null;
+  b.innerHTML = `<button type="button" class="nbc-sb-home" data-s="menu" title="Lab Notebook — back to the menu">${icon('book-open')}<span>Lab Notebook</span></button>
+    <span class="nbc-sb-sep"></span>
+    <button type="button" class="nbc-ib nbc-sb-step" data-s="go" data-w="${older ? esc(older.week) : ''}"${older ? '' : ' disabled'} title="${older ? esc(older.title) : 'No earlier week'}">‹</button>
+    <select class="nbc-sb-week" data-s="pick" title="Every week" aria-label="Week">${W.length ? W.map(w => `<option value="${esc(w.week)}"${w.week === S.week ? ' selected' : ''}>${esc(w.title)}${w.week === S.today ? ' · this week' : ''}</option>`).join('') : '<option>Opening this week…</option>'}</select>
+    <button type="button" class="nbc-ib nbc-sb-step" data-s="go" data-w="${newer ? esc(newer.week) : ''}"${newer ? '' : ' disabled'} title="${newer ? esc(newer.title) : 'No later week'}">›</button>
+    ${S.week && S.today && S.week !== S.today ? '<button type="button" class="nbc-sb-b" data-s="today">This week</button>' : ''}
+    <span class="spacer"></span>
+    <button type="button" class="nbc-sb-b" data-s="full"${cur ? '' : ' disabled'} title="This week’s canvas in the full Scientia — the same note, with everything else">Open in Scientia</button>`;
+  if (!b.dataset.wired) {
+    b.dataset.wired = '1';
+    b.addEventListener('click', (e) => {
+      const t = e.target.closest('[data-s]'); if (!t || t.disabled) return;
+      if (t.dataset.s === 'menu') backToMenu();
+      else if (t.dataset.s === 'go' && t.dataset.w) send({ sisCmd: 'simple-week', week: t.dataset.w });
+      else if (t.dataset.s === 'today') send({ sisCmd: 'simple-week', week: 'today' });
+      else if (t.dataset.s === 'full') { const w = S.weeks.find(x => x.week === S.week); if (w) show('#/doc/' + encodeURIComponent(w.id), 'full'); }
+    });
+    b.addEventListener('change', (e) => { if (e.target.dataset.s === 'pick' && /^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) send({ sisCmd: 'simple-week', week: e.target.value }); });
+  }
+}
+
+window.NOTEBOOK_SCIENTIA = { init, shouldOpen, tabsHtml, onTab, show, hide, active, renderHeader, togglePanel, menu, closeMenu, _state: S };
 })();

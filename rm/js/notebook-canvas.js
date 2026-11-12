@@ -168,14 +168,18 @@ async function boot() {
   const rows = sortedRows(true), mine = sortedRows(false);
   /* V3.842 — an instance's "open the source" link names the BOARD */
   const wantBoard = qs.get('board'); const byBoard = wantBoard ? rows.find(r => r.board_id === wantBoard) : null;
-  /* V3.864 — ?notebook=scientia[&note=<id>], or the person's last view was Scientia (and no link names a canvas entry) */
+  /* V3.864 — ?notebook=scientia[&note=<id>] opens Scientia. V3.983 — ?notebook=simple[&week=] the simple notebook; a link
+     that names a canvas entry, board, card or action opens the canvas as before; otherwise the MENU: the simple notebook
+     or Scientia (the canvas notebook of before is one link away there, for whoever has entries in it) */
   const SIS = window.NOTEBOOK_SCIENTIA;
-  const sisFirst = !!SIS && !byBoard && !(want && rows.some(r => r.id === want)) && !qs.get('item') && !qs.get('action') && (wantNb === 'scientia' || await SIS.shouldOpen());
-  if (sisFirst) await SIS.show(qs.get('note') ? '#/doc/' + encodeURIComponent(qs.get('note')) : null);
+  const canvasLink = !!byBoard || !!(want && rows.some(r => r.id === want)) || !!qs.get('item') || !!qs.get('action') || !!(wantNb && state.notebooks.some(n => n.id === wantNb));
+  const openCanvas = async () => { if (mine[0]) await openEntry(mine[0].id); else if (rows[0]) await openEntry(rows[0].id); };
+  if (SIS && !canvasLink && wantNb === 'scientia') await SIS.show(qs.get('note') ? '#/doc/' + encodeURIComponent(qs.get('note')) : null, 'full');
+  else if (SIS && !canvasLink && wantNb === 'simple') await SIS.show(null, 'simple', qs.get('week') || null);
   else if (byBoard) await openEntry(byBoard.id);
   else if (want && rows.some(r => r.id === want)) await openEntry(want);
-  else if (mine[0]) await openEntry(mine[0].id);
-  else if (rows[0]) await openEntry(rows[0].id);
+  else if (SIS && SIS.menu && !canvasLink) SIS.menu({ canvasEntries: rows.length, openCanvas });
+  else await openCanvas();
   /* V3.853 — ?item=<id>: a My Week result points at one card of the entry that opened; centre + pulse it */
   const wantItem = qs.get('item');
   if (wantItem && state.inst && state.inst.focusItem) state.inst.focusItem(wantItem);
@@ -484,7 +488,7 @@ function renderHeader() {
   }
   const doc = state.doc;
   h.innerHTML = `
-    <a class="nbc-brand" href="/rm/" title="Lab notebook — back to RM">NB</a>
+    <a class="nbc-brand" href="/rm/pages/notebook.html" title="Lab Notebook — the menu">NB</a>
     ${doc ? `<input type="text" class="nbc-title" id="nbc-title" value="${esc(doc.title)}" placeholder="Untitled entry" maxlength="140" spellcheck="false">
       <div class="nbc-meta">
         <input type="date" class="nbc-date" id="nbc-date" value="${esc(doc.date)}" title="Entry date">
