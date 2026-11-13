@@ -2356,9 +2356,13 @@
      Alex: "if one user deleted something, the other has to approve it". The hub holds a note, card, theme, aim or
      structure someone removed from a shared project (functions/scientia-share-core.js holdDeletes): everyone else keeps
      it until someone else who edits it decides here. Each person sees what waits for them (Delete it / Keep it) and
-     what of theirs waits for someone else. The same on the website and the installed app (api/rm/* reaches the hub). */
-  PILL_ICONS.trash = '<path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>';
-  var DEL = { data: { decide: [], waiting: [] }, chip: null, pop: null, busy: {}, timer: null };
+     what of theirs waits for someone else. The same on the website and the installed app (api/rm/* reaches the hub).
+     V3.990 (Gabe: "remove the approval awaiting popup, and instead, it should be shown in a new history button only on
+     shared notes"): no chip at the top of the page any more. A shared note (shared itself, or in a shared project) has
+     History beside its title, with what waits in that share: in this note first, then elsewhere in it. Its number is
+     what waits for you. */
+  PILL_ICONS.history = '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>';   // Lucide "history"
+  var DEL = { data: { decide: [], waiting: [] }, btn: null, pop: null, doc: null, busy: {}, timer: null };
   LAB.deletions = DEL;
   function delSay(p) { return 'the ' + ((p.root && p.root.what) || 'record') + (p.root && p.root.title ? ' “' + snippet(p.root.title, 60) + '”' : '') + (p.parts > 1 ? ' (with ' + (p.parts - 1) + ' part' + (p.parts > 2 ? 's' : '') + ')' : ''); }
   function delWhen(at) { var m = Math.round((Date.now() - (at || Date.now())) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; }
@@ -2368,22 +2372,44 @@
     delPaint();
   }
   LAB.loadDeletions = delLoad;
+  /** Shared: the note itself, or its project (also used by §18's review). */
+  function sharedNote(d) {
+    if (!d) return false; if (d.sharedFrom || (d.shareWith && Object.keys(d.shareWith).length)) return true;
+    var p = d.projectId && M.project(d.projectId); return !!(p && (p.sharedFrom || (p.shareWith && Object.keys(p.shareWith).length)));
+  }
+  LAB.sharedNote = sharedNote;
+  function safePart(s) { return String(s == null ? '' : s).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80); }   // the hub's safeIdPart (functions/scientia-hub-core.js)
+  /** The shares a note is in: a copy names its share; the owner's is <owner>__d__<note> or <owner>__p__<project> (scientia-share-core shareIdOf). */
+  function sharesOf(d) {
+    var out = [], p = d && d.projectId && M.project(d.projectId);
+    [[d, 'd'], [p, 'p']].forEach(function (x) { var rec = x[0]; if (!rec) return; var f = sharedFrom(rec);
+      if (f && f.share) out.push({ id: f.share }); else if (Object.keys(grantsOn(rec)).length) out.push({ tail: '__' + x[1] + '__' + safePart(rec.id) }); });
+    return out;
+  }
+  function ofShare(list, d) { var ss = sharesOf(d); return list.filter(function (p) { var id = String(p.shareId || ''); return ss.some(function (s) { return s.id ? id === s.id : id.slice(-s.tail.length) === s.tail; }); }); }
+  function inNote(p, d) { if (p.root && p.root.store === 'documents' && p.root.id === d.id) return true; return (p.recs || []).some(function (r) { var b = r.store === 'blocks' && M.block(r.id); return !!b && b.docId === d.id; }); }
+  /** The note on screen (the first pane of a split). */
+  function delDoc() { var r = App.route || {}; if (r.name !== 'doc' && r.name !== 'split') return null; var d = DocView.docId && M.doc(DocView.docId); return d && !d.deleted ? d : null; }
   function delPaint() {
-    var n = DEL.data.decide.length, w = DEL.data.waiting.length;
-    if (!n && !w) { if (DEL.chip) { DEL.chip.remove(); DEL.chip = null; } delClose(); return; }
-    if (!DEL.chip) { DEL.chip = h('button.lab-delchip.nopan', { type: 'button', on: { pointerdown: function (e) { e.stopPropagation(); }, click: function (e) { e.stopPropagation(); DEL.pop ? delClose() : delOpen(); } } }); (LAB.topChips ? LAB.topChips() : document.body).append(DEL.chip); }
-    var say = n ? (n === 1 ? '1 deletion to approve' : n + ' deletions to approve') : (w === 1 ? '1 deletion waiting for approval' : w + ' deletions waiting for approval');
-    DEL.chip.className = 'lab-delchip nopan' + (n ? ' ask' : '');
-    DEL.chip.title = say; DEL.chip.setAttribute('aria-label', say);
-    DEL.chip.innerHTML = pic('trash') + '<span></span>'; DEL.chip.lastChild.textContent = say;
+    var d = delDoc(), mb = document.getElementById('ttlmore');
+    if (!d || !sharedNote(d) || !mb) { if (DEL.btn) { DEL.btn.remove(); DEL.btn = null; } delClose(); DEL.doc = null; return; }
+    if (DEL.doc !== d.id) delClose();
+    DEL.doc = d.id;
+    var n = ofShare(DEL.data.decide, d).length, w = ofShare(DEL.data.waiting, d).length;
+    if (!DEL.btn) DEL.btn = h('button.lab-histbtn.nopan', { type: 'button', on: { pointerdown: function (e) { e.stopPropagation(); }, click: function (e) { e.stopPropagation(); DEL.pop ? delClose() : delOpen(); } } });
+    if (DEL.btn.previousElementSibling !== mb) mb.after(DEL.btn);   // beside the title (and its ⋯)
+    var say = 'History — ' + (n ? (n === 1 ? '1 deletion to approve' : n + ' deletions to approve') : w ? (w === 1 ? '1 deletion of yours' : w + ' deletions of yours') + ' waiting for approval' : 'nothing waiting for approval');
+    DEL.btn.className = 'lab-histbtn nopan' + (n ? ' ask' : '');
+    DEL.btn.title = say; DEL.btn.setAttribute('aria-label', say);
+    DEL.btn.innerHTML = pic('history') + '<span>History</span>' + (n ? '<b>' + n + '</b>' : '');
     if (DEL.pop) delFill();
   }
   function delClose() { if (DEL.pop) { DEL.pop.remove(); DEL.pop = null; } if (DEL.off) document.removeEventListener('pointerdown', DEL.off, true); DEL.off = null; }
   function delOpen() {
     delClose();
-    DEL.pop = h('div.lab-sharepop.lab-delpop.nopan', { role: 'dialog', 'aria-label': 'Deletions in shared projects' });
+    DEL.pop = h('div.lab-sharepop.lab-delpop.nopan', { role: 'dialog', 'aria-label': 'History of this shared note' });
     document.body.append(DEL.pop); delFill();
-    DEL.off = function (e) { if (DEL.pop && !DEL.pop.contains(e.target) && !(DEL.chip && DEL.chip.contains(e.target))) delClose(); };
+    DEL.off = function (e) { if (DEL.pop && !DEL.pop.contains(e.target) && !(DEL.btn && DEL.btn.contains(e.target))) delClose(); };
     setTimeout(function () { if (DEL.pop) document.addEventListener('pointerdown', DEL.off, true); }, 0);
   }
   async function delDecide(p, pick) {
@@ -2398,38 +2424,48 @@
     await delLoad();
   }
   function delFill() {
-    var pop = DEL.pop; if (!pop) return;
-    var d = DEL.data.decide, w = DEL.data.waiting, rows = [];
-    var head = h('div.lab-sh-h', h('b', 'Deletions in shared projects'), h('button.lab-sh-x', { type: 'button', title: 'Close', 'aria-label': 'Close', on: { click: delClose } }, '×'));
-    if (d.length) rows.push(h('p.lab-sh-p.tiny.muted', 'Someone removed these from a project you share. Everyone else still has them until you decide.'));
-    d.forEach(function (p) {
+    var pop = DEL.pop, d = DEL.doc && M.doc(DEL.doc); if (!pop || !d) return;
+    var dd = ofShare(DEL.data.decide, d), ww = ofShare(DEL.data.waiting, d), rows = [];
+    var share = (dd[0] || ww[0] || {}).shareTitle || '', where = share || 'this share';
+    var head = h('div.lab-sh-h', h('b', 'History'), h('button.lab-sh-x', { type: 'button', title: 'Close', 'aria-label': 'Close', on: { click: delClose } }, '×'));
+    function decideRow(p) {
       var busy = !!DEL.busy[p.pid];
-      rows.push(h('div.lab-del-row', { 'data-pid': p.pid },
-        h('div.lab-del-t', h('b', p.byName || 'A lab member'), ' deleted ' + delSay(p) + (p.shareTitle ? ' from ' + p.shareTitle : '')),
-        h('div.lab-del-f', h('span.tiny.muted', delWhen(p.at)), h('span.lab-del-b',
+      return h('div.lab-del-row', { 'data-pid': p.pid },
+        h('div.lab-del-t', h('b', p.byName || 'A lab member'), ' deleted ' + delSay(p)),
+        h('div.lab-del-f', h('span.tiny.muted', delWhen(p.at) + ' · waiting for you'), h('span.lab-del-b',
           h('button.btn.sm', { type: 'button', disabled: busy, on: { click: function () { delDecide(p, 'keep'); } } }, 'Keep it'),
-          h('button.btn.sm.pri', { type: 'button', disabled: busy, on: { click: function () { delDecide(p, 'delete'); } } }, 'Delete it')))));
-    });
-    if (w.length) rows.push(h('p.lab-sh-p.tiny.muted' + (d.length ? '.lab-del-gap' : ''), 'Waiting for someone else to approve:'));
-    w.forEach(function (p) {
+          h('button.btn.sm.pri', { type: 'button', disabled: busy, on: { click: function () { delDecide(p, 'delete'); } } }, 'Delete it'))));
+    }
+    function waitRow(p) {
       var who = (p.approverNames || []).map(firstName).join(' or ') || 'the others';
-      rows.push(h('div.lab-del-row.mine', h('div.lab-del-t', 'You deleted ' + delSay(p) + (p.shareTitle ? ' from ' + p.shareTitle : '')), h('div.lab-del-f', h('span.tiny.muted', delWhen(p.at) + ' · ' + who + ' will decide'))));
+      return h('div.lab-del-row.mine', h('div.lab-del-t', 'You deleted ' + delSay(p)), h('div.lab-del-f', h('span.tiny.muted', delWhen(p.at) + ' · ' + who + ' will decide')));
+    }
+    if (!dd.length && !ww.length) rows.push(h('p.lab-sh-p.tiny.muted', 'Nothing waiting. When someone deletes a card, a note, a theme or an aim from what you share, it waits here until another person who edits it approves; until then everyone else keeps it.'));
+    else rows.push(h('p.lab-sh-p.tiny.muted', 'Deletions waiting for approval in ' + where + '. Everyone else keeps what was deleted until someone decides.'));
+    [['In this note', true], ['Elsewhere in ' + where, false]].forEach(function (g) {
+      var a = dd.filter(function (p) { return inNote(p, d) === g[1]; }), b = ww.filter(function (p) { return inNote(p, d) === g[1]; });
+      if (!a.length && !b.length) return;
+      rows.push(h('p.lab-del-gh', g[0]));
+      a.forEach(function (p) { rows.push(decideRow(p)); }); b.forEach(function (p) { rows.push(waitRow(p)); });
     });
     pop.replaceChildren(head, h('div.lab-del-list', rows));
-    var c = DEL.chip && DEL.chip.getBoundingClientRect(), W = pop.offsetWidth || 360;
-    if (c) { pop.style.left = Math.max(8, Math.min(innerWidth - W - 8, c.left + c.width / 2 - W / 2)) + 'px'; pop.style.top = (c.bottom + 6) + 'px'; }
+    var c = DEL.btn && DEL.btn.getBoundingClientRect(), W = pop.offsetWidth || 380;
+    if (c) { pop.style.left = Math.max(8, Math.min(innerWidth - W - 8, c.left)) + 'px'; pop.style.top = (c.bottom + 6) + 'px'; }
   }
   try {
     setTimeout(delLoad, 2500);
     DEL.timer = setInterval(function () { if (!document.hidden) delLoad(); }, 60000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) delLoad(); });
+    var oSetTitle = App.setTitle; App.setTitle = function () { var r = oSetTitle.apply(this, arguments); try { delPaint(); } catch (e) { warn('history', e); } return r; };   // every page: History on a shared note, nothing elsewhere
     var st17 = document.getElementById('lab-mode-css');
-    if (st17) st17.textContent += '.lab-delchip{position:fixed;z-index:8990;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:6px;' +
-      'padding:5px 12px 5px 9px;border-radius:16px;border:1px solid var(--rule-2);background:var(--surface);color:var(--ink-2);font:500 12.5px/1.2 var(--f-d,system-ui);cursor:pointer;box-shadow:0 6px 18px -10px rgba(36,33,28,.45)}' +
-      '.lab-delchip svg{width:16px;height:16px}.lab-delchip.ask{border-color:color-mix(in srgb,var(--teal) 55%,transparent);color:var(--teal)}.lab-delchip:hover{color:var(--ink)}' +
+    if (st17) st17.textContent += '.lab-histbtn{flex:none;align-self:center;display:inline-flex;align-items:center;gap:5px;height:24px;margin-left:2px;padding:0 8px 0 6px;border:1px solid transparent;border-radius:12px;' +
+      'background:transparent;color:var(--ink-3);font:500 11.5px/1 var(--f-d,system-ui);cursor:pointer;white-space:nowrap}' +
+      '.lab-histbtn svg{width:15px;height:15px}.lab-histbtn:hover{border-color:var(--rule-2);background:var(--surface);color:var(--ink)}' +
+      '.lab-histbtn.ask{color:var(--teal)}.lab-histbtn b{min-width:16px;height:16px;border-radius:8px;background:var(--teal);color:var(--surface);font:600 10px/16px var(--f-m,monospace);text-align:center;padding:0 4px}' +
       '.lab-delpop{width:380px}.lab-del-list{overflow:auto;display:flex;flex-direction:column;gap:8px}.lab-del-row{border:1px solid var(--rule);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}' +
-      '.lab-del-row.mine{background:var(--surface-2)}.lab-del-t{font-size:13px;line-height:1.4}.lab-del-f{display:flex;align-items:center;gap:8px}.lab-del-b{margin-left:auto;display:inline-flex;gap:6px}.lab-del-gap{margin-top:6px}' +
-      'body.mobile .lab-delchip{top:calc(6px + env(safe-area-inset-top))}';
+      '.lab-del-row.mine{background:var(--surface-2)}.lab-del-t{font-size:13px;line-height:1.4}.lab-del-f{display:flex;align-items:center;gap:8px}.lab-del-b{margin-left:auto;display:inline-flex;gap:6px}' +
+      '.lab-del-gh{margin:6px 0 0;font:500 10px/1.3 var(--f-m,monospace);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}' +
+      'body.mobile .lab-histbtn span{display:none}';
   } catch (e) { warn('deletions', e); }
   /* ---- 18. Merged changes to review: each person's version in their colour, until you have looked (V3.933) ----
      Alex: "If you both change the same line differently, both versions stay there, one after the other. if this happens
@@ -2451,7 +2487,7 @@
     });
     css18 += '.li-mk [class*="fby"]{box-shadow:none;background:none;padding-left:0}';   // a list line: the bullet takes the colour, the bar and tint go with the text
     css18 += '.lab-topchips{position:fixed;z-index:8990;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:none}' +
-      '.lab-topchips>*{pointer-events:auto}.lab-topchips .lab-delchip{position:static;transform:none}' +
+      '.lab-topchips>*{pointer-events:auto}' +
       '.lab-rvchip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px 5px 9px;border-radius:16px;border:1px solid color-mix(in srgb,#6B4FA3 45%,transparent);background:var(--surface);color:color-mix(in srgb,#6B4FA3 80%,var(--ink));font:500 12.5px/1.2 var(--f-d,system-ui);cursor:pointer;box-shadow:0 6px 18px -10px rgba(36,33,28,.45)}' +
       '.lab-rvchip svg{width:16px;height:16px}' +
       '.lab-rvbar{position:fixed;z-index:8991;top:calc(48px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:min(560px,calc(100vw - 16px));box-sizing:border-box;display:flex;flex-direction:column;gap:7px;padding:9px 12px;' +
@@ -2472,10 +2508,7 @@
     LAB.topChips = topChips;
     function reviewed() { var st = (typeof settings === 'function' ? settings() : {}) || {}; return new Set(Array.isArray(st.reviewedMerges) ? st.reviewedMerges : []); }
     function byMarks(b) { return ((b && b.body && b.body.marks) || []).filter(function (m) { return m && m.type === 'fmt' && BY.test(m.s); }); }
-    function sharedNote(d) {
-      if (!d) return false; if (d.sharedFrom || (d.shareWith && Object.keys(d.shareWith).length)) return true;
-      var p = d.projectId && M.project(d.projectId); return !!(p && (p.sharedFrom || (p.shareWith && Object.keys(p.shareWith).length)));
-    }
+    var sharedNote = LAB.sharedNote;   // V3.990: one definition, in section 17
     /** The areas still to review, note by note, in each note's card order. */
     function scan() {
       var seen = reviewed(), out = [];

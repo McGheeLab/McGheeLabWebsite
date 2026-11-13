@@ -390,6 +390,13 @@ A **bridge** is a component, or some words of one, shown in another note: live (
 - **In the note it went to:** its kind reads **bridge**, its edge is green, "bridged from …" opens the original, and the caption under it (*Why is it bridged here?*) pulses when it arrives. Click it to write; Enter keeps it.
 - **In its own note:** the bridged words are **underlined in green**; a component that isn't text says **bridged** beside its kind. **Double-click** the underline or the tag: **Go to the note** it is bridged to, or **Open it beside this note**. Bridged to several notes, the menu lists each, with its reason.
 - **The colour:** Settings → Structures → **Bridges** (green by default).
+- **At a note's edges:** each note it is bridged with is a circle in the faded margin. **Left:** the notes what is bridged or pulled into this note comes from. **Right:** the notes its components are bridged (or pulled) to. The number is how many; a dashed ring means structures pulled in only. A circle sits level with its component and moves with the paper; when the component is out of view it waits at the top or bottom.
+  - **Point at one:** the note's name, and a thread to each of its components. **Click:** go there, landing on the bridge (in a split, in that pane). **Alt+click:** open it beside. **Right-click:** choose which bridge to land on. On a touchscreen: tap to see it, tap again to go.
+  - In a window they are half-moons, half under the edge. In full screen they are beads, a little inside it, since the screen's edge pans the note there.
+- **The bridge bar** (under the tabs): it opens when you cross a bridge — a circle, *Go to* on an underline, "bridged from …" — and in a note of your three most-used bridges.
+  - **The trail:** the notes you crossed to, on a line, with the way you crossed between each (→ to where it went, ← back to where it came from). ‹ › walk it; click a note to go there.
+  - **Most used:** the three pairs of notes you cross between most, counted over two weeks (from Monday 9 November 2026, starting again every other Monday), the same on all your devices.
+  - Going to another tab closes it; **Alt+←** or **Alt+→** back to a note of the trail brings it back. **×** closes it until tomorrow. Settings → Structures → **Bridges** turns it off.
 - Bridges replace *Link to a note*, *Embed in another note* and *Pull into*. Links made before still work, underlined the same way. Structures pulled in (a barrier, a claim) are as before.
 
 ### Linking by hand
