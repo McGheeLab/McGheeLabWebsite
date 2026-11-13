@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (85 changes — ready to push)
+## Pending (86 changes — ready to push)
+
+- **HTML protocols (V3.987):** made your protocol as a web page, with its own calculators and buttons? On the Protocols page press **Upload HTML** and pick the file. It opens in RM like any protocol (Download and Print are there), you can replace it with a newer file (the old one stays downloadable), and **Post to website** puts it on mcgheelab.com under Research → Protocols, with everyone who helped credited on the Team page. It runs in a closed frame, so it can't reach anything else on the site.
 
 - **Protocols on the lab website (V3.986):** in a protocol, press **Post to website**, tick everyone who helped make it, and it appears on mcgheelab.com under Research → Protocols for anyone to read, print and use (calculators work there too). Each person you tick gets a protocols icon on the Team page that opens their protocols. The website shows the copy you posted — press **Update website** after you edit. Links to lab inventory show the item's name and catalog number, never stock levels.
 

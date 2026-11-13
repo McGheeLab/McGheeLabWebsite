@@ -3656,6 +3656,15 @@ service cloud.firestore {
                       || isAdmin() || isProtocolOwner();
       }
 
+      // V3.987 — an uploaded HTML protocol's file, split into pieces
+      // (protocol-html.js): html/r{rev}-{n} = { rev, n, data }. Lab members
+      // read (RM draws the file); the protocol's owner or an admin writes —
+      // a new revision on upload / replace, deletes when the protocol goes.
+      match /html/{pieceId} {
+        allow read: if isLabMember();
+        allow create, update, delete: if isAdmin() || isProtocolOwner();
+      }
+
       // V3.119 — version snapshots. Lab members read; only the protocol
       // owner or admin can create a snapshot, and the writer's uid must
       // match the snapshot_by_uid. Once written, snapshots are immutable
@@ -3680,7 +3689,9 @@ service cloud.firestore {
     // the protocol editor (rm/js/protocol-publish.js) copies a snapshot
     // here: publicProtocols/{id} is the card (title, summary, tags,
     // contributors, dates) and content/current is the tree, with lab
-    // inventory links already replaced by the item's name. Public read —
+    // inventory links already replaced by the item's name. V3.987: an HTML
+    // protocol's copy is its file, in content/html-{n} pieces beside
+    // content/current. Public read —
     // visitors are not signed in. The protocol's owner or an admin posts,
     // updates and removes it; the id is pinned to the doc id so a card can
     // never claim to be another protocol. A non-admin whose protocol doc

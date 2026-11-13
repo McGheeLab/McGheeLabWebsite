@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-protocol-mode="html">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>V3.987 harness — an HTML protocol in RM</title>
+  <!--
+    V3.987 — an uploaded HTML protocol, without a sign-in or a database.
+
+      python3 -m http.server 8000     (repo root)
+      http://localhost:8000/scripts/tests/v3987-html-protocol-harness.html
+
+    Real: rm/js/protocol-schemas.js, protocol-html.js, protocol-publish.js,
+    protocol-html-view.js, and the stylesheets protocols.html loads. The
+    markup below is the html mode of rm/pages/protocols.html.
+    Faked: firebridge.db() is an in-memory store that refuses what Firestore
+    refuses (a document over 1 MiB, a batch over 10 MiB or 500 writes,
+    undefined values); the roster; toast.
+
+    The view does not start by itself. A driver (or you, in the console):
+      await __h.upload(htmlText, {id, title, summary, tags})   // = the Upload HTML modal's write
+      __h.start(id)                                            // = opening ?protocol=<id>&view=html
+    Then __h.store holds every document written.
+  -->
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/paper-editor.css">
+  <link rel="stylesheet" href="/rm/css/protocol-editor.css">
+  <script src="/rm/js/icons.js"></script>
+  <style>.prh-shell { height: 100vh; }</style>
+</head>
+<body>
+  <div class="pr-html-mode prh-shell" id="prh-shell">
+    <div class="prh-bar">
+      <a class="btn pre-action-btn" href="/rm/pages/protocols.html">← All protocols</a>
+      <div class="prh-titles">
+        <div class="prh-title" id="prh-title">Loading…</div>
+        <div class="prh-byline" id="prh-byline"></div>
+      </div>
+      <div class="prh-actions">
+        <button class="btn pre-action-btn" id="prh-details-btn" hidden><i data-hi="pencil-square"></i> Details</button>
+        <button class="btn pre-action-btn" id="prh-replace-btn" hidden><i data-hi="arrow-up-tray"></i> Replace file</button>
+        <button class="btn pre-action-btn" id="prh-download-btn" disabled><i data-hi="arrow-down-tray"></i> Download</button>
+        <button class="btn pre-action-btn" id="prh-print-btn" disabled><i data-hi="printer"></i> Print</button>
+        <button class="btn pre-action-btn" id="prh-publish-btn" hidden><i data-hi="globe-alt"></i> Post to website</button>
+      </div>
+    </div>
+    <div class="prh-details" id="prh-details" hidden>
+      <label class="prh-field prh-field-title">Title <input type="text" id="prh-in-title"></label>
+      <label class="prh-field prh-field-summary">Summary <input type="text" id="prh-in-summary" placeholder="Shown under the title on the website"></label>
+      <label class="prh-field">Tags <input type="text" id="prh-in-tags" placeholder="comma-separated"></label>
+      <label class="prh-field">Status
+        <select id="prh-in-status">
+          <option value="draft">Draft</option>
+          <option value="published">Published (on the lab website)</option>
+          <option value="archived">Archived</option>
+        </select>
+      </label>
+      <div class="prh-revisions" id="prh-revisions"></div>
+      <span class="prh-savestate" id="prh-savestate"></span>
+    </div>
+    <div class="prh-status" id="prh-status">Loading…</div>
+    <div class="prh-frame-wrap" id="prh-frame-wrap"></div>
+    <input type="file" id="prh-replace-input" accept=".html,.htm,text/html" hidden>
+  </div>
+
+  <script>
+    var H_ = window.__h = { store: {}, writes: 0, toasts: [] };
+    var MiB = 1024 * 1024;
+    function sizeOf(v) { return new Blob([JSON.stringify(v)]).size; }
+    function check(path, d) {
+      (function walk(v, at) {
+        if (v === undefined) throw new Error('undefined value at ' + at);
+        if (Array.isArray(v)) v.forEach(function (x, i) {
+          if (Array.isArray(x)) throw new Error('array inside an array at ' + at);
+          walk(x, at + '[' + i + ']');
+        });
+        else if (v && typeof v === 'object') Object.keys(v).forEach(function (k) { walk(v[k], at + '.' + k); });
+      })(d, path);
+      if (sizeOf(d) > MiB) throw new Error('Document over 1 MiB: ' + path + ' (' + sizeOf(d) + ' bytes)');
+    }
+    function clone(v) { return v === undefined ? v : JSON.parse(JSON.stringify(v)); }
+    function docRef(path) {
+      return {
+        path: path, id: path.split('/').pop(),
+        get: async function () {
+          var has = Object.prototype.hasOwnProperty.call(H_.store, path);
+          return { exists: has, id: path.split('/').pop(), data: function () { return has ? clone(H_.store[path]) : undefined; } };
+        },
+        set: async function (d) { check(path, d); H_.writes++; H_.store[path] = clone(d); },
+        update: async function (d) {
+          if (!H_.store[path]) throw new Error('No document to update: ' + path);
+          var merged = Object.assign({}, H_.store[path], clone(d));
+          check(path, merged); H_.writes++; H_.store[path] = merged;
+        },
+        delete: async function () { H_.writes++; delete H_.store[path]; },
+        collection: function (n) { return colRef(path + '/' + n); },
+      };
+    }
+    function colRef(path) { return { doc: function (id) { return docRef(path + '/' + id); } }; }
+    var fakeDb = {
+      collection: colRef,
+      batch: function () {
+        var ops = [];
+        return {
+          set: function (r, d) { ops.push({ kind: 'set', r: r, d: d }); },
+          update: function (r, d) { ops.push({ kind: 'update', r: r, d: d }); },
+          delete: function (r) { ops.push({ kind: 'delete', r: r }); },
+          commit: async function () {
+            if (ops.length > 500) throw new Error('Batch over 500 writes');
+            var total = ops.reduce(function (n, o) { return n + (o.d ? sizeOf(o.d) : 64); }, 0);
+            if (total > 10 * MiB) throw new Error('Batch over 10 MiB (' + total + ' bytes)');
+            ops.forEach(function (o) { if (o.d) check(o.r.path, o.d); });
+            for (var i = 0; i < ops.length; i++) {
+              var o = ops[i];
+              if (o.kind === 'delete') await o.r.delete(); else await o.r[o.kind](o.d);
+            }
+            H_.lastBatch = { ops: ops.length, bytes: total };
+          },
+        };
+      },
+    };
+    window.firebridge = {
+      requireSignIn: async function () { return { allowed: true }; },
+      isLabMember: function () { return true; },
+      isAdmin: function () { return false; },
+      getUser: function () { return { uid: H_.uid || 'u-ana', email: 'ana@example.edu' }; },
+      getProfile: function () { return { name: 'Ana Ruiz' }; },
+      db: function () { return fakeDb; },
+    };
+    window.api = { load: async function (route) {
+      if (route === 'lab/users.json') return { users: [
+        { uid: 'u-pi', name: 'Alex Example', role: 'admin', category: 'pi' },
+        { uid: 'u-ana', name: 'Ana Ruiz', role: 'editor', category: 'grad' },
+        { uid: 'u-ben', name: 'Ben Okafor', role: 'editor', category: 'undergrad' },
+        { uid: 'u-guest', name: 'A Guest', role: 'guest' },
+      ] };
+      return null;
+    } };
+    window.LAB_USERS = { isVisible: function (u) { return !!u && !!u.role && u.role !== 'guest'; } };
+    window.toast = function (m) { H_.toasts.push(m); };
+
+    H_.upload = function (html, f) {
+      f = f || {};
+      return window.ProtocolHtml.createProtocol(fakeDb, {
+        id: f.id || 'spot-anchors', title: f.title || 'Spot anchors', ownerUid: f.ownerUid || 'u-ana',
+        author_uid: f.ownerUid || 'u-ana', author_name: 'Ana Ruiz',
+        summary: f.summary || '', tags: f.tags || [],
+      }, html, { name: f.name || 'protocol.html', uid: 'u-ana', userName: 'Ana Ruiz' });
+    };
+    H_.start = function (id) {
+      window.__PROTOCOL_MODE = 'html';
+      window.__PROTOCOL_ID = id || 'spot-anchors';
+      var s = document.createElement('script');
+      s.src = '/rm/js/protocol-html-view.js';
+      document.body.appendChild(s);
+    };
+  </script>
+  <script src="/rm/js/protocol-schemas.js"></script>
+  <script src="/rm/js/protocol-html.js"></script>
+  <script src="/rm/js/protocol-publish.js"></script>
+</body>
+</html>

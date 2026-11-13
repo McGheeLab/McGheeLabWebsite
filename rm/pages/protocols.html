@@ -22,13 +22,16 @@
      * V3.315 — &view=doc adds a third mode: the read-only document view
      * (print/export rendering).
      * V3.503 — &view=cheat adds a fourth mode: the condensed "cheat sheet"
-     * (a boiled-down, print-first render for users who know the protocol). */
+     * (a boiled-down, print-first render for users who know the protocol).
+     * V3.987 — &view=html: a protocol that is an uploaded HTML file, shown
+     * in a sandboxed frame (protocol-html-view.js). The editor, doc and
+     * cheat modes send an HTML protocol here. */
     (function () {
       var qp = new URLSearchParams(location.search);
       var prid = qp.get('protocol');
       var view = qp.get('view');
       var mode = prid
-        ? (view === 'doc' ? 'doc' : view === 'cheat' ? 'cheat' : 'editor')
+        ? (view === 'doc' ? 'doc' : view === 'cheat' ? 'cheat' : view === 'html' ? 'html' : 'editor')
         : 'list';
       window.__PROTOCOL_MODE = mode;
       window.__PROTOCOL_ID = prid;
@@ -51,6 +54,12 @@
     html[data-protocol-mode="cheat"]  .pr-list-mode,
     html[data-protocol-mode="cheat"]  .pr-editor-mode,
     html[data-protocol-mode="cheat"]  .pr-doc-mode { display: none; }
+    /* V3.987 — the HTML-file view, and no HTML view anywhere else */
+    html[data-protocol-mode="html"]   .pr-list-mode,
+    html[data-protocol-mode="html"]   .pr-editor-mode,
+    html[data-protocol-mode="html"]   .pr-doc-mode,
+    html[data-protocol-mode="html"]   .pr-cheat-mode { display: none; }
+    html:not([data-protocol-mode="html"]) .pr-html-mode { display: none; }
   </style>
 </head>
 <body>
@@ -61,6 +70,7 @@
       <div class="pr-list-actions">
         <button class="btn" id="pr-demos-btn" title="Load a guided demo that teaches the node workflow"><i data-hi="academic-cap"></i> Demos</button>
         <button class="btn" id="pr-import-btn" title="Import a Claude-converted protocol JSON file"><i data-hi="arrow-down-tray"></i> Import protocol</button>
+        <button class="btn" id="pr-html-btn" title="Upload a protocol you made as a web page (.html)"><i data-hi="cursor-arrow-rays"></i> Upload HTML</button>
         <button class="btn btn-primary" id="pr-new-btn">+ New protocol</button>
       </div>
     </div>
@@ -150,6 +160,52 @@
       <div class="pb-modal-actions">
         <button class="btn pr-demo-clean" id="pr-demo-clean" hidden><i data-hi="trash"></i> Remove my demo copies</button>
         <button class="btn" id="pr-demo-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- V3.987 — Upload an HTML-file protocol -->
+  <div id="pr-html-modal" class="pb-modal pr-list-mode prh-upload-modal" hidden>
+    <div class="pb-modal-card">
+      <div class="pb-modal-header">
+        <h2>Upload an HTML protocol</h2>
+        <button class="pb-icon-btn" id="pr-html-close" aria-label="Close">×</button>
+      </div>
+      <div class="pb-modal-body">
+        <p class="pr-import-hint">
+          A protocol you made as a single web page — its own calculators, drawings and buttons —
+          saved as one <code>.html</code> file. It opens in RM like any protocol, runs in a closed
+          frame (it cannot reach anything else in RM), and you can post it to the lab website.
+        </p>
+        <div class="form-group">
+          <label for="pr-html-file">HTML file</label>
+          <input type="file" id="pr-html-file" accept=".html,.htm,text/html">
+        </div>
+        <div id="pr-html-preview" class="prh-upload-preview" hidden></div>
+        <div class="form-group">
+          <label for="pr-html-title">Title</label>
+          <input type="text" id="pr-html-title" placeholder="Taken from the file">
+        </div>
+        <div class="form-group">
+          <label for="pr-html-slug">Slug</label>
+          <input type="text" id="pr-html-slug" placeholder="auto-generated from title">
+          <small class="form-hint">Kebab-case; must be unique within the lab.</small>
+        </div>
+        <div class="form-group">
+          <label for="pr-html-summary">One-line summary</label>
+          <input type="text" id="pr-html-summary" placeholder="What does this protocol do?">
+          <small class="form-hint">Shown under the title on the website and searched there.</small>
+        </div>
+        <div class="form-group">
+          <label for="pr-html-tags">Tags (comma-separated)</label>
+          <input type="text" id="pr-html-tags" placeholder="e.g. hydrogel, microscopy">
+        </div>
+        <div id="pr-html-progress" class="pr-import-progress" hidden></div>
+        <div class="pb-modal-error" id="pr-html-error" hidden></div>
+      </div>
+      <div class="pb-modal-actions">
+        <button class="btn" id="pr-html-cancel">Cancel</button>
+        <button class="btn btn-primary" id="pr-html-create" disabled>Upload</button>
       </div>
     </div>
   </div>
@@ -354,6 +410,41 @@
     <article class="prd-doc" id="prd-doc" hidden></article>
   </div>
 
+  <!-- ===== HTML mode (V3.987) — an uploaded HTML protocol, populated by protocol-html-view.js ===== -->
+  <div class="pr-html-mode prh-shell" id="prh-shell">
+    <div class="prh-bar">
+      <a class="btn pre-action-btn" href="/rm/pages/protocols.html">← All protocols</a>
+      <div class="prh-titles">
+        <div class="prh-title" id="prh-title">Loading…</div>
+        <div class="prh-byline" id="prh-byline"></div>
+      </div>
+      <div class="prh-actions">
+        <button class="btn pre-action-btn" id="prh-details-btn" hidden><i data-hi="pencil-square"></i> Details</button>
+        <button class="btn pre-action-btn" id="prh-replace-btn" hidden><i data-hi="arrow-up-tray"></i> Replace file</button>
+        <button class="btn pre-action-btn" id="prh-download-btn" disabled><i data-hi="arrow-down-tray"></i> Download</button>
+        <button class="btn pre-action-btn" id="prh-print-btn" disabled><i data-hi="printer"></i> Print</button>
+        <button class="btn pre-action-btn" id="prh-publish-btn" hidden><i data-hi="globe-alt"></i> Post to website</button>
+      </div>
+    </div>
+    <div class="prh-details" id="prh-details" hidden>
+      <label class="prh-field prh-field-title">Title <input type="text" id="prh-in-title"></label>
+      <label class="prh-field prh-field-summary">Summary <input type="text" id="prh-in-summary" placeholder="Shown under the title on the website"></label>
+      <label class="prh-field">Tags <input type="text" id="prh-in-tags" placeholder="comma-separated"></label>
+      <label class="prh-field">Status
+        <select id="prh-in-status">
+          <option value="draft">Draft</option>
+          <option value="published">Published (on the lab website)</option>
+          <option value="archived">Archived</option>
+        </select>
+      </label>
+      <div class="prh-revisions" id="prh-revisions"></div>
+      <span class="prh-savestate" id="prh-savestate"></span>
+    </div>
+    <div class="prh-status" id="prh-status">Loading…</div>
+    <div class="prh-frame-wrap" id="prh-frame-wrap"></div>
+    <input type="file" id="prh-replace-input" accept=".html,.htm,text/html" hidden>
+  </div>
+
   <!-- ===== Cheat mode (V3.503) — condensed printable cheat sheet, populated by protocol-cheat.js ===== -->
   <div class="pr-cheat-mode prc-shell" id="prc-shell">
     <div class="prc-toolbar" id="prc-toolbar">
@@ -394,6 +485,9 @@
         '/rm/js/protocol-figures.js',
         '/rm/js/protocol-versions.js',
         '/rm/js/protocol-import.js',
+        // V3.987 — "Upload HTML" (ProtocolHtml.createProtocol); before
+        // protocol-publish.js, which posts and removes HTML copies.
+        '/rm/js/protocol-html.js',
         // V3.986 — deleting a protocol takes its public copy off the lab
         // website first (PROTOCOL_PUBLISH.removePublicCopy).
         '/rm/js/protocol-publish.js',
@@ -468,9 +562,17 @@
         '/rm/js/protocol-cheat-render.js',
         '/rm/js/protocol-cheat.js',
       ];
+      // V3.987 — an uploaded HTML protocol: the file in a sandboxed frame,
+      // its details, its earlier files, and posting (no Yjs, no blocks).
+      var htmlScripts = [
+        '/rm/js/protocol-html.js',
+        '/rm/js/protocol-publish.js',
+        '/rm/js/protocol-html-view.js',
+      ];
       var srcs = (mode === 'editor') ? editorScripts
                : (mode === 'doc')    ? docScripts
                : (mode === 'cheat')  ? cheatScripts
+               : (mode === 'html')   ? htmlScripts
                : listScripts;
       srcs.forEach(function (s) {
         document.write('<scr' + 'ipt src="' + s + '"><\/scr' + 'ipt>');

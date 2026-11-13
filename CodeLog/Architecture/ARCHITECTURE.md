@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.986 (Protocols on the lab website: `rm/js/protocol-publish.js` copies a posted protocol to `publicProtocols/{id}` + `content/current`; the public site's `#/protocols` list and `#/protocols/{id}` page (`protocol-view.html` in a frame, the lab's renderer); `ProtocolDocRender.renderDocument` shared by both; the working `protocols/{id}` doc is lab-only — see the section below)
+**Version:** V3.987 (HTML protocols: `rm/js/protocol-html.js` stores an uploaded HTML file in `protocols/{id}/html/r{rev}-{n}` pieces and shows it in a sandboxed srcdoc frame; `protocol-html-view.js` is `?view=html`; posting writes `content/html-{n}` — see the protocols section)
+
+**Prior:** V3.986 (Protocols on the lab website: `rm/js/protocol-publish.js` copies a posted protocol to `publicProtocols/{id}` + `content/current`; the public site's `#/protocols` list and `#/protocols/{id}` page (`protocol-view.html` in a frame, the lab's renderer); `ProtocolDocRender.renderDocument` shared by both; the working `protocols/{id}` doc is lab-only — see the section below)
 
 **Prior:** V3.983 (Scientia: terms in one note — new `scientia/src/14c-noteterm.js` `NTERM`, a frozen snapshot of the components of the note's theme / project / notebook that use the term's forms, drawn as a small Atlas by `ATLAS`'s own layout and drawing; the lab's Library (`rm/scientia/lab-mode.js` §3) adds papers by DOI / paste again, pushes them to RM with their PDF and pulls an RM paper's PDF into the notebook (read in the app's reader through `RMREAD`), with the app's shelves and foci (17d, renamed from library themes and groups) and RM's groups imported as foci; two hub routes — `GET /api/rm/library/groups`, `POST /api/rm/library/pdf-up` — in `functions/scientia-hub*.js`, to be deployed)
 
@@ -207,6 +209,13 @@ protocols/{id}  (working doc, Yjs, lab-only)       ├─▶ #/protocols        
   doc). Test: `scripts/tests/protocols-public-rules.test.mjs`.
 - **Team page:** a member's protocols = posted ones they are a contributor on + any listed by hand on their profile
   (`users/{uid}.protocols`, the profile's association list), de-duplicated by title.
+- **HTML protocols (V3.987).** A protocol can be an uploaded web page (`kind: 'html'`). Its file is in Firestore
+  pieces (`protocols/{id}/html/r{rev}-{n}`, ≤ 300,000 characters each; earlier revisions kept), never on the doc.
+  It is ALWAYS drawn with `srcdoc` in `<iframe sandbox>` without `allow-same-origin` (`ProtocolHtml.mountFrame`) —
+  an uploaded script must never run as mcgheelab.com, where it could read the sign-in. The injected
+  `<base href="about:srcdoc">` keeps the file's `#section` links inside it (a srcdoc document otherwise resolves
+  against the parent's URL). Posted as `content/html-{n}` in one batch (≤ 7.5 MB); the public page mounts the same
+  frame. RM: `?protocol=<id>&view=html`; the editor, doc and cheat views redirect there.
 
 ## Paper builder: one page description, two renderers, measured against real papers (V3.906–V3.914)
 

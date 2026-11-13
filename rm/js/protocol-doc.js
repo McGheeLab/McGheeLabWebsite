@@ -74,6 +74,11 @@
     catch (err) { setStatus('Failed to load protocol: ' + (err.message || err)); return; }
     if (!snap.exists) { setStatus('Protocol not found: ' + protocolId); return; }
     state.doc = window.ProtocolSchemas.protocolHydrate(snap.data());
+    // V3.987 — an uploaded HTML protocol has its own view.
+    if (state.doc.kind === 'html') {
+      location.replace('/rm/pages/protocols.html?protocol=' + encodeURIComponent(protocolId) + '&view=html');
+      return;
+    }
     state.tree = state.doc.tree;
     document.title = (state.doc.title || 'Protocol') + ' — McGhee Lab';
 

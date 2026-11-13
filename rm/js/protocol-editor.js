@@ -1316,6 +1316,11 @@
         return;
       }
       state.doc = window.ProtocolSchemas.protocolHydrate(snap.data());
+      // V3.987 — an uploaded HTML protocol has its own view (no blocks to edit).
+      if (state.doc.kind === 'html') {
+        location.replace('/rm/pages/protocols.html?protocol=' + encodeURIComponent(protocolId) + '&view=html');
+        return;
+      }
     } catch (err) {
       console.error('[protocol-editor] load failed:', err);
       contentEl.innerHTML = '<div class="empty-state">Failed to load protocol: ' + escapeHtml(err.message) + '</div>';

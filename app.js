@@ -2059,7 +2059,8 @@
     card.href = protocolHref(p.id);
     const tags = (p.tags || []).map(t => `<span class="badge">${esc(t)}</span>`).join(' ');
     const facts = [];
-    if (p.step_count > 0) facts.push(p.step_count + (p.step_count === 1 ? ' step' : ' steps'));
+    if (p.kind === 'html') facts.push('Interactive page');
+    else if (p.step_count > 0) facts.push(p.step_count + (p.step_count === 1 ? ' step' : ' steps'));
     const updated = protocolDate(p.updated_at || p.published_at);
     if (updated) facts.push('Updated ' + updated);
     card.innerHTML = `
@@ -2114,6 +2115,11 @@
     document.title = (got.card.title || 'Protocol') + ' — McGheeLab protocols';
     state.cleanups.push(() => { document.title = siteTitle; });
 
+    // V3.987 — an uploaded HTML protocol: the file itself, in a sandboxed
+    // frame with its own scrolling (protocol-html.js), and a line below
+    // saying who made it.
+    if (typeof got.html === 'string') { await showHtmlProtocol(body, got); return; }
+
     // The document is drawn by protocol-view.html in a frame (it sizes
     // itself to its content); this page hands it the protocol.
     const frame = document.createElement('iframe');
@@ -2146,6 +2152,61 @@
     };
     window.addEventListener('keydown', onKey);
     state.cleanups.push(() => window.removeEventListener('keydown', onKey));
+  }
+
+  /* Load a script once (the HTML-protocol helper is only needed on an
+     HTML protocol's page). */
+  const scriptOnce = {};
+  function loadScriptOnce(src){
+    if (!scriptOnce[src]) {
+      scriptOnce[src] = new Promise((resolve, reject) => {
+        const el = document.createElement('script');
+        el.src = src; el.onload = resolve;
+        el.onerror = () => { delete scriptOnce[src]; reject(new Error('could not load ' + src)); };
+        document.head.appendChild(el);
+      });
+    }
+    return scriptOnce[src];
+  }
+
+  async function showHtmlProtocol(body, got){
+    const card = got.card;
+    try { await loadScriptOnce('/rm/js/protocol-html.js'); }
+    catch (e) {
+      body.innerHTML = `<div class="empty-state-card"><h3>Could not show the protocol</h3><p>Reload the page to try again.</p></div>`;
+      return;
+    }
+    if (!appEl.contains(body)) return;
+    const H = window.ProtocolHtml;
+    const wrap = document.createElement('div');
+    wrap.className = 'protocol-html-wrap';
+    body.innerHTML = '';
+    body.appendChild(wrap);
+    const frame = H.mountFrame(wrap, got.html, { title: card.title || 'Protocol', className: 'protocol-html-frame' });
+
+    const people = (card.contributors || []).map(c => c.name).filter(Boolean);
+    const names = people.length <= 1 ? people.join('') : people.slice(0, -1).join(', ') + ' and ' + people[people.length - 1];
+    const posted = protocolDate(card.published_at);
+    const updated = protocolDate(card.updated_at);
+    const about = document.createElement('p');
+    about.className = 'protocol-html-about';
+    about.innerHTML = (names ? `Made by ${esc(names)} of the McGhee Lab, University of Arizona.` : 'From the McGhee Lab, University of Arizona.') +
+      (posted ? ` Posted ${esc(posted)}${updated && updated !== posted ? ', updated ' + esc(updated) : ''}.` : '') +
+      ` <button type="button" class="protocol-html-download">${ICON.svg('arrow-down-tray')} Download the page</button>`;
+    body.appendChild(about);
+    about.querySelector('.protocol-html-download').addEventListener('click', () =>
+      H.download(got.html, H.fileName(card.title, card.id)));
+
+    const printBtn = appEl.querySelector('#protocol-print');
+    const printDoc = () => H.print(frame);
+    if (printBtn) { printBtn.hidden = false; printBtn.addEventListener('click', printDoc); }
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && String(e.key).toLowerCase() === 'p') { e.preventDefault(); printDoc(); }
+    };
+    window.addEventListener('keydown', onKey);
+    state.cleanups.push(() => window.removeEventListener('keydown', onKey));
+    document.body.classList.add('protocol-html-env');
+    state.cleanups.push(() => document.body.classList.remove('protocol-html-env'));
   }
 
   async function wireProtocols(){

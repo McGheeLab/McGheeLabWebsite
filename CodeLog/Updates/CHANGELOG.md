@@ -4,6 +4,52 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.987] — 2026-11-13 — HTML protocols: upload a protocol made as a web page, read it in RM, post it to the website
+
+Alex: students should be able to upload interactive HTML protocols (e.g. *Spot-Anchored Hydrogels on Glass —
+Interactive Protocol.html*), view them in RM, and post them to the public Protocols page. Plan:
+[CodeLog/ClaudesPlan/V3.987_html_protocols.md](../ClaudesPlan/V3.987_html_protocols.md).
+
+### Added
+- **`rm/js/protocol-html.js`** (`window.ProtocolHtml`): `split` (300,000-character pieces), `describe` (title,
+  description, size), `warnings` (files beside it, other websites, forms, not a page, over 7.5 MB), `srcdoc` (injects
+  `<base href="about:srcdoc">` + a helper: in-memory localStorage / sessionStorage, print on postMessage, Ctrl/Cmd+P),
+  `mountFrame` (`sandbox="allow-scripts allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads"`,
+  no allow-same-origin), `print`, `download`, `fileName`, `writeRevision` / `readRevision`
+  (`protocols/{id}/html/r{rev}-{n}`), `createProtocol` (doc, then file; removes the doc if the file write fails),
+  `replaceFile` (new revision; the old one moves to `html_revisions`).
+- **`rm/js/protocol-html-view.js`** — mode `html` of `protocols.html` (`?protocol=<id>&view=html`): the file in a
+  full-height sandboxed frame; Details (title / summary / tags / status), Replace file, earlier files to download,
+  Download, Print, Post to website (`PROTOCOL_PUBLISH.attachEditor` with `getHtml`).
+- Protocols list: **Upload HTML** button + modal (`#pr-html-modal`); an "HTML" chip on cards, which open `&view=html`.
+- Public site: an HTML protocol's page (`showHtmlProtocol` in `app.js`) — the same sandboxed frame, one window tall,
+  "Made by …" and **Download the page** below; Print / PDF and Ctrl/Cmd+P print the file; `/rm/js/protocol-html.js`
+  loads only there (`loadScriptOnce`). List cards say "Interactive page".
+- `firestore.rules`: `match /protocols/{id}/html/{pieceId}` — lab read; owner / admin create, update, delete.
+- `scripts/tests/protocols-public-rules.test.mjs` +17 cases (section 7); `scripts/tests/v3987-html-protocol-harness.html`.
+
+### Changed
+- `protocol-publish.js`: `buildPublic(…, html)` / `publish(id, doc, src, contributors)` — `src` is a tree or
+  `{html}`; an HTML copy is `content/current {kind:'html', html_chunks}` + `content/html-{n}`, one batch; a shorter
+  re-post deletes the extra pieces; `removePublicCopy` deletes every piece (reads `html_chunks` from the card). Cards
+  and `content/current` carry `kind: 'blocks' | 'html'`. The dialog's notes and metadata hint follow the kind.
+- `user-system.js` `getPublicProtocol(id)` → `{card, html}` for an HTML protocol (pieces joined; a copy caught
+  mid-update reads as not posted).
+- `protocol-editor.js`, `protocol-doc.js`, `protocol-cheat.js`: an HTML protocol redirects to `&view=html`.
+- `protocols.js` `deleteProtocolDeep` also deletes the `html` subcollection.
+- `sw.js` `CACHE_VERSION` 956 → **957**.
+
+### Verified
+- Rules **55 ok, 0 HOLE, 0 BREAK** (emulator). RM harness with the real example file: **48 passed** (opaque origin,
+  no access to RM, its script and Simple / Advanced switch run, `#s05` scrolls inside the frame — the `about:srcdoc`
+  base was added after this check first failed by loading RM into the frame — print routing, a 1.5 MB file as 3
+  pieces joined back exactly, post / replace / update / remove, reader permissions, phone). Public site: **20 passed**.
+  Real RM list page (signed out): the upload modal fills from the file. V3.986 suites unchanged: 47 / 39 / 10.
+
+### Deploy
+- **Rules need Alex**: `firebase deploy --only firestore:rules` (covers V3.986 and V3.987). Until then Upload HTML is
+  refused with a sentence saying so, and nothing is left behind.
+
 ## [V3.986] — 2026-11-13 — Protocols on the lab website: posted from RM, shown under Research, credited on the Team page
 
 Alex: a Protocols page under Research for protocols the lab posts for public use; when a protocol is posted, pick

@@ -14,6 +14,10 @@
  *      were until V3.986), and a visitor cannot list published protocols.
  *   6. Lab members read every protocol as before, and the owner still
  *      deletes their own protocol after removing its public copy.
+ *   7. (V3.987) An HTML protocol's file pieces, protocols/{id}/html/{piece}:
+ *      lab members read; only the owner or an admin writes or deletes; a
+ *      visitor or guest reads nothing. Posted pieces, content/html-{n}, are
+ *      public like the rest of the copy.
  *
  * Setup + run (same harness as research-foci-rules.test.mjs):
  *   cd scripts/tests
@@ -76,6 +80,15 @@ async function seed() {
     await setDoc(doc(d, 'protocols/p-posted/versions/v1'), { version: 1, snapshot_by_uid: 'owner' });
     await setDoc(doc(d, 'publicProtocols/p-posted'), card('p-posted'));
     await setDoc(doc(d, 'publicProtocols/p-posted/content/current'), tree);
+    // an uploaded HTML protocol, posted, with its file in two pieces
+    await setDoc(doc(d, 'protocols/p-html'), { id: 'p-html', ownerUid: 'owner', status: 'published', kind: 'html', title: 'Spot anchors',
+      html_file: { rev: 1, chunks: 2, size: 20 } });
+    await setDoc(doc(d, 'protocols/p-html/html/r1-0'), { rev: 1, n: 0, data: '<html><body>' });
+    await setDoc(doc(d, 'protocols/p-html/html/r1-1'), { rev: 1, n: 1, data: '</body></html>' });
+    await setDoc(doc(d, 'publicProtocols/p-html'), card('p-html', { kind: 'html', html_chunks: 2 }));
+    await setDoc(doc(d, 'publicProtocols/p-html/content/current'), { kind: 'html', html_chunks: 2 });
+    await setDoc(doc(d, 'publicProtocols/p-html/content/html-0'), { n: 0, data: '<html><body>' });
+    await setDoc(doc(d, 'publicProtocols/p-html/content/html-1'), { n: 1, data: '</body></html>' });
   });
 }
 await seed();
@@ -168,6 +181,54 @@ await mustAllow('owner clears the public copy, then deletes the protocol', async
   await b.commit();
   await deleteDoc(doc(owner, 'protocols/p-posted/versions/v1'));
   await deleteDoc(doc(owner, 'protocols/p-posted'));
+});
+
+/* ═══════════ 7. HTML protocols (V3.987) ═══════════ */
+console.log('\n── an uploaded HTML protocol: the file pieces ──');
+const piece = (rev, n) => ({ rev, n, data: 'x'.repeat(10) });
+await mustAllow('member reads a piece of the file',          () => getDoc(doc(other, 'protocols/p-html/html/r1-0')));
+await mustAllow('member lists the pieces',                    () => getDocs(collection(other, 'protocols/p-html/html')));
+await mustDeny ('visitor reads a piece of the lab file',      () => getDoc(doc(visitor, 'protocols/p-html/html/r1-0')));
+await mustDeny ('guest reads a piece of the lab file',        () => getDoc(doc(guest, 'protocols/p-html/html/r1-0')));
+await mustAllow('owner writes a new revision',                () => setDoc(doc(owner, 'protocols/p-html/html/r2-0'), piece(2, 0)));
+await mustAllow('admin writes a piece',                       () => setDoc(doc(admin, 'protocols/p-html/html/r3-0'), piece(3, 0)));
+await mustDeny ('another member writes a piece',              () => setDoc(doc(other, 'protocols/p-html/html/r2-0'), piece(2, 0)));
+await mustDeny ('another member overwrites a piece',          () => setDoc(doc(other, 'protocols/p-html/html/r1-0'), piece(1, 0)));
+await mustDeny ('visitor writes a piece',                     () => setDoc(doc(visitor, 'protocols/p-html/html/r9-0'), piece(9, 0)));
+await mustDeny ('member writes pieces for a protocol that does not exist',
+  () => setDoc(doc(owner, 'protocols/ghost/html/r1-0'), piece(1, 0)));
+await mustAllow('member creates their own HTML protocol, then its file', async () => {
+  await setDoc(doc(other, 'protocols/p-new-html'), { id: 'p-new-html', ownerUid: 'other', status: 'draft', kind: 'html', title: 'New' });
+  const b = writeBatch(other);
+  b.set(doc(other, 'protocols/p-new-html/html/r1-0'), piece(1, 0));
+  b.set(doc(other, 'protocols/p-new-html/html/r1-1'), piece(1, 1));
+  await b.commit();
+});
+await mustDeny ('another member deletes a piece',             () => deleteDoc(doc(other, 'protocols/p-html/html/r1-1')));
+await mustAllow('visitor reads the posted file',              async () => {
+  await getDoc(doc(visitor, 'publicProtocols/p-html'));
+  await getDoc(doc(visitor, 'publicProtocols/p-html/content/current'));
+  await getDoc(doc(visitor, 'publicProtocols/p-html/content/html-0'));
+  await getDoc(doc(visitor, 'publicProtocols/p-html/content/html-1'));
+});
+await mustDeny ('another member rewrites a posted piece',     () => setDoc(doc(other, 'publicProtocols/p-html/content/html-0'), { n: 0, data: 'hijack' }));
+await mustDeny ('visitor rewrites a posted piece',            () => setDoc(doc(visitor, 'publicProtocols/p-html/content/html-0'), { n: 0, data: 'hijack' }));
+await mustAllow('owner updates the posted copy and drops a piece (one batch)', async () => {
+  const b = writeBatch(owner);
+  b.set(doc(owner, 'publicProtocols/p-html'), card('p-html', { kind: 'html', html_chunks: 1 }));
+  b.set(doc(owner, 'publicProtocols/p-html/content/current'), { kind: 'html', html_chunks: 1 });
+  b.set(doc(owner, 'publicProtocols/p-html/content/html-0'), { n: 0, data: '<html></html>' });
+  b.delete(doc(owner, 'publicProtocols/p-html/content/html-1'));
+  await b.commit();
+});
+await mustAllow('owner deletes the posted copy, then the protocol and its pieces', async () => {
+  const b = writeBatch(owner);
+  b.delete(doc(owner, 'publicProtocols/p-html/content/html-0'));
+  b.delete(doc(owner, 'publicProtocols/p-html/content/current'));
+  b.delete(doc(owner, 'publicProtocols/p-html'));
+  await b.commit();
+  for (const id of ['r1-0', 'r1-1', 'r2-0', 'r3-0']) await deleteDoc(doc(owner, 'protocols/p-html/html/' + id));
+  await deleteDoc(doc(owner, 'protocols/p-html'));
 });
 
 console.log(`\nprotocols-public-rules: ${ok} ok, ${holes} HOLE, ${breaks} BREAK`);

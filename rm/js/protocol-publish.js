@@ -39,8 +39,14 @@
  * website": posting sets it, removing clears it, and the editor's status
  * menu goes through this dialog for both.
  *
+ * V3.987 — a protocol can be an HTML file (protocol-html.js). Its copy is
+ * the file itself, split into content/html-{n} pieces next to
+ * content/current {kind:'html', html_chunks}; the card says kind 'html'
+ * and how many pieces there are, so taking it down removes them all.
+ *
  * Globals: window.PROTOCOL_PUBLISH. Needs firebridge; uses
- * window.PROTOCOL_INVENTORY when it is loaded (the editor loads it).
+ * window.PROTOCOL_INVENTORY when it is loaded (the editor loads it) and
+ * window.ProtocolHtml for HTML protocols.
  */
 (function () {
   'use strict';
@@ -168,36 +174,53 @@
     return people.map(function (p) { return p.name; }).join(', ');
   }
 
-  /* Build the two public docs from the working doc. Pure apart from the
+  /* Build the public docs from the working doc. Pure apart from the
    * inventory lookup; `prev` is the card already posted, if any, so the
-   * first-posted date survives an update. */
-  function buildPublic(protocolId, doc, tree, contributors, prev) {
+   * first-posted date survives an update. `html` (V3.987): the file of an
+   * HTML protocol — then `tree` is ignored and `chunks` holds its pieces. */
+  function buildPublic(protocolId, doc, tree, contributors, prev, html) {
     doc = doc || {};
+    var isHtml = typeof html === 'string';
     var report = newReport();
-    var pubTree = publicTree(tree, report);
+    var pubTree = isHtml ? null : publicTree(tree, report);
     var people = normalizePeople(contributors);
     var now = new Date().toISOString();
+    var chunks = isHtml ? window.ProtocolHtml.split(html) : [];
     var card = {
       id: protocolId,
-      title: doc.title || pubTree.meta.title || '(untitled protocol)',
+      kind: isHtml ? 'html' : 'blocks',
+      title: doc.title || (pubTree && pubTree.meta.title) || '(untitled protocol)',
       summary: doc.summary || '',
       category: doc.category || '',
       tags: Array.isArray(doc.tags) ? doc.tags.filter(Boolean).map(String) : [],
       contributors: people,
       contributor_uids: people.map(function (p) { return p.uid; }),
       byline: bylineOf(people),
-      version: (typeof doc.current_version === 'number') ? doc.current_version : 0,
-      step_count: report.steps,
+      version: isHtml ? ((doc.html_file && doc.html_file.rev) || 1)
+        : ((typeof doc.current_version === 'number') ? doc.current_version : 0),
+      step_count: isHtml ? 0 : report.steps,
       created_at: doc.created_at || '',
       published_at: (prev && prev.published_at) || now,
       updated_at: now,
       schema_version: 1,
     };
+    if (isHtml) {
+      card.html_chunks = chunks.length;
+      card.html_size = window.ProtocolHtml.byteSize(html);
+    }
     return {
       card: card,
-      content: { tree: pubTree, updated_at: now, schema_version: 1 },
+      content: isHtml
+        ? { kind: 'html', html_chunks: chunks.length, updated_at: now, schema_version: 1 }
+        : { kind: 'blocks', tree: pubTree, updated_at: now, schema_version: 1 },
+      chunks: chunks,
       report: report,
     };
+  }
+
+  /* How many html-{n} pieces a posted copy has (0 for blocks). */
+  function postedChunks(card) {
+    return (card && card.html_chunks > 0) ? card.html_chunks : 0;
   }
 
   /* What posting would do to the inventory links, without writing. */
@@ -222,17 +245,27 @@
     return snap.exists ? snap.data() : null;
   }
 
-  /* Post, or update the public copy. Returns { card, report, update }
-   * where `update` is what was written to the working doc. */
-  async function publish(protocolId, doc, tree, contributors) {
-    await ensureInventory();
+  /* Post, or update the public copy. `src` is the protocol's tree, or
+   * {html: '…'} for an HTML protocol. Returns { card, report, update }
+   * where `update` is what was written to the working doc. One batch, so
+   * a visitor never sees half a file. */
+  async function publish(protocolId, doc, src, contributors) {
+    var html = (src && typeof src.html === 'string') ? src.html : null;
+    if (html === null) await ensureInventory();
+    if (html !== null && window.ProtocolHtml.byteSize(html) > window.ProtocolHtml.MAX_BYTES) {
+      throw new Error('The file is larger than ' + window.ProtocolHtml.fmtSize(window.ProtocolHtml.MAX_BYTES) + '.');
+    }
     var prev = null;
     try { prev = await getPublic(protocolId); } catch (e) { /* first post */ }
-    var built = buildPublic(protocolId, doc, tree, contributors, prev);
+    var built = buildPublic(protocolId, doc, html === null ? src : null, contributors, prev, html === null ? undefined : html);
     var ref = cardRef(protocolId);
+    var content = ref.collection('content');
     var batch = db().batch();
     batch.set(ref, built.card);
-    batch.set(ref.collection('content').doc(CONTENT_DOC), built.content);
+    batch.set(content.doc(CONTENT_DOC), built.content);
+    built.chunks.forEach(function (data, n) { batch.set(content.doc('html-' + n), { n: n, data: data }); });
+    // a shorter file than last time: drop the pieces it no longer has
+    for (var k = built.chunks.length; k < postedChunks(prev); k++) batch.delete(content.doc('html-' + k));
     await batch.commit();
     var update = {
       status: 'published',
@@ -249,7 +282,10 @@
    * doc, so this has to run while that doc still exists. */
   async function removePublicCopy(protocolId) {
     var ref = cardRef(protocolId);
+    var prev = null;
+    try { prev = await getPublic(protocolId); } catch (e) { /* removed below anyway */ }
     var batch = db().batch();
+    for (var k = 0; k < postedChunks(prev); k++) batch.delete(ref.collection('content').doc('html-' + k));
     batch.delete(ref.collection('content').doc(CONTENT_DOC));
     batch.delete(ref);
     await batch.commit();
@@ -297,6 +333,7 @@
    *   getDoc()      → the working doc the editor holds (kept up to date)
    *   canEdit()     → owner or admin, not a historical view
    *   getTree()     → Promise<plain tree>, pending edits flushed first
+   *   getHtml()     → Promise<string> — the file, for an HTML protocol
    *   loadRoster()  → Promise<[lab member]>
    *   onChanged(update) → merge what was written into the editor's doc
    * }
@@ -358,8 +395,7 @@
             '<div class="form-group">' +
               '<label>How it will be listed</label>' +
               '<div class="prp-card" id="prp-card"></div>' +
-              '<small class="form-hint">The title, summary and tags come from this protocol. ' +
-                'Change them in the editor (the summary and tags are in the left sidebar), then post or update.</small>' +
+              '<small class="form-hint" id="prp-card-hint"></small>' +
             '</div>' +
             '<div class="prp-notes" id="prp-notes"></div>' +
             '<div class="pb-modal-error" id="prp-error" hidden></div>' +
@@ -371,7 +407,7 @@
           '</div>' +
         '</div>';
       document.body.appendChild(modal);
-      ['title', 'close', 'state', 'people', 'card', 'notes', 'error', 'remove', 'cancel', 'go'].forEach(function (k) {
+      ['title', 'close', 'state', 'people', 'card', 'card-hint', 'notes', 'error', 'remove', 'cancel', 'go'].forEach(function (k) {
         els[k] = modal.querySelector('#prp-' + k);
       });
       els.close.addEventListener('click', close);
@@ -483,6 +519,9 @@
      * so a protocol without them is hard to find; say so here. */
     function renderCard() {
       var d = doc();
+      els['card-hint'].textContent = 'The title, summary and tags come from this protocol. Change them ' +
+        (d.kind === 'html' ? 'under Details' : 'in the editor (the summary and tags are in the left sidebar)') +
+        ', then post or update.';
       var tags = (Array.isArray(d.tags) ? d.tags : []).filter(Boolean);
       els.card.innerHTML =
         '<div class="prp-card-title">' + esc(d.title || '(untitled protocol)') + '</div>' +
@@ -499,6 +538,21 @@
     async function renderNotes() {
       els.notes.innerHTML = '';
       if (!opts.canEdit()) return;
+      if (doc().kind === 'html') {
+        try {
+          var html = await opts.getHtml();
+          renderCard();
+          var H = window.ProtocolHtml;
+          var notes = ['<div>The file is posted as it is (' + esc(H.fmtSize(H.byteSize(html))) +
+            '). It runs in a closed frame on the website: its calculators work, and it cannot reach ' +
+            'anything else on the site.</div>'];
+          H.warnings(html).forEach(function (w) {
+            notes.push('<div class="prp-warn">' + ICON.svg('exclamation-triangle') + ' ' + esc(w) + '</div>');
+          });
+          els.notes.innerHTML = notes.join('');
+        } catch (e) { /* posting reports its own errors */ }
+        return;
+      }
       try {
         await ensureInventory();
         var report = inspect(await opts.getTree());
@@ -554,8 +608,8 @@
       var wasPosted = !!view.pub;
       setBusy(true, wasPosted ? 'Updating…' : 'Posting…');
       try {
-        var tree = await opts.getTree();
-        var res = await publish(id, doc(), tree, pickedPeople());
+        var src = doc().kind === 'html' ? { html: await opts.getHtml() } : await opts.getTree();
+        var res = await publish(id, doc(), src, pickedPeople());
         opts.onChanged(res.update);
         if (opts.statusSelect) opts.statusSelect.value = 'published';
         view.pub = res.card;

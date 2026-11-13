@@ -438,13 +438,21 @@ const DB = {
     return snap.docs.map(d => ({ ...d.data(), id: d.id }))
       .sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
   },
-  /* One posted protocol: its card and its tree, or null when it is not
-   * (or no longer) on the website. */
+  /* One posted protocol: its card and its tree — or, for an uploaded
+   * HTML protocol (V3.987), its file put back together from the
+   * content/html-{n} pieces — or null when it is not on the website. */
   async getPublicProtocol(id) {
     const ref = McgheeLab.db.collection('publicProtocols').doc(id);
     const [card, content] = await Promise.all([ref.get(), ref.collection('content').doc('current').get()]);
     if (!card.exists || !content.exists) return null;
-    return { card: { ...card.data(), id }, tree: (content.data() || {}).tree || null };
+    const c = content.data() || {};
+    if (c.kind === 'html') {
+      const n = c.html_chunks || 0;
+      const parts = await Promise.all(Array.from({ length: n }, (_, k) => ref.collection('content').doc('html-' + k).get()));
+      if (!n || parts.some(p => !p.exists)) return null;   // a copy caught mid-update reads as not posted
+      return { card: { ...card.data(), id }, html: parts.map(p => (p.data() || {}).data || '').join('') };
+    }
+    return { card: { ...card.data(), id }, tree: c.tree || null };
   },
   async getStoriesByProject(projectId) {
     const snap = await McgheeLab.db.collection('stories')

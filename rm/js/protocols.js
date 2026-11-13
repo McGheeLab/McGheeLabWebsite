@@ -117,7 +117,9 @@
   function renderCard(p) {
     var card = document.createElement('a');
     card.className = 'pb-card pr-card';
-    card.href = '/rm/pages/protocols.html?protocol=' + encodeURIComponent(p.id);
+    // V3.987 — an uploaded HTML protocol opens in its own view
+    card.href = '/rm/pages/protocols.html?protocol=' + encodeURIComponent(p.id) +
+      (p.kind === 'html' ? '&view=html' : '');
 
     var statusHTML = typeof statusChip === 'function'
       ? statusChip(p.status)
@@ -149,6 +151,7 @@
     }
 
     var demoChipHTML = isDemoRow(p) ? '<span class="chip pr-demo-chip">demo</span>' : '';
+    if (p.kind === 'html') demoChipHTML += '<span class="chip pr-html-chip" title="An uploaded HTML file">HTML</span>';
 
     card.innerHTML =
       '<div class="pb-card-row">' +
@@ -202,7 +205,8 @@
       if (!window.PROTOCOL_PUBLISH) throw new Error('could not take it off the lab website (publish module not loaded)');
       await window.PROTOCOL_PUBLISH.removePublicCopy(id);
     }
-    var subs = ['versions', 'yjs_updates', 'yjs_snapshot', 'presence'];
+    // V3.987 — `html`: the pieces of an uploaded HTML protocol's file(s)
+    var subs = ['versions', 'yjs_updates', 'yjs_snapshot', 'presence', 'html'];
     for (var i = 0; i < subs.length; i++) {
       try {
         var snap = await ref.collection(subs[i]).get();
@@ -771,6 +775,128 @@
   filterStatus.addEventListener('change', render);
   filterOwner.addEventListener('change', render);
   filterSearch.addEventListener('input', render);
+
+  /* ── V3.987 — Upload an HTML protocol ─────────────────────────────
+   * A protocol made as a single web page. The file is read here, its
+   * <title> and description fill the form, ProtocolHtml.createProtocol
+   * writes the doc then the file, and the page opens in its HTML view. */
+  var htmlBtn      = document.getElementById('pr-html-btn');
+  var htmlModal    = document.getElementById('pr-html-modal');
+  var htmlFile     = document.getElementById('pr-html-file');
+  var htmlPreview  = document.getElementById('pr-html-preview');
+  var htmlTitle    = document.getElementById('pr-html-title');
+  var htmlSlug     = document.getElementById('pr-html-slug');
+  var htmlSummary  = document.getElementById('pr-html-summary');
+  var htmlTags     = document.getElementById('pr-html-tags');
+  var htmlProgress = document.getElementById('pr-html-progress');
+  var htmlError    = document.getElementById('pr-html-error');
+  var htmlCreate   = document.getElementById('pr-html-create');
+  var htmlState    = { text: '', name: '', slugTouched: false };
+
+  function htmlShowError(msg) {
+    htmlError.textContent = msg || '';
+    htmlError.hidden = !msg;
+  }
+
+  function openHtmlModal() {
+    htmlState = { text: '', name: '', slugTouched: false };
+    htmlFile.value = '';
+    [htmlTitle, htmlSlug, htmlSummary, htmlTags].forEach(function (el) { el.value = ''; });
+    htmlPreview.hidden = true;
+    htmlPreview.innerHTML = '';
+    htmlProgress.hidden = true;
+    htmlShowError('');
+    htmlCreate.disabled = true;
+    htmlCreate.textContent = 'Upload';
+    htmlModal.hidden = false;
+  }
+  function closeHtmlModal() { if (!htmlCreate.dataset.busy) htmlModal.hidden = true; }
+
+  async function onHtmlFile() {
+    var f = htmlFile.files && htmlFile.files[0];
+    htmlShowError('');
+    htmlPreview.hidden = true;
+    htmlCreate.disabled = true;
+    if (!f) return;
+    var H = window.ProtocolHtml;
+    var text = await f.text();
+    var info = H.describe(text);
+    var warns = H.warnings(text);
+    htmlState.text = text;
+    htmlState.name = f.name;
+    if (!htmlTitle.value.trim()) htmlTitle.value = info.title || f.name.replace(/\.html?$/i, '');
+    if (!htmlSummary.value.trim() && info.description) htmlSummary.value = info.description;
+    if (!htmlState.slugTouched) htmlSlug.value = _slugify(htmlTitle.value);
+    htmlPreview.innerHTML =
+      '<div><strong>' + escapeHtml(f.name) + '</strong> · ' + escapeHtml(H.fmtSize(info.size)) + '</div>' +
+      warns.map(function (w) {
+        return '<div class="prh-upload-warn">' + ICON.svg('exclamation-triangle') + ' ' + escapeHtml(w) + '</div>';
+      }).join('');
+    htmlPreview.hidden = false;
+    htmlCreate.disabled = info.size > H.MAX_BYTES;
+  }
+
+  async function createFromHtml() {
+    var H = window.ProtocolHtml;
+    var title = htmlTitle.value.trim();
+    var id = (htmlSlug.value.trim() || _slugify(title)).toLowerCase();
+    htmlShowError('');
+    if (!htmlState.text) { htmlShowError('Choose an HTML file.'); return; }
+    if (!title) { htmlShowError('Title is required.'); return; }
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) { htmlShowError('Slug must be kebab-case (lowercase, digits, hyphens).'); return; }
+    if (protocols.some(function (p) { return p.id === id; })) { htmlShowError('A protocol with that slug already exists.'); return; }
+    var user = (typeof firebridge !== 'undefined') ? firebridge.getUser() : null;
+    if (!user) { htmlShowError('Sign in to upload a protocol.'); return; }
+    var profile = firebridge.getProfile ? firebridge.getProfile() : null;
+    var displayName = (profile && profile.name) || user.displayName || user.email || user.uid;
+
+    htmlCreate.disabled = true;
+    htmlCreate.dataset.busy = '1';
+    htmlCreate.textContent = 'Uploading…';
+    htmlProgress.hidden = false;
+    htmlProgress.textContent = 'Saving ' + htmlState.name + '…';
+    try {
+      var db = firebridge.db();
+      var existing = await db.collection('protocols').doc(id).get();
+      if (existing.exists) throw new Error('A protocol with that slug already exists.');
+      await H.createProtocol(db, {
+        id: id,
+        title: title,
+        ownerUid: user.uid,
+        author_uid: user.uid,
+        author_name: displayName,
+        summary: htmlSummary.value.trim(),
+        tags: htmlTags.value.split(',').map(function (t) { return t.trim(); }).filter(Boolean),
+      }, htmlState.text, { name: htmlState.name, uid: user.uid, userName: displayName });
+      window.location.href = '/rm/pages/protocols.html?protocol=' + encodeURIComponent(id) + '&view=html';
+    } catch (err) {
+      console.error('[protocols] html upload failed:', err);
+      var denied = err && (err.code === 'permission-denied' || /insufficient permissions/i.test(String(err.message || '')));
+      htmlShowError(denied
+        ? 'The lab database would not accept the file. Its rules for HTML protocols may not be live yet — ask Alex.'
+        : 'Upload failed: ' + (err.message || err));
+      htmlProgress.hidden = true;
+      delete htmlCreate.dataset.busy;
+      htmlCreate.disabled = false;
+      htmlCreate.textContent = 'Upload';
+    }
+  }
+
+  if (htmlBtn && htmlModal && window.ProtocolHtml) {
+    htmlBtn.addEventListener('click', openHtmlModal);
+    htmlFile.addEventListener('change', onHtmlFile);
+    htmlTitle.addEventListener('input', function () {
+      if (!htmlState.slugTouched) htmlSlug.value = _slugify(htmlTitle.value);
+    });
+    htmlSlug.addEventListener('input', function () { htmlState.slugTouched = true; });
+    htmlCreate.addEventListener('click', createFromHtml);
+    document.getElementById('pr-html-close').addEventListener('click', closeHtmlModal);
+    document.getElementById('pr-html-cancel').addEventListener('click', closeHtmlModal);
+    htmlModal.addEventListener('click', function (e) { if (e.target === htmlModal) closeHtmlModal(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !htmlModal.hidden) closeHtmlModal();
+    });
+  }
 
   if (typeof firebridge !== 'undefined' && firebridge.requireSignIn) {
     firebridge.requireSignIn('Sign in to view lab protocols.').then(load);

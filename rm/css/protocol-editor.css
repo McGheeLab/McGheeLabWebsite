@@ -1239,3 +1239,75 @@
 .prp-modal .pb-modal-actions .prp-remove { margin-right: auto; color: #991b1b; border-color: #fecaca; }
 .prp-modal .pb-modal-actions .prp-remove:not(:disabled):hover { background: #fef2f2; }
 .prp-modal .pb-modal-actions a.btn { text-decoration: none; }
+
+/* ── V3.987 — HTML protocols (protocol-html.js, protocol-html-view.js) ──
+ * An uploaded HTML file fills the page below its bar, in a sandboxed
+ * frame that scrolls itself, so the file's anchors and fixed controls
+ * behave as its author made them. */
+.pr-html-chip { background: #eef1f8; color: #3F63A8; margin-left: 6px; text-transform: none; }
+
+.prh-shell {
+  display: flex; flex-direction: column;
+  height: calc(100vh - 57px);           /* below RM's 56 px top bar */
+  height: calc(100dvh - 57px);
+  background: #eef1f5;
+}
+.prh-bar {
+  display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap;
+  padding: 10px 16px; background: #fff; border-bottom: 1px solid #e5e7eb;
+}
+.prh-titles { flex: 1 1 260px; min-width: 0; }
+.prh-title {
+  font-size: 16px; font-weight: 700; color: #111827;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.prh-byline { font-size: 12px; color: #6b7280; margin-top: 1px; }
+.prh-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.prh-actions .btn[hidden], #prh-publish-btn[hidden] { display: none; }
+.pre-action-btn.prh-on { background: #e6ebf3; border-color: #9fb0cc; }
+
+.prh-details {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px;
+  padding: 10px 16px 12px; background: #f9fafb; border-bottom: 1px solid #e5e7eb;
+}
+.prh-details[hidden] { display: none; }
+.prh-field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; font-weight: 600; color: #4b5563; margin: 0; }
+.prh-field input, .prh-field select {
+  font: inherit; font-size: 13px; font-weight: 400; color: #111827;
+  padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; min-width: 160px;
+}
+.prh-field-title input { min-width: 260px; }
+.prh-field-summary { flex: 1 1 320px; }
+.prh-field-summary input { width: 100%; }
+.prh-revisions { flex-basis: 100%; font-size: 12px; color: #6b7280; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.prh-revisions:empty { display: none; }
+.prh-rev-label { font-weight: 600; }
+.prh-rev {
+  font: inherit; font-size: 12px; padding: 2px 8px; border-radius: 10px; cursor: pointer;
+  border: 1px solid #d7dce4; background: #fff; color: #3F63A8;
+}
+.prh-rev:hover { background: #eef1f8; }
+.prh-savestate { font-size: 12px; color: #6b7280; align-self: center; }
+.prh-savestate-error { color: #b91c1c; }
+
+.prh-status { padding: 16px; color: #4b5563; font-size: 14px; }
+.prh-status[hidden] { display: none; }
+.prh-frame-wrap { flex: 1 1 auto; min-height: 0; padding: 0; }
+.prh-frame { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+
+.prh-upload-preview {
+  border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; background: #fafbfc;
+  font-size: 13px; line-height: 1.5; margin-bottom: 12px; overflow-wrap: anywhere;
+}
+.prh-upload-preview[hidden] { display: none; }
+.prh-upload-warn { color: #92400e; margin-top: 6px; }
+
+@media (max-width: 640px) {
+  .prh-bar { padding: 8px 10px; }
+  .prh-actions .btn { padding: 6px 8px; }
+  .prh-field-title input, .prh-field input, .prh-field select { min-width: 0; width: 100%; }
+  .prh-field { flex: 1 1 100%; }
+}
+@media print {
+  .prh-bar, .prh-details, .prh-status { display: none !important; }
+}
