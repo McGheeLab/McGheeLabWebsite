@@ -215,8 +215,20 @@ class FirestoreHub {
     const st = await this.loadState();
     const plan = C.planMirror({ state: st, rows, items });
     if (plan.ops.length) await this.push({ dev: 'rm', conn: null, name: 'RM library', ops: plan.ops });
+    try { await this.mirrorEquations(); } catch (e) { console.warn('[scientiaHub] equations mirror:', e.message); }   // V3.993: never in the way of the library
     await this.ref.set({ mirrorAt: FieldValue.serverTimestamp(), mirrorN: items.length, mirrorWritten: plan.ops.length }, { merge: true });
     return { ok: true, total: items.length, written: plan.ops.length, changed: plan.changed, removed: plan.removed };
+  }
+  /* ---- V3.993: equations captured in RM's paper reader → this hub's `equations` rows, device 'rm' (one collection-group query; its index is
+     the annotations.kind override in firestore.indexes.json) ---- */
+  async mirrorEquations() {
+    const snap = await db().collectionGroup('annotations').where('kind', '==', 'equation').get();
+    const anns = snap.docs.map(x => Object.assign({ id: x.id, paperId: x.ref.parent.parent ? x.ref.parent.parent.id : '' }, x.data() || {}));
+    const rowsSnap = await this.rows.where('store', '==', 'equations').get(), rows = new Map();
+    rowsSnap.docs.forEach(x => { const r = rowFromDoc(x); if (r && !r.deleted && r.rec) rows.set(C.keyOf('equations', r.id), r); });
+    const plan = C.planEquations({ state: await this.loadState(), rows, anns, uid: this.uid });
+    if (plan.ops.length) await this.push({ dev: 'rm', conn: null, name: 'RM equations', ops: plan.ops });
+    return { ok: true, total: plan.total, written: plan.ops.length };
   }
   /** A download URL for an RM paper's PDF (the same token scheme as the hub's own media). */
   async rmPdfUrl(id) {

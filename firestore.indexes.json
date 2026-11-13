@@ -696,6 +696,29 @@
   ],
   "fieldOverrides": [
     {
+      "collectionGroup": "annotations",
+      "fieldPath": "kind",
+      "ttl": false,
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "arrayConfig": "CONTAINS",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
       "collectionGroup": "tasks",
       "fieldPath": "bucket",
       "ttl": false,
