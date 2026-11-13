@@ -283,3 +283,21 @@ body.mobile .bw-mk .bw-ring{width:36px;height:36px} body.mobile .paper.bw-beads 
 .bw-close{flex:none;width:24px;height:24px;margin-left:auto;border:0;border-radius:6px;background:transparent;color:var(--ink-3);cursor:pointer;display:grid;place-items:center;padding:0}
 .bw-close:hover{background:color-mix(in srgb,var(--ink) 7%,transparent);color:var(--ink)} .bw-close svg{width:11px;height:11px}
 @media (prefers-reduced-motion:reduce){.bw-mk,.bw-mk .bw-ring,.bw-mk .bw-lbl,#bwbar{transition:none}.canvas-host.bw-from-r > .paper > .world,.canvas-host.bw-from-l > .paper > .world,.bw-st.new,.bw-p.bump,.bw-mk.bw-rip .bw-ring::after{animation:none}}
+
+/* V3.991 — Needs investigation (13s): a dot on its component or the note's first box; its dot in the Portfolio breathes (opacity and scale only: no repaint) */
+:root{--inv:#A3541B}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--inv:#D2893E}}
+:root[data-theme="dark"]{--inv:#D2893E}
+.pfdot.inv{position:relative;isolation:isolate}
+.pfdot.inv::after{content:"";position:absolute;inset:-3px;border-radius:inherit;background:var(--inv);filter:blur(3px);opacity:.12;transform:scale(.9);z-index:-1;pointer-events:none;animation:invglow 1.6s ease-in-out infinite alternate;will-change:opacity,transform}
+@keyframes invglow{to{opacity:.7;transform:scale(1.28)}}
+body.quiet .pfdot.inv::after{animation-play-state:paused}
+@media (prefers-reduced-motion:reduce){.pfdot.inv::after{animation:none;opacity:.45}}
+.pfdot-pop .pp-i.go{cursor:pointer} .pfdot-pop .pp-i.go:hover{color:var(--c);text-decoration:underline;text-underline-offset:3px}
+.inv-dot{flex:none;display:inline-flex;align-items:center;gap:3px;height:18px;padding:0 3px;border:0;border-radius:9px;background:transparent;color:var(--inv);font:600 10px/1 var(--f-m);cursor:pointer}
+.inv-dot i,.rm-row .inv-i i{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--inv);box-shadow:0 0 0 3px color-mix(in srgb,var(--inv) 22%,transparent)}
+.inv-dot:hover i{box-shadow:0 0 0 4px color-mix(in srgb,var(--inv) 32%,transparent)}
+.rm-row .inv-i{display:inline-grid;place-items:center}
+.inv-pp{padding:7px 2px;border-top:1px solid var(--rule)} .inv-pp:first-of-type{border-top:0}
+.sec-h.inv-h .k{font-family:var(--f-m);color:var(--inv)}
+.inv-list + .resurf,.inv-more + .resurf{margin-top:10px}

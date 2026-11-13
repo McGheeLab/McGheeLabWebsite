@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.991] — 2026-11-13 — Scientia: Needs investigation — a reminder kind with no date; a dot in its note, breathing in the Portfolio; on Today above Recent notes, with the resurfaced claim
+
+Gabe: "A new type of reminder called Need to Investigate, which is saved as a reminder as a dot in the note that glows in an in/out phase in the portfolio. The Needs Investigation appears in the Today tab above recent notes, and joins where the resurfaced claims are."
+
+App only (`scientia/src`); the lab layer is untouched. Stacked on V3.990 (PR #54).
+
+### Added
+- **`13s-remind.js`: `REMKIND.investigate`** (◉ *Needs investigation*, `undated: true`). A `reminders` record with `at: null` (no date, no alert, no repeat), `docId` and `blockId` (the component, or `null` for the note as a whole), its project and theme taken from the note. `REM.open()` leaves the undated out, so it is never in Coming up, 🔔's count, the alerts, the day note or live views (`LV.SOURCES.reminders` keeps only dated ones); the hub's `whenCandidates` needs a date (`remDay`), so it never reaches My Week.
+  - **The dialog** (`REM.edit`, kind Needs investigation): *What needs investigating*, where its dot goes, Notes. `REM.invAdd(b, d)` opens it on a component or a note.
+  - **Made from:** right-click a component (text or widget, `13-docpanels.js` `boxMenu`) or the note's ⋯ (`docMenu`) → *Needs investigation…*; 🔔's *+ Needs investigation* (the note on screen); Today's and the Reminders page's *+ Add*.
+  - **In the note:** a dot (`.inv-dot`, `REM.invDot`) in its component's header (`DocView.box`, wrapped), or in the note's first box (`DocView.headBox`, wrapped) when it is about the note or its component is gone; it opens what, the notes, *Edit*, *Investigated ✓* (`REM.invPop`, `REM.invDone`).
+  - **In the Portfolio (`15d-pfkit.js` `PFKIT.dots`):** a dot first among a note's dots, and its project's, with the count (`.pfdot.inv`, `var(--inv)`), **breathing in and out**: a blurred halo behind it animating opacity and scale only (1.6 s each way), so nothing repaints; paused in quiet mode (`body.quiet`), still with reduced motion. Pointing lists them; each row goes to its component (`.pp-i.go`, `REM.invGo`).
+  - **Today (`14-home.js`):** **Needs investigation** right above Recent notes (`REM.invHome`): the open ones, oldest first (where, notes, age, *Edit*, *✓*), then the claim resurfaced today (`RESURF.card`, moved there from beside the chores).
+  - **🔔 and the Reminders page:** a *Needs investigation* group. `Reminders.md` in the notebook folder lists them; a done one is dated by when it was done.
+
+### Tests
+| Test | Result |
+|---|---|
+| `t_990` on the desktop build (with the lab layer): right-click → Needs investigation…; the dialog (its kind, no date, where the dot goes); saved with no date, on the note and the component, in its project; not in Coming up, 🔔's count or the alerts; the dot on the component and what it opens; on the note as a whole, the dot on its first box; the note's ⋯; the Portfolio: the note's dot first, breathing (`invglow`), its project's too, the popover's rows going there; quiet mode pauses it; Today: above Recent notes, oldest first, the resurfaced claim with them and nowhere else; ✓ removes it from Today and its dot from the note; 🔔's group and button; the Reminders page; live views skip it; no errors | 23/23 |
+| `t_990` on the standalone build | run with Gabe's standalone sync (its own PR) |
+| `v3869` lab-mode harness | 283/283 |
+| `v3880` notes harness | 13/13 |
+| The bridges at the edges `t_989` (V3.990, under this) · the Portfolio `t_984` | 40/40 · 31/31 |
+
 ## [V3.990] — 2026-11-13 — Scientia: bridges at a note's edges (half-moons; beads in full screen) and the bridge bar under the tabs; History on shared notes in the Lab Notebook
 
 Gabe: "In the canvas, notes that are bridged to the current note show up as circled arrows in the fading area of the canvas near the border. There needs to be a way to make it look really nice with minimal animation. Pulled in components have their note appear on the left border, while bridging components's notes destination appear on the right. … Once engagin in the note bridging, a temporary bridge navigation will appear above the canvas and below the tabs that allow you to easily go back and forth between note bridges. Also, the top 3 note bridges that you use the most appear. They are reset every 2 weeks." After the prototypes: "Edge style should be half-moons, but should become beads when in full screen. Bar style should be 2. The bar is closed if not in one of the top three bridges. Once the user clicks on a bridge arrow or moves to the bridge via any other method, the bar appears. The bar automatically closes as soon as you exit the note canvas and you go to another tab. The bar reappears if you use the Alt + left or right arrow, which travels back to the notes you were bridging. You also have the option to close it, which it won't open until the next day. You can also deactivate it in Settings. Also, remove the approval awaiting popup, and instead, it should be shown in a new history button only on shared notes."
