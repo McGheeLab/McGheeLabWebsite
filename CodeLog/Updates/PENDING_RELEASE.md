@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (89 changes — ready to push)
+## Pending (90 changes — ready to push)
+
+- **Needs investigation (V3.991):** a new kind of reminder for something to look into: right-click a component (or a note's ⋯) → Needs investigation. It shows as a dot in the note, a gently glowing dot on the note in the Portfolio, and on Today above Recent notes, beside the resurfaced claim, until you mark it investigated.
 
 - **Bridges at the edges of a note (V3.990):** a note shows the notes it is bridged with as small circles at its left and right edges; click one to go there. A bar under the tabs keeps the way back and your three most-used bridges (close it for the day with ×, or turn it off in Settings). In the Lab Notebook, deletions waiting for approval moved from the top of the page to a History button on shared notes.
 
