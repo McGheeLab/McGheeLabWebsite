@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (90 changes — ready to push)
+## Pending (91 changes — ready to push)
+
+- **Needs investigation is a structure (V3.992):** select words and press Ctrl+Enter → X (or right-click a component) — it is highlighted, keeps its dot in the note and its glowing dot in the Portfolio, and shows on Today until you mark it investigated. Switching tabs now slides the page in smoothly, holding Shift while dragging moves a component one grid cell at a time, and the Full screen button shows the ⤢ sign.
 
 - **Needs investigation (V3.991):** a new kind of reminder for something to look into: right-click a component (or a note's ⋯) → Needs investigation. It shows as a dot in the note, a gently glowing dot on the note in the Portfolio, and on Today above Recent notes, beside the resurfaced claim, until you mark it investigated.
 

@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.992] — 2026-11-13 — Scientia: Needs investigation becomes a structure; tabs slide in like the Portfolio's projects; Shift+drag moves a grid cell at a time; Full screen as ⤢
+
+Gabe: "Needs investigation needs to be a structure separate from reminder. I want the tab switching to have an updated clean UI animation like the Portfolio switching between projects. Also, when dragging components in the canvas, holding Shift moves components by grid cells rather than fine movement. Change the Full screen button in the pill to be two arrows in opposite corners such as the maximize symbol in HTMLs and PDFs and remove the focus mode description on that button."
+
+App (`scientia/src`) and one line of the lab layer (`rm/scientia/lab-mode.js`, the ✦ pill's Full screen — **Alex reviews**).
+
+### Changed
+- **Needs investigation is a structure (`02-schema.js` `KINDS`, new `13zzw-investigate.js` `INVEST`), no longer a kind of reminder (V3.991).** `{ id: 'investigate', key: 'x', label: 'Needs investigation', color: '#D9480F', mode: 'highlight', lifecycle: 'open' }`: Ctrl+Enter → **X**, `/investigate` (generated from the kinds), its colour and style in Settings → Structures; open until investigated (`M.closeItem`), reopened from its menu.
+  - **In the note:** its words are highlighted; its component has a dot in its header (`INVEST.dot`, wrapping `DocView.box`) that opens it with *Investigated ✓*; the structure's Alt+click menu (`09-editor.js` `itemPopover`) has *Investigated ✓* too. Right-click a text component → *Needs investigation*: its words become one (`INVEST.mark` / `make`). A widget and the note's ⋯ no longer offer it (a structure needs words).
+  - **The Portfolio's breathing dot** (`15d` `PFKIT.dots`) and **Today's section above Recent notes, with the resurfaced claim** (`14-home.js` → `INVEST.home`) read the open structures (`INVEST.open`); the dot takes the structure's colour (`PFKIT.col('investigate')`).
+  - **`13s-remind.js`:** `REMKIND.investigate` and V3.991's `REM.inv*`, its dialog branch, its 🔔 group and its Reminders-page section go; `REM.open()` lists only reminders with a date. **V3.991's records** (`reminders` of kind `investigate`) become structures once (`INVEST.migrate`, after the notebook is ready): a component with their words (and notes) in their note, beside their component (or in today's day note), labelled *Needs investigation* and marked; the reminder is done (`migrated: 'structure'`).
+- **Tabs (`11-shell.js` `App.tabIn`, after each full render):** another tab's view slides in 16 px from that tab's side, fading in (as the Portfolio's project does, `pfin`), while the tab's underline (`.tink`) glides there and the title fades in (`#ttl.ttl-in`). Opening a note from its tab does not slide. Done with classes on the new view (`.tab-in.from-r` / `.from-l`, removed at `animationend`), not a view transition: `App.refresh` stays synchronous for what wraps it and what reads the route after it. Reduced motion: none.
+- **Shift + drag, a grid cell at a time:** a component (`12-doc.js` `pointer`), a region by its title (`13v-region.js` `drag`), a lasso selection (`13zu-lasso2.js` `move`) move in 14 px steps while Shift is held; without it, fine movement and the snap on release as before. The shortcuts list says so.
+- **Full screen buttons:** the ✦ pill's (`lab-mode.js` tools fan) is "Full screen" / "Leave full screen" with Lucide's *maximize-2* (two arrows to opposite corners, the ⤢ of pages and PDFs; `PILL_ICONS['maximize-2']`); the note's own (the dock, `13-docpanels.js`) is ⤢ "Full screen (Ctrl+.)". No Focus mode wording on either; Ctrl+. still locks the keyboard for Ctrl+W.
+
+### Tests
+| Test | Result |
+|---|---|
+| `t_992` on the desktop build (with the lab layer): a structure (key X, open), not a reminder kind; V3.991's reminder never listed, then a structure (a component with its words, marked; the reminder done), once; Ctrl+Enter's X marks words, highlighted, a dot in the header; right-click a text component; not on the note's ⋯ or 🔔; *Investigated ✓* in its menu; the Portfolio's dot (count, breathing, the structure's colour, the project too); Today above Recent notes, oldest first, with the resurfaced claim; ✓ closes it; tabs slide from the right and the left, the classes go, no slide into a note, the underline glides; Shift+drag in 14 px steps, fine without it and snapped on release; both Full screen buttons; no errors | 25/25 |
+| `t_992` on the standalone build | run with Gabe's standalone sync (its own PR) |
+| `v3869` lab-mode harness | 283/283 |
+| `v3880` notes harness | 13/13 |
+| Earlier suites: bridges at the edges `t_989`, bridges `t_981`, wires `t_982wire`, the simple notebook `t_983`, the Portfolio `t_984`, the edge pan / kept pages / settling `t_980edge` · `t_980keep` · `t_980settle` | 40/40 · 35/35 · 13/13 · 18/18 · 31/31 · 9/9 · 12/12 · 5/5 |
+
 ## [V3.991] — 2026-11-13 — Scientia: Needs investigation — a reminder kind with no date; a dot in its note, breathing in the Portfolio; on Today above Recent notes, with the resurfaced claim
 
 Gabe: "A new type of reminder called Need to Investigate, which is saved as a reminder as a dot in the note that glows in an in/out phase in the portfolio. The Needs Investigation appears in the Today tab above recent notes, and joins where the resurfaced claims are."
