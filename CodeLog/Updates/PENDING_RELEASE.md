@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (86 changes — ready to push)
+## Pending (87 changes — ready to push)
+
+- **Scientia's Portfolio is a list (V3.988):** your projects, most active first; open one and its themes, experiments, notes and lit reviews appear beside the list, with a switch for each kind. And six new component kinds for results: Result, Insight, Mechanism, Control, Anomaly and Caveat, with links such as "correlates with" and "reveals".
 
 - **HTML protocols (V3.987):** made your protocol as a web page, with its own calculators and buttons? On the Protocols page press **Upload HTML** and pick the file. It opens in RM like any protocol (Download and Print are there), you can replace it with a newer file (the old one stays downloadable), and **Post to website** puts it on mcgheelab.com under Research → Protocols, with everyone who helped credited on the Team page. It runs in a closed frame, so it can't reach anything else on the site.
 

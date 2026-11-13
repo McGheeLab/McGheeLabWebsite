@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** V3.987 (HTML protocols: `rm/js/protocol-html.js` stores an uploaded HTML file in `protocols/{id}/html/r{rev}-{n}` pieces and shows it in a sandboxed srcdoc frame; `protocol-html-view.js` is `?view=html`; posting writes `content/html-{n}` — see the protocols section)
+**Version:** V3.988 (Scientia: the Portfolio is two panes — `scientia/src/15-portfolio.js` `PortfolioView` + `PFLIST`, the list of projects and the open one, with hooks the lab layer fills (`rm/scientia/lab-mode.js` §10 gives its groups and buttons; its region canvas is gone); the results kinds and six relations in `13zzi-kinds.js`, read by `PFKIT.dots`, `SYNTH.gather` and an aim's evidence. Before: V3.987 — HTML protocols: `rm/js/protocol-html.js` stores an uploaded HTML file in `protocols/{id}/html/r{rev}-{n}` pieces and shows it in a sandboxed srcdoc frame; `protocol-html-view.js` is `?view=html`; posting writes `content/html-{n}` — see the protocols section)
 
 **Prior:** V3.986 (Protocols on the lab website: `rm/js/protocol-publish.js` copies a posted protocol to `publicProtocols/{id}` + `content/current`; the public site's `#/protocols` list and `#/protocols/{id}` page (`protocol-view.html` in a frame, the lab's renderer); `ProtocolDocRender.renderDocument` shared by both; the working `protocols/{id}` doc is lab-only — see the section below)
 

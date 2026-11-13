@@ -847,21 +847,21 @@
   LAB.pickRmProtocol = pickRmProtocol; LAB.runRmProtocol = runRmProtocol; LAB.pickAction = pickAction; LAB.placeAction = placeAction; LAB.pickCollection = pickCollection; LAB.placeCollection = placeCollection;
   try { var st9 = document.getElementById('lab-mode-css'); if (st9) st9.textContent += '.rma{line-height:1.4}.rmc-kp{margin:4px 0 4px 18px;padding:0;font-size:12px}.rmc-claim{font-style:italic;margin:4px 0}.lab-proto-line{gap:6px;margin:0 0 6px;flex-wrap:wrap;align-items:center}'; } catch (e) {}
 
-  /* ---- 10. The Portfolio: assigned work from RM, region cards, quick notes (V3.880) ----
+  /* ---- 10. The Portfolio: assigned work from RM, quick notes (V3.880; a list since V3.988) ----
      The hub mirrors what the PI assigned this person in RM (research-map cards and projects, `member_uids`) into
-     Scientia projects (`rm: true`, `rmAssigned`); an aim under an assigned grant is one of its themes. The map is
-     redrawn as REGIONS — assigned first, then Quick notes (Gabe's General notes, 15b), then the person's own projects
-     and earlier assignments. A region's header is its handle: drag to move (edge panning), the arrow folds it to its
-     header. Until the first move the regions flow in a column; the first move pins them all where they are (Tidy up
-     flows them again). Layout and folding are per device (_ls lab:portfolio), like Gabe's own canvas view. A quick
-     note is a General note that starts blank, with a bar offering the templates until something is written. */
-  var PF = { key: 'lab:portfolio', paper: null, world: null, svg: null, els: {}, list: [], moves: 0, status: null };
+     Scientia projects (`rm: true`, `rmAssigned`); an aim under an assigned grant is one of its themes. V3.988 (Gabe
+     chose design B, "If it is in the Lab Notebook, then give it the same change"): the app's Portfolio is two panes,
+     the projects listed and the open one beside it (15-portfolio.js), and the lab gives it its groups — assigned to
+     you in RM, Quick notes (Gabe's General notes, 15b), your own projects, those shared with you, earlier
+     assignments — each row saying what it is in RM and your role; the open project's buttons (its notes' order,
+     + Note, Open in RM, Share); and under the list + Project, + Quick note, Refresh from RM. The region canvas of
+     V3.880 (dragged, folded, its own connections) is gone. A quick note is a General note that starts blank, with a
+     bar offering the templates until something is written. */
+  var PF = { status: null };
   LAB.portfolio = PF;
   var KIND = { grant: 'Grant', aim: 'Aim', output: 'Output', concept: 'Concept', specialty: 'Specialty', paper: 'Paper', course: 'Course', tool: 'Tool', infrastructure: 'Infrastructure' };
   var KIND_ORDER = ['grant', 'aim', 'output', 'concept', 'specialty', 'paper', 'course', 'tool', 'infrastructure'];
   var SHUT = { archived: 1, closed: 1, completed: 1 };
-  function pfState() { var s = _ls.get(PF.key, null); s = s && typeof s === 'object' ? s : {}; s.pos = s.pos || {}; s.open = s.open || {}; return s; }
-  function pfSave(s) { _ls.set(PF.key, s); }
   function isAssigned(p) { return !!(p && p.rm && p.rmAssigned !== false); }
   function rank(p) { var i = KIND_ORDER.indexOf(p.rmKind); return i < 0 ? 99 : i; }
   function words(s) { return String(s || '').replace(/_/g, ' '); }
@@ -870,149 +870,28 @@
     try { if (typeof GENERAL !== 'undefined' && GENERAL.docs) return GENERAL.docs(); } catch (e) {}
     return DB.where('documents', function (d) { return !d.projectId && !d.deleted && ['day', 'review'].indexOf(d.type) < 0 && !isReview(d); });
   }
-  function regionList() {
-    var all = DB.all('projects'), byName = function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); };
-    var ps = all.filter(function (p) { return !sharedFrom(p); });   /* V3.899 — a project someone shared with you has its own group */
-    var out = ps.filter(isAssigned).sort(function (a, b) { return rank(a) - rank(b) || byName(a, b); }).map(function (p) { return { id: p.id, p: p, group: 'assigned' }; });
-    out.push({ id: 'quick', group: 'quick' });
-    ps.filter(function (p) { return !p.rm; }).sort(function (a, b) { return String(a.created || '').localeCompare(String(b.created || '')); }).forEach(function (p) { out.push({ id: p.id, p: p, group: 'mine' }); });
-    all.filter(function (p) { return !!sharedFrom(p); }).sort(byName).forEach(function (p) { out.push({ id: p.id, p: p, group: 'shared' }); });
-    ps.filter(function (p) { return p.rm && p.rmAssigned === false; }).sort(byName).forEach(function (p) { out.push({ id: p.id, p: p, group: 'earlier' }); });
-    return out;
+  /** What a project is, above its name: shared by whom, or what it is in RM and your role. */
+  function kickOf(p, group) {
+    var from = sharedFrom(p);
+    if (from) return 'Shared by ' + (from.name || 'a lab member') + (from.role === 'edit' ? ' · you work on it together' : ' · read only');
+    if (!p.rm) return null;
+    return [KIND[p.rmKind] || words(p.rmKind) || 'Project', p.rmStatus ? words(p.rmStatus) : null, group === 'earlier' ? 'no longer assigned' : 'assigned' + (p.rmRole && p.rmRole !== 'member' ? ' · ' + p.rmRole : '')].filter(Boolean).join(' · ');
   }
-  function isOpen(s, r) {
-    if (s.open[r.id] !== undefined) return !!s.open[r.id];
-    return !(r.group === 'earlier' || (r.p && r.p.rm && SHUT[r.p.rmStatus]));
+  /** Under an assigned project's title: its RM line and what it builds on. */
+  function leadOf(p) {
+    if (!p.rm || !(p.rmLine || (p.rmParents || []).length)) return null;
+    return [p.rmLine ? h('span.serif', snippet(p.rmLine, 160)) : null, (p.rmParents || []).length ? h('span.tiny.muted', (p.rmLine ? ' · ' : '') + 'builds on ' + p.rmParents.join(', ')) : null];
   }
-  function docsOf(r) { return r.group === 'quick' ? generalDocs() : DB.where('documents', function (d) { return d.projectId === r.id && d.type !== 'review' && !d.deleted; }); }
-
-  function docCard(d, sub, act) {
-    var items = [], n = 0;
-    try { if (Array.isArray(d.blockIds)) { items = M.docBlocks(d.id).flatMap(function (b) { return IX.itemsOf(b.id); }); n = M.liveBlocks(d.id).length; } } catch (e) { /* a record without its components yet */ }
-    var ob = items.filter(function (i) { return i.kind === 'barrier' && IX.status(i) === 'open'; }).length;
-    return h('div.box.dcard.nopan', { 'data-doc': d.id, on: { click: function () { App.go('#/doc/' + d.id); } } },
-      h('div.row', typechip(d.type), TIMER.activeFor(d.id) ? h('span.live', '●') : null, d.share === 'lab' ? h('span.pill.teal', { title: 'Lab members can read it in RM' }, 'lab') : null,
-        h('span.spacer'), act || null, h('span.mono.tiny.muted', { title: 'edited ' + fmtWhen(d.modified) }, fmtDay(d.created))), h('div.dn', d.title),
-      h('div.ds', sub != null ? sub : [plural(n, prof(d.type).noun.toLowerCase()), items.length ? ' · ' + plural(items.length, 'structure') : '',
-        ob ? h('span', { style: { color: 'var(--bad)' } }, ' · ' + ob + ' open') : null]),
-      typeof PFKIT !== 'undefined' ? PFKIT.dots([d]) : null);   /* V3.975 — the note's date; its takeaways, open barriers, evidence as dots */
+  function pfRow(p, group) { var from = sharedFrom(p); return { id: p.id, p: p, name: p.name, group: group, kick: kickOf(p, group), lead: leadOf(p), shut: group === 'earlier' || !!(p.rm && SHUT[p.rmStatus]), readOnly: !!from && from.role !== 'edit' }; }
+  function listGroups() {
+    var all = DB.all('projects'), ps = all.filter(function (p) { return !sharedFrom(p); });   /* V3.899 — a project someone shared with you has its own group */
+    return [
+      { key: 'assigned', head: 'Assigned to you in RM', sort: true, rows: ps.filter(isAssigned).sort(function (a, b) { return rank(a) - rank(b); }).map(function (p) { return pfRow(p, 'assigned'); }) },
+      { key: 'quick', head: null, rows: [{ id: 'quick', general: true, name: 'Quick notes', kick: 'Outside projects' }] },
+      { key: 'mine', head: 'Your projects', sort: true, rows: ps.filter(function (p) { return !p.rm; }).map(function (p) { return pfRow(p, 'mine'); }) },
+      { key: 'shared', head: 'Shared with you', sort: true, rows: all.filter(function (p) { return !!sharedFrom(p); }).map(function (p) { return pfRow(p, 'shared'); }) },
+      { key: 'earlier', head: 'Earlier assignments', sort: true, rows: ps.filter(function (p) { return p.rm && p.rmAssigned === false; }).map(function (p) { return pfRow(p, 'earlier'); }) }];
   }
-  function touchesLine(d) {
-    try { var T = GENERAL.touches(d); return T.length ? 'touches ' + T.map(function (x) { return x.p.name; }).join(', ') : 'not in a project yet'; } catch (e) { return 'not in a project yet'; }
-  }
-  function projectBody(p) {
-    var themes = DB.where('themes', function (t) { return t.projectId === p.id && t.status === 'active'; }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
-    var lit = function (d) { return typeof PFKIT !== 'undefined' && PFKIT.isLit(d); };   /* V3.975 — every lit review in the Lit reviews column, none in Project-wide or a theme */
-    var wide = DB.where('documents', function (d) { return d.projectId === p.id && !d.themeId && d.type !== 'review' && !d.deleted && !lit(d); }), cols = [];
-    if (wide.length || !themes.length) cols.push({ name: themes.length ? 'Project-wide' : 'Notes', docs: wide });
-    themes.forEach(function (t) { cols.push({ t: t, name: t.name, docs: DB.where('documents', function (d) { return d.themeId === t.id && !d.deleted && !lit(d); }) }); });
-    var revs = reviewsOf(p.id).concat(DB.where('documents', function (d) { return d.projectId === p.id && !d.deleted && lit(d) && !isReview(d); }));
-    if (revs.length) cols.push({ name: 'Lit reviews', docs: revs, review: true });   /* V3.889 */
-    var order = typeof PFKIT !== 'undefined' ? PFKIT.sortOf(p.id) : 'date', redraw = function () { redrawRegion(p.id); };
-    var card = function (c, d) { return c.review && isReview(d) ? docCard(d, reviewLine(d)) : docCard(d); };
-    return h('div.lab-reg-b', cols.map(function (c) {
-      var H = c.t ? IX.themeHealth(c.t) : null;
-      return h('div.lab-col',
-        c.t ? h('div.box.tcard.nopan', { on: { click: function () { App.go('#/theme/' + c.t.id); } } }, h('div.tn', c.name),
-          c.t.rm && c.t.question ? h('div.lab-q', snippet(c.t.question, 110)) : null,
-          h('div.ts', H.stalled ? h('span.pill.warn', 'stalled ' + H.days + 'd') : H.aims.length ? h('span.pill.teal', plural(H.aims.length, 'aim')) : h('span.pill', c.t.rm ? 'aim in RM' : 'exploratory'), ' ', H.act != null && typeof PFKIT !== 'undefined' ? PFKIT.say(H) : fmtDur(H.ms4) + ' / 4 wk',
-            H.openB.length ? h('span', { style: { color: 'var(--bad)' } }, ' · ' + plural(H.openB.length, 'open barrier')) : null),
-          H.actMap && typeof PFKIT !== 'undefined' ? PFKIT.heat(H.actMap, { weeks: 6, cell: 7 }) : heatmapEl({ weeks: 6, themeId: c.t.id, cell: 7 }))   /* V3.975 — health is activity */
-          : h('div.lab-col-h.mono.muted', c.name),
-        typeof PFKIT !== 'undefined' ? PFKIT.entries(c.docs, order).map(function (e) { return e.doc ? card(c, e.doc) : PFKIT.expCard(e, function (d) { return card(c, d); }, redraw); })   /* V3.975 */
-          : c.docs.sort(byModified).map(function (d) { return card(c, d); }),
-        c.docs.length ? null : h('div.lab-empty.tiny.muted', c.t ? 'No notes in this theme yet' : 'No notes yet — + Note'));
-    }));
-  }
-  function regionEl(r, s) {
-    var open = isOpen(s, r), p = r.p, head, body = null, acts = [];
-    if (r.group === 'quick') {
-      var G = generalDocs().sort(byModified);
-      head = [h('div.pk', 'Outside projects'), h('div.pn', 'Quick notes'), h('div.ps', plural(G.length, 'note') + ' · a blank page; choose its project in its first block when you are ready')];
-      acts.push(btn('xs pri', '+ Quick note', quickNote, 'A blank page — write, or start from a template'));
-      if (open) body = h('div.lab-reg-b.lab-qbody', G.length ? G.map(function (d) { return docCard(d, touchesLine(d)); }) : h('div.lab-empty.tiny.muted', 'A quick note opens as a blank page; its first block holds its title, template, project and theme.'));
-    } else {
-      var themes = DB.where('themes', function (t) { return t.projectId === p.id && t.status === 'active'; }), notes = docsOf(r).length;
-      var from = sharedFrom(p), kick = from ? 'Shared by ' + (from.name || 'a lab member') + (from.role === 'edit' ? ' · you work on it together' : ' · read only')
-        : p.rm ? [KIND[p.rmKind] || words(p.rmKind) || 'Project', p.rmStatus ? words(p.rmStatus) : null, r.group === 'earlier' ? 'no longer assigned' : 'assigned' + (p.rmRole && p.rmRole !== 'member' ? ' · ' + p.rmRole : '')].filter(Boolean).join(' · ') : 'Project';
-      head = [h('div.pk', kick), h('a.pn', { href: '#/project/' + p.id, title: 'Open the project' }, p.name),
-        h('div.ps', plural(themes.length, 'theme') + ' · ' + plural(notes, 'note') + (reviewsOf(p.id).length ? ' · ' + plural(reviewsOf(p.id).length, 'lit review') : '') + ' · ' + plural(IX.openBarriers(p.id).length, 'open barrier')
-          + (typeof PFKIT !== 'undefined' ? ' · ' + PFKIT.say({ act: PFKIT.ofProject(p.id).score }) : '')),
-        p.rm && (p.rmLine || (p.rmParents || []).length) ? h('div.lab-reg-line', p.rmLine ? h('span.serif', snippet(p.rmLine, 140)) : null,
-          (p.rmParents || []).length ? h('span.tiny.muted', (p.rmLine ? ' · ' : '') + 'builds on ' + p.rmParents.join(', ')) : null) : null];
-      if (open && typeof PFKIT !== 'undefined') acts.push(PFKIT.sortBtn(p.id, function () { redrawRegion(r.id); }));   /* V3.975 — the order of its notes */
-      if (!from || from.role === 'edit') acts.push(btn('xs', '+ Note', function () { App.newDoc({ projectId: p.id }); }, 'A new note in this project'));
-      if (p.rm && p.rmUrl) acts.push(btn('xs', 'Open in RM', function () { openRM(p.rmUrl); }, 'This ' + (KIND[p.rmKind] || 'project').toLowerCase() + ' on the lab site'));
-      acts.push(shareBtn('project', p));   /* V3.899 — top right of the card */
-      if (open) body = projectBody(p);
-    }
-    var tog = h('button.ib.lab-reg-tog', { title: open ? 'Fold to the header' : 'Unfold', 'aria-expanded': String(open), on: { click: function (e) { e.stopPropagation(); toggleRegion(r.id); } } }, open ? '▾' : '▸');
-    var hd = h('div.lab-reg-h', { title: 'Drag to move this region' }, tog, h('div.lab-reg-t', head), h('div.lab-reg-a', acts));
-    var el = h('div.box.nopan.lab-reg.lab-' + r.group + (open ? '' : '.shut'), { 'data-region': r.id }, hd, body);
-    hd.addEventListener('pointerdown', function (e) { dragRegion(e, el, r.id); });
-    return el;
-  }
-  function layout() {
-    var s = pfState(), y = 0, maxB = 0, add = false;
-    if (s.pinned) {
-      PF.list.forEach(function (r) { var q = s.pos[r.id], el = PF.els[r.id]; if (q && el) maxB = Math.max(maxB, q.y + el.offsetHeight); });
-      PF.list.forEach(function (r) { var el = PF.els[r.id], q = s.pos[r.id]; if (!el) return; if (!q) { q = s.pos[r.id] = { x: 0, y: maxB ? maxB + 40 : 0 }; maxB = q.y + el.offsetHeight; add = true; } el.style.left = q.x + 'px'; el.style.top = q.y + 'px'; });
-      if (add) pfSave(s);
-    } else PF.list.forEach(function (r) { var el = PF.els[r.id]; if (!el) return; el.style.left = '0px'; el.style.top = y + 'px'; y += el.offsetHeight + 28; });
-    drawLinks();
-  }
-  function toggleRegion(id) {
-    var s = pfState(), r = PF.list.filter(function (x) { return x.id === id; })[0]; if (!r || !PF.els[id]) return;
-    s.open[id] = !isOpen(s, r); pfSave(s); redrawRegion(id);
-  }
-  function redrawRegion(id) {   /* V3.975 — also after the order changes or an experiment unfolds */
-    var s = pfState(), r = PF.list.filter(function (x) { return x.id === id; })[0], old = PF.els[id]; if (!r || !old) return;
-    var nu = regionEl(r, s); nu.style.left = old.style.left; nu.style.top = old.style.top; old.replaceWith(nu); PF.els[id] = nu;
-    requestAnimationFrame(layout);
-  }
-  function dragRegion(e, el, id) {
-    var P = PF.paper; if (!P || e.button !== 0 || e.target.closest('button,a,input,select,textarea')) return;
-    e.preventDefault(); e.stopPropagation();
-    var tgt = e.currentTarget, sx = e.clientX, sy = e.clientY, x0 = parseFloat(el.style.left) || 0, y0 = parseFloat(el.style.top) || 0, ox = 0, oy = 0, moved = 0, raf = 0, last = e;
-    try { tgt.setPointerCapture(e.pointerId); } catch (x) {}
-    function place(ev) { var z = P.view.z; el.style.left = Math.round(x0 + (ev.clientX - sx) / z + ox) + 'px'; el.style.top = Math.round(y0 + (ev.clientY - sy) / z + oy) + 'px';
-      if (!raf) raf = requestAnimationFrame(function () { raf = 0; drawLinks(); }); }
-    function mv(ev) { last = ev; moved = Math.max(moved, Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy)); if (moved < 4) return;
-      el.classList.add('dragging'); place(ev); P.edgePan(ev, function (dx, dy) { ox -= dx / P.view.z; oy -= dy / P.view.z; place(last); }); }
-    function up() {
-      tgt.removeEventListener('pointermove', mv); tgt.removeEventListener('pointerup', up); tgt.removeEventListener('pointercancel', up); P.stopEdgePan(); el.classList.remove('dragging');
-      if (moved < 4) return;
-      var s = pfState();
-      if (!s.pinned) { PF.list.forEach(function (r) { var x = PF.els[r.id]; if (x) s.pos[r.id] = { x: parseFloat(x.style.left) || 0, y: parseFloat(x.style.top) || 0 }; }); s.pinned = true; }
-      s.pos[id] = { x: parseFloat(el.style.left) || 0, y: parseFloat(el.style.top) || 0 }; pfSave(s); PF.moves++; drawLinks();
-    }
-    tgt.addEventListener('pointermove', mv); tgt.addEventListener('pointerup', up); tgt.addEventListener('pointercancel', up);
-  }
-  /* the dashed note-to-note connections of Gabe's map, drawn between cards wherever the regions are; a folded region
-     stands for its notes */
-  function drawLinks() {
-    var P = PF.paper, W = PF.world; if (!P || !W || !W.isConnected || !PF.svg) return;
-    var z = P.view.z, pos = {}, box = function (el) { var r = el.getBoundingClientRect(), a = P.toWorld(r.left, r.top); return { x: a.x, y: a.y, w: r.width / z, h: r.height / z }; };
-    $$('[data-doc]', W).forEach(function (el) { pos[el.dataset.doc] = box(el); });
-    PF.list.forEach(function (r) { var el = PF.els[r.id]; if (!el || !el.classList.contains('shut')) return; var R = box(el); R.region = r.id; docsOf(r).forEach(function (d) { if (!pos[d.id]) pos[d.id] = R; }); });
-    var pairs = new Map(), add = function (a, b, why) {
-      if (!a || !b || a === b || !pos[a] || !pos[b]) return; var ka = pos[a].region || a, kb = pos[b].region || b; if (ka === kb) return;
-      var k = [ka, kb].sort().join('|'); if (!pairs.has(k)) pairs.set(k, { A: pos[a], B: pos[b], why: {} }); pairs.get(k).why[why] = 1; };
-    DB.all('wires').forEach(function (w) { var A = M.block(w.from), B = M.block(w.to); if (A && B && A.docId !== B.docId) add(A.docId, B.docId, (REL[w.rel] || {}).label || w.rel); });
-    DB.all('blocks').forEach(function (b) {
-      if (b.kind === 'ref' && b.status !== 'removed') { var o = M.block(b.refBlockId); if (o) add(o.docId, b.docId, 'pulled in'); }
-      if (b.boundTo) add(b.boundTo.protocolId, b.docId, 'runs protocol');
-      ((b.body && b.body.marks) || []).forEach(function (m) { if (m.type === 'link' && m.ref) { var t = IX.linkTarget(m); if (t) add(b.docId, t.type === 'doc' ? t.d.id : t.b.docId, 'link'); } });
-    });
-    var svg = '';
-    pairs.forEach(function (pr) {
-      var A = pr.A, B = pr.B, x1 = A.x + A.w, y1 = A.y + A.h / 2, x2 = B.x, y2 = B.y + B.h / 2;
-      var p1 = x1 <= x2 ? { x: x1, y: y1 } : { x: B.x + B.w, y: y2 }, p2 = x1 <= x2 ? { x: x2, y: y2 } : { x: A.x, y: y1 }, off = Math.max(40, Math.abs(p2.x - p1.x) / 2);
-      svg += '<path class="pl" d="M' + p1.x + ',' + p1.y + ' C' + (p1.x + off) + ',' + p1.y + ' ' + (p2.x - off) + ',' + p2.y + ' ' + p2.x + ',' + p2.y + '"><title>' + esc(Object.keys(pr.why).join(', ')) + '</title></path>';
-    });
-    PF.svg.innerHTML = svg; PF.links = pairs.size;
-  }
-  function tidy() { var s = pfState(); s.pinned = false; s.pos = {}; pfSave(s); App.refresh(); }
   async function refreshAssigned() {
     if (PF.status) PF.status.textContent = 'Asking RM…';
     try {
@@ -1021,29 +900,29 @@
       return j;
     } catch (e) { if (PF.status) PF.status.textContent = String(e.message || e); return null; }
   }
-  function renderPortfolio() {
-    var s = pfState(), list = PF.list = regionList(), nA = list.filter(function (r) { return r.group === 'assigned'; }).length, nM = list.filter(function (r) { return r.group === 'mine'; }).length;
-    App.setTitle('Portfolio', [h('span', plural(nA, 'assigned project') + ' · ' + plural(nM, 'project') + ' of your own · ' + plural(generalDocs().length, 'quick note'))]);
-    DB.all('documents').forEach(seedSig);
-    var host = h('div.canvas-host.lab-pf'), P = PF.paper = makePaper(host, { view: _ls.get('view:portfolio', null) || undefined, onView: debounce(function (v) { _ls.set('view:portfolio', v); }, 400), minZ: .2 });
-    var W = PF.world = P.world; PF.els = {};
-    PF.svg = SV('svg', { class: 'wires plinks' }); W.append(PF.svg);
-    list.forEach(function (r, i) { var el = regionEl(r, s), q = s.pinned && s.pos[r.id]; el.style.left = (q ? q.x : 0) + 'px'; el.style.top = (q ? q.y : i * 120) + 'px'; PF.els[r.id] = el; W.append(el); });
-    PF.status = h('span.tiny.mono.muted.lab-pf-st');
-    host.append(h('div.lab-pf-bar.nopan',
-      btn('sm', '+ Project', async function () { var n = await askText('New project', 'Name'); if (n) M.createProject(n); }, 'A project of your own'),
-      btn('sm', '+ Quick note', quickNote, 'A blank page outside any project'),
-      btn('sm ghost', 'Tidy up', tidy, 'Put the regions back in one column'),
-      btn('sm ghost', 'Refresh from RM', refreshAssigned, 'Ask RM for your assigned projects now'), PF.status),
-      h('div.hint', 'Assigned projects come from RM. Drag a region by its header; the arrow folds it. Drag the paper to pan.'));
-    requestAnimationFrame(function () {
-      layout();
-      if (!_ls.get('view:portfolio', null)) { var x1 = 0, y1 = 0; list.forEach(function (r) { var el = PF.els[r.id]; if (el) { x1 = Math.max(x1, el.offsetLeft + el.offsetWidth); y1 = Math.max(y1, el.offsetTop + el.offsetHeight); } }); P.fit({ x0: 0, y0: -40, x1: x1, y1: Math.min(y1, 900) }, false); }
-    });
-    return host;
-  }
-  try { VIEWS.portfolio.render = renderPortfolio; } catch (e) { warn('portfolio', e); }
-  LAB.tidyPortfolio = tidy; LAB.refreshAssigned = refreshAssigned; LAB.drawLinks = drawLinks;
+  try {
+    var PV = VIEWS.portfolio;
+    PV.groups = listGroups;
+    PV.meta = function () { var G = listGroups(), n = function (k) { return (G.filter(function (g) { return g.key === k; })[0] || { rows: [] }).rows.length; };
+      return plural(n('assigned'), 'assigned project') + ' · ' + plural(n('mine'), 'project') + ' of your own · ' + plural(generalDocs().length, 'quick note'); };
+    PV.actions = function (r, redraw) {
+      if (r.general) return [btn('xs pri', '+ Quick note', quickNote, 'A blank page — write, or start from a template')];
+      var p = r.p, out = [PFKIT.sortBtn(p.id, redraw)];
+      if (!r.readOnly) out.push(btn('xs', '+ Note', function () { App.newDoc({ projectId: p.id }); }, 'A new note in this project'));
+      if (p.rm && p.rmUrl) out.push(btn('xs', 'Open in RM', function () { openRM(p.rmUrl); }, 'This ' + (KIND[p.rmKind] || 'project').toLowerCase() + ' on the lab site'));
+      out.push(shareBtn('project', p));   /* V3.899 */
+      return out;
+    };
+    PV.foot = function () {
+      PF.status = h('span.tiny.mono.muted.lab-pf-st');
+      return [btn('sm', '+ Project', async function () { var n = await askText('New project', 'Name'); if (n) M.createProject(n); }, 'A project of your own'),
+        btn('sm', '+ Quick note', quickNote, 'A blank page outside any project'), btn('sm ghost', 'Refresh from RM', refreshAssigned, 'Ask RM for your assigned projects now'), PF.status];
+    };
+    PV.notePills = function (d) { return d.share === 'lab' ? h('span.pill.teal', { title: 'Lab members can read it in RM' }, 'lab') : null; };
+    PV.themePill = function (t, H) { return H.stalled ? h('span.pill.warn', 'stalled ' + H.days + 'd') : H.aims.length ? h('span.pill.teal', plural(H.aims.length, 'aim')) : h('span.pill', t.rm ? 'aim in RM' : 'exploratory'); };
+    var oRender = PV.render; PV.render = function () { DB.all('documents').forEach(seedSig); return oRender.apply(this, arguments); };
+  } catch (e) { warn('portfolio', e); }
+  LAB.refreshAssigned = refreshAssigned;
 
   /* a project the PI assigned: its RM line, and no Rename (the name is RM's) */
   try {
@@ -1241,22 +1120,11 @@
 
   try {
     var st10 = document.getElementById('lab-mode-css');
-    if (st10) st10.textContent += '.lab-reg{min-width:300px;width:max-content;padding:0;background:color-mix(in srgb,var(--surface) 55%,var(--paper));border:1px solid var(--rule-2);border-radius:10px}' +
-      '.lab-reg.lab-assigned{border-top:3px solid var(--teal)}.lab-reg.lab-quick{border-top:3px solid var(--ink-3)}.lab-reg.lab-earlier{opacity:.8}' +
-      '.lab-reg-h{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;cursor:grab;touch-action:none}.lab-reg.dragging .lab-reg-h{cursor:grabbing}' +
-      '.lab-reg-tog{flex:none;width:22px;height:22px;font-size:13px;line-height:1}.lab-reg-t{flex:1 1 auto;min-width:0;max-width:640px}' +
-      '.lab-reg-t .pk{font-family:var(--f-m);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}' +
-      '.lab-reg-t .pn{display:block;font-size:17px;font-weight:700;letter-spacing:-.015em;color:var(--ink);text-decoration:none}.lab-reg-t a.pn:hover{text-decoration:underline}' +
-      '.lab-reg-t .ps{font-family:var(--f-m);font-size:10.5px;color:var(--ink-3)}.lab-reg-line{font-size:12.5px;color:var(--ink-2);margin-top:3px}' +
-      '.lab-reg-a{display:flex;gap:6px;flex:none;flex-wrap:wrap;justify-content:flex-end;max-width:220px}' +
-      '.lab-reg-b{display:flex;gap:16px;align-items:flex-start;padding:4px 12px 12px}.lab-reg-b.lab-qbody{flex-wrap:wrap;max-width:860px;gap:10px}' +
-      '.lab-col{width:240px;display:flex;flex-direction:column;gap:8px}.lab-reg .box{position:relative;left:auto;top:auto}.lab-qbody .dcard{width:260px}' +
-      '.lab-col-h{padding:2px 2px 0;letter-spacing:.1em;text-transform:uppercase;font-size:9.5px}.lab-empty{padding:6px 4px}.lab-q{font-size:11.5px;color:var(--ink-3);margin:-2px 0 6px;line-height:1.35}' +
-      '.lab-pf-bar{position:absolute;top:12px;left:12px;z-index:16;display:flex;gap:6px;flex-wrap:wrap;align-items:center;max-width:calc(100% - 24px)}' +
+    if (st10) st10.textContent += '.lab-pf-st{margin-left:2px}' +
       '.lab-hmeta{padding-bottom:7px;margin-bottom:4px;border-bottom:1px solid var(--rule)}.lab-hmeta select.hin,.lab-hmeta input.hin{width:100%;box-sizing:border-box}.lab-hmeta select.hin:disabled{color:var(--ink-4)}' +
       '.lab-h-share{grid-template-columns:86px 1fr}.lab-h-share .lab-share{margin-left:0}.lab-h-share .lab-share>.tiny{display:none}' +
       '.lab-share{display:inline-flex;align-items:center;gap:6px;margin-left:10px}.lab-share .seg button{height:20px;font-size:11px;padding:0 7px}.lab-file{flex:none}' +
-      '.lab-rm-proj{margin:10px 0}@media (max-width:820px){.lab-reg-a{max-width:150px}}';
+      '.lab-rm-proj{margin:10px 0}';
   } catch (e) { warn('css 10', e); }
 
   /* ---- 11. The canvas pills in a note (V3.882) ----
@@ -2447,7 +2315,7 @@
     if (st15) st15.textContent += '.lab-sharebtn{flex:none;position:relative;display:inline-grid;place-items:center;width:28px;height:28px;margin:-4px -4px -4px 4px;border-radius:50%;border:1px solid transparent;background:none;color:var(--ink-3);cursor:pointer;padding:0}' +
       '.lab-sharebtn svg{width:17px;height:17px}.lab-sharebtn:hover{border-color:var(--rule-2);color:var(--ink)}.lab-sharebtn.on{color:var(--teal)}' +
       '.lab-sharen{position:absolute;right:-3px;top:-3px;min-width:15px;height:15px;padding:0 3px;box-sizing:border-box;border-radius:8px;background:var(--teal);color:var(--paper);font:600 9.5px/15px var(--f-m,monospace);text-align:center}' +
-      '.lab-reg-a .lab-sharebtn{margin:0 0 0 2px}.lab-from{background:color-mix(in srgb,var(--teal) 10%,transparent);color:var(--teal);border-color:color-mix(in srgb,var(--teal) 35%,transparent)}.lab-from:not(.edit){color:var(--ink-2);background:var(--surface-2);border-color:var(--rule-2)}' +
+      '.pf-acts .lab-sharebtn{margin:0 0 0 2px}.lab-from{background:color-mix(in srgb,var(--teal) 10%,transparent);color:var(--teal);border-color:color-mix(in srgb,var(--teal) 35%,transparent)}.lab-from:not(.edit){color:var(--ink-2);background:var(--surface-2);border-color:var(--rule-2)}' +
       '.lab-lr-h{font-size:15px;margin:26px 0 0;color:var(--ink-2)}' +
       '.lab-sharepop{position:fixed;z-index:9000;width:340px;max-width:calc(100vw - 16px);max-height:min(520px,calc(100vh - 16px));display:flex;flex-direction:column;gap:8px;box-sizing:border-box;padding:12px 12px 10px;' +
       'background:var(--surface);color:var(--ink);border:1px solid var(--rule-2);border-radius:10px;box-shadow:0 18px 40px -18px rgba(36,33,28,.45)}' +

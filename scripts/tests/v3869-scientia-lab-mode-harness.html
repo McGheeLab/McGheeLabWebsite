@@ -392,8 +392,8 @@
     var nGot2 = __host.got.length; Array.from(ccard.querySelectorAll('.rmp-row')).filter(function (r) { return /stiffness rises/.test(r.textContent); })[0].click();
     check('a quote opens its paper in RM\'s reader', !!(await until(function () { return __host.got.slice(nGot2).filter(function (m) { return m.type === 'rm-read' && m.paper.paperId === 'p-smith-2024'; })[0]; }, 4000)));
     __host.mode = 'none';
-    /* 14. V3.880 — the Portfolio: what the PI assigned (from RM) as region cards; quick notes */
-    W.localStorage.removeItem('sis:lab:portfolio'); W.localStorage.removeItem('sis:view:portfolio');
+    /* 14. V3.880 — the Portfolio: what the PI assigned (from RM), quick notes; V3.988 — a list, the open project beside it */
+    W.localStorage.removeItem('sis:pf:view');
     var NOW = '2026-10-23T09:00:00';
     W.__emit({ store: 'projects', id: 'rm-f-gels-career', del: false, name: 'RM projects', rec: { id: 'rm-f-gels-career', name: 'CAREER: granular microgels', status: 'active', created: NOW, rm: true, rmSource: 'focus', rmId: 'gels-career', rmKind: 'grant', rmStatus: 'submitted', rmRole: 'secondary',
       rmLine: 'Design rules for cell-driven granular scaffolds', rmParents: ['GELS energy landscape'], rmUrl: '/rm/pages/research.html?id=gels-career', rmDraftId: 'career-draft', rmAssigned: true } });
@@ -405,45 +405,31 @@
     var sn = ev("M.createDoc({ type: 'note', projectId: 'rm-p-source-and-sink', title: 'Figure 2 plan' }).id");
     ev("M.wire(M.doc('" + an + "').blockIds[0], M.doc('" + sn + "').blockIds[0], 'leads'); changed()");
     go('#/portfolio');
-    var regs = await until(function () { var r = qa('.lab-reg'); return r.length >= 5 && r; }, 8000);
-    var order = (regs || []).map(function (e) { return e.dataset.region; });
-    check('the Portfolio is regions: assigned first (grant before paper), then Quick notes, then your own projects, then earlier assignments', JSON.stringify(order) === JSON.stringify(['rm-f-gels-career', 'rm-p-source-and-sink', 'quick', 'pj1', 'rm-f-old']), JSON.stringify(order) + (order.length ? '' : ' ' + W.location.hash + ' ' + ev("(function () { try { VIEWS.portfolio.render(); return 'renders'; } catch (e) { return String(e.stack || e).slice(0, 500); } })()")));
-    function reg(id) { return q('.lab-reg[data-region="' + id + '"]'); }
-    var g = reg('rm-f-gels-career');
-    check('an assigned region says what it is in RM, your role, its line and what it builds on', !!g && /Grant · submitted · assigned · secondary/.test(g.textContent) && /Design rules for cell-driven/.test(g.textContent) && /builds on GELS energy landscape/.test(g.textContent), g ? g.querySelector('.lab-reg-h').textContent.slice(0, 200) : 'none');
-    check('…its aim is a column (theme) with the note under it', !!g && !!Array.from(g.querySelectorAll('.lab-col .tcard')).filter(function (t) { return /Aim 1 — Map the landscape/.test(t.textContent) && /Size and stiffness/.test(t.textContent); })[0] && !!g.querySelector('.dcard[data-doc="' + an + '"]'));
-    check('Quick notes lists the notes outside any project', !!reg('quick') && /Quick notes/.test(reg('quick').textContent) && /Plan for coverslips/.test(reg('quick').textContent));
-    check('an earlier assignment is folded and says so', !!reg('rm-f-old') && reg('rm-f-old').classList.contains('shut') && /no longer assigned/.test(reg('rm-f-old').textContent) && !reg('rm-f-old').querySelector('.dcard'));
-    check('the note-to-note connection is drawn between the two regions', !!(await until(function () { return W.SIS_LAB.portfolio.links >= 1 && D.querySelectorAll('.lab-pf svg.plinks path.pl').length >= 1; }, 4000)), W.SIS_LAB.portfolio.links);
-    var flowed = await until(function () { var a = reg('rm-f-gels-career'), b = reg('rm-p-source-and-sink'); return a && b && parseFloat(b.style.top) >= parseFloat(a.style.top) + a.offsetHeight; }, 4000);
-    check('until one is moved, the regions flow in a column', !!flowed);
-    var nOpened = W.__opened.length; Array.from(g.querySelectorAll('.lab-reg-a button')).filter(function (b) { return /Open in RM/.test(b.textContent); })[0].click();
+    var rows14 = await until(function () { var r = qa('.pf-row'); return r.length >= 5 && r; }, 8000);
+    var order = (rows14 || []).map(function (e) { return e.dataset.row; }), heads14 = qa('.pf-gh').map(function (x) { return x.textContent; }), at = function (id) { return order.indexOf(id); };
+    check('the Portfolio is a list: what RM assigned you first, then Quick notes, your own projects, earlier assignments, each group under its heading', JSON.stringify(heads14) === JSON.stringify(['Assigned to you in RM', 'Your projects', 'Earlier assignments']) && at('rm-f-gels-career') >= 0 && at('rm-p-source-and-sink') >= 0 && Math.max(at('rm-f-gels-career'), at('rm-p-source-and-sink')) < at('quick') && at('quick') < at('pj1') && at('pj1') < at('rm-f-old'), JSON.stringify([order, heads14]) + (order.length ? '' : ' ' + W.location.hash + ' ' + ev("(function () { try { VIEWS.portfolio.render(); return 'renders'; } catch (e) { return String(e.stack || e).slice(0, 500); } })()")));
+    function prow(id) { return q('.pf-row[data-row="' + id + '"]'); }
+    async function openRow(id) { var r = prow(id); if (!r) return null; var nm = r.querySelector('.pf-rn').textContent; r.click(); var t = await until(function () { var x = prow(id), tt = q('.pf-det .pf-title'); return x && x.getAttribute('aria-current') === 'true' && tt && tt.textContent === nm && tt; }, 5000); await sleep(150); return t; }   // the page swaps after a view transition: wait for its title
+    var g = prow('rm-f-gels-career');
+    check('an assigned project says what it is in RM and your role', !!g && /Grant · submitted · assigned · secondary/.test(g.textContent), g ? g.textContent.slice(0, 200) : 'none');
+    var t14 = await openRow('rm-f-gels-career'), det14 = q('.pf-det'), lead14 = det14 && det14.querySelector('.pf-lead');
+    check('…opened beside the list: its name, its line and what it builds on', !!t14 && /CAREER: granular microgels/.test(t14.textContent) && !!lead14 && /Design rules for cell-driven/.test(lead14.textContent) && /builds on GELS energy landscape/.test(lead14.textContent), det14 ? det14.textContent.slice(0, 240) : 'none');
+    var aimSec = Array.from(det14.querySelectorAll('.pf-sec')).filter(function (x) { return /Aim 1 — Map the landscape/.test((x.querySelector('.pf-sn') || {}).textContent || ''); })[0];
+    check('…its aim is a theme: its question, “aim in RM”, and the note under Experiments', !!aimSec && /Size and stiffness/.test(aimSec.textContent) && /aim in RM/.test(aimSec.textContent) && !!aimSec.querySelector('.pf-g[data-g="exp"] .pf-n[data-doc="' + an + '"]'), aimSec ? aimSec.textContent.slice(0, 200) : 'none');
+    var nOpened = W.__opened.length; Array.from(det14.querySelectorAll('.pf-acts button')).filter(function (b) { return /Open in RM/.test(b.textContent); })[0].click();
     check('Open in RM opens the card on the research map', W.__opened.slice(nOpened).indexOf('/rm/pages/research.html?id=gels-career') >= 0, JSON.stringify(W.__opened.slice(nOpened)));
-    var top0 = parseFloat(reg('rm-p-source-and-sink').style.top);
-    g.querySelector('.lab-reg-tog').click();
-    var shut = await until(function () { var x = reg('rm-f-gels-career'); return x && x.classList.contains('shut') && parseFloat(reg('rm-p-source-and-sink').style.top) < top0 && x; }, 4000);
-    var LS = function () { return JSON.parse(W.localStorage.getItem('sis:lab:portfolio') || '{}'); };
-    check('the arrow folds a region to its header (the next one moves up) and remembers it', !!shut && !shut.querySelector('.dcard') && LS().open['rm-f-gels-career'] === false);
-    check('…a folded region stands for its notes in the connections', W.SIS_LAB.portfolio.links >= 1);
-    reg('rm-f-gels-career').querySelector('.lab-reg-tog').click();
-    await until(function () { return !reg('rm-f-gels-career').classList.contains('shut'); }, 4000);
-    var s = reg('rm-p-source-and-sink'), hd = s.querySelector('.lab-reg-h'), x0 = parseFloat(s.style.left), y0 = parseFloat(s.style.top), z = W.SIS_LAB.portfolio.paper.view.z;
-    var pe = function (type, x, y) { hd.dispatchEvent(new W.PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, pointerId: 7, isPrimary: true })); };
-    pe('pointerdown', 200, 200); pe('pointermove', 260, 230); pe('pointermove', 400, 300); pe('pointerup', 400, 300);
-    var moved = await until(function () { return Math.abs(parseFloat(s.style.left) - (x0 + 200 / z)) < 2 && Math.abs(parseFloat(s.style.top) - (y0 + 100 / z)) < 2; }, 3000);
-    check('dragging a region by its header moves it on the canvas', !!moved, [x0, y0, s.style.left, s.style.top, z].join(' '));
-    var st = LS();
-    check('…and the first move pins every region where it is', st.pinned === true && order.every(function (id) { return !!st.pos[id]; }) && Math.abs(st.pos['rm-p-source-and-sink'].x - (x0 + 200 / z)) < 2, JSON.stringify(st.pos));
-    var qTop = parseFloat(reg('quick').style.top);
-    reg('rm-f-gels-career').querySelector('.lab-reg-tog').click();
-    await until(function () { return reg('rm-f-gels-career').classList.contains('shut'); }, 4000); await sleep(120);
-    check('once pinned, folding one leaves the others in place', parseFloat(reg('quick').style.top) === qTop);
+    var an14 = det14.querySelector('.pf-n[data-doc="' + an + '"]'); an14.dispatchEvent(new W.MouseEvent('mouseenter'));
+    check('the note-to-note connection: the note says ↔, and hovering it lights the project that holds the other note', /↔/.test((an14.querySelector('.pf-lk') || {}).textContent || '') && prow('rm-p-source-and-sink').classList.contains('lit'));
+    an14.dispatchEvent(new W.MouseEvent('mouseleave'));
+    check('an earlier assignment is muted and says so', prow('rm-f-old').classList.contains('shut') && /no longer assigned/.test(prow('rm-f-old').textContent));
+    await openRow('quick');
+    check('Quick notes lists the notes outside any project, with + Quick note', /Plan for coverslips/.test(q('.pf-det').textContent) && qa('.pf-det .pf-acts button').some(function (b) { return /\+ Quick note/.test(b.textContent); }));
+    qa('.pf-lh .pf-seg button').filter(function (b) { return b.dataset.k === 'az'; })[0].click(); await sleep(300);
+    var LS = function () { return JSON.parse(W.localStorage.getItem('sis:pf:view') || '{}'); };
+    check('the list’s order (A–Z here) and the open project are remembered on this device', LS().sort === 'az' && LS().sel === 'quick', JSON.stringify(LS()));
     go('#/home'); await sleep(300); go('#/portfolio');
-    var back = await until(function () { var x = reg('rm-p-source-and-sink'); return x && Math.abs(parseFloat(x.style.left) - st.pos['rm-p-source-and-sink'].x) < 1 && x; }, 6000);
-    check('positions and folding survive leaving and coming back', !!back && reg('rm-f-gels-career').classList.contains('shut'));
-    W.SIS_LAB.tidyPortfolio();
-    check('Tidy up flows them again', !!(await until(function () { return !LS().pinned && reg('rm-p-source-and-sink') && parseFloat(reg('rm-p-source-and-sink').style.left) === 0; }, 6000)));
-    reg('rm-f-gels-career').querySelector('.lab-reg-tog').click();
+    check('…leaving and coming back opens the same one', !!(await until(function () { var x = prow('quick'); return x && x.getAttribute('aria-current') === 'true'; }, 6000)));
+    qa('.pf-lh .pf-seg button').filter(function (b) { return b.dataset.k === 'relevant'; })[0].click();
     go('#/project/rm-f-gels-career');
     var pv = await until(function () { return q('.lab-rm-proj'); }, 6000);
     check('an assigned project\'s page has its RM line and links, and no Rename (the name is RM\'s)', !!pv && /Grant in RM · submitted · assigned to you/.test(pv.textContent) && /Open the draft/.test(pv.textContent) && !qa('.page button').filter(function (b) { return b.textContent.trim() === 'Rename'; }).length);
@@ -457,8 +443,8 @@
     function rowsOf(tid) { return JSON.parse(ev("JSON.stringify(DB.get('templates', '" + tid + "').blocks.map(function (b) { return b.label; }))")); }
     function stdTpl(type) { return ev("(DB.all('templates').filter(function (t) { return t.type === '" + type + "' && t.isStandard; })[0] || {}).id"); }
     function btnText(re) { return Array.from(D.querySelectorAll('.ovl button')).filter(function (b) { return re.test(b.textContent); })[0]; }
-    go('#/portfolio'); await until(function () { return q('.lab-pf-bar'); }, 6000);
-    Array.from(q('.lab-pf-bar').querySelectorAll('button')).filter(function (b) { return /\+ Quick note/.test(b.textContent); })[0].click();
+    go('#/portfolio'); await until(function () { return q('.pf-foot'); }, 6000);
+    Array.from(q('.pf-foot').querySelectorAll('button')).filter(function (b) { return /\+ Quick note/.test(b.textContent); })[0].click();
     var hm = await until(function () { return /^#\/doc\//.test(W.location.hash) && head(); }, 6000);
     var qid = W.location.hash.split('/')[2];
     check('+ Quick note opens a note at once — no dialog — outside any project, its details in its first block (title, type, template, project, theme)', !!hm && !q('.ovl') && ev("!M.doc('" + qid + "').projectId") && ['title', 'type', 'tpl', 'proj', 'theme'].every(function (k) { return !!hm.querySelector('.lab-h-' + k); }));
@@ -513,9 +499,12 @@
     var nOnly = W.SIS_LAB.kick.onlys.length;
     shareCtl.querySelector('button[data-share="lab"]').click();
     check('Lab members shares it and asks the hub to update RM’s list', ev("M.doc('" + an + "').share") === 'lab' && !!(await until(function () { return W.SIS_LAB.kick.onlys.slice(nOnly).some(function (o) { return /notes/.test(o); }) && W.__hubCalls.some(function (c) { return c.path === 'api/rm/sync' && /only=notes/.test(c.full); }); }, 8000)));
-    go('#/portfolio');
-    check('…a shared note is marked on its card', !!(await until(function () { var c = q('.lab-reg[data-region="rm-f-gels-career"] .dcard[data-doc="' + an + '"]'); return c && /lab/.test(c.querySelector('.row').textContent); }, 6000)));
-    check('the quick notes are in the Quick notes region; one stored in a project left it for the project’s region', !!(await until(function () { var r = reg('quick'); return r && r.querySelector('.dcard[data-doc="' + qid + '"]') && !r.querySelector('.dcard[data-doc="' + qid2 + '"]') && q('.lab-reg[data-region="rm-p-source-and-sink"] .dcard[data-doc="' + qid2 + '"]'); }, 6000)));
+    go('#/portfolio'); await until(function () { return prow('rm-f-gels-career'); }, 6000); await openRow('rm-f-gels-career');
+    check('…a shared note is marked on its row', !!(await until(function () { var c = q('.pf-det .pf-n[data-doc="' + an + '"]'); return c && /lab/.test((c.querySelector('.pill.teal') || {}).textContent || ''); }, 6000)));
+    await openRow('quick');
+    var inQuick = !!(await until(function () { return q('.pf-det .pf-n[data-doc="' + qid + '"]'); }, 4000)) && !q('.pf-det .pf-n[data-doc="' + qid2 + '"]');
+    await openRow('rm-p-source-and-sink');
+    check('the quick notes are under Quick notes; one stored in a project left it for the project', inQuick && !!(await until(function () { return q('.pf-det .pf-n[data-doc="' + qid2 + '"]'); }, 6000)));
     /* 15. V3.882 — the canvas pills */
     go('#/doc/' + an);
     var pills = await until(function () { var p = qa('.canvas-host .lab-pills .lab-pill'); return p.length === 4 && p; }, 6000);
@@ -840,10 +829,14 @@
     check('…and filtering by one keeps its reviews', !!(await until(function () { return q('.lab-lr-filter') && q('.lab-lr-filter').value === 'pj1' && q('.lab-lrcard[data-doc="' + rvId + '"]'); }, 4000)));
     W.SIS_LAB.reviewsView.filter = '';
     go('#/portfolio');
-    var gReg = await until(function () { return reg('rm-f-gels-career') && reg('pj1') && reg('rm-f-gels-career'); }, 6000);
-    var inCol = function (r) { return [].some.call(r.querySelectorAll('.lab-col'), function (c) { return /Lit reviews/.test((c.querySelector('.lab-col-h') || {}).textContent || '') && c.querySelector('.dcard[data-doc="' + rvId + '"]'); }); };
-    check('the Portfolio shows it in every linked project’s region (a Lit reviews column) and counts it', !!gReg && inCol(gReg) && inCol(reg('pj1')) && /1 lit review/.test(gReg.querySelector('.ps').textContent));
-    check('…and never among the Quick notes', !reg('quick').querySelector('.dcard[data-doc="' + rvId + '"]') && !ev("GENERAL.docs().some(function (d) { return d.id === '" + rvId + "'; })"));
+    await until(function () { return prow('rm-f-gels-career') && prow('pj1'); }, 6000);
+    await openRow('rm-f-gels-career');
+    var litG = !!(await until(function () { return q('.pf-det .pf-lit .pf-n[data-doc="' + rvId + '"]'); }, 4000)), litStats = (q('.pf-det .pf-stats') || {}).textContent || '';
+    await openRow('pj1');
+    var litP = !!(await until(function () { return q('.pf-det .pf-lit .pf-n[data-doc="' + rvId + '"]'); }, 4000));
+    check('the Portfolio shows it in every linked project’s Lit reviews and counts it', litG && litP && /1 lit review/.test(litStats), litStats);
+    await openRow('quick');
+    check('…and never among the Quick notes', !q('.pf-det .pf-n[data-doc="' + rvId + '"]') && !ev("GENERAL.docs().some(function (d) { return d.id === '" + rvId + "'; })"));
     go('#/project/pj1');
     var pv = await until(function () { return q('.lab-pv-lr .lab-lrcard[data-doc="' + rvId + '"]'); }, 6000);
     check('a linked project’s page lists it under Literature reviews', !!pv);
@@ -933,16 +926,17 @@
     /* projects */
     ev("(function () { DB.put('projects', { id: 'p_shared19', name: 'Their project', status: 'active', created: '2026-10-24T09:00:00', sharedFrom: { uid: 'u-alex', name: 'Alex McGhee', role: 'edit', share: 'u-alex__p__p_shared19' } }); changed(); })()");
     go('#/portfolio');
-    var pr19 = await until(function () { return reg('pj1') && reg('p_shared19') && reg('pj1'); }, 6000);
-    var pb19 = pr19 && pr19.querySelector('.lab-reg-h .lab-sharebtn'), prr = pr19 && pr19.querySelector('.lab-reg-h').getBoundingClientRect(), pbr = pb19 && pb19.getBoundingClientRect();
-    check('a project region has the same button at the top right of its header', !!pb19 && prr.right - pbr.right < 24 && pbr.top - prr.top < 24, pb19 ? JSON.stringify([prr.right - pbr.right, pbr.top - prr.top]) : 'none');
+    await until(function () { return prow('pj1') && prow('p_shared19'); }, 6000);
+    await openRow('pj1');
+    var pb19 = q('.pf-det .pf-acts .lab-sharebtn'), sh19 = prow('p_shared19'), gh19 = sh19 && sh19.closest('.pf-grp').querySelector('.pf-gh');
+    check('an open project has the same button beside its title; one shared with you is in its own group and says by whom', !!pb19 && !!gh19 && gh19.textContent === 'Shared with you' && /Shared by Alex McGhee · you work on it together/.test(sh19.textContent), sh19 ? sh19.textContent.slice(0, 120) : 'none');
     pb19.click();
     var pp19 = await until(function () { return q('.lab-sharepop[data-share-kind="project"] .lab-sh-row[data-uid="u-cy"]'); }, 4000);
     pp19.querySelector('button[data-role="read"]').click();
     check('…sharing the project puts the grant on the project', ev("JSON.stringify(M.project('pj1').shareWith)") === '{"u-cy":"read"}');
     D.dispatchEvent(new W.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    var sr19 = reg('p_shared19');
-    check('a project shared with you has its own group, says whose it is, and (collaborating) lets you add a note', !!sr19 && sr19.classList.contains('lab-shared') && /Shared by Alex McGhee · you work on it together/.test(sr19.querySelector('.pk').textContent) && /\+ Note/.test(sr19.querySelector('.lab-reg-a').textContent));
+    await openRow('p_shared19');
+    check('a project shared with you says whose it is, and (collaborating) lets you add a note', /Shared by Alex McGhee · you work on it together/.test((q('.pf-det .eyebrow') || {}).textContent || '') && qa('.pf-det .pf-acts button').some(function (b) { return /\+ Note/.test(b.textContent); }), (q('.pf-det .eyebrow') || {}).textContent);
     /* 20. V3.901 — read a paper beside the note; clip its figures and equations onto the canvas (wired; faint unless on their page) */
     var cn = ev("(function () { var d = M.createDoc({ type: 'note', projectId: null, themeId: null, title: 'Clip test', templateId: null }); d = M.doc(d.id);"
       + " DB.put('media', { id: 'm_fig', kind: 'pdf', path: 'images/m_fig.pdf', name: 'pdf-figure.pdf', created: d.created });"
