@@ -342,7 +342,11 @@
       var data = await api.load('lab/users.json');
       var users = (data && data.users) || [];
       // Filter out guests (mirror firebridge.isLabMember()), sort by name.
+      // V3.989 — members are keyed by document id; their records have no
+      // `uid` field, so reading only u.uid left this list empty (the
+      // contributors in Post to website, and the admin author picker).
       _rosterCache = users
+        .map(function (u) { return u ? Object.assign({}, u, { uid: u.uid || u.id }) : u; })
         .filter(function (u) { return u && u.uid && LAB_USERS.isVisible(u); })
         .sort(function (a, b) {
           return ((a.name || a.email || a.uid) + '').toLowerCase().localeCompare(

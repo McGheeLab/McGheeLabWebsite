@@ -57,15 +57,48 @@
 
   /* ── Load & render ── */
 
+  var LIST = 'protocols/list.json';
+
   async function load() {
     setStatus('Loading…');
     try {
-      var data = await api.load('protocols/list.json');
+      var data = await api.load(LIST);
       protocols = (data && data.protocols) || [];
       setStatus('');
       render();
+      revalidate();
     } catch (err) {
       setStatus('Failed to load protocols: ' + err.message, 'error');
+    }
+  }
+
+  /* V3.989 — the list above usually comes from the browser's cache: a
+   * 30-minute window (MEDIUM), refreshed in the background only after it
+   * expires, so a protocol made or uploaded in the meantime — by you or
+   * anyone — was missing for up to half an hour, then showed a visit later.
+   * So after drawing it, ask for the protocol changed most recently (one
+   * read) and reload the list if that one is newer than anything shown, or
+   * not shown at all. */
+  async function revalidate() {
+    try {
+      if (typeof firebridge === 'undefined' || !firebridge.db) return;
+      var snap = await firebridge.db().collection('protocols')
+        .orderBy('updated_at', 'desc').limit(1).get();
+      if (snap.empty) return;
+      var top = snap.docs[0];
+      var topAt = String(top.data().updated_at || '');
+      var newest = protocols.reduce(function (m, p) {
+        var t = String(p.updated_at || '');
+        return t > m ? t : m;
+      }, '');
+      var shown = protocols.some(function (p) { return p.id === top.id; });
+      if (shown && topAt <= newest) return;
+      await api.invalidate(LIST);
+      var fresh = await api.load(LIST);
+      protocols = (fresh && fresh.protocols) || [];
+      render();
+    } catch (err) {
+      console.warn('[protocols] list refresh failed:', err && err.message);
     }
   }
 
@@ -231,6 +264,9 @@
     setStatus('Deleting “' + (p.title || p.id) + '”…');
     try {
       await deleteProtocolDeep(p.id);
+      // V3.989 — the cached list still holds it; drop the cache so it does
+      // not come back on the next visit
+      try { await api.invalidate(LIST); } catch (e) { /* the next refresh drops it */ }
       protocols = protocols.filter(function (x) { return x.id !== p.id; });
       setStatus('Deleted “' + (p.title || p.id) + '”.');
       render();
@@ -454,6 +490,18 @@
     if (!f) return;
     try {
       var text = await _readFileAsText(f);
+      // V3.989 — a web page is not an import: hand it to Upload HTML
+      if (/\.html?$/i.test(f.name) || /^\s*<(?:!doctype|html|head|body)/i.test(text)) {
+        if (htmlModal && window.ProtocolHtml) {
+          closeImportModal();
+          openHtmlModal();
+          try { var dt = new DataTransfer(); dt.items.add(f); htmlFile.files = dt.files; } catch (e) { /* choose it again */ }
+          onHtmlFile();
+        } else {
+          _showImportError('That is a web page, not a protocol JSON file. Use Upload HTML for it.');
+        }
+        return;
+      }
       importPasteArea.value = ''; // file wins over paste
       var pr = window.PROTOCOL_IMPORT.parseJson(text);
       if (!pr.ok) {

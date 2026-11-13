@@ -266,14 +266,19 @@
     built.chunks.forEach(function (data, n) { batch.set(content.doc('html-' + n), { n: n, data: data }); });
     // a shorter file than last time: drop the pieces it no longer has
     for (var k = built.chunks.length; k < postedChunks(prev); k++) batch.delete(content.doc('html-' + k));
-    await batch.commit();
+    try { await batch.commit(); }
+    catch (err) { err.step = 'writing the public copy'; throw err; }
     var update = {
       status: 'published',
       published_at: built.card.published_at,
       public_updated_at: built.card.updated_at,
+      // V3.989 — same instant as the copy, so the list sees the change and
+      // the protocol does not read as "edited since it was posted"
+      updated_at: built.card.updated_at,
       contributors: built.card.contributors,
     };
-    await db().collection('protocols').doc(protocolId).update(update);
+    try { await db().collection('protocols').doc(protocolId).update(update); }
+    catch (err) { err.step = 'marking the protocol as posted (the public copy is up)'; throw err; }
     return { card: built.card, report: built.report, update: update };
   }
 
@@ -297,6 +302,7 @@
       status: (nextStatus && nextStatus !== 'published') ? nextStatus : 'draft',
       published_at: null,
       public_updated_at: null,
+      updated_at: new Date().toISOString(),   // V3.989 — the list sees the change
     };
     await db().collection('protocols').doc(protocolId).update(update);
     return update;
@@ -320,12 +326,16 @@
     return !!err && (err.code === 'permission-denied' ||
       /insufficient permissions/i.test(String(err.message || '')));
   }
+  /* V3.989 — says which step failed and the database's own reason, so a
+   * failure can be reported in a sentence instead of reproduced. */
   function errorText(err, doing) {
+    var detail = ' [' + ((err && err.step) ? err.step + ': ' : '') +
+      ((err && err.code) || 'error') + (err && err.message ? ' — ' + err.message : '') + ']';
     if (denied(err)) {
       return 'The website would not accept this. Only the protocol’s owner or the PI can ' + doing +
-        '. If that is you, the website’s rules for protocols may not be live yet — ask Alex.';
+        '. If that is you, the website’s rules for protocols may not be live yet — ask Alex.' + detail;
     }
-    return 'That did not work: ' + ((err && err.message) || err);
+    return 'That did not work.' + detail;
   }
 
   /* opts: {
@@ -595,7 +605,12 @@
         opts.loadRoster().catch(function () { return []; }),
       ]);
       view.pub = loaded[0];
-      view.roster = (loaded[1] || []).filter(function (u) { return u && u.uid && String(u.name || '').trim(); });
+      // V3.989 — a lab member's record is keyed by its document id; it has
+      // no `uid` field (neither sign-up path writes one). Reading only u.uid
+      // dropped everyone and the dialog said the roster did not load.
+      view.roster = (loaded[1] || [])
+        .map(function (u) { return u ? Object.assign({}, u, { uid: u.uid || u.id }) : u; })
+        .filter(function (u) { return u && u.uid && String(u.name || '').trim(); });
       renderState();
       renderPeople();
       renderCard();

@@ -32,7 +32,8 @@
     saveState: $('prh-savestate'),
   };
 
-  var state = { doc: null, html: '', frame: null, canEdit: false, saveTimer: null, publishUI: null, roster: null };
+  var state = { doc: null, html: '', frame: null, canEdit: false, saveTimer: null, publishUI: null, roster: null,
+    fileLoad: null };   // V3.989 — the file's load; posting waits for it
 
   function setStatus(text) {
     els.status.textContent = text || '';
@@ -173,7 +174,9 @@
   async function loadRoster() {
     if (state.roster) return state.roster;
     var data = await api.load('lab/users.json');
+    // V3.989 — members are keyed by document id; there is no `uid` field
     state.roster = ((data && data.users) || [])
+      .map(function (u) { return u ? Object.assign({}, u, { uid: u.uid || u.id }) : u; })
       .filter(function (u) { return u && u.uid && LAB_USERS.isVisible(u); });
     return state.roster;
   }
@@ -254,6 +257,8 @@
         getTree: async function () { return state.doc.tree; },
         getHtml: async function () {
           if (state.saveTimer) { clearTimeout(state.saveTimer); await saveDetails(); }
+          if (!state.html && state.fileLoad) await state.fileLoad;
+          if (!state.html) throw new Error('The file has not loaded, so there is nothing to post. Reload the page.');
           return state.html;
         },
         loadRoster: loadRoster,
@@ -262,12 +267,13 @@
     }
 
     setStatus('Loading the file…');
-    try {
-      showFile(await H.readRevision(db, protocolId, state.doc.html_file));
-    } catch (err) {
-      console.error('[protocol-html-view] file load failed:', err);
-      setStatus('The file could not be loaded: ' + (err.message || err));
-    }
+    state.fileLoad = H.readRevision(db, protocolId, state.doc.html_file)
+      .then(showFile)
+      .catch(function (err) {
+        console.error('[protocol-html-view] file load failed:', err);
+        setStatus('The file could not be loaded: ' + (err.message || err));
+      });
+    await state.fileLoad;
   }
 
   boot().catch(function (err) {

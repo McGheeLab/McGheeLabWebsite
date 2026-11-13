@@ -1,6 +1,8 @@
 # Architecture
 
-**Version:** V3.988 (Scientia: the Portfolio is two panes — `scientia/src/15-portfolio.js` `PortfolioView` + `PFLIST`, the list of projects and the open one, with hooks the lab layer fills (`rm/scientia/lab-mode.js` §10 gives its groups and buttons; its region canvas is gone); the results kinds and six relations in `13zzi-kinds.js`, read by `PFKIT.dots`, `SYNTH.gather` and an aim's evidence. Before: V3.987 — HTML protocols: `rm/js/protocol-html.js` stores an uploaded HTML file in `protocols/{id}/html/r{rev}-{n}` pieces and shows it in a sandboxed srcdoc frame; `protocol-html-view.js` is `?view=html`; posting writes `content/html-{n}` — see the protocols section)
+**Version:** V3.989 (Protocols: the list re-checks the newest `updated_at` after drawing its 30-minute cache, so a new, uploaded or posted protocol shows at once; posting stamps `updated_at`; a failed post names the step — see the protocols section)
+
+**Prior:** V3.988 (Scientia: the Portfolio is two panes — `scientia/src/15-portfolio.js` `PortfolioView` + `PFLIST`, the list of projects and the open one, with hooks the lab layer fills (`rm/scientia/lab-mode.js` §10 gives its groups and buttons; its region canvas is gone); the results kinds and six relations in `13zzi-kinds.js`, read by `PFKIT.dots`, `SYNTH.gather` and an aim's evidence. Before: V3.987 — HTML protocols: `rm/js/protocol-html.js` stores an uploaded HTML file in `protocols/{id}/html/r{rev}-{n}` pieces and shows it in a sandboxed srcdoc frame; `protocol-html-view.js` is `?view=html`; posting writes `content/html-{n}` — see the protocols section)
 
 **Prior:** V3.986 (Protocols on the lab website: `rm/js/protocol-publish.js` copies a posted protocol to `publicProtocols/{id}` + `content/current`; the public site's `#/protocols` list and `#/protocols/{id}` page (`protocol-view.html` in a frame, the lab's renderer); `ProtocolDocRender.renderDocument` shared by both; the working `protocols/{id}` doc is lab-only — see the section below)
 
@@ -216,6 +218,9 @@ protocols/{id}  (working doc, Yjs, lab-only)       ├─▶ #/protocols        
   `<base href="about:srcdoc">` keeps the file's `#section` links inside it (a srcdoc document otherwise resolves
   against the parent's URL). Posted as `content/html-{n}` in one batch (≤ 7.5 MB); the public page mounts the same
   frame. RM: `?protocol=<id>&view=html`; the editor, doc and cheat views redirect there.
+- **The list is cached (V3.989).** `protocols/list.json` is a 30-minute route cache; `protocols.js` draws it, then
+  checks the protocol with the newest `updated_at` (one read) and reloads when the list is behind. Every write that
+  should move the list stamps `updated_at` (posting and taking down included); deleting invalidates the route.
 
 ## Paper builder: one page description, two renderers, measured against real papers (V3.906–V3.914)
 

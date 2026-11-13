@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" data-protocol-mode="list">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>V3.989 harness — the Protocols list and its cache</title>
+  <!--
+    V3.989 — "I uploaded an HTML protocol but don't see it on the Protocols
+    page." The list is served from the browser's route cache (30 minutes);
+    a protocol created in that window was missing until the cache expired,
+    then appeared a visit later. protocols.js now checks, on every visit,
+    whether a protocol newer than the list exists (one read).
+
+      python3 -m http.server 8000     (repo root)
+      http://localhost:8000/scripts/tests/v3989-protocol-list-harness.html
+
+    Real: util.js (the base `api`), local-cache.js (IndexedDB — survives a
+    reload, as in a browser), api-firestore-adapter.js, api-routes.js,
+    protocol-schemas.js, protocol-html.js, protocol-publish.js, protocols.js,
+    and the list-mode markup, taken from rm/pages/protocols.html at load.
+    Faked: firebridge — an in-memory Firestore kept in localStorage (so it
+    survives a reload too); orderBy(field) skips documents without that
+    field, as Firestore does. __h.reads counts reads since the page loaded.
+
+    __h.store / __h.save()  the fake database
+    __h.reset()             empty it and the browser cache
+  -->
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/paper-editor.css">
+  <link rel="stylesheet" href="/rm/css/protocol-editor.css">
+  <script src="/rm/js/icons.js"></script>
+</head>
+<body>
+  <div id="h-mount"></div>
+  <script>
+    window.__PROTOCOL_MODE = 'list';
+    var KEY = 'v3989-fake-firestore';
+    var H_ = window.__h = {
+      store: JSON.parse(localStorage.getItem(KEY) || '{}'),
+      reads: 0,
+      save: function () { localStorage.setItem(KEY, JSON.stringify(H_.store)); },
+      reset: async function () {
+        localStorage.removeItem(KEY);
+        H_.store = {};
+        if (window.LOCAL_CACHE) await LOCAL_CACHE.clearAll();
+      },
+    };
+    function clone(v) { return v === undefined ? v : JSON.parse(JSON.stringify(v)); }
+    function snapOf(path) {
+      return { id: path.split('/').pop(), exists: path in H_.store, ref: docRef(path),
+        data: function () { return clone(H_.store[path]); } };
+    }
+    function docRef(path) {
+      return {
+        id: path.split('/').pop(), path: path,
+        get: async function () { H_.reads++; return snapOf(path); },
+        set: async function (d) { H_.store[path] = clone(d); H_.save(); },
+        update: async function (d) { H_.store[path] = Object.assign({}, H_.store[path], clone(d)); H_.save(); },
+        delete: async function () { delete H_.store[path]; H_.save(); },
+        collection: function (n) { return query(path + '/' + n); },
+      };
+    }
+    function query(path, opts) {
+      opts = opts || {};
+      var q = {
+        doc: function (id) { return docRef(path + '/' + id); },
+        where: function (f, op, v) { return query(path, Object.assign({}, opts, { where: [f, op, v] })); },
+        orderBy: function (f, dir) { return query(path, Object.assign({}, opts, { orderBy: [f, dir || 'asc'] })); },
+        limit: function (n) { return query(path, Object.assign({}, opts, { limit: n })); },
+        get: async function () {
+          var depth = path.split('/').length + 1;
+          var paths = Object.keys(H_.store).filter(function (k) { return k.indexOf(path + '/') === 0 && k.split('/').length === depth; });
+          var rows = paths.map(snapOf);
+          if (opts.where) rows = rows.filter(function (r) { return r.data()[opts.where[0]] === opts.where[2]; });
+          if (opts.orderBy) {
+            var f = opts.orderBy[0], desc = opts.orderBy[1] === 'desc';
+            // Firestore: ordering by a field leaves out every document without it
+            rows = rows.filter(function (r) { return r.data()[f] !== undefined; });
+            rows.sort(function (a, b) { var x = a.data()[f], y = b.data()[f]; return (x < y ? -1 : x > y ? 1 : 0) * (desc ? -1 : 1); });
+          }
+          if (opts.limit) rows = rows.slice(0, opts.limit);
+          H_.reads += Math.max(1, rows.length);
+          return { empty: !rows.length, size: rows.length, docs: rows };
+        },
+      };
+      return q;
+    }
+    var fakeDb = {
+      collection: function (n) { return query(n); },
+      doc: function (p) { return docRef(p); },
+      batch: function () {
+        var ops = [];
+        return {
+          set: function (r, d) { ops.push(function () { return r.set(d); }); },
+          update: function (r, d) { ops.push(function () { return r.update(d); }); },
+          delete: function (r) { ops.push(function () { return r.delete(); }); },
+          commit: async function () { for (var i = 0; i < ops.length; i++) await ops[i](); },
+        };
+      },
+    };
+    window.firebridge = {
+      getUser: function () { return { uid: 'u-ana', email: 'ana@example.edu', displayName: 'Ana Ruiz' }; },
+      getProfile: function () { return { name: 'Ana Ruiz' }; },
+      isAdmin: function () { return false; },
+      isLabMember: function () { return true; },
+      requireSignIn: async function () { return { allowed: true }; },
+      whenAuthResolved: async function () {},
+      onAuth: function () {},
+      notifyAccessIssue: function () {},
+      collection: function (n) { return query(n); },
+      getDoc: async function (c, id) { var s = snapOf(c + '/' + id); return s.exists ? Object.assign({ id: id }, s.data()) : null; },
+      db: function () { return fakeDb; },
+    };
+    window.confirm = function () { return true; };
+  </script>
+  <script src="/rm/js/util.js"></script>
+  <script src="/rm/js/local-cache.js"></script>
+  <script>
+    // tests can swap in another adapter / list script with ?adapter=… / ?list=…
+    var qp = new URLSearchParams(location.search);
+    window.__adapterSrc = qp.get('adapter') || '/rm/js/api-firestore-adapter.js';
+    window.__listSrc = qp.get('list') || '/rm/js/protocols.js';
+    document.write('<script src="' + window.__adapterSrc + '"><\/script>');
+  </script>
+  <script src="/rm/js/api-routes.js"></script>
+  <script src="/rm/js/protocol-schemas.js"></script>
+  <script src="/rm/js/protocol-html.js"></script>
+  <script src="/rm/js/protocol-publish.js"></script>
+  <script>
+    // the list-mode markup, as rm/pages/protocols.html has it
+    window.__ready = fetch('/rm/pages/protocols.html').then(function (r) { return r.text(); }).then(function (text) {
+      var doc = new DOMParser().parseFromString(text, 'text/html');
+      var mount = document.getElementById('h-mount');
+      doc.querySelectorAll('body > .pr-list-mode').forEach(function (el) { mount.appendChild(document.importNode(el, true)); });
+      ICON.hydrate(mount);
+      return new Promise(function (resolve) {
+        var s = document.createElement('script');
+        s.src = window.__listSrc;
+        s.onload = resolve;
+        document.body.appendChild(s);
+      });
+    });
+  </script>
+</body>
+</html>

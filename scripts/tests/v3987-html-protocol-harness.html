@@ -129,11 +129,13 @@
       db: function () { return fakeDb; },
     };
     window.api = { load: async function (route) {
+      // V3.989 — as the adapter returns them: { id, …the doc } — a member's
+      // record has no `uid` field (the roster bug was reading only u.uid)
       if (route === 'lab/users.json') return { users: [
-        { uid: 'u-pi', name: 'Alex Example', role: 'admin', category: 'pi' },
-        { uid: 'u-ana', name: 'Ana Ruiz', role: 'editor', category: 'grad' },
-        { uid: 'u-ben', name: 'Ben Okafor', role: 'editor', category: 'undergrad' },
-        { uid: 'u-guest', name: 'A Guest', role: 'guest' },
+        { id: 'u-pi', name: 'Alex Example', role: 'admin', category: 'pi' },
+        { id: 'u-ana', name: 'Ana Ruiz', role: 'editor', category: 'grad' },
+        { id: 'u-ben', name: 'Ben Okafor', role: 'editor', category: 'undergrad' },
+        { id: 'u-guest', name: 'A Guest', role: 'guest' },
       ] };
       return null;
     } };

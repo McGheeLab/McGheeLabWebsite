@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (87 changes — ready to push)
+## Pending (88 changes — ready to push)
+
+- Fixed: **Post to website** said "The lab roster did not load", so nobody could be credited on a protocol — the list of lab members now loads. Also: a protocol you just made, uploaded or posted now shows on the Protocols list straight away, as Published once posted (it could take half an hour), and if posting fails, the message says exactly what went wrong.
 
 - **Scientia's Portfolio is a list (V3.988):** your projects, most active first; open one and its themes, experiments, notes and lit reviews appear beside the list, with a switch for each kind. And six new component kinds for results: Result, Insight, Mechanism, Control, Anomaly and Caveat, with links such as "correlates with" and "reveals".
 

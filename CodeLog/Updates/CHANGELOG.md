@@ -4,6 +4,54 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.989] — 2026-11-13 — Protocols: the contributors list loads; the list shows a new, uploaded or posted protocol at once; a failed post says what failed
+
+Alex: "I uploaded a html protocol, but I don't see it on the Protocols page, and I can't upload it to the public facing
+webpage." Plan: [CodeLog/ClaudesPlan/V3.989_protocol_list_freshness.md](../ClaudesPlan/V3.989_protocol_list_freshness.md).
+
+### Bug Fixes
+- **"The lab roster did not load" in Post to website** (Alex's screenshot of the dialog). The three roster readers
+  (`protocol-publish.js` dialog, `protocol-html-view.js` `loadRoster`, `protocol-editor.js` `_loadRoster`) kept only
+  members with a `uid` field — but a member's record is keyed by its document id and neither sign-up path
+  (`profile-bootstrap.js`, `user-system.js`) writes `uid`, so every member was dropped: no contributors could be
+  picked for any protocol, and the editor's admin "Edit author & creation date" picker was empty too. Now
+  `uid: u.uid || u.id`, as `sharing.js` and `task-market.js` already do. The V3.987 harness roster had `uid` fields,
+  which hid it; it now mirrors the real records (`id`, no `uid`). Reproduced: with the V3.989-before-this code the
+  harness dialog shows the same sentence; with the fix the 48-check suite passes, two contributors posted.
+- **The Protocols list hid new protocols for up to half an hour.** `protocols/list.json` is a MEDIUM (30 min) route
+  cache refreshed in the background only after it expires, and `protocols.js` never re-checked it (the route comment's
+  LIVE_SYNC was never attached). Reproduced in `scripts/tests/v3989-protocol-list-harness.html` with the V3.987 script:
+  an uploaded protocol missing on the next two visits, shown only after expiry. Fixed: `protocols.js` `revalidate()` —
+  after drawing the cached list, one query (`orderBy('updated_at','desc').limit(1)`) and a reload when that protocol is
+  newer than the list or not on it; deleting `api.invalidate`s the list.
+- **Posted, but the list still said "draft"** (Alex, after posting the HTML protocol). Same cache, and posting did
+  not touch `updated_at`, so nothing told the list the status had changed. Reproduced in the list harness with the
+  V3.987 script and the exact fields V3.987's `publish()` writes: the card says `draft` on the next visit. With V3.989
+  (posting stamps `updated_at`, the list re-checks) it says `published`; taken down, `draft` again. A protocol already
+  posted by V3.987 while the list was cached keeps the old chip until that cache expires (≤ 30 min, then one visit).
+- Posting could post an empty file if pressed before an HTML protocol's file had loaded: `getHtml` now waits for it
+  (`protocol-html-view.js` `state.fileLoad`).
+
+### Changed
+- `protocol-publish.js`: posting writes `updated_at` = the copy's timestamp, taking down writes `updated_at` = now (the
+  list's status follows; a fresh post never reads as "edited since"). `errorText` ends with the failed step and the
+  database's code and message, e.g. `[writing the public copy: permission-denied — Missing or insufficient
+  permissions.]`.
+- `protocols.js`: an `.html` file chosen in **Import protocol** opens **Upload HTML** with the file in it.
+- `sw.js` `CACHE_VERSION` 958 → **959**.
+
+### Checked, not changed
+- The live database: the V3.986 rules are deployed (a visitor lists `publicProtocols` — empty — and the old public read
+  of `protocols` is refused). Whether the deploy included V3.987's `html` rule is not visible from outside.
+- The adapter's "cheap freshness" probe orders by `updatedAt` (protocols keep `updated_at`), but it never runs:
+  `LOCAL_CACHE.scope().get()` returns no `savedAt`, so every stale refresh is a full refetch. A change there was tried
+  and reverted as dead code.
+
+### Verified
+- List harness 10 / 10 (reproduced with V3.987's script, fixed; a quiet visit is 1 read; an edit elsewhere and a
+  delete both show). Import → Upload HTML 3 / 3. HTML protocol suite 48 / 48 with a realistic roster (reproduced the
+  empty roster first). Posting suite 47 / 47, including the refused post's message.
+
 ## [V3.988] — 2026-11-13 — Scientia: the Portfolio as two panes (a list of projects, the open one beside it); the results kinds — Result, Insight, Mechanism, Control, Anomaly, Caveat
 
 Gabe: "When you have a result labelled, then the possible links to it are insight, correlation, or more. Propose some component kinds that mean most for Results in science. Also, the portfolio look should be reorganized to not look like blocks, but be a relevant list of projects, that once opened, bring up the themes and notes (keep the dropdown system of experiments, the dots, the separation of types of notes: Lit Reviews, Experiments, general notes). Propose a few designs that match the notebook aesthetic and flow well with a modern feel and animations before implementing it as a pull request." Three designs were proposed (a private artifact); Gabe: "I prefer Design B … If it is in the Lab Notebook, then give it the same change … all six, and correlation as a link … don't add it" (the facts line).
