@@ -128,9 +128,9 @@
    "via": "baseline"
   },
   "app.js": {
-   "deployedAt": "2026-10-23T10:34:36-07:00",
-   "sha256": "ccf38cf8ec639374b64d5b92bc020574bb32598ebfc5276aeeb5c4d36b50d877",
-   "size": 148357,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "37257356d77cdb9419b28be9cbfc9cf6ff53b269587bdf7933ec5b96b11deb0f",
+   "size": 161260,
    "via": "verify"
   },
   "class-builder.js": {
@@ -266,10 +266,10 @@
    "via": "baseline"
   },
   "index.html": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "c2ab484c456c7e026584e8100135b75758d6b7a6a3803909478541587efa44a4",
-   "size": 17183,
-   "via": "baseline"
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "bea61336ffae39d02234b38e7b4ed6b346d668bdf56d2dc1348182e1128e3e5a",
+   "size": 17474,
+   "via": "verify"
   },
   "l/.htaccess": {
    "deployedAt": "2026-10-24T19:01:38-07:00",
@@ -1609,6 +1609,18 @@
    "size": 8972,
    "via": "baseline"
   },
+  "protocol-view.html": {
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "ae1e19864799acf2f322290fa197eaf6513db9bd1375a8a9930af40a5b4da1d9",
+   "size": 4250,
+   "via": "verify"
+  },
+  "protocol-view.js": {
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "07bbb4bce4542e77229074812684dfe2d330168aea2f4986e20e24727453d52e",
+   "size": 5531,
+   "via": "verify"
+  },
   "push-notifications.js": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
    "sha256": "87c7554219fd4f7ea6d54738950aad0f1f31e5f7ea2a75418d8469e12d10aeb9",
@@ -1622,9 +1634,9 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-10-30T15:25:01-07:00",
-   "sha256": "8b1de499e983b8928e73208d3d7102fa6f3f41bb20c9a7530eb7978dfd6df31f",
-   "size": 81,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "79ed479b47be1e3522be0c41320e9beebf2826cfbfab3ad5efa586aa9bdc6fe7",
+   "size": 83,
    "via": "verify"
   },
   "rm/css/activity-overview.css": {
@@ -1784,9 +1796,9 @@
    "via": "verify"
   },
   "rm/css/notebook-scientia.css": {
-   "deployedAt": "2026-10-23T18:22:55-07:00",
-   "sha256": "7a58b79dedb236ce01c61515515fc40c26221b9b18143b176a026a31f03ba054",
-   "size": 5932,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "274f0592945da04422ca31912fb6c3a61a36d7297d3293a64742ff896b8c325c",
+   "size": 10613,
    "via": "verify"
   },
   "rm/css/paper-doc-view.css": {
@@ -1832,10 +1844,10 @@
    "via": "baseline"
   },
   "rm/css/protocol-editor.css": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "f8341189a8efd0c0c3aec8a7534858958b9a7209e5d1693cd28b7c18fa62094d",
-   "size": 28509,
-   "via": "baseline"
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "6db70e8d849a98939502e81e8c3d8897a57ad847d7f08c41410766b525383d70",
+   "size": 31832,
+   "via": "verify"
   },
   "rm/css/protocol-graph-editor.css": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
@@ -2930,9 +2942,9 @@
    "via": "verify"
   },
   "rm/js/notebook-canvas.js": {
-   "deployedAt": "2026-10-23T11:17:06-07:00",
-   "sha256": "420588538f87a62498b6936b552ac885207cfbbb960fe0dcffd36eb0e4cd428d",
-   "size": 146026,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "e0157145bf2528a5bb017cb9f16820c18cec022b50347818db0227c2696f137a",
+   "size": 146583,
    "via": "verify"
   },
   "rm/js/notebook-figures.js": {
@@ -2948,9 +2960,9 @@
    "via": "verify"
   },
   "rm/js/notebook-scientia.js": {
-   "deployedAt": "2026-10-23T18:22:55-07:00",
-   "sha256": "f325dbdf1ec42e179952275cd8c3de4f1dfeabb46d6b2ae1f1a6e06f7ae22531",
-   "size": 30804,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "077755315a66c42bf88c55acf3806f43bff63009e84a5a6719211e761abb5f17",
+   "size": 41394,
    "via": "verify"
   },
   "rm/js/oauth-connections.js": {
@@ -3338,21 +3350,21 @@
    "via": "baseline"
   },
   "rm/js/protocol-doc-render.js": {
-   "deployedAt": "2026-10-23T10:34:36-07:00",
-   "sha256": "89e23f1b8583ee52809bedecab25904264d9eb6ab3d1c4d0e28637b69e1089c4",
-   "size": 13318,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "a4fe82bbd5304d668b74484d56eab151019a9aae922b76d9014316125ce979c0",
+   "size": 18650,
    "via": "verify"
   },
   "rm/js/protocol-doc.js": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "0af7151e7276fba6bc19f060d1b457cca077a1ec00d394b4967d3fb556e31546",
-   "size": 8973,
-   "via": "baseline"
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "9b5be62d45e12d9d65b2fe728b0f75faefd76b681bcfb11bc9d6f4d8c653eae4",
+   "size": 4676,
+   "via": "verify"
   },
   "rm/js/protocol-editor.js": {
-   "deployedAt": "2026-10-23T10:34:36-07:00",
-   "sha256": "ade337c713cdd4b49e30184f370f3e6db5f85157e28196d51dab67b81bd17a9a",
-   "size": 66554,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "2c7f25a1a480feafca6425183449fe753373c4f79ec5368f33ef956c82b164a2",
+   "size": 68344,
    "via": "verify"
   },
   "rm/js/protocol-figures.js": {
@@ -3397,6 +3409,12 @@
    "size": 16814,
    "via": "verify"
   },
+  "rm/js/protocol-publish.js": {
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "fa33e65c3d3ecffce49a485bc2b4e1aaf25752f654a04ceaf41aac8d0f9f5284",
+   "size": 26268,
+   "via": "verify"
+  },
   "rm/js/protocol-schemas.js": {
    "deployedAt": "2026-10-21T17:10:35-07:00",
    "sha256": "1dea1f0889150cbfa304cb15ba5b55ebdd6b71c2fb868b4f345761e878e5cee9",
@@ -3422,9 +3440,9 @@
    "via": "baseline"
   },
   "rm/js/protocols.js": {
-   "deployedAt": "2026-10-23T10:34:36-07:00",
-   "sha256": "69cee52ea5dafed52a0309081e2a3f9d6b4794d8276f118580e971ca8c985ef5",
-   "size": 33395,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "1ff4b81ed8a38439ed43126ebca6c62969352d9e76294ef0ee6855604a9e714e",
+   "size": 34080,
    "via": "verify"
   },
   "rm/js/qty-picker.js": {
@@ -4322,9 +4340,9 @@
    "via": "verify"
   },
   "rm/pages/protocols.html": {
-   "deployedAt": "2026-10-23T10:34:36-07:00",
-   "sha256": "56a46c4c05236077ad171978ac748f0886afb55d1ad568ce1dc2f592457cbfe4",
-   "size": 23053,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "e1ea756dd2cb38ff4d3a33bc196463c1ff85f4388c9914ad82e1d80f3b31cfe6",
+   "size": 23704,
    "via": "verify"
   },
   "rm/pages/purchase-requests.html": {
@@ -4562,15 +4580,15 @@
    "via": "verify"
   },
   "rm/scientia/MANUAL.md": {
-   "deployedAt": "2026-10-30T15:25:01-07:00",
-   "sha256": "c84e97bd4eba6b85e148b2452be4fdf19b4bb4aeda4b8a1da5425447a73e7147",
-   "size": 48724,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "2ef2525075c7633edfbe967626a0ed155f12d946fe3a942bf1106b3a30e658e9",
+   "size": 89448,
    "via": "verify"
   },
   "rm/scientia/board.html": {
-   "deployedAt": "2026-10-29T18:43:00-07:00",
-   "sha256": "07640e8826dc64c0a99c523e9a293a6840be960f4bc12ce840dcc507ee120743",
-   "size": 870150,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "ed21bd86d3e2999447c9e74c876558b3eb5e983124fd7224e2c682fe296356ea",
+   "size": 856474,
    "via": "verify"
   },
   "rm/scientia/cloud-sync.js": {
@@ -4580,14 +4598,14 @@
    "via": "verify"
   },
   "rm/scientia/desktop/ScientiaInSitu-Windows.zip": {
-   "deployedAt": "2026-10-30T15:25:01-07:00",
-   "sha256": "39abcb519d50010069df68bf832947983deee4d13e7f194abbe887e697cda270",
-   "size": 6872171,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "141722800645c2b35ee309c6a20281ff09189063fb158bfaee567162e4d1b04e",
+   "size": 7506849,
    "via": "verify"
   },
   "rm/scientia/desktop/version.json": {
-   "deployedAt": "2026-10-30T15:25:01-07:00",
-   "sha256": "5e213a699f0db0d2d3feb756535614a8f221a6fab0a2448ef97a5fded2ef96a9",
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "22e6b9b027840f4be0530b87889b8df3621ce4b1942ee56c454016c990bdc88c",
    "size": 214,
    "via": "verify"
   },
@@ -4616,9 +4634,9 @@
    "via": "verify"
   },
   "rm/scientia/lab-mode.js": {
-   "deployedAt": "2026-10-29T17:15:58-07:00",
-   "sha256": "1ad46a465095b4a8f1e455e15ef0508aba9e1c21f1a722c9faf66aab761f07b6",
-   "size": 240797,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "b3b8a63ce5e33703f22afd2a3a9bf64ad4907019c2d40600f57e1ed1d8f38a62",
+   "size": 265267,
    "via": "verify"
   },
   "rm/scientia/scientia-cloud.py": {
@@ -4628,9 +4646,9 @@
    "via": "verify"
   },
   "rm/scientia/scientia.html": {
-   "deployedAt": "2026-10-30T15:25:01-07:00",
-   "sha256": "44916b355e1f0dcfc645689c3d646eae3f0c7329b42538b4f489c6056009959a",
-   "size": 5479958,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "818a4ae6eec85135c0b40eb4e0a0a95004a8387b46827eb497e6a6739bf9aff0",
+   "size": 5976246,
    "via": "verify"
   },
   "rm/test-fixtures/layout/01-2col-tight.pdf": {
@@ -5282,21 +5300,21 @@
    "via": "verify"
   },
   "sitemap.xml": {
-   "deployedAt": "2026-10-21T17:40:47-07:00",
-   "sha256": "d7cc47cc9b5876d81620512ba76d25b2a5a547d165bedec420a5eb7f5f505e84",
-   "size": 989,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "db946d4fcbc8a551d0e6ac1a883aa169bce668452d14d402bfb3e21e2d81f9ae",
+   "size": 1118,
    "via": "verify"
   },
   "styles.css": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "fe174c2bde1b8ceb2303ee9a6b1b14ec005e49571497d9dadac22f5e88570827",
-   "size": 202162,
-   "via": "baseline"
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "cf68c0e6d9ed1e340a832f58beded2bb5d695a901a4814ed1179a19d628df6a4",
+   "size": 206683,
+   "via": "verify"
   },
   "sw.js": {
-   "deployedAt": "2026-10-30T15:25:01-07:00",
-   "sha256": "6fc3c48a9f24000fb90ba6d091a5be364f145b2526dfc8c3ecb168163173c7d7",
-   "size": 9933,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "ea67f65869b84b819ae7f4ceb1002c5861c63a1c7e6552d38958a7838c5e9725",
+   "size": 10269,
    "via": "verify"
   },
   "teacher-classes.js": {
@@ -5330,9 +5348,9 @@
    "via": "baseline"
   },
   "user-system.js": {
-   "deployedAt": "2026-10-29T13:46:03-07:00",
-   "sha256": "ad2b8442dadc3dd8ea3f7b5702f1d7bb24c0fea42df0dfcc072fe018dfacd7a3",
-   "size": 267472,
+   "deployedAt": "2026-11-13T10:04:11-07:00",
+   "sha256": "cd1ee0aac223d36d9504668392b2ba3956aa4d3f4ec95a865b360544bb3927a2",
+   "size": 268533,
    "via": "verify"
   },
   "whiteboard-board.css": {

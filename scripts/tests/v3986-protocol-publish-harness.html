@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>V3.986 harness — post a protocol to the website</title>
+  <!--
+    V3.986 — "Post to website" without a sign-in or a database.
+
+    Serve the repo root (python3 -m http.server 8000) and open
+      http://localhost:8000/scripts/tests/v3986-protocol-publish-harness.html
+
+    What is real: rm/js/protocol-publish.js (the dialog and the public
+    copy), protocol-inventory.js (the name lookup), and the same CSS the
+    protocol editor loads. What is faked: firebridge.db() is an in-memory
+    store that refuses what Firestore refuses (undefined values, an array
+    directly inside an array), `api.load` serves a four-item inventory,
+    and the "editor" is a button + a status menu.
+
+    The fixture is a real protocol (Research/bead_confocal_protocols/
+    pe-ax-12) with three inventory links added: a materials row linked to
+    an item, a chip in a step, and a chip whose item no longer exists.
+
+    window.__h holds the store and the working doc, so a driver can read
+    what was written: __h.store['publicProtocols/pe-ax-12'] and
+    __h.store['publicProtocols/pe-ax-12/content/current'].
+    __h.deny = true makes the website refuse writes (permission-denied).
+  -->
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/paper-editor.css">
+  <link rel="stylesheet" href="/rm/css/protocol-editor.css">
+  <script src="/rm/js/icons.js"></script>
+  <style>
+    body { padding: 24px; }
+    .h-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+    .h-log { font: 12px ui-monospace, Menlo, monospace; white-space: pre-wrap; background: #f6f7f9; border: 1px solid #e2e5ea; border-radius: 8px; padding: 10px; }
+  </style>
+</head>
+<body>
+  <h1 style="font-size:18px">V3.986 harness — post a protocol to the website</h1>
+  <div class="h-bar">
+    <button class="btn pre-action-btn" id="pre-publish-btn" hidden></button>
+    <label>Status
+      <select id="pre-status-select">
+        <option value="draft">Draft</option>
+        <option value="published">Published (on the lab website)</option>
+        <option value="archived">Archived</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="h-owner" checked> I own this protocol</label>
+  </div>
+  <div class="h-log" id="h-log">loading…</div>
+
+  <script>
+    /* ── fakes ── */
+    function assertFirestoreSafe(v, path) {
+      if (v === undefined) throw new Error('undefined value at ' + path);
+      if (Array.isArray(v)) {
+        v.forEach(function (x, i) {
+          if (Array.isArray(x)) throw new Error('array directly inside an array at ' + path + '[' + i + ']');
+          assertFirestoreSafe(x, path + '[' + i + ']');
+        });
+      } else if (v && typeof v === 'object') {
+        Object.keys(v).forEach(function (k) { assertFirestoreSafe(v[k], path + '.' + k); });
+      }
+    }
+    function clone(v) { return JSON.parse(JSON.stringify(v)); }
+    var H = window.__h = { store: {}, deny: false, writes: [] };
+    function guard(path, op) {
+      H.writes.push(op + ' ' + path);
+      if (H.deny && path.indexOf('publicProtocols/') === 0) {
+        var e = new Error('Missing or insufficient permissions.'); e.code = 'permission-denied'; throw e;
+      }
+    }
+    function docRef(path) {
+      return {
+        path: path,
+        get: async function () {
+          var has = Object.prototype.hasOwnProperty.call(H.store, path);
+          return { exists: has, id: path.split('/').pop(), data: function () { return has ? clone(H.store[path]) : undefined; } };
+        },
+        set: async function (d) { guard(path, 'set'); assertFirestoreSafe(d, path); H.store[path] = clone(d); },
+        update: async function (d) {
+          guard(path, 'update'); assertFirestoreSafe(d, path);
+          if (!H.store[path]) throw new Error('No document to update: ' + path);
+          Object.assign(H.store[path], clone(d));
+        },
+        delete: async function () { guard(path, 'delete'); delete H.store[path]; },
+        collection: function (name) { return colRef(path + '/' + name); },
+      };
+    }
+    function colRef(path) { return { doc: function (id) { return docRef(path + '/' + id); } }; }
+    window.firebridge = {
+      db: function () {
+        return {
+          collection: colRef,
+          batch: function () {
+            var ops = [];
+            return {
+              set: function (r, d) { ops.push(function () { return r.set(d); }); },
+              update: function (r, d) { ops.push(function () { return r.update(d); }); },
+              delete: function (r) { ops.push(function () { return r.delete(); }); },
+              // all-or-nothing, like a real batch: check every op before applying any
+              commit: async function () {
+                if (H.deny) { guard('publicProtocols/(batch)', 'batch'); }
+                for (var i = 0; i < ops.length; i++) await ops[i]();
+              },
+            };
+          },
+        };
+      },
+      isAdmin: function () { return false; },
+    };
+    window.api = {
+      load: async function (route) {
+        if (route === 'inventory/items.json') {
+          return { items: [
+            { id: 'item-plate', name: '96-well glass-bottom plate', vendor: 'Cellvis', catalogue_number: 'P96-1.5H-N', stock_status: 'low' },
+          ] };
+        }
+        if (route === 'inventory/chemicals.json') {
+          return { chemicals: [
+            { id: 'chem-pbs', name: 'PBS, pH 7.4', vendor: 'Gibco', catalogue_number: '10010023', quantity: '500 mL',
+              safety: { cas_number: '', formula: '' } },
+            { id: 'chem-bsa', name: 'Bovine serum albumin', vendor: 'Sigma-Aldrich', catalogue_number: 'A7906',
+              safety: { cas_number: '9048-46-8' } },
+          ] };
+        }
+        return null;
+      },
+    };
+    window.toast = function (msg) { H.lastToast = msg; log('toast: ' + msg); };
+    function log(line) {
+      var el = document.getElementById('h-log');
+      el.textContent = (el.textContent === 'loading…' ? '' : el.textContent + '\n') + line;
+    }
+  </script>
+  <script src="/rm/js/protocol-inventory.js"></script>
+  <script src="/rm/js/protocol-publish.js"></script>
+  <script>
+    (async function () {
+      var ID = 'pe-ax-12';
+      var src = await (await fetch('/Research/bead_confocal_protocols/pe-ax-12-standard-curve.protocol-import.json')).json();
+      var p = src.protocol;
+      var tree = JSON.parse(JSON.stringify(p.tree));
+
+      // three inventory links: a linked materials row, a chip that resolves, a chip that does not
+      var linked = false, chipped = false;
+      tree.sections.forEach(function (sec) {
+        sec.children.forEach(function (b) {
+          if (b.kind === 'materials' && !linked && b.attrs && b.attrs.rows && b.attrs.rows.length > 1) {
+            b.attrs.rows[0] = { qty: '1', unit: 'plate', free_text: '', item_ref: 'item-plate' };
+            b.attrs.rows[1] = { qty: '50', unit: 'mL', free_text: 'kept as typed', item_ref: 'chem-gone' };
+            linked = true;
+          }
+          if (b.kind === 'step' && !chipped) {
+            b.body = 'Block the wells with [!inv:chem-bsa] in [!inv:chem-pbs], then rinse with [!inv:chem-gone]. ' + b.body;
+            chipped = true;
+          }
+          if (b.kind === 'figure') { b.attrs.storage_path = 'protocols/x/figures/a.png'; b.attrs.hash = 'abc'; }
+        });
+      });
+
+      var doc = {
+        id: ID, title: p.title, summary: p.summary || 'A standard curve for PE on beads.',
+        tags: p.tags || ['microscopy', 'analysis'], category: p.category || '',
+        ownerUid: 'u-ana', author_uid: 'u-ana', author_name: 'Ana Ruiz', status: 'draft',
+        created_at: '2026-10-02T15:00:00.000Z', updated_at: '2026-11-10T15:00:00.000Z',
+        current_version: 2, tree: tree, linked_buckets: ['b1'], inventory_refs: ['item-plate'],
+      };
+      H.store['protocols/' + ID] = JSON.parse(JSON.stringify(doc));
+      H.doc = doc;
+      H.tree = tree;
+
+      var roster = [
+        { uid: 'u-pi',   name: 'Alex Example',  category: 'pi' },
+        { uid: 'u-ana',  name: 'Ana Ruiz',      category: 'grad' },
+        { uid: 'u-ben',  name: 'Ben Okafor',    category: 'undergrad' },
+        { uid: 'u-chi',  name: 'Chiara Lombardi', category: 'alumni' },
+        { uid: 'u-none', name: '',              category: 'grad', email: 'private@example.edu' },
+      ];
+
+      H.ui = window.PROTOCOL_PUBLISH.attachEditor({
+        protocolId: ID,
+        button: document.getElementById('pre-publish-btn'),
+        statusSelect: document.getElementById('pre-status-select'),
+        getDoc: function () { return doc; },
+        canEdit: function () { return document.getElementById('h-owner').checked; },
+        getTree: async function () { return tree; },
+        loadRoster: async function () { return roster; },
+        onChanged: function (update) { Object.assign(doc, update); log('doc ← ' + JSON.stringify(update)); },
+      });
+      document.getElementById('pre-status-select').addEventListener('change', function (e) {
+        if (H.ui.interceptStatus(e.target.value)) { log('status menu handled by the dialog'); return; }
+        doc.status = e.target.value; log('plain status save: ' + doc.status);
+      });
+      document.getElementById('h-owner').addEventListener('change', function () { H.ui.refresh(); });
+      // an edit after posting: the button should turn to "Update website"
+      H.edit = function () { doc.updated_at = new Date().toISOString(); H.ui.refresh(); };
+      H.ready = true;
+      log('ready');
+    })();
+  </script>
+</body>
+</html>

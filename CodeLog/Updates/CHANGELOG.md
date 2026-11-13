@@ -4,6 +4,74 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.986] — 2026-11-13 — Protocols on the lab website: posted from RM, shown under Research, credited on the Team page
+
+Alex: a Protocols page under Research for protocols the lab posts for public use; when a protocol is posted, pick
+everyone who helped make it, and give those members a protocols icon on the Team page; protocols come in and get
+their metadata in RM, and are shown on the public site. Plan:
+[CodeLog/ClaudesPlan/V3.986_protocols_on_the_website.md](../ClaudesPlan/V3.986_protocols_on_the_website.md).
+
+### Added
+- **`rm/js/protocol-publish.js`** (`window.PROTOCOL_PUBLISH`): `buildPublic(id, doc, tree, contributors, prev)`,
+  `inspect(tree)`, `publish(id, doc, tree, contributors)`, `unpublish(id, nextStatus)`, `removePublicCopy(id)`,
+  `getPublic(id)`, `isEditedSince(doc)`, `attachEditor({protocolId, button, statusSelect, getDoc, canEdit, getTree,
+  loadRoster, onChanged})` → `{refresh, open, interceptStatus}`. Writes `publicProtocols/{id}` (card: title,
+  summary, category, tags, `contributors [{uid,name}]`, `contributor_uids`, `byline`, `version`, `step_count`,
+  `created_at`, `published_at`, `updated_at`, `schema_version: 1`) and `publicProtocols/{id}/content/current`
+  (`{tree}`) in one batch, then `protocols/{id}` ← `{status:'published', published_at, public_updated_at,
+  contributors}`. The copy turns a materials `item_ref` into the item's label and `[!inv:id]` into its name
+  (unknown → `?`), drops figure `storage_path`/`hash`/`mime` and block/section review status.
+- Protocol editor: **Post to website** topbar button (`#pre-publish-btn`; green "On website", amber "Update
+  website" when `updated_at > public_updated_at`) and dialog — who helped make it (lab roster, author first),
+  **How it will be listed** (title / summary / tags, warns when empty), inventory note, Remove from website, the
+  share address.
+- Public site **Research → Protocols** (`index.html`: desktop menu, phone sheet, drawer, footer).
+  `app.js`: route `protocols` → `renderProtocols()` / `wireProtocols()` (search, ≤12 tag chips by use, cards,
+  `?by={uid}`) and `#/protocols/{id}` → `renderProtocolView()` / `wireProtocolView(id)` (hero hidden,
+  `body.protocol-view-env`, Print / PDF and Ctrl/Cmd+P print the frame); `NAV_GROUPS.protocols = 'research'`.
+- **`protocol-view.html` + `protocol-view.js`** (site root, `window.ProtocolView.render(card, tree)`): the
+  document inside a protocol page, drawn by the lab's renderer from `/rm/js/` with `protocol-doc.css`; no
+  database, no sign-in; sizes its frame to the document (ResizeObserver); redirects to `/#/protocols/{id}` when
+  opened on its own; `<base target="_top">`.
+- `user-system.js`: `DB.getPublicProtocols()`, `DB.getPublicProtocol(id)` → `{card, tree} | null`.
+- `ProtocolDocRender.renderDocument(docEl, {doc, tree, brand, ctx, metaBits?, footerText?})` — the masthead +
+  numbered sections + footer, moved from `protocol-doc.js`.
+- `scripts/tests/protocols-public-rules.test.mjs` (38 cases; in `run-all.sh`),
+  `scripts/tests/v3986-protocol-publish-harness.html`, `scripts/tests/v3986-protocol-docview-harness.html`.
+- `CodeLog/features.json`: `site.protocols` (extends `rm.protocols`).
+
+### Changed
+- **`firestore.rules`**: `protocols/{id}` and `protocols/{id}/versions/{v}` are lab-member-read only — the V3.113
+  `status == 'published'` public read is removed (no protocol ever had that status). New
+  `match /publicProtocols/{protocolId}` (+ `content/{docId}`): `read: if true`; write by the protocol's owner or an
+  admin (`canPostProtocol()`), card `id == protocolId`.
+- Team page (`app.js`): `protocolsFor(user)` = posted protocols in `contributor_uids` (linked to
+  `#/protocols/{id}`) + hand-listed `user.protocols` not repeating a posted title; the badge counts both and links to
+  `#/protocols?by={uid}` when one is posted; PI CV list and Learn More list use the same.
+- Status menu: "Published (on the lab website)"; choosing it opens the posting dialog, leaving it takes the protocol
+  down (confirm); the menu snaps back until the write has happened.
+- `protocols.js` `deleteProtocolDeep`: a posted protocol's public copy is removed first (fresh status read); a
+  failure stops the delete. The confirm says the public page goes too.
+- `protocol-doc.js` delegates to `renderDocument` (the lab view's chips, footer and brand are unchanged).
+- `sw.js`: `CACHE_VERSION` 955 → **956**; `/protocol-view.(html|js)` network-first (a frame cannot be
+  hard-reloaded). `deploy/site.json` includes the two new root files. `sitemap.xml` lists `#/protocols`.
+
+### Verified
+- Rules: **38 ok, 0 HOLE, 0 BREAK** (emulator).
+- Posting dialog (headless, real module + an in-memory store that rejects `undefined` and nested arrays):
+  **47 passed** — post, the written card and tree, no `item_ref` / `[!inv:` / storage path / owner in the copy,
+  update keeps `published_at`, refusal explained and nothing written, remove via the status menu, re-post.
+- Public site (headless, real `index.html` + `app.js`, live team profiles): **39 passed** — the four menu links,
+  "No protocols posted yet." on today's database, list / search / tags / by-person, the protocol page (frame height
+  = document height, follows growth and shrink; no hero; print goes to the sheet, never the site), Team icons and
+  lists, 390 px phone with no sideways scroll.
+- Five real protocols render on the public page at the same heights as under RM's full stylesheet set.
+- The lab's doc view through its real script: **10 passed**. `node --check` on every edited script.
+
+### Deploy
+- **Rules need Alex**: `firebase deploy --only firestore:rules`. Until then the site files are safe live: the list
+  says nothing is posted, the Team page ignores the failed read, and Post to website says the rules may not be live.
+
 ## [V3.983] — 2026-11-11 — Lab Notebook: a menu — the Simple notebook (a canvas a week) or Scientia (the whole page)
 
 Gabe: "Have the lab notebook in RM be two options: an empty note canvases that get created each week with minimal features: pills, image panels, PDFs, HTMLs, but no other tabs, terms, etc... The other is the full Scientia as it is now with local dekstop syncing via cloud, etc.. The minimalist stable version are for people to pick up slowly or for minimal work. It should be a menu interface that allows you to enter either or. The Scientia page, if you choose to enter it, takes as much space as possible with the RM tabs just above it."

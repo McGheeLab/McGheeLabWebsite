@@ -193,6 +193,15 @@
   async function deleteProtocolDeep(id) {
     var db = firebridge.db();
     var ref = db.collection('protocols').doc(id);
+    // V3.986 — a protocol on the lab website comes off it first. The rules
+    // check ownership on this doc, so it has to happen while the doc still
+    // exists, and a failure stops the delete: a public page must not
+    // outlive its protocol. The status is read fresh (the list is cached).
+    var live = await ref.get();
+    if (live.exists && live.data().status === 'published') {
+      if (!window.PROTOCOL_PUBLISH) throw new Error('could not take it off the lab website (publish module not loaded)');
+      await window.PROTOCOL_PUBLISH.removePublicCopy(id);
+    }
     var subs = ['versions', 'yjs_updates', 'yjs_snapshot', 'presence'];
     for (var i = 0; i < subs.length; i++) {
       try {
@@ -212,7 +221,8 @@
 
   async function confirmDeleteProtocol(p) {
     var msg = 'Delete “' + (p.title || p.id) + '”?\n\n' +
-      'This permanently removes the protocol and its version history for the whole lab. This cannot be undone.';
+      'This permanently removes the protocol and its version history for the whole lab. This cannot be undone.' +
+      (p.status === 'published' ? '\n\nIt is on the lab website: the public page is removed too.' : '');
     if (!window.confirm(msg)) return;
     setStatus('Deleting “' + (p.title || p.id) + '”…');
     try {

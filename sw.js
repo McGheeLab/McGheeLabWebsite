@@ -8,7 +8,7 @@
    - Firebase API calls: network-only (never cached)
    ================================================================ */
 
-const CACHE_VERSION = 953;
+const CACHE_VERSION = 956;
 const SHELL_CACHE  = `mcgheelab-shell-v${CACHE_VERSION}`;
 const IMAGE_CACHE  = `mcgheelab-images-v${CACHE_VERSION}`;
 const CDN_CACHE    = `mcgheelab-cdn-v${CACHE_VERSION}`;
@@ -135,8 +135,13 @@ self.addEventListener('fetch', (event) => {
   // SW for its own scripts but not for the iframe's, so after every FTP the
   // board ran the new whiteboard.js against the previous whiteboard-panel.js
   // and showed a whole module where a simulation cut was asked for.
+  // V3.986 — /protocol-view.html + .js are in the same position: the
+  // document inside a protocol page (#/protocols/{id}) is a frame, and its
+  // renderer comes from /rm/js/ (network-first above), so a stale copy of
+  // the frame would run against newer renderer code.
   if (url.pathname.startsWith('/modules/') ||
-      /^\/whiteboard[-a-z]*\.(js|css)$/.test(url.pathname)) {
+      /^\/whiteboard[-a-z]*\.(js|css)$/.test(url.pathname) ||
+      /^\/protocol-view\.(html|js)$/.test(url.pathname)) {
     event.respondWith(networkFirst(event.request, SHELL_CACHE));
     return;
   }

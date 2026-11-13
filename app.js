@@ -197,6 +197,7 @@
   // Route-to-group mapping for nav highlighting
   const NAV_GROUPS = {
     research: 'research', projects: 'research', news: 'research', data: 'research',
+    protocols: 'research',
     team: 'people', opportunities: 'people',
     classes: 'classes'
   };
@@ -302,6 +303,13 @@
           // Data Visualizations (V3.301): #/data = gallery, #/data/{vizId} = full viewer
           const vizSlug = (subParts[0] || '').split('?')[0];
           view = vizSlug ? renderDataViz(vizSlug) : renderDataGallery();
+          break;
+        }
+        case 'protocols': {
+          // Protocols (V3.986): #/protocols = the list (?by={uid} = one
+          // person's), #/protocols/{id} = one protocol.
+          const protoId = protocolIdFrom(subParts);
+          view = protoId ? renderProtocolView() : renderProtocols();
           break;
         }
         case 'opportunities': {
@@ -440,7 +448,10 @@
     const isClassEnv = page === 'classes' || page === 'teach' ||
                        page === 'teachers' || page === 'engage' || page === 'presenters' ||
                        page === 'invite-a-scientist';
-    const hideHero = page === 'cv' || isClassEnv || isModuleViewer || isAppsEnv || isDataViewer;
+    // V3.986 — one protocol (#/protocols/{id}) is a document to read; the
+    // list keeps the hero like the other Research pages.
+    const isProtocolView = page === 'protocols' && !!protocolIdFrom(subParts);
+    const hideHero = page === 'cv' || isClassEnv || isModuleViewer || isAppsEnv || isDataViewer || isProtocolView;
     const hideFooter = isAppsEnv;
     if (heroEl) heroEl.style.display = hideHero ? 'none' : '';
     if (footerEl) footerEl.style.display = hideFooter ? 'none' : '';
@@ -450,6 +461,8 @@
     // Full-screen data viewer (#/data/{vizId}): immersive on mobile — hides the
     // bottom tab bar so the viewer's own bottom quick-links aren't covered.
     document.body.classList.toggle('data-viewer-env', isDataViewer);
+    // Printing a protocol page prints the protocol, not the site around it.
+    document.body.classList.toggle('protocol-view-env', isProtocolView);
 
     // Wire subnav (desktop clicks + touch/pen swipe)
     wireUpSubnav(view);
@@ -523,6 +536,11 @@
           break;
         }
         case 'data': await wireData(subParts); break;
+        case 'protocols': {
+          const wireProtoId = protocolIdFrom(subParts);
+          if (wireProtoId) await wireProtocolView(wireProtoId); else await wireProtocols();
+          break;
+        }
       }
     } catch (err) { console.warn('User system wiring error:', err); }
 
@@ -765,8 +783,10 @@
         // V3.637 — public page: guests (external teachers/students) are no
         // longer readable here, and the team page never showed them anyway.
         McgheeLab.DB.getPublicProfiles(),
-        McgheeLab.DB.getPublishedStories().catch(() => [])
-      ]).then(([claimed, users, allStories]) => {
+        McgheeLab.DB.getPublishedStories().catch(() => []),
+        // V3.986 — protocols posted on the website, for the protocols icon
+        McgheeLab.DB.getPublicProtocols().catch(() => [])
+      ]).then(([claimed, users, allStories, postedProtocols]) => {
         // Remove loading placeholder
         const loadingEl = document.getElementById('team-loading');
         if (loadingEl) loadingEl.remove();
@@ -783,6 +803,32 @@
           storiesByAuthor[s.authorUid].push(s);
         });
 
+        // V3.986 — index the protocols posted on the website by the people
+        // who helped make them (picked when the protocol was posted).
+        const protocolsByUid = {};
+        postedProtocols.forEach(p => {
+          (p.contributor_uids || []).forEach(uid => {
+            if (!protocolsByUid[uid]) protocolsByUid[uid] = [];
+            protocolsByUid[uid].push(p);
+          });
+        });
+        // A member's protocols: the posted ones they helped make (linked to
+        // the protocol), then any they listed on their own profile by hand,
+        // minus a hand-listed one that repeats a posted title.
+        function protocolsFor(user) {
+          const uid = user.id || user.uid;
+          const posted = ((uid && protocolsByUid[uid]) || []).map(p => ({
+            title: p.title || 'Untitled protocol',
+            url: protocolHref(p.id),
+            year: String(p.published_at || '').slice(0, 4),
+            posted: true
+          }));
+          const seen = new Set(posted.map(p => p.title.trim().toLowerCase()));
+          const listed = (user.protocols || [])
+            .filter(p => !seen.has(String(p.title || '').trim().toLowerCase()));
+          return posted.concat(listed);
+        }
+
         const matchedUids = new Set();
         const matchedCards = new Set();
 
@@ -792,19 +838,26 @@
         // Build badge row HTML for a team card
         function buildBadgesHTML(user, storyCount) {
           let html = '';
+          const memberProtocols = protocolsFor(user);
           const items = [
             { key: 'papers',        count: (user.papers || []).length },
             { key: 'posters',       count: (user.posters || []).length },
             { key: 'presentations', count: (user.presentations || []).length },
             { key: 'patents',       count: (user.patents || []).length },
-            { key: 'protocols',     count: (user.protocols || []).length },
+            { key: 'protocols',     count: memberProtocols.length,
+              // V3.986 — with a protocol on the website, the icon opens them
+              href: memberProtocols.some(p => p.posted)
+                ? '#/protocols?by=' + encodeURIComponent(user.id || user.uid) : '',
+              title: 'Protocols by ' + (user.name || 'this member') },
             { key: 'stories',       count: storyCount },
           ];
-          items.forEach(({ key, count }) => {
+          items.forEach(({ key, count, href, title }) => {
             if (!count) return;
             const def = badges.find(b => b.key === key);
             if (!def) return;
-            html += `<span class="team-badge" title="${def.label}">${def.svg} ${count}</span>`;
+            html += href
+              ? `<a href="${esc(href)}" class="team-badge team-badge-link" title="${esc(title || def.label)}">${def.svg} ${count}</a>`
+              : `<span class="team-badge" title="${def.label}">${def.svg} ${count}</span>`;
           });
           // Presence-only badges (no count)
           if (user.finalWork?.url) {
@@ -872,7 +925,7 @@
             meta: p.conference || ''
           })).sort(byYear);
 
-          const protoItems = (user.protocols || []).map(p => ({
+          const protoItems = protocolsFor(user).map(p => ({
             title: p.title, href: p.url, year: p.year || '', meta: ''
           })).sort(byYear);
 
@@ -975,7 +1028,7 @@
             { key: 'posters',       label: 'Posters',       items: (user.posters || []).map(p => ({ title: p.title, href: p.url })) },
             { key: 'presentations', label: 'Presentations', items: (user.presentations || []).map(p => ({ title: p.title, href: p.url })) },
             { key: 'patents',       label: 'Patents',       items: (user.patents || []).map(p => ({ title: p.title, href: p.url })) },
-            { key: 'protocols',     label: 'Protocols',     items: (user.protocols || []).map(p => ({ title: p.title, href: p.url })) },
+            { key: 'protocols',     label: 'Protocols',     items: protocolsFor(user).map(p => ({ title: p.title, href: p.url })) },
           ];
 
           sections.forEach(({ key, label, items }) => {
@@ -1955,6 +2008,223 @@
     return 'DataIllustrations/' + safeFile
       + (embed ? '?embed=1' : '')
       + (config ? '#cfg=' + encodeURIComponent(vizConfigB64(config)) : '');
+  }
+
+  /* ── Protocols (V3.986) ─────────────────────────────────────────────
+     Protocols the lab has posted for anyone to use. They are written and
+     described in RM (the protocol editor: tags, summary, and — when a
+     protocol is posted — the people who helped make it). "Post to
+     website" there copies a snapshot to publicProtocols
+     (rm/js/protocol-publish.js); RM is where protocols come in, this site
+     is where they are shown.
+
+       #/protocols          the list: search, tag chips, cards
+       #/protocols?by={uid} one person's (the Team page's protocols icon)
+       #/protocols/{id}     one protocol, drawn by protocol-view.html in a
+                            frame so the lab's document styles and the
+                            site's stay out of each other's way */
+  function protocolIdFrom(subParts){
+    try { return decodeURIComponent(((subParts || [])[0] || '').split('?')[0]); }
+    catch { return ''; }
+  }
+  function protocolHref(id){ return '#/protocols/' + encodeURIComponent(id); }
+
+  function renderProtocols(){
+    const wrap = sectionEl();
+    wrap.innerHTML = `
+      <div class="max-w">
+        <h2>Protocols</h2>
+        <p class="page-subtitle">Methods we use in the lab, written up so that anyone can run them. Each protocol opens as a document you can print, and where one has a calculator it works on the page.</p>
+      </div>
+      <div class="max-w protocols-tools" id="protocols-tools" hidden>
+        <input type="search" id="protocols-search" class="protocols-search" placeholder="Search protocols…" aria-label="Search protocols">
+        <div class="protocols-tags" id="protocols-tags" role="group" aria-label="Filter by tag"></div>
+      </div>
+      <div class="max-w protocols-by" id="protocols-by" hidden></div>
+      <div class="max-w protocols-grid" id="protocols-grid">
+        <p class="loading-text">Loading protocols…</p>
+      </div>
+    `;
+    return wrap;
+  }
+
+  function protocolDate(iso){
+    const d = new Date(iso || '');
+    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function buildProtocolCard(p){
+    const card = document.createElement('a');
+    card.className = 'card protocol-card reveal';
+    card.href = protocolHref(p.id);
+    const tags = (p.tags || []).map(t => `<span class="badge">${esc(t)}</span>`).join(' ');
+    const facts = [];
+    if (p.step_count > 0) facts.push(p.step_count + (p.step_count === 1 ? ' step' : ' steps'));
+    const updated = protocolDate(p.updated_at || p.published_at);
+    if (updated) facts.push('Updated ' + updated);
+    card.innerHTML = `
+      <span class="protocol-card-icon" aria-hidden="true">${ICON.svg('clipboard-document-list')}</span>
+      <h3>${esc(p.title || 'Untitled protocol')}</h3>
+      ${p.summary ? `<p class="protocol-card-summary">${esc(p.summary)}</p>` : ''}
+      ${p.byline ? `<p class="protocol-card-by">By ${esc(p.byline)}</p>` : ''}
+      ${tags ? `<p class="protocol-card-tags">${tags}</p>` : ''}
+      ${facts.length ? `<p class="protocol-card-meta">${esc(facts.join(' · '))}</p>` : ''}
+    `;
+    return card;
+  }
+
+  function renderProtocolView(){
+    const wrap = sectionEl();
+    wrap.classList.add('protocol-view-section');
+    wrap.innerHTML = `
+      <div class="max-w protocol-view-bar">
+        <a href="#/protocols" class="viz-back-link">← All protocols</a>
+        <button type="button" class="btn protocol-print-btn" id="protocol-print" hidden>${ICON.svg('printer')} Print / PDF</button>
+      </div>
+      <div class="max-w protocol-view-body" id="protocol-view-body">
+        <p class="loading-text" id="protocol-view-loading">Loading the protocol…</p>
+      </div>
+    `;
+    return wrap;
+  }
+
+  async function wireProtocolView(id){
+    const body = appEl.querySelector('#protocol-view-body');
+    if (!body) return;
+    const message = (title, text) => {
+      body.innerHTML = `<div class="empty-state-card"><h3>${esc(title)}</h3><p>${esc(text)}</p>
+        <p><a href="#/protocols">See all protocols</a></p></div>`;
+    };
+    const notPosted = () => message('This protocol is not on our website',
+      'It may have been taken down, or the link may be wrong.');
+
+    let got = null;
+    try {
+      got = window.McgheeLab?.DB ? await McgheeLab.DB.getPublicProtocol(id) : null;
+    } catch (e) {
+      if (e && e.code === 'permission-denied') { notPosted(); return; }
+      message('Could not load the protocol', 'Check your connection and reload the page.');
+      console.warn('Protocol load error:', e);
+      return;
+    }
+    if (!appEl.contains(body)) return;   // navigated away while loading
+    if (!got) { notPosted(); return; }
+
+    const siteTitle = document.title;
+    document.title = (got.card.title || 'Protocol') + ' — McGheeLab protocols';
+    state.cleanups.push(() => { document.title = siteTitle; });
+
+    // The document is drawn by protocol-view.html in a frame (it sizes
+    // itself to its content); this page hands it the protocol.
+    const frame = document.createElement('iframe');
+    frame.className = 'protocol-frame';
+    frame.title = got.card.title || 'Protocol';
+    frame.src = 'protocol-view.html?id=' + encodeURIComponent(id);
+    const printBtn = appEl.querySelector('#protocol-print');
+    const printDoc = () => { try { frame.contentWindow.focus(); frame.contentWindow.print(); } catch (e) { window.print(); } };
+    frame.addEventListener('load', async () => {
+      try {
+        await frame.contentWindow.ProtocolView.render(got.card, got.tree);
+        appEl.querySelector('#protocol-view-loading')?.remove();
+        frame.classList.add('is-ready');
+        if (printBtn) printBtn.hidden = false;
+      } catch (e) {
+        console.warn('Protocol render error:', e);
+        message('Could not show the protocol', 'Reload the page to try again.');
+      }
+    });
+    body.appendChild(frame);
+    printBtn?.addEventListener('click', printDoc);
+
+    // Ctrl/Cmd+P on this page prints the protocol (the frame handles the
+    // same keys when the reader has clicked inside it).
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && String(e.key).toLowerCase() === 'p' && frame.classList.contains('is-ready')) {
+        e.preventDefault();
+        printDoc();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    state.cleanups.push(() => window.removeEventListener('keydown', onKey));
+  }
+
+  async function wireProtocols(){
+    const grid = appEl.querySelector('#protocols-grid');
+    if (!grid) return;
+    const empty = (text) => { grid.innerHTML = `<div class="empty-state-card"><p>${esc(text)}</p></div>`; };
+
+    let all = [];
+    try {
+      all = window.McgheeLab?.DB ? await McgheeLab.DB.getPublicProtocols() : [];
+    } catch (e) {
+      // A database that does not know the collection yet answers
+      // "permission denied": to a visitor that is the same as none posted.
+      if (e && e.code === 'permission-denied') { empty('No protocols posted yet.'); return; }
+      grid.innerHTML = '<p class="error-text">Failed to load protocols.</p>';
+      console.warn('Protocols load error:', e);
+      return;
+    }
+    if (!appEl.contains(grid)) return;   // navigated away while loading
+    if (!all.length) { empty('No protocols posted yet.'); return; }
+
+    // ?by={uid} — one person's protocols
+    const byUid = new URLSearchParams((window.location.hash.split('?')[1] || '')).get('by') || '';
+    const pool = byUid ? all.filter(p => (p.contributor_uids || []).includes(byUid)) : all;
+    const byEl = appEl.querySelector('#protocols-by');
+    if (byUid && byEl) {
+      let name = '';
+      all.some(p => (p.contributors || []).some(c => c.uid === byUid && (name = c.name || '')));
+      byEl.innerHTML = `<span>${name ? 'Protocols by ' + esc(name) : 'Protocols by this lab member'}</span>
+        <a href="#/protocols">Show all protocols</a>`;
+      byEl.hidden = false;
+    }
+
+    const tools = appEl.querySelector('#protocols-tools');
+    const search = appEl.querySelector('#protocols-search');
+    const tagsEl = appEl.querySelector('#protocols-tags');
+    // Tag chips: the most-used first, a dozen at most (search reaches the rest).
+    const tagCount = {};
+    pool.forEach(p => (p.tags || []).forEach(t => { tagCount[t] = (tagCount[t] || 0) + 1; }));
+    const tagSet = Object.keys(tagCount)
+      .sort((a, b) => tagCount[b] - tagCount[a] || a.localeCompare(b)).slice(0, 12);
+    let activeTag = '';
+    // A search box over two cards is clutter; it appears once there is a shelf to search.
+    if (tools && (pool.length > 3 || tagSet.length > 1)) tools.hidden = false;
+    if (tagsEl) {
+      tagsEl.innerHTML = tagSet.length > 1
+        ? tagSet.map(t => `<button type="button" class="news-filter-chip" data-tag="${esc(t)}" aria-pressed="false">${esc(t)}</button>`).join('')
+        : '';
+    }
+
+    function draw(){
+      const q = (search?.value || '').trim().toLowerCase();
+      const rows = pool.filter(p => {
+        if (activeTag && !(p.tags || []).includes(activeTag)) return false;
+        if (!q) return true;
+        return [p.title, p.summary, p.byline, p.category, (p.tags || []).join(' ')]
+          .join(' ').toLowerCase().includes(q);
+      });
+      if (!rows.length) {
+        empty(byUid && !pool.length ? 'No protocols from this lab member yet.' : 'No protocols match.');
+        return;
+      }
+      grid.innerHTML = '';
+      rows.forEach(p => grid.appendChild(buildProtocolCard(p)));
+      enableReveal();
+    }
+    search?.addEventListener('input', draw);
+    tagsEl?.addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-tag]');
+      if (!chip) return;
+      activeTag = activeTag === chip.dataset.tag ? '' : chip.dataset.tag;
+      tagsEl.querySelectorAll('[data-tag]').forEach(c => {
+        const on = c.dataset.tag === activeTag;
+        c.classList.toggle('active', on);
+        c.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      draw();
+    });
+    draw();
   }
 
   function renderDataGallery(){

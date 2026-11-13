@@ -205,6 +205,16 @@ if [ "${JV:-0}" -ge 21 ] 2>/dev/null; then
   echo "$out" | grep -E "  (HOLE|BREAK) " | sed 's/^/   /'
   record $rc "procurement-rules"
 
+  # V3.986 — protocols on the lab website. The load-bearing cases: a visitor
+  # reads publicProtocols (card + tree) but never the working protocols/{id}
+  # doc, whatever its status; only the protocol's owner or an admin posts,
+  # updates or removes the public copy; the card's id is pinned to its doc id.
+  out=$(cd scripts/tests && firebase emulators:exec --only firestore \
+        --project demo-mcgheelab-pp "node protocols-public-rules.test.mjs" 2>&1); rc=$?
+  note "$(echo "$out" | grep -E 'protocols-public-rules:' | tail -1)"
+  echo "$out" | grep -E "  (HOLE|BREAK) " | sed 's/^/   /'
+  record $rc "protocols-public-rules"
+
   step "5. end-to-end user journeys (real modules, real rules, real users)"
   out=$(cd scripts/tests && firebase emulators:exec --only firestore,auth \
         --project demo-mcgheelab-e2e "node inventory-e2e.test.mjs" 2>&1); rc=$?

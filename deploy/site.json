@@ -32,6 +32,8 @@
     "cv-builder.js",
     "scheduler.js",
     "class-builder.js",
+    "protocol-view.html",
+    "protocol-view.js",
     "whiteboard.js",
     "whiteboard-replay.js",
     "teacher-classes.js",

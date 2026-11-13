@@ -6643,3 +6643,120 @@ button.eh-flag:hover{ filter: brightness(1.15); }
 @media (max-width: 640px) {
   .eg-daterow [data-d-remove] { margin-left: 0; }
 }
+
+/* =====================================================================
+   Protocols (V3.986) — #/protocols and #/protocols/{id}
+   Protocols the lab has posted for anyone to use (written and tagged in
+   RM, shown here). First the shelf — search, tag chips, cards — then, at
+   the end of this block, the page for one protocol.
+   ===================================================================== */
+.protocols-tools{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 18px;
+}
+.protocols-tools[hidden], .protocols-by[hidden]{ display: none; }
+.protocols-search{
+  flex: 1 1 240px;
+  max-width: 420px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: .95rem;
+}
+.protocols-search::placeholder{ color: var(--muted); }
+.protocols-search:focus-visible{ outline: 2px solid var(--accent); outline-offset: 1px; }
+.protocols-tags{ display: flex; flex-wrap: wrap; gap: 6px; }
+.protocols-by{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  margin-bottom: 18px;
+  color: var(--text);
+  font-weight: 600;
+}
+.protocols-by a{ font-weight: 400; font-size: .92rem; }
+.protocols-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: 18px;
+}
+.protocol-card{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 20px;
+  text-decoration: none;
+  color: var(--text);
+}
+/* The card also carries .reveal, whose .is-visible state owns the
+   transition: restate its fade here and add the quicker hover lift. */
+.protocol-card.is-visible{
+  transition: opacity .5s ease, filter .5s ease, transform .2s ease, border-color .15s ease;
+}
+.protocol-card.is-visible:hover{ border-color: var(--accent); transform: translateY(-2px); }
+.protocol-card:hover{ text-decoration: none; }   /* the whole card is the link */
+.protocol-card:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.protocol-card-icon{ font-size: 1.6rem; line-height: 1; color: var(--accent); }
+.protocol-card h3{ margin: 0; font-size: 1.1rem; line-height: 1.3; overflow-wrap: anywhere; }
+.protocol-card p{ margin: 0; }
+.protocol-card-summary{ color: var(--muted); font-size: .93rem; line-height: 1.5; }
+.protocol-card-by{ font-size: .88rem; }
+.protocol-card-tags{ display: flex; flex-wrap: wrap; gap: 6px; }
+.protocol-card-tags .badge{ padding: 3px 9px; font-size: .75rem; }
+/* two classes, to outrank ".protocol-card p" above: the facts line sits at
+   the foot of the card whatever the card's height */
+.protocol-card .protocol-card-meta{ margin-top: auto; padding-top: 6px; color: var(--muted); font-size: .8rem; }
+@media (prefers-reduced-motion: reduce){
+  .protocol-card.is-visible{ transition: none; }
+  .protocol-card.is-visible:hover{ transform: none; }
+}
+
+/* One protocol (#/protocols/{id}). The document is drawn in a frame by
+   protocol-view.html — the lab's own protocol sheet, light on this dark
+   page — and the frame sets its own height, so this page scrolls it. */
+/* The hero is hidden on this page, and the hero is what keeps a page
+   clear of the fixed banner — so this section does it itself. */
+.protocol-view-section{
+  margin-top: calc(var(--banner-height) + env(safe-area-inset-top, 0px) - 12px);
+}
+.protocol-view-bar{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-bottom: 14px;
+}
+.protocol-print-btn{ display: inline-flex; align-items: center; gap: 6px; }
+.protocol-print-btn[hidden]{ display: none; }
+.protocol-view-body{ min-height: 40vh; }
+.protocol-frame{
+  display: block;
+  width: 100%;
+  height: 0;                 /* protocol-view.js sets it to the document's height */
+  border: 0;
+  background: transparent;
+}
+@media (max-width: 700px){
+  /* the sheet runs edge to edge on a phone */
+  .protocol-view-body{ padding-left: 0; padding-right: 0; }
+}
+/* File → Print on a protocol page: the protocol, without the site around
+   it. (The Print button and Ctrl/Cmd+P print the sheet itself, which
+   paginates properly; this is the fallback.) */
+@media print{
+  body.protocol-view-env .site-header,
+  body.protocol-view-env .site-footer,
+  body.protocol-view-env .bottom-tabs,
+  body.protocol-view-env .group-sheet,
+  body.protocol-view-env .skip-link,
+  body.protocol-view-env .protocol-view-bar{ display: none !important; }
+  body.protocol-view-env{ background: #fff; }
+}

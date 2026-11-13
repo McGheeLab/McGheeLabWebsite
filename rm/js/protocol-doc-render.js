@@ -13,6 +13,12 @@
  *   opts.stepNumber — the number shown on a `step` block.
  * Returns a DOM node, or null for blocks with nothing to show (docHeader
  * is rendered by the masthead, empty figure/table/kv/timeline collapse).
+ *
+ * V3.986 — renderDocument(docEl, opts) assembles the whole document
+ * (masthead, numbered sections, footer). It was protocol-doc.js's own;
+ * it lives here so the public site (/protocol-view.js, the document on a
+ * #/protocols/{id} page) renders a posted protocol exactly as the lab's
+ * document view does.
  */
 
 (function () {
@@ -343,8 +349,144 @@
     }
   }
 
+  /* ── Whole document (V3.986: moved from protocol-doc.js) ────────── */
+
+  function findDocHeader(tree) {
+    var found = null;
+    ((tree && tree.sections) || []).forEach(function (sec) {
+      (sec.children || []).forEach(function (b) {
+        if (!found && b && b.kind === 'docHeader') found = b;
+      });
+    });
+    return found;
+  }
+
+  function symValueHtml(ctx, name) {
+    var sym = ctx.table[name];
+    return esc(sym ? window.ProtocolFormulas.formatSymbolValue(sym) : '?');
+  }
+
+  /* opts.doc      {title, author_name, created_at, current_version}
+   * opts.brand    labConfig/branding ({name, tagline}) or null
+   * opts.metaBits optional [string] — replaces the author / created /
+   *               version chips (the public page names its contributors
+   *               and the date it was posted instead). */
+  function renderMasthead(headerBlock, ctx, opts) {
+    var doc = opts.doc || {};
+    var brandCfg = opts.brand || null;
+    var a = (headerBlock && headerBlock.attrs) || {};
+    var el = document.createElement('header');
+    el.className = 'prd-masthead';
+    var brandName = a.brand || (brandCfg && brandCfg.name) || 'McGhee Lab';
+    var brand = document.createElement('div');
+    brand.className = 'prd-brand';
+    var bn = document.createElement('span');
+    bn.className = 'prd-brand-name';
+    bn.textContent = brandName;
+    brand.appendChild(bn);
+    var tagText = a.tag || (brandCfg && brandCfg.tagline) || '';
+    if (tagText) {
+      var bt = document.createElement('span');
+      bt.className = 'prd-brand-tag';
+      bt.textContent = tagText;
+      brand.appendChild(bt);
+    }
+    el.appendChild(brand);
+    var h1 = document.createElement('h1');
+    h1.className = 'prd-title';
+    h1.textContent = a.title || doc.title || '(untitled protocol)';
+    el.appendChild(h1);
+    var subtitleRaw = (headerBlock && headerBlock.body) || '';
+    if (subtitleRaw.trim()) {
+      var sub = document.createElement('div');
+      sub.className = 'prd-subtitle prd-prose';
+      bindProse(ctx, sub, subtitleRaw);
+      el.appendChild(sub);
+    }
+    var chips = Array.isArray(a.chips) ? a.chips : [];
+    var metaBits = [];
+    if (Array.isArray(opts.metaBits)) {
+      metaBits = opts.metaBits.filter(Boolean);
+    } else {
+      if (doc.author_name) metaBits.push(doc.author_name);
+      if (doc.created_at) metaBits.push(doc.created_at.slice(0, 10));
+      if (doc.current_version > 0) metaBits.push('v' + doc.current_version);
+    }
+    if (chips.length || metaBits.length) {
+      var row = document.createElement('div');
+      row.className = 'prd-chips';
+      chips.forEach(function (chip) {
+        if (!chip || (!chip.text && !chip.var)) return;
+        var c = document.createElement('span');
+        c.className = 'prd-chip';
+        var refresh = function () {
+          c.innerHTML = esc(chip.text || '') +
+            (chip.var ? ' <strong>' + symValueHtml(ctx, chip.var) + '</strong>' : '');
+        };
+        refresh();
+        if (chip.var) ctx.refreshers.push(refresh);
+        row.appendChild(c);
+      });
+      metaBits.forEach(function (bit) {
+        var c = document.createElement('span');
+        c.className = 'prd-chip prd-chip-meta';
+        c.textContent = bit;
+        row.appendChild(c);
+      });
+      el.appendChild(row);
+    }
+    return el;
+  }
+
+  /* Fill `docEl` with the document. opts: {doc, tree, brand, ctx,
+   * metaBits?, footerText?}. Resets ctx.refreshers — one document per
+   * widget context. */
+  function renderDocument(docEl, opts) {
+    var ctx = opts.ctx;
+    var tree = opts.tree || {};
+    docEl.innerHTML = '';
+    ctx.refreshers = [];
+
+    var headerBlock = findDocHeader(tree);
+    docEl.appendChild(renderMasthead(headerBlock, ctx, opts));
+
+    var stepCounter = 0;
+    (tree.sections || []).forEach(function (sec, i) {
+      var secEl = document.createElement('section');
+      secEl.className = 'prd-section';
+      var code = String(i + 1);
+      if (code.length < 2) code = '0' + code;
+      var h = document.createElement('h2');
+      h.className = 'prd-stage-title';
+      h.innerHTML = '<span class="prd-stage-code">' + code + '</span>' +
+        esc(sec.label || 'Untitled section');
+      var stage = document.createElement('div');
+      stage.className = 'prd-stage';
+      stage.appendChild(h);
+      secEl.appendChild(stage);
+
+      (sec.children || []).forEach(function (b) {
+        if (!b || b === headerBlock) return;
+        if (b.kind === 'step') stepCounter++;
+        // single source of truth — the same renderer the editor's
+        // per-section "complete" preview uses.
+        var el = renderBlock(b, ctx, { stepNumber: stepCounter });
+        if (el) secEl.appendChild(el);
+      });
+      docEl.appendChild(secEl);
+    });
+
+    if (opts.footerText) {
+      var footer = document.createElement('footer');
+      footer.className = 'prd-footer';
+      footer.textContent = opts.footerText;
+      docEl.appendChild(footer);
+    }
+  }
+
   window.ProtocolDocRender = {
     renderBlock: renderBlock,
+    renderDocument: renderDocument,
     CALLOUT_META: CALLOUT_META,
   };
 })();

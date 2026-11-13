@@ -1174,3 +1174,68 @@
   color: #8a94a3; background: #f0f3f7; border-radius: 7px; padding: 1px 6px;
 }
 .pre-var-pop-note { padding: 10px; font-size: 12px; color: #8a94a3; }
+
+/* ── V3.986 — "Post to website" (protocol-publish.js) ─────────────
+ * The topbar button turns green once the protocol is on the lab
+ * website and amber when it has been edited since. The dialog reuses
+ * the .pb-modal shell. */
+/* .btn sets display, which outranks the hidden attribute */
+#pre-publish-btn[hidden], .prp-modal .btn[hidden] { display: none; }
+.pre-action-btn.prp-live { border-color: #9fd3b4; color: #1f6b43; background: #eef8f2; }
+.pre-action-btn.prp-live:not(:disabled):hover { background: #e1f2e8; }
+.pre-action-btn.prp-stale { border-color: #e5c07b; color: #7a5200; background: #fdf6e3; }
+.pre-action-btn.prp-stale:not(:disabled):hover { background: #faedc8; }
+
+.prp-modal .pb-modal-card { width: min(560px, 94vw); }
+.prp-state { font-size: 13px; line-height: 1.5; color: #374151; }
+.prp-state:empty { display: none; }
+.prp-state-live,
+.prp-state-stale {
+  padding: 10px 12px; border-radius: 8px; margin-bottom: 12px;
+  background: #eef8f2; border: 1px solid #bfe3cd; color: #1f4d35;
+}
+.prp-state-stale { background: #fdf6e3; border-color: #ecd9a5; color: #6b4a00; }
+.prp-link {
+  display: block; margin-top: 4px; font-size: 12px; word-break: break-all;
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  color: inherit;
+}
+.prp-hint { font-size: 13px; line-height: 1.5; color: #4b5563; margin: 0 0 14px; }
+.prp-people {
+  max-height: 220px; overflow-y: auto;
+  border: 1px solid #e5e7eb; border-radius: 8px; padding: 4px 0; background: #fff;
+}
+/* two classes: .form-group label (style.css) would otherwise make each
+   row a bold block */
+.prp-people .prp-person {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 12px; margin: 0; font-size: 14px; font-weight: 400; cursor: pointer;
+}
+.prp-people .prp-person:hover { background: #f3f6fb; }
+.prp-people .prp-person input { width: 16px; height: 16px; margin: 0; flex: none; }
+.prp-person-name { flex: 1; min-width: 0; }
+.prp-person-sub { font-size: 12px; color: #6b7280; white-space: nowrap; }
+.prp-people-empty { padding: 10px 12px; font-size: 13px; color: #6b7280; }
+/* "How it will be listed": the card a visitor sees on the Protocols page */
+.prp-card {
+  border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; background: #fafbfc;
+  font-size: 13px; line-height: 1.45;
+}
+.prp-card:empty { display: none; }
+.prp-card-title { font-weight: 600; font-size: 14px; color: #111827; }
+.prp-card-summary { color: #4b5563; margin-top: 2px; }
+.prp-card-missing { color: #92400e; margin-top: 4px; }
+.prp-card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.prp-card-tag {
+  padding: 1px 8px; border-radius: 10px; font-size: 12px;
+  background: #eef1f5; border: 1px solid #d7dce4; color: #444e5c;
+}
+.prp-notes { font-size: 13px; line-height: 1.5; color: #4b5563; margin-top: 12px; }
+.prp-notes > div + div { margin-top: 6px; }
+.prp-notes:empty { display: none; }
+.prp-warn { color: #92400e; }
+.prp-modal .pb-modal-error { margin-top: 12px; }
+.prp-modal .pb-modal-actions { flex-wrap: wrap; }
+.prp-modal .pb-modal-actions .prp-remove { margin-right: auto; color: #991b1b; border-color: #fecaca; }
+.prp-modal .pb-modal-actions .prp-remove:not(:disabled):hover { background: #fef2f2; }
+.prp-modal .pb-modal-actions a.btn { text-decoration: none; }

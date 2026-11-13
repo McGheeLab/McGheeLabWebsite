@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protocol — McGheeLab</title>
+  <meta name="robots" content="noindex">
+  <!--
+    V3.986 — the document inside a protocol page of the public site.
+
+    A visitor reads a protocol at mcgheelab.com/#/protocols/{id}. That page
+    (app.js, renderProtocolView) is the site: menus, the back link, Print.
+    It loads the posted protocol and hands it to this file in a frame:
+
+        frame.contentWindow.ProtocolView.render(card, tree)
+
+    The frame is here for one reason: the protocol renders with the lab's
+    own document code and stylesheet (the look every protocol is printed
+    in), and a frame keeps the site's styles out of the document and the
+    document's out of the site. This file loads no database and no sign-in;
+    it draws what it is given, sets its own height, and prints itself.
+
+    Opened on its own it goes to the site's page for the protocol, so a
+    protocol has one address.
+  -->
+  <base target="_top">
+  <script>
+    if (window.top === window) {
+      var pid = (new URLSearchParams(location.search).get('id') || '').trim();
+      location.replace('/#/protocols' + (pid ? '/' + encodeURIComponent(pid) : ''));
+    }
+  </script>
+  <link rel="stylesheet" href="/rm/css/protocol-doc.css">
+  <script src="/rm/js/icons.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    /* The frame is as tall as the document (protocol-view.js sets it), so
+       nothing scrolls vertically in here; the site's page scrolls. */
+    html { overflow-x: auto; overflow-y: hidden; background: transparent; }
+    body {
+      margin: 0;
+      display: flow-root;            /* keep the sheet's margins inside the measured height */
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #17324D;
+      background: transparent;       /* the site shows through around the sheet */
+      line-height: 1.5;
+    }
+    /* protocol-doc.css gives the lab's doc view a full-height grey page;
+       here the sheet sits straight on the site. */
+    .prd-shell { min-height: 0; background: transparent; padding: 0 0 4px; }
+    .prd-doc { margin-top: 0; overflow-wrap: anywhere; }
+    /* the two declarations a value chip takes from RM's editor stylesheet,
+       which this page does not load */
+    .prd-doc .proto-var { margin: 0 1px; font-weight: 500; }
+    /* Wide tables and plate maps scroll inside the sheet instead of
+       pushing a phone's page sideways. */
+    .prd-doc .prd-materials, .prd-doc .prd-layoutmap-wrap { overflow-x: auto; }
+
+    .pv-about {
+      max-width: 920px;
+      margin: 16px auto 0;
+      padding: 18px 56px;
+      background: #fff;
+      border: 1px solid #dfe3ea;
+      border-radius: 10px;
+      font-size: 14px;
+      color: #2E4C6B;
+    }
+    .pv-about h2 {
+      margin: 0 0 6px;
+      font-size: 12px;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: #5A6B7B;
+    }
+    .pv-about p { margin: 4px 0; }
+    .pv-about a { color: #3F63A8; }
+    .pv-link { font-size: 13px; color: #5A6B7B; overflow-wrap: anywhere; }
+
+    @media (max-width: 700px) {
+      .prd-masthead { padding: 22px 18px 18px; }
+      .prd-doc > .prd-section, .prd-doc > .prd-footer { padding-left: 18px; padding-right: 18px; }
+      .pv-about { padding: 16px 18px; }
+    }
+
+    @media print {
+      html { overflow: visible; }
+      body { background: #fff; }
+      .pv-about { border: 0; border-top: 1px solid #dfe3ea; border-radius: 0; padding: 12px 8px; break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main class="prd-shell">
+    <article class="prd-doc" id="pv-doc" hidden></article>
+    <section class="pv-about" id="pv-about" hidden></section>
+  </main>
+
+  <!-- The lab's document renderer (shared with RM's protocol pages), minus
+       the inventory and editing modules. -->
+  <script src="/rm/js/protocol-schemas.js"></script>
+  <script src="/rm/js/protocol-formulas.js"></script>
+  <script src="/rm/js/protocol-graph.js"></script>
+  <script src="/rm/js/protocol-widgets.js"></script>
+  <script src="/rm/js/protocol-doc-render.js"></script>
+  <script src="/protocol-view.js"></script>
+</body>
+</html>

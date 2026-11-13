@@ -51,6 +51,8 @@
   var migrateBtn     = document.getElementById('pre-migrate-btn');
   var matchInvBtn    = document.getElementById('pre-match-inv-btn');  // V3.139
   var docViewBtn     = document.getElementById('pre-docview-btn');    // V3.315
+  var publishBtn     = document.getElementById('pre-publish-btn');    // V3.986
+  var publishUI      = null;  // PROTOCOL_PUBLISH.attachEditor handle (V3.986)
 
   // Save Version modal handles
   var saveverModal       = document.getElementById('pre-savever-modal');
@@ -144,6 +146,7 @@
       setSaveState('saving…');
       await db.collection('protocols').doc(protocolId).update(update);
       Object.assign(state.doc, update);
+      if (publishUI) publishUI.refresh();  // V3.986 — "edited since it was posted"
       setSaveState('saved');
       setTimeout(function () { if (saveStateEl.textContent === 'saved') setSaveState(''); }, 1500);
     } catch (err) {
@@ -177,6 +180,7 @@
       state.doc.title = titleStr;
       state.doc.updated_at = update.updated_at;
       state.dirty = false;
+      if (publishUI) publishUI.refresh();  // V3.986 — "edited since it was posted"
       setSaveState('saved');
       setTimeout(function () { if (saveStateEl.textContent === 'saved') setSaveState(''); }, 1500);
     } catch (err) {
@@ -1399,7 +1403,13 @@
     statusSel.disabled = tagsInput.disabled = summaryInput.disabled = !state.canEdit;
     addSectionBtn.disabled = !state.canEdit;
 
-    statusSel.addEventListener('change', scheduleMetaSave);
+    // V3.986 — 'published' means "on the lab website": moving to or from
+    // it goes through the posting dialog (which writes the status itself)
+    // instead of a plain save.
+    statusSel.addEventListener('change', function () {
+      if (publishUI && publishUI.interceptStatus(statusSel.value)) return;
+      scheduleMetaSave();
+    });
     tagsInput.addEventListener('input', scheduleMetaSave);
     summaryInput.addEventListener('input', scheduleMetaSave);
     addSectionBtn.addEventListener('click', addSection);
@@ -1455,6 +1465,29 @@
     if (docViewBtn) {
       docViewBtn.href = '/rm/pages/protocols.html?protocol=' +
         encodeURIComponent(protocolId) + '&view=doc';
+    }
+
+    // V3.986 — post to the lab website (protocol-publish.js). The dialog
+    // takes the tree as it is now: pending tree + metadata edits are
+    // flushed first so the public copy never trails the editor.
+    if (window.PROTOCOL_PUBLISH && publishBtn && !state.isHistoricalView) {
+      publishUI = window.PROTOCOL_PUBLISH.attachEditor({
+        protocolId: protocolId,
+        button: publishBtn,
+        statusSelect: statusSel,
+        getDoc: function () { return state.doc; },
+        canEdit: function () { return state.canEdit; },
+        getTree: async function () {
+          if (state.saveTimer) { clearTimeout(state.saveTimer); await saveMetaNow(); }
+          // cancel the debounced flush too: left pending it would rewrite
+          // updated_at after the post and flag the copy as out of date
+          if (state.treeFlushTimer) { clearTimeout(state.treeFlushTimer); state.treeFlushTimer = null; }
+          if (state.dirty) await flushTreeNow();
+          return window.ProtocolBlocks.dehydrateTree(state.yDoc);
+        },
+        loadRoster: _loadRoster,
+        onChanged: function (update) { Object.assign(state.doc, update); },
+      });
     }
 
     // V3.139 — Match-inventory button. Visible to readers (so they can

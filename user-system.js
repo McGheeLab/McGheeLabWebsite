@@ -428,6 +428,24 @@ const DB = {
         (a.order || 0) - (b.order || 0) ||
         String(a.title || '').localeCompare(String(b.title || '')));
   },
+  /* V3.986 — protocols posted on the lab website: the cards in
+   * publicProtocols (written by "Post to website" in RM's protocol
+   * editor, rm/js/protocol-publish.js). Public read. The tree lives in a
+   * subdocument the viewer page fetches, so this stays light enough for
+   * the Team page to load on every visit. Sorted by title. */
+  async getPublicProtocols() {
+    const snap = await McgheeLab.db.collection('publicProtocols').get();
+    return snap.docs.map(d => ({ ...d.data(), id: d.id }))
+      .sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
+  },
+  /* One posted protocol: its card and its tree, or null when it is not
+   * (or no longer) on the website. */
+  async getPublicProtocol(id) {
+    const ref = McgheeLab.db.collection('publicProtocols').doc(id);
+    const [card, content] = await Promise.all([ref.get(), ref.collection('content').doc('current').get()]);
+    if (!card.exists || !content.exists) return null;
+    return { card: { ...card.data(), id }, tree: (content.data() || {}).tree || null };
+  },
   async getStoriesByProject(projectId) {
     const snap = await McgheeLab.db.collection('stories')
       .where('projectId', '==', projectId)

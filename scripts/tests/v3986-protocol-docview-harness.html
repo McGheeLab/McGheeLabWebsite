@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>V3.986 harness — the lab's protocol document view</title>
+  <!--
+    V3.986 moved the document assembly (masthead, numbered sections,
+    footer) out of rm/js/protocol-doc.js into protocol-doc-render.js so
+    the public site draws a posted protocol with the same code. This page
+    runs the REAL protocol-doc.js — the lab's ?view=doc page — against a
+    faked sign-in and a faked database, to show the lab's view still
+    renders after the move.
+
+      python3 -m http.server 8000     (repo root)
+      http://localhost:8000/scripts/tests/v3986-protocol-docview-harness.html
+
+    Faked: firebridge (signed in, lab member; protocols/{id} and
+    labConfig/branding served from memory). Real: every protocol script
+    the doc mode of rm/pages/protocols.html loads, in the same order, and
+    the same stylesheets.
+  -->
+  <link rel="stylesheet" href="/rm/css/tokens.css">
+  <link rel="stylesheet" href="/rm/css/style.css">
+  <link rel="stylesheet" href="/rm/css/paper-editor.css">
+  <link rel="stylesheet" href="/rm/css/inventory-picker.css">
+  <link rel="stylesheet" href="/rm/css/protocol-editor.css">
+  <link rel="stylesheet" href="/rm/css/protocol-doc.css">
+  <script src="/rm/js/icons.js"></script>
+  <script>
+    window.__PROTOCOL_MODE = 'doc';
+    window.__PROTOCOL_ID = 'pe-ax-11';
+  </script>
+</head>
+<body>
+  <div class="pr-doc-mode prd-shell" id="prd-shell">
+    <div class="prd-toolbar" id="prd-toolbar">
+      <a class="btn pre-action-btn" id="prd-back" href="#">← Back to editor</a>
+      <button class="btn btn-primary pre-action-btn" id="prd-print"><i data-hi="printer"></i> Print / PDF</button>
+    </div>
+    <div class="prd-status" id="prd-status">Loading…</div>
+    <article class="prd-doc" id="prd-doc" hidden></article>
+  </div>
+
+  <script src="/rm/js/protocol-schemas.js"></script>
+  <script>
+    window.__h = { ready: false };
+    window.__docsReady = fetch('/Research/bead_confocal_protocols/pe-ax-11-binding-kinetics.protocol-import.json')
+      .then(function (r) { return r.json(); })
+      .then(function (src) {
+        var p = src.protocol;
+        var tree = p.tree;
+        // a linked materials row + a chip, to show the lab view still resolves inventory
+        tree.sections.some(function (sec) {
+          return sec.children.some(function (b) {
+            if (b.kind === 'materials' && b.attrs.rows.length) {
+              b.attrs.rows[0] = { qty: '500', unit: 'mL', free_text: '', item_ref: 'chem-pbs' };
+              return true;
+            }
+            return false;
+          });
+        });
+        return {
+          'protocols/pe-ax-11': {
+            id: 'pe-ax-11', title: p.title, ownerUid: 'u-ana', author_name: 'Ana Ruiz', status: 'draft',
+            created_at: '2026-10-02T15:00:00.000Z', current_version: 3, tree: tree,
+          },
+          'labConfig/branding': { name: 'McGhee Lab', tagline: 'Protocols' },
+        };
+      });
+    function docRef(path) {
+      return { get: async function () {
+        var docs = await window.__docsReady;
+        var has = Object.prototype.hasOwnProperty.call(docs, path);
+        return { exists: has, data: function () { return has ? JSON.parse(JSON.stringify(docs[path])) : undefined; } };
+      } };
+    }
+    window.firebridge = {
+      requireSignIn: async function () { return { allowed: true }; },
+      isLabMember: function () { return true; },
+      isAdmin: function () { return false; },
+      db: function () { return { collection: function (c) { return { doc: function (id) { return docRef(c + '/' + id); } }; } }; },
+    };
+    window.api = { load: async function (route) {
+      if (route === 'inventory/chemicals.json') return { chemicals: [{ id: 'chem-pbs', name: 'PBS, pH 7.4', vendor: 'Gibco', catalogue_number: '10010023', quantity: '500 mL', safety: {} }] };
+      if (route === 'inventory/items.json') return { items: [] };
+      return null;
+    } };
+  </script>
+  <!-- the doc mode's script list from rm/pages/protocols.html, in order -->
+  <script src="/rm/js/protocol-formulas.js"></script>
+  <script src="/rm/js/protocol-inventory.js"></script>
+  <script src="/rm/js/protocol-graph.js"></script>
+  <script src="/rm/js/protocol-widgets.js"></script>
+  <script src="/rm/js/protocol-doc-render.js"></script>
+  <script src="/rm/js/protocol-doc.js"></script>
+</body>
+</html>

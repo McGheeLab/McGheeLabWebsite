@@ -3604,9 +3604,15 @@ service cloud.firestore {
     }
 
     // Protocols (V3.113) — protocols.io-style lab protocol authoring.
-    // Top-level `protocols` collection. Lab members read everything (or
-    // anyone reads a protocol whose status is 'published' — opt-in public
-    // share, used by Phase 5). Owner or admin writes the parent doc.
+    // Top-level `protocols` collection. Lab members read everything.
+    // Owner or admin writes the parent doc.
+    //
+    // V3.986 — the working doc is lab-only. Until now anyone could read a
+    // protocol (and its version snapshots) whose status was 'published';
+    // no protocol ever had that status. Posting to the website now copies
+    // a frozen snapshot to publicProtocols/{id} (below) and sets status
+    // 'published', so the public reads the copy and later edits stay in
+    // the lab until the owner updates it.
     //
     // Yjs CRDT subcollections — V1 lets ANY lab member read AND write so
     // collaborative editing works lab-wide. The editor UI honors the
@@ -3623,8 +3629,7 @@ service cloud.firestore {
         return request.auth != null && isLabMember()
           && request.auth.uid == get(/databases/$(database)/documents/protocols/$(protocolId)).data.ownerUid;
       }
-      allow read: if (resource.data.status == 'published')
-                  || (request.auth != null && isLabMember());
+      allow read: if request.auth != null && isLabMember();
       allow create: if request.auth != null && isLabMember()
                     && request.resource.data.ownerUid == request.auth.uid;
       allow update: if request.auth != null && isLabMember()
@@ -3659,8 +3664,7 @@ service cloud.firestore {
       // the protocol owner may delete (V3.386: owner cleanup cascades
       // through versions when deleting the protocol).
       match /versions/{vId} {
-        allow read: if (request.auth != null && isLabMember())
-                    || (get(/databases/$(database)/documents/protocols/$(protocolId)).data.status == 'published');
+        allow read: if request.auth != null && isLabMember();
         allow create: if request.auth != null
                       && isLabMember()
                       && request.resource.data.snapshot_by_uid == request.auth.uid
@@ -3668,6 +3672,33 @@ service cloud.firestore {
                           || isAdmin());
         allow update: if false;
         allow delete: if isAdmin() || isProtocolOwner();
+      }
+    }
+
+    // V3.986 — protocols posted on the lab website (#/protocols, and the
+    // protocols icon on a contributor's Team card). "Post to website" in
+    // the protocol editor (rm/js/protocol-publish.js) copies a snapshot
+    // here: publicProtocols/{id} is the card (title, summary, tags,
+    // contributors, dates) and content/current is the tree, with lab
+    // inventory links already replaced by the item's name. Public read —
+    // visitors are not signed in. The protocol's owner or an admin posts,
+    // updates and removes it; the id is pinned to the doc id so a card can
+    // never claim to be another protocol. A non-admin whose protocol doc
+    // is gone fails the get() and is denied.
+    match /publicProtocols/{protocolId} {
+      function canPostProtocol() {
+        return request.auth != null && isLabMember()
+          && (isAdmin()
+              || get(/databases/$(database)/documents/protocols/$(protocolId)).data.ownerUid == request.auth.uid);
+      }
+      allow read: if true;
+      allow create, update: if canPostProtocol()
+                            && request.resource.data.id == protocolId;
+      allow delete: if canPostProtocol();
+
+      match /content/{docId} {
+        allow read: if true;
+        allow write: if canPostProtocol();
       }
     }
 

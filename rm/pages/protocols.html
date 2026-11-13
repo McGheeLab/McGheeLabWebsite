@@ -200,6 +200,8 @@
       </div>
       <div class="pre-topbar-actions">
         <a class="btn pre-action-btn" id="pre-docview-btn" href="#" title="Read-only document view — print / export to PDF from there"><i data-hi="document-text"></i> Doc view</a>
+        <!-- V3.986 — post to the lab website; labelled and wired by protocol-publish.js -->
+        <button class="btn pre-action-btn" id="pre-publish-btn" hidden><i data-hi="globe-alt"></i> Post to website</button>
         <button class="btn pre-action-btn" id="pre-save-version-btn" disabled title="Save a named version snapshot"><i data-hi="save"></i> Save version</button>
         <div class="pre-versions-wrap">
           <button class="btn pre-action-btn" id="pre-versions-btn" disabled title="Browse version history"><i data-hi="document"></i> Versions <span id="pre-versions-count" class="pre-versions-count"></span></button>
@@ -322,7 +324,7 @@
           <label class="pre-meta-label">Status
             <select id="pre-status-select" disabled>
               <option value="draft">Draft</option>
-              <option value="published">Published</option>
+              <option value="published">Published (on the lab website)</option>
               <option value="archived">Archived</option>
             </select>
           </label>
@@ -392,6 +394,9 @@
         '/rm/js/protocol-figures.js',
         '/rm/js/protocol-versions.js',
         '/rm/js/protocol-import.js',
+        // V3.986 — deleting a protocol takes its public copy off the lab
+        // website first (PROTOCOL_PUBLISH.removePublicCopy).
+        '/rm/js/protocol-publish.js',
         '/rm/js/protocols.js',
       ];
       var editorScripts = [
@@ -429,6 +434,10 @@
         // button (calls PROTOCOL_IMPORT.openMatcher) and the post-
         // import auto-open behind the ?match=1 URL param.
         '/rm/js/protocol-import.js',
+        // V3.986 — "Post to website": the public copy + its dialog. After
+        // protocol-inventory.js (it resolves inventory links to names),
+        // before the editor that attaches it.
+        '/rm/js/protocol-publish.js',
         '/rm/js/protocol-editor.js',
       ];
       // V3.315 — doc mode: no Yjs (renders the projected JSON tree), no

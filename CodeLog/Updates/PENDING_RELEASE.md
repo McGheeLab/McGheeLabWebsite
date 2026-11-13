@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (84 changes — ready to push)
+## Pending (85 changes — ready to push)
+
+- **Protocols on the lab website (V3.986):** in a protocol, press **Post to website**, tick everyone who helped make it, and it appears on mcgheelab.com under Research → Protocols for anyone to read, print and use (calculators work there too). Each person you tick gets a protocols icon on the Team page that opens their protocols. The website shows the copy you posted — press **Update website** after you edit. Links to lab inventory show the item's name and catalog number, never stock levels.
 
 - **The Lab Notebook is a menu (V3.983):** choose the **Simple notebook** — a fresh canvas every week with the pen, text, pictures, PDFs and web pages, nothing else to learn — or **Scientia**, the full notebook synced with your computer, now filling the whole page under RM's bar.
 

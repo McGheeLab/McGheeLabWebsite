@@ -1187,6 +1187,30 @@
    ]
   },
   {
+   "id": "site.protocols",
+   "name": "Protocols on the lab website",
+   "side": "site",
+   "summary": "Research → Protocols on mcgheelab.com: the list (#/protocols), one protocol per page (#/protocols/{id}, the lab's document renderer in a frame), and the protocols icon on a contributor's Team card. Protocols are written, tagged and posted in RM; this is where they are shown.",
+   "keywords": [
+    "protocol",
+    "public",
+    "website",
+    "post",
+    "contributors",
+    "print"
+   ],
+   "paths": [
+    "protocol-view.html",
+    "protocol-view.js"
+   ],
+   "extends": "rm.protocols",
+   "related": [
+    "site.spa",
+    "site.user-system"
+   ],
+   "note": "V3.986. RM side: rm/js/protocol-publish.js (\"Post to website\" → publicProtocols/{id} + content/current). The list, the route and the Team icons live in app.js (site.spa); the reads in user-system.js."
+  },
+  {
    "id": "site.user-system",
    "name": "Accounts & dashboard editors",
    "side": "site",
