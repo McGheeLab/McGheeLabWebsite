@@ -1297,7 +1297,7 @@
       items.push({ icon: pic('calculator'), label: 'A calculator in this note', run: function () { CALC.open(pane); } });
       items.push({ icon: pic('variable'), label: 'An equation — new, or a registered one', run: function (el) { var r = el.getBoundingClientRect(); EQ.newMenu(pane, { clientX: r.left, clientY: r.top, currentTarget: el, target: el, preventDefault: function () {}, stopPropagation: function () {} }); } });
       if (typeof SPLITBTN !== 'undefined') items.push({ icon: pic('split'), label: 'Split — side by side, or a quadrant', run: function (el) { var r = el.getBoundingClientRect(); SPLITBTN.menu(pane, { clientX: r.left, clientY: r.bottom, currentTarget: el, target: el, preventDefault: function () {}, stopPropagation: function () {} }); } });
-      items.push({ icon: pic('arrows-pointing-out'), label: document.fullscreenElement ? 'Leave focus mode' : 'Focus mode — full screen', run: function () { App.toggleFocus(); } });
+      items.push({ icon: pic('maximize-2'), label: document.fullscreenElement ? 'Leave full screen' : 'Full screen', run: function () { App.toggleFocus(); } });   // V3.992: the maximise sign of pages and PDFs (⤢), no Focus mode wording
       if (Object.keys(LP.pos).length || Object.keys(LP.orient).length || Object.keys(LP.docked).some(function (k) { return LP.docked[k]; })) items.push({ icon: pic('home'), label: 'Put the pills back in their places (and fold the docked rows)',
         run: function () { LP.pos = {}; LP.docked = {}; LP.orient = {}; layoutSave(); paintAll(); } });
     } else if (name === 'view') {
@@ -2361,6 +2361,7 @@
      shared notes"): no chip at the top of the page any more. A shared note (shared itself, or in a shared project) has
      History beside its title, with what waits in that share: in this note first, then elsewhere in it. Its number is
      what waits for you. */
+  PILL_ICONS['maximize-2'] = '<path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>';   // V3.992: Lucide "maximize-2", two arrows to opposite corners
   PILL_ICONS.history = '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>';   // Lucide "history"
   var DEL = { data: { decide: [], waiting: [] }, btn: null, pop: null, doc: null, busy: {}, timer: null };
   LAB.deletions = DEL;
