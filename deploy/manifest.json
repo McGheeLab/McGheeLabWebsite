@@ -128,9 +128,9 @@
    "via": "baseline"
   },
   "app.js": {
-   "deployedAt": "2026-11-13T10:04:11-07:00",
-   "sha256": "37257356d77cdb9419b28be9cbfc9cf6ff53b269587bdf7933ec5b96b11deb0f",
-   "size": 161260,
+   "deployedAt": "2026-11-13T10:30:45-07:00",
+   "sha256": "d936db58dc9f02ccf415bcd28354e193abeae7c5092e44ca0e28f5b681725752",
+   "size": 164344,
    "via": "verify"
   },
   "class-builder.js": {
@@ -1634,8 +1634,8 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-11-13T10:04:11-07:00",
-   "sha256": "79ed479b47be1e3522be0c41320e9beebf2826cfbfab3ad5efa586aa9bdc6fe7",
+   "deployedAt": "2026-11-13T10:30:45-07:00",
+   "sha256": "0806ea912f9acf70cb4482fdfd8efbc8ffe87f914086189f13ec3fca18017384",
    "size": 83,
    "via": "verify"
   },
@@ -1844,9 +1844,9 @@
    "via": "baseline"
   },
   "rm/css/protocol-editor.css": {
-   "deployedAt": "2026-11-13T10:04:11-07:00",
-   "sha256": "6db70e8d849a98939502e81e8c3d8897a57ad847d7f08c41410766b525383d70",
-   "size": 31832,
+   "deployedAt": "2026-11-13T10:30:45-07:00",
+   "sha256": "97fbe9ef0a4327625afaa529f15dd7cbed46e06069573c87c046e65cc6efbc52",
+   "size": 35078,
    "via": "verify"
   },
   "rm/css/protocol-graph-editor.css": {
@@ -3344,10 +3344,10 @@
    "via": "verify"
   },
   "rm/js/protocol-cheat.js": {
-   "deployedAt": "2026-10-21T17:10:35-07:00",
-   "sha256": "34ac6a572e8b61ce57a4f1bc75ad6d68bf7a83c4a161fac272e6b58599505de7",
-   "size": 7730,
-   "via": "baseline"
+   "deployedAt": "2026-11-13T10:30:45-07:00",
+   "sha256": "a3cbd1faabc920894c30d80583c03b307acdaec3afa75269460c1f848936922d",
+   "size": 7959,
+   "via": "verify"
   },
   "rm/js/protocol-doc-render.js": {
    "deployedAt": "2026-11-13T10:04:11-07:00",
@@ -3356,15 +3356,15 @@
    "via": "verify"
   },
   "rm/js/protocol-doc.js": {
-   "deployedAt": "2026-11-13T10:04:11-07:00",
-   "sha256": "9b5be62d45e12d9d65b2fe728b0f75faefd76b681bcfb11bc9d6f4d8c653eae4",
-   "size": 4676,
+   "deployedAt": "2026-11-13T10:30:45-07:00",
+   "sha256": "55a53caca69c4bb1f0bda00a2eb2f16d525c543392da9d5580b7a539f0eb2e97",
+   "size": 4905,
    "via": "verify"
   },
   "rm/js/protocol-editor.js": {
-   "deployedAt": "2026-11-13T10:04:11-07:00",
-   "sha256": "2c7f25a1a480feafca6425183449fe753373c4f79ec5368f33ef956c82b164a2",
-   "size": 68344,
+   "deployedAt": "2026-11-13T10:30:45-07:00",
+   "sha256": "5c5e07fc48e71c4e167f41d271c0e14b9777f3fb475b86f2dbd6f6b9a8050c33",
+   "size": 68603,
    "via": "verify"
   },
   "rm/js/protocol-figures.js": {
@@ -3410,9 +3410,9 @@
    "via": "verify"
   },
   "rm/js/protocol-publish.js": {
-   "deployedAt": "2026-11-13T10:04:11-07:00",
-   "sha256": "fa33e65c3d3ecffce49a485bc2b4e1aaf25752f654a04ceaf41aac8d0f9f5284",
-   "size": 26268,
+   "deployedAt": "2026-11-13T10:30:45-07:00",
+   "sha256": "0e32f15c8bfa7016263ea3a90c72a3d6e2d69c601583be30592c0733c86da9e1",
+   "size": 29389,
    "via": "verify"
   },
   "rm/js/protocol-schemas.js": {
@@ -3440,9 +3440,9 @@
    "via": "baseline"
   },
   "rm/js/protocols.js": {
-   "deployedAt": "2026-11-13T10:04:11-07:00",
-   "sha256": "1ff4b81ed8a38439ed43126ebca6c62969352d9e76294ef0ee6855604a9e714e",
-   "size": 34080,
+   "deployedAt": "2026-11-13T10:30:45-07:00",
+   "sha256": "03c116fac295b52f7ad9318addbe194be6957652ebd6a3810b8aa7dafc7aeaef",
+   "size": 40439,
    "via": "verify"
   },
   "rm/js/qty-picker.js": {
@@ -4340,9 +4340,9 @@
    "via": "verify"
   },
   "rm/pages/protocols.html": {
-   "deployedAt": "2026-11-13T10:04:11-07:00",
-   "sha256": "e1ea756dd2cb38ff4d3a33bc196463c1ff85f4388c9914ad82e1d80f3b31cfe6",
-   "size": 23704,
+   "deployedAt": "2026-11-13T10:30:45-07:00",
+   "sha256": "ef9bfe920b9d7ef18f7578b8ee605ef67c6d628f6c7bb72568df99f4fb4fa081",
+   "size": 29458,
    "via": "verify"
   },
   "rm/pages/purchase-requests.html": {
@@ -5306,14 +5306,14 @@
    "via": "verify"
   },
   "styles.css": {
-   "deployedAt": "2026-11-13T10:04:11-07:00",
-   "sha256": "cf68c0e6d9ed1e340a832f58beded2bb5d695a901a4814ed1179a19d628df6a4",
-   "size": 206683,
+   "deployedAt": "2026-11-13T10:30:45-07:00",
+   "sha256": "1a7299551ec47d2fbf67fe0f44bbaff5f9f4509a5bd0d1112f9d4f251442a6e8",
+   "size": 208060,
    "via": "verify"
   },
   "sw.js": {
-   "deployedAt": "2026-11-13T10:04:11-07:00",
-   "sha256": "ea67f65869b84b819ae7f4ceb1002c5861c63a1c7e6552d38958a7838c5e9725",
+   "deployedAt": "2026-11-13T10:30:45-07:00",
+   "sha256": "d0c003c420b65303389dc4b112f6c0befa7094b5daf3a5068494167307241b7e",
    "size": 10269,
    "via": "verify"
   },
@@ -5348,9 +5348,9 @@
    "via": "baseline"
   },
   "user-system.js": {
-   "deployedAt": "2026-11-13T10:04:11-07:00",
-   "sha256": "cd1ee0aac223d36d9504668392b2ba3956aa4d3f4ec95a865b360544bb3927a2",
-   "size": 268533,
+   "deployedAt": "2026-11-13T10:30:45-07:00",
+   "sha256": "8361464163eeefdcca4f3f694ea4d4830add2ee82b7b9d5865f217b767d57eca",
+   "size": 269060,
    "via": "verify"
   },
   "whiteboard-board.css": {
@@ -5369,6 +5369,18 @@
    "deployedAt": "2026-10-23T19:22:05-07:00",
    "sha256": "0141aec1f0252ab60f758b4924ccbbeba3c4a4ff6510842ee7859c7a8ed2fd67",
    "size": 391950,
+   "via": "verify"
+  },
+  "rm/js/protocol-html-view.js": {
+   "deployedAt": "2026-11-13T10:30:45-07:00",
+   "sha256": "8cae5dfd263742d04da16d08421aa37fb38f812a4c158e0457b1fd39a63dd9f8",
+   "size": 12394,
+   "via": "verify"
+  },
+  "rm/js/protocol-html.js": {
+   "deployedAt": "2026-11-13T10:30:45-07:00",
+   "sha256": "71f33eeb80f29d7d3a1425c158ae428b1101615afe2a089ad96cd21c3729b7a1",
+   "size": 11961,
    "via": "verify"
   }
  },
