@@ -829,6 +829,38 @@ function visibleAnnotations(docs, uid) {
     .map(d => rmAnnotationRow(d, uid)).sort((a, b) => (a.page == null ? 1e9 : a.page) - (b.page == null ? 1e9 : b.page) || a.at.localeCompare(b.at));
 }
 
+/* ───────── V3.993: equations captured in RM's paper reader → this person's registered equations (Gabe: "the register equation from the
+   website in library should sync to the lab notebook") ─────────
+   papers/{paperId}/annotations/{id} with kind 'equation' (rm/js/equation-capture.js: latex, name, comment, snip_data_uri), the ones the
+   person may read (the lab's, or their own — as visibleAnnotations), as read-only `equations` rows (rm: true, device 'rm'): the name, the
+   LaTeX, the note, the snip (when small), the paper and page. Gone or hidden in RM → the row goes. Rows the person made are never touched. */
+const EQ_FIELDS = ['rm', 'rmId', 'rmPaper', 'name', 'tex', 'note', 'snip', 'page', 'by', 'mine'];
+const EQ_SNIP_MAX = 160000;   // the reader's snip is a ≤600 px JPEG; anything bigger stays in RM
+function rmEquationRow(d, uid) {
+  const pages = d.target && Array.isArray(d.target.pages) ? d.target.pages : [], pg = pages[0] || {}, by = d.creator || {};
+  const snip = typeof d.snip_data_uri === 'string' && /^data:image\//.test(d.snip_data_uri) && d.snip_data_uri.length <= EQ_SNIP_MAX ? d.snip_data_uri : '';
+  return { id: 'rm-eq-' + safeIdPart(d.paperId) + '-' + safeIdPart(d.id), rm: true, rmId: String(d.id || ''), rmPaper: String(d.paperId || ''),
+    name: String(d.name || '').trim() || 'Equation', tex: String(d.latex || '').trim(), note: String(d.comment || '').slice(0, 600), snip,
+    page: pg.page != null && !isNaN(+pg.page) ? +pg.page : null, by: String(by.displayName || by.email || ''), mine: !!(by.uid && by.uid === uid), created: tsText(d.created || d.created_at) };
+}
+function visibleEquations(docs, uid) {
+  return (docs || []).filter(d => d && !d.deleted && (d.kind === 'equation' || d.annotation_type === 'equation') && String(d.latex || '').trim() && d.paperId
+    && (d.visibility === 'lab' || (d.creator && d.creator.uid === uid)));
+}
+/** rows: Map keyOf('equations', id) → {rec} of the hub's equations rows (the person's own included). anns: annotation docs with id and paperId. */
+function planEquations({ state, rows, anns, uid, now }) {
+  const seen = new Set(), ops = [], at = isoLocal(now ? new Date(now) : new Date());
+  for (const d of visibleEquations(anns, uid)) {
+    const row = rmEquationRow(d, uid), key = keyOf('equations', row.id); seen.add(key);
+    const ex = rows.get(key), cur = ex && isObj(ex.rec) ? ex.rec : null;
+    if (cur && EQ_FIELDS.every(k => eq(cur[k] === undefined ? null : cur[k], row[k] === undefined ? null : row[k]))) continue;
+    const rec = Object.assign({}, cur || {}, row, { vars: cur && isObj(cur.vars) ? cur.vars : {}, uses: (cur && cur.uses) || 0, created: (cur && cur.created) || row.created || at, modified: at });
+    ops.push({ store: 'equations', id: row.id, rec, del: false, prev: cur, base: state.seq });
+  }
+  for (const [key, ex] of rows) { const cur = ex && isObj(ex.rec) ? ex.rec : null; if (cur && cur.rm && !seen.has(key)) ops.push({ store: 'equations', id: cur.id, rec: null, del: true, prev: cur, base: state.seq }); }
+  return { ops, total: seen.size, changed: ops.filter(o => !o.del).length, removed: ops.filter(o => o.del).length };
+}
+
 /* ───────── RM protocols and collections for Scientia (V3.878, Phase 2 part 2) — read-only ─────────
    PROTOCOLS: protocols/{id} {title, status, tree {sections [{label, children [{kind, body, attrs}]}]}, current_version,
    updated_at} — the editor flushes the Yjs tree back to `tree` 1.5 s after an edit, so it is current. Scientia runs a
@@ -1253,6 +1285,7 @@ MemoryHub.prototype.mirrorLibrary = async function ({ force } = {}) {
   for (const [key, row] of this.libraryRows()) rows.set(key, row);
   const plan = planMirror({ state: this.st, rows, items: this.rmItems || [] });
   if (plan.ops.length) await this.push({ dev: 'rm', conn: null, name: 'RM library', ops: plan.ops });
+  await this.mirrorEquations();   // V3.993
   this.mirrorAt = now; this.mirrorN = plan.total; this.mirrorRuns = (this.mirrorRuns || 0) + 1;
   return { ok: true, total: plan.total, written: plan.ops.length, changed: plan.changed, removed: plan.removed };
 };
@@ -1438,6 +1471,12 @@ MemoryHub.prototype.inventory = async function ({ q, limit, ids } = {}) {
   if (ids && ids.length) rows = rows.filter(r => ids.includes(r.id));
   return searchInventory(rows, q, limit);
 };
+MemoryHub.prototype.mirrorEquations = async function () {   // V3.993
+  const rows = new Map(); for (const [key, row] of this.rows) if (row && row.store === 'equations' && !row.deleted && row.rec) rows.set(key, row);
+  const plan = planEquations({ state: this.st, rows, anns: this.rmAnnotations || [], uid: this.uid || 'u-me' });
+  if (plan.ops.length) await this.push({ dev: 'rm', conn: null, name: 'RM equations', ops: plan.ops });
+  return { ok: true, total: plan.total, written: plan.ops.length };
+};
 MemoryHub.prototype.libraryRows = function () {
   const out = new Map();
   for (const [key, row] of this.rows) if (row && row.store === 'library' && !row.deleted && row.rec) out.set(key, row);
@@ -1445,7 +1484,7 @@ MemoryHub.prototype.libraryRows = function () {
 };
 
 module.exports = { personOf, route, parseBody, MEDIA_MIME, MEDIA_EXTS, REC_EXTS, MAX_MEDIA_BYTES, NOSYNC, KEYS, AUTO_MAX, COUNT_SKIP, MAX_OPS, PULL_MAX, MISSING, isoLocal, eq, merge3, emptyState, planPush, pullResult, planResolve, planReplace, exportState, helloResult, keyOf, rowKey, MemoryHub, sha, token,
-  MIRROR_MS, MIRROR_FIELDS, rmItemToLibraryRow, planMirror, INVENTORY_MS, INVENTORY_LIMIT, rmInventoryRow, searchInventory,
+  MIRROR_MS, MIRROR_FIELDS, rmItemToLibraryRow, planMirror, EQ_FIELDS, rmEquationRow, visibleEquations, planEquations, INVENTORY_MS, INVENTORY_LIMIT, rmInventoryRow, searchInventory,
   TASKSYNC_MS, PRIO_IMPORTANCE, dueDateOf, taskIdNew, rmTaskFromBlock, rmTaskPatch, planTaskSync,
   UPSYNC_MS, UPSYNC_MAX, normTitle, taskPayload, planTaskPairing, patchOp, libAuthors, paperItemFromRow, libraryUpCandidates, planLibraryUp,
   PAIR_MS, pairCode, normPairCode, pairRefusal, memPairs,

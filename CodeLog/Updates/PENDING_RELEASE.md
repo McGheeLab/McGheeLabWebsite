@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (91 changes — ready to push)
+## Pending (92 changes — ready to push)
+
+- **Equations from the Library reach your notebook (V3.993):** equations you (or the lab) capture in the website's paper reader now appear among the Lab Notebook's registered equations, with their paper and page. Scientia's own Library reader can capture one too: ∑ Capture equation, draw a box round it, check it, name it.
 
 - **Needs investigation is a structure (V3.992):** select words and press Ctrl+Enter → X (or right-click a component) — it is highlighted, keeps its dot in the note and its glowing dot in the Portfolio, and shows on Today until you mark it investigated. Switching tabs now slides the page in smoothly, holding Shift while dragging moves a component one grid cell at a time, and the Full screen button shows the ⤢ sign.
 

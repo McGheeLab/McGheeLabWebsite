@@ -266,6 +266,40 @@ const dev = (hub, id, conn) => ({
     assert.strictEqual(pulled.ops[0].rec.title, 'Paper p1 (revised)');
     assert.strictEqual((await call(hub, web, 'GET', '/api/rm/library/pdf?id=p1')).status, 404, 'the in-memory hub has no Storage');
   });
+  await test('V3.993 planEquations: the lab\'s and my own captures become read-only equations; others\' private ones, deleted ones and ones without LaTeX do not; changes update, gone ones go; my own registered equations are never touched', () => {
+    const ann = (id, o = {}) => Object.assign({ id, paperId: 'P1', kind: 'equation', annotation_type: 'equation', latex: 'F = k x', name: 'Hooke', comment: 'spring', visibility: 'lab',
+      snip_data_uri: 'data:image/jpeg;base64,AAAA', creator: { uid: 'u-alex', displayName: 'Alex' }, target: { pages: [{ page: 3 }] }, created: '2026-11-10T10:00:00Z' }, o);
+    const st = { seq: 4 }, rows = new Map();
+    rows.set(C.keyOf('equations', 'eq-mine'), { store: 'equations', id: 'eq-mine', rec: { id: 'eq-mine', name: 'Mine', tex: 'a = b' } });
+    const anns = [ann('a1'), ann('a2', { visibility: 'private', creator: { uid: 'u-me', displayName: 'Gabe' } }), ann('a3', { visibility: 'private' }), ann('a4', { deleted: true }), ann('a5', { latex: '  ' }),
+      ann('a6', { kind: 'highlight', annotation_type: 'highlight' }), ann('a7', { snip_data_uri: 'data:image/jpeg;base64,' + 'A'.repeat(200000) })];
+    const plan = C.planEquations({ state: st, rows, anns, uid: 'u-me', now: Date.parse('2026-11-13T12:00:00Z') });
+    assert.deepStrictEqual(plan.ops.map(o => o.id), ['rm-eq-P1-a1', 'rm-eq-P1-a2', 'rm-eq-P1-a7']);
+    const r = plan.ops[0].rec;
+    assert.deepStrictEqual([r.rm, r.rmId, r.rmPaper, r.name, r.tex, r.note, r.page, r.by, r.mine, r.snip.length > 0, r.uses], [true, 'a1', 'P1', 'Hooke', 'F = k x', 'spring', 3, 'Alex', false, true, 0]);
+    assert.strictEqual(plan.ops[1].rec.mine, true); assert.strictEqual(plan.ops[2].rec.snip, '', 'a snip too big stays in RM');
+    assert.strictEqual(plan.ops[0].base, 4); assert.strictEqual(plan.ops[0].prev, null);
+    // mirrored: nothing to do the second time; a renamed capture updates (keeping a legend added since); a gone one goes
+    plan.ops.forEach(o => rows.set(C.keyOf('equations', o.id), { store: 'equations', id: o.id, rec: Object.assign({}, o.rec, o.id === 'rm-eq-P1-a1' ? { vars: { F: { name: 'force', unit: 'N' } } } : {}) }));
+    assert.strictEqual(C.planEquations({ state: st, rows, anns, uid: 'u-me' }).ops.length, 0);
+    const p2 = C.planEquations({ state: st, rows, anns: [ann('a1', { name: 'Hooke\'s law' }), ann('a2', { visibility: 'private', creator: { uid: 'u-me' } })], uid: 'u-me' });
+    assert.deepStrictEqual(p2.ops.map(o => [o.id, o.del]), [['rm-eq-P1-a1', false], ['rm-eq-P1-a2', false], ['rm-eq-P1-a7', true]]);
+    assert.strictEqual(p2.ops[0].rec.name, 'Hooke\'s law'); assert.deepStrictEqual(p2.ops[0].rec.vars, { F: { name: 'force', unit: 'N' } });
+    assert.ok(!p2.ops.some(o => o.id === 'eq-mine'), 'my own registered equation is not RM\'s');
+  });
+  await test('V3.993 mirror on the hub: the library mirror brings the equations, as device RM equations, to every device', async () => {
+    const hub = new C.MemoryHub(); hub.uid = 'u-me'; hub.rmItems = [rmItem('P1')];
+    hub.rmAnnotations = [{ id: 'a1', paperId: 'P1', kind: 'equation', latex: 'E = m c^2', name: 'Energy', visibility: 'lab', creator: { uid: 'u-alex', displayName: 'Alex' }, target: { pages: [{ page: 1 }] } }];
+    const web = { id: 'u1', kind: 'browser', name: 'Alex' };
+    await call(hub, web, 'GET', '/api/sync/hello');
+    const st = await hub.state('state');
+    assert.deepStrictEqual((st.stores.equations || []).map(r => [r.id, r.rm, r.tex]), [['rm-eq-P1-a1', true, 'E = m c^2']]);
+    const d = dev(hub, 'desktop', 'c1'); await d.load();
+    hub.rmAnnotations = [];
+    await call(hub, web, 'POST', '/api/rm/library/refresh', {});
+    const pulled = await d.pull();
+    assert.deepStrictEqual(pulled.ops.filter(o => o.store === 'equations').map(o => [o.id, o.del, o.name]), [['rm-eq-P1-a1', true, 'RM equations']]);
+  });
   await test('mirror: a hub whose devices never see RM (no mirrorLibrary) still answers hello and refresh', async () => {
     const hub = new C.MemoryHub(); hub.mirrorLibrary = undefined;
     const web = { id: 'u1', kind: 'browser', name: 'Alex' };

@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.993] — 2026-11-13 — Scientia: equations captured on the website's Library reach the Lab Notebook's registered equations; the Library reader captures and registers equations
+
+Gabe: "the register equation from the website in library should sync to the lab notebook and the RTgabrieldeclercq version" — then, asked how they should reach his standalone (which has no link to the lab cloud): "The standalone only gets the code to snip/capture equations from papers, not the syncing."
+
+Lab (`functions/scientia-hub*.js`, `firestore.indexes.json` — **Alex reviews**; they need a deploy, below) and the app (`scientia/src`).
+
+### Added
+- **The hub mirrors the website's equation captures (`functions/scientia-hub-core.js` `planEquations`, `rmEquationRow`, `visibleEquations`; `scientia-hub.js` `mirrorEquations`, run with the library mirror every 5 minutes):** every `papers/{paperId}/annotations` with kind `equation` (the paper reader's ƒ capture, `rm/js/equation-capture.js`) that the person may read (the lab's, or their own) becomes a read-only `equations` row (`rm: true`, device "RM equations"; id `rm-eq-<paper>-<annotation>`): name, LaTeX, note, the snip (≤ 160 kB), the paper (`rmPaper`, the library row's id), page, who. Changed in RM → updated (a legend added in Scientia kept); gone or hidden → removed; the person's own registered equations are never touched. One collection-group query (`collectionGroup('annotations').where('kind', '==', 'equation')`), whose index is a new `annotations.kind` field override (collection-group scope; the collection defaults kept). A failing equations mirror never stops the library's.
+- **The app's Library reader captures equations (`17b-reader.js` `capture`, `capDown`, `captureAt`):** **∑ Capture equation** in the reader's bar → draw a box round the equation on a page → the equation editor over its snip (read to LaTeX where the lab's reader is there — `CLIP.read` — else typed against it) → its name (the paper and page offered) → registered: `{ name, tex, vars (its terms), snip (≤ 600 px JPEG), source: { lib, page, rect } }`. Esc leaves capture mode. The side panel lists the equations registered from this paper (the lab library's marked).
+- **Registered equations say where they came from (`13n-eq.js` `EQ.from`):** the picker shows "from the lab library · paper, p. n · who" or "from paper, p. n", with the snip; the note as its tooltip.
+
+### Changed
+- **`13n-eq.js` `EQ.create`:** one from the lab library is placed as a named copy (`eqFrom`), not linked, so an edit in the note never fights the mirror; `removeFromRegistry` leaves it (it is kept on the website).
+- **`13zza-clip.js`:** the snip-over-the-editor part of `CLIP.eqEdit` is `CLIP.ocrHead(snip, from, ready)`, shared with the reader.
+
+### Deploy (needs Gabe's go-ahead, in this order)
+1. `firebase deploy --only firestore:indexes` (the `annotations.kind` override; until it is built the equations mirror waits, the library mirror goes on);
+2. `firebase deploy --only functions:scientiaHub`.
+
+### Tests
+| Test | Result |
+|---|---|
+| `functions/test/scientia-hub.test.js` (2 new: `planEquations` — the lab's and my own captures in, others' private, deleted and LaTeX-less out, too-big snips left in RM, nothing on a second run, a rename updates keeping a legend, a gone one removed, my own registered equation untouched; the mirror on the hub through hello and refresh to a device, as "RM equations") | 73 passed (2 new) |
+| `t_993` on the desktop build (with the lab layer): the reader's button and its list (one from the lab library); capture mode; a box opens the editor over the snip; Done asks the name; registered with its LaTeX, paper, page, place, snip and terms; listed; Esc; the picker's sources and snips; a lab-library equation placed as a named copy, your own linked; not removed; the canvas snip still opens over its snip; no errors | 12/12 |
+| `t_993` on the standalone build | run with Gabe's standalone sync (its own PR) |
+| `v3869` lab-mode harness | 283/283 (with V3.992 under it) |
+| `v3880` notes harness | 13/13 |
+| Earlier suites | t_992 25/25 · t_989 40/40 · t_984 31/31 · t_981 35/35 · t_982wire 13/13 · t_983 18/18 · t_980keep 12/12 |
+
 ## [V3.992] — 2026-11-13 — Scientia: Needs investigation becomes a structure; tabs slide in like the Portfolio's projects; Shift+drag moves a grid cell at a time; Full screen as ⤢
 
 Gabe: "Needs investigation needs to be a structure separate from reminder. I want the tab switching to have an updated clean UI animation like the Portfolio switching between projects. Also, when dragging components in the canvas, holding Shift moves components by grid cells rather than fine movement. Change the Full screen button in the pill to be two arrows in opposite corners such as the maximize symbol in HTMLs and PDFs and remove the focus mode description on that button."
