@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (88 changes — ready to push)
+## Pending (89 changes — ready to push)
+
+- **Bridges at the edges of a note (V3.990):** a note shows the notes it is bridged with as small circles at its left and right edges; click one to go there. A bar under the tabs keeps the way back and your three most-used bridges (close it for the day with ×, or turn it off in Settings). In the Lab Notebook, deletions waiting for approval moved from the top of the page to a History button on shared notes.
 
 - Fixed: **Post to website** said "The lab roster did not load", so nobody could be credited on a protocol — the list of lab members now loads. Also: a protocol you just made, uploaded or posted now shows on the Protocols list straight away, as Published once posted (it could take half an hour), and if posting fails, the message says exactly what went wrong.
 
