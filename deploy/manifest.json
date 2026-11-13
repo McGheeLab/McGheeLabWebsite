@@ -1634,9 +1634,9 @@
    "via": "verify"
   },
   "rm/build.json": {
-   "deployedAt": "2026-11-13T10:30:45-07:00",
-   "sha256": "0806ea912f9acf70cb4482fdfd8efbc8ffe87f914086189f13ec3fca18017384",
-   "size": 83,
+   "deployedAt": "2026-11-13T14:14:06-07:00",
+   "sha256": "74f2695615b588fbb62b4b563568c9256d3a1e0aa5c07f4f0fc5890489076289",
+   "size": 82,
    "via": "verify"
   },
   "rm/css/activity-overview.css": {
@@ -3362,9 +3362,9 @@
    "via": "verify"
   },
   "rm/js/protocol-editor.js": {
-   "deployedAt": "2026-11-13T10:30:45-07:00",
-   "sha256": "5c5e07fc48e71c4e167f41d271c0e14b9777f3fb475b86f2dbd6f6b9a8050c33",
-   "size": 68603,
+   "deployedAt": "2026-11-13T14:14:06-07:00",
+   "sha256": "c8a4797e5ba165d32b735483f4d2bbffb6b0ac16d39dff32cc302186772040d4",
+   "size": 68913,
    "via": "verify"
   },
   "rm/js/protocol-figures.js": {
@@ -3397,6 +3397,18 @@
    "size": 97194,
    "via": "verify"
   },
+  "rm/js/protocol-html-view.js": {
+   "deployedAt": "2026-11-13T14:14:06-07:00",
+   "sha256": "2d9d5199412b44a8c0510a10d917dab8be564b8ff3c43be48c3c6815c72f617d",
+   "size": 12873,
+   "via": "verify"
+  },
+  "rm/js/protocol-html.js": {
+   "deployedAt": "2026-11-13T10:30:45-07:00",
+   "sha256": "71f33eeb80f29d7d3a1425c158ae428b1101615afe2a089ad96cd21c3729b7a1",
+   "size": 11961,
+   "via": "verify"
+  },
   "rm/js/protocol-import.js": {
    "deployedAt": "2026-10-23T10:34:36-07:00",
    "sha256": "7eaf529d17c55249ed8be1d4915f0fcd71a36ca96ea3f06a723094826702bb08",
@@ -3410,9 +3422,9 @@
    "via": "verify"
   },
   "rm/js/protocol-publish.js": {
-   "deployedAt": "2026-11-13T10:30:45-07:00",
-   "sha256": "0e32f15c8bfa7016263ea3a90c72a3d6e2d69c601583be30592c0733c86da9e1",
-   "size": 29389,
+   "deployedAt": "2026-11-13T14:14:06-07:00",
+   "sha256": "657babb1d9b45d9dc3d9b7298c6282f7a0abdc364ca9b6bdc65f47703cbeff25",
+   "size": 30468,
    "via": "verify"
   },
   "rm/js/protocol-schemas.js": {
@@ -3440,9 +3452,9 @@
    "via": "baseline"
   },
   "rm/js/protocols.js": {
-   "deployedAt": "2026-11-13T10:30:45-07:00",
-   "sha256": "03c116fac295b52f7ad9318addbe194be6957652ebd6a3810b8aa7dafc7aeaef",
-   "size": 40439,
+   "deployedAt": "2026-11-13T14:14:06-07:00",
+   "sha256": "91f8d6f9b00ddba5ed12dba841c1511762ccf2b264f9c785225808a14fc1772e",
+   "size": 42588,
    "via": "verify"
   },
   "rm/js/qty-picker.js": {
@@ -5312,8 +5324,8 @@
    "via": "verify"
   },
   "sw.js": {
-   "deployedAt": "2026-11-13T10:30:45-07:00",
-   "sha256": "d0c003c420b65303389dc4b112f6c0befa7094b5daf3a5068494167307241b7e",
+   "deployedAt": "2026-11-13T14:14:06-07:00",
+   "sha256": "5efc6065ac10a89836cdc6c9d39ca0579334d89b516b435abdf01a45c698da8a",
    "size": 10269,
    "via": "verify"
   },
@@ -5369,18 +5381,6 @@
    "deployedAt": "2026-10-23T19:22:05-07:00",
    "sha256": "0141aec1f0252ab60f758b4924ccbbeba3c4a4ff6510842ee7859c7a8ed2fd67",
    "size": 391950,
-   "via": "verify"
-  },
-  "rm/js/protocol-html-view.js": {
-   "deployedAt": "2026-11-13T10:30:45-07:00",
-   "sha256": "8cae5dfd263742d04da16d08421aa37fb38f812a4c158e0457b1fd39a63dd9f8",
-   "size": 12394,
-   "via": "verify"
-  },
-  "rm/js/protocol-html.js": {
-   "deployedAt": "2026-11-13T10:30:45-07:00",
-   "sha256": "71f33eeb80f29d7d3a1425c158ae428b1101615afe2a089ad96cd21c3729b7a1",
-   "size": 11961,
    "via": "verify"
   }
  },
