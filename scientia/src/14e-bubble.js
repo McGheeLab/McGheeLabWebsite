@@ -22,7 +22,10 @@
      o = { key, centre, around, S, region: { name, ids }, caption: { title,
      sub, extra }, badge, beads: [{ text, title, label, on }], uses (spec ids
      outlined "uses it too"), arcNear: { ids → kind } (an arc inside one
-     bubble), onPort(glass, e), flat }. el._g is its geometry.
+     bubble), onPort(glass, e), flat (true: a plain tray; false: glass even
+     with Term bubbles off; unset: follows Term bubbles), ring: { on, ms }
+     (the pointing ring for this bubble, instead of Term bubbles' own) }.
+     el._g is its geometry. (V4.0: flat false and ring, for the Atlas.)
    • BUBBLE.warp(D) → the id of the SVG filter that bends a disc of diameter
      D at its rim (one per size, 8 px steps; strength: Settings → Term
      bubbles → Glass).
@@ -32,8 +35,8 @@
    • BUBBLE.port(glass, go) → the portal: a circle of paper opens from the
      bubble over the window, go() runs underneath (App.openBlock …), and it
      fades away on the note.
-   • BUBBLE.back.arm({ hash, label }) → on the note, a small glass bubble
-     that takes you back (Esc too when nothing is selected; Alt+← is the
+   • BUBBLE.back.arm({ hash, label, text }) → on the note, a small glass bubble
+     that takes you back (text, when given, is its whole label) (Esc too when nothing is selected; Alt+← is the
      history's own); BUBBLE.back.clear().
    • BUBBLE.bead({ d, title, on }) → a small glass bead: a far dot (level of
      detail for many dots).
@@ -111,7 +114,8 @@ const BUBBLE = {
       sp.body ? sp.body : null, uses ? h('div.bb-also', '● uses it too') : null);
   },
   el(o) {
-    const S = o.S || 1, g = BUBBLE.geometry(o.centre, o.around || [], S), D = g.D, R = g.R, flat = o.flat || !BUBBLE.on();
+    const S = o.S || 1, g = BUBBLE.geometry(o.centre, o.around || [], S), D = g.D, R = g.R, flat = o.flat != null ? !!o.flat : !BUBBLE.on();
+    const ringOn = () => o.ring ? !!o.ring.on : BUBBLE.opt('ring'), ringMs = () => (o.ring && +o.ring.ms) || +BUBBLE.opt('ringMs') || 1000;
     const cont = h('div.bb-cont');
     if (!flat) cont.style.filter = `url(#${BUBBLE.warp(D)})`;
     cont.append(h('div.bb-behind'));
@@ -134,8 +138,8 @@ const BUBBLE = {
     // the glints follow the pointer a little; pointing (moving, not a page sliding under a resting pointer) closes a ring, then ports in
     let dwell = 0; const stop = () => { clearTimeout(dwell); el.classList.remove('dwell'); };
     glass.addEventListener('mousemove', e => { const r = glass.getBoundingClientRect(); glass.style.setProperty('--sx', (((e.clientX - r.left) / r.width - .5) * 2.2).toFixed(2) + '%'); glass.style.setProperty('--sy', (((e.clientY - r.top) / r.height - .5) * 2.2).toFixed(2) + '%');
-      if (flat || !BUBBLE.opt('ring') || el.classList.contains('dwell') || Date.now() - BUBBLE._scrollAt < 350 || BUBBLE._porting) return;
-      el.style.setProperty('--ring', (+BUBBLE.opt('ringMs') || 1000) + 'ms'); el.classList.add('dwell'); dwell = setTimeout(() => { el.classList.remove('dwell'); o.onPort && o.onPort(glass, null); }, +BUBBLE.opt('ringMs') || 1000); });
+      if (flat || !ringOn() || el.classList.contains('dwell') || Date.now() - BUBBLE._scrollAt < 350 || BUBBLE._porting) return;
+      el.style.setProperty('--ring', ringMs() + 'ms'); el.classList.add('dwell'); dwell = setTimeout(() => { el.classList.remove('dwell'); o.onPort && o.onPort(glass, null); }, ringMs()); });
     glass.addEventListener('mouseleave', () => { stop(); glass.style.setProperty('--sx', '0%'); glass.style.setProperty('--sy', '0%'); });
     glass.addEventListener('click', e => { stop(); o.onPort && o.onPort(glass, e); });
     el._stopDwell = stop;
@@ -180,7 +184,7 @@ const BUBBLE = {
       if (!b) { b = BUBBLE.back.el = h('div.bb-back', h('button.bb-back-b', { type: 'button', 'aria-label': 'Back to the bubbles', on: { click: () => BUBBLE.back.go() } }, h('span', '◯')), h('span.bb-back-l')); document.body.append(b); }
       const v = $('#view'), vr = v ? v.getBoundingClientRect() : { left: 0, top: 0 };
       b.style.left = (vr.left + 14) + 'px'; b.style.top = (vr.top + 12) + 'px';
-      $('.bb-back-l', b).textContent = 'Back to the bubbles of “' + (c.label || '') + '” · Esc';
+      $('.bb-back-l', b).textContent = c.text || ('Back to the bubbles of “' + (c.label || '') + '” · Esc');
       b.hidden = false;
     },
   },
