@@ -1672,17 +1672,22 @@
    "id": "scientia.settings",
    "name": "Scientia Settings, export & seed",
    "side": "scientia",
-   "summary": "Settings, export (including the JSON the lab site's Upload from desktop takes), demo seed.",
+   "summary": "Settings (V3.995: a sidebar and the feature board — every feature in the FEAT register with its switch, presets, settings and live preview), export (including the JSON the lab site's Upload from desktop takes), demo seed.",
    "keywords": [
     "settings",
     "export",
     "seed",
     "demo",
     "backup",
-    "lab-export"
+    "lab-export",
+    "features",
+    "presets",
+    "preview"
    ],
    "paths": [
     "scientia/src/20-settings.js",
+    "scientia/src/02b-feat.js",
+    "scientia/src/20a-features.js",
     "scientia/src/21-export.js",
     "scientia/src/22-seed.js",
     "scientia/src/21c-labexport.js"
