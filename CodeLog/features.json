@@ -1509,18 +1509,21 @@
    "id": "scientia.terms",
    "name": "Scientia Terms & lens",
    "side": "scientia",
-   "summary": "Wikilink terms, term forms, term scanning and the lens view.",
+   "summary": "Wikilink terms, term forms, term scanning, the Terms tab and a term's bubbles (glass portals into the notes, BUBBLE, reusable), with the arcs barrier → resolution and observation → takeaway.",
    "keywords": [
     "term",
     "wikilink",
     "lens",
     "glossary",
-    "scan"
+    "scan",
+    "bubble"
    ],
    "paths": [
     "scientia/src/16-lens.js",
     "scientia/src/16b-termforms.js",
-    "scientia/src/13w-termscan.js"
+    "scientia/src/13w-termscan.js",
+    "scientia/src/14e-bubble.js",
+    "scientia/src/25-bubbles.css"
    ]
   },
   {
