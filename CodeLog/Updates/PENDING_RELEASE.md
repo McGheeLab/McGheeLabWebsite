@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (95 changes — ready to push)
+## Pending (96 changes — ready to push)
+
+- **Selections and terms (V3.997):** clicking anywhere else on a note lets go of what you selected; the Terms tab no longer counts mentions in lit reviews.
 
 - **Tidier unfolding and flagging (V3.996):** unfolding a region moves the regions in its way to the side, and folding brings everything back exactly where it was; a Synthesis gets only what you flag (Ctrl+Enter → F for words, right-click or /synthesize for components); pasted and inserted things land in the middle of what you are looking at.
 

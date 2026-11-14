@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.997] — 2026-11-14 — Scientia: a click outside a selection lets it go; mentions in lit reviews are left out of the Terms tab
+
+Gabe: "When you have items selected, simply clicking outside of it, removes the selection." · "Terms mentioned in lit reviews do not appear in the terms tab." (The rest of that message — terms as bubble portals, synergies, bridges folded in — is a proposal page for him to choose from first.)
+
+App only (`scientia/src`); no lab-layer files.
+
+### Changed
+- **A click outside a selection lets it go (`13zu-lasso2.js`):** a lasso or Ctrl+click selection (`INK.sel`) goes when you click on the note — the paper, or a component not in it. A drag (panning) keeps it; Ctrl, Shift or ⌘ held keep it (they add to it); a click on one of the selected components, or on its bar, keeps it. It was let go only by Esc, Done or another tool.
+- **Lit reviews are left out of the Terms tab (`16-lens.js` `TERMLIT`):** a mention in a literature note or a Lit review isn't counted in the Terms tab or on the term's page, and a term used only in lit reviews isn't listed; the tab says so. **Settings → Features → Terms → Mentions in lit reviews** (left out · counted), with the preview following it.
+
+### Tests
+| Test | Result |
+|---|---|
+| `t_997` (desktop build with the lab layer): a click on a selected component keeps the selection; a drag on the paper keeps it; a click on the paper lets it go; Shift held keeps it; the Terms tab leaves out the lit review (a term used only there not listed, a count without it, the line saying so); the term's page too; Counted brings them back; the preview follows; no errors | 9/9 |
+| `t_997` on the standalone build | run with the standalone's sync (its PR) |
+| `v3869` lab-mode harness | 283/283 |
+| `v3880` notes harness | 13/13 |
+| Earlier suites: `t_996`, `t_995`, `t_994`, `t_981`, `t_989`, `t_992`, `t_993` | 19/19 · 27/27 · 12/12 · 35/35 · 40/40 · 25/25 · 12/12 |
+
 ## [V3.996] — 2026-11-14 — Scientia: an unfolding region moves the other regions aside, whole, and folding gives back exactly what was pushed (gravity); synthesis brings only the thing itself, flagged from Ctrl+Enter, right-click or /synthesize; pasted and inserted things land at the centre of the view
 
 Gabe: "Make sure that regions, when expanded, push other regions to the side. Also, collapsing anything gravity pulls back any previously displaced by the same amount from the expansion of it. Also, pulling flagged items from synthesis only brings up that item, not an additional component mentioning if it is a result or a flagged for synthesis. Flag for synthesis should be able to appear on your Ctrl+Enter shortcut and automatically identifies that it is an excerpt. Only right-clicked or selected components that are flagged for synthesis register as being the full component flagged for synthesis (therefore, make it the only choice on right click, rather than the current two choices with excerpt). If you have a component or more selected and you type /synthesize which asks to which synthesis note they will be flagged for. When you copy and paste a component, insert a PDF or HTML, it pastes in the center of where you are in the canvas, superposing any components that are there, as sometimes, they appear in random spots in the note."
