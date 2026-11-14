@@ -1552,7 +1552,9 @@
     "scientia/src/13zx-refwidget.js",
     "scientia/src/13zw-quote.js",
     "scientia/src/10-paper.js",
-    "scientia/src/17d-libgroups.js"
+    "scientia/src/17d-libgroups.js",
+    "scientia/src/17e-libsearch.js",
+    "scientia/src/17f-libmap.js"
    ],
    "status": "retiring",
    "merges_into": "rm.library",
@@ -1561,7 +1563,7 @@
     "scientia.reader"
    ],
    "plan": "CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md",
-   "note": "V3.869: the WEB build shows RM’s library (the hub mirrors `items` into `library` rows, rm: true); the in-app adders are gone there. The desktop app keeps its own. V3.876: a paper card (`rmpaper`) shows RM highlights; Read opens RM’s reader over the Lab Notebook."
+   "note": "V3.869: the WEB build shows RM’s library (the hub mirrors `items` into `library` rows, rm: true); the in-app adders are gone there. The desktop app keeps its own. V3.876: a paper card (`rmpaper`) shows RM highlights; Read opens RM’s reader over the Lab Notebook. V3.1001: the app's own Library page reshaped — a search in the lab Library's query language (rm/js/library.js _parseQuery: field:value, quotes, -word, added:) with notebook fields (cited:, hl:, quote:, text:, is:), smart foci (saved searches, like the lab's smart groups), the shelf map, a reading state; the lab layer's Library keeps its lists and gains the tree's colours, order and smart foci."
   },
   {
    "id": "scientia.reader",

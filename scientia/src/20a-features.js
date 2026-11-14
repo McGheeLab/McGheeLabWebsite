@@ -232,6 +232,48 @@ const PV = {
     preview: () => { const m = settings().citeMode, c = m === 'author' ? '(Style et al., 2014)' : m === 'number' ? '[3]' : 'Traction force microscopy in physics and biology';
       return [PV.box({ num: 'Block', label: 'Background', body: ['Cells pull on soft gels as they move ', h('span.pv-cite', c), '.'] })]; } });
 
+  /* V3.1001 — the Library overhaul (17e search, 17d shelves and foci, 17f shelf map and sheet) */
+  D({ id: 'libsearch', group: 'reading', needs: 'library', label: 'Library search', isNew: true, presets: { simple: true },
+    desc: 'One search box for the Library with fields (author:, year:2010-2016, shelf:, focus:, cited:"run 3", hl:, quote:, text:, is:unread…), "phrases", -left-out words and OR; it says why each paper matched. Off: the plain filter, as before.',
+    tune: [T('inside', 'Plain words look inside the papers too', 'switch', { isNew: true, def: true, d: 'Their highlights, the quotes taken from them and the notes on them; off: only the papers’ own details' }),
+      T('facets', 'Facets under the search', 'switch', { isNew: true, def: true, d: 'Years, reading, journals and shelves of the results; a click adds one to the search' }),
+      T('suggest', 'Suggestions while typing', 'switch', { isNew: true, def: true, d: 'Fields, then their values (shelves, foci, journals, authors, notes); Tab or Enter takes one' }),
+      T('pdftext', 'Offer to search inside the PDFs’ text', 'switch', { isNew: true, def: true, d: 'A box under the search: each PDF’s words are read once in a session' }),
+      T('sort', 'Results sorted by', 'select', { isNew: true, def: 'rel', opts: LSEARCH.SORTS })],
+    preview: () => { const ins = FEAT.tune('libsearch', 'inside') !== false, srt = (LSEARCH.SORTS.find(s => s[0] === FEAT.tune('libsearch', 'sort')) || LSEARCH.SORTS[0])[1];
+      return [h('div.pv-lq', h('span', '⌕'), h('code', 'author:engler year:>2005 matrix')),
+        FEAT.tune('libsearch', 'suggest') !== false ? h('div.pv-lsug', h('b', 'focus:'), h('span', 'in a focus (shelf › focus)')) : null,
+        FEAT.tune('libsearch', 'facets') !== false ? h('div.pv-lfac', [['Reading', 'Read 2'], ['Journal', 'Cell 1'], ['Shelf', 'Mechanobiology 2']].map(([a, b]) => h('span', h('b', a), b))) : null,
+        h('div.pv-lres', h('i', 'Matrix elasticity directs stem cell lineage specification'), h('div', 'Engler, A. J., … — Cell, 2006'),
+          h('div.pv-lwhy', h('b', ins ? 'highlight · p. 4' : 'author'), h('span', ins ? ['soft ', h('mark', 'matrices'), ' that mimic brain are neurogenic'] : 'Adam J. Engler'))),
+        PV.cap('Sorted by ' + srt.toLowerCase() + (FEAT.tune('libsearch', 'pdftext') !== false ? ' · the PDFs’ text when you tick it' : '') + '.')]; } });
+
+  D({ id: 'libmap', group: 'reading', needs: 'library', label: 'Shelf map', isNew: true,
+    desc: 'The Library as shelves you can see: each shelf a board in its colour, its foci standing on it as spines, one per paper; a search raises what it finds. Drag a spine onto a focus to add it there. Off: the list only.',
+    tune: [T('start', 'The Library opens on', 'seg', { isNew: true, def: 'auto', opts: [['auto', 'The map; the list once you search'], ['map', 'The shelf map'], ['list', 'The list']] }),
+      T('marks', 'Dots on the spines', 'switch', { isNew: true, def: true, d: 'Yellow: it has highlights · light: a note cites it' })],
+    preview: () => { const st = FEAT.on('libread') && FEAT.tune('libread', 'cards') !== false, mk = FEAT.tune('libmap', 'marks') !== false;
+      const sp = (s, hgt, hl, ct) => h('span.lm-sp.lm-' + (st ? s : 'none'), { style: { height: hgt + 'px' } }, mk && hl ? h('span.lm-hl') : null, mk && ct ? h('span.lm-ct') : null);
+      return [h('div.lm.pv-lm', h('section.lm-shelf', { style: { '--sh': '205' } }, h('div.lm-h', h('span.lm-sn', 'Traction methods')),
+          h('div.lm-board', h('div.lm-focus', h('span.lm-fl', 'FTTC & regularization', h('span.lm-n', '5')), h('div.lm-sps', sp('read', 60, 1, 1), sp('read', 70, 0, 1), sp('reading', 54, 1, 0), sp('unread', 64), sp('unread', 50))),
+            h('div.lm-focus', h('span.lm-fl', 'Reviews', h('span.lm-n', '2')), h('div.lm-sps', sp('read', 68, 1, 1), sp('reading', 58)))))),
+        PV.cap({ auto: 'Opens on the map; the list as soon as you search.', map: 'Opens on the shelf map.', list: 'Opens on the list.' }[FEAT.tune('libmap', 'start')] || '')]; } });
+
+  D({ id: 'libsmart', group: 'reading', needs: 'library', label: 'Smart foci', isNew: true,
+    desc: 'A focus that is a saved search: it holds every paper that matches, now and later. ✶ Save as smart focus under the search, or ⋯ on a shelf. Off: smart foci keep only the papers put in by hand.',
+    tune: [T('hand', 'Papers put in by hand stay too', 'switch', { isNew: true, def: true, d: 'Off: a smart focus holds only what its search finds' })],
+    preview: () => [h('aside.lg-side.pv-lgs', h('div.lg-theme', { style: { '--sh': '300' } }, h('div.lg-row.lg-t', h('span.lg-fold', '▾'), h('span.lg-sw'), h('span.lg-n', 'Mechanobiology'), h('span.lg-c', '13')),
+        h('div.lg-kids', h('div.lg-row.lg-g', h('span.lg-ic', '▤'), h('span.lg-n', 'Rigidity sensing'), h('span.lg-c', '7')), h('div.lg-row.lg-g.lg-smart', h('span.lg-ic.lg-star', '✶'), h('span.lg-n', 'Unread since 2018'), h('span.lg-c', FEAT.tune('libsmart', 'hand') === false ? '5' : '6'))))),
+      PV.cap('✶ Unread since 2018 = is:unread year:>2017' + (FEAT.tune('libsmart', 'hand') === false ? '' : ', with the paper you put in it') + '.')] });
+
+  D({ id: 'libread', group: 'reading', needs: 'library', label: 'Reading state', isNew: true,
+    desc: 'Each paper not opened, reading or read: on its sheet, its card and its spine, a small bar of how much of each focus is read, and is:unread / is:read in the search. Off: no states shown.',
+    tune: [T('auto', 'Opening a paper’s PDF makes it “reading”', 'switch', { isNew: true, def: true, d: '“Read” is always yours to set, on the paper’s sheet' }),
+      T('cards', 'Show it on the papers and the spines', 'switch', { isNew: true, def: true })],
+    preview: () => { const on = FEAT.tune('libread', 'cards') !== false;
+      return [h('div.pv-lst', ['unread', 'reading', 'read'].map(k => h('div', { style: { '--sh': '160' } }, h('span.lm-sp.lm-' + (on ? k : 'none'), { style: { height: '46px' } }), on ? h('span.lib-st.lib-st-' + k, LIBSTATE.LABEL[k]) : h('span.tiny.muted', '—')))),
+        PV.cap(FEAT.tune('libread', 'auto') !== false ? 'Opening the PDF turns “not opened” into “reading”.' : 'Set by hand on the paper’s sheet.')]; } });
+
   D({ id: 'eqcap', group: 'reading', needs: 'library', label: 'Equation capture', desc: '∑ Capture equation in the Library’s reader: draw a box round an equation on the page, check it, name it — registered with its paper and page.',
     preview: () => [h('div.pv-page', h('div.pv-pl'), h('div.pv-pl.s'), h('div.pv-eqbox', 'E = 3G(1 + ν)'), h('div.pv-pl'), h('div.pv-pl.s')), PV.cap('∑ Capture equation, then a box round it.')] });
 

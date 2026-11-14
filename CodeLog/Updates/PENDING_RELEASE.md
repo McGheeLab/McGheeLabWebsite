@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (99 changes — ready to push)
+## Pending (100 changes — ready to push)
+
+- **The Library reshaped (V3.1001):** shelves you can see as a shelf map, smart foci that fill themselves from a search, shelves with colours and an order you drag, a reading state on each paper, and one search box that understands authors, years, shelves, the notes a paper is cited in, its highlights and quotes, and says why each paper matched.
 
 - **The Atlas on three axes (V3.1000):** the Atlas is now a room in 3D where you choose what each of its three axes sorts by — time (oldest at the start), kind, project, note, term, people, status… — with presets such as Story over time and Open loops. Every dot is a glass bubble like the term page's: rest the pointer on one a moment to see the component and what surrounds it, click to step into the note, and a small bubble there brings you back. Bridges and connections show as threads with arrows and a light running along them; rest on one to see both its ends and every note it is bridged to. Coming closer spreads time down to days; Shift+wheel moves through it. Its settings and a live preview are in Settings → Features → Atlas.
 
