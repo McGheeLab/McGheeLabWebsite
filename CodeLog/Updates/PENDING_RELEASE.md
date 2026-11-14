@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (100 changes — ready to push)
+## Pending (101 changes — ready to push)
+
+- **You can now read several papers and web pages beside a note as tabs (V4.2):** + opens another from any note or the Library, clicking a tab takes you to the note it is in, ◫ splits the reader up to 2×2, the notes that cite the paper are a click away while you read, and a quote shows which paper (and page) it comes from — click it to open the paper beside the note.
 
 - **The Library reshaped (V4.1):** shelves you can see as a shelf map, smart foci that fill themselves from a search, shelves with colours and an order you drag, a reading state on each paper, and one search box that understands authors, years, shelves, the notes a paper is cited in, its highlights and quotes, and says why each paper matched.
 
