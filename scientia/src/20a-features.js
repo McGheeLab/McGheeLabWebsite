@@ -283,6 +283,51 @@ const PV = {
   D({ id: 'webcap', group: 'reading', label: 'Web capture', inserts: ['website'], desc: 'A web page kept as it was the moment it was saved, in a note: + Insert → Website…, or a page saved from the browser. Off: it leaves + Insert; pages already captured stay.',
     preview: () => [h('div.pvb', h('div.pvb-h', h('span.pvb-n', 'Website'), h('b', 'Traction force microscopy — Wikipedia'), h('span.sp'), h('span.pvb-st', 'kept 13 Nov')), h('div.pv-page', { style: { margin: '0 10px 10px' } }, h('div.pv-pl'), h('div.pv-pl.s'), h('div.pv-pl'), h('div.pv-pl.s')))] });
 
+
+  /* ---------- V3.1002 — the reader beside a note: tabs, split, Cited in, where a quote is from (13zzb, 17e, 25-reader.css) ---------- */
+  const rdRedraw = () => { try { if (RDOCK.wrap) { RDOCK.layout(); RDOCK.tabsRow(); } } catch (e) { } };
+  const rdRebuild = () => { try { if (RDOCK.wrap) RDOCK.remount(); } catch (e) { } };
+  const rdPage = () => h('div.pv-page', h('div.pv-pl'), h('div.pv-pl.s'), h('div.pv-pl'), h('div.pv-pl.s'));
+  D({ id: 'rtabs', group: 'reading', label: 'Reading tabs', desc: 'Several papers and pages open at once beside the note, as tabs, with + to open another — the PDFs and HTML pages of any note, and the papers of the Library. Clicking a tab takes the note to where that paper is embedded. Kept on this device, from note to note. Off: one paper at a time, belonging to its note.',
+    changed: v => { try { if (!RDOCK.wrap) return; const S = RDOCK.S_, id = S.show[S.act] || S.show.find(Boolean); if (!v) { RDOCK.close(true); if (id && M.block(id)) RDOCK.open(M.block(id)); } else rdRedraw(); } catch (e) { } },
+    tune: [T('follow', 'Clicking a tab takes the note to where the paper is', 'switch', { isNew: true, def: true, d: 'The note goes to the component that embeds it, lit. Off: the note stays where it is.' }),
+      T('names', 'Tabs are named by', 'seg', { isNew: true, def: 'ref', opts: [['ref', 'Short reference'], ['title', 'Title']], d: 'A paper of the Library: “Style et al., 2014” or its title. Others: their label.', changed: rdRedraw }),
+      T('width', 'The reader takes', 'seg', { isNew: true, def: 'half', opts: [['narrow', 'Two fifths'], ['half', 'Half'], ['wide', 'Three fifths']], d: 'of the window, the note the rest', changed: rdRedraw }),
+      T('max', 'Tabs kept open', 'seg', { isNew: true, def: 12, opts: [[6, '6'], [12, '12'], [24, '24']], d: 'One more closes the oldest that isn’t showing' }),
+      T('libtabs', 'The Library’s reader shows the tabs too', 'switch', { isNew: true, def: true, d: 'Click one there: the note it is in, with the paper beside it' })],
+    preview: () => { const follow = tune('rtabs', 'follow') !== false, title = tune('rtabs', 'names') === 'title', w = tune('rtabs', 'width') || 'half';
+      const tabs = [['PDF', title ? 'Traction force microscopy in physics and biology' : 'Style et al., 2014', true], ['Page', 'Traction force microscopy — Wikipedia', false], ['PDF', title ? 'Mapping the forces of focal adhesions' : 'Plotnikov et al., 2014', false]];
+      return [h('div.pv-rd.w-' + w, h('div.pv-rd-dock', h('div.pv-rd-tabs', tabs.map(([k, n, a]) => h('span.pv-rd-tab' + (a ? '.act' : ''), h('i', k), n, h('b', '×'))), h('span.pv-rd-add', '+')), rdPage()),
+        h('div.pv-rd-note', h('div.pv-rd-nt', '30 kPa series'), h('div.pv-rd-card' + (follow ? '.lit' : ''), h('i', 'PDF'), ' ', title ? 'Traction force microscopy…' : 'Style et al., 2014', ' — reading beside'), PV.box({ num: 'Step 2', label: 'Run 3', body: 'The edge collapsed.' }))),
+        PV.cap((follow ? 'A tab clicked: the note goes to where its paper is, lit. ' : 'A tab clicked: the note stays where it is. ') + 'The reader takes ' + ({ narrow: 'two fifths', half: 'half', wide: 'three fifths' }[w] || 'half') + ' of the window; ' + tune('rtabs', 'max') + ' tabs at most.')]; } });
+
+  D({ id: 'rsplit', group: 'reading', needs: 'rtabs', label: 'Split the reader', desc: '◫ on the reader’s tab row: one paper, two (side by side, or one over the other) or a quadrant (2×2) of your tabs, like ◫ Split on a note. Each pane has its own page, zoom and highlights. Off: one pane.',
+    changed: v => { try { if (!v && RDOCK.wrap) RDOCK.setN(1); else rdRedraw(); } catch (e) { } },
+    tune: [T('two', 'Two papers sit', 'seg', { isNew: true, def: 'cols', opts: [['cols', 'Side by side'], ['rows', 'One over the other']], d: 'In half the window, one over the other leaves each its width', changed: rdRebuild })],
+    preview: () => { const rows = tune('rsplit', 'two') === 'rows', n = (() => { try { return RDOCK.S_.n; } catch (e) { return 1; } })(), sp = (t, on) => h('span' + (on ? '.on' : ''), t);
+      return [h('div.pv-rs', h('div' + (n === 1 ? '.cur' : ''), h('div.pv-rs-g', sp('Style 2014', true)), 'One'), h('div' + (n === 2 ? '.cur' : ''), h('div.pv-rs-g.n2' + (rows ? '.rows' : ''), sp('Style 2014', true), sp('Wikipedia')), rows ? 'One over the other' : 'Side by side'),
+        h('div' + (n === 4 ? '.cur' : ''), h('div.pv-rs-g.n4', sp('Style', true), sp('Wiki'), sp('Plotnikov'), sp('+')), 'Quadrant (2×2)')), PV.cap('◫ on the tab row. A free pane offers your other tabs and +.')]; } });
+
+  D({ id: 'citedin', group: 'reading', label: 'Cited in', desc: 'While you read a paper — beside a note or in the Library’s reader — the notes that cite it, and the other notes it is in, are offered as places to go: a line of them under the bar, and Cited in · N.',
+    changed: rdRebuild,
+    tune: [T('strip', 'A line of the notes under the bar', 'switch', { isNew: true, def: true, d: 'Off: just the Cited in button, with the list', changed: rdRebuild }),
+      T('embeds', 'Also the notes the paper is embedded in', 'switch', { isNew: true, def: true, d: 'Besides the notes that cite it (/cite)', changed: rdRebuild })],
+    preview: () => { const strip = tune('citedin', 'strip') !== false, emb = tune('citedin', 'embeds') !== false, n = emb ? 3 : 2;
+      return [h('div.pv-cx', h('div.pv-cx-bar', h('b', 'Style et al., 2014'), h('span', 'Cited in · ' + n), h('span', { style: { color: 'var(--ink-3)', borderColor: 'var(--rule-2)' } }, 'Highlights')),
+        strip ? h('div.rcx-strip', h('span.rcx-sk', 'Cited in'), h('span.rcx-chip', '30 kPa series', h('span', '2')), h('span.rcx-chip', 'Seeding density notes'), emb ? h('span.rcx-chip', 'Analysis — traction maps') : null) : null, rdPage()),
+        PV.cap((strip ? 'The notes under the bar, ' : 'Cited in · ' + n + ' on the bar, ') + 'click one to go there; the paper stays beside you.' + (emb ? ' Notes it is embedded in count too.' : ''))]; } });
+
+  D({ id: 'citeband', group: 'reading', label: 'Where a quote is from', desc: 'A quote shows its paper in a band, like a bridge’s: the reference, the page, the title and the note it is embedded in. Bridged to another note it carries both bands — the bridge’s and the citation’s. Click the band: the paper opens beside the note, at the quote.',
+    changed: () => { try { RDX.color(); App.refresh(); } catch (e) { } },
+    tune: [T('color', 'Colour', 'color', { isNew: true, def: '#3b5bdb', opts: [['#3b5bdb', 'Ink blue'], ['#b7791f', 'Amber'], ['#0d675e', 'Teal'], ['#9c36b5', 'Plum'], ['#475569', 'Slate']], changed: () => { try { RDX.color(); } catch (e) { } } }),
+      T('detail', 'The band shows', 'seg', { isNew: true, def: 'full', opts: [['full', 'Reference, page and title'], ['short', 'Reference and page']], changed: () => { try { App.refresh(); } catch (e) { } } }),
+      T('click', 'Clicking it', 'seg', { isNew: true, def: 'beside', opts: [['beside', 'Opens the paper beside the note'], ['card', 'Shows it in its card']], d: 'Alt+click does the other' })],
+    preview: () => { const col = tune('citeband', 'color') || '#3b5bdb', full = tune('citeband', 'detail') !== 'short', beside = tune('citeband', 'click') !== 'card';
+      const band = (k, extra) => h('div.origin.or-cite', h('div.or-top', h('span.or-k', k), h('a.or-note', 'Style et al., 2014'), h('span.or-pg', 'p. 4'), h('button.or-go', { type: 'button', tabindex: '-1' }, '◧')), full ? h('div.or-path', ['Traction force microscopy in physics and biology', extra].filter(Boolean).join(' · ')) : null);
+      return [h('div.pv-cb', { style: { '--cite': col } },
+        h('div.pvb.pv-q', { style: { borderLeft: '4px solid ' + col } }, h('div.pvb-h', h('span.pvb-n', 'Quote'), h('span.sp'), h('span.pvb-st', 'p. 4')), band('❝ Quoted from'), h('div.pvb-tx', '❝ Cells pull hardest at the leading edge, where adhesions mature.')),
+        h('div.pvb.pv-bridge', h('div.pvb-h', h('span.pvb-n', 'Bridge'), h('span.sp')), h('div.refbody', h('div.origin.or-bridge', h('div.or-top', h('span.or-k', '⇄ Bridged from'), h('a.or-note', 'Reading: Style 2014'), h('span.or-cmp', 'Quote'))), band('❝ Quoted from', 'in Reading: Style 2014'), h('div.serif', { style: { fontSize: '13px', fontStyle: 'italic' } }, 'Cells pull hardest at the leading edge, where adhesions mature.')))),
+        PV.cap('A quote, and the same quote bridged to another note: the bridge’s band, then the citation’s. Click it: ' + (beside ? 'the paper opens beside the note, at the quote.' : 'its card scrolls to the quote.'))]; } });
   /* =============================== Widgets =============================== */
   const W = (id, label, desc, rows, pv, o = {}) => D(Object.assign({ id, group: 'widgets', label, desc: desc + ' Off: it leaves + Insert and the / commands; those already in your notes stay.', inserts: rows, preview: pv }, o));
   W('equations', 'Equations', '∑ Equation in a note, or in the text, and the registered equations shared by every note.', ['equation', 'equation-reg'],
