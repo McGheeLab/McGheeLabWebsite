@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (93 changes — ready to push)
+## Pending (94 changes — ready to push)
+
+- **Settings as features (V3.995):** Settings now lists every feature of Scientia with a switch, so a notebook can look as plain or as full as you like (presets: Simple, Standard, Everything; switching one off hides it, never deletes anything). Select a feature to see all of its settings; a live preview of it stays beside you as you scroll.
 
 - **Bridges say where they come from (V3.994):** a bridged component now has a clear band at its top naming the note it comes from (click it to go there), instead of small grey text; and in its own note, a component bridged elsewhere is green too: a green edge and a green “bridged to …” chip.
 

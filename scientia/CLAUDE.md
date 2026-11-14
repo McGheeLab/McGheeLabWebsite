@@ -128,6 +128,7 @@ stand-in for the bridge is `node scripts/scientia_hub_dev.js`.
 
 ## Rules that are easy to break
 
+- **A feature is not finished until it is in Settings with a live preview (V3.995; Gabe, 14 Nov 2026: "any new feature added should be fully wired in the settings tab with a live preview").** Register it in `src/20a-features.js` with `FEAT.def` (`src/02b-feat.js` has the rules): its group, wording, presets, what it needs, its settings — each one real (`FEAT.tune`, or `get`/`set` bound to an existing `settings()` key) — and `preview(PV)`, drawn as it is set now. Make its switch work: a guard round its own code (`FEAT.on(id)`) and/or CSS under `body.f-off-<id>`; off hides its tools and decorations, never what was made with it. `FEAT.audit()` must return `[]`.
 - The app's globals (`S`, `$`, `DB`, `M`, `App`, `IX`, `SYNC`, `MEDIA`…) are top-level `const`s in one classic
   script. The web app therefore runs in its own document (an iframe inside the Lab Notebook); never load it into an
   RM page's document.
