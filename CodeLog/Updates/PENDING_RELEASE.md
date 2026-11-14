@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (94 changes — ready to push)
+## Pending (95 changes — ready to push)
+
+- **Tidier unfolding and flagging (V3.996):** unfolding a region moves the regions in its way to the side, and folding brings everything back exactly where it was; a Synthesis gets only what you flag (Ctrl+Enter → F for words, right-click or /synthesize for components); pasted and inserted things land in the middle of what you are looking at.
 
 - **Settings as features (V3.995):** Settings now lists every feature of Scientia with a switch, so a notebook can look as plain or as full as you like (presets: Simple, Standard, Everything; switching one off hides it, never deletes anything). Select a feature to see all of its settings; a live preview of it stays beside you as you scroll.
 
