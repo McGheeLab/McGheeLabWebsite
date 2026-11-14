@@ -879,7 +879,7 @@
     check('panned to the far corner: that card draws, and the ones left behind give their pages back after a few seconds', !!gone, JSON.stringify([1, 2, 3, 4, 5, 6].map(drawnIn)));
     ev("DOCS.max(M.block('c_pdf6'))");
     check('the maximised view keeps Gabe’s own drawing', !!(await until(function () { var ov = q('.embed-max'); return ov && [].some.call(ov.querySelectorAll('canvas.pdf-page'), function (c) { return c.width > 0 && !(c.width === 300 && c.height === 150); }); }, 8000)));
-    var cls = q('.embed-max .em-bar button'); if (cls) cls.click();
+    var cls = [].find.call(qa('.embed-max .em-bar button'), function (b) { return /Close/.test(b.textContent); }); if (cls) cls.click();   // V4.2: its Close (the first button is “◧ Beside”, which now opens a reading tab that stays)
     /* V3.896 — the Install Scientia banner sits at the top, just under the header (not over the bottom bar) */
     var ib = await until(function () { return q('#insbanner'); }, 3000), hdR = q('#hd').getBoundingClientRect();
     var ibR = ib && ib.getBoundingClientRect(), clear = function (sel) { var e = q(sel); if (!e || !ibR) return true; var r = e.getBoundingClientRect(); return r.bottom <= ibR.top || r.top >= ibR.bottom || r.right <= ibR.left || r.left >= ibR.right; };
