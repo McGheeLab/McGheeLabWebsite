@@ -134,13 +134,40 @@ const PV = {
     preview: () => [h('div.pv-kinds', KINDS.slice(0, 8).map(k => h('div', h('kbd', k.key.toUpperCase()), PV.st(k.id, k.label.toLowerCase() + ' — ' + ({ claim: 'collapsed at 10 ng/mL', barrier: 'gels tear above 40 kPa', question: 'is batch 14 too stiff?', evidence: '3 of 3 fields', result: 'traction 1.2 kPa' }[k.id] || 'as marked'))))),
       PV.cap('Select words, press ' + keyLabel(settings().structKey) + ', then the letter.')] });
 
-  D({ id: 'terms', group: 'structures', label: 'Terms', tab: 'terms', desc: 'Words you mark as terms of the project, outlined in bold and found by themselves in every note that uses them, with the Terms tab and their nests. Off: no outline, no scanning, no Terms tab; the terms stay.',
+  D({ id: 'terms', group: 'structures', label: 'Terms', tab: 'terms', desc: 'Words you mark as terms of the project, outlined in bold and found by themselves in every note that uses them, with the Terms tab — every term with its uses, its last twelve weeks, its structures and open barriers, to find, sort and jump through — and each term’s bubbles. Off: no outline, no scanning, no Terms tab; the terms stay.',
     tune: [T('key', 'Mark a term', 'seg', Object.assign({ opts: [['alt+w', 'Alt+W'], ['alt+shift+w', 'Alt+Shift+W']], d: 'Ctrl+W in Focus mode' }, B('termKey'))),
-      T('lit', 'Mentions in lit reviews', 'seg', { isNew: true, def: 'out', opts: [['out', 'Left out'], ['counted', 'Counted']], d: 'Left out of the Terms tab and the term’s page; a term used only in lit reviews isn’t listed' })],
-    preview: () => { const lit = tune('terms', 'lit') === 'counted';
+      T('lit', 'Mentions in lit reviews', 'seg', { isNew: true, def: 'out', opts: [['out', 'Left out'], ['counted', 'Counted']], d: 'Left out of the Terms tab and the term’s page; a term used only in lit reviews isn’t listed' }),
+      T('sort', 'The Terms tab opens sorted', 'seg', { isNew: true, def: 'used', opts: [['used', 'Most used'], ['rising', 'Rising'], ['recent', 'Recent'], ['az', 'A–Z']], d: 'The switch over the list changes it there; each sort cuts the list into groups the rail jumps to' })],
+    preview: () => { const lit = tune('terms', 'lit') === 'counted', so = tune('terms', 'sort') || 'used';
+      const L = [{ n: 'traction force', u: lit ? 12 : 9, d: 3, a: 1 }, { n: '30 kPa gel', u: 4, d: 0, a: 5 }, { n: 'bead drift', u: 6, d: 4, a: 0 }].concat(lit ? [{ n: 'traction stress', u: 2, d: 0, a: 20 }] : []);
+      L.sort(so === 'rising' ? (x, y) => y.d - x.d : so === 'recent' ? (x, y) => x.a - y.a : so === 'az' ? (x, y) => x.n.localeCompare(y.n) : (x, y) => y.u - x.u);
       return [PV.box({ num: 'Block', label: 'Gels', body: ['Every ', on('terms') ? h('span.term-demo', 'traction force') : 'traction force', ' map on the ', on('terms') ? h('span.term-demo', '30 kPa gel') : '30 kPa gel', ' drifted.'] }),
-        h('div.pv-list', [['traction force', lit ? '7 notes · 12 uses' : '5 notes · 9 uses'], ['30 kPa gel', '3 notes · 4 uses'], lit ? ['traction stress', 'lit reviews only · 2 uses'] : null].filter(Boolean).map(([a, b]) => h('div', h('span.term-demo', a), h('span', b)))),
-        PV.cap('Mark one with ' + keyLabel(settings().termKey) + '; it is found in every other note too. ' + (lit ? 'Lit reviews are counted in the Terms tab.' : 'Lit reviews are left out of the Terms tab.'))]; } });
+        h('div.pv-tlist', L.map(x => h('div', h('span.term-demo', x.n), h('span.n', x.u), h('span.n', so === 'rising' ? (x.d ? '▲ ' + x.d : '–') : so === 'recent' ? (x.a ? x.a + ' d' : 'today') : '')))),
+        PV.cap('Mark one with ' + keyLabel(settings().termKey) + '; it is found in every other note too. The Terms tab opens ' + ({ used: 'with the most used first', rising: 'with the rising ones first', recent: 'with the most recent first', az: 'from A to Z' })[so] + '. ' + (lit ? 'Lit reviews are counted there.' : 'Lit reviews are left out of it.'))]; } });
+
+  D({ id: 'bubbles', group: 'structures', label: 'Term bubbles', needs: 'terms', presets: { simple: true }, desc: 'A term opens as glass bubbles: each component that uses it, with every neighbour around it, a portal into its note. Pointing closes a ring and ports in (a click does it at once); a small bubble on the note brings you back. They float a little. Off: the same neighbourhoods in plain round trays that stay still; a click opens the note.',
+    tune: [T('order', 'Bubbles arranged', 'seg', { isNew: true, def: 'note', opts: [['note', 'By note'], ['time', 'By time'], ['size', 'Busiest first']], d: 'How a term opens; the switch over its bubbles changes it there' }),
+      T('float', 'Float', 'switch', { isNew: true, def: true, d: 'Each bubble drifts slowly on its own; they hold still while you scroll, and with reduced motion' }),
+      T('amount', 'How far they float', 'range', { isNew: true, def: 4, min: 1, max: 10, step: 1, unit: ' px' }),
+      T('ring', 'Pointing ports in', 'switch', { isNew: true, def: true, d: 'A ring closes round the bubble you point at, then you are in its note. Off: only a click' }),
+      T('ringMs', 'The ring takes', 'range', { isNew: true, def: 1000, min: 400, max: 2500, step: 100, unit: ' ms' }),
+      T('glass', 'The glass bends its edge', 'range', { isNew: true, def: 16, min: 0, max: 30, step: 1, unit: ' %', zero: 'flat glass' })],
+    preview: () => {
+      const tf = () => h('span.tm', 'traction force'), sp = (id, head, label, kids, len) => ({ id, head, label, body: h('div.bb-t', kids), imgs: [], len, open: false });
+      const P = { run: { c: sp('pv1', 'Step 2', 'Run 3', ['The ', tf(), ' rose to 1.2 kPa.'], 34), a: [{ spec: sp('pv2', 'Block', 'Batch 14', ['Stiffer gels.'], 13), rel: 'supported by' }, { spec: sp('pv3', 'Block', 'Drift', ['Under 0.2 µm.'], 13), rel: '' }], note: '30 kPa series', when: '4 Nov', n: 3 },
+        seed: { c: sp('pv4', 'Block', 'Seeding', ['Denser cells, more ', tf(), '.'], 34), a: [{ spec: sp('pv5', 'Block', 'Sweep', ['20k–80k/cm².'], 12), rel: 'follows' }], note: 'Seeding notes', when: '28 Oct', n: 2 },
+        map: { c: sp('pv6', 'Block', 'Map 12', ['Peak ', tf(), ' at the rim.'], 30), a: [], note: 'Analysis', when: '7 Nov', n: 1 } };
+      const ord = tune('bubbles', 'order') || 'note', seq = ord === 'time' ? ['seed', 'run', 'map'] : ord === 'size' ? ['run', 'seed', 'map'] : ['run', 'map', 'seed'];
+      const f = h('div.pv-bbf');
+      seq.forEach((k, i) => { const x = P[k], el = BUBBLE.el({ key: 'pv' + k, centre: x.c, around: x.a, S: .36, caption: { title: x.note, sub: ord === 'time' ? x.when : x.n + (x.n === 1 ? ' component' : ' components') }, onPort: () => { } });
+        el.style.left = (18 + i * 32) + '%'; el.style.top = '54%'; f.append(el); });
+      if (ord === 'note') f.append(h('div.tbb-grp', { style: { left: '4%', top: '8px', width: '30%' } }, h('b', '30 kPa series'), h('i')), h('div.tbb-grp', { style: { left: '37%', top: '8px', width: '28%' } }, h('b', 'Analysis'), h('i')), h('div.tbb-grp', { style: { left: '68%', top: '8px', width: '28%' } }, h('b', 'Seeding notes'), h('i')));
+      if (ord === 'time') f.append(h('div.tbb-rail', { style: { left: '6%', top: '20px', width: '88%' } }, h('span.tk', { style: { left: '15%' } }, h('span', '28 Oct')), h('span.tk', { style: { left: '50%' } }, h('span', '4 Nov')), h('span.tk', { style: { left: '85%' } }, h('span', '7 Nov'))));
+      const ring = on('bubbles') && tune('bubbles', 'ring') !== false; f.append(h('span.pv-bbr', ring ? 'pointing: a ring of ' + (tune('bubbles', 'ringMs') / 1000).toFixed(1) + ' s, then in' : 'a click ports in'));
+      BUBBLE.motion(f);
+      if (ring) { const first = f.querySelector('.bb'); if (first) { first.style.setProperty('--ring', tune('bubbles', 'ringMs') + 'ms'); requestAnimationFrame(() => requestAnimationFrame(() => first.classList.add('dwell'))); } }
+      const still = !on('bubbles') || tune('bubbles', 'float') === false;
+      return [f, PV.cap(on('bubbles') ? ({ note: 'By note: a note’s bubbles together, under its name. ', time: 'By time: oldest first, each one dated. ', size: 'Busiest first: the bubbles with the most around them first. ' })[ord] + (still ? 'They hold still. ' : 'They float ' + tune('bubbles', 'amount') + ' px. ') + (+tune('bubbles', 'glass') ? 'The glass bends its edge.' : 'Flat glass.') : 'Off: plain round trays, still; a click opens the note.')]; } });
 
   D({ id: 'investigate', group: 'structures', label: 'Needs investigation', desc: 'A structure that stays open until investigated: a dot in its component’s header, a breathing dot in the Portfolio, its list on Today above Recent notes.',
     preview: () => [run3({ stamp: null, head: [h('span.inv-dot', { title: 'Needs investigation' })], body: ['Why do the ', PV.st('investigate', 'beads drift'), ' after 40 frames?'] }),

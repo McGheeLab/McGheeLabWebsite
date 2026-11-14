@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (97 changes — ready to push)
+## Pending (98 changes — ready to push)
+
+- **Terms as bubbles (V3.999):** open a term and each component that uses it is a glass bubble with everything around it — point at one (or click it) to step into the note, and a small bubble there brings you back. They float a little. The Terms tab is easier to search, sort and jump through, with each term's numbers, and a barrier that found its resolution through another term shows on the thread between its bubbles.
 
 - **Fixed: grainy words when zooming (V3.998):** the text in a note's components stays sharp at any zoom.
 
