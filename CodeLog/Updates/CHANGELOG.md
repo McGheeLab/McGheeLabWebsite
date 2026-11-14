@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.998] — 2026-11-14 — Scientia: zooming keeps the words in components sharp
+
+Gabe: "Zooming in and out of a note should not make the words in a component grainy."
+
+App only (`scientia/src`); no lab-layer files.
+
+### Bug Fixes
+- **Words grainy when zoomed (`10-paper.js` `Paper.apply`, `20-canvas.css`):** the note's world carried `will-change: transform` for good, so the browser drew it once as a picture and stretched that picture to every zoom — blurred zoomed in, gritty zoomed out. Now the world is a layer of its own only while it pans or zooms (`.world.moving`, 160 ms after the last move), so moving stays smooth, and at rest it is drawn again at its zoom: the words sharp at any zoom. Its position is rounded to whole pixels too.
+
+### Tests
+| Test | Result |
+|---|---|
+| `t_998` (desktop build with the lab layer): at 260 % the note is a layer while it moves and not at rest (`will-change: auto`), its position a whole pixel; after a pan, sharp again; a screenshot at 260 % against the old permanent layer shows the difference; no errors | 5/5 |
+| `t_998` on the standalone build | run with the standalone's sync (its PR) |
+| `v3869` lab-mode harness | 283/283 |
+| `v3880` notes harness | 13/13 |
+| Earlier suites: `t_997`, `t_996`, `t_995`, `t_994`, `t_981`, `t_989`, `t_992`, `t_993` | 9/9 · 19/19 · 27/27 · 12/12 · 35/35 · 40/40 · 25/25 · 12/12 |
+
 ## [V3.997] — 2026-11-14 — Scientia: a click outside a selection lets it go; mentions in lit reviews are left out of the Terms tab
 
 Gabe: "When you have items selected, simply clicking outside of it, removes the selection." · "Terms mentioned in lit reviews do not appear in the terms tab." (The rest of that message — terms as bubble portals, synergies, bridges folded in — is a proposal page for him to choose from first.)

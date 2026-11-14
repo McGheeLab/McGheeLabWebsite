@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (96 changes — ready to push)
+## Pending (97 changes — ready to push)
+
+- **Fixed: grainy words when zooming (V3.998):** the text in a note's components stays sharp at any zoom.
 
 - **Selections and terms (V3.997):** clicking anywhere else on a note lets go of what you selected; the Terms tab no longer counts mentions in lit reviews.
 
