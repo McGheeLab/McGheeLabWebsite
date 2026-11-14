@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V3.994] — 2026-11-14 — Scientia: a bridge says where it comes from in a band, not small dark text; a component bridged to another note is green in its own note too
+
+Gabe: "Bridges should show their provenance more clearly than small dark text. Also, bridge components to another note should appear as green as well in the original note for the user to spot them easily."
+
+App only (`scientia/src`).
+
+### Changed
+- **Where a bridge comes from (`12-doc.js` `DocView.origin`, new; used by `refCard`, `13zzt-excerpt.js` and `13zx-refwidget.js`):** the 10 px grey mono line ("bridged from Project › Note › Component · day") is now a band at the top of the card, tinted in the bridge colour: **⇄ Bridged from** (a passage: **⇄ Passage from**; a pulled-in structure: **⇲ Pulled from**, in its kind's colour) · **the note's title** (13 px, bold, underlined in the colour — click: go to the component there; Alt+click: beside) › the component · ↗ (open it beside), and under it the project (and theme) and the day. A bridged widget has the band at its top, with "live — changes here change the original". Every way across arms the bridge bar's crossing (the excerpt's link didn't).
+- **The cards lost what the band now says:** the "component" / "excerpt" pill and the component's label above a bridge's preview.
+- **A component bridged to another note is green in its own note (`13zzu-bridge.js`):** a **green right edge** (its bridges go out to the right, as the circles at the note's edge do; a bridge in the note it went to keeps its green left edge) and a green **⇄ bridged to <note>** chip first among its chips (several notes: "bridged to N notes"); click it: go to the note, or open it beside (double-click, as before, too). It was a "bridged" tag beside the kind on components that aren't text only. The colour is Settings → Structures → Bridges' (lighter in dark mode).
+
+### Tests
+| Test | Result |
+|---|---|
+| `t_994` (desktop build, with the lab layer) — the band: "Bridged from", the note bold at 13 px, the component, the project, tinted; "Passage from"; "Pulled from"; ↗; clicking the note goes there. The original note: green right edge, the green "bridged to 30 kPa series" chip; a passage bridged: green; one not bridged: not; the chip's menu (go to, open beside); the colour follows Settings (purple); no errors | 12/12 |
+| `t_994` dark mode | 12/12 |
+| `t_994` on the standalone build | run with the standalone's sync (its PR) |
+| `v3869` lab-mode harness | 283/283 (on its rerun: a first run had 282/283, the PDF-redraw timing check that has been flaky before) |
+| `v3880` notes harness | 13/13 |
+| Earlier suites (`t_981` bridges, `t_989` bridgeway, `t_992`, `t_993`) | t_981 35/35 (three checks updated to the new look: the band, the chip on every bridged component), t_989 40/40, t_992 25/25, t_993 12/12 |
+
 ## [V3.993] — 2026-11-13 — Scientia: equations captured on the website's Library reach the Lab Notebook's registered equations; the Library reader captures and registers equations
 
 Gabe: "the register equation from the website in library should sync to the lab notebook and the RTgabrieldeclercq version" — then, asked how they should reach his standalone (which has no link to the lab cloud): "The standalone only gets the code to snip/capture equations from papers, not the syncing."

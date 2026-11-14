@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (92 changes — ready to push)
+## Pending (93 changes — ready to push)
+
+- **Bridges say where they come from (V3.994):** a bridged component now has a clear band at its top naming the note it comes from (click it to go there), instead of small grey text; and in its own note, a component bridged elsewhere is green too: a green edge and a green “bridged to …” chip.
 
 - **Equations from the Library reach your notebook (V3.993):** equations you (or the lab) capture in the website's paper reader now appear among the Lab Notebook's registered equations, with their paper and page. Scientia's own Library reader can capture one too: ∑ Capture equation, draw a box round it, check it, name it.
 
