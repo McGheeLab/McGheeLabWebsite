@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.3] — 2026-11-15 — Scientia: the lab's Library is the reshaped page — the lab's papers and yours in one search, with the shelf map, smart foci and each paper's sheet; RM highlights searchable; every lab action kept
+
+Gabe approved changing the lab layer for this ("yes", 15 Nov 2026); **Alex reviews `rm/scientia/lab-mode.js`**. In the lab builds (website, lab desktop) lab-mode.js §3 used to replace the Library page with its own (`VIEWS.library = LabLibrary`), so the V4.1 search, shelf map and sheet never showed there.
+
+### Changed
+- **The lab layer (`rm/scientia/lab-mode.js` §3):** `labLibraryHook()` takes the place of `VIEWS.library = LabLibrary`. The app's page stays; the lab adds, through `LibraryView.hook`: the RM panel (Open RM's Library · Refresh from RM · Import from RM · the status line `.lab-lib-status`) under the adders, which open by themselves as before; the title line "N lab papers · from RM · M of your own"; the list as "Lab papers" (`.lab-papers`, cards `.lab-paper[data-rm]`) then "In your notebook" (`.lab-mine`), with LabLibrary's empty texts; on each RM paper's card and sheet its PDF state and Read here · Read in RM · Pull into my notebook · Send the PDF to RM · Open in RM (the same functions); on your own papers in RM / sent to RM / Push to RM and Send the PDF to RM; `is:lab` / `is:mine` and a Source facet. A search source gives each RM paper its RM highlights (`api/rm/annotations`, the paper card's call; fetched three at a time when you search with "inside" or `hl:`, or open its sheet; kept ten minutes; "RM highlight · p. 3 · Mo", a click opens RM's reader there), a PDF pulled from RM (`media.rmPaper`) and its paper cards in notes. Read here / Read in RM make an unopened paper "reading". LabLibrary, its cards and helpers stay unchanged as the fallback for an app without the hook; §4 (`#/read/<RM paper>`) is unchanged.
+- **The app's Library (`scientia/src`), hooks only — they go to the standalone too:** `17-library.js` `LibraryView.hook(x)` / `.ext` (`meta`, `eyebrow`, `stand`, `addersOpen`, `panel()`, `sections(R)`, `card(r, f)` → `{ cls, attrs, side, extra }`, `sheet(r, f)` → `{ acts, secs }`, `facets(R)`), `adding` starts as `null`, and a search with "inside" or `hl:` / `quote:` / `note:` warms the sources; `17e-libsearch.js` `LSEARCH.addSource({ pdfs, hl, embeds, warm })` (a paper's PDFs are its own and the sources', so quotes and embeds of a pulled PDF count), `LSEARCH.addIs(word, test, hint)`, `LSEARCH.warm(papers)`, `LSEARCH.hlLabel(x)`; `17f-libmap.js` the sheet takes `ext.sheet`'s actions and sections, a source's highlight opens through its own `open()`, and opening a sheet warms the sources for that paper.
+
+### Added
+- **Settings → Features → RM highlights in the Library** (`labhl`, defined by the lab layer): its switch stops the fetching and leaves them out; Whose highlights (yours and the lab's · only yours); a live preview.
+
+### Tests
+| Test | Result |
+|---|---|
+| `lablib_t` (lab build): the Library stays the app’s page with the lab’s title line, eyebrow, adders, RM panel and status; RM papers on the map; Lab papers then In your notebook; RM card and sheet actions; Push to RM; RM highlights on the sheet, `hl:` and plain words with “inside” (who made it); `is:lab` / `is:mine`; the lab filter’s words; the Source facet; Read in RM opens RM’s reader and marks the paper reading; Settings → RM highlights (switch, Only yours, preview) | 18/18 |
+| `t_1001` (the app without the lab layer) | 114/114 |
+| `t_995` (Settings, every preview draws) | 27/27 |
+| `t_1002` (reader) · `t_994` (bridges) | 37/37 · 12/12 |
+| `v3869` lab-mode harness (two steps adjusted: List after `#/library`; the filter typed into the one search box) | 283/283 · 283/283 (one earlier run: 281/283 — two pill-placement checks caught mid-move, not repeated) |
+| `v3880` notes harness | 13/13 |
+
 ## [V4.2] — 2026-11-14 — Scientia: the reader beside a note as tabs (PDFs and HTML pages of any note, + to open more), split up to 2×2; Cited in while you read; a quote shows where it is from in a band, and a bridged quote carries both bands
 
 Gabe: "You may have multiple tabs of papers opened at once with a + button beside a new tab bar in the reader, which applies to HTMLs too by the way. The origin note of the embedded paper or HTML brings you to it when you switch tabs when you are in the beside view. Papers that are cited in other notes are brought up as a choice for where to navigate when you are reading it. You can split the beside view to two beside views based on reading tabs that you have opened (up to 2x2, just like the feature in the notes). A quote from a paper has the citation more visible, like the recent update to the bridge origin annotation showing up on the bridge component. A quote or excerpt of a quote or paper bridged to another note carries both the bridge and citation origin annotations. Clicking on the citation annotation opens the paper in the beside view."

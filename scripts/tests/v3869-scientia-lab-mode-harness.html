@@ -152,6 +152,8 @@
     check('LIB.search finds RM papers by author', ev("LIB.search('smith').map(function (r) { return r.id; }).join(',')") === 'p-smith-2024');
     /* 3. the Library tab */
     go('#/library');
+    // V4.3: the app's Library page in the lab build opens on the shelf map with nothing typed (Settings → Shelf map → Auto); these checks are about the list
+    var lv = await until(function () { return q('.lib-vseg button:last-child'); }, 6000); if (lv) lv.click();
     var cards = await until(function () { var c = qa('.lab-papers .lab-paper'); return c.length === 2 && c; }, 6000);
     check('#/library lists the lab\'s papers from RM (2 cards)', !!cards, qa('.lab-papers .lab-paper').length);
     check('the title and meta say it is the lab\'s library', /Library/.test((q('#ttl') || {}).textContent || '') && /2 lab papers/.test((q('#meta') || {}).textContent || '') && /from RM/.test((q('#meta') || {}).textContent || ''), ((q('#ttl') || {}).textContent || '') + ' | ' + ((q('#meta') || {}).textContent || ''));
@@ -169,7 +171,8 @@
     var lib = qa('.page button').filter(function (b) { return /Open RM/.test(b.textContent); })[0]; lib.click();
     check('Open RM\'s Library opens the library page', W.__opened.slice(-1)[0] === '/rm/pages/library.html', JSON.stringify(W.__opened));
     /* 5. the filter + refresh */
-    var filt = qa('.page input.inp').filter(function (i) { return /Filter by author/.test(i.placeholder); })[0]; filt.value = 'lee'; filt.dispatchEvent(new W.Event('input', { bubbles: true }));
+    var libBox = function () { return q('.page input.lib-q-in') || qa('.page input.inp').filter(function (i) { return /Filter by author/.test(i.placeholder); })[0]; };   // V4.3: the one search box (the lab's filter folded into it)
+    var filt = libBox(); filt.value = 'lee'; filt.dispatchEvent(new W.Event('input', { bubbles: true }));
     var one = await until(function () { return qa('.lab-papers .lab-paper').length === 1 && qa('.lab-papers .lab-paper')[0].dataset.rm === 'p-lee-2023'; }, 3000);
     check('the filter narrows the lab papers (and the desktop-only list)', !!one && /Nothing matches/.test(q('.lab-mine').textContent), qa('.lab-papers .lab-paper').length);
     var before = W.__hubCalls.length;
@@ -179,7 +182,7 @@
     var st = await until(function () { var s = q('.page .lab-lib-status'); return s && /mirrored: 2 papers/.test(s.textContent) && s.textContent; }, 4000);
     check('and reports what the hub said', !!st, st);
     /* 5b. V3.963 — Import from RM, Pull, Push */
-    filt = qa('.page input.inp').filter(function (i) { return /Filter by author/.test(i.placeholder); })[0]; filt.value = ''; filt.dispatchEvent(new W.Event('input', { bubbles: true }));
+    filt = libBox(); filt.value = ''; filt.dispatchEvent(new W.Event('input', { bubbles: true }));
     function pageBtn(rx, root) { return Array.from((root || D).querySelectorAll('.page button')).filter(function (b) { return rx.test(b.textContent); })[0]; }
     pageBtn(/Import from RM/).click();
     var imp = await until(function () { return ev("DB.where('libsets', function (x) { return x.rmGroup; }).length") === 2 && W.__hubCalls.some(function (c) { return c.path === 'api/rm/library/groups' && c.auth; }); }, 4000);
