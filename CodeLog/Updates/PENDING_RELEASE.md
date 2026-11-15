@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (101 changes — ready to push)
+## Pending (102 changes — ready to push)
+
+- **The lab's Library is the new Library (V4.3):** the lab's papers from RM and your own sit in one search with the shelf map, smart foci and each paper's sheet; your RM highlights are searchable (hl:) and shown on the sheet; Read in RM, Pull into my notebook, Push to RM, Refresh and Import from RM are all still there, on each paper and at the top.
 
 - **You can now read several papers and web pages beside a note as tabs (V4.2):** + opens another from any note or the Library, clicking a tab takes you to the note it is in, ◫ splits the reader up to 2×2, the notes that cite the paper are a click away while you read, and a quote shows which paper (and page) it comes from — click it to open the paper beside the note.
 

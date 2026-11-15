@@ -232,7 +232,107 @@
           h('div.sec'), h('div.sec-h', h('h2', 'In your notebook'), h('span.k', mine.filter(keep).length), h('span.r.tiny.muted', 'added here or on your computer · Push sends one to RM')), mineList)));
     }
   };
-  try { VIEWS.library = LabLibrary; } catch (e) { warn('library', e); }
+  /* V4.3 (Gabe, 15 Nov 2026: "yes" — the reshaped Library in the lab build too; Alex reviews): the app's Library page
+     stays (its one search box with fields and facets, the shelf map, smart foci, the paper's sheet, reading states) and
+     the lab's parts go into it through LibraryView.hook (17-library.js), instead of LabLibrary's page:
+       the RM panel (Open RM's Library · Refresh from RM · Import from RM · the status line) under the adders, which open
+       by themselves as before; the title line ("N lab papers · from RM · M of your own"); the list as "Lab papers" then
+       "In your notebook" (.lab-papers / .lab-mine); on each RM paper, card and sheet: its PDF state, Read here, Read in
+       RM, Pull into my notebook, Send the PDF to RM, Open in RM; on your own papers: in RM / sent to RM / Push to RM, Send
+       the PDF to RM; is:lab and is:mine in the search and a Source facet; your RM highlights (api/rm/annotations, the
+       paper card's call) on the sheet and in the search (hl:, and plain words with "inside"), fetched when you search or
+       open a paper (Settings → RM highlights in the Library); a PDF pulled from RM and its paper cards in notes count as
+       that paper's. LabLibrary stays for an app without the hook. */
+  function labLibraryHook() {
+    var RMHL = { cache: {}, pending: {}, ttl: 10 * 60 * 1000 };
+    function hlOn() { return typeof FEAT === 'undefined' || FEAT.on('labhl'); }
+    /** Reading it (Read here / Read in RM): an unopened paper becomes "reading" (Settings → Reading state). */
+    function opened(r) { try { if (typeof LIBSTATE !== 'undefined' && FEAT.on('libread') && FEAT.tune('libread', 'auto') !== false && !r.readState) LIBSTATE.set(M.lib(r.id) || r, 'reading'); } catch (e) {} }
+    function pdfPill(r) { var here = localPdf(r); return h('span.pill', here ? 'pdf in your notebook' : r.rmPdf ? 'pdf in RM' : 'no pdf'); }
+    function rmActs(r, size) {   // LabLibrary's card buttons, as they were
+      var pdf = !!r.rmPdf, here = localPdf(r), s = size || 'xs';
+      return [here ? btn(s + ' pri', 'Read here', function () { opened(r); readHere(r); }, 'In this app’s reader, with your own highlights (and RM’s)') : null,
+        pdf ? btn(s + (here ? '' : ' pri'), 'Read in RM', function () { opened(r); readPaper(r); }, 'Read and highlight in RM’s reader') : null,
+        pdf && !here ? btn(s, 'Pull into my notebook', function () { pullPaper(r); }, 'Download its PDF into this notebook: it reads here, and offline on your computer') : null,
+        !pdf && here ? btn(s, 'Send the PDF to RM', function () { pushPaper(r); }, 'RM has no PDF of this paper: yours goes up') : null,
+        btn(s, 'Open in RM', function () { openRM(RM.paper(r.rmId)); }, 'The paper’s page on the lab site')].filter(Boolean);
+    }
+    function mineActs(r, size) {   // mineCard's, as they were
+      var st = r.rmSync && r.rmSync.state, s = size || 'xs', out = [];
+      if (st === 'matched') out.push(h('span.pill', { title: 'RM already had it (same DOI, or same title and year)' }, 'in RM'));
+      else if (st === 'done') out.push(h('span.pill', 'sent to RM'));
+      else if (r.kind !== 'link') out.push(btn(s, 'Push to RM', function () { pushPaper(r); }, 'Add it to the lab’s library now, with its PDF when it has one'));
+      if (st === 'matched' && localPdf(r)) out.push(btn(s + ' ghost', 'Send the PDF to RM', function () { pushPaper(r); }, 'When RM has no PDF of it yet'));
+      return out;
+    }
+    LSEARCH.addIs('lab', isRm, 'the lab’s papers, from RM');
+    LSEARCH.addIs('mine', function (r) { return !isRm(r); }, 'your own papers');
+    LSEARCH.addSource({
+      pdfs: function (r, ctx) {   // a PDF pulled from RM (media.rmPaper) is that paper's
+        if (!ctx.rmMedia) { ctx.rmMedia = {}; DB.where('media', function (m) { return m.kind === 'pdf' && m.rmPaper; }).forEach(function (m) { ctx.rmMedia[String(m.rmPaper)] = m.id; }); }
+        var id = ctx.rmMedia[String(r.id)] || ctx.rmMedia[rmIdOf(r)]; return id ? [id] : [];
+      },
+      embeds: function (r, ctx) {   // its paper cards in notes (+ Insert → Paper from the library…)
+        if (!ctx.rmCards) { ctx.rmCards = {}; DB.where('blocks', function (b) { return b.kind === 'rmpaper' && b.paperId && b.status === 'live'; }).forEach(function (b) { (ctx.rmCards[b.paperId] = ctx.rmCards[b.paperId] || []).push(b); }); }
+        return ctx.rmCards[r.id] || [];
+      },
+      hl: function (r) {
+        if (!isRm(r) || !hlOn()) return []; var c = RMHL.cache[rmIdOf(r)]; if (!c) return []; var only = FEAT.tune('labhl', 'whose') === 'mine';
+        return c.items.filter(function (x) { return x.kind !== 'equation' && (!only || x.mine) && (x.exact || x.comment); }).map(function (x) {
+          return { src: 'RM', page: x.page, text: x.exact || x.comment, hex: HL[x.color] || '', by: x.mine ? '' : (x.by || 'the lab'), open: function () { opened(r); readPaper(r, x.id); } };
+        });
+      },
+      warm: function (rs, done) {   // fetch the RM highlights not here yet, three at a time; done() every few and at the end
+        if (!hlOn()) return; var now = Date.now(), i = 0, live = 0;
+        var ids = rs.filter(isRm).map(rmIdOf).filter(function (id) { var c = RMHL.cache[id]; return id && !RMHL.pending[id] && (!c || now - c.at > RMHL.ttl); }), left = ids.length;
+        function one(id) {
+          live++; RMHL.pending[id] = 1;
+          highlights(id, false).then(function (res) { RMHL.cache[id] = { items: (res && res.ok && res.items) || [], at: Date.now() }; }, function () { RMHL.cache[id] = { items: [], at: Date.now() }; })
+            .then(function () { live--; left--; delete RMHL.pending[id]; if (!left || left % 8 === 0) done(); next(); });
+        }
+        function next() { while (live < 3 && i < ids.length) one(ids[i++]); }
+        next();
+      }
+    });
+    if (FEAT && FEAT.def) FEAT.def({ id: 'labhl', group: 'reading', needs: 'library', label: 'RM highlights in the Library', isNew: true,
+      desc: 'Your highlights from RM’s reader, and the lab’s, on each lab paper’s sheet and in the Library search (hl:, and plain words with “inside”), fetched from the hub when you search or open a paper. Off: they stay in RM and on the paper cards in notes.',
+      tune: [{ key: 'whose', label: 'Whose highlights', type: 'seg', def: 'all', opts: [['all', 'Yours and the lab’s'], ['mine', 'Only yours']] }],
+      preview: function () {
+        var mine = FEAT.tune('labhl', 'whose') === 'mine';
+        return [h('div.pv-lq', h('span', '⌕'), h('code', 'hl:packing')),
+          h('div.pv-lres', h('i', 'Granular hydrogels for printed tissue'), h('div', 'Smith, A., & McGhee, A. — Soft Matter, 2024'), h('div.pv-lwhy', h('b', 'RM highlight · p. 3'), h('span', ['stiffness rises with ', h('mark', 'packing'), ' fraction']))),
+          mine ? null : h('div.pv-lres', h('div.pv-lwhy', h('b', 'RM highlight · p. 5 · Mo'), h('span', 'unclear how granules were sized'))),
+          h('div.fpv-cap', mine ? 'Only the highlights you made in RM.' : 'Yours and the lab’s, each with who made it.')];   // PV.cap's markup: this file's own PV (the Portfolio, below) hides the preview kit here
+      } });
+    Orig.hook({
+      eyebrow: 'The lab', addersOpen: true,
+      stand: 'The lab’s library, from RM, and your own papers, in one search. Cite any of them from any note. Add a paper by DOI or a pasted citation: it goes up to RM’s library with the next sync, or now with Push, its PDF too. Pull brings an RM paper’s PDF into your notebook to read here. is:lab and is:mine pick a side; hl: finds your RM highlights. Shelves hold foci, foci hold papers.',
+      meta: function (all) { var rm = all.filter(isRm).length, mine = all.length - rm; return plural(rm, 'lab paper', 'lab papers') + ' · from RM' + (mine ? ' · ' + mine + ' of your own' : ''); },
+      panel: function () {
+        status = h('div.tiny.mono.muted.lab-lib-status', { style: { minHeight: '18px', marginTop: '6px' } }, sayText);
+        return h('div.card.flat.lab-rm', { style: { marginTop: '10px' } }, h('h3.lab', { style: { marginTop: 0 } }, 'RM'),
+          h('div.row', btn('pri', 'Open RM’s Library', function () { openRM(RM.library); }), btn('', 'Refresh from RM', refreshLibrary, 'Ask the hub to mirror the lab library now'),
+            btn('', 'Import from RM', importGroups, 'Your RM groups and the lab’s, as foci on the shelves “My RM groups” and “Lab groups”')), status);
+      },
+      sections: function (R) {
+        var all = DB.all('library'), rmAll = all.filter(isRm).length;
+        return [{ title: 'Lab papers', cls: 'lab-papers', note: 'from RM', rows: R.filter(function (x) { return isRm(x.r); }), empty: rmAll ? 'Nothing matches' : 'The lab library has not arrived yet — Refresh from RM' },
+          { title: 'In your notebook', cls: 'lab-mine', note: 'added here or on your computer · Push sends one to RM', rows: R.filter(function (x) { return !isRm(x.r); }), empty: all.length - rmAll ? 'Nothing matches' : 'None yet — add one by DOI or a pasted citation above' }];
+      },
+      facets: function (R) { var n = R.filter(function (x) { return isRm(x.r); }).length; return [{ title: 'Source', opts: [['is:lab', 'Lab papers (RM)', n], ['is:mine', 'In your notebook', R.length - n]] }]; },
+      card: function (r) { return isRm(r) ? { cls: 'lab-paper', attrs: { 'data-rm': r.rmId }, side: [pdfPill(r)].concat(rmActs(r)) } : { extra: mineActs(r) }; },
+      sheet: function (r) {
+        if (isRm(r)) {
+          var c = RMHL.cache[rmIdOf(r)], line = !hlOn() ? null : c ? plural(c.items.length, 'highlight') + ' in RM' : 'Loading its RM highlights…';
+          return { acts: rmActs(r, 'sm'), secs: [h('div.ls-sec', h('h5', 'In RM'), h('div.row', pdfPill(r), line ? h('span.tiny.muted', line) : null,
+            hlOn() ? btn('xs ghost', 'Refresh', function () { delete RMHL.cache[rmIdOf(r)]; LSEARCH.warm([r]); }, 'Fetch its RM highlights again') : null))] };
+        }
+        var m = mineActs(r, 'sm'); return m.length ? { secs: [h('div.ls-sec', h('h5', 'RM'), h('div.row', m))] } : {};
+      }
+    });
+  }
+  try { if (Orig && typeof Orig.hook === 'function' && typeof LSEARCH !== 'undefined' && LSEARCH.addSource) labLibraryHook(); else VIEWS.library = LabLibrary; }
+  catch (e) { warn('library', e); try { VIEWS.library = LabLibrary; } catch (e2) {} }
 
   /* ---- 4. #/read/<rm paper>: RM's reader, not the in-app one ---- */
   try {
