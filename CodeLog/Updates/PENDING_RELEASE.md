@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (103 changes — ready to push)
+## Pending (104 changes — ready to push)
+
+- **References (V4.5):** any component can also be a reference, beside its kind; type /reference in a note to search them in a gallery and put one in, live. The Atlas has References and Reports tabs.
 
 - **A PDF or a saved web page can be a Report (V4.4):** double-click the label left of its name and choose Report; a figure you snip out of a report lands already labelled as a Result.
 

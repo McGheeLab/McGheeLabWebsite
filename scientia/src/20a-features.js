@@ -147,6 +147,24 @@ const PV = {
         PV.cap(res ? 'Snipped out of a report: a Result, and counted as one.' : 'Snipped out of a report: a plain image panel.')];
     } });
 
+  // V4.5 (14g): any component can also be a reference — /reference finds it from any note; the Atlas lists them (and the Reports)
+  D({ id: 'references', group: 'structures', label: 'References', isNew: true, desc: 'Any component can also be a reference, beside whatever kind it is: a bookmark on its card. /reference opens a gallery of them over the note — search, filters, a preview — and Enter puts one in the note, live, pointing back to where it lives. The Atlas gains a References tab (gallery or list) and, with Reports on, a Reports tab. Off: no bookmark, no gallery, no tabs; what you marked stays marked.',
+    tune: [T('enter', 'Enter in the gallery', 'seg', { isNew: true, def: 'insert', opts: [['insert', 'Puts it in the note'], ['open', 'Opens where it lives']], d: 'Alt+Enter does the other' }),
+      T('scope', 'The gallery shows first', 'seg', { isNew: true, def: 'project', opts: [['project', 'The note’s project'], ['all', 'Everything, newest first']] }),
+      T('type', 'The gallery opens on', 'seg', { isNew: true, def: 'all', opts: [['all', 'All'], ['text', 'Text'], ['figure', 'Figures'], ['table', 'Tables'], ['equation', 'Equations']] }),
+      T('show', 'The Atlas’s References tab shows', 'seg', { isNew: true, def: 'cards', opts: [['cards', 'A gallery'], ['list', 'A list']] })],
+    preview: () => {
+      const ins = FEAT.tune('references', 'enter') !== 'open', list = FEAT.tune('references', 'show') === 'list', ty = FEAT.tune('references', 'type') || 'all';
+      const rib = h('span', { style: { position: 'absolute', top: '-1px', right: '10px', width: '10px', height: '14px', background: 'var(--ink)', clipPath: 'polygon(0 0,100% 0,100% 100%,50% 76%,0 100%)' } });
+      const card = (k, label, body, typ) => h('div', { style: { position: 'relative', background: 'var(--surface)', border: '1px solid var(--rule)', borderRadius: '8px', padding: '7px 9px', display: 'grid', gap: '4px', opacity: ty === 'all' || ty === typ ? '1' : '.35' } },
+        h('span', { style: { font: '600 8.5px var(--f-m)', letterSpacing: '.08em', textTransform: 'uppercase', color: k ? `var(--k-${k}, var(--ink-3))` : 'var(--ink-3)' } }, k ? k : 'reference'), h('b', { style: { fontSize: '11.5px' } }, label), body, rib);
+      return [h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', font: '12px var(--f-m)', color: 'var(--ink-3)', marginBottom: '6px' } }, h('kbd', '/reference'), h('span', '⌕ gel'), h('span', { style: { marginLeft: 'auto' } }, list ? 'Atlas: a list' : 'Atlas: a gallery')),
+        h('div.pv-refs', card('result', 'Gel stiffness', h('span', { style: { font: '600 15px var(--f-d)' } }, '30.4 kPa'), 'text'),
+          card('method', 'Polyacrylamide, 30 kPa', h('span', { style: { font: '10px var(--f-m)', color: 'var(--ink-3)' } }, 'acrylamide 150 µL · bis 100 µL'), 'table'),
+          card(null, 'Hertz model', h('i', { style: { font: 'italic 13px var(--f-b)' } }, 'F = 4/3 · E/(1−ν²) · √R δ³ᐟ²'), 'equation')),
+        PV.cap(ins ? 'Enter puts the reference in the note, live; Alt+Enter opens where it lives.' : 'Enter opens where it lives; Alt+Enter puts it in the note.')];
+    } });
+
   D({ id: 'terms', group: 'structures', label: 'Terms', tab: 'terms', desc: 'Words you mark as terms of the project, outlined in bold and found by themselves in every note that uses them, with the Terms tab — every term with its uses, its last twelve weeks, its structures and open barriers, to find, sort and jump through — and each term’s bubbles. Off: no outline, no scanning, no Terms tab; the terms stay.',
     tune: [T('key', 'Mark a term', 'seg', Object.assign({ opts: [['alt+w', 'Alt+W'], ['alt+shift+w', 'Alt+Shift+W']], d: 'Ctrl+W in Focus mode' }, B('termKey'))),
       T('lit', 'Mentions in lit reviews', 'seg', { isNew: true, def: 'out', opts: [['out', 'Left out'], ['counted', 'Counted']], d: 'Left out of the Terms tab and the term’s page; a term used only in lit reviews isn’t listed' }),

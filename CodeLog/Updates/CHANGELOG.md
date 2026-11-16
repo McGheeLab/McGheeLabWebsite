@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.5] — 2026-11-16 — Scientia: References — any component can also be a reference, found from any note with /reference; the Atlas gains References and Reports tabs
+
+Gabe: "Add a new component kind called reference, which registers whatever is in that component for the user to quickly lookup or reference in another note. References are unique in which it can coexist with another kind. A reference list should become available. Add /reference as a command which brings a gallery popup for you to search your references. References should live as a separate inner tab of Atlas. Reports from HTMLs or PDFs should as well (in an additional tab in Atlas). Make the gallery view modern and almost like a clean display of each with ease of navigation and search capabilities."
+
+App only (`scientia/src`); no lab-layer files.
+
+### Added
+- **A reference is a flag beside any kind (`14g-refs.js` `REFS`; `b.isRef`, `b.refAt`):** a Result, a Method or a plain component can also be a reference; a bookmark hangs from the top of its card, the kind label stays. Set from the kind picker ("Also a reference", under the kinds), the component's menu ("Make it a reference" / "No longer a reference") or `/reference-mark`.
+- **`/reference [words]` opens the gallery** over the note: one search (words anywhere in a reference — its text, table cells, equation, name, note, project, terms — and `type:` `kind:` `note:` `project:` `tag:`), chips for type, kind and project, cards that show each reference as itself (words, image panel, table, equation, quote, PDF or page), a preview with where it lives and how many notes use it. ↑↓←→ move, **Enter** puts it in this note, **Alt+Enter** opens where it lives, Esc closes. The note's project comes first (Settings).
+- **Putting one in a note is a bridge** (`BRIDGE.make`, 13zzu): live, it follows the original and points back to it; marked `asRef`, it is drawn quieter — a dashed edge and "Reference · from …" in place of the green band, no "why" to fill in.
+- **The Atlas's inner tabs: Room · References · Reports** (`ATLAS.render` wrapped; the room stays the first): References is the reference list — a gallery or rows, grouped by note, project, kind or date, searchable; Reports lists every PDF and saved page that is a Report (V4.4) with the figures snipped out of it (Results dotted), searchable by their names too. The tab is remembered (`_ls atlasTab`).
+- **Settings → Features → References** (group Structures, new): its switch (off: no bookmark, gallery or tab; what was marked stays marked), *Enter in the gallery* (puts it in the note / opens where it lives), *The gallery shows first* (the note's project / everything), *The gallery opens on* (a type), *The Atlas's References tab shows* (a gallery / a list); a live preview.
+
+### Tests
+| Test | Result |
+|---|---|
+| `t_4.5` (desktop build with the lab layer): marking a reference from the kind picker and the component's menu, its kind kept; the bookmark; the list; `/reference` gallery: every reference, search with lit words, `type:`, chips, ←→↑↓, Enter puts a live copy in another note (a quiet bridge pointing back), Alt+Enter opens the origin, Esc; the Atlas's tabs: References (groups, list) and Reports (a report with its snipped Result); Settings: switch, settings, preview, `FEAT.audit()` empty; phone width; no errors | 28/28 desktop · 29/29 at 400 px, dark |
+| `t_4.4` (Reports) · `t_995` (Settings) · `t_994` (bridges) · `t_4.1` (Library) · `t_4.2` (reader) | 14/14 · 27/27 · 12/12 · 114/114 · 37/37 |
+| `v3869` lab-mode harness · `v3880` notes harness | 283/283 (V4.4–V4.6 stacked; second attempt, the first froze at load as on main) · 13/13 |
+
 ## [V4.4] — 2026-11-16 — Scientia: a PDF or a saved web page can be a Report, and a figure snipped out of one is a Result
 
 Gabe: "HTMLs and PDFs can be labelled as a report as a new component kind just for those. Any snipped figure out of it is instantly labelled as a result."
