@@ -1,7 +1,14 @@
 /* 27 · References (V4.5, 14g): the bookmark on a reference's card, a reference used in another note, the /reference gallery, the Atlas's References and Reports tabs */
 .box.is-ref > .rf-mark{position:absolute;top:-1px;right:14px;display:flex;align-items:flex-start;gap:4px;pointer-events:none;z-index:3}
-.rf-mark .rib{width:12px;height:17px;background:var(--ink);clip-path:polygon(0 0,100% 0,100% 100%,50% 76%,0 100%)}
-.rf-mark .rl{font:600 9px/1 var(--f-m);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);margin-top:4px}
+/* V4.7: the reference tag is golden (Gabe: "The reference tag should look golden") — a gold ribbon with a metallic shine, readable on light and dark */
+:root{--gold:#C9A227;--gold-ink:#7E600C;--gold-grad:linear-gradient(160deg,#f8e594 0%,#e6bd4f 34%,#b9870f 58%,#e9c457 78%,#fbe8a0 100%)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--gold:#E3C35A;--gold-ink:#F0D77E}}
+:root[data-theme="dark"]{--gold:#E3C35A;--gold-ink:#F0D77E}
+.rf-mark .rib{width:12px;height:17px;background:var(--gold-grad);clip-path:polygon(0 0,100% 0,100% 100%,50% 76%,0 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.65);filter:drop-shadow(0 1px 1px rgba(120,90,10,.35))}
+.rf-mark .rl{font:600 9px/1 var(--f-m);letter-spacing:.08em;text-transform:uppercase;color:var(--gold-ink);margin-top:4px}
+.rf-card{position:relative}
+.rf-card::after{content:"";position:absolute;top:-1px;right:12px;width:9px;height:13px;background:var(--gold-grad);clip-path:polygon(0 0,100% 0,100% 100%,50% 74%,0 100%);pointer-events:none}
+.rf-tabs button[data-t="refs"]::before{content:"";width:8px;height:11px;background:var(--gold-grad);clip-path:polygon(0 0,100% 0,100% 100%,50% 74%,0 100%);flex:none}
 body.f-off-references .rf-mark{display:none}
 /* a reference put in another note: the bridge's band, quieter */
 .box.ref-use,.box.cmp.bridge.ref-use{border-style:dashed;border-left:1px dashed var(--rule-2)}
@@ -32,7 +39,8 @@ body.f-off-references .rf-mark{display:none}
 .rf-top{display:flex;align-items:center;gap:6px;min-width:0}
 .rf-ty{margin-left:auto;font:10px var(--f-m);color:var(--ink-4);letter-spacing:.06em;text-transform:uppercase}
 .rf-k{display:inline-flex;align-items:center;gap:5px;font:600 9.5px var(--f-m);letter-spacing:.08em;text-transform:uppercase;color:var(--kc,var(--ink-3))}
-.rf-k::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--kc,var(--ink-4))} .rf-k.none::before{display:none}
+.rf-k.none{color:var(--gold-ink)}   /* V4.7: "Reference" (a reference with no kind) in gold */
+.rf-k::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--kc,var(--ink-4))} .rf-k.none::before{border-radius:1px;width:7px;height:9px;background:var(--gold-grad);clip-path:polygon(0 0,100% 0,100% 100%,50% 74%,0 100%)}
 .rf-card h4{margin:0;font:600 13.5px/1.25 var(--f-d)}
 .rf-ct{min-width:0;display:grid;gap:6px;align-content:start}
 .rf-foot{font:10.5px var(--f-m);color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
