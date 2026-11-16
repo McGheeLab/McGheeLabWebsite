@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (108 changes — ready to push)
+## Pending (109 changes — ready to push)
+
+- **Label components by clicking them (V4.10):** the Quick cast has a Label button holding Float and Reference — pick one and your cursor becomes the cloud or the golden tag; click a component to label it (hold Ctrl to label several). Esc puts it down. Also /label.
 
 - **The floats' dome is a wide glass cap (V4.9):** /float now raises the top of a great sphere along the whole bottom of the note — lower and wider, the floats drifting across it.
 
