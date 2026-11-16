@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (102 changes — ready to push)
+## Pending (103 changes — ready to push)
+
+- **A PDF or a saved web page can be a Report (V4.4):** double-click the label left of its name and choose Report; a figure you snip out of a report lands already labelled as a Result.
 
 - **The lab's Library is the new Library (V4.3):** the lab's papers from RM and your own sit in one search with the shelf map, smart foci and each paper's sheet; your RM highlights are searchable (hl:) and shown on the sheet; Read in RM, Pull into my notebook, Push to RM, Refresh and Import from RM are all still there, on each paper and at the top.
 

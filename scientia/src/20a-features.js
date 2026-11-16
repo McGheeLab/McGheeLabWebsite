@@ -134,6 +134,19 @@ const PV = {
     preview: () => [h('div.pv-kinds', KINDS.slice(0, 8).map(k => h('div', h('kbd', k.key.toUpperCase()), PV.st(k.id, k.label.toLowerCase() + ' — ' + ({ claim: 'collapsed at 10 ng/mL', barrier: 'gels tear above 40 kPa', question: 'is batch 14 too stiff?', evidence: '3 of 3 fields', result: 'traction 1.2 kPa' }[k.id] || 'as marked'))))),
       PV.cap('Select words, press ' + keyLabel(settings().structKey) + ', then the letter.')] });
 
+  // V4.4 (13zzy): a PDF or a saved web page can be a Report; what is snipped out of one lands as a Result
+  D({ id: 'reports', group: 'structures', label: 'Reports', isNew: true, desc: 'A PDF or a saved web page can be a Report — a kind only those can be (double-click the label left of its name). A figure snipped out of a report is a Result the moment it lands, and an image panel that is a Result counts as one, like a Result component. Off: no Report is offered and snips stay plain; what you labelled keeps its kind.',
+    tune: [T('snips', 'A figure snipped from a report', 'seg', { isNew: true, def: 'result', opts: [['result', 'Becomes a Result'], ['plain', 'Stays plain']], d: 'The scissors on a PDF, the snip on a web page' })],
+    preview: () => {
+      const res = FEAT.tune('reports', 'snips') !== 'plain', kc = (id, fb) => { const K = typeof CKINDS !== 'undefined' && CKINDS.get(id); return (K && K.color) || fb; };
+      const hd = (label, c) => ({ style: { borderTop: '2px solid ' + c }, num: label });
+      return [h('div.pv-rep', { style: { display: 'flex', gap: '10px', alignItems: 'flex-start', flexWrap: 'wrap' } },
+        PV.box(Object.assign(hd('Report', kc('report', '#46607A')), { label: 'Traction maps · Style 2014.pdf', body: h('div', { style: { height: '46px', borderRadius: '4px', background: 'linear-gradient(135deg, color-mix(in srgb, var(--ink) 8%, transparent), transparent)' } }), cls: 'pv-rep-r' })),
+        h('span', { style: { alignSelf: 'center', color: 'var(--ink-3)' } }, '✂ →'),
+        PV.box(Object.assign(hd(res ? 'Result' : 'Image panel', res ? kc('result', '#1E5E8C') : 'var(--rule-2)'), { label: 'Figure 2', body: h('div', { style: { height: '46px', width: '120px', borderRadius: '4px', background: 'radial-gradient(circle at 35% 40%, #f5a524, #5b2a86 70%)' } }) }))),
+        PV.cap(res ? 'Snipped out of a report: a Result, and counted as one.' : 'Snipped out of a report: a plain image panel.')];
+    } });
+
   D({ id: 'terms', group: 'structures', label: 'Terms', tab: 'terms', desc: 'Words you mark as terms of the project, outlined in bold and found by themselves in every note that uses them, with the Terms tab — every term with its uses, its last twelve weeks, its structures and open barriers, to find, sort and jump through — and each term’s bubbles. Off: no outline, no scanning, no Terms tab; the terms stay.',
     tune: [T('key', 'Mark a term', 'seg', Object.assign({ opts: [['alt+w', 'Alt+W'], ['alt+shift+w', 'Alt+Shift+W']], d: 'Ctrl+W in Focus mode' }, B('termKey'))),
       T('lit', 'Mentions in lit reviews', 'seg', { isNew: true, def: 'out', opts: [['out', 'Left out'], ['counted', 'Counted']], d: 'Left out of the Terms tab and the term’s page; a term used only in lit reviews isn’t listed' }),
