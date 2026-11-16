@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.10] — 2026-11-16 — Scientia: the side panel of highlights and notes folds — beside a maximised PDF, HTML page or saved website, and in the Library's reader
+
+Gabe: "The side tab showing notes in PDFs, HTMLs, or websites should be collapseable."
+
+App only (no lab-layer file changes). The panel's own code is unchanged; it is wrapped.
+
+### Added
+- **`SIDEFOLD` (`scientia/src/17g-sidefold.js`, new; in `CodeLog/features.json` under the reader's entry):**
+  - **The strip:** `SIDEFOLD.wrap(side)` puts a panel in a column `.sf-col` with a title strip `.sf-top` ("Highlights and notes", `.sf-b` ›). It is hooked from `MXHL.open` (13zz: the maximised PDF / HTML page / saved website, and every pane of the reader, 13zzb) and from `ReaderView.render` (17b).
+  - **Folding:** › folds the column to a 30 px strip with the panel's count written down it (`.sf-n`, read from its `.rd-sh` heading by a `MutationObserver` on every redraw). A click anywhere on the strip opens it again; a capture-phase listener takes it, so the ‹ under the pointer does not fold it again.
+  - **One state for every reader, kept on this device:** `body.sf-fold`, `_ls 'sideFold'`. `SIDEFOLD.set(v)` / `folded()` / `start()` (the state a newly opened file starts in, from Settings).
+  - **Beside a note** (`.embed-max.rd-docked`), the panel stays the overlay Highlights opens. › there closes it (removes `rd-side-on`), and the fold doesn't apply. In full screen (⤢) it folds like the others; `RDOCK.full` is wrapped to retitle ›.
+  - `aria-expanded` and the title say Fold, Open or Hide.
+- **`scientia/src/30-sidefold.css` (new):**
+  - the column glides (`width .24s`), while the panel keeps its own width, so it is uncovered rather than squeezed;
+  - the folded strip has its text vertical (`writing-mode: vertical-rl`) and its chevron turned;
+  - the Library reader's grid becomes `minmax(0,1fr) auto`;
+  - beside a note, the overlay positioning moves onto the column;
+  - `body.f-off-sidefold` hides the strip and never folds;
+  - narrow windows (≤ 760 px) have no panel, as before;
+  - `prefers-reduced-motion` turns the glide off;
+  - the preview's styles.
+- **Settings → Features → Reading & sources → Fold the side panel** (`20a-features.js`, in Simple too):
+  - the switch;
+  - "When a file opens, the panel is": As you left it (default) / Open / Folded, applied at once;
+  - a live preview: a page with the panel open (› folds it) or folded to its strip (a click opens it). It folds and opens the real panels too, and its caption follows the setting.
+
+  `FEAT.audit()` is empty.
+
+### Bug Fixes
+- **A pane of the reader in full screen (⤢) sat under the app's header** (since V4.2, when the reader's wrap became a stacking context at z-index 20, under the header's 30). Its bar (◧, Close) was hidden. `25-reader.css`: `.rd-wrap:has(.embed-max.rd-dock:not(.rd-docked)){z-index:1200}`.
+
+### Tests
+| Test | Result |
+|---|---|
+| `sf_t` 1400 px (the desktop build with the lab layer). Covers: a maximised PDF, its strip and › (330 px, aria-expanded); › folds it to a 30 px strip, the panel hidden, the page 300 px wider, kept on this device; the strip's count, written down it, and it follows a highlight made while folded; a click on the strip opens it; closing leaves nothing behind. A maximised HTML page opens as left (folded) and its page widens and narrows with it. Beside the note: hidden until Highlights, then the overlay with the strip; › closes it, the fold untouched. Full screen above the header (the bar and the strip reachable), folded as set, ‹ opens it. The Library's reader: open at 320 px, folds (the pages get the room), a redraw keeps the strip, the strip opens it. Settings: "Folded" folds at once and for a file opened after; "Open" opens; the switch off (no strip, open) and on again; the preview folds and opens (the real panels too), its caption follows; `FEAT.audit()` empty; no sideways scroll; no errors | 29/29 |
+| `sf_t` 400 px (narrow: no panel, no strip, as before) | 4/4 |
+| `lib_t1001` (Library and reader tabs) · `t_995` (Settings) · `lablib_t4` (lab Library) · `refs_t45` (References) | 114/114 · 27/27 · 18/18 · 28/28 |
+| `v3869` lab-mode harness · `v3880` notes harness | 283/283 · 13/13 (first attempt) |
+
 ## [V4.9] — 2026-11-16 — Scientia: the Quick cast's Label — Float and Reference behind one button; the cursor becomes the label
 
 Gabe: "Add a label button in the quick cast pill, which contains the float and reference into it. Clicking on that button expands laterally if the pill is fully extended. If the pill is condensed, it expands outwards. Clicking on it makes your cursor that label's symbol, and clicking on a component labels it and goes back to the regular cursor, unless you are holding Control key."
