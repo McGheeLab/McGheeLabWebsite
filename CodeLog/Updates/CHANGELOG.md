@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.4] — 2026-11-16 — Scientia: a PDF or a saved web page can be a Report, and a figure snipped out of one is a Result
+
+Gabe: "HTMLs and PDFs can be labelled as a report as a new component kind just for those. Any snipped figure out of it is instantly labelled as a result."
+
+App only (`scientia/src`); no lab-layer files.
+
+### Added
+- **Report, a kind of component for PDFs and saved web pages only (`13zzy-report.js` `REPORT`):** double-click the label left of a PDF's or a page's name (as on a component) and choose Report; its header takes the kind's colour. A Report produces Results and supports a Hypothesis or a claim (its ways, like every kind's). A kind may now say which components it is for (`on`; text components when it says nothing): Report is `['pdf', 'html']`, Result `['component', 'figure']`, so the picker on a component never offers Report and the picker on an image panel offers Result.
+- **A figure snipped out of a report is a Result the moment it lands:** the scissors on a PDF (`CLIP.take`) and the snip on a web page (`HSNIP`) both end in `CLIP.fresh`; a new image panel whose `clip.src` is a Report, and that has no kind yet, gets `ckind: 'result'` in the same step.
+- **An image panel that is a Result counts as one:** `CKINDS.counted` adds it to the evidence, so the Portfolio counts it and a Synthesis pulls it in among its results, like a Result component.
+- **Settings → Features → Reports** (group Structures, new): its switch (off: no Report offered, PDFs and pages show no kind, snips stay plain; what was labelled keeps its kind) and *A figure snipped from a report* — Becomes a Result / Stays plain; the live preview shows a Report and its snip, a Result or a plain panel as set.
+
+### Bug Fixes
+- **The Library search follows Settings at once (`17e-libsearch.js` `LSEARCH.sig`):** the search index was kept until the number of papers, notes or items changed, so turning *RM highlights in the Library* off, or choosing *Only yours* (V4.3), left the old highlights in the results until then. The index's signature now includes the features' switches and settings (`LSEARCH.setSig`), so it is built again after any change there.
+
+### Tests
+| Test | Result |
+|---|---|
+| `t_4.4` (desktop build with the lab layer): Report offered on a PDF and a web page and not on a component; Result on an image panel; the label and colour on the header; a clip from a report (a real `CLIP.take` on a PDF page) lands as a Result, one from a plain PDF does not, nor with *Stays plain* or the feature off; a Result image panel counted as evidence; Settings: switch, setting, preview, `FEAT.audit()` empty; no errors | 14/14 |
+| `t_995` (Settings, every preview draws) · `t_994` (bridges) · `t_4.2` (reader) · `t_4.1` (Library) · `lablib_t` (the lab's Library; its search now waits for the list to show what the search finds, and it leaves and comes back to the Library after a Settings change, as a person does) | 27/27 · 12/12 · 37/37 · 114/114 · 18/18 (four runs) |
+| `v3869` lab-mode harness · `v3880` notes harness | 283/283 (second attempt; the first froze at load, as on main) · 13/13 |
+
 ## [V4.3] — 2026-11-15 — Scientia: the lab's Library is the reshaped page — the lab's papers and yours in one search, with the shelf map, smart foci and each paper's sheet; RM highlights searchable; every lab action kept
 
 Gabe approved changing the lab layer for this ("yes", 15 Nov 2026); **Alex reviews `rm/scientia/lab-mode.js`**. In the lab builds (website, lab desktop) lab-mode.js §3 used to replace the Library page with its own (`VIEWS.library = LabLibrary`), so the V4.1 search, shelf map and sheet never showed there.
