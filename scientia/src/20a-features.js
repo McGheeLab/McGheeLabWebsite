@@ -265,11 +265,15 @@ const PV = {
   D({ id: 'reminders', group: 'time', label: 'Reminders', presets: { simple: true }, inserts: ['reminder'], desc: 'Deadlines, meetings and plain reminders under the bell in the header, on Today and in the day note, with alerts.',
     preview: () => [h('div.pv-rem', h('div.pv-remh', 'Coming up'), [['Today 15:00', 'Lab meeting', 'meeting'], ['Mon', 'Order fibronectin', 'reminder'], ['Fri', 'Abstract due', 'deadline']].map(([a, b, c]) => h('div', h('span.mono', a), h('b', b), h('span', c))))] });
 
-  D({ id: 'review', group: 'time', label: 'Weekly review', tab: 'review', desc: 'The weekly bet: what needs addressing, decide, what moved, rate, friction, signal, and next week. It opens on the weekend after the week ends and writes a review note.',
-    tune: [T('start', 'The week runs from', 'seg', Object.assign({ opts: [[6, 'Saturday'], [0, 'Sunday'], [1, 'Monday']] }, { get: () => settings().weekStartDow, set: v => { saveSettings({ weekStartDow: +v }); changed(); } })),
-      T('preview', 'Preview the unfinished week', 'switch', { get: () => !!settings().reviewPreview, set: v => { saveSettings({ reviewPreview: v }); changed(); } })],
-    preview: () => [h('div.pv-steps', ['What needs addressing', 'Decide', 'What moved', 'Rate', 'Friction', 'Signal', 'Next week’s bet'].map((x, i) => h('div' + (i === 1 ? '.on' : ''), h('span', String(i + 1)), x))),
-      PV.cap('Week: ' + ({ 6: 'Saturday → Friday', 0: 'Sunday → Saturday', 1: 'Monday → Sunday' }[settings().weekStartDow] || '') + '.')] });
+  // V4.8 (18b-monthly.js): the monthly review replaces the weekly bet — a report of the month's deliverables per note, an inbox for what belongs to no note, next month's plan
+  D({ id: 'review', group: 'time', label: 'Monthly review', tab: 'review', desc: 'Each month’s report: what it added up to, its numbers against the month before, and per note its takeaways and results (then barriers resolved, questions answered, Reports and References). Unassigned lists every component of your daily notes that belongs to no note of the Portfolio, to file with a key. Ticking what is still open writes next month’s plan into the review note.',
+    tune: [T('opens', 'A month’s review opens', 'seg', { isNew: true, def: 'after', opts: [['after', 'The day after it ends'], ['weekend', 'On its last weekend']] }),
+      T('deliver', 'The report lists', 'seg', { isNew: true, def: 'all', opts: [['core', 'Takeaways and results'], ['more', '+ barriers resolved, questions answered'], ['all', '+ Reports and References']] }),
+      T('inbox', 'Unassigned takes in', 'seg', { isNew: true, def: 'quick', opts: [['daily', 'Daily notes'], ['quick', 'Daily and quick notes']] }),
+      T('keys', 'Inbox keys (j k x f m l n d u)', 'switch', { isNew: true, def: true }),
+      T('compare', 'Compare with the month before', 'switch', { isNew: true, def: true }),
+      T('preview', 'Preview the running month', 'switch', { get: () => !!settings().reviewPreview, set: v => { saveSettings({ reviewPreview: v }); changed(); } })],
+    preview: () => typeof MONTHLY !== 'undefined' ? MONTHLY.preview() : [PV.cap('The monthly review.')] });
 
   D({ id: 'chores', group: 'time', label: 'Recurring chores', presets: { standard: false }, desc: 'Lab chores that repeat — the water bath, the CO₂ tank — due ones shown in the day note.',
     tune: [T('list', 'Chores', 'button', { button: 'Recurring chores…', run: () => CHORES.manage() })],
