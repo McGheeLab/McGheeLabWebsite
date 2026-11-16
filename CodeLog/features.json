@@ -1481,7 +1481,8 @@
     "decision"
    ],
    "paths": [
-    "scientia/src/18-review.js"
+    "scientia/src/18-review.js",
+    "scientia/src/18b-monthly.js"
    ],
    "status": "decision",
    "related": [
