@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (107 changes — ready to push)
+## Pending (108 changes — ready to push)
+
+- **The floats' dome is a wide glass cap (V4.9):** /float now raises the top of a great sphere along the whole bottom of the note — lower and wider, the floats drifting across it.
 
 - **The review is monthly (V4.8):** each month's report of your takeaways and results per note, an inbox for the daily-note components that belong to no note (file each with a key), and next month's plan from what is still open.
 

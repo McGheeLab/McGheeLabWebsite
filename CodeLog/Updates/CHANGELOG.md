@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.9] — 2026-11-16 — Scientia: the float dome is a wide cap spanning the foot of the canvas
+
+Gabe, on the Floats dome: "Have it not be a hemisphere, but an extended view of the tip of a hemisphere, spanning the whole horizontal space, and maybe 3/4 of the vertical space it currently takes."
+
+App only (`scientia/src`); no lab-layer files.
+
+### Changed
+- **The dome is a spherical cap (`14h-floats.js` `FLOATS.open` / `frame` / `inDome`, `28-floats.css`):** the top of a much larger sphere, seen from the side — a circular segment whose chord is the canvas pane's whole bottom edge (W) and whose height is ¾ of V4.7's dome (h = ¾ · D/2, D = max(220, min(0.74 W, 0.8 H, 820)), at least 84 px); the sphere's radius Rs = (h² + (W/2)²) / 2h. The box spans the pane (`clip-path: circle(Rs at 50% Rs)`), slides up from the bottom edge; the paper-colour skirt fades up along the full width.
+- **The glass along the arc:** the bright rim and inner glint as radial gradients centred on the sphere's centre; the fine edge drawn along the arc (`FLOATS.capEdge`); the two small highlights near the upper left of the arc, along its tangent (`FLOATS.capSpec`); the rim's bend as a displacement map of the cap itself (`FLOATS.capWarp`, where the browser can), in a thin band at the rim and at a strength that cannot fold what lies behind it over itself (scale ≤ band / 3), so words under the rim stay readable.
+- **The floats on the cap's face:** golden-angle azimuths turned by the slow spin map across the width where the cap is at least 40 px tall; each sits between the base and the arc above it by elevation (oldest lowest); nearer ones larger and on top, as before. Hit-testing (geometry, hysteresis), the 1 s rest, the preview, dragging out and the search at the apex are unchanged; `inDome` tests the circular segment.
+- **Settings → Floats:** the preview's cap spans the mini canvas; the description says so.
+
+### Tests
+| Test | Result |
+|---|---|
+| `t_4.9` desktop 1400 px (the V4.7 suite, its dome checks replaced): the cap's base is the pane's whole bottom edge; its height ¾ of the old dome's (± 3 px); a circular segment (apex and bottom corners inside, top corners outside); every float inside it; the paper fades up, no fill; rest 1 s preview; nothing opens uninvited; holds still; drag out places the bridge; Undo; Back to the floats; Settings, preview, audit; no errors | 25/25 |
+| `t_4.9` 400 px dark (touch) | 27/27 |
+| `t_4.8` (Monthly review) · `t_4.5` (References) · `t_995` (Settings) · `t_4.4` (Reports) | 28/28 · 28/28 · 27/27 · 14/14 |
+| `v3869` lab-mode harness · `v3880` notes harness | 283/283 · 13/13 (V4.4–V4.9 stacked, first attempt) |
+
 ## [V4.8] — 2026-11-16 — Scientia: the monthly review — the month's deliverables per note, an inbox for what belongs to no note, next month's plan
 
 Gabe: "Let's rework the weekly reviews to become a monthly review that creates a rich report of your deliverables in the form of takeaways and results per note. It shows you all unassigned components from daily notes that do not pertain to any note in the portfolio, etc... Bring up some recommendations to elevate the review tab to be on par with the others looks wise, but as well as making it a useful tab that follows the theme trend of this tab which is to be efficient and streamline your thoughts and work to power through science." — then: "Your picks for references and monthly review are good, assume them as default."
