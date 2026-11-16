@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.6] — 2026-11-16 — Scientia: /cite numbers citations from [1] in superscript; "Style et al." from Settings; /author-cite for one
+
+Gabe: "Using /cite in a component should cite the paper as a quoted number in the note in a superscript (starting at [1]). It can also be converted to (Primary Author et. al) in Settings. /author-cite converts automatically to primary author just for that one cite." — then: "don't do the parantheses for the citing based on author name".
+
+App only (`scientia/src`); no lab-layer files.
+
+### Changed
+- **Citations are numbered by default (`09-editor.js` `ED.citeModeOf`):** a note shows its citations as Settings says (`settings().citeStyle`, new, default `number`) unless it chose its own from its ⋯ menu (`d.citeOwn`, new; *As in Settings* lets it follow again). Numbered: `[1]`, `[2]`… in superscript, in the order each paper first appears in the note, with the references listed under the note (as before). Notes made before keep their `citeMode` as a record but follow Settings until their own menu is used.
+- **Citations by author have no brackets (`07-library.js` `LIB.authorCite`):** Style · Style & Lee · Style et al.; the year only when Settings says so (`settings().citeYear`, new, off): Style et al., 2014.
+- **Settings → Features → Library:** *Citations show* — Numbered [1] (default) / Style et al. / Title, bound to `citeStyle`; *Citations by author add the year*. The live preview shows a sentence with two numbered citations and an author one, as set.
+
+### Added
+- **/author-cite (`13zzg-slash.js`, `09-editor.js` `slashCite` / `citePicker(el, b, sel, typed, style)`, `11b-commands.js`):** one citation by its first author — "Style et al." — whatever the note shows; the mark carries `style: 'author'`, takes no number (`ED.citeNumbers` skips it), and a paper cited only that way is listed, unnumbered, under the numbered references (`ED.citeAuthorOnly`).
+
+### Tests
+| Test | Result |
+|---|---|
+| `t_cite` (desktop build with the lab layer): numbered by default, superscript, [1] [2] in order of first appearance, repeats keep their number; /author-cite shows "Style et al." (no brackets) and takes no number; the references list (numbered, then author-only); Settings → Style et al. (no brackets, every note that has not chosen), the year switch, Title; a note's own choice, then *As in Settings*; typing /cite and /author-cite opens the picker and inserts the citation; Settings preview, `FEAT.audit()` empty; no errors | 15/15 |
+| `t_995` (Settings) · `t_994` (bridges) · the Library and reader suites | 27/27 · 12/12 · 35/35 · 19/19 · 114/114 · 37/37 |
+| `v3869` lab-mode harness · `v3880` notes harness | 283/283 (V4.4–V4.6 stacked; second attempt, the first froze at load as on main) · 13/13 |
+
 ## [V4.5] — 2026-11-16 — Scientia: References — any component can also be a reference, found from any note with /reference; the Atlas gains References and Reports tabs
 
 Gabe: "Add a new component kind called reference, which registers whatever is in that component for the user to quickly lookup or reference in another note. References are unique in which it can coexist with another kind. A reference list should become available. Add /reference as a command which brings a gallery popup for you to search your references. References should live as a separate inner tab of Atlas. Reports from HTMLs or PDFs should as well (in an additional tab in Atlas). Make the gallery view modern and almost like a clean display of each with ease of navigation and search capabilities."
