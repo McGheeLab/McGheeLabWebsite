@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (106 changes — ready to push)
+## Pending (107 changes — ready to push)
+
+- **The review is monthly (V4.8):** each month's report of your takeaways and results per note, an inbox for the daily-note components that belong to no note (file each with a key), and next month's plan from what is still open.
 
 - **Floats (V4.7):** right-click a component → Make it a float when it belongs to a note you haven't made yet; /float in a note raises a wide glass cap along the bottom of the note with them drifting in it to drag in, and each lands as a bridge from where you wrote it. The reference tag is golden.
 
