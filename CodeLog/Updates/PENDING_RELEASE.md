@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (104 changes — ready to push)
+## Pending (105 changes — ready to push)
+
+- **Citations are numbered (V4.6):** /cite now shows [1], [2]… in superscript, numbered as they first appear in the note; Settings can show them as Style et al. instead, and /author-cite names the author for just one citation.
 
 - **References (V4.5):** any component can also be a reference, beside its kind; type /reference in a note to search them in a gallery and put one in, live. The Atlas has References and Reports tabs.
 

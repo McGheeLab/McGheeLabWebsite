@@ -198,6 +198,7 @@ CMD.hand = m => { const map = { erase: 'eraser', hl: 'hl', pen: 'pen', lasso: 'l
   KINDS.forEach(k => T(k.id, 'The sentence before the caret is a ' + k.label.toLowerCase(), { sub: 'A structure' }));
   T('term', 'The word at the caret is a term', { sub: 'Joins the project’s terms' });
   T('cite', 'A citation from the library', { alias: ['citation'] });
+  T('author-cite', 'A citation by its first author, just this one', { alias: ['authorcite', 'cite-author'], sub: 'Style et al. — whatever the note shows' });   // V4.6
   T('mention', 'The words refer to a structure recorded elsewhere', { alias: ['existing'] });
   T('sym', 'A symbol', { alias: ['symbol', 'symbols'] });
   T('date', 'Today’s date', {});
