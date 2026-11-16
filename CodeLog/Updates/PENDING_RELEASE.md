@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (108 changes — ready to push)
+## Pending (109 changes — ready to push)
+
+- **Fold the panel of highlights and notes (V4.10):** beside a PDF, HTML page or saved website you have maximised, and in the Library's reader, › folds the panel to a thin strip at the side so the page gets the room; click the strip to open it again. It stays as you left it. Also fixed: a paper read beside a note in full screen no longer slides under the header.
 
 - **Label components by clicking them (V4.9):** the Quick cast has a Label button holding Float and Reference — pick one and your cursor becomes the cloud or the golden tag; click a component to label it (hold Ctrl to label several). Esc puts it down. Also /label.
 
