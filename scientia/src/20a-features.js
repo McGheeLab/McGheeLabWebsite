@@ -165,6 +165,24 @@ const PV = {
         PV.cap(ins ? 'Enter puts the reference in the note, live; Alt+Enter opens where it lives.' : 'Enter opens where it lives; Alt+Enter puts it in the note.')];
     } });
 
+  // V4.7 (14h): floats — a component waiting for a note; /float brings the dome of them
+  D({ id: 'floats', group: 'structures', label: 'Floats', isNew: true, desc: 'A component that waits for a note not made yet: right-click → Make it a float (or select several with Ctrl and /float). It keeps its kind and shows a cloud. /float in a note, with nothing selected, raises a clear glass dome from the bottom of the canvas with the floats drifting in it; drag one out onto the note and it lands as a bridge from where it was written, no longer a float. Off: no cloud, no dome, no /float; placed floats stay where they are.',
+    tune: [T('spin', 'The dome', 'seg', { isNew: true, def: 'slow', opts: [['slow', 'Turns slowly'], ['still', 'Still']], d: 'It always holds still while the pointer is in it' }),
+      T('by', 'Floats coloured by', 'seg', { isNew: true, def: 'kind', opts: [['kind', 'Kind'], ['origin', 'Where they came from'], ['age', 'Age']] }),
+      T('old', 'A float has waited too long after', 'seg', { isNew: true, def: '14', opts: [['7', '1 week'], ['14', '2 weeks'], ['30', '1 month']], d: 'It sits lower in the dome, paler, with its age' }),
+      T('rest', 'Rest on a float before it opens', 'seg', { isNew: true, def: '1000', opts: [['600', '0.6 s'], ['1000', '1 s'], ['1600', '1.6 s']], d: 'A click opens it at once' }),
+      T('place', 'A float you drag out lands', 'seg', { isNew: true, def: 'drop', opts: [['drop', 'Where you drop it'], ['centre', 'At the view’s centre']] })],
+    preview: () => {
+      const by = FEAT.tune('floats', 'by') || 'kind', still = (FEAT.tune('floats', 'spin') || 'slow') === 'still';
+      const cols = by === 'origin' ? ['hsl(20 55% 58%)', 'hsl(200 55% 58%)', 'hsl(120 45% 50%)', 'hsl(280 50% 62%)', 'hsl(40 60% 55%)', 'hsl(330 50% 60%)']
+        : by === 'age' ? ['var(--float)', 'var(--float)', 'color-mix(in srgb, var(--ink-4) 30%, var(--float))', 'color-mix(in srgb, var(--ink-4) 55%, var(--float))', 'var(--float)', 'color-mix(in srgb, var(--ink-4) 75%, var(--float))']
+        : ['#B5761B', '#1E5E8C', '#6B4FA3', '#9E2A62', 'var(--float)', '#2F6FB0'];
+      const B = [[.16, .86, 22, 1], [.3, .5, 26], [.5, .28, 30], [.68, .46, 24], [.84, .84, 20, 1], [.46, .7, 18]];
+      return [h('div.pv-fl' + (still ? '.still' : ''), h('span.pv-flcard', FLOATS.cloud(), 'afloat'), h('div.pv-flsk'),
+        h('div.pv-fld', B.map(([x, y, d, o], i) => h('i' + (o ? '.old' : ''), { style: { left: (x * 100) + '%', top: (y * 100) + '%', '--d': d + 'px', '--kc': cols[i] } })))),
+        PV.cap('Floats in the dome, coloured by ' + (by === 'origin' ? 'where they came from' : by === 'age' ? 'age' : 'kind') + '; the oldest lowest. Drag one onto the note.')];
+    } });
+
   D({ id: 'terms', group: 'structures', label: 'Terms', tab: 'terms', desc: 'Words you mark as terms of the project, outlined in bold and found by themselves in every note that uses them, with the Terms tab — every term with its uses, its last twelve weeks, its structures and open barriers, to find, sort and jump through — and each term’s bubbles. Off: no outline, no scanning, no Terms tab; the terms stay.',
     tune: [T('key', 'Mark a term', 'seg', Object.assign({ opts: [['alt+w', 'Alt+W'], ['alt+shift+w', 'Alt+Shift+W']], d: 'Ctrl+W in Focus mode' }, B('termKey'))),
       T('lit', 'Mentions in lit reviews', 'seg', { isNew: true, def: 'out', opts: [['out', 'Left out'], ['counted', 'Counted']], d: 'Left out of the Terms tab and the term’s page; a term used only in lit reviews isn’t listed' }),

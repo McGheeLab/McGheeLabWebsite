@@ -174,7 +174,7 @@ const REFS = {
   tabs(cur) {
     const T = [['room', 'Room', ''], REFS.on() ? ['refs', 'References', REFS.list().length] : null, typeof REPORT !== 'undefined' && REPORT.on() ? ['reports', 'Reports', REFS.reports().length] : null].filter(Boolean);
     if (T.length < 2) return null;
-    return h('div.rf-tabs', { role: 'tablist', 'aria-label': 'The Atlas' }, T.map(([k, l, n]) => h('button' + (cur === k ? '.on' : ''), { type: 'button', role: 'tab', 'aria-selected': String(cur === k), on: { click: () => { if (cur !== k) REFS.setTab(k); } } }, l, n !== '' ? h('span.c', String(n)) : null)));
+    return h('div.rf-tabs', { role: 'tablist', 'aria-label': 'The Atlas' }, T.map(([k, l, n]) => h('button' + (cur === k ? '.on' : ''), { type: 'button', role: 'tab', 'data-t': k, 'aria-selected': String(cur === k), on: { click: () => { if (cur !== k) REFS.setTab(k); } } }, l, n !== '' ? h('span.c', String(n)) : null)));
   },
   P: { q: '', by: null, view: null, rq: '' },
   page() {

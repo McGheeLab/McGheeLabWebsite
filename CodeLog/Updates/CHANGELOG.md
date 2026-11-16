@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.7] — 2026-11-16 — Scientia: Floats — a component waiting for a note, with a cloud; /float raises a clear glass dome to drag them into the note; the reference tag is golden
+
+Gabe: "Add a new kind, called a float. Floats are items that need to belong to a new note in the future, but is not organized or created yet. Bring up /float to bring up a hemisphere dome of floating float components that you can drag into the current note you are into … Once a float is placed into a note, it is an assigned float and is no longer part of the floats. Floats show up as bridges from where they were from." On the prototype: "it should not be a kind, but tracked like a kind. You can right click a component to make it a float, or use the command on preselected components via the Ctrl button. The float color should be light purple or sky blue. The float symbol should be a cloud. I want the dome to be completely in phase with the bottom of the canvas and blend in to the note canvas in a gradient with the same color palette showing since the bubble/lens should be optically clear and glistening. The reference tag should look golden."
+
+App only (`scientia/src`); no lab-layer files.
+
+### Added
+- **Floats (`14h-floats.js`, `FLOATS`; `28-floats.css`):** a flag beside the kind, like a reference — `b.afloat = { at, t }` when marked, `b.afloat.to = { docId, blockId, at }` once placed (an assigned float, no longer among the floats). Its card shows a cloud and "afloat" in sky lavender (`--float`), with the days it has waited once that is long (Settings); an assigned float shows "assigned float" and, from the bridge, V3.994's "bridged to".
+  - **Making floats:** right-click → *Make it a float* / *No longer a float*; components selected with Ctrl (or the lasso) and `/float`, or *Make floats* on the selection's bar, make them all floats in one Undo.
+  - **The dome (`/float` with nothing selected):** a half dome whose base is the canvas's bottom edge, rising into the note; the note's paper fades up into it (a gradient of its own colour, its grid showing); the glass is clear — a bright rim, the rim bending what lies behind it (`BUBBLE.warp` as a backdrop filter where the browser can), two small highlights and a slow sheen, no fill. The floats drift inside as glass beads, coloured by kind (or where they came from, or age), on golden-angle turns, the oldest lowest; the dome turns slowly and holds still while the pointer is in it; the bead under the pointer is found by its disc, with hysteresis. Resting 1 s on one (a ring closes) or clicking it opens its preview — what it is, where it was written, how long it has waited — with *Place here* and *Open where it was written*. Search on the dome's rim; Esc closes.
+  - **Placing:** drag a bead out onto the note (or *Place here*): `BRIDGE.make(original, this note, { quiet })` at the drop point, marked `asFloat` — its band reads "Float · from <note> · <date>" — one Undo; it leaves the dome. *↩ Back to the floats* on that band removes the bridge and the float waits again.
+  - **API for the Monthly review:** `FLOATS.isFloat(b)`, `waiting()`, `placed()`, `mark(ids)`, `unmark(ids)`, `place(blockId, docId, at)`, `back(bridgeId)`, `open(ctx)`, `close()`, `old(b)`.
+- **Settings → Features → Floats** (Structures, new): the switch (off: no cloud, no dome, no /float; placed floats stay), *The dome* (turns slowly / still), *Floats coloured by* (kind / where they came from / age), *A float has waited too long after* (1 week / 2 weeks / 1 month), *Rest on a float before it opens* (0.6 / 1 / 1.6 s), *A float you drag out lands* (where you drop it / at the view's centre); the live preview is a small canvas with its dome.
+
+### Changed
+- **The reference tag is golden (`27-refs.css`, `14g-refs.js`):** the bookmark on a reference's card, the corner of each card in the /reference gallery, "Reference" on a reference with no kind, and the Atlas's References tab carry a gold ribbon with a metallic shine (`--gold-grad`; light and dark).
+
+### Tests
+| Test | Result |
+|---|---|
+| `t_4.7` (desktop build with the lab layer): right-click makes and unmakes a float; Ctrl-selected + /float marks all in one Undo; the selection bar's Make floats; /float with nothing selected opens the dome with its base on the canvas's bottom edge, the paper gradient, clear glass (no fill); the floats in it (not this note's own), oldest lowest; nothing opens uninvited, rest 1 s opens the preview; resting still — the dome holds, nothing moves; dragging one out places a bridge "Float · from" where it was dropped, it leaves the dome, Undo; *Back to the floats*; the original's "assigned float" and "bridged to"; the age cue; the golden reference tag; Settings: switch, settings, preview, `FEAT.audit()` empty; phone width: no sideways scroll, a tap opens the preview, *Place here*; no errors | 22/22 desktop · 24/24 phone (400 px, dark) |
+| `t_4.5` (References, desktop and phone) · `t_4.4` (Reports) · `t_4.6` (citations) · `t_995` (Settings) · `t_994` (bridges) · Library · reader | 28/28 · 28/28 · 14/14 · 15/15 · 27/27 · 12/12 · 114/114 · 37/37 (one run 36/37: the browser's ResizeObserver notice from the card header's watcher, not repeated in two reruns) |
+| `v3869` lab-mode harness · `v3880` notes harness | 283/283 · 13/13 (V4.4–V4.8 stacked, first attempt) |
+
 ## [V4.6] — 2026-11-16 — Scientia: /cite numbers citations from [1] in superscript; "Style et al." from Settings; /author-cite for one
 
 Gabe: "Using /cite in a component should cite the paper as a quoted number in the note in a superscript (starting at [1]). It can also be converted to (Primary Author et. al) in Settings. /author-cite converts automatically to primary author just for that one cite." — then: "don't do the parantheses for the citing based on author name".
