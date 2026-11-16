@@ -184,7 +184,7 @@ CMD.hand = m => { const map = { erase: 'eraser', hl: 'hl', pen: 'pen', lasso: 'l
   C('recent', 'Recent notes (the switcher)', [], () => { PAL.switcher(); }, { group: 'Go', sub: 'Ctrl+O' });
   C('split', 'Open a note beside this one', [A('note', 'note')], A_ => { App.openSide(A_.note.id, null, true); return 'Beside: ' + A_.note.title; }, { group: 'Go' });
   C('tab', 'Go to a tab', [A('tab', 'choice', { choices: TABIDS })], A_ => { App.go('#/' + A_.tab); return A_.tab; }, { group: 'Go' });
-  C('flagged', 'The weekly review (flagged notes and structures)', [], () => { App.go('#/review'); }, { group: 'Go' });
+  C('flagged', 'The monthly review (its report, the unassigned, the flagged)', [], () => { App.go('#/review'); }, { group: 'Go' });
   C('reminders', 'Reminders', [], () => { App.go('#/reminders'); }, { group: 'Go' });
   C('library', 'The library', [], () => { App.go('#/library'); }, { group: 'Go' });
   C('read', 'Read a paper', [A('paper', 'paper')], A_ => { App.go('#/read/' + A_.paper.id); return 'Reading ' + snippet(A_.paper.title, 40); }, { group: 'Go' });
