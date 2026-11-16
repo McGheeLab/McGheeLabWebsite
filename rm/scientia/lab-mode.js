@@ -1260,6 +1260,8 @@
   /* V3.898 — every row of + Insert its own icon: Gabe's glyphs repeat (◍ ◍, ⤓ ⤓ ⤓, ∑ ∑, ▤ ▤ ▤, ▦ ▦, ▶ ▶). Used in his list,
      the Quick cast and the wire-drop menu; a row not named here keeps his glyph */
   Object.assign(PILL_ICONS, {"construction": "<path d=\"M3.75 7.5h16.5v5.25H3.75z\"/><path d=\"M6 12.75v7.5\"/><path d=\"M18 12.75v7.5\"/><path d=\"M8.25 7.5l-3 5.25\"/><path d=\"M13.5 7.5l-3 5.25\"/><path d=\"M18.75 7.5l-3 5.25\"/>", "books": "<path d=\"M3.75 20.25h16.5\"/><path d=\"M6.75 20.25V7.5a1.5 1.5 0 0 1 1.5-1.5h1.5a1.5 1.5 0 0 1 1.5 1.5v12.75\"/><path d=\"M6.75 9.75h4.5\"/><path d=\"M14.03 20.25 16.6 8.4a1.5 1.5 0 0 0-1.15-1.78l-1.1-.24\"/><path d=\"M13.2 10.2l3.6.78\"/>", "flask-conical": "<path d=\"M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2\"/><path d=\"M6.453 15h11.094\"/><path d=\"M8.5 2h7\"/>", "squares-2x2": "<path d=\"M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z\"/>", "square-2-stack": "<path d=\"M16.5 8.25V6a2.25 2.25 0 0 0-2.25-2.25H6A2.25 2.25 0 0 0 3.75 6v8.25A2.25 2.25 0 0 0 6 16.5h2.25m8.25-8.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-7.5A2.25 2.25 0 0 1 8.25 18v-1.5m8.25-8.25h-6a2.25 2.25 0 0 0-2.25 2.25v6\"/>", "clipboard-document-list": "<path d=\"M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z\"/>", "play-circle": "<path d=\"M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z\"/><path d=\"M15.91 11.672a.375.375 0 0 1 0 .656l-5.603 3.113a.375.375 0 0 1-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112Z\"/>", "pencil-square": "<path d=\"m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10\"/>", "puzzle-piece": "<path d=\"M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 0 1-.657.643 48.39 48.39 0 0 1-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 0 1-.658.663v0c-.355 0-.676-.186-.959-.401a1.647 1.647 0 0 0-1.003-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401v0c.31 0 .555.26.532.57a48.039 48.039 0 0 1-.642 5.056c1.518.19 3.058.309 4.616.354a.64.64 0 0 0 .657-.643v0c0-.355-.186-.676-.401-.959a1.647 1.647 0 0 1-.349-1.003c0-1.035 1.008-1.875 2.25-1.875 1.243 0 2.25.84 2.25 1.875 0 .369-.128.713-.349 1.003-.215.283-.4.604-.4.959v0c0 .333.277.599.61.58a48.1 48.1 0 0 0 5.427-.63 48.05 48.05 0 0 0 .582-4.717.532.532 0 0 0-.533-.57v0c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.37 0 .713.128 1.003.349.283.215.604.401.96.401v0a.656.656 0 0 0 .658-.663 48.422 48.422 0 0 0-.37-5.36c-1.886.342-3.81.574-5.766.689a.578.578 0 0 1-.61-.58v0Z\"/>", "arrow-down-on-square": "<path d=\"M9 8.25H7.5a2.25 2.25 0 0 0-2.25 2.25v9a2.25 2.25 0 0 0 2.25 2.25h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25H15M9 12l3 3m0 0 3-3m-3 3V2.25\"/>", "book-open": "<path d=\"M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25\"/>", "code-bracket-square": "<path d=\"M14.25 9.75 16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z\"/>", "table-cells": "<path d=\"M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M13.125 12h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125M20.625 12c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5M12 14.625v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 14.625c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 1.5v-1.5m0 0c0-.621.504-1.125 1.125-1.125m0 0h7.5\"/>", "paper-airplane": "<path d=\"M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5\"/>", "bell": "<path d=\"M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0\"/>", "beaker": "<path d=\"M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0 1 12 15a9.065 9.065 0 0 0-6.23-.693L5 14.5m14.8.8 1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0 1 12 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5\"/>", "photo": "<path d=\"m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z\"/>", "link": "<path d=\"M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244\"/>", "presentation-chart-bar": "<path d=\"M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6\"/>", "document-text": "<path d=\"M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z\"/>", "microphone": "<path d=\"M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z\"/>", "check-circle": "<path d=\"M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z\"/>", "clipboard-document-check": "<path d=\"M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0 1 18 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3 1.5 1.5 3-3.75\"/>", "cube": "<path d=\"m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9\"/>", "rectangle-stack": "<path d=\"M6 6.878V6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 6v.878m-12 0c.235-.083.487-.128.75-.128h10.5c.263 0 .515.045.75.128m-12 0A2.25 2.25 0 0 0 4.5 9v.878m13.5-3A2.25 2.25 0 0 1 19.5 9v.878m0 0a2.246 2.246 0 0 0-.75-.128H5.25c-.263 0-.515.045-.75.128m15 0A2.25 2.25 0 0 1 21 12v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6c0-.98.626-1.813 1.5-2.122\"/>", "ellipsis-horizontal": "<path d=\"M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z\"/>", "arrows-right-left": "<path d=\"M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5\"/>", "bars-3-bottom-left": "<path d=\"M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12\"/>"});
+  /* V4.9 — the Quick cast's Label (Heroicons v2 tag) */
+  PILL_ICONS.tag = "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z\"/><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M6 6h.008v.008H6V6Z\"/>";
   /* V3.941 — the Quick cast's Flag (the bottom bar's ⚐) */
   PILL_ICONS.map = "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z\"/>";   // V3.963 — a term in this note (14c)
   PILL_ICONS.flag = "<path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5\"/>";
@@ -1334,6 +1336,8 @@
     setTimeout(function () { LP.docked[name] = false; layoutSave(); paintAll(); }, pill ? 280 : 0);
   }
   LAB.dockPill = dock; LAB.undockPill = function (name) { undock(name, null); };
+  // V4.9 — a label picked up or put down (the app's LABELS): the Quick cast's Label lights or goes dark
+  document.addEventListener('sis-labels', function () { paintAll(); });
   /* the Quick cast: the inserts the person chose (LP.qc, ids of INSERTS — V3.941 in settings().labPills), in Gabe's order */
   function qcRows(d) {
     var on = {}; (LP.qc || []).forEach(function (id) { on[id] = 1; });
@@ -1386,6 +1390,17 @@
       var flagged = M.flagFor('doc', d.id);
       items.push({ icon: pic('flag'), label: flagged ? 'Flagged for the weekly review — tap to clear it' : 'Flag this note for the weekly review', sel: !!flagged,
         run: function () { Promise.resolve(M.toggleFlag('doc', d.id)).then(paintAll, paintAll); } });
+      /* V4.9 (Gabe) — Label: Float and Reference behind one button, third after Pull in and Flag. Docked as a row, its two
+         open beside it, in the row; in the fan they open outwards from it. A label picked is in hand (the app's LABELS):
+         the cursor is its symbol, a click on a component labels it (Ctrl keeps it); the button stays lit meanwhile */
+      var LK = typeof LABELS !== 'undefined' && LABELS.kinds ? LABELS.kinds() : [];
+      if (LK.length) {
+        items.push({ icon: pic('tag'), label: LABELS.armed ? 'Label — ' + LABELS.name(LABELS.armed) + ' in hand: click a component (tap here or Esc to put it down)' : 'Label — a float or a reference, by clicking components', sel: !!(LP.lbl || LABELS.armed), keep: true, cls: 'lab-lbl',
+          run: function () { if (LABELS.armed) { LABELS.disarm(); LP.lbl = false; } else LP.lbl = !LP.lbl; } });
+        if (LP.lbl) LK.forEach(function (k, j) {
+          items.push({ icon: k.icon, label: k.name + ' — the cursor becomes the ' + (k.id === 'float' ? 'cloud' : 'golden tag') + '; click a component to make it ' + (k.id === 'float' ? 'a float' : 'a reference') + (LABELS.opt('keep', true) !== false ? ' (hold Ctrl to label several)' : ''),
+            sub: true, subIdx: j, subN: LK.length, cls: 'lab-lbl-' + k.id, sel: LABELS.armed === k.id, run: function () { LP.lbl = false; LABELS.arm(k.id); } }); });
+      }
       qcRows(d).forEach(function (x) { var lab = typeof x.label === 'function' ? x.label(d) : x.label;
         items.push({ icon: INS_PICS[x.id] && PILL_ICONS[INS_PICS[x.id]] ? pic(INS_PICS[x.id]) : '<span class="lab-insic">' + esc(x.icon || '•') + '</span>', label: lab + (x.sub ? ' — ' + x.sub : ''), run: function () { x.run(d, centerAt(pane), pane); } }); });
       items.push({ icon: pic('ellipsis-horizontal'), label: 'Everything that can go in this note — the bolt on a row puts it in your Quick cast', run: function (el) { INSERT.menu(pane, el); } });
@@ -1425,6 +1440,7 @@
   function pillEl(name, pane, host) {
     var def = PILLS[name], docked = dockable(name) && !!LP.docked[name], rolling = docked && LP.rolling === name, open = !docked && !!(LP.open && LP.open.name === name && LP.open.doc === pane.docId);
     var C = 22;
+    if (name === 'insert' && !open && !docked) LP.lbl = false;   // V4.9: the Label's two fold away with the Quick cast
     var items = open || docked ? pillItems(name, pane) : [];
     var bw = host.clientWidth || 800, bh = host.clientHeight || 600, sz = 44, pp = LP.pos[name], side = def.side, vert = def.vert || 'up', style = null, at = def.at(bw, bh);
     if (pp && isFinite(+pp.fx) && isFinite(+pp.fy)) {
@@ -1440,12 +1456,59 @@
     var b = h('button.lab-pill-btn', { type: 'button', title: def.label + ' (drag to move)', 'aria-label': def.label, 'aria-expanded': String(!!open) });
     b.innerHTML = face + (name === 'hand' && /^(pen|hl|eraser)$/.test(hm) ? '<span class="lab-pill-dot' + (hm === 'hl' ? ' hl' : '') + (hm === 'eraser' ? ' er' : '') + '" style="background:' + (hm === 'eraser' ? '#fff' : INK.swatch(INK.COLORS[INK.color])) + '"></span>' : '')
       + (name === 'view' ? '<span class="lab-pill-pct">' + Math.round((pane.paper ? pane.paper.view.z : 1) * 100) + '%</span>' : '')
-      + (name === 'tools' && TIMER.activeFor(pane.docId) ? '<span class="lab-pill-live"></span>' : '');
+      + (name === 'tools' && TIMER.activeFor(pane.docId) ? '<span class="lab-pill-live"></span>' : '')
+      + (name === 'insert' && typeof LABELS !== 'undefined' && LABELS.armed ? '<span class="lab-pill-lbl">' + LABELS.svg(LABELS.armed) + '</span>' : '');   // V4.9 — a label in hand
     var cap = h('span.lab-fan-cap');
-    var rows = items.map(function (it, i) { return rowPos(name, i, items.length, side, vert, bw, bh, orient, at[0], at[1]); });
+    /* V4.9 — the Quick cast's Label opens its two (sub items) without moving the rest of the wheel: they are left out of the
+       count, so every other item keeps its place. Docked (a row), they open LATERALLY: beside Label on its far side from
+       the pill, and whatever lies beyond it on that line moves along by two to make room (where the strip has no room
+       for that, they stand out from Label across the row). In the fan they open OUTWARDS: further along Label's ray,
+       either side of it */
+    var mainN = items.filter(function (it) { return !it.sub; }).length, ri = 0, fi = 0;
+    var rows = items.map(function (it) { return it.sub ? null : rowPos(name, ri++, mainN, side, vert, bw, bh, orient, at[0], at[1]); });
+    var fanP = items.map(function (it) { return it.sub ? null : fanPos(fi++, mainN, side, vert); });
+    items.forEach(function (it, i) {
+      if (!it.sub || it.subIdx) return; var j = i - 1; while (j >= 0 && items[j].sub) j--; var n = it.subN, s, q = rows[j];
+      if (q) {
+        var v = orient === 'v', dx = v ? 0 : (q.x < 0 ? -1 : 1), dy = v ? (q.y < 0 ? -1 : 1) : 0, G = DOCK_GAP, moved = rows.slice();
+        rows.forEach(function (p, k) { if (p && k !== j && (v ? p.x === q.x && (p.y - q.y) * dy > 0 : p.y === q.y && (p.x - q.x) * dx > 0)) moved[k] = { x: p.x + dx * n * G, y: p.y + dy * n * G }; });
+        for (s = 0; s < n; s++) moved[i + s] = { x: q.x + dx * (s + 1) * G, y: q.y + dy * (s + 1) * G };
+        var fits = moved.every(function (p) { return !p || (v ? at[1] + p.y > 20 && at[1] + p.y < bh - 20 : at[0] + p.x > 20 && at[0] + p.x < bw - 20); });
+        if (fits) rows = moved;
+        else {   // no room along the line (a phone): the nearest free places round Label — its far side first, then away from the edge
+          var ox = v ? (at[0] > bw / 2 ? -1 : 1) : dx, oy = v ? dy : (vert === 'down' ? 1 : -1), got = [], cand = [];
+          var taken = rows.filter(function (p, k) { return p && !items[k].sub; }).concat([{ x: 0, y: 0 }]);
+          for (var ca = -6; ca <= 6; ca++) for (var cb = -6; cb <= 6; cb++) if (ca || cb) cand.push({ x: q.x + ca * G, y: q.y + cb * G, d: Math.hypot(ca, cb * 1.05) - (ca * ox > 0 ? .02 : 0) - (cb * oy > 0 ? .01 : 0) });
+          var free = cand.filter(function (c) { return at[0] + c.x > 20 && at[0] + c.x < bw - 20 && at[1] + c.y > 20 && at[1] + c.y < bh - 20
+            && !taken.some(function (p) { return Math.abs(p.x - c.x) < 30 && Math.abs(p.y - c.y) < 30; }); });
+          for (s = 0; s < n && free.length; s++) {   // the first nearest Label, each next one beside the one before (a pair, not scattered)
+            var prev = got[s - 1], bi = 0;
+            free.forEach(function (c, k) { var sc = prev ? Math.hypot(c.x - prev.x, c.y - prev.y) / G + c.d * .5 : c.d, sb = prev ? Math.hypot(free[bi].x - prev.x, free[bi].y - prev.y) / G + free[bi].d * .5 : free[bi].d; if (sc < sb) bi = k; });
+            got.push({ x: free[bi].x, y: free[bi].y }); free.splice(bi, 1);
+          }
+          for (s = 0; s < n; s++) rows[i + s] = got[s] || { x: q.x, y: q.y + oy * (s + 1) * G };
+        }
+      }
+      /* outwards along Label's ray, as near as the wheel's other rings allow: never on one of its items, never off the canvas
+         (the two keep about one item's width between them at any distance) */
+      var f = fanP[j] || { x: 0, y: -84 }, L = Math.hypot(f.x, f.y) || 1, a0 = Math.atan2(f.y, f.x), best = null, first = null;
+      for (var R = L + 58; R <= L + 280 && !best; R += 14) [1, 0.8, 1.3].some(function (m) {
+        var c = []; for (var t = 0; t < n; t++) { var a = a0 + (t - (n - 1) / 2) * 0.46 * m * (L + 58) / R; c.push({ x: Math.round(Math.cos(a) * R), y: Math.round(Math.sin(a) * R) }); }
+        if (!first) first = c;
+        var clear = c.every(function (p) { return at[0] + p.x > 22 && at[0] + p.x < bw - 22 && at[1] + p.y > 22 && at[1] + p.y < bh - 22
+          && fanP.every(function (q, k) { return !q || items[k].sub || Math.hypot(q.x - p.x, q.y - p.y) >= 44; }); });
+        if (clear) best = c; return clear;
+      });
+      for (s = 0; s < n; s++) fanP[i + s] = (best || first)[s];
+    });
+    /* V4.9 — a repaint of a wheel or row already showing does not pop it again: what moved glides from where it stood,
+       and the Label's two grow out of Label (outwards in the fan, along the row docked) */
+    var oldBox = $(':scope > .lab-pills', host), oldPill = oldBox && oldBox.querySelector('.lab-pill-' + name + '.fanned'), was = {};
+    var still = !!(oldPill && (open || docked) && !rolling && oldPill.classList.contains('docked') === docked);
+    if (still) [].forEach.call(oldPill.querySelectorAll('.lab-fan-item[data-k]'), function (el) { was[el.getAttribute('data-k')] = [el.style.getPropertyValue('--tx'), el.style.getPropertyValue('--ty')]; });
     var fan = h('div.lab-fan', items.map(function (it, i) {
-      var p = docked && !rolling ? rows[i] : fanPos(i, items.length, side, vert), st = { '--tx': p.x + 'px', '--ty': p.y + 'px', '--d': (i * (rolling ? 34 : 14)) + 'ms' };
-      var el = h('button.lab-fan-item' + (it.sel ? '.sel' : '') + (it.mode ? '.mode' : ''), { type: 'button', title: it.label, 'aria-label': it.label, style: st,
+      var p = (docked && !rolling ? rows[i] : fanP[i]) || { x: 0, y: 0 }, st = { '--tx': p.x + 'px', '--ty': p.y + 'px', '--d': (i * (rolling ? 34 : 14)) + 'ms' };
+      var el = h('button.lab-fan-item' + (it.sel ? '.sel' : '') + (it.mode ? '.mode' : '') + (it.sub ? '.lab-sub' : '') + (it.cls ? '.' + it.cls : ''), { type: 'button', title: it.label, 'aria-label': it.label, 'data-k': it.cls || it.label, style: st,
         on: { pointerenter: function () { cap.textContent = it.label; }, pointerleave: function () { cap.textContent = ''; },
           click: function (e) { e.stopPropagation(); try { it.run(el); } catch (x) { warn('pill', x); } if (!it.keep && !docked) { LP.open = null; } paintAll(); } } });
       if (it.dot) el.innerHTML = '<span class="lab-fan-dot' + (it.hl ? ' hl' : '') + '" style="background:' + it.dot + '"></span>';
@@ -1457,14 +1520,23 @@
     var rail = null;
     if (docked && items.length) {   // the strip behind a docked row
       var x0 = 0, x1 = 0, y0 = 0, y1 = 0;   // the pill's own spot too
-      rows.forEach(function (q) { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); });
+      rows.forEach(function (q) { if (!q) return; x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); });
       rail = h('div.lab-dock-rail', { style: { left: (C + x0 - 25) + 'px', top: (C + y0 - 25) + 'px', width: (x1 - x0 + 50) + 'px', height: (y1 - y0 + 50) + 'px' } });
     }
-    var pill = h('div.lab-pill.lab-pill-' + name + (open ? '.open' : '') + (docked ? '.docked.fanned' : '') + (rolling ? '.rolling' : '') + (name === 'hand' && /^(zoom|move|lasso|eraser)$/.test(hm) ? '.on' : ''),
+    var pill = h('div.lab-pill.lab-pill-' + name + (open ? '.open' : '') + (open && items.some(function (it) { return it.sub; }) ? '.lbl-open' : '') + (docked ? '.docked.fanned' : '') + (rolling ? '.rolling' : '') + (name === 'hand' && /^(zoom|move|lasso|eraser)$/.test(hm) ? '.on' : ''),
       { 'data-pill': name, 'data-side': side, 'data-vert': vert, 'data-orient': orient, style: style || {}, title: docked ? '' : null }, rail, b, fan);
     if (docked) b.setAttribute('title', def.label + ' — docked as a ' + (orient === 'v' ? 'column' : 'row') + ' (against a side it stands, against the top or bottom it lies); tap to fold it back into the wheel (drag to move)');
     bindPill(pill, b, name, pane, host);
-    if (open) requestAnimationFrame(function () { pill.classList.add('fanned'); });
+    if (still) {
+      pill.classList.add('fanned'); var glide = [], els = fan.querySelectorAll('.lab-fan-item');
+      [].forEach.call(els, function (el, i) {
+        var o = was[el.getAttribute('data-k')], tx = el.style.getPropertyValue('--tx'), ty = el.style.getPropertyValue('--ty'), p0 = null;
+        if (o) { if (o[0] !== tx || o[1] !== ty) p0 = o; }
+        else if (items[i] && items[i].sub) { var j = i - 1; while (j >= 0 && items[j].sub) j--; if (j >= 0 && els[j]) { p0 = [els[j].style.getPropertyValue('--tx'), els[j].style.getPropertyValue('--ty')]; el.classList.add('lab-from'); } }
+        if (p0) { glide.push([el, tx, ty]); el.style.setProperty('--tx', p0[0]); el.style.setProperty('--ty', p0[1]); el.classList.add('lab-glide'); }
+      });
+      if (glide.length) requestAnimationFrame(function () { requestAnimationFrame(function () { glide.forEach(function (g) { g[0].classList.remove('lab-from'); g[0].style.setProperty('--tx', g[1]); g[0].style.setProperty('--ty', g[2]); }); }); });
+    } else if (open) requestAnimationFrame(function () { pill.classList.add('fanned'); });
     if (rolling) {   // the fan rolls into its row: the items travel from their fan places to the strip's
       LP.rolling = null;
       requestAnimationFrame(function () { requestAnimationFrame(function () {
@@ -1677,6 +1749,14 @@
       '.lab-fan-item{position:absolute;left:-18px;top:-18px;width:36px;height:36px;border-radius:50%;border:1px solid var(--rule-2);background:var(--surface);color:var(--ink);box-shadow:0 2px 8px -4px rgba(36,33,28,.5);display:grid;place-items:center;padding:0;cursor:pointer;font:500 15px/1 var(--f-d,system-ui);transform:translate(0,0) scale(.4);opacity:0;transition:transform .22s cubic-bezier(.2,.9,.3,1.2) var(--d,0ms),opacity .16s var(--d,0ms);touch-action:manipulation}' +
       '.lab-fan-item svg{width:17px;height:17px;pointer-events:none}.lab-pill.fanned .lab-fan-item{transform:translate(var(--tx),var(--ty)) scale(1);opacity:1}.lab-fan-item:hover{border-color:var(--ink-3)}' +
       '.lab-fan-item.sel{background:var(--ink);color:var(--paper);border-color:var(--ink)}.lab-fan-item.mode{width:38px;height:38px;left:-19px;top:-19px}' +
+      /* V4.9 — the Quick cast's Label and its two (Float, Reference): the symbols in their own colours, lit while in hand */
+      '.lab-fan-item.lab-sub{width:34px;height:34px;left:-17px;top:-17px;background:var(--paper);box-shadow:0 4px 12px -6px rgba(0,0,0,.35)}.lab-fan-item.lab-sub svg{width:19px;height:19px}' +
+      '.lab-fan-item.lab-sub.sel{background:var(--surface);color:var(--ink);box-shadow:0 0 0 2px var(--ink)}' +
+      '.lab-fan-item.lab-lbl-float{border-color:color-mix(in srgb,var(--float,#93B4F4) 60%,var(--rule-2))}.lab-fan-item.lab-lbl-reference{border-color:color-mix(in srgb,var(--gold,#C9A227) 60%,var(--rule-2))}' +
+      'body[data-lbl] .lab-fan-item.lab-lbl.sel{box-shadow:0 0 0 3px color-mix(in srgb,var(--teal) 40%,transparent)}' +
+      '.lab-pill.lbl-open .lab-fan-item:not(.lab-sub):not(.lab-lbl){opacity:.32;transition:opacity .2s}.lab-pill.lbl-open .lab-fan-item.lab-sub{z-index:2}' +
+      '.lab-pill .lab-fan-item.lab-glide{transition:transform .28s cubic-bezier(.2,.9,.3,1.12),opacity .2s !important}.lab-pill .lab-fan-item.lab-from{transform:translate(var(--tx),var(--ty)) scale(.4) !important;opacity:0 !important}' +
+      '.lab-pill-lbl{position:absolute;right:-5px;top:-5px;width:20px;height:20px;border-radius:50%;background:var(--surface);border:1px solid var(--rule-2);display:grid;place-items:center;box-shadow:0 2px 6px -3px rgba(0,0,0,.4)}.lab-pill-lbl svg{width:14px;height:14px}' +
       '.lab-fan-dot{width:18px;height:18px;border-radius:50%;display:block;border:1px solid rgba(0,0,0,.15)}.lab-fan-dot.hl{opacity:.55}.lab-fan-item.sel .lab-fan-dot{box-shadow:0 0 0 2px var(--paper)}' +
       '.lab-fan-bar{display:block;width:20px;border-radius:3px;background:currentColor}.lab-fan-eraser{display:block;width:16px;height:16px;border-radius:50%;border:1.5px solid currentColor}' +
       '.lab-insic{font-size:16px;line-height:1}.lab-100{font:700 10px/1 var(--f-m,monospace)}' +
