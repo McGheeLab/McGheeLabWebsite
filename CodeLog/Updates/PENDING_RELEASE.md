@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (105 changes — ready to push)
+## Pending (106 changes — ready to push)
+
+- **Floats (V4.7):** right-click a component → Make it a float when it belongs to a note you haven't made yet; /float in a note raises a wide glass cap along the bottom of the note with them drifting in it to drag in, and each lands as a bridge from where you wrote it. The reference tag is golden.
 
 - **Citations are numbered (V4.6):** /cite now shows [1], [2]… in superscript, numbered as they first appear in the note; Settings can show them as Style et al. instead, and /author-cite names the author for just one citation.
 
