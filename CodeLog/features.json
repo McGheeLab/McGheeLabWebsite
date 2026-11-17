@@ -1462,7 +1462,8 @@
    ],
    "paths": [
     "scientia/src/15-portfolio.js",
-    "scientia/src/15b-general.js"
+    "scientia/src/15b-general.js",
+    "scientia/src/15f-banners.js"
    ],
    "status": "active",
    "related": [
