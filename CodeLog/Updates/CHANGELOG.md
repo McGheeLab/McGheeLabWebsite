@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.13] — 2026-11-17 — Scientia: ⋯ stays inside a component (a kind, a narrow width); the editor bar below a component follows it as it grows
+
+Gabe: "For some components (e.g., when a kind is assigned to it), the More button spans outside of the component area."
+
+Gabe: "When writing in a component that keeps growing its boundary and the editor bar is located at the bottom, it should dynamically move with each new line added to the component automatically or manual resizing."
+
+App only (no lab-layer file changes).
+
+### Bug Fixes
+- **⋯ pushed out of a component** (`20-canvas.css`). A text component's header is one flex row that never wraps; its parts kept their size — the name (`.blab` min-width 90 px), the time stamp (nowrap, about 110 px), the tag (a kind's label such as HYPOTHESIS or MECHANISM is wider than BLOCK) — so below about 345 px (more with a long kind and chips) ⋯ went past the right border (measured: every component at 300 px and below, by 48–219 px). Now, in non-slim headers, the buttons keep their size (`:is(button,.ib,.cfold,.step,.flag,.bmore,.live)` `flex:none`) and the stamp, the name, the tag and any chip give way with an ellipsis (`min-width:0`): the stamp first (`flex-shrink:4`), the name down to 28 px, the kind's tag last (`flex-shrink:.01` — its whole word stays down to about 240 px). Slim widget headers (13zg) wrap as before.
+- **The editor bar stayed on a component's old bottom edge** (`13zzf-editbar.js`). Below a component (no room above), the bar was placed once; new lines and a width drag grew the component under it. `EBAR.watch(box)` — a `ResizeObserver` on the component and a `MutationObserver` on its `style` while the bar is up — calls `EBAR.place` in the same frame; `EBAR.unwatch` when it goes (`EBAR.hide`). Above the component it stays at the top edge, as before; the LAYERS wrapper (13zzn) still runs on every place.
+
+### Tests
+| Test | Result |
+|---|---|
+| `fa_t1` 1400 px, real mouse and keys. Covers: ⋯ inside its box and full size for 26 components — plain and kinded text (Hypothesis, Mechanism, Question as a reference, Feedback) at 392 · 300 · 240 · 200 px, PDF and page Reports and a Result panel at 420 · 300 px; the widgets keep their slim header; a kinded component at 300 px shows its whole tag. The editor bar below a component at the top of the canvas: shown 6 px under it; five Shift+Enter lines, the component taller each time and the bar under its bottom edge after each; the right edge dragged 150 px in, the bar following during the drag, under the taller box and as wide as it; with room above, it stays above as the component grows; a click away hides it; the text kept; no sideways scroll; no errors | 11/11 |
+| `fa_t1` 400 px | 11/11 |
+| Before the fix (V4.11): ⋯ outside in every component at 300 px and below (60-case probe); the bar left 57 → 139 px from the box as lines were added | reproduced |
+| `rep_t` (Report tag) · `refs_t45` (References) · `t_995` (Settings) · `rev_t` (Monthly review) · `lbl_t` (Labels) | 19/19 · 28/28 · 27/27 · 32/32 · 37/37 |
+| `v3869` lab-mode harness · `v3880` notes harness | 286/286 · 13/13 — V4.13–V4.22 stacked on V4.12 (one earlier run missed v3869's timed PDF-redraw check, 285/286, then 286/286 twice) |
+
 ## [V4.12] — 2026-11-17 — Scientia: a page for every feature, with a demonstration — what it is for in Gabe's words, and a recording of it being used in a test note
 
 Gabe: "Each feature deserves a full page when clicked on, with a demonstration of what it can be used for, described by the user. Claude then creates a test note, screen records the process of using the feature, and embeds that video in the Settings tab for that feature page. Make sure to update the skill associated with Settings and Features with this new workflow."
