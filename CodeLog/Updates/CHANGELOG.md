@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.14] — 2026-11-17 — Scientia: a Problem kind — a barrier in the literature, cited by its paper(s), never counted as a barrier towards your project
+
+Gabe: "Add a Problem kind: it highlights a barrier in literature (must be cited by a paper(s)) with opportunity for improvement or solving, but is not counted as a barrier towards your project."
+
+App only (no lab-layer file changes).
+
+### Added
+- **`PROBLEM` (`scientia/src/13zzyb-problem.js`, new; in `CodeLog/features.json` with the kinds):**
+  - **The kind:** a kind of text component pushed onto `CKINDS.BASE`: `{ id: 'problem', label: 'Problem', color: '#7D7A16' }`, olive (no other kind's hue; Barrier is a structure in red). Its links: it fuels a question or a hypothesis; it leads to a method, a task or a decision; a result, an Insight, a Method or a Verdict resolves it; a paper supports it; it refines a Problem. `CKINDS.CLASSES.problem`.
+  - **Its citation:** `PROBLEM.cites(b)` → `[{ how: 'cite' | 'quote' | 'wire', ref, name }]` — a cite of a Library paper in its text, a quote from a PDF (or from a page linked to the Library, `RDX.libOf`), a wire to a paper (`CKINDS.is(x, 'paper')`: a PDF card, an RM paper, a component that cites one); `PROBLEM.cited(b)`.
+  - **Until it is cited:** its header shows "cite a paper" (`span.pb-cite`, a book icon; a click opens `ED.citePicker` at the end of its text) and its left edge is dashed (`.pb-uncited`). Once cited, the tag's title says who cites it.
+  - **Choosing it** for an uncited component is allowed; a toast says what it needs (`CKINDS.set` wrapped). While the feature is off, "what kind is this?" does not offer it (`CKINDS.pick` wrapped).
+  - **Never a barrier towards your project:** `IX.status` is wrapped — a barrier structure marked inside a Problem (`PROBLEM.inProblem(it)`) reads `literature`, not open — so `IX.openBarriers` (the Portfolio, Today, the Monthly review), `IX.themeHealth` and the review lanes leave it out, and `IX.pullable` (Pull in) too. The kind itself is not counted (`CKINDS.counted` counts Insights, Results and unexplained Anomalies only).
+- **`24-kinds.css`:** `.pb-uncited` (dashed edge), `.pb-cite`; `body.f-off-problems` hides the reminder; the preview's styles. The chip gives way after the stamp and the name, clipped.
+- **Settings → Features → Structures → Problems** (`20a-features.js`):
+  - the switch;
+  - "What counts as its citation": A cite, a quote or a wire (default) / A cite in its text;
+  - a live preview — a cited Problem, an uncited one with its reminder, the project's open barriers at 0 — that follows both settings.
+
+  `FEAT.audit()` is empty.
+- **The Atlas** lists Problem with the kinds (it reads `CKINDS.all()`).
+
+### Changed
+- **`20-canvas.css` (V4.13's header):** the kind's tag gives way clipped, not with an ellipsis. Its tiny shrink factor (`.01`) took a fraction of a pixel even when the word fit, and that fraction alone showed "PROBLE…".
+
+### Tests
+| Test | Result |
+|---|---|
+| `fa_t2` 1400 px, real mouse events. Covers: a Problem kind in a colour of its own, with its ways; a double-click on the label offers Problem (the long menu scrolled to it), chosen → the tag, the toast saying what it needs, "cite a paper" and the dashed edge, ⋯ inside; "cite a paper" under the pointer → the citation picker → the Library's paper → a cite in its text, the reminder gone, the edge solid, the tag's title "cited by Style, 2014". A Problem quoted from a PDF is cited; one with nothing shows the reminder until it is wired to the PDF card; "a cite in its text" makes the quoted and wired ones need one; back again. Barriers: one marked inside a Problem reads "literature", one in a plain component stays open; open barriers (the project and everywhere), theme health and Pull in count only ours; Problems are not counted; the Portfolio says 1 open barrier; Today's tile 1; the Monthly review leaves it out. The switch off (no reminder, not offered, a Problem keeps its kind) and on; the preview follows the settings and the switch; `FEAT.audit()` empty; the Atlas lists Problem; no sideways scroll; no errors | 26/26 |
+| `fa_t2` 400 px | 26/26 |
+| `fa_t1` (V4.13) 1400 · 400 px; the 60-case header probe | 11/11 · 11/11; 60 ok |
+| `rep_t` (Report tag) · `refs_t45` (References) · `t_995` (Settings) · `rev_t` (Monthly review) · `lbl_t` (Labels) | 19/19 · 28/28 · 27/27 · 32/32 · 37/37 |
+| `v3869` lab-mode harness · `v3880` notes harness | 286/286 · 13/13 — V4.13–V4.22 stacked on V4.12 (one earlier run missed v3869's timed PDF-redraw check, 285/286, then 286/286 twice) |
+
 ## [V4.13] — 2026-11-17 — Scientia: ⋯ stays inside a component (a kind, a narrow width); the editor bar below a component follows it as it grows
 
 Gabe: "For some components (e.g., when a kind is assigned to it), the More button spans outside of the component area."

@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (112 changes — ready to push)
+## Pending (113 changes — ready to push)
+
+- **A Problem kind (V4.14):** mark a component as a Problem — a barrier in the literature you could improve on or solve. It asks for the paper(s) that show it ("cite a paper" in its header) and never counts as a barrier in your own project.
 
 - **Fixed: ⋯ and the editor bar (V4.13):** the ⋯ button no longer sticks out of a narrow component or one with a kind; the bar you write with, when it sits under a component, now moves down with each new line and when you resize the component.
 

@@ -44,7 +44,7 @@
 .box:not(.slim) > .bh > .blab{min-width:28px;flex:1 1 60px;text-overflow:ellipsis}
 .box:not(.slim) > .bh > :is(.num,.stampbtn,.br-tag,.pill,span:not(.spacer)){flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .box:not(.slim) > .bh > button.stampbtn{flex-shrink:4}   /* the time stamp gives way first, then the name (to 28 px), the kind's tag last */
-.box:not(.slim) > .bh > span.num{flex-shrink:.01}   /* (element + class: as specific as the shared rule above, whose :is() counts span:not(.spacer)) */
+.box:not(.slim) > .bh > span.num{flex-shrink:.01;text-overflow:clip}   /* the tag gives way last, and clipped: an ellipsis would show for the fraction of a pixel it shrinks when it still fits. (element + class: as specific as the shared rule above, whose :is() counts span:not(.spacer)) */
 .box .flag{color:var(--mag);font-size:12px}
 .box .stepinfo{font-family:var(--f-m);font-size:10px;color:var(--teal);white-space:nowrap}
 .box .step{width:17px;height:17px;border:1.5px solid var(--ink-3);border-radius:4px;background:var(--surface);cursor:pointer;display:grid;place-items:center;font-size:11px;color:var(--surface);flex:none;padding:0}
