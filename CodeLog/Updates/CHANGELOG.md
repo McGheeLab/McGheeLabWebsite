@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.12] — 2026-11-17 — Scientia: a page for every feature, with a demonstration — what it is for in Gabe's words, and a recording of it being used in a test note
+
+Gabe: "Each feature deserves a full page when clicked on, with a demonstration of what it can be used for, described by the user. Claude then creates a test note, screen records the process of using the feature, and embeds that video in the Settings tab for that feature page. Make sure to update the skill associated with Settings and Features with this new workflow."
+
+App only (`scientia/`), plus `scripts/scientia_build.py` (it ships the recordings); no lab-layer file changes.
+
+### Added
+- **A page per feature** (`20-settings.js` `featurePage`, the address `#/settings/feature/<id>`). A tile on the Features board opens it: the feature's name, group and switch; which presets have it, its tab, what it needs and what goes with it (links); its whole description; **What it is for**; its **settings**; and its **live preview** beside them (sticky; above them under 1100 px). *‹ Features* goes back to the board with that tile in view and marked; the two names at the top right step to the feature before and the next. The page has the whole width (no sidebar).
+- **Demonstrations** (`FEAT.demo(id, { by, at, use, video, poster, v, w, h, dur, kb, steps })`, `02b-feat.js`; the entries in the new `20b-demos.js`). `use` is what the feature is for in the words of whoever asked for it; the video is the app recorded while the feature is used in a test note; `steps` are `[seconds, caption]`.
+  - `SettingsView.demoView` / `player`: a still and **Play** — nothing plays, and the file is not fetched, until Play is pressed (Gabe's rule: nothing opens uninvited). The steps are listed under the picture with their times; a click plays from there; the step being shown is lit and written under the picture.
+  - The file is fetched whole and played from a blob, so any moment can be reached on the desktop too (`serve.py` sends no byte ranges). A device without the file says so in one sentence and keeps the steps.
+  - `FEAT.undemoed()` lists the features with no recording yet. A page without one says so and keeps its live preview.
+- **The recorder, `scientia/demokit/record.mjs`** (Node, headless Chrome over its debugging connection, ffmpeg): `node scientia/demokit/record.mjs <id> [--shots] [--lab] [--keep]`.
+  - It reads `demokit/<id>.mjs`: `{ by, use, view, setup, before, steps: [[caption, async (R, ctx) => …]] }`. `setup` runs in the page and makes the test note (an empty Chrome profile: never a real notebook); the steps drive the app with a real pointer and keyboard (`R.click`, `rclick`, `drag`, `type`, `key`, `hold`, `wheel`, `open`, `until`…), the pointer eased like a hand.
+  - The pointer, a ring at each click and the keys pressed (Ctrl, Enter…) are drawn into the page, so the recording shows them.
+  - It writes `scientia/demos/<id>.mp4` (H.264, no sound, 15 frames a second) and `<id>.jpg` (the still), and the feature's entry in `src/20b-demos.js` between `/* demo:<id> */` markers, with the recording's hash as `v` (a new take is never an old one from a cache). A step that fails stops the take and leaves `demokit/out/<id>-fail.png`; an error thrown by the app fails it too.
+  - It records the app on its own (the lab layer cut out of the desktop build as it is served), so one recording fits the website, the installed desktop and the standalone app; `--lab` records the lab's desktop build.
+- **The first two recordings:** `floats` (36 s, 665 KB: Make it a float, Ctrl+click and Make floats, `/float` raises the dome, resting on a float, dragging one into the note as a bridge) from Gabe's request for Floats, and `demos` (35 s, 1 MB: a tile, its page, Play, a step, a setting with its preview, back to the board) from this request.
+- **Settings → Features → Tabs & overview → Feature demonstrations** (`FEAT.def` `demos`, in every preset): the speed recordings play at (¾, normal, 1.5×), the step written under the recording (on), and whether one stops or starts again at its end; a live preview that follows them and says how many features have a recording. Off: the pages keep everything but the recordings, and tiles no longer say "▶ demonstration".
+
+### Changed
+- **A tile no longer unfolds in the board** (V3.995): a click anywhere on it but its switch opens the page, where its description, settings and preview now are. `SettingsView.open` is gone; the tile's name is a link; its foot says "N settings · ▶ demonstration ›".
+- `scripts/scientia_build.py`: `COPY` gains `demos` (to `rm/scientia/demos/`, git-ignored like the other build outputs) and the desktop download carries `app/demos/*`, so the website, an installed computer and `--check` all have the recordings.
+- `scientia/MANUAL.md` §23, `scientia/CLAUDE.md` (the rule: a feature is not finished until its page has a demonstration).
+
+### Tests
+| Test | Result |
+|---|---|
+| `fp_t` 1400 px, the app on its own, real mouse events for every click (the element under the pointer is the one meant). Covers: the register (`FEAT.audit()` empty, `demos` with its three settings, `FEAT.demo` / `undemoed`); a tile links to its page, says ▶ demonstration, nothing unfolds; the page's name, group, presets, whole description, before/next; Gabe's words and the length; five settings and the preview; nothing plays or is fetched until Play, also after a wait; Play plays from a blob (the test server sends no ranges); the player's controls, speed, no loop, first step lit; a step plays from there, lit and written under the picture; a setting changed on the page moves the preview and keeps the scroll; Reset; the page's switch; the next feature and a page with no demonstration; Needs / Goes with links; a core feature's page; ‹ Features with the tile in view and marked; the browser's Back and Forward; a tile's switch on the board; Search → tile → page; the three settings of Feature demonstrations are real; its own page and preview; off; a device without the file; an address that names no feature; all 65 pages draw with their preview, none scrolls sideways; the layout; no errors | 33/33 |
+| `fp_t` 1024 px · 400 px (the preview above the recording, no sideways scroll) | 33/33 · 33/33 |
+| `fp_t` 1400 px on the lab's desktop build (with the lab layer) | 33/33 |
+| `node scientia/demokit/record.mjs floats` · `demos` (each step found its target; no error thrown by the app) | recorded · recorded |
+| `python scripts/scientia_build.py --check` · the download holds `app/demos/*` | current · 4 files |
+| `v3869` lab-mode harness · `v3880` notes harness (each on its first attempt) | 283/283 · 13/13 |
+
 ## [V4.11] — 2026-11-16 — Scientia: the Report tag can be reached — it shows on PDF and HTML cards, and ⋯ → What kind is this… chooses it too
 
 Gabe: "how do you label an HTML as a report?" — then: "I don't see that, even though I have pushed all changes."
