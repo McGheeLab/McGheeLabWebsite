@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.15] — 2026-11-17 — Scientia: experiments are named once and can continue a series — + Experiment asks the name (Run 2 → Run 3), every note of an experiment carries it alone, and its stages start as a general note
+
+Gabe: "+ Experiment asks you to name the experiment with the option to add it to an experiment sequence/iteration from a theme (e.g., […] Run 2 in that theme allows you to name it automatically […] Run 3). That name carries through to all parts of the experiment and do not add — Planning or — Run after the experiment title." — and: "The preset text components for each experiment note type should be stripped and go back to the universal text component any general note would have."
+
+App (`scientia/src`). The lab layer is not edited; one check of the v3869 harness follows the new behaviour (Alex reviews).
+
+### Changed
+- **Every note of an experiment carries its name alone** (`13c-chain.js`): `CHAIN.create` / `CHAIN.advance` no longer add " — Planning" / " — Run"; the stage shows as the type chip, the stage strip and the Portfolio's stage label.
+  - Renaming one note renames the others still titled with the old name, and `chainName` (`CHAIN.renamed`, from a wrapped `M.touchDoc` — the title bar, `/rename`, the note dialog, the lab's first-block Title). Only a title that really changed, on a note that carried the experiment's name, is carried: each note's title as last seen is kept (`CHAIN.seen`, `CHAIN._titles` — drawn, made, renamed), so a note with a title of its own (a series' Synthesis, say) renames nothing when it is edited.
+  - Once per notebook (`settings().expTitles415`): notes titled exactly "name — Stage" become "name"; a title of its own stays.
+  - The demo's 8 kPa series follows (`22-seed.js`).
+- **An experiment's stages start with the universal text component** a general note has (`02-schema.js` `STANDARD_TEMPLATES` for planning, experiment, analysis, reflection). `CHAIN.migrate` (run with `ensureStandardTemplates`): a standard template still as built in becomes that component; each old preset is kept as a template of its own, switched off (`tp_pre415_<type>`, `CHAIN.OLD_PRESETS`), to switch on in Settings → Templates.
+- **+ Experiment asks the name in the lab's build too.** `lab-mode.js` (V3.885) replaced `CHAIN.start` to make the note at once; on `DOMContentLoaded` the app keeps its own `CHAIN.start` and the lab's as `CHAIN.labStart`, through which the dialog makes the note (its first block holds the details). The v3869 harness's "+ Experiment makes its first stage at once — no dialog" becomes two checks: the dialog first, then the note made through the first block, titled with the name alone.
+
+### Added
+- **Continue a series** in + Experiment (`CHAIN.start`): the theme's experiments as series (`CHAIN.seriesIn`; a lone experiment is a series of one, a series is shown by its latest run with "· N runs"); picking one names the next run (`CHAIN.nextRun`: "… Run 2" → "… Run 3", "…" → "… Run 2"), editable, with a line saying which runs come before; "No: a new experiment" clears a name it filled.
+  - Data: `series` (the first experiment's chain id) and `run` on every note of a run (`CHAIN.openSeries` the first time a series is continued; `CHAIN.create` `{ series, run }`, `CHAIN._pending` on the lab's path; `CHAIN.advance` carries them). `CHAIN.RUN_RX`, `CHAIN.baseOf`, `CHAIN.runOf`.
+- **Settings → Features → Canvas & notes → Experiment series** (`expseries`, `20a-features.js`, in Simple too): the switch (off: no series to continue — the name is still asked; series already made stay) and a live preview (the dialog with its series and the next run's name; three stage notes carrying it). `31-experiments.css` (new).
+
+### Tests
+| Test | Result |
+|---|---|
+| `fb_t415` lab build, 1400 px. Covers: the four stage types' standard templates are one universal component, the old presets kept switched off; once: "8 kPa series — Planning" / "— Run" → "8 kPa series", a title of its own kept, a built-in preset → the universal component; a note with a title of its own, edited, renames nothing; the header's + Experiment on a theme's page opens "New experiment"; Continue a series lists the theme's experiment; picking it names "8 kPa series Run 2" and says so; Create makes its first stage titled with the name alone, in the series as Run 2, the first experiment's notes as Run 1, one universal component, made through the lab's path (its first block's Title); the real Next makes the Run stage with the same title and series; the strip names the stages; renaming one note renames its experiment's others, not the other run; the series shows as one row with "· 2 runs" and names "Soft gels Run 3"; No clears the filled name; a typed new experiment has no series; the switch off hides the series row; the preview, drawn as set; `FEAT.audit()` empty; no sideways scroll; no errors | 23/23 |
+| `fb_t415` 400 px (lab build) · a build without the lab layer (the standalone's path: `CHAIN.create` directly) | 23/23 · 22/22 |
+| `t_995` (Settings) · `rev_t` (Monthly review) · `t_996` (synthesis columns) · `t_977syn` (notes to synthesize) · `cite_t` · `t_984` (Portfolio and Results kinds) | 27/27 · 32/32 · 19/19 · 7/7 · 15/15 · 30/31 (the miss is the same on V4.11) |
+| `v3869` lab-mode harness · `v3880` notes harness | 286/286 · 13/13 — V4.13–V4.22 stacked on V4.12 (one earlier run missed v3869's timed PDF-redraw check, 285/286, then 286/286 twice) |
+
 ## [V4.14] — 2026-11-17 — Scientia: a Problem kind — a barrier in the literature, cited by its paper(s), never counted as a barrier towards your project
 
 Gabe: "Add a Problem kind: it highlights a barrier in literature (must be cited by a paper(s)) with opportunity for improvement or solving, but is not counted as a barrier towards your project."

@@ -98,6 +98,16 @@ const PV = {
       h('div.pv-synthnote', h('b', 'Synthesis — 30 kPa series'), h('div.pvb.pv-bridge', h('div.refbody', h('div.origin.or-passage', h('div.or-top', h('span.or-k', '⇄ Passage from'), h('a.or-note', 'Run 3'), h('span.or-cmp', 'Edge'))), h('div.serif', { style: { fontSize: '13px', paddingBottom: '6px' } }, 'held at 2 ng/mL')))),
       PV.cap('Words: Ctrl+Enter → F. A whole component: right-click, or select and /synthesize.')] });
 
+  // V4.15 (13c): + Experiment asks the name and can continue a series; one name for every note of an experiment
+  D({ id: 'expseries', group: 'canvas', label: 'Experiment series', isNew: true, presets: { simple: true },
+    desc: '+ Experiment asks the experiment’s name, and can continue a series of its theme: pick “30 kPa series Run 2” and it is named “30 kPa series Run 3”. Every note of an experiment carries its name alone — the stage is its chip and the strip, not part of the title — and renaming one renames them all. A series’ runs share one Synthesis. Off: no series to continue (the name is still asked); series already made stay.',
+    preview: () => { const on = FEAT.on('expseries');
+      return [h('div.pv-xs', h('div.pv-xs-h', 'New experiment'),
+        on ? h('div.pv-xs-f', h('span', 'Continue a series'), h('div.pv-xs-sel', '30 kPa series Run 2 · 2 runs', h('i', '▾'))) : null,
+        h('div.pv-xs-f', h('span', 'Name'), h('div.pv-xs-in', on ? '30 kPa series Run 3' : '30 kPa series'))),
+        h('div.pv-xs-notes', ['Planning', 'Run', 'Analysis'].map(s => h('div.pv-xs-n', h('span.pv-xs-st', s), h('b', on ? '30 kPa series Run 3' : '30 kPa series')))),
+        PV.cap(on ? 'Picking a series names the next run; its three notes all carry the name, each stage as its chip.' : 'Off: the name is asked, with no series to continue; each note still carries the name alone.')]; } });
+
   D({ id: 'stamps', group: 'canvas', label: 'Times on components', desc: 'When each component happened, in its header, with its place in the timer. Off: shown only when you point at the component.',
     preview: () => [run3({ stamp: on('stamps') ? '13 Nov 2026 20:11 · +12:04' : null }), on('stamps') ? null : PV.cap('Point at a component to see its time.')] });
 
