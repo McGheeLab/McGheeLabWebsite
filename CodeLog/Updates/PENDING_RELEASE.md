@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (116 changes — ready to push)
+## Pending (117 changes — ready to push)
+
+- **Aims are now milestones (V4.18):** a theme's large goals, each measured by its deliverables — a Synthesis note (delivered once its synthesis is written) or a set of results, takeaways, verdicts… you pick from your notes. The bar fills as they are delivered.
 
 - **Portfolio icons and theme banners (V4.17):** the Experiments, Notes and Lit reviews sections have their symbols (a flask, a page of notes, an open book), and every theme has a banner at the top of its section and its page — drawn from its name until you choose an image (1600 × 320 px; click the banner).
 

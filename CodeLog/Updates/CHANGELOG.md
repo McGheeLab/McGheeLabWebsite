@@ -4,6 +4,52 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.18] — 2026-11-17 — Scientia: a theme's aims are milestones — large goals measured by their deliverables (a Synthesis note, or a set of results, takeaways, verdicts…)
+
+Gabe: "Change the aims in a theme to milestones, which are large overarching goals that are measured in completeness via deliverables: either a synthesis note or a specific set of results, takeaways, verdicts, etc…"
+
+App only (no lab-layer file changes).
+
+### Changed
+- **Aims are Milestones, measured by their Deliverables (`scientia/src/15g-milestones.js` `MILE`, new; in `CodeLog/features.json` under scientia.portfolio):**
+  - **Completeness:** the share of deliverables delivered (`MILE.share(a)`), by weight when every one has one, equally otherwise (`MILE.weights`).
+  - **A deliverable is either:**
+    - **a Synthesis note** (`type: 'synthesis'`, `synth`), delivered once its synthesis (`doc.synthesis.text`) is written — or once linked, by Settings (`MILE.needsWritten()`); or
+    - **a set** (`type: 'set'`, `kinds`, `need`, `refs`) of components and structures of chosen kinds, delivered while `need` of its picks are still there. Results = Result components and result / evidence structures; Takeaways = Insight components and takeaways; Verdicts; Insights; Claims; Decisions (`MILE.OF`).
+  - **`MILE.refresh(a)`** stamps `metAt` when a deliverable is delivered and clears it when it no longer is (`IX.themeHealth` wrapped; `DB.quiet`, no undo step). So the weekly review's boost, the project page's bars, views and the export read it unchanged.
+  - **Old rows** (no type) are a set of one, their evidence their pick; met without evidence stays met, and says so.
+- **The card** (`aimEl` replaced → `MILE.el`): the share and its bar; "n of m delivered"; each deliverable with ✓, its kind, its link ("↳ the note", "its synthesis is written" / "write its synthesis to deliver it") or "k of n" and its picks (each opens its component); Link… / Pick… / Change…; its weight; Re-scope….
+- **Delivering it:**
+  - **Link…** (`MILE.pickSynth`): the Synthesis notes, In this theme / In this project / Elsewhere, or ＋ a new Synthesis note in the theme, named after the deliverable.
+  - **Pick…** (`MILE.pickSet`): a checklist of the candidates (this theme's first), "n picked · it asks for k".
+- **The dialog** (`newAimDialog` replaced → `MILE.dialog`): New milestone / Re-scope the milestone (new version). It holds the milestone and its deliverables — a Synthesis note or a set (kind chips, how many), an optional weight (blanks share what is left, or weigh as much as the others on average) — and + Add a deliverable. Re-scoping carries the link and the picks over by name. `M.createAim` is wrapped to keep a deliverable's fields; the `aims` store and record are unchanged (sync).
+- **Words:**
+  - the theme page: Milestones ("measured by their deliverables"), + Milestone, "No milestone — …" (`ThemeView.render` wrapped);
+  - the project page: its theme cards' bars are milestones (`ProjectView.render` wrapped);
+  - the Portfolio: "n milestones" (`PFLIST.section` wrapped; the lab layer's `themePill` count is reworded where it is drawn);
+  - the weekly review: Deliverables met, the milestone boost, "themes with milestones", "(no milestone)" (`18-review.js`);
+  - views: Milestone deliverables (`13k-views.js`);
+  - deleting a project: "their milestones" (`13p-edit.js`);
+  - the `aims` store's doc (`02-schema.js`).
+- **`scientia/src/32-milestones.css` (new):** the card, the dialog, the checklist, `body.f-off-milestones`, the preview.
+
+### Added
+- **Settings → Features → Time & review → Milestones** (`milestones`, `20a-features.js`, in Simple too):
+  - a switch: off, no milestones on the theme or project pages, and no count in the Portfolio; the data stays;
+  - "A Synthesis note delivers its deliverable once": its synthesis is written (default) / it is linked;
+  - a live preview — a milestone with three deliverables — that follows it.
+
+  `FEAT.audit()` is empty.
+
+### Tests
+| Test | Result |
+|---|---|
+| `fc_t18` 1400 px (the desktop build with the lab layer), real clicks and typing. Covers: the theme page says Milestones and + Milestone, no Aim left; an old aim reads as a milestone (one met without evidence still met, 50 %); + Milestone opens the dialog (a Synthesis note and a set of 3 Results to start), typed in, Verdicts added, created with equal weights; Link… lists this theme's Synthesis notes and ＋ a new one; linked but unwritten is not delivered (0 %); written is delivered and stamped (50 %); Pick… lists this theme's Results and Verdicts; 2 of 3, not delivered; 3 of 3, delivered (100 %); a pick removed from its note, back to 2 of 3 and its date cleared; the "linked" setting (50 % → 100 %); Re-scope… with a third deliverable: a third each, the old version superseded, link and picks carried over; the Portfolio says "2 milestones" (the lab layer's pill too); the project page's bars; switched off, none anywhere and the data kept; the week's boost is a number; the export draws the card; the preview follows the setting; `FEAT.audit()` empty; no sideways scroll; no errors | 23/23 |
+| `fc_t18` 400 px | 23/23 |
+| `fc_t17` (V4.17) · `t_977proj` (theme page) · `t_995` (Settings) · `rev_t` · `mrv_t` (reviews) | 25/25 · 11/11 · 27/27 · 32/32 · 28/28 |
+| `t_984` (V3.984: an aim's milestone cites a Result, among others) | 30/31, the same as on the base (its Synthesis-gathering check) |
+| `v3869` lab-mode harness · `v3880` notes harness | 286/286 · 13/13 — V4.13–V4.22 stacked on V4.12 (one earlier run missed v3869's timed PDF-redraw check, 285/286, then 286/286 twice) |
+
 ## [V4.17] — 2026-11-17 — Scientia: the Portfolio's sections have their icons (a flask, a page of notes, an open book); every theme has a banner, 1600 × 320 px
 
 Gabe: "The Experiment Section should have a flask symbol next to it. The Notes Section should have a paper with notes symbol next to it. The Lit Reviews should have an open book symbol next to it."
