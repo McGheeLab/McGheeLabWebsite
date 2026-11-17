@@ -493,8 +493,15 @@
     check('…a project with themes offers them in the block (the aim from RM)', !!head().querySelector('.lab-h-theme option[value="rm-a-aim-1"]'));
     setVal(head().querySelector('.lab-h-theme'), 'rm-a-aim-1');
     check('…and the note is stored in that project and theme', !!(await until(function () { return ev("M.doc('" + qid3 + "').themeId") === 'rm-a-aim-1' && ev("M.doc('" + qid3 + "').projectId") === 'rm-f-gels-career'; }, 4000)));
-    var cid = ev("(function () { var d = CHAIN.start({}); return d && d.id; })()");
-    check('+ Experiment makes its first stage at once — no dialog', !!cid && !!(await until(function () { return head(cid); }, 6000)) && !q('.ovl'));
+    /* V4.15 (Gabe: "+ Experiment asks you to name the experiment with the option to add it to an experiment sequence/iteration from a theme"):
+       the dialog first, then the note is made through the lab's own path (its first block), titled with the name alone */
+    var cid0 = ev("(function () { var d = CHAIN.start({}); return d && d.id || ''; })()");
+    var nmIn = await until(function () { return q('.ovl .cs-name'); }, 3000);
+    check('+ Experiment asks the experiment’s name first (V4.15)', !cid0 && !!nmIn);
+    var cid = null;
+    if (nmIn) { setVal(nmIn, 'Harness experiment'); var cb = [].slice.call(D.querySelectorAll('.ovl .mf button')).filter(function (b) { return /Create/.test(b.textContent); })[0]; if (cb) cb.click();
+      cid = await until(function () { return ev("(function () { var d = DB.where('documents', function (x) { return x.chainName === 'Harness experiment'; })[0]; return d && d.id; })()"); }, 4000); }
+    check('…then makes its first stage at once through the note’s first block, titled with the name alone', !!cid && !!(await until(function () { return head(cid); }, 6000)) && !q('.ovl') && ev("M.doc('" + cid + "').title") === 'Harness experiment');
     /* who reads a note filed under RM work: in the first block */
     go('#/doc/' + an);
     var shareCtl = await until(function () { var hh = head(an); return hh && hh.querySelector('.lab-h-share .lab-share'); }, 6000);

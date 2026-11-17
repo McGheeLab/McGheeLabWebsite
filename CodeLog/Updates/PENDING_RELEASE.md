@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (113 changes — ready to push)
+## Pending (114 changes — ready to push)
+
+- **Experiments are named once (V4.15):** + Experiment asks for the name and can continue a series in the theme — pick “… Run 2” and the new one is named “… Run 3”. Every note of the experiment carries that name, without “— Planning” or “— Run”, and its notes start as a plain page.
 
 - **A Problem kind (V4.14):** mark a component as a Problem — a barrier in the literature you could improve on or solve. It asks for the paper(s) that show it ("cite a paper" in its header) and never counts as a barrier in your own project.
 

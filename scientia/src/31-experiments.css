@@ -1,0 +1,15 @@
+/* 31 · experiments and their synthesis (V4.15–V4.16) */
+/* V4.15: + Experiment — the series to continue, and what it means */
+.cs-new .cs-serf[hidden]{display:none}
+.cs-hint{margin-top:6px;min-height:0}
+.cs-hint:empty{display:none}
+/* the preview (Settings → Experiment series) */
+.pv-xs{background:var(--surface);border:1px solid var(--rule);border-radius:9px;padding:8px 10px 10px;display:grid;gap:7px;max-width:340px}
+.pv-xs-h{font:600 12px var(--f-d);color:var(--ink)}
+.pv-xs-f{display:grid;gap:3px} .pv-xs-f > span{font:9px var(--f-m);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.pv-xs-sel,.pv-xs-in{border:1px solid var(--rule-2);border-radius:6px;padding:5px 8px;font-size:12.5px;background:var(--surface);color:var(--ink);display:flex;align-items:center;gap:6px}
+.pv-xs-sel i{margin-left:auto;font-style:normal;color:var(--ink-3)}
+.pv-xs-notes{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.pv-xs-n{display:flex;align-items:center;gap:6px;border:1px solid var(--rule);border-radius:7px;padding:5px 8px;background:var(--surface);font-size:12px;min-width:0}
+.pv-xs-n b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pv-xs-st{font:9px var(--f-m);letter-spacing:.08em;text-transform:uppercase;color:var(--teal);flex:none}
