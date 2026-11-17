@@ -80,9 +80,8 @@ This manual covers everything the notebook can do, from first launch to the pen 
 |---|---|
 | **Today** | The day's timeline, the Capture box, what's coming up, chores, what needs investigating and a resurfaced claim or question. |
 | **Tasks** | Every open task: Overdue / Today / Upcoming / No date, plus Done lately. |
-| **Portfolio** | Your projects in a list, most relevant first, with the notes outside any project; the open one beside the list, its themes and notes. Each project has its own page, with its tasks. |
+| **Portfolio** | Your projects in a list, most relevant first, with the notes outside any project; the open one beside the list, its themes and notes. Each project has its own page, with its tasks. A project's or theme's activity (its heat strip, "active 2d ago", its score) opens its activity at the right. |
 | **Review** | The weekly review (it opens on the weekend). |
-| **Activity** | Heatmap, theme small multiples, weekly numbers, the Done list. |
 | **Terms** | Every term, with its forms and lens. |
 | **Atlas** | The notebook as one map: notes, components, structures, terms, people and papers, and how they link. Search lives here. |
 | **Library** | Papers and links. Open a paper's PDF in the reader. |
@@ -861,7 +860,7 @@ The review opens on the weekend for the past week (Sat→Fri) and stays open unt
 
 - Completing the review writes a **review note**; its synthesis is next week's plan.
 - A **cycle review** comes up every ~6 weeks.
-- **Activity** shows a heatmap, small multiples per theme, weekly numbers and the **Done** list.
+- **Activity** is no longer a tab (V4.19). In the **Portfolio**, click a project's or theme's heat strip, its "active 2d ago" / "stalled" or its score: a panel at the right says why it is active or stalled and how that is counted, and shows eight weeks of activity, the time recorded, its notes still in their two weeks and what moved (each line goes to the note); a project's panel lists its themes. ✕ or Esc closes it. Today's **Activity →** (or `#/activity`) opens the whole notebook's there: ten weeks, every theme on one scale and the weekly numbers. The theme page's eight weeks open it too.
 
 ---
 

@@ -1464,12 +1464,14 @@
     "scientia/src/15-portfolio.js",
     "scientia/src/15b-general.js",
     "scientia/src/15f-banners.js",
-    "scientia/src/15g-milestones.js"
+    "scientia/src/15g-milestones.js",
+    "scientia/src/19b-pfactivity.js"
    ],
    "status": "active",
    "related": [
     "rm.projects",
-    "rm.research"
+    "rm.research",
+    "scientia.activity"
    ],
    "note": "V3.866 §6 decision resolved by V3.880: yes — what the PI assigns in rm.research / rm.projects (member_uids) is mirrored by the hub as Scientia projects (an aim under an assigned grant = a theme); on the web the Portfolio draws them first as movable, foldable region cards (rm/scientia/lab-mode.js §10), then Quick notes (15b's General notes, opening blank with a template bar), then the person's own projects. Notes filed under RM work are listed on that card / project in RM (scientiaNotes; the owner chooses only-me or lab)."
   },
@@ -1514,7 +1516,7 @@
    "status": "retiring",
    "merges_into": "rm.activity",
    "plan": "CodeLog/ClaudesPlan/V3.866_scientia_rm_unification.md",
-   "note": "V3.869: not a tab in the web build. V3.874: notes edited or timed (web AND desktop) are RM tracker events, one per note per day (hub `syncActivity`)."
+   "note": "V3.869: not a tab in the web build. V3.874: notes edited or timed (web AND desktop) are RM tracker events, one per note per day (hub `syncActivity`). V4.19: not a tab in any build; its parts (ActivityView.byTheme / weekly) are drawn in the Portfolio's activity panel (scientia/src/19b-pfactivity.js, PFACT), which #/activity opens."
   },
   {
    "id": "scientia.terms",

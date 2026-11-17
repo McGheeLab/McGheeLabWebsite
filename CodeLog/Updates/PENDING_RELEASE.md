@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (117 changes — ready to push)
+## Pending (118 changes — ready to push)
+
+- **Activity lives in the Portfolio (V4.19):** the Activity tab is gone. Click a project's or theme's activity in the Portfolio — its little heat strip, "active 2d ago" or its score — to see why it is active or stalled, what moved, its notes and its time; Today's "Activity →" shows the whole notebook's.
 
 - **Aims are now milestones (V4.18):** a theme's large goals, each measured by its deliverables — a Synthesis note (delivered once its synthesis is written) or a set of results, takeaways, verdicts… you pick from your notes. The bar fills as they are delivered.
 
