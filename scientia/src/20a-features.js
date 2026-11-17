@@ -154,6 +154,17 @@ const PV = {
   D({ id: 'edgepan', group: 'pen', label: 'Edge pan in full screen', desc: 'In Move, in full screen, resting the pointer at the screen’s very edge pans the note that way, faster the further you push.',
     preview: () => [h('div.pv-edge', h('span.l', '‹‹'), run3({ stamp: null, body: 'The edge collapsed.' }), h('span.r', '››'))] });
 
+  /* V4.20 — the lab's pills in every build (lab-mode.js §11; vendor/lab-pills.js + 99z-pills.js where the lab layer isn't) */
+  D({ id: 'pills', group: 'pen', label: 'Pills', isNew: true, presets: { simple: true }, desc: 'Four round buttons on every note that you drag anywhere: ✎ the hand (zoom, move, pen, highlighter, lasso, and a cog for the pen’s colours and widths), ＋ the Quick cast (Pull in, Flag and Label, then what you add most — it takes the bottom bar’s place), ✦ tools (timer, head start, calculator, equation, split, full screen) and ⊕ zoom (in, 100 %, out, fit). A wheel left open rolls into a row; drop a pill against an edge and its row turns into a column. The layout is yours, the same in every note and on every computer. Off: no pills — the bottom bar and the row of buttons at the top right come back.',
+    changed: v => { try { PILLS.changed(v); } catch (e) { } },
+    preview: () => {
+      const on = FEAT.on('pills'), pill = (g, cls, extra) => h('span.pv-pill' + (cls ? '.' + cls : ''), g, extra || null);
+      const note = h('div.pv-pills' + (on ? '' : '.off'), run3({ stamp: null, body: 'Seed at 40k/cm² on the 30 kPa gels.' }),
+        on ? [pill('⊕', 'tl', h('i', '100%')), pill('✦', 'tr'), pill('＋', 'bc'), pill('✎', 'br')]
+          : [h('span.pv-ctools', ['◫', '◷', '∑', '∫'].map(g => h('b', g))), h('span.pv-dockbar', ['＋ Insert', '⇣ Pull in', '⚐'].map(g => h('b', g)))]);
+      return [note, PV.cap(on ? 'Drag a pill anywhere; a wheel left open rolls into a row, and the ＋ Quick cast stands where the bottom bar was.' : 'Off: the bottom bar and the buttons at the top right, as before.')];
+    } });
+
   /* =============================== Structures =============================== */
   D({ id: 'structures', group: 'structures', core: true, label: 'Structures', desc: 'Selected words given a meaning: claim, barrier, question and the rest, each in its colour and style, with a status where it has one. Your own kinds of component are here too.',
     tune: [T('key', 'Key', 'seg', Object.assign({ opts: [['ctrl+enter', 'Ctrl+Enter'], ['alt+enter', 'Alt+Enter'], ['ctrl+shift+enter', 'Ctrl+Shift+Enter']] }, B('structKey'))),

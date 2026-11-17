@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (118 changes — ready to push)
+## Pending (119 changes — ready to push)
+
+- **The pills on every note, everywhere (V4.20):** the movable ✎ ＋ ✦ ⊕ buttons now come with the app on its own too (Gabe's copy), not only inside the Lab Notebook. Settings → Pills turns them off to get the bottom bar back.
 
 - **Activity lives in the Portfolio (V4.19):** the Activity tab is gone. Click a project's or theme's activity in the Portfolio — its little heat strip, "active 2d ago" or its score — to see why it is active or stalled, what moved, its notes and its time; Today's "Activity →" shows the whole notebook's.
 
