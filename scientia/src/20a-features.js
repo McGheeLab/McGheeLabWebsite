@@ -108,6 +108,22 @@ const PV = {
         h('div.pv-xs-notes', ['Planning', 'Run', 'Analysis'].map(s => h('div.pv-xs-n', h('span.pv-xs-st', s), h('b', on ? '30 kPa series Run 3' : '30 kPa series')))),
         PV.cap(on ? 'Picking a series names the next run; its three notes all carry the name, each stage as its chip.' : 'Off: the name is asked, with no series to continue; each note still carries the name alone.')]; } });
 
+  // V4.16 (15e): one Synthesis per series; Syntheses in the Portfolio; a note's synthesis in its first block and under its row
+  D({ id: 'synthnotes', group: 'canvas', label: 'Synthesis notes', isNew: true, presets: { simple: true },
+    desc: 'A series’ runs share one Synthesis note: Next from Run 3’s Analysis opens the one the series has and adds Run 3 to what it gathers. Synthesis notes have their own place in the Portfolio — Syntheses, above Notes in each theme, and a choice in its switch. A note’s “what this note adds up to” sits in its first block and moves with it, and its words show under the note’s row in the Portfolio. Off: each run makes its own Synthesis, a Synthesis stays in its experiment’s row, and the box floats on its own.',
+    tune: [T('legend', 'Under each note in the Portfolio, what it adds up to', 'switch', { isNew: true, def: true, d: 'The Portfolio has the same switch beside its own — Syntheses under notes', changed: () => { try { if (App.route && App.route.name === 'portfolio') App.refresh(); } catch (e) { } } })],
+    preview: () => { const on = FEAT.on('synthnotes'), leg = on && FEAT.tune('synthnotes', 'legend') !== false;
+      const note = (t, l) => h('div.pv-sn-n', h('div', t), leg && l ? h('div.pv-sn-leg', l) : null);
+      return [h('div.pv-sn',
+        h('div.pv-sn-head', h('div.pvb-h', h('span.pvb-n', 'Run'), h('span.sp'), h('span.pvb-st', 'Mon 16 Nov')), h('div.pv-sn-f', 'Title · 30 kPa series Run 3'),
+          on ? h('div.pv-sn-syn', h('b', 'Synthesis'), ' — the edge held at 2 ng/mL, not at 10') : null),
+        on ? null : h('div.pv-sn-float', h('b', 'Synthesis'), ' — on its own, beside the note'),
+        h('div.pv-sn-pf',
+          h('div.pv-sn-col', h('div.pv-sn-gl', 'Experiments'), h('div.pv-sn-n', '▸ 30 kPa series Run 3' + (on ? '' : ' · Synthesis'))),
+          h('div.pv-sn-col', on ? [h('div.pv-sn-gl', 'Syntheses'), note('30 kPa series — Runs 2 and 3', 'Stiffer gels hold the edge longer')] : null,
+            h('div.pv-sn-gl', 'Notes'), note('Bench log', 'Fibronectin helped at 2 ng/mL')))),
+        PV.cap(!on ? 'Off: each run its own Synthesis, kept in its experiment; the box floats beside the note.' : leg ? 'Runs 2 and 3 share one Synthesis, listed under Syntheses; each note’s synthesis shows under it.' : 'Runs 2 and 3 share one Synthesis; the lines under the notes are off.')]; } });
+
   D({ id: 'stamps', group: 'canvas', label: 'Times on components', desc: 'When each component happened, in its header, with its place in the timer. Off: shown only when you point at the component.',
     preview: () => [run3({ stamp: on('stamps') ? '13 Nov 2026 20:11 · +12:04' : null }), on('stamps') ? null : PV.cap('Point at a component to see its time.')] });
 

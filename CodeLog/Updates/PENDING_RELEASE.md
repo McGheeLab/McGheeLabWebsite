@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (114 changes — ready to push)
+## Pending (115 changes — ready to push)
+
+- **Synthesis notes (V4.16):** the runs of a series share one Synthesis — Next from Run 3’s Analysis opens it and adds Run 3. Syntheses have their own place in the Portfolio, above Notes. A note’s “what this adds up to” now sits in its first block, and shows under the note in the Portfolio (switch it off there).
 
 - **Experiments are named once (V4.15):** + Experiment asks for the name and can continue a series in the theme — pick “… Run 2” and the new one is named “… Run 3”. Every note of the experiment carries that name, without “— Planning” or “— Run”, and its notes start as a plain page.
 

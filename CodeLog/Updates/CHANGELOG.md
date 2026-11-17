@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.16] — 2026-11-17 — Scientia: synthesis notes — a series' runs share one Synthesis, Syntheses have their own place in the Portfolio, and a note's synthesis sits in its first block and under its row
+
+Gabe: "Synthesis notes are for each experiment or experiment iteration batch (e.g., […] Run 2 and […] Run 3 link to the same Synthesis note. Synthesis notes live in their own category in the Portfolio in the same area as Notes and Lit Reviews, but above them." — and: "The synthesis component automatically created in a note is now attached to the initial note component, and appears as legend text underneath its note in the Portfolio view. This synthesis showing can be disabled in the Portfolio tab."
+
+App only (no lab-layer file changes). A new module wraps the Synthesis's and the Portfolio's code.
+
+### Added
+- **`SYNN` (`scientia/src/15e-syntheses.js`, new; in `CodeLog/features.json` under `scientia.core`):**
+  - **One Synthesis per series:** `CHAIN.nextOf` (wrapped) leads a run's Analysis to the series' Synthesis (`SYNN.noteOf(series)`) when it has none of its own — the bottom-right button says "Open Synthesis"; `CHAIN.advance` (wrapped) adds the run's chain id to its `synthRuns` and gathers it (a toast says so). The first Synthesis of a series made from a run is the series' own (`synthRuns`), titled with the series' name ("… Run 2" → "…"). A lone experiment keeps its own.
+  - `SYNTH.others` (wrapped): a series' Synthesis gathers from every run it covers (⟲ Gather, ☰ The rest, Flag for synthesis reach them). `SYNN.runsOf` / `runs` / `runNotes` / `seriesNext`.
+  - "Notes to synthesize" (`WIDGETS.synthof.body`, wrapped) says "The series’ synthesis — it covers … and …" and lists the other runs' notes ("Run 2"); each run's stage strip (`CHAIN.strip`, wrapped) ends in "Synthesis", which opens it.
+  - **The Portfolio:** `PFLIST.split` (wrapped) takes Synthesis notes out of the experiments' rows (`syns`); in each theme, **Syntheses** sits above Notes in the right-hand column (`.pf-gcol`, `data-g="syn"`), beside Experiments; the switch gains **Syntheses** before Notes (seg key `syn`, with its count — `PFLIST.counts` gives `syn`), showing only them, theme by theme (`PFLIST.items`).
+  - **Under each note's row in the Portfolio, what it adds up to** (`PFLIST.note`, wrapped): a muted line (`.pf-leg`, two lines at most). The Portfolio's own switch, "Syntheses under notes" (`.pf-legtog`, beside the type switch), and Settings both set it.
+- **Settings → Features → Canvas & notes → Synthesis notes** (`synthnotes`, `20a-features.js`, in Simple too): the switch (off: each run makes its own Synthesis, a Synthesis stays in its experiment's row, the box floats on its own; what was made stays) and "Under each note in the Portfolio, what it adds up to" (`legend`, on); a live preview drawn as set (on · lines off · off). `FEAT.audit()` is empty.
+
+### Changed
+- **A note's "what this note adds up to" is part of its first block** (`DocView.synthBox` / `DocView.headBox`, wrapped in 15e): drawn as `.hsynth` at the bottom of the head box, it moves with it (a drag on its header drags the block); no box floats on its own. Its references (numbered citations, V4.6) come with it. `31-experiments.css`.
+- The Portfolio's switch has five choices: in a narrow window it scrolls inside its row rather than widening the pane (`.pf-det .pf-ctl{min-width:0;max-width:100%}`).
+
+### Tests
+| Test | Result |
+|---|---|
+| `fb_t416` lab build, 1400 px. Covers: a lone experiment's Synthesis becomes the series' once a run continues it; Run 2's Analysis: the real bottom-right button says "Open Synthesis" and opens it, now covering both runs, Run 2's result gathered beside Run 1's, still one Synthesis; its "notes to synthesize" names both runs and lists Run 2's notes; Run 2's stage strip ends in "Synthesis" and opens it; a series' first Synthesis made from Run 2 is titled with the series' name and Run 1 joins it; the Portfolio (real clicks): Syntheses (2) above Notes beside Experiments, a Synthesis out of its experiment's row, the experiments keep their names, the switch's Syntheses before Notes with its count and showing only them; a note's synthesis as a line under its row; the Portfolio's "Syntheses under notes" off and on; the synthesis inside the first block, none floating; typing in it kept; dragging the block moves it the same distance; its own header drags the block; off: the box floats again and the Portfolio is as before; Settings' switch, setting and preview drawn as set; `FEAT.audit()` empty; no sideways scroll; no errors | 26/26 |
+| `fb_t416` 400 px (lab build) · a build without the lab layer | 26/26 · 26/26 |
+| `fb_t415` (V4.15, on this build) · `t_995` (Settings) · `rev_t` (Monthly review) · `t_996` (synthesis columns) · `t_977syn` (notes to synthesize) · `t_983` (the simple notebook) · `refs_t45` (References) | 23/23 · 27/27 · 32/32 · 19/19 · 7/7 · 18/18 · 28/28 |
+| `cite_t` — its references now read under the first block (`.box.head .hsynth .refs`) | 15/15 |
+| `t_984` (Portfolio, Results kinds) | 27/31: two checks expected a Synthesis among an experiment row's stages, now under Syntheses (asked for); the other two misses are the same on V4.11 |
+| `v3869` lab-mode harness · `v3880` notes harness | 286/286 · 13/13 — V4.13–V4.22 stacked on V4.12 (one earlier run missed v3869's timed PDF-redraw check, 285/286, then 286/286 twice) |
+
 ## [V4.15] — 2026-11-17 — Scientia: experiments are named once and can continue a series — + Experiment asks the name (Run 2 → Run 3), every note of an experiment carries it alone, and its stages start as a general note
 
 Gabe: "+ Experiment asks you to name the experiment with the option to add it to an experiment sequence/iteration from a theme (e.g., […] Run 2 in that theme allows you to name it automatically […] Run 3). That name carries through to all parts of the experiment and do not add — Planning or — Run after the experiment title." — and: "The preset text components for each experiment note type should be stripped and go back to the universal text component any general note would have."
