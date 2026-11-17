@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (115 changes — ready to push)
+## Pending (116 changes — ready to push)
+
+- **Portfolio icons and theme banners (V4.17):** the Experiments, Notes and Lit reviews sections have their symbols (a flask, a page of notes, an open book), and every theme has a banner at the top of its section and its page — drawn from its name until you choose an image (1600 × 320 px; click the banner).
 
 - **Synthesis notes (V4.16):** the runs of a series share one Synthesis — Next from Run 3’s Analysis opens it and adds Run 3. Syntheses have their own place in the Portfolio, above Notes. A note’s “what this adds up to” now sits in its first block, and shows under the note in the Portfolio (switch it off there).
 

@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.17] — 2026-11-17 — Scientia: the Portfolio's sections have their icons (a flask, a page of notes, an open book); every theme has a banner, 1600 × 320 px
+
+Gabe: "The Experiment Section should have a flask symbol next to it. The Notes Section should have a paper with notes symbol next to it. The Lit Reviews should have an open book symbol next to it."
+
+Gabe: "Each theme has a horizontal banner with set pixel resolution, so that you can ask Claude to create a custom banner for it."
+
+App only (no lab-layer file changes).
+
+### Added
+- **`PFICON` (`scientia/src/15f-banners.js`, new; in `CodeLog/features.json` under scientia.portfolio):**
+  - **The icons:** monochrome inline SVG from the repo's vetted paths (`rm/js/icons.js`), by key — `exp` flask-conical (Lucide), `notes` document-text, `lit` book-open, `syn` rectangle-stack (Heroicons).
+  - **Where:** PFLIST is wrapped, so they show before each group's label (`.pf-g[data-g] > .pf-gl`), before the Lit reviews heading, and on the type switch's buttons (`button[data-k]`).
+  - `PFICON.dress(root)` is idempotent and applies by `data-g`, so a group added later with its own key picks its icon up. `PFICON.svg(key, size)` / `PFICON.el(key, size)`.
+- **`BANNER` (same module): every theme's banner, 1600 × 320 px (5 : 1).**
+  - **Where:** `PFLIST.section` and `ThemeView.render` are wrapped — at the top of the theme's section in the Portfolio and of its page (`.tb-ban`, `aspect-ratio: 5 / 1`).
+  - **Choosing:** `BANNER.menu(id, x, y)` on click or Enter: "Banner · 1600 × 320 px"; Choose an image… ("ask Claude for one at this size; other sizes are cropped to fit"); Remove the image. `BANNER.choose(id)` / `useFile(id, file)` → `MEDIA.add` → `theme.banner` (`BANNER.set(id, mediaId)`), shown with `object-fit: cover`. A toast gives another size and says it is cropped.
+  - **Drawn:** `BANNER.drawn(key)` — a theme without an image gets a quiet SVG banner seeded from its id and name (soft hills in one hue, contour lines, a pale disc). Its fills are `color-mix()` with the page's tokens, so dark follows the theme.
+  - **RM themes** (`t.rm`) show the drawn banner without a menu.
+- **`scientia/src/31-banners.css` (new):** the icons; the banner, with its size shown after a second's rest ("1600 × 320 px · click to change"); `body.f-off-pficons` / `body.f-off-tbanner`; the previews.
+- **Settings → Features → Tabs & overview** (`20a-features.js`, both in Simple too):
+  - **Section icons** (`pficons`): a switch and a preview.
+  - **Theme banners** (`tbanner`): a switch; "Show the banner" Portfolio and page / In the Portfolio / On the theme's page; a preview that follows it, with the size in words.
+
+  `FEAT.audit()` is empty.
+
+### Tests
+| Test | Result |
+|---|---|
+| `fc_t17` 1400 px (the desktop build with the lab layer), real clicks and keys. Covers: the flask, the page of notes and the open book before Experiments, Notes and Lit reviews, and on the switch (not on All); still one each after the list is drawn again; a `syn` group gets the stack; each theme's banner at the top of its section, drawn, 5 : 1, different per theme, the same each time; the size shows only after a second's rest; a click opens the menu (size, Choose an image…, no Remove yet) and stays in the Portfolio; a 1600 × 320 image is the banner, cover-fitted ("Banner set"); an 800 × 600 one is cropped, and the toast says so; Remove brings back the drawn one; Enter opens the menu; dark changes the drawn banner's colours; the theme page opens with its banner; "Show the banner" both ways; the switches off and on; the previews (and following "Show the banner"); `FEAT.audit()` empty; no sideways scroll; no errors | 25/25 |
+| `fc_t17` 400 px | 25/25 |
+| `t_977proj` (the theme page, deleting a project) · `t_995` (Settings) | 11/11 · 27/27 |
+| `t_975` · `t_984` (the Portfolio, V3.975 / V3.984) | the same as on the base (871cdf5): `t_975` 0/3 (written for the pre-V3.988 Portfolio) · `t_984` 30/31 (the Synthesis-gathering check fails on the base too) |
+| `v3869` lab-mode harness · `v3880` notes harness | 286/286 · 13/13 — V4.13–V4.22 stacked on V4.12 (one earlier run missed v3869's timed PDF-redraw check, 285/286, then 286/286 twice) |
+
 ## [V4.16] — 2026-11-17 — Scientia: synthesis notes — a series' runs share one Synthesis, Syntheses have their own place in the Portfolio, and a note's synthesis sits in its first block and under its row
 
 Gabe: "Synthesis notes are for each experiment or experiment iteration batch (e.g., […] Run 2 and […] Run 3 link to the same Synthesis note. Synthesis notes live in their own category in the Portfolio in the same area as Notes and Lit Reviews, but above them." — and: "The synthesis component automatically created in a note is now attached to the initial note component, and appears as legend text underneath its note in the Portfolio view. This synthesis showing can be disabled in the Portfolio tab."
