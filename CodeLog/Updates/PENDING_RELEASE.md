@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (110 changes — ready to push)
+## Pending (111 changes — ready to push)
+
+- **A page for every Scientia feature, with a demonstration (V4.12):** in Settings → Features, click a feature's tile and it opens its own page — what it is, what it is for, a short recording of it being used in a test note (press Play; click a step to play from there), its settings and its live preview. Floats is the first with a recording; the others say so until theirs is made.
 
 - **Fixed: making a PDF or web page a Report (V4.11):** the small tag left of its name ("pdf", "html page") now shows, so you can double-click it and choose Report; the card's ⋯ menu has "What kind is this…" too.
 

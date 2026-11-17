@@ -76,6 +76,8 @@ rm/scientia/scientia.html
 scientia/board.html
 rm/scientia/board.html
 rm/scientia/desktop/
+rm/scientia/demos/
+scientia/demokit/out/
 scientia/images/
 scientia/recordings/
 scientia/backup/

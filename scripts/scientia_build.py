@@ -9,7 +9,7 @@
         ├─ Gabe's build.py ─────────▶  scientia/scientia.html        the DESKTOP app (serve.py / launch.bat run it)
         │
         └─ + the lab layer ─────────▶  rm/scientia/scientia.html     the WEB app at mcgheelab.com/rm/scientia/
-                                       rm/scientia/icons/, MANUAL.md  (copied from scientia/)
+                                       rm/scientia/icons/, demos/, MANUAL.md  (copied from scientia/)
 
 V3.928: the desktop download — rm/scientia/desktop/ScientiaInSitu-Windows.zip (the desktop app, its server and the
 lab's sync bridge, with the Windows installer) and version.json beside it. Stored, not compressed, with fixed dates, so
@@ -48,7 +48,7 @@ WEB_OUT = os.path.join(WEB, 'scientia.html')
 SHIM = os.path.join(WEB, 'cloud-sync.js')
 LAB = os.path.join(WEB, 'lab-mode.js')
 ANCHOR = re.compile(r'<script>\n/\* =+\n   01 · Util')
-COPY = ['MANUAL.md', 'icons']
+COPY = ['MANUAL.md', 'icons', 'demos']   # V4.12: demos/ — each feature's recording and its still (scientia/demokit/record.mjs), shown on its page in Settings
 DESK_DIR = os.path.join(WEB, 'desktop')
 BUNDLE = os.path.join(DESK_DIR, 'ScientiaInSitu-Windows.zip')
 BUNDLE_VERSION = os.path.join(DESK_DIR, 'version.json')
@@ -172,6 +172,8 @@ def desktop_bundle(desktop_html, board_html):
         files.append(('app/' + rel, open(os.path.join(SRC, *rel.split('/')), 'rb').read()))
     for f in sorted(os.listdir(os.path.join(SRC, 'icons'))):
         files.append(('app/icons/' + f, open(os.path.join(SRC, 'icons', f), 'rb').read()))
+    for f in sorted(os.listdir(os.path.join(SRC, 'demos'))):                # V4.12: the features' recordings, so an installed computer plays them offline
+        files.append(('app/demos/' + f, open(os.path.join(SRC, 'demos', f), 'rb').read()))
     app_version = hashlib.sha256(b''.join(n.encode() + b'\0' + d for n, d in sorted(files))).hexdigest()[:12]   # what the app is, before packing
     files.append(('app/VERSION.txt', (app_version + '\n').encode()))
     inst = os.path.join(SRC, 'install')
