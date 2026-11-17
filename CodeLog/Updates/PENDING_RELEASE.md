@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (111 changes — ready to push)
+## Pending (112 changes — ready to push)
+
+- **Fixed: ⋯ and the editor bar (V4.13):** the ⋯ button no longer sticks out of a narrow component or one with a kind; the bar you write with, when it sits under a component, now moves down with each new line and when you resize the component.
 
 - **A page for every Scientia feature, with a demonstration (V4.12):** in Settings → Features, click a feature's tile and it opens its own page — what it is, what it is for, a short recording of it being used in a test note (press Play; click a step to play from there), its settings and its live preview. Floats is the first with a recording; the others say so until theirs is made.
 
