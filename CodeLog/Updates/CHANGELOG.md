@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.11] — 2026-11-16 — Scientia: the Report tag can be reached — it shows on PDF and HTML cards, and ⋯ → What kind is this… chooses it too
+
+Gabe: "how do you label an HTML as a report?" — then: "I don't see that, even though I have pushed all changes."
+
+App only (no lab-layer file changes).
+
+### Bug Fixes
+- **The tag that makes a PDF or a web page a Report was never on screen** (since V4.4). The choice is a double-click on the tag left of the card's name ("pdf", "html page"), but PDF and HTML cards — and image panels — have the slim header (13zg, their toolbar in the title row), and `21-sync.css` hides the tag there (`.box.widget.slim > .bh > .num{display:none}`). A real double-click could not reach it in any build; V4.4's tests dispatched the event on the element itself.
+  - `13zzy-report.js`: the kind tag is marked `num.ck-tag`; `24-kinds.css` shows it in the slim header — on a PDF or HTML card always while Reports is on ("pdf", "html page", or "Report" in its colour), on an image panel once it has a kind ("Result"); image panels without a kind keep their header as it was. A dotted underline on hover.
+
+### Added
+- **⋯ → What kind is this page… / PDF… / image panel…** (`13zzy-report.js`, a `DocView.boxMenu` wrapper): the same choice as the double-click, before Bridge; its sub says the kind it has now ("Report now — change it or make it plain") or what Report does ("a figure snipped out of it becomes a Result"). Not offered while Reports is off (PDF and pages) or in a read-only view.
+
+### Changed
+- Settings → Features → Structures → Reports and the Atlas's empty Reports page: "double-click the tag left of its name (“pdf”, “html page”), or ⋯ → What kind is this…".
+
+### Tests
+| Test | Result |
+|---|---|
+| `rep_t` 1400 px, real mouse events only (the tag is the element under the pointer). Covers: the HTML card's tag "html page" shows; a double-click opens "What kind of component is this?" with Report; Report → the tag reads Report, the card is a report; ⋯ → What kind is this page… (Report now), before Bridge → Standard → plain again, the tag still showing; the PDF's tag "pdf"; ⋯ → What kind is this PDF… → Report; an image panel without a kind keeps its tag hidden; ⋯ → What kind is this image panel… → Result, then its tag shows and a double-click reopens the choice; header heights; Reports off: no tag, no menu row, the labelled PDF keeps its kind; on again; `FEAT.audit()` empty; no sideways scroll; no errors | 19/19 |
+| `rep_t` 1024 px · 400 px | 19/19 · 19/19 |
+| Before the fix, on V4.10: the tag on an HTML card `display:none`, 0×0, a real double-click reaching the header behind it | reproduced |
+| `refs_t45` (References, which also adds a ⋯ row) · `rev_t` (Monthly review) · `t_995` (Settings) | 28/28 · 32/32 · 27/27 |
+| `v3869` lab-mode harness · `v3880` notes harness | see the PR |
+
 ## [V4.10] — 2026-11-16 — Scientia: the side panel of highlights and notes folds — beside a maximised PDF, HTML page or saved website, and in the Library's reader
 
 Gabe: "The side tab showing notes in PDFs, HTMLs, or websites should be collapseable."

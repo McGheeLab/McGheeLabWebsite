@@ -24,7 +24,9 @@
 > understand — what they can now do, or what stopped being broken.
 > Technical detail belongs in CHANGELOG, not here.
 
-## Pending (109 changes — ready to push)
+## Pending (110 changes — ready to push)
+
+- **Fixed: making a PDF or web page a Report (V4.11):** the small tag left of its name ("pdf", "html page") now shows, so you can double-click it and choose Report; the card's ⋯ menu has "What kind is this…" too.
 
 - **Fold the panel of highlights and notes (V4.10):** beside a PDF, HTML page or saved website you have maximised, and in the Library's reader, › folds the panel to a thin strip at the side so the page gets the room; click the strip to open it again. It stays as you left it. Also fixed: a paper read beside a note in full screen no longer slides under the header.
 
