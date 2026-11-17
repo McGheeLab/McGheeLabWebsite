@@ -522,7 +522,21 @@ const PV = {
       T('ticks', 'The axes tighten as you go further', 'switch', { isNew: true, def: true, d: 'Days close up, then weeks, months, quarters and years as you scroll away; long names shorten. Off: the ticks stay as the span gives them' }),
       T('room', 'Floor and walls', 'switch', { isNew: true, def: true, d: 'The two far walls with their grid, and the lines across to them from the dot you point at. Off: only the floor' }),
       T('labels', 'Labels beside the dots', 'seg', { isNew: true, def: 'few', opts: [['none', 'None'], ['few', 'A few'], ['many', 'Many']], d: 'Never over another label or an open bubble' })] });
-  TabF('activity', 'activity', 'Activity', 'The Activity tab: the heatmap of your days, themes and weekly numbers.', () => [h('div.pv-heat', Array.from({ length: 42 }, (_, i) => h('i', { style: { background: `var(--hm-${[0, 1, 2, 3, 0, 4, 2][i % 7]})` } })))]);
+  // V4.19: the Activity tab left the row (Gabe: "Remove Activity tab → Make the Activity interactable in Portfolio for each Project or Theme"); its parts open from the Portfolio (19b)
+  D({ id: 'pfactivity', group: 'tabs', label: 'Portfolio activity', isNew: true, desc: 'A project’s or a theme’s activity in the Portfolio — its heat strip, “active 2d ago” or “stalled”, its score — opens its activity in a panel at the right: why it is active or stalled and how that is counted, eight weeks of activity, the time recorded, its notes still in their two weeks, what moved (each line goes to the note) and, for a project, its themes. #/activity (Today’s “Activity →”) opens the whole notebook’s there: the old Activity tab. Off: the strips are plain again and #/activity is the old page.',
+    tune: [T('rows', 'The strips in the list open it too', 'switch', { isNew: true, def: true, d: 'A row’s small strip picks the project and opens its activity. Off: only the open project’s header and its themes do' })],
+    preview: () => {
+      const wrap = h('div'), lv = [0, 1, 0, 2, 3, 1, 0, 0, 2, 4, 3, 1, 2, 0, 1, 3, 4, 2, 1, 0, 0, 2, 3, 1, 4, 2, 0, 1, 3, 2, 1, 0, 2, 4, 3, 2, 1, 0, 0, 1, 2, 3];
+      let open = false;
+      const draw = () => { const live = on('pfactivity'), hot = el => { if (!live) return el; el.classList.add('pfa-hot'); el.title = 'Click: its activity'; el.addEventListener('click', e => { e.stopPropagation(); open = !open; draw(); }); return el; };
+        const strip = hot(h('div.pv-pfa-strip', lv.map(l => h('i', { style: l ? { background: 'var(--hm-' + l + ')' } : null }))));
+        wrap.replaceChildren(h('div.pv-pfa', h('div.pv-pfa-h', h('b', 'Traction force'), h('div.pv-pfa-line', hot(h('span', 'activity 34 · 4 wk')), hot(h('span', 'active 2d ago')))), strip,
+          live && open ? h('div.pv-pfa-panel', h('div.r', h('b', '34'), h('span', 'activity · 4 wk'), h('span.pfa-st.sm.ok', 'active 2d ago')),
+            h('div.r', h('span', 'What moved'), 'Takeaway — the edge collapsed at 10 ng/mL', h('span', '+10')), h('div.r', h('span', 'Notes in their two weeks'), '30 kPa series Run 3')) : null),
+          PV.cap(live ? (open ? 'Its activity: why it is active, what moved, its notes and themes — ✕ or Esc closes it.' : 'Click the strip, the score or “active 2d ago” to open its activity.') : 'Off: the strips are plain, as before; #/activity is the old page.'));
+      };
+      draw(); return [wrap];
+    } });
   TabF('materials', 'materials', 'Materials', 'The Materials tab: gel batches, cell lines, antibody lots and the notes that used them.', () => [h('div.pv-list', [['PAA gel batch 15', '8 kPa · bench 3'], ['MDCK p12', 'LN2 box 2']].map(([a, b]) => h('div', h('b', a), h('span', b))))]);
   TabF('canvas', 'canvas', 'Spatial canvases (lab)', 'Canvases where components, structures, papers and datasets are arranged freely; drawn lines become real connections; export as JSON Canvas. An experiment: presets leave it as it is.', () => [PV.cap('A Canvas tab in the row.')],
     { keep: true, nb: true, get: () => CANVAS.on(), set: v => { if (CANVAS.on() !== !!v) CANVAS.toggleLab(); } });   // a lab experiment: presets leave it as it is

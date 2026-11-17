@@ -4,6 +4,56 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.19] — 2026-11-17 — Scientia: the Activity tab leaves; a project's or theme's activity opens from the Portfolio
+
+Gabe: "Remove Activity tab → Make the Activity interactable in Portfolio for each Project or Theme." — and: "The project or theme activity health you see in the Portfolio can be clicked on."
+
+App only (no lab-layer file changes).
+
+### Added
+- **`PFACT` (`scientia/src/19b-pfactivity.js`, new; registered in `CodeLog/features.json` under `scientia.portfolio`, related to `scientia.activity`).** The Portfolio's activity can be clicked. It works by wrapping `PortfolioView.detail`, `PFLIST.section`, `PortfolioView.render` and `ThemeView.render`; `PFACT.hot(el, scope, name, before)` makes each place a button (click, Enter or Space, never hover).
+  - **What opens the panel:**
+    - the open project's eight-week strip, "activity N · 4 wk" and "active Nd ago" / "stalled Nd";
+    - a theme section's strip, score and "stalled" pill;
+    - a row's strip in the list (it picks the project first);
+    - the theme page's eight weeks and its two activity tiles.
+  - **`PFACT.open(scope)`:** the panel for `{ kind: 'project' | 'theme', id }`, `{ kind: 'general' }` or `{ kind: 'all' }`. It sits at the right under the header (`aside.pfa`, a full-width sheet at 760 px or less) and closes with ✕ or Esc (`PFACT.close`, focus back where it was). It holds:
+    - the score, active or stalled and why (`PFACT.state`);
+    - what the score is made of (components +1, structures +3, takeaways and results +10) and how it is counted;
+    - eight weeks of activity;
+    - the time recorded (four weeks, seven days, and the heatmap of its themes);
+    - its themes, each opening its own (`PFACT.drill`, ‹ `PFACT.back`);
+    - its notes still in their two weeks;
+    - what moved: every moment that scored in the last four weeks, by day, each line going to it in its note (`PFACT.moments` over `PFKIT.events`).
+  - **The whole notebook:** the old tab's ten weeks, every theme on one scale and the weekly numbers.
+  - **Redraws:** it closes when you leave the Portfolio, project or theme pages, and draws again when something changes.
+- **`scientia/src/28-pfactivity.css` (new):** the buttons' ring, the panel, the narrow sheet, reduced motion, `body.f-off-pfactivity`, and the preview.
+- **Settings → Features → Tabs & overview → Portfolio activity** (`pfactivity`, in place of the Activity tab's switch):
+  - the switch: off, the strips are plain and `#/activity` is the old page;
+  - "The strips in the list open it too" (`rows`, on);
+  - a live preview whose strip opens a small panel, with its caption following.
+
+  `FEAT.audit()` is empty.
+
+### Changed
+- **The Activity tab leaves the tab row in every build** (`TABS`, `11-shell.js`). `#/activity`, and Today's "Activity →", open the Portfolio with the whole notebook in the panel.
+  - In the desktop lab build, 23d restores the app's `VIEWS.activity`; with no tab to restore, it adds none.
+  - The web build keeps the lab's pointer to RM's tracker (lab-mode §2).
+- **`ActivityView.byTheme(themes, weeks, cell)` and `ActivityView.weekly(n)`** are split out of its render (`19-activity.js`), for the panel.
+- **`PFKIT.events`** keeps each moment's block or item and its note (`{ t, s, b | it, d }`); the score is unchanged.
+- **`heatmapEl({ themeIds })`:** a project's themes together.
+- **MANUAL:** the Activity row of the tabs table, §19.
+
+### Tests
+| Test | Result |
+|---|---|
+| `fd_t` 1400 px, real pointer and keys. Covers: no Activity tab in the row; the open project's strip, score and state are buttons, each theme's strip and score too, and the list's strips; resting on a strip opens nothing; a click on the project's strip opens its panel at the right (its name, "active today", the score, why); its sections (Activity, Time recorded, Themes, Notes in their two weeks, What moved); 1 h 30 recorded in its themes; what the score is made of (3 components, 1 takeaway); Esc closes it, focus back on the strip; a theme's score opens the theme's panel; ✕ closes it; "active today" opens the project's; a theme in the panel opens its own, ‹ comes back; a line of What moved goes to its note and the panel closes; a row's strip in the list picks the project and opens its panel; `#/activity` opens the Portfolio with the whole notebook (Time by theme, Weekly numbers); leaving for another tab closes it; Today's "Activity →" opens it; the theme page's eight weeks and tiles open it; the list's strips setting; the switch off (plain strips, `#/activity` the old page) and on; the preview, and on its page in Settings (`#/settings/feature/pfactivity`, V4.12); `FEAT.audit()` empty; no sideways scroll; no errors | 27/27 |
+| `fd_t` 400 px (the panel a full-width sheet) | 26/26 |
+| `rev_t` (Review) · `mrv_t` (Monthly review) · `refs_t45` (References) | 32/32 · 28/28 · 28/28 |
+| `t_995` (Settings) | 27/27 on V4.11; on V4.12 it stops at its tile clicks (7/8) — the same on V4.12 without this change: it predates the feature pages |
+| `lablib_t4` (lab Library) | 18/18. A run under load can miss "Only yours": its `hl:granules` search takes 600–720 ms on this build and on V4.11 alike, against the test's 700 ms wait |
+| `v3869` lab-mode harness · `v3880` notes harness | 286/286 · 13/13 — V4.13–V4.22 stacked on V4.12 (one earlier run missed v3869's timed PDF-redraw check, 285/286, then 286/286 twice) |
+
 ## [V4.18] — 2026-11-17 — Scientia: a theme's aims are milestones — large goals measured by their deliverables (a Synthesis note, or a set of results, takeaways, verdicts…)
 
 Gabe: "Change the aims in a theme to milestones, which are large overarching goals that are measured in completeness via deliverables: either a synthesis note or a specific set of results, takeaways, verdicts, etc…"
