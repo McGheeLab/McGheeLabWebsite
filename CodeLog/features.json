@@ -1451,7 +1451,7 @@
    "id": "scientia.portfolio",
    "name": "Scientia Portfolio",
    "side": "scientia",
-   "summary": "Projects, themes and aims as the note hierarchy; general notes.",
+   "summary": "Projects, themes and their milestones (once aims; V4.18: measured by their deliverables) as the note hierarchy; general notes; theme banners and section icons (V4.17).",
    "keywords": [
     "portfolio",
     "project",
@@ -1463,7 +1463,8 @@
    "paths": [
     "scientia/src/15-portfolio.js",
     "scientia/src/15b-general.js",
-    "scientia/src/15f-banners.js"
+    "scientia/src/15f-banners.js",
+    "scientia/src/15g-milestones.js"
    ],
    "status": "active",
    "related": [

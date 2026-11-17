@@ -328,6 +328,20 @@ const PV = {
       T('compare', 'Compare with the month before', 'switch', { isNew: true, def: true }),
       T('preview', 'Preview the running month', 'switch', { get: () => !!settings().reviewPreview, set: v => { saveSettings({ reviewPreview: v }); changed(); } })],
     preview: () => typeof MONTHLY !== 'undefined' ? MONTHLY.preview() : [PV.cap('The monthly review.')] });
+  /* V4.18 — a theme's aims are milestones, measured by their deliverables (15g, 32-milestones.css) */
+  D({ id: 'milestones', group: 'time', label: 'Milestones', isNew: true, presets: { simple: true }, desc: 'A theme’s large, overarching goals (what were its aims), each measured by its deliverables: a Synthesis note, or a set of results, takeaways, verdicts… picked from your notes. Its completeness is the share delivered; + Milestone on the theme’s page, Re-scope… for a new version. Off: the milestones leave the theme and project pages and the Portfolio; nothing written is lost.',
+    tune: [T('synth', 'A Synthesis note delivers its deliverable once', 'seg', { isNew: true, def: 'written', opts: [['written', 'Its synthesis is written'], ['linked', 'It is linked']], d: 'Its synthesis: the “what this note adds up to” of the Synthesis note' })],
+    preview: () => {
+      const linkedOnly = (tune('milestones', 'synth') || 'written') === 'linked', flag = h('span.mi-flag'); flag.innerHTML = MILE.FLAG;
+      const row = (met, label, sub, w) => h('div.msrow.mi-row' + (met ? '.met' : ''), h('span.mi-tick' + (met ? '.on' : ''), met ? '✓' : ''), h('div.mi-main', h('div.mi-l', label), h('div.mi-sub', ...sub)), h('span.pill.mi-w', w));
+      const rows = [[true, '8 kPa series, synthesised', [h('span.mi-k', 'Synthesis note'), h('span', '↳ 8 kPa series — Synthesis'), h('span.mi-st.ok', 'its synthesis is written')], '34%'],
+        [linkedOnly, '30 kPa series, synthesised', [h('span.mi-k', 'Synthesis note'), h('span', '↳ 30 kPa series — Synthesis'), h('span.mi-st', linkedOnly ? 'linked' : 'write its synthesis to deliver it')], '33%'],
+        [false, 'Results across the stiffness range', [h('span.mi-k', 'Results · Verdicts'), h('span.mi-cnt', '2 of 3')], '33%']];
+      const pct = linkedOnly ? 67 : 34, done = rows.filter(r => r[0]).length;
+      return [h('div.pv-mi', h('div.row.mi-h', flag, h('b', { style: { flex: 1 } }, 'Map traction force against stiffness, 8–30 kPa'), h('span.mono.tiny.mi-pct', pct + '%')), h('div.bar', { style: { margin: '6px 0 8px' } }, h('i', { style: { width: pct + '%' } })),
+        h('div.mi-dlh', h('span', 'Deliverables'), h('span.mi-dln', done + ' of 3 delivered')), rows.map(r => row(...r))),
+        PV.cap(linkedOnly ? 'A Synthesis note counts as soon as it is linked.' : 'A Synthesis note counts once its synthesis is written; a set once as many as it asks for are picked.')];
+    } });
 
   D({ id: 'chores', group: 'time', label: 'Recurring chores', presets: { standard: false }, desc: 'Lab chores that repeat — the water bath, the CO₂ tank — due ones shown in the day note.',
     tune: [T('list', 'Chores', 'button', { button: 'Recurring chores…', run: () => CHORES.manage() })],

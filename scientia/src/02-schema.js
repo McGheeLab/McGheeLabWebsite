@@ -14,7 +14,7 @@ const STORES = {
   profiles:  { key: 'type', doc: 'Note types as data (§4) — a new type is a row' },
   projects:  { key: 'id',  doc: 'Funded, publishable wholes' },
   themes:    { key: 'id',  doc: 'Lines of attack inside a project (with lineage)', idx: ['projectId'] },
-  aims:      { key: 'id',  doc: 'Objectives on a theme; weighted milestones; versioned', idx: ['themeId'] },
+  aims:      { key: 'id',  doc: 'Milestones on a theme (V4.18; once aims): large goals measured by their deliverables — a Synthesis note or a set of components; versioned', idx: ['themeId'] },
   documents: { key: 'id',  doc: 'Notes: one session of work', idx: ['projectId', 'themeId', 'type'] },
   blocks:    { key: 'id',  doc: 'Components — the universal atom', idx: ['docId'] },
   items:     { key: 'id',  doc: 'Structures: claim, barrier, resolution… (claims & evidence are project records)', idx: ['kind', 'originDocId'] },
