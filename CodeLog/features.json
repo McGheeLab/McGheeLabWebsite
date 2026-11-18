@@ -1682,7 +1682,9 @@
     "scientia/src/13zzc-glue.js",
     "scientia/src/99z-pills.js",
     "scientia/vendor/lab-pills.js",
-    "scientia/src/31-pills.css"
+    "scientia/src/31-pills.css",
+    "scientia/src/13zzz-rotate.js",
+    "scientia/src/32-rotate.css"
    ],
    "related": [
     "rm.canvas-engine",

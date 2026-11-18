@@ -4,6 +4,52 @@ All notable changes to this project will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [V4.21] — 2026-11-17 — Scientia: Rotate in the ⊕ Zoom pill — the whole app a quarter turn clockwise at a time
+
+Gabe: "Add a Rotate button to the Zoom pill, flipping the entire app by 90 degrees clockwise." — and, on editing the lab layer for it: "Edit it, and make sure pills go in the repo as well."
+
+**Alex — this touches the lab layer:**
+- `rm/scientia/lab-mode.js` §11, the ⊕ Zoom pill only: one item (Rotate, fifth after in · 100 % · out · fit) and its icon.
+- `scripts/tests/v3869-scientia-lab-mode-harness.html`: ⊕ now has five items (the wheel and its docked column), plus one check that Rotate turns the app and that it comes back upright.
+
+The turn itself is the app's (`scientia/src/13zzz-rotate.js`).
+
+### Added
+- **⊕ → Rotate (lab-mode.js §11 `pillItems('view')`, `PILL_ICONS['rotate-cw']`, Lucide):** each tap calls `ROTATE.turn()` and repaints the pills; the wheel stays open (`keep`). It is shown only while the app has ROTATE and it is on. The cut (`vendor/lab-pills.js`, V4.20) is regenerated, so the app without the lab layer has it too.
+- **`ROTATE` (`scientia/src/13zzz-rotate.js`, new; `32-rotate.css`, new):**
+  - **State and commands:** `ROTATE.turn()` (90° more), `set(v)`, `stored()` (`_ls 'rotate'`, per device), `sync()` (upright while the feature is off), `show(v)` (`html.rot` / `rot-90` / `rot-180` / `rot-270` / `rot-q`, a `resize`, the pills repainted), `name(v)`.
+  - **The frame:** `<body>` is fixed, its own size (swapped at a quarter turn), and turned about its top-left corner with `translate(...) rotate(...)`. The app lays itself out in it, and everything fixed turns with it.
+  - **The browser's coordinates in the frame while turned** (each upright is the browser's own; `toFrame` / `toScreen` / `rect` / `vec`):
+    - `MouseEvent` (so `PointerEvent`) and `Touch` `clientX` / `clientY` / `pageX` / `pageY` / `x` / `y`, and `movementX` / `movementY` — only trusted events; a script's event is already in the frame;
+    - `Element` / `Range` `getBoundingClientRect` / `getClientRects`;
+    - `document.elementFromPoint` / `elementsFromPoint` / `caretRangeFromPoint` / `caretPositionFromPoint`;
+    - `innerWidth` / `innerHeight` and the root's `clientWidth` / `clientHeight`;
+    - the edge pan's mouse counter (`HANDS.feed`).
+  - **Viewport units:** `ROTATE.units()` writes `#rot-units`, the page's vw / vh rules again with the two swapped, for a quarter turn. It uses `:where(.rot-q)` (no added specificity), skips the turn's own `html.rot*` rules, and is rebuilt on each turn.
+  - **The way out:** Esc three times within 1.5 s, `?rotate=0`, and `/rotate` (alias `/turn`; `reset`, `90`, `180`, `270`).
+- **Settings → Features → Pen & touch → Rotate the app** (`rotate`, in Simple too):
+  - the switch (off: upright, the turn kept; no Rotate in ⊕; `/rotate` refuses);
+  - "On this device, the app is" Upright / 90° / 180° / 270° (bound to `ROTATE`);
+  - a live preview: the screen with the app turned in it.
+
+  `FEAT.audit()` is empty in both builds. `pills` and `rotate` are listed by `FEAT.undemoed()`: no recording yet.
+
+### Known
+- The browser's own popups stay upright on the screen: a `<select>`'s list, a `title` tooltip, a drag's ghost image.
+- `@media` widths and `matchMedia` follow the real screen.
+- Mouse wheels scroll along the app's axes, as the turned lists do natively.
+
+### Tests
+| Test | Result |
+|---|---|
+| `fe_t2` lab build 1400 px, real pointer events at the turned screen points. Covers: ⊕ has Rotate fifth; a tap turns the app 90° (frame 900 × 1400, the body the turned screen, kept on this device); `#rot-units`; the header along the screen's right edge; elementFromPoint finds the component; a real click puts the caret in it and typing lands; a drag by its date moves it under the pointer (+210, +140); a right-click opens the menu at the pointer inside the frame; a pen stroke lands under the pointer; Rotate → 180 / 270 / upright (frame and hit test each time; a click at 270 lands); the edge-pan push turned; Esc ×3; `/rotate` and `/rotate reset`; Settings → 180° turns at once with the preview; the switch off (upright, no Rotate, `/rotate` refuses) and on; a reload comes back at 270°; `?rotate=0`; `FEAT.audit()` empty; no errors | 24/24 |
+| `fe_t2` lab build 1024 px touch (taps) · 400 px | 20/20 · 24/24 |
+| `fe_t2` build without the lab layer 1400 px · 1024 px touch | 24/24 · 20/20 |
+| `fe_t3` both builds: the feature pages `#/settings/feature/pills` and `/rotate` with their previews; a real click on 90° turns the app; Upright clicked on the turned page puts it back; `FEAT.undemoed()` lists both | 7/7 · 7/7 |
+| `fe_t1` (V4.20 pills) lab · without the lab layer, 1400 px | 25/25 · 25/25 (one lab run missed the Pen tap's double-tap window under load, then 25/25 twice) |
+| `lbl_t` 1400 · 1024 touch · `cap_t` · `t_995` (V4.12's) · `sf_t` · `rep_t` · `refs_t45` | 37/37 · 37/37 · 25/25 · 27/27 · 29/29 · 19/19 · 28/28 |
+| `v3869` lab-mode harness · `v3880` notes harness | 286/286 · 13/13 — V4.13–V4.22 stacked on V4.12 (one earlier run missed v3869's timed PDF-redraw check, 285/286, then 286/286 twice) |
+
 ## [V4.20] — 2026-11-17 — Scientia: the pills on every note in every build — Gabe's own repo runs the lab's pill code too
 
 Gabe: "Add a Rotate button to the Zoom pill, flipping the entire app by 90 degrees clockwise." — asked whether the lab layer may be edited for it, he answered: "Edit it, and make sure pills go in the repo as well."

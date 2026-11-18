@@ -558,11 +558,15 @@
     ppe('pointerdown'); W.dispatchEvent(new W.PointerEvent('pointerup', { bubbles: true, clientX: pr.left + pr.width / 2, clientY: pr.top + pr.height / 2, pointerId: 9, pointerType: 'mouse' }));
     check('Zoom: a tap on the paper zooms in ×1.5 at the point', Math.abs(ev('DocView.paper.view.z') - Math.min(2, z0 * 1.5)) < 0.01, [z0, ev('DocView.paper.view.z')].join(' → '));
     W.SIS_LAB.setHand('move');
-    pill('view').querySelector('.lab-pill-btn').click(); await until(function () { return fanItems('view').length === 4; }, 2000);
+    pill('view').querySelector('.lab-pill-btn').click(); await until(function () { return fanItems('view').length === 5; }, 2000);   // V4.21: in · 100 % · out · fit · Rotate
     var z1 = ev('DocView.paper.view.z'); item('view', /^Zoom out/).click();
     check('⊕ View zooms out, and the % under it follows', Math.abs(ev('DocView.paper.view.z') - z1 * 0.8) < 0.01 && pill('view').querySelector('.lab-pill-pct').textContent === Math.round(ev('DocView.paper.view.z') * 100) + '%', pill('view').querySelector('.lab-pill-pct').textContent);
     item('view', /^100 %/).click();
     check('…100 % is one click', Math.abs(ev('DocView.paper.view.z') - 1) < 0.01);
+    /* V4.21 — ⊕'s fifth is Rotate: the whole app a quarter turn clockwise (the app's ROTATE), upright again at once */
+    var w0 = W.innerWidth, h0 = W.innerHeight, rot = item('view', /^Rotate/); if (rot) rot.click();
+    check('⊕ ends with Rotate (V4.21): a tap turns the app 90° clockwise — the frame is the screen turned', !!rot && fanItems('view').length === 5 && /^Rotate/.test(fanItems('view')[4].title || '') && ev('ROTATE').r === 90 && W.innerWidth === h0 && W.innerHeight === w0 && W.document.documentElement.classList.contains('rot-90'), JSON.stringify({ r: ev('ROTATE') && ev('ROTATE').r, w0: w0, h0: h0, w: W.innerWidth, h: W.innerHeight }));
+    ev('ROTATE').set(0, true); check('…and upright again', ev('ROTATE').r === 0 && W.innerWidth === w0 && !W.document.documentElement.classList.contains('rot'));
     pill('insert').querySelector('.lab-pill-btn').click(); await until(function () { return fanItems('insert').length > 1; }, 2000);
     var nb0 = ev("M.liveBlocks('" + an + "').length"), comp = item('insert', /^New /);
     check('＋ Insert fans out the most used inserts, with everything else under …', !!comp && !!item('insert', /^Everything that can go/) && !!item('insert', /lab library|paper/i));
@@ -669,7 +673,7 @@
     check('…the other wheels are still fans', !!(await until(function () { return pill('view').classList.contains('open') && pill('view').classList.contains('fanned') && !pill('view').classList.contains('docked'); }, 2000)) && pill('tools').classList.contains('docked'));
     var vdock = await until(function () { return pill('view').classList.contains('docked') && pill('view'); }, 3000); await sleep(900);
     var vpos = fanItems('view').map(function (b) { var r = b.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; });
-    check('⊕ Zoom left open falls into a column down the left side', !!vdock && vpos.length === 4 && vpos.every(function (p) { return Math.abs(p[0] - vpos[0][0]) < 2; }) && vpos.every(function (p, i) { return !i || p[1] > vpos[i - 1][1]; }), JSON.stringify(vpos));
+    check('⊕ Zoom left open falls into a column down the left side', !!vdock && vpos.length === 5 && vpos.every(function (p) { return Math.abs(p[0] - vpos[0][0]) < 2; }) && vpos.every(function (p, i) { return !i || p[1] > vpos[i - 1][1]; }), JSON.stringify(vpos));
     pill('insert').querySelector('.lab-pill-btn').click();
     var idock = await until(function () { return pill('insert').classList.contains('docked') && pill('insert'); }, 3000); await sleep(900);
     var ic = (function () { var r = pill('insert').getBoundingClientRect(); return (r.left + r.right) / 2; })(), ipos = fanItems('insert').map(function (b) { var r = b.getBoundingClientRect(); return [(r.left + r.right) / 2, Math.round(r.top)]; });
